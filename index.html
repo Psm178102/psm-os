@@ -1475,7 +1475,7 @@ const RD = {
   MKT_BASE: 'https://api.rdstation.com/2.0',
   MKT_TOKEN: null,
   syncing: false, lastSync: null,
-  _cache: {}, _cacheTTL: 3 * 60 * 1000, // 3 min cache
+  _cache: {}, _cacheTTL: 2 * 60 * 1000, // 2 min cache
   _progress: { total: 0, done: 0, label: '' },
 
   // Stage → frente + PSM name + weight
@@ -1630,7 +1630,7 @@ const RD = {
     }
 
     let all = [], page = 1, more = true, totalFailed = 0, totalAttempts = 0, lastError = '';
-    const BATCH = 3;
+    const BATCH = 4; // 4 páginas em paralelo
     console.log('[RD] Buscando', label, '...');
 
     while (more && page <= maxPages) {
@@ -1679,8 +1679,20 @@ const RD = {
     return all;
   },
 
+  // ── SMART FETCH: filtra por data para reduzir volume ──
+  _dateFilter(days) {
+    const d = new Date(); d.setDate(d.getDate() - days);
+    return '&created_at_period=' + d.toISOString().slice(0,10) + '&order_by=updated_at&order_type=desc';
+  },
+
   async fetchOpenDeals() {
-    return this._fetchPaginated('', 'Negociações abertas', 25, x => x.win === null || x.win === undefined);
+    // Open deals: busca só últimos 120 dias (cobre ciclo de venda)
+    // RD API: deals sem win definido = em andamento
+    return this._fetchPaginated(
+      this._dateFilter(120),
+      'Negociações abertas (120d)', 15,
+      x => x.win === null || x.win === undefined
+    );
   },
 
   async fetchLeads(page=1, limit=100) {
@@ -1694,11 +1706,19 @@ const RD = {
   },
 
   async fetchWonDeals() {
-    return this._fetchPaginated('&win=true', 'Negociações ganhas', 10, null);
+    // Won deals: últimos 90 dias
+    return this._fetchPaginated(
+      '&win=true' + this._dateFilter(90),
+      'Vendas fechadas (90d)', 8, null
+    );
   },
 
   async fetchLostDeals() {
-    return this._fetchPaginated('&win=false', 'Negociações perdidas', 15, null);
+    // Lost deals: últimos 60 dias
+    return this._fetchPaginated(
+      '&win=false' + this._dateFilter(60),
+      'Perdidas (60d)', 8, null
+    );
   },
 
   processDeals(deals, winStatus) {
