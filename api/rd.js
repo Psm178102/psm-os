@@ -1,3 +1,8 @@
+// ─── RD STATION PROXY (Vercel Serverless Function) ──────────────────────────
+// Rota: /api/rd?path=/deals&service=crm
+// Token: env var RD_CRM_TOKEN / RD_MKT_TOKEN (permanente, nunca expira)
+// Backup: header X-RD-Token do frontend
+
 const https = require('https');
 
 function httpsReq(url, opts = {}) {
@@ -17,6 +22,7 @@ function httpsReq(url, opts = {}) {
 }
 
 module.exports = async (req, res) => {
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-RD-Token');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -30,6 +36,7 @@ module.exports = async (req, res) => {
     const service = req.query.service || 'crm';
     const headerToken = req.headers['x-rd-token'] || '';
 
+    // Build forward params (exclude internal ones)
     const forwardParams = new URLSearchParams();
     Object.entries(req.query).forEach(([k, v]) => {
       if (k !== 'path' && k !== 'service' && v !== undefined) {
@@ -43,7 +50,10 @@ module.exports = async (req, res) => {
       const token = headerToken || process.env.RD_MKT_TOKEN || '';
       tokenSource = headerToken ? 'header' : (process.env.RD_MKT_TOKEN ? 'env' : 'none');
       if (!token) {
-        return res.status(401).json({ error: 'Token RD Marketing nao configurado' });
+        return res.status(401).json({
+          error: 'Token RD Marketing não configurado',
+          hint: 'Configure RD_MKT_TOKEN nas Environment Variables do Vercel.',
+        });
       }
       forwardParams.set('auth_token', token);
       url = 'https://api.rdstation.com/2.0' + path + '?' + forwardParams.toString();
@@ -51,13 +61,17 @@ module.exports = async (req, res) => {
       const token = headerToken || process.env.RD_CRM_TOKEN || '';
       tokenSource = headerToken ? 'header' : (process.env.RD_CRM_TOKEN ? 'env' : 'none');
       if (!token) {
-        return res.status(401).json({ error: 'Token RD CRM nao configurado' });
+        return res.status(401).json({
+          error: 'Token RD CRM não configurado',
+          hint: 'Configure RD_CRM_TOKEN nas Environment Variables do Vercel.',
+        });
       }
       forwardParams.set('token', token);
       url = 'https://crm.rdstation.com/api/v1' + path + '?' + forwardParams.toString();
     }
 
-    console.log('[RD Proxy]', req.method, service, path, 'via', tokenSource);
+    const safeUrl = url.replace(/token=[^&]+/g, 'token=***');
+    console.log(`[RD Proxy] ${req.method} ${service}${path} (via ${tokenSource}) → ${safeUrl}`);
 
     const fetchOpts = {
       method: req.method || 'GET',
@@ -69,12 +83,17 @@ module.exports = async (req, res) => {
 
     const resp = await httpsReq(url, fetchOpts);
 
+    console.log(`[RD Proxy] Response: ${resp.status} (${resp.body.length} bytes) via ${tokenSource}`);
+
     res.setHeader('X-Token-Source', tokenSource);
     res.setHeader('Content-Type', 'application/json');
     return res.status(resp.status).send(resp.body);
 
   } catch (err) {
-    console.error('[RD Proxy] Error:', err.message);
-    return res.status(500).json({ error: 'Erro no proxy RD: ' + err.message });
+    console.error('[RD Proxy] Exception:', err.message);
+    return res.status(500).json({
+      error: 'Erro no proxy RD: ' + err.message,
+      hint: 'Verifique se o token está correto e o RD Station está acessível.',
+    });
   }
 };
