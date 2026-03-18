@@ -1679,18 +1679,16 @@ const RD = {
     return all;
   },
 
-  // ── SMART FETCH: filtra por data para reduzir volume ──
-  _dateFilter(days) {
-    const d = new Date(); d.setDate(d.getDate() - days);
-    return '&created_at_period=' + d.toISOString().slice(0,10) + '&order_by=updated_at&order_type=desc';
+  // ── SMART FETCH: ano completo para métricas, ordenado por update ──
+  _yearStart() {
+    return new Date().getFullYear() + '-01-01';
   },
 
   async fetchOpenDeals() {
-    // Open deals: busca só últimos 120 dias (cobre ciclo de venda)
-    // RD API: deals sem win definido = em andamento
+    // Pipeline ativo: todas abertas do ano + ordenadas por atualização recente
     return this._fetchPaginated(
-      this._dateFilter(120),
-      'Negociações abertas (120d)', 15,
+      '&created_at_period=' + this._yearStart() + '&order_by=updated_at&order_type=desc',
+      'Pipeline ativo ' + new Date().getFullYear(), 20,
       x => x.win === null || x.win === undefined
     );
   },
@@ -1706,18 +1704,18 @@ const RD = {
   },
 
   async fetchWonDeals() {
-    // Won deals: últimos 90 dias
+    // Vendas ganhas: ano inteiro para métricas anuais/semestrais/trimestrais/mensais
     return this._fetchPaginated(
-      '&win=true' + this._dateFilter(90),
-      'Vendas fechadas (90d)', 8, null
+      '&win=true&created_at_period=' + this._yearStart() + '&order_by=updated_at&order_type=desc',
+      'Vendas ' + new Date().getFullYear(), 15, null
     );
   },
 
   async fetchLostDeals() {
-    // Lost deals: últimos 60 dias
+    // Perdidas: ano inteiro para análise de motivos e taxa de conversão
     return this._fetchPaginated(
-      '&win=false' + this._dateFilter(60),
-      'Perdidas (60d)', 8, null
+      '&win=false&created_at_period=' + this._yearStart() + '&order_by=updated_at&order_type=desc',
+      'Perdidas ' + new Date().getFullYear(), 15, null
     );
   },
 
