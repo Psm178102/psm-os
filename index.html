@@ -1730,10 +1730,15 @@ const RD = {
       const broker  = bid ? UM[bid] : null;
       const rdName  = d.user?.name || d.user?.nome || '—';
 
-      // Determine frente
+      // Determine frente from stage mapping or deal pipeline
       let frente = stInfo ? stInfo.frente : 'lancamento';
-      // Conquista override: mesmo funil que lançamento, mas corretor é conquista
-      if (frente === 'lancamento' && bid) {
+      // Also check deal_pipeline name for frente detection
+      const plName = (d.deal_pipeline?.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (plName.includes('terceiro')) frente = 'terceiros';
+      else if (plName.includes('locac') || plName.includes('aluguel')) frente = 'locacao';
+      else if (plName.includes('conquista')) frente = 'conquista';
+      // Conquista override: same pipeline as lançamento, but broker is conquista team
+      else if (frente === 'lancamento' && bid) {
         const bUser = USERS_BASE.find(u => u.id === bid);
         if (bUser && bUser.frente === 'conquista') frente = 'conquista';
         else if (bUser && bUser.frente) frente = bUser.frente;
@@ -1781,7 +1786,120 @@ const RD = {
     try {
       // Fetch all 3 types in parallel with progress
       console.log('[RD sync] Iniciando sync completo...');
-      this._updateProgress('Conectando ao RD Station...', 0, 3);
+      this._updateProgress('Conectando ao RD Station...', 0, 4);
+
+      // ── STEP 1: Fetch users and pipelines from RD CRM ──
+      this._updateProgress('Carregando equipe e pipelines...', 0, 4);
+      try {
+        const [usersResp, pipelinesResp] = await Promise.all([
+          this.req('/users').catch(e => { console.warn('[RD] Users fetch failed:', e.message); return []; }),
+          this.req('/deal_pipelines').catch(e => { console.warn('[RD] Pipelines fetch failed:', e.message); return { deal_pipelines: [] }; }),
+        ]);
+
+        // Update users dynamically
+        const rdUsers = Array.isArray(usersResp) ? usersResp : (usersResp.users || []);
+        if (rdUsers.length > 0) {
+          console.log('[RD sync] Encontrados', rdUsers.length, 'usuários no RD CRM');
+          // Map RD pipeline names to frente IDs
+          const PIPELINE_FRENTE_MAP = {
+            'lancamento': 'lancamento', 'lançamento': 'lancamento',
+            'map': 'lancamento', 'assessoria': 'lancamento',
+            'conquista': 'conquista',
+            'terceiro': 'terceiros', 'terceiros': 'terceiros',
+            'locacao': 'locacao', 'locação': 'locacao', 'aluguel': 'locacao',
+          };
+
+          const activeRdUsers = rdUsers.filter(u => u.active !== false);
+          // Merge with existing USERS_BASE — keep existing data, add new ones
+          activeRdUsers.forEach(rdu => {
+            const rdId = rdu._id || rdu.id;
+            const existing = USERS_BASE.find(u => u.rdId === rdId);
+            if (!existing) {
+              // New user from RD — add them
+              const nameParts = (rdu.name || '').split(' ');
+              const ini = nameParts.length >= 2
+                ? (nameParts[0][0] + nameParts[nameParts.length-1][0]).toUpperCase()
+                : (rdu.nickname || rdu.name || 'XX').slice(0,2).toUpperCase();
+              const colors = ['#0f172a','#1e293b','#0d9488','#7c3aed','#dc2626','#0891b2','#16a34a','#a21caf','#9333ea','#15803d'];
+              const color = colors[Math.abs(rdId.charCodeAt(rdId.length-1)) % colors.length];
+
+              USERS_BASE.push({
+                id: rdId.slice(-8),
+                name: rdu.name || rdu.nickname || 'Sem Nome',
+                ini, color,
+                role: 'corretor',
+                frente: 'lancamento', // default, will be overridden by deal pipeline
+                email: rdu.email || '',
+                rdId,
+                st: 'online',
+                meta: 800000, crm: 70,
+                _fromRD: true,
+              });
+              console.log('[RD sync] Novo corretor adicionado:', rdu.name, rdId);
+            } else {
+              // Update name if changed
+              if (rdu.name && rdu.name !== existing.name) {
+                existing.name = rdu.name;
+              }
+            }
+          });
+
+          // Remove users that are no longer active in RD (except socios/gerentes)
+          const activeRdIds = new Set(activeRdUsers.map(u => u._id || u.id));
+          USERS_BASE.forEach(u => {
+            if (u.rdId && !activeRdIds.has(u.rdId) && u.role === 'corretor' && u._fromRD) {
+              u._inactive = true;
+              console.log('[RD sync] Corretor desativado:', u.name);
+            }
+          });
+
+          // Rebuild USERS/BROKERS/UM
+          USERS = buildUsers().filter(u => !u._inactive);
+          UM = Object.fromEntries(USERS.map(u => [u.id, u]));
+          BROKERS = USERS.filter(u => ['corretor','lider'].includes(u.role));
+        }
+
+        // Update pipelines/stages dynamically
+        const pipelines = pipelinesResp.deal_pipelines || pipelinesResp || [];
+        if (Array.isArray(pipelines) && pipelines.length > 0) {
+          console.log('[RD sync] Encontrados', pipelines.length, 'pipelines');
+          // Update RD.STAGES with real stage IDs from pipelines
+          pipelines.forEach(pl => {
+            const plName = (pl.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            let frente = 'lancamento';
+            if (plName.includes('terceiro')) frente = 'terceiros';
+            else if (plName.includes('locac') || plName.includes('aluguel')) frente = 'locacao';
+            else if (plName.includes('conquista')) frente = 'conquista';
+
+            const stages = pl.deal_stages || [];
+            stages.forEach((st, idx) => {
+              const stId = st._id || st.id;
+              if (!RD.STAGES[stId]) {
+                // Map stage position to PSM stage names
+                const pct = stages.length > 1 ? idx / (stages.length - 1) : 0.5;
+                let psm = 'tent_contato';
+                if (pct < 0.1) psm = 'carteira';
+                else if (pct < 0.2) psm = 'novo_atend';
+                else if (pct < 0.3) psm = 'tent_contato';
+                else if (pct < 0.4) psm = 'contato_4p';
+                else if (pct < 0.5) psm = 'agendamento';
+                else if (pct < 0.6) psm = 'vis_agend';
+                else if (pct < 0.7) psm = 'vis_real';
+                else if (pct < 0.8) psm = 'quente';
+                else if (pct < 0.9) psm = 'proposta';
+                else psm = 'contrato';
+
+                RD.STAGES[stId] = { frente, psm, w: Math.round(pct * 100) / 100 };
+                console.log('[RD sync] Nova etapa mapeada:', st.name, '→', frente + '/' + psm);
+              }
+            });
+          });
+        }
+      } catch(e) {
+        console.warn('[RD sync] Erro ao buscar users/pipelines (continuando com dados locais):', e.message);
+      }
+
+      this._updateProgress('Buscando negociações...', 1, 4);
       const [openDeals, wonDeals, lostDeals] = await Promise.all([
         this.fetchOpenDeals(),
         this.fetchWonDeals(),
@@ -1896,7 +2014,7 @@ const RD = {
       METRICS.vend_real = S.wonTotal || 0;
       METRICS.vis_real  = BROKERS.reduce((a,b) => a + (b.vis||0), 0);
 
-      this._updateProgress('Processando dados...', 3, 3);
+      this._updateProgress('Processando dados...', 4, 4);
 
       const elapsed = ((Date.now()-t0)/1000).toFixed(1);
       console.log('[RD sync] ✅ Concluído em', elapsed+'s');
@@ -2985,6 +3103,8 @@ function pgRDConfig() {
     + Kpi('Perdidos', S.lostTotal||0, (S.lossReasons?.[0] ? 'Top: '+S.lossReasons[0][0] : ''), null, 'var(--r)')
     + Kpi('Última Sync', last, 'auto a cada 5 min', null, 'var(--b)')
     + Kpi('Ticket Médio', fmt(S.ticketMedioGeral||0), 'vendas fechadas', null, 'var(--gold)')
+    + Kpi('Agendamentos', OPPS.filter(o=>['agendamento','vis_agend'].includes(o.st_psm)).length, 'pipeline ativo', null, 'var(--b)')
+    + Kpi('Visitas Realizadas', OPPS.filter(o=>['vis_real'].includes(o.st_psm)).length + (S.wonTotal||0), 'confirmadas + vendidas', null, 'var(--pu)')
     + '</div>'
 
     // ── PROGRESS ──
