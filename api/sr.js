@@ -1,3 +1,7 @@
+// ─── SR. PERFORMANCE (Google Gemini AI Proxy) ────────────────────────────────
+// Vercel Serverless Function — proxies to Google Gemini API
+// Env var: GEMINI_API_KEY (get free at aistudio.google.com/apikey)
+
 const https = require('https');
 
 function httpsReq(url, opts = {}) {
@@ -25,29 +29,56 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured. Add it in Vercel Environment Variables.' });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(200).json({
+        content: [{ type: 'text', text: '⚠️ Sr. Performance precisa da GEMINI_API_KEY.\n\n1. Acesse aistudio.google.com/apikey\n2. Clique "Create API Key"\n3. Copie a chave AIza...\n4. Vá em Vercel > Settings > Environment Variables\n5. Adicione GEMINI_API_KEY com o valor da chave' }]
+      });
+    }
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const systemPrompt = body.system || '';
+    const messages = body.messages || [];
 
-    const resp = await httpsReq('https://api.anthropic.com/v1/messages', {
+    // Convert messages to Gemini format
+    const contents = [];
+    if (systemPrompt) {
+      contents.push({ role: 'user', parts: [{ text: 'SYSTEM INSTRUCTIONS: ' + systemPrompt }] });
+      contents.push({ role: 'model', parts: [{ text: 'Entendido. Vou seguir essas instruções.' }] });
+    }
+    messages.forEach(m => {
+      contents.push({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      });
+    });
+
+    const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+
+    const resp = await httpsReq(geminiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: body.model || 'claude-haiku-4-5-20251001',
-        max_tokens: body.max_tokens || 1024,
-        system: body.system || '',
-        messages: body.messages || [],
+        contents,
+        generationConfig: {
+          maxOutputTokens: body.max_tokens || 1024,
+          temperature: 0.7,
+        },
       }),
     });
 
+    const geminiData = JSON.parse(resp.body);
+    const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'Não consegui responder. Verifique a GEMINI_API_KEY.';
+
     res.setHeader('Content-Type', 'application/json');
-    return res.status(resp.status).send(resp.body);
+    return res.status(200).json({
+      content: [{ type: 'text', text }]
+    });
+
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('[SR] Error:', err.message);
+    return res.status(200).json({
+      content: [{ type: 'text', text: '⚠️ Erro no Sr. Performance: ' + err.message }]
+    });
   }
 };
