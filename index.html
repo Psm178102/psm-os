@@ -1090,17 +1090,21 @@ function frenteStats(){
 // ─── PAGE: DASHBOARD ─────────────────────────────────────────────────────────
 function pgDashboard(){
   const df=DateFilter('dash','Período');
+  const fOPPS = applyDateFilter(OPPS, 'dash');
+  const fVENDAS = applyDateFilter(VENDAS, 'dash');
+  const fLOST = applyDateFilter(LOST_DEALS, 'dash');
 
   const m=METRICS;
-  const pW=OPPS.reduce((a,o)=>{const stages=FUNIS[o.fr]||FUNIS.lancamento||[];const s=stages.find?stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st)):null;return a+(o.vgv*(s?s.w:.1));},0);
+  const pW=fOPPS.reduce((a,o)=>{const stages=FUNIS[o.fr]||FUNIS.lancamento||[];const s=stages.find?stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st)):null;return a+(o.vgv*(s?s.w:.1));},0);
   const fs=frenteStats();
   return '<div class="phd"><div class="phd-row"><div><h1>Dashboard Executivo</h1><p>'+m.mes+' · '+m.du_pass+'/'+m.du_tot+' dias úteis · '+m.du_rest+' restantes</p></div></div></div>'
   +'<div class="kgrid">'
-  +Kpi('VGV Realizado',fmt(m.vgv_real),'Meta: '+fmt(m.vgv_meta),{up:pN(m.vgv_real,m.vgv_meta)>=70,txt:pS(m.vgv_real,m.vgv_meta)+' da meta'},'#0f172a')
-  +Kpi('Vendas',m.vend_real,'Meta: '+m.vend_meta,{up:true,txt:pS(m.vend_real,m.vend_meta)},'#d4a843')
-  +Kpi('Pipeline',fmt(m.pipeline),OPPS.length+' oportunidades',null,'#8b5cf6')
+  +Kpi('VGV Realizado',fmt(fVENDAS.reduce((a,v)=>a+(v.vgv||0),0)),'Meta: '+fmt(m.vgv_meta)+' · '+fVENDAS.length+' vendas',{up:pN(fVENDAS.reduce((a,v)=>a+(v.vgv||0),0),m.vgv_meta)>=70,txt:pS(fVENDAS.reduce((a,v)=>a+(v.vgv||0),0),m.vgv_meta)+' da meta'},'#0f172a')
+  +Kpi('Vendas',fVENDAS.length,'Meta: '+m.vend_meta+' · '+fLOST.length+' perdidas',{up:fVENDAS.length>0,txt:pS(fVENDAS.length,m.vend_meta)},'#d4a843')
+  +Kpi('Pipeline',fmt(fOPPS.reduce((a,o)=>a+(o.vgv||0),0)),fOPPS.length+' oportunidades',null,'#8b5cf6')
   +Kpi('Pipeline Pond.',fmt(Math.round(pW)),'Por peso de etapa',null,'#3b82f6')
-  +Kpi('Leads',m.leads,m.leads_val+' qualificados',null,'#f59e0b')
+  +Kpi('Perdidas',fLOST.length,'VGV: '+fmt(fLOST.reduce((a,l)=>a+(l.vgv||0),0)),null,'#ef4444')
+  +Kpi('Conversão',((fVENDAS.length/Math.max(1,fVENDAS.length+fLOST.length))*100).toFixed(1)+'%','ganhas vs perdidas',null,'#0d9488')
   +Kpi('Visitas',m.vis_real,'Meta: '+m.vis_meta,{up:pN(m.vis_real,m.vis_meta)>=80,txt:pS(m.vis_real,m.vis_meta)},'#22c55e')
   +Kpi('Corretores',BROKERS.filter(b=>b.st==='online').length+' online','de '+BROKERS.length+' total',null,'#0d9488')
   +Kpi('CRM Score',m.crm_medio+' pts','média da equipe',{up:m.crm_medio>=80,txt:m.crm_medio>=80?'Bom':'Atenção'},m.crm_medio>=80?'var(--g)':'var(--a)')
@@ -1137,6 +1141,7 @@ function pgRanking(){
       {id:'vgv_pipe',  label:'VGV Pipeline',     fmt:fmt},
       {id:'vgv_real',  label:'VGV Realizado',    fmt:fmt},
       {id:'vend',      label:'Vendas',           fmt:v=>v},
+      {id:'descartados', label:'Perdidas',       fmt:v=>v},
       {id:'agend',     label:'Agendamentos',     fmt:v=>v},
       {id:'vis',       label:'Visitas',          fmt:v=>v},
       {id:'prop',      label:'Propostas',        fmt:v=>v},
@@ -1151,7 +1156,7 @@ function pgRanking(){
           +'<td style="font-size:14px;text-align:center">'+medal(i)+'</td>'
           +'<td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+b.name+'</span></div></td>'
           +'<td>'+FTag(b.frente)+'</td>'
-          +rdCols.map(c=>{const val=c.id==='vgv_pipe'?b.vgv||0:c.id==='vgv_real'?b.vgv_real||0:b[c.id]||0;return'<td style="text-align:right;font-size:11.5px;font-weight:600;color:'+(c.id==='vgv_real'||c.id==='vgv_pipe'?'var(--navy)':c.id==='crm'?(b.crm>=80?'var(--g-tx)':b.crm>=65?'var(--a-tx)':'var(--r-tx)'):'inherit')+'">'+c.fmt(val)+'</td>';}).join('')
+          +rdCols.map(c=>{const val=c.id==='vgv_pipe'?b.vgv||0:c.id==='vgv_real'?b.vgv_real||0:c.id==='descartados'?LOST_DEALS.filter(l=>l.bid===b.id).length:b[c.id]||0;return'<td style="text-align:right;font-size:11.5px;font-weight:600;color:'+(c.id==='vgv_real'||c.id==='vgv_pipe'?'var(--navy)':c.id==='crm'?(b.crm>=80?'var(--g-tx)':b.crm>=65?'var(--a-tx)':'var(--r-tx)'):'inherit')+'">'+c.fmt(val)+'</td>';}).join('')
           +'</tr>').join('')
         +'</tbody></table></div></div>';
     } else {
@@ -1288,6 +1293,7 @@ function pgFrente(fid){
   +Kpi('Ponderado',fmt(Math.round(pW)),'por peso',null,f.color)
   +Kpi('Vendas',bks.reduce((a,b)=>a+(b.vendas||0),0),'realizadas',null,f.color)
   +Kpi('VGV Realizado',fmt(vgvT),pS(vgvT,metaT)+' da meta',null,f.color)
+  +Kpi('Perdidas',LOST_DEALS.filter(l=>l.fr===fid).length,'VGV: '+fmt(LOST_DEALS.filter(l=>l.fr===fid).reduce((a,l)=>a+(l.vgv||0),0)),null,'var(--r)')
   +Kpi('CRM Score',crmA+' pts',crmA>=80?'Bom':'Atenção',null,crmA>=80?'var(--g)':'var(--a)')
   +'</div>'
   +'<div class="g2 mb2">'
@@ -2201,6 +2207,30 @@ function DateFilter(prefix, label) {
 }
 function setDF(prefix, preset)     { S['df_'+prefix] = {preset}; render(); }
 function setDFDate(prefix,field,v) { const df=S['df_'+prefix]||{preset:'Custom'}; df[field]=v; df.preset='Custom'; S['df_'+prefix]=df; render(); }
+
+// Universal date filter for deals based on DateFilter selection
+function applyDateFilter(deals, prefix) {
+  const df = S['df_'+prefix] || {preset:'Ano'};
+  const now = new Date();
+  let from, to;
+
+  if (df.preset === 'Custom') {
+    from = df.from ? new Date(df.from) : new Date(now.getFullYear(), 0, 1);
+    to = df.to ? new Date(df.to + 'T23:59:59') : now;
+  } else if (df.preset === 'Ano') {
+    from = new Date(now.getFullYear(), 0, 1);
+    to = now;
+  } else {
+    const days = parseInt(df.preset) || 30;
+    from = new Date(now.getTime() - days * 86400000);
+    to = now;
+  }
+
+  return deals.filter(d => {
+    const dt = new Date(d.createdAt || d.updated_at || d.closedAt || '');
+    return !isNaN(dt.getTime()) && dt >= from && dt <= to;
+  });
+}
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
 function renderLogin() {
