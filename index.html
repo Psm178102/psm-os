@@ -485,6 +485,7 @@ html{height:100%;overflow:hidden}
 .loading-spin{width:42px;height:42px;border:3px solid rgba(255,255,255,.15);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
 .loading-text{color:#fff;font-size:13px;font-weight:600;letter-spacing:.5px;font-family:var(--font)}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes tickerScroll{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
 
 /* EMPTY STATE IMPROVEMENTS */
 .empty-card{text-align:center;padding:40px 24px;color:var(--muted)}
@@ -1354,6 +1355,240 @@ function pgFrente(fid){
   +'<div class="card"><div class="ctitle">Oportunidades Ativas</div><div class="tw"><table class="tbl"><thead><tr><th>ID</th><th>Cliente</th><th>Corretor</th><th>Etapa</th><th>VGV</th><th>SLA</th><th>Update</th><th>CRM</th></tr></thead><tbody>'
   +opps.map(o=>'<tr style="background:'+(o.sla==='overdue'?'rgba(239,68,68,.03)':o.dnu>=3?'rgba(245,158,11,.03)':'')+'"><td class="tmono">'+o.id+'</td><td style="font-weight:600;font-size:12px">'+o.cl+'</td><td><div class="flex aic gap1">'+Av(UM[o.bid],'xs')+'<span>'+o.bn.split(' ')[0]+'</span></div></td><td>'+StgChip(o.fr,o.st)+'</td><td class="tr">'+fmt(o.vgv)+'</td><td>'+SlaIco(o.sla)+'</td><td class="tr" style="color:'+(o.dnu>=3?'var(--r-tx)':'inherit')+';font-weight:'+(o.dnu>=3?700:400)+'">'+o.dnu+'d</td><td style="min-width:85px">'+CrmBar(o.crm)+'</td></tr>').join('')
   +'</tbody></table></div></div>';
+}
+
+// ─── PAGE: WAR ROOM ─────────────────────────────────────────────────────────────
+function pgWarRoom(){
+  // ── XP System ──
+  const XP_TABLE = {
+    checklist_inicio: 50, checklist_fim: 50,
+    primeiro_contato: 100, followup: 20,
+    agendamento: 200, visita: 500, proposta: 1000,
+    venda_ads: 2000, venda_reaquecimento: 2500, venda_plantao: 3000,
+    venda_indicacao: 3500, venda_carteira: 4000, venda_evento: 4200,
+  };
+
+  function getPatente(xp) {
+    if (xp >= 30000) return {nome:'ELITE PSM',cor:'#d4a843',ico:'🏆',glow:'rgba(212,168,67,.4)'};
+    if (xp >= 14001) return {nome:'ESPECIALISTA',cor:'#8b5cf6',ico:'⭐',glow:'rgba(139,92,246,.3)'};
+    if (xp >= 2001) return {nome:'OPERADOR',cor:'#3b82f6',ico:'🎖',glow:'rgba(59,130,246,.3)'};
+    return {nome:'RECRUTA',cor:'#64748b',ico:'🔰',glow:'rgba(100,116,139,.2)'};
+  }
+
+  // ── Calculate XP for each broker ──
+  const brokerXP = BROKERS.map(b => {
+    const bOpps = OPPS.filter(o => o.bid === b.id);
+    const bWon = VENDAS.filter(v => v.bid === b.id);
+    const bLost = LOST_DEALS.filter(l => l.bid === b.id);
+
+    // XP from pipeline stages
+    let xp = 0;
+    xp += bOpps.filter(o => ['agendamento','vis_agend'].includes(o.st_psm)).length * XP_TABLE.agendamento;
+    xp += bOpps.filter(o => o.st_psm === 'vis_real').length * XP_TABLE.visita;
+    xp += bOpps.filter(o => o.st_psm === 'proposta').length * XP_TABLE.proposta;
+    xp += bOpps.length * XP_TABLE.followup; // follow-ups
+
+    // XP from won deals (by source)
+    bWon.forEach(v => {
+      const src = (v.ori || '').toLowerCase();
+      if (src.includes('ads') || src.includes('trafego') || src.includes('pago')) xp += XP_TABLE.venda_ads;
+      else if (src.includes('reaquec') || src.includes('base')) xp += XP_TABLE.venda_reaquecimento;
+      else if (src.includes('plantao') || src.includes('roleta')) xp += XP_TABLE.venda_plantao;
+      else if (src.includes('indica')) xp += XP_TABLE.venda_indicacao;
+      else if (src.includes('carteira') || src.includes('network') || src.includes('propri')) xp += XP_TABLE.venda_carteira;
+      else if (src.includes('evento') || src.includes('rodada') || src.includes('ativo')) xp += XP_TABLE.venda_evento;
+      else xp += XP_TABLE.venda_plantao; // default
+    });
+
+    // Score (0-100) — weighted average
+    const discScore = Math.min(100, (b.crm || 20)); // discipline
+    const convRate = (bWon.length + bLost.length) > 0 ? (bWon.length / (bWon.length + bLost.length)) * 100 : 50;
+    const actScore = Math.min(100, bOpps.length * 8); // activity
+    const score = Math.round(discScore * 0.4 + convRate * 0.4 + actScore * 0.2);
+
+    const patente = getPatente(xp);
+    return { ...b, xp, score, patente, wonCount: bWon.length, lostCount: bLost.length, oppsCount: bOpps.length };
+  }).sort((a, b) => b.xp - a.xp);
+
+  // ── KPIs ──
+  const leadsUTI = OPPS.filter(o => o.dnu >= 5).length;
+  const utiColor = leadsUTI === 0 ? 'var(--g)' : leadsUTI <= 3 ? 'var(--a)' : 'var(--r)';
+  const utiPulse = leadsUTI > 3 ? ';animation:pulse 1s infinite' : '';
+  const visHoje = BROKERS.reduce((a, b) => a + (b.vis || 0), 0);
+  const visMeta = 10;
+  const vgvProposta = OPPS.filter(o => ['proposta', 'quente', 'contrato'].includes(o.st_psm)).reduce((a, o) => a + (o.vgv || 0), 0);
+  const totalXP = brokerXP.reduce((a, b) => a + b.xp, 0);
+
+  // ── Auto-rotation state ──
+  const wrMode = S.wrMode || 'geral'; // geral | equipe
+
+  // ── Ticker messages ──
+  const tickers = [];
+  brokerXP.filter(b => b.score < 45).forEach(b => tickers.push('⚠️ '+b.name+' — Score '+b.score+'. Disciplina de CRM precisa melhorar!'));
+  brokerXP.filter(b => b.score >= 85).forEach(b => tickers.push('🔥 '+b.name+' está voando! Score '+b.score+' — Elite performance!'));
+  if (VENDAS.length > 0) {
+    const lastSale = [...VENDAS].sort((a,b) => new Date(b.closedAt||0)-new Date(a.closedAt||0))[0];
+    if (lastSale) tickers.push('🏆 Última venda: '+lastSale.cl+' por '+(UM[lastSale.bid]||{}).name+' — '+fmt(lastSale.vgv));
+  }
+  if (tickers.length === 0) tickers.push('⚔️ War Arena PSM — Performance em tempo real');
+
+  return '<div style="background:#1c1c1c;min-height:calc(100vh - var(--hdr));margin:-28px -32px;padding:24px 28px;color:#fff;font-family:var(--font)">'
+
+    // ── Header ──
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">'
+    + '<div style="display:flex;align-items:center;gap:14px">'
+    + '<div style="font-size:32px">⚔️</div>'
+    + '<div><div style="font-size:22px;font-weight:900;letter-spacing:2px;background:linear-gradient(135deg,#d4a843,#f5dfa0);-webkit-background-clip:text;-webkit-text-fill-color:transparent">WAR ARENA PSM</div>'
+    + '<div style="font-size:10px;color:#94a3b8;letter-spacing:3px;text-transform:uppercase">Performance em tempo real</div></div>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px">'
+    + '<button class="btn bsm'+(wrMode==='geral'?' bp1':' bout')+'" style="color:'+(wrMode==='geral'?'#fff':'#94a3b8')+'" onclick="S.wrMode=\'geral\';render()">Ranking Geral</button>'
+    + '<button class="btn bsm'+(wrMode==='equipe'?' bp1':' bout')+'" style="color:'+(wrMode==='equipe'?'#fff':'#94a3b8')+'" onclick="S.wrMode=\'equipe\';render()">Por Equipe</button>'
+    + '<button class="btn bsm bout" style="color:#d4a843" onclick="openWarRoomTV()">📺 Modo TV</button>'
+    + '</div></div>'
+
+    // ── KPI Bar ──
+    + '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px">'
+
+    // Leads UTI
+    + '<div style="background:#242424;border-radius:14px;padding:18px;border:1px solid #333;text-align:center;position:relative;overflow:hidden">'
+    + '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Leads na UTI</div>'
+    + '<div style="font-size:36px;font-weight:900;color:'+utiColor+''+utiPulse+'">'+leadsUTI+'</div>'
+    + '<div style="font-size:9px;color:#64748b">sem update > 5 dias</div>'
+    + '</div>'
+
+    // Visitas Hoje
+    + '<div style="background:#242424;border-radius:14px;padding:18px;border:1px solid #333;text-align:center">'
+    + '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Visitas</div>'
+    + '<div style="font-size:36px;font-weight:900;color:#3b82f6">'+visHoje+'<span style="font-size:14px;color:#64748b"> / '+visMeta+'</span></div>'
+    + '<div style="height:4px;background:#333;border-radius:99px;margin-top:8px"><div style="height:100%;width:'+Math.min(100,Math.round(visHoje/visMeta*100))+'%;background:#3b82f6;border-radius:99px"></div></div>'
+    + '</div>'
+
+    // VGV Proposta
+    + '<div style="background:#242424;border-radius:14px;padding:18px;border:1px solid #333;text-align:center">'
+    + '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">VGV em Proposta</div>'
+    + '<div style="font-size:28px;font-weight:900;color:#d4a843">'+fmt(vgvProposta)+'</div>'
+    + '<div style="font-size:9px;color:#64748b">quentes + propostas</div>'
+    + '</div>'
+
+    // Total XP
+    + '<div style="background:#242424;border-radius:14px;padding:18px;border:1px solid #333;text-align:center">'
+    + '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">XP Total Equipe</div>'
+    + '<div style="font-size:28px;font-weight:900;color:#8b5cf6">'+totalXP.toLocaleString('pt-BR')+'</div>'
+    + '<div style="font-size:9px;color:#64748b">pontos acumulados</div>'
+    + '</div>'
+
+    // Vendas
+    + '<div style="background:#242424;border-radius:14px;padding:18px;border:1px solid #333;text-align:center">'
+    + '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Vendas Fechadas</div>'
+    + '<div style="font-size:36px;font-weight:900;color:#22c55e">'+VENDAS.length+'</div>'
+    + '<div style="font-size:9px;color:#64748b">'+fmt(VENDAS.reduce((a,v)=>a+(v.vgv||0),0))+' VGV</div>'
+    + '</div>'
+    + '</div>'
+
+    // ── Ranking Table ──
+    + '<div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">'
+
+    // LEFT: Ranking
+    + '<div style="background:#242424;border-radius:14px;border:1px solid #333;overflow:hidden">'
+    + '<div style="padding:16px 20px;border-bottom:1px solid #333;display:flex;align-items:center;justify-content:space-between">'
+    + '<div style="font-size:14px;font-weight:800;color:#fff;letter-spacing:1px">'+(wrMode==='geral'?'⚔️ RANKING GERAL':'🏰 RANKING POR EQUIPE')+'</div>'
+    + '<div style="font-size:10px;color:#64748b">Atualizado: '+(RD.lastSync?RD.lastSync.toLocaleTimeString('pt-BR'):'—')+'</div>'
+    + '</div>'
+
+    + (wrMode === 'geral'
+      // ── GERAL: All brokers ──
+      ? brokerXP.map((b, i) => {
+        const isTop1 = i === 0;
+        const isLow = b.score < 40;
+        const glowStyle = isTop1 ? 'box-shadow:inset 0 0 30px '+b.patente.glow+',0 0 15px '+b.patente.glow : '';
+        return '<div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid #2a2a2a;'+(isTop1?glowStyle:'')+(isLow?'background:rgba(239,68,68,.06)':'')+';">'
+          + '<div style="font-size:18px;font-weight:900;color:'+(isTop1?'#d4a843':i<=2?'#94a3b8':'#475569')+';width:28px;text-align:center">'+(i<3?['🥇','🥈','🥉'][i]:(i+1))+'</div>'
+          + '<div style="width:40px;height:40px;border-radius:12px;background:'+b.color+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;flex-shrink:0;'+(isTop1?'box-shadow:0 0 12px '+b.patente.glow:'')+'">'+b.ini+'</div>'
+          + '<div style="flex:1;min-width:0">'
+          + '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:700;color:#fff">'+b.name+'</span>'
+          + '<span style="font-size:9px;padding:2px 8px;border-radius:99px;background:'+b.patente.cor+'22;color:'+b.patente.cor+';font-weight:700;letter-spacing:.5px">'+b.patente.ico+' '+b.patente.nome+'</span></div>'
+          + '<div style="font-size:10px;color:#64748b;margin-top:2px">'+FTag(b.frente)+' · '+b.wonCount+' vendas · '+b.oppsCount+' opps</div>'
+          + '</div>'
+          + '<div style="text-align:right;flex-shrink:0">'
+          + '<div style="font-size:18px;font-weight:900;color:#d4a843">'+b.xp.toLocaleString('pt-BR')+' <span style="font-size:10px;color:#64748b">XP</span></div>'
+          + '<div style="font-size:11px;font-weight:700;color:'+(b.score>=70?'#22c55e':b.score>=45?'#f59e0b':'#ef4444')+'">Score: '+b.score+'</div>'
+          + '</div></div>';
+      }).join('')
+
+      // ── EQUIPE: Group by frente ──
+      : Object.entries(FRENTES).map(([fid, fr]) => {
+        const squad = brokerXP.filter(b => b.frente === fid);
+        if (!squad.length) return '';
+        const squadXP = squad.reduce((a, b) => a + b.xp, 0);
+        return '<div style="border-bottom:2px solid #333">'
+          + '<div style="padding:12px 20px;background:#1a1a1a;display:flex;align-items:center;gap:10px">'
+          + '<div style="width:10px;height:10px;border-radius:50%;background:'+fr.color+'"></div>'
+          + '<span style="font-size:13px;font-weight:800;color:#fff">'+fr.icon+' '+fr.label+'</span>'
+          + '<span style="font-size:10px;color:#64748b;margin-left:auto">'+squadXP.toLocaleString('pt-BR')+' XP · '+squad.length+' corretores</span>'
+          + '</div>'
+          + squad.map((b, i) => '<div style="display:flex;align-items:center;gap:12px;padding:10px 20px 10px 36px;border-bottom:1px solid #2a2a2a">'
+            + '<div style="font-size:12px;font-weight:700;color:#64748b;width:20px">'+(i+1)+'</div>'
+            + '<div style="width:32px;height:32px;border-radius:9px;background:'+b.color+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff">'+b.ini+'</div>'
+            + '<div style="flex:1"><div style="font-size:12px;font-weight:600;color:#fff">'+b.name+'</div></div>'
+            + '<span style="font-size:9px;padding:2px 6px;border-radius:99px;background:'+b.patente.cor+'22;color:'+b.patente.cor+';font-weight:600">'+b.patente.ico+' '+b.patente.nome+'</span>'
+            + '<div style="font-size:14px;font-weight:800;color:#d4a843;width:80px;text-align:right">'+b.xp.toLocaleString('pt-BR')+'</div>'
+            + '<div style="font-size:11px;font-weight:700;color:'+(b.score>=70?'#22c55e':b.score>=45?'#f59e0b':'#ef4444')+';width:50px;text-align:right">'+b.score+'</div>'
+            + '</div>').join('')
+          + '</div>';
+      }).join('')
+    )
+    + '</div>'
+
+    // RIGHT: Side panels
+    + '<div style="display:flex;flex-direction:column;gap:12px">'
+
+    // Patentes legend
+    + '<div style="background:#242424;border-radius:14px;padding:16px;border:1px solid #333">'
+    + '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Sistema de Patentes</div>'
+    + [{n:'ELITE PSM',xp:'30.000+',c:'#d4a843',i:'🏆'},{n:'ESPECIALISTA',xp:'14.001-30.000',c:'#8b5cf6',i:'⭐'},{n:'OPERADOR',xp:'2.001-14.000',c:'#3b82f6',i:'🎖'},{n:'RECRUTA',xp:'0-2.000',c:'#64748b',i:'🔰'}].map(p =>
+      '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #2a2a2a">'
+      + '<div style="font-size:16px">'+p.i+'</div>'
+      + '<div style="flex:1"><div style="font-size:11px;font-weight:700;color:'+p.c+'">'+p.n+'</div>'
+      + '<div style="font-size:9px;color:#64748b">'+p.xp+' XP</div></div></div>'
+    ).join('')
+    + '</div>'
+
+    // XP Table
+    + '<div style="background:#242424;border-radius:14px;padding:16px;border:1px solid #333">'
+    + '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Tabela de XP</div>'
+    + [['Agendamento','+200'],['Visita Realizada','+500'],['Proposta','+1.000'],['Venda (Ads)','+2.000'],['Venda (Indicação)','+3.500'],['Venda (Carteira)','+4.000'],['Venda (Evento)','+4.200']].map(([a,x]) =>
+      '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #2a2a2a;font-size:11px">'
+      + '<span style="color:#94a3b8">'+a+'</span><span style="color:#d4a843;font-weight:700">'+x+' XP</span></div>'
+    ).join('')
+    + '</div>'
+
+    // Score breakdown
+    + '<div style="background:#242424;border-radius:14px;padding:16px;border:1px solid #333">'
+    + '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Score (0-100)</div>'
+    + '<div style="font-size:10px;color:#64748b;line-height:1.6">'
+    + '🎯 <strong style="color:#fff">40%</strong> Disciplina (CRM)<br>'
+    + '📊 <strong style="color:#fff">40%</strong> Conversão<br>'
+    + '🏛 <strong style="color:#fff">20%</strong> Cultura / Atividade'
+    + '</div></div>'
+
+    + '</div></div>'
+
+    // ── Ticker Bar ──
+    + '<div style="margin-top:16px;background:#242424;border-radius:10px;padding:12px 20px;border:1px solid #333;display:flex;align-items:center;gap:12px;overflow:hidden">'
+    + '<div style="font-size:10px;font-weight:700;color:#d4a843;flex-shrink:0;letter-spacing:1px">SR. PERFORMANCE</div>'
+    + '<div style="flex:1;overflow:hidden;white-space:nowrap"><div style="display:inline-block;animation:tickerScroll 20s linear infinite;font-size:11px;color:#94a3b8">'
+    + tickers.join(' &nbsp;&nbsp;│&nbsp;&nbsp; ')
+    + '</div></div></div>'
+
+    + '</div>';
+}
+
+// War Room TV Mode (opens in new window)
+function openWarRoomTV() {
+  const w = window.open('', 'warroom_tv', 'width=1920,height=1080');
+  if (!w) { toast('Popup bloqueado. Permita popups para o modo TV.', 'warn'); return; }
+  w.document.write('<!DOCTYPE html><html><head><title>War Arena PSM</title><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1c1c1c;color:#fff;font-family:system-ui,sans-serif;overflow:hidden}</style></head><body><div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:24px;color:#d4a843">War Arena PSM - Carregando...</div><scr'+'ipt>setInterval(function(){try{var d=window.opener.document.getElementById("pc");if(d){var c=d.querySelector("[style*=\'background:#1c1c1c\']");if(c)document.body.innerHTML=c.outerHTML;}}catch(e){}},5000);</'+'script></body></html>');
 }
 
 // ─── PAGE: EQUIPE ─────────────────────────────────────────────────────────────
@@ -3770,6 +4005,7 @@ function renderSB() {
       {id:'governance',lbl:'Governança',     ico:'🛡',min:5},
     ]},
     {sec:'Estratégia', items:[
+      {id:'warroom',   lbl:'War Room',       ico:'⚔️',min:2},
       {id:'forecast',  lbl:'Forecast',       ico:'📉',min:5},
       {id:'okrs',      lbl:'OKRs & Metas',   ico:'🎯',min:5},
       {id:'vendas',    lbl:'Lançar Venda',   ico:'💰',min:7},
@@ -3811,7 +4047,7 @@ function renderHDR() {
   const titles = {dashboard:'Dashboard Executivo',meu:'Meu Dashboard',ranking:'Ranking',equipe:'Visão Equipe',
     lancamento:'MAP / Lançamento',conquista:'Conquista',terceiros:'Terceiros',locacao:'Locação',
     crm:'CRM / Funil',metricas:'Métricas RD',oneonone:'One on One',governance:'Governança',
-    forecast:'Forecast',okrs:'OKRs & Metas',vera:'Sr. Performance',rdconfig:'RD Station',
+    warroom:'⚔️ War Room',forecast:'Forecast',okrs:'OKRs & Metas',vera:'Sr. Performance',rdconfig:'RD Station',
     config:'Configurações',vendas:'Lançar Venda'};
   const unread = NOTIFS.filter(n=>!n.read).length;
   return '<div class="hdr">'
@@ -3858,6 +4094,7 @@ function route() {
     case 'metricas':   return pgMetricas();
     case 'oneonone':   return pgOO();
     case 'governance': return pgGovernance();
+    case 'warroom':    return pgWarRoom();
     case 'forecast':   return pgForecast();
     case 'okrs':       return pgOKRs();
     case 'vera':       return pgVera();
