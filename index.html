@@ -608,6 +608,7 @@ const FRENTES={
 // ─── FUNIS POR FRENTE ─────────────────────────────────────────────────────────
 const FUNIS={
   lancamento:[
+    {id:'carteira',rdIds:['67f59b265d902c00273edd71','67fd06df9f6352001a2fb39a'],label:'Carteira',color:'#64748b',w:0.03},
     {id:'novo_atend',rdIds:['67fbd52235ad8200142ed2b1'],label:'Novo Atendimento',color:'#8b8baa',w:0.05},
     {id:'tent_contato',rdIds:['67f59ac754f7370025fb76b7','67f59ac754f7370025fb76b8'],label:'Tentativa de Contato',color:'#3b82f6',w:0.08},
     {id:'contato_4p',rdIds:['67f59ac754f7370025fb76b9'],label:'Contato + 4Ps',color:'#2563eb',w:0.12},
@@ -619,6 +620,7 @@ const FUNIS={
     {id:'contrato',rdIds:['67fbbc8b8d0a19001e67cfb8'],label:'Contrato',color:'#16a34a',w:0.94},
   ],
   conquista:[
+    {id:'carteira',rdIds:['67f59b265d902c00273edd71','67fd06df9f6352001a2fb39a'],label:'Carteira',color:'#64748b',w:0.03},
     {id:'novo_atend',rdIds:['67fbd52235ad8200142ed2b1'],label:'Novo Atendimento',color:'#8b8baa',w:0.05},
     {id:'tent_contato',rdIds:['67f59ac754f7370025fb76b7','67f59ac754f7370025fb76b8'],label:'Tentativa de Contato',color:'#3b82f6',w:0.08},
     {id:'contato_4p',rdIds:['67f59ac754f7370025fb76b9'],label:'Contato + 4Ps',color:'#2563eb',w:0.12},
@@ -748,13 +750,18 @@ const OPPS=[
 ];
 OPPS.forEach(o=>{const u=UM[o.bid];o.bn=u?u.name:'—';});
 
-// ─── AUDITS ───────────────────────────────────────────────────────────────────
-const AUDITS=[
-  {id:'a1',oid:'OPP-011',bid:'evandro',  tipo:'Sem atualização',    sev:'d',desc:'OPP-011 sem update há 7 dias. SLA vencido.'},
-  {id:'a2',oid:'OPP-008',bid:'rafaela_m',tipo:'SLA vencido',        sev:'w',desc:'Tentativa de contato sem resultado há 3 dias.'},
-  {id:'a3',oid:'OPP-003',bid:'gabriel_b',tipo:'Next action vencida', sev:'w',desc:'Agendamento sem confirmação há 2 dias.'},
-  {id:'a4',oid:'OPP-012',bid:'yara',     tipo:'CRM incompleto',     sev:'i',desc:'Campos obrigatórios em branco no OPP-012.'},
-];
+// ─── AUDITS — Dynamic generation ──────────────────────────────────────────────
+function generateAudits() {
+  const audits = [];
+  OPPS.forEach(o => {
+    if (o.dnu >= 7 && UM[o.bid]) audits.push({id:'a-'+o.id,oid:o.id,bid:o.bid,tipo:'Sem atualização',sev:'d',desc:o.cl+' sem update há '+o.dnu+' dias. SLA vencido.'});
+    else if (o.dnu >= 3 && UM[o.bid]) audits.push({id:'a-'+o.id,oid:o.id,bid:o.bid,tipo:'SLA vencido',sev:'w',desc:o.cl+' sem update há '+o.dnu+' dias.'});
+  });
+  BROKERS.forEach(b => {
+    if (b.crm < 65) audits.push({id:'crm-'+b.id,oid:'',bid:b.id,tipo:'CRM baixo',sev:'w',desc:'CRM Score de '+b.crm+' pts — abaixo do mínimo.'});
+  });
+  return audits.slice(0, 50);
+}
 
 // ─── DAILY FILL DATA ──────────────────────────────────────────────────────────
 const DAILY_DATA={};
@@ -1090,58 +1097,146 @@ function pgDashboard(){
 
 // ─── PAGE: RANKING ────────────────────────────────────────────────────────────
 function pgRanking(){
-  const tab=S.rankTab;
+  const fonte=S.rankFonte||'rdcrm';
+  const subTab=S.rankSubTab||'corretores';
   const fs=frenteStats();
   const df=DateFilter('rank','Período');
-  const cols=[
-    {id:'vgv',   label:'VGV',          fmt:fmt},
-    {id:'vend',  label:'Vendas',       fmt:v=>v},
-    {id:'lig',   label:'Ligações',     fmt:v=>v},
-    {id:'agend', label:'Agendamentos', fmt:v=>v},
-    {id:'vis',   label:'Visitas',      fmt:v=>v},
-    {id:'prop',  label:'Propostas',    fmt:v=>v},
-    {id:'crm',   label:'CRM Score',    fmt:v=>v+' pts'},
-  ];
+
   let content='';
-  if(tab==='corretores'){
-    const sorted=[...BROKERS].sort((a,b)=>b.vgv-a.vgv);
-    content='<div class="card"><div class="tw"><table class="rank-tbl"><thead><tr><th>#</th><th>Corretor</th><th>Frente</th>'
-      +cols.map(c=>'<th style="text-align:right">'+c.label+'</th>').join('')
-      +'</tr></thead><tbody>'
-      +sorted.map((b,i)=>'<tr>'
-        +'<td style="font-size:14px;text-align:center">'+medal(i)+'</td>'
-        +'<td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+b.name+'</span></div></td>'
-        +'<td>'+FTag(b.frente)+'</td>'
-        +cols.map(c=>'<td style="text-align:right;font-size:11.5px;font-weight:600;color:'+(c.id==='vgv'?'var(--navy)':c.id==='crm'?(b.crm>=80?'var(--g-tx)':b.crm>=65?'var(--a-tx)':'var(--r-tx)'):'inherit')+'">'+c.fmt(b[c.id]||0)+'</td>').join('')
-        +'</tr>').join('')
-      +'</tbody></table></div></div>';
-  } else {
-    const sortedF=Object.entries(fs).filter(([fid])=>FRENTES[fid]).sort((a,b)=>b[1].vgv-a[1].vgv);
-    const teamCols=[
-      {id:'vgv',    label:'VGV',         fmt:fmt},
-      {id:'vend',   label:'Vendas',      fmt:v=>v},
-      {id:'lig',    label:'Ligações',    fmt:v=>v},
-      {id:'agend',  label:'Agend.',      fmt:v=>v},
-      {id:'vis',    label:'Visitas',     fmt:v=>v},
-      {id:'prop',   label:'Propostas',   fmt:v=>v},
-      {id:'crm_avg',label:'CRM Médio',   fmt:v=>v+' pts'},
-      {id:'count',  label:'Corretores',  fmt:v=>v},
+
+  if(fonte==='rdcrm'){
+    const rdCols=[
+      {id:'vgv_pipe',  label:'VGV Pipeline',     fmt:fmt},
+      {id:'vgv_real',  label:'VGV Realizado',    fmt:fmt},
+      {id:'vend',      label:'Vendas',           fmt:v=>v},
+      {id:'agend',     label:'Agendamentos',     fmt:v=>v},
+      {id:'vis',       label:'Visitas',          fmt:v=>v},
+      {id:'prop',      label:'Propostas',        fmt:v=>v},
+      {id:'crm',       label:'CRM Score',        fmt:v=>v+' pts'},
     ];
-    content='<div class="card"><div class="tw"><table class="rank-tbl"><thead><tr><th>#</th><th>Equipe</th>'
-      +teamCols.map(c=>'<th style="text-align:right">'+c.label+'</th>').join('')
-      +'</tr></thead><tbody>'
-      +sortedF.map(([fid,st],i)=>'<tr>'
-        +'<td style="font-size:14px;text-align:center">'+medal(i)+'</td>'
-        +'<td><div class="flex aic gap1" style="gap:7px"><div style="width:8px;height:8px;border-radius:50%;background:'+FRENTES[fid].color+'"></div><span style="font-size:12px;font-weight:700">'+FRENTES[fid].label+'</span></div></td>'
-        +teamCols.map(c=>'<td style="text-align:right;font-size:11.5px;font-weight:600">'+c.fmt(st[c.id]||0)+'</td>').join('')
-        +'</tr>').join('')
-      +'</tbody></table></div></div>';
+    if(subTab==='corretores'){
+      const sorted=[...BROKERS].sort((a,b)=>(b.vgv_real||0)-(a.vgv_real||0));
+      content='<div class="card"><div class="tw"><table class="rank-tbl"><thead><tr><th>#</th><th>Corretor</th><th>Frente</th>'
+        +rdCols.map(c=>'<th style="text-align:right">'+c.label+'</th>').join('')
+        +'</tr></thead><tbody>'
+        +sorted.map((b,i)=>'<tr>'
+          +'<td style="font-size:14px;text-align:center">'+medal(i)+'</td>'
+          +'<td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+b.name+'</span></div></td>'
+          +'<td>'+FTag(b.frente)+'</td>'
+          +rdCols.map(c=>{const val=c.id==='vgv_pipe'?b.vgv||0:c.id==='vgv_real'?b.vgv_real||0:b[c.id]||0;return'<td style="text-align:right;font-size:11.5px;font-weight:600;color:'+(c.id==='vgv_real'||c.id==='vgv_pipe'?'var(--navy)':c.id==='crm'?(b.crm>=80?'var(--g-tx)':b.crm>=65?'var(--a-tx)':'var(--r-tx)'):'inherit')+'">'+c.fmt(val)+'</td>';}).join('')
+          +'</tr>').join('')
+        +'</tbody></table></div></div>';
+    } else {
+      const sortedF=Object.entries(fs).filter(([fid])=>FRENTES[fid]).sort((a,b)=>(b[1].vgv_real||0)-(a[1].vgv_real||0));
+      const teamCols=[
+        {id:'vgv_pipe',  label:'VGV Pipeline',    fmt:fmt},
+        {id:'vgv_real',  label:'VGV Realizado',   fmt:fmt},
+        {id:'vend',      label:'Vendas',          fmt:v=>v},
+        {id:'agend',     label:'Agend.',          fmt:v=>v},
+        {id:'vis',       label:'Visitas',         fmt:v=>v},
+        {id:'prop',      label:'Propostas',       fmt:v=>v},
+        {id:'crm_avg',   label:'CRM Médio',       fmt:v=>v+' pts'},
+        {id:'count',     label:'Corretores',      fmt:v=>v},
+      ];
+      content='<div class="card"><div class="tw"><table class="rank-tbl"><thead><tr><th>#</th><th>Equipe</th>'
+        +teamCols.map(c=>'<th style="text-align:right">'+c.label+'</th>').join('')
+        +'</tr></thead><tbody>'
+        +sortedF.map(([fid,st],i)=>'<tr>'
+          +'<td style="font-size:14px;text-align:center">'+medal(i)+'</td>'
+          +'<td><div class="flex aic gap1" style="gap:7px"><div style="width:8px;height:8px;border-radius:50%;background:'+FRENTES[fid].color+'"></div><span style="font-size:12px;font-weight:700">'+FRENTES[fid].label+'</span></div></td>'
+          +teamCols.map(c=>'<td style="text-align:right;font-size:11.5px;font-weight:600">'+c.fmt(st[c.id]||0)+'</td>').join('')
+          +'</tr>').join('')
+        +'</tbody></table></div></div>';
+    }
+  } else if(fonte==='oneonone'){
+    const ooCols=[
+      {id:'lig_real',  label:'Lig Realizadas',    fmt:v=>v},
+      {id:'vis_oo',    label:'Visitas OO',        fmt:v=>v},
+      {id:'prop_oo',   label:'Propostas OO',      fmt:v=>v},
+      {id:'followup',  label:'Follow-ups',        fmt:v=>v},
+    ];
+    if(subTab==='corretores'){
+      const sorted=[...BROKERS].sort((a,b)=>(b.lig_real||0)-(a.lig_real||0));
+      content='<div class="card"><div class="tw"><table class="rank-tbl"><thead><tr><th>#</th><th>Corretor</th><th>Frente</th>'
+        +ooCols.map(c=>'<th style="text-align:right">'+c.label+'</th>').join('')
+        +'</tr></thead><tbody>'
+        +sorted.map((b,i)=>'<tr>'
+          +'<td style="font-size:14px;text-align:center">'+medal(i)+'</td>'
+          +'<td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+b.name+'</span></div></td>'
+          +'<td>'+FTag(b.frente)+'</td>'
+          +ooCols.map(c=>'<td style="text-align:right;font-size:11.5px;font-weight:600">'+c.fmt(b[c.id]||0)+'</td>').join('')
+          +'</tr>').join('')
+        +'</tbody></table></div></div>';
+    } else {
+      const sortedF=Object.entries(fs).filter(([fid])=>FRENTES[fid]).sort((a,b)=>(b[1].lig_real||0)-(a[1].lig_real||0));
+      const teamCols=[
+        {id:'lig_real',  label:'Lig Realizadas',   fmt:v=>v},
+        {id:'vis_oo',    label:'Visitas OO',       fmt:v=>v},
+        {id:'prop_oo',   label:'Propostas OO',     fmt:v=>v},
+        {id:'followup',  label:'Follow-ups',       fmt:v=>v},
+        {id:'count',     label:'Corretores',       fmt:v=>v},
+      ];
+      content='<div class="card"><div class="tw"><table class="rank-tbl"><thead><tr><th>#</th><th>Equipe</th>'
+        +teamCols.map(c=>'<th style="text-align:right">'+c.label+'</th>').join('')
+        +'</tr></thead><tbody>'
+        +sortedF.map(([fid,st],i)=>'<tr>'
+          +'<td style="font-size:14px;text-align:center">'+medal(i)+'</td>'
+          +'<td><div class="flex aic gap1" style="gap:7px"><div style="width:8px;height:8px;border-radius:50%;background:'+FRENTES[fid].color+'"></div><span style="font-size:12px;font-weight:700">'+FRENTES[fid].label+'</span></div></td>'
+          +teamCols.map(c=>'<td style="text-align:right;font-size:11.5px;font-weight:600">'+c.fmt(st[c.id]||0)+'</td>').join('')
+          +'</tr>').join('')
+        +'</tbody></table></div></div>';
+    }
+  } else if(fonte==='cruzamento'){
+    const cruzCols=[
+      {id:'vgv_real',  label:'VGV Real (RD)',     fmt:fmt},
+      {id:'vis_total', label:'Visitas Total',     fmt:v=>v},
+      {id:'crm',       label:'CRM Score',         fmt:v=>v+' pts'},
+      {id:'followup',  label:'Follow-ups (OO)',   fmt:v=>v},
+    ];
+    if(subTab==='corretores'){
+      const sorted=[...BROKERS].sort((a,b)=>(b.vgv_real||0)-(a.vgv_real||0));
+      content='<div class="card"><div class="tw"><table class="rank-tbl"><thead><tr><th>#</th><th>Corretor</th><th>Frente</th>'
+        +cruzCols.map(c=>'<th style="text-align:right">'+c.label+'</th>').join('')
+        +'</tr></thead><tbody>'
+        +sorted.map((b,i)=>'<tr>'
+          +'<td style="font-size:14px;text-align:center">'+medal(i)+'</td>'
+          +'<td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+b.name+'</span></div></td>'
+          +'<td>'+FTag(b.frente)+'</td>'
+          +cruzCols.map(c=>{const val=c.id==='vis_total'?(b.vis||0)+(b.vis_oo||0):b[c.id]||0;return'<td style="text-align:right;font-size:11.5px;font-weight:600;color:'+(c.id==='vgv_real'?'var(--navy)':c.id==='crm'?(b.crm>=80?'var(--g-tx)':b.crm>=65?'var(--a-tx)':'var(--r-tx)'):'inherit')+'">'+c.fmt(val)+'</td>';}).join('')
+          +'</tr>').join('')
+        +'</tbody></table></div></div>';
+    } else {
+      const sortedF=Object.entries(fs).filter(([fid])=>FRENTES[fid]).sort((a,b)=>(b[1].vgv_real||0)-(a[1].vgv_real||0));
+      const teamCols=[
+        {id:'vgv_real',  label:'VGV Real (RD)',    fmt:fmt},
+        {id:'vis_total', label:'Visitas Total',    fmt:v=>v},
+        {id:'crm_avg',   label:'CRM Médio',        fmt:v=>v+' pts'},
+        {id:'followup',  label:'Follow-ups (OO)',  fmt:v=>v},
+        {id:'count',     label:'Corretores',       fmt:v=>v},
+      ];
+      content='<div class="card"><div class="tw"><table class="rank-tbl"><thead><tr><th>#</th><th>Equipe</th>'
+        +teamCols.map(c=>'<th style="text-align:right">'+c.label+'</th>').join('')
+        +'</tr></thead><tbody>'
+        +sortedF.map(([fid,st],i)=>'<tr>'
+          +'<td style="font-size:14px;text-align:center">'+medal(i)+'</td>'
+          +'<td><div class="flex aic gap1" style="gap:7px"><div style="width:8px;height:8px;border-radius:50%;background:'+FRENTES[fid].color+'"></div><span style="font-size:12px;font-weight:700">'+FRENTES[fid].label+'</span></div></td>'
+          +teamCols.map(c=>{const v=st[c.id]||0;return'<td style="text-align:right;font-size:11.5px;font-weight:600">'+c.fmt(v)+'</td>';}).join('')
+          +'</tr>').join('')
+        +'</tbody></table></div></div>';
+    }
   }
+
   return '<div class="phd"><h1>Ranking</h1><p>Comparativo de performance — '+METRICS.mes+'</p></div>'+df
     +'<div class="tabs">'
-    +'<button class="tab'+(tab==='corretores'?' on':'')+'" onclick="S.rankTab=\'corretores\';render()">👤 Corretores</button>'
-    +'<button class="tab'+(tab==='equipes'?' on':'')+'" onclick="S.rankTab=\'equipes\';render()">🏆 Equipes</button>'
-    +'</div>'+content;
+    +'<button class="tab'+(fonte==='rdcrm'?' on':'')+'" onclick="S.rankFonte=\'rdcrm\';S.rankSubTab=\'corretores\';render()">📊 RD CRM</button>'
+    +'<button class="tab'+(fonte==='oneonone'?' on':'')+'" onclick="S.rankFonte=\'oneonone\';S.rankSubTab=\'corretores\';render()">📝 One on One</button>'
+    +'<button class="tab'+(fonte==='cruzamento'?' on':'')+'" onclick="S.rankFonte=\'cruzamento\';S.rankSubTab=\'corretores\';render()">🔄 Cruzamento</button>'
+    +'</div>'
+    +'<div style="display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap">'
+    +'<button class="btn bsm'+(subTab==='corretores'?' bp1':' bout')+'" onclick="S.rankSubTab=\'corretores\';render()">👤 Corretores</button>'
+    +'<button class="btn bsm'+(subTab==='equipes'?' bp1':' bout')+'" onclick="S.rankSubTab=\'equipes\';render()">🏆 Equipes</button>'
+    +'</div>'
+    +content;
 }
 
 // ─── PAGE: FRENTE ─────────────────────────────────────────────────────────────
@@ -1389,11 +1484,12 @@ function pgGovernance(){
   const visPerVenda=totalWon>0?(totalVis/totalWon).toFixed(1):'—';
   const leadsPerVenda=totalWon>0?(totalLeads/totalWon).toFixed(1):'—';
   const vgcTotal=Math.round((S.vgvReal||0)*(S.comissaoPct||6)/100);
-  const items=f==='all'?AUDITS:AUDITS.filter(a=>a.sev===f);
+  const allAudits=generateAudits();
+  const items=f==='all'?allAudits:allAudits.filter(a=>a.sev===f);
   const crmA=Math.round(BROKERS.reduce((a,b)=>a+b.crm,0)/BROKERS.length);
   return '<div class="phd"><h1>Governança & Auditoria</h1><p>Qualidade e conformidade operacional</p></div>'
   +'<div class="kgrid">'
-  +Kpi('Issues Ativos',AUDITS.length,'aguardando resolução',null,'var(--r)')
+  +Kpi('Issues Ativos',allAudits.length,'aguardando resolução',null,'var(--r)')
   +Kpi('CRM Médio',crmA+' pts','equipe',{up:crmA>=80,txt:crmA>=80?'Bom':'Atenção'},crmA>=80?'var(--g)':'var(--a)')
   +Kpi('SLA Vencido',OPPS.filter(o=>o.sla==='overdue').length,'opps',null,'var(--a)')
   +Kpi('Sem Update +3d',OPPS.filter(o=>o.dnu>=3).length,'opps',null,'var(--r)')
@@ -1402,7 +1498,7 @@ function pgGovernance(){
   +'<div class="card"><div class="ctitle">Issues <span class="csub"><div style="display:flex;gap:4px">'
   +['all','d','w','i'].map(x=>'<button class="btn bsm '+(f===x?'bp1':'bout')+'" onclick="S.govF=\''+x+'\';render()">'+(x==='all'?'Todos':x==='d'?'Críticos':x==='w'?'Atenção':'Info')+'</button>').join('')
   +'</div></span></div>'
-  +items.map(a=>'<div class="ai ai-'+a.sev+'"><div><div class="ai-t">'+a.tipo+' <span style="font-size:9px;color:var(--muted);font-weight:400">'+a.oid+'</span></div><div class="ai-d2">'+a.desc+'</div><div style="font-size:9.5px;font-weight:700;color:'+(a.sev==='d'?'var(--r-tx)':a.sev==='w'?'var(--a-tx)':'var(--b-tx)')+';margin-top:2px">'+UM[a.bid].name+'</div></div></div>').join('')
+  +items.map(a=>'<div class="ai ai-'+a.sev+'"><div><div class="ai-t">'+a.tipo+' <span style="font-size:9px;color:var(--muted);font-weight:400">'+a.oid+'</span></div><div class="ai-d2">'+a.desc+'</div><div style="font-size:9.5px;font-weight:700;color:'+(a.sev==='d'?'var(--r-tx)':a.sev==='w'?'var(--a-tx)':'var(--b-tx)')+';margin-top:2px">'+(UM[a.bid]||{name:'—'}).name+'</div></div></div>').join('')
   +'</div>'
   +'<div class="card"><div class="ctitle">CRM Score por Corretor</div>'
   +[...BROKERS].sort((a,b)=>b.crm-a.crm).map(b=>'<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--cream3)">'+Av(b,'xs')+'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+b.name+'</div>'+CrmBar(b.crm)+'</div>'+(b.crm<70?Bdg('Abaixo do mínimo','br'):'')+'</div>').join('')
@@ -1737,6 +1833,7 @@ const RD = {
       if (plName.includes('terceiro')) frente = 'terceiros';
       else if (plName.includes('locac') || plName.includes('aluguel')) frente = 'locacao';
       else if (plName.includes('conquista')) frente = 'conquista';
+      else if (plName.includes('map') || plName.includes('assessoria') || plName.includes('lancamento') || plName.includes('psm')) frente = 'lancamento';
       // Conquista override: same pipeline as lançamento, but broker is conquista team
       else if (frente === 'lancamento' && bid) {
         const bUser = USERS_BASE.find(u => u.id === bid);
@@ -1870,6 +1967,7 @@ const RD = {
             if (plName.includes('terceiro')) frente = 'terceiros';
             else if (plName.includes('locac') || plName.includes('aluguel')) frente = 'locacao';
             else if (plName.includes('conquista')) frente = 'conquista';
+            else if (plName.includes('map') || plName.includes('assessoria') || plName.includes('lancamento') || plName.includes('psm')) frente = 'lancamento';
 
             const stages = pl.deal_stages || [];
             stages.forEach((st, idx) => {
@@ -2761,9 +2859,10 @@ function pgOO() {
       : (sheetUrl ? '<a href="'+sheetUrl+'" target="_blank" rel="noopener" class="btn bp1 bsm" style="font-size:10px;text-decoration:none">Abrir</a>' : ''))
     + '</div>';
 
-  // Disc card
+  // Disc card — editable only by directors/managers
+  const canEditProfile = u && (u.role === 'socio' || u.role === 'gerente');
   const discCard = disc ? '<div class="card mb2" style="border-left:4px solid '+disc.cor+'">'
-    + '<div class="ctitle">'+DISC_ICON[disc.perfil]+' Perfil Comportamental: '+disc.perfil+'</div>'
+    + '<div class="ctitle">'+DISC_ICON[disc.perfil]+' Perfil Comportamental: '+disc.perfil+(canEditProfile?' <button class="btn bout bsm" style="font-size:10px" onclick="console.log(\'Edit profile\')">✏️ Editar</button>':'')+' </div>'
     + '<div style="font-size:12.5px;color:var(--navy);line-height:1.7;margin-bottom:10px">'+disc.desc+'</div>'
     + '<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Como liderar este perfil:</div>'
     + '<div style="font-size:12px;color:var(--navy);line-height:1.7">'
@@ -3055,8 +3154,8 @@ INSTRUÇÕES: Seja direta, prática e motivadora. Use os dados reais. Máximo 28
     const txt = data.content?.[0]?.text || 'Não consegui responder agora.';
     S.veraHist.push({role:'assistant', content:txt});
   } catch(e) {
-    const errMsg = e.message.includes('Failed to fetch') 
-      ? '⚠️ Sem conexão com o servidor. Verifique se o deploy está ativo no Netlify.'
+    const errMsg = e.message.includes('Failed to fetch')
+      ? '⚠️ Sr. Performance precisa da chave ANTHROPIC_API_KEY configurada no Vercel. Vá em Settings > Environment Variables.'
       : '⚠️ Erro: ' + e.message;
     S.veraHist.push({role:'assistant', content:errMsg});
   }
@@ -3078,14 +3177,33 @@ function scheduleVeraNotifs() {
   setInterval(check, 60000);
 }
 
+// ─── PERIOD FILTER HELPER ─────────────────────────────────────────────────────
+function filterByPeriod(deals, period) {
+  if (!period || period === 'all') return deals;
+  const now = new Date();
+  const start = new Date();
+  if (period === 'week') start.setDate(now.getDate() - 7);
+  else if (period === 'month') { start.setDate(1); }
+  else if (period === 'quarter') { start.setMonth(Math.floor(now.getMonth()/3)*3, 1); }
+  else if (period === 'semester') { start.setMonth(now.getMonth() < 6 ? 0 : 6, 1); }
+  return deals.filter(d => {
+    const dt = new Date(d.createdAt || d.updated_at || '');
+    return dt >= start;
+  });
+}
+
 // ─── RD CONFIG ────────────────────────────────────────────────────────────────
 function pgRDConfig() {
   const last = RD.lastSync ? RD.lastSync.toLocaleTimeString('pt-BR') : 'Nunca';
   const lastFull = RD.lastSync ? RD.lastSync.toLocaleString('pt-BR') : 'Nunca sincronizado';
   const isOk = S.rdSyncStatus === 'ok';
   const isEmpty = isOk && (S.rdDealCount||0) === 0 && (S.wonTotal||0) === 0;
-  const pipelineVGV = OPPS.reduce((a,o) => a + o.vgv, 0);
-  const wonVGV = VENDAS.reduce((a,v) => a + v.vgv, 0);
+  const rdPeriod = S.rdMetricPeriod || 'all';
+  const filteredOpps = filterByPeriod(OPPS, rdPeriod);
+  const filteredVendas = filterByPeriod(VENDAS, rdPeriod);
+  const filteredLost = filterByPeriod(LOST_DEALS, rdPeriod);
+  const pipelineVGV = filteredOpps.reduce((a,o) => a + o.vgv, 0);
+  const wonVGV = filteredVendas.reduce((a,v) => a + v.vgv, 0);
 
   // Deals sem corretor mapeado
   const unmapped = OPPS.filter(o => !o.bid || !UM[o.bid]);
@@ -3095,16 +3213,24 @@ function pgRDConfig() {
   const unmappedStage = OPPS.filter(o => !o.st_psm);
 
   return '<div class="phd"><h1>🔗 RD Station CRM</h1><p>Integração em tempo real — diagnóstico completo</p></div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">'
+    + '<select class="sel-f" onchange="S.rdMetricPeriod=this.value;render()">'
+    + '<option value="all"'+((!S.rdMetricPeriod||S.rdMetricPeriod==='all')?' selected':'')+'>Ano completo</option>'
+    + '<option value="month"'+(S.rdMetricPeriod==='month'?' selected':'')+'>Este mês</option>'
+    + '<option value="week"'+(S.rdMetricPeriod==='week'?' selected':'')+'>Esta semana</option>'
+    + '<option value="quarter"'+(S.rdMetricPeriod==='quarter'?' selected':'')+'>Este trimestre</option>'
+    + '<option value="semester"'+(S.rdMetricPeriod==='semester'?' selected':'')+'>Este semestre</option>'
+    + '</select></div>'
     // ── STATUS CARDS ──
     + '<div class="kgrid mb2">'
     + Kpi('Status', isOk ? '✅ Conectado' : (S.rdSyncing ? '⏳ Sincronizando' : '⚠️ Pendente'), lastFull, null, isOk ? 'var(--g)' : 'var(--a)')
-    + Kpi('Em Andamento', S.rdDealCount||0, fmt(pipelineVGV)+' pipeline', null, 'var(--navy)')
-    + Kpi('Vendas (won)', S.wonTotal||0, fmt(wonVGV)+' VGV realizado', null, 'var(--g)')
-    + Kpi('Perdidos', S.lostTotal||0, (S.lossReasons?.[0] ? 'Top: '+S.lossReasons[0][0] : ''), null, 'var(--r)')
+    + Kpi('Em Andamento', filteredOpps.length, fmt(pipelineVGV)+' pipeline', null, 'var(--navy)')
+    + Kpi('Vendas (won)', filteredVendas.length, fmt(wonVGV)+' VGV realizado', null, 'var(--g)')
+    + Kpi('Perdidos', filteredLost.length, (S.lossReasons?.[0] ? 'Top: '+S.lossReasons[0][0] : ''), null, 'var(--r)')
     + Kpi('Última Sync', last, 'auto a cada 5 min', null, 'var(--b)')
-    + Kpi('Ticket Médio', fmt(S.ticketMedioGeral||0), 'vendas fechadas', null, 'var(--gold)')
-    + Kpi('Agendamentos', OPPS.filter(o=>['agendamento','vis_agend'].includes(o.st_psm)).length, 'pipeline ativo', null, 'var(--b)')
-    + Kpi('Visitas Realizadas', OPPS.filter(o=>['vis_real'].includes(o.st_psm)).length + (S.wonTotal||0), 'confirmadas + vendidas', null, 'var(--pu)')
+    + Kpi('Ticket Médio', fmt(wonVGV>0?(wonVGV/filteredVendas.length):0), 'vendas fechadas', null, 'var(--gold)')
+    + Kpi('Agendamentos', filteredOpps.filter(o=>['agendamento','vis_agend'].includes(o.st_psm)).length, 'pipeline ativo', null, 'var(--b)')
+    + Kpi('Visitas Realizadas', filteredOpps.filter(o=>['vis_real'].includes(o.st_psm)).length + filteredVendas.length, 'confirmadas + vendidas', null, 'var(--pu)')
     + '</div>'
 
     // ── PROGRESS ──
