@@ -748,6 +748,10 @@ const OPPS=[
 ];
 OPPS.forEach(o=>{const u=UM[o.bid];o.bn=u?u.name:'—';});
 
+// ─── ARRAYS GLOBAIS DE DEALS ──────────────────────────────────────────────────
+const VENDAS     = [];  // win=true
+const LOST_DEALS = [];  // win=false
+
 // ─── AUDITS — Dynamic generation ──────────────────────────────────────────────
 function generateAudits() {
   const audits = [];
@@ -901,6 +905,32 @@ let S={
     google_sheets_id:'', google_drive_folder:'', google_agenda_cal:'',
     excel_url:'',
   },
+};
+
+// ─── PERFIS DISC (declarado cedo para saveState/loadState) ───────────────────
+let DISC_PROFILES = {
+  rodrigo_t:{perfil:'Diretor',cor:'#dc2626',desc:'Direto, focado em resultados.'},
+  marcus_l:{perfil:'Influente',cor:'#f59e0b',desc:'Comunicativo, persuasivo.'},
+  gabriel_b:{perfil:'Estável',cor:'#16a34a',desc:'Consistente, confiável.'},
+  daniela:{perfil:'Conforme',cor:'#2563eb',desc:'Analítico, detalhista.'},
+  kadu:{perfil:'Diretor',cor:'#dc2626',desc:'Competitivo, orientado a resultado.'},
+  julia:{perfil:'Influente',cor:'#f59e0b',desc:'Entusiasta, criativa.'},
+  danilo_a:{perfil:'Estável',cor:'#16a34a',desc:'Paciente, metódico.'},
+  rafaela_m:{perfil:'Conforme',cor:'#2563eb',desc:'Precisa e disciplinada.'},
+  camila_b:{perfil:'Influente',cor:'#f59e0b',desc:'Sociável, carisma natural.'},
+  rodrigo_c:{perfil:'Estável',cor:'#16a34a',desc:'Confiável, persistente.'},
+  evandro:{perfil:'Diretor',cor:'#dc2626',desc:'Resoluto, pragmático.'},
+  yara:{perfil:'Conforme',cor:'#2563eb',desc:'Organizada, analítica.'},
+  paulo:{perfil:'Diretor',cor:'#dc2626',desc:'Visionário, focado em estratégia.'},
+  isa:{perfil:'Influente',cor:'#f59e0b',desc:'Inspiradora, conecta pessoas.'},
+};
+const DISC_ICON={Diretor:'🔴',Influente:'🟡',Estável:'🟢',Conforme:'🔵'};
+let METAS_CONFIG = {};
+let METAS_EQUIPE = {
+  lancamento:{vgv_meta:3000000,visitas:40,captacoes:0},
+  conquista:{vgv_meta:2000000,visitas:35,captacoes:0},
+  terceiros:{vgv_meta:1500000,visitas:20,captacoes:20},
+  locacao:{vgv_meta:800000,visitas:10,captacoes:0},
 };
 
 // ─── PERSISTENCE ─────────────────────────────────────────────────────────────
@@ -1088,8 +1118,8 @@ function pgDashboard(){
   +'<div class="card"><div class="ctitle">Equipe ao Vivo <span class="csub">'+BROKERS.filter(b=>b.st==='online').length+' online</span></div><table class="tbl"><thead><tr><th>Corretor</th><th>Frente</th><th>VGV</th><th>%</th><th>CRM</th></tr></thead><tbody>'
   +[...BROKERS].sort((a,b)=>(b.vgv_real||0)-(a.vgv_real||0)).map(b=>'<tr><td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+b.name+'</span></div></td><td>'+FTag(b.frente)+'</td><td class="tr">'+(b.vgv?fmt(b.vgv):'—')+'</td><td class="tr" style="color:'+(pN(b.vgv,b.meta)>=80?'var(--g-tx)':pN(b.vgv,b.meta)>=50?'var(--a-tx)':'var(--r-tx)')+';font-weight:700">'+pS(b.vgv,b.meta)+'</td><td style="min-width:90px">'+CrmBar(b.crm)+'</td></tr>').join('')
   +'</tbody></table></div>'
-  +'<div class="card"><div class="ctitle">Alertas <span class="csub">'+AUDITS.length+' issues</span></div>'
-  +AUDITS.map(a=>'<div class="ai ai-'+a.sev+'"><div><div class="ai-t">'+a.tipo+' <span style="font-size:9.5px;color:var(--muted);font-weight:400">'+a.oid+'</span></div><div class="ai-d2">'+a.desc+'</div><div style="font-size:9.5px;font-weight:700;margin-top:2px;color:'+(a.sev==='d'?'var(--r-tx)':a.sev==='w'?'var(--a-tx)':'var(--b-tx)')+'">'+((UM[a.bid]||{}).name||'—')+'</div></div></div>').join('')
+  +'<div class="card"><div class="ctitle">Alertas <span class="csub">'+generateAudits().length+' issues</span></div>'
+  +generateAudits().slice(0,5).map(a=>'<div class="ai ai-'+a.sev+'"><div><div class="ai-t">'+a.tipo+' <span style="font-size:9.5px;color:var(--muted);font-weight:400">'+a.oid+'</span></div><div class="ai-d2">'+a.desc+'</div><div style="font-size:9.5px;font-weight:700;margin-top:2px;color:'+(a.sev==='d'?'var(--r-tx)':a.sev==='w'?'var(--a-tx)':'var(--b-tx)')+'">'+((UM[a.bid]||{}).name||'—')+'</div></div></div>').join('')
   +'</div></div>';
 }
 
@@ -1532,35 +1562,7 @@ function pgForecast(){
 // PSM OS v8 — RD LIVE + MÉTRICAS AVANÇADAS + ONE ON ONE + VERA/CLAUDE + LOGIN
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── PERFIS DISC ──────────────────────────────────────────────────────────────
-const DISC_PROFILES = {
-  rodrigo_t: {perfil:'Diretor',      cor:'#dc2626', desc:'Direto, focado em resultados, decisivo. Responde bem a desafios e metas claras.'},
-  marcus_l:  {perfil:'Influente',    cor:'#f59e0b', desc:'Comunicativo, persuasivo, motiva a equipe. Precisa de reconhecimento e liberdade.'},
-  gabriel_b: {perfil:'Estável',      cor:'#16a34a', desc:'Consistente, confiável, bom ouvinte. Prefere estabilidade e processos claros.'},
-  daniela:   {perfil:'Conforme',     cor:'#2563eb', desc:'Analítico, detalhista, segue processos. Precisa de dados e clareza nas regras.'},
-  kadu:      {perfil:'Diretor',      cor:'#dc2626', desc:'Competitivo, orientado a resultado, vai direto ao ponto. Alta energia.'},
-  julia:     {perfil:'Influente',    cor:'#f59e0b', desc:'Entusiasta, criativa, faz conexões fáceis. Precisa de variedade e dinamismo.'},
-  danilo_a:  {perfil:'Estável',      cor:'#16a34a', desc:'Paciente, metódico, bom com clientes complexos. Exige confiança no relacionamento.'},
-  rafaela_m: {perfil:'Conforme',     cor:'#2563eb', desc:'Precisa e disciplinada, valoriza a qualidade do atendimento. Alta exigência.'},
-  camila_b:  {perfil:'Influente',    cor:'#f59e0b', desc:'Sociável, carisma natural com clientes. Precisa de metas motivadoras e feedbacks positivos.'},
-  rodrigo_c: {perfil:'Estável',      cor:'#16a34a', desc:'Confiável, persistente, cria vínculos duradouros. Prefere abordagem consultiva.'},
-  evandro:   {perfil:'Diretor',      cor:'#dc2626', desc:'Resoluto, pragmático, age rápido. Precisa de liberdade e reconhecimento por resultados.'},
-  yara:      {perfil:'Conforme',     cor:'#2563eb', desc:'Organizada, analítica, cuida dos detalhes. Responde bem a processos estruturados.'},
-  paulo:     {perfil:'Diretor',      cor:'#dc2626', desc:'Visionário, focado em estratégia e crescimento da empresa.'},
-  isa:       {perfil:'Influente',    cor:'#f59e0b', desc:'Inspiradora, boa comunicadora, conecta pessoas e processos.'},
-};
-const DISC_ICON = {Diretor:'🔴',Influente:'🟡',Estável:'🟢',Conforme:'🔵'};
-
-// ─── METAS PERSONALIZÁVEIS ────────────────────────────────────────────────────
-// Estrutura: METAS_CONFIG[bid] = {vgv_min, vgv_meta, visitas, captacoes}
-// METAS_EQUIPE[frente] = {vgv_meta, visitas, captacoes}
-let METAS_CONFIG = {};
-let METAS_EQUIPE = {
-  lancamento: {vgv_meta:3000000, visitas:40, captacoes:0},
-  conquista:  {vgv_meta:2000000, visitas:35, captacoes:0},
-  terceiros:  {vgv_meta:1500000, visitas:20, captacoes:20},
-  locacao:    {vgv_meta:500000,  visitas:15, captacoes:5},
-};
+// (DISC_PROFILES, METAS_CONFIG, METAS_EQUIPE declarados acima do saveState)
 
 // ─── RD STATION CRM ───────────────────────────────────────────────────────────
 const RD = {
@@ -1689,7 +1691,7 @@ const RD = {
 
     let errMsg = 'RD ' + service + ' indisponível. ';
     if (isCORS && isProxyMissing) {
-      errMsg += 'O RD Station bloqueia chamadas do navegador (CORS). Faça o deploy no Netlify com a function /api/rd para funcionar.';
+      errMsg += 'Sr. Performance precisa da ANTHROPIC_API_KEY. Configure em Vercel > Settings > Environment Variables.';
     } else if (isCORS) {
       errMsg += 'CORS bloqueado + Proxy erro: ' + (proxyErr?.message||'').slice(0,80);
     } else {
@@ -2143,7 +2145,7 @@ const RD = {
         progressEl.innerHTML = '<div style="padding:14px 16px;background:var(--r-bg);color:var(--r-tx);border-radius:10px;border:1px solid rgba(239,68,68,.2);font-size:12px;line-height:1.6">'
           + '<div style="font-weight:700;margin-bottom:4px">❌ Erro na sincronização</div>'
           + '<div>' + err.message.slice(0,200) + '</div>'
-          + (err.message.includes('CORS') ? '<div style="margin-top:6px;font-size:11px;opacity:.8">💡 O RD Station bloqueia chamadas diretas do navegador. O sistema precisa do proxy Netlify (/api/rd). Certifique-se de que o deploy está ativo.</div>' : '')
+          + (err.message.includes('CORS') ? '<div style="margin-top:6px;font-size:11px;opacity:.8">💡 Sr. Performance precisa da ANTHROPIC_API_KEY. Configure em Vercel > Settings > Environment Variables.</div>' : '')
           + (err.message.includes('não configurado') ? '<div style="margin-top:6px;font-size:11px;opacity:.8">💡 Vá em Configurações > Conectores e insira o token do RD Station CRM.</div>' : '')
           + '</div>';
       }
@@ -2151,7 +2153,7 @@ const RD = {
       if (err.message.includes('não configurado')) {
         toast('⚠️ Token RD não configurado — vá em Configurações > Conectores', 'err');
       } else if (err.message.includes('CORS') || err.message.includes('Failed to fetch')) {
-        toast('⚠️ RD inacessível — verifique se o deploy Netlify está ativo', 'err');
+        toast('⚠️ Sr. Performance precisa da ANTHROPIC_API_KEY. Configure em Vercel > Settings > Environment Variables.', 'err');
       } else {
         toast('❌ ' + err.message.slice(0, 80), 'err');
       }
@@ -2181,10 +2183,6 @@ const RD = {
     } catch(e) { console.warn('[RD log]', e); }
   },
 };
-
-// ─── ARRAYS GLOBAIS DE DEALS ──────────────────────────────────────────────────
-const VENDAS     = [];  // win=true
-const LOST_DEALS = [];  // win=false
 
 // ─── DATE FILTER ──────────────────────────────────────────────────────────────
 function DateFilter(prefix, label) {
@@ -2272,7 +2270,7 @@ function renderLogin() {
     + '</div>'
     + '</div>';
 }
-// Credenciais locais (fallback para dev sem Netlify Functions)
+// Credenciais locais (fallback para dev sem backend proxy)
 const _LOCAL_AUTH = {
   'paulo@imobiliariapsm.com.br':'psm1234|paulo',
   'isabella@imobiliariapsm.com.br':'psm1234|isa',
