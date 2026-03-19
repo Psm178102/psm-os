@@ -3190,9 +3190,10 @@ FRENTES: MAP/Lançamento, Conquista (revenda), Terceiros (captação), Locação
 
 INSTRUÇÕES: Seja direta, prática e motivadora. Use os dados reais. Máximo 280 palavras. Formato com **negrito** nos pontos-chave.`;
 
-    // Send Gemini API key via header (from Configurações > Conectores)
+    // Send Gemini API key via header + query param (from Configurações > IA)
     const geminiKey = (S.connectors || {}).gemini_api_key || '';
-    const resp = await fetch('/api/sr', {
+    const srUrl = '/api/sr' + (geminiKey ? '?gemini_key=' + encodeURIComponent(geminiKey) : '');
+    const resp = await fetch(srUrl, {
       method: 'POST',
       headers: {'Content-Type':'application/json', 'X-Gemini-Key': geminiKey},
       body: JSON.stringify({
@@ -3644,7 +3645,7 @@ async function testConnectors() {
   // ── Test Google Gemini ──
   if (c.gemini_api_key) {
     try {
-      const r = await fetch('/api/sr', {
+      const r = await fetch('/api/sr?gemini_key=' + encodeURIComponent(c.gemini_api_key), {
         method: 'POST',
         headers: {'Content-Type':'application/json', 'X-Gemini-Key': c.gemini_api_key},
         body: JSON.stringify({system:'Responda apenas: OK', messages:[{role:'user',content:'teste'}], max_tokens:10})

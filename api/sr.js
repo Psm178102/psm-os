@@ -1,7 +1,4 @@
 // ─── SR. PERFORMANCE (Google Gemini AI Proxy) ────────────────────────────────
-// Vercel Serverless Function — proxies to Google Gemini API
-// Env var: GEMINI_API_KEY (get free at aistudio.google.com/apikey)
-
 const https = require('https');
 
 function httpsReq(url, opts = {}) {
@@ -29,33 +26,44 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // Priority: header from frontend > env var on Vercel
-    const headerKey = req.headers['x-gemini-key'] || '';
-    const apiKey = headerKey || process.env.GEMINI_API_KEY || '';
+    // Get API key: header > query param > env var
+    const headerKey = (req.headers['x-gemini-key'] || '').trim();
+    const queryKey = (req.query?.gemini_key || '').trim();
+    const apiKey = headerKey || queryKey || process.env.GEMINI_API_KEY || '';
+
+    console.log('[SR] Key source:', headerKey ? 'header' : queryKey ? 'query' : process.env.GEMINI_API_KEY ? 'env' : 'NONE');
+    console.log('[SR] Key prefix:', apiKey ? apiKey.slice(0,8)+'...' : 'EMPTY');
+
     if (!apiKey) {
       return res.status(200).json({
-        content: [{ type: 'text', text: '⚠️ Sr. Performance precisa da chave Google Gemini.\n\n1. Acesse aistudio.google.com/apikey\n2. Clique "Create API Key"\n3. Copie a chave AIza...\n4. No PSM, vá em Configurações > Inteligência Artificial\n5. Cole a chave no campo "Google Gemini"' }]
+        content: [{ type: 'text', text: '⚠️ Chave Gemini não encontrada.\n\nVá em Configurações > Inteligência Artificial e cole sua chave AIza...' }]
       });
     }
 
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
     const systemPrompt = body.system || '';
     const messages = body.messages || [];
 
-    // Convert messages to Gemini format
+    // Convert to Gemini format
     const contents = [];
     if (systemPrompt) {
-      contents.push({ role: 'user', parts: [{ text: 'SYSTEM INSTRUCTIONS: ' + systemPrompt }] });
-      contents.push({ role: 'model', parts: [{ text: 'Entendido. Vou seguir essas instruções.' }] });
+      contents.push({ role: 'user', parts: [{ text: 'INSTRUÇÕES DO SISTEMA: ' + systemPrompt }] });
+      contents.push({ role: 'model', parts: [{ text: 'Entendido, vou seguir essas instruções.' }] });
     }
     messages.forEach(m => {
       contents.push({
         role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }]
+        parts: [{ text: m.content || '' }]
       });
     });
 
+    if (contents.length === 0) {
+      contents.push({ role: 'user', parts: [{ text: 'Olá' }] });
+    }
+
     const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+
+    console.log('[SR] Calling Gemini with', contents.length, 'messages');
 
     const resp = await httpsReq(geminiUrl, {
       method: 'POST',
@@ -69,18 +77,37 @@ module.exports = async (req, res) => {
       }),
     });
 
+    console.log('[SR] Gemini response:', resp.status, resp.body.slice(0, 200));
+
+    if (resp.status !== 200) {
+      // Parse Gemini error
+      let errMsg = 'Erro ' + resp.status;
+      try {
+        const errData = JSON.parse(resp.body);
+        errMsg = errData.error?.message || errData.error?.status || errMsg;
+      } catch(e) {}
+      return res.status(200).json({
+        content: [{ type: 'text', text: '❌ Gemini retornou erro: ' + errMsg + '\n\nVerifique se a chave API está correta em Configurações > Inteligência Artificial.' }]
+      });
+    }
+
     const geminiData = JSON.parse(resp.body);
-    const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'Não consegui responder. Verifique a GEMINI_API_KEY.';
+    const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+      const blockReason = geminiData.candidates?.[0]?.finishReason || geminiData.promptFeedback?.blockReason || 'unknown';
+      return res.status(200).json({
+        content: [{ type: 'text', text: '⚠️ Gemini não gerou resposta. Motivo: ' + blockReason }]
+      });
+    }
 
     res.setHeader('Content-Type', 'application/json');
-    return res.status(200).json({
-      content: [{ type: 'text', text }]
-    });
+    return res.status(200).json({ content: [{ type: 'text', text }] });
 
   } catch (err) {
-    console.error('[SR] Error:', err.message);
+    console.error('[SR] Exception:', err.message);
     return res.status(200).json({
-      content: [{ type: 'text', text: '⚠️ Erro no Sr. Performance: ' + err.message }]
+      content: [{ type: 'text', text: '❌ Erro: ' + err.message }]
     });
   }
 };
