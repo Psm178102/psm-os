@@ -2352,7 +2352,7 @@ async function doLogin() {
   // Faz sync do RD com tokens armazenados no navegador
   setTimeout(() => { RD.sync(true).then(() => RD.startAutoSync()); }, 200);
   if (!S.veraHist?.length) {
-    S.veraHist = [{role:'assistant', content:'Olá, ' + S.user.name.split(' ')[0] + '! Sou o Sr. Performance, seu mentor powered by Claude AI. Estou aqui para estratégia, objeções, cadências, feedbacks e o que mais precisar. Como posso te ajudar?'}];
+    S.veraHist = [{role:'assistant', content:'Olá, ' + S.user.name.split(' ')[0] + '! Sou o Sr. Performance, seu mentor de alta performance. Estou aqui para estratégia, objeções, cadências, feedbacks e o que mais precisar. Como posso te ajudar?'}];
   }
   scheduleVeraNotifs();
 }
@@ -3106,9 +3106,11 @@ function pgVera() {
   const shortcuts = ['Bom dia','Minha meta','Meu pipeline','Objeções','Como fechar mais','Cadência','Feedback do dia','Ranking','Forecast','Perfil DISC'];
 
   return '<div class="phd"><div class="phd-row" style="align-items:flex-start"><div style="flex:1">'
-    + '<h1>Sr. Performance <span style="font-size:12px;font-weight:400;color:var(--muted)">powered by Claude AI</span></h1>'
+    + '<h1>Sr. Performance <span style="font-size:12px;font-weight:400;color:var(--muted)">powered by Google Gemini AI</span></h1>'
     + '<p>Mentor de alta performance — estratégias, objeções, cadências, feedbacks</p>'
-    + '</div><button class="btn bout bsm" onclick="S.veraHist=[];render()" style="flex-shrink:0;margin-top:4px">🗑️ Limpar</button></div></div>'
+    + '</div><div style="display:flex;gap:6px;flex-shrink:0;margin-top:4px">'
+    + ((S.connectors||{}).vera_notebook_url ? '<a href="'+(S.connectors||{}).vera_notebook_url+'" target="_blank" rel="noopener" class="btn bout bsm" style="text-decoration:none">📓 Vera 5.0</a>' : '')
+    + '<button class="btn bout bsm" onclick="S.veraHist=[];render()">🗑️ Limpar</button></div></div></div>'
     + '<div class="card" style="display:flex;flex-direction:column;height:450px">'
     + '<div id="vera-msgs" style="flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:10px">'
     + (hist.length===0 ? '<div style="text-align:center;padding:40px;color:var(--muted);font-size:13px">Olá! Sou o Sr. Performance. Pergunte qualquer coisa.</div>' : '')
@@ -3188,11 +3190,12 @@ FRENTES: MAP/Lançamento, Conquista (revenda), Terceiros (captação), Locação
 
 INSTRUÇÕES: Seja direta, prática e motivadora. Use os dados reais. Máximo 280 palavras. Formato com **negrito** nos pontos-chave.`;
 
+    // Send Gemini API key via header (from Configurações > Conectores)
+    const geminiKey = (S.connectors || {}).gemini_api_key || '';
     const resp = await fetch('/api/sr', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: {'Content-Type':'application/json', 'X-Gemini-Key': geminiKey},
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1024,
         system,
         messages: S.veraHist.slice(-10).map(m => ({role:m.role, content:m.content}))
@@ -3543,6 +3546,19 @@ function pgConfig() {
     + connectorSection('Excel Online','excel','#217346',[
         {key:'excel_url', label:'URL da Planilha', placeholder:'https://...', type:'text'},
       ])
+    + '</div>'
+    + '<div class="card mt2" style="grid-column:1/-1"><div class="ctitle">🤖 Inteligência Artificial</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-bottom:12px">Configure as chaves de API para o Sr. Performance e assistentes de IA do sistema.</div>'
+    + connectorSection('Sr. Performance — Google Gemini','gemini','#4285f4',[
+        {key:'gemini_api_key', label:'API Key Google Gemini', placeholder:'AIza... (grátis em aistudio.google.com/apikey)', type:'password'},
+      ])
+    + connectorSection('ChatGPT — OpenAI','openai','#10a37f',[
+        {key:'openai_api_key', label:'API Key OpenAI', placeholder:'sk-... (opcional)', type:'password'},
+      ])
+    + connectorSection('Vera 5.0 — NotebookLM','vera_nb','#8b5cf6',[
+        {key:'vera_notebook_url', label:'Link do NotebookLM', placeholder:'https://notebooklm.google.com/notebook/...', type:'text'},
+      ])
+    + '</div>'
     + '<div style="margin-top:16px;padding:14px;background:var(--cream2);border-radius:10px;border:1px solid var(--cream3)">'
     + '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6">'
     + 'Os tokens salvam no navegador (localStorage) e funcionam sem servidor. Clique em "Testar Conexões" para validar.'

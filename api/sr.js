@@ -22,17 +22,19 @@ function httpsReq(url, opts = {}) {
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Gemini-Key');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    // Priority: header from frontend > env var on Vercel
+    const headerKey = req.headers['x-gemini-key'] || '';
+    const apiKey = headerKey || process.env.GEMINI_API_KEY || '';
     if (!apiKey) {
       return res.status(200).json({
-        content: [{ type: 'text', text: '⚠️ Sr. Performance precisa da GEMINI_API_KEY.\n\n1. Acesse aistudio.google.com/apikey\n2. Clique "Create API Key"\n3. Copie a chave AIza...\n4. Vá em Vercel > Settings > Environment Variables\n5. Adicione GEMINI_API_KEY com o valor da chave' }]
+        content: [{ type: 'text', text: '⚠️ Sr. Performance precisa da chave Google Gemini.\n\n1. Acesse aistudio.google.com/apikey\n2. Clique "Create API Key"\n3. Copie a chave AIza...\n4. No PSM, vá em Configurações > Inteligência Artificial\n5. Cole a chave no campo "Google Gemini"' }]
       });
     }
 
