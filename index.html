@@ -2208,23 +2208,13 @@ function setDFDate(prefix,field,v) { const df=S['df_'+prefix]||{preset:'Custom'}
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
 function renderLogin() {
-  // Logo PSM Imóveis (navy monogram)
-  const logoPSM = '<svg viewBox="0 0 200 260" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:140px;height:auto">'
-    + '<text x="30" y="90" font-family="Plus Jakarta Sans,serif" font-size="120" font-weight="900" fill="#0f172a" letter-spacing="-4">P</text>'
-    + '<text x="52" y="160" font-family="Plus Jakarta Sans,serif" font-size="80" font-weight="700" fill="#0f172a" letter-spacing="-2">S</text>'
-    + '<text x="48" y="230" font-family="Plus Jakarta Sans,serif" font-size="100" font-weight="900" fill="#0f172a" letter-spacing="-2">M.</text>'
-    + '<text x="40" y="255" font-family="Plus Jakarta Sans,sans-serif" font-size="22" font-weight="400" fill="#0f172a" letter-spacing="8">IMÓVEIS</text>'
-    + '</svg>';
-
-  // Logo PSM Conquista
-  const logoConquista = '<div style="display:flex;align-items:center;gap:10px">'
-    + '<div style="width:48px;height:48px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px">✓</div>'
-    + '<div><span style="font-size:22px;font-weight:900;color:#14532d;letter-spacing:1px">PSM.</span><span style="font-size:22px;font-weight:900;color:#15803d;letter-spacing:1px">CONQUISTA</span></div>'
-    + '</div>';
+  // URLs das logos originais no GitHub
+  const urlPSM = 'https://raw.githubusercontent.com/Psm178102/psm-os/main/logo%20vertical%20-%20PSM.IM%C3%93VEIS.png';
+  const urlConquista = 'https://raw.githubusercontent.com/Psm178102/psm-os/main/logo%20psm%20conquista.png';
 
   return '<div style="min-height:100vh;display:flex;background:#0f172a;overflow:hidden">'
     // ── LEFT: Login Card ──
-    + '<div style="width:420px;min-width:380px;display:flex;flex-direction:column;justify-content:center;padding:48px;background:#fff;position:relative;z-index:2">'
+    + '<div style="width:420px;min-width:360px;display:flex;flex-direction:column;justify-content:center;padding:48px;background:#fff;position:relative;z-index:2">'
     + '<div style="text-align:center;margin-bottom:32px">'
     + '<div style="font-size:30px;font-weight:900;letter-spacing:5px;color:var(--navy)">PSM</div>'
     + '<div style="font-size:10px;color:var(--muted);letter-spacing:2.5px;text-transform:uppercase;margin-top:4px">Sistema Operacional</div>'
@@ -2237,20 +2227,14 @@ function renderLogin() {
     + (S.loginErr ? '<div style="margin-top:12px;text-align:center;font-size:12px;color:var(--r-tx)">'+S.loginErr+'</div>' : '')
     + '<div style="margin-top:40px;text-align:center;font-size:10px;color:var(--cream4);line-height:1.6">PSM Assessoria Imobiliária<br>São José do Rio Preto — SP</div>'
     + '</div>'
-    // ── RIGHT: Logos Showcase ──
-    + '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;background:linear-gradient(135deg,#080d1a 0%,#0f172a 40%,#1e293b 100%);position:relative;padding:40px">'
+    // ── RIGHT: Logos Originais ──
+    + '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:50px;background:linear-gradient(135deg,#080d1a 0%,#0f172a 40%,#1e293b 100%);position:relative;padding:40px">'
     + '<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 30%,rgba(212,168,67,.08) 0%,transparent 60%);pointer-events:none"></div>'
     + '<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 70% 70%,rgba(59,130,246,.04) 0%,transparent 60%);pointer-events:none"></div>'
-    // Logos container
-    + '<div style="display:flex;align-items:center;gap:60px;position:relative;z-index:1">'
-    // PSM Imóveis logo
-    + '<div style="background:rgba(255,255,255,.95);border-radius:20px;padding:36px 32px;box-shadow:0 20px 50px rgba(0,0,0,.3)">'
-    + logoPSM
-    + '</div>'
-    // PSM Conquista logo
-    + '<div style="background:rgba(255,255,255,.95);border-radius:20px;padding:28px 32px;box-shadow:0 20px 50px rgba(0,0,0,.3)">'
-    + logoConquista
-    + '</div>'
+    // Logos originais lado a lado
+    + '<div style="display:flex;align-items:center;gap:50px;position:relative;z-index:1;flex-wrap:wrap;justify-content:center">'
+    + '<img src="'+urlPSM+'" alt="PSM Imóveis" style="height:220px;object-fit:contain;filter:drop-shadow(0 8px 24px rgba(0,0,0,.4))">'
+    + '<img src="'+urlConquista+'" alt="PSM Conquista" style="height:120px;object-fit:contain;filter:drop-shadow(0 8px 24px rgba(0,0,0,.4))">'
     + '</div>'
     // Tagline
     + '<div style="text-align:center;position:relative;z-index:1">'
