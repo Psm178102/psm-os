@@ -3611,33 +3611,20 @@ async function testConnectors() {
   const results = [];
   const c = S.connectors || {};
 
-  // ── Test RD CRM ──
+  // ── Test RD CRM (via proxy — direto não funciona por CORS) ──
   if (c.rd_crm_token) {
     try {
-      // Try direct API call first
-      const directUrl = 'https://crm.rdstation.com/api/v1/deals?token=' + c.rd_crm_token + '&limit=1';
-      const r = await fetch(directUrl, { headers: { 'Accept': 'application/json' } });
+      const r = await fetch('/api/rd?path=/deals&limit=1&service=crm', {
+        headers: { 'X-RD-Token': c.rd_crm_token }
+      });
       if (r.ok) {
         const d = await r.json();
-        const count = Array.isArray(d.deals) ? d.deals.length : (d.total || '?');
-        results.push('✅ RD CRM direto (' + count + ' deals)');
+        results.push('✅ RD CRM (' + (d.total||'ok') + ' deals)');
       } else {
-        console.log('[Test] RD CRM direto falhou, tentando proxy...');
-        // Try proxy
-        const rProxy = await fetch('/api/rd?path=/deals&limit=1&service=crm', {
-          headers: { 'X-RD-Token': c.rd_crm_token }
-        });
-        if (rProxy.ok) {
-          const d = await rProxy.json();
-          const count = Array.isArray(d.deals) ? d.deals.length : (d.total || '?');
-          results.push('✅ RD CRM proxy (' + count + ' deals)');
-        } else {
-          const err = await rProxy.json().catch(()=>({}));
-          const msg = err.error || err.errors?.[0]?.message || rProxy.status;
-          results.push('❌ RD CRM (' + msg + ')');
-        }
+        const err = await r.json().catch(()=>({}));
+        results.push('❌ RD CRM (' + (err.error||r.status) + ')');
       }
-    } catch(e) { results.push('❌ RD CRM (' + e.message + ')'); }
+    } catch(e) { results.push('❌ RD CRM (' + e.message.slice(0,40) + ')'); }
   } else {
     results.push('⬜ RD CRM (sem token)');
   }
@@ -3645,44 +3632,51 @@ async function testConnectors() {
   // ── Test RD MKT ──
   if (c.rd_mkt_token) {
     try {
-      // Try direct API call first
-      const directUrl = 'https://api.rdstation.com/2.0/platform/contacts?auth_token=' + c.rd_mkt_token + '&limit=1';
-      const r = await fetch(directUrl, { headers: { 'Accept': 'application/json' } });
-      if (r.ok) {
-        results.push('✅ RD MKT direto');
-      } else {
-        console.log('[Test] RD MKT direto falhou, tentando proxy...');
-        // Try proxy
-        const rProxy = await fetch('/api/rd?path=/platform/contacts&limit=1&service=mkt', {
-          headers: { 'X-RD-Token': c.rd_mkt_token }
-        });
-        if (rProxy.ok) {
-          results.push('✅ RD MKT proxy');
-        } else {
-          const err = await rProxy.json().catch(()=>({}));
-          const msg = err.error || err.errors?.[0]?.message || rProxy.status;
-          results.push('❌ RD MKT (' + msg + ')');
-        }
-      }
-    } catch(e) { results.push('❌ RD MKT (' + e.message + ')'); }
+      const r = await fetch('/api/rd?path=/platform/contacts&limit=1&service=mkt', {
+        headers: { 'X-RD-Token': c.rd_mkt_token }
+      });
+      results.push(r.ok ? '✅ RD MKT' : '❌ RD MKT (' + r.status + ')');
+    } catch(e) { results.push('❌ RD MKT (' + e.message.slice(0,40) + ')'); }
   } else {
     results.push('⬜ RD MKT (sem token)');
   }
 
-  // ── Notion ──
-  if (c.notion_key) {
-    results.push('💾 Notion (salvo)');
-  }
-  // ── Google ──
-  if (c.google_api_key || c.google_client_id) {
-    results.push('💾 Google (salvo)');
-  }
-  // ── Excel ──
-  if (c.excel_url) {
-    results.push('💾 Excel (salvo)');
+  // ── Test Google Gemini ──
+  if (c.gemini_api_key) {
+    try {
+      const r = await fetch('/api/sr', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json', 'X-Gemini-Key': c.gemini_api_key},
+        body: JSON.stringify({system:'Responda apenas: OK', messages:[{role:'user',content:'teste'}], max_tokens:10})
+      });
+      const d = await r.json();
+      const txt = d.content?.[0]?.text || '';
+      results.push(txt && !txt.includes('⚠️') ? '✅ Gemini AI (ativo)' : '❌ Gemini (' + txt.slice(0,30) + ')');
+    } catch(e) { results.push('❌ Gemini (' + e.message.slice(0,30) + ')'); }
+  } else {
+    results.push('⬜ Gemini (sem chave)');
   }
 
-  if (st) st.innerHTML = results.join(' &nbsp;·&nbsp; ');
+  // ── Test OpenAI ──
+  if (c.openai_api_key) {
+    results.push('💾 OpenAI (chave salva)');
+  }
+
+  // ── Vera NotebookLM ──
+  if (c.vera_notebook_url) {
+    results.push('✅ Vera 5.0 (link salvo)');
+  }
+
+  // ── Outros ──
+  if (c.notion_key) results.push('💾 Notion');
+  if (c.google_api_key || c.google_client_id) results.push('💾 Google');
+  if (c.excel_url) results.push('💾 Excel');
+
+  if (st) st.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">'
+    + results.map(r => '<span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:'
+      + (r.startsWith('✅') ? 'var(--g-bg);color:var(--g-tx)' : r.startsWith('❌') ? 'var(--r-bg);color:var(--r-tx)' : 'var(--cream2);color:var(--muted)')
+      + '">'+r+'</span>').join('')
+    + '</div>';
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
