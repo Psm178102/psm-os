@@ -61,7 +61,7 @@ module.exports = async (req, res) => {
       contents.push({ role: 'user', parts: [{ text: 'Olá' }] });
     }
 
-    const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+    const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
 
     console.log('[SR] Calling Gemini with', contents.length, 'messages');
 
