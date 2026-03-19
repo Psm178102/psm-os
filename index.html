@@ -1316,29 +1316,43 @@ function pgFrente(fid){
   const df_frente_fid = DateFilter('frente_fid','Período');
   const f=FRENTES[fid]||{id:fid,label:fid,icon:'📁',color:'#64748b'};
   const bks=BROKERS.filter(b=>b.frente===fid);
-  const opps=OPPS.filter(o=>o.fr===fid);
   const stages=FUNIS[fid]||FUNIS.lancamento||[];
-  const vgvT=bks.reduce((a,b)=>a+(b.vgv_real||0),0);
-  const metaT=bks.reduce((a,b)=>a+(b.meta||0),0);
-  const pW=opps.reduce((a,o)=>{const s=stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st));return a+(o.vgv*(s?s.w:.1));},0);
-  const crmA=bks.length?Math.round(bks.reduce((a,b)=>a+b.crm,0)/bks.length):0;
   const fm=FRENTE_METAS[fid]||{};
-  const extraReal=fid==='terceiros'?bks.reduce((a,b)=>a+b.agend,0):bks.reduce((a,b)=>a+b.vis,0);
-  const extraPct=fm.extra_meta?Math.min(100,Math.round(extraReal/fm.extra_meta*100)):0;
   const stagesMap=FMAP[fid]||{};
+
+  // ── Filter by period ──
+  const fOpps=applyDateFilter(OPPS,'frente_fid').filter(o=>o.fr===fid);
+  const fWon=applyDateFilter(VENDAS,'frente_fid').filter(v=>v.fr===fid);
+  const fLost=applyDateFilter(LOST_DEALS,'frente_fid').filter(l=>l.fr===fid);
+
+  // ── Recalculate per-broker for this period ──
+  const brkPeriod={};
+  bks.forEach(b=>{
+    const bO=fOpps.filter(o=>o.bid===b.id);
+    const bW=fWon.filter(v=>v.bid===b.id);
+    brkPeriod[b.id]={vgv_pipe:bO.reduce((a,o)=>a+(o.vgv||0),0),vgv_real:bW.reduce((a,v)=>a+(v.vgv||0),0),vendas:bW.length};
+  });
+
+  const vgvT=fWon.reduce((a,v)=>a+(v.vgv||0),0);
+  const metaT=bks.reduce((a,b)=>a+(b.meta||0),0);
+  const pW=fOpps.reduce((a,o)=>{const s=stages.find?.(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st));return a+(o.vgv*(s?s.w:.1));},0);
+  const crmA=bks.length?Math.round(bks.reduce((a,b)=>a+(b.crm||20),0)/bks.length):0;
+  const extraReal=fid==='terceiros'?bks.reduce((a,b)=>a+(b.agend||0),0):bks.reduce((a,b)=>a+(b.vis||0),0);
+  const extraPct=fm.extra_meta?Math.min(100,Math.round(extraReal/fm.extra_meta*100)):0;
+
   return df_frente_fid + '<div class="phd"><h1>'+f.icon+' '+f.label+'</h1><p>'+METRICS.mes+(f.altLabel?' · '+f.altLabel:'')+'</p></div>'
   +'<div class="kgrid">'
-  +Kpi('Pipeline',fmt(opps.reduce((a,o)=>a+o.vgv,0)),opps.length+' opps',null,f.color)
+  +Kpi('Pipeline',fmt(fOpps.reduce((a,o)=>a+(o.vgv||0),0)),fOpps.length+' opps',null,f.color)
   +Kpi('Ponderado',fmt(Math.round(pW)),'por peso',null,f.color)
-  +Kpi('Vendas',bks.reduce((a,b)=>a+(b.vendas||0),0),'realizadas',null,f.color)
+  +Kpi('Vendas',fWon.length,'no período',null,f.color)
   +Kpi('VGV Realizado',fmt(vgvT),pS(vgvT,metaT)+' da meta',null,f.color)
-  +Kpi('Perdidas',LOST_DEALS.filter(l=>l.fr===fid).length,'VGV: '+fmt(LOST_DEALS.filter(l=>l.fr===fid).reduce((a,l)=>a+(l.vgv||0),0)),null,'var(--r)')
+  +Kpi('Perdidas',fLost.length,'VGV: '+fmt(fLost.reduce((a,l)=>a+(l.vgv||0),0)),null,'var(--r)')
   +Kpi('CRM Score',crmA+' pts',crmA>=80?'Bom':'Atenção',null,crmA>=80?'var(--g)':'var(--a)')
   +'</div>'
   +'<div class="g2 mb2">'
   +'<div class="card"><div class="ctitle">Funil — '+f.label+'</div>'
   +'<div class="funrow">'
-  +stages.map(s=>{const cnt=opps.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).length;const vE=opps.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).reduce((a,o)=>a+o.vgv,0);
+  +stages.map(s=>{const cnt=fOpps.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).length;const vE=fOpps.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).reduce((a,o)=>a+(o.vgv||0),0);
     return '<div class="fbox" style="background:'+s.color+'12;border-color:'+s.color+'28">'
       +'<div class="fnum" style="color:'+s.color+'">'+cnt+'</div>'
       +'<div class="fname" style="color:'+s.color+'">'+s.label+'</div>'
@@ -1346,15 +1360,15 @@ function pgFrente(fid){
       +'</div>';}).join('')
   +'</div></div>'
   +'<div class="card"><div class="ctitle">Corretores</div>'
-  +(bks.length?bks.map(b=>'<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--cream3)">'
+  +(bks.length?bks.map(b=>{const bp=brkPeriod[b.id]||{};return'<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--cream3)">'
     +Av(b,'sm',true)
-    +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+b.name+'</div>'+PB(b.vgv_real||0,b.meta,f.color)+'</div>'
-    +'<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700;color:var(--navy)">'+(b.vgv_real?fmt(b.vgv_real):'R$0')+' <span style="font-size:9px;color:var(--muted);font-weight:400">realizado</span></div><div style="font-size:9.5px;color:var(--muted)">Pipeline: '+(b.vgv?fmt(b.vgv):'—')+' · '+pS(b.vgv_real||0,b.meta)+' da meta</div></div>'
-    +'</div>').join('')
+    +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+b.name+'</div>'+PB(bp.vgv_real||0,b.meta||0,f.color)+'</div>'
+    +'<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700;color:var(--navy)">'+(bp.vgv_real?fmt(bp.vgv_real):'R$0')+' <span style="font-size:9px;color:var(--muted);font-weight:400">realizado</span></div><div style="font-size:9.5px;color:var(--muted)">Pipeline: '+(bp.vgv_pipe?fmt(bp.vgv_pipe):'—')+' · '+(bp.vendas||0)+' vendas · '+pS(bp.vgv_real||0,b.meta||0)+' da meta</div></div>'
+    +'</div>';}).join('')
     :'<div class="es"><div class="es-ico">👥</div><div class="es-t">Sem corretores ativos</div><div class="es-s">Configure equipes em Configurações</div></div>')
   +'</div></div>'
   +'<div class="card"><div class="ctitle">Oportunidades Ativas</div><div class="tw"><table class="tbl"><thead><tr><th>ID</th><th>Cliente</th><th>Corretor</th><th>Etapa</th><th>VGV</th><th>SLA</th><th>Update</th><th>CRM</th></tr></thead><tbody>'
-  +opps.map(o=>'<tr style="background:'+(o.sla==='overdue'?'rgba(239,68,68,.03)':o.dnu>=3?'rgba(245,158,11,.03)':'')+'"><td class="tmono">'+(o.id||'').toString().slice(0,10)+'</td><td style="font-weight:600;font-size:12px">'+(o.cl||'—')+'</td><td><div class="flex aic gap1">'+Av(UM[o.bid])+'<span>'+(o.bn||'—').split(' ')[0]+'</span></div></td><td>'+StgChip(o.fr,o.st)+'</td><td class="tr">'+fmt(o.vgv||0)+'</td><td>'+SlaIco(o.sla)+'</td><td class="tr" style="color:'+(o.dnu>=3?'var(--r-tx)':'inherit')+';font-weight:'+(o.dnu>=3?700:400)+'">'+(o.dnu||0)+'d</td><td style="min-width:85px">'+CrmBar(o.crm||20)+'</td></tr>').join('')
+  +fOpps.map(o=>'<tr style="background:'+(o.sla==='overdue'?'rgba(239,68,68,.03)':o.dnu>=3?'rgba(245,158,11,.03)':'')+'"><td class="tmono">'+(o.id||'').toString().slice(0,10)+'</td><td style="font-weight:600;font-size:12px">'+(o.cl||'—')+'</td><td><div class="flex aic gap1">'+Av(UM[o.bid])+'<span>'+(o.bn||'—').split(' ')[0]+'</span></div></td><td>'+StgChip(o.fr,o.st)+'</td><td class="tr">'+fmt(o.vgv||0)+'</td><td>'+SlaIco(o.sla)+'</td><td class="tr" style="color:'+(o.dnu>=3?'var(--r-tx)':'inherit')+';font-weight:'+(o.dnu>=3?700:400)+'">'+(o.dnu||0)+'d</td><td style="min-width:85px">'+CrmBar(o.crm||20)+'</td></tr>').join('')
   +'</tbody></table></div></div>';
 }
 
