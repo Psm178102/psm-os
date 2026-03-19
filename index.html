@@ -1025,9 +1025,10 @@ function svgHoriz(data,lk,vk,color,maxO){
 
 // ─── COMPONENT HELPERS ────────────────────────────────────────────────────────
 function Av(u,sz,stat){
+  if(!u) return '<div class="av av-sm" style="background:#94a3b8">?</div>';
   sz=sz||'sm';
   const ring=stat?' ring-'+(u.st||'offline'):'';
-  return '<div class="av av-'+sz+ring+'" style="background:'+u.color+'">'+u.ini+'</div>';
+  return '<div class="av av-'+sz+ring+'" style="background:'+(u.color||'#94a3b8')+'">'+(u.ini||'?')+'</div>';
 }
 function FTag(fid){
   const f=FRENTES[fid];if(!f)return'';
@@ -1041,7 +1042,7 @@ function CrmBar(sc){
   return '<div class="cbrow"><div class="cbbar"><div class="cbfill" style="width:'+sc+'%;background:'+c+'"></div></div><span class="cblbl" style="color:'+tc+'">'+sc+'</span></div>';
 }
 function PB(v,t,col,big){
-  const p=clamp(pN(v,t),0,100);
+  const p=clamp(pN(v||0,t||1),0,100);
   col=col||(p>=80?'var(--g)':p>=50?'var(--a)':'var(--r)');
   return '<div class="pbar'+(big?' pbig':'')+'"><div class="pf" style="width:'+p+'%;background:'+col+'"></div></div>';
 }
@@ -1049,10 +1050,10 @@ function Kpi(lbl,val,meta,chg,acc){
   return '<div class="kpi" style="border-top-color:'+(acc||'var(--navy)')+'"><div class="klbl">'+lbl+'</div><div class="kval">'+val+'</div>'+(meta?'<div class="kmeta">'+meta+'</div>':'')+(chg?'<div class="kchg '+(chg.up?'up':'dn')+'">'+chg.txt+'</div>':'')+'</div>';
 }
 function StgChip(fid,sid){
-  // sid can be a real RD stage ID or a PSM name
-  const stages=FUNIS[fid]||FUNIS.lancamento;
-  const s=stages.find(x=>(x.rdIds&&x.rdIds.includes(sid))||(x.id===sid));
-  if(!s)return'<span class="badge bgray" style="font-size:9.5px">'+sid.slice(0,12)+'</span>';
+  if(!sid) return '<span class="badge bgray" style="font-size:9.5px">—</span>';
+  const stages=FUNIS[fid]||FUNIS.lancamento||[];
+  const s=stages.find?.(x=>(x.rdIds&&x.rdIds.includes(sid))||(x.id===sid));
+  if(!s)return'<span class="badge bgray" style="font-size:9.5px">'+(sid||'').toString().slice(0,12)+'</span>';
   return '<span style="font-size:9.5px;padding:2px 8px;border-radius:99px;background:'+s.color+'18;color:'+s.color+';font-weight:600;white-space:nowrap">'+s.label+'</span>';
 }
 
@@ -1353,7 +1354,7 @@ function pgFrente(fid){
     :'<div class="es"><div class="es-ico">👥</div><div class="es-t">Sem corretores ativos</div><div class="es-s">Configure equipes em Configurações</div></div>')
   +'</div></div>'
   +'<div class="card"><div class="ctitle">Oportunidades Ativas</div><div class="tw"><table class="tbl"><thead><tr><th>ID</th><th>Cliente</th><th>Corretor</th><th>Etapa</th><th>VGV</th><th>SLA</th><th>Update</th><th>CRM</th></tr></thead><tbody>'
-  +opps.map(o=>'<tr style="background:'+(o.sla==='overdue'?'rgba(239,68,68,.03)':o.dnu>=3?'rgba(245,158,11,.03)':'')+'"><td class="tmono">'+o.id+'</td><td style="font-weight:600;font-size:12px">'+o.cl+'</td><td><div class="flex aic gap1">'+Av(UM[o.bid],'xs')+'<span>'+o.bn.split(' ')[0]+'</span></div></td><td>'+StgChip(o.fr,o.st)+'</td><td class="tr">'+fmt(o.vgv)+'</td><td>'+SlaIco(o.sla)+'</td><td class="tr" style="color:'+(o.dnu>=3?'var(--r-tx)':'inherit')+';font-weight:'+(o.dnu>=3?700:400)+'">'+o.dnu+'d</td><td style="min-width:85px">'+CrmBar(o.crm)+'</td></tr>').join('')
+  +opps.map(o=>'<tr style="background:'+(o.sla==='overdue'?'rgba(239,68,68,.03)':o.dnu>=3?'rgba(245,158,11,.03)':'')+'"><td class="tmono">'+(o.id||'').toString().slice(0,10)+'</td><td style="font-weight:600;font-size:12px">'+(o.cl||'—')+'</td><td><div class="flex aic gap1">'+Av(UM[o.bid])+'<span>'+(o.bn||'—').split(' ')[0]+'</span></div></td><td>'+StgChip(o.fr,o.st)+'</td><td class="tr">'+fmt(o.vgv||0)+'</td><td>'+SlaIco(o.sla)+'</td><td class="tr" style="color:'+(o.dnu>=3?'var(--r-tx)':'inherit')+';font-weight:'+(o.dnu>=3?700:400)+'">'+(o.dnu||0)+'d</td><td style="min-width:85px">'+CrmBar(o.crm||20)+'</td></tr>').join('')
   +'</tbody></table></div></div>';
 }
 
