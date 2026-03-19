@@ -1078,7 +1078,7 @@ function frenteStats(){
   Object.keys(FRENTES).forEach(fid=>stats[fid]={vgv:0,vgv_real:0,meta:0,vend:0,crm_sum:0,count:0,lig:0,vis:0,agend:0,prop:0});
   BROKERS.forEach(b=>{
     const fid=b.frente;if(!stats[fid])return;
-    stats[fid].vgv+=b.vgv||0;stats[fid].vgv_real+=b.vgv_real||0;stats[fid].meta+=b.meta;stats[fid].vend+=b.vendas||0;
+    stats[fid].vgv+=b.vgv||0;stats[fid].vgv_real+=b.vgv_real||0;stats[fid].meta+=b.meta||0;stats[fid].vend+=b.vendas||0;
     stats[fid].crm_sum+=b.crm;stats[fid].count++;
     stats[fid].lig+=b.lig;stats[fid].vis+=b.vis;stats[fid].agend+=b.agend;stats[fid].prop+=b.prop;
   });
@@ -1312,12 +1312,12 @@ function pgRanking(){
 // ─── PAGE: FRENTE ─────────────────────────────────────────────────────────────
 function pgFrente(fid){
   const df_frente_fid = DateFilter('frente_fid','Período');
-  const f=FRENTES[fid];
+  const f=FRENTES[fid]||{id:fid,label:fid,icon:'📁',color:'#64748b'};
   const bks=BROKERS.filter(b=>b.frente===fid);
   const opps=OPPS.filter(o=>o.fr===fid);
   const stages=FUNIS[fid]||FUNIS.lancamento||[];
   const vgvT=bks.reduce((a,b)=>a+(b.vgv_real||0),0);
-  const metaT=bks.reduce((a,b)=>a+b.meta,0);
+  const metaT=bks.reduce((a,b)=>a+(b.meta||0),0);
   const pW=opps.reduce((a,o)=>{const s=stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st));return a+(o.vgv*(s?s.w:.1));},0);
   const crmA=bks.length?Math.round(bks.reduce((a,b)=>a+b.crm,0)/bks.length):0;
   const fm=FRENTE_METAS[fid]||{};
