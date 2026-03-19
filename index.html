@@ -1798,34 +1798,44 @@ function pgCRM(){
 
 // ─── PAGE: GOVERNANÇA ─────────────────────────────────────────────────────────
 function pgGovernance(){
-  const f=S.govF;
+  const f=S.govF||'all';
   const df=DateFilter('gov','Período');
-  const totalWon=VENDAS.length||1, totalVis=BROKERS.reduce((a,b)=>a+(b.vis||0),0);
-  const totalLeads=OPPS.length+LOST_DEALS.length;
-  const visPerVenda=totalWon>0?(totalVis/totalWon).toFixed(1):'—';
-  const leadsPerVenda=totalWon>0?(totalLeads/totalWon).toFixed(1):'—';
-  const vgcTotal=Math.round((S.vgvReal||0)*(S.comissaoPct||6)/100);
-  const allAudits=generateAudits();
-  const items=f==='all'?allAudits:allAudits.filter(a=>a.sev===f);
-  const crmA=Math.round(BROKERS.reduce((a,b)=>a+b.crm,0)/BROKERS.length);
-  return '<div class="phd"><h1>Governança & Auditoria</h1><p>Qualidade e conformidade operacional</p></div>'
+
+  // ── Filter by period ──
+  const fOpps=applyDateFilter(OPPS,'gov');
+  const fWon=applyDateFilter(VENDAS,'gov');
+  const fLost=applyDateFilter(LOST_DEALS,'gov');
+
+  const allAudits=[];
+  fOpps.forEach(o=>{
+    if(o.dnu>=7&&UM[o.bid])allAudits.push({id:'a-'+o.id,oid:(o.id||'').toString().slice(0,10),bid:o.bid,tipo:'Sem atualização',sev:'d',desc:(o.cl||'—')+' sem update há '+o.dnu+' dias.'});
+    else if(o.dnu>=3&&UM[o.bid])allAudits.push({id:'a-'+o.id,oid:(o.id||'').toString().slice(0,10),bid:o.bid,tipo:'SLA vencido',sev:'w',desc:(o.cl||'—')+' sem update há '+o.dnu+' dias.'});
+  });
+  BROKERS.forEach(b=>{if((b.crm||20)<65)allAudits.push({id:'crm-'+b.id,oid:'',bid:b.id,tipo:'CRM baixo',sev:'w',desc:'CRM Score de '+(b.crm||20)+' pts.'});});
+
+  const items=(f==='all'?allAudits:allAudits.filter(a=>a.sev===f)).slice(0,50);
+  const crmA=BROKERS.length?Math.round(BROKERS.reduce((a,b)=>a+(b.crm||20),0)/BROKERS.length):0;
+  const slaVencido=fOpps.filter(o=>(o.sla||'')==='overdue').length;
+  const semUpdate=fOpps.filter(o=>(o.dnu||0)>=3).length;
+
+  return '<div class="phd"><h1>Governança & Auditoria</h1><p>Qualidade e conformidade operacional</p></div>'+df
   +'<div class="kgrid">'
-  +Kpi('Issues Ativos',allAudits.length,'aguardando resolução',null,'var(--r)')
+  +Kpi('Issues Ativos',allAudits.length,'no período selecionado',null,'var(--r)')
   +Kpi('CRM Médio',crmA+' pts','equipe',{up:crmA>=80,txt:crmA>=80?'Bom':'Atenção'},crmA>=80?'var(--g)':'var(--a)')
-  +Kpi('SLA Vencido',OPPS.filter(o=>o.sla==='overdue').length,'opps',null,'var(--a)')
-  +Kpi('Sem Update +3d',OPPS.filter(o=>o.dnu>=3).length,'opps',null,'var(--r)')
+  +Kpi('SLA Vencido',slaVencido,'opps no período',null,'var(--a)')
+  +Kpi('Sem Update +3d',semUpdate,'opps no período',null,'var(--r)')
   +'</div>'
   +'<div class="g2 mb2">'
   +'<div class="card"><div class="ctitle">Issues <span class="csub"><div style="display:flex;gap:4px">'
   +['all','d','w','i'].map(x=>'<button class="btn bsm '+(f===x?'bp1':'bout')+'" onclick="S.govF=\''+x+'\';render()">'+(x==='all'?'Todos':x==='d'?'Críticos':x==='w'?'Atenção':'Info')+'</button>').join('')
   +'</div></span></div>'
-  +items.map(a=>'<div class="ai ai-'+a.sev+'"><div><div class="ai-t">'+a.tipo+' <span style="font-size:9px;color:var(--muted);font-weight:400">'+a.oid+'</span></div><div class="ai-d2">'+a.desc+'</div><div style="font-size:9.5px;font-weight:700;color:'+(a.sev==='d'?'var(--r-tx)':a.sev==='w'?'var(--a-tx)':'var(--b-tx)')+';margin-top:2px">'+(UM[a.bid]||{name:'—'}).name+'</div></div></div>').join('')
+  +(items.length?items.map(a=>'<div class="ai ai-'+a.sev+'"><div><div class="ai-t">'+a.tipo+' <span style="font-size:9px;color:var(--muted);font-weight:400">'+a.oid+'</span></div><div class="ai-d2">'+a.desc+'</div><div style="font-size:9.5px;font-weight:700;color:'+(a.sev==='d'?'var(--r-tx)':a.sev==='w'?'var(--a-tx)':'var(--b-tx)')+';margin-top:2px">'+(UM[a.bid]||{name:'—'}).name+'</div></div></div>').join(''):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Nenhum issue no período selecionado</div>')
   +'</div>'
   +'<div class="card"><div class="ctitle">CRM Score por Corretor</div>'
-  +[...BROKERS].sort((a,b)=>b.crm-a.crm).map(b=>'<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--cream3)">'+Av(b,'xs')+'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+b.name+'</div>'+CrmBar(b.crm)+'</div>'+(b.crm<70?Bdg('Abaixo do mínimo','br'):'')+'</div>').join('')
+  +[...BROKERS].sort((a,b)=>(b.crm||20)-(a.crm||20)).map(b=>'<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--cream3)">'+Av(b,'xs')+'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+b.name+'</div>'+CrmBar(b.crm||20)+'</div>'+((b.crm||20)<70?Bdg('Abaixo do mínimo','br'):'')+'</div>').join('')
   +'</div></div>'
-  +'<div class="card"><div class="ctitle">Conformidade Completa</div><div class="tw"><table class="tbl"><thead><tr><th>ID</th><th>Corretor</th><th>Frente</th><th>Etapa</th><th>VGV</th><th>Dias</th><th>Update</th><th>SLA</th><th>CRM</th></tr></thead><tbody>'
-  +OPPS.map(o=>'<tr style="background:'+(o.sla==='overdue'?'rgba(239,68,68,.03)':o.dnu>=3?'rgba(245,158,11,.03)':'')+'"><td class="tmono">'+o.id+'</td><td><div class="flex aic gap1">'+Av(UM[o.bid],'xs')+'<span>'+o.bn.split(' ')[0]+'</span></div></td><td>'+FTag(o.fr)+'</td><td>'+StgChip(o.fr,o.st)+'</td><td class="tr">'+fmt(o.vgv)+'</td><td class="tr" style="color:'+(o.dia>5?'var(--a-tx)':'inherit')+'">'+o.dia+'d</td><td class="tr" style="color:'+(o.dnu>=3?'var(--r-tx)':'inherit')+';font-weight:'+(o.dnu>=3?700:400)+'">'+o.dnu+'d</td><td>'+SlaIco(o.sla)+'</td><td style="min-width:85px">'+CrmBar(o.crm)+'</td></tr>').join('')
+  +'<div class="card"><div class="ctitle">Conformidade — '+fOpps.length+' opps no período</div><div class="tw"><table class="tbl"><thead><tr><th>Cliente</th><th>Corretor</th><th>Frente</th><th>Etapa</th><th>VGV</th><th>Update</th><th>SLA</th><th>CRM</th></tr></thead><tbody>'
+  +fOpps.filter(o=>o.dnu>=3).slice(0,30).map(o=>'<tr style="background:'+(o.sla==='overdue'?'rgba(239,68,68,.03)':'rgba(245,158,11,.03)')+'"><td style="font-weight:600;font-size:12px">'+(o.cl||'—')+'</td><td><div class="flex aic gap1">'+Av(UM[o.bid])+'<span>'+(o.bn||'—').split(' ')[0]+'</span></div></td><td>'+FTag(o.fr)+'</td><td>'+StgChip(o.fr,o.st)+'</td><td class="tr">'+fmt(o.vgv||0)+'</td><td class="tr" style="color:var(--r-tx);font-weight:700">'+(o.dnu||0)+'d</td><td>'+SlaIco(o.sla)+'</td><td style="min-width:85px">'+CrmBar(o.crm||20)+'</td></tr>').join('')
   +'</tbody></table></div></div>';
 }
 
