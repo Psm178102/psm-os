@@ -2208,29 +2208,69 @@ function setDFDate(prefix,field,v) { const df=S['df_'+prefix]||{preset:'Custom'}
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
 function renderLogin() {
-  // URLs das logos originais no GitHub
-  const urlPSM = 'https://raw.githubusercontent.com/Psm178102/psm-os/main/logo%20vertical%20-%20PSM.IM%C3%93VEIS.png';
+  const urlPSM = 'logo-psm-navy.png';
   const urlConquista = 'https://raw.githubusercontent.com/Psm178102/psm-os/main/logo%20psm%20conquista.png';
 
-  return '<div style="min-height:100vh;display:flex;background:#0f172a;overflow:hidden">'
-    // ── LEFT: Login Card ──
-    + '<div style="width:420px;min-width:360px;display:flex;flex-direction:column;justify-content:center;padding:48px;background:#fff;position:relative;z-index:2">'
-    + '<div style="text-align:center;margin-bottom:32px">'
-    + '<div style="font-size:30px;font-weight:900;letter-spacing:5px;color:var(--navy)">PSM</div>'
-    + '<div style="font-size:10px;color:var(--muted);letter-spacing:2.5px;text-transform:uppercase;margin-top:4px">Sistema Operacional</div>'
+  return '<div style="min-height:100vh;display:flex;font-family:var(--font);overflow:hidden">'
+
+    // ══════ LEFT: Brand Showcase ══════
+    + '<div style="flex:1;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;padding:60px 40px;overflow:hidden">'
+
+    // Decorative elements
+    + '<div style="position:absolute;top:-20%;right:-10%;width:500px;height:500px;background:radial-gradient(circle,rgba(212,168,67,.07) 0%,transparent 70%);pointer-events:none"></div>'
+    + '<div style="position:absolute;bottom:-15%;left:-10%;width:400px;height:400px;background:radial-gradient(circle,rgba(255,255,255,.03) 0%,transparent 70%);pointer-events:none"></div>'
+    + '<div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(212,168,67,.3),transparent)"></div>'
+
+    // Logos
+    + '<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:48px">'
+    + '<img src="'+urlPSM+'" alt="PSM Imóveis" style="height:200px;object-fit:contain;opacity:.95">'
+    + '<div style="width:60px;height:1px;background:linear-gradient(90deg,transparent,rgba(212,168,67,.5),transparent)"></div>'
+    + '<img src="'+urlConquista+'" alt="PSM Conquista" style="height:70px;object-fit:contain;opacity:.9">'
     + '</div>'
-    + '<div style="margin-bottom:16px"><label class="flabel">E-mail</label>'
-    + '<input id="le" type="email" placeholder="seu@email.com" class="finp" onkeydown="if(event.key===\'Enter\')doLogin()"></div>'
-    + '<div style="margin-bottom:24px"><label class="flabel">Senha</label>'
-    + '<input id="lp" type="password" placeholder="••••••••" class="finp" onkeydown="if(event.key===\'Enter\')doLogin()"></div>'
-    + '<button id="lbtn" onclick="doLogin()" class="btn bp1" style="width:100%;padding:14px;font-size:14px;font-weight:700;border-radius:10px">'+(S.loginLoading?'<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:6px;vertical-align:middle"></span>Entrando...':'Entrar')+'</button>'
-    + (S.loginErr ? '<div style="margin-top:12px;text-align:center;font-size:12px;color:var(--r-tx)">'+S.loginErr+'</div>' : '')
-    + '<div style="margin-top:40px;text-align:center;font-size:10px;color:var(--cream4);line-height:1.6">PSM Assessoria Imobiliária<br>São José do Rio Preto — SP</div>'
+
+    // Bottom tagline
+    + '<div style="position:absolute;bottom:32px;text-align:center;z-index:1">'
+    + '<div style="font-size:10px;font-weight:500;color:rgba(255,255,255,.2);letter-spacing:4px;text-transform:uppercase">Assessoria Imobiliária</div>'
     + '</div>'
-    // ── RIGHT: Logos Originais lado a lado ──
-    + '<div style="flex:1;display:flex;align-items:center;justify-content:center;gap:40px;background:#f8f5ef;position:relative;padding:40px;flex-wrap:wrap">'
-    + '<img src="logo-psm-navy.png" alt="PSM Imóveis" style="height:200px;object-fit:contain">'
-    + '<img src="'+urlConquista+'" alt="PSM Conquista" style="height:90px;object-fit:contain">'
+    + '</div>'
+
+    // ══════ RIGHT: Login Form ══════
+    + '<div style="width:480px;min-width:400px;display:flex;flex-direction:column;justify-content:center;background:#faf9f7;position:relative;padding:0 64px">'
+
+    // Subtle top accent
+    + '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#0f172a,#d4a843)"></div>'
+
+    // Welcome text
+    + '<div style="margin-bottom:40px">'
+    + '<div style="font-size:11px;font-weight:600;color:#d4a843;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px">Bem-vindo</div>'
+    + '<div style="font-size:28px;font-weight:800;color:#0f172a;letter-spacing:-.5px;line-height:1.2">Acesse sua<br>conta PSM</div>'
+    + '</div>'
+
+    // Email field
+    + '<div style="margin-bottom:20px">'
+    + '<label style="display:block;font-size:11px;font-weight:600;color:#64748b;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">E-mail corporativo</label>'
+    + '<input id="le" type="email" placeholder="nome@imobiliariapsm.com.br" style="width:100%;padding:14px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:var(--font);color:#0f172a;background:#fff;outline:none;transition:all .2s;box-sizing:border-box" onfocus="this.style.borderColor=\'#0f172a\';this.style.boxShadow=\'0 0 0 4px rgba(15,23,42,.06)\'" onblur="this.style.borderColor=\'#e2e8f0\';this.style.boxShadow=\'none\'" onkeydown="if(event.key===\'Enter\')doLogin()">'
+    + '</div>'
+
+    // Password field
+    + '<div style="margin-bottom:28px">'
+    + '<label style="display:block;font-size:11px;font-weight:600;color:#64748b;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">Senha</label>'
+    + '<input id="lp" type="password" placeholder="••••••••" style="width:100%;padding:14px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:var(--font);color:#0f172a;background:#fff;outline:none;transition:all .2s;box-sizing:border-box" onfocus="this.style.borderColor=\'#0f172a\';this.style.boxShadow=\'0 0 0 4px rgba(15,23,42,.06)\'" onblur="this.style.borderColor=\'#e2e8f0\';this.style.boxShadow=\'none\'" onkeydown="if(event.key===\'Enter\')doLogin()">'
+    + '</div>'
+
+    // Login button
+    + '<button id="lbtn" onclick="doLogin()" style="width:100%;padding:16px;background:#0f172a;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;font-family:var(--font);letter-spacing:.3px;cursor:pointer;transition:all .25s;position:relative;overflow:hidden" onmouseover="this.style.background=\'#1e293b\';this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 8px 24px rgba(15,23,42,.25)\'" onmouseout="this.style.background=\'#0f172a\';this.style.transform=\'none\';this.style.boxShadow=\'none\'">'
+    + (S.loginLoading ? '<span style="display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:8px;vertical-align:middle"></span>Entrando...' : 'Entrar')
+    + '</button>'
+
+    // Error message
+    + (S.loginErr ? '<div style="margin-top:14px;text-align:center;font-size:12px;color:#dc2626;font-weight:500">'+S.loginErr+'</div>' : '')
+
+    // Footer
+    + '<div style="margin-top:48px;padding-top:24px;border-top:1px solid #e2e8f0;text-align:center">'
+    + '<div style="font-size:10px;color:#94a3b8;line-height:1.7;letter-spacing:.3px">PSM Assessoria Imobiliária<br>São José do Rio Preto — SP</div>'
+    + '</div>'
+
     + '</div>'
     + '</div>';
 }
