@@ -1075,10 +1075,10 @@ function medal(i){return i===0?'🥇':i===1?'🥈':i===2?'🥉':'<span style="fo
 // Frente VGV aggregation (by current assignment)
 function frenteStats(){
   const stats={};
-  Object.keys(FRENTES).forEach(fid=>stats[fid]={vgv:0,meta:0,vend:0,crm_sum:0,count:0,lig:0,vis:0,agend:0,prop:0});
+  Object.keys(FRENTES).forEach(fid=>stats[fid]={vgv:0,vgv_real:0,meta:0,vend:0,crm_sum:0,count:0,lig:0,vis:0,agend:0,prop:0});
   BROKERS.forEach(b=>{
     const fid=b.frente;if(!stats[fid])return;
-    stats[fid].vgv+=b.vgv;stats[fid].meta+=b.meta;stats[fid].vend+=b.vendas||0;
+    stats[fid].vgv+=b.vgv||0;stats[fid].vgv_real+=b.vgv_real||0;stats[fid].meta+=b.meta;stats[fid].vend+=b.vendas||0;
     stats[fid].crm_sum+=b.crm;stats[fid].count++;
     stats[fid].lig+=b.lig;stats[fid].vis+=b.vis;stats[fid].agend+=b.agend;stats[fid].prop+=b.prop;
   });
@@ -1110,13 +1110,13 @@ function pgDashboard(){
   +svgBar((MONTHLY||[]),'vgv','meta','m','#0f172a','#e2e8f0',155)
   +'</div>'
   +'<div class="card"><div class="ctitle">VGV por Frente</div>'
-  +Object.entries(fs).map(([fid,st])=>FRENTES[fid]?'<div class="mb1"><div class="prow"><span class="plbl">'+FRENTES[fid].icon+' '+FRENTES[fid].label+'</span><span class="ppct">'+fmt(st.vgv)+' <span style="font-weight:400;color:var(--muted)">/ '+fmt(st.meta)+'</span></span></div>'+PB(st.vgv,st.meta,FRENTES[fid].color,true)+'</div>':'').join('')
+  +Object.entries(fs).map(([fid,st])=>FRENTES[fid]?'<div class="mb1"><div class="prow"><span class="plbl">'+FRENTES[fid].icon+' '+FRENTES[fid].label+'</span><span class="ppct">'+fmt(st.vgv_real||0)+' <span style="font-weight:400;color:var(--muted)">realizado / '+fmt(st.meta)+' meta</span></span></div>'+PB(st.vgv_real||0,st.meta,FRENTES[fid].color,true)+'<div style="font-size:9px;color:var(--muted);margin-top:2px">Pipeline: '+fmt(st.vgv||0)+' · '+st.vend+' vendas</div></div>':'').join('')
   +'</div></div>'
   +'<div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;display:flex;align-items:center;gap:10px">Forecast — 5 Horizontes<div style="flex:1;height:1px;background:var(--cream3)"></div></div>'
   +'<div class="g5 mb2">'+Object.entries(FORECASTS).map(([p,f])=>FcCard(p,f)).join('')+'</div>'
   +'<div class="g2">'
-  +'<div class="card"><div class="ctitle">Equipe ao Vivo <span class="csub">'+BROKERS.filter(b=>b.st==='online').length+' online</span></div><table class="tbl"><thead><tr><th>Corretor</th><th>Frente</th><th>VGV</th><th>%</th><th>CRM</th></tr></thead><tbody>'
-  +[...BROKERS].sort((a,b)=>(b.vgv_real||0)-(a.vgv_real||0)).map(b=>'<tr><td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+b.name+'</span></div></td><td>'+FTag(b.frente)+'</td><td class="tr">'+(b.vgv?fmt(b.vgv):'—')+'</td><td class="tr" style="color:'+(pN(b.vgv,b.meta)>=80?'var(--g-tx)':pN(b.vgv,b.meta)>=50?'var(--a-tx)':'var(--r-tx)')+';font-weight:700">'+pS(b.vgv,b.meta)+'</td><td style="min-width:90px">'+CrmBar(b.crm)+'</td></tr>').join('')
+  +'<div class="card"><div class="ctitle">Equipe ao Vivo <span class="csub">'+BROKERS.filter(b=>b.st==='online').length+' online</span></div><table class="tbl"><thead><tr><th>Corretor</th><th>Frente</th><th>VGV Pipeline</th><th>VGV Realizado</th><th>% Meta</th><th>CRM</th></tr></thead><tbody>'
+  +[...BROKERS].sort((a,b)=>(b.vgv_real||0)-(a.vgv_real||0)).map(b=>'<tr><td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+b.name+'</span></div></td><td>'+FTag(b.frente)+'</td><td class="tr" style="color:var(--muted)">'+(b.vgv?fmt(b.vgv):'—')+'</td><td class="tr" style="font-weight:700;color:var(--navy)">'+(b.vgv_real?fmt(b.vgv_real):'R$0')+'</td><td class="tr" style="color:'+(pN(b.vgv_real||0,b.meta)>=80?'var(--g-tx)':pN(b.vgv_real||0,b.meta)>=50?'var(--a-tx)':'var(--r-tx)')+';font-weight:700">'+pS(b.vgv_real||0,b.meta)+'</td><td style="min-width:90px">'+CrmBar(b.crm)+'</td></tr>').join('')
   +'</tbody></table></div>'
   +'<div class="card"><div class="ctitle">Alertas <span class="csub">'+generateAudits().length+' issues</span></div>'
   +generateAudits().slice(0,5).map(a=>'<div class="ai ai-'+a.sev+'"><div><div class="ai-t">'+a.tipo+' <span style="font-size:9.5px;color:var(--muted);font-weight:400">'+a.oid+'</span></div><div class="ai-d2">'+a.desc+'</div><div style="font-size:9.5px;font-weight:700;margin-top:2px;color:'+(a.sev==='d'?'var(--r-tx)':a.sev==='w'?'var(--a-tx)':'var(--b-tx)')+'">'+((UM[a.bid]||{}).name||'—')+'</div></div></div>').join('')
@@ -1303,8 +1303,8 @@ function pgFrente(fid){
   +'<div class="card"><div class="ctitle">Corretores</div>'
   +(bks.length?bks.map(b=>'<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--cream3)">'
     +Av(b,'sm',true)
-    +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+b.name+'</div>'+PB(b.vgv,b.meta,f.color)+'</div>'
-    +'<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700;color:var(--navy)">'+(b.vgv?fmt(b.vgv):'—')+'</div><div style="font-size:9.5px;color:var(--muted)">'+pS(b.vgv,b.meta)+'</div></div>'
+    +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+b.name+'</div>'+PB(b.vgv_real||0,b.meta,f.color)+'</div>'
+    +'<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700;color:var(--navy)">'+(b.vgv_real?fmt(b.vgv_real):'R$0')+' <span style="font-size:9px;color:var(--muted);font-weight:400">realizado</span></div><div style="font-size:9.5px;color:var(--muted)">Pipeline: '+(b.vgv?fmt(b.vgv):'—')+' · '+pS(b.vgv_real||0,b.meta)+' da meta</div></div>'
     +'</div>').join('')
     :'<div class="es"><div class="es-ico">👥</div><div class="es-t">Sem corretores ativos</div><div class="es-s">Configure equipes em Configurações</div></div>')
   +'</div></div>'
