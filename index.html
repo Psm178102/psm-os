@@ -349,8 +349,9 @@ html{height:100%;overflow:hidden}
 
 /* Bottom nav for mobile */
 #mob-nav {
-  background: linear-gradient(180deg,#0c111d,#0f172a); padding: 8px 0 env(safe-area-inset-bottom, 8px);
-  border-top: 1px solid rgba(255,255,255,.06);
+  display:none; position:fixed; bottom:0; left:0; right:0; z-index:500;
+  background: linear-gradient(180deg,#0c111d,#0f172a); padding: 6px 0 env(safe-area-inset-bottom, 6px);
+  border-top: 1px solid rgba(255,255,255,.08);
 }
 #mob-nav-old {
   display: none;
@@ -365,7 +366,7 @@ html{height:100%;overflow:hidden}
   cursor: pointer; transition: color .2s;
 }
 #mob-nav button.on { color: var(--gold2); }
-#mob-nav button .mn-ico { font-size: 20px; line-height: 1; }
+#mob-nav button .mn-ico { font-size: 17px; line-height: 1; }
 #mob-nav button .mn-lbl { font-size: 8.5px; line-height: 1; white-space: nowrap; }
 
 /* Mobile hamburger */
@@ -428,10 +429,7 @@ html{height:100%;overflow:hidden}
   #toast { bottom: 80px; }
 
   /* Show mobile nav and hamburger */
-  #mob-nav {
-  background: linear-gradient(180deg,#0c111d,#0f172a); padding: 8px 0 env(safe-area-inset-bottom, 8px);
-  border-top: 1px solid rgba(255,255,255,.06);
-}
+  #mob-nav { display: flex !important; }
 #mob-nav-old { display: flex; }
   #mob-ham { display: block; }
 
@@ -1064,7 +1062,7 @@ function pgDashboard(){
   const df=DateFilter('dash','Período');
 
   const m=METRICS;
-  const pW=OPPS.reduce((a,o)=>{const stages=FUNIS[o.fr]||FUNIS.lancamento;const s=stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st));return a+(o.vgv*(s?s.w:.1));},0);
+  const pW=OPPS.reduce((a,o)=>{const stages=FUNIS[o.fr]||FUNIS.lancamento||[];const s=stages.find?stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st)):null;return a+(o.vgv*(s?s.w:.1));},0);
   const fs=frenteStats();
   return '<div class="phd"><div class="phd-row"><div><h1>Dashboard Executivo</h1><p>'+m.mes+' · '+m.du_pass+'/'+m.du_tot+' dias úteis · '+m.du_rest+' restantes</p></div></div></div>'
   +'<div class="kgrid">'
@@ -1079,7 +1077,7 @@ function pgDashboard(){
   +'</div>'
   +'<div class="g2 mb2">'
   +'<div class="card"><div class="ctitle">Evolução Mensal<span class="csub" style="display:flex;gap:9px"><span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:#e2e8f0;border-radius:2px;display:inline-block"></span>Meta</span><span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:#0f172a;border-radius:2px;display:inline-block"></span>Realizado</span></span></div>'
-  +svgBar(MONTHLY,'vgv','meta','m','#0f172a','#e2e8f0',155)
+  +svgBar((MONTHLY||[]),'vgv','meta','m','#0f172a','#e2e8f0',155)
   +'</div>'
   +'<div class="card"><div class="ctitle">VGV por Frente</div>'
   +Object.entries(fs).map(([fid,st])=>FRENTES[fid]?'<div class="mb1"><div class="prow"><span class="plbl">'+FRENTES[fid].icon+' '+FRENTES[fid].label+'</span><span class="ppct">'+fmt(st.vgv)+' <span style="font-weight:400;color:var(--muted)">/ '+fmt(st.meta)+'</span></span></div>'+PB(st.vgv,st.meta,FRENTES[fid].color,true)+'</div>':'').join('')
@@ -1091,7 +1089,7 @@ function pgDashboard(){
   +[...BROKERS].sort((a,b)=>(b.vgv_real||0)-(a.vgv_real||0)).map(b=>'<tr><td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+b.name+'</span></div></td><td>'+FTag(b.frente)+'</td><td class="tr">'+(b.vgv?fmt(b.vgv):'—')+'</td><td class="tr" style="color:'+(pN(b.vgv,b.meta)>=80?'var(--g-tx)':pN(b.vgv,b.meta)>=50?'var(--a-tx)':'var(--r-tx)')+';font-weight:700">'+pS(b.vgv,b.meta)+'</td><td style="min-width:90px">'+CrmBar(b.crm)+'</td></tr>').join('')
   +'</tbody></table></div>'
   +'<div class="card"><div class="ctitle">Alertas <span class="csub">'+AUDITS.length+' issues</span></div>'
-  +AUDITS.map(a=>'<div class="ai ai-'+a.sev+'"><div><div class="ai-t">'+a.tipo+' <span style="font-size:9.5px;color:var(--muted);font-weight:400">'+a.oid+'</span></div><div class="ai-d2">'+a.desc+'</div><div style="font-size:9.5px;font-weight:700;margin-top:2px;color:'+(a.sev==='d'?'var(--r-tx)':a.sev==='w'?'var(--a-tx)':'var(--b-tx)')+'">'+UM[a.bid].name+'</div></div></div>').join('')
+  +AUDITS.map(a=>'<div class="ai ai-'+a.sev+'"><div><div class="ai-t">'+a.tipo+' <span style="font-size:9.5px;color:var(--muted);font-weight:400">'+a.oid+'</span></div><div class="ai-d2">'+a.desc+'</div><div style="font-size:9.5px;font-weight:700;margin-top:2px;color:'+(a.sev==='d'?'var(--r-tx)':a.sev==='w'?'var(--a-tx)':'var(--b-tx)')+'">'+((UM[a.bid]||{}).name||'—')+'</div></div></div>').join('')
   +'</div></div>';
 }
 
@@ -1245,7 +1243,7 @@ function pgFrente(fid){
   const f=FRENTES[fid];
   const bks=BROKERS.filter(b=>b.frente===fid);
   const opps=OPPS.filter(o=>o.fr===fid);
-  const stages=FUNIS[fid]||FUNIS.lancamento;
+  const stages=FUNIS[fid]||FUNIS.lancamento||[];
   const vgvT=bks.reduce((a,b)=>a+(b.vgv_real||0),0);
   const metaT=bks.reduce((a,b)=>a+b.meta,0);
   const pW=opps.reduce((a,o)=>{const s=stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st));return a+(o.vgv*(s?s.w:.1));},0);
@@ -1387,8 +1385,8 @@ function pgCRM(){
   let content='';
   if(view==='kanban'){
     const fid=ff!=='all'?ff:(selBroker?.frente||'lancamento');
-    const stages=FUNIS[fid]||FUNIS.lancamento;
-    const pW=vis.reduce((a,o)=>{const s=stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st));return a+(o.vgv*(s?s.w:.05));},0);
+    const stages=FUNIS[fid]||FUNIS.lancamento||[];
+    const pW=vis.reduce((a,o)=>{const s=stages.find?stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st)):null;return a+(o.vgv*(s?s.w:.05));},0);
     content='<div style="overflow-x:auto;padding-bottom:8px"><div style="display:flex;gap:10px;min-width:max-content;padding:4px 2px">';
     stages.forEach(s=>{
       const co=vis.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id));
@@ -1403,13 +1401,13 @@ function pgCRM(){
         +'<div style="background:var(--cream2);border:1px solid var(--cream3);border-top:none;border-radius:0 0 8px 8px;min-height:70px;padding:5px;display:flex;flex-direction:column;gap:4px">';
       if(!co.length) content+='<div style="text-align:center;padding:16px 0;font-size:10px;color:var(--muted)">vazio</div>';
       co.slice(0,10).forEach(o=>{
-        const b=UM[o.bid];
+        const b=(UM[o.bid]||{});
         const sc=o.sla==='overdue'?'#dc2626':o.sla==='warning'?'#d97706':'#16a34a';
         content+='<div style="background:#fff;border:1px solid var(--cream3);border-left:3px solid '+sc+';border-radius:7px;padding:7px 9px">'
           +'<div style="font-size:11px;font-weight:700;color:var(--navy);line-height:1.3;margin-bottom:4px">'+o.cl+'</div>'
           +(o.vgv?'<div style="font-size:10.5px;font-weight:800;color:var(--navy);margin-bottom:4px">'+fmt(o.vgv)+'</div>':'')
           +'<div style="display:flex;align-items:center;justify-content:space-between">'
-          +(b?'<div style="display:flex;align-items:center;gap:3px"><div style="width:16px;height:16px;border-radius:5px;background:'+(b.color||'#888')+';display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;color:#fff">'+b.ini+'</div><span style="font-size:9px;color:var(--muted)">'+b.name.split(' ')[0]+'</span></div>':'<span></span>')
+          +(b.name?'<div style="display:flex;align-items:center;gap:3px"><div style="width:16px;height:16px;border-radius:5px;background:'+(b.color||'#888')+';display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;color:#fff">'+b.ini+'</div><span style="font-size:9px;color:var(--muted)">'+b.name.split(' ')[0]+'</span></div>':'<span></span>')
           +'<span style="font-size:9px;color:'+(o.dnu>=5?'#dc2626':o.dnu>=3?'#d97706':'var(--muted)')+'">'+o.dnu+'d</span>'
           +'</div></div>';
       });
@@ -1427,7 +1425,7 @@ function pgCRM(){
     content='<div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Cliente</th><th>Corretor</th><th>Frente</th><th>Etapa</th><th>VGV</th><th>Origem</th><th>SLA</th><th>Update</th><th>CRM</th></tr></thead><tbody>'
       +vis.map(o=>'<tr style="background:'+(o.sla==='overdue'?'rgba(239,68,68,.04)':o.dnu>=3?'rgba(245,158,11,.03)':'')+'">'
         +'<td style="font-weight:700;font-size:12px">'+o.cl+'</td>'
-        +'<td><div class="flex aic gap1">'+Av(UM[o.bid],'xs')+'<span style="font-size:11.5px">'+o.bn.split(' ')[0]+'</span></div></td>'
+        +'<td><div class="flex aic gap1">'+Av((UM[o.bid]||{}),'xs')+'<span style="font-size:11.5px">'+o.bn.split(' ')[0]+'</span></div></td>'
         +'<td>'+FTag(o.fr)+'</td><td>'+StgChip(o.fr,o.st)+'</td>'
         +'<td class="tr" style="font-weight:700">'+fmt(o.vgv)+'</td>'
         +'<td style="font-size:10.5px;color:var(--muted)">'+o.ori+'</td>'
@@ -1511,7 +1509,7 @@ function pgGovernance(){
 // ─── PAGE: FORECAST ───────────────────────────────────────────────────────────
 function pgForecast(){
   const df=DateFilter('forecast','Período de análise');
-  const pW=OPPS.reduce((a,o)=>{const s=(FUNIS[o.fr]||FUNIS.lancamento).find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st));return a+(o.vgv*(s?s.w:.1));},0);
+  const pW=OPPS.reduce((a,o)=>{const stages=(FUNIS[o.fr]||FUNIS.lancamento||[]);const s=stages.find?stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st)):null;return a+(o.vgv*(s?s.w:.1));},0);
   return df+'<div class="phd"><h1>Forecast & Projeções</h1><p>'+METRICS.mes+'</p></div>'
   +'<div style="background:rgba(15,23,42,.03);border:1px solid rgba(15,23,42,.07);border-radius:9px;padding:9px 13px;margin-bottom:14px;font-size:12px;display:flex;gap:18px;flex-wrap:wrap;color:var(--mid)">'
   +'<span>📅 '+METRICS.du_pass+'/'+METRICS.du_tot+' dias úteis</span>'
@@ -1520,9 +1518,9 @@ function pgForecast(){
   +'<span>📈 Meta: <strong>'+fmt(METRICS.vgv_meta)+'</strong></span>'
   +'</div>'
   +'<div class="g5 mb3">'+Object.entries(FORECASTS).map(([p,f])=>FcCard(p,f)).join('')+'</div>'
-  +'<div class="card mb2"><div class="ctitle">Evolução de VGV</div>'+svgBar(MONTHLY,'vgv','meta','m','#0f172a','#e2e8f0',150)+'</div>'
+  +'<div class="card mb2"><div class="ctitle">Evolução de VGV</div>'+svgBar((MONTHLY||[]),'vgv','meta','m','#0f172a','#e2e8f0',150)+'</div>'
   +'<div class="card"><div class="ctitle">Pipeline Ponderado por Etapa (Lançamento)</div>'
-  +FUNIS.lancamento.map(s=>{const vE=OPPS.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).reduce((a,o)=>a+(o.vgv*s.w),0);return'<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:9.5px;font-weight:600;color:'+s.color+';width:120px;flex-shrink:0">'+s.label+'</span><div style="flex:1">'+PB(vE,1500000,s.color)+'</div><span style="font-size:11px;font-weight:700;color:var(--navy);width:65px;text-align:right;flex-shrink:0">'+(vE>0?fmt(Math.round(vE)):'—')+'</span><span style="font-size:9px;color:var(--muted);width:28px;text-align:right;flex-shrink:0">'+Math.round(s.w*100)+'%</span></div>';}).join('')
+  +((FUNIS.lancamento||[]).map?((FUNIS.lancamento||[])).map(s=>{const vE=OPPS.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).reduce((a,o)=>a+(o.vgv*s.w),0);return'<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:9.5px;font-weight:600;color:'+s.color+';width:120px;flex-shrink:0">'+s.label+'</span><div style="flex:1">'+PB(vE,1500000,s.color)+'</div><span style="font-size:11px;font-weight:700;color:var(--navy);width:65px;text-align:right;flex-shrink:0">'+(vE>0?fmt(Math.round(vE)):'—')+'</span><span style="font-size:9px;color:var(--muted);width:28px;text-align:right;flex-shrink:0">'+Math.round(s.w*100)+'%</span></div>';}).join(''):'')
   +'</div>';
 }
 
