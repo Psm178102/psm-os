@@ -957,6 +957,7 @@ function saveState() {
       teamConfig: TEAM_CONFIG || {},
       connectors: S.connectors || {},
       ooSheetLinks: S.ooSheetLinks || {},
+      sonhos: S.sonhos || {},
       savedAt: Date.now(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
@@ -978,6 +979,7 @@ function loadState() {
     if (d.teamConfig) Object.assign(TEAM_CONFIG, d.teamConfig);
     if (d.connectors) S.connectors = {...S.connectors, ...d.connectors};
     if (d.ooSheetLinks) S.ooSheetLinks = {...S.ooSheetLinks, ...d.ooSheetLinks};
+    if (d.sonhos) S.sonhos = d.sonhos;
     // Restore manual vendas
     try {
       const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manual') || '[]');
@@ -1856,16 +1858,68 @@ function pgMetas(){
 
   } else {
     // ── INDIVIDUAL ──
-    content = '<div class="card"><div class="tw"><table class="rank-tbl"><thead><tr>'
+    const selBid = S.metasBroker || (BROKERS[0]?.id || '');
+    const selB = BROKERS.find(b => b.id === selBid);
+    const selBData = brokerMetas.find(b => b.id === selBid) || {};
+
+    // Broker selector
+    const bSelector = '<select class="fs sel-f" style="margin-bottom:14px" onchange="S.metasBroker=this.value;render()">'
+      + BROKERS.map(b => '<option value="'+b.id+'"'+(selBid===b.id?' selected':'')+'>'+b.name+' ('+FTag(b.frente)+')</option>').join('')
+      + '</select>';
+
+    // "Meu Porquê" — dream calculator
+    const sonho = (S.sonhos || {})[selBid] || {};
+    const comissaoPct = S.comissaoPct || 6;
+    const ticketMedio = selB?.ticketMedio || 350000;
+    const comissaoMedia = Math.round(ticketMedio * comissaoPct / 100);
+    const sonhoValor = sonho.valor || 0;
+    const vendasParaSonho = sonhoValor > 0 ? Math.ceil(sonhoValor / Math.max(1, comissaoMedia)) : 0;
+    const vgvParaSonho = vendasParaSonho * ticketMedio;
+    const jaVendeu = selBData.vgv_real || 0;
+    const jaComissao = Math.round(jaVendeu * comissaoPct / 100);
+    const pctSonho = sonhoValor > 0 ? Math.min(100, Math.round(jaComissao / sonhoValor * 100)) : 0;
+
+    const meuPorque = '<div class="card mt2" style="border-top:3px solid var(--gold);background:linear-gradient(135deg,#fffbeb,#fff)">'
+      + '<div class="ctitle" style="font-size:15px">✨ Meu Porquê — Destino PSM</div>'
+      + '<div style="font-size:12px;color:var(--muted);margin-bottom:14px">O que te motiva a vender mais? Defina seu sonho e veja quanto falta.</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
+
+      // Left: Dream input
+      + '<div>'
+      + '<label class="flabel">Meu sonho é...</label>'
+      + '<input class="finp" placeholder="Ex: BMW X3, Viagem pra Europa, Ap na praia..." value="'+(sonho.descricao||'')+'" oninput="if(!S.sonhos)S.sonhos={};S.sonhos[\''+selBid+'\']=S.sonhos[\''+selBid+'\']||{};S.sonhos[\''+selBid+'\'].descricao=this.value;saveState()">'
+      + '<div style="margin-top:10px"><label class="flabel">Quanto custa? (R$)</label>'
+      + '<input class="finp" type="number" placeholder="100000" value="'+sonhoValor+'" oninput="if(!S.sonhos)S.sonhos={};S.sonhos[\''+selBid+'\']=S.sonhos[\''+selBid+'\']||{};S.sonhos[\''+selBid+'\'].valor=+this.value;saveState();render()">'
+      + '</div></div>'
+
+      // Right: Calculator result
+      + '<div style="background:var(--navy);border-radius:12px;padding:18px;color:#fff">'
+      + (sonhoValor > 0 ?
+        '<div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Calculadora Reversa</div>'
+        + '<div style="font-size:13px;margin-bottom:6px">Para conquistar <strong style="color:var(--gold)">'+(sonho.descricao||'seu sonho')+'</strong>:</div>'
+        + '<div style="font-size:28px;font-weight:900;color:var(--gold);margin-bottom:4px">'+vendasParaSonho+' vendas</div>'
+        + '<div style="font-size:11px;color:#94a3b8;margin-bottom:10px">de '+fmt(ticketMedio)+' ticket médio × '+comissaoPct+'% comissão</div>'
+        + '<div style="font-size:11px;margin-bottom:4px">VGV necessário: <strong>'+fmt(vgvParaSonho)+'</strong></div>'
+        + '<div style="font-size:11px;margin-bottom:8px">Comissão acumulada: <strong style="color:var(--gold)">'+fmt(jaComissao)+'</strong> de '+fmt(sonhoValor)+'</div>'
+        + '<div style="height:6px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pctSonho+'%;background:var(--gold);border-radius:99px"></div></div>'
+        + '<div style="font-size:10px;color:#94a3b8;margin-top:4px">'+pctSonho+'% do seu sonho conquistado</div>'
+        :
+        '<div style="text-align:center;padding:20px;color:#64748b;font-size:13px">Preencha seu sonho ao lado para ver a calculadora</div>'
+      )
+      + '</div></div></div>';
+
+    // Ranking table
+    const rankTable = '<div class="card mt2"><div class="ctitle">Ranking Individual — '+periodo.charAt(0).toUpperCase()+periodo.slice(1)+'</div><div class="tw"><table class="rank-tbl"><thead><tr>'
       + '<th>#</th><th>Corretor</th><th>Frente</th>'
       + '<th style="text-align:right">VGV Real</th><th style="text-align:right">Meta VGV</th><th style="text-align:right">%</th>'
       + '<th style="text-align:right">Vendas</th><th style="text-align:right">Agend.</th><th style="text-align:right">Visitas</th><th style="text-align:right">Propostas</th>'
       + '</tr></thead><tbody>'
       + brokerMetas.map((b, i) => {
         const sc = b.pctVgv >= 80 ? 'var(--g-tx)' : b.pctVgv >= 50 ? 'var(--a-tx)' : 'var(--r-tx)';
-        return '<tr>'
+        const isSel = b.id === selBid;
+        return '<tr style="cursor:pointer;'+(isSel?'background:rgba(212,168,67,.08);':'')+'" onclick="S.metasBroker=\''+b.id+'\';render()">'
           + '<td style="text-align:center">'+medal(i)+'</td>'
-          + '<td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+b.name+'</span></div></td>'
+          + '<td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:'+(isSel?'800':'600')+'">'+b.name+'</span></div></td>'
           + '<td>'+FTag(b.frente)+'</td>'
           + '<td style="text-align:right;font-weight:700;color:var(--navy)">'+fmt(b.vgv_real)+'</td>'
           + '<td style="text-align:right;color:var(--muted)">'+fmt(b.vgv_meta)+'</td>'
@@ -1877,6 +1931,38 @@ function pgMetas(){
           + '</tr>';
       }).join('')
       + '</tbody></table></div></div>';
+
+    // Leading indicators for selected broker
+    const propPerVenda = selBData.vendas > 0 ? (selBData.prop / selBData.vendas).toFixed(1) : '—';
+    const cicloVenda = selB?.cicloVenda || 0;
+
+    const leading = '<div class="g2 mt2">'
+      + '<div class="card"><div class="ctitle">📊 Leading Indicators — '+(selB?.name||'').split(' ')[0]+'</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+      + '<div style="padding:12px;background:var(--cream2);border-radius:8px"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Propostas por Venda</div><div style="font-size:22px;font-weight:900;color:var(--navy)">'+propPerVenda+'</div></div>'
+      + '<div style="padding:12px;background:var(--cream2);border-radius:8px"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Ciclo de Venda</div><div style="font-size:22px;font-weight:900;color:var(--navy)">'+cicloVenda+' <span style="font-size:11px;color:var(--muted)">dias</span></div></div>'
+      + '<div style="padding:12px;background:var(--cream2);border-radius:8px"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Taxa Conversão</div><div style="font-size:22px;font-weight:900;color:'+(selB?.conversionRate>=50?'var(--g-tx)':'var(--a-tx)')+'">'+(selB?.conversionRate||0)+'%</div></div>'
+      + '<div style="padding:12px;background:var(--cream2);border-radius:8px"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Ticket Médio</div><div style="font-size:22px;font-weight:900;color:var(--navy)">'+fmt(selB?.ticketMedio||0)+'</div></div>'
+      + '</div></div>'
+
+      // Alerta de desvio
+      + '<div class="card"><div class="ctitle">⚠️ Alertas de Desvio</div>'
+      + (function(){
+        const alerts = [];
+        const now = new Date();
+        const pctMes = now.getDate() / 30;
+        const pctVgvEsperado = Math.round(pctMes * 100);
+        if (selBData.pctVgv < pctVgvEsperado * 0.5) alerts.push({sev:'d',msg:'VGV em '+selBData.pctVgv+'% da meta — deveria estar em ~'+pctVgvEsperado+'%. Agende '+Math.max(3,Math.round((pctVgvEsperado-selBData.pctVgv)/10))+' visitas extras esta semana.'});
+        else if (selBData.pctVgv < pctVgvEsperado * 0.8) alerts.push({sev:'w',msg:'VGV abaixo do ritmo. '+selBData.pctVgv+'% vs esperado ~'+pctVgvEsperado+'%. Intensifique follow-ups.'});
+        if (selBData.agend < 3) alerts.push({sev:'w',msg:'Poucos agendamentos ('+selBData.agend+'). Meta mínima: 5/mês. Foque em tentativas de contato.'});
+        if (selBData.vendas === 0 && pctMes > 0.5) alerts.push({sev:'d',msg:'Nenhuma venda no período e já passou da metade. Revise pipeline e priorize propostas.'});
+        if ((selB?.crm||20) < 50) alerts.push({sev:'w',msg:'CRM Score baixo ('+(selB?.crm||20)+' pts). Preencha campos obrigatórios das negociações.'});
+        if (alerts.length === 0) alerts.push({sev:'ok',msg:'✅ Dentro do esperado! Continue o ritmo.'});
+        return alerts.map(a => '<div style="padding:10px 12px;margin-bottom:6px;border-radius:8px;border-left:3px solid '+(a.sev==='d'?'var(--r)':a.sev==='w'?'var(--a)':'var(--g)')+';background:'+(a.sev==='d'?'var(--r-bg)':a.sev==='w'?'var(--a-bg)':'var(--g-bg)')+';font-size:11.5px;color:'+(a.sev==='d'?'var(--r-tx)':a.sev==='w'?'var(--a-tx)':'var(--g-tx)')+'">'+a.msg+'</div>').join('');
+      })()
+      + '</div></div>';
+
+    content = bSelector + meuPorque + leading + rankTable;
   }
 
   return '<div class="phd"><h1>🎯 Metas</h1><p>Acompanhamento de metas — '+METRICS.mes+'</p></div>'
