@@ -731,23 +731,7 @@ let UM=Object.fromEntries(USERS.map(u=>[u.id,u]));
 let BROKERS=USERS.filter(u=>['corretor','lider'].includes(u.role));
 
 // ─── OPORTUNIDADES (demo; RD sync overrides) ──────────────────────────────────
-const OPPS=[
-  {id:'OPP-001',bid:'rodrigo_t',fr:'lancamento',cl:'Carlos Henrique', ori:'Stand',     st:'proposta',   dia:2,dnu:0,sla:'ok',     vgv:980000, crm:93,rdId:''},
-  {id:'OPP-002',bid:'marcus_l', fr:'lancamento',cl:'Fernanda Lima',   ori:'Indicação', st:'vis_real',   dia:4,dnu:1,sla:'ok',     vgv:750000, crm:88,rdId:''},
-  {id:'OPP-003',bid:'gabriel_b',fr:'lancamento',cl:'Roberto Souza',   ori:'Portal',    st:'agendamento',dia:3,dnu:2,sla:'warning',vgv:620000, crm:72,rdId:''},
-  // OPP-004 removida (Daniela desativada)
-  {id:'OPP-005',bid:'kadu',     fr:'conquista', cl:'Andre Machado',   ori:'Indicação', st:'quente',     dia:2,dnu:0,sla:'ok',     vgv:870000, crm:90,rdId:''},
-  {id:'OPP-006',bid:'julia',    fr:'conquista', cl:'Silvia Torres',   ori:'Meta Ads',  st:'vis_agend',  dia:3,dnu:1,sla:'ok',     vgv:650000, crm:76,rdId:''},
-  {id:'OPP-007',bid:'danilo_a', fr:'conquista', cl:'Eduardo Pinto',   ori:'Indicação', st:'contrato',   dia:1,dnu:0,sla:'ok',     vgv:480000, crm:84,rdId:''},
-  {id:'OPP-008',bid:'rafaela_m',fr:'conquista', cl:'Mariana Costa',   ori:'Google Ads',st:'tent_contato',dia:4,dnu:3,sla:'warning',vgv:590000,crm:68,rdId:''},
-  {id:'OPP-009',bid:'camila_b', fr:'terceiros', cl:'Jose Ferreira',   ori:'Carteira',  st:'proposta',   dia:3,dnu:0,sla:'ok',     vgv:310000, crm:92,rdId:''},
-  {id:'OPP-010',bid:'rodrigo_c',fr:'terceiros', cl:'Ana Beatriz',     ori:'Indicação', st:'vis_real',   dia:2,dnu:1,sla:'ok',     vgv:280000, crm:80,rdId:''},
-  {id:'OPP-011',bid:'evandro',  fr:'terceiros', cl:'Luiz Oliveira',   ori:'Portal',    st:'carteira',   dia:8,dnu:7,sla:'overdue',vgv:220000, crm:62,rdId:''},
-  {id:'OPP-012',bid:'yara',     fr:'terceiros', cl:'Renata Gomes',    ori:'Indicação', st:'vis_agend',  dia:3,dnu:2,sla:'warning',vgv:350000, crm:85,rdId:''},
-  {id:'OPP-013',bid:'rodrigo_t',fr:'lancamento',cl:'Marcelo Rocha',   ori:'Stand',     st:'venda',      dia:0,dnu:0,sla:'ok',     vgv:1100000,crm:95,rdId:''},
-  {id:'OPP-014',bid:'kadu',     fr:'conquista', cl:'Bruno Dias',      ori:'Indicação', st:'proposta',   dia:2,dnu:0,sla:'ok',     vgv:920000, crm:91,rdId:''},
-];
-OPPS.forEach(o=>{const u=UM[o.bid];o.bn=u?u.name:'—';});
+const OPPS=[];
 
 // ─── ARRAYS GLOBAIS DE DEALS ──────────────────────────────────────────────────
 const VENDAS     = [];  // win=true
@@ -825,11 +809,7 @@ const WEEKS_JUN=[
 const DAY_NAMES=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 const DAY_NAMES_FULL=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 
-const OOS=[
-  {id:'oo1',bid:'rodrigo_t',lider:'Ana',data:'05/06/2025',gargalo:'Pipeline concentrado em 2 oportunidades grandes.',oportunidade:'OPP-001 próxima ao fechamento — crédito aprovado.',decisao:'Foco total em MAP premium. Não dispersar.',acao:'Confirmar aprovação OPP-001 até quarta.',prazo:'11/06',s_acao:'progress',snap:{tent_lig:38,lig_atend:16,agendamentos:8,visitas:5,propostas:3,vendas:2,vgv:1350000,vgv_m:1200000}},
-  {id:'oo2',bid:'marcus_l', lider:'Ana',data:'04/06/2025',gargalo:'Taxa de agendamento abaixo de 25%.',oportunidade:'3 leads quentes na carteira para esta semana.',decisao:'Script de agendamento revisado. Meta: 2 agend/semana.',acao:'Ligar para os 3 leads quentes até quinta.',prazo:'12/06',s_acao:'pending',snap:{tent_lig:22,lig_atend:9,agendamentos:3,visitas:3,propostas:2,vendas:1,vgv:780000,vgv_m:1000000}},
-  {id:'oo3',bid:'camila_b', lider:'Paulo',data:'03/06/2025',gargalo:'Captações abaixo do esperado.',oportunidade:'2 contratos próximos ao fechamento.',decisao:'Intensificar captações em novos empreendimentos.',acao:'Cadastrar 5 novos imóveis na carteira.',prazo:'13/06',s_acao:'progress',snap:{tent_lig:32,lig_atend:14,agendamentos:7,visitas:5,propostas:3,vendas:2,vgv:520000,vgv_m:600000}},
-];
+const OOS=[];
 
 const OKRS=[
   {id:'okr1',obj:'VGV mensal R$8M em Junho 2025',ciclo:'Jun-2025',prog:74,status:'at_risk',
@@ -846,24 +826,52 @@ const OKRS=[
    ]},
 ];
 
-const FORECASTS={
-  week:    {meta:2000000, real:1200000,proj:1850000, gap:-150000,  pct:92,conf:'alta', risk:'baixo'},
-  month:   {meta:8000000, real:5960000,proj:7700000, gap:-300000,  pct:96,conf:'media',risk:'medio'},
-  quarter: {meta:24000000,real:18000000,proj:23200000,gap:-800000, pct:97,conf:'media',risk:'medio'},
-  semester:{meta:48000000,real:32000000,proj:46000000,gap:-2000000,pct:96,conf:'baixa',risk:'alto'},
-  year:    {meta:96000000,real:32000000,proj:91000000,gap:-5000000,pct:95,conf:'baixa',risk:'medio'},
-};
-const MONTHLY=[
-  {m:'Jan',vgv:4800000,meta:7000000},{m:'Fev',vgv:6200000,meta:7000000},
-  {m:'Mar',vgv:7100000,meta:7500000},{m:'Abr',vgv:6500000,meta:7500000},
-  {m:'Mai',vgv:7400000,meta:8000000},{m:'Jun',vgv:5960000,meta:8000000,proj:7700000},
-];
-const METRICS={
-  mes:'Março 2026',du_tot:22,du_pass:9,du_rest:13,
-  vgv_meta:8000000,vgv_real:5960000,vend_meta:20,vend_real:14,
-  vis_meta:100,vis_real:74,leads:112,leads_val:68,
-  pipeline:12800000,crm_medio:80,
-};
+function calcForecasts(){
+  const now=new Date();
+  const dayOfMonth=now.getDate();
+  const daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+  const pctMonth=dayOfMonth/daysInMonth;
+
+  const vgvReal=VENDAS.reduce((a,v)=>a+(v.vgv||0),0);
+  const pipeline=OPPS.reduce((a,o)=>a+(o.vgv||0),0);
+  const metaMonth=METRICS.vgv_meta||8000000;
+  const projMonth=pctMonth>0?Math.round(vgvReal/pctMonth):vgvReal;
+
+  return {
+    week:{meta:Math.round(metaMonth/4),real:vgvReal,proj:projMonth,gap:projMonth-Math.round(metaMonth/4),pct:Math.round(projMonth/Math.max(1,metaMonth/4)*100),conf:projMonth>=metaMonth/4?'alta':'media',risk:'baixo'},
+    month:{meta:metaMonth,real:vgvReal,proj:projMonth,gap:projMonth-metaMonth,pct:Math.round(projMonth/Math.max(1,metaMonth)*100),conf:projMonth>=metaMonth*0.9?'alta':projMonth>=metaMonth*0.7?'media':'baixa',risk:projMonth<metaMonth*0.7?'alto':'medio'},
+    quarter:{meta:metaMonth*3,real:vgvReal,proj:projMonth*3,gap:projMonth*3-metaMonth*3,pct:Math.round(projMonth*3/Math.max(1,metaMonth*3)*100),conf:'media',risk:'medio'},
+    semester:{meta:metaMonth*6,real:vgvReal,proj:projMonth*6,gap:projMonth*6-metaMonth*6,pct:Math.round(projMonth*6/Math.max(1,metaMonth*6)*100),conf:'media',risk:'medio'},
+    year:{meta:metaMonth*12,real:vgvReal,proj:projMonth*12,gap:projMonth*12-metaMonth*12,pct:Math.round(projMonth*12/Math.max(1,metaMonth*12)*100),conf:'baixa',risk:'medio'},
+  };
+}
+const FORECASTS=calcForecasts();
+const MONTHLY=[];
+function recalcMonthly(){
+  MONTHLY.splice(0);
+  const mNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const year=new Date().getFullYear();
+  const currentMonth=new Date().getMonth();
+  for(let i=0;i<=currentMonth;i++){
+    const mWon=VENDAS.filter(v=>{const d=new Date(v.closedAt||v.createdAt||'');return d.getFullYear()===year&&d.getMonth()===i;});
+    const vgv=mWon.reduce((a,v)=>a+(v.vgv||0),0);
+    MONTHLY.push({m:mNames[i],vgv,meta:METRICS.vgv_meta||8000000,vendas:mWon.length});
+  }
+}
+const METRICS=(function(){
+  const now=new Date();
+  const mNames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const mes=mNames[now.getMonth()]+' '+now.getFullYear();
+  const du_tot=22; // ~22 business days per month
+  const du_pass=Math.min(du_tot,now.getDate());
+  const du_rest=Math.max(0,du_tot-du_pass);
+  return {
+    mes, du_tot, du_pass, du_rest,
+    vgv_meta:8000000, vgv_real:0, vend_meta:20, vend_real:0,
+    vis_meta:100, vis_real:0, leads:0, leads_val:0,
+    pipeline:0, crm_medio:50,
+  };
+})();
 const NOTIFS=[
   {tipo:'d',msg:'OPP-011 — SLA vencido há 7 dias (Evandro)',  page:'crm',       read:false},
   {tipo:'d',msg:'Evandro CRM Score 62 — abaixo do mínimo',    page:'governance',read:false},
@@ -2189,7 +2197,7 @@ const RD = {
         ori: source,
         dnu,
         sla: dnu >= 5 ? 'overdue' : dnu >= 3 ? 'warning' : 'ok',
-        crm: d.rating ? (d.rating * 20) : 60,
+        crm: Math.min(100, Math.max(20, (d.rating ? d.rating * 15 : 40) + (d.interactions ? Math.min(30, d.interactions * 3) : 0) + (d.last_activity_at ? 15 : 0))),
         rdId: d._id || d.id,
         lostReason: d.deal_lost_reason?.name || null,
         closedAt,
@@ -2355,6 +2363,8 @@ const RD = {
       openProc.forEach(o => OPPS.push(o));
       wonProc.forEach(o  => VENDAS.push(o));
       lostProc.forEach(o => LOST_DEALS.push(o));
+
+      recalcMonthly();
 
       // ── Compute broker metrics ──
       BROKERS.forEach(b => {
