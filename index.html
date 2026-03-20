@@ -1760,6 +1760,7 @@ function pgMetas(){
     +'<button class="tab'+(tab==='equipes'?' on':'')+'" onclick="S.metasTab=\'equipes\';render()">🏰 Equipes</button>'
     +'<button class="tab'+(tab==='individual'?' on':'')+'" onclick="S.metasTab=\'individual\';render()">👤 Individual</button>'
     +'<button class="tab'+(tab==='sonho'?' on':'')+'" onclick="S.metasTab=\'sonho\';render()">✨ Meu Porquê</button>'
+    +''
     +'</div>';
 
   let content='';
@@ -1922,62 +1923,81 @@ function pgMetas(){
   // ═══════════════════════════════════════════════════════════════
   // TAB: MEU PORQUÊ (Quadro de Sonhos)
   // ═══════════════════════════════════════════════════════════════
+  // TAB: MEU PORQUÊ (Mural de Metas Pessoais)
+  // ═══════════════════════════════════════════════════════════════
   } else {
     const bSel='<select class="fs sel-f" style="margin-bottom:14px" onchange="S.metasBroker=this.value;render()">'
       +BROKERS.map(b=>'<option value="'+b.id+'"'+(selBid===b.id?' selected':'')+'>'+b.name+'</option>').join('')+'</select>';
-    const sonho=(S.sonhos||{})[selBid]||{};
+    const obj=(S.sonhos||{})[selBid]||{};
     const comPct=S.comissaoPct||6;
     const ticket=selB.ticketMedio||350000;
     const comMedia=Math.round(ticket*comPct/100);
-    const sValor=sonho.valor||0;
-    const vendasNeed=sValor>0?Math.ceil(sValor/Math.max(1,comMedia)):0;
+    const objValor=obj.valor||0;
     const jaCom=Math.round((selBD.vgv_real||0)*comPct/100);
-    const pctSonho=sValor>0?Math.min(100,Math.round(jaCom/sValor*100)):0;
+    const faltaCom=Math.max(0,objValor-jaCom);
+    const vendasFaltam=faltaCom>0?Math.ceil(faltaCom/Math.max(1,comMedia)):0;
+    const vendasTotal=objValor>0?Math.ceil(objValor/Math.max(1,comMedia)):0;
+    const pctObj=objValor>0?Math.min(100,Math.round(jaCom/objValor*100)):0;
+    const imgUrl=obj.imagem||'';
 
     content=bSel
       +'<div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);border-radius:16px;padding:32px;color:#fff;margin-bottom:16px">'
-      +'<div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:3px;margin-bottom:6px">✨ Destino PSM</div>'
-      +'<div style="font-size:24px;font-weight:900;margin-bottom:4px">'+selB.name+', qual é o seu porquê?</div>'
-      +'<div style="font-size:12px;color:#94a3b8">Defina o que te motiva. O sistema calcula exatamente quanto falta.</div>'
+      +'<div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:3px;margin-bottom:6px">✨ Meu Porquê — Destino PSM</div>'
+      +'<div style="font-size:24px;font-weight:900;margin-bottom:4px">'+selB.name+', o que te motiva a vender mais?</div>'
+      +'<div style="font-size:12px;color:#94a3b8">Defina sua meta pessoal. O sistema calcula exatamente quanto falta para conquistar.</div>'
       +'</div>'
+
+      // ── Mural: Imagem + Objetivo ──
       +'<div class="g2 mb2">'
-      // Input
       +'<div class="card">'
-      +'<div class="ctitle">🎯 Meu Sonho</div>'
+      +'<div class="ctitle">🎯 Minha Meta Pessoal</div>'
       +'<div class="fg"><label class="flabel">O que eu quero conquistar</label>'
-      +'<input class="finp" placeholder="Ex: BMW X3, Viagem Europa, Apartamento..." value="'+(sonho.descricao||'')+'" oninput="if(!S.sonhos)S.sonhos={};if(!S.sonhos[\''+selBid+'\'])S.sonhos[\''+selBid+'\']={}; S.sonhos[\''+selBid+'\'].descricao=this.value;saveState()"></div>'
-      +'<div class="fg"><label class="flabel">Quanto custa? (R$)</label>'
-      +'<input class="finp" type="number" placeholder="100000" value="'+sValor+'" oninput="if(!S.sonhos)S.sonhos={};if(!S.sonhos[\''+selBid+'\'])S.sonhos[\''+selBid+'\']={}; S.sonhos[\''+selBid+'\'].valor=+this.value;saveState();render()"></div>'
+      +'<input class="finp" placeholder="Ex: BMW X3, Viagem Europa, Primeiro Apartamento..." value="'+(obj.descricao||'')+'" oninput="if(!S.sonhos)S.sonhos={};if(!S.sonhos[\''+selBid+'\'])S.sonhos[\''+selBid+'\']={}; S.sonhos[\''+selBid+'\'].descricao=this.value;saveState()"></div>'
+      +'<div class="fg"><label class="flabel">Valor do objetivo (R$)</label>'
+      +'<input class="finp" type="number" placeholder="250000" value="'+objValor+'" oninput="if(!S.sonhos)S.sonhos={};if(!S.sonhos[\''+selBid+'\'])S.sonhos[\''+selBid+'\']={}; S.sonhos[\''+selBid+'\'].valor=+this.value;saveState();render()"></div>'
+      +'<div class="fg"><label class="flabel">📷 Imagem do objetivo (cole a URL)</label>'
+      +'<input class="finp" type="url" placeholder="https://... (link da imagem do carro, viagem, etc)" value="'+imgUrl+'" oninput="if(!S.sonhos)S.sonhos={};if(!S.sonhos[\''+selBid+'\'])S.sonhos[\''+selBid+'\']={}; S.sonhos[\''+selBid+'\'].imagem=this.value;saveState();render()"></div>'
       +'<div style="font-size:10px;color:var(--muted);margin-top:8px">Comissão média: '+comPct+'% sobre ticket de '+fmt(ticket)+' = <strong>'+fmt(comMedia)+'/venda</strong></div>'
       +'</div>'
-      // Calculator
-      +'<div class="card" style="background:var(--navy);color:#fff;border-color:transparent">'
-      +'<div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px">Calculadora Reversa</div>'
-      +(sValor>0?
-        '<div style="font-size:14px;margin-bottom:14px">Para <strong style="color:var(--gold)">'+(sonho.descricao||'seu sonho')+'</strong>:</div>'
-        +'<div style="font-size:48px;font-weight:900;color:var(--gold);line-height:1">'+vendasNeed+'</div>'
-        +'<div style="font-size:14px;color:#94a3b8;margin-bottom:16px">vendas necessárias</div>'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'
-        +'<div style="padding:10px;background:rgba(255,255,255,.06);border-radius:8px"><div style="font-size:9px;color:#64748b">VGV necessário</div><div style="font-size:15px;font-weight:800;color:#fff">'+fmt(vendasNeed*ticket)+'</div></div>'
-        +'<div style="padding:10px;background:rgba(255,255,255,.06);border-radius:8px"><div style="font-size:9px;color:#64748b">Comissão acumulada</div><div style="font-size:15px;font-weight:800;color:var(--gold)">'+fmt(jaCom)+'</div></div></div>'
-        +'<div style="margin-bottom:6px;font-size:11px;color:#94a3b8">Progresso: '+pctSonho+'% do sonho</div>'
-        +'<div style="height:8px;background:rgba(255,255,255,.1);border-radius:99px"><div style="height:100%;width:'+pctSonho+'%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:99px;transition:width .5s"></div></div>'
-        +(pctSonho>=100?'<div style="margin-top:10px;font-size:14px;font-weight:800;color:var(--gold)">🎉 PARABÉNS! Você já conquistou seu sonho!</div>':'')
-        :'<div style="text-align:center;padding:30px;color:#64748b">Preencha seu sonho ao lado</div>')
-      +'</div></div>'
-      // Insight IA
+
+      // ── Mural Visual ──
+      +'<div class="card" style="display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden;min-height:250px'+(imgUrl?';background-image:url('+imgUrl+');background-size:cover;background-position:center':'')+'">'
+      +(imgUrl?'<div style="position:absolute;inset:0;background:rgba(15,23,42,.6)"></div>':'')
+      +'<div style="position:relative;z-index:1">'
+      +(obj.descricao?
+        '<div style="font-size:11px;color:'+(imgUrl?'rgba(255,255,255,.7)':'var(--muted)')+';text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">META PESSOAL</div>'
+        +'<div style="font-size:22px;font-weight:900;color:'+(imgUrl?'#fff':'var(--navy)')+';margin-bottom:4px">'+(obj.descricao||'')+'</div>'
+        +'<div style="font-size:16px;font-weight:700;color:'+(imgUrl?'var(--gold)':'var(--navy)')+';margin-bottom:12px">'+fmt(objValor)+'</div>'
+        +'<div style="width:200px;height:8px;background:'+(imgUrl?'rgba(255,255,255,.2)':'var(--cream3)')+';border-radius:99px;margin:0 auto"><div style="height:100%;width:'+pctObj+'%;background:var(--gold);border-radius:99px;transition:width .5s"></div></div>'
+        +'<div style="font-size:12px;font-weight:800;color:var(--gold);margin-top:6px">'+pctObj+'% conquistado</div>'
+        :'<div style="color:var(--muted);font-size:13px">Preencha sua meta pessoal<br>para visualizar aqui</div>')
+      +'</div></div></div>'
+
+      // ── Calculadora Reversa ──
+      +(objValor>0?
+      '<div class="card mb2" style="background:var(--navy);color:#fff;border-color:transparent">'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center">'
+      +'<div><div style="font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Comissão Acumulada</div><div style="font-size:28px;font-weight:900;color:var(--gold)">'+fmt(jaCom)+'</div><div style="font-size:10px;color:#64748b">de '+fmt(objValor)+'</div></div>'
+      +'<div><div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Ainda Falta</div><div style="font-size:28px;font-weight:900;color:#fff">'+fmt(faltaCom)+'</div><div style="font-size:10px;color:#64748b">em comissão</div></div>'
+      +'<div><div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Vendas Restantes</div><div style="font-size:48px;font-weight:900;color:var(--gold);line-height:1">'+vendasFaltam+'</div><div style="font-size:10px;color:#64748b">de '+vendasTotal+' no total</div></div>'
+      +'</div>'
+      +'<div style="margin-top:14px;height:8px;background:rgba(255,255,255,.1);border-radius:99px"><div style="height:100%;width:'+pctObj+'%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:99px;transition:width .5s"></div></div>'
+      +(pctObj>=100?'<div style="text-align:center;margin-top:12px;font-size:16px;font-weight:900;color:var(--gold)">🎉 PARABÉNS! Objetivo alcançado!</div>':'')
+      +'</div>':'')
+
+      // ── Insight Sr. Performance ──
       +'<div class="card" style="border-left:3px solid var(--gold);background:linear-gradient(90deg,#fffbeb,#fff)">'
       +'<div style="display:flex;gap:12px">'
       +'<div style="font-size:24px">🤖</div>'
       +'<div><div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Sr. Performance diz:</div>'
       +'<div style="font-size:12px;color:var(--mid);line-height:1.6">'
-      +(sValor>0&&selBD.vendas>0?
-        '<strong>'+selB.name.split(' ')[0]+'</strong>, você já fez '+selBD.vendas+' venda'+(selBD.vendas>1?'s':'')+' e acumulou <strong>'+fmt(jaCom)+'</strong> em comissão. '
-        +(pctSonho>=100?'Seu sonho já está ao alcance! Hora de definir o próximo objetivo.':
-          'Faltam <strong>'+(vendasNeed-Math.floor(jaCom/Math.max(1,comMedia)))+' vendas</strong> para alcançar '+(sonho.descricao||'seu sonho')+'. Mantenha o foco!')
-        :sValor>0?
-        '<strong>'+selB.name.split(' ')[0]+'</strong>, seu objetivo custa '+fmt(sValor)+'. Com seu ticket médio de '+fmt(ticket)+', são apenas '+vendasNeed+' vendas. Comece agendando 3 visitas esta semana!'
-        :'Defina seu sonho! Corretor com propósito claro vende em média 40% mais que quem não tem meta pessoal.')
+      +(objValor>0&&jaCom>0?
+        '<strong>'+selB.name.split(' ')[0]+'</strong>, você já acumulou <strong>'+fmt(jaCom)+'</strong> em comissão ('+pctObj+'% do objetivo). '
+        +(pctObj>=100?'Você já conquistou sua meta! Hora de definir o próximo nível.':
+          'Faltam <strong>'+vendasFaltam+' vendas</strong> para alcançar '+(obj.descricao||'seu objetivo')+'. Cada visita te aproxima!')
+        :objValor>0?
+        '<strong>'+selB.name.split(' ')[0]+'</strong>, seu objetivo custa '+fmt(objValor)+'. Com ticket médio de '+fmt(ticket)+' e '+comPct+'% de comissão, são <strong>'+vendasTotal+' vendas</strong>. Comece agendando 3 visitas esta semana!'
+        :'Defina sua meta pessoal! Corretor com propósito claro vende em média 40% mais que quem não tem objetivo definido.')
       +'</div></div></div></div>';
   }
 
