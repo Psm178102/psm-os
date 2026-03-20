@@ -1704,269 +1704,285 @@ function openWarRoomTV() {
   toast('📺 Modo TV aberto — mantenha esta aba aberta', 'ok');
 }
 
-// ─── PAGE: METAS ─────────────────────────────────────────────────────────────
+// ─── PAGE: METAS (Enterprise Edition) ────────────────────────────────────────
 function pgMetas(){
   const df = DateFilter('metas','Período');
-  const tab = S.metasTab || 'geral';
+  const tab = S.metasTab || 'painel';
   const periodo = S.metasPeriodo || 'mensal';
+  const selBid = S.metasBroker || (S.user?.id || BROKERS[0]?.id || '');
+  const selB = BROKERS.find(b => b.id === selBid) || BROKERS[0] || {};
 
-  // ── Filter data by period ──
-  const fVendas = applyDateFilter(VENDAS, 'metas');
-  const fOpps = applyDateFilter(OPPS, 'metas');
-  const fLost = applyDateFilter(LOST_DEALS, 'metas');
+  // ── Filter by period ──
+  const fV = applyDateFilter(VENDAS, 'metas');
+  const fO = applyDateFilter(OPPS, 'metas');
+  const fL = applyDateFilter(LOST_DEALS, 'metas');
+  const periodoMult = {mensal:1,trimestral:3,semestral:6,anual:12}[periodo] || 1;
 
-  // ── Period multiplier for meta scaling ──
-  const periodoMult = {mensal:1, trimestral:3, semestral:6, anual:12}[periodo] || 1;
+  // ── Meta base (mensal) ──
+  const mBase = {vgv:METRICS.vgv_meta||8000000,vendas:METRICS.vend_meta||20,agend:80,vis:METRICS.vis_meta||100,prop:40};
+  const m = {}; Object.entries(mBase).forEach(([k,v]) => m[k]=v*periodoMult);
 
-  // ── Meta base values (monthly) ──
-  const metaBase = {
-    vgv: METRICS.vgv_meta || 8000000,
-    vendas: METRICS.vend_meta || 20,
-    agendamentos: 80,
-    visitas: METRICS.vis_meta || 100,
-    propostas: 40,
+  // ── Realizado ──
+  const r = {
+    vgv:fV.reduce((a,v)=>a+(v.vgv||0),0), vendas:fV.length,
+    agend:fO.filter(o=>['agendamento','vis_agend'].includes(o.st_psm)).length,
+    vis:fO.filter(o=>o.st_psm==='vis_real').length+fV.length,
+    prop:fO.filter(o=>o.st_psm==='proposta').length,
   };
+  const p = {}; Object.keys(m).forEach(k => p[k]=Math.round((r[k]||0)/Math.max(1,m[k])*100));
 
-  // ── Scale metas by period ──
-  const meta = {};
-  Object.entries(metaBase).forEach(([k,v]) => meta[k] = v * periodoMult);
-
-  // ── Realized values ──
-  const real = {
-    vgv: fVendas.reduce((a,v) => a + (v.vgv||0), 0),
-    vendas: fVendas.length,
-    agendamentos: fOpps.filter(o => ['agendamento','vis_agend'].includes(o.st_psm)).length,
-    visitas: fOpps.filter(o => o.st_psm === 'vis_real').length + fVendas.length,
-    propostas: fOpps.filter(o => o.st_psm === 'proposta').length,
-  };
-
-  // ── Percentage ──
-  const pct = {};
-  Object.keys(meta).forEach(k => pct[k] = Math.round((real[k]||0) / Math.max(1,meta[k]) * 100));
-
-  // ── Per-broker data ──
-  const brokerMetas = BROKERS.map(b => {
-    const bWon = fVendas.filter(v => v.bid === b.id);
-    const bOpps = fOpps.filter(o => o.bid === b.id);
-    const bMeta = METAS_CONFIG[b.id] || {};
-    const bVgvMeta = (bMeta.vgv_meta || b.meta || 800000) * periodoMult;
-    const bVgvReal = bWon.reduce((a,v) => a + (v.vgv||0), 0);
-    return {
-      ...b,
-      vgv_meta: bVgvMeta,
-      vgv_real: bVgvReal,
-      vendas: bWon.length,
-      agend: bOpps.filter(o => ['agendamento','vis_agend'].includes(o.st_psm)).length,
-      vis: bOpps.filter(o => o.st_psm === 'vis_real').length + bWon.length,
-      prop: bOpps.filter(o => o.st_psm === 'proposta').length,
-      pctVgv: Math.round(bVgvReal / Math.max(1, bVgvMeta) * 100),
+  // ── Broker data ──
+  const bData = BROKERS.map(b => {
+    const bW=fV.filter(v=>v.bid===b.id), bO=fO.filter(o=>o.bid===b.id), bL=fL.filter(l=>l.bid===b.id);
+    const mc=METAS_CONFIG[b.id]||{};
+    const vm=(mc.vgv_meta||b.meta||800000)*periodoMult;
+    const vr=bW.reduce((a,v)=>a+(v.vgv||0),0);
+    return{...b,vgv_real:vr,vgv_meta:vm,vendas:bW.length,perdidas:bL.length,
+      agend:bO.filter(o=>['agendamento','vis_agend'].includes(o.st_psm)).length,
+      vis:bO.filter(o=>o.st_psm==='vis_real').length+bW.length,
+      prop:bO.filter(o=>o.st_psm==='proposta').length,
+      pct:Math.round(vr/Math.max(1,vm)*100),
+      conv:(bW.length+bL.length)>0?Math.round(bW.length/(bW.length+bL.length)*100):0,
+      pipe:bO.reduce((a,o)=>a+(o.vgv||0),0),
     };
-  }).sort((a,b) => b.pctVgv - a.pctVgv);
+  }).sort((a,b)=>b.pct-a.pct);
+  const selBD = bData.find(b=>b.id===selBid) || bData[0] || {};
 
-  // ── Per-team data ──
-  const teamMetas = Object.entries(FRENTES).map(([fid, fr]) => {
-    const bks = brokerMetas.filter(b => b.frente === fid);
-    const tMeta = (METAS_EQUIPE[fid]?.vgv_meta || 2000000) * periodoMult;
-    const tReal = bks.reduce((a,b) => a + b.vgv_real, 0);
-    return {
-      fid, label: fr.label, icon: fr.icon, color: fr.color,
-      vgv_meta: tMeta, vgv_real: tReal,
-      vendas: bks.reduce((a,b) => a + b.vendas, 0),
-      agend: bks.reduce((a,b) => a + b.agend, 0),
-      vis: bks.reduce((a,b) => a + b.vis, 0),
-      prop: bks.reduce((a,b) => a + b.prop, 0),
-      count: bks.length,
-      pctVgv: Math.round(tReal / Math.max(1, tMeta) * 100),
-    };
-  });
-
-  // ── Period selector ──
+  // ── Period pills ──
   const periodos = ['mensal','trimestral','semestral','anual'];
-  const periodoBar = '<div style="display:flex;gap:4px;margin-bottom:14px">'
-    + periodos.map(p => '<button class="btn bsm'+(periodo===p?' bp1':' bout')+'" onclick="S.metasPeriodo=\''+p+'\';render()">'+p.charAt(0).toUpperCase()+p.slice(1)+'</button>').join('')
-    + '</div>';
+  const pBar = '<div style="display:flex;gap:4px;margin-bottom:14px">'
+    +periodos.map(pp=>'<button class="btn bsm'+(periodo===pp?' bp1':' bout')+'" onclick="S.metasPeriodo=\''+pp+'\';render()">'+pp.charAt(0).toUpperCase()+pp.slice(1)+'</button>').join('')
+    +'</div>';
 
   // ── Tabs ──
   const tabs = '<div class="tabs">'
-    + '<button class="tab'+(tab==='geral'?' on':'')+'" onclick="S.metasTab=\'geral\';render()">📊 Geral</button>'
-    + '<button class="tab'+(tab==='equipes'?' on':'')+'" onclick="S.metasTab=\'equipes\';render()">🏰 Por Equipe</button>'
-    + '<button class="tab'+(tab==='individual'?' on':'')+'" onclick="S.metasTab=\'individual\';render()">👤 Individual</button>'
-    + '</div>';
+    +'<button class="tab'+(tab==='painel'?' on':'')+'" onclick="S.metasTab=\'painel\';render()">📊 Painel Geral</button>'
+    +'<button class="tab'+(tab==='equipes'?' on':'')+'" onclick="S.metasTab=\'equipes\';render()">🏰 Equipes</button>'
+    +'<button class="tab'+(tab==='individual'?' on':'')+'" onclick="S.metasTab=\'individual\';render()">👤 Individual</button>'
+    +'<button class="tab'+(tab==='sonho'?' on':'')+'" onclick="S.metasTab=\'sonho\';render()">✨ Meu Porquê</button>'
+    +'</div>';
 
-  // ── Content by tab ──
-  let content = '';
+  let content='';
 
-  if (tab === 'geral') {
-    // ── GERAL: company-wide metas ──
-    const metaItems = [
-      {key:'vgv',label:'VGV',icon:'💰',color:'var(--navy)',fmtV:fmt,fmtM:fmt},
-      {key:'vendas',label:'Vendas',icon:'🏆',color:'var(--g)',fmtV:v=>v,fmtM:v=>v},
-      {key:'agendamentos',label:'Agendamentos',icon:'📅',color:'var(--b)',fmtV:v=>v,fmtM:v=>v},
-      {key:'visitas',label:'Visitas',icon:'👁',color:'var(--pu)',fmtV:v=>v,fmtM:v=>v},
-      {key:'propostas',label:'Propostas',icon:'📄',color:'var(--a)',fmtV:v=>v,fmtM:v=>v},
+  // ═══════════════════════════════════════════════════════════════
+  // TAB: PAINEL GERAL
+  // ═══════════════════════════════════════════════════════════════
+  if(tab==='painel'){
+    const now=new Date(), pctMes=Math.round(now.getDate()/30*100);
+    const items=[
+      {k:'vgv',lbl:'VGV Realizado',ico:'💰',c:'var(--navy)',f:fmt,fm:fmt},
+      {k:'vendas',lbl:'Vendas Fechadas',ico:'🏆',c:'var(--g)',f:v=>v,fm:v=>v},
+      {k:'agend',lbl:'Agendamentos',ico:'📅',c:'var(--b)',f:v=>v,fm:v=>v},
+      {k:'vis',lbl:'Visitas',ico:'👁',c:'var(--pu)',f:v=>v,fm:v=>v},
+      {k:'prop',lbl:'Propostas',ico:'📄',c:'var(--a)',f:v=>v,fm:v=>v},
     ];
-    content = '<div class="kgrid">'
-      + metaItems.map(m => {
-        const p = pct[m.key]||0;
-        const statusColor = p >= 80 ? 'var(--g-tx)' : p >= 50 ? 'var(--a-tx)' : 'var(--r-tx)';
-        return '<div class="card" style="border-top:3px solid '+m.color+'">'
-          + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
-          + '<span style="font-size:18px">'+m.icon+'</span>'
-          + '<span style="font-size:13px;font-weight:700;color:var(--navy)">'+m.label+'</span>'
-          + '<span style="margin-left:auto;font-size:12px;font-weight:800;color:'+statusColor+'">'+p+'%</span>'
-          + '</div>'
-          + '<div style="font-size:24px;font-weight:900;color:var(--navy);margin-bottom:4px">'+m.fmtV(real[m.key]||0)+'</div>'
-          + '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Meta: '+m.fmtM(meta[m.key]||0)+'</div>'
-          + PB(real[m.key]||0, meta[m.key]||1, m.color, true)
-          + '</div>';
-      }).join('')
-      + '</div>'
-      // Perdidas e Conversão
-      + '<div class="g2 mt2">'
-      + '<div class="card"><div class="ctitle">📊 Resumo do Período</div>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center">'
-      + '<div><div style="font-size:22px;font-weight:900;color:var(--g-tx)">'+fVendas.length+'</div><div style="font-size:10px;color:var(--muted)">Vendas</div></div>'
-      + '<div><div style="font-size:22px;font-weight:900;color:var(--r-tx)">'+fLost.length+'</div><div style="font-size:10px;color:var(--muted)">Perdidas</div></div>'
-      + '<div><div style="font-size:22px;font-weight:900;color:var(--b-tx)">'+((fVendas.length+fLost.length)>0?Math.round(fVendas.length/(fVendas.length+fLost.length)*100):0)+'%</div><div style="font-size:10px;color:var(--muted)">Conversão</div></div>'
-      + '</div></div>'
-      + '<div class="card"><div class="ctitle">💰 VGV por Mês</div>'
-      + (typeof svgBar === 'function' ? svgBar((typeof MONTHLY!=='undefined'?MONTHLY:[]),'vgv','meta','m','#0f172a','#e2e8f0',140) : '<div style="color:var(--muted);font-size:12px">Gráfico disponível após sync</div>')
-      + '</div></div>';
+    // Gauge cards
+    content='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px">'
+      +items.map(it=>{
+        const pv=p[it.k]||0;const sc=pv>=80?'var(--g-tx)':pv>=50?'var(--a-tx)':'var(--r-tx)';
+        const onTrack=pv>=pctMes*0.7;
+        return'<div class="card" style="border-top:3px solid '+it.c+';padding:16px;position:relative">'
+          +'<div style="font-size:11px;color:var(--muted);margin-bottom:6px">'+it.ico+' '+it.lbl+'</div>'
+          +'<div style="font-size:26px;font-weight:900;color:var(--navy)">'+it.f(r[it.k]||0)+'</div>'
+          +'<div style="font-size:10px;color:var(--muted);margin-bottom:6px">Meta: '+it.fm(m[it.k]||0)+'</div>'
+          +PB(r[it.k]||0,m[it.k]||1,it.c,true)
+          +'<div style="display:flex;justify-content:space-between;margin-top:6px">'
+          +'<span style="font-size:11px;font-weight:800;color:'+sc+'">'+pv+'%</span>'
+          +'<span style="font-size:9px;color:'+(onTrack?'var(--g-tx)':'var(--r-tx)')+'">'+(onTrack?'✓ No ritmo':'⚠ Abaixo')+'</span>'
+          +'</div></div>';
+      }).join('')+'</div>'
+      // Resumo + Conversão
+      +'<div class="g2 mb2">'
+      +'<div class="card"><div class="ctitle">📊 Funil de Conversão</div>'
+      +'<div style="display:flex;align-items:flex-end;gap:2px;height:120px;padding:10px 0">'
+      +[{l:'Leads',v:fO.length,c:'#94a3b8'},{l:'Agend.',v:r.agend,c:'#3b82f6'},{l:'Visitas',v:r.vis,c:'#8b5cf6'},{l:'Propostas',v:r.prop,c:'#f59e0b'},{l:'Vendas',v:r.vendas,c:'#22c55e'}].map(s=>{
+        const h=Math.max(8,Math.round(s.v/Math.max(1,fO.length)*100));
+        return'<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
+          +'<div style="font-size:14px;font-weight:800;color:var(--navy)">'+s.v+'</div>'
+          +'<div style="width:100%;height:'+h+'px;background:'+s.c+';border-radius:4px 4px 0 0;min-height:8px"></div>'
+          +'<div style="font-size:8px;color:var(--muted);text-transform:uppercase">'+s.l+'</div></div>';
+      }).join('')+'</div>'
+      +'<div style="font-size:10px;color:var(--muted);margin-top:8px;text-align:center">Taxa geral: <strong>'+((fV.length+fL.length)>0?Math.round(fV.length/(fV.length+fL.length)*100):0)+'%</strong> conversão · <strong>'+fL.length+'</strong> perdidas</div>'
+      +'</div>'
+      +'<div class="card"><div class="ctitle">🏅 Top 5 Corretores</div>'
+      +bData.slice(0,5).map((b,i)=>{
+        const sc=b.pct>=80?'var(--g-tx)':b.pct>=50?'var(--a-tx)':'var(--r-tx)';
+        return'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--cream3)">'
+          +'<span style="font-size:14px;width:22px;text-align:center">'+(i<3?['🥇','🥈','🥉'][i]:(i+1))+'</span>'
+          +Av(b,'xs')
+          +'<div style="flex:1"><div style="font-size:12px;font-weight:600">'+b.name+'</div>'+PB(b.vgv_real,b.vgv_meta||1,sc)+'</div>'
+          +'<div style="text-align:right"><div style="font-size:13px;font-weight:800;color:'+sc+'">'+b.pct+'%</div>'
+          +'<div style="font-size:9px;color:var(--muted)">'+fmt(b.vgv_real)+'</div></div></div>';
+      }).join('')+'</div></div>'
+      // Sr Performance insight
+      +'<div class="card" style="border-left:3px solid var(--gold);background:linear-gradient(90deg,#fffbeb,#fff)">'
+      +'<div style="display:flex;align-items:flex-start;gap:12px">'
+      +'<div style="font-size:24px;flex-shrink:0">🤖</div>'
+      +'<div><div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Insight do Sr. Performance</div>'
+      +'<div style="font-size:12.5px;color:var(--mid);line-height:1.6">'
+      +(p.vgv>=80?'Excelente ritmo! A equipe está em <strong>'+p.vgv+'%</strong> da meta de VGV. Mantenha o foco nas propostas — cada visita conta.':
+        p.vgv>=50?'A equipe está em <strong>'+p.vgv+'%</strong> da meta. Para acelerar: priorize os <strong>'+fO.filter(o=>['quente','proposta'].includes(o.st_psm)).length+'</strong> leads quentes no pipeline e intensifique agendamentos.':
+        'Atenção: apenas <strong>'+p.vgv+'%</strong> da meta VGV atingida. Ação urgente: cada corretor deve agendar no mínimo 3 visitas esta semana. Pipeline atual: '+fmt(fO.reduce((a,o)=>a+(o.vgv||0),0))+'.')
+      +'</div></div></div></div>';
 
-  } else if (tab === 'equipes') {
-    // ── POR EQUIPE ──
-    content = teamMetas.map(t => {
-      const p = t.pctVgv;
-      const sc = p >= 80 ? 'var(--g-tx)' : p >= 50 ? 'var(--a-tx)' : 'var(--r-tx)';
-      return '<div class="card mb2" style="border-left:4px solid '+t.color+'">'
-        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
-        + '<span style="font-size:18px">'+t.icon+'</span>'
-        + '<span style="font-size:15px;font-weight:800;color:var(--navy)">'+t.label+'</span>'
-        + '<span style="font-size:11px;color:var(--muted)">'+t.count+' corretores</span>'
-        + '<span style="margin-left:auto;font-size:16px;font-weight:900;color:'+sc+'">'+p+'%</span>'
-        + '</div>'
-        + '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px">'
-        + '<div><div style="font-size:9px;color:var(--muted);text-transform:uppercase">VGV Real</div><div style="font-size:16px;font-weight:800;color:var(--navy)">'+fmt(t.vgv_real)+'</div><div style="font-size:9px;color:var(--muted)">Meta: '+fmt(t.vgv_meta)+'</div></div>'
-        + '<div><div style="font-size:9px;color:var(--muted);text-transform:uppercase">Vendas</div><div style="font-size:16px;font-weight:800;color:var(--g-tx)">'+t.vendas+'</div></div>'
-        + '<div><div style="font-size:9px;color:var(--muted);text-transform:uppercase">Agendamentos</div><div style="font-size:16px;font-weight:800;color:var(--b-tx)">'+t.agend+'</div></div>'
-        + '<div><div style="font-size:9px;color:var(--muted);text-transform:uppercase">Visitas</div><div style="font-size:16px;font-weight:800;color:var(--pu-tx)">'+t.vis+'</div></div>'
-        + '<div><div style="font-size:9px;color:var(--muted);text-transform:uppercase">Propostas</div><div style="font-size:16px;font-weight:800;color:var(--a-tx)">'+t.prop+'</div></div>'
-        + '</div>'
-        + PB(t.vgv_real, t.vgv_meta||1, t.color, true)
-        + '</div>';
+  // ═══════════════════════════════════════════════════════════════
+  // TAB: EQUIPES
+  // ═══════════════════════════════════════════════════════════════
+  } else if(tab==='equipes'){
+    content=Object.entries(FRENTES).map(([fid,fr])=>{
+      const bks=bData.filter(b=>b.frente===fid);
+      if(!bks.length)return'';
+      const tM=(METAS_EQUIPE[fid]?.vgv_meta||2000000)*periodoMult;
+      const tR=bks.reduce((a,b)=>a+b.vgv_real,0);
+      const tP=Math.round(tR/Math.max(1,tM)*100);
+      const sc=tP>=80?'var(--g-tx)':tP>=50?'var(--a-tx)':'var(--r-tx)';
+      return'<div class="card mb2" style="border-left:4px solid '+fr.color+'">'
+        +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
+        +'<span style="font-size:20px">'+fr.icon+'</span>'
+        +'<div style="flex:1"><div style="font-size:16px;font-weight:800;color:var(--navy)">'+fr.label+'</div>'
+        +'<div style="font-size:11px;color:var(--muted)">'+bks.length+' corretores</div></div>'
+        +'<div style="text-align:right"><div style="font-size:24px;font-weight:900;color:'+sc+'">'+tP+'%</div>'
+        +'<div style="font-size:10px;color:var(--muted)">'+fmt(tR)+' / '+fmt(tM)+'</div></div></div>'
+        +PB(tR,tM||1,fr.color,true)
+        +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px">'
+        +'<div style="text-align:center;padding:8px;background:var(--cream2);border-radius:8px"><div style="font-size:18px;font-weight:900;color:var(--g-tx)">'+bks.reduce((a,b)=>a+b.vendas,0)+'</div><div style="font-size:9px;color:var(--muted)">Vendas</div></div>'
+        +'<div style="text-align:center;padding:8px;background:var(--cream2);border-radius:8px"><div style="font-size:18px;font-weight:900;color:var(--b-tx)">'+bks.reduce((a,b)=>a+b.agend,0)+'</div><div style="font-size:9px;color:var(--muted)">Agend.</div></div>'
+        +'<div style="text-align:center;padding:8px;background:var(--cream2);border-radius:8px"><div style="font-size:18px;font-weight:900;color:var(--pu-tx)">'+bks.reduce((a,b)=>a+b.vis,0)+'</div><div style="font-size:9px;color:var(--muted)">Visitas</div></div>'
+        +'<div style="text-align:center;padding:8px;background:var(--cream2);border-radius:8px"><div style="font-size:18px;font-weight:900;color:var(--a-tx)">'+bks.reduce((a,b)=>a+b.prop,0)+'</div><div style="font-size:9px;color:var(--muted)">Propostas</div></div>'
+        +'</div>'
+        // Corretores da equipe
+        +'<div style="margin-top:12px">'+bks.map(b=>{
+          const bc=b.pct>=80?'var(--g-tx)':b.pct>=50?'var(--a-tx)':'var(--r-tx)';
+          return'<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--cream3)">'
+            +Av(b,'xs')+'<div style="flex:1;font-size:11.5px;font-weight:600">'+b.name+'</div>'
+            +'<span style="font-size:11px;font-weight:800;color:'+bc+'">'+b.pct+'%</span>'
+            +'<span style="font-size:10px;color:var(--muted)">'+fmt(b.vgv_real)+'</span>'
+            +'<span style="font-size:10px;color:var(--g-tx)">'+b.vendas+'v</span></div>';
+        }).join('')+'</div></div>';
     }).join('');
 
+  // ═══════════════════════════════════════════════════════════════
+  // TAB: INDIVIDUAL
+  // ═══════════════════════════════════════════════════════════════
+  } else if(tab==='individual'){
+    const bSel='<select class="fs sel-f" style="margin-bottom:14px" onchange="S.metasBroker=this.value;render()">'
+      +BROKERS.map(b=>'<option value="'+b.id+'"'+(selBid===b.id?' selected':'')+'>'+b.name+'</option>').join('')+'</select>';
+    const sc=selBD.pct>=80?'var(--g-tx)':selBD.pct>=50?'var(--a-tx)':'var(--r-tx)';
+    const now=new Date(),pctMes=Math.round(now.getDate()/30*100);
+    const propPV=selBD.vendas>0?(selBD.prop/selBD.vendas).toFixed(1):'—';
+
+    // Header do corretor
+    content=bSel
+      +'<div class="card mb2" style="border-top:3px solid '+(selB.color||'var(--navy)')+'">'
+      +'<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">'
+      +Av(selB,'lg',true)
+      +'<div style="flex:1"><div style="font-size:18px;font-weight:800;color:var(--navy)">'+selB.name+'</div>'
+      +'<div style="font-size:11px;color:var(--muted)">'+FTag(selB.frente)+' · '+(DISC_PROFILES[selBid]?.perfil||'—')+' · Ticket médio: '+fmt(selB.ticketMedio||0)+'</div></div>'
+      +'<div style="text-align:center"><div style="font-size:32px;font-weight:900;color:'+sc+'">'+selBD.pct+'%</div>'
+      +'<div style="font-size:10px;color:var(--muted)">da meta VGV</div></div></div>'
+      // KPIs individuais
+      +'<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px">'
+      +[{l:'VGV Real',v:fmt(selBD.vgv_real),c:'var(--navy)'},{l:'Meta',v:fmt(selBD.vgv_meta),c:'var(--muted)'},{l:'Vendas',v:selBD.vendas,c:'var(--g-tx)'},{l:'Perdidas',v:selBD.perdidas||0,c:'var(--r-tx)'},{l:'Conversão',v:selBD.conv+'%',c:'var(--b-tx)'},{l:'Pipeline',v:fmt(selBD.pipe||0),c:'var(--pu-tx)'}].map(x=>
+        '<div style="text-align:center;padding:8px;background:var(--cream2);border-radius:8px">'
+        +'<div style="font-size:16px;font-weight:800;color:'+x.c+'">'+x.v+'</div>'
+        +'<div style="font-size:8px;color:var(--muted);text-transform:uppercase">'+x.l+'</div></div>'
+      ).join('')+'</div></div>'
+      // Leading indicators
+      +'<div class="g2 mb2">'
+      +'<div class="card"><div class="ctitle">📊 Indicadores de Performance</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +[{l:'Propostas por Venda',v:propPV},{l:'Ciclo de Venda',v:(selB.cicloVenda||0)+' dias'},{l:'Agendamentos',v:selBD.agend},{l:'Visitas',v:selBD.vis}].map(x=>
+        '<div style="padding:12px;background:var(--cream2);border-radius:8px">'
+        +'<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">'+x.l+'</div>'
+        +'<div style="font-size:20px;font-weight:900;color:var(--navy)">'+x.v+'</div></div>'
+      ).join('')+'</div></div>'
+      // Alertas de desvio
+      +'<div class="card"><div class="ctitle">⚠️ Diagnóstico Inteligente</div>'
+      +(function(){
+        const al=[];
+        if(selBD.pct<pctMes*0.5)al.push({s:'d',t:'VGV em '+selBD.pct+'% — deveria estar em ~'+pctMes+'%. Agende '+Math.max(3,Math.round((pctMes-selBD.pct)/10))+' visitas extras.'});
+        else if(selBD.pct<pctMes*0.8)al.push({s:'w',t:'VGV abaixo do ritmo ('+selBD.pct+'% vs ~'+pctMes+'%). Intensifique follow-ups.'});
+        if(selBD.agend<3)al.push({s:'w',t:'Poucos agendamentos ('+selBD.agend+'). Meta: 5+/mês.'});
+        if(selBD.vendas===0&&pctMes>50)al.push({s:'d',t:'Nenhuma venda e metade do mês já passou. Priorize propostas.'});
+        if((selB.crm||20)<50)al.push({s:'w',t:'CRM Score baixo ('+(selB.crm||20)+' pts). Preencha os campos.'});
+        if(selBD.conv>0&&selBD.conv<20)al.push({s:'w',t:'Taxa de conversão baixa ('+selBD.conv+'%). Revise qualificação de leads.'});
+        if(!al.length)al.push({s:'ok',t:'✅ Performance dentro do esperado! Mantenha o ritmo.'});
+        return al.map(a=>'<div style="padding:10px;margin-bottom:5px;border-radius:8px;border-left:3px solid '+(a.s==='d'?'var(--r)':a.s==='w'?'var(--a)':'var(--g)')+';background:'+(a.s==='d'?'var(--r-bg)':a.s==='w'?'var(--a-bg)':'var(--g-bg)')+';font-size:11.5px;color:'+(a.s==='d'?'var(--r-tx)':a.s==='w'?'var(--a-tx)':'var(--g-tx)')+'">'+a.t+'</div>').join('');
+      })()+'</div></div>'
+      // Ranking
+      +'<div class="card"><div class="ctitle">🏅 Ranking — '+periodo.charAt(0).toUpperCase()+periodo.slice(1)+'</div><div class="tw"><table class="rank-tbl"><thead><tr>'
+      +'<th>#</th><th>Corretor</th><th>Frente</th><th style="text-align:right">VGV</th><th style="text-align:right">Meta</th><th style="text-align:right">%</th><th style="text-align:right">Vendas</th><th style="text-align:right">Conv.</th></tr></thead><tbody>'
+      +bData.map((b,i)=>{const bc=b.pct>=80?'var(--g-tx)':b.pct>=50?'var(--a-tx)':'var(--r-tx)';const isSel=b.id===selBid;
+        return'<tr style="cursor:pointer;'+(isSel?'background:rgba(212,168,67,.08)':'')+'" onclick="S.metasBroker=\''+b.id+'\';render()">'
+        +'<td style="text-align:center">'+medal(i)+'</td><td>'+Av(b,'xs')+' <span style="font-size:11px;font-weight:'+(isSel?800:600)+'">'+b.name+'</span></td><td>'+FTag(b.frente)+'</td>'
+        +'<td style="text-align:right;font-weight:700">'+fmt(b.vgv_real)+'</td><td style="text-align:right;color:var(--muted)">'+fmt(b.vgv_meta)+'</td>'
+        +'<td style="text-align:right;font-weight:800;color:'+bc+'">'+b.pct+'%</td><td style="text-align:right">'+b.vendas+'</td><td style="text-align:right">'+b.conv+'%</td></tr>';
+      }).join('')+'</tbody></table></div></div>';
+
+  // ═══════════════════════════════════════════════════════════════
+  // TAB: MEU PORQUÊ (Quadro de Sonhos)
+  // ═══════════════════════════════════════════════════════════════
   } else {
-    // ── INDIVIDUAL ──
-    const selBid = S.metasBroker || (BROKERS[0]?.id || '');
-    const selB = BROKERS.find(b => b.id === selBid);
-    const selBData = brokerMetas.find(b => b.id === selBid) || {};
+    const bSel='<select class="fs sel-f" style="margin-bottom:14px" onchange="S.metasBroker=this.value;render()">'
+      +BROKERS.map(b=>'<option value="'+b.id+'"'+(selBid===b.id?' selected':'')+'>'+b.name+'</option>').join('')+'</select>';
+    const sonho=(S.sonhos||{})[selBid]||{};
+    const comPct=S.comissaoPct||6;
+    const ticket=selB.ticketMedio||350000;
+    const comMedia=Math.round(ticket*comPct/100);
+    const sValor=sonho.valor||0;
+    const vendasNeed=sValor>0?Math.ceil(sValor/Math.max(1,comMedia)):0;
+    const jaCom=Math.round((selBD.vgv_real||0)*comPct/100);
+    const pctSonho=sValor>0?Math.min(100,Math.round(jaCom/sValor*100)):0;
 
-    // Broker selector
-    const bSelector = '<select class="fs sel-f" style="margin-bottom:14px" onchange="S.metasBroker=this.value;render()">'
-      + BROKERS.map(b => '<option value="'+b.id+'"'+(selBid===b.id?' selected':'')+'>'+b.name+' ('+FTag(b.frente)+')</option>').join('')
-      + '</select>';
-
-    // "Meu Porquê" — dream calculator
-    const sonho = (S.sonhos || {})[selBid] || {};
-    const comissaoPct = S.comissaoPct || 6;
-    const ticketMedio = selB?.ticketMedio || 350000;
-    const comissaoMedia = Math.round(ticketMedio * comissaoPct / 100);
-    const sonhoValor = sonho.valor || 0;
-    const vendasParaSonho = sonhoValor > 0 ? Math.ceil(sonhoValor / Math.max(1, comissaoMedia)) : 0;
-    const vgvParaSonho = vendasParaSonho * ticketMedio;
-    const jaVendeu = selBData.vgv_real || 0;
-    const jaComissao = Math.round(jaVendeu * comissaoPct / 100);
-    const pctSonho = sonhoValor > 0 ? Math.min(100, Math.round(jaComissao / sonhoValor * 100)) : 0;
-
-    const meuPorque = '<div class="card mt2" style="border-top:3px solid var(--gold);background:linear-gradient(135deg,#fffbeb,#fff)">'
-      + '<div class="ctitle" style="font-size:15px">✨ Meu Porquê — Destino PSM</div>'
-      + '<div style="font-size:12px;color:var(--muted);margin-bottom:14px">O que te motiva a vender mais? Defina seu sonho e veja quanto falta.</div>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
-
-      // Left: Dream input
-      + '<div>'
-      + '<label class="flabel">Meu sonho é...</label>'
-      + '<input class="finp" placeholder="Ex: BMW X3, Viagem pra Europa, Ap na praia..." value="'+(sonho.descricao||'')+'" oninput="if(!S.sonhos)S.sonhos={};S.sonhos[\''+selBid+'\']=S.sonhos[\''+selBid+'\']||{};S.sonhos[\''+selBid+'\'].descricao=this.value;saveState()">'
-      + '<div style="margin-top:10px"><label class="flabel">Quanto custa? (R$)</label>'
-      + '<input class="finp" type="number" placeholder="100000" value="'+sonhoValor+'" oninput="if(!S.sonhos)S.sonhos={};S.sonhos[\''+selBid+'\']=S.sonhos[\''+selBid+'\']||{};S.sonhos[\''+selBid+'\'].valor=+this.value;saveState();render()">'
-      + '</div></div>'
-
-      // Right: Calculator result
-      + '<div style="background:var(--navy);border-radius:12px;padding:18px;color:#fff">'
-      + (sonhoValor > 0 ?
-        '<div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Calculadora Reversa</div>'
-        + '<div style="font-size:13px;margin-bottom:6px">Para conquistar <strong style="color:var(--gold)">'+(sonho.descricao||'seu sonho')+'</strong>:</div>'
-        + '<div style="font-size:28px;font-weight:900;color:var(--gold);margin-bottom:4px">'+vendasParaSonho+' vendas</div>'
-        + '<div style="font-size:11px;color:#94a3b8;margin-bottom:10px">de '+fmt(ticketMedio)+' ticket médio × '+comissaoPct+'% comissão</div>'
-        + '<div style="font-size:11px;margin-bottom:4px">VGV necessário: <strong>'+fmt(vgvParaSonho)+'</strong></div>'
-        + '<div style="font-size:11px;margin-bottom:8px">Comissão acumulada: <strong style="color:var(--gold)">'+fmt(jaComissao)+'</strong> de '+fmt(sonhoValor)+'</div>'
-        + '<div style="height:6px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pctSonho+'%;background:var(--gold);border-radius:99px"></div></div>'
-        + '<div style="font-size:10px;color:#94a3b8;margin-top:4px">'+pctSonho+'% do seu sonho conquistado</div>'
-        :
-        '<div style="text-align:center;padding:20px;color:#64748b;font-size:13px">Preencha seu sonho ao lado para ver a calculadora</div>'
-      )
-      + '</div></div></div>';
-
-    // Ranking table
-    const rankTable = '<div class="card mt2"><div class="ctitle">Ranking Individual — '+periodo.charAt(0).toUpperCase()+periodo.slice(1)+'</div><div class="tw"><table class="rank-tbl"><thead><tr>'
-      + '<th>#</th><th>Corretor</th><th>Frente</th>'
-      + '<th style="text-align:right">VGV Real</th><th style="text-align:right">Meta VGV</th><th style="text-align:right">%</th>'
-      + '<th style="text-align:right">Vendas</th><th style="text-align:right">Agend.</th><th style="text-align:right">Visitas</th><th style="text-align:right">Propostas</th>'
-      + '</tr></thead><tbody>'
-      + brokerMetas.map((b, i) => {
-        const sc = b.pctVgv >= 80 ? 'var(--g-tx)' : b.pctVgv >= 50 ? 'var(--a-tx)' : 'var(--r-tx)';
-        const isSel = b.id === selBid;
-        return '<tr style="cursor:pointer;'+(isSel?'background:rgba(212,168,67,.08);':'')+'" onclick="S.metasBroker=\''+b.id+'\';render()">'
-          + '<td style="text-align:center">'+medal(i)+'</td>'
-          + '<td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:'+(isSel?'800':'600')+'">'+b.name+'</span></div></td>'
-          + '<td>'+FTag(b.frente)+'</td>'
-          + '<td style="text-align:right;font-weight:700;color:var(--navy)">'+fmt(b.vgv_real)+'</td>'
-          + '<td style="text-align:right;color:var(--muted)">'+fmt(b.vgv_meta)+'</td>'
-          + '<td style="text-align:right;font-weight:800;color:'+sc+'">'+b.pctVgv+'%</td>'
-          + '<td style="text-align:right">'+b.vendas+'</td>'
-          + '<td style="text-align:right">'+b.agend+'</td>'
-          + '<td style="text-align:right">'+b.vis+'</td>'
-          + '<td style="text-align:right">'+b.prop+'</td>'
-          + '</tr>';
-      }).join('')
-      + '</tbody></table></div></div>';
-
-    // Leading indicators for selected broker
-    const propPerVenda = selBData.vendas > 0 ? (selBData.prop / selBData.vendas).toFixed(1) : '—';
-    const cicloVenda = selB?.cicloVenda || 0;
-
-    const leading = '<div class="g2 mt2">'
-      + '<div class="card"><div class="ctitle">📊 Leading Indicators — '+(selB?.name||'').split(' ')[0]+'</div>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
-      + '<div style="padding:12px;background:var(--cream2);border-radius:8px"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Propostas por Venda</div><div style="font-size:22px;font-weight:900;color:var(--navy)">'+propPerVenda+'</div></div>'
-      + '<div style="padding:12px;background:var(--cream2);border-radius:8px"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Ciclo de Venda</div><div style="font-size:22px;font-weight:900;color:var(--navy)">'+cicloVenda+' <span style="font-size:11px;color:var(--muted)">dias</span></div></div>'
-      + '<div style="padding:12px;background:var(--cream2);border-radius:8px"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Taxa Conversão</div><div style="font-size:22px;font-weight:900;color:'+(selB?.conversionRate>=50?'var(--g-tx)':'var(--a-tx)')+'">'+(selB?.conversionRate||0)+'%</div></div>'
-      + '<div style="padding:12px;background:var(--cream2);border-radius:8px"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Ticket Médio</div><div style="font-size:22px;font-weight:900;color:var(--navy)">'+fmt(selB?.ticketMedio||0)+'</div></div>'
-      + '</div></div>'
-
-      // Alerta de desvio
-      + '<div class="card"><div class="ctitle">⚠️ Alertas de Desvio</div>'
-      + (function(){
-        const alerts = [];
-        const now = new Date();
-        const pctMes = now.getDate() / 30;
-        const pctVgvEsperado = Math.round(pctMes * 100);
-        if (selBData.pctVgv < pctVgvEsperado * 0.5) alerts.push({sev:'d',msg:'VGV em '+selBData.pctVgv+'% da meta — deveria estar em ~'+pctVgvEsperado+'%. Agende '+Math.max(3,Math.round((pctVgvEsperado-selBData.pctVgv)/10))+' visitas extras esta semana.'});
-        else if (selBData.pctVgv < pctVgvEsperado * 0.8) alerts.push({sev:'w',msg:'VGV abaixo do ritmo. '+selBData.pctVgv+'% vs esperado ~'+pctVgvEsperado+'%. Intensifique follow-ups.'});
-        if (selBData.agend < 3) alerts.push({sev:'w',msg:'Poucos agendamentos ('+selBData.agend+'). Meta mínima: 5/mês. Foque em tentativas de contato.'});
-        if (selBData.vendas === 0 && pctMes > 0.5) alerts.push({sev:'d',msg:'Nenhuma venda no período e já passou da metade. Revise pipeline e priorize propostas.'});
-        if ((selB?.crm||20) < 50) alerts.push({sev:'w',msg:'CRM Score baixo ('+(selB?.crm||20)+' pts). Preencha campos obrigatórios das negociações.'});
-        if (alerts.length === 0) alerts.push({sev:'ok',msg:'✅ Dentro do esperado! Continue o ritmo.'});
-        return alerts.map(a => '<div style="padding:10px 12px;margin-bottom:6px;border-radius:8px;border-left:3px solid '+(a.sev==='d'?'var(--r)':a.sev==='w'?'var(--a)':'var(--g)')+';background:'+(a.sev==='d'?'var(--r-bg)':a.sev==='w'?'var(--a-bg)':'var(--g-bg)')+';font-size:11.5px;color:'+(a.sev==='d'?'var(--r-tx)':a.sev==='w'?'var(--a-tx)':'var(--g-tx)')+'">'+a.msg+'</div>').join('');
-      })()
-      + '</div></div>';
-
-    content = bSelector + meuPorque + leading + rankTable;
+    content=bSel
+      +'<div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);border-radius:16px;padding:32px;color:#fff;margin-bottom:16px">'
+      +'<div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:3px;margin-bottom:6px">✨ Destino PSM</div>'
+      +'<div style="font-size:24px;font-weight:900;margin-bottom:4px">'+selB.name+', qual é o seu porquê?</div>'
+      +'<div style="font-size:12px;color:#94a3b8">Defina o que te motiva. O sistema calcula exatamente quanto falta.</div>'
+      +'</div>'
+      +'<div class="g2 mb2">'
+      // Input
+      +'<div class="card">'
+      +'<div class="ctitle">🎯 Meu Sonho</div>'
+      +'<div class="fg"><label class="flabel">O que eu quero conquistar</label>'
+      +'<input class="finp" placeholder="Ex: BMW X3, Viagem Europa, Apartamento..." value="'+(sonho.descricao||'')+'" oninput="if(!S.sonhos)S.sonhos={};if(!S.sonhos[\''+selBid+'\'])S.sonhos[\''+selBid+'\']={}; S.sonhos[\''+selBid+'\'].descricao=this.value;saveState()"></div>'
+      +'<div class="fg"><label class="flabel">Quanto custa? (R$)</label>'
+      +'<input class="finp" type="number" placeholder="100000" value="'+sValor+'" oninput="if(!S.sonhos)S.sonhos={};if(!S.sonhos[\''+selBid+'\'])S.sonhos[\''+selBid+'\']={}; S.sonhos[\''+selBid+'\'].valor=+this.value;saveState();render()"></div>'
+      +'<div style="font-size:10px;color:var(--muted);margin-top:8px">Comissão média: '+comPct+'% sobre ticket de '+fmt(ticket)+' = <strong>'+fmt(comMedia)+'/venda</strong></div>'
+      +'</div>'
+      // Calculator
+      +'<div class="card" style="background:var(--navy);color:#fff;border-color:transparent">'
+      +'<div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px">Calculadora Reversa</div>'
+      +(sValor>0?
+        '<div style="font-size:14px;margin-bottom:14px">Para <strong style="color:var(--gold)">'+(sonho.descricao||'seu sonho')+'</strong>:</div>'
+        +'<div style="font-size:48px;font-weight:900;color:var(--gold);line-height:1">'+vendasNeed+'</div>'
+        +'<div style="font-size:14px;color:#94a3b8;margin-bottom:16px">vendas necessárias</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'
+        +'<div style="padding:10px;background:rgba(255,255,255,.06);border-radius:8px"><div style="font-size:9px;color:#64748b">VGV necessário</div><div style="font-size:15px;font-weight:800;color:#fff">'+fmt(vendasNeed*ticket)+'</div></div>'
+        +'<div style="padding:10px;background:rgba(255,255,255,.06);border-radius:8px"><div style="font-size:9px;color:#64748b">Comissão acumulada</div><div style="font-size:15px;font-weight:800;color:var(--gold)">'+fmt(jaCom)+'</div></div></div>'
+        +'<div style="margin-bottom:6px;font-size:11px;color:#94a3b8">Progresso: '+pctSonho+'% do sonho</div>'
+        +'<div style="height:8px;background:rgba(255,255,255,.1);border-radius:99px"><div style="height:100%;width:'+pctSonho+'%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:99px;transition:width .5s"></div></div>'
+        +(pctSonho>=100?'<div style="margin-top:10px;font-size:14px;font-weight:800;color:var(--gold)">🎉 PARABÉNS! Você já conquistou seu sonho!</div>':'')
+        :'<div style="text-align:center;padding:30px;color:#64748b">Preencha seu sonho ao lado</div>')
+      +'</div></div>'
+      // Insight IA
+      +'<div class="card" style="border-left:3px solid var(--gold);background:linear-gradient(90deg,#fffbeb,#fff)">'
+      +'<div style="display:flex;gap:12px">'
+      +'<div style="font-size:24px">🤖</div>'
+      +'<div><div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Sr. Performance diz:</div>'
+      +'<div style="font-size:12px;color:var(--mid);line-height:1.6">'
+      +(sValor>0&&selBD.vendas>0?
+        '<strong>'+selB.name.split(' ')[0]+'</strong>, você já fez '+selBD.vendas+' venda'+(selBD.vendas>1?'s':'')+' e acumulou <strong>'+fmt(jaCom)+'</strong> em comissão. '
+        +(pctSonho>=100?'Seu sonho já está ao alcance! Hora de definir o próximo objetivo.':
+          'Faltam <strong>'+(vendasNeed-Math.floor(jaCom/Math.max(1,comMedia)))+' vendas</strong> para alcançar '+(sonho.descricao||'seu sonho')+'. Mantenha o foco!')
+        :sValor>0?
+        '<strong>'+selB.name.split(' ')[0]+'</strong>, seu objetivo custa '+fmt(sValor)+'. Com seu ticket médio de '+fmt(ticket)+', são apenas '+vendasNeed+' vendas. Comece agendando 3 visitas esta semana!'
+        :'Defina seu sonho! Corretor com propósito claro vende em média 40% mais que quem não tem meta pessoal.')
+      +'</div></div></div></div>';
   }
 
-  return '<div class="phd"><h1>🎯 Metas</h1><p>Acompanhamento de metas — '+METRICS.mes+'</p></div>'
-    + df + periodoBar + tabs + content;
+  return '<div class="phd"><h1>🎯 Central de Metas</h1><p>Gestão de performance e motivação — '+METRICS.mes+'</p></div>'
+    +df+pBar+tabs+content;
 }
 
 // ─── PAGE: EQUIPE ─────────────────────────────────────────────────────────────
