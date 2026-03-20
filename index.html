@@ -808,6 +808,16 @@ const DAY_NAMES_FULL=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','S�
 
 const OOS=[];
 
+const METRICS=(function(){
+  const now=new Date();
+  const mNames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const mes=mNames[now.getMonth()]+' '+now.getFullYear();
+  const du_tot=22;
+  const du_pass=Math.min(du_tot,now.getDate());
+  const du_rest=Math.max(0,du_tot-du_pass);
+  return {mes,du_tot,du_pass,du_rest,vgv_meta:8000000,vgv_real:0,vend_meta:20,vend_real:0,vis_meta:100,vis_real:0,leads:0,leads_val:0,pipeline:0,crm_medio:50};
+})();
+
 function calcOKRs(){
   const M = typeof METRICS !== 'undefined' ? METRICS : {vgv_meta:8000000,vend_meta:20,vis_meta:100,mes:'—'};
   const vgvReal=VENDAS.reduce((a,v)=>a+(v.vgv||0),0);
@@ -867,20 +877,7 @@ function recalcMonthly(){
     MONTHLY.push({m:mNames[i],vgv,meta:METRICS.vgv_meta||8000000,vendas:mWon.length});
   }
 }
-const METRICS=(function(){
-  const now=new Date();
-  const mNames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  const mes=mNames[now.getMonth()]+' '+now.getFullYear();
-  const du_tot=22; // ~22 business days per month
-  const du_pass=Math.min(du_tot,now.getDate());
-  const du_rest=Math.max(0,du_tot-du_pass);
-  return {
-    mes, du_tot, du_pass, du_rest,
-    vgv_meta:8000000, vgv_real:0, vend_meta:20, vend_real:0,
-    vis_meta:100, vis_real:0, leads:0, leads_val:0,
-    pipeline:0, crm_medio:50,
-  };
-})();
+// METRICS declared earlier (before calcOKRs/calcForecasts)
 const NOTIFS=[];
 
 // ─── APP STATE ─────────────────────────────────────────────────────────────────
