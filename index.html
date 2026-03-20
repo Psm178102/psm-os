@@ -2597,13 +2597,15 @@ const RD = {
 
   startAutoSync() {
     if (this._timer) clearInterval(this._timer);
-    // Auto-sync every 3 min (uses cache, so it's fast most of the time)
     this._timer = setInterval(() => this.sync(false), 3 * 60 * 1000);
-    // Full cache refresh every 15 min
     this._fullRefreshTimer = setInterval(() => {
       this.clearCache();
       this.sync(false);
     }, 15 * 60 * 1000);
+    // Auto-refresh RD MKT token every 20 hours (expires in 24h)
+    setInterval(() => refreshRdMktToken(), 20 * 60 * 60 * 1000);
+    // Check on startup
+    setTimeout(() => refreshRdMktToken(), 5000);
   },
 
   async logActivity(dealId, subject) {
@@ -3984,9 +3986,26 @@ function pgConfig() {
     + connectorSection('RD Station CRM','rd_crm','#e74c3c',[
         {key:'rd_crm_token', label:'Token API (CRM)', placeholder:'Ex: 6823d1aaa52b09...', type:'password'},
       ])
-    + connectorSection('RD Station Marketing','rd_mkt','#e67e22',[
-        {key:'rd_mkt_token', label:'Token API (Marketing)', placeholder:'Ex: 0bf04ff09731...', type:'password'},
-      ])
+    + '<div style="border:1px solid var(--cream3);border-radius:10px;padding:14px 16px;margin-bottom:10px">'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
+    + '<div style="width:28px;height:28px;border-radius:7px;background:#e67e22;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff">R</div>'
+    + '<span style="font-size:13px;font-weight:700;color:var(--navy);flex:1">RD Station Marketing (OAuth2)</span>'
+    + ((S.connectors||{}).rd_mkt_access_token
+      ? '<span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block"></span>'
+      : '<span style="width:7px;height:7px;border-radius:50%;background:var(--cream4);display:inline-block"></span>')
+    + '</div>'
+    + ((S.connectors||{}).rd_mkt_access_token
+      ? '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+        + '<span style="font-size:11px;color:var(--g-tx);font-weight:600">✅ Conectado</span>'
+        + '<span style="font-size:10px;color:var(--muted)">Token expira: '+new Date((S.connectors||{}).rd_mkt_token_expires||0).toLocaleString('pt-BR')+'</span>'
+        + '<button class="btn bout bsm" onclick="window.open(\'/api/rd-auth\',\'rd_auth\',\'width=600,height=700\')">🔄 Reconectar</button>'
+        + '<button class="btn bdanger bsm" onclick="delete S.connectors.rd_mkt_access_token;delete S.connectors.rd_mkt_refresh_token;saveState();render()">✕ Desconectar</button>'
+        + '</div>'
+      : '<div>'
+        + '<div style="font-size:11px;color:var(--muted);margin-bottom:10px">O RD Marketing usa OAuth2. Clique para autorizar o acesso.</div>'
+        + '<button class="btn bp1" onclick="window.open(\'/api/rd-auth\',\'rd_auth\',\'width=600,height=700\')">🔐 Autorizar RD Marketing</button>'
+        + '</div>')
+    + '</div>'
     + connectorSection('Notion','notion','#000000',[
         {key:'notion_key', label:'Integration Secret', placeholder:'secret_...', type:'password'},
         {key:'notion_db', label:'Database ID (opcional)', placeholder:'ID do banco de dados', type:'text'},
@@ -4062,6 +4081,34 @@ function toggleConnVis(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+// ── Auto-refresh RD MKT OAuth2 token ──
+async function refreshRdMktToken() {
+  const c = S.connectors || {};
+  if (!c.rd_mkt_refresh_token) return;
+  // Check if token expires within 4 hours
+  const expiresAt = c.rd_mkt_token_expires || 0;
+  if (expiresAt > Date.now() + 4 * 60 * 60 * 1000) return; // still fresh
+  console.log('[RD MKT] Token expiring soon, refreshing...');
+  try {
+    const r = await fetch('/api/rd-refresh', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({refresh_token: c.rd_mkt_refresh_token})
+    });
+    const d = await r.json();
+    if (d.access_token) {
+      S.connectors.rd_mkt_access_token = d.access_token;
+      S.connectors.rd_mkt_refresh_token = d.refresh_token || c.rd_mkt_refresh_token;
+      S.connectors.rd_mkt_token_expires = Date.now() + (d.expires_in || 86400) * 1000;
+      saveState();
+      console.log('[RD MKT] Token refreshed! Expires:', new Date(S.connectors.rd_mkt_token_expires).toLocaleString());
+      toast('🔄 Token RD Marketing renovado', 'ok');
+    } else {
+      console.warn('[RD MKT] Refresh failed:', d);
+    }
+  } catch(e) { console.warn('[RD MKT] Refresh error:', e.message); }
 }
 
 async function testConnectors() {
