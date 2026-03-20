@@ -694,7 +694,7 @@ const USERS_BASE=[
   {id:'rodrigo_t',name:'Rodrigo Trivellato',ini:'RT',color:'#0f172a',role:'corretor',frente:'lancamento',email:'rodrigo@imobiliariapsm.com.br',   rdId:'67f94eac20a4ad001e1f6748', st:'online', lig:16,vis:5,prop:3,vend:2,vgv:1350000,meta:1200000,crm:93,agend:4},
   {id:'marcus_l', name:'Marcus Lopes',      ini:'ML',color:'#1e293b',role:'lider',   frente:'lancamento',email:'marcus@imobiliariapsm.com.br',    rdId:'67f9516f6fed0c0014bf9130', st:'online', lig:11,vis:3,prop:2,vend:1,vgv:780000, meta:1000000,crm:88,agend:3},
   {id:'gabriel_b',name:'Gabriel Brito',     ini:'GB',color:'#0d9488',role:'corretor',frente:'lancamento',email:'gabriel@imobiliariapsm.com.br',   rdId:'693972e731eb790020fedd95',  st:'online', lig:9, vis:2,prop:1,vend:0,vgv:0,       meta:800000, crm:72,agend:2},
-  {id:'daniela',  name:'Daniela Barboza',   ini:'DB',color:'#7c3aed',role:'corretor',frente:'lancamento',email:'daniela@imobiliariapsm.com.br',   rdId:'693c68bdd514fb0017e1d916',  st:'away',   lig:8, vis:3,prop:2,vend:1,vgv:620000, meta:800000, crm:81,agend:2},
+  // Daniela Barboza removida (desativada no RD CRM)
   // Conquista
   {id:'kadu',     name:'Kadu Ozório',       ini:'KO',color:'#dc2626',role:'corretor',frente:'conquista', email:'kadu@imobiliariapsm.com.br',      rdId:'67f94eb43d0c4b001b46e207', st:'online', lig:14,vis:4,prop:2,vend:1,vgv:890000, meta:900000, crm:90,agend:4},
   {id:'julia',    name:'Júlia',             ini:'JU',color:'#a21caf',role:'corretor',frente:'conquista', email:'julia@imobiliariapsm.com.br',     rdId:'67f94fb8dbc14a0018e56426', st:'online', lig:12,vis:3,prop:1,vend:0,vgv:0,       meta:700000, crm:76,agend:3},
@@ -712,7 +712,7 @@ const USERS_BASE=[
 // ─── TEAM CONFIG ──────────────────────────────────────────────────────────────
 let TEAM_CONFIG={
   assignments:{
-    rodrigo_t:'lancamento',marcus_l:'lancamento',gabriel_b:'lancamento',daniela:'lancamento',
+    rodrigo_t:'lancamento',marcus_l:'lancamento',gabriel_b:'lancamento',
     kadu:'conquista',      julia:'conquista',     danilo_a:'conquista',  rafaela_m:'conquista',
     camila_b:'terceiros',  rodrigo_c:'terceiros', evandro:'terceiros',   yara:'terceiros',
   },
@@ -735,7 +735,7 @@ const OPPS=[
   {id:'OPP-001',bid:'rodrigo_t',fr:'lancamento',cl:'Carlos Henrique', ori:'Stand',     st:'proposta',   dia:2,dnu:0,sla:'ok',     vgv:980000, crm:93,rdId:''},
   {id:'OPP-002',bid:'marcus_l', fr:'lancamento',cl:'Fernanda Lima',   ori:'Indicação', st:'vis_real',   dia:4,dnu:1,sla:'ok',     vgv:750000, crm:88,rdId:''},
   {id:'OPP-003',bid:'gabriel_b',fr:'lancamento',cl:'Roberto Souza',   ori:'Portal',    st:'agendamento',dia:3,dnu:2,sla:'warning',vgv:620000, crm:72,rdId:''},
-  {id:'OPP-004',bid:'daniela',  fr:'lancamento',cl:'Patricia Alves',  ori:'Instagram', st:'contato_4p', dia:5,dnu:1,sla:'ok',     vgv:580000, crm:81,rdId:''},
+  // OPP-004 removida (Daniela desativada)
   {id:'OPP-005',bid:'kadu',     fr:'conquista', cl:'Andre Machado',   ori:'Indicação', st:'quente',     dia:2,dnu:0,sla:'ok',     vgv:870000, crm:90,rdId:''},
   {id:'OPP-006',bid:'julia',    fr:'conquista', cl:'Silvia Torres',   ori:'Meta Ads',  st:'vis_agend',  dia:3,dnu:1,sla:'ok',     vgv:650000, crm:76,rdId:''},
   {id:'OPP-007',bid:'danilo_a', fr:'conquista', cl:'Eduardo Pinto',   ori:'Indicação', st:'contrato',   dia:1,dnu:0,sla:'ok',     vgv:480000, crm:84,rdId:''},
@@ -771,7 +771,7 @@ const DAILY_DATA={};
 function fillDemo(){
   const days=['2025-06-02','2025-06-03','2025-06-04','2025-06-05','2025-06-06',
               '2025-06-09','2025-06-10','2025-06-11','2025-06-12','2025-06-13'];
-  const bids=['rodrigo_t','marcus_l','kadu','camila_b','rodrigo_c','yara','gabriel_b','daniela','julia','danilo_a'];
+  const bids=['rodrigo_t','marcus_l','kadu','camila_b','rodrigo_c','yara','gabriel_b','julia','danilo_a'];
   bids.forEach(bid=>{
     days.forEach(d=>{
       DAILY_DATA[bid+'_'+d]={
@@ -794,7 +794,6 @@ const BROKER_METAS={
   rodrigo_t:{tent_lig:8,lig_atend:4,tent_ag:3,agendamentos:2,visitas:2,propostas:1,contratos:0,vendas:0,descartados:0},
   marcus_l: {tent_lig:8,lig_atend:4,tent_ag:3,agendamentos:2,visitas:2,propostas:1,contratos:0,vendas:0,descartados:0},
   gabriel_b:{tent_lig:7,lig_atend:3,tent_ag:2,agendamentos:1,visitas:1,propostas:1,contratos:0,vendas:0,descartados:0},
-  daniela:  {tent_lig:7,lig_atend:3,tent_ag:2,agendamentos:1,visitas:1,propostas:1,contratos:0,vendas:0,descartados:0},
   kadu:     {tent_lig:10,lig_atend:5,tent_ag:3,agendamentos:2,visitas:2,propostas:1,contratos:0,vendas:0,descartados:0},
   julia:    {tent_lig:8,lig_atend:4,tent_ag:3,agendamentos:2,visitas:2,propostas:1,contratos:0,vendas:0,descartados:0},
   danilo_a: {tent_lig:8,lig_atend:4,tent_ag:2,agendamentos:1,visitas:1,propostas:1,contratos:0,vendas:0,descartados:0},
@@ -913,7 +912,6 @@ let DISC_PROFILES = {
   rodrigo_t:{perfil:'Diretor',cor:'#dc2626',desc:'Direto, focado em resultados.'},
   marcus_l:{perfil:'Influente',cor:'#f59e0b',desc:'Comunicativo, persuasivo.'},
   gabriel_b:{perfil:'Estável',cor:'#16a34a',desc:'Consistente, confiável.'},
-  daniela:{perfil:'Conforme',cor:'#2563eb',desc:'Analítico, detalhista.'},
   kadu:{perfil:'Diretor',cor:'#dc2626',desc:'Competitivo, orientado a resultado.'},
   julia:{perfil:'Influente',cor:'#f59e0b',desc:'Entusiasta, criativa.'},
   danilo_a:{perfil:'Estável',cor:'#16a34a',desc:'Paciente, metódico.'},
@@ -2223,7 +2221,13 @@ const RD = {
             'locacao': 'locacao', 'locação': 'locacao', 'aluguel': 'locacao',
           };
 
-          const activeRdUsers = rdUsers.filter(u => u.active !== false);
+          // Nomes a excluir do sistema (desativados manualmente)
+          const EXCLUDED_NAMES = ['daniela barboza','leire','o2 - leire','o2 leire','02 - leire'];
+          const activeRdUsers = rdUsers.filter(u => {
+            if (u.active === false) return false;
+            const name = (u.name || '').toLowerCase().trim();
+            return !EXCLUDED_NAMES.some(ex => name.includes(ex));
+          });
           // Merge with existing USERS_BASE — keep existing data, add new ones
           activeRdUsers.forEach(rdu => {
             const rdId = rdu._id || rdu.id;
@@ -2618,7 +2622,6 @@ const _LOCAL_AUTH = {
   'rodrigo@imobiliariapsm.com.br':'rodrigo123|rodrigo_t',
   'marcus@imobiliariapsm.com.br':'marcus123|marcus_l',
   'gabriel@imobiliariapsm.com.br':'gabriel123|gabriel_b',
-  'daniela@imobiliariapsm.com.br':'daniela123|daniela',
   'kadu@imobiliariapsm.com.br':'kadu123|kadu',
   'julia@imobiliariapsm.com.br':'julia123|julia',
   'danilo@imobiliariapsm.com.br':'danilo123|danilo_a',
