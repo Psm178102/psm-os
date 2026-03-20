@@ -752,27 +752,8 @@ function generateAudits() {
 
 // ─── DAILY FILL DATA ──────────────────────────────────────────────────────────
 const DAILY_DATA={};
-function fillDemo(){
-  const days=['2025-06-02','2025-06-03','2025-06-04','2025-06-05','2025-06-06',
-              '2025-06-09','2025-06-10','2025-06-11','2025-06-12','2025-06-13'];
-  const bids=['rodrigo_t','marcus_l','kadu','camila_b','rodrigo_c','yara','gabriel_b','julia','danilo_a'];
-  bids.forEach(bid=>{
-    days.forEach(d=>{
-      DAILY_DATA[bid+'_'+d]={
-        tent_lig:3+Math.floor(Math.random()*5),
-        lig_atend:1+Math.floor(Math.random()*3),
-        tent_ag:1+Math.floor(Math.random()*2),
-        agendamentos:Math.floor(Math.random()*2),
-        visitas:Math.floor(Math.random()*2),
-        propostas:Math.floor(Math.random()*1),
-        contratos:(d==='2025-06-13'&&(bid==='rodrigo_t'||bid==='kadu'))?1:0,
-        vendas:(d==='2025-06-09'&&bid==='rodrigo_t')?1:0,
-        descartados:Math.floor(Math.random()*2),
-      };
-    });
-  });
-}
-fillDemo();
+function fillDemo(){} // removed — data comes from RD CRM
+// fillDemo removed
 
 const BROKER_METAS={
   rodrigo_t:{tent_lig:8,lig_atend:4,tent_ag:3,agendamentos:2,visitas:2,propostas:1,contratos:0,vendas:0,descartados:0},
@@ -800,31 +781,57 @@ function getMonthAgg(bid,month){
   return agg;
 }
 
-const WEEKS_JUN=[
-  {label:'Semana 1 (02–06/06)',dates:['2025-06-02','2025-06-03','2025-06-04','2025-06-05','2025-06-06']},
-  {label:'Semana 2 (09–13/06)',dates:['2025-06-09','2025-06-10','2025-06-11','2025-06-12','2025-06-13']},
-  {label:'Semana 3 (16–20/06)',dates:['2025-06-16','2025-06-17','2025-06-18','2025-06-19','2025-06-20']},
-  {label:'Semana 4 (23–27/06)',dates:['2025-06-23','2025-06-24','2025-06-25','2025-06-26','2025-06-27']},
-];
+function getWeeks(){
+  const weeks=[];
+  const now=new Date();
+  const first=new Date(now.getFullYear(),now.getMonth(),1);
+  const dayNames=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  let weekNum=1;
+  let d=new Date(first);
+  while(d.getDay()!==1)d.setDate(d.getDate()+1); // find first Monday
+  while(d.getMonth()===now.getMonth()){
+    const dates=[];
+    for(let i=0;i<5&&d.getMonth()===now.getMonth();i++){
+      dates.push(d.toISOString().slice(0,10));
+      d.setDate(d.getDate()+1);
+    }
+    if(dates.length>0)weeks.push({label:'Semana '+weekNum+' ('+dates[0].slice(8)+'-'+dates[dates.length-1].slice(8)+'/'+String(now.getMonth()+1).padStart(2,'0')+')',dates});
+    weekNum++;
+    while(d.getDay()!==1&&d.getMonth()===now.getMonth())d.setDate(d.getDate()+1);
+  }
+  return weeks;
+}
+const WEEKS_JUN=getWeeks(); // dynamic — works for any month
 const DAY_NAMES=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 const DAY_NAMES_FULL=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 
 const OOS=[];
 
-const OKRS=[
-  {id:'okr1',obj:'VGV mensal R$8M em Junho 2025',ciclo:'Jun-2025',prog:74,status:'at_risk',
-   krs:[
-     {label:'VGV total >= R$8M',curr:5.96,target:8,unit:'M',pct:74,status:'at_risk'},
-     {label:'20 vendas no mês',curr:14,target:20,unit:'un',pct:70,status:'at_risk'},
-     {label:'CRM score médio >= 80',curr:80,target:80,unit:'pts',pct:100,status:'on_track'},
-   ]},
-  {id:'okr2',obj:'Excelência na gestão de equipe',ciclo:'Jun-2025',prog:65,status:'at_risk',
-   krs:[
-     {label:'1:1 semanal 100% do time',curr:75,target:100,unit:'%',pct:75,status:'at_risk'},
-     {label:'Taxa de agendamento >= 35%',curr:28,target:35,unit:'%',pct:80,status:'on_track'},
-     {label:'Churn de leads < 15%',curr:18,target:15,unit:'%',pct:83,status:'at_risk'},
-   ]},
-];
+function calcOKRs(){
+  const vgvReal=VENDAS.reduce((a,v)=>a+(v.vgv||0),0);
+  const vgvMeta=METRICS.vgv_meta||8000000;
+  const vendReal=VENDAS.length;
+  const vendMeta=METRICS.vend_meta||20;
+  const crmMedio=BROKERS.length?Math.round(BROKERS.reduce((a,b)=>a+(b.crm||50),0)/BROKERS.length):50;
+  const visReal=BROKERS.reduce((a,b)=>a+(b.vis||0),0);
+  const pctVgv=Math.round(vgvReal/Math.max(1,vgvMeta)*100);
+  const pctVend=Math.round(vendReal/Math.max(1,vendMeta)*100);
+  return [
+    {id:'okr1',obj:'Atingir meta de VGV mensal',ciclo:METRICS.mes,prog:pctVgv,status:pctVgv>=80?'on_track':pctVgv>=50?'at_risk':'off_track',
+     krs:[
+       {label:'VGV >= '+fmt(vgvMeta),curr:vgvReal/1000000,target:vgvMeta/1000000,unit:'M',pct:pctVgv,status:pctVgv>=80?'on_track':'at_risk'},
+       {label:vendMeta+' vendas no mês',curr:vendReal,target:vendMeta,unit:'un',pct:pctVend,status:pctVend>=80?'on_track':'at_risk'},
+       {label:'CRM score médio >= 70',curr:crmMedio,target:70,unit:'pts',pct:Math.round(crmMedio/70*100),status:crmMedio>=70?'on_track':'at_risk'},
+     ]},
+    {id:'okr2',obj:'Excelência operacional da equipe',ciclo:METRICS.mes,prog:Math.round((crmMedio/70*50)+(visReal/Math.max(1,METRICS.vis_meta||100)*50)),status:'on_track',
+     krs:[
+       {label:'Visitas realizadas >= meta',curr:visReal,target:METRICS.vis_meta||100,unit:'un',pct:Math.round(visReal/Math.max(1,METRICS.vis_meta||100)*100),status:visReal>=((METRICS.vis_meta||100)*0.8)?'on_track':'at_risk'},
+       {label:'Taxa de conversão >= 5%',curr:VENDAS.length>0?Math.round(VENDAS.length/(VENDAS.length+LOST_DEALS.length)*100):0,target:5,unit:'%',pct:0,status:'at_risk'},
+       {label:'Zero leads SLA vencido',curr:OPPS.filter(o=>(o.sla||'')==='overdue').length,target:0,unit:'un',pct:100,status:OPPS.filter(o=>o.sla==='overdue').length===0?'on_track':'at_risk'},
+     ]},
+  ];
+}
+const OKRS=calcOKRs();
 
 function calcForecasts(){
   const now=new Date();
@@ -872,13 +879,7 @@ const METRICS=(function(){
     pipeline:0, crm_medio:50,
   };
 })();
-const NOTIFS=[
-  {tipo:'d',msg:'OPP-011 — SLA vencido há 7 dias (Evandro)',  page:'crm',       read:false},
-  {tipo:'d',msg:'Evandro CRM Score 62 — abaixo do mínimo',    page:'governance',read:false},
-  {tipo:'w',msg:'Rafaela Metzger: 3 dias sem update',         page:'crm',       read:false},
-  {tipo:'w',msg:'Projeção semestral com gap R$2M',            page:'forecast',  read:false},
-  {tipo:'i',msg:'Rodrigo Trivellato: 1:1 pendente há 8 dias', page:'oneonone',  read:true},
-];
+const NOTIFS=[];
 
 // ─── APP STATE ─────────────────────────────────────────────────────────────────
 let S={
@@ -2365,6 +2366,7 @@ const RD = {
       lostProc.forEach(o => LOST_DEALS.push(o));
 
       recalcMonthly();
+      OKRS.splice(0); calcOKRs().forEach(o=>OKRS.push(o));
 
       // ── Compute broker metrics ──
       BROKERS.forEach(b => {
@@ -3669,7 +3671,7 @@ function pgRDConfig() {
     + (S.rdSyncError ? '<div style="padding:14px;background:var(--r-bg);color:var(--r-tx);border-radius:10px;font-size:12px;margin-bottom:14px;border:1px solid rgba(239,68,68,.2)">'
       + '<div style="font-weight:800;margin-bottom:4px">❌ Erro na sincronização</div>'
       + '<div>'+S.rdSyncError+'</div>'
-      + '<div style="margin-top:8px;font-size:11px;color:var(--muted)">💡 Verifique: 1) Token configurado em <a href="#" onclick="nav(\'config\');return false" style="color:var(--b-tx);font-weight:700">Configurações > Conectores</a>? 2) Token do RD CRM válido? 3) Se local, netlify dev rodando?</div>'
+      + '<div style="margin-top:8px;font-size:11px;color:var(--muted)">💡 Verifique: 1) Token configurado em <a href="#" onclick="nav(\'config\');return false" style="color:var(--b-tx);font-weight:700">Configurações > Conectores</a>? 2) Token do RD CRM válido? 3) Se local, proxy Vercel ativo?</div>'
       + '</div>' : '')
 
     // ── ALERTA DE VAZIO ──
@@ -4275,7 +4277,7 @@ window.addEventListener('offline', () => { toast('⚠️ Sem conexão com a inte
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   buildUsers();
-  fillDemo();
+  // fillDemo removed
   loadState();
 
   // Auto-login from saved token
