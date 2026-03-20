@@ -1375,18 +1375,28 @@ function pgFrente(fid){
 // ─── PAGE: WAR ROOM ─────────────────────────────────────────────────────────────
 function pgWarRoom(){
   // ── XP System ──
+  // ── XP WEIGHTS: Vendas e VGV têm peso MUITO maior ──
+  // Atividades operacionais (base)
   const XP_TABLE = {
-    checklist_inicio: 50, checklist_fim: 50,
-    primeiro_contato: 100, followup: 20,
-    agendamento: 200, visita: 500, proposta: 1000,
-    venda_ads: 2000, venda_reaquecimento: 2500, venda_plantao: 3000,
-    venda_indicacao: 3500, venda_carteira: 4000, venda_evento: 4200,
+    followup: 10,            // follow-up por opp
+    agendamento: 100,        // agendamento de visita
+    visita: 300,             // visita realizada
+    proposta: 500,           // proposta emitida
+    // Vendas por origem (bônus fixo por venda)
+    venda_ads: 3000,         // tráfego pago
+    venda_reaquecimento: 4000, // reaquecimento de base
+    venda_plantao: 5000,     // plantão / roleta
+    venda_indicacao: 6000,   // indicação
+    venda_carteira: 8000,    // carteira própria / networking
+    venda_evento: 10000,     // ativos / eventos / rodada de negócios
+    // VGV: XP proporcional ao valor da venda
+    vgv_por_200k: 1000,      // cada R$200.000 de VGV = +1.000 XP
   };
 
   function getPatente(xp) {
-    if (xp >= 30000) return {nome:'ELITE PSM',cor:'#d4a843',ico:'🏆',glow:'rgba(212,168,67,.4)'};
-    if (xp >= 14001) return {nome:'ESPECIALISTA',cor:'#8b5cf6',ico:'⭐',glow:'rgba(139,92,246,.3)'};
-    if (xp >= 2001) return {nome:'OPERADOR',cor:'#3b82f6',ico:'🎖',glow:'rgba(59,130,246,.3)'};
+    if (xp >= 80000) return {nome:'ELITE PSM',cor:'#d4a843',ico:'🏆',glow:'rgba(212,168,67,.4)'};
+    if (xp >= 30000) return {nome:'ESPECIALISTA',cor:'#8b5cf6',ico:'⭐',glow:'rgba(139,92,246,.3)'};
+    if (xp >= 8000)  return {nome:'OPERADOR',cor:'#3b82f6',ico:'🎖',glow:'rgba(59,130,246,.3)'};
     return {nome:'RECRUTA',cor:'#64748b',ico:'🔰',glow:'rgba(100,116,139,.2)'};
   }
 
@@ -1396,15 +1406,16 @@ function pgWarRoom(){
     const bWon = VENDAS.filter(v => v.bid === b.id);
     const bLost = LOST_DEALS.filter(l => l.bid === b.id);
 
-    // XP from pipeline stages
+    // ── XP operacional (atividades — peso menor) ──
     let xp = 0;
     xp += bOpps.filter(o => ['agendamento','vis_agend'].includes(o.st_psm)).length * XP_TABLE.agendamento;
     xp += bOpps.filter(o => o.st_psm === 'vis_real').length * XP_TABLE.visita;
     xp += bOpps.filter(o => o.st_psm === 'proposta').length * XP_TABLE.proposta;
-    xp += bOpps.length * XP_TABLE.followup; // follow-ups
+    xp += Math.min(bOpps.length, 50) * XP_TABLE.followup; // cap at 50
 
-    // XP from won deals (by source)
+    // ── XP de VENDAS (peso PRINCIPAL) ──
     bWon.forEach(v => {
+      // 1) Bônus por origem da venda
       const src = (v.ori || '').toLowerCase();
       if (src.includes('ads') || src.includes('trafego') || src.includes('pago')) xp += XP_TABLE.venda_ads;
       else if (src.includes('reaquec') || src.includes('base')) xp += XP_TABLE.venda_reaquecimento;
@@ -1413,6 +1424,9 @@ function pgWarRoom(){
       else if (src.includes('carteira') || src.includes('network') || src.includes('propri')) xp += XP_TABLE.venda_carteira;
       else if (src.includes('evento') || src.includes('rodada') || src.includes('ativo')) xp += XP_TABLE.venda_evento;
       else xp += XP_TABLE.venda_plantao; // default
+
+      // 2) XP proporcional ao VGV (cada R$100K = +1.000 XP)
+      xp += Math.round((v.vgv || 0) / 200000) * XP_TABLE.vgv_por_200k;
     });
 
     // Score (0-100) — weighted average
@@ -1561,7 +1575,7 @@ function pgWarRoom(){
     // Patentes legend
     + '<div style="background:#242424;border-radius:14px;padding:16px;border:1px solid #333">'
     + '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Sistema de Patentes</div>'
-    + [{n:'ELITE PSM',xp:'30.000+',c:'#d4a843',i:'🏆'},{n:'ESPECIALISTA',xp:'14.001-30.000',c:'#8b5cf6',i:'⭐'},{n:'OPERADOR',xp:'2.001-14.000',c:'#3b82f6',i:'🎖'},{n:'RECRUTA',xp:'0-2.000',c:'#64748b',i:'🔰'}].map(p =>
+    + [{n:'ELITE PSM',xp:'80.000+',c:'#d4a843',i:'🏆'},{n:'ESPECIALISTA',xp:'30.001-80.000',c:'#8b5cf6',i:'⭐'},{n:'OPERADOR',xp:'8.001-30.000',c:'#3b82f6',i:'🎖'},{n:'RECRUTA',xp:'0-8.000',c:'#64748b',i:'🔰'}].map(p =>
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #2a2a2a">'
       + '<div style="font-size:16px">'+p.i+'</div>'
       + '<div style="flex:1"><div style="font-size:11px;font-weight:700;color:'+p.c+'">'+p.n+'</div>'
@@ -1572,7 +1586,7 @@ function pgWarRoom(){
     // XP Table
     + '<div style="background:#242424;border-radius:14px;padding:16px;border:1px solid #333">'
     + '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Tabela de XP</div>'
-    + [['Agendamento','+200'],['Visita Realizada','+500'],['Proposta','+1.000'],['Venda (Ads)','+2.000'],['Venda (Indicação)','+3.500'],['Venda (Carteira)','+4.000'],['Venda (Evento)','+4.200']].map(([a,x]) =>
+    + [['Agendamento','+100'],['Visita Realizada','+300'],['Proposta','+500'],['─── VENDAS ───',''],['Venda (Ads)','+3.000'],['Venda (Indicação)','+6.000'],['Venda (Carteira)','+8.000'],['Venda (Evento)','+10.000'],['─── VGV ───',''],['Cada R$200K vendido','+1.000']].map(([a,x]) =>
       '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #2a2a2a;font-size:11px">'
       + '<span style="color:#94a3b8">'+a+'</span><span style="color:#d4a843;font-weight:700">'+x+' XP</span></div>'
     ).join('')
