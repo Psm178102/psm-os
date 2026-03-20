@@ -1373,47 +1373,62 @@ function pgFrente(fid){
 // ─── PAGE: WAR ROOM ─────────────────────────────────────────────────────────────
 function pgWarRoom(){
   // ── XP System ──
-  // ── XP WEIGHTS: Vendas e VGV têm peso MUITO maior ──
-  // Atividades operacionais (base)
+  // ══════════════════════════════════════════════════════════════════
+  // GAMIFICAÇÃO PSM — Sistema de Pontos (mensal, palpável, realista)
+  //
+  // LÓGICA: Um corretor TOP faz ~800-1200 pts/mês
+  //         Um corretor bom faz ~400-700 pts/mês
+  //         Um iniciante faz ~50-200 pts/mês
+  //
+  // PESO: Venda + VGV = ~70% dos pontos
+  //       Atividades = ~30% dos pontos
+  // ══════════════════════════════════════════════════════════════════
+
   const XP_TABLE = {
-    followup: 10,            // follow-up por opp
-    agendamento: 100,        // agendamento de visita
-    visita: 300,             // visita realizada
-    proposta: 500,           // proposta emitida
-    // Vendas por origem (bônus fixo por venda)
-    venda_ads: 3000,         // tráfego pago
-    venda_reaquecimento: 4000, // reaquecimento de base
-    venda_plantao: 5000,     // plantão / roleta
-    venda_indicacao: 6000,   // indicação
-    venda_carteira: 8000,    // carteira própria / networking
-    venda_evento: 10000,     // ativos / eventos / rodada de negócios
-    // VGV: XP proporcional ao valor da venda
-    vgv_por_200k: 1000,      // cada R$200.000 de VGV = +1.000 XP
+    // ── Atividades (base — somam ~100-200 pts/mês para quem trabalha bem)
+    followup: 1,              // por opp ativa (max 30)
+    agendamento: 5,           // agendamento feito
+    visita: 15,               // visita realizada
+    proposta: 25,             // proposta emitida
+
+    // ── Vendas por origem (peso PRINCIPAL — 150 a 300 pts por venda)
+    venda_ads: 150,           // tráfego pago (lead veio pronto)
+    venda_reaquecimento: 180, // reaqueceu base fria
+    venda_plantao: 200,       // plantão / roleta
+    venda_indicacao: 250,     // indicação (mérito parcial)
+    venda_carteira: 300,      // carteira própria / networking (mérito total)
+    venda_evento: 350,        // evento / rodada de negócios
+
+    // ── VGV: bônus proporcional ao tamanho da venda
+    // Cada R$200K = +50 pts (venda de R$1M = +250 pts)
+    vgv_por_200k: 50,
   };
 
+  // ── Patentes: baseadas em pontuação mensal realista ──
   function getPatente(xp) {
-    if (xp >= 80000) return {nome:'ELITE PSM',cor:'#d4a843',ico:'🏆',glow:'rgba(212,168,67,.4)'};
-    if (xp >= 30000) return {nome:'ESPECIALISTA',cor:'#8b5cf6',ico:'⭐',glow:'rgba(139,92,246,.3)'};
-    if (xp >= 8000)  return {nome:'OPERADOR',cor:'#3b82f6',ico:'🎖',glow:'rgba(59,130,246,.3)'};
+    if (xp >= 800) return {nome:'ELITE PSM',cor:'#d4a843',ico:'🏆',glow:'rgba(212,168,67,.4)'};
+    if (xp >= 400) return {nome:'ESPECIALISTA',cor:'#8b5cf6',ico:'⭐',glow:'rgba(139,92,246,.3)'};
+    if (xp >= 150) return {nome:'OPERADOR',cor:'#3b82f6',ico:'🎖',glow:'rgba(59,130,246,.3)'};
     return {nome:'RECRUTA',cor:'#64748b',ico:'🔰',glow:'rgba(100,116,139,.2)'};
   }
 
-  // ── Calculate XP for each broker ──
+  // ── Calcular pontos por corretor ──
   const brokerXP = BROKERS.map(b => {
     const bOpps = OPPS.filter(o => o.bid === b.id);
     const bWon = VENDAS.filter(v => v.bid === b.id);
     const bLost = LOST_DEALS.filter(l => l.bid === b.id);
 
-    // ── XP operacional (atividades — peso menor) ──
     let xp = 0;
+
+    // ── Atividades (~30% do total) ──
     xp += bOpps.filter(o => ['agendamento','vis_agend'].includes(o.st_psm)).length * XP_TABLE.agendamento;
     xp += bOpps.filter(o => o.st_psm === 'vis_real').length * XP_TABLE.visita;
     xp += bOpps.filter(o => o.st_psm === 'proposta').length * XP_TABLE.proposta;
-    xp += Math.min(bOpps.length, 50) * XP_TABLE.followup; // cap at 50
+    xp += Math.min(bOpps.length, 30) * XP_TABLE.followup;
 
-    // ── XP de VENDAS (peso PRINCIPAL) ──
+    // ── Vendas (~70% do total) ──
     bWon.forEach(v => {
-      // 1) Bônus por origem da venda
+      // Bônus por origem
       const src = (v.ori || '').toLowerCase();
       if (src.includes('ads') || src.includes('trafego') || src.includes('pago')) xp += XP_TABLE.venda_ads;
       else if (src.includes('reaquec') || src.includes('base')) xp += XP_TABLE.venda_reaquecimento;
@@ -1421,16 +1436,16 @@ function pgWarRoom(){
       else if (src.includes('indica')) xp += XP_TABLE.venda_indicacao;
       else if (src.includes('carteira') || src.includes('network') || src.includes('propri')) xp += XP_TABLE.venda_carteira;
       else if (src.includes('evento') || src.includes('rodada') || src.includes('ativo')) xp += XP_TABLE.venda_evento;
-      else xp += XP_TABLE.venda_plantao; // default
+      else xp += XP_TABLE.venda_plantao;
 
-      // 2) XP proporcional ao VGV (cada R$100K = +1.000 XP)
+      // Bônus VGV (R$200K = +50 pts)
       xp += Math.round((v.vgv || 0) / 200000) * XP_TABLE.vgv_por_200k;
     });
 
-    // Score (0-100) — weighted average
-    const discScore = Math.min(100, (b.crm || 20)); // discipline
+    // ── Score (0-100) ──
+    const discScore = Math.min(100, (b.crm || 20));
     const convRate = (bWon.length + bLost.length) > 0 ? (bWon.length / (bWon.length + bLost.length)) * 100 : 50;
-    const actScore = Math.min(100, bOpps.length * 8); // activity
+    const actScore = Math.min(100, bOpps.length * 5);
     const score = Math.round(discScore * 0.4 + convRate * 0.4 + actScore * 0.2);
 
     const patente = getPatente(xp);
@@ -1500,7 +1515,7 @@ function pgWarRoom(){
 
     // Total XP
     + '<div style="background:#242424;border-radius:14px;padding:18px;border:1px solid #333;text-align:center">'
-    + '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">XP Total Equipe</div>'
+    + '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Pontos Equipe</div>'
     + '<div style="font-size:28px;font-weight:900;color:#8b5cf6">'+totalXP.toLocaleString('pt-BR')+'</div>'
     + '<div style="font-size:9px;color:#64748b">pontos acumulados</div>'
     + '</div>'
@@ -1538,7 +1553,7 @@ function pgWarRoom(){
           + '<div style="font-size:10px;color:#64748b;margin-top:2px">'+FTag(b.frente)+' · '+b.wonCount+' vendas · '+b.oppsCount+' opps</div>'
           + '</div>'
           + '<div style="text-align:right;flex-shrink:0">'
-          + '<div style="font-size:18px;font-weight:900;color:#d4a843">'+b.xp.toLocaleString('pt-BR')+' <span style="font-size:10px;color:#64748b">XP</span></div>'
+          + '<div style="font-size:18px;font-weight:900;color:#d4a843">'+b.xp.toLocaleString('pt-BR')+' <span style="font-size:10px;color:#64748b">pts</span></div>'
           + '<div style="font-size:11px;font-weight:700;color:'+(b.score>=70?'#22c55e':b.score>=45?'#f59e0b':'#ef4444')+'">Score: '+b.score+'</div>'
           + '</div></div>';
       }).join('')
@@ -1552,7 +1567,7 @@ function pgWarRoom(){
           + '<div style="padding:12px 20px;background:#1a1a1a;display:flex;align-items:center;gap:10px">'
           + '<div style="width:10px;height:10px;border-radius:50%;background:'+fr.color+'"></div>'
           + '<span style="font-size:13px;font-weight:800;color:#fff">'+fr.icon+' '+fr.label+'</span>'
-          + '<span style="font-size:10px;color:#64748b;margin-left:auto">'+squadXP.toLocaleString('pt-BR')+' XP · '+squad.length+' corretores</span>'
+          + '<span style="font-size:10px;color:#64748b;margin-left:auto">'+squadXP.toLocaleString('pt-BR')+' pts · '+squad.length+' corretores</span>'
           + '</div>'
           + squad.map((b, i) => '<div style="display:flex;align-items:center;gap:12px;padding:10px 20px 10px 36px;border-bottom:1px solid #2a2a2a">'
             + '<div style="font-size:12px;font-weight:700;color:#64748b;width:20px">'+(i+1)+'</div>'
@@ -1573,7 +1588,7 @@ function pgWarRoom(){
     // Patentes legend
     + '<div style="background:#242424;border-radius:14px;padding:16px;border:1px solid #333">'
     + '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Sistema de Patentes</div>'
-    + [{n:'ELITE PSM',xp:'80.000+',c:'#d4a843',i:'🏆'},{n:'ESPECIALISTA',xp:'30.001-80.000',c:'#8b5cf6',i:'⭐'},{n:'OPERADOR',xp:'8.001-30.000',c:'#3b82f6',i:'🎖'},{n:'RECRUTA',xp:'0-8.000',c:'#64748b',i:'🔰'}].map(p =>
+    + [{n:'ELITE PSM',xp:'800+ pts',c:'#d4a843',i:'🏆'},{n:'ESPECIALISTA',xp:'400-799 pts',c:'#8b5cf6',i:'⭐'},{n:'OPERADOR',xp:'150-399 pts',c:'#3b82f6',i:'🎖'},{n:'RECRUTA',xp:'0-149 pts',c:'#64748b',i:'🔰'}].map(p =>
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #2a2a2a">'
       + '<div style="font-size:16px">'+p.i+'</div>'
       + '<div style="flex:1"><div style="font-size:11px;font-weight:700;color:'+p.c+'">'+p.n+'</div>'
@@ -1583,10 +1598,10 @@ function pgWarRoom(){
 
     // XP Table
     + '<div style="background:#242424;border-radius:14px;padding:16px;border:1px solid #333">'
-    + '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Tabela de XP</div>'
-    + [['Agendamento','+100'],['Visita Realizada','+300'],['Proposta','+500'],['─── VENDAS ───',''],['Venda (Ads)','+3.000'],['Venda (Indicação)','+6.000'],['Venda (Carteira)','+8.000'],['Venda (Evento)','+10.000'],['─── VGV ───',''],['Cada R$200K vendido','+1.000']].map(([a,x]) =>
+    + '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Tabela de Pontos</div>'
+    + [['Agendamento','+5'],['Visita Realizada','+15'],['Proposta','+25'],['─── VENDAS ───',''],['Venda (Ads)','+150'],['Venda (Plantão)','+200'],['Venda (Indicação)','+250'],['Venda (Carteira)','+300'],['Venda (Evento)','+350'],['─── VGV ───',''],['Cada R$200K vendido','+50']].map(([a,x]) =>
       '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #2a2a2a;font-size:11px">'
-      + '<span style="color:#94a3b8">'+a+'</span><span style="color:#d4a843;font-weight:700">'+x+' XP</span></div>'
+      + '<span style="color:#94a3b8">'+a+'</span><span style="color:#d4a843;font-weight:700">'+x+' pts</span></div>'
     ).join('')
     + '</div>'
 
