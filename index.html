@@ -1119,6 +1119,7 @@ function pgDashboard(){
   +Kpi('Visitas',m.vis_real,'Meta: '+m.vis_meta,{up:pN(m.vis_real,m.vis_meta)>=80,txt:pS(m.vis_real,m.vis_meta)},'#22c55e')
   +Kpi('Corretores',BROKERS.filter(b=>b.st==='online').length+' online','de '+BROKERS.length+' total',null,'#0d9488')
   +Kpi('CRM Score',m.crm_medio+' pts','média da equipe',{up:m.crm_medio>=80,txt:m.crm_medio>=80?'Bom':'Atenção'},m.crm_medio>=80?'var(--g)':'var(--a)')
+  +Kpi('Meta Diária',fmt(Math.round((METRICS.vgv_meta||8000000)/22)),'para bater a meta mensal',null,'var(--gold)')
   +'</div>'
   +'<div class="g2 mb2">'
   +'<div class="card"><div class="ctitle">Evolução Mensal<span class="csub" style="display:flex;gap:9px"><span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:#e2e8f0;border-radius:2px;display:inline-block"></span>Meta</span><span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:#0f172a;border-radius:2px;display:inline-block"></span>Realizado</span></span></div>'
@@ -1653,6 +1654,7 @@ function openWarRoomTV() {
     '#celebration.active{display:flex !important}',
     '#clock{position:fixed;top:12px;right:16px;font-size:14px;color:#64748b;z-index:100;font-variant-numeric:tabular-nums}',
     '#status{position:fixed;top:12px;left:16px;font-size:11px;color:#64748b;z-index:100}',
+    '@keyframes confetti{0%{opacity:1;transform:translateY(0) rotate(0)}100%{opacity:0;transform:translateY(100vh) rotate(720deg)}}',
     '@keyframes glow{0%,100%{text-shadow:0 0 20px rgba(212,168,67,.5)}50%{text-shadow:0 0 40px rgba(212,168,67,.8)}}',
     '@keyframes fadeIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}',
     '</style></head><body>',
@@ -2042,7 +2044,7 @@ function pgCRM(){
   const vis=OPPS.filter(o=>
     (ff==='all'||o.fr===ff)&&
     (sf==='all'||o.sla===sf)&&
-    (!effectiveBid||o.bid===effectiveBid)
+    (!effectiveBid||o.bid===effectiveBid)&&(!S.crmSearch||((o.cl||'').toLowerCase().includes((S.crmSearch||'').toLowerCase())))
   );
   const totalVGV=vis.reduce((a,o)=>a+o.vgv,0);
   const selBroker=effectiveBid?UM[effectiveBid]:null;
@@ -2079,6 +2081,7 @@ function pgCRM(){
       +brokersAvail.map(b=>'<option value="'+b.id+'"'+(cb===b.id?' selected':'')+'>'+b.ini+' '+b.name+'</option>').join('')
       +'</select>';
   }
+  bar+='<input class="finp" style="width:200px;padding:6px 10px;font-size:12px" placeholder="🔍 Buscar cliente..." value="'+(S.crmSearch||'')+'" oninput="S.crmSearch=this.value;render()">';
   bar+='<div style="display:flex;gap:3px;background:var(--cream2);padding:3px;border-radius:8px;border:1px solid var(--cream3);margin-left:auto">'
     +'<button class="btn bsm'+(view==='kanban'?' bp1':' bout')+'" onclick="S.crmView=\'kanban\';render()">Kanban</button>'
     +'<button class="btn bsm'+(view==='lista'?' bp1':' bout')+'" onclick="S.crmView=\'lista\';render()">Lista</button>'
@@ -2250,6 +2253,21 @@ function pgForecast(){
   +'<span>📈 Meta: <strong>'+fmt(METRICS.vgv_meta)+'</strong></span>'
   +'</div>'
   +'<div class="g5 mb3">'+Object.entries(FORECASTS).map(([p,f])=>FcCard(p,f)).join('')+'</div>'
+  +'<div class="card mb2"><div class="ctitle">🎭 Cenários de Projeção</div>'
+  +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">'
+  +[{lbl:'Pessimista',mult:0.7,c:'var(--r)',ico:'📉'},{lbl:'Realista',mult:1.0,c:'var(--a)',ico:'📊'},{lbl:'Otimista',mult:1.3,c:'var(--g)',ico:'📈'}].map(s=>{
+      const vgvR=VENDAS.reduce((a,v)=>a+(v.vgv||0),0);
+      const now=new Date();const pctM=now.getDate()/30;
+      const proj=pctM>0?Math.round(vgvR/pctM*s.mult):vgvR;
+      const metaM=METRICS.vgv_meta||8000000;
+      const pctMeta=Math.round(proj/Math.max(1,metaM)*100);
+      return'<div style="padding:16px;background:var(--cream2);border-radius:12px;border-top:3px solid '+s.c+';text-align:center">'
+        +'<div style="font-size:20px;margin-bottom:6px">'+s.ico+'</div>'
+        +'<div style="font-size:13px;font-weight:700;color:var(--navy)">'+s.lbl+'</div>'
+        +'<div style="font-size:22px;font-weight:900;color:var(--navy);margin:6px 0">'+fmt(proj)+'</div>'
+        +'<div style="font-size:11px;color:var(--muted)">'+pctMeta+'% da meta</div>'
+        +PB(proj,metaM,s.c)+'</div>';
+    }).join('')+'</div></div>'
   +'<div class="card mb2"><div class="ctitle">Evolução de VGV</div>'+svgBar((MONTHLY||[]),'vgv','meta','m','#0f172a','#e2e8f0',150)+'</div>'
   +'<div class="card"><div class="ctitle">Pipeline Ponderado por Etapa (Lançamento)</div>'
   +((FUNIS.lancamento||[]).map?((FUNIS.lancamento||[])).map(s=>{const vE=OPPS.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).reduce((a,o)=>a+(o.vgv*s.w),0);return'<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:9.5px;font-weight:600;color:'+s.color+';width:120px;flex-shrink:0">'+s.label+'</span><div style="flex:1">'+PB(vE,1500000,s.color)+'</div><span style="font-size:11px;font-weight:700;color:var(--navy);width:65px;text-align:right;flex-shrink:0">'+(vE>0?fmt(Math.round(vE)):'—')+'</span><span style="font-size:9px;color:var(--muted);width:28px;text-align:right;flex-shrink:0">'+Math.round(s.w*100)+'%</span></div>';}).join(''):'')
@@ -3953,6 +3971,13 @@ ${rankList}
 METODOLOGIA PSM: Funil → Carteira → Tentativa → Contato 4Ps → Agendamento → Visita → Quente → Proposta → Contrato
 FRENTES: MAP/Lançamento, Conquista (revenda), Terceiros (captação), Locação
 
+DADOS ADICIONAIS DO PIPELINE:
+- Total pipeline: ${fmt(OPPS.reduce((a,o)=>a+(o.vgv||0),0))} em ${OPPS.length} oportunidades
+- Vendas este período: ${VENDAS.length} (${fmt(VENDAS.reduce((a,v)=>a+(v.vgv||0),0))})
+- Perdidas: ${LOST_DEALS.length}
+- Leads quentes: ${OPPS.filter(o=>['quente','proposta','contrato'].includes(o.st_psm)).length}
+- Agendamentos: ${OPPS.filter(o=>['agendamento','vis_agend'].includes(o.st_psm)).length}
+
 INSTRUÇÕES: Seja direta, prática e motivadora. Use os dados reais. Máximo 280 palavras. Formato com **negrito** nos pontos-chave.`;
 
     // Send Gemini API key via header + query param (from Configurações > IA)
@@ -4060,6 +4085,25 @@ function pgRDConfig() {
     + '<button class="btn bout" onclick="rdDebugTest()">🧪 Testar Conexão</button>'
     + (RD._cache && Object.keys(RD._cache).length > 0 ? '<span style="font-size:10px;color:var(--muted)">Cache: '+Object.keys(RD._cache).length+' entradas</span>' : '')
     + '</div>'
+
+    // ── Conversion by Source ──
+    + '<div class="card mb2"><div class="ctitle">📊 Conversão por Origem de Lead</div>'
+    + '<div class="tw"><table class="tbl"><thead><tr><th>Origem</th><th style="text-align:right">Abertas</th><th style="text-align:right">Ganhas</th><th style="text-align:right">Perdidas</th><th style="text-align:right">Taxa</th></tr></thead><tbody>'
+    + Object.entries(
+      [...OPPS,...VENDAS,...LOST_DEALS].reduce((acc,d) => {
+        const src = d.ori || 'Direto';
+        if (!acc[src]) acc[src] = {open:0,won:0,lost:0};
+        if (d.winStatus === 'won') acc[src].won++;
+        else if (d.winStatus === 'lost') acc[src].lost++;
+        else acc[src].open++;
+        return acc;
+      }, {})
+    ).sort((a,b) => (b[1].won+b[1].lost+b[1].open)-(a[1].won+a[1].lost+a[1].open)).slice(0,10).map(([src,d]) => {
+      const total = d.won + d.lost;
+      const rate = total > 0 ? Math.round(d.won / total * 100) : 0;
+      return '<tr><td style="font-weight:600">'+src+'</td><td style="text-align:right">'+d.open+'</td><td style="text-align:right;color:var(--g-tx);font-weight:700">'+d.won+'</td><td style="text-align:right;color:var(--r-tx)">'+d.lost+'</td><td style="text-align:right;font-weight:800;color:'+(rate>=30?'var(--g-tx)':rate>=15?'var(--a-tx)':'var(--r-tx)')+'">'+rate+'%</td></tr>';
+    }).join('')
+    + '</tbody></table></div></div>'
 
     // ── ERRO (se houver) ──
     + (S.rdSyncError ? '<div style="padding:14px;background:var(--r-bg);color:var(--r-tx);border-radius:10px;font-size:12px;margin-bottom:14px;border:1px solid rgba(239,68,68,.2)">'
@@ -4285,6 +4329,18 @@ function pgConfig() {
           + '</div>';
       }).join('')
     + '</div>'
+    + '<div class="card mt2"><div class="ctitle">👥 Gestão de Usuários</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-bottom:12px">Adicione ou remova corretores do sistema (será sincronizado com o RD CRM no próximo sync).</div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
+    + '<input id="new-broker-name" class="finp" style="width:200px;padding:6px 10px;font-size:12px" placeholder="Nome completo">'
+    + '<input id="new-broker-email" class="finp" style="width:220px;padding:6px 10px;font-size:12px" placeholder="email@imobiliariapsm.com.br">'
+    + '<select id="new-broker-frente" class="fs sel-f" style="padding:6px 10px;font-size:12px">'
+    + Object.entries(FRENTES).map(([fid,f]) => '<option value="'+fid+'">'+f.icon+' '+f.label+'</option>').join('')
+    + '</select>'
+    + '<button class="btn bp1 bsm" onclick="addBrokerManual()">+ Adicionar</button>'
+    + '</div>'
+    + '<div style="font-size:10px;color:var(--muted)">Corretores ativos: '+BROKERS.length+' · O RD CRM sincroniza automaticamente — use este formulário apenas para adicionar manualmente.</div>'
+    + '</div>'
     // ── Conectores & API Keys ──
     + '<div class="card mt2" style="grid-column:1/-1"><div class="ctitle">🔗 Conectores & API Keys</div>'
     + '<div style="font-size:11px;color:var(--muted);margin-bottom:12px">Gerencie tokens e chaves de API dos serviços integrados. Os dados ficam salvos no seu navegador.</div>'
@@ -4386,6 +4442,21 @@ function toggleConnVis(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function addBrokerManual() {
+  const name = document.getElementById('new-broker-name')?.value?.trim();
+  const email = document.getElementById('new-broker-email')?.value?.trim();
+  const frente = document.getElementById('new-broker-frente')?.value || 'lancamento';
+  if (!name) { toast('Preencha o nome', 'warn'); return; }
+  const id = name.toLowerCase().replace(/\s+/g,'_').slice(0,12);
+  const ini = name.split(' ').length >= 2 ? (name[0] + name.split(' ').pop()[0]).toUpperCase() : name.slice(0,2).toUpperCase();
+  USERS_BASE.push({id, name, ini, color:'#0891b2', role:'corretor', frente, email:email||'', rdId:'', st:'online', meta:800000, crm:50});
+  TEAM_CONFIG.assignments[id] = frente;
+  if (email) _LOCAL_AUTH[email] = name.split(' ')[0].toLowerCase()+'123|'+id;
+  USERS = buildUsers(); UM = Object.fromEntries(USERS.map(u=>[u.id,u])); BROKERS = USERS.filter(u=>['corretor','lider'].includes(u.role));
+  toast('✅ '+name+' adicionado à equipe '+frente, 'ok');
+  render();
 }
 
 // ── Auto-refresh RD MKT OAuth2 token ──
