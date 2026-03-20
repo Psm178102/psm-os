@@ -809,30 +809,31 @@ const DAY_NAMES_FULL=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','S�
 const OOS=[];
 
 function calcOKRs(){
+  const M = typeof METRICS !== 'undefined' ? METRICS : {vgv_meta:8000000,vend_meta:20,vis_meta:100,mes:'—'};
   const vgvReal=VENDAS.reduce((a,v)=>a+(v.vgv||0),0);
-  const vgvMeta=METRICS.vgv_meta||8000000;
+  const vgvMeta=M.vgv_meta||8000000;
   const vendReal=VENDAS.length;
-  const vendMeta=METRICS.vend_meta||20;
+  const vendMeta=M.vend_meta||20;
   const crmMedio=BROKERS.length?Math.round(BROKERS.reduce((a,b)=>a+(b.crm||50),0)/BROKERS.length):50;
   const visReal=BROKERS.reduce((a,b)=>a+(b.vis||0),0);
   const pctVgv=Math.round(vgvReal/Math.max(1,vgvMeta)*100);
   const pctVend=Math.round(vendReal/Math.max(1,vendMeta)*100);
   return [
-    {id:'okr1',obj:'Atingir meta de VGV mensal',ciclo:METRICS.mes,prog:pctVgv,status:pctVgv>=80?'on_track':pctVgv>=50?'at_risk':'off_track',
+    {id:'okr1',obj:'Atingir meta de VGV mensal',ciclo:M.mes||'—',prog:pctVgv,status:pctVgv>=80?'on_track':pctVgv>=50?'at_risk':'off_track',
      krs:[
        {label:'VGV >= '+fmt(vgvMeta),curr:vgvReal/1000000,target:vgvMeta/1000000,unit:'M',pct:pctVgv,status:pctVgv>=80?'on_track':'at_risk'},
        {label:vendMeta+' vendas no mês',curr:vendReal,target:vendMeta,unit:'un',pct:pctVend,status:pctVend>=80?'on_track':'at_risk'},
        {label:'CRM score médio >= 70',curr:crmMedio,target:70,unit:'pts',pct:Math.round(crmMedio/70*100),status:crmMedio>=70?'on_track':'at_risk'},
      ]},
-    {id:'okr2',obj:'Excelência operacional da equipe',ciclo:METRICS.mes,prog:Math.round((crmMedio/70*50)+(visReal/Math.max(1,METRICS.vis_meta||100)*50)),status:'on_track',
+    {id:'okr2',obj:'Excelência operacional da equipe',ciclo:M.mes||'—',prog:Math.round((crmMedio/70*50)+(visReal/Math.max(1,M.vis_meta||100)*50)),status:'on_track',
      krs:[
-       {label:'Visitas realizadas >= meta',curr:visReal,target:METRICS.vis_meta||100,unit:'un',pct:Math.round(visReal/Math.max(1,METRICS.vis_meta||100)*100),status:visReal>=((METRICS.vis_meta||100)*0.8)?'on_track':'at_risk'},
+       {label:'Visitas realizadas >= meta',curr:visReal,target:M.vis_meta||100,unit:'un',pct:Math.round(visReal/Math.max(1,M.vis_meta||100)*100),status:visReal>=((M.vis_meta||100)*0.8)?'on_track':'at_risk'},
        {label:'Taxa de conversão >= 5%',curr:VENDAS.length>0?Math.round(VENDAS.length/(VENDAS.length+LOST_DEALS.length)*100):0,target:5,unit:'%',pct:0,status:'at_risk'},
        {label:'Zero leads SLA vencido',curr:OPPS.filter(o=>(o.sla||'')==='overdue').length,target:0,unit:'un',pct:100,status:OPPS.filter(o=>o.sla==='overdue').length===0?'on_track':'at_risk'},
      ]},
   ];
 }
-const OKRS=calcOKRs();
+const OKRS=[]; // populated after METRICS is defined and after RD sync
 
 function calcForecasts(){
   const now=new Date();
