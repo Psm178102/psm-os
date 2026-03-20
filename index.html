@@ -1639,9 +1639,69 @@ function pgWarRoom(){
 
 // War Room TV Mode (opens in new window)
 function openWarRoomTV() {
-  const w = window.open('', 'warroom_tv', 'width=1920,height=1080');
+  const w = window.open('', 'warroom_tv', 'fullscreen=yes,width=1920,height=1080');
   if (!w) { toast('Popup bloqueado. Permita popups para o modo TV.', 'warn'); return; }
-  w.document.write('<!DOCTYPE html><html><head><title>War Arena PSM</title><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1c1c1c;color:#fff;font-family:system-ui,sans-serif;overflow:hidden}</style></head><body><div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:24px;color:#d4a843">War Arena PSM - Carregando...</div><scr'+'ipt>setInterval(function(){try{var d=window.opener.document.getElementById("pc");if(d){var c=d.querySelector("[style*=\'background:#1c1c1c\']");if(c)document.body.innerHTML=c.outerHTML;}}catch(e){}},5000);</'+'script></body></html>');
+
+  const tvHtml = [
+    '<!DOCTYPE html><html><head><title>War Arena PSM</title>',
+    '<style>',
+    '*{margin:0;padding:0;box-sizing:border-box}',
+    'body{background:#1c1c1c;color:#fff;font-family:system-ui,sans-serif;overflow:hidden;height:100vh}',
+    '#content{height:100vh;overflow:hidden}',
+    '#celebration{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;',
+    'display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center}',
+    '#celebration.active{display:flex !important}',
+    '#clock{position:fixed;top:12px;right:16px;font-size:14px;color:#64748b;z-index:100;font-variant-numeric:tabular-nums}',
+    '#status{position:fixed;top:12px;left:16px;font-size:11px;color:#64748b;z-index:100}',
+    '@keyframes glow{0%,100%{text-shadow:0 0 20px rgba(212,168,67,.5)}50%{text-shadow:0 0 40px rgba(212,168,67,.8)}}',
+    '@keyframes fadeIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}',
+    '</style></head><body>',
+    '<div id="clock"></div>',
+    '<div id="status">● Conectado</div>',
+    '<div id="content"><div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:24px;color:#d4a843">War Arena PSM — Carregando...</div></div>',
+    '<div id="celebration">',
+    '<div style="font-size:80px;margin-bottom:20px;animation:fadeIn .5s">🏆</div>',
+    '<div id="cel-title" style="font-size:36px;font-weight:900;color:#d4a843;animation:glow 2s infinite;margin-bottom:12px">VENDA FECHADA!</div>',
+    '<div id="cel-detail" style="font-size:22px;color:#fff;margin-bottom:8px"></div>',
+    '<div id="cel-vgv" style="font-size:48px;font-weight:900;color:#22c55e;margin-bottom:8px"></div>',
+    '<div id="cel-source" style="font-size:16px;color:#94a3b8"></div>',
+    '</div>',
+    '<scr','ipt>',
+    'var lastSaleTs=0;',
+    'function update(){',
+    '  try{',
+    '    var op=window.opener;if(!op)return;',
+    '    var pc=op.document.getElementById("pc");',
+    '    if(pc){var c=pc.querySelector("[style*=\\"background:#1c1c1c\\"]");if(c)document.getElementById("content").innerHTML=c.innerHTML;}',
+    '    // Check for new sale celebration',
+    '    if(op._lastSaleTs&&op._lastSaleTs>lastSaleTs){',
+    '      lastSaleTs=op._lastSaleTs;var s=op._lastSale;if(s){',
+    '        var cel=document.getElementById("celebration");',
+    '        document.getElementById("cel-detail").textContent=(s.bn||"Corretor")+" fechou "+(s.cl||"negócio");',
+    '        document.getElementById("cel-vgv").textContent=op.fmt?op.fmt(s.vgv||0):"R$"+((s.vgv||0)/1000).toFixed(0)+"K";',
+    '        document.getElementById("cel-source").textContent="Origem: "+(s.ori||"—");',
+    '        cel.classList.add("active");',
+    '        setTimeout(function(){cel.classList.remove("active")},8000);',
+    '      }',
+    '    }',
+    '    // Toggle between geral/equipe every 30s',
+    '    if(op.S&&op.S.wrMode){',
+    '      var now=Math.floor(Date.now()/30000);',
+    '      var mode=now%2===0?"geral":"equipe";',
+    '      if(op.S.wrMode!==mode){op.S.wrMode=mode;op.render();}',
+    '    }',
+    '  }catch(e){document.getElementById("status").textContent="⚠ Reconectando...";}',
+    '}',
+    'function clock(){var n=new Date();document.getElementById("clock").textContent=n.toLocaleTimeString("pt-BR");}',
+    'setInterval(update,3000);',
+    'setInterval(clock,1000);clock();',
+    'update();',
+    '</scr','ipt></body></html>'
+  ].join('');
+
+  w.document.write(tvHtml);
+  w.document.close();
+  toast('📺 Modo TV aberto — mantenha esta aba aberta', 'ok');
 }
 
 // ─── PAGE: EQUIPE ─────────────────────────────────────────────────────────────
@@ -2354,6 +2414,10 @@ const RD = {
         'open='+openDeals.length, 'won='+wonDeals.length, 'lost='+lostDeals.length);
 
       // Reset arrays
+      // ── Track previous vendas for new sale detection ──
+      const prevVendasIds = new Set(VENDAS.map(v => v.rdId || v.id));
+      const prevVendasCount = VENDAS.length;
+
       OPPS.splice(0);
       VENDAS.splice(0);
       LOST_DEALS.splice(0);
@@ -2366,6 +2430,26 @@ const RD = {
       openProc.forEach(o => OPPS.push(o));
       wonProc.forEach(o  => VENDAS.push(o));
       lostProc.forEach(o => LOST_DEALS.push(o));
+
+      // ── Detect NEW sales since last sync ──
+      if (prevVendasCount > 0) {
+        const newSales = VENDAS.filter(v => !prevVendasIds.has(v.rdId || v.id));
+        newSales.forEach(sale => {
+          const broker = (UM[sale.bid] || {}).name || sale.bn || 'Corretor';
+          sendNotif(
+            '🏆 VENDA FECHADA!',
+            broker + ' fechou ' + (sale.cl||'negócio') + ' — ' + fmt(sale.vgv||0) + ' (' + (sale.ori||'—') + ')',
+            '🏆'
+          );
+          // Add to NOTIFS for in-app display
+          NOTIFS.unshift({tipo:'ok', title:'🏆 Venda: '+(sale.cl||'—'), msg:broker+' — '+fmt(sale.vgv||0)+' ('+( sale.ori||'—')+')', page:'ranking', read:false, ts:Date.now()});
+        });
+        if (newSales.length > 0) {
+          // Trigger War Room celebration event
+          window._lastSale = newSales[0];
+          window._lastSaleTs = Date.now();
+        }
+      }
 
       recalcMonthly();
       OKRS.splice(0); calcOKRs().forEach(o=>OKRS.push(o));
@@ -4262,11 +4346,18 @@ function sendNotif(title, body, icon='⚓') {
 }
 function scheduleNotifs() {
   // Check SLA overdue
-  const overdue = OPPS.filter(o => o.sla === 'overdue');
-  if (overdue.length > 0) sendNotif('⚠️ SLA Vencido', overdue.length + ' oportunidades precisam de atenção', '⚓');
-  // Check no update
-  const stale = OPPS.filter(o => o.dnu >= 3);
-  if (stale.length > 0) sendNotif('📋 Atualização Pendente', stale.length + ' oportunidades sem update há 3+ dias', '⚓');
+  const overdue = OPPS.filter(o => (o.sla||'') === 'overdue');
+  if (overdue.length > 3) {
+    sendNotif('⚠️ SLA Vencido', overdue.length + ' oportunidades precisam de atenção', '⚠️');
+    NOTIFS.unshift({tipo:'w', title:'⚠️ SLA Vencido', msg:overdue.length+' opps sem ação', page:'governance', read:false, ts:Date.now()});
+  }
+  // Check top performer
+  const topBroker = [...BROKERS].sort((a,b)=>(b.vgv_real||0)-(a.vgv_real||0))[0];
+  if (topBroker && (topBroker.vgv_real||0) > 0) {
+    NOTIFS.unshift({tipo:'ok', title:'🏆 Top Performer', msg:topBroker.name+' lidera com '+fmt(topBroker.vgv_real||0), page:'ranking', read:false, ts:Date.now()});
+  }
+  // Keep only last 20 notifs
+  if (NOTIFS.length > 20) NOTIFS.splice(20);
 }
 // Schedule checks every 30 min
 setInterval(() => { if(S.user) scheduleNotifs(); }, 30 * 60 * 1000);
