@@ -705,14 +705,15 @@ const USERS_BASE=[
   {id:'rodrigo_c',name:'Rodrigo Camargo',   ini:'RC',color:'#0f766e',role:'corretor',frente:'terceiros', email:'rodrigocamargo@imobiliariapsm.com.br',rdId:'692d933389c0150019aff0be',st:'online', lig:9, vis:3,prop:2,vend:1,vgv:310000, meta:600000, crm:80,agend:3},
   {id:'evandro',  name:'Evandro',           ini:'EV',color:'#1d4ed8',role:'corretor',frente:'terceiros', email:'evandro@imobiliariapsm.com.br',   rdId:'695d18cdd8e96000144d2448', st:'offline',lig:6, vis:1,prop:0,vend:0,vgv:0,       meta:500000, crm:62,agend:1},
   {id:'yara',     name:'Yara Fetti',        ini:'YF',color:'#9333ea',role:'corretor',frente:'terceiros', email:'yara@imobiliariapsm.com.br',      rdId:'693ad5782b10d20016341650', st:'online', lig:11,vis:4,prop:2,vend:1,vgv:280000, meta:500000, crm:85,agend:3},
-  // Locação (sem corretores por ora)
+  // MAP / Assessoria (adicionado)
+  {id:'vitor_o',  name:'Vitor Oliveira',    ini:'VO',color:'#0891b2',role:'corretor',frente:'lancamento',email:'vitor@imobiliariapsm.com.br',    rdId:'',  st:'online', lig:0, vis:0,prop:0,vend:0,vgv:0, meta:800000, crm:50,agend:0},
   // Usuários RD extras (sem login no sistema, mas têm deals ativos)
 ];
 
 // ─── TEAM CONFIG ──────────────────────────────────────────────────────────────
 let TEAM_CONFIG={
   assignments:{
-    rodrigo_t:'lancamento',marcus_l:'lancamento',gabriel_b:'lancamento',
+    rodrigo_t:'lancamento',marcus_l:'lancamento',gabriel_b:'lancamento',vitor_o:'lancamento',
     kadu:'conquista',      julia:'conquista',     danilo_a:'conquista',  rafaela_m:'conquista',
     camila_b:'terceiros',  rodrigo_c:'terceiros', evandro:'terceiros',   yara:'terceiros',
   },
@@ -929,6 +930,7 @@ let DISC_PROFILES = {
   rodrigo_c:{perfil:'Estável',cor:'#16a34a',desc:'Confiável, persistente.'},
   evandro:{perfil:'Diretor',cor:'#dc2626',desc:'Resoluto, pragmático.'},
   yara:{perfil:'Conforme',cor:'#2563eb',desc:'Organizada, analítica.'},
+  vitor_o:{perfil:'Operador',cor:'#0891b2',desc:'Novo na equipe, em desenvolvimento.'},
   paulo:{perfil:'Diretor',cor:'#dc2626',desc:'Visionário, focado em estratégia.'},
   isa:{perfil:'Influente',cor:'#f59e0b',desc:'Inspiradora, conecta pessoas.'},
 };
@@ -2246,7 +2248,7 @@ const RD = {
           };
 
           // Nomes a excluir do sistema (desativados manualmente)
-          const EXCLUDED_NAMES = ['daniela barboza','leire','o2 - leire','o2 leire','02 - leire'];
+          const EXCLUDED_NAMES = ['daniela barboza','leire','o2 - leire','o2 leire','02 - leire','o3 - mariane','o3 mariane','03 - mariane','mariane'];
           const activeRdUsers = rdUsers.filter(u => {
             if (u.active === false) return false;
             const name = (u.name || '').toLowerCase().trim();
@@ -2657,6 +2659,7 @@ const _LOCAL_AUTH = {
   'rodrigocamargo@imobiliariapsm.com.br':'camargo123|rodrigo_c',
   'evandro@imobiliariapsm.com.br':'evandro123|evandro',
   'yara@imobiliariapsm.com.br':'yara123|yara',
+  'vitor@imobiliariapsm.com.br':'vitor123|vitor_o',
 };
 const _IS_LOCAL = location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 
