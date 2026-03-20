@@ -1630,7 +1630,7 @@ function pgWarRoom(){
     // ── Ticker Bar ──
     + '<div style="margin-top:16px;background:#242424;border-radius:10px;padding:12px 20px;border:1px solid #333;display:flex;align-items:center;gap:12px;overflow:hidden">'
     + '<div style="font-size:10px;font-weight:700;color:#d4a843;flex-shrink:0;letter-spacing:1px">SR. PERFORMANCE</div>'
-    + '<div style="flex:1;overflow:hidden;white-space:nowrap"><div style="display:inline-block;animation:tickerScroll 20s linear infinite;font-size:11px;color:#94a3b8">'
+    + '<div style="flex:1;overflow:hidden;white-space:nowrap"><div style="display:inline-block;animation:tickerScroll 45s linear infinite;font-size:11px;color:#94a3b8">'
     + tickers.join(' &nbsp;&nbsp;│&nbsp;&nbsp; ')
     + '</div></div></div>'
 
@@ -2618,8 +2618,12 @@ const RD = {
           // Merge with existing USERS_BASE — keep existing data, add new ones
           activeRdUsers.forEach(rdu => {
             const rdId = rdu._id || rdu.id;
-            const existing = USERS_BASE.find(u => u.rdId === rdId);
-            if (!existing) {
+            const existing = USERS_BASE.find(u => u.rdId === rdId) || USERS_BASE.find(u => u.name.toLowerCase() === (rdu.name||'').toLowerCase() && !u.rdId);
+            if (existing && !existing.rdId) {
+              // Match by name — update rdId for future syncs
+              existing.rdId = rdId;
+              console.log('[RD sync] Linked', existing.name, 'to rdId', rdId);
+            } else if (!existing) {
               // New user from RD — add them
               const nameParts = (rdu.name || '').split(' ');
               const ini = nameParts.length >= 2
