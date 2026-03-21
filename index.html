@@ -5282,12 +5282,12 @@ function pgConfig() {
       ? '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
         + '<span style="font-size:11px;color:var(--g-tx);font-weight:600">✅ Conectado</span>'
         + '<span style="font-size:10px;color:var(--muted)">Token expira: '+new Date((S.connectors||{}).rd_mkt_token_expires||0).toLocaleString('pt-BR')+'</span>'
-        + '<button class="btn bout bsm" onclick="window.open(\'/api/rd-auth\',\'rd_auth\',\'width=600,height=700\')">🔄 Reconectar</button>'
+        + '<button class="btn bout bsm" onclick="location.href=\'/api/rd-auth\'">🔄 Reconectar</button>'
         + '<button class="btn bdanger bsm" onclick="delete S.connectors.rd_mkt_access_token;delete S.connectors.rd_mkt_refresh_token;saveState();render()">✕ Desconectar</button>'
         + '</div>'
       : '<div>'
         + '<div style="font-size:11px;color:var(--muted);margin-bottom:10px">O RD Marketing usa OAuth2. Clique para autorizar o acesso.</div>'
-        + '<button class="btn bp1" onclick="window.open(\'/api/rd-auth\',\'rd_auth\',\'width=600,height=700\')">🔐 Autorizar RD Marketing</button>'
+        + '<button class="btn bp1" onclick="location.href=\'/api/rd-auth\'">🔐 Autorizar RD Marketing</button>'
         + '</div>')
     + '</div>'
     + connectorSection('Notion','notion','#000000',[
@@ -5388,6 +5388,25 @@ function addBrokerManual() {
   toast('✅ '+name+' adicionado à equipe '+frente, 'ok');
   render();
 }
+
+// ── Pickup RD MKT tokens from URL hash (after OAuth2 callback redirect) ──
+(function pickupRdMktTokens() {
+  if (!location.hash.includes('rd_mkt_tokens=')) return;
+  try {
+    const raw = decodeURIComponent(location.hash.split('rd_mkt_tokens=')[1]);
+    const t = JSON.parse(raw);
+    if (t.access_token) {
+      S.connectors = S.connectors || {};
+      S.connectors.rd_mkt_access_token = t.access_token;
+      S.connectors.rd_mkt_refresh_token = t.refresh_token;
+      S.connectors.rd_mkt_token_expires = Date.now() + (t.expires_in || 86400) * 1000;
+      saveState();
+      history.replaceState(null, '', location.pathname);
+      setTimeout(() => { toast('✅ RD Marketing conectado com sucesso!', 'ok'); render(); }, 500);
+      console.log('[RD MKT] Tokens salvos via URL hash redirect');
+    }
+  } catch(e) { console.warn('[RD MKT] Erro ao processar tokens do hash:', e); }
+})();
 
 // ── Auto-refresh RD MKT OAuth2 token ──
 async function refreshRdMktToken() {
