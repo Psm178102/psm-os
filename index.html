@@ -4530,7 +4530,7 @@ function pgFormacao() {
   h += '<button class="ptab '+(tab==='progresso'?'on':'')+'" onclick="S.formacaoTab=\'progresso\';render()">Alunos & Progresso</button>';
   h += '</div>';
   if(tab==='visao'){
-    var sc = window._kiwifyStudentCount||18;
+    var sc = window._kiwifyStudents ? window._kiwifyStudents.length : "...";
     h += '<div class="kgrid" style="margin-bottom:16px">';
     h += '<div class="kpi" style="border-left-color:var(--navy)"><div class="klbl">Total Módulos</div><div class="kval">'+totalM+'</div><div class="kmeta">Cursos estruturados</div></div>';
     h += '<div class="kpi" style="border-left-color:var(--g)"><div class="klbl">Total Aulas</div><div class="kval">'+totalA+'</div><div class="kmeta">Lições disponíveis</div></div>';
@@ -4583,30 +4583,26 @@ function pgFormacao() {
 }
 
 function updateFormacao(){
-  if(window._kiwifyStudentsLoading) return;
-  window._kiwifyStudentsLoading = true;
-  var cid = '66f825e1-b89d-4fd1-841b-f4028fe960bc';
-  var csec = '6951e8fcd137be000a893693efa4437edf223a7d90780e576bb6e350a2f05d97';
-  var aid = 'OSuuB1S66N7lP71';
-  var api = 'https://public-api.kiwify.com';
-  function doFetch(tk){
-    fetch(api+'/v1/sales?status=paid',{headers:{'Authorization':'Bearer '+tk,'X-Account-Id':aid}}).then(function(r){return r.json();}).then(function(d){
-      var arr = d.data||d||[]; var students=[]; var seen={};
-      if(Array.isArray(arr)) arr.forEach(function(sale){
-        if(sale.customer&&sale.customer.email&&!seen[sale.customer.email]){
-          seen[sale.customer.email]=true;
-          students.push({name:sale.customer.name||'Aluno',email:sale.customer.email,status:'Ativo',created_at:sale.created_at});
-        }
-      });
-      window._kiwifyStudents=students; window._kiwifyStudentCount=students.length||18; window._kiwifyStudentsLoading=false; render();
-    }).catch(function(){window._kiwifyStudentsLoading=false; window._kiwifyStudents=[]; render();});
-  }
-  if(window._kiwifyToken&&window._kiwifyTokenExp&&window._kiwifyTokenExp>Date.now()){ doFetch(window._kiwifyToken); return; }
-  fetch(api+'/v1/oauth/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'client_id='+encodeURIComponent(cid)+'&client_secret='+encodeURIComponent(csec)+'&grant_type=client_credentials'})
-  .then(function(r){return r.json();}).then(function(d){
-    if(d.access_token){window._kiwifyToken=d.access_token;window._kiwifyTokenExp=Date.now()+((d.expires_in||3600)*1000);doFetch(d.access_token);}
-    else{window._kiwifyStudentsLoading=false;render();}
-  }).catch(function(){window._kiwifyStudentsLoading=false;render();});
+  // Usa proxy Vercel para contornar CORS
+  if(window._kiwifyStudents) return; // ja carregou
+  fetch("/api/kiwify?action=students")
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if(data.ok){
+        window._kiwifyStudents = data.students || [];
+        console.log("[Kiwify] " + data.total + " alunos carregados via proxy");
+        render();
+      } else {
+        console.error("[Kiwify] Erro:", data.error);
+        window._kiwifyStudents = [];
+        render();
+      }
+    })
+    .catch(function(err){
+      console.error("[Kiwify] Fetch falhou:", err);
+      window._kiwifyStudents = [];
+      render();
+    });
 }
 
 // ─── MANUAL DE CULTURA & CÓDIGO DE ÉTICA ─────────────────────────────────────
