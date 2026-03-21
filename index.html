@@ -708,6 +708,10 @@ const USERS_BASE=[
   // MAP / Assessoria (adicionado)
   {id:'vitor_o',  name:'Vitor Oliveira',    ini:'VO',color:'#0891b2',role:'corretor',frente:'lancamento',email:'vitor@imobiliariapsm.com.br',    rdId:'',  st:'online', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:800000,crm:0,agend:0},
   // Usuários RD extras (sem login no sistema, mas têm deals ativos)
+  {id:'leire',name:'Leire',ini:'LE',color:'#475569',role:'backoffice',frente:null,email:'leire@imobiliariapsm.com.br',rdId:''},
+  {id:'mariane',name:'Mariane',ini:'MA',color:'#475569',role:'backoffice',frente:null,email:'mariane@imobiliariapsm.com.br',rdId:''},
+  {id:'guilherme',name:'Guilherme',ini:'GU',color:'#0ea5e9',role:'marketing',frente:null,email:'guilherme@imobiliariapsm.com.br',rdId:''},
+  {id:'gestor_trafego',name:'Gestor de Trafego',ini:'GT',color:'#0ea5e9',role:'marketing',frente:null,email:'trafego@imobiliariapsm.com.br',rdId:''}
 ];
 
 // ─── TEAM CONFIG ──────────────────────────────────────────────────────────────
@@ -3206,7 +3210,7 @@ async function doLogin() {
 
   S.user = {...UM[user.id], ...user};
   const lvl = RLVL[S.user.role] || 0;
-  S.page = lvl >= 5 ? 'dashboard' : 'meu';
+  S.page = lvl >= 5 ? getDefaultPage() : 'meu';
   S.loginErr = null;
   S.loginLoading = false;
   toast('Bem-vindo, ' + S.user.name.split(' ')[0] + '! 👋', 'ok');
@@ -5696,6 +5700,15 @@ async function testConnectors() {
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
+
+// === SISTEMA DE PERFIS E PERMISSOES PSM OS ===
+var PERFIL_MAP={paulo:'diretor',isa:'diretor',leire:'backoffice',mariane:'backoffice',marcus_l:'lider',guilherme:'marketing',gestor_trafego:'marketing'};
+function getPerfil(){if(!S.user||!S.user.id)return "corretor";if(PERFIL_MAP[S.user.id])return PERFIL_MAP[S.user.id];if(S.user.role==="socio")return "diretor";if(S.user.role==="lider")return "lider";if(S.user.role==="backoffice")return "backoffice";if(S.user.role==="marketing")return "marketing";return "corretor";}
+var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','simvpl','simincc','simrep','vera','rdconfig','config'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','drive','tabela','formacao','manual','captacao','vera','config'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','forecast','drive','formacao','manual','captacao','vera'],marketing:['meu','dashboard','metricas','ranking','drive','formacao','manual','vera'],corretor:['meu','ranking','crm','metas','formacao','manual','drive','vera']};
+function canAccess(p){var pf=getPerfil();var a=MENU_ACCESS[pf];return a?a.indexOf(p)!==-1:false;}
+var DEFAULT_PAGE={diretor:'dashboard',backoffice:'dashboard',lider:'meu',marketing:'meu',corretor:'meu'};
+function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"meu";}
+
 function renderSB() {
   const u = S.user; const lvl = RLVL[u?.role]||0;
   const MENU = [
@@ -5743,7 +5756,7 @@ function renderSB() {
   ];
 
   const sections = MENU.map(sec => {
-    const items = sec.items.filter(i => lvl >= i.min);
+    const items = sec.items.filter(function(m){return canAccess(m.id);}).filter(i => lvl >= i.min);
     if (!items.length) return '';
     return '<div class="sb-sec">'+sec.sec+'</div>'
       + items.map(i => '<button class="sb-lnk'+(S.page===i.id?' on':'')+'" onclick="nav(\''+i.id+'\')">'
@@ -5888,6 +5901,7 @@ function toggleMobSB() {
 }
 
 function nav(page) {
+  if(!canAccess(page)){page=getDefaultPage();}
   S.page = page; S.notifOpen = false; render();
   const pc = document.getElementById('pc'); if (pc) pc.scrollTop = 0;
   // Close mobile sidebar
