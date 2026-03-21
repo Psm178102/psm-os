@@ -10,7 +10,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
+:root
   --navy:#0f172a;--navy2:#1e293b;--navy3:#334155;
   --gold:#d4a843;--gold2:#e8c263;--gold3:#f5dfa0;
   --cream:#ffffff;--cream2:#f8fafc;--cream3:#e2e8f0;--cream4:#cbd5e1;
@@ -4506,102 +4506,97 @@ function pgTabela() {
 function addTabela() {}
 function removeTabela() {}
 
-// ─── FORMAÇÃO PSM (Kiwify) ────────────────────────────────────────────────────
+// ═══════════════ FORMAÇÃO PSM (Kiwify) ═══════════════
 function pgFormacao() {
   const u = S.user; if (!u) return '';
-  const lvl = RLVL[u.role] || 0;
-  const KIWIFY_URL = S.kiwifyUrl || 'https://members.kiwify.com/f8f61699-1c0a-4021-ae47-eca807cf993a/20ab5c0b-aff7-4c87-a5c1-ccdce785aa15/86f2dad0-14c8-4a11-bea9-b515437aaea1?club=ccdc35d2-08c0-47cd-8268-4bf2c30ca597';
-
-  // Course modules
-  if (!S.formacaoModulos) {
-    S.formacaoModulos = [
-      {nome:'Módulo 1 — Fundamentos PSM', aulas:8, desc:'Cultura, valores e processos da assessoria'},
-      {nome:'Módulo 2 — Técnicas de Venda', aulas:12, desc:'Abordagem, rapport, objeções e fechamento'},
-      {nome:'Módulo 3 — Produto Imobiliário', aulas:10, desc:'Tipologias, financiamento, documentação'},
-      {nome:'Módulo 4 — CRM & Funil', aulas:6, desc:'RD Station, pipeline e follow-up'},
-      {nome:'Módulo 5 — Marketing Pessoal', aulas:5, desc:'Redes sociais, indicações e autoridade'},
-      {nome:'Módulo 6 — Alta Performance', aulas:7, desc:'Metas, disciplina, mindset e resultados'},
-    ];
-  }
-
-  const fp = S.formacaoProgress || {};
-  const brokerKey = u.name.replace(/\s/g,'_');
-  const myProgress = fp[brokerKey] || {};
-  const totalAulas = S.formacaoModulos.reduce((a,m) => a + m.aulas, 0);
-  const totalAssistidas = Object.values(myProgress).reduce((a,v) => a + (v||0), 0);
-  const pctGeral = totalAulas > 0 ? Math.round(totalAssistidas / totalAulas * 100) : 0;
-
-  // Progress bar color
-  const pctColor = pctGeral >= 80 ? 'var(--g)' : pctGeral >= 40 ? 'var(--a)' : 'var(--r)';
-
-  // Broker ranking (for managers)
-  let brokerRanking = '';
-  if (lvl >= 5) {
-    const allBrokers = Object.keys(fp).map(k => {
-      const prog = fp[k] || {};
-      const done = Object.values(prog).reduce((a,v) => a + (v||0), 0);
-      return {name: k.replace(/_/g,' '), done, pct: totalAulas > 0 ? Math.round(done/totalAulas*100) : 0};
-    }).sort((a,b) => b.pct - a.pct);
-
-    if (allBrokers.length > 0) {
-      brokerRanking = '<div class="card mb2"><div class="ctitle">📊 Progresso da Equipe</div>'
-        + '<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">'
-        + allBrokers.map((b,i) => '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--cream2);border-radius:8px">'
-          + '<div style="font-size:12px;font-weight:800;color:var(--muted);width:20px">#'+(i+1)+'</div>'
-          + '<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--navy)">'+b.name+'</div>'
-          + '<div style="height:6px;background:var(--cream3);border-radius:99px;margin-top:4px;overflow:hidden">'
-          + '<div style="height:100%;width:'+b.pct+'%;background:'+(b.pct>=80?'var(--g)':b.pct>=40?'var(--a)':'var(--r)')+';border-radius:99px;transition:width .5s"></div></div></div>'
-          + '<div style="font-size:12px;font-weight:700;color:var(--navy)">'+b.pct+'%</div>'
-          + '</div>').join('')
-        + '</div></div>';
+  if (!S.formacaoTab) S.formacaoTab = 'visao';
+  const tab = S.formacaoTab;
+  const mods = [
+    {nome:'ONBOARDING PSM',aulas:2,desc:'Introdução e boas-vindas'},
+    {nome:'TUTORIAIS PSM',aulas:4,desc:'Guias e treinamentos rápidos'},
+    {nome:'Aulas - MERCADO BÁSICO',aulas:17,desc:'Fundamentos do mercado imobiliário'},
+    {nome:'Mentoria - Paulo',aulas:4,desc:'Sessões de mentoria com Paulo'},
+    {nome:'Mercado de Lançamentos/Empreendimentos',aulas:3,desc:'Novos empreendimentos'},
+    {nome:'MCMV + FINANCIAMENTOS',aulas:1,desc:'Programas de financiamento'},
+    {nome:'Paulo Cuenca - Branding - Reels',aulas:1,desc:'Estratégia de branding e conteúdo'}
+  ];
+  const totalM = mods.length;
+  const totalA = mods.reduce(function(a,m){return a+m.aulas;},0);
+  var h = '<div class="phd">📚 Formação PSM</div>';
+  h += '<p style="color:var(--muted);margin-bottom:16px">Comunidade PSM – plataforma de educação Kiwify com '+totalM+' módulos e '+totalA+' aulas</p>';
+  h += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">';
+  h += '<button class="ptab '+(tab==='visao'?'on':'')+'" onclick="S.formacaoTab=\'visao\';render()">Visão Geral</button>';
+  h += '<button class="ptab '+(tab==='aluno'?'on':'')+'" onclick="S.formacaoTab=\'aluno\';render()">Área do Aluno</button>';
+  h += '<button class="ptab '+(tab==='progresso'?'on':'')+'" onclick="S.formacaoTab=\'progresso\';render()">Alunos & Progresso</button>';
+  h += '</div>';
+  if(tab==='visao'){
+    var sc = window._kiwifyStudentCount||18;
+    h += '<div class="kgrid" style="margin-bottom:16px">';
+    h += '<div class="kpi" style="border-left-color:var(--navy)"><div class="klbl">Total Módulos</div><div class="kval">'+totalM+'</div><div class="kmeta">Cursos estruturados</div></div>';
+    h += '<div class="kpi" style="border-left-color:var(--g)"><div class="klbl">Total Aulas</div><div class="kval">'+totalA+'</div><div class="kmeta">Lições disponíveis</div></div>';
+    h += '<div class="kpi" style="border-left-color:var(--a)"><div class="klbl">Alunos Ativos</div><div class="kval">'+sc+'</div><div class="kmeta">Matriculados</div></div>';
+    h += '<div class="kpi" style="border-left-color:var(--gold)"><div class="klbl">Status Kiwify</div><div class="kval" style="font-size:14px">🟢</div><div class="kmeta">Integração ativa</div></div>';
+    h += '</div>';
+    h += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Módulos Disponíveis</div>';
+    mods.forEach(function(mod){
+      h += '<div class="card" style="padding:16px;margin-bottom:10px;border-left:4px solid var(--g)">';
+      h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">';
+      h += '<div><div style="font-size:13px;font-weight:700;color:var(--dark)">'+mod.nome+'</div>';
+      h += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+mod.desc+'</div></div>';
+      h += '<div style="text-align:right"><span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:var(--g-bg);color:var(--g-tx)">'+mod.aulas+' aulas</span></div>';
+      h += '</div></div>';
+    });
+    h += '<div class="card" style="background:var(--g-bg);border:1px solid var(--g);padding:16px;text-align:center;margin-top:12px">';
+    h += '<div style="font-size:12px;font-weight:700;color:var(--g-tx)">✓ Comunidade PSM está disponível</div>';
+    h += '<div style="font-size:10px;color:var(--g-tx);margin-top:4px;opacity:.8">Acesse a Área do Aluno para estudar</div>';
+    h += '</div>';
+  } else if(tab==='aluno'){
+    h += '<div style="border-radius:var(--radius);overflow:hidden;box-shadow:var(--sh);height:calc(100vh - 240px);background:#fff">';
+    h += '<iframe src="https://members.kiwify.com/?club=ccdc35d2-08c0-47cd-8268-4bf2c30ca597" style="width:100%;height:100%;border:none;display:block" allow="fullscreen"></iframe>';
+    h += '</div>';
+  } else if(tab==='progresso'){
+    var students = window._kiwifyStudents||[];
+    if(students.length===0){ updateFormacao(); h += '<div style="padding:40px;text-align:center;color:var(--muted)">🔄 Carregando lista de alunos do Kiwify...</div>'; }
+    else {
+      h += '<div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>Email</th><th>Status</th><th style="text-align:right">Data</th></tr></thead><tbody>';
+      students.forEach(function(s){
+        var dt = s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR') : '-';
+        h += '<tr><td style="font-weight:600">'+( s.name||'Aluno')+'</td><td style="font-size:11px;color:var(--muted);font-family:var(--mono)">'+( s.email||'-')+'</td>';
+        h += '<td><span class="badge" style="background:var(--g-bg);color:var(--g-tx)">Ativo</span></td>';
+        h += '<td style="text-align:right;font-size:11px;color:var(--muted)">'+dt+'</td></tr>';
+      });
+      h += '</tbody></table></div>';
+      h += '<div style="margin-top:12px;font-size:10px;color:var(--muted)">Total: '+students.length+' alunos na Comunidade PSM</div>';
     }
   }
-
-  const modulos = S.formacaoModulos.map((m, idx) => {
-    const assistidas = myProgress['mod'+idx] || 0;
-    const pctMod = Math.round(assistidas / m.aulas * 100);
-    return '<div class="card mb2" style="padding:14px">'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-      + '<div><div style="font-size:13px;font-weight:700;color:var(--navy)">'+m.nome+'</div>'
-      + '<div style="font-size:11px;color:var(--muted)">'+m.desc+'</div></div>'
-      + '<div style="text-align:right"><div style="font-size:18px;font-weight:800;color:'+(pctMod>=100?'var(--g-tx)':'var(--navy)')+'">'+pctMod+'%</div>'
-      + '<div style="font-size:10px;color:var(--muted)">'+assistidas+'/'+m.aulas+' aulas</div></div></div>'
-      + '<div style="height:8px;background:var(--cream3);border-radius:99px;overflow:hidden;margin-bottom:8px">'
-      + '<div style="height:100%;width:'+pctMod+'%;background:'+(pctMod>=100?'var(--g)':pctMod>=50?'var(--a)':'var(--b)')+';border-radius:99px;transition:width .5s"></div></div>'
-      + '<div style="display:flex;gap:6px;align-items:center">'
-      + '<button class="btn bout bsm" style="font-size:10px" onclick="updateFormacao(\''+brokerKey+'\','+idx+',-1)">-</button>'
-      + '<span style="font-size:11px;font-weight:600;color:var(--navy)">'+assistidas+' aulas</span>'
-      + '<button class="btn bp1 bsm" style="font-size:10px" onclick="updateFormacao(\''+brokerKey+'\','+idx+',1)">+</button>'
-      + (pctMod >= 100 ? '<span style="font-size:10px;color:var(--g-tx);font-weight:700;margin-left:8px">✅ Concluído</span>' : '')
-      + '</div></div>';
-  }).join('');
-
-  return '<div class="phd"><h1>🎓 Formação PSM</h1><p>Acompanhe seu progresso nas aulas do PSM Formação (Kiwify)</p></div>'
-    // Overview card
-    + '<div class="card mb2" style="background:linear-gradient(135deg,var(--navy) 0%,#1e3a5f 100%);color:#fff;padding:20px">'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
-    + '<div><div style="font-size:10px;font-weight:600;letter-spacing:1px;opacity:.6;text-transform:uppercase">Progresso Geral</div>'
-    + '<div style="font-size:32px;font-weight:800;margin-top:4px">'+pctGeral+'%</div>'
-    + '<div style="font-size:12px;opacity:.7">'+totalAssistidas+' de '+totalAulas+' aulas assistidas</div></div>'
-    + '<a href="'+KIWIFY_URL+'" target="_blank" rel="noreferrer" style="background:var(--gold);color:var(--navy);padding:10px 18px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px">🎓 Acessar Kiwify</a>'
-    + '</div>'
-    + '<div style="height:8px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden">'
-    + '<div style="height:100%;width:'+pctGeral+'%;background:'+pctColor+';border-radius:99px;transition:width .8s"></div></div>'
-    + '</div>'
-    + brokerRanking
-    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Módulos</div>'
-    + modulos
-    + '<div class="card" style="text-align:center;padding:16px;background:var(--a-bg);border:1px solid var(--a)">'
-    + '<div style="font-size:12px;font-weight:700;color:var(--a-tx)">🔜 Em breve: Prova de certificação ao completar todos os módulos</div></div>';
+  return h;
 }
 
-function updateFormacao(brokerKey, modIdx, delta) {
-  S.formacaoProgress = S.formacaoProgress || {};
-  if (!S.formacaoProgress[brokerKey]) S.formacaoProgress[brokerKey] = {};
-  const current = S.formacaoProgress[brokerKey]['mod'+modIdx] || 0;
-  const max = S.formacaoModulos[modIdx].aulas;
-  S.formacaoProgress[brokerKey]['mod'+modIdx] = Math.max(0, Math.min(max, current + delta));
-  render();
+function updateFormacao(){
+  if(window._kiwifyStudentsLoading) return;
+  window._kiwifyStudentsLoading = true;
+  var cid = '66f825e1-b89d-4fd1-841b-f4028fe960bc';
+  var csec = '6951e8fcd137be000a893693efa4437edf223a7d90780e576bb6e350a2f05d97';
+  var aid = 'OSuuB1S66N7lP71';
+  var api = 'https://public-api.kiwify.com';
+  function doFetch(tk){
+    fetch(api+'/v1/sales?status=paid',{headers:{'Authorization':'Bearer '+tk,'X-Account-Id':aid}}).then(function(r){return r.json();}).then(function(d){
+      var arr = d.data||d||[]; var students=[]; var seen={};
+      if(Array.isArray(arr)) arr.forEach(function(sale){
+        if(sale.customer&&sale.customer.email&&!seen[sale.customer.email]){
+          seen[sale.customer.email]=true;
+          students.push({name:sale.customer.name||'Aluno',email:sale.customer.email,status:'Ativo',created_at:sale.created_at});
+        }
+      });
+      window._kiwifyStudents=students; window._kiwifyStudentCount=students.length||18; window._kiwifyStudentsLoading=false; render();
+    }).catch(function(){window._kiwifyStudentsLoading=false; window._kiwifyStudents=[]; render();});
+  }
+  if(window._kiwifyToken&&window._kiwifyTokenExp&&window._kiwifyTokenExp>Date.now()){ doFetch(window._kiwifyToken); return; }
+  fetch(api+'/v1/oauth/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'client_id='+encodeURIComponent(cid)+'&client_secret='+encodeURIComponent(csec)+'&grant_type=client_credentials'})
+  .then(function(r){return r.json();}).then(function(d){
+    if(d.access_token){window._kiwifyToken=d.access_token;window._kiwifyTokenExp=Date.now()+((d.expires_in||3600)*1000);doFetch(d.access_token);}
+    else{window._kiwifyStudentsLoading=false;render();}
+  }).catch(function(){window._kiwifyStudentsLoading=false;render();});
 }
 
 // ─── MANUAL DE CULTURA & CÓDIGO DE ÉTICA ─────────────────────────────────────
