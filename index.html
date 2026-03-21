@@ -2359,31 +2359,28 @@ const RD = {
     const c = S.connectors || {};
     const token = service === 'mkt' ? c.rd_mkt_token : c.rd_crm_token;
 
-    if (!token) {
-      throw new Error('Token ' + service + ' não configurado — vá em Configurações > Conectores');
-    }
-
+    // Token local é opcional — o proxy Vercel tem o token como env var
     const baseUrl = service === 'mkt'
       ? 'https://api.rdstation.com/2.0'
       : 'https://crm.rdstation.com/api/v1';
     const tokenParam = service === 'mkt' ? 'auth_token' : 'token';
 
-    // ── STRATEGY: Proxy first (Netlify), then direct ──
+    // ── STRATEGY: Proxy first (Vercel), then direct ──
     // RD Station API does NOT send CORS headers, so direct browser calls
-    // are blocked. The Netlify proxy is the reliable path.
+    // are blocked. The Vercel proxy is the reliable path.
 
     let proxyErr = null, directErr = null;
 
-    // 1) Try proxy FIRST (works when deployed on Netlify)
+    // 1) Try proxy FIRST (works when deployed on Vercel — uses env var token as fallback)
     try {
       const params2 = new URLSearchParams(qs || '');
       params2.set('path', rdPath);
       params2.set('service', service);
       const proxyUrl = '/api/rd?' + params2.toString();
       console.log('[RD req] Tentando proxy:', service, rdPath);
-      const r2 = await fetch(proxyUrl, {
-        headers: { 'X-RD-Token': token, 'Accept': 'application/json' }
-      });
+      const hdrs = { 'Accept': 'application/json' };
+      if (token) hdrs['X-RD-Token'] = token;
+      const r2 = await fetch(proxyUrl, { headers: hdrs });
       if (!r2.ok) {
         const errText = await r2.text().catch(()=>'');
         throw new Error('Proxy HTTP ' + r2.status + ': ' + errText.slice(0,120));
@@ -2396,7 +2393,8 @@ const RD = {
       console.warn('[RD req] Proxy falhou:', e.message);
     }
 
-    // 2) Fallback: try direct call (only works if RD allows CORS, or same-origin)
+    // 2) Fallback: try direct call (only works if token local exists + RD allows CORS)
+    if (!token) throw proxyErr || new Error('RD ' + service + ' indisponível via proxy');
     try {
       const params = new URLSearchParams(qs || '');
       params.set(tokenParam, token);
@@ -5154,56 +5152,25 @@ async function rdDebugTest() {
   toast('Testando conexão com RD Station...', '');
   const c = S.connectors || {};
   const token = c.rd_crm_token;
-
-  if (!token) {
-    toast('❌ Token RD CRM não configurado', 'err');
-    return;
-  }
-
   try {
-    console.log('[RD Debug Test] Testando chamada direta...');
     const t0 = Date.now();
-
-    // Try direct API call first
-    const directUrl = 'https://crm.rdstation.com/api/v1/deals?token=' + token + '&limit=1';
-    const resp = await fetch(directUrl, { headers: { 'Accept': 'application/json' } });
-    const elapsed = Date.now() - t0;
-    let data;
-    try { data = await resp.json(); } catch(e) { data = null; }
-
-    if (!resp.ok) {
-      console.warn('[RD Debug Test] Direto falhou, tentando proxy...');
-      // Try proxy
-      const hdrs = { 'X-RD-Token': token };
-      const respProxy = await fetch('/api/rd?path=/deals&limit=1&service=crm', {headers: hdrs});
-      const elapsedProxy = Date.now() - t0;
-      let dataProxy;
-      try { dataProxy = await respProxy.json(); } catch(e) { dataProxy = null; }
-
-      if (!respProxy.ok) {
-        toast('❌ RD HTTP ' + respProxy.status + ': ' + (dataProxy?.error || dataProxy?.errors?.[0]?.message || 'desconhecido'), 'err');
-        console.error('[RD Debug Test] Proxy falhou', respProxy.status, dataProxy);
-        return;
-      }
-      data = dataProxy;
-      const count = data?.deals?.length || 0;
-      toast('✅ RD CRM OK (via proxy) - ' + count + ' deal(s) em ' + elapsedProxy + 'ms', 'ok');
-      console.log('[RD Debug Test] ✅ Proxy Response:', data);
+    // 1) Proxy (usa env var token do Vercel como fallback)
+    const hdrs = { 'Accept': 'application/json' };
+    if (token) hdrs['X-RD-Token'] = token;
+    const r = await fetch('/api/rd?path=/deals&limit=1&service=crm', { headers: hdrs });
+    const ms = Date.now() - t0;
+    if (!r.ok) {
+      const err = await r.json().catch(()=>({}));
+      toast('❌ RD CRM HTTP ' + r.status + ': ' + (err.error || 'erro desconhecido'), 'err');
       return;
     }
-
-    if (data && data.error) {
-      toast('❌ Erro RD: ' + data.error, 'err');
-      return;
-    }
-
-    const count = data?.deals?.length || 0;
-    const hasMore = data?.has_more || false;
-    toast('✅ RD CRM OK (direto) - ' + count + ' deal(s) em ' + elapsed + 'ms. has_more=' + hasMore, 'ok');
-    console.log('[RD Debug Test] ✅ Direto Response:', data);
+    const d = await r.json();
+    const total = d.total || d.deals?.length || 0;
+    toast('✅ RD CRM OK — ' + total + ' negociações em ' + ms + 'ms', 'ok');
+    console.log('[RD Debug] ✅', d);
   } catch(e) {
     toast('❌ Falha na conexão: ' + e.message, 'err');
-    console.error('[RD Debug Test]', e);
+    console.error('[RD Debug]', e);
   }
 }
 
@@ -5456,35 +5423,27 @@ async function testConnectors() {
   const results = [];
   const c = S.connectors || {};
 
-  // ── Test RD CRM (via proxy — direto não funciona por CORS) ──
-  if (c.rd_crm_token) {
-    try {
-      const r = await fetch('/api/rd?path=/deals&limit=1&service=crm', {
-        headers: { 'X-RD-Token': c.rd_crm_token }
-      });
-      if (r.ok) {
-        const d = await r.json();
-        results.push('✅ RD CRM (' + (d.total||'ok') + ' deals)');
-      } else {
-        const err = await r.json().catch(()=>({}));
-        results.push('❌ RD CRM (' + (err.error||r.status) + ')');
-      }
-    } catch(e) { results.push('❌ RD CRM (' + e.message.slice(0,40) + ')'); }
-  } else {
-    results.push('⬜ RD CRM (sem token)');
-  }
+  // ── Test RD CRM (via proxy — usa env var token do Vercel) ──
+  try {
+    const hdrs = { 'Accept': 'application/json' };
+    if (c.rd_crm_token) hdrs['X-RD-Token'] = c.rd_crm_token;
+    const r = await fetch('/api/rd?path=/deals&limit=1&service=crm', { headers: hdrs });
+    if (r.ok) {
+      const d = await r.json();
+      results.push('✅ RD CRM (' + (d.total||'ok') + ' deals)');
+    } else {
+      const err = await r.json().catch(()=>({}));
+      results.push('❌ RD CRM (' + (err.error||r.status) + ')');
+    }
+  } catch(e) { results.push('❌ RD CRM (' + e.message.slice(0,40) + ')'); }
 
   // ── Test RD MKT ──
-  if (c.rd_mkt_token) {
-    try {
-      const r = await fetch('/api/rd?path=/platform/contacts&limit=1&service=mkt', {
-        headers: { 'X-RD-Token': c.rd_mkt_token }
-      });
-      results.push(r.ok ? '✅ RD MKT' : '❌ RD MKT (' + r.status + ')');
-    } catch(e) { results.push('❌ RD MKT (' + e.message.slice(0,40) + ')'); }
-  } else {
-    results.push('⬜ RD MKT (sem token)');
-  }
+  try {
+    const hdrs = { 'Accept': 'application/json' };
+    if (c.rd_mkt_token) hdrs['X-RD-Token'] = c.rd_mkt_token;
+    const r = await fetch('/api/rd?path=/platform/contacts&limit=1&service=mkt', { headers: hdrs });
+    results.push(r.ok ? '✅ RD MKT' : '❌ RD MKT (' + r.status + ')');
+  } catch(e) { results.push('❌ RD MKT (' + e.message.slice(0,40) + ')'); }
 
   // ── Test Google Gemini ──
   if (c.gemini_api_key) {
