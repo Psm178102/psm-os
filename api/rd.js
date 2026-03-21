@@ -47,22 +47,25 @@ module.exports = async (req, res) => {
     let url, tokenSource;
 
     if (service === 'mkt') {
+      // MKT: header token (OAuth) tem prioridade, env var como fallback
       const token = headerToken || process.env.RD_MKT_TOKEN || '';
       tokenSource = headerToken ? 'header' : (process.env.RD_MKT_TOKEN ? 'env' : 'none');
       if (!token) {
         return res.status(401).json({
-          error: 'Token RD Marketing não configurado',
-          hint: 'Configure RD_MKT_TOKEN nas Environment Variables do Vercel ou autorize via OAuth2.',
+          error: 'Token RD Marketing nao configurado',
+          hint: 'Conecte via OAuth em Configuracoes > Conectores, ou configure RD_MKT_TOKEN no Vercel.',
         });
       }
-      // RD MKT API v2 uses Bearer token in Authorization header (not query param)
-      url = 'https://api.rd.services' + path + (forwardParams.toString() ? '?' + forwardParams.toString() : '');
+      const qs = forwardParams.toString();
+      url = 'https://api.rd.services' + path + (qs ? '?' + qs : '');
+      req._mktBearerToken = token;
     } else {
-      const token = headerToken || process.env.RD_CRM_TOKEN || '';
-      tokenSource = headerToken ? 'header' : (process.env.RD_CRM_TOKEN ? 'env' : 'none');
+      // CRM: env var tem PRIORIDADE (token permanente), header como fallback
+      const token = process.env.RD_CRM_TOKEN || headerToken || '';
+      tokenSource = process.env.RD_CRM_TOKEN ? 'env' : (headerToken ? 'header' : 'none');
       if (!token) {
         return res.status(401).json({
-          error: 'Token RD CRM não configurado',
+          error: 'Token RD CRM nao configurado',
           hint: 'Configure RD_CRM_TOKEN nas Environment Variables do Vercel.',
         });
       }
@@ -71,10 +74,12 @@ module.exports = async (req, res) => {
     }
 
     const safeUrl = url.replace(/token=[^&]+/g, 'token=***');
-    console.log(`[RD Proxy] ${req.method} ${service}${path} (via ${tokenSource}) → ${safeUrl}`);
+    console.log('[RD Proxy] ' + req.method + ' ' + service + path + ' (via ' + tokenSource + ') -> ' + safeUrl);
 
     const fetchHeaders = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-    if (service === 'mkt') fetchHeaders['Authorization'] = 'Bearer ' + (headerToken || process.env.RD_MKT_TOKEN || '');
+    if (service === 'mkt' && req._mktBearerToken) {
+      fetchHeaders['Authorization'] = 'Bearer ' + req._mktBearerToken;
+    }
     const fetchOpts = {
       method: req.method || 'GET',
       headers: fetchHeaders,
@@ -85,7 +90,7 @@ module.exports = async (req, res) => {
 
     const resp = await httpsReq(url, fetchOpts);
 
-    console.log(`[RD Proxy] Response: ${resp.status} (${resp.body.length} bytes) via ${tokenSource}`);
+    console.log('[RD Proxy] Response: ' + resp.status + ' (' + resp.body.length + ' bytes) via ' + tokenSource);
 
     res.setHeader('X-Token-Source', tokenSource);
     res.setHeader('Content-Type', 'application/json');
@@ -95,7 +100,7 @@ module.exports = async (req, res) => {
     console.error('[RD Proxy] Exception:', err.message);
     return res.status(500).json({
       error: 'Erro no proxy RD: ' + err.message,
-      hint: 'Verifique se o token está correto e o RD Station está acessível.',
+      hint: 'Verifique se o token esta correto e o RD Station esta acessivel.',
     });
   }
 };
