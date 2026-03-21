@@ -4551,11 +4551,14 @@ function pgFormacao() {
     h += '<div style="font-size:10px;color:var(--g-tx);margin-top:4px;opacity:.8">Acesse a Área do Aluno para estudar</div>';
     h += '</div>';
   } else if(tab==='aluno'){
-    h += '<div style="text-align:center;padding:48px 24px;background:var(--cream2);border-radius:var(--radius);box-shadow:var(--sh);margin-bottom:24px">';
-    h += '<div style="font-size:48px;margin-bottom:16px">🎓</div>';
-    h += '<h2 style="color:var(--navy);margin:0 0 8px">Comunidade PSM</h2>';
-    h += '<p style="color:var(--muted);margin:0 0 24px;max-width:500px;display:inline-block">Acesse a plataforma de ensino Kiwify para assistir aulas, acompanhar seu progresso e interagir com outros corretores.</p>';
-    h += '<a href="https://members.kiwify.com/?club=ccdc35d2-08c0-47cd-8268-4bf2c30ca597" target="_blank" rel="noopener" style="display:inline-block;padding:14px 40px;background:var(--navy);color:var(--cream);border-radius:var(--radius);font-weight:700;font-size:16px;text-decoration:none;box-shadow:var(--sh);transition:all .2s">Abrir Área de Membros ↗</a>';
+    var kiwifyUrl = S.kiwifyUrl || 'https://members.kiwify.com/?club=ccdc35d2-08c0-47cd-8268-4bf2c30ca597';
+    h += '<div style="text-align:center;padding:48px 24px;background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:var(--radius);box-shadow:var(--sh2);margin-bottom:24px;position:relative;overflow:hidden">';
+    h += '<div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--gold),var(--gold2),var(--gold))"></div>';
+    h += '<div style="font-size:48px;margin-bottom:16px">\uD83C\uDF93</div>';
+    h += '<h2 style="color:var(--cream);margin:0 0 8px">Comunidade PSM</h2>';
+    h += '<p style="color:var(--cream4);margin:0 0 24px;max-width:500px;display:inline-block">Acesse a plataforma de aulas para assistir aos treinamentos, acompanhar seu progresso e se desenvolver como corretor PSM.</p>';
+    h += '<a href="' + kiwifyUrl + '" target="_blank" rel="noopener" style="display:inline-block;padding:14px 40px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--navy);border-radius:var(--radius);font-weight:700;font-size:16px;text-decoration:none;box-shadow:var(--sh2);transition:all .2s;letter-spacing:0.02em">Acessar Aulas \u2192</a>';
+    h += '<div style="margin-top:16px;font-size:11px;color:var(--cream4);opacity:.7">Ambiente seguro PSM \u2022 Visual integrado com PSM OS</div>';
     h += '</div>';
     h += '<h3 style="color:var(--navy);margin:24px 0 16px">📚 Módulos Disponíveis</h3>';
     mods.forEach(function(m,i){
