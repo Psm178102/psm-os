@@ -885,7 +885,7 @@ let S={
   user:null, loginError:'',
   page:'dashboard',period:'month',
   notifOpen:false,
-  ooLogs:{}, comissaoPct:6, driveUrl:'', mapaUrl:'', tabelas:[],
+  ooLogs:{}, comissaoPct:6, driveUrl:'https://drive.google.com/drive/folders/1cpJVIUxIyIi9C1XNIE-MeNrwRDOLnJSR', mapaUrl:'https://earth.google.com/earth/d/15bCIxsaicJySE2OT0yS8dZO7KqcwyJ8o?usp=sharing', tabelas:[], kiwifyUrl:'https://members.kiwify.com/f8f61699-1c0a-4021-ae47-eca807cf993a/20ab5c0b-aff7-4c87-a5c1-ccdce785aa15/86f2dad0-14c8-4a11-bea9-b515437aaea1?club=ccdc35d2-08c0-47cd-8268-4bf2c30ca597', formacaoProgress:{},
   // filters
   eqFrente:'all',crmFrente:'all',crmSla:'all',govF:'all',
   // date filters (ponto 4)
@@ -3871,38 +3871,972 @@ function saveDayOO(bid) {
 // ─── DRIVE PSM ───────────────────────────────────────────────────────────────
 function pgDrive() {
   const u = S.user; if (!u) return '';
-  const driveUrl = S.driveUrl || '';
   const lvl = RLVL[u.role] || 0;
-  return '<div class="phd"><h1>📁 Drive PSM</h1><p>Materiais, tabelas e documentos da equipe</p></div>'    + (lvl >= 7 ? '<div class="card mb2"><div class="ctitle">⚙️ Configurar Link do Drive</div>'      + '<input class="finp" type="url" placeholder="Cole o link do Google Drive aqui (ex: drive.google.com/...)" value="'+driveUrl+'"'      + ' oninput="S.driveUrl=this.value" style="width:100%;margin-bottom:8px">'      + '<button class="btn bp1" onclick="S.driveUrl=document.querySelector(\'.finp[placeholder*=Drive]\').value;toast(\'Link salvo!\',\'ok\');render()">Salvar Link</button>'      + '</div>' : '')    + (driveUrl ? '<div class="card" style="padding:0;overflow:hidden">'      + '<div style="padding:14px;border-bottom:1px solid var(--cream3);display:flex;align-items:center;gap:10px">'      + '<span style="font-size:22px">📁</span>'      + '<div><div style="font-weight:700;color:var(--navy)">Drive PSM Imóveis</div>'      + '<div style="font-size:12px;color:var(--muted)">Clique para acessar os materiais da equipe</div></div>'      + '</div>'      + '<div style="padding:14px">'      + '<a href="'+driveUrl+'" target="_blank" rel="noreferrer" class="btn bp1" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none">'      + '📁 Abrir Google Drive</a>'      + '<button class="btn bout" style="margin-left:8px" onclick="window.open(\''+driveUrl+'\',\'_blank\')">🔗 Nova aba</button>'      + '</div></div>'    : '<div class="card" style="text-align:center;padding:40px;color:var(--muted)">'      + '<div style="font-size:40px;margin-bottom:14px">📁</div>'      + '<div style="font-size:15px;font-weight:700;margin-bottom:8px">Drive não configurado</div>'      + '<div style="font-size:13px">Peça a um sócio para configurar o link do Drive PSM nas Configurações.</div>'      + '</div>');}
+  const DRIVE_ROOT = 'https://drive.google.com/drive/folders/1cpJVIUxIyIi9C1XNIE-MeNrwRDOLnJSR';
+  const driveUrl = S.driveUrl || DRIVE_ROOT;
+
+  // Directory structure - incorporadoras and their empreendimentos
+  if (!S.driveFolders) {
+    S.driveFolders = [
+      {name:'MRV', ico:'🏢', folders:['MRV Geral'], open:false},
+      {name:'Tenda', ico:'🏗️', folders:['Tenda Geral'], open:false},
+      {name:'Direcional', ico:'🏛️', folders:['Direcional Geral'], open:false},
+      {name:'Cury', ico:'🏠', folders:['Cury Geral'], open:false},
+      {name:'Plano&Plano', ico:'🏘️', folders:['Plano&Plano Geral'], open:false},
+    ];
+  }
+
+  const activeFolder = S.driveActiveFolder || 'Raiz PSM';
+  const searchTerm = S.driveSearch || '';
+
+  const embedUrl = driveUrl.replace('/drive/folders/', '/embeddedfolderview?id=').split('?')[0] + '#grid';
+
+  // Build folder tree
+  let folderTree = '<div style="margin-bottom:12px">'
+    + '<div onclick="S.driveActiveFolder=\'Raiz PSM\';S.driveUrl=\'\';render()" style="cursor:pointer;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;color:'+(activeFolder==='Raiz PSM'?'var(--navy)':'var(--muted)')+';background:'+(activeFolder==='Raiz PSM'?'var(--cream2)':'transparent')+';display:flex;align-items:center;gap:6px;transition:var(--transition)">'
+    + '📁 Raiz PSM</div>';
+
+  S.driveFolders.forEach((inc, idx) => {
+    folderTree += '<div>'
+      + '<div onclick="S.driveFolders['+idx+'].open=!S.driveFolders['+idx+'].open;render()" style="cursor:pointer;padding:7px 10px 7px 20px;font-size:12px;font-weight:600;color:var(--navy);display:flex;align-items:center;gap:6px;transition:var(--transition);border-radius:6px" onmouseover="this.style.background=\'var(--cream2)\'" onmouseout="this.style.background=\'transparent\'">'
+      + '<span style="font-size:10px;transition:transform .2s;transform:rotate('+(inc.open?'90':'0')+'deg)">▶</span>'
+      + '<span>'+inc.ico+'</span> '+inc.name+'</div>';
+    if (inc.open) {
+      inc.folders.forEach(f => {
+        folderTree += '<div onclick="S.driveActiveFolder=\''+f+'\';toast(\'Pasta: '+f+'\',\'ok\')" style="cursor:pointer;padding:5px 10px 5px 42px;font-size:11.5px;color:'+(activeFolder===f?'var(--b-tx)':'var(--muted)')+';font-weight:'+(activeFolder===f?'700':'400')+';border-radius:6px;transition:var(--transition)" onmouseover="this.style.background=\'var(--cream2)\'" onmouseout="this.style.background=\'transparent\'">'
+          + '📄 '+f+'</div>';
+      });
+    }
+    folderTree += '</div>';
+  });
+  folderTree += '</div>';
+
+  // Admin panel for adding folders
+  const adminPanel = lvl >= 5 ? '<div style="border-top:1px solid var(--cream3);padding-top:10px;margin-top:8px">'
+    + '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Gerenciar</div>'
+    + '<input id="drv-inc" class="finp" placeholder="Incorporadora" style="width:100%;margin-bottom:4px;font-size:11px;padding:6px 8px">'
+    + '<input id="drv-emp" class="finp" placeholder="Empreendimento" style="width:100%;margin-bottom:4px;font-size:11px;padding:6px 8px">'
+    + '<button class="btn bp1 bsm" style="width:100%;font-size:10px" onclick="addDriveFolder()">+ Adicionar</button>'
+    + '</div>' : '';
+
+  return '<div class="phd"><h1>📁 Drive PSM</h1><p>Materiais, tabelas e documentos organizados por incorporadora</p></div>'
+    + '<div style="display:grid;grid-template-columns:240px 1fr;gap:16px;height:calc(100vh - 180px)">'
+    // LEFT PANEL — folder tree
+    + '<div class="card" style="overflow-y:auto;padding:14px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Pastas</div>'
+    + '<input class="finp" placeholder="🔍 Buscar pasta..." style="width:100%;margin-bottom:10px;font-size:11px;padding:6px 8px" oninput="S.driveSearch=this.value">'
+    + folderTree
+    + adminPanel
+    + '</div>'
+    // RIGHT PANEL — Drive embed + actions
+    + '<div style="display:flex;flex-direction:column;gap:12px">'
+    + '<div class="card" style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'
+    + '<div style="display:flex;align-items:center;gap:8px">'
+    + '<span style="font-size:18px">📁</span>'
+    + '<div><div style="font-size:13px;font-weight:700;color:var(--navy)">'+activeFolder+'</div>'
+    + '<div style="font-size:10.5px;color:var(--muted)">Google Drive PSM Imóveis</div></div>'
+    + '</div>'
+    + '<div style="display:flex;gap:6px">'
+    + '<a href="'+driveUrl+'" target="_blank" rel="noreferrer" class="btn bp1 bsm" style="text-decoration:none;font-size:11px">↗ Abrir no Drive</a>'
+    + '<button class="btn bout bsm" style="font-size:11px" onclick="navigator.clipboard.writeText(\''+driveUrl+'\');toast(\'Link copiado!\',\'ok\')">📋 Copiar Link</button>'
+    + '</div></div>'
+    // iframe embed
+    + '<div class="card" style="flex:1;padding:0;overflow:hidden;border-radius:var(--radius)">'
+    + '<iframe src="'+embedUrl+'" style="width:100%;height:100%;border:none;min-height:500px" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>'
+    + '</div>'
+    + '</div></div>';
+}
+
+function addDriveFolder() {
+  const inc = document.getElementById('drv-inc')?.value?.trim();
+  const emp = document.getElementById('drv-emp')?.value?.trim();
+  if (!inc) { toast('Informe a incorporadora','warn'); return; }
+  S.driveFolders = S.driveFolders || [];
+  const existing = S.driveFolders.find(f => f.name.toLowerCase() === inc.toLowerCase());
+  if (existing) {
+    if (emp && !existing.folders.includes(emp)) {
+      existing.folders.push(emp);
+      toast('Empreendimento adicionado a '+inc+'!','ok');
+    } else if (!emp) {
+      toast('Incorporadora já existe','warn');
+    }
+  } else {
+    S.driveFolders.push({name:inc, ico:'🏢', folders: emp ? [emp] : [], open:true});
+    toast('Incorporadora '+inc+' adicionada!','ok');
+  }
+  render();
+}
 
 // ─── MAPA PSM ────────────────────────────────────────────────────────────────
 function pgMapa() {
   const u = S.user; if (!u) return '';
-  const mapaUrl = S.mapaUrl || '';
+  const EARTH_URL = 'https://earth.google.com/earth/d/15bCIxsaicJySE2OT0yS8dZO7KqcwyJ8o?usp=sharing';
+  const mapaUrl = S.mapaUrl || EARTH_URL;
   const lvl = RLVL[u.role] || 0;
-  return '<div class="phd"><h1>🗺️ Mapa PSM</h1><p>Mapa personalizado dos empreendimentos</p></div>'    + (lvl >= 7 ? '<div class="card mb2"><div class="ctitle">⚙️ Configurar Link do Mapa</div>'      + '<input class="finp" type="url" placeholder="Cole o link do Google Earth/Maps personalizado" value="'+mapaUrl+'"'      + ' oninput="S.mapaUrl=this.value" style="width:100%;margin-bottom:8px">'      + '<button class="btn bp1" onclick="S.mapaUrl=document.querySelector(\'.finp[placeholder*=Earth]\').value;toast(\'Link salvo!\',\'ok\');render()">Salvar Link</button>'      + '</div>' : '')    + (mapaUrl ? '<div class="card" style="padding:0;overflow:hidden">'      + '<div style="padding:14px;border-bottom:1px solid var(--cream3)">'      + '<div style="font-weight:700;color:var(--navy);margin-bottom:4px">🗺️ Mapa Personalizado PSM</div>'      + '<div style="font-size:12px;color:var(--muted)">Clique para abrir no Google Earth / Maps</div></div>'      + '<div style="padding:14px">'      + '<a href="'+mapaUrl+'" target="_blank" rel="noreferrer" class="btn bp1" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none">'      + '🗺️ Abrir Mapa</a></div></div>'    : '<div class="card" style="text-align:center;padding:40px;color:var(--muted)">'      + '<div style="font-size:40px;margin-bottom:14px">🗺️</div>'      + '<div style="font-size:15px;font-weight:700;margin-bottom:8px">Mapa não configurado</div>'      + '<div style="font-size:13px">Peça a um sócio para configurar o link do mapa personalizado.</div>'      + '</div>');}
+
+  // Pins data — empreendimentos mapeados
+  if (!S.mapPins) {
+    S.mapPins = [
+      {nome:'MRV — Parque das Flores', status:'Lançamento', cor:'var(--g)'},
+      {nome:'Tenda — Residencial Sol', status:'Em obras', cor:'var(--a)'},
+      {nome:'Direcional — Vila Nova', status:'Pronto', cor:'var(--b)'},
+      {nome:'Cury — Gran Vista', status:'Lançamento', cor:'var(--g)'},
+      {nome:'Plano&Plano — Jardim Real', status:'Em obras', cor:'var(--a)'},
+    ];
+  }
+
+  const statusColors = {'Lançamento':'var(--g)','Em obras':'var(--a)','Pronto':'var(--b)','Esgotado':'var(--r)'};
+
+  const pinsList = S.mapPins.map((p,i) =>
+    '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:var(--cream2)">'
+    + '<div style="width:10px;height:10px;border-radius:50%;background:'+p.cor+';flex-shrink:0"></div>'
+    + '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:var(--navy)">'+p.nome+'</div>'
+    + '<div style="font-size:10.5px;color:var(--muted)">'+p.status+'</div></div>'
+    + (lvl>=5?'<button class="btn bout bsm" style="font-size:9px" onclick="S.mapPins.splice('+i+',1);render()">✕</button>':'')
+    + '</div>'
+  ).join('');
+
+  const addPinForm = lvl >= 5 ? '<div style="border-top:1px solid var(--cream3);padding-top:10px;margin-top:10px">'
+    + '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">+ Adicionar Pin</div>'
+    + '<input id="pin-nome" class="finp" placeholder="Nome do empreendimento" style="width:100%;margin-bottom:4px;font-size:11px;padding:6px 8px">'
+    + '<select id="pin-status" class="sel-f" style="width:100%;margin-bottom:4px;font-size:11px;padding:6px 8px">'
+    + '<option>Lançamento</option><option>Em obras</option><option>Pronto</option><option>Esgotado</option></select>'
+    + '<button class="btn bp1 bsm" style="width:100%;font-size:10px" onclick="addMapPin()">+ Adicionar</button>'
+    + '</div>' : '';
+
+  return '<div class="phd"><h1>🗺️ Mapa PSM</h1><p>Todos os empreendimentos mapeados no Google Earth</p></div>'
+    + '<div style="display:grid;grid-template-columns:260px 1fr;gap:16px;height:calc(100vh - 180px)">'
+    // LEFT — legend + pins
+    + '<div class="card" style="overflow-y:auto;padding:14px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Empreendimentos</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'
+    + ['Lançamento','Em obras','Pronto','Esgotado'].map(s => '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)">'
+      + '<div style="width:8px;height:8px;border-radius:50%;background:'+statusColors[s]+'"></div>'+s+'</div>').join('')
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column;gap:6px">'+pinsList+'</div>'
+    + addPinForm
+    + '</div>'
+    // RIGHT — map
+    + '<div style="display:flex;flex-direction:column;gap:12px">'
+    + '<div class="card" style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'
+    + '<div style="display:flex;align-items:center;gap:8px">'
+    + '<span style="font-size:18px">🌍</span>'
+    + '<div><div style="font-size:13px;font-weight:700;color:var(--navy)">Google Earth — PSM Imóveis</div>'
+    + '<div style="font-size:10.5px;color:var(--muted)">'+S.mapPins.length+' empreendimentos mapeados</div></div>'
+    + '</div>'
+    + '<a href="'+mapaUrl+'" target="_blank" rel="noreferrer" class="btn bp1 bsm" style="text-decoration:none;font-size:11px">↗ Abrir no Earth</a>'
+    + '</div>'
+    + '<div class="card" style="flex:1;padding:0;overflow:hidden;border-radius:var(--radius);position:relative">'
+    + '<iframe src="'+mapaUrl+'" style="width:100%;height:100%;border:none;min-height:500px" loading="lazy" allow="geolocation" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>'
+    + '</div></div></div>';
+}
+
+function addMapPin() {
+  const nome = document.getElementById('pin-nome')?.value?.trim();
+  const status = document.getElementById('pin-status')?.value;
+  if (!nome) { toast('Informe o nome','warn'); return; }
+  const statusColors = {'Lançamento':'var(--g)','Em obras':'var(--a)','Pronto':'var(--b)','Esgotado':'var(--r)'};
+  S.mapPins = S.mapPins || [];
+  S.mapPins.push({nome, status, cor: statusColors[status] || 'var(--muted)'});
+  toast('Pin adicionado!','ok');
+  render();
+}
 
 // ─── TABELA PSM ───────────────────────────────────────────────────────────────
 function pgTabela() {
   const u = S.user; if (!u) return '';
   const lvl = RLVL[u.role] || 0;
-  const tabelas = S.tabelas || [];
-  return '<div class="phd"><h1>📋 Tabela PSM</h1><p>Produtos, tabelas e materiais dos empreendimentos</p></div>'    + (lvl >= 7 ? '<div class="card mb2"><div class="ctitle">➕ Adicionar Tabela/Material</div>'      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'      + '<input id="tab-nome" class="finp" placeholder="Nome (ex: Tabela Abril — Empreendimento X)">'      + '<input id="tab-url" class="finp" type="url" placeholder="Link (PDF, Drive, etc.)">'      + '</div>'      + '<button class="btn bp1" onclick="addTabela()">Adicionar</button>'      + '</div>' : '')    + '<div class="card"><div class="ctitle">📋 Materiais Disponíveis</div>'    + (tabelas.length === 0 ? '<div style="text-align:center;padding:30px;color:var(--muted)">Nenhum material cadastrado ainda.</div>'    : '<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">'      + tabelas.map((t,i) => '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--cream2);border-radius:8px">'        + '<div>'        + '<div style="font-size:13px;font-weight:700;color:var(--navy)">'+t.nome+'</div>'        + '<div style="font-size:11px;color:var(--muted)">'+t.data+'</div>'        + '</div>'        + '<div style="display:flex;gap:6px">'        + '<a href="'+t.url+'" target="_blank" rel="noreferrer" class="btn bp1 bsm" style="text-decoration:none">📄 Abrir</a>'        + (lvl>=7?'<button class="btn bout bsm" onclick="removeTabela('+i+')">🗑</button>':'')        + '</div></div>').join('')      + '</div>')    + '</div>';}
 
-function addTabela() {
-  const nome = document.getElementById('tab-nome')?.value?.trim();
-  const url  = document.getElementById('tab-url')?.value?.trim();
-  if (!nome || !url) { toast('Preencha nome e link', 'warn'); return; }
-  S.tabelas = S.tabelas || [];
-  S.tabelas.unshift({nome, url, data: new Date().toLocaleDateString('pt-BR')});
-  toast('Tabela adicionada!', 'ok');
+  // Initialize catalog data
+  if (!S.tabelaCatalog) {
+    S.tabelaCatalog = {
+      ref: '03/2026',
+      categorias: [
+        {id:'mcmv', nome:'Repasse Imediato — MCMV', cor:'#e8860c', ico:'🏠', badge:'PSM.CONQUISTA'},
+        {id:'outros', nome:'Repasse Imediato — Outros', cor:'#2c5282', ico:'🏢', badge:'PSM.IMÓVEIS'},
+        {id:'start', nome:'Start — Repasse Futuro', cor:'#2c5282', ico:'🚀', badge:'PSM.IMÓVEIS'},
+        {id:'plus', nome:'Plus — Repasse Futuro', cor:'#2c5282', ico:'⭐', badge:'PSM.IMÓVEIS'},
+        {id:'premium', nome:'Premium — Repasse Futuro', cor:'#2c5282', ico:'💎', badge:'PSM.IMÓVEIS'},
+        {id:'lote', nome:'Loteamentos & Condomínios', cor:'#2c5282', ico:'🏞️', badge:'PSM.IMÓVEIS'},
+      ],
+      imoveis: [
+        // ── MCMV ──
+        {cat:'mcmv',nome:'UNIQUE PALESTRA',inc:'INC',loc:'OESTE',m2:32.96,val:184800,aval:233024,entrega:'04/2028',dorms:'1',cond:'Financiamento Imediato + Parcelamento 60x',renda:'R$2.850/R$3.500'},
+        {cat:'mcmv',nome:'UNIQUE PALESTRA',inc:'INC',loc:'OESTE',m2:33,val:199900,aval:234024,entrega:'04/2028',dorms:'1',cond:'Financiamento Imediato + Parcelamento 60x',renda:'R$2.850/R$3.500'},
+        {cat:'mcmv',nome:'UNIQUE PALESTRA',inc:'INC',loc:'OESTE',m2:29,val:184800,aval:200396,entrega:'04/2028',dorms:'1',cond:'Financiamento Imediato + Parcelamento 60x',renda:'R$2.850/R$3.500'},
+        {cat:'mcmv',nome:'UNIQUE PALESTRA',inc:'INC',loc:'OESTE',m2:35.9,val:189900,aval:233322,entrega:'04/2028',dorms:'1',cond:'Financiamento Imediato + Parcelamento 60x',renda:'R$2.850/R$3.500'},
+        {cat:'mcmv',nome:'CASA UNICOS FLOR DO CAMPO',inc:'UNICOS',loc:'MIRASOL',m2:41,val:190000,aval:220000,entrega:'-',dorms:'2',cond:'Financiamento Imediato',renda:'R$3.500/R$3.800'},
+        {cat:'mcmv',nome:'RESIDENCIAL JARDIM DAS OLIVEIRAS',inc:'MRV',loc:'NORTE',m2:0,val:210190,aval:224300,entrega:'-',dorms:'2',cond:'Financiamento Imediato',renda:'R$3.700/R$4.000'},
+        {cat:'mcmv',nome:'VILA HARMONIA',inc:'RVE',loc:'NORTE',m2:39.5,val:225000,aval:264000,entrega:'11/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$4.700'},
+        {cat:'mcmv',nome:'SOLIS',inc:'LONGITUDE',loc:'MIRASSOL',m2:39.1,val:194000,aval:220000,entrega:'10/2027',dorms:'2',cond:'Financiamento Imediato + Entrada até 100x + Doc Grátis',renda:'R$3.500/R$3.800'},
+        {cat:'mcmv',nome:'ECO VIVA — MAIS PARQUE',inc:'EMAIS',loc:'LESTE',m2:44.4,val:214500,aval:243000,entrega:'11/2027',dorms:'2',cond:'Financiamento Imediato + Entrada até 90x',renda:'R$4.500'},
+        {cat:'mcmv',nome:'ECO VIVA — MAIS PARQUE',inc:'EMAIS',loc:'LESTE',m2:54,val:247500,aval:264000,entrega:'11/2027',dorms:'2',cond:'Financiamento Imediato + Entrada até 90x Doc Grátis',renda:'R$4.500'},
+        {cat:'mcmv',nome:'PARQUE RIO GRANDENA',inc:'MRV',loc:'LESTE',m2:39.3,val:255490,aval:279000,entrega:'02/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$5.800'},
+        {cat:'mcmv',nome:'RESIDENCIAL TREVISO',inc:'FAJ',loc:'BADY BASSIT',m2:44,val:216900,aval:220000,entrega:'-',dorms:'2',cond:'Financiamento Imediato',renda:'R$4.700'},
+        {cat:'mcmv',nome:'RESIDENCIAL VETORASSO',inc:'FAJ',loc:'NORTE',m2:44,val:219900,aval:240000,entrega:'-',dorms:'2',cond:'Financiamento Imediato',renda:'R$4.200'},
+        {cat:'mcmv',nome:'ECO VIVA — VISTA BELA',inc:'EMAIS',loc:'OESTE',m2:44.4,val:218170,aval:264000,entrega:'11/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$4.700'},
+        {cat:'mcmv',nome:'ECO VIVA — MAIS PARQUE',inc:'EMAIS',loc:'LESTE',m2:49.9,val:225900,aval:264000,entrega:'11/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$4.500'},
+        {cat:'mcmv',nome:'TREND',inc:'LONGITUDE',loc:'NORTE',m2:41,val:239900,aval:264000,entrega:'01/2028',dorms:'2',cond:'Financiamento Imediato + Entrada até 82x Doc Grátis',renda:'R$4.700'},
+        {cat:'mcmv',nome:'PARQUE SORRENTO',inc:'MRV',loc:'NORTE',m2:39.3,val:247990,aval:289700,entrega:'02/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$6.000'},
+        {cat:'mcmv',nome:'PARQUE RIO PORTUGAL',inc:'MRV',loc:'SUL',m2:39.3,val:256500,aval:262000,entrega:'ENTREGUE',dorms:'2',cond:'Financiamento Imediato',renda:'R$4.700'},
+        {cat:'mcmv',nome:'ECO VIVA — VISTA BELA',inc:'EMAIS',loc:'OESTE',m2:49.9,val:251170,aval:264000,entrega:'11/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$4.500'},
+        {cat:'mcmv',nome:'ECO VIVA — MAIS PARQUE',inc:'EMAIS',loc:'LESTE',m2:55.2,val:247500,aval:264000,entrega:'11/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$4.500'},
+        // ── MCMV Page 3 ──
+        {cat:'mcmv',nome:'TORRES CIDADE NORTE',inc:'RVE',loc:'NORTE',m2:51.7,val:301000,aval:321000,entrega:'02/2026',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'PALESTRA LIFE',inc:'INC',loc:'OESTE',m2:50.4,val:274900,aval:349299,entrega:'03/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'PALESTRA LIFE',inc:'INC',loc:'OESTE',m2:50.8,val:259900,aval:351035,entrega:'04/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'TREND',inc:'LONGITUDE',loc:'NORTE',m2:64,val:300070,aval:299000,entrega:'01/2028',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'BLISS OÁSIS',inc:'CITZ',loc:'NORTE',m2:49,val:321339,aval:327000,entrega:'12/2026',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'VALLE DOS COLIBIRIS',inc:'VITTA',loc:'NORTE',m2:47.9,val:255000,aval:315300,entrega:'01/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'VALLE DOS COLIBIRIS',inc:'VITTA',loc:'NORTE',m2:46.7,val:255000,aval:315300,entrega:'01/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'VALLE DOS COLIBIRIS',inc:'VITTA',loc:'NORTE',m2:48.1,val:255000,aval:315300,entrega:'01/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'NOVA SMART — 1ª FASE',inc:'RVE',loc:'LESTE',m2:52.4,val:305000,aval:381000,entrega:'08/2026',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'NOVA SMART — 1ª FASE',inc:'RVE',loc:'LESTE',m2:54.1,val:297000,aval:387000,entrega:'09/2026',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'TRINITA',inc:'VITTA',loc:'LESTE',m2:49.7,val:340000,entrega:'04/2026',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'BLISS OÁSIS',inc:'CITZ',loc:'NORTE',m2:56.9,val:320310,aval:353850,entrega:'12/2026',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'PALESTRA LIFE',inc:'INC',loc:'OESTE',m2:79.8,val:443804,aval:443804,entrega:'04/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$12.000'},
+        {cat:'mcmv',nome:'NOVA SMART — 3ª FASE',inc:'RVE',loc:'LESTE',m2:52.4,val:307000,aval:343000,entrega:'11/2027',dorms:'-',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'NOVA SMART — 3ª FASE',inc:'RVE',loc:'LESTE',m2:54.1,val:307000,aval:340000,entrega:'11/2027',dorms:'-',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'NOVA SMART — 2ª FASE',inc:'RVE',loc:'LESTE',m2:52.4,val:305000,aval:391000,entrega:'06/2026',dorms:'-',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'NOVA SMART — 2ª FASE',inc:'RVE',loc:'LESTE',m2:54.1,val:305000,aval:387000,entrega:'06/2027',dorms:'-',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'PIAVON',inc:'FAJ',loc:'NORTE',m2:39,val:219900,aval:237000,entrega:'-',dorms:'2',cond:'Financiamento Imediato',renda:'R$4.000'},
+        {cat:'mcmv',nome:'UPSIDE',inc:'INC',loc:'LESTE',m2:100,val:549900,aval:642000,entrega:'08/2025',dorms:'2',cond:'Financiamento Imediato',renda:''},
+        {cat:'mcmv',nome:'BLISS OÁSIS',inc:'CITZ',loc:'NORTE',m2:68.3,val:453200,aval:424200,entrega:'12/2026',dorms:'3',cond:'Financiamento Imediato',renda:''},
+        // ── OUTROS (Repasse Imediato) ──
+        {cat:'outros',nome:'CASAS JD VERSALHES',inc:'RNI',loc:'BADY BASSIT',m2:76.5,val:410000,aval:521126,entrega:'ENTREGUE',dorms:'3 GEMINADA',cond:'Financiamento Imediato',renda:'R$9.500'},
+        {cat:'outros',nome:'CASAS JD VERSALHES',inc:'RNI',loc:'BADY BASSIT',m2:60.23,val:320000,aval:401802,entrega:'ENTREGUE',dorms:'2 GEMINADA',cond:'Financiamento Imediato',renda:'R$8.800'},
+        {cat:'outros',nome:'CASAS JD VERSALHES',inc:'RNI',loc:'BADY BASSIT',m2:77.5,val:480000,aval:525993,entrega:'ENTREGUE',dorms:'3',cond:'Financiamento Imediato',renda:'R$12.000'},
+        {cat:'outros',nome:'FENHOUSE',inc:'FENHOUSE',loc:'LESTE',m2:88,val:480000,entrega:'ENTREGUE',dorms:'3',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'PARQUE LOMBARDIA',inc:'MRV',loc:'LESTE',m2:92.3,val:620000,aval:620000,entrega:'ENTREGUE',dorms:'3',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'SMART ONE',inc:'FEX',loc:'SUL',m2:69.9,val:530000,entrega:'ENTREGUE',dorms:'2',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'HYPE 017',inc:'GERETTI',loc:'SUL',m2:40,val:555500,entrega:'ENTREGUE',dorms:'1 (STUDIO)',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'RAIZES IMPPERIAL',inc:'IMPPER',loc:'BADY BASSIT',m2:104.9,val:586700,entrega:'ENTREGUE',dorms:'2',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'MEET',inc:'BILD',loc:'SUL',m2:48,val:486000,aval:572882,entrega:'ENTREGUE',dorms:'1 (studio)',cond:'Financiamento Imediato',renda:''},
+        // ── OUTROS page 5 ──
+        {cat:'outros',nome:'RAIZES IMPPERIAL',inc:'IMPPER',loc:'BADY BASSIT',m2:123,val:749524,entrega:'ENTREGUE',dorms:'3',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'RAIZES IMPPERIAL',inc:'IMPPER',loc:'BADY BASSIT',m2:104,val:617242,entrega:'ENTREGUE',dorms:'2',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'MEET',inc:'BILD',loc:'SUL',m2:67.5,val:612000,entrega:'ENTREGUE',dorms:'2',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'MEET',inc:'BILD',loc:'SUL',m2:78.5,val:720356,entrega:'ENTREGUE',dorms:'3',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'GEORGINA BUSINESS PARK — SETOR OCEANIA',inc:'HDAUFF',loc:'SUL',m2:62.8,val:763300,entrega:'ENTREGUE',dorms:'2',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'MIRÁ JK',inc:'LUPEMA',loc:'SUL',m2:71.8,val:829000,entrega:'ENTREGUE',dorms:'2',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'TERRACE',inc:'LUPEMA',loc:'SUL',m2:81.7,val:884000,entrega:'ENTREGUE',dorms:'3',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'TIME',inc:'GARETTI',loc:'SUL',m2:98,val:993000,entrega:'ENTREGUE',dorms:'3S',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'TERRACE',inc:'LUPEMA',loc:'SUL',m2:81.7,val:884000,entrega:'ENTREGUE',dorms:'3',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'TIME',inc:'GARETTI',loc:'SUL',m2:98,val:993000,entrega:'ENTREGUE',dorms:'3S',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'HUBLOT',inc:'JRC',loc:'SUL',m2:48,val:419000,entrega:'ENTREGUE',dorms:'1',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'TERRACE RESIDENCE',inc:'LUPEMA',loc:'SUL',m2:81.73,val:930240,entrega:'ENTREGUE',dorms:'2S',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'PLAZA CORPORATE',inc:'GARETTI',loc:'SUL',m2:60,val:652020,entrega:'ENTREGUE',dorms:'SALA COMERCIAL',cond:'Financiamento Imediato',renda:''},
+        {cat:'outros',nome:'PÁTIO PITANGUEIRAS',inc:'HUGO ENGENHARIA',loc:'SUL',m2:94.4,val:1002200,entrega:'03/2026',dorms:'3',cond:'Financiamento Imediato',renda:''},
+        // ── START ──
+        {cat:'start',nome:'OLYMPEA',inc:'JRC',loc:'SUL',m2:61.78,val:518700,fluxo:'30/70',ato:'6%',entrega:'07/2029',dorms:'2',cond:'Repasse Futuro',meses:40},
+        {cat:'start',nome:'QUINTA DAS AMORAS',inc:'TARRAF',loc:'LESTE',m2:46,val:264500,fluxo:'20/80',ato:'7.2%',entrega:'08/2027',dorms:'2',cond:'Repasse Futuro',meses:17},
+        {cat:'start',nome:'PLATZ BY TARRAF',inc:'TARRAF',loc:'SUL',m2:27,val:413800,entrega:'03/2026 + 180 dias',dorms:'1',cond:'Repasse Futuro',meses:4},
+        {cat:'start',nome:'QUINTA DAS AMORAS',inc:'TARRAF',loc:'LESTE',m2:52,val:391686,fluxo:'20/80',ato:'7.2%',entrega:'08/2027',dorms:'2',cond:'Repasse Futuro',meses:17},
+        {cat:'start',nome:'CONNECT IMPPER',inc:'IMPPER',loc:'CENTRAL',m2:58.3,val:470460,fluxo:'20/80',ato:'7%',entrega:'03/2027',dorms:'2',cond:'Repasse Futuro',meses:11},
+        {cat:'start',nome:'CONNECT IMPPER',inc:'IMPPER',loc:'CENTRAL',m2:54.1,val:420110,fluxo:'20/80',ato:'7%',entrega:'02/2027',dorms:'2',cond:'Repasse Futuro',meses:11},
+        {cat:'start',nome:'VIBE RESIDENCE',inc:'GARETTI',loc:'SUL',m2:40,val:439053,fluxo:'20/80',ato:'10%',entrega:'08/2026 (180 DIAS)',dorms:'1 (STUDIO)',cond:'Repasse Futuro',meses:3},
+        {cat:'start',nome:'CONNECT IMPPER',inc:'IMPPER',loc:'CENTRAL',m2:64.4,val:501533,fluxo:'20/80',ato:'7%',entrega:'03/2027',dorms:'2',cond:'Repasse Futuro',meses:11},
+        {cat:'start',nome:'IPANEMA PRAIAS',inc:'TARRAF',loc:'SUL',m2:41,val:483664,fluxo:'20/80',ato:'6%',entrega:'07/2026',dorms:'1 (STUDIO)',cond:'Repasse Futuro',meses:10},
+        {cat:'start',nome:'CONNECT IMPPER',inc:'IMPPER',loc:'CENTRAL',m2:66.3,val:516330,fluxo:'20/80',ato:'7%',entrega:'03/2027',dorms:'2',cond:'Repasse Futuro',meses:11},
+        {cat:'start',nome:'CUBO 123',inc:'GARETTI',loc:'SUL',m2:35,val:451564,fluxo:'25/75',ato:'7%',entrega:'02/2027',dorms:'1 (STUDIO)',cond:'Repasse Futuro',meses:11},
+        {cat:'start',nome:'SKY REDENTORA',inc:'STEPHANNIE NOGUEIRA',loc:'CENTRAL',m2:63.9,val:506780,fluxo:'25/75',ato:'9%',entrega:'11/2029',dorms:'2',cond:'Repasse Futuro',meses:44},
+        {cat:'start',nome:'SKY REDENTORA',inc:'STEPHANNIE NOGUEIRA',loc:'CENTRAL',m2:82.23,val:646810,fluxo:'25/75',ato:'9%',entrega:'11/2029',dorms:'3',cond:'Repasse Futuro',meses:44},
+        {cat:'start',nome:'SKY REDENTORA',inc:'STEPHANNIE NOGUEIRA',loc:'CENTRAL',m2:122.48,val:788292,fluxo:'25/75',ato:'9%',entrega:'11/2029',dorms:'3',cond:'Repasse Futuro',meses:44},
+        {cat:'start',nome:'PLATZ BY TARRAF',inc:'TARRAF',loc:'SUL',m2:35,val:470000,entrega:'03/2026 + 180 DIAS',dorms:'1 (STUDIO)',cond:'Repasse Futuro',meses:4},
+        {cat:'start',nome:'JAZZ RESIDENCIAL',inc:'KARVAS',loc:'SUL',m2:67.3,val:541000,fluxo:'30/70',ato:'10%',entrega:'09/2026',dorms:'2',cond:'Repasse Futuro',meses:7},
+        {cat:'start',nome:'JAZZ RESIDENCIAL',inc:'KARVAS',loc:'SUL',m2:69,val:563000,fluxo:'30/70',ato:'10%',entrega:'09/2026',dorms:'2',cond:'Repasse Futuro',meses:7},
+        {cat:'start',nome:'SINNI 551',inc:'LUPEMA',loc:'SUL',m2:58.5,val:567200,fluxo:'43/57',ato:'5%',entrega:'08/2029',dorms:'2',cond:'Repasse Futuro',meses:41},
+        {cat:'start',nome:'THE CITY',inc:'BILD',loc:'LESTE',m2:34.06,val:511347,fluxo:'30/70',ato:'6%',entrega:'02/2029',dorms:'SALA COMERCIAL',cond:'Repasse Futuro',meses:35},
+        {cat:'start',nome:'VIVEN',inc:'BILD',loc:'SUL',m2:59.95,val:555071,fluxo:'25/75',ato:'8%',entrega:'10/2027',dorms:'2',cond:'Repasse Futuro',meses:19},
+        {cat:'start',nome:'THE CITY',inc:'BILD',loc:'LESTE',m2:36.36,val:535192,fluxo:'30/70',ato:'6%',entrega:'02/2029',dorms:'SALA COMERCIAL',cond:'Repasse Futuro',meses:35},
+        {cat:'start',nome:'PALESTRA LIFE',inc:'INC',loc:'OESTE',m2:100.4,val:541520,entrega:'04/2027',dorms:'3',cond:'Repasse Imediato',meses:13},
+        // ── PLUS ──
+        {cat:'plus',nome:'BOULEVARD TOWERS',inc:'HUGO',loc:'SUL',m2:69,val:595340,fluxo:'25/75',ato:'6%',entrega:'06/2027',dorms:'2',cond:'Repasse Futuro',meses:15},
+        {cat:'plus',nome:'LINE — SEGUNDA FASE',inc:'IMPPER',loc:'LESTE',m2:108,val:636303,fluxo:'25/75',ato:'5%',entrega:'04/2029',dorms:'3',cond:'Repasse Futuro',meses:37},
+        {cat:'plus',nome:'VIVEN',inc:'BILD',loc:'SUL',m2:69.4,val:653153,fluxo:'25/75',ato:'8%',entrega:'04/2027',dorms:'2',cond:'Repasse Futuro',meses:19},
+        {cat:'plus',nome:'SINNI 551',inc:'LUPEMA',loc:'SUL',m2:65.5,val:607200,fluxo:'43/57',ato:'5%',entrega:'08/2029',dorms:'2',cond:'Repasse Futuro',meses:41},
+        {cat:'plus',nome:'MATIZ',inc:'HUGO FABRI',loc:'SUL',m2:75,val:780000,fluxo:'30/70',ato:'5%',entrega:'06/2029',dorms:'2S',cond:'Repasse Futuro',meses:41},
+        {cat:'plus',nome:'MATIZ',inc:'HUGO FABRI',loc:'SUL',m2:66,val:626000,fluxo:'30/70',ato:'5%',entrega:'06/2029',dorms:'2',cond:'Repasse Futuro',meses:41},
+        {cat:'plus',nome:'JAZZ RESIDENCIAL',inc:'KARVAS',loc:'SUL',m2:80,val:704000,fluxo:'30/70',ato:'10%',entrega:'09/2026',dorms:'3',cond:'Repasse Futuro',meses:7},
+        {cat:'plus',nome:'BOULEVARD TOWERS',inc:'HUGO',loc:'SUL',m2:73,val:814678,fluxo:'25/75',ato:'6%',entrega:'06/2027',dorms:'2',cond:'Repasse Futuro',meses:15},
+        {cat:'plus',nome:'SINNI 551',inc:'LUPEMA',loc:'SUL',m2:81.5,val:725800,fluxo:'43/57',ato:'5%',entrega:'08/2029',dorms:'3',cond:'Repasse Futuro',meses:41},
+        {cat:'plus',nome:'VERSO JK',inc:'LUPEMA',loc:'SUL',m2:66.7,val:689000,fluxo:'26.5/73.5',ato:'5%',entrega:'11/2026',dorms:'2',cond:'Repasse Futuro',meses:8},
+        {cat:'plus',nome:'INFINITY',inc:'TARRAF',loc:'SUL',m2:47.11,val:785960,fluxo:'40/60',ato:'10%',entrega:'07/2029',dorms:'SALA COMERCIAL',cond:'Repasse Futuro',meses:40},
+        {cat:'plus',nome:'INFINITY',inc:'TARRAF',loc:'SUL',m2:43,val:734795,fluxo:'40/60',ato:'10%',entrega:'07/2029',dorms:'SALA COMERCIAL',cond:'Repasse Futuro',meses:40},
+        {cat:'plus',nome:'IPANEMA PRAIAS',inc:'TARRAF',loc:'SUL',m2:67.6,val:629127,fluxo:'20/80',ato:'6%',entrega:'07/2026',dorms:'2',cond:'Repasse Futuro',meses:4},
+        {cat:'plus',nome:'THE CITY',inc:'BILD',loc:'LESTE',m2:48,val:735975,fluxo:'30/70',ato:'6%',entrega:'02/2029',dorms:'SALA COMERCIAL',cond:'Repasse Futuro',meses:35},
+        {cat:'plus',nome:'VERSO JK',inc:'LUPEMA',loc:'SUL',m2:71,val:729900,fluxo:'26.5/73.5',ato:'5%',entrega:'11/2026',dorms:'2',cond:'Repasse Futuro',meses:8},
+        {cat:'plus',nome:'LEGACY COMERCIAL',inc:'IMPPER',loc:'SUL',m2:52.8,val:772530,fluxo:'40/60',ato:'9%',entrega:'09/2028',dorms:'SALA COMERCIAL',cond:'Repasse Futuro',meses:30},
+        {cat:'plus',nome:'GEORGINA BUSINESS — SETOR AMERICA',inc:'HDAUFF',loc:'SUL',m2:50.2,val:765625,fluxo:'30/70',ato:'10%',entrega:'06/2028',dorms:'SALA COMERCIAL',cond:'Repasse Futuro',meses:27},
+        {cat:'plus',nome:'PRIME',inc:'IMPPER',loc:'LESTE',m2:132.88,val:792690,fluxo:'25/75',ato:'5%',entrega:'01/2029',dorms:'3',cond:'Repasse Futuro',meses:34},
+        {cat:'plus',nome:'BOULEVARD TOWERS',inc:'HUGO',loc:'SUL',m2:82.5,val:785735,fluxo:'25/75',ato:'6%',entrega:'06/2027',dorms:'3',cond:'Repasse Futuro',meses:15},
+        // ── PLUS page 8 ──
+        {cat:'plus',nome:'VERSO JK',inc:'LUPEMA',loc:'SUL',m2:86.6,val:879200,fluxo:'26.5/73.5',ato:'5%',entrega:'11/2026',dorms:'3',cond:'Repasse Futuro',meses:8},
+        {cat:'plus',nome:'VIVEN',inc:'BILD',loc:'SUL',m2:95.8,val:875397,fluxo:'25/75',ato:'8%',entrega:'04/2027',dorms:'3',cond:'Repasse Futuro',meses:19},
+        {cat:'plus',nome:'LEGACY',inc:'IMPPER',loc:'SUL',m2:84,val:913828,fluxo:'25/75',ato:'7%',entrega:'09/2028',dorms:'2S',cond:'Repasse Futuro',meses:30},
+        {cat:'plus',nome:'LEGACY',inc:'IMPPER',loc:'SUL',m2:104,val:1058000,fluxo:'25/75',ato:'77%',entrega:'09/2028',dorms:'3',cond:'Repasse Futuro',meses:30},
+        {cat:'plus',nome:'CUBO 123',inc:'GARETTI',loc:'SUL',m2:70,val:903128,fluxo:'25/75',ato:'7%',entrega:'02/2027',dorms:'2',cond:'Repasse Futuro',meses:11},
+        {cat:'plus',nome:'COPACABANA',inc:'TARRAF',loc:'SUL',m2:103.2,val:1061068,fluxo:'20/80',ato:'6%',entrega:'06/2026',dorms:'3S',cond:'Repasse Futuro',meses:3},
+        {cat:'plus',nome:'HORIZON',inc:'LUPEMA',loc:'SUL',m2:87,val:939000,fluxo:'30/70',ato:'5%',entrega:'07/2029',dorms:'2S',cond:'Repasse Futuro',meses:40},
+        {cat:'plus',nome:'RESERVA IMPERIAL',inc:'IMPPER',loc:'MIRASSOL',m2:140.1,val:813192,fluxo:'20/80',ato:'5%',entrega:'10/2026',dorms:'3S',cond:'Repasse Futuro',meses:7},
+        {cat:'plus',nome:'VIVEN',inc:'BILD',loc:'SUL',m2:85.4,val:817712,fluxo:'25/75',ato:'8%',entrega:'04/2027',dorms:'3',cond:'Repasse Futuro',meses:19},
+        // ── PREMIUM ──
+        {cat:'premium',nome:'LEGACY COMERCIAL',inc:'IMPPER',loc:'SUL',m2:85,val:1223000,entrega:'08/2028',dorms:'-',cond:'Repasse Futuro',meses:0},
+        {cat:'premium',nome:'CUBO 123',inc:'GARETTI',loc:'SUL',m2:105,val:1317900,entrega:'02/2027',dorms:'3',cond:'Repasse Futuro',meses:0},
+        {cat:'premium',nome:'MONREAL',inc:'TARRAF',loc:'SUL',m2:140,val:1509650,fluxo:'14.1/85.9',ato:'6%',entrega:'03/2026 (180 DIAS)',dorms:'3S',cond:'Repasse Futuro',meses:0},
+        {cat:'premium',nome:'LEGACY COMERCIAL',inc:'IMPPER',loc:'SUL',m2:119,val:1992000,entrega:'08/2028',dorms:'-',cond:'Repasse Futuro',meses:0},
+        {cat:'premium',nome:'LEGACY COMERCIAL',inc:'IMPPER',loc:'SUL',m2:141,val:2030000,entrega:'08/2028',dorms:'-',cond:'Repasse Futuro',meses:0},
+        // ── LOTEAMENTOS ──
+        {cat:'lote',nome:'LOTEAMENTO LAGO SUL 2',inc:'HDAUFF',loc:'BADY BASSIT',m2:150,val:45000,entrega:'ENTREGUE',dorms:'',cond:'Direto com a Incorporadora',planos:'36x/48/60/120/180/220'},
+        {cat:'lote',nome:'LOTEAMENTO LAGO SUL 1',inc:'HDAUFF',loc:'BADY BASSIT',m2:150,val:45000,entrega:'ENTREGUE',dorms:'',cond:'Direto com a Incorporadora',planos:'36x/48/60/120/180/220'},
+        {cat:'lote',nome:'LOTEAMENTO FLOR DO CAMPO',inc:'UNICOS',loc:'MIRASSOL',m2:197.27,val:67711,entrega:'',dorms:'',cond:'Direto com a Incorporadora',planos:'Sem correção: 12/24/36'},
+        {cat:'lote',nome:'LOTEAMENTO LAGO SUL 2',inc:'HDAUFF',loc:'BADY BASSIT',m2:246,val:73800,entrega:'ENTREGUE',dorms:'',cond:'Direto com a Incorporadora',planos:'36x/48/60/120/180/220'},
+        {cat:'lote',nome:'LOTEAMENTO FLOR DO CAMPO',inc:'UNICOS',loc:'MIRASSOL',m2:200,val:79930,entrega:'',dorms:'',cond:'Direto com a Incorporadora',planos:'Sem correção: 12/24/36'},
+        {cat:'lote',nome:'LOTEAMENTO VILA PARECIS',inc:'FAJ',loc:'OESTE',m2:200,val:80000,entrega:'',dorms:'',cond:'Direto com a Incorporadora',planos:''},
+        {cat:'lote',nome:'MONTECRISTO',inc:'UNICOS',loc:'LESTE',m2:206,val:119083,entrega:'ENTREGUE',dorms:'',cond:'Direto com a Incorporadora',planos:'12 FIXO / 24 IGPM'},
+        {cat:'lote',nome:'BIOCITY CLUB',inc:'UNICOS',loc:'LESTE',m2:264,val:241493,entrega:'03/2027',dorms:'',cond:'Direto com a Incorporadora',planos:'12 até 36 FIXA'},
+        {cat:'lote',nome:'QUINTA DO LAGO 4 LAKE VICTORIA',inc:'CONCRETIZA',loc:'LESTE',m2:300,val:229000,entrega:'',dorms:'',cond:'Direto com a Incorporadora',planos:'12 FIXO + IPCA'},
+        {cat:'lote',nome:'QUINTA DO LESTE',inc:'UNICOS',loc:'LESTE',m2:200,val:92000,entrega:'',dorms:'',cond:'Direto com a Incorporadora',planos:'Até 24 FIXO / 36 IPCA'},
+        {cat:'lote',nome:'LE VERT',inc:'CONCRETIZA',loc:'SUL',m2:405,val:697545,entrega:'ENTREGUE',dorms:'',cond:'Direto com a Incorporadora',planos:'IPCA'},
+        {cat:'lote',nome:'HACIENDA ESMERALDA',inc:'COSTANTINI',loc:'SUL',m2:407.4,val:977760,entrega:'07/2028',dorms:'',cond:'Direto com a Incorporadora',planos:'12/24 FIXO / 36 IPCA'},
+        {cat:'lote',nome:'QUINTA DO GOLFE RESERVA',inc:'HDAUFF',loc:'SUL',m2:494.4,val:1216800,entrega:'ENTREGUE',dorms:'',cond:'Direto com a Incorporadora',planos:''},
+        {cat:'lote',nome:'QUINTA DO GOLFE HORIZONTES',inc:'HDAUFF',loc:'SUL',m2:1521,val:3744800,entrega:'ENTREGUE',dorms:'',cond:'Direto com a Incorporadora',planos:''},
+      ]
+    };
+  }
+
+  const cat = S.tabelaCat || 'mcmv';
+  const search = S.tabelaSearch || '';
+  const filterInc = S.tabelaInc || 'all';
+  const filterLoc = S.tabelaLoc || 'all';
+  const sortBy = S.tabelaSort || 'val';
+  const sortDir = S.tabelaSortDir || 'asc';
+  const catalog = S.tabelaCatalog;
+
+  // Filter items
+  let items = catalog.imoveis.filter(i => i.cat === cat);
+  if (search) {
+    const s = search.toLowerCase();
+    items = items.filter(i => i.nome.toLowerCase().includes(s) || (i.inc||'').toLowerCase().includes(s));
+  }
+  if (filterInc !== 'all') items = items.filter(i => i.inc === filterInc);
+  if (filterLoc !== 'all') items = items.filter(i => i.loc === filterLoc);
+
+  // Sort
+  items.sort((a,b) => {
+    const av = a[sortBy] || 0, bv = b[sortBy] || 0;
+    return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+  });
+
+  // Stats
+  const allCatItems = catalog.imoveis.filter(i => i.cat === cat);
+  const totalVGV = allCatItems.reduce((a,i) => a + (i.val||0), 0);
+  const avgVal = allCatItems.length ? totalVGV / allCatItems.length : 0;
+  const minVal = allCatItems.length ? Math.min(...allCatItems.map(i => i.val||Infinity)) : 0;
+  const maxVal = allCatItems.length ? Math.max(...allCatItems.map(i => i.val||0)) : 0;
+
+  // Unique incorporadoras and locations for filters
+  const incs = [...new Set(allCatItems.map(i => i.inc))].sort();
+  const locs = [...new Set(allCatItems.map(i => i.loc))].sort();
+
+  const activeCat = catalog.categorias.find(c => c.id === cat) || catalog.categorias[0];
+
+  const fmt = v => v ? 'R$ ' + v.toLocaleString('pt-BR') : '-';
+
+  // Category tabs
+  const tabs = catalog.categorias.map(c => {
+    const count = catalog.imoveis.filter(i => i.cat === c.id).length;
+    return '<button class="btn '+(cat===c.id?'bp1':'bout')+' bsm" style="font-size:10.5px;white-space:nowrap" onclick="S.tabelaCat=\''+c.id+'\';S.tabelaInc=\'all\';S.tabelaLoc=\'all\';S.tabelaSearch=\'\';render()">'
+      + c.ico + ' ' + c.nome.split('—')[0].trim() + ' <span style="opacity:.6">('+count+')</span></button>';
+  }).join('');
+
+  // Table rows
+  const isRepasse = cat === 'start' || cat === 'plus' || cat === 'premium';
+  const isLote = cat === 'lote';
+
+  const rows = items.map(i => {
+    const valColor = i.val >= 500000 ? 'var(--pu-tx)' : i.val >= 300000 ? 'var(--b-tx)' : 'var(--g-tx)';
+    let cols = '<td style="font-weight:700;color:var(--navy);max-width:200px">'+i.nome+'</td>'
+      + '<td>'+i.inc+'</td>'
+      + '<td>'+i.loc+'</td>'
+      + '<td>'+(i.m2||'-')+'</td>'
+      + '<td style="font-weight:700;color:'+valColor+'">'+fmt(i.val)+'</td>';
+
+    if (isRepasse) {
+      cols += '<td>'+(i.fluxo||'-')+'</td><td>'+(i.ato||'-')+'</td>';
+    }
+    if (!isLote) {
+      cols += '<td>'+(i.entrega||'-')+'</td><td>'+(i.dorms||'-')+'</td>';
+    }
+    if (isRepasse) {
+      cols += '<td>'+(i.meses ? i.meses+' meses' : '-')+'</td>';
+    }
+    if (isLote) {
+      cols += '<td>'+(i.entrega||'-')+'</td><td style="font-size:10px;max-width:150px">'+(i.planos||'-')+'</td>';
+    }
+    if (!isRepasse && !isLote) {
+      cols += '<td style="font-size:10px">'+(i.renda||'-')+'</td>';
+    }
+    cols += '<td style="font-size:10px;max-width:120px">'+(i.cond||'-')+'</td>';
+    return '<tr style="border-bottom:1px solid var(--cream3)">'+cols+'</tr>';
+  }).join('');
+
+  // Header columns
+  let headers = '<th>Empreendimento</th><th>Incorporadora</th><th>Localização</th><th>M²</th><th>Valor</th>';
+  if (isRepasse) headers += '<th>Fluxo</th><th>Ato</th>';
+  if (!isLote) headers += '<th>Entrega</th><th>Dorms</th>';
+  if (isRepasse) headers += '<th>Meses Rest.</th>';
+  if (isLote) headers += '<th>Entrega</th><th>Planos</th>';
+  if (!isRepasse && !isLote) headers += '<th>Renda</th>';
+  headers += '<th>Condição</th>';
+
+  return '<div class="phd"><h1>📋 Tabela PSM — Catálogo de Lançamentos</h1>'
+    + '<p>Referência: '+catalog.ref+' · '+catalog.imoveis.length+' imóveis disponíveis</p></div>'
+    // Stats
+    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">'
+    + '<div class="card" style="padding:14px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">Imóveis</div><div style="font-size:22px;font-weight:800;color:var(--navy)">'+allCatItems.length+'</div></div>'
+    + '<div class="card" style="padding:14px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">Valor Médio</div><div style="font-size:16px;font-weight:800;color:var(--b-tx)">'+fmt(Math.round(avgVal))+'</div></div>'
+    + '<div class="card" style="padding:14px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">Menor Valor</div><div style="font-size:16px;font-weight:800;color:var(--g-tx)">'+fmt(minVal)+'</div></div>'
+    + '<div class="card" style="padding:14px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">Maior Valor</div><div style="font-size:16px;font-weight:800;color:var(--pu-tx)">'+fmt(maxVal)+'</div></div>'
+    + '</div>'
+    // Category tabs
+    + '<div class="card mb2" style="padding:8px;display:flex;gap:4px;flex-wrap:wrap;overflow-x:auto">'+tabs+'</div>'
+    // Filters
+    + '<div class="card mb2" style="padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+    + '<input class="finp" placeholder="🔍 Buscar empreendimento ou incorporadora..." value="'+search+'" oninput="S.tabelaSearch=this.value;render()" style="flex:1;min-width:200px;font-size:12px;padding:7px 10px">'
+    + '<select class="sel-f" style="font-size:11px" onchange="S.tabelaInc=this.value;render()"><option value="all">Todas Incorporadoras</option>'
+    + incs.map(i => '<option value="'+i+'"'+(filterInc===i?' selected':'')+'>'+i+'</option>').join('') + '</select>'
+    + '<select class="sel-f" style="font-size:11px" onchange="S.tabelaLoc=this.value;render()"><option value="all">Todas Localizações</option>'
+    + locs.map(l => '<option value="'+l+'"'+(filterLoc===l?' selected':'')+'>'+l+'</option>').join('') + '</select>'
+    + '<div style="font-size:11px;color:var(--muted);font-weight:600">'+items.length+' resultados</div>'
+    + '</div>'
+    // Table
+    + '<div class="card" style="padding:0;overflow:auto;max-height:calc(100vh - 420px)">'
+    + '<table style="width:100%;border-collapse:collapse;font-size:11.5px">'
+    + '<thead><tr style="background:'+activeCat.cor+';color:#fff;position:sticky;top:0;z-index:2">'
+    + headers.replace(/<th>/g,'<th style="padding:8px 10px;text-align:left;font-size:10.5px;font-weight:700;white-space:nowrap">')
+    + '</tr></thead>'
+    + '<tbody>' + (rows || '<tr><td colspan="10" style="padding:30px;text-align:center;color:var(--muted)">Nenhum imóvel encontrado</td></tr>') + '</tbody>'
+    + '</table></div>'
+    + '<div style="margin-top:8px;font-size:10px;color:var(--muted);font-style:italic">*Valores sujeito a alteração pela incorporadora. Referência: '+catalog.ref+'</div>';
+}
+
+function addTabela() {}
+function removeTabela() {}
+
+// ─── FORMAÇÃO PSM (Kiwify) ────────────────────────────────────────────────────
+function pgFormacao() {
+  const u = S.user; if (!u) return '';
+  const lvl = RLVL[u.role] || 0;
+  const KIWIFY_URL = S.kiwifyUrl || 'https://members.kiwify.com/f8f61699-1c0a-4021-ae47-eca807cf993a/20ab5c0b-aff7-4c87-a5c1-ccdce785aa15/86f2dad0-14c8-4a11-bea9-b515437aaea1?club=ccdc35d2-08c0-47cd-8268-4bf2c30ca597';
+
+  // Course modules
+  if (!S.formacaoModulos) {
+    S.formacaoModulos = [
+      {nome:'Módulo 1 — Fundamentos PSM', aulas:8, desc:'Cultura, valores e processos da assessoria'},
+      {nome:'Módulo 2 — Técnicas de Venda', aulas:12, desc:'Abordagem, rapport, objeções e fechamento'},
+      {nome:'Módulo 3 — Produto Imobiliário', aulas:10, desc:'Tipologias, financiamento, documentação'},
+      {nome:'Módulo 4 — CRM & Funil', aulas:6, desc:'RD Station, pipeline e follow-up'},
+      {nome:'Módulo 5 — Marketing Pessoal', aulas:5, desc:'Redes sociais, indicações e autoridade'},
+      {nome:'Módulo 6 — Alta Performance', aulas:7, desc:'Metas, disciplina, mindset e resultados'},
+    ];
+  }
+
+  const fp = S.formacaoProgress || {};
+  const brokerKey = u.name.replace(/\s/g,'_');
+  const myProgress = fp[brokerKey] || {};
+  const totalAulas = S.formacaoModulos.reduce((a,m) => a + m.aulas, 0);
+  const totalAssistidas = Object.values(myProgress).reduce((a,v) => a + (v||0), 0);
+  const pctGeral = totalAulas > 0 ? Math.round(totalAssistidas / totalAulas * 100) : 0;
+
+  // Progress bar color
+  const pctColor = pctGeral >= 80 ? 'var(--g)' : pctGeral >= 40 ? 'var(--a)' : 'var(--r)';
+
+  // Broker ranking (for managers)
+  let brokerRanking = '';
+  if (lvl >= 5) {
+    const allBrokers = Object.keys(fp).map(k => {
+      const prog = fp[k] || {};
+      const done = Object.values(prog).reduce((a,v) => a + (v||0), 0);
+      return {name: k.replace(/_/g,' '), done, pct: totalAulas > 0 ? Math.round(done/totalAulas*100) : 0};
+    }).sort((a,b) => b.pct - a.pct);
+
+    if (allBrokers.length > 0) {
+      brokerRanking = '<div class="card mb2"><div class="ctitle">📊 Progresso da Equipe</div>'
+        + '<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">'
+        + allBrokers.map((b,i) => '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--cream2);border-radius:8px">'
+          + '<div style="font-size:12px;font-weight:800;color:var(--muted);width:20px">#'+(i+1)+'</div>'
+          + '<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--navy)">'+b.name+'</div>'
+          + '<div style="height:6px;background:var(--cream3);border-radius:99px;margin-top:4px;overflow:hidden">'
+          + '<div style="height:100%;width:'+b.pct+'%;background:'+(b.pct>=80?'var(--g)':b.pct>=40?'var(--a)':'var(--r)')+';border-radius:99px;transition:width .5s"></div></div></div>'
+          + '<div style="font-size:12px;font-weight:700;color:var(--navy)">'+b.pct+'%</div>'
+          + '</div>').join('')
+        + '</div></div>';
+    }
+  }
+
+  const modulos = S.formacaoModulos.map((m, idx) => {
+    const assistidas = myProgress['mod'+idx] || 0;
+    const pctMod = Math.round(assistidas / m.aulas * 100);
+    return '<div class="card mb2" style="padding:14px">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+      + '<div><div style="font-size:13px;font-weight:700;color:var(--navy)">'+m.nome+'</div>'
+      + '<div style="font-size:11px;color:var(--muted)">'+m.desc+'</div></div>'
+      + '<div style="text-align:right"><div style="font-size:18px;font-weight:800;color:'+(pctMod>=100?'var(--g-tx)':'var(--navy)')+'">'+pctMod+'%</div>'
+      + '<div style="font-size:10px;color:var(--muted)">'+assistidas+'/'+m.aulas+' aulas</div></div></div>'
+      + '<div style="height:8px;background:var(--cream3);border-radius:99px;overflow:hidden;margin-bottom:8px">'
+      + '<div style="height:100%;width:'+pctMod+'%;background:'+(pctMod>=100?'var(--g)':pctMod>=50?'var(--a)':'var(--b)')+';border-radius:99px;transition:width .5s"></div></div>'
+      + '<div style="display:flex;gap:6px;align-items:center">'
+      + '<button class="btn bout bsm" style="font-size:10px" onclick="updateFormacao(\''+brokerKey+'\','+idx+',-1)">-</button>'
+      + '<span style="font-size:11px;font-weight:600;color:var(--navy)">'+assistidas+' aulas</span>'
+      + '<button class="btn bp1 bsm" style="font-size:10px" onclick="updateFormacao(\''+brokerKey+'\','+idx+',1)">+</button>'
+      + (pctMod >= 100 ? '<span style="font-size:10px;color:var(--g-tx);font-weight:700;margin-left:8px">✅ Concluído</span>' : '')
+      + '</div></div>';
+  }).join('');
+
+  return '<div class="phd"><h1>🎓 Formação PSM</h1><p>Acompanhe seu progresso nas aulas do PSM Formação (Kiwify)</p></div>'
+    // Overview card
+    + '<div class="card mb2" style="background:linear-gradient(135deg,var(--navy) 0%,#1e3a5f 100%);color:#fff;padding:20px">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    + '<div><div style="font-size:10px;font-weight:600;letter-spacing:1px;opacity:.6;text-transform:uppercase">Progresso Geral</div>'
+    + '<div style="font-size:32px;font-weight:800;margin-top:4px">'+pctGeral+'%</div>'
+    + '<div style="font-size:12px;opacity:.7">'+totalAssistidas+' de '+totalAulas+' aulas assistidas</div></div>'
+    + '<a href="'+KIWIFY_URL+'" target="_blank" rel="noreferrer" style="background:var(--gold);color:var(--navy);padding:10px 18px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px">🎓 Acessar Kiwify</a>'
+    + '</div>'
+    + '<div style="height:8px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden">'
+    + '<div style="height:100%;width:'+pctGeral+'%;background:'+pctColor+';border-radius:99px;transition:width .8s"></div></div>'
+    + '</div>'
+    + brokerRanking
+    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Módulos</div>'
+    + modulos
+    + '<div class="card" style="text-align:center;padding:16px;background:var(--a-bg);border:1px solid var(--a)">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--a-tx)">🔜 Em breve: Prova de certificação ao completar todos os módulos</div></div>';
+}
+
+function updateFormacao(brokerKey, modIdx, delta) {
+  S.formacaoProgress = S.formacaoProgress || {};
+  if (!S.formacaoProgress[brokerKey]) S.formacaoProgress[brokerKey] = {};
+  const current = S.formacaoProgress[brokerKey]['mod'+modIdx] || 0;
+  const max = S.formacaoModulos[modIdx].aulas;
+  S.formacaoProgress[brokerKey]['mod'+modIdx] = Math.max(0, Math.min(max, current + delta));
   render();
 }
-function removeTabela(idx) {
-  if (!confirm('Remover este material?')) return;
-  S.tabelas.splice(idx, 1);
-  toast('Removido', 'ok');
-  render();
+
+// ─── MANUAL DE CULTURA & CÓDIGO DE ÉTICA ─────────────────────────────────────
+function pgManual() {
+  const u = S.user; if (!u) return '';
+  const lvl = RLVL[u.role] || 0;
+
+  // Documents
+  if (!S.manualDocs) {
+    S.manualDocs = [
+      {nome:'Manual de Cultura PSM Imóveis', tipo:'manual', ico:'📖', desc:'Valores, missão, visão e cultura da PSM Assessoria Imobiliária', url:''},
+      {nome:'Código de Ética PSM Imóveis', tipo:'etica', ico:'⚖️', desc:'Regras de conduta profissional e princípios éticos da equipe', url:''},
+    ];
+  }
+
+  // Culture highlights
+  const valores = [
+    {ico:'🎯', titulo:'Foco no Resultado', desc:'Metas claras, ação consistente, entrega excepcional'},
+    {ico:'🤝', titulo:'Ética & Transparência', desc:'Agir com integridade em cada negociação'},
+    {ico:'🔥', titulo:'Alta Performance', desc:'Busca constante por evolução e excelência'},
+    {ico:'💛', titulo:'Espírito de Equipe', desc:'Colaboração, respeito e crescimento juntos'},
+    {ico:'📚', titulo:'Aprendizado Contínuo', desc:'Formação, capacitação e desenvolvimento'},
+    {ico:'🏆', titulo:'Meritocracia', desc:'Reconhecimento baseado em resultados reais'},
+  ];
+
+  const valoresHtml = valores.map(v =>
+    '<div style="padding:14px;background:var(--cream2);border-radius:10px;text-align:center">'
+    + '<div style="font-size:24px;margin-bottom:6px">'+v.ico+'</div>'
+    + '<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px">'+v.titulo+'</div>'
+    + '<div style="font-size:10.5px;color:var(--muted)">'+v.desc+'</div></div>'
+  ).join('');
+
+  // Upload config for admins
+  const adminUpload = lvl >= 5 ? '<div class="card mb2"><div class="ctitle">⚙️ Gerenciar Documentos</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+    + '<div>'
+    + '<div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px">Link — Manual de Cultura (PDF/Drive)</div>'
+    + '<input id="man-url" class="finp" placeholder="Cole o link do Manual de Cultura" value="'+(S.manualDocs[0]?.url||'')+'" style="width:100%;font-size:11px;padding:6px 8px">'
+    + '</div><div>'
+    + '<div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px">Link — Código de Ética (PDF/Drive)</div>'
+    + '<input id="eti-url" class="finp" placeholder="Cole o link do Código de Ética" value="'+(S.manualDocs[1]?.url||'')+'" style="width:100%;font-size:11px;padding:6px 8px">'
+    + '</div></div>'
+    + '<button class="btn bp1" onclick="S.manualDocs[0].url=document.getElementById(\'man-url\').value;S.manualDocs[1].url=document.getElementById(\'eti-url\').value;toast(\'Links salvos!\',\'ok\');render()">Salvar Links</button>'
+    + '</div>' : '';
+
+  const docs = S.manualDocs.map(d =>
+    '<div class="card mb2" style="padding:16px;display:flex;align-items:center;gap:14px">'
+    + '<div style="font-size:32px">'+d.ico+'</div>'
+    + '<div style="flex:1"><div style="font-size:14px;font-weight:700;color:var(--navy)">'+d.nome+'</div>'
+    + '<div style="font-size:11.5px;color:var(--muted);margin-top:2px">'+d.desc+'</div></div>'
+    + (d.url ? '<a href="'+d.url+'" target="_blank" rel="noreferrer" class="btn bp1" style="text-decoration:none;flex-shrink:0">📄 Abrir</a>'
+      : '<span style="font-size:11px;color:var(--a-tx);font-weight:600;flex-shrink:0">⏳ Aguardando link</span>')
+    + '</div>'
+  ).join('');
+
+  return '<div class="phd"><h1>📖 Manual de Cultura & Código de Ética</h1><p>Valores, princípios e condutas que guiam a equipe PSM</p></div>'
+    + adminUpload
+    + docs
+    + '<div class="card"><div class="ctitle">💛 Nossos Valores</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px">'
+    + valoresHtml + '</div></div>'
+    + '<div class="card mb2" style="margin-top:16px;background:linear-gradient(135deg,var(--navy) 0%,#1e3a5f 100%);color:#fff;padding:24px;text-align:center">'
+    + '<div style="font-size:20px;font-weight:800;margin-bottom:6px">PSM Assessoria Imobiliária</div>'
+    + '<div style="font-size:13px;opacity:.7;max-width:500px;margin:0 auto">"Transformamos sonhos em endereços. Cada negociação é uma oportunidade de impactar vidas com ética, excelência e resultado."</div>'
+    + '</div>';
+}
+
+// ─── CAPTAÇÃO DE IMÓVEIS ──────────────────────────────────────────────────────
+function pgCaptacao() {
+  const u = S.user; if (!u) return '';
+  const FORM_VENDA = 'https://docs.google.com/forms/d/e/1FAIpQLSdcLofTJAEKYnCUVMnuvKD7QJFB_D8SXfcahYYmeCFhy5op0g/viewform?usp=dialog';
+  const FORM_LOCACAO = 'https://forms.gle/atoYaBnWQ7WQsPp37';
+
+  const captTab = S.captTab || 'venda';
+
+  const embedUrl = captTab === 'venda' ? FORM_VENDA : FORM_LOCACAO;
+
+  return '<div class="phd"><h1>📝 Captação de Imóveis</h1><p>Fichas online para captação de imóveis para venda e locação</p></div>'
+    // Tab selector
+    + '<div class="card mb2" style="padding:6px;display:flex;gap:4px">'
+    + '<button class="btn '+(captTab==='venda'?'bp1':'bout')+'" style="flex:1;font-size:13px" onclick="S.captTab=\'venda\';render()">🏠 Captação para VENDA</button>'
+    + '<button class="btn '+(captTab==='locacao'?'bp1':'bout')+'" style="flex:1;font-size:13px" onclick="S.captTab=\'locacao\';render()">🏘️ Captação para LOCAÇÃO</button>'
+    + '</div>'
+    // Info banner
+    + '<div class="card mb2" style="padding:12px 16px;display:flex;align-items:center;gap:10px;background:'+(captTab==='venda'?'var(--b-bg)':'var(--pu-bg)')+';">'
+    + '<span style="font-size:20px">'+(captTab==='venda'?'🏠':'🏘️')+'</span>'
+    + '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:'+(captTab==='venda'?'var(--b-tx)':'var(--pu-tx)')+'">Ficha de Captação — '+(captTab==='venda'?'Imóvel para Venda':'Imóvel para Locação')+'</div>'
+    + '<div style="font-size:11px;color:var(--muted)">Preencha o formulário abaixo com os dados do imóvel captado</div></div>'
+    + '<a href="'+embedUrl+'" target="_blank" rel="noreferrer" class="btn bout bsm" style="text-decoration:none;font-size:11px;flex-shrink:0">↗ Abrir em nova aba</a>'
+    + '</div>'
+    // Embed
+    + '<div class="card" style="padding:0;overflow:hidden;border-radius:var(--radius)">'
+    + '<iframe src="'+embedUrl+'" style="width:100%;height:calc(100vh - 320px);min-height:500px;border:none" loading="lazy"></iframe>'
+    + '</div>';
+}
+
+// ─── SIMULADOR VPL ────────────────────────────────────────────────────────────
+function pgSimVPL() {
+  const u = S.user; if (!u) return '';
+  if (!S.vpl) S.vpl = {
+    valorTabela: 740000, m2: 43, taxa: 3.66, prazoObra: 42,
+    pctAto: 5, pctMensal: 20, pctAnual: 5, pctSemestral: 5, pctFinanc: 70,
+    numSemestrais: 7, numAnuais: 2, desconto: 0
+  };
+  const v = S.vpl;
+  const taxaM = v.taxa / 1200;
+  const valorFinal = v.valorTabela * (1 - v.desconto / 100);
+  const ato = valorFinal * v.pctAto / 100;
+  const totalMensal = valorFinal * v.pctMensal / 100;
+  const mensal = v.prazoObra > 0 ? totalMensal / v.prazoObra : 0;
+  const totalSemestral = valorFinal * v.pctSemestral / 100;
+  const semestral = v.numSemestrais > 0 ? totalSemestral / v.numSemestrais : 0;
+  const totalAnual = valorFinal * v.pctAnual / 100;
+  const anual = v.numAnuais > 0 ? totalAnual / v.numAnuais : 0;
+  const financ = valorFinal * v.pctFinanc / 100;
+  const totalPrazoObra = ato + totalMensal + totalSemestral + totalAnual;
+  const pctTotal = v.pctAto + v.pctMensal + v.pctAnual + v.pctSemestral + v.pctFinanc;
+
+  // Calculate VPL
+  let vpls = [];
+  // Ato (month 0)
+  vpls.push({mes: 0, tipo: 'Ato', valor: ato, pv: ato});
+  // Mensais
+  for (let i = 1; i <= v.prazoObra; i++) {
+    const pv = mensal / Math.pow(1 + taxaM, i);
+    vpls.push({mes: i, tipo: 'Mensal', valor: mensal, pv});
+  }
+  // Semestrais
+  for (let i = 1; i <= v.numSemestrais; i++) {
+    const mes = i * 6;
+    const pv = semestral / Math.pow(1 + taxaM, mes);
+    vpls.push({mes, tipo: 'Semestral', valor: semestral, pv});
+  }
+  // Anuais
+  for (let i = 1; i <= v.numAnuais; i++) {
+    const mes = i * 12;
+    const pv = anual / Math.pow(1 + taxaM, mes);
+    vpls.push({mes, tipo: 'Anual', valor: anual, pv});
+  }
+  // Financiamento (last month)
+  const pvFinanc = financ / Math.pow(1 + taxaM, v.prazoObra);
+  vpls.push({mes: v.prazoObra, tipo: 'Financiamento', valor: financ, pv: pvFinanc});
+
+  const totalPV = vpls.reduce((a, x) => a + x.pv, 0);
+  const descVPL = ((1 - totalPV / v.valorTabela) * 100).toFixed(1);
+  const m2VPL = v.m2 > 0 ? (totalPV / v.m2).toFixed(0) : 0;
+  const m2Tabela = v.m2 > 0 ? (v.valorTabela / v.m2).toFixed(0) : 0;
+
+  const fmt = n => 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+
+  function inp(label, key, step, suffix) {
+    return '<div style="display:flex;flex-direction:column;gap:2px">'
+      + '<label style="font-size:10px;font-weight:600;color:var(--muted)">'+label+'</label>'
+      + '<div style="display:flex;align-items:center;gap:4px"><input type="number" class="finp" value="'+v[key]+'" step="'+(step||1)+'" '
+      + 'oninput="S.vpl.'+key+'=parseFloat(this.value)||0;render()" style="width:100%;font-size:12px;padding:6px 8px">'
+      + (suffix ? '<span style="font-size:10px;color:var(--muted);white-space:nowrap">'+suffix+'</span>' : '')
+      + '</div></div>';
+  }
+
+  return '<div class="phd"><h1>📐 Simulador VPL</h1><p>Valor Presente Líquido — PSM Imóveis</p></div>'
+    + '<div style="display:grid;grid-template-columns:320px 1fr;gap:16px">'
+    // LEFT — inputs
+    + '<div class="card" style="padding:16px;overflow-y:auto;max-height:calc(100vh - 160px)">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Dados do Imóvel</div>'
+    + '<div style="display:flex;flex-direction:column;gap:8px">'
+    + inp('Valor de Tabela (R$)', 'valorTabela', 1000)
+    + inp('Metragem (m²)', 'm2', 0.1, 'm²')
+    + inp('Taxa VPL (% a.a.)', 'taxa', 0.1, '% a.a.')
+    + inp('Desconto sobre Tabela (%)', 'desconto', 0.5, '%')
+    + '</div>'
+    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px">Fluxo de Pagamento</div>'
+    + '<div style="display:flex;flex-direction:column;gap:8px">'
+    + inp('Ato (%)', 'pctAto', 0.5, '%')
+    + inp('Mensais (%)', 'pctMensal', 0.5, '%')
+    + inp('Prazo Obra (meses)', 'prazoObra', 1, 'meses')
+    + inp('Semestrais (%)', 'pctSemestral', 0.5, '%')
+    + inp('Nº Semestrais', 'numSemestrais', 1)
+    + inp('Anuais (%)', 'pctAnual', 0.5, '%')
+    + inp('Nº Anuais', 'numAnuais', 1)
+    + inp('Financiamento / Chaves (%)', 'pctFinanc', 0.5, '%')
+    + '</div>'
+    + (Math.abs(pctTotal - 100) > 0.1 ? '<div style="margin-top:8px;padding:8px;background:var(--r-bg);border-radius:8px;font-size:11px;color:var(--r-tx);font-weight:600">⚠️ Total do fluxo: '+pctTotal.toFixed(1)+'% (deve ser ~100%)</div>' : '')
+    + '</div>'
+    // RIGHT — results
+    + '<div style="display:flex;flex-direction:column;gap:12px">'
+    // KPIs
+    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">'
+    + '<div class="card" style="padding:12px;text-align:center;background:linear-gradient(135deg,var(--navy),#1e3a5f);color:#fff"><div style="font-size:9px;opacity:.6;text-transform:uppercase;font-weight:600">Valor VPL</div><div style="font-size:20px;font-weight:800;margin-top:4px">'+fmt(totalPV)+'</div></div>'
+    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Desc. VPL</div><div style="font-size:20px;font-weight:800;color:var(--g-tx);margin-top:4px">'+descVPL+'%</div></div>'
+    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">R$/m² VPL</div><div style="font-size:20px;font-weight:800;color:var(--b-tx);margin-top:4px">R$ '+m2VPL+'</div></div>'
+    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">R$/m² Tabela</div><div style="font-size:20px;font-weight:800;color:var(--muted);margin-top:4px">R$ '+m2Tabela+'</div></div>'
+    + '</div>'
+    // Summary
+    + '<div class="card" style="padding:14px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Resumo do Fluxo</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
+    + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Ato ('+v.pctAto+'%)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(ato)+'</div></div>'
+    + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Mensais ('+v.prazoObra+'x)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(mensal)+'<span style="font-size:10px;color:var(--muted)">/mês</span></div></div>'
+    + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Semestrais ('+v.numSemestrais+'x)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(semestral)+'</div></div>'
+    + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Anuais ('+v.numAnuais+'x)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(anual)+'</div></div>'
+    + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Total Prazo Obra</div><div style="font-size:14px;font-weight:700;color:var(--a-tx)">'+fmt(totalPrazoObra)+'</div></div>'
+    + '<div style="padding:10px;background:var(--b-bg);border-radius:8px"><div style="font-size:10px;color:var(--b-tx)">Financiamento ('+v.pctFinanc+'%)</div><div style="font-size:14px;font-weight:700;color:var(--b-tx)">'+fmt(financ)+'</div></div>'
+    + '</div></div>'
+    // Fluxo table
+    + '<div class="card" style="padding:0;overflow:auto;max-height:300px"><table style="width:100%;border-collapse:collapse;font-size:11px">'
+    + '<thead><tr style="background:var(--navy);color:#fff;position:sticky;top:0"><th style="padding:6px 10px;text-align:left">Mês</th><th style="padding:6px 10px;text-align:left">Tipo</th><th style="padding:6px 10px;text-align:right">Valor</th><th style="padding:6px 10px;text-align:right">Valor Presente</th></tr></thead><tbody>'
+    + vpls.slice(0, 50).map(x => '<tr style="border-bottom:1px solid var(--cream3)"><td style="padding:5px 10px">'+x.mes+'</td><td style="padding:5px 10px;font-weight:600">'+x.tipo+'</td><td style="padding:5px 10px;text-align:right">'+fmt(x.valor)+'</td><td style="padding:5px 10px;text-align:right;color:var(--b-tx);font-weight:600">'+fmt(x.pv)+'</td></tr>').join('')
+    + '</tbody></table></div>'
+    + '</div></div>';
+}
+
+// ─── SIMULADOR INCC ───────────────────────────────────────────────────────────
+function pgSimINCC() {
+  const u = S.user; if (!u) return '';
+  if (!S.incc) S.incc = {
+    valorTotal: 300900, inccAA: 6, pctFluxoSemCorrecao: 5,
+    prazoMeses: 42, pctEntrada: 5, pctMensais: 20, pctSemestrais: 0,
+    pctAnuais: 7.8, pctFinanc: 70, numMensais: 42, numAnuais: 3
+  };
+  const c = S.incc;
+  const inccM = Math.pow(1 + c.inccAA / 100, 1/12) - 1;
+  const valorEntrada = c.valorTotal * c.pctEntrada / 100;
+  const valorMensais = c.valorTotal * c.pctMensais / 100;
+  const mensal = c.numMensais > 0 ? valorMensais / c.numMensais : 0;
+  const valorAnuais = c.valorTotal * c.pctAnuais / 100;
+  const anual = c.numAnuais > 0 ? valorAnuais / c.numAnuais : 0;
+  const financ = c.valorTotal * c.pctFinanc / 100;
+
+  // Calculate INCC projection
+  let projecao = [];
+  let saldoCorrigido = 0;
+  let custoINCC = 0;
+  for (let i = 0; i <= Math.min(c.prazoMeses, 60); i++) {
+    const fatorAcum = Math.pow(1 + inccM, i);
+    let pagamento = 0;
+    if (i === 0) pagamento = valorEntrada;
+    else pagamento = mensal;
+    // Add anual
+    if (i > 0 && i % 12 === 0 && i / 12 <= c.numAnuais) pagamento += anual;
+
+    const semCorrecao = pagamento;
+    const pctFluxo = i === 0 ? 1 : (1 - c.pctFluxoSemCorrecao / 100);
+    const comCorrecao = pagamento * fatorAcum * pctFluxo + pagamento * (1 - pctFluxo);
+    const custoMes = comCorrecao - semCorrecao;
+    custoINCC += custoMes;
+
+    projecao.push({
+      mes: i, fator: fatorAcum.toFixed(4),
+      semCorrecao: semCorrecao, comCorrecao: comCorrecao,
+      custoMes: custoMes, custoAcum: custoINCC
+    });
+  }
+
+  const totalSemINCC = projecao.reduce((a, x) => a + x.semCorrecao, 0);
+  const totalComINCC = projecao.reduce((a, x) => a + x.comCorrecao, 0);
+  const economiaINCC = totalComINCC - totalSemINCC;
+  const pctEconomia = totalSemINCC > 0 ? ((economiaINCC / totalSemINCC) * 100).toFixed(1) : 0;
+
+  // Valorização estimada
+  const valorizacaoTotal = c.valorTotal * Math.pow(1 + inccM, c.prazoMeses) - c.valorTotal;
+
+  const fmt = n => 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+
+  function inp(label, key, step, suffix) {
+    return '<div style="display:flex;flex-direction:column;gap:2px">'
+      + '<label style="font-size:10px;font-weight:600;color:var(--muted)">'+label+'</label>'
+      + '<div style="display:flex;align-items:center;gap:4px"><input type="number" class="finp" value="'+c[key]+'" step="'+(step||1)+'" '
+      + 'oninput="S.incc.'+key+'=parseFloat(this.value)||0;render()" style="width:100%;font-size:12px;padding:6px 8px">'
+      + (suffix ? '<span style="font-size:10px;color:var(--muted);white-space:nowrap">'+suffix+'</span>' : '')
+      + '</div></div>';
+  }
+
+  return '<div class="phd"><h1>📊 Simulador INCC</h1><p>Projeção de correção INCC e economia estimada</p></div>'
+    + '<div style="display:grid;grid-template-columns:300px 1fr;gap:16px">'
+    // LEFT
+    + '<div class="card" style="padding:16px;overflow-y:auto;max-height:calc(100vh - 160px)">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Parâmetros</div>'
+    + '<div style="display:flex;flex-direction:column;gap:8px">'
+    + inp('Valor Total do Imóvel (R$)', 'valorTotal', 1000)
+    + inp('INCC (% a.a.)', 'inccAA', 0.1, '% a.a.')
+    + inp('Prazo (meses)', 'prazoMeses', 1, 'meses')
+    + inp('% Fluxo Sem Correção', 'pctFluxoSemCorrecao', 0.5, '%')
+    + '</div>'
+    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px">Fluxo</div>'
+    + '<div style="display:flex;flex-direction:column;gap:8px">'
+    + inp('Entrada (%)', 'pctEntrada', 0.5, '%')
+    + inp('Mensais (%)', 'pctMensais', 0.5, '%')
+    + inp('Nº Mensais', 'numMensais', 1)
+    + inp('Anuais (%)', 'pctAnuais', 0.5, '%')
+    + inp('Nº Anuais', 'numAnuais', 1)
+    + inp('Financiamento (%)', 'pctFinanc', 0.5, '%')
+    + '</div></div>'
+    // RIGHT
+    + '<div style="display:flex;flex-direction:column;gap:12px">'
+    // KPIs
+    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">'
+    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">INCC Mensal</div><div style="font-size:18px;font-weight:800;color:var(--navy);margin-top:4px">'+(inccM*100).toFixed(3)+'%</div></div>'
+    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Custo INCC Est.</div><div style="font-size:18px;font-weight:800;color:var(--r-tx);margin-top:4px">'+fmt(economiaINCC)+'</div></div>'
+    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">% Sobre Fluxo</div><div style="font-size:18px;font-weight:800;color:var(--a-tx);margin-top:4px">'+pctEconomia+'%</div></div>'
+    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Valorização Est.</div><div style="font-size:18px;font-weight:800;color:var(--g-tx);margin-top:4px">'+fmt(valorizacaoTotal)+'</div></div>'
+    + '</div>'
+    // Bar chart
+    + '<div class="card" style="padding:14px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Comparativo: Sem INCC vs Com INCC</div>'
+    + '<div style="display:flex;gap:16px;align-items:flex-end;height:120px;padding:0 20px">'
+    + '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--g-tx)">'+fmt(totalSemINCC)+'</div>'
+    + '<div style="width:100%;background:var(--g);border-radius:6px 6px 0 0;height:'+Math.round(totalSemINCC/(totalComINCC||1)*100)+'px"></div>'
+    + '<div style="font-size:10px;color:var(--muted)">Sem INCC</div></div>'
+    + '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--r-tx)">'+fmt(totalComINCC)+'</div>'
+    + '<div style="width:100%;background:var(--r);border-radius:6px 6px 0 0;height:100px"></div>'
+    + '<div style="font-size:10px;color:var(--muted)">Com INCC</div></div>'
+    + '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--a-tx)">'+fmt(economiaINCC)+'</div>'
+    + '<div style="width:100%;background:var(--a);border-radius:6px 6px 0 0;height:'+Math.round(economiaINCC/(totalComINCC||1)*100)+'px"></div>'
+    + '<div style="font-size:10px;color:var(--muted)">Custo INCC</div></div>'
+    + '</div></div>'
+    // Projecao table
+    + '<div class="card" style="padding:0;overflow:auto;max-height:300px"><table style="width:100%;border-collapse:collapse;font-size:11px">'
+    + '<thead><tr style="background:var(--navy);color:#fff;position:sticky;top:0"><th style="padding:6px 8px;text-align:left">Mês</th><th style="padding:6px 8px;text-align:right">Fator INCC</th><th style="padding:6px 8px;text-align:right">Sem Correção</th><th style="padding:6px 8px;text-align:right">Com Correção</th><th style="padding:6px 8px;text-align:right">Custo INCC Acum.</th></tr></thead><tbody>'
+    + projecao.map(x => '<tr style="border-bottom:1px solid var(--cream3)"><td style="padding:4px 8px">'+x.mes+'</td><td style="padding:4px 8px;text-align:right">'+x.fator+'</td><td style="padding:4px 8px;text-align:right">'+fmt(x.semCorrecao)+'</td><td style="padding:4px 8px;text-align:right;color:var(--r-tx)">'+fmt(x.comCorrecao)+'</td><td style="padding:4px 8px;text-align:right;font-weight:600;color:var(--a-tx)">'+fmt(x.custoAcum)+'</td></tr>').join('')
+    + '</tbody></table></div>'
+    + '</div></div>';
+}
+
+// ─── SIMULADOR DE REPASSE ─────────────────────────────────────────────────────
+function pgSimRepasse() {
+  const u = S.user; if (!u) return '';
+  if (!S.repasse) S.repasse = {
+    nomeImovel: 'PLATZ', unidade: '2101', m2: 35,
+    valorContrato: 303900, dataCompra: '2022-02-15',
+    valorPago: 118111, saldoDevedor: 249668,
+    prazoRestante: 1, numMensais: 1, valorMensais: 0,
+    numBaloes: 0, valorBaloes: 0,
+    novoValor: 450000, comissaoPct: 5, parcelasEntrada: 3
+  };
+  const r = S.repasse;
+  const totalAtualizado = r.valorPago + r.saldoDevedor;
+  const totalMensais = r.numMensais * r.valorMensais;
+  const totalBaloes = r.numBaloes * r.valorBaloes;
+  const saldoEntrega = r.saldoDevedor + totalMensais + totalBaloes;
+  const entradaComprador = r.novoValor - r.saldoDevedor;
+  const comissao = r.novoValor * r.comissaoPct / 100;
+  const lucroVendedor = entradaComprador - comissao - (totalAtualizado - r.valorPago);
+  const agioValor = r.novoValor - totalAtualizado;
+  const agioPct = totalAtualizado > 0 ? ((agioValor / r.valorPago) * 100).toFixed(1) : 0;
+  const parcelaEntrada = r.parcelasEntrada > 0 ? entradaComprador / r.parcelasEntrada : 0;
+
+  // Tempo estimado para venda
+  const tempoVenda = r.prazoRestante || 1;
+  const rendaMensal = r.valorPago > 0 ? ((agioValor / r.valorPago) / tempoVenda * 100).toFixed(2) : 0;
+
+  const fmt = n => 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+
+  function inp(label, key, step, suffix, type) {
+    const val = type === 'text' ? (r[key]||'') : r[key];
+    return '<div style="display:flex;flex-direction:column;gap:2px">'
+      + '<label style="font-size:10px;font-weight:600;color:var(--muted)">'+label+'</label>'
+      + '<div style="display:flex;align-items:center;gap:4px"><input type="'+(type||'number')+'" class="finp" value="'+val+'" step="'+(step||1)+'" '
+      + 'oninput="S.repasse.'+key+'='+(type==='text'?"this.value":"(parseFloat(this.value)||0)")+';render()" style="width:100%;font-size:12px;padding:6px 8px">'
+      + (suffix ? '<span style="font-size:10px;color:var(--muted);white-space:nowrap">'+suffix+'</span>' : '')
+      + '</div></div>';
+  }
+
+  return '<div class="phd"><h1>💰 Simulador de Repasse</h1><p>Precificação de repasse com saldo devedor — PSM Imóveis</p></div>'
+    + '<div style="display:grid;grid-template-columns:320px 1fr;gap:16px">'
+    // LEFT
+    + '<div class="card" style="padding:16px;overflow-y:auto;max-height:calc(100vh - 160px)">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Dados do Imóvel</div>'
+    + '<div style="display:flex;flex-direction:column;gap:8px">'
+    + inp('Nome do Imóvel', 'nomeImovel', 0, '', 'text')
+    + inp('Unidade', 'unidade', 0, '', 'text')
+    + inp('M²', 'm2', 0.1, 'm²')
+    + inp('Valor Original do Contrato', 'valorContrato', 1000)
+    + '</div>'
+    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px">Saldo Atual</div>'
+    + '<div style="display:flex;flex-direction:column;gap:8px">'
+    + inp('Valor Pago Atualizado', 'valorPago', 1000)
+    + inp('Saldo Devedor Atualizado', 'saldoDevedor', 1000)
+    + inp('Prazo Restante (meses)', 'prazoRestante', 1, 'meses')
+    + inp('Nº Mensais Restantes', 'numMensais', 1)
+    + inp('Valor das Mensais', 'valorMensais', 100)
+    + inp('Nº Balões', 'numBaloes', 1)
+    + inp('Valor dos Balões', 'valorBaloes', 1000)
+    + '</div>'
+    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px">Proposta de Venda</div>'
+    + '<div style="display:flex;flex-direction:column;gap:8px">'
+    + inp('Novo Valor Total Sugerido', 'novoValor', 1000)
+    + inp('Comissão (%)', 'comissaoPct', 0.5, '%')
+    + inp('Parcelas da Entrada', 'parcelasEntrada', 1)
+    + '</div></div>'
+    // RIGHT
+    + '<div style="display:flex;flex-direction:column;gap:12px">'
+    // KPIs
+    + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">'
+    + '<div class="card" style="padding:14px;text-align:center;background:linear-gradient(135deg,var(--navy),#1e3a5f);color:#fff"><div style="font-size:9px;opacity:.6;text-transform:uppercase;font-weight:600">Novo Valor</div><div style="font-size:22px;font-weight:800;margin-top:4px">'+fmt(r.novoValor)+'</div></div>'
+    + '<div class="card" style="padding:14px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Ágio</div><div style="font-size:22px;font-weight:800;color:'+(agioValor>=0?'var(--g-tx)':'var(--r-tx)')+';margin-top:4px">'+agioPct+'%</div><div style="font-size:11px;color:var(--muted)">'+fmt(agioValor)+'</div></div>'
+    + '<div class="card" style="padding:14px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Lucro Vendedor</div><div style="font-size:22px;font-weight:800;color:'+(lucroVendedor>=0?'var(--g-tx)':'var(--r-tx)')+';margin-top:4px">'+fmt(lucroVendedor)+'</div></div>'
+    + '</div>'
+    // Analysis cards
+    + '<div class="card" style="padding:16px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Análise do Proprietário</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Valor Pago</div><div style="font-size:15px;font-weight:700;color:var(--navy)">'+fmt(r.valorPago)+'</div></div>'
+    + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Total Atualizado (Custo)</div><div style="font-size:15px;font-weight:700;color:var(--navy)">'+fmt(totalAtualizado)+'</div></div>'
+    + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Comissão ('+r.comissaoPct+'%)</div><div style="font-size:15px;font-weight:700;color:var(--a-tx)">'+fmt(comissao)+'</div></div>'
+    + '<div style="padding:10px;background:'+(lucroVendedor>=0?'var(--g-bg)':'var(--r-bg)')+';border-radius:8px"><div style="font-size:10px;color:'+(lucroVendedor>=0?'var(--g-tx)':'var(--r-tx)')+'">Lucro Líquido</div><div style="font-size:15px;font-weight:700;color:'+(lucroVendedor>=0?'var(--g-tx)':'var(--r-tx)')+'">'+fmt(lucroVendedor)+'</div></div>'
+    + '<div style="padding:10px;background:var(--b-bg);border-radius:8px"><div style="font-size:10px;color:var(--b-tx)">Renda % a.m.</div><div style="font-size:15px;font-weight:700;color:var(--b-tx)">'+rendaMensal+'%</div></div>'
+    + '<div style="padding:10px;background:var(--pu-bg);border-radius:8px"><div style="font-size:10px;color:var(--pu-tx)">R$/m² Novo</div><div style="font-size:15px;font-weight:700;color:var(--pu-tx)">R$ '+(r.m2>0?Math.round(r.novoValor/r.m2).toLocaleString('pt-BR'):'-')+'</div></div>'
+    + '</div></div>'
+    // Fluxo proposta
+    + '<div class="card" style="padding:16px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Fluxo da Proposta para Novo Comprador</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    + '<div style="padding:12px;background:var(--g-bg);border-radius:8px;border-left:4px solid var(--g)"><div style="font-size:10px;color:var(--g-tx);font-weight:600">Entrada para o Comprador</div><div style="font-size:18px;font-weight:800;color:var(--g-tx);margin-top:4px">'+fmt(entradaComprador)+'</div></div>'
+    + '<div style="padding:12px;background:var(--b-bg);border-radius:8px;border-left:4px solid var(--b)"><div style="font-size:10px;color:var(--b-tx);font-weight:600">Parcela da Entrada ('+r.parcelasEntrada+'x)</div><div style="font-size:18px;font-weight:800;color:var(--b-tx);margin-top:4px">'+fmt(parcelaEntrada)+'</div></div>'
+    + '<div style="padding:12px;background:var(--a-bg);border-radius:8px;border-left:4px solid var(--a)"><div style="font-size:10px;color:var(--a-tx);font-weight:600">Saldo Devedor a Assumir</div><div style="font-size:18px;font-weight:800;color:var(--a-tx);margin-top:4px">'+fmt(r.saldoDevedor)+'</div></div>'
+    + '<div style="padding:12px;background:var(--navy);border-radius:8px;border-left:4px solid var(--gold)"><div style="font-size:10px;color:var(--gold);font-weight:600">Valor Total do Imóvel</div><div style="font-size:18px;font-weight:800;color:#fff;margin-top:4px">'+fmt(r.novoValor)+'</div></div>'
+    + '</div></div>'
+    + '</div></div>';
 }
 
 function pgVera() {
@@ -4619,6 +5553,17 @@ function renderSB() {
       {id:'okrs',      lbl:'OKRs & Metas',   ico:'🎯',min:5},
       {id:'vendas',    lbl:'Lançar Venda',   ico:'💰',min:7},
     ]},
+    {sec:'Recursos', items:[
+      {id:'drive',     lbl:'Drive PSM',      ico:'📁',min:1},
+      {id:'tabela',    lbl:'Tabela PSM',     ico:'📋',min:1},
+      {id:'mapa',      lbl:'Mapa PSM',       ico:'🗺️',min:1},
+      {id:'formacao',  lbl:'Formação PSM',   ico:'🎓',min:1},
+      {id:'manual',    lbl:'Manual & Ética', ico:'📖',min:1},
+      {id:'captacao',  lbl:'Captação',       ico:'📝',min:2},
+      {id:'simvpl',    lbl:'Simulador VPL',  ico:'📐',min:2},
+      {id:'simincc',   lbl:'Simulador INCC', ico:'📊',min:2},
+      {id:'simrep',    lbl:'Sim. Repasse',   ico:'💰',min:2},
+    ]},
     {sec:'IA & Config', items:[
       {id:'vera',      lbl:'Sr. Performance',       ico:'🤖',min:2},
       {id:'rdconfig',  lbl:'RD Station',     ico:'🔗',min:5},
@@ -4657,7 +5602,9 @@ function renderHDR() {
     lancamento:'MAP / Lançamento',conquista:'Conquista',terceiros:'Terceiros',locacao:'Locação',
     crm:'CRM / Funil',metas:'🎯 Metas',metricas:'Métricas RD',oneonone:'One on One',governance:'Governança',
     warroom:'⚔️ War Room',forecast:'Forecast',okrs:'OKRs & Metas',vera:'Sr. Performance',rdconfig:'RD Station',
-    config:'Configurações',vendas:'Lançar Venda'};
+    config:'Configurações',vendas:'Lançar Venda',drive:'📁 Drive PSM',tabela:'📋 Tabela PSM',mapa:'🗺️ Mapa PSM',
+    formacao:'🎓 Formação PSM',manual:'📖 Manual & Ética',captacao:'📝 Captação de Imóveis',
+    simvpl:'📐 Simulador VPL',simincc:'📊 Simulador INCC',simrep:'💰 Simulador de Repasse'};
   const unread = NOTIFS.filter(n=>!n.read).length;
   return '<div class="hdr">'
     + '<div class="hdr-title">'+(titles[S.page]||'')+'</div>'
@@ -4713,6 +5660,12 @@ function route() {
     case 'drive':      return pgDrive();
     case 'mapa':       return pgMapa();
     case 'tabela':     return pgTabela();
+    case 'formacao':   return pgFormacao();
+    case 'manual':     return pgManual();
+    case 'captacao':   return pgCaptacao();
+    case 'simvpl':     return pgSimVPL();
+    case 'simincc':    return pgSimINCC();
+    case 'simrep':     return pgSimRepasse();
     case 'rdconfig':   return pgRDConfig();
     case 'vendas':     return pgLancarVenda();
     case 'config':     return pgConfig();
