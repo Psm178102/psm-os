@@ -4,13 +4,13 @@ const https = require("https");
 function httpsReq(url, opts) {
   return new Promise((resolve, reject) => {
     const req = https.request(url, {
-      method: opts.method || "GET",
+      method: opts.method || "ET",
       headers: opts.headers || {},
     }, (res) => {
       let data = "";
       res.on("data", chunk => data += chunk);
       res.on("end", () => resolve({ status: res.statusCode, body: data }));
-    });
+    })
     req.on("error", reject);
     if (opts.body) req.write(opts.body);
     req.end();
@@ -78,7 +78,7 @@ module.exports = async (req, res) => {
       const r = await httpsReq("https://public-api.kiwify.com" + ep, {
         headers: {
           "Authorization": "Bearer " + token,
-          "X-Account-Id": accountId,
+        "x-kiwify-account-id": accountId,
           "Accept": "application/json",
         },
       });
