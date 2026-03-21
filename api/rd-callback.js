@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
 
   const clientId = process.env.RD_MKT_CLIENT_ID || '1e0caaab-8e36-40b6-b0d7-4175403b513d';
   const clientSecret = process.env.RD_MKT_CLIENT_SECRET || 'd16a9e739cc1405da1bc7eb76d97c95c';
-  const redirectUri = 'https://psm-os.vercel.app/api/rd-callback';
+  const redirectUri = 'https://www.housepsm.com.br/api/rd-callback';
 
   try {
     console.log('[RD MKT] Exchanging code for tokens...');
