@@ -4080,36 +4080,38 @@ function addDriveFolder() {} // deprecated — agora usa API direta
 
 // ─── MAPA PSM ────────────────────────────────────────────────────────────────
 function pgMapa() {
-  // ── Google Maps API loader ──
-  if (!window._gmapsLoading && !window._gmapsReady) {
-    window._gmapsLoading = true;
-    const s = document.createElement('script');
-    s.src = 'https://maps.googleapis.com/maps/api/js?key=' + GDRIVE_API_KEY + '&callback=_gmapsCb';
-    s.async = true; s.defer = true;
-    document.head.appendChild(s);
-    window._gmapsCb = function(){ window._gmapsReady = true; delete window._gmapsLoading; };
+  // Leaflet.js loader (100% gratis, sem billing)
+  if (!window._leafletLoaded) {
+    window._leafletLoaded = true;
+    var lk = document.createElement('link');
+    lk.rel = 'stylesheet';
+    lk.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(lk);
+    var sc = document.createElement('script');
+    sc.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    sc.onload = function(){ window._leafletReady = true; };
+    document.head.appendChild(sc);
   }
 
-  // ── Empreendimentos PSM ──
   const PINS = [
     {n:'Residencial Acacia',c:'TARRAF',lat:-20.7895,lng:-49.4012,s:'Ativo',t:'Vertical'},
     {n:'Parque das Flores',c:'MRV',lat:-20.8234,lng:-49.3956,s:'Ativo',t:'Horizontal'},
     {n:'Villa Toscana',c:'PACAEMBU',lat:-20.8102,lng:-49.3678,s:'Ativo',t:'Vertical'},
     {n:'Gran Ville',c:'CEMARA',lat:-20.8367,lng:-49.4123,s:'Ativo',t:'Horizontal'},
     {n:'Reserva Real',c:'RNI',lat:-20.7956,lng:-49.3534,s:'Ativo',t:'Vertical'},
-    {n:'Alto do Ip\u00ea',c:'BILD',lat:-20.8178,lng:-49.3812,s:'Lancamento',t:'Vertical'},
+    {n:'Alto do Ipe',c:'BILD',lat:-20.8178,lng:-49.3812,s:'Lancamento',t:'Vertical'},
     {n:'Jardim Europa',c:'GARETTI',lat:-20.8445,lng:-49.3789,s:'Ativo',t:'Horizontal'},
-    {n:'Residencial Vit\u00f3ria',c:'GIGLIO',lat:-20.8012,lng:-49.4234,s:'Ativo',t:'Vertical'},
+    {n:'Residencial Vitoria',c:'GIGLIO',lat:-20.8012,lng:-49.4234,s:'Ativo',t:'Vertical'},
     {n:'Park Premium',c:'VITTA',lat:-20.8289,lng:-49.3567,s:'Lancamento',t:'Vertical'},
     {n:'Eco Residence',c:'CONCRETIZA',lat:-20.8156,lng:-49.4345,s:'Ativo',t:'Horizontal'},
     {n:'Torres do Lago',c:'HUGO FABBRI',lat:-20.7834,lng:-49.3678,s:'Ativo',t:'Vertical'},
-    {n:'Parque dos Ip\u00eas',c:'LUPEMA',lat:-20.8423,lng:-49.3923,s:'Ativo',t:'Horizontal'},
+    {n:'Parque dos Ipes',c:'LUPEMA',lat:-20.8423,lng:-49.3923,s:'Ativo',t:'Horizontal'},
     {n:'Vista Verde',c:'EMAIS',lat:-20.8067,lng:-49.4078,s:'Lancamento',t:'Vertical'},
     {n:'Viver Bem',c:'SETPAR',lat:-20.8312,lng:-49.3456,s:'Ativo',t:'Horizontal'},
     {n:'Essence',c:'LONGITUDE',lat:-20.7989,lng:-49.3890,s:'Ativo',t:'Vertical'},
     {n:'Smart Living',c:'CITZ',lat:-20.8234,lng:-49.4189,s:'Lancamento',t:'Vertical'},
     {n:'Portal do Sol',c:'R3M',lat:-20.8478,lng:-49.3712,s:'Ativo',t:'Horizontal'},
-    {n:'Terras de S\u00e3o Jos\u00e9',c:'FAJ',lat:-20.8145,lng:-49.3534,s:'Ativo',t:'Horizontal'},
+    {n:'Terras de Sao Jose',c:'FAJ',lat:-20.8145,lng:-49.3534,s:'Ativo',t:'Horizontal'},
     {n:'Brisas',c:'WAVE BKO',lat:-20.7912,lng:-49.4156,s:'Lancamento',t:'Vertical'},
     {n:'Alto da Colina',c:'IMPPER',lat:-20.8356,lng:-49.3845,s:'Ativo',t:'Vertical'}
   ];
@@ -4130,7 +4132,7 @@ function pgMapa() {
     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px">' +
     '<div class="card" style="padding:16px;text-align:center"><div style="font-size:28px;font-weight:700;color:var(--g)">' + PINS.length + '</div><div style="color:var(--muted);font-size:12px">Total Empreendimentos</div></div>' +
     '<div class="card" style="padding:16px;text-align:center"><div style="font-size:28px;font-weight:700;color:var(--g)">' + ativos + '</div><div style="color:var(--muted);font-size:12px">Ativos</div></div>' +
-    '<div class="card" style="padding:16px;text-align:center"><div style="font-size:28px;font-weight:700;color:var(--gold)">' + lanc + '</div><div style="color:var(--muted);font-size:12px">Lan\u00e7amentos</div></div>' +
+    '<div class="card" style="padding:16px;text-align:center"><div style="font-size:28px;font-weight:700;color:var(--gold)">' + lanc + '</div><div style="color:var(--muted);font-size:12px">Lancamentos</div></div>' +
     '<div class="card" style="padding:16px;text-align:center"><div style="font-size:28px;font-weight:700;color:var(--b)">' + fPins.length + '</div><div style="color:var(--muted);font-size:12px">No Filtro Atual</div></div>' +
     '</div>';
 
@@ -4138,55 +4140,63 @@ function pgMapa() {
     '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">' +
     '<button class="btn ' + (S.mapFilter==='all'?'bp1':'bout') + ' bsm" onclick="S.mapFilter=\'all\';render()">Todos</button>' +
     '<button class="btn ' + (S.mapFilter==='Ativo'?'bp1':'bout') + ' bsm" onclick="S.mapFilter=\'Ativo\';render()">Ativos</button>' +
-    '<button class="btn ' + (S.mapFilter==='Lancamento'?'bp1':'bout') + ' bsm" onclick="S.mapFilter=\'Lancamento\';render()">Lan\u00e7amentos</button>' +
+    '<button class="btn ' + (S.mapFilter==='Lancamento'?'bp1':'bout') + ' bsm" onclick="S.mapFilter=\'Lancamento\';render()">Lancamentos</button>' +
     '<input type="text" class="finp" value="' + (S.mapSearch||'') + '" placeholder="Buscar empreendimento..." oninput="S.mapSearch=this.value;render()" style="flex:1;min-width:200px">' +
     '</div>';
 
-  const mapDiv = '<div id="psm-gmap" style="width:100%;height:calc(100vh - 340px);min-height:400px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--cream4)"></div>';
+  const mapDiv = '<div id="psm-lmap" style="width:100%;height:calc(100vh - 340px);min-height:400px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--cream4);background:#1a1a2e"></div>';
 
-  setTimeout(() => {
-    const el = document.getElementById('psm-gmap');
+  setTimeout(function(){
+    var el = document.getElementById('psm-lmap');
     if (!el) return;
-    if (!window._gmapsReady) {
-      el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)">Carregando Google Maps...</div>';
-      const retry = setInterval(() => { if (window._gmapsReady) { clearInterval(retry); _renderMap(el, fPins); } }, 300);
+    if (!window._leafletReady) {
+      el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)">Carregando mapa...</div>';
+      var retry = setInterval(function(){ if (window._leafletReady) { clearInterval(retry); _renderLeaflet(el, fPins); } }, 300);
       return;
     }
-    _renderMap(el, fPins);
-  }, 50);
+    _renderLeaflet(el, fPins);
+  }, 100);
 
   return '<div class="phd">\ud83c\udf0d Mapa PSM</div>' +
-    '<p style="color:var(--muted);margin-bottom:16px">Empreendimentos em S\u00e3o Jos\u00e9 do Rio Preto \u2014 clique nos pins para detalhes</p>' +
+    '<p style="color:var(--muted);margin-bottom:16px">Empreendimentos em Sao Jose do Rio Preto</p>' +
     cards + filters + mapDiv;
 }
 
-function _renderMap(el, pins) {
-  const center = {lat:-20.8167, lng:-49.3789};
-  const map = new google.maps.Map(el, {
-    center, zoom:13, mapTypeId:'hybrid',
-    mapTypeControl:true, streetViewControl:true, fullscreenControl:true,
-    zoomControl:true, gestureHandling:'greedy'
+function _renderLeaflet(el, pins) {
+  if (window._psmMap) { window._psmMap.remove(); window._psmMap = null; }
+  var map = L.map(el, {zoomControl:true}).setView([-20.8167, -49.3789], 13);
+
+  // Camada satelite Esri (gratis)
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles: Esri',
+    maxZoom: 19
+  }).addTo(map);
+
+  // Labels por cima do satelite
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19
+  }).addTo(map);
+
+  var colors = {Ativo:'#10b981', Lancamento:'#d4a843'};
+
+  pins.forEach(function(p){
+    var clr = colors[p.s] || '#3b82f6';
+    var sl = p.s === 'Lancamento' ? 'Lancamento' : p.s;
+    var marker = L.circleMarker([p.lat, p.lng], {
+      radius: 10, fillColor: clr, fillOpacity: 0.9,
+      color: '#fff', weight: 2
+    }).addTo(map);
+    marker.bindPopup(
+      '<div style="font-family:Plus Jakarta Sans,sans-serif;min-width:200px">' +
+      '<h3 style="margin:0 0 4px;font-size:15px;color:#0f172a">' + p.n + '</h3>' +
+      '<p style="margin:0 0 8px;color:#475569;font-size:13px">' + p.c + ' - ' + p.t + '</p>' +
+      '<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;color:#fff;background:' + clr + '">' + sl + '</span>' +
+      '</div>'
+    );
   });
-  const iw = new google.maps.InfoWindow();
-  const colors = {Ativo:'#10b981', Lancamento:'#d4a843'};
-  pins.forEach(p => {
-    const clr = colors[p.s] || '#3b82f6';
-    const mk = new google.maps.Marker({
-      position:{lat:p.lat,lng:p.lng}, map, title:p.n,
-      icon:{path:google.maps.SymbolPath.CIRCLE, scale:10, fillColor:clr, fillOpacity:.9, strokeColor:'#fff', strokeWeight:2}
-    });
-    mk.addListener('click', () => {
-      const sl = p.s === 'Lancamento' ? 'Lan\u00e7amento' : p.s;
-      iw.setContent(
-        '<div style="font-family:Plus Jakarta Sans,sans-serif;padding:8px;min-width:220px">' +
-        '<h3 style="margin:0 0 4px;font-size:16px;color:#0f172a">' + p.n + '</h3>' +
-        '<p style="margin:0 0 8px;color:#475569;font-size:13px">' + p.c + ' \u2014 ' + p.t + '</p>' +
-        '<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;color:#fff;background:' + clr + '">' + sl + '</span>' +
-        '</div>'
-      );
-      iw.open(map, mk);
-    });
-  });
+
+  window._psmMap = map;
+  setTimeout(function(){ map.invalidateSize(); }, 200);
 }
 
 function addMapPin() {
