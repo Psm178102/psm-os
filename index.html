@@ -4080,17 +4080,14 @@ function addDriveFolder() {} // deprecated — agora usa API direta
 
 // ─── MAPA PSM ────────────────────────────────────────────────────────────────
 function pgMapa() {
-  // Leaflet.js loader (100% gratis, sem billing)
-  if (!window._leafletLoaded) {
-    window._leafletLoaded = true;
-    var lk = document.createElement('link');
-    lk.rel = 'stylesheet';
-    lk.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(lk);
-    var sc = document.createElement('script');
-    sc.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    sc.onload = function(){ window._leafletReady = true; };
-    document.head.appendChild(sc);
+  // Google Maps API loader
+  if (!window._gmapsLoading && !window._gmapsReady) {
+    window._gmapsLoading = true;
+    var s = document.createElement('script');
+    s.src = 'https://maps.googleapis.com/maps/api/js?key=' + GDRIVE_API_KEY + '&callback=_gmapsCb&v=weekly';
+    s.async = true; s.defer = true;
+    document.head.appendChild(s);
+    window._gmapsCb = function(){ window._gmapsReady = true; delete window._gmapsLoading; };
   }
 
   const PINS = [
@@ -4119,14 +4116,14 @@ function pgMapa() {
   if (!S.mapFilter) S.mapFilter = 'all';
   if (!S.mapSearch) S.mapSearch = '';
 
-  const fPins = PINS.filter(p => {
+  const fPins = PINS.filter(function(p) {
     if (S.mapFilter !== 'all' && p.s !== S.mapFilter) return false;
     if (S.mapSearch && !p.n.toLowerCase().includes(S.mapSearch.toLowerCase()) && !p.c.toLowerCase().includes(S.mapSearch.toLowerCase())) return false;
     return true;
   });
 
-  const ativos = PINS.filter(p => p.s === 'Ativo').length;
-  const lanc = PINS.filter(p => p.s === 'Lancamento').length;
+  const ativos = PINS.filter(function(p){ return p.s === 'Ativo'; }).length;
+  const lanc = PINS.filter(function(p){ return p.s === 'Lancamento'; }).length;
 
   const cards =
     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px">' +
@@ -4144,59 +4141,67 @@ function pgMapa() {
     '<input type="text" class="finp" value="' + (S.mapSearch||'') + '" placeholder="Buscar empreendimento..." oninput="S.mapSearch=this.value;render()" style="flex:1;min-width:200px">' +
     '</div>';
 
-  const mapDiv = '<div id="psm-lmap" style="width:100%;height:calc(100vh - 340px);min-height:400px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--cream4);background:#1a1a2e"></div>';
+  const mapDiv = '<div id="psm-gmap-wrap" style="width:100%;height:calc(100vh - 340px);min-height:400px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--cream4)"><div id="psm-gmap" style="width:100%;height:100%"></div></div>';
+
+  // Store pins globally so the map init can access them
+  window._psmPins = fPins;
 
   setTimeout(function(){
-    var el = document.getElementById('psm-lmap');
+    var el = document.getElementById('psm-gmap');
     if (!el) return;
-    if (!window._leafletReady) {
-      el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)">Carregando mapa...</div>';
-      var retry = setInterval(function(){ if (window._leafletReady) { clearInterval(retry); _renderLeaflet(el, fPins); } }, 300);
+    if (!window._gmapsReady) {
+      el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)">Carregando Google Maps...</div>';
+      var retry = setInterval(function(){
+        if (window._gmapsReady) {
+          clearInterval(retry);
+          requestAnimationFrame(function(){ _renderGMap(document.getElementById('psm-gmap'), window._psmPins); });
+        }
+      }, 500);
       return;
     }
-    _renderLeaflet(el, fPins);
-  }, 100);
+    requestAnimationFrame(function(){ _renderGMap(el, window._psmPins); });
+  }, 200);
 
   return '<div class="phd">\ud83c\udf0d Mapa PSM</div>' +
-    '<p style="color:var(--muted);margin-bottom:16px">Empreendimentos em Sao Jose do Rio Preto</p>' +
+    '<p style="color:var(--muted);margin-bottom:16px">Empreendimentos em Sao Jose do Rio Preto - clique nos pins para detalhes</p>' +
     cards + filters + mapDiv;
 }
 
-function _renderLeaflet(el, pins) {
-  if (window._psmMap) { window._psmMap.remove(); window._psmMap = null; }
-  var map = L.map(el, {zoomControl:true}).setView([-20.8167, -49.3789], 13);
+function _renderGMap(el, pins) {
+  if (!el || !pins) return;
+  // Clear previous map
+  if (window._psmGMap) { window._psmGMap = null; }
+  el.innerHTML = '';
 
-  // Camada satelite Esri (gratis)
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles: Esri',
-    maxZoom: 19
-  }).addTo(map);
+  var center = {lat:-20.8167, lng:-49.3789};
+  var map = new google.maps.Map(el, {
+    center: center, zoom: 13, mapTypeId: 'hybrid',
+    mapTypeControl: true, streetViewControl: true, fullscreenControl: true,
+    zoomControl: true, gestureHandling: 'greedy'
+  });
+  window._psmGMap = map;
 
-  // Labels por cima do satelite
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19
-  }).addTo(map);
-
+  var iw = new google.maps.InfoWindow();
   var colors = {Ativo:'#10b981', Lancamento:'#d4a843'};
 
-  pins.forEach(function(p){
+  pins.forEach(function(p) {
     var clr = colors[p.s] || '#3b82f6';
-    var sl = p.s === 'Lancamento' ? 'Lancamento' : p.s;
-    var marker = L.circleMarker([p.lat, p.lng], {
-      radius: 10, fillColor: clr, fillOpacity: 0.9,
-      color: '#fff', weight: 2
-    }).addTo(map);
-    marker.bindPopup(
-      '<div style="font-family:Plus Jakarta Sans,sans-serif;min-width:200px">' +
-      '<h3 style="margin:0 0 4px;font-size:15px;color:#0f172a">' + p.n + '</h3>' +
-      '<p style="margin:0 0 8px;color:#475569;font-size:13px">' + p.c + ' - ' + p.t + '</p>' +
-      '<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;color:#fff;background:' + clr + '">' + sl + '</span>' +
-      '</div>'
-    );
+    var mk = new google.maps.Marker({
+      position: {lat: p.lat, lng: p.lng}, map: map, title: p.n,
+      icon: {path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: clr, fillOpacity: 0.9, strokeColor: '#fff', strokeWeight: 2}
+    });
+    mk.addListener('click', function() {
+      var sl = p.s === 'Lancamento' ? 'Lancamento' : p.s;
+      iw.setContent(
+        '<div style="font-family:Plus Jakarta Sans,sans-serif;padding:8px;min-width:220px">' +
+        '<h3 style="margin:0 0 4px;font-size:16px;color:#0f172a">' + p.n + '</h3>' +
+        '<p style="margin:0 0 8px;color:#475569;font-size:13px">' + p.c + ' - ' + p.t + '</p>' +
+        '<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;color:#fff;background:' + clr + '">' + sl + '</span>' +
+        '</div>'
+      );
+      iw.open(map, mk);
+    });
   });
-
-  window._psmMap = map;
-  setTimeout(function(){ map.invalidateSize(); }, 200);
 }
 
 function addMapPin() {
