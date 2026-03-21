@@ -1,134 +1,85 @@
-// KIWIFY PROXY (Vercel Serverless) - v2 with debug logging
-const https = require("https");
-
-function httpsReq(url, opts) {
-  return new Promise((resolve, reject) => {
-    const req = https.request(url, {
-      method: opts.method || "ET",
-      headers: opts.headers || {},
-    }, (res) => {
-      let data = "";
-      res.on("data", chunk => data += chunk);
-      res.on("end", () => resolve({ status: res.statusCode, body: data }));
-    })
-    req.on("error", reject);
-    if (opts.body) req.write(opts.body);
-    req.end();
-  });
-}
-
+// KIWIFY PROXY v3 - using native fetch()
 let cachedToken = null;
 let tokenExp = 0;
 
 async function getToken(clientId, clientSecret) {
   if (cachedToken && Date.now() < tokenExp) return cachedToken;
-  const body = "grant_type=client_credentials&client_id=" + clientId + "&client_secret=" + clientSecret;
+  const body = "client_id=" + clientId + "&client_secret=" + clientSecret;
   console.log("[Kiwify] Getting OAuth token...");
-  const res = await httpsReq("https://public-api.kiwify.com/v1/oauth/token", {
+  const res = await fetch("https://public-api.kiwify.com/v1/oauth/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body,
   });
-  console.log("[Kiwify] Token response status:", res.status);
-  if (res.status !== 200) {
-    console.log("[Kiwify] Token error body:", res.body.substring(0, 500));
-    throw new Error("Kiwify OAuth failed: " + res.status);
+  console.log("[Kiwify] Token status:", res.status);
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error("OAuth failed: " + res.status);
   }
-  const data = JSON.parse(res.body);
+  const data = await res.json();
   cachedToken = data.access_token;
-  tokenExp = Date.now() + 90 * 3600 * 1000;
-  console.log("[Kiwify] Token obtained, length:", cachedToken.length);
+  tokenExp = Date.now() + 80 * 3600 * 1000;
+  console.log("[Kiwify] Token ok, len:", cachedToken.length);
   return cachedToken;
 }
 
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  if (req.method === "OPTIONS") return res.status(204).end();
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
     const clientId = process.env.KIWIFY_CLIENT_ID;
     const clientSecret = process.env.KIWIFY_CLIENT_SECRET;
     const accountId = process.env.KIWIFY_ACCOUNT_ID;
-
     if (!clientId || !clientSecret || !accountId) {
-      console.log("[Kiwify] Missing env vars:", {
-        hasClientId: !!clientId,
-        hasClientSecret: !!clientSecret,
-        hasAccountId: !!accountId
-      });
-      return res.status(500).json({ error: "Kiwify env vars not configured" });
+      return res.status(500).json({ error: "env vars missing" });
     }
 
     const token = await getToken(clientId, clientSecret);
-
-    // Try multiple endpoints
-    const endpoints = [
-      "/v1/sales?status=paid&page=1",
-      "/v1/orders?status=paid&page=1",
-      "/v1/subscriptions?page=1"
-    ];
-
-    let salesRes = null;
-    let usedEndpoint = "";
+    const endpoints = ["/v1/sales?status=paid&page=1", "/v1/sales?page=1", "/v1/sales"];
+    let salesData = null;
+    let usedEp = "";
+    let debug = [];
 
     for (const ep of endpoints) {
-      console.log("[Kiwify] Trying endpoint:", ep);
-      const r = await httpsReq("https://public-api.kiwify.com" + ep, {
+      const url = "https://public-api.kiwify.com" + ep;
+      console.log("[Kiwify] GET", url);
+      const r = await fetch(url, {
         headers: {
           "Authorization": "Bearer " + token,
-        "x-kiwify-account-id": accountId,
+          "x-kiwify-account-id": accountId,
           "Accept": "application/json",
         },
       });
-      console.log("[Kiwify] " + ep + " => status:", r.status, "body preview:", r.body.substring(0, 300));
+      const txt = await r.text();
+      console.log("[Kiwify]", ep, "=>", r.status, txt.substring(0, 200));
+      debug.push({ ep, status: r.status, body: txt.substring(0, 100) });
       if (r.status === 200) {
-        salesRes = r;
-        usedEndpoint = ep;
-        break;
+        try { salesData = JSON.parse(txt); usedEp = ep; break; }
+        catch(e) { debug.push({ parseErr: e.message }); }
       }
     }
 
-    if (!salesRes) {
-      return res.status(200).json({
-        ok: false,
-        error: "All Kiwify endpoints returned non-200",
-        debug: "Token works but sales/orders/subscriptions all failed with auth error"
-      });
+    if (!salesData) {
+      return res.status(200).json({ ok: false, error: "All endpoints failed", debug });
     }
-
-    // Parse and deduplicate
-    const salesData = JSON.parse(salesRes.body);
-    const items = salesData.data || salesData.results || salesData.orders || [];
-    console.log("[Kiwify] Got " + items.length + " items from " + usedEndpoint);
 
     const seen = {};
     const students = [];
-    items.forEach(function(sale) {
-      const cust = sale.customer || sale.buyer || {};
-      const email = cust.email || "";
+    (salesData.data || []).forEach(function(s) {
+      const c = s.customer || s.buyer || {};
+      const email = c.email || "";
       if (email && !seen[email]) {
         seen[email] = true;
-        students.push({
-          nome: cust.name || cust.full_name || "\u2014",
-          email: email,
-          produto: (sale.product || {}).name || "Comunidade PSM",
-          data: sale.created_at || sale.approved_date || "",
-          status: sale.status || "paid",
-        });
+        students.push({ nome: c.name || c.full_name || "?", email, status: s.status || "paid", data: s.created_at || "" });
       }
     });
 
-    return res.status(200).json({
-      ok: true,
-      total: students.length,
-      endpoint: usedEndpoint,
-      students: students,
-    });
-
+    return res.status(200).json({ ok: true, endpoint: usedEp, total: students.length, students });
   } catch (err) {
-    console.error("[Kiwify proxy]", err);
-    return res.status(500).json({ error: err.message || "Internal error" });
+    console.error("[Kiwify]", err.message);
+    return res.status(500).json({ ok: false, error: err.message });
   }
 };
