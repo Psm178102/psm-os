@@ -9,7 +9,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
 
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+*,*::before,*::after{box-sizing:border-box;margin:;padding:0}
 :root
   --navy:#0f172a;--navy2:#1e293b;--navy3:#334155;
   --gold:#d4a843;--gold2:#e8c263;--gold3:#f5dfa0;
@@ -4565,8 +4565,8 @@ function pgFormacao() {
       h += '</div>';
     });
   } else if(tab==='progresso'){
-    var students = window._kiwifyStudents||[];
-    if(students.length===0){ updateFormacao(); h += '<div style="padding:40px;text-align:center;color:var(--muted)">🔄 Carregando lista de alunos do Kiwify...</div>'; }
+    var students = window._kiwifyStudents;
+    if(!students){ updateFormacao(); h += '<div style="padding:40px;text-align:center;color:var(--muted)">🔄 Carregando lista de alunos do Kiwify...</div>'; }
     else {
       h += '<div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>Email</th><th>Status</th><th style="text-align:right">Data</th></tr></thead><tbody>';
       students.forEach(function(s){
