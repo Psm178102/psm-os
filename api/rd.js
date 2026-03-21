@@ -52,11 +52,11 @@ module.exports = async (req, res) => {
       if (!token) {
         return res.status(401).json({
           error: 'Token RD Marketing não configurado',
-          hint: 'Configure RD_MKT_TOKEN nas Environment Variables do Vercel.',
+          hint: 'Configure RD_MKT_TOKEN nas Environment Variables do Vercel ou autorize via OAuth2.',
         });
       }
-      forwardParams.set('auth_token', token);
-      url = 'https://api.rdstation.com/2.0' + path + '?' + forwardParams.toString();
+      // RD MKT API v2 uses Bearer token in Authorization header (not query param)
+      url = 'https://api.rd.services' + path + (forwardParams.toString() ? '?' + forwardParams.toString() : '');
     } else {
       const token = headerToken || process.env.RD_CRM_TOKEN || '';
       tokenSource = headerToken ? 'header' : (process.env.RD_CRM_TOKEN ? 'env' : 'none');
@@ -73,9 +73,11 @@ module.exports = async (req, res) => {
     const safeUrl = url.replace(/token=[^&]+/g, 'token=***');
     console.log(`[RD Proxy] ${req.method} ${service}${path} (via ${tokenSource}) → ${safeUrl}`);
 
+    const fetchHeaders = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    if (service === 'mkt') fetchHeaders['Authorization'] = 'Bearer ' + (headerToken || process.env.RD_MKT_TOKEN || '');
     const fetchOpts = {
       method: req.method || 'GET',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      headers: fetchHeaders,
     };
     if (req.body && ['POST', 'PUT', 'PATCH'].includes(req.method)) {
       fetchOpts.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
