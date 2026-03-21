@@ -4551,9 +4551,19 @@ function pgFormacao() {
     h += '<div style="font-size:10px;color:var(--g-tx);margin-top:4px;opacity:.8">Acesse a Área do Aluno para estudar</div>';
     h += '</div>';
   } else if(tab==='aluno'){
-    h += '<div style="border-radius:var(--radius);overflow:hidden;box-shadow:var(--sh);height:calc(100vh - 240px);background:#fff">';
-    h += '<iframe src="https://members.kiwify.com/?club=ccdc35d2-08c0-47cd-8268-4bf2c30ca597" style="width:100%;height:100%;border:none;display:block" allow="fullscreen"></iframe>';
+    h += '<div style="text-align:center;padding:48px 24px;background:var(--cream2);border-radius:var(--radius);box-shadow:var(--sh);margin-bottom:24px">';
+    h += '<div style="font-size:48px;margin-bottom:16px">🎓</div>';
+    h += '<h2 style="color:var(--navy);margin:0 0 8px">Comunidade PSM</h2>';
+    h += '<p style="color:var(--muted);margin:0 0 24px;max-width:500px;display:inline-block">Acesse a plataforma de ensino Kiwify para assistir aulas, acompanhar seu progresso e interagir com outros corretores.</p>';
+    h += '<a href="https://members.kiwify.com/?club=ccdc35d2-08c0-47cd-8268-4bf2c30ca597" target="_blank" rel="noopener" style="display:inline-block;padding:14px 40px;background:var(--navy);color:var(--cream);border-radius:var(--radius);font-weight:700;font-size:16px;text-decoration:none;box-shadow:var(--sh);transition:all .2s">Abrir Área de Membros ↗</a>';
     h += '</div>';
+    h += '<h3 style="color:var(--navy);margin:24px 0 16px">📚 Módulos Disponíveis</h3>';
+    mods.forEach(function(m,i){
+      h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--cream2);border-radius:var(--radius);margin-bottom:8px;box-shadow:var(--sh)">';
+      h += '<div><strong style="color:var(--navy)">' + (i+1) + '. ' + m.nome + '</strong><br><span style="color:var(--muted);font-size:13px">' + m.desc + '</span></div>';
+      h += '<span style="background:var(--navy);color:var(--cream);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap">' + m.aulas + ' aulas</span>';
+      h += '</div>';
+    });
   } else if(tab==='progresso'){
     var students = window._kiwifyStudents||[];
     if(students.length===0){ updateFormacao(); h += '<div style="padding:40px;text-align:center;color:var(--muted)">🔄 Carregando lista de alunos do Kiwify...</div>'; }
