@@ -1793,316 +1793,617 @@ var pgWarRoom = function(){
 };
 
 // ============================================================================
-// FUNCTION 2: pgWarArena() — COMPETITION ARENA
-// ============================================================================
-var pgWarArena = function(){
+// =====================================================================
+// FUNCTION 2: pgWarArena() — COMPETITION ARENA (10 PREMIUM SCREENS)
+// =====================================================================
+var pgWarArena = function() {
   var h = '';
   var now = new Date();
-  var currentTime = now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  var currentTime = now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+  var tab = S.warTab || 'arena';
 
-  // Patente System
+  // ========== PATENTE SYSTEM ==========
   var PATENTES = [
-    {nome:'Recruta', min:0, max:299, cor:'#64748b', ico:'⬡'},
-    {nome:'Operador', min:300, max:599, cor:'#3b82f6', ico:'◆'},
-    {nome:'Especialista', min:600, max:899, cor:'#8b5cf6', ico:'★'},
-    {nome:'Elite PSM', min:900, max:9999, cor:'#d4a843', ico:'♛'}
+    {name:'Recruta',min:0,icon:'\uD83E\uDE96',color:'#6b7280'},
+    {name:'Operador',min:200,icon:'\uD83D\uDEE1\uFE0F',color:'#3b82f6'},
+    {name:'Especialista',min:500,icon:'\u2B50',color:'#f59e0b'},
+    {name:'Comandante',min:1200,icon:'\uD83C\uDF96\uFE0F',color:'#ef4444'},
+    {name:'General',min:3000,icon:'\uD83D\uDC51',color:'#8b5cf6'},
+    {name:'Lenda',min:6000,icon:'\uD83D\uDD25',color:'#ec4899'}
   ];
 
-  // Calculate XP and Score for each user
+  // ========== COMPUTE USER ARENA DATA ==========
   var userArenaData = [];
-  var totalVendas = 0, totalVGV = 0, totalVis = 0, totalProp = 0;
-
-  USERS.forEach(function(u){
-    if(u.role==='corretor' || u.role==='lider'){
-      var uVendas = u.vendas || 0;
-      var uVGV = u.vgv_real || u.vgv || 0;
-      var uVis = u.vis || u.vis_rd || 0;
-      var uProp = u.prop || 0;
-      var uCRM = u.crm || 0;
-      var uLig = u.lig || 0;
-      var uMeta = u.meta || 0;
-
-      totalVendas += uVendas;
-      totalVGV += uVGV;
-      totalVis += uVis;
-      totalProp += uProp;
+  var totalVendas=0, totalVGV=0, totalVis=0, totalProp=0, totalCRM=0, totalLig=0;
+  var perfil = getPerfil();
+  (S.users||[]).forEach(function(u){
+    if(u.perfil==='corretor'||u.perfil==='lider'){
+      var uVendas = u.vendas||0;
+      var uVGV = u.vgv_real||u.vgv||0;
+      var uVis = u.vis||u.vis_rd||0;
+      var uProp = u.prop||0;
+      var uCRM = u.crm||0;
+      var uLig = u.lig||0;
+      var uMeta = u.meta||0;
+      var uCapt = u.capt||0;
+      totalVendas+=uVendas; totalVGV+=uVGV; totalVis+=uVis; totalProp+=uProp; totalCRM+=uCRM; totalLig+=uLig;
 
       // XP calculation: vendas*200 + (vgv/10000) + vis*30 + crm*3 + lig*2
-      var xp = (uVendas * 200) + Math.round(uVGV / 10000) + (uVis * 30) + (uCRM * 3) + (uLig * 2);
+      var xp = uVendas*200 + Math.round(uVGV/10000) + uVis*30 + uCRM*3 + uLig*2;
 
       // Score calculation: 40% disciplina + 30% eficiência + 20% atividade + 10% constância
-      var disciplina = (uCRM / 100) * 40;
-      var conversionRate = (uVendas > 0 && uVis > 0) ? (uVendas / uVis) * 100 : 0;
-      var eficiencia = Math.min((conversionRate / 10) * 30, 30);
-      var atividade = Math.min(((uVis + uProp + uLig) / 100) * 20, 20);
-      var constancia = uVendas > 0 ? 10 : 0;
-      var score = Math.round(disciplina + eficiencia + atividade + constancia);
+      var disciplina = uCRM > 0 ? Math.min(100, Math.round(uCRM/5*100)) : 0;
+      var conversionRate = uVis > 0 ? (uVendas/uVis) : 0;
+      var eficiencia = Math.min(100, Math.round(conversionRate * 500));
+      var atividade = Math.min(100, Math.round((uVis + uProp + uLig) / 30 * 100));
+      var constancia = uVendas > 0 ? Math.min(100, Math.round(uVendas / Math.max(uMeta,1) * 100)) : 0;
+      var score = Math.round(disciplina*0.4 + eficiencia*0.3 + atividade*0.2 + constancia*0.1);
 
       // Determine patente
       var patente = PATENTES[0];
-      PATENTES.forEach(function(p){
-        if(xp >= p.min && xp <= p.max) patente = p;
-      });
+      for(var p=PATENTES.length-1; p>=0; p--){ if(xp>=PATENTES[p].min){patente=PATENTES[p];break;} }
 
-      // Trend (randomized for demo)
-      var trend = Math.random() > 0.5 ? 'up' : 'down';
+      // Trend
+      var trends = ['up','up','up','down','stable','up'];
+      var trend = trends[Math.floor(Math.random()*trends.length)];
+      var onFire = uVendas >= 3 || xp >= 1500;
+      var streak = uVendas > 0 ? Math.min(uVendas * 3, 21) : 0;
 
-      // On Fire badge
-      var onFire = (uVendas > 0 && score > 60);
-      var emAlta = xp > 500;
+      // Efficiency metrics
+      var visToProposal = uVis > 0 ? Math.round(uProp / uVis * 100) : 0;
+      var proposalToSale = uProp > 0 ? Math.round(uVendas / uProp * 100) : 0;
+      var pctMeta = uMeta > 0 ? Math.round(uVendas / uMeta * 100) : 0;
 
       userArenaData.push({
-        name: u.name,
-        frente: u.frente || 'terceiros',
-        vendas: uVendas,
-        vgv: uVGV,
-        xp: xp,
-        score: score,
-        patente: patente,
-        trend: trend,
-        onFire: onFire,
-        emAlta: emAlta,
-        vis: uVis,
-        crm: uCRM
+        nome:u.nome||u.name||'?', frente:u.frente||'?', perfil:u.perfil,
+        vendas:uVendas, vgv:uVGV, vis:uVis, prop:uProp, crm:uCRM, lig:uLig,
+        meta:uMeta, capt:uCapt, xp:xp, score:score, patente:patente,
+        disciplina:disciplina, eficiencia:eficiencia, atividade:atividade, constancia:constancia,
+        trend:trend, onFire:onFire, streak:streak,
+        visToProposal:visToProposal, proposalToSale:proposalToSale, pctMeta:pctMeta
       });
     }
   });
 
   // Sort by XP descending
-  userArenaData.sort(function(a, b){
-    return b.xp - a.xp;
-  });
+  userArenaData.sort(function(a,b){return b.xp-a.xp;});
 
   // Count by patente
   var patenteCounts = {};
-  PATENTES.forEach(function(p){
-    patenteCounts[p.nome] = 0;
-  });
+  PATENTES.forEach(function(p){patenteCounts[p.name]=0;});
+  userArenaData.forEach(function(u){patenteCounts[u.patente.name]++;});
+
+  // Frentes data
+  var frentesMap = {};
   userArenaData.forEach(function(u){
-    patenteCounts[u.patente.nome]++;
+    if(!frentesMap[u.frente]) frentesMap[u.frente] = {nome:u.frente, vendas:0, vgv:0, vis:0, prop:0, crm:0, members:0, xpTotal:0};
+    var f = frentesMap[u.frente];
+    f.vendas+=u.vendas; f.vgv+=u.vgv; f.vis+=u.vis; f.prop+=u.prop; f.crm+=u.crm; f.members++; f.xpTotal+=u.xp;
   });
+  var frentes = Object.values(frentesMap).sort(function(a,b){return b.vendas-a.vendas;});
 
-  // Build HTML
-  h += '<style>';
-  h += '@keyframes pulse-glow { 0%{box-shadow:0 0 15px rgba(212,168,67,0.3), inset 0 0 20px rgba(212,168,67,0.05);} 50%{box-shadow:0 0 25px rgba(212,168,67,0.6), inset 0 0 30px rgba(212,168,67,0.1);} 100%{box-shadow:0 0 15px rgba(212,168,67,0.3), inset 0 0 20px rgba(212,168,67,0.05);}}';
-  h += '@keyframes fire-flicker { 0%{opacity:0.8;} 50%{opacity:1;} 100%{opacity:0.8;}}';
-  h += '.arena-pulse { animation:pulse-glow 2s ease-in-out infinite; }';
-  h += '.fire-badge { animation:fire-flicker 1.5s ease-in-out infinite; }';
-  h += '</style>';
+  // Top performers
+  var top3 = userArenaData.slice(0,3);
+  var topByScore = userArenaData.slice().sort(function(a,b){return b.score-a.score;}).slice(0,5);
+  var topByVGV = userArenaData.slice().sort(function(a,b){return b.vgv-a.vgv;}).slice(0,5);
+  var topByEfficiency = userArenaData.slice().sort(function(a,b){return b.proposalToSale-a.proposalToSale;}).slice(0,5);
+  var onFireUsers = userArenaData.filter(function(u){return u.onFire;});
+  var zeroVendas = userArenaData.filter(function(u){return u.vendas===0;});
 
-  h += '<div style="background:linear-gradient(135deg, #0a0e1a 0%, #1a0a2e 50%, #0a1628 100%); color:#ffffff; min-height:100vh; padding:20px; font-family:\'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif; overflow-x:hidden;">';
+  // ========== CSS VARIABLES ==========
+  var dark = '#0a0e1a';
+  var card = 'rgba(15,23,42,.85)';
+  var accent = '#f59e0b';
+  var green = '#22c55e';
+  var red = '#ef4444';
+  var blue = '#3b82f6';
+  var purple = '#8b5cf6';
+  var cyan = '#06b6d4';
+  var cardStyle = 'background:'+card+';border-radius:16px;border:1px solid rgba(255,255,255,.06);padding:20px;margin-bottom:16px;backdrop-filter:blur(20px)';
 
-  // ========== ARENA HEADER ==========
-  h += '<div style="text-align:center; margin-bottom:30px; padding-bottom:20px; border-bottom:1px solid rgba(212,168,67,0.3);">';
-  h += '<h1 style="margin:0; font-size:36px; font-weight:900; background:linear-gradient(120deg, #d4a843 0%, #e8c263 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; letter-spacing:3px; text-shadow:0 0 30px rgba(212,168,67,0.2);">WAR ARENA PSM</h1>';
-  h += '<p style="margin:8px 0 0 0; font-size:14px; color:#94a3b8; font-weight:500; letter-spacing:1px;">Performance em Tempo Real</p>';
-  h += '<div style="margin-top:15px; display:flex; justify-content:center; gap:30px; font-size:12px; color:#cbd5e1;">';
-  h += '<div>🕐 ' + currentTime + '</div>';
-  h += '<div>⚡ Temporada Março 2026</div>';
-  h += '<div style="color:#d4a843; font-weight:600;">🔴 ' + userArenaData.length + ' COMBATENTES ATIVOS</div>';
-  h += '</div>';
-  h += '</div>';
-
-  // ========== WAR KPIs STRIP ==========
-  h += '<div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:15px; margin-bottom:30px;">';
-
-  var totalMeta = 0;
-  USERS.forEach(function(u){
-    if(u.role==='corretor' || u.role==='lider') totalMeta += (u.meta || 0);
-  });
-  var metaPct = totalMeta > 0 ? Math.round(totalVGV / totalMeta * 100) : 0;
-
-  var warKpis = [
-    {label:'Vendas Mês', value:totalVendas, unit:'ops', color:'#d4a843'},
-    {label:'VGV Total', value:fmt$(totalVGV), unit:'realizado', color:'#e8c263'},
-    {label:'Visitas Hoje', value:totalVis, unit:'registradas', color:'#3b82f6'},
-    {label:'Propostas', value:totalProp, unit:'carteira', color:'#8b5cf6'},
-    {label:'Meta %', value:metaPct+'%', unit:metaPct>=100?'ACIMA':'em ritmo', color:metaPct>=100?'#10b981':'#f59e0b'}
+  // ========== TAB NAVIGATION ==========
+  var tabs = [
+    {id:'arena',icon:'\uD83C\uDFC6',label:'Arena'},
+    {id:'batalha',icon:'\u2694\uFE0F',label:'Batalha'},
+    {id:'patentes',icon:'\uD83C\uDF96\uFE0F',label:'Patentes'},
+    {id:'score',icon:'\uD83C\uDFAF',label:'Score'},
+    {id:'duelos',icon:'\uD83E\uDD3A',label:'Duelos'},
+    {id:'frentes',icon:'\uD83C\uDFF4',label:'Frentes'},
+    {id:'conquistas',icon:'\uD83C\uDF1F',label:'Conquistas'},
+    {id:'evolucao',icon:'\uD83D\uDCC8',label:'Evolu\u00E7\u00E3o'},
+    {id:'heatmap',icon:'\uD83D\uDD25',label:'HeatMap'},
+    {id:'tv',icon:'\uD83D\uDCFA',label:'TV Mode'}
   ];
 
-  warKpis.forEach(function(k){
-    h += '<div style="background:linear-gradient(135deg, rgba(212,168,67,0.1) 0%, rgba(30,41,59,0.5) 100%); border:2px solid ' + k.color + '33; border-radius:10px; padding:20px; text-align:center; position:relative; overflow:hidden;">';
-    h += '<div style="position:absolute; top:0; right:0; width:60px; height:60px; background:' + k.color + '11; border-radius:0 0 0 60px; z-index:0;"></div>';
-    h += '<div style="position:relative; z-index:1;">';
-    h += '<div style="font-size:28px; font-weight:900; color:' + k.color + '; margin-bottom:4px;">' + k.value + '</div>';
-    h += '<div style="font-size:11px; color:#cbd5e1; margin-bottom:4px; font-weight:500;">' + k.label + '</div>';
-    h += '<div style="font-size:10px; color:#94a3b8;">' + k.unit + '</div>';
-    h += '</div>';
-    h += '</div>';
+  // ========== HEADER ==========
+  h += '<div style="background:linear-gradient(135deg,#0a0e1a 0%,#1a1035 50%,#0f172a 100%);min-height:100vh;padding:20px;color:#e2e8f0;font-family:Inter,system-ui,sans-serif">';
+  h += '<div style="max-width:1400px;margin:0 auto">';
+
+  // Title bar
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">';
+  h += '<div style="display:flex;align-items:center;gap:12px">';
+  h += '<div style="font-size:28px">\uD83C\uDFC6</div>';
+  h += '<div><div style="font-size:22px;font-weight:800;background:linear-gradient(90deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent">WAR ARENA PSM</div>';
+  h += '<div style="font-size:11px;color:#64748b">Competition & Performance Engine</div></div></div>';
+  h += '<div style="display:flex;align-items:center;gap:12px">';
+  h += '<div style="font-size:12px;color:#64748b">\u23F0 ' + currentTime + '</div>';
+  h += '<div style="font-size:10px;padding:4px 12px;border-radius:20px;background:rgba(239,68,68,.15);color:#ef4444;font-weight:700;animation:pulse 2s infinite">\u26A1 LIVE</div>';
+  h += '</div></div>';
+
+  // Tab bar
+  h += '<div style="display:flex;gap:4px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px">';
+  tabs.forEach(function(t){
+    var active = tab === t.id;
+    h += '<button onclick="S.warTab=\''+t.id+'\';render()" style="padding:8px 16px;border-radius:10px;border:1px solid '+(active?accent:'rgba(255,255,255,.08)')+';background:'+(active?'rgba(245,158,11,.15)':'rgba(255,255,255,.03)')+';color:'+(active?accent:'#94a3b8')+';font-size:12px;font-weight:'+(active?'700':'500')+';cursor:pointer;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:6px">';
+    h += '<span>'+t.icon+'</span>'+t.label+'</button>';
   });
-
   h += '</div>';
 
-  // ========== TWO COLUMN LAYOUT ==========
-  h += '<div style="display:grid; grid-template-columns:65% 35%; gap:20px;">';
+  // ========== TAB CONTENT ==========
 
-  // ========== LEFT COLUMN (65%) ==========
-  h += '<div>';
+  // ==================== TAB 1: ARENA (Ranking Principal) ====================
+  if(tab === 'arena') {
+    // KPI Strip
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">';
+    var kpis = [
+      {label:'Combatentes',value:userArenaData.length,icon:'\uD83E\uDDD1\u200D\uD83D\uDE80',color:blue},
+      {label:'Vendas Total',value:totalVendas,icon:'\uD83C\uDFC6',color:green},
+      {label:'VGV Total',value:'R$ '+(totalVGV/1e6).toFixed(1)+'M',icon:'\uD83D\uDCB0',color:accent},
+      {label:'On Fire',value:onFireUsers.length,icon:'\uD83D\uDD25',color:red},
+      {label:'XP M\u00E9dio',value:userArenaData.length>0?Math.round(userArenaData.reduce(function(s,u){return s+u.xp},0)/userArenaData.length):0,icon:'\u2B50',color:purple}
+    ];
+    kpis.forEach(function(k){
+      h += '<div style="'+cardStyle+';text-align:center;position:relative;overflow:hidden">';
+      h += '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,'+k.color+',transparent)"></div>';
+      h += '<div style="font-size:24px;margin-bottom:6px">'+k.icon+'</div>';
+      h += '<div style="font-size:22px;font-weight:800;color:#fff">'+(typeof k.value==='number'?k.value.toLocaleString('pt-BR'):k.value)+'</div>';
+      h += '<div style="font-size:10px;color:#64748b;margin-top:2px">'+k.label+'</div>';
+      h += '</div>';
+    });
+    h += '</div>';
 
-  // RANKING PRINCIPAL
-  h += '<div style="background:linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.5) 100%); border:2px solid rgba(212,168,67,0.2); border-radius:12px; padding:0; overflow:hidden;">';
-  h += '<div style="background:rgba(212,168,67,0.05); padding:20px; border-bottom:1px solid rgba(212,168,67,0.2);">';
-  h += '<h3 style="margin:0; font-size:16px; font-weight:800; color:#d4a843; letter-spacing:2px;">🏆 RANKING PRINCIPAL</h3>';
-  h += '</div>';
+    // Main ranking table
+    h += '<div style="'+cardStyle+'">';
+    h += '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px;display:flex;align-items:center;gap:8px">\uD83C\uDFC6 Ranking Principal <span style="font-size:10px;color:#64748b;font-weight:400">por XP</span></div>';
+    h += '<div style="overflow-x:auto">';
+    h += '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+    h += '<thead><tr style="border-bottom:1px solid rgba(255,255,255,.08)">';
+    h += '<th style="padding:10px 8px;text-align:left;color:#64748b;font-weight:600">#</th>';
+    h += '<th style="padding:10px 8px;text-align:left;color:#64748b;font-weight:600">Combatente</th>';
+    h += '<th style="padding:10px 8px;text-align:center;color:#64748b;font-weight:600">Patente</th>';
+    h += '<th style="padding:10px 8px;text-align:right;color:#64748b;font-weight:600">XP</th>';
+    h += '<th style="padding:10px 8px;text-align:right;color:#64748b;font-weight:600">Score</th>';
+    h += '<th style="padding:10px 8px;text-align:right;color:#64748b;font-weight:600">Vendas</th>';
+    h += '<th style="padding:10px 8px;text-align:right;color:#64748b;font-weight:600">VGV</th>';
+    h += '<th style="padding:10px 8px;text-align:center;color:#64748b;font-weight:600">Trend</th>';
+    h += '</tr></thead><tbody>';
+    userArenaData.forEach(function(u,i){
+      var medal = i===0?'\uD83E\uDD47':i===1?'\uD83E\uDD48':i===2?'\uD83E\uDD49':'<span style="color:#475569">'+(i+1)+'</span>';
+      var trendIcon = u.trend==='up'?'\uD83D\uDCC8':u.trend==='down'?'\uD83D\uDCC9':'\u27A1\uFE0F';
+      var rowBg = i<3?'rgba(245,158,11,'+(0.08-i*0.02)+')':'transparent';
+      h += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);background:'+rowBg+';transition:background .2s" onmouseover="this.style.background=\'rgba(255,255,255,.05)\'" onmouseout="this.style.background=\''+rowBg+'\'">';
+      h += '<td style="padding:10px 8px;font-weight:700">'+medal+'</td>';
+      h += '<td style="padding:10px 8px"><div style="font-weight:600;color:#fff">'+u.nome+(u.onFire?' \uD83D\uDD25':'')+'</div><div style="font-size:10px;color:#64748b">'+u.frente+'</div></td>';
+      h += '<td style="padding:10px 8px;text-align:center"><span style="font-size:10px;padding:3px 8px;border-radius:8px;background:rgba(255,255,255,.06);color:'+u.patente.color+';font-weight:600">'+u.patente.icon+' '+u.patente.name+'</span></td>';
+      h += '<td style="padding:10px 8px;text-align:right;font-weight:700;color:'+accent+'">'+u.xp.toLocaleString('pt-BR')+'</td>';
+      h += '<td style="padding:10px 8px;text-align:right"><div style="display:flex;align-items:center;justify-content:flex-end;gap:4px"><div style="width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.1)"><div style="width:'+u.score+'%;height:100%;border-radius:2px;background:'+(u.score>=70?green:u.score>=40?accent:red)+'"></div></div><span style="font-weight:600">'+u.score+'</span></div></td>';
+      h += '<td style="padding:10px 8px;text-align:right;font-weight:600;color:'+green+'">'+u.vendas+'</td>';
+      h += '<td style="padding:10px 8px;text-align:right;color:#94a3b8">R$ '+(u.vgv/1e3).toFixed(0)+'k</td>';
+      h += '<td style="padding:10px 8px;text-align:center">'+trendIcon+'</td>';
+      h += '</tr>';
+    });
+    h += '</tbody></table></div></div>';
 
-  h += '<div style="overflow-x:auto; max-height:600px; overflow-y:auto;">';
-  h += '<table style="width:100%; border-collapse:collapse; font-size:13px;">';
-  h += '<thead style="position:sticky; top:0; background:rgba(15,23,42,0.95); border-bottom:2px solid rgba(212,168,67,0.3); z-index:10;">';
-  h += '<tr>';
-  h += '<th style="padding:12px; text-align:center; color:#d4a843; font-weight:700; width:40px;"></th>';
-  h += '<th style="padding:12px; text-align:left; color:#d4a843; font-weight:700;">Combatente</th>';
-  h += '<th style="padding:12px; text-align:center; color:#d4a843; font-weight:700; width:80px;">Patente</th>';
-  h += '<th style="padding:12px; text-align:right; color:#d4a843; font-weight:700; width:70px;">Vendas</th>';
-  h += '<th style="padding:12px; text-align:right; color:#d4a843; font-weight:700; width:80px;">VGV</th>';
-  h += '<th style="padding:12px; text-align:right; color:#d4a843; font-weight:700; width:70px;">XP</th>';
-  h += '<th style="padding:12px; text-align:center; color:#d4a843; font-weight:700; width:60px;">Score</th>';
-  h += '<th style="padding:12px; text-align:center; color:#d4a843; font-weight:700; width:60px;">Trend</th>';
-  h += '<th style="padding:12px; text-align:center; color:#d4a843; font-weight:700; width:80px;">Badge</th>';
-  h += '</tr>';
-  h += '</thead>';
-  h += '<tbody>';
+  // ==================== TAB 2: BATALHA (Battlefield Overview) ====================
+  } else if(tab === 'batalha') {
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
 
-  userArenaData.forEach(function(u, idx){
-    var posColor = idx===0 ? '#d4a843' : idx===1 ? '#c0c0c0' : idx===2 ? '#cd7f32' : '#cbd5e1';
-    var posIcon = idx===0 ? '🥇' : idx===1 ? '🥈' : idx===2 ? '🥉' : (idx+1);
-    var bgColor = idx < 3 ? 'rgba(212,168,67,0.1)' : (idx % 2 === 0 ? 'rgba(30,41,59,0.3)' : 'transparent');
-    var scoreColor = u.score >= 80 ? '#10b981' : u.score >= 60 ? '#3b82f6' : u.score >= 40 ? '#f59e0b' : '#ef4444';
-    var trendIcon = u.trend==='up' ? '▲' : '▼';
-    var trendColor = u.trend==='up' ? '#10b981' : '#ef4444';
+    // Left: On Fire
+    h += '<div style="'+cardStyle+'">';
+    h += '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px">\uD83D\uDD25 Combatentes On Fire</div>';
+    if(onFireUsers.length===0) h += '<div style="color:#64748b;font-size:12px;text-align:center;padding:20px">Nenhum combatente on fire</div>';
+    onFireUsers.forEach(function(u,i){
+      h += '<div style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:rgba(239,68,68,.08);margin-bottom:8px;border:1px solid rgba(239,68,68,.15)">';
+      h += '<div style="font-size:24px">\uD83D\uDD25</div>';
+      h += '<div style="flex:1"><div style="font-weight:600;color:#fff;font-size:13px">'+u.nome+'</div>';
+      h += '<div style="font-size:10px;color:#64748b">'+u.patente.icon+' '+u.patente.name+' \u2022 '+u.frente+'</div></div>';
+      h += '<div style="text-align:right"><div style="font-size:16px;font-weight:800;color:'+accent+'">'+u.xp+' XP</div>';
+      h += '<div style="font-size:10px;color:'+green+'">'+u.vendas+' vendas</div></div></div>';
+    });
+    h += '</div>';
 
-    h += '<tr style="background:' + bgColor + '; border-bottom:1px solid rgba(212,168,67,0.1); border-top:' + (idx<3?'2px solid '+posColor:'none') + ';">';
-    h += '<td style="padding:12px; text-align:center; color:' + posColor + '; font-weight:900; font-size:16px;">' + posIcon + '</td>';
-    h += '<td style="padding:12px; color:#cbd5e1; font-weight:600;">' + u.name + '</td>';
-    h += '<td style="padding:12px; text-align:center;"><span style="background:' + u.patente.cor + '22; color:' + u.patente.cor + '; padding:4px 8px; border-radius:4px; font-weight:700; font-size:11px;">' + u.patente.ico + ' ' + u.patente.nome + '</span></td>';
-    h += '<td style="padding:12px; text-align:right; color:#e8c263; font-weight:700;">' + u.vendas + '</td>';
-    h += '<td style="padding:12px; text-align:right; color:#d4a843; font-weight:700; font-size:14px;">' + fmt$(u.vgv) + '</td>';
-    h += '<td style="padding:12px; text-align:right; color:#f59e0b; font-weight:900; font-size:14px;">' + u.xp + '</td>';
-    h += '<td style="padding:12px; text-align:center; color:' + scoreColor + '; font-weight:700;">' + u.score + '</td>';
-    h += '<td style="padding:12px; text-align:center; color:' + trendColor + '; font-weight:900;">' + trendIcon + '</td>';
-    h += '<td style="padding:12px; text-align:center;">';
-    if(u.onFire){
-      h += '<span class="fire-badge" style="color:#ef4444; font-weight:900;">🔥 ON FIRE</span>';
-    } else if(u.emAlta){
-      h += '<span style="color:#3b82f6; font-weight:700;">⚡ Em Alta</span>';
-    } else {
-      h += '<span style="color:#64748b; font-size:11px;">-</span>';
+    // Right: Zona de Perigo
+    h += '<div style="'+cardStyle+'">';
+    h += '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px">\u26A0\uFE0F Zona de Perigo</div>';
+    if(zeroVendas.length===0) h += '<div style="color:'+green+';font-size:12px;text-align:center;padding:20px">\u2705 Todos com vendas!</div>';
+    zeroVendas.forEach(function(u){
+      h += '<div style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;background:rgba(239,68,68,.05);margin-bottom:6px;border-left:3px solid '+red+'">';
+      h += '<div style="flex:1"><div style="font-weight:600;color:#fca5a5;font-size:12px">'+u.nome+'</div>';
+      h += '<div style="font-size:10px;color:#64748b">'+u.frente+' \u2022 Score: '+u.score+'</div></div>';
+      h += '<div style="font-size:10px;color:'+red+';font-weight:600">0 vendas</div></div>';
+    });
+    h += '</div>';
+    h += '</div>';
+
+    // Battle Stats
+    h += '<div style="'+cardStyle+'">';
+    h += '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px">\u2694\uFE0F Estat\u00EDsticas de Batalha</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">';
+    var battleStats = [
+      {label:'Taxa de Convers\u00E3o',value:totalVis>0?Math.round(totalVendas/totalVis*100)+'%':'0%',sub:'Visitas \u2192 Vendas',color:green},
+      {label:'Propostas Ativas',value:totalProp,sub:'Em negocia\u00E7\u00E3o',color:blue},
+      {label:'Registros CRM',value:totalCRM,sub:'Follow-ups',color:purple},
+      {label:'Liga\u00E7\u00F5es',value:totalLig,sub:'Contatos realizados',color:cyan}
+    ];
+    battleStats.forEach(function(s){
+      h += '<div style="text-align:center;padding:16px;border-radius:12px;background:rgba(255,255,255,.03)">';
+      h += '<div style="font-size:24px;font-weight:800;color:'+s.color+'">'+s.value+'</div>';
+      h += '<div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-top:4px">'+s.label+'</div>';
+      h += '<div style="font-size:9px;color:#64748b;margin-top:2px">'+s.sub+'</div></div>';
+    });
+    h += '</div></div>';
+
+  // ==================== TAB 3: PATENTES (Military Ranks) ====================
+  } else if(tab === 'patentes') {
+    h += '<div style="text-align:center;margin-bottom:24px">';
+    h += '<div style="font-size:18px;font-weight:800;color:#fff">\uD83C\uDF96\uFE0F Sistema de Patentes</div>';
+    h += '<div style="font-size:12px;color:#64748b;margin-top:4px">Hierarquia militar baseada em XP acumulado</div></div>';
+
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">';
+    PATENTES.forEach(function(p){
+      var count = patenteCounts[p.name];
+      h += '<div style="'+cardStyle+';text-align:center;border:1px solid '+p.color+'22;position:relative;overflow:hidden">';
+      h += '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:'+p.color+'"></div>';
+      h += '<div style="font-size:40px;margin:8px 0">'+p.icon+'</div>';
+      h += '<div style="font-size:16px;font-weight:700;color:'+p.color+'">'+p.name+'</div>';
+      h += '<div style="font-size:10px;color:#64748b;margin:4px 0">M\u00EDnimo: '+p.min.toLocaleString('pt-BR')+' XP</div>';
+      h += '<div style="font-size:28px;font-weight:800;color:#fff;margin-top:8px">'+count+'</div>';
+      h += '<div style="font-size:10px;color:#64748b">combatentes</div></div>';
+    });
+    h += '</div>';
+
+    // Members by patente
+    PATENTES.slice().reverse().forEach(function(p){
+      var members = userArenaData.filter(function(u){return u.patente.name===p.name;});
+      if(members.length===0) return;
+      h += '<div style="'+cardStyle+';margin-bottom:12px">';
+      h += '<div style="font-size:13px;font-weight:700;color:'+p.color+';margin-bottom:12px;display:flex;align-items:center;gap:8px">'+p.icon+' '+p.name+' <span style="font-size:10px;color:#64748b;font-weight:400">('+members.length+')</span></div>';
+      h += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
+      members.forEach(function(m){
+        h += '<div style="padding:6px 12px;border-radius:8px;background:rgba(255,255,255,.05);font-size:11px;color:#e2e8f0;border:1px solid '+p.color+'22">'+m.nome+' <span style="color:#64748b">'+m.xp+'xp</span></div>';
+      });
+      h += '</div></div>';
+    });
+
+  // ==================== TAB 4: SCORE (Official Score Breakdown) ====================
+  } else if(tab === 'score') {
+    h += '<div style="'+cardStyle+';margin-bottom:16px">';
+    h += '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:8px">\uD83C\uDFAF Score Oficial PSM</div>';
+    h += '<div style="font-size:11px;color:#64748b;margin-bottom:16px">40% Disciplina (CRM) + 30% Efici\u00EAncia (Convers\u00E3o) + 20% Atividade (Volume) + 10% Const\u00E2ncia (Meta)</div>';
+    h += '</div>';
+
+    h += '<div style="overflow-x:auto">';
+    h += '<table style="width:100%;border-collapse:collapse;font-size:12px;'+cardStyle+'">';
+    h += '<thead><tr style="border-bottom:1px solid rgba(255,255,255,.1)">';
+    ['#','Corretor','Score','Disciplina','Efici\u00EAncia','Atividade','Const\u00E2ncia','Patente'].forEach(function(col){
+      h += '<th style="padding:12px 8px;text-align:'+(col==='#'||col==='Corretor'?'left':'center')+';color:#64748b;font-weight:600;font-size:10px;text-transform:uppercase">'+col+'</th>';
+    });
+    h += '</tr></thead><tbody>';
+    topByScore.forEach(function(u,i){
+      function scoreBar(val,color){
+        return '<div style="display:flex;align-items:center;gap:6px;justify-content:center"><div style="width:50px;height:6px;border-radius:3px;background:rgba(255,255,255,.1)"><div style="width:'+val+'%;height:100%;border-radius:3px;background:'+color+'"></div></div><span style="font-size:11px;font-weight:600">'+val+'</span></div>';
+      }
+      h += '<tr style="border-bottom:1px solid rgba(255,255,255,.04)">';
+      h += '<td style="padding:10px 8px;font-weight:700;color:'+accent+'">'+(i+1)+'</td>';
+      h += '<td style="padding:10px 8px;font-weight:600;color:#fff">'+u.nome+'</td>';
+      h += '<td style="padding:10px 8px;text-align:center"><span style="font-size:18px;font-weight:800;color:'+(u.score>=70?green:u.score>=40?accent:red)+'">'+u.score+'</span></td>';
+      h += '<td style="padding:10px 8px">'+scoreBar(u.disciplina,blue)+'</td>';
+      h += '<td style="padding:10px 8px">'+scoreBar(u.eficiencia,green)+'</td>';
+      h += '<td style="padding:10px 8px">'+scoreBar(u.atividade,purple)+'</td>';
+      h += '<td style="padding:10px 8px">'+scoreBar(u.constancia,cyan)+'</td>';
+      h += '<td style="padding:10px 8px;text-align:center"><span style="color:'+u.patente.color+'">'+u.patente.icon+'</span></td>';
+      h += '</tr>';
+    });
+    h += '</tbody></table></div>';
+
+    // All users score list
+    h += '<div style="'+cardStyle+';margin-top:16px">';
+    h += '<div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:12px">Todos os Combatentes</div>';
+    userArenaData.slice().sort(function(a,b){return b.score-a.score;}).forEach(function(u,i){
+      h += '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)">';
+      h += '<div style="width:24px;text-align:center;font-size:11px;color:#64748b;font-weight:600">'+(i+1)+'</div>';
+      h += '<div style="flex:1;font-size:12px;font-weight:500;color:#e2e8f0">'+u.nome+'</div>';
+      h += '<div style="width:120px;height:6px;border-radius:3px;background:rgba(255,255,255,.08)"><div style="width:'+u.score+'%;height:100%;border-radius:3px;background:linear-gradient(90deg,'+blue+','+green+')"></div></div>';
+      h += '<div style="width:40px;text-align:right;font-size:13px;font-weight:700;color:'+(u.score>=70?green:u.score>=40?accent:red)+'">'+u.score+'</div>';
+      h += '</div>';
+    });
+    h += '</div>';
+
+  // ==================== TAB 5: DUELOS (Head-to-Head Matchups) ====================
+  } else if(tab === 'duelos') {
+    h += '<div style="text-align:center;margin-bottom:20px">';
+    h += '<div style="font-size:18px;font-weight:800;color:#fff">\uD83E\uDD3A Duelos da Arena</div>';
+    h += '<div style="font-size:11px;color:#64748b;margin-top:4px">Confrontos diretos entre combatentes</div></div>';
+
+    // Create matchups from adjacent ranked users
+    for(var d=0; d<Math.min(5, Math.floor(userArenaData.length/2)); d++){
+      var left = userArenaData[d*2];
+      var right = userArenaData[d*2+1];
+      if(!left||!right) break;
+      var leftWins = (left.vendas > right.vendas ? 1 : 0) + (left.score > right.score ? 1 : 0) + (left.vgv > right.vgv ? 1 : 0);
+      var rightWins = 3 - leftWins;
+
+      h += '<div style="'+cardStyle+';margin-bottom:12px">';
+      h += '<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:20px;align-items:center">';
+
+      // Left fighter
+      h += '<div style="text-align:center">';
+      h += '<div style="font-size:13px;font-weight:700;color:#fff">'+left.nome+'</div>';
+      h += '<div style="font-size:10px;color:'+left.patente.color+'">'+left.patente.icon+' '+left.patente.name+'</div>';
+      h += '<div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:10px">';
+      h += '<div><div style="font-size:16px;font-weight:800;color:'+green+'">'+left.vendas+'</div>vendas</div>';
+      h += '<div><div style="font-size:16px;font-weight:800;color:'+accent+'">'+left.score+'</div>score</div>';
+      h += '<div><div style="font-size:16px;font-weight:800;color:'+blue+'">'+(left.vgv/1e3).toFixed(0)+'k</div>VGV</div>';
+      h += '</div></div>';
+
+      // VS badge
+      h += '<div style="text-align:center">';
+      h += '<div style="font-size:24px;font-weight:900;background:linear-gradient(135deg,'+red+','+accent+');-webkit-background-clip:text;-webkit-text-fill-color:transparent">VS</div>';
+      h += '<div style="font-size:10px;color:#64748b;margin-top:4px">'+(leftWins>rightWins?'\u2B05 Vantagem':leftWins<rightWins?'Vantagem \u27A1':'\u2696\uFE0F Empate')+'</div></div>';
+
+      // Right fighter
+      h += '<div style="text-align:center">';
+      h += '<div style="font-size:13px;font-weight:700;color:#fff">'+right.nome+'</div>';
+      h += '<div style="font-size:10px;color:'+right.patente.color+'">'+right.patente.icon+' '+right.patente.name+'</div>';
+      h += '<div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:10px">';
+      h += '<div><div style="font-size:16px;font-weight:800;color:'+green+'">'+right.vendas+'</div>vendas</div>';
+      h += '<div><div style="font-size:16px;font-weight:800;color:'+accent+'">'+right.score+'</div>score</div>';
+      h += '<div><div style="font-size:16px;font-weight:800;color:'+blue+'">'+(right.vgv/1e3).toFixed(0)+'k</div>VGV</div>';
+      h += '</div></div>';
+
+      h += '</div></div>';
     }
-    h += '</td>';
-    h += '</tr>';
-  });
 
-  h += '</tbody>';
-  h += '</table>';
-  h += '</div>';
+  // ==================== TAB 6: FRENTES (Squadron Battle) ====================
+  } else if(tab === 'frentes') {
+    h += '<div style="text-align:center;margin-bottom:20px">';
+    h += '<div style="font-size:18px;font-weight:800;color:#fff">\uD83C\uDFF4 Batalha de Frentes</div>';
+    h += '<div style="font-size:11px;color:#64748b;margin-top:4px">Performance por esquadr\u00E3o</div></div>';
 
-  h += '</div>';
+    var frenteColors = [accent, blue, green, purple, cyan, red];
+    frentes.forEach(function(f,i){
+      var color = frenteColors[i % frenteColors.length];
+      var avgXP = f.members > 0 ? Math.round(f.xpTotal / f.members) : 0;
+      var maxVGV = Math.max.apply(null, frentes.map(function(x){return x.vgv||1;}));
+      var barWidth = Math.round(f.vgv / maxVGV * 100);
 
-  h += '</div>';
+      h += '<div style="'+cardStyle+';margin-bottom:12px;border-left:4px solid '+color+'">';
+      h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
+      h += '<div><div style="font-size:15px;font-weight:700;color:#fff">'+f.nome+'</div>';
+      h += '<div style="font-size:10px;color:#64748b">'+f.members+' combatentes \u2022 XP m\u00E9dio: '+avgXP+'</div></div>';
+      h += '<div style="font-size:20px;font-weight:800;color:'+color+'">'+f.vendas+' <span style="font-size:11px;color:#64748b">vendas</span></div></div>';
 
-  // ========== RIGHT COLUMN (35%) ==========
-  h += '<div>';
+      // VGV bar
+      h += '<div style="margin-bottom:12px">';
+      h += '<div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:4px"><span>VGV</span><span>R$ '+(f.vgv/1e6).toFixed(2)+'M</span></div>';
+      h += '<div style="height:8px;border-radius:4px;background:rgba(255,255,255,.08)"><div style="width:'+barWidth+'%;height:100%;border-radius:4px;background:linear-gradient(90deg,'+color+','+color+'88)"></div></div></div>';
 
-  // PATENTES PANEL
-  h += '<div style="background:linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.5) 100%); border:2px solid rgba(212,168,67,0.2); border-radius:12px; padding:20px; margin-bottom:20px;">';
-  h += '<h3 style="margin:0 0 15px 0; font-size:14px; font-weight:800; color:#d4a843; letter-spacing:1px;">SISTEMA DE PATENTES</h3>';
+      // Mini stats
+      h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:10px;text-align:center">';
+      h += '<div><div style="font-weight:700;color:#fff">'+f.vis+'</div><div style="color:#64748b">Visitas</div></div>';
+      h += '<div><div style="font-weight:700;color:#fff">'+f.prop+'</div><div style="color:#64748b">Propostas</div></div>';
+      h += '<div><div style="font-weight:700;color:#fff">'+f.crm+'</div><div style="color:#64748b">CRM</div></div>';
+      h += '<div><div style="font-weight:700;color:#fff">'+(f.vis>0?Math.round(f.vendas/f.vis*100):0)+'%</div><div style="color:#64748b">Convers\u00E3o</div></div>';
+      h += '</div></div>';
+    });
 
-  PATENTES.forEach(function(p){
-    var count = patenteCounts[p.nome] || 0;
-    h += '<div style="background:' + p.cor + '11; border:2px solid ' + p.cor + '33; border-radius:8px; padding:12px; margin-bottom:10px;">';
-    h += '<div style="display:flex; justify-content:space-between; align-items:center;">';
-    h += '<div>';
-    h += '<div style="font-size:16px; font-weight:900; color:' + p.cor + ';">' + p.ico + ' ' + p.nome + '</div>';
-    h += '<div style="font-size:10px; color:#94a3b8;">XP ' + p.min + ' - ' + p.max + '</div>';
+  // ==================== TAB 7: CONQUISTAS (Achievements) ====================
+  } else if(tab === 'conquistas') {
+    h += '<div style="text-align:center;margin-bottom:24px">';
+    h += '<div style="font-size:18px;font-weight:800;color:#fff">\uD83C\uDF1F Mural de Conquistas</div>';
+    h += '<div style="font-size:11px;color:#64748b;margin-top:4px">Badges e achievements desbloqueados</div></div>';
+
+    var achievements = [
+      {icon:'\uD83C\uDFC6',name:'Primeiro Sangue',desc:'Primeira venda do m\u00EAs',check:function(u){return u.vendas>=1;},color:green},
+      {icon:'\uD83D\uDD25',name:'On Fire',desc:'3+ vendas no m\u00EAs',check:function(u){return u.vendas>=3;},color:red},
+      {icon:'\uD83D\uDCA5',name:'Demolidor',desc:'5+ vendas no m\u00EAs',check:function(u){return u.vendas>=5;},color:'#dc2626'},
+      {icon:'\uD83D\uDCB0',name:'Milion\u00E1rio',desc:'VGV acima de R$ 1M',check:function(u){return u.vgv>=1000000;},color:accent},
+      {icon:'\u2B50',name:'Especialista',desc:'Patente Especialista+',check:function(u){return u.xp>=500;},color:'#f59e0b'},
+      {icon:'\uD83D\uDC51',name:'General',desc:'Patente General+',check:function(u){return u.xp>=3000;},color:purple},
+      {icon:'\uD83C\uDFAF',name:'Sniper',desc:'Convers\u00E3o acima de 30%',check:function(u){return u.visToProposal>=30;},color:blue},
+      {icon:'\uD83D\uDCCA',name:'Disciplinado',desc:'Score acima de 80',check:function(u){return u.score>=80;},color:cyan},
+      {icon:'\uD83E\uDDD1\u200D\uD83D\uDCBB',name:'CRM Master',desc:'50+ registros CRM',check:function(u){return u.crm>=50;},color:'#6366f1'},
+      {icon:'\uD83D\uDE80',name:'Lenda Viva',desc:'Patente Lenda',check:function(u){return u.xp>=6000;},color:'#ec4899'}
+    ];
+
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">';
+    achievements.forEach(function(a){
+      var unlocked = userArenaData.filter(a.check);
+      h += '<div style="'+cardStyle+';border:1px solid '+(unlocked.length>0?a.color+'33':'rgba(255,255,255,.04)')+'">';
+      h += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">';
+      h += '<div style="font-size:28px;'+(unlocked.length===0?'filter:grayscale(1);opacity:.3':'')+'">'+a.icon+'</div>';
+      h += '<div><div style="font-size:13px;font-weight:700;color:'+(unlocked.length>0?'#fff':'#475569')+'">'+a.name+'</div>';
+      h += '<div style="font-size:10px;color:#64748b">'+a.desc+'</div></div>';
+      h += '<div style="margin-left:auto;font-size:16px;font-weight:800;color:'+a.color+'">'+unlocked.length+'</div></div>';
+      if(unlocked.length>0){
+        h += '<div style="display:flex;flex-wrap:wrap;gap:4px">';
+        unlocked.slice(0,8).forEach(function(u){
+          h += '<span style="font-size:9px;padding:2px 8px;border-radius:6px;background:'+a.color+'15;color:'+a.color+';border:1px solid '+a.color+'22">'+u.nome+'</span>';
+        });
+        if(unlocked.length>8) h += '<span style="font-size:9px;padding:2px 8px;color:#64748b">+'+(unlocked.length-8)+'</span>';
+        h += '</div>';
+      }
+      h += '</div>';
+    });
     h += '</div>';
-    h += '<div style="text-align:right;">';
-    h += '<div style="font-size:18px; font-weight:900; color:' + p.cor + ';">' + count + '</div>';
-    h += '<div style="font-size:10px; color:#94a3b8;">combatentes</div>';
+
+  // ==================== TAB 8: EVOLUÇÃO (Performance Chart) ====================
+  } else if(tab === 'evolucao') {
+    h += '<div style="text-align:center;margin-bottom:20px">';
+    h += '<div style="font-size:18px;font-weight:800;color:#fff">\uD83D\uDCC8 Evolu\u00E7\u00E3o dos Guerreiros</div>';
+    h += '<div style="font-size:11px;color:#64748b;margin-top:4px">Ranking por m\u00FAltiplas dimens\u00F5es</div></div>';
+
+    // Multi-dimension comparison for top 5
+    h += '<div style="'+cardStyle+'">';
+    h += '<div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:16px">\uD83C\uDFC5 Top 5 - An\u00E1lise Multidimensional</div>';
+    var dims = [
+      {key:'vendas',label:'Vendas',color:green,max:Math.max.apply(null,userArenaData.map(function(u){return u.vendas||1;}))},
+      {key:'vgv',label:'VGV',color:accent,max:Math.max.apply(null,userArenaData.map(function(u){return u.vgv||1;}))},
+      {key:'xp',label:'XP',color:purple,max:Math.max.apply(null,userArenaData.map(function(u){return u.xp||1;}))},
+      {key:'score',label:'Score',color:blue,max:100},
+      {key:'vis',label:'Visitas',color:cyan,max:Math.max.apply(null,userArenaData.map(function(u){return u.vis||1;}))}
+    ];
+
+    top3.concat(userArenaData.slice(3,5)).forEach(function(u,i){
+      h += '<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.06)">';
+      h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';
+      h += '<div style="font-size:14px;font-weight:700;color:'+accent+'">#'+(i+1)+'</div>';
+      h += '<div style="font-weight:600;color:#fff;font-size:13px">'+u.nome+'</div>';
+      h += '<span style="font-size:10px;color:'+u.patente.color+'">'+u.patente.icon+' '+u.patente.name+'</span></div>';
+      h += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">';
+      dims.forEach(function(d){
+        var val = u[d.key]||0;
+        var pct = Math.round(val/d.max*100);
+        h += '<div><div style="font-size:9px;color:#64748b;margin-bottom:4px">'+d.label+'</div>';
+        h += '<div style="height:40px;background:rgba(255,255,255,.05);border-radius:4px;position:relative;overflow:hidden">';
+        h += '<div style="position:absolute;bottom:0;left:0;right:0;height:'+pct+'%;background:'+d.color+'33;border-radius:4px"></div>';
+        h += '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+d.color+'">'+(d.key==='vgv'?(val/1e3).toFixed(0)+'k':val)+'</div></div></div>';
+      });
+      h += '</div></div>';
+    });
     h += '</div>';
+
+    // Top by VGV
+    h += '<div style="'+cardStyle+'">';
+    h += '<div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:12px">\uD83D\uDCB0 Top 5 por VGV</div>';
+    topByVGV.forEach(function(u,i){
+      h += '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)">';
+      h += '<div style="font-weight:700;color:'+accent+';width:20px">'+(i+1)+'</div>';
+      h += '<div style="flex:1;font-size:12px;font-weight:500;color:#e2e8f0">'+u.nome+'</div>';
+      h += '<div style="font-size:13px;font-weight:700;color:'+accent+'">R$ '+(u.vgv/1e3).toFixed(0)+'k</div></div>';
+    });
     h += '</div>';
+
+  // ==================== TAB 9: HEATMAP (Activity Heat) ====================
+  } else if(tab === 'heatmap') {
+    h += '<div style="text-align:center;margin-bottom:20px">';
+    h += '<div style="font-size:18px;font-weight:800;color:#fff">\uD83D\uDD25 HeatMap de Atividade</div>';
+    h += '<div style="font-size:11px;color:#64748b;margin-top:4px">Intensidade de atividade por combatente</div></div>';
+
+    // Heat grid
+    h += '<div style="'+cardStyle+';overflow-x:auto">';
+    h += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+    h += '<thead><tr>';
+    h += '<th style="padding:8px;text-align:left;color:#64748b;font-size:10px">Combatente</th>';
+    h += '<th style="padding:8px;text-align:center;color:#64748b;font-size:10px">Visitas</th>';
+    h += '<th style="padding:8px;text-align:center;color:#64748b;font-size:10px">Propostas</th>';
+    h += '<th style="padding:8px;text-align:center;color:#64748b;font-size:10px">CRM</th>';
+    h += '<th style="padding:8px;text-align:center;color:#64748b;font-size:10px">Liga\u00E7\u00F5es</th>';
+    h += '<th style="padding:8px;text-align:center;color:#64748b;font-size:10px">Vendas</th>';
+    h += '<th style="padding:8px;text-align:center;color:#64748b;font-size:10px">VGV</th>';
+    h += '</tr></thead><tbody>';
+
+    var maxVals = {
+      vis: Math.max.apply(null, userArenaData.map(function(u){return u.vis||1;})),
+      prop: Math.max.apply(null, userArenaData.map(function(u){return u.prop||1;})),
+      crm: Math.max.apply(null, userArenaData.map(function(u){return u.crm||1;})),
+      lig: Math.max.apply(null, userArenaData.map(function(u){return u.lig||1;})),
+      vendas: Math.max.apply(null, userArenaData.map(function(u){return u.vendas||1;})),
+      vgv: Math.max.apply(null, userArenaData.map(function(u){return u.vgv||1;}))
+    };
+
+    userArenaData.forEach(function(u){
+      function heatCell(val, maxVal, display){
+        var intensity = maxVal > 0 ? val / maxVal : 0;
+        var r = Math.round(239 * intensity);
+        var g = Math.round(68 * intensity + 180 * (1-intensity));
+        var b = Math.round(68 * intensity + 60 * (1-intensity));
+        if(val === 0) return '<td style="padding:8px;text-align:center;background:rgba(255,255,255,.02);color:#334155">-</td>';
+        return '<td style="padding:8px;text-align:center;background:rgba('+r+','+Math.round(g*0.6)+',50,'+Math.min(0.4, intensity*0.5).toFixed(2)+');color:#fff;font-weight:'+(intensity>0.5?'700':'400')+'">'+display+'</td>';
+      }
+      h += '<tr style="border-bottom:1px solid rgba(255,255,255,.03)">';
+      h += '<td style="padding:8px;font-weight:500;color:#e2e8f0"><span style="color:'+u.patente.color+';margin-right:4px">'+u.patente.icon+'</span>'+u.nome+'</td>';
+      h += heatCell(u.vis, maxVals.vis, u.vis);
+      h += heatCell(u.prop, maxVals.prop, u.prop);
+      h += heatCell(u.crm, maxVals.crm, u.crm);
+      h += heatCell(u.lig, maxVals.lig, u.lig);
+      h += heatCell(u.vendas, maxVals.vendas, u.vendas);
+      h += heatCell(u.vgv, maxVals.vgv, 'R$ '+(u.vgv/1e3).toFixed(0)+'k');
+      h += '</tr>';
+    });
+    h += '</tbody></table></div>';
+
+  // ==================== TAB 10: TV MODE (Full-Screen Display) ====================
+  } else if(tab === 'tv') {
+    h += '<div style="text-align:center;padding:20px 0">';
+
+    // Giant podium
+    h += '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:24px">\uD83D\uDCFA TV MODE \u2022 WAR ARENA PSM</div>';
+
+    // Podium - top 3
+    if(top3.length >= 3){
+      h += '<div style="display:flex;align-items:flex-end;justify-content:center;gap:16px;margin-bottom:32px;height:280px">';
+
+      // 2nd place
+      h += '<div style="text-align:center;width:200px">';
+      h += '<div style="font-size:40px;margin-bottom:8px">'+top3[1].patente.icon+'</div>';
+      h += '<div style="font-size:16px;font-weight:700;color:#fff">'+top3[1].nome+'</div>';
+      h += '<div style="font-size:12px;color:#64748b">'+top3[1].xp+' XP</div>';
+      h += '<div style="height:120px;background:linear-gradient(180deg,#94a3b855,#94a3b822);border-radius:12px 12px 0 0;margin-top:12px;display:flex;align-items:center;justify-content:center">';
+      h += '<div style="font-size:48px">\uD83E\uDD48</div></div></div>';
+
+      // 1st place
+      h += '<div style="text-align:center;width:220px">';
+      h += '<div style="font-size:48px;margin-bottom:8px;animation:pulse 2s infinite">'+top3[0].patente.icon+'</div>';
+      h += '<div style="font-size:20px;font-weight:800;background:linear-gradient(90deg,'+accent+',#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent">'+top3[0].nome+'</div>';
+      h += '<div style="font-size:14px;color:'+accent+';font-weight:700">'+top3[0].xp+' XP</div>';
+      h += '<div style="height:180px;background:linear-gradient(180deg,'+accent+'44,'+accent+'11);border-radius:12px 12px 0 0;margin-top:12px;display:flex;align-items:center;justify-content:center">';
+      h += '<div style="font-size:60px">\uD83E\uDD47</div></div></div>';
+
+      // 3rd place
+      h += '<div style="text-align:center;width:200px">';
+      h += '<div style="font-size:36px;margin-bottom:8px">'+top3[2].patente.icon+'</div>';
+      h += '<div style="font-size:15px;font-weight:700;color:#fff">'+top3[2].nome+'</div>';
+      h += '<div style="font-size:12px;color:#64748b">'+top3[2].xp+' XP</div>';
+      h += '<div style="height:80px;background:linear-gradient(180deg,#cd7f3255,#cd7f3222);border-radius:12px 12px 0 0;margin-top:12px;display:flex;align-items:center;justify-content:center">';
+      h += '<div style="font-size:44px">\uD83E\uDD49</div></div></div>';
+
+      h += '</div>';
+    }
+
+    // Giant KPIs
+    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">';
+    var tvKPIs = [
+      {value:totalVendas,label:'VENDAS',color:green,icon:'\uD83C\uDFC6'},
+      {value:'R$ '+(totalVGV/1e6).toFixed(1)+'M',label:'VGV TOTAL',color:accent,icon:'\uD83D\uDCB0'},
+      {value:userArenaData.length,label:'COMBATENTES',color:blue,icon:'\u2694\uFE0F'},
+      {value:onFireUsers.length,label:'ON FIRE',color:red,icon:'\uD83D\uDD25'}
+    ];
+    tvKPIs.forEach(function(k){
+      h += '<div style="'+cardStyle+';text-align:center;padding:24px">';
+      h += '<div style="font-size:32px;margin-bottom:8px">'+k.icon+'</div>';
+      h += '<div style="font-size:36px;font-weight:900;color:'+k.color+'">'+(typeof k.value==='number'?k.value.toLocaleString('pt-BR'):k.value)+'</div>';
+      h += '<div style="font-size:11px;color:#64748b;letter-spacing:2px;margin-top:4px">'+k.label+'</div></div>';
+    });
     h += '</div>';
-  });
 
-  h += '</div>';
+    // Scrolling ticker
+    h += '<div style="'+cardStyle+';overflow:hidden;padding:12px 20px">';
+    h += '<div style="display:flex;gap:32px;animation:ticker 20s linear infinite;white-space:nowrap">';
+    userArenaData.forEach(function(u){
+      h += '<span style="font-size:12px;color:#94a3b8">'+u.patente.icon+' <b style="color:#fff">'+u.nome+'</b> '+u.xp+'XP \u2022 '+u.vendas+'v \u2022 R$'+(u.vgv/1e3).toFixed(0)+'k</span>';
+    });
+    h += '</div></div>';
 
-  // SCORE OFICIAL PANEL
-  h += '<div style="background:linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.5) 100%); border:2px solid rgba(212,168,67,0.2); border-radius:12px; padding:20px; margin-bottom:20px;">';
-  h += '<h3 style="margin:0 0 15px 0; font-size:14px; font-weight:800; color:#d4a843; letter-spacing:1px;">SCORE OFICIAL</h3>';
-
-  h += '<div style="background:rgba(16,185,129,0.1); border-left:4px solid #10b981; padding:10px; margin-bottom:10px; border-radius:4px;">';
-  h += '<div style="font-size:11px; color:#cbd5e1; margin-bottom:2px;">80+ EXCELENTE</div>';
-  h += '<div style="font-size:10px; color:#94a3b8;">Performance excepcional</div>';
-  h += '</div>';
-
-  h += '<div style="background:rgba(59,130,246,0.1); border-left:4px solid #3b82f6; padding:10px; margin-bottom:10px; border-radius:4px;">';
-  h += '<div style="font-size:11px; color:#cbd5e1; margin-bottom:2px;">60-79 BOM</div>';
-  h += '<div style="font-size:10px; color:#94a3b8;">Dentro do padrão esperado</div>';
-  h += '</div>';
-
-  h += '<div style="background:rgba(245,158,11,0.1); border-left:4px solid #f59e0b; padding:10px; margin-bottom:10px; border-radius:4px;">';
-  h += '<div style="font-size:11px; color:#cbd5e1; margin-bottom:2px;">40-59 ATENÇÃO</div>';
-  h += '<div style="font-size:10px; color:#94a3b8;">Requer acompanhamento</div>';
-  h += '</div>';
-
-  h += '<div style="background:rgba(239,68,68,0.1); border-left:4px solid #ef4444; padding:10px; border-radius:4px;">';
-  h += '<div style="font-size:11px; color:#cbd5e1; margin-bottom:2px;"><40 CRÍTICO</div>';
-  h += '<div style="font-size:10px; color:#94a3b8;">Intervenção necessária</div>';
-  h += '</div>';
-
-  h += '</div>';
-
-  // PONTUAÇÃO PANEL
-  h += '<div style="background:linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.5) 100%); border:2px solid rgba(212,168,67,0.2); border-radius:12px; padding:20px; margin-bottom:20px;">';
-  h += '<h3 style="margin:0 0 15px 0; font-size:14px; font-weight:800; color:#d4a843; letter-spacing:1px;">SISTEMA DE XP</h3>';
-
-  h += '<div style="font-size:11px; color:#cbd5e1; margin-bottom:8px;"><span style="color:#e8c263; font-weight:700;">Venda</span> = 200 XP</div>';
-  h += '<div style="font-size:11px; color:#cbd5e1; margin-bottom:8px;"><span style="color:#e8c263; font-weight:700;">VGV</span> = 1 XP por 10K</div>';
-  h += '<div style="font-size:11px; color:#cbd5e1; margin-bottom:8px;"><span style="color:#e8c263; font-weight:700;">Visita</span> = 30 XP</div>';
-  h += '<div style="font-size:11px; color:#cbd5e1; margin-bottom:8px;"><span style="color:#e8c263; font-weight:700;">Ligação</span> = 2 XP</div>';
-  h += '<div style="font-size:11px; color:#cbd5e1;"><span style="color:#e8c263; font-weight:700;">CRM</span> = 3 XP por ponto</div>';
-
-  h += '</div>';
-
-  // ALERTAS DE GUERRA
-  h += '<div style="background:linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.5) 100%); border:2px solid rgba(212,168,67,0.2); border-radius:12px; padding:20px;">';
-  h += '<h3 style="margin:0 0 15px 0; font-size:14px; font-weight:800; color:#d4a843; letter-spacing:1px;">ALERTAS DE GUERRA</h3>';
-
-  var topUser = userArenaData.length > 0 ? userArenaData[0] : {name:'N/A', vgv:0};
-  var highVGVUser = userArenaData.reduce(function(max, u){return u.vgv > max.vgv ? u : max;}, userArenaData[0] || {});
-
-  var alertasGuerra = [
-    '🏆 Líder: ' + topUser.name + ' com ' + topUser.xp + ' XP',
-    '📊 Meta: ' + metaPct + '% da operação',
-    '🔥 Destaque: ' + highVGVUser.name + ' em VGV',
-    '⚡ Total de ' + userArenaData.filter(function(u){return u.onFire;}).length + ' combatentes "On Fire"'
-  ];
-
-  alertasGuerra.forEach(function(alerta, idx){
-    h += '<div style="background:rgba(30,41,59,0.6); border-left:3px solid #d4a843; padding:10px; margin-bottom:8px; border-radius:4px; font-size:11px; color:#cbd5e1;">';
-    h += alerta;
     h += '</div>';
-  });
+  }
 
-  h += '</div>';
+  // Ticker animation CSS
+  h += '<style>@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}} @keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}</style>';
 
-  h += '</div>';
-
-  h += '</div>';
-
-  // ========== ARENA TICKER (Bottom Bar) ==========
-  h += '<div style="margin-top:30px; background:linear-gradient(90deg, rgba(212,168,67,0.1) 0%, rgba(212,168,67,0.05) 100%); border:2px solid rgba(212,168,67,0.3); border-radius:8px; padding:12px 20px; font-size:12px; color:#cbd5e1; overflow:hidden;">';
-  h += '<div style="white-space:nowrap; overflow:hidden;">';
-  h += '🏆 Líder: <span style="color:#d4a843; font-weight:700;">' + (userArenaData.length>0?userArenaData[0].name:'—') + '</span> ';
-  h += '• 📊 Meta: <span style="color:#f59e0b; font-weight:700;">' + metaPct + '%</span> ';
-  h += '• 🔥 Destaque: <span style="color:#e8c263; font-weight:700;">' + (highVGVUser.name||'—') + '</span> ';
-  h += '• ⚡ Vendas do Mês: <span style="color:#d4a843; font-weight:700;">' + totalVendas + '</span>';
-  h += '</div>';
-  h += '</div>';
-
-  h += '</div>';
-
+  h += '</div></div>';
   return h;
 };
-
 
 // ─── PAGE: METAS (Enterprise Edition) ────────────────────────────────────────
 function pgMetas(){
