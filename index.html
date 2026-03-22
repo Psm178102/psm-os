@@ -1244,7 +1244,7 @@ function pgRanking(){
 
   if(fonte==='rdcrm'){
     const rdCols=[
-      {id:'vgv_pipe',  label:'VGV Pipeline',     fmt:fmt},
+
       {id:'vgv_real',  label:'VGV Realizado',    fmt:fmt},
       {id:'vend',      label:'Vendas',           fmt:v=>v},
       {id:'perdidas',  label:'Perdidas',         fmt:v=>v},
@@ -1269,7 +1269,7 @@ function pgRanking(){
     } else {
       const sortedF=Object.entries(fs).filter(([fid])=>FRENTES[fid]).sort((a,b)=>(b[1].vgv_real||0)-(a[1].vgv_real||0));
       const teamCols=[
-        {id:'vgv_pipe',  label:'VGV Pipeline',    fmt:fmt},
+
         {id:'vgv_real',  label:'VGV Realizado',   fmt:fmt},
         {id:'vend',      label:'Vendas',          fmt:v=>v},
         {id:'agend',     label:'Agend.',          fmt:v=>v},
@@ -4940,100 +4940,177 @@ function updateFormacao(){
 }
 
 // ─── MANUAL DE CULTURA & CÓDIGO DE ÉTICA ─────────────────────────────────────
-function pgManual() {
-  const u = S.user; if (!u) return '';
-  const lvl = RLVL[u.role] || 0;
+// --- Sr. Performance Footer (global helper) ---
+function srPerformanceFooter() {
+  var msgs = {
+    'dashboard': 'Monitore os KPIs diariamente. Números contam histórias — saiba interpretá-los.',
+    'meu': 'Seu painel pessoal é seu espelho profissional. Mantenha suas atividades atualizadas!',
+    'ranking': 'O ranking mostra quem está se destacando. Use como motivação, não como pressão.',
+    'equipe': 'Uma equipe forte se constrói com confiança, comunicação e resultados compartilhados.',
+    'lancamento': 'Lançamentos são oportunidades únicas. Prepare-se, estude a tabela e domine o produto.',
+    'conquista': 'Cada conquista começa com disciplina. Não espere motivação — crie disciplina.',
+    'terceiros': 'Imóveis de terceiros exigem captação ativa. Quem capta mais, vende mais.',
+    'locacao': 'Locação é recorrência. Cada contrato bem fechado gera indicações futuras.',
+    'crm': 'O CRM é sua ferramenta mais poderosa. Quem não registra, não gerencia.',
+    'metas': 'Metas não são desejos — são compromissos. Divida em semanas e execute.',
+    'metricas': 'Métricas revelam padrões. Analise seus números e encontre oportunidades de melhoria.',
+    'oneonone': 'Feedbacks construtivos aceleram o desenvolvimento. Ouça, absorva e evolua.',
+    'governance': 'Governança é a base da operação. Processos claros geram resultados previsíveis.',
+    'warroom': 'A War Room é o centro de comando. Decisões estratégicas começam aqui.',
+    'wararena': 'A Arena é onde os verdadeiros combatentes se destacam. Performance é tudo!',
+    'forecast': 'Previsibilidade é poder. Mantenha seu forecast atualizado para decisões assertivas.',
+    'okrs': 'OKRs alinham esforço com resultado. Foco no que realmente move o ponteiro.',
+    'vendas': 'Vendas é consequência de processo. Siga a cadência e os resultados virão.',
+    'drive': 'Documentos organizados economizam tempo. Mantenha tudo acessível e atualizado.',
+    'tabela': 'Conheça cada produto na ponta da língua. Domínio de tabela fecha negócios.',
+    'mapa': 'O mapa revela oportunidades geográficas. Use-o para planejar suas captações.',
+    'formacao': 'Investir em formação é investir no seu futuro. Conhecimento gera confiança.',
+    'manual': 'Cultura forte cria equipes imbatíveis. Viva os valores PSM todos os dias.',
+    'captacao': 'Captação é a alma do negócio. Cada imóvel captado é uma nova oportunidade.',
+    'simvpl': 'O VPL mostra o valor real do dinheiro no tempo. Domine esse conceito!',
+    'simincc': 'Entender o INCC é fundamental para orientar o cliente na compra na planta.',
+    'simrep': 'Repasses podem ser excelentes negócios. Saiba calcular para orientar bem.',
+    'vera': 'Estou aqui para ajudar você a performar melhor. Pergunte sem medo!',
+    'config': 'Configurações bem ajustadas otimizam seu dia a dia no sistema.',
+    'rdconfig': 'A integração com RD Station potencializa seu funil de vendas.',
+    'marketing': 'Marketing inteligente gera leads qualificados. Dados e criatividade andam juntos.',
+    'checkin': 'Presença operacional é disciplina. Check-in feito, elegibilidade garantida.'
+  };
+  var msg = msgs[S.page] || 'Disciplina supera talento. Mantenha o foco e os resultados aparecem.';
+  return '<div style="margin-top:24px;padding:16px 20px;background:linear-gradient(135deg,#0a1628 0%,#1a2d4a 100%);border-radius:var(--radius);display:flex;align-items:center;gap:14px">'
+    + '<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#d4a017);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">\uD83C\uDF96\uFE0F</div>'
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:2px">Sr. Performance</div>'
+    + '<div style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.4">' + msg + '</div></div>'
+    + '<button class="btn" style="background:var(--gold);color:var(--navy);font-weight:700;padding:8px 14px;border-radius:8px;font-size:11px;flex-shrink:0;white-space:nowrap" '
+    + 'onclick="nav(\'vera\')">Falar com Sr. Performance</button></div>';
+}
 
-  // Documents
+// ─── MANUAL DE CULTURA & ÉTICA ─────────────────────────────────────────────
+function pgManual() {
+  var u = S.user; if (!u) return '';
+  var lvl = RLVL[u.role] || 0;
+  if (!S.manualTab) S.manualTab = 'cultura';
   if (!S.manualDocs) {
     S.manualDocs = [
-      {nome:'Manual de Cultura PSM Imóveis', tipo:'manual', ico:'📖', desc:'Valores, missão, visão e cultura da PSM Assessoria Imobiliária', url:''},
-      {nome:'Código de Ética PSM Imóveis', tipo:'etica', ico:'⚖️', desc:'Regras de conduta profissional e princípios éticos da equipe', url:''},
+      {nome:'Manual de Cultura PSM Imóveis', tipo:'cultura', ico:'\uD83D\uDCD6', desc:'Valores, missão, visão e cultura da PSM Assessoria Imobiliária', url:''},
+      {nome:'Código de Ética PSM Imóveis', tipo:'etica', ico:'\u2696\uFE0F', desc:'Regras de conduta profissional e princípios éticos da equipe', url:''},
     ];
   }
-
-  // Culture highlights
-  const valores = [
-    {ico:'🎯', titulo:'Foco no Resultado', desc:'Metas claras, ação consistente, entrega excepcional'},
-    {ico:'🤝', titulo:'Ética & Transparência', desc:'Agir com integridade em cada negociação'},
-    {ico:'🔥', titulo:'Alta Performance', desc:'Busca constante por evolução e excelência'},
-    {ico:'💛', titulo:'Espírito de Equipe', desc:'Colaboração, respeito e crescimento juntos'},
-    {ico:'📚', titulo:'Aprendizado Contínuo', desc:'Formação, capacitação e desenvolvimento'},
-    {ico:'🏆', titulo:'Meritocracia', desc:'Reconhecimento baseado em resultados reais'},
-  ];
-
-  const valoresHtml = valores.map(v =>
-    '<div style="padding:14px;background:var(--cream2);border-radius:10px;text-align:center">'
-    + '<div style="font-size:24px;margin-bottom:6px">'+v.ico+'</div>'
-    + '<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px">'+v.titulo+'</div>'
-    + '<div style="font-size:10.5px;color:var(--muted)">'+v.desc+'</div></div>'
-  ).join('');
-
-  // Upload config for admins
-  const adminUpload = lvl >= 5 ? '<div class="card mb2"><div class="ctitle">⚙️ Gerenciar Documentos</div>'
+  var culturaContent = '<div style="padding:20px">'
+    + '<h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:16px">\uD83D\uDCD6 Manual de Cultura PSM Imóveis</h2>'
+    + '<div style="font-size:13px;line-height:1.8;color:var(--tx)">'
+    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\uD83C\uDFAF Nossa Missão</h3>'
+    + '<p>Transformar sonhos em endereços, conectando pessoas ao imóvel ideal com excelência, ética e resultado. Atuamos como uma assessoria imobiliária completa, oferecendo segurança e transparência em cada negociação.</p>'
+    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\uD83D\uDC41\uFE0F Nossa Visão</h3>'
+    + '<p>Ser a assessoria imobiliária mais admirada e respeitada de São José do Rio Preto, reconhecida pela alta performance, inovação tecnológica e formação de profissionais de excelência no mercado imobiliário.</p>'
+    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\uD83D\uDC9B Nossos Valores</h3>'
+    + '<ul style="list-style:none;padding:0;margin:0">'
+    + '<li style="padding:8px 0;border-bottom:1px solid var(--cream3)">\uD83C\uDFAF <strong>Foco no Resultado</strong> — Metas claras, ação consistente, entrega excepcional</li>'
+    + '<li style="padding:8px 0;border-bottom:1px solid var(--cream3)">\uD83E\uDD1D <strong>Ética & Transparência</strong> — Agir com integridade em cada negociação</li>'
+    + '<li style="padding:8px 0;border-bottom:1px solid var(--cream3)">\uD83D\uDD25 <strong>Alta Performance</strong> — Busca constante por evolução e excelência</li>'
+    + '<li style="padding:8px 0;border-bottom:1px solid var(--cream3)">\uD83D\uDC9B <strong>Espírito de Equipe</strong> — Colaboração, respeito e crescimento juntos</li>'
+    + '<li style="padding:8px 0;border-bottom:1px solid var(--cream3)">\uD83D\uDCDA <strong>Aprendizado Contínuo</strong> — Formação, capacitação e desenvolvimento</li>'
+    + '<li style="padding:8px 0">\uD83C\uDFC6 <strong>Meritocracia</strong> — Reconhecimento baseado em resultados reais</li>'
+    + '</ul>'
+    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\uD83C\uDFE2 Sobre a PSM</h3>'
+    + '<p>A PSM Assessoria Imobiliária atua no mercado de São José do Rio Preto com foco em lançamentos, imóveis de terceiros, locação e conquista. Nossa equipe é formada por profissionais treinados e comprometidos com os mais altos padrões de atendimento.</p>'
+    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\uD83D\uDCCB Regras de Convivência</h3>'
+    + '<p>\u2705 Pontualidade e comprometimento com horários<br>'
+    + '\u2705 Respeito aos colegas, líderes e clientes<br>'
+    + '\u2705 Uso adequado do CRM e ferramentas do sistema<br>'
+    + '\u2705 Participação ativa em treinamentos e reuniões<br>'
+    + '\u2705 Comunicação clara e profissional<br>'
+    + '\u2705 Vestimenta e apresentação alinhadas à marca PSM</p>'
+    + '</div></div>';
+  var eticaContent = '<div style="padding:20px">'
+    + '<h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:16px">\u2696\uFE0F Código de Ética PSM Imóveis</h2>'
+    + '<div style="font-size:13px;line-height:1.8;color:var(--tx)">'
+    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\uD83D\uDCCC Princípios Fundamentais</h3>'
+    + '<p>O Código de Ética da PSM Assessoria Imobiliária estabelece os padrões de conduta profissional esperados de todos os colaboradores. Seu cumprimento é obrigatório e reflete nosso compromisso com a excelência.</p>'
+    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\uD83D\uDEAB Condutas Proibidas</h3>'
+    + '<p style="color:var(--r-tx)">\u274C Desvio de leads ou clientes de outros corretores<br>'
+    + '\u274C Informações falsas ou enganosas a clientes<br>'
+    + '\u274C Negociações paralelas fora do sistema PSM<br>'
+    + '\u274C Desrespeito à roleta e regras de distribuição<br>'
+    + '\u274C Compartilhamento indevido de informações internas<br>'
+    + '\u274C Assédio ou discriminação de qualquer natureza</p>'
+    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\u2705 Condutas Esperadas</h3>'
+    + '<p style="color:var(--g-tx)">\u2714\uFE0F Transparência total com clientes e colegas<br>'
+    + '\u2714\uFE0F Registro fiel de todas as atividades no CRM<br>'
+    + '\u2714\uFE0F Atendimento dentro dos prazos e cadências definidos<br>'
+    + '\u2714\uFE0F Colaboração ativa com a equipe e liderança<br>'
+    + '\u2714\uFE0F Melhoria contínua pessoal e profissional</p>'
+    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\u26A0\uFE0F Consequências</h3>'
+    + '<p>O descumprimento do código de ética pode resultar em: advertência verbal, advertência formal, suspensão temporária das atividades ou desligamento, conforme a gravidade da infração e decisão da diretoria.</p>'
+    + '</div></div>';
+  var adminUpload = lvl >= 5 ? '<div class="card mb2"><div class="ctitle">\u2699\uFE0F Gerenciar Documentos (Links Externos)</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
-    + '<div>'
-    + '<div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px">Link — Manual de Cultura (PDF/Drive)</div>'
-    + '<input id="man-url" class="finp" placeholder="Cole o link do Manual de Cultura" value="'+(S.manualDocs[0]?.url||'')+'" style="width:100%;font-size:11px;padding:6px 8px">'
-    + '</div><div>'
-    + '<div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px">Link — Código de Ética (PDF/Drive)</div>'
-    + '<input id="eti-url" class="finp" placeholder="Cole o link do Código de Ética" value="'+(S.manualDocs[1]?.url||'')+'" style="width:100%;font-size:11px;padding:6px 8px">'
-    + '</div></div>'
-    + '<button class="btn bp1" onclick="S.manualDocs[0].url=document.getElementById(\'man-url\').value;S.manualDocs[1].url=document.getElementById(\'eti-url\').value;toast(\'Links salvos!\',\'ok\');render()">Salvar Links</button>'
-    + '</div>' : '';
-
-  const docs = S.manualDocs.map(d =>
-    '<div class="card mb2" style="padding:16px;display:flex;align-items:center;gap:14px">'
-    + '<div style="font-size:32px">'+d.ico+'</div>'
-    + '<div style="flex:1"><div style="font-size:14px;font-weight:700;color:var(--navy)">'+d.nome+'</div>'
-    + '<div style="font-size:11.5px;color:var(--muted);margin-top:2px">'+d.desc+'</div></div>'
-    + (d.url ? '<a href="'+d.url+'" target="_blank" rel="noreferrer" class="btn bp1" style="text-decoration:none;flex-shrink:0">📄 Abrir</a>'
-      : '<span style="font-size:11px;color:var(--a-tx);font-weight:600;flex-shrink:0">⏳ Aguardando link</span>')
-    + '</div>'
-  ).join('');
-
-  return '<div class="phd"><h1>📖 Manual de Cultura & Código de Ética</h1><p>Valores, princípios e condutas que guiam a equipe PSM</p></div>'
-    + adminUpload
-    + docs
-    + '<div class="card"><div class="ctitle">💛 Nossos Valores</div>'
-    + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px">'
-    + valoresHtml + '</div></div>'
+    + '<div><div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px">Link — Manual de Cultura (PDF/Drive)</div>'
+    + '<input id="man-url" class="finp" placeholder="Cole o link do Manual de Cultura" value="'+(S.manualDocs[0].url||'')+'" style="width:100%;font-size:11px;padding:6px 8px"></div>'
+    + '<div><div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px">Link — Código de Ética (PDF/Drive)</div>'
+    + '<input id="eti-url" class="finp" placeholder="Cole o link do Código de Ética" value="'+(S.manualDocs[1].url||'')+'" style="width:100%;font-size:11px;padding:6px 8px"></div>'
+    + '</div><button class="btn bp1" onclick="S.manualDocs[0].url=document.getElementById(\'man-url\').value;S.manualDocs[1].url=document.getElementById(\'eti-url\').value;toast(\'Links salvos!\',\'ok\');render()">Salvar Links</button></div>' : '';
+  var tabBar = '<div class="card mb2" style="padding:6px;display:flex;gap:4px">'
+    + '<button class="btn '+(S.manualTab==='cultura'?'bp1':'bout')+'" style="flex:1;font-size:13px" onclick="S.manualTab=\'cultura\';render()">\uD83D\uDCD6 Manual de Cultura</button>'
+    + '<button class="btn '+(S.manualTab==='etica'?'bp1':'bout')+'" style="flex:1;font-size:13px" onclick="S.manualTab=\'etica\';render()">\u2696\uFE0F Código de Ética</button></div>';
+  var docContent = '<div class="card mb2" style="max-height:calc(100vh - 440px);overflow-y:auto">' + (S.manualTab === 'cultura' ? culturaContent : eticaContent) + '</div>';
+  var extLink = '';
+  var docIdx = S.manualTab === 'cultura' ? 0 : 1;
+  if (S.manualDocs[docIdx] && S.manualDocs[docIdx].url) {
+    extLink = '<div style="text-align:center;margin-bottom:12px"><a href="'+S.manualDocs[docIdx].url+'" target="_blank" rel="noreferrer" class="btn bp1" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">\uD83D\uDCC4 Abrir documento completo (PDF/Drive)</a></div>';
+  }
+  var qaSection = '<div class="card mb2" style="background:linear-gradient(135deg,#0a1628 0%,#1a2d4a 100%);padding:20px;border-radius:var(--radius)">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
+    + '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#d4a017);display:flex;align-items:center;justify-content:center;font-size:18px">\uD83C\uDF96\uFE0F</div>'
+    + '<div><div style="font-size:14px;font-weight:700;color:var(--gold)">Sr. Performance</div>'
+    + '<div style="font-size:11px;color:rgba(255,255,255,.5)">Tire suas dúvidas sobre cultura, ética e conduta</div></div></div>'
+    + '<div style="display:flex;gap:8px">'
+    + '<input id="manual-qa" class="finp" placeholder="Faça uma pergunta sobre cultura ou ética da PSM..." '
+    + 'style="flex:1;font-size:12px;padding:10px 14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:8px" '
+    + 'onkeydown="if(event.key===\'Enter\'){var q=this.value;if(q.trim()){S.veraHist=S.veraHist||[];S.veraHist.push({role:\'user\',text:q});this.value=\'\';nav(\'vera\')}}">'
+    + '<button class="btn" style="background:var(--gold);color:var(--navy);font-weight:700;padding:10px 18px;border-radius:8px;font-size:12px" '
+    + 'onclick="var q=document.getElementById(\'manual-qa\').value;if(q.trim()){S.veraHist=S.veraHist||[];S.veraHist.push({role:\'user\',text:q});document.getElementById(\'manual-qa\').value=\'\';nav(\'vera\')}">Perguntar</button></div></div>';
+  var valores = [
+    {ico:'\uD83C\uDFAF',t:'Foco no Resultado',d:'Metas claras, ação consistente, entrega excepcional'},
+    {ico:'\uD83E\uDD1D',t:'Ética & Transparência',d:'Agir com integridade em cada negociação'},
+    {ico:'\uD83D\uDD25',t:'Alta Performance',d:'Busca constante por evolução e excelência'},
+    {ico:'\uD83D\uDC9B',t:'Espírito de Equipe',d:'Colaboração, respeito e crescimento juntos'},
+    {ico:'\uD83D\uDCDA',t:'Aprendizado Contínuo',d:'Formação, capacitação e desenvolvimento'},
+    {ico:'\uD83C\uDFC6',t:'Meritocracia',d:'Reconhecimento baseado em resultados reais'}
+  ];
+  var valH = valores.map(function(v){ return '<div style="padding:14px;background:var(--cream2);border-radius:10px;text-align:center"><div style="font-size:24px;margin-bottom:6px">'+v.ico+'</div><div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px">'+v.t+'</div><div style="font-size:10.5px;color:var(--muted)">'+v.d+'</div></div>'; }).join('');
+  return '<div class="phd"><h1>\uD83D\uDCD6 Manual de Cultura & Código de Ética</h1><p>Valores, princípios e condutas que guiam a equipe PSM</p></div>'
+    + adminUpload + tabBar + extLink + docContent + qaSection
+    + '<div class="card"><div class="ctitle">\uD83D\uDC9B Nossos Valores</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px">' + valH + '</div></div>'
     + '<div class="card mb2" style="margin-top:16px;background:linear-gradient(135deg,var(--navy) 0%,#1e3a5f 100%);color:#fff;padding:24px;text-align:center">'
     + '<div style="font-size:20px;font-weight:800;margin-bottom:6px">PSM Assessoria Imobiliária</div>'
-    + '<div style="font-size:13px;opacity:.7;max-width:500px;margin:0 auto">"Transformamos sonhos em endereços. Cada negociação é uma oportunidade de impactar vidas com ética, excelência e resultado."</div>'
-    + '</div>';
+    + '<div style="font-size:13px;opacity:.7;max-width:500px;margin:0 auto">Transformamos sonhos em endereços. Cada negociação é uma oportunidade de impactar vidas com ética, excelência e resultado.</div></div>'
+    + srPerformanceFooter();
 }
 
 // ─── CAPTAÇÃO DE IMÓVEIS ──────────────────────────────────────────────────────
 function pgCaptacao() {
-  const u = S.user; if (!u) return '';
-  const FORM_VENDA = 'https://docs.google.com/forms/d/e/1FAIpQLSdcLofTJAEKYnCUVMnuvKD7QJFB_D8SXfcahYYmeCFhy5op0g/viewform?usp=dialog';
-  const FORM_LOCACAO = 'https://forms.gle/atoYaBnWQ7WQsPp37';
-
-  const captTab = S.captTab || 'venda';
-
-  const embedUrl = captTab === 'venda' ? FORM_VENDA : FORM_LOCACAO;
-
-  return '<div class="phd"><h1>📝 Captação de Imóveis</h1><p>Fichas online para captação de imóveis para venda e locação</p></div>'
-    // Tab selector
+  var u = S.user; if (!u) return '';
+  var FORM_VENDA = 'https://docs.google.com/forms/d/e/1FAIpQLSdcLofTJAEKYnCUVMnuvKD7QJFB_D8SXfcahYYmeCFhy5op0g/viewform?embedded=true';
+  var FORM_LOCACAO = FORM_VENDA;
+  var captTab = S.captTab || 'venda';
+  var embedUrl = captTab === 'venda' ? FORM_VENDA : FORM_LOCACAO;
+  var openUrl = embedUrl.replace('?embedded=true', '');
+  return '<div class="phd"><h1>\uD83D\uDCDD Captação de Imóveis</h1><p>Fichas online para captação de imóveis para venda e locação</p></div>'
     + '<div class="card mb2" style="padding:6px;display:flex;gap:4px">'
-    + '<button class="btn '+(captTab==='venda'?'bp1':'bout')+'" style="flex:1;font-size:13px" onclick="S.captTab=\'venda\';render()">🏠 Captação para VENDA</button>'
-    + '<button class="btn '+(captTab==='locacao'?'bp1':'bout')+'" style="flex:1;font-size:13px" onclick="S.captTab=\'locacao\';render()">🏘️ Captação para LOCAÇÃO</button>'
-    + '</div>'
-    // Info banner
+    + '<button class="btn '+(captTab==='venda'?'bp1':'bout')+'" style="flex:1;font-size:13px" onclick="S.captTab=\'venda\';render()">\uD83C\uDFE0 Captação para VENDA</button>'
+    + '<button class="btn '+(captTab==='locacao'?'bp1':'bout')+'" style="flex:1;font-size:13px" onclick="S.captTab=\'locacao\';render()">\uD83C\uDFD8\uFE0F Captação para LOCAÇÃO</button></div>'
     + '<div class="card mb2" style="padding:12px 16px;display:flex;align-items:center;gap:10px;background:'+(captTab==='venda'?'var(--b-bg)':'var(--pu-bg)')+';">'
-    + '<span style="font-size:20px">'+(captTab==='venda'?'🏠':'🏘️')+'</span>'
+    + '<span style="font-size:20px">'+(captTab==='venda'?'\uD83C\uDFE0':'\uD83C\uDFD8\uFE0F')+'</span>'
     + '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:'+(captTab==='venda'?'var(--b-tx)':'var(--pu-tx)')+'">Ficha de Captação — '+(captTab==='venda'?'Imóvel para Venda':'Imóvel para Locação')+'</div>'
     + '<div style="font-size:11px;color:var(--muted)">Preencha o formulário abaixo com os dados do imóvel captado</div></div>'
-    + '<a href="'+embedUrl+'" target="_blank" rel="noreferrer" class="btn bout bsm" style="text-decoration:none;font-size:11px;flex-shrink:0">↗ Abrir em nova aba</a>'
-    + '</div>'
-    // Embed
+    + '<a href="'+openUrl+'" target="_blank" rel="noreferrer" class="btn bout bsm" style="text-decoration:none;font-size:11px;flex-shrink:0">\u2197 Abrir em nova aba</a></div>'
     + '<div class="card" style="padding:0;overflow:hidden;border-radius:var(--radius)">'
-    + '<iframe src="'+embedUrl+'" style="width:100%;height:calc(100vh - 320px);min-height:500px;border:none" loading="lazy"></iframe>'
-    + '</div>';
+    + '<iframe src="'+embedUrl+'" style="width:100%;height:calc(100vh - 320px);min-height:500px;border:none" loading="lazy" allow="autoplay"></iframe></div>'
+    + srPerformanceFooter();
 }
 
-// ─── SIMULADOR VPL ────────────────────────────────────────────────────────────
 function pgSimVPL() {
   const u = S.user; if (!u) return '';
   if (!S.vpl) S.vpl = {
@@ -5124,7 +5201,7 @@ function pgSimVPL() {
     + '<div style="display:flex;flex-direction:column;gap:12px">'
     // KPIs
     + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">'
-    + '<div class="card" style="padding:12px;text-align:center;background:linear-gradient(135deg,var(--navy),#1e3a5f);color:#fff"><div style="font-size:9px;opacity:.6;text-transform:uppercase;font-weight:600">Valor VPL</div><div style="font-size:20px;font-weight:800;margin-top:4px">'+fmt(totalPV)+'</div></div>'
+    + '<div class="card" style="padding:12px;text-align:center;background:linear-gradient(135deg,var(--navy),#1e3a5f);color:#fff"><div style="font-size:9px;opacity:.6;text-transform:uppercase;font-weight:600">Valor VPL</div><div style="font-size:14px;font-weight:800;margin-top:4px">'+fmt(totalPV)+'</div></div>'
     + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Desc. VPL</div><div style="font-size:20px;font-weight:800;color:var(--g-tx);margin-top:4px">'+descVPL+'%</div></div>'
     + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">R$/m² VPL</div><div style="font-size:20px;font-weight:800;color:var(--b-tx);margin-top:4px">R$ '+m2VPL+'</div></div>'
     + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">R$/m² Tabela</div><div style="font-size:20px;font-weight:800;color:var(--muted);margin-top:4px">R$ '+m2Tabela+'</div></div>'
