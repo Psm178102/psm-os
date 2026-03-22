@@ -3384,7 +3384,7 @@ function applyDateFilter(deals, prefix) {
   }
 
   return deals.filter(d => {
-    const dt = new Date(d.createdAt || d.updated_at || d.closedAt || '');
+    const dt = new Date(d.closedAt || d.createdAt || d.updated_at || '');
     return !isNaN(dt.getTime()) && dt >= from && dt <= to;
   });
 }
@@ -4129,7 +4129,8 @@ function pgOO() {
       ['agend',      'Agendamentos',           '📅', '#d4a843'],
       ['vis',        'Visitas Realizadas',     '🏠', '#1d4ed8'],
       ['prop',       'Propostas',              '📋', '#7c3aed'],
-      ['vend',       'Vendas',                 '🏆', '#16a34a'],
+            ['capt',       'Captações',            '🏠', '#0891b2'],
+['vend',       'Vendas',                 '🏆', '#16a34a'],
       ['desc',       'Descartados',            '🗑️', '#dc2626'],
     ];
     content = discCard
@@ -4165,7 +4166,8 @@ function pgOO() {
           + '<span style="font-size:10px;background:rgba(201,168,76,.1);padding:2px 6px;border-radius:8px;color:#92400e">\uD83D\uDCC5 '+(d.agend||0)+'ag</span>'
           + '<span style="font-size:10px;background:rgba(29,78,216,.08);padding:2px 6px;border-radius:8px;color:#1d4ed8">\uD83C\uDFE0 '+(d.vis||0)+'vis</span>'
           + '<span style="font-size:10px;background:rgba(124,58,237,.08);padding:2px 6px;border-radius:8px;color:#7c3aed">\uD83D\uDCCB '+(d.prop||0)+'prop</span>'
-          + '<span style="font-size:10px;background:rgba(22,163,74,.1);padding:2px 6px;border-radius:8px;color:#16a34a;font-weight:700">\uD83C\uDFC6 '+(d.vend||0)+'vnd</span>'
+          + '<span style="font-size:10px;background:rgba(22,163,74,.1);padding:2px 6px;border-radius:8px;color:#16a34a;font-weight:700">\uD83C\uDFC6 '+
+          + '<span style="font-size:10px;background:rgba(8,145,178,.08);padding:2px 6px;border-radius:8px;color:#0891b2">🏠 '+(d.capt||0)+'capt</span>'(d.vend||0)+'vnd</span>'
           + '</div></div>'
           + (d.obs ? '<div style="font-size:10.5px;color:var(--muted)">'+d.obs.slice(0,80)+'</div>' : '')
           + '</div>'; }).join(''))
@@ -4175,11 +4177,13 @@ function pgOO() {
     const totLig  = hist.reduce((a,d)=>a+(d.lig_atend||0),0);
     const totVis  = hist.reduce((a,d)=>a+(d.vis||0),0);
     const totProp = hist.reduce((a,d)=>a+(d.prop||0),0);
+    const totCapt = hist.reduce((a,d)=>a+(d.capt||0),0);
     content = discCard
       + '<div class="kgrid mb2">'
       + Kpi('Lig. Atendidas',totLig,'total registrado',null,'var(--b)')
       + Kpi('Visitas',totVis,'realizadas',null,'var(--gold)')
       + Kpi('Propostas',totProp,'enviadas',null,'var(--a)')
+      + Kpi('Capta\u00e7\u00f5es',totCapt,'registradas',null,'#0891b2')
       + Kpi('VGV Real',fmt(selBroker.vgv_real||0),'no RD',null,'var(--g)')
       + '</div>';
   }
@@ -4248,8 +4252,34 @@ function pgOO() {
       + '</div>';
   }
 
+  
+  // Check-in status card below broker name
+  var checkinCard = '';
+  if (S.checkin && S.checkin.logs && S.checkin.logs[selBid]) {
+    var today = new Date().toISOString().slice(0,10);
+    var todayLog = S.checkin.logs[selBid].find(function(l){ return l.date === today; });
+    if (todayLog) {
+      var ciTime = todayLog.checkin || '--:--';
+      var coTime = todayLog.checkout || '--:--';
+      var pausas = (todayLog.pausas || []).length;
+      var ciStatus = todayLog.checkout ? 'Encerrado' : (todayLog.checkin ? 'Ativo' : 'Pendente');
+      var ciColor = todayLog.checkout ? 'var(--muted)' : (todayLog.checkin ? 'var(--g)' : 'var(--a)');
+      var ciBg = todayLog.checkout ? 'var(--cream2)' : (todayLog.checkin ? 'var(--g-bg)' : 'var(--a-bg)');
+      var ciIcon = todayLog.checkout ? '\u2705' : (todayLog.checkin ? '\uD83D\uDFE2' : '\u23F3');
+      checkinCard = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:'+ciBg+';border:1px solid '+ciColor+'30;border-radius:10px">'
+        + '<span style="font-size:20px">'+ciIcon+'</span>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:11px;font-weight:700;color:'+ciColor+'">Check-in: '+ciStatus+'</div>'
+        + '<div style="font-size:10px;color:var(--muted);display:flex;gap:12px;margin-top:2px">'
+        + '<span>\u23F0 Entrada: '+ciTime+'</span>'
+        + '<span>\uD83D\uDEAA Sa\u00edda: '+coTime+'</span>'
+        + (pausas > 0 ? '<span>\u23F8\uFE0F Pausas: '+pausas+'</span>' : '')
+        + '</div></div></div>';
+    }
+  }
+
   return '<div class="phd"><h1>One on One</h1><p>Acompanhamento individual de performance</p></div>'
-    + brokerSel + sheetBar + tabBar + content;
+    + brokerSel + checkinCard + sheetBar + tabBar + content;
 }
 
 function ooEditSheet(bid, name) {
@@ -5355,260 +5385,132 @@ function pgLancamentosAno() {
   var perfil = getPerfil();
   var isDiretor = perfil === 'diretor';
 
-  // ── MOCK DATA ──
-  if (!S.lancData) {
-    S.lancData = [
-      {
-        nome: 'Business Tower',
-        construtora: 'PSM Engenharia',
-        bairro: 'Centro',
-        cidade: 'Londrina/PR',
-        status: 'esgotado',
-        tipo: 'Comercial',
-        unidades: 40,
-        vendidas: 40,
-        vgv_total: 16000000,
-        vgv_vendido: 16000000,
-        ticket_medio: 400000,
-        inicio: '06/2025',
-        previsao_entrega: '09/2027',
-        comissao_psm: 4.0,
-        destaque: false,
-        img: ''
-      },
-      {
-        nome: 'Edif\u00edcio Aurora',
-        construtora: 'A.Yoshii',
-        bairro: 'Gleba Fazenda',
-        cidade: 'Londrina/PR',
-        status: 'vendas',
-        tipo: 'Comercial',
-        unidades: 60,
-        vendidas: 51,
-        vgv_total: 18000000,
-        vgv_vendido: 15300000,
-        ticket_medio: 300000,
-        inicio: '09/2025',
-        previsao_entrega: '12/2027',
-        comissao_psm: 3.5,
-        destaque: false,
-        img: ''
-      },
-      {
-        nome: 'Reserva PSM',
-        construtora: 'PSM Engenharia',
-        bairro: 'Jardim Europa',
-        cidade: 'Londrina/PR',
-        status: 'lancamento',
-        tipo: 'Residencial Vertical',
-        unidades: 120,
-        vendidas: 78,
-        vgv_total: 48000000,
-        vgv_vendido: 31200000,
-        ticket_medio: 400000,
-        inicio: '01/2026',
-        previsao_entrega: '12/2028',
-        comissao_psm: 4.5,
-        destaque: true,
-        img: ''
-      },
-      {
-        nome: 'Conquista Park',
-        construtora: 'Conquista Inc.',
-        bairro: 'Gleba Palhano',
-        cidade: 'Londrina/PR',
-        status: 'lancamento',
-        tipo: 'Residencial Vertical',
-        unidades: 80,
-        vendidas: 32,
-        vgv_total: 28000000,
-        vgv_vendido: 11200000,
-        ticket_medio: 350000,
-        inicio: '03/2026',
-        previsao_entrega: '06/2029',
-        comissao_psm: 5.0,
-        destaque: false,
-        img: ''
-      },
-      {
-        nome: 'Villa Toscana',
-        construtora: 'Plaenge',
-        bairro: 'Centro',
-        cidade: 'Londrina/PR',
-        status: 'pre_lancamento',
-        tipo: 'Residencial Horizontal',
-        unidades: 45,
-        vendidas: 12,
-        vgv_total: 22500000,
-        vgv_vendido: 6000000,
-        ticket_medio: 500000,
-        inicio: '05/2026',
-        previsao_entrega: '03/2028',
-        comissao_psm: 4.0,
-        destaque: false,
-        img: ''
-      },
-      {
-        nome: 'Residencial Monte Verde',
-        construtora: 'Vanguard',
-        bairro: 'Antares',
-        cidade: 'Londrina/PR',
-        status: 'futuro',
-        tipo: 'Residencial Vertical',
-        unidades: 200,
-        vendidas: 0,
-        vgv_total: 60000000,
-        vgv_vendido: 0,
-        ticket_medio: 300000,
-        inicio: '08/2026',
-        previsao_entrega: '12/2029',
-        comissao_psm: 5.0,
-        destaque: true,
-        img: ''
-      }
-    ];
-  }
-  var data = S.lancData;
+  var MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+  var LANC_2026 = [
+    { mes: 1, nome: 'Giulia BOULEVARD 2', cor: '#0f9d58' },
+    { mes: 1, nome: 'SOHO SQUARE - FAJ', cor: '#0f9d58' },
+    { mes: 3, nome: 'Organique', cor: '#0f9d58' },
+    { mes: 3, nome: 'Studios Catanduva', cor: '#0f172a' },
+    { mes: 3, nome: 'FAG', cor: '#0f172a' },
+    { mes: 2, nome: 'ALAMEDA DOS IPES', cor: '#0f172a' },
+    { mes: 5, nome: 'Studios + 2 dorms R3M', cor: '#0f172a' },
+    { mes: 5, nome: 'VITTA - 3d', cor: '#0f172a' },
+    { mes: 5, nome: 'INC', cor: '#0f172a' },
+    { mes: 5, nome: 'BILD ANDALO STUDIOS', cor: '#0f172a' },
+    { mes: 5, nome: 'PIETRA 178m2 - Impper', cor: '#0f9d58' },
+    { mes: 5, nome: 'SOHO BUSINESS - FAJ', cor: '#0f9d58' },
+    { mes: 5, nome: 'RESERVA GOLF', cor: '#0f172a' },
+    { mes: 5, nome: 'PERPLAN', cor: '#0f172a' },
+    { mes: 5, nome: 'CASAS KARVAS', cor: '#0f172a' },
+    { mes: 7, nome: 'Costantini 220m2', cor: '#0f172a' },
+    { mes: 8, nome: 'DECK RIO By Tarraf', cor: '#0f9d58' },
+    { mes: 8, nome: 'Plaza - HUGO FABRI', cor: '#0f172a' },
+    { mes: 9, nome: 'Recanto Real - LUPEMA', cor: '#0f9d58' },
+    { mes: 9, nome: 'IMPPER CITY', cor: '#0f172a' },
+    { mes: 10, nome: 'SOUL - KARVAS', cor: '#0f9d58' },
+    { mes: 10, nome: 'BIO CITY 2', cor: '#0f172a' }
+  ];
 
-  var statusLbl = {lancamento:'Em Lan\u00e7amento', pre_lancamento:'Pr\u00e9-Lan\u00e7amento', vendas:'Em Vendas', futuro:'Futuro', esgotado:'Esgotado'};
-  var statusColor = {lancamento:'var(--g)', pre_lancamento:'var(--b)', vendas:'var(--a)', futuro:'var(--pu)', esgotado:'var(--muted)'};
-  var statusBg = {lancamento:'var(--g-bg)', pre_lancamento:'var(--b-bg)', vendas:'var(--a-bg)', futuro:'rgba(139,92,246,.1)', esgotado:'var(--cream3)'};
-  var statusTx = {lancamento:'var(--g-tx)', pre_lancamento:'var(--b-tx)', vendas:'var(--a-tx)', futuro:'#7c3aed', esgotado:'var(--muted)'};
-  var statusIco = {lancamento:'\uD83D\uDE80', pre_lancamento:'\uD83D\uDCCB', vendas:'\uD83D\uDCB0', futuro:'\uD83D\uDD2E', esgotado:'\u2705'};
-
-  // ── HEADER ──
-  var header = '<div class="phd"><h1>\uD83D\uDE80 Lan\u00e7amentos do Ano</h1><p>Linha do tempo dos empreendimentos 2025\u20132026</p></div>';
-
-  // ── KPIs ──
-  var totalUnid = data.reduce(function(a,l){return a+l.unidades;},0);
-  var totalVend = data.reduce(function(a,l){return a+l.vendidas;},0);
-  var totalVGV = data.reduce(function(a,l){return a+l.vgv_total;},0);
-  var totalVGVVend = data.reduce(function(a,l){return a+l.vgv_vendido;},0);
-  var ativos = data.filter(function(l){return l.status!=='esgotado'&&l.status!=='futuro';}).length;
-
-  var kpis = '<div class="kgrid">'
-    + Kpi('Empreendimentos', data.length, ativos+' ativos', null, 'var(--b)')
-    + Kpi('Unidades Totais', totalUnid, totalVend+' vendidas ('+Math.round(totalVend/totalUnid*100)+'%)', null, 'var(--g)')
-    + Kpi('VGV Total', fmt(totalVGV), 'todos empreendimentos', null, 'var(--navy)')
-    + Kpi('VGV Vendido', fmt(totalVGVVend), pS(totalVGVVend,totalVGV)+' do total', null, 'var(--g)')
-    + (isDiretor ? Kpi('Comiss\u00e3o Estimada', fmt(Math.round(totalVGVVend*0.045)), 'sobre vendas realizadas', null, 'var(--a)') : '')
-    + '</div>';
-
-  // ── TIMELINE ──
-  var tl = '<div style="position:relative;padding:0 0 0 40px;margin-bottom:24px">';
-  // Vertical line
-  tl += '<div style="position:absolute;left:18px;top:0;bottom:0;width:3px;background:linear-gradient(to bottom,var(--g),var(--b),var(--pu));border-radius:2px"></div>';
-
-  data.forEach(function(l, idx) {
-    var pctVend = l.unidades > 0 ? Math.round(l.vendidas / l.unidades * 100) : 0;
-    var barColor = pctVend >= 80 ? 'var(--g)' : pctVend >= 40 ? 'var(--a)' : 'var(--b)';
-    var dotColor = statusColor[l.status] || 'var(--muted)';
-    var ico = statusIco[l.status] || '\uD83C\uDFE2';
-    var isLast = idx === data.length - 1;
-
-    // Timeline node
-    tl += '<div style="position:relative;margin-bottom:'+(isLast?'0':'28')+'px">';
-
-    // Dot on the line
-    tl += '<div style="position:absolute;left:-31px;top:16px;width:26px;height:26px;border-radius:50%;background:var(--white);border:3px solid '+dotColor+';display:flex;align-items:center;justify-content:center;font-size:12px;z-index:1">'+ico+'</div>';
-
-    // Date label
-    tl += '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">'
-      + l.inicio + ' \u2192 ' + l.previsao_entrega
-      + '</div>';
-
-    // Card
-    tl += '<div class="card" style="padding:0;overflow:hidden'+(l.destaque?';border:2px solid var(--gold)':'')+'">';
-
-    // Card header row
-    tl += '<div style="padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--cream3)">';
-    // Left: name + details
-    tl += '<div style="flex:1;min-width:0">';
-    tl += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-    tl += '<div style="font-size:16px;font-weight:800;color:var(--navy)">' + l.nome + '</div>';
-    tl += '<span style="font-size:10px;padding:2px 10px;border-radius:6px;background:'+(statusBg[l.status]||'var(--cream2)')+';color:'+(statusTx[l.status]||'var(--muted)')+';font-weight:600">'+(statusLbl[l.status]||l.status)+'</span>';
-    if (l.destaque) tl += '<span style="font-size:10px;padding:2px 8px;border-radius:6px;background:rgba(212,168,67,.12);color:var(--gold);font-weight:700">\u2B50 Destaque</span>';
-    tl += '</div>';
-    tl += '<div style="font-size:11px;color:var(--muted);margin-top:3px">' + l.tipo + ' \u2022 ' + l.bairro + ', ' + l.cidade + ' \u2022 ' + l.construtora + '</div>';
-    tl += '</div>';
-    // Right: percentage circle
-    tl += '<div style="flex-shrink:0;width:56px;height:56px;border-radius:50%;border:4px solid '+barColor+';display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--white)">';
-    tl += '<div style="font-size:15px;font-weight:800;color:'+barColor+';line-height:1">'+pctVend+'%</div>';
-    tl += '<div style="font-size:7px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">vendido</div>';
-    tl += '</div>';
-    tl += '</div>';
-
-    // Card body: metrics row
-    tl += '<div style="padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap">';
-    // Progress bar full width
-    tl += '<div style="width:100%;margin-bottom:4px">';
-    tl += '<div style="display:flex;justify-content:space-between;margin-bottom:3px">';
-    tl += '<span style="font-size:10px;font-weight:600;color:var(--navy)">' + l.vendidas + '/' + l.unidades + ' unidades</span>';
-    tl += '<span style="font-size:10px;font-weight:700;color:'+barColor+'">' + pctVend + '%</span>';
-    tl += '</div>';
-    tl += '<div style="height:6px;background:var(--cream3);border-radius:3px;overflow:hidden">';
-    tl += '<div style="height:100%;width:'+pctVend+'%;background:'+barColor+';border-radius:3px;transition:width .3s"></div>';
-    tl += '</div></div>';
-    // Metric chips
-    tl += '<div style="display:flex;gap:8px;flex-wrap:wrap;width:100%">';
-    tl += '<div style="flex:1;min-width:100px;background:var(--cream2);border-radius:8px;padding:8px 12px;text-align:center">';
-    tl += '<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">VGV Total</div>';
-    tl += '<div style="font-size:13px;font-weight:700;color:var(--navy)">' + fmt(l.vgv_total) + '</div>';
-    tl += '</div>';
-    tl += '<div style="flex:1;min-width:100px;background:var(--cream2);border-radius:8px;padding:8px 12px;text-align:center">';
-    tl += '<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Ticket M\u00e9dio</div>';
-    tl += '<div style="font-size:13px;font-weight:700;color:var(--navy)">' + fmt(l.ticket_medio) + '</div>';
-    tl += '</div>';
-    if (isDiretor) {
-      tl += '<div style="flex:1;min-width:100px;background:var(--cream2);border-radius:8px;padding:8px 12px;text-align:center">';
-      tl += '<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Comiss\u00e3o PSM</div>';
-      tl += '<div style="font-size:13px;font-weight:700;color:var(--a-tx)">' + l.comissao_psm + '%</div>';
-      tl += '</div>';
-      tl += '<div style="flex:1;min-width:100px;background:var(--cream2);border-radius:8px;padding:8px 12px;text-align:center">';
-      tl += '<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">VGV Vendido</div>';
-      tl += '<div style="font-size:13px;font-weight:700;color:var(--g-tx)">' + fmt(l.vgv_vendido) + '</div>';
-      tl += '</div>';
-    }
-    tl += '</div>';
-    tl += '</div>';
-
-    tl += '</div>'; // card
-    tl += '</div>'; // timeline node
+  var byMonth = {};
+  LANC_2026.forEach(function(l) {
+    if (!byMonth[l.mes]) byMonth[l.mes] = [];
+    byMonth[l.mes].push(l);
   });
 
-  tl += '</div>'; // timeline container
+  if (!S.lancMetas) S.lancMetas = { meta_vgv: 0, meta_pastas: 0, meta_estoque: 0, meta_impper: 0 };
+  var metas = S.lancMetas;
 
-  // ── TABELA RESUMO (DIRETOR) ──
-  var tabela = '';
+  var header = '<div class="phd"><h1>\uD83D\uDE80 Expectativa de Lan\u00e7amentos 2026</h1><p>Linha do tempo oficial dos empreendimentos do ano</p></div>';
+
+  var metasCard = '';
   if (isDiretor) {
-    tabela = '<div class="card"><div class="ctitle">\uD83D\uDCCA Resumo Financeiro</div>'
-      + '<div class="tw"><table class="rank-tbl"><thead><tr>'
-      + '<th>Empreendimento</th><th>Status</th><th style="text-align:right">VGV Total</th><th style="text-align:right">VGV Vendido</th><th style="text-align:right">% Vendido</th><th style="text-align:right">Comiss\u00e3o Est.</th>'
-      + '</tr></thead><tbody>';
-    data.forEach(function(l) {
-      var pct = l.unidades > 0 ? Math.round(l.vendidas / l.unidades * 100) : 0;
-      var comEst = Math.round(l.vgv_vendido * l.comissao_psm / 100);
-      tabela += '<tr>'
-        + '<td><div style="font-size:12px;font-weight:600">' + l.nome + '</div><div style="font-size:9px;color:var(--muted)">' + l.construtora + '</div></td>'
-        + '<td><span style="font-size:10px;padding:2px 8px;border-radius:6px;background:' + (statusBg[l.status]||'var(--cream2)') + ';color:' + (statusTx[l.status]||'var(--muted)') + ';font-weight:600">' + (statusLbl[l.status]||l.status) + '</span></td>'
-        + '<td style="text-align:right;font-size:12px;font-weight:600">' + fmt(l.vgv_total) + '</td>'
-        + '<td style="text-align:right;font-size:12px;font-weight:700;color:var(--g-tx)">' + fmt(l.vgv_vendido) + '</td>'
-        + '<td style="text-align:right;font-size:12px;font-weight:700;color:' + (pct >= 80 ? 'var(--g-tx)' : pct >= 40 ? 'var(--a-tx)' : 'var(--b-tx)') + '">' + pct + '%</td>'
-        + '<td style="text-align:right;font-size:12px;font-weight:600;color:var(--a-tx)">' + fmt(comEst) + '</td>'
-        + '</tr>';
-    });
-    var totalCom = data.reduce(function(a,l){return a + Math.round(l.vgv_vendido * l.comissao_psm / 100);},0);
-    tabela += '<tr style="font-weight:800;border-top:2px solid var(--navy)">'
-      + '<td>TOTAL</td><td></td>'
-      + '<td style="text-align:right">' + fmt(totalVGV) + '</td>'
-      + '<td style="text-align:right;color:var(--g-tx)">' + fmt(totalVGVVend) + '</td>'
-      + '<td style="text-align:right">' + Math.round(totalVGVVend/totalVGV*100) + '%</td>'
-      + '<td style="text-align:right;color:var(--a-tx)">' + fmt(totalCom) + '</td>'
-      + '</tr>';
-    tabela += '</tbody></table></div></div>';
+    metasCard = '<div class="card mb2"><div class="ctitle">\uD83C\uDFAF Metas de Lan\u00e7amentos 2026</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">'
+      + '<div><label class="flabel">Meta VGV (R$)</label><input class="finp" type="number" value="'+metas.meta_vgv+'" oninput="S.lancMetas.meta_vgv=+this.value;saveState()"></div>'
+      + '<div><label class="flabel">Meta Pastas</label><input class="finp" type="number" value="'+metas.meta_pastas+'" oninput="S.lancMetas.meta_pastas=+this.value;saveState()"></div>'
+      + '<div><label class="flabel">Meta Estoque</label><input class="finp" type="number" value="'+metas.meta_estoque+'" oninput="S.lancMetas.meta_estoque=+this.value;saveState()"></div>'
+      + '<div><label class="flabel">Meta Impper</label><input class="finp" type="number" value="'+metas.meta_impper+'" oninput="S.lancMetas.meta_impper=+this.value;saveState()"></div>'
+      + '</div>'
+      + '<button class="btn bp1 mt2" onclick="toast(\'Metas salvas!\',\'ok\')">Salvar Metas</button>'
+      + '</div>';
+  } else {
+    var hasAnyMeta = metas.meta_vgv || metas.meta_pastas || metas.meta_estoque || metas.meta_impper;
+    if (hasAnyMeta) {
+      metasCard = '<div class="kgrid mb2">'
+        + (metas.meta_vgv ? Kpi('Meta VGV', fmt(metas.meta_vgv), 'lan\u00e7amentos 2026', null, 'var(--navy)') : '')
+        + (metas.meta_pastas ? Kpi('Meta Pastas', metas.meta_pastas, 'total esperado', null, 'var(--b)') : '')
+        + (metas.meta_estoque ? Kpi('Meta Estoque', metas.meta_estoque, 'unidades', null, 'var(--g)') : '')
+        + (metas.meta_impper ? Kpi('Meta Impper', metas.meta_impper, 'unidades', null, 'var(--a)') : '')
+        + '</div>';
+    }
   }
 
-  return header + kpis + tl + tabela;
+  var totalLanc = LANC_2026.length;
+  var mesesAtivos = Object.keys(byMonth).length;
+  var now = new Date();
+  var mesAtual = now.getMonth();
+  var lancPassados = LANC_2026.filter(function(l){ return l.mes <= mesAtual; }).length;
+  var lancFuturos = totalLanc - lancPassados;
+
+  var kpis = '<div class="kgrid mb2">'
+    + Kpi('Total Lan\u00e7amentos', totalLanc, mesesAtivos+' meses com lan\u00e7amento', null, 'var(--navy)')
+    + Kpi('J\u00e1 Lan\u00e7ados', lancPassados, 'at\u00e9 '+ MESES[mesAtual], null, 'var(--g)')
+    + Kpi('A Lan\u00e7ar', lancFuturos, 'restante do ano', null, 'var(--b)')
+    + '</div>';
+
+  var tl = '<div class="card mb2" style="padding:16px;overflow-x:auto">';
+  tl += '<div class="ctitle">\uD83D\uDCC5 Timeline 2026</div>';
+  tl += '<div style="position:relative;min-width:900px;padding:120px 0 120px 0">';
+  tl += '<div style="position:absolute;left:0;right:0;top:50%;height:4px;background:linear-gradient(90deg,#0f172a,#334155);border-radius:2px;transform:translateY(-50%)"></div>';
+
+  for (var m = 0; m < 12; m++) {
+    var xPct = (m / 11 * 100).toFixed(1);
+    var hasLanc = byMonth[m] ? true : false;
+    var isPast = m <= mesAtual;
+    var isCurrentMonth = m === mesAtual;
+    var diamondBg = isCurrentMonth ? '#0f9d58' : (isPast ? '#334155' : '#0f172a');
+    tl += '<div style="position:absolute;left:'+xPct+'%;top:50%;transform:translate(-50%,-50%) rotate(45deg);width:28px;height:28px;background:'+diamondBg+';border:2px solid #fff;z-index:2"></div>';
+    tl += '<div style="position:absolute;left:'+xPct+'%;top:50%;transform:translate(-50%,-50%);z-index:3;font-size:8px;font-weight:900;color:#fff;pointer-events:none">'+MESES[m]+'</div>';
+    if (hasLanc) {
+      var items = byMonth[m];
+      var above = m % 2 === 0;
+      var itemsHtml = items.map(function(it) {
+        var fw = it.cor === '#0f9d58' ? '800' : '600';
+        return '<div style="font-size:10px;font-weight:'+fw+';color:'+it.cor+';white-space:nowrap;line-height:1.5">'+it.nome+'</div>';
+      }).join('');
+      if (above) {
+        tl += '<div style="position:absolute;left:'+xPct+'%;bottom:55%;transform:translateX(-50%);text-align:center;min-width:80px"><div style="margin-bottom:8px">'+itemsHtml+'</div><div style="width:1px;height:20px;background:#ccc;margin:0 auto"></div></div>';
+      } else {
+        tl += '<div style="position:absolute;left:'+xPct+'%;top:55%;transform:translateX(-50%);text-align:center;min-width:80px"><div style="width:1px;height:20px;background:#ccc;margin:0 auto"></div><div style="margin-top:8px">'+itemsHtml+'</div></div>';
+      }
+    }
+  }
+  tl += '</div></div>';
+
+  var lista = '';
+  for (var mi = 0; mi < 12; mi++) {
+    if (!byMonth[mi]) continue;
+    var litems = byMonth[mi];
+    var isPastMonth = mi < mesAtual;
+    var isNow = mi === mesAtual;
+    var statusTag = isNow ? '<span style="font-size:9px;padding:2px 8px;border-radius:6px;background:var(--g-bg);color:var(--g-tx);font-weight:700;margin-left:8px">M\u00eas Atual</span>'
+      : isPastMonth ? '<span style="font-size:9px;padding:2px 8px;border-radius:6px;background:var(--cream2);color:var(--muted);font-weight:600;margin-left:8px">Lan\u00e7ado</span>'
+      : '<span style="font-size:9px;padding:2px 8px;border-radius:6px;background:var(--b-bg);color:var(--b-tx);font-weight:600;margin-left:8px">Futuro</span>';
+    lista += '<div class="card mb2" style="'+(isNow?'border-left:4px solid var(--g)':'')+'">';
+    lista += '<div class="ctitle" style="display:flex;align-items:center">';
+    lista += '<span style="font-size:14px;margin-right:6px">'+(isNow?'\uD83D\uDFE2':isPastMonth?'\u2705':'\uD83D\uDD35')+'</span>';
+    lista += MESES[mi] + ' 2026' + statusTag;
+    lista += '<span style="margin-left:auto;font-size:11px;color:var(--muted)">'+litems.length+' lan\u00e7amento'+(litems.length>1?'s':'')+'</span></div>';
+    lista += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
+    litems.forEach(function(it) {
+      var bgC = it.cor === '#0f9d58' ? 'rgba(15,157,88,.08)' : 'var(--cream2)';
+      var bdC = it.cor === '#0f9d58' ? '#0f9d5830' : 'var(--cream3)';
+      lista += '<div style="padding:8px 14px;background:'+bgC+';border:1px solid '+bdC+';border-radius:8px;font-size:12px;font-weight:700;color:'+(it.cor==='#0f9d58'?'#0f9d58':'var(--navy)')+'">\uD83C\uDFE2 '+it.nome+'</div>';
+    });
+    lista += '</div></div>';
+  }
+
+  return header + metasCard + kpis + tl + lista;
 }
 // ═══════════════════════════════════════════════════════════════════════════════
 // CHECK-IN / CHECK-OUT + DISCIPLINA OPERACIONAL
