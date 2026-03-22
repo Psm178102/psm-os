@@ -5312,6 +5312,7 @@ function pgMarketing() {
 
 
 // ─── PAGE: LANÇAMENTOS DO ANO ────────────────────────────────────────────────
+// ─── PAGE: LANÇAMENTOS DO ANO ────────────────────────────────────────────────
 function pgLancamentosAno() {
   var u = S.user; if (!u) return '';
   var perfil = getPerfil();
@@ -5419,53 +5420,6 @@ function pgLancamentosAno() {
         tipo: 'Comercial',
         unidades: 40,
         vendidas: 40,
-        vgv_total: 16000000,
-        vgv_vendido: 16000000,
-        ticket_medio: 400000,
-        inicio: '06/2025',
-        previsao_entrega: '09/2027',
-        comissao_psm: 4.0,
-        destaque: false,
-        img: ''
-      }
-    ];
-  }
-  var data = S.lancData;
-
-  var statusLbl = {lancamento:'Em Lançamento', pre_lancamento:'Pré-Lançamento', vendas:'Em Vendas', futuro:'Futuro', esgotado:'Esgotado'};
-  var statusColor = {lancamento:'var(--g)', pre_lancamento:'var(--b)', vendas:'var(--a)', futuro:'var(--pu)', esgotado:'var(--muted)'};
-  var statusBg = {lancamento:'var(--g-bg)', pre_lancamento:'var(--b-bg)', vendas:'var(--a-bg)', futuro:'rgba(139,92,246,.1)', esgotado:'var(--cream3)'};
-  var statusTx = {lancamento:'var(--g-tx)', pre_lancamento:'var(--b-tx)', vendas:'var(--a-tx)', futuro:'#7c3aed', esgotado:'var(--muted)'};
-
-  // ── HEADER ──
-  var header = '<div class="phd"><h1>\uD83C\uDFD7\uFE0F Lançamentos do Ano</h1><p>Acompanhamento de empreendimentos 2026</p></div>';
-
-  // ── KPIs ──
-  var totalUnid = data.reduce(function(a,l){return a+l.unidades;},0);
-  var totalVend = data.reduce(function(a,l){return a+l.vendidas;},0);
-  var totalVGV = data.reduce(function(a,l){return a+l.vgv_total;},0);
-  var totalVGVVend = data.reduce(function(a,l){return a+l.vgv_vendido;},0);
-  var ativos = data.filter(function(l){return l.status!=='esgotado'&&l.status!=='futuro';}).length;
-
-  var kpis = '<div class="kgrid">'
-    + Kpi('Empreendimentos', data.length, ativos+' ativos', null, 'var(--b)')
-    + Kpi('Unidades Totais', totalUnid, totalVend+' vendidas ('+Math.round(totalVend/totalUnid*100)+'%)', null, 'var(--g)')
-    + Kpi('VGV Total', fmt(totalVGV), 'todos empreendimentos', null, 'var(--navy)')
-    + Kpi('VGV Vendido', fmt(totalVGVVend), pS(totalVGVVend,totalVGV)+' do total', null, 'var(--g)')
-    + (isDiretor ? Kpi('Comissão Estimada', fmt(Math.round(totalVGVVend*0.045)), 'sobre vendas realizadas', null, 'var(--a)') : '')
-    + '</div>';
-
-  // ── CARDS DE EMPREENDIMENTOS ──
-  var cards = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-bottom:16px">';
-  data.forEach(function(l) {
-    var pctVend = l.unidades > 0 ? Math.round(l.vendidas / l.unidades * 100) : 0;
-    var barColor = pctVend >= 80 ? 'var(--g)' : pctVend >= 40 ? 'var(--a)' : 'var(--b)';
-
-    cards += '<div class="card" style="padding:0;overflow:hidden'+(l.destaque?';border:2px solid var(--gold)':'')+'">'
-      // Status badge + Destaque
-      + '<div style="padding:16px 16px 0;display:flex;justify-content:space-between;align-items:center">'
-      + '<span style="font-size:10px;padding:3px 10px;border-radius:6px;background:'+(statusBg[l.status]||'var(--cream2)')+';color:'+(statusTx[l.status]||'var(--muted)')+';font-weight:600">'+(statusLbl[l.status]||l.status)+'</span>'
-      + (l.destaque ? '<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(212,168,67,.12);color:var  vendidas: 40,
         vgv_total: 16000000,
         vgv_vendido: 16000000,
         ticket_medio: 400000,
