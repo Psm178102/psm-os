@@ -7335,135 +7335,145 @@ function safeRoute() {
 }
 
 function pgMetaAds(){
+  // === STATE INIT ===
   if(!S.adsTab) S.adsTab='overview';
   if(!S.adsAcct) S.adsAcct='all';
-  if(!S.adsData){
-    S.adsData={
-      period:'20/02/2026 - 21/03/2026',
-      accounts:[
-        {id:'paulo',name:'Paulo Morimatsu',totalCampaigns:236,
-         campaigns:[
-          {name:'[TESTE] 01/02 [1-1-1] $40/Dia - Cod 17-1x - Pb 10 cidades - video cubo',status:'not_delivering',spend:261.72,results:27,cpr:9.69,impressions:15564,reach:11167,freq:1.39,clicks:89,cpc:2.94,ctr:1.05,cpm:16.82,hookRate:0.244,holdRate:0.037,views:15152,v25:1305,v50:581,v75:284,v95:203,v100:188,tipo:'leadgen',created:'2023-06-13'},
-          {name:'[VALIDADO][FORMS] 04/02 40$/dia Cod.ECO88 - 264 renda 4.400 - VIDEO',status:'not_delivering',spend:261.45,results:29,cpr:9.02,impressions:11240,reach:5326,freq:2.11,clicks:110,cpc:2.38,ctr:2.23,cpm:23.26,hookRate:0.156,holdRate:0.072,views:11191,v25:1465,v50:811,v75:538,v95:365,v100:348,tipo:'leadgen',created:'2024-09-10'},
-          {name:'[TESTE] 04/02 [1-1-1] Cod.MAP.70 - Pb Alto Padrao - VIDEO CUBO-INCC',status:'not_delivering',spend:263.92,results:19,cpr:13.89,impressions:20859,reach:15374,freq:1.36,clicks:130,cpc:2.03,ctr:1.18,cpm:12.65,hookRate:0.241,holdRate:0.036,views:20543,v25:1734,v50:757,v75:370,v95:230,v100:219,tipo:'leadgen',created:'2025-12-13'},
-          {name:'[TESTE][Whatsapp][VERA] 18/02 Cod.3MEET - 1:1:3 $80/dia',status:'not_delivering',spend:551.21,results:45,cpr:12.25,impressions:42836,reach:28354,freq:1.51,clicks:295,cpc:1.87,ctr:1.02,cpm:12.87,hookRate:0.004,holdRate:0.001,views:42850,v25:96,v50:54,v75:25,v95:21,v100:20,tipo:'whatsapp',created:'2026-02-18'},
-          {name:'[TESTE][Whatsapp VERA] IPE DA MATA - 1:1:1',status:'not_delivering',spend:536.27,results:18,cpr:29.79,impressions:26477,reach:10504,freq:2.52,clicks:294,cpc:1.82,ctr:1.56,cpm:20.25,hookRate:0.001,holdRate:0,views:26520,v25:1,v50:0,v75:0,v95:0,v100:0,tipo:'whatsapp',created:'2026-02-18'},
-          {name:'[TESTE][FORMS] Cod.3CA0165 - QUINTA DO GOLFE - $60/Dia',status:'not_delivering',spend:401.70,results:6,cpr:66.95,impressions:34489,reach:18268,freq:1.89,clicks:723,cpc:0.56,ctr:2.46,cpm:11.65,hookRate:0,holdRate:0,views:34593,v25:0,v50:0,v75:0,v95:0,v100:0,tipo:'leadgen',created:'2026-02-19'}
-        ]},
-        {id:'psm',name:'PSM Imoveis',totalCampaigns:171,
-         campaigns:[
-          {name:'[TESTE 07/02] Cod.Map22 - 1:1:1 $40/Dia - STUDIO PLATZ',status:'not_delivering',spend:313.61,results:7,cpr:44.80,impressions:8845,reach:5103,freq:1.73,clicks:49,cpc:6.40,ctr:0.55,cpm:35.46,hookRate:0.148,holdRate:0.061,views:8758,v25:932,v50:536,v75:342,v95:244,v100:236,tipo:'leadgen',created:'2026-02-07'},
-          {name:'[Whatsapp] 03/03 Cod.W.3 60/dia - GREEN FIELDS - MEET',status:'not_delivering',spend:473.76,results:43,cpr:11.02,impressions:11553,reach:4341,freq:2.66,clicks:140,cpc:3.38,ctr:1.21,cpm:41.01,hookRate:0,holdRate:0,views:11588,v25:0,v50:0,v75:0,v95:0,v100:0,tipo:'whatsapp',created:'2026-02-07'},
-          {name:'[Whatsapp] 07/03 Cod.W4 $60/DIA GREEN FIELDS - MEET',status:'not_delivering',spend:482.46,results:53,cpr:9.10,impressions:12704,reach:4974,freq:2.55,clicks:186,cpc:2.59,ctr:1.46,cpm:37.98,hookRate:0,holdRate:0,views:12752,v25:0,v50:0,v75:0,v95:0,v100:0,tipo:'whatsapp',created:'2026-02-07'},
-          {name:'[TESTE] 18/02 [WHATSAPP] LOCACAO Cod.L-ALM $80/DIA - ALAMEDA',status:'not_delivering',spend:628.15,results:18,cpr:34.90,impressions:18012,reach:4961,freq:3.63,clicks:57,cpc:11.02,ctr:0.32,cpm:34.87,hookRate:0.138,holdRate:0.039,views:16215,v25:1380,v50:711,v75:220,v95:129,v100:110,tipo:'whatsapp',created:'2026-02-18'},
-          {name:'[TESTE] 18/02 [WHATSAPP] LOCACAO Cod.L-GB $60/DIA - GEORGINA',status:'not_delivering',spend:449.41,results:17,cpr:26.44,impressions:11180,reach:3924,freq:2.85,clicks:47,cpc:9.56,ctr:0.42,cpm:40.20,hookRate:0.166,holdRate:0.046,views:10344,v25:782,v50:515,v75:368,v95:254,v100:230,tipo:'whatsapp',created:'2026-02-18'},
-          {name:'[TESTE][FORMS] 18/02 Cod.3iscaPortella - 1:1:1 $30/Dia',status:'inactive',spend:26.86,results:0,cpr:0,impressions:992,reach:636,freq:1.56,clicks:23,cpc:1.17,ctr:2.32,cpm:27.08,hookRate:0,holdRate:0,views:999,v25:0,v50:0,v75:0,v95:0,v100:0,tipo:'leadgen',created:'2026-02-20'},
-          {name:'[TESTE][FORMS] 18/02 1:1:2 CA0168/CA0169 - SETSUL $60/dia',status:'not_delivering',spend:435.80,results:34,cpr:12.82,impressions:61014,reach:26931,freq:2.27,clicks:914,cpc:0.48,ctr:1.50,cpm:7.14,hookRate:0,holdRate:0,views:61113,v25:0,v50:0,v75:0,v95:0,v100:0,tipo:'leadgen',created:'2026-02-19'},
-          {name:'[TESTE][FORMS] 18/02 Cod.3NVR $60/Dia - Nova Residence',status:'not_delivering',spend:456.01,results:17,cpr:26.82,impressions:15911,reach:5595,freq:2.84,clicks:160,cpc:2.85,ctr:1.01,cpm:28.66,hookRate:0.138,holdRate:0.026,views:14979,v25:731,v50:408,v75:317,v95:174,v100:107,tipo:'leadgen',created:'2026-02-19'},
-          {name:'[TESTE][WHATSAPP] Cod.3c[x] $80/Dia 1:1:3 CA0150+CA0165+CA0153',status:'inactive',spend:125.98,results:1,cpr:125.98,impressions:3381,reach:1902,freq:1.78,clicks:10,cpc:12.60,ctr:0.30,cpm:37.26,hookRate:0.140,holdRate:0.028,views:3035,v25:165,v50:93,v75:56,v95:47,v100:40,tipo:'whatsapp',created:'2026-02-20'}
-        ]}
-      ]
-    };
+  if(!S.adsSort) S.adsSort='spend';
+  if(!S.adsSortDir) S.adsSortDir='desc';
+  if(!S.adsData) S.adsData=null;
+  if(!S.adsLoading && !S.adsData && !S.adsError){
+    S.adsLoading=true;
+    fetch('/api/meta-ads')
+      .then(function(r){return r.json();})
+      .then(function(data){
+        S.adsLoading=false;
+        if(data.error){S.adsError=data.error;}
+        else{S.adsData=data;}
+        render();
+      })
+      .catch(function(e){
+        S.adsLoading=false;
+        S.adsError=e.message||'Erro ao carregar dados';
+        render();
+      });
+    return '<div style="max-width:800px;margin:0 auto;padding:60px 16px;text-align:center">'
+      +'<div style="font-size:40px;margin-bottom:16px">\uD83D\uDCE2</div>'
+      +'<div style="font-size:18px;font-weight:700;color:#334155;margin-bottom:8px">Carregando Meta Ads...</div>'
+      +'<div style="font-size:13px;color:#94a3b8">Buscando dados das campanhas em tempo real</div>'
+      +'<div style="margin-top:24px;width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#6366f1;border-radius:50%;animation:spin 1s linear infinite;margin:24px auto"></div>'
+      +'<style>@keyframes spin{to{transform:rotate(360deg)}}</style>'
+    +'</div>';
   }
+  if(S.adsLoading){
+    return '<div style="max-width:800px;margin:0 auto;padding:60px 16px;text-align:center">'
+      +'<div style="font-size:40px;margin-bottom:16px">\uD83D\uDCE2</div>'
+      +'<div style="font-size:18px;font-weight:700;color:#334155">Carregando Meta Ads...</div>'
+      +'<div style="margin-top:24px;width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#6366f1;border-radius:50%;animation:spin 1s linear infinite;margin:24px auto"></div>'
+      +'<style>@keyframes spin{to{transform:rotate(360deg)}}</style>'
+    +'</div>';
+  }
+  if(S.adsError){
+    return '<div style="max-width:800px;margin:0 auto;padding:60px 16px;text-align:center">'
+      +'<div style="font-size:40px;margin-bottom:16px">\u26A0\uFE0F</div>'
+      +'<div style="font-size:18px;font-weight:700;color:#ef4444;margin-bottom:8px">Erro ao carregar Meta Ads</div>'
+      +'<div style="font-size:13px;color:#94a3b8;margin-bottom:16px">'+S.adsError+'</div>'
+      +'<button onclick="S.adsError=null;S.adsData=null;S.adsLoading=false;render()" style="padding:8px 20px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">Tentar Novamente</button>'
+    +'</div>';
+  }
+
   var d=S.adsData;
+  var allCamps=d.campaigns||[];
   var tab=S.adsTab;
   var acctFilter=S.adsAcct;
-  // Merge campaigns based on filter
-  var camps=[];
-  d.accounts.forEach(function(a){
-    if(acctFilter==='all'||acctFilter===a.id){
-      a.campaigns.forEach(function(c){
-        c.account=a.name;
-        c.acctId=a.id;
-        camps.push(c);
-      });
-    }
-  });
+
+  // Filter by account
+  var camps=acctFilter==='all'?allCamps:allCamps.filter(function(c){return c.account===acctFilter;});
+
+  // Helpers
+  function fmt(n){return n>=1000000?(n/1000000).toFixed(1)+'M':n>=1000?(n/1000).toFixed(1)+'K':String(n);}
+  function fmtR(n){return 'R$ '+n.toFixed(2).replace('.',',');}
+
   // Totals
-  var totSpend=0,totResults=0,totImpressions=0,totReach=0,totClicks=0;
-  camps.forEach(function(c){
-    totSpend+=c.spend;totResults+=c.results;totImpressions+=c.impressions;totReach+=c.reach;totClicks+=c.clicks;
-  });
-  var avgCPR=totResults>0?(totSpend/totResults):0;
+  var totSpend=0,totResults=0,totImpressions=0,totReach=0,totClicks=0,totCTR=0,totCPM=0;
+  camps.forEach(function(c){totSpend+=c.spend;totResults+=c.results;totImpressions+=c.impressions;totReach+=c.reach;totClicks+=c.clicks;});
   var avgCTR=totImpressions>0?(totClicks/totImpressions*100):0;
   var avgCPM=totImpressions>0?(totSpend/totImpressions*1000):0;
-  // Format
-  function fmt(v){if(v>=1000000)return(v/1000000).toFixed(1)+'M';if(v>=1000)return(v/1000).toFixed(1)+'K';return v.toFixed?v.toFixed(0):v;}
-  function fmtR(v){return'R$ '+v.toFixed(2).replace('.',',');}
-  function pct(v){return(v*100).toFixed(1)+'%';}
-  // Tabs
-  var tabs=[
-    {id:'overview',lbl:'Visao Geral',ico:'\uD83D\uDCCA'},
-    {id:'campaigns',lbl:'Campanhas',ico:'\uD83C\uDFAF'},
-    {id:'funnel',lbl:'Funil',ico:'\uD83D\uDD73'},
-    {id:'video',lbl:'Video',ico:'\uD83C\uDFAC'},
-    {id:'compare',lbl:'Comparar',ico:'\u2696\uFE0F'}
-  ];
+  var avgCPR=totResults>0?(totSpend/totResults):0;
+
+  // Account buttons
+  var accts=['all'];
+  var acctLabels={all:'Todas Contas'};
+  (d.accounts||[]).forEach(function(a){accts.push(a.label);acctLabels[a.label]=a.label;});
+  var acctBtns=accts.map(function(a){
+    var active=acctFilter===a;
+    return '<button onclick="S.adsAcct=\''+a+'\';render()" style="padding:6px 14px;border:1px solid '+(active?'#6366f1':'#e2e8f0')+';border-radius:8px;font-size:11px;cursor:pointer;background:'+(active?'#6366f1':'#fff')+';color:'+(active?'#fff':'#64748b')+';font-weight:'+(active?'700':'500')+'">'+(acctLabels[a]||a)+'</button>';
+  });
+
+  // Tab bar
+  var tabs=[{id:'overview',lbl:'\uD83D\uDCC8 Visao Geral'},{id:'campaigns',lbl:'\uD83C\uDFAF Campanhas'},{id:'funnel',lbl:'\u25CF Funil'},{id:'video',lbl:'\uD83C\uDFAC Video'},{id:'compare',lbl:'\u2696\uFE0F Comparar'}];
   var tabBar=tabs.map(function(t){
     var active=tab===t.id;
-    return '<button onclick="S.adsTab=\''+t.id+'\';render()" style="padding:8px 16px;border:none;border-radius:8px;font-size:12px;font-weight:'+(active?'700':'500')+';cursor:pointer;background:'+(active?'linear-gradient(135deg,#6366f1,#8b5cf6)':'#f1f5f9')+';color:'+(active?'#fff':'#64748b')+';transition:all .2s">'+t.ico+' '+t.lbl+'</button>';
+    return '<button onclick="S.adsTab=\''+t.id+'\';render()" style="padding:8px 16px;border:none;border-radius:8px;font-size:12px;cursor:pointer;font-weight:'+(active?'700':'500')+';background:'+(active?'#6366f1':'transparent')+';color:'+(active?'#fff':'#64748b')+'">'+t.lbl+'</button>';
   }).join('');
-  // Account filter
-  var acctBtns=['<button onclick="S.adsAcct=\'all\';render()" style="padding:6px 12px;border:1px solid '+(acctFilter==='all'?'#6366f1':'#e2e8f0')+';border-radius:6px;font-size:11px;cursor:pointer;background:'+(acctFilter==='all'?'#eef2ff':'#fff')+';color:'+(acctFilter==='all'?'#6366f1':'#64748b')+'">Todas Contas</button>'];
-  d.accounts.forEach(function(a){
-    var active=acctFilter===a.id;
-    acctBtns.push('<button onclick="S.adsAcct=\''+a.id+'\';render()" style="padding:6px 12px;border:1px solid '+(active?'#6366f1':'#e2e8f0')+';border-radius:6px;font-size:11px;cursor:pointer;background:'+(active?'#eef2ff':'#fff')+';color:'+(active?'#6366f1':'#64748b')+'">'+a.name+'</button>');
-  });
+
+  // Refresh button
+  var refreshBtn='<button onclick="S.adsData=null;S.adsLoading=false;S.adsError=null;render()" style="padding:6px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:11px;cursor:pointer;background:#fff;color:#64748b">\u21BB Atualizar</button>';
+
   var content='';
+
   // === OVERVIEW TAB ===
   if(tab==='overview'){
     var kpis=[
-      {lbl:'Investimento Total',val:fmtR(totSpend),ico:'\uD83D\uDCB0',color:'#6366f1'},
-      {lbl:'Resultados',val:fmt(totResults),ico:'\uD83C\uDFAF',color:'#10b981'},
-      {lbl:'CPR Medio',val:fmtR(avgCPR),ico:'\uD83D\uDCB2',color:'#f59e0b'},
-      {lbl:'Impressoes',val:fmt(totImpressions),ico:'\uD83D\uDC41',color:'#3b82f6'},
-      {lbl:'Alcance',val:fmt(totReach),ico:'\uD83D\uDCE1',color:'#8b5cf6'},
-      {lbl:'Cliques',val:fmt(totClicks),ico:'\uD83D\uDD17',color:'#06b6d4'},
-      {lbl:'CTR Medio',val:avgCTR.toFixed(2)+'%',ico:'\uD83D\uDCC8',color:'#ec4899'},
-      {lbl:'CPM Medio',val:fmtR(avgCPM),ico:'\uD83D\uDCB5',color:'#14b8a6'}
+      {ico:'\uD83D\uDCB0',lbl:'INVESTIMENTO TOTAL',val:fmtR(totSpend),color:'#1e293b'},
+      {ico:'\uD83C\uDFAF',lbl:'RESULTADOS',val:String(totResults),color:'#10b981'},
+      {ico:'\uD83D\uDCB2',lbl:'CPR MEDIO',val:fmtR(avgCPR),color:avgCPR<20?'#10b981':'#ef4444'},
+      {ico:'\uD83D\uDCCA',lbl:'IMPRESSOES',val:fmt(totImpressions),color:'#3b82f6'},
+      {ico:'\uD83D\uDC65',lbl:'ALCANCE',val:fmt(totReach),color:'#ec4899'}
     ];
-    var kpiCards=kpis.map(function(k){
-      return '<div style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e2e8f0;min-width:140px;flex:1">'
-        +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
-          +'<div style="width:36px;height:36px;border-radius:10px;background:'+k.color+'15;display:flex;align-items:center;justify-content:center;font-size:18px">'+k.ico+'</div>'
-          +'<span style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:600">'+k.lbl+'</span>'
-        +'</div>'
-        +'<div style="font-size:20px;font-weight:800;color:#1e293b">'+k.val+'</div>'
+    var kpiRow2=[
+      {ico:'\uD83D\uDD17',lbl:'CLIQUES',val:fmt(totClicks),color:'#0ea5e9'},
+      {ico:'\uD83D\uDCC8',lbl:'CTR MEDIO',val:avgCTR.toFixed(2)+'%',color:'#8b5cf6'},
+      {ico:'\uD83D\uDCF1',lbl:'CPM MEDIO',val:fmtR(avgCPM),color:'#06b6d4'}
+    ];
+    function kpiCard(k){
+      return '<div style="flex:1;min-width:140px;padding:16px;background:#fff;border-radius:12px;border:1px solid #e2e8f0">'
+        +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><span style="font-size:16px">'+k.ico+'</span><span style="font-size:10px;font-weight:600;color:#94a3b8;letter-spacing:.5px">'+k.lbl+'</span></div>'
+        +'<div style="font-size:22px;font-weight:800;color:'+k.color+'">'+k.val+'</div>'
+      +'</div>';
+    }
+    var kpiCards=kpis.map(kpiCard).join('');
+    var kpiCards2=kpiRow2.map(kpiCard).join('');
+
+    // Account breakdown
+    var acctBreakdown=(d.accounts||[]).map(function(a){
+      var pct=totSpend>0?(a.spend/totSpend*100).toFixed(1):0;
+      return '<div style="flex:1;padding:16px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;text-align:center">'
+        +'<div style="font-size:12px;color:#64748b;font-weight:500">'+a.label+'</div>'
+        +'<div style="font-size:20px;font-weight:800;color:#1e293b;margin-top:4px">'+fmtR(a.spend)+'</div>'
+        +'<div style="font-size:11px;color:#10b981;font-weight:600">'+pct+'% do total</div>'
       +'</div>';
     }).join('');
+
     // Top campaigns by results
-    var sorted=camps.slice().sort(function(a,b){return b.results-a.results;});
-    var topRows=sorted.slice(0,8).map(function(c,i){
-      var statusColor=c.status==='active'?'#10b981':c.status==='not_delivering'?'#f59e0b':'#94a3b8';
-      var statusDot='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+statusColor+'"></span>';
+    var topCamps=camps.slice().sort(function(a,b){return b.results-a.results;}).slice(0,5);
+    var topRows=topCamps.map(function(c,i){
       var tipoColor=c.tipo==='whatsapp'?'#25d366':'#6366f1';
-      var tipoBadge='<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:'+tipoColor+'15;color:'+tipoColor+';font-weight:600">'+(c.tipo==='whatsapp'?'WhatsApp':'Forms')+'</span>';
-      return '<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid #f1f5f9">'
-        +'<span style="font-size:13px;font-weight:700;color:#94a3b8;width:20px">#'+(i+1)+'</span>'
+      return '<div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px">'
+        +'<span style="font-size:14px;font-weight:700;color:#94a3b8;width:24px">#'+(i+1)+'</span>'
         +'<div style="flex:1;min-width:0">'
           +'<div style="font-size:12px;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+c.name+'</div>'
-          +'<div style="display:flex;gap:6px;align-items:center;margin-top:4px">'+statusDot+tipoBadge+'<span style="font-size:10px;color:#94a3b8">'+c.account+'</span></div>'
+          +'<div style="display:flex;gap:6px;margin-top:2px"><span style="font-size:9px;padding:2px 6px;border-radius:4px;background:'+tipoColor+'15;color:'+tipoColor+';font-weight:600">'+(c.tipo==='whatsapp'?'WhatsApp':'Forms')+'</span><span style="font-size:10px;color:#94a3b8">'+c.account+'</span></div>'
         +'</div>'
-        +'<div style="text-align:right">'
+        +'<div style="text-align:right;flex-shrink:0">'
           +'<div style="font-size:14px;font-weight:700;color:#10b981">'+c.results+' leads</div>'
-          +'<div style="font-size:11px;color:#64748b">CPR: '+fmtR(c.cpr)+'</div>'
+          +'<div style="font-size:10px;color:#94a3b8">CPR: '+fmtR(c.cpr)+'</div>'
         +'</div>'
       +'</div>';
     }).join('');
-    // Spend by account pie
-    var acctSpend=d.accounts.map(function(a){
-      var s=0;a.campaigns.forEach(function(c){s+=c.spend;});return{name:a.name,spend:s};
-    });
-    var acctCards=acctSpend.map(function(a){
-      var pctVal=(totSpend>0?(a.spend/totSpend*100):0).toFixed(1);
-      return '<div style="flex:1;padding:14px;background:#f8fafc;border-radius:10px;text-align:center">'
-        +'<div style="font-size:11px;color:#64748b;font-weight:500">'+a.name+'</div>'
-        +'<div style="font-size:18px;font-weight:800;color:#1e293b;margin-top:4px">'+fmtR(a.spend)+'</div>'
-        +'<div style="font-size:11px;color:#8b5cf6;font-weight:600;margin-top:2px">'+pctVal+'% do total</div>'
-      +'</div>';
-    }).join('');
-    content='<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">'+kpiCards+'</div>'
-      +'<div style="display:flex;gap:12px;margin-bottom:16px">'+acctCards+'</div>'
+
+    content='<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px">'+kpiCards+'</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">'+kpiCards2+'</div>'
+      +'<div style="display:flex;gap:10px;margin-bottom:16px">'+acctBreakdown+'</div>'
       +'<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden">'
         +'<div style="padding:14px 16px;border-bottom:1px solid #f1f5f9"><span style="font-size:13px;font-weight:700;color:#334155">\uD83C\uDFC6 Top Campanhas por Resultados</span></div>'
         +topRows
@@ -7471,7 +7481,6 @@ function pgMetaAds(){
   }
   // === CAMPAIGNS TAB ===
   else if(tab==='campaigns'){
-    if(!S.adsSort) S.adsSort='spend';
     if(!S.adsSortDir) S.adsSortDir='desc';
     var sortKey=S.adsSort;
     var sorted=camps.slice().sort(function(a,b){
@@ -7487,7 +7496,7 @@ function pgMetaAds(){
       +sortBtn('spend','Invest.')+sortBtn('results','Resultados')+sortBtn('cpr','CPR')+sortBtn('impressions','Impress.')+sortBtn('ctr','CTR')+sortBtn('cpm','CPM')+sortBtn('reach','Alcance')+sortBtn('clicks','Cliques')
       +'</div>';
     var rows=sorted.map(function(c){
-      var statusColor=c.status==='active'?'#10b981':c.status==='not_delivering'?'#f59e0b':'#94a3b8';
+      var statusColor=c.status==='active'?'#10b981':c.status==='paused'?'#f59e0b':'#94a3b8';
       var cprColor=c.cpr<15?'#10b981':c.cpr<30?'#f59e0b':'#ef4444';
       var tipoColor=c.tipo==='whatsapp'?'#25d366':'#6366f1';
       return '<div style="padding:14px;border-bottom:1px solid #f1f5f9">'
@@ -7517,7 +7526,7 @@ function pgMetaAds(){
     content=sortBar
       +'<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden">'
         +'<div style="padding:14px 16px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center">'
-          +'<span style="font-size:13px;font-weight:700;color:#334155">\uD83D\uDCCB '+camps.length+' Campanhas Ativas</span>'
+          +'<span style="font-size:13px;font-weight:700;color:#334155">\uD83D\uDCCB '+camps.length+' Campanhas</span>'
           +'<span style="font-size:11px;color:#94a3b8">Periodo: '+d.period+'</span>'
         +'</div>'
         +rows
@@ -7525,8 +7534,8 @@ function pgMetaAds(){
   }
   // === FUNNEL TAB ===
   else if(tab==='funnel'){
-    var totViews=0,totV25=0,totV50=0,totV75=0,totV95=0,totV100=0;
-    camps.forEach(function(c){totViews+=c.views||0;totV25+=c.v25||0;totV50+=c.v50||0;totV75+=c.v75||0;totV95+=c.v95||0;totV100+=c.v100||0;});
+    var totViews=0;
+    camps.forEach(function(c){totViews+=c.views||0;});
     var funnelSteps=[
       {lbl:'Impressoes',val:totImpressions,color:'#6366f1',w:100},
       {lbl:'Alcance (Unicos)',val:totReach,color:'#818cf8',w:90},
@@ -7540,7 +7549,7 @@ function pgMetaAds(){
       return '<div style="display:flex;align-items:center;margin-bottom:6px;gap:8px">'
         +'<div style="width:'+s.w+'%;margin:0 auto;background:linear-gradient(135deg,'+s.color+','+s.color+'cc);border-radius:'+(i===funnelSteps.length-1?'8px 8px 16px 16px':'8px')+';padding:14px 18px;display:flex;justify-content:space-between;align-items:center;min-height:48px;box-shadow:0 2px 10px '+s.color+'22">'
           +'<div><span style="color:#fff;font-size:12px;font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,.15)">'+s.lbl+'</span>'
-            +(dropPct?'<span style="color:rgba(255,255,255,.6);font-size:10px;margin-left:8px">-'+dropPct+' drop</span>':'')
+          +(dropPct?'<span style="color:rgba(255,255,255,.6);font-size:10px;margin-left:8px">-'+dropPct+' drop</span>':'')
           +'</div>'
           +'<div style="text-align:right"><span style="color:#fff;font-size:20px;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.2)">'+fmt(s.val)+'</span>'
             +'<span style="color:rgba(255,255,255,.7);font-size:10px;margin-left:6px">'+convPct+'</span>'
@@ -7548,7 +7557,6 @@ function pgMetaAds(){
         +'</div>'
       +'</div>';
     }).join('');
-    // Conversion rates
     var convMetrics=[
       {lbl:'Impressao para Clique (CTR)',val:avgCTR.toFixed(2)+'%',color:avgCTR>1.5?'#10b981':'#f59e0b'},
       {lbl:'Clique para Lead',val:(totClicks>0?(totResults/totClicks*100).toFixed(2):0)+'%',color:(totResults/totClicks*100)>5?'#10b981':'#f59e0b'},
@@ -7638,12 +7646,14 @@ function pgMetaAds(){
       +compTable
     +'</div>';
   }
+
   return '<div style="max-width:800px;margin:0 auto;padding:16px">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
       +'<div>'
         +'<div style="font-size:22px;font-weight:800;color:#1e293b">\uD83D\uDCE2 Meta Ads</div>'
-        +'<div style="font-size:11px;color:#94a3b8;margin-top:2px">'+d.period+' | '+camps.length+' campanhas ativas</div>'
+        +'<div style="font-size:11px;color:#94a3b8;margin-top:2px">'+d.period+' | '+camps.length+' campanhas'+(d.fetchedAt?' | Sync: '+new Date(d.fetchedAt).toLocaleTimeString('pt-BR'):'')+'</div>'
       +'</div>'
+      +refreshBtn
     +'</div>'
     +'<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">'+acctBtns.join('')+'</div>'
     +'<div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;background:#f8fafc;padding:6px;border-radius:10px">'+tabBar+'</div>'
