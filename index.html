@@ -4501,6 +4501,7 @@ function pgOO() {
         +histRows
       +'</div>'
     +'</div>';
+  }
  else if (tab === 'semana') {
     const hist = S['ooHistory_'+selBid] || [];
     const totLig  = hist.reduce((a,d)=>a+(d.lig_atend||0),0);
