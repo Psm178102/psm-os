@@ -5574,6 +5574,379 @@ function pgLancamentosAno() {
 
   return header + kpis + tl + tabela;
 }
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHECK-IN / CHECK-OUT + DISCIPLINA OPERACIONAL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function pgCheckin() {
+  var u = S.user; if (!u) return '';
+  var perfil = getPerfil();
+  var isDiretor = perfil === 'diretor' || perfil === 'backoffice' || perfil === 'lider';
+  var isCorretor = perfil === 'corretor' || (!isDiretor);
+  var now = new Date();
+  var hh = now.getHours(), mm = now.getMinutes();
+  var nowStr = String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+  var today = now.toISOString().slice(0,10);
+
+  // ─── Initialize Check-in State ──────────────────────────────────────────────
+  if (!S.checkin) {
+    S.checkin = {
+      logs: {},       // {brokerId: [{date, checkinTime, checkoutTime, status, pausas:[{inicio,fim,motivo}]}]}
+      config: {
+        horario_inicio: '08:00',
+        horario_fim: '18:00',
+        tolerancia_min: 15,        // minutes late allowed
+        pausa_inatividade_min: 60, // auto-pause after X min inactive
+        max_pausas_dia: 3,
+        pausa_max_min: 30,         // max duration per pause
+      }
+    };
+  }
+  var cfg = S.checkin.config;
+  var logs = S.checkin.logs;
+
+  // Ensure all brokers have log entries
+  BROKERS.forEach(function(b) {
+    if (!logs[b.id]) logs[b.id] = [];
+  });
+
+  // Helper: get today's log for a broker
+  function getTodayLog(bid) {
+    var bLogs = logs[bid] || [];
+    var tl = bLogs.find(function(l) { return l.date === today; });
+    if (!tl) {
+      tl = { date: today, checkinTime: null, checkoutTime: null, status: 'offline', pausas: [], alertas: [] };
+      if (!logs[bid]) logs[bid] = [];
+      logs[bid].push(tl);
+    }
+    return tl;
+  }
+
+  // Helper: calc hours worked today
+  function horasTrabalho(log) {
+    if (!log.checkinTime) return 0;
+    var ini = log.checkinTime.split(':').map(Number);
+    var endT = log.checkoutTime || nowStr;
+    var fim = endT.split(':').map(Number);
+    var totalMin = (fim[0]*60+fim[1]) - (ini[0]*60+ini[1]);
+    // Subtract pauses
+    (log.pausas || []).forEach(function(p) {
+      if (p.inicio && p.fim) {
+        var pi = p.inicio.split(':').map(Number);
+        var pf = p.fim.split(':').map(Number);
+        totalMin -= (pf[0]*60+pf[1]) - (pi[0]*60+pi[1]);
+      }
+    });
+    return Math.max(0, Math.round(totalMin / 60 * 10) / 10);
+  }
+
+  // Helper: check if broker is late
+  function isLate(log) {
+    if (!log.checkinTime) return false;
+    var expected = cfg.horario_inicio.split(':').map(Number);
+    var actual = log.checkinTime.split(':').map(Number);
+    var diff = (actual[0]*60+actual[1]) - (expected[0]*60+expected[1]);
+    return diff > cfg.tolerancia_min;
+  }
+
+  // Helper: status badge
+  function statusBadge(st) {
+    var map = {
+      online:    { bg:'var(--g-bg)', tx:'var(--g-tx)', lbl:'Online',         ico:'\u2705' },
+      offline:   { bg:'var(--cream2)',tx:'var(--muted)',lbl:'Offline',        ico:'\u26AA' },
+      pausa:     { bg:'var(--a-bg)', tx:'var(--a-tx)', lbl:'Em Pausa',       ico:'\u23F8\uFE0F' },
+      atendimento:{bg:'rgba(37,99,235,.1)',tx:'#2563eb',lbl:'Em Atendimento',ico:'\uD83D\uDCDE' },
+      captacao:  { bg:'rgba(139,92,246,.1)',tx:'#8b5cf6',lbl:'Em Capta\u00E7\u00E3o',ico:'\uD83D\uDCCD' },
+      finalizado:{ bg:'var(--cream3)',tx:'var(--navy)', lbl:'Finalizado',     ico:'\uD83C\uDFC1' }
+    };
+    var s = map[st] || map.offline;
+    return '<span style="font-size:10px;padding:3px 10px;border-radius:6px;background:'+s.bg+';color:'+s.tx+';font-weight:600;white-space:nowrap">'+s.ico+' '+s.lbl+'</span>';
+  }
+
+  // ─── CORRETOR VIEW: My Check-in ────────────────────────────────────────────
+  function corretorView() {
+    var myLog = getTodayLog(u.id);
+    var myStatus = myLog.status;
+    var late = isLate(myLog);
+    var horas = horasTrabalho(myLog);
+    var pausaCount = (myLog.pausas || []).length;
+    var inPausa = myStatus === 'pausa' || myStatus === 'atendimento' || myStatus === 'captacao';
+
+    var h = '';
+    // Header
+    h += '<div class="pheader"><div class="ptitle">\u23F0 Check-in / Check-out</div>';
+    h += '<div class="psub">Controle de ponto e presen\u00E7a operacional</div></div>';
+
+    // Status Card
+    h += '<div class="card" style="padding:20px;text-align:center">';
+    h += '<div style="font-size:48px;margin-bottom:8px">' + (myStatus === 'online' ? '\u2705' : myStatus === 'offline' ? '\u26AA' : myStatus === 'finalizado' ? '\uD83C\uDFC1' : '\u23F8\uFE0F') + '</div>';
+    h += '<div style="font-size:20px;font-weight:800;color:var(--navy);margin-bottom:4px">' + (statusBadge(myStatus)) + '</div>';
+    if (myLog.checkinTime) {
+      h += '<div style="font-size:13px;color:var(--muted);margin-top:8px">Check-in: <strong>' + myLog.checkinTime + '</strong>';
+      if (late) h += ' <span style="color:var(--r-tx);font-weight:700">(ATRASADO)</span>';
+      if (myLog.checkoutTime) h += ' \u2192 Check-out: <strong>' + myLog.checkoutTime + '</strong>';
+      h += '</div>';
+      h += '<div style="font-size:14px;font-weight:700;color:var(--navy);margin-top:4px">' + horas + 'h trabalhadas hoje</div>';
+    }
+    h += '</div>';
+
+    // Action Buttons
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0">';
+
+    if (myStatus === 'offline') {
+      h += '<button onclick="doCheckin()" class="btn-g" style="padding:14px;font-size:15px;font-weight:800;border-radius:12px;cursor:pointer">\u2705 Fazer Check-in</button>';
+    } else if (myStatus === 'online') {
+      h += '<button onclick="doPausa(\'atendimento\')" style="padding:12px;font-size:13px;font-weight:700;border-radius:10px;cursor:pointer;background:rgba(37,99,235,.1);color:#2563eb;border:1px solid rgba(37,99,235,.2)">\uD83D\uDCDE Atendimento</button>';
+      h += '<button onclick="doPausa(\'captacao\')" style="padding:12px;font-size:13px;font-weight:700;border-radius:10px;cursor:pointer;background:rgba(139,92,246,.1);color:#8b5cf6;border:1px solid rgba(139,92,246,.2)">\uD83D\uDCCD Capta\u00E7\u00E3o</button>';
+      h += '<button onclick="doPausa(\'pausa\')" style="padding:12px;font-size:13px;font-weight:700;border-radius:10px;cursor:pointer;background:var(--a-bg);color:var(--a-tx);border:1px solid rgba(212,168,67,.2)">\u23F8\uFE0F Pausa</button>';
+      h += '<button onclick="doCheckout()" style="padding:12px;font-size:13px;font-weight:700;border-radius:10px;cursor:pointer;background:var(--r-bg);color:var(--r-tx);border:1px solid rgba(220,38,38,.2)">\uD83D\uDEAA Check-out</button>';
+    } else if (inPausa) {
+      h += '<button onclick="voltarOnline()" class="btn-g" style="padding:14px;font-size:15px;font-weight:800;border-radius:12px;cursor:pointer">\u25B6\uFE0F Voltar Online</button>';
+      h += '<button onclick="doCheckout()" style="padding:12px;font-size:13px;font-weight:700;border-radius:10px;cursor:pointer;background:var(--r-bg);color:var(--r-tx);border:1px solid rgba(220,38,38,.2)">\uD83D\uDEAA Check-out</button>';
+    } else if (myStatus === 'finalizado') {
+      h += '<div style="padding:14px;font-size:13px;color:var(--muted);text-align:center">Jornada finalizada. At\u00E9 amanh\u00E3!</div>';
+    }
+    h += '</div>';
+
+    // Today's timeline
+    h += '<div class="card"><div class="ctitle">\uD83D\uDCCB Meu Registro de Hoje</div>';
+    h += '<div style="padding:0 16px 16px">';
+    if (myLog.checkinTime) {
+      h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+      h += '<div style="width:10px;height:10px;border-radius:50%;background:var(--g-tx)"></div>';
+      h += '<span style="font-size:12px;font-weight:600">' + myLog.checkinTime + '</span>';
+      h += '<span style="font-size:11px;color:var(--muted)">Check-in</span>';
+      if (late) h += '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--r-bg);color:var(--r-tx);font-weight:600">Atraso</span>';
+      h += '</div>';
+
+      (myLog.pausas || []).forEach(function(p, idx) {
+        var motivos = { pausa: '\u23F8\uFE0F Pausa', atendimento: '\uD83D\uDCDE Atendimento', captacao: '\uD83D\uDCCD Capta\u00E7\u00E3o' };
+        h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;margin-left:20px">';
+        h += '<div style="width:7px;height:7px;border-radius:50%;background:var(--a-tx)"></div>';
+        h += '<span style="font-size:11px;font-weight:600">' + p.inicio + (p.fim ? ' \u2192 ' + p.fim : ' (ativa)') + '</span>';
+        h += '<span style="font-size:10px;color:var(--muted)">' + (motivos[p.motivo] || p.motivo) + '</span>';
+        h += '</div>';
+      });
+
+      if (myLog.checkoutTime) {
+        h += '<div style="display:flex;align-items:center;gap:8px;margin-top:4px">';
+        h += '<div style="width:10px;height:10px;border-radius:50%;background:var(--r-tx)"></div>';
+        h += '<span style="font-size:12px;font-weight:600">' + myLog.checkoutTime + '</span>';
+        h += '<span style="font-size:11px;color:var(--muted)">Check-out</span>';
+        h += '</div>';
+      }
+    } else {
+      h += '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Nenhum registro hoje. Fa\u00E7a seu check-in!</div>';
+    }
+    h += '</div></div>';
+
+    // Roleta Status
+    h += '<div class="card"><div class="ctitle">\uD83C\uDFB0 Status na Roleta</div>';
+    h += '<div style="padding:0 16px 16px;text-align:center">';
+    var naRoleta = myStatus === 'online';
+    h += '<div style="font-size:36px;margin-bottom:6px">' + (naRoleta ? '\u2705' : '\u274C') + '</div>';
+    h += '<div style="font-size:15px;font-weight:700;color:' + (naRoleta ? 'var(--g-tx)' : 'var(--r-tx)') + '">';
+    h += naRoleta ? 'Voc\u00EA est\u00E1 na Roleta' : 'Fora da Roleta';
+    h += '</div>';
+    h += '<div style="font-size:11px;color:var(--muted);margin-top:4px">';
+    h += naRoleta ? 'Voc\u00EA est\u00E1 recebendo leads normalmente' : 'Fa\u00E7a check-in e fique online para entrar na roleta';
+    h += '</div></div></div>';
+
+    return h;
+  }
+
+  // ─── GESTOR VIEW: Dashboard de Presença ─────────────────────────────────────
+  function gestorView() {
+    var h = '';
+    // Header
+    h += '<div class="pheader"><div class="ptitle">\u23F0 Check-in / Check-out</div>';
+    h += '<div class="psub">Painel de presen\u00E7a e disciplina operacional</div></div>';
+
+    // KPIs
+    var onlineCount = 0, offlineCount = 0, pausaCount = 0, atrasados = 0, naRoleta = 0;
+    var totalHoras = 0;
+    BROKERS.forEach(function(b) {
+      var log = getTodayLog(b.id);
+      if (log.status === 'online') { onlineCount++; naRoleta++; }
+      else if (log.status === 'offline') offlineCount++;
+      else if (log.status === 'finalizado') { /* done */ }
+      else pausaCount++;
+      if (isLate(log)) atrasados++;
+      totalHoras += horasTrabalho(log);
+    });
+
+    h += '<div class="kgrid">';
+    h += '<div class="kcard"><div class="klbl">Online Agora</div><div class="kval" style="color:var(--g-tx)">' + onlineCount + '</div><div class="ksub">de ' + BROKERS.length + ' corretores</div></div>';
+    h += '<div class="kcard"><div class="klbl">Na Roleta</div><div class="kval" style="color:var(--navy)">' + naRoleta + '</div><div class="ksub">recebendo leads</div></div>';
+    h += '<div class="kcard"><div class="klbl">Em Pausa</div><div class="kval" style="color:var(--a-tx)">' + pausaCount + '</div><div class="ksub">atendimento/capta\u00E7\u00E3o</div></div>';
+    h += '<div class="kcard"><div class="klbl">Offline</div><div class="kval" style="color:var(--muted)">' + offlineCount + '</div><div class="ksub">sem check-in</div></div>';
+    h += '<div class="kcard"><div class="klbl">Atrasados Hoje</div><div class="kval" style="color:var(--r-tx)">' + atrasados + '</div><div class="ksub">ap\u00F3s ' + cfg.horario_inicio + ' + ' + cfg.tolerancia_min + 'min</div></div>';
+    h += '</div>';
+
+    // Live status table
+    h += '<div class="card"><div class="ctitle">\uD83D\uDCE1 Status ao Vivo</div>';
+    h += '<div class="tw"><table class="rank-tbl"><thead><tr>';
+    h += '<th>Corretor</th><th>Frente</th><th>Status</th><th>Check-in</th><th>Horas</th><th>Pausas</th><th>Roleta</th>';
+    h += '</tr></thead><tbody>';
+
+    var sorted = BROKERS.slice().sort(function(a,b) {
+      var order = {online:0, atendimento:1, captacao:1, pausa:2, finalizado:3, offline:4};
+      var al = getTodayLog(a.id), bl = getTodayLog(b.id);
+      return (order[al.status]||5) - (order[bl.status]||5);
+    });
+
+    sorted.forEach(function(b) {
+      var log = getTodayLog(b.id);
+      var hrs = horasTrabalho(log);
+      var late = isLate(log);
+      var roleta = log.status === 'online';
+      h += '<tr>';
+      h += '<td><div style="font-size:12px;font-weight:600">' + b.nome + '</div></td>';
+      h += '<td style="font-size:11px;color:var(--muted)">' + (b.frente || '-') + '</td>';
+      h += '<td>' + statusBadge(log.status) + '</td>';
+      h += '<td style="font-size:12px;font-weight:600">';
+      h += log.checkinTime ? log.checkinTime : '<span style="color:var(--muted)">--</span>';
+      if (late) h += ' <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:var(--r-bg);color:var(--r-tx);font-weight:700">ATRASO</span>';
+      h += '</td>';
+      h += '<td style="font-size:12px;font-weight:700;color:' + (hrs >= 6 ? 'var(--g-tx)' : hrs >= 3 ? 'var(--a-tx)' : 'var(--muted)') + '">' + hrs + 'h</td>';
+      h += '<td style="font-size:12px;text-align:center">' + (log.pausas || []).length + '/' + cfg.max_pausas_dia + '</td>';
+      h += '<td style="text-align:center">';
+      h += roleta ? '<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:var(--g-bg);color:var(--g-tx);font-weight:700">\u2705 SIM</span>' : '<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:var(--r-bg);color:var(--r-tx);font-weight:700">\u274C N\u00C3O</span>';
+      h += '</td>';
+      h += '</tr>';
+    });
+    h += '</tbody></table></div></div>';
+
+    // Weekly summary
+    h += '<div class="card"><div class="ctitle">\uD83D\uDCC5 Resumo Semanal</div>';
+    h += '<div class="tw"><table class="rank-tbl"><thead><tr>';
+    h += '<th>Corretor</th><th>Dias Presente</th><th>Atrasos</th><th>Total Horas</th><th>M\u00E9dia/Dia</th><th>Score</th>';
+    h += '</tr></thead><tbody>';
+
+    BROKERS.forEach(function(b) {
+      var bLogs = logs[b.id] || [];
+      var weekLogs = bLogs.filter(function(l) {
+        var d = new Date(l.date);
+        var diff = (now - d) / 864e5;
+        return diff >= 0 && diff < 7;
+      });
+      var diasPresente = weekLogs.filter(function(l) { return l.checkinTime; }).length;
+      var atrasos = weekLogs.filter(function(l) { return isLate(l); }).length;
+      var totalH = weekLogs.reduce(function(acc, l) { return acc + horasTrabalho(l); }, 0);
+      var media = diasPresente > 0 ? Math.round(totalH / diasPresente * 10) / 10 : 0;
+      // Score: 100 base, -10 per absence, -5 per late, +5 per day > 8h
+      var score = 100 - ((5 - diasPresente) * 10) - (atrasos * 5);
+      weekLogs.forEach(function(l) { if (horasTrabalho(l) >= 8) score += 5; });
+      score = Math.max(0, Math.min(100, score));
+
+      h += '<tr>';
+      h += '<td style="font-size:12px;font-weight:600">' + b.nome + '</td>';
+      h += '<td style="text-align:center;font-size:12px;font-weight:700;color:' + (diasPresente >= 5 ? 'var(--g-tx)' : diasPresente >= 3 ? 'var(--a-tx)' : 'var(--r-tx)') + '">' + diasPresente + '/5</td>';
+      h += '<td style="text-align:center;font-size:12px;font-weight:700;color:' + (atrasos === 0 ? 'var(--g-tx)' : 'var(--r-tx)') + '">' + atrasos + '</td>';
+      h += '<td style="text-align:center;font-size:12px;font-weight:600">' + Math.round(totalH * 10) / 10 + 'h</td>';
+      h += '<td style="text-align:center;font-size:12px;font-weight:600">' + media + 'h</td>';
+      h += '<td style="text-align:center">';
+      var scoreColor = score >= 80 ? 'var(--g-tx)' : score >= 50 ? 'var(--a-tx)' : 'var(--r-tx)';
+      h += '<span style="font-size:12px;font-weight:800;color:' + scoreColor + '">' + score + '</span>';
+      h += '<span style="font-size:9px;color:var(--muted)">/100</span>';
+      h += '</td>';
+      h += '</tr>';
+    });
+    h += '</tbody></table></div></div>';
+
+    // Config section (diretor only)
+    if (perfil === 'diretor') {
+      h += '<div class="card"><div class="ctitle">\u2699\uFE0F Configura\u00E7\u00F5es de Ponto</div>';
+      h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;padding:0 16px 16px">';
+      h += '<div><label style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600">Hor\u00E1rio In\u00EDcio</label>';
+      h += '<input type="time" value="'+cfg.horario_inicio+'" onchange="S.checkin.config.horario_inicio=this.value;saveState()" style="width:100%;padding:8px;border:1px solid var(--cream3);border-radius:8px;font-size:14px;font-weight:600" /></div>';
+      h += '<div><label style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600">Hor\u00E1rio Fim</label>';
+      h += '<input type="time" value="'+cfg.horario_fim+'" onchange="S.checkin.config.horario_fim=this.value;saveState()" style="width:100%;padding:8px;border:1px solid var(--cream3);border-radius:8px;font-size:14px;font-weight:600" /></div>';
+      h += '<div><label style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600">Toler\u00E2ncia Atraso (min)</label>';
+      h += '<input type="number" value="'+cfg.tolerancia_min+'" onchange="S.checkin.config.tolerancia_min=+this.value;saveState()" style="width:100%;padding:8px;border:1px solid var(--cream3);border-radius:8px;font-size:14px;font-weight:600" /></div>';
+      h += '<div><label style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600">Max Pausas/Dia</label>';
+      h += '<input type="number" value="'+cfg.max_pausas_dia+'" onchange="S.checkin.config.max_pausas_dia=+this.value;saveState()" style="width:100%;padding:8px;border:1px solid var(--cream3);border-radius:8px;font-size:14px;font-weight:600" /></div>';
+      h += '</div></div>';
+    }
+
+    return h;
+  }
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
+  return isDiretor ? gestorView() : corretorView();
+}
+
+// ─── CHECK-IN ACTIONS ─────────────────────────────────────────────────────────
+function doCheckin() {
+  var now = new Date();
+  var hh = String(now.getHours()).padStart(2,'0');
+  var mm = String(now.getMinutes()).padStart(2,'0');
+  var today = now.toISOString().slice(0,10);
+  var uid = S.user.id;
+  if (!S.checkin.logs[uid]) S.checkin.logs[uid] = [];
+  var log = S.checkin.logs[uid].find(function(l) { return l.date === today; });
+  if (!log) {
+    log = { date: today, checkinTime: null, checkoutTime: null, status: 'offline', pausas: [], alertas: [] };
+    S.checkin.logs[uid].push(log);
+  }
+  log.checkinTime = hh + ':' + mm;
+  log.status = 'online';
+  saveState();
+  render();
+}
+
+function doCheckout() {
+  var now = new Date();
+  var hh = String(now.getHours()).padStart(2,'0');
+  var mm = String(now.getMinutes()).padStart(2,'0');
+  var today = now.toISOString().slice(0,10);
+  var uid = S.user.id;
+  var log = (S.checkin.logs[uid] || []).find(function(l) { return l.date === today; });
+  if (!log) return;
+  // Close any open pause
+  (log.pausas || []).forEach(function(p) {
+    if (p.inicio && !p.fim) p.fim = hh + ':' + mm;
+  });
+  log.checkoutTime = hh + ':' + mm;
+  log.status = 'finalizado';
+  saveState();
+  render();
+}
+
+function doPausa(motivo) {
+  var now = new Date();
+  var hh = String(now.getHours()).padStart(2,'0');
+  var mm = String(now.getMinutes()).padStart(2,'0');
+  var today = now.toISOString().slice(0,10);
+  var uid = S.user.id;
+  var log = (S.checkin.logs[uid] || []).find(function(l) { return l.date === today; });
+  if (!log) return;
+  var cfg = S.checkin.config;
+  if ((log.pausas || []).length >= cfg.max_pausas_dia && motivo === 'pausa') {
+    alert('Limite de pausas atingido (' + cfg.max_pausas_dia + '/dia)');
+    return;
+  }
+  log.pausas.push({ inicio: hh + ':' + mm, fim: null, motivo: motivo });
+  log.status = motivo;
+  saveState();
+  render();
+}
+
+function voltarOnline() {
+  var now = new Date();
+  var hh = String(now.getHours()).padStart(2,'0');
+  var mm = String(now.getMinutes()).padStart(2,'0');
+  var today = now.toISOString().slice(0,10);
+  var uid = S.user.id;
+  var log = (S.checkin.logs[uid] || []).find(function(l) { return l.date === today; });
+  if (!log) return;
+  // Close last open pause
+  var openPause = (log.pausas || []).find(function(p) { return p.inicio && !p.fim; });
+  if (openPause) openPause.fim = hh + ':' + mm;
+  log.status = 'online';
+  saveState();
+  render();
+}
 function pgSimVPL() {
   const u = S.user; if (!u) return '';
   if (!S.vpl) S.vpl = {
@@ -6571,7 +6944,7 @@ async function testConnectors() {
 // === SISTEMA DE PERFIS E PERMISSOES PSM OS ===
 var PERFIL_MAP={paulo:'diretor',isa:'diretor',leire:'backoffice',mariane:'backoffice',marcus_l:'lider',guilherme:'marketing',gestor_trafego:'marketing'};
 function getPerfil(){if(!S.user||!S.user.id)return "corretor";if(PERFIL_MAP[S.user.id])return PERFIL_MAP[S.user.id];if(S.user.role==="socio")return "diretor";if(S.user.role==="lider")return "lider";if(S.user.role==="backoffice")return "backoffice";if(S.user.role==="marketing")return "marketing";return "corretor";}
-var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','simvpl','simincc','simrep','vera','rdconfig','config'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','drive','tabela','formacao','manual','captacao','vera','config'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','forecast','drive','formacao','manual','captacao','vera'],marketing:['meu','dashboard','metricas','ranking','drive','formacao','manual','vera'],corretor:['meu','ranking','crm','metas','formacao','manual','drive','vera']};
+var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','forecast','checkin','drive','formacao','manual','captacao','vera'],marketing:['meu','dashboard','metricas','ranking','drive','formacao','manual','vera'],corretor:['meu','ranking','crm','metas','checkin','formacao','manual','drive','vera']};
 function canAccess(p){var pf=getPerfil();var a=MENU_ACCESS[pf];return a?a.indexOf(p)!==-1:false;}
 var DEFAULT_PAGE={diretor:'dashboard',backoffice:'dashboard',lider:'meu',marketing:'meu',corretor:'meu'};
 function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"meu";}
@@ -6597,6 +6970,7 @@ function renderSB() {
       {id:'metas',     lbl:'Metas',          ico:'🎯',min:2},
       {id:'metricas',  lbl:'Métricas RD',    ico:'📈',min:2},
       {id:'oneonone',  lbl:'One on One',     ico:'🎯',min:2},
+      {id:'checkin',   lbl:'Check-in/out',   ico:'\u23F0',min:1},
       {id:'governance',lbl:'Governança',     ico:'🛡',min:5},
     ]},
     {sec:'Estratégia', items:[
@@ -6720,6 +7094,7 @@ function route() {
     case 'captacao':   return pgCaptacao();
     case 'marketing':  return pgMarketing();
     case 'lancamentos_ano': return pgLancamentosAno();
+    case 'checkin':    return pgCheckin() + srPerformanceFooter();
     case 'simvpl':     return pgSimVPL();
     case 'simincc':    return pgSimINCC();
     case 'simrep':     return pgSimRepasse();
