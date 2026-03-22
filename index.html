@@ -4133,7 +4133,43 @@ function pgOO() {
       ['desc',       'Descartados',            '🗑️', '#dc2626'],
     ];
     content = discCard
-      + '<div class="card"><div class="ctitle">📊 Registro do Dia — '+today+'</div>'      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:16px">'      + campos.map(([k,lbl,ico,cor]) => {          const val = day[k]||0;          return '<div style="background:var(--cream2);border-radius:12px;padding:14px;border-top:3px solid '+cor+'">'            + '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">'+ico+' '+lbl+'</div>'            + '<div style="display:flex;align-items:center;justify-content:space-between">'            + '<button onclick="ooDec(\''+selBid+'\',\''+k+'\')" style="width:34px;height:34px;border-radius:8px;border:1.5px solid var(--cream3);background:#fff;font-size:18px;font-weight:300;cursor:pointer;color:'+cor+';flex-shrink:0">−</button>'            + '<span style="font-size:28px;font-weight:900;color:'+cor+';min-width:36px;text-align:center">' + val + '</span>'            + '<button onclick="ooInc(\''+selBid+'\',\''+k+'\')" style="width:34px;height:34px;border-radius:8px;border:none;background:'+cor+';color:#fff;font-size:18px;font-weight:300;cursor:pointer;flex-shrink:0">+</button>'            + '</div></div>';        }).join('')      + '</div>'      + '<label class="flabel" style="margin-top:4px">Observações</label>'      + '<textarea class="finp" rows="3" style="resize:vertical" placeholder="Resumo, destaques do dia..." oninput="(S[\'ooEdit_'+selBid+'\'\']||(S[\'ooEdit_'+selBid+'\'\']={data:new Date().toISOString().slice(0,10)}));S[\'ooEdit_'+selBid+'\'].obs=this.value">'+(day.obs||'')+'</textarea>'      + '<div style="display:flex;gap:8px;margin-top:12px">'      + '<button class="btn bp1" onclick="saveDayOO(\''+selBid+'\')">💾 Salvar Dia</button>'      + '<button class="btn bout" onclick="S[\'ooEdit_'+selBid+'\']=null;render()">Limpar</button>'      + '</div></div>'      + '<div class="card mt2"><div class="ctitle">📅 Histórico Recente</div>'      + (hist.length===0 ? '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">Nenhum registro ainda. Salve o primeiro dia!</div>'        : hist.slice(-7).reverse().map(d => '<div style="padding:9px 0;border-bottom:1px solid var(--cream3)">'          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'          + '<span style="font-size:11px;font-weight:700;color:var(--navy)">'+d.data+'</span>'          + '<div style="display:flex;gap:6px;flex-wrap:wrap">'          + '<span style="font-size:10px;background:rgba(15,23,42,.08);padding:2px 6px;border-radius:8px">📞 '+(d.lig_real||0)+'</span>'          + '<span style="font-size:10px;background:rgba(21,128,61,.08);padding:2px 6px;border-radius:8px;color:#15803d">✅ '+(d.lig_atend||0)+'</span>'          + '<span style="font-size:10px;background:rgba(201,168,76,.1);padding:2px 6px;border-radius:8px;color:#92400e">📅 '+(d.agend||0)+'ag</span>'          + '<span style="font-size:10px;background:rgba(29,78,216,.08);padding:2px 6px;border-radius:8px;color:#1d4ed8">🏠 '+(d.vis||0)+'vis</span>'          + '<span style="font-size:10px;background:rgba(124,58,237,.08);padding:2px 6px;border-radius:8px;color:#7c3aed">📋 '+(d.prop||0)+'prop</span>'          + '<span style="font-size:10px;background:rgba(22,163,74,.1);padding:2px 6px;border-radius:8px;color:#16a34a;font-weight:700">🏆 '+(d.vend||0)+'vnd</span>'          + '</div></div>'          + (d.obs ? '<div style="font-size:10.5px;color:var(--muted)">'+d.obs.slice(0,80)+'</div>' : '')          + '</div>').join(''))      + '</div>';  }
+      + '<div class="card"><div class="ctitle">\uD83D\uDCCA Registro do Dia \u2014 '+today+'</div>'
+      + '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-bottom:16px">'
+      + campos.map(function(c, idx) {
+          var k=c[0],lbl=c[1],ico=c[2],cor=c[3];
+          var val = day[k]||0;
+          var w = 100 - idx*5;
+          return '<div style="width:'+w+'%;min-width:260px;background:var(--cream2);border-radius:10px;padding:10px 14px;border-left:4px solid '+cor+';display:flex;align-items:center;justify-content:space-between;gap:8px">'
+            + '<div style="flex:1;min-width:0"><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">'+ico+' '+lbl+'</div></div>'
+            + '<div style="display:flex;align-items:center;gap:6px">'
+            + '<button onclick="ooDec(\''+selBid+'\',\''+k+'\')" style="width:30px;height:30px;border-radius:8px;border:1.5px solid var(--cream3);background:#fff;font-size:16px;cursor:pointer;color:'+cor+'">\u2212</button>'
+            + '<span style="font-size:24px;font-weight:900;color:'+cor+';min-width:32px;text-align:center">' + val + '</span>'
+            + '<button onclick="ooInc(\''+selBid+'\',\''+k+'\')" style="width:30px;height:30px;border-radius:8px;border:none;background:'+cor+';color:#fff;font-size:16px;cursor:pointer">+</button>'
+            + '</div></div>';
+        }).join('')
+      + '</div>'
+      + '<label class="flabel" style="margin-top:4px">Observa\u00E7\u00F5es</label>'
+      + '<textarea class="finp" rows="3" style="resize:vertical" placeholder="Resumo, destaques do dia..." oninput="(S[\'ooEdit_'+selBid+'\'\']||(S[\'ooEdit_'+selBid+'\'\']={data:new Date().toISOString().slice(0,10)}));S[\'ooEdit_'+selBid+'\'].obs=this.value">'+(day.obs||'')+'</textarea>'
+      + '<div style="display:flex;gap:8px;margin-top:12px">'
+      + '<button class="btn bp1" onclick="saveDayOO(\''+selBid+'\'))">\uD83D\uDCBE Salvar Dia</button>'
+      + '<button class="btn bout" onclick="S[\'ooEdit_'+selBid+'\']=null;render()">Limpar</button>'
+      + '</div></div>'
+      + '<div class="card mt2"><div class="ctitle">\uD83D\uDCC5 Hist\u00F3rico Recente</div>'
+      + (hist.length===0 ? '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">Nenhum registro ainda. Salve o primeiro dia!</div>'
+        : hist.slice(-7).reverse().map(function(d) { return '<div style="padding:9px 0;border-bottom:1px solid var(--cream3)">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+          + '<span style="font-size:11px;font-weight:700;color:var(--navy)">'+d.data+'</span>'
+          + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+          + '<span style="font-size:10px;background:rgba(15,23,42,.08);padding:2px 6px;border-radius:8px">\uD83D\uDCDE '+(d.lig_real||0)+'</span>'
+          + '<span style="font-size:10px;background:rgba(21,128,61,.08);padding:2px 6px;border-radius:8px;color:#15803d">\u2705 '+(d.lig_atend||0)+'</span>'
+          + '<span style="font-size:10px;background:rgba(201,168,76,.1);padding:2px 6px;border-radius:8px;color:#92400e">\uD83D\uDCC5 '+(d.agend||0)+'ag</span>'
+          + '<span style="font-size:10px;background:rgba(29,78,216,.08);padding:2px 6px;border-radius:8px;color:#1d4ed8">\uD83C\uDFE0 '+(d.vis||0)+'vis</span>'
+          + '<span style="font-size:10px;background:rgba(124,58,237,.08);padding:2px 6px;border-radius:8px;color:#7c3aed">\uD83D\uDCCB '+(d.prop||0)+'prop</span>'
+          + '<span style="font-size:10px;background:rgba(22,163,74,.1);padding:2px 6px;border-radius:8px;color:#16a34a;font-weight:700">\uD83C\uDFC6 '+(d.vend||0)+'vnd</span>'
+          + '</div></div>'
+          + (d.obs ? '<div style="font-size:10.5px;color:var(--muted)">'+d.obs.slice(0,80)+'</div>' : '')
+          + '</div>'; }).join(''))
+      + '</div>';
   else if (tab === 'semana') {
     const hist = S['ooHistory_'+selBid] || [];
     const totLig  = hist.reduce((a,d)=>a+(d.lig_atend||0),0);
@@ -6944,7 +6980,7 @@ async function testConnectors() {
 // === SISTEMA DE PERFIS E PERMISSOES PSM OS ===
 var PERFIL_MAP={paulo:'diretor',isa:'diretor',leire:'backoffice',mariane:'backoffice',marcus_l:'lider',guilherme:'marketing',gestor_trafego:'marketing'};
 function getPerfil(){if(!S.user||!S.user.id)return "corretor";if(PERFIL_MAP[S.user.id])return PERFIL_MAP[S.user.id];if(S.user.role==="socio")return "diretor";if(S.user.role==="lider")return "lider";if(S.user.role==="backoffice")return "backoffice";if(S.user.role==="marketing")return "marketing";return "corretor";}
-var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','forecast','checkin','drive','formacao','manual','captacao','vera'],marketing:['meu','dashboard','metricas','ranking','marketing','drive','formacao','manual','vera'],corretor:['meu','ranking','crm','metas','checkin','formacao','manual','drive','vera']};
+var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','forecast','checkin','drive','formacao','manual','captacao','vera'],marketing:['meu','dashboard','metricas','ranking','drive','formacao','manual','vera'],corretor:['meu','ranking','crm','metas','checkin','formacao','manual','drive','vera']};
 function canAccess(p){var pf=getPerfil();var a=MENU_ACCESS[pf];return a?a.indexOf(p)!==-1:false;}
 var DEFAULT_PAGE={diretor:'dashboard',backoffice:'dashboard',lider:'meu',marketing:'meu',corretor:'meu'};
 function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"meu";}
