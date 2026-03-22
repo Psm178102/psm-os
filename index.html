@@ -4172,7 +4172,7 @@ function pgOO() {
           + (d.obs ? '<div style="font-size:10.5px;color:var(--muted)">'+d.obs.slice(0,80)+'</div>' : '')
           + '</div>'; }).join(''))
       + '</div>';
-  else if (tab === 'semana') {
+  } else if (tab === 'semana') {
     const hist = S['ooHistory_'+selBid] || [];
     const totLig  = hist.reduce((a,d)=>a+(d.lig_atend||0),0);
     const totVis  = hist.reduce((a,d)=>a+(d.vis||0),0);
