@@ -5086,7 +5086,7 @@ function pgManual() {
     + '<div class="card mb2" style="margin-top:16px;background:linear-gradient(135deg,var(--navy) 0%,#1e3a5f 100%);color:#fff;padding:24px;text-align:center">'
     + '<div style="font-size:20px;font-weight:800;margin-bottom:6px">PSM Assessoria Imobiliária</div>'
     + '<div style="font-size:13px;opacity:.7;max-width:500px;margin:0 auto">Transformamos sonhos em endereços. Cada negociação é uma oportunidade de impactar vidas com ética, excelência e resultado.</div></div>'
-    ;
+    + srPerformanceFooter();
 }
 
 // ─── CAPTAÇÃO DE IMÓVEIS ──────────────────────────────────────────────────────
@@ -5108,7 +5108,206 @@ function pgCaptacao() {
     + '<a href="'+openUrl+'" target="_blank" rel="noreferrer" class="btn bout bsm" style="text-decoration:none;font-size:11px;flex-shrink:0">\u2197 Abrir em nova aba</a></div>'
     + '<div class="card" style="padding:0;overflow:hidden;border-radius:var(--radius)">'
     + '<iframe src="'+embedUrl+'" style="width:100%;height:calc(100vh - 320px);min-height:500px;border:none" loading="lazy" allow="autoplay"></iframe></div>'
-    ;
+    + srPerformanceFooter();
+}
+
+
+// ─── PAGE: MARKETING ─────────────────────────────────────────────────────────
+function pgMarketing() {
+  var u = S.user; if (!u) return '';
+  var perfil = getPerfil();
+  var isDiretor = perfil === 'diretor';
+  var mkTab = S.mkTab || 'visao';
+
+  // ── MOCK DATA (replace with real data integration later) ──
+  if (!S.mkData) {
+    S.mkData = {
+      leads_mes: 247,
+      leads_meta: 300,
+      custo_lead: 18.50,
+      investimento: 4575,
+      leads_qualificados: 89,
+      taxa_conversao: 36,
+      campanhas: [
+        {nome:'Meta Ads — Lançamento Reserva', status:'ativo', leads:98, custo:1850, roi:320, inicio:'01/03'},
+        {nome:'Google Ads — Captação Terceiros', status:'ativo', leads:64, custo:1200, roi:185, inicio:'01/03'},
+        {nome:'Instagram Orgânico — Conquista', status:'ativo', leads:52, custo:0, roi:0, inicio:'01/03'},
+        {nome:'Meta Ads — Locação Premium', status:'pausado', leads:33, custo:1525, roi:95, inicio:'15/02'},
+      ],
+      conteudos: [
+        {tipo:'Reels', titulo:'Tour Reserva — Decorado', status:'publicado', data:'18/03', engajamento:4200},
+        {tipo:'Carrossel', titulo:'5 Dicas para Investir em Imóveis', status:'publicado', data:'17/03', engajamento:1800},
+        {tipo:'Stories', titulo:'Bastidores — Visita com Cliente', status:'agendado', data:'22/03', engajamento:0},
+        {tipo:'Reels', titulo:'Antes/Depois — Reforma Apartamento', status:'producao', data:'25/03', engajamento:0},
+        {tipo:'Post', titulo:'Novo Empreendimento — Teaser', status:'ideia', data:'', engajamento:0},
+      ],
+      redes: {
+        instagram: {seguidores:12400, crescimento:340, alcance:45000, engajamento:5.2},
+        facebook: {seguidores:3200, crescimento:45, alcance:8500, engajamento:2.1},
+        tiktok: {seguidores:890, crescimento:120, alcance:15000, engajamento:8.7},
+      }
+    };
+  }
+  var mk = S.mkData;
+
+  // ── HEADER ──
+  var header = '<div class="phd"><h1>\uD83D\uDCE3 Marketing</h1><p>Gest\u00e3o de campanhas, conte\u00fado e performance de m\u00eddia</p></div>';
+
+  // ── TABS ──
+  var tabs = '<div class="card mb2" style="padding:6px;display:flex;gap:4px;flex-wrap:wrap">'
+    + '<button class="btn '+(mkTab==='visao'?'bp1':'bout')+'" style="flex:1;font-size:12px" onclick="S.mkTab=\'visao\';render()">\uD83D\uDCCA Vis\u00e3o Geral</button>'
+    + '<button class="btn '+(mkTab==='campanhas'?'bp1':'bout')+'" style="flex:1;font-size:12px" onclick="S.mkTab=\'campanhas\';render()">\uD83C\uDFAF Campanhas</button>'
+    + '<button class="btn '+(mkTab==='conteudo'?'bp1':'bout')+'" style="flex:1;font-size:12px" onclick="S.mkTab=\'conteudo\';render()">\uD83D\uDCF1 Conte\u00fado</button>'
+    + (isDiretor ? '<button class="btn '+(mkTab==='investimento'?'bp1':'bout')+'" style="flex:1;font-size:12px" onclick="S.mkTab=\'investimento\';render()">\uD83D\uDCB0 Investimento</button>' : '')
+    + '</div>';
+
+  var content = '';
+
+  if (mkTab === 'visao') {
+    // ── VISÃO GERAL ──
+    var kpis = '<div class="kgrid">'
+      + Kpi('Leads no M\u00eas', mk.leads_mes, pS(mk.leads_mes, mk.leads_meta)+' da meta', null, 'var(--b)')
+      + Kpi('Leads Qualificados', mk.leads_qualificados, Math.round(mk.leads_qualificados/mk.leads_mes*100)+'% qualifica\u00e7\u00e3o', null, 'var(--g)')
+      + Kpi('Taxa Convers\u00e3o', mk.taxa_conversao+'%', 'lead \u2192 qualificado', null, 'var(--pu)')
+      + (isDiretor ? Kpi('Custo/Lead', 'R$ '+mk.custo_lead.toFixed(2), 'investimento: R$ '+fmt(mk.investimento), null, 'var(--a)') : Kpi('Meta Leads', mk.leads_meta, (mk.leads_meta - mk.leads_mes)+' faltam', null, 'var(--a)'))
+      + '</div>';
+
+    // Redes sociais resumo
+    var redes = '<div class="card mb2"><div class="ctitle">\uD83C\uDF10 Redes Sociais</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:12px">';
+    var redeNames = {instagram:'\uD83D\uDCF7 Instagram', facebook:'\uD83D\uDCD8 Facebook', tiktok:'\uD83C\uDFB5 TikTok'};
+    for (var r in mk.redes) {
+      var rd = mk.redes[r];
+      redes += '<div style="padding:14px;background:var(--cream2);border-radius:10px;text-align:center">'
+        + '<div style="font-size:14px;margin-bottom:6px">'+redeNames[r]+'</div>'
+        + '<div style="font-size:20px;font-weight:800;color:var(--navy)">'+rd.seguidores.toLocaleString('pt-BR')+'</div>'
+        + '<div style="font-size:10px;color:var(--g-tx)">+'+rd.crescimento+' este m\u00eas</div>'
+        + '<div style="font-size:10px;color:var(--muted);margin-top:4px">Alcance: '+rd.alcance.toLocaleString('pt-BR')+'</div>'
+        + '<div style="font-size:10px;color:var(--muted)">Engajamento: '+rd.engajamento+'%</div>'
+        + '</div>';
+    }
+    redes += '</div></div>';
+
+    // Próximos conteúdos
+    var proximos = '<div class="card mb2"><div class="ctitle">\uD83D\uDCC5 Pr\u00f3ximos Conte\u00fados</div>'
+      + '<div style="margin-top:10px">';
+    var statusIco = {publicado:'\u2705', agendado:'\uD83D\uDCC6', producao:'\u270D\uFE0F', ideia:'\uD83D\uDCA1'};
+    var statusLbl = {publicado:'Publicado', agendado:'Agendado', producao:'Em Produ\u00e7\u00e3o', ideia:'Ideia'};
+    mk.conteudos.forEach(function(c) {
+      proximos += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--cream3)">'
+        + '<div style="width:40px;text-align:center;font-size:18px">'+statusIco[c.status]+'</div>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:12px;font-weight:700;color:var(--navy)">'+c.titulo+'</div>'
+        + '<div style="font-size:10px;color:var(--muted)">'+c.tipo+(c.data?' \u2022 '+c.data:'')+'</div>'
+        + '</div>'
+        + '<div style="font-size:10px;padding:3px 8px;border-radius:6px;background:'+(c.status==='publicado'?'var(--g-bg)':c.status==='agendado'?'var(--b-bg)':c.status==='producao'?'var(--a-bg)':'var(--cream2)')+';color:'+(c.status==='publicado'?'var(--g-tx)':c.status==='agendado'?'var(--b-tx)':c.status==='producao'?'var(--a-tx)':'var(--muted)')+';font-weight:600">'+statusLbl[c.status]+'</div>'
+        + '</div>';
+    });
+    proximos += '</div></div>';
+
+    content = kpis + redes + proximos;
+
+  } else if (mkTab === 'campanhas') {
+    // ── CAMPANHAS ──
+    var statusColors = {ativo:'var(--g)', pausado:'var(--a)', encerrado:'var(--muted)'};
+    content = '<div class="card"><div class="ctitle">\uD83C\uDFAF Campanhas Ativas</div>'
+      + '<div class="tw"><table class="rank-tbl"><thead><tr>'
+      + '<th>Campanha</th><th>Status</th><th style="text-align:right">Leads</th>'
+      + (isDiretor ? '<th style="text-align:right">Custo</th><th style="text-align:right">ROI %</th>' : '')
+      + '</tr></thead><tbody>';
+    mk.campanhas.forEach(function(c) {
+      content += '<tr>'
+        + '<td><div style="font-size:11.5px;font-weight:600">'+c.nome+'</div><div style="font-size:9px;color:var(--muted)">In\u00edcio: '+c.inicio+'</div></td>'
+        + '<td><span style="font-size:10px;padding:2px 8px;border-radius:6px;background:'+(c.status==='ativo'?'var(--g-bg)':'var(--a-bg)')+';color:'+(c.status==='ativo'?'var(--g-tx)':'var(--a-tx)')+';font-weight:600">'+(c.status==='ativo'?'\u25CF Ativo':'\u23F8 Pausado')+'</span></td>'
+        + '<td style="text-align:right;font-size:12px;font-weight:700;color:var(--navy)">'+c.leads+'</td>'
+        + (isDiretor ? '<td style="text-align:right;font-size:11px;font-weight:600">R$ '+fmt(c.custo)+'</td>'
+          + '<td style="text-align:right;font-size:11px;font-weight:700;color:'+(c.roi>150?'var(--g-tx)':c.roi>50?'var(--a-tx)':'var(--r-tx)')+'">'+c.roi+'%</td>' : '')
+        + '</tr>';
+    });
+    content += '</tbody></table></div></div>';
+
+    // Resumo campanhas
+    var totalLeads = mk.campanhas.reduce(function(a,c){return a+c.leads;},0);
+    var totalCusto = mk.campanhas.reduce(function(a,c){return a+c.custo;},0);
+    var ativas = mk.campanhas.filter(function(c){return c.status==='ativo';}).length;
+
+    content += '<div class="kgrid" style="margin-top:14px">'
+      + Kpi('Campanhas Ativas', ativas+'/'+mk.campanhas.length, '', null, 'var(--b)')
+      + Kpi('Total Leads', totalLeads, 'todas campanhas', null, 'var(--g)')
+      + (isDiretor ? Kpi('Investimento Total', 'R$ '+fmt(totalCusto), 'R$ '+(totalLeads>0?(totalCusto/totalLeads).toFixed(2):'0')+'/lead', null, 'var(--a)') : '')
+      + '</div>';
+
+  } else if (mkTab === 'conteudo') {
+    // ── CONTEÚDO ──
+    var tipoIco = {Reels:'\uD83C\uDFAC', Carrossel:'\uD83D\uDCF0', Stories:'\u26A1', Post:'\uD83D\uDCDD'};
+    content = '<div class="card mb2"><div class="ctitle">\uD83D\uDCF1 Calend\u00e1rio de Conte\u00fado</div>'
+      + '<div style="margin-top:12px">';
+    mk.conteudos.forEach(function(c, idx) {
+      content += '<div style="display:flex;align-items:center;gap:12px;padding:14px;margin-bottom:8px;background:var(--cream2);border-radius:10px;border-left:4px solid '+(c.status==='publicado'?'var(--g)':c.status==='agendado'?'var(--b)':c.status==='producao'?'var(--a)':'var(--muted)')+'">'
+        + '<div style="font-size:24px">'+(tipoIco[c.tipo]||'\uD83D\uDCDD')+'</div>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:13px;font-weight:700;color:var(--navy)">'+c.titulo+'</div>'
+        + '<div style="font-size:10px;color:var(--muted);margin-top:2px">'+c.tipo+(c.data?' \u2022 '+c.data:'')+(c.engajamento>0?' \u2022 '+c.engajamento.toLocaleString('pt-BR')+' interações':'')+'</div>'
+        + '</div>'
+        + '<div style="text-align:right">'
+        + '<div style="font-size:10px;padding:3px 10px;border-radius:6px;background:'+(c.status==='publicado'?'var(--g-bg)':c.status==='agendado'?'var(--b-bg)':c.status==='producao'?'var(--a-bg)':'var(--cream3)')+';color:'+(c.status==='publicado'?'var(--g-tx)':c.status==='agendado'?'var(--b-tx)':c.status==='producao'?'var(--a-tx)':'var(--muted)')+';font-weight:600">'+statusLbl[c.status]+'</div>'
+        + (c.engajamento > 0 ? '<div style="font-size:9px;color:var(--g-tx);margin-top:4px">\u2764\uFE0F '+c.engajamento.toLocaleString('pt-BR')+'</div>' : '')
+        + '</div></div>';
+    });
+    content += '</div></div>';
+
+    // Estatísticas de conteúdo
+    var pub = mk.conteudos.filter(function(c){return c.status==='publicado';}).length;
+    var agend = mk.conteudos.filter(function(c){return c.status==='agendado';}).length;
+    var prod = mk.conteudos.filter(function(c){return c.status==='producao';}).length;
+    var totalEng = mk.conteudos.reduce(function(a,c){return a+(c.engajamento||0);},0);
+
+    content += '<div class="kgrid">'
+      + Kpi('Publicados', pub, 'este m\u00eas', null, 'var(--g)')
+      + Kpi('Agendados', agend, 'pr\u00f3ximos dias', null, 'var(--b)')
+      + Kpi('Em Produ\u00e7\u00e3o', prod, 'em andamento', null, 'var(--a)')
+      + Kpi('Engajamento Total', totalEng.toLocaleString('pt-BR'), 'intera\u00e7\u00f5es', null, 'var(--pu)')
+      + '</div>';
+
+  } else if (mkTab === 'investimento' && isDiretor) {
+    // ── INVESTIMENTO (DIRETOR ONLY) ──
+    content = '<div class="card mb2" style="background:linear-gradient(135deg,var(--navy) 0%,#1e3a5f 100%);color:#fff;padding:24px">'
+      + '<div style="font-size:11px;opacity:.5;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Investimento Total no M\u00eas</div>'
+      + '<div style="font-size:32px;font-weight:800">R$ '+fmt(mk.investimento)+'</div>'
+      + '<div style="font-size:13px;opacity:.7;margin-top:4px">'+mk.leads_mes+' leads gerados \u2022 R$ '+mk.custo_lead.toFixed(2)+'/lead</div>'
+      + '</div>';
+
+    // Breakdown por campanha
+    content += '<div class="card mb2"><div class="ctitle">\uD83D\uDCCA Breakdown de Investimento</div>'
+      + '<div style="margin-top:12px">';
+    mk.campanhas.sort(function(a,b){return b.custo-a.custo;}).forEach(function(c) {
+      var pct = mk.investimento > 0 ? Math.round(c.custo / mk.investimento * 100) : 0;
+      content += '<div style="margin-bottom:14px">'
+        + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+        + '<span style="font-size:11px;font-weight:600;color:var(--navy)">'+c.nome+'</span>'
+        + '<span style="font-size:11px;font-weight:700">R$ '+fmt(c.custo)+' ('+pct+'%)</span></div>'
+        + '<div style="height:8px;background:var(--cream3);border-radius:4px;overflow:hidden">'
+        + '<div style="height:100%;width:'+pct+'%;background:'+(c.roi>150?'var(--g)':c.roi>50?'var(--a)':'var(--r)')+';border-radius:4px;transition:width .3s"></div></div>'
+        + '<div style="display:flex;justify-content:space-between;margin-top:2px">'
+        + '<span style="font-size:9px;color:var(--muted)">'+c.leads+' leads \u2022 R$ '+(c.leads>0?(c.custo/c.leads).toFixed(2):'0')+'/lead</span>'
+        + '<span style="font-size:9px;font-weight:600;color:'+(c.roi>150?'var(--g-tx)':c.roi>50?'var(--a-tx)':'var(--r-tx)')+'">ROI: '+c.roi+'%</span></div>'
+        + '</div>';
+    });
+    content += '</div></div>';
+
+    // KPIs financeiros
+    var totalCusto = mk.campanhas.reduce(function(a,c){return a+c.custo;},0);
+    var avgROI = mk.campanhas.length > 0 ? Math.round(mk.campanhas.reduce(function(a,c){return a+c.roi;},0)/mk.campanhas.length) : 0;
+
+    content += '<div class="kgrid">'
+      + Kpi('Custo/Lead', 'R$ '+mk.custo_lead.toFixed(2), 'média geral', null, mk.custo_lead < 25 ? 'var(--g)' : 'var(--a)')
+      + Kpi('ROI M\u00e9dio', avgROI+'%', 'todas campanhas', null, avgROI > 100 ? 'var(--g)' : 'var(--a)')
+      + Kpi('Leads Qualificados', mk.leads_qualificados, Math.round(mk.leads_qualificados/mk.leads_mes*100)+'% do total', null, 'var(--pu)')
+      + Kpi('Custo/Lead Qualif.', 'R$ '+(mk.leads_qualificados>0?(mk.investimento/mk.leads_qualificados).toFixed(2):'0'), '', null, 'var(--b)')
+      + '</div>';
+  }
+
+  return header + tabs + content;
 }
 
 function pgSimVPL() {
@@ -6108,7 +6307,7 @@ async function testConnectors() {
 // === SISTEMA DE PERFIS E PERMISSOES PSM OS ===
 var PERFIL_MAP={paulo:'diretor',isa:'diretor',leire:'backoffice',mariane:'backoffice',marcus_l:'lider',guilherme:'marketing',gestor_trafego:'marketing'};
 function getPerfil(){if(!S.user||!S.user.id)return "corretor";if(PERFIL_MAP[S.user.id])return PERFIL_MAP[S.user.id];if(S.user.role==="socio")return "diretor";if(S.user.role==="lider")return "lider";if(S.user.role==="backoffice")return "backoffice";if(S.user.role==="marketing")return "marketing";return "corretor";}
-var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','simvpl','simincc','simrep','vera','rdconfig','config'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','drive','tabela','formacao','manual','captacao','vera','config'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','forecast','drive','formacao','manual','captacao','vera'],marketing:['meu','dashboard','metricas','ranking','drive','formacao','manual','vera'],corretor:['meu','ranking','crm','metas','formacao','manual','drive','vera']};
+var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','simvpl','simincc','simrep','vera','rdconfig','config'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','drive','tabela','formacao','manual','captacao','vera','config'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','forecast','drive','formacao','manual','captacao','vera'],marketing:['meu','dashboard','metricas','ranking','drive','formacao','manual','vera'],corretor:['meu','ranking','crm','metas','formacao','manual','drive','vera']};
 function canAccess(p){var pf=getPerfil();var a=MENU_ACCESS[pf];return a?a.indexOf(p)!==-1:false;}
 var DEFAULT_PAGE={diretor:'dashboard',backoffice:'dashboard',lider:'meu',marketing:'meu',corretor:'meu'};
 function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"meu";}
@@ -6149,6 +6348,7 @@ function renderSB() {
       {id:'formacao',  lbl:'Formação PSM',   ico:'🎓',min:1},
       {id:'manual',    lbl:'Manual & Ética', ico:'📖',min:1},
       {id:'captacao',  lbl:'Captação',       ico:'📝',min:2},
+      {id:'marketing', lbl:'Marketing',    ico:'📣',min:2},
       {id:'simvpl',    lbl:'Simulador VPL',  ico:'📐',min:2},
       {id:'simincc',   lbl:'Simulador INCC', ico:'📊',min:2},
       {id:'simrep',    lbl:'Sim. Repasse',   ico:'💰',min:2},
@@ -6217,7 +6417,7 @@ function renderHDR() {
 
 // ─── ROUTER ───────────────────────────────────────────────────────────────────
 function safeRoute() {
-  try { var _pg = route(); return _pg + (typeof srPerformanceFooter==='function' ? srPerformanceFooter() : ''); }
+  try { return route(); }
   catch(e) {
     console.error('[PSM] Render error:', e);
     return '<div class="empty-card"><div class="empty-ico">⚠️</div>'
@@ -6253,6 +6453,7 @@ function route() {
     case 'formacao':   return pgFormacao();
     case 'manual':     return pgManual();
     case 'captacao':   return pgCaptacao();
+    case 'marketing':  return pgMarketing();
     case 'simvpl':     return pgSimVPL();
     case 'simincc':    return pgSimINCC();
     case 'simrep':     return pgSimRepasse();
