@@ -1163,10 +1163,10 @@ function pgDashboard(){
   const m=METRICS;
   const pW=fOPPS.reduce((a,o)=>{const stages=FUNIS[o.fr]||FUNIS.lancamento||[];const s=stages.find?stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st)):null;return a+(o.vgv*(s?s.w:.1));},0);
   const fs=frenteStats();
-  return '<div class="phd"><div class="phd-row"><div><h1>Dashboard Executivo</h1><p>'+m.mes+' · '+m.du_pass+'/'+m.du_tot+' dias úteis · '+m.du_rest+' restantes</p></div></div></div>'
+  return '<div class="phd"><div class="phd-row"><div><h1>Dashboard Executivo</h1><p>'+m.mes+' \u00B7 '+m.du_pass+'/'+m.du_tot+' dias úteis \u00B7 '+m.du_rest+' restantes</p></div></div></div>'
   +'<div class="kgrid">'
-  +Kpi('VGV Realizado',fmt(fVENDAS.reduce((a,v)=>a+(v.vgv||0),0)),'Meta: '+fmt(m.vgv_meta)+' · '+fVENDAS.length+' vendas',{up:pN(fVENDAS.reduce((a,v)=>a+(v.vgv||0),0),m.vgv_meta)>=70,txt:pS(fVENDAS.reduce((a,v)=>a+(v.vgv||0),0),m.vgv_meta)+' da meta'},'#0f172a')
-  +Kpi('Vendas',fVENDAS.length,'Meta: '+m.vend_meta+' · '+fLOST.length+' perdidas',{up:fVENDAS.length>0,txt:pS(fVENDAS.length,m.vend_meta)},'#d4a843')
+  +Kpi('VGV Realizado',fmt(fVENDAS.reduce((a,v)=>a+(v.vgv||0),0)),'Meta: '+fmt(m.vgv_meta)+' \u00B7 '+fVENDAS.length+' vendas',{up:pN(fVENDAS.reduce((a,v)=>a+(v.vgv||0),0),m.vgv_meta)>=70,txt:pS(fVENDAS.reduce((a,v)=>a+(v.vgv||0),0),m.vgv_meta)+' da meta'},'#0f172a')
+  +Kpi('Vendas',fVENDAS.length,'Meta: '+m.vend_meta+' \u00B7 '+fLOST.length+' perdidas',{up:fVENDAS.length>0,txt:pS(fVENDAS.length,m.vend_meta)},'#d4a843')
   +Kpi('Pipeline',fmt(fOPPS.reduce((a,o)=>a+(o.vgv||0),0)),fOPPS.length+' oportunidades',null,'#8b5cf6')
   +Kpi('Pipeline Pond.',fmt(Math.round(pW)),'Por peso de etapa',null,'#3b82f6')
   +Kpi('Perdidas',fLOST.length,'VGV: '+fmt(fLOST.reduce((a,l)=>a+(l.vgv||0),0)),null,'#ef4444')
@@ -1195,7 +1195,7 @@ function pgDashboard(){
   }).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted)">Dados disponíveis após sync</td></tr>')
   +'</tbody></table></div></div>'
   +'<div class="card"><div class="ctitle">VGV por Frente</div>'
-  +Object.entries(fs).map(([fid,st])=>FRENTES[fid]?'<div class="mb1"><div class="prow"><span class="plbl">'+FRENTES[fid].icon+' '+FRENTES[fid].label+'</span><span class="ppct">'+fmt(st.vgv_real||0)+' <span style="font-weight:400;color:var(--muted)">realizado / '+fmt(st.meta)+' meta</span></span></div>'+PB(st.vgv_real||0,st.meta,FRENTES[fid].color,true)+'<div style="font-size:9px;color:var(--muted);margin-top:2px">Pipeline: '+fmt(st.vgv||0)+' · '+st.vend+' vendas</div></div>':'').join('')
+  +Object.entries(fs).map(([fid,st])=>FRENTES[fid]?'<div class="mb1"><div class="prow"><span class="plbl">'+FRENTES[fid].icon+' '+FRENTES[fid].label+'</span><span class="ppct">'+fmt(st.vgv_real||0)+' <span style="font-weight:400;color:var(--muted)">realizado / '+fmt(st.meta)+' meta</span></span></div>'+PB(st.vgv_real||0,st.meta,FRENTES[fid].color,true)+'<div style="font-size:9px;color:var(--muted);margin-top:2px">Pipeline: '+fmt(st.vgv||0)+' \u00B7 '+st.vend+' vendas</div></div>':'').join('')
   +'</div></div>'
   +'<div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;display:flex;align-items:center;gap:10px">Forecast — 5 Horizontes<div style="flex:1;height:1px;background:var(--cream3)"></div></div>'
   +'<div class="g5 mb2">'+Object.entries(FORECASTS).map(([p,f])=>FcCard(p,f)).join('')+'</div>'
@@ -1421,7 +1421,7 @@ function pgFrente(fid){
   const extraReal=fid==='terceiros'?bks.reduce((a,b)=>a+(b.agend||0),0):bks.reduce((a,b)=>a+(b.vis||0),0);
   const extraPct=fm.extra_meta?Math.min(100,Math.round(extraReal/fm.extra_meta*100)):0;
 
-  return df_frente_fid + '<div class="phd"><h1>'+f.icon+' '+f.label+'</h1><p>'+METRICS.mes+(f.altLabel?' · '+f.altLabel:'')+'</p></div>'
+  return df_frente_fid + '<div class="phd"><h1>'+f.icon+' '+f.label+'</h1><p>'+METRICS.mes+(f.altLabel?' \u00B7 '+f.altLabel:'')+'</p></div>'
   +'<div class="kgrid">'
   +Kpi('Pipeline',fmt(fOpps.reduce((a,o)=>a+(o.vgv||0),0)),fOpps.length+' opps',null,f.color)
   +Kpi('Ponderado',fmt(Math.round(pW)),'por peso',null,f.color)
@@ -1444,7 +1444,7 @@ function pgFrente(fid){
   +(bks.length?bks.map(b=>{const bp=brkPeriod[b.id]||{};return'<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--cream3)">'
     +Av(b,'sm',true)
     +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+b.name+'</div>'+PB(bp.vgv_real||0,b.meta||0,f.color)+'</div>'
-    +'<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700;color:var(--navy)">'+(bp.vgv_real?fmt(bp.vgv_real):'R$0')+' <span style="font-size:9px;color:var(--muted);font-weight:400">realizado</span></div><div style="font-size:9.5px;color:var(--muted)">Pipeline: '+(bp.vgv_pipe?fmt(bp.vgv_pipe):'—')+' · '+(bp.vendas||0)+' vendas · '+pS(bp.vgv_real||0,b.meta||0)+' da meta</div></div>'
+    +'<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700;color:var(--navy)">'+(bp.vgv_real?fmt(bp.vgv_real):'R$0')+' <span style="font-size:9px;color:var(--muted);font-weight:400">realizado</span></div><div style="font-size:9.5px;color:var(--muted)">Pipeline: '+(bp.vgv_pipe?fmt(bp.vgv_pipe):'—')+' \u00B7 '+(bp.vendas||0)+' vendas \u00B7 '+pS(bp.vgv_real||0,b.meta||0)+' da meta</div></div>'
     +'</div>';}).join('')
     :'<div class="es"><div class="es-ico">👥</div><div class="es-t">Sem corretores ativos</div><div class="es-s">Configure equipes em Configurações</div></div>')
   +'</div></div>'
@@ -2204,7 +2204,7 @@ function pgMetas(){
           +'<div style="width:100%;height:'+h+'px;background:'+s.c+';border-radius:4px 4px 0 0;min-height:8px"></div>'
           +'<div style="font-size:8px;color:var(--muted);text-transform:uppercase">'+s.l+'</div></div>';
       }).join('')+'</div>'
-      +'<div style="font-size:10px;color:var(--muted);margin-top:8px;text-align:center">Taxa geral: <strong>'+((fV.length+fL.length)>0?Math.round(fV.length/(fV.length+fL.length)*100):0)+'%</strong> conversão · <strong>'+fL.length+'</strong> perdidas</div>'
+      +'<div style="font-size:10px;color:var(--muted);margin-top:8px;text-align:center">Taxa geral: <strong>'+((fV.length+fL.length)>0?Math.round(fV.length/(fV.length+fL.length)*100):0)+'%</strong> conversão \u00B7 <strong>'+fL.length+'</strong> perdidas</div>'
       +'</div>'
       +'<div class="card"><div class="ctitle">🏅 Top 5 Corretores</div>'
       +bData.slice(0,5).map((b,i)=>{
@@ -2279,7 +2279,7 @@ function pgMetas(){
       +'<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">'
       +Av(selB,'lg',true)
       +'<div style="flex:1"><div style="font-size:18px;font-weight:800;color:var(--navy)">'+selB.name+'</div>'
-      +'<div style="font-size:11px;color:var(--muted)">'+FTag(selB.frente)+' · '+(DISC_PROFILES[selBid]?.perfil||'—')+' · Ticket médio: '+fmt(selB.ticketMedio||0)+'</div></div>'
+      +'<div style="font-size:11px;color:var(--muted)">'+FTag(selB.frente)+' \u00B7 '+(DISC_PROFILES[selBid]?.perfil||'—')+' \u00B7 Ticket médio: '+fmt(selB.ticketMedio||0)+'</div></div>'
       +'<div style="text-align:center"><div style="font-size:32px;font-weight:900;color:'+sc+'">'+selBD.pct+'%</div>'
       +'<div style="font-size:10px;color:var(--muted)">da meta VGV</div></div></div>'
       // KPIs individuais
@@ -2455,10 +2455,10 @@ function pgCRM(){
   if(!S.rdSyncing && S.rdSyncStatus==='ok'){
     syncBar+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:11px;color:var(--muted)">'
       +'<span style="width:6px;height:6px;border-radius:50%;background:var(--g);display:inline-block"></span>'
-      +'RD Live · Última sync '+lastSyncStr
-      +(cacheActive?' · <span style="color:var(--b-tx)">Cache ativo</span>':'')
-      +' · <button style="background:none;border:none;color:var(--b-tx);cursor:pointer;font:inherit;font-weight:600;padding:0" onclick="RD.sync(true)">Atualizar</button>'
-      +' · <button style="background:none;border:none;color:var(--muted);cursor:pointer;font:inherit;padding:0" onclick="RD.sync(true,true)">Forçar refresh</button>'
+      +'RD Live \u00B7 Última sync '+lastSyncStr
+      +(cacheActive?' \u00B7 <span style="color:var(--b-tx)">Cache ativo</span>':'')
+      +' \u00B7 <button style="background:none;border:none;color:var(--b-tx);cursor:pointer;font:inherit;font-weight:600;padding:0" onclick="RD.sync(true)">Atualizar</button>'
+      +' \u00B7 <button style="background:none;border:none;color:var(--muted);cursor:pointer;font:inherit;padding:0" onclick="RD.sync(true,true)">Forçar refresh</button>'
       +'</div>';
   }
 
@@ -3291,7 +3291,7 @@ const RD = {
         if (OPPS.length === 0 && allWon.length === 0 && allLost.length === 0) {
           toast('⚠️ RD respondeu sem negociações. Verifique o token nos Conectores', 'warn');
         } else {
-          toast('✅ ' + OPPS.length + ' abertas · ' + allWon.length + ' ganhas · ' + allLost.length + ' perdidas (' + elapsed + 's)', 'ok');
+          toast('✅ ' + OPPS.length + ' abertas \u00B7 ' + allWon.length + ' ganhas \u00B7 ' + allLost.length + ' perdidas (' + elapsed + 's)', 'ok');
         }
       }
 
@@ -3584,7 +3584,7 @@ function pgLancarVenda() {
           return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--cream3)">'
             + (b ? '<div style="width:32px;height:32px;border-radius:8px;background:'+b.color+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+b.ini+'</div>' : '')
             + '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:var(--navy)">'+v.cl+'</div>'
-            + '<div style="font-size:10.5px;color:var(--muted)">'+(b?b.name.split(' ')[0]:'?')+' · '+FTag(v.fr)+'</div></div>'
+            + '<div style="font-size:10.5px;color:var(--muted)">'+(b?b.name.split(' ')[0]:'?')+' \u00B7 '+FTag(v.fr)+'</div></div>'
             + '<div style="text-align:right;flex-shrink:0">'
             + '<div style="font-size:13px;font-weight:800;color:var(--navy)">'+fmt(v.vgv)+'</div>'
             + '<div style="font-size:9.5px;color:var(--muted)">'+(v.closedAt||v.updated_at||'—').slice(0,10)+'</div>'
@@ -3653,7 +3653,7 @@ function pgMeu() {
     + (meta>0 ? '<div class="card mb2"><div class="ctitle">Meta do Mês — '+fmt(vgvReal)+' / '+fmt(meta)+'</div>'
       + PB(vgvReal, meta, pct>=100?'#16a34a':pct>=70?'#d97706':'#dc2626')
       + '<div style="font-size:11px;color:var(--muted);margin-top:6px">Faltam '+fmt(Math.max(0,meta-vgvReal))
-      + ' · Projeção: '+fmt(Math.round(vgvReal/(METRICS.du_pass||1)*METRICS.du_tot))+'</div>'
+      + ' \u00B7 Projeção: '+fmt(Math.round(vgvReal/(METRICS.du_pass||1)*METRICS.du_tot))+'</div>'
       + '</div>' : '')
     // Disc profile
     + (disc ? '<div class="card mb2" style="border-left:4px solid '+disc.cor+'">'
@@ -3811,7 +3811,7 @@ function pgMetricas() {
           return '<div style="display:flex;align-items:center;gap:10px">'
             + Av(b,'xs') + '<div style="flex:1"><div style="font-size:11px;font-weight:600;margin-bottom:4px">'+b.name.split(' ')[0]+'</div>'
             + PB(vol, brokers.reduce((a,x)=>Math.max(a,x.volumeLeads||0),1), '#3b82f6') + '</div>'
-            + '<span style="font-size:11px;font-weight:700;min-width:80px;text-align:right">'+vol+' leads · '+label+'</span>'
+            + '<span style="font-size:11px;font-weight:700;min-width:80px;text-align:right">'+vol+' leads \u00B7 '+label+'</span>'
             + '</div>';
         }).join('')
       + '</div></div>';
@@ -3825,7 +3825,7 @@ function pgMetricas() {
     const totalWon = VENDAS.length;
     const aproveitamento = totalLeads > 0 ? Math.round(totalWon/totalLeads*100) : 0;
     const churnEvit = LOST_DEALS.filter(l=>!invalidMotivos.some(inv=>(l.lostReason||'').includes(inv)));
-    content = '<div class="kgrid mb2">'      +Kpi('📥 Leads Totais',totalLeads,'pipeline + descartados',null,'var(--navy)')      +Kpi('🗑 Descartados',totalLost,'win=false no RD',null,'var(--r)')      +Kpi('✅ Vendas',totalWon,'fechamentos realizados',null,'var(--g)')      +Kpi('📊 Aproveitamento',aproveitamento+'%','leads→venda',{up:aproveitamento>=5,txt:aproveitamento>=5?'Bom':'Melhorar'},aproveitamento>=5?'var(--g)':aproveitamento>=2?'var(--a)':'var(--r)')      +'</div>'      +'<div class="card mb2" style="padding:18px"><div class="ctitle" style="margin-bottom:12px">⚡ Funil de Aproveitamento</div>'      +FunnelChart([{lbl:'Leads Totais',val:totalLeads,c:'#0f172a'},{lbl:'Em Andamento',val:OPPS.length,c:'#d4a843'},{lbl:'Descartados Evitáveis',val:churnEvit.length,c:'#dc2626'},{lbl:'Fechamentos',val:totalWon,c:'#15803d'}])      +'</div>'      +'<div class="g2">'      +'<div class="card"><div class="ctitle">Aproveitamento por Corretor</div>'      +'<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">'      +(selB?[selB]:brokers).map(b=>{          const bLost=LOST_DEALS.filter(l=>l.bid===b.id).length;          const bAll=OPPS.filter(o=>o.bid===b.id).length+bLost;          const bWon=VENDAS.filter(v=>v.bid===b.id).length;          const bAp=bAll>0?Math.round(bWon/bAll*100):0;          const bEvit=churnEvit.filter(l=>l.bid===b.id).length;          return '<div style="display:flex;align-items:center;gap:10px">'+Av(b,'xs')+'<div style="flex:1">'            +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">'            +'<span style="font-weight:600">'+b.name.split(' ')[0]+'</span>'            +'<span style="font-weight:700;color:var(--navy)">'+bAp+'% · '+bEvit+' evitáveis</span></div>'            +PB(bWon,bAll||1,bAp>=10?'#16a34a':bAp>=5?'#d97706':'#dc2626')            +'</div></div>';        }).join('')      +'</div></div>'      +'<div class="card"><div class="ctitle">Motivos de Descarte Evitáveis</div>'      +(S.lossReasons||[]).filter(([m])=>!invalidMotivos.some(inv=>m.includes(inv))).map(([m,c],i)=>        '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--cream3)">'        +'<span style="font-size:11px;font-weight:800;color:var(--muted);width:20px">#'+(i+1)+'</span>'        +'<div style="flex:1"><div style="font-size:12px;font-weight:700;margin-bottom:3px">'+m+'</div>'        +PB(c,(S.lossReasons?.[0]?.[1])||1,'#dc2626')+'</div>'        +'<span style="font-size:13px;font-weight:800;color:var(--r-tx)">'+c+'</span></div>').join('')      +'</div></div>';
+    content = '<div class="kgrid mb2">'      +Kpi('📥 Leads Totais',totalLeads,'pipeline + descartados',null,'var(--navy)')      +Kpi('🗑 Descartados',totalLost,'win=false no RD',null,'var(--r)')      +Kpi('✅ Vendas',totalWon,'fechamentos realizados',null,'var(--g)')      +Kpi('📊 Aproveitamento',aproveitamento+'%','leads→venda',{up:aproveitamento>=5,txt:aproveitamento>=5?'Bom':'Melhorar'},aproveitamento>=5?'var(--g)':aproveitamento>=2?'var(--a)':'var(--r)')      +'</div>'      +'<div class="card mb2" style="padding:18px"><div class="ctitle" style="margin-bottom:12px">⚡ Funil de Aproveitamento</div>'      +FunnelChart([{lbl:'Leads Totais',val:totalLeads,c:'#0f172a'},{lbl:'Em Andamento',val:OPPS.length,c:'#d4a843'},{lbl:'Descartados Evitáveis',val:churnEvit.length,c:'#dc2626'},{lbl:'Fechamentos',val:totalWon,c:'#15803d'}])      +'</div>'      +'<div class="g2">'      +'<div class="card"><div class="ctitle">Aproveitamento por Corretor</div>'      +'<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">'      +(selB?[selB]:brokers).map(b=>{          const bLost=LOST_DEALS.filter(l=>l.bid===b.id).length;          const bAll=OPPS.filter(o=>o.bid===b.id).length+bLost;          const bWon=VENDAS.filter(v=>v.bid===b.id).length;          const bAp=bAll>0?Math.round(bWon/bAll*100):0;          const bEvit=churnEvit.filter(l=>l.bid===b.id).length;          return '<div style="display:flex;align-items:center;gap:10px">'+Av(b,'xs')+'<div style="flex:1">'            +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">'            +'<span style="font-weight:600">'+b.name.split(' ')[0]+'</span>'            +'<span style="font-weight:700;color:var(--navy)">'+bAp+'% \u00B7 '+bEvit+' evitáveis</span></div>'            +PB(bWon,bAll||1,bAp>=10?'#16a34a':bAp>=5?'#d97706':'#dc2626')            +'</div></div>';        }).join('')      +'</div></div>'      +'<div class="card"><div class="ctitle">Motivos de Descarte Evitáveis</div>'      +(S.lossReasons||[]).filter(([m])=>!invalidMotivos.some(inv=>m.includes(inv))).map(([m,c],i)=>        '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--cream3)">'        +'<span style="font-size:11px;font-weight:800;color:var(--muted);width:20px">#'+(i+1)+'</span>'        +'<div style="flex:1"><div style="font-size:12px;font-weight:700;margin-bottom:3px">'+m+'</div>'        +PB(c,(S.lossReasons?.[0]?.[1])||1,'#dc2626')+'</div>'        +'<span style="font-size:13px;font-weight:800;color:var(--r-tx)">'+c+'</span></div>').join('')      +'</div></div>';
   } else if (tab === 'volume') {
     const avgVol = brokers.length > 0 ? Math.round(brokers.reduce((a,b)=>a+(b.volumeLeads||0),0)/brokers.length) : 0;
     const IDEAL_MIN = 30, IDEAL_MAX = 80; // leads totais para qualidade ideal
@@ -4383,7 +4383,7 @@ function pgDrive() {
       fileListHTML += '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;transition:var(--transition)" onmouseover="this.style.background=\'var(--cream2)\'" onmouseout="this.style.background=\'transparent\'">'
         + '<span style="font-size:22px">' + ico + '</span>'
         + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + f.name + '</div>'
-        + '<div style="font-size:10.5px;color:var(--muted)">' + [sz, date].filter(Boolean).join(' · ') + '</div></div>'
+        + '<div style="font-size:10.5px;color:var(--muted)">' + [sz, date].filter(Boolean).join(' \u00B7 ') + '</div></div>'
         + '<a href="' + link + '" target="_blank" rel="noreferrer" class="btn bout bsm" style="text-decoration:none;font-size:10px;flex-shrink:0">Abrir</a>'
         + '</div>';
     });
@@ -4401,7 +4401,7 @@ function pgDrive() {
     // Search
     + '<div style="flex-shrink:0"><input class="finp" placeholder="🔍 Buscar nesta pasta..." style="width:100%;font-size:12px;padding:8px 12px" value="' + (S.driveSearch||'') + '" oninput="S.driveSearch=this.value;render()"></div>'
     // Stats bar
-    + '<div style="font-size:11px;color:var(--muted);padding:0 4px;flex-shrink:0">' + folders.length + ' pastas · ' + docs.length + ' arquivos</div>'
+    + '<div style="font-size:11px;color:var(--muted);padding:0 4px;flex-shrink:0">' + folders.length + ' pastas \u00B7 ' + docs.length + ' arquivos</div>'
     // File list
     + '<div class="card" style="flex:1;overflow-y:auto;padding:8px">' + fileListHTML + '</div>'
     + '</div>';
@@ -4603,15 +4603,15 @@ function pgTabela() {
         {cat:'mcmv',nome:'VALLE DOS COLIBIRIS',inc:'VITTA',loc:'NORTE',m2:47.9,val:255000,aval:315300,entrega:'01/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
         {cat:'mcmv',nome:'VALLE DOS COLIBIRIS',inc:'VITTA',loc:'NORTE',m2:46.7,val:255000,aval:315300,entrega:'01/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
         {cat:'mcmv',nome:'VALLE DOS COLIBIRIS',inc:'VITTA',loc:'NORTE',m2:48.1,val:255000,aval:315300,entrega:'01/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
-        {cat:'mcmv',nome:'NOVA SMART — 1ª FASE',inc:'RVE',loc:'LESTE',m2:52.4,val:305000,aval:381000,entrega:'08/2026',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
-        {cat:'mcmv',nome:'NOVA SMART — 1ª FASE',inc:'RVE',loc:'LESTE',m2:54.1,val:297000,aval:387000,entrega:'09/2026',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'NOVA SMART — 1\u00AA FASE',inc:'RVE',loc:'LESTE',m2:52.4,val:305000,aval:381000,entrega:'08/2026',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'NOVA SMART — 1\u00AA FASE',inc:'RVE',loc:'LESTE',m2:54.1,val:297000,aval:387000,entrega:'09/2026',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
         {cat:'mcmv',nome:'TRINITA',inc:'VITTA',loc:'LESTE',m2:49.7,val:340000,entrega:'04/2026',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
         {cat:'mcmv',nome:'BLISS OÁSIS',inc:'CITZ',loc:'NORTE',m2:56.9,val:320310,aval:353850,entrega:'12/2026',dorms:'2',cond:'Financiamento Imediato',renda:'R$8.000'},
         {cat:'mcmv',nome:'PALESTRA LIFE',inc:'INC',loc:'OESTE',m2:79.8,val:443804,aval:443804,entrega:'04/2027',dorms:'2',cond:'Financiamento Imediato',renda:'R$12.000'},
-        {cat:'mcmv',nome:'NOVA SMART — 3ª FASE',inc:'RVE',loc:'LESTE',m2:52.4,val:307000,aval:343000,entrega:'11/2027',dorms:'-',cond:'Financiamento Imediato',renda:'R$8.000'},
-        {cat:'mcmv',nome:'NOVA SMART — 3ª FASE',inc:'RVE',loc:'LESTE',m2:54.1,val:307000,aval:340000,entrega:'11/2027',dorms:'-',cond:'Financiamento Imediato',renda:'R$8.000'},
-        {cat:'mcmv',nome:'NOVA SMART — 2ª FASE',inc:'RVE',loc:'LESTE',m2:52.4,val:305000,aval:391000,entrega:'06/2026',dorms:'-',cond:'Financiamento Imediato',renda:'R$8.000'},
-        {cat:'mcmv',nome:'NOVA SMART — 2ª FASE',inc:'RVE',loc:'LESTE',m2:54.1,val:305000,aval:387000,entrega:'06/2027',dorms:'-',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'NOVA SMART — 3\u00AA FASE',inc:'RVE',loc:'LESTE',m2:52.4,val:307000,aval:343000,entrega:'11/2027',dorms:'-',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'NOVA SMART — 3\u00AA FASE',inc:'RVE',loc:'LESTE',m2:54.1,val:307000,aval:340000,entrega:'11/2027',dorms:'-',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'NOVA SMART — 2\u00AA FASE',inc:'RVE',loc:'LESTE',m2:52.4,val:305000,aval:391000,entrega:'06/2026',dorms:'-',cond:'Financiamento Imediato',renda:'R$8.000'},
+        {cat:'mcmv',nome:'NOVA SMART — 2\u00AA FASE',inc:'RVE',loc:'LESTE',m2:54.1,val:305000,aval:387000,entrega:'06/2027',dorms:'-',cond:'Financiamento Imediato',renda:'R$8.000'},
         {cat:'mcmv',nome:'PIAVON',inc:'FAJ',loc:'NORTE',m2:39,val:219900,aval:237000,entrega:'-',dorms:'2',cond:'Financiamento Imediato',renda:'R$4.000'},
         {cat:'mcmv',nome:'UPSIDE',inc:'INC',loc:'LESTE',m2:100,val:549900,aval:642000,entrega:'08/2025',dorms:'2',cond:'Financiamento Imediato',renda:''},
         {cat:'mcmv',nome:'BLISS OÁSIS',inc:'CITZ',loc:'NORTE',m2:68.3,val:453200,aval:424200,entrega:'12/2026',dorms:'3',cond:'Financiamento Imediato',renda:''},
@@ -4795,7 +4795,7 @@ function pgTabela() {
   }).join('');
 
   // Header columns
-  let headers = '<th>Empreendimento</th><th>Incorporadora</th><th>Localização</th><th>M²</th><th>Valor</th>';
+  let headers = '<th>Empreendimento</th><th>Incorporadora</th><th>Localização</th><th>M\u00B2</th><th>Valor</th>';
   if (isRepasse) headers += '<th>Fluxo</th><th>Ato</th>';
   if (!isLote) headers += '<th>Entrega</th><th>Dorms</th>';
   if (isRepasse) headers += '<th>Meses Rest.</th>';
@@ -4804,7 +4804,7 @@ function pgTabela() {
   headers += '<th>Condição</th>';
 
   return '<div class="phd"><h1>📋 Tabela PSM — Catálogo de Lançamentos</h1>'
-    + '<p>Referência: '+catalog.ref+' · '+catalog.imoveis.length+' imóveis disponíveis</p></div>'
+    + '<p>Referência: '+catalog.ref+' \u00B7 '+catalog.imoveis.length+' imóveis disponíveis</p></div>'
     // Stats
     + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">'
     + '<div class="card" style="padding:14px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">Imóveis</div><div style="font-size:22px;font-weight:800;color:var(--navy)">'+allCatItems.length+'</div></div>'
@@ -5313,6 +5313,7 @@ function pgMarketing() {
 
 // ─── PAGE: LANÇAMENTOS DO ANO ────────────────────────────────────────────────
 // ─── PAGE: LANÇAMENTOS DO ANO ────────────────────────────────────────────────
+// ─── PAGE: LANÇAMENTOS DO ANO ────────────────────────────────────────────────
 function pgLancamentosAno() {
   var u = S.user; if (!u) return '';
   var perfil = getPerfil();
@@ -5321,6 +5322,42 @@ function pgLancamentosAno() {
   // ── MOCK DATA ──
   if (!S.lancData) {
     S.lancData = [
+      {
+        nome: 'Business Tower',
+        construtora: 'PSM Engenharia',
+        bairro: 'Centro',
+        cidade: 'Londrina/PR',
+        status: 'esgotado',
+        tipo: 'Comercial',
+        unidades: 40,
+        vendidas: 40,
+        vgv_total: 16000000,
+        vgv_vendido: 16000000,
+        ticket_medio: 400000,
+        inicio: '06/2025',
+        previsao_entrega: '09/2027',
+        comissao_psm: 4.0,
+        destaque: false,
+        img: ''
+      },
+      {
+        nome: 'Edif\u00edcio Aurora',
+        construtora: 'A.Yoshii',
+        bairro: 'Gleba Fazenda',
+        cidade: 'Londrina/PR',
+        status: 'vendas',
+        tipo: 'Comercial',
+        unidades: 60,
+        vendidas: 51,
+        vgv_total: 18000000,
+        vgv_vendido: 15300000,
+        ticket_medio: 300000,
+        inicio: '09/2025',
+        previsao_entrega: '12/2027',
+        comissao_psm: 3.5,
+        destaque: false,
+        img: ''
+      },
       {
         nome: 'Reserva PSM',
         construtora: 'PSM Engenharia',
@@ -5376,24 +5413,6 @@ function pgLancamentosAno() {
         img: ''
       },
       {
-        nome: 'Edifício Aurora',
-        construtora: 'A.Yoshii',
-        bairro: 'Gleba Fazenda',
-        cidade: 'Londrina/PR',
-        status: 'vendas',
-        tipo: 'Comercial',
-        unidades: 60,
-        vendidas: 51,
-        vgv_total: 18000000,
-        vgv_vendido: 15300000,
-        ticket_medio: 300000,
-        inicio: '09/2025',
-        previsao_entrega: '12/2027',
-        comissao_psm: 3.5,
-        destaque: false,
-        img: ''
-      },
-      {
         nome: 'Residencial Monte Verde',
         construtora: 'Vanguard',
         bairro: 'Antares',
@@ -5410,36 +5429,19 @@ function pgLancamentosAno() {
         comissao_psm: 5.0,
         destaque: true,
         img: ''
-      },
-      {
-        nome: 'Business Tower',
-        construtora: 'PSM Engenharia',
-        bairro: 'Centro',
-        cidade: 'Londrina/PR',
-        status: 'esgotado',
-        tipo: 'Comercial',
-        unidades: 40,
-        vendidas: 40,
-        vgv_total: 16000000,
-        vgv_vendido: 16000000,
-        ticket_medio: 400000,
-        inicio: '06/2025',
-        previsao_entrega: '09/2027',
-        comissao_psm: 4.0,
-        destaque: false,
-        img: ''
       }
     ];
   }
   var data = S.lancData;
 
-  var statusLbl = {lancamento:'Em Lançamento', pre_lancamento:'Pré-Lançamento', vendas:'Em Vendas', futuro:'Futuro', esgotado:'Esgotado'};
+  var statusLbl = {lancamento:'Em Lan\u00e7amento', pre_lancamento:'Pr\u00e9-Lan\u00e7amento', vendas:'Em Vendas', futuro:'Futuro', esgotado:'Esgotado'};
   var statusColor = {lancamento:'var(--g)', pre_lancamento:'var(--b)', vendas:'var(--a)', futuro:'var(--pu)', esgotado:'var(--muted)'};
   var statusBg = {lancamento:'var(--g-bg)', pre_lancamento:'var(--b-bg)', vendas:'var(--a-bg)', futuro:'rgba(139,92,246,.1)', esgotado:'var(--cream3)'};
   var statusTx = {lancamento:'var(--g-tx)', pre_lancamento:'var(--b-tx)', vendas:'var(--a-tx)', futuro:'#7c3aed', esgotado:'var(--muted)'};
+  var statusIco = {lancamento:'\uD83D\uDE80', pre_lancamento:'\uD83D\uDCCB', vendas:'\uD83D\uDCB0', futuro:'\uD83D\uDD2E', esgotado:'\u2705'};
 
   // ── HEADER ──
-  var header = '<div class="phd"><h1>\uD83C\uDFD7\uFE0F Lançamentos do Ano</h1><p>Acompanhamento de empreendimentos 2026</p></div>';
+  var header = '<div class="phd"><h1>\uD83D\uDE80 Lan\u00e7amentos do Ano</h1><p>Linha do tempo dos empreendimentos 2025\u20132026</p></div>';
 
   // ── KPIs ──
   var totalUnid = data.reduce(function(a,l){return a+l.unidades;},0);
@@ -5453,71 +5455,99 @@ function pgLancamentosAno() {
     + Kpi('Unidades Totais', totalUnid, totalVend+' vendidas ('+Math.round(totalVend/totalUnid*100)+'%)', null, 'var(--g)')
     + Kpi('VGV Total', fmt(totalVGV), 'todos empreendimentos', null, 'var(--navy)')
     + Kpi('VGV Vendido', fmt(totalVGVVend), pS(totalVGVVend,totalVGV)+' do total', null, 'var(--g)')
-    + (isDiretor ? Kpi('Comissão Estimada', fmt(Math.round(totalVGVVend*0.045)), 'sobre vendas realizadas', null, 'var(--a)') : '')
+    + (isDiretor ? Kpi('Comiss\u00e3o Estimada', fmt(Math.round(totalVGVVend*0.045)), 'sobre vendas realizadas', null, 'var(--a)') : '')
     + '</div>';
 
-  // ── CARDS DE EMPREENDIMENTOS ──
-  var cards = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-bottom:16px">';
-  data.forEach(function(l) {
+  // ── TIMELINE ──
+  var tl = '<div style="position:relative;padding:0 0 0 40px;margin-bottom:24px">';
+  // Vertical line
+  tl += '<div style="position:absolute;left:18px;top:0;bottom:0;width:3px;background:linear-gradient(to bottom,var(--g),var(--b),var(--pu));border-radius:2px"></div>';
+
+  data.forEach(function(l, idx) {
     var pctVend = l.unidades > 0 ? Math.round(l.vendidas / l.unidades * 100) : 0;
     var barColor = pctVend >= 80 ? 'var(--g)' : pctVend >= 40 ? 'var(--a)' : 'var(--b)';
+    var dotColor = statusColor[l.status] || 'var(--muted)';
+    var ico = statusIco[l.status] || '\uD83C\uDFE2';
+    var isLast = idx === data.length - 1;
 
-    cards += '<div class="card" style="padding:0;overflow:hidden'+(l.destaque?';border:2px solid var(--gold)':'')+'">'
-      // Status badge + Destaque
-      + '<div style="padding:16px 16px 0;display:flex;justify-content:space-between;align-items:center">'
-      + '<span style="font-size:10px;padding:3px 10px;border-radius:6px;background:'+(statusBg[l.status]||'var(--cream2)')+';color:'+(statusTx[l.status]||'var(--muted)')+';font-weight:600">'+(statusLbl[l.status]||l.status)+'</span>'
-      + (l.destaque ? '<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(212,168,67,.12);color:var(--gold);font-weight:700">\u2B50 Destaque</span>' : '')
-      + '</div>'
-      // Nome e detalhes
-      + '<div style="padding:12px 16px 0">'
-      + '<div style="font-size:16px;font-weight:800;color:var(--navy)">' + l.nome + '</div>'
-      + '<div style="font-size:11px;color:var(--muted);margin-top:4px">' + l.tipo + ' \u2022 ' + l.bairro + ', ' + l.cidade + '</div>'
-      + '<div style="font-size:10px;color:var(--muted);margin-top:2px">Construtora: ' + l.construtora + '</div>'
-      + '</div>'
-      // Progress bar
-      + '<div style="padding:14px 16px">'
-      + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
-      + '<span style="font-size:11px;font-weight:600;color:var(--navy)">' + l.vendidas + '/' + l.unidades + ' unidades</span>'
-      + '<span style="font-size:11px;font-weight:700;color:' + barColor + '">' + pctVend + '%</span>'
-      + '</div>'
-      + '<div style="height:8px;background:var(--cream3);border-radius:4px;overflow:hidden">'
-      + '<div style="height:100%;width:' + pctVend + '%;background:' + barColor + ';border-radius:4px;transition:width .3s"></div>'
-      + '</div>'
-      + '</div>'
-      // Métricas
-      + '<div style="padding:0 16px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-      + '<div style="background:var(--cream2);border-radius:8px;padding:10px;text-align:center">'
-      + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">VGV Total</div>'
-      + '<div style="font-size:14px;font-weight:700;color:var(--navy)">' + fmt(l.vgv_total) + '</div>'
-      + '</div>'
-      + '<div style="background:var(--cream2);border-radius:8px;padding:10px;text-align:center">'
-      + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Ticket Médio</div>'
-      + '<div style="font-size:14px;font-weight:700;color:var(--navy)">' + fmt(l.ticket_medio) + '</div>'
-      + '</div>'
-      + (isDiretor ? '<div style="background:var(--cream2);border-radius:8px;padding:10px;text-align:center">'
-        + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Comissão PSM</div>'
-        + '<div style="font-size:14px;font-weight:700;color:var(--a-tx)">' + l.comissao_psm + '%</div>'
-        + '</div>'
-        + '<div style="background:var(--cream2);border-radius:8px;padding:10px;text-align:center">'
-        + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">VGV Vendido</div>'
-        + '<div style="font-size:14px;font-weight:700;color:var(--g-tx)">' + fmt(l.vgv_vendido) + '</div>'
-        + '</div>' : '')
-      + '</div>'
-      // Timeline
-      + '<div style="padding:0 16px 14px;display:flex;justify-content:space-between;font-size:10px;color:var(--muted)">'
-      + '<span>\uD83D\uDCC5 Início: ' + l.inicio + '</span>'
-      + '<span>\uD83C\uDFE0 Entrega: ' + l.previsao_entrega + '</span>'
-      + '</div>'
+    // Timeline node
+    tl += '<div style="position:relative;margin-bottom:'+(isLast?'0':'28')+'px">';
+
+    // Dot on the line
+    tl += '<div style="position:absolute;left:-31px;top:16px;width:26px;height:26px;border-radius:50%;background:var(--white);border:3px solid '+dotColor+';display:flex;align-items:center;justify-content:center;font-size:12px;z-index:1">'+ico+'</div>';
+
+    // Date label
+    tl += '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">'
+      + l.inicio + ' \u2192 ' + l.previsao_entrega
       + '</div>';
+
+    // Card
+    tl += '<div class="card" style="padding:0;overflow:hidden'+(l.destaque?';border:2px solid var(--gold)':'')+'">';
+
+    // Card header row
+    tl += '<div style="padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--cream3)">';
+    // Left: name + details
+    tl += '<div style="flex:1;min-width:0">';
+    tl += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+    tl += '<div style="font-size:16px;font-weight:800;color:var(--navy)">' + l.nome + '</div>';
+    tl += '<span style="font-size:10px;padding:2px 10px;border-radius:6px;background:'+(statusBg[l.status]||'var(--cream2)')+';color:'+(statusTx[l.status]||'var(--muted)')+';font-weight:600">'+(statusLbl[l.status]||l.status)+'</span>';
+    if (l.destaque) tl += '<span style="font-size:10px;padding:2px 8px;border-radius:6px;background:rgba(212,168,67,.12);color:var(--gold);font-weight:700">\u2B50 Destaque</span>';
+    tl += '</div>';
+    tl += '<div style="font-size:11px;color:var(--muted);margin-top:3px">' + l.tipo + ' \u2022 ' + l.bairro + ', ' + l.cidade + ' \u2022 ' + l.construtora + '</div>';
+    tl += '</div>';
+    // Right: percentage circle
+    tl += '<div style="flex-shrink:0;width:56px;height:56px;border-radius:50%;border:4px solid '+barColor+';display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--white)">';
+    tl += '<div style="font-size:15px;font-weight:800;color:'+barColor+';line-height:1">'+pctVend+'%</div>';
+    tl += '<div style="font-size:7px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">vendido</div>';
+    tl += '</div>';
+    tl += '</div>';
+
+    // Card body: metrics row
+    tl += '<div style="padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap">';
+    // Progress bar full width
+    tl += '<div style="width:100%;margin-bottom:4px">';
+    tl += '<div style="display:flex;justify-content:space-between;margin-bottom:3px">';
+    tl += '<span style="font-size:10px;font-weight:600;color:var(--navy)">' + l.vendidas + '/' + l.unidades + ' unidades</span>';
+    tl += '<span style="font-size:10px;font-weight:700;color:'+barColor+'">' + pctVend + '%</span>';
+    tl += '</div>';
+    tl += '<div style="height:6px;background:var(--cream3);border-radius:3px;overflow:hidden">';
+    tl += '<div style="height:100%;width:'+pctVend+'%;background:'+barColor+';border-radius:3px;transition:width .3s"></div>';
+    tl += '</div></div>';
+    // Metric chips
+    tl += '<div style="display:flex;gap:8px;flex-wrap:wrap;width:100%">';
+    tl += '<div style="flex:1;min-width:100px;background:var(--cream2);border-radius:8px;padding:8px 12px;text-align:center">';
+    tl += '<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">VGV Total</div>';
+    tl += '<div style="font-size:13px;font-weight:700;color:var(--navy)">' + fmt(l.vgv_total) + '</div>';
+    tl += '</div>';
+    tl += '<div style="flex:1;min-width:100px;background:var(--cream2);border-radius:8px;padding:8px 12px;text-align:center">';
+    tl += '<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Ticket M\u00e9dio</div>';
+    tl += '<div style="font-size:13px;font-weight:700;color:var(--navy)">' + fmt(l.ticket_medio) + '</div>';
+    tl += '</div>';
+    if (isDiretor) {
+      tl += '<div style="flex:1;min-width:100px;background:var(--cream2);border-radius:8px;padding:8px 12px;text-align:center">';
+      tl += '<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Comiss\u00e3o PSM</div>';
+      tl += '<div style="font-size:13px;font-weight:700;color:var(--a-tx)">' + l.comissao_psm + '%</div>';
+      tl += '</div>';
+      tl += '<div style="flex:1;min-width:100px;background:var(--cream2);border-radius:8px;padding:8px 12px;text-align:center">';
+      tl += '<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">VGV Vendido</div>';
+      tl += '<div style="font-size:13px;font-weight:700;color:var(--g-tx)">' + fmt(l.vgv_vendido) + '</div>';
+      tl += '</div>';
+    }
+    tl += '</div>';
+    tl += '</div>';
+
+    tl += '</div>'; // card
+    tl += '</div>'; // timeline node
   });
-  cards += '</div>';
+
+  tl += '</div>'; // timeline container
 
   // ── TABELA RESUMO (DIRETOR) ──
   var tabela = '';
   if (isDiretor) {
     tabela = '<div class="card"><div class="ctitle">\uD83D\uDCCA Resumo Financeiro</div>'
       + '<div class="tw"><table class="rank-tbl"><thead><tr>'
-      + '<th>Empreendimento</th><th>Status</th><th style="text-align:right">VGV Total</th><th style="text-align:right">VGV Vendido</th><th style="text-align:right">% Vendido</th><th style="text-align:right">Comissão Est.</th>'
+      + '<th>Empreendimento</th><th>Status</th><th style="text-align:right">VGV Total</th><th style="text-align:right">VGV Vendido</th><th style="text-align:right">% Vendido</th><th style="text-align:right">Comiss\u00e3o Est.</th>'
       + '</tr></thead><tbody>';
     data.forEach(function(l) {
       var pct = l.unidades > 0 ? Math.round(l.vendidas / l.unidades * 100) : 0;
@@ -5542,9 +5572,8 @@ function pgLancamentosAno() {
     tabela += '</tbody></table></div></div>';
   }
 
-  return header + kpis + cards + tabela;
+  return header + kpis + tl + tabela;
 }
-
 function pgSimVPL() {
   const u = S.user; if (!u) return '';
   if (!S.vpl) S.vpl = {
@@ -5614,7 +5643,7 @@ function pgSimVPL() {
     + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Dados do Imóvel</div>'
     + '<div style="display:flex;flex-direction:column;gap:8px">'
     + inp('Valor de Tabela (R$)', 'valorTabela', 1000)
-    + inp('Metragem (m²)', 'm2', 0.1, 'm²')
+    + inp('Metragem (m\u00B2)', 'm2', 0.1, 'm\u00B2')
     + inp('Taxa VPL (% a.a.)', 'taxa', 0.1, '% a.a.')
     + inp('Desconto sobre Tabela (%)', 'desconto', 0.5, '%')
     + '</div>'
@@ -5624,9 +5653,9 @@ function pgSimVPL() {
     + inp('Mensais (%)', 'pctMensal', 0.5, '%')
     + inp('Prazo Obra (meses)', 'prazoObra', 1, 'meses')
     + inp('Semestrais (%)', 'pctSemestral', 0.5, '%')
-    + inp('Nº Semestrais', 'numSemestrais', 1)
+    + inp('N\u00BA Semestrais', 'numSemestrais', 1)
     + inp('Anuais (%)', 'pctAnual', 0.5, '%')
-    + inp('Nº Anuais', 'numAnuais', 1)
+    + inp('N\u00BA Anuais', 'numAnuais', 1)
     + inp('Financiamento / Chaves (%)', 'pctFinanc', 0.5, '%')
     + '</div>'
     + (Math.abs(pctTotal - 100) > 0.1 ? '<div style="margin-top:8px;padding:8px;background:var(--r-bg);border-radius:8px;font-size:11px;color:var(--r-tx);font-weight:600">⚠️ Total do fluxo: '+pctTotal.toFixed(1)+'% (deve ser ~100%)</div>' : '')
@@ -5637,8 +5666,8 @@ function pgSimVPL() {
     + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">'
     + '<div class="card" style="padding:12px;text-align:center;background:linear-gradient(135deg,var(--navy),#1e3a5f);color:#fff"><div style="font-size:9px;opacity:.6;text-transform:uppercase;font-weight:600">Valor VPL</div><div style="font-size:14px;font-weight:800;margin-top:4px">'+fmt(totalPV)+'</div></div>'
     + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Desc. VPL</div><div style="font-size:20px;font-weight:800;color:var(--g-tx);margin-top:4px">'+descVPL+'%</div></div>'
-    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">R$/m² VPL</div><div style="font-size:20px;font-weight:800;color:var(--b-tx);margin-top:4px">R$ '+m2VPL+'</div></div>'
-    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">R$/m² Tabela</div><div style="font-size:20px;font-weight:800;color:var(--muted);margin-top:4px">R$ '+m2Tabela+'</div></div>'
+    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">R$/m\u00B2 VPL</div><div style="font-size:20px;font-weight:800;color:var(--b-tx);margin-top:4px">R$ '+m2VPL+'</div></div>'
+    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">R$/m\u00B2 Tabela</div><div style="font-size:20px;font-weight:800;color:var(--muted);margin-top:4px">R$ '+m2Tabela+'</div></div>'
     + '</div>'
     // Summary
     + '<div class="card" style="padding:14px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Resumo do Fluxo</div>'
@@ -5734,9 +5763,9 @@ function pgSimINCC() {
     + '<div style="display:flex;flex-direction:column;gap:8px">'
     + inp('Entrada (%)', 'pctEntrada', 0.5, '%')
     + inp('Mensais (%)', 'pctMensais', 0.5, '%')
-    + inp('Nº Mensais', 'numMensais', 1)
+    + inp('N\u00BA Mensais', 'numMensais', 1)
     + inp('Anuais (%)', 'pctAnuais', 0.5, '%')
-    + inp('Nº Anuais', 'numAnuais', 1)
+    + inp('N\u00BA Anuais', 'numAnuais', 1)
     + inp('Financiamento (%)', 'pctFinanc', 0.5, '%')
     + '</div></div>'
     // RIGHT
@@ -5819,7 +5848,7 @@ function pgSimRepasse() {
     + '<div style="display:flex;flex-direction:column;gap:8px">'
     + inp('Nome do Imóvel', 'nomeImovel', 0, '', 'text')
     + inp('Unidade', 'unidade', 0, '', 'text')
-    + inp('M²', 'm2', 0.1, 'm²')
+    + inp('M\u00B2', 'm2', 0.1, 'm\u00B2')
     + inp('Valor Original do Contrato', 'valorContrato', 1000)
     + '</div>'
     + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px">Saldo Atual</div>'
@@ -5827,9 +5856,9 @@ function pgSimRepasse() {
     + inp('Valor Pago Atualizado', 'valorPago', 1000)
     + inp('Saldo Devedor Atualizado', 'saldoDevedor', 1000)
     + inp('Prazo Restante (meses)', 'prazoRestante', 1, 'meses')
-    + inp('Nº Mensais Restantes', 'numMensais', 1)
+    + inp('N\u00BA Mensais Restantes', 'numMensais', 1)
     + inp('Valor das Mensais', 'valorMensais', 100)
-    + inp('Nº Balões', 'numBaloes', 1)
+    + inp('N\u00BA Balões', 'numBaloes', 1)
     + inp('Valor dos Balões', 'valorBaloes', 1000)
     + '</div>'
     + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px">Proposta de Venda</div>'
@@ -5854,7 +5883,7 @@ function pgSimRepasse() {
     + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Comissão ('+r.comissaoPct+'%)</div><div style="font-size:15px;font-weight:700;color:var(--a-tx)">'+fmt(comissao)+'</div></div>'
     + '<div style="padding:10px;background:'+(lucroVendedor>=0?'var(--g-bg)':'var(--r-bg)')+';border-radius:8px"><div style="font-size:10px;color:'+(lucroVendedor>=0?'var(--g-tx)':'var(--r-tx)')+'">Lucro Líquido</div><div style="font-size:15px;font-weight:700;color:'+(lucroVendedor>=0?'var(--g-tx)':'var(--r-tx)')+'">'+fmt(lucroVendedor)+'</div></div>'
     + '<div style="padding:10px;background:var(--b-bg);border-radius:8px"><div style="font-size:10px;color:var(--b-tx)">Renda % a.m.</div><div style="font-size:15px;font-weight:700;color:var(--b-tx)">'+rendaMensal+'%</div></div>'
-    + '<div style="padding:10px;background:var(--pu-bg);border-radius:8px"><div style="font-size:10px;color:var(--pu-tx)">R$/m² Novo</div><div style="font-size:15px;font-weight:700;color:var(--pu-tx)">R$ '+(r.m2>0?Math.round(r.novoValor/r.m2).toLocaleString('pt-BR'):'-')+'</div></div>'
+    + '<div style="padding:10px;background:var(--pu-bg);border-radius:8px"><div style="font-size:10px;color:var(--pu-tx)">R$/m\u00B2 Novo</div><div style="font-size:15px;font-weight:700;color:var(--pu-tx)">R$ '+(r.m2>0?Math.round(r.novoValor/r.m2).toLocaleString('pt-BR'):'-')+'</div></div>'
     + '</div></div>'
     // Fluxo proposta
     + '<div class="card" style="padding:16px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Fluxo da Proposta para Novo Comprador</div>'
@@ -6214,7 +6243,7 @@ function pgConfig() {
     + BROKERS.map(b => '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--cream3)">'
       + '<div style="width:34px;height:34px;border-radius:9px;background:'+b.color+';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff">'+b.ini+'</div>'
       + '<div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--navy)">'+b.name+'</div>'
-      + '<div style="font-size:10.5px;color:var(--muted)">'+b.frente+' · '+(USERS_BASE.find(u=>u.id===b.id)?.email||'sem login')+'</div></div>'
+      + '<div style="font-size:10.5px;color:var(--muted)">'+b.frente+' \u00B7 '+(USERS_BASE.find(u=>u.id===b.id)?.email||'sem login')+'</div></div>'
       + '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--cream2);color:var(--navy)">'+(USERS_BASE.find(u=>u.id===b.id)?.role||'—')+'</span>'
       + '</div>').join('')
     + '</div>'
@@ -6232,7 +6261,7 @@ function pgConfig() {
           + '</div></div>';
       }).join('')
     + '</div>'
-    + '<div class="card mt2"><div class="ctitle">💰 Comissão & VGC</div>'    + '<div style="padding:10px 0">'    + '<label class="flabel">% de Comissão sobre VGV (editável)</label>'    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'    + '<input class="finp" type="number" step="0.1" min="0" max="20" style="width:90px" value="'+(S.comissaoPct||6)+'"'    + ' oninput="S.comissaoPct=parseFloat(this.value)||6;render()">'    + '<span style="font-size:13px;color:var(--muted)">% → VGC Total: <strong>'+fmt(Math.round((S.vgvReal||0)*(S.comissaoPct||6)/100))+'</strong></span>'    + '</div>'    + '<div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">VGC por Canal</div>'    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'    + Object.entries(        VENDAS.reduce((acc,v)=>{          const c=v.ori||'Direto';          acc[c]=acc[c]||{wins:0,vgv:0};          acc[c].wins++; acc[c].vgv+=(v.valor||0);          return acc;        },{})      ).map(([canal,d])=>        '<div style="background:var(--cream2);border-radius:6px;padding:8px 12px">'        +'<div style="font-size:10px;font-weight:700;color:var(--muted)">'+canal+'</div>'        +'<div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(Math.round(d.vgv*(S.comissaoPct||6)/100))+'</div>'        +'<div style="font-size:10px;color:var(--muted)">'+d.wins+' vendas · VGV: '+fmt(d.vgv)+'</div>'        +'</div>').join('')    + '</div></div></div>'
+    + '<div class="card mt2"><div class="ctitle">💰 Comissão & VGC</div>'    + '<div style="padding:10px 0">'    + '<label class="flabel">% de Comissão sobre VGV (editável)</label>'    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'    + '<input class="finp" type="number" step="0.1" min="0" max="20" style="width:90px" value="'+(S.comissaoPct||6)+'"'    + ' oninput="S.comissaoPct=parseFloat(this.value)||6;render()">'    + '<span style="font-size:13px;color:var(--muted)">% → VGC Total: <strong>'+fmt(Math.round((S.vgvReal||0)*(S.comissaoPct||6)/100))+'</strong></span>'    + '</div>'    + '<div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">VGC por Canal</div>'    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'    + Object.entries(        VENDAS.reduce((acc,v)=>{          const c=v.ori||'Direto';          acc[c]=acc[c]||{wins:0,vgv:0};          acc[c].wins++; acc[c].vgv+=(v.valor||0);          return acc;        },{})      ).map(([canal,d])=>        '<div style="background:var(--cream2);border-radius:6px;padding:8px 12px">'        +'<div style="font-size:10px;font-weight:700;color:var(--muted)">'+canal+'</div>'        +'<div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(Math.round(d.vgv*(S.comissaoPct||6)/100))+'</div>'        +'<div style="font-size:10px;color:var(--muted)">'+d.wins+' vendas \u00B7 VGV: '+fmt(d.vgv)+'</div>'        +'</div>').join('')    + '</div></div></div>'
     // ── Planilhas One on One ──
     + '<div class="card mt2"><div class="ctitle">📊 Planilhas One on One (Google Sheets)</div>'
     + '<div style="font-size:11.5px;color:var(--muted);margin-bottom:14px;line-height:1.5">Vincule as planilhas Google Sheets de cada corretor. Cada campo aceita um link direto da planilha ou aba específica.</div>'
@@ -6292,7 +6321,7 @@ function pgConfig() {
     + '</select>'
     + '<button class="btn bp1 bsm" onclick="addBrokerManual()">+ Adicionar</button>'
     + '</div>'
-    + '<div style="font-size:10px;color:var(--muted)">Corretores ativos: '+BROKERS.length+' · O RD CRM sincroniza automaticamente — use este formulário apenas para adicionar manualmente.</div>'
+    + '<div style="font-size:10px;color:var(--muted)">Corretores ativos: '+BROKERS.length+' \u00B7 O RD CRM sincroniza automaticamente — use este formulário apenas para adicionar manualmente.</div>'
     + '</div>'
     // ── Conectores & API Keys ──
     + '<div class="card mt2" style="grid-column:1/-1"><div class="ctitle">🔗 Conectores & API Keys</div>'
@@ -6555,6 +6584,7 @@ function renderSB() {
       {id:'meu',       lbl:'Meu Dashboard',  ico:'👤',min:2},
       {id:'ranking',   lbl:'Ranking',        ico:'🏆',min:2},
       {id:'equipe',    lbl:'Visão Equipe',   ico:'👥',min:5},
+      {id:'lancamentos_ano', lbl:'Lan\u00e7amentos', ico:'\uD83D\uDE80',min:5},
     ]},
     {sec:'Frentes', items:[
       {id:'lancamento',lbl:'MAP / Assessoria',ico:'🏢',min:5},
@@ -6584,7 +6614,6 @@ function renderSB() {
       {id:'manual',    lbl:'Manual & Ética', ico:'📖',min:1},
       {id:'captacao',  lbl:'Captação',       ico:'📝',min:2},
       {id:'marketing', lbl:'Marketing',    ico:'📣',min:2},
-      {id:'lancamentos_ano', lbl:'Lançamentos',  ico:'🏗️',min:5},
       {id:'simvpl',    lbl:'Simulador VPL',  ico:'📐',min:2},
       {id:'simincc',   lbl:'Simulador INCC', ico:'📊',min:2},
       {id:'simrep',    lbl:'Sim. Repasse',   ico:'💰',min:2},
@@ -6617,7 +6646,7 @@ function renderSB() {
     + '</div>'
     + '<div class="sb-body">'+sections+'</div>'
     + '<div class="sb-foot" style="font-size:9px;color:rgba(255,255,255,.2);padding:10px 16px">'
-    + 'PSM OS v8 · '+(RD.lastSync?'Sync '+RD.lastSync.toLocaleTimeString('pt-BR'):'Aguardando sync')+'</div>'
+    + 'PSM OS v8 \u00B7 '+(RD.lastSync?'Sync '+RD.lastSync.toLocaleTimeString('pt-BR'):'Aguardando sync')+'</div>'
     + '</nav>';
 }
 
