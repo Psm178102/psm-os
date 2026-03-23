@@ -2709,20 +2709,72 @@ function pgMetas(){
 
 // ─── PAGE: EQUIPE ─────────────────────────────────────────────────────────────
 function pgEquipe(){
-  const f=S.eqFrente;
-  const list=f==='all'?BROKERS:BROKERS.filter(b=>b.frente===f);
-  const sorted=[...list].sort((a,b)=>b.vgv-a.vgv);
-  return '<div class="phd"><h1>Visão por Equipe</h1><p>'+METRICS.mes+'</p></div>'
-  +'<div style="display:flex;gap:6px;margin-bottom:13px;flex-wrap:wrap">'
-  +'<span class="chip'+(f==='all'?' on':'')+'" onclick="S.eqFrente=\'all\';render()">Todas</span>'
-  +Object.values(FRENTES).map(fr=>'<span class="chip'+(f===fr.id?' on':'')+'" onclick="S.eqFrente=\''+fr.id+'\';render()">'+fr.icon+' '+fr.label+'</span>').join('')
-  +'</div>'
-  +'<div class="card mb2"><div class="ctitle">Ranking por VGV</div>'
-  +svgBar(sorted.map(b=>({n:b.name.split(' ')[0],vgv:b.vgv,meta:b.meta})),'vgv','meta','n','#0f172a','#e2e8f0',150)
-  +'</div>'
-  +'<div class="card"><div class="tw"><table class="tbl"><thead><tr><th>#</th><th>Corretor</th><th>Frente</th><th>VGV</th><th>Meta</th><th>%</th><th>Vend.</th><th>Lig.</th><th>Agend.</th><th>Vis.</th><th>Prop.</th><th>CRM</th></tr></thead><tbody>'
-  +sorted.map((b,i)=>'<tr><td style="font-size:13px;text-align:center">'+medal(i)+'</td><td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:12px;font-weight:600">'+b.name+'</span></div></td><td>'+FTag(b.frente)+'</td><td class="tr">'+(b.vgv?fmt(b.vgv):'—')+'</td><td class="tr">'+fmt(b.meta)+'</td><td class="tr" style="color:'+(pN(b.vgv,b.meta)>=80?'var(--g-tx)':pN(b.vgv,b.meta)>=50?'var(--a-tx)':'var(--r-tx)')+';font-weight:700">'+pS(b.vgv,b.meta)+'</td><td class="tr">'+(b.vendas||0)+'</td><td class="tr">'+b.lig+'</td><td class="tr">'+b.agend+'</td><td class="tr">'+b.vis+'</td><td class="tr">'+b.prop+'</td><td style="min-width:85px">'+CrmBar(b.crm)+'</td></tr>').join('')
-  +'</tbody></table></div></div>';
+  const C = S.el;
+  const equipe = JSON.parse(localStorage.getItem('psm_equipe') || '[]');
+
+  C.innerHTML = `
+  <div style="max-width:1200px;margin:auto;padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span style="font-size:32px">\ud83d\udc65</span>
+      <div>
+        <h2 style="margin:0;color:#fff;font-size:22px">Equipe</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Gest\u00e3o e vis\u00e3o geral da equipe PSM</p>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px">
+      <div style="background:#1e293b;border-radius:12px;padding:20px;text-align:center">
+        <div style="color:#3b82f6;font-size:28px;font-weight:700">${equipe.length}</div>
+        <div style="color:#94a3b8;font-size:12px;margin-top:4px">Total Membros</div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;text-align:center">
+        <div style="color:#22c55e;font-size:28px;font-weight:700">${equipe.filter(m => m.status === 'ativo').length}</div>
+        <div style="color:#94a3b8;font-size:12px;margin-top:4px">Ativos</div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;text-align:center">
+        <div style="color:#f59e0b;font-size:28px;font-weight:700">${equipe.filter(m => m.cargo === 'corretor').length}</div>
+        <div style="color:#94a3b8;font-size:12px;margin-top:4px">Corretores</div>
+      </div>
+    </div>
+    <div style="background:#1e293b;border-radius:12px;padding:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="color:#fff;margin:0;font-size:16px">Membros da Equipe</h3>
+        <button id="eq-add" style="padding:6px 14px;border-radius:8px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-size:12px">+ Adicionar</button>
+      </div>
+      ${equipe.length === 0 ? '<p style="color:#64748b;font-size:13px">\u2014 Nenhum membro cadastrado</p>' : `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
+        ${equipe.map((m, i) => `
+        <div style="background:#0f172a;border-radius:10px;padding:16px;border-left:3px solid ${m.status === 'ativo' ? '#22c55e' : '#64748b'}">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <div style="color:#fff;font-size:14px;font-weight:600">${m.nome || '\u2014'}</div>
+              <div style="color:#94a3b8;font-size:12px;margin-top:4px">${m.cargo || '\u2014'}</div>
+              <div style="color:#64748b;font-size:11px;margin-top:4px">${m.email || ''} ${m.telefone ? '| ' + m.telefone : ''}</div>
+              <span style="padding:2px 8px;border-radius:4px;font-size:10px;margin-top:6px;display:inline-block;background:${m.status === 'ativo' ? '#1a3a2a' : '#1e293b'};color:${m.status === 'ativo' ? '#22c55e' : '#64748b'}">${m.status === 'ativo' ? 'Ativo' : 'Inativo'}</span>
+            </div>
+            <button onclick="removeEquipe(${i})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px">\u00d7</button>
+          </div>
+        </div>`).join('')}
+      </div>`}
+    </div>
+  </div>`;
+
+  C.querySelector('#eq-add').onclick = () => {
+    const nome = prompt('Nome do membro:');
+    if (!nome) return;
+    const cargo = prompt('Cargo (corretor/lider/backoffice/marketing):') || 'corretor';
+    const email = prompt('E-mail:') || '';
+    const telefone = prompt('Telefone:') || '';
+    const arr = JSON.parse(localStorage.getItem('psm_equipe') || '[]');
+    arr.push({ nome, cargo, email, telefone, status: 'ativo', dataEntrada: new Date().toISOString().split('T')[0] });
+    localStorage.setItem('psm_equipe', JSON.stringify(arr));
+    pgEquipe();
+  };
+  window.removeEquipe = function(i) {
+    const arr = JSON.parse(localStorage.getItem('psm_equipe') || '[]');
+    arr.splice(i, 1);
+    localStorage.setItem('psm_equipe', JSON.stringify(arr));
+    pgEquipe();
+  };
 }
 
 // ─── PAGE: CRM ────────────────────────────────────────────────────────────────
@@ -2974,6 +3026,232 @@ function pgForecast(){
   +((FUNIS.lancamento||[]).map?((FUNIS.lancamento||[])).map(s=>{const vE=OPPS.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).reduce((a,o)=>a+(o.vgv*s.w),0);return'<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:9.5px;font-weight:600;color:'+s.color+';width:120px;flex-shrink:0">'+s.label+'</span><div style="flex:1">'+PB(vE,1500000,s.color)+'</div><span style="font-size:11px;font-weight:700;color:var(--navy);width:65px;text-align:right;flex-shrink:0">'+(vE>0?fmt(Math.round(vE)):'—')+'</span><span style="font-size:9px;color:var(--muted);width:28px;text-align:right;flex-shrink:0">'+Math.round(s.w*100)+'%</span></div>';}).join(''):'')
   +'</div>';
 }
+
+// --- PAGE: WAR ROOM ---
+
+function pgWarRoom() {
+  const C = S.el;
+  const dados = JSON.parse(localStorage.getItem('psm_warroom') || '{}');
+  const concorrentes = JSON.parse(localStorage.getItem('psm_radar_data') || '[]');
+  C.innerHTML = `
+  <div style="max-width:1200px;margin:auto;padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span style="font-size:32px">\u2694\ufe0f</span>
+      <div>
+        <h2 style="margin:0;color:#fff;font-size:22px">War Room \u2014 Centro de Comando</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Painel estrat\u00e9gico para tomada de decis\u00e3o competitiva</p>
+      </div>
+    </div>
+    <div id="wr-tabs" style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+      <button class="wr-tab active" data-tab="visao" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;cursor:pointer;font-size:13px">\ud83c\udfaf Vis\u00e3o Geral</button>
+      <button class="wr-tab" data-tab="ameacas" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\u26a0\ufe0f Amea\u00e7as</button>
+      <button class="wr-tab" data-tab="oportunidades" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\ud83d\udca1 Oportunidades</button>
+      <button class="wr-tab" data-tab="acoes" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\ud83d\ude80 Plano de A\u00e7\u00e3o</button>
+    </div>
+    <div id="wr-content"></div>
+  </div>`;
+  const tabs = C.querySelectorAll('.wr-tab');
+  tabs.forEach(t => t.onclick = () => {
+    tabs.forEach(b => { b.style.background = 'transparent'; b.style.color = '#94a3b8'; b.classList.remove('active'); });
+    t.style.background = '#1e293b'; t.style.color = '#fff'; t.classList.add('active');
+    renderWRTab(t.dataset.tab);
+  });
+  function renderWRTab(tab) {
+    const box = C.querySelector('#wr-content');
+    if (tab === 'visao') {
+      const ameacas = (dados.ameacas || []).length;
+      const oportunidades = (dados.oportunidades || []).length;
+      const acoes = (dados.acoes || []).filter(a => a.status === 'done').length;
+      const totalAcoes = (dados.acoes || []).length;
+      box.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px">
+          <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #ef4444"><div style="color:#94a3b8;font-size:12px;margin-bottom:8px">AMEA\u00c7AS ATIVAS</div><div style="color:#ef4444;font-size:28px;font-weight:700">${ameacas}</div></div>
+          <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #22c55e"><div style="color:#94a3b8;font-size:12px;margin-bottom:8px">OPORTUNIDADES</div><div style="color:#22c55e;font-size:28px;font-weight:700">${oportunidades}</div></div>
+          <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #3b82f6"><div style="color:#94a3b8;font-size:12px;margin-bottom:8px">A\u00c7\u00d5ES</div><div style="color:#3b82f6;font-size:28px;font-weight:700">${acoes}/${totalAcoes}</div></div>
+          <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #f59e0b"><div style="color:#94a3b8;font-size:12px;margin-bottom:8px">CONCORRENTES</div><div style="color:#f59e0b;font-size:28px;font-weight:700">${concorrentes.length}</div></div>
+        </div>
+        <div style="background:#1e293b;border-radius:12px;padding:24px"><h3 style="color:#fff;margin:0 0 16px;font-size:16px">\ud83d\udcca Resumo Competitivo</h3><p style="color:#94a3b8;font-size:14px;line-height:1.7;margin:0">Utilize as abas para registrar amea\u00e7as, oportunidades e planos de a\u00e7\u00e3o. Os dados s\u00e3o integrados do Radar de Concorrentes.</p></div>`;
+    } else if (tab === 'ameacas') {
+      const items = dados.ameacas || [];
+      box.innerHTML = `<div style="background:#1e293b;border-radius:12px;padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="color:#fff;margin:0;font-size:16px">\u26a0\ufe0f Amea\u00e7as</h3>
+          <button id="wr-add-ameaca" style="padding:6px 14px;border-radius:8px;border:none;background:#ef4444;color:#fff;cursor:pointer;font-size:12px">+ Adicionar</button>
+        </div>
+        ${items.length === 0 ? '<p style="color:#64748b;font-size:13px">Nenhuma amea\u00e7a registrada.</p>' :
+          items.map((a, i) => `<div style="background:#0f172a;border-radius:8px;padding:14px;margin-bottom:8px;border-left:3px solid ${a.nivel === 'alta' ? '#ef4444' : a.nivel === 'media' ? '#f59e0b' : '#3b82f6'}">
+            <div style="display:flex;justify-content:space-between"><div><div style="color:#fff;font-size:14px;font-weight:600">${a.titulo || '\u2014'}</div><div style="color:#94a3b8;font-size:12px;margin-top:4px">${a.descricao || ''}</div><div style="color:#64748b;font-size:11px;margin-top:6px">Concorrente: ${a.concorrente || '\u2014'} | Prioridade: ${a.nivel || '\u2014'}</div></div>
+            <button onclick="(function(){const d=JSON.parse(localStorage.getItem('psm_warroom')||'{}');d.ameacas.splice(${i},1);localStorage.setItem('psm_warroom',JSON.stringify(d));document.querySelector('.wr-tab[data-tab=ameacas]').click()})()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:16px">\u00d7</button></div>
+          </div>`).join('')}
+      </div>`;
+      const addBtn = box.querySelector('#wr-add-ameaca');
+      if (addBtn) addBtn.onclick = () => {
+        const titulo = prompt('T\u00edtulo da amea\u00e7a:'); if (!titulo) return;
+        const descricao = prompt('Descri\u00e7\u00e3o:') || '';
+        const concorrente = prompt('Concorrente:') || '\u2014';
+        const nivel = prompt('N\u00edvel (alta/media/baixa):') || 'media';
+        const d = JSON.parse(localStorage.getItem('psm_warroom') || '{}');
+        if (!d.ameacas) d.ameacas = [];
+        d.ameacas.push({ titulo, descricao, concorrente, nivel, data: new Date().toISOString().split('T')[0] });
+        localStorage.setItem('psm_warroom', JSON.stringify(d));
+        document.querySelector('.wr-tab[data-tab=ameacas]').click();
+      };
+    } else if (tab === 'oportunidades') {
+      const items = dados.oportunidades || [];
+      box.innerHTML = `<div style="background:#1e293b;border-radius:12px;padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="color:#fff;margin:0;font-size:16px">\ud83d\udca1 Oportunidades</h3>
+          <button id="wr-add-oport" style="padding:6px 14px;border-radius:8px;border:none;background:#22c55e;color:#fff;cursor:pointer;font-size:12px">+ Adicionar</button>
+        </div>
+        ${items.length === 0 ? '<p style="color:#64748b;font-size:13px">Nenhuma oportunidade registrada.</p>' :
+          items.map((o, i) => `<div style="background:#0f172a;border-radius:8px;padding:14px;margin-bottom:8px;border-left:3px solid #22c55e">
+            <div style="display:flex;justify-content:space-between"><div><div style="color:#fff;font-size:14px;font-weight:600">${o.titulo || '\u2014'}</div><div style="color:#94a3b8;font-size:12px;margin-top:4px">${o.descricao || ''}</div><div style="color:#64748b;font-size:11px;margin-top:6px">Potencial: ${o.potencial || '\u2014'} | Prazo: ${o.prazo || '\u2014'}</div></div>
+            <button onclick="(function(){const d=JSON.parse(localStorage.getItem('psm_warroom')||'{}');d.oportunidades.splice(${i},1);localStorage.setItem('psm_warroom',JSON.stringify(d));document.querySelector('.wr-tab[data-tab=oportunidades]').click()})()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:16px">\u00d7</button></div>
+          </div>`).join('')}
+      </div>`;
+      const addBtn = box.querySelector('#wr-add-oport');
+      if (addBtn) addBtn.onclick = () => {
+        const titulo = prompt('T\u00edtulo:'); if (!titulo) return;
+        const descricao = prompt('Descri\u00e7\u00e3o:') || '';
+        const potencial = prompt('Potencial (alto/medio/baixo):') || 'medio';
+        const prazo = prompt('Prazo:') || '\u2014';
+        const d = JSON.parse(localStorage.getItem('psm_warroom') || '{}');
+        if (!d.oportunidades) d.oportunidades = [];
+        d.oportunidades.push({ titulo, descricao, potencial, prazo, data: new Date().toISOString().split('T')[0] });
+        localStorage.setItem('psm_warroom', JSON.stringify(d));
+        document.querySelector('.wr-tab[data-tab=oportunidades]').click();
+      };
+    } else if (tab === 'acoes') {
+      const items = dados.acoes || [];
+      box.innerHTML = `<div style="background:#1e293b;border-radius:12px;padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="color:#fff;margin:0;font-size:16px">\ud83d\ude80 Plano de A\u00e7\u00e3o</h3>
+          <button id="wr-add-acao" style="padding:6px 14px;border-radius:8px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-size:12px">+ Adicionar</button>
+        </div>
+        ${items.length === 0 ? '<p style="color:#64748b;font-size:13px">Nenhuma a\u00e7\u00e3o registrada.</p>' :
+          items.map((a, i) => `<div style="background:#0f172a;border-radius:8px;padding:14px;margin-bottom:8px;border-left:3px solid ${a.status === 'done' ? '#22c55e' : a.status === 'doing' ? '#f59e0b' : '#64748b'}">
+            <div style="display:flex;justify-content:space-between;align-items:start">
+              <div style="flex:1"><div style="color:#fff;font-size:14px;font-weight:600">${a.titulo || '\u2014'}</div><div style="color:#94a3b8;font-size:12px;margin-top:4px">${a.descricao || ''}</div><div style="color:#64748b;font-size:11px;margin-top:6px">Resp: ${a.responsavel || '\u2014'} | Prazo: ${a.prazo || '\u2014'} | ${a.status === 'done' ? '\u2705 Conclu\u00eddo' : a.status === 'doing' ? '\ud83d\udfe1 Fazendo' : '\u23f3 Pendente'}</div></div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <select onchange="(function(s){const d=JSON.parse(localStorage.getItem('psm_warroom')||'{}');d.acoes[${i}].status=s;localStorage.setItem('psm_warroom',JSON.stringify(d));document.querySelector('.wr-tab[data-tab=acoes]').click()})(this.value)" style="background:#1e293b;color:#fff;border:1px solid #334155;border-radius:4px;padding:2px 6px;font-size:11px">
+                  <option value="todo" ${a.status === 'todo' ? 'selected' : ''}>Pendente</option>
+                  <option value="doing" ${a.status === 'doing' ? 'selected' : ''}>Fazendo</option>
+                  <option value="done" ${a.status === 'done' ? 'selected' : ''}>Conclu\u00eddo</option>
+                </select>
+                <button onclick="(function(){const d=JSON.parse(localStorage.getItem('psm_warroom')||'{}');d.acoes.splice(${i},1);localStorage.setItem('psm_warroom',JSON.stringify(d));document.querySelector('.wr-tab[data-tab=acoes]').click()})()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:16px">\u00d7</button>
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>`;
+      const addBtn = box.querySelector('#wr-add-acao');
+      if (addBtn) addBtn.onclick = () => {
+        const titulo = prompt('T\u00edtulo da a\u00e7\u00e3o:'); if (!titulo) return;
+        const descricao = prompt('Descri\u00e7\u00e3o:') || '';
+        const responsavel = prompt('Respons\u00e1vel:') || '\u2014';
+        const prazo = prompt('Prazo:') || '\u2014';
+        const d = JSON.parse(localStorage.getItem('psm_warroom') || '{}');
+        if (!d.acoes) d.acoes = [];
+        d.acoes.push({ titulo, descricao, responsavel, prazo, status: 'todo', data: new Date().toISOString().split('T')[0] });
+        localStorage.setItem('psm_warroom', JSON.stringify(d));
+        document.querySelector('.wr-tab[data-tab=acoes]').click();
+      };
+    }
+  }
+  renderWRTab('visao');
+}
+
+// --- PAGE: WAR ARENA ---
+
+function pgWarArena() {
+  const C = S.el;
+  const concorrentes = JSON.parse(localStorage.getItem('psm_radar_data') || '[]');
+  C.innerHTML = `
+  <div style="max-width:1200px;margin:auto;padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span style="font-size:32px">\ud83c\udfdf\ufe0f</span>
+      <div>
+        <h2 style="margin:0;color:#fff;font-size:22px">War Arena \u2014 Compara\u00e7\u00e3o Direta</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Compare concorrentes lado a lado</p>
+      </div>
+    </div>
+    <div style="background:#1e293b;border-radius:12px;padding:24px;margin-bottom:20px">
+      <h3 style="color:#fff;margin:0 0 16px;font-size:15px">Selecione dois concorrentes</h3>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:end">
+        <div style="flex:1;min-width:200px">
+          <label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Concorrente A</label>
+          <select id="wa-sel-a" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px">
+            <option value="">Selecione...</option>
+            ${concorrentes.map((c, i) => '<option value="' + i + '">' + (c.nome || c.name || '\u2014') + '</option>').join('')}
+          </select>
+        </div>
+        <div style="color:#f59e0b;font-size:20px;padding-bottom:8px">VS</div>
+        <div style="flex:1;min-width:200px">
+          <label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Concorrente B</label>
+          <select id="wa-sel-b" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px">
+            <option value="">Selecione...</option>
+            ${concorrentes.map((c, i) => '<option value="' + i + '">' + (c.nome || c.name || '\u2014') + '</option>').join('')}
+          </select>
+        </div>
+        <button id="wa-compare" style="padding:10px 24px;border-radius:8px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-size:13px;font-weight:600">\u2694\ufe0f Comparar</button>
+      </div>
+    </div>
+    <div id="wa-result"></div>
+  </div>`;
+  C.querySelector('#wa-compare').onclick = () => {
+    const idxA = C.querySelector('#wa-sel-a').value;
+    const idxB = C.querySelector('#wa-sel-b').value;
+    if (idxA === '' || idxB === '') return alert('Selecione dois concorrentes.');
+    if (idxA === idxB) return alert('Selecione concorrentes diferentes.');
+    const a = concorrentes[parseInt(idxA)];
+    const b = concorrentes[parseInt(idxB)];
+    const dims = [
+      { label: 'Seguidores', key: 'seguidores', fmt: v => v ? Number(v).toLocaleString('pt-BR') : '\u2014' },
+      { label: 'Engajamento', key: 'engajamento', fmt: v => v ? v + '%' : '\u2014' },
+      { label: 'Pre\u00e7o M\u00e9dio', key: 'preco_medio', fmt: v => v ? 'R$ ' + Number(v).toLocaleString('pt-BR') : '\u2014' },
+      { label: 'Market Share', key: 'market_share', fmt: v => v ? v + '%' : '\u2014' },
+      { label: 'Nota Google', key: 'nota_google', fmt: v => v || '\u2014' },
+      { label: 'Im\u00f3veis Ativos', key: 'imoveis_ativos', fmt: v => v || '\u2014' },
+      { label: 'Posts/Sem', key: 'freq_posts', fmt: v => v || '\u2014' },
+      { label: 'Tier', key: 'tier', fmt: v => v || '\u2014' }
+    ];
+    function win(k, va, vb) { const na = parseFloat(va)||0, nb = parseFloat(vb)||0; if(na===0&&nb===0) return 'tie'; return na > nb ? 'a' : nb > na ? 'b' : 'tie'; }
+    let wA = 0, wB = 0;
+    dims.forEach(d => { const w = win(d.key, a[d.key], b[d.key]); if(w==='a') wA++; if(w==='b') wB++; });
+    const res = C.querySelector('#wa-result');
+    res.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:0;margin-bottom:24px">
+        <div style="background:${wA>=wB?'#1a3a2a':'#1e293b'};border-radius:12px 0 0 12px;padding:20px;text-align:center">
+          <div style="color:#fff;font-size:16px;font-weight:700">${a.nome||a.name||'\u2014'}</div>
+          <div style="color:${wA>=wB?'#22c55e':'#94a3b8'};font-size:28px;font-weight:800;margin-top:8px">${wA}</div>
+          <div style="color:#94a3b8;font-size:11px">vit\u00f3rias</div>
+        </div>
+        <div style="background:#0f172a;display:flex;align-items:center;justify-content:center;padding:0 16px"><span style="color:#f59e0b;font-size:18px;font-weight:800">VS</span></div>
+        <div style="background:${wB>=wA?'#1a3a2a':'#1e293b'};border-radius:0 12px 12px 0;padding:20px;text-align:center">
+          <div style="color:#fff;font-size:16px;font-weight:700">${b.nome||b.name||'\u2014'}</div>
+          <div style="color:${wB>=wA?'#22c55e':'#94a3b8'};font-size:28px;font-weight:800;margin-top:8px">${wB}</div>
+          <div style="color:#94a3b8;font-size:11px">vit\u00f3rias</div>
+        </div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#0f172a">
+            <th style="padding:12px 16px;text-align:left;color:#94a3b8;font-size:12px">${a.nome||a.name||'\u2014'}</th>
+            <th style="padding:12px 16px;text-align:center;color:#94a3b8;font-size:12px">DIMENS\u00c3O</th>
+            <th style="padding:12px 16px;text-align:right;color:#94a3b8;font-size:12px">${b.nome||b.name||'\u2014'}</th>
+          </tr></thead>
+          <tbody>${dims.map(d => {
+            const w = win(d.key, a[d.key], b[d.key]);
+            return `<tr style="border-top:1px solid #334155">
+              <td style="padding:10px 16px;text-align:left;color:${w==='a'?'#22c55e':'#fff'};font-size:13px;font-weight:${w==='a'?'700':'400'}">${d.fmt(a[d.key])} ${w==='a'?'\u2705':''}</td>
+              <td style="padding:10px 16px;text-align:center;color:#94a3b8;font-size:12px">${d.label}</td>
+              <td style="padding:10px 16px;text-align:right;color:${w==='b'?'#22c55e':'#fff'};font-size:13px;font-weight:${w==='b'?'700':'400'}">${w==='b'?'\u2705 ':''}${d.fmt(b[d.key])}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+  };
+}
+
 
 // ─── PAGE: OKRs ───────────────────────────────────────────────────────────────
 
@@ -5487,24 +5765,84 @@ function pgManual() {
 
 // ─── CAPTAÇÃO DE IMÓVEIS ──────────────────────────────────────────────────────
 function pgCaptacao() {
-  var u = S.user; if (!u) return '';
-  var FORM_VENDA = 'https://docs.google.com/forms/d/e/1FAIpQLSdcLofTJAEKYnCUVMnuvKD7QJFB_D8SXfcahYYmeCFhy5op0g/viewform?embedded=true';
-  var FORM_LOCACAO = FORM_VENDA;
-  var captTab = S.captTab || 'venda';
-  var embedUrl = captTab === 'venda' ? FORM_VENDA : FORM_LOCACAO;
-  var openUrl = embedUrl.replace('?embedded=true', '');
-  return '<div class="phd"><h1>\uD83D\uDCDD Captação de Imóveis</h1><p>Fichas online para captação de imóveis para venda e locação</p></div>'
-    + '<div class="card mb2" style="padding:6px;display:flex;gap:4px">'
-    + '<button class="btn '+(captTab==='venda'?'bp1':'bout')+'" style="flex:1;font-size:13px" onclick="S.captTab=\'venda\';render()">\uD83C\uDFE0 Captação para VENDA</button>'
-    + '<button class="btn '+(captTab==='locacao'?'bp1':'bout')+'" style="flex:1;font-size:13px" onclick="S.captTab=\'locacao\';render()">\uD83C\uDFD8\uFE0F Captação para LOCAÇÃO</button></div>'
-    + '<div class="card mb2" style="padding:12px 16px;display:flex;align-items:center;gap:10px;background:'+(captTab==='venda'?'var(--b-bg)':'var(--pu-bg)')+';">'
-    + '<span style="font-size:20px">'+(captTab==='venda'?'\uD83C\uDFE0':'\uD83C\uDFD8\uFE0F')+'</span>'
-    + '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:'+(captTab==='venda'?'var(--b-tx)':'var(--pu-tx)')+'">Ficha de Captação — '+(captTab==='venda'?'Imóvel para Venda':'Imóvel para Locação')+'</div>'
-    + '<div style="font-size:11px;color:var(--muted)">Preencha o formulário abaixo com os dados do imóvel captado</div></div>'
-    + '<a href="'+openUrl+'" target="_blank" rel="noreferrer" class="btn bout bsm" style="text-decoration:none;font-size:11px;flex-shrink:0">\u2197 Abrir em nova aba</a></div>'
-    + '<div class="card" style="padding:0;overflow:hidden;border-radius:var(--radius)">'
-    + '<iframe src="'+embedUrl+'" style="width:100%;height:calc(100vh - 320px);min-height:500px;border:none" loading="lazy" allow="autoplay"></iframe></div>'
-    + srPerformanceFooter();
+  const C = S.el;
+  const captacoes = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
+  const total = captacoes.length;
+  const ativas = captacoes.filter(c => c.status === 'ativo').length;
+  const vendidas = captacoes.filter(c => c.status === 'vendido').length;
+
+  C.innerHTML = `
+  <div style="max-width:1200px;margin:auto;padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span style="font-size:32px">\ud83c\udfe0</span>
+      <div>
+        <h2 style="margin:0;color:#fff;font-size:22px">Capta\u00e7\u00e3o de Im\u00f3veis</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Controle de im\u00f3veis captados</p>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #3b82f6">
+        <div style="color:#94a3b8;font-size:12px">TOTAL CAPTADOS</div>
+        <div style="color:#3b82f6;font-size:28px;font-weight:700;margin-top:6px">${total}</div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #22c55e">
+        <div style="color:#94a3b8;font-size:12px">ATIVOS</div>
+        <div style="color:#22c55e;font-size:28px;font-weight:700;margin-top:6px">${ativas}</div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #f59e0b">
+        <div style="color:#94a3b8;font-size:12px">VENDIDOS</div>
+        <div style="color:#f59e0b;font-size:28px;font-weight:700;margin-top:6px">${vendidas}</div>
+      </div>
+    </div>
+    <div style="background:#1e293b;border-radius:12px;padding:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="color:#fff;margin:0;font-size:16px">Im\u00f3veis Captados</h3>
+        <button id="cap-add" style="padding:6px 14px;border-radius:8px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-size:12px">+ Nova Capta\u00e7\u00e3o</button>
+      </div>
+      ${captacoes.length === 0 ? '<p style="color:#64748b;font-size:13px">\u2014 Nenhum im\u00f3vel captado</p>' : `
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:2px solid #334155">
+          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">DATA</th>
+          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">IM\u00d3VEL</th>
+          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">TIPO</th>
+          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">BAIRRO</th>
+          <th style="padding:10px;text-align:right;color:#94a3b8;font-size:11px">VALOR</th>
+          <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">STATUS</th>
+          <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">A\u00c7\u00c3O</th>
+        </tr></thead>
+        <tbody>
+          ${captacoes.map((c, i) => `
+          <tr style="border-bottom:1px solid #334155">
+            <td style="padding:8px 10px;color:#64748b;font-size:12px">${c.data || '\u2014'}</td>
+            <td style="padding:8px 10px;color:#fff;font-size:12px">${c.nome || '\u2014'}</td>
+            <td style="padding:8px 10px;color:#94a3b8;font-size:12px">${c.tipo || '\u2014'}</td>
+            <td style="padding:8px 10px;color:#94a3b8;font-size:12px">${c.bairro || '\u2014'}</td>
+            <td style="padding:8px 10px;text-align:right;color:#22c55e;font-size:12px;font-weight:600">${c.valor ? 'R$ ' + Number(c.valor).toLocaleString('pt-BR') : '\u2014'}</td>
+            <td style="padding:8px 10px;text-align:center"><span style="padding:3px 8px;border-radius:4px;font-size:10px;background:${c.status === 'vendido' ? '#1a3a2a' : '#0f2a4a'};color:${c.status === 'vendido' ? '#22c55e' : '#3b82f6'}">${c.status || 'ativo'}</span></td>
+            <td style="padding:8px 10px;text-align:center"><button onclick="removeCaptacao(${i})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px">\u00d7</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  </div>`;
+
+  C.querySelector('#cap-add').onclick = () => {
+    const nome = prompt('Nome/Identifica\u00e7\u00e3o do im\u00f3vel:');
+    if (!nome) return;
+    const tipo = prompt('Tipo (apartamento/casa/terreno/comercial):') || 'apartamento';
+    const bairro = prompt('Bairro:') || '\u2014';
+    const valor = prompt('Valor (R$):') || '0';
+    const arr = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
+    arr.push({ nome, tipo, bairro, valor: parseFloat(valor) || 0, status: 'ativo', data: new Date().toISOString().split('T')[0] });
+    localStorage.setItem('psm_captacao', JSON.stringify(arr));
+    pgCaptacao();
+  };
+  window.removeCaptacao = function(i) {
+    const arr = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
+    arr.splice(i, 1);
+    localStorage.setItem('psm_captacao', JSON.stringify(arr));
+    pgCaptacao();
+  };
 }
 
 
@@ -5709,112 +6047,335 @@ function pgMarketing() {
 
 // ─── PAGE: FLUXO DE CAIXA ────────────────────────────────────────────────
 function pgFluxocaixa() {
-  var u = S.user; if (!u) return '';
-  var header = '<div class="phd"><h1>💰 Fluxo de Caixa</h1><p>Gestão de entradas, saídas e saldo em caixa</p></div>';
-  var emptyContent = '<div style="text-align:center;padding:60px 40px;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.1)">'
-    +'<div style="font-size:48px;margin-bottom:16px">💰</div>'
-    +'<div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:8px">Módulo em Desenvolvimento</div>'
-    +'<div style="font-size:13px;color:var(--muted)">O fluxo de caixa será preenchido com dados reais quando integrado ao sistema contábil.</div>'
-  +'</div>';
-  return header + '<div class="cards-wrap">'
-    +'<div class="card mb2">'
-      +'<div style="display:flex;gap:16px;margin-bottom:20px">'
-        +'<div style="flex:1;padding:16px;background:var(--cream2);border-radius:12px">'
-          +'<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">ENTRADAS</div>'
-          +'<div style="font-size:24px;font-weight:800;color:var(--g);margin-top:8px">—</div>'
-        +'</div>'
-        +'<div style="flex:1;padding:16px;background:var(--cream2);border-radius:12px">'
-          +'<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">SAÍDAS</div>'
-          +'<div style="font-size:24px;font-weight:800;color:var(--r);margin-top:8px">—</div>'
-        +'</div>'
-        +'<div style="flex:1;padding:16px;background:var(--cream2);border-radius:12px">'
-          +'<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">SALDO</div>'
-          +'<div style="font-size:24px;font-weight:800;color:var(--navy);margin-top:8px">—</div>'
-        +'</div>'
-      +'</div>'
-      +emptyContent
-    +'</div>'
-  +'</div>';
+  const C = S.el;
+  const dados = JSON.parse(localStorage.getItem('psm_fluxocaixa') || '{"entradas":[],"saidas":[]}');
+  function calcTotal(arr) { return arr.reduce((s, i) => s + (parseFloat(i.valor) || 0), 0); }
+  const totalEntradas = calcTotal(dados.entradas || []);
+  const totalSaidas = calcTotal(dados.saidas || []);
+  const saldo = totalEntradas - totalSaidas;
+
+  C.innerHTML = `
+  <div style="max-width:1200px;margin:auto;padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span style="font-size:32px">\ud83d\udcb5</span>
+      <div>
+        <h2 style="margin:0;color:#fff;font-size:22px">Fluxo de Caixa</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Controle de entradas e sa\u00eddas financeiras</p>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px">
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #22c55e">
+        <div style="color:#94a3b8;font-size:12px;margin-bottom:8px">ENTRADAS</div>
+        <div style="color:#22c55e;font-size:24px;font-weight:700">R$ ${totalEntradas.toLocaleString('pt-BR', {minimumFractionDigits:2})}</div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #ef4444">
+        <div style="color:#94a3b8;font-size:12px;margin-bottom:8px">SA\u00cdDAS</div>
+        <div style="color:#ef4444;font-size:24px;font-weight:700">R$ ${totalSaidas.toLocaleString('pt-BR', {minimumFractionDigits:2})}</div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid ${saldo >= 0 ? '#3b82f6' : '#ef4444'}">
+        <div style="color:#94a3b8;font-size:12px;margin-bottom:8px">SALDO</div>
+        <div style="color:${saldo >= 0 ? '#3b82f6' : '#ef4444'};font-size:24px;font-weight:700">R$ ${saldo.toLocaleString('pt-BR', {minimumFractionDigits:2})}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+      <div style="background:#1e293b;border-radius:12px;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h3 style="color:#22c55e;margin:0;font-size:15px">\u2b06\ufe0f Entradas</h3>
+          <button onclick="addFluxo('entradas')" style="padding:5px 12px;border-radius:6px;border:none;background:#22c55e;color:#fff;cursor:pointer;font-size:11px">+ Novo</button>
+        </div>
+        ${(dados.entradas || []).length === 0 ? '<p style="color:#64748b;font-size:12px">\u2014</p>' :
+          (dados.entradas || []).map((e, i) => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:#0f172a;border-radius:6px;margin-bottom:6px">
+            <div><div style="color:#fff;font-size:12px">${e.descricao || '\u2014'}</div><div style="color:#64748b;font-size:10px">${e.data || '\u2014'} | ${e.categoria || ''}</div></div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="color:#22c55e;font-size:13px;font-weight:600">R$ ${(parseFloat(e.valor)||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+              <button onclick="removeFluxo('entradas',${i})" style="background:none;border:none;color:#ef4444;cursor:pointer">\u00d7</button>
+            </div>
+          </div>`).join('')}
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h3 style="color:#ef4444;margin:0;font-size:15px">\u2b07\ufe0f Sa\u00eddas</h3>
+          <button onclick="addFluxo('saidas')" style="padding:5px 12px;border-radius:6px;border:none;background:#ef4444;color:#fff;cursor:pointer;font-size:11px">+ Novo</button>
+        </div>
+        ${(dados.saidas || []).length === 0 ? '<p style="color:#64748b;font-size:12px">\u2014</p>' :
+          (dados.saidas || []).map((e, i) => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:#0f172a;border-radius:6px;margin-bottom:6px">
+            <div><div style="color:#fff;font-size:12px">${e.descricao || '\u2014'}</div><div style="color:#64748b;font-size:10px">${e.data || '\u2014'} | ${e.categoria || ''}</div></div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="color:#ef4444;font-size:13px;font-weight:600">R$ ${(parseFloat(e.valor)||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+              <button onclick="removeFluxo('saidas',${i})" style="background:none;border:none;color:#ef4444;cursor:pointer">\u00d7</button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+  window.addFluxo = function(tipo) {
+    const desc = prompt('Descri\u00e7\u00e3o:'); if (!desc) return;
+    const valor = prompt('Valor (R$):'); if (!valor) return;
+    const categoria = prompt('Categoria:') || 'Geral';
+    const d = JSON.parse(localStorage.getItem('psm_fluxocaixa') || '{"entradas":[],"saidas":[]}');
+    if (!d[tipo]) d[tipo] = [];
+    d[tipo].push({ descricao: desc, valor: parseFloat(valor) || 0, categoria, data: new Date().toISOString().split('T')[0] });
+    localStorage.setItem('psm_fluxocaixa', JSON.stringify(d));
+    pgFluxocaixa();
+  };
+  window.removeFluxo = function(tipo, idx) {
+    const d = JSON.parse(localStorage.getItem('psm_fluxocaixa') || '{"entradas":[],"saidas":[]}');
+    if (d[tipo]) { d[tipo].splice(idx, 1); localStorage.setItem('psm_fluxocaixa', JSON.stringify(d)); }
+    pgFluxocaixa();
+  };
 }
 
 // ─── PAGE: DRE ────────────────────────────────────────────────
 function pgDre() {
-  var u = S.user; if (!u) return '';
-  var header = '<div class="phd"><h1>📊 DRE (Demonstrativo de Resultados)</h1><p>Receita bruta, deduções, custos e lucro operacional</p></div>';
-  var emptyContent = '<div style="text-align:center;padding:60px 40px;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.1)">'
-    +'<div style="font-size:48px;margin-bottom:16px">📊</div>'
-    +'<div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:8px">Módulo em Desenvolvimento</div>'
-    +'<div style="font-size:13px;color:var(--muted)">O DRE será preenchido com dados reais quando integrado ao sistema de gestão financeira.</div>'
-  +'</div>';
-  return header + '<div class="cards-wrap">'
-    +'<div class="card mb2">'
-      +'<div style="display:flex;flex-direction:column;gap:12px">'
-        +'<div style="display:flex;justify-content:space-between;padding:12px;background:var(--cream2);border-radius:8px"><span style="font-weight:600;color:var(--navy)">Receita Bruta</span><span style="font-weight:700;color:var(--navy)">—</span></div>'
-        +'<div style="display:flex;justify-content:space-between;padding:12px;background:var(--cream2);border-radius:8px"><span style="font-weight:600;color:var(--navy)">Deduções</span><span style="font-weight:700;color:var(--r)">—</span></div>'
-        +'<div style="display:flex;justify-content:space-between;padding:12px;background:var(--navy);border-radius:8px;border:1px solid var(--cream3)"><span style="font-weight:600;color:#fff">Receita Líquida</span><span style="font-weight:700;color:#fff">—</span></div>'
-        +'<div style="display:flex;justify-content:space-between;padding:12px;background:var(--cream2);border-radius:8px"><span style="font-weight:600;color:var(--navy)">Custos Operacionais</span><span style="font-weight:700;color:var(--r)">—</span></div>'
-        +'<div style="display:flex;justify-content:space-between;padding:12px;background:var(--cream2);border-radius:8px"><span style="font-weight:600;color:var(--navy)">Despesas</span><span style="font-weight:700;color:var(--r)">—</span></div>'
-        +'<div style="display:flex;justify-content:space-between;padding:12px;background:var(--navy);border-radius:8px;border:1px solid var(--cream3)"><span style="font-weight:600;color:#fff">Lucro Operacional</span><span style="font-weight:700;color:#fff">—</span></div>'
-      +'</div>'
-    +'</div>'
-  +'</div>';
+  const C = S.el;
+  const dados = JSON.parse(localStorage.getItem('psm_dre') || '{}');
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const mesAtual = new Date().getMonth();
+  const categorias = [
+    { grupo: 'RECEITAS', color: '#22c55e', items: [
+      { key: 'receita_vendas', label: 'Receita com Vendas' },
+      { key: 'receita_locacao', label: 'Receita com Loca\u00e7\u00e3o' },
+      { key: 'receita_outras', label: 'Outras Receitas' }
+    ]},
+    { grupo: 'CUSTOS', color: '#ef4444', items: [
+      { key: 'custo_pessoal', label: 'Pessoal' },
+      { key: 'custo_marketing', label: 'Marketing' },
+      { key: 'custo_operacional', label: 'Operacional' },
+      { key: 'custo_tecnologia', label: 'Tecnologia' },
+      { key: 'custo_outros', label: 'Outros Custos' }
+    ]},
+    { grupo: 'IMPOSTOS', color: '#f59e0b', items: [
+      { key: 'imposto_iss', label: 'ISS' },
+      { key: 'imposto_ir', label: 'IR' },
+      { key: 'imposto_outros', label: 'Outros Impostos' }
+    ]}
+  ];
+  function getVal(key) { return parseFloat(dados[key]) || 0; }
+  const totalReceita = categorias[0].items.reduce((s, i) => s + getVal(i.key), 0);
+  const totalCusto = categorias[1].items.reduce((s, i) => s + getVal(i.key), 0);
+  const totalImposto = categorias[2].items.reduce((s, i) => s + getVal(i.key), 0);
+  const lucro = totalReceita - totalCusto - totalImposto;
+  const margem = totalReceita > 0 ? ((lucro / totalReceita) * 100).toFixed(1) : '\u2014';
+  C.innerHTML = `
+  <div style="max-width:1200px;margin:auto;padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span style="font-size:32px">\ud83d\udcca</span>
+      <div>
+        <h2 style="margin:0;color:#fff;font-size:22px">DRE \u2014 Demonstrativo de Resultados</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Refer\u00eancia: ${meses[mesAtual]} ${new Date().getFullYear()}</p>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #22c55e">
+        <div style="color:#94a3b8;font-size:12px">RECEITA TOTAL</div>
+        <div style="color:#22c55e;font-size:22px;font-weight:700;margin-top:6px">R$ ${totalReceita.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #ef4444">
+        <div style="color:#94a3b8;font-size:12px">CUSTOS + IMPOSTOS</div>
+        <div style="color:#ef4444;font-size:22px;font-weight:700;margin-top:6px">R$ ${(totalCusto + totalImposto).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid ${lucro >= 0 ? '#3b82f6' : '#ef4444'}">
+        <div style="color:#94a3b8;font-size:12px">LUCRO L\u00cdQUIDO</div>
+        <div style="color:${lucro >= 0 ? '#3b82f6' : '#ef4444'};font-size:22px;font-weight:700;margin-top:6px">R$ ${lucro.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #8b5cf6">
+        <div style="color:#94a3b8;font-size:12px">MARGEM</div>
+        <div style="color:#8b5cf6;font-size:22px;font-weight:700;margin-top:6px">${margem}%</div>
+      </div>
+    </div>
+    <div style="background:#1e293b;border-radius:12px;padding:24px">
+      <h3 style="color:#fff;margin:0 0 16px;font-size:16px">Detalhamento</h3>
+      <table style="width:100%;border-collapse:collapse">
+        ${categorias.map(cat => `
+          <tr style="background:#0f172a"><td colspan="3" style="padding:10px 14px;color:${cat.color};font-size:13px;font-weight:700">${cat.grupo}</td></tr>
+          ${cat.items.map(item => `
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px 14px 8px 28px;color:#94a3b8;font-size:13px">${item.label}</td>
+            <td style="padding:8px 14px;text-align:right;color:#fff;font-size:13px">R$ ${getVal(item.key).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+            <td style="padding:8px 14px;width:40px"><button onclick="editDre('${item.key}','${item.label}')" style="background:none;border:none;color:#3b82f6;cursor:pointer;font-size:12px">\u270f\ufe0f</button></td>
+          </tr>`).join('')}`).join('')}
+        <tr style="background:#0f172a;border-top:2px solid #334155">
+          <td style="padding:12px 14px;color:#fff;font-size:14px;font-weight:700">RESULTADO L\u00cdQUIDO</td>
+          <td style="padding:12px 14px;text-align:right;color:${lucro >= 0 ? '#22c55e' : '#ef4444'};font-size:16px;font-weight:700">R$ ${lucro.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+          <td></td>
+        </tr>
+      </table>
+    </div>
+  </div>`;
+  window.editDre = function(key, label) {
+    const val = prompt('Valor para ' + label + ' (R$):');
+    if (val === null) return;
+    const d = JSON.parse(localStorage.getItem('psm_dre') || '{}');
+    d[key] = parseFloat(val) || 0;
+    localStorage.setItem('psm_dre', JSON.stringify(d));
+    pgDre();
+  };
 }
 
 // ─── PAGE: COMISSÕES ────────────────────────────────────────────────
 function pgComissoes() {
-  var u = S.user; if (!u) return '';
-  var header = '<div class="phd"><h1>💎 Comissões</h1><p>Acompanhamento de comissões e desempenho dos corretores</p></div>';
-  var emptyContent = '<div style="text-align:center;padding:60px 40px;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.1)">'
-    +'<div style="font-size:48px;margin-bottom:16px">💎</div>'
-    +'<div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:8px">Módulo em Desenvolvimento</div>'
-    +'<div style="font-size:13px;color:var(--muted)">As comissões serão exibidas aqui quando integradas ao sistema de gestão.</div>'
-  +'</div>';
-  return header + '<div class="cards-wrap">'
-    +'<div class="card mb2">'
-      +emptyContent
-      +'<div style="margin-top:24px;padding:16px;background:var(--cream2);border-radius:12px">'
-        +'<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:12px">ESTRUTURA DE COLUNAS</div>'
-        +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;font-size:10px">'
-          +'<div style="padding:8px;background:#fff;border-radius:6px;text-align:center">Corretor</div>'
-          +'<div style="padding:8px;background:#fff;border-radius:6px;text-align:center">Vendas</div>'
-          +'<div style="padding:8px;background:#fff;border-radius:6px;text-align:center">Valor Total</div>'
-          +'<div style="padding:8px;background:#fff;border-radius:6px;text-align:center">Taxa %</div>'
-          +'<div style="padding:8px;background:#fff;border-radius:6px;text-align:center">Comissão</div>'
-          +'<div style="padding:8px;background:#fff;border-radius:6px;text-align:center">Status</div>'
-        +'</div>'
-      +'</div>'
-    +'</div>'
-  +'</div>';
+  const C = S.el;
+  const comissoes = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
+  const total = comissoes.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
+  const pagas = comissoes.filter(c => c.status === 'pago');
+  const pendentes = comissoes.filter(c => c.status !== 'pago');
+  const totalPago = pagas.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
+  const totalPendente = pendentes.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
+  C.innerHTML = `
+  <div style="max-width:1200px;margin:auto;padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span style="font-size:32px">\ud83d\udcb0</span>
+      <div>
+        <h2 style="margin:0;color:#fff;font-size:22px">Comiss\u00f5es</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Gest\u00e3o de comiss\u00f5es de vendas</p>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #3b82f6">
+        <div style="color:#94a3b8;font-size:12px">TOTAL</div>
+        <div style="color:#3b82f6;font-size:22px;font-weight:700;margin-top:6px">R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #22c55e">
+        <div style="color:#94a3b8;font-size:12px">PAGAS</div>
+        <div style="color:#22c55e;font-size:22px;font-weight:700;margin-top:6px">R$ ${totalPago.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #f59e0b">
+        <div style="color:#94a3b8;font-size:12px">PENDENTES</div>
+        <div style="color:#f59e0b;font-size:22px;font-weight:700;margin-top:6px">R$ ${totalPendente.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      </div>
+    </div>
+    <div style="background:#1e293b;border-radius:12px;padding:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="color:#fff;margin:0;font-size:16px">Registro de Comiss\u00f5es</h3>
+        <button id="com-add" style="padding:6px 14px;border-radius:8px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-size:12px">+ Nova Comiss\u00e3o</button>
+      </div>
+      ${comissoes.length === 0 ? '<p style="color:#64748b;font-size:13px">\u2014 Nenhuma comiss\u00e3o registrada</p>' : `
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:2px solid #334155">
+          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">DATA</th>
+          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">CORRETOR</th>
+          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">IM\u00d3VEL</th>
+          <th style="padding:10px;text-align:right;color:#94a3b8;font-size:11px">VALOR</th>
+          <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">STATUS</th>
+          <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">A\u00c7\u00c3O</th>
+        </tr></thead>
+        <tbody>${comissoes.map((c, i) => `
+          <tr style="border-bottom:1px solid #334155">
+            <td style="padding:8px 10px;color:#64748b;font-size:12px">${c.data || '\u2014'}</td>
+            <td style="padding:8px 10px;color:#fff;font-size:12px">${c.corretor || '\u2014'}</td>
+            <td style="padding:8px 10px;color:#94a3b8;font-size:12px">${c.imovel || '\u2014'}</td>
+            <td style="padding:8px 10px;text-align:right;color:#22c55e;font-size:12px;font-weight:600">R$ ${(parseFloat(c.valor)||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+            <td style="padding:8px 10px;text-align:center"><span style="padding:3px 8px;border-radius:4px;font-size:10px;background:${c.status === 'pago' ? '#1a3a2a' : '#332800'};color:${c.status === 'pago' ? '#22c55e' : '#f59e0b'}">${c.status === 'pago' ? 'Pago' : 'Pendente'}</span></td>
+            <td style="padding:8px 10px;text-align:center">
+              <button onclick="toggleComissao(${i})" style="background:none;border:none;color:#3b82f6;cursor:pointer;font-size:11px">${c.status === 'pago' ? '\u21a9\ufe0f' : '\u2705'}</button>
+              <button onclick="removeComissao(${i})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px">\u00d7</button>
+            </td>
+          </tr>`).join('')}</tbody>
+      </table>`}
+    </div>
+  </div>`;
+  C.querySelector('#com-add').onclick = () => {
+    const corretor = prompt('Nome do corretor:'); if (!corretor) return;
+    const imovel = prompt('Im\u00f3vel:') || '\u2014';
+    const valor = prompt('Valor da comiss\u00e3o (R$):') || '0';
+    const arr = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
+    arr.push({ corretor, imovel, valor: parseFloat(valor) || 0, status: 'pendente', data: new Date().toISOString().split('T')[0] });
+    localStorage.setItem('psm_comissoes', JSON.stringify(arr));
+    pgComissoes();
+  };
+  window.toggleComissao = function(i) {
+    const arr = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
+    if (arr[i]) { arr[i].status = arr[i].status === 'pago' ? 'pendente' : 'pago'; localStorage.setItem('psm_comissoes', JSON.stringify(arr)); }
+    pgComissoes();
+  };
+  window.removeComissao = function(i) {
+    const arr = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
+    arr.splice(i, 1); localStorage.setItem('psm_comissoes', JSON.stringify(arr));
+    pgComissoes();
+  };
 }
 
 // ─── PAGE: REPASSES ────────────────────────────────────────────────
 function pgRepasses() {
-  var u = S.user; if (!u) return '';
-  var header = '<div class="phd"><h1>🔄 Repasses</h1><p>Acompanhamento de pagamentos e repasses financeiros</p></div>';
-  var emptyContent = '<div style="text-align:center;padding:60px 40px;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.1)">'
-    +'<div style="font-size:48px;margin-bottom:16px">🔄</div>'
-    +'<div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:8px">Módulo em Desenvolvimento</div>'
-    +'<div style="font-size:13px;color:var(--muted)">Os repasses serão exibidos aqui quando o sistema de gestão financeira estiver ativo.</div>'
-  +'</div>';
-  return header + '<div class="cards-wrap">'
-    +'<div class="card mb2">'
-      +'<div style="display:flex;gap:16px;margin-bottom:20px">'
-        +'<div style="flex:1;padding:16px;background:var(--cream2);border-radius:12px">'
-          +'<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">PENDENTES</div>'
-          +'<div style="font-size:24px;font-weight:800;color:var(--a);margin-top:8px">—</div>'
-        +'</div>'
-        +'<div style="flex:1;padding:16px;background:var(--cream2);border-radius:12px">'
-          +'<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">PROCESSANDO</div>'
-          +'<div style="font-size:24px;font-weight:800;color:var(--b);margin-top:8px">—</div>'
-        +'</div>'
-        +'<div style="flex:1;padding:16px;background:var(--cream2);border-radius:12px">'
-          +'<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">CONCLUÍDOS</div>'
-          +'<div style="font-size:24px;font-weight:800;color:var(--g);margin-top:8px">—</div>'
-        +'</div>'
-      +'</div>'
-      +emptyContent
-    +'</div>'
-  +'</div>';
+  const C = S.el;
+  const repasses = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
+  const total = repasses.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
+  const realizados = repasses.filter(r => r.status === 'realizado');
+  const agendados = repasses.filter(r => r.status !== 'realizado');
+  C.innerHTML = `
+  <div style="max-width:1200px;margin:auto;padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span style="font-size:32px">\ud83d\udd04</span>
+      <div>
+        <h2 style="margin:0;color:#fff;font-size:22px">Repasses</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Controle de repasses financeiros</p>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #3b82f6">
+        <div style="color:#94a3b8;font-size:12px">TOTAL REPASSES</div>
+        <div style="color:#3b82f6;font-size:22px;font-weight:700;margin-top:6px">R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #22c55e">
+        <div style="color:#94a3b8;font-size:12px">REALIZADOS</div>
+        <div style="color:#22c55e;font-size:22px;font-weight:700;margin-top:6px">${realizados.length}</div>
+      </div>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #f59e0b">
+        <div style="color:#94a3b8;font-size:12px">AGENDADOS</div>
+        <div style="color:#f59e0b;font-size:22px;font-weight:700;margin-top:6px">${agendados.length}</div>
+      </div>
+    </div>
+    <div style="background:#1e293b;border-radius:12px;padding:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="color:#fff;margin:0;font-size:16px">Registro de Repasses</h3>
+        <button id="rep-add" style="padding:6px 14px;border-radius:8px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-size:12px">+ Novo Repasse</button>
+      </div>
+      ${repasses.length === 0 ? '<p style="color:#64748b;font-size:13px">\u2014 Nenhum repasse registrado</p>' : `
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:2px solid #334155">
+          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">DATA</th>
+          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">DESCRI\u00c7\u00c3O</th>
+          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">DESTINAT\u00c1RIO</th>
+          <th style="padding:10px;text-align:right;color:#94a3b8;font-size:11px">VALOR</th>
+          <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">STATUS</th>
+          <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">A\u00c7\u00c3O</th>
+        </tr></thead>
+        <tbody>${repasses.map((r, i) => `
+          <tr style="border-bottom:1px solid #334155">
+            <td style="padding:8px 10px;color:#64748b;font-size:12px">${r.data || '\u2014'}</td>
+            <td style="padding:8px 10px;color:#fff;font-size:12px">${r.descricao || '\u2014'}</td>
+            <td style="padding:8px 10px;color:#94a3b8;font-size:12px">${r.destinatario || '\u2014'}</td>
+            <td style="padding:8px 10px;text-align:right;color:#3b82f6;font-size:12px;font-weight:600">R$ ${(parseFloat(r.valor)||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+            <td style="padding:8px 10px;text-align:center"><span style="padding:3px 8px;border-radius:4px;font-size:10px;background:${r.status === 'realizado' ? '#1a3a2a' : '#332800'};color:${r.status === 'realizado' ? '#22c55e' : '#f59e0b'}">${r.status === 'realizado' ? 'Realizado' : 'Agendado'}</span></td>
+            <td style="padding:8px 10px;text-align:center">
+              <button onclick="toggleRepasse(${i})" style="background:none;border:none;color:#3b82f6;cursor:pointer;font-size:11px">${r.status === 'realizado' ? '\u21a9\ufe0f' : '\u2705'}</button>
+              <button onclick="removeRepasse(${i})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px">\u00d7</button>
+            </td>
+          </tr>`).join('')}</tbody>
+      </table>`}
+    </div>
+  </div>`;
+  C.querySelector('#rep-add').onclick = () => {
+    const descricao = prompt('Descri\u00e7\u00e3o do repasse:'); if (!descricao) return;
+    const destinatario = prompt('Destinat\u00e1rio:') || '\u2014';
+    const valor = prompt('Valor (R$):') || '0';
+    const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
+    arr.push({ descricao, destinatario, valor: parseFloat(valor) || 0, status: 'agendado', data: new Date().toISOString().split('T')[0] });
+    localStorage.setItem('psm_repasses', JSON.stringify(arr));
+    pgRepasses();
+  };
+  window.toggleRepasse = function(i) {
+    const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
+    if (arr[i]) { arr[i].status = arr[i].status === 'realizado' ? 'agendado' : 'realizado'; localStorage.setItem('psm_repasses', JSON.stringify(arr)); }
+    pgRepasses();
+  };
+  window.removeRepasse = function(i) {
+    const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
+    arr.splice(i, 1); localStorage.setItem('psm_repasses', JSON.stringify(arr));
+    pgRepasses();
+  };
 }
 
 // ─── PAGE: RADAR INTELLIGENCE ────────────────────────────────────────────────
@@ -6620,30 +7181,199 @@ Q('#main-content').innerHTML=h;
 render();
 }
 function pgBenchmark() {
-  var u = S.user; if (!u) return '';
-  var header = '<div class="phd"><h1>📊 Benchmark</h1><p>Comparação de performance com o mercado</p></div>';
-  var emptyContent = '<div style="text-align:center;padding:60px 40px;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.1)">'
-    +'<div style="font-size:48px;margin-bottom:16px">📊</div>'
-    +'<div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:8px">Módulo em Desenvolvimento</div>'
-    +'<div style="font-size:13px;color:var(--muted)">Os dados de benchmark serão coletados e comparados com as melhores práticas do mercado imobiliário.</div>'
-  +'</div>';
-  return header + '<div class="cards-wrap">'
-    +'<div class="card mb2">'+emptyContent+'</div>'
-  +'</div>';
+  const C = S.el;
+  const concorrentes = JSON.parse(localStorage.getItem('psm_radar_data') || '[]');
+  const metricas = [
+    { key: 'seguidores', label: 'Seguidores', icon: '\ud83d\udc65', format: v => v ? Number(v).toLocaleString('pt-BR') : '\u2014' },
+    { key: 'engajamento', label: 'Engajamento (%)', icon: '\ud83d\udcac', format: v => v ? v + '%' : '\u2014' },
+    { key: 'volume_anuncios', label: 'Volume An\u00fancios', icon: '\ud83d\udce2', format: v => v || '\u2014' },
+    { key: 'preco_medio', label: 'Pre\u00e7o M\u00e9dio', icon: '\ud83d\udcb0', format: v => v ? 'R$ ' + Number(v).toLocaleString('pt-BR') : '\u2014' },
+    { key: 'market_share', label: 'Market Share', icon: '\ud83c\udfaf', format: v => v ? v + '%' : '\u2014' },
+    { key: 'nota_google', label: 'Nota Google', icon: '\u2b50', format: v => v || '\u2014' },
+    { key: 'imoveis_ativos', label: 'Im\u00f3veis Ativos', icon: '\ud83c\udfe0', format: v => v || '\u2014' },
+    { key: 'freq_posts', label: 'Posts/Semana', icon: '\ud83d\udcc5', format: v => v || '\u2014' }
+  ];
+  function calcStats(key) {
+    const vals = concorrentes.map(c => parseFloat(c[key])).filter(v => !isNaN(v) && v > 0);
+    if (vals.length === 0) return { avg: 0, max: 0, min: 0, median: 0, count: 0 };
+    vals.sort((a, b) => a - b);
+    const sum = vals.reduce((s, v) => s + v, 0);
+    const avg = sum / vals.length;
+    const median = vals.length % 2 === 0 ? (vals[vals.length/2-1] + vals[vals.length/2]) / 2 : vals[Math.floor(vals.length/2)];
+    return { avg: Math.round(avg * 100) / 100, max: vals[vals.length-1], min: vals[0], median: Math.round(median * 100) / 100, count: vals.length };
+  }
+  C.innerHTML = `
+  <div style="max-width:1200px;margin:auto;padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span style="font-size:32px">\ud83d\udcca</span>
+      <div>
+        <h2 style="margin:0;color:#fff;font-size:22px">Benchmark de Mercado</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">An\u00e1lise comparativa (${concorrentes.length} concorrentes)</p>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:24px">
+      ${metricas.map(m => {
+        const stats = calcStats(m.key);
+        const top = concorrentes.reduce((best, c) => (parseFloat(c[m.key]) || 0) > (parseFloat(best[m.key]) || 0) ? c : best, concorrentes[0] || {});
+        return `
+        <div style="background:#1e293b;border-radius:12px;padding:20px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:20px">${m.icon}</span>
+              <span style="color:#fff;font-size:14px;font-weight:600">${m.label}</span>
+            </div>
+            <span style="color:#64748b;font-size:11px">${stats.count} dados</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="background:#0f172a;border-radius:8px;padding:10px">
+              <div style="color:#64748b;font-size:10px;text-transform:uppercase">M\u00e9dia</div>
+              <div style="color:#3b82f6;font-size:16px;font-weight:700">${m.format(stats.avg)}</div>
+            </div>
+            <div style="background:#0f172a;border-radius:8px;padding:10px">
+              <div style="color:#64748b;font-size:10px;text-transform:uppercase">Mediana</div>
+              <div style="color:#8b5cf6;font-size:16px;font-weight:700">${m.format(stats.median)}</div>
+            </div>
+            <div style="background:#0f172a;border-radius:8px;padding:10px">
+              <div style="color:#64748b;font-size:10px;text-transform:uppercase">M\u00e1ximo</div>
+              <div style="color:#22c55e;font-size:16px;font-weight:700">${m.format(stats.max)}</div>
+            </div>
+            <div style="background:#0f172a;border-radius:8px;padding:10px">
+              <div style="color:#64748b;font-size:10px;text-transform:uppercase">M\u00ednimo</div>
+              <div style="color:#ef4444;font-size:16px;font-weight:700">${m.format(stats.min)}</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid #334155">
+            <span style="color:#64748b;font-size:11px">L\u00edder: </span>
+            <span style="color:#f59e0b;font-size:12px;font-weight:600">${top.nome || top.name || '\u2014'}</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="background:#1e293b;border-radius:12px;padding:24px">
+      <h3 style="color:#fff;margin:0 0 16px;font-size:16px">\ud83c\udfc6 Ranking por Tier</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
+        ${['A', 'B', 'C'].map(tier => {
+          const grupo = concorrentes.filter(c => (c.tier || '').toUpperCase() === tier);
+          return `
+          <div style="background:#0f172a;border-radius:8px;padding:16px">
+            <div style="color:${tier === 'A' ? '#f59e0b' : tier === 'B' ? '#3b82f6' : '#64748b'};font-size:14px;font-weight:700;margin-bottom:12px">Tier ${tier} (${grupo.length})</div>
+            ${grupo.length === 0 ? '<div style="color:#64748b;font-size:12px">Nenhum</div>' :
+              grupo.slice(0, 8).map((c, i) => `
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e293b">
+                  <span style="color:#fff;font-size:12px">${i+1}. ${c.nome || c.name || '\u2014'}</span>
+                  <span style="color:#94a3b8;font-size:11px">${c.seguidores ? Number(c.seguidores).toLocaleString('pt-BR') + ' seg.' : '\u2014'}</span>
+                </div>`).join('')}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
 }
 
 // ─── PAGE: TENDÊNCIAS ────────────────────────────────────────────────
 function pgTendencias() {
-  var u = S.user; if (!u) return '';
-  var header = '<div class="phd"><h1>📈 Tendências</h1><p>Análise de tendências emergentes no mercado imobiliário</p></div>';
-  var emptyContent = '<div style="text-align:center;padding:60px 40px;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.1)">'
-    +'<div style="font-size:48px;margin-bottom:16px">📈</div>'
-    +'<div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:8px">Módulo em Desenvolvimento</div>'
-    +'<div style="font-size:13px;color:var(--muted)">As análises de tendências serão atualizadas continuamente conforme novos dados chegam do mercado.</div>'
-  +'</div>';
-  return header + '<div class="cards-wrap">'
-    +'<div class="card mb2">'+emptyContent+'</div>'
-  +'</div>';
+  const C = S.el;
+  C.innerHTML = `
+  <div style="max-width:1200px;margin:auto;padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span style="font-size:32px">\ud83d\udcc8</span>
+      <div>
+        <h2 style="margin:0;color:#fff;font-size:22px">Tend\u00eancias de Mercado</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Identifique e acompanhe tend\u00eancias do mercado imobili\u00e1rio</p>
+      </div>
+    </div>
+    <div id="tend-tabs" style="display:flex;gap:8px;margin-bottom:20px">
+      <button class="tend-tab active" data-tab="painel" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;cursor:pointer;font-size:13px">\ud83d\udcca Painel</button>
+      <button class="tend-tab" data-tab="registro" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\u2795 Registrar</button>
+      <button class="tend-tab" data-tab="historico" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\ud83d\udccb Hist\u00f3rico</button>
+    </div>
+    <div id="tend-content"></div>
+  </div>`;
+  const tabs = C.querySelectorAll('.tend-tab');
+  tabs.forEach(t => t.onclick = () => {
+    tabs.forEach(b => { b.style.background = 'transparent'; b.style.color = '#94a3b8'; b.classList.remove('active'); });
+    t.style.background = '#1e293b'; t.style.color = '#fff'; t.classList.add('active');
+    renderTendTab(t.dataset.tab);
+  });
+  function renderTendTab(tab) {
+    const box = C.querySelector('#tend-content');
+    const data = JSON.parse(localStorage.getItem('psm_tendencias') || '[]');
+    if (tab === 'painel') {
+      const categorias = {};
+      data.forEach(t => { const cat = t.categoria || 'Geral'; if (!categorias[cat]) categorias[cat] = []; categorias[cat].push(t); });
+      const catKeys = Object.keys(categorias);
+      const alta = data.filter(t => t.direcao === 'alta').length;
+      const baixa = data.filter(t => t.direcao === 'baixa').length;
+      const estavel = data.filter(t => t.direcao === 'estavel').length;
+      box.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">
+          <div style="background:#1e293b;border-radius:12px;padding:20px;text-align:center"><div style="color:#22c55e;font-size:28px;font-weight:700">${alta}</div><div style="color:#94a3b8;font-size:12px;margin-top:4px">\u2191 Em Alta</div></div>
+          <div style="background:#1e293b;border-radius:12px;padding:20px;text-align:center"><div style="color:#f59e0b;font-size:28px;font-weight:700">${estavel}</div><div style="color:#94a3b8;font-size:12px;margin-top:4px">\u2192 Est\u00e1vel</div></div>
+          <div style="background:#1e293b;border-radius:12px;padding:20px;text-align:center"><div style="color:#ef4444;font-size:28px;font-weight:700">${baixa}</div><div style="color:#94a3b8;font-size:12px;margin-top:4px">\u2193 Em Baixa</div></div>
+          <div style="background:#1e293b;border-radius:12px;padding:20px;text-align:center"><div style="color:#3b82f6;font-size:28px;font-weight:700">${data.length}</div><div style="color:#94a3b8;font-size:12px;margin-top:4px">\ud83d\udcca Total</div></div>
+        </div>
+        ${catKeys.length === 0 ? '<div style="background:#1e293b;border-radius:12px;padding:40px;text-align:center"><p style="color:#64748b;font-size:14px">Nenhuma tend\u00eancia registrada. Use a aba Registrar.</p></div>' :
+          catKeys.map(cat => `
+          <div style="background:#1e293b;border-radius:12px;padding:20px;margin-bottom:16px">
+            <h3 style="color:#fff;font-size:15px;margin:0 0 14px">${cat}</h3>
+            ${categorias[cat].map(t => `
+              <div style="display:flex;align-items:center;gap:12px;padding:10px;background:#0f172a;border-radius:8px;margin-bottom:8px">
+                <span style="font-size:18px">${t.direcao === 'alta' ? '\u2b06\ufe0f' : t.direcao === 'baixa' ? '\u2b07\ufe0f' : '\u27a1\ufe0f'}</span>
+                <div style="flex:1"><div style="color:#fff;font-size:13px;font-weight:600">${t.titulo || '\u2014'}</div><div style="color:#94a3b8;font-size:11px;margin-top:2px">${t.descricao || ''}</div></div>
+                <span style="color:${t.impacto === 'alto' ? '#ef4444' : t.impacto === 'medio' ? '#f59e0b' : '#22c55e'};font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #334155">${t.impacto || '\u2014'}</span>
+              </div>`).join('')}
+          </div>`).join('')}`;
+    } else if (tab === 'registro') {
+      box.innerHTML = `
+        <div style="background:#1e293b;border-radius:12px;padding:24px">
+          <h3 style="color:#fff;margin:0 0 20px;font-size:16px">\u2795 Registrar Nova Tend\u00eancia</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">T\u00edtulo</label><input id="tend-titulo" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px;box-sizing:border-box" placeholder="Ex: Aumento na busca por studios"></div>
+            <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Categoria</label><select id="tend-cat" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px"><option value="Mercado">Mercado</option><option value="Digital">Digital</option><option value="Pre\u00e7os">Pre\u00e7os</option><option value="Comportamento">Comportamento</option><option value="Tecnologia">Tecnologia</option></select></div>
+            <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Dire\u00e7\u00e3o</label><select id="tend-dir" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px"><option value="alta">\u2191 Em Alta</option><option value="estavel">\u2192 Est\u00e1vel</option><option value="baixa">\u2193 Em Baixa</option></select></div>
+            <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Impacto</label><select id="tend-imp" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px"><option value="alto">Alto</option><option value="medio">M\u00e9dio</option><option value="baixo">Baixo</option></select></div>
+            <div style="grid-column:1/-1"><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Descri\u00e7\u00e3o</label><textarea id="tend-desc" rows="3" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px;box-sizing:border-box;resize:vertical"></textarea></div>
+          </div>
+          <button id="tend-save" style="margin-top:16px;padding:10px 24px;border-radius:8px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-size:13px;font-weight:600">\ud83d\udcbe Salvar</button>
+        </div>`;
+      box.querySelector('#tend-save').onclick = () => {
+        const titulo = box.querySelector('#tend-titulo').value.trim();
+        if (!titulo) return alert('Preencha o t\u00edtulo.');
+        const item = { titulo, categoria: box.querySelector('#tend-cat').value, direcao: box.querySelector('#tend-dir').value, impacto: box.querySelector('#tend-imp').value, descricao: box.querySelector('#tend-desc').value.trim(), data: new Date().toISOString().split('T')[0] };
+        const arr = JSON.parse(localStorage.getItem('psm_tendencias') || '[]');
+        arr.push(item);
+        localStorage.setItem('psm_tendencias', JSON.stringify(arr));
+        alert('Tend\u00eancia registrada!');
+        C.querySelector('.tend-tab[data-tab=painel]').click();
+      };
+    } else if (tab === 'historico') {
+      box.innerHTML = `
+        <div style="background:#1e293b;border-radius:12px;padding:24px">
+          <h3 style="color:#fff;margin:0 0 16px;font-size:16px">\ud83d\udccb Hist\u00f3rico</h3>
+          ${data.length === 0 ? '<p style="color:#64748b;font-size:13px">Nenhuma tend\u00eancia.</p>' : `
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="border-bottom:2px solid #334155">
+              <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">DATA</th>
+              <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">T\u00cdTULO</th>
+              <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">CATEGORIA</th>
+              <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">DIR.</th>
+              <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">IMPACTO</th>
+              <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">A\u00c7\u00c3O</th>
+            </tr></thead>
+            <tbody>${data.slice().reverse().map((t, i) => `
+              <tr style="border-bottom:1px solid #334155">
+                <td style="padding:8px 10px;color:#64748b;font-size:12px">${t.data || '\u2014'}</td>
+                <td style="padding:8px 10px;color:#fff;font-size:12px">${t.titulo || '\u2014'}</td>
+                <td style="padding:8px 10px;color:#94a3b8;font-size:12px">${t.categoria || '\u2014'}</td>
+                <td style="padding:8px 10px;text-align:center">${t.direcao === 'alta' ? '\u2b06\ufe0f' : t.direcao === 'baixa' ? '\u2b07\ufe0f' : '\u27a1\ufe0f'}</td>
+                <td style="padding:8px 10px;text-align:center;color:${t.impacto === 'alto' ? '#ef4444' : t.impacto === 'medio' ? '#f59e0b' : '#22c55e'};font-size:12px">${t.impacto || '\u2014'}</td>
+                <td style="padding:8px 10px;text-align:center"><button onclick="(function(){const a=JSON.parse(localStorage.getItem('psm_tendencias')||'[]');a.splice(${data.length-1-i},1);localStorage.setItem('psm_tendencias',JSON.stringify(a));document.querySelector('.tend-tab[data-tab=historico]').click()})()" style="background:none;border:none;color:#ef4444;cursor:pointer">\ud83d\uddd1\ufe0f</button></td>
+              </tr>`).join('')}</tbody>
+          </table>`}
+        </div>`;
+    }
+  }
+  renderTendTab('painel');
 }
 
 // ─── PAGE: LANÇAMENTOS DO ANO ────────────────────────────────────────────────
