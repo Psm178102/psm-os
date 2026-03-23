@@ -3894,7 +3894,7 @@ const RD = {
       });
     } catch(e) { console.warn('[RD log]', e); }
   },
-};
+  }, 0);
 
 // ─── DATE FILTER ──────────────────────────────────────────────────────────────
 function DateFilter(prefix, label) {
@@ -4103,7 +4103,6 @@ function doLogout() {
   localStorage.removeItem('psm_token');
   render();
 }
-  }, 0);
   return `
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
@@ -4136,6 +4135,7 @@ function doLogout() {
     </div>
     <div id="wa-result"></div>
   </div>`;
+}
 
 // ─── LANÇAR VENDA (sócios) ────────────────────────────────────────────────────
 function pgLancarVenda() {
