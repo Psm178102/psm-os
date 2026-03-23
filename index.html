@@ -3033,31 +3033,15 @@ function pgForecast(){
 function pgWarRoom() {
   const dados = JSON.parse(localStorage.getItem('psm_warroom') || '{}');
   const concorrentes = JSON.parse(localStorage.getItem('psm_radar_data') || '[]');
-  return `
-  <div style="max-width:1200px;margin:auto;padding:24px">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <span style="font-size:32px">\u2694\ufe0f</span>
-      <div>
-        <h2 style="margin:0;color:#fff;font-size:22px">War Room \u2014 Centro de Comando</h2>
-        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Painel estrat\u00e9gico para tomada de decis\u00e3o competitiva</p>
-      </div>
-    </div>
-    <div id="wr-tabs" style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
-      <button class="wr-tab active" data-tab="visao" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;cursor:pointer;font-size:13px">\ud83c\udfaf Vis\u00e3o Geral</button>
-      <button class="wr-tab" data-tab="ameacas" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\u26a0\ufe0f Amea\u00e7as</button>
-      <button class="wr-tab" data-tab="oportunidades" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\ud83d\udca1 Oportunidades</button>
-      <button class="wr-tab" data-tab="acoes" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\ud83d\ude80 Plano de A\u00e7\u00e3o</button>
-    </div>
-    <div id="wr-content"></div>
-  </div>`;
-  const tabs = C.querySelectorAll('.wr-tab');
+  setTimeout(() => {
+  const tabs = document.querySelectorAll('.wr-tab');
   tabs.forEach(t => t.onclick = () => {
     tabs.forEach(b => { b.style.background = 'transparent'; b.style.color = '#94a3b8'; b.classList.remove('active'); });
     t.style.background = '#1e293b'; t.style.color = '#fff'; t.classList.add('active');
     renderWRTab(t.dataset.tab);
   });
   function renderWRTab(tab) {
-    const box = C.querySelector('#wr-content');
+    const box = document.querySelector('#wr-content');
     if (tab === 'visao') {
       const ameacas = (dados.ameacas || []).length;
       const oportunidades = (dados.oportunidades || []).length;
@@ -3158,47 +3142,34 @@ function pgWarRoom() {
     }
   }
   renderWRTab('visao');
+  }, 0);
+  return `
+  <div style="max-width:1200px;margin:auto;padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span style="font-size:32px">\u2694\ufe0f</span>
+      <div>
+        <h2 style="margin:0;color:#fff;font-size:22px">War Room \u2014 Centro de Comando</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Painel estrat\u00e9gico para tomada de decis\u00e3o competitiva</p>
+      </div>
+    </div>
+    <div id="wr-tabs" style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+      <button class="wr-tab active" data-tab="visao" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;cursor:pointer;font-size:13px">\ud83c\udfaf Vis\u00e3o Geral</button>
+      <button class="wr-tab" data-tab="ameacas" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\u26a0\ufe0f Amea\u00e7as</button>
+      <button class="wr-tab" data-tab="oportunidades" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\ud83d\udca1 Oportunidades</button>
+      <button class="wr-tab" data-tab="acoes" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\ud83d\ude80 Plano de A\u00e7\u00e3o</button>
+    </div>
+    <div id="wr-content"></div>
+  </div>`;
 }
 
 // --- PAGE: WAR ARENA ---
 
 function pgWarArena() {
   const concorrentes = JSON.parse(localStorage.getItem('psm_radar_data') || '[]');
-  return `
-  <div style="max-width:1200px;margin:auto;padding:24px">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <span style="font-size:32px">\ud83c\udfdf\ufe0f</span>
-      <div>
-        <h2 style="margin:0;color:#fff;font-size:22px">War Arena \u2014 Compara\u00e7\u00e3o Direta</h2>
-        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Compare concorrentes lado a lado</p>
-      </div>
-    </div>
-    <div style="background:#1e293b;border-radius:12px;padding:24px;margin-bottom:20px">
-      <h3 style="color:#fff;margin:0 0 16px;font-size:15px">Selecione dois concorrentes</h3>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:end">
-        <div style="flex:1;min-width:200px">
-          <label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Concorrente A</label>
-          <select id="wa-sel-a" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px">
-            <option value="">Selecione...</option>
-            ${concorrentes.map((c, i) => '<option value="' + i + '">' + (c.nome || c.name || '\u2014') + '</option>').join('')}
-          </select>
-        </div>
-        <div style="color:#f59e0b;font-size:20px;padding-bottom:8px">VS</div>
-        <div style="flex:1;min-width:200px">
-          <label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Concorrente B</label>
-          <select id="wa-sel-b" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px">
-            <option value="">Selecione...</option>
-            ${concorrentes.map((c, i) => '<option value="' + i + '">' + (c.nome || c.name || '\u2014') + '</option>').join('')}
-          </select>
-        </div>
-        <button id="wa-compare" style="padding:10px 24px;border-radius:8px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-size:13px;font-weight:600">\u2694\ufe0f Comparar</button>
-      </div>
-    </div>
-    <div id="wa-result"></div>
-  </div>`;
-  C.querySelector('#wa-compare').onclick = () => {
-    const idxA = C.querySelector('#wa-sel-a').value;
-    const idxB = C.querySelector('#wa-sel-b').value;
+  setTimeout(() => {
+  document.querySelector('#wa-compare').onclick = () => {
+    const idxA = document.querySelector('#wa-sel-a').value;
+    const idxB = document.querySelector('#wa-sel-b').value;
     if (idxA === '' || idxB === '') return alert('Selecione dois concorrentes.');
     if (idxA === idxB) return alert('Selecione concorrentes diferentes.');
     const a = concorrentes[parseInt(idxA)];
@@ -3216,7 +3187,7 @@ function pgWarArena() {
     function win(k, va, vb) { const na = parseFloat(va)||0, nb = parseFloat(vb)||0; if(na===0&&nb===0) return 'tie'; return na > nb ? 'a' : nb > na ? 'b' : 'tie'; }
     let wA = 0, wB = 0;
     dims.forEach(d => { const w = win(d.key, a[d.key], b[d.key]); if(w==='a') wA++; if(w==='b') wB++; });
-    const res = C.querySelector('#wa-result');
+    const res = document.querySelector('#wa-result');
     res.innerHTML = `
       <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:0;margin-bottom:24px">
         <div style="background:${wA>=wB?'#1a3a2a':'#1e293b'};border-radius:12px 0 0 12px;padding:20px;text-align:center">
@@ -4132,6 +4103,39 @@ function doLogout() {
   localStorage.removeItem('psm_token');
   render();
 }
+  }, 0);
+  return `
+  <div style="max-width:1200px;margin:auto;padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span style="font-size:32px">\ud83c\udfdf\ufe0f</span>
+      <div>
+        <h2 style="margin:0;color:#fff;font-size:22px">War Arena \u2014 Compara\u00e7\u00e3o Direta</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Compare concorrentes lado a lado</p>
+      </div>
+    </div>
+    <div style="background:#1e293b;border-radius:12px;padding:24px;margin-bottom:20px">
+      <h3 style="color:#fff;margin:0 0 16px;font-size:15px">Selecione dois concorrentes</h3>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:end">
+        <div style="flex:1;min-width:200px">
+          <label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Concorrente A</label>
+          <select id="wa-sel-a" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px">
+            <option value="">Selecione...</option>
+            ${concorrentes.map((c, i) => '<option value="' + i + '">' + (c.nome || c.name || '\u2014') + '</option>').join('')}
+          </select>
+        </div>
+        <div style="color:#f59e0b;font-size:20px;padding-bottom:8px">VS</div>
+        <div style="flex:1;min-width:200px">
+          <label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Concorrente B</label>
+          <select id="wa-sel-b" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px">
+            <option value="">Selecione...</option>
+            ${concorrentes.map((c, i) => '<option value="' + i + '">' + (c.nome || c.name || '\u2014') + '</option>').join('')}
+          </select>
+        </div>
+        <button id="wa-compare" style="padding:10px 24px;border-radius:8px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-size:13px;font-weight:600">\u2694\ufe0f Comparar</button>
+      </div>
+    </div>
+    <div id="wa-result"></div>
+  </div>`;
 
 // ─── LANÇAR VENDA (sócios) ────────────────────────────────────────────────────
 function pgLancarVenda() {
