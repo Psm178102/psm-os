@@ -6346,6 +6346,279 @@ document.getElementById('radar-edit-overlay').remove();
 pgRadar();
 }
 
+function pgSimuladorCriativo(){
+var sim=JSON.parse(localStorage.getItem('psm_sim_criativo')||'{}');
+var results=sim.lastResults||null;
+var patterns=JSON.parse(localStorage.getItem('psm_radar_patterns')||'{}');
+var WEIGHTS={hook:20,formato:15,copy:15,cta:12,visual:13,publico:10,freq:8,timing:7};
+function calcScore(){
+var f={};
+['formato','hook_tipo','hook_segundos','copy_tamanho','copy_emocao','copy_urgencia','cta_tipo','cta_clareza','visual_qualidade','visual_identidade','visual_texto_img','publico_segmentacao','publico_lookalike','publico_retargeting','freq_semanal','timing_dia','timing_horario','objetivo'].forEach(function(k){
+var el=document.getElementById('sim-'+k);
+if(el)f[k]=el.value;
+});
+var hookScore=0;
+if(f.hook_tipo==='pergunta')hookScore+=8;
+else if(f.hook_tipo==='dado_impactante')hookScore+=10;
+else if(f.hook_tipo==='depoimento')hookScore+=9;
+else if(f.hook_tipo==='antes_depois')hookScore+=9;
+else if(f.hook_tipo==='tour_virtual')hookScore+=7;
+else if(f.hook_tipo==='oferta_direta')hookScore+=6;
+else if(f.hook_tipo==='storytelling')hookScore+=8;
+var hs=parseInt(f.hook_segundos)||0;
+if(hs<=3)hookScore+=10;
+else if(hs<=5)hookScore+=7;
+else if(hs<=8)hookScore+=4;
+else hookScore+=1;
+var fmtScore=0;
+if(f.formato==='video_curto')fmtScore=15;
+else if(f.formato==='carrossel')fmtScore=13;
+else if(f.formato==='reels')fmtScore=14;
+else if(f.formato==='video_longo')fmtScore=9;
+else if(f.formato==='imagem_unica')fmtScore=8;
+else if(f.formato==='stories')fmtScore=11;
+else if(f.formato==='colecao')fmtScore=10;
+var copyScore=0;
+if(f.copy_tamanho==='curta')copyScore+=5;
+else if(f.copy_tamanho==='media')copyScore+=4;
+else if(f.copy_tamanho==='longa')copyScore+=2;
+if(f.copy_emocao==='alta')copyScore+=5;
+else if(f.copy_emocao==='media')copyScore+=3;
+else copyScore+=1;
+if(f.copy_urgencia==='sim')copyScore+=5;
+else if(f.copy_urgencia==='sutil')copyScore+=3;
+else copyScore+=1;
+var ctaScore=0;
+if(f.cta_tipo==='agende_visita')ctaScore+=6;
+else if(f.cta_tipo==='simule_financiamento')ctaScore+=6;
+else if(f.cta_tipo==='fale_corretor')ctaScore+=5;
+else if(f.cta_tipo==='saiba_mais')ctaScore+=4;
+else if(f.cta_tipo==='link_bio')ctaScore+=3;
+else if(f.cta_tipo==='cadastre_se')ctaScore+=5;
+else if(f.cta_tipo==='baixe_material')ctaScore+=4;
+if(f.cta_clareza==='muito_claro')ctaScore+=6;
+else if(f.cta_clareza==='claro')ctaScore+=4;
+else ctaScore+=2;
+var visScore=0;
+if(f.visual_qualidade==='profissional')visScore+=5;
+else if(f.visual_qualidade==='boa')visScore+=3;
+else visScore+=1;
+if(f.visual_identidade==='total')visScore+=4;
+else if(f.visual_identidade==='parcial')visScore+=2;
+else visScore+=0;
+if(f.visual_texto_img==='ate_20')visScore+=4;
+else if(f.visual_texto_img==='20_40')visScore+=2;
+else visScore+=0;
+var pubScore=0;
+if(f.publico_segmentacao==='detalhada')pubScore+=4;
+else if(f.publico_segmentacao==='moderada')pubScore+=3;
+else if(f.publico_segmentacao==='ampla')pubScore+=2;
+if(f.publico_lookalike==='sim')pubScore+=3;
+else pubScore+=1;
+if(f.publico_retargeting==='sim')pubScore+=3;
+else pubScore+=1;
+var freqScore=0;
+var fw=parseInt(f.freq_semanal)||0;
+if(fw>=5&&fw<=7)freqScore=8;
+else if(fw>=3&&fw<5)freqScore=6;
+else if(fw>=1&&fw<3)freqScore=4;
+else freqScore=2;
+var timScore=0;
+if(f.timing_dia==='ter_qui')timScore+=4;
+else if(f.timing_dia==='seg_sex')timScore+=3;
+else if(f.timing_dia==='fds')timScore+=3;
+else timScore+=2;
+if(f.timing_horario==='18_21')timScore+=3;
+else if(f.timing_horario==='12_14')timScore+=2;
+else if(f.timing_horario==='08_10')timScore+=2;
+else timScore+=1;
+var total=hookScore+fmtScore+copyScore+ctaScore+visScore+pubScore+freqScore+timScore;
+var details={hook:hookScore,formato:fmtScore,copy:copyScore,cta:ctaScore,visual:visScore,publico:pubScore,freq:freqScore,timing:timScore,total:total,fields:f};
+sim.lastResults=details;
+localStorage.setItem('psm_sim_criativo',JSON.stringify(sim));
+results=details;
+render();
+}
+function render(){
+var f=results?results.fields:sim.lastResults?sim.lastResults.fields:{};
+var h='<div style="padding:24px;max-width:1200px;margin:0 auto;">';
+h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">';
+h+='<div><h2 style="margin:0;color:var(--gold);font-size:1.6rem;">\ud83e\udde0 Simulador de Criativo Meta Ads</h2>';
+h+='<p style="margin:4px 0 0;color:#aaa;font-size:.85rem;">Simule e otimize seus criativos com base nos sinais do algoritmo do Meta</p></div></div>';
+if(results){
+var t=results.total;
+var gaugeColor=t>=80?'#2ecc71':t>=60?'var(--gold)':t>=40?'#f39c12':'#e74c3c';
+var rating=t>=85?'\ud83c\udfc6 EXCELENTE':t>=70?'\u2705 BOM':t>=55?'\ud83d\udfe1 REGULAR':t>=40?'\u26a0\ufe0f FRACO':'\u274c CR\u00cdTICO';
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:28px;margin-bottom:24px;text-align:center;">';
+h+='<div style="position:relative;width:160px;height:160px;margin:0 auto 16px;">';
+var pct=t;
+var deg=pct*3.6;
+h+='<div style="width:160px;height:160px;border-radius:50%;background:conic-gradient('+gaugeColor+' 0deg '+deg+'deg, rgba(255,255,255,.06) '+deg+'deg 360deg);display:flex;align-items:center;justify-content:center;">';
+h+='<div style="width:120px;height:120px;border-radius:50%;background:var(--navy,#0a1628);display:flex;flex-direction:column;align-items:center;justify-content:center;">';
+h+='<div style="font-size:2.2rem;font-weight:800;color:'+gaugeColor+';">'+t+'</div>';
+h+='<div style="font-size:.7rem;color:#aaa;">de 100</div>';
+h+='</div></div></div>';
+h+='<div style="font-size:1.1rem;font-weight:700;color:'+gaugeColor+';margin-bottom:6px;">'+rating+'</div>';
+h+='<div style="font-size:.8rem;color:#aaa;">Pontua\u00e7\u00e3o baseada nos sinais do algoritmo Meta Ads</div>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:20px;text-align:left;">';
+var cats=[{k:'hook',l:'\ud83c\udfa3 Hook (Gancho)',max:20},{k:'formato',l:'\ud83c\udfa5 Formato',max:15},{k:'copy',l:'\u270d\ufe0f Copy',max:15},{k:'cta',l:'\ud83d\udc49 CTA',max:12},{k:'visual',l:'\ud83c\udfa8 Visual',max:13},{k:'publico',l:'\ud83c\udfaf P\u00fablico',max:10},{k:'freq',l:'\ud83d\udcc5 Frequ\u00eancia',max:8},{k:'timing',l:'\u23f0 Timing',max:7}];
+cats.forEach(function(ct){
+var val=results[ct.k];
+var pctBar=Math.round(val/ct.max*100);
+var bc=pctBar>=80?'#2ecc71':pctBar>=50?'var(--gold)':'#e74c3c';
+h+='<div style="padding:10px;background:rgba(255,255,255,.02);border-radius:8px;">';
+h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:.75rem;color:#ddd;">'+ct.l+'</span><span style="font-size:.75rem;font-weight:700;color:'+bc+';">'+val+'/'+ct.max+'</span></div>';
+h+='<div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;"><div style="width:'+pctBar+'%;height:100%;background:'+bc+';border-radius:3px;transition:width .5s;"></div></div>';
+h+='</div>';});
+h+='</div></div>';
+}
+if(results){
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:24px;">';
+h+='<h3 style="margin:0 0 14px;color:var(--gold);font-size:1.1rem;">\ud83d\udca1 Recomenda\u00e7\u00f5es do Algoritmo</h3>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">';
+var recs=[];
+if(results.hook<14)recs.push({t:'Melhore o Hook',d:'Hooks com pergunta provocativa ou dado impactante nos primeiros 3s geram 65% mais reten\u00e7\u00e3o. Tente: \"Voc\u00ea sabia que...\" ou \"X pessoas j\u00e1 compraram neste bairro\".',c:'#e74c3c',i:'\ud83c\udfa3'});
+if(results.formato<11)recs.push({t:'Otimize o Formato',d:'V\u00eddeos curtos (15-30s) e Reels t\u00eam 2.5x mais alcance org\u00e2nico no Meta. Priorize v\u00eddeo vertical 9:16.',c:'#f39c12',i:'\ud83c\udfa5'});
+if(results.copy<10)recs.push({t:'Refine a Copy',d:'Copy curta com gatilho emocional + urg\u00eancia performa 40% melhor. Use: empatia no in\u00edcio, benef\u00edcio no meio, urg\u00eancia no final.',c:'#3498db',i:'\u270d\ufe0f'});
+if(results.cta<8)recs.push({t:'CTA Mais Claro',d:'CTAs espec\u00edficos (\"Agende sua visita\" vs \"Saiba mais\") geram 35% mais cliques. Sempre diga exatamente o que o usu\u00e1rio deve fazer.',c:'#9b59b6',i:'\ud83d\udc49'});
+if(results.visual<9)recs.push({t:'Qualidade Visual',d:'Regra do 20%: manter texto em menos de 20% da imagem. Identidade visual consistente aumenta recall em 80%.',c:'#2ecc71',i:'\ud83c\udfa8'});
+if(results.publico<7)recs.push({t:'Segmenta\u00e7\u00e3o de P\u00fablico',d:'Use Lookalike 1-3% dos melhores clientes + retargeting de visitantes do site nos \u00faltimos 30 dias.',c:'#e67e22',i:'\ud83c\udfaf'});
+if(results.freq<6)recs.push({t:'Aumente a Frequ\u00eancia',d:'O algoritmo Meta favorece contas com 5-7 publica\u00e7\u00f5es/semana. Consist\u00eancia > qualidade pontual.',c:'#1abc9c',i:'\ud83d\udcc5'});
+if(results.total>=85)recs.push({t:'Criativo Otimizado!',d:'Este criativo est\u00e1 alinhado com os principais sinais do algoritmo. Foque em testar varia\u00e7\u00f5es A/B para maximizar resultados.',c:'#2ecc71',i:'\ud83c\udfc6'});
+recs.forEach(function(r){
+h+='<div style="padding:14px;background:rgba(255,255,255,.02);border-left:3px solid '+r.c+';border-radius:0 10px 10px 0;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.85rem;margin-bottom:4px;">'+r.i+' '+r.t+'</div>';
+h+='<div style="color:#aaa;font-size:.76rem;line-height:1.4;">'+r.d+'</div></div>';});
+h+='</div></div>';
+}
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
+h+='<h3 style="margin:0 0 16px;color:var(--gold);font-size:1.1rem;">\ud83c\udfac Configure seu Criativo</h3>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">';
+h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #3498db;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83c\udfa5 Formato do An\u00fancio</div>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Tipo de Criativo</label>';
+h+='<select id="sim-formato" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;">';
+h+='<option value=""'+(!(f.formato)?' selected':'')+'>Selecione...</option>';
+h+='<option value="video_curto"'+(f.formato==='video_curto'?' selected':'')+'>V\u00eddeo Curto (15-30s)</option>';
+h+='<option value="reels"'+(f.formato==='reels'?' selected':'')+'>Reels</option>';
+h+='<option value="carrossel"'+(f.formato==='carrossel'?' selected':'')+'>Carrossel</option>';
+h+='<option value="stories"'+(f.formato==='stories'?' selected':'')+'>Stories</option>';
+h+='<option value="video_longo"'+(f.formato==='video_longo'?' selected':'')+'>V\u00eddeo Longo (60s+)</option>';
+h+='<option value="imagem_unica"'+(f.formato==='imagem_unica'?' selected':'')+'>Imagem \u00danica</option>';
+h+='<option value="colecao"'+(f.formato==='colecao'?' selected':'')+'>Cole\u00e7\u00e3o</option>';
+h+='</select>';
+h+='<div style="font-size:.65rem;color:#666;margin-top:4px;">\ud83d\udcca V\u00eddeos curtos e Reels t\u00eam maior alcance org\u00e2nico</div>';
+h+='</div>';
+h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #e74c3c;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83c\udfa3 Hook (Gancho)</div>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Tipo de Hook</label>';
+h+='<select id="sim-hook_tipo" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;">';
+h+='<option value="">Selecione...</option>';
+h+='<option value="dado_impactante"'+(f.hook_tipo==='dado_impactante'?' selected':'')+'>Dado Impactante / Estat\u00edstica</option>';
+h+='<option value="depoimento"'+(f.hook_tipo==='depoimento'?' selected':'')+'>Depoimento / Prova Social</option>';
+h+='<option value="antes_depois"'+(f.hook_tipo==='antes_depois'?' selected':'')+'>Antes & Depois</option>';
+h+='<option value="pergunta"'+(f.hook_tipo==='pergunta'?' selected':'')+'>Pergunta Provocativa</option>';
+h+='<option value="storytelling"'+(f.hook_tipo==='storytelling'?' selected':'')+'>Storytelling</option>';
+h+='<option value="tour_virtual"'+(f.hook_tipo==='tour_virtual'?' selected':'')+'>Tour Virtual</option>';
+h+='<option value="oferta_direta"'+(f.hook_tipo==='oferta_direta'?' selected':'')+'>Oferta Direta</option>';
+h+='</select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Tempo at\u00e9 o gancho (segundos)</label>';
+h+='<input id="sim-hook_segundos" type="number" value="'+(f.hook_segundos||'')+'" placeholder="Ex: 3" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;box-sizing:border-box;" />';
+h+='<div style="font-size:.65rem;color:#666;margin-top:4px;">\u26a1 Meta recomenda hook nos primeiros 3 segundos</div>';
+h+='</div>';
+h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #2ecc71;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\u270d\ufe0f Copy do An\u00fancio</div>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Tamanho da Copy</label>';
+h+='<select id="sim-copy_tamanho" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;">';
+h+='<option value="">Selecione...</option>';
+h+='<option value="curta"'+(f.copy_tamanho==='curta'?' selected':'')+'>Curta (1-2 linhas)</option>';
+h+='<option value="media"'+(f.copy_tamanho==='media'?' selected':'')+'>M\u00e9dia (3-5 linhas)</option>';
+h+='<option value="longa"'+(f.copy_tamanho==='longa'?' selected':'')+'>Longa (6+ linhas)</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">N\u00edvel Emocional</label>';
+h+='<select id="sim-copy_emocao" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;">';
+h+='<option value="">Selecione...</option>';
+h+='<option value="alta"'+(f.copy_emocao==='alta'?' selected':'')+'>Alta (sonho, fam\u00edlia, conquista)</option>';
+h+='<option value="media"'+(f.copy_emocao==='media'?' selected':'')+'>M\u00e9dia (benef\u00edcios + emo\u00e7\u00e3o)</option>';
+h+='<option value="baixa"'+(f.copy_emocao==='baixa'?' selected':'')+'>Baixa (apenas informativo)</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Gatilho de Urg\u00eancia</label>';
+h+='<select id="sim-copy_urgencia" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;">';
+h+='<option value="">Selecione...</option>';
+h+='<option value="sim"'+(f.copy_urgencia==='sim'?' selected':'')+'>Sim (\u00faltimas unidades, prazo limitado)</option>';
+h+='<option value="sutil"'+(f.copy_urgencia==='sutil'?' selected':'')+'>Sutil (oportunidade, momento ideal)</option>';
+h+='<option value="nao"'+(f.copy_urgencia==='nao'?' selected':'')+'>N\u00e3o</option></select></div>';
+h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #9b59b6;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83d\udc49 Call to Action</div>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Tipo de CTA</label>';
+h+='<select id="sim-cta_tipo" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;">';
+h+='<option value="">Selecione...</option>';
+h+='<option value="agende_visita"'+(f.cta_tipo==='agende_visita'?' selected':'')+'>Agende sua Visita</option>';
+h+='<option value="simule_financiamento"'+(f.cta_tipo==='simule_financiamento'?' selected':'')+'>Simule seu Financiamento</option>';
+h+='<option value="fale_corretor"'+(f.cta_tipo==='fale_corretor'?' selected':'')+'>Fale com um Corretor</option>';
+h+='<option value="cadastre_se"'+(f.cta_tipo==='cadastre_se'?' selected':'')+'>Cadastre-se</option>';
+h+='<option value="saiba_mais"'+(f.cta_tipo==='saiba_mais'?' selected':'')+'>Saiba Mais</option>';
+h+='<option value="baixe_material"'+(f.cta_tipo==='baixe_material'?' selected':'')+'>Baixe o Material</option>';
+h+='<option value="link_bio"'+(f.cta_tipo==='link_bio'?' selected':'')+'>Link na Bio</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Clareza do CTA</label>';
+h+='<select id="sim-cta_clareza" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;">';
+h+='<option value="">Selecione...</option>';
+h+='<option value="muito_claro"'+(f.cta_clareza==='muito_claro'?' selected':'')+'>Muito Claro (a\u00e7\u00e3o exata)</option>';
+h+='<option value="claro"'+(f.cta_clareza==='claro'?' selected':'')+'>Claro</option>';
+h+='<option value="vago"'+(f.cta_clareza==='vago'?' selected':'')+'>Vago / Gen\u00e9rico</option></select></div>';
+h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #f39c12;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83c\udfa8 Qualidade Visual</div>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Qualidade da Produ\u00e7\u00e3o</label>';
+h+='<select id="sim-visual_qualidade" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;"><option value="">Selecione...</option><option value="profissional"'+(f.visual_qualidade==='profissional'?' selected':'')+'>Profissional (fot\u00f3grafo/videomaker)</option><option value="boa"'+(f.visual_qualidade==='boa'?' selected':'')+'>Boa (celular + edi\u00e7\u00e3o)</option><option value="amadora"'+(f.visual_qualidade==='amadora'?' selected':'')+'>Amadora</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Identidade Visual PSM</label>';
+h+='<select id="sim-visual_identidade" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;"><option value="">Selecione...</option><option value="total"'+(f.visual_identidade==='total'?' selected':'')+'>Total (cores, logo, tipografia)</option><option value="parcial"'+(f.visual_identidade==='parcial'?' selected':'')+'>Parcial (s\u00f3 logo)</option><option value="nenhuma"'+(f.visual_identidade==='nenhuma'?' selected':'')+'>Nenhuma</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Texto na Imagem</label>';
+h+='<select id="sim-visual_texto_img" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;"><option value="">Selecione...</option><option value="ate_20"'+(f.visual_texto_img==='ate_20'?' selected':'')+'>At\u00e9 20% (ideal Meta)</option><option value="20_40"'+(f.visual_texto_img==='20_40'?' selected':'')+'>20-40%</option><option value="mais_40"'+(f.visual_texto_img==='mais_40'?' selected':'')+'>Mais de 40%</option></select></div>';
+h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #1abc9c;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83c\udfaf Segmenta\u00e7\u00e3o de P\u00fablico</div>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">N\u00edvel de Segmenta\u00e7\u00e3o</label>';
+h+='<select id="sim-publico_segmentacao" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;"><option value="">Selecione...</option><option value="detalhada"'+(f.publico_segmentacao==='detalhada'?' selected':'')+'>Detalhada (idade+renda+interesse+local)</option><option value="moderada"'+(f.publico_segmentacao==='moderada'?' selected':'')+'>Moderada (idade+local)</option><option value="ampla"'+(f.publico_segmentacao==='ampla'?' selected':'')+'>Ampla (s\u00f3 regi\u00e3o)</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Lookalike Audience</label>';
+h+='<select id="sim-publico_lookalike" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;"><option value="">Selecione...</option><option value="sim"'+(f.publico_lookalike==='sim'?' selected':'')+'>Sim</option><option value="nao"'+(f.publico_lookalike==='nao'?' selected':'')+'>N\u00e3o</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Retargeting</label>';
+h+='<select id="sim-publico_retargeting" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;"><option value="">Selecione...</option><option value="sim"'+(f.publico_retargeting==='sim'?' selected':'')+'>Sim</option><option value="nao"'+(f.publico_retargeting==='nao'?' selected':'')+'>N\u00e3o</option></select></div>';
+h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #e67e22;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83d\udcc5 Frequ\u00eancia & Timing</div>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Posts por Semana</label>';
+h+='<input id="sim-freq_semanal" type="number" value="'+(f.freq_semanal||'')+'" placeholder="Ex: 5" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;box-sizing:border-box;margin-bottom:8px;" />';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Dias da Semana</label>';
+h+='<select id="sim-timing_dia" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;"><option value="">Selecione...</option><option value="ter_qui"'+(f.timing_dia==='ter_qui'?' selected':'')+'>Ter\u00e7a a Quinta (melhor)</option><option value="seg_sex"'+(f.timing_dia==='seg_sex'?' selected':'')+'>Segunda a Sexta</option><option value="fds"'+(f.timing_dia==='fds'?' selected':'')+'>Fins de Semana</option><option value="todos"'+(f.timing_dia==='todos'?' selected':'')+'>Todos os Dias</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Hor\u00e1rio</label>';
+h+='<select id="sim-timing_horario" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;"><option value="">Selecione...</option><option value="18_21"'+(f.timing_horario==='18_21'?' selected':'')+'>18h-21h (pico)</option><option value="12_14"'+(f.timing_horario==='12_14'?' selected':'')+'>12h-14h (almo\u00e7o)</option><option value="08_10"'+(f.timing_horario==='08_10'?' selected':'')+'>08h-10h (manh\u00e3)</option><option value="outro"'+(f.timing_horario==='outro'?' selected':'')+'>Outro</option></select></div>';
+h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid var(--gold);">';
+h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83c\udfaf Objetivo da Campanha</div>';
+h+='<select id="sim-objetivo" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;">';
+h+='<option value="">Selecione...</option>';
+h+='<option value="leads"'+(f.objetivo==='leads'?' selected':'')+'>Gera\u00e7\u00e3o de Leads</option>';
+h+='<option value="trafego"'+(f.objetivo==='trafego'?' selected':'')+'>Tr\u00e1fego para Site</option>';
+h+='<option value="engajamento"'+(f.objetivo==='engajamento'?' selected':'')+'>Engajamento</option>';
+h+='<option value="alcance"'+(f.objetivo==='alcance'?' selected':'')+'>Alcance / Brand Awareness</option>';
+h+='<option value="conversao"'+(f.objetivo==='conversao'?' selected':'')+'>Convers\u00e3o</option>';
+h+='<option value="mensagens"'+(f.objetivo==='mensagens'?' selected':'')+'>Mensagens WhatsApp</option></select>';
+h+='<div style="font-size:.65rem;color:#666;margin-top:6px;">O objetivo afeta como o Meta distribui seu an\u00fancio</div>';
+h+='</div>';
+h+='</div>';
+h+='<div style="text-align:center;margin-top:20px;">';
+h+='<button onclick="calcScore()" style="padding:14px 48px;background:linear-gradient(135deg,var(--gold),#e6a800);color:#000;border:none;border-radius:12px;cursor:pointer;font-size:1rem;font-weight:700;transition:all .3s;box-shadow:0 4px 15px rgba(212,175,55,.3);" onmouseover="this.style.transform=\'scale(1.05)\';this.style.boxShadow=\'0 6px 20px rgba(212,175,55,.5)\'" onmouseout="this.style.transform=\'scale(1)\';this.style.boxShadow=\'0 4px 15px rgba(212,175,55,.3)\'">\ud83e\udde0 Simular Pontua\u00e7\u00e3o do Algoritmo</button>';
+h+='</div></div>';
+h+='<div style="background:rgba(255,215,0,.04);border:1px solid rgba(255,215,0,.15);border-radius:12px;padding:18px;margin-top:20px;">';
+h+='<div style="font-size:.9rem;color:var(--gold);font-weight:600;margin-bottom:10px;">\ud83d\udcda Sinais do Algoritmo Meta Ads 2024-2025</div>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;font-size:.76rem;color:#aaa;line-height:1.5;">';
+h+='<div><strong style="color:#fff;">\ud83c\udfa3 Hook:</strong> Reten\u00e7\u00e3o nos 3 primeiros segundos \u00e9 o sinal #1. Meta corta distribui\u00e7\u00e3o se a reten\u00e7\u00e3o inicial for baixa.</div>';
+h+='<div><strong style="color:#fff;">\ud83d\udcac Engajamento:</strong> Coment\u00e1rios > Compartilhamentos > Rea\u00e7\u00f5es. Coment\u00e1rios longos pesam 5x mais que likes.</div>';
+h+='<div><strong style="color:#fff;">\u23f1\ufe0f Tempo no An\u00fancio:</strong> Tempo m\u00e9dio de visualiza\u00e7\u00e3o > 75% do v\u00eddeo sinaliza alta relev\u00e2ncia ao algoritmo.</div>';
+h+='<div><strong style="color:#fff;">\ud83d\udd04 Consist\u00eancia:</strong> Contas que publicam 5-7x/semana recebem 3x mais alcance org\u00e2nico que contas irregulares.</div>';
+h+='<div><strong style="color:#fff;">\ud83c\udfa8 Visual:</strong> Regra de 20% de texto. Criativos nativos (parecem org\u00e2nicos) performam 2x melhor que banners tradicionais.</div>';
+h+='<div><strong style="color:#fff;">\ud83c\udfaf Relev\u00e2ncia:</strong> Score de Relev\u00e2ncia do Meta (1-10) impacta diretamente o custo por resultado. Quanto maior, menor o CPM.</div>';
+h+='</div></div>';
+h+='</div>';
+Q('#main-content').innerHTML=h;
+}
+render();
+}
 function pgBenchmark() {
   var u = S.user; if (!u) return '';
   var header = '<div class="phd"><h1>📊 Benchmark</h1><p>Comparação de performance com o mercado</p></div>';
@@ -7878,7 +8151,7 @@ async function testConnectors() {
 // === SISTEMA DE PERFIS E PERMISSOES PSM OS ===
 var PERFIL_MAP={paulo:'diretor',isa:'diretor',leire:'backoffice',mariane:'backoffice',marcus_l:'lider',guilherme:'marketing',gestor_trafego:'marketing'};
 function getPerfil(){if(!S.user||!S.user.id)return "corretor";if(PERFIL_MAP[S.user.id])return PERFIL_MAP[S.user.id];if(S.user.role==="socio")return "diretor";if(S.user.role==="lider")return "lider";if(S.user.role==="backoffice")return "backoffice";if(S.user.role==="marketing")return "marketing";return "corretor";}
-var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','forecast','checkin','drive','formacao','manual','captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias'],marketing:['meu','dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias'],corretor:['meu','ranking','crm','metas','checkin','formacao','manual','drive','vera']};
+var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','simulador'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','simulador'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','forecast','checkin','drive','formacao','manual','captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','simulador'],marketing:['meu','dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias','simulador'],corretor:['meu','ranking','crm','metas','checkin','formacao','manual','drive','vera']};
 function canAccess(p){var pf=getPerfil();var a=MENU_ACCESS[pf];return a?a.indexOf(p)!==-1:false;}
 var DEFAULT_PAGE={diretor:'dashboard',backoffice:'dashboard',lider:'meu',marketing:'meu',corretor:'meu'};
 function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"meu";}
@@ -7925,6 +8198,7 @@ function renderSB() {
       {id:'radar',lbl:'Radar Concorrentes',ico:'📡',min:5},
       {id:'benchmark',lbl:'Benchmark',ico:'📊',min:5},
       {id:'tendencias',lbl:'Tendências',ico:'🔥',min:5},
+      {id:'simulador',lbl:'Simulador Criativo',ico:'🧠',min:5},
     ]},
     {sec:'Recursos', items:[
       {id:'drive',     lbl:'Drive PSM',      ico:'📁',min:1},
@@ -8988,6 +9262,7 @@ function route() {
     case 'radar':      return pgRadar();
     case 'benchmark':  return pgBenchmark();
     case 'tendencias': return pgTendencias();
+else if(p==='simulador')pgSimuladorCriativo();
     default:           return pgMeu();
   }
 }
