@@ -2711,6 +2711,25 @@ function pgMetas(){
 function pgEquipe(){
   const equipe = JSON.parse(localStorage.getItem('psm_equipe') || '[]');
 
+  setTimeout(() => {
+  document.querySelector('#eq-add').onclick = () => {
+    const nome = prompt('Nome do membro:');
+    if (!nome) return;
+    const cargo = prompt('Cargo (corretor/lider/backoffice/marketing):') || 'corretor';
+    const email = prompt('E-mail:') || '';
+    const telefone = prompt('Telefone:') || '';
+    const arr = JSON.parse(localStorage.getItem('psm_equipe') || '[]');
+    arr.push({ nome, cargo, email, telefone, status: 'ativo', dataEntrada: new Date().toISOString().split('T')[0] });
+    localStorage.setItem('psm_equipe', JSON.stringify(arr));
+    pgEquipe();
+  };
+  window.removeEquipe = function(i) {
+    const arr = JSON.parse(localStorage.getItem('psm_equipe') || '[]');
+    arr.splice(i, 1);
+    localStorage.setItem('psm_equipe', JSON.stringify(arr));
+    pgEquipe();
+  };
+  }, 0);
   return `
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
@@ -2757,23 +2776,6 @@ function pgEquipe(){
     </div>
   </div>`;
 
-  C.querySelector('#eq-add').onclick = () => {
-    const nome = prompt('Nome do membro:');
-    if (!nome) return;
-    const cargo = prompt('Cargo (corretor/lider/backoffice/marketing):') || 'corretor';
-    const email = prompt('E-mail:') || '';
-    const telefone = prompt('Telefone:') || '';
-    const arr = JSON.parse(localStorage.getItem('psm_equipe') || '[]');
-    arr.push({ nome, cargo, email, telefone, status: 'ativo', dataEntrada: new Date().toISOString().split('T')[0] });
-    localStorage.setItem('psm_equipe', JSON.stringify(arr));
-    pgEquipe();
-  };
-  window.removeEquipe = function(i) {
-    const arr = JSON.parse(localStorage.getItem('psm_equipe') || '[]');
-    arr.splice(i, 1);
-    localStorage.setItem('psm_equipe', JSON.stringify(arr));
-    pgEquipe();
-  };
 }
 
 // ─── PAGE: CRM ────────────────────────────────────────────────────────────────
@@ -5767,6 +5769,25 @@ function pgCaptacao() {
   const ativas = captacoes.filter(c => c.status === 'ativo').length;
   const vendidas = captacoes.filter(c => c.status === 'vendido').length;
 
+  setTimeout(() => {
+  document.querySelector('#cap-add').onclick = () => {
+    const nome = prompt('Nome/Identifica\u00e7\u00e3o do im\u00f3vel:');
+    if (!nome) return;
+    const tipo = prompt('Tipo (apartamento/casa/terreno/comercial):') || 'apartamento';
+    const bairro = prompt('Bairro:') || '\u2014';
+    const valor = prompt('Valor (R$):') || '0';
+    const arr = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
+    arr.push({ nome, tipo, bairro, valor: parseFloat(valor) || 0, status: 'ativo', data: new Date().toISOString().split('T')[0] });
+    localStorage.setItem('psm_captacao', JSON.stringify(arr));
+    pgCaptacao();
+  };
+  window.removeCaptacao = function(i) {
+    const arr = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
+    arr.splice(i, 1);
+    localStorage.setItem('psm_captacao', JSON.stringify(arr));
+    pgCaptacao();
+  };
+  }, 0);
   return `
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
@@ -5822,23 +5843,6 @@ function pgCaptacao() {
     </div>
   </div>`;
 
-  C.querySelector('#cap-add').onclick = () => {
-    const nome = prompt('Nome/Identifica\u00e7\u00e3o do im\u00f3vel:');
-    if (!nome) return;
-    const tipo = prompt('Tipo (apartamento/casa/terreno/comercial):') || 'apartamento';
-    const bairro = prompt('Bairro:') || '\u2014';
-    const valor = prompt('Valor (R$):') || '0';
-    const arr = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
-    arr.push({ nome, tipo, bairro, valor: parseFloat(valor) || 0, status: 'ativo', data: new Date().toISOString().split('T')[0] });
-    localStorage.setItem('psm_captacao', JSON.stringify(arr));
-    pgCaptacao();
-  };
-  window.removeCaptacao = function(i) {
-    const arr = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
-    arr.splice(i, 1);
-    localStorage.setItem('psm_captacao', JSON.stringify(arr));
-    pgCaptacao();
-  };
 }
 
 
@@ -6216,6 +6220,27 @@ function pgComissoes() {
   const pendentes = comissoes.filter(c => c.status !== 'pago');
   const totalPago = pagas.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
   const totalPendente = pendentes.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
+  setTimeout(() => {
+  document.querySelector('#com-add').onclick = () => {
+    const corretor = prompt('Nome do corretor:'); if (!corretor) return;
+    const imovel = prompt('Im\u00f3vel:') || '\u2014';
+    const valor = prompt('Valor da comiss\u00e3o (R$):') || '0';
+    const arr = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
+    arr.push({ corretor, imovel, valor: parseFloat(valor) || 0, status: 'pendente', data: new Date().toISOString().split('T')[0] });
+    localStorage.setItem('psm_comissoes', JSON.stringify(arr));
+    pgComissoes();
+  };
+  window.toggleComissao = function(i) {
+    const arr = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
+    if (arr[i]) { arr[i].status = arr[i].status === 'pago' ? 'pendente' : 'pago'; localStorage.setItem('psm_comissoes', JSON.stringify(arr)); }
+    pgComissoes();
+  };
+  window.removeComissao = function(i) {
+    const arr = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
+    arr.splice(i, 1); localStorage.setItem('psm_comissoes', JSON.stringify(arr));
+    pgComissoes();
+  };
+  }, 0);
   return `
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
@@ -6269,25 +6294,6 @@ function pgComissoes() {
       </table>`}
     </div>
   </div>`;
-  C.querySelector('#com-add').onclick = () => {
-    const corretor = prompt('Nome do corretor:'); if (!corretor) return;
-    const imovel = prompt('Im\u00f3vel:') || '\u2014';
-    const valor = prompt('Valor da comiss\u00e3o (R$):') || '0';
-    const arr = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
-    arr.push({ corretor, imovel, valor: parseFloat(valor) || 0, status: 'pendente', data: new Date().toISOString().split('T')[0] });
-    localStorage.setItem('psm_comissoes', JSON.stringify(arr));
-    pgComissoes();
-  };
-  window.toggleComissao = function(i) {
-    const arr = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
-    if (arr[i]) { arr[i].status = arr[i].status === 'pago' ? 'pendente' : 'pago'; localStorage.setItem('psm_comissoes', JSON.stringify(arr)); }
-    pgComissoes();
-  };
-  window.removeComissao = function(i) {
-    const arr = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
-    arr.splice(i, 1); localStorage.setItem('psm_comissoes', JSON.stringify(arr));
-    pgComissoes();
-  };
 }
 
 // ─── PAGE: REPASSES ────────────────────────────────────────────────
@@ -6296,6 +6302,27 @@ function pgRepasses() {
   const total = repasses.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
   const realizados = repasses.filter(r => r.status === 'realizado');
   const agendados = repasses.filter(r => r.status !== 'realizado');
+  setTimeout(() => {
+  document.querySelector('#rep-add').onclick = () => {
+    const descricao = prompt('Descri\u00e7\u00e3o do repasse:'); if (!descricao) return;
+    const destinatario = prompt('Destinat\u00e1rio:') || '\u2014';
+    const valor = prompt('Valor (R$):') || '0';
+    const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
+    arr.push({ descricao, destinatario, valor: parseFloat(valor) || 0, status: 'agendado', data: new Date().toISOString().split('T')[0] });
+    localStorage.setItem('psm_repasses', JSON.stringify(arr));
+    pgRepasses();
+  };
+  window.toggleRepasse = function(i) {
+    const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
+    if (arr[i]) { arr[i].status = arr[i].status === 'realizado' ? 'agendado' : 'realizado'; localStorage.setItem('psm_repasses', JSON.stringify(arr)); }
+    pgRepasses();
+  };
+  window.removeRepasse = function(i) {
+    const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
+    arr.splice(i, 1); localStorage.setItem('psm_repasses', JSON.stringify(arr));
+    pgRepasses();
+  };
+  }, 0);
   return `
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
@@ -6349,25 +6376,6 @@ function pgRepasses() {
       </table>`}
     </div>
   </div>`;
-  C.querySelector('#rep-add').onclick = () => {
-    const descricao = prompt('Descri\u00e7\u00e3o do repasse:'); if (!descricao) return;
-    const destinatario = prompt('Destinat\u00e1rio:') || '\u2014';
-    const valor = prompt('Valor (R$):') || '0';
-    const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
-    arr.push({ descricao, destinatario, valor: parseFloat(valor) || 0, status: 'agendado', data: new Date().toISOString().split('T')[0] });
-    localStorage.setItem('psm_repasses', JSON.stringify(arr));
-    pgRepasses();
-  };
-  window.toggleRepasse = function(i) {
-    const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
-    if (arr[i]) { arr[i].status = arr[i].status === 'realizado' ? 'agendado' : 'realizado'; localStorage.setItem('psm_repasses', JSON.stringify(arr)); }
-    pgRepasses();
-  };
-  window.removeRepasse = function(i) {
-    const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
-    arr.splice(i, 1); localStorage.setItem('psm_repasses', JSON.stringify(arr));
-    pgRepasses();
-  };
 }
 
 // ─── PAGE: RADAR INTELLIGENCE ────────────────────────────────────────────────
@@ -7265,30 +7273,15 @@ function pgBenchmark() {
 
 // ─── PAGE: TENDÊNCIAS ────────────────────────────────────────────────
 function pgTendencias() {
-  return `
-  <div style="max-width:1200px;margin:auto;padding:24px">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <span style="font-size:32px">\ud83d\udcc8</span>
-      <div>
-        <h2 style="margin:0;color:#fff;font-size:22px">Tend\u00eancias de Mercado</h2>
-        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Identifique e acompanhe tend\u00eancias do mercado imobili\u00e1rio</p>
-      </div>
-    </div>
-    <div id="tend-tabs" style="display:flex;gap:8px;margin-bottom:20px">
-      <button class="tend-tab active" data-tab="painel" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;cursor:pointer;font-size:13px">\ud83d\udcca Painel</button>
-      <button class="tend-tab" data-tab="registro" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\u2795 Registrar</button>
-      <button class="tend-tab" data-tab="historico" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\ud83d\udccb Hist\u00f3rico</button>
-    </div>
-    <div id="tend-content"></div>
-  </div>`;
-  const tabs = C.querySelectorAll('.tend-tab');
+  setTimeout(() => {
+  const tabs = document.querySelectorAll('.tend-tab');
   tabs.forEach(t => t.onclick = () => {
     tabs.forEach(b => { b.style.background = 'transparent'; b.style.color = '#94a3b8'; b.classList.remove('active'); });
     t.style.background = '#1e293b'; t.style.color = '#fff'; t.classList.add('active');
     renderTendTab(t.dataset.tab);
   });
   function renderTendTab(tab) {
-    const box = C.querySelector('#tend-content');
+    const box = document.querySelector('#tend-content');
     const data = JSON.parse(localStorage.getItem('psm_tendencias') || '[]');
     if (tab === 'painel') {
       const categorias = {};
@@ -7336,7 +7329,7 @@ function pgTendencias() {
         arr.push(item);
         localStorage.setItem('psm_tendencias', JSON.stringify(arr));
         alert('Tend\u00eancia registrada!');
-        C.querySelector('.tend-tab[data-tab=painel]').click();
+        document.querySelector('.tend-tab[data-tab=painel]').click();
       };
     } else if (tab === 'historico') {
       box.innerHTML = `
@@ -7366,6 +7359,23 @@ function pgTendencias() {
     }
   }
   renderTendTab('painel');
+  }, 0);
+  return `
+  <div style="max-width:1200px;margin:auto;padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span style="font-size:32px">\ud83d\udcc8</span>
+      <div>
+        <h2 style="margin:0;color:#fff;font-size:22px">Tend\u00eancias de Mercado</h2>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Identifique e acompanhe tend\u00eancias do mercado imobili\u00e1rio</p>
+      </div>
+    </div>
+    <div id="tend-tabs" style="display:flex;gap:8px;margin-bottom:20px">
+      <button class="tend-tab active" data-tab="painel" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;cursor:pointer;font-size:13px">\ud83d\udcca Painel</button>
+      <button class="tend-tab" data-tab="registro" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\u2795 Registrar</button>
+      <button class="tend-tab" data-tab="historico" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\ud83d\udccb Hist\u00f3rico</button>
+    </div>
+    <div id="tend-content"></div>
+  </div>`;
 }
 
 // ─── PAGE: LANÇAMENTOS DO ANO ────────────────────────────────────────────────
