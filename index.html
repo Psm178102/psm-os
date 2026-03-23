@@ -2709,10 +2709,9 @@ function pgMetas(){
 
 // ─── PAGE: EQUIPE ─────────────────────────────────────────────────────────────
 function pgEquipe(){
-  const C = S.el;
   const equipe = JSON.parse(localStorage.getItem('psm_equipe') || '[]');
 
-  C.innerHTML = `
+  return ``
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\ud83d\udc65</span>
@@ -3030,10 +3029,9 @@ function pgForecast(){
 // --- PAGE: WAR ROOM ---
 
 function pgWarRoom() {
-  const C = S.el;
   const dados = JSON.parse(localStorage.getItem('psm_warroom') || '{}');
   const concorrentes = JSON.parse(localStorage.getItem('psm_radar_data') || '[]');
-  C.innerHTML = `
+  return ``
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\u2694\ufe0f</span>
@@ -3163,9 +3161,8 @@ function pgWarRoom() {
 // --- PAGE: WAR ARENA ---
 
 function pgWarArena() {
-  const C = S.el;
   const concorrentes = JSON.parse(localStorage.getItem('psm_radar_data') || '[]');
-  C.innerHTML = `
+  return ``
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\ud83c\udfdf\ufe0f</span>
@@ -5765,13 +5762,12 @@ function pgManual() {
 
 // ─── CAPTAÇÃO DE IMÓVEIS ──────────────────────────────────────────────────────
 function pgCaptacao() {
-  const C = S.el;
   const captacoes = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
   const total = captacoes.length;
   const ativas = captacoes.filter(c => c.status === 'ativo').length;
   const vendidas = captacoes.filter(c => c.status === 'vendido').length;
 
-  C.innerHTML = `
+  return ``
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\ud83c\udfe0</span>
@@ -6047,14 +6043,13 @@ function pgMarketing() {
 
 // ─── PAGE: FLUXO DE CAIXA ────────────────────────────────────────────────
 function pgFluxocaixa() {
-  const C = S.el;
   const dados = JSON.parse(localStorage.getItem('psm_fluxocaixa') || '{"entradas":[],"saidas":[]}');
   function calcTotal(arr) { return arr.reduce((s, i) => s + (parseFloat(i.valor) || 0), 0); }
   const totalEntradas = calcTotal(dados.entradas || []);
   const totalSaidas = calcTotal(dados.saidas || []);
   const saldo = totalEntradas - totalSaidas;
 
-  C.innerHTML = `
+  return ``
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\ud83d\udcb5</span>
@@ -6129,7 +6124,6 @@ function pgFluxocaixa() {
 
 // ─── PAGE: DRE ────────────────────────────────────────────────
 function pgDre() {
-  const C = S.el;
   const dados = JSON.parse(localStorage.getItem('psm_dre') || '{}');
   const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const mesAtual = new Date().getMonth();
@@ -6158,7 +6152,7 @@ function pgDre() {
   const totalImposto = categorias[2].items.reduce((s, i) => s + getVal(i.key), 0);
   const lucro = totalReceita - totalCusto - totalImposto;
   const margem = totalReceita > 0 ? ((lucro / totalReceita) * 100).toFixed(1) : '\u2014';
-  C.innerHTML = `
+  return ``
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\ud83d\udcca</span>
@@ -6216,14 +6210,13 @@ function pgDre() {
 
 // ─── PAGE: COMISSÕES ────────────────────────────────────────────────
 function pgComissoes() {
-  const C = S.el;
   const comissoes = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
   const total = comissoes.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
   const pagas = comissoes.filter(c => c.status === 'pago');
   const pendentes = comissoes.filter(c => c.status !== 'pago');
   const totalPago = pagas.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
   const totalPendente = pendentes.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
-  C.innerHTML = `
+  return ``
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\ud83d\udcb0</span>
@@ -6299,12 +6292,11 @@ function pgComissoes() {
 
 // ─── PAGE: REPASSES ────────────────────────────────────────────────
 function pgRepasses() {
-  const C = S.el;
   const repasses = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
   const total = repasses.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
   const realizados = repasses.filter(r => r.status === 'realizado');
   const agendados = repasses.filter(r => r.status !== 'realizado');
-  C.innerHTML = `
+  return ``
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\ud83d\udd04</span>
@@ -7181,7 +7173,6 @@ Q('#main-content').innerHTML=h;
 render();
 }
 function pgBenchmark() {
-  const C = S.el;
   const concorrentes = JSON.parse(localStorage.getItem('psm_radar_data') || '[]');
   const metricas = [
     { key: 'seguidores', label: 'Seguidores', icon: '\ud83d\udc65', format: v => v ? Number(v).toLocaleString('pt-BR') : '\u2014' },
@@ -7202,7 +7193,7 @@ function pgBenchmark() {
     const median = vals.length % 2 === 0 ? (vals[vals.length/2-1] + vals[vals.length/2]) / 2 : vals[Math.floor(vals.length/2)];
     return { avg: Math.round(avg * 100) / 100, max: vals[vals.length-1], min: vals[0], median: Math.round(median * 100) / 100, count: vals.length };
   }
-  C.innerHTML = `
+  return ``
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\ud83d\udcca</span>
@@ -7272,8 +7263,7 @@ function pgBenchmark() {
 
 // ─── PAGE: TENDÊNCIAS ────────────────────────────────────────────────
 function pgTendencias() {
-  const C = S.el;
-  C.innerHTML = `
+  return ``
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\ud83d\udcc8</span>
