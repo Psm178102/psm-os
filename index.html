@@ -5900,7 +5900,7 @@ h+='<div style="font-size:.75rem;color:#aaa;">'+k.label+'</div></div>';
 });
 h+='</div>';
 h+='<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:0;flex-wrap:wrap;">';
-var tabs=[{id:'overview',label:'\ud83d\udccb Vis\u00e3o Geral'},{id:'digital',label:'\ud83d\udcf1 Presen\u00e7a Digital'},{id:'positioning',label:'\ud83d\udcca Posicionamento'},{id:'metrics',label:'\ud83d\udcc8 M\u00e9tricas'}];
+var tabs=[{id:'overview',label:'\ud83d\udccb Vis\u00e3o Geral'},{id:'digital',label:'\ud83d\udcf1 Presen\u00e7a Digital'},{id:'positioning',label:'\ud83d\udcca Posicionamento'},{id:'metrics',label:'\ud83d\udcc8 M\u00e9tricas'},{id:'traffic',label:'\ud83c\udfaf Tr\u00e1fego Pago'},{id:'swot',label:'\ud83d\udee1\ufe0f SWOT & Padr\u00f5es'}];
 tabs.forEach(function(t){
 var isA=t.id===activeTab;
 h+='<button onclick="window._radarTab=\''+t.id+'\';document.querySelector(\'[data-radar-rerender]\').click()" style="padding:10px 20px;background:'+(isA?'var(--gold)':'transparent')+';color:'+(isA?'#000':'#aaa')+';border:none;border-bottom:2px solid '+(isA?'var(--gold)':'transparent')+';cursor:pointer;font-size:.85rem;font-weight:'+(isA?'700':'400')+';border-radius:8px 8px 0 0;transition:all .2s;">'+t.label+'</button>';
@@ -5931,6 +5931,8 @@ if(activeTab==='overview') h+=renderOverview(fc);
 else if(activeTab==='digital') h+=renderDigital(fc);
 else if(activeTab==='positioning') h+=renderPositioning(fc);
 else if(activeTab==='metrics') h+=renderMetrics(fc);
+else if(activeTab==='traffic') h+=renderTraffic(fc);
+else if(activeTab==='swot') h+=renderSwot(fc);
 h+='</div>';
 Q('#main-content').innerHTML=h;
 var rb=document.querySelector('[data-radar-rerender]');
@@ -6118,6 +6120,153 @@ return h;
 }
 render();
 }
+function renderTraffic(fc){
+var h='';
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
+h+='<h3 style="margin:0 0 8px;color:var(--gold);font-size:1.1rem;">\ud83c\udfaf An\u00e1lise de Tr\u00e1fego Pago</h3>';
+h+='<p style="color:#aaa;font-size:.8rem;margin:0 0 12px;">Monitoramento de an\u00fancios pagos dos concorrentes via Meta Ad Library e Google Ads Transparency.</p>';
+var totalAds=0,metaActive=0,gadsActive=0;
+fc.forEach(function(c){var ma=getData(c.handle,'meta_ads_count');var ga=getData(c.handle,'google_ads_count');
+if(ma!=='\u2014')totalAds+=parseInt(ma)||0;
+if(getData(c.handle,'meta_ads')!=='\u2014'&&getData(c.handle,'meta_ads')!=='Inativo')metaActive++;
+if(getData(c.handle,'google_ads')!=='\u2014'&&getData(c.handle,'google_ads')!=='Inativo')gadsActive++;
+});
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">';
+var tkpis=[{l:'Com Meta Ads',v:metaActive||'\u2014',c:'#3498db',i:'\ud83d\udcf1'},{l:'Com Google Ads',v:gadsActive||'\u2014',c:'#f39c12',i:'\ud83d\udd0d'},{l:'Total Ads Detectados',v:totalAds||'\u2014',c:'var(--gold)',i:'\ud83d\udce2'},{l:'Concorrentes Analisados',v:fc.length,c:'#2ecc71',i:'\ud83d\udc41\ufe0f'}];
+tkpis.forEach(function(k){h+='<div style="text-align:center;padding:12px;background:rgba(255,255,255,.03);border-radius:10px;"><div style="font-size:1.3rem;">'+k.i+'</div><div style="font-size:1.4rem;font-weight:700;color:'+k.c+';">'+k.v+'</div><div style="font-size:.7rem;color:#888;">'+k.l+'</div></div>';});
+h+='</div></div>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;">';
+fc.forEach(function(c){
+var mads=getData(c.handle,'meta_ads'),gads=getData(c.handle,'google_ads');
+var mcount=getData(c.handle,'meta_ads_count'),gcount=getData(c.handle,'google_ads_count');
+var adTypes=getData(c.handle,'ad_types'),adFreq=getData(c.handle,'ad_frequency');
+var adCopy=getData(c.handle,'ad_copy_style'),adCta=getData(c.handle,'ad_cta');
+var adComments=getData(c.handle,'ad_comments'),adSentiment=getData(c.handle,'ad_sentiment');
+var adEngRate=getData(c.handle,'ad_engagement_rate'),adSpend=getData(c.handle,'ad_spend_estimate');
+var adTopPerf=getData(c.handle,'ad_top_performer'),adWeakness=getData(c.handle,'ad_weakness');
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px;transition:all .3s;" onmouseover="this.style.borderColor=\'var(--gold)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.08)\'">';
+h+='<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px;">';
+h+='<div><div style="font-weight:600;color:#fff;font-size:.95rem;">'+(c.type==='imobiliaria'?'\ud83c\udfe2':'\ud83d\udc64')+' '+c.name+'</div>';
+h+='<div style="color:var(--gold);font-size:.72rem;">'+c.handle+'</div></div>';
+h+='<span style="background:'+tierColor(c.tier)+';color:#fff;padding:2px 8px;border-radius:10px;font-size:.65rem;font-weight:700;">'+c.tier+'</span></div>';
+h+='<div style="display:flex;gap:8px;margin-bottom:14px;">';
+var metaColor=mads!=='\u2014'&&mads!=='Inativo'?'#3498db':'#444';
+var gadsColor=gads!=='\u2014'&&gads!=='Inativo'?'#f39c12':'#444';
+h+='<div style="flex:1;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;border-left:3px solid '+metaColor+';">';
+h+='<div style="font-size:.65rem;color:#888;">\ud83d\udcf1 Meta Ads</div>';
+h+='<div style="font-size:.9rem;font-weight:600;color:'+metaColor+';">'+mads+'</div>';
+if(mcount!=='\u2014')h+='<div style="font-size:.7rem;color:#aaa;">'+mcount+' an\u00fancios ativos</div>';
+h+='</div>';
+h+='<div style="flex:1;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;border-left:3px solid '+gadsColor+';">';
+h+='<div style="font-size:.65rem;color:#888;">\ud83d\udd0d Google Ads</div>';
+h+='<div style="font-size:.9rem;font-weight:600;color:'+gadsColor+';">'+gads+'</div>';
+if(gcount!=='\u2014')h+='<div style="font-size:.7rem;color:#aaa;">'+gcount+' an\u00fancios ativos</div>';
+h+='</div></div>';
+h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">';
+var adMets=[{l:'Tipos de An\u00fancio',v:adTypes,i:'\ud83c\udfa8'},{l:'Frequ\u00eancia',v:adFreq,i:'\ud83d\udcc5'},{l:'Estilo de Copy',v:adCopy,i:'\u270d\ufe0f'},{l:'CTA Principal',v:adCta,i:'\ud83d\udc49'},{l:'Investimento Est.',v:adSpend,i:'\ud83d\udcb0'},{l:'Engajamento Ads',v:adEngRate,i:'\ud83d\udcc8'}];
+adMets.forEach(function(m){h+='<div style="padding:8px;background:rgba(255,255,255,.02);border-radius:6px;"><div style="font-size:.6rem;color:#888;">'+m.i+' '+m.l+'</div><div style="font-size:.8rem;color:'+(m.v!=='\u2014'?'#fff':'#555')+';font-weight:500;margin-top:2px;">'+m.v+'</div></div>';});
+h+='</div>';
+h+='<div style="background:rgba(255,255,255,.02);border-radius:8px;padding:12px;margin-bottom:12px;">';
+h+='<div style="font-size:.72rem;color:var(--gold);font-weight:600;margin-bottom:8px;">\ud83d\udcac Coment\u00e1rios em An\u00fancios</div>';
+h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+h+='<div><div style="font-size:.6rem;color:#888;">Volume de Coment.</div><div style="font-size:.85rem;color:'+(adComments!=='\u2014'?'#fff':'#555')+';font-weight:600;">'+adComments+'</div></div>';
+var sentColor=adSentiment==='Positivo'?'#2ecc71':adSentiment==='Negativo'?'#e74c3c':adSentiment==='Misto'?'var(--gold)':'#555';
+h+='<div><div style="font-size:.6rem;color:#888;">Sentimento</div><div style="font-size:.85rem;color:'+sentColor+';font-weight:600;">'+adSentiment+'</div></div>';
+h+='</div></div>';
+if(adTopPerf!=='\u2014'){h+='<div style="padding:10px;background:rgba(46,204,113,.06);border-left:3px solid #2ecc71;border-radius:0 8px 8px 0;margin-bottom:8px;"><div style="font-size:.65rem;color:#2ecc71;font-weight:600;">\u2705 An\u00fancio Destaque</div><div style="font-size:.78rem;color:#ddd;margin-top:3px;">'+adTopPerf+'</div></div>';}
+if(adWeakness!=='\u2014'){h+='<div style="padding:10px;background:rgba(231,76,60,.06);border-left:3px solid #e74c3c;border-radius:0 8px 8px 0;margin-bottom:8px;"><div style="font-size:.65rem;color:#e74c3c;font-weight:600;">\u26a0\ufe0f Ponto Fraco Identificado</div><div style="font-size:.78rem;color:#ddd;margin-top:3px;">'+adWeakness+'</div></div>';}
+h+='<button onclick="window._radarEditHandle=\''+c.handle+'\';pgRadarEdit()" style="width:100%;padding:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--gold);border-radius:8px;cursor:pointer;font-size:.75rem;" onmouseover="this.style.background=\'rgba(255,215,0,.1)\'" onmouseout="this.style.background=\'rgba(255,255,255,.04)\'">\u270f\ufe0f Atualizar An\u00e1lise de Ads</button>';
+h+='</div>';
+});
+h+='</div>';
+h+='<div style="margin-top:20px;padding:16px;background:rgba(255,215,0,.04);border:1px solid rgba(255,215,0,.15);border-radius:12px;">';
+h+='<div style="font-size:.85rem;color:var(--gold);font-weight:600;margin-bottom:6px;">\ud83d\udca1 Como alimentar estes dados</div>';
+h+='<div style="font-size:.78rem;color:#aaa;line-height:1.5;">';
+h+='1. Acesse a <strong>Meta Ad Library</strong> e busque pelo nome de cada concorrente<br>';
+h+='2. Acesse o <strong>Google Ads Transparency Center</strong> para an\u00fancios no Google<br>';
+h+='3. Anote: tipo de criativo (imagem/v\u00eddeo/carrossel), CTA, estilo de copy, coment\u00e1rios<br>';
+h+='4. Clique em \u201cAtualizar An\u00e1lise de Ads\u201d para registrar no sistema</div></div>';
+return h;
+}
+function renderSwot(fc){
+var h='';
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
+h+='<h3 style="margin:0 0 8px;color:var(--gold);font-size:1.1rem;">\ud83d\udee1\ufe0f An\u00e1lise SWOT & Padr\u00f5es de Sucesso</h3>';
+h+='<p style="color:#aaa;font-size:.8rem;margin:0;">Identifica\u00e7\u00e3o de for\u00e7as, fraquezas, oportunidades e amea\u00e7as + padr\u00f5es de an\u00fancios que performam bem.</p></div>';
+h+='<div style="margin-bottom:24px;">';
+h+='<h4 style="color:var(--gold);font-size:1rem;margin:0 0 14px;">\ud83d\udd0d An\u00e1lise por Concorrente</h4>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(450px,1fr));gap:16px;">';
+fc.forEach(function(c){
+var forca=getData(c.handle,'swot_forca'),fraqueza=getData(c.handle,'swot_fraqueza');
+var oport=getData(c.handle,'swot_oportunidade'),ameaca=getData(c.handle,'swot_ameaca');
+var estrategia=getData(c.handle,'estrategia_principal'),difComp=getData(c.handle,'diferencial_competitivo');
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:18px;transition:border-color .3s;" onmouseover="this.style.borderColor=\'var(--gold)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.08)\'">';
+h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.9rem;">'+(c.type==='imobiliaria'?'\ud83c\udfe2':'\ud83d\udc64')+' '+c.name+'</div>';
+h+='<span style="background:'+tierColor(c.tier)+';color:#fff;padding:2px 8px;border-radius:10px;font-size:.65rem;font-weight:700;">'+c.tier+'</span></div>';
+h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">';
+h+='<div style="padding:10px;background:rgba(46,204,113,.06);border-radius:8px;border-top:2px solid #2ecc71;">';
+h+='<div style="font-size:.65rem;color:#2ecc71;font-weight:700;margin-bottom:4px;">\ud83d\udfe2 FOR\u00c7AS</div>';
+h+='<div style="font-size:.78rem;color:'+(forca!=='\u2014'?'#ddd':'#555')+';">'+ forca+'</div></div>';
+h+='<div style="padding:10px;background:rgba(231,76,60,.06);border-radius:8px;border-top:2px solid #e74c3c;">';
+h+='<div style="font-size:.65rem;color:#e74c3c;font-weight:700;margin-bottom:4px;">\ud83d\udd34 FRAQUEZAS</div>';
+h+='<div style="font-size:.78rem;color:'+(fraqueza!=='\u2014'?'#ddd':'#555')+';">'+ fraqueza+'</div></div>';
+h+='<div style="padding:10px;background:rgba(52,152,219,.06);border-radius:8px;border-top:2px solid #3498db;">';
+h+='<div style="font-size:.65rem;color:#3498db;font-weight:700;margin-bottom:4px;">\ud83d\udfe1 OPORTUNIDADES</div>';
+h+='<div style="font-size:.78rem;color:'+(oport!=='\u2014'?'#ddd':'#555')+';">'+ oport+'</div></div>';
+h+='<div style="padding:10px;background:rgba(243,156,18,.06);border-radius:8px;border-top:2px solid #f39c12;">';
+h+='<div style="font-size:.65rem;color:#f39c12;font-weight:700;margin-bottom:4px;">\u26a0\ufe0f AMEA\u00c7AS</div>';
+h+='<div style="font-size:.78rem;color:'+(ameaca!=='\u2014'?'#ddd':'#555')+';">'+ ameaca+'</div></div>';
+h+='</div>';
+if(estrategia!=='\u2014'||difComp!=='\u2014'){
+h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">';
+h+='<div style="padding:8px;background:rgba(255,255,255,.02);border-radius:6px;"><div style="font-size:.6rem;color:#888;">\ud83c\udfaf Estrat\u00e9gia Principal</div><div style="font-size:.78rem;color:'+(estrategia!=='\u2014'?'#fff':'#555')+';margin-top:2px;">'+estrategia+'</div></div>';
+h+='<div style="padding:8px;background:rgba(255,255,255,.02);border-radius:6px;"><div style="font-size:.6rem;color:#888;">\u2b50 Diferencial Competitivo</div><div style="font-size:.78rem;color:'+(difComp!=='\u2014'?'#fff':'#555')+';margin-top:2px;">'+difComp+'</div></div>';
+h+='</div>';}
+h+='<button onclick="window._radarEditHandle=\''+c.handle+'\';pgRadarEdit()" style="width:100%;padding:7px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--gold);border-radius:8px;cursor:pointer;font-size:.72rem;" onmouseover="this.style.background=\'rgba(255,215,0,.1)\'" onmouseout="this.style.background=\'rgba(255,255,255,.04)\'">\u270f\ufe0f Editar SWOT</button>';
+h+='</div>';
+});
+h+='</div></div>';
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
+h+='<h4 style="color:var(--gold);font-size:1rem;margin:0 0 14px;">\ud83c\udfc6 Padr\u00f5es de An\u00fancios de Sucesso</h4>';
+h+='<p style="color:#aaa;font-size:.78rem;margin:0 0 16px;">Padr\u00f5es observados nos an\u00fancios com melhor desempenho entre os concorrentes monitorados.</p>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">';
+var patterns=JSON.parse(localStorage.getItem('psm_radar_patterns')||'{}');
+var cats=[
+{key:'criativo',title:'\ud83c\udfa8 Tipo de Criativo',desc:'Qual formato performa melhor?',ph:'Ex: V\u00eddeos curtos (15s) com tour virtual, Carrossel com antes/depois'},
+{key:'copy',title:'\u270d\ufe0f Estilo de Copy',desc:'Que tipo de texto engaja mais?',ph:'Ex: Copy emocional, depoimentos, urgency (\u00faltimas unidades)'},
+{key:'cta',title:'\ud83d\udc49 CTAs que Funcionam',desc:'Quais chamadas geram mais cliques?',ph:'Ex: Agende sua visita, Simule seu financiamento, Fale com corretor'},
+{key:'horario',title:'\u23f0 Hor\u00e1rios e Dias',desc:'Quando os melhores an\u00fancios rodam?',ph:'Ex: Ter\u00e7a a Quinta 18h-21h, Fins de semana 10h-14h'},
+{key:'publico',title:'\ud83c\udfaf P\u00fablico-Alvo',desc:'Segmenta\u00e7\u00f5es mais eficazes',ph:'Ex: Casais 28-40, renda 8-15K, interesse em im\u00f3veis novos'},
+{key:'erros',title:'\u274c Erros Comuns',desc:'O que n\u00e3o funciona nos concorrentes?',ph:'Ex: Fotos de baixa qualidade, copy gen\u00e9rica, CTA fraco'}
+];
+cats.forEach(function(ct){
+var val=patterns[ct.key]||'';
+h+='<div style="padding:16px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.85rem;margin-bottom:4px;">'+ct.title+'</div>';
+h+='<div style="font-size:.7rem;color:#888;margin-bottom:10px;">'+ct.desc+'</div>';
+h+='<textarea onchange="var p=JSON.parse(localStorage.getItem(\'psm_radar_patterns\')||\'{}\')||{};p[\''+ct.key+'\']=this.value;localStorage.setItem(\'psm_radar_patterns\',JSON.stringify(p));" style="width:100%;min-height:60px;padding:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#fff;border-radius:6px;font-size:.78rem;resize:vertical;box-sizing:border-box;" placeholder="'+ct.ph+'">'+val+'</textarea>';
+h+='</div>';});
+h+='</div></div>';
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;">';
+h+='<h4 style="color:var(--gold);font-size:1rem;margin:0 0 14px;">\ud83e\udde0 Intelig\u00eancia Competitiva Global</h4>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">';
+var gp=JSON.parse(localStorage.getItem('psm_radar_global')||'{}');
+var gcats=[
+{key:'tendencia_mercado',title:'\ud83d\udcc8 Tend\u00eancias do Mercado',ph:'Ex: Aumento de v\u00eddeos verticais, storytelling em an\u00fancios'},
+{key:'oportunidade_psm',title:'\ud83d\udca1 Oportunidades para PSM',ph:'Ex: Nenhum concorrente usa Reels com tours 3D. Podemos ser pioneiros.'},
+{key:'ameacas_gerais',title:'\u26a0\ufe0f Amea\u00e7as Identificadas',ph:'Ex: Grupo NexGen aumentou investimento em Meta Ads 3x no \u00faltimo m\u00eas'},
+{key:'acoes_recomendadas',title:'\u2705 A\u00e7\u00f5es Recomendadas',ph:'Ex: 1) Testar formato carrossel com depoimento. 2) Aumentar freq de v\u00eddeos.'}
+];
+gcats.forEach(function(ct){
+var val=gp[ct.key]||'';
+h+='<div style="padding:16px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.85rem;margin-bottom:8px;">'+ct.title+'</div>';
+h+='<textarea onchange="var g=JSON.parse(localStorage.getItem(\'psm_radar_global\')||\'{}\')||{};g[\''+ct.key+'\']=this.value;localStorage.setItem(\'psm_radar_global\',JSON.stringify(g));" style="width:100%;min-height:70px;padding:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#fff;border-radius:6px;font-size:.78rem;resize:vertical;box-sizing:border-box;" placeholder="'+ct.ph+'">'+val+'</textarea>';
+h+='</div>';});
+h+='</div></div>';
+return h;
+}
 function pgRadarEdit(){
 var handle=window._radarEditHandle;
 if(!handle)return;
@@ -6141,6 +6290,24 @@ var fields=[
 {key:'area_atuacao',label:'\u00c1rea de Atua\u00e7\u00e3o',ph:'Ex: RP, Mirassol, Bady Bassitt'},
 {key:'diferencial',label:'Diferencial',ph:'Ex: Marketing agressivo'},
 {key:'observacoes',label:'Observa\u00e7\u00f5es',ph:'Notas da equipe...'}
+{key:'meta_ads_count',label:'Meta Ads - Qtd An\u00fancios',ph:'Ex: 12'},
+{key:'google_ads_count',label:'Google Ads - Qtd An\u00fancios',ph:'Ex: 8'},
+{key:'ad_types',label:'Tipos de An\u00fancio',ph:'Ex: V\u00eddeo, Carrossel, Imagem'},
+{key:'ad_frequency',label:'Frequ\u00eancia de Ads',ph:'Ex: 3-5 novos/semana'},
+{key:'ad_copy_style',label:'Estilo de Copy',ph:'Ex: Emocional, T\u00e9cnico, Urgency'},
+{key:'ad_cta',label:'CTA Principal',ph:'Ex: Agende sua visita'},
+{key:'ad_comments',label:'Volume de Coment\u00e1rios',ph:'Ex: 50-100 por ad'},
+{key:'ad_sentiment',label:'Sentimento Coment\u00e1rios',ph:'Positivo / Negativo / Misto'},
+{key:'ad_engagement_rate',label:'Engajamento em Ads',ph:'Ex: 4.5%'},
+{key:'ad_spend_estimate',label:'Investimento Estimado',ph:'Ex: R$ 3.000-5.000/m\u00eas'},
+{key:'ad_top_performer',label:'An\u00fancio Destaque',ph:'Descreva o melhor ad'},
+{key:'ad_weakness',label:'Ponto Fraco em Ads',ph:'Ex: Fotos de baixa qualidade'},
+{key:'swot_forca',label:'SWOT - For\u00e7as',ph:'Ex: Marca forte, equipe grande'},
+{key:'swot_fraqueza',label:'SWOT - Fraquezas',ph:'Ex: Atendimento lento, site ruim'},
+{key:'swot_oportunidade',label:'SWOT - Oportunidades',ph:'Ex: Novo bairro sem concorr\u00eancia'},
+{key:'swot_ameaca',label:'SWOT - Amea\u00e7as',ph:'Ex: Expans\u00e3o agressiva de X'},
+{key:'estrategia_principal',label:'Estrat\u00e9gia Principal',ph:'Ex: Foco em lan\u00e7amentos'},
+{key:'diferencial_competitivo',label:'Diferencial Competitivo',ph:'Ex: Marketing digital forte'}
 ];
 var ov=document.createElement('div');
 ov.id='radar-edit-overlay';
@@ -6168,7 +6335,7 @@ document.body.appendChild(ov);
 function pgRadarSave(handle){
 var radarData=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');
 if(!radarData[handle])radarData[handle]={};
-var fields=['seguidores','posts_mes','engajamento','site','portais','google_ads','meta_ads','youtube','tiktok','score_digital','preco_medio','vol_anuncios','tempo_mercado','n_corretores','area_atuacao','diferencial','observacoes'];
+var fields=['seguidores','posts_mes','engajamento','site','portais','google_ads','meta_ads','youtube','tiktok','score_digital','preco_medio','vol_anuncios','tempo_mercado','n_corretores','area_atuacao','diferencial','observacoes','meta_ads_count','google_ads_count','ad_types','ad_frequency','ad_copy_style','ad_cta','ad_comments','ad_sentiment','ad_engagement_rate','ad_spend_estimate','ad_top_performer','ad_weakness','swot_forca','swot_fraqueza','swot_oportunidade','swot_ameaca','estrategia_principal','diferencial_competitivo'];
 fields.forEach(function(f){
 var el=document.getElementById('radar-edit-'+f);
 if(el&&el.value.trim())radarData[handle][f]=el.value.trim();
