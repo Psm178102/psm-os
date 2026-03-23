@@ -6487,7 +6487,7 @@ else if(activeTab==='metrics') h+=renderMetrics(fc);
 else if(activeTab==='traffic') h+=renderTraffic(fc);
 else if(activeTab==='swot') h+=renderSwot(fc);
 h+='</div>';
-Q('#main-content').innerHTML=h;
+document.querySelector('#main-content').innerHTML=h;
 var rb=document.querySelector('[data-radar-rerender]');
 if(rb){rb.onclick=function(){
 if(window._radarTab)activeTab=window._radarTab;
@@ -6671,7 +6671,8 @@ h+='</div>';
 h+='</div>';
 return h;
 }
-render();
+setTimeout(render,0);
+return '<div id="main-content"></div>';
 }
 function renderTraffic(fc){
 var h='';
@@ -7168,9 +7169,10 @@ h+='<div><strong style="color:#fff;">\ud83c\udfa8 Visual:</strong> Regra de 20% 
 h+='<div><strong style="color:#fff;">\ud83c\udfaf Relev\u00e2ncia:</strong> Score de Relev\u00e2ncia do Meta (1-10) impacta diretamente o custo por resultado. Quanto maior, menor o CPM.</div>';
 h+='</div></div>';
 h+='</div>';
-Q('#main-content').innerHTML=h;
+document.querySelector('#main-content').innerHTML=h;
 }
-render();
+setTimeout(render,0);
+return '<div id="main-content"></div>';
 }
 function pgBenchmark() {
   const concorrentes = JSON.parse(localStorage.getItem('psm_radar_data') || '[]');
