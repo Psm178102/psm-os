@@ -5818,139 +5818,367 @@ function pgRepasses() {
 }
 
 // ─── PAGE: RADAR INTELLIGENCE ────────────────────────────────────────────────
-function pgRadar() {
-  var u = S.user; if (!u) return '';
-  if (!S.radarFilter) S.radarFilter = 'all';
-
-  var COMPETITORS = [
-    {handle:'@empreendimentos_rp', name:'Empreendimentos RP', type:'imobiliaria', platform:'instagram'},
-    {handle:'@fg_inteligenciaimobiliaria', name:'FG Inteligência Imobiliária', type:'imobiliaria', platform:'instagram'},
-    {handle:'@imobiliaria_saojose', name:'Imobiliária São José', type:'imobiliaria', platform:'instagram'},
-    {handle:'@gruponexgen', name:'Grupo NexGen', type:'imobiliaria', platform:'instagram'},
-    {handle:'@renascerejalesjk', name:'Renascere Jales JK', type:'imobiliaria', platform:'instagram'},
-    {handle:'@house3imobiliaria', name:'House 3 Imobiliária', type:'imobiliaria', platform:'instagram'},
-    {handle:'@imobiliariagrupozani', name:'Grupo Zani', type:'imobiliaria', platform:'instagram'},
-    {handle:'@imobiliariairmaosferreira', name:'Irmãos Ferreira', type:'imobiliaria', platform:'instagram'},
-    {handle:'@condominiumimoveis', name:'Condominium Imóveis', type:'imobiliaria', platform:'instagram'},
-    {handle:'@imobiliariawestim', name:'Westim Imobiliária', type:'imobiliaria', platform:'instagram'},
-    {handle:'@shimanaimoveis', name:'Shimana Imóveis', type:'imobiliaria', platform:'instagram'},
-    {handle:'@atlas.imb', name:'Atlas Imobiliária', type:'imobiliaria', platform:'instagram'},
-    {handle:'@5Gimoveis', name:'5G Imóveis', type:'imobiliaria', platform:'instagram'},
-    {handle:'@gemimnegociosimobiliarios', name:'Gemim Negócios', type:'imobiliaria', platform:'instagram'},
-    {handle:'@martincarrazoneimoveis', name:'Martin Carrazone', type:'imobiliaria', platform:'instagram'},
-    {handle:'@vanessabrianti_imoveis', name:'Vanessa Brianti', type:'corretor', platform:'instagram'},
-    {handle:'@corretorguilhermeneilly', name:'Guilherme Neilly', type:'corretor', platform:'instagram'},
-    {handle:'@joaogabriel.imoveis', name:'João Gabriel', type:'corretor', platform:'instagram'},
-    {handle:'@mateussantilicorretor', name:'Mateus Santili', type:'corretor', platform:'instagram'},
-    {handle:'@jpbonfa', name:'JP Bonfá', type:'corretor', platform:'instagram'},
-    {handle:'@corretor.marcodebolleta', name:'Marco De Bolleta', type:'corretor', platform:'instagram'},
-    {handle:'@diegourbano.imoveis', name:'Diego Urbano', type:'corretor', platform:'instagram'},
-    {handle:'@maribolandin_altopadrao', name:'Mari Bolandin', type:'corretor', platform:'instagram'},
-    {handle:'@imoveisgabi', name:'Gabi Imóveis', type:'corretor', platform:'instagram'},
-    {handle:'@davidwilliangarcia', name:'David Willian Garcia', type:'corretor', platform:'instagram'},
-    {handle:'@imoveiscomvanessa', name:'Vanessa Imóveis', type:'corretor', platform:'instagram'},
-    {handle:'@joaomozaquatro', name:'João Mozaquatro', type:'corretor', platform:'instagram'},
-    {handle:'@francomarinho.corretor', name:'Franco Marinho', type:'corretor', platform:'instagram'},
-    {handle:'@anaanchetaimoveis', name:'Ana Ancheta Imóveis', type:'corretor', platform:'instagram'},
-    {handle:'@allegroprime.puggia', name:'Allegro Prime - Puggia', type:'imobiliaria', platform:'instagram'},
-    {handle:'@novageracao.imob', name:'Nova Geração', type:'imobiliaria', platform:'instagram'},
-    {handle:'@altopadraoimobiliaria', name:'Alto Padrão Imobiliária', type:'imobiliaria', platform:'instagram'},
-    {handle:'@marcovessani', name:'Marco Vessani', type:'corretor', platform:'instagram'},
-    {handle:'@rrbroker', name:'RR Broker', type:'corretor', platform:'instagram'},
-    {handle:'@alonsonegociosimobiliarios', name:'Alonso Negócios Imobiliários', type:'imobiliaria', platform:'instagram'},
-    {handle:'@blessimobiliaria', name:'Bless Imobiliária', type:'imobiliaria', platform:'instagram'},
-    {handle:'@fitnegociosimobiliarios', name:'FIT Negócios Imobiliários', type:'imobiliaria', platform:'instagram'},
-    {handle:'@fitprimeempreendimentos', name:'FIT Prime Empreendimentos', type:'imobiliaria', platform:'instagram'},
-    {handle:'@felixemaciel', name:'Felix & Maciel', type:'imobiliaria', platform:'instagram'},
-  ];
-
-  var filtered = S.radarFilter==='imobiliaria'?COMPETITORS.filter(c=>c.type==='imobiliaria'):
-                 S.radarFilter==='corretor'?COMPETITORS.filter(c=>c.type==='corretor'):
-                 COMPETITORS;
-
-  var header = '<div class="phd"><h1>🛡️ RADAR INTELLIGENCE PSM</h1><p>Monitoramento de '+COMPETITORS.length+' concorrentes • Última atualização: —</p></div>';
-
-  var filters = '<div style="display:flex;gap:8px;margin-bottom:20px">'
-    +'<button onclick="S.radarFilter=\'all\';render()" style="padding:8px 16px;border-radius:8px;background:'+(S.radarFilter==='all'?'var(--gold);color:#000':'var(--cream2);color:var(--navy)')+';border:none;cursor:pointer;font-weight:600;font-size:12px;transition:all .2s">Todos ('+COMPETITORS.length+')</button>'
-    +'<button onclick="S.radarFilter=\'imobiliaria\';render()" style="padding:8px 16px;border-radius:8px;background:'+(S.radarFilter==='imobiliaria'?'var(--gold);color:#000':'var(--cream2);color:var(--navy)')+';border:none;cursor:pointer;font-weight:600;font-size:12px;transition:all .2s">Imobiliárias ('+COMPETITORS.filter(c=>c.type==='imobiliaria').length+')</button>'
-    +'<button onclick="S.radarFilter=\'corretor\';render()" style="padding:8px 16px;border-radius:8px;background:'+(S.radarFilter==='corretor'?'var(--gold);color:#000':'var(--cream2);color:var(--navy)')+';border:none;cursor:pointer;font-weight:600;font-size:12px;transition:all .2s">Corretores ('+COMPETITORS.filter(c=>c.type==='corretor').length+')</button>'
-  +'</div>';
-
-  var competitorCards = filtered.map(c => {
-    var initials = c.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
-    return '<div style="flex:1;min-width:200px;padding:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;backdrop-filter:blur(10px);transition:all .2s;cursor:pointer" onmouseover="this.style.background=\'rgba(255,255,255,.06)\'" onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">'
-      +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">'
-        +'<div style="width:40px;height:40px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#000;flex-shrink:0">'+initials+'</div>'
-        +'<div style="flex:1;min-width:0">'
-          +'<a href="https://instagram.com/'+c.handle.substring(1)+'" target="_blank" style="color:var(--navy);text-decoration:none;font-weight:600;font-size:12px;word-break:break-word">'+c.handle+'</a>'
-          +'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+c.name+'</div>'
-        +'</div>'
-      +'</div>'
-      +'<div style="display:flex;gap:4px;margin-bottom:12px">'
-        +'<span style="font-size:8px;padding:3px 8px;background:'+(c.type==='imobiliaria'?'var(--a-bg);color:var(--a-tx)':'var(--b-bg);color:var(--b-tx)')+';border-radius:4px;font-weight:700">'+(c.type==='imobiliaria'?'IMOBILIÁRIA':'CORRETOR')+'</span>'
-        +'<span style="font-size:8px;padding:3px 8px;background:var(--g-bg);color:var(--g-tx);border-radius:4px;font-weight:700">🟢 MONITORANDO</span>'
-      +'</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:10px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06)">'
-        +'<div><span style="color:var(--muted)">Seguidores</span><div style="font-weight:700;color:var(--navy);margin-top:2px">—</div></div>'
-        +'<div><span style="color:var(--muted)">Posts/semana</span><div style="font-weight:700;color:var(--navy);margin-top:2px">—</div></div>'
-        +'<div><span style="color:var(--muted)">Eng. Rate</span><div style="font-weight:700;color:var(--navy);margin-top:2px">—</div></div>'
-        +'<div><span style="color:var(--muted)">Último Post</span><div style="font-weight:700;color:var(--navy);margin-top:2px">—</div></div>'
-      +'</div>'
-      +'<div style="display:flex;gap:6px">'
-        +'<a href="https://instagram.com/'+c.handle.substring(1)+'" target="_blank" onclick="event.stopPropagation()" style="flex:1;padding:6px 8px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:10px;font-weight:600;text-align:center;text-decoration:none;transition:all .2s" onmouseover="this.style.background=\'var(--gold)\';this.style.color=\'#000\'" onmouseout="this.style.background=\'var(--navy)\';this.style.color=\'#fff\'">Ver Perfil</a>'
-        +'<button onclick="alert(\'Funcionalidade em desenvolvimento\')" style="flex:1;padding:6px 8px;background:var(--cream2);color:var(--navy);border:none;border-radius:6px;cursor:pointer;font-size:10px;font-weight:600;transition:all .2s">Analisar</button>'
-      +'</div>'
-    +'</div>';
-  }).join('');
-
-  var feedSection = '<div style="padding:24px;background:var(--cream2);border-radius:12px;text-align:center;color:var(--muted)">'
-    +'<div style="font-size:14px;margin-bottom:8px">📡 Intelligence Feed</div>'
-    +'<div style="font-size:12px">Nenhuma atividade registrada ainda. O radar começará a coletar dados dos concorrentes automaticamente.</div>'
-  +'</div>';
-
-  var analysisSection = '<div style="padding:24px;background:var(--cream2);border-radius:12px">'
-    +'<div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:16px">📊 Análise Comparativa</div>'
-    +'<div style="overflow-x:auto">'
-      +'<table style="width:100%;font-size:11px;border-collapse:collapse">'
-        +'<thead><tr style="background:var(--navy);color:#fff">'
-          +'<th style="padding:10px;text-align:left">Concorrente</th>'
-          +'<th style="padding:10px;text-align:right">Seguidores</th>'
-          +'<th style="padding:10px;text-align:right">Crescimento</th>'
-          +'<th style="padding:10px;text-align:right">Posts/Sem</th>'
-          +'<th style="padding:10px;text-align:right">Eng.Rate</th>'
-          +'<th style="padding:10px;text-align:left">Estratégia</th>'
-        +'</tr></thead>'
-        +'<tbody>'
-          +'<tr style="border-bottom:1px solid var(--cream3);text-align:center"><td colspan="6" style="padding:20px;color:var(--muted)">—</td></tr>'
-        +'</tbody>'
-      +'</table>'
-    +'</div>'
-  +'</div>';
-
-  var insightsSection = '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:20px">'
-    +'<div style="flex:1;min-width:200px;padding:16px;background:var(--cream2);border-radius:12px">'
-      +'<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">🏆 Melhor Estratégia</div>'
-      +'<div style="font-size:12px;color:var(--muted)">Dados insuficientes</div>'
-    +'</div>'
-    +'<div style="flex:1;min-width:200px;padding:16px;background:var(--cream2);border-radius:12px">'
-      +'<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">✨ Criativo Mais Engajado</div>'
-      +'<div style="font-size:12px;color:var(--muted)">Dados insuficientes</div>'
-    +'</div>'
-    +'<div style="flex:1;min-width:200px;padding:16px;background:var(--cream2);border-radius:12px">'
-      +'<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">📈 Tendência Emergente</div>'
-      +'<div style="font-size:12px;color:var(--muted)">Dados insuficientes</div>'
-    +'</div>'
-  +'</div>';
-
-  return header + filters + '<div class="cards-wrap">'
-    +'<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px">'+competitorCards+'</div>'
-    +feedSection
-    +'<div style="margin-top:24px">'+analysisSection+'</div>'
-    +'<div style="margin-top:24px">'+insightsSection+'</div>'
-  +'</div>';
+function pgRadar(){
+var competitors=[
+{name:'Empreendimentos RP',handle:'@empreendimentos_rp',type:'imobiliaria',platform:'instagram',tier:'A',segmento:'Alto Padrão',regiao:'RP Centro'},
+{name:'FG Inteligência Imobiliária',handle:'@fg_inteligenciaimobiliaria',type:'imobiliaria',platform:'instagram',tier:'A',segmento:'Misto',regiao:'RP'},
+{name:'Imobiliária São José',handle:'@imobiliaria_saojose',type:'imobiliaria',platform:'instagram',tier:'A',segmento:'Misto',regiao:'RP'},
+{name:'Grupo NexGen',handle:'@gruponexgen',type:'imobiliaria',platform:'instagram',tier:'B',segmento:'Médio/Alto',regiao:'RP'},
+{name:'Renascere Jales JK',handle:'@renascerejalesjk',type:'imobiliaria',platform:'instagram',tier:'B',segmento:'Alto Padrão',regiao:'RP'},
+{name:'House 3 Imobiliária',handle:'@house3imobiliaria',type:'imobiliaria',platform:'instagram',tier:'B',segmento:'Misto',regiao:'RP'},
+{name:'Grupo Zani',handle:'@grupozani',type:'imobiliaria',platform:'instagram',tier:'A',segmento:'Alto Padrão',regiao:'RP'},
+{name:'Irmãos Ferreira',handle:'@irmaosferreira',type:'imobiliaria',platform:'instagram',tier:'B',segmento:'Misto',regiao:'RP'},
+{name:'Condominium Imóveis',handle:'@condominiumimoveis',type:'imobiliaria',platform:'instagram',tier:'B',segmento:'Médio',regiao:'RP'},
+{name:'Westim Imobiliária',handle:'@westimimobiliaria',type:'imobiliaria',platform:'instagram',tier:'B',segmento:'Misto',regiao:'RP'},
+{name:'Shimana Imóveis',handle:'@shimanaimoveis',type:'imobiliaria',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'Atlas Imobiliária',handle:'@atlasimobiliaria',type:'imobiliaria',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'5G Imóveis',handle:'@5gimoveis',type:'imobiliaria',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'Gemim Negócios',handle:'@gemimnegociosimobi',type:'imobiliaria',platform:'instagram',tier:'C',segmento:'Médio',regiao:'RP'},
+{name:'Ana Ancheta Imóveis',handle:'@anaanchetaimoveis',type:'imobiliaria',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'Allegro Prime - Puggia',handle:'@allegroprime_puggia',type:'imobiliaria',platform:'instagram',tier:'B',segmento:'Alto Padrão',regiao:'RP'},
+{name:'Nova Geração',handle:'@novageracao.imoveis',type:'imobiliaria',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'Alto Padrão Imobiliária',handle:'@altopadrao.imob',type:'imobiliaria',platform:'instagram',tier:'B',segmento:'Alto Padrão',regiao:'RP'},
+{name:'Alonso Negócios Imobiliários',handle:'@alonsonegociosimobiliarios',type:'imobiliaria',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'Bless Imobiliária',handle:'@blessimobiliaria',type:'imobiliaria',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'FIT Negócios Imobiliários',handle:'@fitnegociosimobiliarios',type:'imobiliaria',platform:'instagram',tier:'B',segmento:'Misto',regiao:'RP'},
+{name:'FIT Prime Empreendimentos',handle:'@fitprimeempreendimentos',type:'imobiliaria',platform:'instagram',tier:'B',segmento:'Alto Padrão',regiao:'RP'},
+{name:'Felix & Maciel',handle:'@felixemaciel',type:'imobiliaria',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'Martin Carrazone',handle:'@martincarrazone',type:'corretor',platform:'instagram',tier:'A',segmento:'Alto Padrão',regiao:'RP'},
+{name:'Vanessa Brianti',handle:'@vanessabrianti',type:'corretor',platform:'instagram',tier:'A',segmento:'Alto Padrão',regiao:'RP'},
+{name:'Guilherme Neilly',handle:'@guilhermeneilly',type:'corretor',platform:'instagram',tier:'B',segmento:'Médio/Alto',regiao:'RP'},
+{name:'João Gabriel',handle:'@joaogabriel.imob',type:'corretor',platform:'instagram',tier:'B',segmento:'Misto',regiao:'RP'},
+{name:'Mateus Santili',handle:'@mateussantili',type:'corretor',platform:'instagram',tier:'B',segmento:'Médio/Alto',regiao:'RP'},
+{name:'JP Bonfá',handle:'@jpbonfa',type:'corretor',platform:'instagram',tier:'B',segmento:'Misto',regiao:'RP'},
+{name:'Marco De Bolleta',handle:'@marcodebolleta',type:'corretor',platform:'instagram',tier:'B',segmento:'Misto',regiao:'RP'},
+{name:'Diego Urbano',handle:'@diegourbano',type:'corretor',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'Mari Bolandin',handle:'@maribolandin',type:'corretor',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'Gabi Imóveis',handle:'@gabiimoveis',type:'corretor',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'David Willian Garcia',handle:'@davidwilliangarcia',type:'corretor',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'Vanessa Imóveis',handle:'@vanessaimoveis',type:'corretor',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'João Mozaquatro',handle:'@joaomozaquatro',type:'corretor',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'Franco Marinho',handle:'@francomarinho',type:'corretor',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'},
+{name:'Marco Vessani',handle:'@marcovessani',type:'corretor',platform:'instagram',tier:'B',segmento:'Alto Padrão',regiao:'RP'},
+{name:'RR Broker',handle:'@rrbroker',type:'corretor',platform:'instagram',tier:'C',segmento:'Misto',regiao:'RP'}
+];
+var radarData=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');
+var activeTab='overview';
+var filterType='todos';
+var filterTier='todos';
+var filterSeg='todos';
+function saveData(){localStorage.setItem('psm_radar_data',JSON.stringify(radarData));}
+function getData(handle,field){return radarData[handle]&&radarData[handle][field]?radarData[handle][field]:'\u2014';}
+function setData(handle,field,val){if(!radarData[handle])radarData[handle]={};radarData[handle][field]=val;saveData();}
+function filtered(){return competitors.filter(function(c){
+if(filterType!=='todos'&&c.type!==filterType)return false;
+if(filterTier!=='todos'&&c.tier!==filterTier)return false;
+if(filterSeg!=='todos'&&c.segmento!==filterSeg)return false;
+return true;
+});}
+function tierColor(t){return t==='A'?'#e74c3c':t==='B'?'var(--gold)':'#888';}
+function tierLabel(t){return t==='A'?'Tier A \u2014 Top Player':t==='B'?'Tier B \u2014 Relevante':'Tier C \u2014 Monitorar';}
+function render(){
+var fc=filtered();
+var imobCount=competitors.filter(function(c){return c.type==='imobiliaria';}).length;
+var corrCount=competitors.filter(function(c){return c.type==='corretor';}).length;
+var tierA=competitors.filter(function(c){return c.tier==='A';}).length;
+var tierB=competitors.filter(function(c){return c.tier==='B';}).length;
+var tierC=competitors.filter(function(c){return c.tier==='C';}).length;
+var h='<div style="padding:24px;max-width:1400px;margin:0 auto;">';
+h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">';
+h+='<div><h2 style="margin:0;color:var(--gold);font-size:1.6rem;">\ud83c\udfaf Radar de Concorrentes</h2>';
+h+='<p style="margin:4px 0 0;color:#aaa;font-size:.85rem;">Intelig\u00eancia competitiva \u2014 S\u00e3o Jos\u00e9 do Rio Preto e regi\u00e3o</p></div>';
+h+='<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+h+='<button onclick="document.getElementById(\'radar-export\').click()" style="padding:8px 16px;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:8px;cursor:pointer;font-size:.8rem;">\ud83d\udce5 Exportar CSV</button>';
+h+='</div></div>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px;">';
+var kpis=[{label:'Total Monitorados',value:competitors.length,icon:'\ud83d\udce1',color:'var(--gold)'},{label:'Imobili\u00e1rias',value:imobCount,icon:'\ud83c\udfe2',color:'#3498db'},{label:'Corretores',value:corrCount,icon:'\ud83d\udc64',color:'#2ecc71'},{label:'Tier A',value:tierA,icon:'\ud83d\udd34',color:'#e74c3c'},{label:'Tier B',value:tierB,icon:'\ud83d\udfe1',color:'var(--gold)'},{label:'Tier C',value:tierC,icon:'\u26aa',color:'#888'}];
+kpis.forEach(function(k){
+h+='<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;text-align:center;">';
+h+='<div style="font-size:1.8rem;">'+k.icon+'</div>';
+h+='<div style="font-size:1.6rem;font-weight:700;color:'+k.color+';margin:4px 0;">'+k.value+'</div>';
+h+='<div style="font-size:.75rem;color:#aaa;">'+k.label+'</div></div>';
+});
+h+='</div>';
+h+='<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:0;flex-wrap:wrap;">';
+var tabs=[{id:'overview',label:'\ud83d\udccb Vis\u00e3o Geral'},{id:'digital',label:'\ud83d\udcf1 Presen\u00e7a Digital'},{id:'positioning',label:'\ud83d\udcca Posicionamento'},{id:'metrics',label:'\ud83d\udcc8 M\u00e9tricas'}];
+tabs.forEach(function(t){
+var isA=t.id===activeTab;
+h+='<button onclick="window._radarTab=\''+t.id+'\';document.querySelector(\'[data-radar-rerender]\').click()" style="padding:10px 20px;background:'+(isA?'var(--gold)':'transparent')+';color:'+(isA?'#000':'#aaa')+';border:none;border-bottom:2px solid '+(isA?'var(--gold)':'transparent')+';cursor:pointer;font-size:.85rem;font-weight:'+(isA?'700':'400')+';border-radius:8px 8px 0 0;transition:all .2s;">'+t.label+'</button>';
+});
+h+='</div>';
+h+='<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">';
+h+='<span style="color:#aaa;font-size:.8rem;">Filtros:</span>';
+h+='<select onchange="window._radarFilterType=this.value;document.querySelector(\'[data-radar-rerender]\').click()" style="padding:6px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.8rem;">';
+h+='<option value="todos"'+(filterType==='todos'?' selected':'')+'>Todos os tipos</option>';
+h+='<option value="imobiliaria"'+(filterType==='imobiliaria'?' selected':'')+'>Imobili\u00e1rias</option>';
+h+='<option value="corretor"'+(filterType==='corretor'?' selected':'')+'>Corretores</option></select>';
+h+='<select onchange="window._radarFilterTier=this.value;document.querySelector(\'[data-radar-rerender]\').click()" style="padding:6px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.8rem;">';
+h+='<option value="todos"'+(filterTier==='todos'?' selected':'')+'>Todos os tiers</option>';
+h+='<option value="A"'+(filterTier==='A'?' selected':'')+'>Tier A</option>';
+h+='<option value="B"'+(filterTier==='B'?' selected':'')+'>Tier B</option>';
+h+='<option value="C"'+(filterTier==='C'?' selected':'')+'>Tier C</option></select>';
+h+='<select onchange="window._radarFilterSeg=this.value;document.querySelector(\'[data-radar-rerender]\').click()" style="padding:6px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.8rem;">';
+h+='<option value="todos"'+(filterSeg==='todos'?' selected':'')+'>Todos os segmentos</option>';
+h+='<option value="Alto Padr\u00e3o"'+(filterSeg==='Alto Padr\u00e3o'?' selected':'')+'>Alto Padr\u00e3o</option>';
+h+='<option value="M\u00e9dio/Alto"'+(filterSeg==='M\u00e9dio/Alto'?' selected':'')+'>M\u00e9dio/Alto</option>';
+h+='<option value="M\u00e9dio"'+(filterSeg==='M\u00e9dio'?' selected':'')+'>M\u00e9dio</option>';
+h+='<option value="Misto"'+(filterSeg==='Misto'?' selected':'')+'>Misto</option></select>';
+h+='<span style="color:#666;font-size:.75rem;margin-left:auto;">'+fc.length+' de '+competitors.length+' exibidos</span>';
+h+='</div>';
+h+='<button data-radar-rerender onclick="return false;" style="display:none;"></button>';
+h+='<a id="radar-export" style="display:none;"></a>';
+if(activeTab==='overview') h+=renderOverview(fc);
+else if(activeTab==='digital') h+=renderDigital(fc);
+else if(activeTab==='positioning') h+=renderPositioning(fc);
+else if(activeTab==='metrics') h+=renderMetrics(fc);
+h+='</div>';
+Q('#main-content').innerHTML=h;
+var rb=document.querySelector('[data-radar-rerender]');
+if(rb){rb.onclick=function(){
+if(window._radarTab)activeTab=window._radarTab;
+if(window._radarFilterType!==undefined)filterType=window._radarFilterType;
+if(window._radarFilterTier!==undefined)filterTier=window._radarFilterTier;
+if(window._radarFilterSeg!==undefined)filterSeg=window._radarFilterSeg;
+render();
+};}
+var el=document.getElementById('radar-export');
+if(el){el.onclick=function(){
+var csv='Nome,Handle,Tipo,Tier,Segmento,Seguidores,Posts/Mes,Engajamento,Site,Portais\n';
+competitors.forEach(function(c){
+csv+='"'+c.name+'","'+c.handle+'","'+c.type+'","'+c.tier+'","'+c.segmento+'","'+getData(c.handle,'seguidores')+'","'+getData(c.handle,'posts_mes')+'","'+getData(c.handle,'engajamento')+'","'+getData(c.handle,'site')+'","'+getData(c.handle,'portais')+'"\n';
+});
+var blob=new Blob([csv],{type:'text/csv'});
+el.href=URL.createObjectURL(blob);
+el.download='radar_concorrentes_psm.csv';
+};}
+}
+function renderOverview(fc){
+var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">';
+fc.forEach(function(c){
+var seg=getData(c.handle,'seguidores');
+var eng=getData(c.handle,'engajamento');
+var posts=getData(c.handle,'posts_mes');
+var obs=getData(c.handle,'observacoes');
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px;transition:all .3s;position:relative;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--gold)\';this.style.background=\'rgba(255,255,255,.06)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.08)\';this.style.background=\'rgba(255,255,255,.03)\'">';
+h+='<div style="position:absolute;top:12px;right:12px;background:'+tierColor(c.tier)+';color:#fff;font-size:.65rem;font-weight:700;padding:3px 8px;border-radius:20px;">'+c.tier+'</div>';
+h+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">';
+h+='<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--navy),var(--gold));display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:700;color:#fff;">'+(c.type==='imobiliaria'?'\ud83c\udfe2':'\ud83d\udc64')+'</div>';
+h+='<div><div style="font-weight:600;color:#fff;font-size:.95rem;">'+c.name+'</div>';
+h+='<div style="color:var(--gold);font-size:.78rem;">'+c.handle+'</div>';
+h+='<div style="display:flex;gap:6px;margin-top:3px;">';
+h+='<span style="font-size:.65rem;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.06);color:#aaa;">'+c.segmento+'</span>';
+h+='<span style="font-size:.65rem;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.06);color:#aaa;">'+c.regiao+'</span>';
+h+='</div></div></div>';
+h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">';
+h+='<div style="text-align:center;padding:8px;background:rgba(255,255,255,.03);border-radius:8px;"><div style="font-size:.65rem;color:#888;">Seguidores</div><div style="font-size:1rem;font-weight:700;color:#fff;">'+seg+'</div></div>';
+h+='<div style="text-align:center;padding:8px;background:rgba(255,255,255,.03);border-radius:8px;"><div style="font-size:.65rem;color:#888;">Posts/M\u00eas</div><div style="font-size:1rem;font-weight:700;color:#fff;">'+posts+'</div></div>';
+h+='<div style="text-align:center;padding:8px;background:rgba(255,255,255,.03);border-radius:8px;"><div style="font-size:.65rem;color:#888;">Engajamento</div><div style="font-size:1rem;font-weight:700;color:#fff;">'+eng+'</div></div>';
+h+='</div>';
+if(obs&&obs!=='\u2014'){
+h+='<div style="font-size:.75rem;color:#aaa;padding:8px;background:rgba(255,255,255,.02);border-radius:6px;border-left:2px solid var(--gold);">\ud83d\udca1 '+obs+'</div>';}
+h+='<div style="display:flex;gap:6px;margin-top:12px;">';
+h+='<button onclick="window._radarEditHandle=\''+c.handle+'\';pgRadarEdit()" style="flex:1;padding:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#aaa;border-radius:6px;cursor:pointer;font-size:.72rem;transition:all .2s;" onmouseover="this.style.borderColor=\'var(--gold)\';this.style.color=\'var(--gold)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.1)\';this.style.color=\'#aaa\'">\u270f\ufe0f Editar Dados</button>';
+h+='<a href="https://insta' + 'gram.com/'+c.handle.replace('@','')+'" target="_blank" style="flex:1;padding:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#aaa;border-radius:6px;text-align:center;text-decoration:none;font-size:.72rem;transition:all .2s;" onmouseover="this.style.borderColor=\'#E1306C\';this.style.color=\'#E1306C\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.1)\';this.style.color=\'#aaa\'">\ud83d\udcf7 Instagram</a>';
+h+='</div></div>';
+});
+h+='</div>';
+return h;
+}
+function renderDigital(fc){
+var h='';
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
+h+='<h3 style="margin:0 0 16px;color:var(--gold);font-size:1.1rem;">\ud83d\udcf1 Comparativo de Presen\u00e7a Digital</h3>';
+h+='<p style="color:#aaa;font-size:.8rem;margin:0 0 16px;">An\u00e1lise comparativa de canais digitais dos concorrentes monitorados.</p></div>';
+h+='<div style="overflow-x:auto;border-radius:12px;border:1px solid rgba(255,255,255,.08);">';
+h+='<table style="width:100%;border-collapse:collapse;font-size:.8rem;">';
+h+='<thead><tr style="background:rgba(255,255,255,.06);">';
+var cols=['Concorrente','Tier','Instagram','Seguidores','Posts/M\u00eas','Engaj.','Site','Portais','Google Ads','Meta Ads','YouTube','TikTok','Score'];
+cols.forEach(function(c){h+='<th style="padding:12px 10px;text-align:left;color:var(--gold);font-weight:600;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.1);">'+c+'</th>';});
+h+='</tr></thead><tbody>';
+fc.forEach(function(c,i){
+var bg=i%2===0?'rgba(255,255,255,.02)':'transparent';
+var seg=getData(c.handle,'seguidores'),posts=getData(c.handle,'posts_mes'),eng=getData(c.handle,'engajamento');
+var site=getData(c.handle,'site'),portais=getData(c.handle,'portais');
+var gads=getData(c.handle,'google_ads'),mads=getData(c.handle,'meta_ads');
+var yt=getData(c.handle,'youtube'),tt=getData(c.handle,'tiktok');
+var score=getData(c.handle,'score_digital');
+h+='<tr style="background:'+bg+';transition:background .2s;" onmouseover="this.style.background=\'rgba(255,215,0,.05)\'" onmouseout="this.style.background=\''+bg+'\'">';
+h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);white-space:nowrap;"><div style="font-weight:600;color:#fff;">'+c.name+'</div><div style="color:#888;font-size:.7rem;">'+c.handle+'</div></td>';
+h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);"><span style="background:'+tierColor(c.tier)+';color:#fff;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700;">'+c.tier+'</span></td>';
+h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);color:#2ecc71;">\u2705</td>';
+h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);color:#fff;font-weight:600;">'+seg+'</td>';
+h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);color:#fff;">'+posts+'</td>';
+h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);color:#fff;">'+eng+'</td>';
+h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);color:'+(site!=='\u2014'?'#2ecc71':'#666')+';">'+(site!=='\u2014'?'\u2705':'\u2014')+'</td>';
+h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);color:#fff;">'+portais+'</td>';
+h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);color:'+(gads!=='\u2014'?'#f39c12':'#666')+';">'+(gads!=='\u2014'?gads:'\u2014')+'</td>';
+h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);color:'+(mads!=='\u2014'?'#3498db':'#666')+';">'+(mads!=='\u2014'?mads:'\u2014')+'</td>';
+h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);color:'+(yt!=='\u2014'?'#e74c3c':'#666')+';">'+(yt!=='\u2014'?yt:'\u2014')+'</td>';
+h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);color:'+(tt!=='\u2014'?'#fff':'#666')+';">'+(tt!=='\u2014'?tt:'\u2014')+'</td>';
+h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);">';
+if(score!=='\u2014'){var sc=parseInt(score);var bc=sc>=80?'#2ecc71':sc>=50?'var(--gold)':'#e74c3c';
+h+='<div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;"><div style="width:'+sc+'%;height:100%;background:'+bc+';border-radius:3px;"></div></div><span style="color:'+bc+';font-weight:700;font-size:.75rem;">'+sc+'</span></div>';
+}else{h+='<span style="color:#666;">\u2014</span>';}
+h+='</td></tr>';
+});
+h+='</tbody></table></div>';
+h+='<div style="margin-top:16px;display:flex;gap:20px;flex-wrap:wrap;">';
+h+='<span style="color:#888;font-size:.72rem;">\u2705 = Presen\u00e7a ativa</span>';
+h+='<span style="color:#888;font-size:.72rem;">\u2014 = Sem dados</span>';
+h+='<span style="color:#888;font-size:.72rem;">Score = \u00cdndice de presen\u00e7a digital (0-100)</span></div>';
+return h;
+}
+function renderPositioning(fc){
+var h='';
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
+h+='<h3 style="margin:0 0 8px;color:var(--gold);font-size:1.1rem;">\ud83d\udcca An\u00e1lise de Posicionamento</h3>';
+h+='<p style="color:#aaa;font-size:.8rem;margin:0;">Mapeamento estrat\u00e9gico dos concorrentes por segmento, pre\u00e7o m\u00e9dio e volume.</p></div>';
+var segs=['Alto Padr\u00e3o','M\u00e9dio/Alto','M\u00e9dio','Misto'];
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:24px;">';
+segs.forEach(function(sg){
+var sc=competitors.filter(function(c){return c.segmento===sg;});
+var im=sc.filter(function(c){return c.type==='imobiliaria';}).length;
+var co=sc.filter(function(c){return c.type==='corretor';}).length;
+var ta=sc.filter(function(c){return c.tier==='A';}).length;
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:18px;">';
+h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">';
+h+='<h4 style="margin:0;color:#fff;font-size:.95rem;">'+sg+'</h4>';
+h+='<span style="background:rgba(255,255,255,.06);padding:3px 10px;border-radius:12px;font-size:.75rem;color:var(--gold);font-weight:600;">'+sc.length+' players</span></div>';
+h+='<div style="display:flex;gap:16px;margin-bottom:12px;">';
+h+='<div style="font-size:.75rem;color:#aaa;">\ud83c\udfe2 '+im+' imob.</div>';
+h+='<div style="font-size:.75rem;color:#aaa;">\ud83d\udc64 '+co+' corr.</div>';
+h+='<div style="font-size:.75rem;color:#aaa;">\ud83d\udd34 '+ta+' tier A</div></div>';
+var pct=Math.round(sc.length/competitors.length*100);
+h+='<div style="height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin-bottom:8px;">';
+h+='<div style="width:'+pct+'%;height:100%;background:linear-gradient(90deg,var(--gold),#e74c3c);border-radius:4px;"></div></div>';
+h+='<div style="font-size:.7rem;color:#888;">'+pct+'% do mercado monitorado</div>';
+h+='<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px;">';
+sc.forEach(function(c){h+='<span style="font-size:.65rem;padding:2px 8px;border-radius:4px;background:rgba(255,255,255,.04);color:#ccc;border:1px solid rgba(255,255,255,.06);">'+c.name+'</span>';});
+h+='</div></div>';
+});
+h+='</div>';
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
+h+='<h3 style="margin:0 0 16px;color:var(--gold);font-size:1.1rem;">\ud83c\udfc6 Hierarquia Competitiva</h3>';
+['A','B','C'].forEach(function(tier){
+var tc=competitors.filter(function(c){return c.tier===tier;});
+h+='<div style="margin-bottom:16px;">';
+h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">';
+h+='<span style="background:'+tierColor(tier)+';color:#fff;padding:3px 10px;border-radius:10px;font-size:.75rem;font-weight:700;">Tier '+tier+'</span>';
+h+='<span style="color:#aaa;font-size:.8rem;">'+tierLabel(tier)+' \u2014 '+tc.length+' concorrentes</span></div>';
+h+='<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+tc.forEach(function(c){
+var icon=c.type==='imobiliaria'?'\ud83c\udfe2':'\ud83d\udc64';
+h+='<div style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;font-size:.78rem;color:#ddd;">'+icon+' '+c.name+'</div>';});
+h+='</div></div>';
+});
+h+='</div>';
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;">';
+h+='<h3 style="margin:0 0 12px;color:var(--gold);font-size:1.1rem;">\ud83d\udca1 Insights de Posicionamento</h3>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">';
+var ins=[
+{title:'Oportunidade em Alto Padr\u00e3o',desc:'Segmento com '+competitors.filter(function(c){return c.segmento==='Alto Padr\u00e3o';}).length+' players monitorados. PSM tem posi\u00e7\u00e3o forte.'},
+{title:'Satura\u00e7\u00e3o no Segmento Misto',desc:''+competitors.filter(function(c){return c.segmento==='Misto';}).length+' concorrentes no segmento Misto indicam alta competi\u00e7\u00e3o.'},
+{title:'Corretores Independentes',desc:competitors.filter(function(c){return c.type==='corretor';}).length+' corretores monitorados competem diretamente por leads.'},
+{title:'Concentra\u00e7\u00e3o Regional',desc:'100% dos concorrentes atuam em RP e regi\u00e3o. Expans\u00e3o geogr\u00e1fica pode ser oportunidade.'}
+];
+ins.forEach(function(x){
+h+='<div style="padding:14px;background:rgba(255,255,255,.02);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.85rem;margin-bottom:4px;">'+x.title+'</div>';
+h+='<div style="color:#aaa;font-size:.78rem;">'+x.desc+'</div></div>';});
+h+='</div></div>';
+return h;
+}
+function renderMetrics(fc){
+var h='';
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
+h+='<h3 style="margin:0 0 8px;color:var(--gold);font-size:1.1rem;">\ud83d\udcc8 M\u00e9tricas de Mercado</h3>';
+h+='<p style="color:#aaa;font-size:.8rem;margin:0;">Dados coletados pela equipe de intelig\u00eancia. Clique em Editar para atualizar.</p></div>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px;">';
+fc.forEach(function(c){
+var pm=getData(c.handle,'preco_medio'),va=getData(c.handle,'vol_anuncios');
+var tm=getData(c.handle,'tempo_mercado'),nc=getData(c.handle,'n_corretores');
+var aa=getData(c.handle,'area_atuacao'),df=getData(c.handle,'diferencial');
+h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:18px;transition:all .3s;" onmouseover="this.style.borderColor=\'var(--gold)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.08)\'">';
+h+='<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:14px;">';
+h+='<div><div style="font-weight:600;color:#fff;font-size:.9rem;">'+(c.type==='imobiliaria'?'\ud83c\udfe2':'\ud83d\udc64')+' '+c.name+'</div>';
+h+='<div style="color:var(--gold);font-size:.72rem;">'+c.handle+'</div></div>';
+h+='<span style="background:'+tierColor(c.tier)+';color:#fff;padding:2px 8px;border-radius:10px;font-size:.65rem;font-weight:700;">'+c.tier+'</span></div>';
+h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+var mets=[{l:'Pre\u00e7o M\u00e9dio',v:pm,i:'\ud83d\udcb0'},{l:'Vol. An\u00fancios',v:va,i:'\ud83d\udce2'},{l:'Tempo de Mercado',v:tm,i:'\u23f3'},{l:'N\u00ba Corretores',v:nc,i:'\ud83d\udc65'},{l:'\u00c1rea de Atua\u00e7\u00e3o',v:aa,i:'\ud83d\udccd'},{l:'Diferencial',v:df,i:'\u2b50'}];
+mets.forEach(function(m){
+h+='<div style="padding:10px;background:rgba(255,255,255,.03);border-radius:8px;">';
+h+='<div style="font-size:.65rem;color:#888;">'+m.i+' '+m.l+'</div>';
+h+='<div style="font-size:.85rem;font-weight:600;color:'+(m.v!=='\u2014'?'#fff':'#555')+';margin-top:2px;">'+m.v+'</div></div>';});
+h+='</div>';
+h+='<button onclick="window._radarEditHandle=\''+c.handle+'\';pgRadarEdit()" style="width:100%;margin-top:12px;padding:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--gold);border-radius:8px;cursor:pointer;font-size:.75rem;transition:all .2s;" onmouseover="this.style.background=\'rgba(255,215,0,.1)\'" onmouseout="this.style.background=\'rgba(255,255,255,.04)\'">\u270f\ufe0f Atualizar M\u00e9tricas</button>';
+h+='</div>';
+});
+h+='</div>';
+return h;
+}
+render();
+}
+function pgRadarEdit(){
+var handle=window._radarEditHandle;
+if(!handle)return;
+var radarData=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');
+var d=radarData[handle]||{};
+var fields=[
+{key:'seguidores',label:'Seguidores',ph:'Ex: 12.5K'},
+{key:'posts_mes',label:'Posts/M\u00eas',ph:'Ex: 15'},
+{key:'engajamento',label:'Taxa de Engajamento',ph:'Ex: 3.2%'},
+{key:'site',label:'Website',ph:'Ex: www.exemplo.com.br'},
+{key:'portais',label:'Portais Imobili\u00e1rios',ph:'Ex: ZAP, Viva Real, OLX'},
+{key:'google_ads',label:'Google Ads',ph:'Ex: Ativo / Inativo'},
+{key:'meta_ads',label:'Meta Ads',ph:'Ex: Ativo / Inativo'},
+{key:'youtube',label:'YouTube',ph:'Ex: Ativo / 500 subs'},
+{key:'tiktok',label:'TikTok',ph:'Ex: Ativo / 1K seguidores'},
+{key:'score_digital',label:'Score Digital (0-100)',ph:'Ex: 65'},
+{key:'preco_medio',label:'Pre\u00e7o M\u00e9dio dos Im\u00f3veis',ph:'Ex: R$ 850.000'},
+{key:'vol_anuncios',label:'Volume de An\u00fancios',ph:'Ex: 120 ativos'},
+{key:'tempo_mercado',label:'Tempo de Mercado',ph:'Ex: 15 anos'},
+{key:'n_corretores',label:'N\u00ba de Corretores',ph:'Ex: 25'},
+{key:'area_atuacao',label:'\u00c1rea de Atua\u00e7\u00e3o',ph:'Ex: RP, Mirassol, Bady Bassitt'},
+{key:'diferencial',label:'Diferencial',ph:'Ex: Marketing agressivo'},
+{key:'observacoes',label:'Observa\u00e7\u00f5es',ph:'Notas da equipe...'}
+];
+var ov=document.createElement('div');
+ov.id='radar-edit-overlay';
+ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+var md=document.createElement('div');
+md.style.cssText='background:var(--navy,#0a1628);border:1px solid var(--gold,#d4af37);border-radius:16px;padding:28px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;';
+var htm='<h3 style="margin:0 0 20px;color:var(--gold);font-size:1.1rem;">\u270f\ufe0f Editar \u2014 '+handle+'</h3>';
+htm+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+fields.forEach(function(f){
+var val=d[f.key]||'';
+htm+='<div style="'+(f.key==='observacoes'?'grid-column:1/-1;':'')+'">';
+htm+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">'+f.label+'</label>';
+htm+='<input id="radar-edit-'+f.key+'" type="text" value="'+val+'" placeholder="'+f.ph+'" style="width:100%;padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;box-sizing:border-box;" />';
+htm+='</div>';});
+htm+='</div>';
+htm+='<div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">';
+htm+='<button onclick="document.getElementById(\'radar-edit-overlay\').remove()" style="padding:8px 20px;background:transparent;border:1px solid rgba(255,255,255,.15);color:#aaa;border-radius:8px;cursor:pointer;">Cancelar</button>';
+htm+='<button onclick="pgRadarSave(\''+handle+'\')" style="padding:8px 20px;background:var(--gold);color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:600;">\ud83d\udcbe Salvar</button>';
+htm+='</div>';
+md.innerHTML=htm;
+ov.appendChild(md);
+ov.onclick=function(e){if(e.target===ov)ov.remove();};
+document.body.appendChild(ov);
+}
+function pgRadarSave(handle){
+var radarData=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');
+if(!radarData[handle])radarData[handle]={};
+var fields=['seguidores','posts_mes','engajamento','site','portais','google_ads','meta_ads','youtube','tiktok','score_digital','preco_medio','vol_anuncios','tempo_mercado','n_corretores','area_atuacao','diferencial','observacoes'];
+fields.forEach(function(f){
+var el=document.getElementById('radar-edit-'+f);
+if(el&&el.value.trim())radarData[handle][f]=el.value.trim();
+else if(radarData[handle])delete radarData[handle][f];
+});
+localStorage.setItem('psm_radar_data',JSON.stringify(radarData));
+document.getElementById('radar-edit-overlay').remove();
+pgRadar();
 }
 
-// ─── PAGE: BENCHMARK ────────────────────────────────────────────────
 function pgBenchmark() {
   var u = S.user; if (!u) return '';
   var header = '<div class="phd"><h1>📊 Benchmark</h1><p>Comparação de performance com o mercado</p></div>';
