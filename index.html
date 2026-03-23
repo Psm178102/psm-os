@@ -5707,6 +5707,277 @@ function pgMarketing() {
 }
 
 
+// ─── PAGE: FLUXO DE CAIXA ────────────────────────────────────────────────
+function pgFluxocaixa() {
+  var u = S.user; if (!u) return '';
+  var header = '<div class="phd"><h1>💰 Fluxo de Caixa</h1><p>Gestão de entradas, saídas e saldo em caixa</p></div>';
+  var emptyContent = '<div style="text-align:center;padding:60px 40px;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.1)">'
+    +'<div style="font-size:48px;margin-bottom:16px">💰</div>'
+    +'<div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:8px">Módulo em Desenvolvimento</div>'
+    +'<div style="font-size:13px;color:var(--muted)">O fluxo de caixa será preenchido com dados reais quando integrado ao sistema contábil.</div>'
+  +'</div>';
+  return header + '<div class="cards-wrap">'
+    +'<div class="card mb2">'
+      +'<div style="display:flex;gap:16px;margin-bottom:20px">'
+        +'<div style="flex:1;padding:16px;background:var(--cream2);border-radius:12px">'
+          +'<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">ENTRADAS</div>'
+          +'<div style="font-size:24px;font-weight:800;color:var(--g);margin-top:8px">—</div>'
+        +'</div>'
+        +'<div style="flex:1;padding:16px;background:var(--cream2);border-radius:12px">'
+          +'<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">SAÍDAS</div>'
+          +'<div style="font-size:24px;font-weight:800;color:var(--r);margin-top:8px">—</div>'
+        +'</div>'
+        +'<div style="flex:1;padding:16px;background:var(--cream2);border-radius:12px">'
+          +'<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">SALDO</div>'
+          +'<div style="font-size:24px;font-weight:800;color:var(--navy);margin-top:8px">—</div>'
+        +'</div>'
+      +'</div>'
+      +emptyContent
+    +'</div>'
+  +'</div>';
+}
+
+// ─── PAGE: DRE ────────────────────────────────────────────────
+function pgDre() {
+  var u = S.user; if (!u) return '';
+  var header = '<div class="phd"><h1>📊 DRE (Demonstrativo de Resultados)</h1><p>Receita bruta, deduções, custos e lucro operacional</p></div>';
+  var emptyContent = '<div style="text-align:center;padding:60px 40px;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.1)">'
+    +'<div style="font-size:48px;margin-bottom:16px">📊</div>'
+    +'<div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:8px">Módulo em Desenvolvimento</div>'
+    +'<div style="font-size:13px;color:var(--muted)">O DRE será preenchido com dados reais quando integrado ao sistema de gestão financeira.</div>'
+  +'</div>';
+  return header + '<div class="cards-wrap">'
+    +'<div class="card mb2">'
+      +'<div style="display:flex;flex-direction:column;gap:12px">'
+        +'<div style="display:flex;justify-content:space-between;padding:12px;background:var(--cream2);border-radius:8px"><span style="font-weight:600;color:var(--navy)">Receita Bruta</span><span style="font-weight:700;color:var(--navy)">—</span></div>'
+        +'<div style="display:flex;justify-content:space-between;padding:12px;background:var(--cream2);border-radius:8px"><span style="font-weight:600;color:var(--navy)">Deduções</span><span style="font-weight:700;color:var(--r)">—</span></div>'
+        +'<div style="display:flex;justify-content:space-between;padding:12px;background:var(--navy);border-radius:8px;border:1px solid var(--cream3)"><span style="font-weight:600;color:#fff">Receita Líquida</span><span style="font-weight:700;color:#fff">—</span></div>'
+        +'<div style="display:flex;justify-content:space-between;padding:12px;background:var(--cream2);border-radius:8px"><span style="font-weight:600;color:var(--navy)">Custos Operacionais</span><span style="font-weight:700;color:var(--r)">—</span></div>'
+        +'<div style="display:flex;justify-content:space-between;padding:12px;background:var(--cream2);border-radius:8px"><span style="font-weight:600;color:var(--navy)">Despesas</span><span style="font-weight:700;color:var(--r)">—</span></div>'
+        +'<div style="display:flex;justify-content:space-between;padding:12px;background:var(--navy);border-radius:8px;border:1px solid var(--cream3)"><span style="font-weight:600;color:#fff">Lucro Operacional</span><span style="font-weight:700;color:#fff">—</span></div>'
+      +'</div>'
+    +'</div>'
+  +'</div>';
+}
+
+// ─── PAGE: COMISSÕES ────────────────────────────────────────────────
+function pgComissoes() {
+  var u = S.user; if (!u) return '';
+  var header = '<div class="phd"><h1>💎 Comissões</h1><p>Acompanhamento de comissões e desempenho dos corretores</p></div>';
+  var emptyContent = '<div style="text-align:center;padding:60px 40px;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.1)">'
+    +'<div style="font-size:48px;margin-bottom:16px">💎</div>'
+    +'<div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:8px">Módulo em Desenvolvimento</div>'
+    +'<div style="font-size:13px;color:var(--muted)">As comissões serão exibidas aqui quando integradas ao sistema de gestão.</div>'
+  +'</div>';
+  return header + '<div class="cards-wrap">'
+    +'<div class="card mb2">'
+      +emptyContent
+      +'<div style="margin-top:24px;padding:16px;background:var(--cream2);border-radius:12px">'
+        +'<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:12px">ESTRUTURA DE COLUNAS</div>'
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;font-size:10px">'
+          +'<div style="padding:8px;background:#fff;border-radius:6px;text-align:center">Corretor</div>'
+          +'<div style="padding:8px;background:#fff;border-radius:6px;text-align:center">Vendas</div>'
+          +'<div style="padding:8px;background:#fff;border-radius:6px;text-align:center">Valor Total</div>'
+          +'<div style="padding:8px;background:#fff;border-radius:6px;text-align:center">Taxa %</div>'
+          +'<div style="padding:8px;background:#fff;border-radius:6px;text-align:center">Comissão</div>'
+          +'<div style="padding:8px;background:#fff;border-radius:6px;text-align:center">Status</div>'
+        +'</div>'
+      +'</div>'
+    +'</div>'
+  +'</div>';
+}
+
+// ─── PAGE: REPASSES ────────────────────────────────────────────────
+function pgRepasses() {
+  var u = S.user; if (!u) return '';
+  var header = '<div class="phd"><h1>🔄 Repasses</h1><p>Acompanhamento de pagamentos e repasses financeiros</p></div>';
+  var emptyContent = '<div style="text-align:center;padding:60px 40px;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.1)">'
+    +'<div style="font-size:48px;margin-bottom:16px">🔄</div>'
+    +'<div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:8px">Módulo em Desenvolvimento</div>'
+    +'<div style="font-size:13px;color:var(--muted)">Os repasses serão exibidos aqui quando o sistema de gestão financeira estiver ativo.</div>'
+  +'</div>';
+  return header + '<div class="cards-wrap">'
+    +'<div class="card mb2">'
+      +'<div style="display:flex;gap:16px;margin-bottom:20px">'
+        +'<div style="flex:1;padding:16px;background:var(--cream2);border-radius:12px">'
+          +'<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">PENDENTES</div>'
+          +'<div style="font-size:24px;font-weight:800;color:var(--a);margin-top:8px">—</div>'
+        +'</div>'
+        +'<div style="flex:1;padding:16px;background:var(--cream2);border-radius:12px">'
+          +'<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">PROCESSANDO</div>'
+          +'<div style="font-size:24px;font-weight:800;color:var(--b);margin-top:8px">—</div>'
+        +'</div>'
+        +'<div style="flex:1;padding:16px;background:var(--cream2);border-radius:12px">'
+          +'<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">CONCLUÍDOS</div>'
+          +'<div style="font-size:24px;font-weight:800;color:var(--g);margin-top:8px">—</div>'
+        +'</div>'
+      +'</div>'
+      +emptyContent
+    +'</div>'
+  +'</div>';
+}
+
+// ─── PAGE: RADAR INTELLIGENCE ────────────────────────────────────────────────
+function pgRadar() {
+  var u = S.user; if (!u) return '';
+  if (!S.radarFilter) S.radarFilter = 'all';
+
+  var COMPETITORS = [
+    {handle:'@empreendimentos_rp', name:'Empreendimentos RP', type:'imobiliaria', platform:'instagram'},
+    {handle:'@fg_inteligenciaimobiliaria', name:'FG Inteligência Imobiliária', type:'imobiliaria', platform:'instagram'},
+    {handle:'@imobiliaria_saojose', name:'Imobiliária São José', type:'imobiliaria', platform:'instagram'},
+    {handle:'@gruponexgen', name:'Grupo NexGen', type:'imobiliaria', platform:'instagram'},
+    {handle:'@renascerejalesjk', name:'Renascere Jales JK', type:'imobiliaria', platform:'instagram'},
+    {handle:'@house3imobiliaria', name:'House 3 Imobiliária', type:'imobiliaria', platform:'instagram'},
+    {handle:'@imobiliariagrupozani', name:'Grupo Zani', type:'imobiliaria', platform:'instagram'},
+    {handle:'@imobiliariairmaosferreira', name:'Irmãos Ferreira', type:'imobiliaria', platform:'instagram'},
+    {handle:'@condominiumimoveis', name:'Condominium Imóveis', type:'imobiliaria', platform:'instagram'},
+    {handle:'@imobiliariawestim', name:'Westim Imobiliária', type:'imobiliaria', platform:'instagram'},
+    {handle:'@shimanaimoveis', name:'Shimana Imóveis', type:'imobiliaria', platform:'instagram'},
+    {handle:'@atlas.imb', name:'Atlas Imobiliária', type:'imobiliaria', platform:'instagram'},
+    {handle:'@5Gimoveis', name:'5G Imóveis', type:'imobiliaria', platform:'instagram'},
+    {handle:'@gemimnegociosimobiliarios', name:'Gemim Negócios', type:'imobiliaria', platform:'instagram'},
+    {handle:'@martincarrazoneimoveis', name:'Martin Carrazone', type:'imobiliaria', platform:'instagram'},
+    {handle:'@vanessabrianti_imoveis', name:'Vanessa Brianti', type:'corretor', platform:'instagram'},
+    {handle:'@corretorguilhermeneilly', name:'Guilherme Neilly', type:'corretor', platform:'instagram'},
+    {handle:'@joaogabriel.imoveis', name:'João Gabriel', type:'corretor', platform:'instagram'},
+    {handle:'@mateussantilicorretor', name:'Mateus Santili', type:'corretor', platform:'instagram'},
+    {handle:'@jpbonfa', name:'JP Bonfá', type:'corretor', platform:'instagram'},
+    {handle:'@corretor.marcodebolleta', name:'Marco De Bolleta', type:'corretor', platform:'instagram'},
+    {handle:'@diegourbano.imoveis', name:'Diego Urbano', type:'corretor', platform:'instagram'},
+    {handle:'@maribolandin_altopadrao', name:'Mari Bolandin', type:'corretor', platform:'instagram'},
+    {handle:'@imoveisgabi', name:'Gabi Imóveis', type:'corretor', platform:'instagram'},
+    {handle:'@davidwilliangarcia', name:'David Willian Garcia', type:'corretor', platform:'instagram'},
+    {handle:'@imoveiscomvanessa', name:'Vanessa Imóveis', type:'corretor', platform:'instagram'},
+    {handle:'@joaomozaquatro', name:'João Mozaquatro', type:'corretor', platform:'instagram'},
+    {handle:'@francomarinho.corretor', name:'Franco Marinho', type:'corretor', platform:'instagram'},
+    {handle:'@anaanchetaimoveis', name:'Ana Ancheta Imóveis', type:'corretor', platform:'instagram'},
+    {handle:'@allegroprime.puggia', name:'Allegro Prime - Puggia', type:'imobiliaria', platform:'instagram'},
+    {handle:'@novageracao.imob', name:'Nova Geração', type:'imobiliaria', platform:'instagram'},
+    {handle:'@altopadraoimobiliaria', name:'Alto Padrão Imobiliária', type:'imobiliaria', platform:'instagram'},
+    {handle:'@marcovessani', name:'Marco Vessani', type:'corretor', platform:'instagram'},
+    {handle:'@rrbroker', name:'RR Broker', type:'corretor', platform:'instagram'},
+    {handle:'@alonsonegociosimobiliarios', name:'Alonso Negócios Imobiliários', type:'imobiliaria', platform:'instagram'},
+    {handle:'@blessimobiliaria', name:'Bless Imobiliária', type:'imobiliaria', platform:'instagram'},
+    {handle:'@fitnegociosimobiliarios', name:'FIT Negócios Imobiliários', type:'imobiliaria', platform:'instagram'},
+    {handle:'@fitprimeempreendimentos', name:'FIT Prime Empreendimentos', type:'imobiliaria', platform:'instagram'},
+    {handle:'@felixemaciel', name:'Felix & Maciel', type:'imobiliaria', platform:'instagram'},
+  ];
+
+  var filtered = S.radarFilter==='imobiliaria'?COMPETITORS.filter(c=>c.type==='imobiliaria'):
+                 S.radarFilter==='corretor'?COMPETITORS.filter(c=>c.type==='corretor'):
+                 COMPETITORS;
+
+  var header = '<div class="phd"><h1>🛡️ RADAR INTELLIGENCE PSM</h1><p>Monitoramento de '+COMPETITORS.length+' concorrentes • Última atualização: —</p></div>';
+
+  var filters = '<div style="display:flex;gap:8px;margin-bottom:20px">'
+    +'<button onclick="S.radarFilter=\'all\';render()" style="padding:8px 16px;border-radius:8px;background:'+(S.radarFilter==='all'?'var(--gold);color:#000':'var(--cream2);color:var(--navy)')+';border:none;cursor:pointer;font-weight:600;font-size:12px;transition:all .2s">Todos ('+COMPETITORS.length+')</button>'
+    +'<button onclick="S.radarFilter=\'imobiliaria\';render()" style="padding:8px 16px;border-radius:8px;background:'+(S.radarFilter==='imobiliaria'?'var(--gold);color:#000':'var(--cream2);color:var(--navy)')+';border:none;cursor:pointer;font-weight:600;font-size:12px;transition:all .2s">Imobiliárias ('+COMPETITORS.filter(c=>c.type==='imobiliaria').length+')</button>'
+    +'<button onclick="S.radarFilter=\'corretor\';render()" style="padding:8px 16px;border-radius:8px;background:'+(S.radarFilter==='corretor'?'var(--gold);color:#000':'var(--cream2);color:var(--navy)')+';border:none;cursor:pointer;font-weight:600;font-size:12px;transition:all .2s">Corretores ('+COMPETITORS.filter(c=>c.type==='corretor').length+')</button>'
+  +'</div>';
+
+  var competitorCards = filtered.map(c => {
+    var initials = c.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    return '<div style="flex:1;min-width:200px;padding:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;backdrop-filter:blur(10px);transition:all .2s;cursor:pointer" onmouseover="this.style.background=\'rgba(255,255,255,.06)\'" onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">'
+      +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">'
+        +'<div style="width:40px;height:40px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#000;flex-shrink:0">'+initials+'</div>'
+        +'<div style="flex:1;min-width:0">'
+          +'<a href="https://instagram.com/'+c.handle.substring(1)+'" target="_blank" style="color:var(--navy);text-decoration:none;font-weight:600;font-size:12px;word-break:break-word">'+c.handle+'</a>'
+          +'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+c.name+'</div>'
+        +'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:4px;margin-bottom:12px">'
+        +'<span style="font-size:8px;padding:3px 8px;background:'+(c.type==='imobiliaria'?'var(--a-bg);color:var(--a-tx)':'var(--b-bg);color:var(--b-tx)')+';border-radius:4px;font-weight:700">'+(c.type==='imobiliaria'?'IMOBILIÁRIA':'CORRETOR')+'</span>'
+        +'<span style="font-size:8px;padding:3px 8px;background:var(--g-bg);color:var(--g-tx);border-radius:4px;font-weight:700">🟢 MONITORANDO</span>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:10px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06)">'
+        +'<div><span style="color:var(--muted)">Seguidores</span><div style="font-weight:700;color:var(--navy);margin-top:2px">—</div></div>'
+        +'<div><span style="color:var(--muted)">Posts/semana</span><div style="font-weight:700;color:var(--navy);margin-top:2px">—</div></div>'
+        +'<div><span style="color:var(--muted)">Eng. Rate</span><div style="font-weight:700;color:var(--navy);margin-top:2px">—</div></div>'
+        +'<div><span style="color:var(--muted)">Último Post</span><div style="font-weight:700;color:var(--navy);margin-top:2px">—</div></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:6px">'
+        +'<a href="https://instagram.com/'+c.handle.substring(1)+'" target="_blank" onclick="event.stopPropagation()" style="flex:1;padding:6px 8px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:10px;font-weight:600;text-align:center;text-decoration:none;transition:all .2s" onmouseover="this.style.background=\'var(--gold);this.style.color=\'#000\'' onmouseout="this.style.background=\'var(--navy);this.style.color=\'#fff\'">Ver Perfil</a>'
+        +'<button onclick="alert(\'Funcionalidade em desenvolvimento\')" style="flex:1;padding:6px 8px;background:var(--cream2);color:var(--navy);border:none;border-radius:6px;cursor:pointer;font-size:10px;font-weight:600;transition:all .2s">Analisar</button>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+
+  var feedSection = '<div style="padding:24px;background:var(--cream2);border-radius:12px;text-align:center;color:var(--muted)">'
+    +'<div style="font-size:14px;margin-bottom:8px">📡 Intelligence Feed</div>'
+    +'<div style="font-size:12px">Nenhuma atividade registrada ainda. O radar começará a coletar dados dos concorrentes automaticamente.</div>'
+  +'</div>';
+
+  var analysisSection = '<div style="padding:24px;background:var(--cream2);border-radius:12px">'
+    +'<div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:16px">📊 Análise Comparativa</div>'
+    +'<div style="overflow-x:auto">'
+      +'<table style="width:100%;font-size:11px;border-collapse:collapse">'
+        +'<thead><tr style="background:var(--navy);color:#fff">'
+          +'<th style="padding:10px;text-align:left">Concorrente</th>'
+          +'<th style="padding:10px;text-align:right">Seguidores</th>'
+          +'<th style="padding:10px;text-align:right">Crescimento</th>'
+          +'<th style="padding:10px;text-align:right">Posts/Sem</th>'
+          +'<th style="padding:10px;text-align:right">Eng.Rate</th>'
+          +'<th style="padding:10px;text-align:left">Estratégia</th>'
+        +'</tr></thead>'
+        +'<tbody>'
+          +'<tr style="border-bottom:1px solid var(--cream3);text-align:center"><td colspan="6" style="padding:20px;color:var(--muted)">—</td></tr>'
+        +'</tbody>'
+      +'</table>'
+    +'</div>'
+  +'</div>';
+
+  var insightsSection = '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:20px">'
+    +'<div style="flex:1;min-width:200px;padding:16px;background:var(--cream2);border-radius:12px">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">🏆 Melhor Estratégia</div>'
+      +'<div style="font-size:12px;color:var(--muted)">Dados insuficientes</div>'
+    +'</div>'
+    +'<div style="flex:1;min-width:200px;padding:16px;background:var(--cream2);border-radius:12px">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">✨ Criativo Mais Engajado</div>'
+      +'<div style="font-size:12px;color:var(--muted)">Dados insuficientes</div>'
+    +'</div>'
+    +'<div style="flex:1;min-width:200px;padding:16px;background:var(--cream2);border-radius:12px">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">📈 Tendência Emergente</div>'
+      +'<div style="font-size:12px;color:var(--muted)">Dados insuficientes</div>'
+    +'</div>'
+  +'</div>';
+
+  return header + filters + '<div class="cards-wrap">'
+    +'<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px">'+competitorCards+'</div>'
+    +feedSection
+    +'<div style="margin-top:24px">'+analysisSection+'</div>'
+    +'<div style="margin-top:24px">'+insightsSection+'</div>'
+  +'</div>';
+}
+
+// ─── PAGE: BENCHMARK ────────────────────────────────────────────────
+function pgBenchmark() {
+  var u = S.user; if (!u) return '';
+  var header = '<div class="phd"><h1>📊 Benchmark</h1><p>Comparação de performance com o mercado</p></div>';
+  var emptyContent = '<div style="text-align:center;padding:60px 40px;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.1)">'
+    +'<div style="font-size:48px;margin-bottom:16px">📊</div>'
+    +'<div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:8px">Módulo em Desenvolvimento</div>'
+    +'<div style="font-size:13px;color:var(--muted)">Os dados de benchmark serão coletados e comparados com as melhores práticas do mercado imobiliário.</div>'
+  +'</div>';
+  return header + '<div class="cards-wrap">'
+    +'<div class="card mb2">'+emptyContent+'</div>'
+  +'</div>';
+}
+
+// ─── PAGE: TENDÊNCIAS ────────────────────────────────────────────────
+function pgTendencias() {
+  var u = S.user; if (!u) return '';
+  var header = '<div class="phd"><h1>📈 Tendências</h1><p>Análise de tendências emergentes no mercado imobiliário</p></div>';
+  var emptyContent = '<div style="text-align:center;padding:60px 40px;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.1)">'
+    +'<div style="font-size:48px;margin-bottom:16px">📈</div>'
+    +'<div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:8px">Módulo em Desenvolvimento</div>'
+    +'<div style="font-size:13px;color:var(--muted)">As análises de tendências serão atualizadas continuamente conforme novos dados chegam do mercado.</div>'
+  +'</div>';
+  return header + '<div class="cards-wrap">'
+    +'<div class="card mb2">'+emptyContent+'</div>'
+  +'</div>';
+}
+
 // ─── PAGE: LANÇAMENTOS DO ANO ────────────────────────────────────────────────
 // ─── PAGE: LANÇAMENTOS DO ANO ────────────────────────────────────────────────
 // ─── PAGE: LANÇAMENTOS DO ANO ────────────────────────────────────────────────
@@ -7249,6 +7520,17 @@ function renderSB() {
       {id:'okrs',      lbl:'OKRs & Metas',   ico:'🎯',min:5},
       {id:'vendas',    lbl:'Lançar Venda',   ico:'💰',min:7},
     ]},
+    {sec:'Financeiro', items:[
+      {id:'fluxocaixa',lbl:'Fluxo de Caixa',ico:'💰',min:5},
+      {id:'dre',lbl:'DRE',ico:'📊',min:5},
+      {id:'comissoes',lbl:'Comissões',ico:'💎',min:5},
+      {id:'repasses',lbl:'Repasses',ico:'🔄',min:5},
+    ]},
+    {sec:'Intelligence', items:[
+      {id:'radar',lbl:'Radar Concorrentes',ico:'📡',min:5},
+      {id:'benchmark',lbl:'Benchmark',ico:'📊',min:5},
+      {id:'tendencias',lbl:'Tendências',ico:'🔥',min:5},
+    ]},
     {sec:'Recursos', items:[
       {id:'drive',     lbl:'Drive PSM',      ico:'📁',min:1},
       {id:'tabela',    lbl:'Tabela PSM',     ico:'📋',min:1},
@@ -7301,7 +7583,10 @@ function renderHDR() {
     warroom:'⚔️ War Room',forecast:'Forecast',okrs:'OKRs & Metas',vera:'Sr. Performance',rdconfig:'RD Station',
     config:'Configurações',vendas:'Lançar Venda',drive:'📁 Drive PSM',tabela:'📋 Tabela PSM',mapa:'🗺️ Mapa PSM',
     formacao:'🎓 Formação PSM',manual:'📖 Manual & Ética',captacao:'📝 Captação de Imóveis',
-    simvpl:'📐 Simulador VPL',simincc:'📊 Simulador INCC',simrep:'💰 Simulador de Repasse'};
+    simvpl:'📐 Simulador VPL',simincc:'📊 Simulador INCC',simrep:'💰 Simulador de Repasse',
+    fluxocaixa:'💰 Fluxo de Caixa',dre:'📊 DRE',comissoes:'💎 Comissões',repasses:'🔄 Repasses',
+    radar:'📡 Radar Intelligence PSM',benchmark:'📊 Benchmark',tendencias:'📈 Tendências',
+    metaads:'📢 Meta Ads'};
   const unread = NOTIFS.filter(n=>!n.read).length;
   return '<div class="hdr">'
     + '<div class="hdr-title">'+(titles[S.page]||'')+'</div>'
@@ -7409,6 +7694,41 @@ function tipoBadge(t){var c=t==='whatsapp'?'#25d366':'#6366f1';var l=t==='whatsa
 function statusDot(s){var c=s==='active'?'#10b981':s==='paused'?'#f59e0b':'#ef4444';var l=s==='active'?'ATIVA':s==='paused'?'PAUSADA':'INATIVA';return '<span style="font-size:9px;padding:3px 8px;border-radius:4px;background:'+c+'22;color:'+c+';font-weight:700">'+l+'</span>';}
 function sectionTitle(t){return '<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#64748b;margin:24px 0 12px;text-transform:uppercase;display:flex;align-items:center;gap:8px">'+t+'<div style="flex:1;height:1px;background:#1e293b"></div></div>';}
 
+// ===== SIMULADOR DE CRIATIVO HELPER =====
+S.simuladorSimulate=function(){
+  var copyLen=(S.simuladorCopy||'').length;
+  var formato=S.simuladorFormato||'imagem';
+  var cta=S.simuladorCTA||'saiba-mais';
+  var hasFile=!!S.simuladorUpload;
+
+  // Scoring heuristics (0-10 scale)
+  var composicao=hasFile?Math.max(5,Math.min(10,6+Math.random()*3)):5;
+  var cores=hasFile?Math.max(4,Math.min(10,5+Math.random()*4)):4;
+  var copy_score=copyLen>20&&copyLen<150?9:copyLen>10&&copyLen<200?7:copyLen>0?5:0;
+  var cta_score=(cta&&cta!=='saiba-mais')?8:7;
+  var mobile_score=formato==='imagem'?9:formato==='video'?8:7;
+  var hook_score=formato==='video'?8:formato==='carrossel'?7:5;
+  var psycho_score=(copyLen>30)?7:5;
+  var algo_score=Math.max(5,Math.min(10,composicao*0.2+cores*0.15+copy_score*0.2+cta_score*0.15+mobile_score*0.15+hook_score*0.15));
+
+  var overall=Math.round((composicao+cores+copy_score+cta_score+mobile_score+hook_score+psycho_score+algo_score)/8*10);
+
+  return {
+    score:overall,
+    composicao:Math.round(composicao),
+    cores:Math.round(cores),
+    copy:Math.round(copy_score),
+    cta:Math.round(cta_score),
+    mobile:Math.round(mobile_score),
+    hook:Math.round(hook_score),
+    psycho:Math.round(psycho_score),
+    algo:Math.round(algo_score),
+    fortes:(composicao>=7?'Visual bem estruturado. ':'')+(cores>=7?'Cores de alto impacto. ':'')+(copy_score>=8?'Copy clara e objetiva. ':'')+(mobile_score>=9?'Otimizado para mobile. ':''),
+    fracos:(composicao<6?'Composição pode melhorar. ':'')+(copy_score<6?'Copy precisa ser mais impactante. ':'')+(hook_score<6?'Hook inicial fraco. ':''),
+    rec:'Otimize o tamanho da copy para 20-150 caracteres. Teste este criativo em diferentes públicos. Monitore o performance nos primeiros 3 segundos.'
+  };
+};
+
 // ===== COMPUTED DATA =====
 var totSpend=0,totResults=0,totImpressions=0,totReach=0,totClicks=0,totViews=0;
 var totV25=0,totV50=0,totV75=0,totV95=0,totV100=0;
@@ -7446,6 +7766,7 @@ var navItems=[
   {id:'okrs',ico:'\u2B50',lbl:'OKRs & KPIs'},
   {id:'publicos',ico:'\uD83D\uDC65',lbl:'P\u00FAblicos'},
   {id:'otimizacoes',ico:'\uD83C\uDFAF',lbl:'Otimiza\u00E7\u00F5es'},
+  {id:'simulador',ico:'🧪',lbl:'Simulador de Criativo'},
   {id:'sep',lbl:'AN\u00C1LISE ESTRAT\u00C9GICA'},
   {id:'pressao',ico:'\uD83D\uDE80',lbl:'A \u00B7 Press\u00E3o de M\u00EDdia'},
   {id:'qualidade',ico:'\uD83C\uDFC6',lbl:'B \u00B7 Qualidade do Lead'},
@@ -8128,6 +8449,97 @@ else if(tab==='eficriativo'){
     +'</div>';
 }
 
+// ===== SIMULADOR DE CRIATIVO =====
+else if(tab==='simulador'){
+  if(!S.simuladorUpload){S.simuladorUpload=null;S.simuladorCopy='';S.simuladorCTA='saiba-mais';S.simuladorAnalysis=null;}
+
+  var emptyState='<div style="text-align:center;padding:60px 40px;background:rgba(255,255,255,.02);border-radius:12px;border:1px dashed rgba(255,255,255,.1)">'
+    +'<div style="font-size:48px;margin-bottom:16px">🧪</div>'
+    +'<div style="font-size:16px;font-weight:600;color:#e2e8f0;margin-bottom:8px">Carregue um criativo para análise</div>'
+    +'<div style="font-size:13px;color:#94a3b8">O simulador avaliará seu anúncio com base nos critérios do algoritmo Meta.</div>'
+  +'</div>';
+
+  var simuladorUI='<div style="display:flex;gap:20px;margin-bottom:20px">'
+    +'<div style="flex:0 0 40%;display:flex;flex-direction:column;gap:16px">'
+      // Upload area
+      +'<div><div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-bottom:8px">CRIATIVO</div>'
+        +'<div style="padding:32px 24px;background:rgba(99,102,241,.1);border:2px dashed rgba(99,102,241,.3);border-radius:10px;text-align:center;cursor:pointer" onclick="document.getElementById(\'sim-file\').click()">'
+          +'<div style="font-size:32px;margin-bottom:8px">📸</div>'
+          +'<div style="font-size:12px;color:#e2e8f0;font-weight:600">Arraste aqui ou clique</div>'
+          +'<div style="font-size:11px;color:#94a3b8;margin-top:4px">PNG, JPG, MP4 até 50MB</div>'
+          +'<input type="file" id="sim-file" accept="image/*,video/*" style="display:none" onchange="S.simuladorUpload=this.files[0]?.name;render()">'
+        +'</div>'
+        +(S.simuladorUpload?'<div style="padding:8px 12px;background:#10b98122;border:1px solid #10b981;border-radius:8px;color:#10b981;font-size:11px;font-weight:600">✓ '+S.simuladorUpload+'</div>':'')
+      +'</div>'
+      // Formato
+      +'<div><div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-bottom:8px">FORMATO</div>'
+        +'<select onchange="S.simuladorFormato=this.value;render()" style="width:100%;padding:8px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:12px">'
+          +'<option value="imagem">Imagem Estática</option>'
+          +'<option value="carrossel">Carrossel</option>'
+          +'<option value="video">Vídeo/Reels</option>'
+        +'</select>'
+      +'</div>'
+      // Copy text
+      +'<div><div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-bottom:8px">COPY DO ANÚNCIO</div>'
+        +'<textarea placeholder="Insira o headline e body text do seu anúncio..." style="width:100%;height:100px;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:12px;font-family:inherit;resize:vertical" onchange="S.simuladorCopy=this.value;render()">'+S.simuladorCopy+'</textarea>'
+      +'</div>'
+      // CTA
+      +'<div><div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-bottom:8px">CTA BUTTON</div>'
+        +'<select onchange="S.simuladorCTA=this.value;render()" style="width:100%;padding:8px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:12px">'
+          +'<option value="saiba-mais">Saiba Mais</option>'
+          +'<option value="cadastre">Cadastre-se</option>'
+          +'<option value="fale">Fale Conosco</option>'
+          +'<option value="visite">Visite Nosso Site</option>'
+          +'<option value="agende">Agende uma Visita</option>'
+        +'</select>'
+      +'</div>'
+      // Analyze button
+      +'<button onclick="if(S.simuladorUpload){S.simuladorAnalysis=S.simuladorSimulate();render()}else{alert(\'Carregue um criativo primeiro\')}" style="width:100%;padding:12px 16px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s" onmouseover="this.style.opacity=\'.9\'" onmouseout="this.style.opacity=\'1\'">🔍 Analisar Criativo</button>'
+    +'</div>'
+    // Results panel
+    +'<div style="flex:1;display:flex;flex-direction:column;gap:16px">'
+      +(S.simuladorAnalysis?'<div>'
+        // Score ring
+        +'<div style="padding:20px;background:#1e293b;border-radius:12px;border:1px solid #334155;text-align:center">'
+          +'<div style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:12px">SCORE GERAL</div>'
+          +'<div style="display:flex;align-items:center;justify-content:center;gap:20px">'
+            +'<div style="position:relative;width:120px;height:120px"><svg viewBox="0 0 120 120" style="width:100%;height:100%;transform:rotate(-90deg)">'
+              +'<circle cx="60" cy="60" r="50" fill="none" stroke="#1e293b" stroke-width="8"/>'
+              +'<circle cx="60" cy="60" r="50" fill="none" stroke="'+(S.simuladorAnalysis.score>=70?'#10b981':S.simuladorAnalysis.score>=40?'#f59e0b':'#ef4444')+'" stroke-width="8" stroke-dasharray="'+(S.simuladorAnalysis.score/100*314)+' 314" stroke-linecap="round"/>'
+            +'</svg><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center"><div style="font-size:32px;font-weight:800;color:#e2e8f0">'+S.simuladorAnalysis.score+'</div><div style="font-size:10px;color:#94a3b8">/100</div></div></div>'
+            +'<div style="flex:1"><div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:12px">Avaliação:</div>'
+              +'<div style="font-size:12px;color:#94a3b8;line-height:1.6">'+(S.simuladorAnalysis.score>=70?'Excelente! Seu criativo está bem otimizado.':S.simuladorAnalysis.score>=40?'Bom potencial. Há espaço para melhorias.':'Precisa de ajustes. Revise os pontos fracos.')+'</div>'
+            +'</div>'
+          +'</div>'
+        +'</div>'
+        // Ratings
+        +'<div style="padding:16px;background:#1e293b;border-radius:12px;border:1px solid #334155">'
+          +'<div style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:12px">AVALIAÇÃO POR CRITÉRIO</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+            +'<div><div style="font-size:11px;color:#64748b;margin-bottom:4px">📐 Composição Visual</div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:14px;font-weight:700;color:#e2e8f0">'+S.simuladorAnalysis.composicao+'</span><div style="flex:1;height:3px;background:#0f172a;border-radius:2px"><div style="width:'+(S.simuladorAnalysis.composicao*10)+'%;height:100%;background:#6366f1;border-radius:2px"></div></div></div></div>'
+            +'<div><div style="font-size:11px;color:#64748b;margin-bottom:4px">🎨 Impacto de Cores</div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:14px;font-weight:700;color:#e2e8f0">'+S.simuladorAnalysis.cores+'</span><div style="flex:1;height:3px;background:#0f172a;border-radius:2px"><div style="width:'+(S.simuladorAnalysis.cores*10)+'%;height:100%;background:#f59e0b;border-radius:2px"></div></div></div></div>'
+            +'<div><div style="font-size:11px;color:#64748b;margin-bottom:4px">📝 Clareza da Copy</div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:14px;font-weight:700;color:#e2e8f0">'+S.simuladorAnalysis.copy+'</span><div style="flex:1;height:3px;background:#0f172a;border-radius:2px"><div style="width:'+(S.simuladorAnalysis.copy*10)+'%;height:100%;background:#10b981;border-radius:2px"></div></div></div></div>'
+            +'<div><div style="font-size:11px;color:#64748b;margin-bottom:4px">🎯 CTA Effectiveness</div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:14px;font-weight:700;color:#e2e8f0">'+S.simuladorAnalysis.cta+'</span><div style="flex:1;height:3px;background:#0f172a;border-radius:2px"><div style="width:'+(S.simuladorAnalysis.cta*10)+'%;height:100%;background:#8b5cf6;border-radius:2px"></div></div></div></div>'
+            +'<div><div style="font-size:11px;color:#64748b;margin-bottom:4px">📱 Mobile Readiness</div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:14px;font-weight:700;color:#e2e8f0">'+S.simuladorAnalysis.mobile+'</span><div style="flex:1;height:3px;background:#0f172a;border-radius:2px"><div style="width:'+(S.simuladorAnalysis.mobile*10)+'%;height:100%;background:#06b6d4;border-radius:2px"></div></div></div></div>'
+            +'<div><div style="font-size:11px;color:#64748b;margin-bottom:4px">⚡ Hook Power</div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:14px;font-weight:700;color:#e2e8f0">'+S.simuladorAnalysis.hook+'</span><div style="flex:1;height:3px;background:#0f172a;border-radius:2px"><div style="width:'+(S.simuladorAnalysis.hook*10)+'%;height:100%;background:#ec4899;border-radius:2px"></div></div></div></div>'
+            +'<div><div style="font-size:11px;color:#64748b;margin-bottom:4px">🧠 Psych. Triggers</div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:14px;font-weight:700;color:#e2e8f0">'+S.simuladorAnalysis.psycho+'</span><div style="flex:1;height:3px;background:#0f172a;border-radius:2px"><div style="width:'+(S.simuladorAnalysis.psycho*10)+'%;height:100%;background:#f97316;border-radius:2px"></div></div></div></div>'
+            +'<div><div style="font-size:11px;color:#64748b;margin-bottom:4px">📊 Algorithm Align</div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:14px;font-weight:700;color:#e2e8f0">'+S.simuladorAnalysis.algo+'</span><div style="flex:1;height:3px;background:#0f172a;border-radius:2px"><div style="width:'+(S.simuladorAnalysis.algo*10)+'%;height:100%;background:#3b82f6;border-radius:2px"></div></div></div></div>'
+          +'</div>'
+        +'</div>'
+        // Feedback
+        +'<div style="padding:16px;background:#1e293b;border-radius:12px;border:1px solid #334155">'
+          +'<div style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:.5px;margin-bottom:12px">FEEDBACK</div>'
+          +'<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:600;color:#10b981;margin-bottom:4px">✓ Pontos Fortes:</div><div style="font-size:11px;color:#94a3b8;line-height:1.5">'+S.simuladorAnalysis.fortes+'</div></div>'
+          +'<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:600;color:#ef4444;margin-bottom:4px">⚠ Pontos Fracos:</div><div style="font-size:11px;color:#94a3b8;line-height:1.5">'+S.simuladorAnalysis.fracos+'</div></div>'
+          +'<div><div style="font-size:11px;font-weight:600;color:#f59e0b;margin-bottom:4px">💡 Recomendações:</div><div style="font-size:11px;color:#94a3b8;line-height:1.5">'+S.simuladorAnalysis.rec+'</div></div>'
+        +'</div>'
+      +'</div>':emptyState)
+    +'</div>'
+  +'</div>';
+
+  content=sectionTitle('SIMULADOR DE CRIATIVO')+simuladorUI;
+}
+
 // ===== FINAL LAYOUT =====
 return '<div style="display:flex;background:#0b1120;min-height:100vh;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;margin:-16px">'
   +sidebar
@@ -8174,6 +8586,13 @@ function route() {
     case 'rdconfig':   return pgRDConfig();
     case 'vendas':     return pgLancarVenda();
     case 'config':     return pgConfig();
+    case 'fluxocaixa': return pgFluxocaixa();
+    case 'dre':        return pgDre();
+    case 'comissoes':  return pgComissoes();
+    case 'repasses':   return pgRepasses();
+    case 'radar':      return pgRadar();
+    case 'benchmark':  return pgBenchmark();
+    case 'tendencias': return pgTendencias();
     default:           return pgMeu();
   }
 }
