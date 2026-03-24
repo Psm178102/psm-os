@@ -5888,21 +5888,23 @@ function pgFluxocaixa() {
       </div>
     </div>
   </div>`;
-  window.addFluxo = function(tipo) {
-    const desc = prompt('Descri\u00e7\u00e3o:'); if (!desc) return;
-    const valor = prompt('Valor (R$):'); if (!valor) return;
-    const categoria = prompt('Categoria:') || 'Geral';
-    const d = JSON.parse(localStorage.getItem('psm_fluxocaixa') || '{"entradas":[],"saidas":[]}');
-    if (!d[tipo]) d[tipo] = [];
-    d[tipo].push({ descricao: desc, valor: parseFloat(valor) || 0, categoria, data: new Date().toISOString().split('T')[0] });
-    localStorage.setItem('psm_fluxocaixa', JSON.stringify(d));
-    pgFluxocaixa();
-  };
-  window.removeFluxo = function(tipo, idx) {
-    const d = JSON.parse(localStorage.getItem('psm_fluxocaixa') || '{"entradas":[],"saidas":[]}');
-    if (d[tipo]) { d[tipo].splice(idx, 1); localStorage.setItem('psm_fluxocaixa', JSON.stringify(d)); }
-    pgFluxocaixa();
-  };
+  setTimeout(() => {
+    window.addFluxo = function(tipo) {
+      const desc = prompt('Descrição:'); if (!desc) return;
+      const valor = prompt('Valor (R$):'); if (!valor) return;
+      const categoria = prompt('Categoria:') || 'Geral';
+      const d = JSON.parse(localStorage.getItem('psm_fluxocaixa') || '{"entradas":[],"saidas":[]}');
+      if (!d[tipo]) d[tipo] = [];
+      d[tipo].push({ descricao: desc, valor: parseFloat(valor) || 0, categoria, data: new Date().toISOString().split('T')[0] });
+      localStorage.setItem('psm_fluxocaixa', JSON.stringify(d));
+      render();
+    };
+    window.removeFluxo = function(tipo, idx) {
+      const d = JSON.parse(localStorage.getItem('psm_fluxocaixa') || '{"entradas":[],"saidas":[]}');
+      if (d[tipo]) { d[tipo].splice(idx, 1); localStorage.setItem('psm_fluxocaixa', JSON.stringify(d)); }
+      render();
+    };
+  }, 0);
 }
 
 // ─── PAGE: DRE ────────────────────────────────────────────────
@@ -5981,14 +5983,16 @@ function pgDre() {
       </table>
     </div>
   </div>`;
-  window.editDre = function(key, label) {
-    const val = prompt('Valor para ' + label + ' (R$):');
-    if (val === null) return;
-    const d = JSON.parse(localStorage.getItem('psm_dre') || '{}');
-    d[key] = parseFloat(val) || 0;
-    localStorage.setItem('psm_dre', JSON.stringify(d));
-    pgDre();
-  };
+  setTimeout(() => {
+    window.editDre = function(key, label) {
+      const val = prompt('Valor para ' + label + ' (R$):');
+      if (val === null) return;
+      const d = JSON.parse(localStorage.getItem('psm_dre') || '{}');
+      d[key] = parseFloat(val) || 0;
+      localStorage.setItem('psm_dre', JSON.stringify(d));
+      render();
+    };
+  }, 0);
 }
 
 // ─── PAGE: COMISSÕES ────────────────────────────────────────────────
@@ -6460,7 +6464,6 @@ return h;
 }
 setTimeout(render,0);
 return '<div id="main-content"></div>';
-}
 function renderTraffic(fc){
 var h='';
 h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
@@ -6608,6 +6611,7 @@ h+='</div>';});
 h+='</div></div>';
 return h;
 }
+} // end pgRadar
 function pgRadarEdit(){
 var handle=window._radarEditHandle;
 if(!handle)return;
@@ -6962,7 +6966,8 @@ setTimeout(render,0);
 return '<div id="main-content"></div>';
 }
 function pgBenchmark() {
-  const concorrentes = JSON.parse(localStorage.getItem('psm_radar_data') || '[]');
+  const radarObj = JSON.parse(localStorage.getItem('psm_radar_data') || '{}');
+  const concorrentes = Object.keys(radarObj).map(handle => ({ handle, name: handle, ...radarObj[handle] }));
   const metricas = [
     { key: 'seguidores', label: 'Seguidores', icon: '\ud83d\udc65', format: v => v ? Number(v).toLocaleString('pt-BR') : '\u2014' },
     { key: 'engajamento', label: 'Engajamento (%)', icon: '\ud83d\udcac', format: v => v ? v + '%' : '\u2014' },
