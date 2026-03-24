@@ -6210,7 +6210,7 @@ var filterType='todos';
 var filterTier='todos';
 var filterSeg='todos';
 function saveData(){localStorage.setItem('psm_radar_data',JSON.stringify(radarData));}
-function getData(handle,field){return radarData[handle]&&radarData[handle][field]?radarData[handle][field]:'\u2014';}
+function getData(handle,field){var val=radarData[handle]&&radarData[handle][field]?radarData[handle][field]:'\u2014';return val;}
 function setData(handle,field,val){if(!radarData[handle])radarData[handle]={};radarData[handle][field]=val;saveData();}
 function filtered(){return competitors.filter(function(c){
 if(filterType!=='todos'&&c.type!==filterType)return false;
@@ -6220,6 +6220,7 @@ return true;
 });}
 function tierColor(t){return t==='A'?'#e74c3c':t==='B'?'var(--gold)':'#888';}
 function tierLabel(t){return t==='A'?'Tier A \u2014 Top Player':t==='B'?'Tier B \u2014 Relevante':'Tier C \u2014 Monitorar';}
+function emptyStyle(val){return val==='\u2014'?'color:#475569;':'';}
 function render(){
 var fc=filtered();
 var imobCount=competitors.filter(function(c){return c.type==='imobiliaria';}).length;
@@ -6227,47 +6228,68 @@ var corrCount=competitors.filter(function(c){return c.type==='corretor';}).lengt
 var tierA=competitors.filter(function(c){return c.tier==='A';}).length;
 var tierB=competitors.filter(function(c){return c.tier==='B';}).length;
 var tierC=competitors.filter(function(c){return c.tier==='C';}).length;
-var h='<div style="padding:24px;max-width:1400px;margin:0 auto;">';
-h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">';
-h+='<div><h2 style="margin:0;color:var(--gold);font-size:1.6rem;">\ud83c\udfaf Radar de Concorrentes</h2>';
-h+='<p style="margin:4px 0 0;color:#aaa;font-size:.85rem;">Intelig\u00eancia competitiva \u2014 S\u00e3o Jos\u00e9 do Rio Preto e regi\u00e3o</p></div>';
-h+='<div style="display:flex;gap:8px;flex-wrap:wrap;">';
-h+='<button onclick="document.getElementById(\'radar-export\').click()" style="padding:8px 16px;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:8px;cursor:pointer;font-size:.8rem;">\ud83d\udce5 Exportar CSV</button>';
-h+='</div></div>';
-h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px;">';
-var kpis=[{label:'Total Monitorados',value:competitors.length,icon:'\ud83d\udce1',color:'var(--gold)'},{label:'Imobili\u00e1rias',value:imobCount,icon:'\ud83c\udfe2',color:'#3498db'},{label:'Corretores',value:corrCount,icon:'\ud83d\udc64',color:'#2ecc71'},{label:'Tier A',value:tierA,icon:'\ud83d\udd34',color:'#e74c3c'},{label:'Tier B',value:tierB,icon:'\ud83d\udfe1',color:'var(--gold)'},{label:'Tier C',value:tierC,icon:'\u26aa',color:'#888'}];
+var h='<div style="padding:28px;max-width:1500px;margin:0 auto;">';
+h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:16px;">';
+h+='<div>';
+h+='<h2 style="margin:0;color:var(--gold);font-size:1.8rem;letter-spacing:-0.5px;">\ud83c\udfaf Radar de Concorrentes</h2>';
+h+='<p style="margin:6px 0 0;color:#94a3b8;font-size:0.9rem;">Intelig\u00eancia competitiva \u2014 S\u00e3o Jos\u00e9 do Rio Preto e regi\u00e3o</p>';
+h+='</div>';
+h+='<div style="display:flex;gap:10px;flex-wrap:wrap;">';
+h+='<button onclick="document.getElementById(\'radar-export\').click()" style="padding:10px 18px;background:transparent;border:2px solid var(--gold);color:var(--gold);border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:500;transition:all 0.2s;" onmouseover="this.style.background=\'rgba(212,175,55,0.1)\'" onmouseout="this.style.background=\'transparent\'">\ud83d\udce5 Exportar CSV</button>';
+h+='</div>';
+h+='</div>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:32px;">';
+var kpis=[
+{label:'Total Monitorados',value:competitors.length,icon:'\ud83d\udce1',color:'var(--gold)'},
+{label:'Imobili\u00e1rias',value:imobCount,icon:'\ud83c\udfe2',color:'#3498db'},
+{label:'Corretores',value:corrCount,icon:'\ud83d\udc64',color:'#2ecc71'},
+{label:'Tier A',value:tierA,icon:'\ud83d\udd34',color:'#e74c3c'},
+{label:'Tier B',value:tierB,icon:'\ud83d\udfe1',color:'var(--gold)'},
+{label:'Tier C',value:tierC,icon:'\u26aa',color:'#888'}
+];
 kpis.forEach(function(k){
-h+='<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;text-align:center;">';
-h+='<div style="font-size:1.8rem;">'+k.icon+'</div>';
-h+='<div style="font-size:1.6rem;font-weight:700;color:'+k.color+';margin:4px 0;">'+k.value+'</div>';
-h+='<div style="font-size:.75rem;color:#aaa;">'+k.label+'</div></div>';
+h+='<div style="background:linear-gradient(135deg,rgba(212,175,55,0.08),rgba(212,175,55,0.02));border:1px solid rgba(212,175,55,0.2);border-radius:12px;padding:18px;text-align:center;transition:all 0.2s;" onmouseover="this.style.borderColor=\'var(--gold)\'" onmouseout="this.style.borderColor=\'rgba(212,175,55,0.2)\'">';
+h+='<div style="font-size:2rem;margin-bottom:6px;">'+k.icon+'</div>';
+h+='<div style="font-size:1.8rem;font-weight:700;color:'+k.color+';margin-bottom:6px;">'+k.value+'</div>';
+h+='<div style="font-size:0.8rem;color:#94a3b8;">'+k.label+'</div>';
+h+='</div>';
 });
 h+='</div>';
-h+='<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:0;flex-wrap:wrap;">';
-var tabs=[{id:'overview',label:'\ud83d\udccb Vis\u00e3o Geral'},{id:'digital',label:'\ud83d\udcf1 Presen\u00e7a Digital'},{id:'positioning',label:'\ud83d\udcca Posicionamento'},{id:'metrics',label:'\ud83d\udcc8 M\u00e9tricas'},{id:'traffic',label:'\ud83c\udfaf Tr\u00e1fego Pago'},{id:'swot',label:'\ud83d\udee1\ufe0f SWOT & Padr\u00f5es'}];
+h+='<div style="display:flex;gap:6px;margin-bottom:24px;flex-wrap:wrap;border-bottom:2px solid rgba(212,175,55,0.15);padding-bottom:0;">';
+var tabs=[
+{id:'overview',label:'\ud83d\udccb Vis\u00e3o Geral'},
+{id:'digital',label:'\ud83d\udcf1 Presen\u00e7a Digital'},
+{id:'positioning',label:'\ud83d\udcca Posicionamento'},
+{id:'metrics',label:'\ud83d\udcc8 M\u00e9tricas'},
+{id:'traffic',label:'\ud83c\udfaf Tr\u00e1fego Pago'},
+{id:'swot',label:'\ud83d\udee1\ufe0f SWOT & Padr\u00f5es'}
+];
 tabs.forEach(function(t){
 var isA=t.id===activeTab;
-h+='<button onclick="window._radarTab=\''+t.id+'\';document.querySelector(\'[data-radar-rerender]\').click()" style="padding:10px 20px;background:'+(isA?'var(--gold)':'transparent')+';color:'+(isA?'#000':'#aaa')+';border:none;border-bottom:2px solid '+(isA?'var(--gold)':'transparent')+';cursor:pointer;font-size:.85rem;font-weight:'+(isA?'700':'400')+';border-radius:8px 8px 0 0;transition:all .2s;">'+t.label+'</button>';
+h+='<button onclick="window._radarTab=\''+t.id+'\';document.querySelector(\'[data-radar-rerender]\').click()" style="padding:12px 18px;background:'+(isA?'var(--gold)':'transparent')+';color:'+(isA?'#000':'#94a3b8')+';border:none;cursor:pointer;font-size:0.9rem;font-weight:'+(isA?'700':'500')+';border-radius:8px;transition:all 0.2s;margin:0;" onmouseover="'+(isA?'':'this.style.color=\'var(--gold)\'') +'" onmouseout="'+(isA?'':'this.style.color=\'#94a3b8\'') +'">'+ t.label+'</button>';
 });
 h+='</div>';
-h+='<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">';
-h+='<span style="color:#aaa;font-size:.8rem;">Filtros:</span>';
-h+='<select onchange="window._radarFilterType=this.value;document.querySelector(\'[data-radar-rerender]\').click()" style="padding:6px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.8rem;">';
+h+='<div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap;align-items:center;padding:14px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid rgba(255,255,255,0.05);">';
+h+='<span style="color:#94a3b8;font-size:0.85rem;font-weight:500;">Filtros:</span>';
+h+='<select onchange="window._radarFilterType=this.value;document.querySelector(\'[data-radar-rerender]\').click()" style="padding:8px 12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:8px;font-size:0.85rem;cursor:pointer;">';
 h+='<option value="todos"'+(filterType==='todos'?' selected':'')+'>Todos os tipos</option>';
 h+='<option value="imobiliaria"'+(filterType==='imobiliaria'?' selected':'')+'>Imobili\u00e1rias</option>';
-h+='<option value="corretor"'+(filterType==='corretor'?' selected':'')+'>Corretores</option></select>';
-h+='<select onchange="window._radarFilterTier=this.value;document.querySelector(\'[data-radar-rerender]\').click()" style="padding:6px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.8rem;">';
+h+='<option value="corretor"'+(filterType==='corretor'?' selected':'')+'>Corretores</option>';
+h+='</select>';
+h+='<select onchange="window._radarFilterTier=this.value;document.querySelector(\'[data-radar-rerender]\').click()" style="padding:8px 12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:8px;font-size:0.85rem;cursor:pointer;">';
 h+='<option value="todos"'+(filterTier==='todos'?' selected':'')+'>Todos os tiers</option>';
 h+='<option value="A"'+(filterTier==='A'?' selected':'')+'>Tier A</option>';
 h+='<option value="B"'+(filterTier==='B'?' selected':'')+'>Tier B</option>';
-h+='<option value="C"'+(filterTier==='C'?' selected':'')+'>Tier C</option></select>';
-h+='<select onchange="window._radarFilterSeg=this.value;document.querySelector(\'[data-radar-rerender]\').click()" style="padding:6px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.8rem;">';
+h+='<option value="C"'+(filterTier==='C'?' selected':'')+'>Tier C</option>';
+h+='</select>';
+h+='<select onchange="window._radarFilterSeg=this.value;document.querySelector(\'[data-radar-rerender]\').click()" style="padding:8px 12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:8px;font-size:0.85rem;cursor:pointer;">';
 h+='<option value="todos"'+(filterSeg==='todos'?' selected':'')+'>Todos os segmentos</option>';
 h+='<option value="Alto Padr\u00e3o"'+(filterSeg==='Alto Padr\u00e3o'?' selected':'')+'>Alto Padr\u00e3o</option>';
 h+='<option value="M\u00e9dio/Alto"'+(filterSeg==='M\u00e9dio/Alto'?' selected':'')+'>M\u00e9dio/Alto</option>';
 h+='<option value="M\u00e9dio"'+(filterSeg==='M\u00e9dio'?' selected':'')+'>M\u00e9dio</option>';
-h+='<option value="Misto"'+(filterSeg==='Misto'?' selected':'')+'>Misto</option></select>';
-h+='<span style="color:#666;font-size:.75rem;margin-left:auto;">'+fc.length+' de '+competitors.length+' exibidos</span>';
+h+='<option value="Misto"'+(filterSeg==='Misto'?' selected':'')+'>Misto</option>';
+h+='</select>';
+h+='<span style="color:#64748b;font-size:0.8rem;margin-left:auto;font-weight:500;">'+fc.length+' de '+competitors.length+' exibidos</span>';
 h+='</div>';
 h+='<button data-radar-rerender onclick="return false;" style="display:none;"></button>';
 h+='<a id="radar-export" style="display:none;"></a>';
@@ -6299,40 +6321,50 @@ el.download='radar_concorrentes_psm.csv';
 };}
 }
 function renderOverview(fc){
-var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">';
+var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px;">';
 fc.forEach(function(c){
 var seg=getData(c.handle,'seguidores');
 var eng=getData(c.handle,'engajamento');
 var posts=getData(c.handle,'posts_mes');
 var obs=getData(c.handle,'observacoes');
-h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px;transition:all .3s;position:relative;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--gold)\';this.style.background=\'rgba(255,255,255,.06)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.08)\';this.style.background=\'rgba(255,255,255,.03)\'">';
-h+='<div style="position:absolute;top:12px;right:12px;background:'+tierColor(c.tier)+';color:#fff;font-size:.65rem;font-weight:700;padding:3px 8px;border-radius:20px;">'+c.tier+'</div>';
-h+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">';
-h+='<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--navy),var(--gold));display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:700;color:#fff;">'+(c.type==='imobiliaria'?'\ud83c\udfe2':'\ud83d\udc64')+'</div>';
-h+='<div><div style="font-weight:600;color:#fff;font-size:.95rem;">'+c.name+'</div>';
-h+='<div style="color:var(--gold);font-size:.78rem;">'+c.handle+'</div>';
-h+='<div style="display:flex;gap:6px;margin-top:3px;">';
-h+='<span style="font-size:.65rem;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.06);color:#aaa;">'+c.segmento+'</span>';
-h+='<span style="font-size:.65rem;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.06);color:#aaa;">'+c.regiao+'</span>';
-h+='</div></div></div>';
-h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">';
-h+='<div style="text-align:center;padding:8px;background:rgba(255,255,255,.03);border-radius:8px;"><div style="font-size:.65rem;color:#888;">Seguidores</div><div style="font-size:1rem;font-weight:700;color:#fff;">'+seg+'</div></div>';
-h+='<div style="text-align:center;padding:8px;background:rgba(255,255,255,.03);border-radius:8px;"><div style="font-size:.65rem;color:#888;">Posts/M\u00eas</div><div style="font-size:1rem;font-weight:700;color:#fff;">'+posts+'</div></div>';
-h+='<div style="text-align:center;padding:8px;background:rgba(255,255,255,.03);border-radius:8px;"><div style="font-size:.65rem;color:#888;">Engajamento</div><div style="font-size:1rem;font-weight:700;color:#fff;">'+eng+'</div></div>';
+h+='<div style="background:rgba(30,41,59,0.6);border:1px solid rgba(212,175,55,0.15);border-radius:16px;padding:24px;transition:all 0.3s;position:relative;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--gold)\';this.style.background=\'rgba(30,41,59,0.8)\';this.style.boxShadow=\'0 8px 20px rgba(212,175,55,0.1)\'" onmouseout="this.style.borderColor=\'rgba(212,175,55,0.15)\';this.style.background=\'rgba(30,41,59,0.6)\';this.style.boxShadow=\'none\'">';
+h+='<div style="position:absolute;top:14px;right:14px;background:'+tierColor(c.tier)+';color:#fff;font-size:0.7rem;font-weight:700;padding:4px 10px;border-radius:20px;">'+c.tier+'</div>';
+h+='<div style="margin-bottom:18px;">';
+h+='<div style="font-weight:700;color:#fff;font-size:1.05rem;margin-bottom:3px;">'+c.name+'</div>';
+h+='<div style="color:var(--gold);font-size:0.8rem;margin-bottom:8px;">'+c.handle+'</div>';
+h+='<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+h+='<span style="font-size:0.7rem;padding:3px 8px;border-radius:6px;background:rgba(212,175,55,0.1);color:#d4af37;border:1px solid rgba(212,175,55,0.3);">'+c.segmento+'</span>';
+h+='<span style="font-size:0.7rem;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,0.06);color:#cbd5e1;">'+c.regiao+'</span>';
+h+='</div>';
+h+='</div>';
+h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">';
+h+='<div style="padding:12px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.08);text-align:center;">';
+h+='<div style="font-size:0.7rem;color:#94a3b8;margin-bottom:4px;">Seguidores</div>';
+h+='<div style="font-size:1.1rem;font-weight:700;'+emptyStyle(seg)+'color:'+(seg==='\u2014'?'#475569':'#fff')+'">'+ seg+'</div>';
+h+='</div>';
+h+='<div style="padding:12px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.08);text-align:center;">';
+h+='<div style="font-size:0.7rem;color:#94a3b8;margin-bottom:4px;">Posts/M\u00eas</div>';
+h+='<div style="font-size:1.1rem;font-weight:700;'+emptyStyle(posts)+'color:'+(posts==='\u2014'?'#475569':'#fff')+'">'+ posts+'</div>';
+h+='</div>';
+h+='<div style="padding:12px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.08);text-align:center;">';
+h+='<div style="font-size:0.7rem;color:#94a3b8;margin-bottom:4px;">Engajamento</div>';
+h+='<div style="font-size:1.1rem;font-weight:700;'+emptyStyle(eng)+'color:'+(eng==='\u2014'?'#475569':'#fff')+'">'+ eng+'</div>';
+h+='</div>';
 h+='</div>';
 if(obs&&obs!=='\u2014'){
-h+='<div style="font-size:.75rem;color:#aaa;padding:8px;background:rgba(255,255,255,.02);border-radius:6px;border-left:2px solid var(--gold);">\ud83d\udca1 '+obs+'</div>';}
-h+='<div style="display:flex;gap:6px;margin-top:12px;">';
-h+='<button onclick="window._radarEditHandle=\''+c.handle+'\';pgRadarEdit()" style="flex:1;padding:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#aaa;border-radius:6px;cursor:pointer;font-size:.72rem;transition:all .2s;" onmouseover="this.style.borderColor=\'var(--gold)\';this.style.color=\'var(--gold)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.1)\';this.style.color=\'#aaa\'">\u270f\ufe0f Editar Dados</button>';
-h+='<a href="https://insta' + 'gram.com/'+c.handle.replace('@','')+'" target="_blank" style="flex:1;padding:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#aaa;border-radius:6px;text-align:center;text-decoration:none;font-size:.72rem;transition:all .2s;" onmouseover="this.style.borderColor=\'#E1306C\';this.style.color=\'#E1306C\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.1)\';this.style.color=\'#aaa\'">\ud83d\udcf7 Instagram</a>';
-h+='</div></div>';
+h+='<div style="font-size:0.78rem;color:#cbd5e1;padding:10px;background:rgba(212,175,55,0.08);border-radius:8px;border-left:3px solid var(--gold);margin-bottom:14px;">\ud83d\udca1 '+obs+'</div>';
+}
+h+='<div style="display:flex;gap:8px;margin-top:auto;padding-top:2px;">';
+h+='<button onclick="window._radarEditHandle=\''+c.handle+'\';pgRadarEdit()" style="flex:1;padding:8px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.3);color:var(--gold);border-radius:8px;cursor:pointer;font-size:0.75rem;font-weight:500;transition:all 0.2s;" onmouseover="this.style.background=\'rgba(212,175,55,0.15)\';this.style.borderColor=\'var(--gold)\'" onmouseout="this.style.background=\'rgba(212,175,55,0.08)\';this.style.borderColor=\'rgba(212,175,55,0.3)\'">\u270f\ufe0f Editar</button>';
+h+='<a href="https://insta' + 'gram.com/'+c.handle.replace('@','')+'" target="_blank" style="flex:1;padding:8px;background:rgba(225,48,108,0.08);border:1px solid rgba(225,48,108,0.3);color:#E1306C;border-radius:8px;text-align:center;text-decoration:none;font-size:0.75rem;font-weight:500;transition:all 0.2s;" onmouseover="this.style.background=\'rgba(225,48,108,0.15)\';this.style.borderColor=\'#E1306C\'" onmouseout="this.style.background=\'rgba(225,48,108,0.08)\';this.style.borderColor=\'rgba(225,48,108,0.3)\'">\ud83d\udcf7 Instagram</a>';
+h+='</div>';
+h+='</div>';
 });
 h+='</div>';
 return h;
 }
 function renderDigital(fc){
-var h='';
-h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
+var h='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
 h+='<h3 style="margin:0 0 16px;color:var(--gold);font-size:1.1rem;">\ud83d\udcf1 Comparativo de Presen\u00e7a Digital</h3>';
 h+='<p style="color:#aaa;font-size:.8rem;margin:0 0 16px;">An\u00e1lise comparativa de canais digitais dos concorrentes monitorados.</p></div>';
 h+='<div style="overflow-x:auto;border-radius:12px;border:1px solid rgba(255,255,255,.08);">';
@@ -6375,8 +6407,7 @@ h+='<span style="color:#888;font-size:.72rem;">Score = \u00cdndice de presen\u00
 return h;
 }
 function renderPositioning(fc){
-var h='';
-h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
+var h='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
 h+='<h3 style="margin:0 0 8px;color:var(--gold);font-size:1.1rem;">\ud83d\udcca An\u00e1lise de Posicionamento</h3>';
 h+='<p style="color:#aaa;font-size:.8rem;margin:0;">Mapeamento estrat\u00e9gico dos concorrentes por segmento, pre\u00e7o m\u00e9dio e volume.</p></div>';
 var segs=['Alto Padr\u00e3o','M\u00e9dio/Alto','M\u00e9dio','Misto'];
@@ -6435,8 +6466,7 @@ h+='</div></div>';
 return h;
 }
 function renderMetrics(fc){
-var h='';
-h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
+var h='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
 h+='<h3 style="margin:0 0 8px;color:var(--gold);font-size:1.1rem;">\ud83d\udcc8 M\u00e9tricas de Mercado</h3>';
 h+='<p style="color:#aaa;font-size:.8rem;margin:0;">Dados coletados pela equipe de intelig\u00eancia. Clique em Editar para atualizar.</p></div>';
 h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px;">';
@@ -6611,7 +6641,7 @@ h+='</div>';});
 h+='</div></div>';
 return h;
 }
-} // end pgRadar
+} // end pgRadar // end pgRadar
 function pgRadarEdit(){
 var handle=window._radarEditHandle;
 if(!handle)return;
@@ -6784,183 +6814,206 @@ localStorage.setItem('psm_sim_criativo',JSON.stringify(sim));
 results=details;
 render();
 }
+function handleFileUpload(e){
+var file=e.target.files[0];
+if(file){
+window._simuladorFile={name:file.name,type:file.type,size:file.size};
+var reader=new FileReader();
+if(file.type.indexOf('image')>-1){
+reader.onload=function(evt){
+var prev=document.getElementById('sim-file-preview');
+if(prev){
+prev.innerHTML='<img src="'+evt.target.result+'" style="max-width:100%;max-height:150px;border-radius:8px;" />';
+}};
+reader.readAsDataURL(file);
+}else if(file.type.indexOf('video')>-1){
+var prev=document.getElementById('sim-file-preview');
+if(prev){
+prev.innerHTML='<div style="padding:20px;background:rgba(212,175,55,.1);border-radius:8px;text-align:center;"><div style="font-size:2rem;">🎬</div><div style="font-size:.85rem;color:#aaa;">'+file.name+'</div></div>';
+}};
+render();
+}
+}
 function render(){
 var f=results?results.fields:sim.lastResults?sim.lastResults.fields:{};
-var h='<div style="padding:24px;max-width:1200px;margin:0 auto;">';
-h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">';
-h+='<div><h2 style="margin:0;color:var(--gold);font-size:1.6rem;">\ud83e\udde0 Simulador de Criativo Meta Ads</h2>';
-h+='<p style="margin:4px 0 0;color:#aaa;font-size:.85rem;">Simule e otimize seus criativos com base nos sinais do algoritmo do Meta</p></div></div>';
+var h='<div style="padding:24px;max-width:1400px;margin:0 auto;">';
+h+='<div style="margin-bottom:28px;">';
+h+='<h2 style="margin:0 0 6px;color:var(--gold);font-size:1.6rem;">🧠 Simulador de Criativo Meta Ads</h2>';
+h+='<p style="margin:0;color:#aaa;font-size:.85rem;">Simule e otimize seus criativos com base nos sinais do algoritmo do Meta</p>';
+h+='</div>';
+h+='<div style="background:linear-gradient(135deg,rgba(212,175,55,.08),rgba(212,175,55,.04));border:2px dashed rgba(212,175,55,.3);border-radius:12px;padding:32px;margin-bottom:28px;text-align:center;">';
+h+='<div style="margin-bottom:16px;"><div style="font-size:2.5rem;">📤</div><div style="font-weight:600;color:#fff;margin-bottom:8px;">Carregue seu Criativo</div><div style="font-size:.85rem;color:#aaa;margin-bottom:16px;">Anexe imagens ou vídeos para visualizar e documentar</div></div>';
+h+='<input id="sim-file-input" type="file" accept="image/*,video/*" style="display:none;" />';
+h+='<button onclick="document.getElementById(\'sim-file-input\').click()" style="padding:12px 28px;background:linear-gradient(135deg,var(--gold),#e6a800);color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.9rem;transition:all .3s;box-shadow:0 4px 12px rgba(212,175,55,.25);" onmouseover="this.style.transform=\'scale(1.03)\'" onmouseout="this.style.transform=\'scale(1)\'">+ Anexar Arquivo</button>';
+h+='<div id="sim-file-preview" style="margin-top:16px;"></div>';
+h+='</div>';
 if(results){
 var t=results.total;
 var gaugeColor=t>=80?'#2ecc71':t>=60?'var(--gold)':t>=40?'#f39c12':'#e74c3c';
-var rating=t>=85?'\ud83c\udfc6 EXCELENTE':t>=70?'\u2705 BOM':t>=55?'\ud83d\udfe1 REGULAR':t>=40?'\u26a0\ufe0f FRACO':'\u274c CR\u00cdTICO';
-h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:28px;margin-bottom:24px;text-align:center;">';
-h+='<div style="position:relative;width:160px;height:160px;margin:0 auto 16px;">';
+var rating=t>=85?'🏆 EXCELENTE':t>=70?'✅ BOM':t>=55?'🟡 REGULAR':t>=40?'⚠️ FRACO':'❌ CRÍTICO';
+h+='<div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:36px;margin-bottom:28px;">';
+h+='<div style="position:relative;width:140px;height:140px;margin:0 auto 24px;">';
 var pct=t;
 var deg=pct*3.6;
-h+='<div style="width:160px;height:160px;border-radius:50%;background:conic-gradient('+gaugeColor+' 0deg '+deg+'deg, rgba(255,255,255,.06) '+deg+'deg 360deg);display:flex;align-items:center;justify-content:center;">';
-h+='<div style="width:120px;height:120px;border-radius:50%;background:var(--navy,#0a1628);display:flex;flex-direction:column;align-items:center;justify-content:center;">';
-h+='<div style="font-size:2.2rem;font-weight:800;color:'+gaugeColor+';">'+t+'</div>';
-h+='<div style="font-size:.7rem;color:#aaa;">de 100</div>';
+h+='<div style="width:140px;height:140px;border-radius:50%;background:conic-gradient('+gaugeColor+' 0deg '+deg+'deg, rgba(255,255,255,.06) '+deg+'deg 360deg);display:flex;align-items:center;justify-content:center;">';
+h+='<div style="width:100px;height:100px;border-radius:50%;background:var(--navy,#0a1628);display:flex;flex-direction:column;align-items:center;justify-content:center;">';
+h+='<div style="font-size:2rem;font-weight:900;color:'+gaugeColor+';">'+t+'</div>';
+h+='<div style="font-size:.65rem;color:#aaa;">de 100</div>';
 h+='</div></div></div>';
-h+='<div style="font-size:1.1rem;font-weight:700;color:'+gaugeColor+';margin-bottom:6px;">'+rating+'</div>';
-h+='<div style="font-size:.8rem;color:#aaa;">Pontua\u00e7\u00e3o baseada nos sinais do algoritmo Meta Ads</div>';
-h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:20px;text-align:left;">';
-var cats=[{k:'hook',l:'\ud83c\udfa3 Hook (Gancho)',max:20},{k:'formato',l:'\ud83c\udfa5 Formato',max:15},{k:'copy',l:'\u270d\ufe0f Copy',max:15},{k:'cta',l:'\ud83d\udc49 CTA',max:12},{k:'visual',l:'\ud83c\udfa8 Visual',max:13},{k:'publico',l:'\ud83c\udfaf P\u00fablico',max:10},{k:'freq',l:'\ud83d\udcc5 Frequ\u00eancia',max:8},{k:'timing',l:'\u23f0 Timing',max:7}];
+h+='<div style="text-align:center;margin-bottom:20px;"><div style="font-size:1.2rem;font-weight:700;color:'+gaugeColor+';margin-bottom:4px;">'+rating+'</div><div style="font-size:.8rem;color:#aaa;">Pontuação baseada nos sinais do algoritmo Meta</div></div>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">';
+var cats=[{k:'hook',l:'🎣 Hook',max:20},{k:'formato',l:'🎥 Formato',max:15},{k:'copy',l:'✍️ Copy',max:15},{k:'cta',l:'👉 CTA',max:12},{k:'visual',l:'🎨 Visual',max:13},{k:'publico',l:'🎯 Público',max:10},{k:'freq',l:'📅 Frequência',max:8},{k:'timing',l:'⏰ Timing',max:7}];
 cats.forEach(function(ct){
 var val=results[ct.k];
 var pctBar=Math.round(val/ct.max*100);
 var bc=pctBar>=80?'#2ecc71':pctBar>=50?'var(--gold)':'#e74c3c';
-h+='<div style="padding:10px;background:rgba(255,255,255,.02);border-radius:8px;">';
-h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:.75rem;color:#ddd;">'+ct.l+'</span><span style="font-size:.75rem;font-weight:700;color:'+bc+';">'+val+'/'+ct.max+'</span></div>';
-h+='<div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;"><div style="width:'+pctBar+'%;height:100%;background:'+bc+';border-radius:3px;transition:width .5s;"></div></div>';
+h+='<div style="padding:12px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid rgba(255,255,255,.06);">';
+h+='<div style="font-size:.75rem;font-weight:600;color:#ddd;margin-bottom:8px;">'+ct.l+'</div>';
+h+='<div style="font-size:1.2rem;font-weight:800;color:'+bc+';margin-bottom:4px;">'+val+'/'+ct.max+'</div>';
+h+='<div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;"><div style="width:'+pctBar+'%;height:100%;background:'+bc+';border-radius:2px;"></div></div>';
 h+='</div>';});
 h+='</div></div>';
 }
 if(results){
-h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:24px;">';
-h+='<h3 style="margin:0 0 14px;color:var(--gold);font-size:1.1rem;">\ud83d\udca1 Recomenda\u00e7\u00f5es do Algoritmo</h3>';
-h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">';
+h+='<div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:24px;margin-bottom:28px;">';
+h+='<h3 style="margin:0 0 18px;color:var(--gold);font-size:1.1rem;">💡 Recomendações Prioritárias</h3>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;">';
 var recs=[];
-if(results.hook<14)recs.push({t:'Melhore o Hook',d:'Hooks com pergunta provocativa ou dado impactante nos primeiros 3s geram 65% mais reten\u00e7\u00e3o. Tente: \"Voc\u00ea sabia que...\" ou \"X pessoas j\u00e1 compraram neste bairro\".',c:'#e74c3c',i:'\ud83c\udfa3'});
-if(results.formato<11)recs.push({t:'Otimize o Formato',d:'V\u00eddeos curtos (15-30s) e Reels t\u00eam 2.5x mais alcance org\u00e2nico no Meta. Priorize v\u00eddeo vertical 9:16.',c:'#f39c12',i:'\ud83c\udfa5'});
-if(results.copy<10)recs.push({t:'Refine a Copy',d:'Copy curta com gatilho emocional + urg\u00eancia performa 40% melhor. Use: empatia no in\u00edcio, benef\u00edcio no meio, urg\u00eancia no final.',c:'#3498db',i:'\u270d\ufe0f'});
-if(results.cta<8)recs.push({t:'CTA Mais Claro',d:'CTAs espec\u00edficos (\"Agende sua visita\" vs \"Saiba mais\") geram 35% mais cliques. Sempre diga exatamente o que o usu\u00e1rio deve fazer.',c:'#9b59b6',i:'\ud83d\udc49'});
-if(results.visual<9)recs.push({t:'Qualidade Visual',d:'Regra do 20%: manter texto em menos de 20% da imagem. Identidade visual consistente aumenta recall em 80%.',c:'#2ecc71',i:'\ud83c\udfa8'});
-if(results.publico<7)recs.push({t:'Segmenta\u00e7\u00e3o de P\u00fablico',d:'Use Lookalike 1-3% dos melhores clientes + retargeting de visitantes do site nos \u00faltimos 30 dias.',c:'#e67e22',i:'\ud83c\udfaf'});
-if(results.freq<6)recs.push({t:'Aumente a Frequ\u00eancia',d:'O algoritmo Meta favorece contas com 5-7 publica\u00e7\u00f5es/semana. Consist\u00eancia > qualidade pontual.',c:'#1abc9c',i:'\ud83d\udcc5'});
-if(results.total>=85)recs.push({t:'Criativo Otimizado!',d:'Este criativo est\u00e1 alinhado com os principais sinais do algoritmo. Foque em testar varia\u00e7\u00f5es A/B para maximizar resultados.',c:'#2ecc71',i:'\ud83c\udfc6'});
+if(results.hook<14)recs.push({t:'Melhore o Hook',d:'Hooks com pergunta provocativa ou dado impactante nos primeiros 3s geram 65% mais retenção. Tente: "Você sabia que..." ou "X pessoas já compraram neste bairro".',c:'#e74c3c',i:'🎣'});
+if(results.formato<11)recs.push({t:'Otimize o Formato',d:'Vídeos curtos (15-30s) e Reels têm 2.5x mais alcance orgânico. Priorize vídeo vertical 9:16.',c:'#f39c12',i:'🎥'});
+if(results.copy<10)recs.push({t:'Refine a Copy',d:'Copy curta com gatilho emocional + urgência performa 40% melhor. Use: empatia no início, benefício no meio, urgência no final.',c:'#3498db',i:'✍️'});
+if(results.cta<8)recs.push({t:'CTA Mais Claro',d:'CTAs específicos ("Agende sua visita" vs "Saiba mais") geram 35% mais cliques. Sempre diga o que o usuário deve fazer.',c:'#9b59b6',i:'👉'});
+if(results.visual<9)recs.push({t:'Qualidade Visual',d:'Regra do 20%: texto em menos de 20% da imagem. Identidade visual consistente aumenta recall em 80%.',c:'#2ecc71',i:'🎨'});
+if(results.publico<7)recs.push({t:'Segmentação de Público',d:'Use Lookalike 1-3% dos melhores clientes + retargeting de visitantes do site nos últimos 30 dias.',c:'#e67e22',i:'🎯'});
+if(results.freq<6)recs.push({t:'Aumente a Frequência',d:'O algoritmo Meta favorece contas com 5-7 publicações/semana. Consistência > qualidade pontual.',c:'#1abc9c',i:'📅'});
+if(results.total>=85)recs.push({t:'Criativo Otimizado!',d:'Este criativo está alinhado com os principais sinais do algoritmo. Foque em testar variações A/B para maximizar resultados.',c:'#2ecc71',i:'🏆'});
 recs.forEach(function(r){
-h+='<div style="padding:14px;background:rgba(255,255,255,.02);border-left:3px solid '+r.c+';border-radius:0 10px 10px 0;">';
-h+='<div style="font-weight:600;color:#fff;font-size:.85rem;margin-bottom:4px;">'+r.i+' '+r.t+'</div>';
-h+='<div style="color:#aaa;font-size:.76rem;line-height:1.4;">'+r.d+'</div></div>';});
+h+='<div style="padding:16px;background:rgba(255,255,255,.03);border-left:4px solid '+r.c+';border-radius:0 8px 8px 0;border-top:1px solid rgba(255,255,255,.06);border-right:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);">';
+h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:6px;">'+r.i+' '+r.t+'</div>';
+h+='<div style="color:#aaa;font-size:.77rem;line-height:1.5;">'+r.d+'</div></div>';});
 h+='</div></div>';
 }
-h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
-h+='<h3 style="margin:0 0 16px;color:var(--gold);font-size:1.1rem;">\ud83c\udfac Configure seu Criativo</h3>';
-h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">';
-h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #3498db;">';
-h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83c\udfa5 Formato do An\u00fancio</div>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Tipo de Criativo</label>';
-h+='<select id="sim-formato" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;">';
+h+='<h3 style="margin:0 0 18px;color:var(--gold);font-size:1.1rem;">⚙️ Configure seu Criativo</h3>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;margin-bottom:28px;">';
+h+='<div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;border-top:4px solid #3498db;padding:18px;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.95rem;margin-bottom:12px;">🎥 Criativo & Formato</div>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Tipo de Criativo</label>';
+h+='<select id="sim-formato" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;margin-bottom:12px;">';
 h+='<option value=""'+(!(f.formato)?' selected':'')+'>Selecione...</option>';
-h+='<option value="video_curto"'+(f.formato==='video_curto'?' selected':'')+'>V\u00eddeo Curto (15-30s)</option>';
+h+='<option value="video_curto"'+(f.formato==='video_curto'?' selected':'')+'>Vídeo Curto (15-30s)</option>';
 h+='<option value="reels"'+(f.formato==='reels'?' selected':'')+'>Reels</option>';
 h+='<option value="carrossel"'+(f.formato==='carrossel'?' selected':'')+'>Carrossel</option>';
 h+='<option value="stories"'+(f.formato==='stories'?' selected':'')+'>Stories</option>';
-h+='<option value="video_longo"'+(f.formato==='video_longo'?' selected':'')+'>V\u00eddeo Longo (60s+)</option>';
-h+='<option value="imagem_unica"'+(f.formato==='imagem_unica'?' selected':'')+'>Imagem \u00danica</option>';
-h+='<option value="colecao"'+(f.formato==='colecao'?' selected':'')+'>Cole\u00e7\u00e3o</option>';
+h+='<option value="video_longo"'+(f.formato==='video_longo'?' selected':'')+'>Vídeo Longo (60s+)</option>';
+h+='<option value="imagem_unica"'+(f.formato==='imagem_unica'?' selected':'')+'>Imagem Única</option>';
+h+='<option value="colecao"'+(f.formato==='colecao'?' selected':'')+'>Coleção</option>';
 h+='</select>';
-h+='<div style="font-size:.65rem;color:#666;margin-top:4px;">\ud83d\udcca V\u00eddeos curtos e Reels t\u00eam maior alcance org\u00e2nico</div>';
+h+='<div style="font-size:.65rem;color:#666;">📊 Vídeos curtos têm maior alcance orgânico</div>';
 h+='</div>';
-h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #e74c3c;">';
-h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83c\udfa3 Hook (Gancho)</div>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Tipo de Hook</label>';
-h+='<select id="sim-hook_tipo" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;">';
+h+='<div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;border-top:4px solid #e74c3c;padding:18px;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.95rem;margin-bottom:12px;">🎣 Hook & Copy</div>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Tipo de Hook</label>';
+h+='<select id="sim-hook_tipo" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;margin-bottom:10px;">';
 h+='<option value="">Selecione...</option>';
-h+='<option value="dado_impactante"'+(f.hook_tipo==='dado_impactante'?' selected':'')+'>Dado Impactante / Estat\u00edstica</option>';
-h+='<option value="depoimento"'+(f.hook_tipo==='depoimento'?' selected':'')+'>Depoimento / Prova Social</option>';
+h+='<option value="dado_impactante"'+(f.hook_tipo==='dado_impactante'?' selected':'')+'>Dado Impactante</option>';
+h+='<option value="depoimento"'+(f.hook_tipo==='depoimento'?' selected':'')+'>Depoimento</option>';
 h+='<option value="antes_depois"'+(f.hook_tipo==='antes_depois'?' selected':'')+'>Antes & Depois</option>';
-h+='<option value="pergunta"'+(f.hook_tipo==='pergunta'?' selected':'')+'>Pergunta Provocativa</option>';
+h+='<option value="pergunta"'+(f.hook_tipo==='pergunta'?' selected':'')+'>Pergunta</option>';
 h+='<option value="storytelling"'+(f.hook_tipo==='storytelling'?' selected':'')+'>Storytelling</option>';
 h+='<option value="tour_virtual"'+(f.hook_tipo==='tour_virtual'?' selected':'')+'>Tour Virtual</option>';
 h+='<option value="oferta_direta"'+(f.hook_tipo==='oferta_direta'?' selected':'')+'>Oferta Direta</option>';
 h+='</select>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Tempo at\u00e9 o gancho (segundos)</label>';
-h+='<input id="sim-hook_segundos" type="number" value="'+(f.hook_segundos||'')+'" placeholder="Ex: 3" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;box-sizing:border-box;" />';
-h+='<div style="font-size:.65rem;color:#666;margin-top:4px;">\u26a1 Meta recomenda hook nos primeiros 3 segundos</div>';
-h+='</div>';
-h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #2ecc71;">';
-h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\u270d\ufe0f Copy do An\u00fancio</div>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Tamanho da Copy</label>';
-h+='<select id="sim-copy_tamanho" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;">';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Segundos até Hook</label>';
+h+='<input id="sim-hook_segundos" type="number" value="'+(f.hook_segundos||'')+'" placeholder="Ex: 3" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;box-sizing:border-box;margin-bottom:10px;" />';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Tamanho da Copy</label>';
+h+='<select id="sim-copy_tamanho" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;margin-bottom:10px;">';
 h+='<option value="">Selecione...</option>';
 h+='<option value="curta"'+(f.copy_tamanho==='curta'?' selected':'')+'>Curta (1-2 linhas)</option>';
-h+='<option value="media"'+(f.copy_tamanho==='media'?' selected':'')+'>M\u00e9dia (3-5 linhas)</option>';
+h+='<option value="media"'+(f.copy_tamanho==='media'?' selected':'')+'>Média (3-5 linhas)</option>';
 h+='<option value="longa"'+(f.copy_tamanho==='longa'?' selected':'')+'>Longa (6+ linhas)</option></select>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">N\u00edvel Emocional</label>';
-h+='<select id="sim-copy_emocao" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;">';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Nível Emocional</label>';
+h+='<select id="sim-copy_emocao" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;margin-bottom:10px;">';
 h+='<option value="">Selecione...</option>';
-h+='<option value="alta"'+(f.copy_emocao==='alta'?' selected':'')+'>Alta (sonho, fam\u00edlia, conquista)</option>';
-h+='<option value="media"'+(f.copy_emocao==='media'?' selected':'')+'>M\u00e9dia (benef\u00edcios + emo\u00e7\u00e3o)</option>';
-h+='<option value="baixa"'+(f.copy_emocao==='baixa'?' selected':'')+'>Baixa (apenas informativo)</option></select>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Gatilho de Urg\u00eancia</label>';
-h+='<select id="sim-copy_urgencia" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;">';
+h+='<option value="alta"'+(f.copy_emocao==='alta'?' selected':'')+'>Alta (sonho, família, conquista)</option>';
+h+='<option value="media"'+(f.copy_emocao==='media'?' selected':'')+'>Média (benefícios + emoção)</option>';
+h+='<option value="baixa"'+(f.copy_emocao==='baixa'?' selected':'')+'>Baixa (informativo)</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Gatilho de Urgência</label>';
+h+='<select id="sim-copy_urgencia" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;">';
 h+='<option value="">Selecione...</option>';
-h+='<option value="sim"'+(f.copy_urgencia==='sim'?' selected':'')+'>Sim (\u00faltimas unidades, prazo limitado)</option>';
-h+='<option value="sutil"'+(f.copy_urgencia==='sutil'?' selected':'')+'>Sutil (oportunidade, momento ideal)</option>';
-h+='<option value="nao"'+(f.copy_urgencia==='nao'?' selected':'')+'>N\u00e3o</option></select></div>';
-h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #9b59b6;">';
-h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83d\udc49 Call to Action</div>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Tipo de CTA</label>';
-h+='<select id="sim-cta_tipo" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;">';
+h+='<option value="sim"'+(f.copy_urgencia==='sim'?' selected':'')+'>Sim (últimas unidades, prazo)</option>';
+h+='<option value="sutil"'+(f.copy_urgencia==='sutil'?' selected':'')+'>Sutil (oportunidade)</option>';
+h+='<option value="nao"'+(f.copy_urgencia==='nao'?' selected':'')+'>Não</option></select></div>';
+h+='<div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;border-top:4px solid #9b59b6;padding:18px;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.95rem;margin-bottom:12px;">👉 CTA & Visual</div>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Tipo de CTA</label>';
+h+='<select id="sim-cta_tipo" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;margin-bottom:10px;">';
 h+='<option value="">Selecione...</option>';
 h+='<option value="agende_visita"'+(f.cta_tipo==='agende_visita'?' selected':'')+'>Agende sua Visita</option>';
-h+='<option value="simule_financiamento"'+(f.cta_tipo==='simule_financiamento'?' selected':'')+'>Simule seu Financiamento</option>';
-h+='<option value="fale_corretor"'+(f.cta_tipo==='fale_corretor'?' selected':'')+'>Fale com um Corretor</option>';
+h+='<option value="simule_financiamento"'+(f.cta_tipo==='simule_financiamento'?' selected':'')+'>Simule Financiamento</option>';
+h+='<option value="fale_corretor"'+(f.cta_tipo==='fale_corretor'?' selected':'')+'>Fale com Corretor</option>';
 h+='<option value="cadastre_se"'+(f.cta_tipo==='cadastre_se'?' selected':'')+'>Cadastre-se</option>';
 h+='<option value="saiba_mais"'+(f.cta_tipo==='saiba_mais'?' selected':'')+'>Saiba Mais</option>';
-h+='<option value="baixe_material"'+(f.cta_tipo==='baixe_material'?' selected':'')+'>Baixe o Material</option>';
+h+='<option value="baixe_material"'+(f.cta_tipo==='baixe_material'?' selected':'')+'>Baixe Material</option>';
 h+='<option value="link_bio"'+(f.cta_tipo==='link_bio'?' selected':'')+'>Link na Bio</option></select>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Clareza do CTA</label>';
-h+='<select id="sim-cta_clareza" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;">';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Clareza do CTA</label>';
+h+='<select id="sim-cta_clareza" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;margin-bottom:10px;">';
 h+='<option value="">Selecione...</option>';
-h+='<option value="muito_claro"'+(f.cta_clareza==='muito_claro'?' selected':'')+'>Muito Claro (a\u00e7\u00e3o exata)</option>';
+h+='<option value="muito_claro"'+(f.cta_clareza==='muito_claro'?' selected':'')+'>Muito Claro</option>';
 h+='<option value="claro"'+(f.cta_clareza==='claro'?' selected':'')+'>Claro</option>';
-h+='<option value="vago"'+(f.cta_clareza==='vago'?' selected':'')+'>Vago / Gen\u00e9rico</option></select></div>';
-h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #f39c12;">';
-h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83c\udfa8 Qualidade Visual</div>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Qualidade da Produ\u00e7\u00e3o</label>';
-h+='<select id="sim-visual_qualidade" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;"><option value="">Selecione...</option><option value="profissional"'+(f.visual_qualidade==='profissional'?' selected':'')+'>Profissional (fot\u00f3grafo/videomaker)</option><option value="boa"'+(f.visual_qualidade==='boa'?' selected':'')+'>Boa (celular + edi\u00e7\u00e3o)</option><option value="amadora"'+(f.visual_qualidade==='amadora'?' selected':'')+'>Amadora</option></select>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Identidade Visual PSM</label>';
-h+='<select id="sim-visual_identidade" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;"><option value="">Selecione...</option><option value="total"'+(f.visual_identidade==='total'?' selected':'')+'>Total (cores, logo, tipografia)</option><option value="parcial"'+(f.visual_identidade==='parcial'?' selected':'')+'>Parcial (s\u00f3 logo)</option><option value="nenhuma"'+(f.visual_identidade==='nenhuma'?' selected':'')+'>Nenhuma</option></select>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Texto na Imagem</label>';
-h+='<select id="sim-visual_texto_img" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;"><option value="">Selecione...</option><option value="ate_20"'+(f.visual_texto_img==='ate_20'?' selected':'')+'>At\u00e9 20% (ideal Meta)</option><option value="20_40"'+(f.visual_texto_img==='20_40'?' selected':'')+'>20-40%</option><option value="mais_40"'+(f.visual_texto_img==='mais_40'?' selected':'')+'>Mais de 40%</option></select></div>';
-h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #1abc9c;">';
-h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83c\udfaf Segmenta\u00e7\u00e3o de P\u00fablico</div>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">N\u00edvel de Segmenta\u00e7\u00e3o</label>';
-h+='<select id="sim-publico_segmentacao" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;"><option value="">Selecione...</option><option value="detalhada"'+(f.publico_segmentacao==='detalhada'?' selected':'')+'>Detalhada (idade+renda+interesse+local)</option><option value="moderada"'+(f.publico_segmentacao==='moderada'?' selected':'')+'>Moderada (idade+local)</option><option value="ampla"'+(f.publico_segmentacao==='ampla'?' selected':'')+'>Ampla (s\u00f3 regi\u00e3o)</option></select>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Lookalike Audience</label>';
-h+='<select id="sim-publico_lookalike" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;"><option value="">Selecione...</option><option value="sim"'+(f.publico_lookalike==='sim'?' selected':'')+'>Sim</option><option value="nao"'+(f.publico_lookalike==='nao'?' selected':'')+'>N\u00e3o</option></select>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Retargeting</label>';
-h+='<select id="sim-publico_retargeting" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;"><option value="">Selecione...</option><option value="sim"'+(f.publico_retargeting==='sim'?' selected':'')+'>Sim</option><option value="nao"'+(f.publico_retargeting==='nao'?' selected':'')+'>N\u00e3o</option></select></div>';
-h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid #e67e22;">';
-h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83d\udcc5 Frequ\u00eancia & Timing</div>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Posts por Semana</label>';
-h+='<input id="sim-freq_semanal" type="number" value="'+(f.freq_semanal||'')+'" placeholder="Ex: 5" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;box-sizing:border-box;margin-bottom:8px;" />';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Dias da Semana</label>';
-h+='<select id="sim-timing_dia" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;margin-bottom:8px;"><option value="">Selecione...</option><option value="ter_qui"'+(f.timing_dia==='ter_qui'?' selected':'')+'>Ter\u00e7a a Quinta (melhor)</option><option value="seg_sex"'+(f.timing_dia==='seg_sex'?' selected':'')+'>Segunda a Sexta</option><option value="fds"'+(f.timing_dia==='fds'?' selected':'')+'>Fins de Semana</option><option value="todos"'+(f.timing_dia==='todos'?' selected':'')+'>Todos os Dias</option></select>';
-h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;">Hor\u00e1rio</label>';
-h+='<select id="sim-timing_horario" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;"><option value="">Selecione...</option><option value="18_21"'+(f.timing_horario==='18_21'?' selected':'')+'>18h-21h (pico)</option><option value="12_14"'+(f.timing_horario==='12_14'?' selected':'')+'>12h-14h (almo\u00e7o)</option><option value="08_10"'+(f.timing_horario==='08_10'?' selected':'')+'>08h-10h (manh\u00e3)</option><option value="outro"'+(f.timing_horario==='outro'?' selected':'')+'>Outro</option></select></div>';
-h+='<div style="padding:16px;background:rgba(255,255,255,.02);border-radius:10px;border-top:3px solid var(--gold);">';
-h+='<div style="font-weight:600;color:#fff;font-size:.9rem;margin-bottom:10px;">\ud83c\udfaf Objetivo da Campanha</div>';
-h+='<select id="sim-objetivo" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;font-size:.82rem;">';
+h+='<option value="vago"'+(f.cta_clareza==='vago'?' selected':'')+'>Vago</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Qualidade Visual</label>';
+h+='<select id="sim-visual_qualidade" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;margin-bottom:10px;"><option value="">Selecione...</option><option value="profissional"'+(f.visual_qualidade==='profissional'?' selected':'')+'>Profissional</option><option value="boa"'+(f.visual_qualidade==='boa'?' selected':'')+'>Boa</option><option value="amadora"'+(f.visual_qualidade==='amadora'?' selected':'')+'>Amadora</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Identidade Visual</label>';
+h+='<select id="sim-visual_identidade" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;margin-bottom:10px;"><option value="">Selecione...</option><option value="total"'+(f.visual_identidade==='total'?' selected':'')+'>Total</option><option value="parcial"'+(f.visual_identidade==='parcial'?' selected':'')+'>Parcial</option><option value="nenhuma"'+(f.visual_identidade==='nenhuma'?' selected':'')+'>Nenhuma</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Texto na Imagem</label>';
+h+='<select id="sim-visual_texto_img" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;"><option value="">Selecione...</option><option value="ate_20"'+(f.visual_texto_img==='ate_20'?' selected':'')+'>Até 20%</option><option value="20_40"'+(f.visual_texto_img==='20_40'?' selected':'')+'>20-40%</option><option value="mais_40"'+(f.visual_texto_img==='mais_40'?' selected':'')+'>Mais de 40%</option></select></div>';
+h+='<div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;border-top:4px solid #1abc9c;padding:18px;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.95rem;margin-bottom:12px;">🎯 Público & Timing</div>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Segmentação</label>';
+h+='<select id="sim-publico_segmentacao" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;margin-bottom:10px;"><option value="">Selecione...</option><option value="detalhada"'+(f.publico_segmentacao==='detalhada'?' selected':'')+'>Detalhada</option><option value="moderada"'+(f.publico_segmentacao==='moderada'?' selected':'')+'>Moderada</option><option value="ampla"'+(f.publico_segmentacao==='ampla'?' selected':'')+'>Ampla</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Lookalike</label>';
+h+='<select id="sim-publico_lookalike" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;margin-bottom:10px;"><option value="">Selecione...</option><option value="sim"'+(f.publico_lookalike==='sim'?' selected':'')+'>Sim</option><option value="nao"'+(f.publico_lookalike==='nao'?' selected':'')+'>Não</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Retargeting</label>';
+h+='<select id="sim-publico_retargeting" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;margin-bottom:10px;"><option value="">Selecione...</option><option value="sim"'+(f.publico_retargeting==='sim'?' selected':'')+'>Sim</option><option value="nao"'+(f.publico_retargeting==='nao'?' selected':'')+'>Não</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Posts/Semana</label>';
+h+='<input id="sim-freq_semanal" type="number" value="'+(f.freq_semanal||'')+'" placeholder="Ex: 5" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;box-sizing:border-box;margin-bottom:10px;" />';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Dias</label>';
+h+='<select id="sim-timing_dia" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;margin-bottom:10px;"><option value="">Selecione...</option><option value="ter_qui"'+(f.timing_dia==='ter_qui'?' selected':'')+'>Terça a Quinta</option><option value="seg_sex"'+(f.timing_dia==='seg_sex'?' selected':'')+'>Segunda a Sexta</option><option value="fds"'+(f.timing_dia==='fds'?' selected':'')+'>Fins de Semana</option><option value="todos"'+(f.timing_dia==='todos'?' selected':'')+'>Todos</option></select>';
+h+='<label style="display:block;font-size:.72rem;color:#aaa;margin-bottom:3px;font-weight:500;">Horário</label>';
+h+='<select id="sim-timing_horario" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;"><option value="">Selecione...</option><option value="18_21"'+(f.timing_horario==='18_21'?' selected':'')+'>18h-21h</option><option value="12_14"'+(f.timing_horario==='12_14'?' selected':'')+'>12h-14h</option><option value="08_10"'+(f.timing_horario==='08_10'?' selected':'')+'>08h-10h</option><option value="outro"'+(f.timing_horario==='outro'?' selected':'')+'>Outro</option></select></div>';
+h+='<div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;border-top:4px solid var(--gold);padding:18px;">';
+h+='<div style="font-weight:600;color:#fff;font-size:.95rem;margin-bottom:12px;">🎯 Objetivo</div>';
+h+='<select id="sim-objetivo" style="width:100%;padding:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:6px;font-size:.82rem;">';
 h+='<option value="">Selecione...</option>';
-h+='<option value="leads"'+(f.objetivo==='leads'?' selected':'')+'>Gera\u00e7\u00e3o de Leads</option>';
-h+='<option value="trafego"'+(f.objetivo==='trafego'?' selected':'')+'>Tr\u00e1fego para Site</option>';
+h+='<option value="leads"'+(f.objetivo==='leads'?' selected':'')+'>Geração de Leads</option>';
+h+='<option value="trafego"'+(f.objetivo==='trafego'?' selected':'')+'>Tráfego para Site</option>';
 h+='<option value="engajamento"'+(f.objetivo==='engajamento'?' selected':'')+'>Engajamento</option>';
-h+='<option value="alcance"'+(f.objetivo==='alcance'?' selected':'')+'>Alcance / Brand Awareness</option>';
-h+='<option value="conversao"'+(f.objetivo==='conversao'?' selected':'')+'>Convers\u00e3o</option>';
+h+='<option value="alcance"'+(f.objetivo==='alcance'?' selected':'')+'>Alcance / Awareness</option>';
+h+='<option value="conversao"'+(f.objetivo==='conversao'?' selected':'')+'>Conversão</option>';
 h+='<option value="mensagens"'+(f.objetivo==='mensagens'?' selected':'')+'>Mensagens WhatsApp</option></select>';
-h+='<div style="font-size:.65rem;color:#666;margin-top:6px;">O objetivo afeta como o Meta distribui seu an\u00fancio</div>';
 h+='</div>';
 h+='</div>';
-h+='<div style="text-align:center;margin-top:20px;">';
-h+='<button onclick="calcScore()" style="padding:14px 48px;background:linear-gradient(135deg,var(--gold),#e6a800);color:#000;border:none;border-radius:12px;cursor:pointer;font-size:1rem;font-weight:700;transition:all .3s;box-shadow:0 4px 15px rgba(212,175,55,.3);" onmouseover="this.style.transform=\'scale(1.05)\';this.style.boxShadow=\'0 6px 20px rgba(212,175,55,.5)\'" onmouseout="this.style.transform=\'scale(1)\';this.style.boxShadow=\'0 4px 15px rgba(212,175,55,.3)\'">\ud83e\udde0 Simular Pontua\u00e7\u00e3o do Algoritmo</button>';
-h+='</div></div>';
-h+='<div style="background:rgba(255,215,0,.04);border:1px solid rgba(255,215,0,.15);border-radius:12px;padding:18px;margin-top:20px;">';
-h+='<div style="font-size:.9rem;color:var(--gold);font-weight:600;margin-bottom:10px;">\ud83d\udcda Sinais do Algoritmo Meta Ads 2024-2025</div>';
-h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;font-size:.76rem;color:#aaa;line-height:1.5;">';
-h+='<div><strong style="color:#fff;">\ud83c\udfa3 Hook:</strong> Reten\u00e7\u00e3o nos 3 primeiros segundos \u00e9 o sinal #1. Meta corta distribui\u00e7\u00e3o se a reten\u00e7\u00e3o inicial for baixa.</div>';
-h+='<div><strong style="color:#fff;">\ud83d\udcac Engajamento:</strong> Coment\u00e1rios > Compartilhamentos > Rea\u00e7\u00f5es. Coment\u00e1rios longos pesam 5x mais que likes.</div>';
-h+='<div><strong style="color:#fff;">\u23f1\ufe0f Tempo no An\u00fancio:</strong> Tempo m\u00e9dio de visualiza\u00e7\u00e3o > 75% do v\u00eddeo sinaliza alta relev\u00e2ncia ao algoritmo.</div>';
-h+='<div><strong style="color:#fff;">\ud83d\udd04 Consist\u00eancia:</strong> Contas que publicam 5-7x/semana recebem 3x mais alcance org\u00e2nico que contas irregulares.</div>';
-h+='<div><strong style="color:#fff;">\ud83c\udfa8 Visual:</strong> Regra de 20% de texto. Criativos nativos (parecem org\u00e2nicos) performam 2x melhor que banners tradicionais.</div>';
-h+='<div><strong style="color:#fff;">\ud83c\udfaf Relev\u00e2ncia:</strong> Score de Relev\u00e2ncia do Meta (1-10) impacta diretamente o custo por resultado. Quanto maior, menor o CPM.</div>';
+h+='<div style="text-align:center;margin-bottom:28px;">';
+h+='<button onclick="calcScore()" style="padding:14px 48px;background:linear-gradient(135deg,var(--gold),#e6a800);color:#000;border:none;border-radius:10px;cursor:pointer;font-size:1rem;font-weight:700;transition:all .3s;box-shadow:0 4px 15px rgba(212,175,55,.3);" onmouseover="this.style.transform=\'scale(1.05)\';this.style.boxShadow=\'0 6px 20px rgba(212,175,55,.5)\'" onmouseout="this.style.transform=\'scale(1)\';this.style.boxShadow=\'0 4px 15px rgba(212,175,55,.3)\'">🧠 Simular Pontuação do Algoritmo</button>';
+h+='</div>';
+h+='<div style="background:rgba(255,215,0,.04);border:1px solid rgba(255,215,0,.15);border-radius:12px;padding:20px;">';
+h+='<div style="font-size:.9rem;color:var(--gold);font-weight:600;margin-bottom:12px;">📚 Sinais do Algoritmo Meta 2024-2025</div>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;font-size:.76rem;color:#aaa;line-height:1.6;">';
+h+='<div><strong style="color:#fff;">🎣 Hook:</strong> Retenção nos 3 primeiros segundos é o sinal #1. Meta corta distribuição se a retenção inicial for baixa.</div>';
+h+='<div><strong style="color:#fff;">💬 Engajamento:</strong> Comentários > Compartilhamentos > Reações. Comentários longos pesam 5x mais que likes.</div>';
+h+='<div><strong style="color:#fff;">⏱️ Tempo no Anúncio:</strong> Tempo médio > 75% do vídeo sinaliza alta relevância ao algoritmo.</div>';
+h+='<div><strong style="color:#fff;">🔄 Consistência:</strong> Contas com 5-7x/semana recebem 3x mais alcance que contas irregulares.</div>';
+h+='<div><strong style="color:#fff;">🎨 Visual:</strong> Regra 20%: texto em menos de 20% da imagem. Nativos performam 2x melhor.</div>';
+h+='<div><strong style="color:#fff;">🎯 Relevância:</strong> Score de Relevância Meta (1-10) impacta o custo por resultado. Maior score = menor CPM.</div>';
 h+='</div></div>';
 h+='</div>';
 document.querySelector('#main-content').innerHTML=h;
+if(window._simuladorFile){
+var inputEl=document.getElementById('sim-file-input');
+if(inputEl){
+inputEl.onchange=handleFileUpload;
+}
+}
 }
 setTimeout(render,0);
 return '<div id="main-content"></div>';
@@ -6969,14 +7022,14 @@ function pgBenchmark() {
   const radarObj = JSON.parse(localStorage.getItem('psm_radar_data') || '{}');
   const concorrentes = Object.keys(radarObj).map(handle => ({ handle, name: handle, ...radarObj[handle] }));
   const metricas = [
-    { key: 'seguidores', label: 'Seguidores', icon: '\ud83d\udc65', format: v => v ? Number(v).toLocaleString('pt-BR') : '\u2014' },
-    { key: 'engajamento', label: 'Engajamento (%)', icon: '\ud83d\udcac', format: v => v ? v + '%' : '\u2014' },
-    { key: 'volume_anuncios', label: 'Volume An\u00fancios', icon: '\ud83d\udce2', format: v => v || '\u2014' },
-    { key: 'preco_medio', label: 'Pre\u00e7o M\u00e9dio', icon: '\ud83d\udcb0', format: v => v ? 'R$ ' + Number(v).toLocaleString('pt-BR') : '\u2014' },
-    { key: 'market_share', label: 'Market Share', icon: '\ud83c\udfaf', format: v => v ? v + '%' : '\u2014' },
-    { key: 'nota_google', label: 'Nota Google', icon: '\u2b50', format: v => v || '\u2014' },
-    { key: 'imoveis_ativos', label: 'Im\u00f3veis Ativos', icon: '\ud83c\udfe0', format: v => v || '\u2014' },
-    { key: 'freq_posts', label: 'Posts/Semana', icon: '\ud83d\udcc5', format: v => v || '\u2014' }
+    { key: 'seguidores', label: 'Seguidores', icon: '👥', format: v => v ? Number(v).toLocaleString('pt-BR') : '—' },
+    { key: 'engajamento', label: 'Engajamento (%)', icon: '💬', format: v => v ? v + '%' : '—' },
+    { key: 'volume_anuncios', label: 'Volume Anúncios', icon: '📢', format: v => v || '—' },
+    { key: 'preco_medio', label: 'Preço Médio', icon: '💰', format: v => v ? 'R$ ' + Number(v).toLocaleString('pt-BR') : '—' },
+    { key: 'market_share', label: 'Market Share', icon: '🏯', format: v => v ? v + '%' : '—' },
+    { key: 'nota_google', label: 'Nota Google', icon: '⭐', format: v => v || '—' },
+    { key: 'imoveis_ativos', label: 'Imóveis Ativos', icon: '🏠', format: v => v || '—' },
+    { key: 'freq_posts', label: 'Posts/Semana', icon: '📅', format: v => v || '—' }
   ];
   function calcStats(key) {
     const vals = concorrentes.map(c => parseFloat(c[key])).filter(v => !isNaN(v) && v > 0);
@@ -6987,71 +7040,75 @@ function pgBenchmark() {
     const median = vals.length % 2 === 0 ? (vals[vals.length/2-1] + vals[vals.length/2]) / 2 : vals[Math.floor(vals.length/2)];
     return { avg: Math.round(avg * 100) / 100, max: vals[vals.length-1], min: vals[0], median: Math.round(median * 100) / 100, count: vals.length };
   }
+  const noData = concorrentes.length === 0;
   return `
-  <div style="max-width:1200px;margin:auto;padding:24px">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <span style="font-size:32px">\ud83d\udcca</span>
+  <div style="max-width:1400px;margin:auto;padding:28px">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px">
+      <span style="font-size:40px;color:#d4af37">📊</span>
       <div>
-        <h2 style="margin:0;color:#fff;font-size:22px">Benchmark de Mercado</h2>
-        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">An\u00e1lise comparativa (${concorrentes.length} concorrentes)</p>
+        <h2 style="margin:0;color:#fff;font-size:26px;font-weight:700">Benchmark de Mercado</h2>
+        <p style="margin:6px 0 0;color:#94a3b8;font-size:14px">Análise comparativa ${noData ? '— nenhum dado' : `(${concorrentes.length} concorrentes)`}</p>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:24px">
+    ${noData ? `<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:40px;text-align:center"><p style="color:#64748b;font-size:14px;margin:0">Nenhum concorrente registrado no radar. Adicione dados para visualizar o benchmark.</p></div>` : `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:28px">
       ${metricas.map(m => {
         const stats = calcStats(m.key);
         const top = concorrentes.reduce((best, c) => (parseFloat(c[m.key]) || 0) > (parseFloat(best[m.key]) || 0) ? c : best, concorrentes[0] || {});
         return `
-        <div style="background:#1e293b;border-radius:12px;padding:20px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:20px">${m.icon}</span>
-              <span style="color:#fff;font-size:14px;font-weight:600">${m.label}</span>
-            </div>
-            <span style="color:#64748b;font-size:11px">${stats.count} dados</span>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div style="background:#0f172a;border-radius:8px;padding:10px">
-              <div style="color:#64748b;font-size:10px;text-transform:uppercase">M\u00e9dia</div>
-              <div style="color:#3b82f6;font-size:16px;font-weight:700">${m.format(stats.avg)}</div>
-            </div>
-            <div style="background:#0f172a;border-radius:8px;padding:10px">
-              <div style="color:#64748b;font-size:10px;text-transform:uppercase">Mediana</div>
-              <div style="color:#8b5cf6;font-size:16px;font-weight:700">${m.format(stats.median)}</div>
-            </div>
-            <div style="background:#0f172a;border-radius:8px;padding:10px">
-              <div style="color:#64748b;font-size:10px;text-transform:uppercase">M\u00e1ximo</div>
-              <div style="color:#22c55e;font-size:16px;font-weight:700">${m.format(stats.max)}</div>
-            </div>
-            <div style="background:#0f172a;border-radius:8px;padding:10px">
-              <div style="color:#64748b;font-size:10px;text-transform:uppercase">M\u00ednimo</div>
-              <div style="color:#ef4444;font-size:16px;font-weight:700">${m.format(stats.min)}</div>
+        <div style="background:linear-gradient(135deg,#1e293b 0%,#263549 100%);border:1px solid #334155;border-radius:14px;padding:24px;transition:all 0.3s">
+          <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:18px">
+            <span style="font-size:32px;line-height:1">${m.icon}</span>
+            <div style="flex:1">
+              <h3 style="margin:0;color:#fff;font-size:15px;font-weight:700">${m.label}</h3>
+              <p style="margin:4px 0 0;color:#94a3b8;font-size:12px">${stats.count} dados disponíveis</p>
             </div>
           </div>
-          <div style="margin-top:10px;padding-top:10px;border-top:1px solid #334155">
-            <span style="color:#64748b;font-size:11px">L\u00edder: </span>
-            <span style="color:#f59e0b;font-size:12px;font-weight:600">${top.nome || top.name || '\u2014'}</span>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            <div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:12px">
+              <div style="color:#64748b;font-size:11px;text-transform:uppercase;font-weight:600;margin-bottom:4px">Média</div>
+              <div style="color:#3b82f6;font-size:18px;font-weight:700">${m.format(stats.avg)}</div>
+            </div>
+            <div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:12px">
+              <div style="color:#64748b;font-size:11px;text-transform:uppercase;font-weight:600;margin-bottom:4px">Mediana</div>
+              <div style="color:#8b5cf6;font-size:18px;font-weight:700">${m.format(stats.median)}</div>
+            </div>
+            <div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:12px">
+              <div style="color:#64748b;font-size:11px;text-transform:uppercase;font-weight:600;margin-bottom:4px">Máximo</div>
+              <div style="color:#22c55e;font-size:18px;font-weight:700">${m.format(stats.max)}</div>
+            </div>
+            <div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:12px">
+              <div style="color:#64748b;font-size:11px;text-transform:uppercase;font-weight:600;margin-bottom:4px">Mínimo</div>
+              <div style="color:#ef4444;font-size:18px;font-weight:700">${m.format(stats.min)}</div>
+            </div>
+          </div>
+          <div style="padding:12px;background:#0a1628;border-radius:8px;border-left:3px solid #d4af37">
+            <div style="color:#94a3b8;font-size:11px;text-transform:uppercase;font-weight:600;margin-bottom:4px">🏆 Líder</div>
+            <div style="color:#d4af37;font-size:13px;font-weight:700">${top.nome || top.name || '—'}</div>
           </div>
         </div>`;
       }).join('')}
     </div>
-    <div style="background:#1e293b;border-radius:12px;padding:24px">
-      <h3 style="color:#fff;margin:0 0 16px;font-size:16px">\ud83c\udfc6 Ranking por Tier</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
+    <div style="background:linear-gradient(135deg,#1e293b 0%,#263549 100%);border:1px solid #334155;border-radius:14px;padding:28px">
+      <h3 style="color:#fff;margin:0 0 20px;font-size:18px;font-weight:700">🏆 Ranking por Tier</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px">
         ${['A', 'B', 'C'].map(tier => {
           const grupo = concorrentes.filter(c => (c.tier || '').toUpperCase() === tier);
+          const tierColor = tier === 'A' ? '#f59e0b' : tier === 'B' ? '#3b82f6' : '#64748b';
           return `
-          <div style="background:#0f172a;border-radius:8px;padding:16px">
-            <div style="color:${tier === 'A' ? '#f59e0b' : tier === 'B' ? '#3b82f6' : '#64748b'};font-size:14px;font-weight:700;margin-bottom:12px">Tier ${tier} (${grupo.length})</div>
-            ${grupo.length === 0 ? '<div style="color:#64748b;font-size:12px">Nenhum</div>' :
+          <div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:18px">
+            <div style="color:${tierColor};font-size:15px;font-weight:700;margin-bottom:14px;text-transform:uppercase;letter-spacing:0.5px">Tier ${tier} <span style="color:#94a3b8;font-weight:400">(${grupo.length})</span></div>
+            ${grupo.length === 0 ? '<div style="color:#64748b;font-size:13px;padding:12px;text-align:center">—</div>' :
               grupo.slice(0, 8).map((c, i) => `
-                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e293b">
-                  <span style="color:#fff;font-size:12px">${i+1}. ${c.nome || c.name || '\u2014'}</span>
-                  <span style="color:#94a3b8;font-size:11px">${c.seguidores ? Number(c.seguidores).toLocaleString('pt-BR') + ' seg.' : '\u2014'}</span>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px">
+                  <span style="color:#fff;font-weight:600">${i+1}. ${c.nome || c.name || '—'}</span>
+                  <span style="color:#94a3b8;font-size:12px">${c.seguidores ? Number(c.seguidores).toLocaleString('pt-BR') + ' seg.' : '—'}</span>
                 </div>`).join('')}
           </div>`;
         }).join('')}
       </div>
     </div>
+    `}
   </div>`;
 }
 
@@ -7060,8 +7117,8 @@ function pgTendencias() {
   setTimeout(() => {
   const tabs = document.querySelectorAll('.tend-tab');
   tabs.forEach(t => t.onclick = () => {
-    tabs.forEach(b => { b.style.background = 'transparent'; b.style.color = '#94a3b8'; b.classList.remove('active'); });
-    t.style.background = '#1e293b'; t.style.color = '#fff'; t.classList.add('active');
+    tabs.forEach(b => { b.style.background = 'transparent'; b.style.color = '#94a3b8'; b.style.borderBottom = 'none'; b.classList.remove('active'); });
+    t.style.background = 'transparent'; t.style.color = '#d4af37'; t.style.borderBottom = '2px solid #d4af37'; t.classList.add('active');
     renderTendTab(t.dataset.tab);
   });
   function renderTendTab(tab) {
@@ -7075,35 +7132,83 @@ function pgTendencias() {
       const baixa = data.filter(t => t.direcao === 'baixa').length;
       const estavel = data.filter(t => t.direcao === 'estavel').length;
       box.innerHTML = `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">
-          <div style="background:#1e293b;border-radius:12px;padding:20px;text-align:center"><div style="color:#22c55e;font-size:28px;font-weight:700">${alta}</div><div style="color:#94a3b8;font-size:12px;margin-top:4px">\u2191 Em Alta</div></div>
-          <div style="background:#1e293b;border-radius:12px;padding:20px;text-align:center"><div style="color:#f59e0b;font-size:28px;font-weight:700">${estavel}</div><div style="color:#94a3b8;font-size:12px;margin-top:4px">\u2192 Est\u00e1vel</div></div>
-          <div style="background:#1e293b;border-radius:12px;padding:20px;text-align:center"><div style="color:#ef4444;font-size:28px;font-weight:700">${baixa}</div><div style="color:#94a3b8;font-size:12px;margin-top:4px">\u2193 Em Baixa</div></div>
-          <div style="background:#1e293b;border-radius:12px;padding:20px;text-align:center"><div style="color:#3b82f6;font-size:28px;font-weight:700">${data.length}</div><div style="color:#94a3b8;font-size:12px;margin-top:4px">\ud83d\udcca Total</div></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:28px">
+          <div style="background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);border-radius:12px;padding:24px;text-align:center;color:#fff">
+            <div style="font-size:32px;font-weight:700;margin-bottom:6px">${alta}</div>
+            <div style="font-size:13px;opacity:0.9">Em Alta</div>
+          </div>
+          <div style="background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);border-radius:12px;padding:24px;text-align:center;color:#fff">
+            <div style="font-size:32px;font-weight:700;margin-bottom:6px">${estavel}</div>
+            <div style="font-size:13px;opacity:0.9">Est\u00e1vel</div>
+          </div>
+          <div style="background:linear-gradient(135deg,#ef4444 0%,#dc2626 100%);border-radius:12px;padding:24px;text-align:center;color:#fff">
+            <div style="font-size:32px;font-weight:700;margin-bottom:6px">${baixa}</div>
+            <div style="font-size:13px;opacity:0.9">Em Baixa</div>
+          </div>
+          <div style="background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%);border-radius:12px;padding:24px;text-align:center;color:#fff">
+            <div style="font-size:32px;font-weight:700;margin-bottom:6px">${data.length}</div>
+            <div style="font-size:13px;opacity:0.9">Total</div>
+          </div>
         </div>
-        ${catKeys.length === 0 ? '<div style="background:#1e293b;border-radius:12px;padding:40px;text-align:center"><p style="color:#64748b;font-size:14px">Nenhuma tend\u00eancia registrada. Use a aba Registrar.</p></div>' :
+        ${catKeys.length === 0 ? '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:48px;text-align:center"><p style="color:#64748b;font-size:14px;margin:0">Nenhuma tend\u00eancia registrada. Use a aba Registrar para come\u00e7ar.</p></div>' :
           catKeys.map(cat => `
-          <div style="background:#1e293b;border-radius:12px;padding:20px;margin-bottom:16px">
-            <h3 style="color:#fff;font-size:15px;margin:0 0 14px">${cat}</h3>
-            ${categorias[cat].map(t => `
-              <div style="display:flex;align-items:center;gap:12px;padding:10px;background:#0f172a;border-radius:8px;margin-bottom:8px">
-                <span style="font-size:18px">${t.direcao === 'alta' ? '\u2b06\ufe0f' : t.direcao === 'baixa' ? '\u2b07\ufe0f' : '\u27a1\ufe0f'}</span>
-                <div style="flex:1"><div style="color:#fff;font-size:13px;font-weight:600">${t.titulo || '\u2014'}</div><div style="color:#94a3b8;font-size:11px;margin-top:2px">${t.descricao || ''}</div></div>
-                <span style="color:${t.impacto === 'alto' ? '#ef4444' : t.impacto === 'medio' ? '#f59e0b' : '#22c55e'};font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid #334155">${t.impacto || '\u2014'}</span>
+          <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:24px;margin-bottom:20px">
+            <h3 style="color:#d4af37;font-size:16px;font-weight:700;margin:0 0 18px;text-transform:uppercase;letter-spacing:0.5px">${cat}</h3>
+            <div style="display:grid;gap:12px">
+              ${categorias[cat].map(t => `
+              <div style="display:flex;align-items:flex-start;gap:14px;padding:14px;background:#0f172a;border:1px solid #334155;border-radius:10px;transition:all 0.3s">
+                <span style="font-size:24px;line-height:1;flex-shrink:0">${t.direcao === 'alta' ? '\ud83d\udcc8' : t.direcao === 'baixa' ? '\ud83d\udcc9' : '\u27a1\ufe0f'}</span>
+                <div style="flex:1;min-width:0">
+                  <div style="color:#fff;font-size:14px;font-weight:700;margin-bottom:4px">${t.titulo || '\u2014'}</div>
+                  <div style="color:#94a3b8;font-size:12px">${t.descricao || ''}</div>
+                </div>
+                <span style="flex-shrink:0;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:600;${t.impacto === 'alto' ? 'background:#ef4444;color:#fff' : t.impacto === 'medio' ? 'background:#f59e0b;color:#fff' : 'background:#22c55e;color:#fff'}">${t.impacto || '\u2014'}</span>
               </div>`).join('')}
+            </div>
           </div>`).join('')}`;
     } else if (tab === 'registro') {
       box.innerHTML = `
-        <div style="background:#1e293b;border-radius:12px;padding:24px">
-          <h3 style="color:#fff;margin:0 0 20px;font-size:16px">\u2795 Registrar Nova Tend\u00eancia</h3>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-            <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">T\u00edtulo</label><input id="tend-titulo" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px;box-sizing:border-box" placeholder="Ex: Aumento na busca por studios"></div>
-            <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Categoria</label><select id="tend-cat" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px"><option value="Mercado">Mercado</option><option value="Digital">Digital</option><option value="Pre\u00e7os">Pre\u00e7os</option><option value="Comportamento">Comportamento</option><option value="Tecnologia">Tecnologia</option></select></div>
-            <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Dire\u00e7\u00e3o</label><select id="tend-dir" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px"><option value="alta">\u2191 Em Alta</option><option value="estavel">\u2192 Est\u00e1vel</option><option value="baixa">\u2193 Em Baixa</option></select></div>
-            <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Impacto</label><select id="tend-imp" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px"><option value="alto">Alto</option><option value="medio">M\u00e9dio</option><option value="baixo">Baixo</option></select></div>
-            <div style="grid-column:1/-1"><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px">Descri\u00e7\u00e3o</label><textarea id="tend-desc" rows="3" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px;box-sizing:border-box;resize:vertical"></textarea></div>
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:28px;max-width:600px">
+          <h3 style="color:#fff;margin:0 0 24px;font-size:18px;font-weight:700">Registrar Nova Tend\u00eancia</h3>
+          <div style="display:grid;gap:18px">
+            <div>
+              <label style="color:#d4af37;font-size:13px;font-weight:600;display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">T\u00edtulo</label>
+              <input id="tend-titulo" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:14px;box-sizing:border-box;transition:all 0.3s" placeholder="Ex: Aumento na busca por studios">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+              <div>
+                <label style="color:#d4af37;font-size:13px;font-weight:600;display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Categoria</label>
+                <select id="tend-cat" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:14px">
+                  <option value="Mercado">Mercado</option>
+                  <option value="Digital">Digital</option>
+                  <option value="Pre\u00e7os">Pre\u00e7os</option>
+                  <option value="Comportamento">Comportamento</option>
+                  <option value="Tecnologia">Tecnologia</option>
+                </select>
+              </div>
+              <div>
+                <label style="color:#d4af37;font-size:13px;font-weight:600;display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Dire\u00e7\u00e3o</label>
+                <select id="tend-dir" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:14px">
+                  <option value="alta">Em Alta</option>
+                  <option value="estavel">Est\u00e1vel</option>
+                  <option value="baixa">Em Baixa</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label style="color:#d4af37;font-size:13px;font-weight:600;display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Impacto</label>
+              <select id="tend-imp" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:14px">
+                <option value="alto">Alto</option>
+                <option value="medio">M\u00e9dio</option>
+                <option value="baixo">Baixo</option>
+              </select>
+            </div>
+            <div>
+              <label style="color:#d4af37;font-size:13px;font-weight:600;display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Descri\u00e7\u00e3o</label>
+              <textarea id="tend-desc" rows="4" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:14px;box-sizing:border-box;resize:vertical;font-family:inherit"></textarea>
+            </div>
           </div>
-          <button id="tend-save" style="margin-top:16px;padding:10px 24px;border-radius:8px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-size:13px;font-weight:600">\ud83d\udcbe Salvar</button>
+          <button id="tend-save" style="margin-top:24px;padding:12px 28px;border-radius:8px;border:none;background:#d4af37;color:#0a1628;cursor:pointer;font-size:14px;font-weight:700;width:100%;transition:all 0.3s;text-transform:uppercase;letter-spacing:0.5px">Salvar Tend\u00eancia</button>
         </div>`;
       box.querySelector('#tend-save').onclick = () => {
         const titulo = box.querySelector('#tend-titulo').value.trim();
@@ -7117,26 +7222,26 @@ function pgTendencias() {
       };
     } else if (tab === 'historico') {
       box.innerHTML = `
-        <div style="background:#1e293b;border-radius:12px;padding:24px">
-          <h3 style="color:#fff;margin:0 0 16px;font-size:16px">\ud83d\udccb Hist\u00f3rico</h3>
-          ${data.length === 0 ? '<p style="color:#64748b;font-size:13px">Nenhuma tend\u00eancia.</p>' : `
-          <table style="width:100%;border-collapse:collapse">
-            <thead><tr style="border-bottom:2px solid #334155">
-              <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">DATA</th>
-              <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">T\u00cdTULO</th>
-              <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">CATEGORIA</th>
-              <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">DIR.</th>
-              <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">IMPACTO</th>
-              <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">A\u00c7\u00c3O</th>
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:28px;overflow-x:auto">
+          <h3 style="color:#fff;margin:0 0 20px;font-size:18px;font-weight:700">Hist\u00f3rico de Tend\u00eancias</h3>
+          ${data.length === 0 ? '<p style="color:#64748b;font-size:14px;margin:0">Nenhuma tend\u00eancia registrada.</p>' : `
+          <table style="width:100%;border-collapse:collapse;min-width:700px">
+            <thead><tr style="border-bottom:2px solid #334155;background:#0f172a">
+              <th style="padding:12px 14px;text-align:left;color:#d4af37;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">Data</th>
+              <th style="padding:12px 14px;text-align:left;color:#d4af37;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">T\u00edtulo</th>
+              <th style="padding:12px 14px;text-align:left;color:#d4af37;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">Categoria</th>
+              <th style="padding:12px 14px;text-align:center;color:#d4af37;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">Dir.</th>
+              <th style="padding:12px 14px;text-align:center;color:#d4af37;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">Impacto</th>
+              <th style="padding:12px 14px;text-align:center;color:#d4af37;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">A\u00e7\u00e3o</th>
             </tr></thead>
             <tbody>${data.slice().reverse().map((t, i) => `
-              <tr style="border-bottom:1px solid #334155">
-                <td style="padding:8px 10px;color:#64748b;font-size:12px">${t.data || '\u2014'}</td>
-                <td style="padding:8px 10px;color:#fff;font-size:12px">${t.titulo || '\u2014'}</td>
-                <td style="padding:8px 10px;color:#94a3b8;font-size:12px">${t.categoria || '\u2014'}</td>
-                <td style="padding:8px 10px;text-align:center">${t.direcao === 'alta' ? '\u2b06\ufe0f' : t.direcao === 'baixa' ? '\u2b07\ufe0f' : '\u27a1\ufe0f'}</td>
-                <td style="padding:8px 10px;text-align:center;color:${t.impacto === 'alto' ? '#ef4444' : t.impacto === 'medio' ? '#f59e0b' : '#22c55e'};font-size:12px">${t.impacto || '\u2014'}</td>
-                <td style="padding:8px 10px;text-align:center"><button onclick="(function(){const a=JSON.parse(localStorage.getItem('psm_tendencias')||'[]');a.splice(${data.length-1-i},1);localStorage.setItem('psm_tendencias',JSON.stringify(a));document.querySelector('.tend-tab[data-tab=historico]').click()})()" style="background:none;border:none;color:#ef4444;cursor:pointer">\ud83d\uddd1\ufe0f</button></td>
+              <tr style="border-bottom:1px solid #334155;${i % 2 === 0 ? 'background:transparent' : 'background:#0f172a'}">
+                <td style="padding:12px 14px;color:#94a3b8;font-size:13px">${t.data || '\u2014'}</td>
+                <td style="padding:12px 14px;color:#fff;font-size:13px;font-weight:500">${t.titulo || '\u2014'}</td>
+                <td style="padding:12px 14px;color:#94a3b8;font-size:13px">${t.categoria || '\u2014'}</td>
+                <td style="padding:12px 14px;text-align:center;font-size:16px">${t.direcao === 'alta' ? '\ud83d\udcc8' : t.direcao === 'baixa' ? '\ud83d\udcc9' : '\u27a1\ufe0f'}</td>
+                <td style="padding:12px 14px;text-align:center"><span style="padding:4px 10px;border-radius:4px;font-size:12px;font-weight:600;${t.impacto === 'alto' ? 'background:#ef4444;color:#fff' : t.impacto === 'medio' ? 'background:#f59e0b;color:#fff' : 'background:#22c55e;color:#fff'}">${t.impacto || '\u2014'}</span></td>
+                <td style="padding:12px 14px;text-align:center"><button onclick="(function(){const a=JSON.parse(localStorage.getItem('psm_tendencias')||'[]');a.splice(${data.length-1-i},1);localStorage.setItem('psm_tendencias',JSON.stringify(a));document.querySelector('.tend-tab[data-tab=historico]').click()})()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:16px;transition:all 0.3s;padding:4px">\ud83d\uddd1\ufe0f</button></td>
               </tr>`).join('')}</tbody>
           </table>`}
         </div>`;
@@ -7145,22 +7250,23 @@ function pgTendencias() {
   renderTendTab('painel');
   }, 0);
   return `
-  <div style="max-width:1200px;margin:auto;padding:24px">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <span style="font-size:32px">\ud83d\udcc8</span>
+  <div style="max-width:1400px;margin:auto;padding:28px">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:28px">
+      <span style="font-size:40px;color:#d4af37">📈</span>
       <div>
-        <h2 style="margin:0;color:#fff;font-size:22px">Tend\u00eancias de Mercado</h2>
-        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Identifique e acompanhe tend\u00eancias do mercado imobili\u00e1rio</p>
+        <h2 style="margin:0;color:#fff;font-size:26px;font-weight:700">Tend\u00eancias de Mercado</h2>
+        <p style="margin:6px 0 0;color:#94a3b8;font-size:14px">Identifique, registre e acompanhe tend\u00eancias do mercado imobili\u00e1rio</p>
       </div>
     </div>
-    <div id="tend-tabs" style="display:flex;gap:8px;margin-bottom:20px">
-      <button class="tend-tab active" data-tab="painel" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;cursor:pointer;font-size:13px">\ud83d\udcca Painel</button>
-      <button class="tend-tab" data-tab="registro" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\u2795 Registrar</button>
-      <button class="tend-tab" data-tab="historico" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">\ud83d\udccb Hist\u00f3rico</button>
+    <div id="tend-tabs" style="display:flex;gap:2px;margin-bottom:24px;border-bottom:2px solid #334155">
+      <button class="tend-tab active" data-tab="painel" style="padding:12px 20px;border:none;border-bottom:2px solid #d4af37;background:transparent;color:#d4af37;cursor:pointer;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">📊 Painel</button>
+      <button class="tend-tab" data-tab="registro" style="padding:12px 20px;border:none;border-bottom:2px solid transparent;background:transparent;color:#94a3b8;cursor:pointer;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;transition:all 0.3s">➕ Registrar</button>
+      <button class="tend-tab" data-tab="historico" style="padding:12px 20px;border:none;border-bottom:2px solid transparent;background:transparent;color:#94a3b8;cursor:pointer;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;transition:all 0.3s">📋 Hist\u00f3rico</button>
     </div>
     <div id="tend-content"></div>
   </div>`;
 }
+
 
 // ─── PAGE: LANÇAMENTOS DO ANO ────────────────────────────────────────────────
 // ─── PAGE: LANÇAMENTOS DO ANO ────────────────────────────────────────────────
