@@ -9,8 +9,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
 
-*,*::before,*::after{box-sizing:border-box;margin:;padding:0}
-:root
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
   --navy:#0f172a;--navy2:#1e293b;--navy3:#334155;
   --gold:#d4a843;--gold2:#e8c263;--gold3:#f5dfa0;
   --cream:#ffffff;--cream2:#f8fafc;--cream3:#e2e8f0;--cream4:#cbd5e1;
@@ -10069,199 +10069,375 @@ window.addEventListener('DOMContentLoaded', () => {
 // PSM AGENTES - Central Dashboard
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function fetchAgentStats() {
-  try {
-    const r = await fetch('/api/agent');
-    return await r.json();
-  } catch(e) { return { status: 'offline', agents: [], activeConversations: 0 }; }
+async // Auto-fetch agent stats
+function fetchAgentStats() {
+  if (S.agentStatsLoading) return;
+  S.agentStatsLoading = true;
+  fetch('/api/agent').then(r=>r.json()).then(d=>{
+    S.agentStats = d;
+    S.agentStatsLoading = false;
+    S.agentStatsTime = new Date().toLocaleTimeString('pt-BR');
+  }).catch(e=>{ S.agentStatsLoading = false; S.agentStatsError = e.message; });
 }
 
 function pgAgentes() {
-  const M = D.getElementById('main');
-  M.innerHTML = '<div style="padding:32px;background:#0f172a;min-height:100vh;color:#e2e8f0;font-family:Inter,system-ui,sans-serif">' +
-    '<div style="max-width:1200px;margin:0 auto">' +
-    '<h1 style="font-size:28px;font-weight:700;margin-bottom:8px">Agentes PSM</h1>' +
-    '<p style="color:#94a3b8;margin-bottom:32px">Central de comando dos agentes de IA da PSM</p>' +
-    '<div id="agentCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;margin-bottom:40px"></div>' +
-    '<div id="agentArch" style="background:#1e293b;border-radius:16px;padding:24px;margin-top:24px">' +
-    '<h3 style="font-size:18px;margin-bottom:16px">Arquitetura do Sistema</h3>' +
-    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">' +
-    '<div style="background:#0f172a;padding:16px;border-radius:12px;border:1px solid #334155"><div style="color:#38bdf8;font-size:13px;font-weight:600;margin-bottom:4px">AI Engine</div><div style="font-size:14px">Claude API (Anthropic)</div></div>' +
-    '<div style="background:#0f172a;padding:16px;border-radius:12px;border:1px solid #334155"><div style="color:#a78bfa;font-size:13px;font-weight:600;margin-bottom:4px">WhatsApp</div><div style="font-size:14px">Evolution API</div></div>' +
-    '<div style="background:#0f172a;padding:16px;border-radius:12px;border:1px solid #334155"><div style="color:#f472b6;font-size:13px;font-weight:600;margin-bottom:4px">Instagram</div><div style="font-size:14px">Meta Graph API</div></div>' +
-    '<div style="background:#0f172a;padding:16px;border-radius:12px;border:1px solid #334155"><div style="color:#4ade80;font-size:13px;font-weight:600;margin-bottom:4px">CRM</div><div style="font-size:14px">RD Station</div></div>' +
-    '</div></div></div></div>';
+  if (!S.agentStats && !S.agentStatsLoading) fetchAgentStats();
+  var stats = S.agentStats || {};
 
-  // Render agent cards
-  const agents = [
-    { id: 'vera', name: 'Vera', desc: 'Atendimento PSM Assessoria', icon: '\u{1F3E0}', color: '#a78bfa', status: 'active', page: 'agente_vera' },
-    { id: 'sol', name: 'Sol', desc: 'Atendimento PSM Conquista', icon: '\u2600', color: '#fbbf24', status: 'active', page: 'agente_sol' },
-    { id: 'performance', name: 'Sr. Performance', desc: 'Treinamento de corretores', icon: '\u{1F3AF}', color: '#4ade80', status: 'active', page: 'vera' },
-    { id: 'gerencia', name: 'Sr. Gerencia', desc: 'Gestao operacional', icon: '\u{1F4CB}', color: '#38bdf8', status: 'pending', page: null },
-    { id: 'intelligence', name: 'Sr. Intelligence', desc: 'Inteligencia estrategica', icon: '\u{1F9E0}', color: '#f472b6', status: 'pending', page: null },
+  var agents = [
+    {id:'vera', name:'Vera', line:'PSM Assessoria Imobiliária', ico:'💜', color:'#8b5cf6', desc:'Atendimento de leads, qualificação, nutrição e captação para assessoria imobiliária', channels:['WhatsApp','Instagram DM'], status:'config', page:'agente_vera'},
+    {id:'sol', name:'Sol', line:'PSM Conquista', ico:'☀️', color:'#f59e0b', desc:'Prospecção, atendimento e nutrição de leads para incorporação e loteamento', channels:['WhatsApp','Instagram DM'], status:'pending', page:'agente_sol'},
+    {id:'performance', name:'Sr. Performance', line:'Mentor de Corretores', ico:'🤖', color:'#0f172a', desc:'Treina corretores do zero ao nível expert com dados reais do CRM', channels:['PSM OS Chat'], status:'active', page:'vera'},
+    {id:'gerencia', name:'Sr. Gerência', line:'Gestão Operacional', ico:'👔', color:'#0891b2', desc:'Organiza operação, corrige e orienta corretores com foco em resultados', channels:['PSM OS Chat'], status:'pending', page:null},
+    {id:'intelligence', name:'Sr. Intelligence', line:'Inteligência Estratégica', ico:'🔍', color:'#059669', desc:'Audita, analisa concorrentes e orienta sócios e diretores com dados', channels:['PSM OS Chat'], status:'pending', page:null},
   ];
 
-  const cards = D.getElementById('agentCards');
-  agents.forEach(a => {
-    const statusBadge = a.status === 'active' ? '<span style="background:#065f46;color:#6ee7b7;padding:2px 10px;border-radius:99px;font-size:11px">Ativo</span>' :
-      '<span style="background:#713f12;color:#fde047;padding:2px 10px;border-radius:99px;font-size:11px">Em breve</span>';
-    const card = document.createElement('div');
-    card.style.cssText = 'background:#1e293b;border-radius:16px;padding:24px;cursor:' + (a.page ? 'pointer' : 'default') + ';transition:all .2s;border:1px solid #334155';
-    card.onmouseenter = () => card.style.borderColor = a.color;
-    card.onmouseleave = () => card.style.borderColor = '#334155';
-    if (a.page) card.onclick = () => { S.page = a.page; route(); };
-    card.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:32px">' + a.icon + '</span>' + statusBadge + '</div>' +
-      '<h3 style="font-size:18px;font-weight:600;margin-bottom:4px;color:' + a.color + '">' + a.name + '</h3>' +
-      '<p style="color:#94a3b8;font-size:13px">' + a.desc + '</p>';
-    cards.appendChild(card);
-  });
+  var statusMap = {active:'🟢 Ativo', config:'🟡 Configurando', pending:'⚪ Aguardando'};
 
-  // Fetch live stats
-  fetchAgentStats().then(data => {
-    if (data.status === 'ok') {
-      const statsDiv = document.createElement('div');
-      statsDiv.style.cssText = 'background:#1e293b;border-radius:16px;padding:24px;margin-top:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;text-align:center';
-      statsDiv.innerHTML = '<div><div style="font-size:28px;font-weight:700;color:#4ade80">' + data.agents.length + '</div><div style="color:#94a3b8;font-size:13px">Agentes Ativos</div></div>' +
-        '<div><div style="font-size:28px;font-weight:700;color:#38bdf8">' + data.activeConversations + '</div><div style="color:#94a3b8;font-size:13px">Conversas Ativas</div></div>' +
-        '<div><div style="font-size:28px;font-weight:700;color:#a78bfa">' + Math.floor(data.uptime/60) + 'm</div><div style="color:#94a3b8;font-size:13px">Uptime</div></div>';
-      D.getElementById('agentArch').before(statsDiv);
-    }
+  var h = '<div style="padding:28px;max-width:1400px;margin:0 auto;background:#0f172a;border-radius:16px;min-height:80vh">';
+
+  // Header
+  h += '<div style="margin-bottom:28px">';
+  h += '<h2 style="margin:0;color:#e2e8f0;font-size:1.6rem">🧠 Central de Agentes PSM</h2>';
+  h += '<p style="margin:6px 0 0;color:#64748b;font-size:0.9rem">Inteligência artificial a serviço da sua operação imobiliária</p>';
+  h += '</div>';
+
+  // KPIs
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:28px">';
+  var kpis = [
+    {label:'Agentes Totais', value:agents.length, color:'#8b5cf6', ico:'🧠'},
+    {label:'Ativos', value:agents.filter(a=>a.status==='active').length, color:'#22c55e', ico:'🟢'},
+    {label:'Configurando', value:agents.filter(a=>a.status==='config').length, color:'#f59e0b', ico:'🟡'},
+    {label:'Conversas Ativas', value:stats.activeConversations||0, color:'#3b82f6', ico:'💬'},
+    {label:'Canais Conectados', value: 1, color:'#06b6d4', ico:'📡'},
+  ];
+  kpis.forEach(function(k){
+    h += '<div style="background:#1e293b;border-radius:12px;padding:18px;border-left:4px solid '+k.color+'">';
+    h += '<div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">'+k.ico+' '+k.label+'</div>';
+    h += '<div style="font-size:1.8rem;font-weight:800;color:'+k.color+'">'+k.value+'</div>';
+    h += '</div>';
   });
+  h += '</div>';
+
+  // Agent Cards
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">';
+  agents.forEach(function(a){
+    var statusLabel = statusMap[a.status] || '⚪ —';
+    h += '<div style="background:#1e293b;border-radius:14px;padding:24px;border:1px solid '+a.color+'33;transition:all .2s" onmouseover="this.style.borderColor=\''+a.color+'\'" onmouseout="this.style.borderColor=\''+a.color+'33\'">';
+    h += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">';
+    h += '<div style="width:52px;height:52px;border-radius:14px;background:'+a.color+'22;display:flex;align-items:center;justify-content:center;font-size:26px">'+a.ico+'</div>';
+    h += '<div style="flex:1">';
+    h += '<div style="font-size:16px;font-weight:800;color:#e2e8f0">'+a.name+'</div>';
+    h += '<div style="font-size:11px;color:'+a.color+';font-weight:600">'+a.line+'</div>';
+    h += '</div>';
+    h += '<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:'+(a.status==='active'?'#052e16':'#422006')+';color:'+(a.status==='active'?'#22c55e':a.status==='config'?'#f59e0b':'#64748b')+'">'+statusLabel+'</span>';
+    h += '</div>';
+    h += '<p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0 0 14px">'+a.desc+'</p>';
+    h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">';
+    a.channels.forEach(function(ch){
+      h += '<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:#0f172a;color:#94a3b8;border:1px solid #334155">'+ch+'</span>';
+    });
+    h += '</div>';
+    if (a.page) {
+      h += '<button onclick="nav(\''+a.page+'\')" style="width:100%;padding:10px;background:'+a.color+';color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">'+(a.status==='active'?'Abrir Painel':'Configurar →')+'</button>';
+    } else {
+      h += '<button disabled style="width:100%;padding:10px;background:#334155;color:#64748b;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:not-allowed">Em breve</button>';
+    }
+    h += '</div>';
+  });
+  h += '</div>';
+
+  // Architecture info
+  h += '<div style="margin-top:28px;background:#1e293b;border-radius:14px;padding:24px;border:1px solid #334155">';
+  h += '<div style="font-size:14px;font-weight:800;color:#e2e8f0;margin-bottom:14px">⚡ Arquitetura dos Agentes</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">';
+  var archItems = [
+    {ico:'🧠', title:'Motor IA', desc:'Claude API (Anthropic) — raciocínio avançado para vendas consultivas'},
+    {ico:'📱', title:'WhatsApp', desc:'Evolution API — atendimento automatizado via WhatsApp Business'},
+    {ico:'📸', title:'Instagram DM', desc:'Meta Graph API — respostas automáticas via Direct'},
+    {ico:'🔗', title:'CRM', desc:'RD Station — criação e atualização automática de leads'},
+    {ico:'🌐', title:'Deploy', desc:'Vercel Serverless — escalável e sem servidor'},
+    {ico:'🔒', title:'Segurança', desc:'Tokens em env vars, CORS, webhook verification'},
+  ];
+  archItems.forEach(function(item){
+    h += '<div style="padding:12px;background:#0f172a;border-radius:10px">';
+    h += '<div style="font-size:18px;margin-bottom:6px">'+item.ico+'</div>';
+    h += '<div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-bottom:4px">'+item.title+'</div>';
+    h += '<div style="font-size:11px;color:#64748b;line-height:1.5">'+item.desc+'</div>';
+    h += '</div>';
+  });
+  h += '</div></div>';
+
+  h += '</div>';
+  return h;
 }
 
-// ─── AGENTE VERA - Management Panel ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// AGENTE VERA — Painel de Gestão
+// ═══════════════════════════════════════════════════════════════════════════════
 
 function pgAgenteVera() {
-  const M = D.getElementById('main');
-  M.innerHTML = '<div style="padding:32px;background:#0f172a;min-height:100vh;color:#e2e8f0;font-family:Inter,system-ui,sans-serif">' +
-    '<div style="max-width:900px;margin:0 auto">' +
-    '<div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">' +
-    '<div style="width:48px;height:48px;background:linear-gradient(135deg,#a78bfa,#7c3aed);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px">\u{1F3E0}</div>' +
-    '<div><h1 style="font-size:24px;font-weight:700;margin:0">Agente Vera</h1><p style="color:#94a3b8;font-size:13px;margin:0">PSM Assessoria Imobiliaria</p></div></div>' +
-    '<div style="display:flex;gap:8px;margin-bottom:24px">' +
-    '<button onclick="showVeraTab(\'chat\')" id="tabChat" style="padding:8px 20px;border-radius:99px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;cursor:pointer;font-size:13px">Chat Teste</button>' +
-    '<button onclick="showVeraTab(\'config\')" id="tabConfig" style="padding:8px 20px;border-radius:99px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">Configuracao</button>' +
-    '<button onclick="showVeraTab(\'setup\')" id="tabSetup" style="padding:8px 20px;border-radius:99px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px">Setup</button></div>' +
-    '<div id="veraContent"></div></div></div>';
-  showVeraTab('chat');
-}
+  var tab = S.veraAgTab || 'chat';
+  var tabs = [{id:'chat',lbl:'💬 Testar Chat'},{id:'convs',lbl:'📋 Conversas'},{id:'config',lbl:'⚙️ Configuração'},{id:'setup',lbl:'🔧 Setup WhatsApp/IG'}];
 
-function showVeraTab(tab) {
-  const tabs = ['chat','config','setup'];
-  tabs.forEach(t => {
-    const b = D.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
-    if (b) { b.style.background = t === tab ? '#1e293b' : 'transparent'; b.style.color = t === tab ? '#e2e8f0' : '#94a3b8'; }
+  var h = '<div style="padding:28px;max-width:1400px;margin:0 auto;background:#0f172a;border-radius:16px;min-height:80vh">';
+
+  // Header
+  h += '<div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">';
+  h += '<div style="width:56px;height:56px;border-radius:16px;background:#8b5cf622;display:flex;align-items:center;justify-content:center;font-size:28px">💜</div>';
+  h += '<div style="flex:1"><h2 style="margin:0;color:#e2e8f0;font-size:1.5rem">Vera</h2>';
+  h += '<p style="margin:4px 0 0;color:#8b5cf6;font-size:13px;font-weight:600">PSM Assessoria Imobiliária — Agente de Atendimento</p></div>';
+  h += '<button onclick="nav(\'agentes\')" style="padding:8px 16px;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:8px;cursor:pointer;font-size:12px">← Central</button>';
+  h += '</div>';
+
+  // Tab bar
+  h += '<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid #1e293b;padding-bottom:0">';
+  tabs.forEach(function(t){
+    var active = tab === t.id;
+    h += '<button onclick="S.veraAgTab=\''+t.id+'\';render()" style="padding:10px 16px;border:none;cursor:pointer;font-size:12px;font-weight:'+(active?'700':'500')+';color:'+(active?'#8b5cf6':'#64748b')+';background:'+(active?'#8b5cf611':'transparent')+';border-bottom:2px solid '+(active?'#8b5cf6':'transparent')+';border-radius:8px 8px 0 0;transition:all .15s">'+t.lbl+'</button>';
   });
-  const C = D.getElementById('veraContent');
+  h += '</div>';
+
+  // Tab content
   if (tab === 'chat') {
-    C.innerHTML = '<div style="background:#1e293b;border-radius:16px;padding:24px">' +
-      '<div id="veraChatBox" style="height:400px;overflow-y:auto;margin-bottom:16px;padding:8px">' +
-      '<div style="background:#7c3aed;color:white;padding:12px 16px;border-radius:16px 16px 16px 4px;max-width:80%;margin-bottom:12px;font-size:14px">Ola! Sou a Vera, da PSM Assessoria Imobiliaria. Como posso ajudar?</div></div>' +
-      '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">' +
-      '<button onclick="testVeraMsg(\'Quero comprar um apartamento\')" style="padding:6px 14px;border-radius:99px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px">Quero comprar</button>' +
-      '<button onclick="testVeraMsg(\'Quanto custa?\')" style="padding:6px 14px;border-radius:99px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px">Quanto custa?</button>' +
-      '<button onclick="testVeraMsg(\'Quero agendar visita\')" style="padding:6px 14px;border-radius:99px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px">Agendar visita</button></div>' +
-      '<div style="display:flex;gap:8px"><input id="veraInput" type="text" placeholder="Digite uma mensagem..." style="flex:1;padding:12px 16px;border-radius:12px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:14px" onkeydown="if(event.key===\'Enter\')sendVeraAgent()">' +
-      '<button onclick="sendVeraAgent()" style="padding:12px 24px;border-radius:12px;border:none;background:#7c3aed;color:white;cursor:pointer;font-weight:600">Enviar</button></div></div>';
-  }
+    // Test chat with Vera
+    var hist = S.veraAgHist || [];
+    h += '<div style="background:#1e293b;border-radius:14px;overflow:hidden;border:1px solid #334155">';
+    h += '<div style="padding:14px 18px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center">';
+    h += '<span style="color:#e2e8f0;font-size:13px;font-weight:700">💬 Testar conversa com a Vera</span>';
+    h += '<button onclick="S.veraAgHist=[];render()" style="padding:4px 10px;background:#334155;color:#94a3b8;border:none;border-radius:6px;cursor:pointer;font-size:11px">Limpar</button>';
+    h += '</div>';
 
-  else if (tab === 'config') {
-    C.innerHTML = '<div style="background:#1e293b;border-radius:16px;padding:24px">' +
-      '<h3 style="font-size:16px;margin-bottom:16px">Personalidade</h3>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px">' +
-      ['Auto','Amigavel','Profissional','Direto','Premium'].map(t => '<button style="padding:8px 16px;border-radius:99px;border:1px solid ' + (t==='Auto'?'#7c3aed':'#334155') + ';background:' + (t==='Auto'?'#7c3aed33':'transparent') + ';color:' + (t==='Auto'?'#a78bfa':'#94a3b8') + ';cursor:pointer;font-size:13px">' + t + '</button>').join('') +
-      '</div>' +
-      '<h3 style="font-size:16px;margin-bottom:16px">Funcoes Ativas</h3>' +
-      '<div style="display:grid;gap:12px">' +
-      ['Qualificacao de Leads','Apresentacao de Imoveis','Nutricao de Base','Captacao de Imoveis','Agendamento de Visitas','Integracao CRM (RD Station)'].map(f =>
-        '<label style="display:flex;align-items:center;gap:12px;padding:12px;background:#0f172a;border-radius:8px"><input type="checkbox" checked style="accent-color:#7c3aed"><span style="font-size:14px">' + f + '</span></label>'
-      ).join('') +
-      '</div></div>';
+    // Messages area
+    h += '<div id="vera-ag-msgs" style="height:400px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px">';
+    if (hist.length === 0) {
+      h += '<div style="text-align:center;padding:60px 20px;color:#64748b">';
+      h += '<div style="font-size:48px;margin-bottom:12px">💜</div>';
+      h += '<div style="font-size:14px;font-weight:600;margin-bottom:6px">Olá! Sou a Vera da PSM Assessoria.</div>';
+      h += '<div style="font-size:12px">Teste aqui como eu atendo leads no WhatsApp e Instagram.</div>';
+      h += '</div>';
+    }
+    hist.forEach(function(m){
+      var isUser = m.role === 'user';
+      h += '<div style="display:flex;justify-content:'+(isUser?'flex-end':'flex-start')+'">';
+      h += '<div style="max-width:80%;padding:10px 14px;border-radius:'+(isUser?'14px 14px 4px 14px':'14px 14px 14px 4px');
+      h += ';background:'+(isUser?'#8b5cf6':'#334155')+';color:#e2e8f0;font-size:13px;line-height:1.6">';
+      h += m.content.replace(/\n/g,'<br>').replace(/\\*\\*(.*?)\\*\\*/g,'<strong>$1</strong>');
+      h += '</div></div>';
+    });
+    if (S.veraAgLoading) {
+      h += '<div style="display:flex;gap:5px;align-items:center;padding:10px"><span style="width:8px;height:8px;border-radius:50%;background:#8b5cf6;animation:pulse 1s infinite"></span><span style="font-size:12px;color:#64748b">Vera pensando...</span></div>';
+    }
+    h += '</div>';
+
+    // Quick actions
+    h += '<div style="padding:8px 14px;border-top:1px solid #334155;display:flex;gap:6px;flex-wrap:wrap">';
+    var quickMsgs = ['Olá, busco apartamento','Quanto custa em média?','Quero agendar visita','Quero vender meu imóvel','Tenho FGTS, posso usar?'];
+    quickMsgs.forEach(function(q){
+      h += '<button onclick="testVeraMsg(\''+q.replace(/'/g,"\\'")+'\')" style="padding:5px 10px;background:#0f172a;color:#94a3b8;border:1px solid #334155;border-radius:6px;cursor:pointer;font-size:10px;transition:all .15s" onmouseover="this.style.borderColor=\'#8b5cf6\'" onmouseout="this.style.borderColor=\'#334155\'">'+q+'</button>';
+    });
+    h += '</div>';
+
+    // Input
+    h += '<div style="padding:12px 14px;border-top:1px solid #334155;display:flex;gap:8px">';
+    h += '<input id="vera-ag-inp" style="flex:1;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;outline:none" placeholder="Digite como se fosse um lead..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();sendVeraAgent()}">';
+    h += '<button onclick="sendVeraAgent()" style="padding:10px 18px;background:#8b5cf6;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700">Enviar</button>';
+    h += '</div></div>';
+
+  } else if (tab === 'convs') {
+    // Conversations list
+    h += '<div style="background:#1e293b;border-radius:14px;padding:24px;border:1px solid #334155">';
+    h += '<div style="font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:16px">Conversas Recentes</div>';
+    h += '<div style="text-align:center;padding:40px;color:#64748b">';
+    h += '<div style="font-size:32px;margin-bottom:10px">📭</div>';
+    h += '<div style="font-size:13px">Nenhuma conversa ainda.</div>';
+    h += '<div style="font-size:11px;margin-top:6px">Configure o WhatsApp/Instagram na aba Setup para começar a receber leads.</div>';
+    h += '</div></div>';
+
+  } else if (tab === 'config') {
+    // Agent configuration
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+
+    // Personality config
+    h += '<div style="background:#1e293b;border-radius:14px;padding:24px;border:1px solid #334155">';
+    h += '<div style="font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:16px">🎭 Personalidade</div>';
+    h += '<div style="display:flex;flex-direction:column;gap:12px">';
+    var personaOptions = [
+      {id:'friendly',label:'Amigável e Acolhedora',desc:'Tom caloroso, constrói conexão'},
+      {id:'professional',label:'Profissional e Consultiva',desc:'Autoridade e confiança'},
+      {id:'direct',label:'Direto e Objetivo',desc:'Respostas práticas, foco em ação'},
+      {id:'premium',label:'Premium / Luxo',desc:'Sofisticada, exclusiva'},
+    ];
+    var currentPersona = S.veraPersona || 'auto';
+    h += '<label style="display:flex;align-items:center;gap:8px;padding:10px;background:#0f172a;border-radius:8px;cursor:pointer;border:1px solid '+(currentPersona==='auto'?'#8b5cf6':'#334155')+'">';
+    h += '<input type="radio" name="vp" '+(currentPersona==='auto'?'checked':'')+' onclick="S.veraPersona=\'auto\';render()" style="accent-color:#8b5cf6">';
+    h += '<div><div style="font-size:12px;font-weight:700;color:#e2e8f0">🔄 Automático (Recomendado)</div><div style="font-size:10px;color:#64748b">Adapta o tom conforme o contexto da conversa</div></div></label>';
+    personaOptions.forEach(function(p){
+      h += '<label style="display:flex;align-items:center;gap:8px;padding:10px;background:#0f172a;border-radius:8px;cursor:pointer;border:1px solid '+(currentPersona===p.id?'#8b5cf6':'#334155')+'">';
+      h += '<input type="radio" name="vp" '+(currentPersona===p.id?'checked':'')+' onclick="S.veraPersona=\''+p.id+'\';render()" style="accent-color:#8b5cf6">';
+      h += '<div><div style="font-size:12px;font-weight:700;color:#e2e8f0">'+p.label+'</div><div style="font-size:10px;color:#64748b">'+p.desc+'</div></div></label>';
+    });
+    h += '</div></div>';
+
+    // Functions config
+    h += '<div style="background:#1e293b;border-radius:14px;padding:24px;border:1px solid #334155">';
+    h += '<div style="font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:16px">⚡ Funções Ativas</div>';
+    var funcs = [
+      {id:'qualify',label:'Qualificação de Leads',desc:'Identifica perfil, orçamento, região',on:true},
+      {id:'properties',label:'Recomendação de Imóveis',desc:'Sugere imóveis do portfólio PSM',on:true},
+      {id:'nurture',label:'Nutrição de Base',desc:'Envia conteúdo e info de mercado',on:true},
+      {id:'capture',label:'Captação de Imóveis',desc:'Identifica oportunidades de captação',on:true},
+      {id:'schedule',label:'Agendamento de Visitas',desc:'Conecta lead com corretor',on:true},
+      {id:'crm',label:'Integração CRM (RD Station)',desc:'Cria e atualiza leads automaticamente',on:true},
+    ];
+    funcs.forEach(function(f){
+      h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#0f172a;border-radius:8px;margin-bottom:8px">';
+      h += '<div><div style="font-size:12px;font-weight:700;color:#e2e8f0">'+f.label+'</div><div style="font-size:10px;color:#64748b">'+f.desc+'</div></div>';
+      h += '<div style="width:36px;height:20px;border-radius:10px;background:'+(f.on?'#8b5cf6':'#334155')+';position:relative;cursor:pointer;transition:all .2s">';
+      h += '<div style="width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;'+(f.on?'right:2px':'left:2px')+';transition:all .2s"></div>';
+      h += '</div></div>';
+    });
+    h += '</div></div>';
+
   } else if (tab === 'setup') {
-    C.innerHTML = '<div style="background:#1e293b;border-radius:16px;padding:24px">' +
-      '<h3 style="font-size:16px;margin-bottom:16px">Setup do Agente</h3>' +
-      '<div style="display:grid;gap:16px">' +
-      [
-        { n: '1. Anthropic API Key', d: 'Configure ANTHROPIC_API_KEY no Vercel', s: true },
-        { n: '2. Evolution API (WhatsApp)', d: 'Instale e configure o Evolution API', s: false },
-        { n: '3. Meta Graph API (Instagram)', d: 'Configure app no Meta Developers', s: false },
-        { n: '4. RD Station CRM', d: 'Token ja configurado', s: true },
-      ].map(step => '<div style="padding:16px;background:#0f172a;border-radius:12px;border-left:3px solid ' + (step.s ? '#4ade80' : '#f59e0b') + '">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;font-size:14px">' + step.n + '</span>' +
-        '<span style="font-size:11px;padding:2px 8px;border-radius:99px;background:' + (step.s ? '#065f46' : '#713f12') + ';color:' + (step.s ? '#6ee7b7' : '#fde047') + '">' + (step.s ? 'Configurado' : 'Pendente') + '</span></div>' +
-        '<p style="color:#94a3b8;font-size:13px;margin-top:4px">' + step.d + '</p></div>').join('') +
-      '</div></div>';
+    // Setup guide
+    h += '<div style="display:flex;flex-direction:column;gap:16px">';
+
+    // Step 1: API Key
+    h += '<div style="background:#1e293b;border-radius:14px;padding:24px;border:1px solid #334155">';
+    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">';
+    h += '<span style="width:28px;height:28px;border-radius:50%;background:#8b5cf6;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800">1</span>';
+    h += '<span style="font-size:14px;font-weight:700;color:#e2e8f0">Chave API Anthropic (Claude)</span>';
+    h += '</div>';
+    h += '<p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0 0 12px">A Vera usa a API do Claude para gerar respostas inteligentes. Crie uma chave em <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:#8b5cf6">console.anthropic.com</a>.</p>';
+    h += '<div style="font-size:11px;color:#64748b;background:#0f172a;padding:10px;border-radius:8px;font-family:monospace">No Vercel → Settings → Environment Variables → <strong style="color:#e2e8f0">ANTHROPIC_API_KEY</strong> = sk-ant-...</div>';
+    h += '</div>';
+
+    // Step 2: WhatsApp
+    h += '<div style="background:#1e293b;border-radius:14px;padding:24px;border:1px solid #334155">';
+    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">';
+    h += '<span style="width:28px;height:28px;border-radius:50%;background:#22c55e;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800">2</span>';
+    h += '<span style="font-size:14px;font-weight:700;color:#e2e8f0">WhatsApp — Evolution API</span>';
+    h += '</div>';
+    h += '<p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0 0 12px">Instale a Evolution API (gratuita, self-hosted) e configure o webhook para receber mensagens.</p>';
+    h += '<div style="font-size:11px;color:#64748b;background:#0f172a;padding:12px;border-radius:8px;font-family:monospace;line-height:2">';
+    h += '<div><strong style="color:#22c55e">EVOLUTION_API_URL</strong> = <span style="color:#e2e8f0">https://sua-evolution.com</span></div>';
+    h += '<div><strong style="color:#22c55e">EVOLUTION_API_KEY</strong> = <span style="color:#e2e8f0">sua-chave-aqui</span></div>';
+    h += '<div style="margin-top:8px;color:#94a3b8">Webhook URL: <strong style="color:#e2e8f0">https://housepsm.com.br/api/webhook-whatsapp</strong></div>';
+    h += '</div></div>';
+
+    // Step 3: Instagram
+    h += '<div style="background:#1e293b;border-radius:14px;padding:24px;border:1px solid #334155">';
+    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">';
+    h += '<span style="width:28px;height:28px;border-radius:50%;background:#e1306c;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800">3</span>';
+    h += '<span style="font-size:14px;font-weight:700;color:#e2e8f0">Instagram DM — Meta Graph API</span>';
+    h += '</div>';
+    h += '<p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0 0 12px">Configure no Meta for Developers para receber mensagens do Instagram.</p>';
+    h += '<div style="font-size:11px;color:#64748b;background:#0f172a;padding:12px;border-radius:8px;font-family:monospace;line-height:2">';
+    h += '<div><strong style="color:#e1306c">IG_PAGE_TOKEN</strong> = <span style="color:#e2e8f0">token-da-pagina</span></div>';
+    h += '<div><strong style="color:#e1306c">IG_PAGE_ID_IMOVEIS</strong> = <span style="color:#e2e8f0">id-pagina-psm-imoveis</span></div>';
+    h += '<div><strong style="color:#e1306c">IG_VERIFY_TOKEN</strong> = <span style="color:#e2e8f0">psm_webhook_2026</span></div>';
+    h += '<div style="margin-top:8px;color:#94a3b8">Webhook URL: <strong style="color:#e2e8f0">https://housepsm.com.br/api/webhook-instagram</strong></div>';
+    h += '</div></div>';
+
+    // Step 4: RD Station
+    h += '<div style="background:#1e293b;border-radius:14px;padding:24px;border:1px solid #334155">';
+    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">';
+    h += '<span style="width:28px;height:28px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800">4</span>';
+    h += '<span style="font-size:14px;font-weight:700;color:#e2e8f0">RD Station CRM — Integração</span>';
+    h += '</div>';
+    h += '<p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0 0 12px">Já configurado! A Vera cria leads automaticamente no RD Station quando um lead entra em contato.</p>';
+    h += '<div style="font-size:11px;color:#64748b;background:#0f172a;padding:10px;border-radius:8px;font-family:monospace"><strong style="color:#3b82f6">RD_CRM_TOKEN</strong> = ✅ Configurado (via Vercel env)</div>';
+    h += '</div>';
+
+    h += '</div>';
   }
+
+  h += '</div>';
+  return h;
 }
 
+// Vera Agent test chat
 function testVeraMsg(msg) {
-  const input = D.getElementById('veraInput');
-  if (input) { input.value = msg; sendVeraAgent(); }
+  S.veraAgHist = S.veraAgHist || [];
+  S.veraAgHist.push({role:'user', content:msg});
+  sendVeraAgent(true);
 }
 
-async function sendVeraAgent() {
-  const input = D.getElementById('veraInput');
-  const box = D.getElementById('veraChatBox');
-  if (!input || !box || !input.value.trim()) return;
-  const msg = input.value.trim();
-  input.value = '';
-  box.innerHTML += '<div style="background:#334155;padding:12px 16px;border-radius:16px 16px 4px 16px;max-width:80%;margin-left:auto;margin-bottom:12px;font-size:14px">' + msg + '</div>';
-  box.innerHTML += '<div id="veraTyping" style="color:#94a3b8;font-size:13px;padding:8px">Vera esta digitando...</div>';
-  box.scrollTop = box.scrollHeight;
-  try {
-    const r = await fetch('/api/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agent: 'vera', message: msg, conversationId: 'test_vera_' + S.user?.id, channel: 'web' }) });
-    const data = await r.json();
-    const typing = D.getElementById('veraTyping');
-    if (typing) typing.remove();
-    box.innerHTML += '<div style="background:#7c3aed;color:white;padding:12px 16px;border-radius:16px 16px 16px 4px;max-width:80%;margin-bottom:12px;font-size:14px">' + (data.response || 'Sem resposta') + '</div>';
-    if (data.leadTemperature) box.innerHTML += '<div style="text-align:right;font-size:11px;color:#94a3b8;margin-bottom:8px">Temp: ' + data.leadTemperature + '</div>';
-  } catch(e) {
-    const typing = D.getElementById('veraTyping');
-    if (typing) typing.remove();
-    box.innerHTML += '<div style="color:#f87171;font-size:13px;padding:8px">Erro: ' + e.message + '</div>';
+async function sendVeraAgent(skipInput) {
+  if (!skipInput) {
+    var inp = document.getElementById('vera-ag-inp');
+    var txt = (inp ? inp.value : '').trim();
+    if (!txt) return;
+    S.veraAgHist = S.veraAgHist || [];
+    S.veraAgHist.push({role:'user', content:txt});
+    if (inp) inp.value = '';
   }
-  box.scrollTop = box.scrollHeight;
+  S.veraAgLoading = true; render();
+  setTimeout(function(){ var el=document.getElementById('vera-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 50);
+
+  try {
+    var resp = await fetch('/api/agent', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        agent: 'vera',
+        message: S.veraAgHist[S.veraAgHist.length-1].content,
+        conversationId: 'test_vera_' + (S.user?.id || 'admin'),
+        channel: 'web',
+        metadata: { leadName: 'Teste Admin', leadPhone: '' },
+      })
+    });
+    var data = await resp.json();
+    S.veraAgHist.push({role:'assistant', content: data.response || data.error || 'Sem resposta'});
+  } catch(e) {
+    S.veraAgHist.push({role:'assistant', content:'⚠️ Erro: '+e.message+'\n\nVerifique se ANTHROPIC_API_KEY está configurada no Vercel.'});
+  }
+  S.veraAgLoading = false; render();
+  setTimeout(function(){ var el=document.getElementById('vera-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
 }
 
-// ─── AGENTE SOL - Management Panel ──────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// AGENTE SOL — Painel (placeholder, será expandido)
+// ═══════════════════════════════════════════════════════════════════════════════
 
 function pgAgenteSol() {
-  const M = D.getElementById('main');
-  M.innerHTML = '<div style="padding:32px;background:#0f172a;min-height:100vh;color:#e2e8f0;font-family:Inter,system-ui,sans-serif">' +
-    '<div style="max-width:900px;margin:0 auto">' +
-    '<div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">' +
-    '<div style="width:48px;height:48px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px">\u2600</div>' +
-    '<div><h1 style="font-size:24px;font-weight:700;margin:0">Agente Sol</h1><p style="color:#94a3b8;font-size:13px;margin:0">PSM Conquista</p></div></div>' +
-    '<div style="background:#1e293b;border-radius:16px;padding:24px">' +
-    '<div id="solChatBox" style="height:400px;overflow-y:auto;margin-bottom:16px;padding:8px">' +
-    '<div style="background:#f59e0b;color:#0f172a;padding:12px 16px;border-radius:16px 16px 16px 4px;max-width:80%;margin-bottom:12px;font-size:14px;font-weight:500">Oi! Sou a Sol, da PSM Conquista. Vamos realizar seu sonho?</div></div>' +
-    '<div style="display:flex;gap:8px"><input id="solInput" type="text" placeholder="Digite uma mensagem..." style="flex:1;padding:12px 16px;border-radius:12px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:14px" onkeydown="if(event.key===\'Enter\')sendSolAgent()">' +
-    '<button onclick="sendSolAgent()" style="padding:12px 24px;border-radius:12px;border:none;background:#f59e0b;color:#0f172a;cursor:pointer;font-weight:600">Enviar</button></div></div></div></div>';
-}
+  var h = '<div style="padding:28px;max-width:1400px;margin:0 auto;background:#0f172a;border-radius:16px;min-height:80vh">';
+  h += '<div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">';
+  h += '<div style="width:56px;height:56px;border-radius:16px;background:#f59e0b22;display:flex;align-items:center;justify-content:center;font-size:28px">☀️</div>';
+  h += '<div style="flex:1"><h2 style="margin:0;color:#e2e8f0;font-size:1.5rem">Sol</h2>';
+  h += '<p style="margin:4px 0 0;color:#f59e0b;font-size:13px;font-weight:600">PSM Conquista — Agente de Prospecção e Atendimento</p></div>';
+  h += '<button onclick="nav(\'agentes\')" style="padding:8px 16px;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:8px;cursor:pointer;font-size:12px">← Central</button>';
+  h += '</div>';
 
-async function sendSolAgent() {
-  const input = D.getElementById('solInput');
-  const box = D.getElementById('solChatBox');
-  if (!input || !box || !input.value.trim()) return;
-  const msg = input.value.trim();
-  input.value = '';
-  box.innerHTML += '<div style="background:#334155;padding:12px 16px;border-radius:16px 16px 4px 16px;max-width:80%;margin-left:auto;margin-bottom:12px;font-size:14px">' + msg + '</div>';
-  box.innerHTML += '<div id="solTyping" style="color:#94a3b8;font-size:13px;padding:8px">Sol esta digitando...</div>';
-  box.scrollTop = box.scrollHeight;
-  try {
-    const r = await fetch('/api/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agent: 'sol', message: msg, conversationId: 'test_sol_' + S.user?.id, channel: 'web' }) });
-    const data = await r.json();
-    const typing = D.getElementById('solTyping');
-    if (typing) typing.remove();
-    box.innerHTML += '<div style="background:#f59e0b;color:#0f172a;padding:12px 16px;border-radius:16px 16px 16px 4px;max-width:80%;margin-bottom:12px;font-size:14px;font-weight:500">' + (data.response || 'Sem resposta') + '</div>';
-  } catch(e) {
-    const typing = D.getElementById('solTyping');
-    if (typing) typing.remove();
-    box.innerHTML += '<div style="color:#f87171;font-size:13px;padding:8px">Erro: ' + e.message + '</div>';
+  // Same structure as Vera but with Sol personality
+  var hist = S.solAgHist || [];
+  h += '<div style="background:#1e293b;border-radius:14px;overflow:hidden;border:1px solid #334155">';
+  h += '<div style="padding:14px 18px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center">';
+  h += '<span style="color:#e2e8f0;font-size:13px;font-weight:700">☀️ Testar conversa com a Sol</span>';
+  h += '<button onclick="S.solAgHist=[];render()" style="padding:4px 10px;background:#334155;color:#94a3b8;border:none;border-radius:6px;cursor:pointer;font-size:11px">Limpar</button>';
+  h += '</div>';
+  h += '<div id="sol-ag-msgs" style="height:400px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px">';
+  if (hist.length === 0) {
+    h += '<div style="text-align:center;padding:60px 20px;color:#64748b">';
+    h += '<div style="font-size:48px;margin-bottom:12px">☀️</div>';
+    h += '<div style="font-size:14px;font-weight:600;margin-bottom:6px">Olá! Sou a Sol da PSM Conquista!</div>';
+    h += '<div style="font-size:12px">Teste aqui como eu atendo leads de incorporação e loteamento.</div>';
+    h += '</div>';
   }
-  box.scrollTop = box.scrollHeight;
-}
-
+  hist.forEach(function(m){
+    var isUser = m.role === 'user';
+    h += '<div style="display:flex;justify-content:'+(isUser?'flex-end':'flex-start')+'">';
+    h += '<div style="max-width:80%;padding:10px 14px;border-radius:'+(isUser?'14px 14px 4px 14px':'14px 14px 14px 4px')+';background:'+(isUser?'#f59e0b':'#334155')+';color:'+(isUser?'#0f172a':'#e2e8f0')+';font-size:13px;line-height:1.6">';
+    h += m.content.replace(/\n/g,'<br>');
+    h += '</div></div>';
+  });
+  if (S.solAgLoading) {
+    h += '<div style="display:flex;gap:5px;align-items:center;padding:10px"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;animation:pulse 1s infinite"></span><span style="font-size:12px;color:#64748b">Sol pensando...</span></div>';
+  }
+  h += '</div>';
+  h += '<div style="padding:12px 14px;border-top:1px solid #334155;display:flex;gap:8px">';
+  h += '<input id="sol-ag-inp" style="flex:1;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;outline:none" placeholder="Digit
 
 </script>
 </body>
