@@ -8800,7 +8800,7 @@ async function testConnectors() {
 // === SISTEMA DE PERFIS E PERMISSOES PSM OS ===
 var PERFIL_MAP={paulo:'diretor',isa:'diretor',leire:'backoffice',mariane:'backoffice',marcus_l:'lider',guilherme:'marketing',gestor_trafego:'marketing'};
 function getPerfil(){if(!S.user||!S.user.id)return "corretor";if(PERFIL_MAP[S.user.id])return PERFIL_MAP[S.user.id];if(S.user.role==="socio")return "diretor";if(S.user.role==="lider")return "lider";if(S.user.role==="backoffice")return "backoffice";if(S.user.role==="marketing")return "marketing";return "corretor";}
-var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','simulador'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','simulador'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','forecast','checkin','drive','formacao','manual','captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','simulador'],marketing:['meu','dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias','simulador'],corretor:['meu','ranking','crm','metas','checkin','formacao','manual','drive','vera']};
+var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','forecast','checkin','drive','formacao','manual','captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],marketing:['meu','dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias','simulador'],corretor:['meu','ranking','crm','metas','checkin','formacao','manual','drive','vera']};
 function canAccess(p){var pf=getPerfil();var a=MENU_ACCESS[pf];return a?a.indexOf(p)!==-1:false;}
 var DEFAULT_PAGE={diretor:'dashboard',backoffice:'dashboard',lider:'meu',marketing:'meu',corretor:'meu'};
 function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"meu";}
@@ -8865,6 +8865,7 @@ function renderSB() {
       {id:'agentes',   lbl:'Central de Agentes',ico:'\u{1F9E0}',min:5},
       {id:'agente_vera',lbl:'Vera (Assessoria)',ico:'\u{1F49C}',min:5},
       {id:'agente_sol', lbl:'Sol (Conquista)',  ico:'\u2600',min:5},
+      {id:'sr_performance',lbl:'Sr. Performance',ico:'\ud83e\udd16',min:5},
       {id:'vera',      lbl:'Sr. Performance',  ico:'\u{1F916}',min:2},
     ]},
     {sec:'Configura\u00E7\u00F5es', items:[
@@ -8910,7 +8911,7 @@ function renderHDR() {
     fluxocaixa:'💰 Fluxo de Caixa',dre:'📊 DRE',comissoes:'💎 Comissões',repasses:'🔄 Repasses',
     radar:'📡 Radar Intelligence PSM',benchmark:'📊 Benchmark',tendencias:'📈 Tendências',
     metaads:'📢 Meta Ads',
-    agentes:'Agentes PSM',agente_vera:'Agente Vera',agente_sol:'Agente Sol'};
+    agentes:'Agentes PSM',agente_vera:'Agente Vera',agente_sol:'Agente Sol',sr_performance:'Sr. Performance'};
   const unread = NOTIFS.filter(n=>!n.read).length;
   return '<div class="hdr">'
     + '<div class="hdr-title">'+(titles[S.page]||'')+'</div>'
