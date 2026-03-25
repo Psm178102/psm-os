@@ -1,4 +1,4 @@
-// ─── PSM AGENT ENGINE (Google Gemini 2.0 Flash) ─────────────────────────────
+// ─── PSM AGENT ENGINE (Google Gemini 2.5 Flash) ─────────────────────────────
 // Core engine shared by all PSM agents (Vera, Sol, Sr Intelligence, Sr Gerencia)
 // Route: POST /api/agent
 // Body: { agent: "vera"|"sol"|"intelligence"|"gerencia", message, conversationId, channel, metadata }
@@ -173,7 +173,7 @@ const AGENTS = {
 
   vera: {
     name: 'Vera',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     fallback_model: 'gpt-4o',
     max_tokens: 800,
     temperature: 0.4,
@@ -226,7 +226,7 @@ REGRAS CRÍTICAS (ANTI-ALUCINAÇÃO):
 
   sol: {
     name: 'Sol',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     fallback_model: 'gpt-4o',
     max_tokens: 800,
     temperature: 0.4,
@@ -274,7 +274,7 @@ REGRAS CRÍTICAS (ANTI-ALUCINAÇÃO):
 
   intelligence: {
     name: 'Sr. Intelligence',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     fallback_model: 'gpt-4o',
     max_tokens: 1200,
     temperature: 0.3,
@@ -303,7 +303,7 @@ REGRAS CRÍTICAS:
 
   gerencia: {
     name: 'Sr. Gerência',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     fallback_model: 'gpt-4o',
     max_tokens: 1000,
     temperature: 0.4,
@@ -454,7 +454,7 @@ module.exports = async (req, res) => {
       if (!gKey) return res.status(200).json({ test: 'gemini', error: 'GOOGLE_API_KEY not set', keyLength: 0 });
 
       try {
-        const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${gKey}`;
+        const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${gKey}`;
         const testBody = {
           contents: [{ role: 'user', parts: [{ text: 'Responda apenas: OK' }] }],
           generationConfig: { temperature: 0, maxOutputTokens: 10 },
@@ -479,7 +479,7 @@ module.exports = async (req, res) => {
     const activeConvs = Object.keys(conversations).length;
     return res.status(200).json({
       status: 'ok',
-      engine: 'Google Gemini 2.0 Flash',
+      engine: 'Google Gemini 2.5 Flash',
       fallback: 'OpenAI GPT-4o',
       agents: Object.keys(AGENTS).map(k => ({ id: k, name: AGENTS[k].name, description: AGENTS[k].description, model: AGENTS[k].model })),
       activeConversations: activeConvs,
