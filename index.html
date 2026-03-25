@@ -10364,37 +10364,33 @@ function testVeraMsg(msg) {
   sendVeraAgent(true);
 }
 
-async function sendVeraAgent(skipInput) {
-  if (!skipInput) {
-    var inp = document.getElementById('vera-ag-inp');
-    var txt = (inp ? inp.value : '').trim();
-    if (!txt) return;
-    S.veraAgHist = S.veraAgHist || [];
-    S.veraAgHist.push({role:'user', content:txt});
-    if (inp) inp.value = '';
-  }
+function sendVeraAgent() {
+  var inp = document.getElementById('vera-ag-inp');
+  var txt = (inp ? inp.value : '').trim();
+  if (!txt) return;
+  S.veraAgHist = S.veraAgHist || [];
+  S.veraAgHist.push({role:'user', content:txt});
+  if (inp) inp.value = '';
   S.veraAgLoading = true; render();
   setTimeout(function(){ var el=document.getElementById('vera-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 50);
-
-  try {
-    var resp = await fetch('/api/agent', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        agent: 'vera',
-        message: S.veraAgHist[S.veraAgHist.length-1].content,
-        conversationId: 'test_vera_' + (S.user?.id || 'admin'),
-        channel: 'web',
-        metadata: { leadName: 'Teste Admin', leadPhone: '' },
-      })
-    });
-    var data = await resp.json();
+  fetch('/api/agent', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      agent: 'vera',
+      message: txt,
+      conversationId: 'test_vera_' + (S.user && S.user.id || 'admin'),
+      channel: 'web',
+      metadata: { leadName: 'Teste Admin' }
+    })
+  }).then(function(r){ return r.json(); }).then(function(data){
     S.veraAgHist.push({role:'assistant', content: data.response || data.error || 'Sem resposta'});
-  } catch(e) {
-    S.veraAgHist.push({role:'assistant', content:'⚠️ Erro: '+e.message+'\n\nVerifique se ANTHROPIC_API_KEY está configurada no Vercel.'});
-  }
-  S.veraAgLoading = false; render();
-  setTimeout(function(){ var el=document.getElementById('vera-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
+    S.veraAgLoading = false; render();
+    setTimeout(function(){ var el=document.getElementById('vera-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
+  }).catch(function(e){
+    S.veraAgHist.push({role:'assistant', content:'Erro: '+e.message});
+    S.veraAgLoading = false; render();
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -10449,7 +10445,7 @@ function pgAgenteSol() {
   return h;
 }
 
-async function sendSolAgent(skipInput) {
+function sendSolAgent(skipInput) {
   if (!skipInput) {
     var inp = document.getElementById('sol-ag-inp');
     var txt = (inp ? inp.value : '').trim();
@@ -10460,25 +10456,24 @@ async function sendSolAgent(skipInput) {
   }
   S.solAgLoading = true; render();
   setTimeout(function(){ var el=document.getElementById('sol-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 50);
-  try {
-    var resp = await fetch('/api/agent', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        agent: 'sol',
-        message: S.solAgHist[S.solAgHist.length-1].content,
-        conversationId: 'test_sol_' + (S.user && S.user.id || 'admin'),
-        channel: 'web',
-        metadata: { leadName: 'Teste Admin' },
-      })
-    });
-    var data = await resp.json();
+  fetch('/api/agent', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      agent: 'sol',
+      message: S.solAgHist[S.solAgHist.length-1].content,
+      conversationId: 'test_sol_' + (S.user && S.user.id || 'admin'),
+      channel: 'web',
+      metadata: { leadName: 'Teste Admin' }
+    })
+  }).then(function(r){ return r.json(); }).then(function(data){
     S.solAgHist.push({role:'assistant', content: data.response || data.error || 'Sem resposta'});
-  } catch(e) {
+    S.solAgLoading = false; render();
+    setTimeout(function(){ var el=document.getElementById('sol-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
+  }).catch(function(e){
     S.solAgHist.push({role:'assistant', content:'Erro: '+e.message});
-  }
-  S.solAgLoading = false; render();
-  setTimeout(function(){ var el=document.getElementById('sol-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
+    S.solAgLoading = false; render();
+  });
 }
 
 </script>
