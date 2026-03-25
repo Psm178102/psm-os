@@ -10437,7 +10437,49 @@ function pgAgenteSol() {
   }
   h += '</div>';
   h += '<div style="padding:12px 14px;border-top:1px solid #334155;display:flex;gap:8px">';
-  h += '<input id="sol-ag-inp" style="flex:1;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;outline:none" placeholder="Digit
+  h += '<input id="sol-ag-inp" style="flex:1;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:13px;outline:none" placeholder="Digite como se fosse um lead..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();sendSolAgent()}">';
+  h += '<button onclick="sendSolAgent()" style="padding:10px 18px;background:#f59e0b;color:#0f172a;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700">Enviar</button>';
+  h += '</div></div>';
+
+  h += '<div style="margin-top:20px;background:#1e293b;border-radius:14px;padding:20px;border:1px solid #334155;text-align:center">';
+  h += '<div style="font-size:11px;color:#64748b">A Sol compartilha a mesma infraestrutura da Vera. Configure os canais na <a href="#" onclick="nav(\'agente_vera\');S.veraAgTab=\'setup\';return false" style="color:#f59e0b">aba Setup da Vera</a>.</div>';
+  h += '</div>';
+
+  h += '</div>';
+  return h;
+}
+
+async function sendSolAgent(skipInput) {
+  if (!skipInput) {
+    var inp = document.getElementById('sol-ag-inp');
+    var txt = (inp ? inp.value : '').trim();
+    if (!txt) return;
+    S.solAgHist = S.solAgHist || [];
+    S.solAgHist.push({role:'user', content:txt});
+    if (inp) inp.value = '';
+  }
+  S.solAgLoading = true; render();
+  setTimeout(function(){ var el=document.getElementById('sol-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 50);
+  try {
+    var resp = await fetch('/api/agent', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        agent: 'sol',
+        message: S.solAgHist[S.solAgHist.length-1].content,
+        conversationId: 'test_sol_' + (S.user && S.user.id || 'admin'),
+        channel: 'web',
+        metadata: { leadName: 'Teste Admin' },
+      })
+    });
+    var data = await resp.json();
+    S.solAgHist.push({role:'assistant', content: data.response || data.error || 'Sem resposta'});
+  } catch(e) {
+    S.solAgHist.push({role:'assistant', content:'Erro: '+e.message});
+  }
+  S.solAgLoading = false; render();
+  setTimeout(function(){ var el=document.getElementById('sol-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
+}
 
 </script>
 </body>
