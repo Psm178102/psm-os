@@ -443,8 +443,39 @@ module.exports = async (req, res) => {
 
   if (req.method === 'OPTIONS') return res.status(204).end();
 
-  // GET = stats/health
+  // GET = stats/health + diagnostics
   if (req.method === 'GET') {
+    const url = require('url');
+    const query = url.parse(req.url, true).query || {};
+
+    // Diagnostic: GET /api/agent?test=gemini
+    if (query.test === 'gemini') {
+      const gKey = process.env.GOOGLE_API_KEY || '';
+      if (!gKey) return res.status(200).json({ test: 'gemini', error: 'GOOGLE_API_KEY not set', keyLength: 0 });
+
+      try {
+        const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${gKey}`;
+        const testBody = {
+          contents: [{ role: 'user', parts: [{ text: 'Responda apenas: OK' }] }],
+          generationConfig: { temperature: 0, maxOutputTokens: 10 },
+        };
+        const testResp = await httpsReq(testUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(testBody),
+        });
+        const testData = JSON.parse(testResp.body);
+        if (testResp.status === 200) {
+          const txt = testData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          return res.status(200).json({ test: 'gemini', status: 'ok', response: txt, keyPrefix: gKey.substring(0, 8) + '...', keyLength: gKey.length });
+        } else {
+          return res.status(200).json({ test: 'gemini', status: 'error', httpStatus: testResp.status, error: testData.error?.message || testResp.body.substring(0, 500), keyPrefix: gKey.substring(0, 8) + '...', keyLength: gKey.length });
+        }
+      } catch (e) {
+        return res.status(200).json({ test: 'gemini', status: 'exception', error: e.message, keyPrefix: gKey.substring(0, 8) + '...', keyLength: gKey.length });
+      }
+    }
+
     const activeConvs = Object.keys(conversations).length;
     return res.status(200).json({
       status: 'ok',
@@ -523,6 +554,7 @@ module.exports = async (req, res) => {
     let responseText = '';
     let usedEngine = 'gemini';
     let tokenInfo = {};
+    let geminiErrorMsg = '';
 
     if (geminiKey) {
       try {
@@ -583,6 +615,7 @@ module.exports = async (req, res) => {
         }
       } catch (geminiErr) {
         console.error('[AGENT] Gemini error, trying OpenAI fallback:', geminiErr.message);
+        geminiErrorMsg = geminiErr.message;
         usedEngine = 'openai_fallback';
         responseText = ''; // Reset to trigger fallback
       }
@@ -618,6 +651,7 @@ module.exports = async (req, res) => {
         return res.status(200).json({
           response: 'Desculpe, estou com dificuldade para responder agora. Tente novamente em instantes.',
           error: errMsg,
+          geminiError: geminiErrorMsg || null,
           conversationId,
         });
       }
