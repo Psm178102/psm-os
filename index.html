@@ -9921,6 +9921,7 @@ function route() {
     case 'agentes':    return pgAgentes();
     case 'agente_vera': return pgAgenteVera();
     case 'agente_sol':  return pgAgenteSol();
+    case 'sr_performance': return pgSrPerformance();
     default:           return pgMeu();
   }
 }
@@ -10087,7 +10088,7 @@ function pgAgentes() {
   var agents = [
     {id:'vera', name:'Vera', line:'PSM Assessoria Imobiliária', ico:'💜', color:'#8b5cf6', desc:'Atendimento de leads, qualificação, nutrição e captação para assessoria imobiliária', channels:['WhatsApp','Instagram DM'], status:'config', page:'agente_vera'},
     {id:'sol', name:'Sol', line:'PSM Conquista', ico:'☀️', color:'#f59e0b', desc:'Prospecção, atendimento e nutrição de leads para incorporação e loteamento', channels:['WhatsApp','Instagram DM'], status:'pending', page:'agente_sol'},
-    {id:'performance', name:'Sr. Performance', line:'Mentor de Corretores', ico:'🤖', color:'#0f172a', desc:'Treina corretores do zero ao nível expert com dados reais do CRM', channels:['PSM OS Chat'], status:'active', page:'vera'},
+    {id:'performance', name:'Sr. Performance', line:'Mentor de Corretores', ico:'🤖', color:'#0f172a', desc:'Treina corretores do zero ao nível expert com dados reais do CRM', channels:['PSM OS Chat'], status:'active', page:'sr_performance'},
     {id:'gerencia', name:'Sr. Gerência', line:'Gestão Operacional', ico:'👔', color:'#0891b2', desc:'Organiza operação, corrige e orienta corretores com foco em resultados', channels:['PSM OS Chat'], status:'pending', page:null},
     {id:'intelligence', name:'Sr. Intelligence', line:'Inteligência Estratégica', ico:'🔍', color:'#059669', desc:'Audita, analisa concorrentes e orienta sócios e diretores com dados', channels:['PSM OS Chat'], status:'pending', page:null},
   ];
@@ -10475,6 +10476,68 @@ function sendSolAgent(skipInput) {
     S.solAgLoading = false; render();
   });
 }
+
+function pgSrPerformance() {
+  S.srPerfHist = S.srPerfHist || [];
+  S.srPerfTab = S.srPerfTab || "chat";
+  var tabs = [
+    {id:"chat", ico:"\ud83d\udcac", label:"Chat com Sr. Performance"},
+    {id:"ranking", ico:"\ud83c\udfc6", label:"Ranking Corretores"},
+    {id:"config", ico:"\u2699\ufe0f", label:"Configura\u00e7\u00e3o"}
+  ];
+  var tabsHtml = tabs.map(function(t){
+    return '<button onclick="S.srPerfTab=\''+t.id+'\';render()" style="padding:8px 16px;border-radius:8px;border:none;cursor:pointer;' +
+      (S.srPerfTab===t.id ? 'background:#0f172a;color:#fff' : 'background:#f1f5f9;color:#334155') + '">' + t.ico + ' ' + t.label + '</button>';
+  }).join(" ");
+  var content = "";
+  if (S.srPerfTab === "chat") {
+    var msgs = (S.srPerfHist||[]).map(function(m){
+      var isU = m.role==="user";
+      return '<div style="display:flex;justify-content:' + (isU?"flex-end":"flex-start") + ';margin:6px 0"><div style="max-width:75%;padding:10px 14px;border-radius:12px;background:' + (isU?"#0f172a":"#f1f5f9") + ';color:' + (isU?"#fff":"#1e293b") + '">' + m.content + '</div></div>';
+    }).join("");
+    if (!S.srPerfHist.length) msgs = '<div style="text-align:center;padding:40px;color:#94a3b8"><p style="font-size:40px">\ud83e\udd16</p><p>Ol\u00e1! Sou o <b>Sr. Performance</b>.</p><p>Pergunte sobre t\u00e9cnicas de venda, scripts, obje\u00e7\u00f5es, ou pe\u00e7a um treino espec\u00edfico.</p></div>';
+    content = '<div id="sr-perf-msgs" style="flex:1;overflow-y:auto;padding:16px">' + msgs +
+      (S.srPerfLoading ? '<div style="display:flex;justify-content:flex-start;margin:6px 0"><div style="padding:10px 14px;border-radius:12px;background:#f1f5f9;color:#94a3b8">Digitando...</div></div>' : "") +
+      '</div><div style="padding:12px;border-top:1px solid #e2e8f0;display:flex;gap:8px"><input id="sr-perf-inp" onkeydown="if(event.key===\'Enter\')sendSrPerf()" placeholder="Pergunte ao Sr. Performance..." style="flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px"><button onclick="sendSrPerf()" style="padding:10px 20px;background:#0f172a;color:#fff;border:none;border-radius:8px;cursor:pointer">Enviar</button></div>';
+  } else if (S.srPerfTab === "ranking") {
+    content = '<div style="padding:24px;text-align:center;color:#94a3b8"><p style="font-size:40px">\ud83c\udfc6</p><p>Ranking de corretores por performance</p><p>Em breve \u2014 dados do CRM ser\u00e3o integrados aqui.</p></div>';
+  } else {
+    content = '<div style="padding:24px;text-align:center;color:#94a3b8"><p style="font-size:40px">\u2699\ufe0f</p><p>Configura\u00e7\u00f5es do Sr. Performance</p><p>Personalidade, tom, foco de treino \u2014 em breve.</p></div>';
+  }
+  return '<div style="max-width:900px;margin:0 auto"><div style="display:flex;align-items:center;gap:12px;margin-bottom:20px"><span style="font-size:32px">\ud83e\udd16</span><div><h2 style="margin:0;font-size:22px;color:#1e293b">Sr. Performance</h2><p style="margin:2px 0 0;color:#64748b;font-size:14px">Mentor de Corretores \u2014 Treino, Scripts e Obje\u00e7\u00f5es</p></div><button onclick="nav(\'agentes\')" style="margin-left:auto;padding:6px 14px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:13px">\u2190 Central</button></div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:16px">' + tabsHtml + '</div>' +
+    '<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;min-height:400px;display:flex;flex-direction:column">' + content + '</div></div>';
+}
+
+function sendSrPerf() {
+  var inp = document.getElementById("sr-perf-inp");
+  var txt = (inp ? inp.value : "").trim();
+  if (!txt) return;
+  S.srPerfHist = S.srPerfHist || [];
+  S.srPerfHist.push({role:"user", content:txt});
+  if (inp) inp.value = "";
+  S.srPerfLoading = true; render();
+  setTimeout(function(){ var el=document.getElementById("sr-perf-msgs"); if(el) el.scrollTop=el.scrollHeight; }, 50);
+  fetch("/api/agent", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      agent: "performance",
+      message: txt,
+      conversationId: "test_perf_" + (S.user && S.user.id || "admin"),
+      channel: "web",
+      metadata: { leadName: "Teste Admin" }
+    })
+  }).then(function(r){ return r.json(); }).then(function(data){
+    S.srPerfHist.push({role:"assistant", content: data.response || data.error || "Sem resposta"});
+    S.srPerfLoading = false; render();
+    setTimeout(function(){ var el=document.getElementById("sr-perf-msgs"); if(el) el.scrollTop=el.scrollHeight; }, 80);
+  }).catch(function(e){
+    S.srPerfHist.push({role:"assistant", content:"Erro: "+e.message});
+    S.srPerfLoading = false; render();
+  });
+}
+
 
 </script>
 </body>
