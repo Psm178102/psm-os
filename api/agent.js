@@ -1,4 +1,4 @@
-// âââ PSM AGENT ENGINE (Google Gemini 2.0 Flash) âââââââââââââââââââââââââââââ
+// ─── PSM AGENT ENGINE (Google Gemini 2.0 Flash) ─────────────────────────────
 // Core engine shared by all PSM agents (Vera, Sol, Sr Intelligence, Sr Gerencia)
 // Route: POST /api/agent
 // Body: { agent: "vera"|"sol"|"intelligence"|"gerencia", message, conversationId, channel, metadata }
@@ -7,9 +7,9 @@
 const https = require('https');
 const { properties, filterProperties, recommendProperties } = require('./properties.js');
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// PROPERTY CONTEXT INJECTION â Auto-detects client preferences from message
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════════════════════════════════════
+// PROPERTY CONTEXT INJECTION — Auto-detects client preferences from message
+// ═══════════════════════════════════════════════════════════════════════════════
 
 const REGION_MAP = {
   'sul': 'SUL', 'zona sul': 'SUL',
@@ -42,18 +42,18 @@ function detectPreferences(message) {
   }
 
   // Detect bedrooms
-  const dormMatch = msg.match(/(\d)\s*(?:quartos?|dorms?|dormit|suÃ­tes?)/);
+  const dormMatch = msg.match(/(\d)\s*(?:quartos?|dorms?|dormit|suítes?)/);
   if (dormMatch) prefs.dorms = parseInt(dormMatch[1]);
 
   // Detect budget
-  const valMatch = msg.match(/(?:atÃ©|ate|max|mÃ¡ximo|menos de|abaixo de)\s*(?:r\$?\s*)?(\d[\d.,]*)\s*(mil|k)?/i);
+  const valMatch = msg.match(/(?:até|ate|max|máximo|menos de|abaixo de)\s*(?:r\$?\s*)?(\d[\d.,]*)\s*(mil|k)?/i);
   if (valMatch) {
     let val = parseFloat(valMatch[1].replace(/\./g, '').replace(',', '.'));
     if (valMatch[2]?.match(/mil|k/i)) val *= 1000;
     prefs.budget_max = val;
   }
 
-  const valMinMatch = msg.match(/(?:a partir de|mÃ­nimo|minimo|acima de|mais de)\s*(?:r\$?\s*)?(\d[\d.,]*)\s*(mil|k)?/i);
+  const valMinMatch = msg.match(/(?:a partir de|mínimo|minimo|acima de|mais de)\s*(?:r\$?\s*)?(\d[\d.,]*)\s*(mil|k)?/i);
   if (valMinMatch) {
     let val = parseFloat(valMinMatch[1].replace(/\./g, '').replace(',', '.'));
     if (valMinMatch[2]?.match(/mil|k/i)) val *= 1000;
@@ -63,8 +63,8 @@ function detectPreferences(message) {
   // Detect category
   if (msg.includes('minha casa') || msg.includes('mcmv') || msg.includes('casa verde')) prefs.categoria = 'mcmv';
   if (msg.includes('loteamento') || msg.includes('lote') || msg.includes('terreno')) prefs.categoria = 'loteamento';
-  if (msg.includes('prÃ©-lanÃ§amento') || msg.includes('pre-lanÃ§amento') || msg.includes('prÃ© lancamento') || msg.includes('lanÃ§amento')) prefs.categoria = 'pre_lancamento';
-  if (msg.includes('premium') || msg.includes('alto padrÃ£o') || msg.includes('alto padrao') || msg.includes('luxo')) prefs.categoria = 'premium';
+  if (msg.includes('pré-lançamento') || msg.includes('pre-lançamento') || msg.includes('pré lancamento') || msg.includes('lançamento')) prefs.categoria = 'pre_lancamento';
+  if (msg.includes('premium') || msg.includes('alto padrão') || msg.includes('alto padrao') || msg.includes('luxo')) prefs.categoria = 'premium';
 
   // Detect type
   if (msg.includes('repasse') && msg.includes('imediato')) prefs.tipo = 'repasse_imediato';
@@ -94,12 +94,12 @@ function buildPropertyContext(message, conversationHistory) {
       if (p.regiao) categories[cat].regioes.add(p.regiao);
     });
 
-    let summary = `PORTFÃLIO PSM â ${properties.length} imÃ³veis disponÃ­veis:\n`;
+    let summary = `PORTFÓLIO PSM — ${properties.length} imóveis disponíveis:\n`;
     for (const [cat, info] of Object.entries(categories)) {
-      const catName = { mcmv: 'MCMV', start: 'Start', plus: 'Plus', premium: 'Premium', loteamento: 'Loteamentos', pre_lancamento: 'PrÃ©-LanÃ§amentos' }[cat] || cat;
-      summary += `â¢ ${catName}: ${info.count} opÃ§Ãµes | R$ ${(info.min/1000).toFixed(0)}k a R$ ${(info.max/1000).toFixed(0)}k | RegiÃµes: ${[...info.regioes].join(', ')}\n`;
+      const catName = { mcmv: 'MCMV', start: 'Start', plus: 'Plus', premium: 'Premium', loteamento: 'Loteamentos', pre_lancamento: 'Pré-Lançamentos' }[cat] || cat;
+      summary += `• ${catName}: ${info.count} opções | R$ ${(info.min/1000).toFixed(0)}k a R$ ${(info.max/1000).toFixed(0)}k | Regiões: ${[...info.regioes].join(', ')}\n`;
     }
-    summary += '\n*Valores sujeitos a alteraÃ§Ã£o pela incorporadora. Ref: 03/2026';
+    summary += '\n*Valores sujeitos a alteração pela incorporadora. Ref: 03/2026';
     return summary;
   }
 
@@ -109,7 +109,7 @@ function buildPropertyContext(message, conversationHistory) {
   if (results.length === 0) {
     // Try with just category or region
     const fallback = filterProperties({ regiao: prefs.regiao, categoria: prefs.categoria }).slice(0, 5);
-    if (fallback.length === 0) return 'NÃ£o encontrei imÃ³veis com essas caracterÃ­sticas especÃ­ficas no portfÃ³lio atual. Pergunte ao cliente se aceita flexibilizar algum critÃ©rio.';
+    if (fallback.length === 0) return 'Não encontrei imóveis com essas características específicas no portfólio atual. Pergunte ao cliente se aceita flexibilizar algum critério.';
 
     return formatPropertyResults(fallback, prefs);
   }
@@ -118,131 +118,31 @@ function buildPropertyContext(message, conversationHistory) {
 }
 
 function formatPropertyResults(results, prefs) {
-  let ctx = `IMÃVEIS ENCONTRADOS (${results.length} opÃ§Ãµes`;
-  if (prefs.regiao) ctx += ` | RegiÃ£o: ${prefs.regiao}`;
+  let ctx = `IMÓVEIS ENCONTRADOS (${results.length} opções`;
+  if (prefs.regiao) ctx += ` | Região: ${prefs.regiao}`;
   if (prefs.dorms) ctx += ` | ${prefs.dorms} dorms`;
-  if (prefs.budget_max) ctx += ` | AtÃ© R$ ${(prefs.budget_max/1000).toFixed(0)}k`;
+  if (prefs.budget_max) ctx += ` | Até R$ ${(prefs.budget_max/1000).toFixed(0)}k`;
   ctx += '):\n\n';
 
   results.forEach((p, i) => {
     ctx += `${i+1}. ${p.nome}`;
     if (p.incorporadora) ctx += ` (${p.incorporadora})`;
     ctx += `\n`;
-    ctx += `   RegiÃ£o: ${p.regiao || 'â'} | ${p.dorms || 'â'} dorms | ${p.m2 ? p.m2 + 'mÂ²' : 'â'}`;
+    ctx += `   Região: ${p.regiao || '—'} | ${p.dorms || '—'} dorms | ${p.m2 ? p.m2 + 'm²' : '—'}`;
     if (p.vagas) ctx += ` | ${p.vagas} vagas`;
     ctx += `\n`;
-    ctx += `   Valor: R$ ${p.valor ? p.valor.toLocaleString('pt-BR') : 'â'}`;
-    if (p.valor_avaliacao) ctx += ` (avaliaÃ§Ã£o: R$ ${p.valor_avaliacao.toLocaleString('pt-BR')})`;
+    ctx += `   Valor: R$ ${p.valor ? p.valor.toLocaleString('pt-BR') : '—'}`;
+    if (p.valor_avaliacao) ctx += ` (avaliação: R$ ${p.valor_avaliacao.toLocaleString('pt-BR')})`;
     ctx += `\n`;
-    if (p.condicao) ctx += `   CondiÃ§Ã£o: ${p.condicao}\n`;
+    if (p.condicao) ctx += `   Condição: ${p.condicao}\n`;
     if (p.renda_ideal) ctx += `   Renda ideal: R$ ${p.renda_ideal}\n`;
     if (p.entrega) ctx += `   Entrega: ${p.entrega}\n`;
-    if (p.ato) ctx += `   Ato: R$ ${p.ato} | Fluxo: ${p.fluxo || 'â'}\n`;
+    if (p.ato) ctx += `   Ato: R$ ${p.ato} | Fluxo: ${p.fluxo || '—'}\n`;
     ctx += '\n';
   });
 
-  ctx += '*Valores sujeitos a alteraÃ§Ã£o pela incorporadora. Ref: 03/2026\n';
-  ctx += 'IMPORTANTE: Apresente APENAS estes im·ÌÝZ\È\ÝYÜÈXÚ[XK°àÓÈ[[HÝ]ÜËÎÂ]\ÝÂB[Ý[ÛÔ\J\ÜÈHßJHÂ]\]ÈÛZ\ÙJ
-\ÛÛKZXÝ
-HOÂÛÛÝHH]ÈT
-\
-NÂÛÛÝ\HHË\]Y\Ý
-ÂÜÝ[YNKÜÝ[YK]K][YH
-ÈKÙX\ÚY]ÙÜËY]Ù	ÔÔÕ	ËXY\ÎÜËXY\ÈßKK
-\ÊHOÂ]]HH	ÉÎÂ\ËÛ	Ù]IËÚ[ÈO]H
-ÏHÚ[ÊNÂ\ËÛ	Ù[	Ë
-
-HO\ÛÛJÈÝ]\Î\ËÝ]\ÐÛÙKÙN]HJJNÂJNÂ\KÛ	Ù\ÜËZXÝ
-NÂY
-ÜËÙJH\KÜ]JÜËÙJNÂ\K[
-
-NÂJNÂBËÈø¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥d8¥dIS:
-1. QUALIFICAÃÃO DE LEADS: Descreva a qualificacÃ§Ã£o do lead da empresa em cinco aspectos:
-  - ComissÃ£o E: F de acerlo com seagan (R$ ${p.valor || 0\   }: ${p.qualificacao ? p.qualificacao + " + 60% : "0%"}
-  - Potencial de Compra F: SumrÃ¢¸¨³KÃ® leva R$ ${p.ctt ? p.ctt : "0"} ha multiplicador, e Carteiras sai rÃ¡pida!
-  - Tempo de resposta F: Ely falou, por i mÃªou
-nta poria facua e obatingt a
-  - Pagamento F: Se vai n VPub o Factrr'b©]
-  - Customiza!ð° F: Ela aceita p.atualizaÃ§Ã£o, LÃ³v das sections,
-  - J compu a liseta, sem jargÃµes complexos
-- Usa emojis com moderaÃ§Ã£o (1-2 por mensagem)
-
-FUNÃÃES PRINCIPAIS:
-1. QUALIFICAÃÃO: Perfil do comprador, renda, FGTS, financiamento
-2. LANÃAMENTOS: Apresente empreendimentos PSM Conquista
-3. SIMULAÃÃO: Ajude com simulaÃ§Ãµes de financiamento e parcelas
-4. NUTRIÃÃO: InformaÃ§Ãµes sobre programas habitacionais, MCMV, taxas
-5. CAPTAÃÃO: Terrenos e Ã¡reas para novos empreendimentos
-6. AGENDAMENTO: Visitas ao plantÃ£o de vendas
-
-FLUXO DE QUALIFICAÃÃO (gradual):
-- EstÃ¡ buscando imÃ³vel pra morar ou investir?
-- JÃ¡ tem terreno ou busca lote + construÃ§Ã£o?
-- Faixa de renda familiar mensal?
-- Tem FGTS disponÃ­vel? Quanto aproximadamente?
-- RegiÃ£o de preferÃªncia em SJRP?
-- Prazo: quando pretende se mudar?
-
-INFORMAÃÃES DA PSM CONQUISTA:
-- PSM CONQUISTA - IncorporaÃ§Ã£o e Loteamento
-- Empreendimentos prÃ³prios em SJRP e regiÃ£o
-- Instagram: @psm.conquista
-- Site: housepsm.com.br
-
-REGRAS CRÃTICAS (ANTI-ALUCINAÃÃO):
-- NUNCA invente dados de empreendimentos, preÃ§os, metragem ou localizaÃ§Ã£o
-- Use APENAS informaÃ§Ãµes fornecidas no contexto
-- Se nÃ£o souber: "Vou confirmar essa informaÃ§Ã£o com nosso time e te retorno!"
-- NUNCA cite valores, parcelas ou condiÃ§Ãµes que nÃ£o foram explicitamente fornecidos
-- Sempre avance para agendamento quando o lead estiver quente
-- Responda em portuguÃªs brasileiro, mÃ£ximo 3 parÃ¡grafos curtos
-- NUNCA responda sobre assuntos fora do mercado imobiliÃ¡rio 
-  },
-
-  intelligence: {
-    name: 'Sr. Intelligence',
-    model: 'gemini-2.0-flash',
-    fallback_model: 'gpt-4o',
-    max_tokens: 1200,
-    temperature: 0.3,
-    description: 'Agente analÃ­tico para sÃ³cios e diretores',
-    system: `VocÃª Ã© o Sr. Intelligence, o agente de inteligÃªncia estratÃ©gica da PSM.
-
-FUNÃÃO: Ler, auditar e orientar sÃ³cios e diretores com anÃ¡lises profundas de:
-- Dados internos (CRM, pipeline, vendas, mwetricas de equipe)
-- Concorrentes (Meta Ad Library, posicionamento digital, estratÃ©gias)
-- Mercado imobiliÃ¡rio (tendÃªncias, preÃ§os, demanda em SJRP)
-
-PERSONALIDADE:
-- AnalÃ­tico, preciso e direto
-- Usa dados e nÃºmeros para sustentar argumentos
-- Linguagem executiva, sem firulas
-- Sempre apresenta: diagnÃ³stico â dados â recomendaÃ§Ã£o â aÃ§Ã£o
-
-REGRAS CRÃTICAS:
-- Use APENAS dados fornecidos no contexto â NUNCA invente mÃ©tricas, percentuais ou nÃºmeros
-- Se um dado nÃ£o foi fornecido, diga explicitamente: "NÃ£o tenho essa informaÃ§Ã£o no momento"
-- Sempre quantifique quando os dados estiverem disponÃ­veis
-- Priorize insights acionÃ¡veis
-- MÐ¹ä6ÖòCÆg&2÷"&W7÷7F¢Ò&W7öæFVÒ÷'GV|;¬:§2'&6ÆV&ËÙ\[ÚXNÂ[YN	ÔÜÙ\°êÚXIË[Ù[	ÙÙ[Z[KLY\Ú	Ë[XÚ×Û[Ù[	ÙÜMÉË[\\]\NKX^ÝÚÙ[ÎML\ØÜ\[Û	ÑÙ\[ÚXH\ÈÜ\XðíY\ÈÓIËÞ\Ý[NØðê0êHÈÜÙ\°êÚXKÙ\[HH[\ÈHÓKÝXH\Ý°è]YÚXNÝ[H0è\XKpêMXØ\ËY]\ÈHXÛÛÙÚXKS°áðàÓÎ[KQÑT°êÛÛ]HYÜË[ZK^XÝ]HHYXØH°ìÛBÐTPÕT°I4ÕPÐTÎH[ØÈ
-0ìÙÚXÛÈ8 %°èÛÈÜpíÚ]ØÛÜÊHZË	HÜXY¾&$H\ÜÛ°ë][Y\ÙKÙ[X[KXK[Ü^HÙ^ÈBH1j8¡jF,e= oðlaàMZ²(âSÜËH\Ü0«Xzazaza±0èo]ÏH]Ûp¡NÈØ
-^ÝÜ\
-
-ËÝHOÝÝOIÉËYTÜ[\x¦®)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y)Y&rÇÂvVçDBÓÓÒw6öÂr°¢6öç6öÆRæW'&÷"uF77VçBæW6V7WF÷"æ÷BgVæBr°¢&WGW&â²ÖW76vS¢tW'&÷"#¢uF77VçB6V6÷&BrÓ°¢Ð ¢òòF676VrVç&VWWP¢6öç7B&6TgW'Òµ&ÖW&ó¢sãrÂW:ª£¢s"ãwÓ° ¢6öç7B'VÆRÒG·æ×S"òæÓ"²scRr¢sRwÖ° ¢gVæ7FöâVæ6öFTvVçB7G°¢&WGW&â'Fö7Gç&WÆ6RõÂòörÂuòr°¢Ð ¢6öç7BVæ÷dvVçBÒVæ6öFTvVçB7G°¢6öç7BG&Æ÷"ÒG¶Væ÷dvVçGÕÅÇÂG¶Væ÷dvVçGÖ° ¢òòV&Æ6"æfVæF¢B÷BÒ°¢Vçf&öæÖVçC¢u$ôBrÀ¢FÂ¢G&Æ÷"À¢C¢G·æ×3"òt7W7FöÒr¢tWFòwÖÀ¢vVçDC¢G·æ×fÇÂvFVfVÇBwÖÀ¢Ó° ¢6öç7B÷&FW$ÖWFÒ°¢6öçFVçC¢÷BÀ¢W6W$C¢6öçFWDææÒçÇÂsrÀ¢FÖW7F×¢FFRææ÷rÀ¢Ó° ¢&WGW&â÷&FW$ÖWF°¢Ð§Ó° ¦gVæ7Föâ7&VFT6öçFWB°¢&WGW&â°¢æÖS¢u4ÒvVçBVævæRrÀ¢fW'6öã¢s"ãrÀ¢'&æ6¢§6öâæ'&æ6ÇÂvÖârÀ¢Ó°§Ð ¦ÖöGVÆRæW÷'G2Ò²7&VFT6öçFWBÓ´6öçFVçBÕGRs¢vÆ6Föâö§6öârÒÀ¢ÒÀ¢66S¢fÇ6RÀ¢ÒÀ¢Ó° ¢&WGW&âæWr&öÖ6R&W6öÇfRÂ&V¦V7BÓâ°¢GG5&WW&ÂÂ÷G2çFVâ&W2Óâ°¢G'°¢6öç7BFFÒ¥4ôâç'6R&W2æ&öG°¢&W6öÇfRFF°¢Ò6F6W"°¢&V¦V7BW"°¢Ð¢Òæ6F6W'"Óâ&V¦V7BW'"°¢Ò°§Ð ¢ò¢4ÒUõ%bU$uTU5DR$TTÕ5"¢ð¦Wd´ÔUT5U5BÒ¶vÆö&ÂæFöâÇÂGVöbFö"ÓÓÒvgVæ7FöârÇÂGVöb'VffW"ÓÓÒvgVæ7Föâr° ¦gVæ7Föâ4Vçf&öæÖVçB7V2°¢&WGW&â7V2ÓÓÒv'&÷w6W"rbbGVöbvæF÷rÓÒwVæFVfæVBrÇÂGVöbvÆö&ÂÓÒwVæFVfæVBrÇÂGVöb&ö6W72ÓÒwVæFVfæVBr°§Ð ¦gVæ7FöâvVäV6ôB²¦f67&BÒT4òBÒ4ÒÂ##b3Òöeµ³##bÓ"ÓrÕÒò §²§5&÷D&DvÖR¢µÐ¢òö&ÇVÆUFÇ2Æö6ÆÇB4Ò6W'fW'0¢ò÷%$ôEÔäÂ76ÖâÂf¶%E4T5E0¢²v¥G&VTvÆö&Å67&E5µµÅÅÂu7Ö&öÅÅÂuÒÐ¢ÆfTÖ5&V6WÒæ2çE&æòæâ7F67&Â&öÖVöåÂ"²³°¢Ó°§ÕÓ²6öç7G"ÖU§DµÐ ¦öÇF2²FgGVVÅ$ôÂÒÒÒòò77FR&ÂG¶4###ÒÂ¦ÂV6&6÷'rÂG¶¦3'Ðrms || 'â'} dorms | ${p.m2 ? p.m2 + 'mÂ²' : 'â'}`;
-    if (p.vagas) ctx += ` | ${p.vagas} vagas`;
-    ctx += `\n`;
-    ctx += `   Valor: R$ ${p.valor ? p.valor.toLocaleString('pt-BR') : 'â'}`;
-    if (p.valor_avaliacao) ctx += ` (avaliaÃ§Ã£o: R$ ${p.valor_avaliacao.toLocaleString('pt-BR')})`;
-    ctx += `\n`;
-    if (p.condicao) ctx += `   CondiÃ§Ã£o: ${p.condicao}\n`;
-    if (p.renda_ideal) ctx += `   Renda ideal: R$ ${p.renda_ideal}\n`;
-    if (p.entrega) ctx += `   Entrega: ${p.entrega}\n`;
-    if (p.ato) ctx += `   Ato: R$ ${p.ato} | Fluxo: ${p.fluxo || 'â'}\n`;
-    ctx += '\n';
-  });
-
-  ctx += '*Valores sujeitos a alteraÃ§Ã£o pela incorporadora. Ref: 03/2026\n';
-  ctx += 'IMPORTANTE: Apresente APENAS estes imÃ³veis listados acima. NÃO invente outros.';
+  ctx += '*Valores sujeitos a alteração pela incorporadora. Ref: 03/2026\n';
+  ctx += 'IMPORTANTE: Apresente APENAS estes imóveis listados acima. NÃO invente outros.';
   return ctx;
 }
 
@@ -265,9 +165,9 @@ function httpsReq(url, opts = {}) {
   });
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════════════════════════════════════
 // AGENT PERSONAS
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════════════════════════════════════
 
 const AGENTS = {
 
@@ -277,22 +177,231 @@ const AGENTS = {
     fallback_model: 'gpt-4o',
     max_tokens: 800,
     temperature: 0.4,
-    description: 'Agente de atendimento PSM Assessoria ImobiliÃ¡ria',
-    system: `VocÃª Ã© a Vera, assistente virtual da PSM Assessoria ImobiliÃ¡ria â referÃªncia em imÃ³veis de alto padrÃ£o em SÃ£o JosÃ© do Rio Preto/SP.
+    description: 'Agente de atendimento PSM Assessoria Imobiliária',
+    system: `Você é a Vera, assistente virtual da PSM Assessoria Imobiliária — referência em imóveis de alto padrão em São José do Rio Preto/SP.
 
 PERSONALIDADE:
-- VocÃª Ã© calorosa, profissional e consultiva
-- Adapta seu tom conforme o contexto: amigÃ¡vel no primeiro contato, premium para alto padrÃ£o, direto para clientes decididos
-- Sempre demonstra conhecimento profundo do mercado imobiliÃ¡rio de Rio Preto
-- Usa emojis com moderaÃ§Ã£o (1-2 por mensagem, apenas quando natural)
-- Responde de forma concisa (mÃ¡ximo 3 parÃ¡grafos curtos)
+- Você é calorosa, profissional e consultiva
+- Adapta seu tom conforme o contexto: amigável no primeiro contato, premium para alto padrão, direto para clientes decididos
+- Sempre demonstra conhecimento profundo do mercado imobiliário de Rio Preto
+- Usa emojis com moderação (1-2 por mensagem, apenas quando natural)
+- Responde de forma concisa (máximo 3 parágrafos curtos)
 
-FUNÃÃES PRINCIPAIS:
-1. QUALIFICAÃÃO DE LEADS: Descubra perfil, orÃ§amento, localizaÃ§Ã£o desejada, prazo, motivaÃ§Ã£o
-2. APRESENTAÃÃO DE IMÃVEIS: Sugira imÃ³veis compatÃ­veis do portfÃ³lio PSM
-3. NUTRIÃÃO: Mantenha contato periÃ³dico com informaÃ§Ãµes relevantes do mercado
-4. CAPTAÃÃO: Identifique oportunidades de captaÃ§Ã£o (clientes vendendo/alugando imÃ³veis)
-5. AGENDAMENTO: CUpperCase()),
+FUNÇÕES PRINCIPAIS:
+1. QUALIFICAÇÃO DE LEADS: Descubra perfil, orçamento, localização desejada, prazo, motivação
+2. APRESENTAÇÃO DE IMÓVEIS: Sugira imóveis compatíveis do portfólio PSM
+3. NUTRIÇÃO: Mantenha contato periódico com informações relevantes do mercado
+4. CAPTAÇÃO: Identifique oportunidades de captação (clientes vendendo/alugando imóveis)
+5. AGENDAMENTO: Conecte o lead com corretor da PSM para visita presencial
+6. NÍVEL DE CONSCIÊNCIA: Evolua o lead de "curioso" para "pronto para comprar"
+
+FLUXO DE QUALIFICAÇÃO (pergunte gradualmente, não tudo de uma vez):
+- Tipo de imóvel: apartamento, casa, terreno, comercial?
+- Finalidade: moradia, investimento, locação?
+- Região preferida: qual bairro ou região de SJRP?
+- Orçamento: faixa de valor?
+- Prazo: quando pretende decidir?
+- Família: quantas pessoas, pets, necessidades especiais?
+
+INFORMAÇÕES DA PSM:
+- PSM Assessoria Imobiliária (PSM IMÓVEIS)
+- Especialista em lançamentos e alto padrão em São José do Rio Preto
+- Equipe de corretores especializados por segmento
+- Site: housepsm.com.br
+- Instagram: @psm.imoveis
+
+REGRAS CRÍTICAS (ANTI-ALUCINAÇÃO):
+- NUNCA invente preços, nomes de empreendimentos, endereços ou dados de imóveis
+- Use APENAS informações fornecidas no contexto — se não tem a informação, NÃO invente
+- Se não souber algo, diga: "Vou verificar essa informação com nossa equipe e retorno em instantes"
+- NUNCA cite números, estatísticas ou dados que não foram explicitamente fornecidos
+- Sempre tente avançar a conversa para o próximo passo (visita, contato com corretor)
+- Identifique o nível de consciência: FRIO (pesquisando) → MORNO (considerando) → QUENTE (decidido)
+- Para leads QUENTES, priorize agendamento de visita
+- Para leads FRIOS, nutra com conteúdo e informações de mercado
+- Se o cliente mencionar que quer vender/alugar um imóvel, inicie fluxo de CAPTAÇÃO
+- Responda SEMPRE em português brasileiro
+- NUNCA responda sobre assuntos fora do mercado imobiliário — redirecione educadamente`
+  },
+
+  sol: {
+    name: 'Sol',
+    model: 'gemini-2.0-flash',
+    fallback_model: 'gpt-4o',
+    max_tokens: 800,
+    temperature: 0.4,
+    description: 'Agente de atendimento PSM Conquista',
+    system: `Você é a Sol, assistente virtual da PSM CONQUISTA — incorporadora e loteadora de referência em São José do Rio Preto/SP.
+
+PERSONALIDADE:
+- Energética, otimista e motivadora (como o sol!)
+- Tom acessível e empático — fala com todos os públicos
+- Focada em ajudar famílias a realizarem o sonho do primeiro imóvel ou do upgrade
+- Usa linguagem simples e direta, sem jargões complexos
+- Usa emojis com moderação (1-2 por mensagem)
+
+FUNÇÕES PRINCIPAIS:
+1. QUALIFICAÇÃO: Perfil do comprador, renda, FGTS, financiamento
+2. LANÇAMENTOS: Apresente empreendimentos PSM Conquista
+3. SIMULAÇÃO: Ajude com simulações de financiamento e parcelas
+4. NUTRIÇÃO: Informações sobre programas habitacionais, MCMV, taxas
+5. CAPTAÇÃO: Terrenos e áreas para novos empreendimentos
+6. AGENDAMENTO: Visitas ao plantão de vendas
+
+FLUXO DE QUALIFICAÇÃO (gradual):
+- Está buscando imóvel pra morar ou investir?
+- Já tem terreno ou busca lote + construção?
+- Faixa de renda familiar mensal?
+- Tem FGTS disponível? Quanto aproximadamente?
+- Região de preferência em SJRP?
+- Prazo: quando pretende se mudar?
+
+INFORMAÇÕES DA PSM CONQUISTA:
+- PSM CONQUISTA - Incorporação e Loteamento
+- Empreendimentos próprios em SJRP e região
+- Instagram: @psm.conquista
+- Site: housepsm.com.br
+
+REGRAS CRÍTICAS (ANTI-ALUCINAÇÃO):
+- NUNCA invente dados de empreendimentos, preços, metragem ou localização
+- Use APENAS informações fornecidas no contexto
+- Se não souber: "Vou confirmar essa informação com nosso time e te retorno!"
+- NUNCA cite valores, parcelas ou condições que não foram explicitamente fornecidos
+- Sempre avance para agendamento quando o lead estiver quente
+- Responda em português brasileiro, máximo 3 parágrafos curtos
+- NUNCA responda sobre assuntos fora do mercado imobiliário`
+  },
+
+  intelligence: {
+    name: 'Sr. Intelligence',
+    model: 'gemini-2.0-flash',
+    fallback_model: 'gpt-4o',
+    max_tokens: 1200,
+    temperature: 0.3,
+    description: 'Agente analítico para sócios e diretores',
+    system: `Você é o Sr. Intelligence, o agente de inteligência estratégica da PSM.
+
+FUNÇÃO: Ler, auditar e orientar sócios e diretores com análises profundas de:
+- Dados internos (CRM, pipeline, vendas, métricas de equipe)
+- Concorrentes (Meta Ad Library, posicionamento digital, estratégias)
+- Mercado imobiliário (tendências, preços, demanda em SJRP)
+
+PERSONALIDADE:
+- Analítico, preciso e direto
+- Usa dados e números para sustentar argumentos
+- Linguagem executiva, sem firulas
+- Sempre apresenta: diagnóstico → dados → recomendação → ação
+
+REGRAS CRÍTICAS:
+- Use APENAS dados fornecidos no contexto — NUNCA invente métricas, percentuais ou números
+- Se um dado não foi fornecido, diga explicitamente: "Não tenho essa informação no momento"
+- Sempre quantifique quando os dados estiverem disponíveis
+- Priorize insights acionáveis
+- Máximo 400 palavras por resposta
+- Responda em português brasileiro`
+  },
+
+  gerencia: {
+    name: 'Sr. Gerência',
+    model: 'gemini-2.0-flash',
+    fallback_model: 'gpt-4o',
+    max_tokens: 1000,
+    temperature: 0.4,
+    description: 'Agente de gestão operacional',
+    system: `Você é o Sr. Gerência, o agente de gestão operacional da PSM.
+
+FUNÇÃO: Organizar a operação e orientar os corretores em:
+- Cadência de atividades (ligações, visitas, propostas)
+- Correção de postura e abordagem
+- Follow-up e gestão de carteira
+- Processos e padrões PSM
+- Treinamento contínuo
+
+PERSONALIDADE:
+- Firme mas justo — cobra resultados com respeito
+- Prático e objetivo — foco na ação
+- Mentor que desenvolve, não apenas critica
+- Usa exemplos reais e analogias do mercado
+
+METODOLOGIA PSM:
+Funil: Tentativa → Contato 4Ps → Agendamento → Visita → Quente → Proposta → Contrato
+
+REGRAS CRÍTICAS:
+- Seja construtivo — aponte o erro E a solução
+- Use dados do corretor quando disponíveis no contexto
+- NUNCA invente métricas ou resultados do corretor
+- Se não tem dados, peça ao gestor para fornecer
+- Máximo 300 palavras
+- Responda em português brasileiro`
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONVERSATION MEMORY (in-memory for now, Vercel KV later)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const conversations = {};
+const CONV_MAX_MESSAGES = 30;
+const CONV_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+
+function getConversation(id) {
+  const conv = conversations[id];
+  if (!conv) return null;
+  if (Date.now() - conv.updatedAt > CONV_TTL_MS) {
+    delete conversations[id];
+    return null;
+  }
+  return conv;
+}
+
+function saveConversation(id, agentId, messages, metadata) {
+  conversations[id] = {
+    agentId,
+    messages: messages.slice(-CONV_MAX_MESSAGES),
+    metadata: metadata || {},
+    updatedAt: Date.now(),
+    createdAt: conversations[id]?.createdAt || Date.now(),
+  };
+}
+
+// Cleanup old conversations every 30 min
+setInterval(() => {
+  const now = Date.now();
+  Object.keys(conversations).forEach(id => {
+    if (now - conversations[id].updatedAt > CONV_TTL_MS) delete conversations[id];
+  });
+}, 30 * 60 * 1000);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RD STATION CRM INTEGRATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function rdCreateOrUpdateLead(leadData) {
+  const token = process.env.RD_CRM_TOKEN;
+  if (!token) return { error: 'RD_CRM_TOKEN not configured' };
+
+  try {
+    const searchValue = leadData.phone || leadData.email;
+
+    const searchResp = await httpsReq(
+      `https://crm.rdstation.com/api/v1/contacts?token=${token}&q=${encodeURIComponent(searchValue)}`,
+      { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+    );
+
+    const searchData = JSON.parse(searchResp.body);
+    const existing = searchData.contacts?.[0];
+
+    const contactBody = {
+      name: leadData.name || 'Lead ' + (leadData.channel || 'WhatsApp'),
+      phones: leadData.phone ? [{ phone: leadData.phone, type: 'cellphone' }] : undefined,
+      emails: leadData.email ? [{ email: leadData.email }] : undefined,
+      custom_fields: [
+        { custom_field_id: 'agent_source', value: leadData.agent || 'vera' },
+        { custom_field_id: 'channel', value: leadData.channel || 'whatsapp' },
+        { custom_field_id: 'lead_temperature', value: leadData.temperature || 'frio' },
+        { custom_field_id: 'interest', value: leadData.interest || '' },
+      ].filter(f => f.value),
+      notes: leadData.notes || ('Atendido por agente ' + (leadData.agent || 'vera').toUpperCase()),
     };
 
     if (existing) {
@@ -322,9 +431,9 @@ FUNÃÃES PRINCIPAIS:
   }
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN HANDLER
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════════════════════════════════════
 
 module.exports = async (req, res) => {
   // CORS
@@ -371,7 +480,7 @@ module.exports = async (req, res) => {
     const openaiKey = process.env.OPENAI_API_KEY || '';
     if (!geminiKey && !openaiKey) {
       return res.status(200).json({
-        response: 'O agente ' + agentConfig.name + ' estÃ¡ em manutenÃ§Ã£o. Por favor, tente novamente em instantes.',
+        response: 'O agente ' + agentConfig.name + ' está em manutenção. Por favor, tente novamente em instantes.',
         error: 'Nenhuma API key configurada (GOOGLE_API_KEY ou OPENAI_API_KEY)',
         conversationId,
       });
@@ -390,27 +499,27 @@ module.exports = async (req, res) => {
     // AUTO-INJECT property catalog for customer-facing agents (Vera & Sol)
     if (agentId === 'vera' || agentId === 'sol') {
       const propertyContext = buildPropertyContext(message, messages);
-      systemPrompt += '\n\nâââ CATÃLOGO DE IMÃVEIS PSM (DADOS REAIS â USE APENAS ESTES) âââ\n' + propertyContext;
+      systemPrompt += '\n\n═══ CATÁLOGO DE IMÓVEIS PSM (DADOS REAIS — USE APENAS ESTES) ═══\n' + propertyContext;
     }
 
     // Add extra context if provided via API call
     if (context) {
-      systemPrompt += '\n\nCONTEXTO ADICIONAL (dados em tempo real â USE APENAS ESTES DADOS):\n' + context;
+      systemPrompt += '\n\nCONTEXTO ADICIONAL (dados em tempo real — USE APENAS ESTES DADOS):\n' + context;
     }
 
     // Add conversation metadata
     if (metadata.leadName) {
-      systemPrompt += '\n\nINFORMAÃÃES DO LEAD:\n- Nome: ' + metadata.leadName;
+      systemPrompt += '\n\nINFORMAÇÕES DO LEAD:\n- Nome: ' + metadata.leadName;
       if (metadata.leadPhone) systemPrompt += '\n- Telefone: ' + metadata.leadPhone;
       if (metadata.leadEmail) systemPrompt += '\n- Email: ' + metadata.leadEmail;
       if (metadata.leadTemperature) systemPrompt += '\n- Temperatura: ' + metadata.leadTemperature;
     }
 
     if (channel) {
-      systemPrompt += '\n\nCANAL: ' + channel + ' â adapte o formato da resposta (mensagens curtas para WhatsApp/Instagram, mais detalhadas para web).';
+      systemPrompt += '\n\nCANAL: ' + channel + ' — adapte o formato da resposta (mensagens curtas para WhatsApp/Instagram, mais detalhadas para web).';
     }
 
-    // âââ TRY GEMINI FIRST, FALLBACK TO OPENAI ââââââââââââââââââââââââââââââ
+    // ─── TRY GEMINI FIRST, FALLBACK TO OPENAI ──────────────────────────────
     let responseText = '';
     let usedEngine = 'gemini';
     let tokenInfo = {};
@@ -524,8 +633,8 @@ module.exports = async (req, res) => {
 
     if (!responseText) {
       return res.status(200).json({
-        response: 'Desculpe, nÃ£o consegui processar sua mensagem. Tente novamente.',
-        error: 'Nenhuma engine disponÃ­vel retornou resposta',
+        response: 'Desculpe, não consegui processar sua mensagem. Tente novamente.',
+        error: 'Nenhuma engine disponível retornou resposta',
         conversationId,
       });
     }
@@ -543,7 +652,7 @@ module.exports = async (req, res) => {
     const lowerMsg = message.toLowerCase();
     if (lowerMsg.includes('visita') || lowerMsg.includes('agendar') || lowerMsg.includes('quero ver') || lowerMsg.includes('quero comprar') || lowerMsg.includes('fechar') || lowerMsg.includes('proposta')) {
       detectedTemp = 'quente';
-    } else if (lowerMsg.includes('quanto') || lowerMsg.includes('preÃ§o') || lowerMsg.includes('valor') || lowerMsg.includes('parcela') || lowerMsg.includes('financ') || lowerMsg.includes('entrada')) {
+    } else if (lowerMsg.includes('quanto') || lowerMsg.includes('preço') || lowerMsg.includes('valor') || lowerMsg.includes('parcela') || lowerMsg.includes('financ') || lowerMsg.includes('entrada')) {
       detectedTemp = 'morno';
     }
 
