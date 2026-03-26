@@ -2407,307 +2407,229 @@ var pgWarArena = function() {
 
 // ─── PAGE: METAS (Enterprise Edition) ────────────────────────────────────────
 function pgMetas(){
-  const df = DateFilter('metas','Período');
-  const tab = S.metasTab || 'painel';
-  const periodo = S.metasPeriodo || 'mensal';
-  const selBid = S.metasBroker || (S.user?.id || BROKERS[0]?.id || '');
-  const selB = BROKERS.find(b => b.id === selBid) || BROKERS[0] || {};
-
-  // ── Filter by period ──
-  recalcBrokerMetrics('metas');
-  const fV = applyDateFilter(VENDAS, 'metas');
-  const fO = applyDateFilter(OPPS, 'metas');
-  const fL = applyDateFilter(LOST_DEALS, 'metas');
-  const periodoMult = {mensal:1,trimestral:3,semestral:6,anual:12}[periodo] || 1;
-
-  // ── Meta base (mensal) ──
-  const mBase = {vgv:METRICS.vgv_meta||8000000,vendas:METRICS.vend_meta||20,agend:80,vis:METRICS.vis_meta||100,prop:40};
-  const m = {}; Object.entries(mBase).forEach(([k,v]) => m[k]=v*periodoMult);
-
-  // ── Realizado ──
-  const r = {
-    vgv:fV.reduce((a,v)=>a+(v.vgv||0),0), vendas:fV.length,
-    agend:fO.filter(o=>['agendamento','vis_agend'].includes(o.st_psm)).length,
-    vis:fO.filter(o=>o.st_psm==='vis_real').length+fV.length,
-    prop:fO.filter(o=>o.st_psm==='proposta').length,
-  };
-  const p = {}; Object.keys(m).forEach(k => p[k]=Math.round((r[k]||0)/Math.max(1,m[k])*100));
-
-  // ── Broker data ──
-  const bData = BROKERS.map(b => {
-    const bW=fV.filter(v=>v.bid===b.id), bO=fO.filter(o=>o.bid===b.id), bL=fL.filter(l=>l.bid===b.id);
-    const mc=METAS_CONFIG[b.id]||{};
-    const vm=(mc.vgv_meta||b.meta||800000)*periodoMult;
-    const vr=bW.reduce((a,v)=>a+(v.vgv||0),0);
-    return{...b,vgv_real:vr,vgv_meta:vm,vendas:bW.length,perdidas:bL.length,
-      agend:bO.filter(o=>['agendamento','vis_agend'].includes(o.st_psm)).length,
-      vis:bO.filter(o=>o.st_psm==='vis_real').length+bW.length,
-      prop:bO.filter(o=>o.st_psm==='proposta').length,
-      pct:Math.round(vr/Math.max(1,vm)*100),
-      conv:(bW.length+bL.length)>0?Math.round(bW.length/(bW.length+bL.length)*100):0,
-      pipe:bO.reduce((a,o)=>a+(o.vgv||0),0),
-    };
-  }).sort((a,b)=>b.pct-a.pct);
-  const selBD = bData.find(b=>b.id===selBid) || bData[0] || {};
-
-  // ── Period pills ──
-  const periodos = ['mensal','trimestral','semestral','anual'];
-  const pBar = '<div style="display:flex;gap:4px;margin-bottom:14px">'
-    +periodos.map(pp=>'<button class="btn bsm'+(periodo===pp?' bp1':' bout')+'" onclick="S.metasPeriodo=\''+pp+'\';render()">'+pp.charAt(0).toUpperCase()+pp.slice(1)+'</button>').join('')
-    +'</div>';
-
-  // ── Tabs ──
-  const tabs = '<div class="tabs">'
-    +'<button class="tab'+(tab==='painel'?' on':'')+'" onclick="S.metasTab=\'painel\';render()">📊 Painel Geral</button>'
-    +'<button class="tab'+(tab==='equipes'?' on':'')+'" onclick="S.metasTab=\'equipes\';render()">🏰 Equipes</button>'
-    +'<button class="tab'+(tab==='individual'?' on':'')+'" onclick="S.metasTab=\'individual\';render()">👤 Individual</button>'
-    +'<button class="tab'+(tab==='sonho'?' on':'')+'" onclick="S.metasTab=\'sonho\';render()">✨ Meu Porquê</button>'
-    +''
-    +'</div>';
-
-  let content='';
-
-  // ═══════════════════════════════════════════════════════════════
-  // TAB: PAINEL GERAL
-  // ═══════════════════════════════════════════════════════════════
-  if(tab==='painel'){
-    const now=new Date(), pctMes=Math.round(now.getDate()/30*100);
-    const items=[
-      {k:'vgv',lbl:'VGV Realizado',ico:'💰',c:'var(--navy)',f:fmt,fm:fmt},
-      {k:'vendas',lbl:'Vendas Fechadas',ico:'🏆',c:'var(--g)',f:v=>v,fm:v=>v},
-      {k:'agend',lbl:'Agendamentos',ico:'📅',c:'var(--b)',f:v=>v,fm:v=>v},
-      {k:'vis',lbl:'Visitas',ico:'👁',c:'var(--pu)',f:v=>v,fm:v=>v},
-      {k:'prop',lbl:'Propostas',ico:'📄',c:'var(--a)',f:v=>v,fm:v=>v},
-    ];
-    // Gauge cards
-    content='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px">'
-      +items.map(it=>{
-        const pv=p[it.k]||0;const sc=pv>=80?'var(--g-tx)':pv>=50?'var(--a-tx)':'var(--r-tx)';
-        const onTrack=pv>=pctMes*0.7;
-        return'<div class="card" style="border-top:3px solid '+it.c+';padding:16px;position:relative">'
-          +'<div style="font-size:11px;color:var(--muted);margin-bottom:6px">'+it.ico+' '+it.lbl+'</div>'
-          +'<div style="font-size:26px;font-weight:900;color:var(--navy)">'+it.f(r[it.k]||0)+'</div>'
-          +'<div style="font-size:10px;color:var(--muted);margin-bottom:6px">Meta: '+it.fm(m[it.k]||0)+'</div>'
-          +PB(r[it.k]||0,m[it.k]||1,it.c,true)
-          +'<div style="display:flex;justify-content:space-between;margin-top:6px">'
-          +'<span style="font-size:11px;font-weight:800;color:'+sc+'">'+pv+'%</span>'
-          +'<span style="font-size:9px;color:'+(onTrack?'var(--g-tx)':'var(--r-tx)')+'">'+(onTrack?'✓ No ritmo':'⚠ Abaixo')+'</span>'
-          +'</div></div>';
-      }).join('')+'</div>'
-      // Resumo + Conversão
-      +'<div class="g2 mb2">'
-      +'<div class="card"><div class="ctitle">📊 Funil de Conversão</div>'
-      +'<div style="display:flex;align-items:flex-end;gap:2px;height:120px;padding:10px 0">'
-      +[{l:'Leads',v:fO.length,c:'#94a3b8'},{l:'Agend.',v:r.agend,c:'#3b82f6'},{l:'Visitas',v:r.vis,c:'#8b5cf6'},{l:'Propostas',v:r.prop,c:'#f59e0b'},{l:'Vendas',v:r.vendas,c:'#22c55e'}].map(s=>{
-        const h=Math.max(8,Math.round(s.v/Math.max(1,fO.length)*100));
-        return'<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
-          +'<div style="font-size:14px;font-weight:800;color:var(--navy)">'+s.v+'</div>'
-          +'<div style="width:100%;height:'+h+'px;background:'+s.c+';border-radius:4px 4px 0 0;min-height:8px"></div>'
-          +'<div style="font-size:8px;color:var(--muted);text-transform:uppercase">'+s.l+'</div></div>';
-      }).join('')+'</div>'
-      +'<div style="font-size:10px;color:var(--muted);margin-top:8px;text-align:center">Taxa geral: <strong>'+((fV.length+fL.length)>0?Math.round(fV.length/(fV.length+fL.length)*100):0)+'%</strong> conversão \u00B7 <strong>'+fL.length+'</strong> perdidas</div>'
-      +'</div>'
-      +'<div class="card"><div class="ctitle">🏅 Top 5 Corretores</div>'
-      +bData.slice(0,5).map((b,i)=>{
-        const sc=b.pct>=80?'var(--g-tx)':b.pct>=50?'var(--a-tx)':'var(--r-tx)';
-        return'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--cream3)">'
-          +'<span style="font-size:14px;width:22px;text-align:center">'+(i<3?['🥇','🥈','🥉'][i]:(i+1))+'</span>'
-          +Av(b,'xs')
-          +'<div style="flex:1"><div style="font-size:12px;font-weight:600">'+b.name+'</div>'+PB(b.vgv_real,b.vgv_meta||1,sc)+'</div>'
-          +'<div style="text-align:right"><div style="font-size:13px;font-weight:800;color:'+sc+'">'+b.pct+'%</div>'
-          +'<div style="font-size:9px;color:var(--muted)">'+fmt(b.vgv_real)+'</div></div></div>';
-      }).join('')+'</div></div>'
-      // Sr Performance insight
-      +'<div class="card" style="border-left:3px solid var(--gold);background:linear-gradient(90deg,#fffbeb,#fff)">'
-      +'<div style="display:flex;align-items:flex-start;gap:12px">'
-      +'<div style="font-size:24px;flex-shrink:0">🤖</div>'
-      +'<div><div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Insight do Sr. Performance</div>'
-      +'<div style="font-size:12.5px;color:var(--mid);line-height:1.6">'
-      +(p.vgv>=80?'Excelente ritmo! A equipe está em <strong>'+p.vgv+'%</strong> da meta de VGV. Mantenha o foco nas propostas — cada visita conta.':
-        p.vgv>=50?'A equipe está em <strong>'+p.vgv+'%</strong> da meta. Para acelerar: priorize os <strong>'+fO.filter(o=>['quente','proposta'].includes(o.st_psm)).length+'</strong> leads quentes no pipeline e intensifique agendamentos.':
-        'Atenção: apenas <strong>'+p.vgv+'%</strong> da meta VGV atingida. Ação urgente: cada corretor deve agendar no mínimo 3 visitas esta semana. Pipeline atual: '+fmt(fO.reduce((a,o)=>a+(o.vgv||0),0))+'.')
-      +'</div></div></div></div>';
-
-  // ═══════════════════════════════════════════════════════════════
-  // TAB: EQUIPES
-  // ═══════════════════════════════════════════════════════════════
-  } else if(tab==='equipes'){
-    content=Object.entries(FRENTES).map(([fid,fr])=>{
-      const bks=bData.filter(b=>b.frente===fid);
-      if(!bks.length)return'';
-      const tM=(METAS_EQUIPE[fid]?.vgv_meta||2000000)*periodoMult;
-      const tR=bks.reduce((a,b)=>a+b.vgv_real,0);
-      const tP=Math.round(tR/Math.max(1,tM)*100);
-      const sc=tP>=80?'var(--g-tx)':tP>=50?'var(--a-tx)':'var(--r-tx)';
-      return'<div class="card mb2" style="border-left:4px solid '+fr.color+'">'
-        +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
-        +'<span style="font-size:20px">'+fr.icon+'</span>'
-        +'<div style="flex:1"><div style="font-size:16px;font-weight:800;color:var(--navy)">'+fr.label+'</div>'
-        +'<div style="font-size:11px;color:var(--muted)">'+bks.length+' corretores</div></div>'
-        +'<div style="text-align:right"><div style="font-size:24px;font-weight:900;color:'+sc+'">'+tP+'%</div>'
-        +'<div style="font-size:10px;color:var(--muted)">'+fmt(tR)+' / '+fmt(tM)+'</div></div></div>'
-        +PB(tR,tM||1,fr.color,true)
-        +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px">'
-        +'<div style="text-align:center;padding:8px;background:var(--cream2);border-radius:8px"><div style="font-size:18px;font-weight:900;color:var(--g-tx)">'+bks.reduce((a,b)=>a+b.vendas,0)+'</div><div style="font-size:9px;color:var(--muted)">Vendas</div></div>'
-        +'<div style="text-align:center;padding:8px;background:var(--cream2);border-radius:8px"><div style="font-size:18px;font-weight:900;color:var(--b-tx)">'+bks.reduce((a,b)=>a+b.agend,0)+'</div><div style="font-size:9px;color:var(--muted)">Agend.</div></div>'
-        +'<div style="text-align:center;padding:8px;background:var(--cream2);border-radius:8px"><div style="font-size:18px;font-weight:900;color:var(--pu-tx)">'+bks.reduce((a,b)=>a+b.vis,0)+'</div><div style="font-size:9px;color:var(--muted)">Visitas</div></div>'
-        +'<div style="text-align:center;padding:8px;background:var(--cream2);border-radius:8px"><div style="font-size:18px;font-weight:900;color:var(--a-tx)">'+bks.reduce((a,b)=>a+b.prop,0)+'</div><div style="font-size:9px;color:var(--muted)">Propostas</div></div>'
-        +'</div>'
-        // Corretores da equipe
-        +'<div style="margin-top:12px">'+bks.map(b=>{
-          const bc=b.pct>=80?'var(--g-tx)':b.pct>=50?'var(--a-tx)':'var(--r-tx)';
-          return'<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--cream3)">'
-            +Av(b,'xs')+'<div style="flex:1;font-size:11.5px;font-weight:600">'+b.name+'</div>'
-            +'<span style="font-size:11px;font-weight:800;color:'+bc+'">'+b.pct+'%</span>'
-            +'<span style="font-size:10px;color:var(--muted)">'+fmt(b.vgv_real)+'</span>'
-            +'<span style="font-size:10px;color:var(--g-tx)">'+b.vendas+'v</span></div>';
-        }).join('')+'</div></div>';
-    }).join('');
-
-  // ═══════════════════════════════════════════════════════════════
-  // TAB: INDIVIDUAL
-  // ═══════════════════════════════════════════════════════════════
-  } else if(tab==='individual'){
-    const bSel='<select class="fs sel-f" style="margin-bottom:14px" onchange="S.metasBroker=this.value;render()">'
-      +BROKERS.map(b=>'<option value="'+b.id+'"'+(selBid===b.id?' selected':'')+'>'+b.name+'</option>').join('')+'</select>';
-    const sc=selBD.pct>=80?'var(--g-tx)':selBD.pct>=50?'var(--a-tx)':'var(--r-tx)';
-    const now=new Date(),pctMes=Math.round(now.getDate()/30*100);
-    const propPV=selBD.vendas>0?(selBD.prop/selBD.vendas).toFixed(1):'—';
-
-    // Header do corretor
-    content=bSel
-      +'<div class="card mb2" style="border-top:3px solid '+(selB.color||'var(--navy)')+'">'
-      +'<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">'
-      +Av(selB,'lg',true)
-      +'<div style="flex:1"><div style="font-size:18px;font-weight:800;color:var(--navy)">'+selB.name+'</div>'
-      +'<div style="font-size:11px;color:var(--muted)">'+FTag(selB.frente)+' \u00B7 '+(DISC_PROFILES[selBid]?.perfil||'—')+' \u00B7 Ticket médio: '+fmt(selB.ticketMedio||0)+'</div></div>'
-      +'<div style="text-align:center"><div style="font-size:32px;font-weight:900;color:'+sc+'">'+selBD.pct+'%</div>'
-      +'<div style="font-size:10px;color:var(--muted)">da meta VGV</div></div></div>'
-      // KPIs individuais
-      +'<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px">'
-      +[{l:'VGV Real',v:fmt(selBD.vgv_real),c:'var(--navy)'},{l:'Meta',v:fmt(selBD.vgv_meta),c:'var(--muted)'},{l:'Vendas',v:selBD.vendas,c:'var(--g-tx)'},{l:'Perdidas',v:selBD.perdidas||0,c:'var(--r-tx)'},{l:'Conversão',v:selBD.conv+'%',c:'var(--b-tx)'},{l:'Pipeline',v:fmt(selBD.pipe||0),c:'var(--pu-tx)'}].map(x=>
-        '<div style="text-align:center;padding:8px;background:var(--cream2);border-radius:8px">'
-        +'<div style="font-size:16px;font-weight:800;color:'+x.c+'">'+x.v+'</div>'
-        +'<div style="font-size:8px;color:var(--muted);text-transform:uppercase">'+x.l+'</div></div>'
-      ).join('')+'</div></div>'
-      // Leading indicators
-      +'<div class="g2 mb2">'
-      +'<div class="card"><div class="ctitle">📊 Indicadores de Performance</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      +[{l:'Propostas por Venda',v:propPV},{l:'Ciclo de Venda',v:(selB.cicloVenda||0)+' dias'},{l:'Agendamentos',v:selBD.agend},{l:'Visitas',v:selBD.vis}].map(x=>
-        '<div style="padding:12px;background:var(--cream2);border-radius:8px">'
-        +'<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">'+x.l+'</div>'
-        +'<div style="font-size:20px;font-weight:900;color:var(--navy)">'+x.v+'</div></div>'
-      ).join('')+'</div></div>'
-      // Alertas de desvio
-      +'<div class="card"><div class="ctitle">⚠️ Diagnóstico Inteligente</div>'
-      +(function(){
-        const al=[];
-        if(selBD.pct<pctMes*0.5)al.push({s:'d',t:'VGV em '+selBD.pct+'% — deveria estar em ~'+pctMes+'%. Agende '+Math.max(3,Math.round((pctMes-selBD.pct)/10))+' visitas extras.'});
-        else if(selBD.pct<pctMes*0.8)al.push({s:'w',t:'VGV abaixo do ritmo ('+selBD.pct+'% vs ~'+pctMes+'%). Intensifique follow-ups.'});
-        if(selBD.agend<3)al.push({s:'w',t:'Poucos agendamentos ('+selBD.agend+'). Meta: 5+/mês.'});
-        if(selBD.vendas===0&&pctMes>50)al.push({s:'d',t:'Nenhuma venda e metade do mês já passou. Priorize propostas.'});
-        if((selB.crm||20)<50)al.push({s:'w',t:'CRM Score baixo ('+(selB.crm||20)+' pts). Preencha os campos.'});
-        if(selBD.conv>0&&selBD.conv<20)al.push({s:'w',t:'Taxa de conversão baixa ('+selBD.conv+'%). Revise qualificação de leads.'});
-        if(!al.length)al.push({s:'ok',t:'✅ Performance dentro do esperado! Mantenha o ritmo.'});
-        return al.map(a=>'<div style="padding:10px;margin-bottom:5px;border-radius:8px;border-left:3px solid '+(a.s==='d'?'var(--r)':a.s==='w'?'var(--a)':'var(--g)')+';background:'+(a.s==='d'?'var(--r-bg)':a.s==='w'?'var(--a-bg)':'var(--g-bg)')+';font-size:11.5px;color:'+(a.s==='d'?'var(--r-tx)':a.s==='w'?'var(--a-tx)':'var(--g-tx)')+'">'+a.t+'</div>').join('');
-      })()+'</div></div>'
-      // Ranking
-      +'<div class="card"><div class="ctitle">🏅 Ranking — '+periodo.charAt(0).toUpperCase()+periodo.slice(1)+'</div><div class="tw"><table class="rank-tbl"><thead><tr>'
-      +'<th>#</th><th>Corretor</th><th>Frente</th><th style="text-align:right">VGV</th><th style="text-align:right">Meta</th><th style="text-align:right">%</th><th style="text-align:right">Vendas</th><th style="text-align:right">Conv.</th></tr></thead><tbody>'
-      +bData.map((b,i)=>{const bc=b.pct>=80?'var(--g-tx)':b.pct>=50?'var(--a-tx)':'var(--r-tx)';const isSel=b.id===selBid;
-        return'<tr style="cursor:pointer;'+(isSel?'background:rgba(212,168,67,.08)':'')+'" onclick="S.metasBroker=\''+b.id+'\';render()">'
-        +'<td style="text-align:center">'+medal(i)+'</td><td>'+Av(b,'xs')+' <span style="font-size:11px;font-weight:'+(isSel?800:600)+'">'+b.name+'</span></td><td>'+FTag(b.frente)+'</td>'
-        +'<td style="text-align:right;font-weight:700">'+fmt(b.vgv_real)+'</td><td style="text-align:right;color:var(--muted)">'+fmt(b.vgv_meta)+'</td>'
-        +'<td style="text-align:right;font-weight:800;color:'+bc+'">'+b.pct+'%</td><td style="text-align:right">'+b.vendas+'</td><td style="text-align:right">'+b.conv+'%</td></tr>';
-      }).join('')+'</tbody></table></div></div>';
-
-  // ═══════════════════════════════════════════════════════════════
-  // TAB: MEU PORQUÊ (Quadro de Sonhos)
-  // ═══════════════════════════════════════════════════════════════
-  // TAB: MEU PORQUÊ (Mural de Metas Pessoais)
-  // ═══════════════════════════════════════════════════════════════
-  } else {
-    const bSel='<select class="fs sel-f" style="margin-bottom:14px" onchange="S.metasBroker=this.value;render()">'
-      +BROKERS.map(b=>'<option value="'+b.id+'"'+(selBid===b.id?' selected':'')+'>'+b.name+'</option>').join('')+'</select>';
-    const obj=(S.sonhos||{})[selBid]||{};
-    const comPct=S.comissaoPct||6;
-    const ticket=selB.ticketMedio||350000;
-    const comMedia=Math.round(ticket*comPct/100);
-    const objValor=obj.valor||0;
-    const jaCom=Math.round((selBD.vgv_real||0)*comPct/100);
-    const faltaCom=Math.max(0,objValor-jaCom);
-    const vendasFaltam=faltaCom>0?Math.ceil(faltaCom/Math.max(1,comMedia)):0;
-    const vendasTotal=objValor>0?Math.ceil(objValor/Math.max(1,comMedia)):0;
-    const pctObj=objValor>0?Math.min(100,Math.round(jaCom/objValor*100)):0;
-    const imgUrl=obj.imagem||'';
-
-    content=bSel
-      +'<div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);border-radius:16px;padding:32px;color:#fff;margin-bottom:16px">'
-      +'<div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:3px;margin-bottom:6px">✨ Meu Porquê — Destino PSM</div>'
-      +'<div style="font-size:24px;font-weight:900;margin-bottom:4px">'+selB.name+', o que te motiva a vender mais?</div>'
-      +'<div style="font-size:12px;color:#94a3b8">Defina sua meta pessoal. O sistema calcula exatamente quanto falta para conquistar.</div>'
-      +'</div>'
-
-      // ── Mural: Imagem + Objetivo ──
-      +'<div class="g2 mb2">'
-      +'<div class="card">'
-      +'<div class="ctitle">🎯 Minha Meta Pessoal</div>'
-      +'<div class="fg"><label class="flabel">O que eu quero conquistar</label>'
-      +'<input class="finp" placeholder="Ex: BMW X3, Viagem Europa, Primeiro Apartamento..." value="'+(obj.descricao||'')+'" oninput="if(!S.sonhos)S.sonhos={};if(!S.sonhos[\''+selBid+'\'])S.sonhos[\''+selBid+'\']={}; S.sonhos[\''+selBid+'\'].descricao=this.value;saveState()"></div>'
-      +'<div class="fg"><label class="flabel">Valor do objetivo (R$)</label>'
-      +'<input class="finp" type="number" placeholder="250000" value="'+objValor+'" oninput="if(!S.sonhos)S.sonhos={};if(!S.sonhos[\''+selBid+'\'])S.sonhos[\''+selBid+'\']={}; S.sonhos[\''+selBid+'\'].valor=+this.value;saveState();render()"></div>'
-      +'<div class="fg"><label class="flabel">📷 Imagem do objetivo (cole a URL)</label>'
-      +'<input class="finp" type="url" placeholder="https://... (link da imagem do carro, viagem, etc)" value="'+imgUrl+'" oninput="if(!S.sonhos)S.sonhos={};if(!S.sonhos[\''+selBid+'\'])S.sonhos[\''+selBid+'\']={}; S.sonhos[\''+selBid+'\'].imagem=this.value;saveState();render()"></div>'
-      +'<div style="font-size:10px;color:var(--muted);margin-top:8px">Comissão média: '+comPct+'% sobre ticket de '+fmt(ticket)+' = <strong>'+fmt(comMedia)+'/venda</strong></div>'
-      +'</div>'
-
-      // ── Mural Visual ──
-      +'<div class="card" style="display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden;min-height:250px'+(imgUrl?';background-image:url('+imgUrl+');background-size:cover;background-position:center':'')+'">'
-      +(imgUrl?'<div style="position:absolute;inset:0;background:rgba(15,23,42,.6)"></div>':'')
-      +'<div style="position:relative;z-index:1">'
-      +(obj.descricao?
-        '<div style="font-size:11px;color:'+(imgUrl?'rgba(255,255,255,.7)':'var(--muted)')+';text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">META PESSOAL</div>'
-        +'<div style="font-size:22px;font-weight:900;color:'+(imgUrl?'#fff':'var(--navy)')+';margin-bottom:4px">'+(obj.descricao||'')+'</div>'
-        +'<div style="font-size:16px;font-weight:700;color:'+(imgUrl?'var(--gold)':'var(--navy)')+';margin-bottom:12px">'+fmt(objValor)+'</div>'
-        +'<div style="width:200px;height:8px;background:'+(imgUrl?'rgba(255,255,255,.2)':'var(--cream3)')+';border-radius:99px;margin:0 auto"><div style="height:100%;width:'+pctObj+'%;background:var(--gold);border-radius:99px;transition:width .5s"></div></div>'
-        +'<div style="font-size:12px;font-weight:800;color:var(--gold);margin-top:6px">'+pctObj+'% conquistado</div>'
-        :'<div style="color:var(--muted);font-size:13px">Preencha sua meta pessoal<br>para visualizar aqui</div>')
-      +'</div></div></div>'
-
-      // ── Calculadora Reversa ──
-      +(objValor>0?
-      '<div class="card mb2" style="background:var(--navy);color:#fff;border-color:transparent">'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center">'
-      +'<div><div style="font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Comissão Acumulada</div><div style="font-size:28px;font-weight:900;color:var(--gold)">'+fmt(jaCom)+'</div><div style="font-size:10px;color:#64748b">de '+fmt(objValor)+'</div></div>'
-      +'<div><div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Ainda Falta</div><div style="font-size:28px;font-weight:900;color:#fff">'+fmt(faltaCom)+'</div><div style="font-size:10px;color:#64748b">em comissão</div></div>'
-      +'<div><div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Vendas Restantes</div><div style="font-size:48px;font-weight:900;color:var(--gold);line-height:1">'+vendasFaltam+'</div><div style="font-size:10px;color:#64748b">de '+vendasTotal+' no total</div></div>'
-      +'</div>'
-      +'<div style="margin-top:14px;height:8px;background:rgba(255,255,255,.1);border-radius:99px"><div style="height:100%;width:'+pctObj+'%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:99px;transition:width .5s"></div></div>'
-      +(pctObj>=100?'<div style="text-align:center;margin-top:12px;font-size:16px;font-weight:900;color:var(--gold)">🎉 PARABÉNS! Objetivo alcançado!</div>':'')
-      +'</div>':'')
-
-      // ── Insight Sr. Performance ──
-      +'<div class="card" style="border-left:3px solid var(--gold);background:linear-gradient(90deg,#fffbeb,#fff)">'
-      +'<div style="display:flex;gap:12px">'
-      +'<div style="font-size:24px">🤖</div>'
-      +'<div><div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Sr. Performance diz:</div>'
-      +'<div style="font-size:12px;color:var(--mid);line-height:1.6">'
-      +(objValor>0&&jaCom>0?
-        '<strong>'+selB.name.split(' ')[0]+'</strong>, você já acumulou <strong>'+fmt(jaCom)+'</strong> em comissão ('+pctObj+'% do objetivo). '
-        +(pctObj>=100?'Você já conquistou sua meta! Hora de definir o próximo nível.':
-          'Faltam <strong>'+vendasFaltam+' vendas</strong> para alcançar '+(obj.descricao||'seu objetivo')+'. Cada visita te aproxima!')
-        :objValor>0?
-        '<strong>'+selB.name.split(' ')[0]+'</strong>, seu objetivo custa '+fmt(objValor)+'. Com ticket médio de '+fmt(ticket)+' e '+comPct+'% de comissão, são <strong>'+vendasTotal+' vendas</strong>. Comece agendando 3 visitas esta semana!'
-        :'Defina sua meta pessoal! Corretor com propósito claro vende em média 40% mais que quem não tem objetivo definido.')
-      +'</div></div></div></div>';
+  if(!S.mg) {
+    var saved = localStorage.getItem('psm_meta_global');
+    if(saved) { try { S.mg = JSON.parse(saved); } catch(e){} }
   }
+  if(!S.mg) {
+    S.mg = {
+      meses:['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'],
+      corretores:[13,12,12,14,14,14,14,14,14,14,14,14],
+      metaImpper:[0,0,0,0,0,1085000,0,1085000,1085000,1085000,0,1085000],
+      metaTerc:[1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000],
+      metaEstMAP:[1850000,1850000,1850000,0,1850000,1850000,1850000,1850000,1850000,1850000,1850000,1850000],
+      metaEstConq:[1200000,1200000,1200000,0,1200000,1200000,1200000,1200000,1200000,1200000,1200000,1200000],
+      metaLanc:[0,0,0,0,0,0,0,0,0,0,0,0],
+      realizado:[711000,685000,4863700,0,0,0,0,0,0,0,0,0],
+      ticketMedio:350000,
+      vgvSustentavel:4150000,
+      comissaoBruta:0.04,
+      aliquota:0.08,
+      comCorretor:0.014,
+      comSenior:0.016,
+      comSocio50:0.0175,
+      custoFixo:27000,
+      ads:15000,
+      prolabore:24000,
+      distribLucro:0,
+      divida:7500,
+      lancamentos:{
+        mar:{nome:'GIULIA Boulevard',pastas:210,ticket:300000},
+        abr:{nome:'Alameda dos Ipes',pastas:108,ticket:390000},
+        mai:{nome:'ORGANIQUE',pastas:40,ticket:0},
+        jun:{nome:'CASA PIETRA',pastas:30,ticket:1500000},
+        jul:{nome:'SOHO BUSINESS',pastas:240,ticket:360000},
+        out:{nome:'IMPPER CITY',pastas:34,ticket:100000}
+      },
+      metaAno:144344000
+    };
+  }
+  var m=S.mg, ms=m.meses;
+  function metaTotal(i){return (m.metaImpper[i]||0)+(m.metaTerc[i]||0)+(m.metaEstMAP[i]||0)+(m.metaEstConq[i]||0)+(m.metaLanc[i]||0);}
+  function deficit(i){return (m.realizado[i]||0)-metaTotal(i);}
+  function sum(arr){return arr.reduce(function(a,b){return a+(b||0);},0);}
+  function fmt(v){if(v===0)return '\u2014';return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
+  function fmtN(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
+  function pct(v){return (v*100).toFixed(1)+'%';}
 
-  return '<div class="phd"><h1>🎯 Central de Metas</h1><p>Gestão de performance e motivação — '+METRICS.mes+'</p></div>'
-    +df+pBar+tabs+content;
+  var totalArr=[];for(var i=0;i<12;i++)totalArr.push(metaTotal(i));
+  var totalAno=sum(totalArr);
+  var realAno=sum(m.realizado);
+  var defArr=[];for(var i=0;i<12;i++)defArr.push(deficit(i));
+  var defAno=sum(defArr);
+  var tri=[
+    {lbl:'1\u00ba TRI',meta:sum([totalArr[0],totalArr[1],totalArr[2]]),real:sum([m.realizado[0],m.realizado[1],m.realizado[2]])},
+    {lbl:'2\u00ba TRI',meta:sum([totalArr[3],totalArr[4],totalArr[5]]),real:sum([m.realizado[3],m.realizado[4],m.realizado[5]])},
+    {lbl:'3\u00ba TRI',meta:sum([totalArr[6],totalArr[7],totalArr[8]]),real:sum([m.realizado[6],m.realizado[7],m.realizado[8]])},
+    {lbl:'4\u00ba TRI',meta:sum([totalArr[9],totalArr[10],totalArr[11]]),real:sum([m.realizado[9],m.realizado[10],m.realizado[11]])}
+  ];
+  var mediaMetaMes=totalAno/12;
+  var pareto70=function(n){return Math.round(n*0.7*10)/10;};
+  var custoTotal=(m.custoFixo||0)+(m.ads||0)+(m.prolabore||0)+(m.distribLucro||0)+(m.divida||0);
+  function inp(key,idx,val,w){return '<input type="number" value="'+val+'" onchange="mgUpd(\''+key+'\','+idx+',this.value)" style="width:'+(w||'100%')+';padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px">';}
+  function inpG(key,val,w){return '<input type="number" value="'+val+'" step="any" onchange="mgUpdG(\''+key+'\',this.value)" style="width:'+(w||'100%')+';padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px">';}
+
+  var h='<div class="pg-wrap" style="padding:18px;max-width:100%;overflow-x:auto">';
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><h2 style="color:#00e5a0;margin:0">\uD83C\uDFAF META GLOBAL 2026</h2>';
+  h+='<div style="color:#94a3b8;font-size:13px">Meta Ano: <b style="color:#00e5a0">'+fmt(m.metaAno)+'</b></div></div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px">';
+  h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">Meta Ano Total</div><div style="color:#00e5a0;font-size:22px;font-weight:700">'+fmt(totalAno)+'</div></div>';
+  h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">Realizado</div><div style="color:#fff;font-size:22px;font-weight:700">'+fmt(realAno)+'</div></div>';
+  h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">D\u00e9ficit/Lucro</div><div style="color:'+(defAno>=0?'#00e5a0':'#ef4444')+';font-size:22px;font-weight:700">'+fmt(defAno)+'</div></div>';
+  h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">% Atingido</div><div style="color:'+(realAno/totalAno>=0.8?'#00e5a0':'#f59e0b')+';font-size:22px;font-weight:700">'+pct(totalAno>0?realAno/totalAno:0)+'</div></div>';
+  h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">Custos Fixos/M\u00eas</div><div style="color:#ef4444;font-size:22px;font-weight:700">'+fmt(custoTotal)+'</div></div>';
+  h+='</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">';
+  for(var t=0;t<4;t++){
+    var pctTri=tri[t].meta>0?tri[t].real/tri[t].meta:0;
+    h+='<div style="background:#1e293b;border-radius:12px;padding:14px"><div style="color:#94a3b8;font-size:12px;margin-bottom:6px">'+tri[t].lbl+'</div>';
+    h+='<div style="font-size:11px;color:#64748b">Meta: '+fmt(tri[t].meta)+'</div>';
+    h+='<div style="font-size:11px;color:#fff">Real: '+fmt(tri[t].real)+'</div>';
+    h+='<div style="margin-top:6px;background:#0f172a;border-radius:6px;height:8px;overflow:hidden"><div style="height:100%;width:'+Math.min(pctTri*100,100)+'%;background:'+(pctTri>=0.8?'#00e5a0':'#f59e0b')+';border-radius:6px"></div></div>';
+    h+='<div style="text-align:right;font-size:11px;color:'+(pctTri>=0.8?'#00e5a0':'#f59e0b')+'">'+pct(pctTri)+'</div></div>';
+  }
+  h+='</div>';
+  h+='<h3 style="color:#e2e8f0;font-size:15px;margin-bottom:10px">\uD83D\uDCCA Meta Mensal por Canal <span style="color:#475569;font-size:11px">(edit\u00e1vel)</span></h3>';
+  h+='<div style="overflow-x:auto;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:1200px">';
+  h+='<tr style="background:#0f172a"><th style="padding:8px;color:#94a3b8;text-align:left;border-bottom:1px solid #334155">Canal</th>';
+  for(var i=0;i<12;i++) h+='<th style="padding:8px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155;min-width:95px">'+ms[i]+'</th>';
+  h+='<th style="padding:8px;color:#00e5a0;text-align:right;border-bottom:1px solid #334155">TOTAL</th></tr>';
+  h+='<tr style="background:#1a2332"><td style="padding:6px 8px;color:#64748b;font-size:11px">N\u00ba Corretores</td>';
+  for(var i=0;i<12;i++) h+='<td style="padding:4px">'+inp('corretores',i,m.corretores[i]||0)+'</td>';
+  h+='<td style="padding:6px 8px;color:#64748b;text-align:right">\u2014</td></tr>';
+  var canais=[['metaImpper','Meta IMPPER','#1e293b'],['metaTerc','Meta Terceiros','#1a2332'],['metaEstMAP','Meta Estoque MAP','#1e293b'],['metaEstConq','Meta Est. Conquista','#1a2332'],['metaLanc','Meta Lan\u00e7amento','#1e293b']];
+  for(var c=0;c<canais.length;c++){
+    h+='<tr style="background:'+canais[c][2]+'"><td style="padding:6px 8px;color:#e2e8f0">'+canais[c][1]+'</td>';
+    for(var i=0;i<12;i++) h+='<td style="padding:4px">'+inp(canais[c][0],i,m[canais[c][0]][i]||0)+'</td>';
+    h+='<td style="padding:6px 8px;color:#fff;text-align:right;font-weight:600">'+fmtN(sum(m[canais[c][0]]))+'</td></tr>';
+  }
+  h+='<tr style="background:#0f172a;border-top:2px solid #00e5a0"><td style="padding:8px;color:#00e5a0;font-weight:700">META TOTAL</td>';
+  for(var i=0;i<12;i++) h+='<td style="padding:8px;color:#00e5a0;text-align:right;font-weight:700">'+fmtN(totalArr[i])+'</td>';
+  h+='<td style="padding:8px;color:#00e5a0;text-align:right;font-weight:700;font-size:13px">'+fmtN(totalAno)+'</td></tr>';
+  h+='<tr style="background:#1e293b"><td style="padding:6px 8px;color:#38bdf8;font-weight:600">REALIZADO</td>';
+  for(var i=0;i<12;i++) h+='<td style="padding:4px">'+inp('realizado',i,m.realizado[i]||0)+'</td>';
+  h+='<td style="padding:6px 8px;color:#38bdf8;text-align:right;font-weight:700">'+fmtN(realAno)+'</td></tr>';
+  h+='<tr style="background:#0f172a;border-top:1px solid #334155"><td style="padding:8px;color:#e2e8f0;font-weight:600">D\u00c9FICIT/LUCRO</td>';
+  for(var i=0;i<12;i++){var d=defArr[i];h+='<td style="padding:8px;color:'+(d>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:600">'+fmtN(d)+'</td>';}
+  h+='<td style="padding:8px;color:'+(defAno>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:700">'+fmtN(defAno)+'</td></tr>';
+  h+='</table></div>';
+  h+='<h3 style="color:#e2e8f0;font-size:15px;margin:20px 0 10px">\uD83D\uDCCA An\u00e1lise Sustent\u00e1vel (sem lan\u00e7amento)</h3>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">';
+  h+='<div style="background:#1e293b;border-radius:12px;padding:14px"><div style="color:#94a3b8;font-size:11px">VGV Sustent\u00e1vel/M\u00eas</div>'+inpG('vgvSustentavel',m.vgvSustentavel)+'</div>';
+  h+='<div style="background:#1e293b;border-radius:12px;padding:14px"><div style="color:#94a3b8;font-size:11px">Ticket M\u00e9dio PSM</div>'+inpG('ticketMedio',m.ticketMedio)+'</div>';
+  h+='<div style="background:#1e293b;border-radius:12px;padding:14px"><div style="color:#94a3b8;font-size:11px">M\u00e9dia Meta VGV/M\u00eas</div><div style="color:#fff;font-size:18px;font-weight:700;margin-top:6px">'+fmt(mediaMetaMes)+'</div></div>';
+  h+='<div style="background:#1e293b;border-radius:12px;padding:14px"><div style="color:#94a3b8;font-size:11px">Meta Individual/M\u00eas (m\u00e9dia)</div><div style="color:#fff;font-size:18px;font-weight:700;margin-top:6px">'+fmt(Math.round(mediaMetaMes/13))+'</div></div>';
+  h+='</div>';
+  h+='<div style="overflow-x:auto;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:1200px">';
+  h+='<tr style="background:#0f172a"><th style="padding:6px;color:#94a3b8;text-align:left;border-bottom:1px solid #334155">Indicador</th>';
+  for(var i=0;i<12;i++) h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">'+ms[i]+'</th>';
+  h+='</tr>';
+  h+='<tr style="background:#1e293b"><td style="padding:6px 8px;color:#e2e8f0;font-size:11px">Meta Individual VGV</td>';
+  for(var i=0;i<12;i++){var mi=m.corretores[i]>0?totalArr[i]/m.corretores[i]:0; h+='<td style="padding:6px;color:#fff;text-align:right;font-size:11px">'+fmtN(Math.round(mi))+'</td>';}
+  h+='</tr>';
+  h+='<tr style="background:#1a2332"><td style="padding:6px 8px;color:#e2e8f0;font-size:11px">Pareto 70% (m\u00edn. 1 venda)</td>';
+  for(var i=0;i<12;i++){h+='<td style="padding:6px;color:#f59e0b;text-align:right;font-size:11px">'+pareto70(m.corretores[i]||0)+'</td>';}
+  h+='</tr>';
+  h+='<tr style="background:#1e293b"><td style="padding:6px 8px;color:#e2e8f0;font-size:11px">Prov. Realizado (Pareto x Ticket)</td>';
+  for(var i=0;i<12;i++){var pr=pareto70(m.corretores[i]||0)*m.ticketMedio; h+='<td style="padding:6px;color:#38bdf8;text-align:right;font-size:11px">'+fmtN(Math.round(pr))+'</td>';}
+  h+='</tr>';
+  h+='<tr style="background:#1a2332"><td style="padding:6px 8px;color:#e2e8f0;font-size:11px">Faltando p/ VGV Sustent\u00e1vel</td>';
+  for(var i=0;i<12;i++){var pr=pareto70(m.corretores[i]||0)*m.ticketMedio;var ft=pr-m.vgvSustentavel; h+='<td style="padding:6px;color:'+(ft>=0?'#00e5a0':'#ef4444')+';text-align:right;font-size:11px">'+fmtN(Math.round(ft))+'</td>';}
+  h+='</tr>';
+  h+='<tr style="background:#1e293b"><td style="padding:6px 8px;color:#e2e8f0;font-size:11px">Faltando p/ VGV Meta</td>';
+  for(var i=0;i<12;i++){var pr=pareto70(m.corretores[i]||0)*m.ticketMedio;var ft=pr-totalArr[i]; h+='<td style="padding:6px;color:'+(ft>=0?'#00e5a0':'#ef4444')+';text-align:right;font-size:11px">'+fmtN(Math.round(ft))+'</td>';}
+  h+='</tr>';
+  h+='</table></div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+  h+='<div><h3 style="color:#e2e8f0;font-size:15px;margin-bottom:10px">\uD83D\uDCB0 Custos Fixos Mensais <span style="color:#475569;font-size:11px">(edit\u00e1vel)</span></h3>';
+  h+='<div style="background:#1e293b;border-radius:12px;padding:16px">';
+  var custos=[['custoFixo','Custo Fixo'],['ads','ADS'],['prolabore','Pr\u00f3-labore'],['distribLucro','Distrib. Lucro'],['divida','D\u00edvida']];
+  for(var c=0;c<custos.length;c++){
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="color:#94a3b8;font-size:13px">'+custos[c][1]+'</span>';
+    h+='<div style="width:140px">'+inpG(custos[c][0],m[custos[c][0]]||0,'140px')+'</div></div>';
+  }
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #334155;padding-top:10px;margin-top:10px"><span style="color:#e2e8f0;font-weight:700">TOTAL</span>';
+  h+='<span style="color:#ef4444;font-weight:700;font-size:18px">'+fmt(custoTotal)+'</span></div>';
+  h+='</div></div>';
+  h+='<div><h3 style="color:#e2e8f0;font-size:15px;margin-bottom:10px">\uD83D\uDCC8 \u00cdndices de Comiss\u00e3o <span style="color:#475569;font-size:11px">(edit\u00e1vel)</span></h3>';
+  h+='<div style="background:#1e293b;border-radius:12px;padding:16px">';
+  var indices=[['comissaoBruta','Comiss\u00e3o Bruta'],['aliquota','Al\u00edquota Imposto'],['comCorretor','Com. Corretor'],['comSenior','Com. S\u00eanior'],['comSocio50','Com. S\u00f3cio 50%']];
+  for(var c=0;c<indices.length;c++){
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="color:#94a3b8;font-size:13px">'+indices[c][1]+'</span>';
+    h+='<div style="width:140px">'+inpG(indices[c][0],m[indices[c][0]]||0,'140px')+'</div></div>';
+  }
+  var comBruto=realAno*m.comissaoBruta;
+  var impostos=comBruto*m.aliquota;
+  var comLiq=comBruto-impostos;
+  var comCorr=realAno*m.comCorretor;
+  var caixaImob=comLiq-comCorr;
+  h+='<div style="border-top:1px solid #334155;padding-top:10px;margin-top:10px;font-size:12px">';
+  h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#94a3b8">Com. Bruta YTD</span><span style="color:#fff">'+fmt(Math.round(comBruto))+'</span></div>';
+  h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#94a3b8">Impostos</span><span style="color:#ef4444">'+fmt(Math.round(impostos))+'</span></div>';
+  h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#94a3b8">Com. L\u00edquida</span><span style="color:#00e5a0">'+fmt(Math.round(comLiq))+'</span></div>';
+  h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#94a3b8">Com. Corretores</span><span style="color:#f59e0b">'+fmt(Math.round(comCorr))+'</span></div>';
+  h+='<div style="display:flex;justify-content:space-between;font-weight:700"><span style="color:#e2e8f0">Caixa Imob.</span><span style="color:#00e5a0">'+fmt(Math.round(caixaImob))+'</span></div>';
+  h+='</div></div></div>';
+  h+='</div>';
+  h+='<h3 style="color:#e2e8f0;font-size:15px;margin:10px 0">\uD83D\uDCB5 Painel VGC \u2014 Resultado Mensal</h3>';
+  h+='<div style="overflow-x:auto;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+  h+='<tr style="background:#0f172a"><th style="padding:6px;color:#94a3b8;text-align:left;border-bottom:1px solid #334155">M\u00eas</th>';
+  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Com. Bruta</th>';
+  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Impostos</th>';
+  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Com. L\u00edq</th>';
+  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Com. Corretor</th>';
+  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Caixa Imob</th>';
+  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Custos</th>';
+  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Resultado</th>';
+  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">ROI</th></tr>';
+  var totalCB=0,totalImp=0,totalCL=0,totalCC=0,totalCX=0,totalCust=0,totalRes=0;
+  for(var i=0;i<12;i++){
+    var r=m.realizado[i]||0;
+    if(r===0){
+      h+='<tr style="background:'+(i%2===0?'#1e293b':'#1a2332')+'"><td style="padding:6px 8px;color:#94a3b8">'+ms[i]+'</td>';
+      for(var j=0;j<8;j++) h+='<td style="padding:6px;color:#475569;text-align:right">\u2014</td>';
+      h+='</tr>';continue;
+    }
+    var cb=r*m.comissaoBruta;var imp=cb*m.aliquota;var cl=cb-imp;var cc=r*m.comCorretor;var cx=cl-cc;var ct=custoTotal;var res=cx-ct;var roi=ct>0?res/ct:0;
+    totalCB+=cb;totalImp+=imp;totalCL+=cl;totalCC+=cc;totalCX+=cx;totalCust+=ct;totalRes+=res;
+    h+='<tr style="background:'+(i%2===0?'#1e293b':'#1a2332')+'"><td style="padding:6px 8px;color:#e2e8f0">'+ms[i]+'</td>';
+    h+='<td style="padding:6px;color:#fff;text-align:right">'+fmtN(Math.round(cb))+'</td>';
+    h+='<td style="padding:6px;color:#ef4444;text-align:right">'+fmtN(Math.round(imp))+'</td>';
+    h+='<td style="padding:6px;color:#00e5a0;text-align:right">'+fmtN(Math.round(cl))+'</td>';
+    h+='<td style="padding:6px;color:#f59e0b;text-align:right">'+fmtN(Math.round(cc))+'</td>';
+    h+='<td style="padding:6px;color:#fff;text-align:right">'+fmtN(Math.round(cx))+'</td>';
+    h+='<td style="padding:6px;color:#ef4444;text-align:right">'+fmtN(Math.round(ct))+'</td>';
+    h+='<td style="padding:6px;color:'+(res>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:600">'+fmtN(Math.round(res))+'</td>';
+    h+='<td style="padding:6px;color:'+(roi>=0?'#00e5a0':'#ef4444')+';text-align:right">'+(roi*100).toFixed(1)+'%</td></tr>';
+  }
+  h+='<tr style="background:#0f172a;border-top:2px solid #00e5a0"><td style="padding:8px;color:#00e5a0;font-weight:700">TOTAL</td>';
+  h+='<td style="padding:6px;color:#00e5a0;text-align:right;font-weight:700">'+fmtN(Math.round(totalCB))+'</td>';
+  h+='<td style="padding:6px;color:#ef4444;text-align:right;font-weight:700">'+fmtN(Math.round(totalImp))+'</td>';
+  h+='<td style="padding:6px;color:#00e5a0;text-align:right;font-weight:700">'+fmtN(Math.round(totalCL))+'</td>';
+  h+='<td style="padding:6px;color:#f59e0b;text-align:right;font-weight:700">'+fmtN(Math.round(totalCC))+'</td>';
+  h+='<td style="padding:6px;color:#fff;text-align:right;font-weight:700">'+fmtN(Math.round(totalCX))+'</td>';
+  h+='<td style="padding:6px;color:#ef4444;text-align:right;font-weight:700">'+fmtN(Math.round(totalCust))+'</td>';
+  h+='<td style="padding:6px;color:'+(totalRes>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:700">'+fmtN(Math.round(totalRes))+'</td>';
+  var avgRoi=totalCust>0?(totalRes/totalCust*100).toFixed(1):'0';
+  h+='<td style="padding:6px;color:'+(totalRes>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:700">'+avgRoi+'%</td></tr>';
+  h+='</table></div>';
+  h+='<p style="color:#475569;font-size:11px">Dados salvos automaticamente. Todas as f\u00f3rmulas s\u00e3o calculadas em tempo real \u2014 iguais \u00e0 planilha META GLOBAL.</p>';
+  h+='</div>';
+  return h;
+}
+function mgUpd(key,idx,val){
+  if(!S.mg) return;
+  S.mg[key][idx]=+(val)||0;
+  localStorage.setItem('psm_meta_global',JSON.stringify(S.mg));
+  render();
+}
+function mgUpdG(key,val){
+  if(!S.mg) return;
+  S.mg[key]=+(val)||0;
+  localStorage.setItem('psm_meta_global',JSON.stringify(S.mg));
+  render();
 }
 
-// ─── PAGE: EQUIPE ─────────────────────────────────────────────────────────────
 function pgEquipe(){
   const equipe = JSON.parse(localStorage.getItem('psm_equipe') || '[]');
 
