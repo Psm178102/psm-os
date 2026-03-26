@@ -5632,32 +5632,21 @@ function pgMarketing() {
   var isDiretor = perfil === 'diretor';
   var mkTab = S.mkTab || 'visao';
 
-  // ── MOCK DATA (replace with real data integration later) ──
+  // ── Dados reais: sem mock, aguardando integração ──
   if (!S.mkData) {
     S.mkData = {
-      leads_mes: 247,
-      leads_meta: 300,
-      custo_lead: 18.50,
-      investimento: 4575,
-      leads_qualificados: 89,
-      taxa_conversao: 36,
-      campanhas: [
-        {nome:'Meta Ads — Lançamento Reserva', status:'ativo', leads:98, custo:1850, roi:320, inicio:'01/03'},
-        {nome:'Google Ads — Captação Terceiros', status:'ativo', leads:64, custo:1200, roi:185, inicio:'01/03'},
-        {nome:'Instagram Orgânico — Conquista', status:'ativo', leads:52, custo:0, roi:0, inicio:'01/03'},
-        {nome:'Meta Ads — Locação Premium', status:'pausado', leads:33, custo:1525, roi:95, inicio:'15/02'},
-      ],
-      conteudos: [
-        {tipo:'Reels', titulo:'Tour Reserva — Decorado', status:'publicado', data:'18/03', engajamento:4200},
-        {tipo:'Carrossel', titulo:'5 Dicas para Investir em Imóveis', status:'publicado', data:'17/03', engajamento:1800},
-        {tipo:'Stories', titulo:'Bastidores — Visita com Cliente', status:'agendado', data:'22/03', engajamento:0},
-        {tipo:'Reels', titulo:'Antes/Depois — Reforma Apartamento', status:'producao', data:'25/03', engajamento:0},
-        {tipo:'Post', titulo:'Novo Empreendimento — Teaser', status:'ideia', data:'', engajamento:0},
-      ],
+      leads_mes: 0,
+      leads_meta: 0,
+      custo_lead: 0,
+      investimento: 0,
+      leads_qualificados: 0,
+      taxa_conversao: 0,
+      campanhas: [],
+      conteudos: [],
       redes: {
-        instagram: {seguidores:12400, crescimento:340, alcance:45000, engajamento:5.2},
-        facebook: {seguidores:3200, crescimento:45, alcance:8500, engajamento:2.1},
-        tiktok: {seguidores:890, crescimento:120, alcance:15000, engajamento:8.7},
+        instagram: {seguidores:0, crescimento:0, alcance:0, engajamento:0},
+        facebook: {seguidores:0, crescimento:0, alcance:0, engajamento:0},
+        tiktok: {seguidores:0, crescimento:0, alcance:0, engajamento:0}
       }
     };
   }
