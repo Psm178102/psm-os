@@ -8789,7 +8789,7 @@ async function testConnectors() {
 // === SISTEMA DE PERFIS E PERMISSOES PSM OS ===
 var PERFIL_MAP={paulo:'diretor',isa:'diretor',leire:'backoffice',mariane:'backoffice',marcus_l:'lider',guilherme:'marketing',gestor_trafego:'marketing'};
 function getPerfil(){if(!S.user||!S.user.id)return "corretor";if(PERFIL_MAP[S.user.id])return PERFIL_MAP[S.user.id];if(S.user.role==="socio")return "diretor";if(S.user.role==="lider")return "lider";if(S.user.role==="backoffice")return "backoffice";if(S.user.role==="marketing")return "marketing";return "corretor";}
-var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','forecast','checkin','drive','formacao','manual','captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],marketing:['meu','dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias','simulador'],corretor:['meu','ranking','crm','metas','checkin','formacao','manual','drive','vera']};
+var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','checkin','drive','formacao','manual','captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],marketing:['meu','dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias','simulador'],corretor:['meu','ranking','crm','metas','checkin','formacao','manual','drive','vera']};
 function canAccess(p){var pf=getPerfil();var a=MENU_ACCESS[pf];return a?a.indexOf(p)!==-1:false;}
 var DEFAULT_PAGE={diretor:'dashboard',backoffice:'dashboard',lider:'meu',marketing:'meu',corretor:'meu'};
 function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"meu";}
@@ -8820,11 +8820,17 @@ function renderSB() {
     ]},
     {sec:'Estratégia', items:[
       {id:'warroom',   lbl:'War Room',       ico:'⚔️',min:2},
-        {id:'wararena', lbl:'War Arena', ico:'🏆', min:2},      {id:'metaads',  lbl:'Meta Ads',      ico:'📢', min:2},
+        {id:'wararena', lbl:'War Arena', ico:'🏆', min:2},
 
       {id:'forecast',  lbl:'Forecast',       ico:'📉',min:5},
       {id:'okrs',      lbl:'OKRs & Metas',   ico:'🎯',min:5},
       {id:'vendas',    lbl:'Lançar Venda',   ico:'💰',min:7},
+    ]},
+    {sec:'Tráfego Ads', items:[
+      {id:'sim_criativos',lbl:'Sim. Criativos',ico:'🎨',min:2},
+      {id:'sim_leads',    lbl:'Sim. Leads',    ico:'🎯',min:2},
+      {id:'metricas_viab',lbl:'Métr. Viabilidade',ico:'📊',min:2},
+      {id:'metaads',      lbl:'Meta Ads',      ico:'📣',min:2},
     ]},
     {sec:'Financeiro', items:[
       {id:'fluxocaixa',lbl:'Fluxo de Caixa',ico:'💰',min:5},
@@ -8900,6 +8906,7 @@ function renderHDR() {
     fluxocaixa:'💰 Fluxo de Caixa',dre:'📊 DRE',comissoes:'💎 Comissões',repasses:'🔄 Repasses',
     radar:'📡 Radar Intelligence PSM',benchmark:'📊 Benchmark',tendencias:'📈 Tendências',
     metaads:'📢 Meta Ads',
+    sim_criativos:'Sim. Criativos',sim_leads:'Sim. Leads',metricas_viab:'Métr. Viabilidade',
     agentes:'Agentes PSM',agente_vera:'Agente Vera',agente_sol:'Agente Sol',sr_performance:'Sr. Performance'};
   const unread = NOTIFS.filter(n=>!n.read).length;
   return '<div class="hdr">'
@@ -8933,6 +8940,222 @@ function safeRoute() {
   }
 }
 
+function pgSimCriativos(){
+  return `
+  <div class="pg-wrap" style="padding:24px;max-width:1100px;margin:auto">
+    <h2 style="color:#00e5a0;margin-bottom:8px">🎨 Simulador de Criativos</h2>
+    <p style="color:#94a3b8;margin-bottom:24px">Simule variações de criativos para campanhas de tráfego pago e compare estimativas de desempenho.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:24px">
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Tipo de Criativo</label>
+        <select id="sc_tipo" onchange="simCriativoCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+          <option value="imagem">Imagem Estática</option>
+          <option value="video">Vídeo Curto (Reels)</option>
+          <option value="carrossel">Carrossel</option>
+          <option value="stories">Stories</option>
+        </select>
+      </div>
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Investimento Diário (R$)</label>
+        <input id="sc_invest" type="number" value="50" min="1" oninput="simCriativoCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Dias de Campanha</label>
+        <input id="sc_dias" type="number" value="30" min="1" oninput="simCriativoCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+    </div>
+    <div id="sc_result" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+    </div>
+    <p style="color:#475569;font-size:12px;margin-top:16px">* Estimativas baseadas em benchmarks médios do mercado imobiliário. Resultados reais podem variar.</p>
+  </div>`;
+}
+function simCriativoCalc(){
+  var tipo=el('sc_tipo').value, inv=+(el('sc_invest').value)||0, dias=+(el('sc_dias').value)||1;
+  var total=inv*dias;
+  var cpm={imagem:18,video:12,carrossel:15,stories:10}[tipo]||15;
+  var ctr={imagem:1.2,video:2.5,carrossel:1.8,stories:3.0}[tipo]||1.5;
+  var impressoes=Math.round((total/cpm)*1000);
+  var cliques=Math.round(impressoes*(ctr/100));
+  var cpc=cliques>0?(total/cliques).toFixed(2):'\u2014';
+  var leads=Math.round(cliques*0.08);
+  var cpl=leads>0?(total/leads).toFixed(2):'\u2014';
+  el('sc_result').innerHTML=`
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">Investimento Total</div>
+      <div style="color:#00e5a0;font-size:28px;font-weight:700">R$ ${total.toLocaleString('pt-BR')}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">Impressões Estimadas</div>
+      <div style="color:#fff;font-size:28px;font-weight:700">${impressoes.toLocaleString('pt-BR')}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">Cliques (CTR ${ctr}%)</div>
+      <div style="color:#fff;font-size:28px;font-weight:700">${cliques.toLocaleString('pt-BR')}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">CPC Médio</div>
+      <div style="color:#f59e0b;font-size:28px;font-weight:700">R$ ${cpc}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">Leads Estimados</div>
+      <div style="color:#00e5a0;font-size:28px;font-weight:700">${leads}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">CPL Médio</div>
+      <div style="color:#f59e0b;font-size:28px;font-weight:700">R$ ${cpl}</div>
+    </div>`;
+}
+function pgSimLeads(){
+  return `
+  <div class="pg-wrap" style="padding:24px;max-width:1100px;margin:auto">
+    <h2 style="color:#00e5a0;margin-bottom:8px">🎯 Simulador de Leads</h2>
+    <p style="color:#94a3b8;margin-bottom:24px">Projete volume de leads, taxa de conversão e retorno com base no investimento e funil de vendas.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px">
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Investimento Mensal (R$)</label>
+        <input id="sl_invest" type="number" value="5000" min="1" oninput="simLeadsCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">CPL Esperado (R$)</label>
+        <input id="sl_cpl" type="number" value="20" min="1" oninput="simLeadsCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Taxa Qualificação (%)</label>
+        <input id="sl_qual" type="number" value="35" min="1" max="100" oninput="simLeadsCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Taxa Conversão Venda (%)</label>
+        <input id="sl_conv" type="number" value="5" min="0.1" max="100" step="0.1" oninput="simLeadsCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Ticket Médio Venda (R$)</label>
+        <input id="sl_ticket" type="number" value="450000" min="1" oninput="simLeadsCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Comissão (%)</label>
+        <input id="sl_comissao" type="number" value="5" min="0.1" max="100" step="0.1" oninput="simLeadsCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+    </div>
+    <div id="sl_result" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px"></div>
+    <p style="color:#475569;font-size:12px;margin-top:16px">* Projeção baseada nos parâmetros informados. Ajuste conforme histórico real.</p>
+  </div>`;
+}
+function simLeadsCalc(){
+  var inv=+(el('sl_invest').value)||0, cpl=+(el('sl_cpl').value)||1;
+  var qual=+(el('sl_qual').value)||0, conv=+(el('sl_conv').value)||0;
+  var ticket=+(el('sl_ticket').value)||0, com=+(el('sl_comissao').value)||0;
+  var leads=Math.round(inv/cpl);
+  var qualificados=Math.round(leads*(qual/100));
+  var vendas=Math.round(qualificados*(conv/100));
+  var vgv=vendas*ticket;
+  var receita=vgv*(com/100);
+  var roi=inv>0?((receita-inv)/inv*100).toFixed(0):'\u2014';
+  el('sl_result').innerHTML=`
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">Leads Gerados</div>
+      <div style="color:#00e5a0;font-size:28px;font-weight:700">${leads}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">Qualificados</div>
+      <div style="color:#fff;font-size:28px;font-weight:700">${qualificados}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">Vendas Projetadas</div>
+      <div style="color:#00e5a0;font-size:28px;font-weight:700">${vendas}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">VGV Projetado</div>
+      <div style="color:#fff;font-size:28px;font-weight:700">R$ ${vgv.toLocaleString('pt-BR')}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">Receita Comissão</div>
+      <div style="color:#f59e0b;font-size:28px;font-weight:700">R$ ${receita.toLocaleString('pt-BR')}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">ROI</div>
+      <div style="color:${+roi>0?'#00e5a0':'#ef4444'};font-size:28px;font-weight:700">${roi}%</div>
+    </div>`;
+}
+function pgMetricasViab(){
+  return `
+  <div class="pg-wrap" style="padding:24px;max-width:1100px;margin:auto">
+    <h2 style="color:#00e5a0;margin-bottom:8px">📊 Métricas de Viabilidade</h2>
+    <p style="color:#94a3b8;margin-bottom:24px">Analise a viabilidade do investimento em tráfego pago com base em cenários de custo e retorno.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px">
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Orçamento Mensal Ads (R$)</label>
+        <input id="mv_orcamento" type="number" value="5000" min="1" oninput="metricasViabCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Custo Operacional Mensal (R$)</label>
+        <input id="mv_custo_op" type="number" value="2000" min="0" oninput="metricasViabCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Leads/Mês Esperados</label>
+        <input id="mv_leads" type="number" value="250" min="1" oninput="metricasViabCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Taxa Conversão Lead→Venda (%)</label>
+        <input id="mv_conv" type="number" value="2" min="0.1" max="100" step="0.1" oninput="metricasViabCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Ticket Médio (R$)</label>
+        <input id="mv_ticket" type="number" value="400000" min="1" oninput="metricasViabCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+      <div class="card" style="background:#1e293b;border-radius:14px;padding:20px">
+        <label style="color:#94a3b8;font-size:13px">Comissão Bruta (%)</label>
+        <input id="mv_comissao" type="number" value="5" min="0.1" max="100" step="0.1" oninput="metricasViabCalc()" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155">
+      </div>
+    </div>
+    <div id="mv_result" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:16px"></div>
+    <div id="mv_veredito" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center;margin-bottom:16px"></div>
+    <p style="color:#475569;font-size:12px">* Análise simplificada. Considere sazonalidade e variáveis externas.</p>
+  </div>`;
+}
+function metricasViabCalc(){
+  var orc=+(el('mv_orcamento').value)||0, cop=+(el('mv_custo_op').value)||0;
+  var leads=+(el('mv_leads').value)||1, conv=+(el('mv_conv').value)||0;
+  var ticket=+(el('mv_ticket').value)||0, com=+(el('mv_comissao').value)||0;
+  var custoTotal=orc+cop;
+  var cpl=leads>0?(orc/leads).toFixed(2):'\u2014';
+  var vendas=Math.round(leads*(conv/100));
+  var vgv=vendas*ticket;
+  var receita=vgv*(com/100);
+  var lucro=receita-custoTotal;
+  var roi=custoTotal>0?((lucro/custoTotal)*100).toFixed(0):'\u2014';
+  var payback=lucro>0?Math.ceil(custoTotal/lucro):'\u2014';
+  var viavel=lucro>0;
+  el('mv_result').innerHTML=`
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">Custo Total/Mês</div>
+      <div style="color:#ef4444;font-size:24px;font-weight:700">R$ ${custoTotal.toLocaleString('pt-BR')}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">CPL</div>
+      <div style="color:#f59e0b;font-size:24px;font-weight:700">R$ ${cpl}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">Vendas/Mês</div>
+      <div style="color:#fff;font-size:24px;font-weight:700">${vendas}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">VGV Mensal</div>
+      <div style="color:#fff;font-size:24px;font-weight:700">R$ ${vgv.toLocaleString('pt-BR')}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">Receita Comissão</div>
+      <div style="color:#00e5a0;font-size:24px;font-weight:700">R$ ${receita.toLocaleString('pt-BR')}</div>
+    </div>
+    <div class="card" style="background:#1e293b;border-radius:14px;padding:20px;text-align:center">
+      <div style="color:#94a3b8;font-size:12px">Lucro Líquido</div>
+      <div style="color:${viavel?'#00e5a0':'#ef4444'};font-size:24px;font-weight:700">R$ ${lucro.toLocaleString('pt-BR')}</div>
+    </div>`;
+  el('mv_veredito').innerHTML=`
+    <div style="font-size:14px;color:#94a3b8;margin-bottom:8px">Veredito de Viabilidade</div>
+    <div style="font-size:32px">${viavel?'\u2705':'\u274C'}</div>
+    <div style="font-size:20px;font-weight:700;color:${viavel?'#00e5a0':'#ef4444'}">${viavel?'VI\u00c1VEL':'INVI\u00c1VEL'}</div>
+    <div style="color:#94a3b8;font-size:13px;margin-top:4px">ROI: ${roi}% | Payback: ${payback} m${payback===1?'\u00eas':'eses'}</div>`;
+}
 function pgMetaAds(){
 // ===== STATE INIT =====
 if(!S.adsTab) S.adsTab='visao';
@@ -9882,6 +10105,9 @@ function route() {
     case 'warroom':    return pgWarRoom();
       case 'wararena': return pgWarArena();
     case 'metaads': return pgMetaAds();
+    case 'sim_criativos': return pgSimCriativos();
+    case 'sim_leads': return pgSimLeads();
+    case 'metricas_viab': return pgMetricasViab();
     case 'forecast':   return pgForecast();
     case 'okrs':       return pgOKRs();
     case 'vera':       return pgVera();
