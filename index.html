@@ -589,7 +589,7 @@ html{height:100%;overflow:hidden}
 <script>
 'use strict';
 // ─── UTILS ───────────────────────────────────────────────────────────────────
-const fmt=n=>{if(n===null||n===undefined||isNaN(n))return'—';if(n>=1000000)return'R$'+(n/1000000).toFixed(1).replace('.',',')+'M';if(n>=1000)return'R$'+(n/1000).toFixed(0)+'K';return'R$'+n;};
+const fmt=n=>{if(n===null||n===undefined||isNaN(n))return'—';return'R$ '+Math.round(n).toLocaleString('pt-BR');};
 const pN=(v,t)=>t>0?Math.round(v/t*100):0;
 const pS=(v,t)=>pN(v,t)+'%';
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
@@ -1456,7 +1456,7 @@ function pgFrente(fid){
 // ─── PAGE: WAR ROOM ─────────────────────────────────────────────────────────────
 // PSM OS War Pages - Executive War Room & Competition Arena
 // Format helper
-function fmt$(v){if(v>=1e6)return 'R$'+(v/1e6).toFixed(1)+'M';if(v>=1e3)return 'R$'+(v/1e3).toFixed(0)+'K';return 'R$'+v.toFixed(0);}
+function fmt$(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
 
 // ============================================================================
 // FUNCTION 1: pgWarRoom() — EXECUTIVE COMMAND CENTER
@@ -1948,7 +1948,7 @@ var pgWarArena = function() {
     var kpis = [
       {label:'Combatentes',value:userArenaData.length,icon:'\uD83E\uDDD1\u200D\uD83D\uDE80',color:blue},
       {label:'Vendas Total',value:totalVendas,icon:'\uD83C\uDFC6',color:green},
-      {label:'VGV Total',value:'R$ '+(totalVGV/1e6).toFixed(1)+'M',icon:'\uD83D\uDCB0',color:accent},
+      {label:'VGV Total',value:'R$ '+Math.round(totalVGV).toLocaleString('pt-BR'),icon:'\uD83D\uDCB0',color:accent},
       {label:'On Fire',value:onFireUsers.length,icon:'\uD83D\uDD25',color:red},
       {label:'XP M\u00E9dio',value:userArenaData.length>0?Math.round(userArenaData.reduce(function(s,u){return s+u.xp},0)/userArenaData.length):0,icon:'\u2B50',color:purple}
     ];
@@ -1988,7 +1988,7 @@ var pgWarArena = function() {
       h += '<td style="padding:10px 8px;text-align:right;font-weight:700;color:'+accent+'">'+u.xp.toLocaleString('pt-BR')+'</td>';
       h += '<td style="padding:10px 8px;text-align:right"><div style="display:flex;align-items:center;justify-content:flex-end;gap:4px"><div style="width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.1)"><div style="width:'+u.score+'%;height:100%;border-radius:2px;background:'+(u.score>=70?green:u.score>=40?accent:red)+'"></div></div><span style="font-weight:600">'+u.score+'</span></div></td>';
       h += '<td style="padding:10px 8px;text-align:right;font-weight:600;color:'+green+'">'+u.vendas+'</td>';
-      h += '<td style="padding:10px 8px;text-align:right;color:#94a3b8">R$ '+(u.vgv/1e3).toFixed(0)+'k</td>';
+      h += '<td style="padding:10px 8px;text-align:right;color:#94a3b8">R$ '+Math.round(u.vgv).toLocaleString('pt-BR')+'</td>';
       h += '<td style="padding:10px 8px;text-align:center">'+trendIcon+'</td>';
       h += '</tr>';
     });
@@ -2143,7 +2143,7 @@ var pgWarArena = function() {
       h += '<div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:10px">';
       h += '<div><div style="font-size:16px;font-weight:800;color:'+green+'">'+left.vendas+'</div>vendas</div>';
       h += '<div><div style="font-size:16px;font-weight:800;color:'+accent+'">'+left.score+'</div>score</div>';
-      h += '<div><div style="font-size:16px;font-weight:800;color:'+blue+'">'+(left.vgv/1e3).toFixed(0)+'k</div>VGV</div>';
+      h += '<div><div style="font-size:16px;font-weight:800;color:'+blue+'">'+Math.round(left.vgv).toLocaleString('pt-BR')+'</div>VGV</div>';
       h += '</div></div>';
 
       // VS badge
@@ -2158,7 +2158,7 @@ var pgWarArena = function() {
       h += '<div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:10px">';
       h += '<div><div style="font-size:16px;font-weight:800;color:'+green+'">'+right.vendas+'</div>vendas</div>';
       h += '<div><div style="font-size:16px;font-weight:800;color:'+accent+'">'+right.score+'</div>score</div>';
-      h += '<div><div style="font-size:16px;font-weight:800;color:'+blue+'">'+(right.vgv/1e3).toFixed(0)+'k</div>VGV</div>';
+      h += '<div><div style="font-size:16px;font-weight:800;color:'+blue+'">'+Math.round(right.vgv).toLocaleString('pt-BR')+'</div>VGV</div>';
       h += '</div></div>';
 
       h += '</div></div>';
@@ -2185,7 +2185,7 @@ var pgWarArena = function() {
 
       // VGV bar
       h += '<div style="margin-bottom:12px">';
-      h += '<div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:4px"><span>VGV</span><span>R$ '+(f.vgv/1e6).toFixed(2)+'M</span></div>';
+      h += '<div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:4px"><span>VGV</span><span>R$ '+Math.round(f.vgv).toLocaleString('pt-BR')+'</span></div>';
       h += '<div style="height:8px;border-radius:4px;background:rgba(255,255,255,.08)"><div style="width:'+barWidth+'%;height:100%;border-radius:4px;background:linear-gradient(90deg,'+color+','+color+'88)"></div></div></div>';
 
       // Mini stats
@@ -2267,7 +2267,7 @@ var pgWarArena = function() {
         h += '<div><div style="font-size:9px;color:#64748b;margin-bottom:4px">'+d.label+'</div>';
         h += '<div style="height:40px;background:rgba(255,255,255,.05);border-radius:4px;position:relative;overflow:hidden">';
         h += '<div style="position:absolute;bottom:0;left:0;right:0;height:'+pct+'%;background:'+d.color+'33;border-radius:4px"></div>';
-        h += '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+d.color+'">'+(d.key==='vgv'?(val/1e3).toFixed(0)+'k':val)+'</div></div></div>';
+        h += '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+d.color+'">'+(d.key==='vgv'?'R$ '+Math.round(val).toLocaleString('pt-BR'):val)+'</div></div></div>';
       });
       h += '</div></div>';
     });
@@ -2280,7 +2280,7 @@ var pgWarArena = function() {
       h += '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)">';
       h += '<div style="font-weight:700;color:'+accent+';width:20px">'+(i+1)+'</div>';
       h += '<div style="flex:1;font-size:12px;font-weight:500;color:#e2e8f0">'+u.nome+'</div>';
-      h += '<div style="font-size:13px;font-weight:700;color:'+accent+'">R$ '+(u.vgv/1e3).toFixed(0)+'k</div></div>';
+      h += '<div style="font-size:13px;font-weight:700;color:'+accent+'">R$ '+Math.round(u.vgv).toLocaleString('pt-BR')+'</div></div>';
     });
     h += '</div>';
 
@@ -2328,7 +2328,7 @@ var pgWarArena = function() {
       h += heatCell(u.crm, maxVals.crm, u.crm);
       h += heatCell(u.lig, maxVals.lig, u.lig);
       h += heatCell(u.vendas, maxVals.vendas, u.vendas);
-      h += heatCell(u.vgv, maxVals.vgv, 'R$ '+(u.vgv/1e3).toFixed(0)+'k');
+      h += heatCell(u.vgv, maxVals.vgv, 'R$ '+Math.round(u.vgv).toLocaleString('pt-BR'));
       h += '</tr>';
     });
     h += '</tbody></table></div>';
@@ -2375,7 +2375,7 @@ var pgWarArena = function() {
     h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">';
     var tvKPIs = [
       {value:totalVendas,label:'VENDAS',color:green,icon:'\uD83C\uDFC6'},
-      {value:'R$ '+(totalVGV/1e6).toFixed(1)+'M',label:'VGV TOTAL',color:accent,icon:'\uD83D\uDCB0'},
+      {value:'R$ '+Math.round(totalVGV).toLocaleString('pt-BR'),label:'VGV TOTAL',color:accent,icon:'\uD83D\uDCB0'},
       {value:userArenaData.length,label:'COMBATENTES',color:blue,icon:'\u2694\uFE0F'},
       {value:onFireUsers.length,label:'ON FIRE',color:red,icon:'\uD83D\uDD25'}
     ];
@@ -2391,7 +2391,7 @@ var pgWarArena = function() {
     h += '<div style="'+cardStyle+';overflow:hidden;padding:12px 20px">';
     h += '<div style="display:flex;gap:32px;animation:ticker 20s linear infinite;white-space:nowrap">';
     userArenaData.forEach(function(u){
-      h += '<span style="font-size:12px;color:#94a3b8">'+u.patente.icon+' <b style="color:#fff">'+u.nome+'</b> '+u.xp+'XP \u2022 '+u.vendas+'v \u2022 R$'+(u.vgv/1e3).toFixed(0)+'k</span>';
+      h += '<span style="font-size:12px;color:#94a3b8">'+u.patente.icon+' <b style="color:#fff">'+u.nome+'</b> '+u.xp+'XP \u2022 '+u.vendas+'v \u2022 R$ '+Math.round(u.vgv).toLocaleString('pt-BR')+'</span>';
     });
     h += '</div></div>';
 
@@ -9138,9 +9138,9 @@ var acctFilter=S.adsAcct;
 var camps=acctFilter==='all'?allCamps:allCamps.filter(function(c){return c.account===acctFilter;});
 
 // ===== HELPERS =====
-function fmt(n){if(n===undefined||n===null)return'â';return n>=1000000?(n/1000000).toFixed(1)+'M':n>=1000?(n/1000).toFixed(1)+'k':String(Math.round(n));}
+function fmt(n){if(n===undefined||n===null)return'â';return 'R$ '+Math.round(n).toLocaleString('pt-BR');}
 function fmtR(n){if(!n&&n!==0)return'â';return'R$'+n.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');}
-function fmtRShort(n){if(!n&&n!==0)return'â';if(n>=1000)return'R$'+(n/1000).toFixed(1)+'k';return'R$'+n.toFixed(2).replace('.',',');}
+function fmtRShort(n){if(!n&&n!==0)return'â';return'R$ '+Math.round(n).toLocaleString('pt-BR');}
 function pct(n){if(!n&&n!==0)return'â';return n.toFixed(2)+'%';}
 function colorCTR(v){return v>=2?'#10b981':v>=1.5?'#f59e0b':'#ef4444';}
 function colorCPL(v){return v<=15?'#10b981':v<=30?'#f59e0b':'#ef4444';}
