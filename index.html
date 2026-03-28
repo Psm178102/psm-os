@@ -3861,7 +3861,7 @@ async function doLogin() {
 
   S.user = {...UM[user.id], ...user};
   const lvl = RLVL[S.user.role] || 0;
-  S.page = lvl >= 5 ? getDefaultPage() : 'meu';
+  S.page = getDefaultPage();
   S.loginErr = null;
   S.loginLoading = false;
   toast('Bem-vindo, ' + S.user.name.split(' ')[0] + '! 👋', 'ok');
@@ -8837,10 +8837,10 @@ async function testConnectors() {
 // === SISTEMA DE PERFIS E PERMISSOES PSM OS ===
 var PERFIL_MAP={paulo:'diretor',isa:'diretor',leire:'backoffice',mariane:'backoffice',marcus_l:'lider',guilherme:'marketing',gestor_trafego:'marketing'};
 function getPerfil(){if(!S.user||!S.user.id)return "corretor";if(PERFIL_MAP[S.user.id])return PERFIL_MAP[S.user.id];if(S.user.role==="socio")return "diretor";if(S.user.role==="lider")return "lider";if(S.user.role==="backoffice")return "backoffice";if(S.user.role==="marketing")return "marketing";return "corretor";}
-var MENU_ACCESS={diretor:['dashboard','meu','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],backoffice:['dashboard','meu','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],lider:['meu','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','checkin','drive','formacao','manual','captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],marketing:['meu','dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias','simulador'],corretor:['meu','ranking','crm','metas','checkin','formacao','manual','drive','vera']};
+var MENU_ACCESS={diretor:['dashboard','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],backoffice:['dashboard','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],lider:['ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','checkin','drive','formacao','manual','captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],marketing:['dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias','simulador'],corretor:['ranking','crm','metas','checkin','formacao','manual','drive','vera']};
 function canAccess(p){var pf=getPerfil();var a=MENU_ACCESS[pf];return a?a.indexOf(p)!==-1:false;}
-var DEFAULT_PAGE={diretor:'dashboard',backoffice:'dashboard',lider:'meu',marketing:'meu',corretor:'meu'};
-function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"meu";}
+var DEFAULT_PAGE={diretor:'dashboard',backoffice:'dashboard',lider:'dashboard',marketing:'dashboard',corretor:'dashboard'};
+function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"dashboard";}
 
 function renderSB() {
   const u = S.user; const lvl = RLVL[u?.role]||0;
@@ -8848,7 +8848,6 @@ function renderSB() {
     {sec:'Dashboards', items:[
 {id:'checkin',   lbl:'Check-in/out',   ico:'\u23F0',min:1},
       {id:'dashboard', lbl:'Dashboard',      ico:'📊',min:5},
-      {id:'meu',       lbl:'Meu Dashboard',  ico:'👤',min:2},
       {id:'ranking',   lbl:'Ranking',        ico:'🏆',min:2},
       {id:'equipe',    lbl:'Visão Equipe',   ico:'👥',min:5},
       {id:'lancamentos_ano', lbl:'Lan\u00e7amentos', ico:'\uD83D\uDE80',min:5},
@@ -10211,7 +10210,7 @@ function renderMobNav() {
   const u = S.user; if(!u) return '';
   const p = S.page;
   const items = [
-    {id:'meu',      ico:'👤', lbl:'Meu'},
+    {id:'dashboard', ico:'📊', lbl:'Dashboard'},
     {id:'crm',      ico:'🔀', lbl:'Funil'},
     {id:'metricas', ico:'📈', lbl:'Métricas'},
     {id:'oneonone', ico:'🎯', lbl:'1:1'},
@@ -10243,7 +10242,7 @@ function nav(page) {
   if(sb) sb.classList.remove('open');
   if(ov) ov.classList.remove('open');
   // Update mobile bottom nav
-  ['meu','crm','metricas','oneonone','vera'].forEach(id => {
+  ['dashboard','crm','metricas','oneonone','vera'].forEach(id => {
     const btn = document.getElementById('mbn-'+id);
     if(btn) btn.classList.toggle('on', page === id);
   });
@@ -10316,7 +10315,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const user = USERS_BASE.find(u => u.id === data.uid);
         if (user) {
           S.user = {...UM[user.id], ...user};
-          S.page = RLVL[S.user.role] >= 5 ? 'dashboard' : 'meu';
+          S.page = getDefaultPage();
                     render();
           setTimeout(() => { RD.sync(true).then(() => RD.startAutoSync()); }, 200);
           if (!S.veraHist?.length) {
