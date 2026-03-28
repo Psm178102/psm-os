@@ -1044,6 +1044,8 @@ function saveState() {
       teamConfig: TEAM_CONFIG || {},
       connectors: S.connectors || {},
       integrations: S.integrations || {},
+      lancTimeline: S.lancTimeline || [],
+      lancMetas: S.lancMetas || {},
       ooSheetLinks: S.ooSheetLinks || {},
       sonhos: S.sonhos || {},
       savedAt: Date.now(),
@@ -1067,6 +1069,8 @@ function loadState() {
     if (d.teamConfig) Object.assign(TEAM_CONFIG, d.teamConfig);
     if (d.connectors) S.connectors = {...S.connectors, ...d.connectors};
     try { const _ii = localStorage.getItem('psm_integrations'); if (_ii) S.integrations = JSON.parse(_ii); } catch(e) {}
+    if (d.lancTimeline) S.lancTimeline = d.lancTimeline;
+    if (d.lancMetas) S.lancMetas = d.lancMetas;
     if (d.ooSheetLinks) S.ooSheetLinks = {...S.ooSheetLinks, ...d.ooSheetLinks};
     if (d.sonhos) S.sonhos = d.sonhos;
     // Restore manual vendas
@@ -7410,7 +7414,7 @@ function pgLancamentosAno() {
   var isDiretor = perfil === 'diretor';
 
   var MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
-  var LANC_2026 = [
+  var DEFAULT_LANC = [
     { mes: 1, nome: 'Giulia BOULEVARD 2', cor: '#0f9d58' },
     { mes: 1, nome: 'SOHO SQUARE - FAJ', cor: '#0f9d58' },
     { mes: 3, nome: 'Organique', cor: '#0f9d58' },
@@ -7435,45 +7439,47 @@ function pgLancamentosAno() {
     { mes: 10, nome: 'BIO CITY 2', cor: '#0f172a' }
   ];
 
+  if (!S.lancTimeline || !S.lancTimeline.length) S.lancTimeline = DEFAULT_LANC.map(function(l,i){ return { id: i, mes: l.mes, nome: l.nome, cor: l.cor, meta_vgv: 0, meta_pastas: 0 }; });
+  var LANC = S.lancTimeline;
+
   var byMonth = {};
-  LANC_2026.forEach(function(l) {
-    if (!byMonth[l.mes]) byMonth[l.mes] = [];
-    byMonth[l.mes].push(l);
-  });
+  for (var i = 1; i <= 12; i++) byMonth[i] = [];
+  LANC.forEach(function(l){ if (!byMonth[l.mes]) byMonth[l.mes] = []; byMonth[l.mes].push(l); });
 
   if (!S.lancMetas) S.lancMetas = { meta_vgv: 0, meta_pastas: 0, meta_estoque: 0, meta_impper: 0 };
   var metas = S.lancMetas;
 
-  var header = '<div class="phd"><h1>\uD83D\uDE80 Expectativa de Lan\u00e7amentos 2026</h1><p>Linha do tempo oficial dos empreendimentos do ano</p></div>';
+  var header = '<div class="ph"><div class="phtitle">\u{1F3D7}\uFE0F Lan\u00e7amentos 2026</div>'
+    + '<div class="phsub">Timeline edit\u00e1vel \u2014 clique + para adicionar ou \u00d7 para remover lan\u00e7amentos</div></div>';
 
   var metasCard = '';
   if (isDiretor) {
-    metasCard = '<div class="card mb2"><div class="ctitle">\uD83C\uDFAF Metas de Lan\u00e7amentos 2026</div>'
+    metasCard = '<div class="card mb2"><div class="ctitle" style="margin-bottom:4px">\u{1F3AF} Metas de Lan\u00e7amentos 2026</div>'
       + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">'
-      + '<div><label class="flabel">Meta VGV (R$)</label><input class="finp" type="number" value="'+metas.meta_vgv+'" oninput="S.lancMetas.meta_vgv=+this.value;saveState()"></div>'
-      + '<div><label class="flabel">Meta Pastas</label><input class="finp" type="number" value="'+metas.meta_pastas+'" oninput="S.lancMetas.meta_pastas=+this.value;saveState()"></div>'
-      + '<div><label class="flabel">Meta Estoque</label><input class="finp" type="number" value="'+metas.meta_estoque+'" oninput="S.lancMetas.meta_estoque=+this.value;saveState()"></div>'
-      + '<div><label class="flabel">Meta Impper</label><input class="finp" type="number" value="'+metas.meta_impper+'" oninput="S.lancMetas.meta_impper=+this.value;saveState()"></div>'
+      + '<div><label class="flabel">Meta VGV (R$)</label><input class="finp" type="number" value="'+metas.meta_vgv+'" oninput="S.lancMetas.meta_vgv=+this.value"></div>'
+      + '<div><label class="flabel">Meta Pastas</label><input class="finp" type="number" value="'+metas.meta_pastas+'" oninput="S.lancMetas.meta_pastas=+this.value"></div>'
+      + '<div><label class="flabel">Meta Estoque</label><input class="finp" type="number" value="'+metas.meta_estoque+'" oninput="S.lancMetas.meta_estoque=+this.value"></div>'
+      + '<div><label class="flabel">Meta Impper</label><input class="finp" type="number" value="'+metas.meta_impper+'" oninput="S.lancMetas.meta_impper=+this.value"></div>'
       + '</div>'
-      + '<button class="btn bp1 mt2" onclick="toast(\'Metas salvas!\',\'ok\')">Salvar Metas</button>'
+      + '<button class="btn bpri bsm mt1" onclick="saveState();render()">Salvar Metas</button>'
       + '</div>';
   } else {
     var hasAnyMeta = metas.meta_vgv || metas.meta_pastas || metas.meta_estoque || metas.meta_impper;
     if (hasAnyMeta) {
       metasCard = '<div class="kgrid mb2">'
         + (metas.meta_vgv ? Kpi('Meta VGV', fmt(metas.meta_vgv), 'lan\u00e7amentos 2026', null, 'var(--navy)') : '')
-        + (metas.meta_pastas ? Kpi('Meta Pastas', metas.meta_pastas, 'total esperado', null, 'var(--b)') : '')
-        + (metas.meta_estoque ? Kpi('Meta Estoque', metas.meta_estoque, 'unidades', null, 'var(--g)') : '')
-        + (metas.meta_impper ? Kpi('Meta Impper', metas.meta_impper, 'unidades', null, 'var(--a)') : '')
+        + (metas.meta_pastas ? Kpi('Meta Pastas', metas.meta_pastas, 'unidades', null, 'var(--g)') : '')
+        + (metas.meta_estoque ? Kpi('Meta Estoque', metas.meta_estoque, 'unidades', null, 'var(--b)') : '')
+        + (metas.meta_impper ? Kpi('Meta Impper', fmt(metas.meta_impper), 'valor', null, '#8b5cf6') : '')
         + '</div>';
     }
   }
 
-  var totalLanc = LANC_2026.length;
-  var mesesAtivos = Object.keys(byMonth).length;
+  var totalLanc = LANC.length;
+  var mesesAtivos = Object.keys(byMonth).filter(function(k){ return byMonth[k].length > 0; }).length;
   var now = new Date();
   var mesAtual = now.getMonth();
-  var lancPassados = LANC_2026.filter(function(l){ return l.mes <= mesAtual; }).length;
+  var lancPassados = LANC.filter(function(l){ return l.mes <= mesAtual + 1; }).length;
   var lancFuturos = totalLanc - lancPassados;
 
   var kpis = '<div class="kgrid mb2">'
@@ -7482,59 +7488,106 @@ function pgLancamentosAno() {
     + Kpi('A Lan\u00e7ar', lancFuturos, 'restante do ano', null, 'var(--b)')
     + '</div>';
 
-  var tl = '<div class="card mb2" style="padding:16px;overflow-x:auto">';
-  tl += '<div class="ctitle">\uD83D\uDCC5 Timeline 2026</div>';
-  tl += '<div style="position:relative;min-width:900px;padding:120px 0 120px 0">';
-  tl += '<div style="position:absolute;left:0;right:0;top:50%;height:4px;background:linear-gradient(90deg,#0f172a,#334155);border-radius:2px;transform:translateY(-50%)"></div>';
-
+  // Timeline visual
+  var tl = '<div class="card mb2" style="overflow-x:auto"><div class="ctitle">\u{1F4C5} Timeline 2026</div>';
+  tl += '<div style="position:relative;height:200px;margin:30px 20px 60px 20px">';
+  tl += '<div style="position:absolute;top:50%;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--navy),var(--g));border-radius:2px"></div>';
   for (var m = 0; m < 12; m++) {
-    var xPct = (m / 11 * 100).toFixed(1);
-    var hasLanc = byMonth[m] ? true : false;
-    var isPast = m <= mesAtual;
+    var xPct = (m / 11) * 100;
+    var hasLanc = byMonth[m+1] && byMonth[m+1].length > 0;
+    var isPast = m < mesAtual;
     var isCurrentMonth = m === mesAtual;
-    var diamondBg = isCurrentMonth ? '#0f9d58' : (isPast ? '#334155' : '#0f172a');
+    var diamondBg = isCurrentMonth ? 'var(--g)' : isPast ? 'var(--navy)' : hasLanc ? '#d4a843' : '#cbd5e1';
     tl += '<div style="position:absolute;left:'+xPct+'%;top:50%;transform:translate(-50%,-50%) rotate(45deg);width:28px;height:28px;background:'+diamondBg+';border:2px solid #fff;z-index:2"></div>';
-    tl += '<div style="position:absolute;left:'+xPct+'%;top:50%;transform:translate(-50%,-50%);z-index:3;font-size:8px;font-weight:900;color:#fff;pointer-events:none">'+MESES[m]+'</div>';
+    tl += '<div style="position:absolute;left:'+xPct+'%;top:50%;transform:translate(-50%,-50%);z-index:3;font-size:9px;font-weight:800;color:#fff;pointer-events:none">'+MESES[m]+'</div>';
     if (hasLanc) {
-      var items = byMonth[m];
-      var above = m % 2 === 0;
-      var itemsHtml = items.map(function(it) {
-        var fw = it.cor === '#0f9d58' ? '800' : '600';
-        return '<div style="font-size:10px;font-weight:'+fw+';color:'+it.cor+';white-space:nowrap;line-height:1.5">'+it.nome+'</div>';
-      }).join('');
-      if (above) {
-        tl += '<div style="position:absolute;left:'+xPct+'%;bottom:55%;transform:translateX(-50%);text-align:center;min-width:80px"><div style="margin-bottom:8px">'+itemsHtml+'</div><div style="width:1px;height:20px;background:#ccc;margin:0 auto"></div></div>';
-      } else {
-        tl += '<div style="position:absolute;left:'+xPct+'%;top:55%;transform:translateX(-50%);text-align:center;min-width:80px"><div style="width:1px;height:20px;background:#ccc;margin:0 auto"></div><div style="margin-top:8px">'+itemsHtml+'</div></div>';
+      var items = byMonth[m+1];
+      var above = true;
+      var itemsHtml = '';
+      for (var j = 0; j < items.length; j++) {
+        var fw = items[j].cor === '#0f9d58' ? '700' : '400';
+        itemsHtml += '<div style="font-size:9px;font-weight:'+fw+';color:var(--navy);white-space:nowrap">'+items[j].nome+'</div>';
       }
+      tl += '<div style="position:absolute;left:'+xPct+'%;top:55%;transform:translateX(-50%);text-align:center;min-width:80px"><div style="width:1px;height:20px;background:#ccc;margin:0 auto"></div><div style="margin-top:8px">'+itemsHtml+'</div></div>';
     }
   }
   tl += '</div></div>';
 
+  // Lista mensal editavel
   var lista = '';
-  for (var mi = 0; mi < 12; mi++) {
-    if (!byMonth[mi]) continue;
-    var litems = byMonth[mi];
-    var isPastMonth = mi < mesAtual;
-    var isNow = mi === mesAtual;
-    var statusTag = isNow ? '<span style="font-size:9px;padding:2px 8px;border-radius:6px;background:var(--g-bg);color:var(--g-tx);font-weight:700;margin-left:8px">M\u00eas Atual</span>'
-      : isPastMonth ? '<span style="font-size:9px;padding:2px 8px;border-radius:6px;background:var(--cream2);color:var(--muted);font-weight:600;margin-left:8px">Lan\u00e7ado</span>'
-      : '<span style="font-size:9px;padding:2px 8px;border-radius:6px;background:var(--b-bg);color:var(--b-tx);font-weight:600;margin-left:8px">Futuro</span>';
+  for (var mi = 1; mi <= 12; mi++) {
+    var litems = byMonth[mi] || [];
+    var isPastMonth = mi <= mesAtual;
+    var isNow = mi === mesAtual + 1;
+    var statusTag = isPastMonth ? '<span style="font-size:9px;padding:2px 6px;border-radius:8px;background:var(--g);color:#fff;margin-left:8px">Lan\u00e7ado</span>' : isNow ? '<span style="font-size:9px;padding:2px 6px;border-radius:8px;background:#d4a843;color:#fff;margin-left:8px">Atual</span>' : '<span style="font-size:9px;padding:2px 6px;border-radius:8px;background:var(--b);color:#fff;margin-left:8px">Futuro</span>';
     lista += '<div class="card mb2" style="'+(isNow?'border-left:4px solid var(--g)':'')+'">';
     lista += '<div class="ctitle" style="display:flex;align-items:center">';
-    lista += '<span style="font-size:14px;margin-right:6px">'+(isNow?'\uD83D\uDFE2':isPastMonth?'\u2705':'\uD83D\uDD35')+'</span>';
-    lista += MESES[mi] + ' 2026' + statusTag;
-    lista += '<span style="margin-left:auto;font-size:11px;color:var(--muted)">'+litems.length+' lan\u00e7amento'+(litems.length>1?'s':'')+'</span></div>';
-    lista += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
-    litems.forEach(function(it) {
-      var bgC = it.cor === '#0f9d58' ? 'rgba(15,157,88,.08)' : 'var(--cream2)';
-      var bdC = it.cor === '#0f9d58' ? '#0f9d5830' : 'var(--cream3)';
-      lista += '<div style="padding:8px 14px;background:'+bgC+';border:1px solid '+bdC+';border-radius:8px;font-size:12px;font-weight:700;color:'+(it.cor==='#0f9d58'?'#0f9d58':'var(--navy)')+'">\uD83C\uDFE2 '+it.nome+'</div>';
-    });
-    lista += '</div></div>';
+    lista += '<span style="font-size:14px;margin-right:6px">'+(isNow?'\u{1F3E2}':isPastMonth?'\u2705':'\u{1F4C6}')+'</span>';
+    lista += MESES[mi-1] + ' 2026 ' + statusTag;
+    lista += '<span style="margin-left:auto;font-size:11px;color:var(--muted)">' + litems.length + ' lan\u00e7amento' + (litems.length !== 1 ? 's' : '') + '</span>';
+    lista += '</div>';
+
+    for (var li = 0; li < litems.length; li++) {
+      var it = litems[li];
+      var idx = LANC.indexOf(it);
+      lista += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--cream2)">';
+      lista += '<div style="width:10px;height:10px;border-radius:50%;background:'+it.cor+';flex-shrink:0"></div>';
+      lista += '<div style="flex:1;font-size:13px;font-weight:600;color:var(--navy)">'+it.nome+'</div>';
+      if (isDiretor) {
+        lista += '<div style="display:flex;gap:4px;align-items:center;flex-shrink:0">';
+        lista += '<input class="finp" type="number" placeholder="Meta VGV" value="'+(it.meta_vgv||'')+'" style="width:90px;font-size:10px;padding:4px 6px" onchange="updLancMeta('+idx+',\'meta_vgv\',+this.value)">';
+        lista += '<input class="finp" type="number" placeholder="Meta Pastas" value="'+(it.meta_pastas||'')+'" style="width:80px;font-size:10px;padding:4px 6px" onchange="updLancMeta('+idx+',\'meta_pastas\',+this.value)">';
+        lista += '<button class="btn bout bsm" style="color:#ef4444;border-color:#ef4444;padding:2px 8px;font-size:11px" onclick="rmLanc('+idx+')">\u00d7</button>';
+        lista += '</div>';
+      } else {
+        if (it.meta_vgv) lista += '<span style="font-size:10px;background:var(--cream2);padding:2px 8px;border-radius:8px;color:var(--navy)">VGV: '+fmt(it.meta_vgv)+'</span>';
+        if (it.meta_pastas) lista += '<span style="font-size:10px;background:var(--cream2);padding:2px 8px;border-radius:8px;color:var(--navy)">Pastas: '+it.meta_pastas+'</span>';
+      }
+      lista += '</div>';
+    }
+
+    if (isDiretor) {
+      lista += '<div style="margin-top:8px;text-align:center">';
+      lista += '<button class="btn bout bsm" style="font-size:11px;padding:4px 16px" onclick="addLanc('+mi+')">+ Adicionar Lan\u00e7amento</button>';
+      lista += '</div>';
+    }
+
+    lista += '</div>';
   }
 
   return header + metasCard + kpis + tl + lista;
+}
+
+function addLanc(mes) {
+  var nome = prompt('Nome do lan\u00e7amento:');
+  if (!nome || !nome.trim()) return;
+  var corChoice = prompt('Tipo: 1=Destaque (verde) 2=Normal (escuro)', '2');
+  var cor = corChoice === '1' ? '#0f9d58' : '#0f172a';
+  if (!S.lancTimeline) S.lancTimeline = [];
+  var maxId = 0;
+  S.lancTimeline.forEach(function(l){ if (l.id > maxId) maxId = l.id; });
+  S.lancTimeline.push({ id: maxId + 1, mes: mes, nome: nome.trim(), cor: cor, meta_vgv: 0, meta_pastas: 0 });
+  saveLancData();
+  render();
+}
+
+function rmLanc(idx) {
+  if (!S.lancTimeline || idx < 0 || idx >= S.lancTimeline.length) return;
+  var nome = S.lancTimeline[idx].nome;
+  if (!confirm('Remover lan\u00e7amento "' + nome + '"?')) return;
+  S.lancTimeline.splice(idx, 1);
+  saveLancData();
+  render();
+}
+
+function updLancMeta(idx, key, val) {
+  if (!S.lancTimeline || idx < 0 || idx >= S.lancTimeline.length) return;
+  S.lancTimeline[idx][key] = val;
+  saveLancData();
+}
+
+function saveLancData() {
+  saveState();
 }
 // ═══════════════════════════════════════════════════════════════════════════════
 // CHECK-IN / CHECK-OUT + DISCIPLINA OPERACIONAL
