@@ -1043,6 +1043,7 @@ function saveState() {
       metasEquipe: METAS_EQUIPE || {},
       teamConfig: TEAM_CONFIG || {},
       connectors: S.connectors || {},
+      integrations: S.integrations || {},
       ooSheetLinks: S.ooSheetLinks || {},
       sonhos: S.sonhos || {},
       savedAt: Date.now(),
@@ -1065,6 +1066,7 @@ function loadState() {
     if (d.metasEquipe) Object.assign(METAS_EQUIPE, d.metasEquipe);
     if (d.teamConfig) Object.assign(TEAM_CONFIG, d.teamConfig);
     if (d.connectors) S.connectors = {...S.connectors, ...d.connectors};
+    try { const _ii = localStorage.getItem('psm_integrations'); if (_ii) S.integrations = JSON.parse(_ii); } catch(e) {}
     if (d.ooSheetLinks) S.ooSheetLinks = {...S.ooSheetLinks, ...d.ooSheetLinks};
     if (d.sonhos) S.sonhos = d.sonhos;
     // Restore manual vendas
@@ -8724,7 +8726,68 @@ function pgConfig() {
     + '<div id="conn-status" style="font-size:11px;color:var(--muted);margin-top:8px"></div>'
     + '</div>'
     + '</div>'
+    + '<div class="card mt2" style="grid-column:1/-1"><div class="ctitle" style="margin-bottom:4px">\u{1F517} Integra\u00e7\u00f5es Externas</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-bottom:16px">Conecte sistemas externos ao PSM OS. Cole a chave API/Token de cada sistema e teste a conex\u00e3o.</div>'
+    + intCard('kenlo','Kenlo Imob','#1a73e8','Im\u00f3veis terceiros, portais e site','Token API Kenlo')
+    + intCard('zoho','Zohomail','#f4b400','E-mail profissional e calend\u00e1rio','Chave API Zoho')
+    + intCard('gcal','Google Agenda','#0f9d58','Alertas e agenda dos corretores','Chave API / Client ID')
+    + intCard('notion','Notion','#000000','Integra\u00e7\u00e3o com banco de dados Notion','Token de Integra\u00e7\u00e3o Notion')
+    + '</div>'
     + '</div>'; // close g2
+}
+
+function intCard(id, name, color, desc, placeholder) {
+  const ints = S.integrations || {};
+  const val = ints[id] || '';
+  const status = ints[id+'_status'] || '';
+  const dot = val
+    ? '<span style="width:7px;height:7px;border-radius:50%;background:' + (status==='ok'?'#22c55e':status==='err'?'#ef4444':'#d4a843') + ';display:inline-block"></span>'
+    : '<span style="width:7px;height:7px;border-radius:50%;background:#64748b;display:inline-block"></span>';
+  const mask = val ? val.substring(0,6) + '...' + val.slice(-4) : '';
+  return '<div style="background:var(--cream2);border-radius:10px;padding:14px;margin-bottom:10px">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+    + '<div style="width:32px;height:32px;border-radius:8px;background:'+color+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff">'+name[0]+'</div>'
+    + '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--navy)">'+name+' '+dot+'</div>'
+    + '<div style="font-size:10px;color:var(--muted)">'+desc+'</div></div></div>'
+    + '<div style="display:flex;gap:6px;align-items:center">'
+    + '<input id="int_'+id+'" type="password" class="finput" style="flex:1;font-size:12px" placeholder="'+placeholder+'" value="'+val+'" onchange="saveIntKey(\''+id+'\',this.value)">'
+    + '<button class="btn bout bsm" style="white-space:nowrap" onclick="testIntKey(\''+id+'\')">Testar</button>'
+    + '</div>'
+    + (status==='ok' ? '<div style="font-size:10px;color:#22c55e;margin-top:4px">\u2705 Conectado</div>' : '')
+    + (status==='err' ? '<div style="font-size:10px;color:#ef4444;margin-top:4px">\u274c Falha na conex\u00e3o</div>' : '')
+    + (mask && !status ? '<div style="font-size:10px;color:var(--muted);margin-top:4px">Chave salva: '+mask+'</div>' : '')
+    + '</div>';
+}
+function saveIntKey(id, val) {
+  if (!S.integrations) S.integrations = {};
+  S.integrations[id] = val.trim();
+  S.integrations[id+'_status'] = '';
+  localStorage.setItem('psm_integrations', JSON.stringify(S.integrations));
+}
+function testIntKey(id) {
+  const ints = S.integrations || {};
+  const val = ints[id] || '';
+  if (!val) { alert('Cole a chave API antes de testar.'); return; }
+  const el = document.getElementById('int_'+id);
+  if (el) el.style.borderColor = '#d4a843';
+  const endpoints = {
+    kenlo: 'https://api.kenlo.io/v1/health',
+    zoho: 'https://mail.zoho.com/api/accounts',
+    gcal: 'https://www.googleapis.com/calendar/v3/users/me/calendarList',
+    notion: 'https://api.notion.com/v1/users/me'
+  };
+  const headers = { kenlo: {'Authorization':'Bearer '+val}, zoho: {'Authorization':'Zoho-oauthtoken '+val}, gcal: {'Authorization':'Bearer '+val}, notion: {'Authorization':'Bearer '+val,'Notion-Version':'2022-06-28'} };
+  fetch(endpoints[id], { method:'GET', headers: headers[id], mode:'cors' })
+    .then(r => {
+      S.integrations[id+'_status'] = r.ok ? 'ok' : 'err';
+      localStorage.setItem('psm_integrations', JSON.stringify(S.integrations));
+      render();
+    })
+    .catch(() => {
+      S.integrations[id+'_status'] = 'err';
+      localStorage.setItem('psm_integrations', JSON.stringify(S.integrations));
+      render();
+    });
 }
 
 function connectorSection(title, prefix, color, fields) {
