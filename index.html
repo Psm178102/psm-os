@@ -3891,32 +3891,30 @@ function renderResetPassword() {
   const raw=localStorage.getItem('psm_reset_token');
   const tokenData = raw ? JSON.parse(raw) : null;
   const valid = tokenData && tokenData.token === S.resetToken && tokenData.expires > Date.now();
-
   if (!valid) {
-    return '<div style="min-height:100vh;display:flex;background:linear-gradient(135deg,#f0f4f8 0%,#e2e8f0 100%)">'
-      + '<div style="width:340px;margin:auto;background:#fff;border-radius:16px;padding:40px 32px;box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center">'
-      + '<img src="'+u+'" style="height:60px;margin-bottom:20px">'
-      + '<h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Link Expirado</h2>'
-      + '<p style="color:#64748b;font-size:13px;margin:0 0 24px">Este link de recupera\u00e7\u00e3o n\u00e3o \u00e9 mais v\u00e1lido.<br>Solicite um novo link.</p>'
-      + '<a href="javascript:void(0)" onclick="showForgotPassword()" style="display:inline-block;width:100%;padding:12px;background:#0f172a;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">Solicitar Novo Link</a>'
-      + '<div style="margin-top:16px"><a href="javascript:void(0)" onclick="backToLogin()" style="color:#64748b;font-size:12px;text-decoration:none">\u2190 Voltar ao login</a></div>'
-      + '</div></div>';
+    return '<div style="min-height:100vh;display:flex;background:linear-gradient(135deg,#f0f4f8 0%,#e2e8f0 100%)">' +
+      '<div style="width:340px;margin:auto;background:#fff;border-radius:16px;padding:40px 32px;box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center">' +
+      '<img src="'+u+'" style="height:60px;margin-bottom:20px">' +
+      '<h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Link Expirado</h2>' +
+      '<p style="color:#64748b;font-size:13px;margin:0 0 24px">Este link n\u00e3o \u00e9 mais v\u00e1lido.<br>Solicite um novo link.</p>' +
+      '<a href="javascript:void(0)" onclick="showForgotPassword()" style="display:inline-block;width:100%;padding:12px;background:#0f172a;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">Solicitar Novo Link</a>' +
+      '<div style="margin-top:16px"><a href="javascript:void(0)" onclick="backToLogin()" style="color:#64748b;font-size:12px;text-decoration:none">\u2190 Voltar ao login</a></div>' +
+      '</div></div>';
   }
-
-  return '<div style="min-height:100vh;display:flex;background:linear-gradient(135deg,#f0f4f8 0%,#e2e8f0 100%)">'
-    + '<div style="width:340px;margin:auto;background:#fff;border-radius:16px;padding:40px 32px;box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center">'
-    + '<img src="'+u+'" style="height:60px;margin-bottom:20px">'
-    + '<h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Nova Senha</h2>'
-    + '<p style="color:#64748b;font-size:13px;margin:0 0 24px">Digite sua nova senha para<br><strong>'+tokenData.email+'</strong></p>'
-    + (S.loginErr ? '<div style="margin-bottom:12px;text-align:center;font-size:12px;color:#dc2626;font-weight:500">'+S.loginErr+'</div>' : '')
-    + '<div style="text-align:left;margin-bottom:16px"><label style="font-size:12px;font-weight:600;color:#334155;margin-bottom:6px;display:block">Nova Senha</label>'
-    + '<input id="rpPass1" type="password" placeholder="M\u00ednimo 4 caracteres" style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box;outline:none" onfocus="this.style.borderColor='#0f172a'" onblur="this.style.borderColor='#e2e8f0'"></div>'
-    + '<div style="text-align:left;margin-bottom:20px"><label style="font-size:12px;font-weight:600;color:#334155;margin-bottom:6px;display:block">Confirmar Senha</label>'
-    + '<input id="rpPass2" type="password" placeholder="Repita a senha" style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box;outline:none" onfocus="this.style.borderColor='#0f172a'" onblur="this.style.borderColor='#e2e8f0'" onkeydown="if(event.key==='Enter')doResetPassword()"></div>'
-    + '<button onclick="doResetPassword()" style="width:100%;padding:12px;background:#0f172a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">Redefinir Senha</button>'
-    + (S.loginMsg ? '<div style="margin-top:12px;font-size:12px;color:#16a34a;font-weight:500">'+S.loginMsg+'</div>' : '')
-    + '<div style="margin-top:16px"><a href="javascript:void(0)" onclick="backToLogin()" style="color:#64748b;font-size:12px;text-decoration:none">\u2190 Voltar ao login</a></div>'
-    + '</div></div>';
+  return '<div style="min-height:100vh;display:flex;background:linear-gradient(135deg,#f0f4f8 0%,#e2e8f0 100%)">' +
+    '<div style="width:340px;margin:auto;background:#fff;border-radius:16px;padding:40px 32px;box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center">' +
+    '<img src="'+u+'" style="height:60px;margin-bottom:20px">' +
+    '<h2 style="margin:0 0 8px;font-size:20px;color:#0f172a">Nova Senha</h2>' +
+    '<p style="color:#64748b;font-size:13px;margin:0 0 24px">Digite sua nova senha para<br><strong>'+tokenData.email+'</strong></p>' +
+    (S.loginErr ? '<div style="margin-bottom:12px;text-align:center;font-size:12px;color:#dc2626;font-weight:500">'+S.loginErr+'</div>' : '') +
+    '<div style="text-align:left;margin-bottom:16px"><label style="font-size:12px;font-weight:600;color:#334155;margin-bottom:6px;display:block">Nova Senha</label>' +
+    '<input id="rpPass1" type="password" placeholder="Minimo 4 caracteres" style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box;outline:none"></div>' +
+    '<div style="text-align:left;margin-bottom:20px"><label style="font-size:12px;font-weight:600;color:#334155;margin-bottom:6px;display:block">Confirmar Senha</label>' +
+    '<input id="rpPass2" type="password" placeholder="Repita a senha" style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box;outline:none" onkeydown="if(event.key===&apos;Enter&apos;)doResetPassword()"></div>' +
+    '<button onclick="doResetPassword()" style="width:100%;padding:12px;background:#0f172a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">Redefinir Senha</button>' +
+    (S.loginMsg ? '<div style="margin-top:12px;font-size:12px;color:#16a34a;font-weight:500">'+S.loginMsg+'</div>' : '') +
+    '<div style="margin-top:16px"><a href="javascript:void(0)" onclick="backToLogin()" style="color:#64748b;font-size:12px;text-decoration:none">\u2190 Voltar ao login</a></div>' +
+    '</div></div>';
 }
 function doLogout() {
   S.user=null; S.page=undefined; S.veraHist=[];
