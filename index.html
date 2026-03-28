@@ -2487,7 +2487,7 @@ function pgMetas(){
   function deficit(i){return (m.realizado[i]||0)-metaTotal(i);}
   function sum(arr){return arr.reduce(function(a,b){return a+(b||0);},0);}
   function fmt(v){if(v===0)return '\u2014';return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
-  function fmtN(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
+  function fmtN(v){return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
   function pct(v){return (v*100).toFixed(1)+'%';}
 
   var totalArr=[];for(var i=0;i<12;i++)totalArr.push(metaTotal(i));
@@ -2527,7 +2527,7 @@ function pgMetas(){
     h+='<div style="text-align:right;font-size:11px;color:'+(pctTri>=0.8?'#00e5a0':'#f59e0b')+'">'+pct(pctTri)+'</div></div>';
   }
   h+='</div>';
-  h+='<h3 style="color:#e2e8f0;font-size:15px;margin-bottom:10px">\uD83D\uDCCA Meta Mensal por Canal <span style="color:#475569;font-size:11px">(edit\u00e1vel)</span></h3>';
+  h+='<h3 style="color:#94a3b8;font-size:15px;margin-bottom:10px">\uD83D\uDCCA Meta Mensal por Canal <span style="color:#64748b;font-size:11px">(edit\u00e1vel)</span></h3>';
   h+='<div style="overflow-x:auto;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:1200px">';
   h+='<tr style="background:#0f172a"><th style="padding:8px;color:#94a3b8;text-align:left;border-bottom:1px solid #334155">Canal</th>';
   for(var i=0;i<12;i++) h+='<th style="padding:8px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155;min-width:95px">'+ms[i]+'</th>';
@@ -2551,7 +2551,7 @@ function pgMetas(){
   for(var i=0;i<12;i++){var d=defArr[i];h+='<td style="padding:8px;color:'+(d>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:600">'+fmtN(d)+'</td>';}
   h+='<td style="padding:8px;color:'+(defAno>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:700">'+fmtN(defAno)+'</td></tr>';
   h+='</table></div>';
-  h+='<h3 style="color:#e2e8f0;font-size:15px;margin:20px 0 10px">\uD83D\uDCCA An\u00e1lise Sustent\u00e1vel (sem lan\u00e7amento)</h3>';
+  h+='<h3 style="color:#94a3b8;font-size:15px;margin:20px 0 10px">\uD83D\uDCCA An\u00e1lise Sustent\u00e1vel (sem lan\u00e7amento)</h3>';
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">';
   h+='<div style="background:#1e293b;border-radius:12px;padding:14px"><div style="color:#94a3b8;font-size:11px">VGV Sustent\u00e1vel/M\u00eas</div>'+inpG('vgvSustentavel',m.vgvSustentavel)+'</div>';
   h+='<div style="background:#1e293b;border-radius:12px;padding:14px"><div style="color:#94a3b8;font-size:11px">Ticket M\u00e9dio PSM</div>'+inpG('ticketMedio',m.ticketMedio)+'</div>';
@@ -2579,7 +2579,7 @@ function pgMetas(){
   h+='</tr>';
   h+='</table></div>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
-  h+='<div><h3 style="color:#e2e8f0;font-size:15px;margin-bottom:10px">\uD83D\uDCB0 Custos Fixos Mensais <span style="color:#475569;font-size:11px">(edit\u00e1vel)</span></h3>';
+  h+='<div><h3 style="color:#94a3b8;font-size:15px;margin-bottom:10px">\uD83D\uDCB0 Custos Fixos Mensais <span style="color:#64748b;font-size:11px">(edit\u00e1vel)</span></h3>';
   h+='<div style="background:#1e293b;border-radius:12px;padding:16px">';
   var custos=[['custoFixo','Custo Fixo'],['ads','ADS'],['prolabore','Pr\u00f3-labore'],['distribLucro','Distrib. Lucro'],['divida','D\u00edvida']];
   for(var c=0;c<custos.length;c++){
@@ -2589,7 +2589,7 @@ function pgMetas(){
   h+='<div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #334155;padding-top:10px;margin-top:10px"><span style="color:#e2e8f0;font-weight:700">TOTAL</span>';
   h+='<span style="color:#ef4444;font-weight:700;font-size:18px">'+fmt(custoTotal)+'</span></div>';
   h+='</div></div>';
-  h+='<div><h3 style="color:#e2e8f0;font-size:15px;margin-bottom:10px">\uD83D\uDCC8 \u00cdndices de Comiss\u00e3o <span style="color:#475569;font-size:11px">(edit\u00e1vel)</span></h3>';
+  h+='<div><h3 style="color:#94a3b8;font-size:15px;margin-bottom:10px">\uD83D\uDCC8 \u00cdndices de Comiss\u00e3o <span style="color:#64748b;font-size:11px">(edit\u00e1vel)</span></h3>';
   h+='<div style="background:#1e293b;border-radius:12px;padding:16px">';
   var indices=[['comissaoBruta','Comiss\u00e3o Bruta'],['aliquota','Al\u00edquota Imposto'],['comCorretor','Com. Corretor'],['comSenior','Com. S\u00eanior'],['comSocio50','Com. S\u00f3cio 50%']];
   for(var c=0;c<indices.length;c++){
@@ -2609,7 +2609,7 @@ function pgMetas(){
   h+='<div style="display:flex;justify-content:space-between;font-weight:700"><span style="color:#e2e8f0">Caixa Imob.</span><span style="color:#00e5a0">'+fmt(Math.round(caixaImob))+'</span></div>';
   h+='</div></div></div>';
   h+='</div>';
-  h+='<h3 style="color:#e2e8f0;font-size:15px;margin:10px 0">\uD83D\uDCB5 Painel VGC \u2014 Resultado Mensal</h3>';
+  h+='<h3 style="color:#94a3b8;font-size:15px;margin:10px 0">\uD83D\uDCB5 Painel VGC \u2014 Resultado Mensal</h3>';
   h+='<div style="overflow-x:auto;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px">';
   h+='<tr style="background:#0f172a"><th style="padding:6px;color:#94a3b8;text-align:left;border-bottom:1px solid #334155">M\u00eas</th>';
   h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Com. Bruta</th>';
@@ -2652,8 +2652,72 @@ function pgMetas(){
   h+='<td style="padding:6px;color:'+(totalRes>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:700">'+avgRoi+'%</td></tr>';
   h+='</table></div>';
   h+='<p style="color:#475569;font-size:11px">Dados salvos automaticamente. Todas as f\u00f3rmulas s\u00e3o calculadas em tempo real \u2014 iguais \u00e0 planilha META GLOBAL.</p>';
+
+  // META POR EQUIPE
+  if(!S.metaEquipe){try{S.metaEquipe=JSON.parse(localStorage.getItem('psm_meta_equipe')||'null');}catch(e){}}
+  if(!S.metaEquipe) S.metaEquipe={};
+  var frentes=['lancamento','conquista','terceiros','locacao'];
+  var fLabels={lancamento:'MAP / Assessoria',conquista:'Conquista',terceiros:'Terceiros',locacao:'Loca\u00e7\u00e3o'};
+  h+='<h3 style="color:#94a3b8;font-size:15px;margin:24px 0 10px">\uD83D\uDC65 Meta por Equipe <span style="color:#64748b;font-size:11px">(edit\u00e1vel)</span></h3>';
+  h+='<div style="overflow-x:auto;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+  h+='<tr style="background:#0f172a"><th style="padding:8px;color:#94a3b8;text-align:left;border-bottom:1px solid #334155">Equipe</th>';
+  h+='<th style="padding:8px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Meta VGV Estoque</th>';
+  h+='<th style="padding:8px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Meta VGV Lan\u00e7amento</th>';
+  h+='<th style="padding:8px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Capta\u00e7\u00f5es Semanais</th>';
+  h+='<th style="padding:8px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Meta VGV Total/M\u00eas</th></tr>';
+  for(var fi=0;fi<frentes.length;fi++){
+    var fid=frentes[fi];
+    if(!S.metaEquipe[fid]) S.metaEquipe[fid]={vgv_estoque:0,vgv_lanc:0,capt_sem:0};
+    var me=S.metaEquipe[fid];
+    var showCapt=fid==='terceiros';
+    h+='<tr style="background:'+(fi%2===0?'#1e293b':'#1a2332')+'">';
+    h+='<td style="padding:8px;color:#e2e8f0;font-weight:600">'+fLabels[fid]+'</td>';
+    h+='<td style="padding:4px"><input type="number" value="'+(me.vgv_estoque||0)+'" onchange="meUpd(\''+fid+'\',\'vgv_estoque\',this.value)" style="width:100%;padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px"></td>';
+    h+='<td style="padding:4px"><input type="number" value="'+(me.vgv_lanc||0)+'" onchange="meUpd(\''+fid+'\',\'vgv_lanc\',this.value)" style="width:100%;padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px"></td>';
+    h+='<td style="padding:4px">'+(showCapt?'<input type="number" value="'+(me.capt_sem||0)+'" onchange="meUpd(\''+fid+'\',\'capt_sem\',this.value)" style="width:100%;padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px">':'<span style="color:#475569;display:block;text-align:right">\u2014</span>')+'</td>';
+    h+='<td style="padding:8px;color:#00e5a0;text-align:right;font-weight:700">'+fmt((me.vgv_estoque||0)+(me.vgv_lanc||0))+'</td>';
+    h+='</tr>';
+  }
+  h+='</table></div>';
   h+='</div>';
+  // --- META INDIVIDUAL POR CORRETOR ---
+  h+='<h3 style="color:#94a3b8;font-size:15px;margin:24px 0 10px">\uD83D\uDC64 Meta Individual por Corretor</h3>';
+  h+='<div style="overflow-x:auto;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  h+='<tr style="background:#334155"><th style="padding:8px;text-align:left;color:#94a3b8">Corretor</th><th style="padding:8px;text-align:left;color:#94a3b8">Equipe</th><th style="padding:8px;color:#94a3b8">Meta VGV Est.</th><th style="padding:8px;color:#94a3b8">Meta VGV Lanc.</th><th style="padding:8px;color:#94a3b8">Meta Pessoal</th><th style="padding:8px;color:#94a3b8">Capt. Sem.</th></tr>';
+  var allBrokers=(S.brokers||[]).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+  if(!S.metaIndiv){try{var _mi=localStorage.getItem('psm_meta_indiv');S.metaIndiv=_mi?JSON.parse(_mi):{};}catch(e){S.metaIndiv={};}}
+  for(var bi=0;bi<allBrokers.length;bi++){
+    var bk=allBrokers[bi];
+    var bid=bk.id||bk.name;
+    var mi=S.metaIndiv[bid]||{vgv_est:0,vgv_lanc:0,meta_pessoal:0,capt_sem:0};
+    var bTeam=(bk.team||bk.equipe||'--');
+    var isTercBroker=(bTeam.toLowerCase().indexOf('terc')>=0);
+    h+='<tr style="border-bottom:1px solid #1e293b">';
+    h+='<td style="padding:8px;color:#e2e8f0">'+((bk.name||bk.nome)||'--')+'</td>';
+    h+='<td style="padding:8px;color:#94a3b8">'+bTeam+'</td>';
+    h+='<td style="padding:4px"><input type="number" value="'+(mi.vgv_est||0)+'" onchange="miUpd(\''+bid+'\',\'vgv_est\',this.value)" style="width:100%;background:#0f172a;color:#38bdf8;border:1px solid #334155;border-radius:6px;padding:6px;text-align:right;font-size:13px"></td>';
+    h+='<td style="padding:4px"><input type="number" value="'+(mi.vgv_lanc||0)+'" onchange="miUpd(\''+bid+'\',\'vgv_lanc\',this.value)" style="width:100%;background:#0f172a;color:#38bdf8;border:1px solid #334155;border-radius:6px;padding:6px;text-align:right;font-size:13px"></td>';
+    h+='<td style="padding:4px"><input type="number" value="'+(mi.meta_pessoal||0)+'" onchange="miUpd(\''+bid+'\',\'meta_pessoal\',this.value)" style="width:100%;background:#f59e0b;color:#0f172a;border:1px solid #d97706;border-radius:6px;padding:6px;text-align:right;font-size:13px;font-weight:bold" placeholder="One on One"></td>';
+    h+='<td style="padding:4px">'+(isTercBroker?'<input type="number" value="'+(mi.capt_sem||0)+'" onchange="miUpd(\''+bid+'\',\'capt_sem\',this.value)" style="width:100%;background:#0f172a;color:#38bdf8;border:1px solid #334155;border-radius:6px;padding:6px;text-align:right;font-size:13px">':'<span style="color:#475569">N/A</span>')+'</td>';
+    h+='</tr>';
+  }
+  h+='</table></div>';
+  h+='<p style="color:#64748b;font-size:12px;margin-top:8px">\u26A0\uFE0F Meta Pessoal (amarelo): preenchida pelo pr\u00F3prio corretor com base no One on One.</p>';
   return h;
+}
+function meUpd(fid,key,val){
+  if(!S.metaEquipe) S.metaEquipe={};
+  if(!S.metaEquipe[fid]) S.metaEquipe[fid]={vgv_estoque:0,vgv_lanc:0,capt_sem:0};
+  S.metaEquipe[fid][key]=+(val)||0;
+  localStorage.setItem('psm_meta_equipe',JSON.stringify(S.metaEquipe));
+  render();
+}
+function miUpd(bid,key,val){
+  if(!S.metaIndiv) S.metaIndiv={};
+  if(!S.metaIndiv[bid]) S.metaIndiv[bid]={vgv_est:0,vgv_lanc:0,meta_pessoal:0,capt_sem:0};
+  S.metaIndiv[bid][key]=+(val)||0;
+  localStorage.setItem('psm_meta_indiv',JSON.stringify(S.metaIndiv));
+  render();
 }
 function mgUpd(key,idx,val){
   if(!S.mg) return;
