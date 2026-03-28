@@ -663,10 +663,10 @@ Object.entries(FUNIS).forEach(([fid,stages])=>{FMAP[fid]=Object.fromEntries(stag
 
 // ─── METAS POR FRENTE (ponto 8) ──────────────────────────────────────────────
 const FRENTE_METAS={
-  lancamento:{ vgv:4000000, visitas:40,    extra_label:'Visitas',    extra_key:'vis',  extra_meta:40  },
-  conquista: { vgv:3500000, visitas:35,    extra_label:'Visitas',    extra_key:'vis',  extra_meta:35  },
-  terceiros: { vgv:2000000, captacoes:20,  extra_label:'Captações',  extra_key:'agend',extra_meta:20  },
-  locacao:   { vgv:800000,  contratos:5,   extra_label:'Contratos',  extra_key:'vend', extra_meta:5   },
+  lancamento:{ vgv:0, visitas:0,    extra_label:'Visitas',    extra_key:'vis',  extra_meta:0  },
+  conquista: { vgv:0, visitas:0,    extra_label:'Visitas',    extra_key:'vis',  extra_meta:0  },
+  terceiros: { vgv:0, captacoes:0,  extra_label:'Captações',  extra_key:'agend',extra_meta:0  },
+  locacao:   { vgv:0,  contratos:0,   extra_label:'Contratos',  extra_key:'vend', extra_meta:0   },
 };
 
 // ─── DAILY TASK METRICS ──────────────────────────────────────────────────────
@@ -819,16 +819,16 @@ const METRICS=(function(){
   const du_tot=22;
   const du_pass=Math.min(du_tot,now.getDate());
   const du_rest=Math.max(0,du_tot-du_pass);
-  return {mes,du_tot,du_pass,du_rest,vgv_meta:8000000,vgv_real:0,vend_meta:20,vend_real:0,vis_meta:100,vis_real:0,leads:0,leads_val:0,pipeline:0,crm_medio:50};
+  return {mes,du_tot,du_pass,du_rest,vgv_meta:0,vgv_real:0,vend_meta:20,vend_real:0,vis_meta:100,vis_real:0,leads:0,leads_val:0,pipeline:0,crm_medio:0};
 })();
 
 function calcOKRs(){
-  const M = typeof METRICS !== 'undefined' ? METRICS : {vgv_meta:8000000,vend_meta:20,vis_meta:100,mes:'—'};
+  const M = typeof METRICS !== 'undefined' ? METRICS : {vgv_meta:0,vend_meta:20,vis_meta:100,mes:'—'};
   const vgvReal=VENDAS.reduce((a,v)=>a+(v.vgv||0),0);
-  const vgvMeta=M.vgv_meta||8000000;
+  const vgvMeta=M.vgv_meta||0;
   const vendReal=VENDAS.length;
   const vendMeta=M.vend_meta||20;
-  const crmMedio=BROKERS.length?Math.round(BROKERS.reduce((a,b)=>a+(b.crm||50),0)/BROKERS.length):50;
+  const crmMedio=BROKERS.length?Math.round(BROKERS.reduce((a,b)=>a+(b.crm||0),0)/BROKERS.length):0;
   const visReal=BROKERS.reduce((a,b)=>a+(b.vis||0),0);
   const pctVgv=Math.round(vgvReal/Math.max(1,vgvMeta)*100);
   const pctVend=Math.round(vendReal/Math.max(1,vendMeta)*100);
@@ -875,7 +875,7 @@ function calcForecasts(){
 
   // Puxa meta do mes atual da meta global
   const mg=getMetaGlobal();
-  const metaMonth=mg?mg.metaTotal(curMonth):(METRICS.vgv_meta||8000000);
+  const metaMonth=mg?mg.metaTotal(curMonth):(METRICS.vgv_meta||0);
   let metaQuarter=0,metaSemester=0,metaYear=0;
   if(mg){
     for(let i=0;i<12;i++){const mt=mg.metaTotal(i);metaYear+=mt;if(i>=curMonth&&i<curMonth+3)metaQuarter+=mt;if(i>=curMonth&&i<curMonth+6)metaSemester+=mt;}
@@ -958,7 +958,7 @@ function recalcMonthly(){
     const mWon=VENDAS.filter(v=>{const d=new Date(v.closedAt||v.createdAt||'');return d.getFullYear()===year&&d.getMonth()===i;});
     const vgv=mWon.reduce((a,v)=>a+(v.vgv||0),0);
     // Usa meta especifica do mes da meta global
-    const metaMes=mg?mg.metaTotal(i):(METRICS.vgv_meta||8000000);
+    const metaMes=mg?mg.metaTotal(i):(METRICS.vgv_meta||0);
     MONTHLY.push({m:mNames[i],vgv,meta:metaMes,vendas:mWon.length});
   }
 }
@@ -1212,7 +1212,7 @@ function pgDashboard(){
   +Kpi('Visitas',m.vis_real,'Meta: '+m.vis_meta,{up:pN(m.vis_real,m.vis_meta)>=80,txt:pS(m.vis_real,m.vis_meta)},'#22c55e')
   +Kpi('Corretores',BROKERS.filter(b=>b.st==='online').length+' online','de '+BROKERS.length+' total',null,'#0d9488')
   +Kpi('CRM Score',m.crm_medio+' pts','média da equipe',{up:m.crm_medio>=80,txt:m.crm_medio>=80?'Bom':'Atenção'},m.crm_medio>=80?'var(--g)':'var(--a)')
-  +Kpi('Meta Diária',fmt(Math.round((METRICS.vgv_meta||8000000)/22)),'para bater a meta mensal',null,'var(--gold)')
+  +Kpi('Meta Diária',fmt(Math.round((METRICS.vgv_meta||0)/22)),'para bater a meta mensal',null,'var(--gold)')
   +'</div>'
   +'<div class="g2 mb2">'
   +'<div class="card"><div class="ctitle">Evolução Mensal<span class="csub" style="display:flex;gap:9px"><span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:#e2e8f0;border-radius:2px;display:inline-block"></span>Meta</span><span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;background:#0f172a;border-radius:2px;display:inline-block"></span>Realizado</span></span></div>'
@@ -1235,7 +1235,7 @@ function pgDashboard(){
   +'<div class="card"><div class="ctitle">VGV por Frente</div>'
   +Object.entries(fs).map(([fid,st])=>FRENTES[fid]?'<div class="mb1"><div class="prow"><span class="plbl">'+FRENTES[fid].icon+' '+FRENTES[fid].label+'</span><span class="ppct">'+fmt(st.vgv_real||0)+' <span style="font-weight:400;color:var(--muted)">realizado / '+fmt(st.meta)+' meta</span></span></div>'+PB(st.vgv_real||0,st.meta,FRENTES[fid].color,true)+'<div style="font-size:9px;color:var(--muted);margin-top:2px">Pipeline: '+fmt(st.vgv||0)+' \u00B7 '+st.vend+' vendas</div></div>':'').join('')
   +'</div></div>'
-  +'<div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;display:flex;align-items:center;gap:10px">Forecast — 5 Horizontes<div style="flex:1;height:1px;background:var(--cream3)"></div></div>'
+  +'<div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;display:flex;align-items:center;gap:10px">Projeção — 5 Horizontes<div style="flex:1;height:1px;background:var(--cream3)"></div></div>'
   +'<div class="g5 mb2">'+Object.entries(FORECASTS).map(([p,f])=>FcCard(p,f)).join('')+'</div>'
   +'<div class="g2">'
   +'<div class="card"><div class="ctitle">Equipe ao Vivo <span class="csub">'+BROKERS.filter(b=>b.st==='online').length+' online</span></div><table class="tbl"><thead><tr><th>Corretor</th><th>Frente</th><th>VGV Pipeline</th><th>VGV Realizado</th><th>% Meta</th><th>CRM</th></tr></thead><tbody>'
@@ -1461,7 +1461,7 @@ function pgFrente(fid){
 
   return df_frente_fid + '<div class="phd"><h1>'+f.icon+' '+f.label+'</h1><p>'+METRICS.mes+(f.altLabel?' \u00B7 '+f.altLabel:'')+'</p></div>'
   +'<div class="kgrid">'
-  +Kpi('Pipeline',fmt(fOpps.reduce((a,o)=>a+(o.vgv||0),0)),fOpps.length+' opps',null,f.color)
+  +Kpi('Pipeline',fmt(fOpps.reduce((a,o)=>a+(o.vgv||0),0)),fOpps.length+' oportunidades',null,f.color)
   +Kpi('Ponderado',fmt(Math.round(pW)),'por peso',null,f.color)
   +Kpi('Vendas',fWon.length,'no período',null,f.color)
   +Kpi('VGV Realizado',fmt(vgvT),pS(vgvT,metaT)+' da meta',null,f.color)
@@ -1596,7 +1596,7 @@ var pgWarRoom = function(){
     {label:'Propostas', value:totalProp.toString(), context:'em carteira'},
     {label:'Pipeline CRM', value:totalLeads.toString(), context:'registros'},
     {label:'Score CRM', value:avgCRM.toString(), context:'média operação'},
-    {label:'Forecast', value:fmt$(totalVGV + (dailyRitmo*daysLeftMonth)), context:'provável'}
+    {label:'Projeção', value:fmt$(totalVGV + (dailyRitmo*daysLeftMonth)), context:'provável'}
   ];
 
   kpis.forEach(function(kpi){
@@ -3002,8 +3002,8 @@ function pgGovernance(){
   +'<div class="kgrid">'
   +Kpi('Issues Ativos',allAudits.length,'no período selecionado',null,'var(--r)')
   +Kpi('CRM Médio',crmA+' pts','equipe',{up:crmA>=80,txt:crmA>=80?'Bom':'Atenção'},crmA>=80?'var(--g)':'var(--a)')
-  +Kpi('SLA Vencido',slaVencido,'opps no período',null,'var(--a)')
-  +Kpi('Sem Update +3d',semUpdate,'opps no período',null,'var(--r)')
+  +Kpi('SLA Vencido',slaVencido,'oportunidades no período',null,'var(--a)')
+  +Kpi('Sem Update +3d',semUpdate,'oportunidades no período',null,'var(--r)')
   +'</div>'
   +'<div class="g2 mb2">'
   +'<div class="card"><div class="ctitle">Issues <span class="csub"><div style="display:flex;gap:4px">'
@@ -3023,7 +3023,7 @@ function pgGovernance(){
 function pgForecast(){
   const df=DateFilter('forecast','Período de análise');
   const pW=OPPS.reduce((a,o)=>{const stages=(FUNIS[o.fr]||FUNIS.lancamento||[]);const s=stages.find?stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st)):null;return a+(o.vgv*(s?s.w:.1));},0);
-  return df+'<div class="phd"><h1>Forecast & Projeções</h1><p>'+METRICS.mes+'</p></div>'
+  return df+'<div class="phd"><h1>Projeção & Previsões</h1><p>'+METRICS.mes+'</p></div>'
   +'<div style="background:rgba(15,23,42,.03);border:1px solid rgba(15,23,42,.07);border-radius:9px;padding:9px 13px;margin-bottom:14px;font-size:12px;display:flex;gap:18px;flex-wrap:wrap;color:var(--mid)">'
   +'<span>📅 '+METRICS.du_pass+'/'+METRICS.du_tot+' dias úteis</span>'
   +'<span>✅ Realizado: <strong>'+fmt(METRICS.vgv_real)+'</strong></span>'
@@ -3037,7 +3037,7 @@ function pgForecast(){
       const vgvR=VENDAS.reduce((a,v)=>a+(v.vgv||0),0);
       const now=new Date();const pctM=now.getDate()/30;
       const proj=pctM>0?Math.round(vgvR/pctM*s.mult):vgvR;
-      const metaM=METRICS.vgv_meta||8000000;
+      const metaM=METRICS.vgv_meta||0;
       const pctMeta=Math.round(proj/Math.max(1,metaM)*100);
       return'<div style="padding:16px;background:var(--cream2);border-radius:12px;border-top:3px solid '+s.c+';text-align:center">'
         +'<div style="font-size:20px;margin-bottom:6px">'+s.ico+'</div>'
@@ -3048,7 +3048,7 @@ function pgForecast(){
     }).join('')+'</div></div>'
   +'<div class="card mb2"><div class="ctitle">Evolução de VGV</div>'+svgBar((MONTHLY||[]),'vgv','meta','m','#0f172a','#e2e8f0',150)+'</div>'
   +'<div class="card"><div class="ctitle">Pipeline Ponderado por Etapa (Lançamento)</div>'
-  +((FUNIS.lancamento||[]).map?((FUNIS.lancamento||[])).map(s=>{const vE=OPPS.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).reduce((a,o)=>a+(o.vgv*s.w),0);return'<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:9.5px;font-weight:600;color:'+s.color+';width:120px;flex-shrink:0">'+s.label+'</span><div style="flex:1">'+PB(vE,1500000,s.color)+'</div><span style="font-size:11px;font-weight:700;color:var(--navy);width:65px;text-align:right;flex-shrink:0">'+(vE>0?fmt(Math.round(vE)):'—')+'</span><span style="font-size:9px;color:var(--muted);width:28px;text-align:right;flex-shrink:0">'+Math.round(s.w*100)+'%</span></div>';}).join(''):'')
+  +((FUNIS.lancamento||[]).map?((FUNIS.lancamento||[])).map(s=>{const vE=OPPS.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).reduce((a,o)=>a+(o.vgv*s.w),0);return'<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:9.5px;font-weight:600;color:'+s.color+';width:120px;flex-shrink:0">'+s.label+'</span><div style="flex:1">'+PB(vE,Math.max(vE,1)||1,s.color)+'</div><span style="font-size:11px;font-weight:700;color:var(--navy);width:65px;text-align:right;flex-shrink:0">'+(vE>0?fmt(Math.round(vE)):'—')+'</span><span style="font-size:9px;color:var(--muted);width:28px;text-align:right;flex-shrink:0">'+Math.round(s.w*100)+'%</span></div>';}).join(''):'')
   +'</div>';
 }
 
@@ -4199,7 +4199,7 @@ function pgMetricas() {
       + '</div></div>'
       + '<div class="card"><div class="ctitle">Performance por Corretor</div>'
       + '<div class="tw"><table class="tbl"><thead><tr>'
-      + '<th>Corretor</th><th>Negoc.</th><th>Vendas</th><th>VGV Real</th><th>Ticket Médio</th><th>Pipeline</th><th>Descart.</th><th>CRM</th>'
+      + '<th>Corretor</th><th>Negociações</th><th>Vendas</th><th>VGV Real</th><th>Ticket Médio</th><th>Pipeline</th><th>Descartados</th><th>CRM</th>'
       + '</tr></thead><tbody>'
       + (selB ? [selB] : brokers).map(b => '<tr>'
         + '<td><div class="flex aic gap1">'+Av(b,'xs')+'<span style="font-size:12px;font-weight:600">'+b.name.split(' ')[0]+'</span></div></td>'
@@ -4348,12 +4348,12 @@ function pgMetricas() {
   else if (tab === 'metavreal') {
     const hoje=new Date(), diasMes=new Date(hoje.getFullYear(),hoje.getMonth()+1,0).getDate(), diaAtual=hoje.getDate();
     const percMes=diaAtual/diasMes;
-    const vgvMeta=METRICS.vgv_meta||8000000, vgvReal=S.vgvReal||0;
+    const vgvMeta=METRICS.vgv_meta||0, vgvReal=S.vgvReal||0;
     const vgvProj=percMes>0?Math.round(vgvReal/percMes):0;
     const pctVGV=vgvMeta>0?Math.round(vgvReal/vgvMeta*100):0;
     const pctProj=vgvMeta>0?Math.round(vgvProj/vgvMeta*100):0;
     const bMVR=(selB?[selB]:brokers).map(b=>{
-      const mc=METAS_CONFIG[b.id]||{}, bM=mc.vgv_meta||1200000;
+      const mc=METAS_CONFIG[b.id]||{}, bM=mc.vgv_meta||0;
       const bR=b.vgv_real||0, bP=percMes>0?Math.round(bR/percMes):0;
       return {b,bM,bR,bP,pct:bM>0?Math.round(bR/bM*100):0};
     });
@@ -4409,7 +4409,7 @@ function pgOKRs() {
     + tabs.map(t => '<button class="btn bsm'+(tab===t.id?' bp1':' bout')+'" onclick="S.okrTab=\''+t.id+'\';render()">'+t.lbl+'</button>').join('')
     + '</div>';
 
-  const metaVGV = METRICS.vgv_meta || 8000000;
+  const metaVGV = METRICS.vgv_meta || 0;
   const realVGV = S.vgvReal || 0;
   const pctG    = metaVGV > 0 ? Math.round(realVGV/metaVGV*100) : 0;
 
@@ -8230,7 +8230,7 @@ function pgSimRepasse() {
 function pgVera() {
   const u = S.user; if (!u) return '';
   const hist = S.veraHist || [];
-  const shortcuts = ['Bom dia','Minha meta','Meu pipeline','Objeções','Como fechar mais','Cadência','Feedback do dia','Ranking','Forecast','Perfil DISC'];
+  const shortcuts = ['Bom dia','Minha meta','Meu pipeline','Objeções','Como fechar mais','Cadência','Feedback do dia','Ranking','Projeção','Perfil DISC'];
 
   return '<div class="phd"><div class="phd-row" style="align-items:flex-start"><div style="flex:1">'
     + '<h1>Sr. Performance <span style="font-size:12px;font-weight:400;color:var(--muted)">powered by Google Gemini AI</span></h1>'
@@ -8270,7 +8270,7 @@ function quickVera(msg) {
     'Cadência':     'Sr. Performance, me ensine a cadência ideal de contatos para cada etapa do funil PSM (tentativa→visita→proposta→contrato).',
     'Feedback do dia': 'Sr. Performance, ' + (S['ooHistory_'+(u?.id)]?.slice(-1)[0] ? 'hoje tive: lig '+S['ooHistory_'+(u?.id)].slice(-1)[0].lig_atend+', vis '+S['ooHistory_'+(u?.id)].slice(-1)[0].vis+', prop '+S['ooHistory_'+(u?.id)].slice(-1)[0].prop+'. Me dê um feedback honesto e direto.' : 'me dê um feedback sobre como posso melhorar hoje.'),
     'Ranking':      'Sr. Performance, como estou no ranking da equipe e o que fazer para subir?',
-    'Forecast':     'Sr. Performance, com meu pipeline atual, qual é minha previsão de fechamento este mês e o que preciso fazer?',
+    'Projeção':     'Sr. Performance, com meu pipeline atual, qual é minha previsão de fechamento este mês e o que preciso fazer?',
     'Perfil DISC':  disc ? 'Sr. Performance, meu perfil DISC é '+disc.perfil+'. Como isso afeta minha abordagem de vendas e como posso usar meu perfil a meu favor?' : 'Sr. Performance, explique os perfis DISC e como cada um vende melhor.',
   };
   S.veraHist = S.veraHist || [];
@@ -8934,7 +8934,7 @@ function renderSB() {
       {id:'warroom',   lbl:'War Room',       ico:'⚔️',min:2},
         {id:'wararena', lbl:'War Arena', ico:'🏆', min:2},
 
-      {id:'forecast',  lbl:'Forecast',       ico:'📉',min:5},
+      {id:'forecast',  lbl:'Projeção',       ico:'📉',min:5},
       {id:'okrs',      lbl:'OKRs & Metas',   ico:'🎯',min:5},
       {id:'vendas',    lbl:'Lançar Venda',   ico:'💰',min:7},
     ]},
@@ -9011,7 +9011,7 @@ function renderHDR() {
   const titles = {dashboard:'Dashboard Executivo',meu:'Meu Dashboard',ranking:'Ranking',equipe:'Visão Equipe',
     lancamento:'MAP / Lançamento',conquista:'Conquista',terceiros:'Terceiros',locacao:'Locação',
     crm:'CRM / Funil',metas:'🎯 Metas',metricas:'Métricas RD',oneonone:'One on One',governance:'Governança',
-    warroom:'⚔️ War Room',forecast:'Forecast',okrs:'OKRs & Metas',vera:'Sr. Performance',rdconfig:'RD Station',
+    warroom:'⚔️ War Room',forecast:'Projeção',okrs:'OKRs & Metas',vera:'Sr. Performance',rdconfig:'RD Station',
     config:'Configurações',vendas:'Lançar Venda',drive:'📁 Drive PSM',tabela:'📋 Tabela PSM',mapa:'🗺️ Mapa PSM',
     formacao:'🎓 Formação PSM',manual:'📖 Manual & Ética',captacao:'📝 Captação de Imóveis',
     simvpl:'📐 Simulador VPL',simincc:'📊 Simulador INCC',simrep:'💰 Simulador de Repasse',
@@ -10340,7 +10340,7 @@ function scheduleNotifs() {
   const overdue = OPPS.filter(o => (o.sla||'') === 'overdue');
   if (overdue.length > 3) {
     sendNotif('⚠️ SLA Vencido', overdue.length + ' oportunidades precisam de atenção', '⚠️');
-    NOTIFS.unshift({tipo:'w', title:'⚠️ SLA Vencido', msg:overdue.length+' opps sem ação', page:'governance', read:false, ts:Date.now()});
+    NOTIFS.unshift({tipo:'w', title:'⚠️ SLA Vencido', msg:overdue.length+' oportunidades sem ação', page:'governance', read:false, ts:Date.now()});
   }
   // Check top performer
   const topBroker = [...BROKERS].sort((a,b)=>(b.vgv_real||0)-(a.vgv_real||0))[0];
