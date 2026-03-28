@@ -3724,6 +3724,12 @@ function renderLogin() {
     + (S.loginLoading ? '<span style="display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:8px;vertical-align:middle"></span>Entrando...' : 'Entrar')
     + '</button>'
 
+    // Esqueci minha senha
+    + '<div style="margin-top:14px;text-align:center"><a href="javascript:void(0)" onclick="showForgotPassword()" style="color:#0f172a;font-size:12px;text-decoration:none;font-weight:500;opacity:.7" onmouseover="this.style.opacity=1;this.style.textDecoration=\'underline\'" onmouseout="this.style.opacity=.7;this.style.textDecoration=\'none\'">Esqueci minha senha</a></div>'
+
+    // Mensagem de sucesso
+    + (S.loginMsg ? '<div style="margin-top:12px;text-align:center;font-size:12px;color:#16a34a;font-weight:500">'+S.loginMsg+'</div>' : '')
+
     // Error message
     + (S.loginErr ? '<div style="margin-top:14px;text-align:center;font-size:12px;color:#dc2626;font-weight:500">'+S.loginErr+'</div>' : '')
 
@@ -3761,9 +3767,12 @@ const _LOCAL_AUTH = {
 const _IS_LOCAL = location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 
 function _localLogin(email, senha) {
+  // Checa senha redefinida primeiro
   const entry = _LOCAL_AUTH[email];
   if (!entry) return null;
   const [pw, uid] = entry.split('|');
+  const senhas = JSON.parse(localStorage.getItem('psm_senhas')||'{}');
+  if (senhas[uid]) return senhas[uid] === senha ? uid : null;
   return pw === simpleHash(senha) ? uid : null;
 }
 
@@ -3826,6 +3835,73 @@ async function doLogin() {
     S.veraHist = [{role:'assistant', content:'Olá, ' + S.user.name.split(' ')[0] + '! Sou o Sr. Performance, seu mentor de alta performance. Estou aqui para estratégia, objeções, cadências, feedbacks e o que mais precisar. Como posso te ajudar?'}];
   }
   scheduleVeraNotifs();
+}
+
+// ══════ RECUPERACAO DE SENHA ══════
+function showForgotPassword() { S.loginView='forgot'; S.loginErr=''; S.loginMsg=''; S.resetLink=null; render(); }
+function backToLogin() { S.loginView=null; S.loginErr=''; S.loginMsg=''; S.resetLink=null; render(); }
+
+function doForgotPassword() {
+  const email = (document.getElementById('fpEmail')||{}).value||'';
+  if (!email.trim()) { S.loginErr='Digite seu e-mail'; render(); return; }
+  const user = USERS_BASE.find(u => u.email && u.email.toLowerCase()===email.trim().toLowerCase());
+  if (!user) { S.loginErr='E-mail n\u00e3o encontrado no sistema'; render(); return; }
+  const token = Math.random().toString(36).substring(2,10)+Date.now().toString(36);
+  localStorage.setItem('psm_reset_token', JSON.stringify({token, email:user.email, userId:user.id, expires:Date.now()+3600000}));
+  S.loginMsg='Link de redefini\u00e7\u00e3o gerado!';
+  S.resetLink=location.origin+location.pathname+'?reset='+token;
+  S.loginErr='';
+  render();
+}
+
+function doResetPassword() {
+  const nova=(document.getElementById('rpNova')||{}).value||'';
+  const conf=(document.getElementById('rpConf')||{}).value||'';
+  if (!nova||!conf) { S.loginErr='Preencha todos os campos'; render(); return; }
+  if (nova.length<4) { S.loginErr='M\u00ednimo 4 caracteres'; render(); return; }
+  if (nova!==conf) { S.loginErr='As senhas n\u00e3o conferem'; render(); return; }
+  const raw=localStorage.getItem('psm_reset_token');
+  if (!raw) { S.loginErr='Token inv\u00e1lido'; render(); return; }
+  const data=JSON.parse(raw);
+  if (data.token!==S.resetToken||Date.now()>data.expires) { localStorage.removeItem('psm_reset_token'); S.loginErr='Token expirado. Solicite novamente.'; render(); return; }
+  const senhas=JSON.parse(localStorage.getItem('psm_senhas')||'{}');
+  senhas[data.userId]=nova;
+  localStorage.setItem('psm_senhas',JSON.stringify(senhas));
+  localStorage.removeItem('psm_reset_token');
+  S.loginView=null; S.loginErr=''; S.loginMsg='Senha redefinida com sucesso! Fa\u00e7a login.'; render();
+}
+
+function renderForgotPassword() {
+  const u='logo-psm-navy.png';
+  return '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:var(--font);background:linear-gradient(150deg,#f8fafc,#e2e8f0)">'
+  +'<div style="width:420px;background:#fff;border-radius:16px;padding:48px;box-shadow:0 4px 24px rgba(0,0,0,.08)">'
+  +'<div style="text-align:center"><img src="'+u+'" style="width:60px;margin-bottom:12px"><h3 style="margin:0;color:#0f172a;font-size:20px">Recuperar Senha</h3><p style="color:#64748b;font-size:13px;margin:8px 0 0">Digite o e-mail cadastrado no sistema</p></div>'
+  +'<div style="margin-top:28px"><label style="display:block;color:#334155;font-size:12px;margin-bottom:6px;font-weight:600">E-mail</label>'
+  +'<input type="email" id="fpEmail" placeholder="seu@email.com" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:var(--font);color:#0f172a;background:#fff;outline:none;box-sizing:border-box" onfocus="this.style.borderColor=\'#0f172a\'" onblur="this.style.borderColor=\'#e2e8f0\'"></div>'
+  +(S.loginErr?'<div style="margin-top:12px;text-align:center;font-size:12px;color:#dc2626;font-weight:500">'+S.loginErr+'</div>':'')
+  +(S.loginMsg?'<div style="margin-top:12px;text-align:center;font-size:12px;color:#16a34a;font-weight:500">'+S.loginMsg+'</div>':'')
+  +(S.resetLink?'<div style="margin-top:8px;text-align:center"><input type="text" value="'+S.resetLink+'" readonly style="width:100%;padding:8px;font-size:11px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;color:#0f172a;font-family:monospace;box-sizing:border-box" onclick="this.select();document.execCommand(\'copy\')"><p style="font-size:10px;color:#64748b;margin:4px 0 0">Clique para copiar e envie ao colaborador</p></div>':'')
+  +'<button onclick="doForgotPassword()" style="margin-top:20px;width:100%;padding:14px;background:#0f172a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer" onmouseover="this.style.background=\'#1a3c5e\'" onmouseout="this.style.background=\'#0f172a\'">Enviar Link</button>'
+  +'<div style="margin-top:16px;text-align:center"><a href="javascript:void(0)" onclick="backToLogin()" style="color:#64748b;font-size:12px;text-decoration:none" onmouseover="this.style.color=\'#0f172a\'" onmouseout="this.style.color=\'#64748b\'">\u2190 Voltar ao login</a></div>'
+  +'</div></div>';
+}
+
+function renderResetPassword() {
+  const u='logo-psm-navy.png';
+  const raw=localStorage.getItem('psm_reset_token');
+  if (!raw) return '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:var(--font)"><div style="text-align:center;padding:40px"><h3 style="color:#dc2626">Token inv\u00e1lido</h3><a href="javascript:void(0)" onclick="backToLogin()" style="color:#0f172a">Voltar ao login</a></div></div>';
+  const data=JSON.parse(raw);
+  if (data.token!==S.resetToken||Date.now()>data.expires) { localStorage.removeItem('psm_reset_token'); return '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:var(--font)"><div style="text-align:center;padding:40px"><h3 style="color:#dc2626">Token expirado</h3><p style="color:#64748b">Solicite novo link.</p><a href="javascript:void(0)" onclick="backToLogin()" style="color:#0f172a">Voltar ao login</a></div></div>'; }
+  const usr=USERS_BASE.find(x=>x.id===data.userId);
+  return '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:var(--font);background:linear-gradient(150deg,#f8fafc,#e2e8f0)">'
+  +'<div style="width:420px;background:#fff;border-radius:16px;padding:48px;box-shadow:0 4px 24px rgba(0,0,0,.08)">'
+  +'<div style="text-align:center"><img src="'+u+'" style="width:60px;margin-bottom:12px"><h3 style="margin:0;color:#0f172a;font-size:20px">Nova Senha</h3><p style="color:#64748b;font-size:13px;margin:8px 0 0">Ol\u00e1 '+(usr?usr.name:'')+', defina sua nova senha.</p></div>'
+  +'<div style="margin-top:28px"><label style="display:block;color:#334155;font-size:12px;margin-bottom:6px;font-weight:600">Nova Senha</label><input type="password" id="rpNova" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:var(--font);color:#0f172a;background:#fff;outline:none;box-sizing:border-box" onfocus="this.style.borderColor=\'#0f172a\'" onblur="this.style.borderColor=\'#e2e8f0\'"></div>'
+  +'<div style="margin-top:16px"><label style="display:block;color:#334155;font-size:12px;margin-bottom:6px;font-weight:600">Confirmar Senha</label><input type="password" id="rpConf" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:var(--font);color:#0f172a;background:#fff;outline:none;box-sizing:border-box" onfocus="this.style.borderColor=\'#0f172a\'" onblur="this.style.borderColor=\'#e2e8f0\'"></div>'
+  +(S.loginErr?'<div style="margin-top:12px;text-align:center;font-size:12px;color:#dc2626;font-weight:500">'+S.loginErr+'</div>':'')
+  +'<button onclick="doResetPassword()" style="margin-top:20px;width:100%;padding:14px;background:#0f172a;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer" onmouseover="this.style.background=\'#1a3c5e\'" onmouseout="this.style.background=\'#0f172a\'">Redefinir Senha</button>'
+  +'<div style="margin-top:16px;text-align:center"><a href="javascript:void(0)" onclick="backToLogin()" style="color:#64748b;font-size:12px;text-decoration:none" onmouseover="this.style.color=\'#0f172a\'" onmouseout="this.style.color=\'#64748b\'">\u2190 Voltar ao login</a></div>'
+  +'</div></div>';
 }
 function doLogout() {
   S.user=null; S.page=undefined; S.veraHist=[];
@@ -10009,7 +10085,7 @@ return '<div style="display:flex;background:#0b1120;min-height:100vh;color:#e2e8
 +'</div>';
 }
 function route() {
-  if (!S.user) return renderLogin();
+  if (!S.user) { if (S.loginView==='forgot') return renderForgotPassword(); if (S.loginView==='reset') return renderResetPassword(); return renderLogin(); }
   switch(S.page) {
     case 'dashboard':  return pgDashboard();
     case 'meu':        return pgMeu();
@@ -10188,7 +10264,9 @@ window.addEventListener('DOMContentLoaded', () => {
         if (user) {
           S.user = {...UM[user.id], ...user};
           S.page = RLVL[S.user.role] >= 5 ? 'dashboard' : 'meu';
-          render();
+                    // Detecta ?reset= na URL
+          const _qs=new URLSearchParams(location.search); if(_qs.get('reset')){S.resetToken=_qs.get('reset');S.loginView='reset';history.replaceState(null,'',location.pathname);}
+render();
           setTimeout(() => { RD.sync(true).then(() => RD.startAutoSync()); }, 200);
           if (!S.veraHist?.length) {
             S.veraHist = [{role:'assistant', content:'Olá, ' + S.user.name.split(' ')[0] + '! Sou o Sr. Performance. Como posso te ajudar?'}];
