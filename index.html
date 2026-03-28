@@ -590,7 +590,7 @@ html{height:100%;overflow:hidden}
 'use strict';
 // ─── UTILS ───────────────────────────────────────────────────────────────────
 const fmt=n=>{if(n===null||n===undefined||isNaN(n))return'—';return'R$ '+Math.round(n).toLocaleString('pt-BR');};
-const pN=(v,t)=>t>0?Math.round(v/t*100):0;
+const pN=(v,t)=>t>0?parseFloat((v/t*100).toFixed(2)):0;
 const pS=(v,t)=>pN(v,t)+'%';
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const el=id=>document.getElementById(id);
@@ -830,19 +830,19 @@ function calcOKRs(){
   const vendMeta=M.vend_meta||20;
   const crmMedio=BROKERS.length?Math.round(BROKERS.reduce((a,b)=>a+(b.crm||0),0)/BROKERS.length):0;
   const visReal=BROKERS.reduce((a,b)=>a+(b.vis||0),0);
-  const pctVgv=Math.round(vgvReal/Math.max(1,vgvMeta)*100);
-  const pctVend=Math.round(vendReal/Math.max(1,vendMeta)*100);
+  const pctVgv=parseFloat((vgvReal/Math.max(1,vgvMeta)*100).toFixed(2));
+  const pctVend=parseFloat((vendReal/Math.max(1,vendMeta)*100).toFixed(2));
   return [
     {id:'okr1',obj:'Atingir meta de VGV mensal',ciclo:M.mes||'—',prog:pctVgv,status:pctVgv>=80?'on_track':pctVgv>=50?'at_risk':'off_track',
      krs:[
        {label:'VGV >= '+fmt(vgvMeta),curr:vgvReal/1000000,target:vgvMeta/1000000,unit:'M',pct:pctVgv,status:pctVgv>=80?'on_track':'at_risk'},
        {label:vendMeta+' vendas no mês',curr:vendReal,target:vendMeta,unit:'un',pct:pctVend,status:pctVend>=80?'on_track':'at_risk'},
-       {label:'CRM score médio >= 70',curr:crmMedio,target:70,unit:'pts',pct:Math.round(crmMedio/70*100),status:crmMedio>=70?'on_track':'at_risk'},
+       {label:'CRM score médio >= 70',curr:crmMedio,target:70,unit:'pts',pct:parseFloat((crmMedio/70*100).toFixed(2)),status:crmMedio>=70?'on_track':'at_risk'},
      ]},
     {id:'okr2',obj:'Excelência operacional da equipe',ciclo:M.mes||'—',prog:Math.round((crmMedio/70*50)+(visReal/Math.max(1,M.vis_meta||100)*50)),status:'on_track',
      krs:[
-       {label:'Visitas realizadas >= meta',curr:visReal,target:M.vis_meta||100,unit:'un',pct:Math.round(visReal/Math.max(1,M.vis_meta||100)*100),status:visReal>=((M.vis_meta||100)*0.8)?'on_track':'at_risk'},
-       {label:'Taxa de conversão >= 5%',curr:VENDAS.length>0?Math.round(VENDAS.length/(VENDAS.length+LOST_DEALS.length)*100):0,target:5,unit:'%',pct:0,status:'at_risk'},
+       {label:'Visitas realizadas >= meta',curr:visReal,target:M.vis_meta||100,unit:'un',pct:parseFloat((visReal/Math.max(1,M.vis_meta||100)*100).toFixed(2)),status:visReal>=((M.vis_meta||100)*0.8)?'on_track':'at_risk'},
+       {label:'Taxa de conversão >= 5%',curr:VENDAS.length>0?parseFloat((VENDAS.length/(VENDAS.length+LOST_DEALS.length)*100).toFixed(2)):0,target:5,unit:'%',pct:0,status:'at_risk'},
        {label:'Zero leads SLA vencido',curr:OPPS.filter(o=>(o.sla||'')==='overdue').length,target:0,unit:'un',pct:100,status:OPPS.filter(o=>o.sla==='overdue').length===0?'on_track':'at_risk'},
      ]},
   ];
@@ -891,11 +891,11 @@ function calcForecasts(){
   const conv=VENDAS.length/(Math.max(1,VENDAS.length+LOST_DEALS.length));
 
   return {
-    week:{meta:Math.round(metaMonth/4),real:vgvReal,proj:Math.round(projMonth/4),gap:Math.round(projMonth/4)-Math.round(metaMonth/4),pct:Math.round(projMonth/4/Math.max(1,metaMonth/4)*100),conf:projMonth/4>=metaMonth/4?'alta':'media',risk:projMonth/4<metaMonth/4*0.7?'alto':'baixo'},
-    month:{meta:metaMonth,real:vgvReal,proj:projMonth,gap:projMonth-metaMonth,pct:Math.round(projMonth/Math.max(1,metaMonth)*100),conf:projMonth>=metaMonth*0.9?'alta':projMonth>=metaMonth*0.7?'media':'baixa',risk:projMonth<metaMonth*0.7?'alto':'medio'},
-    quarter:{meta:metaQuarter,real:vgvReal,proj:projMonth*3,gap:projMonth*3-metaQuarter,pct:Math.round(projMonth*3/Math.max(1,metaQuarter)*100),conf:projMonth*3>=metaQuarter*0.8?'media':'baixa',risk:projMonth*3<metaQuarter*0.6?'alto':'medio'},
-    semester:{meta:metaSemester,real:vgvReal,proj:projMonth*6,gap:projMonth*6-metaSemester,pct:Math.round(projMonth*6/Math.max(1,metaSemester)*100),conf:'media',risk:'medio'},
-    year:{meta:metaYear,real:vgvReal,proj:projMonth*12,gap:projMonth*12-metaYear,pct:Math.round(projMonth*12/Math.max(1,metaYear)*100),conf:'baixa',risk:'medio'},
+    week:{meta:Math.round(metaMonth/4),real:vgvReal,proj:Math.round(projMonth/4),gap:Math.round(projMonth/4)-Math.round(metaMonth/4),pct:parseFloat((projMonth/4/Math.max(1,metaMonth/4)*100).toFixed(2)),conf:projMonth/4>=metaMonth/4?'alta':'media',risk:projMonth/4<metaMonth/4*0.7?'alto':'baixo'},
+    month:{meta:metaMonth,real:vgvReal,proj:projMonth,gap:projMonth-metaMonth,pct:parseFloat((projMonth/Math.max(1,metaMonth)*100).toFixed(2)),conf:projMonth>=metaMonth*0.9?'alta':projMonth>=metaMonth*0.7?'media':'baixa',risk:projMonth<metaMonth*0.7?'alto':'medio'},
+    quarter:{meta:metaQuarter,real:vgvReal,proj:projMonth*3,gap:projMonth*3-metaQuarter,pct:parseFloat((projMonth*3/Math.max(1,metaQuarter)*100).toFixed(2)),conf:projMonth*3>=metaQuarter*0.8?'media':'baixa',risk:projMonth*3<metaQuarter*0.6?'alto':'medio'},
+    semester:{meta:metaSemester,real:vgvReal,proj:projMonth*6,gap:projMonth*6-metaSemester,pct:parseFloat((projMonth*6/Math.max(1,metaSemester)*100).toFixed(2)),conf:'media',risk:'medio'},
+    year:{meta:metaYear,real:vgvReal,proj:projMonth*12,gap:projMonth*12-metaYear,pct:parseFloat((projMonth*12/Math.max(1,metaYear)*100).toFixed(2)),conf:'baixa',risk:'medio'},
   };
 }
 var FORECASTS=calcForecasts();
@@ -1210,7 +1210,7 @@ function pgDashboard(){
   +Kpi('Pipeline',fmt(fOPPS.reduce((a,o)=>a+(o.vgv||0),0)),fOPPS.length+' oportunidades',null,'#8b5cf6')
   +Kpi('Pipeline Pond.',fmt(Math.round(pW)),'Por peso de etapa',null,'#3b82f6')
   +Kpi('Perdidas',fLOST.length,'VGV: '+fmt(fLOST.reduce((a,l)=>a+(l.vgv||0),0)),null,'#ef4444')
-  +Kpi('Conversão',((fVENDAS.length/Math.max(1,fVENDAS.length+fLOST.length))*100).toFixed(1)+'%','ganhas vs perdidas',null,'#0d9488')
+  +Kpi('Conversão',((fVENDAS.length/Math.max(1,fVENDAS.length+fLOST.length))*100).toFixed(2)+'%','ganhas vs perdidas',null,'#0d9488')
   +Kpi('Visitas',m.vis_real,'Meta: '+m.vis_meta,{up:pN(m.vis_real,m.vis_meta)>=80,txt:pS(m.vis_real,m.vis_meta)},'#22c55e')
   +Kpi('Corretores',BROKERS.filter(b=>b.st==='online').length+' online','de '+BROKERS.length+' total',null,'#0d9488')
   +Kpi('CRM Score',m.crm_medio+' pts','média da equipe',{up:m.crm_medio>=80,txt:m.crm_medio>=80?'Bom':'Atenção'},m.crm_medio>=80?'var(--g)':'var(--a)')
@@ -1224,7 +1224,7 @@ function pgDashboard(){
   +'<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Mês</th><th style="text-align:right">VGV</th><th style="text-align:right">Vendas</th><th style="text-align:right">Meta</th><th style="text-align:right">%</th><th style="text-align:right">Variação</th></tr></thead><tbody>'
   +(typeof MONTHLY!=='undefined'&&MONTHLY.length?MONTHLY.map((m,i)=>{
     const prev=i>0?MONTHLY[i-1]:null;
-    const pct=Math.round((m.vgv||0)/Math.max(1,m.meta||1)*100);
+    const pct=parseFloat(((m.vgv||0)/Math.max(1,m.meta||1)*100).toFixed(2));
     const variacao=prev?Math.round(((m.vgv||0)-(prev.vgv||0))/(Math.max(1,prev.vgv||1))*100):0;
     return'<tr><td style="font-weight:700">'+m.m+'</td>'
       +'<td style="text-align:right;font-weight:700;color:var(--navy)">'+fmt(m.vgv||0)+'</td>'
@@ -2070,7 +2070,7 @@ var pgWarArena = function() {
     h += '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px">\u2694\uFE0F Estat\u00EDsticas de Batalha</div>';
     h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">';
     var battleStats = [
-      {label:'Taxa de Convers\u00E3o',value:totalVis>0?Math.round(totalVendas/totalVis*100)+'%':'0%',sub:'Visitas \u2192 Vendas',color:green},
+      {label:'Taxa de Convers\u00E3o',value:totalVis>0?parseFloat((totalVendas/totalVis*100).toFixed(2))+'%':'0%',sub:'Visitas \u2192 Vendas',color:green},
       {label:'Propostas Ativas',value:totalProp,sub:'Em negocia\u00E7\u00E3o',color:blue},
       {label:'Registros CRM',value:totalCRM,sub:'Follow-ups',color:purple},
       {label:'Liga\u00E7\u00F5es',value:totalLig,sub:'Contatos realizados',color:cyan}
@@ -2233,7 +2233,7 @@ var pgWarArena = function() {
       h += '<div><div style="font-weight:700;color:#fff">'+f.vis+'</div><div style="color:#64748b">Visitas</div></div>';
       h += '<div><div style="font-weight:700;color:#fff">'+f.prop+'</div><div style="color:#64748b">Propostas</div></div>';
       h += '<div><div style="font-weight:700;color:#fff">'+f.crm+'</div><div style="color:#64748b">CRM</div></div>';
-      h += '<div><div style="font-weight:700;color:#fff">'+(f.vis>0?Math.round(f.vendas/f.vis*100):0)+'%</div><div style="color:#64748b">Convers\u00E3o</div></div>';
+      h += '<div><div style="font-weight:700;color:#fff">'+(f.vis>0?parseFloat((f.vendas/f.vis*100).toFixed(2)):0)+'%</div><div style="color:#64748b">Convers\u00E3o</div></div>';
       h += '</div></div>';
     });
 
@@ -2490,7 +2490,7 @@ function pgMetas(){
   function sum(arr){return arr.reduce(function(a,b){return a+(b||0);},0);}
   function fmt(v){if(v===0)return '\u2014';return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
   function fmtN(v){return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
-  function pct(v){return (v*100).toFixed(1)+'%';}
+  function pct(v){return (v*100).toFixed(2)+'%';}
 
   var totalArr=[];for(var i=0;i<12;i++)totalArr.push(metaTotal(i));
   var totalAno=sum(totalArr);
@@ -3040,7 +3040,7 @@ function pgForecast(){
       const now=new Date();const pctM=now.getDate()/30;
       const proj=pctM>0?Math.round(vgvR/pctM*s.mult):vgvR;
       const metaM=METRICS.vgv_meta||0;
-      const pctMeta=Math.round(proj/Math.max(1,metaM)*100);
+      const pctMeta=parseFloat((proj/Math.max(1,metaM)*100).toFixed(2));
       return'<div style="padding:16px;background:var(--cream2);border-radius:12px;border-top:3px solid '+s.c+';text-align:center">'
         +'<div style="font-size:20px;margin-bottom:6px">'+s.ico+'</div>'
         +'<div style="font-size:13px;font-weight:700;color:var(--navy)">'+s.lbl+'</div>'
@@ -3050,7 +3050,7 @@ function pgForecast(){
     }).join('')+'</div></div>'
   +'<div class="card mb2"><div class="ctitle">Evolução de VGV</div>'+svgBar((MONTHLY||[]),'vgv','meta','m','#0f172a','#e2e8f0',150)+'</div>'
   +'<div class="card"><div class="ctitle">Pipeline Ponderado por Etapa (Lançamento)</div>'
-  +((FUNIS.lancamento||[]).map?((FUNIS.lancamento||[])).map(s=>{const vE=OPPS.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).reduce((a,o)=>a+(o.vgv*s.w),0);return'<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:9.5px;font-weight:600;color:'+s.color+';width:120px;flex-shrink:0">'+s.label+'</span><div style="flex:1">'+PB(vE,Math.max(vE,1)||1,s.color)+'</div><span style="font-size:11px;font-weight:700;color:var(--navy);width:65px;text-align:right;flex-shrink:0">'+(vE>0?fmt(Math.round(vE)):'—')+'</span><span style="font-size:9px;color:var(--muted);width:28px;text-align:right;flex-shrink:0">'+Math.round(s.w*100)+'%</span></div>';}).join(''):'')
+  +((FUNIS.lancamento||[]).map?((FUNIS.lancamento||[])).map(s=>{const vE=OPPS.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).reduce((a,o)=>a+(o.vgv*s.w),0);return'<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:9.5px;font-weight:600;color:'+s.color+';width:120px;flex-shrink:0">'+s.label+'</span><div style="flex:1">'+PB(vE,Math.max(vE,1)||1,s.color)+'</div><span style="font-size:11px;font-weight:700;color:var(--navy);width:65px;text-align:right;flex-shrink:0">'+(vE>0?fmt(Math.round(vE)):'—')+'</span><span style="font-size:9px;color:var(--muted);width:28px;text-align:right;flex-shrink:0">'+parseFloat((s.w*100).toFixed(2))+'%</span></div>';}).join(''):'')
   +'</div>';
 }
 
@@ -4147,7 +4147,7 @@ function pgMeu() {
 function FunnelChart(steps) {
   const mx = Math.max(...steps.map(s=>s.val),1);
   return steps.map((s,i)=>{
-    const pct=Math.round(s.val/mx*100);
+    const pct=parseFloat((s.val/mx*100).toFixed(2));
     const prev=i>0?steps[i-1].val:s.val;
     const conv=prev>0?Math.round(s.val/prev*100):100;
     return '<div style="margin-bottom:10px">'      +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">'      +'<span style="font-weight:700;color:var(--navy)">'+s.lbl+'</span>'      +'<span style="font-weight:800;color:'+s.c+'">'+s.val+(i>0?' ('+conv+'% conv.)':'')+' </span>'      +'</div>'      +'<div style="background:var(--cream3);border-radius:6px;overflow:hidden;height:30px">'      +'<div style="width:'+pct+'%;min-width:30px;background:'+s.c+';height:100%;display:flex;align-items:center;padding:0 8px;transition:width .5s">'      +'<span style="color:#fff;font-size:10px;font-weight:700">'+s.val+'</span></div></div>';  }).join('');}
@@ -4352,14 +4352,14 @@ function pgMetricas() {
     const percMes=diaAtual/diasMes;
     const vgvMeta=METRICS.vgv_meta||0, vgvReal=S.vgvReal||0;
     const vgvProj=percMes>0?Math.round(vgvReal/percMes):0;
-    const pctVGV=vgvMeta>0?Math.round(vgvReal/vgvMeta*100):0;
-    const pctProj=vgvMeta>0?Math.round(vgvProj/vgvMeta*100):0;
+    const pctVGV=vgvMeta>0?parseFloat((vgvReal/vgvMeta*100).toFixed(2)):0;
+    const pctProj=vgvMeta>0?parseFloat((vgvProj/vgvMeta*100).toFixed(2)):0;
     const bMVR=(selB?[selB]:brokers).map(b=>{
       const mc=METAS_CONFIG[b.id]||{}, bM=mc.vgv_meta||0;
       const bR=b.vgv_real||0, bP=percMes>0?Math.round(bR/percMes):0;
-      return {b,bM,bR,bP,pct:bM>0?Math.round(bR/bM*100):0};
+      return {b,bM,bR,bP,pct:bM>0?parseFloat((bR/bM*100).toFixed(2)):0};
     });
-    content='<div class="kgrid mb2">'      +Kpi('🎯 Meta VGV',fmt(vgvMeta),'meta do período',null,'var(--navy)')      +Kpi('✅ Realizado',fmt(vgvReal),pctVGV+'% da meta',{up:pctVGV>=100,txt:pctVGV+'%'},pctVGV>=100?'var(--g)':pctVGV>=70?'var(--a)':'var(--r)')      +Kpi('📈 Projetado',fmt(vgvProj),'se manter ritmo',{up:pctProj>=100,txt:pctProj+'% da meta'},pctProj>=100?'var(--g)':'var(--a)')      +Kpi('📅 Mês',diaAtual+'/'+diasMes+' dias',Math.round(percMes*100)+'%',null,'var(--b)')      +'</div>'      +'<div class="card mb2" style="padding:18px"><div class="ctitle" style="margin-bottom:14px">VGV — Meta × Realizado × Projetado</div>'      +FunnelChart([{lbl:'Meta',val:vgvMeta,c:'#0f172a'},{lbl:'Projetado',val:vgvProj,c:'#d97706'},{lbl:'Realizado',val:vgvReal,c:'#15803d'}])      +'</div>'      +'<div class="card"><div class="ctitle">Por Corretor</div>'      +'<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">'      +bMVR.map(({b,bM,bR,bP,pct})=>        '<div style="background:var(--cream2);border-radius:8px;padding:10px">'        +'<div style="display:flex;justify-content:space-between;margin-bottom:6px">'        +'<span style="font-size:12px;font-weight:700">'+b.name.split(' ')[0]+'</span>'        +'<span style="font-size:12px;font-weight:800;color:'+(pct>=100?'var(--g-tx)':pct>=70?'var(--a-tx)':'var(--r-tx)')+'">'+pct+'%</span></div>'        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:10px;margin-bottom:6px">'        +'<div><div style="color:var(--muted)">Meta</div><div style="font-weight:700">'+fmt(bM)+'</div></div>'        +'<div><div style="color:var(--muted)">Realizado</div><div style="font-weight:700;color:var(--g-tx)">'+fmt(bR)+'</div></div>'        +'<div><div style="color:var(--muted)">Projetado</div><div style="font-weight:700;color:'+(bP>=bM?'var(--g-tx)':'var(--a-tx)')+'">'+fmt(bP)+'</div></div>'        +'</div>'        +PB(bR,bM||1,pct>=100?'#16a34a':pct>=70?'#d97706':'#dc2626')        +'</div>')        .join('')      +'</div></div>';  }
+    content='<div class="kgrid mb2">'      +Kpi('🎯 Meta VGV',fmt(vgvMeta),'meta do período',null,'var(--navy)')      +Kpi('✅ Realizado',fmt(vgvReal),pctVGV+'% da meta',{up:pctVGV>=100,txt:pctVGV+'%'},pctVGV>=100?'var(--g)':pctVGV>=70?'var(--a)':'var(--r)')      +Kpi('📈 Projetado',fmt(vgvProj),'se manter ritmo',{up:pctProj>=100,txt:pctProj+'% da meta'},pctProj>=100?'var(--g)':'var(--a)')      +Kpi('📅 Mês',diaAtual+'/'+diasMes+' dias',parseFloat((percMes*100).toFixed(2))+'%',null,'var(--b)')      +'</div>'      +'<div class="card mb2" style="padding:18px"><div class="ctitle" style="margin-bottom:14px">VGV — Meta × Realizado × Projetado</div>'      +FunnelChart([{lbl:'Meta',val:vgvMeta,c:'#0f172a'},{lbl:'Projetado',val:vgvProj,c:'#d97706'},{lbl:'Realizado',val:vgvReal,c:'#15803d'}])      +'</div>'      +'<div class="card"><div class="ctitle">Por Corretor</div>'      +'<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">'      +bMVR.map(({b,bM,bR,bP,pct})=>        '<div style="background:var(--cream2);border-radius:8px;padding:10px">'        +'<div style="display:flex;justify-content:space-between;margin-bottom:6px">'        +'<span style="font-size:12px;font-weight:700">'+b.name.split(' ')[0]+'</span>'        +'<span style="font-size:12px;font-weight:800;color:'+(pct>=100?'var(--g-tx)':pct>=70?'var(--a-tx)':'var(--r-tx)')+'">'+pct+'%</span></div>'        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:10px;margin-bottom:6px">'        +'<div><div style="color:var(--muted)">Meta</div><div style="font-weight:700">'+fmt(bM)+'</div></div>'        +'<div><div style="color:var(--muted)">Realizado</div><div style="font-weight:700;color:var(--g-tx)">'+fmt(bR)+'</div></div>'        +'<div><div style="color:var(--muted)">Projetado</div><div style="font-weight:700;color:'+(bP>=bM?'var(--g-tx)':'var(--a-tx)')+'">'+fmt(bP)+'</div></div>'        +'</div>'        +PB(bR,bM||1,pct>=100?'#16a34a':pct>=70?'#d97706':'#dc2626')        +'</div>')        .join('')      +'</div></div>';  }
 
     return '<div class="phd"><h1>Métricas Avançadas</h1><p>Dados em tempo real do RD Station CRM</p></div>'
     + (canFilter ? '<div style="margin-bottom:14px"><select class="sel-f" onchange="S.metBroker=this.value;render()">'
@@ -4413,7 +4413,7 @@ function pgOKRs() {
 
   const metaVGV = METRICS.vgv_meta || 0;
   const realVGV = S.vgvReal || 0;
-  const pctG    = metaVGV > 0 ? Math.round(realVGV/metaVGV*100) : 0;
+  const pctG    = metaVGV > 0 ? parseFloat((realVGV/metaVGV*100).toFixed(2)) : 0;
 
   let content = '';
 
@@ -4630,7 +4630,7 @@ function pgOO() {
   ];
   var convRows = convPairs.map(function(p){
     var a=day[p.from]||0, b=day[p.to]||0;
-    var pct = a>0 ? Math.round(b/a*100) : 0;
+    var pct = a>0 ? parseFloat((b/a*100).toFixed(2)) : 0;
     var pcolor = pct>=50?'#10b981':pct>=25?'#f59e0b':'#ef4444';
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:#f8fafc;border-radius:8px;margin-bottom:3px">'
       +'<span style="font-size:11px;color:#64748b">'+p.l+'</span>'
@@ -5784,7 +5784,7 @@ function pgMarketing() {
     // ── VISÃO GERAL ──
     var kpis = '<div class="kgrid">'
       + Kpi('Leads no M\u00eas', mk.leads_mes, pS(mk.leads_mes, mk.leads_meta)+' da meta', null, 'var(--b)')
-      + Kpi('Leads Qualificados', mk.leads_qualificados, Math.round(mk.leads_qualificados/mk.leads_mes*100)+'% qualifica\u00e7\u00e3o', null, 'var(--g)')
+      + Kpi('Leads Qualificados', mk.leads_qualificados, parseFloat((mk.leads_qualificados/mk.leads_mes*100).toFixed(2))+'% qualifica\u00e7\u00e3o', null, 'var(--g)')
       + Kpi('Taxa Convers\u00e3o', mk.taxa_conversao+'%', 'lead \u2192 qualificado', null, 'var(--pu)')
       + (isDiretor ? Kpi('Custo/Lead', 'R$ '+mk.custo_lead.toFixed(2), 'investimento: R$ '+fmt(mk.investimento), null, 'var(--a)') : Kpi('Meta Leads', mk.leads_meta, (mk.leads_meta - mk.leads_mes)+' faltam', null, 'var(--a)'))
       + '</div>';
@@ -5919,7 +5919,7 @@ function pgMarketing() {
     content += '<div class="kgrid">'
       + Kpi('Custo/Lead', 'R$ '+mk.custo_lead.toFixed(2), 'média geral', null, mk.custo_lead < 25 ? 'var(--g)' : 'var(--a)')
       + Kpi('ROI M\u00e9dio', avgROI+'%', 'todas campanhas', null, avgROI > 100 ? 'var(--g)' : 'var(--a)')
-      + Kpi('Leads Qualificados', mk.leads_qualificados, Math.round(mk.leads_qualificados/mk.leads_mes*100)+'% do total', null, 'var(--pu)')
+      + Kpi('Leads Qualificados', mk.leads_qualificados, parseFloat((mk.leads_qualificados/mk.leads_mes*100).toFixed(2))+'% do total', null, 'var(--pu)')
       + Kpi('Custo/Lead Qualif.', 'R$ '+(mk.leads_qualificados>0?(mk.investimento/mk.leads_qualificados).toFixed(2):'0'), '', null, 'var(--b)')
       + '</div>';
   }
@@ -6529,7 +6529,7 @@ h+='<div style="display:flex;gap:16px;margin-bottom:12px;">';
 h+='<div style="font-size:.75rem;color:#b8c4d4;">\ud83c\udfe2 '+im+' imob.</div>';
 h+='<div style="font-size:.75rem;color:#b8c4d4;">\ud83d\udc64 '+co+' corr.</div>';
 h+='<div style="font-size:.75rem;color:#b8c4d4;">\ud83d\udd34 '+ta+' tier A</div></div>';
-var pct=Math.round(sc.length/competitors.length*100);
+var pct=parseFloat((sc.length/competitors.length*100).toFixed(2));
 h+='<div style="height:8px;background:#283548;border-radius:4px;overflow:hidden;margin-bottom:8px;">';
 h+='<div style="width:'+pct+'%;height:100%;background:linear-gradient(90deg,var(--gold),#e74c3c);border-radius:4px;"></div></div>';
 h+='<div style="font-size:.7rem;color:#8899aa;">'+pct+'% do mercado monitorado</div>';
@@ -8516,7 +8516,7 @@ function pgRDConfig() {
               return '<div style="background:'+s.color+'12;border:1px solid '+s.color+'30;border-radius:6px;padding:4px 8px;font-size:9.5px">'
                 + '<span style="font-weight:700;color:'+s.color+'">'+s.label+'</span>'
                 + '<span style="color:var(--muted);margin-left:4px">'+cnt+'</span>'
-                + '<span style="color:var(--muted);margin-left:4px;font-size:8px">w:'+Math.round(s.w*100)+'%</span>'
+                + '<span style="color:var(--muted);margin-left:4px;font-size:8px">w:'+parseFloat((s.w*100).toFixed(2))+'%</span>'
                 + '</div>';
             }).join('')
           + '</div></div>';
@@ -9631,7 +9631,7 @@ else if(tab==='okrs'){
   var trend7d=totResults>0?((totResults*7/30)/totResults*100-100):0;
 
   var trendCards=[
-    {lbl:'TEND\u00CANCIA DE LEADS',val:(trend7d>=0?'+':'')+trend7d.toFixed(1)+'%',sub:'\u00FAltimos 7d vs m\u00E9dia 30d',color:trend7d>=0?'#10b981':'#ef4444',border:trend7d>=0?'#10b981':'#ef4444'},
+    {lbl:'TEND\u00CANCIA DE LEADS',val:(trend7d>=0?'+':'')+trend7d.toFixed(2)+'%',sub:'\u00FAltimos 7d vs m\u00E9dia 30d',color:trend7d>=0?'#10b981':'#ef4444',border:trend7d>=0?'#10b981':'#ef4444'},
     {lbl:'LEADS 30 DIAS',val:fmt(totResults),sub:'forms + whatsapp',color:'#e2e8f0',border:'#64748b'},
     {lbl:'TEND\u00CANCIA GASTO',val:'\u2014',sub:'\u00FAltimos 7d vs m\u00E9dia 30d',color:'#64748b',border:'#64748b'},
     {lbl:'GASTO 30 DIAS',val:fmtRShort(totSpend),sub:fmtR(totSpend),color:'#e2e8f0',border:'#64748b'}
@@ -10044,9 +10044,9 @@ else if(tab==='eficriativo'){
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">'
         +'<div><span style="color:#64748b">Formato</span><div style="color:#e2e8f0;font-weight:600;margin-top:2px">'+(c.isVideo?'V\u00EDdeo':'Est\u00E1tico/Imagem')+'</div></div>'
         +'<div><span style="color:#64748b">CTR</span><div style="color:'+colorCTR(c.ctr)+';font-weight:600;margin-top:2px">'+pct(c.ctr)+'</div></div>'
-        +'<div><span style="color:#64748b">Thumbstop</span><div style="color:'+(c.hookP>30?'#10b981':c.hookP>0?'#ef4444':'#64748b')+';font-weight:600;margin-top:2px">'+(c.hookP>0?c.hookP.toFixed(1)+'%':'\u2014')+'</div></div>'
-        +'<div><span style="color:#64748b">Hook Rate (25%)</span><div style="color:'+(c.hookP>30?'#10b981':c.hookP>0?'#f59e0b':'#64748b')+';font-weight:600;margin-top:2px">'+(c.hookP>0?c.hookP.toFixed(1)+'%':'\u2014')+'</div></div>'
-        +'<div><span style="color:#64748b">Hold Rate (75%)</span><div style="color:'+(c.holdP>40?'#10b981':c.holdP>0?'#f59e0b':'#64748b')+';font-weight:600;margin-top:2px">'+(c.holdP>0?c.holdP.toFixed(1)+'%':'\u2014')+'</div></div>'
+        +'<div><span style="color:#64748b">Thumbstop</span><div style="color:'+(c.hookP>30?'#10b981':c.hookP>0?'#ef4444':'#64748b')+';font-weight:600;margin-top:2px">'+(c.hookP>0?c.hookP.toFixed(2)+'%':'\u2014')+'</div></div>'
+        +'<div><span style="color:#64748b">Hook Rate (25%)</span><div style="color:'+(c.hookP>30?'#10b981':c.hookP>0?'#f59e0b':'#64748b')+';font-weight:600;margin-top:2px">'+(c.hookP>0?c.hookP.toFixed(2)+'%':'\u2014')+'</div></div>'
+        +'<div><span style="color:#64748b">Hold Rate (75%)</span><div style="color:'+(c.holdP>40?'#10b981':c.holdP>0?'#f59e0b':'#64748b')+';font-weight:600;margin-top:2px">'+(c.holdP>0?c.holdP.toFixed(2)+'%':'\u2014')+'</div></div>'
         +'<div><span style="color:#64748b">Tempo m\u00E9dio</span><div style="color:#e2e8f0;font-weight:600;margin-top:2px">'+(c.isVideo?c.avgTime:'\u2014')+'</div></div>'
         +'<div><span style="color:#64748b">CPL</span><div style="color:'+colorCPL(c.cpr)+';font-weight:600;margin-top:2px">'+fmtRShort(c.cpr)+'</div></div>'
         +'<div><span style="color:#64748b">Leads</span><div style="color:#10b981;font-weight:600;margin-top:2px">'+(c.results||0)+'</div></div>'
@@ -10069,9 +10069,9 @@ else if(tab==='eficriativo'){
     return '<div style="display:flex;padding:10px 16px;border-bottom:1px solid #1e293b;align-items:center;font-size:11px">'
       +'<div style="flex:2.5;min-width:0"><div style="font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px">'+c.name+'</div><div style="font-size:9px;color:#475569;margin-top:1px">'+c.account+'</div></div>'
       +'<div style="width:80px;text-align:center">'+fmtBadge+'</div>'
-      +'<div style="width:65px;text-align:right;color:'+(c.hookP>30?'#10b981':c.hookP>0?'#f59e0b':'#64748b')+';font-weight:600">'+(c.hookP>0?c.hookP.toFixed(1)+'%':'\u2014')+'</div>'
-      +'<div style="width:60px;text-align:right;color:'+(c.hookP>30?'#10b981':c.hookP>0?'#f59e0b':'#64748b')+';font-weight:600">'+(c.hookP>0?c.hookP.toFixed(1)+'%':'\u2014')+'</div>'
-      +'<div style="width:60px;text-align:right;color:'+(c.holdP>40?'#10b981':c.holdP>0?'#f59e0b':'#64748b')+';font-weight:600">'+(c.holdP>0?c.holdP.toFixed(1)+'%':'\u2014')+'</div>'
+      +'<div style="width:65px;text-align:right;color:'+(c.hookP>30?'#10b981':c.hookP>0?'#f59e0b':'#64748b')+';font-weight:600">'+(c.hookP>0?c.hookP.toFixed(2)+'%':'\u2014')+'</div>'
+      +'<div style="width:60px;text-align:right;color:'+(c.hookP>30?'#10b981':c.hookP>0?'#f59e0b':'#64748b')+';font-weight:600">'+(c.hookP>0?c.hookP.toFixed(2)+'%':'\u2014')+'</div>'
+      +'<div style="width:60px;text-align:right;color:'+(c.holdP>40?'#10b981':c.holdP>0?'#f59e0b':'#64748b')+';font-weight:600">'+(c.holdP>0?c.holdP.toFixed(2)+'%':'\u2014')+'</div>'
       +'<div style="width:50px;text-align:right;color:#94a3b8">'+(c.isVideo?c.avgTime:'\u2014')+'</div>'
       +'<div style="width:50px;text-align:right;color:'+colorCTR(c.ctr)+';font-weight:600">'+pct(c.ctr)+'</div>'
       +'<div style="width:50px;text-align:right;color:#94a3b8">'+(c.cpc>0?fmtRShort(c.cpc):'\u2014')+'</div>'
