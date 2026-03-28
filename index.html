@@ -1201,6 +1201,7 @@ function pgDashboard(){
   const pW=fOPPS.reduce((a,o)=>{const stages=FUNIS[o.fr]||FUNIS.lancamento||[];const s=stages.find?stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st)):null;return a+(o.vgv*(s?s.w:.1));},0);
   const fs=frenteStats();
   return '<div class="phd"><div class="phd-row"><div><h1>Dashboard Executivo</h1><p>'+m.mes+' \u00B7 '+m.du_pass+'/'+m.du_tot+' dias úteis \u00B7 '+m.du_rest+' restantes</p></div></div></div>'
+  +df
   +'<div class="kgrid">'
   +Kpi('VGV Realizado',fmt(fVENDAS.reduce((a,v)=>a+(v.vgv||0),0)),'Meta: '+fmt(m.vgv_meta)+' \u00B7 '+fVENDAS.length+' vendas',{up:pN(fVENDAS.reduce((a,v)=>a+(v.vgv||0),0),m.vgv_meta)>=70,txt:pS(fVENDAS.reduce((a,v)=>a+(v.vgv||0),0),m.vgv_meta)+' da meta'},'#0f172a')
   +Kpi('Vendas',fVENDAS.length,'Meta: '+m.vend_meta+' \u00B7 '+fLOST.length+' perdidas',{up:fVENDAS.length>0,txt:pS(fVENDAS.length,m.vend_meta)},'#d4a843')
