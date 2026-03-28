@@ -746,8 +746,8 @@ const LOST_DEALS = [];  // win=false
 function generateAudits() {
   const audits = [];
   OPPS.forEach(o => {
-    if (o.dnu >= 7 && UM[o.bid]) audits.push({id:'a-'+o.id,oid:o.id,bid:o.bid,tipo:'Sem atualização',sev:'d',desc:o.cl+' sem update há '+o.dnu+' dias. SLA vencido.'});
-    else if (o.dnu >= 3 && UM[o.bid]) audits.push({id:'a-'+o.id,oid:o.id,bid:o.bid,tipo:'SLA vencido',sev:'w',desc:o.cl+' sem update há '+o.dnu+' dias.'});
+    if (o.dnu >= 7 && UM[o.bid]) audits.push({id:'a-'+o.id,oid:o.id,bid:o.bid,tipo:'Sem retorno',sev:'d',desc:o.cl+' sem retorno há '+o.dnu+' dias. prazo vencido.'});
+    else if (o.dnu >= 3 && UM[o.bid]) audits.push({id:'a-'+o.id,oid:o.id,bid:o.bid,tipo:'prazo vencido',sev:'w',desc:o.cl+' sem retorno há '+o.dnu+' dias.'});
   });
   BROKERS.forEach(b => {
     if (b.crm < 65) audits.push({id:'crm-'+b.id,oid:'',bid:b.id,tipo:'CRM baixo',sev:'w',desc:'CRM Score de '+b.crm+' pts — abaixo do mínimo.'});
@@ -843,7 +843,7 @@ function calcOKRs(){
      krs:[
        {label:'Visitas realizadas >= meta',curr:visReal,target:M.vis_meta||100,unit:'un',pct:parseFloat((visReal/Math.max(1,M.vis_meta||100)*100).toFixed(2)),status:visReal>=((M.vis_meta||100)*0.8)?'on_track':'at_risk'},
        {label:'Taxa de conversão >= 5%',curr:VENDAS.length>0?parseFloat((VENDAS.length/(VENDAS.length+LOST_DEALS.length)*100).toFixed(2)):0,target:5,unit:'%',pct:0,status:'at_risk'},
-       {label:'Zero leads SLA vencido',curr:OPPS.filter(o=>(o.sla||'')==='overdue').length,target:0,unit:'un',pct:100,status:OPPS.filter(o=>o.sla==='overdue').length===0?'on_track':'at_risk'},
+       {label:'Zero leads prazo vencido',curr:OPPS.filter(o=>(o.sla||'')==='overdue').length,target:0,unit:'un',pct:100,status:OPPS.filter(o=>o.sla==='overdue').length===0?'on_track':'at_risk'},
      ]},
   ];
 }
@@ -1488,7 +1488,7 @@ function pgFrente(fid){
     +'</div>';}).join('')
     :'<div class="es"><div class="es-ico">👥</div><div class="es-t">Sem corretores ativos</div><div class="es-s">Configure equipes em Configurações</div></div>')
   +'</div></div>'
-  +'<div class="card"><div class="ctitle">Oportunidades Ativas</div><div class="tw"><table class="tbl"><thead><tr><th>ID</th><th>Cliente</th><th>Corretor</th><th>Etapa</th><th>VGV</th><th>SLA</th><th>Update</th><th>CRM</th></tr></thead><tbody>'
+  +'<div class="card"><div class="ctitle">Oportunidades Ativas</div><div class="tw"><table class="tbl"><thead><tr><th>ID</th><th>Cliente</th><th>Corretor</th><th>Etapa</th><th>VGV</th><th>Prazo</th><th>Últ. Contato</th><th>CRM</th></tr></thead><tbody>'
   +fOpps.map(o=>'<tr style="background:'+(o.sla==='overdue'?'rgba(239,68,68,.03)':o.dnu>=3?'rgba(245,158,11,.03)':'')+'"><td class="tmono">'+(o.id||'').toString().slice(0,10)+'</td><td style="font-weight:600;font-size:12px">'+(o.cl||'—')+'</td><td><div class="flex aic gap1">'+Av(UM[o.bid])+'<span>'+(o.bn||'—').split(' ')[0]+'</span></div></td><td>'+StgChip(o.fr,o.st)+'</td><td class="tr">'+fmt(o.vgv||0)+'</td><td>'+SlaIco(o.sla)+'</td><td class="tr" style="color:'+(o.dnu>=3?'var(--r-tx)':'inherit')+';font-weight:'+(o.dnu>=3?700:400)+'">'+(o.dnu||0)+'d</td><td style="min-width:85px">'+CrmBar(o.crm||20)+'</td></tr>').join('')
   +'</tbody></table></div></div>';
 }
@@ -2849,7 +2849,7 @@ function pgCRM(){
     +Object.values(FRENTES).map(f=>'<option value="'+f.id+'"'+(ff===f.id?' selected':'')+'>'+f.icon+' '+f.label+'</option>').join('')
     +'</select>';
   bar+='<select class="fs sel-f" onchange="S.crmSla=this.value;render()">'
-    +'<option value="all">Todos SLAs</option>'
+    +'<option value="all">Todos os Prazos</option>'
     +'<option value="ok"'+(sf==='ok'?' selected':'')+'>OK</option>'
     +'<option value="warning"'+(sf==='warning'?' selected':'')+'>Atencao</option>'
     +'<option value="overdue"'+(sf==='overdue'?' selected':'')+'>Vencido</option>'
@@ -2923,10 +2923,10 @@ function pgCRM(){
       +'<div class="card" style="flex:1;min-width:120px;padding:11px 15px;text-align:center"><div style="font-size:20px;font-weight:900;color:var(--navy)">'+vis.length+'</div><div style="font-size:9.5px;color:var(--muted);text-transform:uppercase">Oportunidades</div></div>'
       +'<div class="card" style="flex:1;min-width:120px;padding:11px 15px;text-align:center"><div style="font-size:20px;font-weight:900;color:var(--navy)">'+fmt(totalVGV)+'</div><div style="font-size:9.5px;color:var(--muted);text-transform:uppercase">VGV Total</div></div>'
       +'<div class="card" style="flex:1;min-width:120px;padding:11px 15px;text-align:center"><div style="font-size:20px;font-weight:900;color:var(--navy)">'+fmt(Math.round(pW))+'</div><div style="font-size:9.5px;color:var(--muted);text-transform:uppercase">Pipeline Ponderado</div></div>'
-      +'<div class="card" style="flex:1;min-width:120px;padding:11px 15px;text-align:center"><div style="font-size:20px;font-weight:900;color:var(--r-tx)">'+vis.filter(o=>o.sla==='overdue').length+'</div><div style="font-size:9.5px;color:var(--muted);text-transform:uppercase">SLA Vencido</div></div>'
+      +'<div class="card" style="flex:1;min-width:120px;padding:11px 15px;text-align:center"><div style="font-size:20px;font-weight:900;color:var(--r-tx)">'+vis.filter(o=>o.sla==='overdue').length+'</div><div style="font-size:9.5px;color:var(--muted);text-transform:uppercase">Prazo Vencido</div></div>'
       +'</div>';
   } else {
-    content='<div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Cliente</th><th>Corretor</th><th>Frente</th><th>Etapa</th><th>VGV</th><th>Origem</th><th>SLA</th><th>Update</th><th>CRM</th></tr></thead><tbody>'
+    content='<div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Cliente</th><th>Corretor</th><th>Frente</th><th>Etapa</th><th>VGV</th><th>Origem</th><th>Prazo</th><th>Últ. Contato</th><th>CRM</th></tr></thead><tbody>'
       +vis.map(o=>'<tr style="background:'+(o.sla==='overdue'?'rgba(239,68,68,.04)':o.dnu>=3?'rgba(245,158,11,.03)':'')+'">'
         +'<td style="font-weight:700;font-size:12px">'+o.cl+'</td>'
         +'<td><div class="flex aic gap1">'+Av((UM[o.bid]||{}),'xs')+'<span style="font-size:11.5px">'+o.bn.split(' ')[0]+'</span></div></td>'
@@ -2990,8 +2990,8 @@ function pgGovernance(){
 
   const allAudits=[];
   fOpps.forEach(o=>{
-    if(o.dnu>=7&&UM[o.bid])allAudits.push({id:'a-'+o.id,oid:(o.id||'').toString().slice(0,10),bid:o.bid,tipo:'Sem atualização',sev:'d',desc:(o.cl||'—')+' sem update há '+o.dnu+' dias.'});
-    else if(o.dnu>=3&&UM[o.bid])allAudits.push({id:'a-'+o.id,oid:(o.id||'').toString().slice(0,10),bid:o.bid,tipo:'SLA vencido',sev:'w',desc:(o.cl||'—')+' sem update há '+o.dnu+' dias.'});
+    if(o.dnu>=7&&UM[o.bid])allAudits.push({id:'a-'+o.id,oid:(o.id||'').toString().slice(0,10),bid:o.bid,tipo:'Sem retorno',sev:'d',desc:(o.cl||'—')+' sem retorno há '+o.dnu+' dias.'});
+    else if(o.dnu>=3&&UM[o.bid])allAudits.push({id:'a-'+o.id,oid:(o.id||'').toString().slice(0,10),bid:o.bid,tipo:'prazo vencido',sev:'w',desc:(o.cl||'—')+' sem retorno há '+o.dnu+' dias.'});
   });
   BROKERS.forEach(b=>{if((b.crm||20)<65)allAudits.push({id:'crm-'+b.id,oid:'',bid:b.id,tipo:'CRM baixo',sev:'w',desc:'CRM Score de '+(b.crm||20)+' pts.'});});
 
@@ -3002,13 +3002,13 @@ function pgGovernance(){
 
   return '<div class="phd"><h1>Governança & Auditoria</h1><p>Qualidade e conformidade operacional</p></div>'+df
   +'<div class="kgrid">'
-  +Kpi('Issues Ativos',allAudits.length,'no período selecionado',null,'var(--r)')
+  +Kpi('Pendências Ativas',allAudits.length,'no período selecionado',null,'var(--r)')
   +Kpi('CRM Médio',crmA+' pts','equipe',{up:crmA>=80,txt:crmA>=80?'Bom':'Atenção'},crmA>=80?'var(--g)':'var(--a)')
-  +Kpi('SLA Vencido',slaVencido,'oportunidades no período',null,'var(--a)')
-  +Kpi('Sem Update +3d',semUpdate,'oportunidades no período',null,'var(--r)')
+  +Kpi('Prazo Vencido',slaVencido,'oportunidades no período',null,'var(--a)')
+  +Kpi('Sem Retorno +3d',semUpdate,'oportunidades no período',null,'var(--r)')
   +'</div>'
   +'<div class="g2 mb2">'
-  +'<div class="card"><div class="ctitle">Issues <span class="csub"><div style="display:flex;gap:4px">'
+  +'<div class="card"><div class="ctitle">Pendências <span class="csub"><div style="display:flex;gap:4px">'
   +['all','d','w','i'].map(x=>'<button class="btn bsm '+(f===x?'bp1':'bout')+'" onclick="S.govF=\''+x+'\';render()">'+(x==='all'?'Todos':x==='d'?'Críticos':x==='w'?'Atenção':'Info')+'</button>').join('')
   +'</div></span></div>'
   +(items.length?items.map(a=>'<div class="ai ai-'+a.sev+'"><div><div class="ai-t">'+a.tipo+' <span style="font-size:9px;color:var(--muted);font-weight:400">'+a.oid+'</span></div><div class="ai-d2">'+a.desc+'</div><div style="font-size:9.5px;font-weight:700;color:'+(a.sev==='d'?'var(--r-tx)':a.sev==='w'?'var(--a-tx)':'var(--b-tx)')+';margin-top:2px">'+(UM[a.bid]||{name:'—'}).name+'</div></div></div>').join(''):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Nenhum issue no período selecionado</div>')
@@ -3016,7 +3016,7 @@ function pgGovernance(){
   +'<div class="card"><div class="ctitle">CRM Score por Corretor</div>'
   +[...BROKERS].sort((a,b)=>(b.crm||20)-(a.crm||20)).map(b=>'<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--cream3)">'+Av(b,'xs')+'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+b.name+'</div>'+CrmBar(b.crm||20)+'</div>'+((b.crm||20)<70?Bdg('Abaixo do mínimo','br'):'')+'</div>').join('')
   +'</div></div>'
-  +'<div class="card"><div class="ctitle">Conformidade — '+fOpps.length+' opps no período</div><div class="tw"><table class="tbl"><thead><tr><th>Cliente</th><th>Corretor</th><th>Frente</th><th>Etapa</th><th>VGV</th><th>Update</th><th>SLA</th><th>CRM</th></tr></thead><tbody>'
+  +'<div class="card"><div class="ctitle">Conformidade — '+fOpps.length+' opps no período</div><div class="tw"><table class="tbl"><thead><tr><th>Cliente</th><th>Corretor</th><th>Frente</th><th>Etapa</th><th>VGV</th><th>Últ. Contato</th><th>Prazo</th><th>CRM</th></tr></thead><tbody>'
   +fOpps.filter(o=>o.dnu>=3).slice(0,30).map(o=>'<tr style="background:'+(o.sla==='overdue'?'rgba(239,68,68,.03)':'rgba(245,158,11,.03)')+'"><td style="font-weight:600;font-size:12px">'+(o.cl||'—')+'</td><td><div class="flex aic gap1">'+Av(UM[o.bid])+'<span>'+(o.bn||'—').split(' ')[0]+'</span></div></td><td>'+FTag(o.fr)+'</td><td>'+StgChip(o.fr,o.st)+'</td><td class="tr">'+fmt(o.vgv||0)+'</td><td class="tr" style="color:var(--r-tx);font-weight:700">'+(o.dnu||0)+'d</td><td>'+SlaIco(o.sla)+'</td><td style="min-width:85px">'+CrmBar(o.crm||20)+'</td></tr>').join('')
   +'</tbody></table></div></div>';
 }
@@ -10341,8 +10341,8 @@ function scheduleNotifs() {
   // Check SLA overdue
   const overdue = OPPS.filter(o => (o.sla||'') === 'overdue');
   if (overdue.length > 3) {
-    sendNotif('⚠️ SLA Vencido', overdue.length + ' oportunidades precisam de atenção', '⚠️');
-    NOTIFS.unshift({tipo:'w', title:'⚠️ SLA Vencido', msg:overdue.length+' oportunidades sem ação', page:'governance', read:false, ts:Date.now()});
+    sendNotif('⚠️ Prazo Vencido', overdue.length + ' oportunidades precisam de atenção', '⚠️');
+    NOTIFS.unshift({tipo:'w', title:'⚠️ Prazo Vencido', msg:overdue.length+' oportunidades sem ação', page:'governance', read:false, ts:Date.now()});
   }
   // Check top performer
   const topBroker = [...BROKERS].sort((a,b)=>(b.vgv_real||0)-(a.vgv_real||0))[0];
