@@ -849,26 +849,54 @@ function calcOKRs(){
 }
 const OKRS=[]; // populated after METRICS is defined and after RD sync
 
+function getMetaGlobal(){
+  // Carrega meta global do localStorage (S.mg) para obter metas reais por mes
+  var _s;try{_s=S;}catch(e){_s=null;}
+  if(_s&&!_s.mg){
+    try{var saved=localStorage.getItem('psm_meta_global');if(saved)_s.mg=JSON.parse(saved);}catch(e){}
+  }
+  if(!_s||!_s.mg){
+    try{var saved2=localStorage.getItem('psm_meta_global');if(saved2){var parsed=JSON.parse(saved2);if(parsed){var m2=parsed;function mt2(i){return (m2.metaImpper[i]||0)+(m2.metaTerc[i]||0)+(m2.metaEstMAP[i]||0)+(m2.metaEstConq[i]||0)+(m2.metaLanc[i]||0);}return {mg:m2,metaTotal:mt2};}}}catch(e){}
+    return null;
+  }
+  var m=_s.mg;
+  function metaTotal(i){return (m.metaImpper[i]||0)+(m.metaTerc[i]||0)+(m.metaEstMAP[i]||0)+(m.metaEstConq[i]||0)+(m.metaLanc[i]||0);}
+  return {mg:m,metaTotal:metaTotal};
+}
 function calcForecasts(){
   const now=new Date();
   const dayOfMonth=now.getDate();
   const daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
   const pctMonth=dayOfMonth/daysInMonth;
+  const curMonth=now.getMonth();
 
   const vgvReal=VENDAS.reduce((a,v)=>a+(v.vgv||0),0);
   const pipeline=OPPS.reduce((a,o)=>a+(o.vgv||0),0);
-  const metaMonth=METRICS.vgv_meta||8000000;
+
+  // Puxa meta do mes atual da meta global
+  const mg=getMetaGlobal();
+  const metaMonth=mg?mg.metaTotal(curMonth):(METRICS.vgv_meta||8000000);
+  let metaQuarter=0,metaSemester=0,metaYear=0;
+  if(mg){
+    for(let i=0;i<12;i++){const mt=mg.metaTotal(i);metaYear+=mt;if(i>=curMonth&&i<curMonth+3)metaQuarter+=mt;if(i>=curMonth&&i<curMonth+6)metaSemester+=mt;}
+    if(metaQuarter===0){for(let i=curMonth;i<Math.min(curMonth+3,12);i++)metaQuarter+=mg.metaTotal(i);}
+    if(metaSemester===0){for(let i=curMonth;i<Math.min(curMonth+6,12);i++)metaSemester+=mt;}
+  } else {
+    metaQuarter=metaMonth*3;metaSemester=metaMonth*6;metaYear=metaMonth*12;
+  }
+
   const projMonth=pctMonth>0?Math.round(vgvReal/pctMonth):vgvReal;
+  const conv=VENDAS.length/(Math.max(1,VENDAS.length+LOST_DEALS.length));
 
   return {
-    week:{meta:Math.round(metaMonth/4),real:vgvReal,proj:projMonth,gap:projMonth-Math.round(metaMonth/4),pct:Math.round(projMonth/Math.max(1,metaMonth/4)*100),conf:projMonth>=metaMonth/4?'alta':'media',risk:'baixo'},
+    week:{meta:Math.round(metaMonth/4),real:vgvReal,proj:Math.round(projMonth/4),gap:Math.round(projMonth/4)-Math.round(metaMonth/4),pct:Math.round(projMonth/4/Math.max(1,metaMonth/4)*100),conf:projMonth/4>=metaMonth/4?'alta':'media',risk:projMonth/4<metaMonth/4*0.7?'alto':'baixo'},
     month:{meta:metaMonth,real:vgvReal,proj:projMonth,gap:projMonth-metaMonth,pct:Math.round(projMonth/Math.max(1,metaMonth)*100),conf:projMonth>=metaMonth*0.9?'alta':projMonth>=metaMonth*0.7?'media':'baixa',risk:projMonth<metaMonth*0.7?'alto':'medio'},
-    quarter:{meta:metaMonth*3,real:vgvReal,proj:projMonth*3,gap:projMonth*3-metaMonth*3,pct:Math.round(projMonth*3/Math.max(1,metaMonth*3)*100),conf:'media',risk:'medio'},
-    semester:{meta:metaMonth*6,real:vgvReal,proj:projMonth*6,gap:projMonth*6-metaMonth*6,pct:Math.round(projMonth*6/Math.max(1,metaMonth*6)*100),conf:'media',risk:'medio'},
-    year:{meta:metaMonth*12,real:vgvReal,proj:projMonth*12,gap:projMonth*12-metaMonth*12,pct:Math.round(projMonth*12/Math.max(1,metaMonth*12)*100),conf:'baixa',risk:'medio'},
+    quarter:{meta:metaQuarter,real:vgvReal,proj:projMonth*3,gap:projMonth*3-metaQuarter,pct:Math.round(projMonth*3/Math.max(1,metaQuarter)*100),conf:projMonth*3>=metaQuarter*0.8?'media':'baixa',risk:projMonth*3<metaQuarter*0.6?'alto':'medio'},
+    semester:{meta:metaSemester,real:vgvReal,proj:projMonth*6,gap:projMonth*6-metaSemester,pct:Math.round(projMonth*6/Math.max(1,metaSemester)*100),conf:'media',risk:'medio'},
+    year:{meta:metaYear,real:vgvReal,proj:projMonth*12,gap:projMonth*12-metaYear,pct:Math.round(projMonth*12/Math.max(1,metaYear)*100),conf:'baixa',risk:'medio'},
   };
 }
-const FORECASTS=calcForecasts();
+var FORECASTS=calcForecasts();
 const MONTHLY=[];
 // ─── RECALC BROKER METRICS (respects active date filter) ─────────────────────
 function recalcBrokerMetrics(prefix) {
@@ -925,10 +953,13 @@ function recalcMonthly(){
   const mNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const year=new Date().getFullYear();
   const currentMonth=new Date().getMonth();
+  const mg=getMetaGlobal();
   for(let i=0;i<=currentMonth;i++){
     const mWon=VENDAS.filter(v=>{const d=new Date(v.closedAt||v.createdAt||'');return d.getFullYear()===year&&d.getMonth()===i;});
     const vgv=mWon.reduce((a,v)=>a+(v.vgv||0),0);
-    MONTHLY.push({m:mNames[i],vgv,meta:METRICS.vgv_meta||8000000,vendas:mWon.length});
+    // Usa meta especifica do mes da meta global
+    const metaMes=mg?mg.metaTotal(i):(METRICS.vgv_meta||8000000);
+    MONTHLY.push({m:mNames[i],vgv,meta:metaMes,vendas:mWon.length});
   }
 }
 // METRICS declared earlier (before calcOKRs/calcForecasts)
@@ -1156,6 +1187,12 @@ function frenteStats(){
 function pgDashboard(){
   const df=DateFilter('dash','Período');
   recalcBrokerMetrics('dash');
+  // Atualiza METRICS.vgv_meta com meta global do mes atual
+  const _mg=getMetaGlobal();
+  if(_mg){const _cm=new Date().getMonth();METRICS.vgv_meta=_mg.metaTotal(_cm)||METRICS.vgv_meta;}
+  // Recalcula FORECASTS e MONTHLY dinamicamente a cada render
+  FORECASTS=calcForecasts();
+  recalcMonthly();
   const fOPPS = applyDateFilter(OPPS, 'dash');
   const fVENDAS = applyDateFilter(VENDAS, 'dash');
   const fLOST = applyDateFilter(LOST_DEALS, 'dash');
