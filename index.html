@@ -10556,7 +10556,8 @@ window.addEventListener('DOMContentLoaded', () => {
 // PSM AGENTES - Central Dashboard
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function fetchAgentStats() // Auto-fetch agent stats {
+// Auto-fetch agent stats
+async function fetchAgentStats() {
   if (S.agentStatsLoading) return;
   S.agentStatsLoading = true;
   fetch('/api/agent').then(r=>r.json()).then(d=>{
