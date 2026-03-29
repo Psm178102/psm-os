@@ -4590,8 +4590,10 @@ function _ooFetchSheet(bid) {
   if (!url) return;
   var m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
   if (!m) return;
-  var csvUrl = 'https://docs.google.com/spreadsheets/d/' + m[1] + '/export?format=csv';
-  fetch(csvUrl).then(function(r){ return r.text(); }).then(function(csv){
+  var sid = m[1];
+  var directUrl = 'https://docs.google.com/spreadsheets/d/' + sid + '/export?format=csv';
+  var proxyUrl = S.ooProxyUrl ? S.ooProxyUrl + '?id=' + sid : '';
+  function parseAndUpdate(csv) {
     var map = {
       'TENTATIVA DE LIGA': 'lig_real',
       'ATENDIDA': 'lig_atend',
@@ -4643,12 +4645,61 @@ function _ooFetchSheet(bid) {
       var el = document.getElementById('oo_v_' + k);
       if (el) el.textContent = totals[k] > 0 ? totals[k] : 0;
     }
+    // Update conversion rates
+    var campos = ['lig_real','lig_atend','tent_agend','agend','vis','prop','capt','vend'];
+    for (var ci = 1; ci < campos.length; ci++) {
+      var cel = document.getElementById('oo_conv_' + campos[ci]);
+      if (!cel) continue;
+      var prev = totals[campos[ci-1]] || 0;
+      var cur = totals[campos[ci]] || 0;
+      cel.textContent = prev > 0 ? (cur/prev*100).toFixed(1) + '%' : '';
+    }
     var ind = document.getElementById('oo_sheet_status');
-    if (ind) ind.innerHTML = '<span style="color:#10b981;font-size:10px">Planilha carregada</span>';
-  }).catch(function(e){
-    var ind = document.getElementById('oo_sheet_status');
-    if (ind) ind.innerHTML = '<span style="color:#ef4444;font-size:10px">Erro ao carregar planilha</span>';
+    if (ind) ind.innerHTML = '<span style="color:#10b981;font-size:10px">\u2705 Planilha carregada</span>';
+  }
+  var ind = document.getElementById('oo_sheet_status');
+  if (ind) ind.innerHTML = '<span style="color:#94a3b8;font-size:10px">Carregando planilha...</span>';
+  fetch(directUrl).then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.text();
+  }).then(function(csv) {
+    if (csv.length < 50 || csv.indexOf('<') === 0) throw new Error('invalid');
+    parseAndUpdate(csv);
+  }).catch(function() {
+    if (!proxyUrl) {
+      if (ind) ind.innerHTML = '<span style="color:#f59e0b;font-size:10px">\u26A0 Planilha privada — <a href=\"#\" onclick=\"ooSetupProxy();return false\" style=\"color:#3b82f6;text-decoration:underline\">Configurar acesso</a></span>';
+      return;
+    }
+    fetch(proxyUrl).then(function(r) { return r.text(); }).then(function(csv) {
+      if (csv.indexOf('ERROR') === 0) throw new Error(csv);
+      parseAndUpdate(csv);
+    }).catch(function() {
+      if (ind) ind.innerHTML = '<span style="color:#ef4444;font-size:10px">Erro ao carregar planilha</span>';
+    });
   });
+}
+function ooSetupProxy() {
+  var cur = S.ooProxyUrl || '';
+  var html = '<div style="padding:20px;max-width:480px">'
+    + '<h3 style="color:#f1f5f9;margin:0 0 12px">Configurar Acesso \u00e0s Planilhas</h3>'
+    + '<p style="color:#94a3b8;font-size:12px;line-height:1.5;margin:0 0 12px">As planilhas dos corretores s\u00e3o privadas. Para acessar, crie um proxy no Google Apps Script:</p>'
+    + '<ol style="color:#cbd5e1;font-size:11px;line-height:1.8;padding-left:20px;margin:0 0 12px">'
+    + '<li>Acesse <a href=\"https://script.google.com\" target=\"_blank\" style=\"color:#3b82f6\">script.google.com</a> e crie um novo projeto</li>'
+    + '<li>Cole este c\u00f3digo:<br><textarea id=\"oo_proxy_code\" readonly style=\"width:100%;height:100px;background:#0f172a;color:#10b981;border:1px solid #334155;border-radius:4px;padding:6px;font-size:10px;margin:4px 0;font-family:monospace\">function doGet(e){var id=e.parameter.id;try{var ss=SpreadsheetApp.openById(id);var d=ss.getSheets()[0].getDataRange().getValues();var csv=d.map(function(r){return r.map(function(c){var s=String(c);return(s.indexOf(\",\")>-1||s.indexOf(\'\"\'  )>-1)?\'\"\'+s.replace(/\"/g,\'\"\"\')  +\'\"\':s}).join(\",\")}).join(\"\\n\");return ContentService.createTextOutput(csv).setMimeType(ContentService.MimeType.TEXT)}catch(err){return ContentService.createTextOutput(\"ERROR:\"+err.message)}}</textarea></li>'
+    + '<li>Clique <b>Implantar > Nova implanta\u00e7\u00e3o</b></li>'
+    + '<li>Tipo: <b>App da Web</b> | Executar como: <b>Eu</b> | Acesso: <b>Qualquer pessoa</b></li>'
+    + '<li>Copie a URL de implanta\u00e7\u00e3o e cole abaixo:</li>'
+    + '</ol>'
+    + '<input id=\"oo_proxy_input\" type=\"text\" value=\"'+cur+'\" placeholder=\"https://script.google.com/macros/s/.../exec\" style=\"width:100%;padding:8px;background:#0f172a;color:#f1f5f9;border:1px solid #334155;border-radius:6px;font-size:12px;box-sizing:border-box\">'
+    + '<div style=\"display:flex;gap:8px;margin-top:12px\">'
+    + '<button onclick=\"var u=document.getElementById(\'oo_proxy_input\').value.trim();if(u){S.ooProxyUrl=u;saveState();document.getElementById(\'oo_modal_overlay\').remove();nav(\'oneonone\')}\" style=\"flex:1;padding:8px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600\">Salvar</button>'
+    + '<button onclick=\"document.getElementById(\'oo_modal_overlay\').remove()\" style=\"flex:1;padding:8px;background:#334155;color:#94a3b8;border:none;border-radius:6px;cursor:pointer\">Cancelar</button>'
+    + '</div></div>';
+  var ov = document.createElement('div');
+  ov.id = 'oo_modal_overlay';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:9999';
+  ov.innerHTML = '<div style=\"background:#1e293b;border-radius:12px;border:1px solid #334155;box-shadow:0 20px 60px rgba(0,0,0,.5)\">'+html+'</div>';
+  document.body.appendChild(ov);
 }
 
 function pgOO() {
@@ -4727,9 +4778,12 @@ function pgOO() {
   ];
   var funnelRows = campos.map(function(c,idx){
     var v = day[c.k]||0;
+    var prevV = idx > 0 ? (day[campos[idx-1].k]||0) : 0;
+    var convPct = (idx > 0 && prevV > 0 && c.k !== 'desc') ? (v/prevV*100).toFixed(1) : '';
+    var convHtml = convPct ? '<div style="text-align:center;margin:-1px 0;padding:0;line-height:1"><span id="oo_conv_'+c.k+'" style="font-size:9px;color:#64748b">\u2193 '+convPct+'%</span></div>' : (idx>0&&c.k!=='desc'?'<div style="text-align:center;margin:-1px 0;padding:0;line-height:1"><span id="oo_conv_'+c.k+'" style="font-size:9px;color:#475569"></span></div>':'');
     var isLast = idx >= campos.length-2;
     var radius = isLast ? '6px 6px 14px 14px' : '6px';
-    return '<div style="display:flex;align-items:center;margin-bottom:4px">'
+    return convHtml + '<div style="display:flex;align-items:center;margin-bottom:4px">'
       +'<div style="width:'+c.w+'%;margin:0 auto;background:linear-gradient(135deg,'+c.cor+','+c.cor+'cc);border-radius:'+radius+';padding:10px 14px;display:flex;justify-content:space-between;align-items:center;min-height:44px;box-shadow:0 2px 8px '+c.cor+'22;transition:all .2s">'
         +'<span style="color:#fff;font-size:11px;font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,.15);flex:1">'+c.l+'</span>'
         +'<div style="display:flex;align-items:center;gap:6px">'
