@@ -5030,8 +5030,8 @@ function pgOO() {
     var selFrente = ooGetFrenteForBroker(selBid);
     var funnelPct = ooGetFunnelPct(selFrente);
     var hasFunnel = Object.keys(funnelPct).length > 0;
-    var fwdProj = hasFunnel ? ooProjectForward(realizado, funnelPct) : {};
-    var metaVendas = (metas.vend || 0);
+    var fwdProj = hasFunnel ? ooProjectForward(realMes, funnelPct) : {};
+    var metaVendas = (metasMes.vend || 0);
     var bwdNeed = (hasFunnel && metaVendas > 0) ? ooProjectBackward(metaVendas, funnelPct) : {};
     content += '<div style="background:#1e1b4b;border-radius:12px;padding:16px;margin-bottom:16px">';
     content += '<div style="font-size:15px;font-weight:700;color:#a5b4fc;margin-bottom:12px">\u{1F3AF} Proje\u00e7\u00e3o por Funil <span style="font-size:12px;color:#818cf8;font-weight:400">(equipe: ' + selFrente + ')</span></div>';
@@ -5046,7 +5046,7 @@ function pgOO() {
         var key = step.from + '_to_' + step.to;
         var pctVal = funnelPct[key] || 0;
         var projVal = fwdProj[step.to] || 0;
-        var realVal = realizado[step.to] || 0;
+        var realVal = realMes[step.to] || 0;
         var cor = realVal >= projVal ? '#10b981' : '#f59e0b';
         content += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #3730a3">';
         content += '<span style="color:#c4b5fd;font-size:12px">' + step.lbl + ' <span style="color:#818cf8">(' + pctVal.toFixed(1) + '%)</span></span>';
@@ -5066,7 +5066,7 @@ function pgOO() {
         OO_CAMPOS.forEach(function(c) {
           if (c.k === 'desc' || c.k === 'capt') return;
           var needVal = bwdNeed[c.k] || 0;
-          var rv = realizado[c.k] || 0;
+          var rv = realMes[c.k] || 0;
           var pDone = needVal > 0 ? Math.min(rv / needVal * 100, 100) : 0;
           var bc = pDone >= 100 ? '#10b981' : pDone >= 60 ? '#f59e0b' : '#ef4444';
           content += '<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px;color:#c4b5fd">';
@@ -5121,7 +5121,7 @@ function pgOO() {
     if (lvl >= 5) {
       var cfgFrente = ooGetFrenteForBroker(selBid);
       var cfgPct = ooGetFunnelPct(cfgFrente);
-      var realPct = ooCalcFunnelPctFromData(realizado);
+      var realPct = ooCalcFunnelPctFromData(realMes);
       content += '<div style="background:#1a1a2e;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #312e81">';
       content += '<div style="font-size:15px;font-weight:700;color:#fbbf24;margin-bottom:4px">\u2699\uFE0F Taxas de Convers\u00e3o \u2014 ' + cfgFrente.charAt(0).toUpperCase() + cfgFrente.slice(1) + '</div>';
       content += '<div style="font-size:11px;color:#a5b4fc;margin-bottom:12px">Defina as % entre cada etapa do funil. Somente gestores editam.</div>';
