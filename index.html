@@ -1022,10 +1022,10 @@ let DISC_PROFILES = {
 const DISC_ICON={Diretor:'🔴',Influente:'🟡',Estável:'🟢',Conforme:'🔵'};
 let METAS_CONFIG = {};
 let METAS_EQUIPE = {
-  lancamento:{vgv_meta:3000000,visitas:40,captacoes:0},
-  conquista:{vgv_meta:2000000,visitas:35,captacoes:0},
-  terceiros:{vgv_meta:1500000,visitas:20,captacoes:20},
-  locacao:{vgv_meta:800000,visitas:10,captacoes:0},
+  lancamento:{vgv_meta:3000000,visitas:40,captacoes:0,pastas_lanc:0,vgv_pessoal:0},
+  conquista:{vgv_meta:2000000,visitas:35,captacoes:0,pastas_lanc:0,vgv_pessoal:0},
+  terceiros:{vgv_meta:1500000,visitas:20,captacoes:20,pastas_lanc:0,vgv_pessoal:0},
+  locacao:{vgv_meta:800000,visitas:10,captacoes:0,pastas_lanc:0,vgv_pessoal:0},
 };
 
 // ─── PERSISTENCE ─────────────────────────────────────────────────────────────
@@ -2454,6 +2454,9 @@ var pgWarArena = function() {
 };
 
 // ─── PAGE: METAS (Enterprise Edition) ────────────────────────────────────────
+
+// --- GLOBAL: fmtN acessivel por handlers inline ---
+function fmtN(v){return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
 function pgMetas(){
   if(!S.mg) {
     var saved = localStorage.getItem('psm_meta_global');
@@ -2713,6 +2716,10 @@ function pgMetas(){
   h+='</tr></thead><tbody>';
   var allBrokers=(BROKERS).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
   if(!S.metaIndiv){try{var _mld=localStorage.getItem('psm_meta_indiv');S.metaIndiv=_mld?JSON.parse(_mld):{};}catch(e){S.metaIndiv={};}}
+  // Sanitiza metaIndiv: remove chaves que nao sao IDs validos de BROKERS
+  var _validIds={}; for(var _vi=0;_vi<BROKERS.length;_vi++) _validIds[BROKERS[_vi].id]=1;
+  var _miKeys=Object.keys(S.metaIndiv); for(var _mk=0;_mk<_miKeys.length;_mk++){ if(!_validIds[_miKeys[_mk]]) delete S.metaIndiv[_miKeys[_mk]]; }
+
   var _tVgv=0,_tVis=0,_tCap=0,_tPas=0,_tPes=0;
   var _ns='style="width:100%;background:#0f172a;color:#f1f5f9;border:1px solid #475569;border-radius:4px;padding:6px 8px;text-align:center;font-size:13px"';
   for(var bi=0;bi<allBrokers.length;bi++){
@@ -3912,7 +3919,7 @@ const _LOCAL_AUTH = {
   'yara@imobiliariapsm.com.br':       simpleHash('yara123')+'|yara',
   'vitor@imobiliariapsm.com.br':      simpleHash('vitor123')+'|vitor_o',
 };
-const _IS_LOCAL = location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const _IS_LOCAL = true; // TODO: set back to auto-detect when /api/auth backend is deployed
 
 function _localLogin(email, senha) {
   // Checa senha redefinida primeiro
