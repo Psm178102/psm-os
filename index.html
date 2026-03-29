@@ -2691,25 +2691,30 @@ function pgMetas(){
   h+='</table></div>';
   h+='</div>';
   // --- META INDIVIDUAL POR CORRETOR ---
+  h+='<h3 style="margin-top:32px;color:#f8fafc;font-size:18px"><span style="color:#d4a843">\u{1F464}</span> Meta Individual por Corretor</h3>';
   if(!S.miMes) S.miMes=new Date().getMonth()+1;
-  h+='<h3 style="color:#94a3b8;font-size:15px;margin:24px 0 10px">\uD83D\uDC64 Meta Individual por Corretor</h3>';
-  h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">';
-  h+='<label style="color:#94a3b8;font-size:13px">M\u00eas:</label>';
-  var _mN=['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
-  for(var _mi=1;_mi<=12;_mi++){var _s=_mi===S.miMes;h+='<button onclick="S.miMes='+_mi+';render()" style="padding:4px 8px;border-radius:6px;font-size:11px;font-weight:'+(_s?'700':'400')+';cursor:pointer;border:1px solid '+(_s?'#38bdf8':'#334155')+';background:'+(_s?'#0ea5e9':'#0f172a')+';color:'+(_s?'#fff':'#94a3b8')+'">'+_mN[_mi-1]+'</button>';}
+  var _mNames=['','JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+  h+='<div style="margin:8px 0 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
+  h+='<span style="color:#94a3b8;font-size:13px;font-weight:600">M\u00eas:</span>';
+  for(var _mi=1;_mi<=12;_mi++){
+    var _mAct=_mi===S.miMes;
+    h+='<button onclick="S.miMes='+_mi+';render()" style="padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;'+(_mAct?'background:#d4a843;color:#0f172a':'background:#334155;color:#cbd5e1')+'">' + _mNames[_mi] + '</button>';
+  }
   h+='</div>';
-  h+='<div style="overflow-x:auto;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px">';
-  h+='<tr style="background:#334155">';
-  h+='<th style="padding:8px;text-align:left;color:#94a3b8;white-space:nowrap">Corretor</th>';
-  h+='<th style="padding:8px;color:#94a3b8;white-space:nowrap">Meta VGV Mensal</th>';
-  h+='<th style="padding:8px;color:#94a3b8;white-space:nowrap">Visitas</th>';
-  h+='<th style="padding:8px;color:#94a3b8;white-space:nowrap">Capta\u00e7\u00f5es</th>';
-  h+='<th style="padding:8px;color:#94a3b8;white-space:nowrap">Pastas Lan\u00e7amento</th>';
-  h+='<th style="padding:8px;color:#94a3b8;white-space:nowrap">VGV Pessoal</th>';
-  h+='</tr>';
+  h+='<div style="overflow-x:auto;border-radius:10px;border:1px solid #334155">';
+  h+='<table style="width:100%;border-collapse:collapse;font-size:13px">';
+  h+='<thead><tr style="background:#1e293b">';
+  h+='<th style="padding:10px 12px;text-align:left;color:#d4a843;font-weight:700;white-space:nowrap;border-bottom:2px solid #d4a843">Corretor</th>';
+  h+='<th style="padding:10px 8px;text-align:center;color:#94a3b8;font-weight:600;border-bottom:2px solid #334155">Meta VGV Mensal</th>';
+  h+='<th style="padding:10px 8px;text-align:center;color:#94a3b8;font-weight:600;border-bottom:2px solid #334155">Visitas</th>';
+  h+='<th style="padding:10px 8px;text-align:center;color:#94a3b8;font-weight:600;border-bottom:2px solid #334155">Capta\u00e7\u00f5es</th>';
+  h+='<th style="padding:10px 8px;text-align:center;color:#94a3b8;font-weight:600;border-bottom:2px solid #334155">Pastas Lan\u00e7amento</th>';
+  h+='<th style="padding:10px 8px;text-align:center;color:#fbbf24;font-weight:600;border-bottom:2px solid #334155">VGV Pessoal</th>';
+  h+='</tr></thead><tbody>';
   var allBrokers=(BROKERS).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
   if(!S.metaIndiv){try{var _mld=localStorage.getItem('psm_meta_indiv');S.metaIndiv=_mld?JSON.parse(_mld):{};}catch(e){S.metaIndiv={};}}
   var _tVgv=0,_tVis=0,_tCap=0,_tPas=0,_tPes=0;
+  var _ns='style="width:100%;background:#0f172a;color:#f1f5f9;border:1px solid #475569;border-radius:4px;padding:6px 8px;text-align:center;font-size:13px"';
   for(var bi=0;bi<allBrokers.length;bi++){
     var bk=allBrokers[bi],bid=bk.id||bk.name;
     if(!S.metaIndiv[bid]) S.metaIndiv[bid]={};
@@ -2721,26 +2726,25 @@ function pgMetas(){
     METAS_CONFIG[bid].captacoes=md.captacoes||0;
     METAS_CONFIG[bid].pastas_lanc=md.pastas_lanc||0;
     METAS_CONFIG[bid].vgv_pessoal=md.vgv_pessoal||0;
-    var _is='style="width:100%;background:#0f172a;color:#38bdf8;border:1px solid #334155;border-radius:6px;padding:6px;text-align:right;font-size:12px"';
-    var _ns='style="width:70px;background:#0f172a;color:#38bdf8;border:1px solid #334155;border-radius:6px;padding:6px;text-align:center;font-size:12px"';
-    h+='<tr style="border-bottom:1px solid #1e293b">';
-    h+='<td style="padding:6px 8px;color:#e2e8f0;font-weight:600;white-space:nowrap">'+bk.name+'</td>';
-    h+='<td style="padding:4px"><input type="text" value="'+fmtN(md.vgv_meta||0)+'" data-raw="'+(md.vgv_meta||0)+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="var v=parseFloat(this.value)||0;this.dataset.raw=v;this.value=fmtN(v);miUpd(\''+bid+'\',\'vgv_meta\',v)" onkeydown="if(event.key===\'Enter\')this.blur()" '+_is+'></td>';
-    h+='<td style="padding:4px"><input type="number" value="'+(md.visitas||0)+'" onchange="miUpd(\''+bid+'\',\'visitas\',this.value)" '+_ns+'></td>';
-    h+='<td style="padding:4px"><input type="number" value="'+(md.captacoes||0)+'" onchange="miUpd(\''+bid+'\',\'captacoes\',this.value)" '+_ns+'></td>';
-    h+='<td style="padding:4px"><input type="number" value="'+(md.pastas_lanc||0)+'" onchange="miUpd(\''+bid+'\',\'pastas_lanc\',this.value)" '+_ns+'></td>';
-    h+='<td style="padding:4px"><input type="text" value="'+fmtN(md.vgv_pessoal||0)+'" data-raw="'+(md.vgv_pessoal||0)+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="var v=parseFloat(this.value)||0;this.dataset.raw=v;this.value=fmtN(v);miUpd(\''+bid+'\',\'vgv_pessoal\',v)" onkeydown="if(event.key===\'Enter\')this.blur()" '+_is+'></td>';
+    var _rowBg=bi%2===0?'#0f172a':'#1a2332';
+    h+='<tr style="background:'+_rowBg+'">';
+    h+='<td style="padding:8px 12px;color:#ffffff;font-weight:600;white-space:nowrap;font-size:14px;border-bottom:1px solid #1e293b">'+bk.name+'</td>';
+    h+='<td style="padding:4px 6px;border-bottom:1px solid #1e293b"><input type="text" value="'+fmtN(md.vgv_meta||0)+'" data-raw="'+(md.vgv_meta||0)+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="this.value=fmtN(+(this.value)||0);miUpd(\''+bid+'\',\'vgv_meta\',this.dataset.raw=+(this.value.replace(/[^0-9]/g,\'\'))||0)" onchange="miUpd(\''+bid+'\',\'vgv_meta\',+(this.value)||0)" '+_ns+'></td>';
+    h+='<td style="padding:4px 6px;border-bottom:1px solid #1e293b"><input type="number" value="'+(md.visitas||0)+'" onchange="miUpd(\''+bid+'\',\'visitas\',this.value)" '+_ns+'></td>';
+    h+='<td style="padding:4px 6px;border-bottom:1px solid #1e293b"><input type="number" value="'+(md.captacoes||0)+'" onchange="miUpd(\''+bid+'\',\'captacoes\',this.value)" '+_ns+'></td>';
+    h+='<td style="padding:4px 6px;border-bottom:1px solid #1e293b"><input type="number" value="'+(md.pastas_lanc||0)+'" onchange="miUpd(\''+bid+'\',\'pastas_lanc\',this.value)" '+_ns+'></td>';
+    h+='<td style="padding:4px 6px;border-bottom:1px solid #1e293b"><input type="text" value="'+fmtN(md.vgv_pessoal||0)+'" data-raw="'+(md.vgv_pessoal||0)+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="this.value=fmtN(+(this.value)||0);miUpd(\''+bid+'\',\'vgv_pessoal\',this.dataset.raw=+(this.value.replace(/[^0-9]/g,\'\'))||0)" onchange="miUpd(\''+bid+'\',\'vgv_pessoal\',+(this.value)||0)" '+_ns+'></td>';
     h+='</tr>';
   }
-  h+='<tr style="background:#1e293b;font-weight:700">';
-  h+='<td style="padding:8px;color:#fbbf24">TOTAL</td>';
-  h+='<td style="padding:8px;color:#fbbf24;text-align:right">'+fmtN(_tVgv)+'</td>';
-  h+='<td style="padding:8px;color:#fbbf24;text-align:center">'+_tVis+'</td>';
-  h+='<td style="padding:8px;color:#fbbf24;text-align:center">'+_tCap+'</td>';
-  h+='<td style="padding:8px;color:#fbbf24;text-align:center">'+_tPas+'</td>';
-  h+='<td style="padding:8px;color:#fbbf24;text-align:right">'+fmtN(_tPes)+'</td>';
-  h+='</tr></table></div>';
-h+='<p style="color:#64748b;font-size:12px;margin-top:8px">\u26A0\uFE0F Meta Pessoal (amarelo): preenchida pelo pr\u00F3prio corretor com base no One on One.</p>';
+  h+='<tr style="background:#1e293b;border-top:2px solid #d4a843">';
+  h+='<td style="padding:10px 12px;color:#d4a843;font-weight:700;font-size:14px">TOTAL</td>';
+  h+='<td style="padding:10px 8px;text-align:center;color:#d4a843;font-weight:700;font-size:14px">'+fmtN(_tVgv)+'</td>';
+  h+='<td style="padding:10px 8px;text-align:center;color:#d4a843;font-weight:700;font-size:14px">'+_tVis+'</td>';
+  h+='<td style="padding:10px 8px;text-align:center;color:#d4a843;font-weight:700;font-size:14px">'+_tCap+'</td>';
+  h+='<td style="padding:10px 8px;text-align:center;color:#d4a843;font-weight:700;font-size:14px">'+_tPas+'</td>';
+  h+='<td style="padding:10px 8px;text-align:center;color:#fbbf24;font-weight:700;font-size:14px">'+fmtN(_tPes)+'</td>';
+  h+='</tr></tbody></table></div>';
+  h+='<p style="color:#64748b;font-size:12px;margin-top:8px">\u26A0\uFE0F Meta Pessoal (amarelo): preenchida pelo pr\u00F3prio corretor com base no One on One.</p>';
   return h;
 }
 function meUpd(fid,key,val){
