@@ -4590,47 +4590,61 @@ function _ooFetchSheet(bid) {
   if (!url) return;
   var m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
   if (!m) return;
-  var csvUrl = 'https://docs.google.com/spreadsheets/d/' + m[1] + '/gviz/tq?tqx=out:csv';
+  var csvUrl = 'https://docs.google.com/spreadsheets/d/' + m[1] + '/export?format=csv';
   fetch(csvUrl).then(function(r){ return r.text(); }).then(function(csv){
     var map = {
       'TENTATIVA DE LIGA': 'lig_real',
       'ATENDIDA': 'lig_atend',
       'TENTATIVA DE AGENDAMENTO': 'tent_agend',
       'DE  AGEN': 'agend',
+      'N\u00BA DE AGEN': 'agend',
       'DE VISITA': 'vis',
       'PROPOSTA': 'prop',
       'VENDA': 'vend',
+      'CONTRATO': 'vend',
       'DESCARTADO': 'desc',
       'CAPTA': 'capt'
     };
+    function parseLine(line) {
+      var cells = [], cur = '', inQ = false;
+      for (var i = 0; i < line.length; i++) {
+        var c = line.charAt(i);
+        if (c === '"') { inQ = !inQ; }
+        else if (c === ',' && !inQ) { cells.push(cur.trim()); cur = ''; }
+        else if (c === '\r') {}
+        else { cur += c; }
+      }
+      cells.push(cur.trim());
+      return cells;
+    }
     var rows = csv.split('\n');
     var totals = {};
     var inMonthly = false;
     for (var i = 0; i < rows.length; i++) {
-      var cells = rows[i].split(',').map(function(c){ return c.replace(/^"|"$/g,'').trim(); });
+      var cells = parseLine(rows[i]);
       var label = (cells[5]||'').toUpperCase();
       if (label.indexOf('PER') !== -1 && label.indexOf('ODO') !== -1) { inMonthly = true; continue; }
       if (label.indexOf('SEMANA') !== -1) { inMonthly = false; continue; }
       if (!inMonthly || !label) continue;
       for (var mk in map) {
         if (label.indexOf(mk) !== -1 && !totals[map[mk]]) {
-          var lastVal = 0;
-          for (var ci = 6; ci < Math.min(cells.length, 18); ci++) {
+          var val = 0;
+          for (var ci = cells.length - 1; ci > 5; ci--) {
             var raw = (cells[ci]||'').replace(/\./g,'').replace(',','.').replace(/[^0-9.\-]/g,'');
             var n = parseFloat(raw);
-            if (!isNaN(n) && n > 0) lastVal = n;
+            if (!isNaN(n)) { val = Math.round(n); break; }
           }
-          if (lastVal > 0) totals[map[mk]] = Math.round(lastVal);
+          totals[map[mk]] = val;
           break;
         }
       }
     }
     for (var k in totals) {
       var el = document.getElementById('oo_v_' + k);
-      if (el && totals[k] > 0) el.textContent = totals[k];
+      if (el) el.textContent = totals[k] > 0 ? totals[k] : 0;
     }
     var ind = document.getElementById('oo_sheet_status');
-    if (ind) ind.innerHTML = '<span style="color:#10b981;font-size:10px">Dados da planilha carregados</span>';
+    if (ind) ind.innerHTML = '<span style="color:#10b981;font-size:10px">Planilha carregada</span>';
   }).catch(function(e){
     var ind = document.getElementById('oo_sheet_status');
     if (ind) ind.innerHTML = '<span style="color:#ef4444;font-size:10px">Erro ao carregar planilha</span>';
@@ -4641,7 +4655,7 @@ function pgOO() {
   const df_oo = DateFilter('oo','Período');
   const u = S.user; if (!u) return df_oo + '';
   const lvl = RLVL[u.role] || 0;
-  const tab = S.ooTab || 'dia';
+  var _vt=['dia','semana','reuniao','metas']; const tab = _vt.indexOf(S.ooTab)!==-1 ? S.ooTab : 'dia';
   const tabs = [{id:'dia',lbl:'Dia a Dia'},{id:'semana',lbl:'Semanal'},{id:'reuniao',lbl:'Reunião 1:1'},{id:'metas',lbl:'Metas'}];
   // Broker selector para gestores/sócios
   const canViewOthers = lvl >= 5;
