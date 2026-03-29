@@ -2707,7 +2707,7 @@ function pgMetas(){
   h+='<th style="padding:8px;color:#94a3b8;white-space:nowrap">Pastas Lan\u00e7amento</th>';
   h+='<th style="padding:8px;color:#94a3b8;white-space:nowrap">VGV Pessoal</th>';
   h+='</tr>';
-  var allBrokers=(S.brokers||[]).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+  var allBrokers=(BROKERS).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
   if(!S.metaIndiv){try{var _mld=localStorage.getItem('psm_meta_indiv');S.metaIndiv=_mld?JSON.parse(_mld):{};}catch(e){S.metaIndiv={};}}
   var _tVgv=0,_tVis=0,_tCap=0,_tPas=0,_tPes=0;
   for(var bi=0;bi<allBrokers.length;bi++){
