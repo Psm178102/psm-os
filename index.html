@@ -2512,7 +2512,7 @@ function pgMetas(){
   var mediaMetaMes=totalAno/12;
   var pareto70=function(n){return Math.round(n*0.7*10)/10;};
   var custoTotal=(m.custoFixo||0)+(m.ads||0)+(m.prolabore||0)+(m.distribLucro||0)+(m.divida||0);
-  function inp(key,idx,val,w){return '<input type="number" value="'+val+'" onchange="mgUpd(\''+key+'\','+idx+',this.value)" style="width:'+(w||'100%')+';padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px">';}
+  function inp(key,idx,val,w){var isCorr=key==='corretores';var dv=isCorr?val:fmtN(val);return '<input type="text" value="'+dv+'" data-raw="'+val+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="var v=parseFloat(this.value)||0;this.dataset.raw=v;this.value='+(isCorr?'v':'fmtN(v)')+';mgUpd(\''+key+'\','+idx+',v)" onkeydown="if(event.key===\'Enter\')this.blur()" style="width:'+(w||'100%')+';padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px">';}
   function inpG(key,val,w){return '<input type="number" value="'+val+'" step="any" onchange="mgUpdG(\''+key+'\',this.value)" style="width:'+(w||'100%')+';padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px">';}
 
   var h='<div class="pg-wrap" style="padding:18px;max-width:100%;overflow-x:auto">';
