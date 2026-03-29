@@ -4794,7 +4794,7 @@ function ooSaveMetas(bid, key, data) {
 }
 
 
-function ooSaveDayForm(bid, dayKey) {
+function ooSaveDayForm(bid, dayKey, btnEl) {
   var data = {};
   OO_CAMPOS.forEach(function(c) {
     if (c.k === 'desc') return;
@@ -4803,12 +4803,12 @@ function ooSaveDayForm(bid, dayKey) {
   });
   ooSaveDaily(bid, dayKey, data);
   // Show confirmation
-  var btn = event.target;
+  var btn = btnEl;
   btn.textContent = '✅ Salvo!';
   btn.style.background = '#10b981';
   setTimeout(function() { btn.textContent = 'Salvar'; btn.style.background = '#6366f1'; render(); }, 1200);
 }
-function ooSaveMetasForm(bid, monthKey) {
+function ooSaveMetasForm(bid, monthKey, btnEl) {
   var data = {};
   OO_CAMPOS.forEach(function(c) {
     if (c.k === 'desc') return;
@@ -4816,7 +4816,7 @@ function ooSaveMetasForm(bid, monthKey) {
     if (el) data[c.k] = parseInt(el.value) || 0;
   });
   ooSaveMetas(bid, monthKey, data);
-  var btn = event.target;
+  var btn = btnEl;
   btn.textContent = '✅ Metas Salvas!';
   btn.style.background = '#6366f1';
   setTimeout(function() { btn.textContent = 'Salvar Metas'; btn.style.background = '#10b981'; render(); }, 1200);
@@ -4972,7 +4972,7 @@ function pgOO() {
       content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin:12px 0">';
       content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
       content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">✏️ Registro do Dia — ' + dayKey + '</span>';
-      content += '<button onclick="ooSaveDayForm(\'' + selBid + '\',\'' + dayKey + '\')" style="background:#6366f1;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar</button>';
+      content += '<button onclick="ooSaveDayForm(\'' + selBid + '\',\'' + dayKey + '\',this)" style="background:#6366f1;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar</button>';
       content += '</div>';
       var todayData = (((S.ooDaily||{})[selBid]||{})[monthKey]||{})[dayKey] || {};
       content += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
@@ -4991,7 +4991,7 @@ function pgOO() {
         content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin:12px 0">';
         content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
         content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">🎯 Metas do Mes — ' + monthNames[curMonth] + ' ' + curYear + '</span>';
-        content += '<button onclick="ooSaveMetasForm(\'' + selBid + '\',\'' + monthKey + '\')" style="background:#10b981;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar Metas</button>';
+        content += '<button onclick="ooSaveMetasForm(\'' + selBid + '\',\'' + monthKey + '\',this)" style="background:#10b981;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar Metas</button>';
         content += '</div>';
         content += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
         OO_CAMPOS.forEach(function(c) {
