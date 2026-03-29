@@ -1066,7 +1066,7 @@ function loadState() {
     if (d.tabelas) S.tabelas = d.tabelas;
     if (d.veraHist) S.veraHist = d.veraHist;
     if (d.metasConfig) Object.assign(METAS_CONFIG, d.metasConfig);
-    if (d.metasEquipe) Object.assign(METAS_EQUIPE, d.metasEquipe);
+    if (d.metasEquipe) { for(var _fk in d.metasEquipe){ if(METAS_EQUIPE[_fk]) Object.assign(METAS_EQUIPE[_fk], d.metasEquipe[_fk]); else METAS_EQUIPE[_fk]=d.metasEquipe[_fk]; } }
     if (d.teamConfig) Object.assign(TEAM_CONFIG, d.teamConfig);
     if (d.connectors) S.connectors = {...S.connectors, ...d.connectors};
     try { const _ii = localStorage.getItem('psm_integrations'); if (_ii) S.integrations = JSON.parse(_ii); } catch(e) {}
@@ -10556,8 +10556,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // PSM AGENTES - Central Dashboard
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async // Auto-fetch agent stats
-function fetchAgentStats() {
+async function fetchAgentStats() // Auto-fetch agent stats {
   if (S.agentStatsLoading) return;
   S.agentStatsLoading = true;
   fetch('/api/agent').then(r=>r.json()).then(d=>{
