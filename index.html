@@ -1049,6 +1049,8 @@ function saveState() {
       metaIndiv: S.metaIndiv || {},
       ooSheetLinks: S.ooSheetLinks || {},
       ooSheetCache: S.ooSheetCache || {},
+      ooDaily: S.ooDaily || {},
+      ooMetas: S.ooMetas || {},
       sonhos: S.sonhos || {},
       savedAt: Date.now(),
     };
@@ -1075,6 +1077,8 @@ function loadState() {
     if (d.lancMetas) S.lancMetas = d.lancMetas;
     if (d.metaIndiv) S.metaIndiv = d.metaIndiv;
     if (d.ooSheetLinks) S.ooSheetLinks = {...S.ooSheetLinks, ...d.ooSheetLinks};    if (d.ooSheetCache) { S.ooSheetCache = d.ooSheetCache; };
+    if (d.ooDaily) { S.ooDaily = d.ooDaily; };
+    if (d.ooMetas) { S.ooMetas = d.ooMetas; };
 
     if (d.sonhos) S.sonhos = d.sonhos;
     // Restore manual vendas
@@ -4714,6 +4718,110 @@ function ooSetupProxy() {
   document.body.appendChild(ov);
 }
 
+
+// ===== ONE ON ONE - SISTEMA AUTÔNOMO =====
+function ooGetMonthKey(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
+function ooGetDayKey(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function ooGetDaysInMonth(y,m) { return new Date(y, m, 0).getDate(); }
+function ooGetWorkDays(y,m) {
+  var total = 0;
+  for (var d = 1; d <= ooGetDaysInMonth(y,m); d++) {
+    var dow = new Date(y, m-1, d).getDay();
+    if (dow > 0 && dow < 6) total++;
+  }
+  return total;
+}
+function ooGetWorkDaysPassed(y,m) {
+  var today = new Date();
+  var total = 0;
+  var maxDay = (today.getFullYear() === y && today.getMonth()+1 === m) ? today.getDate() : ooGetDaysInMonth(y,m);
+  for (var d = 1; d <= maxDay; d++) {
+    var dow = new Date(y, m-1, d).getDay();
+    if (dow > 0 && dow < 6) total++;
+  }
+  return total;
+}
+var OO_CAMPOS = [
+  {k:'lig_real',l:'Ligações Realizadas',icon:'📞'},
+  {k:'lig_atend',l:'Ligações Atendidas',icon:'✅'},
+  {k:'tent_agend',l:'Tent. Agendamento',icon:'📋'},
+  {k:'agend',l:'Agendamentos',icon:'📅'},
+  {k:'vis',l:'Visitas Realizadas',icon:'🏠'},
+  {k:'prop',l:'Propostas',icon:'📝'},
+  {k:'capt',l:'Captações',icon:'🔑'},
+  {k:'vend',l:'Vendas',icon:'🏆'},
+  {k:'desc',l:'Descartados',icon:'❌'}
+];
+function ooAggMonth(bid, monthKey) {
+  var daily = ((S.ooDaily||{})[bid]||{})[monthKey] || {};
+  var totals = {};
+  OO_CAMPOS.forEach(function(c) { totals[c.k] = 0; });
+  Object.keys(daily).forEach(function(dayKey) {
+    var d = daily[dayKey];
+    OO_CAMPOS.forEach(function(c) { totals[c.k] += (d[c.k] || 0); });
+  });
+  return totals;
+}
+function ooAggYear(bid, year) {
+  var totals = {};
+  OO_CAMPOS.forEach(function(c) { totals[c.k] = 0; });
+  for (var m = 1; m <= 12; m++) {
+    var mk = year + '-' + String(m).padStart(2,'0');
+    var mt = ooAggMonth(bid, mk);
+    OO_CAMPOS.forEach(function(c) { totals[c.k] += mt[c.k]; });
+  }
+  return totals;
+}
+function ooGetMetas(bid, monthKey) {
+  return ((S.ooMetas||{})[bid]||{})[monthKey] || {};
+}
+function ooGetMetasAnual(bid, year) {
+  return ((S.ooMetas||{})[bid]||{})[year] || {};
+}
+function ooSaveDaily(bid, dayKey, data) {
+  if (!S.ooDaily) S.ooDaily = {};
+  if (!S.ooDaily[bid]) S.ooDaily[bid] = {};
+  var mk = dayKey.substring(0, 7);
+  if (!S.ooDaily[bid][mk]) S.ooDaily[bid][mk] = {};
+  S.ooDaily[bid][mk][dayKey] = data;
+  saveState();
+}
+function ooSaveMetas(bid, key, data) {
+  if (!S.ooMetas) S.ooMetas = {};
+  if (!S.ooMetas[bid]) S.ooMetas[bid] = {};
+  S.ooMetas[bid][key] = data;
+  saveState();
+}
+
+
+function ooSaveDayForm(bid, dayKey) {
+  var data = {};
+  OO_CAMPOS.forEach(function(c) {
+    if (c.k === 'desc') return;
+    var el = document.getElementById('oo_input_' + c.k);
+    if (el) data[c.k] = parseInt(el.value) || 0;
+  });
+  ooSaveDaily(bid, dayKey, data);
+  // Show confirmation
+  var btn = event.target;
+  btn.textContent = '✅ Salvo!';
+  btn.style.background = '#10b981';
+  setTimeout(function() { btn.textContent = 'Salvar'; btn.style.background = '#6366f1'; render(); }, 1200);
+}
+function ooSaveMetasForm(bid, monthKey) {
+  var data = {};
+  OO_CAMPOS.forEach(function(c) {
+    if (c.k === 'desc') return;
+    var el = document.getElementById('oo_meta_' + c.k);
+    if (el) data[c.k] = parseInt(el.value) || 0;
+  });
+  ooSaveMetas(bid, monthKey, data);
+  var btn = event.target;
+  btn.textContent = '✅ Metas Salvas!';
+  btn.style.background = '#6366f1';
+  setTimeout(function() { btn.textContent = 'Salvar Metas'; btn.style.background = '#10b981'; render(); }, 1200);
+}
+
 function pgOO() {
   const df_oo = DateFilter('oo','Período');
   const u = S.user; if (!u) return df_oo + '';
@@ -4770,93 +4878,157 @@ function pgOO() {
 
   let content = '';
 
-  if (tab === 'dia') {
-  const today = new Date().toISOString().slice(0,10);
-  const hist = S['ooHistory_'+selBid]||[];
-  const day = S['ooEdit_'+selBid] ? (S['ooData_'+selBid]||[]).find(x=>x.data===today) || {data:today,lig_real:0,lig_atend:0,tent_agend:0,agend:0,vis:0,prop:0,vend:0,desc:0,obs:'',capt:0} : hist[hist.length-1]||{data:today,lig_real:0,lig_atend:0,tent_agend:0,agend:0,vis:0,prop:0,vend:0,desc:0,obs:'',capt:0};
-  if(!day.capt) day.capt=0;
-  if(!day.desc) day.desc=0;
-  var ed = S['ooEdit_'+selBid];
-  var campos = [
-    {k:'lig_real',l:'Ligacoes Realizadas',cor:'#6366f1',w:100},
-    {k:'lig_atend',l:'Ligacoes Atendidas',cor:'#818cf8',w:92},
-    {k:'tent_agend',l:'Tent. Agendamento',cor:'#3b82f6',w:84},
-    {k:'agend',l:'Agendamentos',cor:'#2563eb',w:76},
-    {k:'vis',l:'Visitas Realizadas',cor:'#0ea5e9',w:68},
-    {k:'prop',l:'Propostas',cor:'#06b6d4',w:60},
-    {k:'capt',l:'Captacoes',cor:'#14b8a6',w:52},
-    {k:'vend',l:'Vendas',cor:'#10b981',w:44},
-    {k:'desc',l:'Descartados',cor:'#dc2626',w:44}
-  ];
-  var funnelRows = campos.map(function(c,idx){
-    var v = day[c.k]||0;
-    var prevV = idx > 0 ? (day[campos[idx-1].k]||0) : 0;
-    var convPct = (idx > 0 && prevV > 0 && c.k !== 'desc') ? (v/prevV*100).toFixed(1) : '';
-    var convHtml = (idx > 0 && c.k !== 'desc') ? '<div style="text-align:center;margin:2px 0;padding:0"><span id="oo_conv_'+c.k+'" style="font-size:11px;font-weight:600;color:#94a3b8;background:#1e293b;padding:2px 10px;border-radius:10px;border:1px solid #334155;display:inline-block">' + (convPct ? '\u2193 '+convPct+'%' : '') + '</span></div>' : '';
-    var isLast = idx >= campos.length-2;
-    var radius = isLast ? '6px 6px 14px 14px' : '6px';
-    return convHtml + '<div style="display:flex;align-items:center;margin-bottom:4px">'
-      +'<div style="width:'+c.w+'%;margin:0 auto;background:linear-gradient(135deg,'+c.cor+','+c.cor+'cc);border-radius:'+radius+';padding:10px 14px;display:flex;justify-content:space-between;align-items:center;min-height:44px;box-shadow:0 2px 8px '+c.cor+'22;transition:all .2s">'
-        +'<span style="color:#fff;font-size:11px;font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,.15);flex:1">'+c.l+'</span>'
-        +'<div style="display:flex;align-items:center;gap:6px">'
-          +(ed?'<button onclick="ooDec(\''+selBid+'\',\''+c.k+'\')" style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:rgba(255,255,255,.15);color:#fff;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">&minus;</button>':'')
-          +'<span style="color:#fff;font-size:18px;font-weight:800;min-width:30px;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.2)" id="oo_v_'+c.k+'">'+v+'</span>'
-          +(ed?'<button onclick="ooInc(\''+selBid+'\',\''+c.k+'\')" style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:rgba(255,255,255,.15);color:#fff;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>':'')
-        +'</div>'
-      +'</div>'
-    +'</div>';
-  }).join('');
-  var convPairs = [
-    {from:'lig_real',to:'lig_atend',l:'Atendimento'},
-    {from:'lig_atend',to:'vis',l:'Conversao Visita'},
-    {from:'vis',to:'prop',l:'Propostas'},
-    {from:'prop',to:'vend',l:'Fechamento'}
-  ];
-  var convRows = convPairs.map(function(p){
-    var a=day[p.from]||0, b=day[p.to]||0;
-    var pct = a>0 ? parseFloat((b/a*100).toFixed(2)) : 0;
-    var pcolor = pct>=50?'#10b981':pct>=25?'#f59e0b':'#ef4444';
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:#f8fafc;border-radius:8px;margin-bottom:3px">'
-      +'<span style="font-size:11px;color:#64748b">'+p.l+'</span>'
-      +'<span style="font-size:13px;font-weight:700;color:'+pcolor+'">'+pct+'%</span>'
-    +'</div>';
-  }).join('');
-  var histRows = hist.length > 0 ? hist.slice(-7).reverse().map(function(h){
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f1f5f9">'
-      +'<span style="font-size:11px;color:#64748b;font-weight:500">'+h.data+'</span>'
-      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
-        +'<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#ede9fe;color:#6366f1">Lig:'+((h.lig_real||0))+'</span>'
-        +'<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#e0f2fe;color:#0284c7">Vis:'+((h.vis||0))+'</span>'
-        +'<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#d1fae5;color:#059669">Vnd:'+((h.vend||0))+'</span>'
-        +'<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#fef3c7;color:#d97706">Cap:'+((h.capt||0))+'</span>'
-      +'</div>'
-    +'</div>';
-  }).join('') : '<div style="text-align:center;color:#94a3b8;font-size:12px;padding:16px">Nenhum registro anterior</div>';
-  content = discCard
-    +'<div style="max-width:540px;margin:0 auto;padding:12px 4px">'
-      +'<div style="text-align:center;margin-bottom:14px">'
-        +'<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;font-weight:600">Registro do Dia</div>'
-        +'<div style="font-size:15px;font-weight:700;color:#334155;margin-top:2px">'+day.data+'</div>'
-      +'</div>'
-      +'<div style="padding:0 4px">'
-        +funnelRows
-      +'</div>'
-      +'<div style="margin-top:14px;padding:12px;background:#fff;border-radius:12px;border:1px solid #e2e8f0">'
-        +'<div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Taxa de Conversao</div>'
-        +convRows
-      +'</div>'
-      +'<div style="margin-top:12px">'
-        +'<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px">Observacoes</div>'
-        +'<textarea onchange="var dd=(S[\'ooData_\'+\''+selBid+'\']||[]).find(function(x){return x.data===\''+day.data+'\'});if(dd)dd.obs=this.value" style="width:100%;min-height:56px;border:1px solid #e2e8f0;border-radius:10px;padding:10px;font-size:13px;resize:vertical;background:#f8fafc;outline:none;box-sizing:border-box" '+(ed?'':'readonly')+' placeholder="Observacoes do dia...">'+(day.obs||'')+'</textarea>'
-      +'</div>'
-      +(ed?'<button onclick="saveDayOO(\''+selBid+'\')" style="width:100%;margin-top:12px;padding:13px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(99,102,241,.25);letter-spacing:.3px">Salvar Registro</button>'
-        +'<button onclick="S[\'ooEdit_\'+\''+selBid+'\']=false;render()" style="width:100%;margin-top:6px;padding:10px;background:transparent;color:#94a3b8;border:1px solid #e2e8f0;border-radius:10px;font-size:13px;cursor:pointer">Cancelar</button>':'')
-      +'<div style="margin-top:16px;padding:12px;background:#fff;border-radius:12px;border:1px solid #e2e8f0">'
-        +'<div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Historico Recente</div>'
-        +histRows
-      +'</div>'
-    +'</div>';
-  }
+  if (tab === 'dia') {{
+      // ===== ABA DIA A DIA - DASHBOARD MENSAL + ANUAL + INPUT =====
+      var now = new Date();
+      var curYear = now.getFullYear();
+      var curMonth = now.getMonth() + 1;
+      var monthKey = ooGetMonthKey(now);
+      var dayKey = ooGetDayKey(now);
+      var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+      // Aggregations
+      var realMes = ooAggMonth(selBid, monthKey);
+      var realAno = ooAggYear(selBid, curYear);
+      var metasMes = ooGetMetas(selBid, monthKey);
+      var metasAno = ooGetMetasAnual(selBid, String(curYear));
+
+      // Also use ooSheetCache as fallback for current month
+      var cache = ((S.ooSheetCache||{})[selBid]) || {};
+      var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
+
+      var workDays = ooGetWorkDays(curYear, curMonth);
+      var workPassed = ooGetWorkDaysPassed(curYear, curMonth);
+      var workRemain = workDays - workPassed;
+
+      // === HEADER DO MES ===
+      content += '<div style="text-align:center;margin:16px 0 8px">';
+      content += '<span style="font-size:22px;font-weight:700;color:#f8fafc">' + monthNames[curMonth] + ' ' + curYear + '</span>';
+      content += '<span style="font-size:13px;color:#94a3b8;margin-left:12px">' + workPassed + '/' + workDays + ' dias uteis · ' + workRemain + ' restantes</span>';
+      content += '</div>';
+
+      // === CARDS: MES VIGENTE + ANUAL ===
+      function ooMetricRow(label, icon, realVal, metaVal, cor) {
+        var pct = metaVal > 0 ? Math.min((realVal / metaVal * 100), 100) : (realVal > 0 ? 100 : 0);
+        var pctTxt = metaVal > 0 ? (realVal / metaVal * 100).toFixed(1) + '%' : '—';
+        var semaforo = pct >= 80 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444';
+        return '<div style="display:flex;align-items:center;gap:8px;margin:4px 0;padding:6px 10px;background:#0f172a;border-radius:8px">'
+          + '<span style="font-size:14px;width:22px;text-align:center">' + icon + '</span>'
+          + '<span style="flex:1;font-size:13px;color:#94a3b8">' + label + '</span>'
+          + '<div style="width:120px;height:8px;background:#1e293b;border-radius:4px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:' + (cor||semaforo) + ';border-radius:4px;transition:width 0.4s"></div></div>'
+          + '<span style="font-size:14px;font-weight:700;color:#f8fafc;min-width:45px;text-align:right">' + realVal + '</span>'
+          + '<span style="font-size:11px;color:#64748b;min-width:35px">/' + (metaVal||'—') + '</span>'
+          + '<span style="font-size:12px;font-weight:600;color:' + semaforo + ';min-width:50px;text-align:right">' + pctTxt + '</span>'
+          + '</div>';
+      }
+
+      // CARD MES VIGENTE
+      content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0">';
+      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
+      content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:10px">📊 Mes Vigente — Meta x Realizado</div>';
+      OO_CAMPOS.forEach(function(c) {
+        if (c.k === 'desc') return;
+        var rv = hasDailyData ? (realMes[c.k]||0) : (cache[c.k]||0);
+        var mv = metasMes[c.k] || 0;
+        content += ooMetricRow(c.l, c.icon, rv, mv);
+      });
+      content += '</div>';
+
+      // CARD ANUAL ACUMULADO
+      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
+      content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:10px">📈 Anual Acumulado — ' + curYear + '</div>';
+      OO_CAMPOS.forEach(function(c) {
+        if (c.k === 'desc') return;
+        var rv = realAno[c.k] || 0;
+        var mv = metasAno[c.k] || 0;
+        content += ooMetricRow(c.l, c.icon, rv, mv);
+      });
+      content += '</div>';
+      content += '</div>';
+
+      // === PROJECAO DO MES ===
+      content += '<div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:12px;padding:16px;border:1px solid #334155;margin:12px 0">';
+      content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:10px">🔮 Projecao do Mes</div>';
+      content += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
+      ['lig_real','agend','vis','vend'].forEach(function(k) {
+        var c = OO_CAMPOS.find(function(x){return x.k===k;});
+        var real = hasDailyData ? (realMes[k]||0) : (cache[k]||0);
+        var daily = workPassed > 0 ? real / workPassed : 0;
+        var proj = Math.round(daily * workDays);
+        var meta = metasMes[k] || 0;
+        var pct = meta > 0 ? (proj / meta * 100).toFixed(0) : '—';
+        var cor = meta > 0 ? (proj >= meta ? '#10b981' : proj >= meta*0.7 ? '#f59e0b' : '#ef4444') : '#64748b';
+        content += '<div style="background:#0f172a;border-radius:10px;padding:12px;text-align:center;border:1px solid #334155">';
+        content += '<div style="font-size:20px">' + c.icon + '</div>';
+        content += '<div style="font-size:11px;color:#94a3b8;margin:4px 0">' + c.l + '</div>';
+        content += '<div style="font-size:22px;font-weight:800;color:' + cor + '">' + proj + '</div>';
+        content += '<div style="font-size:10px;color:#64748b">projecao (' + (meta>0?pct+'% da meta':'sem meta') + ')</div>';
+        content += '<div style="font-size:11px;color:#94a3b8;margin-top:4px">' + daily.toFixed(1) + '/dia</div>';
+        content += '</div>';
+      });
+      content += '</div></div>';
+
+      // === INPUT DIARIO ===
+      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin:12px 0">';
+      content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+      content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">✏️ Registro do Dia — ' + dayKey + '</span>';
+      content += '<button onclick="ooSaveDayForm(\'' + selBid + '\',\'' + dayKey + '\')" style="background:#6366f1;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar</button>';
+      content += '</div>';
+      var todayData = (((S.ooDaily||{})[selBid]||{})[monthKey]||{})[dayKey] || {};
+      content += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+      OO_CAMPOS.forEach(function(c) {
+        if (c.k === 'desc') return;
+        var val = todayData[c.k] || '';
+        content += '<div style="background:#0f172a;border-radius:8px;padding:10px">';
+        content += '<label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">' + c.icon + ' ' + c.l + '</label>';
+        content += '<input id="oo_input_' + c.k + '" type="number" min="0" value="' + val + '" placeholder="0" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:8px;border-radius:6px;font-size:16px;font-weight:600;text-align:center">';
+        content += '</div>';
+      });
+      content += '</div></div>';
+
+      // === CONFIGURAR METAS (para gestores) ===
+      if (lvl >= 5) {
+        content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin:12px 0">';
+        content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+        content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">🎯 Metas do Mes — ' + monthNames[curMonth] + ' ' + curYear + '</span>';
+        content += '<button onclick="ooSaveMetasForm(\'' + selBid + '\',\'' + monthKey + '\')" style="background:#10b981;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar Metas</button>';
+        content += '</div>';
+        content += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
+        OO_CAMPOS.forEach(function(c) {
+          if (c.k === 'desc') return;
+          var mv = metasMes[c.k] || '';
+          content += '<div style="background:#0f172a;border-radius:8px;padding:8px">';
+          content += '<label style="font-size:10px;color:#94a3b8;display:block;margin-bottom:4px">' + c.icon + ' ' + c.l + '</label>';
+          content += '<input id="oo_meta_' + c.k + '" type="number" min="0" value="' + mv + '" placeholder="Meta" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:6px;border-radius:6px;font-size:14px;text-align:center">';
+          content += '</div>';
+        });
+        content += '</div></div>';
+      }
+
+      // === FUNIL (mantém o existente mas com dados atualizados) ===
+      content += '<div style="margin:16px 0;text-align:center"><span style="font-size:14px;font-weight:700;color:#94a3b8">FUNIL DO MES</span></div>';
+      var funnelData = hasDailyData ? realMes : cache;
+      var campos = [
+        {k:'lig_real',l:'Ligacoes Realizadas',cor:'#6366f1',w:100},
+        {k:'lig_atend',l:'Ligacoes Atendidas',cor:'#818cf8',w:92},
+        {k:'tent_agend',l:'Tent. Agendamento',cor:'#3b82f6',w:84},
+        {k:'agend',l:'Agendamentos',cor:'#2563eb',w:76},
+        {k:'vis',l:'Visitas Realizadas',cor:'#0ea5e9',w:68},
+        {k:'prop',l:'Propostas',cor:'#06b6d4',w:60},
+        {k:'capt',l:'Captacoes',cor:'#14b8a6',w:52},
+        {k:'vend',l:'Vendas',cor:'#10b981',w:44},
+        {k:'desc',l:'Descartados',cor:'#dc2626',w:44}
+      ];
+      campos.forEach(function(c, idx) {
+        var v = funnelData[c.k] || 0;
+        if (idx > 0 && c.k !== 'desc') {
+          var prevV = funnelData[campos[idx-1].k] || 0;
+          var convPct = prevV > 0 ? (v/prevV*100).toFixed(1) + '%' : '';
+          content += '<div style="text-align:center;margin:2px 0"><span style="font-size:11px;font-weight:600;color:#94a3b8;background:#1e293b;padding:2px 10px;border-radius:10px;border:1px solid #334155;display:inline-block">' + (convPct ? '\u2193 '+convPct : '') + '</span></div>';
+        }
+        content += '<div style="display:flex;align-items:center;margin-bottom:4px"><div style="width:' + c.w + '%;background:' + c.cor + ';color:#fff;padding:10px 14px;border-radius:8px;display:flex;justify-content:space-between;font-size:13px;font-weight:600"><span>' + c.l + '</span><span>' + v + '</span></div></div>';
+      });
+    }}
  else if (tab === 'semana') {
     const hist = S['ooHistory_'+selBid] || [];
     const totLig  = hist.reduce((a,d)=>a+(d.lig_atend||0),0);
