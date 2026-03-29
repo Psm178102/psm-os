@@ -4584,6 +4584,59 @@ function pgOKRs() {
 }
 
 // ─── ONE ON ONE ───────────────────────────────────────────────────────────────
+// --- Google Sheets integration for One on One ---
+function _ooFetchSheet(bid) {
+  var url = (S.ooSheetLinks||{})[bid];
+  if (!url) return;
+  var m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (!m) return;
+  var csvUrl = 'https://docs.google.com/spreadsheets/d/' + m[1] + '/gviz/tq?tqx=out:csv';
+  fetch(csvUrl).then(function(r){ return r.text(); }).then(function(csv){
+    var map = {
+      'TENTATIVA DE LIGA': 'lig_real',
+      'ATENDIDA': 'lig_atend',
+      'TENTATIVA DE AGENDAMENTO': 'tent_agend',
+      'DE  AGEN': 'agend',
+      'DE VISITA': 'vis',
+      'PROPOSTA': 'prop',
+      'VENDA': 'vend',
+      'DESCARTADO': 'desc',
+      'CAPTA': 'capt'
+    };
+    var rows = csv.split('\n');
+    var totals = {};
+    var inMonthly = false;
+    for (var i = 0; i < rows.length; i++) {
+      var cells = rows[i].split(',').map(function(c){ return c.replace(/^"|"$/g,'').trim(); });
+      var label = (cells[5]||'').toUpperCase();
+      if (label.indexOf('PER') !== -1 && label.indexOf('ODO') !== -1) { inMonthly = true; continue; }
+      if (label.indexOf('SEMANA') !== -1) { inMonthly = false; continue; }
+      if (!inMonthly || !label) continue;
+      for (var mk in map) {
+        if (label.indexOf(mk) !== -1 && !totals[map[mk]]) {
+          var lastVal = 0;
+          for (var ci = 6; ci < Math.min(cells.length, 18); ci++) {
+            var raw = (cells[ci]||'').replace(/\./g,'').replace(',','.').replace(/[^0-9.\-]/g,'');
+            var n = parseFloat(raw);
+            if (!isNaN(n) && n > 0) lastVal = n;
+          }
+          if (lastVal > 0) totals[map[mk]] = Math.round(lastVal);
+          break;
+        }
+      }
+    }
+    for (var k in totals) {
+      var el = document.getElementById('oo_v_' + k);
+      if (el && totals[k] > 0) el.textContent = totals[k];
+    }
+    var ind = document.getElementById('oo_sheet_status');
+    if (ind) ind.innerHTML = '<span style="color:#10b981;font-size:10px">Dados da planilha carregados</span>';
+  }).catch(function(e){
+    var ind = document.getElementById('oo_sheet_status');
+    if (ind) ind.innerHTML = '<span style="color:#ef4444;font-size:10px">Erro ao carregar planilha</span>';
+  });
+}
+
 function pgOO() {
   const df_oo = DateFilter('oo','Período');
   const u = S.user; if (!u) return df_oo + '';
@@ -4667,7 +4720,7 @@ function pgOO() {
         +'<span style="color:#fff;font-size:11px;font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,.15);flex:1">'+c.l+'</span>'
         +'<div style="display:flex;align-items:center;gap:6px">'
           +(ed?'<button onclick="ooDec(\''+selBid+'\',\''+c.k+'\')" style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:rgba(255,255,255,.15);color:#fff;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">&minus;</button>':'')
-          +'<span style="color:#fff;font-size:18px;font-weight:800;min-width:30px;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.2)">'+v+'</span>'
+          +'<span style="color:#fff;font-size:18px;font-weight:800;min-width:30px;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.2)" id="oo_v_'+c.k+'">'+v+'</span>'
           +(ed?'<button onclick="ooInc(\''+selBid+'\',\''+c.k+'\')" style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:rgba(255,255,255,.15);color:#fff;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>':'')
         +'</div>'
       +'</div>'
@@ -4823,7 +4876,9 @@ function pgOO() {
   }
 
   return '<div class="phd"><h1>One on One</h1><p>Acompanhamento individual de performance</p></div>'
-    + brokerSel + checkinCard + sheetBar + tabBar + content;
+    + brokerSel + checkinCard + sheetBar + tabBar + content
+    + '<div id="oo_sheet_status" style="text-align:center;padding:4px;margin-top:6px"></div>'
+    + '<img src="" onerror="if(typeof _ooFetchSheet===\'function\')_ooFetchSheet(\''+ selBid +'\');" style="display:none">';
 }
 
 function ooEditSheet(bid, name) {
