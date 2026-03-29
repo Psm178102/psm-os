@@ -1048,6 +1048,7 @@ function saveState() {
       lancMetas: S.lancMetas || {},
       metaIndiv: S.metaIndiv || {},
       ooSheetLinks: S.ooSheetLinks || {},
+      ooSheetCache: S.ooSheetCache || {},
       sonhos: S.sonhos || {},
       savedAt: Date.now(),
     };
@@ -1073,7 +1074,8 @@ function loadState() {
     if (d.lancTimeline) S.lancTimeline = d.lancTimeline;
     if (d.lancMetas) S.lancMetas = d.lancMetas;
     if (d.metaIndiv) S.metaIndiv = d.metaIndiv;
-    if (d.ooSheetLinks) S.ooSheetLinks = {...S.ooSheetLinks, ...d.ooSheetLinks};
+    if (d.ooSheetLinks) S.ooSheetLinks = {...S.ooSheetLinks, ...d.ooSheetLinks};    if (d.ooSheetCache) { S.ooSheetCache = d.ooSheetCache; };
+
     if (d.sonhos) S.sonhos = d.sonhos;
     // Restore manual vendas
     try {
