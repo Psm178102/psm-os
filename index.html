@@ -1051,6 +1051,7 @@ function saveState() {
       ooSheetCache: S.ooSheetCache || {},
       ooDaily: S.ooDaily || {},
       ooMetas: S.ooMetas || {},
+      ooFunnelPct: S.ooFunnelPct || {},
       sonhos: S.sonhos || {},
       savedAt: Date.now(),
     };
@@ -1079,6 +1080,7 @@ function loadState() {
     if (d.ooSheetLinks) S.ooSheetLinks = {...S.ooSheetLinks, ...d.ooSheetLinks};    if (d.ooSheetCache) { S.ooSheetCache = d.ooSheetCache; };
     if (d.ooDaily) { S.ooDaily = d.ooDaily; };
     if (d.ooMetas) { S.ooMetas = d.ooMetas; };
+    if (d.ooFunnelPct) { S.ooFunnelPct = d.ooFunnelPct; };
 
     if (d.sonhos) S.sonhos = d.sonhos;
     // Restore manual vendas
@@ -4752,6 +4754,84 @@ var OO_CAMPOS = [
   {k:'vend',l:'Vendas',icon:'🏆'},
   {k:'desc',l:'Descartados',icon:'❌'}
 ];
+
+// ===== FUNIL DE CONVERSAO POR EQUIPE =====
+var OO_FUNNEL_STEPS = [
+  {from:'lig_real', to:'lig_atend', lbl:'Ligacoes -> Atendidas'},
+  {from:'lig_atend', to:'tent_agend', lbl:'Atendidas -> Tent. Agend.'},
+  {from:'tent_agend', to:'agend', lbl:'Tent. Agend. -> Agendamentos'},
+  {from:'agend', to:'vis', lbl:'Agendamentos -> Visitas'},
+  {from:'vis', to:'prop', lbl:'Visitas -> Propostas'},
+  {from:'prop', to:'vend', lbl:'Propostas -> Vendas'}
+];
+function ooGetFrenteForBroker(bid) {
+  var u = USERS_BASE.find(function(x){ return x.id === bid; });
+  return u ? (u.frente || 'geral') : 'geral';
+}
+function ooGetFunnelPct(frente) {
+  if (!S.ooFunnelPct) S.ooFunnelPct = {};
+  return S.ooFunnelPct[frente] || {};
+}
+function ooSaveFunnelPct(frente, data) {
+  if (!S.ooFunnelPct) S.ooFunnelPct = {};
+  S.ooFunnelPct[frente] = data;
+  saveState();
+}
+function ooCalcFunnelPctFromData(realizado) {
+  var pct = {};
+  OO_FUNNEL_STEPS.forEach(function(step) {
+    var fromVal = realizado[step.from] || 0;
+    var toVal = realizado[step.to] || 0;
+    pct[step.from + '_to_' + step.to] = fromVal > 0 ? Math.round(toVal / fromVal * 10000) / 100 : 0;
+  });
+  return pct;
+}
+function ooProjectForward(realizado, funnelPct) {
+  var proj = {};
+  OO_FUNNEL_STEPS.forEach(function(step) {
+    var key = step.from + '_to_' + step.to;
+    var pctVal = funnelPct[key] || 0;
+    var fromVal = realizado[step.from] || 0;
+    proj[step.to] = fromVal * pctVal / 100;
+  });
+  return proj;
+}
+function ooProjectBackward(metaVendas, funnelPct) {
+  var need = {vend: metaVendas};
+  for (var i = OO_FUNNEL_STEPS.length - 1; i >= 0; i--) {
+    var step = OO_FUNNEL_STEPS[i];
+    var key = step.from + '_to_' + step.to;
+    var pctVal = funnelPct[key] || 0;
+    var toVal = need[step.to] || 0;
+    need[step.from] = pctVal > 0 ? Math.ceil(toVal / (pctVal / 100)) : 0;
+  }
+  return need;
+}
+function ooSaveFunnelForm(frente, btnEl) {
+  var data = {};
+  OO_FUNNEL_STEPS.forEach(function(step) {
+    var key = step.from + '_to_' + step.to;
+    var el = document.getElementById('oo_funnel_' + key);
+    if (el) data[key] = parseFloat(el.value) || 0;
+  });
+  ooSaveFunnelPct(frente, data);
+  if (btnEl) {
+    btnEl.textContent = '\u2705 Salvo!';
+    btnEl.style.background = '#10b981';
+    setTimeout(function(){ btnEl.textContent = 'Salvar % Funil'; btnEl.style.background = '#6366f1'; render(); }, 1200);
+  }function ooAutoFillFunnel(frente) {
+  var bid = S.ooBroker || (S.user && S.user.id);
+  var mk = ooGetMonthKey(new Date());
+  var realizado = ooAggMonth(bid, mk);
+  var realPct = ooCalcFunnelPctFromData(realizado);
+  OO_FUNNEL_STEPS.forEach(function(step) {
+    var key = step.from + '_to_' + step.to;
+    var el = document.getElementById('oo_funnel_' + key);
+    if (el) el.value = realPct[key].toFixed(1);
+  });
+}
+
+}
 function ooAggMonth(bid, monthKey) {
   var daily = ((S.ooDaily||{})[bid]||{})[monthKey] || {};
   var totals = {};
@@ -4946,29 +5026,60 @@ function pgOO() {
       content += '</div>';
       content += '</div>';
 
-      // === PROJECAO DO MES ===
-      content += '<div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:12px;padding:16px;border:1px solid #334155;margin:12px 0">';
-      content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:10px">🔮 Projecao do Mes</div>';
-      content += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
-      ['lig_real','agend','vis','vend'].forEach(function(k) {
-        var c = OO_CAMPOS.find(function(x){return x.k===k;});
-        var real = hasDailyData ? (realMes[k]||0) : (cache[k]||0);
-        var daily = workPassed > 0 ? real / workPassed : 0;
-        var proj = Math.round(daily * workDays);
-        var meta = metasMes[k] || 0;
-        var pct = meta > 0 ? (proj / meta * 100).toFixed(0) : '—';
-        var cor = meta > 0 ? (proj >= meta ? '#10b981' : proj >= meta*0.7 ? '#f59e0b' : '#ef4444') : '#64748b';
-        content += '<div style="background:#0f172a;border-radius:10px;padding:12px;text-align:center;border:1px solid #334155">';
-        content += '<div style="font-size:20px">' + c.icon + '</div>';
-        content += '<div style="font-size:11px;color:#94a3b8;margin:4px 0">' + c.l + '</div>';
-        content += '<div style="font-size:22px;font-weight:800;color:' + cor + '">' + proj + '</div>';
-        content += '<div style="font-size:10px;color:#64748b">projecao (' + (meta>0?pct+'% da meta':'sem meta') + ')</div>';
-        content += '<div style="font-size:11px;color:#94a3b8;margin-top:4px">' + daily.toFixed(1) + '/dia</div>';
+      // === PROJECAO POR FUNIL DE CONVERSAO ===
+    var selFrente = ooGetFrenteForBroker(selBid);
+    var funnelPct = ooGetFunnelPct(selFrente);
+    var hasFunnel = Object.keys(funnelPct).length > 0;
+    var fwdProj = hasFunnel ? ooProjectForward(realizado, funnelPct) : {};
+    var metaVendas = (metas.vend || 0);
+    var bwdNeed = (hasFunnel && metaVendas > 0) ? ooProjectBackward(metaVendas, funnelPct) : {};
+    content += '<div style="background:#1e1b4b;border-radius:12px;padding:16px;margin-bottom:16px">';
+    content += '<div style="font-size:15px;font-weight:700;color:#a5b4fc;margin-bottom:12px">\u{1F3AF} Proje\u00e7\u00e3o por Funil <span style="font-size:12px;color:#818cf8;font-weight:400">(equipe: ' + selFrente + ')</span></div>';
+    if (!hasFunnel) {
+      content += '<div style="color:#fbbf24;font-size:13px;padding:12px;background:#292524;border-radius:8px">\u26A0\uFE0F Taxas de convers\u00e3o n\u00e3o definidas para <b>' + selFrente + '</b>. Configure abaixo.</div>';
+    } else {
+      content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+      content += '<div style="background:#312e81;border-radius:10px;padding:14px">';
+      content += '<div style="font-size:13px;font-weight:600;color:#c4b5fd;margin-bottom:10px">\u{1F4C8} Forward (projetado)</div>';
+      content += '<div style="font-size:11px;color:#a5b4fc;margin-bottom:8px">Realizado x taxa de convers\u00e3o</div>';
+      OO_FUNNEL_STEPS.forEach(function(step) {
+        var key = step.from + '_to_' + step.to;
+        var pctVal = funnelPct[key] || 0;
+        var projVal = fwdProj[step.to] || 0;
+        var realVal = realizado[step.to] || 0;
+        var cor = realVal >= projVal ? '#10b981' : '#f59e0b';
+        content += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #3730a3">';
+        content += '<span style="color:#c4b5fd;font-size:12px">' + step.lbl + ' <span style="color:#818cf8">(' + pctVal.toFixed(1) + '%)</span></span>';
+        content += '<span style="color:' + cor + ';font-weight:700;font-size:13px">' + realVal + ' / ' + projVal.toFixed(0) + '</span>';
         content += '</div>';
       });
+      var projVendas = fwdProj.vend || 0;
+      content += '<div style="margin-top:10px;padding:10px;background:#1e1b4b;border-radius:8px;text-align:center">';
+      content += '<div style="font-size:11px;color:#a5b4fc">Vendas Projetadas</div>';
+      content += '<div style="font-size:28px;font-weight:800;color:' + (projVendas >= metaVendas ? '#10b981' : '#ef4444') + '">' + projVendas.toFixed(1) + '</div>';
+      content += '<div style="font-size:11px;color:#818cf8">meta: ' + metaVendas + '</div>';
       content += '</div></div>';
-
-      // === INPUT DIARIO ===
+      content += '<div style="background:#312e81;border-radius:10px;padding:14px">';
+      content += '<div style="font-size:13px;font-weight:600;color:#c4b5fd;margin-bottom:10px">\u{1F519} Meta Reversa</div>';
+      content += '<div style="font-size:11px;color:#a5b4fc;margin-bottom:8px">Para atingir ' + metaVendas + ' vendas:</div>';
+      if (metaVendas > 0) {
+        OO_CAMPOS.forEach(function(c) {
+          if (c.k === 'desc' || c.k === 'capt') return;
+          var needVal = bwdNeed[c.k] || 0;
+          var rv = realizado[c.k] || 0;
+          var pDone = needVal > 0 ? Math.min(rv / needVal * 100, 100) : 0;
+          var bc = pDone >= 100 ? '#10b981' : pDone >= 60 ? '#f59e0b' : '#ef4444';
+          content += '<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px;color:#c4b5fd">';
+          content += '<span>' + c.icon + ' ' + c.l + '</span><span style="font-weight:700;color:' + bc + '">' + rv + ' / ' + needVal + '</span></div>';
+          content += '<div style="background:#1e1b4b;border-radius:4px;height:6px;margin-top:3px"><div style="background:' + bc + ';height:100%;border-radius:4px;width:' + pDone.toFixed(0) + '%"></div></div></div>';
+        });
+      } else {
+        content += '<div style="color:#fbbf24;font-size:12px">Defina uma meta de vendas.</div>';
+      }
+      content += '</div></div>';
+    }
+    content += '</div>';
+    // === INPUT DIARIO ===
       content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin:12px 0">';
       content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
       content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">✏️ Registro do Dia — ' + dayKey + '</span>';
@@ -5005,7 +5116,35 @@ function pgOO() {
         content += '</div></div>';
       }
 
-      // === FUNIL (mantém o existente mas com dados atualizados) ===
+      
+    // === CONFIGURAR % FUNIL POR EQUIPE (somente gestor) ===
+    if (lvl >= 5) {
+      var cfgFrente = ooGetFrenteForBroker(selBid);
+      var cfgPct = ooGetFunnelPct(cfgFrente);
+      var realPct = ooCalcFunnelPctFromData(realizado);
+      content += '<div style="background:#1a1a2e;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #312e81">';
+      content += '<div style="font-size:15px;font-weight:700;color:#fbbf24;margin-bottom:4px">\u2699\uFE0F Taxas de Convers\u00e3o \u2014 ' + cfgFrente.charAt(0).toUpperCase() + cfgFrente.slice(1) + '</div>';
+      content += '<div style="font-size:11px;color:#a5b4fc;margin-bottom:12px">Defina as % entre cada etapa do funil. Somente gestores editam.</div>';
+      content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+      OO_FUNNEL_STEPS.forEach(function(step) {
+        var key = step.from + '_to_' + step.to;
+        var curVal = cfgPct[key] || 0;
+        var realVal = realPct[key] || 0;
+        content += '<div style="background:#0f172a;border-radius:8px;padding:10px">';
+        content += '<div style="font-size:12px;color:#c4b5fd;margin-bottom:4px">' + step.lbl + '</div>';
+        content += '<div style="display:flex;align-items:center;gap:6px">';
+        content += '<input type="number" step="0.1" min="0" max="500" id="oo_funnel_' + key + '" value="' + curVal + '" style="width:70px;background:#1e293b;color:#fff;border:1px solid #475569;border-radius:6px;padding:6px 8px;font-size:13px;text-align:center" />';
+        content += '<span style="color:#818cf8;font-size:12px">%</span>';
+        content += '<span style="color:#64748b;font-size:11px;margin-left:auto">real: ' + realVal.toFixed(1) + '%</span>';
+        content += '</div></div>';
+      });
+      content += '</div>';
+      content += '<div style="display:flex;gap:8px;margin-top:12px">';
+      content += '<button onclick="ooSaveFunnelForm(\\'' + cfgFrente + '\\',this)" style="flex:1;padding:10px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">Salvar % Funil</button>';
+      content += '<button onclick="ooAutoFillFunnel(\\'' + cfgFrente + '\\')" style="padding:10px 16px;background:#0f766e;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">\u{1F504} Usar Taxas Reais</button>';
+      content += '</div></div>';
+    }
+// === FUNIL (mantém o existente mas com dados atualizados) ===
       content += '<div style="margin:16px 0;text-align:center"><span style="font-size:14px;font-weight:700;color:#94a3b8">FUNIL DO MES</span></div>';
       var funnelData = hasDailyData ? realMes : cache;
       var campos = [
