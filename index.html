@@ -933,7 +933,7 @@ function recalcBrokerMetrics(prefix) {
     lost.forEach(l => { const m = l.lostReason || 'Sem motivo'; b.motivosPerda[m] = (b.motivosPerda[m] || 0) + 1; });
     const scores = opps.map(o => o.crm);
     b.crm = scores.length ? Math.round(scores.reduce((a,s) => a+s,0) / scores.length) : 60;
-    b.conversionRate = (won.length + lost.length) > 0 ? Math.round(won.length / (won.length + lost.length) * 100) : 0;
+    b.conversionRate = (won.length + lost.length) > 0 ? parseFloat((won.length / (won.length + lost.length) * 100).toFixed(2)) : 0;
     b.volumeLeads = opps.length + won.length + lost.length;
   });
   
@@ -1282,7 +1282,7 @@ function pgRanking(){
       vis: bOpps.filter(o => ['vis_real'].includes(o.st_psm)).length + bWon.length,
       prop: bOpps.filter(o => o.st_psm === 'proposta').length,
       crm: b.crm || 20,
-      conversao: (bWon.length + bLost.length) > 0 ? Math.round(bWon.length / (bWon.length + bLost.length) * 100) : 0,
+      conversao: (bWon.length + bLost.length) > 0 ? parseFloat((bWon.length / (bWon.length + bLost.length) * 100).toFixed(2)) : 0,
     };
   });
 
@@ -1294,7 +1294,7 @@ function pgRanking(){
       {id:'vgv_real',  label:'VGV Realizado',    fmt:fmt},
       {id:'vend',      label:'Vendas',           fmt:v=>v},
       {id:'perdidas',  label:'Perdidas',         fmt:v=>v},
-      {id:'conversao', label:'Conversão',        fmt:v=>v+'%'},
+      {id:'conversao', label:'Conversão',        fmt:v=>parseFloat(v).toFixed(2)+'%'},
       {id:'agend',     label:'Agendamentos',     fmt:v=>v},
       {id:'vis',       label:'Visitas',          fmt:v=>v},
       {id:'prop',      label:'Propostas',        fmt:v=>v},
@@ -3612,7 +3612,7 @@ const RD = {
 
         // Taxa de conversão por etapa (won / (won + lost + ativas em cada etapa))
         b.conversionRate = (won.length + lost.length) > 0
-          ? Math.round(won.length / (won.length + lost.length) * 100) : 0;
+          ? parseFloat((won.length / (won.length + lost.length) * 100).toFixed(2)) : 0;
 
         // Volume de atendimento
         b.volumeLeads = opps.length + won.length + lost.length;
@@ -7506,7 +7506,7 @@ function pgLancamentosAno() {
       var itemsHtml = '';
       for (var j = 0; j < items.length; j++) {
         var fw = items[j].cor === '#0f9d58' ? '700' : '400';
-        itemsHtml += '<div style="font-size:9px;font-weight:'+fw+';color:var(--navy);white-space:nowrap">'+items[j].nome+'</div>';
+        itemsHtml += '<div style="font-size:12px;font-weight:'+fw+';color:var(--navy);white-space:nowrap">'+items[j].nome+'</div>';
       }
       tl += '<div style="position:absolute;left:'+xPct+'%;top:55%;transform:translateX(-50%);text-align:center;min-width:80px"><div style="width:1px;height:20px;background:#ccc;margin:0 auto"></div><div style="margin-top:8px">'+itemsHtml+'</div></div>';
     }
