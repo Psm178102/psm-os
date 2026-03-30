@@ -1556,7 +1556,7 @@ function fmt$(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
 // ===============================================
 var pgWarArena = function(){
   if(!S.user) return '<div style="padding:40px;text-align:center;color:var(--muted)">Fa\u00e7a login para acessar a War Arena</div>';
-  if(!S.df_war) S.df_war = {preset:'Mes'};
+  if(!S.df_war) S.df_war = {preset:'Ano'};
   recalcBrokerMetrics('war');
     var perfil = getPerfil(S.user.id);
   var lvl = RLVL[S.user.role] || 0;
