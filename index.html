@@ -2799,7 +2799,7 @@ const RD = {
   async sync(showToast = true, forceRefresh = false) {
     if (this.syncing) return;
     if (forceRefresh) this.clearCache();
-    this.syncing = true; S.rdSyncing = true; S.rdSyncError = ''; render();
+    this.syncing = true; S.rdSyncing = true; S.rdSyncError = ''; if(showToast){render();}
     if (showToast) toast('Sincronizando RD Station...', '');
     const t0 = Date.now();
 
