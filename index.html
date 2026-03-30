@@ -598,10 +598,10 @@ function toast(msg,tp=''){const w=el('toasts');const d=document.createElement('d
 
 // ─── FRENTES ─────────────────────────────────────────────────────────────────
 const FRENTES={
-  lancamento:{id:'lancamento',label:'MAP / Assessoria',icon:'🏢',color:'#0f172a'},
-  terceiros: {id:'terceiros', label:'Terceiros',       icon:'🤝',color:'#15803d'},
+  lancamento:{id:'lancamento',label:'\ud83c\udfc6 Equipe MAP',icon:'🏢',color:'#0f172a'},
+  terceiros: {id:'terceiros', label:'\ud83c\udfc6 Equipe Terceiros',       icon:'🤝',color:'#15803d'},
   locacao:   {id:'locacao',   label:'Locação',         icon:'🏘',color:'#1d4ed8'},
-  conquista: {id:'conquista', label:'Conquista',       icon:'🏆',color:'#dc2626'},
+  conquista: {id:'conquista', label:'\ud83c\udfc6 Equipe Conquista',       icon:'🏆',color:'#dc2626'},
 };
 
 // ─── FUNIS POR FRENTE ─────────────────────────────────────────────────────────
@@ -705,7 +705,7 @@ const USERS_BASE=[
   {id:'rodrigo_c',name:'Rodrigo Camargo',   ini:'RC',color:'#0f766e',role:'corretor',frente:'terceiros', email:'rodrigocamargo@imobiliariapsm.com.br',rdId:'692d933389c0150019aff0be',st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:600000,crm:0,agend:0},
   {id:'evandro',  name:'Evandro',           ini:'EV',color:'#1d4ed8',role:'corretor',frente:'terceiros', email:'evandro@imobiliariapsm.com.br',   rdId:'695d18cdd8e96000144d2448', st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:500000,crm:0,agend:0},
   {id:'yara',     name:'Yara Fetti',        ini:'YF',color:'#9333ea',role:'corretor',frente:'terceiros', email:'yara@imobiliariapsm.com.br',      rdId:'693ad5782b10d20016341650', st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:500000,crm:0,agend:0},
-  // MAP / Assessoria (adicionado)
+  // \ud83c\udfc6 Equipe MAP (adicionado)
   {id:'vitor_o',  name:'Vitor Oliveira',    ini:'VO',color:'#0891b2',role:'corretor',frente:'lancamento',email:'vitor@imobiliariapsm.com.br',    rdId:'',  st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:800000,crm:0,agend:0},
   // Usuários RD extras (sem login no sistema, mas têm deals ativos)
   {id:'leire',name:'Leire',ini:'LE',color:'#475569',role:'backoffice',frente:null,email:'leire@imobiliariapsm.com.br',rdId:''},
@@ -1519,7 +1519,7 @@ function fmt$(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
 // FUNCTION 1: pgWarRoom() — EXECUTIVE COMMAND CENTER
 // ============================================================================
 // ===============================================
-// WAR ARENA PSM â PAGINA UNIFICADA (substitui pgWarRoom + pgWarArena antigos)
+// ARENA PSM â PAGINA UNIFICADA (substitui pgWarRoom + pgWarArena antigos)
 // Usa BROKERS (dados reais RD CRM) + S.metaIndiv (metas One on One)
 // ===============================================
 var pgWarArena = function(){
@@ -1535,7 +1535,7 @@ var pgWarArena = function(){
   var currentTime = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
   // ===== AGGREGATE DATA FROM BROKERS (real-time RD CRM) + metaIndiv (1:1 metas) =====
-  var frentes = {lancamento:{name:'MAP / Assessoria',icon:'\ud83d\udcca',color:'#6366f1',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]},conquista:{name:'Conquista',icon:'\ud83c\udfc6',color:'#f59e0b',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]},terceiros:{name:'Terceiros',icon:'\ud83d\udc9c',color:'#a855f7',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]}};
+  var frentes = {lancamento:{name:'\ud83c\udfc6 Equipe MAP',icon:'\ud83d\udcca',color:'#6366f1',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]},conquista:{name:'Conquista',icon:'\ud83c\udfc6',color:'#f59e0b',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]},terceiros:{name:'Terceiros',icon:'\ud83d\udc9c',color:'#a855f7',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]}};
   var allCorretores = [];
   var totalVGV=0, totalVendas=0, totalMeta=0, totalVis=0, totalProp=0, totalLig=0;
   var onlineCount = 0;
@@ -1608,6 +1608,15 @@ var pgWarArena = function(){
   var semCRM = allCorretores.filter(function(c){ return c.crm===0; });
   if(semCRM.length > 0) alertas.push({tipo:'warn', msg:semCRM.length + ' corretor' + (semCRM.length>1?'es':'') + ' sem atividade no CRM'});
 
+
+  // Alertas individuais por corretor
+  allCorretores.forEach(function(c){
+    if(c.staleCrm > 0) alertas.push({tipo:'danger', msg:c.name + ': ' + c.staleCrm + ' neg\u00f3cio' + (c.staleCrm>1?'s':'') + ' com CRM desatualizado (4+ dias)'});
+    if(c.descartados > 3) alertas.push({tipo:'warn', msg:c.name + ': ' + c.descartados + ' descartados no per\u00edodo (acima do limite)'});
+    if(c.vendas === 0 && c.vis === 0) alertas.push({tipo:'danger', msg:c.name + ': sem vendas e sem visitas no per\u00edodo'});
+    if(c.score >= 80) alertas.push({tipo:'ok', msg:c.name + ': score ' + c.score + ' \u2014 destaque do m\u00eas!'});
+    if(c.metaPct >= 100) alertas.push({tipo:'ok', msg:c.name + ': atingiu ' + c.metaPct + '% da meta individual!'});
+  });
   // Add default marquee events
   if(eventos.length === 0){
     eventos.push('\u26a1 War Arena PSM \u2014 Acompanhamento em tempo real');
@@ -1626,7 +1635,7 @@ var pgWarArena = function(){
   h += '<div style="padding:24px 32px 0">';
   h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
   h += '<div>';
-  h += '<h1 style="font-size:28px;font-weight:800;margin:0;color:var(--gold2)">\u2694\ufe0f WAR ARENA PSM</h1>';
+  h += '<h1 style="font-size:28px;font-weight:800;margin:0;color:#0f172a">\u2694\ufe0f ARENA PSM</h1>';
   h += '<div style="color:var(--muted);font-size:13px">Central de Performance & Gamifica\u00e7\u00e3o \u2014 Dados em tempo real</div>';
   h += '</div>';
   h += '<div style="display:flex;align-items:center;gap:16px">';
@@ -1637,7 +1646,7 @@ var pgWarArena = function(){
 
   // MARQUEE TICKER
   h += '<div style="background:linear-gradient(90deg,var(--navy2),var(--navy));border:1px solid var(--navy3);border-radius:12px;padding:12px 16px;overflow:hidden;position:relative;margin-bottom:20px">';
-  h += '<div style="display:flex;animation:marqueeScroll ' + Math.max(20, eventos.length * 6) + 's linear infinite;white-space:nowrap">';
+  h += '<div style="display:flex;animation:marqueeScroll ' + Math.max(12, eventos.length * 3) + 's linear infinite;white-space:nowrap">';
   eventos.forEach(function(ev){
     h += '<span style="margin-right:60px;font-size:14px;font-weight:600;color:var(--cream)">' + ev + '</span>';
   });
@@ -1734,8 +1743,10 @@ var pgWarArena = function(){
   h += '<th style="padding:8px 4px;text-align:left">#</th>';
   h += '<th style="padding:8px 4px;text-align:left">Corretor</th>';
   h += '<th style="padding:8px 4px;text-align:center">Vendas</th>';
+  h += '<th style="padding:8px 4px;text-align:center">Agend.</th>';
   h += '<th style="padding:8px 4px;text-align:center">Visitas</th>';
   h += '<th style="padding:8px 4px;text-align:center">Propostas</th>';
+  h += '<th style="padding:8px 4px;text-align:center">Capt.</th>';
   h += '<th style="padding:8px 4px;text-align:right">VGV</th>';
   h += '<th style="padding:8px 4px;text-align:right">Score</th>';
   h += '<th style="padding:8px 4px;text-align:center;color:#ef4444">Puni\u00e7\u00f5es</th>';
@@ -1756,8 +1767,10 @@ var pgWarArena = function(){
     h += '<div style="font-size:10px;color:' + (fInfo?fInfo.color:'var(--muted)') + '">' + (fInfo?fInfo.name:c.frente) + '</div></div>';
     h += '</div></td>';
     h += '<td style="padding:10px 4px;text-align:center;font-weight:700;color:var(--cream)">' + (c.vendas||'\u2014') + '</td>';
+    h += '<td style="padding:10px 4px;text-align:center;color:var(--cream)">' + (c.agend||'\u2014') + '</td>';
     h += '<td style="padding:10px 4px;text-align:center;color:var(--cream)">' + (c.vis||'\u2014') + '</td>';
     h += '<td style="padding:10px 4px;text-align:center;color:var(--cream)">' + (c.prop||'\u2014') + '</td>';
+    h += '<td style="padding:10px 4px;text-align:center;color:var(--cream)">' + (c.captacoes||'\u2014') + '</td>';
     h += '<td style="padding:10px 4px;text-align:right;color:var(--gold2);font-weight:600">' + (c.vgv > 0 ? fmt(c.vgv) : '\u2014') + '</td>';
     h += '<td style="padding:10px 4px;text-align:right"><span style="background:' + (c.score>50?'var(--g)':c.score>20?'var(--gold2)':'var(--muted)') + ';color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700">' + c.score + '</span></td>';
     var totalPen = (c.penCrm||0) + (c.penDesc||0);
@@ -1815,11 +1828,11 @@ var pgWarArena = function(){
 
   // ===== META & FORECAST =====
   h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:16px;padding:20px;margin-bottom:24px">';
-  h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 16px">\ud83c\udfaf Meta & Forecast</h2>';
+  h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 16px">\ud83c\udfaf Meta Mensal & Forecast Anual</h2>';
   h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px">';
 
   h += '<div style="grid-column:span 2">';
-  h += '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:8px"><span>Progresso Global</span><span style="font-weight:700;color:' + (metaGlobalPct>=100?'var(--g)':'var(--gold2)') + '">' + metaGlobalPct + '%</span></div>';
+  h += '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:8px"><span>Progresso Mensal</span><span style="font-weight:700;color:' + (metaGlobalPct>=100?'var(--g)':'var(--gold2)') + '">' + metaGlobalPct + '%</span></div>';
   h += '<div style="background:var(--navy);border-radius:6px;height:12px;overflow:hidden"><div style="height:100%;width:' + Math.min(100,metaGlobalPct) + '%;background:linear-gradient(90deg,var(--gold2),var(--g));border-radius:6px;transition:width .5s"></div></div>';
   h += '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px"><span>' + fmt(totalVGV) + '</span><span>' + fmt(totalMeta) + '</span></div>';
   h += '</div>';
@@ -1838,6 +1851,34 @@ var pgWarArena = function(){
   h += '</div>';
 
   h += '</div></div>';
+  h += '</div>';
+
+
+  // FORECAST ANUAL
+  var metaAnual = totalMeta * 12;
+  var vgvAnual = totalVGV; // VGV acumulado no ano
+  var mesAtual = new Date().getMonth(); // 0-indexed
+  var mesesPassados = mesAtual > 0 ? mesAtual : 1;
+  var forecastAnual = Math.round(totalVGV / mesesPassados * 12);
+  var pctAnual = metaAnual > 0 ? Math.round(vgvAnual / metaAnual * 100) : 0;
+  h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:20px 0 16px">\ud83d\udcc5 Forecast Anual 2026</h2>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:20px">';
+  h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center">';
+  h += '<div style="font-size:11px;color:var(--muted)">Meta Anual</div>';
+  h += '<div style="font-size:22px;font-weight:700;color:var(--cream)">' + fmt(metaAnual) + '</div>';
+  h += '</div>';
+  h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center">';
+  h += '<div style="font-size:11px;color:var(--muted)">Realizado Ano</div>';
+  h += '<div style="font-size:22px;font-weight:700;color:var(--g)">' + fmt(vgvAnual) + '</div>';
+  h += '</div>';
+  h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center">';
+  h += '<div style="font-size:11px;color:var(--muted)">Forecast 12m</div>';
+  h += '<div style="font-size:22px;font-weight:700;color:var(--gold2)">' + fmt(forecastAnual) + '</div>';
+  h += '</div>';
+  h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center">';
+  h += '<div style="font-size:11px;color:var(--muted)">% Atingido Ano</div>';
+  h += '<div style="font-size:22px;font-weight:700;color:' + (pctAnual>=80?'var(--g)':'var(--gold2)') + '">' + pctAnual + '%</div>';
+  h += '</div>';
   h += '</div>';
 
   // INJECT MARQUEE CSS
@@ -1920,7 +1961,7 @@ function pgMetas(){
   function inpG(key,val,w){return '<input type="number" value="'+val+'" step="any" onchange="mgUpdG(\''+key+'\',this.value)" style="width:'+(w||'100%')+';padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px">';}
 
   var h='<div class="pg-wrap" style="padding:18px;max-width:100%;overflow-x:auto">';
-  h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><h2 style="color:#00e5a0;margin:0">\uD83C\uDFAF META GLOBAL 2026</h2>';
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><h2 style="color:#00e5a0;margin:0">\uD83C\uDFAF META MENSAL 2026</h2>';
   h+='<div style="color:#94a3b8;font-size:13px">Meta Ano: <b style="color:#00e5a0">'+fmt(m.metaAno)+'</b></div></div>';
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px">';
   h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">Meta Ano Total</div><div style="color:#00e5a0;font-size:22px;font-weight:700">'+fmt(totalAno)+'</div></div>';
@@ -2063,13 +2104,13 @@ function pgMetas(){
   var avgRoi=totalCust>0?(totalRes/totalCust*100).toFixed(1):'0';
   h+='<td style="padding:6px;color:'+(totalRes>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:700">'+avgRoi+'%</td></tr>';
   h+='</table></div>';
-  h+='<p style="color:#475569;font-size:11px">Dados salvos automaticamente. Todas as f\u00f3rmulas s\u00e3o calculadas em tempo real \u2014 iguais \u00e0 planilha META GLOBAL.</p>';
+  h+='<p style="color:#475569;font-size:11px">Dados salvos automaticamente. Todas as f\u00f3rmulas s\u00e3o calculadas em tempo real \u2014 iguais \u00e0 planilha META MENSAL.</p>';
 
   // META POR EQUIPE
   if(!S.metaEquipe){try{S.metaEquipe=JSON.parse(localStorage.getItem('psm_meta_equipe')||'null');}catch(e){}}
   if(!S.metaEquipe) S.metaEquipe={};
   var frentes=['lancamento','conquista','terceiros','locacao'];
-  var fLabels={lancamento:'MAP / Assessoria',conquista:'Conquista',terceiros:'Terceiros',locacao:'Loca\u00e7\u00e3o'};
+  var fLabels={lancamento:'\ud83c\udfc6 Equipe MAP',conquista:'Conquista',terceiros:'Terceiros',locacao:'Loca\u00e7\u00e3o'};
   h+='<h3 style="color:#94a3b8;font-size:15px;margin:24px 0 10px">\uD83D\uDC65 Meta por Equipe <span style="color:#64748b;font-size:11px">(edit\u00e1vel)</span></h3>';
   h+='<div style="overflow-x:auto;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px">';
   h+='<tr style="background:#0f172a"><th style="padding:8px;color:#94a3b8;text-align:left;border-bottom:1px solid #334155">Equipe</th>';
@@ -8913,7 +8954,7 @@ function renderSB() {
       {id:'lancamentos_ano', lbl:'Lan\u00e7amentos', ico:'\uD83D\uDE80',min:5},
     ]},
     {sec:'Frentes', items:[
-      {id:'lancamento',lbl:'MAP / Assessoria',ico:'🏢',min:5},
+      {id:'lancamento',lbl:'\ud83c\udfc6 Equipe MAP',ico:'🏢',min:5},
       {id:'conquista', lbl:'Conquista',       ico:'🏆',min:5},
       {id:'terceiros', lbl:'Terceiros',       ico:'🤝',min:5},
       {id:'locacao',   lbl:'Locação',         ico:'🏘',min:5},
@@ -8926,8 +8967,7 @@ function renderSB() {
             {id:'governance',lbl:'Governança',     ico:'🛡',min:5},
     ]},
     {sec:'Estratégia', items:[
-      {id:'warroom',   lbl:'War Room',       ico:'⚔️',min:2},
-        {id:'wararena', lbl:'War Arena', ico:'🏆', min:2},
+        {id:'wararena', lbl:'Arena PSM', ico:'🏆', min:2},
 
       {id:'forecast',  lbl:'Projeção',       ico:'📉',min:5},
       {id:'okrs',      lbl:'OKRs & Metas',   ico:'🎯',min:5},
