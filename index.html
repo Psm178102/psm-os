@@ -1268,6 +1268,35 @@ function pgDashboard(){
   +'<div class="card"><div class="ctitle">Alertas <span class="csub">'+generateAudits().length+' issues</span></div>'
   +generateAudits().slice(0,5).map(a=>'<div class="ai ai-'+a.sev+'"><div><div class="ai-t">'+a.tipo+' <span style="font-size:9.5px;color:var(--muted);font-weight:400">'+a.oid+'</span></div><div class="ai-d2">'+a.desc+'</div><div style="font-size:9.5px;font-weight:700;margin-top:2px;color:'+(a.sev==='d'?'var(--r-tx)':a.sev==='w'?'var(--a-tx)':'var(--b-tx)')+'">'+((UM[a.bid]||{}).name||'—')+'</div></div></div>').join('')
   +'</div></div>';
+
+  // ===== VENDAS DIRETORIA (somente diretores) =====
+  if(lvl >= 3) {
+    var dirVendas = fVENDAS.filter(function(v){
+      return v.bid && BROKERS.filter(function(b){return b.id===v.bid && (b.role==='corretor'||b.role==='lider')}).length === 0;
+    });
+    if(dirVendas.length > 0) {
+      S.el.innerHTML += '<div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border:1px solid #4338ca;border-radius:16px;padding:20px;margin-top:24px">';
+      var dh = '<h2 style="font-size:18px;font-weight:700;color:#c7d2fe;margin:0 0 16px">\ud83d\udc51 Vendas Diretoria <span style="font-size:12px;font-weight:400;color:#818cf8">(vis\u00edvel apenas para diretores)</span></h2>';
+      dh += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">';
+      dirVendas.forEach(function(v){
+        var closedDate = v.closedAt ? new Date(v.closedAt).toLocaleDateString('pt-BR') : '\u2014';
+        dh += '<div style="background:rgba(99,102,241,0.15);border:1px solid #4338ca;border-radius:12px;padding:14px">';
+        dh += '<div style="font-size:13px;font-weight:600;color:#e0e7ff">' + (v.bn||'Diretoria') + '</div>';
+        dh += '<div style="font-size:11px;color:#818cf8;margin:2px 0 8px">' + (v.cl||'\u2014') + '</div>';
+        dh += '<div style="font-size:18px;font-weight:700;color:#a5b4fc">R$ ' + (v.vgv||0).toLocaleString('pt-BR') + '</div>';
+        dh += '<div style="font-size:10px;color:#6366f1;margin-top:4px">Fechado em ' + closedDate + '</div>';
+        dh += '</div>';
+      });
+      dh += '</div>';
+      var dirTotal = dirVendas.reduce(function(a,v){return a+(v.vgv||0)},0);
+      dh += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid #4338ca;text-align:right">';
+      dh += '<span style="font-size:12px;color:#818cf8">Total Diretoria: </span>';
+      dh += '<span style="font-size:16px;font-weight:700;color:#c7d2fe">R$ ' + dirTotal.toLocaleString('pt-BR') + ' (' + dirVendas.length + ' venda' + (dirVendas.length>1?'s':'') + ')</span>';
+      dh += '</div></div>';
+      S.el.innerHTML += dh;
+    }
+  }
+
 }
 
 // ─── PAGE: RANKING ────────────────────────────────────────────────────────────
@@ -1573,8 +1602,10 @@ var pgWarArena = function(){
     var penCrm = uStaleCrm * 5;
     var penDesc = uDescartados > 3 ? (uDescartados - 3) * 3 : 0;
     var vgvScore = metaPct > 0 ? Math.min(metaPct, 200) * 0.5 : 0;
+    var vgvAbsoluto = uVGV / 100000; // cada R$100K em VGV = 1 ponto base
     var metaBatidaScore = metaPct >= 100 ? 60 : metaPct * 0.6;
-    var score = Math.max(0, uVendas*4 + vgvScore*5 + uCRM*3 + metaBatidaScore + uVis*2 + uProp*3 + uAgend*1 + miCaptacoes*1);
+    var uPastas = miPastasLanc||0;
+    var score = Math.max(0, uVendas*15 + vgvAbsoluto*8 + vgvScore*3 + uCRM*3 + metaBatidaScore + uVis*2 + uProp*3 + uAgend*1 + miCaptacoes*1 + uPastas*5);
 
     var cData = {id:u.id, name:u.name, ini:u.ini||u.name.substring(0,2).toUpperCase(), color:u.color||'#6366f1', frente:u.frente, vendas:uVendas, vgv:uVGV, meta:uMeta, metaPct:metaPct, vis:uVis, prop:uProp, lig:uLig, crm:uCRM, agend:uAgend, captacoes:miCaptacoes, pastasLanc:miPastasLanc, score:Math.round(score), staleCrm:uStaleCrm, descartados:uDescartados, penCrm:penCrm, penDesc:penDesc, st:u.st||'offline'};
     allCorretores.push(cData);
@@ -1750,32 +1781,6 @@ var pgWarArena = function(){
   });
   h += '</div></div>';
 
-  // ===== VENDAS DIRETORIA (somente diretores) =====
-  if(lvl >= 3) {
-    var dirVendas = fVENDAS_war.filter(function(v){
-      return v.bid && BROKERS.filter(function(b){return b.id===v.bid && (b.role==='corretor'||b.role==='lider')}).length === 0;
-    });
-    if(dirVendas.length > 0) {
-      h += '<div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border:1px solid #4338ca;border-radius:16px;padding:20px;margin-bottom:24px">';
-      h += '<h2 style="font-size:18px;font-weight:700;color:#c7d2fe;margin:0 0 16px">\ud83d\udc51 Vendas Diretoria <span style="font-size:12px;font-weight:400;color:#818cf8">(vis\u00edvel apenas para diretores)</span></h2>';
-      h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">';
-      dirVendas.forEach(function(v){
-        var closedDate = v.closedAt ? new Date(v.closedAt).toLocaleDateString('pt-BR') : '\u2014';
-        h += '<div style="background:rgba(99,102,241,0.15);border:1px solid #4338ca;border-radius:12px;padding:14px">';
-        h += '<div style="font-size:13px;font-weight:600;color:#e0e7ff">' + (v.bn||'Diretoria') + '</div>';
-        h += '<div style="font-size:11px;color:#818cf8;margin:2px 0 8px">' + (v.cl||'\u2014') + '</div>';
-        h += '<div style="font-size:18px;font-weight:700;color:#a5b4fc">R$ ' + (v.vgv||0).toLocaleString('pt-BR') + '</div>';
-        h += '<div style="font-size:10px;color:#6366f1;margin-top:4px">Fechado em ' + closedDate + '</div>';
-        h += '</div>';
-      });
-      h += '</div>';
-      var dirTotal = dirVendas.reduce(function(a,v){return a+(v.vgv||0)},0);
-      h += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid #4338ca;text-align:right">';
-      h += '<span style="font-size:12px;color:#818cf8">Total Diretoria: </span>';
-      h += '<span style="font-size:16px;font-weight:700;color:#c7d2fe">R$ ' + dirTotal.toLocaleString('pt-BR') + ' (' + dirVendas.length + ' venda' + (dirVendas.length>1?'s':'') + ')</span>';
-      h += '</div></div>';
-    }
-  }
 
     // ===== RANKING GERAL =====
   h += '<div style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:16px;margin-bottom:24px">';
@@ -1790,6 +1795,7 @@ var pgWarArena = function(){
   h += '<th style="padding:8px 4px;text-align:center">Visitas</th>';
   h += '<th style="padding:8px 4px;text-align:center">Propostas</th>';
   h += '<th style="padding:8px 4px;text-align:center">Capt.</th>';
+  h += '<th style="padding:8px 4px;text-align:center">Pastas</th>';
   h += '<th style="padding:8px 4px;text-align:right">VGV</th>';
   h += '<th style="padding:8px 4px;text-align:right">Score</th>';
   
@@ -1814,6 +1820,7 @@ var pgWarArena = function(){
     h += '<td style="padding:10px 4px;text-align:center;color:var(--cream)">' + (c.vis||'\u2014') + '</td>';
     h += '<td style="padding:10px 4px;text-align:center;color:var(--cream)">' + (c.prop||'\u2014') + '</td>';
     h += '<td style="padding:10px 4px;text-align:center;color:var(--cream)">' + (c.captacoes||'\u2014') + '</td>';
+    h += '<td style="padding:10px 4px;text-align:center;color:var(--cream)">' + (c.pastasLanc||'\u2014') + '</td>';
     h += '<td style="padding:10px 4px;text-align:right;color:var(--gold2);font-weight:600">' + (c.vgv > 0 ? fmt(c.vgv) : '\u2014') + '</td>';
     h += '<td style="padding:10px 4px;text-align:right"><span style="background:' + (c.score>50?'var(--g)':c.score>20?'var(--gold2)':'var(--muted)') + ';color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700">' + c.score + '</span></td>';
 
