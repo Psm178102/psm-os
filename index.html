@@ -10235,6 +10235,7 @@ function route() {
 
 function render() {
   const app = document.getElementById('app'); if (!app) return;
+  var _pc0=document.getElementById('pc'),_scr=_pc0?_pc0.scrollTop:0;
   if (!S.user) { if (S.loginView==='forgot') { app.innerHTML = renderForgotPassword(); return; } if (S.loginView==='reset') { app.innerHTML = renderResetPassword(); return; } app.innerHTML = renderLogin(); return; }
   app.innerHTML = (S.rdSyncing ? '<div class="sync-bar active"></div>' : '') + '<div id="mob-ham" onclick="toggleMobSB()">☰</div>'
     + '<button id="cap-fab" onclick="nav(\'vera\')" title="Sr. Performance" style="position:fixed;bottom:72px;right:18px;z-index:500;width:54px;height:54px;border-radius:50%;background:var(--navy);color:#fff;font-size:22px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35);transition:transform .2s" onmouseover="this.style.transform=\'scale(1.1)\'" onmouseout="this.style.transform=\'scale(1)\'">🫡</button>'
@@ -10246,6 +10247,7 @@ function render() {
     + '<div class="main"><div id="hdr-wrap" style="position:sticky;top:0;z-index:100">'+renderHDR()+'</div>'
     + '<div id="pc" class="page-content">'+safeRoute()+'</div></div></div>';
   saveState();
+  var _pc1=document.getElementById('pc');if(_pc1)_pc1.scrollTop=_scr;
 }
 
 
