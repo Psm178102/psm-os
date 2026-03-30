@@ -1535,7 +1535,7 @@ var pgWarArena = function(){
   var currentTime = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
   // ===== AGGREGATE DATA FROM BROKERS (real-time RD CRM) + metaIndiv (1:1 metas) =====
-  var frentes = {lancamento:{name:'\ud83c\udfc6 Equipe MAP',icon:'\ud83d\udcca',color:'#6366f1',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]},conquista:{name:'Conquista',icon:'\ud83c\udfc6',color:'#f59e0b',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]},terceiros:{name:'Terceiros',icon:'\ud83d\udc9c',color:'#a855f7',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]}};
+  var frentes = {lancamento:{name:'\ud83c\udfc6 Equipe MAP',icon:'\ud83d\udcca',color:'#6366f1',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]},conquista:{name:'\ud83c\udfc6 Equipe Conquista',icon:'\ud83c\udfc6',color:'#f59e0b',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]},terceiros:{name:'\ud83c\udfc6 Equipe Terceiros',icon:'\ud83c\udfc6',color:'#a855f7',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]}};
   var allCorretores = [];
   var totalVGV=0, totalVendas=0, totalMeta=0, totalVis=0, totalProp=0, totalLig=0;
   var onlineCount = 0;
@@ -1544,6 +1544,7 @@ var pgWarArena = function(){
 
   BROKERS.forEach(function(u){
     if(u.role!=='corretor' && u.role!=='lider') return;
+    if(u.name && u.name.indexOf('Yara') !== -1) return;
     if(!u.frente) return;
     var uVGV = u.vgv_real||0;
     var uVendas = u.vendas||0;
@@ -1591,7 +1592,7 @@ var pgWarArena = function(){
 
   // Sort corretores by score
   allCorretores.sort(function(a,b){ return b.score - a.score; });
-  allCorretores = allCorretores.filter(function(c){ return c.name.indexOf('Yara') === -1; });
+  
   Object.keys(frentes).forEach(function(k){ frentes[k].corretores.sort(function(a,b){ return b.score - a.score; }); });
 
   // Sort frentes by VGV for ranking
