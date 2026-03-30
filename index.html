@@ -1518,7 +1518,8 @@ function fmt$(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
 // FUNCTION 1: pgWarRoom() — EXECUTIVE COMMAND CENTER
 // ============================================================================
 // ===============================================
-// WAR ARENA PSM — PAGINA UNIFICADA
+// WAR ARENA PSM â PAGINA UNIFICADA (substitui pgWarRoom + pgWarArena antigos)
+// Usa BROKERS (dados reais RD CRM) + S.metaIndiv (metas One on One)
 // ===============================================
 var pgWarArena = function(){
   if(!S.user) return '<div style="padding:40px;text-align:center;color:var(--muted)">Fa\u00e7a login para acessar a War Arena</div>';
@@ -1526,28 +1527,43 @@ var pgWarArena = function(){
   var lvl = RLVL[S.user.role] || 0;
   var h = '';
   var now = new Date();
+  var mes = now.getMonth() + 1;
   var currentMonth = now.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   var currentTime = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+  // ===== AGGREGATE DATA FROM BROKERS (real-time RD CRM) + metaIndiv (1:1 metas) =====
   var frentes = {lancamento:{name:'MAP / Assessoria',icon:'\ud83d\udcca',color:'#6366f1',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]},conquista:{name:'Conquista',icon:'\ud83c\udfc6',color:'#f59e0b',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]},terceiros:{name:'Terceiros',icon:'\ud83d\udc9c',color:'#a855f7',vendas:0,vgv:0,meta:0,vis:0,prop:0,lig:0,crm:0,corretores:[]}};
   var allCorretores = [];
   var totalVGV=0, totalVendas=0, totalMeta=0, totalVis=0, totalProp=0, totalLig=0;
   var onlineCount = 0;
   var eventos = [];
-  USERS_BASE.forEach(function(u){
+  var mi = S.metaIndiv || {};
+
+  BROKERS.forEach(function(u){
     if(u.role!=='corretor' && u.role!=='lider') return;
     if(!u.frente) return;
-    var uVGV = (u.vgv_real||0) || (u.vgv||0);
-    var uVendas = u.vendas||0;
+    var uVGV = u.vgv||0;
+    var uVendas = u.vend||0;
     var uMeta = u.meta||0;
     var uVis = u.vis||0;
     var uProp = u.prop||0;
     var uLig = u.lig||0;
     var uCRM = u.crm||0;
     var uAgend = u.agend||0;
+    // Enrich with metaIndiv data from One on One
+    var miu = mi[u.id] && mi[u.id][mes] ? mi[u.id][mes] : {};
+    var miVgvMeta = miu.vgv_meta||0;
+    var miVisitas = miu.visitas||0;
+    var miCaptacoes = miu.captacoes||0;
+    var miPastasLanc = miu.pastas_lanc||0;
+    // Use metaIndiv vgv_meta if BROKERS meta is 0
+    if(uMeta === 0 && miVgvMeta > 0) uMeta = miVgvMeta;
     var metaPct = uMeta > 0 ? Math.round(uVGV/uMeta*100) : 0;
-    var score = uVendas*30 + uVis*5 + uProp*10 + uAgend*3 + uLig*0.5 + uCRM*2;
-    var cData = {id:u.id, name:u.name, ini:u.ini||u.name.substring(0,2).toUpperCase(), color:u.color||'#6366f1', frente:u.frente, vendas:uVendas, vgv:uVGV, meta:uMeta, metaPct:metaPct, vis:uVis, prop:uProp, lig:uLig, crm:uCRM, agend:uAgend, score:Math.round(score), st:u.st||'offline'};
+    var score = uVendas*30 + uVis*5 + uProp*10 + uAgend*3 + uLig*0.5 + uCRM*2 + miCaptacoes*2;
+
+    var cData = {id:u.id, name:u.name, ini:u.ini||u.name.substring(0,2).toUpperCase(), color:u.color||'#6366f1', frente:u.frente, vendas:uVendas, vgv:uVGV, meta:uMeta, metaPct:metaPct, vis:uVis, prop:uProp, lig:uLig, crm:uCRM, agend:uAgend, captacoes:miCaptacoes, pastasLanc:miPastasLanc, score:Math.round(score), st:u.st||'offline'};
     allCorretores.push(cData);
+
     if(frentes[u.frente]){
       var f = frentes[u.frente];
       f.vendas += uVendas; f.vgv += uVGV; f.meta += uMeta; f.vis += uVis; f.prop += uProp; f.lig += uLig; f.crm += uCRM;
@@ -1555,24 +1571,35 @@ var pgWarArena = function(){
     }
     totalVGV += uVGV; totalVendas += uVendas; totalMeta += uMeta; totalVis += uVis; totalProp += uProp; totalLig += uLig;
     if(u.st==='online') onlineCount++;
+
+    // Build events for marquee
     if(uVendas > 0) eventos.push('\ud83c\udfc6 ' + u.name + ' fechou ' + uVendas + ' venda' + (uVendas>1?'s':'') + '!');
     if(uVis > 0) eventos.push('\ud83c\udfe0 ' + u.name + ' realizou ' + uVis + ' visita' + (uVis>1?'s':''));
     if(uProp > 0) eventos.push('\ud83d\udcdd ' + u.name + ' enviou ' + uProp + ' proposta' + (uProp>1?'s':''));
     if(metaPct >= 100) eventos.push('\ud83d\ude80 ' + u.name + ' bateu ' + metaPct + '% da meta!');
+    if(miCaptacoes > 0) eventos.push('\ud83d\udcde ' + u.name + ': ' + miCaptacoes + ' capta\u00e7\u00f5es');
   });
+
+  // Sort corretores by score
   allCorretores.sort(function(a,b){ return b.score - a.score; });
   Object.keys(frentes).forEach(function(k){ frentes[k].corretores.sort(function(a,b){ return b.score - a.score; }); });
+
+  // Sort frentes by VGV for ranking
   var frentesArr = ['lancamento','conquista','terceiros'].map(function(k){ var f=frentes[k]; f.key=k; f.metaPct=f.meta>0?Math.round(f.vgv/f.meta*100):0; return f; });
   frentesArr.sort(function(a,b){ return b.vgv - a.vgv; });
+
   var metaGlobalPct = totalMeta > 0 ? Math.round(totalVGV/totalMeta*100) : 0;
+
   // Alertas
   var alertas = [];
   var semVenda = allCorretores.filter(function(c){ return c.vendas===0; });
   if(semVenda.length > 0) alertas.push({tipo:'warn', msg:semVenda.length + ' corretor' + (semVenda.length>1?'es':'') + ' com 0 vendas este m\u00eas'});
-  frentesArr.forEach(function(f){ if(f.metaPct >= 100) alertas.push({tipo:'ok', msg:f.name + ' ' + f.metaPct + '% acima da meta!'}); });
+  frentesArr.forEach(function(f){ if(f.metaPct >= 100) alertas.push({tipo:'ok', msg:f.name + ' ' + f.metaPct + '% da meta!'}); });
   frentesArr.forEach(function(f){ if(f.metaPct < 50 && f.meta > 0) alertas.push({tipo:'danger', msg:f.name + ' apenas ' + f.metaPct + '% da meta \u2014 aten\u00e7\u00e3o!'}); });
   var semVisita = allCorretores.filter(function(c){ return c.vis===0; });
   if(semVisita.length > 0) alertas.push({tipo:'warn', msg:semVisita.length + ' corretor' + (semVisita.length>1?'es':'') + ' sem visitas registradas'});
+  var semCRM = allCorretores.filter(function(c){ return c.crm===0; });
+  if(semCRM.length > 0) alertas.push({tipo:'warn', msg:semCRM.length + ' corretor' + (semCRM.length>1?'es':'') + ' sem atividade no CRM'});
 
   // Add default marquee events
   if(eventos.length === 0){
@@ -1593,7 +1620,7 @@ var pgWarArena = function(){
   h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
   h += '<div>';
   h += '<h1 style="font-size:28px;font-weight:800;margin:0;color:var(--gold2)">\u2694\ufe0f WAR ARENA PSM</h1>';
-  h += '<div style="color:var(--muted);font-size:13px">Central de Performance & Gamifica\u00e7\u00e3o</div>';
+  h += '<div style="color:var(--muted);font-size:13px">Central de Performance & Gamifica\u00e7\u00e3o \u2014 Dados em tempo real</div>';
   h += '</div>';
   h += '<div style="display:flex;align-items:center;gap:16px">';
   h += '<span style="color:var(--muted);font-size:13px">\ud83d\udcc5 ' + currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1) + '</span>';
@@ -1607,7 +1634,6 @@ var pgWarArena = function(){
   eventos.forEach(function(ev){
     h += '<span style="margin-right:60px;font-size:14px;font-weight:600;color:var(--cream)">' + ev + '</span>';
   });
-  // Duplicate for seamless loop
   eventos.forEach(function(ev){
     h += '<span style="margin-right:60px;font-size:14px;font-weight:600;color:var(--cream)">' + ev + '</span>';
   });
@@ -1618,7 +1644,7 @@ var pgWarArena = function(){
   var kpis = [
     {icon:'\ud83d\udcb0',val:fmt(totalVGV),lbl:'VGV Realizado',sub:totalMeta>0?'de '+fmt(totalMeta):''},
     {icon:'\ud83c\udfc6',val:String(totalVendas),lbl:'Vendas Total',sub:'opera\u00e7\u00f5es'},
-    {icon:'\ud83c\udfaf',val:metaGlobalPct + '%',lbl:'Meta Global',sub:metaGlobalPct>=100?'acima \ud83d\ude80':'em progresso'},
+    {icon:'\ud83c\udfaf',val:metaGlobalPct + '%',lbl:'Meta Global',sub:metaGlobalPct>=100?'\ud83d\ude80 Batida!':'em progresso'},
     {icon:'\ud83c\udfe0',val:String(totalVis),lbl:'Visitas',sub:'realizadas'},
     {icon:'\ud83d\udcdd',val:String(totalProp),lbl:'Propostas',sub:'enviadas'},
     {icon:'\ud83d\udfe2',val:onlineCount + '/' + allCorretores.length,lbl:'Online',sub:'agora'}
@@ -1628,12 +1654,12 @@ var pgWarArena = function(){
     h += '<div style="font-size:20px;margin-bottom:4px">' + k.icon + '</div>';
     h += '<div style="font-size:22px;font-weight:800;color:var(--cream)">' + k.val + '</div>';
     h += '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px">' + k.lbl + '</div>';
-    if(k.sub) h += '<div style="font-size:11px;color:var(-gold2);margin-top:2px">' + k.sub + '</div>';
+    if(k.sub) h += '<div style="font-size:11px;color:var(--gold2);margin-top:2px">' + k.sub + '</div>';
     h += '</div>';
   });
   h += '</div>';
 
-  // ===== BATALHA DE FRENTES â CARDS LADO A LADO =====
+  // ===== BATALHA DE FRENTES =====
   h += '<div style="margin-bottom:24px">';
   h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 12px">\u2694\ufe0f Batalha de Frentes</h2>';
   h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">';
@@ -1643,30 +1669,22 @@ var pgWarArena = function(){
     var isFirst = fi === 0 && f.vgv > 0;
     var borderColor = isFirst ? f.color : 'var(--navy3)';
     h += '<div style="background:var(--navy2);border:2px solid ' + borderColor + ';border-radius:16px;padding:20px;position:relative;' + (isFirst?'box-shadow:0 0 20px '+f.color+'33;':'') + '">';
-
-    // Medal + Name
     h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">';
     if(f.vgv > 0) h += '<span style="font-size:24px">' + medalhas[fi] + '</span>';
     h += '<div>';
     h += '<div style="font-size:16px;font-weight:700;color:var(--cream)">' + f.icon + ' ' + f.name + '</div>';
     h += '<div style="font-size:11px;color:var(--muted)">' + f.corretores.length + ' combatentes</div>';
     h += '</div></div>';
-
-    // Metrics
     h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
     h += '<div style="background:var(--navy);border-radius:8px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:800;color:var(--gold2)">' + fmt(f.vgv) + '</div><div style="font-size:10px;color:var(--muted)">VGV</div></div>';
     h += '<div style="background:var(--navy);border-radius:8px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:800;color:var(--cream)">' + f.vendas + '</div><div style="font-size:10px;color:var(--muted)">Vendas</div></div>';
     h += '<div style="background:var(--navy);border-radius:8px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:800;color:var(--cream)">' + f.vis + '</div><div style="font-size:10px;color:var(--muted)">Visitas</div></div>';
     h += '<div style="background:var(--navy);border-radius:8px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:800;color:var(--cream)">' + f.prop + '</div><div style="font-size:10px;color:var(--muted)">Propostas</div></div>';
     h += '</div>';
-
-    // Meta progress
     h += '<div style="margin-bottom:12px">';
     h += '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px"><span>Meta</span><span style="color:' + (f.metaPct>=100?'var(--g)':'var(--gold2)') + ';font-weight:700">' + f.metaPct + '%</span></div>';
     h += '<div style="background:var(--navy);border-radius:4px;height:6px;overflow:hidden"><div style="height:100%;width:' + Math.min(100,f.metaPct) + '%;background:' + f.color + ';border-radius:4px;transition:width .5s"></div></div>';
     h += '</div>';
-
-    // Top 3 corretores
     h += '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Top Corretores</div>';
     f.corretores.slice(0,3).forEach(function(c, ci){
       var rank = ci + 1;
@@ -1675,7 +1693,7 @@ var pgWarArena = function(){
       h += '<span style="font-size:14px">' + rankIcon + '</span>';
       h += '<div style="width:28px;height:28px;border-radius:50%;background:' + c.color + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">' + c.ini + '</div>';
       h += '<div style="flex:1;font-size:13px;font-weight:600;color:var(--cream)">' + c.name + '</div>';
-      h += '<div style="font-size:12px;font-weight:700;color:var(--gold2)">' + c.vendas + ' vnd</div>';
+      h += '<div style="font-size:12px;font-weight:700;color:var(--gold2)">' + c.score + ' pts</div>';
       h += '</div>';
     });
     if(f.corretores.length === 0){
@@ -1687,8 +1705,6 @@ var pgWarArena = function(){
 
   // ===== RANKING GERAL =====
   h += '<div style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:16px;margin-bottom:24px">';
-
-  // LEFT: Full ranking table
   h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:16px;padding:20px">';
   h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 12px">\ud83c\udfc6 Ranking Geral <span style="font-size:12px;font-weight:400;color:var(--muted)">por score</span></h2>';
   h += '<table style="width:100%;border-collapse:collapse">';
@@ -1725,7 +1741,7 @@ var pgWarArena = function(){
   });
   h += '</table></div>';
 
-  // RIGHT: Alerts + Pulse
+  // RIGHT: Alerts + Feedback
   h += '<div style="display:flex;flex-direction:column;gap:16px">';
 
   // Alertas
@@ -1744,12 +1760,12 @@ var pgWarArena = function(){
   }
   h += '</div>';
 
-  // Performance Individual (gestor view)
+  // Feedback Rapido (gestor view)
   if(lvl >= 5){
     h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:16px;padding:20px">';
     h += '<h2 style="font-size:16px;font-weight:700;color:var(--cream);margin:0 0 12px">\ud83d\udcac Feedback R\u00e1pido</h2>';
     h += '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Clique no corretor para abrir 1:1</div>';
-    allCorretores.slice(0,5).forEach(function(c, ci){
+    allCorretores.slice(0,5).forEach(function(c){
       var trend = c.vendas > 0 ? '\ud83d\udcc8' : '\ud83d\udcc9';
       var streak = c.vendas >= 3 ? '\ud83d\udd25' : c.vendas >= 1 ? '\u2b50' : '\u26a0\ufe0f';
       h += '<div onclick="S.ooBroker=\'' + c.id + '\';S.page=\'oneonone\';render();" style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;cursor:pointer;margin-bottom:4px;transition:background .2s" onmouseover="this.style.background=\'var(--navy)\'" onmouseout="this.style.background=\'transparent\'">';
@@ -1763,29 +1779,26 @@ var pgWarArena = function(){
     h += '</div>';
   }
 
-  h += '</div>'; // end right column
-  h += '</div>'; // end grid
+  h += '</div>';
+  h += '</div>';
 
   // ===== META & FORECAST =====
   h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:16px;padding:20px;margin-bottom:24px">';
   h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 16px">\ud83c\udfaf Meta & Forecast</h2>';
   h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px">';
 
-  // Progress bar
   h += '<div style="grid-column:span 2">';
   h += '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:8px"><span>Progresso Global</span><span style="font-weight:700;color:' + (metaGlobalPct>=100?'var(--g)':'var(--gold2)') + '">' + metaGlobalPct + '%</span></div>';
   h += '<div style="background:var(--navy);border-radius:6px;height:12px;overflow:hidden"><div style="height:100%;width:' + Math.min(100,metaGlobalPct) + '%;background:linear-gradient(90deg,var(--gold2),var(--g));border-radius:6px;transition:width .5s"></div></div>';
   h += '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px"><span>' + fmt(totalVGV) + '</span><span>' + fmt(totalMeta) + '</span></div>';
   h += '</div>';
 
-  // Gap
   var gap = totalMeta - totalVGV;
   h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center">';
   h += '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Gap Restante</div>';
-  h += '<div style="font-size:20px;font-weight:800;color:' + (gap<=0?'var(--g)':'var(--r)') + '">' + (gap<=0?'R$ 0':fmt(gap)) + '</div>';
+  h += '<div style="font-size:20px;font-weight:800;color:' + (gap<=0?'var(--g)':'var(--r)') + '">' + (gap<=0?'\u2014':fmt(gap)) + '</div>';
   h += '</div>';
 
-  // Days left
   var lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
   var daysLeft = lastDay - now.getDate();
   h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center">';
@@ -1794,10 +1807,9 @@ var pgWarArena = function(){
   h += '</div>';
 
   h += '</div></div>';
+  h += '</div>';
 
-  h += '</div>'; // end main padding wrapper
-
-  // ===== INJECT MARQUEE CSS =====
+  // INJECT MARQUEE CSS
   if(!document.getElementById('warArenaCSS')){
     var style = document.createElement('style');
     style.id = 'warArenaCSS';
@@ -1809,6 +1821,7 @@ var pgWarArena = function(){
 };
 
 var pgWarRoom = pgWarArena;
+
 
 
 function fmtN(v){return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
