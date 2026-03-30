@@ -1542,8 +1542,8 @@ var pgWarArena = function(){
   BROKERS.forEach(function(u){
     if(u.role!=='corretor' && u.role!=='lider') return;
     if(!u.frente) return;
-    var uVGV = u.vgv||0;
-    var uVendas = u.vend||0;
+    var uVGV = u.vgv_real||0;
+    var uVendas = u.vendas||0;
     var uMeta = u.meta||0;
     var uVis = u.vis||0;
     var uProp = u.prop||0;
