@@ -1524,7 +1524,9 @@ function fmt$(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
 // ===============================================
 var pgWarArena = function(){
   if(!S.user) return '<div style="padding:40px;text-align:center;color:var(--muted)">Fa\u00e7a login para acessar a War Arena</div>';
-  var perfil = getPerfil(S.user.id);
+  if(!S.df_war) S.df_war = {preset:'Mes'};
+  recalcBrokerMetrics('war');
+    var perfil = getPerfil(S.user.id);
   var lvl = RLVL[S.user.role] || 0;
   var h = '';
   var now = new Date();
@@ -1644,7 +1646,22 @@ var pgWarArena = function(){
   });
   h += '</div></div>';
 
-  // KPI STRIP
+  // DATE FILTER
+  h += '<div style="margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+  var warDF = S.df_war || {preset:'Mes'};
+  var warPresets = [{id:'Mes',lbl:'M\u00eas Atual'},{id:'Ano',lbl:'Ano Acumulado'},{id:'30D',lbl:'30 Dias'},{id:'90D',lbl:'90 Dias'},{id:'Custom',lbl:'Per\u00edodo'}];
+  warPresets.forEach(function(p){
+    var active = warDF.preset === p.id;
+    h += '<button onclick="S.df_war={preset:\x27'+p.id+'\x27};render()" style="padding:6px 14px;border-radius:8px;border:1px solid '+(active?'var(--gold)':'rgba(255,255,255,.1)')+';background:'+(active?'rgba(212,168,67,.15)':'rgba(255,255,255,.03)')+';color:'+(active?'var(--gold)':'var(--muted)')+';font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer">'+p.lbl+'</button>';
+  });
+  if(warDF.preset==='Custom'){
+    h += '<input type="date" value="'+(warDF.from||'')+'" onchange="var d=S.df_war||{};d.from=this.value;d.preset=\x27Custom\x27;S.df_war=d;render()" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:var(--cream);font-size:11px">';
+    h += '<span style="color:var(--muted);font-size:11px">at\u00e9</span>';
+    h += '<input type="date" value="'+(warDF.to||'')+'" onchange="var d=S.df_war||{};d.to=this.value;d.preset=\x27Custom\x27;S.df_war=d;render()" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:var(--cream);font-size:11px">';
+  }
+  h += '</div>';
+
+    // KPI STRIP
   h += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px">';
   var kpis = [
     {icon:'\ud83d\udcb0',val:fmt(totalVGV),lbl:'VGV Realizado',sub:totalMeta>0?'de '+fmt(totalMeta):''},
@@ -2860,7 +2877,7 @@ const RD = {
               console.log('[RD sync] Linked', existing.name, 'to rdId', rdId);
             } else if (!existing) {
               // New user from RD — add them
-              const nameParts = (rdu.name || '').split(' ');
+              const nameParts = (rdu.name || '').trim().split(/\s+/).filter(function(p){return p;});
               const ini = nameParts.length >= 2
                 ? (nameParts[0][0] + nameParts[nameParts.length-1][0]).toUpperCase()
                 : (rdu.nickname || rdu.name || 'XX').slice(0,2).toUpperCase();
@@ -3189,6 +3206,9 @@ function applyDateFilter(deals, prefix) {
   if (df.preset === 'Custom') {
     from = df.from ? new Date(df.from) : new Date(now.getFullYear(), 0, 1);
     to = df.to ? new Date(df.to + 'T23:59:59') : now;
+  } else if (df.preset === 'Mes') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    to = now;
   } else if (df.preset === 'Ano') {
     from = new Date(now.getFullYear(), 0, 1);
     to = now;
