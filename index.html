@@ -9239,6 +9239,7 @@ if(!S.adsData) S.adsData=null;
 if(!S.adsPeriod) S.adsPeriod='last_30d';
 if(!S.adsSince) S.adsSince='';
 if(!S.adsUntil) S.adsUntil='';
+if(S.adsOnlyActive===undefined) S.adsOnlyActive=true;
 
 // ===== AUTO-FETCH =====
 if(!S.adsLoading && !S.adsData && !S.adsError){
@@ -9290,6 +9291,7 @@ var allCamps=d.campaigns||[];
 var tab=S.adsTab;
 var acctFilter=S.adsAcct;
 var camps=acctFilter==='all'?allCamps:allCamps.filter(function(c){return c.account===acctFilter;});
+if(S.adsOnlyActive) camps=camps.filter(function(c){return c.status==='active';});
 
 // ===== HELPERS =====
 function fmt(n){if(n===undefined||n===null)return'â';return 'R$ '+Math.round(n).toLocaleString('pt-BR');}
@@ -9407,6 +9409,7 @@ var sidebar='<div style="width:220px;min-width:220px;background:#0f172a;border-r
 // ===== HEADER BAR =====
 var acctCount='<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#0f172a;border:1px solid #1e293b;border-radius:8px;font-size:11px;color:#94a3b8"><span style="width:7px;height:7px;border-radius:50%;background:#10b981"></span>'+activeAccts+' contas ativas</span>';
 var refreshBtn='<button onclick="S.adsData=null;S.adsLoading=false;S.adsError=null;render()" style="padding:6px 14px;border:1px solid #1e293b;border-radius:8px;font-size:11px;cursor:pointer;background:#0f172a;color:#94a3b8;font-weight:500">\u21BB Atualizar</button>';
+var activeToggle='<button onclick="S.adsOnlyActive=!S.adsOnlyActive;render()" style="padding:6px 14px;border-radius:8px;border:1px solid '+(S.adsOnlyActive?'#22c55e':'#555')+';background:'+(S.adsOnlyActive?'#22c55e':'transparent')+';color:'+(S.adsOnlyActive?'#fff':'#aaa')+';cursor:pointer;font-size:13px;margin-left:8px">'+(S.adsOnlyActive?'\u2705 Apenas Ativas':'\ud83d\udcca Todas')+'</button>';
 var tvBtn='<button onclick="document.documentElement.requestFullscreen();S.adsTvMode=!S.adsTvMode;if(S.adsTvMode){window._adsTvRotate=setInterval(function(){var ts=[\'visao\',\'metricas\',\'campanhas\',\'okrs\',\'pressao\'];var ci=ts.indexOf(S.adsTab);S.adsTab=ts[(ci+1)%ts.length];try{render();}catch(e){}},15000);}else{clearInterval(window._adsTvRotate);window._adsTvRotate=null;}render()" style="padding:6px 14px;border:1px solid '+(S.adsTvMode?'#6366f1':'#1e293b')+';border-radius:8px;font-size:11px;cursor:pointer;background:'+(S.adsTvMode?'#6366f133':'#0f172a')+';color:'+(S.adsTvMode?'#818cf8':'#94a3b8')+';font-weight:500">\uD83D\uDCFA '+(S.adsTvMode?'Sair TV':'Modo TV')+'</button>';
 // === PERIOD FILTER + AUTO-REFRESH ===
 var _pLbls={last_7d:'7 dias',last_14d:'14 dias',last_30d:'30 dias',this_month:'M\u00eas atual',last_90d:'90 dias',maximum:'Tudo'};
@@ -9438,7 +9441,7 @@ var headerBar='<div style="display:flex;align-items:center;justify-content:space
     +'<div style="font-size:20px;font-weight:700;color:#e2e8f0">'+pageTitle+'</div>'
     +'<div style="font-size:11px;color:#64748b;margin-top:2px">\u00B7 '+(acctFilter==='all'?'Todas as contas':acctFilter)+' \u00B7 '+_pLbl+'</div>'
   +'</div>'
-  +'<div style="display:flex;align-items:center;gap:8px">'+acctSelect+acctCount+refreshBtn+' '+tvBtn+'</div>'
+  +'<div style="display:flex;align-items:center;gap:8px">'+acctSelect+acctCount+refreshBtn+' '+activeToggle+' '+tvBtn+'</div>'
 +periodSelector
 +'</div>';
 
@@ -9473,7 +9476,7 @@ else if(tab==='metricas'){
   +'</div>';
 
   var mRows=(d.accounts||[]).map(function(a){
-    var aCamps=allCamps.filter(function(c){return c.account===a.label;});
+    var aCamps=allCamps.filter(function(c){return c.account===a.label&&(!S.adsOnlyActive||c.status==='active');});
     var aSpend=0,aImpr=0,aClicks=0,aResults=0,aReach=0,aViews=0,aV25=0,aV75=0;
     aCamps.forEach(function(c){aSpend+=c.spend||0;aImpr+=c.impressions||0;aClicks+=c.clicks||0;aResults+=c.results||0;aReach+=c.reach||0;aViews+=c.views||0;aV25+=c.v25||0;aV75+=c.v75||0;});
     var aCTR=aImpr>0?(aClicks/aImpr*100):0;
