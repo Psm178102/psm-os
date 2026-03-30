@@ -9236,11 +9236,14 @@ if(!S.adsAcct) S.adsAcct='all';
 if(!S.adsSort) S.adsSort='spend';
 if(!S.adsSortDir) S.adsSortDir='desc';
 if(!S.adsData) S.adsData=null;
+if(!S.adsPeriod) S.adsPeriod='last_30d';
+if(!S.adsSince) S.adsSince='';
+if(!S.adsUntil) S.adsUntil='';
 
 // ===== AUTO-FETCH =====
 if(!S.adsLoading && !S.adsData && !S.adsError){
   S.adsLoading=true;
-  fetch('/api/meta-ads')
+  fetch('/api/meta-ads?date_preset='+encodeURIComponent(S.adsPeriod)+(S.adsSince?'&since='+S.adsSince:'')+(S.adsUntil?'&until='+S.adsUntil:''))
     .then(function(r){return r.json();})
     .then(function(data){
       S.adsLoading=false;
@@ -9404,6 +9407,17 @@ var sidebar='<div style="width:220px;min-width:220px;background:#0f172a;border-r
 // ===== HEADER BAR =====
 var acctCount='<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#0f172a;border:1px solid #1e293b;border-radius:8px;font-size:11px;color:#94a3b8"><span style="width:7px;height:7px;border-radius:50%;background:#10b981"></span>'+activeAccts+' contas ativas</span>';
 var refreshBtn='<button onclick="S.adsData=null;S.adsLoading=false;S.adsError=null;render()" style="padding:6px 14px;border:1px solid #1e293b;border-radius:8px;font-size:11px;cursor:pointer;background:#0f172a;color:#94a3b8;font-weight:500">\u21BB Atualizar</button>';
+var tvBtn='<button onclick="document.documentElement.requestFullscreen();S.adsTvMode=!S.adsTvMode;if(S.adsTvMode){window._adsTvRotate=setInterval(function(){var ts=[\'visao\',\'metricas\',\'campanhas\',\'okrs\',\'pressao\'];var ci=ts.indexOf(S.adsTab);S.adsTab=ts[(ci+1)%ts.length];try{render();}catch(e){}},15000);}else{clearInterval(window._adsTvRotate);window._adsTvRotate=null;}render()" style="padding:6px 14px;border:1px solid '+(S.adsTvMode?'#6366f1':'#1e293b')+';border-radius:8px;font-size:11px;cursor:pointer;background:'+(S.adsTvMode?'#6366f133':'#0f172a')+';color:'+(S.adsTvMode?'#818cf8':'#94a3b8')+';font-weight:500">\uD83D\uDCFA '+(S.adsTvMode?'Sair TV':'Modo TV')+'</button>';
+// === PERIOD FILTER + AUTO-REFRESH ===
+var _pLbls={last_7d:'7 dias',last_14d:'14 dias',last_30d:'30 dias',this_month:'M\u00eas atual',last_90d:'90 dias',maximum:'Tudo'};
+var _pLbl=S.adsSince?(S.adsSince+' a '+(S.adsUntil||'hoje')):(_pLbls[S.adsPeriod]||S.adsPeriod);
+var _pLblUp=_pLbl.toUpperCase();
+var periodSelector='<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px">';
+['last_7d','last_14d','last_30d','this_month','last_90d','maximum'].forEach(function(p){var sel=S.adsPeriod===p&&!S.adsSince;periodSelector+='<button onclick="S.adsPeriod=\''+p+'\';S.adsSince=\'\';S.adsUntil=\'\';S.adsData=null;S.adsLoading=false;S.adsError=null;render()" style="padding:3px 10px;border-radius:6px;font-size:10px;cursor:pointer;border:1px solid '+(sel?'#6366f1':'#1e293b')+';background:'+(sel?'#6366f122':'#0f172a')+';color:'+(sel?'#818cf8':'#64748b')+';font-weight:'+(sel?'700':'400')+'">'+ _pLbls[p]+'</button>';});
+periodSelector+='<button onclick="var s=prompt(\'Inicio (YYYY-MM-DD):\');if(!s)return;var u=prompt(\'Fim (YYYY-MM-DD, vazio=hoje):\');S.adsSince=s;S.adsUntil=u||\'\';S.adsPeriod=\'custom\';S.adsData=null;S.adsLoading=false;S.adsError=null;render()" style="padding:3px 10px;border-radius:6px;font-size:10px;cursor:pointer;border:1px solid '+(S.adsSince?'#6366f1':'#1e293b')+';background:'+(S.adsSince?'#6366f122':'#0f172a')+';color:'+(S.adsSince?'#818cf8':'#64748b')+'">Custom</button>';
+periodSelector+='</div>';
+if(!window._adsAutoRefresh){window._adsAutoRefresh=setInterval(function(){if(S.page==='metaads'){S.adsData=null;S.adsLoading=false;S.adsError=null;try{render();}catch(e){}}},300000);}
+
 
 // Account filter
 var acctOpts=['all'];
@@ -9422,9 +9436,10 @@ if(findTab&&findTab.lbl)pageTitle=findTab.lbl;
 var headerBar='<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid #1e293b">'
   +'<div>'
     +'<div style="font-size:20px;font-weight:700;color:#e2e8f0">'+pageTitle+'</div>'
-    +'<div style="font-size:11px;color:#64748b;margin-top:2px">\u00B7 '+(acctFilter==='all'?'Todas as contas':acctFilter)+' \u00B7 30 dias</div>'
+    +'<div style="font-size:11px;color:#64748b;margin-top:2px">\u00B7 '+(acctFilter==='all'?'Todas as contas':acctFilter)+' \u00B7 '+_pLbl+'</div>'
   +'</div>'
-  +'<div style="display:flex;align-items:center;gap:8px">'+acctSelect+acctCount+refreshBtn+'</div>'
+  +'<div style="display:flex;align-items:center;gap:8px">'+acctSelect+acctCount+refreshBtn+' '+tvBtn+'</div>'
++periodSelector
 +'</div>';
 
 // ===== CONTENT AREA =====
@@ -9491,7 +9506,7 @@ else if(tab==='metricas'){
 
   var metricTable='<div style="background:#1e293b;border-radius:12px;border:1px solid #334155;overflow:hidden">'
     +'<div style="padding:16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155">'
-      +'<div style="font-size:14px;font-weight:600;color:#e2e8f0">Todas as m\u00E9tricas \u2014 30 dias</div>'
+      +'<div style="font-size:14px;font-weight:600;color:#e2e8f0">Todas as m\u00E9tricas \u2014 '+_pLbl+'</div>'
       +'<div style="font-size:10px;color:#64748b">Verde = bom \u00B7 Amarelo = aten\u00E7\u00E3o \u00B7 Vermelho = cr\u00EDtico</div>'
     +'</div>'
     +mHead+mRows
@@ -9560,7 +9575,7 @@ else if(tab==='campanhas'){
     +'</div>';
   }).join('');
 
-  content=sectionTitle('PERFORMANCE POR CAMPANHA \u2014 30 DIAS')
+  content=sectionTitle('PERFORMANCE POR CAMPANHA \u2014 '+_pLblUp+'')
     +'<div style="background:#1e293b;border-radius:12px;border:1px solid #334155;overflow:hidden">'
     +'<div style="padding:16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155">'
       +'<div style="font-size:14px;font-weight:600;color:#e2e8f0">M\u00E9tricas completas por campanha</div>'
@@ -9591,9 +9606,9 @@ else if(tab==='okrs'){
 
   var trendCards=[
     {lbl:'TEND\u00CANCIA DE LEADS',val:(trend7d>=0?'+':'')+trend7d.toFixed(2)+'%',sub:'\u00FAltimos 7d vs m\u00E9dia 30d',color:trend7d>=0?'#10b981':'#ef4444',border:trend7d>=0?'#10b981':'#ef4444'},
-    {lbl:'LEADS 30 DIAS',val:fmt(totResults),sub:'forms + whatsapp',color:'#e2e8f0',border:'#64748b'},
+    {lbl:'LEADS '+_pLblUp+'',val:fmt(totResults),sub:'forms + whatsapp',color:'#e2e8f0',border:'#64748b'},
     {lbl:'TEND\u00CANCIA GASTO',val:'\u2014',sub:'\u00FAltimos 7d vs m\u00E9dia 30d',color:'#64748b',border:'#64748b'},
-    {lbl:'GASTO 30 DIAS',val:fmtRShort(totSpend),sub:fmtR(totSpend),color:'#e2e8f0',border:'#64748b'}
+    {lbl:'GASTO '+_pLblUp+'',val:fmtRShort(totSpend),sub:fmtR(totSpend),color:'#e2e8f0',border:'#64748b'}
   ];
   var trendRow=trendCards.map(function(t){
     return '<div style="flex:1;min-width:150px;padding:16px;background:#1e293b;border-radius:10px;border:1px solid '+t.border+'33">'
@@ -9651,7 +9666,7 @@ else if(tab==='okrs'){
   ];
 
   var okrTable='<div style="background:#1e293b;border-radius:12px;border:1px solid #334155;overflow:hidden">'
-    +'<div style="padding:16px;display:flex;justify-content:space-between;border-bottom:1px solid #334155"><div style="font-size:14px;font-weight:600;color:#e2e8f0">Objetivos \u00D7 Resultados-Chave</div><div style="font-size:10px;color:#64748b">Refer\u00EAncia: 30 dias corridos</div></div>'
+    +'<div style="padding:16px;display:flex;justify-content:space-between;border-bottom:1px solid #334155"><div style="font-size:14px;font-weight:600;color:#e2e8f0">Objetivos \u00D7 Resultados-Chave</div><div style="font-size:10px;color:#64748b">Refer\u00EAncia: '+_pLbl+' corridos</div></div>'
     +'<div style="display:flex;padding:10px 16px;background:#0f172a;border-bottom:1px solid #334155;font-size:10px;font-weight:700;color:#64748b;letter-spacing:.5px"><div style="width:120px">OBJETIVO</div><div style="flex:1">KR \u2014 RESULTADO CHAVE</div><div style="width:80px;text-align:center">META</div><div style="width:80px;text-align:center">ATUAL</div><div style="width:120px;text-align:center">ATINGIMENTO</div><div style="width:80px;text-align:center">STATUS</div></div>';
 
   okrDetailRows.forEach(function(obj){
@@ -9675,7 +9690,7 @@ else if(tab==='okrs'){
     +alertsHtml
     +sectionTitle('TEND\u00CANCIA RECENTE (7D VS M\u00C9DIA DI\u00C1RIA 30D)')
     +'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px">'+trendRow+'</div>'
-    +sectionTitle('OKRS \u2014 METAS DO NEG\u00D3CIO (BASE: \u00DALTIMOS 30 DIAS)')
+    +sectionTitle('OKRS \u2014 METAS DO NEG\u00D3CIO (BASE: \u00DALTIMOS '+_pLblUp+')')
     +'<div style="font-size:11px;color:#64748b;margin-bottom:12px">Metas configuradas para o neg\u00F3cio PSM. Clique em qualquer meta para ajustar o valor alvo.</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px">'+okrCards+'</div>'
     +sectionTitle('DETALHAMENTO OKRS')
@@ -9740,7 +9755,7 @@ else if(tab==='publicos'){
     +lineRows
   +'</div>';
 
-  content=sectionTitle('TOP 5 P\u00DABLICOS POR CPL \u2014 30 DIAS')
+  content=sectionTitle('TOP 5 P\u00DABLICOS POR CPL \u2014 '+_pLblUp+'')
     +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">'+bestList+worstList+'</div>'
     +sectionTitle('PERFORMANCE POR LINHA DE PRODUTO / P\u00DABLICO')
     +lineTable;
