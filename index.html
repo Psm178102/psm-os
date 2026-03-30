@@ -1521,6 +1521,7 @@ function fmt$(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
 // WAR ARENA PSM — PAGINA UNIFICADA
 // ===============================================
 var pgWarArena = function(){
+  if(!S.user) return '<div style="padding:40px;text-align:center;color:var(--muted)">Fa\u00e7a login para acessar a War Arena</div>';
   var perfil = getPerfil(S.user.id);
   var lvl = RLVL[S.user.role] || 0;
   var h = '';
