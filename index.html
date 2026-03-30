@@ -1270,7 +1270,7 @@ function pgDashboard(){
   +'</div></div>';
 
   // ===== VENDAS DIRETORIA (somente diretores) =====
-  if(lvl >= 3) {
+  if((RLVL[S.user.role]||0) >= 3) {
     var dirVendas = fVENDAS.filter(function(v){
       return v.bid && BROKERS.filter(function(b){return b.id===v.bid && (b.role==='corretor'||b.role==='lider')}).length === 0;
     });
