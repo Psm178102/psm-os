@@ -935,6 +935,7 @@ function recalcBrokerMetrics(prefix) {
     b.crm = scores.length ? Math.round(scores.reduce((a,s) => a+s,0) / scores.length) : 60;
     b.conversionRate = (won.length + lost.length) > 0 ? parseFloat((won.length / (won.length + lost.length) * 100).toFixed(2)) : 0;
     b.volumeLeads = opps.length + won.length + lost.length;
+    b.staleCrm = opps.filter(function(o){return o.dnu >= 4;}).length;
   });
   
   // Recalc global metrics for this period
@@ -1559,9 +1560,13 @@ var pgWarArena = function(){
     // Use metaIndiv vgv_meta if BROKERS meta is 0
     if(uMeta === 0 && miVgvMeta > 0) uMeta = miVgvMeta;
     var metaPct = uMeta > 0 ? Math.round(uVGV/uMeta*100) : 0;
-    var score = uVendas*30 + uVis*5 + uProp*10 + uAgend*3 + uLig*0.5 + uCRM*2 + miCaptacoes*2;
+    var uStaleCrm = u.staleCrm||0;
+    var uDescartados = u.descartados||0;
+    var penCrm = uStaleCrm * 5;
+    var penDesc = uDescartados > 3 ? (uDescartados - 3) * 3 : 0;
+    var score = Math.max(0, uVendas*30 + uVis*5 + uProp*10 + uAgend*3 + uLig*0.5 + uCRM*2 + miCaptacoes*2 - penCrm - penDesc);
 
-    var cData = {id:u.id, name:u.name, ini:u.ini||u.name.substring(0,2).toUpperCase(), color:u.color||'#6366f1', frente:u.frente, vendas:uVendas, vgv:uVGV, meta:uMeta, metaPct:metaPct, vis:uVis, prop:uProp, lig:uLig, crm:uCRM, agend:uAgend, captacoes:miCaptacoes, pastasLanc:miPastasLanc, score:Math.round(score), st:u.st||'offline'};
+    var cData = {id:u.id, name:u.name, ini:u.ini||u.name.substring(0,2).toUpperCase(), color:u.color||'#6366f1', frente:u.frente, vendas:uVendas, vgv:uVGV, meta:uMeta, metaPct:metaPct, vis:uVis, prop:uProp, lig:uLig, crm:uCRM, agend:uAgend, captacoes:miCaptacoes, pastasLanc:miPastasLanc, score:Math.round(score), staleCrm:uStaleCrm, descartados:uDescartados, penCrm:penCrm, penDesc:penDesc, st:u.st||'offline'};
     allCorretores.push(cData);
 
     if(frentes[u.frente]){
@@ -1716,6 +1721,7 @@ var pgWarArena = function(){
   h += '<th style="padding:8px 4px;text-align:center">Propostas</th>';
   h += '<th style="padding:8px 4px;text-align:right">VGV</th>';
   h += '<th style="padding:8px 4px;text-align:right">Score</th>';
+  h += '<th style="padding:8px 4px;text-align:center;color:#ef4444">Puni\u00e7\u00f5es</th>';
   h += '</tr>';
 
   allCorretores.forEach(function(c, ci){
@@ -1737,6 +1743,14 @@ var pgWarArena = function(){
     h += '<td style="padding:10px 4px;text-align:center;color:var(--cream)">' + (c.prop||'\u2014') + '</td>';
     h += '<td style="padding:10px 4px;text-align:right;color:var(--gold2);font-weight:600">' + (c.vgv > 0 ? fmt(c.vgv) : '\u2014') + '</td>';
     h += '<td style="padding:10px 4px;text-align:right"><span style="background:' + (c.score>50?'var(--g)':c.score>20?'var(--gold2)':'var(--muted)') + ';color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700">' + c.score + '</span></td>';
+    var totalPen = (c.penCrm||0) + (c.penDesc||0);
+    h += '<td style="padding:8px 4px;text-align:center;font-size:11px">';
+    if(totalPen > 0) {
+      h += '<span style="color:#ef4444;font-weight:600">-' + totalPen + '</span>';
+      if(c.staleCrm > 0) h += '<div style="font-size:9px;color:#94a3b8">' + c.staleCrm + ' CRM stale</div>';
+      if(c.descartados > 3) h += '<div style="font-size:9px;color:#94a3b8">' + c.descartados + ' desc.</div>';
+    } else { h += '<span style="color:#22c55e">\u2014</span>'; }
+    h += '</td>';
     h += '</tr>';
   });
   h += '</table></div>';
