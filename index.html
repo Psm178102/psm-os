@@ -1210,7 +1210,7 @@ function frenteStats(){
 // ─── PAGE: DASHBOARD ─────────────────────────────────────────────────────────
 // ===== VENDAS DIRETORIA HELPER (retorna HTML para Dashboard) =====
 function renderVendasDiretoria(fV){
-  if((RLVL[S.user.role]||0) < 3) return '';
+  if(!S.user || (RLVL[S.user.role]||0) < 3) return '';
   var dirVendas = fV.filter(function(v){
     return v.bid && BROKERS.filter(function(b){return b.id===v.bid && (b.role==='corretor'||b.role==='lider')}).length === 0;
   });
