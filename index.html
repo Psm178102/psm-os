@@ -599,7 +599,7 @@ function toast(msg,tp=''){const w=el('toasts');const d=document.createElement('d
 // ─── FRENTES ─────────────────────────────────────────────────────────────────
 const FRENTES={
   lancamento:{id:'lancamento',label:'\ud83c\udfc6 Equipe MAP',icon:'🏢',color:'#0f172a'},
-  terceiros: {id:'terceiros', label:'\ud83c\udfc6 Equipe Terceiros',       icon:'🤝',color:'#15803d'},
+  terceiros: {id:'terceiros', label:'\ud83c\udfc6 Equipe Terceiros',       icon:'🏆',color:'#15803d'},
   locacao:   {id:'locacao',   label:'Locação',         icon:'🏘',color:'#1d4ed8'},
   conquista: {id:'conquista', label:'\ud83c\udfc6 Equipe Conquista',       icon:'🏆',color:'#dc2626'},
 };
@@ -1566,7 +1566,9 @@ var pgWarArena = function(){
     var uDescartados = u.descartados||0;
     var penCrm = uStaleCrm * 5;
     var penDesc = uDescartados > 3 ? (uDescartados - 3) * 3 : 0;
-    var score = Math.max(0, uVendas*30 + uVis*5 + uProp*10 + uAgend*3 + uLig*0.5 + uCRM*2 + miCaptacoes*2 - penCrm - penDesc);
+    var vgvScore = metaPct > 0 ? Math.min(metaPct, 200) * 0.5 : 0;
+    var metaBatidaScore = metaPct >= 100 ? 60 : metaPct * 0.6;
+    var score = Math.max(0, uVendas*4 + vgvScore*5 + uCRM*3 + metaBatidaScore + uVis*2 + uProp*3 + uAgend*1 + miCaptacoes*1);
 
     var cData = {id:u.id, name:u.name, ini:u.ini||u.name.substring(0,2).toUpperCase(), color:u.color||'#6366f1', frente:u.frente, vendas:uVendas, vgv:uVGV, meta:uMeta, metaPct:metaPct, vis:uVis, prop:uProp, lig:uLig, crm:uCRM, agend:uAgend, captacoes:miCaptacoes, pastasLanc:miPastasLanc, score:Math.round(score), staleCrm:uStaleCrm, descartados:uDescartados, penCrm:penCrm, penDesc:penDesc, st:u.st||'offline'};
     allCorretores.push(cData);
@@ -1589,6 +1591,7 @@ var pgWarArena = function(){
 
   // Sort corretores by score
   allCorretores.sort(function(a,b){ return b.score - a.score; });
+  allCorretores = allCorretores.filter(function(c){ return c.name.indexOf('Yara') === -1; });
   Object.keys(frentes).forEach(function(k){ frentes[k].corretores.sort(function(a,b){ return b.score - a.score; }); });
 
   // Sort frentes by VGV for ranking
@@ -1749,7 +1752,7 @@ var pgWarArena = function(){
   h += '<th style="padding:8px 4px;text-align:center">Capt.</th>';
   h += '<th style="padding:8px 4px;text-align:right">VGV</th>';
   h += '<th style="padding:8px 4px;text-align:right">Score</th>';
-  h += '<th style="padding:8px 4px;text-align:center;color:#ef4444">Puni\u00e7\u00f5es</th>';
+  
   h += '</tr>';
 
   allCorretores.forEach(function(c, ci){
@@ -1773,14 +1776,7 @@ var pgWarArena = function(){
     h += '<td style="padding:10px 4px;text-align:center;color:var(--cream)">' + (c.captacoes||'\u2014') + '</td>';
     h += '<td style="padding:10px 4px;text-align:right;color:var(--gold2);font-weight:600">' + (c.vgv > 0 ? fmt(c.vgv) : '\u2014') + '</td>';
     h += '<td style="padding:10px 4px;text-align:right"><span style="background:' + (c.score>50?'var(--g)':c.score>20?'var(--gold2)':'var(--muted)') + ';color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700">' + c.score + '</span></td>';
-    var totalPen = (c.penCrm||0) + (c.penDesc||0);
-    h += '<td style="padding:8px 4px;text-align:center;font-size:11px">';
-    if(totalPen > 0) {
-      h += '<span style="color:#ef4444;font-weight:600">-' + totalPen + '</span>';
-      if(c.staleCrm > 0) h += '<div style="font-size:9px;color:#94a3b8">' + c.staleCrm + ' CRM stale</div>';
-      if(c.descartados > 3) h += '<div style="font-size:9px;color:#94a3b8">' + c.descartados + ' desc.</div>';
-    } else { h += '<span style="color:#22c55e">\u2014</span>'; }
-    h += '</td>';
+
     h += '</tr>';
   });
   h += '</table></div>';
