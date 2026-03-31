@@ -1556,97 +1556,58 @@ function fmt$(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
 
 // ===== MODO TV - Arena PSM Fullscreen =====
 function arenaTV(){
-  if(!S.df_war) S.df_war = {preset:'Ano'};
-  recalcBrokerMetrics('war');
-  var fVENDAS_war = applyDateFilter(VENDAS, 'war');
-  var mi = S.metaIndiv || {};
-  var mes = new Date().getMonth() + 1;
-  var allC = [];
-  BROKERS.forEach(function(u){
-    if(u.role!=='corretor' && u.role!=='lider') return;
-    if(!u.frente) return;
-    var uVGV = u.vgv_real||0;
-    var uVendas = u.vendas||0;
-    var uMeta = u.meta||0;
-    var uVis = u.vis||0;
-    var uProp = u.prop||0;
-    var uCRM = u.crm||0;
-    var uAgend = u.agend||0;
-    var miu = mi[u.id] && mi[u.id][mes] ? mi[u.id][mes] : {};
-    var miVgvMeta = miu.vgv_meta||0;
-    var miCaptacoes = miu.captacoes||0;
-    var miPastasLanc = miu.pastas_lanc||0;
-    if(uMeta === 0 && miVgvMeta > 0) uMeta = miVgvMeta;
-    var metaPct = uMeta > 0 ? Math.round(uVGV/uMeta*100) : 0;
-    var vgvScore = metaPct > 0 ? Math.min(metaPct, 200) * 0.5 : 0;
-    var vgvAbsoluto = uVGV / 100000;
-    var metaBatidaScore = metaPct >= 100 ? 60 : metaPct * 0.6;
-    var uPastas = miPastasLanc||0;
-    var score = Math.max(0, uVendas*15 + vgvAbsoluto*8 + vgvScore*3 + uCRM*3 + metaBatidaScore + uVis*2 + uProp*3 + uAgend*1 + miCaptacoes*1 + uPastas*5);
-    var equipe = u.team||'';
-    if(!equipe){var fr=FRENTES||[];for(var f=0;f<fr.length;f++){if(fr[f].members&&fr[f].members.indexOf(u.id)!==-1){equipe=fr[f].name;break;}}}
-    allC.push({name:u.name,ini:u.ini||u.name.substring(0,2).toUpperCase(),color:u.color||'#6366f1',vendas:uVendas,vgv:uVGV,score:Math.round(score),equipe:equipe,pastas:uPastas,metaPct:metaPct});
-  });
-  allC.sort(function(a,b){return b.score-a.score});
-  var totalVGV = fVENDAS_war.reduce(function(a,v){return a+(v.vgv||0)},0);
-  var totalVendas = fVENDAS_war.length;
-  var now = new Date();
-  var periodo = now.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-  var hora = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  var overlay = document.createElement('div');
-  overlay.id = 'arena-tv-overlay';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:#0a0a0f;overflow:hidden;display:flex;flex-direction:column;font-family:Inter,system-ui,sans-serif';
-  function medalFor(i){return i===0?'\ud83e\udd47':i===1?'\ud83e\udd48':i===2?'\ud83e\udd49':(i+1)+'\u00ba';}
-  function rowBg(i){return i===0?'linear-gradient(90deg,rgba(255,215,0,0.15),transparent)':i===1?'linear-gradient(90deg,rgba(192,192,192,0.1),transparent)':i===2?'linear-gradient(90deg,rgba(205,127,50,0.1),transparent)':'transparent';}
-  var tv = '';
-  tv += '<div style="display:flex;align-items:center;justify-content:space-between;padding:24px 40px;background:linear-gradient(90deg,#0f172a,#1e1b4b)">';
-  tv += '<div style="display:flex;align-items:center;gap:16px"><span style="font-size:36px">\u2694\ufe0f</span>';
-  tv += '<div><div style="font-size:32px;font-weight:900;color:#e2e8f0;letter-spacing:2px">ARENA PSM</div>';
-  tv += '<div style="font-size:14px;color:#64748b;text-transform:uppercase;letter-spacing:3px">Ranking Geral \u2014 ' + periodo + '</div></div></div>';
-  tv += '<div style="text-align:right"><div style="font-size:14px;color:#64748b">Atualizado \u00e0s ' + hora + '</div>';
-  tv += '<div style="display:flex;gap:24px;margin-top:8px">';
-  tv += '<div style="text-align:center"><div style="font-size:24px;font-weight:800;color:#22c55e">R$ ' + totalVGV.toLocaleString('pt-BR') + '</div><div style="font-size:10px;color:#64748b;text-transform:uppercase">VGV Total</div></div>';
-  tv += '<div style="text-align:center"><div style="font-size:24px;font-weight:800;color:#3b82f6">' + totalVendas + '</div><div style="font-size:10px;color:#64748b;text-transform:uppercase">Vendas</div></div>';
-  tv += '</div></div></div>';
-  tv += '<div style="flex:1;overflow:hidden;padding:0 40px 20px">';
-  var gc = '60px 1fr 100px 100px 180px 100px 100px';
-  tv += '<div style="display:grid;grid-template-columns:'+gc+';padding:12px 16px;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.06);margin-top:16px">';
-  var ts = 'font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:1.5px';
-  tv += '<div style="'+ts+'">#</div><div style="'+ts+'">Corretor</div><div style="'+ts+';text-align:center">Vendas</div><div style="'+ts+';text-align:center">Pastas</div><div style="'+ts+';text-align:right">VGV</div><div style="'+ts+';text-align:center">% Meta</div><div style="'+ts+';text-align:right">Score</div></div>';
-  allC.forEach(function(c,i){
-    var t3 = i<3;
-    var fs = t3?'20px':'16px';
-    var nc = t3?'#e2e8f0':'#94a3b8';
-    var sc = t3?'#22c55e':'#64748b';
-    tv += '<div style="display:grid;grid-template-columns:'+gc+';padding:'+(t3?'14px':'10px')+' 16px;background:'+rowBg(i)+';border-bottom:1px solid rgba(255,255,255,0.03);align-items:center">';
-    tv += '<div style="font-size:'+(t3?'28px':'16px')+';text-align:center">' + medalFor(i) + '</div>';
-    tv += '<div style="display:flex;align-items:center;gap:12px"><div style="width:'+(t3?'44px':'36px')+';height:'+(t3?'44px':'36px')+';border-radius:50%;background:'+(c.color)+';display:flex;align-items:center;justify-content:center;font-size:'+(t3?'16px':'13px')+';font-weight:800;color:#fff">' + c.ini + '</div>';
-    tv += '<div><div style="font-size:'+fs+';font-weight:'+(t3?'700':'500')+';color:'+nc+'">' + c.name + '</div>';
-    tv += '<div style="font-size:11px;color:#475569">' + (c.equipe||'') + '</div></div></div>';
-    tv += '<div style="font-size:'+fs+';font-weight:700;color:#3b82f6;text-align:center">' + (c.vendas||'\u2014') + '</div>';
-    tv += '<div style="font-size:'+fs+';font-weight:600;color:#8b5cf6;text-align:center">' + (c.pastas||'\u2014') + '</div>';
-    tv += '<div style="font-size:'+fs+';font-weight:700;color:#e2e8f0;text-align:right">' + (c.vgv?'R$ '+c.vgv.toLocaleString('pt-BR'):'\u2014') + '</div>';
-    tv += '<div style="font-size:14px;text-align:center">';
-    if(c.metaPct>0){var pc=c.metaPct>=100?'#22c55e':c.metaPct>=50?'#eab308':'#ef4444';tv+='<span style="color:'+pc+';font-weight:700">'+Math.round(c.metaPct)+'%</span>';}else{tv+='<span style="color:#334155">\u2014</span>';}
-    tv += '</div>';
-    tv += '<div style="font-size:'+(t3?'24px':'16px')+';font-weight:900;color:'+sc+';text-align:right">' + c.score + '</div>';
-    tv += '</div>';
-  });
-  tv += '</div>';
-  tv += '<div style="padding:12px 40px;background:rgba(255,255,255,0.02);display:flex;justify-content:space-between;align-items:center">';
-  tv += '<div style="font-size:11px;color:#334155">PSM OS \u2022 Arena PSM \u2022 Modo TV</div>';
-  tv += '<div style="font-size:11px;color:#334155">Pressione ESC para sair \u2022 Auto-refresh 60s</div>';
-  tv += '</div>';
-  overlay.innerHTML = tv;
-  document.body.appendChild(overlay);
-  if(overlay.requestFullscreen) overlay.requestFullscreen();
-  else if(overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen();
-  function exitTV(){var el=document.getElementById('arena-tv-overlay');if(el)el.remove();if(document.fullscreenElement)document.exitFullscreen();document.removeEventListener('keydown',onKey);clearInterval(tvInt);document.removeEventListener('fullscreenchange',onFs);}
-  function onKey(e){if(e.key==='Escape')exitTV();}
-  function onFs(){if(!document.fullscreenElement){var el=document.getElementById('arena-tv-overlay');if(el)el.remove();clearInterval(tvInt);}}
-  document.addEventListener('keydown',onKey);
-  document.addEventListener('fullscreenchange',onFs);
-  var tvInt = setInterval(function(){var el=document.getElementById('arena-tv-overlay');if(!el){clearInterval(tvInt);return;}el.remove();arenaTV();},60000);
+  // Render Arena page fresh
+  nav('wararena');
+  setTimeout(function(){
+    var pc = document.querySelector('#pc');
+    if(!pc) return;
+    var arenaHTML = pc.innerHTML;
+    var overlay = document.createElement('div');
+    overlay.id = 'arena-tv-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:var(--bg,#0f0f14);overflow-y:auto;overflow-x:hidden;font-family:Inter,system-ui,sans-serif';
+    // Inject Arena content with TV-optimized wrapper
+    overlay.innerHTML = '<div style="padding:32px 48px;min-height:100vh">' + arenaHTML + '</div>';
+    // Hide the MODO TV button inside the overlay to avoid recursion
+    var tvBtns = overlay.querySelectorAll('button[onclick*="arenaTV"]');
+    for(var i=0;i<tvBtns.length;i++) tvBtns[i].style.display='none';
+    // Add ESC footer
+    var footer = document.createElement('div');
+    footer.style.cssText = 'position:fixed;bottom:0;left:0;right:0;padding:10px 40px;background:rgba(0,0,0,0.7);display:flex;justify-content:space-between;align-items:center;z-index:100000;backdrop-filter:blur(8px)';
+    footer.innerHTML = '<div style="font-size:11px;color:#475569">PSM OS \u2022 Arena PSM \u2022 Modo TV</div><div style="font-size:11px;color:#475569">Pressione ESC para sair \u2022 Auto-refresh 60s</div>';
+    overlay.appendChild(footer);
+    document.body.appendChild(overlay);
+    // Request fullscreen
+    if(overlay.requestFullscreen) overlay.requestFullscreen();
+    else if(overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen();
+    // ESC to exit
+    function exitTV(){
+      var el = document.getElementById('arena-tv-overlay');
+      if(el) el.remove();
+      if(document.fullscreenElement) document.exitFullscreen();
+      document.removeEventListener('keydown', onKey);
+      clearInterval(tvInt);
+      document.removeEventListener('fullscreenchange', onFs);
+    }
+    function onKey(e){ if(e.key==='Escape') exitTV(); }
+    function onFs(){ if(!document.fullscreenElement){ exitTV(); } }
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('fullscreenchange', onFs);
+    // Auto-refresh every 60s
+    var tvInt = setInterval(function(){
+      var el = document.getElementById('arena-tv-overlay');
+      if(!el){ clearInterval(tvInt); return; }
+      // Re-render Arena and update content
+      nav('wararena');
+      setTimeout(function(){
+        var pc2 = document.querySelector('#pc');
+        if(pc2 && el){
+          el.querySelector('div').innerHTML = pc2.innerHTML;
+          var tvBtns2 = el.querySelectorAll('button[onclick*="arenaTV"]');
+          for(var j=0;j<tvBtns2.length;j++) tvBtns2[j].style.display='none';
+        }
+      }, 300);
+    }, 60000);
+  }, 300);
 }
 // ===============================================
 var pgWarArena = function(){
