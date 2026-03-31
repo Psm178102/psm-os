@@ -3414,6 +3414,12 @@ function renderLogin() {
     + '<input id="lp" type="password" placeholder="••••••••" style="width:100%;padding:14px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:var(--font);color:#0f172a;background:#fff;outline:none;transition:all .2s;box-sizing:border-box" onfocus="this.style.borderColor=\'#0f172a\';this.style.boxShadow=\'0 0 0 4px rgba(15,23,42,.06)\'" onblur="this.style.borderColor=\'#e2e8f0\';this.style.boxShadow=\'none\'" onkeydown="if(event.key===\'Enter\')doLogin()">'
     + '</div>'
 
+    // Manter conectado checkbox
+    + '<div style="margin-bottom:20px;display:flex;align-items:center;gap:8px">'
+    + '<input id="lremember" type="checkbox" '+(localStorage.getItem('psm_remember')==='1'?'checked':'')+' style="width:16px;height:16px;accent-color:#0f172a;cursor:pointer">'
+    + '<label for="lremember" style="font-size:12px;color:#64748b;cursor:pointer;user-select:none">Manter conectado</label>'
+    + '</div>'
+
     // Login button
     + '<button id="lbtn" onclick="doLogin()" style="width:100%;padding:16px;background:#0f172a;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;font-family:var(--font);letter-spacing:.3px;cursor:pointer;transition:all .25s;position:relative;overflow:hidden" onmouseover="this.style.background=\'#1e293b\';this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 8px 24px rgba(15,23,42,.25)\'" onmouseout="this.style.background=\'#0f172a\';this.style.transform=\'none\';this.style.boxShadow=\'none\'">'
     + (S.loginLoading ? '<span style="display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:8px;vertical-align:middle"></span>Entrando...' : 'Entrar')
@@ -3522,6 +3528,19 @@ async function doLogin() {
   S.page = getDefaultPage();
   S.loginErr = null;
   S.loginLoading = false;
+
+  // Manter conectado — salvar ou limpar
+  var rememberEl = document.getElementById('lremember');
+  if (rememberEl && rememberEl.checked) {
+    localStorage.setItem('psm_remember', '1');
+    localStorage.setItem('psm_remember_email', email);
+    localStorage.setItem('psm_remember_pw', btoa(senha));
+  } else {
+    localStorage.removeItem('psm_remember');
+    localStorage.removeItem('psm_remember_email');
+    localStorage.removeItem('psm_remember_pw');
+  }
+
   toast('Bem-vindo, ' + S.user.name.split(' ')[0] + '! 👋', 'ok');
   render();
   // Faz sync do RD com tokens armazenados no navegador
@@ -9046,6 +9065,7 @@ function renderSB() {
     {sec:'Dashboards', items:[
 {id:'checkin',   lbl:'Check-in/out',   ico:'\u23F0',min:1},
       {id:'dashboard', lbl:'Dashboard',      ico:'📊',min:5},
+      {id:'wararena', lbl:'Arena PSM', ico:'⚔️', min:2},
       {id:'ranking',   lbl:'Ranking',        ico:'🏆',min:2},
       {id:'equipe',    lbl:'Visão Equipe',   ico:'👥',min:5},
       {id:'lancamentos_ano', lbl:'Lan\u00e7amentos', ico:'\uD83D\uDE80',min:5},
@@ -9064,8 +9084,6 @@ function renderSB() {
             {id:'governance',lbl:'Governança',     ico:'🛡',min:5},
     ]},
     {sec:'Estratégia', items:[
-        {id:'wararena', lbl:'Arena PSM', ico:'🏆', min:2},
-
       {id:'forecast',  lbl:'Projeção',       ico:'📉',min:5},
       {id:'okrs',      lbl:'OKRs & Metas',   ico:'🎯',min:5},
       {id:'vendas',    lbl:'Lançar Venda',   ico:'💰',min:7},
@@ -10407,7 +10425,7 @@ function route() {
 function render() {
   const app = document.getElementById('app'); if (!app) return;
   var _pc0=document.getElementById('pc'),_scr=_pc0?_pc0.scrollTop:0;
-  if (!S.user) { if (S.loginView==='forgot') { app.innerHTML = renderForgotPassword(); return; } if (S.loginView==='reset') { app.innerHTML = renderResetPassword(); return; } app.innerHTML = renderLogin(); return; }
+  if (!S.user) { if (S.loginView==='forgot') { app.innerHTML = renderForgotPassword(); return; } if (S.loginView==='reset') { app.innerHTML = renderResetPassword(); return; } app.innerHTML = renderLogin(); _fillRememberedLogin(); return; }
   app.innerHTML = (S.rdSyncing ? '<div class="sync-bar active"></div>' : '') + '<div id="mob-ham" onclick="toggleMobSB()">☰</div>'
     + '<button id="cap-fab" onclick="nav(\'vera\')" title="Sr. Performance" style="position:fixed;bottom:72px;right:18px;z-index:500;width:54px;height:54px;border-radius:50%;background:var(--navy);color:#fff;font-size:22px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35);transition:transform .2s" onmouseover="this.style.transform=\'scale(1.1)\'" onmouseout="this.style.transform=\'scale(1)\'">🫡</button>'
     + '<div id="sb-overlay" onclick="toggleMobSB()"></div>'
@@ -10541,11 +10559,45 @@ window.addEventListener('DOMContentLoaded', () => {
           scheduleVeraNotifs();
         }
       }
-    }).catch(() => {});
+    }).catch(() => {
+      // Se fetch falhar (offline/TV), tenta "manter conectado"
+      _tryRememberLogin();
+    });
+  } else {
+    // Sem token salvo, tenta "manter conectado"
+    _tryRememberLogin();
   }
 
   render();
 });
+
+// Preencher campos de login com dados salvos
+function _fillRememberedLogin() {
+  if (localStorage.getItem('psm_remember') !== '1') return;
+  var em = localStorage.getItem('psm_remember_email');
+  if (em) { var el = document.getElementById('le'); if (el) el.value = em; }
+}
+
+// Auto-login "Manter conectado"
+function _tryRememberLogin() {
+  if (S.user) return;
+  if (localStorage.getItem('psm_remember') !== '1') return;
+  var em = localStorage.getItem('psm_remember_email');
+  var pw = localStorage.getItem('psm_remember_pw');
+  if (!em || !pw) return;
+  try { pw = atob(pw); } catch(e) { return; }
+  var uid = _localLogin(em, pw);
+  if (!uid) return;
+  var user = USERS_BASE.find(function(u){ return u.id === uid; });
+  if (!user) return;
+  S.user = Object.assign({}, UM[user.id]||{}, user);
+  S.page = getDefaultPage();
+  setTimeout(function(){ RD.sync(true).then(function(){ RD.startAutoSync(); }); }, 200);
+  if (!S.veraHist || !S.veraHist.length) {
+    S.veraHist = [{role:'assistant', content:'Ol\u00e1, ' + S.user.name.split(' ')[0] + '! Sou o Sr. Performance. Como posso te ajudar?'}];
+  }
+  scheduleVeraNotifs();
+}
 
 
 
