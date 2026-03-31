@@ -941,6 +941,21 @@ function recalcBrokerMetrics(prefix) {
     b.conversionRate = (won.length + lost.length) > 0 ? parseFloat((won.length / (won.length + lost.length) * 100).toFixed(2)) : 0;
     b.volumeLeads = opps.length + won.length + lost.length;
     b.staleCrm = opps.filter(function(o){return o.dnu >= 4;}).length;
+    // Integracao Meta Individual: propagar S.metaIndiv para b.meta em todas as paginas
+    var _curMonth = new Date().getMonth() + 1;
+    if(!S.metaIndiv){try{var _mld=localStorage.getItem('psm_meta_indiv');S.metaIndiv=_mld?JSON.parse(_mld):{};}catch(e){S.metaIndiv={};}}
+    var _miData = S.metaIndiv && S.metaIndiv[b.id] && S.metaIndiv[b.id][_curMonth] ? S.metaIndiv[b.id][_curMonth] : null;
+    if(_miData && _miData.vgv_meta > 0) {
+      b.meta = _miData.vgv_meta;
+      if(!METAS_CONFIG[b.id]) METAS_CONFIG[b.id] = {};
+      METAS_CONFIG[b.id].vgv_meta = _miData.vgv_meta;
+      METAS_CONFIG[b.id].visitas = _miData.visitas || 0;
+      METAS_CONFIG[b.id].captacoes = _miData.captacoes || 0;
+      METAS_CONFIG[b.id].pastas_lanc = _miData.pastas_lanc || 0;
+      METAS_CONFIG[b.id].vgv_pessoal = _miData.vgv_pessoal || 0;
+    } else if(METAS_CONFIG[b.id] && METAS_CONFIG[b.id].vgv_meta > 0) {
+      b.meta = METAS_CONFIG[b.id].vgv_meta;
+    }
   });
   
   // Recalc global metrics for this period
@@ -954,6 +969,11 @@ function recalcBrokerMetrics(prefix) {
   METRICS.vgv_real  = S.vgvReal || 0;
   METRICS.vend_real = S.wonTotal || 0;
   METRICS.vis_real  = BROKERS.reduce((a,b) => a + (b.vis||0), 0);
+  // Atualiza meta global com soma das metas individuais (se disponiveis)
+  var _sumMetaIndiv = BROKERS.reduce((a,b) => a + (b.meta||0), 0);
+  if(_sumMetaIndiv > 0) { METRICS.vgv_meta = _sumMetaIndiv; }
+  var _sumVisIndiv = BROKERS.reduce((a,b) => a + ((METAS_CONFIG[b.id]||{}).visitas||0), 0);
+  if(_sumVisIndiv > 0) { METRICS.vis_meta = _sumVisIndiv; }
 }
 
 function recalcMonthly(){
@@ -2166,7 +2186,7 @@ function pgMetas(){
   h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">Realizado</div><div style="color:#fff;font-size:22px;font-weight:700">'+fmt(realAno)+'</div></div>';
   h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">D\u00e9ficit/Lucro</div><div style="color:'+(defAno>=0?'#00e5a0':'#ef4444')+';font-size:22px;font-weight:700">'+fmt(defAno)+'</div></div>';
   h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">% Atingido</div><div style="color:'+(realAno/totalAno>=0.8?'#00e5a0':'#f59e0b')+';font-size:22px;font-weight:700">'+pct(totalAno>0?realAno/totalAno:0)+'</div></div>';
-  h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">Custos Fixos/M\u00eas</div><div style="color:#ef4444;font-size:22px;font-weight:700">'+fmt(custoTotal)+'</div></div>';
+  // Removido: card Custos Fixos/Mes
   h+='</div>';
   h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">';
   for(var t=0;t<4;t++){
@@ -2229,80 +2249,7 @@ function pgMetas(){
   for(var i=0;i<12;i++){var pr=pareto70(m.corretores[i]||0)*m.ticketMedio;var ft=pr-totalArr[i]; h+='<td style="padding:6px;color:'+(ft>=0?'#00e5a0':'#ef4444')+';text-align:right;font-size:11px">'+fmtN(Math.round(ft))+'</td>';}
   h+='</tr>';
   h+='</table></div>';
-  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
-  h+='<div><h3 style="color:#94a3b8;font-size:15px;margin-bottom:10px">\uD83D\uDCB0 Custos Fixos Mensais <span style="color:#64748b;font-size:11px">(edit\u00e1vel)</span></h3>';
-  h+='<div style="background:#1e293b;border-radius:12px;padding:16px">';
-  var custos=[['custoFixo','Custo Fixo'],['ads','ADS'],['prolabore','Pr\u00f3-labore'],['distribLucro','Distrib. Lucro'],['divida','D\u00edvida']];
-  for(var c=0;c<custos.length;c++){
-    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="color:#94a3b8;font-size:13px">'+custos[c][1]+'</span>';
-    h+='<div style="width:140px">'+inpG(custos[c][0],m[custos[c][0]]||0,'140px')+'</div></div>';
-  }
-  h+='<div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #334155;padding-top:10px;margin-top:10px"><span style="color:#e2e8f0;font-weight:700">TOTAL</span>';
-  h+='<span style="color:#ef4444;font-weight:700;font-size:18px">'+fmt(custoTotal)+'</span></div>';
-  h+='</div></div>';
-  h+='<div><h3 style="color:#94a3b8;font-size:15px;margin-bottom:10px">\uD83D\uDCC8 \u00cdndices de Comiss\u00e3o <span style="color:#64748b;font-size:11px">(edit\u00e1vel)</span></h3>';
-  h+='<div style="background:#1e293b;border-radius:12px;padding:16px">';
-  var indices=[['comissaoBruta','Comiss\u00e3o Bruta'],['aliquota','Al\u00edquota Imposto'],['comCorretor','Com. Corretor'],['comSenior','Com. S\u00eanior'],['comSocio50','Com. S\u00f3cio 50%']];
-  for(var c=0;c<indices.length;c++){
-    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="color:#94a3b8;font-size:13px">'+indices[c][1]+'</span>';
-    h+='<div style="width:140px">'+inpG(indices[c][0],m[indices[c][0]]||0,'140px')+'</div></div>';
-  }
-  var comBruto=realAno*m.comissaoBruta;
-  var impostos=comBruto*m.aliquota;
-  var comLiq=comBruto-impostos;
-  var comCorr=realAno*m.comCorretor;
-  var caixaImob=comLiq-comCorr;
-  h+='<div style="border-top:1px solid #334155;padding-top:10px;margin-top:10px;font-size:12px">';
-  h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#94a3b8">Com. Bruta YTD</span><span style="color:#fff">'+fmt(Math.round(comBruto))+'</span></div>';
-  h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#94a3b8">Impostos</span><span style="color:#ef4444">'+fmt(Math.round(impostos))+'</span></div>';
-  h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#94a3b8">Com. L\u00edquida</span><span style="color:#00e5a0">'+fmt(Math.round(comLiq))+'</span></div>';
-  h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#94a3b8">Com. Corretores</span><span style="color:#f59e0b">'+fmt(Math.round(comCorr))+'</span></div>';
-  h+='<div style="display:flex;justify-content:space-between;font-weight:700"><span style="color:#e2e8f0">Caixa Imob.</span><span style="color:#00e5a0">'+fmt(Math.round(caixaImob))+'</span></div>';
-  h+='</div></div></div>';
-  h+='</div>';
-  h+='<h3 style="color:#94a3b8;font-size:15px;margin:10px 0">\uD83D\uDCB5 Painel VGC \u2014 Resultado Mensal</h3>';
-  h+='<div style="overflow-x:auto;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px">';
-  h+='<tr style="background:#0f172a"><th style="padding:6px;color:#94a3b8;text-align:left;border-bottom:1px solid #334155">M\u00eas</th>';
-  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Com. Bruta</th>';
-  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Impostos</th>';
-  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Com. L\u00edq</th>';
-  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Com. Corretor</th>';
-  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Caixa Imob</th>';
-  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Custos</th>';
-  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Resultado</th>';
-  h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">ROI</th></tr>';
-  var totalCB=0,totalImp=0,totalCL=0,totalCC=0,totalCX=0,totalCust=0,totalRes=0;
-  for(var i=0;i<12;i++){
-    var r=m.realizado[i]||0;
-    if(r===0){
-      h+='<tr style="background:'+(i%2===0?'#1e293b':'#1a2332')+'"><td style="padding:6px 8px;color:#94a3b8">'+ms[i]+'</td>';
-      for(var j=0;j<8;j++) h+='<td style="padding:6px;color:#475569;text-align:right">\u2014</td>';
-      h+='</tr>';continue;
-    }
-    var cb=r*m.comissaoBruta;var imp=cb*m.aliquota;var cl=cb-imp;var cc=r*m.comCorretor;var cx=cl-cc;var ct=custoTotal;var res=cx-ct;var roi=ct>0?res/ct:0;
-    totalCB+=cb;totalImp+=imp;totalCL+=cl;totalCC+=cc;totalCX+=cx;totalCust+=ct;totalRes+=res;
-    h+='<tr style="background:'+(i%2===0?'#1e293b':'#1a2332')+'"><td style="padding:6px 8px;color:#e2e8f0">'+ms[i]+'</td>';
-    h+='<td style="padding:6px;color:#fff;text-align:right">'+fmtN(Math.round(cb))+'</td>';
-    h+='<td style="padding:6px;color:#ef4444;text-align:right">'+fmtN(Math.round(imp))+'</td>';
-    h+='<td style="padding:6px;color:#00e5a0;text-align:right">'+fmtN(Math.round(cl))+'</td>';
-    h+='<td style="padding:6px;color:#f59e0b;text-align:right">'+fmtN(Math.round(cc))+'</td>';
-    h+='<td style="padding:6px;color:#fff;text-align:right">'+fmtN(Math.round(cx))+'</td>';
-    h+='<td style="padding:6px;color:#ef4444;text-align:right">'+fmtN(Math.round(ct))+'</td>';
-    h+='<td style="padding:6px;color:'+(res>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:600">'+fmtN(Math.round(res))+'</td>';
-    h+='<td style="padding:6px;color:'+(roi>=0?'#00e5a0':'#ef4444')+';text-align:right">'+(roi*100).toFixed(1)+'%</td></tr>';
-  }
-  h+='<tr style="background:#0f172a;border-top:2px solid #00e5a0"><td style="padding:8px;color:#00e5a0;font-weight:700">TOTAL</td>';
-  h+='<td style="padding:6px;color:#00e5a0;text-align:right;font-weight:700">'+fmtN(Math.round(totalCB))+'</td>';
-  h+='<td style="padding:6px;color:#ef4444;text-align:right;font-weight:700">'+fmtN(Math.round(totalImp))+'</td>';
-  h+='<td style="padding:6px;color:#00e5a0;text-align:right;font-weight:700">'+fmtN(Math.round(totalCL))+'</td>';
-  h+='<td style="padding:6px;color:#f59e0b;text-align:right;font-weight:700">'+fmtN(Math.round(totalCC))+'</td>';
-  h+='<td style="padding:6px;color:#fff;text-align:right;font-weight:700">'+fmtN(Math.round(totalCX))+'</td>';
-  h+='<td style="padding:6px;color:#ef4444;text-align:right;font-weight:700">'+fmtN(Math.round(totalCust))+'</td>';
-  h+='<td style="padding:6px;color:'+(totalRes>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:700">'+fmtN(Math.round(totalRes))+'</td>';
-  var avgRoi=totalCust>0?(totalRes/totalCust*100).toFixed(1):'0';
-  h+='<td style="padding:6px;color:'+(totalRes>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:700">'+avgRoi+'%</td></tr>';
-  h+='</table></div>';
-  h+='<p style="color:#475569;font-size:11px">Dados salvos automaticamente. Todas as f\u00f3rmulas s\u00e3o calculadas em tempo real \u2014 iguais \u00e0 planilha META MENSAL.</p>';
+  // Removido: Custos Fixos, Indices de Comissao, Painel VGC
 
   // META POR EQUIPE
   if(!S.metaEquipe){try{S.metaEquipe=JSON.parse(localStorage.getItem('psm_meta_equipe')||'null');}catch(e){}}
