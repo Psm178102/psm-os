@@ -3478,6 +3478,8 @@ function _localLogin(email, senha) {
 }
 
 async function doLogin() {
+  // Capturar estado do checkbox ANTES do render
+  var _rememberChecked = !!(document.getElementById('lremember') && document.getElementById('lremember').checked);
   const email = (document.getElementById('le')?.value||'').trim().toLowerCase();
   const senha = (document.getElementById('lp')?.value||'').trim();
   if (!email || !senha) { S.loginErr='Preencha e-mail e senha'; S.loginLoading = false; render(); return; }
@@ -3530,8 +3532,7 @@ async function doLogin() {
   S.loginLoading = false;
 
   // Manter conectado — salvar ou limpar
-  var rememberEl = document.getElementById('lremember');
-  if (rememberEl && rememberEl.checked) {
+  if (_rememberChecked) {
     localStorage.setItem('psm_remember', '1');
     localStorage.setItem('psm_remember_email', email);
     localStorage.setItem('psm_remember_pw', btoa(senha));
