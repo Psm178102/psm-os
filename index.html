@@ -1556,7 +1556,6 @@ function fmt$(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
 
 // ===== MODO TV - Arena PSM Fullscreen =====
 function arenaTV(){
-  // Render Arena page fresh
   nav('wararena');
   setTimeout(function(){
     var pc = document.querySelector('#pc');
@@ -1564,51 +1563,153 @@ function arenaTV(){
     var arenaHTML = pc.innerHTML;
     var overlay = document.createElement('div');
     overlay.id = 'arena-tv-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:var(--bg,#0f0f14);overflow-y:auto;overflow-x:hidden;font-family:Inter,system-ui,sans-serif';
-    // Inject Arena content with TV-optimized wrapper
-    overlay.innerHTML = '<div style="padding:32px 48px;min-height:100vh">' + arenaHTML + '</div>';
-    // Hide the MODO TV button inside the overlay to avoid recursion
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:#0f0f14;overflow:hidden;font-family:Inter,system-ui,sans-serif';
+
+    // Scrollable content
+    var scroller = document.createElement('div');
+    scroller.id = 'tv-scroller';
+    scroller.style.cssText = 'width:100%;height:calc(100vh - 36px);overflow:hidden;position:relative';
+    var inner = document.createElement('div');
+    inner.id = 'tv-inner';
+    inner.style.cssText = 'padding:16px 28px 60px';
+    inner.innerHTML = arenaHTML;
+    scroller.appendChild(inner);
+    overlay.appendChild(scroller);
+
+    // TV CSS overrides - compact layout
+    var tvStyle = document.createElement('style');
+    tvStyle.id = 'tv-style';
+    tvStyle.textContent = '#arena-tv-overlay *{box-sizing:border-box}'
+      + '#arena-tv-overlay h1{font-size:20px!important;margin:0!important}'
+      + '#arena-tv-overlay h2{font-size:15px!important}'
+      + '#arena-tv-overlay [style*="padding:28px"]{padding:12px!important}'
+      + '#arena-tv-overlay [style*="padding:20px"]{padding:10px!important}'
+      + '#arena-tv-overlay [style*="padding:24px"]{padding:10px!important}'
+      + '#arena-tv-overlay [style*="padding:16px"]{padding:8px!important}'
+      + '#arena-tv-overlay [style*="margin-top:24px"]{margin-top:10px!important}'
+      + '#arena-tv-overlay [style*="margin-top:32px"]{margin-top:12px!important}'
+      + '#arena-tv-overlay [style*="margin-bottom:24px"]{margin-bottom:8px!important}'
+      + '#arena-tv-overlay [style*="margin-bottom:32px"]{margin-bottom:10px!important}'
+      + '#arena-tv-overlay [style*="gap:24px"]{gap:10px!important}'
+      + '#arena-tv-overlay [style*="gap:20px"]{gap:8px!important}'
+      + '#arena-tv-overlay [style*="gap:16px"]{gap:8px!important}'
+      + '#arena-tv-overlay [style*="font-size:28px"]{font-size:18px!important}'
+      + '#arena-tv-overlay [style*="font-size:24px"]{font-size:16px!important}'
+      + '#arena-tv-overlay [style*="font-size:22px"]{font-size:15px!important}'
+      + '#arena-tv-overlay [style*="font-size:20px"]{font-size:14px!important}'
+      + '#arena-tv-overlay [style*="font-size:18px"]{font-size:13px!important}'
+      + '#arena-tv-overlay [style*="border-radius:16px"]{border-radius:8px!important}'
+      + '#arena-tv-overlay [style*="border-radius:12px"]{border-radius:6px!important}'
+      + '#arena-tv-overlay button[onclick*="arenaTV"]{display:none!important}'
+      + '#arena-tv-overlay select,#arena-tv-overlay button[onclick*="df_war"]{display:none!important}'
+      + '#tv-inner>div:first-child>div:first-child{flex-wrap:nowrap!important}';
+    overlay.appendChild(tvStyle);
+
+    // Hide MODO TV button
     var tvBtns = overlay.querySelectorAll('button[onclick*="arenaTV"]');
     for(var i=0;i<tvBtns.length;i++) tvBtns[i].style.display='none';
-    // Add ESC footer
+
+    // Footer bar
     var footer = document.createElement('div');
-    footer.style.cssText = 'position:fixed;bottom:0;left:0;right:0;padding:10px 40px;background:rgba(0,0,0,0.7);display:flex;justify-content:space-between;align-items:center;z-index:100000;backdrop-filter:blur(8px)';
-    footer.innerHTML = '<div style="font-size:11px;color:#475569">PSM OS \u2022 Arena PSM \u2022 Modo TV</div><div style="font-size:11px;color:#475569">Pressione ESC para sair \u2022 Auto-refresh 60s</div>';
+    footer.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:36px;padding:0 28px;background:rgba(0,0,0,0.85);display:flex;justify-content:space-between;align-items:center;z-index:100000;backdrop-filter:blur(8px)';
+    footer.innerHTML = '<div style="font-size:10px;color:#475569">PSM OS \u2022 Arena PSM \u2022 Modo TV</div><div style="font-size:10px;color:#475569">ESC para sair \u2022 Auto-scroll \u2022 Refresh 60s</div>';
     overlay.appendChild(footer);
+
     document.body.appendChild(overlay);
-    // Request fullscreen
+
+    // Fullscreen
     if(overlay.requestFullscreen) overlay.requestFullscreen();
     else if(overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen();
-    // ESC to exit
+
+    // === AUTO-SCROLL: scroll down slowly, then scroll up faster, cycle ===
+    var scrollPos = 0;
+    var scrollSpeed = 0.5;
+    var pauseAtTop = 300;
+    var pauseAtBottom = 180;
+    var pauseCounter = pauseAtTop;
+    var scrollDir = 1;
+    var tvScrollInt = setInterval(function(){
+      var el = document.getElementById('tv-inner');
+      var sc = document.getElementById('tv-scroller');
+      if(!el || !sc) { clearInterval(tvScrollInt); return; }
+      var maxScroll = el.scrollHeight - sc.clientHeight;
+      if(maxScroll <= 0) return;
+      if(pauseCounter > 0) { pauseCounter--; return; }
+      scrollPos += scrollSpeed * scrollDir;
+      if(scrollPos >= maxScroll) {
+        scrollPos = maxScroll;
+        scrollDir = -1;
+        pauseCounter = pauseAtBottom;
+        scrollSpeed = 1.5;
+      }
+      if(scrollPos <= 0) {
+        scrollPos = 0;
+        scrollDir = 1;
+        pauseCounter = pauseAtTop;
+        scrollSpeed = 0.5;
+      }
+      el.style.transform = 'translateY(' + (-scrollPos) + 'px)';
+    }, 1000/60);
+
+    // === ANTI-STANDBY: Wake Lock API + silent video ===
+    var wakeLock = null;
+    async function requestWakeLock(){
+      try {
+        if('wakeLock' in navigator){
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 1000); });
+        }
+      } catch(e){}
+    }
+    requestWakeLock();
+
+    // Fallback: invisible video keeps screen active
+    var antiSleep = document.createElement('video');
+    antiSleep.setAttribute('playsinline','');
+    antiSleep.setAttribute('muted','');
+    antiSleep.muted = true;
+    antiSleep.loop = true;
+    antiSleep.style.cssText = 'position:fixed;top:-1px;left:-1px;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:100001';
+    antiSleep.src = 'data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwH/////////FUmpZpkq17GDD0JATYCGQ2hyb21lV0WQQ2hyb21lFlSua7+uvdeBAXPFh2YA0AAAAAAAABZUrmtAu4EBAAAAAABH2K5MoQ==';
+    overlay.appendChild(antiSleep);
+    try { antiSleep.play(); } catch(e){}
+
+    // Also dispatch events periodically to prevent sleep
+    var moveInt = setInterval(function(){
+      if(!document.getElementById('arena-tv-overlay')) { clearInterval(moveInt); return; }
+      window.dispatchEvent(new Event('mousemove'));
+    }, 30000);
+
+    // === EXIT HANDLERS ===
     function exitTV(){
       var el = document.getElementById('arena-tv-overlay');
       if(el) el.remove();
+      var st = document.getElementById('tv-style');
+      if(st) st.remove();
       if(document.fullscreenElement) document.exitFullscreen();
+      if(wakeLock) { try{wakeLock.release();}catch(e){} wakeLock=null; }
       document.removeEventListener('keydown', onKey);
-      clearInterval(tvInt);
       document.removeEventListener('fullscreenchange', onFs);
+      clearInterval(tvScrollInt);
+      clearInterval(tvRefreshInt);
+      clearInterval(moveInt);
     }
     function onKey(e){ if(e.key==='Escape') exitTV(); }
-    function onFs(){ if(!document.fullscreenElement){ exitTV(); } }
+    function onFs(){ if(!document.fullscreenElement) exitTV(); }
     document.addEventListener('keydown', onKey);
     document.addEventListener('fullscreenchange', onFs);
+
     // Auto-refresh every 60s
-    var tvInt = setInterval(function(){
+    var tvRefreshInt = setInterval(function(){
       var el = document.getElementById('arena-tv-overlay');
-      if(!el){ clearInterval(tvInt); return; }
-      // Re-render Arena and update content
-      nav('wararena');
-      setTimeout(function(){
-        var pc2 = document.querySelector('#pc');
-        if(pc2 && el){
-          el.querySelector('div').innerHTML = pc2.innerHTML;
-          var tvBtns2 = el.querySelectorAll('button[onclick*="arenaTV"]');
-          for(var j=0;j<tvBtns2.length;j++) tvBtns2[j].style.display='none';
-        }
-      }, 300);
+      if(!el){ clearInterval(tvRefreshInt); return; }
+      exitTV();
+      setTimeout(arenaTV, 500);
     }, 60000);
+
   }, 300);
 }
+
 // ===============================================
 var pgWarArena = function(){
   if(!S.user) return '<div style="padding:40px;text-align:center;color:var(--muted)">Fa\u00e7a login para acessar a War Arena</div>';
