@@ -10663,7 +10663,7 @@ function carregarPromptServidor() {
 
 function pgPlantoes() {
   const u = S.user;
-  const isGestor = u && (u.perfil === 'socio' || u.perfil === 'diretor' || u.perfil === 'lider');
+  const isGestor = u && (u.role === 'socio' || u.role === 'diretor' || u.role === 'lider');
   const now = new Date();
   const mesAtual = now.getMonth();
   const anoAtual = now.getFullYear();
@@ -10716,7 +10716,7 @@ function pgPlantoes() {
 
 function abrirDiaPlantao(dia) {
   const u = S.user;
-  const isGestor = u && (u.perfil === 'socio' || u.perfil === 'diretor' || u.perfil === 'lider');
+  const isGestor = u && (u.role === 'socio' || u.role === 'diretor' || u.role === 'lider');
   const now = new Date();
   const storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
   let plantoes = [];
