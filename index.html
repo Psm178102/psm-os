@@ -1033,7 +1033,7 @@ let S={
   // date filters (ponto 4)
   dash_df:{preset:'30d'}, rank_df:{preset:'30d'}, forecast_df:{preset:'30d'}, okrs_df:{preset:'30d'},
   // 1:1
-  ooTab:'diario',ooBroker:null,ooWeek:0,ooDayEdit:null,ooEditData:{},
+  ooTab:'dia',ooBroker:null,ooWeek:0,ooDayEdit:null,ooEditData:{},
   // vera
   veraMsgs:[],veraLoad:false,
   veraNotifSent:{morning:false,evening:false},
@@ -1108,6 +1108,10 @@ function saveState() {
       ooMetas: S.ooMetas || {},
       ooFunnelPct: S.ooFunnelPct || {},
       sonhos: S.sonhos || {},
+      ooReunioes: S.ooReunioes || {},
+      ooMetaLanc: S.ooMetaLanc || {},
+      ooMetaVgvMes: S.ooMetaVgvMes || {},
+      ooObjetivo: S.ooObjetivo || {},
       savedAt: Date.now(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
@@ -1138,6 +1142,10 @@ function loadState() {
     if (d.ooFunnelPct) { S.ooFunnelPct = d.ooFunnelPct; };
 
     if (d.sonhos) S.sonhos = d.sonhos;
+    if (d.ooReunioes) S.ooReunioes = d.ooReunioes;
+    if (d.ooMetaLanc) S.ooMetaLanc = d.ooMetaLanc;
+    if (d.ooMetaVgvMes) S.ooMetaVgvMes = d.ooMetaVgvMes;
+    if (d.ooObjetivo) S.ooObjetivo = d.ooObjetivo;
     // Restore manual vendas
     try {
       const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manual') || '[]');
@@ -4535,9 +4543,8 @@ function pgOO() {
   const df_oo = DateFilter('oo','Período');
   const u = S.user; if (!u) return df_oo + '';
   const lvl = RLVL[u.role] || 0;
-  var _vt=['dia','semana','reuniao','metas']; const tab = _vt.indexOf(S.ooTab)!==-1 ? S.ooTab : 'dia';
-  const tabs = [{id:'dia',lbl:'Dia a Dia'},{id:'semana',lbl:'Semanal'},{id:'reuniao',lbl:'Reunião 1:1'},{id:'metas',lbl:'Metas'}];
-  // Broker selector para gestores/sócios
+  var _vt=['dia','acumulado','reuniao','metas','gestao']; const tab = _vt.indexOf(S.ooTab)!==-1 ? S.ooTab : 'dia';
+  const tabs = [{id:'dia',lbl:'Dia a Dia'},{id:'acumulado',lbl:'Acumulado'},{id:'reuniao',lbl:'Reunião 1:1'},{id:'metas',lbl:'Metas'},{id:'gestao',lbl:'Gestão'}];
   const canViewOthers = lvl >= 5;
   const selBid = canViewOthers ? (S.ooBroker || u.id) : u.id;
   const selUser = USERS_BASE.find(x => x.id===selBid) || u;
@@ -4545,332 +4552,31 @@ function pgOO() {
   const disc = DISC_PROFILES[selBid];
   const mc   = METAS_CONFIG[selBid] || {};
 
-  const tabBar = '<div style="display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap">'
-    + tabs.map(t => '<button class="btn bsm'+(tab===t.id?' bp1':' bout')+'" onclick="S.ooTab=\''+t.id+'\';render()">'+t.lbl+'</button>').join('')
-    + '</div>';
+  const tabBar = '<div class="oo-tabs" style="display:flex;gap:4px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;white-space:nowrap">'
+    + tabs.map(t => '<button class="btn bsm'+(tab===t.id?' bp1':' bout')+'" onclick="S.ooTab=\''+t.id+'\';render()" style="flex-shrink:0">'+t.lbl+'<\/button>').join('')
+    + '<\/div>';
 
   const brokerSel = canViewOthers ? '<div style="margin-bottom:14px"><select class="sel-f" onchange="S.ooBroker=this.value;render()">'
-    + BROKERS.map(b => '<option value="'+b.id+'"'+(selBid===b.id?' selected':'')+'>'+b.name+'</option>').join('')
-    + '</select></div>' : '';
+    + BROKERS.map(b => '<option value="'+b.id+'"'+(selBid===b.id?' selected':'')+'>'+b.name+'<\/option>').join('')
+    + '<\/select><\/div>' : '';
 
-  // Google Sheets link bar do corretor
   const rawSheet = (S.ooSheetLinks || {})[selBid];
   const sheetUrl = typeof rawSheet === 'string' ? rawSheet : (rawSheet?.main || '');
   const sheetBar = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:10px 14px;background:linear-gradient(135deg,#0f9d5810,#4285f408);border:1px solid #0f9d5830;border-radius:10px">'
-    + '<span style="font-size:18px">📊</span>'
+    + '<span style="font-size:18px">📊<\/span>'
     + '<div style="flex:1;min-width:0">'
     + (sheetUrl
       ? '<a href="'+sheetUrl+'" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:#0f9d58;text-decoration:none;display:flex;align-items:center;gap:4px">'
-        + 'Abrir Planilha 1:1 — '+selUser.name.split(' ')[0]+' <span style="font-size:10px">↗</span></a>'
-        + '<div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+sheetUrl.slice(0,60)+'...</div>'
-      : '<span style="font-size:11px;color:var(--muted)">Nenhuma planilha vinculada para '+selUser.name.split(' ')[0]+'</span>')
-    + '</div>'
+        + 'Abrir Planilha 1:1 \u2014 '+selUser.name.split(' ')[0]+' <span style="font-size:10px">\u2197<\/span><\/a>'
+        + '<div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+sheetUrl.slice(0,60)+'...<\/div>'
+      : '<span style="font-size:11px;color:var(--muted)">Nenhuma planilha vinculada para '+selUser.name.split(' ')[0]+'<\/span>')
+    + '<\/div>'
     + (lvl >= 5
-      ? '<button class="btn bout bsm" onclick="ooEditSheet(\''+selBid+'\',\''+selUser.name.split(' ')[0]+'\')" style="font-size:10px;white-space:nowrap">'+(sheetUrl?'✏️ Editar':'+ Vincular')+'</button>'
-      : (sheetUrl ? '<a href="'+sheetUrl+'" target="_blank" rel="noopener" class="btn bp1 bsm" style="font-size:10px;text-decoration:none">Abrir</a>' : ''))
-    + '</div>';
+      ? '<button class="btn bout bsm" onclick="ooEditSheet(\''+selBid+'\',\''+selUser.name.split(' ')[0]+'\')"
+ style="font-size:10px;white-space:nowrap">'+(sheetUrl?'\u270F\uFE0F Editar':'+ Vincular')+'<\/button>'
+      : (sheetUrl ? '<a href="'+sheetUrl+'" target="_blank" rel="noopener" class="btn bp1 bsm" style="font-size:10px;text-decoration:none">Abrir<\/a>' : ''))
+    + '<\/div>';
 
-  // Disc card — editable only by directors/managers
-  const canEditProfile = u && (u.role === 'socio' || u.role === 'gerente');
-  const discCard = disc ? '<div class="card mb2" style="border-left:4px solid '+disc.cor+'">'
-    + '<div class="ctitle">'+DISC_ICON[disc.perfil]+' Perfil Comportamental: '+disc.perfil+(canEditProfile?' <button class="btn bout bsm" style="font-size:10px" onclick="console.log(\'Edit profile\')">✏️ Editar</button>':'')+' </div>'
-    + '<div style="font-size:12.5px;color:var(--navy);line-height:1.7;margin-bottom:10px">'+disc.desc+'</div>'
-    + '<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Como liderar este perfil:</div>'
-    + '<div style="font-size:12px;color:var(--navy);line-height:1.7">'
-    + {
-        Diretor:   '• Seja direto e objetivo nas conversas<br>• Defina metas desafiadoras e dê autonomia<br>• Reconheça resultados, não esforço<br>• Evite microgerenciamento',
-        Influente: '• Reconheça publicamente as conquistas<br>• Envolva em decisões e novidades<br>• Use entusiasmo e energia positiva<br>• Dê liberdade para criar suas abordagens',
-        Estável:   '• Construa confiança com consistência<br>• Explique o "porquê" das mudanças<br>• Dê tempo para processar feedbacks<br>• Valorize a lealdade e dedicação',
-        Conforme:  '• Forneça dados, processos e ferramentas<br>• Dê feedbacks escritos e estruturados<br>• Respeite a necessidade de qualidade<br>• Evite pressão excessiva por velocidade',
-      }[disc.perfil]
-    + '</div></div>' : '';
-
-  let content = '';
-
-  if (tab === 'dia') {{
-      // ===== ABA DIA A DIA - DASHBOARD MENSAL + ANUAL + INPUT =====
-      var now = new Date();
-      var curYear = now.getFullYear();
-      var curMonth = now.getMonth() + 1;
-      var monthKey = ooGetMonthKey(now);
-      var dayKey = ooGetDayKey(now);
-      var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-
-      // Aggregations
-      var realMes = ooAggMonth(selBid, monthKey);
-      var realAno = ooAggYear(selBid, curYear);
-      var metasMes = ooGetMetas(selBid, monthKey);
-      var metasAno = ooGetMetasAnual(selBid, String(curYear));
-
-      // Also use ooSheetCache as fallback for current month
-      var cache = ((S.ooSheetCache||{})[selBid]) || {};
-      var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
-
-      var workDays = ooGetWorkDays(curYear, curMonth);
-      var workPassed = ooGetWorkDaysPassed(curYear, curMonth);
-      var workRemain = workDays - workPassed;
-
-      // === HEADER DO MES ===
-      content += '<div style="text-align:center;margin:16px 0 8px">';
-      content += '<span style="font-size:22px;font-weight:700;color:#f8fafc">' + monthNames[curMonth] + ' ' + curYear + '</span>';
-      content += '<span style="font-size:13px;color:#94a3b8;margin-left:12px">' + workPassed + '/' + workDays + ' dias uteis · ' + workRemain + ' restantes</span>';
-      content += '</div>';
-
-      // === CARDS: MES VIGENTE + ANUAL ===
-      function ooMetricRow(label, icon, realVal, metaVal, cor) {
-        var pct = metaVal > 0 ? Math.min((realVal / metaVal * 100), 100) : (realVal > 0 ? 100 : 0);
-        var pctTxt = metaVal > 0 ? (realVal / metaVal * 100).toFixed(1) + '%' : '—';
-        var semaforo = pct >= 80 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444';
-        return '<div style="display:flex;align-items:center;gap:8px;margin:4px 0;padding:6px 10px;background:#0f172a;border-radius:8px">'
-          + '<span style="font-size:14px;width:22px;text-align:center">' + icon + '</span>'
-          + '<span style="flex:1;font-size:13px;color:#94a3b8">' + label + '</span>'
-          + '<div style="width:120px;height:8px;background:#1e293b;border-radius:4px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:' + (cor||semaforo) + ';border-radius:4px;transition:width 0.4s"></div></div>'
-          + '<span style="font-size:14px;font-weight:700;color:#f8fafc;min-width:45px;text-align:right">' + realVal + '</span>'
-          + '<span style="font-size:11px;color:#64748b;min-width:35px">/' + (metaVal||'—') + '</span>'
-          + '<span style="font-size:12px;font-weight:600;color:' + semaforo + ';min-width:50px;text-align:right">' + pctTxt + '</span>'
-          + '</div>';
-      }
-
-      // CARD MES VIGENTE
-      content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0">';
-      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
-      content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:10px">📊 Mes Vigente — Meta x Realizado</div>';
-      OO_CAMPOS.forEach(function(c) {
-        if (c.k === 'desc') return;
-        var rv = hasDailyData ? (realMes[c.k]||0) : (cache[c.k]||0);
-        var mv = metasMes[c.k] || 0;
-        content += ooMetricRow(c.l, c.icon, rv, mv);
-      });
-      content += '</div>';
-
-      // CARD ANUAL ACUMULADO
-      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
-      content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:10px">📈 Anual Acumulado — ' + curYear + '</div>';
-      OO_CAMPOS.forEach(function(c) {
-        if (c.k === 'desc') return;
-        var rv = realAno[c.k] || 0;
-        var mv = metasAno[c.k] || 0;
-        content += ooMetricRow(c.l, c.icon, rv, mv);
-      });
-      content += '</div>';
-      content += '</div>';
-
-      // === PROJECAO POR FUNIL DE CONVERSAO ===
-    var selFrente = ooGetFrenteForBroker(selBid);
-    var funnelPct = ooGetFunnelPct(selFrente);
-    var hasFunnel = Object.keys(funnelPct).length > 0;
-    var fwdProj = hasFunnel ? ooProjectForward(realMes, funnelPct) : {};
-    var metaVendas = (metasMes.vend || 0);
-    var bwdNeed = (hasFunnel && metaVendas > 0) ? ooProjectBackward(metaVendas, funnelPct) : {};
-    content += '<div style="background:#1e1b4b;border-radius:12px;padding:16px;margin-bottom:16px">';
-    content += '<div style="font-size:15px;font-weight:700;color:#a5b4fc;margin-bottom:12px">\u{1F3AF} Proje\u00e7\u00e3o por Funil <span style="font-size:12px;color:#818cf8;font-weight:400">(equipe: ' + selFrente + ')</span></div>';
-    if (!hasFunnel) {
-      content += '<div style="color:#fbbf24;font-size:13px;padding:12px;background:#292524;border-radius:8px">\u26A0\uFE0F Taxas de convers\u00e3o n\u00e3o definidas para <b>' + selFrente + '</b>. Configure abaixo.</div>';
-    } else {
-      content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
-      content += '<div style="background:#312e81;border-radius:10px;padding:14px">';
-      content += '<div style="font-size:13px;font-weight:600;color:#c4b5fd;margin-bottom:10px">\u{1F4C8} Forward (projetado)</div>';
-      content += '<div style="font-size:11px;color:#a5b4fc;margin-bottom:8px">Realizado x taxa de convers\u00e3o</div>';
-      OO_FUNNEL_STEPS.forEach(function(step) {
-        var key = step.from + '_to_' + step.to;
-        var pctVal = funnelPct[key] || 0;
-        var projVal = fwdProj[step.to] || 0;
-        var realVal = realMes[step.to] || 0;
-        var cor = realVal >= projVal ? '#10b981' : '#f59e0b';
-        content += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #3730a3">';
-        content += '<span style="color:#c4b5fd;font-size:12px">' + step.lbl + ' <span style="color:#818cf8">(' + pctVal.toFixed(1) + '%)</span></span>';
-        content += '<span style="color:' + cor + ';font-weight:700;font-size:13px">' + realVal + ' / ' + projVal.toFixed(0) + '</span>';
-        content += '</div>';
-      });
-      var projVendas = fwdProj.vend || 0;
-      content += '<div style="margin-top:10px;padding:10px;background:#1e1b4b;border-radius:8px;text-align:center">';
-      content += '<div style="font-size:11px;color:#a5b4fc">Vendas Projetadas</div>';
-      content += '<div style="font-size:28px;font-weight:800;color:' + (projVendas >= metaVendas ? '#10b981' : '#ef4444') + '">' + projVendas.toFixed(1) + '</div>';
-      content += '<div style="font-size:11px;color:#818cf8">meta: ' + metaVendas + '</div>';
-      content += '</div></div>';
-      content += '<div style="background:#312e81;border-radius:10px;padding:14px">';
-      content += '<div style="font-size:13px;font-weight:600;color:#c4b5fd;margin-bottom:10px">\u{1F519} Meta Reversa</div>';
-      content += '<div style="font-size:11px;color:#a5b4fc;margin-bottom:8px">Para atingir ' + metaVendas + ' vendas:</div>';
-      if (metaVendas > 0) {
-        OO_CAMPOS.forEach(function(c) {
-          if (c.k === 'desc' || c.k === 'capt') return;
-          var needVal = bwdNeed[c.k] || 0;
-          var rv = realMes[c.k] || 0;
-          var pDone = needVal > 0 ? Math.min(rv / needVal * 100, 100) : 0;
-          var bc = pDone >= 100 ? '#10b981' : pDone >= 60 ? '#f59e0b' : '#ef4444';
-          content += '<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px;color:#c4b5fd">';
-          content += '<span>' + c.icon + ' ' + c.l + '</span><span style="font-weight:700;color:' + bc + '">' + rv + ' / ' + needVal + '</span></div>';
-          content += '<div style="background:#1e1b4b;border-radius:4px;height:6px;margin-top:3px"><div style="background:' + bc + ';height:100%;border-radius:4px;width:' + pDone.toFixed(0) + '%"></div></div></div>';
-        });
-      } else {
-        content += '<div style="color:#fbbf24;font-size:12px">Defina uma meta de vendas.</div>';
-      }
-      content += '</div></div>';
-    }
-    content += '</div>';
-    // === INPUT DIARIO ===
-      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin:12px 0">';
-      content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
-      content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">✏️ Registro do Dia — ' + dayKey + '</span>';
-      content += '<button onclick="ooSaveDayForm(\'' + selBid + '\',\'' + dayKey + '\',this)" style="background:#6366f1;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar</button>';
-      content += '</div>';
-      var todayData = (((S.ooDaily||{})[selBid]||{})[monthKey]||{})[dayKey] || {};
-      content += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
-      OO_CAMPOS.forEach(function(c) {
-        if (c.k === 'desc') return;
-        var val = todayData[c.k] || '';
-        content += '<div style="background:#0f172a;border-radius:8px;padding:10px">';
-        content += '<label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">' + c.icon + ' ' + c.l + '</label>';
-        content += '<input id="oo_input_' + c.k + '" type="number" min="0" value="' + val + '" placeholder="0" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:8px;border-radius:6px;font-size:16px;font-weight:600;text-align:center">';
-        content += '</div>';
-      });
-      content += '</div></div>';
-
-      // === CONFIGURAR METAS (para gestores) ===
-      if (lvl >= 5) {
-        content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin:12px 0">';
-        content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
-        content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">🎯 Metas do Mes — ' + monthNames[curMonth] + ' ' + curYear + '</span>';
-        content += '<button onclick="ooSaveMetasForm(\'' + selBid + '\',\'' + monthKey + '\',this)" style="background:#10b981;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar Metas</button>';
-        content += '</div>';
-        content += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
-        OO_CAMPOS.forEach(function(c) {
-          if (c.k === 'desc') return;
-          var mv = metasMes[c.k] || '';
-          content += '<div style="background:#0f172a;border-radius:8px;padding:8px">';
-          content += '<label style="font-size:10px;color:#94a3b8;display:block;margin-bottom:4px">' + c.icon + ' ' + c.l + '</label>';
-          content += '<input id="oo_meta_' + c.k + '" type="number" min="0" value="' + mv + '" placeholder="Meta" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:6px;border-radius:6px;font-size:14px;text-align:center">';
-          content += '</div>';
-        });
-        content += '</div></div>';
-      }
-
-      
-    // === CONFIGURAR % FUNIL POR EQUIPE (somente gestor) ===
-    if (lvl >= 5) {
-      var cfgFrente = ooGetFrenteForBroker(selBid);
-      var cfgPct = ooGetFunnelPct(cfgFrente);
-      var realPct = ooCalcFunnelPctFromData(realMes);
-      content += '<div style="background:#1a1a2e;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #312e81">';
-      content += '<div style="font-size:15px;font-weight:700;color:#fbbf24;margin-bottom:4px">\u2699\uFE0F Taxas de Convers\u00e3o \u2014 ' + cfgFrente.charAt(0).toUpperCase() + cfgFrente.slice(1) + '</div>';
-      content += '<div style="font-size:11px;color:#a5b4fc;margin-bottom:12px">Defina as % entre cada etapa do funil. Somente gestores editam.</div>';
-      content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-      OO_FUNNEL_STEPS.forEach(function(step) {
-        var key = step.from + '_to_' + step.to;
-        var curVal = cfgPct[key] || 0;
-        var realVal = realPct[key] || 0;
-        content += '<div style="background:#0f172a;border-radius:8px;padding:10px">';
-        content += '<div style="font-size:12px;color:#c4b5fd;margin-bottom:4px">' + step.lbl + '</div>';
-        content += '<div style="display:flex;align-items:center;gap:6px">';
-        content += '<input type="number" step="0.1" min="0" max="500" id="oo_funnel_' + key + '" value="' + curVal + '" style="width:70px;background:#1e293b;color:#fff;border:1px solid #475569;border-radius:6px;padding:6px 8px;font-size:13px;text-align:center" />';
-        content += '<span style="color:#818cf8;font-size:12px">%</span>';
-        content += '<span style="color:#64748b;font-size:11px;margin-left:auto">real: ' + realVal.toFixed(1) + '%</span>';
-        content += '</div></div>';
-      });
-      content += '</div>';
-      content += '<div style="display:flex;gap:8px;margin-top:12px">';
-      content += '<button onclick="ooSaveFunnelForm(\'' + cfgFrente + '\',this)" style="flex:1;padding:10px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">Salvar % Funil</button>';
-      content += '<button onclick="ooAutoFillFunnel(\'' + cfgFrente + '\')" style="padding:10px 16px;background:#0f766e;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">\u{1F504} Usar Taxas Reais</button>';
-      content += '</div></div>';
-    }
-// === FUNIL (mantém o existente mas com dados atualizados) ===
-      content += '<div style="margin:16px 0;text-align:center"><span style="font-size:14px;font-weight:700;color:#94a3b8">FUNIL DO MES</span></div>';
-      var funnelData = hasDailyData ? realMes : cache;
-      var campos = [
-        {k:'lig_real',l:'Ligacoes Realizadas',cor:'#6366f1',w:100},
-        {k:'lig_atend',l:'Ligacoes Atendidas',cor:'#818cf8',w:92},
-        {k:'tent_agend',l:'Tent. Agendamento',cor:'#3b82f6',w:84},
-        {k:'agend',l:'Agendamentos',cor:'#2563eb',w:76},
-        {k:'vis',l:'Visitas Realizadas',cor:'#0ea5e9',w:68},
-        {k:'prop',l:'Propostas',cor:'#06b6d4',w:60},
-        {k:'capt',l:'Captacoes',cor:'#14b8a6',w:52},
-        {k:'vend',l:'Vendas',cor:'#10b981',w:44},
-        {k:'desc',l:'Descartados',cor:'#dc2626',w:44}
-      ];
-      campos.forEach(function(c, idx) {
-        var v = funnelData[c.k] || 0;
-        if (idx > 0 && c.k !== 'desc') {
-          var prevV = funnelData[campos[idx-1].k] || 0;
-          var convPct = prevV > 0 ? (v/prevV*100).toFixed(1) + '%' : '';
-          content += '<div style="text-align:center;margin:2px 0"><span style="font-size:11px;font-weight:600;color:#94a3b8;background:#1e293b;padding:2px 10px;border-radius:10px;border:1px solid #334155;display:inline-block">' + (convPct ? '\u2193 '+convPct : '') + '</span></div>';
-        }
-        content += '<div style="display:flex;align-items:center;margin-bottom:4px"><div style="width:' + c.w + '%;background:' + c.cor + ';color:#fff;padding:10px 14px;border-radius:8px;display:flex;justify-content:space-between;font-size:13px;font-weight:600"><span>' + c.l + '</span><span>' + v + '</span></div></div>';
-      });
-    }}
- else if (tab === 'semana') {
-    const hist = S['ooHistory_'+selBid] || [];
-    const totLig  = hist.reduce((a,d)=>a+(d.lig_atend||0),0);
-    const totVis  = hist.reduce((a,d)=>a+(d.vis||0),0);
-    const totProp = hist.reduce((a,d)=>a+(d.prop||0),0);
-    const totCapt = hist.reduce((a,d)=>a+(d.capt||0),0);
-    content = discCard
-      + '<div class="kgrid mb2">'
-      + Kpi('Lig. Atendidas',totLig,'total registrado',null,'var(--b)')
-      + Kpi('Visitas',totVis,'realizadas',null,'var(--gold)')
-      + Kpi('Propostas',totProp,'enviadas',null,'var(--a)')
-      + Kpi('Capta\u00e7\u00f5es',totCapt,'registradas',null,'#0891b2')
-      + Kpi('VGV Real',fmt(selBroker.vgv_real||0),'no RD',null,'var(--g)')
-      + '</div>';
-  }
-
-  else if (tab === 'reuniao') {
-    const notas = S['ooNotas_'+selBid] || '';
-    content = discCard
-      + '<div class="card"><div class="ctitle">Notas da Reunião 1:1</div>'
-      + '<textarea class="finp" rows="8" style="resize:vertical;width:100%" placeholder="Anotações, pontos discutidos, plano de ação..." oninput="S[\'ooNotas_'+selBid+'\']=this.value">'+notas+'</textarea>'
-      + '<div style="margin-top:10px;display:flex;gap:8px">'
-      + '<button class="btn bp1" onclick="toast(\'Notas salvas!\',\'ok\')">Salvar Notas</button>'
-      + '</div></div>';
-  }
-
-  else if (tab === 'metas') {
-    const metaVGV  = mc.vgv_meta || selBroker.meta || 0;
-    const metaMin  = mc.vgv_min  || 0;
-    const metaVis  = mc.visitas  || 0;
-    const metaCap  = mc.captacoes|| 0;
-    const realVGV_ = selBroker.vgv_real || 0;
-    const realVis_ = selBroker.vis || 0;
-    const pctV     = metaVGV > 0 ? Math.round(realVGV_/metaVGV*100) : 0;
-    const pctVis   = metaVis > 0 ? Math.round(realVis_/metaVis*100) : 0;
-    // Projeção
-    const du_pass  = METRICS.du_pass || 1;
-    const du_tot   = METRICS.du_tot  || 22;
-    const proj     = du_pass > 0 ? Math.round(realVGV_ / du_pass * du_tot) : 0;
-    const pctProj  = metaVGV > 0 ? Math.round(proj/metaVGV*100) : 0;
-
-    const canEdit  = RLVL[u.role] >= 5;
-    content = discCard
-      + '<div class="card mb2"><div class="ctitle">Metas vs Realizado — '+selUser.name.split(' ')[0]+'</div>'
-      + '<div style="display:flex;flex-direction:column;gap:14px">'
-      + (metaVGV > 0 ? '<div><div style="display:flex;justify-content:space-between;margin-bottom:5px">'
-        + '<span style="font-size:12px;font-weight:700">VGV Meta</span>'
-        + '<span style="font-size:12px;font-weight:800;color:'+(pctV>=100?'var(--g-tx)':pctV>=70?'var(--a-tx)':'var(--r-tx)')+'">'+fmt(realVGV_)+' / '+fmt(metaVGV)+' ('+pctV+'%)</span></div>'
-        + PB(realVGV_, metaVGV, pctV>=100?'#16a34a':pctV>=70?'#d97706':'#dc2626')
-        + '</div>' : '')
-      + (metaMin > 0 ? '<div><div style="display:flex;justify-content:space-between;margin-bottom:5px">'
-        + '<span style="font-size:12px;font-weight:700">VGV Mínimo</span>'
-        + '<span style="font-size:12px;font-weight:800;color:'+(realVGV_>=metaMin?'var(--g-tx)':'var(--r-tx)')+'">'+fmt(realVGV_)+' / '+fmt(metaMin)+'</span></div>'
-        + PB(realVGV_, metaMin, realVGV_>=metaMin?'#16a34a':'#dc2626')
-        + '</div>' : '')
-      + (metaVis > 0 ? '<div><div style="display:flex;justify-content:space-between;margin-bottom:5px">'
-        + '<span style="font-size:12px;font-weight:700">Meta Visitas</span>'
-        + '<span style="font-size:12px;font-weight:800;color:'+(pctVis>=100?'var(--g-tx)':pctVis>=70?'var(--a-tx)':'var(--r-tx)')+'">'+realVis_+' / '+metaVis+' ('+pctVis+'%)</span></div>'
-        + PB(realVis_, metaVis, pctVis>=100?'#16a34a':pctVis>=70?'#d97706':'#dc2626')
-        + '</div>' : '')
-      + '</div></div>'
-      + '<div class="card"><div class="ctitle">Projeção do Mês</div>'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
-      + '<div><div style="font-size:22px;font-weight:900;color:var(--navy)">'+fmt(proj)+'</div>'
-      + '<div style="font-size:11px;color:var(--muted)">projeção baseada no ritmo atual</div></div>'
-      + '<div style="text-align:right"><div style="font-size:22px;font-weight:900;color:'+(pctProj>=100?'var(--g-tx)':pctProj>=70?'var(--a-tx)':'var(--r-tx)')+'">'+pctProj+'%</div>'
-      + '<div style="font-size:11px;color:var(--muted)">da meta</div></div></div>'
-      + PB(proj, metaVGV||1, pctProj>=100?'#16a34a':pctProj>=70?'#d97706':'#dc2626')
-      + '<div style="font-size:11px;color:var(--muted);margin-top:6px">Faltam '+fmt(Math.max(0,metaVGV-realVGV_))+' para bater a meta</div>'
-      + '</div>';
-  }
-
-  
-  // Check-in status card below broker name
   var checkinCard = '';
   if (S.checkin && S.checkin.logs && S.checkin.logs[selBid]) {
     var today = new Date().toISOString().slice(0,10);
@@ -4884,15 +4590,486 @@ function pgOO() {
       var ciBg = todayLog.checkout ? 'var(--cream2)' : (todayLog.checkin ? 'var(--g-bg)' : 'var(--a-bg)');
       var ciIcon = todayLog.checkout ? '\u2705' : (todayLog.checkin ? '\uD83D\uDFE2' : '\u23F3');
       checkinCard = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:'+ciBg+';border:1px solid '+ciColor+'30;border-radius:10px">'
-        + '<span style="font-size:20px">'+ciIcon+'</span>'
+        + '<span style="font-size:20px">'+ciIcon+'<\/span>'
         + '<div style="flex:1;min-width:0">'
-        + '<div style="font-size:11px;font-weight:700;color:'+ciColor+'">Check-in: '+ciStatus+'</div>'
+        + '<div style="font-size:11px;font-weight:700;color:'+ciColor+'">Check-in: '+ciStatus+'<\/div>'
         + '<div style="font-size:10px;color:var(--muted);display:flex;gap:12px;margin-top:2px">'
-        + '<span>\u23F0 Entrada: '+ciTime+'</span>'
-        + '<span>\uD83D\uDEAA Sa\u00edda: '+coTime+'</span>'
-        + (pausas > 0 ? '<span>\u23F8\uFE0F Pausas: '+pausas+'</span>' : '')
-        + '</div></div></div>';
+        + '<span>\u23F0 Entrada: '+ciTime+'<\/span>'
+        + '<span>\uD83D\uDEAA Sa\u00edda: '+coTime+'<\/span>'
+        + (pausas > 0 ? '<span>\u23F8\uFE0F Pausas: '+pausas+'<\/span>' : '')
+        + '<\/div><\/div><\/div>';
     }
+  }
+
+  let content = '';
+
+  if (tab === 'dia') {
+    var now = new Date();
+    var curYear = now.getFullYear();
+    var curMonth = now.getMonth() + 1;
+    var monthKey = ooGetMonthKey(now);
+    var dayKey = ooGetDayKey(now);
+    var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var realMes = ooAggMonth(selBid, monthKey);
+    var metasMes = ooGetMetas(selBid, monthKey);
+    var cache = ((S.ooSheetCache||{})[selBid]) || {};
+    var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
+    var workDays = ooGetWorkDays(curYear, curMonth);
+    var workPassed = ooGetWorkDaysPassed(curYear, curMonth);
+    var workRemain = workDays - workPassed;
+    content += '<div style="text-align:center;margin:16px 0 8px">';
+    content += '<span style="font-size:22px;font-weight:700;color:#f8fafc">' + monthNames[curMonth] + ' ' + curYear + '<\/span>';
+    content += '<span style="font-size:13px;color:#94a3b8;margin-left:12px">' + workPassed + '/' + workDays + ' dias \u00fateis \u00B7 ' + workRemain + ' restantes<\/span>';
+    content += '<\/div>';
+    var todayData = (((S.ooDaily||{})[selBid]||{})[monthKey]||{})[dayKey] || {};
+    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin:12px 0">';
+    content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
+    content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">\u270F\uFE0F Registro do Dia \u2014 ' + dayKey + '<\/span>';
+    content += '<button onclick="ooSaveDayForm(\'' + selBid + '\',\'' + dayKey + '\',this)" style="background:#6366f1;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar<\/button>';
+    content += '<\/div>';
+    var funnelColors = ['#6366f1','#818cf8','#3b82f6','#2563eb','#0ea5e9','#06b6d4','#14b8a6','#10b981','#dc2626'];
+    var funnelWidths = [100, 94, 88, 82, 76, 70, 64, 56, 56];
+    var funnelIdx = 0;
+    OO_CAMPOS.forEach(function(c) {
+      if (c.k === 'desc') return;
+      var val = todayData[c.k] || 0;
+      var w = funnelWidths[funnelIdx] || 56;
+      var cor = funnelColors[funnelIdx] || '#6366f1';
+      funnelIdx++;
+      content += '<div style="display:flex;align-items:center;justify-content:center;margin-bottom:6px">';
+      content += '<div style="width:' + w + '%;background:' + cor + ';border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;transition:width .4s">';
+      content += '<span style="font-size:12px;font-weight:600;color:#fff;white-space:nowrap">' + c.icon + ' ' + c.l + '<\/span>';
+      content += '<div style="display:flex;align-items:center;gap:6px">';
+      content += '<button onclick="ooDecField(\'' + selBid + '\',\'' + monthKey + '\',\'' + dayKey + '\',\'' + c.k + '\')" style="background:rgba(0,0,0,.3);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u2212<\/button>';
+      content += '<span id="oo_val_' + c.k + '" style="font-size:18px;font-weight:800;color:#fff;min-width:32px;text-align:center">' + val + '<\/span>';
+      content += '<input id="oo_input_' + c.k + '" type="hidden" value="' + val + '">';
+      content += '<button onclick="ooIncField(\'' + selBid + '\',\'' + monthKey + '\',\'' + dayKey + '\',\'' + c.k + '\')" style="background:rgba(255,255,255,.25);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+<\/button>';
+      content += '<\/div><\/div><\/div>';
+    });
+    var descVal = todayData['desc'] || 0;
+    content += '<div style="display:flex;align-items:center;justify-content:center;margin-top:4px">';
+    content += '<div style="width:56%;background:#dc2626;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between">';
+    content += '<span style="font-size:12px;font-weight:600;color:#fff">\u274C Descartados<\/span>';
+    content += '<div style="display:flex;align-items:center;gap:6px">';
+    content += '<button onclick="ooDecField(\'' + selBid + '\',\'' + monthKey + '\',\'' + dayKey + '\',\'desc\')" style="background:rgba(0,0,0,.3);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u2212<\/button>';
+    content += '<span id="oo_val_desc" style="font-size:18px;font-weight:800;color:#fff;min-width:32px;text-align:center">' + descVal + '<\/span>';
+    content += '<input id="oo_input_desc" type="hidden" value="' + descVal + '">';
+    content += '<button onclick="ooIncField(\'' + selBid + '\',\'' + monthKey + '\',\'' + dayKey + '\',\'desc\')" style="background:rgba(255,255,255,.25);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+<\/button>';
+    content += '<\/div><\/div><\/div>';
+    content += '<\/div>';
+    content += '<div style="margin:16px 0;text-align:center"><span style="font-size:14px;font-weight:700;color:#94a3b8">FUNIL DO M\u00CAS<\/span><\/div>';
+    var funnelData = hasDailyData ? realMes : cache;
+    var campos = [
+      {k:'lig_real',l:'Liga\u00e7\u00f5es Realizadas',cor:'#6366f1',w:100},
+      {k:'lig_atend',l:'Liga\u00e7\u00f5es Atendidas',cor:'#818cf8',w:92},
+      {k:'tent_agend',l:'Tent. Agendamento',cor:'#3b82f6',w:84},
+      {k:'agend',l:'Agendamentos',cor:'#2563eb',w:76},
+      {k:'vis',l:'Visitas Realizadas',cor:'#0ea5e9',w:68},
+      {k:'prop',l:'Propostas',cor:'#06b6d4',w:60},
+      {k:'capt',l:'Capta\u00e7\u00f5es',cor:'#14b8a6',w:52},
+      {k:'vend',l:'Vendas',cor:'#10b981',w:44},
+      {k:'desc',l:'Descartados',cor:'#dc2626',w:44}
+    ];
+    campos.forEach(function(c, idx) {
+      var v = funnelData[c.k] || 0;
+      if (idx > 0 && c.k !== 'desc') {
+        var prevV = funnelData[campos[idx-1].k] || 0;
+        var convPct = prevV > 0 ? (v/prevV*100).toFixed(1) + '%' : '';
+        content += '<div style="text-align:center;margin:2px 0"><span style="font-size:11px;font-weight:600;color:#94a3b8;background:#1e293b;padding:2px 10px;border-radius:10px;border:1px solid #334155;display:inline-block">' + (convPct ? '\u2193 '+convPct : '') + '<\/span><\/div>';
+      }
+      content += '<div style="display:flex;align-items:center;margin-bottom:4px"><div style="width:' + c.w + '%;background:' + c.cor + ';color:#fff;padding:10px 14px;border-radius:8px;display:flex;justify-content:space-between;font-size:13px;font-weight:600"><span>' + c.l + '<\/span><span>' + v + '<\/span><\/div><\/div>';
+    });
+    var selFrente = ooGetFrenteForBroker(selBid);
+    var funnelPct = ooGetFunnelPct(selFrente);
+    var hasFunnel = Object.keys(funnelPct).length > 0;
+    var fwdProj = hasFunnel ? ooProjectForward(realMes, funnelPct) : {};
+    var metaVendas = (metasMes.vend || 0);
+    var bwdNeed = (hasFunnel && metaVendas > 0) ? ooProjectBackward(metaVendas, funnelPct) : {};
+    content += '<div style="background:#1e1b4b;border-radius:12px;padding:16px;margin:16px 0">';
+    content += '<div style="font-size:15px;font-weight:700;color:#a5b4fc;margin-bottom:12px">\uD83C\uDFAF Proje\u00e7\u00e3o do M\u00eas <span style="font-size:12px;color:#818cf8;font-weight:400">(equipe: ' + selFrente + ')<\/span><\/div>';
+    if (!hasFunnel) {
+      content += '<div style="color:#fbbf24;font-size:13px;padding:12px;background:#292524;border-radius:8px">\u26A0\uFE0F Taxas n\u00e3o definidas para <b>' + selFrente + '<\/b>. Configure na aba Gest\u00e3o.<\/div>';
+    } else {
+      content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+      content += '<div style="background:#312e81;border-radius:10px;padding:14px">';
+      content += '<div style="font-size:13px;font-weight:600;color:#c4b5fd;margin-bottom:10px">\uD83D\uDCC8 Forward<\/div>';
+      OO_FUNNEL_STEPS.forEach(function(step) {
+        var key = step.from + '_to_' + step.to;
+        var pctVal = funnelPct[key] || 0;
+        var projVal = fwdProj[step.to] || 0;
+        var realVal = realMes[step.to] || 0;
+        var cor = realVal >= projVal ? '#10b981' : '#f59e0b';
+        content += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #3730a3">';
+        content += '<span style="color:#c4b5fd;font-size:12px">' + step.lbl + ' <span style="color:#818cf8">(' + pctVal.toFixed(1) + '%)<\/span><\/span>';
+        content += '<span style="color:' + cor + ';font-weight:700;font-size:13px">' + realVal + ' / ' + projVal.toFixed(0) + '<\/span>';
+        content += '<\/div>';
+      });
+      var projVendas = fwdProj.vend || 0;
+      content += '<div style="margin-top:10px;padding:10px;background:#1e1b4b;border-radius:8px;text-align:center">';
+      content += '<div style="font-size:11px;color:#a5b4fc">Vendas Projetadas<\/div>';
+      content += '<div style="font-size:28px;font-weight:800;color:' + (projVendas >= metaVendas ? '#10b981' : '#ef4444') + '">' + projVendas.toFixed(1) + '<\/div>';
+      content += '<div style="font-size:11px;color:#818cf8">meta: ' + metaVendas + '<\/div>';
+      content += '<\/div><\/div>';
+      content += '<div style="background:#312e81;border-radius:10px;padding:14px">';
+      content += '<div style="font-size:13px;font-weight:600;color:#c4b5fd;margin-bottom:10px">\uD83D\uDD19 Meta Reversa<\/div>';
+      content += '<div style="font-size:11px;color:#a5b4fc;margin-bottom:8px">Para atingir ' + metaVendas + ' vendas:<\/div>';
+      if (metaVendas > 0) {
+        OO_CAMPOS.forEach(function(c) {
+          if (c.k === 'desc' || c.k === 'capt') return;
+          var needVal = bwdNeed[c.k] || 0;
+          var rv = realMes[c.k] || 0;
+          var pDone = needVal > 0 ? Math.min(rv / needVal * 100, 100) : 0;
+          var bc = pDone >= 100 ? '#10b981' : pDone >= 60 ? '#f59e0b' : '#ef4444';
+          content += '<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px;color:#c4b5fd">';
+          content += '<span>' + c.icon + ' ' + c.l + '<\/span><span style="font-weight:700;color:' + bc + '">' + rv + ' / ' + needVal + '<\/span><\/div>';
+          content += '<div style="background:#1e1b4b;border-radius:4px;height:6px;margin-top:3px"><div style="background:' + bc + ';height:100%;border-radius:4px;width:' + pDone.toFixed(0) + '%"><\/div><\/div><\/div>';
+        });
+      } else {
+        content += '<div style="color:#fbbf24;font-size:12px">Defina uma meta de vendas na aba Metas.<\/div>';
+      }
+      content += '<\/div><\/div>';
+    }
+    content += '<\/div>';
+  }
+
+  else if (tab === 'acumulado') {
+    var now = new Date();
+    var curYear = now.getFullYear();
+    var curMonth = now.getMonth() + 1;
+    var monthKey = ooGetMonthKey(now);
+    var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var acumPeriodo = S.ooAcumPeriodo || 'mensal';
+    content += '<div style="display:flex;gap:6px;margin-bottom:16px;justify-content:center">';
+    ['semanal','mensal','anual'].forEach(function(p) {
+      var lbl = p.charAt(0).toUpperCase() + p.slice(1);
+      var active = acumPeriodo === p;
+      content += '<button onclick="S.ooAcumPeriodo=\'' + p + '\';render()" style="padding:8px 20px;border-radius:8px;border:1px solid ' + (active ? '#6366f1' : '#334155') + ';background:' + (active ? '#6366f1' : '#1e293b') + ';color:' + (active ? '#fff' : '#94a3b8') + ';font-size:13px;font-weight:600;cursor:pointer">' + lbl + '<\/button>';
+    });
+    content += '<\/div>';
+    function ooAcumMetricRow(label, icon, realVal, metaVal) {
+      var pct = metaVal > 0 ? Math.min((realVal / metaVal * 100), 100) : (realVal > 0 ? 100 : 0);
+      var pctTxt = metaVal > 0 ? (realVal / metaVal * 100).toFixed(1) + '%' : '\u2014';
+      var semaforo = pct >= 80 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444';
+      return '<div style="display:flex;align-items:center;gap:8px;margin:4px 0;padding:8px 12px;background:#0f172a;border-radius:8px">'
+        + '<span style="font-size:14px;width:22px;text-align:center">' + icon + '<\/span>'
+        + '<span style="flex:1;font-size:13px;color:#94a3b8">' + label + '<\/span>'
+        + '<div style="width:120px;height:8px;background:#1e293b;border-radius:4px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:' + semaforo + ';border-radius:4px;transition:width 0.4s"><\/div><\/div>'
+        + '<span style="font-size:14px;font-weight:700;color:#f8fafc;min-width:45px;text-align:right">' + realVal + '<\/span>'
+        + '<span style="font-size:11px;color:#64748b;min-width:35px">/' + (metaVal || '\u2014') + '<\/span>'
+        + '<span style="font-size:12px;font-weight:600;color:' + semaforo + ';min-width:50px;text-align:right">' + pctTxt + '<\/span>'
+        + '<\/div>';
+    }
+    if (acumPeriodo === 'semanal') {
+      var weekStart = new Date(now);
+      var dayOfWeek = weekStart.getDay();
+      var diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      weekStart.setDate(weekStart.getDate() - diff);
+      var weekTotals = {};
+      OO_CAMPOS.forEach(function(c) { weekTotals[c.k] = 0; });
+      for (var wd = 0; wd < 7; wd++) {
+        var d = new Date(weekStart);
+        d.setDate(d.getDate() + wd);
+        if (d > now) break;
+        var dk = ooGetDayKey(d);
+        var mk = ooGetMonthKey(d);
+        var dayData = (((S.ooDaily||{})[selBid]||{})[mk]||{})[dk] || {};
+        OO_CAMPOS.forEach(function(c) { weekTotals[c.k] += (dayData[c.k] || 0); });
+      }
+      var weekMetas = ooGetMetas(selBid, monthKey);
+      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
+      content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCC5 Semana Atual \u2014 Meta vs Realizado<\/div>';
+      OO_CAMPOS.forEach(function(c) {
+        if (c.k === 'desc') return;
+        var wMeta = Math.round((weekMetas[c.k] || 0) / 4);
+        content += ooAcumMetricRow(c.l, c.icon, weekTotals[c.k], wMeta);
+      });
+      content += '<\/div>';
+    }
+    else if (acumPeriodo === 'mensal') {
+      var realMes = ooAggMonth(selBid, monthKey);
+      var metasMes = ooGetMetas(selBid, monthKey);
+      var cache = ((S.ooSheetCache||{})[selBid]) || {};
+      var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
+      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
+      content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCC8 ' + monthNames[curMonth] + ' ' + curYear + ' \u2014 Meta vs Realizado<\/div>';
+      OO_CAMPOS.forEach(function(c) {
+        if (c.k === 'desc') return;
+        var rv = hasDailyData ? (realMes[c.k]||0) : (cache[c.k]||0);
+        var mv = metasMes[c.k] || 0;
+        content += ooAcumMetricRow(c.l, c.icon, rv, mv);
+      });
+      content += '<\/div>';
+    }
+    else if (acumPeriodo === 'anual') {
+      var realAno = ooAggYear(selBid, curYear);
+      var metasAno = ooGetMetasAnual(selBid, String(curYear));
+      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
+      content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCC8 Anual Acumulado \u2014 ' + curYear + '<\/div>';
+      OO_CAMPOS.forEach(function(c) {
+        if (c.k === 'desc') return;
+        content += ooAcumMetricRow(c.l, c.icon, realAno[c.k]||0, metasAno[c.k]||0);
+      });
+      content += '<\/div>';
+      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-top:16px">';
+      content += '<div style="font-size:14px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCCA Evolu\u00e7\u00e3o Mensal<\/div>';
+      content += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+      content += '<thead><tr style="color:#94a3b8;border-bottom:1px solid #334155"><th style="padding:6px;text-align:left">M\u00eatrica<\/th>';
+      for (var mi = 1; mi <= 12; mi++) content += '<th style="padding:6px;text-align:center">' + monthNames[mi] + '<\/th>';
+      content += '<th style="padding:6px;text-align:center;color:#f8fafc;font-weight:800">Total<\/th><\/tr><\/thead><tbody>';
+      OO_CAMPOS.forEach(function(c) {
+        if (c.k === 'desc') return;
+        content += '<tr style="border-bottom:1px solid #1e293b"><td style="padding:6px;color:#a5b4fc;font-weight:600">' + c.icon + ' ' + c.l + '<\/td>';
+        var rowTotal = 0;
+        for (var mi = 1; mi <= 12; mi++) {
+          var mk = curYear + '-' + String(mi).padStart(2,'0');
+          var mAgg = ooAggMonth(selBid, mk);
+          var val = mAgg[c.k] || 0;
+          rowTotal += val;
+          var isCurrentMonth = mi === curMonth;
+          content += '<td style="padding:6px;text-align:center;color:' + (isCurrentMonth ? '#6366f1' : '#cbd5e1') + ';font-weight:' + (isCurrentMonth ? '700' : '400') + '">' + (val || '\u2014') + '<\/td>';
+        }
+        content += '<td style="padding:6px;text-align:center;color:#f8fafc;font-weight:800">' + rowTotal + '<\/td><\/tr>';
+      });
+      content += '<\/tbody><\/table><\/div><\/div>';
+    }
+  }
+
+  else if (tab === 'reuniao') {
+    var now = new Date();
+    var curYear = now.getFullYear();
+    var curMonth = now.getMonth() + 1;
+    var monthKey = ooGetMonthKey(now);
+    var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var disc_ = DISC_PROFILES[selBid];
+    var discCard = disc_ ? '<div class="card mb2" style="border-left:4px solid '+disc_.cor+'"><div class="ctitle">'+DISC_ICON[disc_.perfil]+' Perfil Comportamental: '+disc_.perfil+'<\/div><div style="font-size:12.5px;color:var(--navy);line-height:1.7;margin-bottom:10px">'+disc_.desc+'<\/div><\/div>' : '';
+    if (!S.ooReunioes) S.ooReunioes = {};
+    if (!S.ooReunioes[selBid]) S.ooReunioes[selBid] = {};
+    var ooReunMes = S.ooReunMes || monthKey;
+    var reunioesView = S.ooReunioes[selBid][ooReunMes] || [];
+    content += discCard;
+    content += '<div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px">';
+    content += '<button onclick="ooReunNavMonth(-1)" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px">\u25C0<\/button>';
+    var rmParts = ooReunMes.split('-');
+    content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">' + monthNames[parseInt(rmParts[1])] + ' ' + rmParts[0] + '<\/span>';
+    content += '<button onclick="ooReunNavMonth(1)" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px">\u25B6<\/button>';
+    content += '<\/div>';
+    if (lvl >= 5) {
+      content += '<div style="text-align:right;margin-bottom:12px">';
+      content += '<button onclick="ooAddReuniao(\'' + selBid + '\',\'' + ooReunMes + '\')" style="background:#6366f1;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">+ Nova Reuni\u00e3o<\/button>';
+      content += '<\/div>';
+    }
+    if (reunioesView.length === 0) {
+      content += '<div style="text-align:center;padding:40px 20px;color:#64748b;font-size:14px"><div style="font-size:40px;margin-bottom:12px">\uD83D\uDCCB<\/div>Nenhuma reuni\u00e3o registrada neste m\u00eas.<\/div>';
+    } else {
+      reunioesView.forEach(function(r, idx) {
+        var semana = r.semana || ('Semana ' + (idx+1));
+        content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:12px">';
+        content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+        content += '<span style="font-size:14px;font-weight:700;color:#a5b4fc">\uD83D\uDCC5 ' + semana + ' \u2014 ' + (r.data || '') + '<\/span>';
+        if (lvl >= 5) {
+          content += '<button onclick="ooRemoveReuniao(\'' + selBid + '\',\'' + ooReunMes + '\',' + idx + ')" style="background:#dc2626;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer">\uD83D\uDDD1<\/button>';
+        }
+        content += '<\/div>';
+        content += '<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:4px">\uD83C\uDFAF Objetivos a Cumprir<\/div>';
+        content += '<textarea class="finp" rows="3" style="resize:vertical;width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px;font-size:13px" placeholder="Liste os objetivos..." onblur="ooUpdateReuniao(\'' + selBid + '\',\'' + ooReunMes + '\',' + idx + ',\'objetivos\',this.value)">' + (r.objetivos || '') + '<\/textarea><\/div>';
+        content += '<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:#06b6d4;margin-bottom:4px">\uD83D\uDCDD Observa\u00e7\u00f5es<\/div>';
+        content += '<textarea class="finp" rows="3" style="resize:vertical;width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px;font-size:13px" placeholder="Observa\u00e7\u00f5es..." onblur="ooUpdateReuniao(\'' + selBid + '\',\'' + ooReunMes + '\',' + idx + ',\'observacoes\',this.value)">' + (r.observacoes || '') + '<\/textarea><\/div>';
+        content += '<div><div style="font-size:12px;font-weight:700;color:#10b981;margin-bottom:4px">\u2705 Plano de A\u00e7\u00e3o<\/div>';
+        content += '<textarea class="finp" rows="2" style="resize:vertical;width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px;font-size:13px" placeholder="A\u00e7\u00f5es..." onblur="ooUpdateReuniao(\'' + selBid + '\',\'' + ooReunMes + '\',' + idx + ',\'plano\',this.value)">' + (r.plano || '') + '<\/textarea><\/div>';
+        content += '<\/div>';
+      });
+    }
+    content += '<div style="text-align:center;padding:12px;color:#64748b;font-size:11px;margin-top:8px">Navegue pelos meses para acessar o hist\u00f3rico completo.<\/div>';
+  }
+
+  else if (tab === 'metas') {
+    var now = new Date();
+    var curYear = now.getFullYear();
+    var curMonth = now.getMonth() + 1;
+    var monthKey = ooGetMonthKey(now);
+    var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var metasMes = ooGetMetas(selBid, monthKey);
+    var realMes = ooAggMonth(selBid, monthKey);
+    var cache = ((S.ooSheetCache||{})[selBid]) || {};
+    var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
+    var workDays = ooGetWorkDays(curYear, curMonth);
+    var workPassed = ooGetWorkDaysPassed(curYear, curMonth);
+    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
+    content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:14px">\uD83C\uDFAF Meta vs Realizado \u2014 ' + monthNames[curMonth] + ' ' + curYear + '<\/div>';
+    OO_CAMPOS.forEach(function(c) {
+      if (c.k === 'desc') return;
+      var rv = hasDailyData ? (realMes[c.k]||0) : (cache[c.k]||0);
+      var mv = metasMes[c.k] || 0;
+      var pct = mv > 0 ? (rv / mv * 100).toFixed(1) : '\u2014';
+      var semaforo = mv > 0 ? (rv/mv >= 0.8 ? '#10b981' : rv/mv >= 0.5 ? '#f59e0b' : '#ef4444') : '#64748b';
+      var barW = mv > 0 ? Math.min(rv/mv*100, 100) : 0;
+      content += '<div style="margin-bottom:10px">';
+      content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+      content += '<span style="font-size:13px;color:#94a3b8">' + c.icon + ' ' + c.l + '<\/span>';
+      content += '<span style="font-size:13px;font-weight:700;color:' + semaforo + '">' + rv + ' / ' + (mv || '\u2014') + ' <span style="font-size:11px">(' + pct + '%)<\/span><\/span>';
+      content += '<\/div>';
+      content += '<div style="background:#0f172a;border-radius:6px;height:10px;overflow:hidden"><div style="height:100%;width:' + barW + '%;background:' + semaforo + ';border-radius:6px;transition:width .4s"><\/div><\/div>';
+      content += '<\/div>';
+    });
+    content += '<\/div>';
+    content += '<div style="background:#1e1b4b;border-radius:12px;padding:16px;border:1px solid #312e81">';
+    content += '<div style="font-size:15px;font-weight:700;color:#a5b4fc;margin-bottom:14px">\uD83D\uDCC8 Realizado vs Proje\u00e7\u00e3o<\/div>';
+    content += '<div style="font-size:11px;color:#818cf8;margin-bottom:12px">' + workPassed + ' dias \u00fateis passados de ' + workDays + ' \u2014 proje\u00e7\u00e3o baseada no ritmo atual<\/div>';
+    OO_CAMPOS.forEach(function(c) {
+      if (c.k === 'desc') return;
+      var rv = hasDailyData ? (realMes[c.k]||0) : (cache[c.k]||0);
+      var proj = workPassed > 0 ? Math.round(rv / workPassed * workDays) : 0;
+      var mv = metasMes[c.k] || 0;
+      var projColor = mv > 0 ? (proj >= mv ? '#10b981' : proj >= mv*0.7 ? '#f59e0b' : '#ef4444') : '#818cf8';
+      content += '<div style="display:flex;align-items:center;gap:8px;margin:6px 0;padding:8px 12px;background:#312e81;border-radius:8px">';
+      content += '<span style="font-size:13px;width:22px;text-align:center">' + c.icon + '<\/span>';
+      content += '<span style="flex:1;font-size:13px;color:#c4b5fd">' + c.l + '<\/span>';
+      content += '<span style="font-size:13px;font-weight:700;color:#f8fafc">' + rv + '<\/span>';
+      content += '<span style="font-size:11px;color:#818cf8">\u2192<\/span>';
+      content += '<span style="font-size:13px;font-weight:700;color:' + projColor + '">' + proj + '<\/span>';
+      if (mv > 0) content += '<span style="font-size:10px;color:#64748b;min-width:45px;text-align:right">meta: ' + mv + '<\/span>';
+      content += '<\/div>';
+    });
+    content += '<\/div>';
+    if (lvl >= 5) {
+      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin:16px 0">';
+      content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+      content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">\u2699\uFE0F Definir Metas \u2014 ' + monthNames[curMonth] + ' ' + curYear + '<\/span>';
+      content += '<button onclick="ooSaveMetasForm(\'' + selBid + '\',\'' + monthKey + '\',this)" style="background:#10b981;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar Metas<\/button>';
+      content += '<\/div>';
+      content += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
+      OO_CAMPOS.forEach(function(c) {
+        if (c.k === 'desc') return;
+        var mv = metasMes[c.k] || '';
+        content += '<div style="background:#0f172a;border-radius:8px;padding:8px">';
+        content += '<label style="font-size:10px;color:#94a3b8;display:block;margin-bottom:4px">' + c.icon + ' ' + c.l + '<\/label>';
+        content += '<input id="oo_meta_' + c.k + '" type="number" min="0" value="' + mv + '" placeholder="Meta" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:6px;border-radius:6px;font-size:14px;text-align:center">';
+        content += '<\/div>';
+      });
+      content += '<\/div><\/div>';
+    }
+  }
+
+  else if (tab === 'gestao') {
+    var now = new Date();
+    var curYear = now.getFullYear();
+    var curMonth = now.getMonth() + 1;
+    var monthKey = ooGetMonthKey(now);
+    var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var realMes = ooAggMonth(selBid, monthKey);
+    var cfgFrente = ooGetFrenteForBroker(selBid);
+    var cfgPct = ooGetFunnelPct(cfgFrente);
+    var realPct = ooCalcFunnelPctFromData(realMes);
+    content += '<div style="background:#1a1a2e;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #312e81">';
+    content += '<div style="font-size:15px;font-weight:700;color:#fbbf24;margin-bottom:4px">\u2699\uFE0F Taxas de Convers\u00e3o \u2014 ' + cfgFrente.charAt(0).toUpperCase() + cfgFrente.slice(1) + '<\/div>';
+    content += '<div style="font-size:11px;color:#a5b4fc;margin-bottom:12px">Defina as % entre cada etapa do funil. Somente gestores editam.<\/div>';
+    if (lvl >= 5) {
+      content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+      OO_FUNNEL_STEPS.forEach(function(step) {
+        var key = step.from + '_to_' + step.to;
+        var curVal = cfgPct[key] || 0;
+        var realVal = realPct[key] || 0;
+        content += '<div style="background:#0f172a;border-radius:8px;padding:10px">';
+        content += '<div style="font-size:12px;color:#c4b5fd;margin-bottom:4px">' + step.lbl + '<\/div>';
+        content += '<div style="display:flex;align-items:center;gap:6px">';
+        content += '<input type="number" step="0.1" min="0" max="500" id="oo_funnel_' + key + '" value="' + curVal + '" style="width:70px;background:#1e293b;color:#fff;border:1px solid #475569;border-radius:6px;padding:6px 8px;font-size:13px;text-align:center" />';
+        content += '<span style="color:#818cf8;font-size:12px">%<\/span>';
+        content += '<span style="color:#64748b;font-size:11px;margin-left:auto">real: ' + realVal.toFixed(1) + '%<\/span>';
+        content += '<\/div><\/div>';
+      });
+      content += '<\/div>';
+      content += '<div style="display:flex;gap:8px;margin-top:12px">';
+      content += '<button onclick="ooSaveFunnelForm(\'' + cfgFrente + '\',this)" style="flex:1;padding:10px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">Salvar % Funil<\/button>';
+      content += '<button onclick="ooAutoFillFunnel(\'' + cfgFrente + '\')" style="padding:10px 16px;background:#0f766e;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">\uD83D\uDD04 Usar Taxas Reais<\/button>';
+      content += '<\/div>';
+    } else {
+      content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+      OO_FUNNEL_STEPS.forEach(function(step) {
+        var key = step.from + '_to_' + step.to;
+        var curVal = cfgPct[key] || 0;
+        content += '<div style="background:#0f172a;border-radius:8px;padding:10px;display:flex;justify-content:space-between;align-items:center">';
+        content += '<span style="font-size:12px;color:#c4b5fd">' + step.lbl + '<\/span>';
+        content += '<span style="font-size:14px;font-weight:700;color:#a5b4fc">' + curVal.toFixed(1) + '%<\/span>';
+        content += '<\/div>';
+      });
+      content += '<\/div>';
+    }
+    content += '<\/div>';
+    if (!S.ooMetaLanc) S.ooMetaLanc = {};
+    if (!S.ooMetaLanc[selBid]) S.ooMetaLanc[selBid] = {};
+    var lancamentos = S.lancamentos || [];
+    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
+    content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:4px">\uD83C\uDFE2 Meta por Lan\u00e7amento \u2014 ' + curYear + '<\/div>';
+    content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Meta individual de vendas por lan\u00e7amento.<\/div>';
+    if (lancamentos.length > 0) {
+      content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+      lancamentos.forEach(function(l) {
+        var lid = l.id || l.nome || l;
+        var nome = l.nome || l.name || lid;
+        var metaL = (S.ooMetaLanc[selBid]||{})[lid] || '';
+        content += '<div style="background:#0f172a;border-radius:8px;padding:10px">';
+        content += '<label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">\uD83C\uDFE2 ' + nome + '<\/label>';
+        content += '<input type="number" min="0" value="' + metaL + '" placeholder="Meta" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:6px;border-radius:6px;font-size:14px;text-align:center" onblur="ooSaveMetaLanc(\'' + selBid + '\',\'' + lid + '\',this.value)">';
+        content += '<\/div>';
+      });
+      content += '<\/div>';
+    } else {
+      content += '<div style="color:#64748b;font-size:13px;padding:12px;background:#0f172a;border-radius:8px">Nenhum lan\u00e7amento cadastrado. Ser\u00e3o carregados em tempo real.<\/div>';
+    }
+    content += '<\/div>';
+    if (!S.ooMetaVgvMes) S.ooMetaVgvMes = {};
+    if (!S.ooMetaVgvMes[selBid]) S.ooMetaVgvMes[selBid] = {};
+    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
+    content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCB0 Meta VGV M\u00eas a M\u00eas \u2014 ' + curYear + '<\/div>';
+    content += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
+    var vgvAcum = 0;
+    for (var mi = 1; mi <= 12; mi++) {
+      var mk = curYear + '-' + String(mi).padStart(2,'0');
+      var metaVgvM = (S.ooMetaVgvMes[selBid]||{})[mk] || '';
+      var isActive = mi === curMonth;
+      vgvAcum += parseFloat(metaVgvM) || 0;
+      content += '<div style="background:' + (isActive ? '#312e81' : '#0f172a') + ';border-radius:8px;padding:8px;border:' + (isActive ? '2px solid #6366f1' : '1px solid transparent') + '">';
+      content += '<label style="font-size:10px;color:' + (isActive ? '#a5b4fc' : '#94a3b8') + ';display:block;margin-bottom:4px">' + monthNames[mi] + '<\/label>';
+      content += '<input type="number" min="0" value="' + metaVgvM + '" placeholder="R$" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:6px;border-radius:6px;font-size:12px;text-align:center" onblur="ooSaveMetaVgvMes(\'' + selBid + '\',\'' + mk + '\',this.value)">';
+      content += '<\/div>';
+    }
+    content += '<\/div>';
+    content += '<div style="margin-top:10px;padding:10px;background:#0f172a;border-radius:8px;display:flex;justify-content:space-between;align-items:center">';
+    content += '<span style="font-size:12px;color:#94a3b8">Meta VGV Acumulada no Ano<\/span>';
+    content += '<span style="font-size:18px;font-weight:800;color:#f8fafc">R$ ' + vgvAcum.toLocaleString('pt-BR') + '<\/span>';
+    content += '<\/div><\/div>';
+    // === 4. OBJETIVO PESSOAL / SONHO DO CORRETOR ===
+    if (!S.ooObjetivo) S.ooObjetivo = {};
+    if (!S.ooObjetivo[selBid]) S.ooObjetivo[selBid] = {};
+    var obj = S.ooObjetivo[selBid];
+    content += '<div style="background:linear-gradient(135deg,#1e293b,#1a1a2e);border-radius:12px;padding:16px;border:1px solid #6366f130">';
+    content += '<div style="font-size:15px;font-weight:700;color:#fbbf24;margin-bottom:4px">\u2B50 Objetivo Pessoal do Corretor</div>';
+    content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:12px">O sonho que motiva o corretor. Vis\u00edvel sempre que acessar.</div>';
+
+    // Photo area
+    content += '<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">';
+    content += '<div style="text-align:center">';
+    if (obj.foto) {
+      content += '<img src="' + obj.foto + '" style="width:140px;height:140px;object-fit:cover;border-radius:12px;border:3px solid #6366f1;margin-bottom:8px" onerror="this.style.display=\'none\'">';
+    } else {
+      content += '<div style="width:140px;height:140px;background:#0f172a;border-radius:12px;border:2px dashed #334155;display:flex;align-items:center;justify-content:center;margin-bottom:8px">';
+      content += '<span style="font-size:32px">\uD83D\uDDBC\uFE0F</span>';
+      content += '</div>';
+    }
+    content += '<button onclick="ooSetFoto(\'' + selBid + '\')" style="background:#6366f1;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:11px;cursor:pointer">\uD83D\uDCF7 ' + (obj.foto ? 'Trocar' : 'Adicionar') + ' Foto</button>';
+    content += '</div>';
+
+    // Dream text
+    content += '<div style="flex:1;min-width:200px">';
+    content += '<label style="font-size:12px;font-weight:700;color:#f59e0b;display:block;margin-bottom:6px">\uD83D\uDCAD Qual \u00e9 o sonho?</label>';
+    content += '<textarea class="finp" rows="4" style="resize:vertical;width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:10px;font-size:14px" placeholder="Ex: Comprar minha casa pr\u00f3pria, carro novo, viagem dos sonhos..." onblur="ooSaveObjetivo(\'' + selBid + '\',\'sonho\',this.value)">' + (obj.sonho || '') + '</textarea>';
+
+    content += '<label style="font-size:12px;font-weight:700;color:#06b6d4;display:block;margin:10px 0 6px">\uD83C\uDFAF Meta financeira associada</label>';
+    content += '<input type="text" value="' + (obj.metaFinanceira || '') + '" placeholder="Ex: R$ 500.000 em comiss\u00f5es no ano" style="width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px 10px;font-size:13px" onblur="ooSaveObjetivo(\'' + selBid + '\',\'metaFinanceira\',this.value)">';
+
+    content += '<label style="font-size:12px;font-weight:700;color:#10b981;display:block;margin:10px 0 6px">\u23F0 Prazo</label>';
+    content += '<input type="text" value="' + (obj.prazo || '') + '" placeholder="Ex: Dezembro 2026" style="width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px 10px;font-size:13px" onblur="ooSaveObjetivo(\'' + selBid + '\',\'prazo\',this.value)">';
+    content += '</div></div></div>';
   }
 
   return '<div class="phd"><h1>One on One</h1><p>Acompanhamento individual de performance</p></div>'
@@ -4920,6 +5097,114 @@ function ooInc(bid, key) {
 function ooDec(bid, key) {
   S['ooEdit_'+bid] = S['ooEdit_'+bid] || {data: new Date().toISOString().slice(0,10)};
   S['ooEdit_'+bid][key] = Math.max(0, (+(S['ooEdit_'+bid][key]||0)) - 1);
+  render();
+}
+
+// === NEW HELPER FUNCTIONS FOR ONE ON ONE ===
+
+// Increment/Decrement field in funnel (without full render)
+function ooIncField(bid, monthKey, dayKey, fieldKey) {
+  if (!S.ooDaily) S.ooDaily = {};
+  if (!S.ooDaily[bid]) S.ooDaily[bid] = {};
+  if (!S.ooDaily[bid][monthKey]) S.ooDaily[bid][monthKey] = {};
+  if (!S.ooDaily[bid][monthKey][dayKey]) S.ooDaily[bid][monthKey][dayKey] = {};
+  var cur = S.ooDaily[bid][monthKey][dayKey][fieldKey] || 0;
+  S.ooDaily[bid][monthKey][dayKey][fieldKey] = cur + 1;
+  var valEl = document.getElementById('oo_val_' + fieldKey);
+  var inputEl = document.getElementById('oo_input_' + fieldKey);
+  if (valEl) valEl.textContent = cur + 1;
+  if (inputEl) inputEl.value = cur + 1;
+}
+function ooDecField(bid, monthKey, dayKey, fieldKey) {
+  if (!S.ooDaily) S.ooDaily = {};
+  if (!S.ooDaily[bid]) S.ooDaily[bid] = {};
+  if (!S.ooDaily[bid][monthKey]) S.ooDaily[bid][monthKey] = {};
+  if (!S.ooDaily[bid][monthKey][dayKey]) S.ooDaily[bid][monthKey][dayKey] = {};
+  var cur = S.ooDaily[bid][monthKey][dayKey][fieldKey] || 0;
+  var newVal = Math.max(0, cur - 1);
+  S.ooDaily[bid][monthKey][dayKey][fieldKey] = newVal;
+  var valEl = document.getElementById('oo_val_' + fieldKey);
+  var inputEl = document.getElementById('oo_input_' + fieldKey);
+  if (valEl) valEl.textContent = newVal;
+  if (inputEl) inputEl.value = newVal;
+}
+
+// Reuniao 1:1 helpers
+function ooReunNavMonth(dir) {
+  var cur = S.ooReunMes || ooGetMonthKey(new Date());
+  var parts = cur.split('-');
+  var y = parseInt(parts[0]);
+  var m = parseInt(parts[1]) + dir;
+  if (m > 12) { m = 1; y++; }
+  if (m < 1) { m = 12; y--; }
+  S.ooReunMes = y + '-' + String(m).padStart(2,'0');
+  render();
+}
+
+function ooAddReuniao(bid, monthKey) {
+  if (!S.ooReunioes) S.ooReunioes = {};
+  if (!S.ooReunioes[bid]) S.ooReunioes[bid] = {};
+  if (!S.ooReunioes[bid][monthKey]) S.ooReunioes[bid][monthKey] = [];
+  var numReun = S.ooReunioes[bid][monthKey].length + 1;
+  var today = new Date().toISOString().slice(0,10);
+  S.ooReunioes[bid][monthKey].push({
+    semana: 'Semana ' + numReun,
+    data: today,
+    objetivos: '',
+    observacoes: '',
+    plano: ''
+  });
+  saveState();
+  render();
+}
+
+function ooRemoveReuniao(bid, monthKey, idx) {
+  if (!S.ooReunioes || !S.ooReunioes[bid] || !S.ooReunioes[bid][monthKey]) return;
+  S.ooReunioes[bid][monthKey].splice(idx, 1);
+  saveState();
+  render();
+}
+
+function ooUpdateReuniao(bid, monthKey, idx, field, value) {
+  if (!S.ooReunioes) S.ooReunioes = {};
+  if (!S.ooReunioes[bid]) S.ooReunioes[bid] = {};
+  if (!S.ooReunioes[bid][monthKey]) S.ooReunioes[bid][monthKey] = [];
+  if (!S.ooReunioes[bid][monthKey][idx]) return;
+  S.ooReunioes[bid][monthKey][idx][field] = value;
+  saveState();
+}
+
+// Gestao: Meta por lancamento
+function ooSaveMetaLanc(bid, lancId, value) {
+  if (!S.ooMetaLanc) S.ooMetaLanc = {};
+  if (!S.ooMetaLanc[bid]) S.ooMetaLanc[bid] = {};
+  S.ooMetaLanc[bid][lancId] = parseInt(value) || 0;
+  saveState();
+}
+
+// Gestao: Meta VGV mes a mes
+function ooSaveMetaVgvMes(bid, monthKey, value) {
+  if (!S.ooMetaVgvMes) S.ooMetaVgvMes = {};
+  if (!S.ooMetaVgvMes[bid]) S.ooMetaVgvMes[bid] = {};
+  S.ooMetaVgvMes[bid][monthKey] = parseFloat(value) || 0;
+  saveState();
+}
+
+// Gestao: Objetivo pessoal
+function ooSaveObjetivo(bid, field, value) {
+  if (!S.ooObjetivo) S.ooObjetivo = {};
+  if (!S.ooObjetivo[bid]) S.ooObjetivo[bid] = {};
+  S.ooObjetivo[bid][field] = value;
+  saveState();
+}
+
+function ooSetFoto(bid) {
+  var url = prompt('Cole a URL da imagem do objetivo/sonho do corretor:');
+  if (url === null) return;
+  if (!S.ooObjetivo) S.ooObjetivo = {};
+  if (!S.ooObjetivo[bid]) S.ooObjetivo[bid] = {};
+  S.ooObjetivo[bid].foto = url.trim();
+  saveState();
   render();
 }
 
