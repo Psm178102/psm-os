@@ -9103,7 +9103,7 @@ async function testConnectors() {
 // === SISTEMA DE PERFIS E PERMISSOES PSM OS ===
 var PERFIL_MAP={paulo:'diretor',isa:'diretor',leire:'backoffice',mariane:'backoffice',marcus_l:'lider',guilherme:'marketing',gestor_trafego:'marketing'};
 function getPerfil(){if(!S.user||!S.user.id)return "corretor";if(PERFIL_MAP[S.user.id])return PERFIL_MAP[S.user.id];if(S.user.role==="socio")return "diretor";if(S.user.role==="lider")return "lider";if(S.user.role==="backoffice")return "backoffice";if(S.user.role==="marketing")return "marketing";return "corretor";}
-var MENU_ACCESS={diretor:['dashboard','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],backoffice:['dashboard','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],lider:['ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','checkin','drive','formacao','manual','captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],marketing:['dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias','simulador'],corretor:['ranking','crm','metas','checkin','formacao','manual','drive','vera']};
+var MENU_ACCESS={diretor:['dashboard','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador','kpis','trafego_ads','drive_mkt','criacao_img','criacao_motion','edicao_video','curadoria','crono_conquista','crono_map','captacao_imoveis'],backoffice:['dashboard','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],lider:['ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','checkin','drive','formacao','manual','captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador'],marketing:['dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias','simulador','drive_mkt','criacao_img','criacao_motion','edicao_video','curadoria','crono_conquista','crono_map','captacao_imoveis'],corretor:['ranking','crm','metas','checkin','formacao','manual','drive','vera']}
 function canAccess(p){var pf=getPerfil();var a=MENU_ACCESS[pf];return a?a.indexOf(p)!==-1:false;}
 var DEFAULT_PAGE={diretor:'dashboard',backoffice:'dashboard',lider:'dashboard',marketing:'dashboard',corretor:'dashboard'};
 function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"dashboard";}
@@ -9111,61 +9111,25 @@ function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"dashboard";}
 function renderSB() {
   const u = S.user; const lvl = RLVL[u?.role]||0;
   const MENU = [
-    {sec:'Dashboards', items:[
-{id:'checkin',   lbl:'Check-in/out',   ico:'\u23F0',min:1},
-      {id:'dashboard', lbl:'Dashboard',      ico:'📊',min:5},
-      {id:'wararena', lbl:'Arena PSM', ico:'⚔️', min:2},
-      {id:'ranking',   lbl:'Ranking',        ico:'🏆',min:2},
-      {id:'equipe',    lbl:'Visão Equipe',   ico:'👥',min:5},
+    {sec:'Principal', items:[
+      {id:'checkin',   lbl:'Check-in/out',   ico:'\u23F0',min:1},
+      {id:'wararena',  lbl:'Arena PSM',       ico:'\u2694\uFE0F',min:2},
+      {id:'ranking',   lbl:'Ranking',         ico:'\uD83C\uDFC6',min:2},
       {id:'lancamentos_ano', lbl:'Lan\u00e7amentos', ico:'\uD83D\uDE80',min:5},
-    ]},
-    {sec:'Frentes', items:[
-      {id:'lancamento',lbl:'\ud83c\udfc6 Equipe MAP',ico:'🏢',min:5},
-      {id:'conquista', lbl:'Conquista',       ico:'🏆',min:5},
-      {id:'terceiros', lbl:'Terceiros',       ico:'🤝',min:5},
-      {id:'locacao',   lbl:'Locação',         ico:'🏘',min:5},
-    ]},
-    {sec:'Pipeline & CRM', items:[
-      {id:'crm',       lbl:'CRM / Funil',    ico:'🔀',min:2},
-      {id:'metas',     lbl:'Metas',          ico:'🎯',min:2},
-      {id:'metricas',  lbl:'Métricas RD',    ico:'📈',min:2},
-      {id:'oneonone',  lbl:'One on One',     ico:'🎯',min:2},
-            {id:'governance',lbl:'Governança',     ico:'🛡',min:5},
-    ]},
-    {sec:'Estratégia', items:[
-      {id:'forecast',  lbl:'Projeção',       ico:'📉',min:5},
-      {id:'okrs',      lbl:'OKRs & Metas',   ico:'🎯',min:5},
-      {id:'vendas',    lbl:'Lançar Venda',   ico:'💰',min:7},
-    ]},
-    {sec:'Tráfego Ads', items:[
-      {id:'sim_criativos',lbl:'Sim. Criativos',ico:'🎨',min:2},
-      {id:'sim_leads',    lbl:'Sim. Leads',    ico:'🎯',min:2},
-      {id:'metricas_viab',lbl:'Métr. Viabilidade',ico:'📊',min:2},
-      {id:'metaads',      lbl:'Meta Ads',      ico:'📣',min:2},
-    ]},
-    {sec:'Financeiro', items:[
-      {id:'fluxocaixa',lbl:'Fluxo de Caixa',ico:'💰',min:5},
-      {id:'dre',lbl:'DRE',ico:'📊',min:5},
-      {id:'comissoes',lbl:'Comissões',ico:'💎',min:5},
-      {id:'repasses',lbl:'Repasses',ico:'🔄',min:5},
-    ]},
-    {sec:'Intelligence', items:[
-      {id:'radar',lbl:'Radar Concorrentes',ico:'📡',min:5},
-      {id:'benchmark',lbl:'Benchmark',ico:'📊',min:5},
-      {id:'tendencias',lbl:'Tendências',ico:'🔥',min:5},
-      {id:'simulador',lbl:'Simulador Criativo',ico:'🧠',min:5},
+      {id:'oneonone',  lbl:'One on One',      ico:'\uD83C\uDFAF',min:2},
+      {id:'forecast',  lbl:'Proje\u00e7\u00f5es',    ico:'\uD83D\uDCC9',min:5},
     ]},
     {sec:'Recursos', items:[
-      {id:'drive',     lbl:'Drive PSM',      ico:'📁',min:1},
-      {id:'tabela',    lbl:'Tabela PSM',     ico:'📋',min:1},
-      {id:'mapa',      lbl:'Mapa PSM',       ico:'🗺️',min:1},
-      {id:'formacao',  lbl:'Formação PSM',   ico:'🎓',min:1},
-      {id:'manual',    lbl:'Manual & Ética', ico:'📖',min:1},
-      {id:'captacao',  lbl:'Captação',       ico:'📝',min:2},
-      {id:'marketing', lbl:'Marketing',    ico:'📣',min:2},
-      {id:'simvpl',    lbl:'Simulador VPL',  ico:'📐',min:2},
-      {id:'simincc',   lbl:'Simulador INCC', ico:'📊',min:2},
-      {id:'simrep',    lbl:'Sim. Repasse',   ico:'💰',min:2},
+      {id:'drive',     lbl:'Drive PSM',       ico:'\uD83D\uDCC1',min:1},
+      {id:'tabela',    lbl:'Tabela PSM',      ico:'\uD83D\uDCCB',min:1},
+      {id:'mapa',      lbl:'Mapa PSM',        ico:'\uD83D\uDDFA\uFE0F',min:1},
+      {id:'formacao',  lbl:'Forma\u00e7\u00e3o PSM',  ico:'\uD83C\uDF93',min:1},
+      {id:'manual',    lbl:'Manual & \u00c9tica', ico:'\uD83D\uDCD6',min:1},
+      {id:'captacao',  lbl:'Capta\u00e7\u00e3o',       ico:'\uD83D\uDCDD',min:2},
+      {id:'marketing', lbl:'Marketing',       ico:'\uD83D\uDCE3',min:2},
+      {id:'simvpl',    lbl:'Simulador VPL',   ico:'\uD83D\uDCD0',min:2},
+      {id:'simincc',   lbl:'Simulador INCC',  ico:'\uD83D\uDCCA',min:2},
+      {id:'simrep',    lbl:'Sim. Repasse',    ico:'\uD83D\uDCB0',min:2},
     ]},
     {sec:'Agentes PSM', items:[
       {id:'agentes',   lbl:'Central de Agentes',ico:'\u{1F9E0}',min:5},
@@ -9174,11 +9138,42 @@ function renderSB() {
       {id:'sr_performance',lbl:'Sr. Performance',ico:'\ud83e\udd16',min:5},
       {id:'vera',      lbl:'Sr. Performance',  ico:'\u{1F916}',min:2},
     ]},
+    {sec:'Diretoria', items:[
+      {id:'dashboard', lbl:'Dashboard',        ico:'\uD83D\uDCCA',min:5},
+      {id:'governance',lbl:'Governan\u00e7a',  ico:'\uD83D\uDEE1',min:5},
+      {id:'metricas_viab',lbl:'M\u00e9tr. Viabilidade',ico:'\uD83D\uDCCA',min:5},
+      {id:'kpis',      lbl:'KPIs',             ico:'\uD83D\uDCC8',min:5},
+      {id:'trafego_ads',lbl:'Tr\u00e1fego ADS',ico:'\uD83D\uDCE3',min:5},
+    ]},
+    {sec:'Marketing', items:[
+      {id:'drive_mkt',      lbl:'Drive Marketing',       ico:'\uD83D\uDCC1',min:5},
+      {id:'criacao_img',    lbl:'Cria\u00e7\u00e3o de Imagens',  ico:'\uD83C\uDFA8',min:5},
+      {id:'criacao_motion', lbl:'Cria\u00e7\u00e3o de Motions',  ico:'\uD83C\uDFAC',min:5},
+      {id:'edicao_video',   lbl:'Edi\u00e7\u00e3o de V\u00eddeo',     ico:'\uD83C\uDFA5',min:5},
+      {id:'curadoria',      lbl:'Curadoria de Conte\u00fados', ico:'\uD83D\uDCCB',min:5},
+      {id:'crono_conquista',lbl:'Cronograma Conquista',   ico:'\uD83D\uDCC5',min:5},
+      {id:'crono_map',      lbl:'Cronograma MAP',         ico:'\uD83D\uDCC5',min:5},
+      {id:'captacao_imoveis',lbl:'Capta\u00e7\u00f5es de Im\u00f3veis',ico:'\uD83C\uDFE0',min:5},
+    ]},
+    {sec:'Intelligence', items:[
+      {id:'radar',     lbl:'Radar Concorrentes',ico:'\uD83D\uDCE1',min:5},
+      {id:'benchmark', lbl:'Benchmark',         ico:'\uD83D\uDCCA',min:5},
+      {id:'tendencias',lbl:'Tend\u00eancias',    ico:'\uD83D\uDD25',min:5},
+      {id:'simulador', lbl:'Simulador Criativo', ico:'\u{1F9E0}',min:5},
+    ]},
+    {sec:'Financeiro', items:[
+      {id:'fluxocaixa',lbl:'Fluxo de Caixa',    ico:'\uD83D\uDCB0',min:5},
+      {id:'dre',       lbl:'DRE',               ico:'\uD83D\uDCCA',min:5},
+      {id:'comissoes', lbl:'Comiss\u00f5es',     ico:'\uD83D\uDC8E',min:5},
+      {id:'repasses',  lbl:'Repasses',           ico:'\uD83D\uDD04',min:5},
+    ]},
     {sec:'Configura\u00E7\u00F5es', items:[
-      {id:'rdconfig',  lbl:'RD Station',     ico:'\u{1F517}',min:5},
       {id:'config',    lbl:'Configura\u00E7\u00F5es',  ico:'\u2699',min:7},
+    ]},
+    {sec:'RD Station', items:[
+      {id:'rdconfig',  lbl:'RD Station',        ico:'\u{1F517}',min:5},
     ]}
-  ];
+  ]
 
   const sections = MENU.map(sec => {
     const items = sec.items.filter(function(m){return canAccess(m.id);}).filter(i => lvl >= i.min);
@@ -9218,7 +9213,12 @@ function renderHDR() {
     radar:'📡 Radar Intelligence PSM',benchmark:'📊 Benchmark',tendencias:'📈 Tendências',
     metaads:'📢 Meta Ads',
     sim_criativos:'Sim. Criativos',sim_leads:'Sim. Leads',metricas_viab:'Métr. Viabilidade',
-    agentes:'Agentes PSM',agente_vera:'Agente Vera',agente_sol:'Agente Sol',sr_performance:'Sr. Performance'};
+    agentes:'Agentes PSM',agente_vera:'Agente Vera',agente_sol:'Agente Sol',sr_performance:'Sr. Performance',
+    kpis:'\uD83D\uDCC8 KPIs',trafego_ads:'\uD83D\uDCE3 Tr\u00e1fego ADS',
+    drive_mkt:'\uD83D\uDCC1 Drive Marketing',criacao_img:'\uD83C\uDFA8 Cria\u00e7\u00e3o de Imagens',
+    criacao_motion:'\uD83C\uDFAC Cria\u00e7\u00e3o de Motions',edicao_video:'\uD83C\uDFA5 Edi\u00e7\u00e3o de V\u00eddeo',
+    curadoria:'\uD83D\uDCCB Curadoria de Conte\u00fados',crono_conquista:'\uD83D\uDCC5 Cronograma Conquista',
+    crono_map:'\uD83D\uDCC5 Cronograma MAP',captacao_imoveis:'\uD83C\uDFE0 Capta\u00e7\u00f5es de Im\u00f3veis'};
   const unread = NOTIFS.filter(n=>!n.read).length;
   return '<div class="hdr">'
     + '<div class="hdr-title">'+(titles[S.page]||'')+'</div>'
@@ -10467,8 +10467,28 @@ function route() {
     case 'agente_vera': return pgAgenteVera();
     case 'agente_sol':  return pgAgenteSol();
     case 'sr_performance': return pgSrPerformance();
+        case 'kpis':        return pgPlaceholder('KPIs','Em breve: painel de KPIs estrat\u00e9gicos.');
+    case 'trafego_ads': return pgPlaceholder('Tr\u00e1fego ADS','Em breve: painel de tr\u00e1fego e an\u00fancios.');
+    case 'drive_mkt':   return pgPlaceholder('Drive Marketing','Em breve: reposit\u00f3rio de marketing.');
+    case 'criacao_img': return pgPlaceholder('Cria\u00e7\u00e3o de Imagens','Em breve: ferramenta de cria\u00e7\u00e3o de imagens.');
+    case 'criacao_motion': return pgPlaceholder('Cria\u00e7\u00e3o de Motions','Em breve: ferramenta de motions.');
+    case 'edicao_video': return pgPlaceholder('Edi\u00e7\u00e3o de V\u00eddeo','Em breve: ferramenta de edi\u00e7\u00e3o.');
+    case 'curadoria':   return pgPlaceholder('Curadoria de Conte\u00fados','Em breve: curadoria de conte\u00fados.');
+    case 'crono_conquista': return pgPlaceholder('Cronograma Conquista','Em breve: cronograma de postagens Conquista.');
+    case 'crono_map':   return pgPlaceholder('Cronograma MAP','Em breve: cronograma de postagens MAP.');
+    case 'captacao_imoveis': return pgPlaceholder('Capta\u00e7\u00f5es de Im\u00f3veis','Em breve: gest\u00e3o de capta\u00e7\u00f5es de im\u00f3veis.');
     default:           return pgMeu();
   }
+}
+
+function pgPlaceholder(title, desc) {
+  return '<div class="pg-wrap" style="padding:40px;text-align:center;max-width:600px;margin:0 auto">'
+    + '<div style="font-size:48px;margin-bottom:20px">\uD83D\uDEA7</div>'
+    + '<h2 style="color:#f8fafc;margin-bottom:12px">' + title + '</h2>'
+    + '<p style="color:#94a3b8;font-size:14px;margin-bottom:24px">' + desc + '</p>'
+    + '<div style="background:#1e293b;border-radius:12px;padding:24px;border:1px dashed #334155">'
+    + '<p style="color:#64748b;font-size:13px;margin:0">Esta p\u00e1gina est\u00e1 em desenvolvimento. Em breve voc\u00ea poder\u00e1 acess\u00e1-la.</p>'
+    + '</div></div>';
 }
 
 function render() {
