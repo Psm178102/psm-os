@@ -712,7 +712,7 @@ const DAILY_METRICS=[
 ];
 
 // ─── ROLE LEVELS ──────────────────────────────────────────────────────────────
-const RLVL={socio:10,gerente:7,lider:5,corretor:2};
+const RLVL={socio:10,gerente:7,backoffice:6,lider:5,marketing:3,corretor:2};
 
 // ─── USERS (ponto 3: emails + senhas reais) ───────────────────────────────────
 const USERS_BASE=[
@@ -9608,9 +9608,9 @@ function pgPremiacoes() {
   return h;
 }
 
-var MENU_ACCESS={diretor:['dashboard','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador','canal_anonimo','relat_vendas','fichas_propostas','premiacoes'],backoffice:['dashboard','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador','canal_anonimo','relat_vendas','fichas_propostas','premiacoes'],lider:['ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','checkin','drive','formacao','manual','captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador','canal_anonimo','relat_vendas','fichas_propostas','premiacoes'],marketing:['dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias','simulador','canal_anonimo','premiacoes'],corretor:['ranking','crm','metas','checkin','formacao','manual','drive','vera','canal_anonimo','relat_vendas','fichas_propostas','premiacoes']};
+var MENU_ACCESS={diretor:['dashboard','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador','canal_anonimo','relat_vendas','fichas_propostas','premiacoes'],backoffice:['dashboard','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador','canal_anonimo','relat_vendas','fichas_propostas','premiacoes'],lider:['dashboard','ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','checkin','drive','formacao','manual','captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador','canal_anonimo','relat_vendas','fichas_propostas','premiacoes'],marketing:['dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias','simulador','canal_anonimo','premiacoes','checkin'],corretor:['ranking','crm','metas','checkin','formacao','manual','drive','vera','canal_anonimo','relat_vendas','fichas_propostas','premiacoes','wararena','oneonone']};
 function canAccess(p){var pf=getPerfil();var a=MENU_ACCESS[pf];return a?a.indexOf(p)!==-1:false;}
-var DEFAULT_PAGE={diretor:'dashboard',backoffice:'dashboard',lider:'dashboard',marketing:'dashboard',corretor:'dashboard'};
+var DEFAULT_PAGE={diretor:'dashboard',backoffice:'dashboard',lider:'ranking',marketing:'ranking',corretor:'checkin'};
 function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"dashboard";}
 
 function renderSB() {
@@ -9618,7 +9618,7 @@ function renderSB() {
   const MENU = [
     {sec:'Dashboards', items:[
 {id:'checkin',   lbl:'Check-in/out',   ico:'\u23F0',min:1},
-      {id:'dashboard', lbl:'Dashboard',      ico:'📊',min:5},
+      {id:'dashboard', lbl:'Dashboard',      ico:'📊',min:3},
       {id:'wararena', lbl:'Arena PSM', ico:'⚔️', min:2},
       {id:'ranking',   lbl:'Ranking',        ico:'🏆',min:2},
       {id:'equipe',    lbl:'Visão Equipe',   ico:'👥',min:5},
@@ -9660,10 +9660,10 @@ function renderSB() {
       {id:'repasses',lbl:'Repasses',ico:'🔄',min:5},
     ]},
     {sec:'Intelligence', items:[
-      {id:'radar',lbl:'Radar Concorrentes',ico:'📡',min:5},
-      {id:'benchmark',lbl:'Benchmark',ico:'📊',min:5},
-      {id:'tendencias',lbl:'Tendências',ico:'🔥',min:5},
-      {id:'simulador',lbl:'Simulador Criativo',ico:'🧠',min:5},
+      {id:'radar',lbl:'Radar Concorrentes',ico:'📡',min:3},
+      {id:'benchmark',lbl:'Benchmark',ico:'📊',min:3},
+      {id:'tendencias',lbl:'Tendências',ico:'🔥',min:3},
+      {id:'simulador',lbl:'Simulador Criativo',ico:'🧠',min:3},
     ]},
     {sec:'Recursos', items:[
       {id:'drive',     lbl:'Drive PSM',      ico:'📁',min:1},
