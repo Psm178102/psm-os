@@ -446,6 +446,35 @@ html{height:100%;overflow:hidden}
   /* Funil row overflow */
   .funrow { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .fbox { min-width: 80px; }
+
+
+  /* Enhanced Mobile: Plantoes calendar */
+  .g7 { grid-template-columns: repeat(7, 1fr) !important; font-size: 9px; }
+  .g7 > div { min-height: 52px !important; }
+
+  /* Modal improvements for mobile */
+  [style*="position:fixed"][style*="inset:0"] > div { max-width: 95% !important; }
+
+  /* Better scrolling for page content */
+  .page-content { overflow-y: auto; -webkit-overflow-scrolling: touch; max-height: calc(100dvh - 120px); }
+
+  /* Topbar compact on mobile */
+  .hdr { height: 44px; min-height: 44px; }
+
+  /* Form inputs full width */
+  .finp, select.finp, textarea.finp, input[type="time"], input[type="date"] {
+    width: 100% !important; box-sizing: border-box; font-size: 16px !important;
+  }
+
+  /* Section headers in sidebar */
+  .sb-sec { font-size: 10px; padding: 10px 12px 4px; }
+
+  /* Tabs scrollable */
+  .tabs, .tab-bar { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; white-space: nowrap; }
+  .tabs button, .tab-bar button { flex-shrink: 0; }
+
+  /* Ensure calendar doesn't overflow */
+  [style*="grid-template-columns:repeat(7"] { gap: 1px !important; }
 }
 
 @media (max-width: 400px) {
@@ -4216,7 +4245,7 @@ function _ooFetchSheet(bid) {
   // Use cache if available
   if (cache && Object.keys(cache).length > 0) {
     applyData(cache);
-    return;
+    // Continue to fetch fresh data in background
   }
   var m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
   if (!m) return;
@@ -9103,7 +9132,7 @@ async function testConnectors() {
 // === SISTEMA DE PERFIS E PERMISSOES PSM OS ===
 var PERFIL_MAP={paulo:'diretor',isa:'diretor',leire:'backoffice',mariane:'backoffice',marcus_l:'lider',guilherme:'marketing',gestor_trafego:'marketing'};
 function getPerfil(){if(!S.user||!S.user.id)return "corretor";if(PERFIL_MAP[S.user.id])return PERFIL_MAP[S.user.id];if(S.user.role==="socio")return "diretor";if(S.user.role==="lider")return "lider";if(S.user.role==="backoffice")return "backoffice";if(S.user.role==="marketing")return "marketing";return "corretor";}
-var MENU_ACCESS={diretor:['dashboard','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','ficha_captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador','kpis','trafego_ads','drive_mkt','criacao_img','criacao_motion','edicao_video','curadoria','crono_conquista','crono_map','captacao_imoveis','agenda_oficial','agenda_corretor','painel_corretor','fluxo_cadencia','criativos'],backoffice:['dashboard','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','ficha_captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador','agenda_oficial','agenda_corretor','painel_corretor','criativos'],lider:['ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','checkin','drive','formacao','manual','ficha_captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador','agenda_oficial','agenda_corretor','painel_corretor','fluxo_cadencia','criativos'],marketing:['dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias','simulador','drive_mkt','criacao_img','criacao_motion','edicao_video','curadoria','crono_conquista','crono_map','captacao_imoveis','agenda_corretor','criativos'],corretor:['ranking','crm','metas','checkin','formacao','manual','drive','vera','agenda_corretor','painel_corretor','criativos','simvpl','simincc','simrep','ficha_captacao','oneonone']};
+var MENU_ACCESS={diretor:['dashboard','ranking','equipe','lancamento','conquista','terceiros','locacao','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','okrs','vendas','drive','tabela','mapa','formacao','manual','ficha_captacao','marketing','lancamentos_ano','checkin','simvpl','simincc','simrep','vera','rdconfig','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador','kpis','trafego_ads','drive_mkt','criacao_img','criacao_motion','edicao_video','curadoria','crono_conquista','crono_map','captacao_imoveis','agenda_oficial','agenda_corretor','painel_corretor','fluxo_cadencia','criativos','plantoes','ia_corretor'],backoffice:['dashboard','equipe','crm','metas','ranking','metricas','oneonone','governance','checkin','drive','tabela','formacao','manual','ficha_captacao','vera','config','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador','agenda_oficial','agenda_corretor','painel_corretor','criativos','plantoes','ia_corretor'],lider:['ranking','equipe','crm','metas','metricas','oneonone','governance','warroom','wararena','metaads','sim_criativos','sim_leads','metricas_viab','forecast','checkin','drive','formacao','manual','ficha_captacao','vera','fluxocaixa','dre','comissoes','repasses','radar','benchmark','tendencias','agentes','agente_vera','agente_sol','sr_performance','simulador','agenda_oficial','agenda_corretor','painel_corretor','fluxo_cadencia','criativos'],marketing:['dashboard','metricas','ranking','drive','formacao','manual','vera','radar','benchmark','tendencias','simulador','drive_mkt','criacao_img','criacao_motion','edicao_video','curadoria','crono_conquista','crono_map','captacao_imoveis','agenda_corretor','criativos'],corretor:['ranking','crm','metas','checkin','formacao','manual','drive','vera','agenda_corretor','painel_corretor','criativos','simvpl','simincc','simrep','ficha_captacao','oneonone','plantoes','ia_corretor']};
 function canAccess(p){var pf=getPerfil();var a=MENU_ACCESS[pf];return a?a.indexOf(p)!==-1:false;}
 var DEFAULT_PAGE={diretor:'dashboard',backoffice:'dashboard',lider:'dashboard',marketing:'dashboard',corretor:'dashboard'};
 function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"dashboard";}
@@ -9127,6 +9156,8 @@ function renderSB() {
       {id:'simrep',         lbl:'Sim. Repasse',         ico:'\uD83D\uDCB0',min:2},
       {id:'ficha_captacao', lbl:'Ficha de Capta\u00e7\u00e3o',ico:'\uD83D\uDCDD',min:2},
       {id:'fluxo_cadencia', lbl:'Fluxo de Cad\u00eancia',ico:'\uD83D\uDD04',min:5},
+      {id:'plantoes',       lbl:'Plant\u00f5es',            ico:'\uD83D\uDCC6',min:2},
+      {id:'ia_corretor',    lbl:'IA do Corretor',       ico:'\u{1F916}',min:2},
     ]},
     {sec:'', items:[
       {id:'ranking',        lbl:'Ranking',              ico:'\uD83C\uDFC6',min:2},
@@ -10493,6 +10524,8 @@ function route() {
     case 'painel_corretor': return pgPlaceholder('Painel do Corretor','Em breve: m\u00e9tricas individuais, KPIs, ciclos de venda e proje\u00e7\u00f5es.');
     case 'fluxo_cadencia': return pgPlaceholder('Fluxo de Cad\u00eancia','Em breve: fluxo de cad\u00eancia por equipe (Conquista, Im\u00f3veis, Terceiros, Loca\u00e7\u00e3o).');
     case 'criativos': return pgPlaceholder('Criativos','Em breve: acesso direto \u00e0 pasta de criativos no Google Drive.');
+    case 'plantoes': return pgPlantoes();
+    case 'ia_corretor': return pgPlaceholder('IA do Corretor','\uD83E\uDD16 Em constru\u00e7\u00e3o: assistente de intelig\u00eancia artificial para corretores.');
     default:           return pgMeu();
   }
 }
@@ -10626,6 +10659,156 @@ function carregarPromptServidor() {
     .catch(function(e){
       alert('\u274C Erro ao carregar: ' + e + '. Cole o prompt manualmente na \u00e1rea de texto.');
     });
+}
+
+function pgPlantoes() {
+  const u = S.user;
+  const isGestor = u && (u.perfil === 'socio' || u.perfil === 'diretor' || u.perfil === 'lider');
+  const now = new Date();
+  const mesAtual = now.getMonth();
+  const anoAtual = now.getFullYear();
+  const meses = ['Janeiro','Fevereiro','Mar\u00e7o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  // Load plantoes from localStorage
+  const storageKey = 'psm_plantoes_' + anoAtual + '_' + mesAtual;
+  let plantoes = [];
+  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e) {}
+
+  function diasNoMes(m, a) { return new Date(a, m + 1, 0).getDate(); }
+  function primeiroDia(m, a) { return new Date(a, m, 1).getDay(); }
+
+  const totalDias = diasNoMes(mesAtual, anoAtual);
+  const primeiro = primeiroDia(mesAtual, anoAtual);
+
+  // Build calendar grid
+  let calHTML = '<div class="g7" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:12px;">';
+  const diasSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','S\u00e1b'];
+  diasSemana.forEach(d => { calHTML += '<div style="text-align:center;font-weight:700;font-size:11px;padding:6px 2px;color:var(--gold2);background:rgba(255,255,255,.04);border-radius:6px;">' + d + '</div>'; });
+
+  // Empty cells before first day
+  for (let i = 0; i < primeiro; i++) calHTML += '<div></div>';
+
+  for (let dia = 1; dia <= totalDias; dia++) {
+    const dayPlantoes = plantoes.filter(p => p.dia === dia);
+    const isToday = dia === now.getDate();
+    const todayBorder = isToday ? 'border:2px solid var(--gold2);' : 'border:1px solid rgba(255,255,255,.06);';
+    calHTML += '<div style="min-height:70px;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,.03);' + todayBorder + 'cursor:pointer;font-size:10px;" onclick="abrirDiaPlantao(' + dia + ')">';
+    calHTML += '<div style="font-weight:700;font-size:12px;color:' + (isToday ? 'var(--gold2)' : 'rgba(255,255,255,.8)') + ';">' + dia + '</div>';
+    dayPlantoes.forEach(p => {
+      calHTML += '<div style="margin-top:2px;padding:2px 4px;border-radius:3px;background:rgba(59,130,246,.15);color:#60a5fa;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + (p.corretor||'') + ' - ' + (p.local||'') + '">';
+      calHTML += (p.hora||'') + ' ' + (p.corretor||'').split(' ')[0];
+      calHTML += '</div>';
+    });
+    calHTML += '</div>';
+  }
+  calHTML += '</div>';
+
+  const addBtn = isGestor ? '<button class="btn btn-gold" onclick="abrirFormPlantao()" style="margin-left:auto;"><span>+ Novo Plant\u00e3o</span></button>' : '';
+
+  return '<div class="page-content"><div class="phd"><h1>\uD83D\uDCC6 Plant\u00f5es</h1><p>Calend\u00e1rio de plant\u00f5es do m\u00eas vigente</p></div>'
+    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">'
+    + '<h2 style="margin:0;font-size:18px;">' + meses[mesAtual] + ' ' + anoAtual + '</h2>'
+    + addBtn + '</div>'
+    + calHTML
+    + '<div id="plantao-modal" style="display:none;"></div>'
+    + '</div>';
+}
+
+function abrirDiaPlantao(dia) {
+  const u = S.user;
+  const isGestor = u && (u.perfil === 'socio' || u.perfil === 'diretor' || u.perfil === 'lider');
+  const now = new Date();
+  const storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
+  let plantoes = [];
+  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e) {}
+  const dayP = plantoes.filter(p => p.dia === dia);
+
+  let html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">';
+  html += '<div style="background:var(--navy);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:24px;max-width:440px;width:90%;max-height:80vh;overflow-y:auto;">';
+  html += '<h3 style="margin:0 0 16px;">Plant\u00f5es - Dia ' + dia + '</h3>';
+
+  if (dayP.length === 0) {
+    html += '<p style="color:rgba(255,255,255,.5);">Nenhum plant\u00e3o agendado para este dia.</p>';
+  } else {
+    dayP.forEach((p, i) => {
+      html += '<div style="padding:10px;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:8px;">';
+      html += '<div style="font-weight:700;color:var(--gold2);">' + (p.corretor||'-') + '</div>';
+      html += '<div style="font-size:12px;margin-top:4px;">\u23F0 ' + (p.hora||'-') + ' | \uD83D\uDCCD ' + (p.local||'-') + '</div>';
+      if (p.orientacoes) html += '<div style="font-size:11px;margin-top:6px;color:rgba(255,255,255,.6);">\uD83D\uDCCB ' + p.orientacoes + '</div>';
+      if (isGestor) html += '<button class="btn" style="margin-top:6px;font-size:10px;padding:2px 8px;" onclick="removerPlantao(' + dia + ',' + i + ')">Remover</button>';
+      html += '</div>';
+    });
+  }
+
+  if (isGestor) {
+    html += '<button class="btn btn-gold" style="margin-top:12px;width:100%;" onclick="abrirFormPlantao(' + dia + ')">+ Adicionar Plant\u00e3o neste dia</button>';
+  }
+  html += '</div></div>';
+
+  const modal = document.getElementById('plantao-modal');
+  if (modal) { modal.style.display = 'block'; modal.innerHTML = html; }
+  else { document.body.insertAdjacentHTML('beforeend', '<div id="plantao-modal-overlay">' + html + '</div>'); }
+}
+
+function abrirFormPlantao(dia) {
+  const now = new Date();
+  const d = dia || now.getDate();
+  // Get corretores from S.equipe
+  let opts = '<option value="">Selecione...</option>';
+  if (S.equipe && S.equipe.length) {
+    S.equipe.forEach(c => { opts += '<option value="' + c.nome + '">' + c.nome + '</option>'; });
+  }
+
+  let html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">';
+  html += '<div style="background:var(--navy);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:24px;max-width:400px;width:90%;">';
+  html += '<h3 style="margin:0 0 16px;">Novo Plant\u00e3o - Dia ' + d + '</h3>';
+  html += '<label style="font-size:12px;color:rgba(255,255,255,.6);">Corretor</label>';
+  html += '<select id="plt-corretor" class="finp" style="width:100%;margin-bottom:10px;">' + opts + '</select>';
+  html += '<label style="font-size:12px;color:rgba(255,255,255,.6);">Hor\u00e1rio</label>';
+  html += '<input id="plt-hora" type="time" class="finp" style="width:100%;margin-bottom:10px;">';
+  html += '<label style="font-size:12px;color:rgba(255,255,255,.6);">Local</label>';
+  html += '<input id="plt-local" type="text" class="finp" placeholder="Ex: Stand Damha, Escrit\u00f3rio PSM..." style="width:100%;margin-bottom:10px;">';
+  html += '<label style="font-size:12px;color:rgba(255,255,255,.6);">Orienta\u00e7\u00f5es</label>';
+  html += '<textarea id="plt-orientacoes" class="finp" rows="3" placeholder="Orienta\u00e7\u00f5es b\u00e1sicas para o corretor..." style="width:100%;margin-bottom:14px;"></textarea>';
+  html += '<button class="btn btn-gold" style="width:100%;" onclick="salvarPlantao(' + d + ')">Salvar Plant\u00e3o</button>';
+  html += '</div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function salvarPlantao(dia) {
+  const corretor = document.getElementById('plt-corretor').value;
+  const hora = document.getElementById('plt-hora').value;
+  const local = document.getElementById('plt-local').value;
+  const orientacoes = document.getElementById('plt-orientacoes').value;
+  if (!corretor) { alert('Selecione um corretor.'); return; }
+  if (!hora) { alert('Informe o hor\u00e1rio.'); return; }
+  if (!local) { alert('Informe o local.'); return; }
+
+  const now = new Date();
+  const storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
+  let plantoes = [];
+  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e) {}
+  plantoes.push({dia, corretor, hora, local, orientacoes, criadoPor: S.user.nome, criadoEm: new Date().toISOString()});
+  localStorage.setItem(storageKey, JSON.stringify(plantoes));
+  // Close modal and refresh
+  document.querySelectorAll('[onclick*="this.remove"]').forEach(el => el.parentElement ? el.remove() : null);
+  nav('plantoes');
+  alert('\u2705 Plant\u00e3o salvo com sucesso!');
+}
+
+function removerPlantao(dia, idx) {
+  if (!confirm('Remover este plant\u00e3o?')) return;
+  const now = new Date();
+  const storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
+  let plantoes = [];
+  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e) {}
+  const dayP = plantoes.filter(p => p.dia === dia);
+  if (dayP[idx]) {
+    const globalIdx = plantoes.indexOf(dayP[idx]);
+    plantoes.splice(globalIdx, 1);
+    localStorage.setItem(storageKey, JSON.stringify(plantoes));
+  }
+  nav('plantoes');
 }
 
 function pgPlaceholder(title, desc) {
