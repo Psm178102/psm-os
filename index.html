@@ -10470,7 +10470,7 @@ function route() {
         case 'kpis':        return pgPlaceholder('KPIs','Em breve: painel de KPIs estrat\u00e9gicos.');
     case 'trafego_ads': return pgPlaceholder('Tr\u00e1fego ADS','Em breve: painel de tr\u00e1fego e an\u00fancios.');
     case 'drive_mkt':   return pgPlaceholder('Drive Marketing','Em breve: reposit\u00f3rio de marketing.');
-    case 'criacao_img': return pgPlaceholder('Cria\u00e7\u00e3o de Imagens','Em breve: ferramenta de cria\u00e7\u00e3o de imagens.');
+    case 'criacao_img': return pgCriacaoImg();
     case 'criacao_motion': return pgPlaceholder('Cria\u00e7\u00e3o de Motions','Em breve: ferramenta de motions.');
     case 'edicao_video': return pgPlaceholder('Edi\u00e7\u00e3o de V\u00eddeo','Em breve: ferramenta de edi\u00e7\u00e3o.');
     case 'curadoria':   return pgPlaceholder('Curadoria de Conte\u00fados','Em breve: curadoria de conte\u00fados.');
@@ -10479,6 +10479,137 @@ function route() {
     case 'captacao_imoveis': return pgPlaceholder('Capta\u00e7\u00f5es de Im\u00f3veis','Em breve: gest\u00e3o de capta\u00e7\u00f5es de im\u00f3veis.');
     default:           return pgMeu();
   }
+}
+
+function pgCriacaoImg() {
+  if(!S._promptCarrossel) {
+    // Try loading from localStorage first
+    S._promptCarrossel = localStorage.getItem('psm_prompt_carrossel') || '';
+  }
+  var hasPrompt = S._promptCarrossel && S._promptCarrossel.length > 100;
+  
+  var h = '<div class="pg-wrap" style="padding:24px;max-width:1200px">';
+  h += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">';
+  h += '<span style="font-size:36px">\uD83C\uDFA8</span>';
+  h += '<div><h2 style="color:#f8fafc;margin:0">Cria\u00e7\u00e3o de Imagens / Carrossel</h2>';
+  h += '<p style="color:#94a3b8;font-size:13px;margin:4px 0 0">Gerador de carross\u00e9is profissionais para Instagram via Gemini AI</p></div></div>';
+
+  // Quick actions
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px">';
+  h += '<button onclick="copiarPromptCarrossel()" style="background:linear-gradient(135deg,#d4a843,#b8860b);color:#fff;border:none;border-radius:12px;padding:20px;cursor:pointer;font-size:14px;font-weight:700;text-align:left">';
+  h += '<div style="font-size:24px;margin-bottom:8px">\uD83D\uDCCB</div>Copiar Prompt Completo<div style="font-size:11px;font-weight:400;margin-top:4px;opacity:.8">Cole no Gemini para iniciar</div></button>';
+  h += '<a href="https://gemini.google.com/app" target="_blank" style="background:#1e293b;color:#fff;border:1px solid #334155;border-radius:12px;padding:20px;cursor:pointer;font-size:14px;font-weight:700;text-decoration:none;text-align:left;display:block">';
+  h += '<div style="font-size:24px;margin-bottom:8px">\u2728</div>Abrir Gemini AI<div style="font-size:11px;font-weight:400;margin-top:4px;color:#94a3b8">Iniciar cria\u00e7\u00e3o de carrossel</div></a>';
+  h += '<button onclick="togglePromptView()" style="background:#1e293b;color:#fff;border:1px solid #334155;border-radius:12px;padding:20px;cursor:pointer;font-size:14px;font-weight:700;text-align:left">';
+  h += '<div style="font-size:24px;margin-bottom:8px">\uD83D\uDC41</div>Ver Prompt Completo<div style="font-size:11px;font-weight:400;margin-top:4px;color:#94a3b8">Visualizar e editar o prompt</div></button>';
+  h += '</div>';
+
+  // Workflow steps
+  h += '<div style="background:#1e293b;border-radius:12px;padding:20px;margin-bottom:20px">';
+  h += '<h3 style="color:#d4a843;margin:0 0 16px;font-size:16px">\uD83D\uDCCB Fluxo de Cria\u00e7\u00e3o (14 mensagens no Gemini)</h3>';
+  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">';
+  var etapas = [
+    {n:'1',t:'Identidade e Tema',d:'@ Instagram, tema, pesquisa de contexto, t\u00edtulo da capa',ico:'\uD83C\uDFAF'},
+    {n:'2',t:'Tom de Voz',d:'Investigativo, educativo, urgente, corporativo, storytelling',ico:'\uD83C\uDFA4'},
+    {n:'3',t:'Identidade Visual',d:'Paleta de cores, tipografia, estilo de layout',ico:'\uD83C\uDFA8'},
+    {n:'4',t:'Estrutura',d:'Qtd slides, slides de impacto, fonte de imagens (IA/Google)',ico:'\uD83D\uDCD0'}
+  ];
+  for(var i=0;i<4;i++){
+    var e=etapas[i];
+    h+='<div style="background:#0f172a;border-radius:10px;padding:14px;border:1px solid #334155">';
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+    h+='<span style="background:#d4a843;color:#0f172a;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">'+e.n+'</span>';
+    h+='<span style="font-size:13px;font-weight:700;color:#f8fafc">'+e.t+'</span></div>';
+    h+='<div style="font-size:11px;color:#94a3b8;line-height:1.5">'+e.d+'</div></div>';
+  }
+  h+='</div></div>';
+
+  // Paletas
+  h += '<div style="background:#1e293b;border-radius:12px;padding:20px;margin-bottom:20px">';
+  h += '<h3 style="color:#94a3b8;margin:0 0 12px;font-size:14px">\uD83C\uDFA8 Paletas Dispon\u00edveis</h3>';
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">';
+  var paletas=[
+    ['99dev Dark','#292A25','#B078FF','#3CD3A4'],['Noir Rouge','#1A1A1A','#E63946','#FFFFFF'],
+    ['Oceano','#0D1B2A','#00B4D8','#90E0EF'],['Terracota','#2D1B1B','#E07A5F','#F2CC8F'],
+    ['Forest','#1C2B1C','#6BCB77','#FFD166'],['Luxo Ouro','#1A1209','#D4AF37','#C9B99A'],
+    ['Minimalista','#F5F5F0','#2D2D2D','#888888'],['Neon Cyber','#0F0F1A','#FF2079','#00FFCC'],
+    ['PSM Conquista','#E7E1D9','#E46612','#566750']
+  ];
+  for(var p=0;p<paletas.length;p++){
+    var pl=paletas[p];
+    h+='<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#0f172a;border-radius:6px;font-size:11px;color:#cbd5e1">';
+    h+='<span style="width:14px;height:14px;border-radius:3px;background:'+pl[1]+';border:1px solid #475569;flex-shrink:0"></span>';
+    h+='<span style="width:14px;height:14px;border-radius:3px;background:'+pl[2]+';border:1px solid #475569;flex-shrink:0"></span>';
+    h+='<span style="width:14px;height:14px;border-radius:3px;background:'+pl[3]+';border:1px solid #475569;flex-shrink:0"></span>';
+    h+='<span>'+pl[0]+'</span></div>';
+  }
+  h+='</div></div>';
+
+  // Status
+  h += '<div style="background:'+(hasPrompt?'#0f2a1a':'#2a1a0f')+';border:1px solid '+(hasPrompt?'#22c55e':'#f59e0b')+';border-radius:12px;padding:16px;margin-bottom:20px">';
+  h += '<div style="display:flex;align-items:center;gap:8px">';
+  h += '<span style="font-size:18px">'+(hasPrompt?'\u2705':'\u26A0\uFE0F')+'</span>';
+  h += '<div><div style="color:'+(hasPrompt?'#22c55e':'#f59e0b')+';font-weight:700;font-size:13px">'+(hasPrompt?'Prompt carregado ('+S._promptCarrossel.length+' caracteres)':'Prompt n\u00e3o carregado')+'</div>';
+  h += '<div style="color:#94a3b8;font-size:11px">'+(hasPrompt?'Clique em Copiar Prompt para usar no Gemini':'Cole o conte\u00fado do prompt abaixo ou carregue do servidor')+'</div></div></div></div>';
+
+  // Prompt view area (hidden by default)
+  h += '<div id="prompt-view-area" style="display:none;margin-bottom:20px">';
+  h += '<div style="background:#1e293b;border-radius:12px;padding:16px">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+  h += '<h3 style="color:#94a3b8;margin:0;font-size:14px">Prompt Completo</h3>';
+  h += '<div style="display:flex;gap:8px">';
+  h += '<button onclick="carregarPromptServidor()" style="background:#334155;color:#cbd5e1;border:none;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer">\uD83D\uDD04 Recarregar do Servidor</button>';
+  h += '<button onclick="copiarPromptCarrossel()" style="background:#d4a843;color:#0f172a;border:none;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-weight:700">\uD83D\uDCCB Copiar</button>';
+  h += '</div></div>';
+  h += '<textarea id="prompt-textarea" style="width:100%;min-height:400px;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:12px;font-size:12px;font-family:monospace;resize:vertical;line-height:1.6" onchange="salvarPromptLocal()">'+(S._promptCarrossel||'')+'</textarea>';
+  h += '</div></div>';
+
+  h += '</div>';
+  return h;
+}
+
+function copiarPromptCarrossel() {
+  var txt = S._promptCarrossel || localStorage.getItem('psm_prompt_carrossel') || '';
+  if(!txt || txt.length < 50) {
+    alert('Prompt n\u00e3o carregado. Clique em "Recarregar do Servidor" primeiro.');
+    return;
+  }
+  navigator.clipboard.writeText(txt).then(function(){
+    alert('\u2705 Prompt copiado! Cole no Gemini para iniciar a cria\u00e7\u00e3o do carrossel.');
+  }).catch(function(){
+    // Fallback
+    var ta = document.getElementById('prompt-textarea');
+    if(ta) { ta.select(); document.execCommand('copy'); alert('\u2705 Prompt copiado!'); }
+    else alert('Erro ao copiar. Abra o prompt e copie manualmente.');
+  });
+}
+
+function togglePromptView() {
+  var area = document.getElementById('prompt-view-area');
+  if(area) area.style.display = area.style.display === 'none' ? 'block' : 'none';
+}
+
+function salvarPromptLocal() {
+  var ta = document.getElementById('prompt-textarea');
+  if(ta) {
+    S._promptCarrossel = ta.value;
+    localStorage.setItem('psm_prompt_carrossel', ta.value);
+  }
+}
+
+function carregarPromptServidor() {
+  // Fetch from raw GitHub
+  fetch('https://raw.githubusercontent.com/Psm178102/psm-os/main/prompts/carrossel.md')
+    .then(function(r){ return r.ok ? r.text() : Promise.reject('HTTP '+r.status); })
+    .then(function(txt){
+      S._promptCarrossel = txt;
+      localStorage.setItem('psm_prompt_carrossel', txt);
+      render();
+      alert('\u2705 Prompt carregado do servidor! (' + txt.length + ' caracteres)');
+    })
+    .catch(function(e){
+      alert('\u274C Erro ao carregar: ' + e + '. Cole o prompt manualmente na \u00e1rea de texto.');
+    });
 }
 
 function pgPlaceholder(title, desc) {
