@@ -734,6 +734,8 @@ const USERS_BASE=[
   {id:'rodrigo_c',name:'Rodrigo Camargo',   ini:'RC',color:'#0f766e',role:'corretor',frente:'terceiros', email:'rodrigocamargo@imobiliariapsm.com.br',rdId:'692d933389c0150019aff0be',st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:600000,crm:0,agend:0},
   {id:'evandro',  name:'Evandro',           ini:'EV',color:'#1d4ed8',role:'corretor',frente:'terceiros', email:'evandro@imobiliariapsm.com.br',   rdId:'695d18cdd8e96000144d2448', st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:500000,crm:0,agend:0},
   {id:'yara',     name:'Yara Fetti',        ini:'YF',color:'#9333ea',role:'corretor',frente:'terceiros', email:'yara@imobiliariapsm.com.br',      rdId:'693ad5782b10d20016341650', st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:500000,crm:0,agend:0},
+  // Conquista (adicionado)
+  {id:'bruno',    name:'Bruno',             ini:'BR',color:'#7c3aed',role:'corretor',frente:'conquista', email:'bruno@imobiliariapsm.com.br',     rdId:'',  st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:700000,crm:0,agend:0},
   // \ud83c\udfc6 Equipe MAP (adicionado)
   {id:'vitor_o',  name:'Vitor Oliveira',    ini:'VO',color:'#0891b2',role:'corretor',frente:'lancamento',email:'vitor@imobiliariapsm.com.br',    rdId:'',  st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:800000,crm:0,agend:0},
   // Usuários RD extras (sem login no sistema, mas têm deals ativos)
@@ -747,7 +749,7 @@ const USERS_BASE=[
 let TEAM_CONFIG={
   assignments:{
     rodrigo_t:'lancamento',marcus_l:'lancamento',gabriel_b:'lancamento',vitor_o:'lancamento',
-    kadu:'conquista',      julia:'conquista',     danilo_a:'conquista',  rafaela_m:'conquista',
+    kadu:'conquista',      julia:'conquista',     danilo_a:'conquista',  rafaela_m:'conquista', bruno:'conquista',
     camila_b:'terceiros',  rodrigo_c:'terceiros', evandro:'terceiros',   yara:'terceiros',
   },
   // Marcus é líder de: Evandro, Gabriel, Camila e Danilo (ponto 3)
@@ -1046,7 +1048,16 @@ let S={
   // RD
   rdSyncing:false,rdSyncStatus:'',rdSyncError:'',rdDealCount:0,
   // One on One – link Google Sheets por corretor
-  ooSheetLinks: {},
+  ooSheetLinks: {
+    rafaela_m:'https://docs.google.com/spreadsheets/d/1viZiZFQvCUsWb0xuLnLL9CXg-1_uCCj4FkeQEg2g92Y/edit',
+    kadu:'https://docs.google.com/spreadsheets/d/1lDiIVZcWWUVokRCCK9Rdqq8YdfOy25wnIMSmv04dXgA/edit',
+    julia:'https://docs.google.com/spreadsheets/d/1TSZWJf_EuiCAfiH7hvHtMjjspJ7ky0c14HqmCSLYMKo/edit',
+    danilo_a:'https://docs.google.com/spreadsheets/d/12kWyJ5bh8dX_QX54WjuvLhi2Dm-XeERNVnOHp8TVMKg/edit',
+    bruno:'https://docs.google.com/spreadsheets/d/1mO4HE4eZEKtWlTt94oXz0GQQIay72DGooO-uA6mcfFg/edit',
+    vitor_o:'https://docs.google.com/spreadsheets/d/1cEZNDI9rBLa192seR3rsV40ZAqnbbrNL4WTgV4_MpKo/edit',
+    marcus_l:'https://docs.google.com/spreadsheets/d/1a64-KNpFROTWONcLgaR-2895cp4Ql84Dq3RWjJ1ese8/edit',
+    gabriel_b:'https://docs.google.com/spreadsheets/d/1RVbNW3q299uXmkqXapkdpR48lA78cyr4kB4n_z-ayvA/edit',
+  },
   // Conectores / API Tokens
   connectors:{
     rd_crm_token:'', rd_mkt_token:'',
@@ -2015,7 +2026,7 @@ var pgWarArena = function(){
 
   allCorretores.forEach(function(c, ci){
     var rank = ci + 1;
-    var rankDisplay = rank <= 3 ? (rank===1?'\ud83e\udd47':rank===2?'\ud83e\udd48':'\ud83e\udd49') : rank;
+    var rankDisplay = rank <= 3 ? (rank===1?'\ud83e\udd47':rank===2?'\ud83e\udd48':rank===3?'\ud83e\udd49':rank+'\u00ba') : rank;
     var fInfo = frentes[c.frente];
     var rowBg = ci % 2 === 0 ? 'var(--navy)' : 'transparent';
     h += '<tr style="background:' + rowBg + ';font-size:13px">';
@@ -2058,7 +2069,7 @@ var pgWarArena = function(){
       h += icon + ' ' + a.msg + '</div>';
     });
   }
-  h += '</div>';
+  h += '</div></div>';
 
   // Feedback Rapido (gestor view)
   if(lvl >= 5){
@@ -9647,16 +9658,16 @@ function renderSB() {
       {id:'okrs',      lbl:'OKRs & Metas',   ico:'\uD83C\uDFAF',min:5},
       {id:'vendas',    lbl:'Lan\u00e7ar Venda',   ico:'\uD83D\uDCB0',min:7},
     ]},
-    {sec:'Tráfego Ads', items:[
+    {sec:'Tr\u00e1fego Ads', items:[
       {id:'sim_criativos',lbl:'Sim. Criativos',ico:'🎨',min:2},
       {id:'sim_leads',    lbl:'Sim. Leads',    ico:'🎯',min:2},
-      {id:'metricas_viab',lbl:'Métr. Viabilidade',ico:'📊',min:2},
+      {id:'metricas_viab',lbl:'M\u00e9tr. Viabilidade',ico:'📊',min:2},
       {id:'metaads',      lbl:'Meta Ads',      ico:'📣',min:2},
     ]},
     {sec:'Financeiro', items:[
       {id:'fluxocaixa',lbl:'Fluxo de Caixa',ico:'💰',min:5},
       {id:'dre',lbl:'DRE',ico:'📊',min:5},
-      {id:'comissoes',lbl:'Comissões',ico:'💎',min:5},
+      {id:'comissoes',lbl:'Comiss\u00f5es',ico:'💎',min:5},
       {id:'repasses',lbl:'Repasses',ico:'🔄',min:5},
     ]},
     {sec:'Intelligence', items:[
@@ -9676,6 +9687,7 @@ function renderSB() {
       {id:'simvpl',    lbl:'Simulador VPL',  ico:'📐',min:2},
       {id:'simincc',   lbl:'Simulador INCC', ico:'📊',min:2},
       {id:'simrep',    lbl:'Sim. Repasse',   ico:'\uD83D\uDCB0',min:2},
+      {id:'canal_anonimo', lbl:'Canal An\u00f4nimo', ico:'\uD83D\uDD12',min:1},
       {id:'canal_anonimo', lbl:'Canal An\u00f4nimo', ico:'\uD83D\uDD12',min:1},
     ]},
     {sec:'Agentes PSM', items:[
@@ -10981,6 +10993,10 @@ function route() {
     case 'agente_vera': return pgAgenteVera();
     case 'agente_sol':  return pgAgenteSol();
     case 'sr_performance': return pgSrPerformance();
+    case 'canal_anonimo': return pgCanalAnonimo();
+    case 'relat_vendas': return pgRelatVendas();
+    case 'fichas_propostas': return pgFichasPropostas();
+    case 'premiacoes': return pgPremiacoes();
         case 'kpis':        return pgPlaceholder('KPIs','Em breve: painel de KPIs estrat\u00e9gicos.');
     case 'trafego_ads': return pgPlaceholder('Tr\u00e1fego ADS','Em breve: painel de tr\u00e1fego e an\u00fancios.');
     case 'drive_mkt':   return pgPlaceholder('Drive Marketing','Em breve: reposit\u00f3rio de marketing.');
