@@ -13,7 +13,11 @@
       "destination": "/api/rd"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/prompts/:path*",
+      "destination": "/prompts/:path*"
+    },
+    {
+      "source": "/((?!api/|prompts/).*)",
       "destination": "/index.html"
     }
   ],
@@ -36,5 +40,4 @@
       ]
     }
   ]
-
 }
