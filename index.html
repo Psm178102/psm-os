@@ -11339,16 +11339,25 @@ function pgPlantoes() {
     if(escDia){
       calHTML += '<div style="margin-top:2px;padding:3px 6px;border-radius:4px;background:#d4a017;color:#fff;font-size:10px;font-weight:700;text-align:center;">\uD83C\uDFE2 '+escDia.local+'</div>';
       // mostrar corretores manuais do dia
-      dayPlantoes.forEach(function(p){
-        calHTML += '<div style="margin-top:2px;padding:2px 5px;border-radius:3px;background:rgba(15,23,42,.06);color:var(--navy);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+(p.nomes||p.corretor||'')+'">';
-        calHTML += '\uD83D\uDC64 '+(p.nomes||p.corretor||'').split(',')[0].trim();
-        calHTML += '</div>';
-      });
+      if(dayPlantoes.length > 0){
+        dayPlantoes.forEach(function(p){
+          var allNames = (p.nomes||p.corretor||'').split(',');
+          allNames.forEach(function(n){
+            n = n.trim();
+            if(n) calHTML += '<div style="margin-top:2px;padding:2px 5px;border-radius:3px;background:rgba(15,23,42,.07);color:var(--navy);font-size:9px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+n+'">\uD83D\uDC64 '+n+'</div>';
+          });
+        });
+      } else {
+        calHTML += '<div style="margin-top:3px;padding:2px 5px;border-radius:3px;background:rgba(15,23,42,.04);color:var(--muted);font-size:8px;text-align:center;font-style:italic;">+ adicionar corretores</div>';
+      }
     } else if(hasManual){
       dayPlantoes.forEach(function(p){
-        calHTML += '<div style="margin-top:2px;padding:2px 5px;border-radius:3px;background:rgba(37,99,235,.08);color:#1d4ed8;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+(p.local||'')+' - '+(p.nomes||p.corretor||'')+'">';
-        calHTML += '\uD83C\uDFE2 '+(p.local||'')+(p.nomes?' \u2022 '+p.nomes.split(',')[0].trim():'');
-        calHTML += '</div>';
+        calHTML += '<div style="margin-top:2px;padding:3px 6px;border-radius:4px;background:rgba(37,99,235,.1);color:#1d4ed8;font-size:10px;font-weight:700;text-align:center;">\uD83C\uDFE2 '+(p.local||'')+'</div>';
+        var allN = (p.nomes||p.corretor||'').split(',');
+        allN.forEach(function(n){
+          n = n.trim();
+          if(n) calHTML += '<div style="margin-top:2px;padding:2px 5px;border-radius:3px;background:rgba(37,99,235,.06);color:#1e40af;font-size:9px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\uD83D\uDC64 '+n+'</div>';
+        });
       });
     }
     calHTML += '</div>';
@@ -11486,9 +11495,15 @@ function abrirFormPlantao(dia, editIdx) {
     existing = dayP[editIdx] || null;
   }
 
+  // Detectar local da escala PSM para pr\u00e9-preencher
+  var escalaLocal = '';
+  var ESCALA_PSM_DIAS = {2:'Legacy',5:'Legacy',8:'Legacy',11:'Legacy',14:'Legacy',17:'Legacy',20:'Legacy',23:'Legacy',26:'Legacy',29:'Legacy'};
+  if(!isEdit && !existing && ESCALA_PSM_DIAS[d]) escalaLocal = ESCALA_PSM_DIAS[d];
+
   var locais = ['Legacy','Prime/Line','Ra\u00edzes','Connect','Reserva','Outro'];
+  var defaultLocal = existing ? existing.local : escalaLocal;
   var locOpts = locais.map(function(l){
-    var sel = (existing && existing.local === l) ? ' selected' : '';
+    var sel = (defaultLocal === l) ? ' selected' : '';
     return '<option value="'+l+'"'+sel+'>'+l+'</option>';
   }).join('');
 
