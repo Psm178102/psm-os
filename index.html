@@ -4950,6 +4950,20 @@ function pgOO() {
 
     content += discCard;
 
+    // === OBJETIVO PESSOAL DO CORRETOR ===
+    if (!S.ooObjetivoPessoal) S.ooObjetivoPessoal = {};
+    var objPessoal = S.ooObjetivoPessoal[selBid] || {};
+    var objTexto = objPessoal[ooReunMes || monthKey] || '';
+    var objMesKey = S.ooReunMes || monthKey;
+    content += '<div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:12px;padding:16px;border:1px solid #4338ca;margin-bottom:16px">';
+    content += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';
+    content += '<span style="font-size:20px">🎯</span>';
+    content += '<div><div style="font-size:14px;font-weight:700;color:#e0e7ff">Objetivo Pessoal</div>';
+    content += '<div style="font-size:11px;color:#a5b4fc">O que você quer conquistar neste mês? Defina seu foco.</div></div>';
+    content += '</div>';
+    content += '<textarea id="oo_obj_pessoal" rows="3" style="width:100%;background:#0f172a;color:#f8fafc;border:1px solid #4338ca;border-radius:8px;padding:10px;font-size:13px;resize:vertical;line-height:1.6;box-sizing:border-box" placeholder="Ex: Fechar 3 vendas no Legacy, melhorar taxa de agendamento para 40%, conquistar primeiro cliente por indicação..." onblur="ooSaveObjetivoPessoal(\'' + selBid + '\',\'' + objMesKey + '\',this.value)">' + objTexto + '</textarea>';
+    content += '</div>';
+
     // Month navigator
     content += '<div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px">';
     content += '<button onclick="ooReunNavMonth(-1)" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px">\u25C0</button>';
@@ -5064,9 +5078,23 @@ function pgOO() {
     });
     content += '</div>';
 
-    // === CONFIGURAR METAS (para gestores) ===
+  }
+
+  // ============================================================
+  // TAB: GESTÃO
+  // ============================================================
+  else if (tab === 'gestao') {
+    var now = new Date();
+    var curYear = now.getFullYear();
+    var curMonth = now.getMonth() + 1;
+    var monthKey = ooGetMonthKey(now);
+    var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var realMes = ooAggMonth(selBid, monthKey);
+    var metasMes = ooGetMetas(selBid, monthKey);
+
+    // === 0. DEFINIR METAS (movido de Metas para cá) ===
     if (lvl >= 5) {
-      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin:16px 0">';
+      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
       content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
       content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">\u2699\uFE0F Definir Metas \u2014 ' + monthNames[curMonth] + ' ' + curYear + '</span>';
       content += '<button onclick="ooSaveMetasForm(\'' + selBid + '\',\'' + monthKey + '\',this)" style="background:#10b981;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar Metas</button>';
@@ -5081,18 +5109,6 @@ function pgOO() {
       });
       content += '</div></div>';
     }
-  }
-
-  // ============================================================
-  // TAB: GESTÃO
-  // ============================================================
-  else if (tab === 'gestao') {
-    var now = new Date();
-    var curYear = now.getFullYear();
-    var curMonth = now.getMonth() + 1;
-    var monthKey = ooGetMonthKey(now);
-    var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    var realMes = ooAggMonth(selBid, monthKey);
 
     // === 1. FUNIL PERSONALIZAVEL ===
     var cfgFrente = ooGetFrenteForBroker(selBid);
@@ -5270,6 +5286,15 @@ function ooDecField(bid, monthKey, dayKey, fieldKey) {
   var inputEl = document.getElementById('oo_input_' + fieldKey);
   if (valEl) valEl.textContent = newVal;
   if (inputEl) inputEl.value = newVal;
+}
+
+// Objetivo Pessoal helper
+function ooSaveObjetivoPessoal(bid, mesKey, texto) {
+  if (!S.ooObjetivoPessoal) S.ooObjetivoPessoal = {};
+  if (!S.ooObjetivoPessoal[bid]) S.ooObjetivoPessoal[bid] = {};
+  S.ooObjetivoPessoal[bid][mesKey] = texto;
+  saveState();
+  toast('\uD83C\uDFAF Objetivo salvo!','ok');
 }
 
 // Reunião 1:1 helpers
