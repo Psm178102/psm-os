@@ -4851,8 +4851,6 @@ function pgOO() {
       var w = Math.round(100 - (idx * (44 / Math.max(fN - 1, 1))));
       var cor = OO_FUNIL_COLORS[idx % OO_FUNIL_COLORS.length];
       var val = todayData[c.k] || 0;
-      var w = funnelWidths[idx] || 56;
-      var cor = funnelColors[idx] || '#6366f1';
       content += '<div style="display:flex;align-items:center;justify-content:center;margin-bottom:6px">';
       content += '<div style="width:' + w + '%;background:' + cor + ';border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;transition:width .4s">';
       content += '<span style="font-size:12px;font-weight:600;color:#fff;white-space:nowrap">' + c.icon + ' ' + c.l + '</span>';
