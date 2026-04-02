@@ -1137,6 +1137,9 @@ function saveState() {
       ooMetaLanc: S.ooMetaLanc || {},
       ooMetaVgvMes: S.ooMetaVgvMes || {},
       ooObjetivo: S.ooObjetivo || {},
+      ooObjetivoPessoal: S.ooObjetivoPessoal || {},
+      ooRotina: S.ooRotina || {},
+      tickerMsgs: S.tickerMsgs || [],
       savedAt: Date.now(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
@@ -1171,6 +1174,9 @@ function loadState() {
     if (d.ooMetaLanc) S.ooMetaLanc = d.ooMetaLanc;
     if (d.ooMetaVgvMes) S.ooMetaVgvMes = d.ooMetaVgvMes;
     if (d.ooObjetivo) S.ooObjetivo = d.ooObjetivo;
+    if (d.ooObjetivoPessoal) S.ooObjetivoPessoal = d.ooObjetivoPessoal;
+    if (d.ooRotina) S.ooRotina = d.ooRotina;
+    if (d.tickerMsgs) S.tickerMsgs = d.tickerMsgs;
     // Restore manual vendas
     try {
       const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manual') || '[]');
@@ -4573,8 +4579,8 @@ function pgOO() {
   const df_oo = DateFilter('oo','Período');
   const u = S.user; if (!u) return df_oo + '';
   const lvl = RLVL[u.role] || 0;
-  var _vt=['dia','acumulado','reuniao','metas','gestao']; const tab = _vt.indexOf(S.ooTab)!==-1 ? S.ooTab : 'dia';
-  const tabs = [{id:'dia',lbl:'Dia a Dia'},{id:'acumulado',lbl:'Acumulado'},{id:'reuniao',lbl:'Reunião 1:1'},{id:'metas',lbl:'Metas'},{id:'gestao',lbl:'Gestão'}];
+  var _vt=['dia','acumulado','reuniao','rotina','metas','gestao']; const tab = _vt.indexOf(S.ooTab)!==-1 ? S.ooTab : 'dia';
+  const tabs = [{id:'dia',lbl:'Dia a Dia'},{id:'acumulado',lbl:'Acumulado'},{id:'reuniao',lbl:'Reunião 1:1'},{id:'rotina',lbl:'Rotina'},{id:'metas',lbl:'Metas'},{id:'gestao',lbl:'Gestão'}];
   const canViewOthers = lvl >= 5;
   const selBid = canViewOthers ? (S.ooBroker || u.id) : u.id;
   const selUser = USERS_BASE.find(x => x.id===selBid) || u;
@@ -5050,6 +5056,143 @@ function pgOO() {
   }
 
   // ============================================================
+  // TAB: ROTINA (OKRs semanais)
+  // ============================================================
+  else if (tab === 'rotina') {
+    var now = new Date();
+    var monthKey = ooGetMonthKey(now);
+
+    // Week navigation
+    if (!S.ooRotinaWeekOff) S.ooRotinaWeekOff = 0;
+    var weekOff = S.ooRotinaWeekOff;
+    var weekStart = new Date(now);
+    var dow = weekStart.getDay();
+    var diffToMon = dow === 0 ? -6 : 1 - dow;
+    weekStart.setDate(weekStart.getDate() + diffToMon + (weekOff * 7));
+    weekStart.setHours(0,0,0,0);
+
+    var diasSemana = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+    var diasFull = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+    var weekDates = [];
+    for (var wd = 0; wd < 7; wd++) {
+      var d = new Date(weekStart);
+      d.setDate(d.getDate() + wd);
+      weekDates.push(d);
+    }
+    var weekLabel = String(weekDates[0].getDate()).padStart(2,'0') + '/' + String(weekDates[0].getMonth()+1).padStart(2,'0')
+      + ' \u2014 ' + String(weekDates[6].getDate()).padStart(2,'0') + '/' + String(weekDates[6].getMonth()+1).padStart(2,'0') + '/' + weekDates[6].getFullYear();
+
+    // Data structure: S.ooRotina[bid][weekKey] = { obj: [{txt, done}], dias: { 0:[{txt,done}], 1:[...], ... } }
+    if (!S.ooRotina) S.ooRotina = {};
+    if (!S.ooRotina[selBid]) S.ooRotina[selBid] = {};
+    var weekKey = weekDates[0].toISOString().slice(0,10);
+    if (!S.ooRotina[selBid][weekKey]) S.ooRotina[selBid][weekKey] = {obj:[],dias:{}};
+    var wData = S.ooRotina[selBid][weekKey];
+
+    // Week navigator
+    content += '<div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px">';
+    content += '<button onclick="S.ooRotinaWeekOff=(S.ooRotinaWeekOff||0)-1;render()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:14px">\u25C0</button>';
+    content += '<div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#f8fafc">\uD83D\uDCC5 Semana</div><div style="font-size:13px;color:#a5b4fc">' + weekLabel + '</div></div>';
+    content += '<button onclick="S.ooRotinaWeekOff=(S.ooRotinaWeekOff||0)+1;render()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:14px">\u25B6</button>';
+    if (weekOff !== 0) {
+      content += '<button onclick="S.ooRotinaWeekOff=0;render()" style="background:#6366f120;color:#a5b4fc;border:1px solid #6366f140;padding:6px 12px;border-radius:8px;font-size:11px;cursor:pointer;font-weight:600">Hoje</button>';
+    }
+    content += '</div>';
+
+    // === OKR SEMANAL (Objetivo da Semana) ===
+    content += '<div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:12px;padding:16px;border:1px solid #4338ca;margin-bottom:16px">';
+    content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    content += '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">\uD83C\uDFAF</span><span style="font-size:14px;font-weight:700;color:#e0e7ff">Objetivos da Semana</span></div>';
+    content += '<button onclick="ooRotinaAddObj(\'' + selBid + '\',\'' + weekKey + '\')" style="background:#6366f1;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">+ Objetivo</button>';
+    content += '</div>';
+    var objs = wData.obj || [];
+    var objDone = objs.filter(function(o){ return o.done; }).length;
+    var objTotal = objs.length;
+    var objPct = objTotal > 0 ? Math.round(objDone / objTotal * 100) : 0;
+    if (objTotal > 0) {
+      content += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';
+      content += '<div style="flex:1;background:#0f172a;border-radius:6px;height:8px;overflow:hidden"><div style="height:100%;width:' + objPct + '%;background:' + (objPct >= 100 ? '#10b981' : objPct >= 50 ? '#f59e0b' : '#6366f1') + ';border-radius:6px;transition:width .4s"></div></div>';
+      content += '<span style="font-size:12px;font-weight:700;color:' + (objPct >= 100 ? '#10b981' : '#a5b4fc') + '">' + objDone + '/' + objTotal + ' (' + objPct + '%)</span>';
+      content += '</div>';
+    }
+    if (objs.length === 0) {
+      content += '<div style="text-align:center;padding:16px;color:#64748b;font-size:13px">Nenhum objetivo definido para esta semana. Clique em "+ Objetivo" para começar.</div>';
+    } else {
+      objs.forEach(function(o, idx) {
+        var isDone = o.done;
+        content += '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:' + (isDone ? '#10b98115' : '#0f172a') + ';border-radius:8px;margin-bottom:4px;border:1px solid ' + (isDone ? '#10b98130' : '#334155') + '">';
+        content += '<button onclick="ooRotinaToggleObj(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ')" style="background:' + (isDone ? '#10b981' : '#1e293b') + ';color:#fff;border:' + (isDone ? 'none' : '2px solid #475569') + ';width:22px;height:22px;border-radius:6px;cursor:pointer;font-size:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px">' + (isDone ? '\u2713' : '') + '</button>';
+        content += '<span style="flex:1;font-size:13px;color:' + (isDone ? '#6ee7b7' : '#e2e8f0') + ';' + (isDone ? 'text-decoration:line-through;opacity:.7' : '') + ';line-height:1.5">' + o.txt + '</span>';
+        content += '<button onclick="ooRotinaRemoveObj(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ')" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:14px;flex-shrink:0;padding:0 4px">\u2715</button>';
+        content += '</div>';
+      });
+    }
+    content += '</div>';
+
+    // === DIAS DA SEMANA (Seg-Dom) com tarefas ===
+    content += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">';
+    weekDates.forEach(function(dt, dIdx) {
+      var dayStr = String(dt.getDate()).padStart(2,'0') + '/' + String(dt.getMonth()+1).padStart(2,'0');
+      var isToday = dt.toISOString().slice(0,10) === new Date().toISOString().slice(0,10);
+      var isPast = dt < new Date(new Date().setHours(0,0,0,0));
+      var dayTasks = wData.dias[dIdx] || [];
+      var dayDone = dayTasks.filter(function(t){ return t.done; }).length;
+      var dayTotal = dayTasks.length;
+      var dayPct = dayTotal > 0 ? Math.round(dayDone / dayTotal * 100) : 0;
+      var borderColor = isToday ? '#6366f1' : '#334155';
+      var headerBg = isToday ? '#6366f120' : '#0f172a';
+
+      content += '<div style="background:#1e293b;border-radius:10px;border:1px solid ' + borderColor + ';overflow:hidden;' + (isToday ? 'box-shadow:0 0 12px #6366f120' : '') + '">';
+
+      // Day header
+      content += '<div style="background:' + headerBg + ';padding:10px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #33415540">';
+      content += '<div>';
+      content += '<span style="font-size:13px;font-weight:700;color:' + (isToday ? '#a5b4fc' : '#f8fafc') + '">' + diasFull[dIdx] + '</span>';
+      content += '<span style="font-size:11px;color:#64748b;margin-left:6px">' + dayStr + '</span>';
+      if (isToday) content += '<span style="font-size:9px;background:#6366f1;color:#fff;padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:600">HOJE</span>';
+      content += '</div>';
+      if (dayTotal > 0) {
+        content += '<span style="font-size:11px;font-weight:700;color:' + (dayPct >= 100 ? '#10b981' : dayPct >= 50 ? '#f59e0b' : '#94a3b8') + '">' + dayDone + '/' + dayTotal + '</span>';
+      }
+      content += '</div>';
+
+      // Tasks
+      content += '<div style="padding:8px 10px;min-height:60px">';
+      if (dayTasks.length === 0) {
+        content += '<div style="text-align:center;padding:10px 0;color:#475569;font-size:12px">Sem tarefas</div>';
+      } else {
+        dayTasks.forEach(function(t, tIdx) {
+          content += '<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px;padding:4px 0">';
+          content += '<button onclick="ooRotinaToggleTask(\'' + selBid + '\',\'' + weekKey + '\',' + dIdx + ',' + tIdx + ')" style="background:' + (t.done ? '#10b981' : '#1e293b') + ';color:#fff;border:' + (t.done ? 'none' : '2px solid #475569') + ';width:18px;height:18px;border-radius:4px;cursor:pointer;font-size:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:2px">' + (t.done ? '\u2713' : '') + '</button>';
+          content += '<span style="flex:1;font-size:12px;color:' + (t.done ? '#6ee7b7' : '#cbd5e1') + ';' + (t.done ? 'text-decoration:line-through;opacity:.6' : '') + ';line-height:1.4">' + t.txt + '</span>';
+          content += '<button onclick="ooRotinaRemoveTask(\'' + selBid + '\',\'' + weekKey + '\',' + dIdx + ',' + tIdx + ')" style="background:none;border:none;color:#475569;cursor:pointer;font-size:12px;flex-shrink:0;padding:0">\u2715</button>';
+          content += '</div>';
+        });
+      }
+      // Add task button
+      content += '<button onclick="ooRotinaAddTask(\'' + selBid + '\',\'' + weekKey + '\',' + dIdx + ')" style="width:100%;background:#0f172a;color:#64748b;border:1px dashed #33415580;border-radius:6px;padding:6px;font-size:11px;cursor:pointer;margin-top:4px;transition:all .15s" onmouseover="this.style.borderColor=\'#6366f1\';this.style.color=\'#a5b4fc\'" onmouseout="this.style.borderColor=\'#33415580\';this.style.color=\'#64748b\'">+ tarefa</button>';
+      content += '</div></div>';
+    });
+    content += '</div>';
+
+    // Weekly summary
+    var allTasks = 0, allDone = 0;
+    for (var di = 0; di < 7; di++) { var dt = wData.dias[di] || []; allTasks += dt.length; allDone += dt.filter(function(t){ return t.done; }).length; }
+    allTasks += objs.length; allDone += objDone;
+    var totalPct = allTasks > 0 ? Math.round(allDone / allTasks * 100) : 0;
+    if (allTasks > 0) {
+      content += '<div style="background:#0f172a;border-radius:10px;padding:14px;margin-top:16px;text-align:center;border:1px solid #334155">';
+      content += '<div style="font-size:12px;color:#94a3b8;margin-bottom:6px">Progresso Total da Semana</div>';
+      content += '<div style="display:flex;align-items:center;gap:10px;justify-content:center">';
+      content += '<div style="width:200px;background:#1e293b;border-radius:6px;height:10px;overflow:hidden"><div style="height:100%;width:' + totalPct + '%;background:' + (totalPct >= 100 ? '#10b981' : totalPct >= 60 ? '#f59e0b' : '#6366f1') + ';border-radius:6px;transition:width .4s"></div></div>';
+      content += '<span style="font-size:18px;font-weight:800;color:' + (totalPct >= 100 ? '#10b981' : '#f8fafc') + '">' + totalPct + '%</span>';
+      content += '</div>';
+      content += '<div style="font-size:11px;color:#64748b;margin-top:4px">' + allDone + ' de ' + allTasks + ' itens concluídos</div>';
+      content += '</div>';
+    }
+  }
+
+  // ============================================================
   // TAB: METAS
   // ============================================================
   else if (tab === 'metas') {
@@ -5314,6 +5457,51 @@ function ooDecField(bid, monthKey, dayKey, fieldKey) {
   var inputEl = document.getElementById('oo_input_' + fieldKey);
   if (valEl) valEl.textContent = newVal;
   if (inputEl) inputEl.value = newVal;
+}
+
+// ===== ROTINA (OKRs semanais) helpers =====
+function ooRotinaAddObj(bid, weekKey) {
+  var txt = prompt('Qual o objetivo da semana?');
+  if (!txt || !txt.trim()) return;
+  if (!S.ooRotina) S.ooRotina = {};
+  if (!S.ooRotina[bid]) S.ooRotina[bid] = {};
+  if (!S.ooRotina[bid][weekKey]) S.ooRotina[bid][weekKey] = {obj:[],dias:{}};
+  S.ooRotina[bid][weekKey].obj.push({txt:txt.trim(),done:false});
+  saveState(); render();
+}
+function ooRotinaToggleObj(bid, weekKey, idx) {
+  var o = ((S.ooRotina||{})[bid]||{})[weekKey];
+  if (!o || !o.obj[idx]) return;
+  o.obj[idx].done = !o.obj[idx].done;
+  saveState(); render();
+}
+function ooRotinaRemoveObj(bid, weekKey, idx) {
+  var o = ((S.ooRotina||{})[bid]||{})[weekKey];
+  if (!o) return;
+  o.obj.splice(idx, 1);
+  saveState(); render();
+}
+function ooRotinaAddTask(bid, weekKey, dayIdx) {
+  var txt = prompt('Nova tarefa:');
+  if (!txt || !txt.trim()) return;
+  if (!S.ooRotina) S.ooRotina = {};
+  if (!S.ooRotina[bid]) S.ooRotina[bid] = {};
+  if (!S.ooRotina[bid][weekKey]) S.ooRotina[bid][weekKey] = {obj:[],dias:{}};
+  if (!S.ooRotina[bid][weekKey].dias[dayIdx]) S.ooRotina[bid][weekKey].dias[dayIdx] = [];
+  S.ooRotina[bid][weekKey].dias[dayIdx].push({txt:txt.trim(),done:false});
+  saveState(); render();
+}
+function ooRotinaToggleTask(bid, weekKey, dayIdx, taskIdx) {
+  var d = ((S.ooRotina||{})[bid]||{})[weekKey];
+  if (!d || !d.dias[dayIdx] || !d.dias[dayIdx][taskIdx]) return;
+  d.dias[dayIdx][taskIdx].done = !d.dias[dayIdx][taskIdx].done;
+  saveState(); render();
+}
+function ooRotinaRemoveTask(bid, weekKey, dayIdx, taskIdx) {
+  var d = ((S.ooRotina||{})[bid]||{})[weekKey];
+  if (!d || !d.dias[dayIdx]) return;
+  d.dias[dayIdx].splice(taskIdx, 1);
+  saveState(); render();
 }
 
 // Objetivo Pessoal helper
