@@ -11274,9 +11274,10 @@ function pgPlantoes() {
   var anoAtual = now.getFullYear();
   var meses = ['Janeiro','Fevereiro','Mar\u00e7o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-  // ====== ESCALA IMPPER - Abril/2026 ======
-  var ESCALA_IMPPER = {
-    mes: 3, ano: 2026, titulo: 'ESCALA IMPPER',
+  // ====== ESCALA PSM - Abril/2026 (apenas dias em que PSM est\u00e1 escalada) ======
+  // local: onde a PSM est\u00e1 escalada naquele dia
+  var ESCALA_PSM = {
+    mes: 3, ano: 2026,
     horarios: {
       raizes: {semana:'9:00\u201318:00', sabado:'9:00\u201314:00', domferiado:'9:00\u201312:00'},
       prime:  {semana:'9:00\u201318:30', sabado:'9:00\u201317:00', domferiado:'9:00\u201313:00'}
@@ -11288,55 +11289,25 @@ function pgPlantoes() {
       'Se sair e n\u00e3o for atender cliente Impper, deve deixar substituto.'
     ],
     dias: {
-      1:{dw:'QUA',leg:['HOUSE','FG'],prime:['EMPR RIO PRETO','HOUSE']},
-      2:{dw:'QUI',leg:['PSM','HOUSE'],prime:['HOUSE','ATLAS']},
-      3:{dw:'SEX',leg:['HOUSE','EMPR RIO PRETO'],prime:['FG','HOUSE']},
-      4:{dw:'S\u00c1B',leg:['FG','HOUSE'],prime:['HOUSE','EMPR RIO PRETO']},
-      5:{dw:'DOM',leg:['HOUSE','PSM'],prime:['ATLAS','HOUSE']},
-      6:{dw:'SEG',leg:['EMPR RIO PRETO','HOUSE'],prime:['HOUSE','FG']},
-      7:{dw:'TER',leg:['HOUSE','FG'],prime:['EMPR RIO PRETO','HOUSE']},
-      8:{dw:'QUA',leg:['PSM','HOUSE'],prime:['HOUSE','ATLAS']},
-      9:{dw:'QUI',leg:['HOUSE','EMPR RIO PRETO'],prime:['FG','HOUSE']},
-      10:{dw:'SEX',leg:['FG','HOUSE'],prime:['HOUSE','EMPR RIO PRETO']},
-      11:{dw:'S\u00c1B',leg:['HOUSE','PSM'],prime:['ATLAS','HOUSE']},
-      12:{dw:'DOM',leg:['EMPR RIO PRETO','HOUSE'],prime:['HOUSE','FG']},
-      13:{dw:'SEG',leg:['HOUSE','FG'],prime:['EMPR RIO PRETO','HOUSE']},
-      14:{dw:'TER',leg:['PSM','HOUSE'],prime:['HOUSE','ATLAS']},
-      15:{dw:'QUA',leg:['HOUSE','EMPR RIO PRETO'],prime:['FG','HOUSE']},
-      16:{dw:'QUI',leg:['FG','HOUSE'],prime:['HOUSE','EMPR RIO PRETO']},
-      17:{dw:'SEX',leg:['HOUSE','PSM'],prime:['ATLAS','HOUSE']},
-      18:{dw:'S\u00c1B',leg:['EMPR RIO PRETO','HOUSE'],prime:['HOUSE','FG']},
-      19:{dw:'DOM',leg:['HOUSE','FG'],prime:['EMPR RIO PRETO','HOUSE']},
-      20:{dw:'SEG',leg:['PSM','HOUSE'],prime:['HOUSE','ATLAS']},
-      21:{dw:'TER',leg:['HOUSE','EMPR RIO PRETO'],prime:['FG','HOUSE']},
-      22:{dw:'QUA',leg:['FG','HOUSE'],prime:['HOUSE','EMPR RIO PRETO']},
-      23:{dw:'QUI',leg:['HOUSE','PSM'],prime:['ATLAS','HOUSE']},
-      24:{dw:'SEX',leg:['EMPR RIO PRETO','HOUSE'],prime:['HOUSE','FG']},
-      25:{dw:'S\u00c1B',leg:['HOUSE','FG'],prime:['EMPR RIO PRETO','HOUSE']},
-      26:{dw:'DOM',leg:['PSM','HOUSE'],prime:['HOUSE','ATLAS']},
-      27:{dw:'SEG',leg:['HOUSE','EMPR RIO PRETO'],prime:['FG','HOUSE']},
-      28:{dw:'TER',leg:['FG','HOUSE'],prime:['HOUSE','EMPR RIO PRETO']},
-      29:{dw:'QUA',leg:['HOUSE','PSM'],prime:['ATLAS','HOUSE']},
-      30:{dw:'QUI',leg:['EMPR RIO PRETO','HOUSE'],prime:['HOUSE','FG']}
+      2:{dw:'QUI',local:'Legacy'},
+      5:{dw:'DOM',local:'Legacy'},
+      8:{dw:'QUA',local:'Legacy'},
+      11:{dw:'S\u00c1B',local:'Legacy'},
+      14:{dw:'TER',local:'Legacy'},
+      17:{dw:'SEX',local:'Legacy'},
+      20:{dw:'SEG',local:'Legacy'},
+      23:{dw:'QUI',local:'Legacy'},
+      26:{dw:'DOM',local:'Legacy'},
+      29:{dw:'QUA',local:'Legacy'}
     }
   };
-
-  var escalaColors = {
-    'PSM':{bg:'#d4a017',text:'#fff'},'HOUSE':{bg:'#475569',text:'#fff'},'FG':{bg:'#2563eb',text:'#fff'},
-    'EMPR RIO PRETO':{bg:'#dc2626',text:'#fff'},'ATLAS':{bg:'#7c3aed',text:'#fff'}
-  };
-  function escBadge(name){
-    var c = escalaColors[name]||{bg:'#475569',text:'#fff'};
-    var isPSM = name==='PSM';
-    return '<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:'+(isPSM?'800':'600')+';background:'+c.bg+';color:'+c.text+';white-space:nowrap;'+(isPSM?'box-shadow:0 0 0 2px rgba(212,160,23,.4);':'')+'">'+name+'</span>';
-  }
 
   function diasNoMes(m, a) { return new Date(a, m + 1, 0).getDate(); }
   function primeiroDia(m, a) { return new Date(a, m, 1).getDay(); }
 
   var totalDias = diasNoMes(mesAtual, anoAtual);
   var primeiro = primeiroDia(mesAtual, anoAtual);
-  var temEscala = (mesAtual === ESCALA_IMPPER.mes && anoAtual === ESCALA_IMPPER.ano);
+  var temEscala = (mesAtual === ESCALA_PSM.mes && anoAtual === ESCALA_PSM.ano);
 
   // Load plantoes manuais from localStorage
   var storageKey = 'psm_plantoes_' + anoAtual + '_' + mesAtual;
@@ -11351,46 +11322,73 @@ function pgPlantoes() {
   for (var i = 0; i < primeiro; i++) calHTML += '<div></div>';
 
   for (var dia = 1; dia <= totalDias; dia++) {
-    var esc = temEscala ? ESCALA_IMPPER.dias[dia] : null;
+    var escDia = temEscala ? ESCALA_PSM.dias[dia] : null;
     var dayPlantoes = plantoes.filter(function(p){return p.dia === dia;});
     var isToday = (dia === now.getDate() && mesAtual === now.getMonth() && anoAtual === now.getFullYear());
-    var hasPSM = esc && (esc.leg.indexOf('PSM')!==-1 || esc.prime.indexOf('PSM')!==-1);
+    var hasPSM = !!escDia;
+    var hasManual = dayPlantoes.length > 0;
     var bgDay = hasPSM ? 'rgba(212,160,23,.1)' : '#fff';
     var borderDay = isToday ? 'border:2px solid var(--gold);' : hasPSM ? 'border:1px solid rgba(212,160,23,.35);' : 'border:1px solid var(--cream3);';
 
-    calHTML += '<div style="min-height:90px;padding:4px 5px;border-radius:6px;background:'+bgDay+';'+borderDay+'cursor:pointer;font-size:10px;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.06);" onclick="abrirDiaPlantao('+dia+')">';
+    calHTML += '<div style="min-height:80px;padding:5px 6px;border-radius:6px;background:'+bgDay+';'+borderDay+'cursor:pointer;font-size:10px;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.06);" onclick="abrirDiaPlantao('+dia+')">';
     calHTML += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">';
     calHTML += '<span style="font-weight:700;font-size:13px;color:'+(isToday?'var(--gold)':hasPSM?'#b8860b':'var(--navy)')+';">'+dia+'</span>';
     if(hasPSM) calHTML += '<span style="font-size:8px;font-weight:800;background:#d4a017;color:#fff;padding:1px 4px;border-radius:3px;">PSM</span>';
     calHTML += '</div>';
 
-    if(esc){
-      calHTML += '<div style="margin-bottom:2px;"><span style="font-size:7px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Legacy</span><div style="display:flex;gap:2px;flex-wrap:wrap;">'+escBadge(esc.leg[0])+escBadge(esc.leg[1])+'</div></div>';
-      calHTML += '<div><span style="font-size:7px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Prime</span><div style="display:flex;gap:2px;flex-wrap:wrap;">'+escBadge(esc.prime[0])+escBadge(esc.prime[1])+'</div></div>';
+    if(escDia){
+      calHTML += '<div style="margin-top:2px;padding:3px 6px;border-radius:4px;background:#d4a017;color:#fff;font-size:10px;font-weight:700;text-align:center;">\uD83C\uDFE2 '+escDia.local+'</div>';
+      // mostrar corretores manuais do dia
+      dayPlantoes.forEach(function(p){
+        calHTML += '<div style="margin-top:2px;padding:2px 5px;border-radius:3px;background:rgba(15,23,42,.06);color:var(--navy);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+(p.nomes||p.corretor||'')+'">';
+        calHTML += '\uD83D\uDC64 '+(p.nomes||p.corretor||'').split(',')[0].trim();
+        calHTML += '</div>';
+      });
+    } else if(hasManual){
+      dayPlantoes.forEach(function(p){
+        calHTML += '<div style="margin-top:2px;padding:2px 5px;border-radius:3px;background:rgba(37,99,235,.08);color:#1d4ed8;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+(p.local||'')+' - '+(p.nomes||p.corretor||'')+'">';
+        calHTML += '\uD83C\uDFE2 '+(p.local||'')+(p.nomes?' \u2022 '+p.nomes.split(',')[0].trim():'');
+        calHTML += '</div>';
+      });
     }
-
-    dayPlantoes.forEach(function(p){
-      calHTML += '<div style="margin-top:2px;padding:1px 4px;border-radius:3px;background:rgba(37,99,235,.1);color:#1d4ed8;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+(p.corretor||'')+' - '+(p.local||'')+'">';
-      calHTML += '\u23F0 '+(p.hora||'')+' '+(p.corretor||'').split(' ')[0];
-      calHTML += '</div>';
-    });
     calHTML += '</div>';
   }
   calHTML += '</div>';
 
-  // ====== LEGENDA ======
-  var legHTML = '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;padding:12px;border-radius:8px;background:#fff;border:1px solid var(--cream3);box-shadow:0 1px 3px rgba(0,0,0,.06);">';
-  legHTML += '<span style="font-size:11px;font-weight:700;color:var(--navy);margin-right:4px;">Legenda:</span>';
-  Object.keys(escalaColors).forEach(function(k){
-    var c = escalaColors[k];
-    legHTML += '<span style="display:flex;align-items:center;gap:4px;font-size:11px;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+c.bg+';"></span><span style="color:var(--mid);">'+k+'</span></span>';
-  });
-  legHTML += '</div>';
+  // ====== LISTA PSM ======
+  var listHTML = '';
+  if(temEscala){
+    listHTML = '<div style="margin-top:20px;">';
+    listHTML += '<h3 style="font-size:14px;margin:0 0 10px;color:var(--navy);">\uD83D\uDCCB Plant\u00f5es PSM \u2014 Abril/2026</h3>';
+    listHTML += '<div style="overflow-x:auto;border-radius:8px;border:1px solid var(--cream3);box-shadow:0 1px 3px rgba(0,0,0,.06);">';
+    listHTML += '<table style="width:100%;border-collapse:collapse;font-size:12px;background:#fff;">';
+    listHTML += '<thead><tr style="background:var(--cream2);">';
+    listHTML += '<th style="padding:10px 8px;text-align:center;color:var(--navy);font-weight:700;border-bottom:2px solid var(--cream3);">Dia</th>';
+    listHTML += '<th style="padding:10px 8px;text-align:center;color:var(--muted);font-weight:700;border-bottom:2px solid var(--cream3);"></th>';
+    listHTML += '<th style="padding:10px 8px;text-align:left;color:var(--navy);font-weight:700;border-bottom:2px solid var(--cream3);">Local</th>';
+    listHTML += '<th style="padding:10px 8px;text-align:left;color:var(--navy);font-weight:700;border-bottom:2px solid var(--cream3);">Corretores</th>';
+    listHTML += '</tr></thead><tbody>';
+    var diasPSM = Object.keys(ESCALA_PSM.dias).map(Number).sort(function(a,b){return a-b;});
+    diasPSM.forEach(function(d){
+      var info = ESCALA_PSM.dias[d];
+      var isTodayRow = (d === now.getDate() && mesAtual===3 && anoAtual===2026);
+      var rowBg = isTodayRow ? 'rgba(212,160,23,.15)' : (diasPSM.indexOf(d)%2===0?'#fff':'var(--cream2)');
+      var dayP = plantoes.filter(function(p){return p.dia===d;});
+      var nomes = dayP.map(function(p){return p.nomes||p.corretor||'';}).filter(Boolean).join(', ');
+      listHTML += '<tr style="background:'+rowBg+';">';
+      listHTML += '<td style="padding:8px;text-align:center;font-weight:700;color:'+(isTodayRow?'#b8860b':'var(--navy)')+';border-bottom:1px solid var(--cream3);font-size:14px;">'+d+'</td>';
+      listHTML += '<td style="padding:8px;text-align:center;font-size:11px;color:var(--muted);border-bottom:1px solid var(--cream3);">'+info.dw+'</td>';
+      listHTML += '<td style="padding:8px;border-bottom:1px solid var(--cream3);"><span style="display:inline-block;padding:3px 10px;border-radius:5px;background:#d4a017;color:#fff;font-weight:700;font-size:11px;">'+info.local+'</span></td>';
+      listHTML += '<td style="padding:8px;border-bottom:1px solid var(--cream3);color:var(--mid);font-size:11px;">'+(nomes||'<span style="color:var(--faint);font-style:italic;">Sem corretores definidos</span>')+'</td>';
+      listHTML += '</tr>';
+    });
+    listHTML += '</tbody></table></div></div>';
+  }
 
   // ====== HORARIOS ======
   var horHTML = '';
   if(temEscala){
-    var h = ESCALA_IMPPER.horarios;
+    var h = ESCALA_PSM.horarios;
     horHTML = '<div style="margin-top:16px;"><h3 style="font-size:14px;margin:0 0 10px;color:var(--navy);">\u23F0 Hor\u00e1rios de Atendimento</h3>';
     horHTML += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
     horHTML += '<div style="padding:12px;border-radius:8px;background:#fff;border:1px solid var(--cream3);box-shadow:0 1px 3px rgba(0,0,0,.06);">';
@@ -11407,152 +11405,173 @@ function pgPlantoes() {
   if(temEscala){
     regHTML = '<div style="margin-top:16px;padding:14px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;">';
     regHTML += '<div style="font-weight:700;font-size:12px;margin-bottom:8px;color:#dc2626;">\u26A0\uFE0F Regras do Plant\u00e3o</div>';
-    ESCALA_IMPPER.regras.forEach(function(r){
-      regHTML += '<div style="font-size:11px;color:#991b1b;padding:3px 0;padding-left:12px;position:relative;"><span style="position:absolute;left:0;">•</span>'+r+'</div>';
+    ESCALA_PSM.regras.forEach(function(r){
+      regHTML += '<div style="font-size:11px;color:#991b1b;padding:3px 0;padding-left:12px;position:relative;"><span style="position:absolute;left:0;">\u2022</span>'+r+'</div>';
     });
     regHTML += '</div>';
   }
 
-  // ====== TABELA COMPLETA (VISÃO LISTA) ======
-  var tblHTML = '';
-  if(temEscala){
-    tblHTML = '<div style="margin-top:20px;">';
-    tblHTML += '<h3 style="font-size:14px;margin:0 0 10px;color:var(--navy);">\uD83D\uDCCB Escala Completa \u2014 Abril/2026</h3>';
-    tblHTML += '<div style="overflow-x:auto;border-radius:8px;border:1px solid var(--cream3);box-shadow:0 1px 3px rgba(0,0,0,.06);">';
-    tblHTML += '<table style="width:100%;border-collapse:collapse;font-size:11px;background:#fff;">';
-    tblHTML += '<thead><tr style="background:var(--cream2);">';
-    tblHTML += '<th style="padding:8px 6px;text-align:center;color:var(--navy);font-size:10px;font-weight:700;border-bottom:2px solid var(--cream3);">Dia</th>';
-    tblHTML += '<th style="padding:8px 6px;text-align:center;color:var(--muted);font-size:10px;font-weight:700;border-bottom:2px solid var(--cream3);"></th>';
-    tblHTML += '<th colspan="2" style="padding:8px 6px;text-align:center;color:#7c3aed;font-size:10px;font-weight:700;border-bottom:2px solid var(--cream3);border-left:1px solid var(--cream3);">Legacy</th>';
-    tblHTML += '<th colspan="2" style="padding:8px 6px;text-align:center;color:#1d4ed8;font-size:10px;font-weight:700;border-bottom:2px solid var(--cream3);border-left:1px solid var(--cream3);">Prime / Line</th>';
-    tblHTML += '</tr></thead><tbody>';
-    for(var d=1;d<=30;d++){
-      var esc2 = ESCALA_IMPPER.dias[d];
-      var isPSMDay = (esc2.leg.indexOf('PSM')!==-1||esc2.prime.indexOf('PSM')!==-1);
-      var isTodayRow = (d === now.getDate() && mesAtual===3 && anoAtual===2026);
-      var rowBg = isTodayRow ? 'rgba(212,160,23,.15)' : isPSMDay ? 'rgba(212,160,23,.06)' : (d%2===0?'var(--cream2)':'#fff');
-      tblHTML += '<tr style="background:'+rowBg+';">';
-      tblHTML += '<td style="padding:6px;text-align:center;font-weight:700;color:'+(isTodayRow?'#b8860b':'var(--navy)')+';border-bottom:1px solid var(--cream3);">'+d+'</td>';
-      tblHTML += '<td style="padding:6px;text-align:center;font-size:10px;color:var(--muted);border-bottom:1px solid var(--cream3);">'+esc2.dw+'</td>';
-      esc2.leg.concat(esc2.prime).forEach(function(v,idx){
-        var bl = (idx===0||idx===2) ? 'border-left:1px solid var(--cream3);' : '';
-        tblHTML += '<td style="padding:6px;text-align:center;border-bottom:1px solid var(--cream3);'+bl+'">'+escBadge(v)+'</td>';
-      });
-      tblHTML += '</tr>';
-    }
-    tblHTML += '</tbody></table></div></div>';
-  }
-
   var addBtn = isGestor ? '<button class="btn btn-gold" onclick="abrirFormPlantao()" style="margin-left:auto;"><span>+ Novo Plant\u00e3o</span></button>' : '';
 
-  // ====== VIEW TOGGLE ======
-  var viewToggle = temEscala ? '<div style="display:flex;gap:6px;margin-left:12px;">'
-    + '<button class="btn" id="btn-cal-view" onclick="document.getElementById(\'plt-cal\').style.display=\'block\';document.getElementById(\'plt-tbl\').style.display=\'none\';this.classList.add(\'btn-gold\');document.getElementById(\'btn-tbl-view\').classList.remove(\'btn-gold\');" style="font-size:11px;padding:4px 10px;">\uD83D\uDCC5 Calend\u00e1rio</button>'
-    + '<button class="btn" id="btn-tbl-view" onclick="document.getElementById(\'plt-tbl\').style.display=\'block\';document.getElementById(\'plt-cal\').style.display=\'none\';this.classList.add(\'btn-gold\');document.getElementById(\'btn-cal-view\').classList.remove(\'btn-gold\');" style="font-size:11px;padding:4px 10px;">\uD83D\uDCCB Lista</button>'
-    + '</div>' : '';
+  var viewToggle = '<div style="display:flex;gap:6px;margin-left:12px;">'
+    + '<button class="btn btn-gold" id="btn-cal-view" onclick="document.getElementById(\'plt-cal\').style.display=\'block\';document.getElementById(\'plt-list\').style.display=\'none\';this.classList.add(\'btn-gold\');document.getElementById(\'btn-list-view\').classList.remove(\'btn-gold\');" style="font-size:11px;padding:4px 10px;">\uD83D\uDCC5 Calend\u00e1rio</button>'
+    + '<button class="btn" id="btn-list-view" onclick="document.getElementById(\'plt-list\').style.display=\'block\';document.getElementById(\'plt-cal\').style.display=\'none\';this.classList.add(\'btn-gold\');document.getElementById(\'btn-cal-view\').classList.remove(\'btn-gold\');" style="font-size:11px;padding:4px 10px;">\uD83D\uDCCB Lista</button>'
+    + '</div>';
 
-  return '<div class="page-content"><div class="phd"><h1>\uD83D\uDCC6 Plant\u00f5es Impper</h1><p>Escala de plant\u00f5es nos empreendimentos do Grupo Impper</p></div>'
+  return '<div class="page-content"><div class="phd"><h1>\uD83D\uDCC6 Plant\u00f5es</h1><p>Escala de plant\u00f5es PSM nos empreendimentos Impper</p></div>'
     + '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">'
     + '<h2 style="margin:0;font-size:18px;">' + meses[mesAtual] + ' ' + anoAtual + '</h2>'
     + viewToggle + addBtn + '</div>'
-    + '<div id="plt-cal">' + calHTML + legHTML + '</div>'
-    + '<div id="plt-tbl" style="display:none;">' + tblHTML + '</div>'
+    + '<div id="plt-cal">' + calHTML + '</div>'
+    + '<div id="plt-list" style="display:none;">' + listHTML + '</div>'
     + horHTML + regHTML
     + '<div id="plantao-modal" style="display:none;"></div>'
     + '</div>';
 }
 
 function abrirDiaPlantao(dia) {
-  const u = S.user;
-  const isGestor = u && (u.role === 'socio' || u.role === 'diretor' || u.role === 'lider');
-  const now = new Date();
-  const storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
-  let plantoes = [];
+  var u = S.user;
+  var isGestor = u && (u.role === 'socio' || u.role === 'diretor' || u.role === 'lider');
+  var now = new Date();
+  var storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
+  var plantoes = [];
   try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e) {}
-  const dayP = plantoes.filter(p => p.dia === dia);
+  var dayP = plantoes.filter(function(p){return p.dia === dia;});
 
-  let html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">';
-  html += '<div style="background:var(--navy);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:24px;max-width:440px;width:90%;max-height:80vh;overflow-y:auto;">';
-  html += '<h3 style="margin:0 0 16px;">Plant\u00f5es - Dia ' + dia + '</h3>';
+  var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">';
+  html += '<div style="background:#fff;border:1px solid var(--cream3);border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 30px rgba(0,0,0,.15);">';
+  html += '<h3 style="margin:0 0 16px;color:var(--navy);">Plant\u00f5es \u2014 Dia ' + dia + '</h3>';
 
   if (dayP.length === 0) {
-    html += '<p style="color:rgba(255,255,255,.5);">Nenhum plant\u00e3o agendado para este dia.</p>';
+    html += '<p style="color:var(--muted);">Nenhum plant\u00e3o agendado para este dia.</p>';
   } else {
-    dayP.forEach((p, i) => {
-      html += '<div style="padding:10px;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:8px;">';
-      html += '<div style="font-weight:700;color:var(--gold2);">' + (p.corretor||'-') + '</div>';
-      html += '<div style="font-size:12px;margin-top:4px;">\u23F0 ' + (p.hora||'-') + ' | \uD83D\uDCCD ' + (p.local||'-') + '</div>';
-      if (p.orientacoes) html += '<div style="font-size:11px;margin-top:6px;color:rgba(255,255,255,.6);">\uD83D\uDCCB ' + p.orientacoes + '</div>';
-      if (isGestor) html += '<button class="btn" style="margin-top:6px;font-size:10px;padding:2px 8px;" onclick="removerPlantao(' + dia + ',' + i + ')">Remover</button>';
+    dayP.forEach(function(p, i){
+      html += '<div style="padding:12px;border-radius:8px;background:var(--cream2);margin-bottom:8px;border:1px solid var(--cream3);">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:start;">';
+      html += '<div>';
+      html += '<div style="font-weight:700;color:var(--navy);font-size:14px;">\uD83C\uDFE2 '+(p.local||'-')+'</div>';
+      html += '<div style="font-size:12px;margin-top:4px;color:var(--mid);">\u23F0 '+(p.horaInicio||p.hora||'-')+' \u2013 '+(p.horaFim||'-')+'</div>';
+      html += '<div style="font-size:12px;margin-top:4px;color:var(--mid);">\uD83D\uDC64 '+(p.nomes||p.corretor||'Sem corretores')+'</div>';
+      if (p.orientacoes) html += '<div style="font-size:11px;margin-top:6px;color:var(--muted);">\uD83D\uDCCB '+p.orientacoes+'</div>';
       html += '</div>';
+      if (isGestor) {
+        html += '<div style="display:flex;gap:4px;">';
+        html += '<button class="btn" style="font-size:10px;padding:3px 8px;color:#2563eb;" onclick="editarPlantao('+dia+','+i+')">\u270F\uFE0F Editar</button>';
+        html += '<button class="btn" style="font-size:10px;padding:3px 8px;color:#dc2626;" onclick="removerPlantao('+dia+','+i+')">\uD83D\uDDD1\uFE0F</button>';
+        html += '</div>';
+      }
+      html += '</div></div>';
     });
   }
 
   if (isGestor) {
-    html += '<button class="btn btn-gold" style="margin-top:12px;width:100%;" onclick="abrirFormPlantao(' + dia + ')">+ Adicionar Plant\u00e3o neste dia</button>';
+    html += '<button class="btn btn-gold" style="margin-top:12px;width:100%;" onclick="abrirFormPlantao('+dia+')">+ Adicionar Plant\u00e3o neste dia</button>';
   }
   html += '</div></div>';
 
-  const modal = document.getElementById('plantao-modal');
+  var modal = document.getElementById('plantao-modal');
   if (modal) { modal.style.display = 'block'; modal.innerHTML = html; }
-  else { document.body.insertAdjacentHTML('beforeend', '<div id="plantao-modal-overlay">' + html + '</div>'); }
+  else { document.body.insertAdjacentHTML('beforeend', '<div id="plantao-modal-overlay">'+html+'</div>'); }
 }
 
-function abrirFormPlantao(dia) {
-  const now = new Date();
-  const d = dia || now.getDate();
-  // Get corretores from S.equipe
-  let opts = '<option value="">Selecione...</option>';
-  if (S.equipe && S.equipe.length) {
-    S.equipe.forEach(c => { opts += '<option value="' + c.nome + '">' + c.nome + '</option>'; });
+function abrirFormPlantao(dia, editIdx) {
+  var now = new Date();
+  var d = dia || now.getDate();
+  var isEdit = (typeof editIdx === 'number');
+  var existing = null;
+  if(isEdit){
+    var sk = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
+    var pl = []; try { pl = JSON.parse(localStorage.getItem(sk)) || []; } catch(e) {}
+    var dayP = pl.filter(function(p){return p.dia===d;});
+    existing = dayP[editIdx] || null;
   }
 
-  let html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">';
-  html += '<div style="background:var(--navy);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:24px;max-width:400px;width:90%;">';
-  html += '<h3 style="margin:0 0 16px;">Novo Plant\u00e3o - Dia ' + d + '</h3>';
-  html += '<label style="font-size:12px;color:rgba(255,255,255,.6);">Corretor</label>';
-  html += '<select id="plt-corretor" class="finp" style="width:100%;margin-bottom:10px;">' + opts + '</select>';
-  html += '<label style="font-size:12px;color:rgba(255,255,255,.6);">Hor\u00e1rio</label>';
-  html += '<input id="plt-hora" type="time" class="finp" style="width:100%;margin-bottom:10px;">';
-  html += '<label style="font-size:12px;color:rgba(255,255,255,.6);">Local</label>';
-  html += '<input id="plt-local" type="text" class="finp" placeholder="Ex: Stand Damha, Escrit\u00f3rio PSM..." style="width:100%;margin-bottom:10px;">';
-  html += '<label style="font-size:12px;color:rgba(255,255,255,.6);">Orienta\u00e7\u00f5es</label>';
-  html += '<textarea id="plt-orientacoes" class="finp" rows="3" placeholder="Orienta\u00e7\u00f5es b\u00e1sicas para o corretor..." style="width:100%;margin-bottom:14px;"></textarea>';
-  html += '<button class="btn btn-gold" style="width:100%;" onclick="salvarPlantao(' + d + ')">Salvar Plant\u00e3o</button>';
+  var locais = ['Legacy','Prime/Line','Ra\u00edzes','Connect','Reserva','Outro'];
+  var locOpts = locais.map(function(l){
+    var sel = (existing && existing.local === l) ? ' selected' : '';
+    return '<option value="'+l+'"'+sel+'>'+l+'</option>';
+  }).join('');
+
+  var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">';
+  html += '<div style="background:#fff;border:1px solid var(--cream3);border-radius:12px;padding:24px;max-width:440px;width:90%;box-shadow:0 8px 30px rgba(0,0,0,.15);">';
+  html += '<h3 style="margin:0 0 16px;color:var(--navy);">'+(isEdit?'\u270F\uFE0F Editar':'\u2795 Novo')+' Plant\u00e3o \u2014 Dia '+d+'</h3>';
+
+  html += '<label style="font-size:12px;font-weight:600;color:var(--mid);display:block;margin-bottom:4px;">Local</label>';
+  html += '<select id="plt-local" class="sel-f" style="width:100%;margin-bottom:12px;">'+locOpts+'</select>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">';
+  html += '<div><label style="font-size:12px;font-weight:600;color:var(--mid);display:block;margin-bottom:4px;">Hor\u00e1rio In\u00edcio</label>';
+  html += '<input id="plt-hora-inicio" type="time" class="df-inp" style="width:100%;" value="'+(existing?existing.horaInicio||existing.hora||'09:00':'09:00')+'"></div>';
+  html += '<div><label style="font-size:12px;font-weight:600;color:var(--mid);display:block;margin-bottom:4px;">Hor\u00e1rio Fim</label>';
+  html += '<input id="plt-hora-fim" type="time" class="df-inp" style="width:100%;" value="'+(existing?existing.horaFim||'18:00':'18:00')+'"></div>';
+  html += '</div>';
+
+  html += '<label style="font-size:12px;font-weight:600;color:var(--mid);display:block;margin-bottom:4px;">Corretores (nomes separados por v\u00edrgula)</label>';
+  html += '<input id="plt-nomes" type="text" class="df-inp" placeholder="Ex: Jo\u00e3o, Maria, Pedro..." style="width:100%;margin-bottom:12px;" value="'+(existing?(existing.nomes||existing.corretor||'').replace(/"/g,'&quot;'):'')+'">';
+
+  html += '<label style="font-size:12px;font-weight:600;color:var(--mid);display:block;margin-bottom:4px;">Observa\u00e7\u00f5es</label>';
+  html += '<textarea id="plt-obs" class="df-inp" rows="2" placeholder="Observa\u00e7\u00f5es opcionais..." style="width:100%;margin-bottom:14px;resize:vertical;">'+(existing?existing.orientacoes||'':'')+'</textarea>';
+
+  if(isEdit){
+    html += '<button class="btn btn-gold" style="width:100%;" onclick="salvarPlantao('+d+','+editIdx+')">Salvar Altera\u00e7\u00f5es</button>';
+  } else {
+    html += '<button class="btn btn-gold" style="width:100%;" onclick="salvarPlantao('+d+')">Salvar Plant\u00e3o</button>';
+  }
   html += '</div></div>';
+  // Remove existing modals
+  document.querySelectorAll('[onclick*="this.remove"]').forEach(function(el){if(el.parentElement)el.remove();});
   document.body.insertAdjacentHTML('beforeend', html);
 }
 
-function salvarPlantao(dia) {
-  const corretor = document.getElementById('plt-corretor').value;
-  const hora = document.getElementById('plt-hora').value;
-  const local = document.getElementById('plt-local').value;
-  const orientacoes = document.getElementById('plt-orientacoes').value;
-  if (!corretor) { alert('Selecione um corretor.'); return; }
-  if (!hora) { alert('Informe o hor\u00e1rio.'); return; }
-  if (!local) { alert('Informe o local.'); return; }
+function editarPlantao(dia, idx) {
+  // Close current modal then open form in edit mode
+  document.querySelectorAll('[onclick*="this.remove"]').forEach(function(el){if(el.parentElement)el.remove();});
+  var modal = document.getElementById('plantao-modal');
+  if(modal){modal.style.display='none';modal.innerHTML='';}
+  abrirFormPlantao(dia, idx);
+}
 
-  const now = new Date();
-  const storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
-  let plantoes = [];
+function salvarPlantao(dia, editIdx) {
+  var local = document.getElementById('plt-local').value;
+  var horaInicio = document.getElementById('plt-hora-inicio').value;
+  var horaFim = document.getElementById('plt-hora-fim').value;
+  var nomes = document.getElementById('plt-nomes').value;
+  var orientacoes = document.getElementById('plt-obs').value;
+  if (!local) { alert('Selecione um local.'); return; }
+  if (!horaInicio) { alert('Informe o hor\u00e1rio de in\u00edcio.'); return; }
+
+  var now = new Date();
+  var storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
+  var plantoes = [];
   try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e) {}
-  plantoes.push({dia, corretor, hora, local, orientacoes, criadoPor: S.user.nome, criadoEm: new Date().toISOString()});
+
+  var registro = {dia:dia, local:local, horaInicio:horaInicio, horaFim:horaFim, nomes:nomes, orientacoes:orientacoes, criadoPor:S.user.nome, criadoEm:new Date().toISOString()};
+
+  if(typeof editIdx === 'number'){
+    // Editar existente
+    var dayP = plantoes.filter(function(p){return p.dia===dia;});
+    if(dayP[editIdx]){
+      var globalIdx = plantoes.indexOf(dayP[editIdx]);
+      plantoes[globalIdx] = registro;
+    }
+  } else {
+    plantoes.push(registro);
+  }
   localStorage.setItem(storageKey, JSON.stringify(plantoes));
-  // Close modal and refresh
-  document.querySelectorAll('[onclick*="this.remove"]').forEach(el => el.parentElement ? el.remove() : null);
+  document.querySelectorAll('[onclick*="this.remove"]').forEach(function(el){if(el.parentElement)el.remove();});
   nav('plantoes');
   alert('\u2705 Plant\u00e3o salvo com sucesso!');
 }
 
 function removerPlantao(dia, idx) {
   if (!confirm('Remover este plant\u00e3o?')) return;
-  const now = new Date();
-  const storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
-  let plantoes = [];
+  var now = new Date();
+  var storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
+  var plantoes = [];
   try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e) {}
-  const dayP = plantoes.filter(p => p.dia === dia);
+  var dayP = plantoes.filter(function(p){return p.dia === dia;});
   if (dayP[idx]) {
-    const globalIdx = plantoes.indexOf(dayP[idx]);
+    var globalIdx = plantoes.indexOf(dayP[idx]);
     plantoes.splice(globalIdx, 1);
     localStorage.setItem(storageKey, JSON.stringify(plantoes));
   }
