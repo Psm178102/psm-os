@@ -1144,13 +1144,61 @@ function saveState() {
       savedAt: Date.now(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    // === BACKUP REDUNDANTE: dados críticos salvos em chave separada ===
+    try {
+      var criticalData = {
+        ooDaily: S.ooDaily || {},
+        ooMetas: S.ooMetas || {},
+        ooRotina: S.ooRotina || {},
+        ooReunioes: S.ooReunioes || {},
+        ooObjetivo: S.ooObjetivo || {},
+        ooObjetivoPessoal: S.ooObjetivoPessoal || {},
+        ooFunilCustom: S.ooFunilCustom || {},
+        ooFunnelPct: S.ooFunnelPct || {},
+        ooMetaLanc: S.ooMetaLanc || {},
+        ooMetaVgvMes: S.ooMetaVgvMes || {},
+        tickerMsgs: S.tickerMsgs || [],
+        savedAt: Date.now()
+      };
+      localStorage.setItem('psm_backup_critical', JSON.stringify(criticalData));
+    } catch(e2) {}
+    // Backup rotativo a cada hora (mantém últimas 3 cópias)
+    try {
+      var lastRotate = parseInt(localStorage.getItem('psm_backup_lastrotate') || '0');
+      if (Date.now() - lastRotate > 3600000) { // 1h
+        localStorage.removeItem('psm_backup_h3');
+        var h2 = localStorage.getItem('psm_backup_h2');
+        if (h2) localStorage.setItem('psm_backup_h3', h2);
+        var h1 = localStorage.getItem('psm_backup_h1');
+        if (h1) localStorage.setItem('psm_backup_h2', h1);
+        localStorage.setItem('psm_backup_h1', JSON.stringify(criticalData));
+        localStorage.setItem('psm_backup_lastrotate', String(Date.now()));
+      }
+    } catch(e3) {}
   } catch(e) { console.warn('[PSM] Save error:', e); }
 }
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      // Tentar recuperar do backup se state principal perdido
+      raw = localStorage.getItem('psm_backup_critical');
+      if (raw) { console.warn('[PSM] State principal perdido! Recuperando do backup...'); }
+    }
     if (!raw) return;
-    const d = JSON.parse(raw);
+    var d;
+    try { d = JSON.parse(raw); } catch(parseErr) {
+      // State corrompido — tentar backups
+      console.error('[PSM] State corrompido! Tentando backups...');
+      var backupKeys = ['psm_backup_critical','psm_backup_h1','psm_backup_h2','psm_backup_h3'];
+      for (var bi = 0; bi < backupKeys.length; bi++) {
+        try {
+          var bRaw = localStorage.getItem(backupKeys[bi]);
+          if (bRaw) { d = JSON.parse(bRaw); console.warn('[PSM] Recuperado de ' + backupKeys[bi]); break; }
+        } catch(e) {}
+      }
+      if (!d) { console.error('[PSM] Nenhum backup válido encontrado!'); return; }
+    }
     if (d.ooLogs) S.ooLogs = d.ooLogs;
     if (d.comissaoPct) S.comissaoPct = d.comissaoPct;
     if (d.driveUrl) S.driveUrl = d.driveUrl;
@@ -4433,11 +4481,11 @@ var OO_CAMPOS_FUNIL = [
   {k:'agend',l:'Agendamentos',icon:'📅'},
   {k:'vis',l:'Visitas Realizadas',icon:'🏠'},
   {k:'prop',l:'Propostas',icon:'📝'},
-  {k:'capt',l:'Captações',icon:'🔑'},
   {k:'vend',l:'Vendas',icon:'🏆'}
 ];
 var OO_CAMPOS_LATERAL = [
   {k:'desc',l:'Descartados',icon:'❌',cor:'#dc2626'},
+  {k:'capt',l:'Captações',icon:'🔑',cor:'#f97316'},
   {k:'pastas',l:'Pastas',icon:'📁',cor:'#f59e0b'},
   {k:'carteira',l:'Carteira',icon:'💼',cor:'#8b5cf6'},
   {k:'reativacoes',l:'Reativações',icon:'🔄',cor:'#0ea5e9'}
@@ -9733,6 +9781,36 @@ function pgConfig() {
     + intCard('gcal','Google Agenda','#0f9d58','Alertas e agenda dos corretores','Chave API / Client ID')
     + intCard('notion','Notion','#000000','Integra\u00e7\u00e3o com banco de dados Notion','Token de Integra\u00e7\u00e3o Notion')
     + '</div>'
+    + '<div class="card mt2" style="grid-column:1/-1"><div class="ctitle">🛡️ Backup & Recuperação de Dados</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.6">'
+    + 'O PSM OS salva backups automáticos a cada hora (3 rotações) e um backup crítico a cada salvamento. '
+    + 'Use as opções abaixo para exportar um arquivo JSON completo ou importar um backup anterior.</div>'
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'
+    + '<button class="btn bp1" onclick="psmExportBackup()" style="font-size:13px;padding:10px 20px">📥 Exportar Backup (JSON)</button>'
+    + '<button class="btn bout" onclick="document.getElementById(\'psmImportFile\').click()" style="font-size:13px;padding:10px 20px">📤 Importar Backup</button>'
+    + '<input type="file" id="psmImportFile" accept=".json" style="display:none" onchange="psmImportBackup(this)">'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">'
+    + (function(){
+        var items = [];
+        var mainTs = null;
+        try { var m = JSON.parse(localStorage.getItem('psm_os_data')||'{}'); mainTs = m.savedAt; } catch(e){}
+        items.push({l:'💾 Dados Principais', ts: mainTs});
+        try { var c = JSON.parse(localStorage.getItem('psm_backup_critical')||'{}'); items.push({l:'🔴 Backup Crítico', ts: c._ts}); } catch(e){ items.push({l:'🔴 Backup Crítico', ts: null}); }
+        for(var hi=1;hi<=3;hi++){
+          try { var h = JSON.parse(localStorage.getItem('psm_backup_h'+hi)||'{}'); items.push({l:'🕐 Rotação H'+hi, ts: h._ts}); } catch(e){ items.push({l:'🕐 Rotação H'+hi, ts: null}); }
+        }
+        return items.map(function(it){
+          return '<div style="background:var(--cream2);border-radius:8px;padding:10px 14px">'
+            +'<div style="font-size:11px;font-weight:700;color:var(--navy)">'+it.l+'</div>'
+            +'<div style="font-size:10px;color:var(--muted);margin-top:3px">'+(it.ts ? new Date(it.ts).toLocaleString('pt-BR') : 'Sem dados')+'</div>'
+            +'</div>';
+        }).join('');
+      })()
+    + '</div>'
+    + '<div style="margin-top:10px;font-size:10px;color:var(--muted)">⚡ Backups automáticos: crítico a cada save · rotação horária H1→H2→H3 · recuperação automática se dados corrompidos</div>'
+    + '</div>'
+    + '</div>'
     + '</div>'; // close g2
 }
 
@@ -12125,6 +12203,74 @@ document.addEventListener('click', e => {
   }
 });
 
+
+// ─── BACKUP / EXPORT / IMPORT ────────────────────────────────────────────────
+function psmExportBackup() {
+  var data = {
+    _type: 'PSM_OS_BACKUP',
+    _version: 1,
+    _exportedAt: new Date().toISOString(),
+    _exportedBy: S.user ? S.user.id : 'unknown',
+    ooDaily: S.ooDaily || {},
+    ooMetas: S.ooMetas || {},
+    ooRotina: S.ooRotina || {},
+    ooReunioes: S.ooReunioes || {},
+    ooObjetivo: S.ooObjetivo || {},
+    ooObjetivoPessoal: S.ooObjetivoPessoal || {},
+    ooFunilCustom: S.ooFunilCustom || {},
+    ooFunnelPct: S.ooFunnelPct || {},
+    ooMetaLanc: S.ooMetaLanc || {},
+    ooMetaVgvMes: S.ooMetaVgvMes || {},
+    tickerMsgs: S.tickerMsgs || []
+  };
+  var json = JSON.stringify(data, null, 2);
+  var blob = new Blob([json], {type: 'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'psm_os_backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('\uD83D\uDCBE Backup exportado!','ok');
+}
+function psmImportBackup(inputEl) {
+  function processFile(file) {
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        var data = JSON.parse(ev.target.result);
+        if (data._type !== 'PSM_OS_BACKUP') { toast('Arquivo não é um backup PSM válido','warn'); return; }
+        if (!confirm('Isso irá restaurar TODOS os dados do backup (dados diários, metas, reuniões, etc). Os dados atuais serão substituídos. Continuar?')) return;
+        if (data.ooDaily) S.ooDaily = data.ooDaily;
+        if (data.ooMetas) S.ooMetas = data.ooMetas;
+        if (data.ooRotina) S.ooRotina = data.ooRotina;
+        if (data.ooReunioes) S.ooReunioes = data.ooReunioes;
+        if (data.ooObjetivo) S.ooObjetivo = data.ooObjetivo;
+        if (data.ooObjetivoPessoal) S.ooObjetivoPessoal = data.ooObjetivoPessoal;
+        if (data.ooFunilCustom) S.ooFunilCustom = data.ooFunilCustom;
+        if (data.ooFunnelPct) S.ooFunnelPct = data.ooFunnelPct;
+        if (data.ooMetaLanc) S.ooMetaLanc = data.ooMetaLanc;
+        if (data.ooMetaVgvMes) S.ooMetaVgvMes = data.ooMetaVgvMes;
+        if (data.tickerMsgs) S.tickerMsgs = data.tickerMsgs;
+        saveState();
+        toast('\u2705 Backup restaurado com sucesso! (' + data._exportedAt + ')','ok');
+        render();
+      } catch(err) { toast('Erro ao ler backup: ' + err.message,'warn'); }
+    };
+    reader.readAsText(file);
+  }
+  if (inputEl && inputEl.files && inputEl.files[0]) {
+    processFile(inputEl.files[0]);
+    inputEl.value = '';
+  } else {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = function(e) { processFile(e.target.files[0]); };
+    input.click();
+  }
+}
 
 // ─── TICKER / TIMELINE DE COMUNICADOS ────────────────────────────────────────
 // Mensagens dos gestores/sócios/diretores exibidas como ticker no painel do corretor
