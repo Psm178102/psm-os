@@ -11322,13 +11322,13 @@ function pgPlantoes() {
   };
 
   var escalaColors = {
-    'PSM':'#d4a017','HOUSE':'#64748b','FG':'#3b82f6',
-    'EMPR RIO PRETO':'#ef4444','ATLAS':'#8b5cf6'
+    'PSM':{bg:'#d4a017',text:'#fff'},'HOUSE':{bg:'#475569',text:'#fff'},'FG':{bg:'#2563eb',text:'#fff'},
+    'EMPR RIO PRETO':{bg:'#dc2626',text:'#fff'},'ATLAS':{bg:'#7c3aed',text:'#fff'}
   };
   function escBadge(name){
-    var bg = escalaColors[name]||'#475569';
+    var c = escalaColors[name]||{bg:'#475569',text:'#fff'};
     var isPSM = name==='PSM';
-    return '<span style="display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:'+(isPSM?'800':'600')+';background:'+bg+(isPSM?'':'22')+';color:'+(isPSM?'#000':bg)+';border:'+(isPSM?'none':'1px solid '+bg+'44')+';white-space:nowrap;">'+name+'</span>';
+    return '<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:'+(isPSM?'800':'600')+';background:'+c.bg+';color:'+c.text+';white-space:nowrap;'+(isPSM?'box-shadow:0 0 0 2px rgba(212,160,23,.4);':'')+'">'+name+'</span>';
   }
 
   function diasNoMes(m, a) { return new Date(a, m + 1, 0).getDate(); }
@@ -11346,7 +11346,7 @@ function pgPlantoes() {
   // ====== CALENDAR GRID ======
   var calHTML = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:12px;">';
   var diasSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','S\u00e1b'];
-  diasSemana.forEach(function(d){ calHTML += '<div style="text-align:center;font-weight:700;font-size:11px;padding:8px 2px;color:var(--gold2);background:rgba(255,255,255,.05);border-radius:6px;">' + d + '</div>'; });
+  diasSemana.forEach(function(d){ calHTML += '<div style="text-align:center;font-weight:700;font-size:11px;padding:8px 2px;color:var(--navy);background:var(--cream3);border-radius:6px;">' + d + '</div>'; });
 
   for (var i = 0; i < primeiro; i++) calHTML += '<div></div>';
 
@@ -11355,22 +11355,22 @@ function pgPlantoes() {
     var dayPlantoes = plantoes.filter(function(p){return p.dia === dia;});
     var isToday = (dia === now.getDate() && mesAtual === now.getMonth() && anoAtual === now.getFullYear());
     var hasPSM = esc && (esc.leg.indexOf('PSM')!==-1 || esc.prime.indexOf('PSM')!==-1);
-    var bgDay = hasPSM ? 'rgba(212,160,23,.08)' : 'rgba(255,255,255,.03)';
-    var borderDay = isToday ? 'border:2px solid var(--gold2);' : hasPSM ? 'border:1px solid rgba(212,160,23,.25);' : 'border:1px solid rgba(255,255,255,.06);';
+    var bgDay = hasPSM ? 'rgba(212,160,23,.1)' : '#fff';
+    var borderDay = isToday ? 'border:2px solid var(--gold);' : hasPSM ? 'border:1px solid rgba(212,160,23,.35);' : 'border:1px solid var(--cream3);';
 
-    calHTML += '<div style="min-height:90px;padding:4px 5px;border-radius:6px;background:'+bgDay+';'+borderDay+'cursor:pointer;font-size:10px;position:relative;" onclick="abrirDiaPlantao('+dia+')">';
+    calHTML += '<div style="min-height:90px;padding:4px 5px;border-radius:6px;background:'+bgDay+';'+borderDay+'cursor:pointer;font-size:10px;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.06);" onclick="abrirDiaPlantao('+dia+')">';
     calHTML += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">';
-    calHTML += '<span style="font-weight:700;font-size:13px;color:'+(isToday?'var(--gold2)':hasPSM?'#d4a017':'rgba(255,255,255,.8)')+';">'+dia+'</span>';
-    if(hasPSM) calHTML += '<span style="font-size:8px;font-weight:800;background:#d4a017;color:#000;padding:1px 4px;border-radius:3px;">PSM</span>';
+    calHTML += '<span style="font-weight:700;font-size:13px;color:'+(isToday?'var(--gold)':hasPSM?'#b8860b':'var(--navy)')+';">'+dia+'</span>';
+    if(hasPSM) calHTML += '<span style="font-size:8px;font-weight:800;background:#d4a017;color:#fff;padding:1px 4px;border-radius:3px;">PSM</span>';
     calHTML += '</div>';
 
     if(esc){
-      calHTML += '<div style="margin-bottom:2px;"><span style="font-size:7px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;">Legacy</span><div style="display:flex;gap:2px;flex-wrap:wrap;">'+escBadge(esc.leg[0])+escBadge(esc.leg[1])+'</div></div>';
-      calHTML += '<div><span style="font-size:7px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;">Prime</span><div style="display:flex;gap:2px;flex-wrap:wrap;">'+escBadge(esc.prime[0])+escBadge(esc.prime[1])+'</div></div>';
+      calHTML += '<div style="margin-bottom:2px;"><span style="font-size:7px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Legacy</span><div style="display:flex;gap:2px;flex-wrap:wrap;">'+escBadge(esc.leg[0])+escBadge(esc.leg[1])+'</div></div>';
+      calHTML += '<div><span style="font-size:7px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Prime</span><div style="display:flex;gap:2px;flex-wrap:wrap;">'+escBadge(esc.prime[0])+escBadge(esc.prime[1])+'</div></div>';
     }
 
     dayPlantoes.forEach(function(p){
-      calHTML += '<div style="margin-top:2px;padding:1px 4px;border-radius:3px;background:rgba(59,130,246,.15);color:#60a5fa;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+(p.corretor||'')+' - '+(p.local||'')+'">';
+      calHTML += '<div style="margin-top:2px;padding:1px 4px;border-radius:3px;background:rgba(37,99,235,.1);color:#1d4ed8;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+(p.corretor||'')+' - '+(p.local||'')+'">';
       calHTML += '\u23F0 '+(p.hora||'')+' '+(p.corretor||'').split(' ')[0];
       calHTML += '</div>';
     });
@@ -11379,10 +11379,11 @@ function pgPlantoes() {
   calHTML += '</div>';
 
   // ====== LEGENDA ======
-  var legHTML = '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;padding:12px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);">';
-  legHTML += '<span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.6);margin-right:4px;">Legenda:</span>';
+  var legHTML = '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;padding:12px;border-radius:8px;background:#fff;border:1px solid var(--cream3);box-shadow:0 1px 3px rgba(0,0,0,.06);">';
+  legHTML += '<span style="font-size:11px;font-weight:700;color:var(--navy);margin-right:4px;">Legenda:</span>';
   Object.keys(escalaColors).forEach(function(k){
-    legHTML += '<span style="display:flex;align-items:center;gap:4px;font-size:11px;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+escalaColors[k]+';"></span><span style="color:rgba(255,255,255,.7);">'+k+'</span></span>';
+    var c = escalaColors[k];
+    legHTML += '<span style="display:flex;align-items:center;gap:4px;font-size:11px;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+c.bg+';"></span><span style="color:var(--mid);">'+k+'</span></span>';
   });
   legHTML += '</div>';
 
@@ -11390,24 +11391,24 @@ function pgPlantoes() {
   var horHTML = '';
   if(temEscala){
     var h = ESCALA_IMPPER.horarios;
-    horHTML = '<div style="margin-top:16px;"><h3 style="font-size:14px;margin:0 0 10px;color:var(--gold2);">\u23F0 Hor\u00e1rios de Atendimento</h3>';
+    horHTML = '<div style="margin-top:16px;"><h3 style="font-size:14px;margin:0 0 10px;color:var(--navy);">\u23F0 Hor\u00e1rios de Atendimento</h3>';
     horHTML += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
-    horHTML += '<div style="padding:12px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);">';
-    horHTML += '<div style="font-weight:700;font-size:12px;margin-bottom:8px;color:#d4a017;">Ra\u00edzes e Connect</div>';
-    horHTML += '<div style="font-size:11px;color:rgba(255,255,255,.7);line-height:1.8;">Seg\u2013Sex: '+h.raizes.semana+'<br>S\u00e1bado: '+h.raizes.sabado+'<br>Dom/Feriado: '+h.raizes.domferiado+'</div></div>';
-    horHTML += '<div style="padding:12px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);">';
-    horHTML += '<div style="font-weight:700;font-size:12px;margin-bottom:8px;color:#3b82f6;">Prime/Line, Legacy e Reserva</div>';
-    horHTML += '<div style="font-size:11px;color:rgba(255,255,255,.7);line-height:1.8;">Seg\u2013Sex: '+h.prime.semana+'<br>S\u00e1bado: '+h.prime.sabado+'<br>Dom/Feriado: '+h.prime.domferiado+'</div></div>';
+    horHTML += '<div style="padding:12px;border-radius:8px;background:#fff;border:1px solid var(--cream3);box-shadow:0 1px 3px rgba(0,0,0,.06);">';
+    horHTML += '<div style="font-weight:700;font-size:12px;margin-bottom:8px;color:#b8860b;">Ra\u00edzes e Connect</div>';
+    horHTML += '<div style="font-size:11px;color:var(--mid);line-height:1.8;">Seg\u2013Sex: '+h.raizes.semana+'<br>S\u00e1bado: '+h.raizes.sabado+'<br>Dom/Feriado: '+h.raizes.domferiado+'</div></div>';
+    horHTML += '<div style="padding:12px;border-radius:8px;background:#fff;border:1px solid var(--cream3);box-shadow:0 1px 3px rgba(0,0,0,.06);">';
+    horHTML += '<div style="font-weight:700;font-size:12px;margin-bottom:8px;color:#1d4ed8;">Prime/Line, Legacy e Reserva</div>';
+    horHTML += '<div style="font-size:11px;color:var(--mid);line-height:1.8;">Seg\u2013Sex: '+h.prime.semana+'<br>S\u00e1bado: '+h.prime.sabado+'<br>Dom/Feriado: '+h.prime.domferiado+'</div></div>';
     horHTML += '</div></div>';
   }
 
   // ====== REGRAS ======
   var regHTML = '';
   if(temEscala){
-    regHTML = '<div style="margin-top:16px;padding:14px;border-radius:8px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);">';
-    regHTML += '<div style="font-weight:700;font-size:12px;margin-bottom:8px;color:#ef4444;">\u26A0\uFE0F Regras do Plant\u00e3o</div>';
+    regHTML = '<div style="margin-top:16px;padding:14px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;">';
+    regHTML += '<div style="font-weight:700;font-size:12px;margin-bottom:8px;color:#dc2626;">\u26A0\uFE0F Regras do Plant\u00e3o</div>';
     ESCALA_IMPPER.regras.forEach(function(r){
-      regHTML += '<div style="font-size:11px;color:rgba(255,255,255,.7);padding:3px 0;padding-left:12px;position:relative;"><span style="position:absolute;left:0;">•</span>'+r+'</div>';
+      regHTML += '<div style="font-size:11px;color:#991b1b;padding:3px 0;padding-left:12px;position:relative;"><span style="position:absolute;left:0;">•</span>'+r+'</div>';
     });
     regHTML += '</div>';
   }
@@ -11416,26 +11417,26 @@ function pgPlantoes() {
   var tblHTML = '';
   if(temEscala){
     tblHTML = '<div style="margin-top:20px;">';
-    tblHTML += '<h3 style="font-size:14px;margin:0 0 10px;color:var(--gold2);">\uD83D\uDCCB Escala Completa \u2014 Abril/2026</h3>';
-    tblHTML += '<div style="overflow-x:auto;border-radius:8px;border:1px solid rgba(255,255,255,.08);">';
-    tblHTML += '<table style="width:100%;border-collapse:collapse;font-size:11px;">';
-    tblHTML += '<thead><tr style="background:rgba(255,255,255,.06);">';
-    tblHTML += '<th style="padding:8px 6px;text-align:center;color:var(--gold2);font-size:10px;border-bottom:1px solid rgba(255,255,255,.08);">Dia</th>';
-    tblHTML += '<th style="padding:8px 6px;text-align:center;color:var(--gold2);font-size:10px;border-bottom:1px solid rgba(255,255,255,.08);"></th>';
-    tblHTML += '<th colspan="2" style="padding:8px 6px;text-align:center;color:#8b5cf6;font-size:10px;border-bottom:1px solid rgba(255,255,255,.08);border-left:1px solid rgba(255,255,255,.06);">Legacy</th>';
-    tblHTML += '<th colspan="2" style="padding:8px 6px;text-align:center;color:#3b82f6;font-size:10px;border-bottom:1px solid rgba(255,255,255,.08);border-left:1px solid rgba(255,255,255,.06);">Prime / Line</th>';
+    tblHTML += '<h3 style="font-size:14px;margin:0 0 10px;color:var(--navy);">\uD83D\uDCCB Escala Completa \u2014 Abril/2026</h3>';
+    tblHTML += '<div style="overflow-x:auto;border-radius:8px;border:1px solid var(--cream3);box-shadow:0 1px 3px rgba(0,0,0,.06);">';
+    tblHTML += '<table style="width:100%;border-collapse:collapse;font-size:11px;background:#fff;">';
+    tblHTML += '<thead><tr style="background:var(--cream2);">';
+    tblHTML += '<th style="padding:8px 6px;text-align:center;color:var(--navy);font-size:10px;font-weight:700;border-bottom:2px solid var(--cream3);">Dia</th>';
+    tblHTML += '<th style="padding:8px 6px;text-align:center;color:var(--muted);font-size:10px;font-weight:700;border-bottom:2px solid var(--cream3);"></th>';
+    tblHTML += '<th colspan="2" style="padding:8px 6px;text-align:center;color:#7c3aed;font-size:10px;font-weight:700;border-bottom:2px solid var(--cream3);border-left:1px solid var(--cream3);">Legacy</th>';
+    tblHTML += '<th colspan="2" style="padding:8px 6px;text-align:center;color:#1d4ed8;font-size:10px;font-weight:700;border-bottom:2px solid var(--cream3);border-left:1px solid var(--cream3);">Prime / Line</th>';
     tblHTML += '</tr></thead><tbody>';
     for(var d=1;d<=30;d++){
       var esc2 = ESCALA_IMPPER.dias[d];
       var isPSMDay = (esc2.leg.indexOf('PSM')!==-1||esc2.prime.indexOf('PSM')!==-1);
       var isTodayRow = (d === now.getDate() && mesAtual===3 && anoAtual===2026);
-      var rowBg = isTodayRow ? 'rgba(212,160,23,.12)' : isPSMDay ? 'rgba(212,160,23,.04)' : (d%2===0?'rgba(255,255,255,.02)':'transparent');
+      var rowBg = isTodayRow ? 'rgba(212,160,23,.15)' : isPSMDay ? 'rgba(212,160,23,.06)' : (d%2===0?'var(--cream2)':'#fff');
       tblHTML += '<tr style="background:'+rowBg+';">';
-      tblHTML += '<td style="padding:6px;text-align:center;font-weight:700;color:'+(isTodayRow?'var(--gold2)':'rgba(255,255,255,.8)')+';border-bottom:1px solid rgba(255,255,255,.04);">'+d+'</td>';
-      tblHTML += '<td style="padding:6px;text-align:center;font-size:10px;color:rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.04);">'+esc2.dw+'</td>';
+      tblHTML += '<td style="padding:6px;text-align:center;font-weight:700;color:'+(isTodayRow?'#b8860b':'var(--navy)')+';border-bottom:1px solid var(--cream3);">'+d+'</td>';
+      tblHTML += '<td style="padding:6px;text-align:center;font-size:10px;color:var(--muted);border-bottom:1px solid var(--cream3);">'+esc2.dw+'</td>';
       esc2.leg.concat(esc2.prime).forEach(function(v,idx){
-        var bl = (idx===0||idx===2) ? 'border-left:1px solid rgba(255,255,255,.06);' : '';
-        tblHTML += '<td style="padding:6px;text-align:center;border-bottom:1px solid rgba(255,255,255,.04);'+bl+'">'+escBadge(v)+'</td>';
+        var bl = (idx===0||idx===2) ? 'border-left:1px solid var(--cream3);' : '';
+        tblHTML += '<td style="padding:6px;text-align:center;border-bottom:1px solid var(--cream3);'+bl+'">'+escBadge(v)+'</td>';
       });
       tblHTML += '</tr>';
     }
