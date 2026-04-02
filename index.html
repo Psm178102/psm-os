@@ -4393,7 +4393,7 @@ function ooGetWorkDaysPassed(y,m) {
   }
   return total;
 }
-var OO_CAMPOS = [
+var OO_CAMPOS_FUNIL = [
   {k:'lig_real',l:'Ligações Realizadas',icon:'📞'},
   {k:'lig_atend',l:'Ligações Atendidas',icon:'✅'},
   {k:'tent_agend',l:'Tent. Agendamento',icon:'📋'},
@@ -4401,9 +4401,15 @@ var OO_CAMPOS = [
   {k:'vis',l:'Visitas Realizadas',icon:'🏠'},
   {k:'prop',l:'Propostas',icon:'📝'},
   {k:'capt',l:'Captações',icon:'🔑'},
-  {k:'vend',l:'Vendas',icon:'🏆'},
-  {k:'desc',l:'Descartados',icon:'❌'}
+  {k:'vend',l:'Vendas',icon:'🏆'}
 ];
+var OO_CAMPOS_LATERAL = [
+  {k:'desc',l:'Descartados',icon:'❌',cor:'#dc2626'},
+  {k:'pastas',l:'Pastas',icon:'📁',cor:'#f59e0b'},
+  {k:'carteira',l:'Carteira',icon:'💼',cor:'#8b5cf6'},
+  {k:'reativacoes',l:'Reativações',icon:'🔄',cor:'#0ea5e9'}
+];
+var OO_CAMPOS = OO_CAMPOS_FUNIL.concat(OO_CAMPOS_LATERAL);
 
 // ===== FUNIL DE CONVERSAO POR EQUIPE =====
 var OO_FUNNEL_STEPS = [
@@ -4527,7 +4533,6 @@ function ooSaveMetas(bid, key, data) {
 function ooSaveDayForm(bid, dayKey, btnEl) {
   var data = {};
   OO_CAMPOS.forEach(function(c) {
-    if (c.k === 'desc') return;
     var el = document.getElementById('oo_input_' + c.k);
     if (el) data[c.k] = parseInt(el.value) || 0;
   });
@@ -4541,7 +4546,6 @@ function ooSaveDayForm(bid, dayKey, btnEl) {
 function ooSaveMetasForm(bid, monthKey, btnEl) {
   var data = {};
   OO_CAMPOS.forEach(function(c) {
-    if (c.k === 'desc') return;
     var el = document.getElementById('oo_meta_' + c.k);
     if (el) data[c.k] = parseInt(el.value) || 0;
   });
@@ -4642,49 +4646,68 @@ function pgOO() {
     content += '</div>';
 
     // === REGISTRO DO DIA EM FORMATO FUNIL COM +/- ===
-    var todayData = (((S.ooDaily||{})[selBid]||{})[monthKey]||{})[dayKey] || {};
+    // Date picker: allow selecting any day (retroactive entries)
+    var selDayKey = S.ooSelDay || dayKey;
+    var selDayParts = selDayKey.split('-');
+    var selDayDate = new Date(parseInt(selDayParts[0]), parseInt(selDayParts[1])-1, parseInt(selDayParts[2]));
+    var diasSemana = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+    var selDayLabel = String(selDayDate.getDate()).padStart(2,'0') + '/' + String(selDayDate.getMonth()+1).padStart(2,'0') + '/' + selDayDate.getFullYear() + ' (' + diasSemana[selDayDate.getDay()] + ')';
+    var selMonthKey = selDayKey.substring(0, 7);
+    var todayData = (((S.ooDaily||{})[selBid]||{})[selMonthKey]||{})[selDayKey] || {};
     content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin:12px 0">';
-    content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
-    content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">\u270F\uFE0F Registro do Dia \u2014 ' + dayKey + '</span>';
-    content += '<button onclick="ooSaveDayForm(\'' + selBid + '\',\'' + dayKey + '\',this)" style="background:#6366f1;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar</button>';
-    content += '</div>';
+    content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">';
+    content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">\u270F\uFE0F Registro do Dia \u2014 ' + selDayLabel + '</span>';
+    content += '<div style="display:flex;align-items:center;gap:8px">';
+    content += '<input type="date" value="' + selDayKey + '" onchange="S.ooSelDay=this.value;render()" style="background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer">';
+    content += '<button onclick="ooSaveDayForm(\'' + selBid + '\',\'' + selDayKey + '\',this)" style="background:#6366f1;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar</button>';
+    content += '</div></div>';
 
-    var funnelColors = ['#6366f1','#818cf8','#3b82f6','#2563eb','#0ea5e9','#06b6d4','#14b8a6','#10b981','#dc2626'];
-    var funnelWidths = [100, 94, 88, 82, 76, 70, 64, 56, 56];
-    var funnelIdx = 0;
-    OO_CAMPOS.forEach(function(c) {
-      if (c.k === 'desc') return;
+    // Layout: funnel left + sidebar right
+    content += '<div style="display:flex;gap:12px;align-items:flex-start">';
+
+    // === FUNIL (left, main) ===
+    content += '<div style="flex:1;min-width:0">';
+    var funnelColors = ['#6366f1','#818cf8','#3b82f6','#2563eb','#0ea5e9','#06b6d4','#14b8a6','#10b981'];
+    var funnelWidths = [100, 94, 88, 82, 76, 70, 64, 56];
+    OO_CAMPOS_FUNIL.forEach(function(c, idx) {
       var val = todayData[c.k] || 0;
-      var w = funnelWidths[funnelIdx] || 56;
-      var cor = funnelColors[funnelIdx] || '#6366f1';
-      funnelIdx++;
+      var w = funnelWidths[idx] || 56;
+      var cor = funnelColors[idx] || '#6366f1';
       content += '<div style="display:flex;align-items:center;justify-content:center;margin-bottom:6px">';
       content += '<div style="width:' + w + '%;background:' + cor + ';border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;transition:width .4s">';
       content += '<span style="font-size:12px;font-weight:600;color:#fff;white-space:nowrap">' + c.icon + ' ' + c.l + '</span>';
       content += '<div style="display:flex;align-items:center;gap:6px">';
-      content += '<button onclick="ooDecField(\'' + selBid + '\',\'' + monthKey + '\',\'' + dayKey + '\',\'' + c.k + '\')" style="background:rgba(0,0,0,.3);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u2212</button>';
+      content += '<button onclick="ooDecField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:rgba(0,0,0,.3);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u2212</button>';
       content += '<span id="oo_val_' + c.k + '" style="font-size:18px;font-weight:800;color:#fff;min-width:32px;text-align:center">' + val + '</span>';
       content += '<input id="oo_input_' + c.k + '" type="hidden" value="' + val + '">';
-      content += '<button onclick="ooIncField(\'' + selBid + '\',\'' + monthKey + '\',\'' + dayKey + '\',\'' + c.k + '\')" style="background:rgba(255,255,255,.25);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>';
+      content += '<button onclick="ooIncField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:rgba(255,255,255,.25);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>';
       content += '</div></div></div>';
     });
-    // Descartados (last)
-    var descVal = todayData['desc'] || 0;
-    content += '<div style="display:flex;align-items:center;justify-content:center;margin-top:4px">';
-    content += '<div style="width:56%;background:#dc2626;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between">';
-    content += '<span style="font-size:12px;font-weight:600;color:#fff">\u274C Descartados</span>';
-    content += '<div style="display:flex;align-items:center;gap:6px">';
-    content += '<button onclick="ooDecField(\'' + selBid + '\',\'' + monthKey + '\',\'' + dayKey + '\',\'desc\')" style="background:rgba(0,0,0,.3);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u2212</button>';
-    content += '<span id="oo_val_desc" style="font-size:18px;font-weight:800;color:#fff;min-width:32px;text-align:center">' + descVal + '</span>';
-    content += '<input id="oo_input_desc" type="hidden" value="' + descVal + '">';
-    content += '<button onclick="ooIncField(\'' + selBid + '\',\'' + monthKey + '\',\'' + dayKey + '\',\'desc\')" style="background:rgba(255,255,255,.25);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>';
-    content += '</div></div></div>';
-    content += '</div>';
+    content += '</div>'; // end funil
+
+    // === SIDEBAR (right, smaller) - Descartados, Pastas, Carteira, Reativações ===
+    content += '<div style="width:140px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding-top:4px">';
+    content += '<div style="font-size:10px;font-weight:700;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Indicadores</div>';
+    OO_CAMPOS_LATERAL.forEach(function(c) {
+      var val = todayData[c.k] || 0;
+      content += '<div style="background:' + c.cor + '20;border:1px solid ' + c.cor + '40;border-radius:10px;padding:8px 6px;text-align:center">';
+      content += '<div style="font-size:11px;font-weight:600;color:' + c.cor + ';margin-bottom:4px">' + c.icon + ' ' + c.l + '</div>';
+      content += '<div style="display:flex;align-items:center;justify-content:center;gap:4px">';
+      content += '<button onclick="ooDecField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:' + c.cor + '30;color:' + c.cor + ';border:none;width:24px;height:24px;border-radius:50%;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u2212</button>';
+      content += '<span id="oo_val_' + c.k + '" style="font-size:18px;font-weight:800;color:#f8fafc;min-width:28px;text-align:center">' + val + '</span>';
+      content += '<input id="oo_input_' + c.k + '" type="hidden" value="' + val + '">';
+      content += '<button onclick="ooIncField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:' + c.cor + '30;color:' + c.cor + ';border:none;width:24px;height:24px;border-radius:50%;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>';
+      content += '</div></div>';
+    });
+    content += '</div>'; // end sidebar
+
+    content += '</div>'; // end flex container
+    content += '</div>'; // end card
 
     // === FUNIL DO MES com taxas de conversao ===
     content += '<div style="margin:16px 0;text-align:center"><span style="font-size:14px;font-weight:700;color:#94a3b8">FUNIL DO M\u00CAS</span></div>';
     var funnelData = hasDailyData ? realMes : cache;
-    var campos = [
+    var camposFunil = [
       {k:'lig_real',l:'Liga\u00e7\u00f5es Realizadas',cor:'#6366f1',w:100},
       {k:'lig_atend',l:'Liga\u00e7\u00f5es Atendidas',cor:'#818cf8',w:92},
       {k:'tent_agend',l:'Tent. Agendamento',cor:'#3b82f6',w:84},
@@ -4692,18 +4715,32 @@ function pgOO() {
       {k:'vis',l:'Visitas Realizadas',cor:'#0ea5e9',w:68},
       {k:'prop',l:'Propostas',cor:'#06b6d4',w:60},
       {k:'capt',l:'Capta\u00e7\u00f5es',cor:'#14b8a6',w:52},
-      {k:'vend',l:'Vendas',cor:'#10b981',w:44},
-      {k:'desc',l:'Descartados',cor:'#dc2626',w:44}
+      {k:'vend',l:'Vendas',cor:'#10b981',w:44}
     ];
-    campos.forEach(function(c, idx) {
+    content += '<div style="display:flex;gap:12px;align-items:flex-start">';
+    content += '<div style="flex:1;min-width:0">';
+    camposFunil.forEach(function(c, idx) {
       var v = funnelData[c.k] || 0;
-      if (idx > 0 && c.k !== 'desc') {
-        var prevV = funnelData[campos[idx-1].k] || 0;
+      if (idx > 0) {
+        var prevV = funnelData[camposFunil[idx-1].k] || 0;
         var convPct = prevV > 0 ? (v/prevV*100).toFixed(1) + '%' : '';
         content += '<div style="text-align:center;margin:2px 0"><span style="font-size:11px;font-weight:600;color:#94a3b8;background:#1e293b;padding:2px 10px;border-radius:10px;border:1px solid #334155;display:inline-block">' + (convPct ? '\u2193 '+convPct : '') + '</span></div>';
       }
       content += '<div style="display:flex;align-items:center;margin-bottom:4px"><div style="width:' + c.w + '%;background:' + c.cor + ';color:#fff;padding:10px 14px;border-radius:8px;display:flex;justify-content:space-between;font-size:13px;font-weight:600"><span>' + c.l + '</span><span>' + v + '</span></div></div>';
     });
+    content += '</div>';
+    // Sidebar indicadores mensais
+    content += '<div style="width:130px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding-top:4px">';
+    content += '<div style="font-size:10px;font-weight:700;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Indicadores</div>';
+    OO_CAMPOS_LATERAL.forEach(function(c) {
+      var v = funnelData[c.k] || 0;
+      content += '<div style="background:' + c.cor + '20;border:1px solid ' + c.cor + '40;border-radius:10px;padding:10px 8px;text-align:center">';
+      content += '<div style="font-size:11px;font-weight:600;color:' + c.cor + ';margin-bottom:4px">' + c.icon + ' ' + c.l + '</div>';
+      content += '<div style="font-size:22px;font-weight:800;color:#f8fafc">' + v + '</div>';
+      content += '</div>';
+    });
+    content += '</div>';
+    content += '</div>';
 
     // === PROJECAO DO MES (ultimo item do dia-dia) ===
     var selFrente = ooGetFrenteForBroker(selBid);
@@ -4743,7 +4780,7 @@ function pgOO() {
       content += '<div style="font-size:11px;color:#a5b4fc;margin-bottom:8px">Para atingir ' + metaVendas + ' vendas:</div>';
       if (metaVendas > 0) {
         OO_CAMPOS.forEach(function(c) {
-          if (c.k === 'desc' || c.k === 'capt') return;
+          if (c.k === 'desc' || c.k === 'capt' || c.k === 'pastas' || c.k === 'carteira' || c.k === 'reativacoes') return;
           var needVal = bwdNeed[c.k] || 0;
           var rv = realMes[c.k] || 0;
           var pDone = needVal > 0 ? Math.min(rv / needVal * 100, 100) : 0;
@@ -4816,7 +4853,6 @@ function pgOO() {
       content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
       content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCC5 Semana Atual \u2014 Meta vs Realizado</div>';
       OO_CAMPOS.forEach(function(c) {
-        if (c.k === 'desc') return;
         var wMeta = Math.round((weekMetas[c.k] || 0) / 4);
         content += ooAcumMetricRow(c.l, c.icon, weekTotals[c.k], wMeta);
       });
@@ -4831,7 +4867,6 @@ function pgOO() {
       content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
       content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCC8 ' + monthNames[curMonth] + ' ' + curYear + ' \u2014 Meta vs Realizado</div>';
       OO_CAMPOS.forEach(function(c) {
-        if (c.k === 'desc') return;
         var rv = hasDailyData ? (realMes[c.k]||0) : (cache[c.k]||0);
         var mv = metasMes[c.k] || 0;
         content += ooAcumMetricRow(c.l, c.icon, rv, mv);
@@ -4844,7 +4879,6 @@ function pgOO() {
       content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
       content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCC8 Anual Acumulado \u2014 ' + curYear + '</div>';
       OO_CAMPOS.forEach(function(c) {
-        if (c.k === 'desc') return;
         var rv = realAno[c.k] || 0;
         var mv = metasAno[c.k] || 0;
         content += ooAcumMetricRow(c.l, c.icon, rv, mv);
@@ -4859,7 +4893,6 @@ function pgOO() {
       for (var mi = 1; mi <= 12; mi++) content += '<th style="padding:6px;text-align:center">' + monthNames[mi] + '</th>';
       content += '<th style="padding:6px;text-align:center;color:#f8fafc;font-weight:800">Total</th></tr></thead><tbody>';
       OO_CAMPOS.forEach(function(c) {
-        if (c.k === 'desc') return;
         content += '<tr style="border-bottom:1px solid #1e293b"><td style="padding:6px;color:#a5b4fc;font-weight:600">' + c.icon + ' ' + c.l + '</td>';
         var rowTotal = 0;
         for (var mi = 1; mi <= 12; mi++) {
@@ -4981,7 +5014,6 @@ function pgOO() {
     content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
     content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:14px">\uD83C\uDFAF Meta vs Realizado \u2014 ' + monthNames[curMonth] + ' ' + curYear + '</div>';
     OO_CAMPOS.forEach(function(c) {
-      if (c.k === 'desc') return;
       var rv = hasDailyData ? (realMes[c.k]||0) : (cache[c.k]||0);
       var mv = metasMes[c.k] || 0;
       var pct = mv > 0 ? (rv / mv * 100).toFixed(1) : '\u2014';
@@ -5002,7 +5034,6 @@ function pgOO() {
     content += '<div style="font-size:15px;font-weight:700;color:#a5b4fc;margin-bottom:14px">\uD83D\uDCC8 Realizado vs Proje\u00e7\u00e3o</div>';
     content += '<div style="font-size:11px;color:#818cf8;margin-bottom:12px">' + workPassed + ' dias \u00fateis passados de ' + workDays + ' \u2014 proje\u00e7\u00e3o baseada no ritmo atual</div>';
     OO_CAMPOS.forEach(function(c) {
-      if (c.k === 'desc') return;
       var rv = hasDailyData ? (realMes[c.k]||0) : (cache[c.k]||0);
       var proj = workPassed > 0 ? Math.round(rv / workPassed * workDays) : 0;
       var mv = metasMes[c.k] || 0;
@@ -5029,7 +5060,6 @@ function pgOO() {
       content += '</div>';
       content += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
       OO_CAMPOS.forEach(function(c) {
-        if (c.k === 'desc') return;
         var mv = metasMes[c.k] || '';
         content += '<div style="background:#0f172a;border-radius:8px;padding:8px">';
         content += '<label style="font-size:10px;color:#94a3b8;display:block;margin-bottom:4px">' + c.icon + ' ' + c.l + '</label>';
