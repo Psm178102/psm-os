@@ -3567,20 +3567,32 @@ function simpleHash(str) {
 }
 // Credenciais locais (fallback para dev sem backend proxy)
 const _LOCAL_AUTH = {
-  'paulo@imobiliariapsm.com.br':      simpleHash('psm1234')+'|paulo',
-  'isabella@imobiliariapsm.com.br':   simpleHash('psm1234')+'|isa',
-  'rodrigo@imobiliariapsm.com.br':    simpleHash('rodrigo123')+'|rodrigo_t',
-  'marcus@imobiliariapsm.com.br':     simpleHash('marcus123')+'|marcus_l',
-  'gabriel@imobiliariapsm.com.br':    simpleHash('gabriel123')+'|gabriel_b',
-  'kadu@imobiliariapsm.com.br':       simpleHash('kadu123')+'|kadu',
-  'julia@imobiliariapsm.com.br':      simpleHash('julia123')+'|julia',
-  'danilo@imobiliariapsm.com.br':     simpleHash('danilo123')+'|danilo_a',
-  'rafaela@imobiliariapsm.com.br':    simpleHash('rafaela123')+'|rafaela_m',
-  'camila@imobiliariapsm.com.br':     simpleHash('camila123')+'|camila_b',
-  'rodrigocamargo@imobiliariapsm.com.br': simpleHash('camargo123')+'|rodrigo_c',
-  'evandro@imobiliariapsm.com.br':    simpleHash('evandro123')+'|evandro',
-  'yara@imobiliariapsm.com.br':       simpleHash('yara123')+'|yara',
-  'vitor@imobiliariapsm.com.br':      simpleHash('vitor123')+'|vitor_o',
+  // SÓCIOS (nível 10)
+  'paulo@imobiliariapsm.com.br':      simpleHash('Psm@dir2026')+'|paulo',
+  'isabella@imobiliariapsm.com.br':   simpleHash('Isa@dir2026')+'|isa',
+  // LÍDER (nível 5)
+  'marcus@imobiliariapsm.com.br':     simpleHash('Marc@lid26')+'|marcus_l',
+  // CORRETORES - Lançamento/MAP (nível 2)
+  'gabriel@imobiliariapsm.com.br':    simpleHash('Gab#map26')+'|gabriel_b',
+  'vitor@imobiliariapsm.com.br':      simpleHash('Vit#map26')+'|vitor_o',
+  // CORRETORES - Conquista (nível 2)
+  'rodrigo@imobiliariapsm.com.br':    simpleHash('Rod@conq26')+'|rodrigo_t',
+  'kadu@imobiliariapsm.com.br':       simpleHash('Kadu@conq26')+'|kadu',
+  'julia@imobiliariapsm.com.br':      simpleHash('Jul@conq26')+'|julia',
+  'danilo@imobiliariapsm.com.br':     simpleHash('Dan@conq26')+'|danilo_a',
+  'rafaela@imobiliariapsm.com.br':    simpleHash('Rafa@conq26')+'|rafaela_m',
+  'bruno@imobiliariapsm.com.br':      simpleHash('Bru@conq26')+'|bruno',
+  // CORRETORES - Terceiros (nível 2)
+  'camila@imobiliariapsm.com.br':     simpleHash('Cam@terc26')+'|camila_b',
+  'rodrigocamargo@imobiliariapsm.com.br': simpleHash('RodC@terc26')+'|rodrigo_c',
+  'evandro@imobiliariapsm.com.br':    simpleHash('Eva@terc26')+'|evandro',
+  'yara@imobiliariapsm.com.br':       simpleHash('Yara@terc26')+'|yara',
+  // BACKOFFICE (nível 6)
+  'leire@imobiliariapsm.com.br':      simpleHash('Lei@back26')+'|leire',
+  'mariane@imobiliariapsm.com.br':    simpleHash('Mari@back26')+'|mariane',
+  // MARKETING (nível 3)
+  'guilherme@imobiliariapsm.com.br':  simpleHash('Gui@mkt26')+'|guilherme',
+  'trafego@imobiliariapsm.com.br':    simpleHash('Traf@mkt26')+'|gestor_trafego',
 };
 const _IS_LOCAL = true; // TODO: set back to auto-detect when /api/auth backend is deployed
 
