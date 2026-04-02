@@ -4574,18 +4574,60 @@ function ooFunilEditorAddEtapa() {
   var rows = editor.querySelectorAll('[data-etapa-idx]');
   var lastRow = rows[rows.length - 1]; // Vendas (final)
   var newIdx = rows.length;
-  var newKey = 'etapa_' + newIdx;
+  var newKey = 'etapa_' + Date.now().toString(36);
   var div = document.createElement('div');
   div.setAttribute('data-etapa-idx', newIdx);
-  div.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:8px;background:#0f172a;border-radius:8px;border:1px solid #334155';
-  div.innerHTML = '<span style="font-size:12px;color:#64748b;min-width:22px;text-align:center;font-weight:700">' + newIdx + '</span>'
-    + '<select data-field="icon" style="background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:4px;font-size:14px;width:42px">'
+  div.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:8px;background:#0f172a;border-radius:8px;border:1px solid #6366f180;transition:background .15s';
+  div.innerHTML = '<span style="font-size:13px;color:#475569;min-width:22px;text-align:center;cursor:grab">\u2630</span>'
+    + '<select data-field="icon" style="background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:4px;font-size:14px;width:48px">'
     + OO_FUNIL_ICONS.map(function(ic){ return '<option value="' + ic + '">' + ic + '</option>'; }).join('')
     + '</select>'
-    + '<input data-field="label" value="" placeholder="Nome da etapa" style="flex:1;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:13px">'
+    + '<span style="font-size:12px;color:#f59e0b;min-width:24px;text-align:center;font-weight:800">' + newIdx + '</span>'
+    + '<input data-field="label" value="" placeholder="Nome da etapa" style="flex:2;background:#1e293b;color:#f8fafc;border:1px solid #6366f180;border-radius:6px;padding:6px 8px;font-size:13px;font-weight:600" autofocus>'
     + '<input data-field="key" value="' + newKey + '" style="width:80px;background:#1e293b;color:#818cf8;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:11px;font-family:monospace">'
-    + '<button onclick="this.closest(\'[data-etapa-idx]\').remove()" style="background:#dc262620;color:#fca5a5;border:none;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px">\u2715</button>';
+    + '<div style="display:flex;gap:3px;min-width:68px;justify-content:flex-end">'
+    + '<span style="width:22px"></span>'
+    + '<span style="width:22px"></span>'
+    + '<button onclick="this.closest(\'[data-etapa-idx]\').remove();ooFunilEditorReindex()" style="background:#dc262620;color:#fca5a5;border:none;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center">\u2715</button>'
+    + '</div>';
   editor.insertBefore(div, lastRow);
+  ooFunilEditorReindex();
+  // Focus the name input
+  var nameInput = div.querySelector('[data-field="label"]');
+  if (nameInput) setTimeout(function(){ nameInput.focus(); }, 50);
+}
+
+function ooFunilMoveRow(idx, dir) {
+  var editor = document.getElementById('oo_funil_editor');
+  if (!editor) return;
+  var rows = Array.from(editor.querySelectorAll('[data-etapa-idx]'));
+  var targetIdx = idx + dir;
+  if (targetIdx < 0 || targetIdx >= rows.length) return;
+  // Don't allow swapping with the last row (Vendas = always last)
+  if (targetIdx === rows.length - 1 || idx === rows.length - 1) return;
+  var row = rows[idx];
+  var target = rows[targetIdx];
+  if (dir === -1) {
+    editor.insertBefore(row, target);
+  } else {
+    if (target.nextSibling) editor.insertBefore(row, target.nextSibling);
+    else editor.appendChild(row);
+  }
+  ooFunilEditorReindex();
+}
+function ooFunilEditorReindex() {
+  var editor = document.getElementById('oo_funil_editor');
+  if (!editor) return;
+  var rows = editor.querySelectorAll('[data-etapa-idx]');
+  rows.forEach(function(row, i) {
+    row.setAttribute('data-etapa-idx', i);
+    // Update visible number (second <span> child with the position indicator)
+    var spans = row.querySelectorAll('span');
+    // The position indicator is the one with font-weight:800 and color:#f59e0b
+    for (var s = 0; s < spans.length; s++) {
+      if (spans[s].style.fontWeight === '800') { spans[s].textContent = (i+1); break; }
+    }
+  });
 }
 
 function ooGetFrenteForBroker(bid) {
@@ -5450,37 +5492,81 @@ function pgOO() {
       content += '<div style="font-size:15px;font-weight:700;color:#f59e0b">\uD83D\uDD27 Etapas do Funil \u2014 ' + cfgFrente.charAt(0).toUpperCase() + cfgFrente.slice(1) + '</div>';
       content += '<div style="display:flex;gap:6px">';
       if (isCustom) content += '<span style="font-size:10px;background:#f59e0b20;color:#fbbf24;padding:2px 8px;border-radius:4px;font-weight:600">PERSONALIZADO</span>';
-      else content += '<span style="font-size:10px;background:#33415540;color:#94a3b8;padding:2px 8px;border-radius:4px;font-weight:600">PADRÃO</span>';
+      else content += '<span style="font-size:10px;background:#33415540;color:#94a3b8;padding:2px 8px;border-radius:4px;font-weight:600">PADR\u00c3O</span>';
       content += '</div></div>';
-      content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Personalize as etapas do funil para esta equipe. A última etapa será sempre Vendas. Cada equipe pode ter um funil diferente.</div>';
+      content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Personalize as etapas do funil para esta equipe. Use as setas para reordenar. A \u00faltima etapa ser\u00e1 sempre Vendas.</div>';
 
-      // Funnel editor
+      // Funnel editor — header
       content += '<div id="oo_funil_editor">';
+      content += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:4px 8px">';
+      content += '<span style="min-width:22px"></span>';
+      content += '<span style="min-width:48px"></span>';
+      content += '<span style="font-size:9px;color:#64748b;flex:1;text-transform:uppercase;letter-spacing:.5px;font-weight:600">Ordem</span>';
+      content += '<span style="font-size:9px;color:#64748b;flex:2;text-transform:uppercase;letter-spacing:.5px;font-weight:600">Nome da Etapa</span>';
+      content += '<span style="font-size:9px;color:#64748b;width:80px;text-transform:uppercase;letter-spacing:.5px;font-weight:600">Chave</span>';
+      content += '<span style="min-width:68px"></span>';
+      content += '</div>';
+
       cfgFunil.forEach(function(c, idx) {
         var isLast = idx === cfgFunil.length - 1;
-        content += '<div data-etapa-idx="' + idx + '" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:8px;background:#0f172a;border-radius:8px;border:1px solid #334155">';
-        content += '<span style="font-size:12px;color:#64748b;min-width:22px;text-align:center;font-weight:700">' + (idx+1) + '</span>';
-        content += '<select data-field="icon" style="background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:4px;font-size:14px;width:42px">';
+        var isFirst = idx === 0;
+        var total = cfgFunil.length;
+        content += '<div data-etapa-idx="' + idx + '" style="display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:8px;background:#0f172a;border-radius:8px;border:1px solid #334155;transition:background .15s">';
+        // Grip / Number
+        content += '<span style="font-size:13px;color:#475569;min-width:22px;text-align:center;cursor:grab" title="Arraste para reordenar">\u2630</span>';
+        // Icon picker
+        content += '<select data-field="icon" style="background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:4px;font-size:14px;width:48px">';
         OO_FUNIL_ICONS.forEach(function(ic) {
           content += '<option value="' + ic + '"' + (ic === c.icon ? ' selected' : '') + '>' + ic + '</option>';
         });
         content += '</select>';
-        content += '<input data-field="label" value="' + c.l + '" placeholder="Nome da etapa" style="flex:1;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:13px"' + (isLast ? ' readonly' : '') + '>';
+        // Position indicator
+        content += '<span style="font-size:12px;color:#f59e0b;min-width:24px;text-align:center;font-weight:800">' + (idx+1) + '</span>';
+        // Name input
+        content += '<input data-field="label" value="' + c.l + '" placeholder="Nome da etapa" style="flex:2;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:13px;font-weight:600"' + (isLast ? ' readonly title="Vendas \u00e9 sempre a etapa final"' : '') + '>';
+        // Key input
         content += '<input data-field="key" value="' + c.k + '" style="width:80px;background:#1e293b;color:#818cf8;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:11px;font-family:monospace"' + (isLast ? ' readonly' : '') + '>';
-        if (!isLast) {
-          content += '<button onclick="this.closest(\'[data-etapa-idx]\').remove()" style="background:#dc262620;color:#fca5a5;border:none;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px">\u2715</button>';
-        } else {
-          content += '<span style="font-size:10px;color:#10b981;font-weight:700;min-width:50px;text-align:center">\uD83C\uDFC6 Final</span>';
+        // Action buttons: up / down / remove
+        content += '<div style="display:flex;gap:3px;min-width:68px;justify-content:flex-end">';
+        if (!isFirst && !isLast) {
+          content += '<button onclick="ooFunilMoveRow(' + idx + ',-1)" style="background:#1e293b;color:#a5b4fc;border:1px solid #334155;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center" title="Mover para cima">\u25B2</button>';
+        } else if (isFirst && total > 2) {
+          content += '<span style="width:22px"></span>';
         }
+        if (!isLast && idx < total - 2) {
+          content += '<button onclick="ooFunilMoveRow(' + idx + ',1)" style="background:#1e293b;color:#a5b4fc;border:1px solid #334155;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center" title="Mover para baixo">\u25BC</button>';
+        } else if (!isLast) {
+          content += '<span style="width:22px"></span>';
+        }
+        if (!isLast) {
+          content += '<button onclick="this.closest(\'[data-etapa-idx]\').remove();ooFunilEditorReindex()" style="background:#dc262620;color:#fca5a5;border:none;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center" title="Remover etapa">\u2715</button>';
+        } else {
+          content += '<span style="font-size:9px;color:#10b981;font-weight:700;white-space:nowrap">\uD83C\uDFC6 Final</span>';
+        }
+        content += '</div>';
         content += '</div>';
       });
       content += '</div>';
 
+      // Preview visual
+      content += '<div style="margin:12px 0 6px;padding:10px;background:#0f172a;border-radius:8px;border:1px dashed #33415580">';
+      content += '<div style="font-size:10px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">\uD83D\uDC41 Pr\u00e9-visualiza\u00e7\u00e3o do Funil</div>';
+      var prevN = cfgFunil.length;
+      cfgFunil.forEach(function(c, idx) {
+        var w = Math.round(100 - (idx * (50 / Math.max(prevN - 1, 1))));
+        var cor = OO_FUNIL_COLORS[idx % OO_FUNIL_COLORS.length];
+        content += '<div style="display:flex;justify-content:center;margin-bottom:3px">';
+        content += '<div style="width:' + w + '%;background:' + cor + ';border-radius:6px;padding:5px 10px;text-align:center;transition:width .3s">';
+        content += '<span style="font-size:11px;font-weight:600;color:#fff">' + c.icon + ' ' + c.l + '</span>';
+        content += '</div></div>';
+      });
+      content += '</div>';
+
       content += '<div style="display:flex;gap:8px;margin-top:10px">';
-      content += '<button onclick="ooFunilEditorAddEtapa()" style="flex:1;padding:8px;background:#1e293b;color:#a5b4fc;border:1px dashed #6366f150;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">+ Adicionar Etapa</button>';
-      content += '<button onclick="ooSaveFunilCustom(\'' + cfgFrente + '\')" style="flex:1;padding:8px;background:#f59e0b;color:#0f172a;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">\u2714 Salvar Funil</button>';
+      content += '<button onclick="ooFunilEditorAddEtapa()" style="flex:1;padding:10px;background:#1e293b;color:#a5b4fc;border:1px dashed #6366f150;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">+ Adicionar Etapa</button>';
+      content += '<button onclick="ooSaveFunilCustom(\'' + cfgFrente + '\')" style="flex:1;padding:10px;background:#f59e0b;color:#0f172a;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">\u2714 Salvar Funil</button>';
       if (isCustom) {
-        content += '<button onclick="ooResetFunilCustom(\'' + cfgFrente + '\')" style="padding:8px 12px;background:#dc262620;color:#fca5a5;border:1px solid #dc262640;border-radius:8px;font-size:11px;cursor:pointer;font-weight:600">Restaurar Padrão</button>';
+        content += '<button onclick="ooResetFunilCustom(\'' + cfgFrente + '\')" style="padding:10px 14px;background:#dc262620;color:#fca5a5;border:1px solid #dc262640;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">Restaurar Padr\u00e3o</button>';
       }
       content += '</div>';
       content += '</div>';
