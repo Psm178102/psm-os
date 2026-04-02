@@ -4737,8 +4737,10 @@ function pgOO() {
   const df_oo = DateFilter('oo','Período');
   const u = S.user; if (!u) return df_oo + '';
   const lvl = RLVL[u.role] || 0;
-  var _vt=['dia','acumulado','reuniao','rotina','metas','gestao']; const tab = _vt.indexOf(S.ooTab)!==-1 ? S.ooTab : 'dia';
-  const tabs = [{id:'dia',lbl:'Dia a Dia'},{id:'acumulado',lbl:'Acumulado'},{id:'reuniao',lbl:'Reunião 1:1'},{id:'rotina',lbl:'Rotina'},{id:'metas',lbl:'Metas'},{id:'gestao',lbl:'Gestão'}];
+  var _allTabs=[{id:'dia',lbl:'Dia a Dia'},{id:'acumulado',lbl:'Acumulado'},{id:'reuniao',lbl:'Reunião 1:1'},{id:'rotina',lbl:'Rotina'},{id:'metas',lbl:'Metas'},{id:'gestao',lbl:'Gestão',minLvl:5}];
+  const tabs = _allTabs.filter(function(t){ return !t.minLvl || lvl >= t.minLvl; });
+  var _vt = tabs.map(function(t){ return t.id; });
+  const tab = _vt.indexOf(S.ooTab)!==-1 ? S.ooTab : 'dia';
   const canViewOthers = lvl >= 5;
   const selBid = canViewOthers ? (S.ooBroker || u.id) : u.id;
   const selUser = USERS_BASE.find(x => x.id===selBid) || u;
