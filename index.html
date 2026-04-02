@@ -1142,6 +1142,7 @@ function saveState() {
       ooFunilCustom: S.ooFunilCustom || {},
       ooLateralCustom: S.ooLateralCustom || {},
       tickerMsgs: S.tickerMsgs || [],
+      canalAnonimo: S.canalAnonimo || [],
       savedAt: Date.now(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
@@ -1230,6 +1231,7 @@ function loadState() {
     if (d.ooFunilCustom) S.ooFunilCustom = d.ooFunilCustom;
     if (d.ooLateralCustom) S.ooLateralCustom = d.ooLateralCustom;
     if (d.tickerMsgs) S.tickerMsgs = d.tickerMsgs;
+    if (d.canalAnonimo) S.canalAnonimo = d.canalAnonimo;
     // Restore manual vendas
     try {
       const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manual') || '[]');
@@ -10311,29 +10313,109 @@ function isUserMarketing(){var pf=getPerfil();return pf==='marketing'||isUserSoc
 function isGestorOrSocio(){var pf=getPerfil();return pf==='diretor'||pf==='lider';}
 function isCorretorOrAbove(){var pf=getPerfil();return ['diretor','lider','corretor'].indexOf(pf)!==-1;}
 function pgCanalAnonimo() {
+  var lvl = RLVL[(S.user||{}).role] || 0;
+  var isSocio = lvl >= 10;
+  var caTab = S.caTab || 'enviar';
+  // If not socio, always show enviar
+  if (!isSocio) caTab = 'enviar';
+
   var h = '<div class="phd"><h1>\uD83D\uDD12 Canal An\u00f4nimo</h1><p>Canal direto e confidencial com a diretoria</p></div>';
-  h += '<div style="max-width:640px;margin:0 auto">';
-  h += '<div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:16px;padding:24px;border:1px solid #334155;margin-bottom:20px">';
-  h += '<div style="font-size:14px;color:#94a3b8;margin-bottom:16px">Sua mensagem ser\u00e1 enviada diretamente para os diretores <strong style="color:#f8fafc">Paulo</strong> e <strong style="color:#f8fafc">Isabella</strong>. Voc\u00ea pode se identificar ou enviar anonimamente.</div>';
-  // Identificacao
-  h += '<label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer">';
-  h += '<input type="checkbox" id="ca_identificar" style="width:18px;height:18px;accent-color:#6366f1">';
-  h += '<span style="font-size:13px;color:#e2e8f0">Desejo me identificar</span></label>';
-  h += '<div id="ca_nome_wrap" style="display:none;margin-bottom:16px">';
-  h += '<input type="text" id="ca_nome" placeholder="Seu nome (opcional)" style="width:100%;padding:10px 14px;background:#0f172a;border:1px solid #475569;border-radius:8px;color:#f8fafc;font-size:14px">';
-  h += '</div>';
-  // Mensagem
-  h += '<label style="font-size:12px;font-weight:700;color:#a5b4fc;display:block;margin-bottom:6px">\u270D\uFE0F Sua mensagem</label>';
-  h += '<textarea id="ca_msg" rows="6" style="width:100%;padding:12px;background:#0f172a;border:1px solid #475569;border-radius:8px;color:#f8fafc;font-size:14px;resize:vertical" placeholder="Escreva sua mensagem aqui..."></textarea>';
-  // Anexo
-  h += '<label style="font-size:12px;font-weight:700;color:#a5b4fc;display:block;margin:16px 0 6px">\uD83D\uDCCE Anexar arquivo (foto, v\u00eddeo, documento)</label>';
-  h += '<input type="file" id="ca_file" accept="image/*,video/*,.pdf,.doc,.docx" style="font-size:13px;color:#94a3b8">';
-  // Enviar
-  h += '<button onclick="enviarCanalAnonimo()" style="margin-top:20px;width:100%;padding:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer">\uD83D\uDE80 Enviar Mensagem</button>';
-  h += '</div>';
-  h += '<div id="ca_status" style="text-align:center;padding:8px;font-size:13px;color:#94a3b8"></div>';
-  h += '</div>';
-  h += '<scr'+'ipt>document.getElementById("ca_identificar").addEventListener("change",function(){document.getElementById("ca_nome_wrap").style.display=this.checked?"block":"none";})</scr'+'ipt>';
+
+  // Tab bar (only show "Respostas" for socios)
+  if (isSocio) {
+    var unread = (S.canalAnonimo||[]).filter(function(m){return !m.lido;}).length;
+    h += '<div style="display:flex;gap:6px;margin-bottom:16px;max-width:640px;margin-left:auto;margin-right:auto">';
+    h += '<button class="btn bsm'+(caTab==='enviar'?' bp1':' bout')+'" onclick="S.caTab=\'enviar\';render()" style="flex-shrink:0">\u270D Enviar</button>';
+    h += '<button class="btn bsm'+(caTab==='painel'?' bp1':' bout')+'" onclick="S.caTab=\'painel\';render()" style="flex-shrink:0">\uD83D\uDD0D Painel da Diretoria' + (unread > 0 ? ' <span style="background:#ef4444;color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;margin-left:4px;font-weight:800">'+unread+'</span>' : '') + '</button>';
+    h += '</div>';
+  }
+
+  if (caTab === 'enviar') {
+    h += '<div style="max-width:640px;margin:0 auto">';
+    h += '<div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:16px;padding:24px;border:1px solid #334155;margin-bottom:20px">';
+    h += '<div style="font-size:14px;color:#94a3b8;margin-bottom:16px">Sua mensagem ser\u00e1 enviada diretamente para os diretores <strong style="color:#f8fafc">Paulo</strong> e <strong style="color:#f8fafc">Isabella</strong>. Voc\u00ea pode se identificar ou enviar anonimamente.</div>';
+    h += '<label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer">';
+    h += '<input type="checkbox" id="ca_identificar" style="width:18px;height:18px;accent-color:#6366f1">';
+    h += '<span style="font-size:13px;color:#e2e8f0">Desejo me identificar</span></label>';
+    h += '<div id="ca_nome_wrap" style="display:none;margin-bottom:16px">';
+    h += '<input type="text" id="ca_nome" placeholder="Seu nome (opcional)" style="width:100%;padding:10px 14px;background:#0f172a;border:1px solid #475569;border-radius:8px;color:#f8fafc;font-size:14px">';
+    h += '</div>';
+    h += '<label style="font-size:12px;font-weight:700;color:#a5b4fc;display:block;margin-bottom:6px">\u270D\uFE0F Sua mensagem</label>';
+    h += '<textarea id="ca_msg" rows="6" style="width:100%;padding:12px;background:#0f172a;border:1px solid #475569;border-radius:8px;color:#f8fafc;font-size:14px;resize:vertical" placeholder="Escreva sua mensagem aqui..."></textarea>';
+    h += '<label style="font-size:12px;font-weight:700;color:#a5b4fc;display:block;margin:16px 0 6px">\uD83D\uDCCE Anexar arquivo (foto, v\u00eddeo, documento)</label>';
+    h += '<input type="file" id="ca_file" accept="image/*,video/*,.pdf,.doc,.docx" style="font-size:13px;color:#94a3b8">';
+    h += '<button id="ca_send_btn" onclick="enviarCanalAnonimo()" style="margin-top:20px;width:100%;padding:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer">\uD83D\uDE80 Enviar Mensagem</button>';
+    h += '</div>';
+    h += '<div id="ca_status" style="text-align:center;padding:8px;font-size:13px;color:#94a3b8"></div>';
+    h += '</div>';
+    h += '<scr'+'ipt>document.getElementById("ca_identificar").addEventListener("change",function(){document.getElementById("ca_nome_wrap").style.display=this.checked?"block":"none";})</scr'+'ipt>';
+
+  } else if (caTab === 'painel' && isSocio) {
+    // === PAINEL DA DIRETORIA ===
+    var msgs = (S.canalAnonimo || []).slice().reverse();
+    h += '<div style="max-width:800px;margin:0 auto">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
+    h += '<div style="font-size:16px;font-weight:700;color:#f8fafc">\uD83D\uDCE8 Mensagens Recebidas <span style="font-size:13px;color:#94a3b8;font-weight:400">(' + msgs.length + ')</span></div>';
+    h += '<div style="display:flex;gap:6px">';
+    if (msgs.length > 0) {
+      h += '<button onclick="caMarcarTodasLidas()" class="btn bout bsm">\u2705 Marcar todas como lidas</button>';
+      h += '<button onclick="if(confirm(\'Apagar TODAS as mensagens do canal an\u00f4nimo? Essa a\u00e7\u00e3o n\u00e3o pode ser desfeita.\')){S.canalAnonimo=[];saveState();render();}" class="btn bout bsm" style="color:#fca5a5;border-color:#dc262640">\uD83D\uDDD1 Limpar tudo</button>';
+    }
+    h += '</div></div>';
+
+    if (msgs.length === 0) {
+      h += '<div style="text-align:center;padding:60px 20px">';
+      h += '<div style="font-size:48px;margin-bottom:12px">\uD83D\uDCED</div>';
+      h += '<div style="font-size:16px;font-weight:600;color:#f8fafc">Nenhuma mensagem recebida</div>';
+      h += '<div style="font-size:13px;color:#94a3b8;margin-top:6px">Quando algu\u00e9m enviar uma mensagem pelo canal an\u00f4nimo, ela aparecer\u00e1 aqui.</div>';
+      h += '</div>';
+    } else {
+      msgs.forEach(function(m, idx) {
+        var realIdx = msgs.length - 1 - idx; // original index
+        var isAnon = m.de === 'An\u00f4nimo';
+        var borderColor = m.lido ? '#334155' : '#6366f180';
+        var bgColor = m.lido ? '#0f172a' : '#1e293b';
+        var dt = new Date(m.data);
+        var dtStr = String(dt.getDate()).padStart(2,'0') + '/' + String(dt.getMonth()+1).padStart(2,'0') + '/' + dt.getFullYear() + ' ' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0');
+
+        h += '<div style="background:'+bgColor+';border:1px solid '+borderColor+';border-radius:12px;padding:16px;margin-bottom:10px;transition:all .2s">';
+        // Header
+        h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">';
+        h += '<div style="display:flex;align-items:center;gap:8px">';
+        h += '<div style="width:36px;height:36px;border-radius:10px;background:'+(isAnon?'#475569':'#6366f1')+';display:flex;align-items:center;justify-content:center;font-size:16px">'+(isAnon?'\uD83D\uDD12':'\uD83D\uDC64')+'</div>';
+        h += '<div>';
+        h += '<div style="font-size:13px;font-weight:700;color:'+(isAnon?'#94a3b8':'#a5b4fc')+'">'+m.de+'</div>';
+        h += '<div style="font-size:10px;color:#64748b">\uD83D\uDCC5 '+dtStr+'</div>';
+        h += '</div></div>';
+        h += '<div style="display:flex;gap:4px;align-items:center">';
+        if (!m.lido) {
+          h += '<span style="width:8px;height:8px;border-radius:50%;background:#6366f1;display:inline-block" title="N\u00e3o lida"></span>';
+          h += '<button onclick="caMarcarLida('+realIdx+')" style="background:#1e293b;color:#a5b4fc;border:1px solid #334155;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer;font-weight:600">Marcar lida</button>';
+        } else {
+          h += '<span style="font-size:10px;color:#475569">\u2705 Lida</span>';
+        }
+        h += '</div></div>';
+        // Message body
+        h += '<div style="font-size:14px;color:#e2e8f0;line-height:1.6;white-space:pre-wrap;background:#0f172a;border-radius:8px;padding:12px;margin-bottom:8px;border:1px solid #1e293b">'+m.msg.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
+        // Attachment
+        if (m.anexoData) {
+          h += '<div style="margin-top:8px;padding:10px;background:#0f172a;border-radius:8px;border:1px solid #334155">';
+          h += '<div style="font-size:11px;font-weight:600;color:#94a3b8;margin-bottom:6px">\uD83D\uDCCE Anexo: '+m.anexo+'</div>';
+          if (m.anexoType && m.anexoType.startsWith('image/')) {
+            h += '<img src="'+m.anexoData+'" style="max-width:100%;max-height:400px;border-radius:8px;margin-top:4px" onclick="window.open(this.src,\'_blank\')">';
+          } else {
+            h += '<a href="'+m.anexoData+'" download="'+m.anexo+'" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#1e293b;border:1px solid #334155;border-radius:8px;color:#a5b4fc;text-decoration:none;font-size:12px;font-weight:600">\u2B07\uFE0F Baixar '+m.anexo+'</a>';
+          }
+          h += '</div>';
+        } else if (m.anexo && m.anexo !== 'Nenhum anexo') {
+          h += '<div style="font-size:11px;color:#64748b;margin-top:4px">\uD83D\uDCCE '+m.anexo+' (arquivo n\u00e3o armazenado)</div>';
+        }
+        h += '</div>';
+      });
+    }
+    h += '</div>';
+  }
+
   return h;
 }
 function enviarCanalAnonimo() {
@@ -10342,13 +10424,57 @@ function enviarCanalAnonimo() {
   var identificar = document.getElementById('ca_identificar').checked;
   var nome = identificar ? (document.getElementById('ca_nome').value.trim() || 'Identificado sem nome') : 'An\u00f4nimo';
   var fileInput = document.getElementById('ca_file');
-  var fileName = fileInput.files.length > 0 ? fileInput.files[0].name : 'Nenhum anexo';
-  // Save to state
-  if (!S.canalAnonimo) S.canalAnonimo = [];
-  S.canalAnonimo.push({ de: nome, msg: msg, anexo: fileName, data: new Date().toISOString(), userId: S.user ? S.user.id : 'unknown' });
+  var file = fileInput.files.length > 0 ? fileInput.files[0] : null;
+  var btn = document.getElementById('ca_send_btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+
+  function finalizarEnvio(entry) {
+    if (!S.canalAnonimo) S.canalAnonimo = [];
+    S.canalAnonimo.push(entry);
+    saveState();
+    document.getElementById('ca_msg').value = '';
+    if (fileInput) fileInput.value = '';
+    if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDE80 Enviar Mensagem'; }
+    document.getElementById('ca_status').innerHTML='<span style="color:#22c55e">\u2705 Mensagem enviada com sucesso! Os diretores ser\u00e3o notificados.</span>';
+  }
+
+  var entry = { de: nome, msg: msg, anexo: 'Nenhum anexo', data: new Date().toISOString(), lido: false };
+
+  if (file) {
+    // Limit: 5MB for base64 storage
+    if (file.size > 5 * 1024 * 1024) {
+      entry.anexo = file.name + ' (arquivo muito grande, n\u00e3o armazenado)';
+      finalizarEnvio(entry);
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      entry.anexo = file.name;
+      entry.anexoData = e.target.result;
+      entry.anexoType = file.type;
+      entry.anexoSize = file.size;
+      finalizarEnvio(entry);
+    };
+    reader.onerror = function() {
+      entry.anexo = file.name + ' (erro ao ler)';
+      finalizarEnvio(entry);
+    };
+    reader.readAsDataURL(file);
+  } else {
+    finalizarEnvio(entry);
+  }
+}
+function caMarcarLida(idx) {
+  if (!S.canalAnonimo || !S.canalAnonimo[idx]) return;
+  S.canalAnonimo[idx].lido = true;
   saveState();
-  document.getElementById('ca_msg').value = '';
-  document.getElementById('ca_status').innerHTML='<span style="color:#22c55e">\u2705 Mensagem enviada com sucesso! Os diretores ser\u00e3o notificados.</span>';
+  render();
+}
+function caMarcarTodasLidas() {
+  if (!S.canalAnonimo) return;
+  S.canalAnonimo.forEach(function(m){ m.lido = true; });
+  saveState();
+  render();
 }
 
 // === RELATORIO DE VENDAS E COMISSOES ===
