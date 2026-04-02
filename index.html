@@ -11552,8 +11552,8 @@ function salvarPlantao(dia, editIdx) {
   var horaFim = document.getElementById('plt-hora-fim').value;
   var nomes = document.getElementById('plt-nomes').value;
   var orientacoes = document.getElementById('plt-obs').value;
-  if (!local) { alert('Selecione um local.'); return; }
-  if (!horaInicio) { alert('Informe o hor\u00e1rio de in\u00edcio.'); return; }
+  if (!local) { toast('Selecione um local.', 'warn'); return; }
+  if (!horaInicio) { toast('Informe o hor\u00e1rio de in\u00edcio.', 'warn'); return; }
 
   var now = new Date();
   var storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
