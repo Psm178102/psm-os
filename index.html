@@ -1140,6 +1140,7 @@ function saveState() {
       ooObjetivoPessoal: S.ooObjetivoPessoal || {},
       ooRotina: S.ooRotina || {},
       ooFunilCustom: S.ooFunilCustom || {},
+      ooLateralCustom: S.ooLateralCustom || {},
       tickerMsgs: S.tickerMsgs || [],
       savedAt: Date.now(),
     };
@@ -1154,6 +1155,7 @@ function saveState() {
         ooObjetivo: S.ooObjetivo || {},
         ooObjetivoPessoal: S.ooObjetivoPessoal || {},
         ooFunilCustom: S.ooFunilCustom || {},
+        ooLateralCustom: S.ooLateralCustom || {},
         ooFunnelPct: S.ooFunnelPct || {},
         ooMetaLanc: S.ooMetaLanc || {},
         ooMetaVgvMes: S.ooMetaVgvMes || {},
@@ -1226,6 +1228,7 @@ function loadState() {
     if (d.ooObjetivoPessoal) S.ooObjetivoPessoal = d.ooObjetivoPessoal;
     if (d.ooRotina) S.ooRotina = d.ooRotina;
     if (d.ooFunilCustom) S.ooFunilCustom = d.ooFunilCustom;
+    if (d.ooLateralCustom) S.ooLateralCustom = d.ooLateralCustom;
     if (d.tickerMsgs) S.tickerMsgs = d.tickerMsgs;
     // Restore manual vendas
     try {
@@ -4507,6 +4510,8 @@ var OO_FUNNEL_STEPS = [
 // Se não definido, usa OO_CAMPOS_FUNIL padrão
 var OO_FUNIL_ICONS = ['📞','✅','📋','📅','🏠','📝','🔑','🏆','📊','💼','🎯','🔔','📈','⭐','💰'];
 var OO_FUNIL_COLORS = ['#6366f1','#818cf8','#3b82f6','#2563eb','#0ea5e9','#06b6d4','#14b8a6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#f97316','#84cc16','#22d3ee'];
+var OO_LATERAL_ICONS = ['❌','🔑','📁','💼','🔄','📥','📤','🏷️','⭐','🔒','📌','🎯','💎','🔔','📋','🏠','💰','📊','🛑','✅'];
+var OO_LATERAL_COLORS = ['#dc2626','#f97316','#f59e0b','#8b5cf6','#0ea5e9','#10b981','#ec4899','#6366f1','#14b8a6','#475569','#ef4444','#84cc16','#06b6d4','#d946ef','#22d3ee'];
 
 function ooGetFunilEquipe(frente) {
   if (S.ooFunilCustom && S.ooFunilCustom[frente] && S.ooFunilCustom[frente].length > 0) {
@@ -4524,9 +4529,15 @@ function ooGetFunnelStepsEquipe(frente) {
   return steps;
 }
 
+function ooGetLateralEquipe(frente) {
+  if (S.ooLateralCustom && S.ooLateralCustom[frente] && S.ooLateralCustom[frente].length > 0) {
+    return S.ooLateralCustom[frente];
+  }
+  return OO_CAMPOS_LATERAL;
+}
 function ooGetAllCamposEquipe(frente) {
   var funil = ooGetFunilEquipe(frente);
-  return funil.concat(OO_CAMPOS_LATERAL);
+  return funil.concat(ooGetLateralEquipe(frente));
 }
 
 function ooSaveFunilCustom(frente) {
@@ -4624,6 +4635,98 @@ function ooFunilEditorReindex() {
     // Update visible number (second <span> child with the position indicator)
     var spans = row.querySelectorAll('span');
     // The position indicator is the one with font-weight:800 and color:#f59e0b
+    for (var s = 0; s < spans.length; s++) {
+      if (spans[s].style.fontWeight === '800') { spans[s].textContent = (i+1); break; }
+    }
+  });
+}
+
+// ===== LATERAL / INDICADORES PERSONALIZÁVEIS POR EQUIPE =====
+// S.ooLateralCustom[frente] = [{k:'desc', l:'Descartados', icon:'❌', cor:'#dc2626'}, ...]
+function ooSaveLateralCustom(frente) {
+  if (!S.ooLateralCustom) S.ooLateralCustom = {};
+  var items = [];
+  var container = document.getElementById('oo_lateral_editor');
+  if (!container) return;
+  var rows = container.querySelectorAll('[data-lat-idx]');
+  rows.forEach(function(row) {
+    var kEl = row.querySelector('[data-field="key"]');
+    var lEl = row.querySelector('[data-field="label"]');
+    var iEl = row.querySelector('[data-field="icon"]');
+    var cEl = row.querySelector('[data-field="cor"]');
+    if (kEl && lEl && kEl.value.trim() && lEl.value.trim()) {
+      items.push({
+        k: kEl.value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'_'),
+        l: lEl.value.trim(),
+        icon: iEl ? iEl.value : '📊',
+        cor: cEl ? cEl.value : '#6366f1'
+      });
+    }
+  });
+  if (items.length < 1) { toast('Adicione pelo menos 1 indicador','warn'); return; }
+  S.ooLateralCustom[frente] = items;
+  saveState();
+  toast('\u2705 Indicadores laterais salvos para ' + frente + '!','ok');
+  render();
+}
+function ooResetLateralCustom(frente) {
+  if (!confirm('Restaurar os indicadores laterais padr\u00e3o para ' + frente + '?')) return;
+  if (S.ooLateralCustom) delete S.ooLateralCustom[frente];
+  saveState();
+  toast('Indicadores laterais restaurados ao padr\u00e3o','ok');
+  render();
+}
+function ooLateralEditorAddItem() {
+  var editor = document.getElementById('oo_lateral_editor');
+  if (!editor) return;
+  var rows = editor.querySelectorAll('[data-lat-idx]');
+  var newIdx = rows.length;
+  var newKey = 'ind_' + Date.now().toString(36);
+  var div = document.createElement('div');
+  div.setAttribute('data-lat-idx', newIdx);
+  div.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:8px;background:#0f172a;border-radius:8px;border:1px solid #8b5cf680;transition:background .15s';
+  div.innerHTML = '<span style="font-size:13px;color:#475569;min-width:22px;text-align:center;cursor:grab">\u2630</span>'
+    + '<select data-field="icon" style="background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:4px;font-size:14px;width:48px">'
+    + OO_LATERAL_ICONS.map(function(ic){ return '<option value="' + ic + '">' + ic + '</option>'; }).join('')
+    + '</select>'
+    + '<span style="font-size:12px;color:#8b5cf6;min-width:24px;text-align:center;font-weight:800">' + (newIdx+1) + '</span>'
+    + '<input data-field="label" value="" placeholder="Nome do indicador" style="flex:2;background:#1e293b;color:#f8fafc;border:1px solid #8b5cf680;border-radius:6px;padding:6px 8px;font-size:13px;font-weight:600" autofocus>'
+    + '<input data-field="key" value="' + newKey + '" style="width:70px;background:#1e293b;color:#818cf8;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:11px;font-family:monospace">'
+    + '<input data-field="cor" type="color" value="' + OO_LATERAL_COLORS[newIdx % OO_LATERAL_COLORS.length] + '" style="width:32px;height:28px;border:none;border-radius:4px;cursor:pointer;background:transparent;padding:0">'
+    + '<div style="display:flex;gap:3px;min-width:68px;justify-content:flex-end">'
+    + '<button onclick="ooLateralMoveRow(this,-1)" style="background:#1e293b;color:#c4b5fd;border:1px solid #334155;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center">\u25B2</button>'
+    + '<button onclick="ooLateralMoveRow(this,1)" style="background:#1e293b;color:#c4b5fd;border:1px solid #334155;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center">\u25BC</button>'
+    + '<button onclick="this.closest(\'[data-lat-idx]\').remove();ooLateralEditorReindex()" style="background:#dc262620;color:#fca5a5;border:none;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center">\u2715</button>'
+    + '</div>';
+  editor.appendChild(div);
+  ooLateralEditorReindex();
+  var nameInput = div.querySelector('[data-field="label"]');
+  if (nameInput) setTimeout(function(){ nameInput.focus(); }, 50);
+}
+function ooLateralMoveRow(btnEl, dir) {
+  var row = btnEl.closest('[data-lat-idx]');
+  var editor = document.getElementById('oo_lateral_editor');
+  if (!row || !editor) return;
+  var rows = Array.from(editor.querySelectorAll('[data-lat-idx]'));
+  var idx = rows.indexOf(row);
+  var targetIdx = idx + dir;
+  if (targetIdx < 0 || targetIdx >= rows.length) return;
+  var target = rows[targetIdx];
+  if (dir === -1) {
+    editor.insertBefore(row, target);
+  } else {
+    if (target.nextSibling) editor.insertBefore(row, target.nextSibling);
+    else editor.appendChild(row);
+  }
+  ooLateralEditorReindex();
+}
+function ooLateralEditorReindex() {
+  var editor = document.getElementById('oo_lateral_editor');
+  if (!editor) return;
+  var rows = editor.querySelectorAll('[data-lat-idx]');
+  rows.forEach(function(row, i) {
+    row.setAttribute('data-lat-idx', i);
+    var spans = row.querySelectorAll('span');
     for (var s = 0; s < spans.length; s++) {
       if (spans[s].style.fontWeight === '800') { spans[s].textContent = (i+1); break; }
     }
@@ -4751,9 +4854,11 @@ function ooSaveMetas(bid, key, data) {
 
 function ooSaveDayForm(bid, dayKey, btnEl) {
   var data = {};
-  OO_CAMPOS.forEach(function(c) {
-    var el = document.getElementById('oo_input_' + c.k);
-    if (el) data[c.k] = parseInt(el.value) || 0;
+  // Read all visible oo_input_ fields (supports custom funnel + lateral)
+  var allInputs = document.querySelectorAll('[id^="oo_input_"]');
+  allInputs.forEach(function(el) {
+    var k = el.id.replace('oo_input_','');
+    if (k) data[k] = parseInt(el.value) || 0;
   });
   ooSaveDaily(bid, dayKey, data);
   // Show confirmation
@@ -4907,10 +5012,11 @@ function pgOO() {
     });
     content += '</div>'; // end funil
 
-    // === SIDEBAR (right, smaller) - Descartados, Pastas, Carteira, Reativações ===
+    // === SIDEBAR (right, smaller) - Indicadores laterais (custom por equipe) ===
+    var lateralEquipe = ooGetLateralEquipe(selFrente);
     content += '<div style="width:140px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding-top:4px">';
     content += '<div style="font-size:10px;font-weight:700;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Indicadores</div>';
-    OO_CAMPOS_LATERAL.forEach(function(c) {
+    lateralEquipe.forEach(function(c) {
       var val = todayData[c.k] || 0;
       content += '<div style="background:' + c.cor + '20;border:1px solid ' + c.cor + '40;border-radius:10px;padding:8px 6px;text-align:center">';
       content += '<div style="font-size:11px;font-weight:600;color:' + c.cor + ';margin-bottom:4px">' + c.icon + ' ' + c.l + '</div>';
@@ -4946,10 +5052,10 @@ function pgOO() {
       content += '<div style="display:flex;align-items:center;margin-bottom:4px"><div style="width:' + w + '%;background:' + cor + ';color:#fff;padding:10px 14px;border-radius:8px;display:flex;justify-content:space-between;font-size:13px;font-weight:600"><span>' + c.l + '</span><span>' + v + '</span></div></div>';
     });
     content += '</div>';
-    // Sidebar indicadores mensais
+    // Sidebar indicadores mensais (custom por equipe)
     content += '<div style="width:130px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding-top:4px">';
     content += '<div style="font-size:10px;font-weight:700;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Indicadores</div>';
-    OO_CAMPOS_LATERAL.forEach(function(c) {
+    lateralEquipe.forEach(function(c) {
       var v = funnelData[c.k] || 0;
       content += '<div style="background:' + c.cor + '20;border:1px solid ' + c.cor + '40;border-radius:10px;padding:10px 8px;text-align:center">';
       content += '<div style="font-size:11px;font-weight:600;color:' + c.cor + ';margin-bottom:4px">' + c.icon + ' ' + c.l + '</div>';
@@ -5567,6 +5673,72 @@ function pgOO() {
       content += '<button onclick="ooSaveFunilCustom(\'' + cfgFrente + '\')" style="flex:1;padding:10px;background:#f59e0b;color:#0f172a;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">\u2714 Salvar Funil</button>';
       if (isCustom) {
         content += '<button onclick="ooResetFunilCustom(\'' + cfgFrente + '\')" style="padding:10px 14px;background:#dc262620;color:#fca5a5;border:1px solid #dc262640;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">Restaurar Padr\u00e3o</button>';
+      }
+      content += '</div>';
+      content += '</div>';
+    }
+
+    // === 1a. EDITOR DE INDICADORES LATERAIS ===
+    var cfgLateral = ooGetLateralEquipe(cfgFrente);
+    var isCustomLat = S.ooLateralCustom && S.ooLateralCustom[cfgFrente] && S.ooLateralCustom[cfgFrente].length > 0;
+    if (lvl >= 5) {
+      content += '<div style="background:linear-gradient(135deg,#1a1a2e,#0f172a);border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #8b5cf630">';
+      content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+      content += '<div style="font-size:15px;font-weight:700;color:#8b5cf6">\uD83D\uDCCA Indicadores Laterais \u2014 ' + cfgFrente.charAt(0).toUpperCase() + cfgFrente.slice(1) + '</div>';
+      content += '<div style="display:flex;gap:6px">';
+      if (isCustomLat) content += '<span style="font-size:10px;background:#8b5cf620;color:#c4b5fd;padding:2px 8px;border-radius:4px;font-weight:600">PERSONALIZADO</span>';
+      else content += '<span style="font-size:10px;background:#33415540;color:#94a3b8;padding:2px 8px;border-radius:4px;font-weight:600">PADR\u00c3O</span>';
+      content += '</div></div>';
+      content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Personalize os indicadores que aparecem ao lado do funil (Descartados, Capta\u00e7\u00f5es, Carteira, etc). Use setas para reordenar.</div>';
+
+      // Lateral editor
+      content += '<div id="oo_lateral_editor">';
+      cfgLateral.forEach(function(c, idx) {
+        content += '<div data-lat-idx="' + idx + '" style="display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:8px;background:#0f172a;border-radius:8px;border:1px solid #334155;transition:background .15s">';
+        content += '<span style="font-size:13px;color:#475569;min-width:22px;text-align:center;cursor:grab">\u2630</span>';
+        content += '<select data-field="icon" style="background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:4px;font-size:14px;width:48px">';
+        OO_LATERAL_ICONS.forEach(function(ic) {
+          content += '<option value="' + ic + '"' + (ic === c.icon ? ' selected' : '') + '>' + ic + '</option>';
+        });
+        content += '</select>';
+        content += '<span style="font-size:12px;color:#8b5cf6;min-width:24px;text-align:center;font-weight:800">' + (idx+1) + '</span>';
+        content += '<input data-field="label" value="' + c.l + '" placeholder="Nome do indicador" style="flex:2;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:13px;font-weight:600">';
+        content += '<input data-field="key" value="' + c.k + '" style="width:70px;background:#1e293b;color:#818cf8;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:11px;font-family:monospace">';
+        content += '<input data-field="cor" type="color" value="' + c.cor + '" style="width:32px;height:28px;border:none;border-radius:4px;cursor:pointer;background:transparent;padding:0">';
+        content += '<div style="display:flex;gap:3px;min-width:68px;justify-content:flex-end">';
+        if (idx > 0) {
+          content += '<button onclick="ooLateralMoveRow(this,-1)" style="background:#1e293b;color:#c4b5fd;border:1px solid #334155;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center" title="Mover para cima">\u25B2</button>';
+        } else {
+          content += '<span style="width:22px"></span>';
+        }
+        if (idx < cfgLateral.length - 1) {
+          content += '<button onclick="ooLateralMoveRow(this,1)" style="background:#1e293b;color:#c4b5fd;border:1px solid #334155;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center" title="Mover para baixo">\u25BC</button>';
+        } else {
+          content += '<span style="width:22px"></span>';
+        }
+        content += '<button onclick="this.closest(\'[data-lat-idx]\').remove();ooLateralEditorReindex()" style="background:#dc262620;color:#fca5a5;border:none;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center" title="Remover">\u2715</button>';
+        content += '</div>';
+        content += '</div>';
+      });
+      content += '</div>';
+
+      // Preview
+      content += '<div style="margin:12px 0 6px;padding:10px;background:#0f172a;border-radius:8px;border:1px dashed #33415580">';
+      content += '<div style="font-size:10px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">\uD83D\uDC41 Pr\u00e9-visualiza\u00e7\u00e3o Lateral</div>';
+      content += '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">';
+      cfgLateral.forEach(function(c) {
+        content += '<div style="background:' + c.cor + '20;border:1px solid ' + c.cor + '40;border-radius:10px;padding:8px 12px;text-align:center;min-width:80px">';
+        content += '<div style="font-size:11px;font-weight:600;color:' + c.cor + '">' + c.icon + ' ' + c.l + '</div>';
+        content += '<div style="font-size:18px;font-weight:800;color:#f8fafc;margin-top:4px">0</div>';
+        content += '</div>';
+      });
+      content += '</div></div>';
+
+      content += '<div style="display:flex;gap:8px;margin-top:10px">';
+      content += '<button onclick="ooLateralEditorAddItem()" style="flex:1;padding:10px;background:#1e293b;color:#c4b5fd;border:1px dashed #8b5cf650;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">+ Adicionar Indicador</button>';
+      content += '<button onclick="ooSaveLateralCustom(\'' + cfgFrente + '\')" style="flex:1;padding:10px;background:#8b5cf6;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">\u2714 Salvar Indicadores</button>';
+      if (isCustomLat) {
+        content += '<button onclick="ooResetLateralCustom(\'' + cfgFrente + '\')" style="padding:10px 14px;background:#dc262620;color:#fca5a5;border:1px solid #dc262640;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">Restaurar Padr\u00e3o</button>';
       }
       content += '</div>';
       content += '</div>';
@@ -12304,6 +12476,7 @@ function psmExportBackup() {
     ooObjetivo: S.ooObjetivo || {},
     ooObjetivoPessoal: S.ooObjetivoPessoal || {},
     ooFunilCustom: S.ooFunilCustom || {},
+    ooLateralCustom: S.ooLateralCustom || {},
     ooFunnelPct: S.ooFunnelPct || {},
     ooMetaLanc: S.ooMetaLanc || {},
     ooMetaVgvMes: S.ooMetaVgvMes || {},
@@ -12335,6 +12508,7 @@ function psmImportBackup(inputEl) {
         if (data.ooObjetivo) S.ooObjetivo = data.ooObjetivo;
         if (data.ooObjetivoPessoal) S.ooObjetivoPessoal = data.ooObjetivoPessoal;
         if (data.ooFunilCustom) S.ooFunilCustom = data.ooFunilCustom;
+        if (data.ooLateralCustom) S.ooLateralCustom = data.ooLateralCustom;
         if (data.ooFunnelPct) S.ooFunnelPct = data.ooFunnelPct;
         if (data.ooMetaLanc) S.ooMetaLanc = data.ooMetaLanc;
         if (data.ooMetaVgvMes) S.ooMetaVgvMes = data.ooMetaVgvMes;
