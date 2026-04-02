@@ -604,6 +604,19 @@ html{height:100%;overflow:hidden}
 /* Status dot pulse animation */
 @keyframes dotPulse{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.4)}50%{box-shadow:0 0 0 4px rgba(34,197,94,0)}}
 .dot-live{animation:dotPulse 2s ease-in-out infinite}
+
+/* TICKER / TIMELINE GESTOR */
+@keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.ticker-wrap{width:100%;overflow:hidden;background:linear-gradient(135deg,#0f172a,#1e1b4b);border-bottom:1px solid #334155;position:relative;z-index:50}
+.ticker-track{display:flex;white-space:nowrap;animation:tickerScroll var(--ticker-speed,40s) linear infinite;width:max-content}
+.ticker-track:hover{animation-play-state:paused}
+.ticker-item{display:inline-flex;align-items:center;gap:8px;padding:10px 32px;font-size:13px;color:#e2e8f0;border-right:1px solid #33415530;flex-shrink:0}
+.ticker-item .tk-badge{background:#6366f130;color:#a5b4fc;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.5px}
+.ticker-item .tk-badge.urgente{background:#dc262630;color:#fca5a5}
+.ticker-item .tk-badge.info{background:#0ea5e920;color:#7dd3fc}
+.ticker-item .tk-badge.parabens{background:#10b98130;color:#6ee7b7}
+.ticker-item .tk-time{font-size:10px;color:#64748b}
+.ticker-empty{padding:8px 16px;font-size:12px;color:#64748b;text-align:center;background:#0f172a;border-bottom:1px solid #334155}
 </style>
 <link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22PSM%20OS%22%2C%22short_name%22%3A%22PSM%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231a2048%22%2C%22theme_color%22%3A%22%231a2048%22%2C%22start_url%22%3A%22%2F%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%3Bcharset%3Dutf-8%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%270%200%20100%20100%2527%253E%253Crect%2520fill%3D%2527%25231a2048%2527%2520width%3D%2527100%2527%2520height%3D%2527100%2527%2520rx%3D%252720%2527%2F%253E%253Ctext%2520fill%3D%2527%2523c9a84c%2527%2520x%3D%252750%2527%2520y%3D%252768%2527%2520text-anchor%3D%2527middle%2527%2520font-size%3D%252742%2527%2520font-weight%3D%2527900%2527%2520font-family%3D%2527sans-serif%2527%253EPSM%253C%2Ftext%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22192x192%22%7D%5D%7D">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -9904,7 +9917,21 @@ function renderHDR() {
 
 // ─── ROUTER ───────────────────────────────────────────────────────────────────
 function safeRoute() {
-  try { return route(); }
+  try {
+    var pg = route();
+    // Inject ticker at top of ALL pages in painel do corretor (and any other page for gestores)
+    var isPainel = PAGES_PAINEL_CORRETOR.indexOf(S.page) !== -1;
+    var ticker = '';
+    if (S.user && isPainel) {
+      ticker = renderTicker();
+      // Add manage button for gestores/sócios
+      var lvl = RLVL[S.user.role] || 0;
+      if (lvl >= 5) {
+        ticker += '<div style="text-align:right;padding:4px 12px 0"><button onclick="abrirTickerModal()" style="background:none;border:1px solid #33415580;color:#818cf8;font-size:10px;padding:3px 10px;border-radius:6px;cursor:pointer;font-weight:600">📢 Gerenciar Comunicados</button></div>';
+      }
+    }
+    return ticker + pg;
+  }
   catch(e) {
     console.error('[PSM] Render error:', e);
     return '<div class="empty-card"><div class="empty-ico">⚠️</div>'
@@ -11700,6 +11727,133 @@ document.addEventListener('click', e => {
   }
 });
 
+
+// ─── TICKER / TIMELINE DE COMUNICADOS ────────────────────────────────────────
+// Mensagens dos gestores/sócios/diretores exibidas como ticker no painel do corretor
+function tickerGetMsgs() {
+  if (!S.tickerMsgs) S.tickerMsgs = [];
+  var now = Date.now();
+  // Filter: only active and not expired
+  return S.tickerMsgs.filter(function(m) {
+    if (m.expiresAt && m.expiresAt < now) return false;
+    return true;
+  });
+}
+function tickerAddMsg(texto, tipo, autorId, duracaoDias) {
+  if (!S.tickerMsgs) S.tickerMsgs = [];
+  var autor = USERS_BASE.find(function(u){ return u.id === autorId; });
+  var autorNome = autor ? autor.name.split(' ')[0] : 'Sistema';
+  var dur = parseInt(duracaoDias) || 7;
+  S.tickerMsgs.push({
+    id: Date.now() + '_' + Math.random().toString(36).slice(2,6),
+    texto: texto,
+    tipo: tipo || 'info', // info, urgente, parabens, geral
+    autorId: autorId,
+    autorNome: autorNome,
+    criadoEm: Date.now(),
+    expiresAt: Date.now() + dur * 86400000
+  });
+  saveState();
+}
+function tickerRemoveMsg(msgId) {
+  if (!S.tickerMsgs) return;
+  S.tickerMsgs = S.tickerMsgs.filter(function(m){ return m.id !== msgId; });
+  saveState();
+}
+function tickerCleanExpired() {
+  if (!S.tickerMsgs) return;
+  var now = Date.now();
+  var before = S.tickerMsgs.length;
+  S.tickerMsgs = S.tickerMsgs.filter(function(m){ return !m.expiresAt || m.expiresAt >= now; });
+  if (S.tickerMsgs.length !== before) saveState();
+}
+
+function renderTicker() {
+  tickerCleanExpired();
+  var msgs = tickerGetMsgs();
+  if (msgs.length === 0) return '';
+  var tipoIcons = {urgente:'🚨',info:'📢',parabens:'🎉',geral:'💬'};
+  var items = '';
+  msgs.forEach(function(m) {
+    var ico = tipoIcons[m.tipo] || '📢';
+    var timeAgo = tickerTimeAgo(m.criadoEm);
+    items += '<div class="ticker-item">'
+      + '<span class="tk-badge ' + m.tipo + '">' + ico + ' ' + m.tipo + '</span>'
+      + '<span>' + m.texto + '</span>'
+      + '<span style="color:#818cf8;font-size:11px;font-weight:600">\u2014 ' + m.autorNome + '</span>'
+      + '<span class="tk-time">' + timeAgo + '</span>'
+      + '</div>';
+  });
+  // Duplicate items for seamless loop
+  var speed = Math.max(20, msgs.length * 12);
+  return '<div class="ticker-wrap" style="--ticker-speed:' + speed + 's">'
+    + '<div class="ticker-track">' + items + items + '</div></div>';
+}
+
+function tickerTimeAgo(ts) {
+  var diff = Date.now() - ts;
+  var mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'agora';
+  if (mins < 60) return mins + 'min';
+  var hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h';
+  var days = Math.floor(hrs / 24);
+  return days + 'd';
+}
+
+// Modal para gestores/sócios adicionarem mensagens ao ticker
+function abrirTickerModal() {
+  var overlay = document.createElement('div');
+  overlay.id = 'ticker_modal_overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  var msgs = tickerGetMsgs();
+  var listHtml = '';
+  if (msgs.length > 0) {
+    var tipoIcons = {urgente:'🚨',info:'📢',parabens:'🎉',geral:'💬'};
+    listHtml = '<div style="max-height:180px;overflow-y:auto;margin-bottom:16px;border:1px solid #334155;border-radius:8px">';
+    msgs.forEach(function(m) {
+      var ico = tipoIcons[m.tipo] || '📢';
+      var diasRest = Math.max(0, Math.ceil((m.expiresAt - Date.now()) / 86400000));
+      listHtml += '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #1e293b;font-size:12px">'
+        + '<span>' + ico + '</span>'
+        + '<span style="flex:1;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + m.texto + '</span>'
+        + '<span style="color:#64748b;font-size:10px;white-space:nowrap">' + m.autorNome + ' · ' + diasRest + 'd</span>'
+        + '<button onclick="tickerRemoveMsg(\'' + m.id + '\');document.getElementById(\'ticker_modal_overlay\').remove();abrirTickerModal()" style="background:#dc262620;color:#fca5a5;border:none;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer">✕</button>'
+        + '</div>';
+    });
+    listHtml += '</div>';
+  }
+
+  overlay.innerHTML = '<div style="background:#1e293b;border-radius:16px;padding:24px;max-width:500px;width:100%;border:1px solid #334155;box-shadow:0 20px 60px rgba(0,0,0,.5)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
+    + '<span style="font-size:16px;font-weight:700;color:#f8fafc">📢 Comunicados do Painel</span>'
+    + '<button onclick="document.getElementById(\'ticker_modal_overlay\').remove()" style="background:none;border:none;color:#64748b;font-size:20px;cursor:pointer">\u2715</button>'
+    + '</div>'
+    + (msgs.length > 0 ? '<div style="font-size:11px;color:#94a3b8;margin-bottom:8px;font-weight:600">MENSAGENS ATIVAS (' + msgs.length + ')</div>' + listHtml : '<div style="font-size:12px;color:#64748b;margin-bottom:16px;text-align:center;padding:12px;background:#0f172a;border-radius:8px">Nenhum comunicado ativo</div>')
+    + '<div style="font-size:11px;color:#94a3b8;margin-bottom:8px;font-weight:600">NOVO COMUNICADO</div>'
+    + '<textarea id="ticker_txt" placeholder="Digite a mensagem..." style="width:100%;background:#0f172a;border:1px solid #334155;color:#f8fafc;padding:10px;border-radius:8px;font-size:13px;resize:vertical;min-height:60px;margin-bottom:10px;box-sizing:border-box"></textarea>'
+    + '<div style="display:flex;gap:8px;margin-bottom:12px">'
+    + '<div style="flex:1"><label style="font-size:10px;color:#94a3b8;display:block;margin-bottom:4px">Tipo</label>'
+    + '<select id="ticker_tipo" style="width:100%;background:#0f172a;border:1px solid #334155;color:#f8fafc;padding:8px;border-radius:6px;font-size:12px">'
+    + '<option value="info">📢 Informativo</option><option value="urgente">🚨 Urgente</option><option value="parabens">🎉 Parabéns</option><option value="geral">💬 Geral</option></select></div>'
+    + '<div style="flex:1"><label style="font-size:10px;color:#94a3b8;display:block;margin-bottom:4px">Duração (dias)</label>'
+    + '<input id="ticker_dur" type="number" min="1" max="90" value="7" style="width:100%;background:#0f172a;border:1px solid #334155;color:#f8fafc;padding:8px;border-radius:6px;font-size:12px;box-sizing:border-box"></div>'
+    + '</div>'
+    + '<button onclick="tickerSubmitMsg()" style="width:100%;padding:12px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Publicar Comunicado</button>'
+    + '</div>';
+  document.body.appendChild(overlay);
+}
+
+function tickerSubmitMsg() {
+  var txt = document.getElementById('ticker_txt').value.trim();
+  if (!txt) { toast('Digite uma mensagem','warn'); return; }
+  var tipo = document.getElementById('ticker_tipo').value;
+  var dur = document.getElementById('ticker_dur').value;
+  tickerAddMsg(txt, tipo, S.user.id, dur);
+  document.getElementById('ticker_modal_overlay').remove();
+  toast('📢 Comunicado publicado!','ok');
+  render();
+}
 
 // ─── NOTIFICATION SYSTEM (item 11) ───────────────────────────────────────────
 const NOTIF_QUEUE = [];
