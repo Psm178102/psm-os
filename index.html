@@ -11348,7 +11348,7 @@ function pgPlantoes() {
           });
         });
       } else {
-        calHTML += '<div style="margin-top:3px;padding:2px 5px;border-radius:3px;background:rgba(15,23,42,.04);color:var(--muted);font-size:8px;text-align:center;font-style:italic;">+ adicionar corretores</div>';
+        calHTML += '<div onclick="event.stopPropagation();abrirFormPlantao('+dia+')" style="margin-top:3px;padding:3px 5px;border-radius:3px;background:rgba(212,160,23,.1);color:#b8860b;font-size:8px;text-align:center;font-weight:600;cursor:pointer;border:1px dashed rgba(212,160,23,.3);">+ adicionar corretores</div>';
       }
     } else if(hasManual){
       dayPlantoes.forEach(function(p){
@@ -11573,9 +11573,9 @@ function salvarPlantao(dia, editIdx) {
     plantoes.push(registro);
   }
   localStorage.setItem(storageKey, JSON.stringify(plantoes));
+  notificarPlantaoSalvo(dia, local, nomes);
   document.querySelectorAll('[onclick*="this.remove"]').forEach(function(el){if(el.parentElement)el.remove();});
   nav('plantoes');
-  alert('\u2705 Plant\u00e3o salvo com sucesso!');
 }
 
 function removerPlantao(dia, idx) {
@@ -11701,10 +11701,119 @@ function scheduleNotifs() {
   // Keep only last 20 notifs
   if (NOTIFS.length > 20) NOTIFS.splice(20);
 }
+// ─── NOTIFICAÇÕES DE PLANTÃO ──────────────────────────────────────────────
+var ESCALA_PSM_NOTIF = {2:'Legacy',5:'Legacy',8:'Legacy',11:'Legacy',14:'Legacy',17:'Legacy',20:'Legacy',23:'Legacy',26:'Legacy',29:'Legacy'};
+var ESCALA_PSM_MES = 3, ESCALA_PSM_ANO = 2026;
+
+function checkPlantaoNotifs(){
+  if(!S.user) return;
+  var now = new Date();
+  var mesAtual = now.getMonth();
+  var anoAtual = now.getFullYear();
+  var hoje = now.getDate();
+  var hora = now.getHours();
+  var minuto = now.getMinutes();
+  var amanha = new Date(now); amanha.setDate(hoje+1);
+  var diaAmanha = amanha.getDate();
+  var mesAmanha = amanha.getMonth();
+  var anoAmanha = amanha.getFullYear();
+
+  // Chave para evitar notificações duplicadas no mesmo dia
+  var notifKey = 'psm_plt_notif_' + anoAtual + '_' + mesAtual + '_' + hoje;
+  var sent = {};
+  try { sent = JSON.parse(localStorage.getItem(notifKey)) || {}; } catch(e){}
+
+  // Carregar plantões manuais do mês atual
+  var storageKey = 'psm_plantoes_' + anoAtual + '_' + mesAtual;
+  var plantoes = [];
+  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e){}
+
+  // Plantões de amanhã (carregar do mês de amanhã se necessário)
+  var storageKeyAmanha = 'psm_plantoes_' + anoAmanha + '_' + mesAmanha;
+  var plantoesAmanha = [];
+  try { plantoesAmanha = JSON.parse(localStorage.getItem(storageKeyAmanha)) || []; } catch(e){}
+
+  // === NOTIFICAÇÃO 1 DIA ANTES (a partir das 18h do dia anterior) ===
+  if(!sent.vespera && hora >= 18){
+    // Verificar escala PSM de amanhã
+    var escAmanha = (mesAmanha === ESCALA_PSM_MES && anoAmanha === ESCALA_PSM_ANO) ? ESCALA_PSM_NOTIF[diaAmanha] : null;
+    var manuaisAmanha = plantoesAmanha.filter(function(p){return p.dia === diaAmanha;});
+
+    if(escAmanha){
+      var nomes = manuaisAmanha.map(function(p){return p.nomes||'';}).filter(Boolean).join(', ');
+      var msg = 'Amanh\u00e3 (dia '+diaAmanha+') tem plant\u00e3o PSM no '+escAmanha+(nomes?' \u2022 Corretores: '+nomes:'');
+      sendNotif('\uD83D\uDCC5 Plant\u00e3o Amanh\u00e3', msg, '\uD83D\uDCC5');
+      NOTIFS.unshift({tipo:'w', title:'\uD83D\uDCC5 Plant\u00e3o Amanh\u00e3', msg:msg, page:'plantoes', read:false, ts:Date.now()});
+      sent.vespera = true;
+    }
+    if(manuaisAmanha.length > 0 && !escAmanha){
+      manuaisAmanha.forEach(function(p){
+        var msg = 'Amanh\u00e3 (dia '+diaAmanha+') \u2022 '+(p.local||'')+(p.nomes?' \u2022 '+p.nomes:'');
+        sendNotif('\uD83D\uDCC5 Plant\u00e3o Amanh\u00e3', msg, '\uD83D\uDCC5');
+        NOTIFS.unshift({tipo:'w', title:'\uD83D\uDCC5 Plant\u00e3o Amanh\u00e3', msg:msg, page:'plantoes', read:false, ts:Date.now()});
+      });
+      sent.vespera = true;
+    }
+  }
+
+  // === NOTIFICAÇÃO NO DIA (antes das 8:30) ===
+  if(!sent.dia && (hora < 8 || (hora === 8 && minuto <= 30))){
+    var escHoje = (mesAtual === ESCALA_PSM_MES && anoAtual === ESCALA_PSM_ANO) ? ESCALA_PSM_NOTIF[hoje] : null;
+    var manuaisHoje = plantoes.filter(function(p){return p.dia === hoje;});
+
+    if(escHoje){
+      var nomesHoje = manuaisHoje.map(function(p){return p.nomes||'';}).filter(Boolean).join(', ');
+      var msgH = '\uD83D\uDEA8 HOJE tem plant\u00e3o PSM no '+escHoje+'!'+(nomesHoje?' Corretores: '+nomesHoje:' Ainda sem corretores definidos!')+' In\u00edcio \u00e0s 9h.';
+      sendNotif('\u23F0 Plant\u00e3o HOJE', msgH, '\u23F0');
+      NOTIFS.unshift({tipo:'ok', title:'\u23F0 Plant\u00e3o HOJE', msg:msgH, page:'plantoes', read:false, ts:Date.now()});
+      sent.dia = true;
+    }
+    if(manuaisHoje.length > 0 && !escHoje){
+      manuaisHoje.forEach(function(p){
+        var msgM = '\uD83D\uDEA8 HOJE \u2022 '+(p.local||'')+' \u2022 '+(p.horaInicio||'09:00')+'\u2013'+(p.horaFim||'')+(p.nomes?' \u2022 '+p.nomes:'');
+        sendNotif('\u23F0 Plant\u00e3o HOJE', msgM, '\u23F0');
+        NOTIFS.unshift({tipo:'ok', title:'\u23F0 Plant\u00e3o HOJE', msg:msgM, page:'plantoes', read:false, ts:Date.now()});
+      });
+      sent.dia = true;
+    }
+  }
+
+  // === NOTIFICAÇÃO 8:30 EM PONTO (lembrete final) ===
+  if(!sent.lembrete830 && hora === 8 && minuto >= 25 && minuto <= 35){
+    var esc830 = (mesAtual === ESCALA_PSM_MES && anoAtual === ESCALA_PSM_ANO) ? ESCALA_PSM_NOTIF[hoje] : null;
+    var man830 = plantoes.filter(function(p){return p.dia === hoje;});
+    if(esc830 || man830.length > 0){
+      var local830 = esc830 || (man830[0]?man830[0].local:'');
+      sendNotif('\uD83D\uDD14 \u00daltimo Lembrete', 'Plant\u00e3o em 30 min! Local: '+local830+' \u2022 Sorteio da fila \u00e0s 9h. N\u00e3o esque\u00e7a!', '\uD83D\uDD14');
+      NOTIFS.unshift({tipo:'w', title:'\uD83D\uDD14 \u00daltimo Lembrete', msg:'Plant\u00e3o em 30 min! Local: '+local830, page:'plantoes', read:false, ts:Date.now()});
+      sent.lembrete830 = true;
+    }
+  }
+
+  localStorage.setItem(notifKey, JSON.stringify(sent));
+  // Limpar chaves antigas (mais de 3 dias)
+  for(var k in localStorage){
+    if(k.indexOf('psm_plt_notif_')===0 && k !== notifKey){
+      try{localStorage.removeItem(k);}catch(e){}
+    }
+  }
+  if(NOTIFS.length > 20) NOTIFS.splice(20);
+}
+
+// Notificar ao salvar/editar plantão
+function notificarPlantaoSalvo(dia, local, nomes){
+  var msg = 'Plant\u00e3o dia '+dia+' \u2022 '+local+(nomes?' \u2022 Corretores: '+nomes:'');
+  sendNotif('\u2705 Plant\u00e3o Atualizado', msg, '\u2705');
+  NOTIFS.unshift({tipo:'ok', title:'\u2705 Plant\u00e3o Atualizado', msg:msg, page:'plantoes', read:false, ts:Date.now()});
+  if(NOTIFS.length > 20) NOTIFS.splice(20);
+}
+
 // Schedule checks every 30 min
-setInterval(() => { if(S.user) scheduleNotifs(); }, 30 * 60 * 1000);
+setInterval(function(){ if(S.user){ scheduleNotifs(); checkPlantaoNotifs(); } }, 30 * 60 * 1000);
+// Also check every 5 min for time-sensitive plantão alerts
+setInterval(function(){ if(S.user) checkPlantaoNotifs(); }, 5 * 60 * 1000);
 // Check on login
-window.addEventListener('psm-login', scheduleNotifs);
+window.addEventListener('psm-login', function(){ scheduleNotifs(); checkPlantaoNotifs(); });
 
 // ─── OFFLINE DETECTION ───────────────────────────────────────────────────────
 window.addEventListener('online', () => { toast('✅ Conexão restaurada', 'ok'); if(S.user) RD.sync(false); });
