@@ -11267,54 +11267,196 @@ function carregarPromptServidor() {
 }
 
 function pgPlantoes() {
-  const u = S.user;
-  const isGestor = u && (u.role === 'socio' || u.role === 'diretor' || u.role === 'lider');
-  const now = new Date();
-  const mesAtual = now.getMonth();
-  const anoAtual = now.getFullYear();
-  const meses = ['Janeiro','Fevereiro','Mar\u00e7o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var u = S.user;
+  var isGestor = u && (u.role === 'socio' || u.role === 'diretor' || u.role === 'lider');
+  var now = new Date();
+  var mesAtual = now.getMonth();
+  var anoAtual = now.getFullYear();
+  var meses = ['Janeiro','Fevereiro','Mar\u00e7o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-  // Load plantoes from localStorage
-  const storageKey = 'psm_plantoes_' + anoAtual + '_' + mesAtual;
-  let plantoes = [];
-  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e) {}
+  // ====== ESCALA IMPPER - Abril/2026 ======
+  var ESCALA_IMPPER = {
+    mes: 3, ano: 2026, titulo: 'ESCALA IMPPER',
+    horarios: {
+      raizes: {semana:'9:00\u201318:00', sabado:'9:00\u201314:00', domferiado:'9:00\u201312:00'},
+      prime:  {semana:'9:00\u201318:30', sabado:'9:00\u201317:00', domferiado:'9:00\u201313:00'}
+    },
+    regras: [
+      'Sorteio da fila \u00e0s 09h com corretores presentes. Toler\u00e2ncia at\u00e9 9h15.',
+      'Chegou entre 9h\u20139h15: assume como segundo da vez.',
+      'Chegou ap\u00f3s 9h15: perde o plant\u00e3o.',
+      'Se sair e n\u00e3o for atender cliente Impper, deve deixar substituto.'
+    ],
+    dias: {
+      1:{dw:'QUA',leg:['HOUSE','FG'],prime:['EMPR RIO PRETO','HOUSE']},
+      2:{dw:'QUI',leg:['PSM','HOUSE'],prime:['HOUSE','ATLAS']},
+      3:{dw:'SEX',leg:['HOUSE','EMPR RIO PRETO'],prime:['FG','HOUSE']},
+      4:{dw:'S\u00c1B',leg:['FG','HOUSE'],prime:['HOUSE','EMPR RIO PRETO']},
+      5:{dw:'DOM',leg:['HOUSE','PSM'],prime:['ATLAS','HOUSE']},
+      6:{dw:'SEG',leg:['EMPR RIO PRETO','HOUSE'],prime:['HOUSE','FG']},
+      7:{dw:'TER',leg:['HOUSE','FG'],prime:['EMPR RIO PRETO','HOUSE']},
+      8:{dw:'QUA',leg:['PSM','HOUSE'],prime:['HOUSE','ATLAS']},
+      9:{dw:'QUI',leg:['HOUSE','EMPR RIO PRETO'],prime:['FG','HOUSE']},
+      10:{dw:'SEX',leg:['FG','HOUSE'],prime:['HOUSE','EMPR RIO PRETO']},
+      11:{dw:'S\u00c1B',leg:['HOUSE','PSM'],prime:['ATLAS','HOUSE']},
+      12:{dw:'DOM',leg:['EMPR RIO PRETO','HOUSE'],prime:['HOUSE','FG']},
+      13:{dw:'SEG',leg:['HOUSE','FG'],prime:['EMPR RIO PRETO','HOUSE']},
+      14:{dw:'TER',leg:['PSM','HOUSE'],prime:['HOUSE','ATLAS']},
+      15:{dw:'QUA',leg:['HOUSE','EMPR RIO PRETO'],prime:['FG','HOUSE']},
+      16:{dw:'QUI',leg:['FG','HOUSE'],prime:['HOUSE','EMPR RIO PRETO']},
+      17:{dw:'SEX',leg:['HOUSE','PSM'],prime:['ATLAS','HOUSE']},
+      18:{dw:'S\u00c1B',leg:['EMPR RIO PRETO','HOUSE'],prime:['HOUSE','FG']},
+      19:{dw:'DOM',leg:['HOUSE','FG'],prime:['EMPR RIO PRETO','HOUSE']},
+      20:{dw:'SEG',leg:['PSM','HOUSE'],prime:['HOUSE','ATLAS']},
+      21:{dw:'TER',leg:['HOUSE','EMPR RIO PRETO'],prime:['FG','HOUSE']},
+      22:{dw:'QUA',leg:['FG','HOUSE'],prime:['HOUSE','EMPR RIO PRETO']},
+      23:{dw:'QUI',leg:['HOUSE','PSM'],prime:['ATLAS','HOUSE']},
+      24:{dw:'SEX',leg:['EMPR RIO PRETO','HOUSE'],prime:['HOUSE','FG']},
+      25:{dw:'S\u00c1B',leg:['HOUSE','FG'],prime:['EMPR RIO PRETO','HOUSE']},
+      26:{dw:'DOM',leg:['PSM','HOUSE'],prime:['HOUSE','ATLAS']},
+      27:{dw:'SEG',leg:['HOUSE','EMPR RIO PRETO'],prime:['FG','HOUSE']},
+      28:{dw:'TER',leg:['FG','HOUSE'],prime:['HOUSE','EMPR RIO PRETO']},
+      29:{dw:'QUA',leg:['HOUSE','PSM'],prime:['ATLAS','HOUSE']},
+      30:{dw:'QUI',leg:['EMPR RIO PRETO','HOUSE'],prime:['HOUSE','FG']}
+    }
+  };
+
+  var escalaColors = {
+    'PSM':'#d4a017','HOUSE':'#64748b','FG':'#3b82f6',
+    'EMPR RIO PRETO':'#ef4444','ATLAS':'#8b5cf6'
+  };
+  function escBadge(name){
+    var bg = escalaColors[name]||'#475569';
+    var isPSM = name==='PSM';
+    return '<span style="display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:'+(isPSM?'800':'600')+';background:'+bg+(isPSM?'':'22')+';color:'+(isPSM?'#000':bg)+';border:'+(isPSM?'none':'1px solid '+bg+'44')+';white-space:nowrap;">'+name+'</span>';
+  }
 
   function diasNoMes(m, a) { return new Date(a, m + 1, 0).getDate(); }
   function primeiroDia(m, a) { return new Date(a, m, 1).getDay(); }
 
-  const totalDias = diasNoMes(mesAtual, anoAtual);
-  const primeiro = primeiroDia(mesAtual, anoAtual);
+  var totalDias = diasNoMes(mesAtual, anoAtual);
+  var primeiro = primeiroDia(mesAtual, anoAtual);
+  var temEscala = (mesAtual === ESCALA_IMPPER.mes && anoAtual === ESCALA_IMPPER.ano);
 
-  // Build calendar grid
-  let calHTML = '<div class="g7" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:12px;">';
-  const diasSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','S\u00e1b'];
-  diasSemana.forEach(d => { calHTML += '<div style="text-align:center;font-weight:700;font-size:11px;padding:6px 2px;color:var(--gold2);background:rgba(255,255,255,.04);border-radius:6px;">' + d + '</div>'; });
+  // Load plantoes manuais from localStorage
+  var storageKey = 'psm_plantoes_' + anoAtual + '_' + mesAtual;
+  var plantoes = [];
+  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e) {}
 
-  // Empty cells before first day
-  for (let i = 0; i < primeiro; i++) calHTML += '<div></div>';
+  // ====== CALENDAR GRID ======
+  var calHTML = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:12px;">';
+  var diasSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','S\u00e1b'];
+  diasSemana.forEach(function(d){ calHTML += '<div style="text-align:center;font-weight:700;font-size:11px;padding:8px 2px;color:var(--gold2);background:rgba(255,255,255,.05);border-radius:6px;">' + d + '</div>'; });
 
-  for (let dia = 1; dia <= totalDias; dia++) {
-    const dayPlantoes = plantoes.filter(p => p.dia === dia);
-    const isToday = dia === now.getDate();
-    const todayBorder = isToday ? 'border:2px solid var(--gold2);' : 'border:1px solid rgba(255,255,255,.06);';
-    calHTML += '<div style="min-height:70px;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,.03);' + todayBorder + 'cursor:pointer;font-size:10px;" onclick="abrirDiaPlantao(' + dia + ')">';
-    calHTML += '<div style="font-weight:700;font-size:12px;color:' + (isToday ? 'var(--gold2)' : 'rgba(255,255,255,.8)') + ';">' + dia + '</div>';
-    dayPlantoes.forEach(p => {
-      calHTML += '<div style="margin-top:2px;padding:2px 4px;border-radius:3px;background:rgba(59,130,246,.15);color:#60a5fa;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + (p.corretor||'') + ' - ' + (p.local||'') + '">';
-      calHTML += (p.hora||'') + ' ' + (p.corretor||'').split(' ')[0];
+  for (var i = 0; i < primeiro; i++) calHTML += '<div></div>';
+
+  for (var dia = 1; dia <= totalDias; dia++) {
+    var esc = temEscala ? ESCALA_IMPPER.dias[dia] : null;
+    var dayPlantoes = plantoes.filter(function(p){return p.dia === dia;});
+    var isToday = (dia === now.getDate() && mesAtual === now.getMonth() && anoAtual === now.getFullYear());
+    var hasPSM = esc && (esc.leg.indexOf('PSM')!==-1 || esc.prime.indexOf('PSM')!==-1);
+    var bgDay = hasPSM ? 'rgba(212,160,23,.08)' : 'rgba(255,255,255,.03)';
+    var borderDay = isToday ? 'border:2px solid var(--gold2);' : hasPSM ? 'border:1px solid rgba(212,160,23,.25);' : 'border:1px solid rgba(255,255,255,.06);';
+
+    calHTML += '<div style="min-height:90px;padding:4px 5px;border-radius:6px;background:'+bgDay+';'+borderDay+'cursor:pointer;font-size:10px;position:relative;" onclick="abrirDiaPlantao('+dia+')">';
+    calHTML += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">';
+    calHTML += '<span style="font-weight:700;font-size:13px;color:'+(isToday?'var(--gold2)':hasPSM?'#d4a017':'rgba(255,255,255,.8)')+';">'+dia+'</span>';
+    if(hasPSM) calHTML += '<span style="font-size:8px;font-weight:800;background:#d4a017;color:#000;padding:1px 4px;border-radius:3px;">PSM</span>';
+    calHTML += '</div>';
+
+    if(esc){
+      calHTML += '<div style="margin-bottom:2px;"><span style="font-size:7px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;">Legacy</span><div style="display:flex;gap:2px;flex-wrap:wrap;">'+escBadge(esc.leg[0])+escBadge(esc.leg[1])+'</div></div>';
+      calHTML += '<div><span style="font-size:7px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;">Prime</span><div style="display:flex;gap:2px;flex-wrap:wrap;">'+escBadge(esc.prime[0])+escBadge(esc.prime[1])+'</div></div>';
+    }
+
+    dayPlantoes.forEach(function(p){
+      calHTML += '<div style="margin-top:2px;padding:1px 4px;border-radius:3px;background:rgba(59,130,246,.15);color:#60a5fa;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+(p.corretor||'')+' - '+(p.local||'')+'">';
+      calHTML += '\u23F0 '+(p.hora||'')+' '+(p.corretor||'').split(' ')[0];
       calHTML += '</div>';
     });
     calHTML += '</div>';
   }
   calHTML += '</div>';
 
-  const addBtn = isGestor ? '<button class="btn btn-gold" onclick="abrirFormPlantao()" style="margin-left:auto;"><span>+ Novo Plant\u00e3o</span></button>' : '';
+  // ====== LEGENDA ======
+  var legHTML = '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;padding:12px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);">';
+  legHTML += '<span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.6);margin-right:4px;">Legenda:</span>';
+  Object.keys(escalaColors).forEach(function(k){
+    legHTML += '<span style="display:flex;align-items:center;gap:4px;font-size:11px;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+escalaColors[k]+';"></span><span style="color:rgba(255,255,255,.7);">'+k+'</span></span>';
+  });
+  legHTML += '</div>';
 
-  return '<div class="page-content"><div class="phd"><h1>\uD83D\uDCC6 Plant\u00f5es</h1><p>Calend\u00e1rio de plant\u00f5es do m\u00eas vigente</p></div>'
-    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">'
+  // ====== HORARIOS ======
+  var horHTML = '';
+  if(temEscala){
+    var h = ESCALA_IMPPER.horarios;
+    horHTML = '<div style="margin-top:16px;"><h3 style="font-size:14px;margin:0 0 10px;color:var(--gold2);">\u23F0 Hor\u00e1rios de Atendimento</h3>';
+    horHTML += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+    horHTML += '<div style="padding:12px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);">';
+    horHTML += '<div style="font-weight:700;font-size:12px;margin-bottom:8px;color:#d4a017;">Ra\u00edzes e Connect</div>';
+    horHTML += '<div style="font-size:11px;color:rgba(255,255,255,.7);line-height:1.8;">Seg\u2013Sex: '+h.raizes.semana+'<br>S\u00e1bado: '+h.raizes.sabado+'<br>Dom/Feriado: '+h.raizes.domferiado+'</div></div>';
+    horHTML += '<div style="padding:12px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);">';
+    horHTML += '<div style="font-weight:700;font-size:12px;margin-bottom:8px;color:#3b82f6;">Prime/Line, Legacy e Reserva</div>';
+    horHTML += '<div style="font-size:11px;color:rgba(255,255,255,.7);line-height:1.8;">Seg\u2013Sex: '+h.prime.semana+'<br>S\u00e1bado: '+h.prime.sabado+'<br>Dom/Feriado: '+h.prime.domferiado+'</div></div>';
+    horHTML += '</div></div>';
+  }
+
+  // ====== REGRAS ======
+  var regHTML = '';
+  if(temEscala){
+    regHTML = '<div style="margin-top:16px;padding:14px;border-radius:8px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);">';
+    regHTML += '<div style="font-weight:700;font-size:12px;margin-bottom:8px;color:#ef4444;">\u26A0\uFE0F Regras do Plant\u00e3o</div>';
+    ESCALA_IMPPER.regras.forEach(function(r){
+      regHTML += '<div style="font-size:11px;color:rgba(255,255,255,.7);padding:3px 0;padding-left:12px;position:relative;"><span style="position:absolute;left:0;">•</span>'+r+'</div>';
+    });
+    regHTML += '</div>';
+  }
+
+  // ====== TABELA COMPLETA (VISÃO LISTA) ======
+  var tblHTML = '';
+  if(temEscala){
+    tblHTML = '<div style="margin-top:20px;">';
+    tblHTML += '<h3 style="font-size:14px;margin:0 0 10px;color:var(--gold2);">\uD83D\uDCCB Escala Completa \u2014 Abril/2026</h3>';
+    tblHTML += '<div style="overflow-x:auto;border-radius:8px;border:1px solid rgba(255,255,255,.08);">';
+    tblHTML += '<table style="width:100%;border-collapse:collapse;font-size:11px;">';
+    tblHTML += '<thead><tr style="background:rgba(255,255,255,.06);">';
+    tblHTML += '<th style="padding:8px 6px;text-align:center;color:var(--gold2);font-size:10px;border-bottom:1px solid rgba(255,255,255,.08);">Dia</th>';
+    tblHTML += '<th style="padding:8px 6px;text-align:center;color:var(--gold2);font-size:10px;border-bottom:1px solid rgba(255,255,255,.08);"></th>';
+    tblHTML += '<th colspan="2" style="padding:8px 6px;text-align:center;color:#8b5cf6;font-size:10px;border-bottom:1px solid rgba(255,255,255,.08);border-left:1px solid rgba(255,255,255,.06);">Legacy</th>';
+    tblHTML += '<th colspan="2" style="padding:8px 6px;text-align:center;color:#3b82f6;font-size:10px;border-bottom:1px solid rgba(255,255,255,.08);border-left:1px solid rgba(255,255,255,.06);">Prime / Line</th>';
+    tblHTML += '</tr></thead><tbody>';
+    for(var d=1;d<=30;d++){
+      var esc2 = ESCALA_IMPPER.dias[d];
+      var isPSMDay = (esc2.leg.indexOf('PSM')!==-1||esc2.prime.indexOf('PSM')!==-1);
+      var isTodayRow = (d === now.getDate() && mesAtual===3 && anoAtual===2026);
+      var rowBg = isTodayRow ? 'rgba(212,160,23,.12)' : isPSMDay ? 'rgba(212,160,23,.04)' : (d%2===0?'rgba(255,255,255,.02)':'transparent');
+      tblHTML += '<tr style="background:'+rowBg+';">';
+      tblHTML += '<td style="padding:6px;text-align:center;font-weight:700;color:'+(isTodayRow?'var(--gold2)':'rgba(255,255,255,.8)')+';border-bottom:1px solid rgba(255,255,255,.04);">'+d+'</td>';
+      tblHTML += '<td style="padding:6px;text-align:center;font-size:10px;color:rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.04);">'+esc2.dw+'</td>';
+      esc2.leg.concat(esc2.prime).forEach(function(v,idx){
+        var bl = (idx===0||idx===2) ? 'border-left:1px solid rgba(255,255,255,.06);' : '';
+        tblHTML += '<td style="padding:6px;text-align:center;border-bottom:1px solid rgba(255,255,255,.04);'+bl+'">'+escBadge(v)+'</td>';
+      });
+      tblHTML += '</tr>';
+    }
+    tblHTML += '</tbody></table></div></div>';
+  }
+
+  var addBtn = isGestor ? '<button class="btn btn-gold" onclick="abrirFormPlantao()" style="margin-left:auto;"><span>+ Novo Plant\u00e3o</span></button>' : '';
+
+  // ====== VIEW TOGGLE ======
+  var viewToggle = temEscala ? '<div style="display:flex;gap:6px;margin-left:12px;">'
+    + '<button class="btn" id="btn-cal-view" onclick="document.getElementById(\'plt-cal\').style.display=\'block\';document.getElementById(\'plt-tbl\').style.display=\'none\';this.classList.add(\'btn-gold\');document.getElementById(\'btn-tbl-view\').classList.remove(\'btn-gold\');" style="font-size:11px;padding:4px 10px;">\uD83D\uDCC5 Calend\u00e1rio</button>'
+    + '<button class="btn" id="btn-tbl-view" onclick="document.getElementById(\'plt-tbl\').style.display=\'block\';document.getElementById(\'plt-cal\').style.display=\'none\';this.classList.add(\'btn-gold\');document.getElementById(\'btn-cal-view\').classList.remove(\'btn-gold\');" style="font-size:11px;padding:4px 10px;">\uD83D\uDCCB Lista</button>'
+    + '</div>' : '';
+
+  return '<div class="page-content"><div class="phd"><h1>\uD83D\uDCC6 Plant\u00f5es Impper</h1><p>Escala de plant\u00f5es nos empreendimentos do Grupo Impper</p></div>'
+    + '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">'
     + '<h2 style="margin:0;font-size:18px;">' + meses[mesAtual] + ' ' + anoAtual + '</h2>'
-    + addBtn + '</div>'
-    + calHTML
+    + viewToggle + addBtn + '</div>'
+    + '<div id="plt-cal">' + calHTML + legHTML + '</div>'
+    + '<div id="plt-tbl" style="display:none;">' + tblHTML + '</div>'
+    + horHTML + regHTML
     + '<div id="plantao-modal" style="display:none;"></div>'
     + '</div>';
 }
