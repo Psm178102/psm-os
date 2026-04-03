@@ -5782,6 +5782,14 @@ function pgOO() {
     }
     content += '</div>';
 
+    // Reunioes data
+    if (!S.ooReunioes) S.ooReunioes = {};
+    if (!S.ooReunioes[selBid]) S.ooReunioes[selBid] = {};
+
+    // Month/year selector
+    var ooReunMes = S.ooReunMes || monthKey;
+    var reunioesView = S.ooReunioes[selBid][ooReunMes] || [];
+
     // === 7. HIST\u00d3RICO DE REUNI\u00d5ES 1:1 ===
     content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
     content += '<div style="font-size:14px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCCB Hist\u00f3rico de Reuni\u00f5es 1:1</div>';
