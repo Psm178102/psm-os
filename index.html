@@ -9400,169 +9400,259 @@ function voltarOnline() {
   render();
 }
 function pgSimVPL() {
-  const u = S.user; if (!u) return '';
+  var u = S.user; if (!u) return '';
   if (!S.vpl) S.vpl = {
-    valorTabela: 740000, m2: 43, taxa: 3.66, prazoObra: 42,
-    pctAto: 5, pctMensal: 20, pctAnual: 5, pctSemestral: 5, pctFinanc: 70,
-    numSemestrais: 7, numAnuais: 2, desconto: 0
+    empreendimento:'', torreUnidade:'', m2:45, cliente:'',
+    dataInicio: new Date().toISOString().split('T')[0],
+    valorTabela:480000, taxaAA:6.168, prazoObra:42,
+    pctAto:5, pctMensal:14, pctAnual:6, pctSemestral:0, pctFinanc:75,
+    numSemestrais:0, numAnuais:3, parcelEntrada:0, desconto:0,
+    // Proposta personalizada (override values, 0 = usar padrão)
+    propAto:0, propMensal:0, propSemestral:0, propAnual:0, propFinanc:0
   };
-  const v = S.vpl;
-  const taxaM = v.taxa / 1200;
-  const valorFinal = v.valorTabela * (1 - v.desconto / 100);
-  const ato = valorFinal * v.pctAto / 100;
-  const totalMensal = valorFinal * v.pctMensal / 100;
-  const mensal = v.prazoObra > 0 ? totalMensal / v.prazoObra : 0;
-  const totalSemestral = valorFinal * v.pctSemestral / 100;
-  const semestral = v.numSemestrais > 0 ? totalSemestral / v.numSemestrais : 0;
-  const totalAnual = valorFinal * v.pctAnual / 100;
-  const anual = v.numAnuais > 0 ? totalAnual / v.numAnuais : 0;
-  const financ = valorFinal * v.pctFinanc / 100;
-  const totalPrazoObra = ato + totalMensal + totalSemestral + totalAnual;
-  const pctTotal = v.pctAto + v.pctMensal + v.pctAnual + v.pctSemestral + v.pctFinanc;
+  var v = S.vpl;
+  // Taxa mensal por juros compostos (como a planilha)
+  var taxaM = Math.pow(1 + v.taxaAA / 100, 1/12) - 1;
+  var valorFinal = v.valorTabela * (1 - v.desconto / 100);
+  // Fluxo padrão
+  var ato = valorFinal * v.pctAto / 100;
+  var totalMensal = valorFinal * v.pctMensal / 100;
+  var mensal = v.prazoObra > 0 ? totalMensal / v.prazoObra : 0;
+  var totalSemestral = valorFinal * v.pctSemestral / 100;
+  var semestral = v.numSemestrais > 0 ? totalSemestral / v.numSemestrais : 0;
+  var totalAnual = valorFinal * v.pctAnual / 100;
+  var anual = v.numAnuais > 0 ? totalAnual / v.numAnuais : 0;
+  var financ = valorFinal * v.pctFinanc / 100;
+  var pctTotal = v.pctAto + v.pctMensal + v.pctAnual + v.pctSemestral + v.pctFinanc;
+  // Proposta personalizada (se preenchida)
+  var pAto = v.propAto > 0 ? v.propAto : ato;
+  var pMensal = v.propMensal > 0 ? v.propMensal : mensal;
+  var pSemestral = v.propSemestral > 0 ? v.propSemestral : semestral;
+  var pAnual = v.propAnual > 0 ? v.propAnual : 0;
+  var pFinanc = v.propFinanc > 0 ? v.propFinanc : financ;
 
-  // Calculate VPL
-  let vpls = [];
-  // Ato (month 0)
-  vpls.push({mes: 0, tipo: 'Ato', valor: ato, pv: ato});
-  // Mensais
-  for (let i = 1; i <= v.prazoObra; i++) {
-    const pv = mensal / Math.pow(1 + taxaM, i);
-    vpls.push({mes: i, tipo: 'Mensal', valor: mensal, pv});
+  // Build month-by-month flow (matching Excel structure)
+  var fluxoPadrao = [];
+  var fluxoProposta = [];
+  var dtBase = v.dataInicio ? new Date(v.dataInicio + 'T00:00:00') : new Date();
+  var maxMes = v.prazoObra;
+
+  for (var i = 0; i <= maxMes; i++) {
+    var dt = i === 0 ? 'ATO' : (function(d,m){var nd=new Date(d);nd.setMonth(nd.getMonth()+m);return String(nd.getDate()).padStart(2,'0')+'/'+String(nd.getMonth()+1).padStart(2,'0')+'/'+nd.getFullYear();})(dtBase,i);
+    // --- FLUXO PADRÃO ---
+    var fEnt=0, fMens=0, fAnual=0, fSem=0, fFin=0;
+    if (i === 0) fEnt = ato;
+    if (i > 0) fMens = mensal;
+    if (i > 0 && i % 12 === 0 && i/12 <= v.numAnuais) fAnual = anual;
+    if (i > 0 && v.numSemestrais > 0 && i % 6 === 0 && i/6 <= v.numSemestrais) fSem = semestral;
+    if (i === maxMes) fFin = financ;
+    var fTotal = fEnt + fMens + fAnual + fSem + fFin;
+    var fPV = fTotal / Math.pow(1 + taxaM, i);
+    fluxoPadrao.push({mes:i, data:dt, entrada:fEnt, mensal:fMens, anual:fAnual, semestral:fSem, financ:fFin, total:fTotal, pv:fPV});
+    // --- PROPOSTA PERSONALIZADA ---
+    var pEnt2=0, pMens2=0, pAnual2=0, pSem2=0, pFin2=0;
+    if (i === 0) pEnt2 = pAto;
+    if (i > 0) pMens2 = pMensal;
+    if (i > 0 && i % 12 === 0 && i/12 <= v.numAnuais && v.propAnual > 0) pAnual2 = pAnual;
+    if (i > 0 && v.numSemestrais > 0 && i % 6 === 0 && i/6 <= v.numSemestrais) pSem2 = pSemestral;
+    if (i === maxMes) pFin2 = pFinanc;
+    var pTotal = pEnt2 + pMens2 + pAnual2 + pSem2 + pFin2;
+    var pPV = pTotal / Math.pow(1 + taxaM, i);
+    fluxoProposta.push({mes:i, data:dt, entrada:pEnt2, mensal:pMens2, anual:pAnual2, semestral:pSem2, financ:pFin2, total:pTotal, pv:pPV});
   }
-  // Semestrais
-  for (let i = 1; i <= v.numSemestrais; i++) {
-    const mes = i * 6;
-    const pv = semestral / Math.pow(1 + taxaM, mes);
-    vpls.push({mes, tipo: 'Semestral', valor: semestral, pv});
-  }
-  // Anuais
-  for (let i = 1; i <= v.numAnuais; i++) {
-    const mes = i * 12;
-    const pv = anual / Math.pow(1 + taxaM, mes);
-    vpls.push({mes, tipo: 'Anual', valor: anual, pv});
-  }
-  // Financiamento (last month)
-  const pvFinanc = financ / Math.pow(1 + taxaM, v.prazoObra);
-  vpls.push({mes: v.prazoObra, tipo: 'Financiamento', valor: financ, pv: pvFinanc});
 
-  const totalPV = vpls.reduce((a, x) => a + x.pv, 0);
-  const descVPL = ((1 - totalPV / v.valorTabela) * 100).toFixed(1);
-  const m2VPL = v.m2 > 0 ? (totalPV / v.m2).toFixed(0) : 0;
-  const m2Tabela = v.m2 > 0 ? (v.valorTabela / v.m2).toFixed(0) : 0;
+  var totalPV = fluxoPadrao.reduce(function(a,x){return a+x.pv},0);
+  var totalPVProp = fluxoProposta.reduce(function(a,x){return a+x.pv},0);
+  var descVPL = ((1 - totalPV / v.valorTabela) * 100).toFixed(2);
+  var descVPLProp = ((1 - totalPVProp / v.valorTabela) * 100).toFixed(2);
+  var m2VPL = v.m2 > 0 ? (totalPV / v.m2).toFixed(2) : 0;
+  var m2VPLProp = v.m2 > 0 ? (totalPVProp / v.m2).toFixed(2) : 0;
+  var m2Tabela = v.m2 > 0 ? (v.valorTabela / v.m2).toFixed(0) : 0;
+  var totalPrazoObra = ato + totalMensal + totalSemestral + totalAnual;
 
-  const fmt = n => 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+  // Validações (como a planilha)
+  var minObra = v.pctAto + v.pctMensal + v.pctAnual + v.pctSemestral;
+  var validObra = minObra >= (v.pctAto + v.pctMensal) ? 'CORRETO' : 'VERIFICAR';
+  var validChaves = v.pctFinanc >= 50 ? 'CORRETO' : 'VERIFICAR';
 
-  function inp(label, key, step, suffix) {
+  var fmt = function(n){return 'R$ ' + Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})};
+  var fmtI = function(n){return 'R$ ' + Math.round(n).toLocaleString('pt-BR')};
+
+  function inp(label, key, step, suffix, type) {
+    var val = type === 'text' ? (v[key]||'') : v[key];
     return '<div style="display:flex;flex-direction:column;gap:2px">'
       + '<label style="font-size:10px;font-weight:600;color:var(--muted)">'+label+'</label>'
-      + '<div style="display:flex;align-items:center;gap:4px"><input type="number" class="finp" value="'+v[key]+'" step="'+(step||1)+'" '
-      + 'oninput="S.vpl.'+key+'=parseFloat(this.value)||0;render()" style="width:100%;font-size:12px;padding:6px 8px">'
+      + '<div style="display:flex;align-items:center;gap:4px"><input type="'+(type||'number')+'" class="finp" value="'+val+'" step="'+(step||1)+'" '
+      + 'oninput="S.vpl.'+key+'='+(type==='text'||type==='date'?"this.value":"(parseFloat(this.value)||0)")+';render()" style="width:100%;font-size:12px;padding:6px 8px">'
       + (suffix ? '<span style="font-size:10px;color:var(--muted);white-space:nowrap">'+suffix+'</span>' : '')
       + '</div></div>';
   }
 
-  return '<div class="phd"><h1>📐 Simulador VPL</h1><p>Valor Presente Líquido — PSM Imóveis</p></div>'
-    + '<div style="display:grid;grid-template-columns:320px 1fr;gap:16px">'
-    // LEFT — inputs
-    + '<div class="card" style="padding:16px;overflow-y:auto;max-height:calc(100vh - 160px)">'
-    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Dados do Imóvel</div>'
-    + '<div style="display:flex;flex-direction:column;gap:8px">'
-    + inp('Valor de Tabela (R$)', 'valorTabela', 1000)
-    + inp('Metragem (m\u00B2)', 'm2', 0.1, 'm\u00B2')
-    + inp('Taxa VPL (% a.a.)', 'taxa', 0.1, '% a.a.')
-    + inp('Desconto sobre Tabela (%)', 'desconto', 0.5, '%')
-    + '</div>'
-    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px">Fluxo de Pagamento</div>'
-    + '<div style="display:flex;flex-direction:column;gap:8px">'
-    + inp('Ato (%)', 'pctAto', 0.5, '%')
-    + inp('Mensais (%)', 'pctMensal', 0.5, '%')
-    + inp('Prazo Obra (meses)', 'prazoObra', 1, 'meses')
-    + inp('Semestrais (%)', 'pctSemestral', 0.5, '%')
-    + inp('N\u00BA Semestrais', 'numSemestrais', 1)
-    + inp('Anuais (%)', 'pctAnual', 0.5, '%')
-    + inp('N\u00BA Anuais', 'numAnuais', 1)
-    + inp('Financiamento / Chaves (%)', 'pctFinanc', 0.5, '%')
-    + '</div>'
-    + (Math.abs(pctTotal - 100) > 0.1 ? '<div style="margin-top:8px;padding:8px;background:var(--r-bg);border-radius:8px;font-size:11px;color:var(--r-tx);font-weight:600">⚠️ Total do fluxo: '+pctTotal.toFixed(1)+'% (deve ser ~100%)</div>' : '')
-    + '</div>'
-    // RIGHT — results
-    + '<div style="display:flex;flex-direction:column;gap:12px">'
-    // KPIs
-    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">'
-    + '<div class="card" style="padding:12px;text-align:center;background:linear-gradient(135deg,var(--navy),#1e3a5f);color:#fff"><div style="font-size:9px;opacity:.6;text-transform:uppercase;font-weight:600">Valor VPL</div><div style="font-size:14px;font-weight:800;margin-top:4px">'+fmt(totalPV)+'</div></div>'
-    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Desc. VPL</div><div style="font-size:20px;font-weight:800;color:var(--g-tx);margin-top:4px">'+descVPL+'%</div></div>'
-    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">R$/m\u00B2 VPL</div><div style="font-size:20px;font-weight:800;color:var(--b-tx);margin-top:4px">R$ '+m2VPL+'</div></div>'
-    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">R$/m\u00B2 Tabela</div><div style="font-size:20px;font-weight:800;color:var(--muted);margin-top:4px">R$ '+m2Tabela+'</div></div>'
-    + '</div>'
-    // Summary
-    + '<div class="card" style="padding:14px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Resumo do Fluxo</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
-    + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Ato ('+v.pctAto+'%)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(ato)+'</div></div>'
-    + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Mensais ('+v.prazoObra+'x)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(mensal)+'<span style="font-size:10px;color:var(--muted)">/mês</span></div></div>'
-    + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Semestrais ('+v.numSemestrais+'x)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(semestral)+'</div></div>'
-    + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Anuais ('+v.numAnuais+'x)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(anual)+'</div></div>'
-    + '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Total Prazo Obra</div><div style="font-size:14px;font-weight:700;color:var(--a-tx)">'+fmt(totalPrazoObra)+'</div></div>'
-    + '<div style="padding:10px;background:var(--b-bg);border-radius:8px"><div style="font-size:10px;color:var(--b-tx)">Financiamento ('+v.pctFinanc+'%)</div><div style="font-size:14px;font-weight:700;color:var(--b-tx)">'+fmt(financ)+'</div></div>'
-    + '</div></div>'
-    // Fluxo table
-    + '<div class="card" style="padding:0;overflow:auto;max-height:300px"><table style="width:100%;border-collapse:collapse;font-size:11px">'
-    + '<thead><tr style="background:var(--navy);color:#fff;position:sticky;top:0"><th style="padding:6px 10px;text-align:left">Mês</th><th style="padding:6px 10px;text-align:left">Tipo</th><th style="padding:6px 10px;text-align:right">Valor</th><th style="padding:6px 10px;text-align:right">Valor Presente</th></tr></thead><tbody>'
-    + vpls.slice(0, 50).map(x => '<tr style="border-bottom:1px solid var(--cream3)"><td style="padding:5px 10px">'+x.mes+'</td><td style="padding:5px 10px;font-weight:600">'+x.tipo+'</td><td style="padding:5px 10px;text-align:right">'+fmt(x.valor)+'</td><td style="padding:5px 10px;text-align:right;color:var(--b-tx);font-weight:600">'+fmt(x.pv)+'</td></tr>').join('')
-    + '</tbody></table></div>'
-    + '</div></div>';
+  var h = '<div class="phd"><h1>\uD83D\uDCCF Simulador VPL</h1><p>Valor Presente Líquido — PSM Imóveis</p></div>';
+  h += '<div style="display:grid;grid-template-columns:320px 1fr;gap:16px">';
+  // LEFT — inputs
+  h += '<div class="card" style="padding:16px;overflow-y:auto;max-height:calc(100vh - 160px)">';
+  h += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Dados do Imóvel</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:8px">';
+  h += inp('Empreendimento', 'empreendimento', 0, '', 'text');
+  h += inp('Torre / Unidade', 'torreUnidade', 0, '', 'text');
+  h += inp('M²', 'm2', 0.1, 'm²');
+  h += inp('Data', 'dataInicio', 0, '', 'date');
+  h += inp('Cliente', 'cliente', 0, '', 'text');
+  h += inp('Valor de Tabela (R$)', 'valorTabela', 1000);
+  h += inp('Taxa VPL (% a.a.)', 'taxaAA', 0.01, '% a.a.');
+  h += '<div style="padding:4px 8px;background:var(--b-bg);border-radius:6px;font-size:10px;color:var(--b-tx)">Taxa mensal: '+(taxaM*100).toFixed(4)+'% a.m.</div>';
+  h += inp('Desconto sobre Tabela (%)', 'desconto', 0.5, '%');
+  h += '</div>';
+  h += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px">Fluxo Padrão</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:8px">';
+  h += inp('Ato / Entrada (%)', 'pctAto', 0.5, '%');
+  h += inp('Mensais (%)', 'pctMensal', 0.5, '%');
+  h += inp('Prazo Obra (meses)', 'prazoObra', 1, 'meses');
+  h += inp('Anuais (%)', 'pctAnual', 0.5, '%');
+  h += inp('Nº Anuais', 'numAnuais', 1);
+  h += inp('Semestrais (%)', 'pctSemestral', 0.5, '%');
+  h += inp('Nº Semestrais', 'numSemestrais', 1);
+  h += inp('Financiamento / Chaves (%)', 'pctFinanc', 0.5, '%');
+  h += inp('Parcelamento Entrada (além do ato)', 'parcelEntrada', 1);
+  h += '</div>';
+  if (Math.abs(pctTotal - 100) > 0.1) h += '<div style="margin-top:8px;padding:8px;background:var(--r-bg);border-radius:8px;font-size:11px;color:var(--r-tx);font-weight:600">\u26A0\uFE0F Total: '+pctTotal.toFixed(1)+'% (deve ser 100%)</div>';
+  h += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px">Proposta Personalizada</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--cream2);border-radius:8px">';
+  h += '<div style="font-size:10px;color:var(--muted)">Deixe 0 para usar o valor padrão</div>';
+  h += inp('Ato (R$)', 'propAto', 100);
+  h += inp('Mensal (R$)', 'propMensal', 100);
+  h += inp('Semestral (R$)', 'propSemestral', 100);
+  h += inp('Anual (R$)', 'propAnual', 100);
+  h += inp('Financiamento (R$)', 'propFinanc', 1000);
+  h += '</div></div>';
+  // RIGHT — results
+  h += '<div style="display:flex;flex-direction:column;gap:12px">';
+  // KPIs — Tabela Padrão
+  h += '<div style="font-size:12px;font-weight:700;color:var(--b-tx);text-transform:uppercase;letter-spacing:1px">\uD83D\uDCD8 Tabela Padrão</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">';
+  h += '<div class="card" style="padding:12px;text-align:center;background:linear-gradient(135deg,var(--navy),#1e3a5f);color:#fff"><div style="font-size:9px;opacity:.6;text-transform:uppercase;font-weight:600">Valor VPL</div><div style="font-size:16px;font-weight:800;margin-top:4px">'+fmtI(totalPV)+'</div></div>';
+  h += '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Desc. VPL</div><div style="font-size:18px;font-weight:800;color:var(--g-tx);margin-top:4px">'+descVPL+'%</div></div>';
+  h += '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">R$/m² VPL</div><div style="font-size:18px;font-weight:800;color:var(--b-tx);margin-top:4px">R$ '+m2VPL+'</div></div>';
+  h += '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">R$/m² Tabela</div><div style="font-size:18px;font-weight:800;color:var(--muted);margin-top:4px">R$ '+m2Tabela+'</div></div>';
+  h += '</div>';
+  // KPIs — Proposta
+  var hasProp = v.propAto > 0 || v.propMensal > 0 || v.propFinanc > 0;
+  if (hasProp) {
+    h += '<div style="font-size:12px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:1px;margin-top:4px">\uD83D\uDCDD Proposta Personalizada</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">';
+    h += '<div class="card" style="padding:12px;text-align:center;border:2px solid #f59e0b"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">VPL Proposta</div><div style="font-size:16px;font-weight:800;color:#f59e0b;margin-top:4px">'+fmtI(totalPVProp)+'</div></div>';
+    h += '<div class="card" style="padding:12px;text-align:center;border:2px solid #f59e0b"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Desc. Proposta</div><div style="font-size:18px;font-weight:800;color:#f59e0b;margin-top:4px">'+descVPLProp+'%</div></div>';
+    h += '<div class="card" style="padding:12px;text-align:center;border:2px solid #f59e0b"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">R$/m² Proposta</div><div style="font-size:18px;font-weight:800;color:#f59e0b;margin-top:4px">R$ '+m2VPLProp+'</div></div>';
+    h += '</div>';
+  }
+  // Validações
+  h += '<div style="display:flex;gap:8px">';
+  h += '<div style="flex:1;padding:8px;background:'+(validObra==='CORRETO'?'var(--g-bg)':'var(--r-bg)')+';border-radius:8px;font-size:11px;font-weight:600;color:'+(validObra==='CORRETO'?'var(--g-tx)':'var(--r-tx)')+'">Mínimo Prazo Obra: '+validObra+'</div>';
+  h += '<div style="flex:1;padding:8px;background:'+(validChaves==='CORRETO'?'var(--g-bg)':'var(--r-bg)')+';border-radius:8px;font-size:11px;font-weight:600;color:'+(validChaves==='CORRETO'?'var(--g-tx)':'var(--r-tx)')+'">Mínimo Chaves: '+validChaves+'</div>';
+  h += '</div>';
+  // Resumo
+  h += '<div class="card" style="padding:14px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Resumo do Fluxo</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">';
+  h += '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Ato ('+v.pctAto+'%)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmtI(ato)+'</div></div>';
+  h += '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Mensais ('+v.prazoObra+'x)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmtI(mensal)+'<span style="font-size:10px;color:var(--muted)">/mês</span></div></div>';
+  h += '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Anuais ('+v.numAnuais+'x)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmtI(anual)+'</div></div>';
+  h += '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Semestrais ('+v.numSemestrais+'x)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmtI(semestral)+'</div></div>';
+  h += '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Total Prazo Obra</div><div style="font-size:14px;font-weight:700;color:var(--a-tx)">'+fmtI(totalPrazoObra)+'</div></div>';
+  h += '<div style="padding:10px;background:var(--b-bg);border-radius:8px"><div style="font-size:10px;color:var(--b-tx)">Financiamento ('+v.pctFinanc+'%)</div><div style="font-size:14px;font-weight:700;color:var(--b-tx)">'+fmtI(financ)+'</div></div>';
+  h += '</div></div>';
+  // Fluxo table
+  h += '<div class="card" style="padding:0;overflow:auto;max-height:360px"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+  h += '<thead><tr style="background:var(--navy);color:#fff;position:sticky;top:0"><th style="padding:6px 8px;text-align:center">Mês</th><th style="padding:6px 8px;text-align:left">Data</th><th style="padding:6px 8px;text-align:right">Entrada</th><th style="padding:6px 8px;text-align:right">Mensal</th><th style="padding:6px 8px;text-align:right">Anual</th><th style="padding:6px 8px;text-align:right">Financ.</th><th style="padding:6px 8px;text-align:right;font-weight:700">Total</th><th style="padding:6px 8px;text-align:right;color:#a5b4fc">PV</th></tr></thead><tbody>';
+  for (var fi = 0; fi < fluxoPadrao.length; fi++) {
+    var fx = fluxoPadrao[fi];
+    var isAnual = fx.anual > 0;
+    var isFin = fx.financ > 0;
+    var rowBg = isAnual ? 'background:rgba(99,102,241,0.08)' : (isFin ? 'background:rgba(59,130,246,0.08)' : '');
+    h += '<tr style="border-bottom:1px solid var(--cream3);'+rowBg+'">';
+    h += '<td style="padding:4px 8px;text-align:center">'+fx.mes+'</td>';
+    h += '<td style="padding:4px 8px;font-size:10px">'+fx.data+'</td>';
+    h += '<td style="padding:4px 8px;text-align:right">'+(fx.entrada>0?fmtI(fx.entrada):'')+'</td>';
+    h += '<td style="padding:4px 8px;text-align:right">'+(fx.mensal>0?fmtI(fx.mensal):'')+'</td>';
+    h += '<td style="padding:4px 8px;text-align:right;color:#8b5cf6;font-weight:600">'+(fx.anual>0?fmtI(fx.anual):'')+'</td>';
+    h += '<td style="padding:4px 8px;text-align:right;color:var(--b-tx)">'+(fx.financ>0?fmtI(fx.financ):'')+'</td>';
+    h += '<td style="padding:4px 8px;text-align:right;font-weight:700">'+fmtI(fx.total)+'</td>';
+    h += '<td style="padding:4px 8px;text-align:right;color:var(--b-tx);font-weight:600">'+fmtI(fx.pv)+'</td>';
+    h += '</tr>';
+  }
+  h += '<tr style="background:var(--navy);color:#fff;font-weight:700"><td colspan="6" style="padding:6px 8px">TOTAL</td>';
+  h += '<td style="padding:6px 8px;text-align:right">'+fmtI(fluxoPadrao.reduce(function(a,x){return a+x.total},0))+'</td>';
+  h += '<td style="padding:6px 8px;text-align:right">'+fmtI(totalPV)+'</td></tr>';
+  h += '</tbody></table></div>';
+  h += '</div></div>';
+  return h;
 }
 
 // ─── SIMULADOR INCC ───────────────────────────────────────────────────────────
 function pgSimINCC() {
-  const u = S.user; if (!u) return '';
+  var u = S.user; if (!u) return '';
   if (!S.incc) S.incc = {
-    valorTotal: 300900, inccAA: 6, pctFluxoSemCorrecao: 5,
-    prazoMeses: 42, pctEntrada: 5, pctMensais: 20, pctSemestrais: 0,
-    pctAnuais: 7.8, pctFinanc: 70, numMensais: 42, numAnuais: 3
+    valorTotal: 300900, inccAA: 6,
+    prazoMeses: 42, pctEntrada: 5, pctMensais: 14,
+    pctSemestrais: 0, numSemestrais: 0,
+    pctAnuais: 6, numAnuais: 3,
+    pctFinanc: 75
   };
-  const c = S.incc;
-  const inccM = Math.pow(1 + c.inccAA / 100, 1/12) - 1;
-  const valorEntrada = c.valorTotal * c.pctEntrada / 100;
-  const valorMensais = c.valorTotal * c.pctMensais / 100;
-  const mensal = c.numMensais > 0 ? valorMensais / c.numMensais : 0;
-  const valorAnuais = c.valorTotal * c.pctAnuais / 100;
-  const anual = c.numAnuais > 0 ? valorAnuais / c.numAnuais : 0;
-  const financ = c.valorTotal * c.pctFinanc / 100;
+  var c = S.incc;
+  var inccM = Math.pow(1 + c.inccAA / 100, 1/12) - 1;
+  var valorEntrada = c.valorTotal * c.pctEntrada / 100;
+  var totalMensaisINCC = c.valorTotal * c.pctMensais / 100;
+  var mensal = c.prazoMeses > 0 ? totalMensaisINCC / c.prazoMeses : 0;
+  var totalSemestraisINCC = c.valorTotal * c.pctSemestrais / 100;
+  var semestral = c.numSemestrais > 0 ? totalSemestraisINCC / c.numSemestrais : 0;
+  var totalAnuaisINCC = c.valorTotal * c.pctAnuais / 100;
+  var anual = c.numAnuais > 0 ? totalAnuaisINCC / c.numAnuais : 0;
+  var financ = c.valorTotal * c.pctFinanc / 100;
+  var pctTotal = c.pctEntrada + c.pctMensais + c.pctSemestrais + c.pctAnuais + c.pctFinanc;
 
-  // Calculate INCC projection
-  let projecao = [];
-  let saldoCorrigido = 0;
-  let custoINCC = 0;
-  for (let i = 0; i <= Math.min(c.prazoMeses, 60); i++) {
-    const fatorAcum = Math.pow(1 + inccM, i);
-    let pagamento = 0;
+  // Build month-by-month INCC projection (matching Excel: dynamic %Fluxo)
+  var projecao = [];
+  var pagamentoAcum = 0; // cumulative payments BEFORE current month
+  var custoINCC = 0;
+
+  for (var i = 0; i <= Math.min(c.prazoMeses, 60); i++) {
+    var fatorAcum = Math.pow(1 + inccM, i);
+    var inccAcum = fatorAcum - 1;
+
+    // Payment for this month (sem correcao)
+    var pagamento = 0;
     if (i === 0) pagamento = valorEntrada;
-    else pagamento = mensal;
-    // Add anual
+    if (i > 0) pagamento += mensal;
     if (i > 0 && i % 12 === 0 && i / 12 <= c.numAnuais) pagamento += anual;
+    if (i > 0 && c.numSemestrais > 0 && i % 6 === 0 && i / 6 <= c.numSemestrais) pagamento += semestral;
+    if (i === c.prazoMeses) pagamento += financ;
 
-    const semCorrecao = pagamento;
-    const pctFluxo = i === 0 ? 1 : (1 - c.pctFluxoSemCorrecao / 100);
-    const comCorrecao = pagamento * fatorAcum * pctFluxo + pagamento * (1 - pctFluxo);
-    const custoMes = comCorrecao - semCorrecao;
+    // Dynamic %Fluxo = 1 - (pagamentos acumulados / valor total) — Excel column M
+    var pctFluxo = c.valorTotal > 0 ? Math.max(0, 1 - pagamentoAcum / c.valorTotal) : 1;
+
+    // Valor corrigido = pagamento × (1 + INCC_acum × %Fluxo)
+    var comCorrecao = pagamento * (1 + inccAcum * pctFluxo);
+    var custoMes = comCorrecao - pagamento;
     custoINCC += custoMes;
 
     projecao.push({
       mes: i, fator: fatorAcum.toFixed(4),
-      semCorrecao: semCorrecao, comCorrecao: comCorrecao,
+      pctFluxo: (pctFluxo * 100).toFixed(1),
+      semCorrecao: pagamento, comCorrecao: comCorrecao,
       custoMes: custoMes, custoAcum: custoINCC
     });
+
+    pagamentoAcum += pagamento;
   }
 
-  const totalSemINCC = projecao.reduce((a, x) => a + x.semCorrecao, 0);
-  const totalComINCC = projecao.reduce((a, x) => a + x.comCorrecao, 0);
-  const economiaINCC = totalComINCC - totalSemINCC;
-  const pctEconomia = totalSemINCC > 0 ? ((economiaINCC / totalSemINCC) * 100).toFixed(1) : 0;
+  var totalSemINCC = projecao.reduce(function(a, x) { return a + x.semCorrecao; }, 0);
+  var totalComINCC = projecao.reduce(function(a, x) { return a + x.comCorrecao; }, 0);
+  var economiaINCC = totalComINCC - totalSemINCC;
+  var pctEconomia = totalSemINCC > 0 ? ((economiaINCC / totalSemINCC) * 100).toFixed(1) : 0;
 
-  // Valorização estimada
-  const valorizacaoTotal = c.valorTotal * Math.pow(1 + inccM, c.prazoMeses) - c.valorTotal;
+  var valorizacaoTotal = c.valorTotal * Math.pow(1 + inccM, c.prazoMeses) - c.valorTotal;
 
-  const fmt = n => 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+  var fmt = function(n) { return 'R$ ' + Math.round(n).toLocaleString('pt-BR'); };
 
   function inp(label, key, step, suffix) {
     return '<div style="display:flex;flex-direction:column;gap:2px">'
@@ -9573,57 +9663,89 @@ function pgSimINCC() {
       + '</div></div>';
   }
 
-  return '<div class="phd"><h1>📊 Simulador INCC</h1><p>Projeção de correção INCC e economia estimada</p></div>'
-    + '<div style="display:grid;grid-template-columns:300px 1fr;gap:16px">'
-    // LEFT
-    + '<div class="card" style="padding:16px;overflow-y:auto;max-height:calc(100vh - 160px)">'
-    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Parâmetros</div>'
-    + '<div style="display:flex;flex-direction:column;gap:8px">'
-    + inp('Valor Total do Imóvel (R$)', 'valorTotal', 1000)
-    + inp('INCC (% a.a.)', 'inccAA', 0.1, '% a.a.')
-    + inp('Prazo (meses)', 'prazoMeses', 1, 'meses')
-    + inp('% Fluxo Sem Correção', 'pctFluxoSemCorrecao', 0.5, '%')
-    + '</div>'
-    + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px">Fluxo</div>'
-    + '<div style="display:flex;flex-direction:column;gap:8px">'
-    + inp('Entrada (%)', 'pctEntrada', 0.5, '%')
-    + inp('Mensais (%)', 'pctMensais', 0.5, '%')
-    + inp('N\u00BA Mensais', 'numMensais', 1)
-    + inp('Anuais (%)', 'pctAnuais', 0.5, '%')
-    + inp('N\u00BA Anuais', 'numAnuais', 1)
-    + inp('Financiamento (%)', 'pctFinanc', 0.5, '%')
-    + '</div></div>'
-    // RIGHT
-    + '<div style="display:flex;flex-direction:column;gap:12px">'
-    // KPIs
-    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">'
-    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">INCC Mensal</div><div style="font-size:18px;font-weight:800;color:var(--navy);margin-top:4px">'+(inccM*100).toFixed(3)+'%</div></div>'
-    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Custo INCC Est.</div><div style="font-size:18px;font-weight:800;color:var(--r-tx);margin-top:4px">'+fmt(economiaINCC)+'</div></div>'
-    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">% Sobre Fluxo</div><div style="font-size:18px;font-weight:800;color:var(--a-tx);margin-top:4px">'+pctEconomia+'%</div></div>'
-    + '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Valorização Est.</div><div style="font-size:18px;font-weight:800;color:var(--g-tx);margin-top:4px">'+fmt(valorizacaoTotal)+'</div></div>'
-    + '</div>'
-    // Bar chart
-    + '<div class="card" style="padding:14px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Comparativo: Sem INCC vs Com INCC</div>'
-    + '<div style="display:flex;gap:16px;align-items:flex-end;height:120px;padding:0 20px">'
-    + '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
-    + '<div style="font-size:11px;font-weight:700;color:var(--g-tx)">'+fmt(totalSemINCC)+'</div>'
-    + '<div style="width:100%;background:var(--g);border-radius:6px 6px 0 0;height:'+Math.round(totalSemINCC/(totalComINCC||1)*100)+'px"></div>'
-    + '<div style="font-size:10px;color:var(--muted)">Sem INCC</div></div>'
-    + '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
-    + '<div style="font-size:11px;font-weight:700;color:var(--r-tx)">'+fmt(totalComINCC)+'</div>'
-    + '<div style="width:100%;background:var(--r);border-radius:6px 6px 0 0;height:100px"></div>'
-    + '<div style="font-size:10px;color:var(--muted)">Com INCC</div></div>'
-    + '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
-    + '<div style="font-size:11px;font-weight:700;color:var(--a-tx)">'+fmt(economiaINCC)+'</div>'
-    + '<div style="width:100%;background:var(--a);border-radius:6px 6px 0 0;height:'+Math.round(economiaINCC/(totalComINCC||1)*100)+'px"></div>'
-    + '<div style="font-size:10px;color:var(--muted)">Custo INCC</div></div>'
-    + '</div></div>'
-    // Projecao table
-    + '<div class="card" style="padding:0;overflow:auto;max-height:300px"><table style="width:100%;border-collapse:collapse;font-size:11px">'
-    + '<thead><tr style="background:var(--navy);color:#fff;position:sticky;top:0"><th style="padding:6px 8px;text-align:left">Mês</th><th style="padding:6px 8px;text-align:right">Fator INCC</th><th style="padding:6px 8px;text-align:right">Sem Correção</th><th style="padding:6px 8px;text-align:right">Com Correção</th><th style="padding:6px 8px;text-align:right">Custo INCC Acum.</th></tr></thead><tbody>'
-    + projecao.map(x => '<tr style="border-bottom:1px solid var(--cream3)"><td style="padding:4px 8px">'+x.mes+'</td><td style="padding:4px 8px;text-align:right">'+x.fator+'</td><td style="padding:4px 8px;text-align:right">'+fmt(x.semCorrecao)+'</td><td style="padding:4px 8px;text-align:right;color:var(--r-tx)">'+fmt(x.comCorrecao)+'</td><td style="padding:4px 8px;text-align:right;font-weight:600;color:var(--a-tx)">'+fmt(x.custoAcum)+'</td></tr>').join('')
-    + '</tbody></table></div>'
-    + '</div></div>';
+  var h = '<div class="phd"><h1>\uD83D\uDCCA Simulador INCC</h1><p>Proje\u00E7\u00E3o de corre\u00E7\u00E3o INCC \u2014 Custo real durante a obra</p></div>';
+  h += '<div style="display:grid;grid-template-columns:320px 1fr;gap:16px">';
+  // LEFT — inputs
+  h += '<div class="card" style="padding:16px;overflow-y:auto;max-height:calc(100vh - 160px)">';
+  h += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Par\u00E2metros</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:8px">';
+  h += inp('Valor Total do Im\u00F3vel (R$)', 'valorTotal', 1000);
+  h += inp('INCC (% a.a.)', 'inccAA', 0.1, '% a.a.');
+  h += '<div style="padding:4px 8px;background:var(--b-bg);border-radius:6px;font-size:10px;color:var(--b-tx)">INCC mensal: '+(inccM*100).toFixed(4)+'% a.m.</div>';
+  h += inp('Prazo Obra (meses)', 'prazoMeses', 1, 'meses');
+  h += '</div>';
+  h += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px">Fluxo de Pagamento</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:8px">';
+  h += inp('Entrada (%)', 'pctEntrada', 0.5, '%');
+  h += inp('Mensais (%)', 'pctMensais', 0.5, '%');
+  h += inp('Anuais (%)', 'pctAnuais', 0.5, '%');
+  h += inp('N\u00BA Anuais', 'numAnuais', 1);
+  h += inp('Semestrais (%)', 'pctSemestrais', 0.5, '%');
+  h += inp('N\u00BA Semestrais', 'numSemestrais', 1);
+  h += inp('Financiamento (%)', 'pctFinanc', 0.5, '%');
+  h += '</div>';
+  if (Math.abs(pctTotal - 100) > 0.1) h += '<div style="margin-top:8px;padding:8px;background:var(--r-bg);border-radius:8px;font-size:11px;color:var(--r-tx);font-weight:600">\u26A0\uFE0F Total: '+pctTotal.toFixed(1)+'% (deve ser 100%)</div>';
+  h += '</div>';
+  // RIGHT — results
+  h += '<div style="display:flex;flex-direction:column;gap:12px">';
+  // KPIs
+  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">';
+  h += '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">INCC Mensal</div><div style="font-size:18px;font-weight:800;color:var(--navy);margin-top:4px">'+(inccM*100).toFixed(3)+'%</div></div>';
+  h += '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Custo INCC Total</div><div style="font-size:18px;font-weight:800;color:var(--r-tx);margin-top:4px">'+fmt(economiaINCC)+'</div></div>';
+  h += '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">% Sobre Fluxo</div><div style="font-size:18px;font-weight:800;color:var(--a-tx);margin-top:4px">'+pctEconomia+'%</div></div>';
+  h += '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Valoriza\u00E7\u00E3o Est.</div><div style="font-size:18px;font-weight:800;color:var(--g-tx);margin-top:4px">'+fmt(valorizacaoTotal)+'</div></div>';
+  h += '</div>';
+  // Resumo do fluxo
+  h += '<div class="card" style="padding:14px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Resumo do Fluxo</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+  h += '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Entrada ('+c.pctEntrada+'%)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(valorEntrada)+'</div></div>';
+  h += '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Mensais ('+c.prazoMeses+'x)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(mensal)+'<span style="font-size:10px;color:var(--muted)">/m\u00EAs</span></div></div>';
+  h += '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Anuais ('+c.numAnuais+'x)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(anual)+'</div></div>';
+  h += '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Semestrais ('+c.numSemestrais+'x)</div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(semestral)+'</div></div>';
+  h += '<div style="padding:10px;background:var(--cream2);border-radius:8px"><div style="font-size:10px;color:var(--muted)">Sem INCC</div><div style="font-size:14px;font-weight:700;color:var(--g-tx)">'+fmt(totalSemINCC)+'</div></div>';
+  h += '<div style="padding:10px;background:var(--r-bg);border-radius:8px"><div style="font-size:10px;color:var(--r-tx)">Com INCC</div><div style="font-size:14px;font-weight:700;color:var(--r-tx)">'+fmt(totalComINCC)+'</div></div>';
+  h += '</div></div>';
+  // Bar chart
+  h += '<div class="card" style="padding:14px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Comparativo: Sem INCC vs Com INCC</div>';
+  h += '<div style="display:flex;gap:16px;align-items:flex-end;height:120px;padding:0 20px">';
+  h += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">';
+  h += '<div style="font-size:11px;font-weight:700;color:var(--g-tx)">'+fmt(totalSemINCC)+'</div>';
+  h += '<div style="width:100%;background:var(--g);border-radius:6px 6px 0 0;height:'+Math.round(totalSemINCC/(totalComINCC||1)*100)+'px"></div>';
+  h += '<div style="font-size:10px;color:var(--muted)">Sem INCC</div></div>';
+  h += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">';
+  h += '<div style="font-size:11px;font-weight:700;color:var(--r-tx)">'+fmt(totalComINCC)+'</div>';
+  h += '<div style="width:100%;background:var(--r);border-radius:6px 6px 0 0;height:100px"></div>';
+  h += '<div style="font-size:10px;color:var(--muted)">Com INCC</div></div>';
+  h += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">';
+  h += '<div style="font-size:11px;font-weight:700;color:var(--a-tx)">'+fmt(economiaINCC)+'</div>';
+  h += '<div style="width:100%;background:var(--a);border-radius:6px 6px 0 0;height:'+Math.round(economiaINCC/(totalComINCC||1)*100)+'px"></div>';
+  h += '<div style="font-size:10px;color:var(--muted)">Custo INCC</div></div>';
+  h += '</div></div>';
+  // Projecao table (com %Fluxo din\u00E2mico e custo por m\u00EAs)
+  h += '<div class="card" style="padding:0;overflow:auto;max-height:360px"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+  h += '<thead><tr style="background:var(--navy);color:#fff;position:sticky;top:0"><th style="padding:6px 8px;text-align:center">M\u00EAs</th><th style="padding:6px 8px;text-align:right">Fator INCC</th><th style="padding:6px 8px;text-align:right">% Fluxo</th><th style="padding:6px 8px;text-align:right">Sem Corre\u00E7\u00E3o</th><th style="padding:6px 8px;text-align:right">Com Corre\u00E7\u00E3o</th><th style="padding:6px 8px;text-align:right">Custo M\u00EAs</th><th style="padding:6px 8px;text-align:right">Custo Acum.</th></tr></thead><tbody>';
+  for (var pi = 0; pi < projecao.length; pi++) {
+    var px = projecao[pi];
+    var isAnualRow = (px.mes > 0 && px.mes % 12 === 0);
+    var isFinRow = (px.mes === c.prazoMeses && financ > 0);
+    var rowBg = isFinRow ? 'background:rgba(59,130,246,0.08)' : (isAnualRow ? 'background:rgba(99,102,241,0.08)' : '');
+    h += '<tr style="border-bottom:1px solid var(--cream3);'+rowBg+'">';
+    h += '<td style="padding:4px 8px;text-align:center">'+px.mes+'</td>';
+    h += '<td style="padding:4px 8px;text-align:right">'+px.fator+'</td>';
+    h += '<td style="padding:4px 8px;text-align:right;color:var(--b-tx)">'+px.pctFluxo+'%</td>';
+    h += '<td style="padding:4px 8px;text-align:right">'+fmt(px.semCorrecao)+'</td>';
+    h += '<td style="padding:4px 8px;text-align:right;color:var(--r-tx)">'+fmt(px.comCorrecao)+'</td>';
+    h += '<td style="padding:4px 8px;text-align:right;color:var(--a-tx)">'+(px.custoMes > 0.5 ? fmt(px.custoMes) : '-')+'</td>';
+    h += '<td style="padding:4px 8px;text-align:right;font-weight:600;color:var(--a-tx)">'+fmt(px.custoAcum)+'</td>';
+    h += '</tr>';
+  }
+  h += '<tr style="background:var(--navy);color:#fff;font-weight:700"><td colspan="3" style="padding:6px 8px">TOTAL</td>';
+  h += '<td style="padding:6px 8px;text-align:right">'+fmt(totalSemINCC)+'</td>';
+  h += '<td style="padding:6px 8px;text-align:right">'+fmt(totalComINCC)+'</td>';
+  h += '<td colspan="2" style="padding:6px 8px;text-align:right">Custo: '+fmt(economiaINCC)+'</td></tr>';
+  h += '</tbody></table></div>';
+  h += '</div></div>';
+  return h;
 }
 
 // ─── SIMULADOR DE REPASSE ─────────────────────────────────────────────────────
