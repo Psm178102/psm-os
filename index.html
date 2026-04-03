@@ -1112,7 +1112,8 @@ let METAS_EQUIPE = {
 
 // ─── PERSISTENCE ─────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'psm_os_state';
-function saveState() {
+// saveState: skipFbPush=true evita loop Firebase (usado quando dados vem do Firebase)
+function saveState(skipFbPush) {
   try {
     const toSave = {
       ooLogs: S.ooLogs || {},
@@ -1145,6 +1146,9 @@ function saveState() {
       ooLateralCustom: S.ooLateralCustom || {},
       tickerMsgs: S.tickerMsgs || [],
       canalAnonimo: S.canalAnonimo || [],
+      premiacoes: S.premiacoes || [],
+      comissoes: S.comissoes || {},
+      vendasManuais: S.vendasManuais || [],
       savedAt: Date.now(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
@@ -1163,6 +1167,7 @@ function saveState() {
         ooMetaLanc: S.ooMetaLanc || {},
         ooMetaVgvMes: S.ooMetaVgvMes || {},
         tickerMsgs: S.tickerMsgs || [],
+        premiacoes: S.premiacoes || [],
         savedAt: Date.now()
       };
       localStorage.setItem('psm_backup_critical', JSON.stringify(criticalData));
@@ -1180,8 +1185,8 @@ function saveState() {
         localStorage.setItem('psm_backup_lastrotate', String(Date.now()));
       }
     } catch(e3) {}
-    // === FIREBASE SYNC: push shared data ===
-    if (_fbReady) fbPushState();
+    // === FIREBASE SYNC: push shared data (NUNCA quando dados vem do Firebase) ===
+    if (_fbReady && !skipFbPush) fbPushState();
   } catch(e) { console.warn('[PSM] Save error:', e); }
 }
 function loadState() {
@@ -1236,7 +1241,10 @@ function loadState() {
     if (d.ooLateralCustom) S.ooLateralCustom = d.ooLateralCustom;
     if (d.tickerMsgs) S.tickerMsgs = d.tickerMsgs;
     if (d.canalAnonimo) S.canalAnonimo = d.canalAnonimo;
-    // Restore manual vendas
+    if (d.premiacoes) S.premiacoes = d.premiacoes;
+    if (d.comissoes) S.comissoes = d.comissoes;
+    if (d.vendasManuais) S.vendasManuais = d.vendasManuais;
+    // Restore manual vendas (legacy)
     try {
       const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manual') || '[]');
       savedVendas.forEach(v => {
@@ -1255,7 +1263,7 @@ var SYNC_KEYS = [
   'ooMetaLanc','ooMetaVgvMes','ooSheetLinks','ooSheetCache',
   'tickerMsgs','canalAnonimo','sonhos',
   'metaIndiv','comissaoPct','lancTimeline','lancMetas',
-  'premiacoes'
+  'premiacoes','comissoes','vendasManuais'
 ];
 // Global config keys that also need sync
 var SYNC_GLOBAL_KEYS = ['metasConfig','metasEquipe','teamConfig'];
@@ -1301,21 +1309,25 @@ function fbInit() {
     _fbDb = firebase.database(_fbApp);
     _fbReady = true;
     console.log('[PSM-Sync] Firebase conectado:', cfg.projectId);
-    // Listen for remote changes — com debounce e protecao de edicao
+    // Listen for remote changes — SEM loop, SEM render durante edicao
     var _fbRecvTimer = null;
     var _fbLastRecvRender = 0;
     var _fbFirstLoad = true;
+    var _fbLastUpdate = 0;
     _fbDb.ref('shared').on('value', function(snap) {
       if (_fbSyncing) return; // ignore our own writes
       var data = snap.val();
       if (!data) return;
-      // Se o update veio de mim mesmo, ignora
+      // Ignora se nao mudou nada (mesmo timestamp)
+      if (data._lastUpdate && data._lastUpdate === _fbLastUpdate) return;
+      _fbLastUpdate = data._lastUpdate || 0;
+      // Se o update veio de mim mesmo, apenas atualiza timestamp e ignora
       if (data._updatedBy === (S.user ? S.user.id : '') && !_fbFirstLoad) {
-        console.log('[PSM-Sync] Ignorando echo do proprio usuario');
+        console.log('[PSM-Sync] Ignorando echo proprio');
         return;
       }
-      console.log('[PSM-Sync] Recebendo dados remotos de:', data._updatedBy||'?');
-      _fbSyncing = true;
+      console.log('[PSM-Sync] Dados remotos de:', data._updatedBy||'?');
+      // Aplica dados no state
       SYNC_KEYS.forEach(function(k) {
         if (data[k] !== undefined) S[k] = data[k];
       });
@@ -1327,29 +1339,27 @@ function fbInit() {
         }
       }
       if (data.teamConfig) Object.assign(TEAM_CONFIG, data.teamConfig);
-      _fbSyncing = false;
-      // Debounce render: nao renderizar se usuario esta editando
+      // SALVA LOCAL SEM REENVIAR PRO FIREBASE (skipFbPush=true) — CORRIGE O LOOP
+      saveState(true);
+      // Debounce render: protege edicao do usuario
       if (_fbRecvTimer) clearTimeout(_fbRecvTimer);
       _fbRecvTimer = setTimeout(function() {
         var ae = document.activeElement;
-        var isEditing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' || ae.isContentEditable);
+        var isEditing = ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT'||ae.isContentEditable);
         if (isEditing) {
           console.log('[PSM-Sync] Usuario editando, render adiado');
-          saveState();
           return;
         }
         var now = Date.now();
-        if (now - _fbLastRecvRender < 5000 && !_fbFirstLoad) {
-          console.log('[PSM-Sync] Render throttled (min 5s entre syncs)');
-          saveState();
+        if (now - _fbLastRecvRender < 10000 && !_fbFirstLoad) {
+          console.log('[PSM-Sync] Render throttled (min 10s)');
           return;
         }
         _fbLastRecvRender = now;
         _fbFirstLoad = false;
         render();
-        saveState();
-        console.log('[PSM-Sync] Dados sincronizados silenciosamente');
-      }, _fbFirstLoad ? 500 : 3000);
+        console.log('[PSM-Sync] Render remoto aplicado');
+      }, _fbFirstLoad ? 1000 : 5000);
     });
     // Status badge
     _fbDb.ref('.info/connected').on('value', function(snap) {
@@ -1363,14 +1373,15 @@ function fbInit() {
 
 function fbPushState() {
   if (!_fbReady || !_fbDb || _fbSyncing) return;
-  // Debounce: max 1 push per 2 seconds
-  var now = Date.now();
+  // Debounce: max 1 push per 5 seconds
   if (_fbDebounceTimer) clearTimeout(_fbDebounceTimer);
   _fbDebounceTimer = setTimeout(function() {
+    // Double check — pode ter mudado durante o debounce
+    if (_fbSyncing) return;
     _fbSyncing = true;
     var shared = {};
     SYNC_KEYS.forEach(function(k) {
-      shared[k] = S[k] || (Array.isArray(S[k]) ? [] : {});
+      shared[k] = S[k] !== undefined ? S[k] : (Array.isArray(S[k]) ? [] : {});
     });
     shared.metasConfig = METAS_CONFIG || {};
     shared.metasEquipe = METAS_EQUIPE || {};
@@ -1385,7 +1396,7 @@ function fbPushState() {
       _fbSyncing = false;
       console.error('[PSM-Sync] Push error:', e);
     });
-  }, 1500);
+  }, 5000);
 }
 
 function fbSetupConfig() {
@@ -2784,7 +2795,7 @@ function pgCRM(){
       +brokersAvail.map(b=>'<option value="'+b.id+'"'+(cb===b.id?' selected':'')+'>'+b.ini+' '+b.name+'</option>').join('')
       +'</select>';
   }
-  bar+='<input class="finp" style="width:200px;padding:6px 10px;font-size:12px" placeholder="🔍 Buscar cliente..." value="'+(S.crmSearch||'')+'" oninput="S.crmSearch=this.value;render()">';
+  bar+='<input class="finp" style="width:200px;padding:6px 10px;font-size:12px" placeholder="🔍 Buscar cliente..." value="'+(S.crmSearch||'')+'" oninput="S.crmSearch=this.value;debouncedRender(500)">';
   bar+='<div style="display:flex;gap:3px;background:var(--cream2);padding:3px;border-radius:8px;border:1px solid var(--cream3);margin-left:auto">'
     +'<button class="btn bsm'+(view==='kanban'?' bp1':' bout')+'" onclick="S.crmView=\'kanban\';render()">Kanban</button>'
     +'<button class="btn bsm'+(view==='lista'?' bp1':' bout')+'" onclick="S.crmView=\'lista\';render()">Lista</button>'
@@ -4443,7 +4454,7 @@ function pgOKRs() {
             + '</div>'
             + (S.editingMetas && canEdit ? '<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">'
               + '<div><label style="font-size:9px;color:var(--muted)">VGV Mín</label><input class="finp" type="number" style="width:90px;padding:5px" placeholder="0" value="'+(mc.vgv_min||0)+'" oninput="METAS_CONFIG[\''+b.id+'\']=METAS_CONFIG[\''+b.id+'\']||{};METAS_CONFIG[\''+b.id+'\'].vgv_min=+this.value"></div>'
-              + '<div><label style="font-size:9px;color:var(--muted)">VGV Meta</label><input class="finp" type="number" style="width:100px;padding:5px" placeholder="0" value="'+(mc.vgv_meta||b.meta||0)+'" oninput="METAS_CONFIG[\''+b.id+'\']=METAS_CONFIG[\''+b.id+'\']||{};METAS_CONFIG[\''+b.id+'\'].vgv_meta=+this.value;render()"></div>'
+              + '<div><label style="font-size:9px;color:var(--muted)">VGV Meta</label><input class="finp" type="number" style="width:100px;padding:5px" placeholder="0" value="'+(mc.vgv_meta||b.meta||0)+'" oninput="METAS_CONFIG[\''+b.id+'\']=METAS_CONFIG[\''+b.id+'\']||{};METAS_CONFIG[\''+b.id+'\'].vgv_meta=+this.value;debouncedRender(800)"></div>'
               + '<div><label style="font-size:9px;color:var(--muted)">Visitas</label><input class="finp" type="number" style="width:70px;padding:5px" placeholder="0" value="'+(mc.visitas||0)+'" oninput="METAS_CONFIG[\''+b.id+'\']=METAS_CONFIG[\''+b.id+'\']||{};METAS_CONFIG[\''+b.id+'\'].visitas=+this.value"></div>'
               + '<div><label style="font-size:9px;color:var(--muted)">Captações</label><input class="finp" type="number" style="width:80px;padding:5px" placeholder="0" value="'+(mc.captacoes||0)+'" oninput="METAS_CONFIG[\''+b.id+'\']=METAS_CONFIG[\''+b.id+'\']||{};METAS_CONFIG[\''+b.id+'\'].captacoes=+this.value"></div>'
               + '</div>' : '')
@@ -6381,7 +6392,7 @@ function pgDrive() {
     + '<button class="btn bout bsm" style="font-size:11px" onclick="navigateDrive(\'' + currentFolder.id + '\',\'' + currentFolder.name.replace(/'/g,"\\'") + '\')">🔄 Atualizar</button>'
     + '</div></div>'
     // Search
-    + '<div style="flex-shrink:0"><input class="finp" placeholder="🔍 Buscar nesta pasta..." style="width:100%;font-size:12px;padding:8px 12px" value="' + (S.driveSearch||'') + '" oninput="S.driveSearch=this.value;render()"></div>'
+    + '<div style="flex-shrink:0"><input class="finp" placeholder="🔍 Buscar nesta pasta..." style="width:100%;font-size:12px;padding:8px 12px" value="' + (S.driveSearch||'') + '" oninput="S.driveSearch=this.value;debouncedRender(400)"></div>'
     // Stats bar
     + '<div style="font-size:11px;color:var(--muted);padding:0 4px;flex-shrink:0">' + folders.length + ' pastas \u00B7 ' + docs.length + ' arquivos</div>'
     // File list
@@ -6434,7 +6445,7 @@ function pgMapa() {
     '<button class="btn ' + (S.mapFilter==='all'?'bp1':'bout') + ' bsm" onclick="S.mapFilter=\'all\';render()">Todos</button>' +
     '<button class="btn ' + (S.mapFilter!=='all'&&S.mapFilter!=='Lancamento'?'bp1':'bout') + ' bsm" onclick="S.mapFilter=\'Ativo\';render()">Ativos</button>' +
     '<button class="btn ' + (S.mapFilter==='Lancamento'?'bp1':'bout') + ' bsm" onclick="S.mapFilter=\'Lancamento\';render()">Lancamentos</button>' +
-    '<input type="text" class="finp" value="' + (S.mapSearch||'') + '" placeholder="Buscar empreendimento..." oninput="S.mapSearch=this.value;render()" style="flex:1;min-width:200px">' +
+    '<input type="text" class="finp" value="' + (S.mapSearch||'') + '" placeholder="Buscar empreendimento..." oninput="S.mapSearch=this.value;debouncedRender(400)" style="flex:1;min-width:200px">' +
     '</div>';
 
   var mapDiv = '<div id="psm-gmap-wrap" style="width:100%;height:calc(100vh - 340px);min-height:400px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--cream4)"><div id="psm-gmap" style="width:100%;height:100%"></div></div>';
@@ -6798,7 +6809,7 @@ function pgTabela() {
     + '<div class="card mb2" style="padding:8px;display:flex;gap:4px;flex-wrap:wrap;overflow-x:auto">'+tabs+'</div>'
     // Filters
     + '<div class="card mb2" style="padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
-    + '<input class="finp" placeholder="🔍 Buscar empreendimento ou incorporadora..." value="'+search+'" oninput="S.tabelaSearch=this.value;render()" style="flex:1;min-width:200px;font-size:12px;padding:7px 10px">'
+    + '<input class="finp" placeholder="🔍 Buscar empreendimento ou incorporadora..." value="'+search+'" oninput="S.tabelaSearch=this.value;debouncedRender(400)" style="flex:1;min-width:200px;font-size:12px;padding:7px 10px">'
     + '<select class="sel-f" style="font-size:11px" onchange="S.tabelaInc=this.value;render()"><option value="all">Todas Incorporadoras</option>'
     + incs.map(i => '<option value="'+i+'"'+(filterInc===i?' selected':'')+'>'+i+'</option>').join('') + '</select>'
     + '<select class="sel-f" style="font-size:11px" onchange="S.tabelaLoc=this.value;render()"><option value="all">Todas Localizações</option>'
@@ -9511,7 +9522,7 @@ function pgSimVPL() {
     return '<div style="display:flex;flex-direction:column;gap:2px">'
       + '<label style="font-size:10px;font-weight:600;color:var(--muted)">'+label+'</label>'
       + '<div style="display:flex;align-items:center;gap:4px"><input type="'+(type||'number')+'" class="finp" value="'+val+'" step="'+(step||1)+'" '
-      + 'oninput="S.vpl.'+key+'='+(type==='text'||type==='date'?"this.value":"(parseFloat(this.value)||0)")+';render()" style="width:100%;font-size:12px;padding:6px 8px">'
+      + 'oninput="S.vpl.'+key+'='+(type==='text'||type==='date'?"this.value":"(parseFloat(this.value)||0)")+';debouncedRender(600)" style="width:100%;font-size:12px;padding:6px 8px">'
       + (suffix ? '<span style="font-size:10px;color:var(--muted);white-space:nowrap">'+suffix+'</span>' : '')
       + '</div></div>';
   }
@@ -9686,7 +9697,7 @@ function pgSimINCC() {
     return '<div style="display:flex;flex-direction:column;gap:2px">'
       + '<label style="font-size:10px;font-weight:600;color:var(--muted)">'+label+'</label>'
       + '<div style="display:flex;align-items:center;gap:4px"><input type="number" class="finp" value="'+c[key]+'" step="'+(step||1)+'" '
-      + 'oninput="S.incc.'+key+'=parseFloat(this.value)||0;render()" style="width:100%;font-size:12px;padding:6px 8px">'
+      + 'oninput="S.incc.'+key+'=parseFloat(this.value)||0;debouncedRender(600)" style="width:100%;font-size:12px;padding:6px 8px">'
       + (suffix ? '<span style="font-size:10px;color:var(--muted);white-space:nowrap">'+suffix+'</span>' : '')
       + '</div></div>';
   }
@@ -9810,7 +9821,7 @@ function pgSimRepasse() {
     return '<div style="display:flex;flex-direction:column;gap:2px">'
       + '<label style="font-size:10px;font-weight:600;color:var(--muted)">'+label+'</label>'
       + '<div style="display:flex;align-items:center;gap:4px"><input type="'+(type||'number')+'" class="finp" value="'+val+'" step="'+(step||1)+'" '
-      + 'oninput="S.repasse.'+key+'='+(type==='text'?"this.value":"(parseFloat(this.value)||0)")+';render()" style="width:100%;font-size:12px;padding:6px 8px">'
+      + 'oninput="S.repasse.'+key+'='+(type==='text'?"this.value":"(parseFloat(this.value)||0)")+';debouncedRender(600)" style="width:100%;font-size:12px;padding:6px 8px">'
       + (suffix ? '<span style="font-size:10px;color:var(--muted);white-space:nowrap">'+suffix+'</span>' : '')
       + '</div></div>';
   }
@@ -10236,7 +10247,7 @@ function pgConfig() {
           + '</div></div>';
       }).join('')
     + '</div>'
-    + '<div class="card mt2"><div class="ctitle">💰 Comissão & VGC</div>'    + '<div style="padding:10px 0">'    + '<label class="flabel">% de Comissão sobre VGV (editável)</label>'    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'    + '<input class="finp" type="number" step="0.1" min="0" max="20" style="width:90px" value="'+(S.comissaoPct||6)+'"'    + ' oninput="S.comissaoPct=parseFloat(this.value)||6;render()">'    + '<span style="font-size:13px;color:var(--muted)">% → VGC Total: <strong>'+fmt(Math.round((S.vgvReal||0)*(S.comissaoPct||6)/100))+'</strong></span>'    + '</div>'    + '<div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">VGC por Canal</div>'    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'    + Object.entries(        VENDAS.reduce((acc,v)=>{          const c=v.ori||'Direto';          acc[c]=acc[c]||{wins:0,vgv:0};          acc[c].wins++; acc[c].vgv+=(v.valor||0);          return acc;        },{})      ).map(([canal,d])=>        '<div style="background:var(--cream2);border-radius:6px;padding:8px 12px">'        +'<div style="font-size:10px;font-weight:700;color:var(--muted)">'+canal+'</div>'        +'<div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(Math.round(d.vgv*(S.comissaoPct||6)/100))+'</div>'        +'<div style="font-size:10px;color:var(--muted)">'+d.wins+' vendas \u00B7 VGV: '+fmt(d.vgv)+'</div>'        +'</div>').join('')    + '</div></div></div>'
+    + '<div class="card mt2"><div class="ctitle">💰 Comissão & VGC</div>'    + '<div style="padding:10px 0">'    + '<label class="flabel">% de Comissão sobre VGV (editável)</label>'    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'    + '<input class="finp" type="number" step="0.1" min="0" max="20" style="width:90px" value="'+(S.comissaoPct||6)+'"'    + ' oninput="S.comissaoPct=parseFloat(this.value)||6;debouncedRender(600)">'    + '<span style="font-size:13px;color:var(--muted)">% → VGC Total: <strong>'+fmt(Math.round((S.vgvReal||0)*(S.comissaoPct||6)/100))+'</strong></span>'    + '</div>'    + '<div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">VGC por Canal</div>'    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'    + Object.entries(        VENDAS.reduce((acc,v)=>{          const c=v.ori||'Direto';          acc[c]=acc[c]||{wins:0,vgv:0};          acc[c].wins++; acc[c].vgv+=(v.valor||0);          return acc;        },{})      ).map(([canal,d])=>        '<div style="background:var(--cream2);border-radius:6px;padding:8px 12px">'        +'<div style="font-size:10px;font-weight:700;color:var(--muted)">'+canal+'</div>'        +'<div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(Math.round(d.vgv*(S.comissaoPct||6)/100))+'</div>'        +'<div style="font-size:10px;color:var(--muted)">'+d.wins+' vendas \u00B7 VGV: '+fmt(d.vgv)+'</div>'        +'</div>').join('')    + '</div></div></div>'
     // ── Planilhas One on One ──
     + '<div class="card mt2"><div class="ctitle">📊 Planilhas One on One (Google Sheets)</div>'
     + '<div style="font-size:11.5px;color:var(--muted);margin-bottom:14px;line-height:1.5">Vincule as planilhas Google Sheets de cada corretor. Cada campo aceita um link direto da planilha ou aba específica.</div>'
@@ -10842,8 +10853,8 @@ function pgRelatVendas() {
   }
   if (!S.rvTab) S.rvTab = 'vendas';
   if (!S.rvAno) S.rvAno = new Date().getFullYear();
-  if (!S.comissoes) { try { S.comissoes = JSON.parse(localStorage.getItem('psm_comissoes')||'{}'); } catch(e){ S.comissoes = {}; } }
-  if (!S.vendasManuais) { try { S.vendasManuais = JSON.parse(localStorage.getItem('psm_vendas_manuais')||'[]'); } catch(e){ S.vendasManuais = []; } }
+  if (!S.comissoes) S.comissoes = {};
+  if (!S.vendasManuais) S.vendasManuais = [];
 
   // Merge RD vendas + manuais
   var allVendas = [];
@@ -13328,7 +13339,7 @@ function removerPlantao(dia, idx) {
   nav('plantoes');
 }
 
-// === CRIATIVOS — Google Drive embed ===
+// === FICHAS & PROPOSTAS — Modelos de documentos para download ===
 function pgFichasPropostas() {
   var docs = [
     {nome:'Ficha de Cadastro para Lan\u00e7amento', desc:'Ficha de cadastro do proponente, c\u00f4njuge e pessoa jur\u00eddica \u2014 conforme resolu\u00e7\u00e3o COFECI n\u00ba 1.336 e COAF.', arquivo:'ficha-lancamento.pdf', tipo:'PDF', ico:'\uD83D\uDCC4', cor:'#ef4444'},
@@ -13500,6 +13511,10 @@ function pgPlaceholder(title, desc) {
     + '<p style="color:#64748b;font-size:13px;margin:0">Esta p\u00e1gina est\u00e1 em desenvolvimento. Em breve voc\u00ea poder\u00e1 acess\u00e1-la.</p>'
     + '</div></div>';
 }
+
+// Debounced render — para oninput que nao deve re-renderizar a cada tecla
+var _drTimer=null;
+function debouncedRender(ms){if(_drTimer)clearTimeout(_drTimer);_drTimer=setTimeout(function(){render()},ms||400);}
 
 function render() {
   const app = document.getElementById('app'); if (!app) return;
