@@ -10807,6 +10807,11 @@ function caMarcarTodasLidas() {
 // === RELATORIO DE VENDAS E COMISSOES ===
 function pgRelatVendas() {
   var u = S.user; if (!u) return '';
+  // BLOQUEIO: apenas paulo, isa e corretores podem acessar
+  var uid = u.id; var pf = getPerfil();
+  if (uid !== 'paulo' && uid !== 'isa' && pf !== 'corretor') {
+    return '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><div style="font-size:48px;margin-bottom:16px">🔒</div><div style="font-size:18px;font-weight:700;color:#f8fafc;margin-bottom:8px">Acesso Restrito</div><div>Esta página é exclusiva para diretores e corretores.</div></div>';
+  }
   if (!S.rvTab) S.rvTab = 'vendas';
   if (!S.rvAno) S.rvAno = new Date().getFullYear();
   if (!S.comissoes) { try { S.comissoes = JSON.parse(localStorage.getItem('psm_comissoes')||'{}'); } catch(e){ S.comissoes = {}; } }
@@ -10826,9 +10831,9 @@ function pgRelatVendas() {
   // Sort by date desc
   allVendas.sort(function(a,b){ return (b.data||'').localeCompare(a.data||''); });
 
-  // Filter by user if corretor
-  var perfil = getPerfil(u.id);
-  var myVendas = perfil === 'corretor' ? allVendas.filter(function(v){ return v.corretor && v.corretor.toLowerCase().includes(u.name.split(' ')[0].toLowerCase()); }) : allVendas;
+  // FILTRO RIGIDO: apenas paulo e isa veem 100%. Corretores so veem o proprio.
+  var isFullAccess = (u.id === 'paulo' || u.id === 'isa');
+  var myVendas = isFullAccess ? allVendas : allVendas.filter(function(v){ return v.corretor && v.corretor.toLowerCase().includes(u.name.split(' ')[0].toLowerCase()); });
 
   // KPIs
   var totalVGV = myVendas.reduce(function(a,v){return a+v.vgv},0);
@@ -10846,7 +10851,8 @@ function pgRelatVendas() {
   var STATUS_COR = {NAO_PAGO:'var(--r-tx)',PAGO:'var(--g-tx)',PARCIAL_1:'#f59e0b',PARCIAL_2:'#f59e0b',PARCIAL_3:'#f59e0b',PARCIAL_4:'#f59e0b',PARCIAL_5:'#f59e0b',PARCIAL_6:'#f59e0b'};
 
   // ── TABS ──
-  var h = '<div class="phd"><h1>\uD83D\uDCCA Relat\u00f3rio de Vendas & Comiss\u00f5es</h1><p>Hist\u00f3rico completo de vendas e controle de comiss\u00f5es</p></div>';
+  var accessLabel = isFullAccess ? 'Vis\u00e3o completa \u2014 todos os corretores' : 'Suas vendas \u2014 ' + u.name.split(' ')[0];
+  var h = '<div class="phd"><h1>\uD83D\uDCCA Relat\u00f3rio de Vendas & Comiss\u00f5es</h1><p>' + accessLabel + '</p></div>';
   h += '<div style="display:flex;gap:4px;margin-bottom:16px">';
   h += '<button class="tab'+(S.rvTab==='vendas'?' on':'')+'" onclick="S.rvTab=\'vendas\';render()">\uD83D\uDCCB Vendas & Comiss\u00f5es</button>';
   h += '<button class="tab'+(S.rvTab==='analise'?' on':'')+'" onclick="S.rvTab=\'analise\';render()">\uD83D\uDCC8 An\u00e1lise Mensal</button>';
@@ -11146,7 +11152,9 @@ function pgPremiacoes() {
 // Paginas visiveis para TODOS
 var PAGES_ALL=['checkin','wararena','lancamentos_ano','ranking','tabela','drive','mapa','formacao','manual','playbook','codigo_etica','simvpl','simincc','sim_energia','simrep','canal_anonimo','kenlo','agente_vera','agente_sol','sr_performance','sr_gerencia'];
 // Painel do Corretor: socios, gestores(lider), corretores
-var PAGES_PAINEL_CORRETOR=['oneonone','oportunidades','premiacoes','relat_vendas','fluxo_cadencia','criativos','plantoes','ficha_captacao','fichas_propostas','ia_corretor'];
+var PAGES_PAINEL_CORRETOR=['oneonone','oportunidades','premiacoes','fluxo_cadencia','criativos','plantoes','ficha_captacao','fichas_propostas','ia_corretor'];
+// Vendas & Comissoes: apenas paulo, isa (100%) e corretores (so o proprio)
+var PAGES_VENDAS_COMISSOES=['relat_vendas'];
 // Frentes: apenas socios
 var PAGES_FRENTES=['lancamento','conquista','terceiros','locacao'];
 // Secretaria de vendas: socios + leire + guilherme
@@ -11168,6 +11176,8 @@ function canAccess(p){
   if(!S.user)return false;
   // Todos podem acessar
   if(PAGES_ALL.indexOf(p)!==-1)return true;
+  // Vendas & Comissoes: APENAS paulo, isa (diretores) e corretores
+  if(PAGES_VENDAS_COMISSOES.indexOf(p)!==-1){var uid=S.user.id;return uid==='paulo'||uid==='isa'||getPerfil()==='corretor';}
   // Painel do Corretor: socios, lider, corretor
   if(PAGES_PAINEL_CORRETOR.indexOf(p)!==-1)return isUserSocio()||isGestorOrSocio()||getPerfil()==='corretor';
   // Frentes: apenas socios
