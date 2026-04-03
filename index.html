@@ -1254,7 +1254,8 @@ var SYNC_KEYS = [
   'ooReunioes','ooObjetivo','ooObjetivoPessoal','ooRotina',
   'ooMetaLanc','ooMetaVgvMes','ooSheetLinks','ooSheetCache',
   'tickerMsgs','canalAnonimo','sonhos',
-  'metaIndiv','comissaoPct','lancTimeline','lancMetas'
+  'metaIndiv','comissaoPct','lancTimeline','lancMetas',
+  'premiacoes'
 ];
 // Global config keys that also need sync
 var SYNC_GLOBAL_KEYS = ['metasConfig','metasEquipe','teamConfig'];
@@ -11109,43 +11110,217 @@ function rvDelVenda(idx) {
 
 // === PREMIACOES ===
 function pgPremiacoes() {
-  var h = '<div class="phd"><h1>\uD83C\uDFC6 Premia\u00e7\u00f5es</h1><p>Campanhas e premia\u00e7\u00f5es especiais</p></div>';
-  var premiacoes = S.premiacoes || [
-    {tipo:'PSM',titulo:'Top Vendedor do M\u00eas',desc:'O corretor com mais vendas no m\u00eas recebe b\u00f4nus de R$ 2.000',ativo:true,icon:'\uD83E\uDD47'},
-    {tipo:'PSM',titulo:'Desafio de Visitas',desc:'Quem atingir 20 visitas no m\u00eas ganha day-off',ativo:true,icon:'\uD83C\uDFAF'},
-    {tipo:'Incorporadora',titulo:'Campanha Lan\u00e7amento Reserva',desc:'Comiss\u00e3o dobrada nas primeiras 10 vendas do lan\u00e7amento',ativo:true,icon:'\uD83C\uDFE2'},
-    {tipo:'Incorporadora',titulo:'Desafio VGV Trimestral',desc:'Equipe que bater R$ 5M de VGV no trimestre: viagem de premia\u00e7\u00e3o',ativo:true,icon:'\u2708\uFE0F'},
-    {tipo:'PSM',titulo:'Corretor Destaque Semestral',desc:'Avalia\u00e7\u00e3o 360\u00ba + pr\u00eamio especial para o destaque do semestre',ativo:false,icon:'\u2B50'}
-  ];
-  // PSM premiacoes
-  var psmPremios = premiacoes.filter(function(p){ return p.tipo==='PSM'; });
-  var incPremios = premiacoes.filter(function(p){ return p.tipo==='Incorporadora'; });
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">';
-  // PSM
-  h += '<div>';
-  h += '<h2 style="font-size:16px;font-weight:700;color:#fbbf24;margin-bottom:12px">\u2B50 Premia\u00e7\u00f5es PSM</h2>';
-  psmPremios.forEach(function(p){
-    h += '<div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:12px;padding:16px;border:1px solid '+(p.ativo?'#6366f130':'#47556930')+';margin-bottom:12px;opacity:'+(p.ativo?'1':'0.5')+'">';
-    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">';
-    h += '<span style="font-size:24px">'+p.icon+'</span>';
-    h += '<div><div style="font-size:15px;font-weight:700;color:#f8fafc">'+p.titulo+'</div>';
-    h += '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:'+(p.ativo?'#22c55e20':'#64748b20')+';color:'+(p.ativo?'#22c55e':'#64748b')+'">'+(p.ativo?'ATIVA':'ENCERRADA')+'</span></div></div>';
-    h += '<div style="font-size:13px;color:#94a3b8">'+p.desc+'</div></div>';
-  });
+  if (!S.premiacoes) S.premiacoes = [];
+  if (!S.premForm) S.premForm = false;
+  var isSocio = (S.user && (S.user.id === 'paulo' || S.user.id === 'isa'));
+  var hoje = new Date().toISOString().slice(0,10);
+
+  var h = '<div class="pg-wrap" style="padding:20px">';
+  h += '<div class="phd" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">';
+  h += '<div><h1>\uD83C\uDFC6 Premia\u00e7\u00f5es</h1><p>Campanhas e premia\u00e7\u00f5es ativas e encerradas</p></div>';
+  if (isSocio) {
+    h += '<button onclick="S.premForm=!S.premForm;render()" style="padding:10px 20px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:6px">'+(S.premForm?'\u2715 Fechar':'\u2795 Nova Premia\u00e7\u00e3o')+'</button>';
+  }
   h += '</div>';
-  // Incorporadoras
-  h += '<div>';
-  h += '<h2 style="font-size:16px;font-weight:700;color:#a78bfa;margin-bottom:12px">\uD83C\uDFE2 Campanhas Incorporadoras</h2>';
-  incPremios.forEach(function(p){
-    h += '<div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:12px;padding:16px;border:1px solid '+(p.ativo?'#8b5cf630':'#47556930')+';margin-bottom:12px;opacity:'+(p.ativo?'1':'0.5')+'">';
-    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">';
-    h += '<span style="font-size:24px">'+p.icon+'</span>';
-    h += '<div><div style="font-size:15px;font-weight:700;color:#f8fafc">'+p.titulo+'</div>';
-    h += '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:'+(p.ativo?'#22c55e20':'#64748b20')+';color:'+(p.ativo?'#22c55e':'#64748b')+'">'+(p.ativo?'ATIVA':'ENCERRADA')+'</span></div></div>';
-    h += '<div style="font-size:13px;color:#94a3b8">'+p.desc+'</div></div>';
-  });
-  h += '</div></div>';
+
+  // === FORMULARIO (socios only) ===
+  if (isSocio && S.premForm) {
+    var ed = S.premEdit || {};
+    h += '<div style="background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid #6366f140;border-radius:14px;padding:24px;margin-bottom:24px">';
+    h += '<h3 style="font-size:16px;font-weight:700;color:#f8fafc;margin-bottom:16px">'+(ed.id?'\u270F\uFE0F Editar':'\u2795 Nova')+' Premia\u00e7\u00e3o</h3>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">';
+    // Titulo
+    h += '<div style="grid-column:1/-1"><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">T\u00edtulo da Premia\u00e7\u00e3o *</label>';
+    h += '<input id="prem_titulo" value="'+(ed.titulo||'')+'" placeholder="Ex: Campanha Top Vendedor" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Incorporadora
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Incorporadora *</label>';
+    h += '<input id="prem_incorp" value="'+(ed.incorporadora||'')+'" placeholder="Ex: PSM, Yuny, EBM, Direcional..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Produto
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Produto / Empreendimento *</label>';
+    h += '<input id="prem_produto" value="'+(ed.produto||'')+'" placeholder="Ex: Reserva Central, Todos..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Data inicio
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Data de In\u00edcio *</label>';
+    h += '<input id="prem_inicio" type="date" value="'+(ed.inicio||'')+'" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Data fim
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Data de T\u00e9rmino *</label>';
+    h += '<input id="prem_fim" type="date" value="'+(ed.fim||'')+'" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Descricao
+    h += '<div style="grid-column:1/-1"><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Descri\u00e7\u00e3o / Regras da Premia\u00e7\u00e3o *</label>';
+    h += '<textarea id="prem_desc" rows="3" placeholder="Descreva as regras, pr\u00eamios e condi\u00e7\u00f5es..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px;resize:vertical">'+(ed.desc||'')+'</textarea></div>';
+    // Premio
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Pr\u00eamio</label>';
+    h += '<input id="prem_premio" value="'+(ed.premio||'')+'" placeholder="Ex: R$ 2.000, Viagem, Day-off..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Icon
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Emoji / \u00cdcone</label>';
+    h += '<input id="prem_icon" value="'+(ed.icon||'\uD83C\uDFC6')+'" maxlength="4" style="width:80px;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:22px;text-align:center"></div>';
+    h += '</div>';
+    // Botoes
+    h += '<div style="display:flex;gap:10px;margin-top:18px">';
+    h += '<button onclick="premSave()" style="padding:10px 24px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">'+(ed.id?'\u2705 Salvar Altera\u00e7\u00f5es':'\u2795 Adicionar Premia\u00e7\u00e3o')+'</button>';
+    if (ed.id) {
+      h += '<button onclick="S.premEdit={};render()" style="padding:10px 16px;background:#47556920;color:#94a3b8;border:1px solid #47556940;border-radius:8px;font-size:13px;cursor:pointer">Cancelar Edi\u00e7\u00e3o</button>';
+    }
+    h += '</div></div>';
+  }
+
+  // === KPIs ===
+  var ativas = S.premiacoes.filter(function(p){ return p.fim >= hoje && p.inicio <= hoje; });
+  var futuras = S.premiacoes.filter(function(p){ return p.inicio > hoje; });
+  var encerradas = S.premiacoes.filter(function(p){ return p.fim < hoje; });
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px">';
+  h += '<div style="background:#0f172a;border-radius:10px;padding:14px;text-align:center;border:1px solid #22c55e30"><div style="font-size:22px;font-weight:800;color:#22c55e">'+ativas.length+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Ativas Agora</div></div>';
+  h += '<div style="background:#0f172a;border-radius:10px;padding:14px;text-align:center;border:1px solid #3b82f630"><div style="font-size:22px;font-weight:800;color:#3b82f6">'+futuras.length+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Futuras</div></div>';
+  h += '<div style="background:#0f172a;border-radius:10px;padding:14px;text-align:center;border:1px solid #64748b30"><div style="font-size:22px;font-weight:800;color:#64748b">'+encerradas.length+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Encerradas</div></div>';
+  h += '<div style="background:#0f172a;border-radius:10px;padding:14px;text-align:center;border:1px solid #fbbf2430"><div style="font-size:22px;font-weight:800;color:#fbbf24">'+S.premiacoes.length+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Total</div></div>';
+  h += '</div>';
+
+  // === HELPER: render card ===
+  function premCard(p, statusLabel, statusColor, borderColor) {
+    var c = '<div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:14px;padding:18px;border:1px solid '+borderColor+';margin-bottom:14px">';
+    c += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">';
+    c += '<div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">';
+    c += '<span style="font-size:32px;flex-shrink:0">'+(p.icon||'\uD83C\uDFC6')+'</span>';
+    c += '<div style="min-width:0">';
+    c += '<div style="font-size:16px;font-weight:700;color:#f8fafc;margin-bottom:4px">'+p.titulo+'</div>';
+    c += '<span style="font-size:10px;padding:2px 10px;border-radius:10px;background:'+statusColor+'20;color:'+statusColor+';font-weight:700;letter-spacing:0.5px">'+statusLabel+'</span>';
+    c += '</div></div>';
+    if (isSocio) {
+      c += '<div style="display:flex;gap:6px;flex-shrink:0">';
+      c += '<button onclick="premEditFn(\''+p.id+'\')" style="padding:6px 10px;background:#6366f120;color:#a5b4fc;border:1px solid #6366f130;border-radius:6px;font-size:12px;cursor:pointer" title="Editar">\u270F\uFE0F</button>';
+      c += '<button onclick="premDel(\''+p.id+'\')" style="padding:6px 10px;background:#dc262620;color:#fca5a5;border:1px solid #dc262630;border-radius:6px;font-size:12px;cursor:pointer" title="Remover">\uD83D\uDDD1\uFE0F</button>';
+      c += '</div>';
+    }
+    c += '</div>';
+    // Details
+    c += '<div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">';
+    c += '<div><span style="color:#64748b">Incorporadora:</span> <span style="color:#e2e8f0;font-weight:600">'+p.incorporadora+'</span></div>';
+    c += '<div><span style="color:#64748b">Produto:</span> <span style="color:#e2e8f0;font-weight:600">'+p.produto+'</span></div>';
+    c += '<div><span style="color:#64748b">In\u00edcio:</span> <span style="color:#e2e8f0">'+premFmtDate(p.inicio)+'</span></div>';
+    c += '<div><span style="color:#64748b">T\u00e9rmino:</span> <span style="color:#e2e8f0">'+premFmtDate(p.fim)+'</span></div>';
+    if (p.premio) { c += '<div style="grid-column:1/-1"><span style="color:#64748b">Pr\u00eamio:</span> <span style="color:#fbbf24;font-weight:700">'+p.premio+'</span></div>'; }
+    c += '</div>';
+    c += '<div style="margin-top:10px;font-size:13px;color:#94a3b8;line-height:1.5">'+p.desc+'</div>';
+    // Dias restantes (se ativa)
+    if (p.fim >= hoje && p.inicio <= hoje) {
+      var diasRest = Math.ceil((new Date(p.fim+'T23:59:59') - new Date()) / 86400000);
+      c += '<div style="margin-top:10px;padding:8px 12px;background:#22c55e10;border-radius:8px;font-size:12px;color:#22c55e;font-weight:600">\u23F3 '+diasRest+' dia'+(diasRest!==1?'s':'')+' restante'+(diasRest!==1?'s':'')+'</div>';
+    }
+    if (p.inicio > hoje) {
+      var diasPara = Math.ceil((new Date(p.inicio+'T00:00:00') - new Date()) / 86400000);
+      c += '<div style="margin-top:10px;padding:8px 12px;background:#3b82f610;border-radius:8px;font-size:12px;color:#3b82f6;font-weight:600">\uD83D\uDCC5 Come\u00e7a em '+diasPara+' dia'+(diasPara!==1?'s':'')+'</div>';
+    }
+    c += '</div>';
+    return c;
+  }
+
+  // === ATIVAS ===
+  if (ativas.length) {
+    h += '<h2 style="font-size:16px;font-weight:700;color:#22c55e;margin-bottom:12px;display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block"></span> Premia\u00e7\u00f5es Ativas</h2>';
+    ativas.sort(function(a,b){ return a.fim.localeCompare(b.fim); });
+    ativas.forEach(function(p){ h += premCard(p, 'ATIVA', '#22c55e', '#22c55e30'); });
+  }
+
+  // === FUTURAS ===
+  if (futuras.length) {
+    h += '<h2 style="font-size:16px;font-weight:700;color:#3b82f6;margin-bottom:12px;margin-top:24px">\uD83D\uDCC5 Pr\u00f3ximas Premia\u00e7\u00f5es</h2>';
+    futuras.sort(function(a,b){ return a.inicio.localeCompare(b.inicio); });
+    futuras.forEach(function(p){ h += premCard(p, 'FUTURA', '#3b82f6', '#3b82f630'); });
+  }
+
+  // === ENCERRADAS ===
+  if (encerradas.length) {
+    h += '<h2 style="font-size:16px;font-weight:700;color:#64748b;margin-bottom:12px;margin-top:24px">\uD83D\uDD12 Encerradas</h2>';
+    encerradas.sort(function(a,b){ return b.fim.localeCompare(a.fim); });
+    encerradas.forEach(function(p){ h += premCard(p, 'ENCERRADA', '#64748b', '#47556930'); });
+  }
+
+  if (!S.premiacoes.length) {
+    h += '<div style="text-align:center;padding:60px 20px;color:#64748b"><div style="font-size:48px;margin-bottom:12px">\uD83C\uDFC6</div><div style="font-size:16px;font-weight:600;color:#94a3b8">Nenhuma premia\u00e7\u00e3o cadastrada</div>';
+    if (isSocio) h += '<div style="font-size:13px;margin-top:8px">Clique em "+ Nova Premia\u00e7\u00e3o" para come\u00e7ar</div>';
+    h += '</div>';
+  }
+
+  h += '</div>';
   return h;
+}
+
+function premFmtDate(d) {
+  if (!d) return '-';
+  var p = d.split('-');
+  return p[2]+'/'+p[1]+'/'+p[0];
+}
+
+function premSave() {
+  var titulo = (document.getElementById('prem_titulo')||{}).value||'';
+  var incorp = (document.getElementById('prem_incorp')||{}).value||'';
+  var produto = (document.getElementById('prem_produto')||{}).value||'';
+  var inicio = (document.getElementById('prem_inicio')||{}).value||'';
+  var fim = (document.getElementById('prem_fim')||{}).value||'';
+  var desc = (document.getElementById('prem_desc')||{}).value||'';
+  var premio = (document.getElementById('prem_premio')||{}).value||'';
+  var icon = (document.getElementById('prem_icon')||{}).value||'\uD83C\uDFC6';
+  if (!titulo||!incorp||!produto||!inicio||!fim||!desc) { toast('Preencha todos os campos obrigat\u00f3rios','err'); return; }
+  if (fim < inicio) { toast('Data de t\u00e9rmino deve ser ap\u00f3s o in\u00edcio','err'); return; }
+  if (!S.premiacoes) S.premiacoes = [];
+  var ed = S.premEdit || {};
+  if (ed.id) {
+    // Editando existente
+    for (var i = 0; i < S.premiacoes.length; i++) {
+      if (S.premiacoes[i].id === ed.id) {
+        S.premiacoes[i].titulo = titulo;
+        S.premiacoes[i].incorporadora = incorp;
+        S.premiacoes[i].produto = produto;
+        S.premiacoes[i].inicio = inicio;
+        S.premiacoes[i].fim = fim;
+        S.premiacoes[i].desc = desc;
+        S.premiacoes[i].premio = premio;
+        S.premiacoes[i].icon = icon;
+        break;
+      }
+    }
+    toast('\u2705 Premia\u00e7\u00e3o atualizada!','ok');
+  } else {
+    // Nova
+    S.premiacoes.push({
+      id: 'prem_' + Date.now(),
+      titulo: titulo,
+      incorporadora: incorp,
+      produto: produto,
+      inicio: inicio,
+      fim: fim,
+      desc: desc,
+      premio: premio,
+      icon: icon,
+      criadoPor: S.user ? S.user.name : '',
+      criadoEm: new Date().toISOString()
+    });
+    toast('\u2705 Premia\u00e7\u00e3o adicionada!','ok');
+  }
+  S.premEdit = {};
+  S.premForm = false;
+  saveState();
+  fbPushState();
+  render();
+}
+
+function premEditFn(id) {
+  var p = (S.premiacoes||[]).filter(function(x){ return x.id === id; })[0];
+  if (!p) return;
+  S.premEdit = {id:p.id, titulo:p.titulo, incorporadora:p.incorporadora, produto:p.produto, inicio:p.inicio, fim:p.fim, desc:p.desc, premio:p.premio, icon:p.icon};
+  S.premForm = true;
+  render();
+  // Scroll to top
+  var pc = document.getElementById('pc');
+  if (pc) pc.scrollTop = 0;
+}
+
+function premDel(id) {
+  if (!confirm('Tem certeza que deseja remover esta premia\u00e7\u00e3o?')) return;
+  S.premiacoes = (S.premiacoes||[]).filter(function(x){ return x.id !== id; });
+  saveState();
+  fbPushState();
+  toast('\uD83D\uDDD1\uFE0F Premia\u00e7\u00e3o removida','ok');
+  render();
 }
 
 // === NOVO SISTEMA DE PERMISSOES POR SECAO ===
