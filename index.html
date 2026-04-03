@@ -1144,6 +1144,12 @@ function saveState(skipFbPush) {
       ooRotina: S.ooRotina || {},
       ooFunilCustom: S.ooFunilCustom || {},
       ooLateralCustom: S.ooLateralCustom || {},
+      ooDatas: S.ooDatas || {},
+      ooObjSemana: S.ooObjSemana || {},
+      ooObjMes: S.ooObjMes || {},
+      ooPontosAtencao: S.ooPontosAtencao || {},
+      ooFechamento: S.ooFechamento || {},
+      ooDiscCustom: S.ooDiscCustom || {},
       tickerMsgs: S.tickerMsgs || [],
       canalAnonimo: S.canalAnonimo || [],
       premiacoes: S.premiacoes || [],
@@ -1166,6 +1172,12 @@ function saveState(skipFbPush) {
         ooFunnelPct: S.ooFunnelPct || {},
         ooMetaLanc: S.ooMetaLanc || {},
         ooMetaVgvMes: S.ooMetaVgvMes || {},
+        ooDatas: S.ooDatas || {},
+        ooObjSemana: S.ooObjSemana || {},
+        ooObjMes: S.ooObjMes || {},
+        ooPontosAtencao: S.ooPontosAtencao || {},
+        ooFechamento: S.ooFechamento || {},
+        ooDiscCustom: S.ooDiscCustom || {},
         tickerMsgs: S.tickerMsgs || [],
         premiacoes: S.premiacoes || [],
         savedAt: Date.now()
@@ -1261,6 +1273,7 @@ var SYNC_KEYS = [
   'ooDaily','ooMetas','ooFunnelPct','ooFunilCustom','ooLateralCustom',
   'ooReunioes','ooObjetivo','ooObjetivoPessoal','ooRotina',
   'ooMetaLanc','ooMetaVgvMes','ooSheetLinks','ooSheetCache',
+  'ooDatas','ooObjSemana','ooObjMes','ooPontosAtencao','ooFechamento','ooDiscCustom',
   'tickerMsgs','canalAnonimo','sonhos',
   'metaIndiv','comissaoPct','lancTimeline','lancMetas',
   'premiacoes','comissoes','vendasManuais'
@@ -5061,7 +5074,7 @@ function pgOO() {
   const df_oo = DateFilter('oo','Período');
   const u = S.user; if (!u) return df_oo + '';
   const lvl = RLVL[u.role] || 0;
-  var _allTabs=[{id:'dia',lbl:'Dia a Dia'},{id:'acumulado',lbl:'Acumulado'},{id:'reuniao',lbl:'Reunião 1:1'},{id:'rotina',lbl:'Rotina'},{id:'metas',lbl:'Metas'},{id:'gestao',lbl:'Gestão',minLvl:5}];
+  var _allTabs=[{id:'dia',lbl:'Dia a Dia'},{id:'acumulado',lbl:'Acumulado'},{id:'metricas',lbl:'Métricas'},{id:'reuniao',lbl:'Reunião 1:1'},{id:'rotina',lbl:'Rotina'},{id:'metas',lbl:'Metas'},{id:'gestao',lbl:'Gestão',minLvl:5}];
   const tabs = _allTabs.filter(function(t){ return !t.minLvl || lvl >= t.minLvl; });
   var _vt = tabs.map(function(t){ return t.id; });
   const tab = _vt.indexOf(S.ooTab)!==-1 ? S.ooTab : 'dia';
@@ -5311,7 +5324,7 @@ function pgOO() {
     // Sub-period selector
     var acumPeriodo = S.ooAcumPeriodo || 'mensal';
     content += '<div style="display:flex;gap:6px;margin-bottom:16px;justify-content:center">';
-    ['semanal','mensal','anual'].forEach(function(p) {
+    ['diario','semanal','mensal','anual'].forEach(function(p) {
       var lbl = p.charAt(0).toUpperCase() + p.slice(1);
       var active = acumPeriodo === p;
       content += '<button onclick="S.ooAcumPeriodo=\'' + p + '\';render()" style="padding:8px 20px;border-radius:8px;border:1px solid ' + (active ? '#6366f1' : '#334155') + ';background:' + (active ? '#6366f1' : '#1e293b') + ';color:' + (active ? '#fff' : '#94a3b8') + ';font-size:13px;font-weight:600;cursor:pointer">' + lbl + '</button>';
@@ -5332,7 +5345,73 @@ function pgOO() {
         + '</div>';
     }
 
-    if (acumPeriodo === 'semanal') {
+    if (acumPeriodo === 'diario') {
+      var daysInMonth = new Date(curYear, curMonth, 0).getDate();
+      var todayDate = now.getDate();
+      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
+      content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:14px">\uD83D\uDCC5 Hist\u00f3rico Di\u00e1rio \u2014 ' + monthNames[curMonth] + ' ' + curYear + '</div>';
+      content += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+      content += '<thead><tr style="color:#94a3b8;border-bottom:2px solid #334155"><th style="padding:8px;text-align:left;position:sticky;left:0;background:#1e293b;z-index:1">Dia</th>';
+      var allCampos = ooGetAllCamposEquipe(ooGetFrenteForBroker(selBid));
+      allCampos.forEach(function(c) { content += '<th style="padding:6px;text-align:center;white-space:nowrap">' + c.icon + ' ' + c.l + '</th>'; });
+      content += '<th style="padding:6px;text-align:center;color:#10b981;font-weight:700">Status</th></tr></thead><tbody>';
+      var diasSemNome = ['Dom','Seg','Ter','Qua','Qui','Sex','S\u00e1b'];
+      for (var dd = 1; dd <= daysInMonth; dd++) {
+        var dt = new Date(curYear, curMonth - 1, dd);
+        var dow = dt.getDay();
+        var dk = curYear + '-' + String(curMonth).padStart(2,'0') + '-' + String(dd).padStart(2,'0');
+        var dayData = (((S.ooDaily||{})[selBid]||{})[monthKey]||{})[dk] || {};
+        var hasAny = false;
+        var dayTotal = 0;
+        allCampos.forEach(function(c) { var v = dayData[c.k] || 0; if (v > 0) hasAny = true; dayTotal += v; });
+        var isPast = dd < todayDate;
+        var isToday = dd === todayDate;
+        var isWeekend = (dow === 0 || dow === 6);
+        var rowBg = isToday ? '#312e81' : (isWeekend ? '#0f172a50' : 'transparent');
+        var statusIcon = hasAny ? '\u2705' : (isPast && !isWeekend ? '\u274C' : (isToday ? '\u23F3' : '\u2014'));
+        var statusColor = hasAny ? '#10b981' : (isPast && !isWeekend ? '#ef4444' : '#64748b');
+        content += '<tr style="background:' + rowBg + ';border-bottom:1px solid #1e293b' + (isToday ? ';font-weight:700' : '') + '">';
+        content += '<td style="padding:6px 8px;color:' + (isToday ? '#a5b4fc' : '#f8fafc') + ';font-weight:600;position:sticky;left:0;background:' + (isToday ? '#312e81' : '#1e293b') + ';z-index:1;white-space:nowrap">';
+        content += String(dd).padStart(2,'0') + ' ' + diasSemNome[dow];
+        if (isToday) content += ' <span style="font-size:9px;background:#6366f1;color:#fff;padding:1px 5px;border-radius:3px">HOJE</span>';
+        content += '</td>';
+        allCampos.forEach(function(c) {
+          var v = dayData[c.k] || 0;
+          content += '<td style="padding:6px;text-align:center;color:' + (v > 0 ? '#f8fafc' : '#475569') + ';font-weight:' + (v > 0 ? '700' : '400') + '">' + (v > 0 ? v : '\u2014') + '</td>';
+        });
+        content += '<td style="padding:6px;text-align:center;font-size:14px;color:' + statusColor + '">' + statusIcon + '</td>';
+        content += '</tr>';
+      }
+      content += '<tr style="border-top:2px solid #6366f1;background:#0f172a"><td style="padding:8px;font-weight:800;color:#a5b4fc;position:sticky;left:0;background:#0f172a;z-index:1">TOTAL</td>';
+      var realMesDiario = ooAggMonth(selBid, monthKey);
+      allCampos.forEach(function(c) {
+        content += '<td style="padding:6px;text-align:center;color:#f8fafc;font-weight:800">' + (realMesDiario[c.k] || 0) + '</td>';
+      });
+      var diasPreenchidos = 0;
+      for (var dd2 = 1; dd2 <= Math.min(todayDate, daysInMonth); dd2++) {
+        var dk2 = curYear + '-' + String(curMonth).padStart(2,'0') + '-' + String(dd2).padStart(2,'0');
+        var dt2 = new Date(curYear, curMonth - 1, dd2);
+        if (dt2.getDay() !== 0 && dt2.getDay() !== 6) {
+          var dd2Data = (((S.ooDaily||{})[selBid]||{})[monthKey]||{})[dk2] || {};
+          var dd2Any = false;
+          allCampos.forEach(function(c) { if ((dd2Data[c.k] || 0) > 0) dd2Any = true; });
+          if (dd2Any) diasPreenchidos++;
+        }
+      }
+      content += '<td style="padding:6px;text-align:center;font-size:12px;color:#a5b4fc;font-weight:700">' + diasPreenchidos + ' dias</td>';
+      content += '</tr></tbody></table></div></div>';
+      var workDaysPast = ooGetWorkDaysPassed(curYear, curMonth);
+      var fillPct = workDaysPast > 0 ? Math.round(diasPreenchidos / workDaysPast * 100) : 0;
+      content += '<div style="background:#0f172a;border-radius:10px;padding:14px;margin-top:12px;text-align:center;border:1px solid #334155">';
+      content += '<div style="font-size:12px;color:#94a3b8;margin-bottom:6px">Preenchimento do M\u00eas</div>';
+      content += '<div style="display:flex;align-items:center;gap:10px;justify-content:center">';
+      content += '<div style="width:200px;background:#1e293b;border-radius:6px;height:10px;overflow:hidden"><div style="height:100%;width:' + fillPct + '%;background:' + (fillPct >= 80 ? '#10b981' : fillPct >= 50 ? '#f59e0b' : '#ef4444') + ';border-radius:6px;transition:width .4s"></div></div>';
+      content += '<span style="font-size:18px;font-weight:800;color:' + (fillPct >= 80 ? '#10b981' : '#f8fafc') + '">' + fillPct + '%</span>';
+      content += '</div>';
+      content += '<div style="font-size:11px;color:#64748b;margin-top:4px">' + diasPreenchidos + ' de ' + workDaysPast + ' dias \u00fateis preenchidos</div>';
+      content += '</div>';
+    }
+    else     if (acumPeriodo === 'semanal') {
       // Aggregate current week (Mon-Sun)
       var weekStart = new Date(now);
       var dayOfWeek = weekStart.getDay();
@@ -5411,6 +5490,138 @@ function pgOO() {
   }
 
   // ============================================================
+  // TAB: MÉTRICAS
+  // ============================================================
+  else if (tab === 'metricas') {
+    var now = new Date();
+    var curYear = now.getFullYear();
+    var curMonth = now.getMonth() + 1;
+    var monthKey = ooGetMonthKey(now);
+    var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var realMes = ooAggMonth(selBid, monthKey);
+    var metasMes = ooGetMetas(selBid, monthKey);
+    var cache = ((S.ooSheetCache||{})[selBid]) || {};
+    var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
+    var cfgFrente = ooGetFrenteForBroker(selBid);
+    var cfgFunil = ooGetFunilEquipe(cfgFrente);
+    var mVendas = hasDailyData ? (realMes.vendas||0) : (cache.vendas||0);
+    var mAtend = hasDailyData ? (realMes.atendimentos||realMes.leads||0) : (cache.atendimentos||cache.leads||0);
+    var mVisitas = hasDailyData ? (realMes.visitas||0) : (cache.visitas||0);
+    var mAgend = hasDailyData ? (realMes.agendamentos||0) : (cache.agendamentos||0);
+    var mDescartados = hasDailyData ? (realMes.descartados||0) : (cache.descartados||0);
+    var mVgv = hasDailyData ? (realMes.vgv||0) : (cache.vgv||0);
+    var ticketMedio = mVendas > 0 ? (mVgv / mVendas) : 0;
+    var txConversao = mAtend > 0 ? (mVendas / mAtend * 100) : 0;
+    var txDescarte = mAtend > 0 ? (mDescartados / mAtend * 100) : 0;
+    var txAgendVisita = mAgend > 0 ? (mVisitas / mAgend * 100) : 0;
+    var txVisitaVenda = mVisitas > 0 ? (mVendas / mVisitas * 100) : 0;
+    var txAtendAgend = mAtend > 0 ? (mAgend / mAtend * 100) : 0;
+    content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:16px;text-align:center">\uD83D\uDCCA M\u00e9tricas Individuais \u2014 ' + monthNames[curMonth] + ' ' + curYear + '</div>';
+    content += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:16px">';
+    var kpis = [
+      {icon:'\uD83D\uDCB0',label:'Ticket M\u00e9dio',value:'R$ '+(ticketMedio>0?ticketMedio.toLocaleString('pt-BR',{maximumFractionDigits:0}):'\u2014'),color:'#fbbf24'},
+      {icon:'\uD83C\uDFAF',label:'Tx Convers\u00e3o Geral',value:txConversao.toFixed(1)+'%',color:txConversao>=10?'#10b981':txConversao>=5?'#f59e0b':'#ef4444'},
+      {icon:'\u274C',label:'Tx de Descarte',value:txDescarte.toFixed(1)+'%',color:txDescarte<=20?'#10b981':txDescarte<=40?'#f59e0b':'#ef4444'},
+      {icon:'\uD83D\uDCDE',label:'Volume Atendimento',value:String(mAtend),color:'#818cf8'},
+      {icon:'\uD83D\uDCC5',label:'Agendamentos',value:String(mAgend),color:'#06b6d4'},
+      {icon:'\uD83D\uDC41',label:'Visitas',value:String(mVisitas),color:'#8b5cf6'},
+    ];
+    kpis.forEach(function(k) {
+      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;text-align:center">';
+      content += '<div style="font-size:22px;margin-bottom:4px">' + k.icon + '</div>';
+      content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px">' + k.label + '</div>';
+      content += '<div style="font-size:22px;font-weight:800;color:' + k.color + '">' + k.value + '</div>';
+      content += '</div>';
+    });
+    content += '</div>';
+    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
+    content += '<div style="font-size:14px;font-weight:700;color:#a5b4fc;margin-bottom:12px">\uD83D\uDD04 Taxas de Convers\u00e3o por Canal</div>';
+    var convRates = [
+      {label:'Atendimentos \u2192 Agendamentos', val:txAtendAgend},
+      {label:'Agendamentos \u2192 Visitas', val:txAgendVisita},
+      {label:'Visitas \u2192 Vendas', val:txVisitaVenda},
+      {label:'Atendimentos \u2192 Vendas (geral)', val:txConversao},
+    ];
+    convRates.forEach(function(cr) {
+      var barColor = cr.val >= 30 ? '#10b981' : cr.val >= 15 ? '#f59e0b' : '#ef4444';
+      var barW = Math.min(cr.val, 100);
+      content += '<div style="margin-bottom:10px">';
+      content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+      content += '<span style="font-size:12px;color:#94a3b8">' + cr.label + '</span>';
+      content += '<span style="font-size:13px;font-weight:700;color:' + barColor + '">' + cr.val.toFixed(1) + '%</span>';
+      content += '</div>';
+      content += '<div style="background:#0f172a;border-radius:6px;height:8px;overflow:hidden"><div style="height:100%;width:' + barW + '%;background:' + barColor + ';border-radius:6px;transition:width .4s"></div></div>';
+      content += '</div>';
+    });
+    content += '</div>';
+
+
+    // Gargalo do Funil
+    content += '<div style="background:#1a1a2e;border-radius:12px;padding:16px;border:1px solid #312e81;margin-bottom:16px">';
+    content += '<div style="font-size:14px;font-weight:700;color:#fbbf24;margin-bottom:4px">\u26A0\uFE0F Gargalo do Funil</div>';
+    content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Identifica a etapa com maior perda de convers\u00e3o</div>';
+    var funnelSteps = [];
+    cfgFunil.forEach(function(c) {
+      var v = hasDailyData ? (realMes[c.k]||0) : (cache[c.k]||0);
+      funnelSteps.push({label: c.l, icon: c.icon, key: c.k, val: v});
+    });
+    var worstDrop = {label:'', dropPct:0};
+    for (var fi = 0; fi < funnelSteps.length - 1; fi++) {
+      var fromV = funnelSteps[fi].val;
+      var toV = funnelSteps[fi+1].val;
+      var dropPct = fromV > 0 ? ((fromV - toV) / fromV * 100) : 0;
+      var stepColor = dropPct > 50 ? '#ef4444' : dropPct > 30 ? '#f59e0b' : '#10b981';
+      content += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:8px 12px;background:#312e81;border-radius:8px">';
+      content += '<span style="font-size:14px">' + funnelSteps[fi].icon + '</span>';
+      content += '<span style="flex:1;font-size:12px;color:#c4b5fd">' + funnelSteps[fi].label + ' \u2192 ' + funnelSteps[fi+1].label + '</span>';
+      content += '<span style="font-size:12px;font-weight:700;color:' + stepColor + '">' + (fromV > 0 ? (toV/fromV*100).toFixed(1) : '0') + '% conv.</span>';
+      content += '<span style="font-size:11px;color:#64748b">(-' + dropPct.toFixed(0) + '%)</span>';
+      content += '</div>';
+      if (dropPct > worstDrop.dropPct) worstDrop = {label: funnelSteps[fi].label + ' \u2192 ' + funnelSteps[fi+1].label, dropPct: dropPct};
+    }
+    if (worstDrop.label) {
+      content += '<div style="margin-top:10px;padding:10px;background:#dc262620;border:1px solid #dc262640;border-radius:8px">';
+      content += '<div style="font-size:12px;font-weight:700;color:#fca5a5">\uD83D\uDEA8 Maior gargalo: ' + worstDrop.label + '</div>';
+      content += '<div style="font-size:11px;color:#f87171">Perda de ' + worstDrop.dropPct.toFixed(1) + '% nesta etapa.</div>';
+      content += '</div>';
+    }
+    content += '</div>';
+    // Monthly evolution table
+    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
+    content += '<div style="font-size:14px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCC8 Evolu\u00e7\u00e3o Mensal</div>';
+    content += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+    content += '<thead><tr style="color:#94a3b8;border-bottom:1px solid #334155"><th style="padding:6px;text-align:left">M\u00e9trica</th>';
+    for (var mmi = 1; mmi <= 12; mmi++) content += '<th style="padding:4px;text-align:center">' + monthNames[mmi] + '</th>';
+    content += '</tr></thead><tbody>';
+    [{label:'Tx Conv.',fn:function(mk){var r=ooAggMonth(selBid,mk);var a=r.atendimentos||r.leads||0;return a>0?(r.vendas||0)/a*100:0;},fmt:function(v){return v.toFixed(1)+'%';}},
+     {label:'Vendas',fn:function(mk){var r=ooAggMonth(selBid,mk);return r.vendas||0;},fmt:function(v){return String(v||0);}}
+    ].forEach(function(mk) {
+      content += '<tr style="border-bottom:1px solid #1e293b"><td style="padding:6px;color:#a5b4fc;font-weight:600">' + mk.label + '</td>';
+      for (var mmi = 1; mmi <= 12; mmi++) {
+        var mmk = curYear + '-' + String(mmi).padStart(2,'0');
+        var val = mk.fn(mmk);
+        content += '<td style="padding:4px;text-align:center;color:' + (mmi===curMonth ? '#6366f1' : (val>0?'#cbd5e1':'#475569')) + ';font-weight:' + (mmi===curMonth?'700':'400') + '">' + mk.fmt(val) + '</td>';
+      }
+      content += '</tr>';
+    });
+    content += '</tbody></table></div></div>';
+    // Sr Performance analysis
+    content += '<div style="background:linear-gradient(135deg,#1a1a2e,#0f172a);border-radius:12px;padding:16px;border:1px solid #6366f130">';
+    content += '<div style="font-size:14px;font-weight:700;color:#818cf8;margin-bottom:8px">\uD83E\uDDD0 An\u00e1lise pelo Sr. Performance</div>';
+    content += '<div style="font-size:12px;color:#94a3b8;line-height:1.7">';
+    if (mAtend > 0 && mVendas > 0) {
+      if (txConversao >= 15) content += '\u2705 <b style="color:#10b981">Excelente taxa de convers\u00e3o</b> (' + txConversao.toFixed(1) + '%).<br>';
+      else if (txConversao >= 8) content += '\u26A0\uFE0F <b style="color:#f59e0b">Taxa moderada</b> (' + txConversao.toFixed(1) + '%).<br>';
+      else content += '\u274C <b style="color:#ef4444">Taxa baixa</b> (' + txConversao.toFixed(1) + '%).<br>';
+      if (txDescarte > 40) content += '\u26A0\uFE0F <b style="color:#f59e0b">Alta taxa de descarte</b> (' + txDescarte.toFixed(1) + '%).<br>';
+      if (ticketMedio > 0) content += '\uD83D\uDCB0 Ticket m\u00e9dio: <b style="color:#fbbf24">R$ ' + ticketMedio.toLocaleString('pt-BR',{maximumFractionDigits:0}) + '</b>.<br>';
+    } else {
+      content += 'Sem dados suficientes para an\u00e1lise.';
+    }
+    content += '</div></div>';
+  }
+
+  // ============================================================
   // TAB: REUNIÃO 1:1
   // ============================================================
   else if (tab === 'reuniao') {
@@ -5419,68 +5630,163 @@ function pgOO() {
     var curMonth = now.getMonth() + 1;
     var monthKey = ooGetMonthKey(now);
     var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    var disc_ = DISC_PROFILES[selBid];
+    // Merge runtime DISC with custom overrides
+    var disc_ = Object.assign({}, DISC_PROFILES[selBid] || {}, (S.ooDiscCustom || {})[selBid] || {});
+    var hasDISC = disc_ && disc_.perfil;
 
-    // Disc card
-    var discCard = disc_ ? '<div class="card mb2" style="border-left:4px solid '+disc_.cor+'">'
-      + '<div class="ctitle">'+DISC_ICON[disc_.perfil]+' Perfil Comportamental: '+disc_.perfil+'</div>'
-      + '<div style="font-size:12.5px;color:var(--navy);line-height:1.7;margin-bottom:10px">'+disc_.desc+'</div>'
-      + '</div>' : '';
+    // === 1. PERFIL COMPORTAMENTAL (edit\u00e1vel pelo gestor) ===
+    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border-left:4px solid ' + (hasDISC ? disc_.cor : '#64748b') + ';margin-bottom:16px">';
+    content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    content += '<div style="font-size:14px;font-weight:700;color:#f8fafc">' + (hasDISC ? (DISC_ICON[disc_.perfil]||'') + ' Perfil Comportamental: ' + disc_.perfil : '\uD83E\uDDE0 Perfil Comportamental') + '</div>';
+    content += '</div>';
+    if (hasDISC && disc_.desc) {
+      content += '<div style="font-size:13px;color:#94a3b8;line-height:1.6;margin-bottom:10px">' + disc_.desc + '</div>';
+    }
+    if (lvl >= 5) {
+      content += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:8px;border-top:1px solid #334155">';
+      content += '<label style="font-size:11px;color:#64748b">Perfil:</label>';
+      content += '<select onchange="ooSaveDisc(\'' + selBid + '\',\'perfil\',this.value)" style="background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:4px 8px;font-size:12px">';
+      ['','Diretor','Influente','Est\u00e1vel','Conforme','Operador'].forEach(function(p) {
+        content += '<option value="' + p + '"' + (disc_.perfil === p ? ' selected' : '') + '>' + (p || '-- Selecione --') + '</option>';
+      });
+      content += '</select>';
+      content += '<label style="font-size:11px;color:#64748b;margin-left:8px">Descri\u00e7\u00e3o:</label>';
+      content += '<input type="text" value="' + (disc_.desc || '') + '" placeholder="Ex: Direto, focado em resultados" style="flex:1;min-width:180px;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:4px 8px;font-size:12px" onblur="ooSaveDisc(\'' + selBid + '\',\'desc\',this.value)">';
+      content += '</div>';
+    }
+    content += '</div>';
 
-    // Reunioes data
-    if (!S.ooReunioes) S.ooReunioes = {};
-    if (!S.ooReunioes[selBid]) S.ooReunioes[selBid] = {};
-    var reunioesMes = S.ooReunioes[selBid][monthKey] || [];
-
-    // Month/year selector
-    var ooReunMes = S.ooReunMes || monthKey;
-    var reunioesView = S.ooReunioes[selBid][ooReunMes] || [];
-
-    content += discCard;
-
-    // === OBJETIVO PESSOAL (preenchido pelo gestor em Gestão) ===
-    if (!S.ooObjetivo) S.ooObjetivo = {};
-    var objGestor = S.ooObjetivo[selBid] || {};
-    var temObj = objGestor.sonho || objGestor.metaFinanceira || objGestor.prazo;
-    if (temObj) {
-      content += '<div style="background:linear-gradient(135deg,#1a1a2e,#312e81);border-radius:12px;padding:16px;border:1px solid #fbbf2440;margin-bottom:16px">';
-      content += '<div style="display:flex;gap:14px;align-items:flex-start">';
-      // Photo
-      if (objGestor.foto) {
-        content += '<img src="' + objGestor.foto + '" style="width:80px;height:80px;object-fit:cover;border-radius:10px;border:2px solid #fbbf24;flex-shrink:0" onerror="this.style.display=\'none\'">';
+    // === 2. DATAS DO CORRETOR ===
+    if (!S.ooDatas) S.ooDatas = {};
+    var datas = S.ooDatas[selBid] || {};
+    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
+    content += '<div style="font-size:14px;font-weight:700;color:#f8fafc;margin-bottom:10px">\uD83D\uDCC5 Datas Importantes</div>';
+    content += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">';
+    [{k:'inicioEmpresa',lbl:'In\u00edcio na PSM',icon:'\uD83C\uDFE2'},{k:'aniversario',lbl:'Anivers\u00e1rio',icon:'\uD83C\uDF82'},{k:'primeiraVenda',lbl:'Primeira Venda',icon:'\uD83C\uDF1F'},{k:'ultimaVenda',lbl:'\u00DAltima Venda',icon:'\uD83C\uDFC6'}].forEach(function(df) {
+      var v = datas[df.k] || '';
+      content += '<div style="background:#0f172a;border-radius:8px;padding:10px">';
+      content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px">' + df.icon + ' ' + df.lbl + '</div>';
+      if (lvl >= 5) {
+        content += '<input type="date" value="' + v + '" style="width:100%;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px;font-size:13px" onblur="ooSaveData(\'' + selBid + '\',\'' + df.k + '\',this.value)">';
       } else {
-        content += '<div style="width:80px;height:80px;background:#0f172a;border-radius:10px;border:2px dashed #fbbf2440;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:28px">\u2B50</span></div>';
-      }
-      content += '<div style="flex:1;min-width:0">';
-      content += '<div style="font-size:14px;font-weight:700;color:#fbbf24;margin-bottom:6px">\u2B50 Meu Objetivo Pessoal</div>';
-      if (objGestor.sonho) {
-        content += '<div style="font-size:14px;color:#f8fafc;line-height:1.6;margin-bottom:8px">' + objGestor.sonho.replace(/\n/g,'<br>') + '</div>';
-      }
-      content += '<div style="display:flex;gap:16px;flex-wrap:wrap">';
-      if (objGestor.metaFinanceira) {
-        content += '<div style="display:flex;align-items:center;gap:4px"><span style="font-size:12px;color:#06b6d4;font-weight:700">\uD83C\uDFAF</span><span style="font-size:12px;color:#7dd3fc">' + objGestor.metaFinanceira + '</span></div>';
-      }
-      if (objGestor.prazo) {
-        content += '<div style="display:flex;align-items:center;gap:4px"><span style="font-size:12px;color:#10b981;font-weight:700">\u23F0</span><span style="font-size:12px;color:#6ee7b7">' + objGestor.prazo + '</span></div>';
+        content += '<div style="font-size:14px;font-weight:600;color:#f8fafc">' + (v ? v.split('-').reverse().join('/') : '\u2014') + '</div>';
       }
       content += '</div>';
-      content += '</div></div></div>';
+    });
+    content += '</div></div>';
+
+    // === 3. PONTOS DE ATEN\u00c7\u00c3O ===
+    if (!S.ooPontosAtencao) S.ooPontosAtencao = {};
+    var pontos = S.ooPontosAtencao[selBid] || [];
+    content += '<div style="background:linear-gradient(135deg,#451a03,#1e293b);border-radius:12px;padding:16px;border:1px solid #f59e0b30;margin-bottom:16px">';
+    content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    content += '<div style="font-size:14px;font-weight:700;color:#fbbf24">\u26A0\uFE0F Pontos de Aten\u00e7\u00e3o</div>';
+    if (lvl >= 5) {
+      content += '<button onclick="ooAddPontoAtencao(\'' + selBid + '\')" style="background:#f59e0b;color:#0f172a;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">+ Adicionar</button>';
     }
-
-    // === OBJETIVO DO MÊS (corretor preenche) ===
-    if (!S.ooObjetivoPessoal) S.ooObjetivoPessoal = {};
-    var objMesKey = S.ooReunMes || monthKey;
-    var objTexto = (S.ooObjetivoPessoal[selBid] || {})[objMesKey] || '';
-    content += '<div style="background:#1e293b;border-radius:12px;padding:14px;border:1px solid #334155;margin-bottom:16px">';
-    content += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
-    content += '<span style="font-size:16px">🎯</span>';
-    content += '<span style="font-size:13px;font-weight:700;color:#a5b4fc">Objetivo do Mês</span>';
-    content += '<span style="font-size:11px;color:#64748b">(o que quero conquistar este mês)</span>';
     content += '</div>';
-    content += '<textarea id="oo_obj_pessoal" rows="2" style="width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:10px;font-size:13px;resize:vertical;line-height:1.5;box-sizing:border-box" placeholder="Ex: Fechar 3 vendas no Legacy, melhorar taxa de agendamento..." onblur="ooSaveObjetivoPessoal(\'' + selBid + '\',\'' + objMesKey + '\',this.value)">' + objTexto + '</textarea>';
+    if (pontos.length === 0) {
+      content += '<div style="text-align:center;padding:16px;color:#64748b;font-size:13px">Nenhum ponto de aten\u00e7\u00e3o registrado.</div>';
+    } else {
+      pontos.forEach(function(p, idx) {
+        content += '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:#0f172a;border-radius:8px;margin-bottom:4px;border-left:3px solid #f59e0b">';
+        content += '<span style="font-size:14px;flex-shrink:0">\u26A0\uFE0F</span>';
+        content += '<div style="flex:1"><div style="font-size:13px;color:#fde68a;line-height:1.5">' + p.txt + '</div>';
+        content += '<div style="font-size:10px;color:#64748b;margin-top:2px">' + (p.data||'') + (p.autor ? ' \u2014 ' + p.autor : '') + '</div></div>';
+        if (lvl >= 5) {
+          content += '<button onclick="ooRemovePontoAtencao(\'' + selBid + '\',' + idx + ')" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:14px;flex-shrink:0">\u2715</button>';
+        }
+        content += '</div>';
+      });
+    }
     content += '</div>';
 
-    // Month navigator
+    // === 4. OBJETIVO DA SEMANA ===
+    var weekStart = new Date(now);
+    var dow = weekStart.getDay();
+    var diffToMon = dow === 0 ? -6 : 1 - dow;
+    weekStart.setDate(weekStart.getDate() + diffToMon);
+    var weekKey = weekStart.toISOString().slice(0,10);
+    if (!S.ooObjSemana) S.ooObjSemana = {};
+    var objsSem = (S.ooObjSemana[selBid] || {})[weekKey] || [];
+    var semDone = objsSem.filter(function(o){ return o.done; }).length;
+    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
+    content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    content += '<div><span style="font-size:14px;font-weight:700;color:#a5b4fc">\uD83C\uDFAF Objetivo da Semana</span>';
+    if (objsSem.length > 0) content += ' <span style="font-size:11px;color:#64748b">' + semDone + '/' + objsSem.length + ' conclu\u00eddos</span>';
+    content += '</div>';
+    content += '<button onclick="ooAddObjSemana(\'' + selBid + '\',\'' + weekKey + '\')" style="background:#6366f1;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">+ Objetivo</button>';
+    content += '</div>';
+    if (objsSem.length === 0) {
+      content += '<div style="text-align:center;padding:12px;color:#64748b;font-size:13px">Nenhum objetivo da semana definido.</div>';
+    } else {
+      objsSem.forEach(function(o, idx) {
+        var isDone = o.done;
+        content += '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:' + (isDone ? '#10b98115' : '#0f172a') + ';border-radius:8px;margin-bottom:4px;border:1px solid ' + (isDone ? '#10b98130' : '#334155') + '">';
+        content += '<button onclick="ooToggleObjSemana(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ')" style="background:' + (isDone ? '#10b981' : '#1e293b') + ';color:#fff;border:' + (isDone ? 'none' : '2px solid #475569') + ';width:22px;height:22px;border-radius:6px;cursor:pointer;font-size:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center">' + (isDone ? '\u2713' : '') + '</button>';
+        content += '<span style="flex:1;font-size:13px;color:' + (isDone ? '#6ee7b7' : '#e2e8f0') + ';' + (isDone ? 'text-decoration:line-through;opacity:.7' : '') + ';line-height:1.5">' + o.txt + '</span>';
+        content += '<button onclick="ooRemoveObjSemana(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ')" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:14px;flex-shrink:0">\u2715</button>';
+        content += '</div>';
+      });
+    }
+    content += '</div>';
+
+    // === 5. OBJETIVO DO M\u00caS ===
+    if (!S.ooObjMes) S.ooObjMes = {};
+    var objsMes = (S.ooObjMes[selBid] || {})[monthKey] || [];
+    var mesDone = objsMes.filter(function(o){ return o.done; }).length;
+    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
+    content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    content += '<div><span style="font-size:14px;font-weight:700;color:#fbbf24">\uD83D\uDCC6 Objetivo do M\u00eas \u2014 ' + monthNames[curMonth] + '</span>';
+    if (objsMes.length > 0) content += ' <span style="font-size:11px;color:#64748b">' + mesDone + '/' + objsMes.length + ' conclu\u00eddos</span>';
+    content += '</div>';
+    content += '<button onclick="ooAddObjMes(\'' + selBid + '\',\'' + monthKey + '\')" style="background:#f59e0b;color:#0f172a;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">+ Objetivo</button>';
+    content += '</div>';
+    if (objsMes.length === 0) {
+      content += '<div style="text-align:center;padding:12px;color:#64748b;font-size:13px">Nenhum objetivo do m\u00eas definido.</div>';
+    } else {
+      objsMes.forEach(function(o, idx) {
+        var isDone = o.done;
+        content += '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:' + (isDone ? '#10b98115' : '#0f172a') + ';border-radius:8px;margin-bottom:4px;border:1px solid ' + (isDone ? '#10b98130' : '#334155') + '">';
+        content += '<button onclick="ooToggleObjMes(\'' + selBid + '\',\'' + monthKey + '\',' + idx + ')" style="background:' + (isDone ? '#10b981' : '#1e293b') + ';color:#fff;border:' + (isDone ? 'none' : '2px solid #475569') + ';width:22px;height:22px;border-radius:6px;cursor:pointer;font-size:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center">' + (isDone ? '\u2713' : '') + '</button>';
+        content += '<span style="flex:1;font-size:13px;color:' + (isDone ? '#6ee7b7' : '#e2e8f0') + ';' + (isDone ? 'text-decoration:line-through;opacity:.7' : '') + ';line-height:1.5">' + o.txt + '</span>';
+        content += '<button onclick="ooRemoveObjMes(\'' + selBid + '\',\'' + monthKey + '\',' + idx + ')" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:14px;flex-shrink:0">\u2715</button>';
+        content += '</div>';
+      });
+    }
+    content += '</div>';
+
+    // === 6. FECHAMENTO DA SEMANA ===
+    if (!S.ooFechamento) S.ooFechamento = {};
+    var fechItems = (S.ooFechamento[selBid] || {})[weekKey] || [];
+    content += '<div style="background:linear-gradient(135deg,#052e16,#1e293b);border-radius:12px;padding:16px;border:1px solid #10b98130;margin-bottom:16px">';
+    content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    content += '<div style="font-size:14px;font-weight:700;color:#10b981">\uD83D\uDCBC Fechamento da Semana</div>';
+    content += '<button onclick="ooAddFechamento(\'' + selBid + '\',\'' + weekKey + '\')" style="background:#10b981;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">+ Neg\u00f3cio</button>';
+    content += '</div>';
+    content += '<div style="font-size:11px;color:#6ee7b7;margin-bottom:10px">Indique os neg\u00f3cios que pretende fechar esta semana</div>';
+    if (fechItems.length === 0) {
+      content += '<div style="text-align:center;padding:16px;color:#64748b;font-size:13px">Nenhum neg\u00f3cio indicado para fechamento.</div>';
+    } else {
+      fechItems.forEach(function(f, idx) {
+        content += '<div style="background:#0f172a;border-radius:8px;padding:12px;margin-bottom:8px;border:1px solid #334155">';
+        content += '<div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap">';
+        content += '<input type="text" value="' + (f.nome||'') + '" placeholder="Nome do cliente" style="flex:1;min-width:130px;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:12px" onblur="ooUpdateFechamento(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ',\'nome\',this.value)">';
+        content += '<input type="text" value="' + (f.produto||'') + '" placeholder="Produto" style="flex:1;min-width:130px;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:12px" onblur="ooUpdateFechamento(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ',\'produto\',this.value)">';
+        content += '<input type="text" value="' + (f.vgv||'') + '" placeholder="VGV (R$)" style="width:110px;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:12px" onblur="ooUpdateFechamento(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ',\'vgv\',this.value)">';
+        content += '<button onclick="ooRemoveFechamento(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ')" style="background:#dc262620;color:#fca5a5;border:none;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:12px">\u2715</button>';
+        content += '</div>';
+        content += '<textarea rows="2" placeholder="O que falta para fechar?" style="width:100%;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:12px;resize:vertical;box-sizing:border-box" onblur="ooUpdateFechamento(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ',\'necessario\',this.value)">' + (f.necessario||'') + '</textarea>';
+        content += '</div>';
+      });
+    }
+    content += '</div>';
+
+    // === 7. HIST\u00d3RICO DE REUNI\u00d5ES 1:1 ===
+    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
+    content += '<div style="font-size:14px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCCB Hist\u00f3rico de Reuni\u00f5es 1:1</div>';
+
+        // Month navigator
     content += '<div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px">';
     content += '<button onclick="ooReunNavMonth(-1)" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px">\u25C0</button>';
     var rmParts = ooReunMes.split('-');
@@ -5535,6 +5841,7 @@ function pgOO() {
 
     // Historical note
     content += '<div style="text-align:center;padding:12px;color:#64748b;font-size:11px;margin-top:8px">Navegue pelos meses para acessar o hist\u00f3rico completo de reuni\u00f5es.</div>';
+    content += '</div>'; // close meetings wrapper
   }
 
   // ============================================================
@@ -6196,6 +6503,106 @@ function ooUpdateReuniao(bid, monthKey, idx, field, value) {
   if (!S.ooReunioes[bid][monthKey][idx]) return;
   S.ooReunioes[bid][monthKey][idx][field] = value;
   saveState();
+}
+
+// === DISC profile editing (gestor) ===
+function ooSaveDisc(bid, field, value) {
+  if (!S.ooDiscCustom) S.ooDiscCustom = {};
+  if (!S.ooDiscCustom[bid]) S.ooDiscCustom[bid] = {};
+  S.ooDiscCustom[bid][field] = value;
+  if (!DISC_PROFILES[bid]) DISC_PROFILES[bid] = {perfil:'',cor:'#64748b',desc:''};
+  DISC_PROFILES[bid][field] = value;
+  if (field === 'perfil') {
+    var cores = {Diretor:'#dc2626',Influente:'#f59e0b','Est\u00e1vel':'#16a34a',Conforme:'#2563eb',Operador:'#0891b2'};
+    DISC_PROFILES[bid].cor = cores[value] || '#64748b';
+    S.ooDiscCustom[bid].cor = DISC_PROFILES[bid].cor;
+  }
+  saveState(); toast('Perfil atualizado!','ok');
+}
+
+// === Corretor dates ===
+function ooSaveData(bid, field, value) {
+  if (!S.ooDatas) S.ooDatas = {};
+  if (!S.ooDatas[bid]) S.ooDatas[bid] = {};
+  S.ooDatas[bid][field] = value;
+  saveState(); toast('Data salva!','ok');
+}
+
+// === Weekly objectives ===
+function ooAddObjSemana(bid, weekKey) {
+  var txt = prompt('Novo objetivo da semana:');
+  if (!txt || !txt.trim()) return;
+  if (!S.ooObjSemana) S.ooObjSemana = {};
+  if (!S.ooObjSemana[bid]) S.ooObjSemana[bid] = {};
+  if (!S.ooObjSemana[bid][weekKey]) S.ooObjSemana[bid][weekKey] = [];
+  S.ooObjSemana[bid][weekKey].push({txt: txt.trim(), done: false});
+  saveState(); render();
+}
+function ooToggleObjSemana(bid, weekKey, idx) {
+  if (!S.ooObjSemana || !S.ooObjSemana[bid] || !S.ooObjSemana[bid][weekKey]) return;
+  S.ooObjSemana[bid][weekKey][idx].done = !S.ooObjSemana[bid][weekKey][idx].done;
+  saveState(); render();
+}
+function ooRemoveObjSemana(bid, weekKey, idx) {
+  if (!S.ooObjSemana || !S.ooObjSemana[bid] || !S.ooObjSemana[bid][weekKey]) return;
+  S.ooObjSemana[bid][weekKey].splice(idx, 1);
+  saveState(); render();
+}
+
+// === Monthly objectives ===
+function ooAddObjMes(bid, monthKey) {
+  var txt = prompt('Novo objetivo do m\u00eas:');
+  if (!txt || !txt.trim()) return;
+  if (!S.ooObjMes) S.ooObjMes = {};
+  if (!S.ooObjMes[bid]) S.ooObjMes[bid] = {};
+  if (!S.ooObjMes[bid][monthKey]) S.ooObjMes[bid][monthKey] = [];
+  S.ooObjMes[bid][monthKey].push({txt: txt.trim(), done: false});
+  saveState(); render();
+}
+function ooToggleObjMes(bid, monthKey, idx) {
+  if (!S.ooObjMes || !S.ooObjMes[bid] || !S.ooObjMes[bid][monthKey]) return;
+  S.ooObjMes[bid][monthKey][idx].done = !S.ooObjMes[bid][monthKey][idx].done;
+  saveState(); render();
+}
+function ooRemoveObjMes(bid, monthKey, idx) {
+  if (!S.ooObjMes || !S.ooObjMes[bid] || !S.ooObjMes[bid][monthKey]) return;
+  S.ooObjMes[bid][monthKey].splice(idx, 1);
+  saveState(); render();
+}
+
+// === Pontos de Aten\u00e7\u00e3o ===
+function ooAddPontoAtencao(bid) {
+  var txt = prompt('Ponto de aten\u00e7\u00e3o / alerta:');
+  if (!txt || !txt.trim()) return;
+  if (!S.ooPontosAtencao) S.ooPontosAtencao = {};
+  if (!S.ooPontosAtencao[bid]) S.ooPontosAtencao[bid] = [];
+  S.ooPontosAtencao[bid].push({txt: txt.trim(), data: new Date().toISOString().slice(0,10), autor: S.user ? S.user.name : ''});
+  saveState(); render();
+}
+function ooRemovePontoAtencao(bid, idx) {
+  if (!S.ooPontosAtencao || !S.ooPontosAtencao[bid]) return;
+  S.ooPontosAtencao[bid].splice(idx, 1);
+  saveState(); render();
+}
+
+// === Fechamento da Semana ===
+function ooAddFechamento(bid, weekKey) {
+  if (!S.ooFechamento) S.ooFechamento = {};
+  if (!S.ooFechamento[bid]) S.ooFechamento[bid] = {};
+  if (!S.ooFechamento[bid][weekKey]) S.ooFechamento[bid][weekKey] = [];
+  S.ooFechamento[bid][weekKey].push({nome:'', produto:'', vgv:'', necessario:''});
+  saveState(); render();
+}
+function ooUpdateFechamento(bid, weekKey, idx, field, value) {
+  if (!S.ooFechamento || !S.ooFechamento[bid] || !S.ooFechamento[bid][weekKey]) return;
+  if (!S.ooFechamento[bid][weekKey][idx]) return;
+  S.ooFechamento[bid][weekKey][idx][field] = value;
+  saveState();
+}
+function ooRemoveFechamento(bid, weekKey, idx) {
+  if (!S.ooFechamento || !S.ooFechamento[bid] || !S.ooFechamento[bid][weekKey]) return;
+  S.ooFechamento[bid][weekKey].splice(idx, 1);
+  saveState(); render();
 }
 
 // Gestão: Meta por lançamento
