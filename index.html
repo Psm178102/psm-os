@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PSM OS</title>
+<title>House PSM</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
@@ -621,7 +621,7 @@ html{height:100%;overflow:hidden}
 <link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22PSM%20OS%22%2C%22short_name%22%3A%22PSM%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231a2048%22%2C%22theme_color%22%3A%22%231a2048%22%2C%22start_url%22%3A%22%2F%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%3Bcharset%3Dutf-8%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%270%200%20100%20100%2527%253E%253Crect%2520fill%3D%2527%25231a2048%2527%2520width%3D%2527100%2527%2520height%3D%2527100%2527%2520rx%3D%252720%2527%2F%253E%253Ctext%2520fill%3D%2527%2523c9a84c%2527%2520x%3D%252750%2527%2520y%3D%252768%2527%2520text-anchor%3D%2527middle%2527%2520font-size%3D%252742%2527%2520font-weight%3D%2527900%2527%2520font-family%3D%2527sans-serif%2527%253EPSM%253C%2Ftext%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22192x192%22%7D%5D%7D">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="PSM OS">
+<meta name="apple-mobile-web-app-title" content="House PSM">
 <meta name="theme-color" content="#0f172a">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -1266,8 +1266,21 @@ var _fbSyncing = false; // prevent loops
 var _fbLastPush = 0;
 var _fbDebounceTimer = null;
 
+var FB_DEFAULT_CONFIG = {
+  apiKey: "AIzaSyAHndkE4bqe4xyWGmfJzfxmibRS2f_dOhA",
+  authDomain: "psm-os.firebaseapp.com",
+  databaseURL: "https://psm-os-default-rtdb.firebaseio.com",
+  projectId: "psm-os",
+  storageBucket: "psm-os.firebasestorage.app",
+  messagingSenderId: "814980752519",
+  appId: "1:814980752519:web:115914b27d538b4a770422"
+};
+
 function fbGetConfig() {
-  try { return JSON.parse(localStorage.getItem('psm_firebase_config') || 'null'); } catch(e) { return null; }
+  try {
+    var custom = JSON.parse(localStorage.getItem('psm_firebase_config') || 'null');
+    return custom || FB_DEFAULT_CONFIG;
+  } catch(e) { return FB_DEFAULT_CONFIG; }
 }
 function fbSaveConfig(cfg) {
   localStorage.setItem('psm_firebase_config', JSON.stringify(cfg));
@@ -1878,7 +1891,7 @@ function arenaTV(){
     // Footer bar
     var footer = document.createElement('div');
     footer.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:36px;padding:0 28px;background:rgba(0,0,0,0.85);display:flex;justify-content:space-between;align-items:center;z-index:100000;backdrop-filter:blur(8px)';
-    footer.innerHTML = '<div style="font-size:10px;color:#475569">PSM OS \u2022 Arena PSM \u2022 Modo TV</div><div style="font-size:10px;color:#475569">ESC para sair \u2022 Auto-scroll \u2022 Refresh 60s</div>';
+    footer.innerHTML = '<div style="font-size:10px;color:#475569">House PSM \u2022 Arena PSM \u2022 Modo TV</div><div style="font-size:10px;color:#475569">ESC para sair \u2022 Auto-scroll \u2022 Refresh 60s</div>';
     overlay.appendChild(footer);
 
     document.body.appendChild(overlay);
@@ -6830,7 +6843,7 @@ function pgFormacao() {
     h += '<h2 style="color:#ffffff;margin:0 0 8px">Comunidade PSM</h2>';
     h += '<p style="color:#cbd5e1;margin:0 0 24px;max-width:500px;display:inline-block">Acesse a plataforma de aulas para assistir aos treinamentos, acompanhar seu progresso e se desenvolver como corretor PSM.</p>';
     h += '<a href="' + kiwifyUrl + '" target="_blank" rel="noopener" style="display:inline-block;padding:14px 40px;background:linear-gradient(135deg,#d4a843,#e8c263);color:#0f172a;border-radius:12px;font-weight:700;font-size:16px;text-decoration:none;box-shadow:0 4px 6px -1px rgba(0,0,0,.07);transition:all .2s;letter-spacing:0.02em">Acessar Aulas \u2192</a>';
-    h += '<div style="margin-top:16px;font-size:11px;color:#94a3b8;opacity:.7">Ambiente seguro PSM \u2022 Visual integrado com PSM OS</div>';
+    h += '<div style="margin-top:16px;font-size:11px;color:#94a3b8;opacity:.7">Ambiente seguro PSM \u2022 Visual integrado com House PSM</div>';
     h += '</div>';
     h += '<h3 style="color:var(--navy);margin:24px 0 16px">📚 Módulos Disponíveis</h3>';
     mods.forEach(function(m,i){
@@ -10003,7 +10016,7 @@ async function rdDebugTest() {
 function pgConfig() {
   const u = S.user; const lvl = RLVL[u?.role]||0;
   if (lvl < 7) return '<div class="phd"><h1>Acesso Restrito</h1></div>';
-  return '<div class="phd"><h1>⚙️ Configurações</h1><p>Administração PSM OS</p></div>'
+  return '<div class="phd"><h1>⚙️ Configurações</h1><p>Administração House PSM</p></div>'
     + '<div class="g2">'
     + '<div class="card"><div class="ctitle">Usuários & Equipe</div>'
     + BROKERS.map(b => '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--cream3)">'
@@ -10158,7 +10171,7 @@ function pgConfig() {
     + '</div>'
     + '</div>'
     + '<div class="card mt2" style="grid-column:1/-1"><div class="ctitle" style="margin-bottom:4px">\u{1F517} Integra\u00e7\u00f5es Externas</div>'
-    + '<div style="font-size:11px;color:var(--muted);margin-bottom:16px">Conecte sistemas externos ao PSM OS. Cole a chave API/Token de cada sistema e teste a conex\u00e3o.</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-bottom:16px">Conecte sistemas externos ao House PSM. Cole a chave API/Token de cada sistema e teste a conex\u00e3o.</div>'
     + intCard('kenlo','Kenlo Imob','#1a73e8','Im\u00f3veis terceiros, portais e site','Token API Kenlo')
     + intCard('zoho','Zohomail','#f4b400','E-mail profissional e calend\u00e1rio','Chave API Zoho')
     + intCard('gcal','Google Agenda','#0f9d58','Alertas e agenda dos corretores','Chave API / Client ID')
@@ -10189,7 +10202,7 @@ function pgConfig() {
     + '</div>'
     + '<div class="card mt2" style="grid-column:1/-1"><div class="ctitle">🛡️ Backup & Recuperação de Dados</div>'
     + '<div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.6">'
-    + 'O PSM OS salva backups automáticos a cada hora (3 rotações) e um backup crítico a cada salvamento. '
+    + 'O House PSM salva backups automáticos a cada hora (3 rotações) e um backup crítico a cada salvamento. '
     + 'Use as opções abaixo para exportar um arquivo JSON completo ou importar um backup anterior.</div>'
     + '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'
     + '<button class="btn bp1" onclick="psmExportBackup()" style="font-size:13px;padding:10px 20px">📥 Exportar Backup (JSON)</button>'
@@ -10850,7 +10863,7 @@ function renderSB() {
     + '</div>'
     + '<div class="sb-body">'+sections+'</div>'
     + '<div class="sb-foot" style="font-size:9px;color:rgba(255,255,255,.2);padding:10px 16px">'
-    + 'PSM OS v8 \u00B7 '+(RD.lastSync?'Sync '+RD.lastSync.toLocaleTimeString('pt-BR'):'Aguardando sync')+'</div>'
+    + 'House PSM v8 \u00B7 '+(RD.lastSync?'Sync '+RD.lastSync.toLocaleTimeString('pt-BR'):'Aguardando sync')+'</div>'
     + '</nav>';
 }
 
@@ -13086,8 +13099,8 @@ window.addEventListener('DOMContentLoaded', () => {
   // fillDemo removed
   loadState();
 
-  // Inicializar Firebase Sync (se configurado)
-  try { if (typeof firebase !== 'undefined' && fbGetConfig()) fbInit(); } catch(e) { console.warn('[PSM] Firebase init skip:', e); }
+  // Inicializar Firebase Sync (auto-connect com config padrão)
+  try { if (typeof firebase !== 'undefined') fbInit(); } catch(e) { console.warn('[HousePSM] Firebase init skip:', e); }
 
   // Detecta ?reset= na URL (antes do auto-login)
   const _qs=new URLSearchParams(location.search); if(_qs.get('reset')){S.resetToken=_qs.get('reset');S.loginView='reset';history.replaceState(null,'',location.pathname);}
@@ -13177,9 +13190,9 @@ function pgAgentes() {
   var agents = [
     {id:'vera', name:'Vera', line:'PSM Assessoria Imobiliária', ico:'💜', color:'#8b5cf6', desc:'Atendimento de leads, qualificação, nutrição e captação para assessoria imobiliária', channels:['WhatsApp','Instagram DM'], status:'config', page:'agente_vera'},
     {id:'sol', name:'Sol', line:'PSM Conquista', ico:'☀️', color:'#f59e0b', desc:'Prospecção, atendimento e nutrição de leads para incorporação e loteamento', channels:['WhatsApp','Instagram DM'], status:'pending', page:'agente_sol'},
-    {id:'performance', name:'Sr. Performance', line:'Mentor de Corretores', ico:'🤖', color:'#0f172a', desc:'Treina corretores do zero ao nível expert com dados reais do CRM', channels:['PSM OS Chat'], status:'active', page:'sr_performance'},
-    {id:'gerencia', name:'Sr. Gerência', line:'Gestão Operacional', ico:'👔', color:'#0891b2', desc:'Organiza operação, corrige e orienta corretores com foco em resultados', channels:['PSM OS Chat'], status:'pending', page:null},
-    {id:'intelligence', name:'Sr. Intelligence', line:'Inteligência Estratégica', ico:'🔍', color:'#059669', desc:'Audita, analisa concorrentes e orienta sócios e diretores com dados', channels:['PSM OS Chat'], status:'pending', page:null},
+    {id:'performance', name:'Sr. Performance', line:'Mentor de Corretores', ico:'🤖', color:'#0f172a', desc:'Treina corretores do zero ao nível expert com dados reais do CRM', channels:['House PSM Chat'], status:'active', page:'sr_performance'},
+    {id:'gerencia', name:'Sr. Gerência', line:'Gestão Operacional', ico:'👔', color:'#0891b2', desc:'Organiza operação, corrige e orienta corretores com foco em resultados', channels:['House PSM Chat'], status:'pending', page:null},
+    {id:'intelligence', name:'Sr. Intelligence', line:'Inteligência Estratégica', ico:'🔍', color:'#059669', desc:'Audita, analisa concorrentes e orienta sócios e diretores com dados', channels:['House PSM Chat'], status:'pending', page:null},
   ];
 
   var statusMap = {active:'🟢 Ativo', config:'🟡 Configurando', pending:'⚪ Aguardando'};
