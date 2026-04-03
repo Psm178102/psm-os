@@ -1301,17 +1301,24 @@ function fbInit() {
     _fbDb = firebase.database(_fbApp);
     _fbReady = true;
     console.log('[PSM-Sync] Firebase conectado:', cfg.projectId);
-    // Listen for remote changes
+    // Listen for remote changes — com debounce e protecao de edicao
+    var _fbRecvTimer = null;
+    var _fbLastRecvRender = 0;
+    var _fbFirstLoad = true;
     _fbDb.ref('shared').on('value', function(snap) {
       if (_fbSyncing) return; // ignore our own writes
       var data = snap.val();
       if (!data) return;
-      console.log('[PSM-Sync] Recebendo dados remotos...');
+      // Se o update veio de mim mesmo, ignora
+      if (data._updatedBy === (S.user ? S.user.id : '') && !_fbFirstLoad) {
+        console.log('[PSM-Sync] Ignorando echo do proprio usuario');
+        return;
+      }
+      console.log('[PSM-Sync] Recebendo dados remotos de:', data._updatedBy||'?');
       _fbSyncing = true;
       SYNC_KEYS.forEach(function(k) {
         if (data[k] !== undefined) S[k] = data[k];
       });
-      // Global keys
       if (data.metasConfig) Object.assign(METAS_CONFIG, data.metasConfig);
       if (data.metasEquipe) {
         for (var fk in data.metasEquipe) {
@@ -1321,8 +1328,28 @@ function fbInit() {
       }
       if (data.teamConfig) Object.assign(TEAM_CONFIG, data.teamConfig);
       _fbSyncing = false;
-      render();
-      toast('\uD83D\uDD04 Dados sincronizados!','ok');
+      // Debounce render: nao renderizar se usuario esta editando
+      if (_fbRecvTimer) clearTimeout(_fbRecvTimer);
+      _fbRecvTimer = setTimeout(function() {
+        var ae = document.activeElement;
+        var isEditing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' || ae.isContentEditable);
+        if (isEditing) {
+          console.log('[PSM-Sync] Usuario editando, render adiado');
+          saveState();
+          return;
+        }
+        var now = Date.now();
+        if (now - _fbLastRecvRender < 5000 && !_fbFirstLoad) {
+          console.log('[PSM-Sync] Render throttled (min 5s entre syncs)');
+          saveState();
+          return;
+        }
+        _fbLastRecvRender = now;
+        _fbFirstLoad = false;
+        render();
+        saveState();
+        console.log('[PSM-Sync] Dados sincronizados silenciosamente');
+      }, _fbFirstLoad ? 500 : 3000);
     });
     // Status badge
     _fbDb.ref('.info/connected').on('value', function(snap) {
