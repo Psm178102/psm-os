@@ -10871,7 +10871,7 @@ function pgPremiacoes() {
 // Paginas visiveis para TODOS
 var PAGES_ALL=['checkin','wararena','lancamentos_ano','ranking','tabela','drive','mapa','formacao','manual','playbook','codigo_etica','simvpl','simincc','sim_energia','simrep','canal_anonimo','kenlo','agente_vera','agente_sol','sr_performance','sr_gerencia'];
 // Painel do Corretor: socios, gestores(lider), corretores
-var PAGES_PAINEL_CORRETOR=['oneonone','oportunidades','premiacoes','relat_vendas','fluxo_cadencia','criativos','plantoes','ficha_captacao','ia_corretor'];
+var PAGES_PAINEL_CORRETOR=['oneonone','oportunidades','premiacoes','relat_vendas','fluxo_cadencia','criativos','plantoes','ficha_captacao','fichas_propostas','ia_corretor'];
 // Frentes: apenas socios
 var PAGES_FRENTES=['lancamento','conquista','terceiros','locacao'];
 // Secretaria de vendas: socios + leire + guilherme
@@ -10935,6 +10935,7 @@ function renderSB() {
       {id:'criativos',      lbl:'Criativos',               ico:'\uD83C\uDFA8'},
       {id:'plantoes',       lbl:'Plant\u00f5es',           ico:'\uD83D\uDCC5'},
       {id:'ficha_captacao', lbl:'Ficha de Capta\u00e7\u00e3o', ico:'\uD83D\uDCDD'},
+      {id:'fichas_propostas',lbl:'Fichas & Propostas',     ico:'\uD83D\uDCC4'},
       {id:'ia_corretor',    lbl:'IA do Corretor',          ico:'\uD83E\uDD16'},
     ]},
     {sec:'Ferramentas', items:[
@@ -11045,6 +11046,7 @@ function renderHDR() {
     relat_vendas:'\uD83D\uDCCA Relat\u00f3rio de Vendas',fluxo_cadencia:'\uD83D\uDD04 Fluxo de Cad\u00eancia',
     criativos:'\uD83C\uDFA8 Criativos',plantoes:'\uD83D\uDCC5 Plant\u00f5es',ficha_captacao:'\uD83D\uDCDD Ficha de Capta\u00e7\u00e3o',
     ia_corretor:'\uD83E\uDD16 IA do Corretor',
+    fichas_propostas:'\uD83D\uDCC4 Fichas & Propostas',
     // Ferramentas
     tabela:'\uD83D\uDCCB Tabela PSM',drive:'\uD83D\uDCC1 Drive',mapa:'\uD83D\uDDFA\uFE0F Mapa',
     formacao:'\uD83C\uDF93 Forma\u00e7\u00e3o PSM',manual:'\uD83D\uDCD6 Manual de Cultura',
@@ -12355,6 +12357,7 @@ function route() {
     case 'criativos':        return pgCriativos();
     case 'plantoes':         return pgPlantoes();
     case 'ficha_captacao':   return pgCaptacao();
+    case 'fichas_propostas': return pgFichasPropostas();
     case 'ia_corretor':      return pgPlaceholder('IA do Corretor','\uD83E\uDD16 Em constru\u00e7\u00e3o: assistente de intelig\u00eancia artificial para corretores.');
     // Ferramentas
     case 'playbook':         return pgPlaceholder('Playbook','Em breve: playbook completo de vendas PSM.');
@@ -12839,6 +12842,35 @@ function removerPlantao(dia, idx) {
 }
 
 // === CRIATIVOS — Google Drive embed ===
+function pgFichasPropostas() {
+  var docs = [
+    {nome:'Ficha de Cadastro para Lan\u00e7amento', desc:'Ficha de cadastro do proponente, c\u00f4njuge e pessoa jur\u00eddica \u2014 conforme resolu\u00e7\u00e3o COFECI n\u00ba 1.336 e COAF.', arquivo:'ficha-lancamento.pdf', tipo:'PDF', ico:'\uD83D\uDCC4', cor:'#ef4444'},
+    {nome:'Proposta de Compra e Venda', desc:'Modelo de proposta para compra e venda de im\u00f3vel com dados do proponente, im\u00f3vel e condi\u00e7\u00f5es de pagamento.', arquivo:'proposta-compra-venda.docx', tipo:'DOCX', ico:'\uD83D\uDCDD', cor:'#3b82f6'},
+    {nome:'Proposta de Loca\u00e7\u00e3o Residencial', desc:'Modelo de proposta para loca\u00e7\u00e3o residencial com dados do locat\u00e1rio e condi\u00e7\u00f5es do contrato.', arquivo:'proposta-locacao-residencial.docx', tipo:'DOCX', ico:'\uD83C\uDFE0', cor:'#10b981'},
+    {nome:'Cess\u00e3o de Direitos', desc:'Modelo de termo de cess\u00e3o de direitos para transa\u00e7\u00f5es de repasse imobili\u00e1rio.', arquivo:'cessao-de-direitos.docx', tipo:'DOCX', ico:'\uD83D\uDD04', cor:'#8b5cf6'}
+  ];
+  var h = '<div class="pg-wrap" style="padding:20px">';
+  h += '<div class="phd"><h1>\uD83D\uDCC4 Fichas & Propostas</h1><p>Baixe os modelos oficiais da PSM Im\u00f3veis para imprimir e preencher</p></div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:16px">';
+  for (var i = 0; i < docs.length; i++) {
+    var d = docs[i];
+    h += '<div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column">';
+    h += '<div style="padding:20px 20px 16px;flex:1">';
+    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">';
+    h += '<div style="width:44px;height:44px;border-radius:10px;background:'+d.cor+'15;display:flex;align-items:center;justify-content:center;font-size:22px">'+d.ico+'</div>';
+    h += '<div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+d.nome+'</div>';
+    h += '<div style="font-size:10px;font-weight:600;color:'+d.cor+';text-transform:uppercase;letter-spacing:1px;margin-top:2px">'+d.tipo+'</div></div>';
+    h += '</div>';
+    h += '<p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0">'+d.desc+'</p>';
+    h += '</div>';
+    h += '<a href="docs/'+d.arquivo+'" download style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;background:'+d.cor+';color:#fff;font-size:13px;font-weight:700;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">';
+    h += '\u2B07\uFE0F Baixar '+d.tipo+'</a>';
+    h += '</div>';
+  }
+  h += '</div></div>';
+  return h;
+}
+
 function pgCriativos() {
   var driveUrl = 'https://drive.google.com/drive/folders/1REcIDcFHhTkTG6Y-Aj7WEpClg9K9xBWF';
   var embedUrl = 'https://drive.google.com/embeddedfolderview?id=1REcIDcFHhTkTG6Y-Aj7WEpClg9K9xBWF#grid';
