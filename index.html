@@ -10806,25 +10806,300 @@ function caMarcarTodasLidas() {
 
 // === RELATORIO DE VENDAS E COMISSOES ===
 function pgRelatVendas() {
-  var h = '<div class="phd"><h1>\uD83D\uDCCA Relat\u00f3rio de Vendas e Comiss\u00f5es</h1><p>Acompanhe suas vendas e comiss\u00f5es</p></div>';
-  h += '<div style="display:flex;align-items:center;justify-content:center;min-height:300px;flex-direction:column;gap:16px">';
-  h += '<div style="font-size:64px">\uD83D\uDEA7</div>';
-  h += '<div style="font-size:22px;font-weight:700;color:#f8fafc">Em Constru\u00e7\u00e3o</div>';
-  h += '<div style="font-size:14px;color:#94a3b8;max-width:400px;text-align:center">Estamos desenvolvendo o relat\u00f3rio completo de vendas e comiss\u00f5es. Em breve voc\u00ea poder\u00e1 acompanhar todos os seus ganhos detalhadamente.</div>';
+  var u = S.user; if (!u) return '';
+  if (!S.rvTab) S.rvTab = 'vendas';
+  if (!S.rvAno) S.rvAno = new Date().getFullYear();
+  if (!S.comissoes) { try { S.comissoes = JSON.parse(localStorage.getItem('psm_comissoes')||'{}'); } catch(e){ S.comissoes = {}; } }
+  if (!S.vendasManuais) { try { S.vendasManuais = JSON.parse(localStorage.getItem('psm_vendas_manuais')||'[]'); } catch(e){ S.vendasManuais = []; } }
+
+  // Merge RD vendas + manuais
+  var allVendas = [];
+  VENDAS.forEach(function(v){
+    var cm = S.comissoes[v.rdId||v.id] || {};
+    allVendas.push({id:v.rdId||v.id, cl:v.cl||'', emp:v.ori||'', tipo:'', torre:'', unid:'', nome:'', vgv:v.vgv||0, data:v.closedAt||v.createdAt||'', pctCom:cm.pctCom||0, pctImp:cm.pctImp||6, status:cm.status||'NAO_PAGO', parcela:cm.parcela||'', corretor:v.bn||'', frente:v.fr||'', fonte:'rd'});
+  });
+  S.vendasManuais.forEach(function(v){
+    var cm = S.comissoes[v.id] || {};
+    allVendas.push({id:v.id, cl:v.cl||'', emp:v.emp||'', tipo:v.tipo||'', torre:v.torre||'', unid:v.unid||'', nome:v.nome||'', vgv:v.vgv||0, data:v.data||'', pctCom:cm.pctCom||v.pctCom||0, pctImp:cm.pctImp||v.pctImp||6, status:cm.status||v.status||'NAO_PAGO', parcela:cm.parcela||v.parcela||'', corretor:v.corretor||u.name, frente:v.frente||'', fonte:'manual'});
+  });
+
+  // Sort by date desc
+  allVendas.sort(function(a,b){ return (b.data||'').localeCompare(a.data||''); });
+
+  // Filter by user if corretor
+  var perfil = getPerfil(u.id);
+  var myVendas = perfil === 'corretor' ? allVendas.filter(function(v){ return v.corretor && v.corretor.toLowerCase().includes(u.name.split(' ')[0].toLowerCase()); }) : allVendas;
+
+  // KPIs
+  var totalVGV = myVendas.reduce(function(a,v){return a+v.vgv},0);
+  var totalVendas = myVendas.length;
+  var totalComBruta = myVendas.reduce(function(a,v){return a + v.vgv * v.pctCom / 100},0);
+  var totalComLiq = myVendas.reduce(function(a,v){ var b=v.vgv*v.pctCom/100; return a + b - b*v.pctImp/100; },0);
+  var totalPago = myVendas.filter(function(v){return v.status==='PAGO'}).reduce(function(a,v){ var b=v.vgv*v.pctCom/100; return a + b - b*v.pctImp/100; },0);
+  var totalPendente = totalComLiq - totalPago;
+
+  var fmt = function(n){return 'R$ '+Math.round(n).toLocaleString('pt-BR')};
+  var fmtD = function(d){ if(!d)return'-'; var dt=new Date(d); return isNaN(dt)?d:dt.toLocaleDateString('pt-BR'); };
+
+  var STATUS_OPTS = ['NAO_PAGO','PAGO','PARCIAL_1','PARCIAL_2','PARCIAL_3','PARCIAL_4','PARCIAL_5','PARCIAL_6'];
+  var STATUS_LBL = {NAO_PAGO:'N\u00e3o Pago',PAGO:'Pago',PARCIAL_1:'Parcial 1',PARCIAL_2:'Parcial 2',PARCIAL_3:'Parcial 3',PARCIAL_4:'Parcial 4',PARCIAL_5:'Parcial 5',PARCIAL_6:'Parcial 6'};
+  var STATUS_COR = {NAO_PAGO:'var(--r-tx)',PAGO:'var(--g-tx)',PARCIAL_1:'#f59e0b',PARCIAL_2:'#f59e0b',PARCIAL_3:'#f59e0b',PARCIAL_4:'#f59e0b',PARCIAL_5:'#f59e0b',PARCIAL_6:'#f59e0b'};
+
+  // ── TABS ──
+  var h = '<div class="phd"><h1>\uD83D\uDCCA Relat\u00f3rio de Vendas & Comiss\u00f5es</h1><p>Hist\u00f3rico completo de vendas e controle de comiss\u00f5es</p></div>';
+  h += '<div style="display:flex;gap:4px;margin-bottom:16px">';
+  h += '<button class="tab'+(S.rvTab==='vendas'?' on':'')+'" onclick="S.rvTab=\'vendas\';render()">\uD83D\uDCCB Vendas & Comiss\u00f5es</button>';
+  h += '<button class="tab'+(S.rvTab==='analise'?' on':'')+'" onclick="S.rvTab=\'analise\';render()">\uD83D\uDCC8 An\u00e1lise Mensal</button>';
+  h += '<button class="tab'+(S.rvTab==='add'?' on':'')+'" onclick="S.rvTab=\'add\';render()">\u2795 Adicionar Venda</button>';
   h += '</div>';
+
+  // ════════════════════════════════════════════════════════════════════════
+  // TAB: VENDAS & COMISSÕES
+  // ════════════════════════════════════════════════════════════════════════
+  if (S.rvTab === 'vendas') {
+    // KPI cards
+    h += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px">';
+    h += '<div class="card" style="padding:12px;text-align:center;background:linear-gradient(135deg,var(--navy),#1e3a5f);color:#fff"><div style="font-size:9px;opacity:.6;text-transform:uppercase;font-weight:600">VGV Total</div><div style="font-size:16px;font-weight:800;margin-top:4px">'+fmt(totalVGV)+'</div></div>';
+    h += '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Vendas</div><div style="font-size:20px;font-weight:800;color:var(--navy);margin-top:4px">'+totalVendas+'</div></div>';
+    h += '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Comiss\u00e3o Bruta</div><div style="font-size:16px;font-weight:800;color:var(--b-tx);margin-top:4px">'+fmt(totalComBruta)+'</div></div>';
+    h += '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">Comiss\u00e3o L\u00edquida</div><div style="font-size:16px;font-weight:800;color:var(--a-tx);margin-top:4px">'+fmt(totalComLiq)+'</div></div>';
+    h += '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">\u2705 Pago</div><div style="font-size:16px;font-weight:800;color:var(--g-tx);margin-top:4px">'+fmt(totalPago)+'</div></div>';
+    h += '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">\u23F3 Pendente</div><div style="font-size:16px;font-weight:800;color:var(--r-tx);margin-top:4px">'+fmt(totalPendente)+'</div></div>';
+    h += '</div>';
+
+    // Table
+    if (myVendas.length === 0) {
+      h += '<div class="card" style="padding:40px;text-align:center;color:var(--muted)">Nenhuma venda registrada. As vendas do RD CRM aparecem automaticamente ap\u00f3s o sync.</div>';
+    } else {
+      h += '<div class="card" style="padding:0;overflow:auto;max-height:calc(100vh - 340px)"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+      h += '<thead><tr style="background:var(--navy);color:#fff;position:sticky;top:0;z-index:2">';
+      h += '<th style="padding:8px 6px;text-align:left;white-space:nowrap">Cliente</th>';
+      h += '<th style="padding:8px 6px;text-align:left">Corretor</th>';
+      h += '<th style="padding:8px 6px;text-align:left">Empreend.</th>';
+      h += '<th style="padding:8px 6px;text-align:right">Valor Venda</th>';
+      h += '<th style="padding:8px 6px;text-align:center">Data</th>';
+      h += '<th style="padding:8px 6px;text-align:center;min-width:65px">% Com.</th>';
+      h += '<th style="padding:8px 6px;text-align:center;min-width:60px">% Imp.</th>';
+      h += '<th style="padding:8px 6px;text-align:right">Com. Bruta</th>';
+      h += '<th style="padding:8px 6px;text-align:right">Com. L\u00edq.</th>';
+      h += '<th style="padding:8px 6px;text-align:center;min-width:100px">Status</th>';
+      h += '<th style="padding:8px 6px;text-align:left;min-width:80px">Parcela</th>';
+      h += '</tr></thead><tbody>';
+
+      for (var vi = 0; vi < myVendas.length; vi++) {
+        var vd = myVendas[vi];
+        var comBruta = vd.vgv * vd.pctCom / 100;
+        var comLiq = comBruta - comBruta * vd.pctImp / 100;
+        var rowBg = vi % 2 === 0 ? '' : 'background:rgba(15,23,42,.02)';
+        var srcBadge = vd.fonte === 'rd' ? '<span style="font-size:8px;background:var(--b-bg);color:var(--b-tx);padding:1px 4px;border-radius:3px;margin-left:4px">RD</span>' : '<span style="font-size:8px;background:var(--a-bg);color:var(--a-tx);padding:1px 4px;border-radius:3px;margin-left:4px">Manual</span>';
+
+        h += '<tr style="border-bottom:1px solid var(--cream3);'+rowBg+'">';
+        h += '<td style="padding:6px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+vd.cl+srcBadge+'</td>';
+        h += '<td style="padding:6px;font-size:10px;color:var(--muted)">'+vd.corretor+'</td>';
+        h += '<td style="padding:6px;font-size:10px">'+vd.emp+'</td>';
+        h += '<td style="padding:6px;text-align:right;font-weight:600">'+fmt(vd.vgv)+'</td>';
+        h += '<td style="padding:6px;text-align:center;font-size:10px">'+fmtD(vd.data)+'</td>';
+        // % Comissão (editable)
+        h += '<td style="padding:3px;text-align:center"><input type="number" value="'+vd.pctCom+'" step="0.1" min="0" max="100" style="width:50px;font-size:11px;padding:3px 4px;text-align:center;border:1px solid var(--cream3);border-radius:4px" onchange="rvSaveCom(\''+vd.id+'\',\'pctCom\',parseFloat(this.value)||0)">%</td>';
+        // % Imposto (editable)
+        h += '<td style="padding:3px;text-align:center"><input type="number" value="'+vd.pctImp+'" step="0.5" min="0" max="100" style="width:45px;font-size:11px;padding:3px 4px;text-align:center;border:1px solid var(--cream3);border-radius:4px" onchange="rvSaveCom(\''+vd.id+'\',\'pctImp\',parseFloat(this.value)||0)">%</td>';
+        h += '<td style="padding:6px;text-align:right;color:var(--b-tx);font-weight:600">'+(comBruta>0?fmt(comBruta):'-')+'</td>';
+        h += '<td style="padding:6px;text-align:right;color:var(--a-tx);font-weight:700">'+(comLiq>0?fmt(comLiq):'-')+'</td>';
+        // Status (dropdown)
+        h += '<td style="padding:3px;text-align:center"><select style="font-size:10px;padding:3px;border:1px solid var(--cream3);border-radius:4px;color:'+STATUS_COR[vd.status]+';font-weight:600;cursor:pointer" onchange="rvSaveCom(\''+vd.id+'\',\'status\',this.value)">';
+        STATUS_OPTS.forEach(function(opt){ h += '<option value="'+opt+'"'+(vd.status===opt?' selected':'')+' style="color:'+STATUS_COR[opt]+'">'+STATUS_LBL[opt]+'</option>'; });
+        h += '</select></td>';
+        // Parcela (text)
+        h += '<td style="padding:3px"><input type="text" value="'+(vd.parcela||'')+'" placeholder="Ex: 1/3" style="width:60px;font-size:10px;padding:3px 4px;border:1px solid var(--cream3);border-radius:4px" onchange="rvSaveCom(\''+vd.id+'\',\'parcela\',this.value)"></td>';
+        h += '</tr>';
+      }
+
+      // TOTALS ROW
+      h += '<tr style="background:var(--navy);color:#fff;font-weight:700">';
+      h += '<td colspan="3" style="padding:8px 6px">TOTAL ('+myVendas.length+' vendas)</td>';
+      h += '<td style="padding:8px 6px;text-align:right">'+fmt(totalVGV)+'</td>';
+      h += '<td colspan="3"></td>';
+      h += '<td style="padding:8px 6px;text-align:right">'+fmt(totalComBruta)+'</td>';
+      h += '<td style="padding:8px 6px;text-align:right">'+fmt(totalComLiq)+'</td>';
+      h += '<td colspan="2"></td>';
+      h += '</tr>';
+      h += '</tbody></table></div>';
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // TAB: ANÁLISE MENSAL
+  // ════════════════════════════════════════════════════════════════════════
+  if (S.rvTab === 'analise') {
+    var anos = [2025,2026,2027,2028,2029];
+    h += '<div style="display:flex;gap:4px;margin-bottom:16px">';
+    anos.forEach(function(a){ h += '<button class="tab'+(S.rvAno===a?' on':'')+'" onclick="S.rvAno='+a+';render()">'+a+'</button>'; });
+    h += '</div>';
+
+    var mNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var mesesData = [];
+    var maxVGV = 0;
+    for (var m = 0; m < 12; m++) {
+      var mesVGV = 0, mesVendas = 0, mesCom = 0;
+      myVendas.forEach(function(v){
+        if (!v.data) return;
+        var d = new Date(v.data);
+        if (d.getFullYear() === S.rvAno && d.getMonth() === m) {
+          mesVGV += v.vgv;
+          mesVendas++;
+          mesCom += v.vgv * v.pctCom / 100;
+        }
+      });
+      mesesData.push({mes:mNames[m], vgv:mesVGV, vendas:mesVendas, com:mesCom});
+      if (mesVGV > maxVGV) maxVGV = mesVGV;
+    }
+
+    var anoVGV = mesesData.reduce(function(a,m){return a+m.vgv},0);
+    var anoVendas = mesesData.reduce(function(a,m){return a+m.vendas},0);
+    var anoCom = mesesData.reduce(function(a,m){return a+m.com},0);
+
+    // Year KPIs
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">';
+    h += '<div class="card" style="padding:14px;text-align:center;background:linear-gradient(135deg,var(--navy),#1e3a5f);color:#fff"><div style="font-size:10px;opacity:.6;text-transform:uppercase;font-weight:600">VGV '+S.rvAno+'</div><div style="font-size:22px;font-weight:800;margin-top:4px">'+fmt(anoVGV)+'</div></div>';
+    h += '<div class="card" style="padding:14px;text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:600">Vendas '+S.rvAno+'</div><div style="font-size:22px;font-weight:800;color:var(--navy);margin-top:4px">'+anoVendas+'</div></div>';
+    h += '<div class="card" style="padding:14px;text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:600">Comiss\u00e3o Bruta '+S.rvAno+'</div><div style="font-size:22px;font-weight:800;color:var(--b-tx);margin-top:4px">'+fmt(anoCom)+'</div></div>';
+    h += '</div>';
+
+    // Bar chart
+    h += '<div class="card" style="padding:16px;margin-bottom:16px">';
+    h += '<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px">VGV Mensal \u2014 '+S.rvAno+'</div>';
+    h += '<div style="display:flex;align-items:flex-end;gap:6px;height:180px;padding-top:10px">';
+    for (var bi = 0; bi < 12; bi++) {
+      var md = mesesData[bi];
+      var barH = maxVGV > 0 ? Math.max(2, Math.round(md.vgv / maxVGV * 160)) : 2;
+      var barColor = md.vgv > 0 ? 'linear-gradient(180deg,var(--gold),var(--gold2))' : 'var(--cream3)';
+      h += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">';
+      if (md.vgv > 0) h += '<div style="font-size:8px;font-weight:700;color:var(--navy);white-space:nowrap">'+fmt(md.vgv)+'</div>';
+      h += '<div style="width:100%;height:'+barH+'px;background:'+barColor+';border-radius:4px 4px 0 0;transition:height .3s"></div>';
+      h += '<div style="font-size:9px;color:var(--muted);font-weight:600">'+md.mes+'</div>';
+      if (md.vendas > 0) h += '<div style="font-size:8px;color:var(--b-tx)">'+md.vendas+'v</div>';
+      h += '</div>';
+    }
+    h += '</div></div>';
+
+    // Ranking dos meses
+    var ranking = mesesData.map(function(m,i){return {mes:m.mes,idx:i,vgv:m.vgv,vendas:m.vendas,com:m.com}}).filter(function(m){return m.vgv>0}).sort(function(a,b){return b.vgv-a.vgv});
+    if (ranking.length > 0) {
+      h += '<div class="card" style="padding:16px">';
+      h += '<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Ranking dos Meses \u2014 '+S.rvAno+'</div>';
+      h += '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+      h += '<thead><tr style="border-bottom:2px solid var(--cream3)"><th style="padding:8px;text-align:center;width:50px">#</th><th style="padding:8px;text-align:left">M\u00eas</th><th style="padding:8px;text-align:right">VGV</th><th style="padding:8px;text-align:center">Vendas</th><th style="padding:8px;text-align:right">Comiss\u00e3o</th></tr></thead><tbody>';
+      var medals = ['\uD83E\uDD47','\uD83E\uDD48','\uD83E\uDD49'];
+      for (var ri = 0; ri < ranking.length; ri++) {
+        var rk = ranking[ri];
+        var medal = ri < 3 ? medals[ri] : (ri+1);
+        h += '<tr style="border-bottom:1px solid var(--cream3)'+(ri===0?';background:rgba(234,179,8,0.06)':'')+'"><td style="padding:8px;text-align:center;font-size:16px">'+medal+'</td><td style="padding:8px;font-weight:600">'+rk.mes+'/'+S.rvAno+'</td><td style="padding:8px;text-align:right;font-weight:700;color:var(--navy)">'+fmt(rk.vgv)+'</td><td style="padding:8px;text-align:center">'+rk.vendas+'</td><td style="padding:8px;text-align:right;color:var(--b-tx);font-weight:600">'+fmt(rk.com)+'</td></tr>';
+      }
+      h += '</tbody></table></div>';
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // TAB: ADICIONAR VENDA MANUAL
+  // ════════════════════════════════════════════════════════════════════════
+  if (S.rvTab === 'add') {
+    if (!S.rvNew) S.rvNew = {cl:'',emp:'',tipo:'',torre:'',unid:'',nome:'',vgv:0,data:new Date().toISOString().split('T')[0],pctCom:5,pctImp:6,status:'NAO_PAGO',parcela:'',corretor:u.name,frente:''};
+    var n = S.rvNew;
+    var TIPOS = ['APTO','CASA','TERRENO','STUDIO','SALA COMERCIAL','RURAL','TERRENO COND','AREA'];
+
+    function rvInp(label, key, type, step, suffix, opts) {
+      var val = type === 'text' || type === 'date' ? (n[key]||'') : n[key];
+      if (opts) {
+        var sel = '<select class="finp" style="width:100%;font-size:12px;padding:8px" onchange="S.rvNew.'+key+'=this.value">';
+        opts.forEach(function(o){ sel += '<option value="'+o+'"'+(n[key]===o?' selected':'')+'>'+o+'</option>'; });
+        sel += '</select>';
+        return '<div style="display:flex;flex-direction:column;gap:2px"><label style="font-size:10px;font-weight:600;color:var(--muted)">'+label+'</label>'+sel+'</div>';
+      }
+      return '<div style="display:flex;flex-direction:column;gap:2px"><label style="font-size:10px;font-weight:600;color:var(--muted)">'+label+'</label><div style="display:flex;align-items:center;gap:4px"><input type="'+(type||'text')+'" class="finp" value="'+val+'" '+(step?'step="'+step+'"':'')+' oninput="S.rvNew.'+key+'='+(type==='number'?'(parseFloat(this.value)||0)':'this.value')+'" style="width:100%;font-size:12px;padding:8px">'+(suffix?'<span style="font-size:10px;color:var(--muted);white-space:nowrap">'+suffix+'</span>':'')+'</div></div>';
+    }
+
+    h += '<div class="card" style="padding:20px;max-width:700px">';
+    h += '<div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:16px">\u2795 Registrar Nova Venda</div>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+    h += rvInp('Cliente','cl','text');
+    h += rvInp('Corretor','corretor','text');
+    h += rvInp('Empreendimento','emp','text');
+    h += rvInp('Tipo de Im\u00f3vel','tipo',null,null,null,TIPOS);
+    h += rvInp('Torre','torre','text');
+    h += rvInp('Unidade','unid','text');
+    h += rvInp('Valor de Venda (R$)','vgv','number',1000);
+    h += rvInp('Data da Venda','data','date');
+    h += rvInp('% Comiss\u00e3o','pctCom','number',0.1,'%');
+    h += rvInp('% Imposto','pctImp','number',0.5,'%');
+    h += rvInp('Status','status',null,null,null,STATUS_OPTS.map(function(s){return s}));
+    h += rvInp('Parcela de Recebimento','parcela','text',null,'(ex: 1/3)');
+    h += '</div>';
+    // Preview
+    var pvBruta = n.vgv * n.pctCom / 100;
+    var pvLiq = pvBruta - pvBruta * n.pctImp / 100;
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:16px;padding:12px;background:var(--cream2);border-radius:8px">';
+    h += '<div><div style="font-size:10px;color:var(--muted)">Comiss\u00e3o Bruta</div><div style="font-size:16px;font-weight:700;color:var(--b-tx)">'+fmt(pvBruta)+'</div></div>';
+    h += '<div><div style="font-size:10px;color:var(--muted)">Imposto ('+n.pctImp+'%)</div><div style="font-size:16px;font-weight:700;color:var(--r-tx)">- '+fmt(pvBruta*n.pctImp/100)+'</div></div>';
+    h += '<div><div style="font-size:10px;color:var(--muted)">Comiss\u00e3o L\u00edquida</div><div style="font-size:16px;font-weight:700;color:var(--g-tx)">'+fmt(pvLiq)+'</div></div>';
+    h += '</div>';
+    h += '<button class="btn bp1" style="margin-top:16px;width:100%" onclick="rvAddVenda()">\u2705 Salvar Venda</button>';
+    h += '</div>';
+
+    // Manual vendas list with delete option
+    if (S.vendasManuais.length > 0) {
+      h += '<div class="card" style="padding:14px;margin-top:16px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Vendas Manuais ('+S.vendasManuais.length+')</div>';
+      h += '<div style="display:flex;flex-direction:column;gap:6px">';
+      S.vendasManuais.forEach(function(vm,idx){
+        h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:var(--cream2);border-radius:6px">';
+        h += '<div><span style="font-weight:600">'+vm.cl+'</span> <span style="font-size:10px;color:var(--muted)">'+vm.emp+' \u2014 '+fmt(vm.vgv)+'</span></div>';
+        h += '<button class="btn bout bsm" onclick="rvDelVenda('+idx+')" style="font-size:10px;color:var(--r-tx)">\uD83D\uDDD1\uFE0F</button>';
+        h += '</div>';
+      });
+      h += '</div></div>';
+    }
+  }
+
   return h;
 }
 
-// === FICHAS & PROPOSTAS ===
-function pgFichasPropostas() {
-  var h = '<div class="phd"><h1>\uD83D\uDCC4 Fichas & Propostas</h1><p>Gerencie fichas de clientes e propostas enviadas</p></div>';
-  h += '<div style="display:flex;align-items:center;justify-content:center;min-height:300px;flex-direction:column;gap:16px">';
-  h += '<div style="font-size:64px">\uD83D\uDEA7</div>';
-  h += '<div style="font-size:22px;font-weight:700;color:#f8fafc">Em Constru\u00e7\u00e3o</div>';
-  h += '<div style="font-size:14px;color:#94a3b8;max-width:400px;text-align:center">O m\u00f3dulo de Fichas & Propostas est\u00e1 sendo desenvolvido. Em breve voc\u00ea poder\u00e1 gerenciar fichas de captação e propostas diretamente pelo sistema.</div>';
-  h += '</div>';
-  return h;
+// ── Helper functions for Relatório de Vendas ──
+function rvSaveCom(id, key, val) {
+  if (!S.comissoes) S.comissoes = {};
+  if (!S.comissoes[id]) S.comissoes[id] = {pctCom:0,pctImp:6,status:'NAO_PAGO',parcela:''};
+  S.comissoes[id][key] = val;
+  localStorage.setItem('psm_comissoes', JSON.stringify(S.comissoes));
+  // Also update vendasManuais if it's a manual entry
+  if (S.vendasManuais) {
+    var vm = S.vendasManuais.find(function(v){return v.id===id});
+    if (vm) { vm[key] = val; localStorage.setItem('psm_vendas_manuais', JSON.stringify(S.vendasManuais)); }
+  }
+  render();
 }
+
+function rvAddVenda() {
+  var n = S.rvNew; if (!n || !n.cl) { toast('Preencha o nome do cliente','warn'); return; }
+  var id = 'mv_' + Date.now();
+  var venda = {id:id, cl:n.cl, emp:n.emp, tipo:n.tipo, torre:n.torre, unid:n.unid, nome:n.nome, vgv:n.vgv, data:n.data, pctCom:n.pctCom, pctImp:n.pctImp, status:n.status, parcela:n.parcela, corretor:n.corretor, frente:n.frente};
+  S.vendasManuais.push(venda);
+  S.comissoes[id] = {pctCom:n.pctCom, pctImp:n.pctImp, status:n.status, parcela:n.parcela};
+  localStorage.setItem('psm_vendas_manuais', JSON.stringify(S.vendasManuais));
+  localStorage.setItem('psm_comissoes', JSON.stringify(S.comissoes));
+  S.rvNew = null; S.rvTab = 'vendas';
+  toast('\u2705 Venda registrada: ' + n.cl, 'ok');
+  render();
+}
+
+function rvDelVenda(idx) {
+  if (!confirm('Excluir esta venda manual?')) return;
+  var vm = S.vendasManuais[idx];
+  if (vm && S.comissoes[vm.id]) delete S.comissoes[vm.id];
+  S.vendasManuais.splice(idx, 1);
+  localStorage.setItem('psm_vendas_manuais', JSON.stringify(S.vendasManuais));
+  localStorage.setItem('psm_comissoes', JSON.stringify(S.comissoes));
+  render();
+}
+
+// === FICHAS & PROPOSTAS (ver implementacao completa abaixo) ===
 
 // === PREMIACOES ===
 function pgPremiacoes() {
@@ -10930,7 +11205,7 @@ function renderSB() {
       {id:'oneonone',       lbl:'One on One',              ico:'\uD83C\uDFAF'},
       {id:'oportunidades',  lbl:'Oportunidades',           ico:'\uD83D\uDCA1'},
       {id:'premiacoes',     lbl:'Premia\u00e7\u00f5es',    ico:'\uD83C\uDFC6'},
-      {id:'relat_vendas',   lbl:'Relat\u00f3rio de Vendas',ico:'\uD83D\uDCCA'},
+      {id:'relat_vendas',   lbl:'Vendas & Comiss\u00f5es',ico:'\uD83D\uDCCA'},
       {id:'fluxo_cadencia', lbl:'Fluxo de Cad\u00eancia',  ico:'\uD83D\uDD04'},
       {id:'criativos',      lbl:'Criativos',               ico:'\uD83C\uDFA8'},
       {id:'plantoes',       lbl:'Plant\u00f5es',           ico:'\uD83D\uDCC5'},
@@ -11043,7 +11318,7 @@ function renderHDR() {
     checkin:'\u23F0 Check-in / out',wararena:'\u2694\uFE0F Arena PSM',lancamentos_ano:'\uD83D\uDE80 Lan\u00e7amentos',ranking:'\uD83C\uDFC6 Ranking',
     // Painel do Corretor
     oneonone:'One on One',oportunidades:'\uD83D\uDCA1 Oportunidades',premiacoes:'\uD83C\uDFC6 Premia\u00e7\u00f5es',
-    relat_vendas:'\uD83D\uDCCA Relat\u00f3rio de Vendas',fluxo_cadencia:'\uD83D\uDD04 Fluxo de Cad\u00eancia',
+    relat_vendas:'\uD83D\uDCCA Vendas & Comiss\u00f5es',fluxo_cadencia:'\uD83D\uDD04 Fluxo de Cad\u00eancia',
     criativos:'\uD83C\uDFA8 Criativos',plantoes:'\uD83D\uDCC5 Plant\u00f5es',ficha_captacao:'\uD83D\uDCDD Ficha de Capta\u00e7\u00e3o',
     ia_corretor:'\uD83E\uDD16 IA do Corretor',
     fichas_propostas:'\uD83D\uDCC4 Fichas & Propostas',
