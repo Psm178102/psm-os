@@ -5120,7 +5120,7 @@ function pgOO() {
     var todayData = (((S.ooDaily||{})[selBid]||{})[selMonthKey]||{})[selDayKey] || {};
     content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin:12px 0">';
     content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">';
-    content += '<span style="font-size:15px;font-weight:700;color:#f8fafc">\u270F\uFE0F Registro do Dia \u2014 ' + selDayLabel + '</span>';
+    content += '<span style="font-size:20px;font-weight:700;color:#f8fafc">\u270F\uFE0F Registro do Dia \u2014 ' + selDayLabel + '</span>';
     content += '<div style="display:flex;align-items:center;gap:8px">';
     content += '<input type="date" value="' + selDayKey + '" onchange="S.ooSelDay=this.value;render()" style="background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer">';
     content += '<button onclick="ooSaveDayForm(\'' + selBid + '\',\'' + selDayKey + '\',this)" style="background:#6366f1;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Salvar</button>';
@@ -5139,30 +5139,30 @@ function pgOO() {
       var cor = OO_FUNIL_COLORS[idx % OO_FUNIL_COLORS.length];
       var val = todayData[c.k] || 0;
       content += '<div style="display:flex;align-items:center;justify-content:center;margin-bottom:6px">';
-      content += '<div style="width:' + w + '%;background:' + cor + ';border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;transition:width .4s">';
-      content += '<span style="font-size:12px;font-weight:600;color:#fff;white-space:nowrap">' + c.icon + ' ' + c.l + '</span>';
-      content += '<div style="display:flex;align-items:center;gap:6px">';
-      content += '<button onclick="ooDecField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:rgba(0,0,0,.3);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u2212</button>';
-      content += '<span id="oo_val_' + c.k + '" style="font-size:18px;font-weight:800;color:#fff;min-width:32px;text-align:center">' + val + '</span>';
+      content += '<div style="width:' + w + '%;background:' + cor + ';border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;transition:width .4s">';
+      content += '<span style="font-size:15px;font-weight:600;color:#fff;white-space:nowrap">' + c.icon + ' ' + c.l + '</span>';
+      content += '<div style="display:flex;align-items:center;gap:8px">';
+      content += '<button onclick="ooDecField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:rgba(0,0,0,.3);color:#fff;border:none;width:32px;height:32px;border-radius:50%;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u2212</button>';
+      content += '<span id="oo_val_' + c.k + '" style="font-size:20px;font-weight:800;color:#fff;min-width:36px;text-align:center">' + val + '</span>';
       content += '<input id="oo_input_' + c.k + '" type="hidden" value="' + val + '">';
-      content += '<button onclick="ooIncField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:rgba(255,255,255,.25);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>';
+      content += '<button onclick="ooIncField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:rgba(255,255,255,.25);color:#fff;border:none;width:32px;height:32px;border-radius:50%;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>';
       content += '</div></div></div>';
     });
     content += '</div>'; // end funil
 
     // === SIDEBAR (right, smaller) - Indicadores laterais (custom por equipe) ===
     var lateralEquipe = ooGetLateralEquipe(selFrente);
-    content += '<div style="width:140px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding-top:4px">';
-    content += '<div style="font-size:10px;font-weight:700;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Indicadores</div>';
+    content += '<div style="width:160px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding-top:4px">';
+    content += '<div style="font-size:13px;font-weight:700;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Indicadores</div>';
     lateralEquipe.forEach(function(c) {
       var val = todayData[c.k] || 0;
-      content += '<div style="background:' + c.cor + '20;border:1px solid ' + c.cor + '40;border-radius:10px;padding:8px 6px;text-align:center">';
-      content += '<div style="font-size:11px;font-weight:600;color:' + c.cor + ';margin-bottom:4px">' + c.icon + ' ' + c.l + '</div>';
-      content += '<div style="display:flex;align-items:center;justify-content:center;gap:4px">';
-      content += '<button onclick="ooDecField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:' + c.cor + '30;color:' + c.cor + ';border:none;width:24px;height:24px;border-radius:50%;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u2212</button>';
-      content += '<span id="oo_val_' + c.k + '" style="font-size:18px;font-weight:800;color:#f8fafc;min-width:28px;text-align:center">' + val + '</span>';
+      content += '<div style="background:' + c.cor + '20;border:1px solid ' + c.cor + '40;border-radius:10px;padding:10px 8px;text-align:center">';
+      content += '<div style="font-size:14px;font-weight:600;color:' + c.cor + ';margin-bottom:4px">' + c.icon + ' ' + c.l + '</div>';
+      content += '<div style="display:flex;align-items:center;justify-content:center;gap:6px">';
+      content += '<button onclick="ooDecField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:' + c.cor + '30;color:' + c.cor + ';border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u2212</button>';
+      content += '<span id="oo_val_' + c.k + '" style="font-size:20px;font-weight:800;color:#f8fafc;min-width:32px;text-align:center">' + val + '</span>';
       content += '<input id="oo_input_' + c.k + '" type="hidden" value="' + val + '">';
-      content += '<button onclick="ooIncField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:' + c.cor + '30;color:' + c.cor + ';border:none;width:24px;height:24px;border-radius:50%;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>';
+      content += '<button onclick="ooIncField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:' + c.cor + '30;color:' + c.cor + ';border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>';
       content += '</div></div>';
     });
     content += '</div>'; // end sidebar
@@ -5171,7 +5171,7 @@ function pgOO() {
     content += '</div>'; // end card
 
     // === FUNIL DO MES com taxas de conversao ===
-    content += '<div style="margin:16px 0;text-align:center"><span style="font-size:14px;font-weight:700;color:#94a3b8">FUNIL DO M\u00CAS</span></div>';
+    content += '<div style="margin:16px 0;text-align:center"><span style="font-size:20px;font-weight:700;color:#94a3b8">FUNIL DO M\u00CAS</span></div>';
     var funnelData = hasDailyData ? realMes : cache;
     // Use funnel custom da equipe
     var funilMes = ooGetFunilEquipe(ooGetFrenteForBroker(selBid));
@@ -5185,19 +5185,19 @@ function pgOO() {
       if (idx > 0) {
         var prevV = funnelData[funilMes[idx-1].k] || 0;
         var convPct = prevV > 0 ? (v/prevV*100).toFixed(1) + '%' : '';
-        content += '<div style="text-align:center;margin:2px 0"><span style="font-size:11px;font-weight:600;color:#94a3b8;background:#1e293b;padding:2px 10px;border-radius:10px;border:1px solid #334155;display:inline-block">' + (convPct ? '\u2193 '+convPct : '') + '</span></div>';
+        content += '<div style="text-align:center;margin:3px 0"><span style="font-size:13px;font-weight:600;color:#94a3b8;background:#1e293b;padding:3px 12px;border-radius:10px;border:1px solid #334155;display:inline-block">' + (convPct ? '\u2193 '+convPct : '') + '</span></div>';
       }
-      content += '<div style="display:flex;align-items:center;margin-bottom:4px"><div style="width:' + w + '%;background:' + cor + ';color:#fff;padding:10px 14px;border-radius:8px;display:flex;justify-content:space-between;font-size:13px;font-weight:600"><span>' + c.l + '</span><span>' + v + '</span></div></div>';
+      content += '<div style="display:flex;align-items:center;margin-bottom:5px"><div style="width:' + w + '%;background:' + cor + ';color:#fff;padding:12px 16px;border-radius:8px;display:flex;justify-content:space-between;font-size:16px;font-weight:600"><span>' + c.l + '</span><span>' + v + '</span></div></div>';
     });
     content += '</div>';
     // Sidebar indicadores mensais (custom por equipe)
-    content += '<div style="width:130px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding-top:4px">';
-    content += '<div style="font-size:10px;font-weight:700;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Indicadores</div>';
+    content += '<div style="width:150px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding-top:4px">';
+    content += '<div style="font-size:13px;font-weight:700;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Indicadores</div>';
     lateralEquipe.forEach(function(c) {
       var v = funnelData[c.k] || 0;
       content += '<div style="background:' + c.cor + '20;border:1px solid ' + c.cor + '40;border-radius:10px;padding:10px 8px;text-align:center">';
-      content += '<div style="font-size:11px;font-weight:600;color:' + c.cor + ';margin-bottom:4px">' + c.icon + ' ' + c.l + '</div>';
-      content += '<div style="font-size:22px;font-weight:800;color:#f8fafc">' + v + '</div>';
+      content += '<div style="font-size:14px;font-weight:600;color:' + c.cor + ';margin-bottom:4px">' + c.icon + ' ' + c.l + '</div>';
+      content += '<div style="font-size:24px;font-weight:800;color:#f8fafc">' + v + '</div>';
       content += '</div>';
     });
     content += '</div>';
