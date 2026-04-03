@@ -7045,84 +7045,130 @@ function pgManual() {
 
 // ─── CAPTAÇÃO DE IMÓVEIS ──────────────────────────────────────────────────────
 function pgCaptacao() {
-  const captacoes = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
-  const total = captacoes.length;
-  const ativas = captacoes.filter(c => c.status === 'ativo').length;
-  const vendidas = captacoes.filter(c => c.status === 'vendido').length;
+  if (!S.captacaoTab) S.captacaoTab = 'formularios';
+  var tab = S.captacaoTab;
+  var FORM_VENDA = 'https://docs.google.com/forms/d/e/1FAIpQLSdcLofTJAEKYnCUVMnuvKD7QJFB_D8SXfcahYYmeCFhy5op0g/viewform?embedded=true';
+  var FORM_LOCACAO = 'https://forms.gle/atoYaBnWQ7WQsPp37';
+  var LINK_VENDA = 'https://docs.google.com/forms/d/e/1FAIpQLSdcLofTJAEKYnCUVMnuvKD7QJFB_D8SXfcahYYmeCFhy5op0g/viewform?usp=dialog';
+  var LINK_LOCACAO = 'https://forms.gle/atoYaBnWQ7WQsPp37';
 
-  setTimeout(() => {
-  document.querySelector('#cap-add').onclick = () => {
-    const nome = prompt('Nome/Identifica\u00e7\u00e3o do im\u00f3vel:');
-    if (!nome) return;
-    const tipo = prompt('Tipo (apartamento/casa/terreno/comercial):') || 'apartamento';
-    const bairro = prompt('Bairro:') || '\u2014';
-    const valor = prompt('Valor (R$):') || '0';
-    const arr = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
-    arr.push({ nome, tipo, bairro, valor: parseFloat(valor) || 0, status: 'ativo', data: new Date().toISOString().split('T')[0] });
-    localStorage.setItem('psm_captacao', JSON.stringify(arr));
-    pgCaptacao();
-  };
-  window.removeCaptacao = function(i) {
-    const arr = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
-    arr.splice(i, 1);
-    localStorage.setItem('psm_captacao', JSON.stringify(arr));
-    pgCaptacao();
-  };
-  }, 0);
-  return `
-  <div style="max-width:1200px;margin:auto;padding:24px">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <span style="font-size:32px">\ud83c\udfe0</span>
-      <div>
-        <h2 style="margin:0;color:#fff;font-size:22px">Capta\u00e7\u00e3o de Im\u00f3veis</h2>
-        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Controle de im\u00f3veis captados</p>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">
-      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #3b82f6">
-        <div style="color:#94a3b8;font-size:12px">TOTAL CAPTADOS</div>
-        <div style="color:#3b82f6;font-size:28px;font-weight:700;margin-top:6px">${total}</div>
-      </div>
-      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #22c55e">
-        <div style="color:#94a3b8;font-size:12px">ATIVOS</div>
-        <div style="color:#22c55e;font-size:28px;font-weight:700;margin-top:6px">${ativas}</div>
-      </div>
-      <div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #f59e0b">
-        <div style="color:#94a3b8;font-size:12px">VENDIDOS</div>
-        <div style="color:#f59e0b;font-size:28px;font-weight:700;margin-top:6px">${vendidas}</div>
-      </div>
-    </div>
-    <div style="background:#1e293b;border-radius:12px;padding:24px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h3 style="color:#fff;margin:0;font-size:16px">Im\u00f3veis Captados</h3>
-        <button id="cap-add" style="padding:6px 14px;border-radius:8px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-size:12px">+ Nova Capta\u00e7\u00e3o</button>
-      </div>
-      ${captacoes.length === 0 ? '<p style="color:#64748b;font-size:13px">\u2014 Nenhum im\u00f3vel captado</p>' : `
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="border-bottom:2px solid #334155">
-          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">DATA</th>
-          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">IM\u00d3VEL</th>
-          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">TIPO</th>
-          <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">BAIRRO</th>
-          <th style="padding:10px;text-align:right;color:#94a3b8;font-size:11px">VALOR</th>
-          <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">STATUS</th>
-          <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">A\u00c7\u00c3O</th>
-        </tr></thead>
-        <tbody>
-          ${captacoes.map((c, i) => `
-          <tr style="border-bottom:1px solid #334155">
-            <td style="padding:8px 10px;color:#64748b;font-size:12px">${c.data || '\u2014'}</td>
-            <td style="padding:8px 10px;color:#fff;font-size:12px">${c.nome || '\u2014'}</td>
-            <td style="padding:8px 10px;color:#94a3b8;font-size:12px">${c.tipo || '\u2014'}</td>
-            <td style="padding:8px 10px;color:#94a3b8;font-size:12px">${c.bairro || '\u2014'}</td>
-            <td style="padding:8px 10px;text-align:right;color:#22c55e;font-size:12px;font-weight:600">${c.valor ? 'R$ ' + Number(c.valor).toLocaleString('pt-BR') : '\u2014'}</td>
-            <td style="padding:8px 10px;text-align:center"><span style="padding:3px 8px;border-radius:4px;font-size:10px;background:${c.status === 'vendido' ? '#1a3a2a' : '#0f2a4a'};color:${c.status === 'vendido' ? '#22c55e' : '#3b82f6'}">${c.status || 'ativo'}</span></td>
-            <td style="padding:8px 10px;text-align:center"><button onclick="removeCaptacao(${i})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px">\u00d7</button></td>
-          </tr>`).join('')}
-        </tbody>
-      </table>`}
-    </div>
-  </div>`;
+  // Tab: formularios ou controle
+  var h = '<div class="pg-wrap" style="padding:20px;max-width:1200px;margin:auto">';
+  h += '<div class="phd"><h1>\uD83D\uDCDD Ficha de Captação</h1><p style="color:#94a3b8;font-size:14px">Formulários de captação de imóveis e controle</p></div>';
+
+  // Tabs
+  h += '<div style="display:flex;gap:8px;margin:16px 0">';
+  h += '<button onclick="S.captacaoTab=\'formularios\';render()" style="padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:2px solid #3b82f6;' + (tab==='formularios' ? 'background:#3b82f6;color:#fff' : 'background:transparent;color:#3b82f6') + '">\uD83D\uDCCB Formulários</button>';
+  h += '<button onclick="S.captacaoTab=\'controle\';render()" style="padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:2px solid #8b5cf6;' + (tab==='controle' ? 'background:#8b5cf6;color:#fff' : 'background:transparent;color:#8b5cf6') + '">\uD83D\uDCCA Controle</button>';
+  h += '</div>';
+
+  if (tab === 'formularios') {
+    // === FORMULARIOS ===
+    if (!S.captacaoForm) S.captacaoForm = 'venda';
+    var selForm = S.captacaoForm;
+
+    // Cards dos dois formulários
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+
+    // Card Venda
+    h += '<div onclick="S.captacaoForm=\'venda\';render()" style="background:' + (selForm==='venda' ? '#1e40af' : '#1e293b') + ';border-radius:14px;padding:24px;cursor:pointer;border:2px solid ' + (selForm==='venda' ? '#3b82f6' : '#334155') + ';transition:all .2s">';
+    h += '<div style="font-size:36px;margin-bottom:12px">\uD83C\uDFE0</div>';
+    h += '<div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:6px">Captação para Venda</div>';
+    h += '<div style="font-size:13px;color:#94a3b8">Formulário de captação de imóvel para venda</div>';
+    h += '<a href="' + LINK_VENDA + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:13px;color:#60a5fa;text-decoration:none;font-weight:600">\uD83D\uDD17 Abrir em nova aba</a>';
+    h += '</div>';
+
+    // Card Locação
+    h += '<div onclick="S.captacaoForm=\'locacao\';render()" style="background:' + (selForm==='locacao' ? '#065f46' : '#1e293b') + ';border-radius:14px;padding:24px;cursor:pointer;border:2px solid ' + (selForm==='locacao' ? '#10b981' : '#334155') + ';transition:all .2s">';
+    h += '<div style="font-size:36px;margin-bottom:12px">\uD83D\uDDDD\uFE0F</div>';
+    h += '<div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:6px">Captação para Locação</div>';
+    h += '<div style="font-size:13px;color:#94a3b8">Formulário de captação de imóvel para locação</div>';
+    h += '<a href="' + LINK_LOCACAO + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:13px;color:#34d399;text-decoration:none;font-weight:600">\uD83D\uDD17 Abrir em nova aba</a>';
+    h += '</div>';
+    h += '</div>';
+
+    // Iframe do formulário selecionado
+    var iframeSrc = selForm === 'venda' ? FORM_VENDA : LINK_LOCACAO;
+    var iframeTitle = selForm === 'venda' ? 'Captação de Imóvel para Venda' : 'Captação de Imóvel para Locação';
+    var iframeCor = selForm === 'venda' ? '#3b82f6' : '#10b981';
+    h += '<div style="background:#1e293b;border-radius:12px;overflow:hidden;border:2px solid ' + iframeCor + '40">';
+    h += '<div style="padding:12px 16px;background:' + iframeCor + '15;border-bottom:1px solid ' + iframeCor + '30;display:flex;align-items:center;gap:8px">';
+    h += '<div style="width:10px;height:10px;border-radius:50%;background:' + iframeCor + '"></div>';
+    h += '<span style="font-size:14px;font-weight:600;color:#f8fafc">' + iframeTitle + '</span>';
+    h += '</div>';
+    h += '<iframe src="' + iframeSrc + '" style="width:100%;height:calc(100vh - 420px);min-height:500px;border:none;background:#fff"></iframe>';
+    h += '</div>';
+
+  } else {
+    // === CONTROLE (tabela antiga) ===
+    var captacoes = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
+    var total = captacoes.length;
+    var ativas = captacoes.filter(function(c){return c.status === 'ativo'}).length;
+    var vendidas = captacoes.filter(function(c){return c.status === 'vendido'}).length;
+
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">';
+    h += '<div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #3b82f6"><div style="color:#94a3b8;font-size:12px">TOTAL CAPTADOS</div><div style="color:#3b82f6;font-size:28px;font-weight:700;margin-top:6px">' + total + '</div></div>';
+    h += '<div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #22c55e"><div style="color:#94a3b8;font-size:12px">ATIVOS</div><div style="color:#22c55e;font-size:28px;font-weight:700;margin-top:6px">' + ativas + '</div></div>';
+    h += '<div style="background:#1e293b;border-radius:12px;padding:20px;border-left:4px solid #f59e0b"><div style="color:#94a3b8;font-size:12px">VENDIDOS</div><div style="color:#f59e0b;font-size:28px;font-weight:700;margin-top:6px">' + vendidas + '</div></div>';
+    h += '</div>';
+
+    h += '<div style="background:#1e293b;border-radius:12px;padding:24px">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
+    h += '<h3 style="color:#fff;margin:0;font-size:16px">Imóveis Captados</h3>';
+    h += '<button id="cap-add" style="padding:6px 14px;border-radius:8px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-size:12px">+ Nova Captação</button>';
+    h += '</div>';
+    if (captacoes.length === 0) {
+      h += '<p style="color:#64748b;font-size:13px">\u2014 Nenhum imóvel captado</p>';
+    } else {
+      h += '<table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:2px solid #334155">';
+      h += '<th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">DATA</th>';
+      h += '<th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">IMÓVEL</th>';
+      h += '<th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">TIPO</th>';
+      h += '<th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">BAIRRO</th>';
+      h += '<th style="padding:10px;text-align:right;color:#94a3b8;font-size:11px">VALOR</th>';
+      h += '<th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">STATUS</th>';
+      h += '<th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">AÇÃO</th>';
+      h += '</tr></thead><tbody>';
+      captacoes.forEach(function(c, i) {
+        h += '<tr style="border-bottom:1px solid #334155">';
+        h += '<td style="padding:8px 10px;color:#64748b;font-size:12px">' + (c.data || '\u2014') + '</td>';
+        h += '<td style="padding:8px 10px;color:#fff;font-size:12px">' + (c.nome || '\u2014') + '</td>';
+        h += '<td style="padding:8px 10px;color:#94a3b8;font-size:12px">' + (c.tipo || '\u2014') + '</td>';
+        h += '<td style="padding:8px 10px;color:#94a3b8;font-size:12px">' + (c.bairro || '\u2014') + '</td>';
+        h += '<td style="padding:8px 10px;text-align:right;color:#22c55e;font-size:12px;font-weight:600">' + (c.valor ? 'R$ ' + Number(c.valor).toLocaleString('pt-BR') : '\u2014') + '</td>';
+        h += '<td style="padding:8px 10px;text-align:center"><span style="padding:3px 8px;border-radius:4px;font-size:10px;background:' + (c.status === 'vendido' ? '#1a3a2a' : '#0f2a4a') + ';color:' + (c.status === 'vendido' ? '#22c55e' : '#3b82f6') + '">' + (c.status || 'ativo') + '</span></td>';
+        h += '<td style="padding:8px 10px;text-align:center"><button onclick="removeCaptacao(' + i + ')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px">\u00d7</button></td>';
+        h += '</tr>';
+      });
+      h += '</tbody></table>';
+    }
+    h += '</div>';
+
+    // setTimeout for button bindings
+    setTimeout(function() {
+      var addBtn = document.querySelector('#cap-add');
+      if (addBtn) addBtn.onclick = function() {
+        var nome = prompt('Nome/Identificação do imóvel:');
+        if (!nome) return;
+        var tipo = prompt('Tipo (apartamento/casa/terreno/comercial):') || 'apartamento';
+        var bairro = prompt('Bairro:') || '\u2014';
+        var valor = prompt('Valor (R$):') || '0';
+        var arr = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
+        arr.push({ nome:nome, tipo:tipo, bairro:bairro, valor: parseFloat(valor) || 0, status: 'ativo', data: new Date().toISOString().split('T')[0] });
+        localStorage.setItem('psm_captacao', JSON.stringify(arr));
+        render();
+      };
+      window.removeCaptacao = function(i) {
+        var arr = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
+        arr.splice(i, 1);
+        localStorage.setItem('psm_captacao', JSON.stringify(arr));
+        render();
+      };
+    }, 0);
+  }
+
+  h += '</div>';
+  return h;
 
 }
 
