@@ -2079,12 +2079,15 @@ var pgWarArena = function(){
     var uLig = u.lig||0;
     var uCRM = u.crm||0;
     var uAgend = u.agend||0;
-    // Enrich with metaIndiv data from One on One
+    // Enrich with metaIndiv (metas) + ooDaily (realizados)
     var miu = mi[u.id] && mi[u.id][mes] ? mi[u.id][mes] : {};
     var miVgvMeta = miu.vgv_meta||0;
     var miVisitas = miu.visitas||0;
-    var miCaptacoes = miu.captacoes||0;
-    var miPastasLanc = miu.pastas_lanc||0;
+    // Captações e Pastas vêm do REALIZADO no One on One (ooDaily), não da meta
+    var _ooMK = now.getFullYear() + '-' + String(mes).padStart(2,'0');
+    var _ooReal = ooAggMonth(u.id, _ooMK);
+    var miCaptacoes = _ooReal.capt||0;
+    var miPastasLanc = _ooReal.pastas||0;
     // Use metaIndiv vgv_meta if BROKERS meta is 0
     if(uMeta === 0 && miVgvMeta > 0) uMeta = miVgvMeta;
     var metaPct = uMeta > 0 ? Math.round(uVGV/uMeta*100) : 0;
@@ -2389,12 +2392,18 @@ var pgWarArena = function(){
   h += '</div>';
 
 
-  // FORECAST ANUAL
-  var metaAnual = totalMeta * 12;
-  var vgvAnual = totalVGV; // VGV acumulado no ano
-  var mesAtual = new Date().getMonth(); // 0-indexed
-  var mesesPassados = mesAtual > 0 ? mesAtual : 1;
-  var forecastAnual = Math.round(totalVGV / mesesPassados * 12);
+  // FORECAST ANUAL — usa getMetaGlobal() + VENDAS do ano inteiro
+  var _mgWar = getMetaGlobal();
+  var metaAnual = 0;
+  if (_mgWar) { for (var _mi2 = 0; _mi2 < 12; _mi2++) metaAnual += _mgWar.metaTotal(_mi2); }
+  if (metaAnual === 0) metaAnual = totalMeta * 12; // fallback
+  var vgvAnual = VENDAS.filter(function(v) {
+    var dt = new Date(v.closedAt || v.createdAt || v.updated_at || '');
+    return !isNaN(dt.getTime()) && dt.getFullYear() === now.getFullYear();
+  }).reduce(function(a, v) { return a + (v.vgv || 0); }, 0);
+  var _fracMes = now.getDate() / new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  var mesesPassados = Math.max(1, now.getMonth() + _fracMes);
+  var forecastAnual = Math.round(vgvAnual / mesesPassados * 12);
   var pctAnual = metaAnual > 0 ? Math.round(vgvAnual / metaAnual * 100) : 0;
   h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:20px 0 16px">\ud83d\udcc5 Forecast Anual 2026</h2>';
   h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:20px">';
