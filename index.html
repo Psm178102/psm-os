@@ -615,6 +615,8 @@ html{height:100%;overflow:hidden}
 .ticker-item .tk-badge.urgente{background:#dc262630;color:#fca5a5}
 .ticker-item .tk-badge.info{background:#0ea5e920;color:#7dd3fc}
 .ticker-item .tk-badge.parabens{background:#10b98130;color:#6ee7b7}
+.ticker-item .tk-badge.oportunidade{background:#8b5cf620;color:#c4b5fd}
+.ticker-item .tk-badge.premiacao{background:#fbbf2420;color:#fde68a}
 .ticker-item .tk-time{font-size:10px;color:#64748b}
 .ticker-empty{padding:8px 16px;font-size:12px;color:#64748b;text-align:center;background:#0f172a;border-bottom:1px solid #334155}
 </style>
@@ -1155,6 +1157,7 @@ function saveState(skipFbPush) {
       premiacoes: S.premiacoes || [],
       comissoes: S.comissoes || {},
       vendasManuais: S.vendasManuais || [],
+      oportunidadesPSM: S.oportunidadesPSM || [],
       savedAt: Date.now(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
@@ -1180,6 +1183,7 @@ function saveState(skipFbPush) {
         ooDiscCustom: S.ooDiscCustom || {},
         tickerMsgs: S.tickerMsgs || [],
         premiacoes: S.premiacoes || [],
+        oportunidadesPSM: S.oportunidadesPSM || [],
         savedAt: Date.now()
       };
       localStorage.setItem('psm_backup_critical', JSON.stringify(criticalData));
@@ -1256,6 +1260,7 @@ function loadState() {
     if (d.premiacoes) S.premiacoes = d.premiacoes;
     if (d.comissoes) S.comissoes = d.comissoes;
     if (d.vendasManuais) S.vendasManuais = d.vendasManuais;
+    if (d.oportunidadesPSM) S.oportunidadesPSM = d.oportunidadesPSM;
     // Restore manual vendas (legacy)
     try {
       const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manual') || '[]');
@@ -1276,7 +1281,7 @@ var SYNC_KEYS = [
   'ooDatas','ooObjSemana','ooObjMes','ooPontosAtencao','ooFechamento','ooDiscCustom',
   'tickerMsgs','canalAnonimo','sonhos',
   'metaIndiv','comissaoPct','lancTimeline','lancMetas',
-  'premiacoes','comissoes','vendasManuais'
+  'premiacoes','comissoes','vendasManuais','oportunidadesPSM'
 ];
 // Global config keys that also need sync
 var SYNC_GLOBAL_KEYS = ['metasConfig','metasEquipe','teamConfig'];
@@ -11261,10 +11266,9 @@ function caMarcarTodasLidas() {
 // === RELATORIO DE VENDAS E COMISSOES ===
 function pgRelatVendas() {
   var u = S.user; if (!u) return '';
-  // BLOQUEIO: apenas paulo, isa e corretores podem acessar
-  var uid = u.id; var pf = getPerfil();
-  if (uid !== 'paulo' && uid !== 'isa' && pf !== 'corretor') {
-    return '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><div style="font-size:48px;margin-bottom:16px">🔒</div><div style="font-size:18px;font-weight:700;color:#f8fafc;margin-bottom:8px">Acesso Restrito</div><div>Esta página é exclusiva para diretores e corretores.</div></div>';
+  var uid = u.id; var pf = getPerfil(); var lvl = RLVL[u.role]||0;
+  if (pf !== 'diretor' && pf !== 'lider' && pf !== 'corretor') {
+    return '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><div style="font-size:48px;margin-bottom:16px">🔒</div><div style="font-size:18px;font-weight:700;color:#f8fafc;margin-bottom:8px">Acesso Restrito</div><div>Esta página é exclusiva para diretores, líderes e corretores.</div></div>';
   }
   if (!S.rvTab) S.rvTab = 'vendas';
   if (!S.rvAno) S.rvAno = new Date().getFullYear();
@@ -11275,37 +11279,59 @@ function pgRelatVendas() {
   var allVendas = [];
   VENDAS.forEach(function(v){
     var cm = S.comissoes[v.rdId||v.id] || {};
-    allVendas.push({id:v.rdId||v.id, cl:v.cl||'', emp:v.ori||'', tipo:'', torre:'', unid:'', nome:'', vgv:v.vgv||0, data:v.closedAt||v.createdAt||'', pctCom:cm.pctCom||0, pctImp:cm.pctImp||6, status:cm.status||'NAO_PAGO', parcela:cm.parcela||'', corretor:v.bn||'', frente:v.fr||'', fonte:'rd'});
+    allVendas.push({id:v.rdId||v.id, cl:v.cl||'', emp:v.ori||'', tipo:'', torre:'', unid:'', nome:'', vgv:v.vgv||0, data:v.closedAt||v.createdAt||'', pctCom:cm.pctCom||0, pctImp:cm.pctImp||6, status:cm.status||'NAO_PAGO', parcela:cm.parcela||'', corretor:v.bn||'', bid:v.bid||'', frente:v.fr||'', fonte:'rd'});
   });
   S.vendasManuais.forEach(function(v){
     var cm = S.comissoes[v.id] || {};
-    allVendas.push({id:v.id, cl:v.cl||'', emp:v.emp||'', tipo:v.tipo||'', torre:v.torre||'', unid:v.unid||'', nome:v.nome||'', vgv:v.vgv||0, data:v.data||'', pctCom:cm.pctCom||v.pctCom||0, pctImp:cm.pctImp||v.pctImp||6, status:cm.status||v.status||'NAO_PAGO', parcela:cm.parcela||v.parcela||'', corretor:v.corretor||u.name, frente:v.frente||'', fonte:'manual'});
+    var mBid = v.bid || ''; if(!mBid && v.corretor){ var mUser=USERS_BASE.find(function(ub){return ub.name && v.corretor.toLowerCase().indexOf(ub.name.split(' ')[0].toLowerCase())!==-1}); if(mUser) mBid=mUser.id; }
+    allVendas.push({id:v.id, cl:v.cl||'', emp:v.emp||'', tipo:v.tipo||'', torre:v.torre||'', unid:v.unid||'', nome:v.nome||'', vgv:v.vgv||0, data:v.data||'', pctCom:cm.pctCom||v.pctCom||0, pctImp:cm.pctImp||v.pctImp||6, status:cm.status||v.status||'NAO_PAGO', parcela:cm.parcela||v.parcela||'', corretor:v.corretor||u.name, bid:mBid, frente:v.frente||'', fonte:'manual'});
   });
 
   // Sort by date desc
   allVendas.sort(function(a,b){ return (b.data||'').localeCompare(a.data||''); });
 
-  // FILTRO RIGIDO: apenas paulo e isa veem 100%. Corretores so veem o proprio.
-  var isFullAccess = (u.id === 'paulo' || u.id === 'isa');
-  var myVendas = isFullAccess ? allVendas : allVendas.filter(function(v){ return v.corretor && v.corretor.toLowerCase().includes(u.name.split(' ')[0].toLowerCase()); });
+  // FILTRO DE DATA: apenas vendas a partir de janeiro/2026
+  allVendas = allVendas.filter(function(v){ if(!v.data) return false; return v.data >= '2026-01-01'; });
 
-  // KPIs
-  var totalVGV = myVendas.reduce(function(a,v){return a+v.vgv},0);
-  var totalVendas = myVendas.length;
-  var totalComBruta = myVendas.reduce(function(a,v){return a + v.vgv * v.pctCom / 100},0);
-  var totalComLiq = myVendas.reduce(function(a,v){ var b=v.vgv*v.pctCom/100; return a + b - b*v.pctImp/100; },0);
-  var totalPago = myVendas.filter(function(v){return v.status==='PAGO'}).reduce(function(a,v){ var b=v.vgv*v.pctCom/100; return a + b - b*v.pctImp/100; },0);
-  var totalPendente = totalComLiq - totalPago;
+  // FILTRO POR HIERARQUIA
+  var isFullAccess = (pf === 'diretor');
+  var isLider = (pf === 'lider');
+  var myFrente = u.frente || '';
+  var myTeamIds = [];
+  if(isLider && myFrente){ USERS_BASE.forEach(function(ub){ if(ub.frente === myFrente) myTeamIds.push(ub.id); }); myTeamIds.push(u.id); }
+  var myVendas;
+  if(isFullAccess){ myVendas = allVendas; }
+  else if(isLider && myTeamIds.length > 0){ myVendas = allVendas.filter(function(v){ return myTeamIds.indexOf(v.bid) !== -1 || (v.bid === '' && v.corretor && myTeamIds.some(function(tid){ var tu=USERS_BASE.find(function(ub){return ub.id===tid}); return tu && v.corretor.toLowerCase().indexOf(tu.name.split(' ')[0].toLowerCase())!==-1; })); }); }
+  else { myVendas = allVendas.filter(function(v){ return v.bid === u.id || (v.bid === '' && v.corretor && v.corretor.toLowerCase().indexOf(u.name.split(' ')[0].toLowerCase())!==-1); }); }
 
   var fmt = function(n){return 'R$ '+Math.round(n).toLocaleString('pt-BR')};
   var fmtD = function(d){ if(!d)return'-'; var dt=new Date(d); return isNaN(dt)?d:dt.toLocaleDateString('pt-BR'); };
-
   var STATUS_OPTS = ['NAO_PAGO','PAGO','PARCIAL_1','PARCIAL_2','PARCIAL_3','PARCIAL_4','PARCIAL_5','PARCIAL_6'];
   var STATUS_LBL = {NAO_PAGO:'N\u00e3o Pago',PAGO:'Pago',PARCIAL_1:'Parcial 1',PARCIAL_2:'Parcial 2',PARCIAL_3:'Parcial 3',PARCIAL_4:'Parcial 4',PARCIAL_5:'Parcial 5',PARCIAL_6:'Parcial 6'};
   var STATUS_COR = {NAO_PAGO:'var(--r-tx)',PAGO:'var(--g-tx)',PARCIAL_1:'#f59e0b',PARCIAL_2:'#f59e0b',PARCIAL_3:'#f59e0b',PARCIAL_4:'#f59e0b',PARCIAL_5:'#f59e0b',PARCIAL_6:'#f59e0b'};
 
+  if (!S.rvPeriodo) S.rvPeriodo = 'todos';
+  var filteredVendas = myVendas;
+  if (S.rvPeriodo !== 'todos') {
+    var now = new Date(); var filterStart, filterEnd;
+    if (S.rvPeriodo==='mes_atual'){filterStart=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10);filterEnd=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().slice(0,10);}
+    else if(S.rvPeriodo==='mes_anterior'){filterStart=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString().slice(0,10);filterEnd=new Date(now.getFullYear(),now.getMonth(),0).toISOString().slice(0,10);}
+    else if(S.rvPeriodo==='trimestre'){var qS=Math.floor(now.getMonth()/3)*3;filterStart=new Date(now.getFullYear(),qS,1).toISOString().slice(0,10);filterEnd=new Date(now.getFullYear(),qS+3,0).toISOString().slice(0,10);}
+    else if(S.rvPeriodo==='semestre'){var sS=now.getMonth()<6?0:6;filterStart=new Date(now.getFullYear(),sS,1).toISOString().slice(0,10);filterEnd=new Date(now.getFullYear(),sS+6,0).toISOString().slice(0,10);}
+    else if(S.rvPeriodo==='ano'){filterStart=now.getFullYear()+'-01-01';filterEnd=now.getFullYear()+'-12-31';}
+    else if(S.rvPeriodo==='custom'&&S.rvDe&&S.rvAte){filterStart=S.rvDe;filterEnd=S.rvAte;}
+    if(filterStart&&filterEnd){filteredVendas=myVendas.filter(function(v){return v.data>=filterStart&&v.data<=filterEnd;});}
+  }
+
+  var totalVGV = filteredVendas.reduce(function(a,v){return a+v.vgv},0);
+  var totalVendas = filteredVendas.length;
+  var totalComBruta = filteredVendas.reduce(function(a,v){return a + v.vgv * v.pctCom / 100},0);
+  var totalComLiq = filteredVendas.reduce(function(a,v){ var b=v.vgv*v.pctCom/100; return a + b - b*v.pctImp/100; },0);
+  var totalPago = filteredVendas.filter(function(v){return v.status==='PAGO'}).reduce(function(a,v){ var b=v.vgv*v.pctCom/100; return a + b - b*v.pctImp/100; },0);
+  var totalPendente = totalComLiq - totalPago;
+
   // ── TABS ──
-  var accessLabel = isFullAccess ? 'Vis\u00e3o completa \u2014 todos os corretores' : 'Suas vendas \u2014 ' + u.name.split(' ')[0];
+  var accessLabel = isFullAccess ? 'Vis\u00e3o completa \u2014 todos os corretores' : isLider ? 'Equipe ' + (myFrente==='lancamento'?'MAP':myFrente==='conquista'?'Conquista':'Terceiros') + ' \u2014 ' + u.name.split(' ')[0] : 'Suas vendas \u2014 ' + u.name.split(' ')[0];
   var h = '<div class="phd"><h1>\uD83D\uDCCA Relat\u00f3rio de Vendas & Comiss\u00f5es</h1><p>' + accessLabel + '</p></div>';
   h += '<div style="display:flex;gap:4px;margin-bottom:16px">';
   h += '<button class="tab'+(S.rvTab==='vendas'?' on':'')+'" onclick="S.rvTab=\'vendas\';render()">\uD83D\uDCCB Vendas & Comiss\u00f5es</button>';
@@ -11317,6 +11343,13 @@ function pgRelatVendas() {
   // TAB: VENDAS & COMISSÕES
   // ════════════════════════════════════════════════════════════════════════
   if (S.rvTab === 'vendas') {
+    var periodos=[{id:'todos',lbl:'Todas'},{id:'mes_atual',lbl:'M\u00eas Atual'},{id:'mes_anterior',lbl:'M\u00eas Anterior'},{id:'trimestre',lbl:'Trimestre'},{id:'semestre',lbl:'Semestre'},{id:'ano',lbl:'Ano '+new Date().getFullYear()},{id:'custom',lbl:'Per\u00edodo'}];
+    h+='<div class="card" style="padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+    h+='<span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">\uD83D\uDCC5 Per\u00edodo:</span>';
+    periodos.forEach(function(p){h+='<button class="tab'+(S.rvPeriodo===p.id?' on':'')+'" style="font-size:11px;padding:4px 12px" onclick="S.rvPeriodo=\''+p.id+'\';render()">'+p.lbl+'</button>';});
+    if(S.rvPeriodo==='custom'){h+='<input type="date" value="'+(S.rvDe||'')+'" onchange="S.rvDe=this.value;render()" style="font-size:11px;padding:4px 8px;border:1px solid var(--cream3);border-radius:6px">';h+='<span style="font-size:11px;color:var(--muted)">at\u00e9</span>';h+='<input type="date" value="'+(S.rvAte||'')+'" onchange="S.rvAte=this.value;render()" style="font-size:11px;padding:4px 8px;border:1px solid var(--cream3);border-radius:6px">';}
+    h+='</div>';
+
     // KPI cards
     h += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px">';
     h += '<div class="card" style="padding:12px;text-align:center;background:linear-gradient(135deg,var(--navy),#1e3a5f);color:#fff"><div style="font-size:9px;opacity:.6;text-transform:uppercase;font-weight:600">VGV Total</div><div style="font-size:16px;font-weight:800;margin-top:4px">'+fmt(totalVGV)+'</div></div>';
@@ -11328,8 +11361,8 @@ function pgRelatVendas() {
     h += '</div>';
 
     // Table
-    if (myVendas.length === 0) {
-      h += '<div class="card" style="padding:40px;text-align:center;color:var(--muted)">Nenhuma venda registrada. As vendas do RD CRM aparecem automaticamente ap\u00f3s o sync.</div>';
+    if (filteredVendas.length === 0) {
+      h += '<div class="card" style="padding:40px;text-align:center;color:var(--muted)">'+(S.rvPeriodo!=='todos'?'Nenhuma venda no per\u00edodo selecionado.':'Nenhuma venda registrada.')+'</div>';
     } else {
       h += '<div class="card" style="padding:0;overflow:auto;max-height:calc(100vh - 340px)"><table style="width:100%;border-collapse:collapse;font-size:11px">';
       h += '<thead><tr style="background:var(--navy);color:#fff;position:sticky;top:0;z-index:2">';
@@ -11346,8 +11379,8 @@ function pgRelatVendas() {
       h += '<th style="padding:8px 6px;text-align:left;min-width:80px">Parcela</th>';
       h += '</tr></thead><tbody>';
 
-      for (var vi = 0; vi < myVendas.length; vi++) {
-        var vd = myVendas[vi];
+      for (var vi = 0; vi < filteredVendas.length; vi++) {
+        var vd = filteredVendas[vi];
         var comBruta = vd.vgv * vd.pctCom / 100;
         var comLiq = comBruta - comBruta * vd.pctImp / 100;
         var rowBg = vi % 2 === 0 ? '' : 'background:rgba(15,23,42,.02)';
@@ -11376,7 +11409,7 @@ function pgRelatVendas() {
 
       // TOTALS ROW
       h += '<tr style="background:var(--navy);color:#fff;font-weight:700">';
-      h += '<td colspan="3" style="padding:8px 6px">TOTAL ('+myVendas.length+' vendas)</td>';
+      h += '<td colspan="3" style="padding:8px 6px">TOTAL ('+filteredVendas.length+' vendas)</td>';
       h += '<td style="padding:8px 6px;text-align:right">'+fmt(totalVGV)+'</td>';
       h += '<td colspan="3"></td>';
       h += '<td style="padding:8px 6px;text-align:right">'+fmt(totalComBruta)+'</td>';
@@ -11539,7 +11572,8 @@ function rvSaveCom(id, key, val) {
 function rvAddVenda() {
   var n = S.rvNew; if (!n || !n.cl) { toast('Preencha o nome do cliente','warn'); return; }
   var id = 'mv_' + Date.now();
-  var venda = {id:id, cl:n.cl, emp:n.emp, tipo:n.tipo, torre:n.torre, unid:n.unid, nome:n.nome, vgv:n.vgv, data:n.data, pctCom:n.pctCom, pctImp:n.pctImp, status:n.status, parcela:n.parcela, corretor:n.corretor, frente:n.frente};
+  var mBidAdd='';var mUserAdd=USERS_BASE.find(function(ub){return ub.name&&n.corretor&&n.corretor.toLowerCase().indexOf(ub.name.split(' ')[0].toLowerCase())!==-1});if(mUserAdd)mBidAdd=mUserAdd.id;
+  var venda = {id:id, cl:n.cl, emp:n.emp, tipo:n.tipo, torre:n.torre, unid:n.unid, nome:n.nome, vgv:n.vgv, data:n.data, pctCom:n.pctCom, pctImp:n.pctImp, status:n.status, parcela:n.parcela, corretor:n.corretor, bid:mBidAdd, frente:n.frente||((mUserAdd&&mUserAdd.frente)||'')};
   S.vendasManuais.push(venda);
   S.comissoes[id] = {pctCom:n.pctCom, pctImp:n.pctImp, status:n.status, parcela:n.parcela};
   localStorage.setItem('psm_vendas_manuais', JSON.stringify(S.vendasManuais));
@@ -11560,6 +11594,238 @@ function rvDelVenda(idx) {
 }
 
 // === FICHAS & PROPOSTAS (ver implementacao completa abaixo) ===
+
+// === OPORTUNIDADES PSM ===
+function pgOportunidades() {
+  var u = S.user; if (!u) return '';
+  var pf = getPerfil(); var lvl = RLVL[u.role]||0;
+  var isGestor = (pf==='diretor'||pf==='lider'||lvl>=5);
+  if (!S.oportunidadesPSM) S.oportunidadesPSM = [];
+  if (!S.opForm) S.opForm = false;
+  var hoje = new Date().toISOString().slice(0,10);
+
+  var h = '<div class="pg-wrap" style="padding:20px">';
+  h += '<div class="phd" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">';
+  h += '<div><h1>\uD83D\uDCA1 Oportunidades</h1><p>Oportunidades de neg\u00f3cio para a equipe PSM</p></div>';
+  if (isGestor) {
+    h += '<button onclick="S.opForm=!S.opForm;render()" style="padding:10px 20px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:6px">'+(S.opForm?'\u2715 Fechar':'\u2795 Nova Oportunidade')+'</button>';
+  }
+  h += '</div>';
+
+  // === FORMULARIO (gestores only) ===
+  if (isGestor && S.opForm) {
+    var ed = S.opEdit || {};
+    h += '<div style="background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid #6366f140;border-radius:14px;padding:24px;margin-bottom:24px">';
+    h += '<h3 style="font-size:16px;font-weight:700;color:#f8fafc;margin-bottom:16px">'+(ed.id?'\u270F\uFE0F Editar':'\u2795 Nova')+' Oportunidade</h3>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">';
+    // Titulo
+    h += '<div style="grid-column:1/-1"><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">T\u00edtulo da Oportunidade *</label>';
+    h += '<input id="op_titulo" value="'+(ed.titulo||'')+'" placeholder="Ex: Lan\u00e7amento Park Palestra - Condi\u00e7\u00f5es Especiais" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Empreendimento
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Empreendimento</label>';
+    h += '<input id="op_empre" value="'+(ed.empreendimento||'')+'" placeholder="Ex: SOHO JK, Park Palestra..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Incorporadora
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Incorporadora</label>';
+    h += '<input id="op_incorp" value="'+(ed.incorporadora||'')+'" placeholder="Ex: PSM, Yuny, EBM..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Validade
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">V\u00e1lido at\u00e9</label>';
+    h += '<input id="op_validade" type="date" value="'+(ed.validade||'')+'" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Tipo
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Tipo</label>';
+    h += '<select id="op_tipo" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px">';
+    ['condicao_especial','lancamento','tabela_nova','desconto','financiamento','fgts','permuta','outro'].forEach(function(t){
+      var lbl = {condicao_especial:'Condi\u00e7\u00e3o Especial',lancamento:'Lan\u00e7amento',tabela_nova:'Tabela Nova',desconto:'Desconto',financiamento:'Financiamento',fgts:'FGTS',permuta:'Permuta',outro:'Outro'}[t]||t;
+      h += '<option value="'+t+'"'+((ed.tipo||'condicao_especial')===t?' selected':'')+'>'+lbl+'</option>';
+    });
+    h += '</select></div>';
+    // Descricao
+    h += '<div style="grid-column:1/-1"><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Descri\u00e7\u00e3o / Detalhes *</label>';
+    h += '<textarea id="op_desc" rows="4" placeholder="Descreva a oportunidade, condi\u00e7\u00f5es, valores..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px;resize:vertical">'+(ed.desc||'')+'</textarea></div>';
+    // Link
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Link (site PSM ou externo)</label>';
+    h += '<input id="op_link" value="'+(ed.link||'')+'" placeholder="https://imobiliariapsm.com.br/..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Imagem URL
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">URL da Imagem (opcional)</label>';
+    h += '<input id="op_img" value="'+(ed.imgUrl||'')+'" placeholder="https://... (URL da foto/imagem)" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Emoji
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Emoji</label>';
+    h += '<input id="op_icon" value="'+(ed.icon||'\uD83D\uDCA1')+'" maxleng569;border-radius:8px;font-size:14px"></div>';
+    // Tipo
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Tipo</label>';
+    h += '<select id="op_tipo" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px">';
+    ['condicao_especial','lancamento','tabela_nova','desconto','financiamento','fgts','permuta','outro'].forEach(function(t){
+      var lbl = {condicao_especial:'Condi\u00e7\u00e3o Especial',lancamento:'Lan\u00e7amento',tabela_nova:'Tabela Nova',desconto:'Desconto',financiamento:'Financiamento',fgts:'FGTS',permuta:'Permuta',outro:'Outro'}[t]||t;
+      h += '<option value="'+t+'"'+((ed.tipo||'condicao_especial')===t?' selected':'')+'>'+lbl+'</option>';
+    });
+    h += '</select></div>';
+    // Descricao
+    h += '<div style="grid-column:1/-1"><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Descri\u00e7\u00e3o / Detalhes *</label>';
+    h += '<textarea id="op_desc" rows="4" placeholder="Descreva a oportunidade, condi\u00e7\u00f5es, valores..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px;resize:vertical">'+(ed.desc||'')+'</textarea></div>';
+    // Link
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Link (site PSM ou externo)</label>';
+    h += '<input id="op_link" value="'+(ed.link||'')+'" placeholder="https://imobiliariapsm.com.br/..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Imagem URL
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">URL da Imagem (opcional)</label>';
+    h += '<input id="op_img" value="'+(ed.imgUrl||'')+'" placeholder="https://... (URL da foto/imagem)" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    // Emoji
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Emoji</label>';
+    h += '<input id="op_icon" value="'+(ed.icon||'\uD83D\uDCA1')+'" maxlength="4" style="width:80px;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:22px;text-align:center"></div>';
+    // Destaque
+    h += '<div style="display:flex;align-items:center;gap:8px;padding-top:18px"><input type="checkbox" id="op_destaque"'+(ed.destaque?' checked':'')+' style="width:18px;height:18px;cursor:pointer"><label for="op_destaque" style="font-size:12px;color:#fbbf24;font-weight:600;cursor:pointer">\u2B50 Destaque (fixa no topo)</label></div>';
+    h += '</div>';
+    // Botoes
+    h += '<div style="display:flex;gap:10px;margin-top:18px">';
+    h += '<button onclick="opSave()" style="padding:10px 24px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">'+(ed.id?'\u2705 Salvar':'\u2795 Publicar Oportunidade')+'</button>';
+    if (ed.id) {
+      h += '<button onclick="S.opEdit={};render()" style="padding:10px 16px;background:#47556920;color:#94a3b8;border:1px solid #47556940;border-radius:8px;font-size:13px;cursor:pointer">Cancelar</button>';
+    }
+    h += '</div></div>';
+  }
+
+  // === FILTER / KPIs ===
+  var ativas = S.oportunidadesPSM.filter(function(o){ return !o.validade || o.validade >= hoje; });
+  var expiradas = S.oportunidadesPSM.filter(function(o){ return o.validade && o.validade < hoje; });
+  var destaques = ativas.filter(function(o){ return o.destaque; });
+
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:24px">';
+  h += '<div style="background:#0f172a;border-radius:10px;padding:14px;text-align:center;border:1px solid #22c55e30"><div style="font-size:22px;font-weight:800;color:#22c55e">'+ativas.length+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Ativas</div></div>';
+  h += '<div style="background:#0f172a;border-radius:10px;padding:14px;text-align:center;border:1px solid #fbbf2430"><div style="font-size:22px;font-weight:800;color:#fbbf24">'+destaques.length+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Destaques</div></div>';
+  h += '<div style="background:#0f172a;border-radius:10px;padding:14px;text-align:center;border:1px solid #64748b30"><div style="font-size:22px;font-weight:800;color:#64748b">'+expiradas.length+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Expiradas</div></div>';
+  h += '<div style="background:#0f172a;border-radius:10px;padding:14px;text-align:center;border:1px solid #8b5cf630"><div style="font-size:22px;font-weight:800;color:#8b5cf6">'+S.oportunidadesPSM.length+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Total</div></div>';
+  h += '</div>';
+
+  // === RENDER CARD ===
+  function opCard(o, expired) {
+    var borderCol = expired ? '#47556930' : (o.destaque ? '#fbbf2450' : '#6366f140');
+    var c = '<div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:14px;padding:18px;border:1px solid '+borderCol+';margin-bottom:14px'+(expired?';opacity:.6':'')+'">';
+    c += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">';
+    c += '<div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">';
+    c += '<span style="font-size:32px;flex-shrink:0">'+(o.icon||'\uD83D\uDCA1')+'</span>';
+    c += '<div style="min-width:0">';
+    c += '<div style="font-size:16px;font-weight:700;color:#f8fafc;margin-bottom:4px">'+o.titulo+'</div>';
+    var tipoLbl = {condicao_especial:'Cond. Especial',lancamento:'Lan\u00e7amento',tabela_nova:'Tabela Nova',desconto:'Desconto',financiamento:'Financiamento',fgts:'FGTS',permuta:'Permuta',outro:'Outro'}[o.tipo]||o.tipo||'';
+    var statusLbl = expired ? 'EXPIRADA' : (o.destaque ? '\u2B50 DESTAQUE' : 'ATIVA');
+    var statusCol = expired ? '#64748b' : (o.destaque ? '#fbbf24' : '#22c55e');
+    c += '<span style="font-size:10px;padding:2px 10px;border-radius:10px;background:'+statusCol+'20;color:'+statusCol+';font-weight:700;letter-spacing:0.5px">'+statusLbl+'</span>';
+    if (tipoLbl) c += ' <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#8b5cf620;color:#a78bfa;font-weight:600">'+tipoLbl+'</span>';
+    c += '</div></div>';
+    if (isGestor) {
+      c += '<div style="display:flex;gap:6px;flex-shrink:0">';
+      c += '<button onclick="opEdit(\''+o.id+'\')" style="padding:6px 10px;background:#6366f120;color:#a5b4fc;border:1px solid #6366f130;border-radius:6px;font-size:12px;cursor:pointer">\u270F\uFE0F</button>';
+      c += '<button onclick="opDel(\''+o.id+'\')" style="padding:6px 10px;background:#dc262620;color:#fca5a5;border:1px solid #dc262630;border-radius:6px;font-size:12px;cursor:pointer">\uD83D\uDDD1\uFE0F</button>';
+      c += '</div>';
+    }
+    c += '</div>';
+    // Details
+    c += '<div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">';
+    if (o.empreendimento) c += '<div><span style="color:#64748b">Empreendimento:</span> <span style="color:#e2e8f0;font-weight:600">'+o.empreendimento+'</span></div>';
+    if (o.incorporadora) c += '<div><span style="color:#64748b">Incorporadora:</span> <span style="color:#e2e8f0;font-weight:600">'+o.incorporadora+'</span></div>';
+    if (o.validade) c += '<div><span style="color:#64748b">V\u00e1lido at\u00e9:</span> <span style="color:#e2e8f0">'+premFmtDate(o.validade)+'</span></div>';
+    c += '<div><span style="color:#64748b">Publicado:</span> <span style="color:#e2e8f0">'+premFmtDate((o.criadoEm||'').substring(0,10))+'</span></div>';
+    c += '</div>';
+    // Description
+    c += '<div style="margin-top:10px;font-size:13px;color:#cbd5e1;line-height:1.6;white-space:pre-wrap">'+o.desc+'</div>';
+    // Image
+    if (o.imgUrl) {
+      c += '<div style="margin-top:12px;border-radius:10px;overflow:hidden;max-height:300px"><img src="'+o.imgUrl+'" style="width:100%;object-fit:cover;border-radius:10px" onerror="this.style.display=\'none\'"></div>';
+    }
+    // Link
+    if (o.link) {
+      c += '<a href="'+o.link+'" target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:8px 16px;background:#6366f120;color:#a5b4fc;border:1px solid #6366f130;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none">\uD83D\uDD17 Ver no site</a>';
+    }
+    // Dias restantes
+    if (!expired && o.validade) {
+      var diasRest = Math.ceil((new Date(o.validade+'T23:59:59') - new Date()) / 86400000);
+      c += '<div style="margin-top:10px;padding:8px 12px;background:'+(diasRest<=3?'#dc262610':'#22c55e10')+';border-radius:8px;font-size:12px;color:'+(diasRest<=3?'#fca5a5':'#22c55e')+';font-weight:600">\u23F3 '+diasRest+' dia'+(diasRest!==1?'s':'')+' restante'+(diasRest!==1?'s':'')+'</div>';
+    }
+    // Autor
+    c += '<div style="margin-top:8px;font-size:10px;color:#64748b">Publicado por '+o.autorNome+'</div>';
+    c += '</div>';
+    return c;
+  }
+
+  // === DESTAQUES ===
+  if (destaques.length) {
+    h += '<h2 style="font-size:16px;font-weight:700;color:#fbbf24;margin-bottom:12px;display:flex;align-items:center;gap:8px">\u2B50 Destaques</h2>';
+    destaques.sort(function(a,b){ return (b.criadoEm||'').localeCompare(a.criadoEm||''); });
+    destaques.forEach(function(o){ h += opCard(o, false); });
+  }
+
+  // === ATIVAS (non-destaque) ===
+  var ativasND = ativas.filter(function(o){ return !o.destaque; });
+  if (ativasND.length) {
+    h += '<h2 style="font-size:16px;font-weight:700;color:#22c55e;margin-bottom:12px;margin-top:20px;display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block"></span> Oportunidades Ativas</h2>';
+    ativasND.sort(function(a,b){ return (b.criadoEm||'').localeCompare(a.criadoEm||''); });
+    ativasND.forEach(function(o){ h += opCard(o, false); });
+  }
+
+  // === EXPIRADAS ===
+  if (expiradas.length) {
+    h += '<h2 style="font-size:16px;font-weight:700;color:#64748b;margin-bottom:12px;margin-top:24px">\uD83D\uDD12 Expiradas</h2>';
+    expiradas.sort(function(a,b){ return (b.validade||'').localeCompare(a.validade||''); });
+    expiradas.forEach(function(o){ h += opCard(o, true); });
+  }
+
+  if (!S.oportunidadesPSM.length) {
+    h += '<div style="text-align:center;padding:60px 20px;color:#64748b"><div style="font-size:48px;margin-bottom:12px">\uD83D\uDCA1</div><div style="font-size:16px;font-weight:600;color:#94a3b8">Nenhuma oportunidade cadastrada</div>';
+    if (isGestor) h += '<div style="font-size:13px;margin-top:8px">Clique em "+ Nova Oportunidade" para come\u00e7ar</div>';
+    h += '</div>';
+  }
+
+  h += '</div>';
+  return h;
+}
+
+// === OPORTUNIDADES HELPERS ===
+function opSave() {
+  var titulo = (document.getElementById('op_titulo')||{}).value||'';
+  var desc = (document.getElementById('op_desc')||{}).value||'';
+  if (!titulo || !desc) { toast('Preencha t\u00edtulo e descri\u00e7\u00e3o','warn'); return; }
+  if (!S.oportunidadesPSM) S.oportunidadesPSM = [];
+  var ed = S.opEdit || {};
+  var item = {
+    id: ed.id || 'op_'+Date.now(),
+    titulo: titulo,
+    desc: desc,
+    empreendimento: (document.getElementById('op_empre')||{}).value||'',
+    incorporadora: (document.getElementById('op_incorp')||{}).value||'',
+    validade: (document.getElementById('op_validade')||{}).value||'',
+    tipo: (document.getElementById('op_tipo')||{}).value||'outro',
+    link: (document.getElementById('op_link')||{}).value||'',
+    imgUrl: (document.getElementById('op_img')||{}).value||'',
+    icon: (document.getElementById('op_icon')||{}).value||'\uD83D\uDCA1',
+    destaque: !!(document.getElementById('op_destaque')||{}).checked,
+    autorId: S.user.id,
+    autorNome: S.user.name||S.user.id,
+    criadoEm: ed.criadoEm || new Date().toISOString()
+  };
+  if (ed.id) {
+    var idx = S.oportunidadesPSM.findIndex(function(o){ return o.id === ed.id; });
+    if (idx !== -1) S.oportunidadesPSM[idx] = item;
+  } else {
+    S.oportunidadesPSM.push(item);
+  }
+  S.opEdit = {}; S.opForm = false;
+  saveState(); fbPushState();
+  toast('\u2705 Oportunidade '+(ed.id?'atualizada':'publicada')+'!','ok');
+  render();
+}
+
+function opEdit(id) {
+  var o = (S.oportunidadesPSM||[]).find(function(x){ return x.id === id; });
+  if (!o) return;
+  S.opEdit = JSON.parse(JSON.stringify(o));
+  S.opForm = true;
+  render();
+}
+
+function opDel(id) {
+  if (!confirm('Remover esta oportunidade?')) return;
+  S.oportunidadesPSM = (S.oportunidadesPSM||[]).filter(function(x){ return x.id !== id; });
+  saveState(); fbPushState();
+  toast('\uD83D\uDDD1\uFE0F Oportunidade removida','ok');
+  render();
+}
 
 // === PREMIACOES ===
 function pgPremiacoes() {
@@ -11781,7 +12047,7 @@ function premDel(id) {
 var PAGES_ALL=['checkin','wararena','lancamentos_ano','ranking','tabela','drive','mapa','formacao','manual','playbook','codigo_etica','simvpl','simincc','sim_energia','simrep','canal_anonimo','kenlo','agente_vera','agente_sol','sr_performance','sr_gerencia'];
 // Painel do Corretor: socios, gestores(lider), corretores
 var PAGES_PAINEL_CORRETOR=['oneonone','oportunidades','premiacoes','fluxo_cadencia','criativos','plantoes','ficha_captacao','fichas_propostas','ia_corretor'];
-// Vendas & Comissoes: apenas paulo, isa (100%) e corretores (so o proprio)
+// Vendas & Comissoes: diretores, lideres, corretores
 var PAGES_VENDAS_COMISSOES=['relat_vendas'];
 // Frentes: apenas socios
 var PAGES_FRENTES=['lancamento','conquista','terceiros','locacao'];
@@ -11804,8 +12070,8 @@ function canAccess(p){
   if(!S.user)return false;
   // Todos podem acessar
   if(PAGES_ALL.indexOf(p)!==-1)return true;
-  // Vendas & Comissoes: APENAS paulo, isa (diretores) e corretores
-  if(PAGES_VENDAS_COMISSOES.indexOf(p)!==-1){var uid=S.user.id;return uid==='paulo'||uid==='isa'||getPerfil()==='corretor';}
+  // Vendas & Comissoes: diretores, lideres e corretores
+  if(PAGES_VENDAS_COMISSOES.indexOf(p)!==-1){var prf=getPerfil();return prf==='diretor'||prf==='lider'||prf==='corretor';}
   // Painel do Corretor: socios, lider, corretor
   if(PAGES_PAINEL_CORRETOR.indexOf(p)!==-1)return isUserSocio()||isGestorOrSocio()||getPerfil()==='corretor';
   // Frentes: apenas socios
@@ -13265,7 +13531,7 @@ function route() {
     case 'premiacoes': return pgPremiacoes();
         // === NOVOS ITENS DO MENU ===
     // Painel do Corretor
-    case 'oportunidades':    return pgPlaceholder('Oportunidades','Em breve: gerencie suas oportunidades de neg\u00f3cio.');
+    case 'oportunidades':    return pgOportunidades();
     case 'fluxo_cadencia':   return pgFluxoCadencia();
     case 'criativos':        return pgCriativos();
     case 'plantoes':         return pgPlantoes();
@@ -14112,11 +14378,10 @@ function tickerCleanExpired() {
 function renderTicker() {
   tickerCleanExpired();
   var msgs = tickerGetMsgs();
-  if (msgs.length === 0) return '';
-  var tipoIcons = {urgente:'🚨',info:'📢',parabens:'🎉',geral:'💬'};
+  var tipoIcons = {urgente:'\uD83D\uDEA8',info:'\uD83D\uDCE2',parabens:'\uD83C\uDF89',geral:'\uD83D\uDCAC',oportunidade:'\uD83D\uDCA1',premiacao:'\uD83C\uDFC6'};
   var items = '';
   msgs.forEach(function(m) {
-    var ico = tipoIcons[m.tipo] || '📢';
+    var ico = tipoIcons[m.tipo] || '\uD83D\uDCE2';
     var timeAgo = tickerTimeAgo(m.criadoEm);
     items += '<div class="ticker-item">'
       + '<span class="tk-badge ' + m.tipo + '">' + ico + ' ' + m.tipo + '</span>'
@@ -14125,12 +14390,41 @@ function renderTicker() {
       + '<span class="tk-time">' + timeAgo + '</span>'
       + '</div>';
   });
+  // Oportunidades ativas na timeline
+  var hoje = new Date().toISOString().slice(0,10);
+  if (S.oportunidadesPSM && S.oportunidadesPSM.length) {
+    S.oportunidadesPSM.forEach(function(o) {
+      if (o.validade && o.validade < hoje) return;
+      var timeAgo = tickerTimeAgo(new Date(o.criadoEm||Date.now()).getTime());
+      items += '<div class="ticker-item">'
+        + '<span class="tk-badge oportunidade">\uD83D\uDCA1 oportunidade</span>'
+        + '<span>'+(o.destaque?'\u2B50 ':'')+o.titulo+(o.empreendimento?' \u2014 '+o.empreendimento:'')+'</span>'
+        + '<span style="color:#818cf8;font-size:11px;font-weight:600">\u2014 ' + (o.autorNome||'PSM') + '</span>'
+        + '<span class="tk-time">' + timeAgo + '</span>'
+        + '</div>';
+    });
+  }
+  // Premiacoes ativas na timeline
+  if (S.premiacoes && S.premiacoes.length) {
+    S.premiacoes.forEach(function(p) {
+      if (p.fim < hoje) return;
+      var diasRest = p.inicio <= hoje ? Math.ceil((new Date(p.fim+'T23:59:59') - new Date()) / 86400000) : 0;
+      var statusTxt = p.inicio > hoje ? 'Come\u00e7a em breve' : diasRest+' dia'+(diasRest!==1?'s':'')+' restante'+(diasRest!==1?'s':'');
+      items += '<div class="ticker-item">'
+        + '<span class="tk-badge premiacao">\uD83C\uDFC6 premia\u00e7\u00e3o</span>'
+        + '<span>'+p.titulo+' \u2014 '+(p.premio||p.produto)+' ('+statusTxt+')</span>'
+        + '<span style="color:#fbbf24;font-size:11px;font-weight:600">\u2014 ' + (p.incorporadora||'PSM') + '</span>'
+        + '<span class="tk-time">' + premFmtDate(p.fim) + '</span>'
+        + '</div>';
+    });
+  }
+  if (items === '') return '';
   // Duplicate items for seamless loop
-  var speed = Math.max(20, msgs.length * 12);
+  var totalItems = msgs.length + ((S.oportunidadesPSM||[]).filter(function(o){return !o.validade||o.validade>=hoje}).length) + ((S.premiacoes||[]).filter(function(p){return p.fim>=hoje}).length);
+  var speed = Math.max(20, totalItems * 12);
   return '<div class="ticker-wrap" style="--ticker-speed:' + speed + 's">'
     + '<div class="ticker-track">' + items + items + '</div></div>';
 }
-
 function tickerTimeAgo(ts) {
   var diff = Date.now() - ts;
   var mins = Math.floor(diff / 60000);
