@@ -11701,6 +11701,164 @@ function pgOportunidades() {
   h += '<div style="background:#0f172a;border-radius:10px;padding:14px;text-align:center;border:1px solid #fbbf2430"><div style="font-size:22px;font-weight:800;color:#fbbf24">'+destaques.length+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Destaques</div></div>';
   h += '<div style="background:#0f172a;border-radius:10px;padding:14px;text-align:center;border:1px solid #64748b30"><div style="font-size:22px;font-weight:800;color:#64748b">'+expiradas.length+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Expiradas</div></div>';
   h += '<div style="background:#0f172a;border-radius:10px;padding:14px;text-align:center;border:1px solid #8b5cf630"><div style="font-size:22px;font-weight:800;color:#8b5cf6">'+S.oportunidadesPSM.length+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Total</div></div>';
+
+
+  // ===== OPORTUNIDADES DO CORRETOR (clientes comprando ou vendendo) =====
+  h += '<div style="margin-top:32px;border-top:1px solid #334155;padding-top:24px">';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">';
+  h += '<div><h2 style="font-size:20px;font-weight:800;color:#f8fafc;margin:0">\uD83D\uDCCB Oportunidades dos Corretores</h2>';
+  h += '<p style="font-size:13px;color:#94a3b8;margin:4px 0 0">Clientes buscando ou vendendo im\u00f3veis</p></div>';
+  h += '<button onclick="S.opCorretorForm=S.opCorretorForm?false:\'compra\';S.opCorretorEdit={};render()" style="padding:10px 20px;background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer">'+(S.opCorretorForm?'\u2715 Fechar':'\u2795 Registrar Oportunidade')+'</button>';
+  h += '</div>';
+
+  // FORMULARIO CORRETOR
+  if (S.opCorretorForm) {
+    var oce = S.opCorretorEdit || {};
+    var tipoOp = S.opCorretorForm; // 'compra' ou 'venda'
+    h += '<div style="background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid #0ea5e940;border-radius:14px;padding:24px;margin-bottom:24px">';
+    // Toggle compra/venda
+    h += '<div style="display:flex;gap:8px;margin-bottom:18px">';
+    h += '<button onclick="S.opCorretorForm=\'compra\';render()" style="padding:10px 20px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;border:2px solid #22c55e;'+(tipoOp==='compra'?'background:#22c55e;color:#fff':'background:transparent;color:#22c55e')+'">\uD83C\uDFE0 Cliente Comprando</button>';
+    h += '<button onclick="S.opCorretorForm=\'venda\';render()" style="padding:10px 20px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;border:2px solid #f97316;'+(tipoOp==='venda'?'background:#f97316;color:#fff':'background:transparent;color:#f97316')+'">\uD83D\uDCB0 Cliente Vendendo</button>';
+    h += '</div>';
+
+    h += '<h3 style="font-size:16px;font-weight:700;color:#f8fafc;margin-bottom:16px">'+(oce.id?'\u270F\uFE0F Editar':'')+(tipoOp==='compra'?' \uD83C\uDFE0 Cliente Buscando Im\u00f3vel':' \uD83D\uDCB0 Cliente Vendendo Im\u00f3vel')+'</h3>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">';
+
+    // Campos comuns
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Nome do Cliente *</label>';
+    h += '<input id="opc_nome" value="'+(oce.nomeCliente||'')+'" placeholder="Nome completo" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Telefone / WhatsApp</label>';
+    h += '<input id="opc_tel" value="'+(oce.telefone||'')+'" placeholder="(17) 99999-9999" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+
+    if (tipoOp === 'compra') {
+      // COMPRA: caracteristicas + valores + metodo pagamento
+      h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Tipo de Im\u00f3vel</label>';
+      h += '<select id="opc_tipoImovel" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px">';
+      ['apartamento','casa','terreno','comercial','rural','outro'].forEach(function(t){
+        var lbl = {apartamento:'Apartamento',casa:'Casa',terreno:'Terreno',comercial:'Comercial',rural:'Rural',outro:'Outro'}[t]||t;
+        h += '<option value="'+t+'"'+((oce.tipoImovel||'apartamento')===t?' selected':'')+'>'+lbl+'</option>';
+      });
+      h += '</select></div>';
+      h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Regi\u00e3o de Interesse</label>';
+      h += '<input id="opc_regiao" value="'+(oce.regiao||'')+'" placeholder="Ex: Zona Sul, Jardim Bosque..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+      h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Quartos / Caracter\u00edsticas</label>';
+      h += '<input id="opc_caract" value="'+(oce.caracteristicas||'')+'" placeholder="Ex: 3 quartos, 2 vagas, su\u00edte, varanda..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+      h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Faixa de Valor (R$)</label>';
+      h += '<input id="opc_valor" value="'+(oce.valor||'')+'" placeholder="Ex: 300.000 a 500.000" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+      h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">M\u00e9todo de Pagamento</label>';
+      h += '<select id="opc_pagamento" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px">';
+      ['financiamento','a_vista','fgts','consorcio','permuta','misto','outro'].forEach(function(t){
+        var lbl = {financiamento:'Financiamento',a_vista:'\u00c0 Vista',fgts:'FGTS',consorcio:'Cons\u00f3rcio',permuta:'Permuta',misto:'Misto',outro:'Outro'}[t]||t;
+        h += '<option value="'+t+'"'+((oce.pagamento||'financiamento')===t?' selected':'')+'>'+lbl+'</option>';
+      });
+      h += '</select></div>';
+      h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Prazo / Urg\u00eancia</label>';
+      h += '<select id="opc_prazo" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px">';
+      ['imediato','30_dias','60_dias','90_dias','sem_pressa'].forEach(function(t){
+        var lbl = {imediato:'Imediato',['30_dias']:'At\u00e9 30 dias',['60_dias']:'At\u00e9 60 dias',['90_dias']:'At\u00e9 90 dias',sem_pressa:'Sem pressa / pesquisando'}[t]||t;
+        h += '<option value="'+t+'"'+((oce.prazo||'30_dias')===t?' selected':'')+'>'+lbl+'</option>';
+      });
+      h += '</select></div>';
+    } else {
+      // VENDA: caracteristicas + valores + link PSM + codigo Kenlo
+      h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Tipo de Im\u00f3vel</label>';
+      h += '<select id="opc_tipoImovel" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px">';
+      ['apartamento','casa','terreno','comercial','rural','outro'].forEach(function(t){
+        var lbl = {apartamento:'Apartamento',casa:'Casa',terreno:'Terreno',comercial:'Comercial',rural:'Rural',outro:'Outro'}[t]||t;
+        h += '<option value="'+t+'"'+((oce.tipoImovel||'apartamento')===t?' selected':'')+'>'+lbl+'</option>';
+      });
+      h += '</select></div>';
+      h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Endere\u00e7o / Bairro</label>';
+      h += '<input id="opc_endereco" value="'+(oce.endereco||'')+'" placeholder="Rua, bairro, condom\u00ednio..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+      h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Caracter\u00edsticas</label>';
+      h += '<input id="opc_caract" value="'+(oce.caracteristicas||'')+'" placeholder="Ex: 3 quartos, 120m\u00b2, 2 vagas..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+      h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Valor Pedido (R$)</label>';
+      h += '<input id="opc_valor" value="'+(oce.valor||'')+'" placeholder="Ex: 450.000" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+      h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Link Site PSM</label>';
+      h += '<input id="opc_linkPSM" value="'+(oce.linkPSM||'')+'" placeholder="https://imobiliariapsm.com.br/imovel/..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+      h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">C\u00f3digo Kenlo</label>';
+      h += '<input id="opc_kenlo" value="'+(oce.codigoKenlo||'')+'" placeholder="Ex: KNL-12345" style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px"></div>';
+    }
+
+    // Observacoes (comum)
+    h += '<div style="grid-column:1/-1"><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Observa\u00e7\u00f5es</label>';
+    h += '<textarea id="opc_obs" rows="3" placeholder="Informa\u00e7\u00f5es adicionais, contexto, hist\u00f3rico..." style="width:100%;padding:10px 12px;background:#0f172a;color:#f8fafc;border:1px solid #475569;border-radius:8px;font-size:14px;resize:vertical">'+(oce.obs||'')+'</textarea></div>';
+    h += '</div>';
+
+    // Botoes
+    h += '<div style="display:flex;gap:10px;margin-top:18px">';
+    h += '<button onclick="opCorretorSave(\''+tipoOp+'\')" style="padding:10px 24px;background:linear-gradient(135deg,'+(tipoOp==='compra'?'#22c55e,#16a34a':'#f97316,#ea580c')+');color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">'+(oce.id?'\u2705 Salvar':'\u2795 Registrar')+'</button>';
+    if (oce.id) h += '<button onclick="S.opCorretorEdit={};render()" style="padding:10px 16px;background:#47556920;color:#94a3b8;border:1px solid #47556940;border-radius:8px;font-size:13px;cursor:pointer">Cancelar</button>';
+    h += '</div></div>';
+  }
+
+  // LISTA DE OPORTUNIDADES DOS CORRETORES
+  if (!S.opCorretorList) S.opCorretorList = [];
+  var opCList = S.opCorretorList;
+  if (opCList.length) {
+    var opCompras = opCList.filter(function(o){ return o.tipoOp === 'compra'; });
+    var opVendas = opCList.filter(function(o){ return o.tipoOp === 'venda'; });
+
+    if (opCompras.length) {
+      h += '<h3 style="font-size:15px;font-weight:700;color:#22c55e;margin:16px 0 10px">\uD83C\uDFE0 Clientes Comprando ('+opCompras.length+')</h3>';
+      opCompras.forEach(function(o){
+        h += '<div style="background:#1e293b;border-radius:12px;padding:16px;margin-bottom:10px;border:1px solid #22c55e20">';
+        h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">';
+        h += '<div><div style="font-size:15px;font-weight:700;color:#f8fafc">'+o.nomeCliente+'</div>';
+        if (o.telefone) h += '<div style="font-size:12px;color:#94a3b8">\uD83D\uDCDE '+o.telefone+'</div>';
+        h += '<div style="font-size:11px;color:#64748b;margin-top:4px">Por: '+(o.corretor||'?')+' \u00B7 '+premFmtDate((o.criadoEm||'').substring(0,10))+'</div></div>';
+        h += '<div style="display:flex;gap:4px">';
+        if (u.id === o.corretorId || isGestor) {
+          h += '<button onclick="opCorretorEditFn(\''+o.id+'\')" style="padding:4px 8px;background:#6366f120;color:#a5b4fc;border:1px solid #6366f130;border-radius:6px;font-size:11px;cursor:pointer">\u270F\uFE0F</button>';
+          h += '<button onclick="opCorretorDel(\''+o.id+'\')" style="padding:4px 8px;background:#dc262620;color:#fca5a5;border:1px solid #dc262630;border-radius:6px;font-size:11px;cursor:pointer">\uD83D\uDDD1\uFE0F</button>';
+        }
+        h += '</div></div>';
+        h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">';
+        if (o.tipoImovel) h += '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:#6366f120;color:#a5b4fc">'+({apartamento:'Apto',casa:'Casa',terreno:'Terreno',comercial:'Comercial',rural:'Rural',outro:'Outro'}[o.tipoImovel]||o.tipoImovel)+'</span>';
+        if (o.regiao) h += '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:#0ea5e920;color:#7dd3fc">\uD83D\uDCCD '+o.regiao+'</span>';
+        if (o.valor) h += '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:#22c55e20;color:#86efac">R$ '+o.valor+'</span>';
+        if (o.pagamento) h += '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:#fbbf2420;color:#fde68a">'+({financiamento:'Financ.',a_vista:'\u00c0 vista',fgts:'FGTS',consorcio:'Cons\u00f3rcio',permuta:'Permuta',misto:'Misto',outro:'Outro'}[o.pagamento]||o.pagamento)+'</span>';
+        if (o.caracteristicas) h += '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:#47556930;color:#cbd5e1">'+o.caracteristicas+'</span>';
+        h += '</div>';
+        if (o.obs) h += '<div style="margin-top:8px;font-size:12px;color:#94a3b8;line-height:1.5">'+o.obs+'</div>';
+        h += '</div>';
+      });
+    }
+
+    if (opVendas.length) {
+      h += '<h3 style="font-size:15px;font-weight:700;color:#f97316;margin:16px 0 10px">\uD83D\uDCB0 Clientes Vendendo ('+opVendas.length+')</h3>';
+      opVendas.forEach(function(o){
+        h += '<div style="background:#1e293b;border-radius:12px;padding:16px;margin-bottom:10px;border:1px solid #f9731620">';
+        h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">';
+        h += '<div><div style="font-size:15px;font-weight:700;color:#f8fafc">'+o.nomeCliente+'</div>';
+        if (o.telefone) h += '<div style="font-size:12px;color:#94a3b8">\uD83D\uDCDE '+o.telefone+'</div>';
+        h += '<div style="font-size:11px;color:#64748b;margin-top:4px">Por: '+(o.corretor||'?')+' \u00B7 '+premFmtDate((o.criadoEm||'').substring(0,10))+'</div></div>';
+        h += '<div style="display:flex;gap:4px">';
+        if (u.id === o.corretorId || isGestor) {
+          h += '<button onclick="opCorretorEditFn(\''+o.id+'\')" style="padding:4px 8px;background:#6366f120;color:#a5b4fc;border:1px solid #6366f130;border-radius:6px;font-size:11px;cursor:pointer">\u270F\uFE0F</button>';
+          h += '<button onclick="opCorretorDel(\''+o.id+'\')" style="padding:4px 8px;background:#dc262620;color:#fca5a5;border:1px solid #dc262630;border-radius:6px;font-size:11px;cursor:pointer">\uD83D\uDDD1\uFE0F</button>';
+        }
+        h += '</div></div>';
+        h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">';
+        if (o.tipoImovel) h += '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:#6366f120;color:#a5b4fc">'+({apartamento:'Apto',casa:'Casa',terreno:'Terreno',comercial:'Comercial',rural:'Rural',outro:'Outro'}[o.tipoImovel]||o.tipoImovel)+'</span>';
+        if (o.endereco) h += '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:#0ea5e920;color:#7dd3fc">\uD83D\uDCCD '+o.endereco+'</span>';
+        if (o.valor) h += '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:#f9731620;color:#fdba74">R$ '+o.valor+'</span>';
+        if (o.codigoKenlo) h += '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:#8b5cf620;color:#c4b5fd">Kenlo: '+o.codigoKenlo+'</span>';
+        if (o.caracteristicas) h += '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:#47556930;color:#cbd5e1">'+o.caracteristicas+'</span>';
+        h += '</div>';
+        if (o.linkPSM) h += '<a href="'+o.linkPSM+'" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;font-size:11px;color:#7dd3fc;text-decoration:none">\uD83D\uDD17 Ver no site PSM</a>';
+        if (o.obs) h += '<div style="margin-top:8px;font-size:12px;color:#94a3b8;line-height:1.5">'+o.obs+'</div>';
+        h += '</div>';
+      });
+    }
+  }
+
+  if (!opCList.length) {
+    h += '<div style="text-align:center;padding:30px;color:#64748b;font-size:13px">Nenhuma oportunidade de corretor registrada ainda.</div>';
+  }
+  h += '</div>';
+
   h += '</div>';
 
   // === RENDER CARD ===
@@ -11831,6 +11989,63 @@ function opEdit(id) {
 function opDel(id) {
   if (!confirm('Remover esta oportunidade?')) return;
   S.oportunidadesPSM = (S.oportunidadesPSM||[]).filter(function(x){ return x.id !== id; });
+  saveState(); fbPushState();
+  toast('\uD83D\uDDD1\uFE0F Oportunidade removida','ok');
+  render();
+}
+
+// === OPORTUNIDADES CORRETOR HELPERS ===
+function opCorretorSave(tipoOp) {
+  var nome = (document.getElementById('opc_nome')||{}).value||'';
+  if (!nome) { toast('Preencha o nome do cliente','warn'); return; }
+  if (!S.opCorretorList) S.opCorretorList = [];
+  var oce = S.opCorretorEdit || {};
+  var item = {
+    id: oce.id || 'opc_'+Date.now(),
+    tipoOp: tipoOp,
+    nomeCliente: nome,
+    telefone: (document.getElementById('opc_tel')||{}).value||'',
+    tipoImovel: (document.getElementById('opc_tipoImovel')||{}).value||'',
+    caracteristicas: (document.getElementById('opc_caract')||{}).value||'',
+    valor: (document.getElementById('opc_valor')||{}).value||'',
+    obs: (document.getElementById('opc_obs')||{}).value||'',
+    corretorId: S.user.id,
+    corretor: S.user.name||S.user.id,
+    criadoEm: oce.criadoEm || new Date().toISOString()
+  };
+  if (tipoOp === 'compra') {
+    item.regiao = (document.getElementById('opc_regiao')||{}).value||'';
+    item.pagamento = (document.getElementById('opc_pagamento')||{}).value||'';
+    item.prazo = (document.getElementById('opc_prazo')||{}).value||'';
+  } else {
+    item.endereco = (document.getElementById('opc_endereco')||{}).value||'';
+    item.linkPSM = (document.getElementById('opc_linkPSM')||{}).value||'';
+    item.codigoKenlo = (document.getElementById('opc_kenlo')||{}).value||'';
+  }
+  if (oce.id) {
+    var idx = S.opCorretorList.findIndex(function(o){ return o.id === oce.id; });
+    if (idx !== -1) S.opCorretorList[idx] = item;
+  } else {
+    S.opCorretorList.push(item);
+  }
+  S.opCorretorForm = false; S.opCorretorEdit = {};
+  saveState(); fbPushState();
+  toast('\u2705 Oportunidade '+(oce.id?'atualizada':'registrada')+'!','ok');
+  render();
+}
+
+function opCorretorEditFn(id) {
+  var o = (S.opCorretorList||[]).find(function(x){ return x.id === id; });
+  if (!o) return;
+  S.opCorretorEdit = JSON.parse(JSON.stringify(o));
+  S.opCorretorForm = o.tipoOp || 'compra';
+  render();
+  setTimeout(function(){ var el = document.getElementById('opc_nome'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); }, 100);
+}
+
+function opCorretorDel(id) {
+  if (!confirm('Remover esta oportunidade?')) return;
+  S.opCorretorList = (S.opCorretorList||[]).filter(function(x){ return x.id !== id; });
   saveState(); fbPushState();
   toast('\uD83D\uDDD1\uFE0F Oportunidade removida','ok');
   render();
@@ -14116,8 +14331,219 @@ var CADENCIA_EQUIPES = {
           {titulo:'Script 4: Direto ao ponto', tipo:'geral', texto:'[NOME], sou [SEU NOME] da PSM.\nTrabalho direto com esse tipo de produto e consigo te mostrar as melhores op\u00e7\u00f5es em 15 minutos.\nTenho dois hor\u00e1rios: [H1] ou [H2].\nQual funciona melhor pra voc\u00ea?'}
         ],
         proximaEtapa: 'Se n\u00e3o respondeu a nada: o lead avan\u00e7a para ETAPA 2 no dia seguinte.'
-      }
-    ]
+      },
+      {
+    id: 2,
+    titulo: 'TENTATIVA DE CONTATO',
+    subtitulo: 'D1 a D6 | T01\u2013T09',
+    quando: 'Lead n\u00e3o respondeu ao primeiro contato. D1 em diante.',
+    objetivo: 'Obter resposta. Qualquer resposta. Abrir di\u00e1logo.',
+    sla: 'At\u00e9 T05: descartar OU mover para CARTEIRA para continuar at\u00e9 T09',
+    canais: 'Liga\u00e7\u00e3o + WhatsApp + SMS. Direct IG somente D4/D5.',
+    regraDeOuro: 'Cada toque com GATILHO DIFERENTE. Nunca repetir abordagem.',
+    insight: 'Voc\u00ea N\u00c3O est\u00e1 tentando vender. Est\u00e1 tentando obter UMA resposta. Qualquer \u201csim\u201d, \u201cn\u00e3o\u201d, \u201cagora n\u00e3o\u201d j\u00e1 \u00e9 vit\u00f3ria porque abre di\u00e1logo. O erro mais comum \u00e9 repetir a mesma mensagem. Cada toque traz algo NOVO.',
+    sequencia: [
+      {ordem:1, acao:'Liga\u00e7\u00e3o + WhatsApp de DIFERENCIA\u00c7\u00c3O', canal:'Lig+WA', detalhe:'D1 \u2014 Mostre que voc\u00ea \u00e9 assessoria, n\u00e3o corretor comum'},
+      {ordem:2, acao:'Liga\u00e7\u00e3o per\u00edodo inverso', canal:'Liga\u00e7\u00e3o', detalhe:'D1 \u2014 Ligou manh\u00e3? Tente tarde/noite. Mude o hor\u00e1rio'},
+      {ordem:3, acao:'Formato diferente: \u00e1udio curto OU dado num\u00e9rico', canal:'WhatsApp', detalhe:'D2 \u2014 Curiosidade: dado de valoriza\u00e7\u00e3o, % vendido, novidade'},
+      {ordem:4, acao:'Liga\u00e7\u00e3o + WhatsApp ap\u00f3s 18h15', canal:'Lig+WA', detalhe:'D2 \u2014 Hor\u00e1rio que as pessoas est\u00e3o mais dispon\u00edveis'},
+      {ordem:5, acao:'8 ou 80: permanece interesse ou removo?', canal:'Lig+WA', detalhe:'D3 \u2014 Gatilho de PERDA. Ningu\u00e9m gosta de ser removido'},
+      {ordem:6, acao:'Hor\u00e1rio inverso + CTA com 1 \u00daNICO hor\u00e1rio', canal:'Lig+WA', detalhe:'D4 (s\u00f3 Carteira) \u2014 Escassez de tempo'},
+      {ordem:7, acao:'Direct Instagram + SMS (NOVO CANAL)', canal:'IG+SMS', detalhe:'D4 (s\u00f3 Carteira) \u2014 Muita gente n\u00e3o responde WA mas v\u00ea Direct'},
+      {ordem:8, acao:'\u00daltima mensagem (obrigat\u00f3ria)', canal:'WhatsApp', detalhe:'D5 \u2014 Responde QUERO que mando op\u00e7\u00f5es. Se n\u00e3o, encerro.'},
+      {ordem:9, acao:'Sem resposta = DESCARTAR DEFINITIVAMENTE', canal:'CRM', detalhe:'D6 \u2014 Motivo: Sem resposta ap\u00f3s cad\u00eancia completa (9 tentativas)'}
+    ],
+    scripts: [
+      {titulo:'T01: Diferencia\u00e7\u00e3o', tipo:'geral', texto:'[NOME], tudo bem?\nSou [SEU NOME] da PSM Assessoria.\nDiferente de um corretor comum, aqui eu trabalho com TODAS as incorporadoras + im\u00f3veis prontos.\nQuero entender o que voc\u00ea busca pra te apontar a melhor op\u00e7\u00e3o. Podemos conversar por aqui?'},
+      {titulo:'T03: Dado/Moradia', tipo:'moradia', texto:'[NOME], s\u00f3 uma informa\u00e7\u00e3o r\u00e1pida:\nNa regi\u00e3o que voc\u00ea demonstrou interesse, saiu uma op\u00e7\u00e3o com [DIFERENCIAL: entrega antecipada / condi\u00e7\u00e3o especial / \u00faltima unidade com vista X].\nQuer que eu te mande os detalhes?'},
+      {titulo:'T03: Dado/Investimento', tipo:'investimento', texto:'[NOME], dado r\u00e1pido:\nA regi\u00e3o do [EMPREENDIMENTO] valorizou [X]% nos \u00faltimos 18 meses e j\u00e1 vendeu [Y]%.\nSeu objetivo seria valoriza\u00e7\u00e3o ou renda com aluguel? Muda completamente a estrat\u00e9gia.'},
+      {titulo:'T05: 8 ou 80', tipo:'geral', texto:'[NOME], n\u00e3o quero ficar insistindo.\nPreciso organizar meus atendimentos da semana.\nVoc\u00ea permanece com interesse ou prefere que eu encerre por aqui?\nSem problema nenhum se n\u00e3o for o momento.'},
+      {titulo:'T06: CTA \u00danico', tipo:'geral', texto:'[NOME], abriu uma vaga na minha agenda amanh\u00e3 \u00e0s [HOR\u00c1RIO].\nConsigo te apresentar as op\u00e7\u00f5es filtradas em 15 minutos.\nFunciona pra voc\u00ea?'},
+      {titulo:'T07: Direct IG', tipo:'geral', texto:'Oi [NOME]!\nSe ainda estiver buscando im\u00f3vel, consigo filtrar 2 op\u00e7\u00f5es que combinam com seu perfil.\nQuer que eu te mande?'},
+      {titulo:'T08: \u00daltima Mensagem', tipo:'geral', texto:'[NOME], passando pra finalizar por aqui.\nSe ainda estiver na busca, me responde \u201cquero\u201d que te mando 2 op\u00e7\u00f5es filtradas pro seu perfil.\nSe n\u00e3o for o momento, encerro sem problema nenhum. Obrigado pela aten\u00e7\u00e3o at\u00e9 aqui.'}
+    ],
+    proximaEtapa: 'Respondeu? Avan\u00e7a para Etapa 3 (Sondagem). N\u00e3o respondeu + perfil fraco? DESCARTAR. Perfil forte? CARTEIRA e continuar T06\u2013T09.'
+  },
+  {
+    id: 3,
+    titulo: 'SONDAGEM + QUALIFICA\u00c7\u00c3O',
+    subtitulo: 'M\u00e9todo 4Ps',
+    quando: 'Lead respondeu. Agora voc\u00ea precisa entender o perfil dele.',
+    objetivo: 'Mapear Produto, Pra\u00e7a, Pre\u00e7o e Prazo + identificar travas e decisor',
+    sla: 'Concluir em at\u00e9 2 dias ap\u00f3s o primeiro contato efetivo',
+    canais: 'Liga\u00e7\u00e3o (ideal) ou WhatsApp consultivo',
+    regraDeOuro: 'N\u00c3O entregue valores, fluxos ou book antes de qualificar. Sem exce\u00e7\u00e3o.',
+    insight: 'O corretor fica animado com a resposta e manda tudo: book, VPL, fotos, v\u00eddeo. O lead olha, acha caro/barato/diferente, e some. A INFORMA\u00c7\u00c3O \u00e9 sua moeda de troca \u2014 s\u00f3 entregue depois de qualificar.',
+    sequencia: [
+      {ordem:1, acao:'Perguntar PRODUTO', canal:'Lig/WA', detalhe:'Tipologia, quartos, vagas, varanda, su\u00edte \u2014 o que precisa vs o que quer'},
+      {ordem:2, acao:'Perguntar PRA\u00c7A', canal:'Lig/WA', detalhe:'Regi\u00f5es desejadas e as que evita. Onde vive/trabalha, por que aquela regi\u00e3o'},
+      {ordem:3, acao:'Perguntar PRE\u00c7O', canal:'Lig/WA', detalhe:'Faixa, entrada, forma de pagamento. Use t\u00e9cnica do pre\u00e7o indireto se resistir'},
+      {ordem:4, acao:'Perguntar PRAZO', canal:'Lig/WA', detalhe:'Pronto, obra, lan\u00e7amento. Quando decide. Urg\u00eancia real vs pesquisando'},
+      {ordem:5, acao:'Perguntas complementares', canal:'Lig/WA', detalhe:'Hist\u00f3rico de visitas, obje\u00e7\u00e3o pr\u00e9via, decisor, capacidade financeira'}
+    ],
+    scripts: [
+      {titulo:'Sondagem por Liga\u00e7\u00e3o', tipo:'ligacao', texto:'[NOME], aqui \u00e9 [SEU NOME] da PSM.\nVoc\u00ea solicitou informa\u00e7\u00f5es sobre [EMPREENDIMENTO].\nNo cadastro colocou [moradia/investimento], correto?\n(AGUARDE RESPOSTA)\nEntendi. Pra ganharmos tempo, 3 perguntas r\u00e1pidas:\n1) Voc\u00ea viu alguma outra op\u00e7\u00e3o? Qual?\n2) O que n\u00e3o te agradou / por que n\u00e3o fechou?\n3) Voc\u00ea tem prazo pra essa decis\u00e3o?\n(AP\u00d3S RESPOSTAS \u2014 V\u00c1 PRO AGENDAMENTO)\n[NOME], pra te mostrar com detalhes preciso de 15 min presencial.\nSede da PSM (Georgina) \u00e0s [H1] ou stand do [EMPREENDIMENTO] \u00e0s [H2]. Qual prefere?'},
+      {titulo:'Sondagem por WhatsApp', tipo:'mix', texto:'[NOME], que bom que respondeu!\nPra te atender de forma certeira, preciso de 3 informa\u00e7\u00f5es r\u00e1pidas:\n1) Busca pra morar ou investir?\n2) Qual regi\u00e3o te interessa mais?\n3) Prefere pronto ou pode ser em obra?\nCom isso j\u00e1 consigo filtrar as melhores op\u00e7\u00f5es.'},
+      {titulo:'Pre\u00e7o Indireto', tipo:'geral', texto:'Posso te mandar 2 op\u00e7\u00f5es bem diferentes: uma com entrada mais leve e outra um pouco acima mas pronta.\nVoc\u00ea me diz qual te chama mais aten\u00e7\u00e3o e eu entendo sua faixa sem te mandar coisa aleat\u00f3ria. Pode ser?'}
+    ],
+    proximaEtapa: '4Ps completos = avan\u00e7a para Etapa 4 (Agendamento). Se n\u00e3o concluiu em 2 dias, insistir ou descartar.'
+  },
+  {
+    id: 4,
+    titulo: 'QUALIFICADO > AGENDAMENTO',
+    subtitulo: 'Estrat\u00e9gias avan\u00e7adas',
+    quando: '4Ps completos. Voc\u00ea sabe o que o lead quer. Agora precisa da visita.',
+    objetivo: 'Converter em visita agendada com compromisso REAL',
+    sla: 'At\u00e9 48h pra virar agendamento. Ap\u00f3s: follow-up 14 dias',
+    canais: 'Liga\u00e7\u00e3o (SEMPRE priorit\u00e1rio) + WhatsApp + V\u00eddeo + Evento',
+    regraDeOuro: 'LIGA\u00c7\u00c3O pra agendar. 2 hor\u00e1rios. Local permitido.',
+    insight: 'A maioria das vendas morre aqui: lead qualificado que n\u00e3o agenda. Taxa de convers\u00e3o por liga\u00e7\u00e3o \u00e9 3x maior que por WhatsApp. SEMPRE tente ligar primeiro.',
+    sequencia: [
+      {ordem:1, acao:'Autoridade + Resumo do perfil', canal:'Liga\u00e7\u00e3o', detalhe:'Resumo perfil + 2 hor\u00e1rios + local'},
+      {ordem:2, acao:'Prova Social', canal:'WhatsApp', detalhe:'Foto vendas/stand/depoimento'},
+      {ordem:3, acao:'Antecipa\u00e7\u00e3o', canal:'WhatsApp', detalhe:'Condi\u00e7\u00e3o especial em primeira m\u00e3o'},
+      {ordem:4, acao:'Exclusividade', canal:'WhatsApp', detalhe:'Condi\u00e7\u00e3o s\u00f3 presencial + prazo'},
+      {ordem:5, acao:'Praticidade + Online', canal:'Liga\u00e7\u00e3o', detalhe:'Reuni\u00e3o online como PONTE pra visita presencial'},
+      {ordem:6, acao:'Dado + Escassez Real', canal:'WA+Lig', detalhe:'Valoriza\u00e7\u00e3o + \u00faltimas unidades'},
+      {ordem:7, acao:'\u00daltimo Apelo', canal:'WA+Lig', detalhe:'Prova social + virada de tabela'}
+    ],
+    scripts: [
+      {titulo:'T01: Agendamento por Liga\u00e7\u00e3o', tipo:'ligacao', texto:'[NOME], entendi perfeitamente seu perfil.\nSeparei op\u00e7\u00f5es de [TIPOLOGIA] na regi\u00e3o [REGI\u00c3O], dentro da faixa que conversamos.\nPra te apresentar com detalhes, preciso de 15 min presencial.\nPosso te atender na sede da PSM (Georgina) \u00e0s [H1] ou no stand do [EMPREENDIMENTO] \u00e0s [H2]. Qual funciona?'},
+      {titulo:'T01: Agendamento por WhatsApp', tipo:'whatsapp', texto:'[NOME], montei uma sele\u00e7\u00e3o com base no que voc\u00ea me disse: [TIPOLOGIA] na [REGI\u00c3O], faixa de [FAIXA].\nTenho op\u00e7\u00f5es que encaixam perfeitamente.\nPra te apresentar, preciso de 15 min presencial.\nSede PSM (Georgina) \u00e0s [H1] ou stand do [EMPREENDIMENTO] \u00e0s [H2]. Qual confirma?'},
+      {titulo:'T02: Prova Social', tipo:'whatsapp', texto:'[NOME], olha o movimento que t\u00e1 tendo no [EMPREENDIMENTO]:\n[ENVIE 1 FOTO: espelho de vendas, stand com pessoas, mesa de negocia\u00e7\u00e3o, ou foto de contrato (sem dados pessoais)]\nO mercado t\u00e1 acelerando nessa regi\u00e3o.\nVamos agendar antes que esgote?'},
+      {titulo:'T05: Reuni\u00e3o Online', tipo:'geral', texto:'[NOME], sei que a agenda t\u00e1 corrida.\nQue tal uma videochamada de 10 min? Te mostro as op\u00e7\u00f5es filtradas e voc\u00ea decide se vale a visita presencial.\nSem compromisso. [H1] ou [H2]?'}
+    ],
+    proximaEtapa: 'Agendou? Avan\u00e7a para Etapa 5. N\u00e3o agendou ap\u00f3s 7 tentativas? Follow-up 14 dias ou CARTEIRA.'
+  },
+  {
+    id: 5,
+    titulo: 'VISITA AGENDADA',
+    subtitulo: 'Protocolo Anti-No-Show',
+    quando: 'Lead confirmou visita. Agora voc\u00ea precisa GARANTIR que ele v\u00e1.',
+    objetivo: 'Lead comparecer com seriedade. Voc\u00ea preparada pra converter.',
+    sla: 'Visita em at\u00e9 3 dias ap\u00f3s agendar',
+    canais: 'WhatsApp + SMS + Google Agenda + Localiza\u00e7\u00e3o ao vivo',
+    regraDeOuro: 'Protocolo de seriedade OBRIGAT\u00d3RIO. Sem atalhos.',
+    insight: 'Quando voc\u00ea manda confirma\u00e7\u00e3o, lembrete, localiza\u00e7\u00e3o e foto no local, o lead percebe que voc\u00ea \u00e9 organizado, leva a s\u00e9rio, e faltar seria desrespeitoso. Google Agenda sozinho j\u00e1 reduz no-show em 30%.',
+    sequencia: [
+      {ordem:1, acao:'Pesquisar cliente: Google, Insta, LinkedIn', canal:'Pesquisa', detalhe:'Ao agendar \u2014 Personalizar visita + saber quem \u00e9'},
+      {ordem:2, acao:'Google Agenda com endere\u00e7o + nome corretor', canal:'Email/WA', detalhe:'Ao agendar \u2014 Compromisso formal no celular do lead'},
+      {ordem:3, acao:'Mensagem de confirma\u00e7\u00e3o + empolga\u00e7\u00e3o', canal:'WhatsApp', detalhe:'D-1 (v\u00e9spera) \u2014 Relembrar sem parecer cobran\u00e7a'},
+      {ordem:4, acao:'Estou terminando, a caminho', canal:'WA+SMS', detalhe:'1h antes \u2014 Criar sensa\u00e7\u00e3o de que VOC\u00ca est\u00e1 indo'},
+      {ordem:5, acao:'Msg a caminho (mesmo sem ter sa\u00eddo)', canal:'WhatsApp', detalhe:'20 min antes \u2014 Ancoragem de compromisso'},
+      {ordem:6, acao:'Localiza\u00e7\u00e3o ao vivo (1h) + foto no local', canal:'WhatsApp', detalhe:'No local \u2014 Prova de presen\u00e7a. Profissionalismo'}
+    ],
+    scripts: [
+      {titulo:'Confirma\u00e7\u00e3o D-1', tipo:'whatsapp', texto:'[NOME], tudo certo pra amanh\u00e3!\nTe espero \u00e0s [HOR\u00c1RIO] no [LOCAL].\nSeparei tudo que conversamos pra te apresentar.\nSe precisar ajustar o hor\u00e1rio, me avisa que eu reorganizo. At\u00e9 amanh\u00e3!'},
+      {titulo:'1 hora antes', tipo:'whatsapp', texto:'[NOME], estou finalizando um atendimento aqui e j\u00e1 saindo pro [LOCAL].\nChegando l\u00e1 te mando a localiza\u00e7\u00e3o!\nNos vemos \u00e0s [HOR\u00c1RIO].'},
+      {titulo:'No local', tipo:'whatsapp', texto:'J\u00e1 estou aqui no [LOCAL] aguardando!\nEntrada pela [REFER\u00caNCIA].\nEstacionamento: [INFO VAGA/ACESSO]\n[COMPARTILHAR LOCALIZA\u00c7\u00c3O EM TEMPO REAL - 1H]\nTe espero aqui.'},
+      {titulo:'Lead cancelou', tipo:'geral', texto:'[NOME], sem problema! Entendo que a agenda muda.\nTenho [H1 NOVO] e [H2 NOVO] essa semana.\nQual funciona melhor pra remarcar?\nQuero garantir que voc\u00ea conhe\u00e7a \u2014 vai valer a pena.'},
+      {titulo:'P\u00f3s no-show', tipo:'geral', texto:'[NOME], passei no [LOCAL] conforme combinamos mas n\u00e3o conseguimos nos encontrar.\nImagino que surgiu algo. Sem problema.\nTenho [H1] e [H2] pra remarcarmos.\nMe avisa qual funciona?'}
+    ],
+    proximaEtapa: 'Compareceu? Avan\u00e7a para Etapa 6. No-show 2x? Ofere\u00e7a videochamada. No-show 3x? Mover pra Carteira.'
+  },
+  {
+    id: 6,
+    titulo: 'VISITA REALIZADA',
+    subtitulo: 'Roteiro de Condu\u00e7\u00e3o + Mesa',
+    quando: 'Visita aconteceu. Hora de converter em proposta.',
+    objetivo: 'Feedback + proposta OU 2\u00aa visita em at\u00e9 3 dias',
+    sla: '3 dias pra virar proposta, quentes ou requalifica\u00e7\u00e3o',
+    canais: 'Presencial + WhatsApp + Liga\u00e7\u00e3o',
+    regraDeOuro: 'NUNCA encerre atendimento sem agendar o pr\u00f3ximo passo.',
+    insight: 'O feedback estruturado faz o lead VERBALIZAR o que gostou \u2014 e isso refor\u00e7a a decis\u00e3o de compra na cabe\u00e7a dele. Tamb\u00e9m exp\u00f5e a obje\u00e7\u00e3o REAL que voc\u00ea trata AGORA.',
+    sequencia: [
+      {ordem:1, acao:'Definir pr\u00f3ximo passo com DATA', canal:'Presencial', detalhe:'D0 na sa\u00edda \u2014 Quando consegue retornar? [DIA]? \u2014 COMPROMISSO'},
+      {ordem:2, acao:'Agradecimento + 3 perguntas de feedback', canal:'WhatsApp', detalhe:'D0 mesmo dia \u2014 Script de feedback obrigat\u00f3rio'},
+      {ordem:3, acao:'Cobrar feedback conforme COMBINADO', canal:'WA/Lig', detalhe:'D1 \u2014 [NOME], conforme combinamos, preciso do retorno'},
+      {ordem:4, acao:'Enviar op\u00e7\u00e3o B ou comparativo', canal:'WhatsApp', detalhe:'D2 \u2014 Se houve obje\u00e7\u00e3o, apresente alternativa'},
+      {ordem:5, acao:'Liga\u00e7\u00e3o de destrave', canal:'Liga\u00e7\u00e3o', detalhe:'D3 \u2014 Avan\u00e7amos com proposta ou ajusto op\u00e7\u00f5es?'}
+    ],
+    scripts: [
+      {titulo:'Feedback D0 (obrigat\u00f3rio)', tipo:'whatsapp', texto:'[NOME], agrade\u00e7o demais o tempo de voc\u00eas na visita!\nPreciso do seu feedback em 3 pontos r\u00e1pidos pra ajustar tudo certinho:\n1) O im\u00f3vel atendeu suas expectativas? Algo que gostou especialmente ou que poderia ser diferente?\n2) Valor e condi\u00e7\u00f5es: dentro do esperado?\n3) Como foi o atendimento? Informa\u00e7\u00f5es claras?\nMe conta que eu ajusto os pr\u00f3ximos passos com base nisso.'},
+      {titulo:'Sa\u00edda da visita (Vou pensar)', tipo:'ligacao', texto:'Entendo perfeitamente. At\u00e9 [DIA] te ligo pra saber a decis\u00e3o. Se surgir alguma d\u00favida antes, me chama.'},
+      {titulo:'Sa\u00edda (C\u00f4njuge/s\u00f3cio n\u00e3o veio)', tipo:'geral', texto:'Que tal trazer [PESSOA] na pr\u00f3xima? Consigo apresentar focando nos pontos que s\u00e3o prioridade dele(a). [H1] ou [H2]?'}
+    ],
+    proximaEtapa: 'Avan\u00e7ou pra proposta? Etapa 8. Gostou mas n\u00e3o decidiu? Etapa 7 (Quentes). N\u00e3o avan\u00e7ou em 3 dias? Follow-up 14 dias.'
+  },
+  {
+    id: 7,
+    titulo: 'QUENTES DO M\u00caS',
+    subtitulo: 'AIDA + SPIN + Escassez',
+    quando: 'Lead visitou, gostou, mas n\u00e3o decidiu. Est\u00e1 quase l\u00e1.',
+    objetivo: 'Proposta ou fechamento em at\u00e9 7 dias',
+    sla: '7 dias. Ap\u00f3s: follow-up 14 dias ou mover pra Carteira',
+    canais: 'WhatsApp + Liga\u00e7\u00e3o + Presencial',
+    regraDeOuro: 'Lead quente perde momentum em 48h se voc\u00ea n\u00e3o conduz.',
+    insight: 'O erro cl\u00e1ssico \u00e9 relaxar porque ele gostou. Cada dia sem a\u00e7\u00e3o \u00e9 uma chance a menos. Voc\u00ea n\u00e3o est\u00e1 pressionando \u2014 est\u00e1 ajudando ele a decidir antes que o mercado decida por ele.',
+    sequencia: [
+      {ordem:1, acao:'Liga\u00e7\u00e3o consultiva (SPIN: Situa\u00e7\u00e3o)', canal:'Liga\u00e7\u00e3o', detalhe:'D1 \u2014 O que falta pra voc\u00ea tomar a decis\u00e3o?'},
+      {ordem:2, acao:'VPL personalizada ou fluxo visual', canal:'WhatsApp', detalhe:'D2 \u2014 Foto VPL + emojis + INCC + CTA'},
+      {ordem:3, acao:'Status real: unidades vendidas', canal:'WhatsApp', detalhe:'D3 \u2014 Andar que gostou: restam X unidades'},
+      {ordem:4, acao:'Hist\u00f3ria de comprador similar', canal:'WhatsApp', detalhe:'D4 \u2014 Feel-Felt-Found: Tive cliente com mesma d\u00favida...'},
+      {ordem:5, acao:'Liga\u00e7\u00e3o de destrave + op\u00e7\u00e3o B', canal:'Liga\u00e7\u00e3o', detalhe:'D5 \u2014 SPIN completo: implique consequ\u00eancia, ofere\u00e7a solu\u00e7\u00e3o'},
+      {ordem:6, acao:'Oferta final com prazo', canal:'WA+Lig', detalhe:'D6 \u2014 Urg\u00eancia REAL: Condi\u00e7\u00e3o v\u00e1lida at\u00e9 [DATA]'},
+      {ordem:7, acao:'Fechamento ou reclassifica\u00e7\u00e3o', canal:'Liga\u00e7\u00e3o', detalhe:'D7 \u2014 Proposta formal ou mover pra Carteira'}
+    ],
+    scripts: [
+      {titulo:'D2: Fluxo Visual', tipo:'mix', texto:'[NOME], montei a simula\u00e7\u00e3o do [EMPREENDIMENTO] com base no que conversamos:\n\nEntrada: R$ [X] (parcelada em [N]x)\nMensais: [N]x de R$ [X]\nSaldo na entrega: R$ [X]\n\nIsso cabe no seu planejamento?\nSe quiser ajustar, me fala que eu refa\u00e7o.'},
+      {titulo:'D4: Feel-Felt-Found', tipo:'mix', texto:'[NOME], essa semana fechei com um cliente que estava na mesma situa\u00e7\u00e3o.\nEle tamb\u00e9m achava que [OBJE\u00c7\u00c3O DO LEAD].\nQuando revisou os n\u00fameros com calma, percebeu que [SOLU\u00c7\u00c3O/DADO].\nHoje j\u00e1 assinou e est\u00e1 tranquilo.\nQuer que a gente revise juntos?'},
+      {titulo:'D6: Oferta Final', tipo:'geral', texto:'[NOME], preciso te avisar:\nA condi\u00e7\u00e3o que conversamos (ato em [N]x, mensais de R$ [X]) \u00e9 v\u00e1lida at\u00e9 [DATA].\nAp\u00f3s essa data, tabela nova + reajuste.\nQuer que eu segure essa condi\u00e7\u00e3o pra voc\u00ea?\nPreciso da sua confirma\u00e7\u00e3o at\u00e9 [DIA].'}
+    ],
+    proximaEtapa: 'Aceitou proposta? Etapa 8. N\u00e3o fechou em 7 dias? Follow-up 14 dias ou CARTEIRA com retorno 30\u201345 dias.'
+  },
+  {
+    id: 8,
+    titulo: 'PROPOSTA / APROVA\u00c7\u00c3O DE CR\u00c9DITO',
+    subtitulo: 'SPIN + Plano de Compra',
+    quando: 'Lead quer avan\u00e7ar. Hora de sentar, negociar e fechar.',
+    objetivo: 'Proposta formalizada + aprova\u00e7\u00e3o + assinatura',
+    sla: '5 dias para decis\u00e3o/andamento',
+    canais: 'Presencial + WhatsApp + Liga\u00e7\u00e3o + Email',
+    regraDeOuro: 'Nunca negocie antes da hora. Nunca d\u00ea desconto sem algo em troca.',
+    insight: 'Cada sim pequeno leva ao sim final (j\u00e1 concordou com regi\u00e3o, planta, faixa...). Apresente pre\u00e7o cheio primeiro, depois a condi\u00e7\u00e3o especial = parece desconto.',
+    sequencia: [
+      {ordem:1, acao:'Mesa: valores + coletar docs (m\u00edn CNH)', canal:'Presencial', detalhe:'D0 \u2014 Papel e caneta. Ancoragem. Sil\u00eancio.'},
+      {ordem:2, acao:'Retorno proposta/contraproposta', canal:'WA+Lig', detalhe:'D1 \u2014 Parab\u00e9ns! Nosso compromisso come\u00e7a agora.'},
+      {ordem:3, acao:'Acompanhar aprova\u00e7\u00e3o cr\u00e9dito', canal:'WhatsApp', detalhe:'D2 \u2014 Estou acompanhando. Te atualizo quando sair.'},
+      {ordem:4, acao:'Checkpoint proativo', canal:'Liga\u00e7\u00e3o', detalhe:'D3 \u2014 Te retorno at\u00e9 [X]h com atualiza\u00e7\u00e3o.'},
+      {ordem:5, acao:'Destravar pend\u00eancias (docs, banco)', canal:'WA+Lig', detalhe:'D4 \u2014 Liga\u00e7\u00e3o curta pra cada pend\u00eancia'},
+      {ordem:6, acao:'Fechamento ou renegocia\u00e7\u00e3o', canal:'Presencial', detalhe:'D5 \u2014 Obje\u00e7\u00e3o final + ajuste se necess\u00e1rio'}
+    ],
+    scripts: [
+      {titulo:'Mesa de Negocia\u00e7\u00e3o', tipo:'ligacao', texto:'Roteiro:\n1) Valores vigentes + unidades dispon\u00edveis\n2) ATO (ancoragem): valor cheio primeiro, depois parcelamento\n3) Mensais + semestrais: personalizar conforme fluxo de caixa\n4) Saldo: prazo longo, pode usar cons\u00f3rcio/financiamento\n5) SIL\u00caNCIO: pare, deixe processar\n6) Proposta: Faria sentido avan\u00e7armos pra proposta formal?'},
+      {titulo:'Pr\u00f3ximo Passo', tipo:'geral', texto:'O pr\u00f3ximo passo seria a proposta formal. Podemos?\n(N\u00e3o pergunte se quer comprar \u2014 pergunte o pr\u00f3ximo passo)'},
+      {titulo:'Empatia T\u00e1tica', tipo:'geral', texto:'Entendo sua preocupa\u00e7\u00e3o com [X]. Vamos resolver isso juntos.\n(Valide a obje\u00e7\u00e3o, depois redirecione com dado ou pergunta)'}
+    ],
+    proximaEtapa: 'Proposta aceita? Etapa 9 (Contrato). Se n\u00e3o, renegociar ou mover pra Quentes.'
+  },
+  {
+    id: 9,
+    titulo: 'CONTRATO + P\u00d3S-VENDA',
+    subtitulo: 'Formaliza\u00e7\u00e3o + Indica\u00e7\u00e3o',
+    quando: 'Negocia\u00e7\u00e3o aceita. Hora de formalizar.',
+    objetivo: 'Contrato assinado + ato pago + indica\u00e7\u00e3o',
+    sla: 'Imediato. Cada dia = risco de desist\u00eancia.',
+    canais: 'WhatsApp + Email + Liga\u00e7\u00e3o',
+    regraDeOuro: 'VENDA FEITA = CONTRATO ASSINADO + ATO PAGO. Antes disso, n\u00e3o comemore.',
+    insight: 'O per\u00edodo entre aceite e assinatura \u00e9 o de maior risco de desist\u00eancia. Mantenha contato constante e proativo. Cada dia sem a\u00e7\u00e3o \u00e9 uma chance de arrependimento.',
+    sequencia: [
+      {ordem:1, acao:'Parabenizar + pedir docs completos', canal:'WA+Lig', detalhe:'Contraproposta aceita \u2014 Parab\u00e9ns! Compromisso come\u00e7a agora.'},
+      {ordem:2, acao:'Avisar prazo do contrato', canal:'WhatsApp', detalhe:'Produ\u00e7\u00e3o CTT \u2014 Logo estar\u00e1 no seu email. Te aviso!'},
+      {ordem:3, acao:'Orientar assinatura digital', canal:'WA+Email', detalhe:'CTT enviado \u2014 Contrato enviado. D\u00favidas, me chama.'},
+      {ordem:4, acao:'Orientar boleto do ato', canal:'WhatsApp', detalhe:'CTT assinado \u2014 Boleto no mesmo email. Me envia comprovante.'},
+      {ordem:5, acao:'Parabenizar + lembran\u00e7a emocional', canal:'WA+Lig', detalhe:'Ato pago \u2014 PARAB\u00c9NS! Essa conquista \u00e9 merecida.'},
+      {ordem:6, acao:'Pedir indica\u00e7\u00e3o', canal:'WhatsApp', detalhe:'D5\u20137 \u2014 Conhece algu\u00e9m buscando im\u00f3vel?'},
+      {ordem:7, acao:'Follow-up p\u00f3s-venda', canal:'WA/Lig', detalhe:'D30 \u2014 Como est\u00e1? Abrir porta pra indica\u00e7\u00f5es'}
+    ],
+    scripts: [
+      {titulo:'Indica\u00e7\u00e3o (natural)', tipo:'geral', texto:'[NOME], fico muito feliz com essa conquista!\nVoc\u00ea conhece algu\u00e9m \u2014 amigo, familiar, colega \u2014 que tamb\u00e9m esteja buscando im\u00f3vel ou pensando em investir?\nAdoraria atender com a mesma dedica\u00e7\u00e3o.\nSe lembrar de algu\u00e9m, me indica!'},
+      {titulo:'Carteira Mensal', tipo:'geral', texto:'[NOME], tudo bem? Aqui \u00e9 [SEU NOME] da PSM.\nSurgiu uma oportunidade que lembrei do seu perfil:\n[NOVIDADE: lan\u00e7amento, condi\u00e7\u00e3o nova, produto aderente].\nCombina com o que voc\u00ea me contou na \u00e9poca.\nQuer que eu te mande os detalhes?'},
+      {titulo:'Reativa\u00e7\u00e3o', tipo:'geral', texto:'[NOME], aqui \u00e9 [SEU NOME] da PSM.\nVoc\u00ea demonstrou interesse em im\u00f3veis h\u00e1 um tempo.\nEstou com condi\u00e7\u00f5es especiais esse-m\u00eas e lembrei do seu perfil.\nAinda est\u00e1 na busca?'}
+    ],
+    proximaEtapa: 'Venda conclu\u00edda! P\u00f3s-venda: follow-up D30, indica\u00e7\u00f5es, relacionamento.'
+  }
+  ],
   },
   conquista: {
     nome: 'Conquista',
