@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   try {
     const { apiKey, prompt } = req.body;
     if (!apiKey || !prompt) return res.status(400).json({ error: 'apiKey and prompt are required' });
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + apiKey;
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=' + apiKey;
     const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
