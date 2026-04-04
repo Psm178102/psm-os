@@ -14068,29 +14068,59 @@ var CADENCIA_EQUIPES = {
   map: {
     nome: 'Equipe MAP',
     cor: '#8b5cf6',
+    regras: {
+      posicionamento: '[NOME], aqui \u00e9 [SEU NOME] da PSM.\nTrabalho com todas as incorporadoras de Rio Preto e tamb\u00e9m com im\u00f3veis prontos.\nMeu atendimento funciona como assessoria: um \u00fanico contato pra filtrar o que realmente faz sentido pra voc\u00ea.',
+      proibido: 'Text\u00e3o, \u00e1udio > 50s, book/PDF antes de qualificar, fotos soltas, msgs picadas (\"oi\", \"?\", \"viu?\"), prolixidade.',
+      padrao: '2 a 6 linhas, visual, com CTA claro. \u00c1udios de 20-40s (max 50s). Cada mensagem tem um OBJETIVO e termina com uma PERGUNTA ou A\u00c7\u00c3O.',
+      conducao: [
+        'Sempre venda o PR\u00d3XIMO PASSO, nunca o im\u00f3vel.',
+        'Nunca pergunte "qual melhor hor\u00e1rio?" \u2014 sempre ofere\u00e7a 2 hor\u00e1rios.',
+        'Locais: Sede PSM (Georgina), stand, decorado/obra ou empresa do cliente. NUNCA casa.',
+        'Direct IG: Somente a partir da Tentativa 07 ou Reativa\u00e7\u00e3o.',
+        'Cada toque precisa ter um motivo NOVO. Repetiu = perdeu.',
+        'Escassez: S\u00f3 quando for REAL. Mentir destr\u00f3i credibilidade.',
+        'CRM: Atualize etapa + pr\u00f3xima a\u00e7\u00e3o + prazo. Todo dia, sem exce\u00e7\u00e3o.'
+      ],
+      intel: 'Antes do PRIMEIRO CONTATO e antes de AGENDAR VISITA: Google (nome completo), Instagram/LinkedIn (perfil, rotina, estilo). Use pra personalizar sem ser invasivo.'
+    },
     etapas: [
-      {dia:'D0', acao:'Primeiro contato — ligar + WhatsApp', tipo:'ligacao'},
-      {dia:'D1', acao:'Follow-up WhatsApp se não atendeu', tipo:'whatsapp'},
-      {dia:'D2', acao:'Segunda ligação', tipo:'ligacao'},
-      {dia:'D3', acao:'WhatsApp com material (vídeo/PDF)', tipo:'whatsapp'},
-      {dia:'D5', acao:'Terceira ligação', tipo:'ligacao'},
-      {dia:'D7', acao:'WhatsApp de reengajamento', tipo:'whatsapp'},
-      {dia:'D10', acao:'Ligação final — última tentativa ativa', tipo:'ligacao'},
-      {dia:'D14', acao:'WhatsApp de oportunidade/oferta especial', tipo:'whatsapp'},
-      {dia:'D21', acao:'Mover para carteira ou descartar', tipo:'decisao'}
+      {
+        id: 1,
+        titulo: 'NOVO ATENDIMENTO',
+        subtitulo: 'D0 | At\u00e9 15 min',
+        quando: 'Lead acabou de entrar. Voc\u00ea tem 15 minutos.',
+        objetivo: 'Abrir conversa + conduzir pra qualifica\u00e7\u00e3o (n\u00e3o vender im\u00f3vel)',
+        sla: 'Contato em at\u00e9 15 MINUTOS. Cada minuto a mais = lead esfriando.',
+        canais: '1\u00ba Liga\u00e7\u00e3o | 2\u00ba Liga\u00e7\u00e3o (outro per\u00edodo) | 3\u00ba WhatsApp | 4\u00ba SMS',
+        regraDeOuro: 'N\u00e3o entregue tudo. Gere curiosidade. Venda o pr\u00f3ximo passo.',
+        insight: 'A chance de qualificar um lead cai 80% ap\u00f3s os primeiros 5 minutos. A primeira empresa que liga tem 50% mais chance de converter. Velocidade \u00e9 a vantagem mais simples e barata que existe.',
+        sequencia: [
+          {ordem:1, acao:'Ligar imediatamente', canal:'Liga\u00e7\u00e3o', detalhe:'Roteiro PSM. Se atendeu: sondagem r\u00e1pida (morar/investir, regi\u00e3o, prazo)'},
+          {ordem:2, acao:'Ligar novamente (per\u00edodo inverso)', canal:'Liga\u00e7\u00e3o', detalhe:'Ligou manh\u00e3? Tente tarde. Ligou tarde? Tente ap\u00f3s 18h'},
+          {ordem:3, acao:'WhatsApp personalizado', canal:'WhatsApp', detalhe:'AP\u00d3S as 2 liga\u00e7\u00f5es. Nunca antes. Escolha 1 dos 4 scripts abaixo'},
+          {ordem:4, acao:'SMS (se n\u00e3o visualizou)', canal:'SMS', detalhe:'Curto: \"[NOME], tentei te ligar sobre [empreendimento]. Me retorna?\"'}
+        ],
+        scripts: [
+          {titulo:'Script 1: Consultivo', tipo:'moradia', texto:'[NOME], tudo bem? Aqui \u00e9 [SEU NOME] da PSM.\nAtuo com todas as incorporadoras de Rio Preto e tamb\u00e9m com im\u00f3veis prontos. Recebi seu contato sobre [EMPREENDIMENTO/REGI\u00c3O].\nPra te ajudar de forma certeira, me confirma:\nseria pra morar ou pra investir?\nE qual regi\u00e3o te interessa mais?'},
+          {titulo:'Script 2: Autoridade', tipo:'investimento', texto:'[NOME], aqui \u00e9 [SEU NOME] da PSM.\nTrabalho com uma carteira selecionada e preciso entender seu objetivo: busca rentabilidade (renda com aluguel) ou valoriza\u00e7\u00e3o patrimonial?\nCom essa informa\u00e7\u00e3o consigo filtrar as melhores op\u00e7\u00f5es em um \u00fanico atendimento.'},
+          {titulo:'Script 3: Humanizado', tipo:'mix', texto:'Oi [NOME]! Sou [SEU NOME] da PSM.\nVi que voc\u00ea se interessou por [EMPREENDIMENTO].\nAqui na PSM eu consigo te atender como assessoria \u2014 vejo todas as op\u00e7\u00f5es do mercado pra voc\u00ea.\nMe conta: voc\u00ea prefere algo pronto ou pode ser em obra/lan\u00e7amento?'},
+          {titulo:'Script 4: Direto ao ponto', tipo:'geral', texto:'[NOME], sou [SEU NOME] da PSM.\nTrabalho direto com esse tipo de produto e consigo te mostrar as melhores op\u00e7\u00f5es em 15 minutos.\nTenho dois hor\u00e1rios: [H1] ou [H2].\nQual funciona melhor pra voc\u00ea?'}
+        ],
+        proximaEtapa: 'Se n\u00e3o respondeu a nada: o lead avan\u00e7a para ETAPA 2 no dia seguinte.'
+      }
     ]
   },
   conquista: {
     nome: 'Conquista',
     cor: '#0ea5e9',
     etapas: [
-      {dia:'D0', acao:'Primeiro contato — ligar + WhatsApp', tipo:'ligacao'},
-      {dia:'D1', acao:'Follow-up WhatsApp se não atendeu', tipo:'whatsapp'},
-      {dia:'D2', acao:'Segunda ligação', tipo:'ligacao'},
-      {dia:'D3', acao:'WhatsApp com material (vídeo/PDF)', tipo:'whatsapp'},
-      {dia:'D5', acao:'Terceira ligação', tipo:'ligacao'},
+      {dia:'D0', acao:'Primeiro contato \u2014 ligar + WhatsApp', tipo:'ligacao'},
+      {dia:'D1', acao:'Follow-up WhatsApp se n\u00e3o atendeu', tipo:'whatsapp'},
+      {dia:'D2', acao:'Segunda liga\u00e7\u00e3o', tipo:'ligacao'},
+      {dia:'D3', acao:'WhatsApp com material (v\u00eddeo/PDF)', tipo:'whatsapp'},
+      {dia:'D5', acao:'Terceira liga\u00e7\u00e3o', tipo:'ligacao'},
       {dia:'D7', acao:'WhatsApp de reengajamento', tipo:'whatsapp'},
-      {dia:'D10', acao:'Ligação final — última tentativa ativa', tipo:'ligacao'},
+      {dia:'D10', acao:'Liga\u00e7\u00e3o final \u2014 \u00faltima tentativa ativa', tipo:'ligacao'},
       {dia:'D14', acao:'WhatsApp de oportunidade/oferta especial', tipo:'whatsapp'},
       {dia:'D21', acao:'Mover para carteira ou descartar', tipo:'decisao'}
     ]
@@ -14099,28 +14129,28 @@ var CADENCIA_EQUIPES = {
     nome: 'Terceiros',
     cor: '#f97316',
     etapas: [
-      {dia:'D0', acao:'Primeiro contato — ligar + WhatsApp', tipo:'ligacao'},
-      {dia:'D1', acao:'Follow-up WhatsApp se não atendeu', tipo:'whatsapp'},
-      {dia:'D2', acao:'Segunda ligação', tipo:'ligacao'},
-      {dia:'D3', acao:'WhatsApp com material (vídeo/PDF)', tipo:'whatsapp'},
-      {dia:'D5', acao:'Terceira ligação', tipo:'ligacao'},
+      {dia:'D0', acao:'Primeiro contato \u2014 ligar + WhatsApp', tipo:'ligacao'},
+      {dia:'D1', acao:'Follow-up WhatsApp se n\u00e3o atendeu', tipo:'whatsapp'},
+      {dia:'D2', acao:'Segunda liga\u00e7\u00e3o', tipo:'ligacao'},
+      {dia:'D3', acao:'WhatsApp com material (v\u00eddeo/PDF)', tipo:'whatsapp'},
+      {dia:'D5', acao:'Terceira liga\u00e7\u00e3o', tipo:'ligacao'},
       {dia:'D7', acao:'WhatsApp de reengajamento', tipo:'whatsapp'},
-      {dia:'D10', acao:'Ligação final — última tentativa ativa', tipo:'ligacao'},
+      {dia:'D10', acao:'Liga\u00e7\u00e3o final \u2014 \u00faltima tentativa ativa', tipo:'ligacao'},
       {dia:'D14', acao:'WhatsApp de oportunidade/oferta especial', tipo:'whatsapp'},
       {dia:'D21', acao:'Mover para carteira ou descartar', tipo:'decisao'}
     ]
   },
   locacao: {
-    nome: 'Locação',
+    nome: 'Loca\u00e7\u00e3o',
     cor: '#10b981',
     etapas: [
-      {dia:'D0', acao:'Primeiro contato — ligar + WhatsApp', tipo:'ligacao'},
-      {dia:'D1', acao:'Follow-up WhatsApp se não atendeu', tipo:'whatsapp'},
-      {dia:'D2', acao:'Segunda ligação', tipo:'ligacao'},
-      {dia:'D3', acao:'WhatsApp com material (vídeo/PDF)', tipo:'whatsapp'},
-      {dia:'D5', acao:'Terceira ligação', tipo:'ligacao'},
+      {dia:'D0', acao:'Primeiro contato \u2014 ligar + WhatsApp', tipo:'ligacao'},
+      {dia:'D1', acao:'Follow-up WhatsApp se n\u00e3o atendeu', tipo:'whatsapp'},
+      {dia:'D2', acao:'Segunda liga\u00e7\u00e3o', tipo:'ligacao'},
+      {dia:'D3', acao:'WhatsApp com material (v\u00eddeo/PDF)', tipo:'whatsapp'},
+      {dia:'D5', acao:'Terceira liga\u00e7\u00e3o', tipo:'ligacao'},
       {dia:'D7', acao:'WhatsApp de reengajamento', tipo:'whatsapp'},
-      {dia:'D10', acao:'Ligação final — última tentativa ativa', tipo:'ligacao'},
+      {dia:'D10', acao:'Liga\u00e7\u00e3o final \u2014 \u00faltima tentativa ativa', tipo:'ligacao'},
       {dia:'D14', acao:'WhatsApp de oportunidade/oferta especial', tipo:'whatsapp'},
       {dia:'D21', acao:'Mover para carteira ou descartar', tipo:'decisao'}
     ]
@@ -14129,59 +14159,190 @@ var CADENCIA_EQUIPES = {
 
 function pgFluxoCadencia() {
   if (!S.cadenciaTab) S.cadenciaTab = 'map';
+  if (!S.cadEtapaAberta) S.cadEtapaAberta = 1;
+  if (!S.cadSecao) S.cadSecao = 'etapas';
   var sel = S.cadenciaTab;
   var equipes = ['map','conquista','terceiros','locacao'];
   var h = '<div class="pg-wrap" style="padding:20px">';
-  h += '<div class="phd"><h1>\uD83D\uDD04 Fluxo de Cadência</h1><p style="color:#94a3b8;font-size:14px">Cadência de contato por equipe — sequência de ações para converter leads</p></div>';
+  h += '<div class="phd"><h1>\uD83D\uDD04 Fluxo de Cad\u00eancia</h1><p style="color:#94a3b8;font-size:14px">Cad\u00eancia de contato por equipe \u2014 manual operacional completo</p></div>';
 
   // Tabs das equipes
   h += '<div style="display:flex;gap:8px;margin:16px 0;flex-wrap:wrap">';
   equipes.forEach(function(eq) {
     var d = CADENCIA_EQUIPES[eq];
     var active = sel === eq;
-    h += '<button onclick="S.cadenciaTab=\'' + eq + '\';render()" style="padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:2px solid ' + d.cor + ';'
+    h += '<button onclick="S.cadenciaTab=\'' + eq + '\';S.cadSecao=\'etapas\';render()" style="padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:2px solid ' + d.cor + ';'
       + (active ? 'background:' + d.cor + ';color:#fff' : 'background:transparent;color:' + d.cor) + '">'
       + d.nome + '</button>';
   });
   h += '</div>';
 
-  // Conteúdo da equipe selecionada
   var eq = CADENCIA_EQUIPES[sel];
   if (!eq) eq = CADENCIA_EQUIPES.map;
 
-  h += '<div style="background:#1e293b;border-radius:12px;padding:20px;border:1px solid #334155">';
-  h += '<div style="font-size:18px;font-weight:700;color:' + eq.cor + ';margin-bottom:16px">' + eq.nome + ' — Cadência de Contato</div>';
-
-  // Timeline
-  var tipoIcons = {ligacao:'\uD83D\uDCDE', whatsapp:'\uD83D\uDCF1', decisao:'\u2696\uFE0F'};
-  var tipoLabels = {ligacao:'Ligação', whatsapp:'WhatsApp', decisao:'Decisão'};
-  var tipoCores = {ligacao:'#6366f1', whatsapp:'#22c55e', decisao:'#f59e0b'};
-
-  eq.etapas.forEach(function(e, idx) {
-    var isLast = idx === eq.etapas.length - 1;
-    h += '<div style="display:flex;gap:16px;position:relative">';
-    // Linha vertical
-    h += '<div style="display:flex;flex-direction:column;align-items:center;width:40px;flex-shrink:0">';
-    h += '<div style="width:36px;height:36px;border-radius:50%;background:' + (tipoCores[e.tipo] || eq.cor) + ';display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">' + (tipoIcons[e.tipo] || '\u25CF') + '</div>';
-    if (!isLast) h += '<div style="width:2px;flex:1;background:#334155;min-height:20px"></div>';
+  // Se tem regras e etapas ricas (MAP v5)
+  if (eq.regras && eq.etapas && eq.etapas[0] && eq.etapas[0].scripts) {
+    // Sub-nav: Regras | Etapas
+    h += '<div style="display:flex;gap:6px;margin-bottom:16px">';
+    ['regras','etapas'].forEach(function(s){
+      var lbl = s === 'regras' ? '\u2696\uFE0F Regras Gerais' : '\uD83D\uDCCB Etapas';
+      var act = S.cadSecao === s;
+      h += '<button onclick="S.cadSecao=\''+s+'\';render()" style="padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid '+(act?eq.cor:'#334155')+';background:'+(act?eq.cor+'20':'transparent')+';color:'+(act?eq.cor:'#94a3b8')+'">'+lbl+'</button>';
+    });
     h += '</div>';
-    // Conteúdo
-    h += '<div style="flex:1;padding-bottom:' + (isLast ? '0' : '16') + 'px">';
-    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">';
-    h += '<span style="font-size:15px;font-weight:700;color:#f8fafc">' + e.dia + '</span>';
-    h += '<span style="font-size:11px;font-weight:600;color:' + (tipoCores[e.tipo] || '#94a3b8') + ';background:' + (tipoCores[e.tipo] || '#94a3b8') + '20;padding:2px 10px;border-radius:20px">' + (tipoLabels[e.tipo] || '') + '</span>';
-    h += '</div>';
-    h += '<div style="font-size:14px;color:#cbd5e1">' + e.acao + '</div>';
-    h += '</div></div>';
-  });
 
-  h += '</div>'; // end card
-  h += '<div style="margin-top:16px;padding:14px;background:#0f172a;border-radius:10px;border:1px solid #334155;font-size:13px;color:#94a3b8;text-align:center">';
-  h += '\uD83D\uDCA1 As cadências podem ser personalizadas por equipe. Em breve: edição pelo gestor.';
+    if (S.cadSecao === 'regras') {
+      var r = eq.regras;
+      // Posicionamento
+      h += '<div style="background:#1e293b;border-radius:14px;padding:20px;border:1px solid '+eq.cor+'30;margin-bottom:16px">';
+      h += '<div style="font-size:15px;font-weight:700;color:'+eq.cor+';margin-bottom:12px">\uD83C\uDFAF Posicionamento PSM</div>';
+      h += '<div style="background:#0f172a;border-radius:10px;padding:16px;font-size:14px;color:#e2e8f0;line-height:1.7;white-space:pre-wrap;border-left:3px solid '+eq.cor+'">'+r.posicionamento+'</div>';
+      h += '<div style="margin-top:12px;padding:12px;background:#22c55e10;border-radius:8px;font-size:12px;color:#22c55e;line-height:1.6"><strong>POR QUE FUNCIONA:</strong> O lead recebe dezenas de contatos de corretores que vendem 1 produto. Quando voc\u00ea se posiciona como assessoria de TODAS as incorporadoras + prontos, voc\u00ea elimina a concorr\u00eancia. Ele n\u00e3o precisa falar com mais ningu\u00e9m.</div>';
+      h += '</div>';
+
+      // Proibido
+      h += '<div style="background:#1e293b;border-radius:14px;padding:20px;border:1px solid #dc262640;margin-bottom:16px">';
+      h += '<div style="font-size:15px;font-weight:700;color:#fca5a5;margin-bottom:8px">\uD83D\uDEAB Proibido</div>';
+      h += '<div style="font-size:14px;color:#fca5a5;background:#dc262610;padding:12px;border-radius:8px">'+r.proibido+'</div>';
+      h += '<div style="margin-top:10px;font-size:13px;color:#94a3b8"><strong>Padr\u00e3o ideal:</strong> '+r.padrao+'</div>';
+      h += '</div>';
+
+      // Regras de condu\u00e7\u00e3o
+      h += '<div style="background:#1e293b;border-radius:14px;padding:20px;border:1px solid #334155;margin-bottom:16px">';
+      h += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCCC Regras de Condu\u00e7\u00e3o</div>';
+      r.conducao.forEach(function(c){
+        h += '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px">';
+        h += '<span style="color:'+eq.cor+';font-size:14px;flex-shrink:0">\u25B6</span>';
+        h += '<span style="font-size:13px;color:#cbd5e1;line-height:1.5">'+c+'</span>';
+        h += '</div>';
+      });
+      h += '</div>';
+
+      // Intelig\u00eancia pr\u00e9via
+      h += '<div style="background:#1e293b;border-radius:14px;padding:20px;border:1px solid #fbbf2430">';
+      h += '<div style="font-size:15px;font-weight:700;color:#fbbf24;margin-bottom:8px">\uD83D\uDD0D Intelig\u00eancia Pr\u00e9via (obrigat\u00f3ria)</div>';
+      h += '<div style="font-size:13px;color:#cbd5e1;line-height:1.6">'+r.intel+'</div>';
+      h += '</div>';
+
+    } else {
+      // ETAPAS
+      eq.etapas.forEach(function(et) {
+        var isOpen = S.cadEtapaAberta === et.id;
+        h += '<div style="background:#1e293b;border-radius:14px;border:1px solid '+(isOpen?eq.cor+'50':'#334155')+';margin-bottom:16px;overflow:hidden">';
+        // Header clic\u00e1vel
+        h += '<div onclick="S.cadEtapaAberta='+(isOpen?0:et.id)+';render()" style="padding:18px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:'+(isOpen?eq.cor+'10':'transparent')+'">';
+        h += '<div><div style="font-size:11px;font-weight:700;color:'+eq.cor+';letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">ETAPA '+et.id+'</div>';
+        h += '<div style="font-size:18px;font-weight:800;color:#f8fafc">'+et.titulo+'</div>';
+        h += '<div style="font-size:12px;color:#94a3b8;margin-top:2px">'+et.subtitulo+'</div></div>';
+        h += '<span style="font-size:20px;color:#94a3b8;transition:transform .2s;transform:rotate('+(isOpen?'180':'0')+'deg)">\u25BC</span>';
+        h += '</div>';
+
+        if (isOpen) {
+          h += '<div style="padding:0 20px 20px">';
+
+          // KPIs da etapa
+          h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">';
+          h += '<div style="background:#0f172a;padding:12px;border-radius:10px;border:1px solid #334155"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Quando</div><div style="font-size:13px;color:#e2e8f0;font-weight:600">'+et.quando+'</div></div>';
+          h += '<div style="background:#0f172a;padding:12px;border-radius:10px;border:1px solid #334155"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Objetivo</div><div style="font-size:13px;color:#e2e8f0;font-weight:600">'+et.objetivo+'</div></div>';
+          h += '<div style="background:#0f172a;padding:12px;border-radius:10px;border:1px solid #dc262630"><div style="font-size:10px;color:#fca5a5;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">\u23F1 SLA</div><div style="font-size:13px;color:#fca5a5;font-weight:700">'+et.sla+'</div></div>';
+          h += '<div style="background:#0f172a;padding:12px;border-radius:10px;border:1px solid #334155"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Canais</div><div style="font-size:13px;color:#e2e8f0;font-weight:600">'+et.canais+'</div></div>';
+          h += '</div>';
+
+          // Regra de ouro
+          h += '<div style="background:linear-gradient(135deg,#fbbf2410,#f59e0b10);border:1px solid #fbbf2430;border-radius:10px;padding:14px;margin-bottom:16px;display:flex;gap:10px;align-items:center">';
+          h += '<span style="font-size:24px">\uD83C\uDFC6</span>';
+          h += '<div><div style="font-size:11px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:.5px">Regra de Ouro</div><div style="font-size:14px;color:#fde68a;font-weight:600;margin-top:2px">'+et.regraDeOuro+'</div></div>';
+          h += '</div>';
+
+          // Insight
+          if (et.insight) {
+            h += '<div style="background:#22c55e10;border:1px solid #22c55e30;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:#86efac;line-height:1.6"><strong>\uD83D\uDCA1 Por que funciona:</strong> '+et.insight+'</div>';
+          }
+
+          // Sequ\u00eancia de a\u00e7\u00f5es
+          h += '<div style="font-size:14px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCCB Sequ\u00eancia de A\u00e7\u00f5es</div>';
+          var canalCor = {'Liga\u00e7\u00e3o':'#6366f1','WhatsApp':'#22c55e','SMS':'#f97316'};
+          et.sequencia.forEach(function(s, si) {
+            var cc = canalCor[s.canal] || '#8b5cf6';
+            h += '<div style="display:flex;gap:12px;margin-bottom:12px">';
+            h += '<div style="width:32px;height:32px;border-radius:50%;background:'+cc+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;flex-shrink:0">'+s.ordem+'</div>';
+            h += '<div style="flex:1;background:#0f172a;border-radius:10px;padding:12px;border:1px solid #334155">';
+            h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
+            h += '<span style="font-size:14px;font-weight:700;color:#f8fafc">'+s.acao+'</span>';
+            h += '<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:'+cc+'20;color:'+cc+';font-weight:600">'+s.canal+'</span>';
+            h += '</div>';
+            h += '<div style="font-size:12px;color:#94a3b8;line-height:1.5">'+s.detalhe+'</div>';
+            h += '</div></div>';
+          });
+
+          // Scripts
+          if (et.scripts && et.scripts.length) {
+            h += '<div style="font-size:14px;font-weight:700;color:#f8fafc;margin:20px 0 12px">\uD83D\uDCDD Scripts Prontos \u2014 WhatsApp</div>';
+            var tipoCores2 = {moradia:'#0ea5e9',investimento:'#8b5cf6',mix:'#f97316',geral:'#22c55e'};
+            var tipoLabels2 = {moradia:'Moradia',investimento:'Investimento',mix:'Mix',geral:'Geral'};
+            et.scripts.forEach(function(sc) {
+              var sc_cor = tipoCores2[sc.tipo] || '#8b5cf6';
+              h += '<div style="background:#0f172a;border-radius:12px;padding:16px;margin-bottom:12px;border:1px solid '+sc_cor+'30">';
+              h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';
+              h += '<span style="font-size:13px;font-weight:700;color:#f8fafc">'+sc.titulo+'</span>';
+              h += '<span style="font-size:10px;padding:2px 10px;border-radius:20px;background:'+sc_cor+'20;color:'+sc_cor+';font-weight:600">'+(tipoLabels2[sc.tipo]||sc.tipo)+'</span>';
+              h += '</div>';
+              h += '<div style="background:#1e293b;border-radius:8px;padding:14px;font-size:14px;color:#e2e8f0;line-height:1.7;white-space:pre-wrap;border-left:3px solid '+sc_cor+'">'+sc.texto+'</div>';
+              h += '<button onclick="cadCopiarScript(this)" data-script="'+sc.texto.replace(/"/g,'&quot;')+'" style="margin-top:10px;padding:6px 14px;background:'+sc_cor+'20;color:'+sc_cor+';border:1px solid '+sc_cor+'40;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">\uD83D\uDCCB Copiar Script</button>';
+              h += '</div>';
+            });
+          }
+
+          // Pr\u00f3xima etapa
+          if (et.proximaEtapa) {
+            h += '<div style="margin-top:16px;padding:12px;background:#6366f110;border:1px solid #6366f130;border-radius:8px;font-size:13px;color:#a5b4fc">\u27A1\uFE0F '+et.proximaEtapa+'</div>';
+          }
+
+          h += '</div>'; // end content
+        }
+        h += '</div>'; // end etapa card
+      });
+    }
+  } else {
+    // Fallback: equipes sem conte\u00fado rico (conquista, terceiros, loca\u00e7\u00e3o)
+    h += '<div style="background:#1e293b;border-radius:12px;padding:20px;border:1px solid #334155">';
+    h += '<div style="font-size:18px;font-weight:700;color:' + eq.cor + ';margin-bottom:16px">' + eq.nome + ' \u2014 Cad\u00eancia de Contato</div>';
+    var tipoIcons = {ligacao:'\uD83D\uDCDE', whatsapp:'\uD83D\uDCF1', decisao:'\u2696\uFE0F'};
+    var tipoLabels = {ligacao:'Liga\u00e7\u00e3o', whatsapp:'WhatsApp', decisao:'Decis\u00e3o'};
+    var tipoCores = {ligacao:'#6366f1', whatsapp:'#22c55e', decisao:'#f59e0b'};
+    eq.etapas.forEach(function(e, idx) {
+      var isLast = idx === eq.etapas.length - 1;
+      h += '<div style="display:flex;gap:16px;position:relative">';
+      h += '<div style="display:flex;flex-direction:column;align-items:center;width:40px;flex-shrink:0">';
+      h += '<div style="width:36px;height:36px;border-radius:50%;background:' + (tipoCores[e.tipo] || eq.cor) + ';display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">' + (tipoIcons[e.tipo] || '\u25CF') + '</div>';
+      if (!isLast) h += '<div style="width:2px;flex:1;background:#334155;min-height:20px"></div>';
+      h += '</div>';
+      h += '<div style="flex:1;padding-bottom:' + (isLast ? '0' : '16') + 'px">';
+      h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">';
+      h += '<span style="font-size:15px;font-weight:700;color:#f8fafc">' + e.dia + '</span>';
+      h += '<span style="font-size:11px;font-weight:600;color:' + (tipoCores[e.tipo] || '#94a3b8') + ';background:' + (tipoCores[e.tipo] || '#94a3b8') + '20;padding:2px 10px;border-radius:20px">' + (tipoLabels[e.tipo] || '') + '</span>';
+      h += '</div>';
+      h += '<div style="font-size:14px;color:#cbd5e1">' + e.acao + '</div>';
+      h += '</div></div>';
+    });
+    h += '</div>';
+    h += '<div style="margin-top:16px;padding:14px;background:#0f172a;border-radius:10px;border:1px solid #334155;font-size:13px;color:#94a3b8;text-align:center">\uD83D\uDCA1 Cad\u00eancia detalhada em breve para esta equipe.</div>';
+  }
+
   h += '</div>';
-  h += '</div>'; // end pg-wrap
   return h;
 }
+
+function cadCopiarScript(btn) {
+  var txt = btn.getAttribute('data-script');
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt).then(function(){ toast('\u2705 Script copiado!','ok'); });
+  } else {
+    var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    toast('\u2705 Script copiado!','ok');
+  }
+}
+
 
 function pgPlaceholder(title, desc) {
   return '<div class="pg-wrap" style="padding:40px;text-align:center;max-width:600px;margin:0 auto">'
