@@ -13894,17 +13894,49 @@ async function giCallGemini(key, prompt) {
   return {url:d.image, revised:null};
 }
 
+async function giEnhancePrompt(post, slideIdx, totalSlides) {
+  giLoadBrands();
+  var brandKey = S.giBrandTab || 'conquista';
+  var brandData = S.giBrands ? S.giBrands[brandKey] : null;
+  try {
+    var r = await fetch('/api/prompt-builder', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        post: post,
+        brand: brandKey,
+        brandData: brandData,
+        slideIdx: slideIdx,
+        totalSlides: totalSlides
+      })
+    });
+    var d = await r.json();
+    if (r.ok && d.prompt) return d.prompt;
+  } catch(e) { console.warn('Prompt builder fallback:', e); }
+  return null;
+}
+
 async function giGenerate() {
   S.giStep = 4;
   S.giErr = null;
   S.giImgs = [];
   S.giProg = 0;
   S.giTotal = S.giPrompts.length;
+  S.giPhase = 'enhance';
   render();
   var arr = [];
   try {
     for (var i = 0; i < S.giPrompts.length; i++) {
       S.giProg = i + 1;
+      S.giPhase = 'enhance';
+      render();
+      var enhanced = await giEnhancePrompt(S.giPost, i, S.giPrompts.length);
+      if (enhanced) S.giPrompts[i] = enhanced;
+    }
+    S.giProg = 0;
+    for (var i = 0; i < S.giPrompts.length; i++) {
+      S.giProg = i + 1;
+      S.giPhase = 'generate';
       render();
       var result;
       if (S.giSrc === 'dalle') result = await giCallDalle(S.giOKey, S.giPrompts[i]);
@@ -13914,9 +13946,11 @@ async function giGenerate() {
     S.giImgs = arr;
     S.giAct = 0;
     S.giStep = 5;
+    S.giPhase = null;
     render();
   } catch(e) {
     S.giErr = e.message;
+    S.giPhase = null;
     if (arr.length) S.giImgs = arr;
     render();
   }
@@ -14506,13 +14540,18 @@ function pgCriacaoImg() {
   if (S.giStep === 4) {
     h += '<div style="text-align:center;padding:50px 0">';
     if (!S.giErr) {
-      h += '<div style="font-size:44px;margin-bottom:16px">\u26A1</div>';
-      h += '<h2 style="font-size:20px;font-weight:800;margin-bottom:10px;color:#f8fafc">Gerando slide ' + (S.giProg||1) + '/' + (S.giTotal||1) + '...</h2>';
-      h += '<p style="color:#94a3b8;margin-bottom:16px">' + (S.giSrc==='dalle'?'DALL-E 3':'Gemini') + '</p>';
+      var isEnhance = S.giPhase === 'enhance';
+      h += '<div style="font-size:44px;margin-bottom:16px">' + (isEnhance ? '\uD83E\uDDE0' : '\u26A1') + '</div>';
+      h += '<h2 style="font-size:20px;font-weight:800;margin-bottom:10px;color:#f8fafc">' + (isEnhance ? 'Montando prompt ' + (S.giProg||1) + '/' + (S.giTotal||1) + '...' : 'Gerando slide ' + (S.giProg||1) + '/' + (S.giTotal||1) + '...') + '</h2>';
+      h += '<p style="color:#94a3b8;margin-bottom:16px">' + (isEnhance ? 'Python Prompt Builder' : (S.giSrc==='dalle'?'DALL-E 3':'Gemini')) + '</p>';
       var pctW = S.giTotal ? ((S.giProg||0)/S.giTotal*100) : 0;
       h += '<div style="width:280px;height:5px;background:#1e293b;border-radius:3px;margin:0 auto;overflow:hidden">';
-      h += '<div style="width:' + pctW + '%;height:100%;background:linear-gradient(90deg,#E88530,#7AB330);border-radius:3px;transition:width 0.3s"></div></div>';
-      h += '<p style="color:#64748b;font-size:10px;margin-top:8px">~10-15s por slide</p>';
+      h += '<div style="width:' + pctW + '%;height:100%;background:linear-gradient(90deg,' + (isEnhance ? '#F5B840,#E88530' : '#E88530,#7AB330') + ');border-radius:3px;transition:width 0.3s"></div></div>';
+      h += '<div style="display:flex;gap:16px;justify-content:center;margin-top:12px">';
+      h += '<span style="font-size:10px;color:' + (isEnhance ? '#F5B840' : '#64748b') + ';font-weight:' + (isEnhance ? '700' : '400') + '">\uD83E\uDDE0 Prompt Builder</span>';
+      h += '<span style="color:#334155">\u2192</span>';
+      h += '<span style="font-size:10px;color:' + (!isEnhance && S.giPhase === 'generate' ? '#7AB330' : '#64748b') + ';font-weight:' + (!isEnhance && S.giPhase === 'generate' ? '700' : '400') + '">\u26A1 ' + (S.giSrc==='dalle'?'DALL-E':'Gemini') + '</span></div>';
+      h += '<p style="color:#64748b;font-size:10px;margin-top:8px">' + (isEnhance ? 'Enriquecendo prompts com diretrizes de marca...' : '~10-15s por slide') + '</p>';
     } else {
       h += '<div style="font-size:44px;margin-bottom:16px">\u26A0\uFE0F</div>';
       h += '<h2 style="font-size:18px;font-weight:800;color:#E04040;margin-bottom:10px">Erro na gera\u00e7\u00e3o</h2>';
