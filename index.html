@@ -13786,136 +13786,437 @@ function route() {
   }
 }
 
+// === GERADOR DE IMAGENS ===
+
+var GI_POSTS = [
+  {id:1,data:'25/03',dia:'Qua',funil:'TOPO',formato:'Estatico',slides:1,titulo:'Voce sabia que o governo paga ate R$ 55 mil do seu ape em Rio Preto?',visual:'Card com destaque R$ 55.000 em verde',tecnica:'Autoridade + Beneficio',objecao:'E pra mim?',cta:'Escreve LANCAMENTO no DM',copy:'O Programa MCMV Faixa 2 oferece subsidio direto de ate R$ 55.000 para familias com renda ate R$ 4.400/mes.'},
+  {id:2,data:'26/03',dia:'Qui',funil:'MEIO',formato:'Carrossel 5',slides:5,titulo:'5 perguntas que todo mundo tem antes de comprar pelo MCMV',visual:'Fundo branco limpo, pergunta por slide em destaque verde',tecnica:'Conteudo educativo',objecao:'Vou me ferrar',cta:'Salva esse carrossel',copy:'Slide 1 - Preciso ter entrada?\nSlide 2 - Meu score baixo reprova?\nSlide 3 - Posso usar junto com conjuge?\nSlide 4 - O imovel precisa ser novo?\nSlide 5 - Demora quanto?'},
+  {id:3,data:'27/03',dia:'Sex',funil:'FUNDO',formato:'Estatico',slides:1,titulo:'Lancamento em Rio Preto: 2 quartos, MCMV Faixa 2 - a partir de R$ 189 mil',visual:'Fachada 3D + badge MCMV + planta',tecnica:'Escassez + Lancamento',objecao:'Por que agora?',cta:'Escreve LANCAMENTO no DM',copy:'Novo empreendimento com unidades 100% enquadradas no MCMV Faixa 2.'},
+  {id:4,data:'28/03',dia:'Sab',funil:'MEIO',formato:'Carrossel 6',slides:6,titulo:'Entenda as 4 Faixas do MCMV - e descubra em qual voce se encaixa',visual:'Cards coloridos: verde, azul, dourado',tecnica:'Educativo + Segmentacao',objecao:'E pra mim?',cta:'Manda sua RENDA no DM',copy:'Slide 1 - Faixa 1: ate R$ 2.850\nSlide 2 - Faixa 2: R$ 2.850 a R$ 4.700\nSlide 3 - Faixa 3: R$ 4.700 a R$ 8.600\nSlide 4 - Faixa 4: R$ 8.600 a R$ 13 mil\nSlide 5 - Como somar renda?\nSlide 6 - Documentos basicos'},
+  {id:5,data:'29/03',dia:'Dom',funil:'TOPO',formato:'Estatico',slides:1,titulo:'Rio Preto vai receber mais de 1.200 unidades MCMV ate 2027',visual:'Mapa aereo + grafico de valorizacao',tecnica:'Autoridade local + Prova',objecao:'E uma barganha?',cta:'Comenta CRESCIMENTO',copy:'A cidade esta em expansao acelerada. Valorizacao media de 8% ao ano.'},
+  {id:6,data:'30/03',dia:'Seg',funil:'FUNDO',formato:'Estatico',slides:1,titulo:'Simulacao real: renda R$ 3.500 -> parcela R$ 980 -> ape novo',visual:'Calculadora visual aluguel -> parcela',tecnica:'Tangibilidade + Comparacao',objecao:'Vou me ferrar',cta:'Manda SIMULAR no DM',copy:'Familia com renda de R$ 3.500/mes se qualifica no MCMV Faixa 2. Parcela: R$ 980/mes.'},
+  {id:7,data:'31/03',dia:'Ter',funil:'MEIO',formato:'Carrossel 7',slides:7,titulo:'Como usar o FGTS para comprar seu ape - passo a passo',visual:'Fundo verde Caixa, icones de progresso',tecnica:'Conteudo pratico FGTS',objecao:'Vou me ferrar',cta:'Manda FGTS no DM',copy:'Slide 1 - O que e o FGTS habitacional?\nSlide 2 - Quem pode usar?\nSlide 3 - Nao ter imovel no nome\nSlide 4 - Quanto posso usar?\nSlide 5 - FGTS do conjuge?\nSlide 6 - Documentos\nSlide 7 - Resultado pratico'},
+  {id:8,data:'01/04',dia:'Qua',funil:'TOPO',formato:'Estatico',slides:1,titulo:'Abril: novos lancamentos MCMV chegam a Rio Preto',visual:'Card verde + icone chave dourada',tecnica:'Novidade + Urgencia',objecao:'Por que agora?',cta:'Comenta VIP',copy:'A Caixa atualizou as tabelas de subsidio MCMV para 2026.'},
+  {id:9,data:'02/04',dia:'Qui',funil:'MEIO',formato:'Carrossel 5',slides:5,titulo:'Checklist: 8 documentos para o financiamento MCMV',visual:'Checklist visual com check verde',tecnica:'Conteudo pratico',objecao:'Vou me ferrar',cta:'Salva esse post',copy:'Slide 1 - RG e CPF\nSlide 2 - Comprovante de renda\nSlide 3 - Extrato FGTS\nSlide 4 - Certidao negativa\nSlide 5 - Resumo completo'},
+  {id:10,data:'03/04',dia:'Sex',funil:'FUNDO',formato:'Estatico',slides:1,titulo:'Novo lancamento zona norte: 48m2, 2 quartos, MCMV',visual:'Perspectiva 3D + mapa + badges',tecnica:'Escassez + Lancamento',objecao:'Por que agora?',cta:'Manda ZONA NORTE no DM',copy:'Unidades 100% enquadradas no MCMV.'},
+  {id:11,data:'04 /04',dia:'Sab',funil:'MEIO',formato:'Carrossel 6',slides:6,titulo:'Por que comprar na planta e mais inteligente?',visual:'Infografico planta vs pronto',tecnica:'Comparacao + Dados',objecao:'E uma barganha?',cta:'Salva esse carrossel',copy:'Slide 1 - Preco menor\nSlide 2 - Valorizacao\nSlide 3 - Personalizacao\nSlide 4 - Condicoes\nSlide 5 - Planejamento\nSlide 6 - Conclusao'},
+  {id:12,data:'05/04',dia:'Dom',funil:'TOPO',formato:'Estatico',slides:1,titulo:'Rio Preto entre as 10 cidades com maior valorizacao',visual:'Mapa de SP + ranking + dado 9,2%',tecnica:'Autoridade + Dados',objecao:'E uma barganha?',cta:'Comenta RIO PRETO',copy:'Valorizacao de 9,2% no segmento popular.'},
+  {id:13,data:'06/04',dia:'Seg',funil:'FUNDO',formato:'Estatico',slides:1,titulo:'Ultimas unidades: MCMV com varanda no Jd. Tarraf II',visual:'Foto varanda + planta + badge 6 UNIDADES',tecnica:'Escassez real',objecao:'Por que agora?',cta:'Manda TARRAF no DM',copy:'Ultimas 6 unidades disponiveis.'},
+  {id:14,data:'07/04',dia:'Ter',funil:'MEIO',formato:'Carrossel 5',slides:5,titulo:'Autonomo e MEI: voce PODE financiar pelo MCMV',visual:'Icone MEI, caminhos para aprovacao',tecnica:'Educativo especifico',objecao:'E pra mim?',cta:'Manda MEI no DM',copy:'Slide 1 - Sim, autonomo pode\nSlide 2 - Como comprovar renda\nSlide 3 - Extrato bancario\nSlide 4 - DECORE\nSlide 5 - Proximos passos'},
+  {id:15,data:'08/04',dia:'Qua',funil:'TOPO',formato:'Estatico',slides:1,titulo:'Quanto custa morar nos bairros mais procurados de Rio Preto?',visual:'Mapa com pins + tabela ranking',tecnica:'Curiosidade + Dados',objecao:'E pra mim?',cta:'Comenta BAIRRO',copy:'Ranking real de precos por bairro em Rio Preto.'},
+  {id:16,data:'09/04',dia:'Qui',funil:'FUNDO',formato:'Estatico',slides:1,titulo:'Pre-lancamento: casa em condominio fechado - 72m2, 3 quartos',visual:'Perspectiva 3D + planta + PRE-LANCAMENTO',tecnica:'Escassez + Exclusividade',objecao:'Por que agora?',cta:'Manda CASA no DM',copy:'72m2, 3 quartos, condominio fechado.'},
+  {id:17,data:'10/04',dia:'Sex',funil:'MEIO',formato:'Carrossel 6',slides:6,titulo:'Financiamento negado? Os 4 motivos mais comuns',visual:'Fundo escuro, X vermelho -> check verde',tecnica:'Resolucao de problema',objecao:'Vou me ferrar',cta:'Manda NEGADO no DM',copy:'Slide 1 - Renda insuficiente -> composicao\nSlide 2 - Restricao CPF -> acordo 30 dias\nSlide 3 - Score baixo -> 60 dias\nSlide 4 - Irregularidade -> matricula\nSlide 5 - Dica de ouro\nSlide 6 - CTA'},
+  {id:18,data:'11/04',dia:'Sab',funil:'TOPO',formato:'Estatico',slides:1,titulo:'Em 2022 custava R$ 155 mil. Hoje vale R$ 218 mil.',visual:'Grafico valorizacao 2022->2026',tecnica:'Prova social + Dados',objecao:'E uma barganha?',cta:'Comenta VALORIZACAO',copy:'Valorizacao de 40% em 4 anos no segmento MCMV.'},
+  {id:19,data:'12/04',dia:'Dom',funil:'MEIO',formato:'Carrossel 5',slides:5,titulo:'O que avaliar antes de escolher um MCMV em Rio Preto',visual:'Checklist por categoria com icones',tecnica:'Educativo + Pratico',objecao:'Vou me ferrar',cta:'Salva esse post',copy:'Slide 1 - Localizacao\nSlide 2 - Construtora\nSlide 3 - Planta\nSlide 4 - Lazer\nSlide 5 - Valorizacao'},
+  {id:20,data:'13/04',dia:'Seg',funil:'FUNDO',formato:'Estatico',slides:1,titulo:'Lancamento confirmado: MCMV Faixa 2 no Jd. Caparroz',visual:'Fachada 3D + mapa + planta',tecnica:'Lancamento + Escassez',objecao:'Por que agora?',cta:'Manda CAPARROZ no DM',copy:'Empreendimento MCMV Faixa 2 confirmado.'},
+  {id:21,data:'14/04',dia:'Ter',funil:'MEIO',formato:'Carrossel 6',slides:6,titulo:'Entenda o subsidio MCMV: como o governo paga parte',visual:'Infografico governo -> desconto -> imovel',tecnica:'Educativo + Beneficio',objecao:'E pra mim?',cta:'Manda SUBSIDIO no DM',copy:'Slide 1 - O que e subsidio\nSlide 2 - Quem recebe\nSlide 3 - Quanto\nSlide 4 - Como funciona\nSlide 5 - Exemplo real\nSlide 6 - CTA'},
+  {id:22,data:'15/04',dia:'Qua',funil:'TOPO',formato:'Estatico',slides:1,titulo:'Voce paga R$ 1.500 de aluguel. Em 3 anos, deu R$ 54 mil pro dono.',visual:'R$ 54.000 vermelho -> verde parcela',tecnica:'Comparacao + Impacto',objecao:'E uma barganha?',cta:'Comenta ALUGUEL',copy:'R$ 54 mil jogados fora em 3 anos de aluguel.'},
+  {id:23,data:'16/04',dia:'Qui',funil:'FUNDO',formato:'Estatico',slides:1,titulo:'MCMV com lazer completa - Zona Sul - R$ 215 mil',visual:'Perspectiva aerea + fotos lazer',tecnica:'Lancamento + Lifestyle',objecao:'Por que agora?',cta:'Manda LAZER no DM',copy:'Area de lazer completa no condominio.'},
+  {id:24,data:'17/04',dia:'Sex',funil:'MEIO',formato:'Carrossel 5',slides:5,titulo:'Score de credito: como aumentar em 60 dias',visual:'Medidor score subindo, verde 600+',tecnica:'Pratico + Solucao',objecao:'Vou me ferrar',cta:'Manda SCORE no DM',copy:'Slide 1 - O que e score\nSlide 2 - Pagar em dia\nSlide 3 - Limpar pendencias\nSlide 4 - Nao pedir credito\nSlide 5 - Resultado'},
+  {id:25,data:'18/04',dia:'Sab',funil:'TOPO',formato:'Estatico',slides:1,titulo:'Por que Rio Preto e uma das melhores para MCMV',visual:'Cards com icone por motivo + mapa',tecnica:'Autoridade + Local',objecao:'E pra mim?',cta:'Comenta RIO PRETO',copy:'5 motivos que fazem Rio Preto ideal para MCMV.'},
+  {id:26,data:'19/04',dia:'Dom',funil:'MEIO',formato:'Carrossel 6',slides:6,titulo:'Guia rapido: da reserva ate a entrega da chave',visual:'Timeline 6 etapas com icones',tecnica:'Educativo + Jornada',objecao:'Vou me ferrar',cta:'Salva esse guia',copy:'Slide 1 - Reserva\nSlide 2 - Documentacao\nSlide 3 - Aprovacao\nSlide 4 - Contrato\nSlide 5 - Obra\nSlide 6 - Chave'},
+  {id:27,data:'20/04',dia:'Seg',funil:'FUNDO',formato:'Estatico',slides:1,titulo:'Lancamento VIP: sobrados MCMV Faixa 3 - R$ 295 mil',visual:'Render 3D + planta + APENAS 40 UNIDADES',tecnica:'Escassez + Exclusividade',objecao:'Por que agora?',cta:'Manda VIP no DM',copy:'Sobrados em condominio fechado, apenas 40 unidades.'},
+  {id:28,data:'21/04',dia:'Ter',funil:'MEIO',formato:'Carrossel 5',slides:5,titulo:'Posso comprar MCMV se ja tive imovel antes?',visual:'Perguntas em caixas verdes',tecnica:'FAQ + Educativo',objecao:'E pra mim?',cta:'Manda DUVIDA no DM',copy:'Slide 1 - Sim, em alguns casos\nSlide 2 - Regra principal\nSlide 3 - Excecoes\nSlide 4 - Documentos\nSlide 5 - Proximo passo'},
+  {id:29,data:'22/04',dia:'Qua',funil:'TOPO',formato:'Estatico',slides:1,titulo:'Parcela R$ 890/mes por um ape novo. Seu aluguel vale mais?',visual:'Split: kitnet vs ape novo, mesmo preco',tecnica:'Comparacao + Provocacao',objecao:'E uma barganha?',cta:'Comenta PARCELA',copy:'Mesma faixa de preco, realidades completamente diferentes.'},
+  {id:30,data:'23/04',dia:'Qui',funil:'FUNDO',formato:'Estatico',slides:1,titulo:'Ultimo chamado: MCMV Faixa 2 com entrega em setembro',visual:'Foto obra + ENTREGA SET 2026 + 5 unidades',tecnica:'Urgencia real',objecao:'Por que agora?',cta:'Manda ULTIMO no DM',copy:'Ultimas 5 unidades com entrega em setembro 2026.'},
+  {id:31,data:'24/04',dia:'Sex',funil:'MEIO',formato:'Carrossel 5',slides:5,titulo:'Resumo do mes: tudo sobre MCMV em Rio Preto 2026',visual:'5 cards com dados-chave, icones simples',tecnica:'Resumo + Engajamento',objecao:'Vou me ferrar',cta:'Salva e compartilha',copy:'Slide 1 - Subsidio atualizado\nSlide 2 - Novos lancamentos\nSlide 3 - Faixas de renda\nSlide 4 - Score e FGTS\nSlide 5 - Proximos passos'}
+];
+
+var GI_FUNIL_COR = {TOPO:'#F5B840',MEIO:'#7AB330',FUNDO:'#E88530'};
+var GI_FUNIL_LBL = {TOPO:'Atrair',MEIO:'Engajar',FUNDO:'Converter'};
+
+function giBuildPrompt(post, i, total) {
+  var b = 'Brand: PSM CONQUISTA, Brazilian real estate, affordable housing MCMV, Sao Jose do Rio Preto SP. Colors: orange #E88530, dark orange #D06830, gold #F5B840, lime green #7AB330, dark green #1B7A40. Modern, bold, trustworthy. Target: young families, first-time buyers.';
+  var f = 'Format: Instagram post, portrait 1024x1792, professional design, strong typography. Include @psmconquista bottom.';
+  if (total === 1) return b + '\n' + f + '\nProfessional Instagram post.\nTitle: "' + post.titulo + '"\nVisual: ' + post.visual + '\nCTA: "' + post.cta + '"\nBold headline, modern layout, brand colors.';
+  var lines = post.copy.split('\n').filter(function(l){return l.trim();});
+  var clean = (lines[i] || '').replace(/^Slide \d+ [-] /, '');
+  if (i === 0) return b + '\n' + f + '\nSlide 1/' + total + ' COVER of carousel.\nTitle: "' + post.titulo + '"\nVisual: ' + post.visual + '\nEye-catching, bold, "1/' + total + '" indicator, swipe arrow. Dark bg, brand accents.';
+  if (i === total - 1) return b + '\n' + f + '\nSlide ' + total + '/' + total + ' CTA FINAL.\nCTA: "' + post.cta + '"\nGreen gradient #1B7A40. Large CTA button. ' + total + '/' + total + '. Action-oriented.';
+  return b + '\n' + f + '\nSlide ' + (i+1) + '/' + total + ' carousel "' + post.titulo + '".\nContent: "' + clean + '"\nVisual: ' + post.visual + '\nProblem/solution layout. ' + (i+1) + '/' + total + '. Dark bg, brand accents.';
+}
+
+function giLoadKeys() {
+  if (!S.giOKey) S.giOKey = localStorage.getItem('psm_gi_okey') || '';
+  if (!S.giGKey) S.giGKey = localStorage.getItem('psm_gi_gkey') || '';
+}
+
+function giSaveKeys() {
+  var ok = document.getElementById('gi_okey');
+  var gk = document.getElementById('gi_gkey');
+  if (ok) S.giOKey = ok.value;
+  if (gk) S.giGKey = gk.value;
+  localStorage.setItem('psm_gi_okey', S.giOKey || '');
+  localStorage.setItem('psm_gi_gkey', S.giGKey || '');
+  S.giShowKeys = false;
+  render();
+}
+
+function giPickPost(id) {
+  var post = GI_POSTS.find(function(p){return p.id === id;});
+  if (!post) return;
+  S.giPost = post;
+  S.giStep = 2;
+  S.giImgs = [];
+  S.giAct = 0;
+  S.giErr = null;
+  S.giEditPrompt = false;
+  var ps = [];
+  for (var i = 0; i < post.slides; i++) ps.push(giBuildPrompt(post, i, post.slides));
+  S.giPrompts = ps;
+  render();
+}
+
+function giPickSrc(src) {
+  giLoadKeys();
+  if (src === 'dalle' && !S.giOKey) { S.giShowKeys = true; render(); return; }
+  if (src === 'gemini' && !S.giGKey) { S.giShowKeys = true; render(); return; }
+  S.giSrc = src;
+  S.giStep = 3;
+  render();
+}
+
+async function giCallDalle(key, prompt) {
+  var r = await fetch('/api/dalle', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:key,prompt:prompt})});
+  var d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'DALL-E error');
+  return {url:d.data[0].url, revised:d.data[0].revised_prompt};
+}
+
+async function giCallGemini(key, prompt) {
+  var r = await fetch('/api/gemini', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:key,prompt:prompt})});
+  var d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'Gemini error');
+  return {url:d.image, revised:null};
+}
+
+async function giGenerate() {
+  S.giStep = 4;
+  S.giErr = null;
+  S.giImgs = [];
+  S.giProg = 0;
+  S.giTotal = S.giPrompts.length;
+  render();
+  var arr = [];
+  try {
+    for (var i = 0; i < S.giPrompts.length; i++) {
+      S.giProg = i + 1;
+      render();
+      var result;
+      if (S.giSrc === 'dalle') result = await giCallDalle(S.giOKey, S.giPrompts[i]);
+      else result = await giCallGemini(S.giGKey, S.giPrompts[i]);
+      arr.push({num: i+1, url: result.url, revised: result.revised, prompt: S.giPrompts[i]});
+    }
+    S.giImgs = arr;
+    S.giAct = 0;
+    S.giStep = 5;
+    render();
+  } catch(e) {
+    S.giErr = e.message;
+    if (arr.length) S.giImgs = arr;
+    render();
+  }
+}
+
+async function giRegen(idx) {
+  S.giErr = null;
+  try {
+    var result;
+    if (S.giSrc === 'dalle') result = await giCallDalle(S.giOKey, S.giPrompts[idx]);
+    else result = await giCallGemini(S.giGKey, S.giPrompts[idx]);
+    S.giImgs[idx] = {num: idx+1, url: result.url, revised: result.revised, prompt: S.giPrompts[idx]};
+    render();
+  } catch(e) {
+    S.giErr = 'Slide ' + (idx+1) + ': ' + e.message;
+    render();
+  }
+}
+
+function giDownload(idx) {
+  var img = S.giImgs[idx];
+  if (!img || !img.url) return;
+  var a = document.createElement('a');
+  a.href = img.url;
+  a.download = 'PSM_Post' + S.giPost.id + '_Slide' + (idx+1) + '.png';
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function giDownloadAll() {
+  for (var i = 0; i < S.giImgs.length; i++) giDownload(i);
+}
+
+function giUpdatePrompt(idx) {
+  var ta = document.getElementById('gi_prompt_' + idx);
+  if (ta && S.giPrompts) S.giPrompts[idx] = ta.value;
+}
+
+function giReset() {
+  S.giStep = 1;
+  S.giPost = null;
+  S.giSrc = null;
+  S.giImgs = [];
+  S.giErr = null;
+  S.giAct = 0;
+  S.giEditPrompt = false;
+  render();
+}
+
 function pgCriacaoImg() {
-  if(!S._promptCarrossel) {
-    // Try loading from localStorage first
-    S._promptCarrossel = localStorage.getItem('psm_prompt_carrossel') || '';
+  giLoadKeys();
+  if (!S.giStep) S.giStep = 1;
+  if (!S.giFilter) S.giFilter = 'ALL';
+  if (!S.giImgs) S.giImgs = [];
+  if (!S.giPrompts) S.giPrompts = [];
+
+  var h = '<div class="pg-wrap" style="padding:24px;max-width:1100px">';
+
+  // === KEYS MODAL ===
+  if (S.giShowKeys) {
+    h += '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;display:flex;align-items:center;justify-content:center" onclick="S.giShowKeys=false;render()">';
+    h += '<div onclick="event.stopPropagation()" style="background:#1e293b;border-radius:16px;padding:28px;width:480px;border:1px solid #334155">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">';
+    h += '<h2 style="color:#f8fafc;margin:0;font-size:20px;font-weight:800">\u2699\uFE0F API Keys</h2>';
+    h += '<button onclick="S.giShowKeys=false;render()" style="background:none;border:none;color:#64748b;font-size:20px;cursor:pointer">\u2715</button></div>';
+    // OpenAI
+    h += '<div style="margin-bottom:20px">';
+    h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:18px">\uD83C\uDFA8</span><span style="font-weight:700;color:#f8fafc">OpenAI - DALL-E 3</span>';
+    if (S.giOKey) h+='<span style="background:rgba(122,179,48,0.15);color:#7AB330;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">CONECTADO</span>';
+    h += '</div>';
+    h += '<input id="gi_okey" type="password" value="' + (S.giOKey||'') + '" placeholder="sk-..." style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#f8fafc;font-size:13px;font-family:monospace;box-sizing:border-box">';
+    h += '<p style="font-size:10px;color:#64748b;margin-top:4px">platform.openai.com &rarr; API Keys</p></div>';
+    // Gemini
+    h += '<div style="margin-bottom:20px">';
+    h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:18px">\uD83E\uDD16</span><span style="font-weight:700;color:#f8fafc">Google Gemini</span>';
+    if (S.giGKey) h += '<span style="background:rgba(122,179,48,0.15);color:#7AB330;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">CONECTADO</span>';
+    h += '</div>';
+    h += '<input id="gi_gkey" type="password" value="' + (S.giGKey||'') + '" placeholder="AIza..." style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#f8fafc;font-size:13px;font-family:monospace;box-sizing:border-box">';
+    h += '<p style="font-size:10px;color:#64748b;margin-top:4px">aistudio.google.com &rarr; Get API Key</p></div>';
+    h += '<div style="background:rgba(232,133,48,0.06);border:1px solid rgba(232,133,48,0.15);border-radius:8px;padding:12px;font-size:11px;color:#94a3b8;margin-bottom:16px">Suas keys ficam apenas neste navegador (localStorage). S\u00e3o enviadas diretamente para as APIs via proxy Vercel seguro.</div>';
+    h += '<button onclick="giSaveKeys()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#E88530,#D06830);color:#fff;font-weight:700;font-size:14px;cursor:pointer">Salvar e Fechar</button>';
+    h += '</div></div>';
   }
-  var hasPrompt = S._promptCarrossel && S._promptCarrossel.length > 100;
-  
-  var h = '<div class="pg-wrap" style="padding:24px;max-width:1200px">';
-  h += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">';
-  h += '<span style="font-size:36px">\uD83C\uDFA8</span>';
-  h += '<div><h2 style="color:#f8fafc;margin:0">Cria\u00e7\u00e3o de Imagens / Carrossel</h2>';
-  h += '<p style="color:#94a3b8;font-size:13px;margin:4px 0 0">Gerador de carross\u00e9is profissionais para Instagram via Gemini AI</p></div></div>';
 
-  // Quick actions
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px">';
-  h += '<button onclick="copiarPromptCarrossel()" style="background:linear-gradient(135deg,#d4a843,#b8860b);color:#fff;border:none;border-radius:12px;padding:20px;cursor:pointer;font-size:14px;font-weight:700;text-align:left">';
-  h += '<div style="font-size:24px;margin-bottom:8px">\uD83D\uDCCB</div>Copiar Prompt Completo<div style="font-size:11px;font-weight:400;margin-top:4px;opacity:.8">Cole no Gemini para iniciar</div></button>';
-  h += '<a href="https://gemini.google.com/app" target="_blank" style="background:#1e293b;color:#fff;border:1px solid #334155;border-radius:12px;padding:20px;cursor:pointer;font-size:14px;font-weight:700;text-decoration:none;text-align:left;display:block">';
-  h += '<div style="font-size:24px;margin-bottom:8px">\u2728</div>Abrir Gemini AI<div style="font-size:11px;font-weight:400;margin-top:4px;color:#94a3b8">Iniciar cria\u00e7\u00e3o de carrossel</div></a>';
-  h += '<button onclick="togglePromptView()" style="background:#1e293b;color:#fff;border:1px solid #334155;border-radius:12px;padding:20px;cursor:pointer;font-size:14px;font-weight:700;text-align:left">';
-  h += '<div style="font-size:24px;margin-bottom:8px">\uD83D\uDC41</div>Ver Prompt Completo<div style="font-size:11px;font-weight:400;margin-top:4px;color:#94a3b8">Visualizar e editar o prompt</div></button>';
-  h += '</div>';
-
-  // Workflow steps
-  h += '<div style="background:#1e293b;border-radius:12px;padding:20px;margin-bottom:20px">';
-  h += '<h3 style="color:#d4a843;margin:0 0 16px;font-size:16px">\uD83D\uDCCB Fluxo de Cria\u00e7\u00e3o (14 mensagens no Gemini)</h3>';
-  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">';
-  var etapas = [
-    {n:'1',t:'Identidade e Tema',d:'@ Instagram, tema, pesquisa de contexto, t\u00edtulo da capa',ico:'\uD83C\uDFAF'},
-    {n:'2',t:'Tom de Voz',d:'Investigativo, educativo, urgente, corporativo, storytelling',ico:'\uD83C\uDFA4'},
-    {n:'3',t:'Identidade Visual',d:'Paleta de cores, tipografia, estilo de layout',ico:'\uD83C\uDFA8'},
-    {n:'4',t:'Estrutura',d:'Qtd slides, slides de impacto, fonte de imagens (IA/Google)',ico:'\uD83D\uDCD0'}
-  ];
-  for(var i=0;i<4;i++){
-    var e=etapas[i];
-    h+='<div style="background:#0f172a;border-radius:10px;padding:14px;border:1px solid #334155">';
-    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
-    h+='<span style="background:#d4a843;color:#0f172a;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">'+e.n+'</span>';
-    h+='<span style="font-size:13px;font-weight:700;color:#f8fafc">'+e.t+'</span></div>';
-    h+='<div style="font-size:11px;color:#94a3b8;line-height:1.5">'+e.d+'</div></div>';
-  }
-  h+='</div></div>';
-
-  // Paletas
-  h += '<div style="background:#1e293b;border-radius:12px;padding:20px;margin-bottom:20px">';
-  h += '<h3 style="color:#94a3b8;margin:0 0 12px;font-size:14px">\uD83C\uDFA8 Paletas Dispon\u00edveis</h3>';
-  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">';
-  var paletas=[
-    ['99dev Dark','#292A25','#B078FF','#3CD3A4'],['Noir Rouge','#1A1A1A','#E63946','#FFFFFF'],
-    ['Oceano','#0D1B2A','#00B4D8','#90E0EF'],['Terracota','#2D1B1B','#E07A5F','#F2CC8F'],
-    ['Forest','#1C2B1C','#6BCB77','#FFD166'],['Luxo Ouro','#1A1209','#D4AF37','#C9B99A'],
-    ['Minimalista','#F5F5F0','#2D2D2D','#888888'],['Neon Cyber','#0F0F1A','#FF2079','#00FFCC'],
-    ['PSM Conquista','#E7E1D9','#E46612','#566750']
-  ];
-  for(var p=0;p<paletas.length;p++){
-    var pl=paletas[p];
-    h+='<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#0f172a;border-radius:6px;font-size:11px;color:#cbd5e1">';
-    h+='<span style="width:14px;height:14px;border-radius:3px;background:'+pl[1]+';border:1px solid #475569;flex-shrink:0"></span>';
-    h+='<span style="width:14px;height:14px;border-radius:3px;background:'+pl[2]+';border:1px solid #475569;flex-shrink:0"></span>';
-    h+='<span style="width:14px;height:14px;border-radius:3px;background:'+pl[3]+';border:1px solid #475569;flex-shrink:0"></span>';
-    h+='<span>'+pl[0]+'</span></div>';
-  }
-  h+='</div></div>';
-
-  // Status
-  h += '<div style="background:'+(hasPrompt?'#0f2a1a':'#2a1a0f')+';border:1px solid '+(hasPrompt?'#22c55e':'#f59e0b')+';border-radius:12px;padding:16px;margin-bottom:20px">';
+  // === HEADER ===
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">';
+  h += '<div style="display:flex;align-items:center;gap:12px">';
+  h += '<span style="font-size:32px">\uD83C\uDFA8</span>';
+  h += '<div><h2 style="color:#f8fafc;margin:0;font-size:22px;font-weight:800">Gerador de Imagens</h2>';
+  h += '<p style="color:#94a3b8;font-size:12px;margin:2px 0 0">DALL-E 3 + Gemini \u00B7 Gera\u00e7\u00e3o autom\u00e1tica via IA</p></div></div>';
   h += '<div style="display:flex;align-items:center;gap:8px">';
-  h += '<span style="font-size:18px">'+(hasPrompt?'\u2705':'\u26A0\uFE0F')+'</span>';
-  h += '<div><div style="color:'+(hasPrompt?'#22c55e':'#f59e0b')+';font-weight:700;font-size:13px">'+(hasPrompt?'Prompt carregado ('+S._promptCarrossel.length+' caracteres)':'Prompt n\u00e3o carregado')+'</div>';
-  h += '<div style="color:#94a3b8;font-size:11px">'+(hasPrompt?'Clique em Copiar Prompt para usar no Gemini':'Cole o conte\u00fado do prompt abaixo ou carregue do servidor')+'</div></div></div></div>';
+  // Step indicator
+  var steps = [{n:1,l:'Painel'},{n:2,l:'Fonte'},{n:3,l:'Prompt'},{n:4,l:'Gerar'},{n:5,l:'Revis\u00e3o'}];
+  for (var si = 0; si < steps.length; si++) {
+    var st = steps[si];
+    var stActive = S.giStep === st.n;
+    var stDone = S.giStep > st.n;
+    h += '<span style="padding:3px 10px;border-radius:6px;font-size:10px;font-weight:600;';
+    h += 'background:' + (stActive ? 'rgba(232,133,48,0.15)' : stDone ? 'rgba(122,179,48,0.1)' : 'rgba(255,255,255,0.03)') + ';';
+    h += 'color:' + (stActive ? '#E88530' : stDone ? '#7AB330' : '#64748b') + ';';
+    h += 'border:1px solid ' + (stActive ? 'rgba(232,133,48,0.3)' : stDone ? 'rgba(122,179,48,0.2)' : 'rgba(255,255,255,0.05)') + '">';
+    h += (stDone ? '\u2713 ' : '') + st.l + '</span>';
+  }
+  h += '<button onclick="S.giShowKeys=true;render()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:4px 10px;color:#94a3b8;font-size:11px;cursor:pointer">';
+  h += '\u2699 Keys' + ((S.giOKey||S.giGKey)?'<span style="width:6px;height:6px;border-radius:50%;background:#7AB330;display:inline-block;margin-left:4px"></span>':'') + '</button>';
+  h += '</div></div>';
 
-  // Prompt view area (hidden by default)
-  h += '<div id="prompt-view-area" style="display:none;margin-bottom:20px">';
-  h += '<div style="background:#1e293b;border-radius:12px;padding:16px">';
-  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
-  h += '<h3 style="color:#94a3b8;margin:0;font-size:14px">Prompt Completo</h3>';
-  h += '<div style="display:flex;gap:8px">';
-  h += '<button onclick="carregarPromptServidor()" style="background:#334155;color:#cbd5e1;border:none;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer">\uD83D\uDD04 Recarregar do Servidor</button>';
-  h += '<button onclick="copiarPromptCarrossel()" style="background:#d4a843;color:#0f172a;border:none;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-weight:700">\uD83D\uDCCB Copiar</button>';
-  h += '</div></div>';
-  h += '<textarea id="prompt-textarea" style="width:100%;min-height:400px;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:12px;font-size:12px;font-family:monospace;resize:vertical;line-height:1.6" onchange="salvarPromptLocal()">'+(S._promptCarrossel||'')+'</textarea>';
-  h += '</div></div>';
+  // === STEP 1: PAINEL ===
+  if (S.giStep === 1) {
+    // Alert se sem keys
+    if (!S.giOKey && !S.giGKey) {
+      h += '<div onclick="S.giShowKeys=true;render()" style="background:rgba(224,64,64,0.08);border:1px solid rgba(224,64,64,0.2);border-radius:10px;padding:10px 16px;margin-bottom:14px;cursor:pointer;display:flex;align-items:center;gap:8px">';
+      h += '<span style="color:#E04040;font-weight:600;font-size:12px">\u26A0 Configure suas API Keys para gerar imagens</span>';
+      h += '<span style="font-size:10px;color:#94a3b8;margin-left:auto">Clique aqui</span></div>';
+    }
+    // Filtros
+    h += '<div style="display:flex;gap:6px;margin-bottom:14px">';
+    var filtros = ['ALL','TOPO','MEIO','FUNDO'];
+    for (var fi = 0; fi < filtros.length; fi++) {
+      var ff = filtros[fi];
+      var fActive = S.giFilter === ff;
+      var fCor = ff === 'ALL' ? '#E88530' : GI_FUNIL_COR[ff];
+      var cnt = ff === 'ALL' ? GI_POSTS.length : GI_POSTS.filter(function(p){return p.funil===ff;}).length;
+      h += '<button onclick="S.giFilter=\'' + ff + '\';render()" style="padding:5px 12px;border-radius:7px;border:1px solid ' + (fActive ? fCor : 'rgba(255,255,255,0.08)') + ';background:' + (fActive ? fCor + '20' : 'transparent') + ';color:' + (fActive ? fCor : '#94a3b8') + ';cursor:pointer;font-size:11px;font-weight:600">';
+      h += (ff === 'ALL' ? 'Todos' : ff) + ' (' + cnt + ')</button>';
+    }
+    h += '</div>';
+    // Lista de posts
+    var fps = S.giFilter === 'ALL' ? GI_POSTS : GI_POSTS.filter(function(p){return p.funil === S.giFilter;});
+    h += '<div style="display:flex;flex-direction:column;gap:3px">';
+    for (var pi = 0; pi < fps.length; pi++) {
+      var p = fps[pi];
+      var fc = GI_FUNIL_COR[p.funil];
+      h += '<div onclick="giPickPost(' + p.id + ')" style="display:grid;grid-template-columns:32px 50px 28px 54px 84px 1fr;align-items:center;gap:6px;padding:9px 12px;border-radius:7px;background:#1e293b;border:1px solid rgba(255,255,255,0.05);cursor:pointer" onmouseenter="this.style.borderColor=\'rgba(232,133,48,0.3)\'" onmouseleave="this.style.borderColor=\'rgba(255,255,255,0.05)\'">';
+      h += '<span style="font-size:12px;font-weight:800;color:#475569">#' + p.id + '</span>';
+      h += '<span style="font-size:10px;color:#94a3b8">' + p.data + '</span>';
+      h += '<span style="font-size:9px;color:#64748b">' + p.dia + '</span>';
+      h += '<span style="font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;text-align:center;background:' + fc + '15;color:' + fc + '">' + p.funil + '</span>';
+      h += '<span style="font-size:9px;color:' + (p.slides > 1 ? '#7AB330' : '#94a3b8') + '">' + (p.slides > 1 ? 'Carrossel ' + p.slides : 'Est\u00e1tico') + '</span>';
+      h += '<span style="font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e2e8f0">' + p.titulo + '</span>';
+      h += '</div>';
+    }
+    h += '</div>';
+  }
+
+  // === STEP 2: DETALHE DO POST + FONTE ===
+  if (S.giStep === 2 && S.giPost) {
+    var sp = S.giPost;
+    var sfc = GI_FUNIL_COR[sp.funil];
+    h += '<button onclick="giReset()" style="background:transparent;border:none;color:#E88530;cursor:pointer;font-size:12px;margin-bottom:12px;padding:0">&larr; Voltar ao Painel</button>';
+    // Card do post
+    h += '<div style="background:#1e293b;border-radius:12px;padding:20px;border:1px solid rgba(255,255,255,0.05);margin-bottom:18px">';
+    h += '<span style="background:' + sfc + '20;color:' + sfc + ';padding:2px 10px;border-radius:5px;font-size:10px;font-weight:700">' + sp.funil + ' \u00B7 ' + GI_FUNIL_LBL[sp.funil] + '</span>';
+    h += '<h2 style="font-size:18px;font-weight:800;margin:8px 0 0;line-height:1.3;color:#f8fafc">' + sp.titulo + '</h2>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;margin-top:10px">';
+    h += '<div><span style="color:#64748b">Formato:</span> <b style="color:#e2e8f0">' + sp.formato + ' (' + sp.slides + ' slide' + (sp.slides>1?'s':'') + ')</b></div>';
+    h += '<div><span style="color:#64748b">T\u00e9cnica:</span> <span style="color:#e2e8f0">' + sp.tecnica + '</span></div>';
+    h += '<div><span style="color:#64748b">CTA:</span> <span style="color:#7AB330;font-weight:600">' + sp.cta + '</span></div>';
+    h += '<div><span style="color:#64748b">Obje\u00e7\u00e3o:</span> <span style="color:#E04040">' + sp.objecao + '</span></div>';
+    h += '</div>';
+    h += '<div style="margin-top:10px;padding:10px;background:rgba(255,255,255,0.03);border-radius:6px;border-left:3px solid #E88530">';
+    h += '<div style="font-size:9px;color:#64748b;font-weight:600;margin-bottom:3px">DIRE\u00c7\u00c3O VISUAL</div>';
+    h += '<div style="font-size:11px;color:#94a3b8">' + sp.visual + '</div></div>';
+    h += '<div style="margin-top:6px;padding:10px;background:rgba(255,255,255,0.03);border-radius:6px;border-left:3px solid #7AB330">';
+    h += '<div style="font-size:9px;color:#64748b;font-weight:600;margin-bottom:3px">COPY</div>';
+    h += '<div style="font-size:10px;color:#94a3b8;white-space:pre-line">' + sp.copy + '</div></div>';
+    h += '</div>';
+    // Fonte de imagem
+    h += '<h3 style="font-size:15px;font-weight:700;margin-bottom:10px;color:#f8fafc">Como gerar a imagem?</h3>';
+    h += '<div style="display:flex;flex-direction:column;gap:8px">';
+    var fontes = [
+      {id:'dalle',ico:'\uD83C\uDFA8',lbl:'DALL-E 3 (OpenAI)',desc:'Gera\u00e7\u00e3o art\u00edstica de alta qualidade',badge:'GPT',key:S.giOKey},
+      {id:'gemini',ico:'\uD83E\uDD16',lbl:'Gemini (Google)',desc:'Vers\u00e1til e r\u00e1pido, social media',badge:'GOOGLE',key:S.giGKey}
+    ];
+    for (var fti = 0; fti < fontes.length; fti++) {
+      var ft = fontes[fti];
+      var noKey = !ft.key;
+      h += '<div onclick="giPickSrc(\'' + ft.id + '\')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:10px;background:#1e293b;border:1px solid ' + (noKey ? 'rgba(224,64,64,0.2)' : 'rgba(255,255,255,0.05)') + ';cursor:pointer" onmouseenter="this.style.borderColor=\'rgba(232,133,48,0.3)\'" onmouseleave="this.style.borderColor=\'' + (noKey ? 'rgba(224,64,64,0.2)' : 'rgba(255,255,255,0.05)') + '\'">';
+      h += '<span style="font-size:24px">' + ft.ico + '</span>';
+      h += '<div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f8fafc">' + ft.lbl + '</div><div style="color:#64748b;font-size:11px">' + ft.desc + '</div></div>';
+      h += '<span style="padding:2px 7px;border-radius:4px;font-size:8px;font-weight:700;background:rgba(232,133,48,0.12);color:#E88530">' + ft.badge + '</span>';
+      if (noKey) h += '<span style="font-size:9px;color:#E04040">sem key</span>';
+      else h += '<span style="width:7px;height:7px;border-radius:50%;background:#7AB330;display:inline-block"></span>';
+      h += '</div>';
+    }
+    h += '</div>';
+  }
+
+  // === STEP 3: PROMPTS ===
+  if (S.giStep === 3 && S.giPost) {
+    h += '<button onclick="S.giStep=2;render()" style="background:transparent;border:none;color:#E88530;cursor:pointer;font-size:12px;margin-bottom:12px;padding:0">&larr; Voltar</button>';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">';
+    h += '<div><h2 style="font-size:18px;font-weight:800;margin:0;color:#f8fafc">Prompts - Post #' + S.giPost.id + '</h2>';
+    h += '<p style="color:#94a3b8;font-size:11px;margin:2px 0 0">' + S.giPost.slides + ' slide' + (S.giPost.slides>1?'s':'') + ' \u00B7 ' + (S.giSrc==='dalle'?'DALL-E 3':'Gemini') + '</p></div>';
+    h += '<button onclick="S.giEditPrompt=!S.giEditPrompt;render()" style="padding:5px 12px;border-radius:6px;border:1px solid rgba(245,184,64,0.2);background:' + (S.giEditPrompt?'rgba(245,184,64,0.1)':'transparent') + ';color:#F5B840;font-size:11px;font-weight:600;cursor:pointer">' + (S.giEditPrompt?'Modo leitura':'Editar prompts') + '</button></div>';
+    h += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">';
+    for (var pri = 0; pri < S.giPrompts.length; pri++) {
+      var isFirst = pri === 0;
+      var isLast = pri === S.giPrompts.length - 1 && S.giPost.slides > 1;
+      var tagColor = isFirst ? '#E88530' : isLast ? '#7AB330' : '#94a3b8';
+      var tagBg = isFirst ? 'rgba(232,133,48,0.15)' : isLast ? 'rgba(122,179,48,0.15)' : 'rgba(255,255,255,0.05)';
+      var tagLabel = isFirst ? 'CAPA' : isLast ? 'CTA' : 'SLIDE ' + (pri+1);
+      h += '<div style="background:#1e293b;border-radius:8px;padding:14px;border:1px solid rgba(255,255,255,0.05)">';
+      h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
+      h += '<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:' + tagBg + ';color:' + tagColor + '">' + tagLabel + '</span>';
+      h += '<span style="font-size:10px;color:#64748b">' + (pri+1) + '/' + S.giPrompts.length + '</span></div>';
+      if (S.giEditPrompt) {
+        h += '<textarea id="gi_prompt_' + pri + '" onchange="giUpdatePrompt(' + pri + ')" style="width:100%;min-height:90px;padding:8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:10px;line-height:1.5;font-family:monospace;resize:vertical;box-sizing:border-box">' + S.giPrompts[pri].replace(/</g,'&lt;') + '</textarea>';
+      } else {
+        h += '<p style="font-size:10px;color:#94a3b8;line-height:1.5;white-space:pre-wrap;margin:0">' + S.giPrompts[pri].replace(/</g,'&lt;') + '</p>';
+      }
+      h += '</div>';
+    }
+    h += '</div>';
+    h += '<button onclick="giGenerate()" style="width:100%;padding:14px;border-radius:10px;border:none;cursor:pointer;font-size:15px;font-weight:800;background:linear-gradient(135deg,#E88530,#D06830);color:#fff">';
+    h += '\u26A1 Gerar ' + S.giPrompts.length + ' slide' + (S.giPrompts.length>1?'s':'') + ' com ' + (S.giSrc==='dalle'?'DALL-E 3':'Gemini') + '</button>';
+  }
+
+  // === STEP 4: GERANDO ===
+  if (S.giStep === 4) {
+    h += '<div style="text-align:center;padding:50px 0">';
+    if (!S.giErr) {
+      h += '<div style="font-size:44px;margin-bottom:16px">\u26A1</div>';
+      h += '<h2 style="font-size:20px;font-weight:800;margin-bottom:10px;color:#f8fafc">Gerando slide ' + (S.giProg||1) + '/' + (S.giTotal||1) + '...</h2>';
+      h += '<p style="color:#94a3b8;margin-bottom:16px">' + (S.giSrc==='dalle'?'DALL-E 3':'Gemini') + '</p>';
+      var pctW = S.giTotal ? ((S.giProg||0)/S.giTotal*100) : 0;
+      h += '<div style="width:280px;height:5px;background:#1e293b;border-radius:3px;margin:0 auto;overflow:hidden">';
+      h += '<div style="width:' + pctW + '%;height:100%;background:linear-gradient(90deg,#E88530,#7AB330);border-radius:3px;transition:width 0.3s"></div></div>';
+      h += '<p style="color:#64748b;font-size:10px;margin-top:8px">~10-15s por slide</p>';
+    } else {
+      h += '<div style="font-size:44px;margin-bottom:16px">\u26A0\uFE0F</div>';
+      h += '<h2 style="font-size:18px;font-weight:800;color:#E04040;margin-bottom:10px">Erro na gera\u00e7\u00e3o</h2>';
+      h += '<div style="background:rgba(224,64,64,0.08);border:1px solid rgba(224,64,64,0.2);border-radius:8px;padding:14px;max-width:480px;margin:0 auto 14px;text-align:left">';
+      h += '<p style="font-size:11px;color:#E04040;font-family:monospace;word-break:break-all;margin:0">' + (S.giErr||'').replace(/</g,'&lt;') + '</p></div>';
+      h += '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">';
+      h += '<button onclick="giGenerate()" style="padding:8px 20px;border-radius:7px;border:none;background:#E88530;color:#fff;font-weight:700;cursor:pointer;font-size:12px">Tentar novamente</button>';
+      h += '<button onclick="S.giStep=3;render()" style="padding:8px 20px;border-radius:7px;border:1px solid #334155;background:transparent;color:#94a3b8;font-weight:600;cursor:pointer;font-size:12px">Editar prompts</button>';
+      h += '<button onclick="S.giShowKeys=true;render()" style="padding:8px 20px;border-radius:7px;border:1px solid #334155;background:transparent;color:#94a3b8;font-weight:600;cursor:pointer;font-size:12px">Verificar Key</button></div>';
+      if (S.giImgs && S.giImgs.length > 0) {
+        h += '<button onclick="S.giStep=5;render()" style="margin-top:12px;padding:7px 18px;border-radius:7px;border:1px solid rgba(122,179,48,0.2);background:transparent;color:#7AB330;font-weight:600;cursor:pointer;font-size:11px">Ver ' + S.giImgs.length + ' slide' + (S.giImgs.length>1?'s':'') + ' gerado' + (S.giImgs.length>1?'s':'') + '</button>';
+      }
+    }
+    h += '</div>';
+  }
+
+  // === STEP 5: REVISAO ===
+  if (S.giStep === 5 && S.giPost && S.giImgs && S.giImgs.length > 0) {
+    var act = S.giAct || 0;
+    h += '<button onclick="giReset()" style="background:transparent;border:none;color:#E88530;cursor:pointer;font-size:12px;margin-bottom:12px;padding:0">&larr; Novo post</button>';
+    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">';
+    h += '<h2 style="font-size:18px;font-weight:800;margin:0;color:#f8fafc">Revis\u00e3o - Post #' + S.giPost.id + '</h2>';
+    h += '<span style="background:rgba(122,179,48,0.12);color:#7AB330;padding:2px 10px;border-radius:5px;font-size:10px;font-weight:700">' + S.giImgs.length + ' slides gerados \u2713</span></div>';
+    // Erro (se houver)
+    if (S.giErr) {
+      h += '<div style="background:rgba(224,64,64,0.08);border:1px solid rgba(224,64,64,0.2);border-radius:7px;padding:10px;margin-bottom:12px;font-size:11px;color:#E04040">' + S.giErr.replace(/</g,'&lt;') + '</div>';
+    }
+    // Imagem principal + info
+    h += '<div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">';
+    h += '<div style="width:340px;flex-shrink:0;position:relative">';
+    h += '<img src="' + (S.giImgs[act]?S.giImgs[act].url:'') + '" alt="Slide ' + (act+1) + '" style="width:100%;border-radius:10px;border:1px solid rgba(255,255,255,0.08);display:block">';
+    h += '<div style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.7);padding:2px 7px;border-radius:4px;font-size:10px;color:#fff;font-weight:600">' + (act+1) + '/' + S.giImgs.length + '</div>';
+    h += '<div style="position:absolute;top:6px;right:6px;display:flex;gap:4px">';
+    h += '<button onclick="giRegen(' + act + ')" style="background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.15);border-radius:5px;padding:3px 8px;color:#E88530;font-size:10px;font-weight:600;cursor:pointer">\u21BB Regerar</button>';
+    h += '<button onclick="giDownload(' + act + ')" style="background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.15);border-radius:5px;padding:3px 8px;color:#7AB330;font-size:10px;font-weight:600;cursor:pointer">\u2B07 Baixar</button>';
+    h += '</div></div>';
+    // Info lateral
+    h += '<div style="flex:1;min-width:200px">';
+    h += '<div style="background:#1e293b;border-radius:8px;padding:12px;border:1px solid rgba(255,255,255,0.05);margin-bottom:6px">';
+    h += '<h4 style="font-size:10px;font-weight:700;color:#E88530;margin:0 0 4px">SLIDE ' + (act+1) + '/' + S.giImgs.length + '</h4>';
+    h += '<div style="font-size:10px;color:#94a3b8"><span style="color:#64748b">Motor:</span> ' + (S.giSrc==='dalle'?'DALL-E 3':'Gemini') + '</div>';
+    h += '<div style="font-size:10px;color:#94a3b8"><span style="color:#64748b">Formato:</span> ' + (S.giSrc==='dalle'?'1024x1792 HD':'Auto') + '</div>';
+    if (S.giImgs[act] && S.giImgs[act].revised) {
+      h += '<div style="margin-top:4px;padding:6px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:9px;color:#64748b;line-height:1.4">Prompt revisado: ' + S.giImgs[act].revised.substring(0,200) + '...</div>';
+    }
+    h += '</div>';
+    h += '<div style="background:#1e293b;border-radius:8px;padding:12px;border:1px solid rgba(255,255,255,0.05);margin-bottom:6px">';
+    h += '<h4 style="font-size:10px;font-weight:700;color:#7AB330;margin:0 0 4px">LEGENDA</h4>';
+    h += '<p style="font-size:9px;color:#94a3b8;line-height:1.5;margin:0">' + S.giPost.titulo + ' ' + S.giPost.cta + '</p></div>';
+    h += '<div style="background:#1e293b;border-radius:8px;padding:12px;border:1px solid rgba(255,255,255,0.05)">';
+    h += '<h4 style="font-size:10px;font-weight:700;color:#F5B840;margin:0 0 4px">HASHTAGS</h4>';
+    h += '<p style="font-size:8px;color:#64748b;line-height:1.5;margin:0">#MCMV #mcmv2026 #casapropria #riopreto #psmconquista #financiamento #primeiroimovel</p></div>';
+    h += '</div></div>';
+    // Thumbnails
+    if (S.giImgs.length > 1) {
+      h += '<div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:6px;margin-bottom:16px">';
+      for (var ti = 0; ti < S.giImgs.length; ti++) {
+        h += '<div onclick="S.giAct=' + ti + ';render()" style="width:58px;height:82px;flex-shrink:0;border-radius:5px;cursor:pointer;overflow:hidden;border:2px solid ' + (act===ti?'#E88530':'rgba(255,255,255,0.08)') + '">';
+        h += '<img src="' + S.giImgs[ti].url + '" alt="S' + (ti+1) + '" style="width:100%;height:100%;object-fit:cover"></div>';
+      }
+      h += '</div>';
+    }
+    // Acoes
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+    h += '<button onclick="giDownloadAll()" style="padding:12px 24px;border-radius:10px;border:none;cursor:pointer;font-size:14px;font-weight:800;background:linear-gradient(135deg,#7AB330,#1B7A40);color:#fff;flex:1">\u2B07 Baixar Todos (' + S.giImgs.length + ')</button>';
+    h += '<button onclick="giReset()" style="padding:12px 24px;border-radius:10px;border:none;cursor:pointer;font-size:14px;font-weight:700;background:linear-gradient(135deg,#E88530,#D06830);color:#fff;flex:1">\uD83C\uDFA8 Gerar Outro Post</button>';
+    h += '</div>';
+  }
 
   h += '</div>';
   return h;
 }
 
-function copiarPromptCarrossel() {
-  var txt = S._promptCarrossel || localStorage.getItem('psm_prompt_carrossel') || '';
-  if(!txt || txt.length < 50) {
-    alert('Prompt n\u00e3o carregado. Clique em "Recarregar do Servidor" primeiro.');
-    return;
-  }
-  navigator.clipboard.writeText(txt).then(function(){
-    alert('\u2705 Prompt copiado! Cole no Gemini para iniciar a cria\u00e7\u00e3o do carrossel.');
-  }).catch(function(){
-    // Fallback
-    var ta = document.getElementById('prompt-textarea');
-    if(ta) { ta.select(); document.execCommand('copy'); alert('\u2705 Prompt copiado!'); }
-    else alert('Erro ao copiar. Abra o prompt e copie manualmente.');
-  });
-}
-
-function togglePromptView() {
-  var area = document.getElementById('prompt-view-area');
-  if(area) area.style.display = area.style.display === 'none' ? 'block' : 'none';
-}
-
-function salvarPromptLocal() {
-  var ta = document.getElementById('prompt-textarea');
-  if(ta) {
-    S._promptCarrossel = ta.value;
-    localStorage.setItem('psm_prompt_carrossel', ta.value);
-  }
-}
-
-function carregarPromptServidor() {
-  // Fetch from raw GitHub
-  fetch('https://raw.githubusercontent.com/Psm178102/psm-os/main/prompts/carrossel.md')
-    .then(function(r){ return r.ok ? r.text() : Promise.reject('HTTP '+r.status); })
-    .then(function(txt){
-      S._promptCarrossel = txt;
-      localStorage.setItem('psm_prompt_carrossel', txt);
-      render();
-      alert('\u2705 Prompt carregado do servidor! (' + txt.length + ' caracteres)');
-    })
-    .catch(function(e){
-      alert('\u274C Erro ao carregar: ' + e + '. Cole o prompt manualmente na \u00e1rea de texto.');
-    });
-}
 
 function pgPlantoes() {
   var u = S.user;
