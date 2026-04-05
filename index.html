@@ -14036,15 +14036,65 @@ async function giParseUpload(fileInput) {
     } else { S.giUploadErr = 'Use .xlsx, .csv ou .tsv'; render(); }
   } catch(e) { S.giUploadErr = 'Erro: ' + e.message; render(); }
 }
+// Column name mapping for complex spreadsheet headers
+var GI_COL_MAP = {
+  'dia':'dia','data':'data','formato':'formato','funil':'funil',
+  'editoria':'editoria','titulo / tema':'titulo','titulo/tema':'titulo',
+  'titulo':'titulo','title':'titulo','headline':'titulo',
+  'copy (texto das artes)':'copy','copy':'copy','texto':'copy',
+  'cta':'cta','dado da conjuntura':'dado_conjuntura',
+  'prompt leonardo.ai / video':'prompt','prompt':'prompt',
+  'prompt_img':'prompt','image_prompt':'prompt',
+  'emocao':'emocao','sugestao visual':'visual','visual':'visual',
+  'descricao_visual':'visual','tecnica cuenca':'tecnica',
+  'tecnica':'tecnica','objecao atacada':'objecao','objecao':'objecao'
+};
+function giNormalizeKey(k) {
+  return k.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function giMapColumnName(rawKey) {
+  var nk = giNormalizeKey(rawKey);
+  if (GI_COL_MAP[nk]) return GI_COL_MAP[nk];
+  for (var p in GI_COL_MAP) {
+    if (nk.indexOf(p) !== -1 || p.indexOf(nk) !== -1) return GI_COL_MAP[p];
+  }
+  return nk;
+}
 function giReadXLSX(file) {
   var reader = new FileReader();
   reader.onload = function(e) {
     try {
       var wb = XLSX.read(e.target.result, {type:'array'});
-      var ws = wb.Sheets[wb.SheetNames[0]];
-      var json = XLSX.utils.sheet_to_json(ws);
-      var rows = json.map(function(r) { var obj = {}; Object.keys(r).forEach(function(k) { obj[k.toLowerCase().trim()] = String(r[k]||''); }); return obj; });
-      giLoadPosts(rows);
+      var allRows = [];
+      wb.SheetNames.forEach(function(sname) {
+        var snl = sname.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+        if (snl.indexOf('resumo') !== -1 || snl.indexOf('fiscal') !== -1 || snl.indexOf('padrao') !== -1 || snl.indexOf('controle') !== -1 || snl.indexOf('banco') !== -1 || snl.indexOf('ideias') !== -1 || snl.indexOf('obje') !== -1) return;
+        var ws = wb.Sheets[sname];
+        var raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+        var headerIdx = -1;
+        for (var i = 0; i < Math.min(raw.length, 10); i++) {
+          var rowStr = (raw[i] || []).join(' ').toUpperCase();
+          if ((rowStr.indexOf('FORMATO') !== -1 && rowStr.indexOf('FUNIL') !== -1) || (rowStr.indexOf('TITULO') !== -1 && rowStr.indexOf('FORMATO') !== -1)) { headerIdx = i; break; }
+        }
+        if (headerIdx === -1) return;
+        var headers = raw[headerIdx].map(function(h) { return giMapColumnName(String(h || '')); });
+        for (var j = headerIdx + 1; j < raw.length; j++) {
+          var row = raw[j];
+          if (!row || !row.length) continue;
+          var obj = {};
+          headers.forEach(function(h, ci) {
+            if (h && row[ci] !== undefined && String(row[ci]).trim() !== '') { obj[h] = String(row[ci] || ''); }
+          });
+          if (obj.titulo && obj.titulo.trim()) {
+            obj.id = allRows.length + 1;
+            if (obj.formato) { var sm = obj.formato.match(/(\d+)\s*(slides|frames)/i); if (sm) obj.slides = parseInt(sm[1]); }
+            if (!obj.slides) obj.slides = 1;
+            if (!obj.funil) obj.funil = 'MEIO';
+            allRows.push(obj);
+          }
+        }
+      });
+      giLoadPosts(allRows);
     } catch(err) { S.giUploadErr = 'Erro XLSX: ' + err.message; render(); }
   };
   reader.readAsArrayBuffer(file);
@@ -14054,7 +14104,7 @@ function giLoadPosts(rows) {
   var posts = [];
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
-    var post = {id:parseInt(r.id||r['#']||(i+1)),data:r.data||r.date||'',dia:r.dia||'',funil:(r.funil||r.funnel||'MEIO').toUpperCase(),formato:r.formato||r.format||'Estatico',slides:parseInt(r.slides||r.qty||1),titulo:r.titulo||r.title||r.headline||'',visual:r.visual||r.descricao_visual||'',tecnica:r.tecnica||'',objecao:r.objecao||'',cta:r.cta||'',copy:r.copy||r.texto||'',prompt:r.prompt||r.prompt_img||r.image_prompt||''};
+    var post = {id:parseInt(r.id||r['#']||(i+1)),data:r.data||r.date||'',dia:r.dia||'',funil:(r.funil||r.funnel||'MEIO').toUpperCase(),formato:r.formato||r.format||'Estatico',slides:parseInt(r.slides||r.qty||1),titulo:r.titulo||r.title||r.headline||'',visual:r.visual||r.descricao_visual||'',tecnica:r.tecnica||'',objecao:r.objecao||'',cta:r.cta||'',copy:r.copy||r.texto||'',prompt:r.prompt||r.prompt_img||r.image_prompt||'',editoria:r.editoria||'',emocao:r.emocao||'',dado_conjuntura:r.dado_conjuntura||''};
     if (post.titulo) posts.push(post);
   }
   if (!posts.length) { S.giUploadErr = 'Nenhum post com titulo encontrado'; render(); return; }
