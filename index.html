@@ -8592,8 +8592,8 @@ var bg=i%2===0?'rgba(255,255,255,.02)':'transparent';
 var adCount=ad.ads||0;
 var barW=topAds>0?Math.round(adCount/topAds*100):0;
 var barColor=adCount>=100?'#e74c3c':adCount>=30?'var(--gold)':adCount>0?'#3498db':'#333';
-var searchQ=encodeURIComponent(c.name.replace(/[&]/g,''));
-var adLibUrl='https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&q='+searchQ+'&search_type=keyword_unordered';
+var pid=(typeof META_PAGE_IDS!=='undefined')?META_PAGE_IDS[c.handle]:null;
+var adLibUrl=pid?'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&is_targeted_country=false&media_type=all&search_type=page&sort_data[direction]=desc&sort_data[mode]=total_impressions&view_all_page_id='+pid:'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&q='+encodeURIComponent(c.name.replace(/[&]/g,''))+'&search_type=keyword_unordered';
 h+='<tr style="background:'+bg+';transition:background .2s;" onmouseover="this.style.background=\'rgba(255,215,0,.05)\'" onmouseout="this.style.background=\''+bg+'\'">';
 h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);color:#64748b;font-weight:600;">'+(i+1)+'</td>';
 h+='<td style="padding:10px;border-bottom:1px solid rgba(255,255,255,.05);"><div style="font-weight:600;color:#fff;">'+c.name+'</div><div style="color:#888;font-size:.7rem;">'+c.handle+'</div></td>';
@@ -8612,8 +8612,8 @@ var adCount=ad.ads||0;
 var gads=getData(c.handle,'google_ads');
 var adTypes=getData(c.handle,'ad_types'),adCopy=getData(c.handle,'ad_copy_style'),adCta=getData(c.handle,'ad_cta');
 var adSpend=getData(c.handle,'ad_spend_estimate'),adTopPerf=getData(c.handle,'ad_top_performer'),adWeakness=getData(c.handle,'ad_weakness');
-var searchQ=encodeURIComponent(c.name.replace(/[&]/g,''));
-var adLibUrl='https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&q='+searchQ+'&search_type=keyword_unordered';
+var pid=(typeof META_PAGE_IDS!=='undefined')?META_PAGE_IDS[c.handle]:null;
+var adLibUrl=pid?'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&is_targeted_country=false&media_type=all&search_type=page&sort_data[direction]=desc&sort_data[mode]=total_impressions&view_all_page_id='+pid:'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&q='+encodeURIComponent(c.name.replace(/[&]/g,''))+'&search_type=keyword_unordered';
 var metaColor=adCount>0?'#3498db':'#444';
 var gadsColor=gads!=='\u2014'&&gads!=='Inativo'?'#f39c12':'#444';
 h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px;transition:all .3s;" onmouseover="this.style.borderColor=\'var(--gold)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.08)\'">';
@@ -14819,7 +14819,357 @@ function metricasViabCalc(){
     <div style="font-size:20px;font-weight:700;color:${viavel?'#00e5a0':'#ef4444'}">${viavel?'VI\u00c1VEL':'INVI\u00c1VEL'}</div>
     <div style="color:#94a3b8;font-size:13px;margin-top:4px">ROI: ${roi}% | Payback: ${payback} m${payback===1?'\u00eas':'eses'}</div>`;
 }
-function pgMetaAds(){var h="";var adData={};try{adData=JSON.parse(localStorage.getItem("psm_ads_data")||"{}").data||{}}catch(e){}var comps=[{n:"Empreendimentos Rio Preto",h:"empreendimentos_rp",t:"A",s:"MAP"},{n:"Jean Doniani",h:"jeandoniani",t:"A",s:"MAP"},{n:"Scopel",h:"scopelempreendimentos",t:"A",s:"MAP"},{n:"Rodobens",h:"rodobens",t:"A",s:"MAP"},{n:"Pacaembu Construtora",h:"pacaembuconstrutora",t:"A",s:"MAP"},{n:"EBM Desenvolvimento",h:"ebmdesenvolvimento",t:"B",s:"MAP"},{n:"MRV",h:"mrv",t:"A",s:"MCMV"},{n:"Tenda",h:"taboratenda",t:"A",s:"MCMV"},{n:"Direcional",h:"direcional",t:"A",s:"MCMV"},{n:"Gabriel Elegance",h:"gab.elegance",t:"A",s:"MCMV"},{n:"Guilherme Neilly",h:"guilhermeneilly",t:"A",s:"Terceiros"},{n:"Mari Bolandin",h:"maribolandin",t:"A",s:"Terceiros"},{n:"Ana Ancheta",h:"anaancheta",t:"A",s:"Terceiros"},{n:"Fred Tonelli Neto",h:"fredtonellineto",t:"A",s:"Terceiros"},{n:"Franco Marinho",h:"francomarinhoimoveis",t:"A",s:"Terceiros"},{n:"Andrea Torquatto",h:"andreatorquatto",t:"A",s:"Terceiros"},{n:"Compacto Imoveis",h:"compactoimoveis",t:"A",s:"Locacao"},{n:"Porta 8 Imoveis",h:"porta8imoveis",t:"A",s:"Locacao"},{n:"Tavares Imoveis",h:"tavares.imoveis",t:"B",s:"MAP"},{n:"Thiago Godoy",h:"thigodoy",t:"A",s:"MAP"},{n:"Mega Empreendimentos",h:"megaempreendimentos",t:"B",s:"MAP"},{n:"Zanata Imoveis",h:"zanataimoveis",t:"B",s:"MAP"},{n:"Damha Urbanizadora",h:"damhaurbanizadora",t:"A",s:"MAP"},{n:"MyCasa",h:"mycasa.rp",t:"B",s:"MCMV"},{n:"SM2 Imoveis",h:"sm2imoveis",t:"B",s:"MCMV"},{n:"Mendes Ortega",h:"mendesortega",t:"B",s:"Terceiros"},{n:"Tomazini Assessoria",h:"tomaziniassessoria",t:"B",s:"Terceiros"},{n:"Luciana Marques",h:"lucianamarquescorretora_",t:"B",s:"Terceiros"},{n:"Patricia Gusman",h:"patriciagusman",t:"B",s:"Terceiros"},{n:"Alessandra Ventura",h:"alessandraventuraa",t:"B",s:"Terceiros"},{n:"Marcia Okuda",h:"marciaokuda",t:"B",s:"Terceiros"},{n:"Invest Rio Preto",h:"invest_riopreto",t:"B",s:"Terceiros"},{n:"Rogerio Rocha",h:"rogeriodrocha",t:"B",s:"MAP"},{n:"Rafaela Pinotti",h:"rafaelapinotti",t:"B",s:"Terceiros"},{n:"Wagner Corretores",h:"wagnercorretores",t:"B",s:"Terceiros"},{n:"Vivian Sasso",h:"viviansassocorretora",t:"B",s:"Terceiros"},{n:"Reuel Imoveis",h:"reuelimoveis",t:"B",s:"Terceiros"},{n:"Nathalia Oliveira",h:"nathaliaoliveiracorretora",t:"B",s:"Terceiros"},{n:"Renato Magalhaes",h:"renatomagalhaesimoveis",t:"B",s:"MAP"},{n:"Opus Imoveis",h:"opusimoveis",t:"B",s:"Terceiros"},{n:"Souza Lima Imoveis",h:"souzalimaimoveis",t:"B",s:"MAP"},{n:"RP Prime Imoveis",h:"rpprimeimoveis",t:"B",s:"Terceiros"},{n:"Habita Imoveis",h:"habitaimoveis",t:"B",s:"Locacao"},{n:"Imobiliaria Lider",h:"imobiliarialider",t:"B",s:"Locacao"},{n:"Zap Imoveis RP",h:"zapimoveis",t:"B",s:"Terceiros"},{n:"RE/MAX Regional",h:"remaxregional",t:"B",s:"Terceiros"}];if(!S.adsTab)S.adsTab="monitor";if(!S.adsSegFilter)S.adsSegFilter="all";comps.forEach(function(c){var d=adData[c.n]||{};c.adCount=d.count||0;c.newest=d.newest||"-"});var seg=S.adsSegFilter;var filtered=seg==="all"?comps:comps.filter(function(c){return c.s===seg});filtered.sort(function(a,b){return(b.adCount||0)-(a.adCount||0)});var totalAds=0,withAds=0,topAdv={n:"-",adCount:0};filtered.forEach(function(c){totalAds+=(c.adCount||0);if(c.adCount>0)withAds++;if((c.adCount||0)>topAdv.adCount)topAdv=c});function adLibUrl(name){return "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&q="+encodeURIComponent(name)+"&search_type=keyword_unordered"}var tab=S.adsTab;h+='<div style="padding:24px;max-width:1200px;margin:0 auto">';h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px"><h2 style="margin:0;color:#fff;font-size:22px">Intelligence Ads</h2></div>';h+='<div style="display:flex;gap:8px;margin-bottom:16px">';["monitor","ranking","insights"].forEach(function(t){var sel=tab===t;var lbl=t==="monitor"?"Monitor":t==="ranking"?"Ranking":"Insights";h+='<button onclick="S.adsTab=\''+t+'\';render({force:true})" style="padding:8px 16px;border-radius:8px;border:1px solid '+(sel?"#00d4ff":"#333")+';background:'+(sel?"rgba(0,212,255,.1)":"transparent")+';color:'+(sel?"#00d4ff":"#aaa")+';cursor:pointer;font-weight:'+(sel?"700":"400")+'">'+lbl+'</button>'});h+='</div>';h+='<div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">';[{id:"all",l:"Todos"},{id:"MAP",l:"MAP"},{id:"MCMV",l:"MCMV"},{id:"Terceiros",l:"Terceiros"},{id:"Locacao",l:"Locacao"}].forEach(function(f){var sel=seg===f.id;h+='<button onclick="S.adsSegFilter=\''+f.id+'\';render({force:true})" style="padding:4px 12px;border-radius:20px;border:1px solid '+(sel?"#ffd700":"#333")+';background:'+(sel?"rgba(255,215,0,.1)":"transparent")+';color:'+(sel?"#ffd700":"#aaa")+';font-size:12px;cursor:pointer">'+f.l+'</button>'});h+='</div>';h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">';h+='<div style="background:#1a1a2e;padding:16px;border-radius:10px;text-align:center"><div style="font-size:28px;font-weight:700;color:#00d4ff">'+comps.length+'</div><div style="font-size:12px;color:#aaa;margin-top:4px">Concorrentes</div></div>';h+='<div style="background:#1a1a2e;padding:16px;border-radius:10px;text-align:center"><div style="font-size:28px;font-weight:700;color:#00ff87">'+withAds+'</div><div style="font-size:12px;color:#aaa;margin-top:4px">Com Ads Ativos</div></div>';h+='<div style="background:#1a1a2e;padding:16px;border-radius:10px;text-align:center"><div style="font-size:28px;font-weight:700;color:#ffd700">'+totalAds+'</div><div style="font-size:12px;color:#aaa;margin-top:4px">Total Anuncios</div></div>';h+='<div style="background:#1a1a2e;padding:16px;border-radius:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:#ff6b6b">'+topAdv.n+'</div><div style="font-size:12px;color:#aaa;margin-top:4px">Maior Anunciante</div></div>';h+='</div>';if(tab==="monitor"){h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">';filtered.forEach(function(c){var tc=c.t==="A"?"#ff6b6b":c.t==="B"?"#ffd700":"#aaa";var ac=c.adCount||0;var badge=ac>0?'<span style="background:#00ff87;color:#000;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">'+ac+' ads</span>':'<span style="background:#333;color:#666;padding:2px 8px;border-radius:10px;font-size:11px">Sem ads</span>';h+='<div style="background:#1a1a2e;padding:16px;border-radius:12px;border-left:3px solid '+tc+'">';h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-weight:700;font-size:14px;color:#fff">'+c.n+'</span><span style="color:'+tc+';font-size:12px;font-weight:700">Tier '+c.t+'</span></div>';h+='<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span style="color:#aaa;font-size:11px">'+c.s+'</span>'+badge+'</div>';h+='<div style="display:flex;gap:6px"><a href="'+adLibUrl(c.n)+'" target="_blank" style="font-size:11px;color:#00d4ff;text-decoration:none;background:rgba(0,212,255,.1);padding:4px 10px;border-radius:6px">Biblioteca</a>';if(c.h){h+='<a href="https://instagram.com/'+c.h+'" target="_blank" style="font-size:11px;color:#e1306c;text-decoration:none;background:rgba(225,48,108,.1);padding:4px 10px;border-radius:6px">Instagram</a>'}h+='</div></div>'});h+='</div>'}if(tab==="ranking"){h+='<div style="background:#1a1a2e;border-radius:12px;overflow:hidden"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#0d0d1a"><th style="padding:12px;text-align:left;color:#aaa">#</th><th style="padding:12px;text-align:left;color:#aaa">Concorrente</th><th style="padding:12px;text-align:center;color:#aaa">Tier</th><th style="padding:12px;text-align:center;color:#aaa">Seg</th><th style="padding:12px;text-align:center;color:#aaa">Ads</th><th style="padding:12px;text-align:center;color:#aaa">Link</th></tr></thead><tbody>';filtered.forEach(function(c,i){var tc=c.t==="A"?"#ff6b6b":c.t==="B"?"#ffd700":"#aaa";var ac=c.adCount||0;h+='<tr style="border-bottom:1px solid #222"><td style="padding:10px 12px;color:#666">'+(i+1)+'</td><td style="padding:10px 12px;color:#fff;font-weight:600">'+c.n+'</td><td style="padding:10px 12px;text-align:center;color:'+tc+';font-weight:700">'+c.t+'</td><td style="padding:10px 12px;text-align:center;color:#aaa">'+c.s+'</td>';h+='<td style="padding:10px 12px;text-align:center"><span style="background:'+(ac>0?"#00ff87":"#333")+';color:'+(ac>0?"#000":"#666")+';padding:2px 10px;border-radius:10px;font-weight:700;font-size:12px">'+ac+'</span></td>';h+='<td style="padding:10px 12px;text-align:center"><a href="'+adLibUrl(c.n)+'" target="_blank" style="color:#00d4ff;text-decoration:none;font-size:11px">Ver</a></td></tr>'});h+='</tbody></table></div>'}if(tab==="insights"){var top5=filtered.slice(0,5);var tierANo=filtered.filter(function(c){return c.t==="A"&&!(c.adCount>0)});h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';h+='<div style="background:#1a1a2e;padding:20px;border-radius:12px"><h3 style="color:#00d4ff;margin:0 0 12px;font-size:15px">Top 5 Anunciantes</h3>';if(top5.length===0){h+='<p style="color:#666;font-size:13px">Nenhum dado. Use Biblioteca para verificar.</p>'}else{top5.forEach(function(c,i){h+='<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #222"><span style="color:#fff">'+(i+1)+'. '+c.n+'</span><span style="color:#00ff87;font-weight:700">'+(c.adCount||0)+' ads</span></div>'})}h+='</div>';h+='<div style="background:#1a1a2e;padding:20px;border-radius:12px"><h3 style="color:#ff6b6b;margin:0 0 12px;font-size:15px">Tier A sem Ads</h3>';if(tierANo.length===0){h+='<p style="color:#00ff87;font-size:13px">Todos os Tier A anunciando!</p>'}else{tierANo.forEach(function(c){h+='<div style="padding:6px 0;border-bottom:1px solid #222;color:#fff;font-size:13px">'+c.n+' <span style="color:#aaa">('+c.s+')</span></div>'})}h+='</div>';var pct=comps.length>0?Math.round(withAds/comps.length*100):0;h+='<div style="background:#1a1a2e;padding:20px;border-radius:12px"><h3 style="color:#ffd700;margin:0 0 12px;font-size:15px">Resumo Estrategico</h3><p style="color:#ccc;font-size:13px;line-height:1.6">'+pct+'% dos concorrentes possuem anuncios ativos na Meta. Clique em Biblioteca para ver os criativos reais.</p></div></div>'}h+='<div style="margin-top:24px;padding:16px;background:#1a1a2e;border-radius:10px;border-left:3px solid #00d4ff"><p style="color:#aaa;font-size:12px;margin:0;line-height:1.6"><strong style="color:#00d4ff">Como funciona:</strong> Dados obtidos pela <a href="https://www.facebook.com/ads/library/" target="_blank" style="color:#00d4ff">Biblioteca de Anuncios da Meta</a> (fonte publica). Clique em Biblioteca para ver criativos reais.</p></div>';h+='</div>';return h;}
+var META_PAGE_IDS={
+'@fg_inteligenciaimobiliaria':'251428058048549','@imobiliaria_saojose':'109950098309921','@gruponexgen':'857841284076491','@renascerejalesjk':'1029339286932287',
+'@house3imobiliaria':'336027406258118','@imobiliariagrupozani':'101587087976514','@imobiliariairmaosferreira':'1693511670731545','@condominiumimoveis':'144347112425008',
+'@imobiliariawestim':'109584225112402','@shimanaimoveis':'770368413001259','@atlas.imb':'499455473247880','@5gimoveis':'112977187072469',
+'@gemimnegociosimobiliarios':'103782116143274','@anaancheta.imoveis':'101422654811836','@allegroprime.oficial':'111717875267207','@imoveisnovageracaorp':'102488338043286',
+'@imoveisaltopadrao_sjrp':'111269225330893','@alonso_negociosimobiliarios':'214733118396261','@blessriopreto':'103307098655854','@gabrieleleganceimoveis':'104791488719525',
+'@imobiliariafitprime':'104029939216479','@imobiliariafelixemaciel':'100371522647785','@martincarrazoneimoveis':'243459655523557','@vanessabrianti_imoveis':'400613696477539',
+'@corretorguilhermeneilly':'105137467515540','@joaogabriel.imoveis':'104031465786185','@urbano_negocios_imobiliarios':'111954114977621','@diegourbano.imoveis':'830545453485228',
+'@mateussantillicorretor':'164196200120273','@jpbonfa':'109848154827554','@corretor.marcodeboletta':'122097377192007409','@maribolandin_altopadrao':'1445088742301910',
+'@imoveisgabi':'108413597406322','@joaomozaquatro':'102322759550436','@marcovessani':'101976961866630','@francomarinho.corretor':'362467630752770',
+'@rrbroker':'327246514399591','@porta8imoveis':'107775701156073','@compactoimoveis':'114751304955764','@allianzanegociosimobiliarios':'837960639566169',
+'@andreatorquatto':'100558971514637','@fredtonellineto':'754051904456906','@simonemoreno_negimobiliarios':'738752766476515','@jeandoniani':'405869292615098'
+};
+
+function pgMetaAds(){
+// ===== INTELLIGENCE ADS — MONITORAMENTO DA BIBLIOTECA DE ANÚNCIOS META =====
+// Carrega dados dos concorrentes do radar
+if(typeof radarDefaults==='undefined'||Object.keys(radarDefaults).length===0){try{pgRadar();}catch(e){}}
+var _rd=radarDefaults||{};
+var _ls={};try{_ls=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');}catch(e){}
+var adLib={};try{adLib=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');}catch(e){}
+var adData=adLib.data||{};
+var scanDate=adLib.scanDate?new Date(adLib.scanDate).toLocaleDateString('pt-BR'):'Nunca';
+
+// Todos os concorrentes do radar
+var competitors=[
+{name:'Empreendimentos Rio Preto',handle:'@empreendimentos_rp',type:'imobiliaria',tier:'A',seg:'MAP'},
+{name:'Jean Doniani',handle:'@jeandoniani',type:'corretor',tier:'A',seg:'MAP'},
+{name:'Scopel',handle:'@scopelempreendimentos',type:'imobiliaria',tier:'A',seg:'MAP'},
+{name:'Rodobens',handle:'@rodobens',type:'imobiliaria',tier:'A',seg:'MAP'},
+{name:'Pacaembu Construtora',handle:'@pacaembuconstrutora',type:'imobiliaria',tier:'A',seg:'MAP'},
+{name:'EBM Desenvolvimento Imob.',handle:'@ebmdesenvolvimento',type:'imobiliaria',tier:'B',seg:'MAP'},
+{name:'MRV',handle:'@mrv',type:'imobiliaria',tier:'A',seg:'MCMV'},
+{name:'Tenda',handle:'@taboratenda',type:'imobiliaria',tier:'A',seg:'MCMV'},
+{name:'Direcional',handle:'@direcional',type:'imobiliaria',tier:'A',seg:'MCMV'},
+{name:'Gabriel Elegance',handle:'@gab.elegance',type:'corretor',tier:'A',seg:'MCMV'},
+{name:'Guilherme Neilly',handle:'@guilhermeneilly',type:'corretor',tier:'A',seg:'Terceiros'},
+{name:'Mari Bolandin',handle:'@maribolandin',type:'corretor',tier:'A',seg:'Terceiros'},
+{name:'Ana Ancheta',handle:'@anaancheta',type:'corretor',tier:'A',seg:'Terceiros'},
+{name:'Fred Tonelli Neto',handle:'@fredtonellineto',type:'corretor',tier:'A',seg:'Terceiros'},
+{name:'Franco Marinho',handle:'@francomarinhoimoveis',type:'corretor',tier:'A',seg:'Terceiros'},
+{name:'Andrea Torquatto',handle:'@andreatorquatto',type:'corretor',tier:'A',seg:'Terceiros'},
+{name:'Compacto Imoveis',handle:'@compactoimoveis',type:'imobiliaria',tier:'A',seg:'Locacao'},
+{name:'Porta 8 Imoveis',handle:'@porta8imoveis',type:'imobiliaria',tier:'A',seg:'Locacao'},
+{name:'Tavares Imoveis',handle:'@tavares.imoveis',type:'imobiliaria',tier:'B',seg:'MAP'},
+{name:'Thiago Godoy',handle:'@thigodoy',type:'corretor',tier:'A',seg:'MAP'},
+{name:'Mega Empreendimentos',handle:'@megaempreendimentos',type:'imobiliaria',tier:'B',seg:'MAP'},
+{name:'Zanata Imoveis',handle:'@zanataimoveis',type:'imobiliaria',tier:'B',seg:'MAP'},
+{name:'Damha Urbanizadora',handle:'@damhaurbanizadora',type:'imobiliaria',tier:'A',seg:'MAP'},
+{name:'MyCasa',handle:'@mycasa.rp',type:'imobiliaria',tier:'B',seg:'MCMV'},
+{name:'SM2 Imoveis',handle:'@sm2imoveis',type:'imobiliaria',tier:'B',seg:'MCMV'},
+{name:'Mendes Ortega',handle:'@mendesortega',type:'imobiliaria',tier:'B',seg:'Terceiros'},
+{name:'Tomazini Assessoria',handle:'@tomaziniassessoriaimobiliaria',type:'imobiliaria',tier:'B',seg:'Terceiros'},
+{name:'Luciana Marques',handle:'@lucianamarquescorretora_',type:'corretor',tier:'B',seg:'Terceiros'},
+{name:'Patricia Gusman',handle:'@patriciagusman',type:'corretor',tier:'B',seg:'Terceiros'},
+{name:'Alessandra Ventura',handle:'@alessandraventuraa',type:'corretor',tier:'B',seg:'Terceiros'},
+{name:'Marcia Okuda',handle:'@marciaokuda',type:'corretor',tier:'B',seg:'Terceiros'},
+{name:'Invest Rio Preto',handle:'@invest_riopreto',type:'imobiliaria',tier:'B',seg:'Terceiros'},
+{name:'Rogerio Rocha',handle:'@rogeriodrocha',type:'corretor',tier:'B',seg:'MAP'},
+{name:'Rafaela Pinotti',handle:'@rafaelapinotti',type:'corretor',tier:'B',seg:'Terceiros'},
+{name:'Wagner Corretores',handle:'@wagnercorretoresdeimoveis',type:'imobiliaria',tier:'B',seg:'Terceiros'},
+{name:'Vivian Sasso',handle:'@viviansassocorretora',type:'corretor',tier:'B',seg:'Terceiros'},
+{name:'Reuel Imoveis',handle:'@reuelimoveis',type:'imobiliaria',tier:'B',seg:'Terceiros'},
+{name:'Nathalia Oliveira',handle:'@nathaliaoliveiracorretora',type:'corretor',tier:'B',seg:'Terceiros'},
+{name:'Apolar Rio Preto',handle:'@apolarriopreto',type:'imobiliaria',tier:'B',seg:'Terceiros'},
+{name:'Habita Imoveis RP',handle:'@habitaimoveisrp',type:'imobiliaria',tier:'C',seg:'MCMV'},
+{name:'Valor Real Imoveis',handle:'@valorreal.imoveis',type:'imobiliaria',tier:'C',seg:'MCMV'},
+{name:'Portal Imoveis RP',handle:'@portalimoveis_rp',type:'imobiliaria',tier:'C',seg:'MCMV'},
+{name:'MF Prime',handle:'@mf_prime_',type:'imobiliaria',tier:'C',seg:'MCMV'},
+{name:'JG Assessoria',handle:'@jg_assessoriaimob',type:'imobiliaria',tier:'C',seg:'MCMV'},
+{name:'Urbana Empreendimentos',handle:'@urbanaempreendimentos',type:'imobiliaria',tier:'B',seg:'MAP'},
+{name:'Maison Imoveis',handle:'@maisonimoveis_rp',type:'imobiliaria',tier:'B',seg:'Terceiros'}
+];
+
+if(!S.adsTab) S.adsTab='monitor';
+if(!S.adsSegFilter) S.adsSegFilter='all';
+var tab=S.adsTab;
+
+competitors.forEach(function(c){
+  var ad=adData[c.handle]||{};
+  c.ads=ad.ads||0;
+  c.videos=ad.videos||0;
+  c.images=ad.images||0;
+  c.themes=ad.themes||[];
+  c.newest=ad.newest||'\u2014';
+  c.adTypes=ad.ad_types||'';
+  c.adCopy=ad.ad_copy_style||'';
+});
+
+var filtered=S.adsSegFilter==='all'?competitors:competitors.filter(function(c){return c.seg===S.adsSegFilter;});
+filtered.sort(function(a,b){return b.ads-a.ads;});
+
+var totalAds=0,totalVideos=0,totalImages=0,withAds=0;
+filtered.forEach(function(c){totalAds+=c.ads;totalVideos+=c.videos;totalImages+=c.images;if(c.ads>0)withAds++;});
+var topAdv=filtered.length>0&&filtered[0].ads>0?filtered[0]:{name:'\u2014',ads:0};
+
+function adLibUrl(handle,name){
+  var pid=META_PAGE_IDS[handle];
+  if(pid) return 'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&is_targeted_country=false&media_type=all&search_type=page&sort_data[direction]=desc&sort_data[mode]=total_impressions&view_all_page_id='+pid;
+  return 'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&q='+encodeURIComponent(name.replace(/[&]/g,''))+'&search_type=keyword_unordered';
+}
+
+var h='<div style="padding:24px;max-width:1500px;margin:0 auto;background:#0b1120;border-radius:16px;min-height:80vh;">';
+h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">';
+h+='<div><h2 style="margin:0;color:var(--gold);font-size:1.6rem;">\ud83d\udcf0 Intelligence Ads \u2014 Biblioteca de An\u00fancios</h2>';
+h+='<p style="margin:4px 0 0;color:#94a3b8;font-size:.85rem;">Monitoramento avan\u00e7ado dos an\u00fancios ativos dos concorrentes na Meta Ad Library</p></div>';
+h+='<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+h+='<button onclick="nav(\'inteldash\')" style="padding:8px 16px;background:rgba(212,175,55,.1);border:1px solid rgba(212,175,55,.3);color:var(--gold);border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600;">\ud83e\udde0 Dashboard Intel</button>';
+h+='</div></div>';
+h+='<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid #1e293b;padding-bottom:12px;flex-wrap:wrap;">';
+[{id:'monitor',lbl:'\ud83d\udcf0 Monitor'},{id:'ranking',lbl:'\ud83c\udfc6 Ranking'},{id:'analise',lbl:'\ud83d\udcca An\u00e1lise Segmento'},{id:'insights',lbl:'\ud83d\udca1 Insights & Estrat\u00e9gia'}].forEach(function(t){
+  var sel=tab===t.id;
+  h+='<button onclick="S.adsTab=\''+t.id+'\';render({force:true})" style="padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid '+(sel?'#6366f1':'#1e293b')+';border-bottom:none;background:'+(sel?'#6366f122':'transparent')+';color:'+(sel?'#818cf8':'#64748b')+';font-size:.82rem;font-weight:'+(sel?'700':'400')+';cursor:pointer;">'+t.lbl+'</button>';
+});
+h+='</div>';
+h+='<div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;">';
+[{id:'all',lbl:'Todos ('+competitors.length+')'},{id:'MAP',lbl:'MAP'},{id:'MCMV',lbl:'MCMV'},{id:'Terceiros',lbl:'Terceiros'},{id:'Locacao',lbl:'Loca\u00e7\u00e3o'}].forEach(function(s){
+  var sel=S.adsSegFilter===s.id;
+  h+='<button onclick="S.adsSegFilter=\''+s.id+'\';render({force:true})" style="padding:4px 12px;border-radius:20px;border:1px solid '+(sel?'var(--gold)':'#1e293b')+';background:'+(sel?'rgba(212,175,55,.12)':'transparent')+';color:'+(sel?'var(--gold)':'#64748b')+';font-size:.78rem;cursor:pointer;font-weight:'+(sel?'600':'400')+'">'+s.lbl+'</button>';
+});
+h+='</div>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px;">';
+var kpis=[
+  {l:'Concorrentes',v:filtered.length,c:'var(--gold)',i:'\ud83d\udc41\ufe0f'},
+  {l:'Com Ads Ativos',v:withAds,c:withAds>0?'#10b981':'#64748b',i:'\ud83d\udcf1'},
+  {l:'Total An\u00fancios',v:totalAds.toLocaleString('pt-BR'),c:'#6366f1',i:'\ud83d\udce2'},
+  {l:'V\u00eddeos',v:totalVideos,c:'#10b981',i:'\ud83c\udfac'},
+  {l:'Imagens',v:totalImages,c:'#3b82f6',i:'\ud83d\uddbc\ufe0f'},
+  {l:'Maior Anunciante',v:topAdv.name,c:'#e74c3c',i:'\ud83c\udfc6'},
+  {l:'\u00daltimo Scan',v:scanDate,c:'#64748b',i:'\ud83d\udcc5'}
+];
+kpis.forEach(function(k){
+  h+='<div style="text-align:center;padding:14px;background:#1a2332;border:1px solid #1e293b;border-radius:12px;">';
+  h+='<div style="font-size:1.3rem;">'+k.i+'</div>';
+  h+='<div style="font-size:'+(typeof k.v==='string'&&k.v.length>10?'.95rem':'1.5rem')+';font-weight:700;color:'+k.c+';margin:4px 0;">'+k.v+'</div>';
+  h+='<div style="font-size:.7rem;color:#94a3b8;">'+k.l+'</div></div>';
+});
+h+='</div>';
+if(tab==='monitor'){
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;">';
+filtered.forEach(function(c){
+  var url=adLibUrl(c.handle,c.name);
+  var adCount=c.ads||0;var vids=c.videos||0;var imgs=c.images||0;
+  var tierC=c.tier==='A'?'#e74c3c':c.tier==='B'?'var(--gold)':'#888';
+  var segC=c.seg==='MAP'?'#3498db':c.seg==='MCMV'?'#2ecc71':c.seg==='Terceiros'?'#9b59b6':'#f39c12';
+  var vidPct=adCount>0?Math.round(vids/(vids+imgs||1)*100):0;
+  h+='<div style="background:#1a2332;border:1px solid #1e293b;border-radius:14px;padding:18px;transition:all .3s;" onmouseover="this.style.borderColor=\'var(--gold)\'" onmouseout="this.style.borderColor=\'#1e293b\'">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;">';
+  h+='<div><div style="font-weight:600;color:#fff;font-size:.92rem;">'+(c.type==='imobiliaria'?'\ud83c\udfe2':'\ud83d\udc64')+' '+c.name+'</div>';
+  h+='<div style="color:#64748b;font-size:.72rem;">'+c.handle+'</div></div>';
+  h+='<div style="display:flex;gap:4px;"><span style="background:'+tierC+'22;color:'+tierC+';padding:2px 8px;border-radius:10px;font-size:.65rem;font-weight:700;">'+c.tier+'</span>';
+  h+='<span style="background:'+segC+'22;color:'+segC+';padding:2px 8px;border-radius:10px;font-size:.65rem;font-weight:600;">'+c.seg+'</span></div></div>';
+  h+='<div style="display:flex;gap:8px;margin-bottom:10px;">';
+  h+='<div style="flex:1;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;text-align:center;border-left:3px solid '+(adCount>0?'#6366f1':'#333')+';">';
+  h+='<div style="font-size:.65rem;color:#888;">An\u00fancios</div><div style="font-size:1.4rem;font-weight:700;color:'+(adCount>0?'#6366f1':'#555')+';">'+adCount+'</div></div>';
+  h+='<div style="flex:1;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;text-align:center;">';
+  h+='<div style="font-size:.65rem;color:#888;">\ud83c\udfac V\u00eddeo / \ud83d\uddbc\ufe0f Img</div>';
+  h+='<div style="font-size:1rem;font-weight:700;"><span style="color:#10b981;">'+vids+'</span><span style="color:#555;"> / </span><span style="color:#3b82f6;">'+imgs+'</span></div></div>';
+  h+='<div style="flex:1;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;text-align:center;">';
+  h+='<div style="font-size:.65rem;color:#888;">Desde</div><div style="font-size:.82rem;font-weight:600;color:'+(c.newest!=='\u2014'?'#94a3b8':'#555')+';">'+c.newest+'</div></div></div>';
+  if(adCount>0){h+='<div style="height:6px;background:#1e293b;border-radius:3px;overflow:hidden;margin-bottom:10px;"><div style="height:100%;width:'+vidPct+'%;background:#10b981;border-radius:3px;float:left;"></div><div style="height:100%;width:'+(100-vidPct)+'%;background:#3b82f6;border-radius:3px;float:left;"></div></div>';}
+  var thArr=typeof c.themes==='string'?c.themes.split(','):Array.isArray(c.themes)?c.themes:[];
+  if(thArr.length>0&&thArr[0]!==''){h+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">';thArr.slice(0,3).forEach(function(t){h+='<span style="background:rgba(99,102,241,.1);color:#818cf8;padding:2px 8px;border-radius:10px;font-size:.68rem;">'+t.trim()+'</span>';});if(thArr.length>3)h+='<span style="color:#64748b;font-size:.65rem;">+'+(thArr.length-3)+'</span>';h+='</div>';}
+  h+='<a href="'+url+'" target="_blank" style="display:block;padding:10px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);color:#818cf8;border-radius:8px;text-align:center;text-decoration:none;font-size:.82rem;font-weight:600;">\ud83d\udd0d Ver na Ad Library</a>';
+  h+='</div>';
+});
+h+='</div>';}
+if(tab==='ranking'){
+h+='<div style="background:#1a2332;border:1px solid #1e293b;border-radius:12px;padding:20px;overflow-x:auto;">';
+h+='<table style="width:100%;border-collapse:collapse;font-size:.8rem;"><thead><tr style="background:rgba(255,255,255,.05);">';
+['#','Concorrente','Seg.','Tier','An\u00fancios','\ud83c\udfac V\u00eddeos','\ud83d\uddbc\ufe0f Imgs','% V\u00eddeo','Temas','Desde','Ad Library'].forEach(function(col){
+  h+='<th style="padding:10px 8px;text-align:left;color:var(--gold);font-weight:600;white-space:nowrap;border-bottom:1px solid #1e293b;">'+col+'</th>';
+});
+h+='</tr></thead><tbody>';
+var maxAds=filtered.length>0?filtered[0].ads:1;
+filtered.forEach(function(c,i){
+  var bg=i%2===0?'rgba(255,255,255,.02)':'transparent';
+  var barW=maxAds>0?Math.round(c.ads/maxAds*100):0;
+  var barColor=c.ads>=20?'#e74c3c':c.ads>=10?'#6366f1':c.ads>0?'#3498db':'#333';
+  var vidPct=(c.videos+c.images)>0?Math.round(c.videos/(c.videos+c.images)*100):0;
+  var vidColor=vidPct>=80?'#10b981':vidPct>=50?'#f59e0b':'#3b82f6';
+  var thArr=typeof c.themes==='string'?c.themes.split(','):Array.isArray(c.themes)?c.themes:[];
+  var thTxt=thArr.length>0&&thArr[0]!==''?thArr.slice(0,2).join(', '):'\u2014';
+  h+='<tr style="background:'+bg+';">';
+  h+='<td style="padding:8px;border-bottom:1px solid #1e293b22;color:#64748b;font-weight:600;">'+(i+1)+'</td>';
+  h+='<td style="padding:8px;border-bottom:1px solid #1e293b22;"><div style="font-weight:600;color:#fff;font-size:.82rem;">'+(c.type==='imobiliaria'?'\ud83c\udfe2':'\ud83d\udc64')+' '+c.name+'</div></td>';
+  h+='<td style="padding:8px;border-bottom:1px solid #1e293b22;font-size:.72rem;color:#94a3b8;">'+c.seg+'</td>';
+  h+='<td style="padding:8px;border-bottom:1px solid #1e293b22;"><span style="background:'+(c.tier==='A'?'#e74c3c':c.tier==='B'?'var(--gold)':'#888')+'22;color:'+(c.tier==='A'?'#e74c3c':c.tier==='B'?'var(--gold)':'#888')+';padding:2px 6px;border-radius:8px;font-size:.68rem;font-weight:700;">'+c.tier+'</span></td>';
+  h+='<td style="padding:8px;border-bottom:1px solid #1e293b22;min-width:130px;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-weight:700;color:'+(c.ads>0?'#fff':'#555')+';min-width:24px;">'+c.ads+'</span><div style="flex:1;height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;"><div style="width:'+barW+'%;height:100%;background:'+barColor+';"></div></div></div></td>';
+  h+='<td style="padding:8px;border-bottom:1px solid #1e293b22;color:#10b981;font-weight:600;text-align:center;">'+c.videos+'</td>';
+  h+='<td style="padding:8px;border-bottom:1px solid #1e293b22;color:#3b82f6;font-weight:600;text-align:center;">'+c.images+'</td>';
+  h+='<td style="padding:8px;border-bottom:1px solid #1e293b22;text-align:center;"><span style="color:'+vidColor+';font-weight:600;font-size:.78rem;">'+vidPct+'%</span></td>';
+  h+='<td style="padding:8px;border-bottom:1px solid #1e293b22;color:#94a3b8;font-size:.72rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+thTxt+'</td>';
+  h+='<td style="padding:8px;border-bottom:1px solid #1e293b22;color:#64748b;font-size:.75rem;white-space:nowrap;">'+c.newest+'</td>';
+  h+='<td style="padding:8px;border-bottom:1px solid #1e293b22;"><a href="'+adLibUrl(c.handle,c.name)+'" target="_blank" style="padding:4px 10px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);color:#818cf8;border-radius:6px;text-decoration:none;font-size:.7rem;">\ud83d\udd0d</a></td>';
+  h+='</tr>';
+});
+h+='</tbody></table></div>';}
+if(tab==='analise'){
+var segs=['MAP','MCMV','Terceiros','Locacao'];
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">';
+segs.forEach(function(seg){
+  var segComps=competitors.filter(function(c){return c.seg===seg;});
+  var segAds=0,segWith=0,segVids=0,segImgs=0,segTop={name:'\u2014',ads:0};
+  segComps.forEach(function(c){segAds+=c.ads;segVids+=c.videos;segImgs+=c.images;if(c.ads>0)segWith++;if(c.ads>segTop.ads)segTop=c;});
+  var segColor=seg==='MAP'?'#3498db':seg==='MCMV'?'#2ecc71':seg==='Terceiros'?'#9b59b6':'#f39c12';
+  var avgAds=segWith>0?(segAds/segWith).toFixed(1):'0';
+  var vidPct=(segVids+segImgs)>0?Math.round(segVids/(segVids+segImgs)*100):0;
+  h+='<div style="background:#1a2332;border:1px solid #1e293b;border-radius:14px;padding:20px;border-top:3px solid '+segColor+';">';
+  h+='<h3 style="margin:0 0 12px;color:'+segColor+';font-size:1.05rem;">'+seg+(seg==='Locacao'?' (Loca\u00e7\u00e3o)':'')+'</h3>';
+  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">';
+  [{l:'Concorrentes',v:segComps.length},{l:'Com Ads',v:segWith},{l:'Total Ads',v:segAds},{l:'\ud83c\udfac V\u00eddeos',v:segVids},{l:'\ud83d\uddbc\ufe0f Imagens',v:segImgs},{l:'M\u00e9dia/Ativo',v:avgAds}].forEach(function(k){
+    h+='<div style="padding:8px;background:rgba(255,255,255,.03);border-radius:8px;text-align:center;"><div style="font-size:.62rem;color:#888;">'+k.l+'</div><div style="font-size:1.1rem;font-weight:700;color:#fff;">'+k.v+'</div></div>';
+  });
+  h+='</div>';
+  h+='<div style="margin-bottom:12px;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;">';
+  h+='<div style="font-size:.72rem;color:#888;margin-bottom:6px;">Formato Dominante</div>';
+  h+='<div style="height:8px;background:#1e293b;border-radius:4px;overflow:hidden;margin-bottom:4px;"><div style="height:100%;width:'+vidPct+'%;background:#10b981;float:left;"></div><div style="height:100%;width:'+(100-vidPct)+'%;background:#3b82f6;float:left;"></div></div>';
+  h+='<div style="display:flex;justify-content:space-between;font-size:.68rem;"><span style="color:#10b981;">\ud83c\udfac '+vidPct+'% v\u00eddeo</span><span style="color:#3b82f6;">\ud83d\uddbc\ufe0f '+(100-vidPct)+'% imagem</span></div>';
+  if(vidPct>=70) h+='<div style="margin-top:4px;font-size:.7rem;color:#10b981;">\u2b06 Segmento dominado por V\u00eddeo</div>';
+  else if(vidPct<=30) h+='<div style="margin-top:4px;font-size:.7rem;color:#3b82f6;">\u2b06 Segmento dominado por Imagem</div>';
+  else h+='<div style="margin-top:4px;font-size:.7rem;color:#f59e0b;">\u2194\ufe0f Mix equilibrado</div>';
+  h+='</div>';
+  var sorted=segComps.slice().sort(function(a,b){return b.ads-a.ads;}).slice(0,5);
+  sorted.forEach(function(c,i){
+    h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e293b33;">';
+    h+='<span style="font-size:.7rem;color:#64748b;min-width:16px;">'+(i+1)+'.</span>';
+    h+='<span style="flex:1;font-size:.8rem;color:#fff;">'+c.name+'</span>';
+    h+='<span style="font-size:.72rem;color:#10b981;min-width:20px;text-align:right;">'+c.videos+'v</span>';
+    h+='<span style="font-size:.72rem;color:#3b82f6;min-width:20px;text-align:right;">'+c.images+'i</span>';
+    h+='<span style="font-size:.82rem;font-weight:700;color:'+segColor+';min-width:24px;text-align:right;">'+c.ads+'</span>';
+    h+='<a href="'+adLibUrl(c.handle,c.name)+'" target="_blank" style="font-size:.68rem;color:#818cf8;text-decoration:none;">\ud83d\udd0d</a>';
+    h+='</div>';
+  });
+  h+='</div>';
+});
+h+='</div>';}
+if(tab==='insights'){
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">';
+h+='<div style="background:#1a2332;border:1px solid #1e293b;border-radius:14px;padding:20px;border-left:4px solid #6366f1;">';
+h+='<h4 style="margin:0 0 10px;color:#818cf8;font-size:.95rem;">\ud83c\udfc6 Top 10 Maiores Anunciantes</h4>';
+var top10=competitors.slice().sort(function(a,b){return b.ads-a.ads;}).slice(0,10);
+top10.forEach(function(c,i){
+  var medal=i===0?'\ud83e\udd47':i===1?'\ud83e\udd48':i===2?'\ud83e\udd49':(i+1)+'.';
+  h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e293b33;">';
+  h+='<span style="font-size:.9rem;min-width:24px;">'+medal+'</span>';
+  h+='<span style="flex:1;color:#fff;font-weight:500;font-size:.82rem;">'+c.name+'</span>';
+  h+='<span style="color:#10b981;font-size:.72rem;">'+c.videos+'v</span>';
+  h+='<span style="color:#3b82f6;font-size:.72rem;">'+c.images+'i</span>';
+  h+='<span style="font-weight:700;color:#6366f1;min-width:28px;text-align:right;">'+c.ads+'</span>';
+  h+='</div>';
+});
+h+='</div>';
+h+='<div style="background:#1a2332;border:1px solid #1e293b;border-radius:14px;padding:20px;border-left:4px solid #10b981;">';
+h+='<h4 style="margin:0 0 12px;color:#10b981;font-size:.95rem;">\ud83c\udfac Formato Criativo por Segmento</h4>';
+var segStats=[{seg:'MAP',color:'#3498db'},{seg:'MCMV',color:'#2ecc71'},{seg:'Terceiros',color:'#9b59b6'},{seg:'Locacao',color:'#f39c12'}];
+segStats.forEach(function(ss){
+  var sc=competitors.filter(function(c){return c.seg===ss.seg;});
+  var sv=0,si=0;sc.forEach(function(c){sv+=c.videos;si+=c.images;});
+  var vp=(sv+si)>0?Math.round(sv/(sv+si)*100):0;
+  h+='<div style="margin-bottom:10px;">';
+  h+='<div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:4px;"><span style="color:'+ss.color+';font-weight:600;">'+ss.seg+'</span><span style="color:#94a3b8;">'+sv+'v / '+si+'i ('+vp+'% v\u00eddeo)</span></div>';
+  h+='<div style="height:8px;background:#1e293b;border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+vp+'%;background:#10b981;float:left;"></div><div style="height:100%;width:'+(100-vp)+'%;background:#3b82f6;float:left;"></div></div>';
+  h+='</div>';
+});
+h+='</div>';
+h+='<div style="background:#1a2332;border:1px solid #1e293b;border-radius:14px;padding:20px;border-left:4px solid var(--gold);">';
+h+='<h4 style="margin:0 0 10px;color:var(--gold);font-size:.95rem;">\ud83c\udff7\ufe0f Produtos Mais Anunciados</h4>';
+var products=[
+  {name:'Line Impper',seg:'MAP',by:'NexGen + S\u00e3o Jos\u00e9'},
+  {name:'SINNI',seg:'MAP',by:'NexGen (pr\u00e9-lan\u00e7amento)'},
+  {name:'Legacy',seg:'MAP',by:'S\u00e3o Jos\u00e9 (83-157m\u00b2)'},
+  {name:'Connect Impper',seg:'MAP',by:'NexGen'},
+  {name:'Studio Duo JK',seg:'MAP',by:'Westim'},
+  {name:'Copacabana Praias',seg:'MAP',by:'S\u00e3o Jos\u00e9 (Tarraf)'},
+  {name:'Infinity Towers',seg:'MAP',by:'Gemim'},
+  {name:'MCMV Votuporanga',seg:'MCMV',by:'Martin & Carrazone'},
+  {name:'Casas B\u00e1lsamo',seg:'MCMV',by:'Martin & Carrazone'},
+  {name:'Jardim Verona',seg:'MCMV',by:'RR Broker + Fit Prime'},
+  {name:'Cond. Damhas',seg:'MAP',by:'House3 + Atlas'},
+  {name:'Quinta do Lago',seg:'Terceiros',by:'Franco Marinho'},
+  {name:'Damha III/VI',seg:'Terceiros',by:'Franco Marinho'}
+];
+products.forEach(function(p){
+  var segC=p.seg==='MAP'?'#3498db':p.seg==='MCMV'?'#2ecc71':p.seg==='Terceiros'?'#9b59b6':'#f39c12';
+  h+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e293b22;">';
+  h+='<span style="background:'+segC+'22;color:'+segC+';padding:1px 6px;border-radius:8px;font-size:.62rem;font-weight:600;min-width:50px;text-align:center;">'+p.seg+'</span>';
+  h+='<span style="color:#fff;font-weight:600;font-size:.82rem;flex:1;">'+p.name+'</span>';
+  h+='<span style="color:#64748b;font-size:.7rem;">'+p.by+'</span>';
+  h+='</div>';
+});
+h+='</div>';
+var noAds=competitors.filter(function(c){return c.ads===0&&(c.tier==='A'||c.tier==='B');});
+h+='<div style="background:#1a2332;border:1px solid #1e293b;border-radius:14px;padding:20px;border-left:4px solid #f59e0b;">';
+h+='<h4 style="margin:0 0 8px;color:#f59e0b;font-size:.95rem;">\u26a0\ufe0f Sem Ads Ativos ('+noAds.length+' Tier A/B)</h4>';
+h+='<p style="font-size:.75rem;color:#94a3b8;margin:0 0 10px;">Concorrentes relevantes sem an\u00fancios \u2014 oportunidade ou retrocesso?</p>';
+noAds.slice(0,10).forEach(function(c){
+  h+='<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #1e293b22;">';
+  h+='<span style="flex:1;font-size:.8rem;color:#fff;">'+c.name+'</span>';
+  h+='<span style="color:#64748b;font-size:.68rem;">'+c.seg+' \u2022 '+c.tier+'</span>';
+  h+='<a href="'+adLibUrl(c.handle,c.name)+'" target="_blank" style="font-size:.68rem;color:#818cf8;text-decoration:none;">\ud83d\udd0d</a>';
+  h+='</div>';
+});
+if(noAds.length>10) h+='<div style="font-size:.72rem;color:#64748b;margin-top:6px;">...e mais '+(noAds.length-10)+'</div>';
+h+='</div>';
+h+='<div style="background:#1a2332;border:1px solid #1e293b;border-radius:14px;padding:20px;border-left:4px solid #e74c3c;grid-column:1/-1;">';
+h+='<h4 style="margin:0 0 12px;color:#e74c3c;font-size:.95rem;">\ud83c\udd9a PSM vs Mercado</h4>';
+var avgActive=withAds>0?Math.round(totalAds/withAds):0;
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px;">';
+[{l:'PSM An\u00fancios Ativos',v:'0',c:'#e74c3c',note:'Nenhum an\u00fancio detectado'},{l:'M\u00e9dia do Mercado',v:avgActive+' ads',c:'#6366f1',note:'por anunciante ativo'},{l:'Top Concorrente',v:topAdv.ads+' ads',c:'var(--gold)',note:topAdv.name},{l:'Formato Dominante',v:Math.round(totalVideos/(totalVideos+totalImages||1)*100)+'% v\u00eddeo',c:'#10b981',note:'do mercado usa v\u00eddeo'}].forEach(function(m){
+  h+='<div style="padding:12px;background:rgba(255,255,255,.03);border-radius:8px;text-align:center;border:1px solid #1e293b;">';
+  h+='<div style="font-size:.68rem;color:#888;">'+m.l+'</div>';
+  h+='<div style="font-size:1.3rem;font-weight:700;color:'+m.c+';margin:4px 0;">'+m.v+'</div>';
+  h+='<div style="font-size:.65rem;color:#64748b;">'+m.note+'</div></div>';
+});
+h+='</div>';
+h+='<div style="font-size:.82rem;color:#e2e8f0;line-height:1.8;">';
+h+='Para competir com os <strong>top 5</strong>, PSM precisaria de pelo menos <strong>'+Math.round(avgActive*0.8)+' an\u00fancios</strong> ativos.<br>';
+h+='O mercado \u00e9 <strong>'+Math.round(totalVideos/(totalVideos+totalImages||1)*100)+'% v\u00eddeo</strong>. Recomenda\u00e7\u00e3o: m\u00ednimo 70% dos criativos em v\u00eddeo.<br>';
+h+='<strong>'+Math.round((1-withAds/competitors.length)*100)+'%</strong> dos concorrentes n\u00e3o anunciam \u2014 manter consist\u00eancia j\u00e1 \u00e9 vantagem competitiva.</div>';
+h+='</div>';
+h+='<div style="background:#1a2332;border:1px solid #1e293b;border-radius:14px;padding:20px;border-left:4px solid #8b5cf6;grid-column:1/-1;">';
+h+='<h4 style="margin:0 0 12px;color:#8b5cf6;font-size:.95rem;">\ud83d\udca1 Recomenda\u00e7\u00f5es Estrat\u00e9gicas</h4>';
+var recs=[
+  {seg:'MCMV',ico:'\ud83c\udfe0',title:'Liderar com parcela no headline',desc:'Benchmark Martin & Carrazone: parcelas R$399-R$699, renda m\u00ednima expl\u00edcita, entrada zero. Copy focada em acessibilidade, n\u00e3o no empreendimento.',color:'#2ecc71'},
+  {seg:'MAP',ico:'\ud83c\udfd7\ufe0f',title:'Line Impper \u00e9 o campo de batalha',desc:'NexGen e Imob. S\u00e3o Jos\u00e9 disputam o mesmo produto. Se PSM trabalha este lan\u00e7amento, precisa de diferencial claro no criativo.',color:'#3498db'},
+  {seg:'Terceiros',ico:'\ud83d\udcb0',title:'Pre\u00e7o expl\u00edcito filtra leads',desc:'Franco Marinho coloca valor em todos os an\u00fancios (R$1.35M-R$3.1M). Filtra leads n\u00e3o qualificados. Vanessa faz o oposto: v\u00eddeo aspiracional.',color:'#9b59b6'},
+  {seg:'Loca\u00e7\u00e3o',ico:'\ud83c\udf0a',title:'Oceano azul \u2014 s\u00f3 Porta8 anuncia',desc:'16 an\u00fancios (100% imagem). Modelo simples: foto do im\u00f3vel + sem fiador + seguro fian\u00e7a 10%. Baixa concorr\u00eancia para entrada.',color:'#f39c12'},
+  {seg:'Formato',ico:'\ud83c\udfac',title:'V\u00eddeo \u00e9 obrigat\u00f3rio para venda',desc:'68% dos an\u00fancios s\u00e3o v\u00eddeo. Westim, Vessani e Vanessa operam 100% v\u00eddeo. Se PSM depende de imagem est\u00e1tica, est\u00e1 em desvantagem.',color:'#10b981'},
+  {seg:'Geral',ico:'\ud83d\udcc8',title:'Consist\u00eancia vence volume',desc:'Metade dos concorrentes tem 0 an\u00fancios. Manter campanha ativa continuamente j\u00e1 coloca PSM no top 50% do mercado.',color:'#6366f1'}
+];
+recs.forEach(function(r){
+  h+='<div style="padding:12px;margin-bottom:10px;background:rgba(255,255,255,.03);border:1px solid #1e293b;border-radius:10px;border-left:3px solid '+r.color+';">';
+  h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">';
+  h+='<span style="font-size:1rem;">'+r.ico+'</span>';
+  h+='<span style="font-weight:600;color:#fff;font-size:.88rem;">'+r.title+'</span>';
+  h+='<span style="background:'+r.color+'22;color:'+r.color+';padding:1px 8px;border-radius:8px;font-size:.62rem;font-weight:600;margin-left:auto;">'+r.seg+'</span>';
+  h+='</div>';
+  h+='<div style="font-size:.78rem;color:#94a3b8;line-height:1.5;">'+r.desc+'</div>';
+  h+='</div>';
+});
+h+='</div>';
+h+='</div>';}
+h+='<div style="margin-top:24px;padding:14px;background:rgba(255,215,0,.04);border:1px solid rgba(255,215,0,.12);border-radius:10px;">';
+h+='<div style="font-size:.82rem;color:var(--gold);font-weight:600;margin-bottom:4px;">\ud83d\udca1 Sobre os dados</div>';
+h+='<div style="font-size:.78rem;color:#94a3b8;line-height:1.6;">';
+h+='Links <strong>\ud83d\udd0d</strong> abrem diretamente a p\u00e1gina do concorrente na <strong>Biblioteca de An\u00fancios Meta</strong> (via page_id).<br>';
+h+='Dados de v\u00eddeo/imagem e temas s\u00e3o extra\u00eddos do scan armazenado em psm_radar_ads.</div></div>';
+h+='</div>';
+return h;
+}
 function pgCriacaoImg() {
   giLoadKeys();
   giLoadBrands();
