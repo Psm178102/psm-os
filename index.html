@@ -12697,6 +12697,96 @@ function renderHDR() {
 }
 
 // ─── ROUTER ───────────────────────────────────────────────────────────────────
+function route() {
+  if (!S.user) { if (S.loginView==='forgot') return renderForgotPassword(); if (S.loginView==='reset') return renderResetPassword(); return renderLogin(); }
+  switch(S.page) {
+    case 'dashboard':  return pgDashboard();
+    case 'meu':        return pgMeu();
+    case 'ranking':    return pgRanking();
+    case 'equipe':     return pgEquipe();
+    case 'lancamento':
+    case 'conquista':
+    case 'terceiros':
+    case 'locacao':    return pgFrente(S.page);
+    case 'crm':        return pgCRM();
+    case 'metas':      return pgMetas();
+    case 'metricas':   return pgMetricas();
+    case 'oneonone':   return pgOO();
+    case 'governance': return pgGovernance();
+    case 'warroom':    return pgWarRoom();
+      case 'wararena': return pgWarArena();
+    case 'metaads': return pgMetaAds();
+    case 'sim_criativos': return pgSimCriativos();
+    case 'sim_leads': return pgSimLeads();
+    case 'metricas_viab': return pgMetricasViab();
+    case 'forecast':   return pgForecast();
+    case 'okrs':       return pgOKRs();
+    case 'vera':       return pgVera();
+    case 'drive':      return pgDrive();
+    case 'mapa':       return pgMapa();
+    case 'tabela':     return pgTabela();
+    case 'formacao':   return pgFormacao();
+    case 'manual':     return pgManual();
+    case 'captacao':   return pgCaptacao();
+    case 'marketing':  return pgMarketing();
+    case 'lancamentos_ano': return pgLancamentosAno();
+    case 'checkin':    return pgCheckin() + srPerformanceFooter();
+    case 'simvpl':     return pgSimVPL();
+    case 'simincc':    return pgSimINCC();
+    case 'simrep':     return pgSimRepasse();
+    case 'rdconfig':   return pgRDConfig();
+    case 'vendas':     return pgLancarVenda();
+    case 'config':     return pgConfig();
+    case 'fluxocaixa': return pgFluxocaixa();
+    case 'dre':        return pgDre();
+    case 'comissoes':  return pgComissoes();
+    case 'repasses':   return pgRepasses();
+    case 'radar':      return pgRadar();
+    case 'inteldash':  return pgIntelDash();
+    case 'benchmark':  return pgBenchmark();
+    case 'tendencias': return pgBenchmark(); // TendÃªncias movido para dentro de Benchmark
+    case 'simulador': return pgSimuladorCriativo();
+    case 'agentes':    return pgAgentes();
+    case 'agente_vera': return pgAgenteVera();
+    case 'agente_sol':  return pgAgenteSol();
+    case 'sr_performance': return pgSrPerformance();
+    case 'canal_anonimo': return pgCanalAnonimo();
+    case 'relat_vendas': return pgRelatVendas();
+    case 'fichas_propostas': return pgFichasPropostas();
+    case 'premiacoes': return pgPremiacoes();
+        // === NOVOS ITENS DO MENU ===
+    // Painel do Corretor
+    case 'oportunidades':    return pgOportunidades();
+    case 'fluxo_cadencia':   return pgFluxoCadencia();
+    case 'criativos':        return pgCriativos();
+    case 'plantoes':         return pgPlantoes();
+    case 'ficha_captacao':   return pgCaptacao();
+    case 'fichas_propostas': return pgFichasPropostas();
+    case 'ia_corretor':      return pgPlaceholder('IA do Corretor','\uD83E\uDD16 Em constru\u00e7\u00e3o: assistente de intelig\u00eancia artificial para corretores.');
+    // Ferramentas
+    case 'playbook':         return pgPlaceholder('Playbook','Em breve: playbook completo de vendas PSM.');
+    case 'codigo_etica':     return pgPlaceholder('C\u00f3digo de \u00c9tica','Em breve: c\u00f3digo de \u00e9tica profissional PSM.');
+    case 'sim_energia':      return pgPlaceholder('Simulador de Energia','Em breve: simulador de custos de energia.');
+    case 'kenlo':            return pgPlaceholder('Kenlo','Em breve: integra\u00e7\u00e3o com Kenlo.');
+    // Marketing
+    case 'crono_conquista':  return pgPlaceholder('Cronograma Conquista','Em breve: cronograma de postagens Conquista.');
+    case 'crono_psm':        return pgPlaceholder('Cronograma PSM','Em breve: cronograma de postagens PSM.');
+    case 'curadoria_conquista': return pgPlaceholder('Curadoria Conquista','Em breve: curadoria de conte\u00fados Conquista.');
+    case 'curadoria_psm':    return pgPlaceholder('Curadoria PSM','Em breve: curadoria de conte\u00fados PSM.');
+    case 'gerador_img':      return pgCriacaoImg();
+    case 'gerador_video':    return pgPlaceholder('Gerador de V\u00eddeos','Em breve: ferramenta de gera\u00e7\u00e3o de v\u00eddeos.');
+    case 'gerador_motion':   return pgPlaceholder('Gerador Motion','Em breve: ferramenta de gera\u00e7\u00e3o de motions.');
+    // Financeiro
+    case 'custos_fixos':     return pgPlaceholder('Custos Fixos & Vari\u00e1veis','Em breve: controle de custos fixos e vari\u00e1veis.');
+    // Diretoria
+    case 'kpis':             return pgPlaceholder('KPIs','Em breve: painel de KPIs estrat\u00e9gicos.');
+    case 'metas_dir':        return pgPlaceholder('Metas da Diretoria','Em breve: metas estrat\u00e9gicas da diretoria.');
+    // Agentes
+    case 'sr_gerencia':      return pgPlaceholder('Sr. Ger\u00eancia','\uD83D\uDC54 Em constru\u00e7\u00e3o: agente de gest\u00e3o e ger\u00eancia.');
+    default:           return pgMeu();
+  }
+}
+
 function safeRoute() {
   try {
     var pg = route();
