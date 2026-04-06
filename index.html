@@ -17104,6 +17104,16 @@ function sendSrPerf() {
 }
 
 
+
+/* EVENT DELEGATION FIX — garante que abas OO funcionem independente de onclick inline */
+document.addEventListener("click", function(e) {
+  var btn = e.target.closest(".oo-tabs button");
+  if (!btn) return;
+  var tabMap = {"Dia a Dia":"dia","Acumulado":"acumulado","Métricas":"metricas","Reunião 1:1":"reuniao","Rotina":"rotina","Metas":"metas","Gestão":"gestao"};
+  var tabId = tabMap[btn.textContent.trim()];
+  if (tabId && S.ooTab !== tabId) { S.ooTab = tabId; render(); }
+});
+/* FIM EVENT DELEGATION FIX */
 </script>
 </body>
 </html>
