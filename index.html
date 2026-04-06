@@ -12589,6 +12589,7 @@ function renderSB() {
     {sec:'Intelligence', items:[
       {id:'inteldash',  lbl:'Dashboard Intel',       ico:'🧠'},
       {id:'radar',      lbl:'Radar Concorrentes',   ico:'\uD83D\uDCE1'},
+      {id:'intelads',   lbl:'Intelligence Ads',      ico:'\uD83D\uDCF0'},
       {id:'benchmark',  lbl:'Benchmark',            ico:'\uD83D\uDCCA'},
     ]},
     {sec:'Agentes PSM', items:[
@@ -12653,7 +12654,7 @@ function renderHDR() {
     // Pipeline & CRM
     crm:'CRM / Funil',metas:'\uD83C\uDFAF Metas',metricas:'\uD83D\uDCC8 M\u00e9tricas RD',
     // Marketing
-    metaads:'\uD83D\uDCE3 Meta ADS',sim_criativos:'\uD83C\uDFA8 Simulador de Criativos',
+    metaads:'\uD83D\uDCE3 Meta ADS',intelads:'\uD83D\uDCF0 Intelligence Ads',sim_criativos:'\uD83C\uDFA8 Simulador de Criativos',
     sim_leads:'\uD83C\uDFAF Simulador de Leads',metricas_viab:'\uD83D\uDCCA M\u00e9tricas Viabilidade ADS',
     crono_conquista:'\uD83D\uDCC5 Cronograma Conquista',crono_psm:'\uD83D\uDCC5 Cronograma PSM',
     curadoria_conquista:'\uD83D\uDCCB Curadoria Conquista',curadoria_psm:'\uD83D\uDCCB Curadoria PSM',
@@ -12717,6 +12718,7 @@ function route() {
     case 'warroom':    return pgWarRoom();
       case 'wararena': return pgWarArena();
     case 'metaads': return pgMetaAds();
+    case 'intelads': return pgIntelAds();
     case 'sim_criativos': return pgSimCriativos();
     case 'sim_leads': return pgSimLeads();
     case 'metricas_viab': return pgMetricasViab();
@@ -13278,6 +13280,19 @@ function giBrandPrompt() {
   return p;
 }
 
+
+function pgMetaAds(){
+var d=S.adsData||{};
+var camps=(d.campaigns||[]);
+var tab=S.adsTab||"visao";
+var h="";
+h+="<div style=\"padding:40px;text-align:center;color:#94a3b8\">";
+h+="<div style=\"font-size:48px;margin-bottom:16px\">\uD83D\uDCE3</div>";
+h+="<div style=\"font-size:18px;font-weight:700;color:#e2e8f0;margin-bottom:8px\">Meta ADS \u2014 Campanhas PSM</div>";
+h+="<div style=\"font-size:14px;max-width:500px;margin:0 auto\">Painel completo de campanhas conectado \u00E0 API Meta. Aguarde a pr\u00F3xima atualiza\u00E7\u00E3o.</div>";
+h+="</div>";
+return h;
+}
 function pgCriacaoImg() {
   giLoadKeys();
   giLoadBrands();
@@ -14833,7 +14848,7 @@ var META_PAGE_IDS={
 '@andreatorquatto':'100558971514637','@fredtonellineto':'754051904456906','@simonemoreno_negimobiliarios':'738752766476515','@jeandoniani':'405869292615098'
 };
 
-function pgMetaAds(){
+function pgIntelAds(){
 // ===== INTELLIGENCE ADS — MONITORAMENTO DA BIBLIOTECA DE ANÚNCIOS META =====
 // Carrega dados dos concorrentes do radar
 if(typeof radarDefaults==='undefined'||Object.keys(radarDefaults).length===0){try{pgRadar();}catch(e){}}
