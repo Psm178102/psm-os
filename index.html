@@ -3547,6 +3547,24 @@ const RD = {
       const source = d.campaign?.name || d.deal_source?.name || d.source?.name || '—';
       const closedAt = d.closed_at || d.win_date || null;
 
+      // ─── Custom fields do RD CRM ───────────────────────────────────────────
+      // Extrai os 3 campos solicitados: Nº tentativas ate agendamento,
+      // Nº tentativas de contato, Nº follow up. Faz match por label (case/accent insensitive).
+      let cf_tent_agend = 0, cf_tent_contato = 0, cf_follow_up = 0;
+      const cfArr = d.deal_custom_fields || d.custom_fields || [];
+      if (Array.isArray(cfArr)) {
+        cfArr.forEach(cf => {
+          const label = ((cf.custom_field && (cf.custom_field.label || cf.custom_field.name)) || cf.label || cf.name || '')
+            .toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+          const rawVal = cf.value != null ? cf.value : (cf.custom_field_value != null ? cf.custom_field_value : 0);
+          const num = parseInt(rawVal) || 0;
+          if (!label) return;
+          if (label.includes('tentativ') && label.includes('agend')) cf_tent_agend = num;
+          else if (label.includes('tentativ') && label.includes('contato')) cf_tent_contato = num;
+          else if (label.includes('follow')) cf_follow_up = num;
+        });
+      }
+
       processed.push({
         id: d._id || d.id,
         cl, bid, bn: broker ? broker.name : rdName,
@@ -3566,6 +3584,7 @@ const RD = {
         closedAt,
         updated_at: d.updated_at || '',
         createdAt: d.created_at || '',
+        cf_tent_agend, cf_tent_contato, cf_follow_up,
       });
     });
     return processed;
@@ -4858,7 +4877,9 @@ function pgOKRs() {
 // ─── ONE ON ONE ───────────────────────────────────────────────────────────────
 // --- Google Sheets integration for One on One ---
 function _ooFetchSheet(bid) {
-  var url = (S.ooSheetLinks||{})[bid];
+  var raw = (S.ooSheetLinks||{})[bid];
+  // Backward compat: raw pode ser string (URL direta) ou objeto {main: URL, ...}
+  var url = typeof raw === 'string' ? raw : (raw && raw.main) || '';
   if (!url) return;
   var cache = (S.ooSheetCache||{})[bid];
   function applyData(totals) {
@@ -4877,16 +4898,26 @@ function _ooFetchSheet(bid) {
     var ind = document.getElementById('oo_sheet_status');
     if (ind) ind.innerHTML = '<span style="color:#10b981;font-size:10px">\u2705 Planilha carregada</span>';
   }
-  // Use cache if available
-  if (cache && Object.keys(cache).length > 0) {
-    applyData(cache);
-    // Continue to fetch fresh data in background
+  // Use cache if available — prioriza aba do mes atual se existir
+  var _monthKey = (function(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); })();
+  if (cache) {
+    var cur = (cache.monthly && cache.monthly[_monthKey]) ? cache.monthly[_monthKey] : cache;
+    if (cur && Object.keys(cur).length > 0) applyData(cur);
   }
   var m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
   if (!m) return;
   var sid = m[1];
-  var directUrl = 'https://docs.google.com/spreadsheets/d/' + sid + '/export?format=csv';
-  var proxyUrl = S.ooProxyUrl ? S.ooProxyUrl + '?id=' + sid : '';
+  // Detecta nome do mes atual em portugues (abas tipicas: jan, fev, mar, ...)
+  var _mesNames = ['janeiro','fevereiro','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  var _mesShort = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  var _curMesIdx = new Date().getMonth();
+  var _tabCandidates = [_mesNames[_curMesIdx], _mesShort[_curMesIdx],
+                        _mesNames[_curMesIdx].toUpperCase(), _mesShort[_curMesIdx].toUpperCase(),
+                        _mesNames[_curMesIdx].charAt(0).toUpperCase()+_mesNames[_curMesIdx].slice(1)];
+  // Preferencia: aba do mes (via gviz) > tab padrao (export csv)
+  var directUrl = 'https://docs.google.com/spreadsheets/d/' + sid + '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(_tabCandidates[0]);
+  var fallbackUrl = 'https://docs.google.com/spreadsheets/d/' + sid + '/export?format=csv';
+  var proxyUrl = S.ooProxyUrl ? S.ooProxyUrl + '?id=' + sid + '&tab=' + encodeURIComponent(_tabCandidates[0]) : '';
   var ind = document.getElementById('oo_sheet_status');
   if (ind) ind.innerHTML = '<span style="color:#94a3b8;font-size:10px">Carregando...</span>';
   function parseCSV(csv) {
@@ -4939,31 +4970,49 @@ function _ooFetchSheet(bid) {
     }
     return totals;
   }
+  function _persist(totals) {
+    if (!S.ooSheetCache) S.ooSheetCache = {};
+    if (!S.ooSheetCache[bid] || typeof S.ooSheetCache[bid] !== 'object' || Array.isArray(S.ooSheetCache[bid])) {
+      S.ooSheetCache[bid] = {};
+    }
+    // Preserva o shape legado (flat) como snapshot do mes corrente + grava por mes
+    Object.keys(totals).forEach(function(k){ S.ooSheetCache[bid][k] = totals[k]; });
+    if (!S.ooSheetCache[bid].monthly) S.ooSheetCache[bid].monthly = {};
+    S.ooSheetCache[bid].monthly[_monthKey] = totals;
+    saveState();
+  }
+  // Tenta a aba do mes primeiro (gviz), fallback para default (export)
   fetch(directUrl).then(function(r) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.text();
   }).then(function(csv) {
     if (csv.length < 50 || csv.indexOf('<') === 0) throw new Error('invalid');
     var totals = parseCSV(csv);
-    if (!S.ooSheetCache) S.ooSheetCache = {};
-    S.ooSheetCache[bid] = totals;
-    saveState();
+    _persist(totals);
     applyData(totals);
-  }).catch(function() {
-    if (proxyUrl) {
-      fetch(proxyUrl).then(function(r) { return r.text(); }).then(function(csv) {
-        if (csv.indexOf('ERROR') === 0) throw new Error(csv);
-        var totals = parseCSV(csv);
-        if (!S.ooSheetCache) S.ooSheetCache = {};
-        S.ooSheetCache[bid] = totals;
-        saveState();
-        applyData(totals);
-      }).catch(function() {
-        if (ind) ind.innerHTML = '<span style="color:#ef4444;font-size:10px">Erro ao carregar</span>';
-      });
-    } else {
-      if (ind) ind.innerHTML = '<span style="color:#f59e0b;font-size:10px">\u26A0 Planilha privada \u2014 use cache ou <a href=\"#\" onclick=\"ooSetupProxy();return false\" style=\"color:#3b82f6;text-decoration:underline\">configure proxy</a></span>';
-    }
+  }).catch(function(){
+    return fetch(fallbackUrl).then(function(r){
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    }).then(function(csv){
+      if (csv.length < 50 || csv.indexOf('<') === 0) throw new Error('invalid');
+      var totals = parseCSV(csv);
+      _persist(totals);
+      applyData(totals);
+    }).catch(function() {
+      if (proxyUrl) {
+        fetch(proxyUrl).then(function(r) { return r.text(); }).then(function(csv) {
+          if (csv.indexOf('ERROR') === 0) throw new Error(csv);
+          var totals = parseCSV(csv);
+          _persist(totals);
+          applyData(totals);
+        }).catch(function() {
+          if (ind) ind.innerHTML = '<span style="color:#ef4444;font-size:10px">Erro ao carregar</span>';
+        });
+      } else {
+        if (ind) ind.innerHTML = '<span style="color:#f59e0b;font-size:10px">\u26A0 Planilha privada \u2014 use cache ou <a href=\"#\" onclick=\"ooSetupProxy();return false\" style=\"color:#3b82f6;text-decoration:underline\">configure proxy</a></span>';
+      }
+    });
   });
 }
 function ooSetupProxy() {
@@ -5338,10 +5387,12 @@ function ooAutoFillFunnel(frente) {
   });
 }
 
+// ooAggMonth — SOMENTE dados MANUAIS do corretor (ooDaily do sistema One on One).
+// Nao inventa, nao estima, nao mistura com RD. Os dados reais do RD CRM sao
+// expostos SEPARADAMENTE por ooAggMonthRD() e exibidos lado a lado para auditoria.
 function ooAggMonth(bid, monthKey) {
   var daily = ((S.ooDaily||{})[bid]||{})[monthKey] || {};
   var totals = {};
-  // Initialize with known campos + lateral
   OO_CAMPOS.forEach(function(c) { totals[c.k] = 0; });
   Object.keys(daily).forEach(function(dayKey) {
     var d = daily[dayKey];
@@ -5349,61 +5400,62 @@ function ooAggMonth(bid, monthKey) {
       totals[k] = (totals[k] || 0) + (d[k] || 0);
     });
   });
-  // ─── MERGE: dados reais do RD CRM para este mes ────────────────────────────
-  // Preenche zeros com dados reais (vendas, visitas, ligacoes, descartes, VGV)
-  // extraidos de OPPS/VENDAS/LOST_DEALS/TASKS_RD filtrados pela janela do mes.
-  try {
-    var _mp = (monthKey||'').split('-');
-    if (_mp.length >= 2) {
-      var _y = parseInt(_mp[0]), _m = parseInt(_mp[1]) - 1;
-      var _from = new Date(_y, _m, 1).getTime();
-      var _to = new Date(_y, _m + 1, 0, 23, 59, 59).getTime();
-      var _inWin = function(d) {
-        var dt = new Date(d && (d.closedAt || d.createdAt || d.updated_at) || 0).getTime();
-        return !isNaN(dt) && dt >= _from && dt <= _to;
-      };
-      var _inWinTs = function(ts) { return ts >= _from && ts <= _to; };
-
-      var _bOpps = (typeof OPPS !== 'undefined' ? OPPS : []).filter(function(o){ return o.bid === bid && _inWin(o); });
-      var _bWon  = (typeof VENDAS !== 'undefined' ? VENDAS : []).filter(function(v){ return v.bid === bid && _inWin(v); });
-      var _bLost = (typeof LOST_DEALS !== 'undefined' ? LOST_DEALS : []).filter(function(l){ return l.bid === bid && _inWin(l); });
-      var _bTasks = (typeof TASKS_RD !== 'undefined' ? TASKS_RD : []).filter(function(t){
-        var ts = new Date(t && (t.closedAt || t.doneAt) || 0).getTime();
-        return t.bid === bid && _inWinTs(ts);
-      });
-
-      var _taskLig = _bTasks.filter(function(t){ return t.type === 'call' || t.type === 'whatsapp'; }).length;
-      var _taskVis = _bTasks.filter(function(t){ return t.type === 'visit'; }).length;
-      var _rdVis   = _bOpps.filter(function(o){ return ['vis_real','contrato','proposta'].indexOf(o.st_psm) >= 0; }).length;
-      var _rdAgend = _bOpps.filter(function(o){ return ['agendamento','vis_agend','vis_real'].indexOf(o.st_psm) >= 0; }).length;
-      var _rdProp  = _bOpps.filter(function(o){ return o.st_psm === 'proposta'; }).length;
-
-      var _rd = {
-        vend:      _bWon.length,
-        vgv_real:  _bWon.reduce(function(a,v){ return a + (v.vgv||0); }, 0),
-        vis:       _rdVis + _taskVis,
-        agend:     _rdAgend,
-        prop:      _rdProp,
-        lig_real:  _bOpps.length + _taskLig,
-        lig_atend: _taskLig || Math.round(_bOpps.length * 0.6),
-        desc:      _bLost.length
-      };
-      // Fallback: quando manual (ooDaily) estiver zerado, usa o real do RD
-      Object.keys(_rd).forEach(function(k){
-        if (!totals[k] || totals[k] === 0) totals[k] = _rd[k];
-      });
-    }
-  } catch(e){ /* RD ainda nao carregou — segue com zeros */ }
-
-  // ─── ALIASES para compatibilidade com a tab "Metricas" ─────────────────────
-  totals.vendas       = totals.vend || 0;
-  totals.atendimentos = totals.lig_atend || totals.lig_real || 0;
-  totals.leads        = totals.lig_real || 0;
-  totals.visitas      = totals.vis || 0;
-  totals.agendamentos = totals.agend || 0;
-  totals.descartados  = totals.desc || 0;
-  if (!totals.vgv && totals.vgv_real) totals.vgv = totals.vgv_real;
   return totals;
+}
+
+// ooAggMonthRD — SOMENTE dados REAIS do RD Station CRM, filtrados por bid+mes.
+// Expoe APENAS: vis (visitas realizadas), neg_andamento, desc (descartados),
+// vend (vendas ganhas), vgv (VGV das vendas), + custom fields (cf_*).
+// NUNCA inventa ligacoes, agendamentos ou propostas — esses sao preenchidos
+// manualmente pelo corretor no sistema One on One.
+function ooAggMonthRD(bid, monthKey) {
+  var out = { vis:0, neg_andamento:0, desc:0, vend:0, vgv:0,
+              cf_tent_agend:0, cf_tent_contato:0, cf_follow_up:0 };
+  try {
+    var mp = (monthKey||'').split('-');
+    if (mp.length < 2) return out;
+    var y = parseInt(mp[0]), m = parseInt(mp[1]) - 1;
+    var from = new Date(y, m, 1).getTime();
+    var to = new Date(y, m + 1, 0, 23, 59, 59).getTime();
+    var tsOf = function(d) {
+      return new Date(d && (d.closedAt || d.createdAt || d.updated_at) || 0).getTime();
+    };
+    var inWin = function(ts) { return !isNaN(ts) && ts >= from && ts <= to; };
+
+    var OPPS_  = (typeof OPPS !== 'undefined' ? OPPS : []);
+    var VEN_   = (typeof VENDAS !== 'undefined' ? VENDAS : []);
+    var LOST_  = (typeof LOST_DEALS !== 'undefined' ? LOST_DEALS : []);
+    var TASKS_ = (typeof TASKS_RD !== 'undefined' ? TASKS_RD : []);
+
+    // Visitas reais: APENAS tarefas concluidas do tipo visita (o que realmente
+    // foi feito no CRM) — nao conta deal em stage "vis_real" porque e snapshot.
+    out.vis = TASKS_.filter(function(t){
+      return t.bid === bid && t.type === 'visit'
+             && inWin(new Date(t.closedAt || t.doneAt || 0).getTime());
+    }).length;
+
+    // Vendas ganhas e VGV
+    var bWon = VEN_.filter(function(v){ return v.bid === bid && inWin(tsOf(v)); });
+    out.vend = bWon.length;
+    out.vgv  = bWon.reduce(function(a,v){ return a + (v.vgv||0); }, 0);
+
+    // Descartados (perdidos)
+    out.desc = LOST_.filter(function(l){ return l.bid === bid && inWin(tsOf(l)); }).length;
+
+    // Negociacoes em andamento: OPPS (abertas) criadas/atualizadas no mes
+    out.neg_andamento = OPPS_.filter(function(o){ return o.bid === bid && inWin(tsOf(o)); }).length;
+
+    // Custom fields — soma dos valores do mes (criados OU atualizados no mes)
+    // Os campos sao extraidos em processDeals() e ficam em o.cf_tent_agend etc.
+    var scope = OPPS_.concat(VEN_).concat(LOST_);
+    scope.forEach(function(d){
+      if (d.bid !== bid || !inWin(tsOf(d))) return;
+      out.cf_tent_agend   += (d.cf_tent_agend   || 0);
+      out.cf_tent_contato += (d.cf_tent_contato || 0);
+      out.cf_follow_up    += (d.cf_follow_up    || 0);
+    });
+  } catch(e) { /* silent */ }
+  return out;
 }
 function ooAggYear(bid, year) {
   var totals = {};
@@ -5544,8 +5596,7 @@ function pgOO() {
     var realMes = ooAggMonth(selBid, monthKey);
     var metasMes = ooGetMetas(selBid, monthKey);
     var cache = ((S.ooSheetCache||{})[selBid]) || {};
-    var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0
-                       || (realMes.vend||0) + (realMes.vis||0) + (realMes.lig_real||0) > 0;
+    var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
     var workDays = ooGetWorkDays(curYear, curMonth);
     var workPassed = ooGetWorkDaysPassed(curYear, curMonth);
     var workRemain = workDays - workPassed;
@@ -5837,8 +5888,7 @@ function pgOO() {
       var realMes = ooAggMonth(selBid, monthKey);
       var metasMes = ooGetMetas(selBid, monthKey);
       var cache = ((S.ooSheetCache||{})[selBid]) || {};
-      var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0
-                         || (realMes.vend||0) + (realMes.vis||0) + (realMes.lig_real||0) > 0;
+      var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
 
       content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
       content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCC8 ' + monthNames[curMonth] + ' ' + curYear + ' \u2014 Meta vs Realizado</div>';
@@ -5894,130 +5944,159 @@ function pgOO() {
     var curMonth = now.getMonth() + 1;
     var monthKey = ooGetMonthKey(now);
     var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    var realMes = ooAggMonth(selBid, monthKey);
-    var metasMes = ooGetMetas(selBid, monthKey);
+    var man = ooAggMonth(selBid, monthKey);      // MANUAL (sistema One on One)
+    var rd  = ooAggMonthRD(selBid, monthKey);    // REAL (RD CRM)
     var cache = ((S.ooSheetCache||{})[selBid]) || {};
-    var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
-    // realMes agora inclui fallback automatico do RD CRM — sempre prefere dados reais
-    var hasRealData = (realMes.vendas||0) + (realMes.atendimentos||0) + (realMes.visitas||0) + (realMes.agendamentos||0) > 0;
-    var useReal = hasDailyData || hasRealData;
-    var cfgFrente = ooGetFrenteForBroker(selBid);
-    var cfgFunil = ooGetFunilEquipe(cfgFrente);
-    var mVendas = useReal ? (realMes.vendas||0) : (cache.vendas||0);
-    var mAtend = useReal ? (realMes.atendimentos||realMes.leads||0) : (cache.atendimentos||cache.leads||0);
-    var mVisitas = useReal ? (realMes.visitas||0) : (cache.visitas||0);
-    var mAgend = useReal ? (realMes.agendamentos||0) : (cache.agendamentos||0);
-    var mDescartados = useReal ? (realMes.descartados||0) : (cache.descartados||0);
-    var mVgv = useReal ? (realMes.vgv||0) : (cache.vgv||0);
-    var ticketMedio = mVendas > 0 ? (mVgv / mVendas) : 0;
-    var txConversao = mAtend > 0 ? (mVendas / mAtend * 100) : 0;
-    var txDescarte = mAtend > 0 ? (mDescartados / mAtend * 100) : 0;
-    var txAgendVisita = mAgend > 0 ? (mVisitas / mAgend * 100) : 0;
-    var txVisitaVenda = mVisitas > 0 ? (mVendas / mVisitas * 100) : 0;
-    var txAtendAgend = mAtend > 0 ? (mAgend / mAtend * 100) : 0;
-    content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:16px;text-align:center">\uD83D\uDCCA M\u00e9tricas Individuais \u2014 ' + monthNames[curMonth] + ' ' + curYear + '</div>';
-    content += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:16px">';
-    var kpis = [
-      {icon:'\uD83D\uDCB0',label:'Ticket M\u00e9dio',value:'R$ '+(ticketMedio>0?ticketMedio.toLocaleString('pt-BR',{maximumFractionDigits:0}):'\u2014'),color:'#fbbf24'},
-      {icon:'\uD83C\uDFAF',label:'Tx Convers\u00e3o Geral',value:txConversao.toFixed(1)+'%',color:txConversao>=10?'#10b981':txConversao>=5?'#f59e0b':'#ef4444'},
-      {icon:'\u274C',label:'Tx de Descarte',value:txDescarte.toFixed(1)+'%',color:txDescarte<=20?'#10b981':txDescarte<=40?'#f59e0b':'#ef4444'},
-      {icon:'\uD83D\uDCDE',label:'Volume Atendimento',value:String(mAtend),color:'#818cf8'},
-      {icon:'\uD83D\uDCC5',label:'Agendamentos',value:String(mAgend),color:'#06b6d4'},
-      {icon:'\uD83D\uDC41',label:'Visitas',value:String(mVisitas),color:'#8b5cf6'},
+    var sheetMes = (cache && cache.monthly && cache.monthly[monthKey]) ? cache.monthly[monthKey] : cache;
+
+    // ─── HEADER ──────────────────────────────────────────────────────────────
+    content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:6px;text-align:center">\uD83D\uDCCA M\u00e9tricas Individuais \u2014 ' + monthNames[curMonth] + ' ' + curYear + '</div>';
+    content += '<div style="font-size:11px;color:#64748b;margin-bottom:16px;text-align:center">RD CRM = fonte oficial \u00B7 Sistema One on One = preenchido pelo corretor</div>';
+
+    // ─── BLOCO 1: DADOS REAIS DO RD CRM ─────────────────────────────────────
+    content += '<div style="background:linear-gradient(135deg,#0c4a6e,#0f172a);border-radius:12px;padding:16px;border:1px solid #0ea5e9;margin-bottom:16px">';
+    content += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-size:16px">\uD83D\uDD17</span><span style="font-size:14px;font-weight:800;color:#7dd3fc">RD CRM \u2014 Fonte Oficial</span><span style="font-size:10px;color:#0ea5e9;background:#0ea5e920;padding:2px 8px;border-radius:99px;margin-left:auto">tempo real</span></div>';
+    content += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">';
+    var rdKpis = [
+      {ic:'\uD83C\uDFE0', lbl:'Visitas Realizadas',      val: rd.vis,           sub:'tarefas tipo visit concluidas'},
+      {ic:'\uD83D\uDD04', lbl:'Negocia\u00e7\u00f5es em Andamento', val: rd.neg_andamento,  sub:'oportunidades abertas'},
+      {ic:'\u274C',       lbl:'Descartados',             val: rd.desc,          sub:'deals perdidos'},
+      {ic:'\uD83C\uDFC6', lbl:'Vendas Ganhas',           val: rd.vend,          sub:'deals ganhos'},
+      {ic:'\uD83D\uDCB0', lbl:'VGV das Vendas',          val: 'R$ ' + (rd.vgv>=1000000 ? (rd.vgv/1000000).toFixed(2)+'M' : rd.vgv>=1000 ? (rd.vgv/1000).toFixed(0)+'K' : rd.vgv.toLocaleString('pt-BR')), sub:'soma R$ ganhos'},
     ];
-    kpis.forEach(function(k) {
-      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;text-align:center">';
-      content += '<div style="font-size:22px;margin-bottom:4px">' + k.icon + '</div>';
-      content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px">' + k.label + '</div>';
-      content += '<div style="font-size:22px;font-weight:800;color:' + k.color + '">' + k.value + '</div>';
-      content += '</div>';
-    });
-    content += '</div>';
-    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
-    content += '<div style="font-size:14px;font-weight:700;color:#a5b4fc;margin-bottom:12px">\uD83D\uDD04 Taxas de Convers\u00e3o por Canal</div>';
-    var convRates = [
-      {label:'Atendimentos \u2192 Agendamentos', val:txAtendAgend},
-      {label:'Agendamentos \u2192 Visitas', val:txAgendVisita},
-      {label:'Visitas \u2192 Vendas', val:txVisitaVenda},
-      {label:'Atendimentos \u2192 Vendas (geral)', val:txConversao},
-    ];
-    convRates.forEach(function(cr) {
-      var barColor = cr.val >= 30 ? '#10b981' : cr.val >= 15 ? '#f59e0b' : '#ef4444';
-      var barW = Math.min(cr.val, 100);
-      content += '<div style="margin-bottom:10px">';
-      content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
-      content += '<span style="font-size:12px;color:#94a3b8">' + cr.label + '</span>';
-      content += '<span style="font-size:13px;font-weight:700;color:' + barColor + '">' + cr.val.toFixed(1) + '%</span>';
-      content += '</div>';
-      content += '<div style="background:#0f172a;border-radius:6px;height:8px;overflow:hidden"><div style="height:100%;width:' + barW + '%;background:' + barColor + ';border-radius:6px;transition:width .4s"></div></div>';
-      content += '</div>';
+    rdKpis.forEach(function(k){
+      content += '<div style="background:#0f172a;border:1px solid #1e40af50;border-radius:10px;padding:12px;text-align:center">'
+        + '<div style="font-size:18px;margin-bottom:2px">' + k.ic + '</div>'
+        + '<div style="font-size:10px;color:#7dd3fc;margin-bottom:4px">' + k.lbl + '</div>'
+        + '<div style="font-size:20px;font-weight:800;color:#f0f9ff">' + k.val + '</div>'
+        + '<div style="font-size:9px;color:#475569;margin-top:2px">' + k.sub + '</div>'
+        + '</div>';
     });
     content += '</div>';
 
-
-    // Gargalo do Funil
-    content += '<div style="background:#1a1a2e;border-radius:12px;padding:16px;border:1px solid #312e81;margin-bottom:16px">';
-    content += '<div style="font-size:14px;font-weight:700;color:#fbbf24;margin-bottom:4px">\u26A0\uFE0F Gargalo do Funil</div>';
-    content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Identifica a etapa com maior perda de convers\u00e3o</div>';
-    var funnelSteps = [];
-    cfgFunil.forEach(function(c) {
-      var v = useReal ? (realMes[c.k]||0) : (cache[c.k]||0);
-      funnelSteps.push({label: c.l, icon: c.icon, key: c.k, val: v});
-    });
-    var worstDrop = {label:'', dropPct:0};
-    for (var fi = 0; fi < funnelSteps.length - 1; fi++) {
-      var fromV = funnelSteps[fi].val;
-      var toV = funnelSteps[fi+1].val;
-      var dropPct = fromV > 0 ? ((fromV - toV) / fromV * 100) : 0;
-      var stepColor = dropPct > 50 ? '#ef4444' : dropPct > 30 ? '#f59e0b' : '#10b981';
-      content += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:8px 12px;background:#312e81;border-radius:8px">';
-      content += '<span style="font-size:14px">' + funnelSteps[fi].icon + '</span>';
-      content += '<span style="flex:1;font-size:12px;color:#c4b5fd">' + funnelSteps[fi].label + ' \u2192 ' + funnelSteps[fi+1].label + '</span>';
-      content += '<span style="font-size:12px;font-weight:700;color:' + stepColor + '">' + (fromV > 0 ? (toV/fromV*100).toFixed(1) : '0') + '% conv.</span>';
-      content += '<span style="font-size:11px;color:#64748b">(-' + dropPct.toFixed(0) + '%)</span>';
-      content += '</div>';
-      if (dropPct > worstDrop.dropPct) worstDrop = {label: funnelSteps[fi].label + ' \u2192 ' + funnelSteps[fi+1].label, dropPct: dropPct};
-    }
-    if (worstDrop.label) {
-      content += '<div style="margin-top:10px;padding:10px;background:#dc262620;border:1px solid #dc262640;border-radius:8px">';
-      content += '<div style="font-size:12px;font-weight:700;color:#fca5a5">\uD83D\uDEA8 Maior gargalo: ' + worstDrop.label + '</div>';
-      content += '<div style="font-size:11px;color:#f87171">Perda de ' + worstDrop.dropPct.toFixed(1) + '% nesta etapa.</div>';
-      content += '</div>';
+    // Custom fields do RD (tentativas/follow up)
+    if ((rd.cf_tent_agend + rd.cf_tent_contato + rd.cf_follow_up) > 0) {
+      content += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid #1e40af50">';
+      content += '<div style="font-size:11px;color:#7dd3fc;font-weight:700;margin-bottom:8px">\uD83D\uDCDD Campos Personalizados (RD CRM)</div>';
+      content += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+      [
+        {lbl:'Tent. Contato',    val: rd.cf_tent_contato},
+        {lbl:'Tent. Agendamento',val: rd.cf_tent_agend},
+        {lbl:'Follow Up',        val: rd.cf_follow_up},
+      ].forEach(function(cf){
+        content += '<div style="background:#0f172a;border:1px solid #1e3a8a;border-radius:8px;padding:8px;text-align:center">'
+          + '<div style="font-size:10px;color:#94a3b8;margin-bottom:2px">' + cf.lbl + '</div>'
+          + '<div style="font-size:16px;font-weight:800;color:#bfdbfe">' + cf.val + '</div>'
+          + '</div>';
+      });
+      content += '</div></div>';
     }
     content += '</div>';
-    // Monthly evolution table
-    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
-    content += '<div style="font-size:14px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCC8 Evolu\u00e7\u00e3o Mensal</div>';
-    content += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
-    content += '<thead><tr style="color:#94a3b8;border-bottom:1px solid #334155"><th style="padding:6px;text-align:left">M\u00e9trica</th>';
-    for (var mmi = 1; mmi <= 12; mmi++) content += '<th style="padding:4px;text-align:center">' + monthNames[mmi] + '</th>';
-    content += '</tr></thead><tbody>';
-    [{label:'Tx Conv.',fn:function(mk){var r=ooAggMonth(selBid,mk);var a=r.atendimentos||r.leads||0;return a>0?(r.vendas||0)/a*100:0;},fmt:function(v){return v.toFixed(1)+'%';}},
-     {label:'Vendas',fn:function(mk){var r=ooAggMonth(selBid,mk);return r.vendas||0;},fmt:function(v){return String(v||0);}}
-    ].forEach(function(mk) {
-      content += '<tr style="border-bottom:1px solid #1e293b"><td style="padding:6px;color:#a5b4fc;font-weight:600">' + mk.label + '</td>';
-      for (var mmi = 1; mmi <= 12; mmi++) {
-        var mmk = curYear + '-' + String(mmi).padStart(2,'0');
-        var val = mk.fn(mmk);
-        content += '<td style="padding:4px;text-align:center;color:' + (mmi===curMonth ? '#6366f1' : (val>0?'#cbd5e1':'#475569')) + ';font-weight:' + (mmi===curMonth?'700':'400') + '">' + mk.fmt(val) + '</td>';
-      }
-      content += '</tr>';
-    });
-    content += '</tbody></table></div></div>';
-    // Sr Performance analysis
-    content += '<div style="background:linear-gradient(135deg,#1a1a2e,#0f172a);border-radius:12px;padding:16px;border:1px solid #6366f130">';
-    content += '<div style="font-size:14px;font-weight:700;color:#818cf8;margin-bottom:8px">\uD83E\uDDD0 An\u00e1lise pelo Sr. Performance</div>';
-    content += '<div style="font-size:12px;color:#94a3b8;line-height:1.7">';
-    if (mAtend > 0 && mVendas > 0) {
-      if (txConversao >= 15) content += '\u2705 <b style="color:#10b981">Excelente taxa de convers\u00e3o</b> (' + txConversao.toFixed(1) + '%).<br>';
-      else if (txConversao >= 8) content += '\u26A0\uFE0F <b style="color:#f59e0b">Taxa moderada</b> (' + txConversao.toFixed(1) + '%).<br>';
-      else content += '\u274C <b style="color:#ef4444">Taxa baixa</b> (' + txConversao.toFixed(1) + '%).<br>';
-      if (txDescarte > 40) content += '\u26A0\uFE0F <b style="color:#f59e0b">Alta taxa de descarte</b> (' + txDescarte.toFixed(1) + '%).<br>';
-      if (ticketMedio > 0) content += '\uD83D\uDCB0 Ticket m\u00e9dio: <b style="color:#fbbf24">R$ ' + ticketMedio.toLocaleString('pt-BR',{maximumFractionDigits:0}) + '</b>.<br>';
+
+    // ─── BLOCO 2: SISTEMA ONE ON ONE (preenchido pelo corretor) ─────────────
+    var hasManual = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
+    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #6366f150;margin-bottom:16px">';
+    content += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-size:16px">\u270F\uFE0F</span><span style="font-size:14px;font-weight:800;color:#a5b4fc">Sistema One on One</span><span style="font-size:10px;color:#818cf8;background:#6366f120;padding:2px 8px;border-radius:99px;margin-left:auto">preenchido manualmente</span></div>';
+    if (!hasManual) {
+      content += '<div style="padding:14px;background:#0f172a;border-radius:8px;color:#64748b;font-size:12px;text-align:center">Nenhum registro no Dia a Dia deste m\u00eas ainda. Preencha na aba <b>Dia a Dia</b>.</div>';
     } else {
-      content += 'Sem dados suficientes para an\u00e1lise.';
+      content += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">';
+      var manKpis = [
+        {ic:'\uD83D\uDCDE', lbl:'Liga\u00e7\u00f5es Realizadas', val: man.lig_real||0},
+        {ic:'\u2705',       lbl:'Liga\u00e7\u00f5es Atendidas',  val: man.lig_atend||0},
+        {ic:'\uD83D\uDCCB', lbl:'Tent. Agendamento',             val: man.tent_agend||0},
+        {ic:'\uD83D\uDCC5', lbl:'Agendamentos',                  val: man.agend||0},
+        {ic:'\uD83C\uDFE0', lbl:'Visitas',                       val: man.vis||0},
+        {ic:'\uD83D\uDCDD', lbl:'Propostas',                     val: man.prop||0},
+        {ic:'\uD83C\uDFC6', lbl:'Vendas',                        val: man.vend||0},
+      ];
+      manKpis.forEach(function(k){
+        content += '<div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:12px;text-align:center">'
+          + '<div style="font-size:18px;margin-bottom:2px">' + k.ic + '</div>'
+          + '<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">' + k.lbl + '</div>'
+          + '<div style="font-size:20px;font-weight:800;color:#e2e8f0">' + k.val + '</div>'
+          + '</div>';
+      });
+      content += '</div>';
     }
-    content += '</div></div>';
+    content += '</div>';
+
+    // ─── BLOCO 3: AUDITORIA RD vs SISTEMA ───────────────────────────────────
+    var auditoria = [
+      {lbl:'Visitas', keyMan:'vis',  rdVal: rd.vis,  manVal: man.vis||0},
+      {lbl:'Vendas',  keyMan:'vend', rdVal: rd.vend, manVal: man.vend||0},
+    ];
+    var temDivergencia = auditoria.some(function(a){ return a.rdVal !== a.manVal; });
+    content += '<div style="background:' + (temDivergencia ? 'linear-gradient(135deg,#451a03,#1e293b)' : 'linear-gradient(135deg,#052e16,#1e293b)') + ';border-radius:12px;padding:16px;border:1px solid ' + (temDivergencia ? '#f59e0b' : '#10b981') + ';margin-bottom:16px">';
+    content += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:16px">' + (temDivergencia ? '\u26A0\uFE0F' : '\u2705') + '</span><span style="font-size:14px;font-weight:800;color:' + (temDivergencia ? '#fbbf24' : '#6ee7b7') + '">Auditoria RD CRM \u00D7 Sistema</span></div>';
+    auditoria.forEach(function(a){
+      var divergente = a.rdVal !== a.manVal;
+      content += '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:#0f172a;border-radius:8px;margin-bottom:6px;border-left:3px solid ' + (divergente ? '#f59e0b' : '#10b981') + '">';
+      content += '<div style="flex:1;font-size:13px;font-weight:600;color:#e2e8f0">' + a.lbl + '</div>';
+      content += '<div style="display:flex;gap:16px;align-items:center">';
+      content += '<div style="text-align:center"><div style="font-size:9px;color:#7dd3fc;text-transform:uppercase;letter-spacing:.5px">RD CRM</div><div style="font-size:18px;font-weight:800;color:#f0f9ff">' + a.rdVal + '</div></div>';
+      content += '<div style="font-size:14px;color:#64748b">' + (divergente ? '\u2260' : '=') + '</div>';
+      content += '<div style="text-align:center"><div style="font-size:9px;color:#a5b4fc;text-transform:uppercase;letter-spacing:.5px">Sistema</div><div style="font-size:18px;font-weight:800;color:#e2e8f0">' + a.manVal + '</div></div>';
+      content += '</div></div>';
+      if (divergente) {
+        var diff = a.manVal - a.rdVal;
+        content += '<div style="font-size:11px;color:#fcd34d;padding:4px 14px;margin-bottom:8px">\u26A0\uFE0F <b>Incompat\u00edvel</b>: ' + (diff > 0 ? 'sistema tem ' + diff + ' ' + a.lbl.toLowerCase() + ' a mais' : 'RD tem ' + Math.abs(diff) + ' ' + a.lbl.toLowerCase() + ' a mais') + ' \u2014 verificar registro.</div>';
+      }
+    });
+    content += '</div>';
+
+    // ─── BLOCO 4: TAXAS DE CONVERSAO (baseadas no sistema manual) ───────────
+    if (hasManual) {
+      var txLigAtend = (man.lig_real||0) > 0 ? (man.lig_atend||0)/(man.lig_real||1)*100 : 0;
+      var txAtendAg  = (man.lig_atend||0) > 0 ? (man.agend||0)/(man.lig_atend||1)*100 : 0;
+      var txAgVis    = (man.agend||0) > 0 ? (man.vis||0)/(man.agend||1)*100 : 0;
+      var txVisProp  = (man.vis||0) > 0 ? (man.prop||0)/(man.vis||1)*100 : 0;
+      var txPropVend = (man.prop||0) > 0 ? (man.vend||0)/(man.prop||1)*100 : 0;
+      var ticket     = rd.vend > 0 ? (rd.vgv / rd.vend) : 0;
+
+      content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
+      content += '<div style="font-size:14px;font-weight:700;color:#a5b4fc;margin-bottom:12px">\uD83D\uDD04 Taxas de Convers\u00e3o \u2014 Funil do Corretor</div>';
+      var convs = [
+        {lbl:'Lig. Realizadas \u2192 Atendidas',  val:txLigAtend},
+        {lbl:'Atendidas \u2192 Agendamentos',     val:txAtendAg},
+        {lbl:'Agendamentos \u2192 Visitas',       val:txAgVis},
+        {lbl:'Visitas \u2192 Propostas',          val:txVisProp},
+        {lbl:'Propostas \u2192 Vendas',           val:txPropVend},
+      ];
+      convs.forEach(function(cr){
+        var bc = cr.val >= 30 ? '#10b981' : cr.val >= 15 ? '#f59e0b' : '#ef4444';
+        var bw = Math.min(cr.val, 100);
+        content += '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+        content += '<span style="font-size:12px;color:#94a3b8">' + cr.lbl + '</span>';
+        content += '<span style="font-size:13px;font-weight:700;color:' + bc + '">' + cr.val.toFixed(1) + '%</span></div>';
+        content += '<div style="background:#0f172a;border-radius:6px;height:8px;overflow:hidden"><div style="height:100%;width:' + bw + '%;background:' + bc + ';border-radius:6px;transition:width .4s"></div></div></div>';
+      });
+      if (ticket > 0) {
+        content += '<div style="margin-top:12px;padding:10px;background:#0f172a;border-radius:8px;text-align:center;border-top:1px solid #334155">'
+          + '<div style="font-size:10px;color:#94a3b8">Ticket M\u00e9dio (RD)</div>'
+          + '<div style="font-size:22px;font-weight:800;color:#fbbf24">R$ ' + ticket.toLocaleString('pt-BR',{maximumFractionDigits:0}) + '</div>'
+          + '</div>';
+      }
+      content += '</div>';
+    }
+
+    // ─── BLOCO 5: PLANILHA GOOGLE SHEETS (se houver) ────────────────────────
+    if (sheetMes && Object.keys(sheetMes).length > 0) {
+      content += '<div style="background:#052e16;border-radius:12px;padding:16px;border:1px solid #10b98150;margin-bottom:16px">';
+      content += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:16px">\uD83D\uDCCA</span><span style="font-size:14px;font-weight:800;color:#6ee7b7">Planilha Google Sheets \u2014 ' + monthNames[curMonth] + '</span></div>';
+      content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:8px">Dados importados da aba do m\u00eas correspondente (legado, em transi\u00e7\u00e3o).</div>';
+      content += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">';
+      ['lig_real','lig_atend','tent_agend','agend','vis','prop','vend','desc','capt','pastas'].forEach(function(kk){
+        if (sheetMes[kk] != null) {
+          var lbl = (OO_CAMPOS.find(function(c){return c.k===kk;})||{}).l || kk;
+          content += '<div style="background:#022c22;border:1px solid #065f46;border-radius:6px;padding:8px;text-align:center">'
+            + '<div style="font-size:10px;color:#6ee7b7">' + lbl + '</div>'
+            + '<div style="font-size:16px;font-weight:800;color:#d1fae5">' + sheetMes[kk] + '</div>'
+            + '</div>';
+        }
+      });
+      content += '</div></div>';
+    }
   }
 
   // ============================================================
@@ -6405,8 +6484,7 @@ function pgOO() {
     var metasMes = ooGetMetas(selBid, monthKey);
     var realMes = ooAggMonth(selBid, monthKey);
     var cache = ((S.ooSheetCache||{})[selBid]) || {};
-    var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0
-                       || (realMes.vend||0) + (realMes.vis||0) + (realMes.lig_real||0) > 0;
+    var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
     var workDays = ooGetWorkDays(curYear, curMonth);
     var workPassed = ooGetWorkDaysPassed(curYear, curMonth);
 
@@ -11336,55 +11414,7 @@ function pgConfig() {
           + '<div style="margin-top:12px;padding:10px;background:var(--cream2);border-radius:8px;font-size:10.5px;color:var(--muted);line-height:1.5"><strong style="color:var(--navy)">N\u00edveis:</strong> S\u00f3cio(10) \u2022 Gerente(7) \u2022 Back Office(6) \u2022 L\u00edder(5) \u2022 Marketing(3) \u2022 Corretor(2)</div>';
       })() : '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;background:var(--cream2);border-radius:8px">\uD83D\uDD12 Apenas S\u00f3cio/Diretor pode editar perfis hier\u00e1rquicos</div>')
     + '</div>'
-    // ── Planilhas One on One ──
-    + '<div class="card mt2"><div class="ctitle">📊 Planilhas One on One (Google Sheets)</div>'
-    + '<div style="font-size:11.5px;color:var(--muted);margin-bottom:14px;line-height:1.5">Vincule as planilhas Google Sheets de cada corretor. Cada campo aceita um link direto da planilha ou aba específica.</div>'
-    + BROKERS.map(b => {
-        const raw = (S.ooSheetLinks || {})[b.id];
-        // Backward compat: if raw is string, migrate to object
-        const links = typeof raw === 'string' ? { main: raw } : (raw || {});
-        const OO_FIELDS = [
-          {key:'main',          label:'📋 Planilha Principal',           placeholder:'Link principal do One on One'},
-          {key:'metas',         label:'🎯 Metas Mensais',               placeholder:'Aba ou planilha de metas'},
-          {key:'ligacoes',      label:'📞 Controle de Ligações',         placeholder:'Registro de ligações diárias'},
-          {key:'visitas',       label:'🏠 Controle de Visitas',          placeholder:'Registro de visitas realizadas'},
-          {key:'captacoes',     label:'📥 Captações',                    placeholder:'Controle de imóveis captados'},
-          {key:'propostas',     label:'📄 Propostas Enviadas',           placeholder:'Histórico de propostas'},
-          {key:'fechamentos',   label:'🏆 Fechamentos / Vendas',         placeholder:'Pipeline de fechamentos'},
-          {key:'comissoes',     label:'💰 Comissões',                    placeholder:'Controle de comissões'},
-          {key:'clientes',      label:'👥 Base de Clientes',             placeholder:'CRM / carteira de clientes'},
-          {key:'followup',      label:'🔄 Follow-up Semanal',           placeholder:'Checklist de follow-up'},
-          {key:'treinamentos',  label:'📚 Treinamentos & PDI',           placeholder:'Plano de desenvolvimento'},
-          {key:'feedback',      label:'💬 Feedbacks',                    placeholder:'Registro de feedbacks 1:1'},
-          {key:'indicadores',   label:'📊 Indicadores / KPIs',           placeholder:'Dashboard individual'},
-          {key:'agenda',        label:'📅 Agenda / Compromissos',        placeholder:'Agenda compartilhada'},
-        ];
-        const filledCount = OO_FIELDS.filter(f => links[f.key]).length;
-        const expanded = S['ooExpand_'+b.id] || false;
-        return '<div style="border:1px solid var(--cream3);border-radius:var(--radius);padding:16px;margin-bottom:12px;transition:var(--transition)">'
-          + '<div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="S[\'ooExpand_'+b.id+'\']=!S[\'ooExpand_'+b.id+'\'];render()">'
-          + '<div style="width:32px;height:32px;border-radius:8px;background:'+b.color+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff">'+b.ini+'</div>'
-          + '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--navy)">'+b.name+'</div>'
-          + '<div style="font-size:10px;color:var(--muted)">'+filledCount+' de '+OO_FIELDS.length+' planilhas vinculadas</div></div>'
-          + '<div style="display:flex;align-items:center;gap:6px">'
-          + (filledCount > 0 ? '<span style="background:var(--g-bg);color:var(--g-tx);font-size:9px;font-weight:600;padding:2px 7px;border-radius:99px">'+filledCount+' ativo'+(filledCount>1?'s':'')+'</span>' : '')
-          + '<span style="font-size:14px;color:var(--muted);transition:transform .2s;transform:rotate('+(expanded?'180':'0')+'deg)">▼</span>'
-          + '</div></div>'
-          + (expanded ? '<div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-            + OO_FIELDS.map(f => {
-              const val = links[f.key] || '';
-              return '<div style="position:relative">'
-                + '<label style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;display:block">'+f.label+'</label>'
-                + '<div style="display:flex;gap:4px">'
-                + '<input class="finp" type="url" style="flex:1;padding:6px 10px;font-size:11px;font-family:var(--mono)" placeholder="'+f.placeholder+'" value="'+val+'"'
-                + ' oninput="if(!S.ooSheetLinks)S.ooSheetLinks={};const o=S.ooSheetLinks[\''+b.id+'\'];S.ooSheetLinks[\''+b.id+'\']=typeof o===\'string\'?{main:o}:(o||{});S.ooSheetLinks[\''+b.id+'\'][\''+f.key+'\']=this.value;saveState()">'
-                + (val ? '<a href="'+val+'" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;background:var(--cream2);border:1px solid var(--cream3);text-decoration:none;font-size:12px;flex-shrink:0" title="Abrir">↗</a>' : '')
-                + '</div></div>';
-            }).join('')
-            + '</div>' : '')
-          + '</div>';
-      }).join('')
-    + '</div>'
+    // Planilhas One on One movidas para dentro da propria aba One on One de cada corretor
     + '<div class="card mt2"><div class="ctitle">👥 Gestão de Usuários</div>'
     + '<div style="font-size:11px;color:var(--muted);margin-bottom:12px">Adicione ou remova corretores do sistema (será sincronizado com o RD CRM no próximo sync).</div>'
     + '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
