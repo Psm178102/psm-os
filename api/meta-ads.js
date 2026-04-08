@@ -3,11 +3,31 @@
 
 const GRAPH_API = 'https://graph.facebook.com/v21.0';
 
+// In-memory cache (lives per warm Lambda instance). 30s TTL.
+// Evita estourar rate limit com auto-refresh do frontend.
+var __cache = {};
+var CACHE_TTL_MS = 30 * 1000;
+
 module.exports = async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // Cache check
+  var cacheKey = JSON.stringify({
+    p: req.query.date_preset || '',
+    s: req.query.since || '',
+    u: req.query.until || '',
+    nocache: req.query.nocache || ''
+  });
+  if (!req.query.nocache) {
+    var hit = __cache[cacheKey];
+    if (hit && (Date.now() - hit.t) < CACHE_TTL_MS) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.status(200).json(hit.d);
+    }
+  }
 
   var token = process.env.META_ACCESS_TOKEN;
   // Comma-separated: "act_123456,act_789012"
@@ -56,7 +76,7 @@ module.exports = async function handler(req, res) {
 
       // 2. Get insights at campaign level
       var insightsUrl = GRAPH_API + '/' + actId + '/insights'
-        + '?fields=campaign_id,campaign_name,spend,impressions,reach,clicks,ctr,cpm,'
+        + '?fields=campaign_id,campaign_name,spend,impressions,reach,frequency,clicks,ctr,cpm,'
         + 'actions,cost_per_action_type,'
         + 'video_avg_time_watched_actions,'
         + 'video_p25_watched_actions,video_p50_watched_actions,'
@@ -87,7 +107,7 @@ module.exports = async function handler(req, res) {
 
       // 3. Get account-level insights for total spend
       var acctInsUrl = GRAPH_API + '/' + actId + '/insights'
-        + '?fields=spend,impressions,reach,clicks,actions'
+        + '?fields=spend,impressions,reach,frequency,clicks,actions'
         + '&access_token=' + actToken;
 
       if (sinceDate && untilDate) {
@@ -106,6 +126,7 @@ module.exports = async function handler(req, res) {
         spend: parseFloat(acctIns.spend || 0),
         impressions: parseInt(acctIns.impressions || 0),
         reach: parseInt(acctIns.reach || 0),
+        frequency: parseFloat(acctIns.frequency || 0),
         clicks: parseInt(acctIns.clicks || 0)
       });
 
@@ -115,6 +136,8 @@ module.exports = async function handler(req, res) {
         var spend = parseFloat(ins.spend || 0);
         var impressions = parseInt(ins.impressions || 0);
         var reach = parseInt(ins.reach || 0);
+        var frequency = parseFloat(ins.frequency || 0);
+        if (!frequency && reach > 0) frequency = impressions / reach;
         var clicks = parseInt(ins.clicks || 0);
         var ctr = parseFloat(ins.ctr || 0);
         var cpm = parseFloat(ins.cpm || 0);
@@ -184,6 +207,7 @@ module.exports = async function handler(req, res) {
           spend: spend,
           impressions: impressions,
           reach: reach,
+          frequency: frequency,
           clicks: clicks,
           ctr: ctr,
           cpm: cpm,
@@ -206,13 +230,16 @@ module.exports = async function handler(req, res) {
     var thirtyAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
     var period = (sinceDate || formatDate(thirtyAgo)) + ' - ' + (untilDate || formatDate(today));
 
-    return res.status(200).json({
+    var payload = {
       success: true,
       period: period,
       accounts: accountSpend,
       campaigns: allCampaigns,
       fetchedAt: new Date().toISOString()
-    });
+    };
+    __cache[cacheKey] = { t: Date.now(), d: payload };
+    res.setHeader('X-Cache', 'MISS');
+    return res.status(200).json(payload);
 
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Erro ao consultar Meta API' });
