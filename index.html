@@ -2592,42 +2592,61 @@ var pgWarRoom = pgWarArena;
 
 function fmtN(v){return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
 function pgMetas(){
+  // META GLOBAL 2026 — valores oficiais do PDF meta2026.pdf
+  // Total Anual: R$ 121.310.545,45 (excluindo IMPPER que é tracked separadamente)
+  var MG_VERSION_2026 = 'pdf-2026-v1';
+  var MG_DEFAULT_2026 = {
+    _version: MG_VERSION_2026,
+    meses:['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'],
+    corretores:[13,12,12,14,14,14,14,14,14,14,14,14],
+    // IMPPER: JUN a NOV × R$1.085.000 (total R$6.510.000)
+    metaImpper:[0,0,0,0,0,1085000,1085000,1085000,1085000,1085000,1085000,0],
+    // Terceiros: 12 meses × R$1.500.000 (total R$18.000.000)
+    metaTerc:[1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000],
+    // Estoque MAP: 11 meses × R$1.850.000 (ABR zerado) — total R$20.350.000
+    metaEstMAP:[1850000,1850000,1850000,0,1850000,1850000,1850000,1850000,1850000,1850000,1850000,1850000],
+    // Estoque Conquista: 11 meses × R$1.200.000 (ABR zerado) — total R$13.200.000
+    metaEstConq:[1200000,1200000,1200000,0,1200000,1200000,1200000,1200000,1200000,1200000,1200000,1200000],
+    // Lançamentos: MAR/ABR/MAI/JUN/JUL/OUT — total R$69.760.545,45
+    metaLanc:[0,0,8400000,12636000,8734545.45,13050000,25920000,0,0,1020000,0,0],
+    realizado:[711000,685000,4863700,0,0,0,0,0,0,0,0,0],
+    ticketMedio:350000,
+    vgvSustentavel:4150000,
+    comissaoBruta:0.04,
+    aliquota:0.08,
+    comCorretor:0.014,
+    comSenior:0.016,
+    comSocio50:0.0175,
+    custoFixo:27000,
+    ads:15000,
+    prolabore:24000,
+    distribLucro:0,
+    divida:7500,
+    lancamentos:{
+      mar:{nome:'GIULIA Boulevard',pastas:210,ticket:300000},
+      abr:{nome:'Alameda dos Ipes',pastas:108,ticket:390000},
+      mai:{nome:'ORGANIQUE',pastas:40,ticket:0},
+      jun:{nome:'CASA PIETRA',pastas:30,ticket:1500000},
+      jul:{nome:'SOHO BUSINESS',pastas:240,ticket:360000},
+      out:{nome:'IMPPER CITY',pastas:34,ticket:100000}
+    },
+    metaAno:121310545.45
+  };
   if(!S.mg) {
     var saved = localStorage.getItem('psm_meta_global');
     if(saved) { try { S.mg = JSON.parse(saved); } catch(e){} }
   }
+  // Migração forçada: se S.mg existe mas é versão antiga, substitui pelas metas 2026
+  // mantendo o que o usuário possa ter editado em "realizado"
+  if(S.mg && S.mg._version !== MG_VERSION_2026) {
+    var _prevReal = (S.mg && S.mg.realizado) || MG_DEFAULT_2026.realizado;
+    S.mg = JSON.parse(JSON.stringify(MG_DEFAULT_2026));
+    S.mg.realizado = _prevReal;
+    try { localStorage.setItem('psm_meta_global', JSON.stringify(S.mg)); } catch(e){}
+  }
   if(!S.mg) {
-    S.mg = {
-      meses:['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'],
-      corretores:[13,12,12,14,14,14,14,14,14,14,14,14],
-      metaImpper:[0,0,0,0,0,1085000,0,1085000,1085000,1085000,0,1085000],
-      metaTerc:[1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000,1500000],
-      metaEstMAP:[1850000,1850000,1850000,0,1850000,1850000,1850000,1850000,1850000,1850000,1850000,1850000],
-      metaEstConq:[1200000,1200000,1200000,0,1200000,1200000,1200000,1200000,1200000,1200000,1200000,1200000],
-      metaLanc:[0,0,0,0,0,0,0,0,0,0,0,0],
-      realizado:[711000,685000,4863700,0,0,0,0,0,0,0,0,0],
-      ticketMedio:350000,
-      vgvSustentavel:4150000,
-      comissaoBruta:0.04,
-      aliquota:0.08,
-      comCorretor:0.014,
-      comSenior:0.016,
-      comSocio50:0.0175,
-      custoFixo:27000,
-      ads:15000,
-      prolabore:24000,
-      distribLucro:0,
-      divida:7500,
-      lancamentos:{
-        mar:{nome:'GIULIA Boulevard',pastas:210,ticket:300000},
-        abr:{nome:'Alameda dos Ipes',pastas:108,ticket:390000},
-        mai:{nome:'ORGANIQUE',pastas:40,ticket:0},
-        jun:{nome:'CASA PIETRA',pastas:30,ticket:1500000},
-        jul:{nome:'SOHO BUSINESS',pastas:240,ticket:360000},
-        out:{nome:'IMPPER CITY',pastas:34,ticket:100000}
-      },
-      metaAno:144344000
-    };
+    S.mg = JSON.parse(JSON.stringify(MG_DEFAULT_2026));
+    try { localStorage.setItem('psm_meta_global', JSON.stringify(S.mg)); } catch(e){}
   }
   return pgMetasV2();
 }
