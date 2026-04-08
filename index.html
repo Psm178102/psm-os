@@ -777,6 +777,12 @@ let TEAM_CONFIG={
   leaders:{ marcus_l:['evandro','gabriel_b','camila_b','danilo_a'] },
 };
 
+// Restaura roles customizados salvos em Configuracoes (setUserRole)
+try {
+  var _roleMap = JSON.parse(localStorage.getItem('psm_user_roles')||'{}');
+  USERS_BASE.forEach(function(u){ if(_roleMap[u.id]) u.role = _roleMap[u.id]; });
+} catch(e){}
+
 function buildUsers(){
   return USERS_BASE.map(u=>{
     const assigned=TEAM_CONFIG.assignments[u.id];
@@ -1657,6 +1663,7 @@ function pgRanking(){
   const fOPPS = applyDateFilter(OPPS, 'rank');
   const fVENDAS = applyDateFilter(VENDAS, 'rank');
   const fLOST = applyDateFilter(LOST_DEALS, 'rank');
+  const fTASKS_rank = applyDateFilter(TASKS_RD || [], 'rank');
 
   // ── Recalculate broker metrics for filtered period ──
   const brkData = {};
@@ -1664,13 +1671,19 @@ function pgRanking(){
     const bOpps = fOPPS.filter(o => o.bid === b.id);
     const bWon = fVENDAS.filter(v => v.bid === b.id);
     const bLost = fLOST.filter(l => l.bid === b.id);
+    const bTasks = fTASKS_rank.filter(t => t.bid === b.id);
+    const tVis = bTasks.filter(t => t.type === 'visit').length;
+    const tLig = bTasks.filter(t => t.type === 'call' || t.type === 'whatsapp').length;
     brkData[b.id] = {
       vgv_pipe: bOpps.reduce((a,o) => a + (o.vgv||0), 0),
       vgv_real: bWon.reduce((a,v) => a + (v.vgv||0), 0),
       vend: bWon.length,
       perdidas: bLost.length,
       agend: bOpps.filter(o => ['agendamento','vis_agend'].includes(o.st_psm)).length,
-      vis: bOpps.filter(o => ['vis_real'].includes(o.st_psm)).length + bWon.length,
+      // Visitas = CRM stage vis_real + vendas fechadas + tarefas concluidas do tipo visita
+      vis: bOpps.filter(o => ['vis_real'].includes(o.st_psm)).length + bWon.length + tVis,
+      vis_task: tVis,
+      lig_task: tLig,
       prop: bOpps.filter(o => o.st_psm === 'proposta').length,
       crm: b.crm || 20,
       conversao: (bWon.length + bLost.length) > 0 ? parseFloat((bWon.length / (bWon.length + bLost.length) * 100).toFixed(2)) : 0,
@@ -2053,6 +2066,131 @@ function arenaTV(){
       if(!el){ clearInterval(tvRefreshInt); return; }
       exitTV();
       setTimeout(arenaTV, 500);
+    }, 60000);
+
+  }, 300);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// METAADS TV — Modo TV para Meta Ads (mesma mecanica do arenaTV)
+// ═══════════════════════════════════════════════════════════════════════════
+function metaAdsTV(){
+  nav('metaads');
+  setTimeout(function(){
+    var pc = document.querySelector('#pc');
+    if(!pc) return;
+    var srcHTML = pc.innerHTML;
+    var overlay = document.createElement('div');
+    overlay.id = 'metaads-tv-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:#0b1120;overflow:hidden;font-family:Inter,system-ui,sans-serif';
+
+    var scroller = document.createElement('div');
+    scroller.id = 'matv-scroller';
+    scroller.style.cssText = 'width:100%;height:calc(100vh - 40px);overflow:hidden;position:relative';
+    var inner = document.createElement('div');
+    inner.id = 'matv-inner';
+    inner.style.cssText = 'padding:18px 32px 60px';
+    inner.innerHTML = srcHTML;
+    scroller.appendChild(inner);
+    overlay.appendChild(scroller);
+
+    // CSS overrides — compact dark layout
+    var tvStyle = document.createElement('style');
+    tvStyle.id = 'matv-style';
+    tvStyle.textContent = '#metaads-tv-overlay *{box-sizing:border-box}'
+      + '#metaads-tv-overlay h1,#metaads-tv-overlay h2{margin:0!important}'
+      + '#metaads-tv-overlay h2{font-size:22px!important}'
+      + '#metaads-tv-overlay select,#metaads-tv-overlay input[type=date]{display:none!important}'
+      + '#metaads-tv-overlay button[onclick*="metaAdsTV"]{display:none!important}'
+      + '#metaads-tv-overlay button[onclick*="maReload"]{display:none!important}'
+      + '#metaads-tv-overlay button[onclick*="maSetFilter"]{pointer-events:none}'
+      + '#metaads-tv-overlay button[onclick*="maApplyCustom"],#metaads-tv-overlay button[onclick*="maClearCustom"],#metaads-tv-overlay button[onclick*="maToggleAuto"],#metaads-tv-overlay button[onclick*="maFetch"]{display:none!important}'
+      + '#metaads-tv-overlay [style*="padding:24px"]{padding:14px!important}'
+      + '#metaads-tv-overlay [style*="padding:20px"]{padding:12px!important}'
+      + '#metaads-tv-overlay [style*="padding:16px"]{padding:10px!important}'
+      + '#metaads-tv-overlay [style*="font-size:1.6rem"]{font-size:24px!important}'
+      + '#metaads-tv-overlay table{font-size:12px!important}';
+    overlay.appendChild(tvStyle);
+
+    // Footer bar + live clock
+    var footer = document.createElement('div');
+    footer.id = 'matv-footer';
+    footer.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:40px;padding:0 32px;background:rgba(0,0,0,0.88);display:flex;justify-content:space-between;align-items:center;z-index:100000;backdrop-filter:blur(8px);border-top:1px solid rgba(212,175,55,0.3)';
+    footer.innerHTML = '<div style="font-size:11px;color:#d4a843;font-weight:700;letter-spacing:1px">\uD83D\uDCE3 META ADS \u2022 MODO TV \u2022 HOUSE PSM</div>'
+      + '<div id="matv-clock" style="font-size:11px;color:#94a3b8;font-family:monospace"></div>'
+      + '<div style="font-size:10px;color:#475569">ESC para sair \u2022 Auto-scroll \u2022 Refresh 60s</div>';
+    overlay.appendChild(footer);
+
+    document.body.appendChild(overlay);
+
+    // Fullscreen
+    if(overlay.requestFullscreen) overlay.requestFullscreen();
+    else if(overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen();
+
+    // Live clock
+    var clockInt = setInterval(function(){
+      var el = document.getElementById('matv-clock');
+      if(!el) { clearInterval(clockInt); return; }
+      var d = new Date();
+      el.textContent = d.toLocaleDateString('pt-BR') + ' \u2022 ' + d.toLocaleTimeString('pt-BR');
+    }, 1000);
+
+    // Auto-scroll (slow down, fast up)
+    var scrollPos = 0, scrollSpeed = 0.5, pauseCounter = 300, scrollDir = 1;
+    var tvScrollInt = setInterval(function(){
+      var el = document.getElementById('matv-inner');
+      var sc = document.getElementById('matv-scroller');
+      if(!el || !sc) { clearInterval(tvScrollInt); return; }
+      var maxScroll = el.scrollHeight - sc.clientHeight;
+      if(maxScroll <= 0) return;
+      if(pauseCounter > 0) { pauseCounter--; return; }
+      scrollPos += scrollSpeed * scrollDir;
+      if(scrollPos >= maxScroll) { scrollPos = maxScroll; scrollDir = -1; pauseCounter = 180; scrollSpeed = 1.5; }
+      if(scrollPos <= 0) { scrollPos = 0; scrollDir = 1; pauseCounter = 300; scrollSpeed = 0.5; }
+      el.style.transform = 'translateY(' + (-scrollPos) + 'px)';
+    }, 1000/60);
+
+    // Wake lock
+    var wakeLock = null;
+    async function requestWakeLock(){
+      try { if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 1000); }); } } catch(e){}
+    }
+    requestWakeLock();
+
+    var moveInt = setInterval(function(){
+      if(!document.getElementById('metaads-tv-overlay')) { clearInterval(moveInt); return; }
+      window.dispatchEvent(new Event('mousemove'));
+    }, 30000);
+
+    // Exit
+    function exitTV(){
+      var el = document.getElementById('metaads-tv-overlay');
+      if(el) el.remove();
+      var st = document.getElementById('matv-style');
+      if(st) st.remove();
+      if(document.fullscreenElement) document.exitFullscreen();
+      if(wakeLock) { try{wakeLock.release();}catch(e){} wakeLock=null; }
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('fullscreenchange', onFs);
+      clearInterval(tvScrollInt);
+      clearInterval(tvRefreshInt);
+      clearInterval(moveInt);
+      clearInterval(clockInt);
+    }
+    function onKey(e){ if(e.key==='Escape') exitTV(); }
+    function onFs(){ if(!document.fullscreenElement) exitTV(); }
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('fullscreenchange', onFs);
+
+    // Auto-refresh every 60s — fetch novos dados e reabre o modo TV
+    var tvRefreshInt = setInterval(function(){
+      var el = document.getElementById('metaads-tv-overlay');
+      if(!el) { clearInterval(tvRefreshInt); return; }
+      try { if(typeof window.maFetch === 'function') window.maFetch({nocache:true}); } catch(e){}
+      setTimeout(function(){
+        exitTV();
+        setTimeout(metaAdsTV, 500);
+      }, 2000);
     }, 60000);
 
   }, 300);
@@ -2491,190 +2629,275 @@ function pgMetas(){
       metaAno:144344000
     };
   }
+  return pgMetasV2();
+}
+// ═══════════════════════════════════════════════════════════════════════════
+// PG METAS V2 — Redesign consolidado (Navy/Cream, tabs, cards profissionais)
+// ═══════════════════════════════════════════════════════════════════════════
+function pgMetasV2(){
   var m=S.mg, ms=m.meses;
   function metaTotal(i){return (m.metaImpper[i]||0)+(m.metaTerc[i]||0)+(m.metaEstMAP[i]||0)+(m.metaEstConq[i]||0)+(m.metaLanc[i]||0);}
-  function deficit(i){return (m.realizado[i]||0)-metaTotal(i);}
   function sum(arr){return arr.reduce(function(a,b){return a+(b||0);},0);}
-  function fmt(v){if(v===0)return '\u2014';return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
-  function fmtN(v){return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
-  function pct(v){return (v*100).toFixed(2)+'%';}
+  function fmtBR(v){if(!v||v===0)return 'R$ 0';return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
+  function fmtCompact(v){if(!v)return 'R$ 0';var a=Math.abs(v),s=v<0?'-':'';if(a>=1e6)return s+'R$ '+(a/1e6).toFixed(1).replace('.0','')+'M';if(a>=1e3)return s+'R$ '+Math.round(a/1e3)+'k';return s+'R$ '+a;}
+  function pct(v){return (v*100).toFixed(1)+'%';}
 
   var totalArr=[];for(var i=0;i<12;i++)totalArr.push(metaTotal(i));
   var totalAno=sum(totalArr);
   var realAno=sum(m.realizado);
-  var defArr=[];for(var i=0;i<12;i++)defArr.push(deficit(i));
-  var defAno=sum(defArr);
+  var defAno=realAno-totalAno;
+  var pctAno=totalAno>0?realAno/totalAno:0;
+  var curMonth=new Date().getMonth();
+  var realMes=m.realizado[curMonth]||0;
+  var metaMes=totalArr[curMonth]||0;
+  var pctMes=metaMes>0?realMes/metaMes:0;
   var tri=[
-    {lbl:'1\u00ba TRI',meta:sum([totalArr[0],totalArr[1],totalArr[2]]),real:sum([m.realizado[0],m.realizado[1],m.realizado[2]])},
-    {lbl:'2\u00ba TRI',meta:sum([totalArr[3],totalArr[4],totalArr[5]]),real:sum([m.realizado[3],m.realizado[4],m.realizado[5]])},
-    {lbl:'3\u00ba TRI',meta:sum([totalArr[6],totalArr[7],totalArr[8]]),real:sum([m.realizado[6],m.realizado[7],m.realizado[8]])},
-    {lbl:'4\u00ba TRI',meta:sum([totalArr[9],totalArr[10],totalArr[11]]),real:sum([m.realizado[9],m.realizado[10],m.realizado[11]])}
+    {lbl:'1\u00ba Trimestre',meses:'Jan \u00B7 Fev \u00B7 Mar',meta:sum([totalArr[0],totalArr[1],totalArr[2]]),real:sum([m.realizado[0],m.realizado[1],m.realizado[2]])},
+    {lbl:'2\u00ba Trimestre',meses:'Abr \u00B7 Mai \u00B7 Jun',meta:sum([totalArr[3],totalArr[4],totalArr[5]]),real:sum([m.realizado[3],m.realizado[4],m.realizado[5]])},
+    {lbl:'3\u00ba Trimestre',meses:'Jul \u00B7 Ago \u00B7 Set',meta:sum([totalArr[6],totalArr[7],totalArr[8]]),real:sum([m.realizado[6],m.realizado[7],m.realizado[8]])},
+    {lbl:'4\u00ba Trimestre',meses:'Out \u00B7 Nov \u00B7 Dez',meta:sum([totalArr[9],totalArr[10],totalArr[11]]),real:sum([m.realizado[9],m.realizado[10],m.realizado[11]])}
   ];
-  var mediaMetaMes=totalAno/12;
-  var pareto70=function(n){return Math.round(n*0.7*10)/10;};
-  var custoTotal=(m.custoFixo||0)+(m.ads||0)+(m.prolabore||0)+(m.distribLucro||0)+(m.divida||0);
-  function inp(key,idx,val,w){var isCorr=key==='corretores';var dv=isCorr?val:fmtN(val);return '<input type="text" value="'+dv+'" data-raw="'+val+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="var v=parseFloat(this.value)||0;this.dataset.raw=v;this.value='+(isCorr?'v':'fmtN(v)')+';mgUpd(\''+key+'\','+idx+',v)" onkeydown="if(event.key===\'Enter\')this.blur()" style="width:'+(w||'100%')+';padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px">';}
-  function inpG(key,val,w){return '<input type="number" value="'+val+'" step="any" onchange="mgUpdG(\''+key+'\',this.value)" style="width:'+(w||'100%')+';padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px">';}
 
-  var h='<div class="pg-wrap" style="padding:18px;max-width:100%;overflow-x:auto">';
-  h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><h2 style="color:#00e5a0;margin:0">\uD83C\uDFAF META MENSAL 2026</h2>';
-  h+='<div style="color:#94a3b8;font-size:13px">Meta Ano: <b style="color:#00e5a0">'+fmt(m.metaAno)+'</b></div></div>';
-  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px">';
-  h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">Meta Ano Total</div><div style="color:#00e5a0;font-size:22px;font-weight:700">'+fmt(totalAno)+'</div></div>';
-  h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">Realizado</div><div style="color:#fff;font-size:22px;font-weight:700">'+fmt(realAno)+'</div></div>';
-  h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">D\u00e9ficit/Lucro</div><div style="color:'+(defAno>=0?'#00e5a0':'#ef4444')+';font-size:22px;font-weight:700">'+fmt(defAno)+'</div></div>';
-  h+='<div style="background:#1e293b;border-radius:12px;padding:16px;text-align:center"><div style="color:#94a3b8;font-size:11px">% Atingido</div><div style="color:'+(realAno/totalAno>=0.8?'#00e5a0':'#f59e0b')+';font-size:22px;font-weight:700">'+pct(totalAno>0?realAno/totalAno:0)+'</div></div>';
-  // Removido: card Custos Fixos/Mes
-  h+='</div>';
-  h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">';
-  for(var t=0;t<4;t++){
-    var pctTri=tri[t].meta>0?tri[t].real/tri[t].meta:0;
-    h+='<div style="background:#1e293b;border-radius:12px;padding:14px"><div style="color:#94a3b8;font-size:12px;margin-bottom:6px">'+tri[t].lbl+'</div>';
-    h+='<div style="font-size:11px;color:#64748b">Meta: '+fmt(tri[t].meta)+'</div>';
-    h+='<div style="font-size:11px;color:#fff">Real: '+fmt(tri[t].real)+'</div>';
-    h+='<div style="margin-top:6px;background:#0f172a;border-radius:6px;height:8px;overflow:hidden"><div style="height:100%;width:'+Math.min(pctTri*100,100)+'%;background:'+(pctTri>=0.8?'#00e5a0':'#f59e0b')+';border-radius:6px"></div></div>';
-    h+='<div style="text-align:right;font-size:11px;color:'+(pctTri>=0.8?'#00e5a0':'#f59e0b')+'">'+pct(pctTri)+'</div></div>';
-  }
-  h+='</div>';
-  h+='<h3 style="color:#94a3b8;font-size:15px;margin-bottom:10px">\uD83D\uDCCA Meta Mensal por Canal <span style="color:#64748b;font-size:11px">(edit\u00e1vel)</span></h3>';
-  h+='<div style="overflow-x:auto;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:1200px">';
-  h+='<tr style="background:#0f172a"><th style="padding:8px;color:#94a3b8;text-align:left;border-bottom:1px solid #334155">Canal</th>';
-  for(var i=0;i<12;i++) h+='<th style="padding:8px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155;min-width:95px">'+ms[i]+'</th>';
-  h+='<th style="padding:8px;color:#00e5a0;text-align:right;border-bottom:1px solid #334155">TOTAL</th></tr>';
-  h+='<tr style="background:#1a2332"><td style="padding:6px 8px;color:#64748b;font-size:11px">N\u00ba Corretores</td>';
-  for(var i=0;i<12;i++) h+='<td style="padding:4px">'+inp('corretores',i,m.corretores[i]||0)+'</td>';
-  h+='<td style="padding:6px 8px;color:#64748b;text-align:right">\u2014</td></tr>';
-  var canais=[['metaImpper','Meta IMPPER','#1e293b'],['metaTerc','Meta Terceiros','#1a2332'],['metaEstMAP','Meta Estoque MAP','#1e293b'],['metaEstConq','Meta Est. Conquista','#1a2332'],['metaLanc','Meta Lan\u00e7amento','#1e293b']];
-  for(var c=0;c<canais.length;c++){
-    h+='<tr style="background:'+canais[c][2]+'"><td style="padding:6px 8px;color:#e2e8f0">'+canais[c][1]+'</td>';
-    for(var i=0;i<12;i++) h+='<td style="padding:4px">'+inp(canais[c][0],i,m[canais[c][0]][i]||0)+'</td>';
-    h+='<td style="padding:6px 8px;color:#fff;text-align:right;font-weight:600">'+fmtN(sum(m[canais[c][0]]))+'</td></tr>';
-  }
-  h+='<tr style="background:#0f172a;border-top:2px solid #00e5a0"><td style="padding:8px;color:#00e5a0;font-weight:700">META TOTAL</td>';
-  for(var i=0;i<12;i++) h+='<td style="padding:8px;color:#00e5a0;text-align:right;font-weight:700">'+fmtN(totalArr[i])+'</td>';
-  h+='<td style="padding:8px;color:#00e5a0;text-align:right;font-weight:700;font-size:13px">'+fmtN(totalAno)+'</td></tr>';
-  h+='<tr style="background:#1e293b"><td style="padding:6px 8px;color:#38bdf8;font-weight:600">REALIZADO</td>';
-  for(var i=0;i<12;i++) h+='<td style="padding:4px">'+inp('realizado',i,m.realizado[i]||0)+'</td>';
-  h+='<td style="padding:6px 8px;color:#38bdf8;text-align:right;font-weight:700">'+fmtN(realAno)+'</td></tr>';
-  h+='<tr style="background:#0f172a;border-top:1px solid #334155"><td style="padding:8px;color:#e2e8f0;font-weight:600">D\u00c9FICIT/LUCRO</td>';
-  for(var i=0;i<12;i++){var d=defArr[i];h+='<td style="padding:8px;color:'+(d>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:600">'+fmtN(d)+'</td>';}
-  h+='<td style="padding:8px;color:'+(defAno>=0?'#00e5a0':'#ef4444')+';text-align:right;font-weight:700">'+fmtN(defAno)+'</td></tr>';
-  h+='</table></div>';
-  h+='<h3 style="color:#94a3b8;font-size:15px;margin:20px 0 10px">\uD83D\uDCCA An\u00e1lise Sustent\u00e1vel (sem lan\u00e7amento)</h3>';
-  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">';
-  h+='<div style="background:#1e293b;border-radius:12px;padding:14px"><div style="color:#94a3b8;font-size:11px">VGV Sustent\u00e1vel/M\u00eas</div>'+inpG('vgvSustentavel',m.vgvSustentavel)+'</div>';
-  h+='<div style="background:#1e293b;border-radius:12px;padding:14px"><div style="color:#94a3b8;font-size:11px">Ticket M\u00e9dio PSM</div>'+inpG('ticketMedio',m.ticketMedio)+'</div>';
-  h+='<div style="background:#1e293b;border-radius:12px;padding:14px"><div style="color:#94a3b8;font-size:11px">M\u00e9dia Meta VGV/M\u00eas</div><div style="color:#fff;font-size:18px;font-weight:700;margin-top:6px">'+fmt(mediaMetaMes)+'</div></div>';
-  h+='<div style="background:#1e293b;border-radius:12px;padding:14px"><div style="color:#94a3b8;font-size:11px">Meta Individual/M\u00eas (m\u00e9dia)</div><div style="color:#fff;font-size:18px;font-weight:700;margin-top:6px">'+fmt(Math.round(mediaMetaMes/13))+'</div></div>';
-  h+='</div>';
-  h+='<div style="overflow-x:auto;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:1200px">';
-  h+='<tr style="background:#0f172a"><th style="padding:6px;color:#94a3b8;text-align:left;border-bottom:1px solid #334155">Indicador</th>';
-  for(var i=0;i<12;i++) h+='<th style="padding:6px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">'+ms[i]+'</th>';
-  h+='</tr>';
-  h+='<tr style="background:#1e293b"><td style="padding:6px 8px;color:#e2e8f0;font-size:11px">Meta Individual VGV</td>';
-  for(var i=0;i<12;i++){var mi=m.corretores[i]>0?totalArr[i]/m.corretores[i]:0; h+='<td style="padding:6px;color:#fff;text-align:right;font-size:11px">'+fmtN(Math.round(mi))+'</td>';}
-  h+='</tr>';
-  h+='<tr style="background:#1a2332"><td style="padding:6px 8px;color:#e2e8f0;font-size:11px">Pareto 70% (m\u00edn. 1 venda)</td>';
-  for(var i=0;i<12;i++){h+='<td style="padding:6px;color:#f59e0b;text-align:right;font-size:11px">'+pareto70(m.corretores[i]||0)+'</td>';}
-  h+='</tr>';
-  h+='<tr style="background:#1e293b"><td style="padding:6px 8px;color:#e2e8f0;font-size:11px">Prov. Realizado (Pareto x Ticket)</td>';
-  for(var i=0;i<12;i++){var pr=pareto70(m.corretores[i]||0)*m.ticketMedio; h+='<td style="padding:6px;color:#38bdf8;text-align:right;font-size:11px">'+fmtN(Math.round(pr))+'</td>';}
-  h+='</tr>';
-  h+='<tr style="background:#1a2332"><td style="padding:6px 8px;color:#e2e8f0;font-size:11px">Faltando p/ VGV Sustent\u00e1vel</td>';
-  for(var i=0;i<12;i++){var pr=pareto70(m.corretores[i]||0)*m.ticketMedio;var ft=pr-m.vgvSustentavel; h+='<td style="padding:6px;color:'+(ft>=0?'#00e5a0':'#ef4444')+';text-align:right;font-size:11px">'+fmtN(Math.round(ft))+'</td>';}
-  h+='</tr>';
-  h+='<tr style="background:#1e293b"><td style="padding:6px 8px;color:#e2e8f0;font-size:11px">Faltando p/ VGV Meta</td>';
-  for(var i=0;i<12;i++){var pr=pareto70(m.corretores[i]||0)*m.ticketMedio;var ft=pr-totalArr[i]; h+='<td style="padding:6px;color:'+(ft>=0?'#00e5a0':'#ef4444')+';text-align:right;font-size:11px">'+fmtN(Math.round(ft))+'</td>';}
-  h+='</tr>';
-  h+='</table></div>';
-  // Removido: Custos Fixos, Indices de Comissao, Painel VGC
+  // Estado da tab ativa (anual / canais / equipes / individual)
+  if(!S.metaTab) S.metaTab='anual';
+  var tab=S.metaTab;
 
-  // META POR EQUIPE
-  if(!S.metaEquipe){try{S.metaEquipe=JSON.parse(localStorage.getItem('psm_meta_equipe')||'null');}catch(e){}}
-  if(!S.metaEquipe) S.metaEquipe={};
-  var frentes=['lancamento','conquista','terceiros','locacao'];
-  var fLabels={lancamento:'\ud83c\udfc6 Equipe MAP',conquista:'Conquista',terceiros:'Terceiros',locacao:'Loca\u00e7\u00e3o'};
-  h+='<h3 style="color:#94a3b8;font-size:15px;margin:24px 0 10px">\uD83D\uDC65 Meta por Equipe <span style="color:#64748b;font-size:11px">(edit\u00e1vel)</span></h3>';
-  h+='<div style="overflow-x:auto;margin-bottom:20px"><table style="width:100%;border-collapse:collapse;font-size:12px">';
-  h+='<tr style="background:#0f172a"><th style="padding:8px;color:#94a3b8;text-align:left;border-bottom:1px solid #334155">Equipe</th>';
-  h+='<th style="padding:8px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Meta VGV Estoque</th>';
-  h+='<th style="padding:8px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Meta VGV Lan\u00e7amento</th>';
-  h+='<th style="padding:8px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Capta\u00e7\u00f5es Semanais</th>';
-  h+='<th style="padding:8px;color:#94a3b8;text-align:right;border-bottom:1px solid #334155">Meta VGV Total/M\u00eas</th></tr>';
-  for(var fi=0;fi<frentes.length;fi++){
-    var fid=frentes[fi];
-    if(!S.metaEquipe[fid]) S.metaEquipe[fid]={vgv_estoque:0,vgv_lanc:0,capt_sem:0};
-    var me=S.metaEquipe[fid];
-    var showCapt=fid==='terceiros';
-    h+='<tr style="background:'+(fi%2===0?'#1e293b':'#1a2332')+'">';
-    h+='<td style="padding:8px;color:#e2e8f0;font-weight:600">'+fLabels[fid]+'</td>';
-    h+='<td style="padding:4px"><input type="number" value="'+(me.vgv_estoque||0)+'" onchange="meUpd(\''+fid+'\',\'vgv_estoque\',this.value)" style="width:100%;padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px"></td>';
-    h+='<td style="padding:4px"><input type="number" value="'+(me.vgv_lanc||0)+'" onchange="meUpd(\''+fid+'\',\'vgv_lanc\',this.value)" style="width:100%;padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px"></td>';
-    h+='<td style="padding:4px">'+(showCapt?'<input type="number" value="'+(me.capt_sem||0)+'" onchange="meUpd(\''+fid+'\',\'capt_sem\',this.value)" style="width:100%;padding:6px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;text-align:right;font-size:12px">':'<span style="color:#475569;display:block;text-align:right">\u2014</span>')+'</td>';
-    h+='<td style="padding:8px;color:#00e5a0;text-align:right;font-weight:700">'+fmt((me.vgv_estoque||0)+(me.vgv_lanc||0))+'</td>';
-    h+='</tr>';
-  }
-  h+='</table></div>';
-  h+='</div>';
-  // --- META INDIVIDUAL POR CORRETOR ---
-  h+='<h3 style="margin-top:32px;color:#f8fafc;font-size:18px"><span style="color:#d4a843">\u{1F464}</span> Meta Individual por Corretor</h3>';
-  if(!S.miMes) S.miMes=new Date().getMonth()+1;
-  var _mNames=['','JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
-  h+='<div style="margin:8px 0 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
-  h+='<span style="color:#94a3b8;font-size:13px;font-weight:600">M\u00eas:</span>';
-  for(var _mi=1;_mi<=12;_mi++){
-    var _mAct=_mi===S.miMes;
-    h+='<button onclick="S.miMes='+_mi+';render()" style="padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;'+(_mAct?'background:#d4a843;color:#0f172a':'background:#334155;color:#cbd5e1')+'">' + _mNames[_mi] + '</button>';
-  }
-  h+='</div>';
-  h+='<div style="overflow-x:auto;border-radius:10px;border:1px solid #334155">';
-  h+='<table style="width:100%;border-collapse:collapse;font-size:13px">';
-  h+='<thead><tr style="background:#1e293b">';
-  h+='<th style="padding:10px 12px;text-align:left;color:#d4a843;font-weight:700;white-space:nowrap;border-bottom:2px solid #d4a843">Corretor</th>';
-  h+='<th style="padding:10px 8px;text-align:center;color:#94a3b8;font-weight:600;border-bottom:2px solid #334155">Meta VGV Mensal</th>';
-  h+='<th style="padding:10px 8px;text-align:center;color:#94a3b8;font-weight:600;border-bottom:2px solid #334155">Visitas</th>';
-  h+='<th style="padding:10px 8px;text-align:center;color:#94a3b8;font-weight:600;border-bottom:2px solid #334155">Capta\u00e7\u00f5es</th>';
-  h+='<th style="padding:10px 8px;text-align:center;color:#94a3b8;font-weight:600;border-bottom:2px solid #334155">Pastas Lan\u00e7amento</th>';
-  h+='<th style="padding:10px 8px;text-align:center;color:#fbbf24;font-weight:600;border-bottom:2px solid #334155">VGV Pessoal</th>';
-  h+='</tr></thead><tbody>';
-  var allBrokers=(BROKERS).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
-  if(!S.metaIndiv){try{var _mld=localStorage.getItem('psm_meta_indiv');S.metaIndiv=_mld?JSON.parse(_mld):{};}catch(e){S.metaIndiv={};}}
-  // Sanitiza metaIndiv: remove chaves que nao sao IDs validos de BROKERS
-  var _validIds={}; for(var _vi=0;_vi<BROKERS.length;_vi++) _validIds[BROKERS[_vi].id]=1;
-  var _miKeys=Object.keys(S.metaIndiv); for(var _mk=0;_mk<_miKeys.length;_mk++){ if(!_validIds[_miKeys[_mk]]) delete S.metaIndiv[_miKeys[_mk]]; }
+  var _year = new Date().getFullYear();
+  var h='';
 
-  var _tVgv=0,_tVis=0,_tCap=0,_tPas=0,_tPes=0;
-  var _ns='style="width:100%;background:#0f172a;color:#f1f5f9;border:1px solid #475569;border-radius:4px;padding:6px 8px;text-align:center;font-size:13px"';
-  for(var bi=0;bi<allBrokers.length;bi++){
-    var bk=allBrokers[bi],bid=bk.id||bk.name;
-    if(!S.metaIndiv[bid]) S.metaIndiv[bid]={};
-    var md=S.metaIndiv[bid][S.miMes]||{vgv_meta:0,visitas:0,captacoes:0,pastas_lanc:0,vgv_pessoal:0};
-    _tVgv+=(md.vgv_meta||0);_tVis+=(md.visitas||0);_tCap+=(md.captacoes||0);_tPas+=(md.pastas_lanc||0);_tPes+=(md.vgv_pessoal||0);
-    if(!METAS_CONFIG[bid]) METAS_CONFIG[bid]={};
-    METAS_CONFIG[bid].vgv_meta=md.vgv_meta||0;
-    METAS_CONFIG[bid].visitas=md.visitas||0;
-    METAS_CONFIG[bid].captacoes=md.captacoes||0;
-    METAS_CONFIG[bid].pastas_lanc=md.pastas_lanc||0;
-    METAS_CONFIG[bid].vgv_pessoal=md.vgv_pessoal||0;
-    var _rowBg=bi%2===0?'#0f172a':'#1a2332';
-    h+='<tr style="background:'+_rowBg+'">';
-    h+='<td style="padding:8px 12px;color:#ffffff;font-weight:600;white-space:nowrap;font-size:14px;border-bottom:1px solid #1e293b">'+bk.name+'</td>';
-    h+='<td style="padding:4px 6px;border-bottom:1px solid #1e293b"><input type="text" value="'+fmtN(md.vgv_meta||0)+'" data-raw="'+(md.vgv_meta||0)+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="this.value=fmtN(+(this.value)||0);miUpd(\''+bid+'\',\'vgv_meta\',this.dataset.raw=+(this.value.replace(/[^0-9]/g,\'\'))||0)" onchange="miUpd(\''+bid+'\',\'vgv_meta\',+(this.value)||0)" '+_ns+'></td>';
-    h+='<td style="padding:4px 6px;border-bottom:1px solid #1e293b"><input type="number" value="'+(md.visitas||0)+'" onchange="miUpd(\''+bid+'\',\'visitas\',this.value)" '+_ns+'></td>';
-    h+='<td style="padding:4px 6px;border-bottom:1px solid #1e293b"><input type="number" value="'+(md.captacoes||0)+'" onchange="miUpd(\''+bid+'\',\'captacoes\',this.value)" '+_ns+'></td>';
-    h+='<td style="padding:4px 6px;border-bottom:1px solid #1e293b"><input type="number" value="'+(md.pastas_lanc||0)+'" onchange="miUpd(\''+bid+'\',\'pastas_lanc\',this.value)" '+_ns+'></td>';
-    h+='<td style="padding:4px 6px;border-bottom:1px solid #1e293b"><input type="text" value="'+fmtN(md.vgv_pessoal||0)+'" data-raw="'+(md.vgv_pessoal||0)+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="this.value=fmtN(+(this.value)||0);miUpd(\''+bid+'\',\'vgv_pessoal\',this.dataset.raw=+(this.value.replace(/[^0-9]/g,\'\'))||0)" onchange="miUpd(\''+bid+'\',\'vgv_pessoal\',+(this.value)||0)" '+_ns+'></td>';
-    h+='</tr>';
+  // ── HEADER PROFISSIONAL ─────────────────────────────────────────────────
+  h+='<div class="phd" style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">';
+  h+='<div>';
+  h+='<h1 style="margin:0;font-size:22px;font-weight:800;color:var(--navy);letter-spacing:-0.3px">\u{1F3AF} Metas '+_year+'</h1>';
+  h+='<p style="margin:4px 0 0;font-size:12.5px;color:var(--muted)">Planejamento consolidado \u2014 macro anual, trimestres, equipes e individual</p>';
+  h+='</div>';
+  h+='<div style="display:flex;gap:8px;align-items:center">';
+  h+='<div style="padding:8px 14px;border-radius:10px;background:linear-gradient(135deg,var(--navy),var(--navy2));color:var(--cream);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">Meta Ano \u2192 <span style="color:var(--gold)">'+fmtCompact(totalAno)+'</span></div>';
+  h+='</div>';
+  h+='</div>';
+
+  // ── KPI STRIP (4 cards limpos) ─────────────────────────────────────────
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px">';
+  var cards=[
+    {lbl:'Meta Ano '+_year,val:fmtBR(totalAno),sub:'VGV consolidado',col:'var(--navy)',ico:'\uD83C\uDFAF'},
+    {lbl:'Realizado YTD',val:fmtBR(realAno),sub:pct(pctAno)+' da meta',col:pctAno>=0.8?'#059669':pctAno>=0.5?'#d97706':'#dc2626',ico:'\uD83D\uDCB0'},
+    {lbl:'Gap / Saldo',val:fmtBR(defAno),sub:defAno>=0?'\u2705 Acima da meta':'A recuperar',col:defAno>=0?'#059669':'#dc2626',ico:defAno>=0?'\uD83D\uDE80':'\u26A0\uFE0F'},
+    {lbl:'M\u00eas Atual',val:pct(pctMes),sub:fmtCompact(realMes)+' / '+fmtCompact(metaMes),col:pctMes>=0.8?'#059669':'#d97706',ico:'\uD83D\uDCCA'}
+  ];
+  cards.forEach(function(c){
+    h+='<div style="background:var(--cream1);border:1px solid var(--cream3);border-left:4px solid '+c.col+';border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(15,23,42,0.04)">';
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:14px">'+c.ico+'</span><span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">'+c.lbl+'</span></div>';
+    h+='<div style="font-size:22px;font-weight:800;color:'+c.col+';letter-spacing:-0.5px;line-height:1.1">'+c.val+'</div>';
+    h+='<div style="font-size:11px;color:var(--muted);margin-top:4px">'+c.sub+'</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+
+  // ── TABS ───────────────────────────────────────────────────────────────
+  var tabs=[
+    {id:'anual',     lbl:'\uD83D\uDCC5 Vis\u00e3o Anual'},
+    {id:'canais',    lbl:'\uD83D\uDCCA Mensal por Canal'},
+    {id:'equipes',   lbl:'\uD83D\uDC65 Equipes'},
+    {id:'individual',lbl:'\uD83D\uDC64 Individual'},
+  ];
+  h+='<div style="display:flex;gap:4px;border-bottom:2px solid var(--cream3);margin-bottom:20px;overflow-x:auto">';
+  tabs.forEach(function(t){
+    var active=tab===t.id;
+    h+='<button onclick="S.metaTab=\''+t.id+'\';render()" style="padding:10px 18px;border:none;background:'+(active?'var(--cream1)':'transparent')+';color:'+(active?'var(--navy)':'var(--muted)')+';font-size:13px;font-weight:'+(active?'700':'500')+';cursor:pointer;border-bottom:3px solid '+(active?'var(--gold)':'transparent')+';margin-bottom:-2px;white-space:nowrap;border-radius:8px 8px 0 0;transition:all 0.15s">'+t.lbl+'</button>';
+  });
+  h+='</div>';
+
+  // ──────────────────────────────────────────────────────────────────────
+  // TAB 1: VISAO ANUAL — Trimestres + Projecao
+  // ──────────────────────────────────────────────────────────────────────
+  if(tab==='anual'){
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:24px">';
+    tri.forEach(function(t,idx){
+      var p=t.meta>0?t.real/t.meta:0;
+      var col=p>=0.8?'#059669':p>=0.5?'#d97706':'#dc2626';
+      var bar=Math.min(p*100,100);
+      h+='<div style="background:var(--cream1);border:1px solid var(--cream3);border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(15,23,42,0.04)">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">';
+      h+='<div><div style="font-size:15px;font-weight:700;color:var(--navy)">'+t.lbl+'</div>';
+      h+='<div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px">'+t.meses+'</div></div>';
+      h+='<div style="background:'+col+'11;color:'+col+';font-size:13px;font-weight:800;padding:6px 10px;border-radius:8px">'+pct(p)+'</div>';
+      h+='</div>';
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">';
+      h+='<div><div style="font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px">Meta</div><div style="font-size:14px;font-weight:700;color:var(--navy);margin-top:2px">'+fmtCompact(t.meta)+'</div></div>';
+      h+='<div><div style="font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px">Realizado</div><div style="font-size:14px;font-weight:700;color:'+col+';margin-top:2px">'+fmtCompact(t.real)+'</div></div>';
+      h+='</div>';
+      h+='<div style="height:8px;background:var(--cream2);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+bar+'%;background:linear-gradient(90deg,'+col+'aa,'+col+');border-radius:99px;transition:width 0.3s"></div></div>';
+      h+='</div>';
+    });
+    h+='</div>';
+
+    // Tabela de projeção simples
+    h+='<div class="card"><div class="ctitle">\uD83D\uDCC8 Projeção vs Realizado (mensal)</div>';
+    h+='<div class="tw"><table class="rank-tbl" style="font-size:12px"><thead><tr>';
+    h+='<th>M\u00eas</th><th style="text-align:right">Meta</th><th style="text-align:right">Realizado</th><th style="text-align:right">%</th><th style="text-align:right">Gap</th></tr></thead><tbody>';
+    for(var mi=0;mi<12;mi++){
+      var mt=totalArr[mi]||0,mr=m.realizado[mi]||0,mp=mt>0?mr/mt:0,mg=mr-mt;
+      var mcol=mp>=0.8?'#059669':mp>=0.5?'#d97706':'#dc2626';
+      h+='<tr'+(mi===curMonth?' style="background:var(--cream2)"':'')+'>';
+      h+='<td style="font-weight:'+(mi===curMonth?'700':'600')+';color:var(--navy)">'+ms[mi]+(mi===curMonth?' \u2190':'')+'</td>';
+      h+='<td style="text-align:right">'+fmtCompact(mt)+'</td>';
+      h+='<td style="text-align:right;font-weight:600">'+fmtCompact(mr)+'</td>';
+      h+='<td style="text-align:right;color:'+mcol+';font-weight:700">'+pct(mp)+'</td>';
+      h+='<td style="text-align:right;color:'+(mg>=0?'#059669':'#dc2626')+';font-weight:600">'+fmtCompact(mg)+'</td>';
+      h+='</tr>';
+    }
+    h+='</tbody></table></div></div>';
   }
-  h+='<tr style="background:#1e293b;border-top:2px solid #d4a843">';
-  h+='<td style="padding:10px 12px;color:#d4a843;font-weight:700;font-size:14px">TOTAL</td>';
-  h+='<td style="padding:10px 8px;text-align:center;color:#d4a843;font-weight:700;font-size:14px">'+fmtN(_tVgv)+'</td>';
-  h+='<td style="padding:10px 8px;text-align:center;color:#d4a843;font-weight:700;font-size:14px">'+_tVis+'</td>';
-  h+='<td style="padding:10px 8px;text-align:center;color:#d4a843;font-weight:700;font-size:14px">'+_tCap+'</td>';
-  h+='<td style="padding:10px 8px;text-align:center;color:#d4a843;font-weight:700;font-size:14px">'+_tPas+'</td>';
-  h+='<td style="padding:10px 8px;text-align:center;color:#fbbf24;font-weight:700;font-size:14px">'+fmtN(_tPes)+'</td>';
-  h+='</tr></tbody></table></div>';
-  h+='<p style="color:#64748b;font-size:12px;margin-top:8px">\u26A0\uFE0F Meta Pessoal (amarelo): preenchida pelo pr\u00F3prio corretor com base no One on One.</p>';
+
+  // ──────────────────────────────────────────────────────────────────────
+  // TAB 2: CANAIS — Meta mensal editavel por canal
+  // ──────────────────────────────────────────────────────────────────────
+  if(tab==='canais'){
+    function inp(key,idx,val){
+      return '<input type="text" value="'+fmtCompact(val)+'" data-raw="'+val+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="var v=parseFloat(this.value)||0;this.dataset.raw=v;mgUpd(\''+key+'\','+idx+',v);render()" onkeydown="if(event.key===\'Enter\')this.blur()" style="width:100%;padding:6px 8px;border-radius:6px;background:#fff;color:var(--navy);border:1px solid var(--cream3);text-align:right;font-size:11px;font-weight:600">';
+    }
+    function inpInt(key,idx,val){
+      return '<input type="number" value="'+val+'" onchange="mgUpd(\''+key+'\','+idx+',parseInt(this.value)||0);render()" style="width:100%;padding:6px 8px;border-radius:6px;background:#fff;color:var(--navy);border:1px solid var(--cream3);text-align:right;font-size:11px;font-weight:600">';
+    }
+    var canais=[
+      {key:'metaImpper',    lbl:'IMPPER',            ico:'\uD83C\uDFE2', col:'#6366f1'},
+      {key:'metaTerc',      lbl:'Terceiros',         ico:'\uD83E\uDD1D', col:'#a855f7'},
+      {key:'metaEstMAP',    lbl:'Estoque MAP',       ico:'\uD83D\uDCE6', col:'#0891b2'},
+      {key:'metaEstConq',   lbl:'Estoque Conquista', ico:'\uD83C\uDFE1', col:'#f59e0b'},
+      {key:'metaLanc',      lbl:'Lan\u00e7amento',   ico:'\uD83D\uDE80', col:'#059669'},
+    ];
+    h+='<div class="card"><div class="ctitle">\uD83D\uDCCA Meta Mensal por Canal <span style="font-size:10px;color:var(--muted);font-weight:400">(clique para editar)</span></div>';
+    h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:1100px">';
+    h+='<thead><tr style="background:var(--cream2);border-bottom:2px solid var(--cream3)">';
+    h+='<th style="padding:10px;text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">Canal</th>';
+    for(var i=0;i<12;i++) h+='<th style="padding:10px 6px;text-align:center;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0.4px;font-weight:700;min-width:85px">'+ms[i]+'</th>';
+    h+='<th style="padding:10px;text-align:right;color:var(--navy);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;font-weight:800">Total Ano</th>';
+    h+='</tr></thead><tbody>';
+    // Linha: n corretores
+    h+='<tr style="background:var(--cream1);border-bottom:1px solid var(--cream3)">';
+    h+='<td style="padding:8px 10px;color:var(--muted);font-size:11px;font-weight:600">\uD83D\uDC65 N\u00ba Corretores</td>';
+    for(var i=0;i<12;i++) h+='<td style="padding:4px 3px">'+inpInt('corretores',i,m.corretores[i]||0)+'</td>';
+    h+='<td style="padding:8px 10px;text-align:right;color:var(--muted)">\u2014</td></tr>';
+    // Linhas por canal
+    canais.forEach(function(c,ci){
+      h+='<tr style="background:'+(ci%2===0?'var(--cream1)':'#fff')+';border-bottom:1px solid var(--cream3)">';
+      h+='<td style="padding:8px 10px;border-left:3px solid '+c.col+'"><span style="font-size:12px">'+c.ico+'</span> <span style="font-size:11.5px;font-weight:600;color:var(--navy)">'+c.lbl+'</span></td>';
+      for(var i=0;i<12;i++) h+='<td style="padding:4px 3px">'+inp(c.key,i,m[c.key][i]||0)+'</td>';
+      h+='<td style="padding:8px 10px;text-align:right;color:var(--navy);font-weight:700;font-size:12px">'+fmtCompact(sum(m[c.key]))+'</td></tr>';
+    });
+    // Total
+    h+='<tr style="background:linear-gradient(90deg,var(--navy),var(--navy2));color:var(--cream)">';
+    h+='<td style="padding:12px 10px;font-weight:800;font-size:12px">\uD83C\uDFAF META TOTAL</td>';
+    for(var i=0;i<12;i++) h+='<td style="padding:10px 4px;text-align:center;font-weight:700;font-size:11px;color:var(--gold)">'+fmtCompact(totalArr[i])+'</td>';
+    h+='<td style="padding:12px 10px;text-align:right;font-weight:800;font-size:13px;color:var(--gold)">'+fmtCompact(totalAno)+'</td></tr>';
+    // Realizado (editavel)
+    h+='<tr style="background:var(--cream2)">';
+    h+='<td style="padding:8px 10px;font-weight:700;font-size:12px;color:#059669">\u2705 REALIZADO</td>';
+    for(var i=0;i<12;i++) h+='<td style="padding:4px 3px">'+inp('realizado',i,m.realizado[i]||0)+'</td>';
+    h+='<td style="padding:8px 10px;text-align:right;font-weight:800;font-size:12px;color:#059669">'+fmtCompact(realAno)+'</td></tr>';
+    h+='</tbody></table></div></div>';
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // TAB 3: EQUIPES — Meta por frente
+  // ──────────────────────────────────────────────────────────────────────
+  if(tab==='equipes'){
+    if(!S.metaEquipe){try{S.metaEquipe=JSON.parse(localStorage.getItem('psm_meta_equipe')||'null');}catch(e){}}
+    if(!S.metaEquipe) S.metaEquipe={};
+    var eqFrentes=[
+      {id:'lancamento', lbl:'Equipe MAP',          ico:'\uD83C\uDFE2', col:'#6366f1'},
+      {id:'conquista',  lbl:'Equipe Conquista',    ico:'\uD83C\uDFE1', col:'#f59e0b'},
+      {id:'terceiros',  lbl:'Equipe Terceiros',    ico:'\uD83E\uDD1D', col:'#a855f7'},
+      {id:'locacao',    lbl:'Equipe Loca\u00e7\u00e3o', ico:'\uD83D\uDD11', col:'#0891b2'},
+    ];
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';
+    eqFrentes.forEach(function(f){
+      if(!S.metaEquipe[f.id]) S.metaEquipe[f.id]={vgv_estoque:0,vgv_lanc:0,capt_sem:0};
+      var me=S.metaEquipe[f.id];
+      var total=(me.vgv_estoque||0)+(me.vgv_lanc||0);
+      h+='<div style="background:var(--cream1);border:1px solid var(--cream3);border-top:4px solid '+f.col+';border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(15,23,42,0.04)">';
+      h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">';
+      h+='<div style="display:flex;align-items:center;gap:10px"><span style="font-size:22px">'+f.ico+'</span><div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+f.lbl+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px">Meta/m\u00eas</div></div></div>';
+      h+='<div style="font-size:16px;font-weight:800;color:'+f.col+'">'+fmtCompact(total)+'</div>';
+      h+='</div>';
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+      h+='<div><label style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px">VGV Estoque</label>';
+      h+='<input type="number" value="'+(me.vgv_estoque||0)+'" onchange="meUpd(\''+f.id+'\',\'vgv_estoque\',this.value)" style="width:100%;padding:8px 10px;border-radius:8px;background:#fff;color:var(--navy);border:1px solid var(--cream3);text-align:right;font-size:12px;font-weight:600;margin-top:4px"></div>';
+      h+='<div><label style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px">VGV Lan\u00e7amento</label>';
+      h+='<input type="number" value="'+(me.vgv_lanc||0)+'" onchange="meUpd(\''+f.id+'\',\'vgv_lanc\',this.value)" style="width:100%;padding:8px 10px;border-radius:8px;background:#fff;color:var(--navy);border:1px solid var(--cream3);text-align:right;font-size:12px;font-weight:600;margin-top:4px"></div>';
+      h+='</div>';
+      if(f.id==='terceiros'){
+        h+='<div style="margin-top:10px"><label style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px">Capta\u00e7\u00f5es Semanais</label>';
+        h+='<input type="number" value="'+(me.capt_sem||0)+'" onchange="meUpd(\''+f.id+'\',\'capt_sem\',this.value)" style="width:100%;padding:8px 10px;border-radius:8px;background:#fff;color:var(--navy);border:1px solid var(--cream3);text-align:right;font-size:12px;font-weight:600;margin-top:4px"></div>';
+      }
+      h+='</div>';
+    });
+    h+='</div>';
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // TAB 4: INDIVIDUAL — Meta por corretor
+  // ──────────────────────────────────────────────────────────────────────
+  if(tab==='individual'){
+    if(!S.miMes) S.miMes=new Date().getMonth()+1;
+    var mNames=['','JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+    // Seletor de mes
+    h+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;background:var(--cream1);border:1px solid var(--cream3);border-radius:10px">';
+    h+='<span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-right:6px">M\u00eas:</span>';
+    for(var mi=1;mi<=12;mi++){
+      var act=mi===S.miMes;
+      h+='<button onclick="S.miMes='+mi+';render()" style="padding:6px 12px;border-radius:7px;font-size:11px;font-weight:700;border:1px solid '+(act?'var(--gold)':'var(--cream3)')+';background:'+(act?'var(--gold)':'#fff')+';color:'+(act?'#fff':'var(--navy)')+';cursor:pointer;transition:all 0.15s">'+mNames[mi]+'</button>';
+    }
+    h+='</div>';
+
+    if(!S.metaIndiv){try{var _mld=localStorage.getItem('psm_meta_indiv');S.metaIndiv=_mld?JSON.parse(_mld):{};}catch(e){S.metaIndiv={};}}
+    var _validIds={}; for(var _vi=0;_vi<BROKERS.length;_vi++) _validIds[BROKERS[_vi].id]=1;
+    var _miKeys=Object.keys(S.metaIndiv); for(var _mk=0;_mk<_miKeys.length;_mk++){ if(!_validIds[_miKeys[_mk]]) delete S.metaIndiv[_miKeys[_mk]]; }
+    var allBrokers=BROKERS.slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+    var _tVgv=0,_tVis=0,_tCap=0,_tPas=0,_tPes=0;
+
+    h+='<div class="card"><div class="ctitle">\uD83D\uDC64 Meta Individual \u2014 '+mNames[S.miMes]+'/'+_year+'</div>';
+    h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+    h+='<thead><tr style="background:var(--cream2);border-bottom:2px solid var(--cream3)">';
+    h+='<th style="padding:11px 12px;text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">Corretor</th>';
+    h+='<th style="padding:11px 8px;text-align:center;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">Meta VGV</th>';
+    h+='<th style="padding:11px 8px;text-align:center;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">Visitas</th>';
+    h+='<th style="padding:11px 8px;text-align:center;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">Capta\u00e7\u00f5es</th>';
+    h+='<th style="padding:11px 8px;text-align:center;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">Pastas Lanc.</th>';
+    h+='<th style="padding:11px 8px;text-align:center;color:var(--gold);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">VGV Pessoal</th>';
+    h+='</tr></thead><tbody>';
+    var _inpS='style="width:100%;background:#fff;color:var(--navy);border:1px solid var(--cream3);border-radius:6px;padding:7px 9px;text-align:center;font-size:11.5px;font-weight:600"';
+    for(var bi=0;bi<allBrokers.length;bi++){
+      var bk=allBrokers[bi],bid=bk.id||bk.name;
+      if(!S.metaIndiv[bid]) S.metaIndiv[bid]={};
+      var md=S.metaIndiv[bid][S.miMes]||{vgv_meta:0,visitas:0,captacoes:0,pastas_lanc:0,vgv_pessoal:0};
+      _tVgv+=(md.vgv_meta||0);_tVis+=(md.visitas||0);_tCap+=(md.captacoes||0);_tPas+=(md.pastas_lanc||0);_tPes+=(md.vgv_pessoal||0);
+      if(!METAS_CONFIG[bid]) METAS_CONFIG[bid]={};
+      METAS_CONFIG[bid].vgv_meta=md.vgv_meta||0;
+      METAS_CONFIG[bid].visitas=md.visitas||0;
+      METAS_CONFIG[bid].captacoes=md.captacoes||0;
+      METAS_CONFIG[bid].pastas_lanc=md.pastas_lanc||0;
+      METAS_CONFIG[bid].vgv_pessoal=md.vgv_pessoal||0;
+      h+='<tr style="background:'+(bi%2===0?'var(--cream1)':'#fff')+';border-bottom:1px solid var(--cream3)">';
+      h+='<td style="padding:8px 12px"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:'+(bk.color||'#6366f1')+';display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800">'+(bk.ini||bk.name.substring(0,2).toUpperCase())+'</div><div><div style="font-size:12px;font-weight:700;color:var(--navy)">'+bk.name+'</div><div style="font-size:9.5px;color:var(--muted);text-transform:capitalize">'+(bk.frente||'')+'</div></div></div></td>';
+      h+='<td style="padding:5px 6px"><input type="text" value="'+fmtCompact(md.vgv_meta||0)+'" data-raw="'+(md.vgv_meta||0)+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="var v=+(this.value.replace(/[^0-9.-]/g,\'\'))||0;this.dataset.raw=v;miUpd(\''+bid+'\',\'vgv_meta\',v);render()" '+_inpS+'></td>';
+      h+='<td style="padding:5px 6px"><input type="number" value="'+(md.visitas||0)+'" onchange="miUpd(\''+bid+'\',\'visitas\',this.value)" '+_inpS+'></td>';
+      h+='<td style="padding:5px 6px"><input type="number" value="'+(md.captacoes||0)+'" onchange="miUpd(\''+bid+'\',\'captacoes\',this.value)" '+_inpS+'></td>';
+      h+='<td style="padding:5px 6px"><input type="number" value="'+(md.pastas_lanc||0)+'" onchange="miUpd(\''+bid+'\',\'pastas_lanc\',this.value)" '+_inpS+'></td>';
+      h+='<td style="padding:5px 6px"><input type="text" value="'+fmtCompact(md.vgv_pessoal||0)+'" data-raw="'+(md.vgv_pessoal||0)+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="var v=+(this.value.replace(/[^0-9.-]/g,\'\'))||0;this.dataset.raw=v;miUpd(\''+bid+'\',\'vgv_pessoal\',v);render()" style="width:100%;background:#fffbeb;color:var(--navy);border:1px solid var(--gold);border-radius:6px;padding:7px 9px;text-align:center;font-size:11.5px;font-weight:700"></td>';
+      h+='</tr>';
+    }
+    h+='<tr style="background:linear-gradient(90deg,var(--navy),var(--navy2));color:var(--cream)">';
+    h+='<td style="padding:12px 12px;font-weight:800;font-size:12px">\uD83C\uDFAF TOTAL '+mNames[S.miMes]+'</td>';
+    h+='<td style="padding:12px 8px;text-align:center;color:var(--gold);font-weight:800;font-size:12px">'+fmtCompact(_tVgv)+'</td>';
+    h+='<td style="padding:12px 8px;text-align:center;color:var(--cream);font-weight:700;font-size:12px">'+_tVis+'</td>';
+    h+='<td style="padding:12px 8px;text-align:center;color:var(--cream);font-weight:700;font-size:12px">'+_tCap+'</td>';
+    h+='<td style="padding:12px 8px;text-align:center;color:var(--cream);font-weight:700;font-size:12px">'+_tPas+'</td>';
+    h+='<td style="padding:12px 8px;text-align:center;color:var(--gold);font-weight:800;font-size:12px">'+fmtCompact(_tPes)+'</td>';
+    h+='</tr></tbody></table></div></div>';
+    h+='<p style="color:var(--muted);font-size:11px;margin-top:10px">\u{1F4A1} <strong>VGV Pessoal</strong> (destaque dourado): campo preenchido pelo pr\u00F3prio corretor durante o One on One, separado da meta oficial atribu\u00edda pela dire\u00e7\u00e3o.</p>';
+  }
+
   return h;
 }
 function meUpd(fid,key,val){
@@ -11022,21 +11245,37 @@ function pgConfig() {
       + '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--cream2);color:var(--navy)">'+(USERS_BASE.find(u=>u.id===b.id)?.role||'—')+'</span>'
       + '</div>').join('')
     + '</div>'
-    + '<div class="card"><div class="ctitle">Metas por Corretor</div>'
-    + BROKERS.map(b => {
-        const mc = METAS_CONFIG[b.id]||{};
-        return '<div style="padding:8px 0;border-bottom:1px solid var(--cream3)">'
-          + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
-          + '<div style="display:flex;align-items:center;gap:6px">'+Av(b,'xs')+'<span style="font-size:12px;font-weight:600">'+b.name.split(' ')[0]+'</span></div>'
+    // ── Perfil Hierarquico por Login (substitui Metas por Corretor + Comissao&VGC) ──
+    + '<div class="card"><div class="ctitle">\uD83D\uDD10 Perfil Hier\u00e1rquico por Login</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.5">Diretor pode alterar o n\u00edvel de acesso de cada usu\u00e1rio. Apenas S\u00f3cio/Diretor pode ver e editar este painel.</div>'
+    + (lvl >= 10 ? (function(){
+        var rolesList = [
+          {id:'socio',      lbl:'S\u00f3cio / Diretor',  lvl:10, color:'#dc2626', ico:'\uD83D\uDC51'},
+          {id:'gerente',    lbl:'Gerente',              lvl:7,  color:'#7c3aed', ico:'\uD83C\uDFAF'},
+          {id:'backoffice', lbl:'Back Office',          lvl:6,  color:'#0891b2', ico:'\uD83D\uDCCB'},
+          {id:'lider',      lbl:'L\u00edder de Equipe', lvl:5,  color:'#059669', ico:'\uD83D\uDEE1\uFE0F'},
+          {id:'marketing',  lbl:'Marketing',            lvl:3,  color:'#d97706', ico:'\uD83D\uDCE2'},
+          {id:'corretor',   lbl:'Corretor',             lvl:2,  color:'#64748b', ico:'\uD83C\uDFE0'},
+        ];
+        return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">'
+          + USERS_BASE.map(function(usr){
+              var cur = usr.role || 'corretor';
+              var info = rolesList.find(function(r){return r.id===cur;}) || rolesList[5];
+              return '<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--cream2);border:1px solid var(--cream3);border-radius:10px">'
+                + '<div style="width:34px;height:34px;border-radius:9px;background:'+(usr.color||info.color)+';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff">'+(usr.ini||(usr.name||'?').substring(0,2).toUpperCase())+'</div>'
+                + '<div style="flex:1;min-width:0">'
+                +   '<div style="font-size:12px;font-weight:700;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(usr.name||'Sem nome')+'</div>'
+                +   '<div style="font-size:9.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(usr.email||'sem login')+'</div>'
+                + '</div>'
+                + '<select class="finp" style="padding:5px 8px;font-size:11px;font-weight:700;min-width:120px;border-left:3px solid '+info.color+'" onchange="setUserRole(\''+usr.id+'\', this.value)">'
+                +   rolesList.map(function(r){return '<option value="'+r.id+'"'+(cur===r.id?' selected':'')+'>'+r.ico+' '+r.lbl+' \u00B7 L'+r.lvl+'</option>';}).join('')
+                + '</select>'
+                + '</div>';
+            }).join('')
           + '</div>'
-          + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
-          + '<div><label style="font-size:9px;color:var(--muted)">VGV Meta</label><input class="finp" type="number" style="width:100px;padding:5px" value="'+(mc.vgv_meta||b.meta||0)+'" oninput="METAS_CONFIG[\''+b.id+'\']=METAS_CONFIG[\''+b.id+'\']||{};METAS_CONFIG[\''+b.id+'\'].vgv_meta=+this.value"></div>'
-          + '<div><label style="font-size:9px;color:var(--muted)">Visitas</label><input class="finp" type="number" style="width:70px;padding:5px" value="'+(mc.visitas||0)+'" oninput="METAS_CONFIG[\''+b.id+'\']=METAS_CONFIG[\''+b.id+'\']||{};METAS_CONFIG[\''+b.id+'\'].visitas=+this.value"></div>'
-          + '<div><label style="font-size:9px;color:var(--muted)">Captações</label><input class="finp" type="number" style="width:75px;padding:5px" value="'+(mc.captacoes||0)+'" oninput="METAS_CONFIG[\''+b.id+'\']=METAS_CONFIG[\''+b.id+'\']||{};METAS_CONFIG[\''+b.id+'\'].captacoes=+this.value"></div>'
-          + '</div></div>';
-      }).join('')
+          + '<div style="margin-top:12px;padding:10px;background:var(--cream2);border-radius:8px;font-size:10.5px;color:var(--muted);line-height:1.5"><strong style="color:var(--navy)">N\u00edveis:</strong> S\u00f3cio(10) \u2022 Gerente(7) \u2022 Back Office(6) \u2022 L\u00edder(5) \u2022 Marketing(3) \u2022 Corretor(2)</div>';
+      })() : '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;background:var(--cream2);border-radius:8px">\uD83D\uDD12 Apenas S\u00f3cio/Diretor pode editar perfis hier\u00e1rquicos</div>')
     + '</div>'
-    + '<div class="card mt2"><div class="ctitle">💰 Comissão & VGC</div>'    + '<div style="padding:10px 0">'    + '<label class="flabel">% de Comissão sobre VGV (editável)</label>'    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'    + '<input class="finp" type="number" step="0.1" min="0" max="20" style="width:90px" value="'+(S.comissaoPct||6)+'"'    + ' oninput="S.comissaoPct=parseFloat(this.value)||6;debouncedRender(600)">'    + '<span style="font-size:13px;color:var(--muted)">% → VGC Total: <strong>'+fmt(Math.round((S.vgvReal||0)*(S.comissaoPct||6)/100))+'</strong></span>'    + '</div>'    + '<div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">VGC por Canal</div>'    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'    + Object.entries(        VENDAS.reduce((acc,v)=>{          const c=v.ori||'Direto';          acc[c]=acc[c]||{wins:0,vgv:0};          acc[c].wins++; acc[c].vgv+=(v.valor||0);          return acc;        },{})      ).map(([canal,d])=>        '<div style="background:var(--cream2);border-radius:6px;padding:8px 12px">'        +'<div style="font-size:10px;font-weight:700;color:var(--muted)">'+canal+'</div>'        +'<div style="font-size:14px;font-weight:700;color:var(--navy)">'+fmt(Math.round(d.vgv*(S.comissaoPct||6)/100))+'</div>'        +'<div style="font-size:10px;color:var(--muted)">'+d.wins+' vendas \u00B7 VGV: '+fmt(d.vgv)+'</div>'        +'</div>').join('')    + '</div></div></div>'
     // ── Planilhas One on One ──
     + '<div class="card mt2"><div class="ctitle">📊 Planilhas One on One (Google Sheets)</div>'
     + '<div style="font-size:11.5px;color:var(--muted);margin-bottom:14px;line-height:1.5">Vincule as planilhas Google Sheets de cada corretor. Cada campo aceita um link direto da planilha ou aba específica.</div>'
@@ -11314,6 +11553,47 @@ function toggleConnVis(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+// ── Atualiza perfil hierarquico (role) de um usuario ──
+function setUserRole(userId, newRole) {
+  if (!userId || !newRole) return;
+  if (!RLVL.hasOwnProperty(newRole)) { toast('Perfil invalido: '+newRole, 'err'); return; }
+  const me = S.user; const myLvl = RLVL[me?.role] || 0;
+  if (myLvl < 10) { toast('Apenas Socio/Diretor pode alterar perfis', 'err'); return; }
+  const u = USERS_BASE.find(function(x){return x.id===userId;});
+  if (!u) { toast('Usuario nao encontrado', 'err'); return; }
+  const oldRole = u.role || 'corretor';
+  if (oldRole === newRole) return;
+  u.role = newRole;
+  // Propaga para USERS e BROKERS se ja instanciados
+  try {
+    if (typeof USERS !== 'undefined' && Array.isArray(USERS)) {
+      const au = USERS.find(function(x){return x.id===userId;});
+      if (au) au.role = newRole;
+    }
+    if (typeof BROKERS !== 'undefined' && Array.isArray(BROKERS)) {
+      const ab = BROKERS.find(function(x){return x.id===userId;});
+      if (ab) ab.role = newRole;
+      // Rebuild BROKERS se role mudou para/de corretor/lider
+      const isBroker = newRole === 'corretor' || newRole === 'lider';
+      const wasBroker = oldRole === 'corretor' || oldRole === 'lider';
+      if (isBroker !== wasBroker && typeof buildUsers === 'function') {
+        USERS = buildUsers();
+        UM = Object.fromEntries(USERS.map(function(x){return [x.id,x];}));
+        BROKERS = USERS.filter(function(x){return ['corretor','lider'].includes(x.role);});
+      }
+    }
+  } catch(e) { console.warn('[setUserRole] propagacao falhou:', e.message); }
+  // Persiste no localStorage
+  try {
+    const map = JSON.parse(localStorage.getItem('psm_user_roles')||'{}');
+    map[userId] = newRole;
+    localStorage.setItem('psm_user_roles', JSON.stringify(map));
+  } catch(e) {}
+  if (typeof saveState === 'function') saveState();
+  toast('\u2705 Perfil de '+(u.name||userId)+' alterado para '+newRole, 'ok');
+  render();
 }
 
 function addBrokerManual() {
@@ -13561,6 +13841,8 @@ h+='</div>';
 h+='<button onclick="maToggleAuto()" title="Auto-refresh 60s" style="padding:8px 12px;background:'+(S.maAuto?'rgba(34,197,94,.14)':'#1e293b')+';border:1px solid '+(S.maAuto?'rgba(34,197,94,.4)':'#334155')+';color:'+(S.maAuto?'#22c55e':'#94a3b8')+';border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:700;">'+(S.maAuto?'\u25cf LIVE':'\u25cb LIVE')+'</button>';
 // Manual refresh
 h+='<button onclick="maFetch({nocache:true})" style="padding:8px 12px;background:rgba(212,175,55,.12);border:1px solid rgba(212,175,55,.3);color:var(--gold);border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:700;">\u21bb</button>';
+// Modo TV — full-screen auto-scroll para painel executivo
+h+='<button onclick="metaAdsTV()" title="Modo TV \u2014 tela cheia, auto-scroll, refresh 60s" style="padding:8px 16px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:800;letter-spacing:0.5px;box-shadow:0 2px 8px rgba(99,102,241,0.4)">\uD83D\uDCFA MODO TV</button>';
 h+='</div></div>';
 
 // LOADING
