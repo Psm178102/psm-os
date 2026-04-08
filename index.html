@@ -793,6 +793,7 @@ const OPPS=[];
 // ─── ARRAYS GLOBAIS DE DEALS ──────────────────────────────────────────────────
 const VENDAS     = [];  // win=true
 const LOST_DEALS = [];  // win=false
+const TASKS_RD   = [];  // tarefas CONCLUIDAS vindas do RD CRM (visita, ligacao, etc)
 
 // ─── AUDITS — Dynamic generation ──────────────────────────────────────────────
 function generateAudits() {
@@ -962,12 +963,14 @@ function recalcBrokerMetrics(prefix) {
   const fOPPS = applyDateFilter(OPPS, prefix);
   const fVENDAS = applyDateFilter(VENDAS, prefix);
   const fLOST = applyDateFilter(LOST_DEALS, prefix);
-  
+  const fTASKS = applyDateFilter(TASKS_RD || [], prefix);
+
   BROKERS.forEach(b => {
     const opps = fOPPS.filter(o => o.bid === b.id);
     const won  = fVENDAS.filter(v => v.bid === b.id);
     const lost = fLOST.filter(l => l.bid === b.id);
-    
+    const bTasks = fTASKS.filter(t => t.bid === b.id);
+
     b.vgv      = opps.reduce((a, o) => a + o.vgv, 0);
     b.vgv_real = won.reduce((a, v)  => a + v.vgv, 0);
     b.vendas   = won.length;
@@ -975,12 +978,17 @@ function recalcBrokerMetrics(prefix) {
     const rdVis  = opps.filter(o => ['vis_real','contrato','proposta'].includes(o.st_psm)).length;
     const ooLogs = (S.ooLogs || {})[b.id] || [];
     const ooVis  = ooLogs.reduce((acc, lg) => acc + (lg.vis || 0), 0);
-    b.vis      = rdVis + ooVis;
+    // Tarefas concluidas no RD CRM (visita/ligacao) — contabilizacao em tempo real
+    const taskVis = bTasks.filter(t => t.type === 'visit').length;
+    const taskLig = bTasks.filter(t => t.type === 'call' || t.type === 'whatsapp').length;
+    b.vis      = rdVis + ooVis + taskVis;
     b.vis_rd   = rdVis;
     b.vis_oo   = ooVis;
+    b.vis_task = taskVis;
+    b.lig_task = taskLig;
     b.agend    = opps.filter(o => ['agendamento','vis_agend','vis_real'].includes(o.st_psm)).length;
     b.prop     = opps.filter(o => o.st_psm === 'proposta').length;
-    b.lig      = opps.length;
+    b.lig      = opps.length + taskLig;
     b.ticketMedio = won.length > 0 ? Math.round(b.vgv_real / won.length) : 0;
     const ciclos = won.filter(v => v.closedAt && v.createdAt).map(v =>
       Math.max(1, Math.round((new Date(v.closedAt) - new Date(v.createdAt)) / 864e5))
@@ -3478,13 +3486,18 @@ const RD = {
       }
 
       this._updateProgress('Buscando negociações...', 1, 4);
-      const [openDeals, wonDeals, lostDeals] = await Promise.all([
+      const [openDeals, wonDeals, lostDeals, completedTasks] = await Promise.all([
         this.fetchOpenDeals(),
         this.fetchWonDeals(),
         this.fetchLostDeals(),
+        this.fetchCompletedTasks().catch(function(e){ console.warn('[RD tasks] ignorado:', e.message); return []; }),
       ]);
       console.log('[RD sync] Fetch completo em', Date.now()-t0, 'ms:',
-        'open='+openDeals.length, 'won='+wonDeals.length, 'lost='+lostDeals.length);
+        'open='+openDeals.length, 'won='+wonDeals.length, 'lost='+lostDeals.length,
+        'tasks='+completedTasks.length);
+      // Popula TASKS_RD global
+      TASKS_RD.splice(0);
+      completedTasks.forEach(function(t){ TASKS_RD.push(t); });
 
       // Reset arrays
       // ── Track previous vendas for new sale detection ──
@@ -3534,21 +3547,26 @@ const RD = {
         const opps = OPPS.filter(o => o.bid === b.id);
         const won  = VENDAS.filter(v => v.bid === b.id);
         const lost = LOST_DEALS.filter(l => l.bid === b.id);
+        const bTasks = TASKS_RD.filter(t => t.bid === b.id);
 
         b.vgv      = opps.reduce((a, o) => a + o.vgv, 0);
         b.vgv_real = won.reduce((a, v)  => a + v.vgv, 0);
         b.vendas   = won.length;
         b.descartados = lost.length;
-        // ITEM 3: Visitas = RD CRM + One on One
+        // ITEM 3: Visitas = RD CRM stages + One on One + tarefas concluidas no CRM
         const rdVis  = opps.filter(o => ['vis_real','contrato','proposta'].includes(o.st_psm)).length;
         const ooLogs = (S.ooLogs || {})[b.id] || [];
         const ooVis  = ooLogs.reduce((acc, lg) => acc + (lg.vis || 0), 0);
-        b.vis      = rdVis + ooVis;
+        const taskVis = bTasks.filter(t => t.type === 'visit').length;
+        const taskLig = bTasks.filter(t => t.type === 'call' || t.type === 'whatsapp').length;
+        b.vis      = rdVis + ooVis + taskVis;
         b.vis_rd   = rdVis;
         b.vis_oo   = ooVis;
+        b.vis_task = taskVis;
+        b.lig_task = taskLig;
         b.agend    = opps.filter(o => ['agendamento','vis_agend','vis_real'].includes(o.st_psm)).length;
         b.prop     = opps.filter(o => o.st_psm === 'proposta').length;
-        b.lig      = opps.length;
+        b.lig      = opps.length + taskLig;
 
         // Ticket médio
         b.ticketMedio = won.length > 0 ? Math.round(b.vgv_real / won.length) : 0;
@@ -3694,6 +3712,75 @@ const RD = {
           done_date: new Date().toISOString()}})
       });
     } catch(e) { console.warn('[RD log]', e); }
+  },
+
+  // ITEM 2026-04-08: Busca tarefas CONCLUIDAS (visita, ligacao, etc) do RD CRM.
+  // Usada para alimentar b.vis_tasks / b.lig_tasks por corretor e refletir
+  // no Arena/Ranking em tempo real, independente do avanco de estagio do deal.
+  async fetchCompletedTasks(sinceDate) {
+    const out = [];
+    const pageSize = 200;
+    // Janela padrao: desde o dia 1 de 2 meses atras (cobre mes atual + anterior + penultimo)
+    let since = sinceDate;
+    if (!since) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - 2);
+      d.setDate(1);
+      d.setHours(0,0,0,0);
+      since = d.toISOString().slice(0,10);
+    }
+    try {
+      // Tenta ate 15 paginas (3000 tarefas) — seguro para janela de 2-3 meses
+      for (let page = 1; page <= 15; page++) {
+        let resp;
+        try {
+          resp = await this.req('/tasks?page=' + page + '&limit=' + pageSize
+            + '&done=true&done_date_since=' + encodeURIComponent(since));
+        } catch(e) {
+          console.warn('[RD tasks] page ' + page + ' falhou:', e.message);
+          break;
+        }
+        const items = Array.isArray(resp) ? resp : (resp.tasks || resp.data || []);
+        if (!items.length) break;
+        const self = this;
+        items.forEach(function(t) {
+          // Normaliza o shape das tarefas (varia por versao da API)
+          const doneRaw = t.done_date || t.doneDate || t.updated_at || t.date;
+          const doneAt = doneRaw ? new Date(doneRaw) : null;
+          const userObj = t.user || t.owner || {};
+          const userId = t.user_id || userObj._id || userObj.id || t.owner_id || null;
+          const typeRaw = (t.type || t.task_type || '').toLowerCase();
+          // Tambem olha o subject como fallback para classificar visitas/ligacoes
+          const subj = (t.subject || t.title || '').toLowerCase();
+          let kind = typeRaw;
+          if (!kind) {
+            if (subj.indexOf('visita') !== -1) kind = 'visit';
+            else if (subj.indexOf('ligac') !== -1 || subj.indexOf('ligaç') !== -1 || subj.indexOf('call') !== -1) kind = 'call';
+            else if (subj.indexOf('whats') !== -1) kind = 'whatsapp';
+            else if (subj.indexOf('reunia') !== -1 || subj.indexOf('meet') !== -1) kind = 'meeting';
+          }
+          // Resolve RD userId -> bid do sistema PSM (mesmo mapeamento usado em processDeals)
+          const bid = userId ? (self.rdIdToBid(userId) || '') : '';
+          out.push({
+            id: t._id || t.id,
+            dealId: t.deal_id || (t.deal && (t.deal._id || t.deal.id)) || null,
+            subject: t.subject || t.title || '',
+            type: kind || 'task',
+            done: t.done === true || t.status === 'done',
+            doneAt: doneAt && !isNaN(doneAt.getTime()) ? doneAt : null,
+            ts: doneAt && !isNaN(doneAt.getTime()) ? doneAt.getTime() : 0,
+            // Alias p/ applyDateFilter() funcionar direto em TASKS_RD
+            closedAt: doneAt && !isNaN(doneAt.getTime()) ? doneAt.toISOString() : null,
+            userId,
+            bid,
+          });
+        });
+        if (items.length < pageSize) break;
+      }
+    } catch(e) {
+      console.warn('[RD tasks] fetchCompletedTasks erro:', e.message);
+    }
+    return out;
   },
 };
 
@@ -12551,13 +12638,13 @@ var PAGES_FRENTES=['lancamento','conquista','terceiros','locacao'];
 // Secretaria de vendas: socios + leire + guilherme
 var PAGES_SECRETARIA=['captacao'];
 // Pipeline & CRM: socios + gestores(lider)
-var PAGES_PIPELINE=['crm','metas','metricas'];
+var PAGES_PIPELINE=['crm','metricas'];
 // Marketing: socios + marketing
 var PAGES_MARKETING=['metaads','sim_criativos','sim_leads','metricas_viab','crono_conquista','crono_psm','curadoria_conquista','curadoria_psm','gerador_img','gerador_video','gerador_motion'];
 // Financeiro: socios + mariane
 var PAGES_FINANCEIRO=['fluxocaixa','dre','comissoes','repasses','custos_fixos'];
 // Diretoria: apenas socios
-var PAGES_DIRETORIA=['forecast','kpis','metas_dir','governance','equipe','dashboard'];
+var PAGES_DIRETORIA=['forecast','kpis','metas','governance','equipe','dashboard'];
 // Intelligence: apenas socios
 var PAGES_INTELLIGENCE=['radar','benchmark','inteldash'];
 // Config (socios only)
@@ -12640,7 +12727,6 @@ function renderSB() {
     ]},
     {sec:'Pipeline & CRM', items:[
       {id:'crm',       lbl:'CRM / Funil',     ico:'\uD83D\uDD00'},
-      {id:'metas',     lbl:'Metas',           ico:'\uD83C\uDFAF'},
       {id:'metricas',  lbl:'M\u00e9tricas RD',ico:'\uD83D\uDCC8'},
     ]},
     {sec:'Marketing', items:[
@@ -12666,7 +12752,7 @@ function renderSB() {
     {sec:'Diretoria', items:[
       {id:'forecast',   lbl:'Proje\u00e7\u00f5es',  ico:'\uD83D\uDCC9'},
       {id:'kpis',        lbl:'KPIs',                ico:'\uD83D\uDCC8'},
-      {id:'metas_dir',   lbl:'Metas',               ico:'\uD83C\uDFAF'},
+      {id:'metas',       lbl:'Metas',               ico:'\uD83C\uDFAF'},
       {id:'governance',  lbl:'Governan\u00e7a',     ico:'\uD83D\uDEE1'},
       {id:'equipe',      lbl:'Vis\u00e3o Geral',    ico:'\uD83D\uDC65'},
       {id:'dashboard',   lbl:'Dashboard',           ico:'\uD83D\uDCCA'},
@@ -12749,7 +12835,7 @@ function renderHDR() {
     fluxocaixa:'\uD83D\uDCB0 Fluxo de Caixa',dre:'\uD83D\uDCCA DRE',comissoes:'\uD83D\uDC8E Comiss\u00f5es',
     repasses:'\uD83D\uDD04 Repasses',custos_fixos:'\uD83D\uDCC9 Custos Fixos & Vari\u00e1veis',
     // Diretoria
-    forecast:'\uD83D\uDCC9 Proje\u00e7\u00f5es',kpis:'\uD83D\uDCC8 KPIs',metas_dir:'\uD83C\uDFAF Metas',
+    forecast:'\uD83D\uDCC9 Proje\u00e7\u00f5es',kpis:'\uD83D\uDCC8 KPIs',
     governance:'\uD83D\uDEE1 Governan\u00e7a',equipe:'\uD83D\uDC65 Vis\u00e3o Geral',dashboard:'\uD83D\uDCCA Dashboard Executivo',
     // Intelligence
     radar:'\uD83D\uDCE1 Radar Concorrentes',benchmark:'\uD83D\uDCCA Benchmark',
@@ -12868,7 +12954,6 @@ function route() {
     case 'custos_fixos':     return pgPlaceholder('Custos Fixos & Vari\u00e1veis','Em breve: controle de custos fixos e vari\u00e1veis.');
     // Diretoria
     case 'kpis':             return pgPlaceholder('KPIs','Em breve: painel de KPIs estrat\u00e9gicos.');
-    case 'metas_dir':        return pgPlaceholder('Metas da Diretoria','Em breve: metas estrat\u00e9gicas da diretoria.');
     // Agentes
     case 'sr_gerencia':      return pgPlaceholder('Sr. Ger\u00eancia','\uD83D\uDC54 Em constru\u00e7\u00e3o: agente de gest\u00e3o e ger\u00eancia.');
     default:           return pgMeu();
@@ -16930,8 +17015,11 @@ function debouncedRender(ms){if(_drTimer)clearTimeout(_drTimer);_drTimer=setTime
 
 var _drTimer;function debouncedRender(d){clearTimeout(_drTimer);_drTimer=setTimeout(function(){render()},d||300)}
 var _renderPending=false,_renderPendingTimer=null,_lastUserActivity=0,_renderForced=false;
-["focusin","keydown","mousedown","touchstart","input"].forEach(function(e){document.addEventListener(e,function(){_lastUserActivity=Date.now()},true)});
-function _isUserInteracting(){var ae=document.activeElement;if(ae&&(ae.tagName==="INPUT"||ae.tagName==="TEXTAREA"||ae.tagName==="SELECT"||ae.isContentEditable))return true;if(Date.now()-_lastUserActivity<60000)return true;var m=document.querySelector(".modal.show,.swal2-container,.popup-overlay");if(m)return true;/* Bloqueia render se ha qualquer campo OO com salvamento pendente */if(document.querySelector('[data-oo-pending="1"]'))return true;return false;}
+/* FIX 2026-04-08: listener apenas em 'input' de campos de texto — o 'mousedown/keydown/touchstart/focusin' global travava render() por 60s apos qualquer clique, quebrando TODOS os botoes do sistema (One on One, Oportunidades, Ranking etc). */
+document.addEventListener("input",function(e){var t=e&&e.target;if(t&&(t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.isContentEditable))_lastUserActivity=Date.now();},true);
+/* FIX 2026-04-08: cliques do usuario forcam o proximo render() — impede que render chamado a partir de onclick seja adiado pelo render-guard. */
+document.addEventListener("click",function(){_renderForced=true;setTimeout(function(){_renderForced=false;},150);},true);
+function _isUserInteracting(){var ae=document.activeElement;if(ae&&(ae.tagName==="INPUT"||ae.tagName==="TEXTAREA"||ae.isContentEditable))return true;/* Janela curta (3s) so para proteger o ultimo keystroke antes do blur — NAO deve bloquear cliques em botoes */if(_lastUserActivity&&(Date.now()-_lastUserActivity<3000))return true;var m=document.querySelector(".modal.show,.swal2-container,.popup-overlay");if(m)return true;/* Bloqueia render se ha qualquer campo OO com salvamento pendente */if(document.querySelector('[data-oo-pending="1"]'))return true;return false;}
 function render(opts){var force=(opts&&opts.force)||_renderForced;_renderForced=false;if(!force&&_isUserInteracting()){_renderPending=true;if(_renderPendingTimer)clearTimeout(_renderPendingTimer);_renderPendingTimer=setTimeout(function(){if(!_isUserInteracting()){_renderPending=false;render({force:true})}else{_renderPendingTimer=setTimeout(arguments.callee,2000)}},2000);return}_renderPending=false;if(_renderPendingTimer){clearTimeout(_renderPendingTimer);_renderPendingTimer=null}/* DEFESA: flush sincrono de QUALQUER campo OO com salvamento pendente antes de destruir DOM */if(typeof window._ooFlushAll==='function')window._ooFlushAll();
 const app=document.getElementById("app");if(!app)return;var _pc0=document.getElementById("pc"),_scr=_pc0?_pc0.scrollTop:0;if(!S.user){if(S.loginView==="forgot"){app.innerHTML=renderForgotPassword();return}if(S.loginView==="reset"){app.innerHTML=renderResetPassword();return}app.innerHTML=renderLogin();_fillRememberedLogin();return}
 var existingPc=document.getElementById("pc");if(existingPc&&!force){try{existingPc.innerHTML=safeRoute();var sbEl=document.getElementById("sb-wrap");if(sbEl)sbEl.innerHTML=renderSB();var hdrEl=document.getElementById("hdr-wrap");if(hdrEl)hdrEl.innerHTML=renderHDR();var mobNav=document.getElementById("mob-nav");if(mobNav)mobNav.outerHTML=renderMobNav();saveState();if(_pc0)existingPc.scrollTop=_scr;return}catch(e){console.warn("[PSM] Smart render falhou:",e.message)}}
