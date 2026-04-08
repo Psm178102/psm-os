@@ -14,6 +14,9 @@ module.exports = async function handler(req, res) {
   var accountIds = (process.env.META_AD_ACCOUNT_IDS || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
   // Comma-separated labels matching accounts: "Paulo Morimatsu,PSM Imoveis"
   var accountLabels = (process.env.META_AD_ACCOUNT_LABELS || '').split(',').map(function(s){ return s.trim(); });
+  // Optional comma-separated per-account tokens matching accounts. Empty entry = fallback to META_ACCESS_TOKEN.
+  // Useful when each ad account is in a different Business Manager and needs its own System User token.
+  var accountTokens = (process.env.META_AD_ACCOUNT_TOKENS || '').split(',').map(function(s){ return s.trim(); });
 
   if (!token || accountIds.length === 0) {
     return res.status(500).json({
@@ -33,13 +36,14 @@ module.exports = async function handler(req, res) {
     for (var i = 0; i < accountIds.length; i++) {
       var actId = accountIds[i];
       var actLabel = accountLabels[i] || actId;
+      var actToken = (accountTokens[i] && accountTokens[i].length > 0) ? accountTokens[i] : token;
 
       // 1. Get active campaigns
       var campaignsUrl = GRAPH_API + '/' + actId + '/campaigns'
         + '?fields=name,status,objective,effective_status'
         + '&effective_status=["ACTIVE","PAUSED","CAMPAIGN_PAUSED"]'
         + '&limit=100'
-        + '&access_token=' + token;
+        + '&access_token=' + actToken;
 
       var campResp = await fetch(campaignsUrl);
       var campData = await campResp.json();
@@ -60,7 +64,7 @@ module.exports = async function handler(req, res) {
         + 'video_play_actions'
         + '&level=campaign'
         + '&limit=100'
-        + '&access_token=' + token;
+        + '&access_token=' + actToken;
 
       if (sinceDate && untilDate) {
         insightsUrl += '&time_range={"since":"' + sinceDate + '","until":"' + untilDate + '"}';
@@ -84,7 +88,7 @@ module.exports = async function handler(req, res) {
       // 3. Get account-level insights for total spend
       var acctInsUrl = GRAPH_API + '/' + actId + '/insights'
         + '?fields=spend,impressions,reach,clicks,actions'
-        + '&access_token=' + token;
+        + '&access_token=' + actToken;
 
       if (sinceDate && untilDate) {
         acctInsUrl += '&time_range={"since":"' + sinceDate + '","until":"' + untilDate + '"}';

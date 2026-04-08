@@ -3669,11 +3669,13 @@ const RD = {
 
   startAutoSync() {
     if (this._timer) clearInterval(this._timer);
-    this._timer = setInterval(() => this.sync(false), 3 * 60 * 1000);
-    this._fullRefreshTimer = setInterval(() => {
-      this.clearCache();
+    // Sync incremental a cada 5min (era 3min). Sem clearCache de 15min porque
+    // forcava re-render que destruia formularios em edicao do 1:1.
+    this._timer = setInterval(() => {
+      // Nunca sincroniza enquanto usuario edita campo ou tem dado pendente
+      if (typeof _isUserInteracting === 'function' && _isUserInteracting()) return;
       this.sync(false);
-    }, 15 * 60 * 1000);
+    }, 5 * 60 * 1000);
     // Auto-refresh RD MKT token every 20 hours (expires in 24h)
     setInterval(() => refreshRdMktToken(), 20 * 60 * 60 * 1000);
     // Check on startup
@@ -5784,14 +5786,16 @@ function pgOO() {
       content += '<div style="text-align:center;padding:16px;color:#64748b;font-size:13px">Nenhum neg\u00f3cio indicado para fechamento.</div>';
     } else {
       fechItems.forEach(function(f, idx) {
+        if (!f._id) f._id = 'f_legacy_' + idx + '_' + weekKey.replace(/-/g,'');
+        var fid = f._id;
         content += '<div style="background:#0f172a;border-radius:8px;padding:12px;margin-bottom:8px;border:1px solid #334155">';
         content += '<div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap">';
-        content += '<input type="text" value="' + (f.nome||'') + '" placeholder="Nome do cliente" style="flex:1;min-width:130px;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:12px" onblur="ooUpdateFechamento(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ',\'nome\',this.value)">';
-        content += '<input type="text" value="' + (f.produto||'') + '" placeholder="Produto" style="flex:1;min-width:130px;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:12px" onblur="ooUpdateFechamento(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ',\'produto\',this.value)">';
-        content += '<input type="text" value="' + (f.vgv||'') + '" placeholder="VGV (R$)" style="width:110px;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:12px" onblur="ooUpdateFechamento(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ',\'vgv\',this.value)">';
+        content += '<input id="fnome_'+fid+'" type="text" value="' + (f.nome||'').replace(/"/g,'&quot;') + '" placeholder="Nome do cliente" style="flex:1;min-width:130px;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:12px" oninput="ooAutosaveFech(this,\'' + selBid + '\',\'' + weekKey + '\',\'' + fid + '\',\'nome\')">';
+        content += '<input id="fprod_'+fid+'" type="text" value="' + (f.produto||'').replace(/"/g,'&quot;') + '" placeholder="Produto" style="flex:1;min-width:130px;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:12px" oninput="ooAutosaveFech(this,\'' + selBid + '\',\'' + weekKey + '\',\'' + fid + '\',\'produto\')">';
+        content += '<input id="fvgv_'+fid+'" type="text" value="' + (f.vgv||'').toString().replace(/"/g,'&quot;') + '" placeholder="VGV (R$)" style="width:110px;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:12px" oninput="ooAutosaveFech(this,\'' + selBid + '\',\'' + weekKey + '\',\'' + fid + '\',\'vgv\')">';
         content += '<button onclick="ooRemoveFechamento(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ')" style="background:#dc262620;color:#fca5a5;border:none;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:12px">\u2715</button>';
         content += '</div>';
-        content += '<textarea rows="2" placeholder="O que falta para fechar?" style="width:100%;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:12px;resize:vertical;box-sizing:border-box" onblur="ooUpdateFechamento(\'' + selBid + '\',\'' + weekKey + '\',' + idx + ',\'necessario\',this.value)">' + (f.necessario||'') + '</textarea>';
+        content += '<textarea id="fnec_'+fid+'" rows="2" placeholder="O que falta para fechar?" style="width:100%;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:12px;resize:vertical;box-sizing:border-box" oninput="ooAutosaveFech(this,\'' + selBid + '\',\'' + weekKey + '\',\'' + fid + '\',\'necessario\')">' + (f.necessario||'').replace(/</g,'&lt;') + '</textarea>';
         content += '</div>';
       });
     }
@@ -5832,6 +5836,9 @@ function pgOO() {
       content += '</div>';
     } else {
       reunioesView.forEach(function(r, idx) {
+        // Garantir _id retroativo em reunioes legadas (criadas antes do fix)
+        if (!r._id) r._id = 'r_legacy_' + idx + '_' + (r.data || '').replace(/-/g,'');
+        var rid = r._id;
         var semana = r.semana || ('Semana ' + (idx+1));
         content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:12px">';
         content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
@@ -5843,20 +5850,20 @@ function pgOO() {
 
         // Objectives
         content += '<div style="margin-bottom:10px">';
-        content += '<div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:4px">\uD83C\uDFAF Objetivos a Cumprir</div>';
-        content += '<textarea class="finp" rows="3" style="resize:vertical;width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px;font-size:13px" placeholder="Liste os objetivos..." onblur="ooUpdateReuniao(\'' + selBid + '\',\'' + ooReunMes + '\',' + idx + ',\'objetivos\',this.value)">' + (r.objetivos || '') + '</textarea>';
+        content += '<div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:4px">\uD83C\uDFAF Objetivos a Cumprir <span id="ind_obj_'+rid+'" style="font-size:10px;color:#64748b;margin-left:6px"></span></div>';
+        content += '<textarea id="ta_obj_'+rid+'" class="finp" rows="3" style="resize:vertical;width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px;font-size:13px" placeholder="Liste os objetivos..." oninput="document.getElementById(\'ind_obj_'+rid+'\').textContent=\'\u270f\ufe0f digitando...\';ooAutosaveReun(this,\'' + selBid + '\',\'' + ooReunMes + '\',\'' + rid + '\',\'objetivos\');setTimeout(function(){var i=document.getElementById(\'ind_obj_'+rid+'\');if(i)i.textContent=\'\u2705 salvo\';},700)">' + (r.objetivos || '').replace(/</g,'&lt;') + '</textarea>';
         content += '</div>';
 
         // Observations
         content += '<div style="margin-bottom:10px">';
-        content += '<div style="font-size:12px;font-weight:700;color:#06b6d4;margin-bottom:4px">\uD83D\uDCDD Observa\u00e7\u00f5es</div>';
-        content += '<textarea class="finp" rows="3" style="resize:vertical;width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px;font-size:13px" placeholder="Observa\u00e7\u00f5es da reuni\u00e3o..." onblur="ooUpdateReuniao(\'' + selBid + '\',\'' + ooReunMes + '\',' + idx + ',\'observacoes\',this.value)">' + (r.observacoes || '') + '</textarea>';
+        content += '<div style="font-size:12px;font-weight:700;color:#06b6d4;margin-bottom:4px">\uD83D\uDCDD Observa\u00e7\u00f5es <span id="ind_obs_'+rid+'" style="font-size:10px;color:#64748b;margin-left:6px"></span></div>';
+        content += '<textarea id="ta_obs_'+rid+'" class="finp" rows="3" style="resize:vertical;width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px;font-size:13px" placeholder="Observa\u00e7\u00f5es da reuni\u00e3o..." oninput="document.getElementById(\'ind_obs_'+rid+'\').textContent=\'\u270f\ufe0f digitando...\';ooAutosaveReun(this,\'' + selBid + '\',\'' + ooReunMes + '\',\'' + rid + '\',\'observacoes\');setTimeout(function(){var i=document.getElementById(\'ind_obs_'+rid+'\');if(i)i.textContent=\'\u2705 salvo\';},700)">' + (r.observacoes || '').replace(/</g,'&lt;') + '</textarea>';
         content += '</div>';
 
         // Action plan
         content += '<div>';
-        content += '<div style="font-size:12px;font-weight:700;color:#10b981;margin-bottom:4px">\u2705 Plano de A\u00e7\u00e3o</div>';
-        content += '<textarea class="finp" rows="2" style="resize:vertical;width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px;font-size:13px" placeholder="A\u00e7\u00f5es definidas..." onblur="ooUpdateReuniao(\'' + selBid + '\',\'' + ooReunMes + '\',' + idx + ',\'plano\',this.value)">' + (r.plano || '') + '</textarea>';
+        content += '<div style="font-size:12px;font-weight:700;color:#10b981;margin-bottom:4px">\u2705 Plano de A\u00e7\u00e3o <span id="ind_plano_'+rid+'" style="font-size:10px;color:#64748b;margin-left:6px"></span></div>';
+        content += '<textarea id="ta_plano_'+rid+'" class="finp" rows="2" style="resize:vertical;width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px;font-size:13px" placeholder="A\u00e7\u00f5es definidas..." oninput="document.getElementById(\'ind_plano_'+rid+'\').textContent=\'\u270f\ufe0f digitando...\';ooAutosaveReun(this,\'' + selBid + '\',\'' + ooReunMes + '\',\'' + rid + '\',\'plano\');setTimeout(function(){var i=document.getElementById(\'ind_plano_'+rid+'\');if(i)i.textContent=\'\u2705 salvo\';},700)">' + (r.plano || '').replace(/</g,'&lt;') + '</textarea>';
         content += '</div>';
         content += '</div>';
       });
@@ -6502,6 +6509,7 @@ function ooAddReuniao(bid, monthKey) {
   var numReun = S.ooReunioes[bid][monthKey].length + 1;
   var today = new Date().toISOString().slice(0,10);
   S.ooReunioes[bid][monthKey].push({
+    _id: 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
     semana: 'Semana ' + numReun,
     data: today,
     objetivos: '',
@@ -6519,12 +6527,68 @@ function ooRemoveReuniao(bid, monthKey, idx) {
   render();
 }
 
-function ooUpdateReuniao(bid, monthKey, idx, field, value) {
+// === AUTOSAVE HELPER ============================================
+// Debounced autosave para inputs/textareas. Resolve o bug de "perde digitacao"
+// quando o auto-render acontece. Marca o elemento com data-oo-pending=1
+// para que _isUserInteracting() o detecte, e oferece flush() para forcar
+// salvamento antes do DOM ser destruido.
+window._ooAutosaveTimers = window._ooAutosaveTimers || {};
+window._ooFlushAll = function() {
+  // Flush sincrono de TODOS os campos pendentes (chamado antes de render destruir DOM)
+  try {
+    var pendings = document.querySelectorAll('[data-oo-pending="1"]');
+    pendings.forEach(function(el) {
+      if (typeof el._ooFlush === 'function') {
+        try { el._ooFlush(); } catch(e) { console.warn('[ooFlush]', e); }
+      }
+    });
+  } catch(e) { console.warn('[ooFlushAll]', e); }
+};
+function ooAutosave(el, saveFn, delayMs) {
+  // saveFn recebe (value) e deve persistir. el = input/textarea
+  if (!el) return;
+  el.setAttribute('data-oo-pending','1');
+  var key = el.id || ('autosave_' + Math.random().toString(36).slice(2));
+  if (!el.id) el.id = key;
+  // armazena flush no proprio elemento para o _ooFlushAll achar
+  el._ooFlush = function() {
+    if (window._ooAutosaveTimers[key]) {
+      clearTimeout(window._ooAutosaveTimers[key]);
+      delete window._ooAutosaveTimers[key];
+    }
+    try { saveFn(el.value); } catch(e) { console.warn('[ooAutosave flush]', e); }
+    el.removeAttribute('data-oo-pending');
+  };
+  if (window._ooAutosaveTimers[key]) clearTimeout(window._ooAutosaveTimers[key]);
+  window._ooAutosaveTimers[key] = setTimeout(function() {
+    try { saveFn(el.value); } catch(e) { console.warn('[ooAutosave]', e); }
+    el.removeAttribute('data-oo-pending');
+    delete window._ooAutosaveTimers[key];
+  }, delayMs || 500);
+}
+// Helper invocado de oninput="ooAutosaveReun(this,...)"
+function ooAutosaveReun(el, bid, monthKey, reunId, field) {
+  ooAutosave(el, function(v){ ooUpdateReuniao(bid, monthKey, reunId, field, v); }, 500);
+}
+function ooAutosaveFech(el, bid, weekKey, fechId, field) {
+  ooAutosave(el, function(v){ ooUpdateFechamento(bid, weekKey, fechId, field, v); }, 500);
+}
+
+function ooUpdateReuniao(bid, monthKey, idxOrId, field, value) {
   if (!S.ooReunioes) S.ooReunioes = {};
   if (!S.ooReunioes[bid]) S.ooReunioes[bid] = {};
   if (!S.ooReunioes[bid][monthKey]) S.ooReunioes[bid][monthKey] = [];
-  if (!S.ooReunioes[bid][monthKey][idx]) return;
-  S.ooReunioes[bid][monthKey][idx][field] = value;
+  var arr = S.ooReunioes[bid][monthKey];
+  // Buscar por _id estavel primeiro (corrige bug de idx desatualizado por sync remoto)
+  var target = null;
+  if (typeof idxOrId === 'string' && idxOrId.indexOf('r_') === 0) {
+    target = arr.find(function(r){ return r && r._id === idxOrId; });
+  }
+  if (!target && typeof idxOrId === 'number' && arr[idxOrId]) {
+    target = arr[idxOrId];
+  }
+  if (!target) return;
+  target[field] = value;
   saveState();
 }
 
@@ -6613,13 +6677,21 @@ function ooAddFechamento(bid, weekKey) {
   if (!S.ooFechamento) S.ooFechamento = {};
   if (!S.ooFechamento[bid]) S.ooFechamento[bid] = {};
   if (!S.ooFechamento[bid][weekKey]) S.ooFechamento[bid][weekKey] = [];
-  S.ooFechamento[bid][weekKey].push({nome:'', produto:'', vgv:'', necessario:''});
+  S.ooFechamento[bid][weekKey].push({_id: 'f_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), nome:'', produto:'', vgv:'', necessario:''});
   saveState(); render();
 }
-function ooUpdateFechamento(bid, weekKey, idx, field, value) {
+function ooUpdateFechamento(bid, weekKey, idxOrId, field, value) {
   if (!S.ooFechamento || !S.ooFechamento[bid] || !S.ooFechamento[bid][weekKey]) return;
-  if (!S.ooFechamento[bid][weekKey][idx]) return;
-  S.ooFechamento[bid][weekKey][idx][field] = value;
+  var arr = S.ooFechamento[bid][weekKey];
+  var target = null;
+  if (typeof idxOrId === 'string' && idxOrId.indexOf('f_') === 0) {
+    target = arr.find(function(f){ return f && f._id === idxOrId; });
+  }
+  if (!target && typeof idxOrId === 'number' && arr[idxOrId]) {
+    target = arr[idxOrId];
+  }
+  if (!target) return;
+  target[field] = value;
   saveState();
 }
 function ooRemoveFechamento(bid, weekKey, idx) {
@@ -16673,8 +16745,8 @@ function debouncedRender(ms){if(_drTimer)clearTimeout(_drTimer);_drTimer=setTime
 var _drTimer;function debouncedRender(d){clearTimeout(_drTimer);_drTimer=setTimeout(function(){render()},d||300)}
 var _renderPending=false,_renderPendingTimer=null,_lastUserActivity=0,_renderForced=false;
 ["focusin","keydown","mousedown","touchstart","input"].forEach(function(e){document.addEventListener(e,function(){_lastUserActivity=Date.now()},true)});
-function _isUserInteracting(){var ae=document.activeElement;if(ae&&(ae.tagName==="INPUT"||ae.tagName==="TEXTAREA"||ae.tagName==="SELECT"||ae.isContentEditable))return true;if(Date.now()-_lastUserActivity<3000)return true;var m=document.querySelector(".modal.show,.swal2-container,.popup-overlay");if(m)return true;return false;}
-function render(opts){var force=(opts&&opts.force)||_renderForced;_renderForced=false;if(!force&&_isUserInteracting()){_renderPending=true;if(_renderPendingTimer)clearTimeout(_renderPendingTimer);_renderPendingTimer=setTimeout(function(){if(!_isUserInteracting()){_renderPending=false;render({force:true})}else{_renderPendingTimer=setTimeout(arguments.callee,2000)}},2000);return}_renderPending=false;if(_renderPendingTimer){clearTimeout(_renderPendingTimer);_renderPendingTimer=null}
+function _isUserInteracting(){var ae=document.activeElement;if(ae&&(ae.tagName==="INPUT"||ae.tagName==="TEXTAREA"||ae.tagName==="SELECT"||ae.isContentEditable))return true;if(Date.now()-_lastUserActivity<60000)return true;var m=document.querySelector(".modal.show,.swal2-container,.popup-overlay");if(m)return true;/* Bloqueia render se ha qualquer campo OO com salvamento pendente */if(document.querySelector('[data-oo-pending="1"]'))return true;return false;}
+function render(opts){var force=(opts&&opts.force)||_renderForced;_renderForced=false;if(!force&&_isUserInteracting()){_renderPending=true;if(_renderPendingTimer)clearTimeout(_renderPendingTimer);_renderPendingTimer=setTimeout(function(){if(!_isUserInteracting()){_renderPending=false;render({force:true})}else{_renderPendingTimer=setTimeout(arguments.callee,2000)}},2000);return}_renderPending=false;if(_renderPendingTimer){clearTimeout(_renderPendingTimer);_renderPendingTimer=null}/* DEFESA: flush sincrono de QUALQUER campo OO com salvamento pendente antes de destruir DOM */if(typeof window._ooFlushAll==='function')window._ooFlushAll();
 const app=document.getElementById("app");if(!app)return;var _pc0=document.getElementById("pc"),_scr=_pc0?_pc0.scrollTop:0;if(!S.user){if(S.loginView==="forgot"){app.innerHTML=renderForgotPassword();return}if(S.loginView==="reset"){app.innerHTML=renderResetPassword();return}app.innerHTML=renderLogin();_fillRememberedLogin();return}
 var existingPc=document.getElementById("pc");if(existingPc&&!force){try{existingPc.innerHTML=safeRoute();var sbEl=document.getElementById("sb-wrap");if(sbEl)sbEl.innerHTML=renderSB();var hdrEl=document.getElementById("hdr-wrap");if(hdrEl)hdrEl.innerHTML=renderHDR();var mobNav=document.getElementById("mob-nav");if(mobNav)mobNav.outerHTML=renderMobNav();saveState();if(_pc0)existingPc.scrollTop=_scr;return}catch(e){console.warn("[PSM] Smart render falhou:",e.message)}}
   app.innerHTML = (S.rdSyncing ? '<div class="sync-bar active"></div>' : '') + '<div id="mob-ham" onclick="toggleMobSB()">☰</div>'
