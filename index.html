@@ -5671,7 +5671,7 @@ function pgOO() {
       });
       content += '</select>';
       content += '<label style="font-size:11px;color:#64748b;margin-left:8px">Descri\u00e7\u00e3o:</label>';
-      content += '<input type="text" value="' + (disc_.desc || '') + '" placeholder="Ex: Direto, focado em resultados" style="flex:1;min-width:180px;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:4px 8px;font-size:12px" onblur="ooSaveDisc(\'' + selBid + '\',\'desc\',this.value)">';
+      content += '<input type="text" value="' + (disc_.desc || '') + '" placeholder="Ex: Direto, focado em resultados" style="flex:1;min-width:180px;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:4px 8px;font-size:12px" oninput="ooAutosave(this,function(v){ooSaveDisc(\'' + selBid + '\',\'desc\',v)},500)">';
       content += '</div>';
     }
     content += '</div>';
@@ -5687,7 +5687,7 @@ function pgOO() {
       content += '<div style="background:#0f172a;border-radius:8px;padding:10px">';
       content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px">' + df.icon + ' ' + df.lbl + '</div>';
       if (lvl >= 5) {
-        content += '<input type="date" value="' + v + '" style="width:100%;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px;font-size:13px" onblur="ooSaveData(\'' + selBid + '\',\'' + df.k + '\',this.value)">';
+        content += '<input type="date" value="' + v + '" style="width:100%;background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:6px;font-size:13px" onchange="ooSaveData(\'' + selBid + '\',\'' + df.k + '\',this.value)">';
       } else {
         content += '<div style="font-size:14px;font-weight:600;color:#f8fafc">' + (v ? v.split('-').reverse().join('/') : '\u2014') + '</div>';
       }
@@ -6316,7 +6316,7 @@ function pgOO() {
         var metaL = (S.ooMetaLanc[selBid]||{})[lid] || '';
         content += '<div style="background:#0f172a;border-radius:8px;padding:10px">';
         content += '<label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">\uD83C\uDFE2 ' + nome + '</label>';
-        content += '<input type="number" min="0" value="' + metaL + '" placeholder="Meta vendas" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:6px;border-radius:6px;font-size:14px;text-align:center" onblur="ooSaveMetaLanc(\'' + selBid + '\',\'' + lid + '\',this.value)">';
+        content += '<input type="number" min="0" value="' + metaL + '" placeholder="Meta vendas" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:6px;border-radius:6px;font-size:14px;text-align:center" oninput="ooAutosave(this,function(v){ooSaveMetaLanc(\'' + selBid + '\',\'' + lid + '\',v)},500)">';
         content += '</div>';
       });
       content += '</div>';
@@ -6339,7 +6339,7 @@ function pgOO() {
       vgvAcum += parseFloat(metaVgvM) || 0;
       content += '<div style="background:' + (isActive ? '#312e81' : '#0f172a') + ';border-radius:8px;padding:8px;border:' + (isActive ? '2px solid #6366f1' : '1px solid transparent') + '">';
       content += '<label style="font-size:10px;color:' + (isActive ? '#a5b4fc' : '#94a3b8') + ';display:block;margin-bottom:4px">' + monthNames[mi] + '</label>';
-      content += '<input type="number" min="0" value="' + metaVgvM + '" placeholder="R$" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:6px;border-radius:6px;font-size:12px;text-align:center" onblur="ooSaveMetaVgvMes(\'' + selBid + '\',\'' + mk + '\',this.value)">';
+      content += '<input type="number" min="0" value="' + metaVgvM + '" placeholder="R$" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:6px;border-radius:6px;font-size:12px;text-align:center" oninput="ooAutosave(this,function(v){ooSaveMetaVgvMes(\'' + selBid + '\',\'' + mk + '\',v)},500)">';
       content += '</div>';
     }
     content += '</div>';
@@ -6372,13 +6372,13 @@ function pgOO() {
     // Dream text
     content += '<div style="flex:1;min-width:200px">';
     content += '<label style="font-size:12px;font-weight:700;color:#f59e0b;display:block;margin-bottom:6px">\uD83D\uDCAD Qual \u00e9 o sonho?</label>';
-    content += '<textarea class="finp" rows="4" style="resize:vertical;width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:10px;font-size:14px" placeholder="Ex: Comprar minha casa pr\u00f3pria, carro novo, viagem dos sonhos..." onblur="ooSaveObjetivo(\'' + selBid + '\',\'sonho\',this.value)">' + (obj.sonho || '') + '</textarea>';
+    content += '<textarea class="finp" rows="4" style="resize:vertical;width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:10px;font-size:14px" placeholder="Ex: Comprar minha casa pr\u00f3pria, carro novo, viagem dos sonhos..." oninput="ooAutosave(this,function(v){ooSaveObjetivo(\'' + selBid + '\',\'sonho\',v)},600)">' + (obj.sonho || '') + '</textarea>';
 
     content += '<label style="font-size:12px;font-weight:700;color:#06b6d4;display:block;margin:10px 0 6px">\uD83C\uDFAF Meta financeira associada</label>';
-    content += '<input type="text" value="' + (obj.metaFinanceira || '') + '" placeholder="Ex: R$ 500.000 em comiss\u00f5es no ano" style="width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px 10px;font-size:13px" onblur="ooSaveObjetivo(\'' + selBid + '\',\'metaFinanceira\',this.value)">';
+    content += '<input type="text" value="' + (obj.metaFinanceira || '') + '" placeholder="Ex: R$ 500.000 em comiss\u00f5es no ano" style="width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px 10px;font-size:13px" oninput="ooAutosave(this,function(v){ooSaveObjetivo(\'' + selBid + '\',\'metaFinanceira\',v)},500)">';
 
     content += '<label style="font-size:12px;font-weight:700;color:#10b981;display:block;margin:10px 0 6px">\u23F0 Prazo</label>';
-    content += '<input type="text" value="' + (obj.prazo || '') + '" placeholder="Ex: Dezembro 2026" style="width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px 10px;font-size:13px" onblur="ooSaveObjetivo(\'' + selBid + '\',\'prazo\',this.value)">';
+    content += '<input type="text" value="' + (obj.prazo || '') + '" placeholder="Ex: Dezembro 2026" style="width:100%;background:#0f172a;color:#f8fafc;border:1px solid #334155;border-radius:8px;padding:8px 10px;font-size:13px" oninput="ooAutosave(this,function(v){ooSaveObjetivo(\'' + selBid + '\',\'prazo\',v)},500)">';
     content += '</div></div></div>';
   }
 
