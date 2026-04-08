@@ -5349,6 +5349,60 @@ function ooAggMonth(bid, monthKey) {
       totals[k] = (totals[k] || 0) + (d[k] || 0);
     });
   });
+  // ─── MERGE: dados reais do RD CRM para este mes ────────────────────────────
+  // Preenche zeros com dados reais (vendas, visitas, ligacoes, descartes, VGV)
+  // extraidos de OPPS/VENDAS/LOST_DEALS/TASKS_RD filtrados pela janela do mes.
+  try {
+    var _mp = (monthKey||'').split('-');
+    if (_mp.length >= 2) {
+      var _y = parseInt(_mp[0]), _m = parseInt(_mp[1]) - 1;
+      var _from = new Date(_y, _m, 1).getTime();
+      var _to = new Date(_y, _m + 1, 0, 23, 59, 59).getTime();
+      var _inWin = function(d) {
+        var dt = new Date(d && (d.closedAt || d.createdAt || d.updated_at) || 0).getTime();
+        return !isNaN(dt) && dt >= _from && dt <= _to;
+      };
+      var _inWinTs = function(ts) { return ts >= _from && ts <= _to; };
+
+      var _bOpps = (typeof OPPS !== 'undefined' ? OPPS : []).filter(function(o){ return o.bid === bid && _inWin(o); });
+      var _bWon  = (typeof VENDAS !== 'undefined' ? VENDAS : []).filter(function(v){ return v.bid === bid && _inWin(v); });
+      var _bLost = (typeof LOST_DEALS !== 'undefined' ? LOST_DEALS : []).filter(function(l){ return l.bid === bid && _inWin(l); });
+      var _bTasks = (typeof TASKS_RD !== 'undefined' ? TASKS_RD : []).filter(function(t){
+        var ts = new Date(t && (t.closedAt || t.doneAt) || 0).getTime();
+        return t.bid === bid && _inWinTs(ts);
+      });
+
+      var _taskLig = _bTasks.filter(function(t){ return t.type === 'call' || t.type === 'whatsapp'; }).length;
+      var _taskVis = _bTasks.filter(function(t){ return t.type === 'visit'; }).length;
+      var _rdVis   = _bOpps.filter(function(o){ return ['vis_real','contrato','proposta'].indexOf(o.st_psm) >= 0; }).length;
+      var _rdAgend = _bOpps.filter(function(o){ return ['agendamento','vis_agend','vis_real'].indexOf(o.st_psm) >= 0; }).length;
+      var _rdProp  = _bOpps.filter(function(o){ return o.st_psm === 'proposta'; }).length;
+
+      var _rd = {
+        vend:      _bWon.length,
+        vgv_real:  _bWon.reduce(function(a,v){ return a + (v.vgv||0); }, 0),
+        vis:       _rdVis + _taskVis,
+        agend:     _rdAgend,
+        prop:      _rdProp,
+        lig_real:  _bOpps.length + _taskLig,
+        lig_atend: _taskLig || Math.round(_bOpps.length * 0.6),
+        desc:      _bLost.length
+      };
+      // Fallback: quando manual (ooDaily) estiver zerado, usa o real do RD
+      Object.keys(_rd).forEach(function(k){
+        if (!totals[k] || totals[k] === 0) totals[k] = _rd[k];
+      });
+    }
+  } catch(e){ /* RD ainda nao carregou — segue com zeros */ }
+
+  // ─── ALIASES para compatibilidade com a tab "Metricas" ─────────────────────
+  totals.vendas       = totals.vend || 0;
+  totals.atendimentos = totals.lig_atend || totals.lig_real || 0;
+  totals.leads        = totals.lig_real || 0;
+  totals.visitas      = totals.vis || 0;
+  totals.agendamentos = totals.agend || 0;
+  totals.descartados  = totals.desc || 0;
+  if (!totals.vgv && totals.vgv_real) totals.vgv = totals.vgv_real;
   return totals;
 }
 function ooAggYear(bid, year) {
@@ -5490,7 +5544,8 @@ function pgOO() {
     var realMes = ooAggMonth(selBid, monthKey);
     var metasMes = ooGetMetas(selBid, monthKey);
     var cache = ((S.ooSheetCache||{})[selBid]) || {};
-    var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
+    var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0
+                       || (realMes.vend||0) + (realMes.vis||0) + (realMes.lig_real||0) > 0;
     var workDays = ooGetWorkDays(curYear, curMonth);
     var workPassed = ooGetWorkDaysPassed(curYear, curMonth);
     var workRemain = workDays - workPassed;
@@ -5782,7 +5837,8 @@ function pgOO() {
       var realMes = ooAggMonth(selBid, monthKey);
       var metasMes = ooGetMetas(selBid, monthKey);
       var cache = ((S.ooSheetCache||{})[selBid]) || {};
-      var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
+      var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0
+                         || (realMes.vend||0) + (realMes.vis||0) + (realMes.lig_real||0) > 0;
 
       content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
       content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCC8 ' + monthNames[curMonth] + ' ' + curYear + ' \u2014 Meta vs Realizado</div>';
@@ -5842,14 +5898,17 @@ function pgOO() {
     var metasMes = ooGetMetas(selBid, monthKey);
     var cache = ((S.ooSheetCache||{})[selBid]) || {};
     var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
+    // realMes agora inclui fallback automatico do RD CRM — sempre prefere dados reais
+    var hasRealData = (realMes.vendas||0) + (realMes.atendimentos||0) + (realMes.visitas||0) + (realMes.agendamentos||0) > 0;
+    var useReal = hasDailyData || hasRealData;
     var cfgFrente = ooGetFrenteForBroker(selBid);
     var cfgFunil = ooGetFunilEquipe(cfgFrente);
-    var mVendas = hasDailyData ? (realMes.vendas||0) : (cache.vendas||0);
-    var mAtend = hasDailyData ? (realMes.atendimentos||realMes.leads||0) : (cache.atendimentos||cache.leads||0);
-    var mVisitas = hasDailyData ? (realMes.visitas||0) : (cache.visitas||0);
-    var mAgend = hasDailyData ? (realMes.agendamentos||0) : (cache.agendamentos||0);
-    var mDescartados = hasDailyData ? (realMes.descartados||0) : (cache.descartados||0);
-    var mVgv = hasDailyData ? (realMes.vgv||0) : (cache.vgv||0);
+    var mVendas = useReal ? (realMes.vendas||0) : (cache.vendas||0);
+    var mAtend = useReal ? (realMes.atendimentos||realMes.leads||0) : (cache.atendimentos||cache.leads||0);
+    var mVisitas = useReal ? (realMes.visitas||0) : (cache.visitas||0);
+    var mAgend = useReal ? (realMes.agendamentos||0) : (cache.agendamentos||0);
+    var mDescartados = useReal ? (realMes.descartados||0) : (cache.descartados||0);
+    var mVgv = useReal ? (realMes.vgv||0) : (cache.vgv||0);
     var ticketMedio = mVendas > 0 ? (mVgv / mVendas) : 0;
     var txConversao = mAtend > 0 ? (mVendas / mAtend * 100) : 0;
     var txDescarte = mAtend > 0 ? (mDescartados / mAtend * 100) : 0;
@@ -5902,7 +5961,7 @@ function pgOO() {
     content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Identifica a etapa com maior perda de convers\u00e3o</div>';
     var funnelSteps = [];
     cfgFunil.forEach(function(c) {
-      var v = hasDailyData ? (realMes[c.k]||0) : (cache[c.k]||0);
+      var v = useReal ? (realMes[c.k]||0) : (cache[c.k]||0);
       funnelSteps.push({label: c.l, icon: c.icon, key: c.k, val: v});
     });
     var worstDrop = {label:'', dropPct:0};
@@ -6346,7 +6405,8 @@ function pgOO() {
     var metasMes = ooGetMetas(selBid, monthKey);
     var realMes = ooAggMonth(selBid, monthKey);
     var cache = ((S.ooSheetCache||{})[selBid]) || {};
-    var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0;
+    var hasDailyData = Object.keys(((S.ooDaily||{})[selBid]||{})[monthKey]||{}).length > 0
+                       || (realMes.vend||0) + (realMes.vis||0) + (realMes.lig_real||0) > 0;
     var workDays = ooGetWorkDays(curYear, curMonth);
     var workPassed = ooGetWorkDaysPassed(curYear, curMonth);
 
