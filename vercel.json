@@ -4,7 +4,8 @@
           { "source": "/api/properties", "destination": "/api/properties" },
           { "source": "/api/rd", "destination": "/api/rd" },
           { "source": "/prompts/:path*", "destination": "/prompts/:path*" },
-          { "source": "/((?!api/|prompts/).*)", "destination": "/index.html" }
+          { "source": "/lib/:path*", "destination": "/lib/:path*" },
+          { "source": "/((?!api/|prompts/|lib/).*)", "destination": "/index.html" }
     ],
     "headers": [
           {
