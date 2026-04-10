@@ -1,9 +1,13 @@
-<!-- PSM-OS v2026.04.06-fix -->
+<!-- PSM-OS v2026.04.10-deepfix -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="version" content="2026.04.10-deepfix">
 <title>House PSM</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
@@ -196,7 +200,7 @@ html{height:100%;overflow:hidden}
 .flbl{font-size:9.5px;font-weight:600;color:var(--navy);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
 .fi,.fs,.fta{width:100%;padding:9px 13px;border:1.5px solid var(--cream3);border-radius:10px;font-size:13px;color:var(--dark);background:#fff;font-family:var(--font);outline:none;transition:var(--transition);-webkit-appearance:none}
 .fi:focus,.fs:focus,.fta:focus{border-color:var(--navy);background:#fff;box-shadow:0 0 0 3px rgba(15,23,42,.06)}
-.fi::placeholder,.fta::placeholder{color:var(--cream4)}
+.fi::placeholder,.fta::placeholder{color:var(--muted)}
 .fta{resize:vertical;min-height:72px;line-height:1.55}
 
 /* MODAL */
@@ -2969,9 +2973,9 @@ var pgWarArena = function(){
     h += '<button onclick="S.df_war={preset:\x27'+p.id+'\x27};render()" style="padding:6px 14px;border-radius:8px;border:1px solid '+(active?'var(--gold)':'rgba(255,255,255,.1)')+';background:'+(active?'rgba(212,168,67,.15)':'rgba(255,255,255,.03)')+';color:'+(active?'var(--gold)':'var(--muted)')+';font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer">'+p.lbl+'</button>';
   });
   if(warDF.preset==='Custom'){
-    h += '<input type="date" value="'+(warDF.from||'')+'" onchange="var d=S.df_war||{};d.from=this.value;d.preset=\x27Custom\x27;S.df_war=d;render()" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:var(--cream);font-size:11px">';
+    h += '<input type="date" value="'+(warDF.from||'')+'" onchange="var d=S.df_war||{};d.from=this.value;d.preset=\x27Custom\x27;S.df_war=d;render()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--cream3);background:var(--cream2);color:var(--navy);font-size:11px">';
     h += '<span style="color:var(--muted);font-size:11px">at\u00e9</span>';
-    h += '<input type="date" value="'+(warDF.to||'')+'" onchange="var d=S.df_war||{};d.to=this.value;d.preset=\x27Custom\x27;S.df_war=d;render()" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:var(--cream);font-size:11px">';
+    h += '<input type="date" value="'+(warDF.to||'')+'" onchange="var d=S.df_war||{};d.to=this.value;d.preset=\x27Custom\x27;S.df_war=d;render()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--cream3);background:var(--cream2);color:var(--navy);font-size:11px">';
   }
   h += '</div>';
 
@@ -3027,7 +3031,7 @@ var pgWarArena = function(){
       var rankIcon = rank===1?'\ud83e\udd47':rank===2?'\ud83e\udd48':rank===3?'\ud83e\udd49':rank+'\u00ba';
       h += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--navy3)">';
       h += '<span style="font-size:14px">' + rankIcon + '</span>';
-      h += '<div style="width:28px;height:28px;border-radius:50%;background:' + c.color + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">' + c.ini + '</div>';
+      h += '<div style="width:28px;height:28px;border-radius:50%;background:' + c.color + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)">' + c.ini + '</div>';
       h += '<div style="flex:1;font-size:13px;font-weight:600;color:var(--cream)">' + c.name + '</div>';
       h += '<div style="font-size:12px;font-weight:700;color:var(--gold2)">' + c.score + ' pts</div>';
       h += '</div>';
@@ -3067,7 +3071,7 @@ var pgWarArena = function(){
     h += '<tr style="background:' + rowBg + ';font-size:13px">';
     h += '<td style="padding:10px 4px;font-weight:700;text-align:center">' + rankDisplay + '</td>';
     h += '<td style="padding:10px 4px"><div style="display:flex;align-items:center;gap:8px">';
-    h += '<div style="width:32px;height:32px;border-radius:50%;background:' + c.color + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;position:relative">' + c.ini;
+    h += '<div style="width:32px;height:32px;border-radius:50%;background:' + c.color + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);position:relative">' + c.ini;
     if(c.st==='online') h += '<div style="position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;background:#10b981;border-radius:50%;border:2px solid var(--navy2)"></div>';
     h += '</div>';
     h += '<div><div style="font-weight:600;color:var(--cream)">' + c.name + '</div>';
