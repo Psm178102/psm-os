@@ -9342,6 +9342,8 @@ function pgMarketing() {
     + '<button class="btn '+(mkTab==='visao'?'bp1':'bout')+'" style="flex:1;font-size:12px" onclick="S.mkTab=\'visao\';render()">\uD83D\uDCCA Vis\u00e3o Geral</button>'
     + '<button class="btn '+(mkTab==='campanhas'?'bp1':'bout')+'" style="flex:1;font-size:12px" onclick="S.mkTab=\'campanhas\';render()">\uD83C\uDFAF Campanhas</button>'
     + '<button class="btn '+(mkTab==='conteudo'?'bp1':'bout')+'" style="flex:1;font-size:12px" onclick="S.mkTab=\'conteudo\';render()">\uD83D\uDCF1 Conte\u00fado</button>'
+    + '<button class="btn '+(mkTab==='cronograma'?'bp1':'bout')+'" style="flex:1;font-size:12px" onclick="S.mkTab=\'cronograma\';render()">\uD83D\uDCC5 Crono Conquista</button>'
+    + '<button class="btn '+(mkTab==='cronoimoveis'?'bp1':'bout')+'" style="flex:1;font-size:12px" onclick="S.mkTab=\'cronoimoveis\';render()">\uD83C\uDFE2 Crono Im\u00f3veis</button>'
     + (isDiretor ? '<button class="btn '+(mkTab==='investimento'?'bp1':'bout')+'" style="flex:1;font-size:12px" onclick="S.mkTab=\'investimento\';render()">\uD83D\uDCB0 Investimento</button>' : '')
     + '</div>';
 
@@ -9489,6 +9491,383 @@ function pgMarketing() {
       + Kpi('Leads Qualificados', mk.leads_qualificados, parseFloat((mk.leads_qualificados/mk.leads_mes*100).toFixed(2))+'% do total', null, 'var(--pu)')
       + Kpi('Custo/Lead Qualif.', 'R$ '+(mk.leads_qualificados>0?(mk.investimento/mk.leads_qualificados).toFixed(2):'0'), '', null, 'var(--b)')
       + '</div>';
+  } else if (mkTab === 'cronograma') {
+    // ── CRONOGRAMA CONQUISTA ── Mar-Abr 2026 ──
+    var CRONO_POSTS = [
+      {funil:'TOPO',dia:'SEG',data:'16/03',fmt:'Reels 30s',rede:'IG/TT',titulo:'Quanto custa morar em cada bairro de Rio Preto em 2026?',copy:'Ranking real do pre\u00e7o/m\u00b2 nos 10 bairros mais procurados. De R$ 3.200 (Pq. Industrial) at\u00e9 R$ 9.500 (Boa Vista).',cta:'Comenta o BAIRRO e eu mando o raio-x completo',kw:'BAIRRO',tecnica:'Autoridade local',objecao:'\u2014'},
+      {funil:'MEIO',dia:'TER',data:'17/03',fmt:'Carrossel 7 slides',rede:'IG/LI',titulo:'Seu aluguel de R$ 1.800 j\u00e1 pagou R$ 86 mil pro dono do im\u00f3vel',copy:'Impacto do aluguel em 4 anos. MCMV faixas, taxa 4,5%, FGTS como entrada, score. Parcela menor que aluguel.',cta:'Manda SIMULAR no DM',kw:'SIMULAR',tecnica:'Yes Set + Funil meio',objecao:'Vou me ferrar / \u00c9 pra mim?'},
+      {funil:'TOPO',dia:'QUA',data:'18/03',fmt:'Reels 15s',rede:'IG/TT',titulo:'POV: voc\u00ea descobre que a parcela do ap\u00ea \u00e9 menor que seu aluguel',copy:'Rea\u00e7\u00e3o + tela do simulador mostrando R$ 1.400 de aluguel vs R$ 980 de parcela MCMV.',cta:'Quer descobrir a sua? Link na bio',kw:'\u2014',tecnica:'Trend + Topo funil',objecao:'\u2014'},
+      {funil:'FUNDO',dia:'QUI',data:'19/03',fmt:'Post est\u00e1tico',rede:'IG/FB',titulo:'\u00daltimo ap\u00ea de 2 quartos no Jardim Caparroz \u2014 R$ 218 mil',copy:'62m\u00b2, vaga coberta, aceita FGTS. Condom\u00ednio com piscina e churrasqueira. Entrega imediata.',cta:'Escreve CHAVE no DM e agenda visita hoje',kw:'CHAVE',tecnica:'Escassez de unidade',objecao:'Por que agora?'},
+      {funil:'MEIO',dia:'SEX',data:'20/03',fmt:'Carrossel 5 slides',rede:'IG',titulo:'In\u00edcio do outono \u2014 4 problemas que aparecem no im\u00f3vel e ningu\u00e9m avisa',copy:'Umidade nas paredes. Infiltra\u00e7\u00e3o no teto. Calha entupida. Mofo no guarda-roupa. Solu\u00e7\u00e3o pr\u00e1tica e custo m\u00e9dio.',cta:'Salva pra conferir antes de fechar neg\u00f3cio',kw:'\u2014',tecnica:'Conte\u00fado \u00fatil',objecao:'Vou me ferrar'},
+      {funil:'TOPO',dia:'S\u00c1B',data:'21/03',fmt:'Reels 30s',rede:'IG/TT',titulo:'3 bairros de Rio Preto que v\u00e3o valorizar MUITO nos pr\u00f3ximos 2 anos',copy:'Cidade Nova, Jardim Tarraf, Pq. da Liberdade. Dados de crescimento e obras previstas.',cta:'Comenta VALORIZAR e eu mando a an\u00e1lise completa',kw:'VALORIZAR',tecnica:'Autoridade + Hype',objecao:'\u00c9 uma barganha?'},
+      {funil:'MEIO',dia:'DOM',data:'22/03',fmt:'Post est\u00e1tico',rede:'IG/FB',titulo:'Dia da \u00c1gua \u2014 sua conta de \u00e1gua pode variar R$ 200/m\u00eas dependendo do bairro',copy:'Comparativo real de tarifas do Semae por regi\u00e3o. Custo oculto que ningu\u00e9m olha.',cta:'Manda BAIRRO no DM e eu checo o custo',kw:'BAIRRO',tecnica:'Data comemorativa + utilidade',objecao:'Vou me ferrar'},
+      {funil:'FUNDO',dia:'SEG',data:'23/03',fmt:'Stories sequ\u00eancia',rede:'IG',titulo:'Bastidores: acompanhe a entrega de chaves da fam\u00edlia Silva',copy:'Stories mostrando fam\u00edlia chegando, emo\u00e7\u00e3o, tour pelo ap\u00ea, depoimento espont\u00e2neo.',cta:'Quer ser o pr\u00f3ximo? Manda EU QUERO',kw:'EU QUERO',tecnica:'Prova social',objecao:'\u00c9 pra mim? / Quem \u00e9 voc\u00ea?'},
+      {funil:'TOPO',dia:'TER',data:'24/03',fmt:'Reels 30s',rede:'IG/TT',titulo:'Teste: voc\u00ea consegue adivinhar o pre\u00e7o desses 3 im\u00f3veis?',copy:'Mostra 3 fachadas reais. Pausa pra pessoa chutar. Revela valor + parcela MCMV. Plot twist.',cta:'Acertou algum? Comenta o resultado!',kw:'\u2014',tecnica:'Gamifica\u00e7\u00e3o + Topo',objecao:'\u2014'},
+      {funil:'MEIO',dia:'QUA',data:'25/03',fmt:'Carrossel 6 slides',rede:'IG/LI',titulo:'3 cl\u00e1usulas abusivas que construtoras escondem no contrato',copy:'Taxa SATI proibida. Multa de desist\u00eancia m\u00e1x 2%. INCC s\u00f3 vale durante obra.',cta:'Salva e manda pro seu advogado conferir',kw:'\u2014',tecnica:'Conte\u00fado \u00fatil + pol\u00eamico',objecao:'Vou me ferrar'},
+      {funil:'FUNDO',dia:'QUI',data:'26/03',fmt:'Post est\u00e1tico',rede:'IG/FB',titulo:'Casa 3 quartos em Mirassol \u2014 15 min de Rio Preto por R$ 289 mil',copy:'Terreno 200m\u00b2, 95m\u00b2 constru\u00eddos, quintal, 2 vagas. \u00daltima unidade do loteamento.',cta:'Escreve MIRASSOL no DM',kw:'MIRASSOL',tecnica:'Escassez + Localiza\u00e7\u00e3o',objecao:'Por que agora? / \u00c9 uma barganha?'},
+      {funil:'TOPO',dia:'SEX',data:'27/03',fmt:'Reels 15s',rede:'IG/TT',titulo:'O erro de R$ 40 mil que quem paga aluguel comete todo m\u00eas',copy:'3 anos x R$ 1.100 = R$ 39.600 que poderiam ser entrada de im\u00f3vel pr\u00f3prio.',cta:'Quer parar de perder? Link na bio',kw:'\u2014',tecnica:'Dor + Topo',objecao:'\u2014'},
+      {funil:'MEIO',dia:'S\u00c1B',data:'28/03',fmt:'Carrossel 5 slides',rede:'IG',titulo:'Checklist: 9 documentos que voc\u00ea precisa ANTES de ir no banco',copy:'RG/CPF, comprovante renda, IR, extrato FGTS, certid\u00e3o casamento, comprovante resid\u00eancia, CNIS...',cta:'Salva esse carrossel \u2014 vai precisar',kw:'\u2014',tecnica:'Conte\u00fado pr\u00e1tico',objecao:'Vou me ferrar'},
+      {funil:'TOPO',dia:'DOM',data:'29/03',fmt:'Post est\u00e1tico',rede:'IG/FB',titulo:'Em 2020, esse ap\u00ea custava R$ 160 mil. Hoje vale R$ 245 mil.',copy:'Im\u00f3vel real. Valoriza\u00e7\u00e3o de 53% em 5 anos. Melhor que poupan\u00e7a, CDB e muita a\u00e7\u00e3o.',cta:'Comenta INVESTIR que eu mostro os n\u00fameros',kw:'INVESTIR',tecnica:'Prova + Autoridade',objecao:'\u00c9 uma barganha?'},
+      {funil:'FUNDO',dia:'SEG',data:'30/03',fmt:'Stories sequ\u00eancia',rede:'IG',titulo:'Simula\u00e7\u00e3o AO VIVO: quanto fica a parcela pra quem ganha R$ 4 mil?',copy:'Tela do simulador Caixa. Renda R$ 4k \u2192 parcela R$ 1.280 \u2192 im\u00f3vel at\u00e9 R$ 264 mil.',cta:'Manda sua RENDA no DM que eu simulo pra voc\u00ea',kw:'RENDA',tecnica:'Tangibilidade',objecao:'\u00c9 pra mim? / Vou me ferrar'},
+      {funil:'MEIO',dia:'TER',data:'31/03',fmt:'Reels 30s',rede:'IG/TT',titulo:'Corretor vs Imobili\u00e1ria: qual a diferen\u00e7a na hora de comprar?',copy:'Corretor aut\u00f4nomo: negocia\u00e7\u00e3o direta. Imobili\u00e1ria: respaldo jur\u00eddico, p\u00f3s-venda, garantia.',cta:'Comenta D\u00daVIDA e eu explico pro seu caso',kw:'D\u00daVIDA',tecnica:'Conte\u00fado educativo',objecao:'Quem \u00e9 voc\u00ea?'},
+      {funil:'TOPO',dia:'QUA',data:'01/04',fmt:'Reels 15s',rede:'IG/TT',titulo:'Abril come\u00e7ou e seu aluguel j\u00e1 venceu \u2014 de novo',copy:'Contagem regressiva: 12 meses = R$ 18 mil pro bolso de outro. "E se fosse seu?"',cta:'Cansou? Link na bio',kw:'\u2014',tecnica:'Dor + Trend',objecao:'\u2014'},
+      {funil:'FUNDO',dia:'QUI',data:'02/04',fmt:'Post est\u00e1tico',rede:'IG/FB',titulo:'2 ap\u00eas dispon\u00edveis no Residencial das Flores \u2014 a partir de R$ 198 mil',copy:'48m\u00b2, 2 quartos, 1 vaga. Cond. R$ 280/m\u00eas. MCMV Faixa 1 e 2. Subs\u00eddio at\u00e9 R$ 55 mil.',cta:'Escreve FLORES no DM antes que acabe',kw:'FLORES',tecnica:'Escassez real',objecao:'Por que agora? / \u00c9 uma barganha?'},
+      {funil:'MEIO',dia:'SEX',data:'03/04',fmt:'Carrossel 7 slides',rede:'IG/LI',titulo:'Ela ganhava R$ 3.200 e achava que nunca ia conseguir',copy:'J\u00e9ssica, 29, aux. adm. Aluguel R$ 1.400 kitnet. MCMV Faixa 2. Comprou ap\u00ea 48m\u00b2.',cta:'Manda SIMULAR \u2014 descobre sua parcela em 24h',kw:'SIMULAR',tecnica:'Yes Set + Storytelling',objecao:'\u00c9 pra mim? / Vou me ferrar'},
+      {funil:'TOPO',dia:'S\u00c1B',data:'04/04',fmt:'Reels 30s',rede:'IG/TT',titulo:'Os 5 bairros mais seguros de Rio Preto segundo os dados da PM',copy:'Ranking com base em ocorr\u00eancias/1000 hab. Boa Vista, Redentora, Higien\u00f3polis, Jd Tarraf...',cta:'Comenta SEGURO e mando a lista completa',kw:'SEGURO',tecnica:'Autoridade local + dados',objecao:'\u2014'},
+      {funil:'MEIO',dia:'DOM',data:'05/04',fmt:'Post est\u00e1tico',rede:'IG/FB',titulo:'Seu score caiu e voc\u00ea nem sabe por qu\u00ea \u2014 3 motivos invis\u00edveis',copy:'Nome como avalista. Cart\u00e3o com limite alto mas pouco uso. Muitas consultas de CPF.',cta:'Manda SCORE no DM que eu analiso contigo',kw:'SCORE',tecnica:'Conte\u00fado \u00fatil',objecao:'Vou me ferrar'},
+      {funil:'FUNDO',dia:'SEG',data:'06/04',fmt:'Stories sequ\u00eancia',rede:'IG',titulo:'Tour completo: ap\u00ea modelo no Green Valley \u2014 veja cada c\u00f4modo',copy:'Fachada + localiza\u00e7\u00e3o. Sala/cozinha americana. Quartos. Banheiro. Varanda. Valor + condi\u00e7\u00f5es.',cta:'Quer agendar visita? Manda TOUR',kw:'TOUR',tecnica:'Tangibilidade',objecao:'Vou me ferrar / \u00c9 pra mim?'},
+      {funil:'TOPO',dia:'TER',data:'07/04',fmt:'Reels 15s',rede:'IG/TT',titulo:'O que R$ 250 mil compra em S\u00e3o Paulo vs Rio Preto',copy:'SP: kitnet 25m\u00b2 sem vaga. RP: ap\u00ea 65m\u00b2, 2 quartos, vaga, piscina. Mesmo valor, outra vida.',cta:'Qual voc\u00ea escolhe? Comenta SP ou RP',kw:'\u2014',tecnica:'Comparativo viral',objecao:'\u00c9 uma barganha?'},
+      {funil:'MEIO',dia:'QUA',data:'08/04',fmt:'Carrossel 5 slides',rede:'IG',titulo:'FGTS: 5 coisas que voc\u00ea pode fazer com ele e n\u00e3o sabia',copy:'Amortizar saldo devedor. Pagar at\u00e9 80% da entrada. Usar de 2 em 2 anos. Comprar terreno + constru\u00e7\u00e3o.',cta:'Manda FGTS no DM que eu consulto pra voc\u00ea',kw:'FGTS',tecnica:'Conte\u00fado pr\u00e1tico',objecao:'Vou me ferrar'},
+      {funil:'FUNDO',dia:'QUI',data:'09/04',fmt:'Post est\u00e1tico',rede:'IG/FB',titulo:'Terreno 250m\u00b2 em Mirassol \u2014 R$ 89 mil \u2014 parcela R$ 590',copy:'Loteamento aprovado, infraestrutura completa. A 12 min do centro. \u00daltimos 8 lotes.',cta:'Escreve TERRENO no DM',kw:'TERRENO',tecnica:'Escassez',objecao:'Por que agora?'},
+      {funil:'TOPO',dia:'SEX',data:'10/04',fmt:'Reels 30s',rede:'IG/TT',titulo:'Se voc\u00ea ganha R$ 3 mil, esse \u00e9 o im\u00f3vel que cabe no seu bolso',copy:'Simula\u00e7\u00e3o real: renda R$ 3k \u2192 parcela m\u00e1x R$ 900 \u2192 im\u00f3vel at\u00e9 R$ 185 mil. 3 op\u00e7\u00f5es reais.',cta:'Comenta sua RENDA que eu monto sua simula\u00e7\u00e3o',kw:'RENDA',tecnica:'Tangibilidade + Topo',objecao:'\u00c9 pra mim?'},
+      {funil:'MEIO',dia:'S\u00c1B',data:'11/04',fmt:'Carrossel 6 slides',rede:'IG/LI',titulo:'Financiamento negado? Os 4 motivos reais (e como resolver)',copy:'Renda insuficiente, restri\u00e7\u00e3o no CPF, im\u00f3vel com pend\u00eancia, idade + prazo. Solu\u00e7\u00f5es.',cta:'Manda NEGADO no DM que analiso seu caso',kw:'NEGADO',tecnica:'Conte\u00fado resolver problema',objecao:'Vou me ferrar / \u00c9 pra mim?'},
+      {funil:'TOPO',dia:'DOM',data:'12/04',fmt:'Post est\u00e1tico',rede:'IG/FB',titulo:'Seu vizinho comprou por R$ 180 mil. Hoje vale R$ 260 mil. E voc\u00ea ainda aluga.',copy:'Provoca\u00e7\u00e3o com dado real. Valoriza\u00e7\u00e3o m\u00e9dia de 8% ao ano em Rio Preto nos \u00faltimos 5 anos.',cta:'Comenta QUERO e eu mostro as op\u00e7\u00f5es',kw:'QUERO',tecnica:'Dor + Prova',objecao:'\u00c9 uma barganha? / Por que agora?'},
+      {funil:'FUNDO',dia:'SEG',data:'13/04',fmt:'Stories sequ\u00eancia',rede:'IG',titulo:'Passo a passo: como foi a aprova\u00e7\u00e3o do financiamento do Carlos em 7 dias',copy:'Documentos. An\u00e1lise de cr\u00e9dito (24h). Avalia\u00e7\u00e3o do im\u00f3vel. Contrato. Registro. Chave na m\u00e3o.',cta:'Manda PASSO A PASSO no DM',kw:'PASSO A PASSO',tecnica:'Tangibilidade + Prova social',objecao:'Quem \u00e9 voc\u00ea? / Vou me ferrar'},
+      {funil:'MEIO',dia:'TER',data:'14/04',fmt:'Reels 30s',rede:'IG/TT',titulo:'IPTU de Rio Preto: seu bairro cobra caro demais?',copy:'Ranking de IPTU m\u00e9dio por bairro. Alguns cobram 3x mais que outros pelo mesmo tamanho.',cta:'Comenta IPTU e eu checo o do seu bairro',kw:'IPTU',tecnica:'Autoridade local + utilidade',objecao:'Vou me ferrar'},
+      {funil:'FUNDO',dia:'QUA',data:'15/04',fmt:'Post est\u00e1tico',rede:'IG/FB',titulo:'Ap\u00ea 72m\u00b2 com varanda gourmet no Jardim Redentor \u2014 R$ 310 mil',copy:'3 quartos (1 su\u00edte), 2 vagas, lazer completo. Financiamento aprovado. \u00daltimas 3 unidades.',cta:'Escreve REDENTOR no DM e visita essa semana',kw:'REDENTOR',tecnica:'Escassez + Tangibilidade',objecao:'Por que agora? / \u00c9 uma barganha?'}
+    ];
+
+    var funilColors = {TOPO:'#3b82f6',MEIO:'#f59e0b',FUNDO:'#22c55e'};
+    var fmtIco = {'Reels 30s':'\uD83C\uDFAC','Reels 15s':'\uD83C\uDFAC','Carrossel 7 slides':'\uD83D\uDCF0','Carrossel 6 slides':'\uD83D\uDCF0','Carrossel 5 slides':'\uD83D\uDCF0','Post est\u00e1tico':'\uD83D\uDCDD','Stories sequ\u00eancia':'\u26A1'};
+
+    // Filtro e estado
+    if(!S.mkCronoFilter)S.mkCronoFilter='todos';
+    if(!S.mkCronoMes)S.mkCronoMes='todos';
+    if(!S.mkCronoView)S.mkCronoView='timeline';
+    window.mkCronoSetFilter=function(f){S.mkCronoFilter=f;render();};
+    window.mkCronoSetMes=function(m){S.mkCronoMes=m;render();};
+    window.mkCronoSetView=function(v){S.mkCronoView=v;render();};
+
+    var filtered = CRONO_POSTS.filter(function(p){
+      if(S.mkCronoFilter!=='todos'&&p.funil!==S.mkCronoFilter)return false;
+      if(S.mkCronoMes==='mar'&&!p.data.endsWith('/03'))return false;
+      if(S.mkCronoMes==='abr'&&!p.data.endsWith('/04'))return false;
+      return true;
+    });
+
+    // KPIs do cronograma
+    var topo=CRONO_POSTS.filter(function(p){return p.funil==='TOPO';}).length;
+    var meio=CRONO_POSTS.filter(function(p){return p.funil==='MEIO';}).length;
+    var fundo=CRONO_POSTS.filter(function(p){return p.funil==='FUNDO';}).length;
+
+    content = '<div class="card mb2" style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#fff;padding:24px;border-radius:14px">'
+      + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px"><span style="font-size:28px">\uD83D\uDCC5</span>'
+      + '<div><div style="font-size:18px;font-weight:900">Cronograma Conquista</div>'
+      + '<div style="font-size:12px;opacity:.7">Mar\u00e7o\u2013Abril 2026 \u2022 31 posts \u2022 T\u00e9cnica Cuenca</div></div></div>'
+      + '<div style="display:flex;gap:16px;margin-top:14px;flex-wrap:wrap">'
+      + '<div style="padding:10px 18px;background:rgba(59,130,246,.15);border-radius:10px;border:1px solid rgba(59,130,246,.3);text-align:center"><div style="font-size:22px;font-weight:800;color:#60a5fa">'+topo+'</div><div style="font-size:10px;opacity:.7">TOPO (35%)</div></div>'
+      + '<div style="padding:10px 18px;background:rgba(245,158,11,.15);border-radius:10px;border:1px solid rgba(245,158,11,.3);text-align:center"><div style="font-size:22px;font-weight:800;color:#fbbf24">'+meio+'</div><div style="font-size:10px;opacity:.7">MEIO (35%)</div></div>'
+      + '<div style="padding:10px 18px;background:rgba(34,197,94,.15);border-radius:10px;border:1px solid rgba(34,197,94,.3);text-align:center"><div style="font-size:22px;font-weight:800;color:#4ade80">'+fundo+'</div><div style="font-size:10px;opacity:.7">FUNDO (29%)</div></div>'
+      + '</div></div>';
+
+    // Filtros
+    content += '<div class="card mb2" style="padding:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">';
+    content += '<span style="font-size:11px;font-weight:700;color:var(--mid);margin-right:6px">Funil:</span>';
+    [{id:'todos',lbl:'Todos'},{id:'TOPO',lbl:'\uD83D\uDD35 Topo'},{id:'MEIO',lbl:'\uD83D\uDFE1 Meio'},{id:'FUNDO',lbl:'\uD83D\uDFE2 Fundo'}].forEach(function(f){
+      var act=S.mkCronoFilter===f.id;
+      content+='<button onclick="mkCronoSetFilter(\''+f.id+'\')" style="padding:5px 12px;border-radius:8px;border:1px solid '+(act?'var(--gold)':'var(--cream3)')+';background:'+(act?'var(--gold)':'transparent')+';color:'+(act?'#fff':'var(--mid)')+';font-size:11px;font-weight:600;cursor:pointer">'+f.lbl+'</button>';
+    });
+    content += '<span style="font-size:11px;font-weight:700;color:var(--mid);margin:0 6px 0 14px">M\u00eas:</span>';
+    [{id:'todos',lbl:'Mar+Abr'},{id:'mar',lbl:'Mar\u00e7o'},{id:'abr',lbl:'Abril'}].forEach(function(m){
+      var act=S.mkCronoMes===m.id;
+      content+='<button onclick="mkCronoSetMes(\''+m.id+'\')" style="padding:5px 12px;border-radius:8px;border:1px solid '+(act?'var(--gold)':'var(--cream3)')+';background:'+(act?'var(--gold)':'transparent')+';color:'+(act?'#fff':'var(--mid)')+';font-size:11px;font-weight:600;cursor:pointer">'+m.lbl+'</button>';
+    });
+    content += '<span style="font-size:11px;font-weight:700;color:var(--mid);margin:0 6px 0 14px">Vista:</span>';
+    [{id:'timeline',lbl:'\uD83D\uDCC5 Timeline'},{id:'tabela',lbl:'\uD83D\uDCCA Tabela'}].forEach(function(v){
+      var act=S.mkCronoView===v.id;
+      content+='<button onclick="mkCronoSetView(\''+v.id+'\')" style="padding:5px 12px;border-radius:8px;border:1px solid '+(act?'var(--gold)':'var(--cream3)')+';background:'+(act?'var(--gold)':'transparent')+';color:'+(act?'#fff':'var(--mid)')+';font-size:11px;font-weight:600;cursor:pointer">'+v.lbl+'</button>';
+    });
+    content += '<span style="font-size:11px;color:var(--muted);margin-left:auto">'+filtered.length+' de '+CRONO_POSTS.length+' posts</span>';
+    content += '</div>';
+
+    if(S.mkCronoView==='timeline'){
+      // Timeline view
+      var lastMes='';
+      filtered.forEach(function(p,idx){
+        var mesLabel=p.data.endsWith('/03')?'Mar\u00e7o 2026':'Abril 2026';
+        if(mesLabel!==lastMes){
+          content+='<div style="margin:16px 0 8px;padding:8px 16px;background:var(--navy);color:#fff;border-radius:8px;font-size:13px;font-weight:800">\uD83D\uDCC6 '+mesLabel+'</div>';
+          lastMes=mesLabel;
+        }
+        var fc=funilColors[p.funil]||'#64748b';
+        var ico=fmtIco[p.fmt]||'\uD83D\uDCDD';
+        content+='<div style="display:flex;gap:14px;margin-bottom:10px;padding:16px;background:var(--cream1);border-radius:12px;border-left:5px solid '+fc+';box-shadow:0 1px 4px rgba(0,0,0,.05);transition:transform .15s" onmouseover="this.style.transform=\'translateX(4px)\'" onmouseout="this.style.transform=\'none\'">';
+        // Left: date + funil badge
+        content+='<div style="min-width:60px;text-align:center">';
+        content+='<div style="font-size:18px;font-weight:900;color:var(--navy)">'+p.data.split('/')[0]+'</div>';
+        content+='<div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:700">'+p.dia+'</div>';
+        content+='<div style="margin-top:6px;font-size:9px;padding:2px 8px;border-radius:6px;background:'+fc+'18;color:'+fc+';font-weight:800">'+p.funil+'</div>';
+        content+='</div>';
+        // Center: content
+        content+='<div style="flex:1;min-width:0">';
+        content+='<div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px">'+p.titulo+'</div>';
+        content+='<div style="font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:6px">'+p.copy+'</div>';
+        content+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">';
+        content+='<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:var(--cream2);color:var(--mid);font-weight:600">'+ico+' '+p.fmt+'</span>';
+        content+='<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:var(--cream2);color:var(--mid);font-weight:600">\uD83C\uDF10 '+p.rede+'</span>';
+        content+='<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:#e0e7ff;color:#4338ca;font-weight:600">\uD83C\uDFAF '+p.tecnica+'</span>';
+        if(p.objecao!=='\u2014')content+='<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:#fef2f2;color:#dc2626;font-weight:600">\uD83D\uDEE1 '+p.objecao+'</span>';
+        content+='</div>';
+        content+='<div style="margin-top:6px;font-size:10px;color:var(--navy);font-weight:600">\uD83D\uDCAC CTA: <span style="color:var(--muted);font-weight:400">'+p.cta+'</span>';
+        if(p.kw!=='\u2014')content+=' \u2022 <span style="background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-weight:700">KW: '+p.kw+'</span>';
+        content+='</div>';
+        content+='</div>';
+        content+='</div>';
+      });
+    }else{
+      // Tabela view
+      content+='<div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+      content+='<thead><tr style="background:var(--navy);color:#fff">';
+      content+='<th style="padding:10px 8px;text-align:left;font-weight:800">Data</th>';
+      content+='<th style="padding:10px 8px;text-align:left;font-weight:800">Dia</th>';
+      content+='<th style="padding:10px 8px;text-align:left;font-weight:800">Funil</th>';
+      content+='<th style="padding:10px 8px;text-align:left;font-weight:800">T\u00edtulo</th>';
+      content+='<th style="padding:10px 8px;text-align:left;font-weight:800">Formato</th>';
+      content+='<th style="padding:10px 8px;text-align:left;font-weight:800">Rede</th>';
+      content+='<th style="padding:10px 8px;text-align:left;font-weight:800">T\u00e9cnica Cuenca</th>';
+      content+='<th style="padding:10px 8px;text-align:left;font-weight:800">Keyword DM</th>';
+      content+='</tr></thead><tbody>';
+      filtered.forEach(function(p,idx){
+        var fc=funilColors[p.funil]||'#64748b';
+        var bg=idx%2===0?'#fff':'var(--cream2)';
+        content+='<tr style="background:'+bg+';border-bottom:1px solid var(--cream3)">';
+        content+='<td style="padding:8px;font-weight:700;color:var(--navy)">'+p.data+'</td>';
+        content+='<td style="padding:8px;color:var(--muted)">'+p.dia+'</td>';
+        content+='<td style="padding:8px"><span style="padding:2px 8px;border-radius:6px;background:'+fc+'18;color:'+fc+';font-weight:700;font-size:10px">'+p.funil+'</span></td>';
+        content+='<td style="padding:8px;font-weight:600;color:var(--navy);max-width:250px">'+p.titulo+'</td>';
+        content+='<td style="padding:8px;color:var(--mid);font-size:10px">'+(fmtIco[p.fmt]||'')+' '+p.fmt+'</td>';
+        content+='<td style="padding:8px;color:var(--mid);font-size:10px">'+p.rede+'</td>';
+        content+='<td style="padding:8px;font-size:10px;color:#4338ca">'+p.tecnica+'</td>';
+        content+='<td style="padding:8px;font-size:10px">'+(p.kw!=='\u2014'?'<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-weight:700">'+p.kw+'</span>':'\u2014')+'</td>';
+        content+='</tr>';
+      });
+      content+='</tbody></table></div>';
+    }
+
+    // Métricas do Funil + Objeções Mapeadas
+    content+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px">';
+    // Métricas do Funil
+    content+='<div class="card" style="padding:18px"><div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:12px">\uD83D\uDCCA M\u00e9tricas do Funil</div>';
+    [{lbl:'TOPO (Crescer)',cnt:topo,pct:Math.round(topo/31*100),meta:'50\u201360%',color:'#3b82f6',status:'\u26A0\uFE0F Ajustar'},
+     {lbl:'MEIO (Engajar)',cnt:meio,pct:Math.round(meio/31*100),meta:'30\u201335%',color:'#f59e0b',status:'\u2705 OK'},
+     {lbl:'FUNDO (Vender)',cnt:fundo,pct:Math.round(fundo/31*100),meta:'10\u201315%',color:'#22c55e',status:'\u2705 OK'}
+    ].forEach(function(f){
+      content+='<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:3px">';
+      content+='<span style="font-size:11px;font-weight:700;color:var(--navy)">'+f.lbl+'</span>';
+      content+='<span style="font-size:10px;color:var(--muted)">'+f.cnt+' posts ('+f.pct+'%) \u2022 Meta: '+f.meta+' \u2022 '+f.status+'</span></div>';
+      content+='<div style="height:8px;background:var(--cream3);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+f.pct+'%;background:'+f.color+';border-radius:4px"></div></div></div>';
+    });
+    content+='</div>';
+    // Objeções Mapeadas
+    content+='<div class="card" style="padding:18px"><div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:12px">\uD83D\uDEE1\uFE0F Obje\u00e7\u00f5es Mapeadas (Cuenca)</div>';
+    var objCount={};CRONO_POSTS.forEach(function(p){if(p.objecao&&p.objecao!=='\u2014'){p.objecao.split(' / ').forEach(function(o){objCount[o]=(objCount[o]||0)+1;});}});
+    var objSorted=Object.keys(objCount).sort(function(a,b){return objCount[b]-objCount[a];});
+    objSorted.forEach(function(o){
+      var pct=Math.round(objCount[o]/31*100);
+      content+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+      content+='<span style="font-size:11px;font-weight:600;color:var(--navy);min-width:130px">'+o+'</span>';
+      content+='<div style="flex:1;height:8px;background:var(--cream3);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:#ef4444;border-radius:4px"></div></div>';
+      content+='<span style="font-size:10px;font-weight:700;color:var(--mid);min-width:40px;text-align:right">'+objCount[o]+'x</span>';
+      content+='</div>';
+    });
+    content+='</div></div>';
+
+    // Keywords DM
+    content+='<div class="card mb2" style="margin-top:14px;padding:18px"><div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:12px">\uD83D\uDD11 Keywords de DM</div>';
+    content+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
+    var kwSet={};CRONO_POSTS.forEach(function(p){if(p.kw&&p.kw!=='\u2014'){kwSet[p.kw]=(kwSet[p.kw]||0)+1;}});
+    Object.keys(kwSet).forEach(function(k){
+      content+='<span style="padding:4px 12px;border-radius:8px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700">'+k+(kwSet[k]>1?' ('+kwSet[k]+'x)':'')+'</span>';
+    });
+    content+='</div></div>';
+  } else if (mkTab === 'cronoimoveis') {
+    // ── CRONOGRAMA PSM IMÓVEIS ── Abril 2026 ──
+    var CRONO_IMV = [
+      {sem:1,pilar:'\uD83C\uDFD9\uFE0F Cidade em Dados',dia:'TER',data:'01/04',fmt:'Feed \u2013 Imagem \u00fanica',rede:'IG/FB',funil:'TOPO',titulo:'Rio Preto cresceu 4 mil habitantes em 1 ano. Onde eles v\u00e3o morar?',copy:'+4.000 novos moradores/ano. ~1.556 novos domic\u00edlios necess\u00e1rios. Mercado que cresce por necessidade.',cta:'Chama no WhatsApp \u2192 dados do bairro',tecnica:'Dado-bomba + pergunta ret\u00f3rica',objecao:'Vou me ferrar / Por que agora?',resp:'Gest\u00e3o / AIDA',status:'A Fazer'},
+      {sem:1,pilar:'\uD83C\uDFA5 Corretor em Cena',dia:'QUI',data:'03/04',fmt:'Reels \u2013 30s',rede:'IG/TT',funil:'TOPO',titulo:'Trend da semana: [corretor escolhe] + o que eu fa\u00e7o como corretor',copy:'Trend do momento + pausa + "Enquanto todo mundo [ref], eu ajudo fam\u00edlias a encontrarem o im\u00f3vel certo."',cta:'Me manda mensagem. Conversa sem compromisso',tecnica:'Contraste + storytelling pessoal',objecao:'Quem \u00e9 voc\u00ea? / Por que eu compraria com voc\u00ea?',resp:'Corretor 1',status:'A Fazer'},
+      {sem:1,pilar:'\uD83C\uDFE0 Vitrine de Im\u00f3veis',dia:'SEX',data:'04/04',fmt:'Carrossel \u2013 5 slides',rede:'IG/FB',funil:'FUNDO',titulo:'Im\u00f3vel da semana: [preencher com im\u00f3vel real do estoque]',copy:'Slide 1: foto fachada + DISPON\u00cdVEL AGORA. Slide 2: endere\u00e7o + metragem. Slide 3: diferenciais. Slide 4: pre\u00e7o. Slide 5: CTA.',cta:'Chama agora \u2192 WhatsApp \u2022 Visitas com hora marcada',tecnica:'Prova concreta + escassez',objecao:'\u00c9 uma barganha? / Isso \u00e9 pra mim?',resp:'Gest\u00e3o',status:'A Fazer'},
+      {sem:2,pilar:'\uD83D\uDCF8 Por Dentro da PSM',dia:'SEG',data:'07/04',fmt:'Stories \u2013 7 frames',rede:'IG',funil:'TOPO',titulo:'Segunda-feira na PSM: como come\u00e7a a semana de um corretor de verdade',copy:'Equipe chegando. Reuni\u00e3o de alinhamento. Agenda de visitas. Depoimento. Enquete: "Voc\u00ea j\u00e1 pensou em comprar?"',cta:'Responde a enquete e me manda mensagem',tecnica:'Storytelling de rotina + prova social',objecao:'Quem \u00e9 voc\u00ea? / Posso confiar?',resp:'Qualquer corretor',status:'A Fazer'},
+      {sem:2,pilar:'\uD83C\uDFD9\uFE0F Cidade em Dados',dia:'QUA',data:'09/04',fmt:'Carrossel \u2013 6 slides',rede:'IG/LI',funil:'TOPO',titulo:'IDH 0,797, 3\u00aa em governan\u00e7a, 15\u00aa cidade mais inteligente. Rio Preto lidera rankings.',copy:'IDH 0,797. Educa\u00e7\u00e3o 0,9927. 3\u00aa PRONAGOV. 15\u00aa Smart City. Cidade boa de viver \u00e9 boa de investir.',cta:'Quer investir na cidade que lidera rankings? \u2192 WhatsApp',tecnica:'Autoridade institucional + prova social externa',objecao:'\u00c9 uma cidade confi\u00e1vel? / Vou me ferrar?',resp:'Gest\u00e3o / AIDA',status:'A Fazer'},
+      {sem:2,pilar:'\uD83C\uDFD7\uFE0F Lan\u00e7amentos',dia:'SEX',data:'11/04',fmt:'Carrossel \u2013 6 slides',rede:'IG/FB',funil:'MEIO',titulo:'[Empreendimento]: localiza\u00e7\u00e3o, planta e condi\u00e7\u00f5es \u2014 tabela dispon\u00edvel',copy:'Nome + fachada. Localiza\u00e7\u00e3o + mapa. Plantas. Diferenciais. Condi\u00e7\u00f5es de pagamento. CTA tabela.',cta:'Solicite a tabela completa \u2192 WhatsApp',tecnica:'Escassez + prova do produto',objecao:'\u00c9 uma barganha? / Consigo pagar?',resp:'Gest\u00e3o',status:'A Fazer'},
+      {sem:3,pilar:'\uD83C\uDFA5 Corretor em Cena',dia:'SEG',data:'14/04',fmt:'Feed \u2013 V\u00eddeo 60s',rede:'IG/TT',funil:'MEIO',titulo:'3 erros que fazem as pessoas pagarem mais caro num im\u00f3vel',copy:'Erro 1: N\u00e3o pesquisar hist\u00f3rico de pre\u00e7o. Erro 2: Ir sozinho na visita. Erro 3: Assinar sem ler contrato.',cta:'Salva esse v\u00eddeo e me chama antes de decidir',tecnica:'Yes Set + educa\u00e7\u00e3o como autoridade',objecao:'Vou me ferrar / N\u00e3o preciso de corretor',resp:'Corretor 2',status:'A Fazer'},
+      {sem:3,pilar:'\uD83C\uDFE0 Vitrine de Im\u00f3veis',dia:'QUA',data:'16/04',fmt:'Reels \u2013 Tour 45s',rede:'IG/TT',funil:'FUNDO',titulo:'Tour r\u00e1pido: [im\u00f3vel do estoque] \u2014 R$ [pre\u00e7o]',copy:'Bairro + pre\u00e7o. Tour fachada e entrada. \u00c1reas internas. Diferencial principal. Corretor aparece no final.',cta:'Interesse? Chama no WhatsApp \u2022 Visitas com hora marcada',tecnica:'Prova concreta + CTA por escassez',objecao:'Isso \u00e9 pra mim? / Ser\u00e1 que vale a pena visitar?',resp:'Corretor 3',status:'A Fazer'},
+      {sem:3,pilar:'\uD83D\uDCF8 Por Dentro da PSM',dia:'SEX',data:'18/04',fmt:'Stories \u2013 6 frames',rede:'IG',funil:'TOPO',titulo:'Sexta de conquistas: venda fechada essa semana na PSM',copy:'Chave entregue! Fam\u00edlia realizando sonho. Tempo de busca + visitas. Equipe. Enquete: "Voc\u00ea ainda est\u00e1 buscando?"',cta:'Responde a enquete e me manda mensagem',tecnica:'Prova social + storytelling emocional',objecao:'Posso confiar? / Isso funciona mesmo?',resp:'Corretor da venda',status:'A Fazer'},
+      {sem:4,pilar:'\uD83C\uDFD9\uFE0F Cidade em Dados',dia:'TER',data:'22/04',fmt:'Reels \u2013 35s',rede:'IG/TT',funil:'TOPO',titulo:'95.705 empresas em Rio Preto. Cada empresa precisa de um endere\u00e7o.',copy:'95.705 empresas. Servi\u00e7os 58.266, Com\u00e9rcio 21.216, Ind\u00fastria 1.797, Agro 14.426. +25% em 4 anos.',cta:'Salva esse Reels \uD83D\uDCCA Link na bio',tecnica:'Dado-bomba + causa e efeito',objecao:'Vou me ferrar / Por que Rio Preto?',resp:'Gest\u00e3o / AIDA',status:'A Fazer'},
+      {sem:4,pilar:'\uD83C\uDFA5 Corretor em Cena',dia:'QUI',data:'24/04',fmt:'Stories \u2013 7 frames',rede:'IG',funil:'MEIO',titulo:'Bastidor de visita: o que acontece antes de uma visita com cliente',copy:'Estudo do hist\u00f3rico. Chega antes. Observa rea\u00e7\u00f5es. Envia resumo p\u00f3s-visita. Enquete: "Voc\u00ea j\u00e1 fez visita sem corretor?"',cta:'Vem com a gente na pr\u00f3xima \u2192 WhatsApp',tecnica:'Storytelling de processo + autoridade pelo detalhe',objecao:'N\u00e3o preciso de corretor / Consigo sozinho',resp:'Corretor 4',status:'A Fazer'},
+      {sem:4,pilar:'\uD83C\uDFE0 Vitrine de Im\u00f3veis',dia:'SEX',data:'25/04',fmt:'Carrossel \u2013 5 slides',rede:'IG/FB',funil:'FUNDO',titulo:'3 im\u00f3veis que valem a visita esse fim de semana',copy:'Slide 1: "ESSE FIM DE SEMANA TEM VISITA" + 3 op\u00e7\u00f5es. Slides 2\u20134: im\u00f3vel+bairro+pre\u00e7o. Slide 5: Comenta 1, 2 ou 3.',cta:'Qual te chamou mais? Comenta 1, 2 ou 3 \u2022 WhatsApp',tecnica:'Escolha por envolvimento + escassez',objecao:'\u00c9 uma barganha? / Isso \u00e9 pra mim?',resp:'Gest\u00e3o',status:'A Fazer'},
+      {sem:5,pilar:'\uD83C\uDFD7\uFE0F Lan\u00e7amentos',dia:'SEG',data:'28/04',fmt:'Reels \u2013 40s',rede:'IG/TT',funil:'MEIO',titulo:'[Empreendimento]: o que voc\u00ea recebe por [faixa de pre\u00e7o] em Rio Preto',copy:'Render fachada. Localiza\u00e7\u00e3o. Metragem, quartos, vagas. Lazer. "Tabela de pre\u00e7os dispon\u00edvel."',cta:'Solicite a tabela \u2192 WhatsApp',tecnica:'Invers\u00e3o de valor + escassez',objecao:'\u00c9 uma barganha? / Consigo pagar?',resp:'Gest\u00e3o',status:'A Fazer'},
+      {sem:5,pilar:'\uD83C\uDFA5 Corretor em Cena',dia:'QUA',data:'30/04',fmt:'Reels \u2013 30s',rede:'IG/TT',funil:'TOPO',titulo:'Trend do m\u00eas: [corretor escolhe] + o que mudou no mercado em abril',copy:'Trend + pausa + "Abril passou r\u00e1pido. O mercado de Rio Preto n\u00e3o parou." + CTA leve.',cta:'Me manda mensagem. Sem compromisso.',tecnica:'Fechamento + urg\u00eancia temporal',objecao:'Vou me ferrar / N\u00e3o \u00e9 pra mim',resp:'Corretor 5',status:'A Fazer'},
+      {sem:5,pilar:'\uD83D\uDCF8 Por Dentro da PSM',dia:'QUI',data:'01/05',fmt:'Feed \u2013 Imagem \u00fanica',rede:'IG/FB',funil:'TOPO',titulo:'Balan\u00e7o de abril: o m\u00eas em n\u00fameros da PSM Im\u00f3veis',copy:'[X] im\u00f3veis vendidos. [X] visitas realizadas. [X] clientes atendidos. "Abril foi assim. Maio promete mais."',cta:'Obrigado por acompanhar \uD83D\uDE4F Segue @psm.imoveis',tecnica:'Prova social de resultado + antecipa\u00e7\u00e3o',objecao:'Posso confiar? / Eles entregam mesmo?',resp:'Gest\u00e3o',status:'A Fazer'}
+    ];
+
+    var pilarColors={'\uD83C\uDFD9\uFE0F Cidade em Dados':'#3b82f6','\uD83C\uDFA5 Corretor em Cena':'#f59e0b','\uD83C\uDFE0 Vitrine de Im\u00f3veis':'#22c55e','\uD83C\uDFD7\uFE0F Lan\u00e7amentos':'#8b5cf6','\uD83D\uDCF8 Por Dentro da PSM':'#ec4899'};
+    var funilColorsImv={TOPO:'#3b82f6',MEIO:'#f59e0b',FUNDO:'#22c55e'};
+
+    // Filtros
+    if(!S.mkCronoImvFilter)S.mkCronoImvFilter='todos';
+    if(!S.mkCronoImvPilar)S.mkCronoImvPilar='todos';
+    if(!S.mkCronoImvView)S.mkCronoImvView='timeline';
+    window.mkCronoImvSetFilter=function(f){S.mkCronoImvFilter=f;render();};
+    window.mkCronoImvSetPilar=function(p){S.mkCronoImvPilar=p;render();};
+    window.mkCronoImvSetView=function(v){S.mkCronoImvView=v;render();};
+
+    var filteredImv=CRONO_IMV.filter(function(p){
+      if(S.mkCronoImvFilter!=='todos'&&p.funil!==S.mkCronoImvFilter)return false;
+      if(S.mkCronoImvPilar!=='todos'&&p.pilar!==S.mkCronoImvPilar)return false;
+      return true;
+    });
+
+    // KPIs
+    var imvTopo=CRONO_IMV.filter(function(p){return p.funil==='TOPO';}).length;
+    var imvMeio=CRONO_IMV.filter(function(p){return p.funil==='MEIO';}).length;
+    var imvFundo=CRONO_IMV.filter(function(p){return p.funil==='FUNDO';}).length;
+    var totalImv=CRONO_IMV.length;
+
+    // Header card
+    content='<div class="card mb2" style="background:linear-gradient(135deg,#1e2650 0%,#0f172a 100%);color:#fff;padding:24px;border-radius:14px">'
+      +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px"><span style="font-size:28px">\uD83C\uDFE2</span>'
+      +'<div><div style="font-size:18px;font-weight:900">Linha Editorial \u2014 PSM.IM\u00d3VEIS</div>'
+      +'<div style="font-size:12px;opacity:.7">Abril 2026 \u2022 '+totalImv+' posts \u2022 5 Pilares \u2022 Estrat\u00e9gia AIDA</div></div></div>'
+      +'<div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap">';
+    // Pilar badges
+    Object.keys(pilarColors).forEach(function(pl){
+      var cnt=CRONO_IMV.filter(function(p){return p.pilar===pl;}).length;
+      var c=pilarColors[pl];
+      content+='<div style="padding:8px 14px;background:rgba(255,255,255,.08);border-radius:10px;border:1px solid '+c+'44;text-align:center">'
+        +'<div style="font-size:16px;font-weight:800;color:'+c+'">'+cnt+'</div>'
+        +'<div style="font-size:9px;opacity:.7">'+pl.split(' ').slice(1).join(' ')+'</div></div>';
+    });
+    content+='</div>'
+      +'<div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap">'
+      +'<div style="padding:8px 14px;background:rgba(59,130,246,.15);border-radius:10px;border:1px solid rgba(59,130,246,.3);text-align:center"><div style="font-size:18px;font-weight:800;color:#60a5fa">'+imvTopo+'</div><div style="font-size:9px;opacity:.7">TOPO</div></div>'
+      +'<div style="padding:8px 14px;background:rgba(245,158,11,.15);border-radius:10px;border:1px solid rgba(245,158,11,.3);text-align:center"><div style="font-size:18px;font-weight:800;color:#fbbf24">'+imvMeio+'</div><div style="font-size:9px;opacity:.7">MEIO</div></div>'
+      +'<div style="padding:8px 14px;background:rgba(34,197,94,.15);border-radius:10px;border:1px solid rgba(34,197,94,.3);text-align:center"><div style="font-size:18px;font-weight:800;color:#4ade80">'+imvFundo+'</div><div style="font-size:9px;opacity:.7">FUNDO</div></div>'
+      +'</div></div>';
+
+    // Filtros
+    content+='<div class="card mb2" style="padding:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">';
+    content+='<span style="font-size:11px;font-weight:700;color:var(--mid);margin-right:4px">Funil:</span>';
+    [{id:'todos',lbl:'Todos'},{id:'TOPO',lbl:'\uD83D\uDD35 Topo'},{id:'MEIO',lbl:'\uD83D\uDFE1 Meio'},{id:'FUNDO',lbl:'\uD83D\uDFE2 Fundo'}].forEach(function(f){
+      var act=S.mkCronoImvFilter===f.id;
+      content+='<button onclick="mkCronoImvSetFilter(\''+f.id+'\')" style="padding:5px 12px;border-radius:8px;border:1px solid '+(act?'var(--gold)':'var(--cream3)')+';background:'+(act?'var(--gold)':'transparent')+';color:'+(act?'#fff':'var(--mid)')+';font-size:11px;font-weight:600;cursor:pointer">'+f.lbl+'</button>';
+    });
+    content+='<span style="font-size:11px;font-weight:700;color:var(--mid);margin:0 4px 0 12px">Pilar:</span>';
+    content+='<button onclick="mkCronoImvSetPilar(\'todos\')" style="padding:5px 12px;border-radius:8px;border:1px solid '+(S.mkCronoImvPilar==='todos'?'var(--gold)':'var(--cream3)')+';background:'+(S.mkCronoImvPilar==='todos'?'var(--gold)':'transparent')+';color:'+(S.mkCronoImvPilar==='todos'?'#fff':'var(--mid)')+';font-size:11px;font-weight:600;cursor:pointer">Todos</button>';
+    Object.keys(pilarColors).forEach(function(pl){
+      var act=S.mkCronoImvPilar===pl;var shortLbl=pl.split(' ').slice(0,2).join(' ');
+      content+='<button onclick="mkCronoImvSetPilar(\''+pl.replace(/'/g,"\\'")+'\')" style="padding:5px 10px;border-radius:8px;border:1px solid '+(act?pilarColors[pl]:'var(--cream3)')+';background:'+(act?pilarColors[pl]+'18':'transparent')+';color:'+(act?pilarColors[pl]:'var(--mid)')+';font-size:10px;font-weight:600;cursor:pointer">'+shortLbl+'</button>';
+    });
+    content+='<span style="font-size:11px;font-weight:700;color:var(--mid);margin:0 4px 0 12px">Vista:</span>';
+    [{id:'timeline',lbl:'\uD83D\uDCC5 Timeline'},{id:'tabela',lbl:'\uD83D\uDCCA Tabela'}].forEach(function(v){
+      var act=S.mkCronoImvView===v.id;
+      content+='<button onclick="mkCronoImvSetView(\''+v.id+'\')" style="padding:5px 12px;border-radius:8px;border:1px solid '+(act?'var(--gold)':'var(--cream3)')+';background:'+(act?'var(--gold)':'transparent')+';color:'+(act?'#fff':'var(--mid)')+';font-size:11px;font-weight:600;cursor:pointer">'+v.lbl+'</button>';
+    });
+    content+='<span style="font-size:11px;color:var(--muted);margin-left:auto">'+filteredImv.length+' de '+totalImv+' posts</span>';
+    content+='</div>';
+
+    if(S.mkCronoImvView==='timeline'){
+      var lastSem=0;
+      filteredImv.forEach(function(p){
+        if(p.sem!==lastSem){
+          content+='<div style="margin:16px 0 8px;padding:8px 16px;background:var(--navy);color:#fff;border-radius:8px;font-size:13px;font-weight:800">\uD83D\uDCC6 Semana '+p.sem+(p.sem===5?' (28\u201330 Abr + 01 Mai)':' \u2014 Abril 2026')+'</div>';
+          lastSem=p.sem;
+        }
+        var pc=pilarColors[p.pilar]||'#64748b';
+        var fc=funilColorsImv[p.funil]||'#64748b';
+        content+='<div style="display:flex;gap:14px;margin-bottom:10px;padding:16px;background:var(--cream1);border-radius:12px;border-left:5px solid '+pc+';box-shadow:0 1px 4px rgba(0,0,0,.05);transition:transform .15s" onmouseover="this.style.transform=\'translateX(4px)\'" onmouseout="this.style.transform=\'none\'">';
+        // Left: date
+        content+='<div style="min-width:60px;text-align:center">';
+        content+='<div style="font-size:18px;font-weight:900;color:var(--navy)">'+p.data.split('/')[0]+'</div>';
+        content+='<div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:700">'+p.dia+'</div>';
+        content+='<div style="margin-top:6px;font-size:9px;padding:2px 8px;border-radius:6px;background:'+fc+'18;color:'+fc+';font-weight:800">'+p.funil+'</div>';
+        content+='</div>';
+        // Center
+        content+='<div style="flex:1;min-width:0">';
+        content+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">';
+        content+='<span style="font-size:10px;padding:2px 8px;border-radius:6px;background:'+pc+'18;color:'+pc+';font-weight:700">'+p.pilar+'</span>';
+        content+='<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--cream2);color:var(--mid);font-weight:600">'+p.fmt+'</span>';
+        content+='<span style="font-size:10px;color:var(--muted)">\uD83C\uDF10 '+p.rede+'</span>';
+        content+='</div>';
+        content+='<div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px">'+p.titulo+'</div>';
+        content+='<div style="font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:6px">'+p.copy+'</div>';
+        content+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">';
+        content+='<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:#e0e7ff;color:#4338ca;font-weight:600">\uD83C\uDFAF '+p.tecnica+'</span>';
+        if(p.objecao)content+='<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:#fef2f2;color:#dc2626;font-weight:600">\uD83D\uDEE1 '+p.objecao+'</span>';
+        content+='</div>';
+        content+='<div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center">';
+        content+='<div style="font-size:10px;color:var(--navy);font-weight:600">\uD83D\uDCAC CTA: <span style="color:var(--muted);font-weight:400">'+p.cta+'</span></div>';
+        content+='<div style="display:flex;gap:6px;align-items:center">';
+        content+='<span style="font-size:9px;padding:2px 8px;border-radius:4px;background:var(--cream2);color:var(--mid);font-weight:600">\uD83D\uDC64 '+p.resp+'</span>';
+        var stColor=p.status==='A Fazer'?'#f59e0b':p.status==='Feito'?'#22c55e':'#6366f1';
+        content+='<span style="font-size:9px;padding:2px 8px;border-radius:4px;background:'+stColor+'18;color:'+stColor+';font-weight:700">'+p.status+'</span>';
+        content+='</div></div>';
+        content+='</div></div>';
+      });
+    }else{
+      // Table view
+      content+='<div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+      content+='<thead><tr style="background:#1e2650;color:#fff">';
+      ['Sem','Data','Dia','Pilar','Funil','T\u00edtulo','Formato','Rede','T\u00e9cnica','Resp.','Status'].forEach(function(h){
+        content+='<th style="padding:10px 6px;text-align:left;font-weight:800;white-space:nowrap">'+h+'</th>';
+      });
+      content+='</tr></thead><tbody>';
+      filteredImv.forEach(function(p,idx){
+        var pc=pilarColors[p.pilar]||'#64748b';var fc=funilColorsImv[p.funil]||'#64748b';
+        var bg=idx%2===0?'#fff':'var(--cream2)';
+        content+='<tr style="background:'+bg+';border-bottom:1px solid var(--cream3)">';
+        content+='<td style="padding:8px 6px;font-weight:700;color:var(--muted);text-align:center">S'+p.sem+'</td>';
+        content+='<td style="padding:8px 6px;font-weight:700;color:var(--navy)">'+p.data+'</td>';
+        content+='<td style="padding:8px 6px;color:var(--muted)">'+p.dia+'</td>';
+        content+='<td style="padding:8px 6px"><span style="padding:2px 6px;border-radius:6px;background:'+pc+'18;color:'+pc+';font-weight:700;font-size:9px;white-space:nowrap">'+p.pilar.split(' ').slice(0,2).join(' ')+'</span></td>';
+        content+='<td style="padding:8px 6px"><span style="padding:2px 6px;border-radius:6px;background:'+fc+'18;color:'+fc+';font-weight:700;font-size:10px">'+p.funil+'</span></td>';
+        content+='<td style="padding:8px 6px;font-weight:600;color:var(--navy);max-width:220px">'+p.titulo+'</td>';
+        content+='<td style="padding:8px 6px;color:var(--mid);font-size:10px;white-space:nowrap">'+p.fmt+'</td>';
+        content+='<td style="padding:8px 6px;color:var(--mid);font-size:10px">'+p.rede+'</td>';
+        content+='<td style="padding:8px 6px;font-size:10px;color:#4338ca">'+p.tecnica+'</td>';
+        content+='<td style="padding:8px 6px;font-size:10px;color:var(--mid)">'+p.resp+'</td>';
+        var stColor=p.status==='A Fazer'?'#f59e0b':p.status==='Feito'?'#22c55e':'#6366f1';
+        content+='<td style="padding:8px 6px"><span style="padding:2px 6px;border-radius:4px;background:'+stColor+'18;color:'+stColor+';font-weight:700;font-size:9px;white-space:nowrap">'+p.status+'</span></td>';
+        content+='</tr>';
+      });
+      content+='</tbody></table></div>';
+    }
+
+    // Grid: Pilares breakdown + Objeções
+    content+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px">';
+    // Pilares breakdown
+    content+='<div class="card" style="padding:18px"><div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:12px">\uD83E\uDDED Os 5 Pilares</div>';
+    Object.keys(pilarColors).forEach(function(pl){
+      var cnt=CRONO_IMV.filter(function(p){return p.pilar===pl;}).length;
+      var pct=Math.round(cnt/totalImv*100);
+      var c=pilarColors[pl];
+      content+='<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:3px">';
+      content+='<span style="font-size:11px;font-weight:700;color:var(--navy)">'+pl+'</span>';
+      content+='<span style="font-size:10px;color:var(--muted)">'+cnt+' posts ('+pct+'%)</span></div>';
+      content+='<div style="height:8px;background:var(--cream3);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+c+';border-radius:4px"></div></div></div>';
+    });
+    content+='</div>';
+    // Objeções
+    content+='<div class="card" style="padding:18px"><div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:12px">\uD83D\uDEE1\uFE0F Obje\u00e7\u00f5es Mapeadas</div>';
+    var objImv={};CRONO_IMV.forEach(function(p){if(p.objecao){p.objecao.split(' / ').forEach(function(o){objImv[o]=(objImv[o]||0)+1;});}});
+    var objImvSorted=Object.keys(objImv).sort(function(a,b){return objImv[b]-objImv[a];});
+    objImvSorted.forEach(function(o){
+      var pct=Math.round(objImv[o]/totalImv*100);
+      content+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+      content+='<span style="font-size:10px;font-weight:600;color:var(--navy);min-width:160px">'+o+'</span>';
+      content+='<div style="flex:1;height:8px;background:var(--cream3);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:#ef4444;border-radius:4px"></div></div>';
+      content+='<span style="font-size:10px;font-weight:700;color:var(--mid);min-width:30px;text-align:right">'+objImv[o]+'x</span>';
+      content+='</div>';
+    });
+    content+='</div></div>';
+
+    // Responsáveis
+    content+='<div class="card mb2" style="margin-top:14px;padding:18px"><div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:12px">\uD83D\uDC64 Respons\u00e1veis no M\u00eas</div>';
+    content+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
+    var respSet={};CRONO_IMV.forEach(function(p){respSet[p.resp]=(respSet[p.resp]||0)+1;});
+    Object.keys(respSet).sort(function(a,b){return respSet[b]-respSet[a];}).forEach(function(r){
+      content+='<span style="padding:5px 14px;border-radius:8px;background:var(--cream2);color:var(--navy);font-size:11px;font-weight:700;border:1px solid var(--cream3)">'+r+' <span style="color:var(--muted);font-weight:400">('+respSet[r]+'x)</span></span>';
+    });
+    content+='</div></div>';
   }
 
   return header + tabs + content;
