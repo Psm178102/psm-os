@@ -1148,6 +1148,11 @@ function saveState(skipFbPush) {
       connectors: S.connectors || {},
       integrations: S.integrations || {},
       lancTimeline: S.lancTimeline || [],
+      opEventos: S.opEventos || [],
+      opTreinamentos: S.opTreinamentos || [],
+      agendaReunioes: S.agendaReunioes || [],
+      agendaConfig: S.agendaConfig || {},
+      fcData: S.fcData || [],
       lancMetas: S.lancMetas || {},
       metaIndiv: S.metaIndiv || {},
       ooSheetLinks: S.ooSheetLinks || {},
@@ -1257,6 +1262,11 @@ function loadState() {
     if (d.connectors) S.connectors = {...S.connectors, ...d.connectors};
     try { const _ii = localStorage.getItem('psm_integrations'); if (_ii) S.integrations = JSON.parse(_ii); } catch(e) {}
     if (d.lancTimeline) S.lancTimeline = d.lancTimeline;
+    if (d.opEventos) S.opEventos = d.opEventos;
+    if (d.opTreinamentos) S.opTreinamentos = d.opTreinamentos;
+    if (d.agendaReunioes) S.agendaReunioes = d.agendaReunioes;
+    if (d.agendaConfig) S.agendaConfig = d.agendaConfig;
+    if (d.fcData) S.fcData = d.fcData;
     if (d.lancMetas) S.lancMetas = d.lancMetas;
     if (d.metaIndiv) S.metaIndiv = d.metaIndiv;
     if (d.ooSheetLinks) S.ooSheetLinks = {...S.ooSheetLinks, ...d.ooSheetLinks};    if (d.ooSheetCache) { S.ooSheetCache = d.ooSheetCache; };
@@ -1299,7 +1309,8 @@ var SYNC_KEYS = [
   'ooDatas','ooObjSemana','ooObjMes','ooPontosAtencao','ooFechamento','ooDiscCustom',
   'tickerMsgs','canalAnonimo','sonhos',
   'metaIndiv','comissaoPct','lancTimeline','lancMetas',
-  'premiacoes','comissoes','vendasManuais','oportunidadesPSM'
+  'premiacoes','comissoes','vendasManuais','oportunidadesPSM',
+  'opEventos','opTreinamentos','agendaReunioes','agendaConfig','fcData'
 ];
 // Global config keys that also need sync
 var SYNC_GLOBAL_KEYS = ['metasConfig','metasEquipe','teamConfig'];
@@ -1651,30 +1662,91 @@ function pgDashboard(){
   +'</div></div>'+renderVendasDiretoria(fVENDAS);
 }
 
-// ─── PAGE: AGENDA PSM ─────────────────────────────────────────────────────────
+// ─── PAGE: AGENDA PSM (v2) ────────────────────────────────────────────────────
 function pgAgendaPSM(){
   if(!S.agendaView) S.agendaView='mensal';
   if(!S.agendaDate) S.agendaDate=new Date().toISOString().slice(0,10);
+  if(!S.agendaTab) S.agendaTab='calendario';
+  if(!S.opEventos) S.opEventos=[];
+  if(!S.opTreinamentos) S.opTreinamentos=[];
+  if(!S.agendaConfig) S.agendaConfig={googleAgendaApi:'',zohoMailApi:''};
 
   var ref=new Date(S.agendaDate+'T12:00:00');
   var ano=ref.getFullYear(), mes=ref.getMonth();
   var mNames=['Janeiro','Fevereiro','Mar\u00e7o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  var dNames=['Dom','Seg','Ter','Qua','Qui','Sex','S\u00e1b'];
+  var dNames=['Seg','Ter','Qua','Qui','Sex','S\u00e1b','Dom'];
 
-  // ── Collect ALL events from system ──
+  var u=S.user;var isGestor=u&&(u.role==='socio'||u.role==='diretor'||u.role==='lider');
+
+  // ── Handlers ──
+  window.agSetTab=function(t){S.agendaTab=t;render();};
+  window.agSetView=function(v){S.agendaView=v;render();};
+  window.agNav=function(dir){
+    var d=new Date(ref);
+    if(S.agendaView==='mensal') d.setMonth(d.getMonth()+dir);
+    else d.setDate(d.getDate()+(dir*7));
+    S.agendaDate=d.toISOString().slice(0,10);render();
+  };
+  window.agToday=function(){S.agendaDate=new Date().toISOString().slice(0,10);S.agendaDetail=null;render();};
+  window.agShowDetail=function(ds){S.agendaDetail=ds;render();};
+  window.agCloseDetail=function(){S.agendaDetail=null;render();};
+  window.agShowForm=function(type){S.agendaFormType=type;render();};
+  window.agCloseForm=function(){S.agendaFormType=null;render();};
+  window.agSaveEvento=function(){
+    var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
+    var t=g('ag_ev_titulo');if(!t){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
+    S.opEventos.push({titulo:t,data:g('ag_ev_data'),hora:g('ag_ev_hora'),local:g('ag_ev_local'),tipo:g('ag_ev_tipo'),descricao:g('ag_ev_desc'),criadoEm:new Date().toISOString()});
+    _agSave();toast('\u2705 Evento cadastrado','ok');S.agendaFormType=null;render();
+    _agNotifyAll('\uD83C\uDF89 Novo Evento: '+t+' em '+g('ag_ev_data'));
+  };
+  window.agSaveTreinamento=function(){
+    var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
+    var t=g('ag_tr_titulo');if(!t){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
+    S.opTreinamentos.push({titulo:t,data:g('ag_tr_data'),hora:g('ag_tr_hora'),instrutor:g('ag_tr_inst'),categoria:g('ag_tr_cat'),link:g('ag_tr_link'),descricao:g('ag_tr_desc'),criadoEm:new Date().toISOString()});
+    _agSave();toast('\u2705 Treinamento cadastrado','ok');S.agendaFormType=null;render();
+    _agNotifyAll('\uD83C\uDF93 Novo Treinamento: '+t+' em '+g('ag_tr_data'));
+  };
+  window.agSaveReuniao=function(){
+    var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
+    var t=g('ag_re_titulo');if(!t){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
+    if(!S.agendaReunioes) S.agendaReunioes=[];
+    S.agendaReunioes.push({titulo:t,data:g('ag_re_data'),hora:g('ag_re_hora'),local:g('ag_re_local'),participantes:g('ag_re_part'),descricao:g('ag_re_desc'),criadoEm:new Date().toISOString()});
+    _agSave();toast('\u2705 Reuni\u00e3o cadastrada','ok');S.agendaFormType=null;render();
+    _agNotifyAll('\uD83E\uDD1D Nova Reuni\u00e3o: '+t+' em '+g('ag_re_data'));
+  };
+  window.agRemoveEvento=function(i){if(confirm('Remover este evento?')){S.opEventos.splice(i,1);_agSave();render();}};
+  window.agRemoveTreinamento=function(i){if(confirm('Remover este treinamento?')){S.opTreinamentos.splice(i,1);_agSave();render();}};
+  window.agRemoveReuniao=function(i){if(!S.agendaReunioes)return;if(confirm('Remover esta reuni\u00e3o?')){S.agendaReunioes.splice(i,1);_agSave();render();}};
+  window.agSaveConfig=function(){
+    var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
+    S.agendaConfig={googleAgendaApi:g('ag_cfg_google'),zohoMailApi:g('ag_cfg_zoho')};
+    saveState();toast('\u2705 Configura\u00e7\u00f5es salvas','ok');
+  };
+
+  function _agSave(){saveState();}
+  function _agNotifyAll(msg){
+    // Browser notification
+    if('Notification' in window && Notification.permission==='granted'){
+      try{new Notification('PSM Agenda',{body:msg,icon:'/favicon.ico'});}catch(e){}
+    }
+    // Schedule future notifications for the event
+    // (handled by notification scheduler below)
+  }
+
+  // ── Collect ALL events ──
   function collectEvents(){
     var evs=[];
-    // 1) Eventos (S.opEventos)
-    (S.opEventos||[]).forEach(function(ev){
+    // 1) Eventos
+    (S.opEventos||[]).forEach(function(ev,i){
       if(!ev.data)return;
-      evs.push({date:ev.data, hora:ev.hora||'', title:ev.titulo, type:'evento', color:'#ec4899', ico:'\uD83C\uDF89', detail:ev.local||''});
+      evs.push({date:ev.data,hora:ev.hora||'',title:ev.titulo,type:'Evento',color:'#ec4899',ico:'\uD83C\uDF89',detail:ev.local||'',idx:i,src:'evento'});
     });
-    // 2) Treinamentos (S.opTreinamentos)
-    (S.opTreinamentos||[]).forEach(function(tr){
+    // 2) Treinamentos
+    (S.opTreinamentos||[]).forEach(function(tr,i){
       if(!tr.data)return;
-      evs.push({date:tr.data, hora:tr.hora||'', title:tr.titulo, type:'treinamento', color:'#f59e0b', ico:'\uD83C\uDF93', detail:tr.instrutor||''});
+      evs.push({date:tr.data,hora:tr.hora||'',title:tr.titulo,type:'Treinamento',color:'#f59e0b',ico:'\uD83C\uDF93',detail:tr.instrutor||'',idx:i,src:'treinamento'});
     });
-    // 3) Plant\u00f5es (localStorage psm_plantoes_*)
+    // 3) Plant\u00f5es
     for(var m=0;m<12;m++){
       var sk='psm_plantoes_'+ano+'_'+m;
       try{
@@ -1685,227 +1757,366 @@ function pgAgendaPSM(){
           var mm=String(m+1).padStart(2,'0');
           var ds=ano+'-'+mm+'-'+dd;
           var nomes=(p.corretores||[]).map(function(c){return typeof c==='string'?c:(c.nome||'');}).join(', ');
-          evs.push({date:ds, hora:p.hora||'', title:'Plant\u00e3o'+(p.empreendimento?' \u2014 '+p.empreendimento:''), type:'plantao', color:'#6366f1', ico:'\uD83C\uDFE0', detail:nomes});
+          evs.push({date:ds,hora:p.hora||'',title:'Plant\u00e3o'+(p.empreendimento?' \u2014 '+p.empreendimento:''),type:'Plant\u00e3o',color:'#6366f1',ico:'\uD83C\uDFE0',detail:nomes,src:'plantao'});
         });
       }catch(e){}
     }
-    // 4) Reuni\u00f5es 1:1 (S.ooReunioes)
+    // 4) Reuni\u00f5es registradas na Agenda
+    (S.agendaReunioes||[]).forEach(function(r,i){
+      if(!r.data)return;
+      evs.push({date:r.data,hora:r.hora||'',title:r.titulo,type:'Reuni\u00e3o',color:'#8b5cf6',ico:'\uD83E\uDD1D',detail:r.participantes||'',idx:i,src:'reuniao'});
+    });
+    // 5) Reuni\u00f5es 1:1 do One on One
     if(S.ooReunioes){
       Object.keys(S.ooReunioes).forEach(function(bid){
         var bData=S.ooReunioes[bid]||{};
-        Object.keys(bData).forEach(function(monthKey){
-          (bData[monthKey]||[]).forEach(function(r){
+        Object.keys(bData).forEach(function(mk){
+          (bData[mk]||[]).forEach(function(r){
             if(!r.data)return;
             var brok=S.brokers?S.brokers.find(function(b){return b.id===bid;}):null;
-            var nm=brok?brok.nome:bid;
-            evs.push({date:r.data, hora:'', title:'Reuni\u00e3o 1:1 \u2014 '+nm, type:'reuniao', color:'#8b5cf6', ico:'\uD83E\uDD1D', detail:r.semana||''});
+            evs.push({date:r.data,hora:'',title:'Reuni\u00e3o \u2014 '+(brok?brok.nome:bid),type:'Reuni\u00e3o',color:'#8b5cf6',ico:'\uD83E\uDD1D',detail:r.semana||'',src:'oo_reuniao'});
           });
         });
       });
     }
-    // 5) One on One scheduled dates (S.ooDatas)
+    // 6) One on One agendados
     if(S.ooDatas){
       Object.keys(S.ooDatas).forEach(function(bid){
         var d=S.ooDatas[bid]||{};
         if(d.proxReuniao){
           var brok=S.brokers?S.brokers.find(function(b){return b.id===bid;}):null;
-          var nm=brok?brok.nome:bid;
-          evs.push({date:d.proxReuniao, hora:'', title:'One on One \u2014 '+nm, type:'oneonone', color:'#14b8a6', ico:'\uD83C\uDFAF', detail:''});
+          evs.push({date:d.proxReuniao,hora:'',title:'One on One \u2014 '+(brok?brok.nome:bid),type:'One on One',color:'#14b8a6',ico:'\uD83C\uDFAF',detail:'',src:'oneonone'});
         }
       });
     }
-    // 6) Capta\u00e7\u00f5es de Im\u00f3vel (S.fcData)
+    // 7) Capta\u00e7\u00f5es de Im\u00f3vel
     (S.fcData||[]).forEach(function(fc){
-      if(!fc.dataEntrada)return;
-      evs.push({date:fc.dataEntrada, hora:'', title:'Capta\u00e7\u00e3o \u2014 '+fc.nome, type:'captacao_imovel', color:'#22c55e', ico:'\uD83C\uDFE2', detail:fc.tipo||''});
+      if(!fc.dataAgendamento)return;
+      evs.push({date:fc.dataAgendamento,hora:'',title:'Capta\u00e7\u00e3o \u2014 '+fc.titulo,type:'Capta\u00e7\u00e3o Im\u00f3vel',color:'#22c55e',ico:'\uD83C\uDFE2',detail:fc.responsavel||'',src:'captacao'});
     });
-    // 7) Tarefas PSM com prazo (S.tpData)
+    // 8) Tarefas com prazo
     (S.tpData||[]).forEach(function(t){
       if(!t.prazoFim||t.status==='concluido')return;
-      evs.push({date:t.prazoFim, hora:'', title:t.titulo, type:'tarefa', color:'#0ea5e9', ico:'\u2705', detail:(t.responsaveis||[]).join(', ')});
+      evs.push({date:t.prazoFim,hora:'',title:t.titulo,type:'Tarefa',color:'#0ea5e9',ico:'\u2705',detail:(t.responsaveis||[]).join(', '),src:'tarefa'});
     });
     return evs;
   }
 
   var allEvs=collectEvents();
+  var hoje=new Date().toISOString().slice(0,10);
 
-  // ── Navigation helpers ──
-  function navMonth(dir){
-    var d=new Date(ref);
-    d.setMonth(d.getMonth()+dir);
-    return d.toISOString().slice(0,10);
-  }
-  function navWeek(dir){
-    var d=new Date(ref);
-    d.setDate(d.getDate()+(dir*7));
-    return d.toISOString().slice(0,10);
-  }
-
-  var h='';
-  h+='<div style="max-width:1200px;margin:0 auto;padding:16px">';
-
-  // Header
-  h+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">';
-  h+='<div style="font-size:22px;font-weight:800;color:#f8fafc">\uD83D\uDCC5 Agenda PSM</div>';
-
-  // View toggle
-  h+='<div style="display:flex;gap:4px;background:#1e293b;border-radius:10px;padding:3px">';
-  var views=[{id:'semanal',lbl:'Semanal'},{id:'mensal',lbl:'Mensal'}];
-  views.forEach(function(v){
-    var act=S.agendaView===v.id;
-    h+='<button onclick="S.agendaView=\''+v.id+'\';render()" style="padding:8px 18px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;'
-      +(act?'background:#6366f1;color:#fff;':'background:transparent;color:#94a3b8;')+'">'
-      +v.lbl+'</button>';
-  });
-  h+='</div>';
-  h+='</div>';
-
-  // Month/Week navigator
-  h+='<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:20px">';
-  if(S.agendaView==='mensal'){
-    h+='<button onclick="S.agendaDate=\''+navMonth(-1)+'\';render()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:16px">\u25C0</button>';
-    h+='<span style="font-size:18px;font-weight:700;color:#f8fafc;min-width:180px;text-align:center">'+mNames[mes]+' '+ano+'</span>';
-    h+='<button onclick="S.agendaDate=\''+navMonth(1)+'\';render()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:16px">\u25B6</button>';
-  }else{
-    // Semanal
-    var dow=ref.getDay();
-    var startW=new Date(ref);startW.setDate(ref.getDate()-dow+1);// Segunda
-    var endW=new Date(startW);endW.setDate(startW.getDate()+6);
-    var lbl=String(startW.getDate()).padStart(2,'0')+'/'+String(startW.getMonth()+1).padStart(2,'0')+' \u2014 '+String(endW.getDate()).padStart(2,'0')+'/'+String(endW.getMonth()+1).padStart(2,'0')+'/'+endW.getFullYear();
-    h+='<button onclick="S.agendaDate=\''+navWeek(-1)+'\';render()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:16px">\u25C0</button>';
-    h+='<span style="font-size:18px;font-weight:700;color:#f8fafc;min-width:260px;text-align:center">'+lbl+'</span>';
-    h+='<button onclick="S.agendaDate=\''+navWeek(1)+'\';render()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:16px">\u25B6</button>';
-  }
-  h+='</div>';
-
-  // Legend
-  h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;justify-content:center">';
-  var types=[
-    {lbl:'Evento',color:'#ec4899',ico:'\uD83C\uDF89'},
-    {lbl:'Treinamento',color:'#f59e0b',ico:'\uD83C\uDF93'},
-    {lbl:'Plant\u00e3o',color:'#6366f1',ico:'\uD83C\uDFE0'},
-    {lbl:'Reuni\u00e3o 1:1',color:'#8b5cf6',ico:'\uD83E\uDD1D'},
-    {lbl:'One on One',color:'#14b8a6',ico:'\uD83C\uDFAF'},
-    {lbl:'Capta\u00e7\u00e3o Im\u00f3vel',color:'#22c55e',ico:'\uD83C\uDFE2'},
-    {lbl:'Tarefa',color:'#0ea5e9',ico:'\u2705'}
-  ];
-  types.forEach(function(t){
-    h+='<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:'+t.color+'20;color:'+t.color+'">'+t.ico+' '+t.lbl+'</span>';
-  });
-  h+='</div>';
-
-  // ── RENDER CALENDAR ──
-  if(S.agendaView==='mensal'){
-    // Monthly grid
-    var firstDay=new Date(ano,mes,1).getDay();
-    var daysInMonth=new Date(ano,mes+1,0).getDate();
-    var hoje=new Date().toISOString().slice(0,10);
-
-    h+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:#0f172a;border-radius:12px;overflow:hidden;border:1px solid #334155">';
-    // Day headers
-    dNames.forEach(function(d){
-      h+='<div style="background:#1e293b;padding:8px;text-align:center;font-size:12px;font-weight:700;color:#94a3b8">'+d+'</div>';
+  // ── Notification scheduler (runs once per render) ──
+  if(!window._agNotifChecked){
+    window._agNotifChecked=true;
+    var now=new Date();
+    var nowStr=now.toISOString().slice(0,10);
+    var hh=now.getHours(),mm=now.getMinutes();
+    allEvs.forEach(function(ev){
+      if(ev.date!==nowStr||!ev.hora)return;
+      var parts=ev.hora.split(':');if(parts.length<2)return;
+      var evH=parseInt(parts[0]),evM=parseInt(parts[1]);
+      // Notify at 8:30
+      if(hh===8&&mm>=28&&mm<=32){
+        _agNotifyAll(ev.ico+' Hoje: '+ev.title+(ev.hora?' \u00e0s '+ev.hora:''));
+      }
+      // Notify 30min before
+      var minDiff=(evH*60+evM)-(hh*60+mm);
+      if(minDiff>=28&&minDiff<=32){
+        _agNotifyAll('\u23F0 Em 30min: '+ev.title);
+      }
     });
-    // Empty cells before 1st
-    var startIdx=(firstDay===0?6:firstDay-1);// Monday-based
-    for(var i=0;i<startIdx;i++){
-      h+='<div style="background:#0f172a;min-height:90px;padding:4px"></div>';
+  }
+
+  var h='<div style="padding:20px;max-width:1400px;margin:0 auto;">';
+
+  // ══ HEADER ══
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">';
+  h+='<div>';
+  h+='<h2 style="margin:0;font-size:1.6rem;font-weight:900;color:var(--navy);">\uD83D\uDCC5 Agenda PSM</h2>';
+  h+='<p style="margin:4px 0 0;color:var(--muted);font-size:.85rem;">Calend\u00e1rio unificado de todos os compromissos da equipe</p>';
+  h+='</div>';
+  // Register buttons
+  if(isGestor){
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+    h+='<button onclick="agShowForm(\'evento\')" style="padding:8px 14px;background:#ec4899;color:#fff;border:none;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;">\uD83C\uDF89 + Evento</button>';
+    h+='<button onclick="agShowForm(\'treinamento\')" style="padding:8px 14px;background:#f59e0b;color:#fff;border:none;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;">\uD83C\uDF93 + Treinamento</button>';
+    h+='<button onclick="agShowForm(\'reuniao\')" style="padding:8px 14px;background:#8b5cf6;color:#fff;border:none;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;">\uD83E\uDD1D + Reuni\u00e3o</button>';
+    h+='</div>';
+  }
+  h+='</div>';
+
+  // ══ TABS ══
+  h+='<div style="display:flex;gap:4px;background:var(--cream2);border-radius:10px;padding:3px;margin-bottom:16px;flex-wrap:wrap;">';
+  var tabs=[{id:'calendario',lbl:'\uD83D\uDCC5 Calend\u00e1rio'},{id:'eventos',lbl:'\uD83C\uDF89 Eventos'},{id:'treinamentos',lbl:'\uD83C\uDF93 Treinamentos'},{id:'reunioes',lbl:'\uD83E\uDD1D Reuni\u00f5es'},{id:'config',lbl:'\u2699\uFE0F Config'}];
+  tabs.forEach(function(t){
+    var act=S.agendaTab===t.id;
+    h+='<button onclick="agSetTab(\''+t.id+'\')" style="padding:8px 16px;border-radius:8px;border:none;font-size:.78rem;font-weight:600;cursor:pointer;'+(act?'background:var(--gold);color:#fff;':'background:transparent;color:var(--mid);')+'">'+t.lbl+'</button>';
+  });
+  h+='</div>';
+
+  // ══ FORM MODALS ══
+  if(S.agendaFormType){
+    h+='<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)agCloseForm()">';
+    h+='<div onclick="event.stopPropagation()" style="background:#fff;border-radius:14px;padding:28px;width:550px;max-width:95vw;box-shadow:0 12px 40px rgba(0,0,0,.2);">';
+    var fld=function(id,lbl,type,val){
+      var s='<div style="margin-bottom:14px;"><label style="font-size:.72rem;font-weight:700;color:var(--mid);display:block;margin-bottom:4px;">'+lbl+'</label>';
+      if(type==='textarea')s+='<textarea id="'+id+'" rows="3" style="width:100%;padding:8px;font-size:.82rem;border:1px solid var(--cream3);border-radius:6px;resize:vertical;">'+(val||'')+'</textarea>';
+      else s+='<input id="'+id+'" type="'+(type||'text')+'" style="width:100%;padding:8px;font-size:.82rem;border:1px solid var(--cream3);border-radius:6px;" value="'+(val||'')+'">';
+      return s+'</div>';
+    };
+    if(S.agendaFormType==='evento'){
+      h+='<h3 style="margin:0 0 16px;color:var(--navy);font-size:1.1rem;font-weight:800;">\uD83C\uDF89 Novo Evento</h3>';
+      h+=fld('ag_ev_titulo','T\u00edtulo *','text');
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;">';
+      h+=fld('ag_ev_data','Data','date');h+=fld('ag_ev_hora','Hora','time');
+      h+='</div>';
+      h+=fld('ag_ev_local','Local','text');h+=fld('ag_ev_tipo','Tipo','text');
+      h+=fld('ag_ev_desc','Descri\u00e7\u00e3o','textarea');
+      h+='<div style="display:flex;gap:8px;"><button onclick="agSaveEvento()" class="btn btn-gold" style="flex:1;"><span>Cadastrar Evento</span></button>';
+      h+='<button onclick="agCloseForm()" style="padding:10px 20px;border:1px solid var(--cream3);border-radius:8px;background:transparent;color:var(--mid);cursor:pointer;">Cancelar</button></div>';
+    }else if(S.agendaFormType==='treinamento'){
+      h+='<h3 style="margin:0 0 16px;color:var(--navy);font-size:1.1rem;font-weight:800;">\uD83C\uDF93 Novo Treinamento</h3>';
+      h+=fld('ag_tr_titulo','T\u00edtulo *','text');
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;">';
+      h+=fld('ag_tr_data','Data','date');h+=fld('ag_tr_hora','Hora','time');
+      h+='</div>';
+      h+=fld('ag_tr_inst','Instrutor','text');h+=fld('ag_tr_cat','Categoria','text');
+      h+=fld('ag_tr_link','Link','url');h+=fld('ag_tr_desc','Descri\u00e7\u00e3o','textarea');
+      h+='<div style="display:flex;gap:8px;"><button onclick="agSaveTreinamento()" class="btn btn-gold" style="flex:1;"><span>Cadastrar Treinamento</span></button>';
+      h+='<button onclick="agCloseForm()" style="padding:10px 20px;border:1px solid var(--cream3);border-radius:8px;background:transparent;color:var(--mid);cursor:pointer;">Cancelar</button></div>';
+    }else if(S.agendaFormType==='reuniao'){
+      h+='<h3 style="margin:0 0 16px;color:var(--navy);font-size:1.1rem;font-weight:800;">\uD83E\uDD1D Nova Reuni\u00e3o</h3>';
+      h+=fld('ag_re_titulo','T\u00edtulo *','text');
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;">';
+      h+=fld('ag_re_data','Data','date');h+=fld('ag_re_hora','Hora','time');
+      h+='</div>';
+      h+=fld('ag_re_local','Local','text');h+=fld('ag_re_part','Participantes','text');
+      h+=fld('ag_re_desc','Descri\u00e7\u00e3o / Pauta','textarea');
+      h+='<div style="display:flex;gap:8px;"><button onclick="agSaveReuniao()" class="btn btn-gold" style="flex:1;"><span>Cadastrar Reuni\u00e3o</span></button>';
+      h+='<button onclick="agCloseForm()" style="padding:10px 20px;border:1px solid var(--cream3);border-radius:8px;background:transparent;color:var(--mid);cursor:pointer;">Cancelar</button></div>';
     }
-    // Day cells
-    for(var d=1;d<=daysInMonth;d++){
-      var ds=ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-      var isToday=ds===hoje;
-      var dayEvs=allEvs.filter(function(e){return e.date===ds;});
-      h+='<div style="background:'+(isToday?'#1e293b':'#0f172a')+';min-height:90px;padding:4px;position:relative;border:'+(isToday?'2px solid #6366f1':'1px solid #1e293b')+';cursor:pointer" onclick="S.agendaDetail=\''+ds+'\';render()">';
-      h+='<div style="font-size:12px;font-weight:'+(isToday?'800':'600')+';color:'+(isToday?'#6366f1':'#94a3b8')+';margin-bottom:2px">'+d+'</div>';
-      // Show up to 3 events
-      dayEvs.slice(0,3).forEach(function(ev){
-        h+='<div style="font-size:10px;padding:2px 4px;margin-bottom:1px;border-radius:4px;background:'+ev.color+'20;color:'+ev.color+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+ev.title+'">'+ev.ico+' '+ev.title+'</div>';
+    h+='</div></div>';
+  }
+
+  // ══ TAB: CALENDARIO ══
+  if(S.agendaTab==='calendario'){
+    // View toggle + Navigator
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">';
+    // View buttons
+    h+='<div style="display:flex;gap:4px;background:var(--cream2);border-radius:8px;padding:2px;">';
+    [{id:'semanal',lbl:'Semanal'},{id:'mensal',lbl:'Mensal'}].forEach(function(v){
+      var act=S.agendaView===v.id;
+      h+='<button onclick="agSetView(\''+v.id+'\')" style="padding:6px 16px;border-radius:6px;border:none;font-size:.78rem;font-weight:600;cursor:pointer;'+(act?'background:var(--gold);color:#fff;':'background:transparent;color:var(--mid);')+'">'+v.lbl+'</button>';
+    });
+    h+='</div>';
+    // Navigator
+    h+='<div style="display:flex;align-items:center;gap:12px;">';
+    h+='<button onclick="agNav(-1)" style="background:var(--cream2);color:var(--mid);border:1px solid var(--cream3);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:14px;">\u25C0</button>';
+    if(S.agendaView==='mensal'){
+      h+='<span style="font-size:1.1rem;font-weight:800;color:var(--navy);min-width:200px;text-align:center">'+mNames[mes]+' '+ano+'</span>';
+    }else{
+      var dow=ref.getDay();var sw=new Date(ref);sw.setDate(ref.getDate()-(dow===0?6:dow-1));
+      var ew=new Date(sw);ew.setDate(sw.getDate()+6);
+      h+='<span style="font-size:1.1rem;font-weight:800;color:var(--navy);min-width:260px;text-align:center">'+String(sw.getDate()).padStart(2,'0')+'/'+String(sw.getMonth()+1).padStart(2,'0')+' \u2014 '+String(ew.getDate()).padStart(2,'0')+'/'+String(ew.getMonth()+1).padStart(2,'0')+'/'+ew.getFullYear()+'</span>';
+    }
+    h+='<button onclick="agNav(1)" style="background:var(--cream2);color:var(--mid);border:1px solid var(--cream3);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:14px;">\u25B6</button>';
+    h+='<button onclick="agToday()" style="padding:6px 14px;background:var(--gold);color:#fff;border:none;border-radius:8px;font-size:.75rem;font-weight:700;cursor:pointer;">Hoje</button>';
+    h+='</div>';
+    h+='</div>';
+
+    // Legend
+    h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">';
+    var lgTypes=[
+      {lbl:'Evento',color:'#ec4899',ico:'\uD83C\uDF89'},
+      {lbl:'Treinamento',color:'#f59e0b',ico:'\uD83C\uDF93'},
+      {lbl:'Plant\u00e3o',color:'#6366f1',ico:'\uD83C\uDFE0'},
+      {lbl:'Reuni\u00e3o',color:'#8b5cf6',ico:'\uD83E\uDD1D'},
+      {lbl:'One on One',color:'#14b8a6',ico:'\uD83C\uDFAF'},
+      {lbl:'Capta\u00e7\u00e3o Im\u00f3vel',color:'#22c55e',ico:'\uD83C\uDFE2'},
+      {lbl:'Tarefa',color:'#0ea5e9',ico:'\u2705'}
+    ];
+    lgTypes.forEach(function(t){
+      h+='<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:600;background:'+t.color+'12;color:'+t.color+';border:1px solid '+t.color+'22;">'+t.ico+' '+t.lbl+'</span>';
+    });
+    h+='</div>';
+
+    // ── CALENDAR GRID ──
+    if(S.agendaView==='mensal'){
+      var firstDay=new Date(ano,mes,1).getDay();
+      var daysInMonth=new Date(ano,mes+1,0).getDate();
+      var startIdx=(firstDay===0?6:firstDay-1);
+
+      h+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--cream3);border-radius:12px;overflow:hidden;border:1px solid var(--cream3);">';
+      dNames.forEach(function(d){
+        h+='<div style="background:var(--cream2);padding:10px;text-align:center;font-size:.72rem;font-weight:800;color:var(--mid);text-transform:uppercase;letter-spacing:.5px;">'+d+'</div>';
       });
-      if(dayEvs.length>3){
-        h+='<div style="font-size:10px;color:#64748b;text-align:center">+'+(dayEvs.length-3)+' mais</div>';
+      for(var i=0;i<startIdx;i++) h+='<div style="background:var(--cream1);min-height:110px;padding:6px;"></div>';
+      for(var d=1;d<=daysInMonth;d++){
+        var ds=ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+        var isT=ds===hoje;
+        var dayEvs=allEvs.filter(function(e){return e.date===ds;});
+        h+='<div onclick="agShowDetail(\''+ds+'\')" style="background:'+(isT?'rgba(99,102,241,.06)':'#fff')+';min-height:110px;padding:6px;cursor:pointer;border:'+(isT?'2px solid var(--gold)':'none')+';transition:background .15s;" onmouseover="this.style.background=\'var(--cream2)\'" onmouseout="this.style.background=\''+(isT?'rgba(99,102,241,.06)':'#fff')+'\'">';
+        h+='<div style="font-size:.78rem;font-weight:'+(isT?'900':'700')+';color:'+(isT?'var(--gold)':'var(--navy)')+';margin-bottom:4px;">'+d+'</div>';
+        dayEvs.slice(0,4).forEach(function(ev){
+          h+='<div style="font-size:.62rem;padding:2px 4px;margin-bottom:1px;border-radius:4px;background:'+ev.color+'12;color:'+ev.color+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;border-left:2px solid '+ev.color+';" title="'+ev.title+'">'+ev.ico+' '+ev.title+'</div>';
+        });
+        if(dayEvs.length>4) h+='<div style="font-size:.6rem;color:var(--muted);text-align:center;font-weight:700;">+'+(dayEvs.length-4)+' mais</div>';
+        h+='</div>';
+      }
+      var totalCells=startIdx+daysInMonth;var rem=totalCells%7;
+      if(rem>0){for(var i=0;i<7-rem;i++)h+='<div style="background:var(--cream1);min-height:110px;padding:6px;"></div>';}
+      h+='</div>';
+    }else{
+      // Weekly view
+      var dow=ref.getDay();var sw=new Date(ref);sw.setDate(ref.getDate()-(dow===0?6:dow-1));
+      h+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--cream3);border-radius:12px;overflow:hidden;border:1px solid var(--cream3);">';
+      for(var i=0;i<7;i++){
+        var dayD=new Date(sw);dayD.setDate(sw.getDate()+i);
+        var ds=dayD.toISOString().slice(0,10);
+        var isT=ds===hoje;
+        var dayEvs=allEvs.filter(function(e){return e.date===ds;});
+        h+='<div style="background:'+(isT?'rgba(99,102,241,.06)':'#fff')+';min-height:400px;padding:10px;border:'+(isT?'2px solid var(--gold)':'none')+';">';
+        h+='<div style="font-size:.72rem;font-weight:800;color:'+(isT?'var(--gold)':'var(--mid)')+';margin-bottom:10px;text-align:center;text-transform:uppercase;">'+dNames[i]+'<br><span style="font-size:1.2rem;font-weight:900;color:'+(isT?'var(--navy)':'var(--navy)')+';">'+dayD.getDate()+'</span></div>';
+        if(dayEvs.length===0){
+          h+='<div style="text-align:center;color:var(--muted);font-size:.72rem;padding:30px 0;">\u2014</div>';
+        }else{
+          dayEvs.forEach(function(ev){
+            h+='<div onclick="event.stopPropagation();agShowDetail(\''+ds+'\')" style="font-size:.7rem;padding:8px;margin-bottom:4px;border-radius:8px;background:'+ev.color+'08;border-left:3px solid '+ev.color+';cursor:pointer;">';
+            h+='<div style="font-weight:700;color:var(--navy);">'+ev.ico+' '+ev.title+'</div>';
+            if(ev.hora)h+='<div style="color:var(--muted);font-size:.65rem;">\u23F0 '+ev.hora+'</div>';
+            if(ev.detail)h+='<div style="color:var(--muted);font-size:.62rem;">'+ev.detail+'</div>';
+            h+='</div>';
+          });
+        }
+        h+='</div>';
       }
       h+='</div>';
     }
-    // Fill remaining cells
-    var totalCells=startIdx+daysInMonth;
-    var remainder=totalCells%7;
-    if(remainder>0){for(var i=0;i<7-remainder;i++){h+='<div style="background:#0f172a;min-height:90px;padding:4px"></div>';}}
-    h+='</div>';
 
-  }else{
-    // Weekly view
-    var dow=ref.getDay();
-    var startW=new Date(ref);startW.setDate(ref.getDate()-(dow===0?6:dow-1));
-    var hoje=new Date().toISOString().slice(0,10);
-
-    h+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:#0f172a;border-radius:12px;overflow:hidden;border:1px solid #334155">';
-    for(var i=0;i<7;i++){
-      var dayD=new Date(startW);dayD.setDate(startW.getDate()+i);
-      var ds=dayD.toISOString().slice(0,10);
-      var isToday=ds===hoje;
-      var dayEvs=allEvs.filter(function(e){return e.date===ds;});
-
-      h+='<div style="background:'+(isToday?'#1e293b':'#0f172a')+';min-height:300px;padding:8px;border:'+(isToday?'2px solid #6366f1':'1px solid #1e293b')+'">';
-      h+='<div style="font-size:12px;font-weight:700;color:'+(isToday?'#6366f1':'#94a3b8')+';margin-bottom:8px;text-align:center">'+dNames[(i+1)%7===0?0:(i+1)%7]+'<br><span style="font-size:16px;font-weight:800;color:'+(isToday?'#f8fafc':'#e2e8f0')+'">'+dayD.getDate()+'</span></div>';
-
-      if(dayEvs.length===0){
-        h+='<div style="text-align:center;color:#475569;font-size:11px;padding:20px 0">\u2014</div>';
+    // ── Day detail panel ──
+    if(S.agendaDetail){
+      var detEvs=allEvs.filter(function(e){return e.date===S.agendaDetail;});
+      var dp=S.agendaDetail.split('-');var dlbl=dp[2]+'/'+dp[1]+'/'+dp[0];
+      h+='<div style="margin-top:16px;background:var(--cream1);border-radius:12px;padding:20px;border:1px solid var(--cream3);">';
+      h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">';
+      h+='<div style="font-size:1.1rem;font-weight:800;color:var(--navy);">\uD83D\uDCC6 '+dlbl+'</div>';
+      h+='<button onclick="agCloseDetail()" style="background:var(--cream2);color:var(--mid);border:none;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:14px;">\u2716</button>';
+      h+='</div>';
+      if(detEvs.length===0){
+        h+='<div style="text-align:center;padding:30px;color:var(--muted);font-size:.88rem;">Nenhum compromisso neste dia.</div>';
       }else{
-        dayEvs.forEach(function(ev){
-          h+='<div onclick="event.stopPropagation();S.agendaDetail=\''+ds+'\';render()" style="font-size:11px;padding:6px 8px;margin-bottom:4px;border-radius:6px;background:'+ev.color+'15;border-left:3px solid '+ev.color+';cursor:pointer">';
-          h+='<div style="font-weight:700;color:'+ev.color+'">'+ev.ico+' '+ev.title+'</div>';
-          if(ev.hora)h+='<div style="color:#94a3b8;font-size:10px">\u23F0 '+ev.hora+'</div>';
-          if(ev.detail)h+='<div style="color:#64748b;font-size:10px">'+ev.detail+'</div>';
+        detEvs.sort(function(a,b){return(a.hora||'99:99').localeCompare(b.hora||'99:99');});
+        detEvs.forEach(function(ev){
+          h+='<div style="display:flex;align-items:flex-start;gap:14px;padding:14px;border-radius:10px;background:#fff;margin-bottom:8px;border-left:4px solid '+ev.color+';box-shadow:0 1px 3px rgba(0,0,0,.06);">';
+          h+='<div style="font-size:1.5rem;">'+ev.ico+'</div>';
+          h+='<div style="flex:1;">';
+          h+='<div style="font-size:.92rem;font-weight:700;color:var(--navy);">'+ev.title+'</div>';
+          h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">';
+          h+='<span style="font-size:.7rem;padding:2px 10px;border-radius:12px;background:'+ev.color+'12;color:'+ev.color+';font-weight:700;">'+ev.type+'</span>';
+          if(ev.hora)h+='<span style="font-size:.72rem;color:var(--muted);">\u23F0 '+ev.hora+'</span>';
+          if(ev.detail)h+='<span style="font-size:.72rem;color:var(--muted);">'+ev.detail+'</span>';
+          h+='</div>';
+          h+='</div>';
+          // Delete button for gestors
+          if(isGestor&&ev.src==='evento')h+='<button onclick="agRemoveEvento('+ev.idx+')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;">\uD83D\uDDD1</button>';
+          if(isGestor&&ev.src==='treinamento')h+='<button onclick="agRemoveTreinamento('+ev.idx+')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;">\uD83D\uDDD1</button>';
+          if(isGestor&&ev.src==='reuniao')h+='<button onclick="agRemoveReuniao('+ev.idx+')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;">\uD83D\uDDD1</button>';
           h+='</div>';
         });
       }
       h+='</div>';
     }
-    h+='</div>';
   }
 
-  // ── Day detail panel ──
-  if(S.agendaDetail){
-    var detEvs=allEvs.filter(function(e){return e.date===S.agendaDetail;});
-    var dp=S.agendaDetail.split('-');
-    var dlbl=dp[2]+'/'+dp[1]+'/'+dp[0];
-
-    h+='<div style="margin-top:20px;background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
-    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
-    h+='<div style="font-size:16px;font-weight:700;color:#f8fafc">\uD83D\uDCC6 '+dlbl+'</div>';
-    h+='<button onclick="S.agendaDetail=null;render()" style="background:#334155;color:#94a3b8;border:none;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:14px">\u2716</button>';
+  // ══ TAB: EVENTOS ══
+  if(S.agendaTab==='eventos'){
+    h+='<div style="background:var(--cream1);border-radius:12px;padding:20px;border:1px solid var(--cream3);">';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">';
+    h+='<h3 style="margin:0;font-size:1.1rem;font-weight:800;color:var(--navy);">\uD83C\uDF89 Eventos Cadastrados</h3>';
+    if(isGestor)h+='<button onclick="agShowForm(\'evento\')" style="padding:8px 14px;background:#ec4899;color:#fff;border:none;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;">+ Novo Evento</button>';
     h+='</div>';
-
-    if(detEvs.length===0){
-      h+='<div style="text-align:center;padding:30px;color:#64748b;font-size:14px">Nenhum compromisso neste dia.</div>';
-    }else{
-      detEvs.sort(function(a,b){return(a.hora||'99:99').localeCompare(b.hora||'99:99');});
-      detEvs.forEach(function(ev){
-        h+='<div style="display:flex;align-items:flex-start;gap:12px;padding:12px;border-radius:8px;background:#0f172a;margin-bottom:8px;border-left:4px solid '+ev.color+'">';
-        h+='<div style="font-size:24px">'+ev.ico+'</div>';
-        h+='<div style="flex:1">';
-        h+='<div style="font-size:14px;font-weight:700;color:#f8fafc">'+ev.title+'</div>';
-        h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">';
-        h+='<span style="font-size:11px;padding:2px 8px;border-radius:12px;background:'+ev.color+'20;color:'+ev.color+';font-weight:600">'+ev.type+'</span>';
-        if(ev.hora)h+='<span style="font-size:11px;color:#94a3b8">\u23F0 '+ev.hora+'</span>';
-        if(ev.detail)h+='<span style="font-size:11px;color:#64748b">'+ev.detail+'</span>';
-        h+='</div>';
-        h+='</div>';
+    if(S.opEventos.length===0){h+='<div style="text-align:center;padding:40px;color:var(--muted);">Nenhum evento cadastrado.</div>';}
+    else{
+      S.opEventos.forEach(function(ev,i){
+        h+='<div style="display:flex;align-items:center;gap:12px;padding:12px;background:#fff;border-radius:10px;margin-bottom:6px;border-left:4px solid #ec4899;box-shadow:0 1px 3px rgba(0,0,0,.05);">';
+        h+='<div style="font-size:1.2rem;">\uD83C\uDF89</div>';
+        h+='<div style="flex:1;"><div style="font-weight:700;color:var(--navy);font-size:.88rem;">'+ev.titulo+'</div>';
+        h+='<div style="font-size:.72rem;color:var(--muted);">'+(ev.data||'')+' '+(ev.hora||'')+' '+(ev.local?'\u2022 '+ev.local:'')+'</div></div>';
+        if(isGestor)h+='<button onclick="agRemoveEvento('+i+')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;">\uD83D\uDDD1</button>';
         h+='</div>';
       });
     }
     h+='</div>';
   }
 
-  // Today button
-  h+='<div style="text-align:center;margin-top:16px">';
-  h+='<button onclick="S.agendaDate=new Date().toISOString().slice(0,10);S.agendaDetail=null;render()" style="background:#6366f1;color:#fff;border:none;padding:10px 24px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">\uD83D\uDCC5 Hoje</button>';
-  h+='</div>';
+  // ══ TAB: TREINAMENTOS ══
+  if(S.agendaTab==='treinamentos'){
+    h+='<div style="background:var(--cream1);border-radius:12px;padding:20px;border:1px solid var(--cream3);">';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">';
+    h+='<h3 style="margin:0;font-size:1.1rem;font-weight:800;color:var(--navy);">\uD83C\uDF93 Treinamentos Cadastrados</h3>';
+    if(isGestor)h+='<button onclick="agShowForm(\'treinamento\')" style="padding:8px 14px;background:#f59e0b;color:#fff;border:none;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;">+ Novo Treinamento</button>';
+    h+='</div>';
+    if(S.opTreinamentos.length===0){h+='<div style="text-align:center;padding:40px;color:var(--muted);">Nenhum treinamento cadastrado.</div>';}
+    else{
+      S.opTreinamentos.forEach(function(tr,i){
+        h+='<div style="display:flex;align-items:center;gap:12px;padding:12px;background:#fff;border-radius:10px;margin-bottom:6px;border-left:4px solid #f59e0b;box-shadow:0 1px 3px rgba(0,0,0,.05);">';
+        h+='<div style="font-size:1.2rem;">\uD83C\uDF93</div>';
+        h+='<div style="flex:1;"><div style="font-weight:700;color:var(--navy);font-size:.88rem;">'+tr.titulo+'</div>';
+        h+='<div style="font-size:.72rem;color:var(--muted);">'+(tr.data||'')+' '+(tr.hora||'')+' '+(tr.instrutor?'\u2022 '+tr.instrutor:'')+'</div></div>';
+        if(isGestor)h+='<button onclick="agRemoveTreinamento('+i+')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;">\uD83D\uDDD1</button>';
+        h+='</div>';
+      });
+    }
+    h+='</div>';
+  }
+
+  // ══ TAB: REUNIOES ══
+  if(S.agendaTab==='reunioes'){
+    if(!S.agendaReunioes) S.agendaReunioes=[];
+    h+='<div style="background:var(--cream1);border-radius:12px;padding:20px;border:1px solid var(--cream3);">';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">';
+    h+='<h3 style="margin:0;font-size:1.1rem;font-weight:800;color:var(--navy);">\uD83E\uDD1D Reuni\u00f5es Cadastradas</h3>';
+    if(isGestor)h+='<button onclick="agShowForm(\'reuniao\')" style="padding:8px 14px;background:#8b5cf6;color:#fff;border:none;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;">+ Nova Reuni\u00e3o</button>';
+    h+='</div>';
+    if(S.agendaReunioes.length===0){h+='<div style="text-align:center;padding:40px;color:var(--muted);">Nenhuma reuni\u00e3o cadastrada.</div>';}
+    else{
+      S.agendaReunioes.forEach(function(r,i){
+        h+='<div style="display:flex;align-items:center;gap:12px;padding:12px;background:#fff;border-radius:10px;margin-bottom:6px;border-left:4px solid #8b5cf6;box-shadow:0 1px 3px rgba(0,0,0,.05);">';
+        h+='<div style="font-size:1.2rem;">\uD83E\uDD1D</div>';
+        h+='<div style="flex:1;"><div style="font-weight:700;color:var(--navy);font-size:.88rem;">'+r.titulo+'</div>';
+        h+='<div style="font-size:.72rem;color:var(--muted);">'+(r.data||'')+' '+(r.hora||'')+' '+(r.participantes?'\u2022 '+r.participantes:'')+'</div></div>';
+        if(isGestor)h+='<button onclick="agRemoveReuniao('+i+')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;">\uD83D\uDDD1</button>';
+        h+='</div>';
+      });
+    }
+    h+='</div>';
+  }
+
+  // ══ TAB: CONFIG ══
+  if(S.agendaTab==='config'){
+    h+='<div style="background:var(--cream1);border-radius:12px;padding:24px;border:1px solid var(--cream3);max-width:600px;">';
+    h+='<h3 style="margin:0 0 16px;font-size:1.1rem;font-weight:800;color:var(--navy);">\u2699\uFE0F Configura\u00e7\u00f5es de Integra\u00e7\u00e3o</h3>';
+    h+='<p style="font-size:.82rem;color:var(--muted);margin-bottom:20px;">Configure as chaves de API para integrar a Agenda PSM com servi\u00e7os externos.</p>';
+    // Google Agenda
+    h+='<div style="margin-bottom:18px;">';
+    h+='<label style="font-size:.75rem;font-weight:700;color:var(--mid);display:block;margin-bottom:6px;">\uD83D\uDCC5 Google Agenda \u2014 API Key</label>';
+    h+='<input id="ag_cfg_google" type="text" placeholder="Cole sua API key do Google Calendar aqui..." value="'+(S.agendaConfig.googleAgendaApi||'')+'" style="width:100%;padding:10px;border:1px solid var(--cream3);border-radius:8px;font-size:.82rem;font-family:monospace;">';
+    h+='<div style="font-size:.68rem;color:var(--muted);margin-top:4px;">Permite sincronizar eventos do Google Calendar automaticamente.</div>';
+    h+='</div>';
+    // Zoho Mail
+    h+='<div style="margin-bottom:18px;">';
+    h+='<label style="font-size:.75rem;font-weight:700;color:var(--mid);display:block;margin-bottom:6px;">\uD83D\uDCE7 Zoho Mail \u2014 API Token</label>';
+    h+='<input id="ag_cfg_zoho" type="text" placeholder="Cole seu token da API do Zoho Mail aqui..." value="'+(S.agendaConfig.zohoMailApi||'')+'" style="width:100%;padding:10px;border:1px solid var(--cream3);border-radius:8px;font-size:.82rem;font-family:monospace;">';
+    h+='<div style="font-size:.68rem;color:var(--muted);margin-top:4px;">Permite enviar notifica\u00e7\u00f5es e convites por email.</div>';
+    h+='</div>';
+    h+='<button onclick="agSaveConfig()" class="btn btn-gold" style="font-size:.88rem;"><span>\u2705 Salvar Configura\u00e7\u00f5es</span></button>';
+    h+='</div>';
+  }
 
   h+='</div>';
   return h;
 }
+
 
 // ─── PAGE: RANKING ────────────────────────────────────────────────────────────
 function pgRanking(){
@@ -8455,41 +8666,38 @@ function pgFluxoCaptacoes() {
   // State init
   if(!S.fcData){
     try{var sv=localStorage.getItem('psm_fluxo_captacoes');S.fcData=sv?JSON.parse(sv):[];}catch(e){S.fcData=[];}
-    // Seed inicial — dados importados do Notion (CAPTAÇÕES PSM)
     if(S.fcData.length===0){
       var _now=new Date().toISOString();
       S.fcData=[
-        // === CAPTAÇÕES VENDA (da página principal) ===
-        {titulo:'Sítio Amiga 10 Alq Cedral',bairro:'Cedral',tipo:'Sitio',objetivo:'Venda',proprietario:'Renata Cury',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'10 alqueires',status:'COLHER_DADOS',descricao:'Sítio 10 alqueires em Cedral',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'Martinelli Antares',bairro:'Antares',tipo:'Casa em condom\u00ednio',objetivo:'Venda',proprietario:'',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'COLHER_DADOS',descricao:'Martinelli - Condomínio Antares',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'Casas São Francisco',bairro:'São Francisco',tipo:'Casa',objetivo:'Venda',proprietario:'Juliano Pintor',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'COLHER_DADOS',descricao:'Casas no bairro São Francisco - Juliano Pintor',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'Unique - Rafa Lupema',bairro:'',tipo:'Apartamento',objetivo:'Venda',proprietario:'Rafa Lupema',contato:'',email:'',endereco:'',valorVenda:'R$ 550.000',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'550k',status:'COLHER_DADOS',descricao:'Unique - Rafa Lupema - 550k',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'Tarraf Square',bairro:'',tipo:'Apartamento',objetivo:'Venda',proprietario:'Elian',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'COLHER_DADOS',descricao:'Tarraf Square - Elian',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'Platz Studios - Erica de Oliveira',bairro:'',tipo:'Studio',objetivo:'Venda',proprietario:'Erica de Oliveira',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'COLHER_DADOS',descricao:'Platz Studios - Erica de Oliveira',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'2 Hype 40m² - Compacto',bairro:'',tipo:'Apartamento',objetivo:'Venda',proprietario:'',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'2 unidades Hype venda 40m2 da Compacto',status:'COLHER_DADOS',descricao:'2 unidades Hype 40m² para venda - Compacto',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        // === CAPTAÇÕES LOCAÇÃO (sub-página captacoes locacao) ===
-        {titulo:'APT Time 75m²',bairro:'Time',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Ana Paola',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'1 unidade 75m²',status:'COLHER_DADOS',descricao:'1 APT Time 75m² - Ana Paola',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'4 Salas Tokyo 4º Andar',bairro:'Tokyo',tipo:'SALA COMERCIAL',objetivo:'Loca\u00e7\u00e3o',proprietario:'José Roma',contato:'',email:'',endereco:'4º Andar',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'4 salas',status:'COLHER_DADOS',descricao:'4 Salas Tokyo 4º Andar - José Roma',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'Montelena - Marcio Haddad',bairro:'Montelena',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Marcio Haddad',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'1 unidade',status:'COLHER_DADOS',descricao:'1 Montelena - Marcio Haddad',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'Platz - Giovana',bairro:'Platz',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Giovana',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'1 unidade',status:'COLHER_DADOS',descricao:'1 Platz - Giovana',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'Monreal - Jenice',bairro:'Monreal',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Jenice',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'1 unidade',status:'COLHER_DADOS',descricao:'1 Monreal - Jenice',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'Sala Tokyo - Rafael Carvalho',bairro:'Tokyo',tipo:'SALA COMERCIAL',objetivo:'Loca\u00e7\u00e3o',proprietario:'Rafael Carvalho',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'1 sala',status:'COLHER_DADOS',descricao:'1 Sala Tokyo - Rafael Carvalho',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'High Redentora - Suzi Ferreti',bairro:'Redentora',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Suzi Ferreti',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'1 unidade',status:'COLHER_DADOS',descricao:'1 High Redentora - Suzi Ferreti',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'2 Salas Tokyo 4º Andar - Ulisses Cury',bairro:'Tokyo',tipo:'SALA COMERCIAL',objetivo:'Loca\u00e7\u00e3o',proprietario:'Ulisses Cury Filho',contato:'',email:'',endereco:'4º Andar',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'2 salas',status:'COLHER_DADOS',descricao:'2 Salas Tokyo 4º Andar - Ulisses Cury Filho',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'4 Salas South Empresarial - Ulisses Cury',bairro:'South Empresarial',tipo:'SALA COMERCIAL',objetivo:'Loca\u00e7\u00e3o',proprietario:'Ulisses Cury Filho',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'4 salas',status:'COLHER_DADOS',descricao:'4 Salas South Empresarial - Ulisses Cury Filho',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'Sala Georgina Shangai 109B',bairro:'Georgina',tipo:'SALA COMERCIAL',objetivo:'Loca\u00e7\u00e3o',proprietario:'Adalberto Emanuel',contato:'',email:'',endereco:'109B',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'COLHER_DADOS',descricao:'1 Sala Georgina Shangai 109B - Adalberto Emanuel',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'Green Square - Elaine Costa',bairro:'Green Square',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Elaine Cristina Costa',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'1 unidade',status:'COLHER_DADOS',descricao:'1 Green Square - Elaine Cristina Costa',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'High Redentora - Italo Cortez',bairro:'Redentora',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Italo Cortez',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'1 unidade',status:'COLHER_DADOS',descricao:'1 High Redentora - Italo Cortez',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'High Redentora - Baroni',bairro:'Redentora',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Baroni',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'1 unidade',status:'COLHER_DADOS',descricao:'1 High Redentora - Baroni',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'High Redentora - Lau',bairro:'Redentora',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Lau',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'1 unidade',status:'COLHER_DADOS',descricao:'1 High Redentora - Lau',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'High Redentora - Cris Aoki',bairro:'Redentora',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Cris Aoki',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'1 unidade',status:'COLHER_DADOS',descricao:'1 High Redentora - Cris Aoki',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'8 Unidades Time Garetti',bairro:'Time',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Evandro',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'PENDENCIA DE AGENDAMENTO',termoAuth:'',obs:'Chamar final do ano - 8 unidades',status:'COLHER_DADOS',descricao:'8 Unidades no Time Garetti - Evandro - chamar final do ano',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]},
-        {titulo:'Chácara Luis Gouveia Eventos',bairro:'',tipo:'Chacara',objetivo:'Loca\u00e7\u00e3o',proprietario:'Luis Gouveia',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'Chácara para eventos',status:'COLHER_DADOS',descricao:'Chácara do Luis Gouveia - Eventos',createdAt:_now,updatedAt:_now,log:[{acao:'importado do Notion',por:'Sistema',em:_now}]}
+        {titulo:'S\u00edtio Amiga 10 Alq Cedral',bairro:'Cedral',tipo:'Sitio',objetivo:'Venda',proprietario:'Renata Cury',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'10 alqueires',status:'A_FAZER',descricao:'S\u00edtio 10 alqueires em Cedral',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'Martinelli Antares',bairro:'Antares',tipo:'Casa em condom\u00ednio',objetivo:'Venda',proprietario:'',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'Martinelli - Condom\u00ednio Antares',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'Casas S\u00e3o Francisco',bairro:'S\u00e3o Francisco',tipo:'Casa',objetivo:'Venda',proprietario:'Juliano Pintor',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'Casas no bairro S\u00e3o Francisco - Juliano Pintor',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'Unique - Rafa Lupema',bairro:'',tipo:'Apartamento',objetivo:'Venda',proprietario:'Rafa Lupema',contato:'',email:'',endereco:'',valorVenda:'R$ 550.000',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'550k',status:'A_FAZER',descricao:'Unique - Rafa Lupema - 550k',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'Tarraf Square',bairro:'',tipo:'Apartamento',objetivo:'Venda',proprietario:'Elian',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'Tarraf Square - Elian',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'Platz Studios - Erica de Oliveira',bairro:'',tipo:'Studio',objetivo:'Venda',proprietario:'Erica de Oliveira',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'Platz Studios - Erica de Oliveira',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'2 Hype 40m\u00b2 - Compacto',bairro:'',tipo:'Apartamento',objetivo:'Venda',proprietario:'',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'2 unidades Hype venda 40m2 da Compacto',status:'A_FAZER',descricao:'2 unidades Hype 40m\u00b2 para venda - Compacto',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'APT Time 75m\u00b2',bairro:'Time',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Ana Paola',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'1 unidade 75m\u00b2',status:'A_FAZER',descricao:'1 APT Time 75m\u00b2 - Ana Paola',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'4 Salas Tokyo 4\u00ba Andar',bairro:'Tokyo',tipo:'SALA COMERCIAL',objetivo:'Loca\u00e7\u00e3o',proprietario:'Jos\u00e9 Roma',contato:'',email:'',endereco:'4\u00ba Andar',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'4 salas',status:'A_FAZER',descricao:'4 Salas Tokyo 4\u00ba Andar - Jos\u00e9 Roma',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'Montelena - Marcio Haddad',bairro:'Montelena',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Marcio Haddad',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'1 Montelena - Marcio Haddad',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'Platz - Giovana',bairro:'Platz',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Giovana',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'1 Platz - Giovana',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'Monreal - Jenice',bairro:'Monreal',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Jenice',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'1 Monreal - Jenice',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'Sala Tokyo - Rafael Carvalho',bairro:'Tokyo',tipo:'SALA COMERCIAL',objetivo:'Loca\u00e7\u00e3o',proprietario:'Rafael Carvalho',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'1 Sala Tokyo - Rafael Carvalho',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'High Redentora - Suzi Ferreti',bairro:'Redentora',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Suzi Ferreti',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'1 High Redentora - Suzi Ferreti',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'2 Salas Tokyo 4\u00ba Andar - Ulisses Cury',bairro:'Tokyo',tipo:'SALA COMERCIAL',objetivo:'Loca\u00e7\u00e3o',proprietario:'Ulisses Cury Filho',contato:'',email:'',endereco:'4\u00ba Andar',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'2 salas',status:'A_FAZER',descricao:'2 Salas Tokyo 4\u00ba Andar - Ulisses Cury Filho',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'4 Salas South Empresarial - Ulisses Cury',bairro:'South Empresarial',tipo:'SALA COMERCIAL',objetivo:'Loca\u00e7\u00e3o',proprietario:'Ulisses Cury Filho',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'4 salas',status:'A_FAZER',descricao:'4 Salas South Empresarial - Ulisses Cury Filho',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'Sala Georgina Shangai 109B',bairro:'Georgina',tipo:'SALA COMERCIAL',objetivo:'Loca\u00e7\u00e3o',proprietario:'Adalberto Emanuel',contato:'',email:'',endereco:'109B',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'1 Sala Georgina Shangai 109B - Adalberto Emanuel',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'Green Square - Elaine Costa',bairro:'Green Square',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Elaine Cristina Costa',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'1 Green Square - Elaine Cristina Costa',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'High Redentora - Italo Cortez',bairro:'Redentora',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Italo Cortez',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'1 High Redentora - Italo Cortez',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'High Redentora - Baroni',bairro:'Redentora',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Baroni',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'1 High Redentora - Baroni',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'High Redentora - Lau',bairro:'Redentora',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Lau',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'1 High Redentora - Lau',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'High Redentora - Cris Aoki',bairro:'Redentora',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Cris Aoki',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'',status:'A_FAZER',descricao:'1 High Redentora - Cris Aoki',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'8 Unidades Time Garetti',bairro:'Time',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Evandro',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'PEND\u00caNCIA DE AGENDAMENTO',termoAuth:'',obs:'Chamar final do ano - 8 unidades',status:'A_FAZER',descricao:'8 Unidades no Time Garetti - Evandro - chamar final do ano',createdAt:_now,updatedAt:_now,log:[]},
+        {titulo:'Ch\u00e1cara Luis Gouveia Eventos',bairro:'',tipo:'Chacara',objetivo:'Loca\u00e7\u00e3o',proprietario:'Luis Gouveia',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'Ch\u00e1cara para eventos',status:'A_FAZER',descricao:'Ch\u00e1cara do Luis Gouveia - Eventos',createdAt:_now,updatedAt:_now,log:[]}
       ];
       try{localStorage.setItem('psm_fluxo_captacoes',JSON.stringify(S.fcData));}catch(e){}
     }
   }
-  if(!S.fcView) S.fcView='kanban'; // kanban | lista
+  if(!S.fcView) S.fcView='kanban';
   if(!S.fcFilterResp) S.fcFilterResp='';
   if(!S.fcFilterStatus) S.fcFilterStatus='';
   if(!S.fcShowForm) S.fcShowForm=false;
@@ -8503,40 +8711,37 @@ function pgFluxoCaptacoes() {
   var PENDENCIAS=['VIDEO COM CORRETOR','Falta fazer FOTOS','FALTA FOTOS e VIDEOS','FALTA VIDEO DRONE','FALTA ATUALIZAR FOTOS','ATUALIZADO','PEND\u00caNCIA DE DOCUMENTA\u00c7\u00c3O','PEND\u00caNCIA DE CHAVES','PEND\u00caNCIA DE AGENDAMENTO'];
   var TERMO_AUTH=['APROVADO','AUTORIZA\u00c7\u00c3O PENDENTE','RECUSADO','SOLICITAR AUTORIZA\u00c7\u00c3O'];
 
-  // Fases do kanban (match Notion)
-  var FASES = [
-    {grupo:'A Fazer', color:'#f59e0b', bg:'rgba(245,158,11,.08)', items:[
-      {id:'COLHER_DADOS',lbl:'Colher Dados',ico:'\uD83D\uDCCB'},
-      {id:'AGENDAR_PROP',lbl:'Agendar c/ Prop.',ico:'\uD83D\uDCC5'},
-      {id:'AGENDADO',lbl:'Agendado',ico:'\u2705'},
-      {id:'A_FAZER_CAPTACAO',lbl:'\u00c0 Fazer Capta\u00e7\u00e3o',ico:'\uD83D\uDCF7'}
-    ]},
-    {grupo:'Em Andamento', color:'#3b82f6', bg:'rgba(59,130,246,.08)', items:[
-      {id:'AGUARDANDO_AUTH',lbl:'Aguardando Autoriza\u00e7\u00e3o',ico:'\u23F3'},
-      {id:'CAPTACAO_REALIZADA',lbl:'Capta\u00e7\u00e3o Realizada',ico:'\uD83C\uDFAF'},
-      {id:'EDICAO_FOTOS',lbl:'Edi\u00e7\u00e3o de Fotos',ico:'\uD83D\uDDBC'},
-      {id:'EDICAO_VIDEOS',lbl:'Edi\u00e7\u00e3o V\u00eddeos',ico:'\uD83C\uDFA5'},
-      {id:'APROVACAO',lbl:'Aprova\u00e7\u00e3o',ico:'\uD83D\uDD0D'}
-    ]},
-    {grupo:'Finaliza\u00e7\u00e3o', color:'#22c55e', bg:'rgba(34,197,94,.08)', items:[
-      {id:'A_FAZER_FORMULARIO',lbl:'\u00c0 Fazer Formul\u00e1rio',ico:'\uD83D\uDCDD'},
-      {id:'FORMULARIO_KENLO',lbl:'Formul\u00e1rio \u2192 Kenlo',ico:'\uD83C\uDFE0'},
-      {id:'AGENDAR_MLABS',lbl:'Agendar mLabs',ico:'\uD83D\uDCC6'},
-      {id:'APROVADO',lbl:'Aprovado',ico:'\u2705'},
-      {id:'CONCLUIDO',lbl:'Conclu\u00eddo',ico:'\uD83C\uDFC1'}
-    ]},
-    {grupo:'Outros', color:'#94a3b8', bg:'rgba(148,163,184,.08)', items:[
-      {id:'PAUSADO',lbl:'Pausado',ico:'\u23F8'},
-      {id:'REFAZER',lbl:'Refazer',ico:'\uD83D\uDD04'},
-      {id:'SUBIR_KENLO',lbl:'Subir Direto no Kenlo',ico:'\u26A1'}
-    ]}
+  // ══ NOVAS ETAPAS DO KANBAN (9 colunas) ══
+  var COLS = [
+    {id:'A_FAZER',         lbl:'\u00c0 FAZER (Colher Info + Agendar)', color:'#f59e0b', bg:'rgba(245,158,11,.06)', ico:'\uD83D\uDCCB'},
+    {id:'AGENDADO',        lbl:'AGENDADO',                             color:'#3b82f6', bg:'rgba(59,130,246,.06)', ico:'\uD83D\uDCC5'},
+    {id:'AGUARDANDO_AUTH', lbl:'AGUARDANDO AUTORIZA\u00c7\u00c3O',     color:'#8b5cf6', bg:'rgba(139,92,246,.06)', ico:'\u23F3'},
+    {id:'VISITA_REALIZADA',lbl:'VISITA REALIZADA',                      color:'#06b6d4', bg:'rgba(6,182,212,.06)',  ico:'\u2705'},
+    {id:'EDICAO_FOTOS',    lbl:'EDI\u00c7\u00c3O DE FOTOS E V\u00cdDEOS', color:'#ec4899', bg:'rgba(236,72,153,.06)', ico:'\uD83D\uDDBC'},
+    {id:'CADASTRO_KENLO',  lbl:'CADASTRO KENLO',                       color:'#14b8a6', bg:'rgba(20,184,166,.06)', ico:'\uD83C\uDFE0'},
+    {id:'MLABS',           lbl:'MLABS',                                 color:'#6366f1', bg:'rgba(99,102,241,.06)', ico:'\uD83D\uDCC6'},
+    {id:'FINALIZADO',      lbl:'FINALIZADO',                            color:'#22c55e', bg:'rgba(34,197,94,.06)',  ico:'\uD83C\uDFC1'},
+    {id:'STAND_BY',        lbl:'STAND BY',                              color:'#94a3b8', bg:'rgba(148,163,184,.06)',ico:'\u23F8'}
   ];
-  var ALL_STATUS=[];
-  FASES.forEach(function(f){f.items.forEach(function(s){ALL_STATUS.push(s);});});
-  function statusLabel(id){var found=null;ALL_STATUS.forEach(function(s){if(s.id===id)found=s;});return found?found.ico+' '+found.lbl:id;}
-  function statusColor(id){var c='#94a3b8';FASES.forEach(function(f){f.items.forEach(function(s){if(s.id===id)c=f.color;});});return c;}
+  var ALL_STATUS_IDS=COLS.map(function(c){return c.id;});
+  function statusLabel(id){var f=null;COLS.forEach(function(c){if(c.id===id)f=c;});return f?f.ico+' '+f.lbl:id;}
+  function statusColor(id){var c='#94a3b8';COLS.forEach(function(col){if(col.id===id)c=col.color;});return c;}
 
-  // Handlers
+  // Migrate old statuses to new
+  S.fcData.forEach(function(c){
+    if(ALL_STATUS_IDS.indexOf(c.status)<0){
+      // Map old → new
+      var map={'COLHER_DADOS':'A_FAZER','AGENDAR_PROP':'A_FAZER','A_FAZER_CAPTACAO':'A_FAZER',
+        'CAPTACAO_REALIZADA':'VISITA_REALIZADA','EDICAO_VIDEOS':'EDICAO_FOTOS',
+        'APROVACAO':'EDICAO_FOTOS','A_FAZER_FORMULARIO':'CADASTRO_KENLO',
+        'FORMULARIO_KENLO':'CADASTRO_KENLO','AGENDAR_MLABS':'MLABS',
+        'APROVADO':'FINALIZADO','CONCLUIDO':'FINALIZADO',
+        'PAUSADO':'STAND_BY','REFAZER':'A_FAZER','SUBIR_KENLO':'CADASTRO_KENLO'};
+      c.status=map[c.status]||'A_FAZER';
+    }
+  });
+
+  // ── Handlers ──
   window.fcSetView=function(v){S.fcView=v;render({force:true});};
   window.fcFilterResp=function(r){S.fcFilterResp=(S.fcFilterResp===r?'':r);render({force:true});};
   window.fcFilterStatus=function(st){S.fcFilterStatus=(S.fcFilterStatus===st?'':st);render({force:true});};
@@ -8548,47 +8753,38 @@ function pgFluxoCaptacoes() {
     var old=S.fcData[idx].status;
     S.fcData[idx].status=newStatus;
     S.fcData[idx].updatedAt=new Date().toISOString();
-    // Log de movimentação
     if(!S.fcData[idx].log)S.fcData[idx].log=[];
     S.fcData[idx].log.push({de:old,para:newStatus,por:(S.user?S.user.nome:''),em:new Date().toISOString()});
     _fcSave();
-    // Notificação
-    var resp=S.fcData[idx].responsavel||'';
-    if(resp){
-      toast('\uD83D\uDD14 '+S.fcData[idx].titulo+' movido para '+statusLabel(newStatus)+' (resp: '+resp+')','ok');
-    }
+    toast('\uD83D\uDD14 '+S.fcData[idx].titulo+' \u2192 '+statusLabel(newStatus),'ok');
     render({force:true});
   };
   window.fcDelete=function(idx){
-    if(!confirm('Excluir esta capta\u00e7\u00e3o? Esta a\u00e7\u00e3o n\u00e3o pode ser desfeita.'))return;
-    S.fcData.splice(idx,1);
-    _fcSave();
-    render({force:true});
+    if(!confirm('Excluir esta capta\u00e7\u00e3o?'))return;
+    S.fcData.splice(idx,1);_fcSave();render({force:true});
+  };
+  // ── Drag & Drop handlers ──
+  window._fcDragIdx=null;
+  window.fcDragStart=function(idx){window._fcDragIdx=idx;};
+  window.fcDragOver=function(e){e.preventDefault();e.currentTarget.style.background='rgba(99,102,241,.15)';};
+  window.fcDragLeave=function(e){e.currentTarget.style.background='';};
+  window.fcDropOnCol=function(e,colId){
+    e.preventDefault();e.currentTarget.style.background='';
+    if(window._fcDragIdx===null)return;
+    fcMoveStatus(window._fcDragIdx,colId);
+    window._fcDragIdx=null;
   };
   window.fcSaveForm=function(){
     var get=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
     var titulo=get('fc_titulo');
     if(!titulo){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
     var obj={
-      titulo:titulo,
-      bairro:get('fc_bairro'),
-      tipo:get('fc_tipo'),
-      descricao:get('fc_desc'),
-      proprietario:get('fc_prop'),
-      contato:get('fc_contato'),
-      email:get('fc_email'),
-      objetivo:get('fc_objetivo'),
-      valorVenda:get('fc_valor_venda'),
-      valorLocacao:get('fc_valor_loc'),
-      endereco:get('fc_endereco'),
-      situacao:get('fc_situacao'),
-      codigoKenlo:get('fc_kenlo'),
-      responsavel:get('fc_resp'),
-      dataAgendamento:get('fc_data_agend'),
-      pendencia:get('fc_pendencia'),
-      termoAuth:get('fc_termo'),
-      obs:get('fc_obs'),
-      status:get('fc_status')||'COLHER_DADOS',
+      titulo:titulo,bairro:get('fc_bairro'),tipo:get('fc_tipo'),descricao:get('fc_desc'),
+      proprietario:get('fc_prop'),contato:get('fc_contato'),email:get('fc_email'),
+      objetivo:get('fc_objetivo'),valorVenda:get('fc_valor_venda'),valorLocacao:get('fc_valor_loc'),
+      endereco:get('fc_endereco'),situacao:get('fc_situacao'),codigoKenlo:get('fc_kenlo'),
+      responsavel:get('fc_resp'),dataAgendamento:get('fc_data_agend'),pendencia:get('fc_pendencia'),
+      termoAuth:get('fc_termo'),obs:get('fc_obs'),status:get('fc_status')||'A_FAZER',
       updatedAt:new Date().toISOString()
     };
     if(typeof S.fcEditIdx==='number' && S.fcData[S.fcEditIdx]){
@@ -8603,12 +8799,11 @@ function pgFluxoCaptacoes() {
       S.fcData.push(obj);
       toast('\u2705 Nova capta\u00e7\u00e3o adicionada','ok');
     }
-    _fcSave();
-    S.fcShowForm=false;S.fcEditIdx=null;
-    render({force:true});
+    _fcSave();S.fcShowForm=false;S.fcEditIdx=null;render({force:true});
   };
   function _fcSave(){
     try{localStorage.setItem('psm_fluxo_captacoes',JSON.stringify(S.fcData));}catch(e){}
+    saveState();
   }
 
   // Filter data
@@ -8617,69 +8812,81 @@ function pgFluxoCaptacoes() {
   if(S.fcFilterStatus) items=items.filter(function(c){return c.status===S.fcFilterStatus;});
   if(S.fcSearch){
     var q=S.fcSearch.toLowerCase();
-    items=items.filter(function(c){return (c.titulo||'').toLowerCase().indexOf(q)>=0||(c.bairro||'').toLowerCase().indexOf(q)>=0||(c.proprietario||'').toLowerCase().indexOf(q)>=0||(c.endereco||'').toLowerCase().indexOf(q)>=0;});
+    items=items.filter(function(c){return (c.titulo||'').toLowerCase().indexOf(q)>=0||(c.bairro||'').toLowerCase().indexOf(q)>=0||(c.proprietario||'').toLowerCase().indexOf(q)>=0;});
   }
 
   // Stats
-  var stats={};
-  ALL_STATUS.forEach(function(s){stats[s.id]=0;});
+  var stats={};COLS.forEach(function(c){stats[c.id]=0;});
   S.fcData.forEach(function(c){stats[c.status]=(stats[c.status]||0)+1;});
 
-  var h='<div style="padding:24px;max-width:1800px;margin:0 auto;">';
+  var h='<div style="padding:20px;max-width:100%;margin:0 auto;">';
 
-  // HEADER
-  h+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:20px;">';
+  // ── HEADER ──
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:16px;">';
   h+='<div>';
-  h+='<h2 style="margin:0;color:var(--navy);font-size:1.4rem;font-weight:800;">\uD83C\uDFE0 Fluxo de Capta\u00e7\u00f5es PSM</h2>';
-  h+='<p style="margin:4px 0 0;color:var(--muted);font-size:.82rem;">Controle completo do processo de capta\u00e7\u00e3o \u2014 do agendamento \u00e0 publica\u00e7\u00e3o</p>';
+  h+='<h2 style="margin:0;color:var(--navy);font-size:1.5rem;font-weight:800;">\uD83C\uDFE0 Fluxo de Capta\u00e7\u00f5es PSM</h2>';
+  h+='<p style="margin:4px 0 0;color:var(--muted);font-size:.82rem;">Controle completo do processo de capta\u00e7\u00e3o</p>';
   h+='</div>';
   h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
-  h+='<input type="search" placeholder="\uD83D\uDD0D Buscar..." value="'+(S.fcSearch||'')+'" oninput="fcSearch(this.value)" style="padding:8px 12px;border:1px solid var(--cream3);border-radius:8px;font-size:.82rem;width:200px;background:var(--cream1);color:var(--navy);">';
-  h+='<select onchange="fcFilterResp(this.value)" style="padding:8px 12px;border:1px solid var(--cream3);border-radius:8px;font-size:.82rem;background:var(--cream1);color:var(--navy);"><option value="">Todos respons\u00e1veis</option>';
+  h+='<input type="search" placeholder="\uD83D\uDD0D Buscar..." value="'+(S.fcSearch||'')+'" oninput="fcSearch(this.value)" style="padding:8px 12px;border:1px solid var(--cream3);border-radius:8px;font-size:.82rem;width:180px;background:var(--cream1);color:var(--navy);">';
+  h+='<select onchange="fcFilterResp(this.value)" style="padding:8px;border:1px solid var(--cream3);border-radius:8px;font-size:.82rem;background:var(--cream1);color:var(--navy);"><option value="">Todos</option>';
   RESP_OPTIONS.forEach(function(r){h+='<option value="'+r+'"'+(S.fcFilterResp===r?' selected':'')+'>'+r+'</option>';});
   h+='</select>';
-  var viewBtnStyle=function(v){return 'padding:8px 12px;border:1px solid '+(S.fcView===v?'var(--gold)':'var(--cream3)')+';border-radius:8px;background:'+(S.fcView===v?'var(--gold)':'transparent')+';color:'+(S.fcView===v?'#fff':'var(--mid)')+';font-size:.78rem;font-weight:700;cursor:pointer;';};
-  h+='<button onclick="fcSetView(\'kanban\')" style="'+viewBtnStyle('kanban')+'">\u25A6 Kanban</button>';
-  h+='<button onclick="fcSetView(\'lista\')" style="'+viewBtnStyle('lista')+'">\u2630 Lista</button>';
+  var vbs=function(v){return 'padding:8px 14px;border:1px solid '+(S.fcView===v?'var(--gold)':'var(--cream3)')+';border-radius:8px;background:'+(S.fcView===v?'var(--gold)':'transparent')+';color:'+(S.fcView===v?'#fff':'var(--mid)')+';font-size:.78rem;font-weight:700;cursor:pointer;';};
+  h+='<button onclick="fcSetView(\'kanban\')" style="'+vbs('kanban')+'">\u25A6 Kanban</button>';
+  h+='<button onclick="fcSetView(\'lista\')" style="'+vbs('lista')+'">\u2630 Lista</button>';
   h+='<button onclick="fcOpenForm()" class="btn btn-gold" style="font-size:.82rem;"><span>+ Nova Capta\u00e7\u00e3o</span></button>';
   h+='</div></div>';
 
-  // STATS CARDS
-  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:18px;">';
-  FASES.forEach(function(f){
-    var count=0;f.items.forEach(function(s){count+=stats[s.id]||0;});
-    h+='<div style="background:'+f.bg+';border:1px solid '+f.color+'33;border-radius:10px;padding:10px 12px;text-align:center;">';
-    h+='<div style="font-size:1.4rem;font-weight:900;color:'+f.color+';">'+count+'</div>';
-    h+='<div style="font-size:.68rem;font-weight:700;color:'+f.color+';text-transform:uppercase;letter-spacing:.4px;">'+f.grupo+'</div>';
+  // ── NOTIFICATIONS (below title) ──
+  var pendentes=S.fcData.filter(function(c){return c.pendencia && c.pendencia!=='ATUALIZADO';});
+  if(pendentes.length>0){
+    h+='<div style="background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:12px 16px;margin-bottom:16px;">';
+    h+='<div style="font-size:.82rem;font-weight:800;color:#ef4444;margin-bottom:8px;">\uD83D\uDD14 Pend\u00eancias ('+pendentes.length+')</div>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+    pendentes.forEach(function(c){
+      var ri=S.fcData.indexOf(c);
+      h+='<div onclick="fcOpenForm('+ri+')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(239,68,68,.08);border-radius:8px;font-size:.75rem;cursor:pointer;border:1px solid rgba(239,68,68,.15);">';
+      h+='<span style="color:#ef4444;font-weight:700;">\u26a0</span>';
+      h+='<span style="color:var(--navy);font-weight:600;">'+c.titulo+'</span>';
+      h+='<span style="color:var(--muted);">'+c.pendencia+'</span>';
+      h+='</div>';
+    });
+    h+='</div></div>';
+  }
+
+  // ── STATS ──
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-bottom:14px;">';
+  COLS.forEach(function(col){
+    var cnt=stats[col.id]||0;
+    h+='<div onclick="fcFilterStatus(\''+col.id+'\')" style="background:'+col.bg+';border:1px solid '+col.color+'33;border-radius:8px;padding:8px;text-align:center;cursor:pointer;'+(S.fcFilterStatus===col.id?'box-shadow:0 0 0 2px '+col.color+';':'')+'"">';
+    h+='<div style="font-size:1.2rem;font-weight:900;color:'+col.color+';">'+cnt+'</div>';
+    h+='<div style="font-size:.58rem;font-weight:700;color:'+col.color+';text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+col.lbl.replace(/\(.*\)/,'').trim()+'</div>';
     h+='</div>';
   });
-  var totalCap=S.fcData.length;
-  h+='<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:10px;padding:10px 12px;text-align:center;">';
-  h+='<div style="font-size:1.4rem;font-weight:900;color:#6366f1;">'+totalCap+'</div>';
-  h+='<div style="font-size:.68rem;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.4px;">Total</div>';
-  h+='</div></div>';
+  h+='</div>';
 
-  // ─── FORM MODAL ──────────────────────────────────────────
+  // ── FORM MODAL ──
   if(S.fcShowForm){
     var ed=(typeof S.fcEditIdx==='number')?S.fcData[S.fcEditIdx]:null;
-    var gv=function(k){return ed?((ed[k]||'').toString().replace(/"/g,'&quot;')):'';}; // get val
+    var gv=function(k){return ed?((ed[k]||'').toString().replace(/"/g,'&quot;')):'';};
     h+='<div style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:30px 10px;overflow-y:auto;" onclick="if(event.target===this)fcCloseForm()">';
-    h+='<div onclick="event.stopPropagation()" style="background:#fff;border-radius:14px;padding:28px;width:680px;max-width:95vw;border:1px solid var(--cream3);box-shadow:0 12px 40px rgba(0,0,0,.18);">';
+    h+='<div onclick="event.stopPropagation()" style="background:#fff;border-radius:14px;padding:28px;width:700px;max-width:95vw;border:1px solid var(--cream3);box-shadow:0 12px 40px rgba(0,0,0,.18);">';
     h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">';
     h+='<h3 style="margin:0;color:var(--navy);font-size:1.1rem;font-weight:800;">'+(ed?'\u270F Editar':'\u2795 Nova')+' Capta\u00e7\u00e3o</h3>';
     h+='<button onclick="fcCloseForm()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">\u2715</button></div>';
     var fld=function(id,lbl,type,val,opts){
       var s='<div style="margin-bottom:12px;"><label style="font-size:11px;font-weight:700;color:var(--mid);display:block;margin-bottom:4px;">'+lbl+'</label>';
       if(type==='select'){
-        s+='<select id="'+id+'" class="sel-f" style="width:100%;padding:8px;border:1px solid var(--cream3);border-radius:6px;font-size:.82rem;"><option value="">Selecione...</option>';
+        s+='<select id="'+id+'" style="width:100%;padding:8px;border:1px solid var(--cream3);border-radius:6px;font-size:.82rem;"><option value="">Selecione...</option>';
         (opts||[]).forEach(function(o){s+='<option value="'+o+'"'+(val===o?' selected':'')+'>'+o+'</option>';});
         s+='</select>';
       }else if(type==='textarea'){
-        s+='<textarea id="'+id+'" rows="3" class="df-inp" style="width:100%;padding:8px;font-size:.82rem;resize:vertical;">'+val+'</textarea>';
+        s+='<textarea id="'+id+'" rows="3" style="width:100%;padding:8px;font-size:.82rem;resize:vertical;border:1px solid var(--cream3);border-radius:6px;">'+val+'</textarea>';
       }else{
-        s+='<input id="'+id+'" type="'+(type||'text')+'" class="df-inp" style="width:100%;padding:8px;font-size:.82rem;" value="'+val+'">';
+        s+='<input id="'+id+'" type="'+(type||'text')+'" style="width:100%;padding:8px;font-size:.82rem;border:1px solid var(--cream3);border-radius:6px;" value="'+val+'">';
       }
-      s+='</div>';return s;
+      return s+'</div>';
     };
     h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px;">';
     h+=fld('fc_titulo','T\u00edtulo / Im\u00f3vel *','text',gv('titulo'));
@@ -8687,68 +8894,69 @@ function pgFluxoCaptacoes() {
     h+=fld('fc_tipo','Tipo de Im\u00f3vel','select',gv('tipo'),TIPO_IMOVEL);
     h+=fld('fc_objetivo','Objetivo','select',gv('objetivo'),OBJETIVO_OPTIONS);
     h+=fld('fc_prop','Propriet\u00e1rio + contato','text',gv('proprietario'));
-    h+=fld('fc_contato','Telefone contato','text',gv('contato'));
+    h+=fld('fc_contato','Telefone','text',gv('contato'));
     h+=fld('fc_email','Email','email',gv('email'));
-    h+=fld('fc_endereco','Endere\u00e7o (Quadra/Lote/Rua/N\u00ba)','text',gv('endereco'));
-    h+=fld('fc_valor_venda','Valor de Venda','text',gv('valorVenda'));
+    h+=fld('fc_endereco','Endere\u00e7o','text',gv('endereco'));
+    h+=fld('fc_valor_venda','Valor Venda','text',gv('valorVenda'));
     h+=fld('fc_valor_loc','Valor Loca\u00e7\u00e3o / Cond / IPTU','text',gv('valorLocacao'));
-    h+=fld('fc_situacao','Situa\u00e7\u00e3o do Im\u00f3vel','select',gv('situacao'),SITUACAO_IMOVEL);
+    h+=fld('fc_situacao','Situa\u00e7\u00e3o','select',gv('situacao'),SITUACAO_IMOVEL);
     h+=fld('fc_kenlo','C\u00f3digo Kenlo','text',gv('codigoKenlo'));
-    h+=fld('fc_resp','Respons\u00e1vel Atual','select',gv('responsavel'),RESP_OPTIONS);
+    h+=fld('fc_resp','Respons\u00e1vel','select',gv('responsavel'),RESP_OPTIONS);
     h+=fld('fc_data_agend','Data Agendamento','date',gv('dataAgendamento'));
     h+=fld('fc_pendencia','Pend\u00eancia','select',gv('pendencia'),PENDENCIAS);
-    h+=fld('fc_termo','Termo de Autoriza\u00e7\u00e3o','select',gv('termoAuth'),TERMO_AUTH);
-    var allStatusOpts=[];ALL_STATUS.forEach(function(s){allStatusOpts.push(s.id);});
-    h+=fld('fc_status','Status','select',gv('status')||'COLHER_DADOS',allStatusOpts);
+    h+=fld('fc_termo','Termo Autoriza\u00e7\u00e3o','select',gv('termoAuth'),TERMO_AUTH);
+    h+=fld('fc_status','Status','select',gv('status')||'A_FAZER',ALL_STATUS_IDS);
     h+='</div>';
-    h+=fld('fc_desc','Descri\u00e7\u00e3o do Im\u00f3vel','textarea',gv('descricao'));
+    h+=fld('fc_desc','Descri\u00e7\u00e3o','textarea',gv('descricao'));
     h+=fld('fc_obs','Observa\u00e7\u00e3o','textarea',gv('obs'));
     h+='<div style="display:flex;gap:8px;margin-top:6px;">';
-    h+='<button onclick="fcSaveForm()" class="btn btn-gold" style="flex:1;font-size:.88rem;"><span>'+(ed?'Salvar Altera\u00e7\u00f5es':'Adicionar Capta\u00e7\u00e3o')+'</span></button>';
+    h+='<button onclick="fcSaveForm()" class="btn btn-gold" style="flex:1;font-size:.88rem;"><span>'+(ed?'Salvar':'Adicionar')+'</span></button>';
     h+='<button onclick="fcCloseForm()" class="btn" style="padding:10px 20px;border:1px solid var(--cream3);color:var(--mid);font-size:.82rem;">Cancelar</button>';
+    if(ed){h+='<button onclick="fcDelete('+S.fcEditIdx+');fcCloseForm()" style="padding:10px 16px;border:1px solid #fee2e2;border-radius:8px;background:transparent;color:#ef4444;font-size:.82rem;cursor:pointer;">\uD83D\uDDD1 Excluir</button>';}
     h+='</div></div></div>';
   }
 
-  // ─── KANBAN VIEW ─────────────────────────────────────────
+  // ─── KANBAN VIEW (with drag & drop) ─────────
   if(S.fcView==='kanban'){
-    h+='<div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;align-items:flex-start;">';
-    FASES.forEach(function(fase){
-      h+='<div style="min-width:260px;max-width:300px;flex:1;background:'+fase.bg+';border:1px solid '+fase.color+'22;border-radius:12px;padding:12px;">';
-      h+='<div style="font-size:.78rem;font-weight:800;color:'+fase.color+';text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid '+fase.color+'33;">'+fase.grupo+'</div>';
-      fase.items.forEach(function(status){
-        var cardsForStatus=items.filter(function(c){return c.status===status.id;});
-        if(cardsForStatus.length===0 && !S.fcFilterStatus) return;
-        h+='<div style="margin-bottom:8px;">';
-        h+='<div onclick="fcFilterStatus(\''+status.id+'\')" style="font-size:.72rem;font-weight:700;color:'+fase.color+';cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:4px;">';
-        h+=status.ico+' '+status.lbl+' <span style="background:'+fase.color+';color:#fff;font-size:.6rem;padding:1px 6px;border-radius:8px;margin-left:auto;">'+cardsForStatus.length+'</span></div>';
-        cardsForStatus.forEach(function(c){
-          var realIdx=S.fcData.indexOf(c);
-          h+='<div style="background:#fff;border:1px solid var(--cream3);border-left:3px solid '+fase.color+';border-radius:8px;padding:10px;margin-top:6px;box-shadow:0 1px 4px rgba(0,0,0,.06);cursor:pointer;" onclick="fcOpenForm('+realIdx+')">';
-          h+='<div style="font-weight:700;font-size:.8rem;color:var(--navy);margin-bottom:4px;">'+c.titulo+'</div>';
-          if(c.bairro)h+='<div style="font-size:.7rem;color:var(--muted);">\uD83D\uDCCD '+c.bairro+'</div>';
-          h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:.66rem;">';
-          if(c.responsavel)h+='<span style="background:rgba(59,130,246,.1);color:#3b82f6;padding:2px 6px;border-radius:4px;font-weight:700;">'+c.responsavel+'</span>';
-          if(c.objetivo)h+='<span style="color:var(--muted);">'+c.objetivo+'</span>';
-          h+='</div>';
-          if(c.pendencia && c.pendencia!=='ATUALIZADO')h+='<div style="font-size:.62rem;color:#ef4444;margin-top:4px;font-weight:600;">\u26a0 '+c.pendencia+'</div>';
-          // Mini status move buttons
-          h+='<div style="display:flex;gap:3px;margin-top:6px;flex-wrap:wrap;" onclick="event.stopPropagation()">';
-          var curFaseIdx=-1,curItemIdx=-1;
-          FASES.forEach(function(f,fi){f.items.forEach(function(s,si){if(s.id===c.status){curFaseIdx=fi;curItemIdx=si;}});});
-          // Prev
-          var prevStatus=null;
-          if(curItemIdx>0) prevStatus=FASES[curFaseIdx].items[curItemIdx-1].id;
-          else if(curFaseIdx>0){var pf=FASES[curFaseIdx-1].items;prevStatus=pf[pf.length-1].id;}
-          // Next
-          var nextStatus=null;
-          if(curItemIdx<FASES[curFaseIdx].items.length-1) nextStatus=FASES[curFaseIdx].items[curItemIdx+1].id;
-          else if(curFaseIdx<FASES.length-2){nextStatus=FASES[curFaseIdx+1].items[0].id;}
-          if(prevStatus)h+='<button onclick="fcMoveStatus('+realIdx+',\''+prevStatus+'\')" style="font-size:9px;padding:2px 6px;border:1px solid var(--cream3);border-radius:4px;background:transparent;color:var(--mid);cursor:pointer;" title="Voltar">\u25C0</button>';
-          if(nextStatus)h+='<button onclick="fcMoveStatus('+realIdx+',\''+nextStatus+'\')" style="font-size:9px;padding:2px 6px;border:1px solid '+fase.color+'44;border-radius:4px;background:'+fase.color+'11;color:'+fase.color+';cursor:pointer;font-weight:700;" title="Avan\u00e7ar">\u25B6 Avan\u00e7ar</button>';
-          h+='<button onclick="fcDelete('+realIdx+')" style="font-size:9px;padding:2px 6px;border:1px solid #fee2e2;border-radius:4px;background:transparent;color:#ef4444;cursor:pointer;margin-left:auto;" title="Excluir">\uD83D\uDDD1</button>';
-          h+='</div>';
-          h+='</div>';
-        });
+    h+='<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:12px;align-items:flex-start;">';
+    COLS.forEach(function(col){
+      var colItems=items.filter(function(c){return c.status===col.id;});
+      h+='<div ondragover="fcDragOver(event)" ondragleave="fcDragLeave(event)" ondrop="fcDropOnCol(event,\''+col.id+'\')" style="min-width:220px;max-width:260px;flex:1;background:'+col.bg+';border:1px solid '+col.color+'22;border-radius:10px;padding:10px;transition:background .2s;">';
+      // Column header
+      h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid '+col.color+'33;">';
+      h+='<span style="font-size:.7rem;font-weight:800;color:'+col.color+';text-transform:uppercase;letter-spacing:.3px;">'+col.ico+' '+col.lbl+'</span>';
+      h+='<span style="background:'+col.color+';color:#fff;font-size:.6rem;padding:2px 8px;border-radius:10px;font-weight:800;">'+colItems.length+'</span>';
+      h+='</div>';
+      // Cards
+      if(colItems.length===0){
+        h+='<div style="text-align:center;padding:20px 8px;color:var(--muted);font-size:.72rem;font-style:italic;">Arraste cart\u00f5es aqui</div>';
+      }
+      colItems.forEach(function(c){
+        var ri=S.fcData.indexOf(c);
+        h+='<div draggable="true" ondragstart="fcDragStart('+ri+')" onclick="fcOpenForm('+ri+')" style="background:#fff;border:1px solid var(--cream3);border-left:4px solid '+col.color+';border-radius:8px;padding:10px;margin-bottom:6px;box-shadow:0 1px 4px rgba(0,0,0,.06);cursor:grab;transition:transform .15s,box-shadow .15s;" onmouseover="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,.12)\';" onmouseout="this.style.transform=\'\';this.style.boxShadow=\'0 1px 4px rgba(0,0,0,.06)\';">';
+        // Nome
+        h+='<div style="font-weight:700;font-size:.8rem;color:var(--navy);margin-bottom:4px;line-height:1.3;">'+c.titulo+'</div>';
+        // Responsavel badge
+        if(c.responsavel)h+='<div style="margin-bottom:4px;"><span style="display:inline-block;background:rgba(59,130,246,.1);color:#3b82f6;padding:2px 8px;border-radius:12px;font-size:.65rem;font-weight:700;">\uD83D\uDC64 '+c.responsavel+'</span></div>';
+        // Status tag
+        h+='<div style="margin-bottom:4px;"><span style="display:inline-block;background:'+col.color+'15;color:'+col.color+';padding:2px 8px;border-radius:12px;font-size:.6rem;font-weight:700;">'+col.ico+' '+col.lbl.replace(/\(.*\)/,'').trim()+'</span></div>';
+        // Objetivo
+        if(c.objetivo)h+='<div style="font-size:.65rem;color:var(--muted);font-weight:600;">\uD83C\uDFAF '+c.objetivo+(c.tipo?' \u2022 '+c.tipo:'')+'</div>';
+        // Pendencia warning
+        if(c.pendencia && c.pendencia!=='ATUALIZADO')h+='<div style="font-size:.62rem;color:#ef4444;margin-top:4px;font-weight:600;">\u26a0 '+c.pendencia+'</div>';
+        // Action buttons
+        h+='<div style="display:flex;gap:3px;margin-top:6px;flex-wrap:wrap;" onclick="event.stopPropagation()">';
+        var cidx=ALL_STATUS_IDS.indexOf(c.status);
+        if(cidx>0){
+          var prev=ALL_STATUS_IDS[cidx-1];
+          h+='<button onclick="fcMoveStatus('+ri+',\''+prev+'\')" style="font-size:9px;padding:2px 6px;border:1px solid var(--cream3);border-radius:4px;background:transparent;color:var(--mid);cursor:pointer;" title="Voltar">\u25C0</button>';
+        }
+        if(cidx<ALL_STATUS_IDS.length-1){
+          var nxt=ALL_STATUS_IDS[cidx+1];
+          h+='<button onclick="fcMoveStatus('+ri+',\''+nxt+'\')" style="font-size:9px;padding:2px 6px;border:1px solid '+col.color+'44;border-radius:4px;background:'+col.color+'11;color:'+col.color+';cursor:pointer;font-weight:700;" title="Avan\u00e7ar">\u25B6</button>';
+        }
+        h+='<button onclick="fcDelete('+ri+')" style="font-size:9px;padding:2px 6px;border:1px solid #fee2e2;border-radius:4px;background:transparent;color:#ef4444;cursor:pointer;margin-left:auto;" title="Excluir">\uD83D\uDDD1</button>';
+        h+='</div>';
         h+='</div>';
       });
       h+='</div>';
@@ -8756,7 +8964,7 @@ function pgFluxoCaptacoes() {
     h+='</div>';
   }
 
-  // ─── LISTA VIEW ──────────────────────────────────────────
+  // ─── LISTA VIEW ──────────
   if(S.fcView==='lista'){
     h+='<div style="background:#fff;border:1px solid var(--cream3);border-radius:12px;padding:16px;overflow-x:auto;">';
     h+='<table style="width:100%;border-collapse:collapse;font-size:.78rem;">';
@@ -8767,9 +8975,8 @@ function pgFluxoCaptacoes() {
       h+='<tr><td colspan="8" style="padding:40px;text-align:center;color:var(--muted);">Nenhuma capta\u00e7\u00e3o encontrada.</td></tr>';
     }else{
       items.forEach(function(c){
-        var realIdx=S.fcData.indexOf(c);
-        var sc=statusColor(c.status);
-        h+='<tr style="border-bottom:1px solid var(--cream2);cursor:pointer;" onclick="fcOpenForm('+realIdx+')">';
+        var ri=S.fcData.indexOf(c);var sc=statusColor(c.status);
+        h+='<tr style="border-bottom:1px solid var(--cream2);cursor:pointer;" onclick="fcOpenForm('+ri+')">';
         h+='<td style="padding:10px 6px;font-weight:700;color:var(--navy);">'+c.titulo+'</td>';
         h+='<td style="padding:10px 6px;color:var(--muted);">'+(c.bairro||'\u2014')+'</td>';
         h+='<td style="padding:10px 6px;">'+(c.tipo||'\u2014')+'</td>';
@@ -8778,29 +8985,12 @@ function pgFluxoCaptacoes() {
         h+='<td style="padding:10px 6px;"><span style="color:'+sc+';font-weight:700;font-size:.72rem;">'+statusLabel(c.status)+'</span></td>';
         h+='<td style="padding:10px 6px;font-size:.7rem;color:'+(c.pendencia&&c.pendencia!=='ATUALIZADO'?'#ef4444':'var(--muted)')+';">'+(c.pendencia||'\u2014')+'</td>';
         h+='<td style="padding:10px 6px;" onclick="event.stopPropagation()">';
-        h+='<button onclick="fcOpenForm('+realIdx+')" style="font-size:10px;padding:3px 8px;border:1px solid var(--cream3);border-radius:4px;background:transparent;color:#2563eb;cursor:pointer;margin-right:4px;">\u270F</button>';
-        h+='<button onclick="fcDelete('+realIdx+')" style="font-size:10px;padding:3px 8px;border:1px solid #fee2e2;border-radius:4px;background:transparent;color:#ef4444;cursor:pointer;">\uD83D\uDDD1</button>';
+        h+='<button onclick="fcOpenForm('+ri+')" style="font-size:10px;padding:3px 8px;border:1px solid var(--cream3);border-radius:4px;background:transparent;color:#2563eb;cursor:pointer;margin-right:4px;">\u270F</button>';
+        h+='<button onclick="fcDelete('+ri+')" style="font-size:10px;padding:3px 8px;border:1px solid #fee2e2;border-radius:4px;background:transparent;color:#ef4444;cursor:pointer;">\uD83D\uDDD1</button>';
         h+='</td></tr>';
       });
     }
     h+='</tbody></table></div>';
-  }
-
-  // Notificações pendentes (items com pendência não ATUALIZADO)
-  var pendentes=S.fcData.filter(function(c){return c.pendencia && c.pendencia!=='ATUALIZADO';});
-  if(pendentes.length>0){
-    h+='<div style="margin-top:18px;background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:16px;">';
-    h+='<div style="font-size:.88rem;font-weight:800;color:#ef4444;margin-bottom:10px;">\uD83D\uDD14 Pend\u00eancias que precisam de aten\u00e7\u00e3o ('+pendentes.length+')</div>';
-    pendentes.forEach(function(c){
-      var realIdx=S.fcData.indexOf(c);
-      h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(239,68,68,.1);font-size:.78rem;cursor:pointer;" onclick="fcOpenForm('+realIdx+')">';
-      h+='<span style="color:#ef4444;font-weight:700;">\u26a0</span>';
-      h+='<span style="color:var(--navy);font-weight:600;">'+c.titulo+'</span>';
-      h+='<span style="color:var(--muted);">\u2014 '+c.pendencia+'</span>';
-      if(c.responsavel)h+='<span style="margin-left:auto;background:rgba(59,130,246,.1);color:#3b82f6;padding:2px 8px;border-radius:4px;font-size:.68rem;font-weight:700;">'+c.responsavel+'</span>';
-      h+='</div>';
-    });
-    h+='</div>';
   }
 
   h+='</div>';
@@ -10855,7 +11045,7 @@ function pgLancamentosAno() {
     { mes: 10, nome: 'BIO CITY 2', cor: '#0f172a' }
   ];
 
-  if (!S.lancTimeline || !S.lancTimeline.length) S.lancTimeline = DEFAULT_LANC.map(function(l,i){ return { id: i, mes: l.mes, nome: l.nome, cor: l.cor, meta_vgv: 0, meta_pastas: 0 }; });
+  if (!S.lancTimeline) S.lancTimeline = DEFAULT_LANC.map(function(l,i){ return { id: i, mes: l.mes, nome: l.nome, cor: l.cor, meta_vgv: 0, meta_pastas: 0 }; });
   var LANC = S.lancTimeline;
 
   var byMonth = {};
@@ -11000,7 +11190,7 @@ function updLancMeta(idx, key, val) {
   if (!S.lancTimeline || idx < 0 || idx >= S.lancTimeline.length) return;
   S.lancTimeline[idx][key] = val;
   saveLancData();
-  render();
+  toast('\u2705 Salvo: ' + key + ' = ' + val, 'ok');
 }
 
 function saveLancData() {
