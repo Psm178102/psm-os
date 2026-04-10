@@ -14978,8 +14978,8 @@ function route() {
     case 'sim_energia':      return pgPlaceholder('Simulador de Energia','Em breve: simulador de custos de energia.');
     case 'kenlo':            return pgPlaceholder('Kenlo','Em breve: integra\u00e7\u00e3o com Kenlo.');
     // Marketing
-    case 'crono_conquista':  return pgPlaceholder('Cronograma Conquista','Em breve: cronograma de postagens Conquista.');
-    case 'crono_psm':        return pgPlaceholder('Cronograma PSM','Em breve: cronograma de postagens PSM.');
+    case 'crono_conquista':  S.mkTab='cronograma'; return pgMarketing();
+    case 'crono_psm':        S.mkTab='cronoimoveis'; return pgMarketing();
     case 'curadoria_conquista': return pgPlaceholder('Curadoria Conquista','Em breve: curadoria de conte\u00fados Conquista.');
     case 'curadoria_psm':    return pgPlaceholder('Curadoria PSM','Em breve: curadoria de conte\u00fados PSM.');
     case 'gerador_img':      return pgCriacaoImg();
