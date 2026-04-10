@@ -894,7 +894,7 @@ function calcOKRs(){
   return [
     {id:'okr1',obj:'Atingir meta de VGV mensal',ciclo:M.mes||'—',prog:pctVgv,status:pctVgv>=80?'on_track':pctVgv>=50?'at_risk':'off_track',
      krs:[
-       {label:'VGV >= '+fmt(vgvMeta),curr:vgvReal/1000000,target:vgvMeta/1000000,unit:'M',pct:pctVgv,status:pctVgv>=80?'on_track':'at_risk'},
+       {label:'VGV >= '+fmt(vgvMeta),curr:vgvReal,target:vgvMeta,unit:'R$',pct:pctVgv,status:pctVgv>=80?'on_track':'at_risk'},
        {label:vendMeta+' vendas no mês',curr:vendReal,target:vendMeta,unit:'un',pct:pctVend,status:pctVend>=80?'on_track':'at_risk'},
        {label:'CRM score médio >= 70',curr:crmMedio,target:70,unit:'pts',pct:parseFloat((crmMedio/70*100).toFixed(2)),status:crmMedio>=70?'on_track':'at_risk'},
      ]},
@@ -1148,6 +1148,7 @@ function saveState(skipFbPush) {
       connectors: S.connectors || {},
       integrations: S.integrations || {},
       lancTimeline: S.lancTimeline || [],
+      mg: S.mg || null,
       opEventos: S.opEventos || [],
       opTreinamentos: S.opTreinamentos || [],
       agendaReunioes: S.agendaReunioes || [],
@@ -1262,6 +1263,7 @@ function loadState() {
     if (d.connectors) S.connectors = {...S.connectors, ...d.connectors};
     try { const _ii = localStorage.getItem('psm_integrations'); if (_ii) S.integrations = JSON.parse(_ii); } catch(e) {}
     if (d.lancTimeline) S.lancTimeline = d.lancTimeline;
+    if (d.mg) { S.mg = d.mg; try { localStorage.setItem('psm_meta_global', JSON.stringify(d.mg)); } catch(e){} }
     if (d.opEventos) S.opEventos = d.opEventos;
     if (d.opTreinamentos) S.opTreinamentos = d.opTreinamentos;
     if (d.agendaReunioes) S.agendaReunioes = d.agendaReunioes;
@@ -3125,7 +3127,7 @@ function pgMetasV2(){
   function metaTotal(i){return (m.metaImpper[i]||0)+(m.metaTerc[i]||0)+(m.metaEstMAP[i]||0)+(m.metaEstConq[i]||0)+(m.metaLanc[i]||0);}
   function sum(arr){return arr.reduce(function(a,b){return a+(b||0);},0);}
   function fmtBR(v){if(!v||v===0)return 'R$ 0';return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
-  function fmtCompact(v){if(!v)return 'R$ 0';var a=Math.abs(v),s=v<0?'-':'';if(a>=1e6)return s+'R$ '+(a/1e6).toFixed(1).replace('.0','')+'M';if(a>=1e3)return s+'R$ '+Math.round(a/1e3)+'k';return s+'R$ '+a;}
+  function fmtCompact(v){if(!v)return 'R$ 0';return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
   function pct(v){return (v*100).toFixed(1)+'%';}
 
   var totalArr=[];for(var i=0;i<12;i++)totalArr.push(metaTotal(i));
@@ -6089,7 +6091,7 @@ function pgOO() {
 
     // Header do mes
     content += '<div style="text-align:center;margin:16px 0 8px">';
-    content += '<span style="font-size:22px;font-weight:700;color:#f8fafc">' + monthNames[curMonth] + ' ' + curYear + '</span>';
+    content += '<span style="font-size:22px;font-weight:700;color:var(--navy)">' + monthNames[curMonth] + ' ' + curYear + '</span>';
     content += '<span style="font-size:13px;color:#94a3b8;margin-left:12px">' + workPassed + '/' + workDays + ' dias \u00fateis \u00B7 ' + workRemain + ' restantes</span>';
     content += '</div>';
 
@@ -6144,7 +6146,7 @@ function pgOO() {
       content += '<div style="font-size:14px;font-weight:600;color:' + c.cor + ';margin-bottom:4px">' + c.icon + ' ' + c.l + '</div>';
       content += '<div style="display:flex;align-items:center;justify-content:center;gap:6px">';
       content += '<button onclick="ooDecField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:' + c.cor + '30;color:' + c.cor + ';border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">\u2212</button>';
-      content += '<span id="oo_val_' + c.k + '" style="font-size:20px;font-weight:800;color:#f8fafc;min-width:32px;text-align:center">' + val + '</span>';
+      content += '<span id="oo_val_' + c.k + '" style="font-size:20px;font-weight:800;color:var(--navy);min-width:32px;text-align:center">' + val + '</span>';
       content += '<input id="oo_input_' + c.k + '" type="hidden" value="' + val + '">';
       content += '<button onclick="ooIncField(\'' + selBid + '\',\'' + selMonthKey + '\',\'' + selDayKey + '\',\'' + c.k + '\')" style="background:' + c.cor + '30;color:' + c.cor + ';border:none;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>';
       content += '</div></div>';
@@ -6155,7 +6157,7 @@ function pgOO() {
     content += '</div>'; // end card
 
     // === FUNIL DO MES com taxas de conversao ===
-    content += '<div style="margin:16px 0;text-align:center"><span style="font-size:20px;font-weight:700;color:#94a3b8">FUNIL DO M\u00CAS</span></div>';
+    content += '<div style="margin:16px 0;text-align:center"><span style="font-size:20px;font-weight:700;color:var(--navy)">FUNIL DO M\u00CAS</span></div>';
     var funnelData = hasDailyData ? realMes : cache;
     // Use funnel custom da equipe
     var funilMes = ooGetFunilEquipe(ooGetFrenteForBroker(selBid));
@@ -6181,7 +6183,7 @@ function pgOO() {
       var v = funnelData[c.k] || 0;
       content += '<div style="background:' + c.cor + '20;border:1px solid ' + c.cor + '40;border-radius:10px;padding:10px 8px;text-align:center">';
       content += '<div style="font-size:14px;font-weight:600;color:' + c.cor + ';margin-bottom:4px">' + c.icon + ' ' + c.l + '</div>';
-      content += '<div style="font-size:24px;font-weight:800;color:#f8fafc">' + v + '</div>';
+      content += '<div style="font-size:24px;font-weight:800;color:var(--navy)">' + v + '</div>';
       content += '</div>';
     });
     content += '</div>';
@@ -6436,7 +6438,7 @@ function pgOO() {
     var sheetMes = (cache && cache.monthly && cache.monthly[monthKey]) ? cache.monthly[monthKey] : cache;
 
     // ─── HEADER ──────────────────────────────────────────────────────────────
-    content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:6px;text-align:center">\uD83D\uDCCA M\u00e9tricas Individuais \u2014 ' + monthNames[curMonth] + ' ' + curYear + '</div>';
+    content += '<div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:6px;text-align:center">\uD83D\uDCCA M\u00e9tricas Individuais \u2014 ' + monthNames[curMonth] + ' ' + curYear + '</div>';
     content += '<div style="font-size:11px;color:#64748b;margin-bottom:16px;text-align:center">RD CRM = fonte oficial \u00B7 Sistema One on One = preenchido pelo corretor</div>';
 
     // ─── BLOCO 1: DADOS REAIS DO RD CRM ─────────────────────────────────────
@@ -6448,7 +6450,7 @@ function pgOO() {
       {ic:'\uD83D\uDD04', lbl:'Negocia\u00e7\u00f5es em Andamento', val: rd.neg_andamento,  sub:'oportunidades abertas'},
       {ic:'\u274C',       lbl:'Descartados',             val: rd.desc,          sub:'deals perdidos'},
       {ic:'\uD83C\uDFC6', lbl:'Vendas Ganhas',           val: rd.vend,          sub:'deals ganhos'},
-      {ic:'\uD83D\uDCB0', lbl:'VGV das Vendas',          val: 'R$ ' + (rd.vgv>=1000000 ? (rd.vgv/1000000).toFixed(2)+'M' : rd.vgv>=1000 ? (rd.vgv/1000).toFixed(0)+'K' : rd.vgv.toLocaleString('pt-BR')), sub:'soma R$ ganhos'},
+      {ic:'\uD83D\uDCB0', lbl:'VGV das Vendas',          val: 'R$ ' + rd.vgv.toLocaleString('pt-BR'), sub:'soma R$ ganhos'},
     ];
     rdKpis.forEach(function(k){
       content += '<div style="background:#0f172a;border:1px solid #1e40af50;border-radius:10px;padding:12px;text-align:center">'
@@ -6858,7 +6860,7 @@ function pgOO() {
     // Week navigator
     content += '<div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px">';
     content += '<button onclick="S.ooRotinaWeekOff=(S.ooRotinaWeekOff||0)-1;render()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:14px">\u25C0</button>';
-    content += '<div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#f8fafc">\uD83D\uDCC5 Semana</div><div style="font-size:13px;color:#a5b4fc">' + weekLabel + '</div></div>';
+    content += '<div style="text-align:center"><div style="font-size:16px;font-weight:700;color:var(--navy)">\uD83D\uDCC5 Semana</div><div style="font-size:13px;color:#6366f1">' + weekLabel + '</div></div>';
     content += '<button onclick="S.ooRotinaWeekOff=(S.ooRotinaWeekOff||0)+1;render()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:14px">\u25B6</button>';
     if (weekOff !== 0) {
       content += '<button onclick="S.ooRotinaWeekOff=0;render()" style="background:#6366f120;color:#a5b4fc;border:1px solid #6366f140;padding:6px 12px;border-radius:8px;font-size:11px;cursor:pointer;font-weight:600">Hoje</button>';
@@ -7245,52 +7247,53 @@ function pgOO() {
     }
     content += '</div>';
 
-    // === 2. META PESSOAL POR LANÇAMENTO ===
+    // === 2. META PESSOAL POR LANÇAMENTO (usa lancTimeline da aba Lançamentos) ===
     if (!S.ooMetaLanc) S.ooMetaLanc = {};
     if (!S.ooMetaLanc[selBid]) S.ooMetaLanc[selBid] = {};
-    var lancamentos = S.lancamentos || [];
+    var lancamentos = S.lancTimeline || [];
     content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
-    content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:4px">\uD83C\uDFE2 Meta Pessoal por Lan\u00e7amento \u2014 ' + curYear + '</div>';
-    content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Defina a meta individual de vendas por lan\u00e7amento do ano.</div>';
+    content += '<div style="font-size:15px;font-weight:700;color:#a5b4fc;margin-bottom:4px">\uD83C\uDFE2 Meta Pessoal por Lan\u00e7amento \u2014 ' + curYear + '</div>';
+    content += '<div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Preencha sua meta individual de pastas e VGV por lan\u00e7amento. Os lan\u00e7amentos vêm da aba Lan\u00e7amentos.</div>';
     if (lancamentos.length > 0) {
-      content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+      content += '<div style="display:grid;grid-template-columns:1fr;gap:10px">';
+      content += '<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;padding:0 4px">';
+      content += '<div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase">Lan\u00e7amento</div>';
+      content += '<div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;text-align:center">Meta Pastas</div>';
+      content += '<div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;text-align:center">Meta VGV (R$)</div>';
+      content += '</div>';
       lancamentos.forEach(function(l) {
-        var lid = l.id || l.nome || l;
-        var nome = l.nome || l.name || lid;
-        var metaL = (S.ooMetaLanc[selBid]||{})[lid] || '';
-        content += '<div style="background:#0f172a;border-radius:8px;padding:10px">';
-        content += '<label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">\uD83C\uDFE2 ' + nome + '</label>';
-        content += '<input type="number" min="0" value="' + metaL + '" placeholder="Meta vendas" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:6px;border-radius:6px;font-size:14px;text-align:center" oninput="ooAutosave(this,function(v){ooSaveMetaLanc(\'' + selBid + '\',\'' + lid + '\',v)},500)">';
+        var lid = l.id || l.nome || String(l.mes);
+        var nome = l.nome || l.name || ('Lan\u00e7. ' + lid);
+        var cor = l.cor || '#6366f1';
+        var metaData = (S.ooMetaLanc[selBid]||{})[lid] || {};
+        var metaPastas = typeof metaData === 'object' ? (metaData.pastas || '') : metaData;
+        var metaVgv = typeof metaData === 'object' ? (metaData.vgv || '') : '';
+        content += '<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;background:#0f172a;border-radius:8px;padding:10px;border-left:4px solid ' + cor + ';align-items:center">';
+        content += '<div><div style="font-size:13px;font-weight:700;color:#e2e8f0">' + nome + '</div>';
+        if (l.meta_vgv) content += '<div style="font-size:10px;color:#64748b;margin-top:2px">Meta global: R$ ' + Number(l.meta_vgv).toLocaleString('pt-BR') + ' | ' + (l.meta_pastas||0) + ' pastas</div>';
+        content += '</div>';
+        content += '<input type="number" min="0" value="' + metaPastas + '" placeholder="Pastas" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:8px;border-radius:6px;font-size:13px;text-align:center;font-weight:700" oninput="ooAutosave(this,function(v){ooSaveMetaLanc(\'' + selBid + '\',\'' + lid + '\',\'pastas\',v)},500)">';
+        content += '<input type="number" min="0" value="' + metaVgv + '" placeholder="VGV R$" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:8px;border-radius:6px;font-size:13px;text-align:center;font-weight:700" oninput="ooAutosave(this,function(v){ooSaveMetaLanc(\'' + selBid + '\',\'' + lid + '\',\'vgv\',v)},500)">';
         content += '</div>';
       });
       content += '</div>';
+      var totalPastas = 0, totalVgv = 0;
+      lancamentos.forEach(function(l) {
+        var lid = l.id || l.nome || String(l.mes);
+        var metaData = (S.ooMetaLanc[selBid]||{})[lid] || {};
+        if (typeof metaData === 'object') { totalPastas += parseFloat(metaData.pastas)||0; totalVgv += parseFloat(metaData.vgv)||0; }
+        else { totalPastas += parseFloat(metaData)||0; }
+      });
+      content += '<div style="margin-top:8px;padding:10px;background:#0f172a;border-radius:8px;display:flex;justify-content:space-around;align-items:center">';
+      content += '<div style="text-align:center"><div style="font-size:10px;color:#64748b;text-transform:uppercase">Total Pastas</div><div style="font-size:18px;font-weight:800;color:#a5b4fc">' + totalPastas + '</div></div>';
+      content += '<div style="text-align:center"><div style="font-size:10px;color:#64748b;text-transform:uppercase">Total VGV</div><div style="font-size:18px;font-weight:800;color:#22c55e">R$ ' + totalVgv.toLocaleString('pt-BR') + '</div></div>';
+      content += '</div>';
     } else {
-      content += '<div style="color:#64748b;font-size:13px;padding:12px;background:#0f172a;border-radius:8px">Nenhum lan\u00e7amento cadastrado no sistema. Os lan\u00e7amentos ser\u00e3o carregados em tempo real.</div>';
+      content += '<div style="color:#64748b;font-size:13px;padding:12px;background:#0f172a;border-radius:8px">\u26A0\uFE0F Nenhum lan\u00e7amento cadastrado. Acesse a aba <strong style="color:#a5b4fc">Lan\u00e7amentos</strong> para cadastrar os lan\u00e7amentos do ano.</div>';
     }
     content += '</div>';
 
-    // === 3. META VGV MES A MES ===
-    if (!S.ooMetaVgvMes) S.ooMetaVgvMes = {};
-    if (!S.ooMetaVgvMes[selBid]) S.ooMetaVgvMes[selBid] = {};
-    content += '<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;margin-bottom:16px">';
-    content += '<div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:12px">\uD83D\uDCB0 Meta VGV M\u00eas a M\u00eas \u2014 ' + curYear + '</div>';
-    content += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
-    var vgvAcum = 0;
-    for (var mi = 1; mi <= 12; mi++) {
-      var mk = curYear + '-' + String(mi).padStart(2,'0');
-      var metaVgvM = (S.ooMetaVgvMes[selBid]||{})[mk] || '';
-      var isActive = mi === curMonth;
-      vgvAcum += parseFloat(metaVgvM) || 0;
-      content += '<div style="background:' + (isActive ? '#312e81' : '#0f172a') + ';border-radius:8px;padding:8px;border:' + (isActive ? '2px solid #6366f1' : '1px solid transparent') + '">';
-      content += '<label style="font-size:10px;color:' + (isActive ? '#a5b4fc' : '#94a3b8') + ';display:block;margin-bottom:4px">' + monthNames[mi] + '</label>';
-      content += '<input type="number" min="0" value="' + metaVgvM + '" placeholder="R$" style="width:100%;background:#1e293b;border:1px solid #334155;color:#f8fafc;padding:6px;border-radius:6px;font-size:12px;text-align:center" oninput="ooAutosave(this,function(v){ooSaveMetaVgvMes(\'' + selBid + '\',\'' + mk + '\',v)},500)">';
-      content += '</div>';
-    }
-    content += '</div>';
-    content += '<div style="margin-top:10px;padding:10px;background:#0f172a;border-radius:8px;display:flex;justify-content:space-between;align-items:center">';
-    content += '<span style="font-size:12px;color:#94a3b8">Meta VGV Acumulada no Ano</span>';
-    content += '<span style="font-size:18px;font-weight:800;color:#f8fafc">R$ ' + vgvAcum.toLocaleString('pt-BR') + '</span>';
-    content += '</div></div>';
+    // === 3. META VGV MES A MES — REMOVIDO (metas ficam apenas na aba Metas da Diretoria) ===
 
     // === 4. OBJETIVO PESSOAL / SONHO DO CORRETOR ===
     if (!S.ooObjetivo) S.ooObjetivo = {};
@@ -7648,10 +7651,14 @@ function ooRemoveFechamento(bid, weekKey, idx) {
 }
 
 // Gestão: Meta por lançamento
-function ooSaveMetaLanc(bid, lancId, value) {
+function ooSaveMetaLanc(bid, lancId, field, value) {
   if (!S.ooMetaLanc) S.ooMetaLanc = {};
   if (!S.ooMetaLanc[bid]) S.ooMetaLanc[bid] = {};
-  S.ooMetaLanc[bid][lancId] = parseInt(value) || 0;
+  if (!S.ooMetaLanc[bid][lancId] || typeof S.ooMetaLanc[bid][lancId] !== 'object') {
+    var old = S.ooMetaLanc[bid][lancId];
+    S.ooMetaLanc[bid][lancId] = { pastas: typeof old === 'number' ? old : 0, vgv: 0 };
+  }
+  S.ooMetaLanc[bid][lancId][field] = parseFloat(value) || 0;
   saveState();
 }
 
@@ -10964,29 +10971,29 @@ return `
     <button onclick="nav('radar')" style="padding:10px 20px;background:linear-gradient(135deg,#1e293b,#334155);color:#d4af37;border:1px solid #d4af37;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer">\uD83D\uDCE1 Ir ao Radar</button></div>
   <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin:24px 0">
     <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:12px;padding:18px;text-align:center"><div style="color:#d4af37;font-size:28px;font-weight:800">${enriched.length}</div><div style="color:#94a3b8;font-size:11px;text-transform:uppercase;margin-top:4px">Monitorados</div></div>
-    <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:12px;padding:18px;text-align:center"><div style="color:#3b82f6;font-size:28px;font-weight:800">${totalSeg>=1000?Math.round(totalSeg/1000)+'K':totalSeg}</div><div style="color:#94a3b8;font-size:11px;text-transform:uppercase;margin-top:4px">Alcance Total</div></div>
-    <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:12px;padding:18px;text-align:center"><div style="color:#22c55e;font-size:28px;font-weight:800">${avgSegAll>=1000?(avgSegAll/1000).toFixed(1)+'K':avgSegAll}</div><div style="color:#94a3b8;font-size:11px;text-transform:uppercase;margin-top:4px">M\u00e9dia Seg.</div></div>
-    <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:12px;padding:18px;text-align:center"><div style="color:#8b5cf6;font-size:28px;font-weight:800">${medianSeg>=1000?(medianSeg/1000).toFixed(1)+'K':medianSeg}</div><div style="color:#94a3b8;font-size:11px;text-transform:uppercase;margin-top:4px">Mediana Seg.</div></div>
+    <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:12px;padding:18px;text-align:center"><div style="color:#3b82f6;font-size:28px;font-weight:800">${totalSeg.toLocaleString('pt-BR')}</div><div style="color:#94a3b8;font-size:11px;text-transform:uppercase;margin-top:4px">Alcance Total</div></div>
+    <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:12px;padding:18px;text-align:center"><div style="color:#22c55e;font-size:28px;font-weight:800">${avgSegAll.toLocaleString('pt-BR')}</div><div style="color:#94a3b8;font-size:11px;text-transform:uppercase;margin-top:4px">M\u00e9dia Seg.</div></div>
+    <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:12px;padding:18px;text-align:center"><div style="color:#8b5cf6;font-size:28px;font-weight:800">${medianSeg.toLocaleString('pt-BR')}</div><div style="color:#94a3b8;font-size:11px;text-transform:uppercase;margin-top:4px">Mediana Seg.</div></div>
     <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:12px;padding:18px;text-align:center"><div style="color:#f59e0b;font-size:28px;font-weight:800">${imobs.length}</div><div style="color:#94a3b8;font-size:11px;text-transform:uppercase;margin-top:4px">Imobili\u00e1rias</div></div>
     <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:12px;padding:18px;text-align:center"><div style="color:#ec4899;font-size:28px;font-weight:800">${corretores.length}</div><div style="color:#94a3b8;font-size:11px;text-transform:uppercase;margin-top:4px">Corretores</div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
     <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:14px;padding:24px"><h3 style="color:#fff;margin:0 0 18px;font-size:16px;font-weight:700">\uD83C\uDFC6 Top 10 \u2014 Seguidores</h3>
-      ${top10.map(function(c,i){var pct=maxSeg>0?Math.round(c.seg/maxSeg*100):0;var medal=i===0?'\uD83E\uDD47':i===1?'\uD83E\uDD48':i===2?'\uD83E\uDD49':'';var segColor=segColors[c.segmento]||'#64748b';return '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="color:#fff;font-size:13px;font-weight:600">'+medal+(i+1)+'. '+c.name+'</span><span style="color:'+segColor+';font-size:11px;font-weight:600;background:'+segColor+'20;padding:2px 8px;border-radius:4px">'+c.segmento+'</span></div><div style="display:flex;align-items:center;gap:10px"><div style="flex:1;height:22px;background:#0f172a;border-radius:6px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:linear-gradient(90deg,'+segColor+','+segColor+'99);border-radius:6px"></div></div><span style="color:#e2e8f0;font-size:13px;font-weight:700;min-width:55px;text-align:right">'+( c.seg>=1000?(c.seg/1000).toFixed(1)+'K':c.seg)+'</span></div></div>';}).join('')}
+      ${top10.map(function(c,i){var pct=maxSeg>0?Math.round(c.seg/maxSeg*100):0;var medal=i===0?'\uD83E\uDD47':i===1?'\uD83E\uDD48':i===2?'\uD83E\uDD49':'';var segColor=segColors[c.segmento]||'#64748b';return '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="color:#fff;font-size:13px;font-weight:600">'+medal+(i+1)+'. '+c.name+'</span><span style="color:'+segColor+';font-size:11px;font-weight:600;background:'+segColor+'20;padding:2px 8px;border-radius:4px">'+c.segmento+'</span></div><div style="display:flex;align-items:center;gap:10px"><div style="flex:1;height:22px;background:#0f172a;border-radius:6px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:linear-gradient(90deg,'+segColor+','+segColor+'99);border-radius:6px"></div></div><span style="color:#e2e8f0;font-size:13px;font-weight:700;min-width:55px;text-align:right">'+c.seg.toLocaleString('pt-BR')+'</span></div></div>';}).join('')}
     </div>
     <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:14px;padding:24px"><h3 style="color:#fff;margin:0 0 18px;font-size:16px;font-weight:700">\uD83D\uDCCA An\u00e1lise por Segmento</h3>
-      ${segmentos.map(function(sg){var d=segData[sg];var pct=maxSegTotal>0?Math.round(d.totalSeg/maxSegTotal*100):0;var color=segColors[sg];return '<div style="margin-bottom:18px;padding:16px;background:#0f172a;border-radius:10px;border-left:4px solid '+color+'"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="color:'+color+';font-size:15px;font-weight:700">'+sg+'</span><span style="color:#94a3b8;font-size:12px">'+d.count+' concorrentes</span></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px"><div><div style="color:#64748b;font-size:10px;text-transform:uppercase">Alcance</div><div style="color:#fff;font-size:14px;font-weight:700">'+( d.totalSeg>=1000?Math.round(d.totalSeg/1000)+'K':d.totalSeg)+'</div></div><div><div style="color:#64748b;font-size:10px;text-transform:uppercase">M\u00e9dia</div><div style="color:#fff;font-size:14px;font-weight:700">'+( d.avgSeg>=1000?(d.avgSeg/1000).toFixed(1)+'K':d.avgSeg)+'</div></div><div><div style="color:#64748b;font-size:10px;text-transform:uppercase">L\u00edder</div><div style="color:'+color+';font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+( d.top?d.top.name:'\u2014')+'</div></div></div><div style="height:8px;background:#1e293b;border-radius:4px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:4px"></div></div></div>';}).join('')}
+      ${segmentos.map(function(sg){var d=segData[sg];var pct=maxSegTotal>0?Math.round(d.totalSeg/maxSegTotal*100):0;var color=segColors[sg];return '<div style="margin-bottom:18px;padding:16px;background:#0f172a;border-radius:10px;border-left:4px solid '+color+'"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="color:'+color+';font-size:15px;font-weight:700">'+sg+'</span><span style="color:#94a3b8;font-size:12px">'+d.count+' concorrentes</span></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px"><div><div style="color:#64748b;font-size:10px;text-transform:uppercase">Alcance</div><div style="color:#fff;font-size:14px;font-weight:700">'+d.totalSeg.toLocaleString('pt-BR')+'</div></div><div><div style="color:#64748b;font-size:10px;text-transform:uppercase">M\u00e9dia</div><div style="color:#fff;font-size:14px;font-weight:700">'+d.avgSeg.toLocaleString('pt-BR')+'</div></div><div><div style="color:#64748b;font-size:10px;text-transform:uppercase">L\u00edder</div><div style="color:'+color+';font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+( d.top?d.top.name:'\u2014')+'</div></div></div><div style="height:8px;background:#1e293b;border-radius:4px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:4px"></div></div></div>';}).join('')}
     </div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px">
     <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:14px;padding:24px"><h3 style="color:#fff;margin:0 0 16px;font-size:16px;font-weight:700">\uD83C\uDFAF Distribui\u00e7\u00e3o por Tier</h3>
-${[{t:'A',c:tierA,color:'#f59e0b'},{t:'B',c:tierB,color:'#3b82f6'},{t:'C',c:tierC,color:'#64748b'}].map(function(x){var pctCount=enriched.length>0?Math.round(x.c.length/enriched.length*100):0;var tSeg=x.c.reduce(function(s,cc){return s+cc.seg;},0);return '<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="color:'+x.color+';font-size:14px;font-weight:700">Tier '+x.t+' <span style="color:#94a3b8;font-weight:400;font-size:12px">('+x.c.length+')</span></span><span style="color:#e2e8f0;font-size:13px;font-weight:600">'+(tSeg>=1000?Math.round(tSeg/1000)+'K':tSeg)+' seg.</span></div><div style="height:10px;background:#0f172a;border-radius:5px;overflow:hidden"><div style="width:'+pctCount+'%;height:100%;background:'+x.color+';border-radius:5px"></div></div><div style="color:#64748b;font-size:11px;margin-top:4px">'+pctCount+'% dos concorrentes</div></div>';}).join('')}
+${[{t:'A',c:tierA,color:'#f59e0b'},{t:'B',c:tierB,color:'#3b82f6'},{t:'C',c:tierC,color:'#64748b'}].map(function(x){var pctCount=enriched.length>0?Math.round(x.c.length/enriched.length*100):0;var tSeg=x.c.reduce(function(s,cc){return s+cc.seg;},0);return '<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="color:'+x.color+';font-size:14px;font-weight:700">Tier '+x.t+' <span style="color:#94a3b8;font-weight:400;font-size:12px">('+x.c.length+')</span></span><span style="color:#e2e8f0;font-size:13px;font-weight:600">'+tSeg.toLocaleString('pt-BR')+' seg.</span></div><div style="height:10px;background:#0f172a;border-radius:5px;overflow:hidden"><div style="width:'+pctCount+'%;height:100%;background:'+x.color+';border-radius:5px"></div></div><div style="color:#64748b;font-size:11px;margin-top:4px">'+pctCount+'% dos concorrentes</div></div>';}).join('')}
     </div>
     <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:14px;padding:24px"><h3 style="color:#fff;margin:0 0 16px;font-size:16px;font-weight:700">\uD83D\uDCC8 Share de Audi\u00eancia</h3>
-${segmentos.map(function(sg){var d=segData[sg];var pct=totalSeg>0?(d.totalSeg/totalSeg*100).toFixed(1):0;var color=segColors[sg];return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px"><div style="width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:'+color+'22;border:2px solid '+color+'"><span style="color:'+color+';font-size:13px;font-weight:800">'+pct+'%</span></div><div style="flex:1"><div style="color:#fff;font-size:14px;font-weight:600">'+sg+'</div><div style="color:#94a3b8;font-size:12px">'+( d.totalSeg>=1000?Math.round(d.totalSeg/1000)+'K':d.totalSeg)+' seguidores combinados</div></div></div>';}).join('')}
+${segmentos.map(function(sg){var d=segData[sg];var pct=totalSeg>0?(d.totalSeg/totalSeg*100).toFixed(1):0;var color=segColors[sg];return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px"><div style="width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:'+color+'22;border:2px solid '+color+'"><span style="color:'+color+';font-size:13px;font-weight:800">'+pct+'%</span></div><div style="flex:1"><div style="color:#fff;font-size:14px;font-weight:600">'+sg+'</div><div style="color:#94a3b8;font-size:12px">'+d.totalSeg.toLocaleString('pt-BR')+' seguidores combinados</div></div></div>';}).join('')}
     </div>
     <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid #334155;border-radius:14px;padding:24px"><h3 style="color:#fff;margin:0 0 16px;font-size:16px;font-weight:700">\uD83D\uDCA1 Insights Autom\u00e1ticos</h3><div style="display:flex;flex-direction:column;gap:12px">
-<div style="padding:12px;background:#0f172a;border-radius:8px;border-left:3px solid #22c55e"><div style="color:#22c55e;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:4px">L\u00edder de Mercado</div><div style="color:#e2e8f0;font-size:13px">${enriched[0]?enriched[0].name+' domina com '+(enriched[0].seg>=1000?(enriched[0].seg/1000).toFixed(1)+'K':enriched[0].seg)+' seguidores':''}</div></div>
+<div style="padding:12px;background:#0f172a;border-radius:8px;border-left:3px solid #22c55e"><div style="color:#22c55e;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:4px">L\u00edder de Mercado</div><div style="color:#e2e8f0;font-size:13px">${enriched[0]?enriched[0].name+' domina com '+enriched[0].seg.toLocaleString('pt-BR')+' seguidores':''}</div></div>
 <div style="padding:12px;background:#0f172a;border-radius:8px;border-left:3px solid #3b82f6"><div style="color:#3b82f6;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:4px">Segmento mais forte</div><div style="color:#e2e8f0;font-size:13px">${(function(){var best='';var mx=0;segmentos.forEach(function(s){if(segData[s].totalSeg>mx){mx=segData[s].totalSeg;best=s;}});return best+' com '+(mx>=1000?Math.round(mx/1000)+'K':mx)+' de alcance total';})()}</div></div>
 <div style="padding:12px;background:#0f172a;border-radius:8px;border-left:3px solid #f59e0b"><div style="color:#f59e0b;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:4px">Concentra\u00e7\u00e3o</div><div style="color:#e2e8f0;font-size:13px">${(function(){var top3seg=enriched.slice(0,3).reduce(function(s,c){return s+c.seg;},0);var pct=totalSeg>0?(top3seg/totalSeg*100).toFixed(1):0;return 'Top 3 det\u00eam '+pct+'% da audi\u00eancia total';})()}</div></div>
 <div style="padding:12px;background:#0f172a;border-radius:8px;border-left:3px solid #ec4899"><div style="color:#ec4899;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:4px">Corretores vs Imobili\u00e1rias</div><div style="color:#e2e8f0;font-size:13px">${(function(){var segI=imobs.reduce(function(s,c){return s+c.seg;},0);var segC=corretores.reduce(function(s,c){return s+c.seg;},0);return 'Imobili\u00e1rias: '+(segI>=1000?Math.round(segI/1000)+'K':segI)+' | Corretores: '+(segC>=1000?Math.round(segC/1000)+'K':segC);})()}</div></div>
@@ -11005,7 +11012,7 @@ ${segmentos.map(function(sg){var d=segData[sg];var pct=totalSeg>0?(d.totalSeg/to
       <th style="padding:10px 8px;color:#94a3b8;font-size:11px;text-transform:uppercase;text-align:right;font-weight:600">Posts</th>
       <th style="padding:10px 8px;color:#94a3b8;font-size:11px;text-transform:uppercase;text-align:left;font-weight:600">CRECI</th>
     </tr></thead><tbody>
-      ${enriched.map(function(c,i){var tierColor=c.tier==='A'?'#f59e0b':c.tier==='B'?'#3b82f6':'#64748b';var segColor=segColors[c.segmento]||'#64748b';var bgRow=i%2===0?'#0f172a':'transparent';return '<tr style="background:'+bgRow+';border-bottom:1px solid #1e293b"><td style="padding:10px 8px;color:#64748b;font-weight:600">'+(i+1)+'</td><td style="padding:10px 8px;color:#fff;font-weight:600">'+c.name+'<div style="color:#64748b;font-size:11px">'+c.handle+'</div></td><td style="padding:10px 8px"><span style="color:'+segColor+';font-size:11px;font-weight:600;background:'+segColor+'20;padding:2px 8px;border-radius:4px">'+c.segmento+'</span></td><td style="padding:10px 8px;color:#94a3b8;font-size:12px">'+(c.type==='imobiliaria'?'\uD83C\uDFE2':'\uD83D\uDC64')+'</td><td style="padding:10px 8px"><span style="color:'+tierColor+';font-weight:700;font-size:12px">'+c.tier+'</span></td><td style="padding:10px 8px;color:#e2e8f0;font-weight:700;text-align:right">'+(c.seg>=1000?(c.seg/1000).toFixed(1)+'K':c.seg)+'</td><td style="padding:10px 8px;color:#94a3b8;text-align:right">'+(c.posts>=1000?(c.posts/1000).toFixed(1)+'K':c.posts||'\u2014')+'</td><td style="padding:10px 8px;color:#64748b;font-size:11px">'+c.creci+'</td></tr>';}).join('')}
+      ${enriched.map(function(c,i){var tierColor=c.tier==='A'?'#f59e0b':c.tier==='B'?'#3b82f6':'#64748b';var segColor=segColors[c.segmento]||'#64748b';var bgRow=i%2===0?'#0f172a':'transparent';return '<tr style="background:'+bgRow+';border-bottom:1px solid #1e293b"><td style="padding:10px 8px;color:#64748b;font-weight:600">'+(i+1)+'</td><td style="padding:10px 8px;color:#fff;font-weight:600">'+c.name+'<div style="color:#64748b;font-size:11px">'+c.handle+'</div></td><td style="padding:10px 8px"><span style="color:'+segColor+';font-size:11px;font-weight:600;background:'+segColor+'20;padding:2px 8px;border-radius:4px">'+c.segmento+'</span></td><td style="padding:10px 8px;color:#94a3b8;font-size:12px">'+(c.type==='imobiliaria'?'\uD83C\uDFE2':'\uD83D\uDC64')+'</td><td style="padding:10px 8px"><span style="color:'+tierColor+';font-weight:700;font-size:12px">'+c.tier+'</span></td><td style="padding:10px 8px;color:#e2e8f0;font-weight:700;text-align:right">'+c.seg.toLocaleString('pt-BR')+'</td><td style="padding:10px 8px;color:#94a3b8;text-align:right">'+(c.posts?(c.posts).toLocaleString('pt-BR'):'\u2014')+'</td><td style="padding:10px 8px;color:#64748b;font-size:11px">'+c.creci+'</td></tr>';}).join('')}
     </tbody></table></div>
   </div>
 </div>`;
@@ -12861,7 +12868,7 @@ function pgCanalAnonimo() {
     var msgs = (S.canalAnonimo || []).slice().reverse();
     h += '<div style="max-width:800px;margin:0 auto">';
     h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
-    h += '<div style="font-size:16px;font-weight:700;color:#f8fafc">\uD83D\uDCE8 Mensagens Recebidas <span style="font-size:13px;color:#94a3b8;font-weight:400">(' + msgs.length + ')</span></div>';
+    h += '<div style="font-size:16px;font-weight:700;color:var(--navy)">\uD83D\uDCE8 Mensagens Recebidas <span style="font-size:13px;color:#94a3b8;font-weight:400">(' + msgs.length + ')</span></div>';
     h += '<div style="display:flex;gap:6px">';
     if (msgs.length > 0) {
       h += '<button onclick="caMarcarTodasLidas()" class="btn bout bsm">\u2705 Marcar todas como lidas</button>';
@@ -12988,7 +12995,7 @@ function pgRelatVendas() {
   var u = S.user; if (!u) return '';
   var uid = u.id; var pf = getPerfil(); var lvl = RLVL[u.role]||0;
   if (pf !== 'diretor' && pf !== 'lider' && pf !== 'corretor') {
-    return '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><div style="font-size:48px;margin-bottom:16px">🔒</div><div style="font-size:18px;font-weight:700;color:#f8fafc;margin-bottom:8px">Acesso Restrito</div><div>Esta página é exclusiva para diretores, líderes e corretores.</div></div>';
+    return '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><div style="font-size:48px;margin-bottom:16px">🔒</div><div style="font-size:18px;font-weight:700;color:var(--navy);margin-bottom:8px">Acesso Restrito</div><div>Esta página é exclusiva para diretores, líderes e corretores.</div></div>';
   }
   if (!S.rvTab) S.rvTab = 'vendas';
   if (!S.rvAno) S.rvAno = new Date().getFullYear();
@@ -13417,7 +13424,7 @@ function pgOportunidades() {
     var mNomes=['Janeiro','Fevereiro','Mar\u00e7o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     h+='<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:16px;">';
     h+='<button onclick="S.opCalMes--;if(S.opCalMes<0){S.opCalMes=11;S.opCalAno--;}render()" style="padding:8px 14px;background:#1e293b;color:#f8fafc;border:1px solid #475569;border-radius:8px;cursor:pointer;font-weight:700;">\u25C0</button>';
-    h+='<span style="font-size:18px;font-weight:800;color:#f8fafc;">'+mNomes[S.opCalMes]+' '+S.opCalAno+'</span>';
+    h+='<span style="font-size:18px;font-weight:800;color:var(--navy);">'+mNomes[S.opCalMes]+' '+S.opCalAno+'</span>';
     h+='<button onclick="S.opCalMes++;if(S.opCalMes>11){S.opCalMes=0;S.opCalAno++;}render()" style="padding:8px 14px;background:#1e293b;color:#f8fafc;border:1px solid #475569;border-radius:8px;cursor:pointer;font-weight:700;">\u25B6</button>';
     h+='</div>';
     h+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">';
@@ -13537,7 +13544,7 @@ function pgOportunidades() {
   // ===== OPORTUNIDADES DO CORRETOR (clientes comprando ou vendendo) =====
   h += '<div style="margin-top:32px;border-top:1px solid #334155;padding-top:24px">';
   h += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">';
-  h += '<div><h2 style="font-size:20px;font-weight:800;color:#f8fafc;margin:0">\uD83D\uDCCB Oportunidades dos Corretores</h2>';
+  h += '<div><h2 style="font-size:20px;font-weight:800;color:var(--navy);margin:0">\uD83D\uDCCB Oportunidades dos Corretores</h2>';
   h += '<p style="font-size:13px;color:#94a3b8;margin:4px 0 0">Clientes buscando ou vendendo im\u00f3veis</p></div>';
   h += '<button onclick="S.opCorretorForm=S.opCorretorForm?false:\'compra\';S.opCorretorEdit={};render()" style="padding:10px 20px;background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer">'+(S.opCorretorForm?'\u2715 Fechar':'\u2795 Registrar Oportunidade')+'</button>';
   h += '</div>';
@@ -13553,7 +13560,7 @@ function pgOportunidades() {
     h += '<button onclick="S.opCorretorForm=\'venda\';render()" style="padding:10px 20px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;border:2px solid #f97316;'+(tipoOp==='venda'?'background:#f97316;color:#fff':'background:transparent;color:#f97316')+'">\uD83D\uDCB0 Cliente Vendendo</button>';
     h += '</div>';
 
-    h += '<h3 style="font-size:16px;font-weight:700;color:#f8fafc;margin-bottom:16px">'+(oce.id?'\u270F\uFE0F Editar':'')+(tipoOp==='compra'?' \uD83C\uDFE0 Cliente Buscando Im\u00f3vel':' \uD83D\uDCB0 Cliente Vendendo Im\u00f3vel')+'</h3>';
+    h += '<h3 style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:16px">'+(oce.id?'\u270F\uFE0F Editar':'')+(tipoOp==='compra'?' \uD83C\uDFE0 Cliente Buscando Im\u00f3vel':' \uD83D\uDCB0 Cliente Vendendo Im\u00f3vel')+'</h3>';
     h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">';
 
     // Campos comuns
@@ -15089,7 +15096,7 @@ window.maRunAi=function(){
 
 // ─── FORMATTERS ────────────────────────────────────────────
 var fmtBRL=function(n){return 'R$ '+(Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
-var fmtBRLc=function(n){n=Number(n)||0;if(n>=1000000)return 'R$ '+(n/1000000).toFixed(2).replace('.00','')+'M';if(n>=1000)return 'R$ '+(n/1000).toFixed(1).replace('.0','')+'k';return 'R$ '+n.toFixed(0);};
+var fmtBRLc=function(n){n=Number(n)||0;return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
 var fmtNum=function(n){return (Number(n)||0).toLocaleString('pt-BR');};
 var fmtPct=function(n){return ((Number(n)||0)).toFixed(2)+'%';};
 var fmtFreq=function(n){return (Number(n)||0).toFixed(2)+'x';};
