@@ -1651,6 +1651,262 @@ function pgDashboard(){
   +'</div></div>'+renderVendasDiretoria(fVENDAS);
 }
 
+// ─── PAGE: AGENDA PSM ─────────────────────────────────────────────────────────
+function pgAgendaPSM(){
+  if(!S.agendaView) S.agendaView='mensal';
+  if(!S.agendaDate) S.agendaDate=new Date().toISOString().slice(0,10);
+
+  var ref=new Date(S.agendaDate+'T12:00:00');
+  var ano=ref.getFullYear(), mes=ref.getMonth();
+  var mNames=['Janeiro','Fevereiro','Mar\u00e7o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var dNames=['Dom','Seg','Ter','Qua','Qui','Sex','S\u00e1b'];
+
+  // ── Collect ALL events from system ──
+  function collectEvents(){
+    var evs=[];
+    // 1) Eventos (S.opEventos)
+    (S.opEventos||[]).forEach(function(ev){
+      if(!ev.data)return;
+      evs.push({date:ev.data, hora:ev.hora||'', title:ev.titulo, type:'evento', color:'#ec4899', ico:'\uD83C\uDF89', detail:ev.local||''});
+    });
+    // 2) Treinamentos (S.opTreinamentos)
+    (S.opTreinamentos||[]).forEach(function(tr){
+      if(!tr.data)return;
+      evs.push({date:tr.data, hora:tr.hora||'', title:tr.titulo, type:'treinamento', color:'#f59e0b', ico:'\uD83C\uDF93', detail:tr.instrutor||''});
+    });
+    // 3) Plant\u00f5es (localStorage psm_plantoes_*)
+    for(var m=0;m<12;m++){
+      var sk='psm_plantoes_'+ano+'_'+m;
+      try{
+        var pl=JSON.parse(localStorage.getItem(sk))||[];
+        pl.forEach(function(p){
+          if(!p.dia)return;
+          var dd=String(p.dia).padStart(2,'0');
+          var mm=String(m+1).padStart(2,'0');
+          var ds=ano+'-'+mm+'-'+dd;
+          var nomes=(p.corretores||[]).map(function(c){return typeof c==='string'?c:(c.nome||'');}).join(', ');
+          evs.push({date:ds, hora:p.hora||'', title:'Plant\u00e3o'+(p.empreendimento?' \u2014 '+p.empreendimento:''), type:'plantao', color:'#6366f1', ico:'\uD83C\uDFE0', detail:nomes});
+        });
+      }catch(e){}
+    }
+    // 4) Reuni\u00f5es 1:1 (S.ooReunioes)
+    if(S.ooReunioes){
+      Object.keys(S.ooReunioes).forEach(function(bid){
+        var bData=S.ooReunioes[bid]||{};
+        Object.keys(bData).forEach(function(monthKey){
+          (bData[monthKey]||[]).forEach(function(r){
+            if(!r.data)return;
+            var brok=S.brokers?S.brokers.find(function(b){return b.id===bid;}):null;
+            var nm=brok?brok.nome:bid;
+            evs.push({date:r.data, hora:'', title:'Reuni\u00e3o 1:1 \u2014 '+nm, type:'reuniao', color:'#8b5cf6', ico:'\uD83E\uDD1D', detail:r.semana||''});
+          });
+        });
+      });
+    }
+    // 5) One on One scheduled dates (S.ooDatas)
+    if(S.ooDatas){
+      Object.keys(S.ooDatas).forEach(function(bid){
+        var d=S.ooDatas[bid]||{};
+        if(d.proxReuniao){
+          var brok=S.brokers?S.brokers.find(function(b){return b.id===bid;}):null;
+          var nm=brok?brok.nome:bid;
+          evs.push({date:d.proxReuniao, hora:'', title:'One on One \u2014 '+nm, type:'oneonone', color:'#14b8a6', ico:'\uD83C\uDFAF', detail:''});
+        }
+      });
+    }
+    // 6) Capta\u00e7\u00f5es de Im\u00f3vel (S.fcData)
+    (S.fcData||[]).forEach(function(fc){
+      if(!fc.dataEntrada)return;
+      evs.push({date:fc.dataEntrada, hora:'', title:'Capta\u00e7\u00e3o \u2014 '+fc.nome, type:'captacao_imovel', color:'#22c55e', ico:'\uD83C\uDFE2', detail:fc.tipo||''});
+    });
+    // 7) Tarefas PSM com prazo (S.tpData)
+    (S.tpData||[]).forEach(function(t){
+      if(!t.prazoFim||t.status==='concluido')return;
+      evs.push({date:t.prazoFim, hora:'', title:t.titulo, type:'tarefa', color:'#0ea5e9', ico:'\u2705', detail:(t.responsaveis||[]).join(', ')});
+    });
+    return evs;
+  }
+
+  var allEvs=collectEvents();
+
+  // ── Navigation helpers ──
+  function navMonth(dir){
+    var d=new Date(ref);
+    d.setMonth(d.getMonth()+dir);
+    return d.toISOString().slice(0,10);
+  }
+  function navWeek(dir){
+    var d=new Date(ref);
+    d.setDate(d.getDate()+(dir*7));
+    return d.toISOString().slice(0,10);
+  }
+
+  var h='';
+  h+='<div style="max-width:1200px;margin:0 auto;padding:16px">';
+
+  // Header
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">';
+  h+='<div style="font-size:22px;font-weight:800;color:#f8fafc">\uD83D\uDCC5 Agenda PSM</div>';
+
+  // View toggle
+  h+='<div style="display:flex;gap:4px;background:#1e293b;border-radius:10px;padding:3px">';
+  var views=[{id:'semanal',lbl:'Semanal'},{id:'mensal',lbl:'Mensal'}];
+  views.forEach(function(v){
+    var act=S.agendaView===v.id;
+    h+='<button onclick="S.agendaView=\''+v.id+'\';render()" style="padding:8px 18px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;'
+      +(act?'background:#6366f1;color:#fff;':'background:transparent;color:#94a3b8;')+'">'
+      +v.lbl+'</button>';
+  });
+  h+='</div>';
+  h+='</div>';
+
+  // Month/Week navigator
+  h+='<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:20px">';
+  if(S.agendaView==='mensal'){
+    h+='<button onclick="S.agendaDate=\''+navMonth(-1)+'\';render()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:16px">\u25C0</button>';
+    h+='<span style="font-size:18px;font-weight:700;color:#f8fafc;min-width:180px;text-align:center">'+mNames[mes]+' '+ano+'</span>';
+    h+='<button onclick="S.agendaDate=\''+navMonth(1)+'\';render()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:16px">\u25B6</button>';
+  }else{
+    // Semanal
+    var dow=ref.getDay();
+    var startW=new Date(ref);startW.setDate(ref.getDate()-dow+1);// Segunda
+    var endW=new Date(startW);endW.setDate(startW.getDate()+6);
+    var lbl=String(startW.getDate()).padStart(2,'0')+'/'+String(startW.getMonth()+1).padStart(2,'0')+' \u2014 '+String(endW.getDate()).padStart(2,'0')+'/'+String(endW.getMonth()+1).padStart(2,'0')+'/'+endW.getFullYear();
+    h+='<button onclick="S.agendaDate=\''+navWeek(-1)+'\';render()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:16px">\u25C0</button>';
+    h+='<span style="font-size:18px;font-weight:700;color:#f8fafc;min-width:260px;text-align:center">'+lbl+'</span>';
+    h+='<button onclick="S.agendaDate=\''+navWeek(1)+'\';render()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:16px">\u25B6</button>';
+  }
+  h+='</div>';
+
+  // Legend
+  h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;justify-content:center">';
+  var types=[
+    {lbl:'Evento',color:'#ec4899',ico:'\uD83C\uDF89'},
+    {lbl:'Treinamento',color:'#f59e0b',ico:'\uD83C\uDF93'},
+    {lbl:'Plant\u00e3o',color:'#6366f1',ico:'\uD83C\uDFE0'},
+    {lbl:'Reuni\u00e3o 1:1',color:'#8b5cf6',ico:'\uD83E\uDD1D'},
+    {lbl:'One on One',color:'#14b8a6',ico:'\uD83C\uDFAF'},
+    {lbl:'Capta\u00e7\u00e3o Im\u00f3vel',color:'#22c55e',ico:'\uD83C\uDFE2'},
+    {lbl:'Tarefa',color:'#0ea5e9',ico:'\u2705'}
+  ];
+  types.forEach(function(t){
+    h+='<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:'+t.color+'20;color:'+t.color+'">'+t.ico+' '+t.lbl+'</span>';
+  });
+  h+='</div>';
+
+  // ── RENDER CALENDAR ──
+  if(S.agendaView==='mensal'){
+    // Monthly grid
+    var firstDay=new Date(ano,mes,1).getDay();
+    var daysInMonth=new Date(ano,mes+1,0).getDate();
+    var hoje=new Date().toISOString().slice(0,10);
+
+    h+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:#0f172a;border-radius:12px;overflow:hidden;border:1px solid #334155">';
+    // Day headers
+    dNames.forEach(function(d){
+      h+='<div style="background:#1e293b;padding:8px;text-align:center;font-size:12px;font-weight:700;color:#94a3b8">'+d+'</div>';
+    });
+    // Empty cells before 1st
+    var startIdx=(firstDay===0?6:firstDay-1);// Monday-based
+    for(var i=0;i<startIdx;i++){
+      h+='<div style="background:#0f172a;min-height:90px;padding:4px"></div>';
+    }
+    // Day cells
+    for(var d=1;d<=daysInMonth;d++){
+      var ds=ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      var isToday=ds===hoje;
+      var dayEvs=allEvs.filter(function(e){return e.date===ds;});
+      h+='<div style="background:'+(isToday?'#1e293b':'#0f172a')+';min-height:90px;padding:4px;position:relative;border:'+(isToday?'2px solid #6366f1':'1px solid #1e293b')+';cursor:pointer" onclick="S.agendaDetail=\''+ds+'\';render()">';
+      h+='<div style="font-size:12px;font-weight:'+(isToday?'800':'600')+';color:'+(isToday?'#6366f1':'#94a3b8')+';margin-bottom:2px">'+d+'</div>';
+      // Show up to 3 events
+      dayEvs.slice(0,3).forEach(function(ev){
+        h+='<div style="font-size:10px;padding:2px 4px;margin-bottom:1px;border-radius:4px;background:'+ev.color+'20;color:'+ev.color+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+ev.title+'">'+ev.ico+' '+ev.title+'</div>';
+      });
+      if(dayEvs.length>3){
+        h+='<div style="font-size:10px;color:#64748b;text-align:center">+'+(dayEvs.length-3)+' mais</div>';
+      }
+      h+='</div>';
+    }
+    // Fill remaining cells
+    var totalCells=startIdx+daysInMonth;
+    var remainder=totalCells%7;
+    if(remainder>0){for(var i=0;i<7-remainder;i++){h+='<div style="background:#0f172a;min-height:90px;padding:4px"></div>';}}
+    h+='</div>';
+
+  }else{
+    // Weekly view
+    var dow=ref.getDay();
+    var startW=new Date(ref);startW.setDate(ref.getDate()-(dow===0?6:dow-1));
+    var hoje=new Date().toISOString().slice(0,10);
+
+    h+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:#0f172a;border-radius:12px;overflow:hidden;border:1px solid #334155">';
+    for(var i=0;i<7;i++){
+      var dayD=new Date(startW);dayD.setDate(startW.getDate()+i);
+      var ds=dayD.toISOString().slice(0,10);
+      var isToday=ds===hoje;
+      var dayEvs=allEvs.filter(function(e){return e.date===ds;});
+
+      h+='<div style="background:'+(isToday?'#1e293b':'#0f172a')+';min-height:300px;padding:8px;border:'+(isToday?'2px solid #6366f1':'1px solid #1e293b')+'">';
+      h+='<div style="font-size:12px;font-weight:700;color:'+(isToday?'#6366f1':'#94a3b8')+';margin-bottom:8px;text-align:center">'+dNames[(i+1)%7===0?0:(i+1)%7]+'<br><span style="font-size:16px;font-weight:800;color:'+(isToday?'#f8fafc':'#e2e8f0')+'">'+dayD.getDate()+'</span></div>';
+
+      if(dayEvs.length===0){
+        h+='<div style="text-align:center;color:#475569;font-size:11px;padding:20px 0">\u2014</div>';
+      }else{
+        dayEvs.forEach(function(ev){
+          h+='<div onclick="event.stopPropagation();S.agendaDetail=\''+ds+'\';render()" style="font-size:11px;padding:6px 8px;margin-bottom:4px;border-radius:6px;background:'+ev.color+'15;border-left:3px solid '+ev.color+';cursor:pointer">';
+          h+='<div style="font-weight:700;color:'+ev.color+'">'+ev.ico+' '+ev.title+'</div>';
+          if(ev.hora)h+='<div style="color:#94a3b8;font-size:10px">\u23F0 '+ev.hora+'</div>';
+          if(ev.detail)h+='<div style="color:#64748b;font-size:10px">'+ev.detail+'</div>';
+          h+='</div>';
+        });
+      }
+      h+='</div>';
+    }
+    h+='</div>';
+  }
+
+  // ── Day detail panel ──
+  if(S.agendaDetail){
+    var detEvs=allEvs.filter(function(e){return e.date===S.agendaDetail;});
+    var dp=S.agendaDetail.split('-');
+    var dlbl=dp[2]+'/'+dp[1]+'/'+dp[0];
+
+    h+='<div style="margin-top:20px;background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
+    h+='<div style="font-size:16px;font-weight:700;color:#f8fafc">\uD83D\uDCC6 '+dlbl+'</div>';
+    h+='<button onclick="S.agendaDetail=null;render()" style="background:#334155;color:#94a3b8;border:none;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:14px">\u2716</button>';
+    h+='</div>';
+
+    if(detEvs.length===0){
+      h+='<div style="text-align:center;padding:30px;color:#64748b;font-size:14px">Nenhum compromisso neste dia.</div>';
+    }else{
+      detEvs.sort(function(a,b){return(a.hora||'99:99').localeCompare(b.hora||'99:99');});
+      detEvs.forEach(function(ev){
+        h+='<div style="display:flex;align-items:flex-start;gap:12px;padding:12px;border-radius:8px;background:#0f172a;margin-bottom:8px;border-left:4px solid '+ev.color+'">';
+        h+='<div style="font-size:24px">'+ev.ico+'</div>';
+        h+='<div style="flex:1">';
+        h+='<div style="font-size:14px;font-weight:700;color:#f8fafc">'+ev.title+'</div>';
+        h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">';
+        h+='<span style="font-size:11px;padding:2px 8px;border-radius:12px;background:'+ev.color+'20;color:'+ev.color+';font-weight:600">'+ev.type+'</span>';
+        if(ev.hora)h+='<span style="font-size:11px;color:#94a3b8">\u23F0 '+ev.hora+'</span>';
+        if(ev.detail)h+='<span style="font-size:11px;color:#64748b">'+ev.detail+'</span>';
+        h+='</div>';
+        h+='</div>';
+        h+='</div>';
+      });
+    }
+    h+='</div>';
+  }
+
+  // Today button
+  h+='<div style="text-align:center;margin-top:16px">';
+  h+='<button onclick="S.agendaDate=new Date().toISOString().slice(0,10);S.agendaDetail=null;render()" style="background:#6366f1;color:#fff;border:none;padding:10px 24px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">\uD83D\uDCC5 Hoje</button>';
+  h+='</div>';
+
+  h+='</div>';
+  return h;
+}
+
 // ─── PAGE: RANKING ────────────────────────────────────────────────────────────
 function pgRanking(){
   const fonte=S.rankFonte||'rdcrm';
@@ -10744,6 +11000,7 @@ function updLancMeta(idx, key, val) {
   if (!S.lancTimeline || idx < 0 || idx >= S.lancTimeline.length) return;
   S.lancTimeline[idx][key] = val;
   saveLancData();
+  render();
 }
 
 function saveLancData() {
@@ -13668,7 +13925,7 @@ function premDel(id) {
 
 // === NOVO SISTEMA DE PERMISSOES POR SECAO ===
 // Paginas visiveis para TODOS
-var PAGES_ALL=['checkin','wararena','lancamentos_ano','ranking','tabela','drive','mapa','formacao','manual','playbook','codigo_etica','simvpl','simincc','sim_energia','simrep','canal_anonimo','kenlo','agente_vera','agente_sol','sr_performance','sr_gerencia'];
+var PAGES_ALL=['checkin','wararena','lancamentos_ano','ranking','agenda_psm','tabela','drive','mapa','formacao','manual','playbook','codigo_etica','simvpl','simincc','sim_energia','simrep','canal_anonimo','kenlo','agente_vera','agente_sol','sr_performance','sr_gerencia'];
 // Painel do Corretor: socios, gestores(lider), corretores
 var PAGES_PAINEL_CORRETOR=['oneonone','oportunidades','premiacoes','fluxo_cadencia','criativos','plantoes','ficha_captacao','fichas_propostas','ia_corretor','captacao'];
 // Vendas & Comissoes: diretores, lideres, corretores
@@ -13728,6 +13985,7 @@ function renderSB() {
       {id:'wararena',       lbl:'Arena PSM',         ico:'\u2694\uFE0F'},
       {id:'lancamentos_ano',lbl:'Lan\u00e7amentos',  ico:'\uD83D\uDE80'},
       {id:'ranking',        lbl:'Ranking',           ico:'\uD83C\uDFC6'},
+      {id:'agenda_psm',     lbl:'Agenda PSM',        ico:'\uD83D\uDCC5'},
     ]},
     {sec:'Painel do Corretor', items:[
       {id:'oneonone',       lbl:'One on One',              ico:'\uD83C\uDFAF'},
@@ -13846,7 +14104,7 @@ function renderSB() {
 function renderHDR() {
   const titles = {
     // Topo (todos)
-    checkin:'\u23F0 Check-in / out',wararena:'\u2694\uFE0F Arena PSM',lancamentos_ano:'\uD83D\uDE80 Lan\u00e7amentos',ranking:'\uD83C\uDFC6 Ranking',
+    checkin:'\u23F0 Check-in / out',wararena:'\u2694\uFE0F Arena PSM',lancamentos_ano:'\uD83D\uDE80 Lan\u00e7amentos',ranking:'\uD83C\uDFC6 Ranking',agenda_psm:'\uD83D\uDCC5 Agenda PSM',
     // Painel do Corretor
     oneonone:'One on One',oportunidades:'\uD83D\uDCA1 Oportunidades',premiacoes:'\uD83C\uDFC6 Premia\u00e7\u00f5es',
     relat_vendas:'\uD83D\uDCCA Vendas & Comiss\u00f5es',fluxo_cadencia:'\uD83D\uDD04 Fluxo de Cad\u00eancia',
@@ -13918,6 +14176,7 @@ function route() {
     case 'dashboard':  return pgDashboard();
     case 'meu':        return pgMeu();
     case 'ranking':    return pgRanking();
+    case 'agenda_psm': return pgAgendaPSM();
     case 'equipe':     return pgEquipe();
     case 'lancamento':
     case 'conquista':
@@ -18536,6 +18795,7 @@ function renderMobNav() {
     {id:'checkin',        ico:'\u23F0', lbl:'Check-in'},
     {id:'wararena',       ico:'\u2694\uFE0F', lbl:'Arena'},
     {id:'ranking',        ico:'\uD83C\uDFC6', lbl:'Ranking'},
+    {id:'agenda_psm',     ico:'\uD83D\uDCC5', lbl:'Agenda'},
     {id:'lancamentos_ano',ico:'\uD83D\uDE80', lbl:'Lanç.'},
     {id:'agente_vera',    ico:'\uD83D\uDC9C', lbl:'Vera'},
   ];
