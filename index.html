@@ -1087,17 +1087,7 @@ let S={
   // RD
   rdSyncing:false,rdSyncStatus:'',rdSyncError:'',rdDealCount:0,
   // One on One – link Google Sheets por corretor
-  ooSheetLinks: {
-    rafaela_m:'https://docs.google.com/spreadsheets/d/1viZiZFQvCUsWb0xuLnLL9CXg-1_uCCj4FkeQEg2g92Y/edit',
-    kadu:'https://docs.google.com/spreadsheets/d/1lDiIVZcWWUVokRCCK9Rdqq8YdfOy25wnIMSmv04dXgA/edit',
-    julia:'https://docs.google.com/spreadsheets/d/1TSZWJf_EuiCAfiH7hvHtMjjspJ7ky0c14HqmCSLYMKo/edit',
-    danilo_a:'https://docs.google.com/spreadsheets/d/12kWyJ5bh8dX_QX54WjuvLhi2Dm-XeERNVnOHp8TVMKg/edit',
-    bruno:'https://docs.google.com/spreadsheets/d/1mO4HE4eZEKtWlTt94oXz0GQQIay72DGooO-uA6mcfFg/edit',
-    vitor_o:'https://docs.google.com/spreadsheets/d/1cEZNDI9rBLa192seR3rsV40ZAqnbbrNL4WTgV4_MpKo/edit',
-    marcus_l:'https://docs.google.com/spreadsheets/d/1a64-KNpFROTWONcLgaR-2895cp4Ql84Dq3RWjJ1ese8/edit',
-    gabriel_b:'https://docs.google.com/spreadsheets/d/1RVbNW3q299uXmkqXapkdpR48lA78cyr4kB4n_z-ayvA/edit',
-    rodrigo_t:'https://docs.google.com/spreadsheets/d/1XQEyvITbq3ULIf737dRm6Q0Zp7ywRRnsnMIablrK5nk/edit',
-  },
+  ooSheetLinks: {},
   // Conectores / API Tokens
   connectors:{
     rd_crm_token:'', rd_mkt_token:'',
@@ -1109,6 +1099,24 @@ let S={
 };
 
 // ─── PERFIS DISC (declarado cedo para saveState/loadState) ───────────────────
+// ─── LINKS PADRÃO DAS PLANILHAS (fallback imutável) ───────────────────────────
+const OO_SHEET_DEFAULTS = {
+  rafaela_m:'https://docs.google.com/spreadsheets/d/1viZiZFQvCUsWb0xuLnLL9CXg-1_uCCj4FkeQEg2g92Y/edit',
+  kadu:'https://docs.google.com/spreadsheets/d/1lDiIVZcWWUVokRCCK9Rdqq8YdfOy25wnIMSmv04dXgA/edit',
+  julia:'https://docs.google.com/spreadsheets/d/1TSZWJf_EuiCAfiH7hvHtMjjspJ7ky0c14HqmCSLYMKo/edit',
+  danilo_a:'https://docs.google.com/spreadsheets/d/12kWyJ5bh8dX_QX54WjuvLhi2Dm-XeERNVnOHp8TVMKg/edit',
+  bruno:'https://docs.google.com/spreadsheets/d/1mO4HE4eZEKtWlTt94oXz0GQQIay72DGooO-uA6mcfFg/edit',
+  vitor_o:'https://docs.google.com/spreadsheets/d/1cEZNDI9rBLa192seR3rsV40ZAqnbbrNL4WTgV4_MpKo/edit',
+  marcus_l:'https://docs.google.com/spreadsheets/d/1a64-KNpFROTWONcLgaR-2895cp4Ql84Dq3RWjJ1ese8/edit',
+  gabriel_b:'https://docs.google.com/spreadsheets/d/1RVbNW3q299uXmkqXapkdpR48lA78cyr4kB4n_z-ayvA/edit',
+  rodrigo_t:'https://docs.google.com/spreadsheets/d/1XQEyvITbq3ULIf737dRm6Q0Zp7ywRRnsnMIablrK5nk/edit',
+};
+
+// Helper: retorna link da planilha com fallback garantido
+function ooGetSheetLink(bid) {
+  return (S.ooSheetLinks||{})[bid] || OO_SHEET_DEFAULTS[bid] || '';
+}
+
 let DISC_PROFILES = {
   rodrigo_t:{perfil:'Diretor',cor:'#dc2626',desc:'Direto, focado em resultados.'},
   marcus_l:{perfil:'Influente',cor:'#f59e0b',desc:'Comunicativo, persuasivo.'},
@@ -1279,7 +1287,7 @@ function loadState() {
     if (d.fcData) S.fcData = d.fcData;
     if (d.lancMetas) S.lancMetas = d.lancMetas;
     if (d.metaIndiv) S.metaIndiv = d.metaIndiv;
-    if (d.ooSheetLinks) S.ooSheetLinks = {...S.ooSheetLinks, ...d.ooSheetLinks};    if (d.ooSheetCache) { S.ooSheetCache = d.ooSheetCache; };
+    if (d.ooSheetLinks) { var _merged = {...S.ooSheetLinks}; Object.keys(d.ooSheetLinks).forEach(function(k){ if(d.ooSheetLinks[k]) _merged[k]=d.ooSheetLinks[k]; }); S.ooSheetLinks=_merged; }    if (d.ooSheetCache) { S.ooSheetCache = d.ooSheetCache; };
     if (d.ooDaily) { S.ooDaily = d.ooDaily; };
     if (d.ooMetas) { S.ooMetas = d.ooMetas; };
     if (d.ooFunnelPct) { S.ooFunnelPct = d.ooFunnelPct; };
@@ -5514,7 +5522,7 @@ function pgOKRs() {
 // ─── ONE ON ONE ───────────────────────────────────────────────────────────────
 // --- Google Sheets integration for One on One ---
 function _ooFetchSheet(bid) {
-  var raw = (S.ooSheetLinks||{})[bid];
+  var raw = ooGetSheetLink(bid);
   // Backward compat: raw pode ser string (URL direta) ou objeto {main: URL, ...}
   var url = typeof raw === 'string' ? raw : (raw && raw.main) || '';
   if (!url) return;
@@ -6176,7 +6184,7 @@ function pgOO() {
     + BROKERS.map(b => '<option value="'+b.id+'"'+(selBid===b.id?' selected':'')+'>'+b.name+'</option>').join('')
     + '</select></div>' : '';
 
-  const rawSheet = (S.ooSheetLinks || {})[selBid];
+  const rawSheet = ooGetSheetLink(selBid);
   const sheetUrl = typeof rawSheet === 'string' ? rawSheet : (rawSheet?.main || '');
   const sheetBar = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:10px 14px;background:linear-gradient(135deg,#0f9d5810,#4285f408);border:1px solid #0f9d5830;border-radius:10px">'
     + '<span style="font-size:18px">📊</span>'
@@ -7485,13 +7493,19 @@ function pgOO() {
 }
 
 function ooEditSheet(bid, name) {
-  const current = (S.ooSheetLinks || {})[bid] || '';
+  const current = ooGetSheetLink(bid);
   const url = prompt('Cole o link da planilha Google Sheets para ' + name + ':', current);
   if (url === null) return; // cancelled
   if (!S.ooSheetLinks) S.ooSheetLinks = {};
-  S.ooSheetLinks[bid] = url.trim();
+  if (url.trim()) {
+    S.ooSheetLinks[bid] = url.trim();
+    toast('Planilha vinculada para ' + name + '!', 'ok');
+  } else {
+    // Não remove o link default — só avisa
+    delete S.ooSheetLinks[bid];
+    toast('Link removido para ' + name + ' (voltará ao padrão se houver)', 'ok');
+  }
   saveState();
-  toast(url.trim() ? 'Planilha vinculada para ' + name + '!' : 'Link removido para ' + name, 'ok');
   render();
 }
 
