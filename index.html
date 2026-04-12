@@ -10938,12 +10938,12 @@ function mfInputRow(label,key,def,prefix,suffix,tooltip){
   var val=mfVal(key,def||0);
   var fmtVal=val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   var tt=tooltip?` title="${tooltip}"`:''
-  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04)"${tt}>
+  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08)"${tt}>
     <span style="color:#94a3b8;font-size:13px;flex:1">${label}</span>
     <div style="display:flex;align-items:center;gap:4px">
       ${prefix?`<span style="color:#64748b;font-size:12px">${prefix}</span>`:''}
       <input type="text" value="${fmtVal}" onchange="mfUpdate('${key}',this)"
-        style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;padding:6px 10px;width:130px;text-align:right;font-size:13px;font-family:inherit">
+        style="background:#1e293b;border:1px solid rgba(255,255,255,0.18);border-radius:6px;color:#e2e8f0;padding:6px 10px;width:130px;text-align:right;font-size:13px;font-family:inherit">
       ${suffix?`<span style="color:#64748b;font-size:12px">${suffix}</span>`:''}
     </div>
   </div>`;
@@ -10951,11 +10951,11 @@ function mfInputRow(label,key,def,prefix,suffix,tooltip){
 function mfInputRowPct(label,key,def,tooltip){
   var val=mfVal(key,def||0);
   var tt=tooltip?` title="${tooltip}"`:''
-  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04)"${tt}>
+  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08)"${tt}>
     <span style="color:#94a3b8;font-size:13px;flex:1">${label}</span>
     <div style="display:flex;align-items:center;gap:4px">
       <input type="text" value="${val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}" onchange="mfUpdatePct('${key}',this)"
-        style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;padding:6px 10px;width:80px;text-align:right;font-size:13px;font-family:inherit">
+        style="background:#1e293b;border:1px solid rgba(255,255,255,0.18);border-radius:6px;color:#e2e8f0;padding:6px 10px;width:80px;text-align:right;font-size:13px;font-family:inherit">
       <span style="color:#64748b;font-size:12px">%</span>
     </div>
   </div>`;
@@ -10963,7 +10963,7 @@ function mfInputRowPct(label,key,def,tooltip){
 function mfReadRow(label,value,color,bold){
   var c=color||'#e2e8f0';
   var fw=bold?'font-weight:700':'';
-  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04)">
+  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08)">
     <span style="color:#94a3b8;font-size:13px">${label}</span>
     <span style="color:${c};font-size:14px;${fw}">${value}</span>
   </div>`;
@@ -11029,7 +11029,7 @@ function mfComputedHTML(){
   var margemColor=margemLiquida>=20?'#22c55e':margemLiquida>=10?'#f59e0b':'#ef4444';
 
   var kpiCard=function(lbl,val,color){
-    return `<div style="background:linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.95));border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px 20px;flex:1;min-width:180px">
+    return `<div style="background:#1e293b;border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:16px 20px;flex:1;min-width:180px">
       <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">${lbl}</div>
       <div style="color:${color||'#e2e8f0'};font-size:22px;font-weight:700">${val}</div>
     </div>`;
@@ -11049,8 +11049,8 @@ function mfComputedHTML(){
     <!-- Resultados Computados -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px">
       <!-- Custos & Rentabilidade -->
-      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
-        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(59,130,246,0.08)">
+      <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.15);background:rgba(59,130,246,0.15)">
           <span style="color:#60a5fa;font-size:13px;font-weight:600">\uD83D\uDCB0 Custos & Rentabilidade</span>
         </div>
         ${mfReadRow('Custo Total Mensal',mfR$(custoTotal),'#f59e0b',true)}
@@ -11064,8 +11064,8 @@ function mfComputedHTML(){
       </div>
 
       <!-- Custo por Corretor -->
-      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
-        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(168,85,247,0.08)">
+      <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.15);background:rgba(168,85,247,0.15)">
           <span style="color:#c084fc;font-size:13px;font-weight:600">\uD83D\uDC65 Custo por Corretor</span>
         </div>
         ${mfReadRow('Custo Fixo / Corretor',mfR$(custoCorretorFixo),'#94a3b8')}
@@ -11074,8 +11074,8 @@ function mfComputedHTML(){
       </div>
 
       <!-- VGV & Metas -->
-      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
-        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(34,197,94,0.08)">
+      <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.15);background:rgba(34,197,94,0.15)">
           <span style="color:#4ade80;font-size:13px;font-weight:600">\uD83C\uDFAF VGV & Metas</span>
         </div>
         ${mfReadRow('VGV M\u00ednimo Sustent\u00e1vel',mfR$(vgvMinSustentavel),'#f59e0b',true)}
@@ -11085,8 +11085,8 @@ function mfComputedHTML(){
       </div>
 
       <!-- Proje\u00e7\u00e3o Anual -->
-      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
-        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(251,146,60,0.08)">
+      <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.15);background:rgba(251,146,60,0.15)">
           <span style="color:#fb923c;font-size:13px;font-weight:600">\uD83D\uDCC8 Proje\u00e7\u00e3o Anual</span>
         </div>
         ${mfReadRow('Meta VGV Ano',mfR$(metaVgvAno),'#e2e8f0')}
@@ -11098,8 +11098,8 @@ function mfComputedHTML(){
       </div>
 
       <!-- Caixa & Patrim\u00f4nio -->
-      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
-        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(56,189,248,0.08)">
+      <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.15);background:rgba(56,189,248,0.15)">
           <span style="color:#38bdf8;font-size:13px;font-weight:600">\uD83C\uDFE6 Caixa & Patrim\u00f4nio</span>
         </div>
         ${mfReadRow('Caixa PSM',mfR$(caixaPSM),'#22c55e',true)}
@@ -11110,8 +11110,8 @@ function mfComputedHTML(){
       </div>
 
       <!-- Indicadores Crescimento -->
-      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
-        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(139,92,246,0.08)">
+      <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.15);background:rgba(139,92,246,0.15)">
           <span style="color:#a78bfa;font-size:13px;font-weight:600">\uD83D\uDE80 Indicadores de Crescimento</span>
         </div>
         ${mfReadRow('Indicador Crescimento PSM',vgvMetaMensal>0&&vgv>0?mfRpct((vgv/vgvMetaMensal)*100):'\u2014',vgv>=vgvMetaMensal?'#22c55e':'#f59e0b',true)}
@@ -11137,8 +11137,8 @@ function mfTabHTML(tab){
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px;margin-bottom:28px">
 
       <!-- Custos Fixos & Sal\u00e1rios -->
-      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
-        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(239,68,68,0.08)">
+      <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.15);background:rgba(239,68,68,0.15)">
           <span style="color:#f87171;font-size:13px;font-weight:600">\uD83C\uDFE2 Custos Fixos & Sal\u00e1rios</span>
         </div>
         ${mfInputRow('Custo Fixo Total (mensal)','custo_fixo',0,'R$','','Aluguel, internet, sistemas, etc.')}
@@ -11150,8 +11150,8 @@ function mfTabHTML(tab){
       </div>
 
       <!-- Impostos & Al\u00edquotas -->
-      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
-        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(251,146,60,0.08)">
+      <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.15);background:rgba(251,146,60,0.15)">
           <span style="color:#fb923c;font-size:13px;font-weight:600">\uD83D\uDCCB Impostos & Al\u00edquotas</span>
         </div>
         ${mfInputRowPct('Impostos (% sobre VGC)','impostos_pct',0,'Percentual de impostos sobre comiss\u00e3o')}
@@ -11161,8 +11161,8 @@ function mfTabHTML(tab){
       </div>
 
       <!-- Receitas & Vendas -->
-      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
-        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(34,197,94,0.08)">
+      <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.15);background:rgba(34,197,94,0.15)">
           <span style="color:#4ade80;font-size:13px;font-weight:600">\uD83D\uDCB5 Receitas & Vendas</span>
         </div>
         ${mfInputRow('Ticket M\u00e9dio (normal)','ticket_normal',0,'R$','','Ticket m\u00e9dio sem outliers')}
@@ -11175,8 +11175,8 @@ function mfTabHTML(tab){
       </div>
 
       <!-- S\u00f3cios & Patrim\u00f4nio -->
-      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
-        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(56,189,248,0.08)">
+      <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.15);background:rgba(56,189,248,0.15)">
           <span style="color:#38bdf8;font-size:13px;font-weight:600">\uD83C\uDFE6 S\u00f3cios & Patrim\u00f4nio</span>
         </div>
         ${mfInputRow('Sal\u00e1rio S\u00f3cio 1','sal_socio1',0,'R$','')}
@@ -11208,7 +11208,7 @@ function mfTabHTML(tab){
     </div>
 
     <!-- Tab Navigation -->
-    <div style="display:flex;gap:8px;margin-bottom:24px;padding:12px;background:rgba(15,23,42,0.4);border-radius:10px;border:1px solid rgba(255,255,255,0.04)">
+    <div style="display:flex;gap:8px;margin-bottom:24px;padding:12px;background:#0f172a;border-radius:10px;border:1px solid rgba(255,255,255,0.15)">
       <button onclick="mfTabHTML('input');render()" style="${tabStyle(isInput)}">
         \uD83D\uDCDD Inserir Dados
       </button>
@@ -11940,191 +11940,6 @@ h+='</div></div>';
 
 return h;
 }
-
-// ── ADS INTEL AI — FULLY AUTOMATIC ──
-window.adsIntelAI=function(handle, adsLink){
-  var gKey=((S.connectors||{}).gemini_api_key||'').trim();
-  if(!gKey){alert('Configure a API Key Gemini em Configura\u00e7\u00f5es > Conectores.');return;}
-  var cInfo={};
-  (window._radarCompetitors||[]).forEach(function(c){if(c.handle===handle)cInfo=c;});
-  // Show inline loading on the button
-  var btn=event&&event.target?event.target:null;
-  var origText=btn?btn.innerHTML:'';
-  if(btn){btn.innerHTML='\u23F3';btn.disabled=true;}
-  var prompt='Voc\u00ea \u00e9 um analista de tr\u00e1fego pago especializado em imobili\u00e1rias de S\u00e3o Jos\u00e9 do Rio Preto, SP.\n\n'
-    +'Analise a empresa/corretor abaixo e estime seus dados de an\u00fancios na Meta Ads Library.\n\n'
-    +'CONCORRENTE: '+cInfo.name+' ('+cInfo.handle+')\n'
-    +'TIPO: '+(cInfo.type||'imobiliaria')+'\n'
-    +'SEGMENTO: '+(cInfo.segmento||'N/A')+'\n'
-    +'TIER: '+(cInfo.tier||'N/A')+' (A=grande player, B=m\u00e9dio, C=pequeno)\n'
-    +'REGI\u00c3O: '+(cInfo.regiao||'Rio Preto')+'\n\n'
-    +'Retorne um JSON PURO (sem markdown, sem ```json) preenchido:\n'
-    +'{"qty":"<n\u00famero estimado de ads ativos>","status":"<testando|escalando|pausado|inativo>","empreend":"<empreendimentos que provavelmente anunciam, separados por v\u00edrgula>","criativo":"<tipos de criativo mais prov\u00e1veis: V\u00eddeo, Carrossel, Est\u00e1tico, Stories>","obs":"<an\u00e1lise de 1-2 frases sobre a prov\u00e1vel estrat\u00e9gia de ads>"}\n\n'
-    +'REGRAS:\n- Baseie-se no porte (tier), segmento e tipo\n- Tier A normalmente tem 5-15 ads ativos, Tier B 2-8, Tier C 0-3\n- Imobili\u00e1rias costumam anunciar empreendimentos que trabalham na regi\u00e3o de Rio Preto\n- Retorne SOMENTE o JSON';
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:512,temperature:0.4}})
-  }).then(function(r){
-    if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status);});
-    return r.json();
-  }).then(function(data){
-    var txt='';
-    try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Sem resposta');}
-    txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
-    var parsed=JSON.parse(txt);
-    var adsData2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
-    adsData2[handle]={qty:parsed.qty||'',status:parsed.status||'',empreend:parsed.empreend||'',criativo:parsed.criativo||'',obs:parsed.obs||''};
-    localStorage.setItem('psm_radar_ads',JSON.stringify(adsData2));
-    if(btn){btn.innerHTML='\u2705';btn.style.color='#22c55e';}
-    setTimeout(function(){render();},800);
-  }).catch(function(err){
-    if(btn){btn.innerHTML='\u274C';btn.disabled=false;btn.title=err.message;}
-    console.error('adsIntelAI error:',err);
-  });
-};
-
-window.adsIntelBulkAI=function(){
-  var gKey=((S.connectors||{}).gemini_api_key||'').trim();
-  if(!gKey){alert('Configure a API Key Gemini em Configura\u00e7\u00f5es > Conectores.');return;}
-  var existing=document.getElementById('ads-ai-modal');
-  if(existing)existing.remove();
-  var overlay=document.createElement('div');
-  overlay.id='ads-ai-modal';
-  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
-  overlay.innerHTML='<div style="background:#1e293b;border:1px solid var(--gold);border-radius:16px;padding:28px;max-width:700px;width:90%;max-height:85vh;overflow-y:auto;">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
-    +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">\uD83E\uDD16 Preenchendo TODOS os concorrentes com IA</h3>'
-    +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">\u2715</button></div>'
-    +'<div id="ads-bulk-result" style="color:#cbd5e1;font-size:.85rem;line-height:1.7;"><div style="color:var(--gold);">\u23F3 Analisando '+(window._radarCompetitors||[]).length+' concorrentes com Gemini... aguarde at\u00e9 30s.</div></div></div>';
-  document.body.appendChild(overlay);
-  var compList=(window._radarCompetitors||[]).map(function(c){return c.name+' ('+c.handle+', '+c.segmento+', Tier '+c.tier+', '+c.type+')';}).join('\n');
-  var prompt='Voc\u00ea \u00e9 um analista de tr\u00e1fego pago especializado em imobili\u00e1rias de S\u00e3o Jos\u00e9 do Rio Preto, SP.\n\n'
-    +'Para CADA concorrente abaixo, estime os dados de an\u00fancios na Meta Ads Library.\n\n'
-    +'CONCORRENTES:\n'+compList+'\n\n'
-    +'Retorne um JSON PURO (array, sem markdown, sem ```json):\n'
-    +'[{"handle":"@xxx","qty":"N","status":"testando|escalando|pausado|inativo","empreend":"empreendimentos foco","criativo":"V\u00eddeo, Carrossel, Est\u00e1tico","obs":"an\u00e1lise curta 1-2 frases"}]\n\n'
-    +'REGRAS:\n- Tier A = 5-15 ads ativos, provavelmente escalando\n- Tier B = 2-8 ads, testando ou escalando\n- Tier C = 0-3 ads, testando ou inativo\n- Estime empreendimentos pela regi\u00e3o e segmento\n- Retorne APENAS o JSON array completo para TODOS os '+(window._radarCompetitors||[]).length+' concorrentes';
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:8192,temperature:0.4}})
-  }).then(function(r){
-    if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status);});
-    return r.json();
-  }).then(function(data){
-    var txt='';
-    try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Sem resposta');}
-    txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
-    var parsed=JSON.parse(txt);
-    if(!Array.isArray(parsed))throw new Error('Resposta n\u00e3o \u00e9 array');
-    var adsData2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
-    var count=0;
-    parsed.forEach(function(item){
-      if(!item.handle)return;
-      adsData2[item.handle]={qty:item.qty||'',status:item.status||'',empreend:item.empreend||'',criativo:item.criativo||'',obs:item.obs||''};
-      count++;
-    });
-    localStorage.setItem('psm_radar_ads',JSON.stringify(adsData2));
-    var el=document.getElementById('ads-bulk-result');
-    if(el)el.innerHTML='<div style="color:#22c55e;font-size:1.1rem;font-weight:700;">\u2705 '+count+' concorrentes preenchidos automaticamente!</div><div style="color:#94a3b8;font-size:.8rem;margin-top:8px;">Atualizando p\u00e1gina...</div>';
-    setTimeout(function(){
-      var modal=document.getElementById('ads-ai-modal');
-      if(modal)modal.remove();
-      render();
-    },1500);
-  }).catch(function(err){
-    var el=document.getElementById('ads-bulk-result');
-    if(el)el.innerHTML='<span style="color:#ef4444;">\u274C Erro: '+err.message+'</span><br><button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="margin-top:12px;padding:8px 16px;background:#334155;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>';
-  });
-};
-
-// ── RADAR AI FILL ALL ──
-window.radarAIFillAll=function(scope){
-  var gKey=((S.connectors||{}).gemini_api_key||'').trim();
-  if(!gKey){alert('Configure a API Key Gemini em Configura\u00e7\u00f5es > Conectores.');return;}
-  var comps=window._radarCompetitors||[];
-  if(!comps.length){alert('Nenhum concorrente cadastrado.');return;}
-  var rd=window._radarData||{};
-  // Show loading modal
-  var existing=document.getElementById('ads-ai-modal');
-  if(existing)existing.remove();
-  var overlay=document.createElement('div');
-  overlay.id='ads-ai-modal';
-  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
-  var scopeLabel=scope==='swot'?'SWOT':scope==='metrics'?'M\u00e9tricas':scope==='digital'?'Presen\u00e7a Digital':scope==='overview'?'Vis\u00e3o Geral':'Dados';
-  overlay.innerHTML='<div style="background:#1e293b;border:1px solid var(--gold);border-radius:16px;padding:28px;max-width:700px;width:90%;max-height:85vh;overflow-y:auto;">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
-    +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">\uD83E\uDD16 Preenchendo '+scopeLabel+' com IA</h3>'
-    +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">\u2715</button></div>'
-    +'<div id="radar-ai-fill-status" style="color:var(--gold);font-size:.85rem;line-height:1.7;">\u23F3 Analisando '+comps.length+' concorrentes com Gemini... isso pode levar at\u00e9 30 segundos.</div></div>';
-  document.body.appendChild(overlay);
-  // Build prompt based on scope
-  var compList=comps.map(function(c){return c.name+' ('+c.handle+', '+c.segmento+', Tier '+c.tier+', '+c.type+', '+(c.regiao||'RP')+')';}).join('\n');
-  var prompt='';
-  if(scope==='swot'){
-    prompt='Voc\u00ea \u00e9 um analista de intelig\u00eancia competitiva do mercado imobili\u00e1rio de S\u00e3o Jos\u00e9 do Rio Preto, SP.\n\n'
-      +'Para cada concorrente abaixo, fa\u00e7a uma an\u00e1lise SWOT (for\u00e7as, fraquezas, oportunidades, amea\u00e7as) baseada no que voc\u00ea sabe sobre essas empresas/corretores.\n\n'
-      +'CONCORRENTES:\n'+compList+'\n\n'
-      +'Retorne um JSON PURO (sem markdown, sem ```json) no formato:\n'
-      +'[{"handle":"@xxx","swot_forca":"...","swot_fraqueza":"...","swot_oportunidade":"...","swot_ameaca":"...","estrategia_principal":"...","diferencial_competitivo":"..."}]\n\n'
-      +'REGRAS:\n- Cada campo deve ter 1-2 frases curtas e objetivas\n- Baseie-se em conhecimento real sobre o mercado imobili\u00e1rio de Rio Preto\n- Se n\u00e3o conhece a empresa espec\u00edfica, analise pelo tipo (imobili\u00e1ria vs corretor), tier e segmento\n- Retorne APENAS o JSON';
-  }else if(scope==='metrics'){
-    prompt='Voc\u00ea \u00e9 um analista de mercado imobili\u00e1rio especializado em S\u00e3o Jos\u00e9 do Rio Preto, SP.\n\n'
-      +'Para cada concorrente, estime as m\u00e9tricas de mercado baseadas no que voc\u00ea sabe.\n\n'
-      +'CONCORRENTES:\n'+compList+'\n\n'
-      +'Retorne JSON PURO:\n'
-      +'[{"handle":"@xxx","preco_medio":"R$ XXk-XXXk","vol_anuncios":"X-XX/m\u00eas","tempo_mercado":"X anos","n_corretores":"X-XX","area_atuacao":"regi\u00f5es","diferencial":"..."}]\n\n'
-      +'REGRAS:\n- Use ranges realistas para o mercado de Rio Preto\n- preco_medio = faixa de pre\u00e7os dos im\u00f3veis que trabalham\n- vol_anuncios = estimativa de an\u00fancios ativos\n- Se n\u00e3o conhece exatamente, estime pelo tier (A=grande, B=m\u00e9dio, C=pequeno) e segmento\n- Retorne APENAS o JSON';
-  }else if(scope==='digital'||scope==='overview'){
-    prompt='Voc\u00ea \u00e9 um analista de marketing digital especializado em imobili\u00e1rias de S\u00e3o Jos\u00e9 do Rio Preto, SP.\n\n'
-      +'Para cada concorrente, estime a presen\u00e7a digital baseada no que voc\u00ea sabe.\n\n'
-      +'CONCORRENTES (j\u00e1 temos esses dados de seguidores):\n';
-    comps.forEach(function(c){
-      var existing=rd[c.handle]||{};
-      prompt+=c.name+' ('+c.handle+', Tier '+c.tier+'): seguidores='+(existing.seguidores||'?')+'\n';
-    });
-    prompt+='\nRetorne JSON PURO:\n'
-      +'[{"handle":"@xxx","posts_mes":"XX","engajamento":"X.X%","site":"www.xxx.com.br ou N/A","portais":"ZAP, Viva Real ou N/A","google_ads":"Ativo/Inativo","meta_ads":"Ativo/Inativo","youtube":"Ativo/Inativo","tiktok":"Ativo/Inativo","score_digital":"XX"}]\n\n'
-      +'REGRAS:\n- posts_mes = estimativa de posts no Instagram por m\u00eas\n- engajamento = taxa estimada\n- score_digital = nota 0-100 da presen\u00e7a digital geral\n- Use dados reais quando souber; caso contr\u00e1rio, estime pelo porte (Tier A=maior, B=m\u00e9dio, C=menor)\n- Para site, portais: use URLs reais se souber\n- Retorne APENAS o JSON';
-  }
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:8192,temperature:0.4}})
-  }).then(function(r){
-    if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.substring(0,200));});
-    return r.json();
-  }).then(function(data){
-    var txt='';
-    try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Resposta inesperada: '+JSON.stringify(data).substring(0,300));}
-    txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
-    var parsed=JSON.parse(txt);
-    if(!Array.isArray(parsed))throw new Error('Resposta n\u00e3o \u00e9 um array');
-    // Save to radarData
-    var storedRadar=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');
-    var count=0;
-    parsed.forEach(function(item){
-      if(!item.handle)return;
-      if(!storedRadar[item.handle])storedRadar[item.handle]={};
-      Object.keys(item).forEach(function(k){
-        if(k!=='handle'&&item[k]){
-          storedRadar[item.handle][k]=item[k];
-        }
-      });
-      count++;
-    });
-    localStorage.setItem('psm_radar_data',JSON.stringify(storedRadar));
-    var el=document.getElementById('radar-ai-fill-status');
-    if(el)el.innerHTML='<div style="color:#22c55e;font-size:1rem;font-weight:700;">\u2705 '+count+' concorrentes atualizados!</div><div style="color:#94a3b8;font-size:.8rem;margin-top:8px;">Fechando e atualizando a p\u00e1gina...</div>';
-    setTimeout(function(){
-      var modal=document.getElementById('ads-ai-modal');
-      if(modal)modal.remove();
-      render();
-    },1500);
-  }).catch(function(err){
-    var el=document.getElementById('radar-ai-fill-status');
-    if(el)el.innerHTML='<span style="color:#ef4444;">\u274C Erro: '+err.message+'</span><br><button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="margin-top:12px;padding:8px 16px;background:#334155;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>';
-  });
-};
-
 // ── PSM vs MERCADO (IA COMPARISON) ──
 function renderPsmCompare(fc){
 var h='';
@@ -12239,6 +12054,136 @@ return h;
 }
 
 } // end pgRadar // end pgRadar
+// ══════════════════════════════════════════════════════════════════════════════
+// ── RADAR AI FUNCTIONS (GLOBAL SCOPE - outside pgRadar) ─────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+window.adsIntelAI=function(handle, adsLink){
+  var gKey=((S.connectors||{}).gemini_api_key||'').trim();
+  if(!gKey){alert('Configure a API Key Gemini em Configurações > Conectores.');return;}
+  var cInfo={};
+  (window._radarCompetitors||[]).forEach(function(c){if(c.handle===handle)cInfo=c;});
+  var btn=event&&event.target?event.target:null;
+  if(btn){btn.innerHTML='\u23F3';btn.disabled=true;}
+  var prompt='Você é um analista de tráfego pago especializado em imobiliárias de São José do Rio Preto, SP.\n\n'
+    +'Analise a empresa/corretor abaixo e estime seus dados de anúncios na Meta Ads Library.\n\n'
+    +'CONCORRENTE: '+(cInfo.name||handle)+' ('+(cInfo.handle||handle)+')\n'
+    +'TIPO: '+(cInfo.type||'imobiliaria')+'\n'
+    +'SEGMENTO: '+(cInfo.segmento||'N/A')+'\n'
+    +'TIER: '+(cInfo.tier||'N/A')+' (A=grande player, B=médio, C=pequeno)\n'
+    +'REGIÃO: '+(cInfo.regiao||'Rio Preto')+'\n\n'
+    +'Retorne um JSON PURO (sem markdown, sem ```json) preenchido:\n'
+    +'{"qty":"<número estimado de ads ativos>","status":"<testando|escalando|pausado|inativo>","empreend":"<empreendimentos que provavelmente anunciam, separados por vírgula>","criativo":"<tipos de criativo: Vídeo, Carrossel, Estático, Stories>","obs":"<análise 1-2 frases sobre estratégia de ads>"}\n\n'
+    +'REGRAS:\n- Tier A = 5-15 ads, Tier B = 2-8, Tier C = 0-3\n- Retorne SOMENTE o JSON';
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:512,temperature:0.4}})
+  }).then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status);});
+    return r.json();
+  }).then(function(data){
+    var txt='';
+    try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Sem resposta');}
+    txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
+    var parsed=JSON.parse(txt);
+    var adsData2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
+    adsData2[handle]={qty:parsed.qty||'',status:parsed.status||'',empreend:parsed.empreend||'',criativo:parsed.criativo||'',obs:parsed.obs||''};
+    localStorage.setItem('psm_radar_ads',JSON.stringify(adsData2));
+    if(btn){btn.innerHTML='\u2705';btn.style.color='#22c55e';}
+    setTimeout(function(){render();},800);
+  }).catch(function(err){
+    if(btn){btn.innerHTML='\u274C';btn.disabled=false;btn.title=err.message;}
+    console.error('adsIntelAI error:',err);
+  });
+};
+
+window.adsIntelBulkAI=function(){
+  var gKey=((S.connectors||{}).gemini_api_key||'').trim();
+  if(!gKey){alert('Configure a API Key Gemini em Configurações > Conectores.');return;}
+  var comps=window._radarCompetitors||[];
+  var existing=document.getElementById('ads-ai-modal');
+  if(existing)existing.remove();
+  var overlay=document.createElement('div');
+  overlay.id='ads-ai-modal';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML='<div style="background:#1e293b;border:1px solid var(--gold);border-radius:16px;padding:28px;max-width:700px;width:90%;max-height:85vh;overflow-y:auto;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+    +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">\uD83E\uDD16 Preenchendo TODOS com IA</h3>'
+    +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">\u2715</button></div>'
+    +'<div id="ads-bulk-result" style="color:#cbd5e1;font-size:.85rem;line-height:1.7;"><div style="color:var(--gold);">\u23F3 Analisando '+comps.length+' concorrentes... aguarde até 30s.</div></div></div>';
+  document.body.appendChild(overlay);
+  var compList=comps.map(function(c){return c.name+' ('+c.handle+', '+c.segmento+', Tier '+c.tier+', '+c.type+')';}).join('\n');
+  var prompt='Você é um analista de tráfego pago de imobiliárias de São José do Rio Preto, SP.\n\nPara CADA concorrente, estime dados de anúncios Meta Ads.\n\nCONCORRENTES:\n'+compList+'\n\nRetorne JSON PURO (array):\n[{"handle":"@xxx","qty":"N","status":"testando|escalando|pausado|inativo","empreend":"empreendimentos","criativo":"Vídeo, Carrossel","obs":"análise curta"}]\n\nTier A=5-15 ads, B=2-8, C=0-3. Retorne array para TODOS os '+comps.length+' concorrentes.';
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:8192,temperature:0.4}})
+  }).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();
+  }).then(function(data){
+    var txt='';try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Sem resposta');}
+    txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
+    var parsed=JSON.parse(txt);if(!Array.isArray(parsed))throw new Error('Não é array');
+    var ad2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');var count=0;
+    parsed.forEach(function(item){if(!item.handle)return;ad2[item.handle]={qty:item.qty||'',status:item.status||'',empreend:item.empreend||'',criativo:item.criativo||'',obs:item.obs||''};count++;});
+    localStorage.setItem('psm_radar_ads',JSON.stringify(ad2));
+    var el=document.getElementById('ads-bulk-result');
+    if(el)el.innerHTML='<div style="color:#22c55e;font-size:1.1rem;font-weight:700;">\u2705 '+count+' concorrentes preenchidos!</div>';
+    setTimeout(function(){var m=document.getElementById('ads-ai-modal');if(m)m.remove();render();},1500);
+  }).catch(function(err){
+    var el=document.getElementById('ads-bulk-result');
+    if(el)el.innerHTML='<span style="color:#ef4444;">\u274C Erro: '+err.message+'</span><br><button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="margin-top:12px;padding:8px 16px;background:#334155;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>';
+  });
+};
+
+window.radarAIFillAll=function(scope){
+  var gKey=((S.connectors||{}).gemini_api_key||'').trim();
+  if(!gKey){alert('Configure a API Key Gemini em Configurações > Conectores.');return;}
+  var comps=window._radarCompetitors||[];
+  if(!comps.length){alert('Nenhum concorrente cadastrado.');return;}
+  var rd=window._radarData||{};
+  var existing=document.getElementById('ads-ai-modal');
+  if(existing)existing.remove();
+  var overlay=document.createElement('div');
+  overlay.id='ads-ai-modal';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  var scopeLabel=scope==='swot'?'SWOT':scope==='metrics'?'Métricas':scope==='digital'?'Presença Digital':scope==='overview'?'Visão Geral':'Dados';
+  overlay.innerHTML='<div style="background:#1e293b;border:1px solid var(--gold);border-radius:16px;padding:28px;max-width:700px;width:90%;max-height:85vh;overflow-y:auto;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+    +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">\uD83E\uDD16 Preenchendo '+scopeLabel+' com IA</h3>'
+    +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">\u2715</button></div>'
+    +'<div id="radar-ai-fill-status" style="color:var(--gold);font-size:.85rem;line-height:1.7;">\u23F3 Analisando '+comps.length+' concorrentes com Gemini... até 30s.</div></div>';
+  document.body.appendChild(overlay);
+  var compList=comps.map(function(c){return c.name+' ('+c.handle+', '+c.segmento+', Tier '+c.tier+', '+c.type+', '+(c.regiao||'RP')+')';}).join('\n');
+  var prompt='';
+  if(scope==='swot'){
+    prompt='Você é analista de inteligência competitiva do mercado imobiliário de São José do Rio Preto, SP.\n\nPara cada concorrente, faça SWOT.\n\nCONCORRENTES:\n'+compList+'\n\nRetorne JSON PURO:\n[{"handle":"@xxx","swot_forca":"...","swot_fraqueza":"...","swot_oportunidade":"...","swot_ameaca":"...","estrategia_principal":"...","diferencial_competitivo":"..."}]\n\nCada campo 1-2 frases. Retorne APENAS o JSON.';
+  }else if(scope==='metrics'){
+    prompt='Você é analista de mercado imobiliário de São José do Rio Preto, SP.\n\nEstime métricas de mercado.\n\nCONCORRENTES:\n'+compList+'\n\nRetorne JSON PURO:\n[{"handle":"@xxx","preco_medio":"R$ XXk-XXXk","vol_anuncios":"X-XX/mês","tempo_mercado":"X anos","n_corretores":"X-XX","area_atuacao":"regiões","diferencial":"..."}]\n\nRetorne APENAS o JSON.';
+  }else if(scope==='digital'||scope==='overview'){
+    prompt='Você é analista de marketing digital de imobiliárias de São José do Rio Preto, SP.\n\nEstime presença digital.\n\nCONCORRENTES:\n';
+    comps.forEach(function(c){var ex=rd[c.handle]||{};prompt+=c.name+' ('+c.handle+', Tier '+c.tier+'): seguidores='+(ex.seguidores||'?')+'\n';});
+    prompt+='\nRetorne JSON PURO:\n[{"handle":"@xxx","posts_mes":"XX","engajamento":"X.X%","site":"www.xxx.com.br ou N/A","portais":"ZAP, Viva Real ou N/A","google_ads":"Ativo/Inativo","meta_ads":"Ativo/Inativo","youtube":"Ativo/Inativo","tiktok":"Ativo/Inativo","score_digital":"XX"}]\n\nRetorne APENAS o JSON.';
+  }
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:8192,temperature:0.4}})
+  }).then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.substring(0,200));});return r.json();
+  }).then(function(data){
+    var txt='';try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Resposta inesperada');}
+    txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
+    var parsed=JSON.parse(txt);if(!Array.isArray(parsed))throw new Error('Não é array');
+    var stored=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');var count=0;
+    parsed.forEach(function(item){if(!item.handle)return;if(!stored[item.handle])stored[item.handle]={};
+      Object.keys(item).forEach(function(k){if(k!=='handle'&&item[k])stored[item.handle][k]=item[k];});count++;});
+    localStorage.setItem('psm_radar_data',JSON.stringify(stored));
+    var el=document.getElementById('radar-ai-fill-status');
+    if(el)el.innerHTML='<div style="color:#22c55e;font-size:1rem;font-weight:700;">\u2705 '+count+' concorrentes atualizados!</div>';
+    setTimeout(function(){var m=document.getElementById('ads-ai-modal');if(m)m.remove();render();},1500);
+  }).catch(function(err){
+    var el=document.getElementById('radar-ai-fill-status');
+    if(el)el.innerHTML='<span style="color:#ef4444;">\u274C Erro: '+err.message+'</span><br><button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="margin-top:12px;padding:8px 16px;background:#334155;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>';
+  });
+};
+
 function pgRadarEdit(){
 var handle=window._radarEditHandle;
 if(!handle)return;
@@ -13731,7 +13676,7 @@ function pgSimVPL() {
     var fx = fluxoPadrao[fi];
     var isAnual = fx.anual > 0;
     var isFin = fx.financ > 0;
-    var rowBg = isAnual ? 'background:rgba(99,102,241,0.08)' : (isFin ? 'background:rgba(59,130,246,0.08)' : '');
+    var rowBg = isAnual ? 'background:rgba(99,102,241,0.08)' : (isFin ? 'background:rgba(59,130,246,0.15)' : '');
     h += '<tr style="border-bottom:1px solid var(--cream3);'+rowBg+'">';
     h += '<td style="padding:4px 8px;text-align:center">'+fx.mes+'</td>';
     h += '<td style="padding:4px 8px;font-size:10px">'+fx.data+'</td>';
@@ -13892,7 +13837,7 @@ function pgSimINCC() {
     var px = projecao[pi];
     var isAnualRow = (px.mes > 0 && px.mes % 12 === 0);
     var isFinRow = (px.mes === c.prazoMeses && financ > 0);
-    var rowBg = isFinRow ? 'background:rgba(59,130,246,0.08)' : (isAnualRow ? 'background:rgba(99,102,241,0.08)' : '');
+    var rowBg = isFinRow ? 'background:rgba(59,130,246,0.15)' : (isAnualRow ? 'background:rgba(99,102,241,0.08)' : '');
     h += '<tr style="border-bottom:1px solid var(--cream3);'+rowBg+'">';
     h += '<td style="padding:4px 8px;text-align:center">'+px.mes+'</td>';
     h += '<td style="padding:4px 8px;text-align:right">'+px.fator+'</td>';
