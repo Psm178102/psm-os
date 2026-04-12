@@ -11122,20 +11122,18 @@ function mfComputedHTML(){
     </div>`;
 }
 
-function pgMetricasFinanceiro(){
-  return `<div style="padding:24px;max-width:1400px;margin:0 auto">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
-      <div>
-        <h2 style="color:#e2e8f0;font-size:22px;font-weight:700;margin:0">\uD83D\uDCCA M\u00e9tricas Financeiro</h2>
-        <p style="color:#64748b;font-size:13px;margin:4px 0 0">Painel completo de custos, receitas, ROI e proje\u00e7\u00f5es da PSM</p>
-      </div>
-      <button onclick="if(confirm('Limpar todos os dados? Essa a\u00e7\u00e3o n\u00e3o pode ser desfeita.')){localStorage.removeItem('psm_metricas_fin');render()}"
-        style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px">
-        \uD83D\uDDD1 Resetar Dados
-      </button>
-    </div>
+function mfTabHTML(tab){
+  window._mfTab=window._mfTab||'input';
+  if(tab!==undefined)window._mfTab=tab;
 
-    <!-- Inputs Section -->
+  var isInput=window._mfTab==='input';
+  var isMetrics=window._mfTab==='metrics';
+
+  var tabStyle=function(active){
+    return `padding:12px 18px;background:${active?'var(--gold)':'#94a3b8'};color:${active?'var(--navy)':'#e2e8f0'};border:none;cursor:pointer;font-size:0.9rem;font-weight:700;border-radius:8px;margin-right:8px`;
+  };
+
+  var inputTab=`
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px;margin-bottom:28px">
 
       <!-- Custos Fixos & Sal\u00e1rios -->
@@ -11189,12 +11187,43 @@ function pgMetricasFinanceiro(){
         ${mfInputRow('Meta VGV Ano','meta_vgv_ano',0,'R$','','Meta anual de VGV')}
       </div>
     </div>
+  `;
 
-    <!-- Computed Section -->
+  var metricsTab=`
     <div id="mf-computed">
       ${mfComputedHTML()}
     </div>
+  `;
+
+  return `<div style="padding:24px;max-width:1400px;margin:0 auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+      <div>
+        <h2 style="color:#e2e8f0;font-size:22px;font-weight:700;margin:0">\uD83D\uDCCA M\u00e9tricas Financeiro</h2>
+        <p style="color:#64748b;font-size:13px;margin:4px 0 0">Painel completo de custos, receitas, ROI e proje\u00e7\u00f5es da PSM</p>
+      </div>
+      <button onclick="if(confirm('Limpar todos os dados? Essa a\u00e7\u00e3o n\u00e3o pode ser desfeita.')){localStorage.removeItem('psm_metricas_fin');render()}"
+        style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px">
+        \uD83D\uDDD1 Resetar Dados
+      </button>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div style="display:flex;gap:8px;margin-bottom:24px;padding:12px;background:rgba(15,23,42,0.4);border-radius:10px;border:1px solid rgba(255,255,255,0.04)">
+      <button onclick="mfTabHTML('input');render()" style="${tabStyle(isInput)}">
+        \uD83D\uDCDD Inserir Dados
+      </button>
+      <button onclick="mfTabHTML('metrics');render()" style="${tabStyle(isMetrics)}">
+        \uD83D\uDCC8 M\u00e9tricas & KPIs
+      </button>
+    </div>
+
+    <!-- Tab Content -->
+    ${isInput ? inputTab : metricsTab}
   </div>`;
+}
+
+function pgMetricasFinanceiro(){
+  return mfTabHTML();
 }
 
 // ─── PAGE: RADAR INTELLIGENCE ────────────────────────────────────────────────
@@ -11917,7 +11946,7 @@ window.adsIntelAI=function(handle, adsLink){
   var gKey=((S.connectors||{}).gemini_api_key||'').trim();
   if(!gKey){alert('Configure a API Key Gemini em Configura\u00e7\u00f5es > Conectores.');return;}
   var cInfo={};
-  (competitors||[]).forEach(function(c){if(c.handle===handle)cInfo=c;});
+  (window._radarCompetitors||[]).forEach(function(c){if(c.handle===handle)cInfo=c;});
   // Show inline loading on the button
   var btn=event&&event.target?event.target:null;
   var origText=btn?btn.innerHTML:'';
@@ -11966,15 +11995,15 @@ window.adsIntelBulkAI=function(){
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
     +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">\uD83E\uDD16 Preenchendo TODOS os concorrentes com IA</h3>'
     +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">\u2715</button></div>'
-    +'<div id="ads-bulk-result" style="color:#cbd5e1;font-size:.85rem;line-height:1.7;"><div style="color:var(--gold);">\u23F3 Analisando '+competitors.length+' concorrentes com Gemini... aguarde at\u00e9 30s.</div></div></div>';
+    +'<div id="ads-bulk-result" style="color:#cbd5e1;font-size:.85rem;line-height:1.7;"><div style="color:var(--gold);">\u23F3 Analisando '+(window._radarCompetitors||[]).length+' concorrentes com Gemini... aguarde at\u00e9 30s.</div></div></div>';
   document.body.appendChild(overlay);
-  var compList=competitors.map(function(c){return c.name+' ('+c.handle+', '+c.segmento+', Tier '+c.tier+', '+c.type+')';}).join('\n');
+  var compList=(window._radarCompetitors||[]).map(function(c){return c.name+' ('+c.handle+', '+c.segmento+', Tier '+c.tier+', '+c.type+')';}).join('\n');
   var prompt='Voc\u00ea \u00e9 um analista de tr\u00e1fego pago especializado em imobili\u00e1rias de S\u00e3o Jos\u00e9 do Rio Preto, SP.\n\n'
     +'Para CADA concorrente abaixo, estime os dados de an\u00fancios na Meta Ads Library.\n\n'
     +'CONCORRENTES:\n'+compList+'\n\n'
     +'Retorne um JSON PURO (array, sem markdown, sem ```json):\n'
     +'[{"handle":"@xxx","qty":"N","status":"testando|escalando|pausado|inativo","empreend":"empreendimentos foco","criativo":"V\u00eddeo, Carrossel, Est\u00e1tico","obs":"an\u00e1lise curta 1-2 frases"}]\n\n'
-    +'REGRAS:\n- Tier A = 5-15 ads ativos, provavelmente escalando\n- Tier B = 2-8 ads, testando ou escalando\n- Tier C = 0-3 ads, testando ou inativo\n- Estime empreendimentos pela regi\u00e3o e segmento\n- Retorne APENAS o JSON array completo para TODOS os '+competitors.length+' concorrentes';
+    +'REGRAS:\n- Tier A = 5-15 ads ativos, provavelmente escalando\n- Tier B = 2-8 ads, testando ou escalando\n- Tier C = 0-3 ads, testando ou inativo\n- Estime empreendimentos pela regi\u00e3o e segmento\n- Retorne APENAS o JSON array completo para TODOS os '+(window._radarCompetitors||[]).length+' concorrentes';
   fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:8192,temperature:0.4}})
@@ -12160,14 +12189,14 @@ var ctx='Voc\u00ea \u00e9 um analista de marketing imobili\u00e1rio especializad
 ctx+='== PSM IM\u00d3VEIS (alto padr\u00e3o) ==\n'+JSON.stringify(psmAds2.psm_imoveis||{})+'\n\n';
 ctx+='== PSM CONQUISTA (residencial MCMV) ==\n'+JSON.stringify(psmAds2.psm_conquista||{})+'\n\n';
 var monitorados=[];
-competitors.forEach(function(c4){
+(window._radarCompetitors||[]).forEach(function(c4){
 var ad2=adsData2[c4.handle]||{};
-var rd=radarData[c4.handle]||{};
+var rd=(window._radarData||{})[c4.handle]||{};
 if(ad2.status||ad2.empreend||ad2.criativo||ad2.qty||rd.seguidores||rd.swot_forca){
 monitorados.push({name:c4.name,segmento:c4.segmento,tier:c4.tier,ads:ad2,metrics:rd});
 }
 });
-ctx+='== CONCORRENTES MONITORADOS ('+monitorados.length+' de '+competitors.length+') ==\n';
+ctx+='== CONCORRENTES MONITORADOS ('+monitorados.length+' de '+(window._radarCompetitors||[]).length+') ==\n';
 monitorados.forEach(function(m){
 ctx+=m.name+' ('+m.segmento+', Tier '+m.tier+'): Ads='+JSON.stringify(m.ads)+', M\u00e9tricas='+JSON.stringify(m.metrics)+'\n';
 });
