@@ -10913,6 +10913,290 @@ function pgRepasses() {
   </div>`;
 }
 
+// ─── PAGE: MÉTRICAS FINANCEIRO ───────────────────────────────────────────────
+function mfLoad(){
+  try{return JSON.parse(localStorage.getItem('psm_metricas_fin'))||{}}catch(e){return{}}
+}
+function mfSave(d){localStorage.setItem('psm_metricas_fin',JSON.stringify(d))}
+function mfVal(k,def){var d=mfLoad();return d[k]!==undefined?d[k]:def}
+function mfSet(k,v){var d=mfLoad();d[k]=v;mfSave(d)}
+window.mfUpdate=function(k,el){
+  var v=parseFloat(el.value.replace(/[^\d.,\-]/g,'').replace(',','.'))||0;
+  mfSet(k,v);
+  // re-render computed section
+  var cc=document.getElementById('mf-computed');
+  if(cc)cc.innerHTML=mfComputedHTML();
+};
+window.mfUpdatePct=function(k,el){
+  var v=parseFloat(el.value.replace(/[^\d.,\-]/g,'').replace(',','.'))||0;
+  mfSet(k,v);
+  var cc=document.getElementById('mf-computed');
+  if(cc)cc.innerHTML=mfComputedHTML();
+};
+
+function mfInputRow(label,key,def,prefix,suffix,tooltip){
+  var val=mfVal(key,def||0);
+  var fmtVal=val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  var tt=tooltip?` title="${tooltip}"`:''
+  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04)"${tt}>
+    <span style="color:#94a3b8;font-size:13px;flex:1">${label}</span>
+    <div style="display:flex;align-items:center;gap:4px">
+      ${prefix?`<span style="color:#64748b;font-size:12px">${prefix}</span>`:''}
+      <input type="text" value="${fmtVal}" onchange="mfUpdate('${key}',this)"
+        style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;padding:6px 10px;width:130px;text-align:right;font-size:13px;font-family:inherit">
+      ${suffix?`<span style="color:#64748b;font-size:12px">${suffix}</span>`:''}
+    </div>
+  </div>`;
+}
+function mfInputRowPct(label,key,def,tooltip){
+  var val=mfVal(key,def||0);
+  var tt=tooltip?` title="${tooltip}"`:''
+  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04)"${tt}>
+    <span style="color:#94a3b8;font-size:13px;flex:1">${label}</span>
+    <div style="display:flex;align-items:center;gap:4px">
+      <input type="text" value="${val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}" onchange="mfUpdatePct('${key}',this)"
+        style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;padding:6px 10px;width:80px;text-align:right;font-size:13px;font-family:inherit">
+      <span style="color:#64748b;font-size:12px">%</span>
+    </div>
+  </div>`;
+}
+function mfReadRow(label,value,color,bold){
+  var c=color||'#e2e8f0';
+  var fw=bold?'font-weight:700':'';
+  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04)">
+    <span style="color:#94a3b8;font-size:13px">${label}</span>
+    <span style="color:${c};font-size:14px;${fw}">${value}</span>
+  </div>`;
+}
+function mfR$(v){return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function mfRn(v){return (v||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}
+function mfRpct(v){return (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'}
+
+function mfComputedHTML(){
+  var d=mfLoad();
+  var custoFixo=d.custo_fixo||0;
+  var salarios=d.salarios||0;
+  var variaveis=d.variaveis||0;
+  var investAds=d.invest_ads||0;
+  var impostosPct=d.impostos_pct||0;
+  var aliquota=d.aliquota||0;
+  var psm152=d.psm152||0;
+  var psm180=d.psm180||0;
+  var qtdCorretores=d.qtd_corretores||1;
+  var ticketNormal=d.ticket_normal||0;
+  var ticketOutliers=d.ticket_outliers||0;
+  var totalLeads=d.total_leads||0;
+  var totalVendas=d.total_vendas||0;
+  var vgv=d.vgv||0;
+  var vgc=d.vgc||0;
+  var comissoesPagas=d.comissoes_pagas||0;
+  var salSocio1=d.sal_socio1||0;
+  var salSocio2=d.sal_socio2||0;
+  var caixaPSM=d.caixa_psm||0;
+  var aplicacoes=d.aplicacoes||0;
+  var recompra=d.recompra||1;
+  var metaVgvAno=d.meta_vgv_ano||0;
+  var taxaConversao=d.taxa_conversao||0;
+
+  // Computed
+  var custoTotal=custoFixo+salarios+variaveis+investAds;
+  var impostosR=vgc*(impostosPct/100);
+  var vgcLiquido=vgc-impostosR-comissoesPagas;
+  var custoCorretorFixo=qtdCorretores>0?salarios/qtdCorretores:0;
+  var custoCorretorVar=qtdCorretores>0?variaveis/qtdCorretores:0;
+  var custoCorretorTotal=custoCorretorFixo+custoCorretorVar;
+  var cpl=totalLeads>0?investAds/totalLeads:0;
+  var cac=totalVendas>0?(investAds+comissoesPagas)/totalVendas:0;
+  var roasInvest=investAds+comissoesPagas;
+  var roas=roasInvest>0?vgcLiquido/roasInvest:0;
+  var roi=custoTotal>0?((vgcLiquido-custoTotal)/custoTotal)*100:0;
+  var lucroLiquido=vgcLiquido-custoTotal;
+  var vgvMinSustentavel=custoTotal>0&&(aliquota/100)<1?custoTotal/(1-(aliquota/100)):0;
+  var vgvMetaMensal=metaVgvAno/12;
+  var vgvMinPJPF=custoFixo+salarios+variaveis+(impostosR);
+  var ltv=ticketNormal*recompra*12;
+  var vendasNecessAno=ticketNormal>0?metaVgvAno/ticketNormal:0;
+  var investTotalAno=vendasNecessAno*cac;
+  var vendasNecessMes=vendasNecessAno/12;
+  var leadsNecessMes=taxaConversao>0?vendasNecessMes/(taxaConversao/100):0;
+  var investMes=investTotalAno/12;
+  var margemLiquida=vgc>0?(lucroLiquido/vgc)*100:0;
+  var payback=lucroLiquido>0?custoTotal/lucroLiquido:0;
+
+  // Semaphore colors
+  var roiColor=roi>=30?'#22c55e':roi>=10?'#f59e0b':'#ef4444';
+  var roasColor=roas>=3?'#22c55e':roas>=1.5?'#f59e0b':'#ef4444';
+  var margemColor=margemLiquida>=20?'#22c55e':margemLiquida>=10?'#f59e0b':'#ef4444';
+
+  var kpiCard=function(lbl,val,color){
+    return `<div style="background:linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.95));border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px 20px;flex:1;min-width:180px">
+      <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">${lbl}</div>
+      <div style="color:${color||'#e2e8f0'};font-size:22px;font-weight:700">${val}</div>
+    </div>`;
+  };
+
+  return `
+    <!-- KPI Cards -->
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px">
+      ${kpiCard('ROI',mfRpct(roi),roiColor)}
+      ${kpiCard('ROAS',roas.toFixed(2)+'x',roasColor)}
+      ${kpiCard('CAC',mfR$(cac),'#38bdf8')}
+      ${kpiCard('CPL',mfR$(cpl),'#a78bfa')}
+      ${kpiCard('Margem L\u00edquida',mfRpct(margemLiquida),margemColor)}
+      ${kpiCard('LTV',mfR$(ltv),'#34d399')}
+    </div>
+
+    <!-- Resultados Computados -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px">
+      <!-- Custos & Rentabilidade -->
+      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(59,130,246,0.08)">
+          <span style="color:#60a5fa;font-size:13px;font-weight:600">\uD83D\uDCB0 Custos & Rentabilidade</span>
+        </div>
+        ${mfReadRow('Custo Total Mensal',mfR$(custoTotal),'#f59e0b',true)}
+        ${mfReadRow('Impostos (R$)',mfR$(impostosR),'#ef4444')}
+        ${mfReadRow('VGC L\u00edquido',mfR$(vgcLiquido),'#22c55e',true)}
+        ${mfReadRow('Lucro L\u00edquido',mfR$(lucroLiquido),lucroLiquido>=0?'#22c55e':'#ef4444',true)}
+        ${mfReadRow('ROAS',roas.toFixed(2)+'x',roasColor,true)}
+        ${mfReadRow('ROI',mfRpct(roi),roiColor,true)}
+        ${mfReadRow('Margem L\u00edquida',mfRpct(margemLiquida),margemColor)}
+        ${mfReadRow('Payback (meses)',payback.toFixed(1),payback<=6?'#22c55e':'#f59e0b')}
+      </div>
+
+      <!-- Custo por Corretor -->
+      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(168,85,247,0.08)">
+          <span style="color:#c084fc;font-size:13px;font-weight:600">\uD83D\uDC65 Custo por Corretor</span>
+        </div>
+        ${mfReadRow('Custo Fixo / Corretor',mfR$(custoCorretorFixo),'#94a3b8')}
+        ${mfReadRow('Custo Vari\u00e1vel / Corretor',mfR$(custoCorretorVar),'#94a3b8')}
+        ${mfReadRow('Custo Total / Corretor',mfR$(custoCorretorTotal),'#a78bfa',true)}
+      </div>
+
+      <!-- VGV & Metas -->
+      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(34,197,94,0.08)">
+          <span style="color:#4ade80;font-size:13px;font-weight:600">\uD83C\uDFAF VGV & Metas</span>
+        </div>
+        ${mfReadRow('VGV M\u00ednimo Sustent\u00e1vel',mfR$(vgvMinSustentavel),'#f59e0b',true)}
+        ${mfReadRow('VGV Meta Mensal',mfR$(vgvMetaMensal),'#22c55e')}
+        ${mfReadRow('VGV M\u00ednimo PJ+PF',mfR$(vgvMinPJPF),'#fb923c')}
+        ${mfReadRow('LTV (Lifetime Value)',mfR$(ltv),'#34d399',true)}
+      </div>
+
+      <!-- Proje\u00e7\u00e3o Anual -->
+      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(251,146,60,0.08)">
+          <span style="color:#fb923c;font-size:13px;font-weight:600">\uD83D\uDCC8 Proje\u00e7\u00e3o Anual</span>
+        </div>
+        ${mfReadRow('Meta VGV Ano',mfR$(metaVgvAno),'#e2e8f0')}
+        ${mfReadRow('Vendas Necess\u00e1rias / Ano',mfRn(vendasNecessAno),'#38bdf8')}
+        ${mfReadRow('Vendas Necess\u00e1rias / M\u00eas',vendasNecessMes.toFixed(1),'#38bdf8')}
+        ${mfReadRow('Leads Necess\u00e1rios / M\u00eas',mfRn(leadsNecessMes),'#a78bfa')}
+        ${mfReadRow('Investimento Total Ano (ADS)',mfR$(investTotalAno),'#f59e0b',true)}
+        ${mfReadRow('Investimento Mensal Necess\u00e1rio',mfR$(investMes),'#f59e0b')}
+      </div>
+
+      <!-- Caixa & Patrim\u00f4nio -->
+      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(56,189,248,0.08)">
+          <span style="color:#38bdf8;font-size:13px;font-weight:600">\uD83C\uDFE6 Caixa & Patrim\u00f4nio</span>
+        </div>
+        ${mfReadRow('Caixa PSM',mfR$(caixaPSM),'#22c55e',true)}
+        ${mfReadRow('Aplica\u00e7\u00f5es PSM',mfR$(aplicacoes),'#34d399')}
+        ${mfReadRow('Sal\u00e1rio S\u00f3cio 1',mfR$(salSocio1),'#94a3b8')}
+        ${mfReadRow('Sal\u00e1rio S\u00f3cio 2',mfR$(salSocio2),'#94a3b8')}
+        ${mfReadRow('Total Patrim\u00f4nio',mfR$(caixaPSM+aplicacoes),'#38bdf8',true)}
+      </div>
+
+      <!-- Indicadores Crescimento -->
+      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(139,92,246,0.08)">
+          <span style="color:#a78bfa;font-size:13px;font-weight:600">\uD83D\uDE80 Indicadores de Crescimento</span>
+        </div>
+        ${mfReadRow('Indicador Crescimento PSM',vgvMetaMensal>0&&vgv>0?mfRpct((vgv/vgvMetaMensal)*100):'\u2014',vgv>=vgvMetaMensal?'#22c55e':'#f59e0b',true)}
+        ${mfReadRow('Atingimento VGV vs Meta',vgvMetaMensal>0?mfRpct((vgv/vgvMetaMensal)*100):'\u2014')}
+        ${mfReadRow('Atingimento VGV vs Sustent\u00e1vel',vgvMinSustentavel>0?mfRpct((vgv/vgvMinSustentavel)*100):'\u2014',vgv>=vgvMinSustentavel?'#22c55e':'#ef4444')}
+        ${mfReadRow('Convers\u00e3o Leads \u2192 Vendas',totalLeads>0?mfRpct((totalVendas/totalLeads)*100):'\u2014')}
+      </div>
+    </div>`;
+}
+
+function pgMetricasFinanceiro(){
+  return `<div style="padding:24px;max-width:1400px;margin:0 auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+      <div>
+        <h2 style="color:#e2e8f0;font-size:22px;font-weight:700;margin:0">\uD83D\uDCCA M\u00e9tricas Financeiro</h2>
+        <p style="color:#64748b;font-size:13px;margin:4px 0 0">Painel completo de custos, receitas, ROI e proje\u00e7\u00f5es da PSM</p>
+      </div>
+      <button onclick="if(confirm('Limpar todos os dados? Essa a\u00e7\u00e3o n\u00e3o pode ser desfeita.')){localStorage.removeItem('psm_metricas_fin');render()}"
+        style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px">
+        \uD83D\uDDD1 Resetar Dados
+      </button>
+    </div>
+
+    <!-- Inputs Section -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px;margin-bottom:28px">
+
+      <!-- Custos Fixos & Sal\u00e1rios -->
+      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(239,68,68,0.08)">
+          <span style="color:#f87171;font-size:13px;font-weight:600">\uD83C\uDFE2 Custos Fixos & Sal\u00e1rios</span>
+        </div>
+        ${mfInputRow('Custo Fixo Total (mensal)','custo_fixo',0,'R$','','Aluguel, internet, sistemas, etc.')}
+        ${mfInputRow('Sal\u00e1rios (total mensal)','salarios',0,'R$','','Folha de pagamento total')}
+        ${mfInputRow('Vari\u00e1veis (total mensal)','variaveis',0,'R$','','Comiss\u00f5es internas, b\u00f4nus, etc.')}
+        ${mfInputRow('Investimento ADS (mensal)','invest_ads',0,'R$','','Meta Ads + Google Ads + outros')}
+        ${mfInputRow('Comiss\u00f5es Pagas (mensal)','comissoes_pagas',0,'R$','','Comiss\u00f5es pagas a corretores')}
+        ${mfInputRow('Qtd Corretores Ativos','qtd_corretores',1,'','','N\u00famero de corretores na equipe')}
+      </div>
+
+      <!-- Impostos & Al\u00edquotas -->
+      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(251,146,60,0.08)">
+          <span style="color:#fb923c;font-size:13px;font-weight:600">\uD83D\uDCCB Impostos & Al\u00edquotas</span>
+        </div>
+        ${mfInputRowPct('Impostos (% sobre VGC)','impostos_pct',0,'Percentual de impostos sobre comiss\u00e3o')}
+        ${mfInputRowPct('Al\u00edquota Efetiva','aliquota',0,'Al\u00edquota efetiva da empresa')}
+        ${mfInputRow('PSM 152 (mensal)','psm152',0,'R$','','Valor empresa PSM CNPJ 152')}
+        ${mfInputRow('PSM 180 (mensal)','psm180',0,'R$','','Valor empresa PSM CNPJ 180')}
+      </div>
+
+      <!-- Receitas & Vendas -->
+      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(34,197,94,0.08)">
+          <span style="color:#4ade80;font-size:13px;font-weight:600">\uD83D\uDCB5 Receitas & Vendas</span>
+        </div>
+        ${mfInputRow('Ticket M\u00e9dio (normal)','ticket_normal',0,'R$','','Ticket m\u00e9dio sem outliers')}
+        ${mfInputRow('Ticket M\u00e9dio (com outliers)','ticket_outliers',0,'R$','','Ticket m\u00e9dio incluindo outliers')}
+        ${mfInputRow('Total Leads (m\u00eas)','total_leads',0,'','','Total de leads gerados no m\u00eas')}
+        ${mfInputRow('Total Vendas (m\u00eas)','total_vendas',0,'','','Total de vendas fechadas no m\u00eas')}
+        ${mfInputRow('VGV (m\u00eas)','vgv',0,'R$','','Volume Geral de Vendas')}
+        ${mfInputRow('VGC (m\u00eas)','vgc',0,'R$','','Volume Geral de Comiss\u00f5es')}
+        ${mfInputRowPct('Taxa de Convers\u00e3o','taxa_conversao',0,'Lead \u2192 Venda (%)')}
+      </div>
+
+      <!-- S\u00f3cios & Patrim\u00f4nio -->
+      <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(56,189,248,0.08)">
+          <span style="color:#38bdf8;font-size:13px;font-weight:600">\uD83C\uDFE6 S\u00f3cios & Patrim\u00f4nio</span>
+        </div>
+        ${mfInputRow('Sal\u00e1rio S\u00f3cio 1','sal_socio1',0,'R$','')}
+        ${mfInputRow('Sal\u00e1rio S\u00f3cio 2','sal_socio2',0,'R$','')}
+        ${mfInputRow('Caixa PSM','caixa_psm',0,'R$','','Saldo em conta da empresa')}
+        ${mfInputRow('Aplica\u00e7\u00f5es PSM','aplicacoes',0,'R$','','Investimentos e aplica\u00e7\u00f5es')}
+        ${mfInputRow('Recompra Esperada (x)','recompra',1,'','x','Quantas vezes o cliente compra')}
+        ${mfInputRow('Meta VGV Ano','meta_vgv_ano',0,'R$','','Meta anual de VGV')}
+      </div>
+    </div>
+
+    <!-- Computed Section -->
+    <div id="mf-computed">
+      ${mfComputedHTML()}
+    </div>
+  </div>`;
+}
+
 // ─── PAGE: RADAR INTELLIGENCE ────────────────────────────────────────────────
 var radarDefaults={};
 function pgRadar(){
@@ -11488,7 +11772,11 @@ var h='';
 // Header
 h+='<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:20px;">';
 h+='<h3 style="margin:0 0 8px;color:var(--gold);font-size:1.1rem;">\uD83D\uDCE2 Ads Intelligence \u2014 Biblioteca de An\u00fancios</h3>';
-h+='<p style="color:#b8c4d4;font-size:.8rem;margin:0;">An\u00e1lise de an\u00fancios ativos dos concorrentes via Meta Ads Library. Registre quais ads est\u00e3o testando ou escalando, criativos por categoria, empreendimentos mais anunciados.</p></div>';
+h+='<p style="color:#b8c4d4;font-size:.8rem;margin:0 0 12px;">An\u00e1lise de an\u00fancios ativos dos concorrentes via Meta Ads Library. Clique em \uD83E\uDD16 IA ao lado de cada concorrente para analisar automaticamente.</p>';
+h+='<div style="display:flex;gap:10px;align-items:center;">';
+h+='<button onclick="adsIntelBulkAI()" style="padding:8px 16px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;">\uD83E\uDD16 An\u00e1lise Geral com IA</button>';
+h+='<span style="color:#667;font-size:.75rem;">Gera an\u00e1lise consolidada de todos os dados j\u00e1 preenchidos</span>';
+h+='</div></div>';
 
 // Ads data from localStorage
 var adsData=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
@@ -11530,10 +11818,12 @@ h+='<td style="padding:10px;border-bottom:1px solid #283548;"><input type="text"
 h+='<td style="padding:10px;border-bottom:1px solid #283548;"><input type="text" value="'+(ad.criativo||'')+'" onchange="var d=JSON.parse(localStorage.getItem(\'psm_radar_ads\')||\'{}\')||{};if(!d[\''+c.handle+'\'])d[\''+c.handle+'\']={};d[\''+c.handle+'\'].criativo=this.value;localStorage.setItem(\'psm_radar_ads\',JSON.stringify(d));" style="width:100px;padding:4px 6px;background:#1e293b;border:1px solid #3d4f66;color:#fff;border-radius:4px;font-size:.75rem;" placeholder="V\u00eddeo, Carrossel"></td>';
 // Observações
 h+='<td style="padding:10px;border-bottom:1px solid #283548;"><input type="text" value="'+(ad.obs||'')+'" onchange="var d=JSON.parse(localStorage.getItem(\'psm_radar_ads\')||\'{}\')||{};if(!d[\''+c.handle+'\'])d[\''+c.handle+'\']={};d[\''+c.handle+'\'].obs=this.value;localStorage.setItem(\'psm_radar_ads\',JSON.stringify(d));" style="width:150px;padding:4px 6px;background:#1e293b;border:1px solid #3d4f66;color:#fff;border-radius:4px;font-size:.75rem;" placeholder="An\u00e1lise..."></td>';
-// Link
-h+='<td style="padding:10px;border-bottom:1px solid #283548;">';
-if(adsLink)h+='<a href="'+adsLink+'" target="_blank" style="padding:5px 10px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#3b82f6;border-radius:6px;text-decoration:none;font-size:.7rem;font-weight:600;white-space:nowrap;">\uD83D\uDD0D Ver Ads</a>';
-else h+='<span style="color:#555;">\u2014</span>';
+// Link + AI button
+h+='<td style="padding:10px;border-bottom:1px solid #283548;white-space:nowrap;">';
+if(adsLink){
+h+='<a href="'+adsLink+'" target="_blank" style="padding:5px 10px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#3b82f6;border-radius:6px;text-decoration:none;font-size:.7rem;font-weight:600;">\uD83D\uDD0D Ver Ads</a> ';
+h+='<button onclick="adsIntelAI(\''+c.handle+'\',\''+adsLink.replace(/'/g,"\\'")+'\')" style="padding:5px 10px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;font-size:.7rem;font-weight:600;cursor:pointer;">\uD83E\uDD16 IA</button>';
+}else h+='<span style="color:#555;">\u2014</span>';
 h+='</td></tr>';
 });
 h+='</tbody></table></div>';
@@ -11607,6 +11897,132 @@ h+='<div style="font-size:.7rem;color:#94a3b8">'+stLabels[entry[0]]+'</div></div
 h+='</div></div>';
 
 return h;
+}
+
+// ── ADS INTEL AI MODAL + FUNCTION ──
+function adsIntelAI(handle, adsLink){
+  // Create modal overlay
+  var existing=document.getElementById('ads-ai-modal');
+  if(existing)existing.remove();
+  var overlay=document.createElement('div');
+  overlay.id='ads-ai-modal';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  var cName='';
+  (competitors||[]).forEach(function(c){if(c.handle===handle)cName=c.name;});
+  overlay.innerHTML='<div style="background:#1e293b;border:1px solid var(--gold);border-radius:16px;padding:28px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+    +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">\uD83E\uDD16 Analisar Ads \u2014 '+cName+'</h3>'
+    +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">\u2715</button></div>'
+    +'<div style="margin-bottom:16px;">'
+    +'<a href="'+adsLink+'" target="_blank" style="display:inline-block;padding:8px 16px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#3b82f6;border-radius:8px;text-decoration:none;font-size:.85rem;font-weight:600;">\uD83D\uDD17 Abrir Meta Ads Library de '+cName+'</a>'
+    +'<p style="color:#94a3b8;font-size:.78rem;margin:8px 0 0;">Abra o link acima, observe os an\u00fancios ativos e cole abaixo o que voc\u00ea v\u00ea:</p></div>'
+    +'<textarea id="ads-ai-input" rows="6" placeholder="Cole aqui o que voc\u00ea observou. Ex:\n- 8 an\u00fancios ativos\n- Maioria v\u00eddeo curto de 15s\n- Foco no empreendimento Giulia e Alameda\n- CTAs: Agende sua visita, Simule seu financiamento\n- Criativos com tour virtual e render 3D" style="width:100%;padding:12px;background:#283548;border:1px solid #3d4f66;color:#fff;border-radius:10px;font-size:.85rem;resize:vertical;box-sizing:border-box;margin-bottom:16px;"></textarea>'
+    +'<div id="ads-ai-status" style="margin-bottom:12px;display:none;"></div>'
+    +'<div style="display:flex;gap:10px;">'
+    +'<button id="ads-ai-go" onclick="adsIntelRunAI(\''+handle+'\')" style="flex:1;padding:10px 20px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;">\u2728 Analisar e Preencher</button>'
+    +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="padding:10px 16px;background:transparent;border:1px solid #3d4f66;color:#94a3b8;border-radius:8px;font-size:.85rem;cursor:pointer;">Cancelar</button></div></div>';
+  document.body.appendChild(overlay);
+}
+
+function adsIntelRunAI(handle){
+  var gKey=((S.connectors||{}).gemini_api_key||'').trim();
+  if(!gKey){alert('Configure a API Key Gemini em Configura\u00e7\u00f5es > Conectores.');return;}
+  var inp=document.getElementById('ads-ai-input');
+  var statusEl=document.getElementById('ads-ai-status');
+  var btn=document.getElementById('ads-ai-go');
+  var obs=(inp?inp.value:'').trim();
+  if(!obs){alert('Cole suas observa\u00e7\u00f5es sobre os an\u00fancios antes de analisar.');return;}
+  // Find competitor info
+  var cInfo={};
+  (competitors||[]).forEach(function(c){if(c.handle===handle)cInfo=c;});
+  if(btn)btn.disabled=true;
+  if(statusEl){statusEl.style.display='block';statusEl.innerHTML='<div style="color:var(--gold);font-size:.85rem;">\u23F3 Analisando com Gemini... aguarde.</div>';}
+  var prompt='Voc\u00ea \u00e9 um analista de tr\u00e1fego pago especializado em imobili\u00e1rias. Analise os an\u00fancios de um concorrente e retorne um JSON PURO (sem markdown, sem ```json).\n\n'
+    +'CONCORRENTE: '+cInfo.name+' ('+cInfo.handle+')\n'
+    +'SEGMENTO: '+(cInfo.segmento||'N/A')+'\n'
+    +'TIER: '+(cInfo.tier||'N/A')+'\n\n'
+    +'OBSERVA\u00c7\u00d5ES DO USU\u00c1RIO SOBRE OS ADS:\n'+obs+'\n\n'
+    +'Retorne EXATAMENTE este JSON preenchido com base nas observa\u00e7\u00f5es:\n'
+    +'{"qty":"<n\u00famero de ads ativos>","status":"<testando|escalando|pausado|inativo>","empreend":"<empreendimentos foco separados por v\u00edrgula>","criativo":"<tipos de criativo separados por v\u00edrgula>","obs":"<an\u00e1lise curta de 1-2 frases sobre a estrat\u00e9gia>"}\n\n'
+    +'REGRAS:\n- qty deve ser um n\u00famero\n- status deve ser UMA dessas op\u00e7\u00f5es: testando, escalando, pausado, inativo\n- Baseie-se APENAS nas observa\u00e7\u00f5es fornecidas\n- Retorne SOMENTE o JSON, nada mais';
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:512,temperature:0.3}})
+  }).then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.substring(0,200));});
+    return r.json();
+  }).then(function(data){
+    var txt='';
+    try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Resposta inesperada: '+JSON.stringify(data).substring(0,200));}
+    // Parse JSON from response (might have backticks)
+    txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
+    var parsed=JSON.parse(txt);
+    // Save to localStorage
+    var adsData2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
+    adsData2[handle]={qty:parsed.qty||'',status:parsed.status||'',empreend:parsed.empreend||'',criativo:parsed.criativo||'',obs:parsed.obs||''};
+    localStorage.setItem('psm_radar_ads',JSON.stringify(adsData2));
+    if(statusEl)statusEl.innerHTML='<div style="color:#22c55e;font-size:.85rem;">\u2705 Dados preenchidos! Fechando...</div>';
+    setTimeout(function(){
+      var modal=document.getElementById('ads-ai-modal');
+      if(modal)modal.remove();
+      render();
+    },1200);
+  }).catch(function(err){
+    if(statusEl)statusEl.innerHTML='<div style="color:#ef4444;font-size:.85rem;">\u274C Erro: '+err.message+'</div>';
+    if(btn)btn.disabled=false;
+  });
+}
+
+function adsIntelBulkAI(){
+  var gKey=((S.connectors||{}).gemini_api_key||'').trim();
+  if(!gKey){alert('Configure a API Key Gemini em Configura\u00e7\u00f5es > Conectores.');return;}
+  var adsData2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
+  var filled=[];
+  (competitors||[]).forEach(function(c){
+    var ad=adsData2[c.handle];
+    if(ad&&(ad.qty||ad.status||ad.empreend||ad.criativo)){
+      filled.push({nome:c.name,segmento:c.segmento,tier:c.tier,ads:ad.qty,status:ad.status,empreend:ad.empreend,criativo:ad.criativo,obs:ad.obs});
+    }
+  });
+  if(filled.length<3){alert('Preencha pelo menos 3 concorrentes antes de gerar a an\u00e1lise geral. Use o bot\u00e3o \uD83E\uDD16 IA em cada linha.');return;}
+  // Create modal for bulk result
+  var existing=document.getElementById('ads-ai-modal');
+  if(existing)existing.remove();
+  var overlay=document.createElement('div');
+  overlay.id='ads-ai-modal';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML='<div style="background:#1e293b;border:1px solid var(--gold);border-radius:16px;padding:28px;max-width:700px;width:90%;max-height:85vh;overflow-y:auto;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+    +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">\uD83E\uDD16 An\u00e1lise Geral \u2014 Ads Intelligence</h3>'
+    +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">\u2715</button></div>'
+    +'<div id="ads-bulk-result" style="color:#cbd5e1;font-size:.85rem;line-height:1.7;"><div style="color:var(--gold);">\u23F3 Analisando '+filled.length+' concorrentes com Gemini... aguarde.</div></div></div>';
+  document.body.appendChild(overlay);
+  var prompt='Voc\u00ea \u00e9 um analista de tr\u00e1fego pago e marketing digital especializado em imobili\u00e1rias de S\u00e3o Jos\u00e9 do Rio Preto, SP.\n\n'
+    +'Analise os dados de an\u00fancios de '+filled.length+' concorrentes da PSM Assessoria Imobili\u00e1ria:\n\n'
+    +JSON.stringify(filled,null,1)+'\n\n'
+    +'Fa\u00e7a em portugu\u00eas:\n'
+    +'1) **Panorama geral**: quantos est\u00e3o ativos, quem est\u00e1 escalando, quem est\u00e1 testando\n'
+    +'2) **Empreendimentos mais disputados**: quais aparecem em mais concorrentes\n'
+    +'3) **Tipos de criativo dominantes**: v\u00eddeo, carrossel, est\u00e1tico, etc.\n'
+    +'4) **Top 3 concorrentes mais agressivos** em ads\n'
+    +'5) **Oportunidades para a PSM**: onde h\u00e1 espa\u00e7o, o que ningu\u00e9m est\u00e1 fazendo\n'
+    +'6) **A\u00e7\u00f5es recomendadas** (3-5 a\u00e7\u00f5es concretas)\n\n'
+    +'Seja direto e pr\u00e1tico, use n\u00fameros. M\u00e1ximo 500 palavras.';
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:2048,temperature:0.5}})
+  }).then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status);});
+    return r.json();
+  }).then(function(data){
+    var txt='';
+    try{txt=data.candidates[0].content.parts[0].text;}catch(e){txt='Erro: '+JSON.stringify(data).substring(0,300);}
+    var el=document.getElementById('ads-bulk-result');
+    if(el)el.innerHTML=txt.replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--gold)">$1</strong>').replace(/\n/g,'<br>');
+  }).catch(function(err){
+    var el=document.getElementById('ads-bulk-result');
+    if(el)el.innerHTML='<span style="color:#ef4444;">Erro: '+err.message+'</span>';
+  });
 }
 
 // ── PSM vs MERCADO (IA COMPARISON) ──
@@ -11690,13 +12106,18 @@ ctx+='Seja detalhado e pr\u00e1tico.';
 fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey2,{
 method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({contents:[{parts:[{text:ctx}]}],generationConfig:{maxOutputTokens:4096,temperature:0.7}})
-}).then(function(r){return r.json();}).then(function(data){
+}).then(function(r){
+if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.substring(0,200));});
+return r.json();
+}).then(function(data){
 var txt='';
-try{txt=data.candidates[0].content.parts[0].text;}catch(e){txt='Erro ao processar resposta: '+JSON.stringify(data);}
+try{txt=data.candidates[0].content.parts[0].text;}catch(e){}
+if(!txt&&data.error)txt='\u274C Erro da API: '+(data.error.message||JSON.stringify(data.error));
+if(!txt)txt='\u274C Sem resposta. Verifique a chave Gemini. Raw: '+JSON.stringify(data).substring(0,300);
 localStorage.setItem('psm_radar_ai_result',txt);
-if(el)el.innerHTML=txt.replace(/\\n/g,'<br>').replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--gold)">$1</strong>');
+if(el)el.innerHTML=txt.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--gold)">$1</strong>');
 }).catch(function(err){
-if(el)el.innerHTML='<span style="color:#ef4444;">Erro: '+err.message+'</span>';
+if(el)el.innerHTML='<span style="color:#ef4444;">\u274C Erro: '+err.message+'</span>';
 });
 };}
 if(btnClear){btnClear.onclick=function(){
@@ -16399,7 +16820,7 @@ var PAGES_PIPELINE=['crm','metricas'];
 // Marketing: socios + marketing
 var PAGES_MARKETING=['metaads','sim_criativos','sim_leads','metricas_viab','crono_conquista','crono_psm','curadoria_conquista','curadoria_psm','gerador_img','gerador_video','gerador_motion'];
 // Financeiro: socios + mariane
-var PAGES_FINANCEIRO=['fluxocaixa','dre','comissoes','repasses','custos_fixos'];
+var PAGES_FINANCEIRO=['fluxocaixa','dre','comissoes','repasses','custos_fixos','metricas_fin'];
 // Diretoria: apenas socios
 var PAGES_DIRETORIA=['forecast','kpis','metas','governance','equipe','dashboard'];
 // Intelligence: apenas socios
@@ -16506,6 +16927,7 @@ function renderSB() {
       {id:'comissoes',   lbl:'Comiss\u00f5es',             ico:'\uD83D\uDC8E'},
       {id:'repasses',    lbl:'Repasses',                   ico:'\uD83D\uDD04'},
       {id:'custos_fixos',lbl:'Custos Fixos & Vari\u00e1veis',ico:'\uD83D\uDCC9'},
+      {id:'metricas_fin',lbl:'M\u00e9tricas Financeiro',ico:'\uD83D\uDCCA'},
     ]},
     {sec:'Diretoria', items:[
       {id:'forecast',   lbl:'Proje\u00e7\u00f5es',  ico:'\uD83D\uDCC9'},
@@ -16713,6 +17135,7 @@ function route() {
     case 'gerador_motion':   return pgPlaceholder('Gerador Motion','Em breve: ferramenta de gera\u00e7\u00e3o de motions.');
     // Financeiro
     case 'custos_fixos':     return pgPlaceholder('Custos Fixos & Vari\u00e1veis','Em breve: controle de custos fixos e vari\u00e1veis.');
+    case 'metricas_fin':     return pgMetricasFinanceiro();
     // Diretoria
     case 'kpis':             return pgKpis();
     // Agentes
@@ -17633,6 +18056,192 @@ kpis.forEach(function(k){
   h+='</div>';
 });
 h+='</div>';
+
+// ─── ROI / CAC / ALERTAS CPL ────────────────────────────────
+// Vendas e ticket médio (persistidos para calcular ROI e CAC)
+if(!S.maSalesData){
+  try{var sd=localStorage.getItem('psm_ma_sales');S.maSalesData=sd?JSON.parse(sd):{};}catch(e){S.maSalesData={};}
+}
+window.maSaveSales=function(){
+  var vEl=document.getElementById('ma_vendas_qtd');
+  var tEl=document.getElementById('ma_ticket_medio');
+  if(vEl)S.maSalesData.vendas=parseInt(vEl.value)||0;
+  if(tEl)S.maSalesData.ticket=parseFloat(tEl.value)||0;
+  try{localStorage.setItem('psm_ma_sales',JSON.stringify(S.maSalesData));}catch(e){}
+  render({force:true});
+};
+var mVendas=S.maSalesData.vendas||0;
+var mTicket=S.maSalesData.ticket||0;
+var mVgvTotal=mVendas*mTicket;
+var mCAC=mVendas>0?(tot.spend/mVendas):0;
+var mROI=tot.spend>0?((mVgvTotal-tot.spend)/tot.spend*100):0;
+
+// ROI por campanha (top campanhas com resultados)
+var campROIs=camps.filter(function(c){return Number(c.results||0)>0&&Number(c.spend||0)>0;}).map(function(c){
+  var cVgv=(Number(c.results||0)/Math.max(1,tot.results))*mVgvTotal;
+  var cROI=Number(c.spend)>0?((cVgv-Number(c.spend))/Number(c.spend)*100):0;
+  var cCAC=Number(c.results||0)>0?(Number(c.spend)/Number(c.results)):0;
+  return {name:c.name,spend:Number(c.spend),results:Number(c.results),cpr:Number(c.cpr||0),roi:cROI,cac:cCAC,accountId:c.accountId};
+}).sort(function(a,b){return b.roi-a.roi;});
+
+// CPL alertas por conta
+var cplAlertsByAcct=[];
+acctsView.forEach(function(a){
+  var target=S.maCplTargets[a.id]||0;
+  var cpl=Number(a.cpr||0);
+  var diff=target>0?(cpl-target):0;
+  var pctOver=target>0?((cpl-target)/target*100):0;
+  cplAlertsByAcct.push({label:a.label,id:a.id,cpl:cpl,target:target,diff:diff,pctOver:pctOver,spend:Number(a.spend||0),results:Number(a.results||0)});
+});
+
+// CPL alertas por campanha (top desvios)
+var cplAlertsByCamp=camps.filter(function(c){
+  return c.status==='active'&&Number(c.results||0)>0&&Number(c.spend||0)>0;
+}).map(function(c){
+  var target=S.maCplTargets[c.accountId]||0;
+  var cpl=Number(c.cpr||0);
+  var diff=target>0?(cpl-target):0;
+  var pctOver=target>0?((cpl-target)/target*100):0;
+  return {name:c.name,cpl:cpl,target:target,diff:diff,pctOver:pctOver,spend:Number(c.spend),results:Number(c.results)};
+}).sort(function(a,b){return b.pctOver-a.pctOver;});
+
+// Verba restante e projeção de vendas com CAC
+var verbaSobrando=totBudget-tot.spend;
+var vendasPossiveis=mCAC>0?Math.floor(verbaSobrando/mCAC):0;
+var custoProxVenda=mCAC>0?mCAC:avgCpr;
+
+// ─── ROI & CAC SECTION ──────────────────────────────────────
+h+='<div style="background:linear-gradient(135deg,#0f172a,#1a1a2e);border:1px solid #334155;border-radius:14px;padding:20px;margin-bottom:18px;">';
+h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">';
+h+='<h3 style="margin:0;color:var(--gold);font-size:1rem;font-weight:800;">\uD83D\uDCB0 ROI, CAC & An\u00e1lise de Verba</h3>';
+h+='<div style="display:flex;gap:8px;align-items:center;">';
+h+='<label style="color:#94a3b8;font-size:.72rem;">Vendas:</label>';
+h+='<input id="ma_vendas_qtd" type="number" value="'+mVendas+'" style="width:60px;padding:5px 8px;background:#283548;border:1px solid #3d4f66;color:#fff;border-radius:6px;font-size:.8rem;text-align:center;">';
+h+='<label style="color:#94a3b8;font-size:.72rem;">Ticket M\u00e9dio R$:</label>';
+h+='<input id="ma_ticket_medio" type="number" step="1000" value="'+mTicket+'" style="width:100px;padding:5px 8px;background:#283548;border:1px solid #3d4f66;color:#fff;border-radius:6px;font-size:.8rem;text-align:center;">';
+h+='<button onclick="maSaveSales()" style="padding:5px 12px;background:var(--gold);color:#000;border:none;border-radius:6px;font-size:.75rem;font-weight:700;cursor:pointer;">Salvar</button>';
+h+='</div></div>';
+
+// KPI cards ROI/CAC
+if(mVendas>0){
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:18px;">';
+// ROI
+var roiColor=mROI>0?'#22c55e':'#ef4444';
+h+='<div style="background:linear-gradient(135deg,#1e293b,#182133);border:1px solid '+roiColor+'44;border-radius:12px;padding:14px;text-align:center;">';
+h+='<div style="color:#94a3b8;font-size:.66rem;font-weight:700;text-transform:uppercase;margin-bottom:6px;">\uD83C\uDFAF ROI Geral</div>';
+h+='<div style="color:'+roiColor+';font-size:1.6rem;font-weight:900;">'+mROI.toFixed(0)+'%</div>';
+h+='<div style="color:#64748b;font-size:.65rem;margin-top:2px;">VGV '+fmtBRLc(mVgvTotal)+' / Investido '+fmtBRLc(tot.spend)+'</div></div>';
+// CAC
+var cacColor=mCAC<avgCpr?'#22c55e':(mCAC<avgCpr*2?'#f59e0b':'#ef4444');
+h+='<div style="background:linear-gradient(135deg,#1e293b,#182133);border:1px solid '+cacColor+'44;border-radius:12px;padding:14px;text-align:center;">';
+h+='<div style="color:#94a3b8;font-size:.66rem;font-weight:700;text-transform:uppercase;margin-bottom:6px;">\uD83D\uDCCA CAC (M\u00eddia/Vendas)</div>';
+h+='<div style="color:'+cacColor+';font-size:1.6rem;font-weight:900;">'+fmtBRLc(mCAC)+'</div>';
+h+='<div style="color:#64748b;font-size:.65rem;margin-top:2px;">'+fmtBRLc(tot.spend)+' \u00f7 '+mVendas+' vendas</div></div>';
+// VGV Total
+h+='<div style="background:linear-gradient(135deg,#1e293b,#182133);border:1px solid #334155;border-radius:12px;padding:14px;text-align:center;">';
+h+='<div style="color:#94a3b8;font-size:.66rem;font-weight:700;text-transform:uppercase;margin-bottom:6px;">\uD83C\uDFE0 VGV Total</div>';
+h+='<div style="color:#fbbf24;font-size:1.6rem;font-weight:900;">'+fmtBRLc(mVgvTotal)+'</div>';
+h+='<div style="color:#64748b;font-size:.65rem;margin-top:2px;">'+mVendas+' vendas \u00d7 '+fmtBRLc(mTicket)+' ticket</div></div>';
+// Verba vs CAC
+if(totBudget>0){
+var vColor=verbaSobrando>mCAC?'#22c55e':(verbaSobrando>0?'#f59e0b':'#ef4444');
+h+='<div style="background:linear-gradient(135deg,#1e293b,#182133);border:1px solid '+vColor+'44;border-radius:12px;padding:14px;text-align:center;">';
+h+='<div style="color:#94a3b8;font-size:.66rem;font-weight:700;text-transform:uppercase;margin-bottom:6px;">\uD83D\uDCB3 Verba Restante</div>';
+h+='<div style="color:'+vColor+';font-size:1.6rem;font-weight:900;">'+fmtBRLc(verbaSobrando)+'</div>';
+if(verbaSobrando>0&&mCAC>0){
+h+='<div style="color:#64748b;font-size:.65rem;margin-top:2px;">\u2248 '+vendasPossiveis+' venda(s) poss\u00edvel(is) com verba restante</div>';
+}else if(verbaSobrando<=0){
+h+='<div style="color:#ef4444;font-size:.65rem;margin-top:2px;">\u26A0 Or\u00e7amento estourado em '+fmtBRLc(Math.abs(verbaSobrando))+'</div>';
+}
+h+='</div>';
+}
+h+='</div>';
+}else{
+h+='<div style="padding:14px;background:rgba(99,102,241,.06);border:1px dashed rgba(99,102,241,.25);border-radius:10px;color:#94a3b8;font-size:.8rem;margin-bottom:16px;">\uD83D\uDCA1 Preencha <strong>Vendas</strong> e <strong>Ticket M\u00e9dio</strong> acima para calcular ROI, CAC e an\u00e1lise de verba.</div>';
+}
+
+// ─── CPL ALERTAS POR CONTA ──────────────────────────────────
+var hasTargets=cplAlertsByAcct.some(function(a){return a.target>0;});
+if(hasTargets){
+h+='<div style="margin-bottom:14px;">';
+h+='<h4 style="color:#e2e8f0;font-size:.88rem;font-weight:700;margin:0 0 10px;">\uD83D\uDEA8 CPL por Conta vs Meta</h4>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">';
+cplAlertsByAcct.forEach(function(a){
+if(a.target<=0)return;
+var over=a.cpl>a.target;
+var pct=a.pctOver;
+var color=pct>30?'#ef4444':(pct>0?'#f59e0b':'#22c55e');
+var status=pct>30?'\uD83D\uDD34 ACIMA':(pct>0?'\uD83D\uDFE1 ATEN\u00c7\u00c3O':'\uD83D\uDFE2 DENTRO');
+h+='<div style="background:#1e293b;border:1px solid '+color+'44;border-radius:10px;padding:14px;">';
+h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+h+='<span style="color:#e2e8f0;font-size:.82rem;font-weight:700;">'+a.label+'</span>';
+h+='<span style="font-size:.7rem;color:'+color+';font-weight:700;">'+status+'</span></div>';
+h+='<div style="display:flex;justify-content:space-between;align-items:baseline;">';
+h+='<div><span style="color:'+color+';font-size:1.3rem;font-weight:900;">'+fmtBRLc(a.cpl)+'</span>';
+h+='<span style="color:#64748b;font-size:.7rem;margin-left:6px;">meta: '+fmtBRLc(a.target)+'</span></div>';
+h+='<span style="color:'+color+';font-size:.8rem;font-weight:800;">'+(pct>0?'+':'')+pct.toFixed(0)+'%</span>';
+h+='</div>';
+h+='<div style="margin-top:8px;height:4px;background:#0b1120;border-radius:2px;overflow:hidden;">';
+var barW=a.target>0?Math.min(150,(a.cpl/a.target)*100):0;
+h+='<div style="height:100%;width:'+barW+'%;background:'+color+';border-radius:2px;"></div></div>';
+h+='</div>';
+});
+h+='</div></div>';
+}
+
+// ─── CPL TOP DESVIOS POR CAMPANHA ───────────────────────────
+var cplOverCamps=cplAlertsByCamp.filter(function(c){return c.target>0&&c.pctOver>10;});
+if(cplOverCamps.length>0){
+h+='<div style="margin-bottom:14px;">';
+h+='<h4 style="color:#e2e8f0;font-size:.88rem;font-weight:700;margin:0 0 10px;">\uD83D\uDCC8 Campanhas com CPL acima da meta</h4>';
+h+='<div style="overflow-x:auto;border:1px solid #334155;border-radius:10px;">';
+h+='<table style="width:100%;border-collapse:collapse;font-size:.78rem;">';
+h+='<thead><tr style="background:#283548;">';
+['Campanha','CPL','Meta','Desvio','Gasto','Leads'].forEach(function(col){
+h+='<th style="padding:10px;text-align:left;color:var(--gold);font-weight:700;border-bottom:1px solid #334155;">'+col+'</th>';
+});
+h+='</tr></thead><tbody>';
+cplOverCamps.slice(0,10).forEach(function(c,i){
+var color=c.pctOver>50?'#ef4444':(c.pctOver>20?'#f59e0b':'#fb923c');
+h+='<tr style="background:'+(i%2===0?'rgba(255,255,255,.02)':'transparent')+'">';
+h+='<td style="padding:8px 10px;border-bottom:1px solid #283548;color:#e2e8f0;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+c.name+'</td>';
+h+='<td style="padding:8px 10px;border-bottom:1px solid #283548;color:'+color+';font-weight:700;">'+fmtBRLc(c.cpl)+'</td>';
+h+='<td style="padding:8px 10px;border-bottom:1px solid #283548;color:#94a3b8;">'+fmtBRLc(c.target)+'</td>';
+h+='<td style="padding:8px 10px;border-bottom:1px solid #283548;color:'+color+';font-weight:800;">+'+c.pctOver.toFixed(0)+'%</td>';
+h+='<td style="padding:8px 10px;border-bottom:1px solid #283548;color:#fbbf24;">'+fmtBRLc(c.spend)+'</td>';
+h+='<td style="padding:8px 10px;border-bottom:1px solid #283548;color:#94a3b8;">'+c.results+'</td>';
+h+='</tr>';
+});
+h+='</tbody></table></div></div>';
+}
+
+// ─── ROI POR CAMPANHA (top 10) ──────────────────────────────
+if(mVendas>0&&campROIs.length>0){
+h+='<div style="margin-bottom:14px;">';
+h+='<h4 style="color:#e2e8f0;font-size:.88rem;font-weight:700;margin:0 0 10px;">\uD83C\uDFC6 ROI por Campanha (estimado por propor\u00e7\u00e3o de leads)</h4>';
+h+='<div style="overflow-x:auto;border:1px solid #334155;border-radius:10px;">';
+h+='<table style="width:100%;border-collapse:collapse;font-size:.78rem;">';
+h+='<thead><tr style="background:#283548;">';
+['Campanha','Investido','Leads','CPL','CAC Est.','ROI Est.'].forEach(function(col){
+h+='<th style="padding:10px;text-align:left;color:var(--gold);font-weight:700;border-bottom:1px solid #334155;">'+col+'</th>';
+});
+h+='</tr></thead><tbody>';
+campROIs.slice(0,10).forEach(function(c,i){
+var roiC=c.roi;
+var color=roiC>0?'#22c55e':'#ef4444';
+h+='<tr style="background:'+(i%2===0?'rgba(255,255,255,.02)':'transparent')+'">';
+h+='<td style="padding:8px 10px;border-bottom:1px solid #283548;color:#e2e8f0;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+c.name+'</td>';
+h+='<td style="padding:8px 10px;border-bottom:1px solid #283548;color:#fbbf24;">'+fmtBRLc(c.spend)+'</td>';
+h+='<td style="padding:8px 10px;border-bottom:1px solid #283548;color:#94a3b8;">'+c.results+'</td>';
+h+='<td style="padding:8px 10px;border-bottom:1px solid #283548;color:#60a5fa;">'+fmtBRLc(c.cpr)+'</td>';
+h+='<td style="padding:8px 10px;border-bottom:1px solid #283548;color:#c084fc;">'+fmtBRLc(c.cac)+'</td>';
+h+='<td style="padding:8px 10px;border-bottom:1px solid #283548;color:'+color+';font-weight:800;">'+(roiC>0?'+':'')+roiC.toFixed(0)+'%</td>';
+h+='</tr>';
+});
+h+='</tbody></table></div></div>';
+}
+
+h+='</div>'; // fecha seção ROI/CAC
 
 // ─── PACING CARD ────────────────────────────────────────────
 if(totBudget>0){
