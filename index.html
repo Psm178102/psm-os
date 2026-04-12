@@ -12706,6 +12706,395 @@ function pgSimINCC() {
   return h;
 }
 
+// ─── SIMULADOR DE ENERGIA ─────────────────────────────────────────────────────
+function pgSimEnergia() {
+  if (!S.enrg) S.enrg = {};
+  var c = S.enrg;
+  // Defaults (from Excel)
+  if (c.atend === undefined) c.atend = 100;
+  if (c.ticket === undefined) c.ticket = 1500000;
+  if (c.modo === undefined) c.modo = 'Manual';
+  if (c.fMin === undefined) c.fMin = 0;
+  if (c.fMax === undefined) c.fMax = 1;
+  if (c.janDias === undefined) c.janDias = 30;
+  if (c.pctVendeJan === undefined) c.pctVendeJan = 0.20;
+  if (c.pctVGVOrig === undefined) c.pctVGVOrig = 0.10;
+  if (c.pctPropComp === undefined) c.pctPropComp = 0.50;
+  if (c.indPorCapt === undefined) c.indPorCapt = 0.30;
+  if (c.convInd === undefined) c.convInd = 0.08;
+  if (c.metaVendas === undefined) c.metaVendas = 4;
+  if (c.diasTrab === undefined) c.diasTrab = 22;
+  if (c.horasDia === undefined) c.horasDia = 8;
+  if (c.vendasBase === undefined) c.vendasBase = 3;
+  if (c.modoCasc === undefined) c.modoCasc = 'Recorrente';
+
+  // Channels
+  var CANAIS = [
+    {id:'trafego_pago',  lbl:'Tráfego Pago',             txBase:0.0133},
+    {id:'indicacao',     lbl:'Indicação',                 txBase:0.08},
+    {id:'carteira',      lbl:'Carteira Própria',          txBase:0.15},
+    {id:'eventos',       lbl:'Eventos (Rodadas)',         txBase:0.03},
+    {id:'networking',    lbl:'Networking',                 txBase:0.06},
+    {id:'plantao',       lbl:'Plantão',                   txBase:0.05},
+    {id:'reativacao',    lbl:'Reativação/Disparo',        txBase:0.01},
+    {id:'ativo',         lbl:'Ativo (Prospecção)',        txBase:0.005},
+    {id:'organico',      lbl:'Tráfego Orgânico',          txBase:0.018},
+    {id:'captacao',      lbl:'Captação de Imóvel',        txBase:0.025}
+  ];
+  for (var ci = 0; ci < CANAIS.length; ci++) {
+    var ch = CANAIS[ci];
+    if (c['en_'+ch.id] === undefined) c['en_'+ch.id] = 0;
+    if (c['mx_'+ch.id] === undefined) c['mx_'+ch.id] = 0;
+  }
+  // Set defaults for channels with energy > 0 in Excel
+  if (!c._init) {
+    c['en_trafego_pago'] = 100; c['mx_trafego_pago'] = 10;
+    c['en_indicacao'] = 90; c['mx_indicacao'] = 18;
+    c['en_carteira'] = 100; c['mx_carteira'] = 25;
+    c['en_eventos'] = 10; c['mx_eventos'] = 0;
+    c['en_networking'] = 100; c['mx_networking'] = 10;
+    c._init = true;
+  }
+
+  // Funnel stages
+  var ETAPAS = [
+    {id:'novo_atend',     lbl:'NOVO ATENDIMENTO',      txMerc:0.95, minTempo:1},
+    {id:'tent_contato',   lbl:'TENTATIVA DE CONTATO',   txMerc:0.85, minTempo:3},
+    {id:'sondagem',       lbl:'SONDAGEM 4Ps',           txMerc:0.75, minTempo:8},
+    {id:'qualificado',    lbl:'QUALIFICADO 4Ps',        txMerc:0.65, minTempo:5},
+    {id:'agendamento',    lbl:'AGENDAMENTO',             txMerc:0.50, minTempo:5},
+    {id:'visita',         lbl:'VISITA REALIZADA',        txMerc:0.75, minTempo:90},
+    {id:'quentes',        lbl:'QUENTES',                 txMerc:0.50, minTempo:10},
+    {id:'propostas',      lbl:'PROPOSTAS/APROVAÇÕES',   txMerc:0.50, minTempo:30},
+    {id:'contrato',       lbl:'CONTRATO',                txMerc:0.90, minTempo:60}
+  ];
+  for (var ei = 0; ei < ETAPAS.length; ei++) {
+    var et = ETAPAS[ei];
+    if (c['tx_'+et.id] === undefined) c['tx_'+et.id] = et.txMerc;
+    if (c['tm_'+et.id] === undefined) c['tm_'+et.id] = et.minTempo;
+  }
+
+  // Segments
+  if (!c.segs) c.segs = [
+    {lbl:'Até 400k', jornada:0, mix:0, ticket:350000},
+    {lbl:'400k a 1,5M', jornada:2, mix:0.30, ticket:900000},
+    {lbl:'Acima de 1,5M', jornada:10, mix:0.70, ticket:2000000}
+  ];
+
+  // ═══════════════════════ CALCULATIONS ═══════════════════════
+  // Channel calculations
+  var sumProdu = 0; // SUMPRODUCT(energia%*txBase) for Mix Auto
+  for (var ci = 0; ci < CANAIS.length; ci++) {
+    var en = c['en_'+CANAIS[ci].id] || 0;
+    sumProdu += (en / 100) * CANAIS[ci].txBase;
+  }
+
+  var canalData = [];
+  var totalMixManual = 0, totalMixAuto = 0, totalMixUsado = 0, totalAtend = 0, totalVendasDir = 0, extraCaptacao = 0;
+  for (var ci = 0; ci < CANAIS.length; ci++) {
+    var ch = CANAIS[ci];
+    var energia = c['en_'+ch.id] || 0;
+    var fatorEn = c.fMin + (c.fMax - c.fMin) * energia / 100;
+    var txAjust = ch.txBase * fatorEn;
+    var mixAuto = sumProdu > 0 ? ((energia / 100) * ch.txBase) / sumProdu : 0;
+    var mixManual = (c['mx_'+ch.id] || 0) / 100;
+    var mixUsado = c.modo === 'Manual' ? mixManual : mixAuto;
+    var atend = Math.round(c.atend * mixUsado);
+    var resultado = atend * txAjust;
+    var extraCap = 0;
+    if (ch.id === 'captacao') {
+      extraCap = (resultado * c.pctVendeJan * c.pctVGVOrig) + (resultado * c.pctPropComp) + (resultado * c.indPorCapt * c.convInd);
+      extraCaptacao = extraCap;
+    }
+    totalMixManual += mixManual;
+    totalMixAuto += mixAuto;
+    totalMixUsado += mixUsado;
+    totalAtend += atend;
+    if (ch.id !== 'captacao') totalVendasDir += resultado;
+    else totalVendasDir += resultado; // captação also counts
+    canalData.push({ch:ch, energia:energia, fatorEn:fatorEn, txAjust:txAjust, mixAuto:mixAuto, mixManual:mixManual, mixUsado:mixUsado, atend:atend, resultado:resultado, extraCap:extraCap});
+  }
+  var vendasDiretas = canalData.reduce(function(a,x){return a+(x.ch.id!=='captacao'?x.resultado:0);},0);
+  var vendasExtras = extraCaptacao;
+  var vendasTotais = vendasDiretas + vendasExtras;
+  var vgvTotal = vendasTotais * c.ticket;
+  var mixOk = c.modo === 'Manual' ? (Math.abs(totalMixManual - 1) < 0.001) : true;
+
+  // Funnel calculations
+  var txCorr = []; // conversion rates for each stage
+  for (var ei = 0; ei < ETAPAS.length; ei++) txCorr.push(c['tx_'+ETAPAS[ei].id] || ETAPAS[ei].txMerc);
+  var convMerc = 1; for (var ei = 0; ei < ETAPAS.length; ei++) convMerc *= ETAPAS[ei].txMerc;
+  var convCorr = 1; for (var ei = 0; ei < ETAPAS.length; ei++) convCorr *= txCorr[ei];
+
+  // Backward funnel (from VENDA = metaVendas, go up)
+  var necMerc = []; var necCorr = [];
+  necMerc[ETAPAS.length] = c.metaVendas; necCorr[ETAPAS.length] = c.metaVendas;
+  for (var ei = ETAPAS.length - 1; ei >= 0; ei--) {
+    necMerc[ei] = ETAPAS[ei].txMerc > 0 ? necMerc[ei+1] / ETAPAS[ei].txMerc : 0;
+    necCorr[ei] = txCorr[ei] > 0 ? necCorr[ei+1] / txCorr[ei] : 0;
+  }
+
+  // Impact: reduction in NOVO ATEND if corretor matches mercado rate
+  var impactos = [];
+  for (var ei = 0; ei < ETAPAS.length; ei++) {
+    impactos.push(txCorr[ei] > 0 && ETAPAS[ei].txMerc > 0 ? necCorr[0] * (1 - txCorr[ei] / ETAPAS[ei].txMerc) : 0);
+  }
+
+  // Gargalo (stage with max impact)
+  var maxImpIdx = 0, maxImp = Math.abs(impactos[0]);
+  for (var ei = 1; ei < ETAPAS.length; ei++) {
+    if (Math.abs(impactos[ei]) > maxImp) { maxImp = Math.abs(impactos[ei]); maxImpIdx = ei; }
+  }
+
+  // Capacity
+  var horasDisp = c.diasTrab * c.horasDia;
+  var horasEtapas = [];
+  var totalHoras = 0;
+  for (var ei = 0; ei < ETAPAS.length; ei++) {
+    var h_et = necCorr[ei] * (c['tm_'+ETAPAS[ei].id] || ETAPAS[ei].minTempo) / 60;
+    horasEtapas.push(h_et);
+    totalHoras += h_et;
+  }
+  // VENDA stage (0 min)
+  var horasVenda = c.metaVendas * 0 / 60;
+  totalHoras += horasVenda;
+  var folga = horasDisp - totalHoras;
+  var statusCap = totalHoras <= horasDisp ? '✅ Cabe' : (totalHoras <= horasDisp * 1.1 ? '⚠️ Apertado' : '❌ Não cabe');
+
+  // ═══════════════════════ HTML ═══════════════════════
+  var h = '<div class="phd"><h1>⚡ Simulador de Energia por Canal</h1><p>Funil de Vendas + Captação — Análise completa de conversão e capacidade</p></div>';
+
+  // ── SECTION 1: Inputs + Params ──
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">';
+  h += '<div class="card" style="padding:16px">';
+  h += '<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:12px">📋 Entradas do Corretor</div>';
+  h += enrInp('Atendimentos no mês (total)','atend',1);
+  h += enrInp('Ticket médio VGV por venda (R$)','ticket',1000,'R$');
+  h += '<div style="margin-top:8px"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Modo de Distribuição (Mix)</label>';
+  h += '<select onchange="S.enrg.modo=this.value;render()" style="width:100%;padding:8px 10px;background:var(--cream2);color:var(--navy);border:1px solid var(--cream3);border-radius:8px;font-size:13px">';
+  h += '<option value="Manual"'+(c.modo==='Manual'?' selected':'')+'>Manual</option>';
+  h += '<option value="Automático"'+(c.modo==='Automático'?' selected':'')+'>Automático</option>';
+  h += '</select></div>';
+  h += '</div>';
+
+  h += '<div class="card" style="padding:16px">';
+  h += '<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:12px">⚙️ Parâmetros do Modelo</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">';
+  h += enrMiniInp('Fator energia mín','fMin',0.01);
+  h += enrMiniInp('Fator energia máx','fMax',0.01);
+  h += enrMiniInp('Janela captação (dias)','janDias',1);
+  h += enrMiniInp('% imóveis vendem na janela','pctVendeJan',0.01);
+  h += enrMiniInp('% VGV originado (outro vende)','pctVGVOrig',0.01);
+  h += enrMiniInp('% proprietário vira comprador','pctPropComp',0.01);
+  h += enrMiniInp('Indicações por captação','indPorCapt',0.01);
+  h += enrMiniInp('Conversão indicação (venda)','convInd',0.01);
+  h += '</div></div></div>';
+
+  // ── SECTION 2: KPIs ──
+  h += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">';
+  h += enrKpi('Vendas Diretas', vendasDiretas.toFixed(2), 'var(--navy)');
+  h += enrKpi('Vendas Extra Captação', vendasExtras.toFixed(2), 'var(--b-tx)');
+  h += enrKpi('Vendas Totais', vendasTotais.toFixed(2), 'var(--g-tx)');
+  h += enrKpi('VGV Previsto', fmt(vgvTotal), 'var(--navy)');
+  h += enrKpi('Mix Check', (c.modo==='Manual' ? (mixOk ? '✅ OK' : '⚠️ '+(totalMixManual*100).toFixed(0)+'%') : '— Auto'), mixOk?'var(--g-tx)':'var(--r-tx)');
+  h += '</div>';
+
+  // ── SECTION 3: Channels table ──
+  h += '<div class="card" style="padding:0;overflow:auto;margin-bottom:16px">';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+  h += '<thead><tr style="background:var(--navy);color:#fff">';
+  h += '<th style="padding:6px 8px;text-align:left">Canal</th>';
+  h += '<th style="padding:6px 8px;text-align:center">Taxa Base</th>';
+  h += '<th style="padding:6px 8px;text-align:center">Energia (0-100%)</th>';
+  h += '<th style="padding:6px 8px;text-align:center">Fator</th>';
+  h += '<th style="padding:6px 8px;text-align:center">Taxa Ajust.</th>';
+  if (c.modo==='Manual') h += '<th style="padding:6px 8px;text-align:center">Mix Manual (%)</th>';
+  h += '<th style="padding:6px 8px;text-align:center">Mix Usado</th>';
+  h += '<th style="padding:6px 8px;text-align:center">Atend.</th>';
+  h += '<th style="padding:6px 8px;text-align:right">Resultado</th>';
+  if (true) h += '<th style="padding:6px 8px;text-align:right">Extra Capt.</th>';
+  h += '</tr></thead><tbody>';
+  for (var ci = 0; ci < canalData.length; ci++) {
+    var cd = canalData[ci];
+    var rowBg = ci % 2 === 0 ? '' : 'background:var(--cream2)';
+    h += '<tr style="border-bottom:1px solid var(--cream3);'+rowBg+'">';
+    h += '<td style="padding:4px 8px;font-weight:600">'+cd.ch.lbl+'</td>';
+    h += '<td style="padding:4px 8px;text-align:center">'+(cd.ch.txBase*100).toFixed(2)+'%</td>';
+    h += '<td style="padding:4px 8px;text-align:center"><input type="range" min="0" max="100" value="'+cd.energia+'" style="width:60px;vertical-align:middle" oninput="S.enrg[\'en_'+cd.ch.id+'\']=+this.value;this.nextElementSibling.textContent=this.value+\'%\';enrgRecalc()"><span style="font-size:10px;margin-left:4px;min-width:28px;display:inline-block">'+cd.energia+'%</span></td>';
+    h += '<td style="padding:4px 8px;text-align:center">'+cd.fatorEn.toFixed(2)+'</td>';
+    h += '<td style="padding:4px 8px;text-align:center">'+(cd.txAjust*100).toFixed(4)+'%</td>';
+    if (c.modo==='Manual') h += '<td style="padding:4px 8px;text-align:center"><input type="number" min="0" max="100" step="1" value="'+(c['mx_'+cd.ch.id]||0)+'" style="width:50px;padding:3px;border:1px solid var(--cream3);border-radius:4px;text-align:center;font-size:11px" onchange="S.enrg[\'mx_'+cd.ch.id+'\']=+this.value;render()"></td>';
+    h += '<td style="padding:4px 8px;text-align:center">'+(cd.mixUsado*100).toFixed(1)+'%</td>';
+    h += '<td style="padding:4px 8px;text-align:center">'+cd.atend+'</td>';
+    h += '<td style="padding:4px 8px;text-align:right;font-weight:600;color:var(--g-tx)">'+cd.resultado.toFixed(4)+'</td>';
+    h += '<td style="padding:4px 8px;text-align:right;color:var(--b-tx)">'+(cd.extraCap > 0 ? cd.extraCap.toFixed(4) : '-')+'</td>';
+    h += '</tr>';
+  }
+  // Total row
+  h += '<tr style="background:var(--navy);color:#fff;font-weight:700">';
+  h += '<td style="padding:6px 8px">TOTAL</td><td></td><td></td><td></td><td></td>';
+  if (c.modo==='Manual') h += '<td style="text-align:center">'+(totalMixManual*100).toFixed(0)+'%</td>';
+  h += '<td style="padding:6px 8px;text-align:center">'+(totalMixUsado*100).toFixed(1)+'%</td>';
+  h += '<td style="padding:6px 8px;text-align:center">'+totalAtend+'</td>';
+  h += '<td style="padding:6px 8px;text-align:right">'+vendasDiretas.toFixed(4)+'</td>';
+  h += '<td style="padding:6px 8px;text-align:right">'+vendasExtras.toFixed(4)+'</td>';
+  h += '</tr></tbody></table></div>';
+
+  // ── SECTION 4: Funil por Etapas ──
+  h += '<div class="card" style="padding:16px;margin-bottom:16px">';
+  h += '<div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px">🔻 Funil por Etapas — Comparativo + Previsibilidade Inversa</div>';
+  h += '<div style="display:flex;gap:16px;margin-bottom:12px;font-size:11px">';
+  h += '<div>Meta de Vendas: <input type="number" value="'+c.metaVendas+'" min="1" step="1" style="width:50px;padding:3px;border:1px solid var(--cream3);border-radius:4px;text-align:center;font-size:11px" onchange="S.enrg.metaVendas=+this.value;render()"></div>';
+  h += '<div>Conversão Mercado: <strong>'+(convMerc*100).toFixed(4)+'%</strong></div>';
+  h += '<div>Conversão Corretor: <strong style="color:var(--g-tx)">'+(convCorr*100).toFixed(4)+'%</strong></div>';
+  h += '</div>';
+  h += '<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+  h += '<thead><tr style="background:var(--navy);color:#fff">';
+  h += '<th style="padding:5px 6px;text-align:left">Etapa</th>';
+  h += '<th style="padding:5px 6px;text-align:center">Tx Mercado</th>';
+  h += '<th style="padding:5px 6px;text-align:center">Tx Corretor</th>';
+  h += '<th style="padding:5px 6px;text-align:center">Dif (pp)</th>';
+  h += '<th style="padding:5px 6px;text-align:right">Nec. Mercado</th>';
+  h += '<th style="padding:5px 6px;text-align:right">Nec. Corretor</th>';
+  h += '<th style="padding:5px 6px;text-align:right">Impacto</th>';
+  h += '</tr></thead><tbody>';
+  for (var ei = 0; ei < ETAPAS.length; ei++) {
+    var et = ETAPAS[ei];
+    var dif = (txCorr[ei] - et.txMerc) * 100;
+    var difColor = dif > 0 ? 'color:var(--g-tx)' : dif < 0 ? 'color:var(--r-tx)' : '';
+    var isGarg = (ei === maxImpIdx && Math.abs(impactos[ei]) > 0.01);
+    var rowBg = isGarg ? 'background:rgba(239,68,68,.08)' : (ei%2===0?'':'background:var(--cream2)');
+    h += '<tr style="border-bottom:1px solid var(--cream3);'+rowBg+'">';
+    h += '<td style="padding:4px 6px;font-weight:600">'+(isGarg?'🔴 ':'')+et.lbl+'</td>';
+    h += '<td style="padding:4px 6px;text-align:center">'+(et.txMerc*100).toFixed(0)+'%</td>';
+    h += '<td style="padding:4px 6px;text-align:center"><input type="number" min="0" max="100" step="1" value="'+(txCorr[ei]*100).toFixed(0)+'" style="width:44px;padding:2px;border:1px solid var(--cream3);border-radius:4px;text-align:center;font-size:11px" onchange="S.enrg[\'tx_'+et.id+'\']=(+this.value)/100;render()">%</td>';
+    h += '<td style="padding:4px 6px;text-align:center;'+difColor+'">'+dif.toFixed(1)+'</td>';
+    h += '<td style="padding:4px 6px;text-align:right">'+necMerc[ei].toFixed(1)+'</td>';
+    h += '<td style="padding:4px 6px;text-align:right;font-weight:600">'+necCorr[ei].toFixed(1)+'</td>';
+    h += '<td style="padding:4px 6px;text-align:right;'+(Math.abs(impactos[ei])>0.01?'color:var(--r-tx);font-weight:600':'color:var(--muted)')+'">'+impactos[ei].toFixed(1)+'</td>';
+    h += '</tr>';
+  }
+  // VENDA row
+  h += '<tr style="background:var(--navy);color:#fff;font-weight:700"><td style="padding:5px 6px">VENDA</td><td></td><td></td><td></td>';
+  h += '<td style="padding:5px 6px;text-align:right">'+c.metaVendas+'</td>';
+  h += '<td style="padding:5px 6px;text-align:right">'+c.metaVendas+'</td><td></td></tr>';
+  h += '</tbody></table></div>';
+
+  // Coach
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">';
+  h += '<div style="padding:12px;background:var(--r-bg);border-radius:8px">';
+  h += '<div style="font-size:10px;color:var(--r-tx);font-weight:700;text-transform:uppercase;margin-bottom:4px">🔴 Gargalo Principal</div>';
+  h += '<div style="font-size:14px;font-weight:800;color:var(--r-tx)">'+ETAPAS[maxImpIdx].lbl+'</div>';
+  h += '<div style="font-size:11px;color:var(--muted);margin-top:4px">Se igualar ao mínimo do mercado, reduz '+(Math.abs(impactos[maxImpIdx])).toFixed(1)+' novos atendimentos necessários</div>';
+  h += '</div>';
+  h += '<div style="padding:12px;background:var(--g-bg);border-radius:8px">';
+  h += '<div style="font-size:10px;color:var(--g-tx);font-weight:700;text-transform:uppercase;margin-bottom:4px">📊 Resumo Funil Corretor</div>';
+  h += '<div style="font-size:13px;color:var(--navy)">Novo Atend. necessário: <strong>'+necCorr[0].toFixed(1)+'</strong></div>';
+  h += '<div style="font-size:13px;color:var(--navy)">Vendas previstas c/ '+c.atend+' atend.: <strong style="color:var(--g-tx)">'+(c.atend * convCorr).toFixed(2)+'</strong></div>';
+  h += '</div></div>';
+  h += '</div>';
+
+  // ── SECTION 5: Capacidade Real ──
+  h += '<div class="card" style="padding:16px;margin-bottom:16px">';
+  h += '<div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">⏱️ Capacidade Real — Horas no Mês</div>';
+  h += '<div style="display:flex;gap:12px;margin-bottom:10px;font-size:11px">';
+  h += '<div>Dias: <input type="number" value="'+c.diasTrab+'" min="1" max="31" style="width:40px;padding:2px;border:1px solid var(--cream3);border-radius:4px;text-align:center;font-size:11px" onchange="S.enrg.diasTrab=+this.value;render()"></div>';
+  h += '<div>Horas/dia: <input type="number" value="'+c.horasDia+'" min="1" max="16" style="width:40px;padding:2px;border:1px solid var(--cream3);border-radius:4px;text-align:center;font-size:11px" onchange="S.enrg.horasDia=+this.value;render()"></div>';
+  h += '<div>Horas disponíveis: <strong>'+horasDisp+'h</strong></div>';
+  h += '<div style="margin-left:auto;font-weight:700;'+(statusCap.startsWith('✅')?'color:var(--g-tx)':statusCap.startsWith('⚠')?'color:var(--a-tx)':'color:var(--r-tx)')+'">'+statusCap+' ('+totalHoras.toFixed(1)+'h / '+horasDisp+'h) — Folga: '+folga.toFixed(1)+'h</div>';
+  h += '</div>';
+  h += '<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+  h += '<thead><tr style="background:var(--navy);color:#fff"><th style="padding:4px 6px;text-align:left">Etapa</th><th style="padding:4px 6px;text-align:right">Necessário</th><th style="padding:4px 6px;text-align:center">Tempo (min)</th><th style="padding:4px 6px;text-align:right">Horas</th></tr></thead><tbody>';
+  for (var ei = 0; ei < ETAPAS.length; ei++) {
+    h += '<tr style="border-bottom:1px solid var(--cream3);'+(ei%2?'background:var(--cream2)':'')+'">';
+    h += '<td style="padding:3px 6px;font-weight:600">'+ETAPAS[ei].lbl+'</td>';
+    h += '<td style="padding:3px 6px;text-align:right">'+necCorr[ei].toFixed(1)+'</td>';
+    h += '<td style="padding:3px 6px;text-align:center"><input type="number" value="'+(c['tm_'+ETAPAS[ei].id]||ETAPAS[ei].minTempo)+'" min="0" step="1" style="width:44px;padding:2px;border:1px solid var(--cream3);border-radius:4px;text-align:center;font-size:11px" onchange="S.enrg[\'tm_'+ETAPAS[ei].id+'\']=+this.value;render()"></td>';
+    h += '<td style="padding:3px 6px;text-align:right;font-weight:600">'+horasEtapas[ei].toFixed(1)+'h</td>';
+    h += '</tr>';
+  }
+  h += '<tr style="background:var(--navy);color:#fff;font-weight:700"><td style="padding:4px 6px">TOTAL</td><td></td><td></td><td style="padding:4px 6px;text-align:right">'+totalHoras.toFixed(1)+'h</td></tr>';
+  h += '</tbody></table></div></div>';
+
+  // ── SECTION 6: Projeção em Cascata ──
+  h += '<div class="card" style="padding:16px;margin-bottom:16px">';
+  h += '<div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">📈 Projeção em Cascata — 30d / 90d / 1 ano</div>';
+  h += '<div style="display:flex;gap:12px;margin-bottom:10px;font-size:11px">';
+  h += '<div>Vendas/mês (base): <input type="number" value="'+c.vendasBase+'" min="0" step="1" style="width:44px;padding:2px;border:1px solid var(--cream3);border-radius:4px;text-align:center;font-size:11px" onchange="S.enrg.vendasBase=+this.value;render()"></div>';
+  h += '<div>Modo: <select onchange="S.enrg.modoCasc=this.value;render()" style="padding:2px 6px;border:1px solid var(--cream3);border-radius:4px;font-size:11px">';
+  h += '<option value="Recorrente"'+(c.modoCasc==='Recorrente'?' selected':'')+'>Recorrente</option>';
+  h += '<option value="Pontual"'+(c.modoCasc==='Pontual'?' selected':'')+'>Pontual</option></select></div>';
+  h += '</div>';
+
+  // Segments editor
+  h += '<div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px">Segmentos</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr repeat(3,auto);gap:4px;font-size:11px;margin-bottom:10px">';
+  h += '<div style="font-weight:600;color:var(--muted)">Segmento</div><div style="font-weight:600;color:var(--muted);text-align:center">Jornada (m)</div><div style="font-weight:600;color:var(--muted);text-align:center">Mix (%)</div><div style="font-weight:600;color:var(--muted);text-align:center">Ticket (R$)</div>';
+  for (var si = 0; si < c.segs.length; si++) {
+    var sg = c.segs[si];
+    h += '<div>'+sg.lbl+'</div>';
+    h += '<div style="text-align:center"><input type="number" value="'+sg.jornada+'" min="0" style="width:40px;padding:2px;border:1px solid var(--cream3);border-radius:4px;text-align:center;font-size:11px" onchange="S.enrg.segs['+si+'].jornada=+this.value;render()"></div>';
+    h += '<div style="text-align:center"><input type="number" value="'+(sg.mix*100).toFixed(0)+'" min="0" max="100" style="width:44px;padding:2px;border:1px solid var(--cream3);border-radius:4px;text-align:center;font-size:11px" onchange="S.enrg.segs['+si+'].mix=(+this.value)/100;render()">%</div>';
+    h += '<div style="text-align:center"><input type="number" value="'+sg.ticket+'" min="0" step="10000" style="width:80px;padding:2px;border:1px solid var(--cream3);border-radius:4px;text-align:center;font-size:11px" onchange="S.enrg.segs['+si+'].ticket=+this.value;render()"></div>';
+  }
+  h += '</div>';
+
+  // Cascade table (months 0-14)
+  h += '<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+  h += '<thead><tr style="background:var(--navy);color:#fff"><th style="padding:4px 8px;text-align:center">Mês</th><th style="padding:4px 8px;text-align:right">Vendas Projetadas</th><th style="padding:4px 8px;text-align:right">VGV Projetado (R$)</th></tr></thead><tbody>';
+  var totalVendasCasc = 0, totalVGVCasc = 0;
+  for (var mi = 0; mi <= 14; mi++) {
+    var vendasMes = 0, vgvMes = 0;
+    for (var si = 0; si < c.segs.length; si++) {
+      var sg = c.segs[si];
+      var segVendas = 0;
+      if (c.modoCasc === 'Recorrente') {
+        segVendas = mi >= sg.jornada ? c.vendasBase * sg.mix : 0;
+      } else {
+        segVendas = mi === sg.jornada ? c.vendasBase * sg.mix : 0;
+      }
+      vendasMes += segVendas;
+      vgvMes += segVendas * sg.ticket;
+    }
+    totalVendasCasc += vendasMes;
+    totalVGVCasc += vgvMes;
+    var highlight = mi === 1 || mi === 3 || mi === 12;
+    h += '<tr style="border-bottom:1px solid var(--cream3);'+(highlight?'background:rgba(99,102,241,.06);font-weight:600':'')+(mi%2&&!highlight?';background:var(--cream2)':'')+'">';
+    h += '<td style="padding:3px 8px;text-align:center">'+mi+'</td>';
+    h += '<td style="padding:3px 8px;text-align:right">'+vendasMes.toFixed(2)+'</td>';
+    h += '<td style="padding:3px 8px;text-align:right">'+fmt(vgvMes)+'</td>';
+    h += '</tr>';
+  }
+  h += '<tr style="background:var(--navy);color:#fff;font-weight:700"><td style="padding:4px 8px;text-align:center">TOTAL</td>';
+  h += '<td style="padding:4px 8px;text-align:right">'+totalVendasCasc.toFixed(2)+'</td>';
+  h += '<td style="padding:4px 8px;text-align:right">'+fmt(totalVGVCasc)+'</td></tr>';
+  h += '</tbody></table></div></div>';
+
+  return h;
+}
+
+function enrInp(label, key, step, suffix) {
+  var v = S.enrg[key] || 0;
+  return '<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">'+label+'</label>'
+    + '<input type="number" value="'+v+'" step="'+(step||1)+'" style="width:100%;padding:8px 10px;background:var(--cream2);color:var(--navy);border:1px solid var(--cream3);border-radius:8px;font-size:13px;box-sizing:border-box" onchange="S.enrg.'+key+'=+this.value;render()">'
+    + '</div>';
+}
+function enrMiniInp(label, key, step) {
+  var v = S.enrg[key];
+  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0"><span style="color:var(--muted)">'+label+'</span>'
+    + '<input type="number" value="'+v+'" step="'+(step||0.01)+'" style="width:60px;padding:2px 4px;border:1px solid var(--cream3);border-radius:4px;text-align:center;font-size:11px" onchange="S.enrg.'+key+'=+this.value;render()">'
+    + '</div>';
+}
+function enrKpi(label, value, color) {
+  return '<div class="card" style="padding:10px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">'+label+'</div>'
+    + '<div style="font-size:16px;font-weight:800;color:'+color+';margin-top:4px">'+value+'</div></div>';
+}
+function enrgRecalc() {
+  // Lightweight recalc without full render (updates display during slider drag)
+  clearTimeout(window._enrgTimer);
+  window._enrgTimer = setTimeout(function(){ render(); }, 200);
+}
+
 // ─── KENLO INTEGRAÇÃO ─────────────────────────────────────────────────────────
 function pgKenlo() {
   var ints = S.integrations || {};
@@ -14938,10 +15327,10 @@ function pgPremiacoes() {
     h += '<input id="prem_produto" value="'+(ed.produto||'')+'" placeholder="Ex: Reserva Central, Todos..." oninput="if(!S.premEdit)S.premEdit={};S.premEdit.produto=this.value" style="'+_is+'"></div>';
     // Data inicio
     h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Data de In\u00edcio *</label>';
-    h += '<input id="prem_inicio" type="date" value="'+(ed.inicio||'')+'" oninput="if(!S.premEdit)S.premEdit={};S.premEdit.inicio=this.value" style="'+_is+'"></div>';
+    h += '<input id="prem_inicio" type="date" value="'+(ed.inicio||'')+'" oninput="if(!S.premEdit)S.premEdit={};S.premEdit.inicio=this.value" onchange="if(!S.premEdit)S.premEdit={};S.premEdit.inicio=this.value" style="'+_is+'"></div>';
     // Data fim
     h += '<div><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Data de T\u00e9rmino *</label>';
-    h += '<input id="prem_fim" type="date" value="'+(ed.fim||'')+'" oninput="if(!S.premEdit)S.premEdit={};S.premEdit.fim=this.value" style="'+_is+'"></div>';
+    h += '<input id="prem_fim" type="date" value="'+(ed.fim||'')+'" oninput="if(!S.premEdit)S.premEdit={};S.premEdit.fim=this.value" onchange="if(!S.premEdit)S.premEdit={};S.premEdit.fim=this.value" style="'+_is+'"></div>';
     // Descricao
     h += '<div style="grid-column:1/-1"><label style="font-size:11px;color:#94a3b8;margin-bottom:4px;display:block">Descri\u00e7\u00e3o / Regras da Premia\u00e7\u00e3o *</label>';
     h += '<textarea id="prem_desc" rows="3" placeholder="Descreva as regras, pr\u00eamios e condi\u00e7\u00f5es..." oninput="if(!S.premEdit)S.premEdit={};S.premEdit.desc=this.value" style="'+_is+';resize:vertical">'+(ed.desc||'')+'</textarea></div>';
@@ -15051,14 +15440,15 @@ function premFmtDate(d) {
 function premSave() {
   var ed = S.premEdit || {};
   var _g=function(id){return (document.getElementById(id)||{}).value||'';};
-  var titulo = ed.titulo || _g('prem_titulo');
-  var incorp = ed.incorporadora || _g('prem_incorp');
-  var produto = ed.produto || _g('prem_produto');
-  var inicio = ed.inicio || _g('prem_inicio');
-  var fim = ed.fim || _g('prem_fim');
-  var desc = ed.desc || _g('prem_desc');
-  var premio = ed.premio || _g('prem_premio');
-  var icon = ed.icon || _g('prem_icon') || '\uD83C\uDFC6';
+  // Always read DOM first (oninput may not fire for date pickers), fallback to S.premEdit
+  var titulo = _g('prem_titulo') || ed.titulo || '';
+  var incorp = _g('prem_incorp') || ed.incorporadora || '';
+  var produto = _g('prem_produto') || ed.produto || '';
+  var inicio = _g('prem_inicio') || ed.inicio || '';
+  var fim = _g('prem_fim') || ed.fim || '';
+  var desc = _g('prem_desc') || ed.desc || '';
+  var premio = _g('prem_premio') || ed.premio || '';
+  var icon = _g('prem_icon') || ed.icon || '\uD83C\uDFC6';
   if (!titulo||!incorp||!produto||!inicio||!fim||!desc) { toast('Preencha todos os campos obrigat\u00f3rios','err'); return; }
   if (fim < inicio) { toast('Data de t\u00e9rmino deve ser ap\u00f3s o in\u00edcio','err'); return; }
   if (!S.premiacoes) S.premiacoes = [];
@@ -15440,7 +15830,7 @@ function route() {
     // Ferramentas
     case 'playbook':         return pgPlaceholder('Playbook','Em breve: playbook completo de vendas PSM.');
     case 'codigo_etica':     return pgPlaceholder('C\u00f3digo de \u00c9tica','Em breve: c\u00f3digo de \u00e9tica profissional PSM.');
-    case 'sim_energia':      return pgPlaceholder('Simulador de Energia','Em breve: simulador de custos de energia.');
+    case 'sim_energia':      return pgSimEnergia();
     case 'kenlo':            return pgKenlo();
     // Marketing
     case 'crono_conquista':  S.mkTab='cronograma'; return pgMarketing();
