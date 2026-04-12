@@ -12058,6 +12058,81 @@ return h;
 // ── RADAR AI FUNCTIONS (GLOBAL SCOPE - outside pgRadar) ─────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
 
+// Helper: call Gemini API
+function _radarGeminiCall(gKey, prompt, maxTokens){
+  return fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:maxTokens||4096,temperature:0.3}})
+  }).then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status);});
+    return r.json();
+  }).then(function(data){
+    var txt='';
+    try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Sem resposta do Gemini');}
+    return txt;
+  });
+}
+
+// Helper: robust JSON array parser — recovers truncated responses
+function _radarParseJsonArray(raw){
+  var txt=raw.replace(/```json/g,'').replace(/```/g,'').trim();
+  // Remove trailing text after last complete object
+  try{return JSON.parse(txt);}catch(e){}
+  // Try to recover: find last complete object in array
+  var start=txt.indexOf('[');
+  if(start<0) start=0;
+  var sub=txt.substring(start);
+  // Remove incomplete trailing object
+  var lastCloseBrace=sub.lastIndexOf('}');
+  if(lastCloseBrace>0){
+    sub=sub.substring(0,lastCloseBrace+1);
+    // Ensure it ends with ]
+    if(sub.charAt(sub.length-1)!==']') sub+=']';
+    // Remove trailing commas before ]
+    sub=sub.replace(/,\s*\]/g,']');
+    try{var arr=JSON.parse(sub);if(Array.isArray(arr))return arr;}catch(e2){}
+  }
+  // Last resort: extract individual JSON objects with regex
+  var objs=[];
+  var regex=/\{[^{}]*\}/g;
+  var m;
+  while((m=regex.exec(txt))!==null){
+    try{objs.push(JSON.parse(m[0]));}catch(e3){}
+  }
+  if(objs.length>0)return objs;
+  throw new Error('Não foi possível parsear o JSON da resposta');
+}
+
+// Helper: split array into batches
+function _radarBatch(arr, size){
+  var batches=[];
+  for(var i=0;i<arr.length;i+=size) batches.push(arr.slice(i,i+size));
+  return batches;
+}
+
+// Helper: show/update modal
+function _radarShowModal(title, msg){
+  var existing=document.getElementById('ads-ai-modal');
+  if(existing)existing.remove();
+  var overlay=document.createElement('div');
+  overlay.id='ads-ai-modal';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML='<div style="background:#1e293b;border:1px solid var(--gold);border-radius:16px;padding:28px;max-width:700px;width:90%;max-height:85vh;overflow-y:auto;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+    +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">'+title+'</h3>'
+    +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">\u2715</button></div>'
+    +'<div id="radar-ai-fill-status" style="color:#cbd5e1;font-size:.85rem;line-height:1.7;">'+msg+'</div></div>';
+  document.body.appendChild(overlay);
+}
+function _radarUpdateStatus(html){
+  var el=document.getElementById('radar-ai-fill-status');
+  if(el)el.innerHTML=html;
+}
+function _radarCloseModal(delay){
+  setTimeout(function(){var m=document.getElementById('ads-ai-modal');if(m)m.remove();render();},delay||1500);
+}
+
+// ── adsIntelAI: single competitor ──────────────────────────────────────────
 window.adsIntelAI=function(handle, adsLink){
   var gKey=((S.connectors||{}).gemini_api_key||'').trim();
   if(!gKey){alert('Configure a API Key Gemini em Configurações > Conectores.');return;}
@@ -12065,123 +12140,143 @@ window.adsIntelAI=function(handle, adsLink){
   (window._radarCompetitors||[]).forEach(function(c){if(c.handle===handle)cInfo=c;});
   var btn=event&&event.target?event.target:null;
   if(btn){btn.innerHTML='\u23F3';btn.disabled=true;}
-  var prompt='Você é um analista de tráfego pago especializado em imobiliárias de São José do Rio Preto, SP.\n\n'
-    +'Analise a empresa/corretor abaixo e estime seus dados de anúncios na Meta Ads Library.\n\n'
-    +'CONCORRENTE: '+(cInfo.name||handle)+' ('+(cInfo.handle||handle)+')\n'
-    +'TIPO: '+(cInfo.type||'imobiliaria')+'\n'
-    +'SEGMENTO: '+(cInfo.segmento||'N/A')+'\n'
-    +'TIER: '+(cInfo.tier||'N/A')+' (A=grande player, B=médio, C=pequeno)\n'
-    +'REGIÃO: '+(cInfo.regiao||'Rio Preto')+'\n\n'
-    +'Retorne um JSON PURO (sem markdown, sem ```json) preenchido:\n'
-    +'{"qty":"<número estimado de ads ativos>","status":"<testando|escalando|pausado|inativo>","empreend":"<empreendimentos que provavelmente anunciam, separados por vírgula>","criativo":"<tipos de criativo: Vídeo, Carrossel, Estático, Stories>","obs":"<análise 1-2 frases sobre estratégia de ads>"}\n\n'
-    +'REGRAS:\n- Tier A = 5-15 ads, Tier B = 2-8, Tier C = 0-3\n- Retorne SOMENTE o JSON';
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:512,temperature:0.4}})
-  }).then(function(r){
-    if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status);});
-    return r.json();
-  }).then(function(data){
-    var txt='';
-    try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Sem resposta');}
+  var prompt='Você é analista de tráfego pago de imobiliárias de São José do Rio Preto, SP.\n'
+    +'Analise e estime dados de anúncios Meta Ads para:\n'
+    +'CONCORRENTE: '+(cInfo.name||handle)+' ('+handle+')\n'
+    +'TIPO: '+(cInfo.type||'imobiliaria')+' | SEGMENTO: '+(cInfo.segmento||'N/A')+' | TIER: '+(cInfo.tier||'N/A')+' | REGIÃO: '+(cInfo.regiao||'RP')+'\n\n'
+    +'Retorne SOMENTE um JSON (sem markdown):\n'
+    +'{"qty":"N","status":"testando|escalando|pausado|inativo","empreend":"nomes separados por vírgula","criativo":"Video, Carrossel, Estatico","obs":"1 frase curta"}\n'
+    +'Tier A=5-15 ads, B=2-8, C=0-3. Campos curtos, max 50 chars cada.';
+  _radarGeminiCall(gKey, prompt, 300).then(function(txt){
     txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
     var parsed=JSON.parse(txt);
     var adsData2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
     adsData2[handle]={qty:parsed.qty||'',status:parsed.status||'',empreend:parsed.empreend||'',criativo:parsed.criativo||'',obs:parsed.obs||''};
     localStorage.setItem('psm_radar_ads',JSON.stringify(adsData2));
     if(btn){btn.innerHTML='\u2705';btn.style.color='#22c55e';}
-    setTimeout(function(){render();},800);
+    setTimeout(function(){render();},600);
   }).catch(function(err){
     if(btn){btn.innerHTML='\u274C';btn.disabled=false;btn.title=err.message;}
     console.error('adsIntelAI error:',err);
   });
 };
 
+// ── adsIntelBulkAI: ALL competitors in batches ─────────────────────────────
 window.adsIntelBulkAI=function(){
   var gKey=((S.connectors||{}).gemini_api_key||'').trim();
   if(!gKey){alert('Configure a API Key Gemini em Configurações > Conectores.');return;}
   var comps=window._radarCompetitors||[];
-  var existing=document.getElementById('ads-ai-modal');
-  if(existing)existing.remove();
-  var overlay=document.createElement('div');
-  overlay.id='ads-ai-modal';
-  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
-  overlay.innerHTML='<div style="background:#1e293b;border:1px solid var(--gold);border-radius:16px;padding:28px;max-width:700px;width:90%;max-height:85vh;overflow-y:auto;">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
-    +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">\uD83E\uDD16 Preenchendo TODOS com IA</h3>'
-    +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">\u2715</button></div>'
-    +'<div id="ads-bulk-result" style="color:#cbd5e1;font-size:.85rem;line-height:1.7;"><div style="color:var(--gold);">\u23F3 Analisando '+comps.length+' concorrentes... aguarde até 30s.</div></div></div>';
-  document.body.appendChild(overlay);
-  var compList=comps.map(function(c){return c.name+' ('+c.handle+', '+c.segmento+', Tier '+c.tier+', '+c.type+')';}).join('\n');
-  var prompt='Você é um analista de tráfego pago de imobiliárias de São José do Rio Preto, SP.\n\nPara CADA concorrente, estime dados de anúncios Meta Ads.\n\nCONCORRENTES:\n'+compList+'\n\nRetorne JSON PURO (array):\n[{"handle":"@xxx","qty":"N","status":"testando|escalando|pausado|inativo","empreend":"empreendimentos","criativo":"Vídeo, Carrossel","obs":"análise curta"}]\n\nTier A=5-15 ads, B=2-8, C=0-3. Retorne array para TODOS os '+comps.length+' concorrentes.';
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:8192,temperature:0.4}})
-  }).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();
-  }).then(function(data){
-    var txt='';try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Sem resposta');}
-    txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
-    var parsed=JSON.parse(txt);if(!Array.isArray(parsed))throw new Error('Não é array');
-    var ad2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');var count=0;
-    parsed.forEach(function(item){if(!item.handle)return;ad2[item.handle]={qty:item.qty||'',status:item.status||'',empreend:item.empreend||'',criativo:item.criativo||'',obs:item.obs||''};count++;});
-    localStorage.setItem('psm_radar_ads',JSON.stringify(ad2));
-    var el=document.getElementById('ads-bulk-result');
-    if(el)el.innerHTML='<div style="color:#22c55e;font-size:1.1rem;font-weight:700;">\u2705 '+count+' concorrentes preenchidos!</div>';
-    setTimeout(function(){var m=document.getElementById('ads-ai-modal');if(m)m.remove();render();},1500);
-  }).catch(function(err){
-    var el=document.getElementById('ads-bulk-result');
-    if(el)el.innerHTML='<span style="color:#ef4444;">\u274C Erro: '+err.message+'</span><br><button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="margin-top:12px;padding:8px 16px;background:#334155;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>';
-  });
+  if(!comps.length){alert('Nenhum concorrente cadastrado.');return;}
+  var BATCH=8;
+  var batches=_radarBatch(comps, BATCH);
+  _radarShowModal('\uD83E\uDD16 Preenchendo Ads Intelligence com IA',
+    '<div style="color:var(--gold);">\u23F3 Analisando '+comps.length+' concorrentes em '+batches.length+' lotes... aguarde.</div>');
+  var ad2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
+  var totalCount=0;
+  var batchIdx=0;
+  function nextBatch(){
+    if(batchIdx>=batches.length){
+      localStorage.setItem('psm_radar_ads',JSON.stringify(ad2));
+      _radarUpdateStatus('<div style="color:#22c55e;font-size:1.1rem;font-weight:700;">\u2705 '+totalCount+' concorrentes preenchidos!</div>');
+      _radarCloseModal(1800);
+      return;
+    }
+    var batch=batches[batchIdx];
+    _radarUpdateStatus('<div style="color:var(--gold);">\u23F3 Lote '+(batchIdx+1)+'/'+batches.length+' ('+batch.length+' concorrentes)... '+totalCount+' já preenchidos.</div>');
+    var compList=batch.map(function(c){return c.name+' ('+c.handle+', Tier '+c.tier+', '+c.type+')';}).join('\n');
+    var prompt='Analista de tráfego pago, imobiliárias de São José do Rio Preto SP.\n'
+      +'Estime dados Meta Ads para CADA concorrente abaixo.\n\nCONCORRENTES:\n'+compList+'\n\n'
+      +'Retorne SOMENTE um JSON array (sem markdown, sem ```):\n'
+      +'[{"handle":"@xxx","qty":"N","status":"testando|escalando|pausado|inativo","empreend":"nomes","criativo":"tipo","obs":"1 frase"}]\n'
+      +'Tier A=5-15 ads, B=2-8, C=0-3. Campos CURTOS (max 40 chars). Retorne '+batch.length+' objetos.';
+    _radarGeminiCall(gKey, prompt, 4096).then(function(txt){
+      var parsed=_radarParseJsonArray(txt);
+      parsed.forEach(function(item){
+        if(!item.handle)return;
+        ad2[item.handle]={qty:item.qty||'',status:item.status||'',empreend:item.empreend||'',criativo:item.criativo||'',obs:item.obs||''};
+        totalCount++;
+      });
+      batchIdx++;
+      nextBatch();
+    }).catch(function(err){
+      console.error('Bulk batch '+batchIdx+' error:',err);
+      _radarUpdateStatus('<div style="color:#f59e0b;">\u26A0 Lote '+(batchIdx+1)+' falhou ('+err.message+'). '+totalCount+' já preenchidos. Continuando...</div>');
+      batchIdx++;
+      setTimeout(nextBatch, 500);
+    });
+  }
+  nextBatch();
 };
 
+// ── radarAIFillAll: SWOT / Métricas / Digital / Visão Geral in batches ────
 window.radarAIFillAll=function(scope){
   var gKey=((S.connectors||{}).gemini_api_key||'').trim();
   if(!gKey){alert('Configure a API Key Gemini em Configurações > Conectores.');return;}
   var comps=window._radarCompetitors||[];
   if(!comps.length){alert('Nenhum concorrente cadastrado.');return;}
   var rd=window._radarData||{};
-  var existing=document.getElementById('ads-ai-modal');
-  if(existing)existing.remove();
-  var overlay=document.createElement('div');
-  overlay.id='ads-ai-modal';
-  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  var BATCH=8;
+  var batches=_radarBatch(comps, BATCH);
   var scopeLabel=scope==='swot'?'SWOT':scope==='metrics'?'Métricas':scope==='digital'?'Presença Digital':scope==='overview'?'Visão Geral':'Dados';
-  overlay.innerHTML='<div style="background:#1e293b;border:1px solid var(--gold);border-radius:16px;padding:28px;max-width:700px;width:90%;max-height:85vh;overflow-y:auto;">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
-    +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">\uD83E\uDD16 Preenchendo '+scopeLabel+' com IA</h3>'
-    +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">\u2715</button></div>'
-    +'<div id="radar-ai-fill-status" style="color:var(--gold);font-size:.85rem;line-height:1.7;">\u23F3 Analisando '+comps.length+' concorrentes com Gemini... até 30s.</div></div>';
-  document.body.appendChild(overlay);
-  var compList=comps.map(function(c){return c.name+' ('+c.handle+', '+c.segmento+', Tier '+c.tier+', '+c.type+', '+(c.regiao||'RP')+')';}).join('\n');
-  var prompt='';
-  if(scope==='swot'){
-    prompt='Você é analista de inteligência competitiva do mercado imobiliário de São José do Rio Preto, SP.\n\nPara cada concorrente, faça SWOT.\n\nCONCORRENTES:\n'+compList+'\n\nRetorne JSON PURO:\n[{"handle":"@xxx","swot_forca":"...","swot_fraqueza":"...","swot_oportunidade":"...","swot_ameaca":"...","estrategia_principal":"...","diferencial_competitivo":"..."}]\n\nCada campo 1-2 frases. Retorne APENAS o JSON.';
-  }else if(scope==='metrics'){
-    prompt='Você é analista de mercado imobiliário de São José do Rio Preto, SP.\n\nEstime métricas de mercado.\n\nCONCORRENTES:\n'+compList+'\n\nRetorne JSON PURO:\n[{"handle":"@xxx","preco_medio":"R$ XXk-XXXk","vol_anuncios":"X-XX/mês","tempo_mercado":"X anos","n_corretores":"X-XX","area_atuacao":"regiões","diferencial":"..."}]\n\nRetorne APENAS o JSON.';
-  }else if(scope==='digital'||scope==='overview'){
-    prompt='Você é analista de marketing digital de imobiliárias de São José do Rio Preto, SP.\n\nEstime presença digital.\n\nCONCORRENTES:\n';
-    comps.forEach(function(c){var ex=rd[c.handle]||{};prompt+=c.name+' ('+c.handle+', Tier '+c.tier+'): seguidores='+(ex.seguidores||'?')+'\n';});
-    prompt+='\nRetorne JSON PURO:\n[{"handle":"@xxx","posts_mes":"XX","engajamento":"X.X%","site":"www.xxx.com.br ou N/A","portais":"ZAP, Viva Real ou N/A","google_ads":"Ativo/Inativo","meta_ads":"Ativo/Inativo","youtube":"Ativo/Inativo","tiktok":"Ativo/Inativo","score_digital":"XX"}]\n\nRetorne APENAS o JSON.';
+  _radarShowModal('\uD83E\uDD16 Preenchendo '+scopeLabel+' com IA',
+    '<div style="color:var(--gold);">\u23F3 Analisando '+comps.length+' concorrentes em '+batches.length+' lotes...</div>');
+  var stored=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');
+  var totalCount=0;
+  var batchIdx=0;
+
+  function buildPrompt(batch){
+    var compList=batch.map(function(c){return c.name+' ('+c.handle+', '+c.segmento+', Tier '+c.tier+', '+c.type+', '+(c.regiao||'RP')+')';}).join('\n');
+    if(scope==='swot'){
+      return 'Analista de inteligência competitiva, mercado imobiliário São José do Rio Preto SP.\n'
+        +'Faça SWOT para cada concorrente.\n\nCONCORRENTES:\n'+compList+'\n\n'
+        +'Retorne SOMENTE JSON array (sem markdown, sem ```):\n'
+        +'[{"handle":"@xxx","swot_forca":"curto","swot_fraqueza":"curto","swot_oportunidade":"curto","swot_ameaca":"curto","estrategia_principal":"curto","diferencial_competitivo":"curto"}]\n'
+        +'IMPORTANTE: Cada campo MAX 60 caracteres. Retorne '+batch.length+' objetos.';
+    }else if(scope==='metrics'){
+      return 'Analista de mercado imobiliário São José do Rio Preto SP.\n'
+        +'Estime métricas de mercado.\n\nCONCORRENTES:\n'+compList+'\n\n'
+        +'Retorne SOMENTE JSON array (sem markdown, sem ```):\n'
+        +'[{"handle":"@xxx","preco_medio":"R$ XXk-XXXk","vol_anuncios":"X-XX/mes","tempo_mercado":"X anos","n_corretores":"X-XX","area_atuacao":"regioes","diferencial":"curto"}]\n'
+        +'IMPORTANTE: Cada campo MAX 40 caracteres. Retorne '+batch.length+' objetos.';
+    }else{
+      var lines='';
+      batch.forEach(function(c){var ex=rd[c.handle]||{};lines+=c.name+' ('+c.handle+', Tier '+c.tier+'): seguidores='+(ex.seguidores||'?')+'\n';});
+      return 'Analista de marketing digital, imobiliárias São José do Rio Preto SP.\n'
+        +'Estime presença digital.\n\nCONCORRENTES:\n'+lines+'\n'
+        +'Retorne SOMENTE JSON array (sem markdown, sem ```):\n'
+        +'[{"handle":"@xxx","posts_mes":"XX","engajamento":"X.X%","site":"www.xxx.com.br","portais":"ZAP, Viva Real","google_ads":"Ativo","meta_ads":"Ativo","youtube":"Inativo","tiktok":"Inativo","score_digital":"XX"}]\n'
+        +'IMPORTANTE: Cada campo MAX 30 chars. Retorne '+batch.length+' objetos.';
+    }
   }
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:8192,temperature:0.4}})
-  }).then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.substring(0,200));});return r.json();
-  }).then(function(data){
-    var txt='';try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Resposta inesperada');}
-    txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
-    var parsed=JSON.parse(txt);if(!Array.isArray(parsed))throw new Error('Não é array');
-    var stored=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');var count=0;
-    parsed.forEach(function(item){if(!item.handle)return;if(!stored[item.handle])stored[item.handle]={};
-      Object.keys(item).forEach(function(k){if(k!=='handle'&&item[k])stored[item.handle][k]=item[k];});count++;});
-    localStorage.setItem('psm_radar_data',JSON.stringify(stored));
-    var el=document.getElementById('radar-ai-fill-status');
-    if(el)el.innerHTML='<div style="color:#22c55e;font-size:1rem;font-weight:700;">\u2705 '+count+' concorrentes atualizados!</div>';
-    setTimeout(function(){var m=document.getElementById('ads-ai-modal');if(m)m.remove();render();},1500);
-  }).catch(function(err){
-    var el=document.getElementById('radar-ai-fill-status');
-    if(el)el.innerHTML='<span style="color:#ef4444;">\u274C Erro: '+err.message+'</span><br><button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="margin-top:12px;padding:8px 16px;background:#334155;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>';
-  });
+
+  function nextBatch(){
+    if(batchIdx>=batches.length){
+      localStorage.setItem('psm_radar_data',JSON.stringify(stored));
+      _radarUpdateStatus('<div style="color:#22c55e;font-size:1.1rem;font-weight:700;">\u2705 '+totalCount+' concorrentes atualizados!</div>');
+      _radarCloseModal(1800);
+      return;
+    }
+    var batch=batches[batchIdx];
+    _radarUpdateStatus('<div style="color:var(--gold);">\u23F3 '+scopeLabel+' — Lote '+(batchIdx+1)+'/'+batches.length+' ('+batch.length+' concorrentes)... '+totalCount+' já preenchidos.</div>');
+    var prompt=buildPrompt(batch);
+    _radarGeminiCall(gKey, prompt, 4096).then(function(txt){
+      var parsed=_radarParseJsonArray(txt);
+      parsed.forEach(function(item){
+        if(!item.handle)return;
+        if(!stored[item.handle])stored[item.handle]={};
+        Object.keys(item).forEach(function(k){if(k!=='handle'&&item[k])stored[item.handle][k]=item[k];});
+        totalCount++;
+      });
+      batchIdx++;
+      nextBatch();
+    }).catch(function(err){
+      console.error('radarAIFillAll batch '+batchIdx+' error:',err);
+      _radarUpdateStatus('<div style="color:#f59e0b;">\u26A0 Lote '+(batchIdx+1)+' falhou ('+err.message+'). '+totalCount+' já preenchidos. Continuando...</div>');
+      batchIdx++;
+      setTimeout(nextBatch, 500);
+    });
+  }
+  nextBatch();
 };
 
 function pgRadarEdit(){
