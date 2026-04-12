@@ -1072,7 +1072,7 @@ let S={
   // filters
   eqFrente:'all',crmFrente:'all',crmSla:'all',govF:'all',
   // date filters (ponto 4)
-  dash_df:{preset:'30d'}, rank_df:{preset:'30d'}, forecast_df:{preset:'30d'}, okrs_df:{preset:'30d'},
+  dash_df:{preset:'Mes'}, rank_df:{preset:'Mes'}, forecast_df:{preset:'Mes'}, okrs_df:{preset:'Mes'},
   // 1:1
   ooTab:'dia',ooBroker:null,ooWeek:0,ooDayEdit:null,ooEditData:{},
   // vera
@@ -5196,10 +5196,10 @@ const RD = {
 // ─── DATE FILTER ──────────────────────────────────────────────────────────────
 function DateFilter(prefix, label) {
   const df = S['df_'+prefix] || {preset:'30D'};
-  const presets = ['7D','15D','30D','90D','Ano','Custom'];
+  const presets = ['Mes','7D','15D','30D','90D','Ano','Custom'];
   return '<div class="df-wrap mb2"><span class="df-label">' + label + '</span>'
     + '<div class="df-pills">'
-    + presets.map(p => '<button class="btn bsm' + (df.preset===p?' bp1':' bout') + '" onclick="setDF(\'' + prefix + '\',\'' + p + '\')">' + p + '</button>').join('')
+    + presets.map(p => '<button class="btn bsm' + (df.preset===p?' bp1':' bout') + '" onclick="setDF(\'' + prefix + '\',\'' + p + '\')">' + (p==='Mes'?'M\u00eas Atual':p) + '</button>').join('')
     + '</div>'
     + (df.preset==='Custom'?'<div class="df-custom">'
       + '<input type="date" class="df-inp" value="'+(df.from||'')+'" onchange="setDFDate(\''+prefix+'\',\'from\',this.value)">'
@@ -11307,6 +11307,12 @@ var filterSeg='todos';
 function saveData(){localStorage.setItem('psm_radar_data',JSON.stringify(radarData));}
 function getData(handle,field){var val=radarData[handle]&&radarData[handle][field]?radarData[handle][field]:'\u2014';return val;}
 function setData(handle,field,val){if(!radarData[handle])radarData[handle]={};radarData[handle][field]=val;saveData();}
+// Expose to global scope for inline onclick handlers
+window._radarCompetitors=competitors;
+window._radarGetData=getData;
+window._radarSetData=setData;
+window._radarSaveData=saveData;
+window._radarData=radarData;
 function filtered(){return competitors.filter(function(c){
 if(filterType!=='todos'&&c.type!==filterType)return false;
 if(filterTier!=='todos'&&c.tier!==filterTier)return false;
@@ -11420,7 +11426,8 @@ el.download='radar_concorrentes_psm.csv';
 };}
 }
 function renderOverview(fc){
-var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px;">';
+var h='<div style="display:flex;justify-content:flex-end;margin-bottom:16px;"><button onclick="radarAIFillAll(\'overview\')" style="padding:10px 20px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;">\uD83E\uDD16 Preencher Vis\u00e3o Geral com IA</button></div>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px;">';
 fc.forEach(function(c){
 var seg=getData(c.handle,'seguidores');
 var eng=getData(c.handle,'engajamento');
@@ -11463,9 +11470,11 @@ h+='</div>';
 return h;
 }
 function renderDigital(fc){
-var h='<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:20px;">';
-h+='<h3 style="margin:0 0 16px;color:var(--gold);font-size:1.1rem;">\ud83d\udcf1 Comparativo de Presen\u00e7a Digital</h3>';
-h+='<p style="color:#b8c4d4;font-size:.8rem;margin:0 0 16px;">An\u00e1lise comparativa de canais digitais dos concorrentes monitorados.</p></div>';
+var h='<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px;">';
+h+='<div><h3 style="margin:0 0 8px;color:var(--gold);font-size:1.1rem;">\ud83d\udcf1 Comparativo de Presen\u00e7a Digital</h3>';
+h+='<p style="color:#b8c4d4;font-size:.8rem;margin:0;">An\u00e1lise comparativa de canais digitais dos concorrentes monitorados.</p></div>';
+h+='<button onclick="radarAIFillAll(\'digital\')" style="padding:10px 20px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap;">\uD83E\uDD16 Preencher com IA</button>';
+h+='</div>';
 h+='<div style="overflow-x:auto;border-radius:12px;border:1px solid #334155;">';
 h+='<table style="width:100%;border-collapse:collapse;font-size:.8rem;">';
 h+='<thead><tr style="background:#283548;">';
@@ -11565,9 +11574,11 @@ h+='</div></div>';
 return h;
 }
 function renderMetrics(fc){
-var h='<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:20px;">';
-h+='<h3 style="margin:0 0 8px;color:var(--gold);font-size:1.1rem;">\ud83d\udcc8 M\u00e9tricas de Mercado</h3>';
+var h='<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px;">';
+h+='<div><h3 style="margin:0 0 8px;color:var(--gold);font-size:1.1rem;">\ud83d\udcc8 M\u00e9tricas de Mercado</h3>';
 h+='<p style="color:#b8c4d4;font-size:.8rem;margin:0;">Dados coletados pela equipe de intelig\u00eancia. Clique em Editar para atualizar.</p></div>';
+h+='<button onclick="radarAIFillAll(\'metrics\')" style="padding:10px 20px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap;">\uD83E\uDD16 Preencher com IA</button>';
+h+='</div>';
 h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px;">';
 fc.forEach(function(c){
 var pm=getData(c.handle,'preco_medio'),va=getData(c.handle,'vol_anuncios');
@@ -11689,9 +11700,11 @@ return h;
 }
 function renderSwot(fc){
 var h='';
-h+='<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:20px;">';
-h+='<h3 style="margin:0 0 8px;color:var(--gold);font-size:1.1rem;">\ud83d\udee1\ufe0f An\u00e1lise SWOT & Padr\u00f5es de Sucesso</h3>';
+h+='<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px;">';
+h+='<div><h3 style="margin:0 0 8px;color:var(--gold);font-size:1.1rem;">\ud83d\udee1\ufe0f An\u00e1lise SWOT & Padr\u00f5es de Sucesso</h3>';
 h+='<p style="color:#b8c4d4;font-size:.8rem;margin:0;">Identifica\u00e7\u00e3o de for\u00e7as, fraquezas, oportunidades e amea\u00e7as + padr\u00f5es de an\u00fancios que performam bem.</p></div>';
+h+='<button onclick="radarAIFillAll(\'swot\')" style="padding:10px 20px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap;">\uD83E\uDD16 Preencher SWOT com IA</button>';
+h+='</div>';
 h+='<div style="margin-bottom:24px;">';
 h+='<h4 style="color:var(--gold);font-size:1rem;margin:0 0 14px;">\ud83d\udd0d An\u00e1lise por Concorrente</h4>';
 h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(450px,1fr));gap:16px;">';
@@ -11900,7 +11913,7 @@ return h;
 }
 
 // ── ADS INTEL AI MODAL + FUNCTION ──
-function adsIntelAI(handle, adsLink){
+window.adsIntelAI=function(handle, adsLink){
   // Create modal overlay
   var existing=document.getElementById('ads-ai-modal');
   if(existing)existing.remove();
@@ -11922,9 +11935,9 @@ function adsIntelAI(handle, adsLink){
     +'<button id="ads-ai-go" onclick="adsIntelRunAI(\''+handle+'\')" style="flex:1;padding:10px 20px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;">\u2728 Analisar e Preencher</button>'
     +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="padding:10px 16px;background:transparent;border:1px solid #3d4f66;color:#94a3b8;border-radius:8px;font-size:.85rem;cursor:pointer;">Cancelar</button></div></div>';
   document.body.appendChild(overlay);
-}
+};
 
-function adsIntelRunAI(handle){
+window.adsIntelRunAI=function(handle){
   var gKey=((S.connectors||{}).gemini_api_key||'').trim();
   if(!gKey){alert('Configure a API Key Gemini em Configura\u00e7\u00f5es > Conectores.');return;}
   var inp=document.getElementById('ads-ai-input');
@@ -11971,9 +11984,9 @@ function adsIntelRunAI(handle){
     if(statusEl)statusEl.innerHTML='<div style="color:#ef4444;font-size:.85rem;">\u274C Erro: '+err.message+'</div>';
     if(btn)btn.disabled=false;
   });
-}
+};
 
-function adsIntelBulkAI(){
+window.adsIntelBulkAI=function(){
   var gKey=((S.connectors||{}).gemini_api_key||'').trim();
   if(!gKey){alert('Configure a API Key Gemini em Configura\u00e7\u00f5es > Conectores.');return;}
   var adsData2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
@@ -12023,7 +12036,95 @@ function adsIntelBulkAI(){
     var el=document.getElementById('ads-bulk-result');
     if(el)el.innerHTML='<span style="color:#ef4444;">Erro: '+err.message+'</span>';
   });
-}
+};
+
+// ── RADAR AI FILL ALL ──
+window.radarAIFillAll=function(scope){
+  var gKey=((S.connectors||{}).gemini_api_key||'').trim();
+  if(!gKey){alert('Configure a API Key Gemini em Configura\u00e7\u00f5es > Conectores.');return;}
+  var comps=window._radarCompetitors||[];
+  if(!comps.length){alert('Nenhum concorrente cadastrado.');return;}
+  var rd=window._radarData||{};
+  // Show loading modal
+  var existing=document.getElementById('ads-ai-modal');
+  if(existing)existing.remove();
+  var overlay=document.createElement('div');
+  overlay.id='ads-ai-modal';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  var scopeLabel=scope==='swot'?'SWOT':scope==='metrics'?'M\u00e9tricas':scope==='digital'?'Presen\u00e7a Digital':scope==='overview'?'Vis\u00e3o Geral':'Dados';
+  overlay.innerHTML='<div style="background:#1e293b;border:1px solid var(--gold);border-radius:16px;padding:28px;max-width:700px;width:90%;max-height:85vh;overflow-y:auto;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+    +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">\uD83E\uDD16 Preenchendo '+scopeLabel+' com IA</h3>'
+    +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">\u2715</button></div>'
+    +'<div id="radar-ai-fill-status" style="color:var(--gold);font-size:.85rem;line-height:1.7;">\u23F3 Analisando '+comps.length+' concorrentes com Gemini... isso pode levar at\u00e9 30 segundos.</div></div>';
+  document.body.appendChild(overlay);
+  // Build prompt based on scope
+  var compList=comps.map(function(c){return c.name+' ('+c.handle+', '+c.segmento+', Tier '+c.tier+', '+c.type+', '+(c.regiao||'RP')+')';}).join('\n');
+  var prompt='';
+  if(scope==='swot'){
+    prompt='Voc\u00ea \u00e9 um analista de intelig\u00eancia competitiva do mercado imobili\u00e1rio de S\u00e3o Jos\u00e9 do Rio Preto, SP.\n\n'
+      +'Para cada concorrente abaixo, fa\u00e7a uma an\u00e1lise SWOT (for\u00e7as, fraquezas, oportunidades, amea\u00e7as) baseada no que voc\u00ea sabe sobre essas empresas/corretores.\n\n'
+      +'CONCORRENTES:\n'+compList+'\n\n'
+      +'Retorne um JSON PURO (sem markdown, sem ```json) no formato:\n'
+      +'[{"handle":"@xxx","swot_forca":"...","swot_fraqueza":"...","swot_oportunidade":"...","swot_ameaca":"...","estrategia_principal":"...","diferencial_competitivo":"..."}]\n\n'
+      +'REGRAS:\n- Cada campo deve ter 1-2 frases curtas e objetivas\n- Baseie-se em conhecimento real sobre o mercado imobili\u00e1rio de Rio Preto\n- Se n\u00e3o conhece a empresa espec\u00edfica, analise pelo tipo (imobili\u00e1ria vs corretor), tier e segmento\n- Retorne APENAS o JSON';
+  }else if(scope==='metrics'){
+    prompt='Voc\u00ea \u00e9 um analista de mercado imobili\u00e1rio especializado em S\u00e3o Jos\u00e9 do Rio Preto, SP.\n\n'
+      +'Para cada concorrente, estime as m\u00e9tricas de mercado baseadas no que voc\u00ea sabe.\n\n'
+      +'CONCORRENTES:\n'+compList+'\n\n'
+      +'Retorne JSON PURO:\n'
+      +'[{"handle":"@xxx","preco_medio":"R$ XXk-XXXk","vol_anuncios":"X-XX/m\u00eas","tempo_mercado":"X anos","n_corretores":"X-XX","area_atuacao":"regi\u00f5es","diferencial":"..."}]\n\n'
+      +'REGRAS:\n- Use ranges realistas para o mercado de Rio Preto\n- preco_medio = faixa de pre\u00e7os dos im\u00f3veis que trabalham\n- vol_anuncios = estimativa de an\u00fancios ativos\n- Se n\u00e3o conhece exatamente, estime pelo tier (A=grande, B=m\u00e9dio, C=pequeno) e segmento\n- Retorne APENAS o JSON';
+  }else if(scope==='digital'||scope==='overview'){
+    prompt='Voc\u00ea \u00e9 um analista de marketing digital especializado em imobili\u00e1rias de S\u00e3o Jos\u00e9 do Rio Preto, SP.\n\n'
+      +'Para cada concorrente, estime a presen\u00e7a digital baseada no que voc\u00ea sabe.\n\n'
+      +'CONCORRENTES (j\u00e1 temos esses dados de seguidores):\n';
+    comps.forEach(function(c){
+      var existing=rd[c.handle]||{};
+      prompt+=c.name+' ('+c.handle+', Tier '+c.tier+'): seguidores='+(existing.seguidores||'?')+'\n';
+    });
+    prompt+='\nRetorne JSON PURO:\n'
+      +'[{"handle":"@xxx","posts_mes":"XX","engajamento":"X.X%","site":"www.xxx.com.br ou N/A","portais":"ZAP, Viva Real ou N/A","google_ads":"Ativo/Inativo","meta_ads":"Ativo/Inativo","youtube":"Ativo/Inativo","tiktok":"Ativo/Inativo","score_digital":"XX"}]\n\n'
+      +'REGRAS:\n- posts_mes = estimativa de posts no Instagram por m\u00eas\n- engajamento = taxa estimada\n- score_digital = nota 0-100 da presen\u00e7a digital geral\n- Use dados reais quando souber; caso contr\u00e1rio, estime pelo porte (Tier A=maior, B=m\u00e9dio, C=menor)\n- Para site, portais: use URLs reais se souber\n- Retorne APENAS o JSON';
+  }
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:8192,temperature:0.4}})
+  }).then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.substring(0,200));});
+    return r.json();
+  }).then(function(data){
+    var txt='';
+    try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Resposta inesperada: '+JSON.stringify(data).substring(0,300));}
+    txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
+    var parsed=JSON.parse(txt);
+    if(!Array.isArray(parsed))throw new Error('Resposta n\u00e3o \u00e9 um array');
+    // Save to radarData
+    var storedRadar=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');
+    var count=0;
+    parsed.forEach(function(item){
+      if(!item.handle)return;
+      if(!storedRadar[item.handle])storedRadar[item.handle]={};
+      Object.keys(item).forEach(function(k){
+        if(k!=='handle'&&item[k]){
+          storedRadar[item.handle][k]=item[k];
+        }
+      });
+      count++;
+    });
+    localStorage.setItem('psm_radar_data',JSON.stringify(storedRadar));
+    var el=document.getElementById('radar-ai-fill-status');
+    if(el)el.innerHTML='<div style="color:#22c55e;font-size:1rem;font-weight:700;">\u2705 '+count+' concorrentes atualizados!</div><div style="color:#94a3b8;font-size:.8rem;margin-top:8px;">Fechando e atualizando a p\u00e1gina...</div>';
+    setTimeout(function(){
+      var modal=document.getElementById('ads-ai-modal');
+      if(modal)modal.remove();
+      render();
+    },1500);
+  }).catch(function(err){
+    var el=document.getElementById('radar-ai-fill-status');
+    if(el)el.innerHTML='<span style="color:#ef4444;">\u274C Erro: '+err.message+'</span><br><button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="margin-top:12px;padding:8px 16px;background:#334155;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>';
+  });
+};
 
 // ── PSM vs MERCADO (IA COMPARISON) ──
 function renderPsmCompare(fc){
@@ -12088,11 +12189,19 @@ var pats=JSON.parse(localStorage.getItem('psm_radar_patterns')||'{}');
 var ctx='Voc\u00ea \u00e9 um analista de marketing imobili\u00e1rio especializado em an\u00fancios digitais.\n\n';
 ctx+='== PSM IM\u00d3VEIS (alto padr\u00e3o) ==\n'+JSON.stringify(psmAds2.psm_imoveis||{})+'\n\n';
 ctx+='== PSM CONQUISTA (residencial MCMV) ==\n'+JSON.stringify(psmAds2.psm_conquista||{})+'\n\n';
-ctx+='== CONCORRENTES ('+competitors.length+' mapeados) ==\n';
+var monitorados=[];
 competitors.forEach(function(c4){
 var ad2=adsData2[c4.handle]||{};
-if(ad2.status||ad2.empreend||ad2.criativo)ctx+=c4.name+' ('+c4.segmento+', Tier '+c4.tier+'): '+JSON.stringify(ad2)+'\n';
+var rd=radarData[c4.handle]||{};
+if(ad2.status||ad2.empreend||ad2.criativo||ad2.qty||rd.seguidores||rd.swot_forca){
+monitorados.push({name:c4.name,segmento:c4.segmento,tier:c4.tier,ads:ad2,metrics:rd});
+}
 });
+ctx+='== CONCORRENTES MONITORADOS ('+monitorados.length+' de '+competitors.length+') ==\n';
+monitorados.forEach(function(m){
+ctx+=m.name+' ('+m.segmento+', Tier '+m.tier+'): Ads='+JSON.stringify(m.ads)+', M\u00e9tricas='+JSON.stringify(m.metrics)+'\n';
+});
+if(monitorados.length===0)ctx+='NENHUM concorrente monitorado ainda. Instrua o usu\u00e1rio a preencher dados na aba Ads Intelligence.\n';
 ctx+='\n== PADR\u00d5ES OBSERVADOS ==\n'+JSON.stringify(pats)+'\n\n';
 ctx+='Fa\u00e7a uma an\u00e1lise completa em portugu\u00eas:\n';
 ctx+='1) Identifique padr\u00f5es de sucesso nos an\u00fancios dos concorrentes\n';
