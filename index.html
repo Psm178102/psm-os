@@ -3118,7 +3118,7 @@ var pgWarArena = function(){
   }
   h += '</div></div>';
 
-  // Feedback Rapido (gestor view)
+  // Feedback Rapido (gestor view) + Análise Gemini
   if(lvl >= 5){
     h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:16px;padding:20px">';
     h += '<h2 style="font-size:16px;font-weight:700;color:var(--cream);margin:0 0 12px">\ud83d\udcac Feedback R\u00e1pido</h2>';
@@ -3134,6 +3134,9 @@ var pgWarArena = function(){
       h += '<span style="font-size:12px;font-weight:700;color:var(--gold2)">' + c.score + ' pts</span>';
       h += '</div>';
     });
+    // Botão Análise Gemini
+    h += '<button onclick="arenaGeminiAnalise()" style="margin-top:12px;width:100%;padding:10px;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">\u2728 An\u00e1lise Gemini (equipe + individual)</button>';
+    h += '<div id="arena-gemini-result" style="margin-top:8px;font-size:11px;color:var(--cream);max-height:200px;overflow-y:auto"></div>';
     h += '</div>';
   }
 
@@ -3201,6 +3204,34 @@ var pgWarArena = function(){
   h += '</div>';
   h += '</div>';
 
+  // ===== MÉTRICAS RD CRM NO ARENA (item 9) =====
+  var rdOk = S.rdSyncStatus === 'ok';
+  if (rdOk && (VENDAS.length > 0 || OPPS.length > 0)) {
+    var rdMonth = filterByPeriod(VENDAS, 'month');
+    var rdMonthOpps = filterByPeriod(OPPS, 'month');
+    var rdMonthLost = filterByPeriod(LOST_DEALS, 'month');
+    var rdVGV = rdMonth.reduce(function(a,v){return a+(v.vgv||0)},0);
+    var rdPipe = rdMonthOpps.reduce(function(a,o){return a+(o.vgv||0)},0);
+    var rdConv = (rdMonth.length + rdMonthLost.length) > 0 ? (rdMonth.length / (rdMonth.length + rdMonthLost.length) * 100).toFixed(2) : '0.00';
+    h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:16px;padding:20px;margin-bottom:24px">';
+    h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 16px">\uD83D\uDD17 RD CRM — M\u00eas Atual</h2>';
+    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">';
+    h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center"><div style="font-size:11px;color:var(--muted)">Pipeline</div><div style="font-size:20px;font-weight:700;color:var(--cream)">' + rdMonthOpps.length + '</div><div style="font-size:10px;color:var(--gold2)">' + fmt(rdPipe) + '</div></div>';
+    h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center"><div style="font-size:11px;color:var(--muted)">Vendas CRM</div><div style="font-size:20px;font-weight:700;color:var(--g)">' + rdMonth.length + '</div><div style="font-size:10px;color:var(--g)">' + fmt(rdVGV) + '</div></div>';
+    h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center"><div style="font-size:11px;color:var(--muted)">Perdidos</div><div style="font-size:20px;font-weight:700;color:var(--r)">' + rdMonthLost.length + '</div></div>';
+    h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center"><div style="font-size:11px;color:var(--muted)">Convers\u00e3o</div><div style="font-size:20px;font-weight:700;color:'+(parseFloat(rdConv)>=30?'var(--g)':'var(--a)')+'">'+rdConv+'%</div></div>';
+    h += '</div></div>';
+  }
+
+  // ===== TIMELINE / TICKER NO RODAPÉ DO ARENA (item 7) =====
+  var tickerHtml = typeof renderTicker === 'function' ? renderTicker() : '';
+  if (tickerHtml) {
+    h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:16px;padding:16px;margin-bottom:24px;overflow:hidden">';
+    h += '<h2 style="font-size:14px;font-weight:700;color:var(--cream);margin:0 0 10px">\uD83D\uDCE2 Timeline</h2>';
+    h += tickerHtml;
+    h += '</div>';
+  }
+
   // INJECT MARQUEE CSS
   if(!document.getElementById('warArenaCSS')){
     var style = document.createElement('style');
@@ -3213,6 +3244,49 @@ var pgWarArena = function(){
 };
 
 var pgWarRoom = pgWarArena;
+
+// ── Gemini Arena Analysis (item 8) ──
+function arenaGeminiAnalise() {
+  var el = document.getElementById('arena-gemini-result');
+  if (!el) return;
+  var gKey = ((S.connectors||{}).gemini_api_key || '').trim();
+  if (!gKey) { el.innerHTML = '<span style="color:var(--a)">Configure a API Key Gemini em Configura\u00e7\u00f5es > Conectores</span>'; return; }
+  el.innerHTML = '<span style="color:var(--muted)">\u23F3 Analisando...</span>';
+  // Coletar dados
+  var dados = {equipes:{},individuais:[]};
+  var eqs = {conquista:[],lancamento:[],terceiros:[]};
+  BROKERS.forEach(function(b){
+    var fr = (TEAM_CONFIG.assignments[b.id]) || 'conquista';
+    if (eqs[fr]) eqs[fr].push(b);
+  });
+  var mk = (function(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); })();
+  Object.keys(eqs).forEach(function(k){
+    var tot = {lig:0,agend:0,vis:0,prop:0,vend:0};
+    eqs[k].forEach(function(b){
+      var ag = ooAggMonth(b.id, mk);
+      tot.lig += (ag.lig_real||0);
+      tot.agend += (ag.agend||0);
+      tot.vis += (ag.vis||0);
+      tot.prop += (ag.prop||0);
+      tot.vend += (ag.vend||0);
+      dados.individuais.push({nome:b.name,equipe:k,lig:ag.lig_real||0,agend:ag.agend||0,vis:ag.vis||0,prop:ag.prop||0,vend:ag.vend||0});
+    });
+    dados.equipes[k] = tot;
+  });
+  var prompt = 'Analise de performance de uma imobili\u00e1ria. Dados do m\u00eas atual:\n\nPor equipe:\n' +
+    JSON.stringify(dados.equipes) + '\n\nPor corretor:\n' + JSON.stringify(dados.individuais) +
+    '\n\nFa\u00e7a:\n1) An\u00e1lise por EQUIPE (qual vai bem, qual precisa de aten\u00e7\u00e3o)\n2) Top 3 destaques individuais\n3) Top 3 alertas individuais (quem precisa de suporte)\n4) Sugest\u00f5es de a\u00e7\u00e3o para a diretoria\n\nSeja direto, use m\u00e1ximo 300 palavras. Responda em portugu\u00eas.';
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + gKey, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({contents:[{parts:[{text:prompt}]}]})
+  }).then(function(r){return r.json()}).then(function(data){
+    var text = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text) || 'Sem resposta';
+    el.innerHTML = '<div style="white-space:pre-wrap;line-height:1.5;padding:8px;background:var(--navy);border-radius:8px;color:var(--cream);font-size:11px">' + text.replace(/\n/g,'<br>') + '</div>';
+  }).catch(function(e){
+    el.innerHTML = '<span style="color:var(--r)">Erro: ' + e.message + '</span>';
+  });
+}
 
 
 
@@ -12444,7 +12518,7 @@ function pgSimVPL() {
   h += '</div></div>';
   // Fluxo table (sem max-height — página inteira)
   h += '<div class="card" style="padding:0;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
-  h += '<thead><tr style="background:var(--navy);color:#fff"><th style="padding:6px 8px;text-align:center">Mês</th><th style="padding:6px 8px;text-align:left">Data</th><th style="padding:6px 8px;text-align:right">Entrada</th><th style="padding:6px 8px;text-align:right">Mensal</th><th style="padding:6px 8px;text-align:right">Anual</th><th style="padding:6px 8px;text-align:right">Financ.</th><th style="padding:6px 8px;text-align:right;font-weight:700">Total</th><th style="padding:6px 8px;text-align:right;color:#a5b4fc">PV</th></tr></thead><tbody>';
+  h += '<thead><tr style="background:var(--navy);color:#fff"><th style="padding:6px 8px;text-align:center">Mês</th><th style="padding:6px 8px;text-align:left">Data</th><th style="padding:6px 8px;text-align:right">Entrada</th><th style="padding:6px 8px;text-align:right">Mensal</th><th style="padding:6px 8px;text-align:right">Anual</th><th style="padding:6px 8px;text-align:right">Financ.</th><th style="padding:6px 8px;text-align:right;font-weight:700">Total</th></tr></thead><tbody>';
   for (var fi = 0; fi < fluxoPadrao.length; fi++) {
     var fx = fluxoPadrao[fi];
     var isAnual = fx.anual > 0;
@@ -12458,12 +12532,10 @@ function pgSimVPL() {
     h += '<td style="padding:4px 8px;text-align:right;color:#8b5cf6;font-weight:600">'+(fx.anual>0?fmtI(fx.anual):'')+'</td>';
     h += '<td style="padding:4px 8px;text-align:right;color:var(--b-tx)">'+(fx.financ>0?fmtI(fx.financ):'')+'</td>';
     h += '<td style="padding:4px 8px;text-align:right;font-weight:700">'+fmtI(fx.total)+'</td>';
-    h += '<td style="padding:4px 8px;text-align:right;color:var(--b-tx);font-weight:600">'+fmtI(fx.pv)+'</td>';
     h += '</tr>';
   }
   h += '<tr style="background:var(--navy);color:#fff;font-weight:700"><td colspan="6" style="padding:6px 8px">TOTAL</td>';
-  h += '<td style="padding:6px 8px;text-align:right">'+fmtI(fluxoPadrao.reduce(function(a,x){return a+x.total},0))+'</td>';
-  h += '<td style="padding:6px 8px;text-align:right">'+fmtI(totalPV)+'</td></tr>';
+  h += '<td style="padding:6px 8px;text-align:right">'+fmtI(fluxoPadrao.reduce(function(a,x){return a+x.total},0))+'</td></tr>';
   h += '</tbody></table></div>';
   h += '</div></div>';
   // Botão download imagem
@@ -12547,7 +12619,7 @@ function pgSimINCC() {
   }
 
   var h = '<div class="phd"><h1>\uD83D\uDCCA Simulador INCC</h1><p>Proje\u00E7\u00E3o de corre\u00E7\u00E3o INCC \u2014 Custo real durante a obra</p></div>';
-  h += '<div id="incc-capture" style="display:grid;grid-template-columns:320px 1fr;gap:16px">';
+  h += '<div style="display:grid;grid-template-columns:320px 1fr;gap:16px">';
   // LEFT — inputs
   h += '<div class="card" style="padding:16px;overflow-y:auto">';
   h += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Par\u00E2metros</div>';
@@ -12569,8 +12641,9 @@ function pgSimINCC() {
   h += '</div>';
   if (Math.abs(pctTotal - 100) > 0.1) h += '<div style="margin-top:8px;padding:8px;background:var(--r-bg);border-radius:8px;font-size:11px;color:var(--r-tx);font-weight:600">\u26A0\uFE0F Total: '+pctTotal.toFixed(1)+'% (deve ser 100%)</div>';
   h += '</div>';
-  // RIGHT — results
-  h += '<div style="display:flex;flex-direction:column;gap:12px">';
+  // RIGHT — results (capture area for download image)
+  h += '<div id="incc-capture" style="display:flex;flex-direction:column;gap:12px;background:#ffffff;padding:12px;border-radius:12px">';
+  h += '<div style="text-align:center;margin-bottom:4px"><div style="font-size:16px;font-weight:800;color:var(--navy)">Simulador INCC \u2014 PSM</div><div style="font-size:11px;color:var(--muted)">'+fmt(c.valorTotal)+' \u2022 INCC '+c.inccAA+'% a.a. \u2022 '+c.prazoMeses+' meses</div></div>';
   // KPIs
   h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">';
   h += '<div class="card" style="padding:12px;text-align:center"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:600">INCC Mensal</div><div style="font-size:18px;font-weight:800;color:var(--navy);margin-top:4px">'+(inccM*100).toFixed(3)+'%</div></div>';
@@ -12633,6 +12706,205 @@ function pgSimINCC() {
   return h;
 }
 
+// ─── KENLO INTEGRAÇÃO ─────────────────────────────────────────────────────────
+function pgKenlo() {
+  var ints = S.integrations || {};
+  var token = ints.kenlo || '';
+  var status = ints.kenlo_status || '';
+  var isConnected = token && status === 'ok';
+
+  var h = '<div class="phd"><h1>🏠 Kenlo Imob</h1><p>Integração com a plataforma Kenlo — imóveis, portais e site</p></div>';
+
+  // Status card
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">';
+  h += '<div class="card" style="padding:20px">';
+  h += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">';
+  h += '<div style="width:48px;height:48px;border-radius:12px;background:#1a73e8;display:flex;align-items:center;justify-content:center"><span style="font-size:24px;color:#fff;font-weight:800">K</span></div>';
+  h += '<div><div style="font-size:16px;font-weight:800;color:var(--navy)">Kenlo Imob</div>';
+  h += '<div style="font-size:11px;color:var(--muted)">CRM imobiliário & portais</div></div></div>';
+  if (isConnected) {
+    h += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(34,197,94,.08);border-radius:8px">';
+    h += '<div style="width:10px;height:10px;border-radius:50%;background:#22c55e"></div>';
+    h += '<span style="font-size:13px;font-weight:600;color:#16a34a">Conectado</span></div>';
+  } else if (token) {
+    h += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(239,68,68,.08);border-radius:8px">';
+    h += '<div style="width:10px;height:10px;border-radius:50%;background:#ef4444"></div>';
+    h += '<span style="font-size:13px;font-weight:600;color:#dc2626">Erro na conexão — verifique o token</span></div>';
+  } else {
+    h += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(100,116,139,.08);border-radius:8px">';
+    h += '<div style="width:10px;height:10px;border-radius:50%;background:#64748b"></div>';
+    h += '<span style="font-size:13px;font-weight:600;color:#64748b">Não configurado</span></div>';
+  }
+  h += '</div>';
+
+  // Config card
+  h += '<div class="card" style="padding:20px">';
+  h += '<div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px">⚙️ Configuração da API</div>';
+  h += '<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Token de API Kenlo</label>';
+  h += '<div style="display:flex;gap:8px;margin-bottom:10px">';
+  h += '<input id="kenlo_token" type="password" class="finput" style="flex:1;font-size:12px" placeholder="Cole seu token da API Kenlo aqui" value="'+token+'">';
+  h += '<button class="btn bp1 bsm" onclick="kenloSaveAndTest()">Salvar & Testar</button></div>';
+  h += '<div id="kenlo-test-result" style="font-size:11px;color:var(--muted)"></div>';
+  h += '<div style="margin-top:12px;padding:10px;background:var(--cream2);border-radius:8px;font-size:11px;color:var(--muted);line-height:1.6">';
+  h += '<strong style="color:var(--navy)">Como obter o token:</strong><br>';
+  h += '1. Acesse o painel Kenlo → Configurações → API<br>';
+  h += '2. Gere ou copie seu Token de acesso<br>';
+  h += '3. Cole acima e clique em "Salvar & Testar"</div>';
+  h += '</div></div>';
+
+  if (isConnected) {
+    // Action buttons
+    h += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">';
+    h += '<button class="btn bp1" onclick="kenloSync()" id="kenlo-sync-btn">🔄 Sincronizar Imóveis</button>';
+    h += '<button class="btn bout" onclick="kenloExport()">📥 Exportar Lista (CSV)</button>';
+    h += '</div>';
+
+    // Properties grid
+    var props = S.kenloProps || [];
+    h += '<div class="card" style="padding:16px">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
+    h += '<div style="font-size:13px;font-weight:700;color:var(--navy)">📋 Imóveis Kenlo ('+props.length+')</div>';
+    h += '<input id="kenlo-search" class="finput" style="width:220px;font-size:11px" placeholder="🔍 Buscar imóvel..." oninput="kenloFilter(this.value)">';
+    h += '</div>';
+
+    if (props.length > 0) {
+      h += '<div id="kenlo-list" style="max-height:500px;overflow-y:auto">';
+      h += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+      h += '<thead><tr style="background:var(--navy);color:#fff">';
+      h += '<th style="padding:6px 8px;text-align:left">Código</th>';
+      h += '<th style="padding:6px 8px;text-align:left">Título</th>';
+      h += '<th style="padding:6px 8px;text-align:left">Tipo</th>';
+      h += '<th style="padding:6px 8px;text-align:left">Bairro</th>';
+      h += '<th style="padding:6px 8px;text-align:right">Valor</th>';
+      h += '<th style="padding:6px 8px;text-align:center">Status</th>';
+      h += '</tr></thead><tbody>';
+      for (var ki = 0; ki < props.length; ki++) {
+        var kp = props[ki];
+        var stColor = kp.status === 'Ativo' ? 'var(--g-tx)' : kp.status === 'Vendido' ? 'var(--b-tx)' : 'var(--muted)';
+        h += '<tr class="kenlo-row" data-search="'+(kp.titulo||'').toLowerCase()+' '+(kp.bairro||'').toLowerCase()+' '+(kp.codigo||'').toLowerCase()+'" style="border-bottom:1px solid var(--cream3)">';
+        h += '<td style="padding:6px 8px;font-weight:600;color:var(--b-tx)">'+(kp.codigo||'-')+'</td>';
+        h += '<td style="padding:6px 8px">'+(kp.titulo||'-')+'</td>';
+        h += '<td style="padding:6px 8px">'+(kp.tipo||'-')+'</td>';
+        h += '<td style="padding:6px 8px">'+(kp.bairro||'-')+'</td>';
+        h += '<td style="padding:6px 8px;text-align:right">'+(kp.valor ? fmt(kp.valor) : '-')+'</td>';
+        h += '<td style="padding:6px 8px;text-align:center"><span style="font-size:10px;padding:2px 8px;border-radius:10px;background:'+stColor+'20;color:'+stColor+';font-weight:600">'+(kp.status||'-')+'</span></td>';
+        h += '</tr>';
+      }
+      h += '</tbody></table></div>';
+    } else {
+      h += '<div style="text-align:center;padding:40px 20px;color:var(--muted)">';
+      h += '<div style="font-size:32px;margin-bottom:8px">📭</div>';
+      h += '<div style="font-size:13px;font-weight:600">Nenhum imóvel sincronizado</div>';
+      h += '<div style="font-size:11px;margin-top:4px">Clique em "Sincronizar Imóveis" para importar dados do Kenlo</div>';
+      h += '</div>';
+    }
+    h += '</div>';
+  } else {
+    // Not connected — info card
+    h += '<div class="card" style="padding:30px;text-align:center">';
+    h += '<div style="font-size:48px;margin-bottom:12px">🔌</div>';
+    h += '<div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px">Configure a integração Kenlo</div>';
+    h += '<div style="font-size:12px;color:var(--muted);max-width:400px;margin:0 auto;line-height:1.6">';
+    h += 'Para utilizar a integração com o Kenlo Imob, configure seu token de API no card acima. ';
+    h += 'Depois de conectado, você poderá sincronizar imóveis, acompanhar status e exportar dados.</div>';
+    h += '</div>';
+  }
+  return h;
+}
+
+function kenloSaveAndTest() {
+  var val = (document.getElementById('kenlo_token')||{}).value||'';
+  if (!val.trim()) { toast('Cole o token antes de testar','err'); return; }
+  if (!S.integrations) S.integrations = {};
+  S.integrations.kenlo = val.trim();
+  localStorage.setItem('psm_integrations', JSON.stringify(S.integrations));
+  var el = document.getElementById('kenlo-test-result');
+  if (el) el.innerHTML = '<span style="color:var(--a-tx)">⏳ Testando conexão...</span>';
+  fetch('https://api.kenlo.io/v1/health', {
+    method: 'GET',
+    headers: { 'Authorization': 'Bearer ' + val.trim() },
+    mode: 'cors'
+  }).then(function(r) {
+    S.integrations.kenlo_status = r.ok ? 'ok' : 'err';
+    localStorage.setItem('psm_integrations', JSON.stringify(S.integrations));
+    if (r.ok) { toast('✅ Kenlo conectado com sucesso!','ok'); }
+    else { toast('❌ Falha — verifique o token','err'); }
+    render();
+  }).catch(function() {
+    S.integrations.kenlo_status = 'err';
+    localStorage.setItem('psm_integrations', JSON.stringify(S.integrations));
+    toast('❌ Erro de conexão com Kenlo','err');
+    render();
+  });
+}
+
+function kenloSync() {
+  var ints = S.integrations || {};
+  var token = ints.kenlo || '';
+  if (!token) { toast('Configure o token Kenlo primeiro','err'); return; }
+  var btn = document.getElementById('kenlo-sync-btn');
+  if (btn) btn.innerHTML = '⏳ Sincronizando...';
+  fetch('https://api.kenlo.io/v1/properties', {
+    method: 'GET',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    mode: 'cors'
+  }).then(function(r) { return r.json(); })
+  .then(function(data) {
+    var items = Array.isArray(data) ? data : (data.data || data.properties || data.items || []);
+    S.kenloProps = items.map(function(p) {
+      return {
+        codigo: p.code || p.id || p.codigo || '',
+        titulo: p.title || p.name || p.titulo || '',
+        tipo: p.type || p.property_type || p.tipo || '',
+        bairro: p.neighborhood || p.district || p.bairro || '',
+        valor: parseFloat(p.price || p.sale_price || p.valor || 0),
+        status: p.status || 'Ativo',
+        area: p.area || p.total_area || '',
+        quartos: p.bedrooms || p.rooms || '',
+        url: p.url || p.link || ''
+      };
+    });
+    saveState();
+    toast('✅ '+S.kenloProps.length+' imóveis sincronizados','ok');
+    render();
+  }).catch(function(err) {
+    toast('❌ Erro ao sincronizar: '+err.message,'err');
+    if (btn) btn.innerHTML = '🔄 Sincronizar Imóveis';
+  });
+}
+
+function kenloFilter(q) {
+  q = (q||'').toLowerCase();
+  var rows = document.querySelectorAll('.kenlo-row');
+  for (var i=0;i<rows.length;i++) {
+    var s = rows[i].getAttribute('data-search')||'';
+    rows[i].style.display = (!q || s.indexOf(q) > -1) ? '' : 'none';
+  }
+}
+
+function kenloExport() {
+  var props = S.kenloProps || [];
+  if (!props.length) { toast('Nenhum imóvel para exportar','err'); return; }
+  var csv = 'Código,Título,Tipo,Bairro,Valor,Status,Área,Quartos\n';
+  for (var i=0;i<props.length;i++) {
+    var p = props[i];
+    csv += '"'+(p.codigo||'')+'",'
+      +'"'+(p.titulo||'')+'",'
+      +'"'+(p.tipo||'')+'",'
+      +'"'+(p.bairro||'')+'",'
+      +(p.valor||0)+','
+      +'"'+(p.status||'')+'",'
+      +'"'+(p.area||'')+'",'
+      +'"'+(p.quartos||'')+'"\n';
+  }
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'kenlo_imoveis_'+new Date().toISOString().slice(0,10)+'.csv';
+  link.click();
+  toast('📥 CSV exportado','ok');
+}
+
 // ─── SIMULADOR DE REPASSE ─────────────────────────────────────────────────────
 function pgSimRepasse() {
   const u = S.user; if (!u) return '';
@@ -12664,11 +12936,14 @@ function pgSimRepasse() {
 
   function inp(label, key, step, suffix, type) {
     const val = type === 'text' ? (r[key]||'') : r[key];
+    var isRS = suffix === 'R$';
     return '<div style="display:flex;flex-direction:column;gap:2px">'
       + '<label style="font-size:10px;font-weight:600;color:var(--muted)">'+label+'</label>'
-      + '<div style="display:flex;align-items:center;gap:4px"><input type="'+(type||'number')+'" class="finp" value="'+val+'" step="'+(step||1)+'" '
+      + '<div style="display:flex;align-items:center;gap:4px">'
+      + (isRS ? '<span style="font-size:12px;font-weight:600;color:var(--navy);white-space:nowrap">R$</span>' : '')
+      + '<input type="'+(type||'number')+'" class="finp" value="'+val+'" step="'+(step||1)+'" '
       + 'oninput="S.repasse.'+key+'='+(type==='text'?"this.value":"(parseFloat(this.value)||0)")+';debouncedRender(600)" style="width:100%;font-size:12px;padding:6px 8px">'
-      + (suffix ? '<span style="font-size:10px;color:var(--muted);white-space:nowrap">'+suffix+'</span>' : '')
+      + (suffix && !isRS ? '<span style="font-size:10px;color:var(--muted);white-space:nowrap">'+suffix+'</span>' : '')
       + '</div></div>';
   }
 
@@ -12868,13 +13143,23 @@ function scheduleVeraNotifs() {
 function filterByPeriod(deals, period) {
   if (!period || period === 'all') return deals;
   const now = new Date();
-  const start = new Date();
+  var start = new Date();
+  var end = null;
   if (period === 'week') start.setDate(now.getDate() - 7);
   else if (period === 'month') { start.setDate(1); }
   else if (period === 'quarter') { start.setMonth(Math.floor(now.getMonth()/3)*3, 1); }
   else if (period === 'semester') { start.setMonth(now.getMonth() < 6 ? 0 : 6, 1); }
+  else if (period === '30d') start.setDate(now.getDate() - 30);
+  else if (period === '60d') start.setDate(now.getDate() - 60);
+  else if (period === '90d') start.setDate(now.getDate() - 90);
+  else if (period === 'custom') {
+    if (S.rdCustomFrom) start = new Date(S.rdCustomFrom + 'T00:00:00');
+    else return deals;
+    if (S.rdCustomTo) end = new Date(S.rdCustomTo + 'T23:59:59');
+  }
   return deals.filter(d => {
     const dt = new Date(d.createdAt || d.updated_at || '');
+    if (end) return dt >= start && dt <= end;
     return dt >= start;
   });
 }
@@ -12902,12 +13187,18 @@ function pgRDConfig() {
   return '<div class="phd"><h1>🔗 RD Station CRM</h1><p>Integração em tempo real — diagnóstico completo</p></div>'
     + '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">'
     + '<select class="sel-f" onchange="S.rdMetricPeriod=this.value;render()">'
-    + '<option value="all"'+((!S.rdMetricPeriod||S.rdMetricPeriod==='all')?' selected':'')+'>Ano completo</option>'
+    + '<option value="all"'+((!S.rdMetricPeriod||S.rdMetricPeriod==='all')?' selected':'')+'>Tudo</option>'
+    + '<option value="week"'+(S.rdMetricPeriod==='week'?' selected':'')+'>7 dias</option>'
     + '<option value="month"'+(S.rdMetricPeriod==='month'?' selected':'')+'>Este mês</option>'
-    + '<option value="week"'+(S.rdMetricPeriod==='week'?' selected':'')+'>Esta semana</option>'
-    + '<option value="quarter"'+(S.rdMetricPeriod==='quarter'?' selected':'')+'>Este trimestre</option>'
-    + '<option value="semester"'+(S.rdMetricPeriod==='semester'?' selected':'')+'>Este semestre</option>'
-    + '</select></div>'
+    + '<option value="quarter"'+(S.rdMetricPeriod==='quarter'?' selected':'')+'>Trimestre</option>'
+    + '<option value="semester"'+(S.rdMetricPeriod==='semester'?' selected':'')+'>Semestre</option>'
+    + '<option value="30d"'+(S.rdMetricPeriod==='30d'?' selected':'')+'>30 dias</option>'
+    + '<option value="60d"'+(S.rdMetricPeriod==='60d'?' selected':'')+'>60 dias</option>'
+    + '<option value="90d"'+(S.rdMetricPeriod==='90d'?' selected':'')+'>90 dias</option>'
+    + '<option value="custom"'+(S.rdMetricPeriod==='custom'?' selected':'')+'>Personalizado</option>'
+    + '</select>'
+    + (rdPeriod==='custom' ? '<input type="date" class="finp" value="'+(S.rdCustomFrom||'')+'" onchange="S.rdCustomFrom=this.value;render()" style="font-size:11px;padding:4px 8px;width:130px"><span style="font-size:11px;color:var(--muted)">até</span><input type="date" class="finp" value="'+(S.rdCustomTo||'')+'" onchange="S.rdCustomTo=this.value;render()" style="font-size:11px;padding:4px 8px;width:130px">' : '')
+    + '</div>'
     // ── STATUS CARDS ──
     + '<div class="kgrid mb2">'
     + Kpi('Status', isOk ? '✅ Conectado' : (S.rdSyncing ? '⏳ Sincronizando' : '⚠️ Pendente'), lastFull, null, isOk ? 'var(--g)' : 'var(--a)')
@@ -12935,7 +13226,7 @@ function pgRDConfig() {
     + '<div class="card mb2"><div class="ctitle">📊 Conversão por Origem de Lead</div>'
     + '<div class="tw"><table class="tbl"><thead><tr><th>Origem</th><th style="text-align:right">Abertas</th><th style="text-align:right">Ganhas</th><th style="text-align:right">Perdidas</th><th style="text-align:right">Taxa</th></tr></thead><tbody>'
     + Object.entries(
-      [...OPPS,...VENDAS,...LOST_DEALS].reduce((acc,d) => {
+      [...filteredOpps,...filteredVendas,...filteredLost].reduce((acc,d) => {
         const src = d.ori || 'Direto';
         if (!acc[src]) acc[src] = {open:0,won:0,lost:0};
         if (d.winStatus === 'won') acc[src].won++;
@@ -12945,8 +13236,9 @@ function pgRDConfig() {
       }, {})
     ).sort((a,b) => (b[1].won+b[1].lost+b[1].open)-(a[1].won+a[1].lost+a[1].open)).slice(0,10).map(([src,d]) => {
       const total = d.won + d.lost;
-      const rate = total > 0 ? Math.round(d.won / total * 100) : 0;
-      return '<tr><td style="font-weight:600">'+src+'</td><td style="text-align:right">'+d.open+'</td><td style="text-align:right;color:var(--g-tx);font-weight:700">'+d.won+'</td><td style="text-align:right;color:var(--r-tx)">'+d.lost+'</td><td style="text-align:right;font-weight:800;color:'+(rate>=30?'var(--g-tx)':rate>=15?'var(--a-tx)':'var(--r-tx)')+'">'+rate+'%</td></tr>';
+      const rate = total > 0 ? (d.won / total * 100).toFixed(2) : '0.00';
+      const rateNum = parseFloat(rate);
+      return '<tr><td style="font-weight:600">'+src+'</td><td style="text-align:right">'+d.open+'</td><td style="text-align:right;color:var(--g-tx);font-weight:700">'+d.won+'</td><td style="text-align:right;color:var(--r-tx)">'+d.lost+'</td><td style="text-align:right;font-weight:800;color:'+(rateNum>=30?'var(--g-tx)':rateNum>=15?'var(--a-tx)':'var(--r-tx)')+'">'+rate+'%</td></tr>';
     }).join('')
     + '</tbody></table></div></div>'
 
@@ -14881,7 +15173,7 @@ function canAccess(p){
   // Legacy/fallback
   return false;
 }
-var DEFAULT_PAGE={diretor:'checkin',backoffice:'checkin',lider:'checkin',marketing:'checkin',corretor:'checkin'};
+var DEFAULT_PAGE={diretor:'arena',backoffice:'arena',lider:'arena',marketing:'arena',corretor:'arena'};
 function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"checkin";}
 
 function renderSB() {
@@ -15149,7 +15441,7 @@ function route() {
     case 'playbook':         return pgPlaceholder('Playbook','Em breve: playbook completo de vendas PSM.');
     case 'codigo_etica':     return pgPlaceholder('C\u00f3digo de \u00c9tica','Em breve: c\u00f3digo de \u00e9tica profissional PSM.');
     case 'sim_energia':      return pgPlaceholder('Simulador de Energia','Em breve: simulador de custos de energia.');
-    case 'kenlo':            return pgPlaceholder('Kenlo','Em breve: integra\u00e7\u00e3o com Kenlo.');
+    case 'kenlo':            return pgKenlo();
     // Marketing
     case 'crono_conquista':  S.mkTab='cronograma'; return pgMarketing();
     case 'crono_psm':        S.mkTab='cronoimoveis'; return pgMarketing();
