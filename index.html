@@ -2972,6 +2972,15 @@ var pgWarArena = function(){
   });
   h += '</div></div>';
 
+  // ===== TIMELINE (premiações, oportunidades, eventos) — logo abaixo do marquee =====
+  var tickerHtml = typeof renderTicker === 'function' ? renderTicker() : '';
+  if (tickerHtml) {
+    h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:12px;padding:12px 16px;margin-bottom:20px;overflow:hidden">';
+    h += '<h2 style="font-size:13px;font-weight:700;color:var(--cream);margin:0 0 8px">📢 Timeline</h2>';
+    h += tickerHtml;
+    h += '</div>';
+  }
+
   // DATE FILTER
   h += '<div style="margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
   var warDF = S.df_war || {preset:'Mes'};
@@ -3134,9 +3143,13 @@ var pgWarArena = function(){
       h += '<span style="font-size:12px;font-weight:700;color:var(--gold2)">' + c.score + ' pts</span>';
       h += '</div>';
     });
-    // Botão Análise Gemini
-    h += '<button onclick="arenaGeminiAnalise()" style="margin-top:12px;width:100%;padding:10px;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">\u2728 An\u00e1lise Gemini (equipe + individual)</button>';
-    h += '<div id="arena-gemini-result" style="margin-top:8px;font-size:11px;color:var(--cream);max-height:200px;overflow-y:auto"></div>';
+    // Botão Análise Gemini + indicador auto
+    h += '<div style="display:flex;gap:8px;margin-top:12px">';
+    h += '<button onclick="arenaGeminiAnalise()" style="flex:1;padding:10px;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">✨ Análise Gemini (equipe + individual)</button>';
+    h += '</div>';
+    var _lastGemRun = S._geminiLastRun ? new Date(S._geminiLastRun).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : null;
+    h += '<div style="font-size:10px;color:var(--muted);margin-top:4px">🔄 Atualização automática a cada 1h' + (_lastGemRun ? ' — última: '+_lastGemRun : '') + '</div>';
+    h += '<div id="arena-gemini-result" style="margin-top:8px;font-size:11px;color:var(--cream);max-height:300px;overflow-y:auto"></div>';
     h += '</div>';
   }
 
@@ -3204,7 +3217,7 @@ var pgWarArena = function(){
   h += '</div>';
   h += '</div>';
 
-  // ===== MÉTRICAS RD CRM NO ARENA (item 9) =====
+  // ===== MÉTRICAS RD CRM NO ARENA =====
   var rdOk = S.rdSyncStatus === 'ok';
   if (rdOk && (VENDAS.length > 0 || OPPS.length > 0)) {
     var rdMonth = filterByPeriod(VENDAS, 'month');
@@ -3213,23 +3226,17 @@ var pgWarArena = function(){
     var rdVGV = rdMonth.reduce(function(a,v){return a+(v.vgv||0)},0);
     var rdPipe = rdMonthOpps.reduce(function(a,o){return a+(o.vgv||0)},0);
     var rdConv = (rdMonth.length + rdMonthLost.length) > 0 ? (rdMonth.length / (rdMonth.length + rdMonthLost.length) * 100).toFixed(2) : '0.00';
+    var rdTicket = rdMonth.length > 0 ? rdVGV / rdMonth.length : 0;
+    var rdLostVGV = rdMonthLost.reduce(function(a,l){return a+(l.vgv||0)},0);
     h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:16px;padding:20px;margin-bottom:24px">';
-    h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 16px">\uD83D\uDD17 RD CRM — M\u00eas Atual</h2>';
-    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">';
-    h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center"><div style="font-size:11px;color:var(--muted)">Pipeline</div><div style="font-size:20px;font-weight:700;color:var(--cream)">' + rdMonthOpps.length + '</div><div style="font-size:10px;color:var(--gold2)">' + fmt(rdPipe) + '</div></div>';
-    h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center"><div style="font-size:11px;color:var(--muted)">Vendas CRM</div><div style="font-size:20px;font-weight:700;color:var(--g)">' + rdMonth.length + '</div><div style="font-size:10px;color:var(--g)">' + fmt(rdVGV) + '</div></div>';
-    h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center"><div style="font-size:11px;color:var(--muted)">Perdidos</div><div style="font-size:20px;font-weight:700;color:var(--r)">' + rdMonthLost.length + '</div></div>';
-    h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center"><div style="font-size:11px;color:var(--muted)">Convers\u00e3o</div><div style="font-size:20px;font-weight:700;color:'+(parseFloat(rdConv)>=30?'var(--g)':'var(--a)')+'">'+rdConv+'%</div></div>';
+    h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 16px">🔗 RD CRM — Mês Atual</h2>';
+    h += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">';
+    h += '<div style="background:var(--navy);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--muted)">Pipeline</div><div style="font-size:18px;font-weight:700;color:var(--cream)">' + rdMonthOpps.length + '</div><div style="font-size:9px;color:var(--gold2)">' + fmt(rdPipe) + '</div></div>';
+    h += '<div style="background:var(--navy);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--muted)">Vendas CRM</div><div style="font-size:18px;font-weight:700;color:var(--g)">' + rdMonth.length + '</div><div style="font-size:9px;color:var(--g)">' + fmt(rdVGV) + '</div></div>';
+    h += '<div style="background:var(--navy);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--muted)">Perdidos</div><div style="font-size:18px;font-weight:700;color:var(--r)">' + rdMonthLost.length + '</div><div style="font-size:9px;color:var(--r)">' + fmt(rdLostVGV) + '</div></div>';
+    h += '<div style="background:var(--navy);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--muted)">Conversão</div><div style="font-size:18px;font-weight:700;color:'+(parseFloat(rdConv)>=30?'var(--g)':'var(--a)')+'">'+rdConv+'%</div></div>';
+    h += '<div style="background:var(--navy);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--muted)">Ticket Médio</div><div style="font-size:18px;font-weight:700;color:var(--gold2)">' + fmt(rdTicket) + '</div></div>';
     h += '</div></div>';
-  }
-
-  // ===== TIMELINE / TICKER NO RODAPÉ DO ARENA (item 7) =====
-  var tickerHtml = typeof renderTicker === 'function' ? renderTicker() : '';
-  if (tickerHtml) {
-    h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:16px;padding:16px;margin-bottom:24px;overflow:hidden">';
-    h += '<h2 style="font-size:14px;font-weight:700;color:var(--cream);margin:0 0 10px">\uD83D\uDCE2 Timeline</h2>';
-    h += tickerHtml;
-    h += '</div>';
   }
 
   // INJECT MARQUEE CSS
@@ -12706,6 +12713,180 @@ function pgSimINCC() {
   return h;
 }
 
+// ─── IA DO CORRETOR (Gemini + Nano Banana) ───────────────────────────────────
+function pgIACorretor() {
+  var conn = S.connectors || {};
+  var gKey = (conn.gemini_api_key || '').trim();
+  var nbKey = (conn.nano_banana_key || '').trim();
+  var nbAgent = (conn.nano_banana_agent || '').trim();
+  var hasGemini = !!gKey;
+  var hasNB = !!nbKey;
+  if (!S.iaChat) S.iaChat = [];
+  if (!S.iaProvider) S.iaProvider = hasGemini ? 'gemini' : (hasNB ? 'nano' : 'gemini');
+
+  var h = '<div class="phd"><h1>🤖 IA do Corretor</h1><p>Assistente de inteligência artificial para vendas imobiliárias — Gemini + Nano Banana</p></div>';
+
+  // Status cards
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">';
+  // Gemini
+  h += '<div class="card" style="padding:16px;border-left:4px solid #4285f4">';
+  h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">';
+  h += '<div style="width:36px;height:36px;border-radius:10px;background:#4285f4;display:flex;align-items:center;justify-content:center;font-size:18px">✨</div>';
+  h += '<div><div style="font-size:14px;font-weight:700;color:var(--navy)">Google Gemini</div>';
+  h += '<div style="font-size:10px;color:var(--muted)">Análise de dados, scripts, estratégias</div></div></div>';
+  if (hasGemini) {
+    h += '<div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div><span style="font-size:11px;color:#16a34a;font-weight:600">Conectado</span></div>';
+  } else {
+    h += '<div style="font-size:11px;color:var(--a-tx)">⚠️ Configure a API Key em Configurações → Conectores</div>';
+  }
+  h += '</div>';
+  // Nano Banana
+  h += '<div class="card" style="padding:16px;border-left:4px solid #f59e0b">';
+  h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">';
+  h += '<div style="width:36px;height:36px;border-radius:10px;background:#f59e0b;display:flex;align-items:center;justify-content:center;font-size:18px">🍌</div>';
+  h += '<div><div style="font-size:14px;font-weight:700;color:var(--navy)">Nano Banana</div>';
+  h += '<div style="font-size:10px;color:var(--muted)">IA especializada em imobiliário</div></div></div>';
+  if (hasNB) {
+    h += '<div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div><span style="font-size:11px;color:#16a34a;font-weight:600">Conectado'+(nbAgent?' — Agent: '+nbAgent:'')+'</span></div>';
+  } else {
+    h += '<div style="font-size:11px;color:var(--a-tx)">⚠️ Configure a API Key em Configurações → Conectores</div>';
+  }
+  h += '</div></div>';
+
+  // Quick actions
+  h += '<div class="card" style="padding:14px;margin-bottom:16px">';
+  h += '<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:10px">⚡ Ações Rápidas</div>';
+  h += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  var acoes = [
+    {lbl:'📊 Analisar meu desempenho', prompt:'Analise meu desempenho como corretor com base nos dados disponíveis. Inclua VGV, vendas, visitas, propostas e sugira melhorias.'},
+    {lbl:'📝 Gerar script de abordagem', prompt:'Gere um script de abordagem para primeiro contato com lead de tráfego pago interessado em apartamento de 2 quartos até R$400k em São José do Rio Preto.'},
+    {lbl:'💡 Dicas de negociação', prompt:'Me dê 5 técnicas avançadas de negociação para fechamento de vendas de imóveis de alto padrão.'},
+    {lbl:'🏠 Argumentos MCMV', prompt:'Quais os principais argumentos de venda para imóveis Minha Casa Minha Vida? Inclua benefícios financeiros, subsídios e como superar objeções.'},
+    {lbl:'📈 Estratégia de captação', prompt:'Crie uma estratégia de captação de imóveis para venda e locação em São José do Rio Preto, incluindo abordagem, canais e follow-up.'},
+    {lbl:'🎯 Contornar objeções', prompt:'Liste as 10 objeções mais comuns de compradores de imóveis e como contorná-las com argumentos persuasivos.'}
+  ];
+  for (var ai = 0; ai < acoes.length; ai++) {
+    h += '<button onclick="iaCorretorQuick('+ai+')" style="padding:6px 12px;background:var(--cream2);border:1px solid var(--cream3);border-radius:8px;font-size:11px;cursor:pointer;color:var(--navy);font-weight:500">'+acoes[ai].lbl+'</button>';
+  }
+  h += '</div></div>';
+
+  // Provider selector + Chat
+  h += '<div class="card" style="padding:16px">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+  h += '<div style="font-size:13px;font-weight:700;color:var(--navy)">💬 Chat com IA</div>';
+  h += '<div style="display:flex;gap:6px">';
+  h += '<button onclick="S.iaProvider=\'gemini\';render()" style="padding:4px 12px;border-radius:6px;border:1px solid '+(S.iaProvider==='gemini'?'#4285f4':'var(--cream3)')+';background:'+(S.iaProvider==='gemini'?'#4285f410':'transparent')+';color:'+(S.iaProvider==='gemini'?'#4285f4':'var(--muted)')+';font-size:11px;font-weight:600;cursor:pointer">✨ Gemini</button>';
+  h += '<button onclick="S.iaProvider=\'nano\';render()" style="padding:4px 12px;border-radius:6px;border:1px solid '+(S.iaProvider==='nano'?'#f59e0b':'var(--cream3)')+';background:'+(S.iaProvider==='nano'?'#f59e0b10':'transparent')+';color:'+(S.iaProvider==='nano'?'#f59e0b':'var(--muted)')+';font-size:11px;font-weight:600;cursor:pointer">🍌 Nano Banana</button>';
+  h += '<button onclick="S.iaChat=[];render()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--cream3);background:transparent;color:var(--muted);font-size:11px;cursor:pointer">🗑️ Limpar</button>';
+  h += '</div></div>';
+
+  // Chat messages
+  h += '<div id="ia-chat-box" style="max-height:400px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:8px">';
+  if (S.iaChat.length === 0) {
+    h += '<div style="text-align:center;padding:30px;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">'+(S.iaProvider==='gemini'?'✨':'🍌')+'</div>';
+    h += '<div style="font-size:13px">Faça uma pergunta ou use as ações rápidas acima</div></div>';
+  }
+  for (var mi = 0; mi < S.iaChat.length; mi++) {
+    var msg = S.iaChat[mi];
+    if (msg.role === 'user') {
+      h += '<div style="align-self:flex-end;max-width:80%;padding:10px 14px;background:var(--navy);color:#fff;border-radius:12px 12px 2px 12px;font-size:12px;line-height:1.5">'+msg.text+'</div>';
+    } else {
+      h += '<div style="align-self:flex-start;max-width:85%;padding:10px 14px;background:var(--cream2);color:var(--navy);border-radius:12px 12px 12px 2px;font-size:12px;line-height:1.6;white-space:pre-wrap">'+msg.text+'</div>';
+    }
+  }
+  h += '</div>';
+  h += '<div id="ia-loading" style="display:none;text-align:center;padding:8px;color:var(--muted);font-size:12px">⏳ Pensando...</div>';
+
+  // Input
+  h += '<div style="display:flex;gap:8px">';
+  h += '<input id="ia-input" class="finput" style="flex:1;font-size:13px" placeholder="Digite sua pergunta..." onkeydown="if(event.key===\'Enter\')iaCorretorSend()">';
+  h += '<button onclick="iaCorretorSend()" style="padding:8px 20px;background:linear-gradient(135deg,'+(S.iaProvider==='gemini'?'#4285f4,#1a73e8':'#f59e0b,#d97706')+');color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">Enviar</button>';
+  h += '</div></div>';
+
+  return h;
+}
+
+var _iaQuickPrompts = [
+  'Analise meu desempenho como corretor com base nos dados disponíveis. Inclua VGV, vendas, visitas, propostas e sugira melhorias.',
+  'Gere um script de abordagem para primeiro contato com lead de tráfego pago interessado em apartamento de 2 quartos até R$400k em São José do Rio Preto.',
+  'Me dê 5 técnicas avançadas de negociação para fechamento de vendas de imóveis de alto padrão.',
+  'Quais os principais argumentos de venda para imóveis Minha Casa Minha Vida? Inclua benefícios financeiros, subsídios e como superar objeções.',
+  'Crie uma estratégia de captação de imóveis para venda e locação em São José do Rio Preto, incluindo abordagem, canais e follow-up.',
+  'Liste as 10 objeções mais comuns de compradores de imóveis e como contorná-las com argumentos persuasivos.'
+];
+
+function iaCorretorQuick(idx) {
+  var prompt = _iaQuickPrompts[idx] || '';
+  if (!prompt) return;
+  var inp = document.getElementById('ia-input');
+  if (inp) inp.value = prompt;
+  iaCorretorSend();
+}
+
+function iaCorretorSend() {
+  var inp = document.getElementById('ia-input');
+  var text = (inp ? inp.value : '').trim();
+  if (!text) return;
+  if (!S.iaChat) S.iaChat = [];
+  S.iaChat.push({role:'user', text:text});
+  if (inp) inp.value = '';
+  render();
+  // Scroll chat
+  setTimeout(function(){ var box = document.getElementById('ia-chat-box'); if(box) box.scrollTop = box.scrollHeight; },50);
+  var loadEl = document.getElementById('ia-loading');
+  if (loadEl) loadEl.style.display = 'block';
+
+  var conn = S.connectors || {};
+  var provider = S.iaProvider || 'gemini';
+
+  // Build context with broker data
+  var ctx = 'Você é um assistente de IA especializado em vendas imobiliárias para a PSM Assessoria Imobiliária em São José do Rio Preto-SP. ';
+  if (S.user) ctx += 'O corretor se chama ' + S.user.name + '. ';
+  var now = new Date();
+  var mk = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  if (S.user && S.user.id) {
+    var oo = ooAggMonth(S.user.id, mk);
+    if (oo) ctx += 'Dados do mês: VGV='+fmt(oo.vgv)+', Vendas='+oo.vendas+', Visitas='+oo.vis+', Propostas='+oo.prop+', Ligações='+oo.lig+'. ';
+  }
+
+  if (provider === 'gemini') {
+    var gKey = (conn.gemini_api_key || '').trim();
+    if (!gKey) { _iaAddResp('⚠️ Configure a API Key do Gemini em Configurações → Conectores.'); return; }
+    fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+gKey, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:ctx+'\n\nPergunta do corretor: '+text}]}]})
+    }).then(function(r){return r.json()}).then(function(d){
+      var resp = (d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts && d.candidates[0].content.parts[0]) ? d.candidates[0].content.parts[0].text : 'Sem resposta do Gemini.';
+      _iaAddResp(resp);
+    }).catch(function(e){ _iaAddResp('❌ Erro Gemini: '+e.message); });
+
+  } else if (provider === 'nano') {
+    var nbKey = (conn.nano_banana_key || '').trim();
+    if (!nbKey) { _iaAddResp('⚠️ Configure a API Key do Nano Banana em Configurações → Conectores.'); return; }
+    var nbAgent = (conn.nano_banana_agent || '').trim();
+    var nbUrl = 'https://api.nanobanana.com/v1/chat/completions';
+    var nbBody = {
+      model: nbAgent || 'nano-banana-default',
+      messages: [{role:'system',content:ctx},{role:'user',content:text}],
+      max_tokens: 2000
+    };
+    fetch(nbUrl, {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+nbKey},
+      body:JSON.stringify(nbBody)
+    }).then(function(r){return r.json()}).then(function(d){
+      var resp = (d.choices && d.choices[0] && d.choices[0].message) ? d.choices[0].message.content : (d.error ? '❌ '+d.error.message : 'Sem resposta.');
+      _iaAddResp(resp);
+    }).catch(function(e){ _iaAddResp('❌ Erro Nano Banana: '+e.message); });
+  }
+}
+
+function _iaAddResp(text) {
+  if (!S.iaChat) S.iaChat = [];
+  S.iaChat.push({role:'assistant', text:text});
+  render();
+  setTimeout(function(){ var box = document.getElementById('ia-chat-box'); if(box) box.scrollTop = box.scrollHeight; var ld = document.getElementById('ia-loading'); if(ld) ld.style.display='none'; },50);
+}
+
 // ─── SIMULADOR DE ENERGIA ─────────────────────────────────────────────────────
 function pgSimEnergia() {
   if (!S.enrg) S.enrg = {};
@@ -13573,31 +13754,41 @@ function pgRDConfig() {
   // Deals sem etapa mapeada
   const unmappedStage = OPPS.filter(o => !o.st_psm);
 
+  // Ticket médio calculado com filtro
+  const ticketMedio = filteredVendas.length > 0 ? wonVGV / filteredVendas.length : 0;
+  // VGV perdido
+  const lostVGV = filteredLost.reduce((a,l) => a + (l.vgv||0), 0);
+  // Ciclo médio de venda (dias entre criação e fechamento)
+  var cicloSoma = 0, cicloCnt = 0;
+  filteredVendas.forEach(function(v){
+    var dt1 = new Date(v.createdAt||'');
+    var dt2 = new Date(v.closedAt||v.updated_at||'');
+    if (!isNaN(dt1.getTime()) && !isNaN(dt2.getTime())) { var diff=(dt2-dt1)/(86400000); if(diff>=0){ cicloSoma+=diff; cicloCnt++; } }
+  });
+  const cicloMedio = cicloCnt > 0 ? (cicloSoma/cicloCnt).toFixed(1) : '—';
+
   return '<div class="phd"><h1>🔗 RD Station CRM</h1><p>Integração em tempo real — diagnóstico completo</p></div>'
-    + '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">'
-    + '<select class="sel-f" onchange="S.rdMetricPeriod=this.value;render()">'
-    + '<option value="all"'+((!S.rdMetricPeriod||S.rdMetricPeriod==='all')?' selected':'')+'>Tudo</option>'
-    + '<option value="week"'+(S.rdMetricPeriod==='week'?' selected':'')+'>7 dias</option>'
-    + '<option value="month"'+(S.rdMetricPeriod==='month'?' selected':'')+'>Este mês</option>'
-    + '<option value="quarter"'+(S.rdMetricPeriod==='quarter'?' selected':'')+'>Trimestre</option>'
-    + '<option value="semester"'+(S.rdMetricPeriod==='semester'?' selected':'')+'>Semestre</option>'
-    + '<option value="30d"'+(S.rdMetricPeriod==='30d'?' selected':'')+'>30 dias</option>'
-    + '<option value="60d"'+(S.rdMetricPeriod==='60d'?' selected':'')+'>60 dias</option>'
-    + '<option value="90d"'+(S.rdMetricPeriod==='90d'?' selected':'')+'>90 dias</option>'
-    + '<option value="custom"'+(S.rdMetricPeriod==='custom'?' selected':'')+'>Personalizado</option>'
-    + '</select>'
-    + (rdPeriod==='custom' ? '<input type="date" class="finp" value="'+(S.rdCustomFrom||'')+'" onchange="S.rdCustomFrom=this.value;render()" style="font-size:11px;padding:4px 8px;width:130px"><span style="font-size:11px;color:var(--muted)">até</span><input type="date" class="finp" value="'+(S.rdCustomTo||'')+'" onchange="S.rdCustomTo=this.value;render()" style="font-size:11px;padding:4px 8px;width:130px">' : '')
+    // ── QUICK PERIOD FILTER BUTTONS ──
+    + '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">'
+    + (function(){
+      var btns = [{id:'all',lbl:'Tudo'},{id:'week',lbl:'7 dias'},{id:'month',lbl:'Mês Atual'},{id:'quarter',lbl:'Trimestre'},{id:'semester',lbl:'Semestre'},{id:'30d',lbl:'30 dias'},{id:'60d',lbl:'60 dias'},{id:'90d',lbl:'90 dias'},{id:'custom',lbl:'Personalizado'}];
+      return btns.map(function(b){
+        var active = rdPeriod === b.id;
+        return '<button onclick="S.rdMetricPeriod=\''+b.id+'\';render()" style="padding:5px 12px;border-radius:8px;border:1px solid '+(active?'var(--navy)':'var(--cream3)')+';background:'+(active?'var(--navy)':'transparent')+';color:'+(active?'#fff':'var(--muted)')+';font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer">'+b.lbl+'</button>';
+      }).join('');
+    })()
     + '</div>'
-    // ── STATUS CARDS ──
+    + (rdPeriod==='custom' ? '<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center"><input type="date" class="finp" value="'+(S.rdCustomFrom||'')+'" onchange="S.rdCustomFrom=this.value;render()" style="font-size:11px;padding:4px 8px;width:140px"><span style="font-size:11px;color:var(--muted)">até</span><input type="date" class="finp" value="'+(S.rdCustomTo||'')+'" onchange="S.rdCustomTo=this.value;render()" style="font-size:11px;padding:4px 8px;width:140px"></div>' : '')
+    // ── STATUS CARDS (all filtered by period, 2+ decimal precision) ──
     + '<div class="kgrid mb2">'
-    + Kpi('Status', isOk ? '✅ Conectado' : (S.rdSyncing ? '⏳ Sincronizando' : '⚠️ Pendente'), lastFull, null, isOk ? 'var(--g)' : 'var(--a)')
-    + Kpi('Em Andamento', filteredOpps.length, fmt(pipelineVGV)+' pipeline', null, 'var(--navy)')
-    + Kpi('Vendas (won)', filteredVendas.length, fmt(wonVGV)+' VGV realizado', null, 'var(--g)')
-    + Kpi('Perdidos', filteredLost.length, (S.lossReasons?.[0] ? 'Top: '+S.lossReasons[0][0] : ''), null, 'var(--r)')
-    + Kpi('Última Sync', last, 'auto a cada 5 min', null, 'var(--b)')
-    + Kpi('Ticket Médio', fmt(wonVGV>0?(wonVGV/filteredVendas.length):0), 'vendas fechadas', null, 'var(--gold)')
-    + Kpi('Agendamentos', filteredOpps.filter(o=>['agendamento','vis_agend'].includes(o.st_psm)).length, 'pipeline ativo', null, 'var(--b)')
-    + Kpi('Visitas Realizadas', filteredOpps.filter(o=>['vis_real'].includes(o.st_psm)).length + filteredVendas.length, 'confirmadas + vendidas', null, 'var(--pu)')
+    + Kpi('Pipeline', filteredOpps.length, fmt(pipelineVGV), null, 'var(--navy)')
+    + Kpi('Vendas (won)', filteredVendas.length, fmt(wonVGV)+' VGV', null, 'var(--g)')
+    + Kpi('Perdidos', filteredLost.length, fmt(lostVGV)+' perdido', null, 'var(--r)')
+    + Kpi('Conversão', ((filteredVendas.length+filteredLost.length)>0?(filteredVendas.length/(filteredVendas.length+filteredLost.length)*100).toFixed(2):'0.00')+'%', filteredVendas.length+'W / '+filteredLost.length+'L', null, (filteredVendas.length/(filteredVendas.length+filteredLost.length+0.001)*100)>=30?'var(--g)':'var(--a)')
+    + Kpi('Ticket Médio', fmt(ticketMedio), filteredVendas.length+' vendas no período', null, 'var(--gold)')
+    + Kpi('Ciclo Médio', cicloMedio+' dias', 'criação → fechamento', null, 'var(--b)')
+    + Kpi('Agendamentos', filteredOpps.filter(o=>['agendamento','vis_agend'].includes(o.st_psm)).length, 'no período', null, 'var(--b)')
+    + Kpi('Visitas', filteredOpps.filter(o=>['vis_real'].includes(o.st_psm)).length + filteredVendas.length, 'realizadas + vendidas', null, 'var(--pu)')
     + '</div>'
 
     // ── PROGRESS ──
@@ -13665,21 +13856,25 @@ function pgRDConfig() {
       + '</div>' : '')
 
     // ── CORRETORES MAPEADOS ──
-    + '<div class="card mb2"><div class="ctitle">Corretores Mapeados <span class="csub">'+BROKERS.length+' cadastrados</span></div>'
-    + '<div class="tw"><table class="tbl"><thead><tr><th>Corretor</th><th>Frente</th><th>RD ID</th><th>Abertas</th><th>Ganhas</th><th>Perdidas</th><th>Pipeline</th></tr></thead><tbody>'
+    + '<div class="card mb2"><div class="ctitle">Corretores Mapeados <span class="csub">'+BROKERS.length+' cadastrados — filtrado por período</span></div>'
+    + '<div class="tw"><table class="tbl"><thead><tr><th>Corretor</th><th>Frente</th><th style="text-align:right">Abertas</th><th style="text-align:right">Ganhas</th><th style="text-align:right">Perdidas</th><th style="text-align:right">VGV Won</th><th style="text-align:right">Ticket Médio</th><th style="text-align:right">Conversão</th></tr></thead><tbody>'
     + BROKERS.map(b => {
-        const bOpen = OPPS.filter(o=>o.bid===b.id).length;
-        const bWon = VENDAS.filter(v=>v.bid===b.id).length;
-        const bLost = LOST_DEALS.filter(l=>l.bid===b.id).length;
-        const bPipe = OPPS.filter(o=>o.bid===b.id).reduce((a,o)=>a+o.vgv,0);
+        const bOpen = filteredOpps.filter(o=>o.bid===b.id).length;
+        const bWon = filteredVendas.filter(v=>v.bid===b.id);
+        const bLost = filteredLost.filter(l=>l.bid===b.id).length;
+        const bVGV = bWon.reduce((a,v)=>a+(v.vgv||0),0);
+        const bTicket = bWon.length > 0 ? bVGV / bWon.length : 0;
+        const bTotal = bWon.length + bLost;
+        const bConv = bTotal > 0 ? (bWon.length / bTotal * 100).toFixed(2) : '0.00';
         return '<tr>'
           + '<td><div class="flex aic gap1">'+Av(b,'xs')+'<span style="font-size:11.5px;font-weight:600">'+b.name+'</span></div></td>'
           + '<td>'+FTag(b.frente)+'</td>'
-          + '<td><code style="font-size:9px;color:var(--muted)">'+(USERS_BASE.find(u=>u.id===b.id)?.rdId||'—').slice(0,12)+'</code></td>'
           + '<td class="tr" style="font-weight:700">'+bOpen+'</td>'
-          + '<td class="tr" style="font-weight:700;color:var(--g-tx)">'+bWon+'</td>'
+          + '<td class="tr" style="font-weight:700;color:var(--g-tx)">'+bWon.length+'</td>'
           + '<td class="tr" style="color:var(--r-tx)">'+bLost+'</td>'
-          + '<td class="tr" style="font-weight:700">'+fmt(bPipe)+'</td>'
+          + '<td class="tr" style="font-weight:700">'+fmt(bVGV)+'</td>'
+          + '<td class="tr">'+fmt(bTicket)+'</td>'
+          + '<td class="tr" style="font-weight:700;color:'+(parseFloat(bConv)>=30?'var(--g-tx)':parseFloat(bConv)>=15?'var(--a-tx)':'var(--r-tx)')+'">'+bConv+'%</td>'
           + '</tr>';
       }).join('')
     + '</tbody></table></div></div>'
@@ -13853,6 +14048,10 @@ function pgConfig() {
       ])
     + connectorSection('Vera 5.0 — NotebookLM','vera_nb','#8b5cf6',[
         {key:'vera_notebook_url', label:'Link do NotebookLM', placeholder:'https://notebooklm.google.com/notebook/...', type:'text'},
+      ])
+    + connectorSection('Nano Banana — IA Imobiliária','nano_banana','#f59e0b',[
+        {key:'nano_banana_key', label:'API Key Nano Banana', placeholder:'Cole sua chave API Nano Banana aqui', type:'password'},
+        {key:'nano_banana_agent', label:'Agent ID (opcional)', placeholder:'ID do agente personalizado', type:'text'},
       ])
     + '</div>'
     + '<div class="card mt2"><div class="ctitle">📲 WhatsApp</div>'
@@ -15826,7 +16025,7 @@ function route() {
     case 'plantoes':         return pgPlantoes();
     case 'ficha_captacao':   return pgCaptacao();
     case 'fichas_propostas': return pgFichasPropostas();
-    case 'ia_corretor':      return pgPlaceholder('IA do Corretor','\uD83E\uDD16 Em constru\u00e7\u00e3o: assistente de intelig\u00eancia artificial para corretores.');
+    case 'ia_corretor':      return pgIACorretor();
     // Ferramentas
     case 'playbook':         return pgPlaceholder('Playbook','Em breve: playbook completo de vendas PSM.');
     case 'codigo_etica':     return pgPlaceholder('C\u00f3digo de \u00c9tica','Em breve: c\u00f3digo de \u00e9tica profissional PSM.');
@@ -20848,6 +21047,21 @@ setInterval(function(){ if(S.user){ scheduleNotifs(); checkPlantaoNotifs(); } },
 setInterval(function(){ if(S.user) checkPlantaoNotifs(); }, 5 * 60 * 1000);
 // Check on login
 window.addEventListener('psm-login', function(){ scheduleNotifs(); checkPlantaoNotifs(); });
+
+// ─── GEMINI AUTO-ANALYSIS EVERY 1H ──────────────────────────────────────────
+function arenaGeminiAuto() {
+  var gKey = ((S.connectors||{}).gemini_api_key || '').trim();
+  if (!gKey) return;
+  if (!S.user || RLVL[S.user.role] < 5) return; // socios/gerentes only
+  arenaGeminiAnalise();
+  S._geminiLastRun = Date.now();
+}
+// Run every 60 min
+setInterval(function(){ arenaGeminiAuto(); }, 60 * 60 * 1000);
+// Also run on first load after 10s if not run in the last hour
+setTimeout(function(){
+  if (!S._geminiLastRun || (Date.now() - S._geminiLastRun > 55*60*1000)) arenaGeminiAuto();
+}, 10000);
 
 // ─── OFFLINE DETECTION ───────────────────────────────────────────────────────
 window.addEventListener('online', () => { toast('✅ Conexão restaurada', 'ok'); if(S.user) RD.sync(false); });
