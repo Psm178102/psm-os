@@ -3349,8 +3349,24 @@ function arenaGeminiAnalise() {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({contents:[{parts:[{text:prompt}]}]})
-  }).then(function(r){return r.json()}).then(function(data){
-    var text = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text) || 'Sem resposta';
+  }).then(function(r){
+    if (!r.ok) { return r.text().then(function(t){ throw new Error('HTTP ' + r.status + ': ' + t.substring(0,200)); }); }
+    return r.json();
+  }).then(function(data){
+    var text = '';
+    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+      text = data.candidates[0].content.parts[0].text || '';
+    }
+    if (!text && data.error) {
+      text = '❌ Erro da API Gemini: ' + (data.error.message || JSON.stringify(data.error));
+    }
+    if (!text && data.promptFeedback) {
+      text = '❌ Bloqueado pelo filtro de segurança: ' + JSON.stringify(data.promptFeedback);
+    }
+    if (!text) {
+      text = '❌ Sem resposta. Verifique se a API Key Gemini está correta em Configurações > Conectores.\nResposta bruta: ' + JSON.stringify(data).substring(0,300);
+    }
+    text = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
     el.innerHTML = '<div style="white-space:pre-wrap;line-height:1.5;padding:8px;background:var(--navy);border-radius:8px;color:var(--cream);font-size:11px">' + text.replace(/\n/g,'<br>') + '</div>';
   }).catch(function(e){
     el.innerHTML = '<span style="color:var(--r)">Erro: ' + e.message + '</span>';
@@ -21955,7 +21971,7 @@ function pgAgenteVera() {
       h += '<div style="display:flex;justify-content:'+(isUser?'flex-end':'flex-start')+'">';
       h += '<div style="max-width:80%;padding:10px 14px;border-radius:'+(isUser?'14px 14px 4px 14px':'14px 14px 14px 4px');
       h += ';background:'+(isUser?'#8b5cf6':'#334155')+';color:#e2e8f0;font-size:13px;line-height:1.6">';
-      h += m.content.replace(/\n/g,'<br>').replace(/\\*\\*(.*?)\\*\\*/g,'<strong>$1</strong>');
+      h += m.content.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
       h += '</div></div>';
     });
     if (S.veraAgLoading) {
@@ -22097,27 +22113,32 @@ function testVeraMsg(msg) {
   sendVeraAgent(true);
 }
 
-function sendVeraAgent() {
-  var inp = document.getElementById('vera-ag-inp');
-  var txt = (inp ? inp.value : '').trim();
-  if (!txt) return;
-  S.veraAgHist = S.veraAgHist || [];
-  S.veraAgHist.push({role:'user', content:txt});
-  if (inp) inp.value = '';
+function sendVeraAgent(skipInput) {
+  if (!skipInput) {
+    var inp = document.getElementById('vera-ag-inp');
+    var txt = (inp ? inp.value : '').trim();
+    if (!txt) return;
+    S.veraAgHist = S.veraAgHist || [];
+    S.veraAgHist.push({role:'user', content:txt});
+    if (inp) inp.value = '';
+  }
   S.veraAgLoading = true; render();
   setTimeout(function(){ var el=document.getElementById('vera-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 50);
-  fetch('/api/agent', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      agent: 'vera',
-      message: txt,
-      conversationId: 'test_vera_' + (S.user && S.user.id || 'admin'),
-      channel: 'web',
-      metadata: { leadName: 'Teste Admin' }
-    })
-  }).then(function(r){ return r.json(); }).then(function(data){
-    S.veraAgHist.push({role:'assistant', content: data.response || data.error || 'Sem resposta'});
+  var gKey = ((S.connectors||{}).gemini_api_key || '').trim();
+  if (!gKey) {
+    S.veraAgHist.push({role:'assistant', content:'Configure a API Key Gemini em Configura\u00e7\u00f5es \u2192 Conectores para ativar a Vera.'});
+    S.veraAgLoading = false; render(); return;
+  }
+  var hist = (S.veraAgHist||[]).map(function(m){return {role:m.role==='user'?'user':'model',parts:[{text:m.content}]};});
+  var sysPrompt = 'Voc\u00ea \u00e9 a Vera, assistente virtual da PSM Assessoria Imobili\u00e1ria em S\u00e3o Jos\u00e9 do Rio Preto/SP. Somos especialistas em im\u00f3veis de alto padr\u00e3o e lan\u00e7amentos. Responda de forma amig\u00e1vel, profissional e consultiva. Foque em qualificar o lead, entender o que procura, e direcionar para visita ou corretor. Use emojis com modera\u00e7\u00e3o. M\u00e1ximo 150 palavras por resposta.';
+  var contents = [{role:'user',parts:[{text:sysPrompt}]},{role:'model',parts:[{text:'Entendido! Sou a Vera da PSM Assessoria.'}]}].concat(hist);
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+gKey, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:contents,generationConfig:{maxOutputTokens:1024,temperature:0.7}})
+  }).then(function(r){return r.json();}).then(function(data){
+    var txt2='Sem resposta';
+    try{txt2=data.candidates[0].content.parts[0].text;}catch(e){txt2='Erro: '+(data.error&&data.error.message?data.error.message:JSON.stringify(data).slice(0,200));}
+    S.veraAgHist.push({role:'assistant', content:txt2});
     S.veraAgLoading = false; render();
     setTimeout(function(){ var el=document.getElementById('vera-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
   }).catch(function(e){
@@ -22189,18 +22210,21 @@ function sendSolAgent(skipInput) {
   }
   S.solAgLoading = true; render();
   setTimeout(function(){ var el=document.getElementById('sol-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 50);
-  fetch('/api/agent', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      agent: 'sol',
-      message: S.solAgHist[S.solAgHist.length-1].content,
-      conversationId: 'test_sol_' + (S.user && S.user.id || 'admin'),
-      channel: 'web',
-      metadata: { leadName: 'Teste Admin' }
-    })
-  }).then(function(r){ return r.json(); }).then(function(data){
-    S.solAgHist.push({role:'assistant', content: data.response || data.error || 'Sem resposta'});
+  var gKey = ((S.connectors||{}).gemini_api_key || '').trim();
+  if (!gKey) {
+    S.solAgHist.push({role:'assistant', content:'Configure a API Key Gemini em Configura\u00e7\u00f5es \u2192 Conectores para ativar a Sol.'});
+    S.solAgLoading = false; render(); return;
+  }
+  var hist = (S.solAgHist||[]).map(function(m){return {role:m.role==='user'?'user':'model',parts:[{text:m.content}]};});
+  var sysPrompt = 'Voc\u00ea \u00e9 a Sol, assistente virtual da PSM Conquista em S\u00e3o Jos\u00e9 do Rio Preto/SP. Somos especialistas em im\u00f3veis residenciais, Minha Casa Minha Vida, primeiro im\u00f3vel e lan\u00e7amentos populares. Responda com tom acolhedor, did\u00e1tico e empolgante. Ajude o lead a entender subs\u00eddios, financiamento, entrada facilitada. Use emojis com modera\u00e7\u00e3o. M\u00e1ximo 150 palavras por resposta.';
+  var contents = [{role:'user',parts:[{text:sysPrompt}]},{role:'model',parts:[{text:'Entendido! Sou a Sol da PSM Conquista! \u2600\uFE0F'}]}].concat(hist);
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+gKey, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:contents,generationConfig:{maxOutputTokens:1024,temperature:0.7}})
+  }).then(function(r){return r.json();}).then(function(data){
+    var txt2='Sem resposta';
+    try{txt2=data.candidates[0].content.parts[0].text;}catch(e){txt2='Erro: '+(data.error&&data.error.message?data.error.message:JSON.stringify(data).slice(0,200));}
+    S.solAgHist.push({role:'assistant', content:txt2});
     S.solAgLoading = false; render();
     setTimeout(function(){ var el=document.getElementById('sol-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
   }).catch(function(e){
@@ -22250,22 +22274,45 @@ function sendSrPerf() {
   if (inp) inp.value = "";
   S.srPerfLoading = true; render();
   setTimeout(function(){ var el=document.getElementById("sr-perf-msgs"); if(el) el.scrollTop=el.scrollHeight; }, 50);
-  fetch("/api/agent", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({
-      agent: "performance",
-      message: txt,
-      conversationId: "test_perf_" + (S.user && S.user.id || "admin"),
-      channel: "web",
-      metadata: { leadName: "Teste Admin" }
-    })
+  var gKey = ((S.connectors||{}).gemini_api_key || '').trim();
+  if (!gKey) {
+    S.srPerfHist.push({role:"assistant", content:"⚠️ Configure a API Key Gemini em Configurações > Conectores para usar o Sr. Performance."});
+    S.srPerfLoading = false; render();
+    return;
+  }
+  var sysPrompt = 'Você é o Sr. Performance, mentor de corretores de imóveis da PSM Assessoria Imobiliária em São José do Rio Preto, SP. ' +
+    'Seu papel é treinar, motivar e desenvolver corretores. Você é especialista em:\n' +
+    '- Scripts de ligação, abordagem e follow-up\n' +
+    '- Técnicas de objeções (preço, localização, momento, cônjuge, financiamento)\n' +
+    '- Rotina produtiva do corretor (ligações, agendamentos, visitas, propostas)\n' +
+    '- Funil de vendas imobiliário e métricas de conversão\n' +
+    '- Motivação e mindset de alta performance\n' +
+    '- MCMV, lançamentos, estoque próprio e de terceiros\n\n' +
+    'Responda sempre em português, de forma direta e prática. Use exemplos reais do dia a dia do corretor. ' +
+    'Seja encorajador mas exigente — como um técnico que quer o melhor do time. Máximo 300 palavras por resposta.';
+  var hist = S.srPerfHist.map(function(m){ return {role: m.role==='user'?'user':'model', parts:[{text:m.content}]}; });
+  var contents = [{role:'user',parts:[{text:sysPrompt}]},{role:'model',parts:[{text:'Entendido! Sou o Sr. Performance, mentor de corretores da PSM. Estou pronto para treinar, dar scripts, resolver objeções e ajudar o time a bater meta. Como posso ajudar?'}]}].concat(hist);
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + gKey, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:contents, generationConfig:{maxOutputTokens:1024, temperature:0.7}})
   }).then(function(r){ return r.json(); }).then(function(data){
-    S.srPerfHist.push({role:"assistant", content: data.response || data.error || "Sem resposta"});
+    var text = '';
+    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+      text = data.candidates[0].content.parts[0].text || '';
+    }
+    if (!text && data.error) {
+      text = '❌ Erro da API: ' + (data.error.message || JSON.stringify(data.error));
+    }
+    if (!text) {
+      text = '❌ Sem resposta da API. Verifique sua chave Gemini em Configurações > Conectores.';
+    }
+    text = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+    S.srPerfHist.push({role:"assistant", content: text});
     S.srPerfLoading = false; render();
     setTimeout(function(){ var el=document.getElementById("sr-perf-msgs"); if(el) el.scrollTop=el.scrollHeight; }, 80);
   }).catch(function(e){
-    S.srPerfHist.push({role:"assistant", content:"Erro: "+e.message});
+    S.srPerfHist.push({role:"assistant", content:"❌ Erro de conexão: " + e.message});
     S.srPerfLoading = false; render();
   });
 }
