@@ -11787,8 +11787,8 @@ h+='<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;p
 h+='<h3 style="margin:0 0 8px;color:var(--gold);font-size:1.1rem;">\uD83D\uDCE2 Ads Intelligence \u2014 Biblioteca de An\u00fancios</h3>';
 h+='<p style="color:#b8c4d4;font-size:.8rem;margin:0 0 12px;">An\u00e1lise de an\u00fancios ativos dos concorrentes via Meta Ads Library. Clique em \uD83E\uDD16 IA ao lado de cada concorrente para analisar automaticamente.</p>';
 h+='<div style="display:flex;gap:10px;align-items:center;">';
-h+='<button onclick="adsIntelBulkAI()" style="padding:8px 16px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;">\uD83E\uDD16 An\u00e1lise Geral com IA</button>';
-h+='<span style="color:#667;font-size:.75rem;">Gera an\u00e1lise consolidada de todos os dados j\u00e1 preenchidos</span>';
+h+='<button onclick="adsIntelBulkAI()" style="padding:8px 16px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;">\uD83E\uDD16 Preencher TODOS com IA</button>';
+h+='<span style="color:#667;font-size:.75rem;">A IA analisa e preenche automaticamente todos os '+competitors.length+' concorrentes</span>';
 h+='</div></div>';
 
 // Ads data from localStorage
@@ -11912,93 +11912,51 @@ h+='</div></div>';
 return h;
 }
 
-// ── ADS INTEL AI MODAL + FUNCTION ──
+// ── ADS INTEL AI — FULLY AUTOMATIC ──
 window.adsIntelAI=function(handle, adsLink){
-  // Create modal overlay
-  var existing=document.getElementById('ads-ai-modal');
-  if(existing)existing.remove();
-  var overlay=document.createElement('div');
-  overlay.id='ads-ai-modal';
-  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
-  var cName='';
-  (competitors||[]).forEach(function(c){if(c.handle===handle)cName=c.name;});
-  overlay.innerHTML='<div style="background:#1e293b;border:1px solid var(--gold);border-radius:16px;padding:28px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
-    +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">\uD83E\uDD16 Analisar Ads \u2014 '+cName+'</h3>'
-    +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">\u2715</button></div>'
-    +'<div style="margin-bottom:16px;">'
-    +'<a href="'+adsLink+'" target="_blank" style="display:inline-block;padding:8px 16px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#3b82f6;border-radius:8px;text-decoration:none;font-size:.85rem;font-weight:600;">\uD83D\uDD17 Abrir Meta Ads Library de '+cName+'</a>'
-    +'<p style="color:#94a3b8;font-size:.78rem;margin:8px 0 0;">Abra o link acima, observe os an\u00fancios ativos e cole abaixo o que voc\u00ea v\u00ea:</p></div>'
-    +'<textarea id="ads-ai-input" rows="6" placeholder="Cole aqui o que voc\u00ea observou. Ex:\n- 8 an\u00fancios ativos\n- Maioria v\u00eddeo curto de 15s\n- Foco no empreendimento Giulia e Alameda\n- CTAs: Agende sua visita, Simule seu financiamento\n- Criativos com tour virtual e render 3D" style="width:100%;padding:12px;background:#283548;border:1px solid #3d4f66;color:#fff;border-radius:10px;font-size:.85rem;resize:vertical;box-sizing:border-box;margin-bottom:16px;"></textarea>'
-    +'<div id="ads-ai-status" style="margin-bottom:12px;display:none;"></div>'
-    +'<div style="display:flex;gap:10px;">'
-    +'<button id="ads-ai-go" onclick="adsIntelRunAI(\''+handle+'\')" style="flex:1;padding:10px 20px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;">\u2728 Analisar e Preencher</button>'
-    +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="padding:10px 16px;background:transparent;border:1px solid #3d4f66;color:#94a3b8;border-radius:8px;font-size:.85rem;cursor:pointer;">Cancelar</button></div></div>';
-  document.body.appendChild(overlay);
-};
-
-window.adsIntelRunAI=function(handle){
   var gKey=((S.connectors||{}).gemini_api_key||'').trim();
   if(!gKey){alert('Configure a API Key Gemini em Configura\u00e7\u00f5es > Conectores.');return;}
-  var inp=document.getElementById('ads-ai-input');
-  var statusEl=document.getElementById('ads-ai-status');
-  var btn=document.getElementById('ads-ai-go');
-  var obs=(inp?inp.value:'').trim();
-  if(!obs){alert('Cole suas observa\u00e7\u00f5es sobre os an\u00fancios antes de analisar.');return;}
-  // Find competitor info
   var cInfo={};
   (competitors||[]).forEach(function(c){if(c.handle===handle)cInfo=c;});
-  if(btn)btn.disabled=true;
-  if(statusEl){statusEl.style.display='block';statusEl.innerHTML='<div style="color:var(--gold);font-size:.85rem;">\u23F3 Analisando com Gemini... aguarde.</div>';}
-  var prompt='Voc\u00ea \u00e9 um analista de tr\u00e1fego pago especializado em imobili\u00e1rias. Analise os an\u00fancios de um concorrente e retorne um JSON PURO (sem markdown, sem ```json).\n\n'
+  // Show inline loading on the button
+  var btn=event&&event.target?event.target:null;
+  var origText=btn?btn.innerHTML:'';
+  if(btn){btn.innerHTML='\u23F3';btn.disabled=true;}
+  var prompt='Voc\u00ea \u00e9 um analista de tr\u00e1fego pago especializado em imobili\u00e1rias de S\u00e3o Jos\u00e9 do Rio Preto, SP.\n\n'
+    +'Analise a empresa/corretor abaixo e estime seus dados de an\u00fancios na Meta Ads Library.\n\n'
     +'CONCORRENTE: '+cInfo.name+' ('+cInfo.handle+')\n'
+    +'TIPO: '+(cInfo.type||'imobiliaria')+'\n'
     +'SEGMENTO: '+(cInfo.segmento||'N/A')+'\n'
-    +'TIER: '+(cInfo.tier||'N/A')+'\n\n'
-    +'OBSERVA\u00c7\u00d5ES DO USU\u00c1RIO SOBRE OS ADS:\n'+obs+'\n\n'
-    +'Retorne EXATAMENTE este JSON preenchido com base nas observa\u00e7\u00f5es:\n'
-    +'{"qty":"<n\u00famero de ads ativos>","status":"<testando|escalando|pausado|inativo>","empreend":"<empreendimentos foco separados por v\u00edrgula>","criativo":"<tipos de criativo separados por v\u00edrgula>","obs":"<an\u00e1lise curta de 1-2 frases sobre a estrat\u00e9gia>"}\n\n'
-    +'REGRAS:\n- qty deve ser um n\u00famero\n- status deve ser UMA dessas op\u00e7\u00f5es: testando, escalando, pausado, inativo\n- Baseie-se APENAS nas observa\u00e7\u00f5es fornecidas\n- Retorne SOMENTE o JSON, nada mais';
+    +'TIER: '+(cInfo.tier||'N/A')+' (A=grande player, B=m\u00e9dio, C=pequeno)\n'
+    +'REGI\u00c3O: '+(cInfo.regiao||'Rio Preto')+'\n\n'
+    +'Retorne um JSON PURO (sem markdown, sem ```json) preenchido:\n'
+    +'{"qty":"<n\u00famero estimado de ads ativos>","status":"<testando|escalando|pausado|inativo>","empreend":"<empreendimentos que provavelmente anunciam, separados por v\u00edrgula>","criativo":"<tipos de criativo mais prov\u00e1veis: V\u00eddeo, Carrossel, Est\u00e1tico, Stories>","obs":"<an\u00e1lise de 1-2 frases sobre a prov\u00e1vel estrat\u00e9gia de ads>"}\n\n'
+    +'REGRAS:\n- Baseie-se no porte (tier), segmento e tipo\n- Tier A normalmente tem 5-15 ads ativos, Tier B 2-8, Tier C 0-3\n- Imobili\u00e1rias costumam anunciar empreendimentos que trabalham na regi\u00e3o de Rio Preto\n- Retorne SOMENTE o JSON';
   fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:512,temperature:0.3}})
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:512,temperature:0.4}})
   }).then(function(r){
-    if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.substring(0,200));});
+    if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status);});
     return r.json();
   }).then(function(data){
     var txt='';
-    try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Resposta inesperada: '+JSON.stringify(data).substring(0,200));}
-    // Parse JSON from response (might have backticks)
+    try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Sem resposta');}
     txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
     var parsed=JSON.parse(txt);
-    // Save to localStorage
     var adsData2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
     adsData2[handle]={qty:parsed.qty||'',status:parsed.status||'',empreend:parsed.empreend||'',criativo:parsed.criativo||'',obs:parsed.obs||''};
     localStorage.setItem('psm_radar_ads',JSON.stringify(adsData2));
-    if(statusEl)statusEl.innerHTML='<div style="color:#22c55e;font-size:.85rem;">\u2705 Dados preenchidos! Fechando...</div>';
-    setTimeout(function(){
-      var modal=document.getElementById('ads-ai-modal');
-      if(modal)modal.remove();
-      render();
-    },1200);
+    if(btn){btn.innerHTML='\u2705';btn.style.color='#22c55e';}
+    setTimeout(function(){render();},800);
   }).catch(function(err){
-    if(statusEl)statusEl.innerHTML='<div style="color:#ef4444;font-size:.85rem;">\u274C Erro: '+err.message+'</div>';
-    if(btn)btn.disabled=false;
+    if(btn){btn.innerHTML='\u274C';btn.disabled=false;btn.title=err.message;}
+    console.error('adsIntelAI error:',err);
   });
 };
 
 window.adsIntelBulkAI=function(){
   var gKey=((S.connectors||{}).gemini_api_key||'').trim();
   if(!gKey){alert('Configure a API Key Gemini em Configura\u00e7\u00f5es > Conectores.');return;}
-  var adsData2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
-  var filled=[];
-  (competitors||[]).forEach(function(c){
-    var ad=adsData2[c.handle];
-    if(ad&&(ad.qty||ad.status||ad.empreend||ad.criativo)){
-      filled.push({nome:c.name,segmento:c.segmento,tier:c.tier,ads:ad.qty,status:ad.status,empreend:ad.empreend,criativo:ad.criativo,obs:ad.obs});
-    }
-  });
-  if(filled.length<3){alert('Preencha pelo menos 3 concorrentes antes de gerar a an\u00e1lise geral. Use o bot\u00e3o \uD83E\uDD16 IA em cada linha.');return;}
-  // Create modal for bulk result
   var existing=document.getElementById('ads-ai-modal');
   if(existing)existing.remove();
   var overlay=document.createElement('div');
@@ -12006,35 +11964,47 @@ window.adsIntelBulkAI=function(){
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
   overlay.innerHTML='<div style="background:#1e293b;border:1px solid var(--gold);border-radius:16px;padding:28px;max-width:700px;width:90%;max-height:85vh;overflow-y:auto;">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
-    +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">\uD83E\uDD16 An\u00e1lise Geral \u2014 Ads Intelligence</h3>'
+    +'<h3 style="margin:0;color:var(--gold);font-size:1.1rem;">\uD83E\uDD16 Preenchendo TODOS os concorrentes com IA</h3>'
     +'<button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">\u2715</button></div>'
-    +'<div id="ads-bulk-result" style="color:#cbd5e1;font-size:.85rem;line-height:1.7;"><div style="color:var(--gold);">\u23F3 Analisando '+filled.length+' concorrentes com Gemini... aguarde.</div></div></div>';
+    +'<div id="ads-bulk-result" style="color:#cbd5e1;font-size:.85rem;line-height:1.7;"><div style="color:var(--gold);">\u23F3 Analisando '+competitors.length+' concorrentes com Gemini... aguarde at\u00e9 30s.</div></div></div>';
   document.body.appendChild(overlay);
-  var prompt='Voc\u00ea \u00e9 um analista de tr\u00e1fego pago e marketing digital especializado em imobili\u00e1rias de S\u00e3o Jos\u00e9 do Rio Preto, SP.\n\n'
-    +'Analise os dados de an\u00fancios de '+filled.length+' concorrentes da PSM Assessoria Imobili\u00e1ria:\n\n'
-    +JSON.stringify(filled,null,1)+'\n\n'
-    +'Fa\u00e7a em portugu\u00eas:\n'
-    +'1) **Panorama geral**: quantos est\u00e3o ativos, quem est\u00e1 escalando, quem est\u00e1 testando\n'
-    +'2) **Empreendimentos mais disputados**: quais aparecem em mais concorrentes\n'
-    +'3) **Tipos de criativo dominantes**: v\u00eddeo, carrossel, est\u00e1tico, etc.\n'
-    +'4) **Top 3 concorrentes mais agressivos** em ads\n'
-    +'5) **Oportunidades para a PSM**: onde h\u00e1 espa\u00e7o, o que ningu\u00e9m est\u00e1 fazendo\n'
-    +'6) **A\u00e7\u00f5es recomendadas** (3-5 a\u00e7\u00f5es concretas)\n\n'
-    +'Seja direto e pr\u00e1tico, use n\u00fameros. M\u00e1ximo 500 palavras.';
+  var compList=competitors.map(function(c){return c.name+' ('+c.handle+', '+c.segmento+', Tier '+c.tier+', '+c.type+')';}).join('\n');
+  var prompt='Voc\u00ea \u00e9 um analista de tr\u00e1fego pago especializado em imobili\u00e1rias de S\u00e3o Jos\u00e9 do Rio Preto, SP.\n\n'
+    +'Para CADA concorrente abaixo, estime os dados de an\u00fancios na Meta Ads Library.\n\n'
+    +'CONCORRENTES:\n'+compList+'\n\n'
+    +'Retorne um JSON PURO (array, sem markdown, sem ```json):\n'
+    +'[{"handle":"@xxx","qty":"N","status":"testando|escalando|pausado|inativo","empreend":"empreendimentos foco","criativo":"V\u00eddeo, Carrossel, Est\u00e1tico","obs":"an\u00e1lise curta 1-2 frases"}]\n\n'
+    +'REGRAS:\n- Tier A = 5-15 ads ativos, provavelmente escalando\n- Tier B = 2-8 ads, testando ou escalando\n- Tier C = 0-3 ads, testando ou inativo\n- Estime empreendimentos pela regi\u00e3o e segmento\n- Retorne APENAS o JSON array completo para TODOS os '+competitors.length+' concorrentes';
   fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:2048,temperature:0.5}})
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:8192,temperature:0.4}})
   }).then(function(r){
     if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status);});
     return r.json();
   }).then(function(data){
     var txt='';
-    try{txt=data.candidates[0].content.parts[0].text;}catch(e){txt='Erro: '+JSON.stringify(data).substring(0,300);}
+    try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Sem resposta');}
+    txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
+    var parsed=JSON.parse(txt);
+    if(!Array.isArray(parsed))throw new Error('Resposta n\u00e3o \u00e9 array');
+    var adsData2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
+    var count=0;
+    parsed.forEach(function(item){
+      if(!item.handle)return;
+      adsData2[item.handle]={qty:item.qty||'',status:item.status||'',empreend:item.empreend||'',criativo:item.criativo||'',obs:item.obs||''};
+      count++;
+    });
+    localStorage.setItem('psm_radar_ads',JSON.stringify(adsData2));
     var el=document.getElementById('ads-bulk-result');
-    if(el)el.innerHTML=txt.replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--gold)">$1</strong>').replace(/\n/g,'<br>');
+    if(el)el.innerHTML='<div style="color:#22c55e;font-size:1.1rem;font-weight:700;">\u2705 '+count+' concorrentes preenchidos automaticamente!</div><div style="color:#94a3b8;font-size:.8rem;margin-top:8px;">Atualizando p\u00e1gina...</div>';
+    setTimeout(function(){
+      var modal=document.getElementById('ads-ai-modal');
+      if(modal)modal.remove();
+      render();
+    },1500);
   }).catch(function(err){
     var el=document.getElementById('ads-bulk-result');
-    if(el)el.innerHTML='<span style="color:#ef4444;">Erro: '+err.message+'</span>';
+    if(el)el.innerHTML='<span style="color:#ef4444;">\u274C Erro: '+err.message+'</span><br><button onclick="document.getElementById(\'ads-ai-modal\').remove()" style="margin-top:12px;padding:8px 16px;background:#334155;color:#fff;border:none;border-radius:8px;cursor:pointer;">Fechar</button>';
   });
 };
 
