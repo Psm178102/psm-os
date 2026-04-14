@@ -2531,6 +2531,8 @@ function pgRanking(){
 
 // ─── PAGE: FRENTE ─────────────────────────────────────────────────────────────
 function pgFrente(fid){
+  // ── DEFAULT: sempre inicia filtrando o mês atual ao abrir uma frente ──
+  if(!S['df_frente_fid']) S['df_frente_fid']={preset:'Mes'};
   const df_frente_fid = DateFilter('frente_fid','Período');
   const f=FRENTES[fid]||{id:fid,label:fid,icon:'📁',color:'#64748b'};
   const bks=BROKERS.filter(b=>b.frente===fid);
@@ -2559,17 +2561,128 @@ function pgFrente(fid){
   const extraReal=fid==='terceiros'?bks.reduce((a,b)=>a+(b.agend||0),0):bks.reduce((a,b)=>a+(b.vis||0),0);
   const extraPct=fm.extra_meta?Math.min(100,Math.round(extraReal/fm.extra_meta*100)):0;
 
+  // ── MÉTRICAS DE VISITAS REALIZADAS (RD stage "vis_real") ──
+  const stgVisReal = stages.find(s=>s.id==='vis_real');
+  const visRealOpps = stgVisReal ? fOpps.filter(o=>stgVisReal.rdIds&&stgVisReal.rdIds.length?stgVisReal.rdIds.includes(o.st):(o.st_psm==='vis_real'||o.st==='vis_real')) : [];
+  const visRealCount = visRealOpps.length;
+  const visRealVGV = visRealOpps.reduce((a,o)=>a+(o.vgv||0),0);
+  // Visitas realizadas acumuladas nos corretores (KPIs operacionais vindos do 1:1)
+  const visTotalKPI = bks.reduce((a,b)=>a+(b.vis||0),0);
+  // Meta de visitas da equipe (se houver)
+  const visMeta = fm.extra_meta && fm.extra_key==='vis' ? fm.extra_meta : bks.reduce((a,b)=>a+((b.meta_visitas||0)),0);
+
+  // ── LEADS RECEBIDOS NO PERÍODO ──
+  // Tudo que entrou na equipe (oportunidades ativas + vendas + descartados) no período selecionado
+  const leadsRecebidos = fOpps.length + fWon.length + fLost.length;
+  const leadsDescartados = fLost.length;
+  const projVendas = Math.round(pW); // VGV ponderado = projeção realista
+  const metaPct = metaT>0 ? Math.round(vgvT/metaT*100) : 0;
+
+  // ── TAXAS DE CONVERSÃO ENTRE ETAPAS DO FUNIL RD ──
+  // Cada etapa conta: opps no estágio + opps em estágios posteriores + vendas (tudo que passou por aqui ou adiante)
+  function stageVolume(idx){
+    let total=0;
+    for(let i=idx;i<stages.length;i++){
+      const s=stages[i];
+      total += fOpps.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).length;
+    }
+    total += fWon.length; // vendas já passaram por todas as etapas
+    return total;
+  }
+  const funnelData = stages.map((s,i)=>{
+    const inStage = fOpps.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id));
+    const cnt = inStage.length;
+    const vE = inStage.reduce((a,o)=>a+(o.vgv||0),0);
+    const cumulative = stageVolume(i);
+    return {stage:s, cnt:cnt, vgv:vE, cumulative:cumulative};
+  });
+  const topVolume = funnelData[0]?funnelData[0].cumulative:0;
+
+  // ── FUNIL OPERACIONAL (estilo 1:1) — baseado nos KPIs dos corretores ──
+  const opKPI = {
+    tent_lig: bks.reduce((a,b)=>a+(b.tent_lig||0),0),
+    lig_atend: bks.reduce((a,b)=>a+(b.lig_atend||0),0),
+    tent_ag: bks.reduce((a,b)=>a+(b.tent_ag||0),0),
+    agendamentos: bks.reduce((a,b)=>a+(b.agendamentos||0),0),
+    visitas: bks.reduce((a,b)=>a+(b.vis||b.visitas||0),0),
+    propostas: bks.reduce((a,b)=>a+(b.propostas||0),0),
+    contratos: bks.reduce((a,b)=>a+(b.contratos||0),0),
+    vendas: bks.reduce((a,b)=>a+(b.vendas||0),0)
+  };
+  const opStages = [
+    {id:'tent_lig',     label:'Tent. Ligação', val:opKPI.tent_lig,     color:'#64748b'},
+    {id:'lig_atend',    label:'Ligações Atend.',val:opKPI.lig_atend,    color:'#3b82f6'},
+    {id:'tent_ag',      label:'Tent. Agend.',   val:opKPI.tent_ag,      color:'#2563eb'},
+    {id:'agendamentos', label:'Agendamentos',   val:opKPI.agendamentos, color:'#f59e0b'},
+    {id:'visitas',      label:'Visitas',        val:opKPI.visitas,      color:'#8b5cf6'},
+    {id:'propostas',    label:'Propostas',      val:opKPI.propostas,    color:'#dc2626'},
+    {id:'contratos',    label:'Contratos',      val:opKPI.contratos,    color:'#16a34a'},
+    {id:'vendas',       label:'Vendas',         val:opKPI.vendas,       color:'#10b981'}
+  ];
+  const opTopVolume = opStages[0].val || 1;
+
+  // ── Helpers para desenhar funil em formato de funil (largura decrescente) ──
+  function drawFunnel(data, topVol, showVGV){
+    if(!data.length || topVol<=0) return '<div class="es"><div class="es-ico">📊</div><div class="es-t">Sem dados no período</div></div>';
+    let h = '<div style="display:flex;flex-direction:column;gap:4px;padding:8px 4px">';
+    for(let i=0;i<data.length;i++){
+      const d=data[i];
+      const cum = d.cumulative!==undefined ? d.cumulative : d.val;
+      const widthPct = topVol>0 ? Math.max(12, Math.round(cum/topVol*100)) : 12;
+      const prev = i>0 ? (data[i-1].cumulative!==undefined?data[i-1].cumulative:data[i-1].val) : cum;
+      const convPct = prev>0 ? Math.round(cum/prev*100) : (i===0?100:0);
+      const color = d.stage?d.stage.color:d.color;
+      const label = d.stage?d.stage.label:d.label;
+      const count = d.cnt!==undefined ? d.cnt : d.val;
+      h += '<div style="display:flex;align-items:center;gap:8px">';
+      h += '<div style="flex:0 0 140px;font-size:10.5px;font-weight:600;color:var(--ink);text-align:right">'+label+'</div>';
+      h += '<div style="flex:1;position:relative;height:28px">';
+      h += '<div style="position:absolute;left:50%;transform:translateX(-50%);width:'+widthPct+'%;height:100%;background:linear-gradient(90deg,'+color+'cc,'+color+');border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,0.08)">'+count+(showVGV&&d.vgv?' · '+fmt(d.vgv):'')+'</div>';
+      h += '</div>';
+      h += '<div style="flex:0 0 72px;text-align:left;font-size:10px;font-weight:700;color:'+(convPct>=50?'var(--g)':convPct>=25?'var(--a)':'var(--muted)')+'">'+(i===0?'—':convPct+'%')+'</div>';
+      h += '</div>';
+    }
+    // Taxa global (topo → fundo)
+    const first = data[0].cumulative!==undefined?data[0].cumulative:data[0].val;
+    const last = data[data.length-1].cumulative!==undefined?data[data.length-1].cumulative:data[data.length-1].val;
+    const globalConv = first>0 ? Math.round(last/first*1000)/10 : 0;
+    h += '<div style="margin-top:8px;padding:8px;background:var(--cream);border-radius:6px;font-size:11px;color:var(--muted);text-align:center">Taxa de conversão global: <b style="color:var(--navy)">'+globalConv+'%</b></div>';
+    h += '</div>';
+    return h;
+  }
+
   return df_frente_fid + '<div class="phd"><h1>'+f.icon+' '+f.label+'</h1><p>'+METRICS.mes+(f.altLabel?' \u00B7 '+f.altLabel:'')+'</p></div>'
+  // ── PAINEL SUPERIOR: MÉTRICAS DA EQUIPE ──
   +'<div class="kgrid">'
-  +Kpi('Pipeline',fmt(fOpps.reduce((a,o)=>a+(o.vgv||0),0)),fOpps.length+' oportunidades',null,f.color)
-  +Kpi('Ponderado',fmt(Math.round(pW)),'por peso',null,f.color)
-  +Kpi('Vendas',fWon.length,'no período',null,f.color)
-  +Kpi('VGV Realizado',fmt(vgvT),pS(vgvT,metaT)+' da meta',null,f.color)
-  +Kpi('Perdidas',fLost.length,'VGV: '+fmt(fLost.reduce((a,l)=>a+(l.vgv||0),0)),null,'var(--r)')
-  +Kpi('CRM Score',crmA+' pts',crmA>=80?'Bom':'Atenção',null,crmA>=80?'var(--g)':'var(--a)')
+  +Kpi('Leads Recebidos',leadsRecebidos,'no período','📥',f.color)
+  +Kpi('Descartados',leadsDescartados,fLost.length?('VGV perdido: '+fmt(fLost.reduce((a,l)=>a+(l.vgv||0),0))):'—','🗑',leadsDescartados>0?'var(--r)':'var(--muted)')
+  +Kpi('Visitas Realizadas',visRealCount,visRealVGV?('VGV: '+fmt(visRealVGV)):(visTotalKPI?visTotalKPI+' (1:1)':'—'),'🏠','#8b5cf6')
+  +Kpi('Projeção Vendas',fmt(projVendas),'VGV ponderado','🎯',f.color)
+  +Kpi('VGV vs Meta',fmt(vgvT),(metaT?pS(vgvT,metaT):'sem meta')+' · '+fmt(metaT)+' meta','💰',metaPct>=100?'var(--g)':metaPct>=50?f.color:'var(--a)')
+  +Kpi('Vendas',fWon.length,'no período','✅',f.color)
+  +Kpi('Pipeline',fmt(fOpps.reduce((a,o)=>a+(o.vgv||0),0)),fOpps.length+' opps ativas','📊',f.color)
+  +Kpi('CRM Score',crmA+' pts',crmA>=80?'Bom':'Atenção','📈',crmA>=80?'var(--g)':'var(--a)')
   +'</div>'
+  // ── PAINEL ESPECÍFICO: MÉTRICAS DE VISITAS REALIZADAS ──
+  +'<div class="card mb2" style="border-left:4px solid #8b5cf6">'
+  +'<div class="ctitle">🏠 Métricas de Visitas Realizadas</div>'
+  +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;padding:4px">'
+  +'<div style="padding:10px;background:rgba(139,92,246,0.06);border-radius:8px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Visitas (RD CRM)</div><div style="font-size:22px;font-weight:700;color:#8b5cf6">'+visRealCount+'</div><div style="font-size:10px;color:var(--muted)">oportunidades em "Visita Realizada"</div></div>'
+  +'<div style="padding:10px;background:rgba(139,92,246,0.06);border-radius:8px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Visitas (1:1 Corretores)</div><div style="font-size:22px;font-weight:700;color:#8b5cf6">'+visTotalKPI+'</div><div style="font-size:10px;color:var(--muted)">acumuladas pelo time</div></div>'
+  +'<div style="padding:10px;background:rgba(139,92,246,0.06);border-radius:8px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">VGV em Visitação</div><div style="font-size:22px;font-weight:700;color:#8b5cf6">'+fmt(visRealVGV)+'</div><div style="font-size:10px;color:var(--muted)">pipeline em visita</div></div>'
+  +(fOpps.length>0?'<div style="padding:10px;background:rgba(139,92,246,0.06);border-radius:8px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">% do Funil em Visita</div><div style="font-size:22px;font-weight:700;color:#8b5cf6">'+Math.round(visRealCount/fOpps.length*100)+'%</div><div style="font-size:10px;color:var(--muted)">'+visRealCount+' de '+fOpps.length+' opps</div></div>':'')
+  +(fWon.length>0&&visRealCount+fWon.length>0?'<div style="padding:10px;background:rgba(16,185,129,0.06);border-radius:8px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Visita → Venda</div><div style="font-size:22px;font-weight:700;color:var(--g)">'+Math.round(fWon.length/(visRealCount+fWon.length)*100)+'%</div><div style="font-size:10px;color:var(--muted)">conversão</div></div>':'')
+  +'</div></div>'
+  // ── DOIS FUNIS EM FORMATO DE FUNIL, LADO A LADO ──
   +'<div class="g2 mb2">'
-  +'<div class="card"><div class="ctitle">Funil — '+f.label+'</div>'
+  +'<div class="card"><div class="ctitle">Funil RD CRM — '+f.label+'</div>'
+  +drawFunnel(funnelData, topVolume, true)
+  +'</div>'
+  +'<div class="card"><div class="ctitle">Funil Operacional (1:1) — '+f.label+'</div>'
+  +drawFunnel(opStages, opTopVolume, false)
+  +'</div></div>'
+  // ── MANTÉM FUNIL HORIZONTAL CLÁSSICO PARA QUEM PREFERE ──
+  +'<div class="card mb2"><div class="ctitle">Funil Compacto (etapas)</div>'
   +'<div class="funrow">'
   +stages.map(s=>{const cnt=fOpps.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).length;const vE=fOpps.filter(o=>s.rdIds&&s.rdIds.length?s.rdIds.includes(o.st):(o.st_psm===s.id||o.st===s.id)).reduce((a,o)=>a+(o.vgv||0),0);
     return '<div class="fbox" style="background:'+s.color+'12;border-color:'+s.color+'28">'
@@ -2578,6 +2691,7 @@ function pgFrente(fid){
       +(cnt>0?'<div class="fvgv" style="color:'+s.color+'">'+fmt(vE)+'</div>':'')
       +'</div>';}).join('')
   +'</div></div>'
+  +'<div class="g2 mb2">'
   +'<div class="card"><div class="ctitle">Corretores</div>'
   +(bks.length?bks.map(b=>{const bp=brkPeriod[b.id]||{};return'<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--cream3)">'
     +Av(b,'sm',true)
@@ -2723,11 +2837,63 @@ function arenaTV(){
     overlay.appendChild(antiSleep);
     try { antiSleep.play(); } catch(e){}
 
+    // === HEARTBEAT CANVAS — muda pixels a cada segundo para TVs detectarem "atividade de sinal" ===
+    // Muitas TVs entram em standby quando a imagem parece "estática" por muito tempo (screensaver do próprio TV)
+    var hbCanvas = document.createElement('canvas');
+    hbCanvas.id = 'tv-heartbeat';
+    hbCanvas.width = 120; hbCanvas.height = 8;
+    hbCanvas.style.cssText = 'position:fixed;bottom:40px;right:16px;z-index:100002;opacity:0.85;pointer-events:none;border-radius:2px';
+    overlay.appendChild(hbCanvas);
+    var hbCtx = hbCanvas.getContext('2d');
+    var hbPhase = 0;
+    var hbInt = setInterval(function(){
+      if(!document.getElementById('arena-tv-overlay')) { clearInterval(hbInt); return; }
+      hbPhase = (hbPhase + 1) % 120;
+      hbCtx.clearRect(0,0,120,8);
+      // Barra gradiente deslizando — pixels mudam a cada frame, força o TV a reconhecer como "conteúdo vivo"
+      var grad = hbCtx.createLinearGradient(0,0,120,0);
+      grad.addColorStop(0,'rgba(16,185,129,0.1)');
+      grad.addColorStop(Math.max(0,(hbPhase-20)/120),'rgba(16,185,129,0.9)');
+      grad.addColorStop(hbPhase/120,'#10b981');
+      grad.addColorStop(Math.min(1,(hbPhase+20)/120),'rgba(16,185,129,0.9)');
+      grad.addColorStop(1,'rgba(16,185,129,0.1)');
+      hbCtx.fillStyle = grad;
+      hbCtx.fillRect(0,0,120,8);
+    }, 500);
+
     // Also dispatch events periodically to prevent sleep
     var moveInt = setInterval(function(){
       if(!document.getElementById('arena-tv-overlay')) { clearInterval(moveInt); return; }
       window.dispatchEvent(new Event('mousemove'));
-    }, 30000);
+      // Micro-scroll para forçar redesenho — evita detecção de "tela estática"
+      try { window.scrollBy(0, 0.1); window.scrollBy(0, -0.1); } catch(e){}
+    }, 15000);
+
+    // === TIP ÚNICO: informa o usuário sobre o Auto Standby do TV (aparece 1x, dismissível) ===
+    if(!localStorage.getItem('psm_tv_tip_dismissed')){
+      var tip = document.createElement('div');
+      tip.id = 'tv-standby-tip';
+      tip.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:100003;background:linear-gradient(135deg,#1e293b,#0f172a);border:2px solid #d4a843;border-radius:14px;padding:18px 24px;max-width:640px;box-shadow:0 10px 40px rgba(0,0,0,0.5);color:#f8fafc;font-family:Inter,system-ui,sans-serif';
+      tip.innerHTML = '<div style="display:flex;align-items:start;gap:14px">'
+        + '<div style="font-size:28px">💡</div>'
+        + '<div style="flex:1">'
+        + '<div style="font-size:14px;font-weight:800;color:#d4a843;margin-bottom:8px;letter-spacing:0.5px">COMO EVITAR QUE SUA TV DESLIGUE SOZINHA</div>'
+        + '<div style="font-size:12.5px;line-height:1.55;color:#cbd5e1">O Arena já mantém Wake Lock + heartbeat de pixels ativo. Se mesmo assim a tela apaga, é o <b style="color:#fff">Auto Standby da TV</b> (não do navegador). Desative assim:</div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;font-size:11.5px;color:#e2e8f0">'
+        + '<div style="background:rgba(212,168,67,0.1);padding:8px 10px;border-radius:8px;border-left:3px solid #d4a843"><b>Samsung:</b> Config. → Geral → <b>Eco</b> → Desligar Aut. (Off)</div>'
+        + '<div style="background:rgba(212,168,67,0.1);padding:8px 10px;border-radius:8px;border-left:3px solid #d4a843"><b>LG:</b> Config. → Geral → Temporizadores → <b>Desl. Automático</b> = Desativ.</div>'
+        + '<div style="background:rgba(212,168,67,0.1);padding:8px 10px;border-radius:8px;border-left:3px solid #d4a843"><b>Sony:</b> Config. → Sistema → Energia → <b>Timer de Inatividade</b> = Desligado</div>'
+        + '<div style="background:rgba(212,168,67,0.1);padding:8px 10px;border-radius:8px;border-left:3px solid #d4a843"><b>TCL/Philips/Roku:</b> Config. → Sistema → <b>Desligar depois de...</b> = Nunca</div>'
+        + '</div>'
+        + '<div style="margin-top:10px;font-size:11px;color:#94a3b8">Também desabilite <b>HDMI-CEC</b> ou <b>Anynet+</b> se seu PC/Chromecast desliga ao ficar ocioso.</div>'
+        + '<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">'
+        + '<button onclick="document.getElementById(\'tv-standby-tip\').remove()" style="padding:6px 14px;background:transparent;color:#94a3b8;border:1px solid #475569;border-radius:6px;cursor:pointer;font-size:11px">Ver agora</button>'
+        + '<button onclick="localStorage.setItem(\'psm_tv_tip_dismissed\',\'1\');document.getElementById(\'tv-standby-tip\').remove()" style="padding:6px 14px;background:#d4a843;color:#0f172a;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700">Não mostrar mais</button>'
+        + '</div></div></div>';
+      overlay.appendChild(tip);
+      // Auto-esconde após 25s
+      setTimeout(function(){ var t=document.getElementById('tv-standby-tip'); if(t) t.style.opacity='0.15'; }, 25000);
+    }
 
     // === EXIT HANDLERS ===
     function exitTV(){
@@ -2742,6 +2908,7 @@ function arenaTV(){
       clearInterval(tvScrollInt);
       clearInterval(tvRefreshInt);
       clearInterval(moveInt);
+      try{ clearInterval(hbInt); }catch(e){}
     }
     function onKey(e){ if(e.key==='Escape') exitTV(); }
     function onFs(){ if(!document.fullscreenElement) exitTV(); }
@@ -2883,6 +3050,220 @@ function metaAdsTV(){
 
   }, 300);
 }
+
+// ===============================================
+// Painel de Equipes + Alertas reutilizável (One on One dashboard + Arena PSM)
+// ===============================================
+function renderArenaEquipesPanel(opts){
+  opts = opts || {};
+  var darkMode = opts.dark === true;
+  var bgCard = darkMode ? 'var(--navy2)' : 'var(--white)';
+  var borderCard = darkMode ? 'var(--navy3)' : 'var(--cream3)';
+  var txHead = darkMode ? 'var(--cream)' : 'var(--navy)';
+  var txMuted = darkMode ? '#94a3b8' : 'var(--muted)';
+  var txValue = darkMode ? '#f8fafc' : 'var(--dark)';
+  var rowBorder = darkMode ? 'rgba(255,255,255,0.06)' : 'var(--cream3)';
+  var bgSub = darkMode ? 'rgba(255,255,255,0.04)' : 'var(--cream2)';
+
+  var now = new Date();
+  var curYear = now.getFullYear();
+  var curMonth = now.getMonth() + 1;
+  var monthKey = (typeof ooGetMonthKey === 'function') ? ooGetMonthKey(now) : (curYear+'-'+String(curMonth).padStart(2,'0'));
+  var workDays = (typeof ooGetWorkDays === 'function') ? ooGetWorkDays(curYear, curMonth) : 22;
+  var workPassed = (typeof ooGetWorkDaysPassed === 'function') ? ooGetWorkDaysPassed(curYear, curMonth) : 1;
+  var pctMes = workDays > 0 ? (workPassed / workDays) : 0;
+  var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  var equipes = {conquista:{nome:'Conquista',cor:'#22c55e',bids:[]},lancamento:{nome:'Equipe MAP',cor:'#8b5cf6',bids:[]},terceiros:{nome:'Terceiros',cor:'#f59e0b',bids:[]}};
+  BROKERS.forEach(function(b){
+    var fr = (typeof TEAM_CONFIG!=='undefined'&&TEAM_CONFIG.assignments?TEAM_CONFIG.assignments[b.id]:null) || b.frente || 'conquista';
+    if(equipes[fr]) equipes[fr].bids.push(b.id);
+  });
+
+  function aggEquipe(bids){
+    var t = {};
+    if(typeof OO_CAMPOS!=='undefined') OO_CAMPOS.forEach(function(c){ t[c.k]=0; });
+    t._metas = {};
+    if(typeof OO_CAMPOS_FUNIL!=='undefined') OO_CAMPOS_FUNIL.forEach(function(c){ t._metas[c.k]=0; });
+    bids.forEach(function(bid){
+      var ag = (typeof ooAggMonth==='function')?ooAggMonth(bid, monthKey):{};
+      var rd = (typeof ooAggMonthRD==='function')?ooAggMonthRD(bid, monthKey):{};
+      var mt = (typeof ooGetMetas==='function')?ooGetMetas(bid, monthKey):{};
+      if(typeof OO_CAMPOS!=='undefined') OO_CAMPOS.forEach(function(c){ t[c.k] = (t[c.k]||0) + (ag[c.k]||0); });
+      t.vis = (t.vis||0) + (rd.vis||0) - ((ag.vis||0)>0?0:0);
+      t.vend = (t.vend||0) + (rd.vend||0) - ((ag.vend||0)>0?0:0);
+      if(typeof OO_CAMPOS_FUNIL!=='undefined') OO_CAMPOS_FUNIL.forEach(function(c){ t._metas[c.k] = (t._metas[c.k]||0) + (+(mt[c.k])||0); });
+    });
+    return t;
+  }
+
+  var h = '';
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px">';
+  Object.keys(equipes).forEach(function(eqKey){
+    var eq = equipes[eqKey];
+    var ag = aggEquipe(eq.bids);
+    var campos = [{k:'lig_real',l:'Ligações'},{k:'agend',l:'Agendamentos'},{k:'vis',l:'Visitas'},{k:'prop',l:'Propostas'},{k:'vend',l:'Vendas'}];
+    h += '<div style="background:'+bgCard+';border:1px solid '+borderCard+';border-top:4px solid '+eq.cor+';border-radius:12px;padding:14px">';
+    h += '<div style="font-size:13px;font-weight:800;color:'+txHead+';margin-bottom:10px">'+eq.nome+' <span style="font-size:11px;color:'+txMuted+';font-weight:400">('+eq.bids.length+' corretores)</span></div>';
+    campos.forEach(function(c){
+      var val = ag[c.k] || 0;
+      var meta = (ag._metas[c.k]) || 0;
+      var pct = meta > 0 ? (val/meta*100) : 0;
+      var cor = pct >= 100 ? '#22c55e' : pct >= pctMes*100 ? '#f59e0b' : '#ef4444';
+      h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid '+rowBorder+'">';
+      h += '<span style="font-size:11px;color:'+txMuted+'">'+c.l+'</span>';
+      h += '<span style="font-size:12px;font-weight:700;color:'+cor+'">'+val+' <span style="font-size:10px;color:'+txMuted+';font-weight:400">/ '+meta+'</span></span>';
+      h += '</div>';
+    });
+    var convLigVend = (ag.lig_real||0) > 0 ? ((ag.vend||0)/(ag.lig_real||1)*100).toFixed(1) : '0.0';
+    h += '<div style="margin-top:8px;padding:6px 8px;background:'+bgSub+';border-radius:6px;font-size:10px;text-align:center;color:'+txMuted+'">Conv. Lig→Venda: <strong style="color:'+txValue+'">'+convLigVend+'%</strong></div>';
+    h += '</div>';
+  });
+  h += '</div>';
+
+  // Alertas
+  var alertas = [];
+  BROKERS.forEach(function(b){
+    var ag = (typeof ooAggMonth==='function')?ooAggMonth(b.id, monthKey):{};
+    var mt = (typeof ooGetMetas==='function')?ooGetMetas(b.id, monthKey):{};
+    if((ag.lig_real||0) === 0 && workPassed >= 5) alertas.push({tipo:'critico',msg:b.name+' — 0 ligações registradas no mês',bid:b.id});
+    var metaVis = mt.vis || 0;
+    var esperadoVis = metaVis * pctMes;
+    if(metaVis > 0 && (ag.vis||0) < esperadoVis * 0.5 && workPassed >= 5) alertas.push({tipo:'alerta',msg:b.name+' — visitas ('+(ag.vis||0)+') abaixo de 50% do esperado ('+ Math.round(esperadoVis)+')',bid:b.id});
+    var dias = Object.keys(((S.ooDaily||{})[b.id]||{})[monthKey]||{}).length;
+    if(dias === 0 && workPassed >= 3) alertas.push({tipo:'info',msg:b.name+' — sem dados registrados no One on One este mês',bid:b.id});
+    if((ag.vis||0) >= 5 && (ag.vend||0) === 0) alertas.push({tipo:'alerta',msg:b.name+' — '+(ag.vis||0)+' visitas mas 0 vendas',bid:b.id});
+  });
+
+  h += '<div style="font-size:12px;font-weight:800;color:#ef4444;margin-bottom:10px">🚨 Alertas ('+alertas.length+')</div>';
+  if(alertas.length === 0){
+    h += '<div style="padding:14px;text-align:center;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;color:#22c55e;font-weight:600;font-size:12px">✅ Nenhum alerta no momento</div>';
+  } else {
+    alertas.sort(function(a,b){ var o={critico:0,alerta:1,info:2}; return (o[a.tipo]||9)-(o[b.tipo]||9); });
+    alertas.slice(0, opts.maxAlertas || 999).forEach(function(a){
+      var bg = a.tipo==='critico' ? 'rgba(239,68,68,0.12)' : a.tipo==='alerta' ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.12)';
+      var tx = a.tipo==='critico' ? '#ef4444' : a.tipo==='alerta' ? '#f59e0b' : '#3b82f6';
+      var ico = a.tipo==='critico' ? '🔴' : a.tipo==='alerta' ? '🟡' : 'ℹ️';
+      h += '<div style="padding:10px 14px;background:'+bg+';border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="S.ooBroker=\''+a.bid+'\';S.ooTab=\'dia\';S.page=\'oneonone\';render()">';
+      h += '<span style="font-size:14px">'+ico+'</span>';
+      h += '<span style="font-size:12px;color:'+tx+';font-weight:500">'+a.msg+'</span>';
+      h += '</div>';
+    });
+  }
+  return h;
+}
+window.renderArenaEquipesPanel = renderArenaEquipesPanel;
+
+// ===============================================
+// PREDITOR DE IA — probabilidade de bater meta mensal
+// ===============================================
+function predictMetaProbability(broker, opts){
+  opts = opts || {};
+  var now = new Date();
+  var curYear = now.getFullYear();
+  var curMonth = now.getMonth() + 1;
+  var workDays = (typeof ooGetWorkDays==='function')?ooGetWorkDays(curYear, curMonth):22;
+  var workPassed = (typeof ooGetWorkDaysPassed==='function')?ooGetWorkDaysPassed(curYear, curMonth):1;
+  var pctMes = workDays > 0 ? (workPassed / workDays) : 0;
+  var vgvReal = broker.vgv_real || 0;
+  var meta = broker.meta || 0;
+  if(meta <= 0) return {prob:0, ritmo:0, projected:0, reason:'sem meta definida'};
+  var pctAtingido = vgvReal / meta;
+  var ritmo = pctMes > 0 ? pctAtingido / pctMes : 0; // 1.0 = no ritmo, >1 = acima, <1 = abaixo
+  var projected = pctMes > 0 ? vgvReal / pctMes : 0;
+  var projPct = projected / meta;
+  // Probabilidade = sigmoid em torno do ritmo + boost por pipeline ponderado
+  var pipeScore = 0;
+  if(typeof OPPS!=='undefined'){
+    var myOpps = OPPS.filter(function(o){return o.bid===broker.id;});
+    var stages = (typeof FUNIS!=='undefined' && broker.frente)?(FUNIS[broker.frente]||FUNIS.lancamento||[]):[];
+    var pW = myOpps.reduce(function(a,o){
+      var s = stages.find ? stages.find(function(x){ return (x.rdIds&&x.rdIds.indexOf(o.st)>=0)||x.id===o.st_psm||x.id===o.st; }) : null;
+      return a + ((o.vgv||0) * (s?s.w:0.1));
+    }, 0);
+    pipeScore = meta>0 ? pW/meta : 0;
+  }
+  // Fórmula: ritmo atual + metade do pipeline ponderado = "posição real"
+  var realPosition = pctAtingido + pipeScore * 0.5;
+  // Remaining pace needed
+  var remainingPct = 1 - pctMes;
+  var neededRate = remainingPct > 0 ? (1 - pctAtingido) / remainingPct : 99;
+  var currentRate = pctMes > 0 ? pctAtingido / pctMes : 0;
+  var paceRatio = neededRate > 0 ? currentRate / neededRate : 2;
+  // Sigmoid
+  var prob = 1 / (1 + Math.exp(-4 * (paceRatio - 0.8)));
+  prob = Math.round(Math.max(0, Math.min(100, prob * 100 + pipeScore * 10)));
+  var reason = '';
+  if(ritmo >= 1.1) reason = 'acima do ritmo ('+Math.round(ritmo*100)+'%)';
+  else if(ritmo >= 0.9) reason = 'no ritmo esperado';
+  else if(ritmo >= 0.5) reason = 'abaixo do ritmo ('+Math.round(ritmo*100)+'%)';
+  else reason = 'muito abaixo ('+Math.round(ritmo*100)+'%)';
+  if(pipeScore > 0.3) reason += ', pipeline +'+Math.round(pipeScore*100)+'%';
+  return {prob:prob, ritmo:ritmo, projected:projected, pipeScore:pipeScore, reason:reason, projPct:Math.round(projPct*100)};
+}
+window.predictMetaProbability = predictMetaProbability;
+
+// ===============================================
+// SOM AMBIENTE — jingle curto quando alguém bate meta
+// ===============================================
+var ARENA_SOUNDS = {
+  'cash':      {name:'💰 Cash Register',    desc:'Toque clássico de caixa registradora',   type:'synth', tones:[[880,0.15],[1175,0.15],[1319,0.2]]},
+  'trumpet':   {name:'🎺 Fanfarra',         desc:'Fanfarra heroica curta',                 type:'synth', tones:[[523,0.12],[659,0.12],[784,0.12],[1047,0.25]]},
+  'bell':      {name:'🔔 Sino Vitória',     desc:'Badala vitória alta',                    type:'synth', tones:[[1568,0.1],[1568,0.1],[1865,0.25]]},
+  'arcade':    {name:'🎮 Arcade Win',       desc:'Bip estilo arcade de vitória',           type:'synth', tones:[[523,0.08],[784,0.08],[1047,0.08],[1319,0.12],[1568,0.2]]},
+  'ascend':    {name:'📈 Escala Ascendente',desc:'Escala subindo do grave ao agudo',       type:'synth', tones:[[392,0.08],[494,0.08],[587,0.08],[698,0.08],[880,0.2]]},
+  'gong':      {name:'🥁 Gong Oriental',    desc:'Gong grave com reverberação',            type:'synth', tones:[[196,0.5]]},
+  'none':      {name:'🔇 Silencioso',       desc:'Sem som',                                type:'none',  tones:[]}
+};
+window.ARENA_SOUNDS = ARENA_SOUNDS;
+
+function playArenaSound(soundKey){
+  soundKey = soundKey || S.arenaSound || 'cash';
+  var s = ARENA_SOUNDS[soundKey];
+  if(!s || s.type === 'none') return;
+  try {
+    var ctx = window._arenaAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    window._arenaAudioCtx = ctx;
+    var t0 = ctx.currentTime;
+    s.tones.forEach(function(tn, idx){
+      var freq = tn[0], dur = tn[1];
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      osc.connect(gain); gain.connect(ctx.destination);
+      var startT = t0 + (idx * 0.05);
+      for(var i=0;i<idx;i++) startT += s.tones[i][1];
+      gain.gain.setValueAtTime(0.0001, startT);
+      gain.gain.exponentialRampToValueAtTime(0.35, startT + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startT + dur);
+      osc.start(startT);
+      osc.stop(startT + dur + 0.05);
+    });
+  } catch(e){ console.warn('[ArenaSound]', e); }
+}
+window.playArenaSound = playArenaSound;
+
+// Dispara som quando detecta novo corretor batendo 100%+ da meta
+function arenaCheckMetaHits(){
+  if(!S.arenaSoundEnabled) return;
+  if(!S._arenaMetaHits) S._arenaMetaHits = {};
+  BROKERS.forEach(function(b){
+    var meta = b.meta || 0;
+    var vgv = b.vgv_real || 0;
+    if(meta > 0 && vgv >= meta && !S._arenaMetaHits[b.id]){
+      S._arenaMetaHits[b.id] = true;
+      playArenaSound(S.arenaSound || 'cash');
+      // Flash visual
+      var flash = document.createElement('div');
+      flash.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:999999;background:linear-gradient(135deg,#10b981,#22c55e);color:#fff;padding:18px 32px;border-radius:16px;font-size:22px;font-weight:800;box-shadow:0 20px 60px rgba(16,185,129,0.5);animation:metaHitFlash 4s ease forwards;pointer-events:none';
+      flash.innerHTML = '🚀 '+b.name+' bateu 100% da meta! 🎯';
+      document.body.appendChild(flash);
+      setTimeout(function(){ try{flash.remove();}catch(e){} }, 4500);
+    }
+  });
+}
+window.arenaCheckMetaHits = arenaCheckMetaHits;
 
 // ===============================================
 var pgWarArena = function(){
@@ -3076,6 +3457,218 @@ var pgWarArena = function(){
     if(k.sub) h += '<div style="font-size:11px;color:var(--gold2);margin-top:2px">' + k.sub + '</div>';
     h += '</div>';
   });
+  h += '</div>';
+
+  // ===== TIMELINE DE OPORTUNIDADES (feed ao vivo de movimentações no funil) =====
+  // Junta VENDAS, OPPS (ativas), LOST_DEALS e ordena por data mais recente
+  var tlItems = [];
+  var fVENDAS_tl = applyDateFilter(VENDAS, 'war');
+  var fLOST_tl = applyDateFilter(LOST_DEALS, 'war');
+  var fOPPS_tl = applyDateFilter(OPPS, 'war');
+  fVENDAS_tl.forEach(function(v){
+    var dt = new Date(v.closedAt||v.createdAt||v.updated_at||Date.now());
+    var fr = v.fr||'-';
+    var frInfo = frentes[fr] || {name:fr,color:'#6366f1',icon:'🏆'};
+    tlItems.push({ts:dt.getTime(), type:'venda', icon:'🏆', color:'#10b981', bg:'rgba(16,185,129,0.12)', brokerName:v.bn||'—', clientName:v.cl||'—', vgv:v.vgv||0, stage:'VENDIDO', frente:frInfo.name, frColor:frInfo.color, dt:dt});
+  });
+  fLOST_tl.forEach(function(l){
+    var dt = new Date(l.closedAt||l.createdAt||l.updated_at||Date.now());
+    var fr = l.fr||'-';
+    var frInfo = frentes[fr] || {name:fr,color:'#6366f1',icon:'🏆'};
+    tlItems.push({ts:dt.getTime(), type:'perdido', icon:'❌', color:'#ef4444', bg:'rgba(239,68,68,0.12)', brokerName:l.bn||'—', clientName:l.cl||'—', vgv:l.vgv||0, stage:'PERDIDO', frente:frInfo.name, frColor:frInfo.color, dt:dt});
+  });
+  // Opps ativos — mais recentes com movimentação + flag DEAL EM RISCO (parado > 7 dias)
+  var RISK_DAYS = 7;
+  fOPPS_tl.forEach(function(o){
+    var dt = new Date(o.updated_at||o.createdAt||Date.now());
+    var fr = o.fr||'-';
+    var frInfo = frentes[fr] || {name:fr,color:'#6366f1',icon:'🏆'};
+    var stages = FUNIS[fr]||FUNIS.lancamento||[];
+    var st = stages.find(function(s){ return (s.rdIds&&s.rdIds.indexOf(o.st)>=0) || s.id===o.st_psm || s.id===o.st; });
+    var stLbl = st ? st.label : (o.st||'Em andamento');
+    var stColor = st ? st.color : '#6366f1';
+    var ico = '📍';
+    if(stLbl && stLbl.toLowerCase().indexOf('proposta')>=0) ico = '📝';
+    else if(stLbl && stLbl.toLowerCase().indexOf('visita')>=0) ico = '🏠';
+    else if(stLbl && stLbl.toLowerCase().indexOf('contrato')>=0) ico = '🤝';
+    else if(stLbl && stLbl.toLowerCase().indexOf('quente')>=0) ico = '🔥';
+    else if(stLbl && stLbl.toLowerCase().indexOf('agend')>=0) ico = '📅';
+    var daysSince = Math.floor((Date.now()-dt.getTime())/86400000);
+    var atRisk = daysSince >= RISK_DAYS;
+    if(atRisk){
+      ico = '⚠️';
+      stColor = '#ef4444';
+    }
+    tlItems.push({ts:dt.getTime(), type:atRisk?'risk':'opp', icon:ico, color:stColor, bg:atRisk?'rgba(239,68,68,0.15)':stColor+'1a', brokerName:o.bn||'—', clientName:o.cl||'—', vgv:o.vgv||0, stage:atRisk?('⚠️ EM RISCO · '+(stLbl||'').toUpperCase()+' ('+daysSince+'d)'):(stLbl||'').toUpperCase(), frente:frInfo.name, frColor:frInfo.color, dt:dt, atRisk:atRisk, daysSince:daysSince});
+  });
+  tlItems.sort(function(a,b){ return b.ts - a.ts; });
+  var tlShow = tlItems.slice(0, 40); // top 40 mais recentes
+  function _fmtTimeAgo(dt){
+    var diff = Math.floor((Date.now()-dt.getTime())/1000);
+    if(diff<60) return 'agora';
+    if(diff<3600) return Math.floor(diff/60)+'min';
+    if(diff<86400) return Math.floor(diff/3600)+'h';
+    return Math.floor(diff/86400)+'d';
+  }
+  if(tlShow.length > 0){
+    h += '<div style="margin-bottom:24px">';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
+    h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0">📡 Timeline de Oportunidades <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">últimas '+tlShow.length+' movimentações · tempo real</span></h2>';
+    h += '<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);border-radius:12px;color:#10b981;font-size:11px;font-weight:700"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulsedot 1.5s infinite"></span>AO VIVO</span>';
+    h += '</div>';
+    // Container com auto-scroll horizontal
+    h += '<div id="opp-timeline-wrap" style="background:var(--navy2);border:1px solid var(--navy3);border-radius:12px;padding:14px;overflow:hidden;position:relative">';
+    h += '<div id="opp-timeline-scroll" style="display:flex;gap:10px;animation:oppTlMarquee '+Math.max(40,tlShow.length*3)+'s linear infinite;white-space:nowrap">';
+    // Duplica para loop contínuo
+    for(var _dup=0; _dup<2; _dup++){
+      tlShow.forEach(function(it){
+        h += '<div style="flex:0 0 auto;background:'+it.bg+';border:1px solid '+it.color+'55;border-left:4px solid '+it.color+';border-radius:10px;padding:10px 14px;min-width:280px;max-width:320px">';
+        h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
+        h += '<span style="font-size:16px">'+it.icon+'</span>';
+        h += '<span style="font-size:10px;font-weight:800;color:'+it.color+';text-transform:uppercase;letter-spacing:0.8px">'+it.stage+'</span>';
+        h += '<span style="margin-left:auto;font-size:10px;color:var(--muted)">'+_fmtTimeAgo(it.dt)+'</span>';
+        h += '</div>';
+        h += '<div style="font-size:13px;font-weight:700;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+it.clientName+'</div>';
+        h += '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">👤 '+it.brokerName+' · <span style="color:'+it.frColor+'">'+it.frente+'</span></div>';
+        if(it.vgv>0) h += '<div style="font-size:12px;font-weight:700;color:var(--gold2);margin-top:4px">'+fmt(it.vgv)+'</div>';
+        h += '</div>';
+      });
+    }
+    h += '</div>';
+    h += '<style>@keyframes oppTlMarquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}@keyframes pulsedot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.85)}@keyframes metaHitFlash{0%{opacity:0;transform:translateX(-50%) translateY(-20px) scale(0.8)}15%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.05)}85%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-10px) scale(1)}}}</style>';
+    h += '</div></div>';
+  }
+
+  // ===== META DO DIA + "ÚLTIMA HORA" + PROJEÇÃO FECHAMENTO MÊS =====
+  var _now2 = new Date();
+  var _dayStart = new Date(_now2.getFullYear(),_now2.getMonth(),_now2.getDate(),0,0,0);
+  var _dayEnd = new Date(_now2.getFullYear(),_now2.getMonth(),_now2.getDate(),23,59,59);
+  var _monthStart = new Date(_now2.getFullYear(),_now2.getMonth(),1);
+  var _monthEnd = new Date(_now2.getFullYear(),_now2.getMonth()+1,0,23,59,59);
+  var _workDays = (typeof ooGetWorkDays==='function')?ooGetWorkDays(_now2.getFullYear(), _now2.getMonth()+1):22;
+  var _workPassed = (typeof ooGetWorkDaysPassed==='function')?ooGetWorkDaysPassed(_now2.getFullYear(), _now2.getMonth()+1):1;
+  var _workRemain = Math.max(0, _workDays - _workPassed);
+  var _dayVendas = VENDAS.filter(function(v){var d=new Date(v.closedAt||v.createdAt||0);return d>=_dayStart && d<=_dayEnd;});
+  var _dayVGV = _dayVendas.reduce(function(a,v){return a+(v.vgv||0);},0);
+  var _metaDia = totalMeta > 0 ? Math.round(totalMeta / _workDays) : 0;
+  var _dayPct = _metaDia > 0 ? Math.round(_dayVGV/_metaDia*100) : 0;
+  // horas úteis restantes hoje (considerando 9h-19h = 10h úteis)
+  var _curHour = _now2.getHours() + _now2.getMinutes()/60;
+  var _hrStart = 9, _hrEnd = 19;
+  var _hoursLeft = _curHour < _hrStart ? (_hrEnd-_hrStart) : _curHour >= _hrEnd ? 0 : (_hrEnd-_curHour);
+  var _diaCor = _dayPct >= 100 ? '#22c55e' : _dayPct >= 70 ? '#f59e0b' : '#ef4444';
+  // Projeção fechamento mês
+  var _pctMesTranscorrido = _workDays > 0 ? _workPassed / _workDays : 0;
+  var _projVGVLinear = _pctMesTranscorrido > 0 ? totalVGV / _pctMesTranscorrido : totalVGV;
+  // Pipeline ponderado = chance adicional
+  var _pipeW = 0;
+  if(typeof OPPS!=='undefined'){
+    OPPS.forEach(function(o){
+      var stgs = FUNIS[o.fr]||FUNIS.lancamento||[];
+      var s = stgs.find ? stgs.find(function(x){return (x.rdIds&&x.rdIds.indexOf(o.st)>=0)||x.id===o.st_psm||x.id===o.st;}) : null;
+      _pipeW += (o.vgv||0) * (s?s.w:0.1);
+    });
+  }
+  var _projVGVBlend = _projVGVLinear * 0.6 + (totalVGV + _pipeW * (_workRemain/_workDays)) * 0.4;
+  var _projPct = totalMeta > 0 ? Math.round(_projVGVBlend/totalMeta*100) : 0;
+  var _gap = totalMeta - _projVGVBlend;
+
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">';
+  // Meta do Dia
+  h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-left:4px solid '+_diaCor+';border-radius:12px;padding:18px">';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
+  h += '<h3 style="font-size:15px;font-weight:800;color:var(--cream);margin:0">⏰ Meta do Dia</h3>';
+  h += '<span style="font-size:11px;color:var(--muted);font-weight:600">'+_now2.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'short'})+'</span>';
+  h += '</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">';
+  h += '<div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Realizado hoje</div><div style="font-size:22px;font-weight:800;color:'+_diaCor+';margin-top:4px">'+fmt(_dayVGV)+'</div><div style="font-size:11px;color:var(--muted)">'+_dayVendas.length+' venda'+(_dayVendas.length===1?'':'s')+'</div></div>';
+  h += '<div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Meta diária</div><div style="font-size:22px;font-weight:800;color:var(--cream);margin-top:4px">'+fmt(_metaDia)+'</div><div style="font-size:11px;color:var(--muted)">'+_dayPct+'% atingido</div></div>';
+  h += '</div>';
+  h += '<div style="background:var(--navy);border-radius:6px;height:10px;overflow:hidden;margin-bottom:10px"><div style="height:100%;width:'+Math.min(100,_dayPct)+'%;background:linear-gradient(90deg,'+_diaCor+'aa,'+_diaCor+');border-radius:6px;transition:width .6s"></div></div>';
+  if(_hoursLeft > 0 && _dayPct < 100){
+    var _gapDia = Math.max(0, _metaDia - _dayVGV);
+    h += '<div style="padding:10px 12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;font-size:12px;color:#fbbf24"><b>⏳ Última hora:</b> restam <b>'+_hoursLeft.toFixed(1)+'h úteis</b> para bater '+fmt(_gapDia)+(_gapDia>0?' (gap)':'. Meta já batida!')+'</div>';
+  } else if(_dayPct >= 100){
+    h += '<div style="padding:10px 12px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);border-radius:8px;font-size:12px;color:#22c55e;font-weight:700">🎯 Meta diária BATIDA! ('+_dayPct+'%)</div>';
+  } else {
+    h += '<div style="padding:10px 12px;background:rgba(100,116,139,0.15);border-radius:8px;font-size:12px;color:var(--muted)">Fora do horário comercial. Próximo pregão começa às '+_hrStart+'h.</div>';
+  }
+  h += '</div>';
+
+  // Projeção Fechamento de Mês
+  var _projCor = _projPct >= 100 ? '#22c55e' : _projPct >= 80 ? '#f59e0b' : '#ef4444';
+  h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-left:4px solid '+_projCor+';border-radius:12px;padding:18px">';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
+  h += '<h3 style="font-size:15px;font-weight:800;color:var(--cream);margin:0">🔮 Projeção Fechamento de Mês</h3>';
+  h += '<span style="font-size:11px;color:var(--muted);font-weight:600">'+_workRemain+' dias úteis restantes</span>';
+  h += '</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">';
+  h += '<div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Projeção</div><div style="font-size:20px;font-weight:800;color:'+_projCor+';margin-top:4px">'+fmt(_projVGVBlend)+'</div></div>';
+  h += '<div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Meta</div><div style="font-size:20px;font-weight:800;color:var(--cream);margin-top:4px">'+fmt(totalMeta)+'</div></div>';
+  h += '<div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Gap</div><div style="font-size:20px;font-weight:800;color:'+(_gap>0?'#ef4444':'#22c55e')+';margin-top:4px">'+(_gap>0?'-'+fmt(_gap):'+'+fmt(-_gap))+'</div></div>';
+  h += '</div>';
+  // Barra com marcação da meta
+  h += '<div style="position:relative;background:var(--navy);border-radius:6px;height:14px;overflow:hidden;margin-bottom:6px">';
+  h += '<div style="position:absolute;left:0;top:0;height:100%;width:'+Math.min(100,metaGlobalPct)+'%;background:linear-gradient(90deg,#6366f1,#8b5cf6);"></div>';
+  h += '<div style="position:absolute;left:'+Math.min(100,metaGlobalPct)+'%;top:0;height:100%;width:'+Math.max(0,Math.min(100,_projPct)-metaGlobalPct)+'%;background:linear-gradient(90deg,'+_projCor+'55,'+_projCor+'aa);border-left:2px dashed var(--cream);"></div>';
+  h += '<div style="position:absolute;left:100%;top:-3px;height:20px;width:2px;background:var(--gold);box-shadow:0 0 4px var(--gold)"></div>';
+  h += '</div>';
+  h += '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>Realizado: <b style="color:var(--cream)">'+metaGlobalPct+'%</b></span><span>Projetado: <b style="color:'+_projCor+'">'+_projPct+'%</b></span><span>Meta: <b style="color:var(--gold)">100%</b></span></div>';
+  h += '<div style="margin-top:10px;padding:8px 10px;background:rgba(99,102,241,0.08);border-radius:6px;font-size:11px;color:var(--muted)">Modelo: 60% ritmo linear + 40% pipeline ponderado · '+_pctMesTranscorrido.toFixed(2).replace('.',',')+' do mês transcorrido</div>';
+  h += '</div>';
+  h += '</div>';
+
+  // ===== PREDITOR IA — TOP 5 probabilidade de bater meta =====
+  var predictions = allCorretores
+    .filter(function(c){ return c.meta > 0; })
+    .map(function(c){
+      var brokerObj = BROKERS.find(function(b){return b.id===c.id;}) || {};
+      brokerObj.vgv_real = c.vgv;
+      brokerObj.meta = c.meta;
+      brokerObj.frente = c.frente;
+      var p = predictMetaProbability(brokerObj);
+      return {corretor:c, prob:p.prob, reason:p.reason, projPct:p.projPct};
+    })
+    .sort(function(a,b){return b.prob - a.prob;});
+  if(predictions.length > 0){
+    h += '<div style="margin-bottom:24px">';
+    h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 12px">🧠 Preditor IA — Probabilidade de Bater Meta</h2>';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px">';
+    predictions.slice(0, 10).forEach(function(pr){
+      var c = pr.corretor;
+      var probCor = pr.prob >= 75 ? '#22c55e' : pr.prob >= 50 ? '#f59e0b' : pr.prob >= 25 ? '#fb923c' : '#ef4444';
+      h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-left:4px solid '+probCor+';border-radius:10px;padding:12px">';
+      h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">';
+      h += '<div style="width:32px;height:32px;border-radius:50%;background:'+c.color+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">'+c.ini+'</div>';
+      h += '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:700;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+c.name+'</div><div style="font-size:10px;color:var(--muted)">'+c.metaPct+'% atingido · '+pr.projPct+'% projetado</div></div>';
+      h += '<div style="font-size:22px;font-weight:800;color:'+probCor+'">'+pr.prob+'%</div>';
+      h += '</div>';
+      h += '<div style="background:var(--navy);border-radius:3px;height:6px;overflow:hidden;margin-bottom:6px"><div style="height:100%;width:'+pr.prob+'%;background:'+probCor+';border-radius:3px;transition:width .6s"></div></div>';
+      h += '<div style="font-size:10.5px;color:var(--muted);font-style:italic">'+pr.reason+'</div>';
+      h += '</div>';
+    });
+    h += '</div></div>';
+  }
+
+  // ===== PAINEL 3 EQUIPES + ALERTAS (mesmo do One on One) =====
+  h += '<div style="margin-bottom:24px">';
+  h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 12px">📊 Performance por Equipe <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">dados do One on One — tempo real</span></h2>';
+  h += renderArenaEquipesPanel({dark:true, maxAlertas:12});
+  h += '</div>';
+
+  // ===== CONTROLES DE SOM AMBIENTE =====
+  var _curSound = S.arenaSound || 'cash';
+  var _soundEnabled = S.arenaSoundEnabled === true;
+  h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">';
+  h += '<span style="font-size:13px;font-weight:700;color:var(--cream)">🔊 Som Ambiente</span>';
+  h += '<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" '+(_soundEnabled?'checked':'')+' onchange="S.arenaSoundEnabled=this.checked;saveState();render()"><span style="font-size:12px;color:var(--muted)">Ativar jingle quando alguém bater meta</span></label>';
+  h += '<select onchange="S.arenaSound=this.value;saveState();playArenaSound(this.value)" style="padding:5px 10px;border-radius:6px;background:var(--navy);color:var(--cream);border:1px solid var(--navy3);font-size:12px">';
+  Object.keys(ARENA_SOUNDS).forEach(function(k){
+    h += '<option value="'+k+'" '+(_curSound===k?'selected':'')+'>'+ARENA_SOUNDS[k].name+' — '+ARENA_SOUNDS[k].desc+'</option>';
+  });
+  h += '</select>';
+  h += '<button onclick="playArenaSound(S.arenaSound)" style="padding:6px 14px;background:#6366f1;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">▶ Testar</button>';
+  h += '<button onclick="S._arenaMetaHits={};saveState();alert(\'Memória de hits resetada. O próximo corretor que bater meta tocará o som.\')" style="padding:6px 12px;background:transparent;color:var(--muted);border:1px solid var(--navy3);border-radius:6px;font-size:11px;cursor:pointer">Resetar hits</button>';
   h += '</div>';
 
   // ===== BATALHA DE FRENTES =====
@@ -3309,6 +3902,9 @@ var pgWarArena = function(){
     document.head.appendChild(style);
   }
 
+  // Hook: dispara som quando alguém bate meta (check após render)
+  setTimeout(function(){ try{ arenaCheckMetaHits(); }catch(e){} }, 500);
+
   return h;
 };
 
@@ -3438,8 +4034,32 @@ function pgMetas(){
 // ═══════════════════════════════════════════════════════════════════════════
 // PG METAS V2 — Redesign consolidado (Navy/Cream, tabs, cards profissionais)
 // ═══════════════════════════════════════════════════════════════════════════
+// ── AUTO-CALC: Realizado por mês (VGV) e por frente, baseado em VENDAS reais ──
+function _psmCalcRealizadoPorMes(year){
+  var y=year||new Date().getFullYear();
+  var arr=[0,0,0,0,0,0,0,0,0,0,0,0];
+  var byFrente={conquista:[0,0,0,0,0,0,0,0,0,0,0,0],lancamento:[0,0,0,0,0,0,0,0,0,0,0,0],terceiros:[0,0,0,0,0,0,0,0,0,0,0,0],locacao:[0,0,0,0,0,0,0,0,0,0,0,0]};
+  function addV(vgv,dt,fr){
+    if(!dt||!vgv)return;
+    var d=new Date(dt);if(isNaN(d.getTime()))return;
+    if(d.getFullYear()!==y)return;
+    var mi=d.getMonth();
+    arr[mi]+=(+vgv||0);
+    var f=(fr||'').toLowerCase();
+    if(byFrente[f])byFrente[f][mi]+=(+vgv||0);
+  }
+  try{if(typeof VENDAS!=='undefined'&&VENDAS&&VENDAS.length){VENDAS.forEach(function(v){addV(v.vgv,v.closedAt||v.createdAt,v.fr);});}}catch(e){}
+  try{if(S.vendasManuais&&S.vendasManuais.length){S.vendasManuais.forEach(function(v){addV(v.vgv,v.data,v.frente);});}}catch(e){}
+  return{total:arr,byFrente:byFrente};
+}
 function pgMetasV2(){
   var m=S.mg, ms=m.meses;
+  // Auto-sync realizado com vendas reais (BUG 2) — preserva valores manuais > 0 SE não houver venda real computada
+  var _realCalc=_psmCalcRealizadoPorMes(new Date().getFullYear());
+  for(var _ri=0;_ri<12;_ri++){
+    if(_realCalc.total[_ri]>0) m.realizado[_ri]=_realCalc.total[_ri];
+  }
+  m._realByFrente=_realCalc.byFrente;
   function metaTotal(i){return (m.metaImpper[i]||0)+(m.metaTerc[i]||0)+(m.metaEstMAP[i]||0)+(m.metaEstConq[i]||0)+(m.metaLanc[i]||0);}
   function sum(arr){return arr.reduce(function(a,b){return a+(b||0);},0);}
   function fmtBR(v){if(!v||v===0)return 'R$ 0';return 'R$ '+(v<0?'-':'')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
@@ -3655,6 +4275,18 @@ function pgMetasV2(){
   if(tab==='equipes'){
     if(!S.metaEquipe){try{S.metaEquipe=JSON.parse(localStorage.getItem('psm_meta_equipe')||'null');}catch(e){}}
     if(!S.metaEquipe) S.metaEquipe={};
+    var _curMi=new Date().getMonth();
+    // BUG 3 FIX: auto-calcular metas de equipe a partir do painel principal (S.mg)
+    // MAP = Estoque MAP + Lançamento | Conquista = Estoque Conquista | Terceiros = Terceiros + IMPPER | Locação = manual
+    var _autoMetas={
+      lancamento:{vgv_estoque:(m.metaEstMAP[_curMi]||0), vgv_lanc:(m.metaLanc[_curMi]||0)},
+      conquista: {vgv_estoque:(m.metaEstConq[_curMi]||0), vgv_lanc:0},
+      terceiros: {vgv_estoque:(m.metaTerc[_curMi]||0), vgv_lanc:(m.metaImpper[_curMi]||0)},
+      locacao:   {vgv_estoque:0, vgv_lanc:0}
+    };
+    h+='<div style="padding:10px 14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:10px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">';
+    h+='<div style="font-size:11.5px;color:var(--navy)"><strong>\u2699\uFE0F Auto-sincronizado</strong> \u2014 Metas de Equipe baseadas no painel <em>Mensal por Canal</em> de '+(m.meses[_curMi]||'')+'. Edite abaixo para sobrescrever manualmente.</div>';
+    h+='<button onclick="meUpdAuto()" style="padding:6px 12px;background:var(--navy);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">\uD83D\uDD04 Sincronizar Agora</button></div>';
     var eqFrentes=[
       {id:'lancamento', lbl:'Equipe MAP',          ico:'\uD83C\uDFE2', col:'#6366f1'},
       {id:'conquista',  lbl:'Equipe Conquista',    ico:'\uD83C\uDFE1', col:'#f59e0b'},
@@ -3665,6 +4297,11 @@ function pgMetasV2(){
     eqFrentes.forEach(function(f){
       if(!S.metaEquipe[f.id]) S.metaEquipe[f.id]={vgv_estoque:0,vgv_lanc:0,capt_sem:0};
       var me=S.metaEquipe[f.id];
+      // Se nunca foi editado manualmente (flag _manual), usar valores automáticos
+      if(!me._manual && _autoMetas[f.id]){
+        me.vgv_estoque=_autoMetas[f.id].vgv_estoque;
+        me.vgv_lanc=_autoMetas[f.id].vgv_lanc;
+      }
       var total=(me.vgv_estoque||0)+(me.vgv_lanc||0);
       h+='<div style="background:var(--cream1);border:1px solid var(--cream3);border-top:4px solid '+f.col+';border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(15,23,42,0.04)">';
       h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">';
@@ -3673,13 +4310,13 @@ function pgMetasV2(){
       h+='</div>';
       h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
       h+='<div><label style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px">VGV Estoque</label>';
-      h+='<input type="number" value="'+(me.vgv_estoque||0)+'" onchange="meUpd(\''+f.id+'\',\'vgv_estoque\',this.value)" style="width:100%;padding:8px 10px;border-radius:8px;background:#fff;color:var(--navy);border:1px solid var(--cream3);text-align:right;font-size:12px;font-weight:600;margin-top:4px"></div>';
+      h+='<input type="number" value="'+(me.vgv_estoque||0)+'" onchange="meUpd(\''+f.id+'\',\'vgv_estoque\',this.value);this.style.borderColor=\'#22c55e\';setTimeout(function(el){return function(){el.style.borderColor=\'var(--cream3)\'}}(this),800)" style="width:100%;padding:8px 10px;border-radius:8px;background:#fff;color:var(--navy);border:1px solid var(--cream3);text-align:right;font-size:12px;font-weight:600;margin-top:4px"></div>';
       h+='<div><label style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px">VGV Lan\u00e7amento</label>';
-      h+='<input type="number" value="'+(me.vgv_lanc||0)+'" onchange="meUpd(\''+f.id+'\',\'vgv_lanc\',this.value)" style="width:100%;padding:8px 10px;border-radius:8px;background:#fff;color:var(--navy);border:1px solid var(--cream3);text-align:right;font-size:12px;font-weight:600;margin-top:4px"></div>';
+      h+='<input type="number" value="'+(me.vgv_lanc||0)+'" onchange="meUpd(\''+f.id+'\',\'vgv_lanc\',this.value);this.style.borderColor=\'#22c55e\';setTimeout(function(el){return function(){el.style.borderColor=\'var(--cream3)\'}}(this),800)" style="width:100%;padding:8px 10px;border-radius:8px;background:#fff;color:var(--navy);border:1px solid var(--cream3);text-align:right;font-size:12px;font-weight:600;margin-top:4px"></div>';
       h+='</div>';
       if(f.id==='terceiros'){
         h+='<div style="margin-top:10px"><label style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px">Capta\u00e7\u00f5es Semanais</label>';
-        h+='<input type="number" value="'+(me.capt_sem||0)+'" onchange="meUpd(\''+f.id+'\',\'capt_sem\',this.value)" style="width:100%;padding:8px 10px;border-radius:8px;background:#fff;color:var(--navy);border:1px solid var(--cream3);text-align:right;font-size:12px;font-weight:600;margin-top:4px"></div>';
+        h+='<input type="number" value="'+(me.capt_sem||0)+'" onchange="meUpd(\''+f.id+'\',\'capt_sem\',this.value);this.style.borderColor=\'#22c55e\';setTimeout(function(el){return function(){el.style.borderColor=\'var(--cream3)\'}}(this),800)" style="width:100%;padding:8px 10px;border-radius:8px;background:#fff;color:var(--navy);border:1px solid var(--cream3);text-align:right;font-size:12px;font-weight:600;margin-top:4px"></div>';
       }
       h+='</div>';
     });
@@ -3702,9 +4339,10 @@ function pgMetasV2(){
     h+='</div>';
 
     if(!S.metaIndiv){try{var _mld=localStorage.getItem('psm_meta_indiv');S.metaIndiv=_mld?JSON.parse(_mld):{};}catch(e){S.metaIndiv={};}}
-    var _validIds={}; for(var _vi=0;_vi<BROKERS.length;_vi++) _validIds[BROKERS[_vi].id]=1;
-    var _miKeys=Object.keys(S.metaIndiv); for(var _mk=0;_mk<_miKeys.length;_mk++){ if(!_validIds[_miKeys[_mk]]) delete S.metaIndiv[_miKeys[_mk]]; }
     var allBrokers=BROKERS.slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+    // BUG FIX: sanitize using SAME id logic used below (bk.id||bk.name) — not only BROKERS[].id
+    var _validIds={}; for(var _vi=0;_vi<allBrokers.length;_vi++){var _b=allBrokers[_vi];_validIds[_b.id||_b.name]=1;}
+    var _miKeys=Object.keys(S.metaIndiv); for(var _mk=0;_mk<_miKeys.length;_mk++){ if(!_validIds[_miKeys[_mk]]) delete S.metaIndiv[_miKeys[_mk]]; }
     var _tVgv=0,_tVis=0,_tCap=0,_tPas=0,_tPes=0;
 
     h+='<div class="card"><div class="ctitle">\uD83D\uDC64 Meta Individual \u2014 '+mNames[S.miMes]+'/'+_year+'</div>';
@@ -3731,11 +4369,11 @@ function pgMetasV2(){
       METAS_CONFIG[bid].vgv_pessoal=md.vgv_pessoal||0;
       h+='<tr style="background:'+(bi%2===0?'var(--cream1)':'#fff')+';border-bottom:1px solid var(--cream3)">';
       h+='<td style="padding:8px 12px"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:'+(bk.color||'#6366f1')+';display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800">'+(bk.ini||bk.name.substring(0,2).toUpperCase())+'</div><div><div style="font-size:12px;font-weight:700;color:var(--navy)">'+bk.name+'</div><div style="font-size:9.5px;color:var(--muted);text-transform:capitalize">'+(bk.frente||'')+'</div></div></div></td>';
-      h+='<td style="padding:5px 6px"><input type="text" value="'+fmtCompact(md.vgv_meta||0)+'" data-raw="'+(md.vgv_meta||0)+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="var v=+(this.value.replace(/[^0-9.-]/g,\'\'))||0;this.dataset.raw=v;miUpd(\''+bid+'\',\'vgv_meta\',v);render()" '+_inpS+'></td>';
+      h+='<td style="padding:5px 6px"><input type="text" value="'+fmtCompact(md.vgv_meta||0)+'" data-raw="'+(md.vgv_meta||0)+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="var v=+(this.value.replace(/[^0-9.-]/g,\'\'))||0;this.dataset.raw=v;this.value=miFmt(v);miUpd(\''+bid+'\',\'vgv_meta\',v)" '+_inpS+'></td>';
       h+='<td style="padding:5px 6px"><input type="number" value="'+(md.visitas||0)+'" onchange="miUpd(\''+bid+'\',\'visitas\',this.value)" '+_inpS+'></td>';
       h+='<td style="padding:5px 6px"><input type="number" value="'+(md.captacoes||0)+'" onchange="miUpd(\''+bid+'\',\'captacoes\',this.value)" '+_inpS+'></td>';
       h+='<td style="padding:5px 6px"><input type="number" value="'+(md.pastas_lanc||0)+'" onchange="miUpd(\''+bid+'\',\'pastas_lanc\',this.value)" '+_inpS+'></td>';
-      h+='<td style="padding:5px 6px"><input type="text" value="'+fmtCompact(md.vgv_pessoal||0)+'" data-raw="'+(md.vgv_pessoal||0)+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="var v=+(this.value.replace(/[^0-9.-]/g,\'\'))||0;this.dataset.raw=v;miUpd(\''+bid+'\',\'vgv_pessoal\',v);render()" style="width:100%;background:#fffbeb;color:var(--navy);border:1px solid var(--gold);border-radius:6px;padding:7px 9px;text-align:center;font-size:11.5px;font-weight:700"></td>';
+      h+='<td style="padding:5px 6px"><input type="text" value="'+fmtCompact(md.vgv_pessoal||0)+'" data-raw="'+(md.vgv_pessoal||0)+'" onfocus="this.value=this.dataset.raw;this.select()" onblur="var v=+(this.value.replace(/[^0-9.-]/g,\'\'))||0;this.dataset.raw=v;this.value=miFmt(v);miUpd(\''+bid+'\',\'vgv_pessoal\',v)" style="width:100%;background:#fffbeb;color:var(--navy);border:1px solid var(--gold);border-radius:6px;padding:7px 9px;text-align:center;font-size:11.5px;font-weight:700"></td>';
       h+='</tr>';
     }
     h+='<tr style="background:linear-gradient(90deg,var(--navy),var(--navy2));color:var(--cream)">';
@@ -3755,9 +4393,16 @@ function meUpd(fid,key,val){
   if(!S.metaEquipe) S.metaEquipe={};
   if(!S.metaEquipe[fid]) S.metaEquipe[fid]={vgv_estoque:0,vgv_lanc:0,capt_sem:0};
   S.metaEquipe[fid][key]=+(val)||0;
+  S.metaEquipe[fid]._manual=true;
+  localStorage.setItem('psm_meta_equipe',JSON.stringify(S.metaEquipe));
+}
+window.meUpd=meUpd;
+window.meUpdAuto=function(){
+  if(!S.metaEquipe) S.metaEquipe={};
+  Object.keys(S.metaEquipe).forEach(function(k){if(S.metaEquipe[k])S.metaEquipe[k]._manual=false;});
   localStorage.setItem('psm_meta_equipe',JSON.stringify(S.metaEquipe));
   render();
-}
+};
 function miUpd(bid,key,val){
   if(!S.metaIndiv) S.metaIndiv={};
   if(!S.metaIndiv[bid]) S.metaIndiv[bid]={};
@@ -3769,6 +4414,8 @@ function miUpd(bid,key,val){
   localStorage.setItem('psm_meta_indiv',JSON.stringify(S.metaIndiv));
   saveState();
 }
+window.miUpd=miUpd;
+window.miFmt=function(v){try{return fmtCompact(+v||0);}catch(e){return 'R$ '+(+v||0);}};
 function mgUpd(key,idx,val){
   if(!S.mg) return;
   S.mg[key][idx]=+(val)||0;
@@ -6763,7 +7410,7 @@ function pgOO() {
     var pctMes = workDays > 0 ? (workPassed / workDays) : 0;
 
     // Agregar dados de TODOS os corretores por equipe
-    var equipes = {conquista:{nome:'Conquista',cor:'#22c55e',bids:[]},lancamento:{nome:'Lançamentos',cor:'#8b5cf6',bids:[]},terceiros:{nome:'Terceiros',cor:'#f59e0b',bids:[]}};
+    var equipes = {conquista:{nome:'Conquista',cor:'#22c55e',bids:[]},lancamento:{nome:'Equipe MAP',cor:'#8b5cf6',bids:[]},terceiros:{nome:'Terceiros',cor:'#f59e0b',bids:[]}};
     BROKERS.forEach(function(b) {
       var fr = (TEAM_CONFIG.assignments[b.id]) || 'conquista';
       if (equipes[fr]) equipes[fr].bids.push(b.id);
@@ -17016,6 +17663,14 @@ function renderSB() {
       {id:'ranking',        lbl:'Ranking',           ico:'\uD83C\uDFC6'},
       {id:'agenda_psm',     lbl:'Agenda PSM',        ico:'\uD83D\uDCC5'},
     ]},
+    {sec:'Diretoria', items:[
+      {id:'forecast',   lbl:'Proje\u00e7\u00f5es',  ico:'\uD83D\uDCC9'},
+      {id:'kpis',        lbl:'KPIs',                ico:'\uD83D\uDCC8'},
+      {id:'metas',       lbl:'Metas',               ico:'\uD83C\uDFAF'},
+      {id:'governance',  lbl:'Governan\u00e7a',     ico:'\uD83D\uDEE1'},
+      {id:'equipe',      lbl:'Vis\u00e3o Geral',    ico:'\uD83D\uDC65'},
+      {id:'dashboard',   lbl:'Dashboard',           ico:'\uD83D\uDCCA'},
+    ]},
     {sec:'Painel do Corretor', items:[
       {id:'oneonone',       lbl:'One on One',              ico:'\uD83C\uDFAF'},
       {id:'oportunidades',  lbl:'Oportunidades',           ico:'\uD83D\uDCA1'},
@@ -17076,14 +17731,6 @@ function renderSB() {
       {id:'repasses',    lbl:'Repasses',                   ico:'\uD83D\uDD04'},
       {id:'custos_fixos',lbl:'Custos Fixos & Vari\u00e1veis',ico:'\uD83D\uDCC9'},
       {id:'metricas_fin',lbl:'M\u00e9tricas Financeiro',ico:'\uD83D\uDCCA'},
-    ]},
-    {sec:'Diretoria', items:[
-      {id:'forecast',   lbl:'Proje\u00e7\u00f5es',  ico:'\uD83D\uDCC9'},
-      {id:'kpis',        lbl:'KPIs',                ico:'\uD83D\uDCC8'},
-      {id:'metas',       lbl:'Metas',               ico:'\uD83C\uDFAF'},
-      {id:'governance',  lbl:'Governan\u00e7a',     ico:'\uD83D\uDEE1'},
-      {id:'equipe',      lbl:'Vis\u00e3o Geral',    ico:'\uD83D\uDC65'},
-      {id:'dashboard',   lbl:'Dashboard',           ico:'\uD83D\uDCCA'},
     ]},
     {sec:'Intelligence', items:[
       {id:'inteldash',  lbl:'Dashboard Intel',       ico:'🧠'},
@@ -22020,7 +22667,7 @@ document.addEventListener("click",function(){_renderForced=true;setTimeout(funct
 function _isUserInteracting(){var ae=document.activeElement;if(ae&&(ae.tagName==="INPUT"||ae.tagName==="TEXTAREA"||ae.isContentEditable))return true;/* Janela curta (3s) so para proteger o ultimo keystroke antes do blur — NAO deve bloquear cliques em botoes */if(_lastUserActivity&&(Date.now()-_lastUserActivity<3000))return true;var m=document.querySelector(".modal.show,.swal2-container,.popup-overlay");if(m)return true;/* Bloqueia render se ha qualquer campo OO com salvamento pendente */if(document.querySelector('[data-oo-pending="1"]'))return true;return false;}
 function render(opts){var force=(opts&&opts.force)||_renderForced;_renderForced=false;if(!force&&_isUserInteracting()){_renderPending=true;if(_renderPendingTimer)clearTimeout(_renderPendingTimer);_renderPendingTimer=setTimeout(function(){if(!_isUserInteracting()){_renderPending=false;render({force:true})}else{_renderPendingTimer=setTimeout(arguments.callee,2000)}},2000);return}_renderPending=false;if(_renderPendingTimer){clearTimeout(_renderPendingTimer);_renderPendingTimer=null}/* DEFESA: flush sincrono de QUALQUER campo OO com salvamento pendente antes de destruir DOM */if(typeof window._ooFlushAll==='function')window._ooFlushAll();
 const app=document.getElementById("app");if(!app)return;var _pc0=document.getElementById("pc"),_scr=_pc0?_pc0.scrollTop:0;if(!S.user){if(S.loginView==="forgot"){app.innerHTML=renderForgotPassword();return}if(S.loginView==="reset"){app.innerHTML=renderResetPassword();return}app.innerHTML=renderLogin();_fillRememberedLogin();return}
-var existingPc=document.getElementById("pc");if(existingPc&&!force){try{existingPc.innerHTML=safeRoute();var sbEl=document.getElementById("sb-wrap");if(sbEl)sbEl.innerHTML=renderSB();var hdrEl=document.getElementById("hdr-wrap");if(hdrEl)hdrEl.innerHTML=renderHDR();var mobNav=document.getElementById("mob-nav");if(mobNav)mobNav.outerHTML=renderMobNav();saveState();if(_pc0)existingPc.scrollTop=_scr;return}catch(e){console.warn("[PSM] Smart render falhou:",e.message)}}
+var existingPc=document.getElementById("pc");if(existingPc&&!force){try{/* Preserve scroll positions (sidebar + window) so o menu não "pisca" voltando ao topo */var _sbEl0=document.getElementById("sb-wrap");var _sbScr=_sbEl0?_sbEl0.scrollTop:0;var _winScr=window.pageYOffset||document.documentElement.scrollTop||0;/* Preserve focused element (nao perder cursor ao digitar) */var _ae=document.activeElement;var _aeId=_ae&&_ae.id?_ae.id:null;var _aeSel=_ae&&_ae.tagName==='INPUT'?[_ae.selectionStart,_ae.selectionEnd]:null;existingPc.innerHTML=safeRoute();/* Only re-render sidebar if the menu needs to change (page changed). Otherwise keep DOM intact — prevents scroll reset. */var _sbNew=renderSB();if(_sbEl0&&_sbEl0.getAttribute('data-sig')!==String(S.page)){_sbEl0.innerHTML=_sbNew;_sbEl0.setAttribute('data-sig',String(S.page));}var hdrEl=document.getElementById("hdr-wrap");if(hdrEl){var _hdrNew=renderHDR();if(hdrEl.innerHTML!==_hdrNew)hdrEl.innerHTML=_hdrNew;}var mobNav=document.getElementById("mob-nav");if(mobNav){var _mnNew=renderMobNav();if(mobNav.outerHTML!==_mnNew)mobNav.outerHTML=_mnNew;}saveState();if(_pc0)existingPc.scrollTop=_scr;if(_sbEl0)_sbEl0.scrollTop=_sbScr;try{window.scrollTo(0,_winScr);}catch(e){}/* Restore focus */if(_aeId){var _aeR=document.getElementById(_aeId);if(_aeR&&typeof _aeR.focus==='function'){try{_aeR.focus();if(_aeSel&&_aeR.setSelectionRange){_aeR.setSelectionRange(_aeSel[0],_aeSel[1]);}}catch(e){}}}return}catch(e){console.warn("[PSM] Smart render falhou:",e.message)}}
   app.innerHTML = (S.rdSyncing ? '<div class="sync-bar active"></div>' : '') + '<div id="mob-ham" onclick="toggleMobSB()">☰</div>'
     + '<button id="cap-fab" onclick="nav(\'vera\')" title="Sr. Performance" style="position:fixed;bottom:72px;right:18px;z-index:500;width:54px;height:54px;border-radius:50%;background:var(--navy);color:#fff;font-size:22px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35);transition:transform .2s" onmouseover="this.style.transform=\'scale(1.1)\'" onmouseout="this.style.transform=\'scale(1)\'">🫡</button>'
     + '<div id="sb-overlay" onclick="toggleMobSB()"></div>'
