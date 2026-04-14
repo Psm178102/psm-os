@@ -2551,7 +2551,23 @@ function pgFrente(fid){
   bks.forEach(b=>{
     const bO=fOpps.filter(o=>o.bid===b.id);
     const bW=fWon.filter(v=>v.bid===b.id);
-    brkPeriod[b.id]={vgv_pipe:bO.reduce((a,o)=>a+(o.vgv||0),0),vgv_real:bW.reduce((a,v)=>a+(v.vgv||0),0),vendas:bW.length};
+    const bL=fLost.filter(l=>l.bid===b.id);
+    const vgvR = bW.reduce((a,v)=>a+(v.vgv||0),0);
+    const vendasN = bW.length;
+    const perdidosN = bL.length;
+    // Taxa de aproveitamento = VGV realizado / meta (individual)
+    const taxaAprov = (b.meta||0) > 0 ? (vgvR/(b.meta||1)*100) : 0;
+    // Taxa de conversão = vendas / (vendas + perdidos)
+    const denomConv = vendasN + perdidosN;
+    const taxaConv = denomConv > 0 ? (vendasN/denomConv*100) : 0;
+    brkPeriod[b.id]={
+      vgv_pipe:bO.reduce((a,o)=>a+(o.vgv||0),0),
+      vgv_real:vgvR,
+      vendas:vendasN,
+      perdidos:perdidosN,
+      taxa_aprov: taxaAprov,
+      taxa_conv: taxaConv
+    };
   });
 
   const vgvT=fWon.reduce((a,v)=>a+(v.vgv||0),0);
@@ -2693,9 +2709,21 @@ function pgFrente(fid){
   +'</div></div>'
   +'<div class="g2 mb2">'
   +'<div class="card"><div class="ctitle">Corretores</div>'
-  +(bks.length?bks.map(b=>{const bp=brkPeriod[b.id]||{};return'<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--cream3)">'
+  +(bks.length?bks.map(b=>{
+    const bp=brkPeriod[b.id]||{};
+    const aprov = (bp.taxa_aprov||0).toFixed(2);
+    const conv = (bp.taxa_conv||0).toFixed(2);
+    const corAprov = (bp.taxa_aprov||0) >= 100 ? '#16a34a' : (bp.taxa_aprov||0) >= 70 ? '#d97706' : '#dc2626';
+    const corConv = (bp.taxa_conv||0) >= 30 ? '#16a34a' : (bp.taxa_conv||0) >= 15 ? '#d97706' : '#dc2626';
+    return'<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--cream3)">'
     +Av(b,'sm',true)
-    +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+b.name+'</div>'+PB(bp.vgv_real||0,b.meta||0,f.color)+'</div>'
+    +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">'+b.name+'</div>'+PB(bp.vgv_real||0,b.meta||0,f.color)
+    +'<div style="display:flex;gap:10px;margin-top:4px;font-size:10px">'
+    +'<span style="color:var(--muted)">Aprov: <b style="color:'+corAprov+';font-weight:700">'+aprov+'%</b></span>'
+    +'<span style="color:var(--muted)">Conv: <b style="color:'+corConv+';font-weight:700">'+conv+'%</b></span>'
+    +'<span style="color:var(--muted)">Perdidos: <b style="color:var(--navy)">'+(bp.perdidos||0)+'</b></span>'
+    +'</div>'
+    +'</div>'
     +'<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700;color:var(--navy)">'+(bp.vgv_real?fmt(bp.vgv_real):'R$0')+' <span style="font-size:9px;color:var(--muted);font-weight:400">realizado</span></div><div style="font-size:9.5px;color:var(--muted)">Pipeline: '+(bp.vgv_pipe?fmt(bp.vgv_pipe):'—')+' \u00B7 '+(bp.vendas||0)+' vendas \u00B7 '+pS(bp.vgv_real||0,b.meta||0)+' da meta</div></div>'
     +'</div>';}).join('')
     :'<div class="es"><div class="es-ico">👥</div><div class="es-t">Sem corretores ativos</div><div class="es-s">Configure equipes em Configurações</div></div>')
@@ -3135,6 +3163,7 @@ function renderArenaEquipesPanel(opts){
     if((ag.vis||0) >= 5 && (ag.vend||0) === 0) alertas.push({tipo:'alerta',msg:b.name+' — '+(ag.vis||0)+' visitas mas 0 vendas',bid:b.id});
   });
 
+  if(opts.noAlertas === true) return h;
   h += '<div style="font-size:12px;font-weight:800;color:#ef4444;margin-bottom:10px">🚨 Alertas ('+alertas.length+')</div>';
   if(alertas.length === 0){
     h += '<div style="padding:14px;text-align:center;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;color:#22c55e;font-weight:600;font-size:12px">✅ Nenhum alerta no momento</div>';
@@ -3343,8 +3372,14 @@ var pgWarArena = function(){
   var fVENDAS_war = applyDateFilter(VENDAS, 'war');
   totalVGV = fVENDAS_war.reduce(function(a,v){return a+(v.vgv||0)},0);
   totalVendas = fVENDAS_war.length;
-  // Usar meta global ao inves de soma individual
-  totalMeta = (typeof METRICS !== 'undefined' && METRICS.vgv_meta) ? METRICS.vgv_meta : totalMeta;
+  // META MENSAL — fonte única: painel de metas da Diretoria (S.mg via getMetaGlobal)
+  var _mgArena = (typeof getMetaGlobal==='function') ? getMetaGlobal() : null;
+  var _arenaMesIdx = now.getMonth();
+  if (_mgArena && typeof _mgArena.metaTotal==='function') {
+    totalMeta = _mgArena.metaTotal(_arenaMesIdx) || 0;
+  } else {
+    totalMeta = (typeof METRICS !== 'undefined' && METRICS.vgv_meta) ? METRICS.vgv_meta : totalMeta;
+  }
 
   // Sort corretores by score
   allCorretores.sort(function(a,b){ return b.score - a.score; });
@@ -3459,50 +3494,15 @@ var pgWarArena = function(){
   });
   h += '</div>';
 
-  // ===== TIMELINE DE OPORTUNIDADES (feed ao vivo de movimentações no funil) =====
-  // Junta VENDAS, OPPS (ativas), LOST_DEALS e ordena por data mais recente
-  var tlItems = [];
-  var fVENDAS_tl = applyDateFilter(VENDAS, 'war');
-  var fLOST_tl = applyDateFilter(LOST_DEALS, 'war');
-  var fOPPS_tl = applyDateFilter(OPPS, 'war');
-  fVENDAS_tl.forEach(function(v){
-    var dt = new Date(v.closedAt||v.createdAt||v.updated_at||Date.now());
-    var fr = v.fr||'-';
-    var frInfo = frentes[fr] || {name:fr,color:'#6366f1',icon:'🏆'};
-    tlItems.push({ts:dt.getTime(), type:'venda', icon:'🏆', color:'#10b981', bg:'rgba(16,185,129,0.12)', brokerName:v.bn||'—', clientName:v.cl||'—', vgv:v.vgv||0, stage:'VENDIDO', frente:frInfo.name, frColor:frInfo.color, dt:dt});
+  // ===== TIMELINE DE OPORTUNIDADES (módulo Oportunidades PSM — S.oportunidadesPSM) =====
+  var _hojeStr = now.toISOString().slice(0,10);
+  var _ops = (S.oportunidadesPSM || []).slice();
+  // Ordena: destaques primeiro, depois mais recentes (criadoEm desc)
+  _ops.sort(function(a,b){
+    if((a.destaque?1:0) !== (b.destaque?1:0)) return (b.destaque?1:0) - (a.destaque?1:0);
+    return new Date(b.criadoEm||0).getTime() - new Date(a.criadoEm||0).getTime();
   });
-  fLOST_tl.forEach(function(l){
-    var dt = new Date(l.closedAt||l.createdAt||l.updated_at||Date.now());
-    var fr = l.fr||'-';
-    var frInfo = frentes[fr] || {name:fr,color:'#6366f1',icon:'🏆'};
-    tlItems.push({ts:dt.getTime(), type:'perdido', icon:'❌', color:'#ef4444', bg:'rgba(239,68,68,0.12)', brokerName:l.bn||'—', clientName:l.cl||'—', vgv:l.vgv||0, stage:'PERDIDO', frente:frInfo.name, frColor:frInfo.color, dt:dt});
-  });
-  // Opps ativos — mais recentes com movimentação + flag DEAL EM RISCO (parado > 7 dias)
-  var RISK_DAYS = 7;
-  fOPPS_tl.forEach(function(o){
-    var dt = new Date(o.updated_at||o.createdAt||Date.now());
-    var fr = o.fr||'-';
-    var frInfo = frentes[fr] || {name:fr,color:'#6366f1',icon:'🏆'};
-    var stages = FUNIS[fr]||FUNIS.lancamento||[];
-    var st = stages.find(function(s){ return (s.rdIds&&s.rdIds.indexOf(o.st)>=0) || s.id===o.st_psm || s.id===o.st; });
-    var stLbl = st ? st.label : (o.st||'Em andamento');
-    var stColor = st ? st.color : '#6366f1';
-    var ico = '📍';
-    if(stLbl && stLbl.toLowerCase().indexOf('proposta')>=0) ico = '📝';
-    else if(stLbl && stLbl.toLowerCase().indexOf('visita')>=0) ico = '🏠';
-    else if(stLbl && stLbl.toLowerCase().indexOf('contrato')>=0) ico = '🤝';
-    else if(stLbl && stLbl.toLowerCase().indexOf('quente')>=0) ico = '🔥';
-    else if(stLbl && stLbl.toLowerCase().indexOf('agend')>=0) ico = '📅';
-    var daysSince = Math.floor((Date.now()-dt.getTime())/86400000);
-    var atRisk = daysSince >= RISK_DAYS;
-    if(atRisk){
-      ico = '⚠️';
-      stColor = '#ef4444';
-    }
-    tlItems.push({ts:dt.getTime(), type:atRisk?'risk':'opp', icon:ico, color:stColor, bg:atRisk?'rgba(239,68,68,0.15)':stColor+'1a', brokerName:o.bn||'—', clientName:o.cl||'—', vgv:o.vgv||0, stage:atRisk?('⚠️ EM RISCO · '+(stLbl||'').toUpperCase()+' ('+daysSince+'d)'):(stLbl||'').toUpperCase(), frente:frInfo.name, frColor:frInfo.color, dt:dt, atRisk:atRisk, daysSince:daysSince});
-  });
-  tlItems.sort(function(a,b){ return b.ts - a.ts; });
-  var tlShow = tlItems.slice(0, 40); // top 40 mais recentes
+  var tlShow = _ops.slice(0, 40);
   function _fmtTimeAgo(dt){
     var diff = Math.floor((Date.now()-dt.getTime())/1000);
     if(diff<60) return 'agora';
@@ -3510,32 +3510,61 @@ var pgWarArena = function(){
     if(diff<86400) return Math.floor(diff/3600)+'h';
     return Math.floor(diff/86400)+'d';
   }
+  function _tipoIcone(t){
+    if(t==='lancamento') return '🚀';
+    if(t==='promocao' || t==='promoção') return '🎯';
+    if(t==='exclusividade' || t==='exclusivo') return '💎';
+    if(t==='treinamento') return '🎓';
+    if(t==='evento') return '📅';
+    return '💡';
+  }
+  function _tipoCor(t){
+    if(t==='lancamento') return '#8b5cf6';
+    if(t==='promocao' || t==='promoção') return '#f59e0b';
+    if(t==='exclusividade' || t==='exclusivo') return '#06b6d4';
+    if(t==='treinamento') return '#10b981';
+    if(t==='evento') return '#ec4899';
+    return '#6366f1';
+  }
   if(tlShow.length > 0){
     h += '<div style="margin-bottom:24px">';
     h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
-    h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0">📡 Timeline de Oportunidades <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">últimas '+tlShow.length+' movimentações · tempo real</span></h2>';
+    h += '<h2 style="font-size:18px;font-weight:700;color:#0f172a;margin:0">💡 Timeline de Oportunidades <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">'+tlShow.length+' '+(tlShow.length===1?'oportunidade':'oportunidades')+' publicada'+(tlShow.length===1?'':'s')+' · tempo real</span></h2>';
     h += '<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);border-radius:12px;color:#10b981;font-size:11px;font-weight:700"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulsedot 1.5s infinite"></span>AO VIVO</span>';
     h += '</div>';
-    // Container com auto-scroll horizontal
     h += '<div id="opp-timeline-wrap" style="background:var(--navy2);border:1px solid var(--navy3);border-radius:12px;padding:14px;overflow:hidden;position:relative">';
     h += '<div id="opp-timeline-scroll" style="display:flex;gap:10px;animation:oppTlMarquee '+Math.max(40,tlShow.length*3)+'s linear infinite;white-space:nowrap">';
-    // Duplica para loop contínuo
     for(var _dup=0; _dup<2; _dup++){
-      tlShow.forEach(function(it){
-        h += '<div style="flex:0 0 auto;background:'+it.bg+';border:1px solid '+it.color+'55;border-left:4px solid '+it.color+';border-radius:10px;padding:10px 14px;min-width:280px;max-width:320px">';
+      tlShow.forEach(function(op){
+        var ico = op.icon || _tipoIcone(op.tipo);
+        var color = _tipoCor(op.tipo);
+        var expira = op.validade && op.validade < _hojeStr;
+        var dtCreate = new Date(op.criadoEm || Date.now());
+        var diasValid = op.validade ? Math.ceil((new Date(op.validade).getTime()-Date.now())/86400000) : null;
+        h += '<div style="flex:0 0 auto;background:'+color+'1a;border:1px solid '+color+'55;border-left:4px solid '+color+';border-radius:10px;padding:10px 14px;min-width:300px;max-width:340px;'+(op.destaque?'box-shadow:0 0 12px '+color+'44;':'')+(expira?'opacity:0.55;':'')+'">';
         h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
-        h += '<span style="font-size:16px">'+it.icon+'</span>';
-        h += '<span style="font-size:10px;font-weight:800;color:'+it.color+';text-transform:uppercase;letter-spacing:0.8px">'+it.stage+'</span>';
-        h += '<span style="margin-left:auto;font-size:10px;color:var(--muted)">'+_fmtTimeAgo(it.dt)+'</span>';
+        h += '<span style="font-size:16px">'+ico+'</span>';
+        h += '<span style="font-size:10px;font-weight:800;color:'+color+';text-transform:uppercase;letter-spacing:0.8px">'+(op.tipo||'OPORTUNIDADE').toUpperCase()+(op.destaque?' · ⭐':'')+'</span>';
+        h += '<span style="margin-left:auto;font-size:10px;color:var(--muted)">'+_fmtTimeAgo(dtCreate)+'</span>';
         h += '</div>';
-        h += '<div style="font-size:13px;font-weight:700;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+it.clientName+'</div>';
-        h += '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">👤 '+it.brokerName+' · <span style="color:'+it.frColor+'">'+it.frente+'</span></div>';
-        if(it.vgv>0) h += '<div style="font-size:12px;font-weight:700;color:var(--gold2);margin-top:4px">'+fmt(it.vgv)+'</div>';
+        h += '<div style="font-size:13px;font-weight:700;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(op.titulo||'—')+'</div>';
+        if(op.empreendimento || op.incorporadora){
+          h += '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🏢 '+(op.empreendimento||'')+(op.incorporadora?' · '+op.incorporadora:'')+'</div>';
+        }
+        if(op.desc){
+          var _d = op.desc.length > 70 ? op.desc.substring(0,67)+'...' : op.desc;
+          h += '<div style="font-size:10.5px;color:var(--cream);opacity:.8;margin-top:4px;white-space:normal;word-break:break-word;line-height:1.3">'+_d+'</div>';
+        }
+        if(op.validade){
+          var validLbl = expira ? '⛔ Expirada' : (diasValid<=3?'⏰ Vence em '+diasValid+'d':'📅 Até '+op.validade.split('-').reverse().join('/'));
+          var validCor = expira?'#ef4444':(diasValid<=3?'#f59e0b':color);
+          h += '<div style="font-size:11px;font-weight:700;color:'+validCor+';margin-top:4px">'+validLbl+'</div>';
+        }
         h += '</div>';
       });
     }
     h += '</div>';
-    h += '<style>@keyframes oppTlMarquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}@keyframes pulsedot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.85)}@keyframes metaHitFlash{0%{opacity:0;transform:translateX(-50%) translateY(-20px) scale(0.8)}15%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.05)}85%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-10px) scale(1)}}}</style>';
+    h += '<style>@keyframes oppTlMarquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}@keyframes pulsedot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.85)}}@keyframes metaHitFlash{0%{opacity:0;transform:translateX(-50%) translateY(-20px) scale(0.8)}15%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.05)}85%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-10px) scale(1)}}</style>';
     h += '</div></div>';
   }
 
@@ -3550,13 +3579,66 @@ var pgWarArena = function(){
   var _workRemain = Math.max(0, _workDays - _workPassed);
   var _dayVendas = VENDAS.filter(function(v){var d=new Date(v.closedAt||v.createdAt||0);return d>=_dayStart && d<=_dayEnd;});
   var _dayVGV = _dayVendas.reduce(function(a,v){return a+(v.vgv||0);},0);
-  var _metaDia = totalMeta > 0 ? Math.round(totalMeta / _workDays) : 0;
-  var _dayPct = _metaDia > 0 ? Math.round(_dayVGV/_metaDia*100) : 0;
   // horas úteis restantes hoje (considerando 9h-19h = 10h úteis)
   var _curHour = _now2.getHours() + _now2.getMinutes()/60;
   var _hrStart = 9, _hrEnd = 19;
   var _hoursLeft = _curHour < _hrStart ? (_hrEnd-_hrStart) : _curHour >= _hrEnd ? 0 : (_hrEnd-_curHour);
-  var _diaCor = _dayPct >= 100 ? '#22c55e' : _dayPct >= 70 ? '#f59e0b' : '#ef4444';
+
+  // ===== META DO DIA — KPIs OPERACIONAIS (ligações, agendamentos, visitas, propostas, vendas) =====
+  // Agrega ooDaily de hoje (todos os corretores) e mês completo
+  var _mkArena = _now2.getFullYear()+'-'+String(_now2.getMonth()+1).padStart(2,'0');
+  var _dayKey = _mkArena+'-'+String(_now2.getDate()).padStart(2,'0');
+  var _opsReal = {lig_real:0, agend:0, vis:0, prop:0, vend:0};
+  var _opsMes  = {lig_real:0, agend:0, vis:0, prop:0, vend:0};
+  // Soma de metas individuais do mês (de metaIndiv/OO_CAMPOS)
+  var _opsMeta = {lig_real:0, agend:0, vis:0, prop:0, vend:0};
+  BROKERS.forEach(function(b){
+    if(b.role!=='corretor' && b.role!=='lider') return;
+    if(b.name && b.name.indexOf('Yara')!==-1) return;
+    // Realizado mês
+    var ag = ooAggMonth(b.id, _mkArena) || {};
+    ['lig_real','agend','vis','prop','vend'].forEach(function(k){ _opsMes[k] += (ag[k]||0); });
+    // Realizado hoje
+    var daily = ((S.ooDaily||{})[b.id]||{})[_mkArena] || {};
+    var today = daily[_dayKey] || {};
+    ['lig_real','agend','vis','prop','vend'].forEach(function(k){ _opsReal[k] += (today[k]||0); });
+    // Metas (metaIndiv)
+    var miB = (mi[b.id]||{})[mes] || {};
+    _opsMeta.lig_real += (miB.lig_real || miB.ligacoes || 0);
+    _opsMeta.agend    += (miB.agend    || miB.agendamentos || 0);
+    _opsMeta.vis      += (miB.visitas  || miB.vis || 0);
+    _opsMeta.prop     += (miB.prop     || miB.propostas || 0);
+    _opsMeta.vend     += (miB.vendas   || miB.vend || 0);
+  });
+  // Vendas do dia também vêm de VENDAS (fonte RD)
+  if(_opsReal.vend === 0 && _dayVendas.length > 0) _opsReal.vend = _dayVendas.length;
+  // Meta diária = meta mensal / dias úteis
+  var _opsMetaDia = {
+    lig_real: Math.round((_opsMeta.lig_real||0) / Math.max(1,_workDays)),
+    agend:    Math.round((_opsMeta.agend||0)    / Math.max(1,_workDays)),
+    vis:      Math.round((_opsMeta.vis||0)      / Math.max(1,_workDays)),
+    prop:     Math.round((_opsMeta.prop||0)     / Math.max(1,_workDays)),
+    vend:     ((_opsMeta.vend||0) > 0 ? Math.max(1, Math.round((_opsMeta.vend||0) / Math.max(1,_workDays))) : 0)
+  };
+  function _opsPct(r, m){ return m>0 ? Math.round(r/m*100) : 0; }
+  function _opsCor(p){ return p>=100?'#22c55e':p>=70?'#f59e0b':'#ef4444'; }
+  var _metaDiaKpis = [
+    {k:'lig_real', ico:'📞', lbl:'Ligações'},
+    {k:'agend',    ico:'📅', lbl:'Agendamentos'},
+    {k:'vis',      ico:'🏠', lbl:'Visitas'},
+    {k:'prop',     ico:'📝', lbl:'Propostas'},
+    {k:'vend',     ico:'🏆', lbl:'Vendas'}
+  ];
+  // Pct médio (para "última hora" gap)
+  var _diaPctAvg = 0, _diaCnt = 0;
+  _metaDiaKpis.forEach(function(x){
+    var p = _opsPct(_opsReal[x.k], _opsMetaDia[x.k]);
+    if(_opsMetaDia[x.k] > 0){ _diaPctAvg += p; _diaCnt++; }
+  });
+  _diaPctAvg = _diaCnt > 0 ? Math.round(_diaPctAvg/_diaCnt) : 0;
+  var _dayPct = _diaPctAvg; // usado pelo bloco Última hora abaixo
+  var _diaCor = _opsCor(_diaPctAvg);
+  var _metaDia = 0; // mantido por compat (não usado mais)
   // Projeção fechamento mês
   var _pctMesTranscorrido = _workDays > 0 ? _workPassed / _workDays : 0;
   var _projVGVLinear = _pctMesTranscorrido > 0 ? totalVGV / _pctMesTranscorrido : totalVGV;
@@ -3574,21 +3656,37 @@ var pgWarArena = function(){
   var _gap = totalMeta - _projVGVBlend;
 
   h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">';
-  // Meta do Dia
+  // Meta do Dia — KPIs Operacionais
   h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-left:4px solid '+_diaCor+';border-radius:12px;padding:18px">';
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
-  h += '<h3 style="font-size:15px;font-weight:800;color:var(--cream);margin:0">⏰ Meta do Dia</h3>';
+  h += '<h3 style="font-size:15px;font-weight:800;color:var(--cream);margin:0">⏰ Meta do Dia <span style="font-size:10px;font-weight:500;color:var(--muted);margin-left:6px">operacional</span></h3>';
   h += '<span style="font-size:11px;color:var(--muted);font-weight:600">'+_now2.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'short'})+'</span>';
   h += '</div>';
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">';
-  h += '<div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Realizado hoje</div><div style="font-size:22px;font-weight:800;color:'+_diaCor+';margin-top:4px">'+fmt(_dayVGV)+'</div><div style="font-size:11px;color:var(--muted)">'+_dayVendas.length+' venda'+(_dayVendas.length===1?'':'s')+'</div></div>';
-  h += '<div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Meta diária</div><div style="font-size:22px;font-weight:800;color:var(--cream);margin-top:4px">'+fmt(_metaDia)+'</div><div style="font-size:11px;color:var(--muted)">'+_dayPct+'% atingido</div></div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px">';
+  _metaDiaKpis.forEach(function(x){
+    var r = _opsReal[x.k]||0;
+    var m = _opsMetaDia[x.k]||0;
+    var p = _opsPct(r,m);
+    var c = m>0 ? _opsCor(p) : '#64748b';
+    h += '<div style="background:var(--navy);border-radius:8px;padding:8px 6px;text-align:center;border-top:3px solid '+c+'">';
+    h += '<div style="font-size:14px">'+x.ico+'</div>';
+    h += '<div style="font-size:18px;font-weight:800;color:'+c+';line-height:1.1;margin-top:2px">'+r+'</div>';
+    h += '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;margin-top:1px">'+x.lbl+'</div>';
+    h += '<div style="font-size:10px;color:var(--muted);margin-top:2px">'+(m>0?('de '+m+' · '+p+'%'):'s/meta')+'</div>';
+    h += '</div>';
+  });
   h += '</div>';
-  h += '<div style="background:var(--navy);border-radius:6px;height:10px;overflow:hidden;margin-bottom:10px"><div style="height:100%;width:'+Math.min(100,_dayPct)+'%;background:linear-gradient(90deg,'+_diaCor+'aa,'+_diaCor+');border-radius:6px;transition:width .6s"></div></div>';
-  if(_hoursLeft > 0 && _dayPct < 100){
-    var _gapDia = Math.max(0, _metaDia - _dayVGV);
-    h += '<div style="padding:10px 12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;font-size:12px;color:#fbbf24"><b>⏳ Última hora:</b> restam <b>'+_hoursLeft.toFixed(1)+'h úteis</b> para bater '+fmt(_gapDia)+(_gapDia>0?' (gap)':'. Meta já batida!')+'</div>';
-  } else if(_dayPct >= 100){
+  h += '<div style="background:var(--navy);border-radius:6px;height:8px;overflow:hidden;margin-bottom:10px"><div style="height:100%;width:'+Math.min(100,_diaPctAvg)+'%;background:linear-gradient(90deg,'+_diaCor+'aa,'+_diaCor+');border-radius:6px;transition:width .6s"></div></div>';
+  h += '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);margin-bottom:8px"><span>Média das atividades: <b style="color:'+_diaCor+'">'+_diaPctAvg+'%</b></span><span>💰 VGV do dia: <b style="color:var(--gold2)">'+fmt(_dayVGV)+'</b></span></div>';
+  if(_hoursLeft > 0 && _diaPctAvg < 100){
+    // Gaps restantes por KPI
+    var _gapsTxt = _metaDiaKpis.map(function(x){
+      var r = _opsReal[x.k]||0; var m = _opsMetaDia[x.k]||0;
+      if(m<=0 || r>=m) return null;
+      return x.ico+' '+(m-r);
+    }).filter(function(v){return v;}).join(' · ');
+    h += '<div style="padding:10px 12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;font-size:12px;color:#fbbf24"><b>⏳ Última hora:</b> restam <b>'+_hoursLeft.toFixed(1)+'h úteis</b>'+(_gapsTxt?' · Gap: '+_gapsTxt:'')+'</div>';
+  } else if(_diaPctAvg >= 100){
     h += '<div style="padding:10px 12px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);border-radius:8px;font-size:12px;color:#22c55e;font-weight:700">🎯 Meta diária BATIDA! ('+_dayPct+'%)</div>';
   } else {
     h += '<div style="padding:10px 12px;background:rgba(100,116,139,0.15);border-radius:8px;font-size:12px;color:var(--muted)">Fora do horário comercial. Próximo pregão começa às '+_hrStart+'h.</div>';
@@ -3632,7 +3730,7 @@ var pgWarArena = function(){
     .sort(function(a,b){return b.prob - a.prob;});
   if(predictions.length > 0){
     h += '<div style="margin-bottom:24px">';
-    h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 12px">🧠 Preditor IA — Probabilidade de Bater Meta</h2>';
+    h += '<h2 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 12px">🧠 Preditor IA — Probabilidade de Bater Meta</h2>';
     h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px">';
     predictions.slice(0, 10).forEach(function(pr){
       var c = pr.corretor;
@@ -3652,28 +3750,23 @@ var pgWarArena = function(){
 
   // ===== PAINEL 3 EQUIPES + ALERTAS (mesmo do One on One) =====
   h += '<div style="margin-bottom:24px">';
-  h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 12px">📊 Performance por Equipe <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">dados do One on One — tempo real</span></h2>';
-  h += renderArenaEquipesPanel({dark:true, maxAlertas:12});
+  h += '<h2 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 12px">📊 Performance por Equipe <span style="font-size:11px;font-weight:400;color:#475569;margin-left:8px">dados do One on One — tempo real</span></h2>';
+  h += renderArenaEquipesPanel({dark:true, noAlertas:true});
   h += '</div>';
 
-  // ===== CONTROLES DE SOM AMBIENTE =====
-  var _curSound = S.arenaSound || 'cash';
-  var _soundEnabled = S.arenaSoundEnabled === true;
-  h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">';
-  h += '<span style="font-size:13px;font-weight:700;color:var(--cream)">🔊 Som Ambiente</span>';
-  h += '<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" '+(_soundEnabled?'checked':'')+' onchange="S.arenaSoundEnabled=this.checked;saveState();render()"><span style="font-size:12px;color:var(--muted)">Ativar jingle quando alguém bater meta</span></label>';
-  h += '<select onchange="S.arenaSound=this.value;saveState();playArenaSound(this.value)" style="padding:5px 10px;border-radius:6px;background:var(--navy);color:var(--cream);border:1px solid var(--navy3);font-size:12px">';
-  Object.keys(ARENA_SOUNDS).forEach(function(k){
-    h += '<option value="'+k+'" '+(_curSound===k?'selected':'')+'>'+ARENA_SOUNDS[k].name+' — '+ARENA_SOUNDS[k].desc+'</option>';
-  });
-  h += '</select>';
-  h += '<button onclick="playArenaSound(S.arenaSound)" style="padding:6px 14px;background:#6366f1;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">▶ Testar</button>';
-  h += '<button onclick="S._arenaMetaHits={};saveState();alert(\'Memória de hits resetada. O próximo corretor que bater meta tocará o som.\')" style="padding:6px 12px;background:transparent;color:var(--muted);border:1px solid var(--navy3);border-radius:6px;font-size:11px;cursor:pointer">Resetar hits</button>';
-  h += '</div>';
+  // ===== CONTROLES DE SOM AMBIENTE — movidos para Configurações (sócios) =====
+  // Indicador discreto para sócios com atalho de ajuste
+  if (S.user && S.user.role === 'socio') {
+    var _sndAtv = S.arenaSoundEnabled===true;
+    h += '<div style="background:transparent;border:1px dashed var(--navy3);border-radius:8px;padding:6px 12px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--muted)">';
+    h += '<span>🔊 Som ambiente '+(_sndAtv?'<b style="color:#22c55e">ATIVO</b>':'<b style="color:var(--muted)">desativado</b>')+'</span>';
+    h += '<button onclick="S.page=\'config\';render();setTimeout(function(){var e=document.getElementById(\'arena-sound-config\');if(e)e.scrollIntoView({behavior:\'smooth\'});},200)" style="margin-left:auto;padding:4px 10px;background:transparent;color:var(--navy);border:1px solid var(--navy3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">⚙️ Ajustar em Configurações</button>';
+    h += '</div>';
+  }
 
   // ===== BATALHA DE FRENTES =====
   h += '<div style="margin-bottom:24px">';
-  h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 12px">\u2694\ufe0f Batalha de Frentes</h2>';
+  h += '<h2 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 12px">\u2694\ufe0f Batalha de Frentes</h2>';
   h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">';
 
   var medalhas = ['\ud83e\udd47','\ud83e\udd48','\ud83e\udd49'];
@@ -3762,25 +3855,8 @@ var pgWarArena = function(){
   });
   h += '</table></div>';
 
-  // RIGHT: Alerts + Feedback
+  // RIGHT: Feedback (Alertas removidos — concentrados no One on One)
   h += '<div style="display:flex;flex-direction:column;gap:16px">';
-
-  // Alertas
-  h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:16px;padding:20px;flex:1">';
-  h += '<h2 style="font-size:16px;font-weight:700;color:var(--cream);margin:0 0 12px">\u26a0\ufe0f Alertas em Tempo Real</h2>';
-  h += '<div style="max-height:360px;overflow-y:auto">';
-  if(alertas.length === 0){
-    h += '<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px">Nenhum alerta no momento</div>';
-  } else {
-    alertas.slice(0,15).forEach(function(a){
-      var bgColor = a.tipo==='danger'?'rgba(239,68,68,.15)':a.tipo==='warn'?'rgba(245,158,11,.15)':'rgba(16,185,129,.15)';
-      var borderColor = a.tipo==='danger'?'var(--r)':a.tipo==='warn'?'var(--gold2)':'var(--g)';
-      var icon = a.tipo==='danger'?'\ud83d\udea8':a.tipo==='warn'?'\u26a0\ufe0f':'\u2705';
-      h += '<div style="background:' + bgColor + ';border-left:3px solid ' + borderColor + ';border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:13px;color:var(--cream)">';
-      h += icon + ' ' + a.msg + '</div>';
-    });
-  }
-  h += '</div></div>';
 
   // Feedback Rapido (gestor view) + Análise Gemini
   if(lvl >= 5){
@@ -3852,7 +3928,7 @@ var pgWarArena = function(){
   var mesesPassados = Math.max(1, now.getMonth() + _fracMes);
   var forecastAnual = Math.round(vgvAnual / mesesPassados * 12);
   var pctAnual = metaAnual > 0 ? Math.round(vgvAnual / metaAnual * 100) : 0;
-  h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:20px 0 16px">\ud83d\udcc5 Forecast Anual 2026</h2>';
+  h += '<h2 style="font-size:18px;font-weight:700;color:#0f172a;margin:20px 0 16px">\ud83d\udcc5 Forecast Anual 2026</h2>';
   h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:20px">';
   h += '<div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center">';
   h += '<div style="font-size:11px;color:var(--muted)">Meta Anual</div>';
@@ -15833,7 +15909,52 @@ async function rdDebugTest() {
 function pgConfig() {
   const u = S.user; const lvl = RLVL[u?.role]||0;
   if (lvl < 7) return '<div class="phd"><h1>Acesso Restrito</h1></div>';
+  // Bloco exclusivo de Sócios: Arena PSM — Som Ambiente
+  var arenaSoundCard = '';
+  if (u && u.role === 'socio') {
+    var _cs = S.arenaSound || 'cash';
+    var _sEn = S.arenaSoundEnabled === true;
+    var _ytUrl = (S.arenaMusicYoutube || '').replace(/"/g,'&quot;');
+    var _audUrl = (S.arenaMusicAudioUrl || '').replace(/"/g,'&quot;');
+    var _ytEnabled = S.arenaMusicYoutubeEnabled === true;
+    var _audEnabled = S.arenaMusicAudioEnabled === true;
+    arenaSoundCard = '<div class="card mt2" id="arena-sound-config" style="grid-column:1/-1;border:2px solid #6366f1"><div class="ctitle">\uD83D\uDD0A Arena PSM — Som Ambiente <span style="font-size:10px;font-weight:500;color:var(--muted);margin-left:8px">Exclusivo Sócios</span></div>'
+      + '<div style="font-size:11.5px;color:var(--muted);margin-bottom:14px;line-height:1.5">Configure o jingle tocado quando um corretor bate meta e a música ambiente do Arena PSM (modo TV).</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'
+      // Coluna 1: Jingle de meta batida
+      + '<div style="background:var(--cream2);border-radius:10px;padding:14px">'
+      + '<div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:10px">\uD83C\uDFAF Jingle — Corretor bate meta</div>'
+      + '<label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer"><input type="checkbox" '+(_sEn?'checked':'')+' onchange="S.arenaSoundEnabled=this.checked;saveState();render()"><span style="font-size:12px;color:var(--navy)">Ativar jingle quando alguém bater 100% da meta</span></label>'
+      + '<label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px">Som sintetizado (Web Audio — autoplay garantido)</label>'
+      + '<select onchange="S.arenaSound=this.value;saveState();playArenaSound(this.value)" class="finp" style="width:100%;padding:6px 10px;font-size:12px;margin-bottom:10px">'
+      + Object.keys(ARENA_SOUNDS).map(function(k){return '<option value="'+k+'" '+(_cs===k?'selected':'')+'>'+ARENA_SOUNDS[k].name+' — '+ARENA_SOUNDS[k].desc+'</option>';}).join('')
+      + '</select>'
+      + '<div style="display:flex;gap:6px;margin-bottom:10px">'
+      + '<button class="btn bp1 bsm" style="flex:1" onclick="playArenaSound(S.arenaSound)">▶ Testar</button>'
+      + '<button class="btn bout bsm" onclick="S._arenaMetaHits={};saveState();toast(\'Memória de hits resetada\',\'ok\')">Resetar hits</button>'
+      + '</div>'
+      + '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--cream3)">'
+      + '<label style="display:block;font-size:11px;font-weight:700;color:var(--navy);margin-bottom:4px">URL de arquivo MP3/WAV personalizado (opcional)</label>'
+      + '<input type="text" class="finp" placeholder="https://exemplo.com/jingle.mp3" value="'+_audUrl+'" onchange="S.arenaMusicAudioUrl=this.value;saveState()" style="width:100%;padding:6px 10px;font-size:11px;margin-bottom:6px">'
+      + '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer"><input type="checkbox" '+(_audEnabled?'checked':'')+' onchange="S.arenaMusicAudioEnabled=this.checked;saveState()"> Usar MP3 personalizado em vez do sintetizado</label>'
+      + '<div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4">💡 Arquivos MP3/WAV tocam com autoplay + volume controlado. Ideal para jingles curtos.</div>'
+      + '</div>'
+      + '</div>'
+      // Coluna 2: Música ambiente (YouTube)
+      + '<div style="background:var(--cream2);border-radius:10px;padding:14px">'
+      + '<div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:10px">\uD83C\uDFB6 Música Ambiente (Modo TV)</div>'
+      + '<label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer"><input type="checkbox" '+(_ytEnabled?'checked':'')+' onchange="S.arenaMusicYoutubeEnabled=this.checked;saveState();render()"><span style="font-size:12px;color:var(--navy)">Reproduzir música ambiente no modo TV</span></label>'
+      + '<label style="display:block;font-size:11px;font-weight:700;color:var(--navy);margin-bottom:4px">Link do YouTube (vídeo ou playlist)</label>'
+      + '<input type="text" class="finp" placeholder="https://youtube.com/watch?v=... ou playlist" value="'+_ytUrl+'" onchange="S.arenaMusicYoutube=this.value;saveState()" style="width:100%;padding:6px 10px;font-size:11px;margin-bottom:8px">'
+      + '<div style="padding:10px 12px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;font-size:10.5px;color:#78350f;line-height:1.5">'
+      + '<strong>⚠️ Importante sobre YouTube:</strong> navegadores modernos bloqueiam autoplay com som. Na primeira carga do modo TV, será necessário clicar PLAY manualmente uma vez. Depois roda em loop automático. '
+      + '<br><br><strong>Alternativa robusta:</strong> use URL direta de MP3 (ao lado) — autoplay funciona e volume é programático.'
+      + '</div>'
+      + '</div>'
+      + '</div></div>';
+  }
   return '<div class="phd"><h1>⚙️ Configurações</h1><p>Administração House PSM</p></div>'
+    + arenaSoundCard
     + '<div class="g2">'
     + '<div class="card"><div class="ctitle">Usuários & Equipe</div>'
     + BROKERS.map(b => '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--cream3)">'
