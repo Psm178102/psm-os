@@ -4004,23 +4004,27 @@ function predictMetaProbability(broker, opts){
     }, 0);
     pipeScore = meta>0 ? pW/meta : 0;
   }
-  // Fórmula: ritmo atual + metade do pipeline ponderado = "posição real"
-  var realPosition = pctAtingido + pipeScore * 0.5;
-  // Remaining pace needed
-  var remainingPct = 1 - pctMes;
-  var neededRate = remainingPct > 0 ? (1 - pctAtingido) / remainingPct : 99;
-  var currentRate = pctMes > 0 ? pctAtingido / pctMes : 0;
-  var paceRatio = neededRate > 0 ? currentRate / neededRate : 2;
-  // Sigmoid
-  var prob = 1 / (1 + Math.exp(-4 * (paceRatio - 0.8)));
-  prob = Math.round(Math.max(0, Math.min(100, prob * 100 + pipeScore * 10)));
+  // ── FÓRMULA v2 (2026-04-15): grounded em REALIZADO + pipeline ponderado com teto ──
+  // Antes: sigmoid dava 89% mesmo com 0% atingido e 0% projetado (Paulo flagou como sem sentido).
+  // Agora: probabilidade = P(expected_close >= 0.85) via sigmoid centrada em 0.75.
+  var remainingPct = Math.max(0, 1 - pctMes);
+  // Parte realista do pipeline: proporcional ao tempo restante, limitada ao gap da meta
+  var pipeRealistic = Math.min(pipeScore * remainingPct, Math.max(0, 1 - pctAtingido));
+  // "Expected close" = realizado + 60% do pipeline realista que tende a fechar
+  var expectedClose = pctAtingido + pipeRealistic * 0.6;
+  // Sigmoid: centrada em 0,75 da meta (atingir 85% é considerado "bater" — margem comercial)
+  var prob = 1 / (1 + Math.exp(-8 * (expectedClose - 0.75)));
+  prob = Math.round(Math.max(0, Math.min(100, prob * 100)));
+  // Sanidade: sem vendas + sem pipeline → prob baixíssima, independentemente do mês
+  if(pctAtingido === 0 && pipeScore === 0) prob = Math.min(prob, 5);
   var reason = '';
   if(ritmo >= 1.1) reason = 'acima do ritmo ('+Math.round(ritmo*100)+'%)';
   else if(ritmo >= 0.9) reason = 'no ritmo esperado';
   else if(ritmo >= 0.5) reason = 'abaixo do ritmo ('+Math.round(ritmo*100)+'%)';
+  else if(pctMes < 0.15) reason = 'início do mês';
   else reason = 'muito abaixo ('+Math.round(ritmo*100)+'%)';
-  if(pipeScore > 0.3) reason += ', pipeline +'+Math.round(pipeScore*100)+'%';
-  return {prob:prob, ritmo:ritmo, projected:projected, pipeScore:pipeScore, reason:reason, projPct:Math.round(projPct*100)};
+  if(pipeScore > 0.3) reason += ', pipe +'+Math.round(pipeScore*100)+'%';
+  return {prob:prob, ritmo:ritmo, projected:projected, pipeScore:pipeScore, reason:reason, projPct:Math.round(projPct*100), expectedClose:Math.round(expectedClose*100)};
 }
 window.predictMetaProbability = predictMetaProbability;
 
@@ -4251,42 +4255,6 @@ var pgWarArena = function(){
     h += tickerHtml;
     h += '</div>';
   }
-
-  // DATE FILTER
-  h += '<div style="margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-  var warDF = S.df_war || {preset:'Mes'};
-  var warPresets = [{id:'Mes',lbl:'M\u00eas Atual'},{id:'Ano',lbl:'Ano Acumulado'},{id:'30D',lbl:'30 Dias'},{id:'90D',lbl:'90 Dias'},{id:'Custom',lbl:'Per\u00edodo'}];
-  warPresets.forEach(function(p){
-    var active = warDF.preset === p.id;
-    h += '<button onclick="S.df_war={preset:\x27'+p.id+'\x27};render()" style="padding:6px 14px;border-radius:8px;border:1px solid '+(active?'var(--gold)':'rgba(255,255,255,.1)')+';background:'+(active?'rgba(212,168,67,.15)':'rgba(255,255,255,.03)')+';color:'+(active?'var(--gold)':'var(--muted)')+';font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer">'+p.lbl+'</button>';
-  });
-  if(warDF.preset==='Custom'){
-    h += '<input type="date" value="'+(warDF.from||'')+'" onchange="var d=S.df_war||{};d.from=this.value;d.preset=\x27Custom\x27;S.df_war=d;render()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--cream3);background:var(--cream2);color:var(--navy);font-size:11px">';
-    h += '<span style="color:var(--muted);font-size:11px">at\u00e9</span>';
-    h += '<input type="date" value="'+(warDF.to||'')+'" onchange="var d=S.df_war||{};d.to=this.value;d.preset=\x27Custom\x27;S.df_war=d;render()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--cream3);background:var(--cream2);color:var(--navy);font-size:11px">';
-  }
-  h += '</div>';
-
-    // KPI STRIP
-  h += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px">';
-  var kpis = [
-    {icon:'\ud83d\udcb0',val:fmt(totalVGV),lbl:'VGV Realizado',sub:totalMeta>0?'de '+fmt(totalMeta):''},
-    {icon:'\ud83c\udfc6',val:String(totalVendas),lbl:'Vendas Total',sub:'opera\u00e7\u00f5es'},
-    {icon:'\ud83c\udfaf',val:metaGlobalPct + '%',lbl:'Meta Global',sub:metaGlobalPct>=100?'\ud83d\ude80 Batida!':'em progresso'},
-    {icon:'\ud83c\udfe0',val:String(totalVis),lbl:'Visitas',sub:'realizadas'},
-    {icon:'\ud83d\udcdd',val:String(totalProp),lbl:'Propostas',sub:'enviadas'},
-    {icon:'\ud83d\udfe2',val:onlineCount + '/' + allCorretores.length,lbl:'Online',sub:'agora'}
-  ];
-  kpis.forEach(function(k){
-    h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:12px;padding:16px;text-align:center">';
-    h += '<div style="font-size:20px;margin-bottom:4px">' + k.icon + '</div>';
-    h += '<div style="font-size:22px;font-weight:800;color:var(--cream)">' + k.val + '</div>';
-    h += '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px">' + k.lbl + '</div>';
-    if(k.sub) h += '<div style="font-size:11px;color:var(--gold2);margin-top:2px">' + k.sub + '</div>';
-    h += '</div>';
-  });
-  h += '</div>';
-
   // ===== TIMELINE DE OPORTUNIDADES (módulo Oportunidades PSM — S.oportunidadesPSM) =====
   var _hojeStr = now.toISOString().slice(0,10);
   var _ops = (S.oportunidadesPSM || []).slice();
@@ -4361,6 +4329,42 @@ var pgWarArena = function(){
     h += '</div></div>';
   }
 
+  // DATE FILTER
+  h += '<div style="margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+  var warDF = S.df_war || {preset:'Mes'};
+  var warPresets = [{id:'Mes',lbl:'M\u00eas Atual'},{id:'Ano',lbl:'Ano Acumulado'},{id:'30D',lbl:'30 Dias'},{id:'90D',lbl:'90 Dias'},{id:'Custom',lbl:'Per\u00edodo'}];
+  warPresets.forEach(function(p){
+    var active = warDF.preset === p.id;
+    h += '<button onclick="S.df_war={preset:\x27'+p.id+'\x27};render()" style="padding:6px 14px;border-radius:8px;border:1px solid '+(active?'var(--gold)':'rgba(255,255,255,.1)')+';background:'+(active?'rgba(212,168,67,.15)':'rgba(255,255,255,.03)')+';color:'+(active?'var(--gold)':'var(--muted)')+';font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer">'+p.lbl+'</button>';
+  });
+  if(warDF.preset==='Custom'){
+    h += '<input type="date" value="'+(warDF.from||'')+'" onchange="var d=S.df_war||{};d.from=this.value;d.preset=\x27Custom\x27;S.df_war=d;render()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--cream3);background:var(--cream2);color:var(--navy);font-size:11px">';
+    h += '<span style="color:var(--muted);font-size:11px">at\u00e9</span>';
+    h += '<input type="date" value="'+(warDF.to||'')+'" onchange="var d=S.df_war||{};d.to=this.value;d.preset=\x27Custom\x27;S.df_war=d;render()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--cream3);background:var(--cream2);color:var(--navy);font-size:11px">';
+  }
+  h += '</div>';
+
+    // KPI STRIP
+  h += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px">';
+  var kpis = [
+    {icon:'\ud83d\udcb0',val:fmt(totalVGV),lbl:'VGV Realizado',sub:totalMeta>0?'de '+fmt(totalMeta):''},
+    {icon:'\ud83c\udfc6',val:String(totalVendas),lbl:'Vendas Total',sub:'opera\u00e7\u00f5es'},
+    {icon:'\ud83c\udfaf',val:metaGlobalPct + '%',lbl:'Meta Global',sub:metaGlobalPct>=100?'\ud83d\ude80 Batida!':'em progresso'},
+    {icon:'\ud83c\udfe0',val:String(totalVis),lbl:'Visitas',sub:'realizadas'},
+    {icon:'\ud83d\udcdd',val:String(totalProp),lbl:'Propostas',sub:'enviadas'},
+    {icon:'\ud83d\udfe2',val:onlineCount + '/' + allCorretores.length,lbl:'Online',sub:'agora'}
+  ];
+  kpis.forEach(function(k){
+    h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:12px;padding:16px;text-align:center">';
+    h += '<div style="font-size:20px;margin-bottom:4px">' + k.icon + '</div>';
+    h += '<div style="font-size:22px;font-weight:800;color:var(--cream)">' + k.val + '</div>';
+    h += '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px">' + k.lbl + '</div>';
+    if(k.sub) h += '<div style="font-size:11px;color:var(--gold2);margin-top:2px">' + k.sub + '</div>';
+    h += '</div>';
+  });
+  h += '</div>';
+
+
   // ===== META DO DIA + "ÚLTIMA HORA" + PROJEÇÃO FECHAMENTO MÊS =====
   var _now2 = new Date();
   var _dayStart = new Date(_now2.getFullYear(),_now2.getMonth(),_now2.getDate(),0,0,0);
@@ -4432,19 +4436,36 @@ var pgWarArena = function(){
   var _dayPct = _diaPctAvg; // usado pelo bloco Última hora abaixo
   var _diaCor = _opsCor(_diaPctAvg);
   var _metaDia = 0; // mantido por compat (não usado mais)
-  // Projeção fechamento mês
+  // Projeção fechamento mês (v2 — modelo conservador e transparente)
   var _pctMesTranscorrido = _workDays > 0 ? _workPassed / _workDays : 0;
-  var _projVGVLinear = _pctMesTranscorrido > 0 ? totalVGV / _pctMesTranscorrido : totalVGV;
-  // Pipeline ponderado = chance adicional
-  var _pipeW = 0;
+  // 1) Linear: extrapola o ritmo atual (R$ realizado ÷ % do mês que passou)
+  //    Protege contra divisão por zero (início do mês) ancorando no realizado.
+  var _projVGVLinear = _pctMesTranscorrido >= 0.1 ? totalVGV / _pctMesTranscorrido : totalVGV;
+  // 2) Pipeline ponderado por estágio do funil (Wi = probabilidade do estágio)
+  var _pipeW = 0, _pipeBruto = 0, _pipeQtde = 0;
   if(typeof OPPS!=='undefined'){
     OPPS.forEach(function(o){
       var stgs = FUNIS[o.fr]||FUNIS.lancamento||[];
       var s = stgs.find ? stgs.find(function(x){return (x.rdIds&&x.rdIds.indexOf(o.st)>=0)||x.id===o.st_psm||x.id===o.st;}) : null;
-      _pipeW += (o.vgv||0) * (s?s.w:0.1);
+      var w = s?s.w:0.1;
+      _pipeBruto += (o.vgv||0);
+      _pipeW += (o.vgv||0) * w;
+      _pipeQtde++;
     });
   }
-  var _projVGVBlend = _projVGVLinear * 0.6 + (totalVGV + _pipeW * (_workRemain/_workDays)) * 0.4;
+  // 3) Contribuição esperada do pipeline até o fim do mês.
+  //    - Multiplica pelo tempo restante (pipeW já é "valor esperado" do total)
+  //    - TETO: nunca pode passar do GAP para a meta (não faz sentido projetar > meta só por pipe)
+  var _pipeContribRaw = _pipeW * (_workDays > 0 ? _workRemain/_workDays : 0);
+  var _gapMeta = Math.max(0, totalMeta - totalVGV);
+  var _pipeContrib = Math.min(_pipeContribRaw, _gapMeta * 1.15); // permite 15% acima do gap (upside razoável)
+  var _projPipeline = totalVGV + _pipeContrib;
+  // 4) Blend 70/30 (mais peso no linear = mais ancorado em REALIZADO)
+  var _projVGVBlend = _projVGVLinear * 0.7 + _projPipeline * 0.3;
+  // 5) Pisos de sanidade: nunca menor que realizado, nunca maior que realizado + pipeline bruto
+  _projVGVBlend = Math.max(_projVGVBlend, totalVGV);
+  _projVGVBlend = Math.min(_projVGVBlend, totalVGV + _pipeBruto);
+  _projVGVBlend = Math.round(_projVGVBlend);
   var _projPct = totalMeta > 0 ? Math.round(_projVGVBlend/totalMeta*100) : 0;
   var _gap = totalMeta - _projVGVBlend;
 
@@ -4505,11 +4526,18 @@ var pgWarArena = function(){
   h += '<div style="position:absolute;left:100%;top:-3px;height:20px;width:2px;background:var(--gold);box-shadow:0 0 4px var(--gold)"></div>';
   h += '</div>';
   h += '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>Realizado: <b style="color:var(--cream)">'+metaGlobalPct+'%</b></span><span>Projetado: <b style="color:'+_projCor+'">'+_projPct+'%</b></span><span>Meta: <b style="color:var(--gold)">100%</b></span></div>';
-  h += '<div style="margin-top:10px;padding:8px 10px;background:rgba(99,102,241,0.08);border-radius:6px;font-size:11px;color:var(--muted)">Modelo: 60% ritmo linear + 40% pipeline ponderado · '+_pctMesTranscorrido.toFixed(2).replace('.',',')+' do mês transcorrido</div>';
+  // Breakdown transparente do modelo (Paulo pediu: "de onde vem essa projeção?")
+  h += '<div style="margin-top:10px;padding:10px 12px;background:rgba(99,102,241,0.08);border-radius:6px;font-size:11px;color:var(--muted);line-height:1.55">';
+  h += '<div style="font-weight:700;color:var(--cream);margin-bottom:4px">📐 De onde vem essa projeção?</div>';
+  h += '<div>• <b>Linear (70%):</b> '+fmt(totalVGV)+' ÷ '+Math.round(_pctMesTranscorrido*100)+'% do mês = <b style="color:var(--cream)">'+fmt(Math.round(_projVGVLinear))+'</b></div>';
+  h += '<div>• <b>Pipeline (30%):</b> '+fmt(totalVGV)+' + pipe ponderado ('+_pipeQtde+' opps · '+fmt(_pipeW)+') × '+Math.round((_workRemain/Math.max(1,_workDays))*100)+'% restante = <b style="color:var(--cream)">'+fmt(Math.round(_projPipeline))+'</b>'+(_pipeContribRaw>_pipeContrib?' <span style="color:#fb923c" title="Cap aplicado: pipeline não pode projetar &gt; meta+15%">⚠ capado</span>':'')+'</div>';
+  h += '<div>• <b>Combinado:</b> '+fmt(Math.round(_projVGVLinear))+' × 0,70 + '+fmt(Math.round(_projPipeline))+' × 0,30 = <b style="color:#6366f1">'+fmt(_projVGVBlend)+'</b></div>';
+  h += '<div style="margin-top:4px;font-size:10px;opacity:.75">'+_workPassed+'/'+_workDays+' dias úteis decorridos · pipeline bruto '+fmt(_pipeBruto)+'</div>';
+  h += '</div>';
   h += '</div>';
   h += '</div>';
 
-  // ===== PREDITOR IA — TOP 5 probabilidade de bater meta =====
+  // ===== PREDITOR IA — TODOS os corretores, agrupados por frente/equipe =====
   var predictions = allCorretores
     .filter(function(c){ return c.meta > 0; })
     .map(function(c){
@@ -4518,27 +4546,74 @@ var pgWarArena = function(){
       brokerObj.meta = c.meta;
       brokerObj.frente = c.frente;
       var p = predictMetaProbability(brokerObj);
-      return {corretor:c, prob:p.prob, reason:p.reason, projPct:p.projPct};
-    })
-    .sort(function(a,b){return b.prob - a.prob;});
-  if(predictions.length > 0){
-    h += '<div style="margin-bottom:24px">';
-    h += '<h2 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 12px">🧠 Preditor IA — Probabilidade de Bater Meta</h2>';
-    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px">';
-    predictions.slice(0, 10).forEach(function(pr){
-      var c = pr.corretor;
-      var probCor = pr.prob >= 75 ? '#22c55e' : pr.prob >= 50 ? '#f59e0b' : pr.prob >= 25 ? '#fb923c' : '#ef4444';
-      h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-left:4px solid '+probCor+';border-radius:10px;padding:12px">';
-      h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">';
-      h += '<div style="width:32px;height:32px;border-radius:50%;background:'+c.color+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">'+c.ini+'</div>';
-      h += '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:700;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+c.name+'</div><div style="font-size:10px;color:var(--muted)">'+c.metaPct+'% atingido · '+pr.projPct+'% projetado</div></div>';
-      h += '<div style="font-size:22px;font-weight:800;color:'+probCor+'">'+pr.prob+'%</div>';
-      h += '</div>';
-      h += '<div style="background:var(--navy);border-radius:3px;height:6px;overflow:hidden;margin-bottom:6px"><div style="height:100%;width:'+pr.prob+'%;background:'+probCor+';border-radius:3px;transition:width .6s"></div></div>';
-      h += '<div style="font-size:10.5px;color:var(--muted);font-style:italic">'+pr.reason+'</div>';
-      h += '</div>';
+      return {corretor:c, prob:p.prob, reason:p.reason, projPct:p.projPct, expectedClose:p.expectedClose, pipeScore:p.pipeScore};
     });
-    h += '</div></div>';
+  if(predictions.length > 0){
+    // Agrupa por frente (conquista, lancamento/MAP, terceiros, locacao)
+    var _frenteLabels = {
+      conquista: {lbl:'🏠 Conquista', color:'#d4a843'},
+      lancamento: {lbl:'🚀 MAP (Lançamentos)', color:'#8b5cf6'},
+      terceiros: {lbl:'🔑 Terceiros', color:'#06b6d4'},
+      locacao: {lbl:'📍 Locação', color:'#10b981'},
+      outros: {lbl:'👥 Outros', color:'#64748b'}
+    };
+    var _byFrente = {};
+    predictions.forEach(function(pr){
+      var f = pr.corretor.frente || 'outros';
+      if(!_frenteLabels[f]) f = 'outros';
+      if(!_byFrente[f]) _byFrente[f] = [];
+      _byFrente[f].push(pr);
+    });
+    Object.keys(_byFrente).forEach(function(f){
+      _byFrente[f].sort(function(a,b){return b.prob - a.prob;});
+    });
+
+    h += '<div style="margin-bottom:24px">';
+    h += '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:12px">';
+    h += '<div><h2 style="font-size:18px;font-weight:700;color:#0f172a;margin:0">🧠 Preditor IA — Probabilidade de Bater Meta</h2>';
+    h += '<div style="font-size:11px;color:var(--muted);margin-top:4px">'+predictions.length+' corretores com meta ativa · agrupados por equipe</div></div>';
+    // Metodologia (Paulo pediu: "essa % você tá tirando da onde?")
+    h += '<details style="font-size:11px;color:var(--muted);max-width:420px"><summary style="cursor:pointer;color:#6366f1;font-weight:600">ℹ️ Como é calculada?</summary>';
+    h += '<div style="margin-top:6px;padding:8px 10px;background:rgba(99,102,241,0.08);border-radius:6px;line-height:1.5">';
+    h += '<b>Fonte:</b> dados reais (VENDAS + OPPS do RD Station).<br>';
+    h += '<b>Fórmula:</b> <code style="font-size:10px">expected = atingido + pipeline_ponderado × tempo_restante × 0,6</code><br>';
+    h += 'Pipeline ponderado usa pesos (W) por estágio do funil. Teto: não pode ultrapassar o gap da meta.<br>';
+    h += '<b>Probabilidade:</b> sigmoid centrada em 75% (atingir ≥85% da meta = alta prob).<br>';
+    h += '<b>Sanidade:</b> 0 vendas + 0 pipeline = máx 5%.';
+    h += '</div></details>';
+    h += '</div>';
+
+    var _frenteOrder = ['conquista','lancamento','terceiros','locacao','outros'];
+    _frenteOrder.forEach(function(f){
+      var arr = _byFrente[f];
+      if(!arr || !arr.length) return;
+      var flbl = _frenteLabels[f];
+      // Média da equipe
+      var avgProb = Math.round(arr.reduce(function(a,x){return a+x.prob;},0) / arr.length);
+      var teamBadgeCor = avgProb >= 75 ? '#22c55e' : avgProb >= 50 ? '#f59e0b' : avgProb >= 25 ? '#fb923c' : '#ef4444';
+      h += '<div style="margin-bottom:14px">';
+      h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 12px;background:'+flbl.color+'22;border-left:3px solid '+flbl.color+';border-radius:6px">';
+      h += '<span style="font-size:13px;font-weight:800;color:var(--cream)">'+flbl.lbl+'</span>';
+      h += '<span style="font-size:10px;color:var(--muted)">'+arr.length+(arr.length===1?' corretor':' corretores')+'</span>';
+      h += '<span style="margin-left:auto;font-size:11px;color:var(--muted)">Média: <b style="color:'+teamBadgeCor+'">'+avgProb+'%</b></span>';
+      h += '</div>';
+      h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px">';
+      arr.forEach(function(pr){
+        var c = pr.corretor;
+        var probCor = pr.prob >= 75 ? '#22c55e' : pr.prob >= 50 ? '#f59e0b' : pr.prob >= 25 ? '#fb923c' : '#ef4444';
+        h += '<div title="atingido '+c.metaPct+'% · projetado '+pr.projPct+'% · esperado '+(pr.expectedClose||0)+'% · pipe score '+Math.round((pr.pipeScore||0)*100)+'%" style="background:var(--navy2);border:1px solid var(--navy3);border-left:4px solid '+probCor+';border-radius:10px;padding:10px 12px">';
+        h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">';
+        h += '<div style="width:28px;height:28px;border-radius:50%;background:'+c.color+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0">'+c.ini+'</div>';
+        h += '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+c.name+'</div><div style="font-size:9.5px;color:var(--muted)">'+c.metaPct+'% atingido · '+pr.projPct+'% projetado</div></div>';
+        h += '<div style="font-size:20px;font-weight:800;color:'+probCor+'">'+pr.prob+'%</div>';
+        h += '</div>';
+        h += '<div style="background:var(--navy);border-radius:3px;height:5px;overflow:hidden;margin-bottom:4px"><div style="height:100%;width:'+pr.prob+'%;background:'+probCor+';border-radius:3px;transition:width .6s"></div></div>';
+        h += '<div style="font-size:10px;color:var(--muted);font-style:italic">'+pr.reason+'</div>';
+        h += '</div>';
+      });
+      h += '</div></div>';
+    });
+    h += '</div>';
   }
 
   // ===== PAINEL 3 EQUIPES + ALERTAS (mesmo do One on One) =====
