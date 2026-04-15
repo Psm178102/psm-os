@@ -1,0 +1,21 @@
+{
+  "name": "PSM OS — House PSM",
+  "short_name": "PSM OS",
+  "description": "Sistema operacional PSM Assessoria Imobiliária",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Check-in", "url": "/?p=checkin", "icons": [{"src":"/icon-192.png","sizes":"192x192"}] },
+    { "name": "1:1 do Dia", "url": "/?p=one_on_one", "icons": [{"src":"/icon-192.png","sizes":"192x192"}] },
+    { "name": "Arena PSM", "url": "/?p=wararena", "icons": [{"src":"/icon-192.png","sizes":"192x192"}] }
+  ]
+}

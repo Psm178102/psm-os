@@ -8,6 +8,15 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="version" content="2026.04.10-deepfix">
+<!-- PWA (2026-04-15): mobile-first, instalável -->
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PSM OS">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <title>House PSM</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
@@ -449,9 +458,17 @@ html{height:100%;overflow:hidden}
   /* Kanban horizontal scroll on mobile */
   .kanban-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
-  /* Bigger touch targets */
-  .sb-lnk { min-height: 40px; font-size: 12px; }
-  .btn { min-height: 36px; }
+  /* Bigger touch targets (WCAG 44×44 mínimo) */
+  .sb-lnk { min-height: 44px; font-size: 12px; }
+  .btn, button { min-height: 44px; }
+  /* Check-in: botão primário gigante em mobile (fácil tocar sem olhar) */
+  .btn-g, [onclick*="doCheckin"], [onclick*="doCheckout"], [onclick*="voltarOnline"] {
+    min-height: 56px !important; font-size: 16px !important; width: 100%;
+  }
+  /* Grid de ações do Check-in vira 1 coluna em mobile pequeno */
+  @media (max-width: 480px) {
+    [style*="grid-template-columns:repeat(auto-fit,minmax(140px"] { grid-template-columns: 1fr !important; }
+  }
 
   /* Toast position */
   #toast { bottom: 80px; }
@@ -665,6 +682,26 @@ html{height:100%;overflow:hidden}
 
 <script>
 'use strict';
+// ─── PWA: registra Service Worker (2026-04-15) ───────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('/sw.js').then(function(reg){
+      console.log('[PSM-PWA] SW registrado:', reg.scope);
+      // Check for update every hour
+      setInterval(function(){ try{reg.update();}catch(e){} }, 3600000);
+      // Notify user when new version is ready
+      reg.addEventListener('updatefound', function(){
+        var nw = reg.installing;
+        if(!nw) return;
+        nw.addEventListener('statechange', function(){
+          if(nw.state === 'activated' && navigator.serviceWorker.controller){
+            try { toast('🔄 Nova versão disponível — recarregue a página','ok'); } catch(e){}
+          }
+        });
+      });
+    }).catch(function(err){ console.warn('[PSM-PWA] SW falhou:', err); });
+  });
+}
 // ─── UTILS ───────────────────────────────────────────────────────────────────
 const fmt=n=>{if(n===null||n===undefined||isNaN(n))return'—';return'R$ '+Math.round(n).toLocaleString('pt-BR');};
 const pN=(v,t)=>t>0?parseFloat((v/t*100).toFixed(2)):0;
@@ -24220,13 +24257,23 @@ var existingPc=document.getElementById("pc");if(existingPc&&!force){try{/* Prese
 function renderMobNav() {
   const u = S.user; if(!u) return '';
   const p = S.page;
-  const items = [
-    {id:'checkin',        ico:'\u23F0', lbl:'Check-in'},
+  // Menu fixo por perfil (Paulo 2026-04-15 — prioridades mobile)
+  var perfil = (typeof getPerfil==='function') ? getPerfil() : 'corretor';
+  var isDiretor = perfil==='diretor' || perfil==='socio' || perfil==='backoffice' || perfil==='lider';
+  var items = isDiretor ? [
+    {id:'dashboard',      ico:'\uD83D\uDCCA', lbl:'Dashboard'},
     {id:'wararena',       ico:'\u2694\uFE0F', lbl:'Arena'},
-    {id:'ranking',        ico:'\uD83C\uDFC6', lbl:'Ranking'},
     {id:'agenda_psm',     ico:'\uD83D\uDCC5', lbl:'Agenda'},
+    {id:'plantoes',       ico:'\uD83C\uDFE0', lbl:'Plantões'},
     {id:'lancamentos_ano',ico:'\uD83D\uDE80', lbl:'Lanç.'},
-    {id:'agente_vera',    ico:'\uD83D\uDC9C', lbl:'Vera'},
+    {id:'checkin',        ico:'\u23F0', lbl:'Check-in'},
+  ] : [
+    {id:'checkin',        ico:'\u23F0', lbl:'Check-in'},
+    {id:'oneonone',       ico:'\uD83D\uDCDD', lbl:'1:1'},
+    {id:'agenda_psm',     ico:'\uD83D\uDCC5', lbl:'Agenda'},
+    {id:'plantoes',       ico:'\uD83C\uDFE0', lbl:'Plantões'},
+    {id:'wararena',       ico:'\u2694\uFE0F', lbl:'Arena'},
+    {id:'lancamentos_ano',ico:'\uD83D\uDE80', lbl:'Lanç.'},
   ];
   return '<div id="mob-nav">'
     + items.map(i => '<button onclick="nav(\'' + i.id + '\')" class="' + (p===i.id?'on':'') + '">'
