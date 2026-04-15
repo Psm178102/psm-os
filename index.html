@@ -936,6 +936,60 @@ function calcOKRs(){
 const OKRS=[]; // populated after METRICS is defined and after RD sync
 
 // ═══════════════════════════════════════════════════════════════════════════
+// RADAR DE CONCORR\u00caNCIA — 44 imobili\u00e1rias/corretores monitorados
+// ═══════════════════════════════════════════════════════════════════════════
+const COMPETITORS = [
+  {n:'FG',id:'251428058048549',tier:'A'},
+  {n:'Imobili\u00e1ria S\u00e3o Jos\u00e9',id:'109950098309921',tier:'A'},
+  {n:'Nexgen',id:'857841284076491',tier:'A'},
+  {n:'Renascer & Jales JK',id:'1029339286932287',tier:'B'},
+  {n:'House3 Imobili\u00e1ria',id:'336027406258118',tier:'A'},
+  {n:'Grupo Zani',id:'101587087976514',tier:'A'},
+  {n:'Irm\u00e3os Ferreira',id:'1693511670731545',tier:'B'},
+  {n:'Condominium Im\u00f3veis',id:'144347112425008',tier:'B'},
+  {n:'Westim',id:'109584225112402',tier:'B'},
+  {n:'Shimana Im\u00f3veis',id:'770368413001259',tier:'B'},
+  {n:'ATLAS Imobili\u00e1ria',id:'499455473247880',tier:'A'},
+  {n:'5G Im\u00f3veis',id:'112977187072469',tier:'B'},
+  {n:'Gemim',id:'103782116143274',tier:'B'},
+  {n:'Ana Ancheta',id:'101422654811836',tier:'B'},
+  {n:'Allegro Prime',id:'111717875267207',tier:'A'},
+  {n:'Nova Gera\u00e7\u00e3o',id:'102488338043286',tier:'B'},
+  {n:'Im\u00f3veis Alto Padr\u00e3o',id:'111269225330893',tier:'A'},
+  {n:'Alonso Neg\u00f3cios',id:'214733118396261',tier:'B'},
+  {n:'Bless Neg\u00f3cios',id:'103307098655854',tier:'B'},
+  {n:'Gabriel Elegance',id:'104791488719525',tier:'A'},
+  {n:'Fit Prime',id:'104029939216479',tier:'B'},
+  {n:'Felix & Maciel',id:'100371522647785',tier:'B'},
+  {n:'Martin & Carrazone',id:'243459655523557',tier:'B'},
+  {n:'Vanessa Brianti',id:'400613696477539',tier:'B'},
+  {n:'Guilherme Neilly',id:'105137467515540',tier:'B'},
+  {n:'Jo\u00e3o Gabriel',id:'104031465786185',tier:'B'},
+  {n:'Urbano Neg\u00f3cios',id:'111954114977621',tier:'B'},
+  {n:'Diego Urbano',id:'830545453485228',tier:'B'},
+  {n:'Matheus Santilli',id:'164196200120273',tier:'B'},
+  {n:'Bonf\u00e1 Im\u00f3veis',id:'109848154827554',tier:'B'},
+  {n:'Marco Deboletta',id:'122097377192007409',tier:'B'},
+  {n:'Mari Bolandin',id:'1445088742301910',tier:'B'},
+  {n:'Gabi Im\u00f3veis',id:'108413597406322',tier:'B'},
+  {n:'Jo\u00e3o Mozaquatro',id:'102322759550436',tier:'B'},
+  {n:'Marco Vessani',id:'101976961866630',tier:'B'},
+  {n:'Franco Marinho',id:'362467630752770',tier:'B'},
+  {n:'RR Broker',id:'327246514399591',tier:'B'},
+  {n:'Porta8',id:'107775701156073',tier:'A'},
+  {n:'Compacto Im\u00f3veis',id:'114751304955764',tier:'B'},
+  {n:'Allianza',id:'837960639566169',tier:'A'},
+  {n:'Andrea Torquatro',id:'100558971514637',tier:'B'},
+  {n:'Fred Tonelli',id:'754051904456906',tier:'B'},
+  {n:'Simone Moreno',id:'738752766476515',tier:'B'},
+  {n:'Jean Doniani',id:'405869292615098',tier:'B'}
+];
+
+function competitorLibUrl(pageId){
+  return 'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&is_targeted_country=false&media_type=all&search_type=page&sort_data[direction]=desc&sort_data[mode]=total_impressions&view_all_page_id='+pageId;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PSM GLOBAL UTILITIES — fonte \u00fanica de verdade, audit log, webhooks, mocks
 // ═══════════════════════════════════════════════════════════════════════════
 window.PSM = window.PSM || {};
@@ -1094,7 +1148,12 @@ function calcForecasts(){
 
   // PROJEÇÃO MENSAL HÍBRIDA: 50% ritmo linear + 50% pipeline ponderado restante
   // Evita números irreais quando ritmo atual é muito alto OU muito baixo.
-  const projLinear = pctMonth > 0 ? (vgvReal / pctMonth) : vgvReal;
+  // FIX: no início do mês (pctMonth<20% E vgvReal=0), ancorar em metaMonth
+  // para não exibir projeção zerada que subestima absurdamente.
+  const _hasData = vgvReal > 0 || pctMonth >= 0.2;
+  const projLinear = _hasData
+    ? (pctMonth > 0 ? (vgvReal / pctMonth) : vgvReal)
+    : metaMonth;
   const projPipeline = vgvReal + pipelinePond * (workDays > 0 ? workRemain/workDays : 0);
   const projMonth = Math.round(projLinear * 0.5 + projPipeline * 0.5);
 
@@ -1810,9 +1869,12 @@ function pgDashboard(){
   if(_mg){const _cm=new Date().getMonth();METRICS.vgv_meta=_mg.metaTotal(_cm)||METRICS.vgv_meta;}
   FORECASTS=calcForecasts();
   recalcMonthly();
-  const fOPPS = applyDateFilter(OPPS, 'dash');
-  const fVENDAS = applyDateFilter(VENDAS, 'dash');
-  const fLOST = applyDateFilter(LOST_DEALS, 'dash');
+  var fOPPS = applyDateFilter(OPPS, 'dash');
+  var fVENDAS = applyDateFilter(VENDAS, 'dash');
+  var fLOST = applyDateFilter(LOST_DEALS, 'dash');
+  fOPPS = PSM.filterReal(fOPPS);
+  fVENDAS = PSM.filterReal(fVENDAS);
+  fLOST = PSM.filterReal(fLOST);
 
   const m=METRICS;
   const vgvR=fVENDAS.reduce((a,v)=>a+(v.vgv||0),0);
@@ -1831,6 +1893,13 @@ function pgDashboard(){
 
   // Status bar
   var h='<div class="phd"><div class="phd-row"><div><h1>Dashboard Executivo</h1><p>'+m.mes+' \u00B7 '+m.du_pass+'/'+m.du_tot+' dias \u00fateis \u00B7 '+m.du_rest+' restantes</p></div></div></div>'+df;
+
+  // Check for empty OPPS when mock is hidden
+  if(fOPPS.length===0 && !PSM.isMockDataHidden()) {
+    // Only show if hideMock is OFF (data should be real)
+  } else if(fOPPS.length===0 && PSM.isMockDataHidden()) {
+    h+='<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:11px;color:#78350f"><strong>⚠️ Sem oportunidades:</strong> Verifique sincronização com RD Station.</div>';
+  }
 
   // ── HERO STATUS — reorganizado: ritmo (% meta vs % tempo), projeção, cobertura por frente ──
   var pctTempo = m.du_tot>0 ? parseFloat((m.du_pass/m.du_tot*100).toFixed(2)) : 0;
@@ -1889,12 +1958,27 @@ function pgDashboard(){
       var fr = FRENTES[fid]||{}; var st = _fs[fid]||{vgv:0,meta:0};
       var pipeF = fOPPS.filter(function(o){return o.fr===fid;}).reduce(function(a,o){return a+(o.vgv||0);},0);
       var metaF = st.meta||0;
-      var cob = metaF>0 ? (pipeF/metaF) : 0;
-      var cobCor = cob>=3?'#22c55e':cob>=2?'#d4a843':'#ef4444';
-      h+='<div style="padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:3px solid '+cobCor+';cursor:pointer" onclick="nav(\'kpis\')">';
+      var realF = st.vgv||0;
+      // FIX: cobertura sobre meta RESTANTE (o que ainda falta bater), não meta total.
+      // Meta já batida: exibir "✓" e cobertura "saturada".
+      var metaRest = Math.max(0, metaF - realF);
+      var cob, cobLbl, cobCor, subLbl;
+      if(metaRest <= 0 && metaF > 0){
+        cob = 99; cobLbl = '\u2713 Batida'; cobCor = '#22c55e';
+        subLbl = 'Pipe '+fmt(pipeF)+' \u00B7 Real '+fmt(realF)+'/'+fmt(metaF);
+      } else if(metaRest > 0){
+        cob = pipeF / metaRest;
+        cobLbl = cob.toFixed(2)+'x';
+        cobCor = cob>=3?'#22c55e':cob>=2?'#d4a843':'#ef4444';
+        subLbl = 'Pipe '+fmt(pipeF)+' \u00B7 Falta '+fmt(metaRest);
+      } else {
+        cob = 0; cobLbl = '—'; cobCor = '#64748b';
+        subLbl = 'Meta n\u00e3o definida';
+      }
+      h+='<div style="padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:3px solid '+cobCor+';cursor:pointer" onclick="showDrill(\'pipeline\',{frente:\''+fid+'\'})" title="Ver oportunidades da frente '+(fr.nm||fid)+'">';
       h+='<div style="font-size:10px;color:#cbd5e1;font-weight:600">'+(fr.nm||fid)+'</div>';
-      h+='<div style="font-size:18px;font-weight:800;color:'+cobCor+'">'+cob.toFixed(2)+'x</div>';
-      h+='<div style="font-size:9px;color:#94a3b8">Pipe '+fmt(pipeF)+' \u00B7 Meta '+fmt(metaF)+'</div>';
+      h+='<div style="font-size:18px;font-weight:800;color:'+cobCor+'">'+cobLbl+'</div>';
+      h+='<div style="font-size:9px;color:#94a3b8">'+subLbl+'</div>';
       h+='</div>';
     });
     h+='</div></div>';
@@ -1931,6 +2015,17 @@ function pgDashboard(){
     if(semRetorno>0) items.push({ts:_nowTs,ico:'\u23F1\uFE0F',cor:'#ef4444',tit:semRetorno+' oportunidades sem retorno',desc:'+3 dias sem contato \u00B7 risco de perda'});
     // Dias úteis críticos
     if((m.du_rest||0)<=3 && pctMeta<90) items.push({ts:_nowTs,ico:'\uD83D\uDD25',cor:'#ef4444',tit:'Reta final do m\u00eas',desc:m.du_rest+' DU restantes \u00B7 '+pctMeta+'% da meta \u00B7 VGV/DU necess\u00e1rio: '+fmt(Math.round(duRest>0?gap/duRest:0))});
+    // Radar de concorrência: flagged nos últimos 3 dias
+    try {
+      var cs = S.competitorsState || {};
+      (COMPETITORS||[]).forEach(function(c){
+        var s = cs[c.id]; if(!s || !s.flagged) return;
+        var ts = s.lastChangeAt || s.lastCheck || _nowTs;
+        if(_nowTs - ts <= 3*24*3600*1000){
+          items.push({ts:ts, ico:'\uD83D\uDEA9', cor:c.tier==='A'?'#ef4444':'#f59e0b', tit:'Concorrente: '+c.n+(c.tier==='A'?' (Tier A)':''), desc:(s.lastChangeNote||'mudan\u00e7a detectada')});
+        }
+      });
+    } catch(e){}
 
     items.sort(function(a,b){return b.ts-a.ts;});
     items=items.slice(0,12);
@@ -2696,9 +2791,12 @@ function pgRanking(){
 
   // ── Filter deals by selected period ──
   recalcBrokerMetrics('rank');
-  const fOPPS = applyDateFilter(OPPS, 'rank');
-  const fVENDAS = applyDateFilter(VENDAS, 'rank');
-  const fLOST = applyDateFilter(LOST_DEALS, 'rank');
+  var fOPPS = applyDateFilter(OPPS, 'rank');
+  var fVENDAS = applyDateFilter(VENDAS, 'rank');
+  var fLOST = applyDateFilter(LOST_DEALS, 'rank');
+  fOPPS = PSM.filterReal(fOPPS);
+  fVENDAS = PSM.filterReal(fVENDAS);
+  fLOST = PSM.filterReal(fLOST);
   const fTASKS_rank = applyDateFilter(TASKS_RD || [], 'rank');
 
   // ── Recalculate broker metrics for filtered period ──
@@ -3718,6 +3816,7 @@ var pgWarArena = function(){
 
   // Override totais com VENDAS (mesma fonte do Dashboard) para incluir vendas nao-corretores
   var fVENDAS_war = applyDateFilter(VENDAS, 'war');
+  fVENDAS_war = PSM.filterReal(fVENDAS_war);
   totalVGV = fVENDAS_war.reduce(function(a,v){return a+(v.vgv||0)},0);
   totalVendas = fVENDAS_war.length;
   // META MENSAL — fonte única: painel de metas da Diretoria (S.mg via getMetaGlobal)
@@ -5241,9 +5340,12 @@ function pgForecast(){
   if(!S.df_forecast) S.df_forecast = {preset:'Mes'};
   const df=DateFilter('forecast','Período de análise');
   recalcBrokerMetrics('forecast');
-  const fOPPS=applyDateFilter(OPPS,'forecast');
-  const fVENDAS=applyDateFilter(VENDAS,'forecast');
-  const fLOST=applyDateFilter(LOST_DEALS,'forecast');
+  var fOPPS=applyDateFilter(OPPS,'forecast');
+  var fVENDAS=applyDateFilter(VENDAS,'forecast');
+  var fLOST=applyDateFilter(LOST_DEALS,'forecast');
+  fOPPS = PSM.filterReal(fOPPS);
+  fVENDAS = PSM.filterReal(fVENDAS);
+  fLOST = PSM.filterReal(fLOST);
   const pW=fOPPS.reduce((a,o)=>{const stages=(FUNIS[o.fr]||FUNIS.lancamento||[]);const s=stages.find?stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st)):null;return a+(o.vgv*(s?s.w:.1));},0);
   const vgvR=fVENDAS.reduce((a,v)=>a+(v.vgv||0),0);
   const vgvLost=fLOST.reduce((a,l)=>a+(l.vgv||0),0);
@@ -11930,7 +12032,7 @@ function pgRepasses() {
   };
   window.toggleRepasse = function(i) {
     const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
-    if (arr[i]) { arr[i].status = arr[i].status === 'realizado' ? 'agendado' : 'realizado'; localStorage.setItem('psm_repasses', JSON.stringify(arr)); }
+    if (arr[i]) { arr[i].status = arr[i].status === 'realizado' ? 'agendado' : 'realizado'; localStorage.setItem('psm_repasses', JSON.stringify(arr)); if(typeof PSM !== 'undefined' && PSM.auditLog) PSM.auditLog('repasse.toggled', {idx:i, status:arr[i].status}, 'pgRepasses'); }
     pgRepasses();
   };
   window.removeRepasse = function(i) {
@@ -14304,6 +14406,7 @@ function updLancMeta(idx, key, val) {
   if (!S.lancTimeline || idx < 0 || idx >= S.lancTimeline.length) return;
   S.lancTimeline[idx][key] = val;
   saveLancData();
+  if(typeof PSM !== 'undefined' && PSM.auditLog) PSM.auditLog('lancTimeline.updated', {idx:idx,key:key,val:val}, 'pgMetasV2');
   toast('\u2705 Salvo: ' + key + ' = ' + val, 'ok');
 }
 
@@ -18182,6 +18285,7 @@ function renderSB() {
       {id:'kpis',        lbl:'KPIs',                ico:'\uD83D\uDCC8'},
       {id:'metas',       lbl:'Metas',               ico:'\uD83C\uDFAF'},
       {id:'governance',  lbl:'Governan\u00e7a',     ico:'\uD83D\uDEE1'},
+      {id:'radar_conc',  lbl:'Radar Concorr\u00eancia', ico:'\uD83D\uDEF0\uFE0F'},
       {id:'dashboard',   lbl:'Dashboard',           ico:'\uD83D\uDCCA'},
     ]},
     {sec:'Painel do Corretor', items:[
@@ -18445,6 +18549,7 @@ function route() {
     case 'sr_gerencia':      return pgPlaceholder('Sr. Ger\u00eancia','\uD83D\uDC54 Em constru\u00e7\u00e3o: agente de gest\u00e3o e ger\u00eancia.');
     case 'simuladores':      return pgSimuladoresHub();
     case 'base_conhecimento':return pgBaseConhecimentoHub();
+    case 'radar_conc':       return pgRadarConcorrencia();
     default:           return pgMeu();
   }
 }
@@ -23221,6 +23326,184 @@ function toggleMobSB() {
   if(ov) ov.classList.toggle('open');
 }
 
+// ─── RADAR DE CONCORR\u00caNCIA — 44 im\u00f3veis/corretores monitorados ──────────────
+function pgRadarConcorrencia(){
+  if(!S.competitorsState) S.competitorsState = {};
+  var cs = S.competitorsState;
+  var filter = S.rdcFilter || 'todos'; // todos | a | b | flagged | stale
+
+  // Alertas ativos (concorrentes flagged ou não-checados há mais de 7 dias)
+  var _now = Date.now(); var _week = 7*24*3600*1000;
+  var stale=[], flagged=[], active=0, totalAds=0;
+  COMPETITORS.forEach(function(c){
+    var s = cs[c.id]||{};
+    if(s.flagged) flagged.push(c);
+    if(!s.lastCheck || (_now - s.lastCheck) > _week) stale.push(c);
+    if(s.adCount && s.adCount>0) active++;
+    totalAds += (s.adCount||0);
+  });
+
+  var h = '<div class="phd"><h1>\uD83D\uDEF0\uFE0F Radar de Concorr\u00eancia</h1><p>'+COMPETITORS.length+' concorrentes monitorados \u00B7 Biblioteca de An\u00fancios Meta</p></div>';
+
+  // Status bar
+  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">';
+  h += '<div class="card" style="border-left:4px solid var(--navy)"><div style="font-size:10px;color:var(--muted);text-transform:uppercase">Monitorados</div><div style="font-size:22px;font-weight:800;color:var(--navy)">'+COMPETITORS.length+'</div><div style="font-size:10px;color:var(--muted)">'+COMPETITORS.filter(function(c){return c.tier==='A';}).length+' tier A (alto impacto)</div></div>';
+  h += '<div class="card" style="border-left:4px solid #3b82f6"><div style="font-size:10px;color:var(--muted);text-transform:uppercase">Com an\u00fancios ativos</div><div style="font-size:22px;font-weight:800;color:#3b82f6">'+active+'</div><div style="font-size:10px;color:var(--muted)">'+totalAds+' ads no total</div></div>';
+  h += '<div class="card" style="border-left:4px solid #f59e0b;cursor:pointer" onclick="S.rdcFilter=\'stale\';render()"><div style="font-size:10px;color:var(--muted);text-transform:uppercase">Checagem pendente</div><div style="font-size:22px;font-weight:800;color:#f59e0b">'+stale.length+'</div><div style="font-size:10px;color:var(--muted)">>7 dias sem rever</div></div>';
+  h += '<div class="card" style="border-left:4px solid #ef4444;cursor:pointer" onclick="S.rdcFilter=\'flagged\';render()"><div style="font-size:10px;color:var(--muted);text-transform:uppercase">\uD83D\uDEA9 Flagged</div><div style="font-size:22px;font-weight:800;color:#ef4444">'+flagged.length+'</div><div style="font-size:10px;color:var(--muted)">mudan\u00e7a recente detectada</div></div>';
+  h += '</div>';
+
+  // Ações em massa
+  h += '<div class="card mb2"><div class="ctitle">A\u00e7\u00f5es R\u00e1pidas</div>';
+  h += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  h += '<button class="btn bp1 bsm" onclick="psmRdcAbrirTodos(\'A\')">\uD83D\uDD0D Abrir todos Tier A ('+COMPETITORS.filter(function(c){return c.tier==='A';}).length+')</button>';
+  h += '<button class="btn bout bsm" onclick="psmRdcAbrirTodos(\'stale\')">\u23F0 Abrir pendentes ('+stale.length+')</button>';
+  h += '<button class="btn bout bsm" onclick="psmRdcExportCSV()">\u2B07\uFE0F Export CSV</button>';
+  h += '<button class="btn bout bsm" onclick="psmRdcLimparFlags()">\uD83E\uDDF9 Limpar todos os flags</button>';
+  h += '</div>';
+  h += '<div style="font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.5">\uD83D\uDCA1 <b>Fluxo:</b> Abrir concorrente \u2192 olhar biblioteca Meta \u2192 voltar aqui e <b>Marcar como checado</b>. Se detectar mudan\u00e7a relevante (novo criativo, oferta agressiva, aumento de volume), clique em <b>Reportar mudan\u00e7a</b> \u2014 dispara alerta para os s\u00f3cios via webhook.</div>';
+  h += '</div>';
+
+  // Filtros
+  h += '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">';
+  [['todos','Todos'],['a','Tier A (alto impacto)'],['b','Tier B'],['flagged','\uD83D\uDEA9 Flagged'],['stale','\u23F0 Pendentes']].forEach(function(f){
+    var on = filter===f[0];
+    h += '<button class="btn '+(on?'bp1':'bout')+' bsm" onclick="S.rdcFilter=\''+f[0]+'\';render()">'+f[1]+'</button>';
+  });
+  h += '</div>';
+
+  // Lista de concorrentes
+  var list = COMPETITORS.slice();
+  if(filter==='a') list = list.filter(function(c){return c.tier==='A';});
+  else if(filter==='b') list = list.filter(function(c){return c.tier==='B';});
+  else if(filter==='flagged') list = list.filter(function(c){return (cs[c.id]||{}).flagged;});
+  else if(filter==='stale') list = list.filter(function(c){var s=cs[c.id]||{};return !s.lastCheck || (_now-s.lastCheck)>_week;});
+  list.sort(function(a,b){
+    var sa=cs[a.id]||{}, sb=cs[b.id]||{};
+    // Flagged primeiro, depois stale, depois Tier A, depois alfabético
+    if(sa.flagged !== sb.flagged) return sa.flagged?-1:1;
+    var staleA = !sa.lastCheck || (_now-sa.lastCheck)>_week;
+    var staleB = !sb.lastCheck || (_now-sb.lastCheck)>_week;
+    if(staleA !== staleB) return staleA?-1:1;
+    if(a.tier !== b.tier) return a.tier==='A'?-1:1;
+    return a.n.localeCompare(b.n);
+  });
+
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px">';
+  list.forEach(function(c){
+    var s = cs[c.id] || {};
+    var lastCheckStr = s.lastCheck ? new Date(s.lastCheck).toLocaleDateString('pt-BR')+' '+new Date(s.lastCheck).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '\u2014 nunca \u2014';
+    var daysAgo = s.lastCheck ? Math.floor((_now-s.lastCheck)/(24*3600*1000)) : null;
+    var isStale = !s.lastCheck || (_now-s.lastCheck)>_week;
+    var borderCor = s.flagged?'#ef4444':(isStale?'#f59e0b':(c.tier==='A'?'#0f172a':'#cbd5e1'));
+    h += '<div class="card" style="border-left:4px solid '+borderCor+';padding:14px">';
+    h += '<div style="display:flex;align-items:start;gap:8px;margin-bottom:8px">';
+    h += '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--navy)">'+c.n+' '+(c.tier==='A'?'<span style="font-size:9px;color:#fff;background:#0f172a;padding:2px 6px;border-radius:4px;margin-left:4px">TIER A</span>':'')+'</div>';
+    h += '<div style="font-size:10px;color:var(--muted)">ID: '+c.id+'</div></div>';
+    if(s.flagged) h += '<div style="font-size:18px" title="Flagged - mudan\u00e7a detectada">\uD83D\uDEA9</div>';
+    h += '</div>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;font-size:11px">';
+    h += '<div><div style="color:var(--muted);font-size:9.5px">\u00daltima checagem</div><div style="font-weight:600;color:'+(isStale?'#ef4444':'var(--navy)')+'">'+lastCheckStr+(daysAgo!==null&&daysAgo>0?' ('+daysAgo+'d)':'')+'</div></div>';
+    h += '<div><div style="color:var(--muted);font-size:9.5px">Ads ativos observados</div><div style="font-weight:600;color:var(--navy)">'+(s.adCount||'\u2014')+'</div></div>';
+    h += '</div>';
+    if(s.lastChangeNote){
+      h += '<div style="padding:6px 8px;background:rgba(239,68,68,0.08);border-left:3px solid #ef4444;border-radius:6px;margin-bottom:8px;font-size:10.5px;color:var(--navy)"><b>\u00daltima mudan\u00e7a:</b> '+s.lastChangeNote+'</div>';
+    }
+    h += '<div style="display:flex;gap:5px;flex-wrap:wrap">';
+    h += '<a class="btn bp1 bsm" href="'+competitorLibUrl(c.id)+'" target="_blank" style="flex:1;text-align:center;text-decoration:none">\uD83D\uDD0D Abrir</a>';
+    h += '<button class="btn bout bsm" onclick="psmRdcMarcarChecado(\''+c.id+'\')" title="Marcar como checado agora">\u2713</button>';
+    h += '<button class="btn bout bsm" onclick="psmRdcReportarMudanca(\''+c.id+'\')" title="Reportar mudan\u00e7a">\uD83D\uDEA9</button>';
+    if(s.flagged) h += '<button class="btn bout bsm" onclick="psmRdcLimparFlag(\''+c.id+'\')" title="Limpar flag">\u2715</button>';
+    h += '</div>';
+    h += '</div>';
+  });
+  h += '</div>';
+
+  return h;
+}
+
+// Helpers do Radar
+function psmRdcMarcarChecado(pageId){
+  if(!S.competitorsState) S.competitorsState = {};
+  S.competitorsState[pageId] = S.competitorsState[pageId] || {};
+  S.competitorsState[pageId].lastCheck = Date.now();
+  PSM.auditLog('rdc.checked', COMPETITORS.find(function(c){return c.id===pageId;})||{}, pageId);
+  saveState(); render(); toast('Marcado como checado','ok');
+}
+function psmRdcReportarMudanca(pageId){
+  var c = COMPETITORS.find(function(c){return c.id===pageId;});
+  if(!c) return;
+  var adCount = prompt('Quantos an\u00fancios ativos voc\u00ea viu agora em '+c.n+'?\n(Deixe em branco se n\u00e3o contou)');
+  var note = prompt('O que mudou? (novo criativo, oferta, aumento de volume, nova campanha, preço agressivo, etc.)\n\nExemplo: "Lan\u00e7ou 5 criativos novos com entrada de 10% no Residencial X"');
+  if(!note) return;
+  S.competitorsState[pageId] = S.competitorsState[pageId] || {};
+  var st = S.competitorsState[pageId];
+  st.lastCheck = Date.now();
+  st.lastChangeAt = Date.now();
+  st.lastChangeNote = note;
+  st.flagged = true;
+  if(adCount && !isNaN(parseInt(adCount))) st.adCount = parseInt(adCount);
+  if(!st.history) st.history = [];
+  st.history.unshift({ts:Date.now(), note:note, adCount:st.adCount, user:(S.user&&S.user.name)||'anon'});
+  if(st.history.length>20) st.history.length=20;
+
+  PSM.auditLog('rdc.flag', {competitor:c.n, note:note, adCount:st.adCount}, pageId);
+
+  // Dispara webhook para sócios
+  PSM.sendAlert({
+    title: '\uD83D\uDEA9 Concorr\u00eancia: '+c.n,
+    body: note + (st.adCount?' \u00B7 '+st.adCount+' ads ativos':''),
+    severity: c.tier==='A'?'high':'medium',
+    source: 'radar_concorrencia',
+    competitor: c.n,
+    tier: c.tier,
+    pageId: pageId,
+    libraryUrl: competitorLibUrl(pageId)
+  }).then(function(ok){
+    toast(ok?'Alerta enviado aos s\u00f3cios \u2705':'Mudan\u00e7a registrada (webhook n\u00e3o configurado)', ok?'ok':'warn');
+  });
+  saveState(); render();
+}
+function psmRdcLimparFlag(pageId){
+  if(!S.competitorsState || !S.competitorsState[pageId]) return;
+  S.competitorsState[pageId].flagged = false;
+  PSM.auditLog('rdc.unflag', '', pageId);
+  saveState(); render();
+}
+function psmRdcLimparFlags(){
+  if(!confirm('Limpar TODOS os flags de concorr\u00eancia?')) return;
+  Object.keys(S.competitorsState||{}).forEach(function(k){ S.competitorsState[k].flagged = false; });
+  PSM.auditLog('rdc.unflag_all','','');
+  saveState(); render();
+}
+function psmRdcAbrirTodos(which){
+  var list;
+  if(which==='A') list = COMPETITORS.filter(function(c){return c.tier==='A';});
+  else if(which==='stale'){
+    var _now=Date.now(), _week=7*24*3600*1000;
+    list = COMPETITORS.filter(function(c){var s=(S.competitorsState||{})[c.id]||{};return !s.lastCheck || (_now-s.lastCheck)>_week;});
+  } else list = COMPETITORS;
+  if(list.length>15){
+    if(!confirm('Abrir '+list.length+' abas? Pode travar o navegador.')) return;
+  }
+  list.forEach(function(c,i){ setTimeout(function(){ window.open(competitorLibUrl(c.id),'_blank'); }, i*200); });
+}
+function psmRdcExportCSV(){
+  var cs = S.competitorsState || {};
+  var lines = ['nome,tier,page_id,ultima_checagem,dias_sem_checar,ads_ativos,flagged,ultima_mudanca'];
+  var _now = Date.now();
+  COMPETITORS.forEach(function(c){
+    var s = cs[c.id]||{};
+    var dias = s.lastCheck?Math.floor((_now-s.lastCheck)/(24*3600*1000)):'nunca';
+    var chk = s.lastCheck?new Date(s.lastCheck).toISOString():'nunca';
+    var note = (s.lastChangeNote||'').replace(/,/g,';').replace(/\n/g,' ');
+    lines.push([c.n,c.tier,c.id,chk,dias,s.adCount||'',s.flagged?'sim':'n\u00e3o',note].join(','));
+  });
+  var blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href=url; a.download='psm_radar_concorrencia_'+Date.now()+'.csv'; a.click();
+}
+
 // ─── HUB: Simuladores (VPL, INCC, Energia, Repasse) ─────────────────────────
 function pgSimuladoresHub(){
   var tab = S.simTab || 'vpl';
@@ -23271,23 +23554,30 @@ function pgBaseConhecimentoHub(){
 // ─── DRILL-DOWN MODAL (Dashboard Diretoria) ─────────────────────────────────
 function showDrill(kind, extra){
   var title='Detalhamento', rows=[];
+  var _fFrente = (extra && extra.frente) ? extra.frente : null;
+  var _frNm = _fFrente && window.FRENTES && window.FRENTES[_fFrente] ? window.FRENTES[_fFrente].nm : _fFrente;
   try{
     if(kind==='vendas'){
-      title='Vendas do per\u00edodo'; var src=window.VENDAS||[];
+      title='Vendas do per\u00edodo'+(_frNm?' \u2014 '+_frNm:''); var src=window.VENDAS||[];
+      if(_fFrente) src=src.filter(function(v){return (v.fr||'').toLowerCase()===_fFrente;});
       rows=src.map(function(v){return {c1:v.bn||'—',c2:v.cl||'—',c3:v.vgv?('R$ '+v.vgv.toLocaleString('pt-BR')):'—',c4:v.closedAt?new Date(v.closedAt).toLocaleDateString('pt-BR'):'—'};});
     } else if(kind==='pipeline'){
-      title='Oportunidades em pipeline'; var src=window.OPPS||[];
+      title='Oportunidades em pipeline'+(_frNm?' \u2014 '+_frNm:''); var src=window.OPPS||[];
+      if(_fFrente) src=src.filter(function(o){return (o.fr||'').toLowerCase()===_fFrente;});
       rows=src.map(function(o){return {c1:o.bn||'—',c2:o.cl||o.titulo||'—',c3:o.vgv?('R$ '+o.vgv.toLocaleString('pt-BR')):'—',c4:o.st||'—'};});
     } else if(kind==='perdidas'){
-      title='Oportunidades perdidas'; var src=window.LOST_DEALS||[];
+      title='Oportunidades perdidas'+(_frNm?' \u2014 '+_frNm:''); var src=window.LOST_DEALS||[];
+      if(_fFrente) src=src.filter(function(l){return (l.fr||'').toLowerCase()===_fFrente;});
       rows=src.map(function(l){return {c1:l.bn||'—',c2:l.cl||'—',c3:l.vgv?('R$ '+l.vgv.toLocaleString('pt-BR')):'—',c4:l.motivo||l.reason||'—'};});
     } else if(kind==='corretores'){
-      title='Atingimento por corretor'; var src=(window.BROKERS||[]).filter(function(b){return b.role==='corretor';});
+      title='Atingimento por corretor'+(_frNm?' \u2014 '+_frNm:''); var src=(window.BROKERS||[]).filter(function(b){return b.role==='corretor';});
+      if(_fFrente) src=src.filter(function(b){return (b.frente||'').toLowerCase()===_fFrente;});
       rows=src.map(function(b){var p=b.meta>0?(((b.vgv_real||0)/b.meta)*100).toFixed(1)+'%':'—';return {c1:b.name,c2:b.frente||'—',c3:'R$ '+(b.vgv_real||0).toLocaleString('pt-BR'),c4:p};});
     } else if(kind==='alertas'){
       title='Alertas operacionais'; var src=(typeof generateAudits==='function')?generateAudits():[];
       rows=src.map(function(a){return {c1:a.tipo||'—',c2:a.desc||'—',c3:(window.UM&&window.UM[a.bid]||{}).name||'—',c4:a.sev==='d'?'Cr\u00edtico':'Aten\u00e7\u00e3o'};});
     }
+    if(typeof PSM!=='undefined' && PSM.auditLog) PSM.auditLog('drill.open',{kind:kind,frente:_fFrente,rows:rows.length});
   }catch(e){ rows=[{c1:'Erro',c2:e.message,c3:'',c4:''}]; }
   var html='<div id="drillModal" style="position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)document.getElementById(\'drillModal\').remove()">';
   html+='<div style="background:#fff;border-radius:14px;max-width:900px;width:100%;max-height:80vh;overflow:auto;padding:20px 24px;box-shadow:0 20px 60px rgba(0,0,0,0.3)">';
