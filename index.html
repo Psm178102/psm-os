@@ -680,6 +680,40 @@ html{height:100%;overflow:hidden}
 <div id="app"></div>
 <div class="twrap" id="toasts"></div>
 
+<!-- Relógio digital global (TV não apaga) — Paulo 2026-04-15 -->
+<div id="psm-clock" style="position:fixed;right:14px;bottom:14px;z-index:99998;background:rgba(15,23,42,0.82);backdrop-filter:blur(6px);color:#f8fafc;padding:8px 14px;border-radius:10px;border:1px solid rgba(212,168,67,0.35);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,'Cascadia Mono',monospace;font-size:14px;font-weight:700;letter-spacing:1px;box-shadow:0 4px 12px rgba(0,0,0,0.35);pointer-events:none;user-select:none;line-height:1.1">
+  <div id="psm-clock-time" style="color:#d4a843">--:--:--</div>
+  <div id="psm-clock-date" style="font-size:10px;color:#94a3b8;font-weight:500;letter-spacing:0.5px;text-transform:uppercase;margin-top:2px">--</div>
+</div>
+<script>
+(function(){
+  var DOW = ['dom','seg','ter','qua','qui','sex','sáb'];
+  function tick(){
+    var now = new Date();
+    var hh = String(now.getHours()).padStart(2,'0');
+    var mm = String(now.getMinutes()).padStart(2,'0');
+    var ss = String(now.getSeconds()).padStart(2,'0');
+    var dd = String(now.getDate()).padStart(2,'0');
+    var mo = String(now.getMonth()+1).padStart(2,'0');
+    var t = document.getElementById('psm-clock-time');
+    var d = document.getElementById('psm-clock-date');
+    if (t) t.textContent = hh+':'+mm+':'+ss;
+    if (d) d.textContent = DOW[now.getDay()] + ' ' + dd + '/' + mo;
+  }
+  tick();
+  setInterval(tick, 1000);
+  // Wake Lock API — mantém tela acesa em navegadores modernos (Chrome/Edge/Safari)
+  if ('wakeLock' in navigator) {
+    var _wl = null;
+    async function reqWL(){
+      try { _wl = await navigator.wakeLock.request('screen'); _wl.addEventListener('release', function(){ _wl = null; }); } catch(e){}
+    }
+    reqWL();
+    document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible' && !_wl) reqWL(); });
+  }
+})();
+</script>
+
 <script>
 'use strict';
 // ─── PWA: registra Service Worker (2026-04-15) ───────────────────────────────
@@ -4273,14 +4307,27 @@ var pgWarArena = function(){
   h += '<span style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">\u26a1 LIVE</span>';
   h += '</div></div>';
 
-  // MARQUEE TICKER
-  h += '<div style="background:linear-gradient(90deg,var(--navy2),var(--navy));border:1px solid var(--navy3);border-radius:12px;padding:12px 16px;overflow:hidden;position:relative;margin-bottom:20px">';
-  h += '<div style="display:flex;animation:marqueeScroll ' + Math.max(5, eventos.length * 1.2) + 's linear infinite;white-space:nowrap">';
-  eventos.forEach(function(ev){
-    h += '<span style="margin-right:60px;font-size:14px;font-weight:600;color:var(--cream)">' + ev + '</span>';
+  // ===== TABS: Vis\u00e3o Geral / Ranking & Metas (Paulo 2026-04-15: substitui scroll cont\u00ednuo) =====
+  if (!S.arenaTab) S.arenaTab = 'painel';
+  var _arenaTabs = [
+    {id:'painel', lbl:'\uD83D\uDCCA Vis\u00e3o Geral'},
+    {id:'metas',  lbl:'\uD83C\uDFC6 Ranking & Metas'}
+  ];
+  h += '<div style="display:flex;gap:6px;margin-bottom:18px;padding:4px;background:var(--navy2);border:1px solid var(--navy3);border-radius:10px;width:fit-content">';
+  _arenaTabs.forEach(function(t){
+    var _ac = S.arenaTab === t.id;
+    h += '<button onclick="S.arenaTab=\'' + t.id + '\';render()" style="padding:8px 18px;background:' + (_ac?'linear-gradient(135deg,#6366f1,#8b5cf6)':'transparent') + ';color:' + (_ac?'#fff':'var(--muted)') + ';border:none;border-radius:6px;font-size:13px;font-weight:' + (_ac?'700':'500') + ';cursor:pointer;transition:all .2s;letter-spacing:.3px">' + t.lbl + '</button>';
   });
+  h += '</div>';
+
+  // ============ IN\u00CDCIO P\u00C1GINA 1: VIS\u00C3O GERAL ============
+  if (S.arenaTab === 'painel') {
+
+  // TICKER (est\u00e1tico \u2014 sem auto-scroll pra n\u00e3o mover a tela)
+  h += '<div style="background:linear-gradient(90deg,var(--navy2),var(--navy));border:1px solid var(--navy3);border-radius:12px;padding:12px 16px;margin-bottom:20px;overflow-x:auto">';
+  h += '<div style="display:flex;gap:40px;flex-wrap:wrap">';
   eventos.forEach(function(ev){
-    h += '<span style="margin-right:60px;font-size:14px;font-weight:600;color:var(--cream)">' + ev + '</span>';
+    h += '<span style="font-size:14px;font-weight:600;color:var(--cream);white-space:nowrap">' + ev + '</span>';
   });
   h += '</div></div>';
 
@@ -4344,9 +4391,9 @@ var pgWarArena = function(){
     h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0">💡 Timeline de Oportunidades <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">'+tlShow.length+' '+(tlShow.length===1?'oportunidade':'oportunidades')+' publicada'+(tlShow.length===1?'':'s')+' · tempo real</span></h2>';
     h += '<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);border-radius:12px;color:#10b981;font-size:11px;font-weight:700"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulsedot 1.5s infinite"></span>AO VIVO</span>';
     h += '</div>';
-    h += '<div id="opp-timeline-wrap" style="background:var(--navy2);border:1px solid var(--navy3);border-radius:12px;padding:14px;overflow:hidden;position:relative">';
-    h += '<div id="opp-timeline-scroll" style="display:flex;gap:10px;animation:oppTlMarquee '+Math.max(40,tlShow.length*3)+'s linear infinite;white-space:nowrap">';
-    for(var _dup=0; _dup<2; _dup++){
+    h += '<div id="opp-timeline-wrap" style="background:var(--navy2);border:1px solid var(--navy3);border-radius:12px;padding:14px;overflow-x:auto;position:relative">';
+    h += '<div id="opp-timeline-scroll" style="display:flex;gap:10px;flex-wrap:wrap">';
+    for(var _dup=0; _dup<1; _dup++){
       tlShow.forEach(function(op){
         var ico = op.icon || _tipoIcone(op.tipo);
         var color = _tipoCor(op.tipo);
@@ -4370,8 +4417,21 @@ var pgWarArena = function(){
           h += '<div style="font-size:10.5px;color:var(--cream);opacity:.8;margin-top:4px;white-space:normal;word-break:break-word;line-height:1.3">'+_d+'</div>';
         }
         if(op.validade){
-          var validLbl = expira ? '⛔ Expirada' : (diasValid<=3?'⏰ Vence em '+diasValid+'d':'📅 Até '+op.validade.split('-').reverse().join('/'));
-          var validCor = expira?'#ef4444':(diasValid<=3?'#f59e0b':color);
+          // Formata data pra DD/MM/YYYY aceitando ISO, ISO+T, DD/MM/YYYY
+          var _fmtVal = (function(v){
+            var s = String(v).trim();
+            var m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            var m2 = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+            if (m1) return m1[3] + '/' + m1[2] + '/' + m1[1];
+            if (m2) return s.substring(0,10);
+            return s;
+          })(op.validade);
+          var validLbl, validCor;
+          if (expira) { validLbl = '⛔ Expirada'; validCor = '#ef4444'; }
+          else if (diasValid === null || isNaN(diasValid)) { validLbl = '📅 Até ' + _fmtVal; validCor = color; }
+          else if (diasValid === 0) { validLbl = '⏰ Vence hoje'; validCor = '#f59e0b'; }
+          else if (diasValid <= 3)  { validLbl = '⏰ Vence em ' + diasValid + 'd'; validCor = '#f59e0b'; }
+          else                      { validLbl = '📅 Até ' + _fmtVal; validCor = color; }
           h += '<div style="font-size:11px;font-weight:700;color:'+validCor+';margin-top:4px">'+validLbl+'</div>';
         }
         h += '</div>';
@@ -4732,6 +4792,11 @@ var pgWarArena = function(){
   h += '</div></div>';
 
 
+  } // ============ FIM P\u00C1GINA 1 ============
+
+  // ============ IN\u00CDCIO P\u00C1GINA 2: RANKING & METAS ============
+  if (S.arenaTab === 'metas') {
+
     // ===== RANKING GERAL =====
   h += '<div style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:16px;margin-bottom:24px">';
   h += '<div style="background:var(--navy2);border:1px solid var(--navy3);border-radius:16px;padding:20px">';
@@ -4892,6 +4957,8 @@ var pgWarArena = function(){
     h += '<div style="background:var(--navy);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--muted)">Ticket Médio</div><div style="font-size:18px;font-weight:700;color:var(--gold2)">' + fmt(rdTicket) + '</div></div>';
     h += '</div></div>';
   }
+
+  } // ============ FIM P\u00C1GINA 2 ============
 
   // INJECT MARQUEE CSS
   if(!document.getElementById('warArenaCSS')){
