@@ -324,7 +324,30 @@ html{height:100%;overflow:hidden}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
 .g5{display:grid;grid-template-columns:repeat(5,1fr);gap:11px}
 @media(max-width:1100px){.g4{grid-template-columns:1fr 1fr}.g5{grid-template-columns:1fr 1fr 1fr}}
-@media(max-width:800px){.g2,.g3{grid-template-columns:1fr}.kgrid{grid-template-columns:1fr 1fr}}
+@media(max-width:800px){.g2,.g3{grid-template-columns:1fr}.kgrid{grid-template-columns:1fr 1fr}.g4,.g5{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){
+  .kgrid{grid-template-columns:1fr}
+  .g4,.g5{grid-template-columns:1fr}
+  .card{padding:12px 14px}
+  .phd h1{font-size:20px}
+  .phd p{font-size:11px}
+  /* Tabelas com scroll horizontal em mobile */
+  .tbl-wrap,.card{overflow-x:auto}
+  .tbl{font-size:11px;min-width:600px}
+  /* Reduz padding de botões em mobile */
+  .btn{padding:7px 10px;font-size:12px}
+  /* Grids inline de 3-6 colunas → 2 colunas */
+  [style*="grid-template-columns:repeat(6"],[style*="grid-template-columns:repeat(5"],[style*="grid-template-columns:repeat(4"],[style*="grid-template-columns:repeat(3"]{
+    grid-template-columns:repeat(2,1fr)!important;
+  }
+  [style*="grid-template-columns:1fr 1fr 1fr"]{grid-template-columns:1fr 1fr!important;}
+}
+@media(max-width:480px){
+  [style*="grid-template-columns:repeat(6"],[style*="grid-template-columns:repeat(5"],[style*="grid-template-columns:repeat(4"],[style*="grid-template-columns:repeat(3"],[style*="grid-template-columns:repeat(2"]{
+    grid-template-columns:1fr!important;
+  }
+  [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}
+}
 .mb1{margin-bottom:7px}.mb2{margin-bottom:13px}.mb3{margin-bottom:19px}
 .flex{display:flex}.aic{align-items:center}.jsb{justify-content:space-between}.gap1{gap:5px}.gap2{gap:10px}.f1{flex:1}
 .up{color:var(--g-tx);font-weight:600}.dn{color:var(--r-tx);font-weight:600}.neu{color:var(--muted)}
@@ -912,6 +935,90 @@ function calcOKRs(){
 }
 const OKRS=[]; // populated after METRICS is defined and after RD sync
 
+// ═══════════════════════════════════════════════════════════════════════════
+// PSM GLOBAL UTILITIES — fonte \u00fanica de verdade, audit log, webhooks, mocks
+// ═══════════════════════════════════════════════════════════════════════════
+window.PSM = window.PSM || {};
+
+// ── Sistema 1: computeMetrics centralizado ─────────────────────────────────
+PSM.metrics = PSM.metrics || {
+  vgvTotal: function(deals){return (deals||[]).reduce(function(a,d){return a+(d.vgv||0);},0);},
+  ticketMedio: function(deals){var arr=deals||[]; if(!arr.length) return 0; return this.vgvTotal(arr)/arr.length;},
+  conversao: function(won,lost){var w=(won||[]).length, l=(lost||[]).length; return w+l>0?parseFloat((w/(w+l)*100).toFixed(2)):0;},
+  taxaPerda: function(won,lost){var w=(won||[]).length, l=(lost||[]).length; return w+l>0?parseFloat((l/(w+l)*100).toFixed(2)):0;},
+  pipelinePonderado: function(opps, funis){
+    funis = funis || (typeof FUNIS!=='undefined'?FUNIS:{});
+    return (opps||[]).reduce(function(a,o){
+      var stages=(funis[o.fr]||funis.lancamento||[]);
+      var s=stages.find?stages.find(function(x){return (x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st);}):null;
+      return a+((o.vgv||0)*(s?s.w:0.1));
+    },0);
+  },
+  cobertura: function(pipeline, meta){return meta>0?pipeline/meta:0;},
+  velocidade: function(vgv, duPass){return duPass>0?vgv/duPass:0;},
+  cicloMedio: function(vendas){
+    var total=0,n=0;
+    (vendas||[]).forEach(function(v){
+      if(v.createdAt && v.closedAt){
+        var d=Math.round((new Date(v.closedAt)-new Date(v.createdAt))/(1000*60*60*24));
+        if(d>=0&&d<365){total+=d;n++;}
+      }
+    });
+    return n>0?parseFloat((total/n).toFixed(1)):0;
+  }
+};
+
+// ── Sistema 4: Audit log ────────────────────────────────────────────────────
+PSM.auditLog = function(action, detail, target){
+  try{
+    if(typeof S==='undefined') return;
+    if(!S.auditLog) S.auditLog=[];
+    var entry={
+      ts: Date.now(),
+      user: (S.user&&S.user.name)||'anon',
+      role: (S.user&&S.user.role)||'?',
+      action: action||'?',
+      target: target||'',
+      detail: typeof detail==='string'?detail:(detail?JSON.stringify(detail).slice(0,500):'')
+    };
+    S.auditLog.unshift(entry);
+    if(S.auditLog.length>2000) S.auditLog.length=2000;
+    try{localStorage.setItem('psm_audit_log', JSON.stringify(S.auditLog.slice(0,500)));}catch(e){}
+  }catch(e){}
+};
+// Restaura audit log do localStorage
+(function(){
+  try{
+    if(typeof S==='undefined') return;
+    var saved=localStorage.getItem('psm_audit_log');
+    if(saved && !S.auditLog) S.auditLog=JSON.parse(saved)||[];
+  }catch(e){}
+})();
+
+// ── Sistema 6: Webhook de alertas (push p/ Zapier/Make/n8n \u2192 WhatsApp/Slack) ─
+PSM.sendAlert = function(payload){
+  try{
+    if(typeof S==='undefined') return Promise.resolve(false);
+    var url = (S.cfg && S.cfg.webhookUrl) || localStorage.getItem('psm_webhook_url');
+    if(!url) return Promise.resolve(false);
+    return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+      timestamp: new Date().toISOString(),
+      source: 'PSM OS',
+      ...payload
+    })}).then(function(r){PSM.auditLog('alert.sent', payload.title||'alert'); return r.ok;}).catch(function(e){return false;});
+  }catch(e){return Promise.resolve(false);}
+};
+
+// ── Sistema 2: Flag para ocultar dados fict\u00edcios ──────────────────────────
+PSM.isMockDataHidden = function(){
+  try{ return !!(S && S.cfg && S.cfg.hideMock) || localStorage.getItem('psm_hide_mock')==='1'; }catch(e){return false;}
+};
+PSM.filterReal = function(arr, mockFlagField){
+  if(!PSM.isMockDataHidden()) return arr||[];
+  var f = mockFlagField||'_mock';
+  return (arr||[]).filter(function(x){return !x[f];});
+};
+
 function getMetaGlobal(){
   // Carrega meta global do localStorage (S.mg) para obter metas reais por mes
   var _s;try{_s=S;}catch(e){_s=null;}
@@ -924,7 +1031,26 @@ function getMetaGlobal(){
   }
   var m=_s.mg;
   function metaTotal(i){return (m.metaImpper[i]||0)+(m.metaTerc[i]||0)+(m.metaEstMAP[i]||0)+(m.metaEstConq[i]||0)+(m.metaLanc[i]||0);}
-  return {mg:m,metaTotal:metaTotal};
+  // Mapeamento frente \u2192 campo do S.mg (Sistema 7: metas por frente centralizadas)
+  var FRENTE_META_FIELD = {
+    lancamento: 'metaLanc',
+    lancamentos: 'metaLanc',
+    estoque_conq: 'metaEstConq',
+    estoque_map: 'metaEstMAP',
+    terceiros: 'metaTerc',
+    importados: 'metaImpper',
+    permutados: 'metaImpper',
+    impper: 'metaImpper'
+  };
+  function metaFrente(fid, i){
+    var field = FRENTE_META_FIELD[fid];
+    if(!field || !m[field]) return 0;
+    return m[field][i] || 0;
+  }
+  function metaFrenteAno(fid){
+    var t=0; for(var i=0;i<12;i++) t+=metaFrente(fid,i); return t;
+  }
+  return {mg:m, metaTotal:metaTotal, metaFrente:metaFrente, metaFrenteAno:metaFrenteAno};
 }
 function calcForecasts(){
   const now=new Date();
@@ -1706,24 +1832,74 @@ function pgDashboard(){
   // Status bar
   var h='<div class="phd"><div class="phd-row"><div><h1>Dashboard Executivo</h1><p>'+m.mes+' \u00B7 '+m.du_pass+'/'+m.du_tot+' dias \u00fateis \u00B7 '+m.du_rest+' restantes</p></div></div></div>'+df;
 
-  // ── HERO STATUS ──
-  h+='<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:16px;padding:20px 24px;margin-bottom:18px;display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center">';
-  h+='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:16px">';
-  h+='<div style="text-align:center"><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Realizado</div><div style="font-size:20px;font-weight:800;color:#22c55e">'+fmt(vgvR)+'</div></div>';
-  h+='<div style="text-align:center"><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Meta</div><div style="font-size:20px;font-weight:800;color:#e2e8f0">'+fmt(m.vgv_meta)+'</div></div>';
-  h+='<div style="text-align:center"><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Atingimento</div><div style="font-size:20px;font-weight:800;color:'+(pctMeta>=80?'#22c55e':pctMeta>=50?'#f59e0b':'#ef4444')+'">'+pctMeta+'%</div></div>';
-  h+='<div style="text-align:center"><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Velocidade/DU</div><div style="font-size:20px;font-weight:800;color:#3b82f6">'+fmt(Math.round(velocidade))+'</div></div>';
-  h+='<div style="text-align:center"><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Convers\u00e3o</div><div style="font-size:20px;font-weight:800;color:#06b6d4">'+convRate+'%</div></div>';
-  h+='<div style="text-align:center"><div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Gap p/ Meta</div><div style="font-size:20px;font-weight:800;color:'+(gap<=0?'#22c55e':'#ef4444')+'">'+fmt(Math.round(gap))+'</div></div>';
-  h+='</div>';
-  // Alertas rápidos
+  // ── HERO STATUS — reorganizado: ritmo (% meta vs % tempo), projeção, cobertura por frente ──
+  var pctTempo = m.du_tot>0 ? parseFloat((m.du_pass/m.du_tot*100).toFixed(2)) : 0;
+  var ritmoDelta = pctMeta - pctTempo; // >0 adiantado, <0 atrasado
+  var ritmoCor = ritmoDelta>=0 ? '#22c55e' : (ritmoDelta>=-15 ? '#f59e0b' : '#ef4444');
+  var ritmoLbl = ritmoDelta>=0 ? '+'+ritmoDelta.toFixed(1)+' pts adiantado' : ritmoDelta.toFixed(1)+' pts atrasado';
   var alertCount=audits.length;
   var critCount=audits.filter(a=>a.sev==='d').length;
-  h+='<div style="text-align:center;padding-left:16px;border-left:1px solid #334155">';
+  // Projeção do mês (usa FORECASTS.mes calculado em calcForecasts)
+  var projMes = (FORECASTS && FORECASTS.mes) ? (FORECASTS.mes.proj||0) : Math.round(vgvR + velocidade*duRest);
+  var projPctMeta = m.vgv_meta>0 ? parseFloat((projMes/m.vgv_meta*100).toFixed(1)) : 0;
+  var projCor = projPctMeta>=100?'#22c55e':projPctMeta>=85?'#d4a843':'#ef4444';
+
+  h+='<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:16px;padding:22px 24px;margin-bottom:16px;color:#fff">';
+  // Linha 1: Atingimento vs Tempo + Projeção do Mês (os dois números que importam)
+  h+='<div style="display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:20px;align-items:center">';
+  // Ritmo
+  h+='<div style="padding-right:18px;border-right:1px solid #334155;cursor:pointer" onclick="nav(\'kpis\')" title="Clique para detalhar">';
+  h+='<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Ritmo da Meta</div>';
+  h+='<div style="display:flex;align-items:baseline;gap:10px"><div style="font-size:28px;font-weight:800;color:'+(pctMeta>=pctTempo?'#22c55e':'#ef4444')+'">'+pctMeta+'%</div><div style="font-size:12px;color:#cbd5e1">da meta</div></div>';
+  h+='<div style="font-size:11px;color:#cbd5e1;margin-top:2px">Tempo decorrido: <b style="color:#e2e8f0">'+pctTempo+'%</b> ('+m.du_pass+'/'+m.du_tot+' DU)</div>';
+  h+='<div style="font-size:11px;font-weight:700;color:'+ritmoCor+';margin-top:4px">'+ritmoLbl+'</div>';
+  h+='</div>';
+  // Projeção do mês
+  h+='<div style="padding-right:18px;border-right:1px solid #334155;cursor:pointer" onclick="nav(\'forecast\')" title="Ver projeção completa">';
+  h+='<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Proje\u00e7\u00e3o do M\u00eas</div>';
+  h+='<div style="font-size:26px;font-weight:800;color:'+projCor+'">'+fmt(projMes)+'</div>';
+  h+='<div style="font-size:11px;color:#cbd5e1;margin-top:2px">'+projPctMeta+'% da meta ('+fmt(m.vgv_meta)+')</div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:2px">Realizado: <b style="color:#22c55e">'+fmt(vgvR)+'</b> \u00B7 Gap: <b style="color:'+(gap<=0?'#22c55e':'#ef4444')+'">'+fmt(Math.round(gap))+'</b></div>';
+  h+='</div>';
+  // Vendas / Conversão / Velocidade (secundários)
+  h+='<div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+  h+='<div style="cursor:pointer" onclick="showDrill(\'vendas\')" title="Ver vendas"><div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Vendas</div><div style="font-size:18px;font-weight:800;color:#3b82f6">'+fVENDAS.length+'</div></div>';
+  h+='<div style="cursor:pointer" onclick="nav(\'kpis\')" title="Detalhar"><div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Convers\u00e3o</div><div style="font-size:18px;font-weight:800;color:#06b6d4">'+convRate+'%</div></div>';
+  h+='<div><div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Veloc/DU</div><div style="font-size:16px;font-weight:700;color:#e2e8f0">'+fmt(Math.round(velocidade))+'</div></div>';
+  h+='<div><div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Ticket M\u00e9dio</div><div style="font-size:16px;font-weight:700;color:#e2e8f0">'+fmt(Math.round(ticketMedio))+'</div></div>';
+  h+='</div>';
+  h+='</div>';
+  // Alertas
+  h+='<div style="text-align:center;padding-left:16px;border-left:1px solid #334155;cursor:pointer" onclick="nav(\'governance\')" title="Ver alertas">';
   h+='<div style="font-size:28px;font-weight:800;color:'+(critCount>0?'#ef4444':'#22c55e')+'">'+alertCount+'</div>';
   h+='<div style="font-size:9px;color:#64748b;text-transform:uppercase">Alertas</div>';
   if(critCount>0)h+='<div style="font-size:9px;color:#ef4444;font-weight:700;margin-top:2px">'+critCount+' cr\u00edticos</div>';
-  h+='</div></div>';
+  h+='</div>';
+  h+='</div>';
+  // Linha 2: Cobertura de Pipeline por Frente
+  (function(){
+    var _fs = fs; // frenteStats já calculado
+    var frenteIds = Object.keys(FRENTES||{});
+    if(!frenteIds.length) return;
+    h+='<div style="margin-top:14px;padding-top:14px;border-top:1px solid #334155">';
+    h+='<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px">Cobertura de Pipeline por Frente (Pipeline/Meta, ideal \u2265 3x)</div>';
+    h+='<div style="display:grid;grid-template-columns:repeat('+Math.min(frenteIds.length,5)+',1fr);gap:10px">';
+    frenteIds.forEach(function(fid){
+      var fr = FRENTES[fid]||{}; var st = _fs[fid]||{vgv:0,meta:0};
+      var pipeF = fOPPS.filter(function(o){return o.fr===fid;}).reduce(function(a,o){return a+(o.vgv||0);},0);
+      var metaF = st.meta||0;
+      var cob = metaF>0 ? (pipeF/metaF) : 0;
+      var cobCor = cob>=3?'#22c55e':cob>=2?'#d4a843':'#ef4444';
+      h+='<div style="padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:3px solid '+cobCor+';cursor:pointer" onclick="nav(\'kpis\')">';
+      h+='<div style="font-size:10px;color:#cbd5e1;font-weight:600">'+(fr.nm||fid)+'</div>';
+      h+='<div style="font-size:18px;font-weight:800;color:'+cobCor+'">'+cob.toFixed(2)+'x</div>';
+      h+='<div style="font-size:9px;color:#94a3b8">Pipe '+fmt(pipeF)+' \u00B7 Meta '+fmt(metaF)+'</div>';
+      h+='</div>';
+    });
+    h+='</div></div>';
+  })();
+  h+='</div>';
 
   // ── TIMELINE DIRETORIA (alertas, vendas recentes, oportunidades, metas batidas) ──
   (function(){
@@ -1775,6 +1951,67 @@ function pgDashboard(){
       });
       h+='</div></div>';
     }
+  })();
+
+  // ── HEATMAP CORRETOR \u00D7 ATINGIMENTO (item G) ──
+  (function(){
+    var corretores = BROKERS.filter(function(b){return b.role==='corretor';});
+    if(corretores.length===0) return;
+    // Calcula atingimento por corretor, agrupa por frente
+    var byFrente = {};
+    corretores.forEach(function(b){
+      var pct = b.meta>0 ? Math.round(((b.vgv_real||0)/b.meta)*100) : 0;
+      var fid = b.frente||'outros';
+      if(!byFrente[fid]) byFrente[fid]={nm:(FRENTES[fid]||{}).nm||fid, items:[]};
+      byFrente[fid].items.push({name:b.name, pct:pct, vgv:b.vgv_real||0, meta:b.meta||0, crm:b.crm||0});
+    });
+    Object.values(byFrente).forEach(function(g){g.items.sort(function(a,b){return b.pct-a.pct;});});
+    function heatColor(pct){
+      if(pct>=100) return '#16a34a';
+      if(pct>=80) return '#22c55e';
+      if(pct>=60) return '#84cc16';
+      if(pct>=40) return '#eab308';
+      if(pct>=20) return '#f59e0b';
+      return '#ef4444';
+    }
+    h+='<div class="card mb2"><div class="ctitle">\uD83C\uDFAF Heatmap: Atingimento por Corretor <span class="csub">Clique para drill-down</span></div>';
+    h+='<div style="display:flex;flex-direction:column;gap:14px">';
+    Object.keys(byFrente).forEach(function(fid){
+      var g=byFrente[fid];
+      h+='<div>';
+      h+='<div style="font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">'+g.nm+' <span style="color:var(--muted);font-weight:400">('+g.items.length+')</span></div>';
+      h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px">';
+      g.items.forEach(function(c){
+        var cor=heatColor(c.pct);
+        h+='<div style="padding:8px 10px;background:'+cor+';border-radius:8px;color:#fff;cursor:pointer" onclick="showDrill(\'corretores\')" title="'+c.name+' \u00B7 '+fmt(c.vgv)+' / '+fmt(c.meta)+'">';
+        h+='<div style="font-size:10.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+c.name+'</div>';
+        h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:2px">';
+        h+='<span style="font-size:16px;font-weight:800">'+c.pct+'%</span>';
+        h+='<span style="font-size:9px;opacity:0.85">CRM '+c.crm+'</span>';
+        h+='</div></div>';
+      });
+      h+='</div></div>';
+    });
+    // Legenda + dispersão
+    var total = corretores.length;
+    var bater = corretores.filter(function(b){return b.meta>0 && ((b.vgv_real||0)/b.meta)>=1;}).length;
+    var acima80 = corretores.filter(function(b){return b.meta>0 && ((b.vgv_real||0)/b.meta)>=0.8;}).length;
+    var abaixo50 = corretores.filter(function(b){return b.meta>0 && ((b.vgv_real||0)/b.meta)<0.5;}).length;
+    var concentracao = '';
+    if(total>0){
+      var topTres=corretores.slice().sort(function(a,b){return (b.vgv_real||0)-(a.vgv_real||0);}).slice(0,3);
+      var totalVGV=corretores.reduce(function(a,b){return a+(b.vgv_real||0);},0);
+      var vgvTop=topTres.reduce(function(a,b){return a+(b.vgv_real||0);},0);
+      var pctConc = totalVGV>0 ? Math.round(vgvTop/totalVGV*100) : 0;
+      concentracao='<span style="margin-left:auto;font-size:10.5px;color:'+(pctConc>=70?'var(--r-tx)':'var(--muted)')+'"><b>Concentra\u00e7\u00e3o:</b> top 3 = '+pctConc+'% do VGV'+(pctConc>=70?' \u26A0\uFE0F':'')+'</span>';
+    }
+    h+='<div style="display:flex;align-items:center;gap:14px;margin-top:8px;padding-top:10px;border-top:1px solid var(--cream3);font-size:10.5px;color:var(--muted)">';
+    h+='<span><b style="color:#16a34a">'+bater+'</b> bateram meta</span>';
+    h+='<span><b style="color:#22c55e">'+acima80+'</b> \u2265 80%</span>';
+    h+='<span><b style="color:#ef4444">'+abaixo50+'</b> < 50%</span>';
+    h+=concentracao;
+    h+='</div>';
+    h+='</div></div>';
   })();
 
   // ── KPIs ──
@@ -16074,7 +16311,42 @@ function pgConfig() {
       + '</div>'
       + '</div></div>';
   }
+  // ── Governança do sistema (sócios): hideMock, webhook, audit log ──
+  var govCard='';
+  if(u && u.role==='socio'){
+    var _hideMock = (S.cfg && S.cfg.hideMock) || localStorage.getItem('psm_hide_mock')==='1';
+    var _hook = ((S.cfg && S.cfg.webhookUrl) || localStorage.getItem('psm_webhook_url') || '').replace(/"/g,'&quot;');
+    var _logLen = (S.auditLog||[]).length;
+    govCard='<div class="card mt2" style="grid-column:1/-1;border:2px solid #0f172a"><div class="ctitle">🛡️ Governança do Sistema <span style="font-size:10px;font-weight:500;color:var(--muted);margin-left:8px">Exclusivo Sócios</span></div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">'
+      // Ocultar mocks
+      + '<div style="background:var(--cream2);border-radius:10px;padding:14px">'
+      + '<div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:8px">🧼 Ocultar Dados de Exemplo</div>'
+      + '<label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" '+(_hideMock?'checked':'')+' onchange="S.cfg=S.cfg||{};S.cfg.hideMock=this.checked;try{localStorage.setItem(\'psm_hide_mock\',this.checked?\'1\':\'0\');}catch(e){};PSM.auditLog(\'cfg.hideMock\',this.checked);saveState();render()"><span style="font-size:12px">Ocultar registros marcados como mock/exemplo</span></label>'
+      + '<div style="font-size:10.5px;color:var(--muted);margin-top:6px;line-height:1.4">Listas e KPIs passam a mostrar apenas dados reais. Registros novos ficam marcados via campo <code>_mock:true</code>.</div>'
+      + '</div>'
+      // Webhook alertas
+      + '<div style="background:var(--cream2);border-radius:10px;padding:14px">'
+      + '<div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:8px">🔔 Webhook de Alertas (WhatsApp/Slack)</div>'
+      + '<label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px">URL do endpoint (Zapier, Make, n8n, etc.)</label>'
+      + '<input type="text" class="finp" placeholder="https://hook.zapier.com/..." value="'+_hook+'" onchange="S.cfg=S.cfg||{};S.cfg.webhookUrl=this.value;try{localStorage.setItem(\'psm_webhook_url\',this.value);}catch(e){};PSM.auditLog(\'cfg.webhookUrl\',\'alterado\');saveState()" style="width:100%;padding:6px 10px;font-size:11px;margin-bottom:8px">'
+      + '<button class="btn bout bsm" style="width:100%" onclick="PSM.sendAlert({title:\'Teste PSM OS\',body:\'Webhook funcionando\',severity:\'info\'}).then(function(ok){toast(ok?\'Webhook enviado ✅\':\'Falha — confira a URL\',ok?\'ok\':\'err\')})">Enviar teste</button>'
+      + '<div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.4">Payload JSON com <code>title, body, severity, timestamp</code>. Configure seu Zapier/Make para encaminhar ao WhatsApp via API.</div>'
+      + '</div>'
+      // Audit log
+      + '<div style="background:var(--cream2);border-radius:10px;padding:14px">'
+      + '<div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:8px">📜 Audit Log</div>'
+      + '<div style="font-size:22px;font-weight:800;color:var(--navy)">'+_logLen+'</div>'
+      + '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">eventos registrados</div>'
+      + '<div style="display:flex;gap:6px">'
+      + '<button class="btn bout bsm" style="flex:1" onclick="var l=S.auditLog||[];var csv=\'ts,user,role,action,target,detail\\n\'+l.map(function(e){return [new Date(e.ts).toISOString(),e.user,e.role,e.action,e.target,(e.detail||\'\').replace(/,/g,\';\')].join(\',\');}).join(\'\\n\');var b=new Blob([csv],{type:\'text/csv\'});var u=URL.createObjectURL(b);var a=document.createElement(\'a\');a.href=u;a.download=\'psm_audit_\'+Date.now()+\'.csv\';a.click();">⬇ Export CSV</button>'
+      + '<button class="btn bout bsm" onclick="if(confirm(\'Limpar audit log?\')){S.auditLog=[];try{localStorage.removeItem(\'psm_audit_log\');}catch(e){};saveState();render();}">🗑</button>'
+      + '</div>'
+      + '</div>'
+      + '</div></div>';
+  }
   return '<div class="phd"><h1>⚙️ Configurações</h1><p>Administração House PSM</p></div>'
+    + govCard
     + arenaSoundCard
     + '<div class="g2">'
     + '<div class="card"><div class="ctitle">Usuários & Equipe</div>'
@@ -17843,7 +18115,7 @@ function premDel(id) {
 
 // === NOVO SISTEMA DE PERMISSOES POR SECAO ===
 // Paginas visiveis para TODOS
-var PAGES_ALL=['checkin','wararena','lancamentos_ano','ranking','agenda_psm','tabela','drive','mapa','formacao','manual','playbook','codigo_etica','simvpl','simincc','sim_energia','simrep','canal_anonimo','kenlo','agente_vera','agente_sol','sr_performance','sr_gerencia'];
+var PAGES_ALL=['checkin','wararena','lancamentos_ano','ranking','agenda_psm','tabela','drive','mapa','base_conhecimento','simuladores','formacao','manual','playbook','codigo_etica','simvpl','simincc','sim_energia','simrep','canal_anonimo','kenlo','agente_vera','agente_sol','sr_performance','sr_gerencia'];
 // Painel do Corretor: socios, gestores(lider), corretores
 var PAGES_PAINEL_CORRETOR=['oneonone','oportunidades','premiacoes','fluxo_cadencia','criativos','plantoes','ficha_captacao','fichas_propostas','ia_corretor','captacao'];
 // Vendas & Comissoes: diretores, lideres, corretores
@@ -17928,13 +18200,8 @@ function renderSB() {
       {id:'tabela',        lbl:'Tabela PSM',              ico:'\uD83D\uDCCB'},
       {id:'drive',         lbl:'Drive',                   ico:'\uD83D\uDCC1'},
       {id:'mapa',          lbl:'Mapa',                    ico:'\uD83D\uDDFA\uFE0F'},
-      {id:'formacao',      lbl:'Forma\u00e7\u00e3o PSM',  ico:'\uD83C\uDF93'},
-      {id:'manual',        lbl:'Manual de Cultura',       ico:'\uD83D\uDCD6'},
-      {id:'playbook',      lbl:'Playbook',                ico:'\uD83D\uDCD8'},
-      {id:'simvpl',        lbl:'VPL',                     ico:'\uD83D\uDCD0'},
-      {id:'simincc',       lbl:'Simulador INCC',          ico:'\uD83D\uDCCA'},
-      {id:'sim_energia',   lbl:'Simulador de Energia',    ico:'\u26A1'},
-      {id:'simrep',        lbl:'Simulador de Repasse',    ico:'\uD83D\uDCB0'},
+      {id:'base_conhecimento', lbl:'Base de Conhecimento', ico:'\uD83D\uDCDA'},
+      {id:'simuladores',   lbl:'Simuladores',             ico:'\uD83E\uDDEE'},
       {id:'canal_anonimo', lbl:'Canal An\u00f4nimo',      ico:'\uD83D\uDD12'},
       {id:'kenlo',         lbl:'Kenlo',                   ico:'\uD83C\uDFE0'},
     ]},
@@ -18176,6 +18443,8 @@ function route() {
     case 'kpis':             return pgKpis();
     // Agentes
     case 'sr_gerencia':      return pgPlaceholder('Sr. Ger\u00eancia','\uD83D\uDC54 Em constru\u00e7\u00e3o: agente de gest\u00e3o e ger\u00eancia.');
+    case 'simuladores':      return pgSimuladoresHub();
+    case 'base_conhecimento':return pgBaseConhecimentoHub();
     default:           return pgMeu();
   }
 }
@@ -22950,6 +23219,92 @@ function toggleMobSB() {
   if(!sb) return;
   sb.classList.toggle('open');
   if(ov) ov.classList.toggle('open');
+}
+
+// ─── HUB: Simuladores (VPL, INCC, Energia, Repasse) ─────────────────────────
+function pgSimuladoresHub(){
+  var tab = S.simTab || 'vpl';
+  var tabs = [
+    {id:'vpl',     lbl:'\uD83D\uDCD0 VPL',        fn:'pgSimVPL'},
+    {id:'incc',    lbl:'\uD83D\uDCCA INCC',       fn:'pgSimINCC'},
+    {id:'energia', lbl:'\u26A1 Energia',          fn:'pgSimEnergia'},
+    {id:'repasse', lbl:'\uD83D\uDCB0 Repasse',    fn:'pgSimRepasse'}
+  ];
+  var h = '<div class="phd"><h1>\uD83E\uDDEE Simuladores PSM</h1><p>Ferramentas de c\u00e1lculo para orientar o cliente</p></div>';
+  h += '<div style="display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--cream3);padding-bottom:8px;overflow-x:auto">';
+  tabs.forEach(function(t){
+    var on = tab===t.id;
+    h += '<button class="btn '+(on?'bp1':'bout')+' bsm" onclick="S.simTab=\''+t.id+'\';render()" style="white-space:nowrap">'+t.lbl+'</button>';
+  });
+  h += '</div>';
+  var sel = tabs.find(function(t){return t.id===tab;}) || tabs[0];
+  try {
+    h += (window[sel.fn]?window[sel.fn]():'<div class="card">Simulador indispon\u00edvel.</div>');
+  } catch(e){ h += '<div class="card">Erro ao carregar: '+e.message+'</div>'; }
+  return h;
+}
+
+// ─── HUB: Base de Conhecimento (Formação, Manual, Playbook, Ética) ─────────
+function pgBaseConhecimentoHub(){
+  var tab = S.bcTab || 'formacao';
+  var tabs = [
+    {id:'formacao', lbl:'\uD83C\uDF93 Forma\u00e7\u00e3o PSM',   fn:'pgFormacao'},
+    {id:'manual',   lbl:'\uD83D\uDCD6 Manual de Cultura',        fn:'pgManual'},
+    {id:'playbook', lbl:'\uD83D\uDCD8 Playbook',                 fn:null,       placeholder:'Playbook completo de vendas PSM — em breve.'},
+    {id:'etica',    lbl:'\u2696\uFE0F C\u00f3digo de \u00c9tica', fn:null,       placeholder:'C\u00f3digo de \u00e9tica profissional PSM — em breve.'}
+  ];
+  var h = '<div class="phd"><h1>\uD83D\uDCDA Base de Conhecimento</h1><p>Forma\u00e7\u00e3o, cultura, playbooks e \u00e9tica</p></div>';
+  h += '<div style="display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--cream3);padding-bottom:8px;overflow-x:auto">';
+  tabs.forEach(function(t){
+    var on = tab===t.id;
+    h += '<button class="btn '+(on?'bp1':'bout')+' bsm" onclick="S.bcTab=\''+t.id+'\';render()" style="white-space:nowrap">'+t.lbl+'</button>';
+  });
+  h += '</div>';
+  var sel = tabs.find(function(t){return t.id===tab;}) || tabs[0];
+  try {
+    if(sel.fn && window[sel.fn]) h += window[sel.fn]();
+    else h += '<div class="card"><div style="padding:30px;text-align:center;color:var(--muted)">'+(sel.placeholder||'Em breve')+'</div></div>';
+  } catch(e){ h += '<div class="card">Erro: '+e.message+'</div>'; }
+  return h;
+}
+
+// ─── DRILL-DOWN MODAL (Dashboard Diretoria) ─────────────────────────────────
+function showDrill(kind, extra){
+  var title='Detalhamento', rows=[];
+  try{
+    if(kind==='vendas'){
+      title='Vendas do per\u00edodo'; var src=window.VENDAS||[];
+      rows=src.map(function(v){return {c1:v.bn||'—',c2:v.cl||'—',c3:v.vgv?('R$ '+v.vgv.toLocaleString('pt-BR')):'—',c4:v.closedAt?new Date(v.closedAt).toLocaleDateString('pt-BR'):'—'};});
+    } else if(kind==='pipeline'){
+      title='Oportunidades em pipeline'; var src=window.OPPS||[];
+      rows=src.map(function(o){return {c1:o.bn||'—',c2:o.cl||o.titulo||'—',c3:o.vgv?('R$ '+o.vgv.toLocaleString('pt-BR')):'—',c4:o.st||'—'};});
+    } else if(kind==='perdidas'){
+      title='Oportunidades perdidas'; var src=window.LOST_DEALS||[];
+      rows=src.map(function(l){return {c1:l.bn||'—',c2:l.cl||'—',c3:l.vgv?('R$ '+l.vgv.toLocaleString('pt-BR')):'—',c4:l.motivo||l.reason||'—'};});
+    } else if(kind==='corretores'){
+      title='Atingimento por corretor'; var src=(window.BROKERS||[]).filter(function(b){return b.role==='corretor';});
+      rows=src.map(function(b){var p=b.meta>0?(((b.vgv_real||0)/b.meta)*100).toFixed(1)+'%':'—';return {c1:b.name,c2:b.frente||'—',c3:'R$ '+(b.vgv_real||0).toLocaleString('pt-BR'),c4:p};});
+    } else if(kind==='alertas'){
+      title='Alertas operacionais'; var src=(typeof generateAudits==='function')?generateAudits():[];
+      rows=src.map(function(a){return {c1:a.tipo||'—',c2:a.desc||'—',c3:(window.UM&&window.UM[a.bid]||{}).name||'—',c4:a.sev==='d'?'Cr\u00edtico':'Aten\u00e7\u00e3o'};});
+    }
+  }catch(e){ rows=[{c1:'Erro',c2:e.message,c3:'',c4:''}]; }
+  var html='<div id="drillModal" style="position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)document.getElementById(\'drillModal\').remove()">';
+  html+='<div style="background:#fff;border-radius:14px;max-width:900px;width:100%;max-height:80vh;overflow:auto;padding:20px 24px;box-shadow:0 20px 60px rgba(0,0,0,0.3)">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #e2e8f0">';
+  html+='<h2 style="margin:0;font-size:16px;font-weight:700;color:#0f172a">'+title+' <span style="font-size:11px;color:#64748b;font-weight:400">('+rows.length+')</span></h2>';
+  html+='<button onclick="document.getElementById(\'drillModal\').remove()" style="background:none;border:1px solid #e2e8f0;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px">Fechar</button>';
+  html+='</div>';
+  if(rows.length===0){ html+='<div style="padding:30px;text-align:center;color:#64748b;font-size:13px">Sem registros.</div>'; }
+  else{
+    html+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f8fafc"><th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0">Origem</th><th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0">Detalhe</th><th style="text-align:right;padding:8px;border-bottom:1px solid #e2e8f0">Valor/Categoria</th><th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0">Status/Data</th></tr></thead><tbody>';
+    rows.slice(0,200).forEach(function(r){ html+='<tr><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#0f172a">'+r.c1+'</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;color:#334155">'+r.c2+'</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;text-align:right;color:#0f172a">'+r.c3+'</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">'+r.c4+'</td></tr>'; });
+    html+='</tbody></table>';
+    if(rows.length>200) html+='<div style="margin-top:10px;font-size:11px;color:#64748b;text-align:center">Mostrando os primeiros 200 de '+rows.length+' registros.</div>';
+  }
+  html+='</div></div>';
+  var prev=document.getElementById('drillModal'); if(prev) prev.remove();
+  var wrap=document.createElement('div'); wrap.innerHTML=html; document.body.appendChild(wrap.firstChild);
 }
 
 function nav(page) {
