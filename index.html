@@ -1331,6 +1331,12 @@ let S={
   rdSyncing:false,rdSyncStatus:'',rdSyncError:'',rdDealCount:0,
   // One on One – link Google Sheets por corretor
   ooSheetLinks: {},
+  // One on One – histórico importado das planilhas (migração permanente)
+  ooImportado: {},
+  // One on One – log de auditoria (quem editou o quê, quando)
+  ooAuditLog: [],
+  // One on One – status da importação
+  ooImportStatus: {running:false, progress:'', log:[], lastRun:null},
   // Conectores / API Tokens
   connectors:{
     rd_crm_token:'', rd_mkt_token:'',
@@ -1416,6 +1422,8 @@ function saveState(skipFbPush) {
       ooSheetLinks: S.ooSheetLinks || {},
       ooSheetCache: S.ooSheetCache || {},
       ooDaily: S.ooDaily || {},
+      ooImportado: S.ooImportado || {},
+      ooAuditLog: S.ooAuditLog || [],
       ooMetas: S.ooMetas || {},
       ooFunnelPct: S.ooFunnelPct || {},
       sonhos: S.sonhos || {},
@@ -1446,6 +1454,8 @@ function saveState(skipFbPush) {
     try {
       var criticalData = {
         ooDaily: S.ooDaily || {},
+        ooImportado: S.ooImportado || {},
+        ooAuditLog: S.ooAuditLog || [],
         ooMetas: S.ooMetas || {},
         ooRotina: S.ooRotina || {},
         ooReunioes: S.ooReunioes || {},
@@ -1532,6 +1542,8 @@ function loadState() {
     if (d.metaIndiv) S.metaIndiv = d.metaIndiv;
     if (d.ooSheetLinks) { var _merged = {...S.ooSheetLinks}; Object.keys(d.ooSheetLinks).forEach(function(k){ if(d.ooSheetLinks[k]) _merged[k]=d.ooSheetLinks[k]; }); S.ooSheetLinks=_merged; }    if (d.ooSheetCache) { S.ooSheetCache = d.ooSheetCache; };
     if (d.ooDaily) { S.ooDaily = d.ooDaily; };
+    if (d.ooImportado) { S.ooImportado = d.ooImportado; };
+    if (d.ooAuditLog) { S.ooAuditLog = d.ooAuditLog; };
     if (d.ooMetas) { S.ooMetas = d.ooMetas; };
     if (d.ooFunnelPct) { S.ooFunnelPct = d.ooFunnelPct; };
 
@@ -7744,12 +7756,24 @@ function ooAggMonth(bid, monthKey) {
   var daily = ((S.ooDaily||{})[bid]||{})[monthKey] || {};
   var totals = {};
   OO_CAMPOS.forEach(function(c) { totals[c.k] = 0; });
+  var hasDaily = false;
   Object.keys(daily).forEach(function(dayKey) {
     var d = daily[dayKey];
     Object.keys(d).forEach(function(k) {
+      if ((d[k]||0) > 0) hasDaily = true;
       totals[k] = (totals[k] || 0) + (d[k] || 0);
     });
   });
+  // Fallback: se não há daily preenchido mas há histórico importado da planilha, usa
+  if (!hasDaily) {
+    var imp = ((S.ooImportado||{})[bid]||{})[monthKey];
+    if (imp && imp.totals) {
+      Object.keys(imp.totals).forEach(function(k){
+        totals[k] = (totals[k] || 0) + (imp.totals[k] || 0);
+      });
+      totals._fromImport = true;
+    }
+  }
   return totals;
 }
 
@@ -7827,7 +7851,22 @@ function ooSaveDaily(bid, dayKey, data) {
   if (!S.ooDaily[bid]) S.ooDaily[bid] = {};
   var mk = dayKey.substring(0, 7);
   if (!S.ooDaily[bid][mk]) S.ooDaily[bid][mk] = {};
+  var _before = S.ooDaily[bid][mk][dayKey];
   S.ooDaily[bid][mk][dayKey] = data;
+  // Log audit comparando before/after campo a campo (resumido)
+  try {
+    if (typeof ooAudit === 'function') {
+      var b = _before || {}; var a = data || {};
+      var allKeys = Object.keys(b).concat(Object.keys(a));
+      var seen = {};
+      allKeys.forEach(function(k){
+        if (seen[k]) return; seen[k]=1;
+        if ((b[k]||0) !== (a[k]||0)) {
+          ooAudit('daily', bid, dayKey, k, b[k]||0, a[k]||0);
+        }
+      });
+    }
+  } catch(e) {}
   saveState();
 }
 function ooSaveMetas(bid, key, data) {
@@ -9039,6 +9078,61 @@ function pgOO() {
     var realMes = ooAggMonth(selBid, monthKey);
     var metasMes = ooGetMetas(selBid, monthKey);
 
+    // === 0.a — MIGRAÇÃO HISTÓRICO + AUDIT LOG (lvl>=5) ===
+    if (lvl >= 5) {
+      var impStatus = S.ooImportStatus || {running:false, progress:'', log:[], lastRun:null};
+      var impCount = 0;
+      Object.keys(S.ooImportado||{}).forEach(function(b){
+        impCount += Object.keys(S.ooImportado[b]||{}).length;
+      });
+      var logCount = (S.ooAuditLog||[]).length;
+
+      content += '<div style="background:#0f172a;border-radius:12px;padding:16px;border:1px solid #0f9d5840;margin-bottom:16px">';
+      content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">';
+      content += '<div><div style="font-size:15px;font-weight:700;color:#10b981">📥 Migração do Histórico 1:1</div>';
+      content += '<div style="font-size:11px;color:#94a3b8;margin-top:2px">Importa abas mensais (2025-01 → '+monthKey+') das 9 planilhas. Não sobrescreve dados digitados no sistema.</div></div>';
+      content += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+      content += '<button class="btn bp1 bsm" onclick="ooImportarHistoricoCompleto()"'+(impStatus.running?' disabled':'')+' style="font-size:11px">'+(impStatus.running?'⏳ Importando...':'📥 Importar Histórico')+'</button>';
+      content += '<button class="btn bout bsm" onclick="ooExportJSON()" style="font-size:11px">💾 Exportar JSON</button>';
+      content += '</div></div>';
+      content += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:10px">';
+      content += '<div style="background:#1e293b;padding:10px;border-radius:8px"><div style="font-size:10px;color:#64748b">Abas importadas</div><div style="font-size:18px;font-weight:700;color:#10b981">'+impCount+'</div></div>';
+      content += '<div style="background:#1e293b;padding:10px;border-radius:8px"><div style="font-size:10px;color:#64748b">Audit log</div><div style="font-size:18px;font-weight:700;color:#3b82f6">'+logCount+' eventos</div></div>';
+      content += '<div style="background:#1e293b;padding:10px;border-radius:8px"><div style="font-size:10px;color:#64748b">Última importação</div><div style="font-size:12px;font-weight:600;color:#f8fafc">'+(impStatus.lastRun ? new Date(impStatus.lastRun).toLocaleString('pt-BR') : '—')+'</div></div>';
+      content += '</div>';
+      if (impStatus.running || impStatus.progress) {
+        content += '<div id="oo_import_progress" style="font-size:11px;color:#fbbf24;margin-bottom:8px">'+impStatus.progress+'</div>';
+      }
+      if (impStatus.log && impStatus.log.length) {
+        var recent = impStatus.log.slice(-15).reverse();
+        content += '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:11px;color:#94a3b8">Ver últimas 15 linhas do log</summary>';
+        content += '<div style="background:#020617;padding:8px;border-radius:6px;margin-top:6px;max-height:180px;overflow:auto;font-family:monospace;font-size:10px;color:#cbd5e1">';
+        content += recent.map(function(l){ return '<div>'+l.replace(/</g,'&lt;')+'</div>'; }).join('');
+        content += '</div></details>';
+      }
+      // Audit log viewer (filtra por corretor selecionado)
+      var logsDoCorretor = (S.ooAuditLog||[]).filter(function(e){ return e.bid === selBid; }).slice(-50).reverse();
+      if (logsDoCorretor.length) {
+        content += '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:#94a3b8;font-weight:600">📜 Histórico de edições — '+(selUser.name||selBid)+' ('+logsDoCorretor.length+' recentes)</summary>';
+        content += '<div style="margin-top:8px;max-height:260px;overflow:auto;background:#020617;border-radius:8px;padding:8px">';
+        content += '<table style="width:100%;font-size:10px;color:#cbd5e1;border-collapse:collapse">';
+        content += '<thead style="position:sticky;top:0;background:#020617"><tr style="color:#64748b"><th style="text-align:left;padding:4px">Quando</th><th style="text-align:left;padding:4px">Quem</th><th style="text-align:left;padding:4px">Tipo</th><th style="text-align:left;padding:4px">Campo</th><th style="text-align:left;padding:4px">Antes</th><th style="text-align:left;padding:4px">Depois</th></tr></thead><tbody>';
+        logsDoCorretor.forEach(function(e){
+          var when = new Date(e.ts).toLocaleString('pt-BR');
+          content += '<tr style="border-top:1px solid #1e293b">';
+          content += '<td style="padding:4px;white-space:nowrap">'+when+'</td>';
+          content += '<td style="padding:4px">'+(e.actorName||e.actor||'?')+'</td>';
+          content += '<td style="padding:4px"><code style="background:#1e293b;padding:1px 4px;border-radius:3px">'+e.kind+'</code></td>';
+          content += '<td style="padding:4px">'+(e.field||'')+'</td>';
+          content += '<td style="padding:4px;color:#f87171;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(e.before||'').replace(/"/g,'&quot;')+'">'+(e.before||'')+'</td>';
+          content += '<td style="padding:4px;color:#10b981;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(e.after||'').replace(/"/g,'&quot;')+'">'+(e.after||'')+'</td>';
+          content += '</tr>';
+        });
+        content += '</tbody></table></div></details>';
+      }
+      content += '</div>';
+    }
+
     // === 0. DEFINIR METAS (movido de Metas para cá) ===
     if (lvl >= 5) {
       var metaFrente = ooGetFrenteForBroker(selBid);
@@ -9466,27 +9560,293 @@ function ooReunNavMonth(dir) {
   render();
 }
 
+// === AUDIT LOG 1:1 =================================================
+// Registra toda edição em ooReunioes, ooDaily, ooObjetivo, ooRotina, etc.
+// Permite que Paulo/Sergio E o próprio corretor vejam quem alterou o quê.
+function ooAudit(kind, bid, key, field, before, after) {
+  try {
+    if (!S.ooAuditLog) S.ooAuditLog = [];
+    var actor = (S.user && S.user.id) ? S.user.id : 'desconhecido';
+    var actorName = (S.user && S.user.name) ? S.user.name : actor;
+    // Evita log vazio
+    var b = (before===undefined||before===null) ? '' : String(before);
+    var a = (after===undefined||after===null) ? '' : String(after);
+    if (b === a) return;
+    S.ooAuditLog.push({
+      ts: Date.now(),
+      actor: actor,
+      actorName: actorName,
+      kind: kind,      // ex: 'reuniao_update', 'reuniao_add', 'reuniao_remove', 'daily', 'disc', 'data'
+      bid: bid,        // corretor alvo
+      key: key,        // monthKey ou weekKey ou reunId
+      field: field,    // campo alterado
+      before: b.length > 500 ? b.slice(0,500)+'…' : b,
+      after:  a.length > 500 ? a.slice(0,500)+'…' : a
+    });
+    // Limita a 5000 entradas (rotaciona mais antigas)
+    if (S.ooAuditLog.length > 5000) {
+      S.ooAuditLog = S.ooAuditLog.slice(-5000);
+    }
+  } catch(e) { console.warn('[ooAudit]', e); }
+}
+
+// === IMPORT HISTÓRICO DAS PLANILHAS ================================
+// Importa todas as abas mensais (janeiro–dezembro 2025 + 2026 até mês atual)
+// das 9 planilhas de corretores. Migração única — depois podemos abandonar
+// as planilhas vinculadas sem perder nada.
+function _ooParseCSV_v2(csv) {
+  var map = {
+    'TENTATIVA DE LIGA': 'lig_real',
+    'ATENDIDA': 'lig_atend',
+    'TENTATIVA DE AGENDAMENTO': 'tent_agend',
+    'DE  AGEN': 'agend',
+    'N\u00BA DE AGEN': 'agend',
+    'DE VISITA': 'vis',
+    'PROPOSTA': 'prop',
+    'VENDA': 'vend',
+    'CONTRATO': 'vend',
+    'DESCARTADO': 'desc',
+    'CAPTA': 'capt'
+  };
+  function parseLine(line) {
+    var cells = [], cur = '', inQ = false;
+    for (var i = 0; i < line.length; i++) {
+      var c = line.charAt(i);
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { cells.push(cur.trim()); cur = ''; }
+      else if (c === '\r') {}
+      else { cur += c; }
+    }
+    cells.push(cur.trim());
+    return cells;
+  }
+  var rows = csv.split('\n');
+  var totals = {};
+  var inMonthly = false;
+  for (var i = 0; i < rows.length; i++) {
+    var cells = parseLine(rows[i]);
+    var label = (cells[5]||'').toUpperCase();
+    if (label.indexOf('PER') !== -1 && label.indexOf('ODO') !== -1) { inMonthly = true; continue; }
+    if (label.indexOf('SEMANA') !== -1) { inMonthly = false; continue; }
+    if (!inMonthly || !label) continue;
+    for (var mk in map) {
+      if (label.indexOf(mk) !== -1 && !totals[map[mk]]) {
+        var val = 0;
+        for (var ci = cells.length - 1; ci > 5; ci--) {
+          var raw = (cells[ci]||'').replace(/\./g,'').replace(',','.').replace(/[^0-9.\-]/g,'');
+          var n = parseFloat(raw);
+          if (!isNaN(n)) { val = Math.round(n); break; }
+        }
+        totals[map[mk]] = val;
+        break;
+      }
+    }
+  }
+  return totals;
+}
+
+function _ooFetchSheetTab(sid, tabCandidates) {
+  // Tenta cada candidato até um retornar CSV com dados
+  var attempt = 0;
+  function tryNext(resolve, reject) {
+    if (attempt >= tabCandidates.length) {
+      reject(new Error('nenhuma aba encontrada'));
+      return;
+    }
+    var tab = tabCandidates[attempt++];
+    var u = 'https://docs.google.com/spreadsheets/d/' + sid + '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(tab);
+    fetch(u).then(function(r){
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      return r.text();
+    }).then(function(csv){
+      var totals = _ooParseCSV_v2(csv);
+      var hasData = Object.keys(totals).some(function(k){ return (totals[k]||0) > 0; });
+      if (hasData) {
+        resolve({tab: tab, totals: totals});
+      } else {
+        tryNext(resolve, reject);
+      }
+    }).catch(function(){
+      tryNext(resolve, reject);
+    });
+  }
+  return new Promise(tryNext);
+}
+
+async function ooImportarHistoricoCompleto() {
+  if (!S.user || (S.user.lvl||0) < 5) {
+    toast('Apenas diretores podem executar a importação.','warn');
+    return;
+  }
+  if (S.ooImportStatus && S.ooImportStatus.running) {
+    toast('Importação já em andamento.','warn');
+    return;
+  }
+  if (!confirm('⚠️ Importar histórico completo das 9 planilhas?\n\nIsso vai varrer todas as abas mensais (2025-01 a mês atual) de cada corretor e gravar em S.ooImportado.\n\n• Cria backup antes\n• Não sobrescreve S.ooDaily\n• Registra no ooAuditLog\n\nContinuar?')) return;
+
+  // Backup
+  try {
+    var bkp = { ooImportado: S.ooImportado, ooDaily: S.ooDaily, at: Date.now() };
+    localStorage.setItem('psm_os_oo_backup_preimport_' + Date.now(), JSON.stringify(bkp));
+  } catch(e) { console.warn('[backup preimport]', e); }
+
+  S.ooImportStatus = {running:true, progress:'iniciando...', log:[], lastRun:null};
+  render();
+
+  var mesNomes = ['janeiro','fevereiro','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  var mesShort = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  function tabCandidatesFor(mIdx) {
+    var full = mesNomes[mIdx], sh = mesShort[mIdx];
+    var cap = full.charAt(0).toUpperCase() + full.slice(1);
+    var capSh = sh.charAt(0).toUpperCase() + sh.slice(1);
+    return [
+      full, cap, full.toUpperCase(),
+      sh, capSh, sh.toUpperCase(),
+      // com acento (março)
+      mIdx===2 ? 'março' : null, mIdx===2 ? 'Março' : null, mIdx===2 ? 'MARÇO' : null
+    ].filter(function(x){ return x; });
+  }
+
+  var corretores = Object.keys(OO_SHEET_DEFAULTS);
+  var hoje = new Date();
+  var anoAtual = hoje.getFullYear();
+  var mesAtual = hoje.getMonth(); // 0-11
+
+  // Lista (ano, mes) de 2025-01 até mês atual
+  var periodos = [];
+  for (var y = 2025; y <= anoAtual; y++) {
+    var mStart = 0;
+    var mEnd = (y === anoAtual) ? mesAtual : 11;
+    for (var m = mStart; m <= mEnd; m++) {
+      periodos.push({y:y, m:m});
+    }
+  }
+
+  var total = corretores.length * periodos.length;
+  var done = 0, ok = 0, fail = 0;
+
+  if (!S.ooImportado) S.ooImportado = {};
+
+  for (var ci = 0; ci < corretores.length; ci++) {
+    var bid = corretores[ci];
+    var url = OO_SHEET_DEFAULTS[bid];
+    var m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (!m) { fail += periodos.length; done += periodos.length; continue; }
+    var sid = m[1];
+    if (!S.ooImportado[bid]) S.ooImportado[bid] = {};
+
+    for (var pi = 0; pi < periodos.length; pi++) {
+      var p = periodos[pi];
+      var monthKey = p.y + '-' + String(p.m+1).padStart(2,'0');
+      S.ooImportStatus.progress = 'Importando ' + bid + ' ' + monthKey + ' ('+(done+1)+'/'+total+')';
+      // Atualizar UI sem re-render completo
+      var _ind = document.getElementById('oo_import_progress');
+      if (_ind) _ind.textContent = S.ooImportStatus.progress;
+
+      try {
+        var cands = tabCandidatesFor(p.m);
+        var res = await _ooFetchSheetTab(sid, cands);
+        // Se já existe importado e os valores são iguais, pula
+        var prev = S.ooImportado[bid][monthKey];
+        var changed = !prev || JSON.stringify(prev.totals||{}) !== JSON.stringify(res.totals);
+        if (changed) {
+          S.ooImportado[bid][monthKey] = {
+            totals: res.totals,
+            _audit: {
+              importedAt: Date.now(),
+              importedBy: (S.user && S.user.id) || 'unknown',
+              source: 'planilha:' + res.tab,
+              sid: sid
+            }
+          };
+          ooAudit('importado', bid, monthKey, 'totals',
+            prev ? JSON.stringify(prev.totals) : '',
+            JSON.stringify(res.totals));
+        }
+        S.ooImportStatus.log.push('✅ '+bid+' '+monthKey+' ('+res.tab+'): '+JSON.stringify(res.totals));
+        ok++;
+      } catch(err) {
+        S.ooImportStatus.log.push('⚠️ '+bid+' '+monthKey+': '+(err && err.message || 'sem dados'));
+        fail++;
+      }
+      done++;
+    }
+    // Salva a cada corretor (evita perder em caso de crash)
+    saveState();
+  }
+
+  S.ooImportStatus.running = false;
+  S.ooImportStatus.lastRun = Date.now();
+  S.ooImportStatus.progress = 'Concluído: '+ok+' abas importadas, '+fail+' sem dados/erro (de '+total+')';
+  saveState();
+  render();
+  toast('📥 Importação concluída: '+ok+'/'+total+' abas','ok');
+}
+
+function ooExportJSON() {
+  var data = {
+    _type: 'PSM_OS_1x1_EXPORT',
+    _version: 1,
+    _exportedAt: new Date().toISOString(),
+    _exportedBy: (S.user && S.user.id) || 'unknown',
+    ooDaily: S.ooDaily || {},
+    ooImportado: S.ooImportado || {},
+    ooAuditLog: S.ooAuditLog || [],
+    ooReunioes: S.ooReunioes || {},
+    ooMetas: S.ooMetas || {},
+    ooRotina: S.ooRotina || {},
+    ooObjetivo: S.ooObjetivo || {},
+    ooObjetivoPessoal: S.ooObjetivoPessoal || {},
+    ooMetaLanc: S.ooMetaLanc || {},
+    ooMetaVgvMes: S.ooMetaVgvMes || {},
+    ooDatas: S.ooDatas || {},
+    ooDiscCustom: S.ooDiscCustom || {},
+    ooFunilCustom: S.ooFunilCustom || {},
+    ooLateralCustom: S.ooLateralCustom || {},
+    ooFunnelPct: S.ooFunnelPct || {}
+  };
+  var json = JSON.stringify(data, null, 2);
+  var blob = new Blob([json], {type:'application/json'});
+  var u = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = u;
+  a.download = 'psm_1x1_backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(u);
+  toast('💾 1:1 exportado!','ok');
+}
+
 function ooAddReuniao(bid, monthKey) {
   if (!S.ooReunioes) S.ooReunioes = {};
   if (!S.ooReunioes[bid]) S.ooReunioes[bid] = {};
   if (!S.ooReunioes[bid][monthKey]) S.ooReunioes[bid][monthKey] = [];
   var numReun = S.ooReunioes[bid][monthKey].length + 1;
   var today = new Date().toISOString().slice(0,10);
+  var novoId = 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
   S.ooReunioes[bid][monthKey].push({
-    _id: 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    _id: novoId,
     semana: 'Semana ' + numReun,
     data: today,
     objetivos: '',
     observacoes: '',
     plano: ''
   });
+  ooAudit('reuniao_add', bid, monthKey, novoId, '', 'Semana ' + numReun + ' ('+today+')');
   saveState();
   render();
 }
 
 function ooRemoveReuniao(bid, monthKey, idx) {
   if (!S.ooReunioes || !S.ooReunioes[bid] || !S.ooReunioes[bid][monthKey]) return;
-  S.ooReunioes[bid][monthKey].splice(idx, 1);
+  var arr = S.ooReunioes[bid][monthKey];
+  var removed = arr[idx];
+  if (removed) {
+    ooAudit('reuniao_remove', bid, monthKey, removed._id || ('idx'+idx),
+      (removed.semana||'') + ' ' + (removed.data||'') + ' · objetivos:'+(removed.objetivos||'').slice(0,80)+' · obs:'+(removed.observacoes||'').slice(0,80),
+      '[REMOVIDA]'
+    );
+  }
+  arr.splice(idx, 1);
   saveState();
   render();
 }
@@ -9552,7 +9912,9 @@ function ooUpdateReuniao(bid, monthKey, idxOrId, field, value) {
     target = arr[idxOrId];
   }
   if (!target) return;
+  var _before = target[field];
   target[field] = value;
+  ooAudit('reuniao_update', bid, monthKey + '/' + (target._id || idxOrId), field, _before, value);
   saveState();
 }
 
@@ -9560,6 +9922,7 @@ function ooUpdateReuniao(bid, monthKey, idxOrId, field, value) {
 function ooSaveDisc(bid, field, value) {
   if (!S.ooDiscCustom) S.ooDiscCustom = {};
   if (!S.ooDiscCustom[bid]) S.ooDiscCustom[bid] = {};
+  var _before = S.ooDiscCustom[bid][field];
   S.ooDiscCustom[bid][field] = value;
   if (!DISC_PROFILES[bid]) DISC_PROFILES[bid] = {perfil:'',cor:'#64748b',desc:''};
   DISC_PROFILES[bid][field] = value;
@@ -9568,6 +9931,7 @@ function ooSaveDisc(bid, field, value) {
     DISC_PROFILES[bid].cor = cores[value] || '#64748b';
     S.ooDiscCustom[bid].cor = DISC_PROFILES[bid].cor;
   }
+  ooAudit('disc', bid, '-', field, _before, value);
   saveState(); toast('Perfil atualizado!','ok');
 }
 
@@ -9575,7 +9939,9 @@ function ooSaveDisc(bid, field, value) {
 function ooSaveData(bid, field, value) {
   if (!S.ooDatas) S.ooDatas = {};
   if (!S.ooDatas[bid]) S.ooDatas[bid] = {};
+  var _before = S.ooDatas[bid][field];
   S.ooDatas[bid][field] = value;
+  ooAudit('data', bid, '-', field, _before, value);
   saveState(); toast('Data salva!','ok');
 }
 
@@ -23628,6 +23994,8 @@ function psmExportBackup() {
     _exportedAt: new Date().toISOString(),
     _exportedBy: S.user ? S.user.id : 'unknown',
     ooDaily: S.ooDaily || {},
+    ooImportado: S.ooImportado || {},
+    ooAuditLog: S.ooAuditLog || [],
     ooMetas: S.ooMetas || {},
     ooRotina: S.ooRotina || {},
     ooReunioes: S.ooReunioes || {},
