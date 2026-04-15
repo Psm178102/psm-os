@@ -6419,6 +6419,66 @@ const RD = {
   // Invalidate cache (for force-refresh)
   clearCache() { this._cache = {}; },
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // DEAL STAGE HISTORY — fetch hist\u00f3rico real de etapas por deal
+  // Cacheado em S.rdStageHistCache { dealId: {updated_at, stages:[stageId,...]} }
+  // ═══════════════════════════════════════════════════════════════════════
+  async fetchDealStageHistory(dealId, dealUpdatedAt) {
+    if (!dealId) return null;
+    S.rdStageHistCache = S.rdStageHistCache || {};
+    var cached = S.rdStageHistCache[dealId];
+    if (cached && cached.updated_at === dealUpdatedAt && Array.isArray(cached.stages)) {
+      return cached.stages;
+    }
+    // Tenta /deals/:id — RD CRM v1 retorna deal completo, pode conter stage_flow
+    try {
+      var r = await this.req('/deals/' + dealId);
+      var d = (r && r.deal) ? r.deal : r;
+      // Procura por campos conhecidos que carregam histórico
+      var raw = d.deal_stage_flows || d.stage_flows || d.stage_history
+             || d.deal_stage_histories || d.deal_stage_flow_entries
+             || (d.deal_stage && d.deal_stage.flow) || null;
+      var stageIds = [];
+      if (Array.isArray(raw) && raw.length) {
+        raw.forEach(function(f){
+          var sid = (f.deal_stage && (f.deal_stage._id || f.deal_stage.id))
+                 || f.deal_stage_id || f.stage_id || f.stageId || null;
+          if (sid && stageIds.indexOf(sid) < 0) stageIds.push(sid);
+        });
+      }
+      // Sempre inclui a etapa atual (garantia de baseline)
+      var curId = (d.deal_stage && (d.deal_stage._id || d.deal_stage.id)) || d.deal_stage_id;
+      if (curId && stageIds.indexOf(curId) < 0) stageIds.push(curId);
+      S.rdStageHistCache[dealId] = { updated_at: dealUpdatedAt, stages: stageIds };
+      return stageIds;
+    } catch(e) {
+      console.warn('[RD history] falhou dealId=' + dealId, e.message);
+      return null;
+    }
+  },
+
+  // Fetch em lote com throttling (evita rate-limit)
+  async fetchStageHistoriesBatch(deals, onProgress) {
+    var out = {};
+    var CONCURRENCY = 5;
+    var i = 0, done = 0;
+    var self = this;
+    async function worker() {
+      while (i < deals.length) {
+        var idx = i++;
+        var d = deals[idx];
+        var h = await self.fetchDealStageHistory(d.id, d.updated_at);
+        out[d.id] = h || [];
+        done++;
+        if (onProgress) onProgress(done, deals.length);
+      }
+    }
+    var workers = [];
+    for (var k = 0; k < Math.min(CONCURRENCY, deals.length); k++) workers.push(worker());
+    await Promise.all(workers);
+    return out;
+  },
+
   async sync(showToast = true, forceRefresh = false) {
     if (this.syncing) return;
     if (forceRefresh) this.clearCache();
@@ -8677,19 +8737,56 @@ function pgOO() {
     var funilMes = ooGetFunilEquipe(ooGetFrenteForBroker(selBid));
     var fMN = funilMes.length;
     var rdFunil = FUNIS[selFrente] || FUNIS.lancamento;
-    // Conta OPPS do corretor por etapa RD
-    var brokerOpps = (typeof OPPS !== 'undefined' ? OPPS : []).filter(function(o){ return o.bid === selBid; });
-    var rdCounts = {}, rdVGV = {};
-    rdFunil.forEach(function(s){ rdCounts[s.id] = 0; rdVGV[s.id] = 0; });
-    brokerOpps.forEach(function(o){
-      var match = rdFunil.find(function(s){
+    // Pipeline snapshot do corretor = OPPS (abertas) + VENDAS (ganhas) + LOST_DEALS (perdidas, entraram em etapas)
+    var brokerOpps   = (typeof OPPS   !== 'undefined' ? OPPS   : []).filter(function(o){ return o.bid === selBid; });
+    var brokerVendas = (typeof VENDAS !== 'undefined' ? VENDAS : []).filter(function(o){ return o.bid === selBid; });
+    var brokerLost   = (typeof LOST_DEALS !== 'undefined' ? LOST_DEALS : []).filter(function(o){ return o.bid === selBid; });
+    // rdCounts = contagem CURRENT (snapshot — onde o deal est\u00e1 agora)
+    // rdReached = contagem COHORT (passou pela etapa, via deal_stage_history)
+    var rdCounts = {}, rdVGV = {}, rdReached = {};
+    rdFunil.forEach(function(s){ rdCounts[s.id] = 0; rdVGV[s.id] = 0; rdReached[s.id] = 0; });
+    function _matchStage(o){
+      return rdFunil.find(function(s){
         if (s.rdIds && o.st && s.rdIds.indexOf(o.st) >= 0) return true;
         if (s.id === o.st_psm) return true;
-        if (s.id === o.st) return true;
         return false;
       });
-      if (match) { rdCounts[match.id]++; rdVGV[match.id] += (o.vgv || 0); }
+    }
+    function _matchStageById(sid){
+      return rdFunil.find(function(s){ return s.rdIds && s.rdIds.indexOf(sid) >= 0; });
+    }
+    var unmappedOpen = 0, unmappedWon = 0;
+    brokerOpps.forEach(function(o){
+      var m = _matchStage(o);
+      if (m) { rdCounts[m.id]++; rdVGV[m.id] += (o.vgv || 0); }
+      else unmappedOpen++;
     });
+    brokerVendas.forEach(function(o){
+      var m = _matchStage(o);
+      if (!m) { m = rdFunil[rdFunil.length - 1]; unmappedWon++; }
+      rdCounts[m.id]++;
+      rdVGV[m.id] += (o.vgv || 0);
+    });
+    // ══ COHORT REACH: usa S.rdStageHistCache populado por RD.fetchStageHistoriesBatch ══
+    S.rdStageHistCache = S.rdStageHistCache || {};
+    var _allDeals = brokerOpps.concat(brokerVendas).concat(brokerLost);
+    var _haveHistory = _allDeals.length > 0 && _allDeals.every(function(d){
+      return S.rdStageHistCache[d.id] && Array.isArray(S.rdStageHistCache[d.id].stages);
+    });
+    if (_haveHistory) {
+      _allDeals.forEach(function(d){
+        var visited = {};
+        (S.rdStageHistCache[d.id].stages || []).forEach(function(sid){
+          var m = _matchStageById(sid);
+          if (m) visited[m.id] = true;
+        });
+        // VENDAS: passaram por todas as etapas at\u00e9 o \u00faltimo (garantia)
+        if (d.winStatus === 'won') {
+          rdFunil.forEach(function(s){ visited[s.id] = true; });
+        }
+        Object.keys(visited).forEach(function(sid){ rdReached[sid]++; });
+      });
+    }
     var fmtVGV = function(v){ if (v >= 1e6) return 'R$ ' + (v/1e6).toFixed(1) + 'M'; if (v >= 1e3) return 'R$ ' + Math.round(v/1e3) + 'k'; return 'R$ ' + v; };
 
     content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0">';
@@ -8725,36 +8822,74 @@ function pgOO() {
 
     // ========== COLUNA 2: FUNIL RD CRM ==========
     content += '<div style="background:#0f172a;border-radius:12px;padding:14px;border:1px solid #1e293b">';
-    content += '<div style="margin:4px 0 12px 0;text-align:center"><span style="font-size:16px;font-weight:700;color:var(--cream)">\uD83D\uDD17 FUNIL RD CRM \u2014 PIPELINE</span></div>';
+    content += '<div style="margin:4px 0 8px 0;text-align:center"><span style="font-size:16px;font-weight:700;color:var(--cream)">\uD83D\uDD17 FUNIL RD CRM \u2014 PIPELINE</span></div>';
+    // Modo e bot\u00e3o de auditoria
+    content += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:6px 10px;background:' + (_haveHistory ? '#064e3b' : '#1e293b') + ';border-radius:8px;border:1px solid ' + (_haveHistory ? '#10b981' : '#475569') + '">';
+    content += '<div style="font-size:11px;color:' + (_haveHistory ? '#6ee7b7' : '#94a3b8') + ';font-weight:700">';
+    content += _haveHistory ? '\u2705 MODO COHORT REAL (hist\u00f3rico RD)' : '\u26A0\uFE0F MODO SNAPSHOT (etapa atual)';
+    content += '</div>';
+    content += '<button onclick="auditarCohortRD(\'' + selBid + '\')" style="background:' + (_haveHistory ? '#10b981' : '#f59e0b') + ';color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer">' + (_haveHistory ? '\uD83D\uDD04 Refetch' : '\uD83D\uDD0D Auditar Cohort Real') + '</button>';
+    content += '</div>';
     var rdN = rdFunil.length;
-    var topCount = rdCounts[rdFunil[0].id] || 0;
+    // Em modo cohort, topCount = reached do topo; em snapshot, topCount = cnt do topo
+    var topCount = _haveHistory ? (rdReached[rdFunil[0].id] || 0) : (rdCounts[rdFunil[0].id] || 0);
     content += '<div>';
     rdFunil.forEach(function(s, idx) {
       var cnt = rdCounts[s.id] || 0;
+      var rch = rdReached[s.id] || 0;
       var vgv = rdVGV[s.id] || 0;
       var w = Math.round(100 - (idx * (56 / Math.max(rdN - 1, 1))));
       if (idx > 0) {
-        var prevCnt = rdCounts[rdFunil[idx-1].id] || 0;
-        var convPct = prevCnt > 0 ? (cnt/prevCnt*100) : 0;
-        var convStr = prevCnt > 0 ? convPct.toFixed(1) + '%' : '\u2014';
-        var convCor = convPct >= 50 ? '#10b981' : (convPct >= 25 ? '#f59e0b' : '#ef4444');
-        content += '<div style="text-align:center;margin:3px 0"><span style="font-size:12px;font-weight:700;color:' + convCor + ';background:#1e293b;padding:2px 10px;border-radius:10px;border:1px solid ' + convCor + '60;display:inline-block">\u2193 ' + convStr + '</span></div>';
+        if (_haveHistory) {
+          // Cohort: reached(N) / reached(N-1)
+          var prevR = rdReached[rdFunil[idx-1].id] || 0;
+          var convPct = prevR > 0 ? (rch/prevR*100) : 0;
+          var convStr = prevR > 0 ? convPct.toFixed(1) + '%' : '\u2014';
+          var convCor = convPct >= 50 ? '#10b981' : (convPct >= 25 ? '#f59e0b' : '#ef4444');
+          content += '<div style="text-align:center;margin:3px 0"><span style="font-size:11px;font-weight:700;color:' + convCor + ';background:#1e293b;padding:2px 10px;border-radius:10px;border:1px solid ' + convCor + '60;display:inline-block">\u2193 ' + convStr + ' <span style="opacity:.7;font-size:9px">cohort</span></span></div>';
+        } else {
+          var prevCnt = rdCounts[rdFunil[idx-1].id] || 0;
+          var convPct = prevCnt > 0 ? (cnt/prevCnt*100) : 0;
+          var convStr = prevCnt > 0 ? convPct.toFixed(1) + '%' : '\u2014';
+          var convCor = convPct >= 50 ? '#10b981' : (convPct >= 25 ? '#f59e0b' : '#ef4444');
+          content += '<div style="text-align:center;margin:3px 0"><span style="font-size:11px;font-weight:700;color:' + convCor + ';background:#1e293b;padding:2px 10px;border-radius:10px;border:1px solid ' + convCor + '60;display:inline-block">\u2193 ' + convStr + ' <span style="opacity:.7;font-size:9px">snapshot</span></span></div>';
+        }
       }
       var wPct = Math.round((s.w || 0) * 100);
       content += '<div style="display:flex;align-items:center;margin-bottom:4px">';
       content += '<div style="width:' + w + '%;background:' + s.color + ';color:#fff;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px">';
       content += '<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + s.label + ' <span style="opacity:.7;font-size:10px">W' + wPct + '%</span></div>';
-      content += '<div style="text-align:right;white-space:nowrap"><span style="font-weight:800">' + cnt + '</span>';
+      content += '<div style="text-align:right;white-space:nowrap">';
+      if (_haveHistory) {
+        content += '<span style="font-weight:800">' + rch + '</span><span style="opacity:.65;font-size:10px"> passaram</span>';
+        content += ' <span style="opacity:.55;font-size:10px">\u00B7 ' + cnt + ' atual</span>';
+      } else {
+        content += '<span style="font-weight:800">' + cnt + '</span>';
+      }
       if (vgv > 0) content += ' <span style="opacity:.85;font-size:11px">\u00B7 ' + fmtVGV(vgv) + '</span>';
       content += '</div></div></div>';
     });
     // Conversao total
-    var lastCount = rdCounts[rdFunil[rdN-1].id] || 0;
+    var lastCount = _haveHistory ? (rdReached[rdFunil[rdN-1].id] || 0) : (rdCounts[rdFunil[rdN-1].id] || 0);
     var totalConv = topCount > 0 ? (lastCount/topCount*100).toFixed(1) + '%' : '\u2014';
     content += '<div style="margin-top:10px;padding:8px;background:#1e293b;border-radius:8px;text-align:center">';
-    content += '<span style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">Convers\u00e3o Total</span> ';
+    content += '<span style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">Convers\u00e3o Total' + (_haveHistory ? ' (cohort)' : ' (snapshot)') + '</span> ';
     content += '<span style="font-size:15px;font-weight:800;color:var(--cream)">' + totalConv + '</span>';
     content += '</div>';
+    // Diagn\u00f3stico de integra\u00e7\u00e3o RD CRM
+    var totalPipe = brokerOpps.length + brokerVendas.length;
+    var pipeVGV = brokerOpps.reduce(function(a,o){return a+(o.vgv||0);},0) + brokerVendas.reduce(function(a,o){return a+(o.vgv||0);},0);
+    content += '<div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:10px">';
+    content += '<div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:6px;text-align:center"><div style="color:#64748b">Abertas</div><div style="color:#e2e8f0;font-weight:700">' + brokerOpps.length + '</div></div>';
+    content += '<div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:6px;text-align:center"><div style="color:#64748b">Ganhas</div><div style="color:#10b981;font-weight:700">' + brokerVendas.length + '</div></div>';
+    content += '<div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:6px;text-align:center"><div style="color:#64748b">Perdidas</div><div style="color:#ef4444;font-weight:700">' + brokerLost.length + '</div></div>';
+    content += '<div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:6px;text-align:center"><div style="color:#64748b">VGV Total</div><div style="color:var(--cream);font-weight:700">' + fmtVGV(pipeVGV) + '</div></div>';
+    content += '</div>';
+    if (unmappedOpen > 0 || unmappedWon > 0) {
+      content += '<div style="margin-top:6px;padding:6px 8px;background:#7c2d12;border:1px solid #ea580c;border-radius:6px;font-size:10px;color:#fed7aa">\u26A0\uFE0F ' + unmappedOpen + ' abertas sem est\u00e1gio mapeado (frente: ' + selFrente + ')';
+      if (unmappedWon > 0) content += ' \u00B7 ' + unmappedWon + ' vendas sem est\u00e1gio (alocadas no \u00faltimo)';
+      content += '</div>';
+    }
     content += '</div></div>';
 
     content += '</div>'; // end grid
@@ -10009,6 +10144,35 @@ function ooDec(bid, key) {
 }
 
 // === NEW HELPER FUNCTIONS FOR ONE ON ONE ===
+
+// ══ AUDITORIA COHORT REAL — busca deal_stage_history de TODOS os deals do corretor ══
+async function auditarCohortRD(bid){
+  if (!bid) return;
+  var allDeals = []
+    .concat((typeof OPPS   !== 'undefined' ? OPPS   : []).filter(function(o){return o.bid===bid;}))
+    .concat((typeof VENDAS !== 'undefined' ? VENDAS : []).filter(function(o){return o.bid===bid;}))
+    .concat((typeof LOST_DEALS !== 'undefined' ? LOST_DEALS : []).filter(function(o){return o.bid===bid;}));
+  if (!allDeals.length) { toast('Nenhum deal encontrado para este corretor', 'warn'); return; }
+  if (!RD || !RD.fetchStageHistoriesBatch) { toast('Integração RD indisponível', 'err'); return; }
+  toast('Buscando histórico de ' + allDeals.length + ' deals no RD...', '');
+  try {
+    var ok = 0;
+    await RD.fetchStageHistoriesBatch(allDeals, function(done, total){
+      if (done % 10 === 0 || done === total) {
+        console.log('[cohort RD]', done + '/' + total);
+      }
+    });
+    // Checa quantos foram fetched com sucesso
+    S.rdStageHistCache = S.rdStageHistCache || {};
+    allDeals.forEach(function(d){ if (S.rdStageHistCache[d.id] && S.rdStageHistCache[d.id].stages) ok++; });
+    toast('✅ Cohort calculado: ' + ok + '/' + allDeals.length + ' deals com histórico', 'ok');
+    render();
+  } catch(e) {
+    console.error('[cohort RD] erro:', e);
+    toast('Erro ao buscar histórico: ' + e.message, 'err');
+  }
+}
+window.auditarCohortRD = auditarCohortRD;
 
 // Increment/Decrement field in funnel (without full render)
 function ooIncField(bid, monthKey, dayKey, fieldKey) {
