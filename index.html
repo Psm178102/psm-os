@@ -4294,6 +4294,20 @@ var pgWarArena = function(){
   }
   // ===== TIMELINE DE OPORTUNIDADES (módulo Oportunidades PSM — S.oportunidadesPSM) =====
   var _hojeStr = now.toISOString().slice(0,10);
+  // Parser robusto de validade: aceita YYYY-MM-DD, DD/MM/YYYY, YYYY-MM-DDTHH:mm:ss
+  // Retorna timestamp do FIM do dia local (23:59:59.999) — oportunidade válida o dia inteiro
+  function _parseValidade(v){
+    if(!v) return null;
+    var s = String(v).trim();
+    var y,m,d;
+    var mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    var mBr  = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if(mIso){ y=+mIso[1]; m=+mIso[2]; d=+mIso[3]; }
+    else if(mBr){ d=+mBr[1]; m=+mBr[2]; y=+mBr[3]; }
+    else { var dt=new Date(s); return isNaN(dt)?null:dt.getTime(); }
+    // Fim do dia local (23:59:59.999) para não expirar no próprio dia
+    return new Date(y, m-1, d, 23, 59, 59, 999).getTime();
+  }
   var _ops = (S.oportunidadesPSM || []).slice();
   // Ordena: destaques primeiro, depois mais recentes (criadoEm desc)
   _ops.sort(function(a,b){
@@ -4336,9 +4350,11 @@ var pgWarArena = function(){
       tlShow.forEach(function(op){
         var ico = op.icon || _tipoIcone(op.tipo);
         var color = _tipoCor(op.tipo);
-        var expira = op.validade && op.validade < _hojeStr;
+        var _valTs = _parseValidade(op.validade);
+        var _nowTs = Date.now();
+        var expira = !!(_valTs && _valTs < _nowTs);
         var dtCreate = new Date(op.criadoEm || Date.now());
-        var diasValid = op.validade ? Math.ceil((new Date(op.validade).getTime()-Date.now())/86400000) : null;
+        var diasValid = _valTs ? Math.ceil((_valTs - _nowTs)/86400000) : null;
         h += '<div style="flex:0 0 auto;background:'+color+'1a;border:1px solid '+color+'55;border-left:4px solid '+color+';border-radius:10px;padding:10px 14px;min-width:300px;max-width:340px;'+(op.destaque?'box-shadow:0 0 12px '+color+'44;':'')+(expira?'opacity:0.55;':'')+'">';
         h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
         h += '<span style="font-size:16px">'+ico+'</span>';
