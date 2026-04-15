@@ -1337,6 +1337,8 @@ let S={
   ooAuditLog: [],
   // One on One – status da importação
   ooImportStatus: {running:false, progress:'', log:[], lastRun:null},
+  // One on One – corretores com planilha abandonada (só sistema)
+  ooSheetAbandoned: {},
   // Conectores / API Tokens
   connectors:{
     rd_crm_token:'', rd_mkt_token:'',
@@ -1363,7 +1365,28 @@ const OO_SHEET_DEFAULTS = {
 
 // Helper: retorna link da planilha com fallback garantido
 function ooGetSheetLink(bid) {
+  // Se o corretor foi "abandonado" (migração concluída), ignora TUDO — nem custom nem default.
+  // Isso permite parar de buscar da planilha sem apagar o link do DEFAULTS (mantém histórico).
+  if ((S.ooSheetAbandoned||{})[bid]) return '';
   return (S.ooSheetLinks||{})[bid] || OO_SHEET_DEFAULTS[bid] || '';
+}
+
+function ooToggleSheetAbandoned(bid, name) {
+  if (!S.user || (S.user.lvl||0) < 5) { toast('Apenas diretores.','warn'); return; }
+  if (!S.ooSheetAbandoned) S.ooSheetAbandoned = {};
+  var cur = S.ooSheetAbandoned[bid] || false;
+  if (cur) {
+    if (!confirm('Reativar vínculo da planilha para '+name+'?\n\nSistema vai voltar a buscar dados da Google Sheet.')) return;
+    delete S.ooSheetAbandoned[bid];
+    toast('📊 Planilha de '+name+' REATIVADA','ok');
+  } else {
+    if (!confirm('⚠️ Abandonar planilha de '+name+'?\n\n• Sistema PARA de buscar dados da Google Sheet\n• Histórico já importado em S.ooImportado é preservado\n• Novos lançamentos só no sistema\n• Reversível (pode reativar depois)\n\nIMPORTANTE: garanta que você já importou o histórico antes!\n\nContinuar?')) return;
+    S.ooSheetAbandoned[bid] = Date.now();
+    if (typeof ooAudit === 'function') ooAudit('planilha', bid, '-', 'abandoned', 'false', 'true');
+    toast('🚫 Planilha de '+name+' ABANDONADA. Só sistema agora.','ok');
+  }
+  saveState();
+  render();
 }
 
 let DISC_PROFILES = {
@@ -1393,6 +1416,26 @@ let METAS_EQUIPE = {
 
 // ─── PERSISTENCE ─────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'psm_os_state';
+
+// === CROSS-TAB SYNC ================================================
+// Se o usuário tem múltiplas abas abertas, edições numa aba refletem
+// automaticamente nas outras (evita sobrescritas e estados divergentes).
+(function(){
+  if (typeof window === 'undefined') return;
+  var _syncing = false;
+  window.addEventListener('storage', function(ev){
+    if (ev.key !== STORAGE_KEY || !ev.newValue) return;
+    if (_syncing) return;
+    _syncing = true;
+    try {
+      // Recarrega state e força re-render (sem push ao Firebase pra evitar loop)
+      if (typeof loadState === 'function') loadState();
+      if (typeof render === 'function') render();
+      try { if (typeof toast === 'function') toast('🔄 Dados atualizados em outra aba','ok'); } catch(_){}
+    } catch(e){ console.warn('[cross-tab sync]', e); }
+    setTimeout(function(){ _syncing = false; }, 100);
+  });
+})();
 // saveState: skipFbPush=true evita loop Firebase (usado quando dados vem do Firebase)
 function saveState(skipFbPush) {
   try {
@@ -1424,6 +1467,7 @@ function saveState(skipFbPush) {
       ooDaily: S.ooDaily || {},
       ooImportado: S.ooImportado || {},
       ooAuditLog: S.ooAuditLog || [],
+      ooSheetAbandoned: S.ooSheetAbandoned || {},
       ooMetas: S.ooMetas || {},
       ooFunnelPct: S.ooFunnelPct || {},
       sonhos: S.sonhos || {},
@@ -1449,7 +1493,50 @@ function saveState(skipFbPush) {
       oportunidadesPSM: S.oportunidadesPSM || [],
       savedAt: Date.now(),
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    // === SALVAMENTO PRINCIPAL COM DETECÇÃO DE QUOTA ===
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    } catch(quotaErr) {
+      var isQuota = quotaErr && (quotaErr.name === 'QuotaExceededError' ||
+                                  quotaErr.code === 22 ||
+                                  quotaErr.code === 1014 ||
+                                  (quotaErr.message||'').toLowerCase().indexOf('quota')!==-1);
+      if (isQuota) {
+        console.error('[PSM] LocalStorage CHEIO. Tentando liberar espaço…');
+        try {
+          // Remove backups rotativos antigos primeiro
+          localStorage.removeItem('psm_backup_h3');
+          localStorage.removeItem('psm_backup_h2');
+          // Remove backups pré-import antigos (mais de 7 dias)
+          var cutoff = Date.now() - 7*24*3600*1000;
+          for (var i = localStorage.length-1; i >= 0; i--) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf('psm_os_oo_backup_preimport_') === 0) {
+              var ts = parseInt(k.split('_').pop()) || 0;
+              if (ts < cutoff) localStorage.removeItem(k);
+            }
+          }
+          // Reduz audit log para últimas 1000 entradas se muito grande
+          if (S.ooAuditLog && S.ooAuditLog.length > 1000) {
+            S.ooAuditLog = S.ooAuditLog.slice(-1000);
+            toSave.ooAuditLog = S.ooAuditLog;
+          }
+          // Tenta de novo
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+          try { if (typeof toast === 'function') toast('⚠️ Armazenamento liberado. Considere exportar backup JSON.','warn'); } catch(_){}
+        } catch(retryErr) {
+          // Ainda falhou — notifica claramente
+          try {
+            if (typeof toast === 'function') toast('❌ ARMAZENAMENTO CHEIO! Exporte JSON antes de editar mais.','err');
+            else alert('PSM OS: localStorage cheio. Exporte backup JSON agora (Gestão 1:1 → Exportar JSON).');
+          } catch(_){}
+          // Também registra flag pra UI avisar
+          S._storageFullWarned = Date.now();
+        }
+      } else {
+        throw quotaErr;
+      }
+    }
     // === BACKUP REDUNDANTE: dados críticos salvos em chave separada ===
     try {
       var criticalData = {
@@ -1544,6 +1631,7 @@ function loadState() {
     if (d.ooDaily) { S.ooDaily = d.ooDaily; };
     if (d.ooImportado) { S.ooImportado = d.ooImportado; };
     if (d.ooAuditLog) { S.ooAuditLog = d.ooAuditLog; };
+    if (d.ooSheetAbandoned) { S.ooSheetAbandoned = d.ooSheetAbandoned; };
     if (d.ooMetas) { S.ooMetas = d.ooMetas; };
     if (d.ooFunnelPct) { S.ooFunnelPct = d.ooFunnelPct; };
 
@@ -1996,6 +2084,123 @@ function pgDashboard(){
     h+='</div></div>';
   })();
   h+='</div>';
+
+  // ── BLOCO 360º: MARKETING · FINANCEIRO · META ADS · CONCORRÊNCIA ──
+  (function(){
+    // --- Marketing (S.mkData) ---
+    var mk = S.mkData || {leads_mes:0, leads_meta:0, custo_lead:0, investimento:0, leads_qualificados:0, taxa_conversao:0};
+    var mkPct = mk.leads_meta>0 ? Math.round((mk.leads_mes/mk.leads_meta)*100) : 0;
+    var mkCor = mkPct>=100?'#22c55e':mkPct>=70?'#d97706':'#ef4444';
+
+    // --- Financeiro (localStorage.psm_dre) ---
+    var dre = {};
+    try { dre = JSON.parse(localStorage.getItem('psm_dre') || '{}'); } catch(e){ dre = {}; }
+    function dv(k){ return parseFloat(dre[k])||0; }
+    var finReceita = dv('receita_vendas')+dv('receita_locacao')+dv('receita_outras');
+    var finCusto = dv('custo_pessoal')+dv('custo_marketing')+dv('custo_operacional')+dv('custo_tecnologia')+dv('custo_outros');
+    var finImposto = dv('imposto_iss')+dv('imposto_ir')+dv('imposto_outros');
+    var finLucro = finReceita - finCusto - finImposto;
+    var finMargem = finReceita>0 ? (finLucro/finReceita*100) : 0;
+    var finCor = finLucro>=0 ? '#22c55e' : '#ef4444';
+
+    // --- Meta Ads (S.maData) ---
+    var ma = S.maData;
+    var maSpend=0, maResults=0, maActive=0, maCpl=0, maTotCamp=0, maImpr=0, maClicks=0;
+    if (ma && Array.isArray(ma.campaigns)) {
+      ma.campaigns.forEach(function(c){
+        maSpend += Number(c.spend||0);
+        maResults += Number(c.results||0);
+        maImpr += Number(c.impressions||0);
+        maClicks += Number(c.clicks||0);
+        if (c.status==='active') maActive++;
+        maTotCamp++;
+      });
+      maCpl = maResults>0 ? maSpend/maResults : 0;
+    }
+    var maCtr = maImpr>0 ? (maClicks/maImpr*100) : 0;
+    var maStatus = ma ? (ma.error ? 'erro' : 'ok') : 'sem-conexão';
+
+    // --- Concorrência tier A ativa ---
+    var cs = S.competitorsState || {};
+    var compList = (typeof COMPETITORS !== 'undefined' ? COMPETITORS : []) || [];
+    var compFlaggedA = [];
+    var compFlaggedB = [];
+    var compNow = Date.now();
+    compList.forEach(function(c){
+      var s = cs[c.id]; if(!s || !s.flagged) return;
+      var ts = s.lastChangeAt || s.lastCheck || compNow;
+      if (compNow - ts <= 7*24*3600*1000) {
+        (c.tier==='A'?compFlaggedA:compFlaggedB).push({c:c, s:s, ts:ts});
+      }
+    });
+
+    h+='<div class="card mb2" style="border-left:4px solid #6366f1"><div class="ctitle">🌐 Diretoria 360 · Marketing · Financeiro · Meta Ads · Concorrência</div>';
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:10px">';
+
+    // Card Marketing
+    h+='<div style="background:linear-gradient(135deg,#fef3c710,#f59e0b08);border:1px solid #f59e0b30;border-radius:12px;padding:14px;cursor:pointer" onclick="nav(\'marketing\')">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:12px;font-weight:700;color:#d97706">📣 MARKETING</span>';
+    h+=(mk.leads_mes===0&&mk.leads_meta===0?'<span style="font-size:9px;color:#ef4444;font-weight:700">⚠️ sem dados</span>':'')+'</div>';
+    h+='<div style="display:flex;align-items:baseline;gap:6px"><div style="font-size:24px;font-weight:800;color:'+mkCor+'">'+mk.leads_mes+'</div><div style="font-size:11px;color:var(--muted)">/ '+mk.leads_meta+' leads ('+mkPct+'%)</div></div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;font-size:10px">';
+    h+='<div><div style="color:#64748b">Qualif.</div><div style="font-weight:700;color:var(--navy)">'+mk.leads_qualificados+'</div></div>';
+    h+='<div><div style="color:#64748b">Conv.</div><div style="font-weight:700;color:var(--navy)">'+(mk.taxa_conversao||0)+'%</div></div>';
+    h+='<div><div style="color:#64748b">Custo/Lead</div><div style="font-weight:700;color:var(--navy)">R$ '+(mk.custo_lead||0).toFixed(2)+'</div></div>';
+    h+='<div><div style="color:#64748b">Invest.</div><div style="font-weight:700;color:var(--navy)">'+fmt(mk.investimento||0)+'</div></div>';
+    h+='</div></div>';
+
+    // Card Financeiro
+    var finTemDados = finReceita>0 || finCusto>0 || finImposto>0;
+    h+='<div style="background:linear-gradient(135deg,#dcfce710,#22c55e08);border:1px solid #22c55e30;border-radius:12px;padding:14px;cursor:pointer" onclick="nav(\'dre\')">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:12px;font-weight:700;color:#16a34a">💰 FINANCEIRO (DRE)</span>';
+    h+=(!finTemDados?'<span style="font-size:9px;color:#ef4444;font-weight:700">⚠️ sem dados</span>':'')+'</div>';
+    h+='<div style="display:flex;align-items:baseline;gap:6px"><div style="font-size:20px;font-weight:800;color:'+finCor+'">'+fmt(Math.round(finLucro))+'</div><div style="font-size:11px;color:var(--muted)">lucro · '+finMargem.toFixed(1)+'% margem</div></div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;font-size:10px">';
+    h+='<div><div style="color:#64748b">Receita</div><div style="font-weight:700;color:#16a34a">'+fmt(Math.round(finReceita))+'</div></div>';
+    h+='<div><div style="color:#64748b">Custos</div><div style="font-weight:700;color:#dc2626">'+fmt(Math.round(finCusto))+'</div></div>';
+    h+='<div><div style="color:#64748b">Impostos</div><div style="font-weight:700;color:#d97706">'+fmt(Math.round(finImposto))+'</div></div>';
+    h+='<div><div style="color:#64748b">Comiss.</div><div style="font-weight:700;color:var(--navy)">'+(Object.keys(S.comissoes||{}).length || 0)+' reg.</div></div>';
+    h+='</div></div>';
+
+    // Card Meta Ads
+    h+='<div style="background:linear-gradient(135deg,#dbeafe10,#3b82f608);border:1px solid #3b82f630;border-radius:12px;padding:14px;cursor:pointer" onclick="nav(\'metaads\')">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:12px;font-weight:700;color:#2563eb">📱 META ADS</span>';
+    if (!ma) h+='<span style="font-size:9px;color:#ef4444;font-weight:700">⚠️ '+maStatus+'</span>';
+    else h+='<span style="font-size:9px;color:#22c55e;font-weight:700">● '+maActive+'/'+maTotCamp+' ativas</span>';
+    h+='</div>';
+    h+='<div style="display:flex;align-items:baseline;gap:6px"><div style="font-size:20px;font-weight:800;color:var(--navy)">'+fmt(Math.round(maSpend))+'</div><div style="font-size:11px;color:var(--muted)">gasto · '+maResults+' leads</div></div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;font-size:10px">';
+    h+='<div><div style="color:#64748b">CPL</div><div style="font-weight:700;color:'+(maCpl>0&&maCpl<80?'#22c55e':maCpl<150?'#d97706':'#dc2626')+'">R$ '+maCpl.toFixed(2)+'</div></div>';
+    h+='<div><div style="color:#64748b">CTR</div><div style="font-weight:700;color:var(--navy)">'+maCtr.toFixed(2)+'%</div></div>';
+    h+='<div><div style="color:#64748b">Impress.</div><div style="font-weight:700;color:var(--navy)">'+fmt(maImpr)+'</div></div>';
+    h+='<div><div style="color:#64748b">Cliques</div><div style="font-weight:700;color:var(--navy)">'+fmt(maClicks)+'</div></div>';
+    h+='</div></div>';
+
+    // Card Concorrência
+    var compTotal = compFlaggedA.length + compFlaggedB.length;
+    var compCor = compFlaggedA.length>0?'#dc2626':compFlaggedB.length>0?'#d97706':'#22c55e';
+    h+='<div style="background:linear-gradient(135deg,#fef2f210,#ef444408);border:1px solid #ef444430;border-radius:12px;padding:14px;cursor:pointer" onclick="nav(\'radar\')">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:12px;font-weight:700;color:'+compCor+'">🚩 CONCORRÊNCIA</span>';
+    h+='<span style="font-size:9px;color:#64748b">últimos 7d</span></div>';
+    h+='<div style="display:flex;align-items:baseline;gap:6px"><div style="font-size:24px;font-weight:800;color:'+compCor+'">'+compTotal+'</div><div style="font-size:11px;color:var(--muted)">com atividade · '+compList.length+' monitorados</div></div>';
+    h+='<div style="margin-top:8px;font-size:10px">';
+    if (compFlaggedA.length>0) {
+      h+='<div style="color:#dc2626;font-weight:700;margin-bottom:4px">Tier A ('+compFlaggedA.length+'):</div>';
+      compFlaggedA.slice(0,3).forEach(function(f){
+        h+='<div style="padding:4px 6px;background:#fef2f2;border-radius:4px;margin-bottom:2px;color:#7f1d1d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">• '+f.c.n+' — '+(f.s.lastChangeNote||'mudança')+'</div>';
+      });
+    }
+    if (compFlaggedB.length>0 && compFlaggedA.length<3) {
+      h+='<div style="color:#d97706;font-weight:700;margin:4px 0">Tier B ('+compFlaggedB.length+'):</div>';
+      compFlaggedB.slice(0,2).forEach(function(f){
+        h+='<div style="padding:4px 6px;background:#fef3c7;border-radius:4px;margin-bottom:2px;color:#78350f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">• '+f.c.n+' — '+(f.s.lastChangeNote||'mudança')+'</div>';
+      });
+    }
+    if (compTotal===0) h+='<div style="color:#16a34a">Sem movimentos relevantes</div>';
+    h+='</div></div>';
+
+    h+='</div></div>';
+  })();
 
   // ── TIMELINE DIRETORIA (alertas, vendas recentes, oportunidades, metas batidas) ──
   (function(){
@@ -9094,6 +9299,7 @@ function pgOO() {
       content += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
       content += '<button class="btn bp1 bsm" onclick="ooImportarHistoricoCompleto()"'+(impStatus.running?' disabled':'')+' style="font-size:11px">'+(impStatus.running?'⏳ Importando...':'📥 Importar Histórico')+'</button>';
       content += '<button class="btn bout bsm" onclick="ooExportJSON()" style="font-size:11px">💾 Exportar JSON</button>';
+      content += '<label class="btn bout bsm" style="font-size:11px;cursor:pointer;margin:0">📤 Importar JSON<input type="file" accept=".json" onchange="ooImportJSON(this)" style="display:none"></label>';
       content += '</div></div>';
       content += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:10px">';
       content += '<div style="background:#1e293b;padding:10px;border-radius:8px"><div style="font-size:10px;color:#64748b">Abas importadas</div><div style="font-size:18px;font-weight:700;color:#10b981">'+impCount+'</div></div>';
@@ -9103,6 +9309,25 @@ function pgOO() {
       if (impStatus.running || impStatus.progress) {
         content += '<div id="oo_import_progress" style="font-size:11px;color:#fbbf24;margin-bottom:8px">'+impStatus.progress+'</div>';
       }
+      // Lista de status por corretor com botão Abandonar/Reativar
+      content += '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:#94a3b8;font-weight:600">📊 Status das 9 planilhas por corretor</summary>';
+      content += '<div style="margin-top:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px">';
+      Object.keys(OO_SHEET_DEFAULTS).forEach(function(bid){
+        var b = BROKERS.find(function(x){return x.id===bid;}) || {name:bid};
+        var abandoned = !!(S.ooSheetAbandoned||{})[bid];
+        var impMonths = Object.keys((S.ooImportado||{})[bid]||{}).length;
+        var bg = abandoned ? '#fef2f2' : '#ecfdf5';
+        var border = abandoned ? '#ef444440' : '#10b98140';
+        content += '<div style="padding:8px 10px;background:'+bg+';border:1px solid '+border+';border-radius:8px">';
+        content += '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">';
+        content += '<div style="font-size:11px;font-weight:700;color:var(--navy)">'+b.name+'</div>';
+        content += '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:'+(abandoned?'#dc2626':'#10b981')+';color:#fff;font-weight:700">'+(abandoned?'🚫 ABANDONADA':'📊 ATIVA')+'</span>';
+        content += '</div>';
+        content += '<div style="font-size:9px;color:var(--muted);margin:4px 0">'+impMonths+' meses importados</div>';
+        content += '<button class="btn bout bsm" style="font-size:9px;width:100%" onclick="ooToggleSheetAbandoned(\''+bid+'\',\''+b.name.replace(/'/g,"\\'")+'\')">'+(abandoned?'📊 Reativar planilha':'🚫 Abandonar planilha')+'</button>';
+        content += '</div>';
+      });
+      content += '</div></details>';
       if (impStatus.log && impStatus.log.length) {
         var recent = impStatus.log.slice(-15).reverse();
         content += '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:11px;color:#94a3b8">Ver últimas 15 linhas do log</summary>';
@@ -9781,6 +10006,69 @@ async function ooImportarHistoricoCompleto() {
   saveState();
   render();
   toast('📥 Importação concluída: '+ok+'/'+total+' abas','ok');
+}
+
+function ooImportJSON(inputEl) {
+  if (!S.user || (S.user.lvl||0) < 5) {
+    toast('Apenas diretores podem importar.','warn');
+    return;
+  }
+  var file = inputEl && inputEl.files && inputEl.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    try {
+      var data = JSON.parse(ev.target.result);
+      if (data._type !== 'PSM_OS_1x1_EXPORT') {
+        if (!confirm('Arquivo não é backup 1:1 oficial. Tentar importar mesmo assim?')) return;
+      }
+      if (!confirm('⚠️ Importar backup?\n\nIsso MESCLA com dados atuais (não sobrescreve):\n• ooImportado, ooAuditLog, ooReunioes → merge por bid/monthKey\n• Dados do arquivo prevalecem quando há conflito\n\nCriar backup antes de continuar?')) return;
+      // Backup antes
+      try {
+        localStorage.setItem('psm_os_oo_backup_preimportjson_' + Date.now(), JSON.stringify({
+          ooImportado: S.ooImportado, ooDaily: S.ooDaily, ooAuditLog: S.ooAuditLog,
+          ooReunioes: S.ooReunioes, at: Date.now()
+        }));
+      } catch(e){}
+      // Merge
+      var merged = 0;
+      ['ooImportado','ooDaily','ooReunioes','ooMetas','ooRotina','ooObjetivo',
+       'ooObjetivoPessoal','ooMetaLanc','ooMetaVgvMes','ooDatas','ooDiscCustom',
+       'ooFunilCustom','ooLateralCustom','ooFunnelPct'].forEach(function(k){
+        if (data[k] && typeof data[k] === 'object') {
+          if (!S[k]) S[k] = {};
+          Object.keys(data[k]).forEach(function(bid){
+            if (!S[k][bid]) S[k][bid] = data[k][bid];
+            else if (typeof data[k][bid] === 'object') {
+              Object.keys(data[k][bid]).forEach(function(sk){
+                S[k][bid][sk] = data[k][bid][sk];
+                merged++;
+              });
+            }
+          });
+        }
+      });
+      if (Array.isArray(data.ooAuditLog)) {
+        S.ooAuditLog = (S.ooAuditLog||[]).concat(data.ooAuditLog);
+        // Dedupe por ts+actor+kind+bid+field
+        var seen = {};
+        S.ooAuditLog = S.ooAuditLog.filter(function(e){
+          var key = e.ts+'|'+e.actor+'|'+e.kind+'|'+e.bid+'|'+e.field;
+          if (seen[key]) return false; seen[key]=1; return true;
+        });
+        S.ooAuditLog.sort(function(a,b){return a.ts-b.ts;});
+        if (S.ooAuditLog.length > 5000) S.ooAuditLog = S.ooAuditLog.slice(-5000);
+      }
+      saveState();
+      render();
+      toast('📥 Backup mesclado: '+merged+' chaves importadas','ok');
+    } catch(err) {
+      console.error(err);
+      toast('Erro ao importar: '+err.message,'err');
+    }
+  };
+  reader.readAsText(file);
+  inputEl.value = ''; // reset
 }
 
 function ooExportJSON() {
@@ -18670,7 +18958,7 @@ function renderSB() {
       {id:'tabela',        lbl:'Tabela PSM',              ico:'\uD83D\uDCCB'},
       {id:'drive',         lbl:'Drive',                   ico:'\uD83D\uDCC1'},
       {id:'mapa',          lbl:'Mapa',                    ico:'\uD83D\uDDFA\uFE0F'},
-      {id:'base_conhecimento', lbl:'Base de Conhecimento', ico:'\uD83D\uDCDA'},
+      {id:'base_conhecimento', lbl:'Forma\u00e7\u00e3o & Cultura', ico:'\uD83D\uDCDA'},
       {id:'simuladores',   lbl:'Simuladores',             ico:'\uD83E\uDDEE'},
       {id:'canal_anonimo', lbl:'Canal An\u00f4nimo',      ico:'\uD83D\uDD12'},
       {id:'kenlo',         lbl:'Kenlo',                   ico:'\uD83C\uDFE0'},
@@ -23902,7 +24190,7 @@ function pgBaseConhecimentoHub(){
     {id:'playbook', lbl:'\uD83D\uDCD8 Playbook',                 fn:null,       placeholder:'Playbook completo de vendas PSM — em breve.'},
     {id:'etica',    lbl:'\u2696\uFE0F C\u00f3digo de \u00c9tica', fn:null,       placeholder:'C\u00f3digo de \u00e9tica profissional PSM — em breve.'}
   ];
-  var h = '<div class="phd"><h1>\uD83D\uDCDA Base de Conhecimento</h1><p>Forma\u00e7\u00e3o, cultura, playbooks e \u00e9tica</p></div>';
+  var h = '<div class="phd"><h1>\uD83D\uDCDA Forma\u00e7\u00e3o & Cultura</h1><p>Forma\u00e7\u00e3o, cultura, playbooks e \u00e9tica</p></div>';
   h += '<div style="display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--cream3);padding-bottom:8px;overflow-x:auto">';
   tabs.forEach(function(t){
     var on = tab===t.id;
