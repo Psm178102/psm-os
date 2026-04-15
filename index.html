@@ -4294,32 +4294,33 @@ var pgWarArena = function(){
 
   // ===== RENDER HTML =====
 
-  // HEADER
-  h += '<div style="padding:24px 32px 0">';
-  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
+  // HEADER (design system CogniProp: acento azul #60a5fa, t\u00edpica hero com subtitle destacada)
+  h += '<div style="padding:28px 32px 0">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;gap:20px;flex-wrap:wrap">';
   h += '<div>';
-  h += '<h1 style="font-size:28px;font-weight:800;margin:0;color:#0f172a">\u2694\ufe0f ARENA PSM</h1><button onclick=\"arenaTV()\" style=\"margin-left:16px;padding:8px 20px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all 0.3s\">\ud83d\udcfa MODO TV</button>';
-  h += '<div style="color:var(--muted);font-size:13px">Central de Performance & Gamifica\u00e7\u00e3o \u2014 Dados em tempo real</div>';
+  h += '<div style="display:inline-flex;align-items:center;gap:8px;padding:4px 12px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.25);border-radius:20px;color:#60a5fa;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:10px">\u2728 CENTRAL DE PERFORMANCE</div>';
+  h += '<h1 style="font-size:32px;font-weight:800;margin:0;color:var(--cream);letter-spacing:-0.5px;line-height:1.15">\u2694\ufe0f Arena <span style="color:#60a5fa">PSM</span></h1>';
+  h += '<div style="color:var(--muted);font-size:14px;margin-top:6px;max-width:560px">Dados em tempo real das equipes, metas e oportunidades.</div>';
   h += '</div>';
-  h += '<div style="display:flex;align-items:center;gap:16px">';
-  h += '<span style="color:var(--muted);font-size:13px">\ud83d\udcc5 ' + currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1) + '</span>';
-  h += '<span style="color:var(--muted);font-size:13px">\u23f0 ' + currentTime + '</span>';
-  h += '<span style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">\u26a1 LIVE</span>';
+  h += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
+  h += '<span style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--navy2);border:1px solid var(--navy3);border-radius:10px;color:var(--muted);font-size:12px;font-weight:600">\ud83d\udcc5 ' + currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1) + '</span>';
+  h += '<span style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--navy2);border:1px solid var(--navy3);border-radius:10px;color:var(--muted);font-size:12px;font-weight:600">\u23f0 ' + currentTime + '</span>';
+  h += '<span style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);color:#10b981;border-radius:10px;font-size:12px;font-weight:800"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulsedot 1.5s infinite"></span>LIVE</span>';
+  h += '<button onclick=\"arenaTV()\" style=\"padding:10px 18px;background:linear-gradient(135deg,#3b82f6,#60a5fa);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;letter-spacing:.8px;box-shadow:0 4px 12px rgba(59,130,246,0.35);transition:transform .2s\" onmouseover=\"this.style.transform=\'translateY(-1px)\'\" onmouseout=\"this.style.transform=\'translateY(0)\'\">\ud83d\udcfa MODO TV</button>';
   h += '</div></div>';
 
-  // ===== TABS: Vis\u00e3o Geral / Ranking & Metas (Paulo 2026-04-15: substitui scroll cont\u00ednuo) =====
+  // ===== TABS (chip-style inspirado em CogniProp: Platform / Who we serve / About) =====
   if (!S.arenaTab) S.arenaTab = 'timeline';
-  // Paulo 2026-04-15 (atualizado): 4 abas - corretores pediram menos info por p\u00e1gina, timeline maior pra TV
   var _arenaTabs = [
-    {id:'timeline', lbl:'\uD83D\uDCA1 Timeline & Oportunidades'},
+    {id:'timeline', lbl:'\uD83D\uDCA1 Oportunidades'},
     {id:'painel',   lbl:'\uD83D\uDCCA KPIs & Meta do Dia'},
-    {id:'equipes',  lbl:'\u2694\uFE0F Equipes & Preditor IA'},
-    {id:'metas',    lbl:'\uD83C\uDFC6 Ranking & Metas'}
+    {id:'equipes',  lbl:'\u2694\uFE0F Equipes'},
+    {id:'metas',    lbl:'\uD83C\uDFC6 Ranking'}
   ];
-  h += '<div style="display:flex;gap:8px;margin-bottom:20px;padding:6px;background:var(--navy2);border:1px solid var(--navy3);border-radius:12px;width:fit-content;flex-wrap:wrap">';
+  h += '<div style="display:flex;gap:6px;margin-bottom:24px;flex-wrap:wrap">';
   _arenaTabs.forEach(function(t){
     var _ac = S.arenaTab === t.id;
-    h += '<button onclick="S.arenaTab=\'' + t.id + '\';render()" style="padding:12px 24px;background:' + (_ac?'linear-gradient(135deg,#6366f1,#8b5cf6)':'transparent') + ';color:' + (_ac?'#fff':'var(--muted)') + ';border:none;border-radius:8px;font-size:16px;font-weight:' + (_ac?'800':'600') + ';cursor:pointer;transition:all .2s;letter-spacing:.4px">' + t.lbl + '</button>';
+    h += '<button onclick="S.arenaTab=\'' + t.id + '\';render()" style="padding:9px 18px;background:' + (_ac?'rgba(96,165,250,0.15)':'var(--navy2)') + ';color:' + (_ac?'#60a5fa':'var(--muted)') + ';border:1px solid ' + (_ac?'rgba(96,165,250,0.4)':'var(--navy3)') + ';border-radius:999px;font-size:13px;font-weight:' + (_ac?'700':'600') + ';cursor:pointer;transition:all .2s;letter-spacing:.2px">' + t.lbl + '</button>';
   });
   h += '</div>';
 
@@ -4389,13 +4390,16 @@ var pgWarArena = function(){
     return '#6366f1';
   }
   if(tlShow.length > 0){
-    h += '<div style="margin-bottom:24px">';
-    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">';
-    h += '<h2 style="font-size:30px;font-weight:800;color:var(--cream);margin:0">💡 Timeline de Oportunidades <span style="font-size:14px;font-weight:500;color:var(--muted);margin-left:10px">'+tlShow.length+' '+(tlShow.length===1?'oportunidade':'oportunidades')+' · tempo real</span></h2>';
-    h += '<span style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);border-radius:14px;color:#10b981;font-size:14px;font-weight:800"><span style="width:10px;height:10px;border-radius:50%;background:#10b981;box-shadow:0 0 10px #10b981;animation:pulsedot 1.5s infinite"></span>AO VIVO</span>';
+    h += '<div style="margin-bottom:28px">';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px">';
+    h += '<div>';
+    h += '<div style="display:inline-flex;align-items:center;gap:8px;padding:3px 10px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.25);border-radius:20px;color:#60a5fa;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px">\u25c9 TEMPO REAL</div>';
+    h += '<h2 style="font-size:24px;font-weight:800;color:var(--cream);margin:0;letter-spacing:-0.3px">\ud83d\udca1 Timeline de <span style="color:#60a5fa">Oportunidades</span></h2>';
+    h += '<div style="font-size:12px;color:var(--muted);margin-top:4px">'+tlShow.length+' '+(tlShow.length===1?'oportunidade publicada':'oportunidades publicadas')+'</div>';
     h += '</div>';
-    h += '<div id="opp-timeline-wrap" style="background:var(--navy2);border:1px solid var(--navy3);border-radius:14px;padding:18px;overflow-x:auto;position:relative">';
-    h += '<div id="opp-timeline-scroll" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:16px">';
+    h += '</div>';
+    h += '<div id="opp-timeline-wrap" style="position:relative">';
+    h += '<div id="opp-timeline-scroll" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px">';
     for(var _dup=0; _dup<1; _dup++){
       tlShow.forEach(function(op){
         var ico = op.icon || _tipoIcone(op.tipo);
@@ -4405,22 +4409,24 @@ var pgWarArena = function(){
         var expira = !!(_valTs && _valTs < _nowTs);
         var dtCreate = new Date(op.criadoEm || Date.now());
         var diasValid = _valTs ? Math.ceil((_valTs - _nowTs)/86400000) : null;
-        h += '<div style="background:'+color+'1a;border:1px solid '+color+'55;border-left:6px solid '+color+';border-radius:12px;padding:18px 20px;'+(op.destaque?'box-shadow:0 0 16px '+color+'66;':'')+(expira?'opacity:0.55;':'')+'">';
-        h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
-        h += '<span style="font-size:28px">'+ico+'</span>';
-        h += '<span style="font-size:14px;font-weight:900;color:'+color+';text-transform:uppercase;letter-spacing:1.2px">'+(op.tipo||'OPORTUNIDADE').toUpperCase()+(op.destaque?' · ⭐':'')+'</span>';
-        h += '<span style="margin-left:auto;font-size:13px;color:var(--muted);font-weight:600">'+_fmtTimeAgo(dtCreate)+'</span>';
+        h += '<div style="position:relative;background:linear-gradient(135deg,rgba(30,41,59,0.8),rgba(15,23,42,0.6));border:1px solid '+color+'33;border-radius:16px;padding:18px 20px;'+(op.destaque?'box-shadow:0 0 20px '+color+'33, inset 0 0 0 1px '+color+'44;':'box-shadow:0 1px 0 rgba(255,255,255,0.04) inset;')+(expira?'opacity:0.5;':'')+'">';
+        h += '<div style="position:absolute;top:0;left:20px;right:20px;height:2px;background:linear-gradient(90deg,'+color+',transparent);border-radius:2px"></div>';
+        h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">';
+        h += '<div style="width:38px;height:38px;border-radius:10px;background:'+color+'22;border:1px solid '+color+'44;display:flex;align-items:center;justify-content:center;font-size:20px">'+ico+'</div>';
+        h += '<div style="flex:1;min-width:0">';
+        h += '<div style="font-size:10px;font-weight:800;color:'+color+';text-transform:uppercase;letter-spacing:1.2px">'+(op.tipo||'OPORTUNIDADE').toUpperCase()+(op.destaque?' \u00b7 \u2b50':'')+'</div>';
+        h += '<div style="font-size:11px;color:var(--muted);font-weight:500;margin-top:2px">h\u00e1 '+_fmtTimeAgo(dtCreate)+'</div>';
         h += '</div>';
-        h += '<div style="font-size:20px;font-weight:800;color:var(--cream);line-height:1.25;margin-bottom:4px">'+(op.titulo||'—')+'</div>';
+        h += '</div>';
+        h += '<div style="font-size:17px;font-weight:700;color:var(--cream);line-height:1.3;margin-bottom:4px;letter-spacing:-0.2px">'+(op.titulo||'\u2014')+'</div>';
         if(op.empreendimento || op.incorporadora){
-          h += '<div style="font-size:14px;color:var(--muted);font-weight:600;margin-bottom:6px">🏢 '+(op.empreendimento||'')+(op.incorporadora?' · '+op.incorporadora:'')+'</div>';
+          h += '<div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px">\ud83c\udfe2 '+(op.empreendimento||'')+(op.incorporadora?' \u00b7 '+op.incorporadora:'')+'</div>';
         }
         if(op.desc){
-          var _d = op.desc.length > 140 ? op.desc.substring(0,137)+'...' : op.desc;
-          h += '<div style="font-size:14px;color:var(--cream);opacity:.88;margin-top:6px;line-height:1.4;font-weight:500">'+_d+'</div>';
+          var _d = op.desc.length > 110 ? op.desc.substring(0,107)+'...' : op.desc;
+          h += '<div style="font-size:12.5px;color:var(--cream);opacity:.78;margin-top:6px;line-height:1.45;font-weight:400">'+_d+'</div>';
         }
         if(op.validade){
-          // Formata data pra DD/MM/YYYY aceitando ISO, ISO+T, DD/MM/YYYY
           var _fmtVal = (function(v){
             var s = String(v).trim();
             var m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -4430,12 +4436,12 @@ var pgWarArena = function(){
             return s;
           })(op.validade);
           var validLbl, validCor;
-          if (expira) { validLbl = '⛔ Expirada'; validCor = '#ef4444'; }
-          else if (diasValid === null || isNaN(diasValid)) { validLbl = '📅 Até ' + _fmtVal; validCor = color; }
-          else if (diasValid === 0) { validLbl = '⏰ Vence hoje'; validCor = '#f59e0b'; }
-          else if (diasValid <= 3)  { validLbl = '⏰ Vence em ' + diasValid + 'd'; validCor = '#f59e0b'; }
-          else                      { validLbl = '📅 Até ' + _fmtVal; validCor = color; }
-          h += '<div style="font-size:16px;font-weight:800;color:'+validCor+';margin-top:10px;padding-top:8px;border-top:1px solid '+color+'33">'+validLbl+'</div>';
+          if (expira) { validLbl = '\u26d4 Expirada'; validCor = '#ef4444'; }
+          else if (diasValid === null || isNaN(diasValid)) { validLbl = '\ud83d\udcc5 At\u00e9 ' + _fmtVal; validCor = color; }
+          else if (diasValid === 0) { validLbl = '\u23f0 Vence hoje'; validCor = '#f59e0b'; }
+          else if (diasValid <= 3)  { validLbl = '\u23f0 Vence em ' + diasValid + 'd'; validCor = '#f59e0b'; }
+          else                      { validLbl = '\ud83d\udcc5 At\u00e9 ' + _fmtVal; validCor = color; }
+          h += '<div style="display:inline-flex;align-items:center;padding:6px 12px;background:'+validCor+'18;border:1px solid '+validCor+'44;border-radius:999px;font-size:11.5px;font-weight:700;color:'+validCor+';margin-top:12px">'+validLbl+'</div>';
         }
         h += '</div>';
       });
