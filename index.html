@@ -4327,7 +4327,7 @@ var pgWarArena = function(){
   if(tlShow.length > 0){
     h += '<div style="margin-bottom:24px">';
     h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
-    h += '<h2 style="font-size:18px;font-weight:700;color:#0f172a;margin:0">💡 Timeline de Oportunidades <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">'+tlShow.length+' '+(tlShow.length===1?'oportunidade':'oportunidades')+' publicada'+(tlShow.length===1?'':'s')+' · tempo real</span></h2>';
+    h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0">💡 Timeline de Oportunidades <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">'+tlShow.length+' '+(tlShow.length===1?'oportunidade':'oportunidades')+' publicada'+(tlShow.length===1?'':'s')+' · tempo real</span></h2>';
     h += '<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);border-radius:12px;color:#10b981;font-size:11px;font-weight:700"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulsedot 1.5s infinite"></span>AO VIVO</span>';
     h += '</div>';
     h += '<div id="opp-timeline-wrap" style="background:var(--navy2);border:1px solid var(--navy3);border-radius:12px;padding:14px;overflow:hidden;position:relative">';
@@ -4436,13 +4436,15 @@ var pgWarArena = function(){
     var daily = ((S.ooDaily||{})[b.id]||{})[_mkArena] || {};
     var today = daily[_dayKey] || {};
     ['lig_real','agend','vis','prop','vend'].forEach(function(k){ _opsReal[k] += (today[k]||0); });
-    // Metas (metaIndiv)
+    // Metas (Paulo 2026-04-15): FONTE PRIMÁRIA = ooMetas (One on One, keyed por 'YYYY-MM')
+    //                           FALLBACK      = metaIndiv (keyed por mês numérico)
+    var ooM = ((S.ooMetas||{})[b.id]||{})[_mkArena] || {};
     var miB = (mi[b.id]||{})[mes] || {};
-    _opsMeta.lig_real += (miB.lig_real || miB.ligacoes || 0);
-    _opsMeta.agend    += (miB.agend    || miB.agendamentos || 0);
-    _opsMeta.vis      += (miB.visitas  || miB.vis || 0);
-    _opsMeta.prop     += (miB.prop     || miB.propostas || 0);
-    _opsMeta.vend     += (miB.vendas   || miB.vend || 0);
+    _opsMeta.lig_real += (ooM.lig_real || ooM.ligacoes || miB.lig_real || miB.ligacoes || 0);
+    _opsMeta.agend    += (ooM.agend    || ooM.agendamentos || miB.agend || miB.agendamentos || 0);
+    _opsMeta.vis      += (ooM.vis      || ooM.visitas   || miB.visitas || miB.vis || 0);
+    _opsMeta.prop     += (ooM.prop     || ooM.propostas || miB.prop    || miB.propostas || 0);
+    _opsMeta.vend     += (ooM.vend     || ooM.vendas    || miB.vendas  || miB.vend || 0);
   });
   // Vendas do dia também vêm de VENDAS (fonte RD)
   if(_opsReal.vend === 0 && _dayVendas.length > 0) _opsReal.vend = _dayVendas.length;
@@ -4655,7 +4657,7 @@ var pgWarArena = function(){
 
   // ===== PAINEL 3 EQUIPES + ALERTAS (mesmo do One on One) =====
   h += '<div style="margin-bottom:24px">';
-  h += '<h2 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 12px">📊 Performance por Equipe <span style="font-size:11px;font-weight:400;color:#475569;margin-left:8px">dados do One on One — tempo real</span></h2>';
+  h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 12px">📊 Performance por Equipe <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">dados do One on One — tempo real</span></h2>';
   h += renderArenaEquipesPanel({dark:true, noAlertas:true});
   h += '</div>';
 
@@ -4671,7 +4673,7 @@ var pgWarArena = function(){
 
   // ===== BATALHA DE FRENTES =====
   h += '<div style="margin-bottom:24px">';
-  h += '<h2 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 12px">\u2694\ufe0f Batalha de Frentes</h2>';
+  h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 12px">\u2694\ufe0f Batalha de Frentes</h2>';
   h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">';
 
   var medalhas = ['\ud83e\udd47','\ud83e\udd48','\ud83e\udd49'];
@@ -7057,6 +7059,11 @@ async function doLogin() {
   S.user = {...UM[user.id], ...user};
   const lvl = RLVL[S.user.role] || 0;
   if (!S.page || !canAccess(S.page)) S.page = getDefaultPage();
+  // Paulo 2026-04-15: quando Paulo entra, tela inicial = Arena PSM filtrada em MES ATUAL
+  if (S.user.id === 'paulo') {
+    S.page = 'wararena';
+    S.df_war = {preset:'Mes'};
+  }
   S.loginErr = null;
   S.loginLoading = false;
 
@@ -8649,13 +8656,32 @@ function pgOO() {
     content += '</div>'; // end flex container
     content += '</div>'; // end card
 
-    // === FUNIL DO MES com taxas de conversao ===
-    content += '<div style="margin:16px 0;text-align:center"><span style="font-size:20px;font-weight:700;color:var(--navy)">FUNIL DO M\u00CAS</span></div>';
+    // === FUNIS LADO A LADO: 1:1 e RD CRM (Paulo 2026-04-15) ===
     var funnelData = hasDailyData ? realMes : cache;
-    // Use funnel custom da equipe
     var funilMes = ooGetFunilEquipe(ooGetFrenteForBroker(selBid));
     var fMN = funilMes.length;
-    content += '<div style="display:flex;gap:12px;align-items:flex-start">';
+    var rdFunil = FUNIS[selFrente] || FUNIS.lancamento;
+    // Conta OPPS do corretor por etapa RD
+    var brokerOpps = (typeof OPPS !== 'undefined' ? OPPS : []).filter(function(o){ return o.bid === selBid; });
+    var rdCounts = {}, rdVGV = {};
+    rdFunil.forEach(function(s){ rdCounts[s.id] = 0; rdVGV[s.id] = 0; });
+    brokerOpps.forEach(function(o){
+      var match = rdFunil.find(function(s){
+        if (s.rdIds && o.st && s.rdIds.indexOf(o.st) >= 0) return true;
+        if (s.id === o.st_psm) return true;
+        if (s.id === o.st) return true;
+        return false;
+      });
+      if (match) { rdCounts[match.id]++; rdVGV[match.id] += (o.vgv || 0); }
+    });
+    var fmtVGV = function(v){ if (v >= 1e6) return 'R$ ' + (v/1e6).toFixed(1) + 'M'; if (v >= 1e3) return 'R$ ' + Math.round(v/1e3) + 'k'; return 'R$ ' + v; };
+
+    content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0">';
+
+    // ========== COLUNA 1: FUNIL 1:1 ==========
+    content += '<div style="background:#0f172a;border-radius:12px;padding:14px;border:1px solid #1e293b">';
+    content += '<div style="margin:4px 0 12px 0;text-align:center"><span style="font-size:16px;font-weight:700;color:var(--cream)">\uD83D\uDCDD FUNIL 1:1 \u2014 M\u00CAS</span></div>';
+    content += '<div style="display:flex;gap:10px;align-items:flex-start">';
     content += '<div style="flex:1;min-width:0">';
     funilMes.forEach(function(c, idx) {
       var v = funnelData[c.k] || 0;
@@ -8664,23 +8690,58 @@ function pgOO() {
       if (idx > 0) {
         var prevV = funnelData[funilMes[idx-1].k] || 0;
         var convPct = prevV > 0 ? (v/prevV*100).toFixed(1) + '%' : '';
-        content += '<div style="text-align:center;margin:3px 0"><span style="font-size:13px;font-weight:600;color:#94a3b8;background:#1e293b;padding:3px 12px;border-radius:10px;border:1px solid #334155;display:inline-block">' + (convPct ? '\u2193 '+convPct : '') + '</span></div>';
+        content += '<div style="text-align:center;margin:3px 0"><span style="font-size:12px;font-weight:600;color:#94a3b8;background:#1e293b;padding:2px 10px;border-radius:10px;border:1px solid #334155;display:inline-block">' + (convPct ? '\u2193 '+convPct : '') + '</span></div>';
       }
-      content += '<div style="display:flex;align-items:center;margin-bottom:5px"><div style="width:' + w + '%;background:' + cor + ';color:#fff;padding:12px 16px;border-radius:8px;display:flex;justify-content:space-between;font-size:16px;font-weight:600"><span>' + c.l + '</span><span>' + v + '</span></div></div>';
+      content += '<div style="display:flex;align-items:center;margin-bottom:4px"><div style="width:' + w + '%;background:' + cor + ';color:#fff;padding:10px 12px;border-radius:8px;display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>' + c.l + '</span><span>' + v + '</span></div></div>';
     });
     content += '</div>';
-    // Sidebar indicadores mensais (custom por equipe)
-    content += '<div style="width:150px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding-top:4px">';
-    content += '<div style="font-size:13px;font-weight:700;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Indicadores</div>';
+    // Sidebar indicadores mensais
+    content += '<div style="width:120px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;padding-top:4px">';
+    content += '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Indicadores</div>';
     lateralEquipe.forEach(function(c) {
       var v = funnelData[c.k] || 0;
-      content += '<div style="background:' + c.cor + '20;border:1px solid ' + c.cor + '40;border-radius:10px;padding:10px 8px;text-align:center">';
-      content += '<div style="font-size:14px;font-weight:600;color:' + c.cor + ';margin-bottom:4px">' + c.icon + ' ' + c.l + '</div>';
-      content += '<div style="font-size:24px;font-weight:800;color:var(--navy)">' + v + '</div>';
+      content += '<div style="background:' + c.cor + '20;border:1px solid ' + c.cor + '40;border-radius:8px;padding:8px 6px;text-align:center">';
+      content += '<div style="font-size:12px;font-weight:600;color:' + c.cor + ';margin-bottom:3px">' + c.icon + ' ' + c.l + '</div>';
+      content += '<div style="font-size:20px;font-weight:800;color:var(--cream)">' + v + '</div>';
       content += '</div>';
     });
+    content += '</div></div></div>';
+
+    // ========== COLUNA 2: FUNIL RD CRM ==========
+    content += '<div style="background:#0f172a;border-radius:12px;padding:14px;border:1px solid #1e293b">';
+    content += '<div style="margin:4px 0 12px 0;text-align:center"><span style="font-size:16px;font-weight:700;color:var(--cream)">\uD83D\uDD17 FUNIL RD CRM \u2014 PIPELINE</span></div>';
+    var rdN = rdFunil.length;
+    var topCount = rdCounts[rdFunil[0].id] || 0;
+    content += '<div>';
+    rdFunil.forEach(function(s, idx) {
+      var cnt = rdCounts[s.id] || 0;
+      var vgv = rdVGV[s.id] || 0;
+      var w = Math.round(100 - (idx * (56 / Math.max(rdN - 1, 1))));
+      if (idx > 0) {
+        var prevCnt = rdCounts[rdFunil[idx-1].id] || 0;
+        var convPct = prevCnt > 0 ? (cnt/prevCnt*100) : 0;
+        var convStr = prevCnt > 0 ? convPct.toFixed(1) + '%' : '\u2014';
+        var convCor = convPct >= 50 ? '#10b981' : (convPct >= 25 ? '#f59e0b' : '#ef4444');
+        content += '<div style="text-align:center;margin:3px 0"><span style="font-size:12px;font-weight:700;color:' + convCor + ';background:#1e293b;padding:2px 10px;border-radius:10px;border:1px solid ' + convCor + '60;display:inline-block">\u2193 ' + convStr + '</span></div>';
+      }
+      var wPct = Math.round((s.w || 0) * 100);
+      content += '<div style="display:flex;align-items:center;margin-bottom:4px">';
+      content += '<div style="width:' + w + '%;background:' + s.color + ';color:#fff;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px">';
+      content += '<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + s.label + ' <span style="opacity:.7;font-size:10px">W' + wPct + '%</span></div>';
+      content += '<div style="text-align:right;white-space:nowrap"><span style="font-weight:800">' + cnt + '</span>';
+      if (vgv > 0) content += ' <span style="opacity:.85;font-size:11px">\u00B7 ' + fmtVGV(vgv) + '</span>';
+      content += '</div></div></div>';
+    });
+    // Conversao total
+    var lastCount = rdCounts[rdFunil[rdN-1].id] || 0;
+    var totalConv = topCount > 0 ? (lastCount/topCount*100).toFixed(1) + '%' : '\u2014';
+    content += '<div style="margin-top:10px;padding:8px;background:#1e293b;border-radius:8px;text-align:center">';
+    content += '<span style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">Convers\u00e3o Total</span> ';
+    content += '<span style="font-size:15px;font-weight:800;color:var(--cream)">' + totalConv + '</span>';
     content += '</div>';
-    content += '</div>';
+    content += '</div></div>';
+
+    content += '</div>'; // end grid
 
     // === PROJECAO DO MES (ultimo item do dia-dia) ===
     // selFrente already defined above for funnel
@@ -25028,6 +25089,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (user) {
           S.user = {...UM[user.id], ...user};
           S.page = getDefaultPage();
+          if (S.user.id === 'paulo') { S.page = 'wararena'; S.df_war = {preset:'Mes'}; }
                     render();
           setTimeout(() => { RD.sync(true).then(() => RD.startAutoSync()); }, 200);
           if (!S.veraHist?.length) {
@@ -25069,6 +25131,7 @@ function _tryRememberLogin() {
   if (!user) return;
   S.user = Object.assign({}, UM[user.id]||{}, user);
   S.page = getDefaultPage();
+  if (S.user.id === 'paulo') { S.page = 'wararena'; S.df_war = {preset:'Mes'}; }
   setTimeout(function(){ RD.sync(true).then(function(){ RD.startAutoSync(); }); }, 200);
   if (!S.veraHist || !S.veraHist.length) {
     S.veraHist = [{role:'assistant', content:'Ol\u00e1, ' + S.user.name.split(' ')[0] + '! Sou o Sr. Performance. Como posso te ajudar?'}];
