@@ -4308,20 +4308,23 @@ var pgWarArena = function(){
   h += '</div></div>';
 
   // ===== TABS: Vis\u00e3o Geral / Ranking & Metas (Paulo 2026-04-15: substitui scroll cont\u00ednuo) =====
-  if (!S.arenaTab) S.arenaTab = 'painel';
+  if (!S.arenaTab) S.arenaTab = 'timeline';
+  // Paulo 2026-04-15 (atualizado): 4 abas - corretores pediram menos info por p\u00e1gina, timeline maior pra TV
   var _arenaTabs = [
-    {id:'painel', lbl:'\uD83D\uDCCA Vis\u00e3o Geral'},
-    {id:'metas',  lbl:'\uD83C\uDFC6 Ranking & Metas'}
+    {id:'timeline', lbl:'\uD83D\uDCA1 Timeline & Oportunidades'},
+    {id:'painel',   lbl:'\uD83D\uDCCA KPIs & Meta do Dia'},
+    {id:'equipes',  lbl:'\u2694\uFE0F Equipes & Preditor IA'},
+    {id:'metas',    lbl:'\uD83C\uDFC6 Ranking & Metas'}
   ];
-  h += '<div style="display:flex;gap:6px;margin-bottom:18px;padding:4px;background:var(--navy2);border:1px solid var(--navy3);border-radius:10px;width:fit-content">';
+  h += '<div style="display:flex;gap:8px;margin-bottom:20px;padding:6px;background:var(--navy2);border:1px solid var(--navy3);border-radius:12px;width:fit-content;flex-wrap:wrap">';
   _arenaTabs.forEach(function(t){
     var _ac = S.arenaTab === t.id;
-    h += '<button onclick="S.arenaTab=\'' + t.id + '\';render()" style="padding:8px 18px;background:' + (_ac?'linear-gradient(135deg,#6366f1,#8b5cf6)':'transparent') + ';color:' + (_ac?'#fff':'var(--muted)') + ';border:none;border-radius:6px;font-size:13px;font-weight:' + (_ac?'700':'500') + ';cursor:pointer;transition:all .2s;letter-spacing:.3px">' + t.lbl + '</button>';
+    h += '<button onclick="S.arenaTab=\'' + t.id + '\';render()" style="padding:12px 24px;background:' + (_ac?'linear-gradient(135deg,#6366f1,#8b5cf6)':'transparent') + ';color:' + (_ac?'#fff':'var(--muted)') + ';border:none;border-radius:8px;font-size:16px;font-weight:' + (_ac?'800':'600') + ';cursor:pointer;transition:all .2s;letter-spacing:.4px">' + t.lbl + '</button>';
   });
   h += '</div>';
 
-  // ============ IN\u00CDCIO P\u00C1GINA 1: VIS\u00C3O GERAL ============
-  if (S.arenaTab === 'painel') {
+  // ============ P\u00C1GINA 1: TIMELINE & OPORTUNIDADES (Ticker + Timeline + Opp Timeline em TAMANHO TV) ============
+  if (S.arenaTab === 'timeline') {
 
   // TICKER (est\u00e1tico \u2014 sem auto-scroll pra n\u00e3o mover a tela)
   h += '<div style="background:linear-gradient(90deg,var(--navy2),var(--navy));border:1px solid var(--navy3);border-radius:12px;padding:12px 16px;margin-bottom:20px;overflow-x:auto">';
@@ -4387,12 +4390,12 @@ var pgWarArena = function(){
   }
   if(tlShow.length > 0){
     h += '<div style="margin-bottom:24px">';
-    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
-    h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0">💡 Timeline de Oportunidades <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">'+tlShow.length+' '+(tlShow.length===1?'oportunidade':'oportunidades')+' publicada'+(tlShow.length===1?'':'s')+' · tempo real</span></h2>';
-    h += '<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);border-radius:12px;color:#10b981;font-size:11px;font-weight:700"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulsedot 1.5s infinite"></span>AO VIVO</span>';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">';
+    h += '<h2 style="font-size:30px;font-weight:800;color:var(--cream);margin:0">💡 Timeline de Oportunidades <span style="font-size:14px;font-weight:500;color:var(--muted);margin-left:10px">'+tlShow.length+' '+(tlShow.length===1?'oportunidade':'oportunidades')+' · tempo real</span></h2>';
+    h += '<span style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);border-radius:14px;color:#10b981;font-size:14px;font-weight:800"><span style="width:10px;height:10px;border-radius:50%;background:#10b981;box-shadow:0 0 10px #10b981;animation:pulsedot 1.5s infinite"></span>AO VIVO</span>';
     h += '</div>';
-    h += '<div id="opp-timeline-wrap" style="background:var(--navy2);border:1px solid var(--navy3);border-radius:12px;padding:14px;overflow-x:auto;position:relative">';
-    h += '<div id="opp-timeline-scroll" style="display:flex;gap:10px;flex-wrap:wrap">';
+    h += '<div id="opp-timeline-wrap" style="background:var(--navy2);border:1px solid var(--navy3);border-radius:14px;padding:18px;overflow-x:auto;position:relative">';
+    h += '<div id="opp-timeline-scroll" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:16px">';
     for(var _dup=0; _dup<1; _dup++){
       tlShow.forEach(function(op){
         var ico = op.icon || _tipoIcone(op.tipo);
@@ -4402,19 +4405,19 @@ var pgWarArena = function(){
         var expira = !!(_valTs && _valTs < _nowTs);
         var dtCreate = new Date(op.criadoEm || Date.now());
         var diasValid = _valTs ? Math.ceil((_valTs - _nowTs)/86400000) : null;
-        h += '<div style="flex:0 0 auto;background:'+color+'1a;border:1px solid '+color+'55;border-left:4px solid '+color+';border-radius:10px;padding:10px 14px;min-width:300px;max-width:340px;'+(op.destaque?'box-shadow:0 0 12px '+color+'44;':'')+(expira?'opacity:0.55;':'')+'">';
-        h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
-        h += '<span style="font-size:16px">'+ico+'</span>';
-        h += '<span style="font-size:10px;font-weight:800;color:'+color+';text-transform:uppercase;letter-spacing:0.8px">'+(op.tipo||'OPORTUNIDADE').toUpperCase()+(op.destaque?' · ⭐':'')+'</span>';
-        h += '<span style="margin-left:auto;font-size:10px;color:var(--muted)">'+_fmtTimeAgo(dtCreate)+'</span>';
+        h += '<div style="background:'+color+'1a;border:1px solid '+color+'55;border-left:6px solid '+color+';border-radius:12px;padding:18px 20px;'+(op.destaque?'box-shadow:0 0 16px '+color+'66;':'')+(expira?'opacity:0.55;':'')+'">';
+        h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
+        h += '<span style="font-size:28px">'+ico+'</span>';
+        h += '<span style="font-size:14px;font-weight:900;color:'+color+';text-transform:uppercase;letter-spacing:1.2px">'+(op.tipo||'OPORTUNIDADE').toUpperCase()+(op.destaque?' · ⭐':'')+'</span>';
+        h += '<span style="margin-left:auto;font-size:13px;color:var(--muted);font-weight:600">'+_fmtTimeAgo(dtCreate)+'</span>';
         h += '</div>';
-        h += '<div style="font-size:13px;font-weight:700;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(op.titulo||'—')+'</div>';
+        h += '<div style="font-size:20px;font-weight:800;color:var(--cream);line-height:1.25;margin-bottom:4px">'+(op.titulo||'—')+'</div>';
         if(op.empreendimento || op.incorporadora){
-          h += '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🏢 '+(op.empreendimento||'')+(op.incorporadora?' · '+op.incorporadora:'')+'</div>';
+          h += '<div style="font-size:14px;color:var(--muted);font-weight:600;margin-bottom:6px">🏢 '+(op.empreendimento||'')+(op.incorporadora?' · '+op.incorporadora:'')+'</div>';
         }
         if(op.desc){
-          var _d = op.desc.length > 70 ? op.desc.substring(0,67)+'...' : op.desc;
-          h += '<div style="font-size:10.5px;color:var(--cream);opacity:.8;margin-top:4px;white-space:normal;word-break:break-word;line-height:1.3">'+_d+'</div>';
+          var _d = op.desc.length > 140 ? op.desc.substring(0,137)+'...' : op.desc;
+          h += '<div style="font-size:14px;color:var(--cream);opacity:.88;margin-top:6px;line-height:1.4;font-weight:500">'+_d+'</div>';
         }
         if(op.validade){
           // Formata data pra DD/MM/YYYY aceitando ISO, ISO+T, DD/MM/YYYY
@@ -4432,7 +4435,7 @@ var pgWarArena = function(){
           else if (diasValid === 0) { validLbl = '⏰ Vence hoje'; validCor = '#f59e0b'; }
           else if (diasValid <= 3)  { validLbl = '⏰ Vence em ' + diasValid + 'd'; validCor = '#f59e0b'; }
           else                      { validLbl = '📅 Até ' + _fmtVal; validCor = color; }
-          h += '<div style="font-size:11px;font-weight:700;color:'+validCor+';margin-top:4px">'+validLbl+'</div>';
+          h += '<div style="font-size:16px;font-weight:800;color:'+validCor+';margin-top:10px;padding-top:8px;border-top:1px solid '+color+'33">'+validLbl+'</div>';
         }
         h += '</div>';
       });
@@ -4441,6 +4444,11 @@ var pgWarArena = function(){
     h += '<style>@keyframes oppTlMarquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}@keyframes pulsedot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.85)}}@keyframes metaHitFlash{0%{opacity:0;transform:translateX(-50%) translateY(-20px) scale(0.8)}15%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.05)}85%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-10px) scale(1)}}</style>';
     h += '</div></div>';
   }
+
+  } // ============ FIM P\u00C1GINA 1: TIMELINE ============
+
+  // ============ P\u00C1GINA 2: KPIs & META DO DIA ============
+  if (S.arenaTab === 'painel') {
 
   // DATE FILTER
   h += '<div style="margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
@@ -4651,6 +4659,11 @@ var pgWarArena = function(){
   h += '</div>';
   h += '</div>';
   h += '</div>';
+
+  } // ============ FIM P\u00C1GINA 2: KPIs ============
+
+  // ============ P\u00C1GINA 3: EQUIPES & PREDITOR IA ============
+  if (S.arenaTab === 'equipes') {
 
   // ===== PREDITOR IA — TODOS os corretores, agrupados por frente/equipe =====
   var predictions = allCorretores
