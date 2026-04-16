@@ -1557,6 +1557,7 @@ function saveState(skipFbPush) {
       comissoes: S.comissoes || {},
       vendasManuais: S.vendasManuais || [],
       oportunidadesPSM: S.oportunidadesPSM || [],
+      opCorretorList: S.opCorretorList || [],
       savedAt: Date.now(),
     };
     // === SALVAMENTO PRINCIPAL COM DETECÇÃO DE QUOTA ===
@@ -1628,6 +1629,7 @@ function saveState(skipFbPush) {
         tickerMsgs: S.tickerMsgs || [],
         premiacoes: S.premiacoes || [],
         oportunidadesPSM: S.oportunidadesPSM || [],
+        opCorretorList: S.opCorretorList || [],
         savedAt: Date.now()
       };
       localStorage.setItem('psm_backup_critical', JSON.stringify(criticalData));
@@ -1716,6 +1718,7 @@ function loadState() {
     if (d.comissoes) S.comissoes = d.comissoes;
     if (d.vendasManuais) S.vendasManuais = d.vendasManuais;
     if (d.oportunidadesPSM) S.oportunidadesPSM = d.oportunidadesPSM;
+    if (d.opCorretorList) S.opCorretorList = d.opCorretorList;
     // Restore manual vendas (legacy)
     try {
       const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manual') || '[]');
@@ -1737,7 +1740,7 @@ var SYNC_KEYS = [
   'ooImportado','ooAuditLog','ooSheetAbandoned',
   'tickerMsgs','canalAnonimo','sonhos',
   'metaIndiv','comissaoPct','lancTimeline','lancMetas',
-  'premiacoes','comissoes','vendasManuais','oportunidadesPSM',
+  'premiacoes','comissoes','vendasManuais','oportunidadesPSM','opCorretorList',
   'opEventos','opTreinamentos','agendaReunioes','agendaConfig','agendaCaptConteudo','agendaCaptImovel','fcData'
 ];
 // Global config keys that also need sync
@@ -1792,7 +1795,10 @@ function fbInit() {
     var _fbFirstLoad = true;
     var _fbLastUpdate = 0;
     _fbDb.ref('shared').on('value', function(snap) {
-      if (_fbSyncing) return; // ignore our own writes
+      if (_fbSyncing) {
+        console.log('[PSM-Sync] Push pendente, ignorando onValue');
+        return;
+      }
       var data = snap.val();
       if (!data) return;
       // Ignora se nao mudou nada (mesmo timestamp)
@@ -1803,10 +1809,29 @@ function fbInit() {
         console.log('[PSM-Sync] Ignorando echo proprio');
         return;
       }
+      // PROTECAO: se salvamos localmente mais recente que o Firebase, nao sobrescreve
+      var localSavedAt = 0;
+      try { var _ls = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); localSavedAt = _ls.savedAt || 0; } catch(e){}
+      if (localSavedAt > (data._lastUpdate||0) && !_fbFirstLoad) {
+        console.log('[PSM-Sync] Dados locais mais recentes ('+new Date(localSavedAt).toLocaleTimeString()+') que Firebase ('+new Date(data._lastUpdate||0).toLocaleTimeString()+'), ignorando. Push pendente fara o sync.');
+        return;
+      }
       console.log('[PSM-Sync] Dados remotos de:', data._updatedBy||'?');
-      // Aplica dados no state
+      // Aplica dados no state — MERGE arrays ao inves de sobrescrever cegamente
       SYNC_KEYS.forEach(function(k) {
-        if (data[k] !== undefined) S[k] = data[k];
+        if (data[k] === undefined) return;
+        // Para arrays com IDs (oportunidades, premiacoes, etc): merge por ID
+        if (Array.isArray(data[k]) && Array.isArray(S[k]) && S[k].length > 0 && data[k].length > 0 && S[k][0] && S[k][0].id) {
+          var merged = data[k].slice(); // start with remote
+          S[k].forEach(function(local) {
+            if (local.id && !merged.find(function(r){ return r.id === local.id; })) {
+              merged.push(local); // add local items not in remote
+            }
+          });
+          S[k] = merged;
+        } else {
+          S[k] = data[k];
+        }
       });
       if (data.metasConfig) Object.assign(METAS_CONFIG, data.metasConfig);
       if (data.metasEquipe) {
@@ -1975,13 +2000,13 @@ function _fbScheduleAutoBackup() {
 }
 
 function fbPushState() {
-  if (!_fbReady || !_fbDb || _fbSyncing) return;
+  if (!_fbReady || !_fbDb) return;
+  // SINALIZA IMEDIATAMENTE que temos push pendente (protege contra onValue sobrescrever)
+  _fbSyncing = true;
+  S._localPushPending = Date.now();
   // Debounce: max 1 push per 5 seconds
   if (_fbDebounceTimer) clearTimeout(_fbDebounceTimer);
   _fbDebounceTimer = setTimeout(function() {
-    // Double check — pode ter mudado durante o debounce
-    if (_fbSyncing) return;
-    _fbSyncing = true;
     var shared = {};
     SYNC_KEYS.forEach(function(k) {
       shared[k] = S[k] !== undefined ? S[k] : (Array.isArray(S[k]) ? [] : {});
