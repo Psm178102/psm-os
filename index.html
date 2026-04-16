@@ -3642,100 +3642,68 @@ function arenaTV(){
     // Scrollable content
     var scroller = document.createElement('div');
     scroller.id = 'tv-scroller';
-    scroller.style.cssText = 'width:100%;height:calc(100vh - 36px);overflow:hidden;position:relative';
+    scroller.style.cssText = 'width:100%;height:calc(100vh - 56px);overflow:hidden;position:relative';
     var inner = document.createElement('div');
     inner.id = 'tv-inner';
-    inner.style.cssText = 'padding:16px 28px 60px';
+    inner.style.cssText = 'padding:20px 24px 80px';
     inner.innerHTML = arenaHTML;
     scroller.appendChild(inner);
     overlay.appendChild(scroller);
 
-    // TV CSS overrides — TV 65" a 10m: TUDO GIGANTE, m\u00ednimo 28px, KPIs 60-80px
+    // TV CSS overrides — TV 65" a 10m: ZOOM GLOBAL + overrides cirúrgicos
     var tvStyle = document.createElement('style');
     tvStyle.id = 'tv-style';
-    tvStyle.textContent = '#arena-tv-overlay *{box-sizing:border-box}'
-      // === FONTES: AMPLIAR TUDO (oposto do antigo que encolhia) ===
-      + '#arena-tv-overlay h1{font-size:52px!important;margin:0 0 8px!important;letter-spacing:-1px!important}'
-      + '#arena-tv-overlay h2{font-size:36px!important;margin:0 0 12px!important}'
-      + '#arena-tv-overlay h3{font-size:30px!important}'
-      // Qualquer texto < 20px vira no m\u00ednimo 24px
-      + '#arena-tv-overlay [style*="font-size:9px"]{font-size:22px!important}'
-      + '#arena-tv-overlay [style*="font-size:10px"]{font-size:22px!important}'
-      + '#arena-tv-overlay [style*="font-size:10.5px"]{font-size:22px!important}'
-      + '#arena-tv-overlay [style*="font-size:11px"]{font-size:24px!important}'
-      + '#arena-tv-overlay [style*="font-size:11.5px"]{font-size:24px!important}'
-      + '#arena-tv-overlay [style*="font-size:12px"]{font-size:26px!important}'
-      + '#arena-tv-overlay [style*="font-size:12.5px"]{font-size:26px!important}'
-      + '#arena-tv-overlay [style*="font-size:13px"]{font-size:28px!important}'
-      + '#arena-tv-overlay [style*="font-size:14px"]{font-size:30px!important}'
-      + '#arena-tv-overlay [style*="font-size:15px"]{font-size:32px!important}'
-      + '#arena-tv-overlay [style*="font-size:16px"]{font-size:34px!important}'
-      + '#arena-tv-overlay [style*="font-size:17px"]{font-size:36px!important}'
-      + '#arena-tv-overlay [style*="font-size:18px"]{font-size:38px!important}'
-      + '#arena-tv-overlay [style*="font-size:20px"]{font-size:42px!important}'
-      + '#arena-tv-overlay [style*="font-size:22px"]{font-size:48px!important}'
-      + '#arena-tv-overlay [style*="font-size:24px"]{font-size:52px!important}'
-      + '#arena-tv-overlay [style*="font-size:28px"]{font-size:56px!important}'
-      + '#arena-tv-overlay [style*="font-size:30px"]{font-size:56px!important}'
-      + '#arena-tv-overlay [style*="font-size:32px"]{font-size:58px!important}'
-      // KPIs / n\u00fameros grandes
-      + '#arena-tv-overlay [style*="font-size:48px"]{font-size:72px!important}'
-      // Emojis / \u00edcones
-      + '#arena-tv-overlay [style*="font-size:16px"]:not([style*="font-weight"]){font-size:36px!important}'
-      // === ESPA\u00c7AMENTO: mais respiro ===
-      + '#arena-tv-overlay [style*="padding:28px"]{padding:20px!important}'
-      + '#arena-tv-overlay [style*="padding:24px"]{padding:18px!important}'
-      + '#arena-tv-overlay [style*="padding:20px"]{padding:16px!important}'
-      + '#arena-tv-overlay [style*="padding:18px"]{padding:14px!important}'
-      + '#arena-tv-overlay [style*="gap:6px"]{gap:12px!important}'
-      + '#arena-tv-overlay [style*="gap:8px"]{gap:14px!important}'
-      + '#arena-tv-overlay [style*="gap:10px"]{gap:16px!important}'
-      + '#arena-tv-overlay [style*="gap:12px"]{gap:18px!important}'
-      + '#arena-tv-overlay [style*="gap:14px"]{gap:20px!important}'
-      + '#arena-tv-overlay [style*="gap:16px"]{gap:22px!important}'
-      // Avatares maiores
-      + '#arena-tv-overlay [style*="width:28px"][style*="height:28px"]{width:48px!important;height:48px!important;font-size:20px!important}'
-      + '#arena-tv-overlay [style*="width:38px"][style*="height:38px"]{width:56px!important;height:56px!important;font-size:28px!important}'
-      // Barras de progresso mais grossas
-      + '#arena-tv-overlay [style*="height:5px"]{height:12px!important}'
-      + '#arena-tv-overlay [style*="height:6px"]{height:14px!important}'
-      + '#arena-tv-overlay [style*="height:8px"]{height:16px!important}'
-      + '#arena-tv-overlay [style*="height:14px"]{height:20px!important}'
-      // Dot pulsante maior
-      + '#arena-tv-overlay [style*="width:8px"][style*="height:8px"]{width:14px!important;height:14px!important}'
-      + '#arena-tv-overlay [style*="width:10px"][style*="height:10px"]{width:16px!important;height:16px!important}'
-      // Esconde elementos desnecess\u00e1rios na TV
+    tvStyle.textContent = ''
+      // === ZOOM GLOBAL: escala 1.8x no container (tudo proporcionalmente grande) ===
+      + '#arena-tv-overlay *{box-sizing:border-box}'
+      + '#tv-inner{transform:scale(1.8);transform-origin:top left;width:55.5%}'
+      // === HEADINGS: legíveis na TV ===
+      + '#arena-tv-overlay h1{font-size:42px!important;margin:0 0 10px!important;letter-spacing:-0.5px!important}'
+      + '#arena-tv-overlay h2{font-size:32px!important;margin:0 0 10px!important}'
+      + '#arena-tv-overlay h3{font-size:26px!important}'
+      // === ESCONDE: filtros, botões, tabs, inputs (não servem na TV) ===
       + '#arena-tv-overlay button[onclick*="arenaTV"]{display:none!important}'
-      + '#arena-tv-overlay select,#arena-tv-overlay button[onclick*="df_war"]{display:none!important}'
-      + '#arena-tv-overlay button[onclick*="render"]{display:none!important}'
-      + '#arena-tv-overlay details{display:none!important}' // esconde "como é calculada?"
-      + '#arena-tv-overlay [style*="font-size:10px"][style*="opacity"]{display:none!important}' // footnotes
-      // Tabs de navegação escondidas (TV mostra todas as abas em scroll)
       + '#arena-tv-overlay button[onclick*="arenaTab"]{display:none!important}'
-      // Border radius suave
-      + '#arena-tv-overlay [style*="border-radius:999px"]{border-radius:20px!important}'
-      + '#arena-tv-overlay [style*="border-radius:16px"]{border-radius:12px!important}'
-      // Grid mais generoso
-      + '#arena-tv-overlay [style*="grid-template-columns:repeat(6"]{grid-template-columns:repeat(3,1fr)!important}'
-      + '#arena-tv-overlay [style*="grid-template-columns:repeat(5"]{grid-template-columns:repeat(3,1fr)!important}'
-      + '#arena-tv-overlay [style*="minmax(360px"]{grid-template-columns:repeat(auto-fill,minmax(500px,1fr))!important}'
-      + '#arena-tv-overlay [style*="minmax(260px"]{grid-template-columns:repeat(auto-fill,minmax(420px,1fr))!important}'
-      + '#tv-inner{transform-origin:top left}'
-      + '#tv-inner>div:first-child>div:first-child{flex-wrap:nowrap!important}';
+      + '#arena-tv-overlay button[onclick*="render"]{display:none!important}'
+      + '#arena-tv-overlay button[onclick*="df_war"]{display:none!important}'
+      + '#arena-tv-overlay select{display:none!important}'
+      + '#arena-tv-overlay details{display:none!important}'
+      + '#arena-tv-overlay input{display:none!important}'
+      // === GRID: 2 colunas para cards bem grandes ===
+      + '#arena-tv-overlay [style*="grid-template-columns:repeat(6"]{grid-template-columns:repeat(2,1fr)!important}'
+      + '#arena-tv-overlay [style*="grid-template-columns:repeat(5"]{grid-template-columns:repeat(2,1fr)!important}'
+      + '#arena-tv-overlay [style*="grid-template-columns:repeat(4"]{grid-template-columns:repeat(2,1fr)!important}'
+      + '#arena-tv-overlay [style*="minmax(360px"]{grid-template-columns:repeat(auto-fill,minmax(420px,1fr))!important}'
+      + '#arena-tv-overlay [style*="minmax(260px"]{grid-template-columns:repeat(auto-fill,minmax(380px,1fr))!important}'
+      // === BORDER-RADIUS: suaviza ===
+      + '#arena-tv-overlay [style*="border-radius:999px"]{border-radius:14px!important}'
+      + '#arena-tv-overlay [style*="border-radius:16px"]{border-radius:10px!important}'
+      // === PROGRESS BARS: mais visíveis ===
+      + '#arena-tv-overlay [style*="height:5px"]{height:10px!important}'
+      + '#arena-tv-overlay [style*="height:6px"]{height:12px!important}'
+      + '#arena-tv-overlay [style*="height:8px"]{height:14px!important}';
     overlay.appendChild(tvStyle);
 
     // Hide MODO TV button
     var tvBtns = overlay.querySelectorAll('button[onclick*="arenaTV"]');
     for(var i=0;i<tvBtns.length;i++) tvBtns[i].style.display='none';
 
-    // Footer bar com rel\u00f3gio integrado (Paulo 2026-04-16: clock must be inside TV overlay)
+    // Footer bar — design limpo, proporcional, legível a 10m na TV 65"
     var footer = document.createElement('div');
-    footer.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:42px;padding:0 28px;background:rgba(0,0,0,0.9);display:flex;justify-content:space-between;align-items:center;z-index:100000;backdrop-filter:blur(8px)';
-    footer.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:64px;padding:0 40px;background:rgba(0,0,0,0.92);display:flex;justify-content:space-between;align-items:center;z-index:100000;backdrop-filter:blur(8px)';
-    footer.innerHTML = '<div style="font-size:24px;color:#64748b;font-weight:600;letter-spacing:1px">House PSM \u2022 Arena PSM \u2022 Modo TV</div>'
-      + '<div id="tv-clock" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:44px;font-weight:800;color:#d4a843;letter-spacing:3px;text-shadow:0 0 16px rgba(212,168,67,0.5)">--:--:--</div>'
-      + '<div style="font-size:22px;color:#64748b;letter-spacing:0.5px">ESC para sair \u2022 Refresh 60s</div>';
+    footer.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:56px;padding:0 32px;background:linear-gradient(180deg,rgba(15,15,20,0.95),rgba(0,0,0,0.98));border-top:1px solid rgba(96,165,250,0.15);display:flex;justify-content:space-between;align-items:center;z-index:100000';
+    footer.innerHTML = '<div style="display:flex;align-items:center;gap:10px">'
+      + '<div style="width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e88;animation:tvPulse 2s infinite"></div>'
+      + '<span style="font-size:15px;color:#94a3b8;font-weight:500;letter-spacing:0.5px">ARENA PSM</span>'
+      + '<span style="font-size:13px;color:#475569">\u2022</span>'
+      + '<span style="font-size:13px;color:#475569;font-weight:400">Modo TV</span>'
+      + '</div>'
+      + '<div id="tv-clock" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:28px;font-weight:700;color:#d4a843;letter-spacing:2px;text-shadow:0 0 12px rgba(212,168,67,0.4)">--:--:--</div>'
+      + '<div style="font-size:13px;color:#475569;font-weight:400">ESC sair \u2022 Auto-refresh 60s</div>';
     overlay.appendChild(footer);
+    // Animação do dot verde
+    var pulseStyle = document.createElement('style');
+    pulseStyle.textContent = '@keyframes tvPulse{0%,100%{opacity:1}50%{opacity:0.4}}';
+    overlay.appendChild(pulseStyle);
 
     // Rel\u00f3gio TV — atualiza a cada segundo (vis\u00edvel na barra inferior)
     var tvClockInt = setInterval(function(){
