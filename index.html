@@ -3658,57 +3658,90 @@ function fmt$(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
 
 // ===== MODO TV - Arena PSM Fullscreen =====
 function arenaTV(){
+  // Gera HTML de TODAS as abas em sequência para scroll contínuo
+  var _tabIds = ['timeline','painel','equipes','metas'];
+  var _tabLabels = {timeline:'💡 OPORTUNIDADES',painel:'📊 KPIs & META DO DIA',equipes:'⚔️ EQUIPES',metas:'🏆 RANKING'};
+  var allHTML = '';
+  var origTab = S.arenaTab;
+  _tabIds.forEach(function(tabId){
+    S.arenaTab = tabId;
+    nav('wararena');
+  });
+  // Restaura tab original e captura HTML de cada aba
+  S.arenaTab = _tabIds[0];
+  var _buildAllTabs = function(){
+    var parts = '';
+    _tabIds.forEach(function(tabId){
+      S.arenaTab = tabId;
+      var pc = document.querySelector('#pc');
+      if(!pc) return;
+      // Força render síncrono
+      render({force:true});
+      parts += '<div class="tv-section" style="min-height:60vh;padding-bottom:40px;border-bottom:2px solid #1e293b;margin-bottom:20px">';
+      parts += '<div style="text-align:center;padding:18px 0 12px"><span style="font-size:20px;font-weight:800;color:#60a5fa;letter-spacing:1px">' + (_tabLabels[tabId]||tabId) + '</span></div>';
+      parts += pc.innerHTML;
+      parts += '</div>';
+    });
+    return parts;
+  };
+
+  // Renderiza a primeira aba, depois constrói todas
+  S.arenaTab = 'timeline';
   nav('wararena');
   setTimeout(function(){
-    var pc = document.querySelector('#pc');
-    if(!pc) return;
-    var arenaHTML = pc.innerHTML;
+    var allTabsHTML = _buildAllTabs();
+    S.arenaTab = origTab || 'timeline';
+
     var overlay = document.createElement('div');
     overlay.id = 'arena-tv-overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:#0b0e17;overflow:hidden;font-family:Inter,system-ui,sans-serif';
 
-    // Scrollable content — usa CSS zoom (suportado Chrome/WebOS/Safari) que altera layout real
     var scroller = document.createElement('div');
     scroller.id = 'tv-scroller';
-    scroller.style.cssText = 'width:100%;height:calc(100vh - 52px);overflow:hidden;position:relative';
+    scroller.style.cssText = 'width:100%;height:calc(100vh - 52px);overflow:auto;position:relative;scrollbar-width:none';
     var inner = document.createElement('div');
     inner.id = 'tv-inner';
-    inner.style.cssText = 'padding:18px 20px 60px;zoom:1.65';
-    inner.innerHTML = arenaHTML;
+    inner.style.cssText = 'padding:18px 20px 80px;zoom:1.65';
+    inner.innerHTML = allTabsHTML;
     scroller.appendChild(inner);
     overlay.appendChild(scroller);
 
-    // === TV STYLE: esconde controles + ajusta grid ===
+    // CSS overrides
     var tvStyle = document.createElement('style');
     tvStyle.id = 'tv-style';
     tvStyle.textContent = ''
       + '#arena-tv-overlay *{box-sizing:border-box}'
-      // Esconde controles interativos (inúteis na TV)
+      + '#tv-scroller::-webkit-scrollbar{display:none}'
+      // Esconde controles interativos
       + '#arena-tv-overlay button[onclick*="arenaTV"]{display:none!important}'
       + '#arena-tv-overlay button[onclick*="arenaTab"]{display:none!important}'
       + '#arena-tv-overlay button[onclick*="render"]{display:none!important}'
       + '#arena-tv-overlay button[onclick*="df_war"]{display:none!important}'
+      + '#arena-tv-overlay button[onclick*="toggleInativos"]{display:none!important}'
       + '#arena-tv-overlay select{display:none!important}'
       + '#arena-tv-overlay details{display:none!important}'
       + '#arena-tv-overlay input{display:none!important}'
-      // Grid: 2 colunas no zoom (cards grandes)
+      // Grid 2 colunas
       + '#arena-tv-overlay [style*="grid-template-columns:repeat(6"]{grid-template-columns:repeat(2,1fr)!important}'
       + '#arena-tv-overlay [style*="grid-template-columns:repeat(5"]{grid-template-columns:repeat(2,1fr)!important}'
       + '#arena-tv-overlay [style*="grid-template-columns:repeat(4"]{grid-template-columns:repeat(2,1fr)!important}'
       + '#arena-tv-overlay [style*="grid-template-columns:repeat(3"]{grid-template-columns:repeat(2,1fr)!important}'
       + '#arena-tv-overlay [style*="minmax(360px"]{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))!important}'
+      + '#arena-tv-overlay [style*="minmax(440px"]{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))!important}'
       + '#arena-tv-overlay [style*="minmax(260px"]{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))!important}'
-      // Progress bars mais grossas
+      // Progress bars
       + '#arena-tv-overlay [style*="height:5px"]{height:8px!important}'
       + '#arena-tv-overlay [style*="height:6px"]{height:10px!important}'
-      + '#arena-tv-overlay [style*="height:8px"]{height:12px!important}';
+      + '#arena-tv-overlay [style*="height:8px"]{height:12px!important}'
+      // Esconde header duplicado do Arena (já tem os separadores de seção)
+      + '#arena-tv-overlay .tv-section > div:first-child + div > div:first-child{display:none!important}';
     overlay.appendChild(tvStyle);
 
-    // Hide MODO TV button
+    // Esconde botões MODO TV
     var tvBtns = overlay.querySelectorAll('button[onclick*="arenaTV"]');
     for(var i=0;i<tvBtns.length;i++) tvBtns[i].style.display='none';
 
-    // ══════ FOOTER: barra fina, clean, com relógio dourado ══════
+    // ══════ FOOTER ══════
     var footer = document.createElement('div');
     footer.id = 'tv-footer';
     footer.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:52px;padding:0 24px;background:#0b0e17;border-top:1px solid #1e293b;display:flex;justify-content:space-between;align-items:center;z-index:100000';
@@ -3721,7 +3754,7 @@ function arenaTV(){
       + '<div style="font-size:12px;color:#475569">ESC sair</div>';
     overlay.appendChild(footer);
 
-    // Relógio + dot pulsante
+    // Relógio
     var tvClockInt = setInterval(function(){
       var el = document.getElementById('tv-clock');
       var dot = document.getElementById('tv-dot');
@@ -3738,54 +3771,51 @@ function arenaTV(){
     else if(overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen();
 
     // ══════ AUTO-SCROLL: desce devagar, sobe rápido, repete ══════
-    var scrollPos = 0;
     var scrollSpeed = 0.6;
     var pauseAtTop = 240;
     var pauseAtBottom = 150;
     var pauseCounter = pauseAtTop;
     var scrollDir = 1;
     var tvScrollInt = setInterval(function(){
-      var el = document.getElementById('tv-inner');
       var sc = document.getElementById('tv-scroller');
-      if(!el || !sc) { clearInterval(tvScrollInt); return; }
-      var maxScroll = el.scrollHeight - sc.clientHeight;
+      if(!sc) { clearInterval(tvScrollInt); return; }
+      var maxScroll = sc.scrollHeight - sc.clientHeight;
       if(maxScroll <= 0) return;
       if(pauseCounter > 0) { pauseCounter--; return; }
-      scrollPos += scrollSpeed * scrollDir;
-      if(scrollPos >= maxScroll) {
-        scrollPos = maxScroll;
+      sc.scrollTop += scrollSpeed * scrollDir;
+      if(sc.scrollTop >= maxScroll) {
+        sc.scrollTop = maxScroll;
         scrollDir = -1;
         pauseCounter = pauseAtBottom;
-        scrollSpeed = 1.8;
+        scrollSpeed = 2.0;
       }
-      if(scrollPos <= 0) {
-        scrollPos = 0;
+      if(sc.scrollTop <= 0) {
+        sc.scrollTop = 0;
         scrollDir = 1;
         pauseCounter = pauseAtTop;
         scrollSpeed = 0.6;
       }
-      sc.scrollTop = scrollPos;
     }, 1000/60);
-    // Habilita scroll real no scroller (em vez de translateY que conflita com zoom)
-    scroller.style.overflow = 'auto';
-    scroller.style.scrollbarWidth = 'none'; // Firefox
-    var sbStyle = document.createElement('style');
-    sbStyle.textContent = '#tv-scroller::-webkit-scrollbar{display:none}';
-    overlay.appendChild(sbStyle);
 
-    // ══════ ANTI-STANDBY: Wake Lock + video + canvas + ruído ══════
+    // ══════ ANTI-STANDBY LG: MÁXIMA AGRESSIVIDADE ══════
+
+    // 1) Wake Lock API
     var wakeLock = null;
     async function requestWakeLock(){
       try {
         if('wakeLock' in navigator){
           wakeLock = await navigator.wakeLock.request('screen');
-          wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 1000); });
+          wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 500); });
         }
       } catch(e){}
     }
     requestWakeLock();
+    // Re-request on visibility change (LG webOS drops it)
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState === 'visible') requestWakeLock();
+    });
 
-    // Video invisível
+    // 2) Video invisível (mantém decodificador ativo)
     var antiSleep = document.createElement('video');
     antiSleep.setAttribute('playsinline','');
     antiSleep.setAttribute('muted','');
@@ -3795,34 +3825,36 @@ function arenaTV(){
     antiSleep.src = 'data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwH/////////FUmpZpkq17GDD0JATYCGQ2hyb21lV0WQQ2hyb21lFlSua7+uvdeBAXPFh2YA0AAAAAAAABZUrmtAu4EBAAAAAABH2K5MoQ==';
     overlay.appendChild(antiSleep);
     try { antiSleep.play(); } catch(e){}
+    // Re-play video every 30s (LG pauses it)
+    setInterval(function(){ try{ if(antiSleep.paused) antiSleep.play(); }catch(e){} }, 30000);
 
-    // Canvas heartbeat (barra sutil acima do footer)
+    // 3) Canvas GRANDE que muda TODA frame (anti pixel-estático)
     var hbCanvas = document.createElement('canvas');
-    hbCanvas.width = 1920; hbCanvas.height = 2;
-    hbCanvas.style.cssText = 'position:fixed;bottom:52px;left:0;right:0;width:100%;height:2px;z-index:100002;opacity:0.4;pointer-events:none';
+    hbCanvas.width = 1920; hbCanvas.height = 6;
+    hbCanvas.style.cssText = 'position:fixed;bottom:52px;left:0;right:0;width:100%;height:6px;z-index:100002;opacity:0.7;pointer-events:none';
     overlay.appendChild(hbCanvas);
     var hbCtx = hbCanvas.getContext('2d');
     var hbPhase = 0;
     var hbInt = setInterval(function(){
       if(!document.getElementById('arena-tv-overlay')) { clearInterval(hbInt); return; }
-      hbPhase = (hbPhase + 4) % 1920;
-      hbCtx.clearRect(0,0,1920,2);
+      hbPhase = (hbPhase + 5) % 1920;
+      hbCtx.clearRect(0,0,1920,6);
       var grad = hbCtx.createLinearGradient(0,0,1920,0);
       var pos = hbPhase / 1920;
       grad.addColorStop(0, 'rgba(96,165,250,0.0)');
-      grad.addColorStop(Math.max(0, pos - 0.08), 'rgba(96,165,250,0.1)');
-      grad.addColorStop(pos, 'rgba(96,165,250,0.6)');
-      grad.addColorStop(Math.min(1, pos + 0.08), 'rgba(96,165,250,0.1)');
+      grad.addColorStop(Math.max(0, pos - 0.06), 'rgba(96,165,250,0.15)');
+      grad.addColorStop(pos, 'rgba(96,165,250,0.8)');
+      grad.addColorStop(Math.min(1, pos + 0.06), 'rgba(96,165,250,0.15)');
       grad.addColorStop(1, 'rgba(96,165,250,0.0)');
       hbCtx.fillStyle = grad;
-      hbCtx.fillRect(0,0,1920,2);
-    }, 200);
+      hbCtx.fillRect(0,0,1920,6);
+    }, 100); // 10fps — mais agressivo
 
-    // Noise boxes nos cantos (anti-standby extra para LG)
+    // 4) Noise boxes MAIORES nos 4 cantos (mais mudança de pixel)
     var noiseBoxes = [];
     [{t:'0',l:'0'},{t:'0',r:'0'},{b:'52px',l:'0'},{b:'52px',r:'0'}].forEach(function(p){
       var nb = document.createElement('div');
-      var css = 'position:fixed;width:3px;height:3px;z-index:100002;pointer-events:none;opacity:0.5;';
+      var css = 'position:fixed;width:6px;height:6px;z-index:100002;pointer-events:none;opacity:0.7;';
       if(p.t!==undefined)css+='top:'+p.t+';'; if(p.b!==undefined)css+='bottom:'+p.b+';';
       if(p.l!==undefined)css+='left:'+p.l+';'; if(p.r!==undefined)css+='right:'+p.r+';';
       nb.style.cssText = css;
@@ -3832,28 +3864,45 @@ function arenaTV(){
     var noiseInt = setInterval(function(){
       if(!document.getElementById('arena-tv-overlay')) { clearInterval(noiseInt); return; }
       noiseBoxes.forEach(function(nb){
-        nb.style.background = 'rgb('+Math.floor(Math.random()*60)+','+Math.floor(Math.random()*60)+','+Math.floor(Math.random()*60)+')';
+        nb.style.background = 'rgb('+Math.floor(Math.random()*100)+','+Math.floor(Math.random()*100)+','+Math.floor(Math.random()*100)+')';
       });
-    }, 800);
+    }, 500); // Mais rápido: 500ms
 
-    // Micro-scroll anti-standby
+    // 5) User interaction simulation (LG webOS detecta inatividade)
     var moveInt = setInterval(function(){
       if(!document.getElementById('arena-tv-overlay')) { clearInterval(moveInt); return; }
       window.dispatchEvent(new Event('mousemove'));
-    }, 8000);
+      window.dispatchEvent(new Event('keydown'));
+      window.dispatchEvent(new Event('scroll'));
+      // Muda 1 pixel no body para forçar repaint global
+      document.body.style.paddingBottom = (Date.now() % 2 === 0) ? '0px' : '1px';
+    }, 5000); // A cada 5s
 
-    // Tip de Auto Standby (1x)
+    // 6) Audio context (mantém thread de áudio ativa — anti-standby em smart TVs)
+    try {
+      var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      gain.gain.value = 0.001; // inaudível
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      // Resume audio context periodically (LG suspends it)
+      setInterval(function(){ if(audioCtx.state==='suspended') audioCtx.resume(); }, 10000);
+    } catch(e){}
+
+    // 7) Tip de Auto Standby (1x)
     if(!localStorage.getItem('psm_tv_tip_dismissed')){
       var tip = document.createElement('div');
       tip.id = 'tv-standby-tip';
       tip.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:100003;background:#1e293b;border:1px solid #d4a843;border-radius:12px;padding:14px 20px;max-width:580px;box-shadow:0 8px 32px rgba(0,0,0,0.6);color:#e2e8f0;font-size:13px;line-height:1.5';
-      tip.innerHTML = '<b style="color:#d4a843">TV desligando sozinha?</b> Desative o Auto Standby: LG → Config. → Geral → Temporizadores → Desl. Automático = Desativ. '
+      tip.innerHTML = '<b style="color:#d4a843">TV desligando sozinha?</b> LG: Config. \u2192 Geral \u2192 Temporizadores \u2192 Desl. Autom\u00e1tico = Desativ. Tamb\u00e9m desative HDMI-CEC e Economia de Energia. '
         + '<button onclick="localStorage.setItem(\'psm_tv_tip_dismissed\',\'1\');this.parentElement.remove()" style="margin-left:12px;padding:4px 12px;background:#d4a843;color:#0f172a;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px">OK</button>';
       overlay.appendChild(tip);
       setTimeout(function(){ var t=document.getElementById('tv-standby-tip'); if(t) t.style.opacity='0'; }, 20000);
     }
 
-    // ══════ EXIT HANDLERS ══════
+    // ══════ EXIT ══════
     function exitTV(){
       var el = document.getElementById('arena-tv-overlay');
       if(el) el.remove();
@@ -3873,15 +3922,15 @@ function arenaTV(){
     document.addEventListener('keydown', onKey);
     document.addEventListener('fullscreenchange', onFs);
 
-    // Auto-refresh every 60s
+    // Auto-refresh: reconstroi todas as abas a cada 90s com dados frescos
     var tvRefreshInt = setInterval(function(){
       var el = document.getElementById('arena-tv-overlay');
       if(!el){ clearInterval(tvRefreshInt); return; }
       exitTV();
       setTimeout(arenaTV, 500);
-    }, 60000);
+    }, 90000);
 
-  }, 300);
+  }, 400);
 }
 
 // METAADS TV — Modo TV para Meta Ads (mesma mecanica do arenaTV)
@@ -4374,11 +4423,6 @@ var pgWarArena = function(){
   h += '<span style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--navy2);border:1px solid var(--navy3);border-radius:10px;color:var(--muted);font-size:12px;font-weight:600">\u23f0 ' + currentTime + '</span>';
   h += '<span style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);color:#10b981;border-radius:10px;font-size:12px;font-weight:800"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulsedot 1.5s infinite"></span>LIVE</span>';
   h += '<button onclick=\"arenaTV()\" style=\"padding:10px 18px;background:linear-gradient(135deg,#3b82f6,#60a5fa);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;letter-spacing:.8px;box-shadow:0 4px 12px rgba(59,130,246,0.35);transition:transform .2s\" onmouseover=\"this.style.transform=\'translateY(-1px)\'\" onmouseout=\"this.style.transform=\'translateY(0)\'\">\ud83d\udcfa MODO TV</button>';
-    // Toggle "Ver inativos" — apenas sócios
-  if (S.user && S.user.role === 'socio') {
-    var _inToggle = S.showInativos ? true : false;
-    h += '<button onclick="toggleInativos()" style="padding:8px 14px;background:'+(_inToggle?'rgba(239,68,68,0.15)':'var(--navy2)')+';color:'+(_inToggle?'#ef4444':'var(--muted)')+';border:1px solid '+(_inToggle?'rgba(239,68,68,0.4)':'var(--navy3)')+';border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.5px">'+(_inToggle?'\u2716 OCULTAR DESLIGADOS':'\ud83d\udc41 VER DESLIGADOS')+'</button>';
-  }
   h += '</div></div>';
 
   // ===== TABS (chip-style inspirado em CogniProp: Platform / Who we serve / About) =====
@@ -4467,11 +4511,11 @@ var pgWarArena = function(){
     h += '<div>';
     h += '<div style="display:inline-flex;align-items:center;gap:8px;padding:3px 10px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.25);border-radius:20px;color:#60a5fa;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px">\u25c9 TEMPO REAL</div>';
     h += '<h2 style="font-size:24px;font-weight:800;color:var(--cream);margin:0;letter-spacing:-0.3px">\ud83d\udca1 Timeline de <span style="color:#60a5fa">Oportunidades</span></h2>';
-    h += '<div style="font-size:12px;color:var(--muted);margin-top:4px">'+tlShow.length+' '+(tlShow.length===1?'oportunidade publicada':'oportunidades publicadas')+'</div>';
+    h += '<div style="font-size:15px;color:var(--muted);margin-top:4px">'+tlShow.length+' '+(tlShow.length===1?'oportunidade publicada':'oportunidades publicadas')+'</div>';
     h += '</div>';
     h += '</div>';
     h += '<div id="opp-timeline-wrap" style="position:relative">';
-    h += '<div id="opp-timeline-scroll" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px">';
+    h += '<div id="opp-timeline-scroll" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:16px">';
     for(var _dup=0; _dup<1; _dup++){
       tlShow.forEach(function(op){
         var ico = op.icon || _tipoIcone(op.tipo);
@@ -4481,22 +4525,22 @@ var pgWarArena = function(){
         var expira = !!(_valTs && _valTs < _nowTs);
         var dtCreate = new Date(op.criadoEm || Date.now());
         var diasValid = _valTs ? Math.ceil((_valTs - _nowTs)/86400000) : null;
-        h += '<div style="position:relative;background:linear-gradient(135deg,rgba(30,41,59,0.8),rgba(15,23,42,0.6));border:1px solid '+color+'33;border-radius:16px;padding:18px 20px;'+(op.destaque?'box-shadow:0 0 20px '+color+'33, inset 0 0 0 1px '+color+'44;':'box-shadow:0 1px 0 rgba(255,255,255,0.04) inset;')+(expira?'opacity:0.5;':'')+'">';
+        h += '<div style="position:relative;background:linear-gradient(135deg,rgba(30,41,59,0.8),rgba(15,23,42,0.6));border:1px solid '+color+'33;border-radius:16px;padding:22px 24px;'+(op.destaque?'box-shadow:0 0 20px '+color+'33, inset 0 0 0 1px '+color+'44;':'box-shadow:0 1px 0 rgba(255,255,255,0.04) inset;')+(expira?'opacity:0.5;':'')+'">';
         h += '<div style="position:absolute;top:0;left:20px;right:20px;height:2px;background:linear-gradient(90deg,'+color+',transparent);border-radius:2px"></div>';
         h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">';
-        h += '<div style="width:38px;height:38px;border-radius:10px;background:'+color+'22;border:1px solid '+color+'44;display:flex;align-items:center;justify-content:center;font-size:20px">'+ico+'</div>';
+        h += '<div style="width:48px;height:48px;border-radius:12px;background:'+color+'22;border:1px solid '+color+'44;display:flex;align-items:center;justify-content:center;font-size:26px">'+ico+'</div>';
         h += '<div style="flex:1;min-width:0">';
-        h += '<div style="font-size:10px;font-weight:800;color:'+color+';text-transform:uppercase;letter-spacing:1.2px">'+(op.tipo||'OPORTUNIDADE').toUpperCase()+(op.destaque?' \u00b7 \u2b50':'')+'</div>';
-        h += '<div style="font-size:11px;color:var(--muted);font-weight:500;margin-top:2px">h\u00e1 '+_fmtTimeAgo(dtCreate)+'</div>';
+        h += '<div style="font-size:14px;font-weight:800;color:'+color+';text-transform:uppercase;letter-spacing:1px">'+(op.tipo||'OPORTUNIDADE').toUpperCase()+(op.destaque?' \u00b7 \u2b50':'')+'</div>';
+        h += '<div style="font-size:14px;color:var(--muted);font-weight:500;margin-top:2px">h\u00e1 '+_fmtTimeAgo(dtCreate)+'</div>';
         h += '</div>';
         h += '</div>';
-        h += '<div style="font-size:17px;font-weight:700;color:var(--cream);line-height:1.3;margin-bottom:4px;letter-spacing:-0.2px">'+(op.titulo||'\u2014')+'</div>';
+        h += '<div style="font-size:22px;font-weight:700;color:var(--cream);line-height:1.3;margin-bottom:6px;letter-spacing:-0.2px">'+(op.titulo||'\u2014')+'</div>';
         if(op.empreendimento || op.incorporadora){
           h += '<div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px">\ud83c\udfe2 '+(op.empreendimento||'')+(op.incorporadora?' \u00b7 '+op.incorporadora:'')+'</div>';
         }
         if(op.desc){
           var _d = op.desc.length > 110 ? op.desc.substring(0,107)+'...' : op.desc;
-          h += '<div style="font-size:12.5px;color:var(--cream);opacity:.78;margin-top:6px;line-height:1.45;font-weight:400">'+_d+'</div>';
+          h += '<div style="font-size:16px;color:var(--cream);opacity:.78;margin-top:6px;line-height:1.45;font-weight:400">'+_d+'</div>';
         }
         if(op.validade){
           var _fmtVal = (function(v){
@@ -4513,7 +4557,7 @@ var pgWarArena = function(){
           else if (diasValid === 0) { validLbl = '\u23f0 Vence hoje'; validCor = '#f59e0b'; }
           else if (diasValid <= 3)  { validLbl = '\u23f0 Vence em ' + diasValid + 'd'; validCor = '#f59e0b'; }
           else                      { validLbl = '\ud83d\udcc5 At\u00e9 ' + _fmtVal; validCor = color; }
-          h += '<div style="display:inline-flex;align-items:center;padding:6px 12px;background:'+validCor+'18;border:1px solid '+validCor+'44;border-radius:999px;font-size:11.5px;font-weight:700;color:'+validCor+';margin-top:12px">'+validLbl+'</div>';
+          h += '<div style="display:inline-flex;align-items:center;padding:6px 12px;background:'+validCor+'18;border:1px solid '+validCor+'44;border-radius:999px;font-size:15px;font-weight:700;color:'+validCor+';margin-top:12px">'+validLbl+'</div>';
         }
         h += '</div>';
       });
@@ -8567,22 +8611,39 @@ function ooSaveMetas(bid, key, data) {
 
 
 function ooSaveDayForm(bid, dayKey, btnEl) {
+  // Flush qualquer autosave pendente antes de ler os inputs
+  if (typeof window._ooFlushAll === 'function') window._ooFlushAll();
+  // Cancela timer de debounce dos +/- se existir
+  if (_ooFieldSaveTimer) { clearTimeout(_ooFieldSaveTimer); _ooFieldSaveTimer = null; }
+
+  // Lê os valores ATUAIS do DOM (hidden inputs sincronizados pelos +/-)
+  var mk = dayKey.substring(0, 7);
+  var existing = (((S.ooDaily||{})[bid]||{})[mk]||{})[dayKey] || {};
   var data = {};
-  // Read all visible oo_input_ fields (supports custom funnel + lateral)
+  // Primeiro copia dados existentes (caso haja campos que não estão no DOM)
+  for (var ek in existing) { data[ek] = existing[ek]; }
+  // Depois sobrescreve com o que está no DOM
   var allInputs = document.querySelectorAll('[id^="oo_input_"]');
   allInputs.forEach(function(el) {
     var k = el.id.replace('oo_input_','');
     if (k) data[k] = parseInt(el.value) || 0;
   });
   ooSaveDaily(bid, dayKey, data);
-  // Show confirmation
+  // Feedback visual
   var btn = btnEl;
   btn.textContent = '✅ Salvo!';
   btn.style.background = '#10b981';
-  setTimeout(function() { btn.textContent = 'Salvar'; btn.style.background = '#6366f1'; render(); }, 1200);
+  setTimeout(function() { btn.textContent = 'Salvar'; btn.style.background = '#6366f1'; }, 1200);
+  // NÃO chama render() imediatamente — preserva o feedback visual
+  setTimeout(function() { render(); }, 1500);
 }
 function ooSaveMetasForm(bid, monthKey, btnEl) {
+  if (typeof window._ooFlushAll === 'function') window._ooFlushAll();
   var data = {};
+  // Lê dados existentes primeiro
+  var existing = (((S.ooMetas||{})[bid]||{})[monthKey]) || {};
+  for (var ek in existing) { data[ek] = existing[ek]; }
+  // Sobrescreve com DOM
   OO_CAMPOS.forEach(function(c) {
     var el = document.getElementById('oo_meta_' + c.k);
     if (el) data[c.k] = parseInt(el.value) || 0;
@@ -8591,7 +8652,8 @@ function ooSaveMetasForm(bid, monthKey, btnEl) {
   var btn = btnEl;
   btn.textContent = '✅ Metas Salvas!';
   btn.style.background = '#6366f1';
-  setTimeout(function() { btn.textContent = 'Salvar Metas'; btn.style.background = '#10b981'; render(); }, 1200);
+  setTimeout(function() { btn.textContent = 'Salvar Metas'; btn.style.background = '#10b981'; }, 1200);
+  setTimeout(function() { render(); }, 1500);
 }
 
 function pgOO() {
@@ -10335,6 +10397,15 @@ async function auditarCohortRD(bid){
 window.auditarCohortRD = auditarCohortRD;
 
 // Increment/Decrement field in funnel (without full render)
+// Debounce para salvar após cliques rápidos em +/- (salva 800ms depois do último clique)
+var _ooFieldSaveTimer = null;
+function _ooFieldChanged() {
+  if (_ooFieldSaveTimer) clearTimeout(_ooFieldSaveTimer);
+  _ooFieldSaveTimer = setTimeout(function() {
+    saveState();
+    _ooFieldSaveTimer = null;
+  }, 800);
+}
 function ooIncField(bid, monthKey, dayKey, fieldKey) {
   if (!S.ooDaily) S.ooDaily = {};
   if (!S.ooDaily[bid]) S.ooDaily[bid] = {};
@@ -10346,6 +10417,7 @@ function ooIncField(bid, monthKey, dayKey, fieldKey) {
   var inputEl = document.getElementById('oo_input_' + fieldKey);
   if (valEl) valEl.textContent = cur + 1;
   if (inputEl) inputEl.value = cur + 1;
+  _ooFieldChanged(); // PERSISTE após 800ms de inatividade
 }
 function ooDecField(bid, monthKey, dayKey, fieldKey) {
   if (!S.ooDaily) S.ooDaily = {};
@@ -10359,6 +10431,7 @@ function ooDecField(bid, monthKey, dayKey, fieldKey) {
   var inputEl = document.getElementById('oo_input_' + fieldKey);
   if (valEl) valEl.textContent = newVal;
   if (inputEl) inputEl.value = newVal;
+  _ooFieldChanged(); // PERSISTE após 800ms de inatividade
 }
 
 // ===== ROTINA (OKRs semanais) helpers =====
@@ -23626,6 +23699,9 @@ function showDrill(kind, extra){
 }
 
 function nav(page) {
+  // Flush pendentes do One on One antes de mudar de página
+  if(typeof window._ooFlushAll==='function') window._ooFlushAll();
+  if(_ooFieldSaveTimer){clearTimeout(_ooFieldSaveTimer);_ooFieldSaveTimer=null;saveState();}
   BROKERS=getBrokers();
   if(!canAccess(page)){page=getDefaultPage();}
   S.page = page; S.notifOpen = false; render({force:true});
@@ -24068,6 +24144,13 @@ window.addEventListener('online', () => { toast('✅ Conexão restaurada', 'ok')
 window.addEventListener('offline', () => { toast('⚠️ Sem conexão com a internet', 'warn'); });
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
+// Salva dados pendentes ao fechar/recarregar a página
+window.addEventListener('beforeunload', function() {
+  if(typeof window._ooFlushAll==='function') window._ooFlushAll();
+  if(typeof _ooFieldSaveTimer!=='undefined' && _ooFieldSaveTimer){clearTimeout(_ooFieldSaveTimer);_ooFieldSaveTimer=null;}
+  try { saveState(); } catch(e){}
+});
+
 window.addEventListener('DOMContentLoaded', () => {
   buildUsers();
   // fillDemo removed
