@@ -890,7 +890,7 @@ let INATIVOS=ALL_BROKERS.filter(u=>u.status==='inativo');
 let INATIVOS_IDS=INATIVOS.map(u=>u.id);
 function getBrokers(){
   // Sócios com S.showInativos=true veem todos; demais veem apenas ativos
-  if(S && S.user && S.user.role==='socio' && S.showInativos) return ALL_BROKERS.slice();
+  if(typeof S!=='undefined' && S && S.user && S.user.role==='socio' && S.showInativos) return ALL_BROKERS.slice();
   return ALL_BROKERS.filter(u=>u.status!=='inativo');
 }
 let BROKERS=getBrokers();
@@ -900,7 +900,7 @@ function isHiddenBroker(brokerId){
   if(!brokerId) return false;
   if(INATIVOS_IDS.indexOf(brokerId)===-1) return false;
   // Se é sócio com toggle ativo, não oculta
-  if(S && S.user && S.user.role==='socio' && S.showInativos) return false;
+  if(typeof S!=='undefined' && S && S.user && S.user.role==='socio' && S.showInativos) return false;
   return true;
 }
 // Toggle de visibilidade de inativos (só sócios)
