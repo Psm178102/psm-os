@@ -837,7 +837,7 @@ const USERS_BASE=[
   {id:'marcus_l', name:'Marcus Lopes',      ini:'ML',color:'#1e293b',role:'lider',   frente:'lancamento',email:'marcus@imobiliariapsm.com.br',    rdId:'67f9516f6fed0c0014bf9130', st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:1000000,crm:0,agend:0},
   {id:'gabriel_b',name:'Gabriel Brito',     ini:'GB',color:'#0d9488',role:'corretor',frente:'lancamento',email:'gabriel@imobiliariapsm.com.br',   rdId:'693972e731eb790020fedd95',  st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:800000,crm:0,agend:0},
   // Daniela Barboza removida (desativada no RD CRM)
-    {id:'rodrigo_t',name:'Rodrigo Trivellato',ini:'RT',color:'#0f172a',role:'corretor',frente:'conquista',email:'rodrigo@imobiliariapsm.com.br',   rdId:'67f94eac20a4ad001e1f6748', st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:1200000,crm:0,agend:0},
+    {id:'rodrigo_t',name:'Rodrigo Trivellato',ini:'RT',color:'#0f172a',role:'corretor',frente:'conquista',email:'rodrigo@imobiliariapsm.com.br',   rdId:'67f94eac20a4ad001e1f6748', st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:1200000,crm:0,agend:0, status:'inativo', desligadoEm:'2026-04-17'},
   // Conquista
   {id:'kadu',     name:'Kadu Ozório',       ini:'KO',color:'#dc2626',role:'corretor',frente:'conquista', email:'kadu@imobiliariapsm.com.br',      rdId:'67f94eb43d0c4b001b46e207', st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:900000,crm:0,agend:0},
   {id:'julia',    name:'Júlia',             ini:'JU',color:'#a21caf',role:'corretor',frente:'conquista', email:'julia@imobiliariapsm.com.br',     rdId:'67f94fb8dbc14a0018e56426', st:'offline', lig:0,vis:0,prop:0,vend:0,vgv:0,meta:700000,crm:0,agend:0},
@@ -863,7 +863,7 @@ const USERS_BASE=[
 let TEAM_CONFIG={
   assignments:{
     marcus_l:'lancamento',gabriel_b:'lancamento',vitor_o:'lancamento',
-    rodrigo_t:'conquista',kadu:'conquista',      julia:'conquista',     danilo_a:'conquista',  rafaela_m:'conquista', bruno:'conquista',
+    /* rodrigo_t: desligado 2026-04-17 */ kadu:'conquista',      julia:'conquista',     danilo_a:'conquista',  rafaela_m:'conquista', bruno:'conquista',
     camila_b:'terceiros',  rodrigo_c:'terceiros', evandro:'terceiros',   yara:'terceiros',
   },
   // Marcus é líder de: Evandro, Gabriel, Camila e Danilo (ponto 3)
@@ -884,7 +884,33 @@ function buildUsers(){
 }
 let USERS=buildUsers();
 let UM=Object.fromEntries(USERS.map(u=>[u.id,u]));
-let BROKERS=USERS.filter(u=>['corretor','lider'].includes(u.role));
+let ALL_BROKERS=USERS.filter(u=>['corretor','lider'].includes(u.role));
+// Corretores inativos (desligados) — ocultos para todos exceto sócios com toggle ativo
+let INATIVOS=ALL_BROKERS.filter(u=>u.status==='inativo');
+let INATIVOS_IDS=INATIVOS.map(u=>u.id);
+function getBrokers(){
+  // Sócios com S.showInativos=true veem todos; demais veem apenas ativos
+  if(S && S.user && S.user.role==='socio' && S.showInativos) return ALL_BROKERS.slice();
+  return ALL_BROKERS.filter(u=>u.status!=='inativo');
+}
+let BROKERS=getBrokers();
+
+// Helper global: checa se um broker deve ser ocultado (inativo e sócio não ativou toggle)
+function isHiddenBroker(brokerId){
+  if(!brokerId) return false;
+  if(INATIVOS_IDS.indexOf(brokerId)===-1) return false;
+  // Se é sócio com toggle ativo, não oculta
+  if(S && S.user && S.user.role==='socio' && S.showInativos) return false;
+  return true;
+}
+// Toggle de visibilidade de inativos (só sócios)
+function toggleInativos(){
+  if(!S.user || S.user.role!=='socio') return;
+  S.showInativos = !S.showInativos;
+  BROKERS = getBrokers();
+  saveState();
+  debouncedRender(100);
+}
 
 // ─── OPORTUNIDADES (demo; RD sync overrides) ──────────────────────────────────
 const OPPS=[];
@@ -1558,6 +1584,7 @@ function saveState(skipFbPush) {
       vendasManuais: S.vendasManuais || [],
       oportunidadesPSM: S.oportunidadesPSM || [],
       opCorretorList: S.opCorretorList || [],
+      showInativos: S.showInativos || false,
       savedAt: Date.now(),
     };
     // === SALVAMENTO PRINCIPAL COM DETECÇÃO DE QUOTA ===
@@ -1719,6 +1746,7 @@ function loadState() {
     if (d.vendasManuais) S.vendasManuais = d.vendasManuais;
     if (d.oportunidadesPSM) S.oportunidadesPSM = d.oportunidadesPSM;
     if (d.opCorretorList) S.opCorretorList = d.opCorretorList;
+    if (d.showInativos) S.showInativos = d.showInativos;
     // Restore manual vendas (legacy)
     try {
       const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manual') || '[]');
@@ -3637,31 +3665,25 @@ function arenaTV(){
     var arenaHTML = pc.innerHTML;
     var overlay = document.createElement('div');
     overlay.id = 'arena-tv-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:#0f0f14;overflow:hidden;font-family:Inter,system-ui,sans-serif';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:#0b0e17;overflow:hidden;font-family:Inter,system-ui,sans-serif';
 
-    // Scrollable content
+    // Scrollable content — usa CSS zoom (suportado Chrome/WebOS/Safari) que altera layout real
     var scroller = document.createElement('div');
     scroller.id = 'tv-scroller';
-    scroller.style.cssText = 'width:100%;height:calc(100vh - 56px);overflow:hidden;position:relative';
+    scroller.style.cssText = 'width:100%;height:calc(100vh - 52px);overflow:hidden;position:relative';
     var inner = document.createElement('div');
     inner.id = 'tv-inner';
-    inner.style.cssText = 'padding:20px 24px 80px';
+    inner.style.cssText = 'padding:18px 20px 60px;zoom:1.65';
     inner.innerHTML = arenaHTML;
     scroller.appendChild(inner);
     overlay.appendChild(scroller);
 
-    // TV CSS overrides — TV 65" a 10m: ZOOM GLOBAL + overrides cirúrgicos
+    // === TV STYLE: esconde controles + ajusta grid ===
     var tvStyle = document.createElement('style');
     tvStyle.id = 'tv-style';
     tvStyle.textContent = ''
-      // === ZOOM GLOBAL: escala 1.8x no container (tudo proporcionalmente grande) ===
       + '#arena-tv-overlay *{box-sizing:border-box}'
-      + '#tv-inner{transform:scale(1.8);transform-origin:top left;width:55.5%}'
-      // === HEADINGS: legíveis na TV ===
-      + '#arena-tv-overlay h1{font-size:42px!important;margin:0 0 10px!important;letter-spacing:-0.5px!important}'
-      + '#arena-tv-overlay h2{font-size:32px!important;margin:0 0 10px!important}'
-      + '#arena-tv-overlay h3{font-size:26px!important}'
-      // === ESCONDE: filtros, botões, tabs, inputs (não servem na TV) ===
+      // Esconde controles interativos (inúteis na TV)
       + '#arena-tv-overlay button[onclick*="arenaTV"]{display:none!important}'
       + '#arena-tv-overlay button[onclick*="arenaTab"]{display:none!important}'
       + '#arena-tv-overlay button[onclick*="render"]{display:none!important}'
@@ -3669,50 +3691,44 @@ function arenaTV(){
       + '#arena-tv-overlay select{display:none!important}'
       + '#arena-tv-overlay details{display:none!important}'
       + '#arena-tv-overlay input{display:none!important}'
-      // === GRID: 2 colunas para cards bem grandes ===
+      // Grid: 2 colunas no zoom (cards grandes)
       + '#arena-tv-overlay [style*="grid-template-columns:repeat(6"]{grid-template-columns:repeat(2,1fr)!important}'
       + '#arena-tv-overlay [style*="grid-template-columns:repeat(5"]{grid-template-columns:repeat(2,1fr)!important}'
       + '#arena-tv-overlay [style*="grid-template-columns:repeat(4"]{grid-template-columns:repeat(2,1fr)!important}'
-      + '#arena-tv-overlay [style*="minmax(360px"]{grid-template-columns:repeat(auto-fill,minmax(420px,1fr))!important}'
-      + '#arena-tv-overlay [style*="minmax(260px"]{grid-template-columns:repeat(auto-fill,minmax(380px,1fr))!important}'
-      // === BORDER-RADIUS: suaviza ===
-      + '#arena-tv-overlay [style*="border-radius:999px"]{border-radius:14px!important}'
-      + '#arena-tv-overlay [style*="border-radius:16px"]{border-radius:10px!important}'
-      // === PROGRESS BARS: mais visíveis ===
-      + '#arena-tv-overlay [style*="height:5px"]{height:10px!important}'
-      + '#arena-tv-overlay [style*="height:6px"]{height:12px!important}'
-      + '#arena-tv-overlay [style*="height:8px"]{height:14px!important}';
+      + '#arena-tv-overlay [style*="grid-template-columns:repeat(3"]{grid-template-columns:repeat(2,1fr)!important}'
+      + '#arena-tv-overlay [style*="minmax(360px"]{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))!important}'
+      + '#arena-tv-overlay [style*="minmax(260px"]{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))!important}'
+      // Progress bars mais grossas
+      + '#arena-tv-overlay [style*="height:5px"]{height:8px!important}'
+      + '#arena-tv-overlay [style*="height:6px"]{height:10px!important}'
+      + '#arena-tv-overlay [style*="height:8px"]{height:12px!important}';
     overlay.appendChild(tvStyle);
 
     // Hide MODO TV button
     var tvBtns = overlay.querySelectorAll('button[onclick*="arenaTV"]');
     for(var i=0;i<tvBtns.length;i++) tvBtns[i].style.display='none';
 
-    // Footer bar — design limpo, proporcional, legível a 10m na TV 65"
+    // ══════ FOOTER: barra fina, clean, com relógio dourado ══════
     var footer = document.createElement('div');
-    footer.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:56px;padding:0 32px;background:linear-gradient(180deg,rgba(15,15,20,0.95),rgba(0,0,0,0.98));border-top:1px solid rgba(96,165,250,0.15);display:flex;justify-content:space-between;align-items:center;z-index:100000';
-    footer.innerHTML = '<div style="display:flex;align-items:center;gap:10px">'
-      + '<div style="width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e88;animation:tvPulse 2s infinite"></div>'
-      + '<span style="font-size:15px;color:#94a3b8;font-weight:500;letter-spacing:0.5px">ARENA PSM</span>'
-      + '<span style="font-size:13px;color:#475569">\u2022</span>'
-      + '<span style="font-size:13px;color:#475569;font-weight:400">Modo TV</span>'
+    footer.id = 'tv-footer';
+    footer.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:52px;padding:0 24px;background:#0b0e17;border-top:1px solid #1e293b;display:flex;justify-content:space-between;align-items:center;z-index:100000';
+    footer.innerHTML = ''
+      + '<div style="display:flex;align-items:center;gap:8px">'
+      +   '<div id="tv-dot" style="width:6px;height:6px;border-radius:50%;background:#22c55e"></div>'
+      +   '<span style="font-size:13px;color:#64748b;font-weight:500">ARENA PSM</span>'
       + '</div>'
-      + '<div id="tv-clock" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:28px;font-weight:700;color:#d4a843;letter-spacing:2px;text-shadow:0 0 12px rgba(212,168,67,0.4)">--:--:--</div>'
-      + '<div style="font-size:13px;color:#475569;font-weight:400">ESC sair \u2022 Auto-refresh 60s</div>';
+      + '<div id="tv-clock" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:24px;font-weight:700;color:#d4a843;letter-spacing:1.5px">--:--:--</div>'
+      + '<div style="font-size:12px;color:#475569">ESC sair</div>';
     overlay.appendChild(footer);
-    // Animação do dot verde
-    var pulseStyle = document.createElement('style');
-    pulseStyle.textContent = '@keyframes tvPulse{0%,100%{opacity:1}50%{opacity:0.4}}';
-    overlay.appendChild(pulseStyle);
 
-    // Rel\u00f3gio TV — atualiza a cada segundo (vis\u00edvel na barra inferior)
+    // Relógio + dot pulsante
     var tvClockInt = setInterval(function(){
       var el = document.getElementById('tv-clock');
-      if (!el) { clearInterval(tvClockInt); return; }
+      var dot = document.getElementById('tv-dot');
+      if(!el){ clearInterval(tvClockInt); return; }
       var n = new Date();
       el.textContent = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0') + ':' + String(n.getSeconds()).padStart(2,'0');
-      // Pisca os ":" a cada segundo (efeito anti-standby: muda pixel constantemente)
-      el.style.opacity = (n.getSeconds() % 2 === 0) ? '1' : '0.88';
+      if(dot) dot.style.opacity = (n.getSeconds() % 2 === 0) ? '1' : '0.3';
     }, 1000);
 
     document.body.appendChild(overlay);
@@ -3721,11 +3737,11 @@ function arenaTV(){
     if(overlay.requestFullscreen) overlay.requestFullscreen();
     else if(overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen();
 
-    // === AUTO-SCROLL: scroll down slowly, then scroll up faster, cycle ===
+    // ══════ AUTO-SCROLL: desce devagar, sobe rápido, repete ══════
     var scrollPos = 0;
-    var scrollSpeed = 0.5;
-    var pauseAtTop = 300;
-    var pauseAtBottom = 180;
+    var scrollSpeed = 0.6;
+    var pauseAtTop = 240;
+    var pauseAtBottom = 150;
     var pauseCounter = pauseAtTop;
     var scrollDir = 1;
     var tvScrollInt = setInterval(function(){
@@ -3740,18 +3756,24 @@ function arenaTV(){
         scrollPos = maxScroll;
         scrollDir = -1;
         pauseCounter = pauseAtBottom;
-        scrollSpeed = 1.5;
+        scrollSpeed = 1.8;
       }
       if(scrollPos <= 0) {
         scrollPos = 0;
         scrollDir = 1;
         pauseCounter = pauseAtTop;
-        scrollSpeed = 0.5;
+        scrollSpeed = 0.6;
       }
-      el.style.transform = 'translateY(' + (-scrollPos) + 'px)';
+      sc.scrollTop = scrollPos;
     }, 1000/60);
+    // Habilita scroll real no scroller (em vez de translateY que conflita com zoom)
+    scroller.style.overflow = 'auto';
+    scroller.style.scrollbarWidth = 'none'; // Firefox
+    var sbStyle = document.createElement('style');
+    sbStyle.textContent = '#tv-scroller::-webkit-scrollbar{display:none}';
+    overlay.appendChild(sbStyle);
 
-    // === ANTI-STANDBY: Wake Lock API + silent video ===
+    // ══════ ANTI-STANDBY: Wake Lock + video + canvas + ruído ══════
     var wakeLock = null;
     async function requestWakeLock(){
       try {
@@ -3763,7 +3785,7 @@ function arenaTV(){
     }
     requestWakeLock();
 
-    // Fallback: invisible video keeps screen active
+    // Video invisível
     var antiSleep = document.createElement('video');
     antiSleep.setAttribute('playsinline','');
     antiSleep.setAttribute('muted','');
@@ -3774,38 +3796,33 @@ function arenaTV(){
     overlay.appendChild(antiSleep);
     try { antiSleep.play(); } catch(e){}
 
-    // === HEARTBEAT CANVAS (v3 LG-proof) — barra larga full-width que muda pixels TODA frame ===
-    // TVs LG/Samsung detectam "imagem est\u00e1tica" e entram em standby. Canvas grande garante mudan\u00e7a m\u00e1xima.
+    // Canvas heartbeat (barra sutil acima do footer)
     var hbCanvas = document.createElement('canvas');
-    hbCanvas.id = 'tv-heartbeat';
-    hbCanvas.width = 1920; hbCanvas.height = 4;
-    hbCanvas.style.cssText = 'position:fixed;bottom:42px;left:0;right:0;width:100%;height:4px;z-index:100002;opacity:0.6;pointer-events:none';
+    hbCanvas.width = 1920; hbCanvas.height = 2;
+    hbCanvas.style.cssText = 'position:fixed;bottom:52px;left:0;right:0;width:100%;height:2px;z-index:100002;opacity:0.4;pointer-events:none';
     overlay.appendChild(hbCanvas);
     var hbCtx = hbCanvas.getContext('2d');
     var hbPhase = 0;
     var hbInt = setInterval(function(){
       if(!document.getElementById('arena-tv-overlay')) { clearInterval(hbInt); return; }
-      hbPhase = (hbPhase + 3) % 1920;
-      hbCtx.clearRect(0,0,1920,4);
-      // Gradiente que desliza 3px por frame em toda a largura — m\u00e1xima mudan\u00e7a de pixel
+      hbPhase = (hbPhase + 4) % 1920;
+      hbCtx.clearRect(0,0,1920,2);
       var grad = hbCtx.createLinearGradient(0,0,1920,0);
       var pos = hbPhase / 1920;
-      grad.addColorStop(0, 'rgba(16,185,129,0.05)');
-      grad.addColorStop(Math.max(0, pos - 0.1), 'rgba(16,185,129,0.15)');
-      grad.addColorStop(pos, 'rgba(16,185,129,0.7)');
-      grad.addColorStop(Math.min(1, pos + 0.1), 'rgba(16,185,129,0.15)');
-      grad.addColorStop(1, 'rgba(16,185,129,0.05)');
+      grad.addColorStop(0, 'rgba(96,165,250,0.0)');
+      grad.addColorStop(Math.max(0, pos - 0.08), 'rgba(96,165,250,0.1)');
+      grad.addColorStop(pos, 'rgba(96,165,250,0.6)');
+      grad.addColorStop(Math.min(1, pos + 0.08), 'rgba(96,165,250,0.1)');
+      grad.addColorStop(1, 'rgba(96,165,250,0.0)');
       hbCtx.fillStyle = grad;
-      hbCtx.fillRect(0,0,1920,4);
-    }, 200); // 5fps = mais mudan\u00e7a que 2fps
+      hbCtx.fillRect(0,0,1920,2);
+    }, 200);
 
-    // Canvas de "ru\u00eddo" nos 4 cantos — muda COR a cada segundo para for\u00e7ar redesenho total
+    // Noise boxes nos cantos (anti-standby extra para LG)
     var noiseBoxes = [];
-    var nbPositions = [{t:'0',l:'0'},{t:'0',r:'0'},{b:'44px',l:'0'},{b:'44px',r:'0'}];
-    nbPositions.forEach(function(p){
+    [{t:'0',l:'0'},{t:'0',r:'0'},{b:'52px',l:'0'},{b:'52px',r:'0'}].forEach(function(p){
       var nb = document.createElement('div');
-      nb.className = 'tv-noise-box';
-      var css = 'position:fixed;width:3px;height:3px;z-index:100002;pointer-events:none;border-radius:1px;';
+      var css = 'position:fixed;width:3px;height:3px;z-index:100002;pointer-events:none;opacity:0.5;';
       if(p.t!==undefined)css+='top:'+p.t+';'; if(p.b!==undefined)css+='bottom:'+p.b+';';
       if(p.l!==undefined)css+='left:'+p.l+';'; if(p.r!==undefined)css+='right:'+p.r+';';
       nb.style.cssText = css;
@@ -3815,50 +3832,31 @@ function arenaTV(){
     var noiseInt = setInterval(function(){
       if(!document.getElementById('arena-tv-overlay')) { clearInterval(noiseInt); return; }
       noiseBoxes.forEach(function(nb){
-        var r = Math.floor(Math.random()*80), g = Math.floor(Math.random()*80), b = Math.floor(Math.random()*80);
-        nb.style.background = 'rgb('+r+','+g+','+b+')';
+        nb.style.background = 'rgb('+Math.floor(Math.random()*60)+','+Math.floor(Math.random()*60)+','+Math.floor(Math.random()*60)+')';
       });
     }, 800);
 
-    // Dispatch events + micro-scroll mais agressivo (a cada 8s em vez de 15s)
+    // Micro-scroll anti-standby
     var moveInt = setInterval(function(){
       if(!document.getElementById('arena-tv-overlay')) { clearInterval(moveInt); return; }
       window.dispatchEvent(new Event('mousemove'));
-      try { window.scrollBy(0, 0.1); window.scrollBy(0, -0.1); } catch(e){}
     }, 8000);
 
-    // === TIP ÚNICO: informa o usuário sobre o Auto Standby do TV (aparece 1x, dismissível) ===
+    // Tip de Auto Standby (1x)
     if(!localStorage.getItem('psm_tv_tip_dismissed')){
       var tip = document.createElement('div');
       tip.id = 'tv-standby-tip';
-      tip.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:100003;background:linear-gradient(135deg,#1e293b,#0f172a);border:2px solid #d4a843;border-radius:14px;padding:18px 24px;max-width:640px;box-shadow:0 10px 40px rgba(0,0,0,0.5);color:#f8fafc;font-family:Inter,system-ui,sans-serif';
-      tip.innerHTML = '<div style="display:flex;align-items:start;gap:14px">'
-        + '<div style="font-size:28px">💡</div>'
-        + '<div style="flex:1">'
-        + '<div style="font-size:14px;font-weight:800;color:#d4a843;margin-bottom:8px;letter-spacing:0.5px">COMO EVITAR QUE SUA TV DESLIGUE SOZINHA</div>'
-        + '<div style="font-size:12.5px;line-height:1.55;color:#cbd5e1">O Arena já mantém Wake Lock + heartbeat de pixels ativo. Se mesmo assim a tela apaga, é o <b style="color:#fff">Auto Standby da TV</b> (não do navegador). Desative assim:</div>'
-        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;font-size:11.5px;color:#e2e8f0">'
-        + '<div style="background:rgba(212,168,67,0.1);padding:8px 10px;border-radius:8px;border-left:3px solid #d4a843"><b>Samsung:</b> Config. → Geral → <b>Eco</b> → Desligar Aut. (Off)</div>'
-        + '<div style="background:rgba(212,168,67,0.1);padding:8px 10px;border-radius:8px;border-left:3px solid #d4a843"><b>LG:</b> Config. → Geral → Temporizadores → <b>Desl. Automático</b> = Desativ.</div>'
-        + '<div style="background:rgba(212,168,67,0.1);padding:8px 10px;border-radius:8px;border-left:3px solid #d4a843"><b>Sony:</b> Config. → Sistema → Energia → <b>Timer de Inatividade</b> = Desligado</div>'
-        + '<div style="background:rgba(212,168,67,0.1);padding:8px 10px;border-radius:8px;border-left:3px solid #d4a843"><b>TCL/Philips/Roku:</b> Config. → Sistema → <b>Desligar depois de...</b> = Nunca</div>'
-        + '</div>'
-        + '<div style="margin-top:10px;font-size:11px;color:#94a3b8">Também desabilite <b>HDMI-CEC</b> ou <b>Anynet+</b> se seu PC/Chromecast desliga ao ficar ocioso.</div>'
-        + '<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">'
-        + '<button onclick="document.getElementById(\'tv-standby-tip\').remove()" style="padding:6px 14px;background:transparent;color:#94a3b8;border:1px solid #475569;border-radius:6px;cursor:pointer;font-size:11px">Ver agora</button>'
-        + '<button onclick="localStorage.setItem(\'psm_tv_tip_dismissed\',\'1\');document.getElementById(\'tv-standby-tip\').remove()" style="padding:6px 14px;background:#d4a843;color:#0f172a;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700">Não mostrar mais</button>'
-        + '</div></div></div>';
+      tip.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:100003;background:#1e293b;border:1px solid #d4a843;border-radius:12px;padding:14px 20px;max-width:580px;box-shadow:0 8px 32px rgba(0,0,0,0.6);color:#e2e8f0;font-size:13px;line-height:1.5';
+      tip.innerHTML = '<b style="color:#d4a843">TV desligando sozinha?</b> Desative o Auto Standby: LG → Config. → Geral → Temporizadores → Desl. Automático = Desativ. '
+        + '<button onclick="localStorage.setItem(\'psm_tv_tip_dismissed\',\'1\');this.parentElement.remove()" style="margin-left:12px;padding:4px 12px;background:#d4a843;color:#0f172a;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px">OK</button>';
       overlay.appendChild(tip);
-      // Auto-esconde após 25s
-      setTimeout(function(){ var t=document.getElementById('tv-standby-tip'); if(t) t.style.opacity='0.15'; }, 25000);
+      setTimeout(function(){ var t=document.getElementById('tv-standby-tip'); if(t) t.style.opacity='0'; }, 20000);
     }
 
-    // === EXIT HANDLERS ===
+    // ══════ EXIT HANDLERS ══════
     function exitTV(){
       var el = document.getElementById('arena-tv-overlay');
       if(el) el.remove();
-      var st = document.getElementById('tv-style');
-      if(st) st.remove();
       if(document.fullscreenElement) document.exitFullscreen();
       if(wakeLock) { try{wakeLock.release();}catch(e){} wakeLock=null; }
       document.removeEventListener('keydown', onKey);
@@ -3886,7 +3884,6 @@ function arenaTV(){
   }, 300);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 // METAADS TV — Modo TV para Meta Ads (mesma mecanica do arenaTV)
 // ═══════════════════════════════════════════════════════════════════════════
 function metaAdsTV(){
@@ -4232,6 +4229,7 @@ window.arenaCheckMetaHits = arenaCheckMetaHits;
 
 // ===============================================
 var pgWarArena = function(){
+  BROKERS = getBrokers(); // recalcula excluindo inativos
   if(!S.user) return '<div style="padding:40px;text-align:center;color:var(--muted)">Fa\u00e7a login para acessar a War Arena</div>';
   if(!S.df_war) S.df_war = {preset:'Ano'};
   recalcBrokerMetrics('war');
@@ -4376,6 +4374,11 @@ var pgWarArena = function(){
   h += '<span style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--navy2);border:1px solid var(--navy3);border-radius:10px;color:var(--muted);font-size:12px;font-weight:600">\u23f0 ' + currentTime + '</span>';
   h += '<span style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);color:#10b981;border-radius:10px;font-size:12px;font-weight:800"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulsedot 1.5s infinite"></span>LIVE</span>';
   h += '<button onclick=\"arenaTV()\" style=\"padding:10px 18px;background:linear-gradient(135deg,#3b82f6,#60a5fa);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;letter-spacing:.8px;box-shadow:0 4px 12px rgba(59,130,246,0.35);transition:transform .2s\" onmouseover=\"this.style.transform=\'translateY(-1px)\'\" onmouseout=\"this.style.transform=\'translateY(0)\'\">\ud83d\udcfa MODO TV</button>';
+    // Toggle "Ver inativos" — apenas sócios
+  if (S.user && S.user.role === 'socio') {
+    var _inToggle = S.showInativos ? true : false;
+    h += '<button onclick="toggleInativos()" style="padding:8px 14px;background:'+(_inToggle?'rgba(239,68,68,0.15)':'var(--navy2)')+';color:'+(_inToggle?'#ef4444':'var(--muted)')+';border:1px solid '+(_inToggle?'rgba(239,68,68,0.4)':'var(--navy3)')+';border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.5px">'+(_inToggle?'\u2716 OCULTAR DESLIGADOS':'\ud83d\udc41 VER DESLIGADOS')+'</button>';
+  }
   h += '</div></div>';
 
   // ===== TABS (chip-style inspirado em CogniProp: Platform / Who we serve / About) =====
@@ -7107,6 +7110,8 @@ function applyDateFilter(deals, prefix) {
   }
 
   return deals.filter(d => {
+    // Oculta deals de corretores inativos (desligados)
+    if(isHiddenBroker(d.bid || d.brokerId || d.user_id)) return false;
     const dt = new Date(d.closedAt || d.createdAt || d.updated_at || '');
     return !isNaN(dt.getTime()) && dt >= from && dt <= to;
   });
@@ -7209,7 +7214,7 @@ const _LOCAL_AUTH = {
   'gabriel@imobiliariapsm.com.br':    simpleHash('Gab#map26')+'|gabriel_b',
   'vitor@imobiliariapsm.com.br':      simpleHash('Vit#map26')+'|vitor_o',
   // CORRETORES - Conquista (nível 2)
-  'rodrigo@imobiliariapsm.com.br':    simpleHash('Rod@conq26')+'|rodrigo_t',
+  // 'rodrigo@imobiliariapsm.com.br': DESLIGADO 2026-04-17 — login bloqueado
   'kadu@imobiliariapsm.com.br':       simpleHash('Kadu@conq26')+'|kadu',
   'julia@imobiliariapsm.com.br':      simpleHash('Jul@conq26')+'|julia',
   'danilo@imobiliariapsm.com.br':     simpleHash('Dan@conq26')+'|danilo_a',
@@ -23286,7 +23291,7 @@ function pgPlaceholder(title, desc) {
 
 // Debounced render — para oninput que nao deve re-renderizar a cada tecla
 var _drTimer=null;
-function debouncedRender(d){clearTimeout(_drTimer);_drTimer=setTimeout(function(){render()},d||300)}
+function debouncedRender(d){clearTimeout(_drTimer);_drTimer=setTimeout(function(){BROKERS=getBrokers();render()},d||300)}
 var _renderPending=false,_renderPendingTimer=null,_lastUserActivity=0,_renderForced=false;
 /* FIX 2026-04-08: listener apenas em 'input' de campos de texto — o 'mousedown/keydown/touchstart/focusin' global travava render() por 60s apos qualquer clique, quebrando TODOS os botoes do sistema (One on One, Oportunidades, Ranking etc). */
 document.addEventListener("input",function(e){var t=e&&e.target;if(t&&(t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.isContentEditable))_lastUserActivity=Date.now();},true);
@@ -23621,6 +23626,7 @@ function showDrill(kind, extra){
 }
 
 function nav(page) {
+  BROKERS=getBrokers();
   if(!canAccess(page)){page=getDefaultPage();}
   S.page = page; S.notifOpen = false; render({force:true});
   const pc = document.getElementById('pc'); if (pc) pc.scrollTop = 0;
