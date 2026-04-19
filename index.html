@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.19-v13 — getMetricas canonical + SW network-first + Modo TV cenas rotativas -->
+<!-- PSM-OS v2026.04.19-v14 — Arena cores + Desligado→------ + TV split timeline + números completos -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.19-v13">
+<meta name="version" content="2026.04.19-v14">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -915,7 +915,7 @@ var BROKERS_ALL = ALL_BROKERS.slice();
 function isHiddenBroker(brokerId){
   return false; // deals sempre contam; mascaramento e feito no NOME
 }
-// isMaskedBroker — retorna TRUE se nome deve aparecer como "Desligado"
+// isMaskedBroker — retorna TRUE se nome deve aparecer mascarado como "------"
 function isMaskedBroker(brokerId){
   if(!brokerId) return false;
   if(INATIVOS_IDS.indexOf(brokerId)===-1) return false;
@@ -925,16 +925,16 @@ function isMaskedBroker(brokerId){
 // safeBrokerName — retorna nome seguro (mascarado se desligado e usuario nao autorizado)
 function safeBrokerName(bOrId){
   var b = (typeof bOrId === 'string') ? (UM[bOrId] || null) : bOrId;
-  if(!b) return 'Desligado';
-  if(isMaskedBroker(b.id)) return 'Desligado';
-  return b.name || b.id || 'Desligado';
+  if(!b) return '------';
+  if(isMaskedBroker(b.id)) return '------';
+  return b.name || b.id || '------';
 }
 // safeBrokerObj — clona broker com campos mascarados (nome/ini/email) se aplicavel
 function safeBrokerObj(b){
   if(!b) return b;
   if(!isMaskedBroker(b.id)) return b;
   return Object.assign({}, b, {
-    name: 'Desligado',
+    name: '------',
     ini: '--',
     email: '',
     _masked: true
@@ -3704,9 +3704,10 @@ function fmt$(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
 // Usa BROKERS (dados reais RD CRM) + S.metaIndiv (metas One on One)
 
 // ═══════════════════════════════════════════════════════════════════════════
-// MODO TV - Arena PSM Fullscreen v12 (2026-04-19)
-// CENAS ROTATIVAS: HERO → RANKING → PULSE → EQUIPES → ALERTAS (15s cada)
-// Consome getMetricas() canonical. Sem controles, sem auto-scroll, sem zoom hack.
+// MODO TV - Arena PSM Fullscreen v13 (2026-04-19)
+// LAYOUT SPLIT: metade esquerda = cena rotativa, metade direita = TIMELINE permanente
+// CENAS: HERO → RANKING → PULSE → EQUIPES → PROJECOES → ALERTAS (durações curtas)
+// Números SEMPRE completos (via fmt global). Ranking e equipes mostram TODOS.
 // ═══════════════════════════════════════════════════════════════════════════
 function arenaTV(){
   // Invalida cache pra pegar dados atuais
@@ -3716,10 +3717,21 @@ function arenaTV(){
   overlay.id = 'arena-tv-overlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:linear-gradient(180deg,#0b1220 0%,#0f172a 100%);overflow:hidden;font-family:Inter,"Segoe UI",system-ui,sans-serif;color:#e2e8f0';
 
+  // CONTAINER SPLIT: stage (cenas rotativas) | timeline (permanente)
+  var splitWrap = document.createElement('div');
+  splitWrap.id = 'tv-split';
+  splitWrap.style.cssText = 'position:absolute;top:0;left:0;width:100vw;height:calc(100vh - 56px);display:grid;grid-template-columns:1fr 1fr;gap:0';
+  overlay.appendChild(splitWrap);
+
   var stage = document.createElement('div');
   stage.id = 'tv-stage';
-  stage.style.cssText = 'position:absolute;top:0;left:0;width:100vw;height:calc(100vh - 56px);display:flex;align-items:center;justify-content:center;opacity:1;transition:opacity 450ms ease-out;padding:40px 60px';
-  overlay.appendChild(stage);
+  stage.style.cssText = 'position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:1;transition:opacity 450ms ease-out;padding:28px 36px;overflow:hidden;border-right:1px solid rgba(212,168,67,0.2)';
+  splitWrap.appendChild(stage);
+
+  var timeline = document.createElement('div');
+  timeline.id = 'tv-timeline';
+  timeline.style.cssText = 'position:relative;width:100%;height:100%;padding:24px 28px;overflow:hidden;background:linear-gradient(180deg,rgba(15,23,42,0.4),rgba(11,18,32,0.6))';
+  splitWrap.appendChild(timeline);
 
   // Footer
   var footer = document.createElement('div');
@@ -3742,7 +3754,8 @@ function arenaTV(){
   try { if(overlay.requestFullscreen) overlay.requestFullscreen(); else if(overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen(); } catch(e){}
 
   // ══════ CENAS ══════
-  function _brMoney(v){ if(!v||isNaN(v)) return 'R$ 0'; if(v>=1e6) return 'R$ '+(v/1e6).toFixed(1)+'M'; if(v>=1e3) return 'R$ '+Math.round(v/1e3)+'k'; return 'R$ '+Math.round(v); }
+  // TV usa SEMPRE números completos (R$ 967.000, nunca R$ 967k)
+  function _brFull(v){ if(!v||isNaN(v)) return 'R$ 0'; return 'R$ '+Math.round(v).toLocaleString('pt-BR'); }
   function _initials(name){ return (name||'??').split(/\s+/).slice(0,2).map(function(p){return (p[0]||'').toUpperCase();}).join(''); }
   function _diasRestMes(){ var n=new Date(); var last=new Date(n.getFullYear(),n.getMonth()+1,0); return Math.max(0, last.getDate()-n.getDate()); }
 
@@ -3757,22 +3770,22 @@ function arenaTV(){
     var mNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     var pctCol = pct>=100 ? '#22c55e' : pct>=70 ? '#d4a843' : pct>=40 ? '#f59e0b' : '#ef4444';
     return ''
-      + '<div style="width:100%;max-width:1600px;text-align:center">'
-      +   '<div style="font-size:14px;color:#64748b;letter-spacing:6px;text-transform:uppercase;margin-bottom:18px">VGV Realizado — ' + mNames[curM] + '</div>'
-      +   '<div style="font-size:clamp(120px,17vw,240px);font-weight:900;letter-spacing:-6px;line-height:0.95;background:linear-gradient(180deg,#fbbf24,#d4a843);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:8px">' + _brMoney(G.vgv_real) + '</div>'
-      +   '<div style="font-size:28px;color:#94a3b8;margin-bottom:50px;font-weight:500">Meta: <b style="color:#e2e8f0">' + _brMoney(metaMes) + '</b> · <span style="color:'+pctCol+';font-weight:800">' + pct + '%</span></div>'
-      +   '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:40px">'
+      + '<div style="width:100%;text-align:center">'
+      +   '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">VGV Realizado — ' + mNames[curM] + '</div>'
+      +   '<div style="font-size:clamp(56px,7vw,110px);font-weight:900;letter-spacing:-3px;line-height:1;background:linear-gradient(180deg,#fbbf24,#d4a843);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:10px;word-break:break-word">' + _brFull(G.vgv_real) + '</div>'
+      +   '<div style="font-size:20px;color:#94a3b8;margin-bottom:30px;font-weight:500">Meta: <b style="color:#e2e8f0">' + _brFull(metaMes) + '</b> · <span style="color:'+pctCol+';font-weight:800">' + pct + '%</span></div>'
+      +   '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:24px">'
       +     _heroCard('Vendas', G.vendas, '#22c55e')
-      +     _heroCard('Pipeline', _brMoney(G.vgv_pipe), '#60a5fa')
-      +     _heroCard('Gap p/ Meta', _brMoney(gap), gap>0?'#ef4444':'#22c55e')
+      +     _heroCard('Pipeline', _brFull(G.vgv_pipe), '#60a5fa')
+      +     _heroCard('Gap p/ Meta', _brFull(gap), gap>0?'#ef4444':'#22c55e')
       +     _heroCard('Dias Restantes', dr, '#d4a843')
       +   '</div>'
       + '</div>';
   }
   function _heroCard(lbl, val, col){
-    return '<div style="background:rgba(30,41,59,0.5);border:1px solid rgba(148,163,184,0.1);border-radius:18px;padding:28px 24px;backdrop-filter:blur(10px)">'
-      + '<div style="font-size:12px;color:#64748b;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px">' + lbl + '</div>'
-      + '<div style="font-size:52px;font-weight:800;color:' + col + ';line-height:1">' + val + '</div>'
+    return '<div style="background:rgba(30,41,59,0.5);border:1px solid rgba(148,163,184,0.1);border-radius:14px;padding:18px 16px">'
+      + '<div style="font-size:10px;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">' + lbl + '</div>'
+      + '<div style="font-size:28px;font-weight:800;color:' + col + ';line-height:1.1;word-break:break-word">' + val + '</div>'
       + '</div>';
   }
 
@@ -3782,54 +3795,58 @@ function arenaTV(){
       var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : {vgv_real:b.vgv_real||0,vendas:b.vendas||0,meta:b.meta||0,atingimento:0};
       var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
       return {id:b.id, name:disp.name||b.name||'--', ini:disp.ini||_initials(b.name), vgv:M.vgv_real, vendas:M.vendas, meta:M.meta, pct:M.atingimento, masked:!!disp._masked};
-    }).filter(function(r){return r.vgv>0 || r.vendas>0;}).sort(function(a,b){return b.vgv - a.vgv;}).slice(0,10);
-    var html = '<div style="width:100%;max-width:1500px">'
-      + '<div style="font-size:14px;color:#64748b;letter-spacing:6px;text-transform:uppercase;margin-bottom:28px;text-align:center">TOP 10 — Corretores do Mês</div>';
+    }).filter(function(r){return r.vgv>0 || r.vendas>0 || r.meta>0;}).sort(function(a,b){return b.vgv - a.vgv;});
+    // TODOS os corretores — sem slice
+    var maxVgv = rows.length && rows[0].vgv>0 ? rows[0].vgv : 1;
+    var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column">'
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:14px;text-align:center;flex-shrink:0">RANKING — ' + rows.length + ' Corretores do Mês</div>';
     if(rows.length === 0){
-      html += '<div style="text-align:center;padding:80px;color:#64748b;font-size:24px">Sem vendas registradas neste período</div>';
+      html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:18px;flex:1">Sem vendas registradas neste período</div>';
     } else {
+      html += '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:5px">';
       rows.forEach(function(r,i){
         var pos = i+1;
         var posCol = pos===1?'#fbbf24':pos===2?'#cbd5e1':pos===3?'#d97706':'#475569';
-        var barW = rows[0].vgv > 0 ? (r.vgv/rows[0].vgv*100) : 0;
-        html += '<div style="display:grid;grid-template-columns:60px 70px 1fr 180px 140px;gap:20px;align-items:center;padding:14px 20px;background:rgba(30,41,59,' + (i%2?0.3:0.5) + ');border-radius:12px;margin-bottom:8px;' + (r.masked?'opacity:0.6':'') + '">'
-          + '<div style="font-size:36px;font-weight:900;color:' + posCol + ';text-align:center">' + pos + '</div>'
-          + '<div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#1e40af,#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff">' + r.ini + '</div>'
-          + '<div><div style="font-size:22px;font-weight:700;color:#e2e8f0">' + r.name + (r.masked?' <span style="font-size:11px;color:#94a3b8">(inativo)</span>':'') + '</div>'
-          +   '<div style="height:6px;background:rgba(148,163,184,0.15);border-radius:3px;margin-top:8px;overflow:hidden"><div style="height:100%;width:' + barW + '%;background:linear-gradient(90deg,#d4a843,#fbbf24);border-radius:3px"></div></div></div>'
-          + '<div style="font-size:26px;font-weight:800;color:#fbbf24;text-align:right">' + _brMoney(r.vgv) + '</div>'
-          + '<div style="text-align:right"><div style="font-size:18px;font-weight:700;color:#22c55e">' + r.vendas + ' vendas</div>'
-          +   (r.pct>0 ? '<div style="font-size:13px;color:#94a3b8">' + r.pct + '% da meta</div>':'')
+        var barW = (r.vgv/maxVgv*100);
+        html += '<div style="display:grid;grid-template-columns:36px 38px 1fr auto auto;gap:10px;align-items:center;padding:6px 12px;background:rgba(30,41,59,' + (i%2?0.3:0.5) + ');border-radius:8px;' + (r.masked?'opacity:0.6':'') + '">'
+          + '<div style="font-size:18px;font-weight:900;color:' + posCol + ';text-align:center">' + pos + '</div>'
+          + '<div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#1e40af,#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:#fff">' + r.ini + '</div>'
+          + '<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + '</div>'
+          +   '<div style="height:3px;background:rgba(148,163,184,0.15);border-radius:2px;margin-top:3px;overflow:hidden"><div style="height:100%;width:' + barW + '%;background:linear-gradient(90deg,#d4a843,#fbbf24);border-radius:2px"></div></div></div>'
+          + '<div style="font-size:14px;font-weight:800;color:#fbbf24;text-align:right;white-space:nowrap">' + _brFull(r.vgv) + '</div>'
+          + '<div style="text-align:right;min-width:70px"><div style="font-size:12px;font-weight:700;color:#22c55e">' + r.vendas + 'v</div>'
+          +   (r.pct>0 ? '<div style="font-size:10px;color:#94a3b8">' + r.pct + '%</div>':'')
           + '</div>'
           + '</div>';
       });
+      html += '</div>';
     }
     html += '</div>';
     return html;
   }
 
   function scenePulse(){
-    // Últimas 10 vendas (hoje + ontem)
+    // Últimas vendas (7 dias) — TODAS
     var now = new Date();
     var cutoff = new Date(now.getTime() - 7*86400000);
     var ultimas = (VENDAS||[]).filter(function(v){var d=new Date(v.closedAt||v.createdAt||'');return !isNaN(d.getTime()) && d>=cutoff;})
-      .sort(function(a,b){return new Date(b.closedAt||b.createdAt) - new Date(a.closedAt||a.createdAt);}).slice(0,8);
-    var html = '<div style="width:100%;max-width:1500px">'
-      + '<div style="font-size:14px;color:#64748b;letter-spacing:6px;text-transform:uppercase;margin-bottom:28px;text-align:center">PULSE — Últimas Vendas (7 dias)</div>';
+      .sort(function(a,b){return new Date(b.closedAt||b.createdAt) - new Date(a.closedAt||a.createdAt);});
+    var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column">'
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:14px;text-align:center;flex-shrink:0">PULSE — ' + ultimas.length + ' Vendas Recentes</div>';
     if(ultimas.length === 0){
-      html += '<div style="text-align:center;padding:80px;color:#64748b;font-size:24px">Nenhuma venda nos últimos 7 dias</div>';
+      html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:18px;flex:1">Nenhuma venda nos últimos 7 dias</div>';
     } else {
-      html += '<div style="display:flex;flex-direction:column;gap:12px">';
-      ultimas.forEach(function(v,i){
+      html += '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:6px">';
+      ultimas.forEach(function(v){
         var b = (typeof UM!=='undefined') ? (UM[v.bid]||null) : null;
         var nm = (b && typeof safeBrokerName==='function') ? safeBrokerName(b) : (b?b.name:'--');
         var d = new Date(v.closedAt||v.createdAt);
         var dStr = String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-        html += '<div style="display:grid;grid-template-columns:100px 1fr 200px;gap:20px;align-items:center;padding:18px 24px;background:rgba(34,197,94,0.08);border-left:4px solid #22c55e;border-radius:10px">'
-          + '<div style="font-family:ui-monospace,monospace;font-size:13px;color:#94a3b8">' + dStr + '</div>'
-          + '<div><div style="font-size:20px;font-weight:700;color:#e2e8f0">' + (v.name||v.deal_name||'Venda') + '</div>'
-          +   '<div style="font-size:13px;color:#64748b;margin-top:2px">' + nm + '</div></div>'
-          + '<div style="font-size:28px;font-weight:800;color:#22c55e;text-align:right">' + _brMoney(v.vgv||0) + '</div>'
+        html += '<div style="display:grid;grid-template-columns:78px 1fr auto;gap:12px;align-items:center;padding:10px 14px;background:rgba(34,197,94,0.08);border-left:3px solid #22c55e;border-radius:8px">'
+          + '<div style="font-family:ui-monospace,monospace;font-size:11px;color:#94a3b8">' + dStr + '</div>'
+          + '<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (v.name||v.deal_name||'Venda') + '</div>'
+          +   '<div style="font-size:11px;color:#64748b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nm + '</div></div>'
+          + '<div style="font-size:15px;font-weight:800;color:#22c55e;white-space:nowrap">' + _brFull(v.vgv||0) + '</div>'
           + '</div>';
       });
       html += '</div>';
@@ -3842,38 +3859,94 @@ function arenaTV(){
     var BR = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
     var FR_LIST = [
       {id:'conquista', label:'🏆 CONQUISTA', col:'#dc2626'},
-      {id:'lancamento', label:'🏢 MAP', col:'#0f172a'},
+      {id:'lancamento', label:'🏢 MAP', col:'#3b82f6'},
       {id:'terceiros', label:'🤝 TERCEIROS', col:'#15803d'}
     ];
     var mg = (typeof getMetaGlobal==='function') ? getMetaGlobal() : null;
     var curM = new Date().getMonth();
-    var html = '<div style="width:100%;max-width:1600px">'
-      + '<div style="font-size:14px;color:#64748b;letter-spacing:6px;text-transform:uppercase;margin-bottom:28px;text-align:center">EQUIPES — Disputa do Mês</div>'
-      + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">';
+    var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column">'
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:12px;text-align:center;flex-shrink:0">EQUIPES — Disputa do Mês</div>'
+      + '<div style="flex:1;overflow:hidden;display:grid;grid-template-columns:1fr;gap:10px">';
     FR_LIST.forEach(function(fr){
-      var membros = BR.filter(function(b){return b.frente===fr.id;});
-      var vgv = 0, vendas=0;
-      membros.forEach(function(b){
+      var membros = BR.filter(function(b){return b.frente===fr.id;}).map(function(b){
         var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : {vgv_real:b.vgv_real||0, vendas:b.vendas||0};
-        vgv += M.vgv_real; vendas += M.vendas;
-      });
+        var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
+        return {name:disp.name||b.name, ini:disp.ini||_initials(b.name), vgv:M.vgv_real, vendas:M.vendas, masked:!!disp._masked};
+      }).sort(function(a,b){return b.vgv - a.vgv;});
+      var vgv = membros.reduce(function(a,m){return a+m.vgv;},0);
+      var vendas = membros.reduce(function(a,m){return a+m.vendas;},0);
       var meta = (mg && mg.metaFrente) ? mg.metaFrente(fr.id, curM) : 0;
       var pct = meta>0 ? Math.round(vgv/meta*100) : 0;
       var pctCol = pct>=100?'#22c55e':pct>=70?'#d4a843':pct>=40?'#f59e0b':'#ef4444';
-      html += '<div style="background:linear-gradient(180deg,rgba(30,41,59,0.7),rgba(15,23,42,0.9));border:2px solid ' + fr.col + ';border-radius:20px;padding:32px 28px;position:relative;overflow:hidden">'
-        + '<div style="font-size:16px;font-weight:800;color:' + fr.col + ';letter-spacing:2px;margin-bottom:20px">' + fr.label + '</div>'
-        + '<div style="font-size:56px;font-weight:900;color:#fbbf24;letter-spacing:-2px;line-height:1">' + _brMoney(vgv) + '</div>'
-        + '<div style="font-size:14px;color:#94a3b8;margin-top:6px">Meta: ' + _brMoney(meta) + '</div>'
-        + '<div style="height:10px;background:rgba(148,163,184,0.15);border-radius:5px;margin-top:20px;overflow:hidden"><div style="height:100%;width:' + Math.min(100,pct) + '%;background:' + pctCol + ';border-radius:5px;transition:width 600ms"></div></div>'
-        + '<div style="display:flex;justify-content:space-between;margin-top:18px;font-size:15px">'
-        +   '<div><span style="color:#64748b">Atingimento: </span><b style="color:' + pctCol + '">' + pct + '%</b></div>'
-        +   '<div><span style="color:#64748b">Vendas: </span><b style="color:#22c55e">' + vendas + '</b></div>'
+      html += '<div style="background:linear-gradient(180deg,rgba(30,41,59,0.7),rgba(15,23,42,0.9));border:2px solid ' + fr.col + ';border-radius:14px;padding:12px 16px;display:flex;flex-direction:column;min-height:0;overflow:hidden">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        +   '<div style="font-size:13px;font-weight:800;color:' + fr.col + ';letter-spacing:1.5px">' + fr.label + ' · ' + membros.length + '</div>'
+        +   '<div style="font-size:20px;font-weight:900;color:#fbbf24">' + _brFull(vgv) + '</div>'
         + '</div>'
-        + '<div style="margin-top:14px;font-size:13px;color:#64748b">' + membros.length + ' corretores</div>'
-        + '</div>';
+        + '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px">Meta: ' + _brFull(meta) + ' · <b style="color:' + pctCol + '">' + pct + '%</b> · ' + vendas + ' vendas</div>'
+        + '<div style="height:5px;background:rgba(148,163,184,0.15);border-radius:3px;overflow:hidden;margin-bottom:8px"><div style="height:100%;width:' + Math.min(100,pct) + '%;background:' + pctCol + ';border-radius:3px"></div></div>'
+        + '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:3px">';
+      membros.forEach(function(m){
+        html += '<div style="display:grid;grid-template-columns:24px 1fr auto auto;gap:8px;align-items:center;padding:3px 6px;background:rgba(0,0,0,0.2);border-radius:5px;' + (m.masked?'opacity:0.55':'') + '">'
+          + '<div style="width:22px;height:22px;border-radius:50%;background:' + fr.col + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">' + m.ini + '</div>'
+          + '<div style="font-size:11px;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + m.name + '</div>'
+          + '<div style="font-size:11px;color:#fbbf24;font-weight:700;white-space:nowrap">' + _brFull(m.vgv) + '</div>'
+          + '<div style="font-size:10px;color:#22c55e;font-weight:700">' + m.vendas + 'v</div>'
+          + '</div>';
+      });
+      html += '</div></div>';
     });
     html += '</div></div>';
     return html;
+  }
+
+  function sceneProjecoes(){
+    var G = (typeof getMetricasGlobal==='function') ? getMetricasGlobal('war') : {vgv_real:0,vgv_pipe:0,vendas:0};
+    var now = new Date();
+    var diaAtual = now.getDate();
+    var lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    var fracMes = diaAtual / lastDay;
+    // Projeção mensal (linear)
+    var projMes = fracMes>0 ? (G.vgv_real / fracMes) : 0;
+    // Meta
+    var mg = (typeof getMetaGlobal==='function') ? getMetaGlobal() : null;
+    var metaMes = (mg && mg.metaTotal) ? mg.metaTotal(now.getMonth()) : 0;
+    var gap = Math.max(0, metaMes - G.vgv_real);
+    var ritmoNecessario = (lastDay - diaAtual) > 0 ? gap / (lastDay - diaAtual) : 0;
+    // Anual
+    var metaAnual = 0;
+    if (mg) { for (var mi=0; mi<12; mi++) metaAnual += mg.metaTotal(mi); }
+    var vgvAnual = (VENDAS||[]).filter(function(v){
+      var d = new Date(v.closedAt||v.createdAt||'');
+      return !isNaN(d.getTime()) && d.getFullYear() === now.getFullYear();
+    }).reduce(function(a,v){return a+(v.vgv||0);},0);
+    var mesesPass = Math.max(1, now.getMonth() + fracMes);
+    var forecastAnual = Math.round(vgvAnual / mesesPass * 12);
+    var pctProjMes = metaMes>0 ? Math.round(projMes/metaMes*100) : 0;
+    var pctProjAno = metaAnual>0 ? Math.round(forecastAnual/metaAnual*100) : 0;
+    var colMes = pctProjMes>=100?'#22c55e':pctProjMes>=80?'#d4a843':'#ef4444';
+    var colAno = pctProjAno>=100?'#22c55e':pctProjAno>=80?'#d4a843':'#ef4444';
+    return ''
+      + '<div style="width:100%">'
+      +   '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:18px;text-align:center">PROJEÇÕES — Ritmo Atual</div>'
+      +   '<div style="display:grid;grid-template-columns:1fr;gap:14px">'
+      +     '<div style="background:rgba(30,41,59,0.7);border:1px solid rgba(212,168,67,0.25);border-radius:14px;padding:18px">'
+      +       '<div style="font-size:11px;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Projeção Fim do Mês</div>'
+      +       '<div style="font-size:36px;font-weight:900;color:' + colMes + ';line-height:1;margin-bottom:4px">' + _brFull(projMes) + '</div>'
+      +       '<div style="font-size:13px;color:#94a3b8">' + pctProjMes + '% da meta · Meta: ' + _brFull(metaMes) + '</div>'
+      +     '</div>'
+      +     '<div style="background:rgba(30,41,59,0.7);border:1px solid rgba(96,165,250,0.25);border-radius:14px;padding:18px">'
+      +       '<div style="font-size:11px;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Ritmo Necessário/Dia</div>'
+      +       '<div style="font-size:28px;font-weight:900;color:#60a5fa;line-height:1;margin-bottom:4px">' + _brFull(ritmoNecessario) + '</div>'
+      +       '<div style="font-size:13px;color:#94a3b8">Gap: ' + _brFull(gap) + ' em ' + (lastDay-diaAtual) + ' dias</div>'
+      +     '</div>'
+      +     '<div style="background:rgba(30,41,59,0.7);border:1px solid rgba(34,197,94,0.25);border-radius:14px;padding:18px">'
+      +       '<div style="font-size:11px;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Forecast Anual 12m</div>'
+      +       '<div style="font-size:30px;font-weight:900;color:' + colAno + ';line-height:1;margin-bottom:4px">' + _brFull(forecastAnual) + '</div>'
+      +       '<div style="font-size:13px;color:#94a3b8">' + pctProjAno + '% da meta anual · Realizado: ' + _brFull(vgvAnual) + '</div>'
+      +     '</div>'
+      +   '</div>'
+      + '</div>';
   }
 
   function sceneAlertas(){
@@ -3883,30 +3956,28 @@ function arenaTV(){
       var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : null;
       if(!M) return;
       var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
-      // Só considera corretores com meta > 0
       if(M.meta > 0 && M.atingimento < 30 && !disp._masked){
-        alertas.push({name:disp.name, ini:disp.ini||_initials(disp.name), tipo:'meta', msg:'Atingimento ' + M.atingimento + '% da meta', val:_brMoney(M.vgv_real)+' / '+_brMoney(M.meta), prio:1});
+        alertas.push({name:disp.name, ini:disp.ini||_initials(disp.name), tipo:'meta', msg:'Atingimento ' + M.atingimento + '% da meta', val:_brFull(M.vgv_real)+' / '+_brFull(M.meta), prio:1});
       }
       if(M.staleCrm >= 5 && !disp._masked){
         alertas.push({name:disp.name, ini:disp.ini||_initials(disp.name), tipo:'stale', msg:M.staleCrm + ' leads parados 4+ dias', val:'CRM stale', prio:2});
       }
     });
     alertas.sort(function(a,b){return a.prio - b.prio;});
-    alertas = alertas.slice(0,8);
-    var html = '<div style="width:100%;max-width:1500px">'
-      + '<div style="font-size:14px;color:#64748b;letter-spacing:6px;text-transform:uppercase;margin-bottom:28px;text-align:center">ALERTAS — Ação Imediata</div>';
+    var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column">'
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:14px;text-align:center;flex-shrink:0">ALERTAS — Ação Imediata</div>';
     if(alertas.length === 0){
-      html += '<div style="text-align:center;padding:80px;color:#22c55e;font-size:32px;font-weight:700">✓ Nenhum alerta crítico</div>';
+      html += '<div style="text-align:center;padding:60px;color:#22c55e;font-size:24px;font-weight:700;flex:1">✓ Nenhum alerta crítico</div>';
     } else {
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+      html += '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:6px">';
       alertas.forEach(function(a){
         var col = a.tipo==='meta' ? '#ef4444' : '#f59e0b';
         var bg = a.tipo==='meta' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)';
-        html += '<div style="display:grid;grid-template-columns:60px 1fr 140px;gap:16px;align-items:center;padding:20px;background:' + bg + ';border-left:4px solid ' + col + ';border-radius:10px">'
-          + '<div style="width:52px;height:52px;border-radius:50%;background:' + col + ';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px">' + a.ini + '</div>'
-          + '<div><div style="font-size:18px;font-weight:700;color:#e2e8f0">' + a.name + '</div>'
-          +   '<div style="font-size:13px;color:#94a3b8;margin-top:2px">' + a.msg + '</div></div>'
-          + '<div style="font-size:14px;color:' + col + ';font-weight:700;text-align:right">' + a.val + '</div>'
+        html += '<div style="display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:10px 14px;background:' + bg + ';border-left:3px solid ' + col + ';border-radius:8px">'
+          + '<div style="width:32px;height:32px;border-radius:50%;background:' + col + ';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px">' + a.ini + '</div>'
+          + '<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + a.name + '</div>'
+          +   '<div style="font-size:11px;color:#94a3b8;margin-top:1px">' + a.msg + '</div></div>'
+          + '<div style="font-size:11px;color:' + col + ';font-weight:700;text-align:right;white-space:nowrap">' + a.val + '</div>'
           + '</div>';
       });
       html += '</div>';
@@ -3915,12 +3986,120 @@ function arenaTV(){
     return html;
   }
 
+  // ══════ TIMELINE PERMANENTE (metade direita) ══════
+  function buildTimeline(){
+    var items = [];
+    var now = new Date();
+
+    // 1) Últimas vendas (20 mais recentes)
+    (VENDAS||[]).slice().sort(function(a,b){return new Date(b.closedAt||b.createdAt) - new Date(a.closedAt||a.createdAt);}).slice(0,20).forEach(function(v){
+      var b = (typeof UM!=='undefined') ? (UM[v.bid]||null) : null;
+      var nm = (b && typeof safeBrokerName==='function') ? safeBrokerName(b) : (b?b.name:'--');
+      var d = new Date(v.closedAt||v.createdAt||Date.now());
+      items.push({ts:d.getTime(), type:'venda', icon:'🎯', title:(v.name||v.deal_name||'Venda fechada'), sub:nm, val:_brFull(v.vgv||0), col:'#22c55e'});
+    });
+
+    // 2) Oportunidades publicadas (S.oportunidadesPSM)
+    if(S.oportunidadesPSM && Array.isArray(S.oportunidadesPSM)){
+      S.oportunidadesPSM.slice(0,15).forEach(function(op){
+        var d = new Date(op.createdAt || op.data || Date.now());
+        var ico = op.icon || '💡';
+        items.push({ts:d.getTime(), type:'opp', icon:ico, title:op.titulo||op.title||'Oportunidade', sub:op.tipo||'', val:op.valor?_brFull(op.valor):'', col:'#60a5fa'});
+      });
+    }
+
+    // 3) Scores dos corretores (top ativos)
+    try {
+      var BR = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
+      BR.filter(function(b){return !isMaskedBroker(b.id);}).slice(0,10).forEach(function(b){
+        var score = b.score || 0;
+        if(score > 0){
+          items.push({ts:Date.now(), type:'score', icon:'⭐', title:b.name, sub:'Score atual', val:score+' pts', col:'#d4a843'});
+        }
+      });
+    } catch(e){}
+
+    // 4) Alertas críticos
+    try {
+      var BR2 = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
+      BR2.forEach(function(b){
+        var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : null;
+        if(!M) return;
+        var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
+        if(M.staleCrm >= 5 && !disp._masked){
+          items.push({ts:Date.now()-1, type:'alerta', icon:'⚠️', title:disp.name, sub:M.staleCrm+' leads parados', val:'CRM', col:'#f59e0b'});
+        }
+      });
+    } catch(e){}
+
+    // 5) Premiações (ranking top 3)
+    try {
+      var BR3 = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
+      var rk = BR3.map(function(b){
+        var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : {vgv_real:0};
+        var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
+        return {name:disp.name, vgv:M.vgv_real, masked:!!disp._masked};
+      }).filter(function(r){return r.vgv>0 && !r.masked;}).sort(function(a,b){return b.vgv-a.vgv;}).slice(0,3);
+      var medals = ['🥇','🥈','🥉'];
+      rk.forEach(function(r,i){
+        items.push({ts:Date.now()-100-i, type:'premio', icon:medals[i], title:r.name, sub:(i+1)+'º lugar do mês', val:_brFull(r.vgv), col:'#fbbf24'});
+      });
+    } catch(e){}
+
+    // Ordenar por timestamp desc e limitar
+    items.sort(function(a,b){return b.ts - a.ts;});
+    return items.slice(0, 30);
+  }
+
+  function renderTimeline(){
+    var tl = document.getElementById('tv-timeline');
+    if(!tl) return;
+    var items = buildTimeline();
+    var html = ''
+      + '<div style="font-size:11px;color:#d4a843;letter-spacing:6px;text-transform:uppercase;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid rgba(212,168,67,0.25);display:flex;align-items:center;gap:10px">'
+      +   '<span style="width:8px;height:8px;border-radius:50%;background:#d4a843;box-shadow:0 0 10px #d4a843"></span>'
+      +   '<span style="font-weight:800">TIMELINE AO VIVO</span>'
+      +   '<span style="margin-left:auto;color:#64748b;letter-spacing:2px;font-size:10px">' + items.length + ' eventos</span>'
+      + '</div>'
+      + '<div id="tv-tl-scroll" style="overflow:hidden;position:relative;height:calc(100% - 44px)">'
+      +   '<div id="tv-tl-track" style="display:flex;flex-direction:column;gap:8px">';
+    items.forEach(function(it){
+      html += '<div style="display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;padding:10px 12px;background:rgba(30,41,59,0.5);border-left:3px solid ' + it.col + ';border-radius:8px">'
+        + '<div style="font-size:20px;text-align:center">' + it.icon + '</div>'
+        + '<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + it.title + '</div>'
+        +   (it.sub ? '<div style="font-size:11px;color:#94a3b8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + it.sub + '</div>' : '')
+        + '</div>'
+        + (it.val ? '<div style="font-size:12px;font-weight:800;color:' + it.col + ';white-space:nowrap">' + it.val + '</div>' : '')
+        + '</div>';
+    });
+    html += '</div></div>';
+    tl.innerHTML = html;
+    // Auto-scroll contínuo do track se houver overflow
+    setTimeout(function(){
+      var scroll = document.getElementById('tv-tl-scroll');
+      var track = document.getElementById('tv-tl-track');
+      if(!scroll || !track) return;
+      if(track.scrollHeight > scroll.clientHeight){
+        var pos = 0;
+        var maxPos = track.scrollHeight - scroll.clientHeight;
+        if(window._tvTLInt) clearInterval(window._tvTLInt);
+        window._tvTLInt = setInterval(function(){
+          if(!document.getElementById('tv-tl-track')){ clearInterval(window._tvTLInt); return; }
+          pos += 0.5;
+          if(pos >= maxPos + 40){ pos = -20; }
+          track.style.transform = 'translateY(' + (-pos) + 'px)';
+        }, 40);
+      }
+    }, 100);
+  }
+
   var SCENES = [
-    {key:'HERO',     label:'VGV Mensal',   fn:sceneHero,     dur:15000},
-    {key:'RANKING',  label:'Top 10',       fn:sceneRanking,  dur:15000},
-    {key:'PULSE',    label:'Últimas Vendas', fn:scenePulse,  dur:12000},
-    {key:'EQUIPES',  label:'Frentes',      fn:sceneEquipes,  dur:15000},
-    {key:'ALERTAS',  label:'Ação Imediata', fn:sceneAlertas, dur:10000}
+    {key:'HERO',       label:'VGV Mensal',       fn:sceneHero,      dur:10000},
+    {key:'RANKING',    label:'Todos Corretores', fn:sceneRanking,   dur:12000},
+    {key:'PULSE',      label:'Vendas Recentes',  fn:scenePulse,     dur:10000},
+    {key:'EQUIPES',    label:'Frentes & Times',  fn:sceneEquipes,   dur:12000},
+    {key:'PROJECOES',  label:'Forecast',         fn:sceneProjecoes, dur:10000},
+    {key:'ALERTAS',    label:'Ação Imediata',    fn:sceneAlertas,   dur:8000}
   ];
   var sceneIdx = 0;
 
@@ -3942,6 +4121,12 @@ function arenaTV(){
 
   // Loop com barra de progresso
   showScene(0);
+  renderTimeline();
+  // Refresh timeline a cada 15s
+  var tlRefreshInt = setInterval(function(){
+    if(!document.getElementById('arena-tv-overlay')){ clearInterval(tlRefreshInt); return; }
+    renderTimeline();
+  }, 15000);
   var sceneStart = Date.now();
   var sceneDuration = SCENES[0].dur;
   var progInt = setInterval(function(){
@@ -3955,7 +4140,7 @@ function arenaTV(){
       sceneDuration = SCENES[sceneIdx].dur;
       sceneStart = Date.now();
       // Recalc metrics a cada ciclo completo
-      if(sceneIdx === 0){ try { recalcBrokerMetrics('war'); } catch(e){} }
+      if(sceneIdx === 0){ try { recalcBrokerMetrics('war'); renderTimeline(); } catch(e){} }
       showScene(sceneIdx);
     }
   }, 200);
@@ -4014,6 +4199,8 @@ function arenaTV(){
     try{ clearInterval(tvClockInt); }catch(e){}
     try{ clearInterval(moveInt); }catch(e){}
     try{ clearInterval(playVidInt); }catch(e){}
+    try{ clearInterval(tlRefreshInt); }catch(e){}
+    try{ if(window._tvTLInt) clearInterval(window._tvTLInt); }catch(e){}
   }
   function onKey(e){ if(e.key==='Escape') exitTV(); }
   function onFs(){ if(!document.fullscreenElement) exitTV(); }
@@ -4509,7 +4696,7 @@ var pgWarArena = function(){
   h += '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;gap:20px;flex-wrap:wrap">';
   h += '<div>';
   h += '<div style="display:inline-flex;align-items:center;gap:8px;padding:4px 12px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.25);border-radius:20px;color:#60a5fa;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:10px">\u2728 CENTRAL DE PERFORMANCE</div>';
-  h += '<h1 style="font-size:32px;font-weight:800;margin:0;color:var(--cream);letter-spacing:-0.5px;line-height:1.15">\u2694\ufe0f Arena <span style="color:#60a5fa">PSM</span></h1>';
+  h += '<h1 style="font-size:32px;font-weight:800;margin:0;color:var(--navy);letter-spacing:-0.5px;line-height:1.15">\u2694\ufe0f Arena <span style="color:#3b82f6">PSM</span></h1>';
   h += '<div style="color:var(--muted);font-size:14px;margin-top:6px;max-width:560px">Dados em tempo real das equipes, metas e oportunidades.</div>';
   h += '</div>';
   h += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
@@ -4604,7 +4791,7 @@ var pgWarArena = function(){
     h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px">';
     h += '<div>';
     h += '<div style="display:inline-flex;align-items:center;gap:8px;padding:3px 10px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.25);border-radius:20px;color:#60a5fa;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px">\u25c9 TEMPO REAL</div>';
-    h += '<h2 style="font-size:24px;font-weight:800;color:var(--cream);margin:0;letter-spacing:-0.3px">\ud83d\udca1 Timeline de <span style="color:#60a5fa">Oportunidades</span></h2>';
+    h += '<h2 style="font-size:24px;font-weight:800;color:var(--navy);margin:0;letter-spacing:-0.3px">\ud83d\udca1 Timeline de <span style="color:#60a5fa">Oportunidades</span></h2>';
     h += '<div style="font-size:15px;color:var(--muted);margin-top:4px">'+tlShow.length+' '+(tlShow.length===1?'oportunidade publicada':'oportunidades publicadas')+'</div>';
     h += '</div>';
     h += '</div>';
@@ -4963,7 +5150,7 @@ var pgWarArena = function(){
 
   // ===== PAINEL 3 EQUIPES + ALERTAS (mesmo do One on One) =====
   h += '<div style="margin-bottom:24px">';
-  h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 12px">📊 Performance por Equipe <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">dados do One on One — tempo real</span></h2>';
+  h += '<h2 style="font-size:18px;font-weight:700;color:var(--navy);margin:0 0 12px">📊 Performance por Equipe <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px">dados do One on One — tempo real</span></h2>';
   h += renderArenaEquipesPanel({dark:true, noAlertas:true});
   h += '</div>';
 
@@ -4979,7 +5166,7 @@ var pgWarArena = function(){
 
   // ===== BATALHA DE FRENTES =====
   h += '<div style="margin-bottom:24px">';
-  h += '<h2 style="font-size:18px;font-weight:700;color:var(--cream);margin:0 0 12px">\u2694\ufe0f Batalha de Frentes</h2>';
+  h += '<h2 style="font-size:18px;font-weight:700;color:var(--navy);margin:0 0 12px">\u2694\ufe0f Batalha de Frentes</h2>';
   h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">';
 
   var medalhas = ['\ud83e\udd47','\ud83e\udd48','\ud83e\udd49'];
@@ -9223,7 +9410,7 @@ function pgOO() {
         Object.keys(visited).forEach(function(sid){ rdReached[sid]++; });
       });
     }
-    var fmtVGV = function(v){ if (v >= 1e6) return 'R$ ' + (v/1e6).toFixed(1) + 'M'; if (v >= 1e3) return 'R$ ' + Math.round(v/1e3) + 'k'; return 'R$ ' + v; };
+    var fmtVGV = function(v){ if(v===null||v===undefined||isNaN(v)) return 'R$ 0'; return 'R$ ' + Math.round(v).toLocaleString('pt-BR'); };
 
     content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0">';
 
