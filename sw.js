@@ -1,57 +1,96 @@
-// PSM OS — Service Worker (network-first, offline fallback)
-// v1 — 2026-04-15
-const CACHE = 'psm-os-v1';
+// ═════════════════════════════════════════════════════════════════════════════
+// PSM OS — Service Worker v12 (2026-04-19)
+// Estratégia: NETWORK-FIRST para HTML (resolve cache stale), CACHE-FIRST assets.
+// Limpa caches antigos automaticamente no activate.
+// ═════════════════════════════════════════════════════════════════════════════
+'use strict';
+
+const CACHE_VERSION = 'psm-os-v12-2026-04-19';
+const HTML_CACHE    = CACHE_VERSION + '-html';
+const ASSET_CACHE   = CACHE_VERSION + '-assets';
+
+// Assets a pré-cachear (fallback offline)
 const PRECACHE = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/apple-touch-icon.png'
+  '/logo-psm-navy.png'
 ];
 
-self.addEventListener('install', (evt) => {
-  evt.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(PRECACHE).catch(() => {})).then(() => self.skipWaiting())
+// ─── INSTALL ────────────────────────────────────────────────────────────────
+self.addEventListener('install', function(event){
+  event.waitUntil(
+    caches.open(HTML_CACHE).then(function(cache){
+      return cache.addAll(PRECACHE).catch(function(e){
+        console.warn('[SW] precache parcial:', e);
+      });
+    }).then(function(){ return self.skipWaiting(); })
   );
 });
 
-self.addEventListener('activate', (evt) => {
-  evt.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
+// ─── ACTIVATE — limpa caches antigos ────────────────────────────────────────
+self.addEventListener('activate', function(event){
+  event.waitUntil(
+    caches.keys().then(function(keys){
+      return Promise.all(keys.map(function(k){
+        if(k !== HTML_CACHE && k !== ASSET_CACHE){
+          console.log('[SW] removendo cache antigo:', k);
+          return caches.delete(k);
+        }
+      }));
+    }).then(function(){ return self.clients.claim(); })
   );
 });
 
-// Network-first for HTML/JSON (dados sempre frescos), cache-first para estáticos (imagens/ícones)
-self.addEventListener('fetch', (evt) => {
-  const req = evt.request;
-  if (req.method !== 'GET') return;
-  const url = new URL(req.url);
+// ─── FETCH — network-first para HTML, cache-first para assets ───────────────
+self.addEventListener('fetch', function(event){
+  var req = event.request;
+  if(req.method !== 'GET') return;
 
-  // Ignora APIs externas que têm seu próprio cache (Firebase, RD, Meta Ads, Sheets)
-  const externalHosts = ['firebaseio.com','googleapis.com','rd.services','graph.facebook.com','docs.google.com'];
-  if (externalHosts.some(h => url.hostname.includes(h))) return;
+  var url = new URL(req.url);
 
-  const isStatic = /\.(png|jpg|jpeg|svg|ico|woff2?|ttf|css)$/i.test(url.pathname);
+  // Ignora cross-origin (Firebase, RD, fontes externas)
+  if(url.origin !== self.location.origin) return;
 
-  if (isStatic) {
-    // Cache-first
-    evt.respondWith(
-      caches.match(req).then(cached => cached || fetch(req).then(resp => {
-        const copy = resp.clone();
-        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+  var isHTML = req.mode === 'navigate' ||
+               (req.headers.get('accept')||'').indexOf('text/html') >= 0 ||
+               url.pathname === '/' || url.pathname.endsWith('.html');
+
+  if(isHTML){
+    // NETWORK-FIRST: sempre tenta buscar do servidor primeiro
+    event.respondWith(
+      fetch(req).then(function(resp){
+        if(resp && resp.ok){
+          var clone = resp.clone();
+          caches.open(HTML_CACHE).then(function(cache){ cache.put(req, clone); });
+        }
         return resp;
-      }).catch(() => cached))
+      }).catch(function(){
+        return caches.match(req).then(function(cached){
+          return cached || caches.match('/index.html');
+        });
+      })
     );
-  } else {
-    // Network-first para index.html e JSON — dados sempre frescos, cache só como fallback offline
-    evt.respondWith(
-      fetch(req).then(resp => {
-        const copy = resp.clone();
-        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+    return;
+  }
+
+  // CACHE-FIRST para assets estáticos (imagens, css, js)
+  event.respondWith(
+    caches.match(req).then(function(cached){
+      if(cached) return cached;
+      return fetch(req).then(function(resp){
+        if(resp && resp.ok){
+          var clone = resp.clone();
+          caches.open(ASSET_CACHE).then(function(cache){ cache.put(req, clone); });
+        }
         return resp;
-      }).catch(() => caches.match(req).then(r => r || caches.match('/index.html')))
-    );
+      }).catch(function(){ return cached; });
+    })
+  );
+});
+
+// ─── MESSAGE — permite forçar skipWaiting de dentro do app ──────────────────
+self.addEventListener('message', function(event){
+  if(event.data === 'skipWaiting' || (event.data && event.data.type === 'skipWaiting')){
+    self.skipWaiting();
   }
 });

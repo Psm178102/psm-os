@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.10-deepfix -->
+<!-- PSM-OS v2026.04.19-v13 — getMetricas canonical + SW network-first + Modo TV cenas rotativas -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.10-deepfix">
+<meta name="version" content="2026.04.19-v13">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -711,22 +711,32 @@ html{height:100%;overflow:hidden}
 
 <script>
 'use strict';
-// ─── PWA: registra Service Worker (2026-04-15) ───────────────────────────────
+// ─── PWA: registra Service Worker v12 network-first (2026-04-19) ─────────────
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function(){
     navigator.serviceWorker.register('/sw.js').then(function(reg){
       console.log('[PSM-PWA] SW registrado:', reg.scope);
-      // Check for update every hour
-      setInterval(function(){ try{reg.update();}catch(e){} }, 3600000);
+      // Check for update a cada 10 minutos (network-first ja resolve HTML stale)
+      setInterval(function(){ try{reg.update();}catch(e){} }, 600000);
       // Notify user when new version is ready
       reg.addEventListener('updatefound', function(){
         var nw = reg.installing;
         if(!nw) return;
         nw.addEventListener('statechange', function(){
-          if(nw.state === 'activated' && navigator.serviceWorker.controller){
-            try { toast('🔄 Nova versão disponível — recarregue a página','ok'); } catch(e){}
+          if(nw.state === 'installed' && navigator.serviceWorker.controller){
+            // Ativa imediatamente a nova versao
+            try { nw.postMessage({type:'skipWaiting'}); } catch(e){}
+            try { toast('Nova versao disponivel — recarregue','ok'); } catch(e){}
           }
         });
+      });
+      // Reload automatico quando novo SW assume controle
+      var _reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function(){
+        if(_reloading) return;
+        _reloading = true;
+        console.log('[PSM-PWA] novo SW ativo — recarregando');
+        setTimeout(function(){ window.location.reload(); }, 500);
       });
     }).catch(function(err){ console.warn('[PSM-PWA] SW falhou:', err); });
   });
@@ -894,15 +904,46 @@ function getBrokers(){
   return ALL_BROKERS.filter(u=>u.status!=='inativo');
 }
 let BROKERS=ALL_BROKERS.filter(u=>u.status!=='inativo');
+// BROKERS_ALL — SEMPRE inclui inativos; use para calculos de metricas globais
+// (rankings, arena, modo tv) onde dados de desligados DEVEM contar mas nome sera mascarado
+var BROKERS_ALL = ALL_BROKERS.slice();
 
 // Helper global: checa se um broker deve ser ocultado (inativo e sócio não ativou toggle)
+// IMPORTANTE (2026-04-19): isHiddenBroker agora SEMPRE retorna false para filtros de DEALS.
+// Dados (VGV/vendas/negocios) de desligados DEVEM contar nos totais — apenas o NOME é mascarado.
+// Para mascarar nome use safeBrokerName() / safeBrokerObj().
 function isHiddenBroker(brokerId){
+  return false; // deals sempre contam; mascaramento e feito no NOME
+}
+// isMaskedBroker — retorna TRUE se nome deve aparecer como "Desligado"
+function isMaskedBroker(brokerId){
   if(!brokerId) return false;
   if(INATIVOS_IDS.indexOf(brokerId)===-1) return false;
-  // Se é sócio com toggle ativo, não oculta
   try { if(S && S.user && S.user.role==='socio' && S.showInativos) return false; } catch(e){}
   return true;
 }
+// safeBrokerName — retorna nome seguro (mascarado se desligado e usuario nao autorizado)
+function safeBrokerName(bOrId){
+  var b = (typeof bOrId === 'string') ? (UM[bOrId] || null) : bOrId;
+  if(!b) return 'Desligado';
+  if(isMaskedBroker(b.id)) return 'Desligado';
+  return b.name || b.id || 'Desligado';
+}
+// safeBrokerObj — clona broker com campos mascarados (nome/ini/email) se aplicavel
+function safeBrokerObj(b){
+  if(!b) return b;
+  if(!isMaskedBroker(b.id)) return b;
+  return Object.assign({}, b, {
+    name: 'Desligado',
+    ini: '--',
+    email: '',
+    _masked: true
+  });
+}
+window.BROKERS_ALL = BROKERS_ALL;
+window.safeBrokerName = safeBrokerName;
+window.safeBrokerObj = safeBrokerObj;
+window.isMaskedBroker = isMaskedBroker;
 // Toggle de visibilidade de inativos (só sócios)
 function toggleInativos(){
   if(!S.user || S.user.role!=='socio') return;
@@ -1291,42 +1332,36 @@ function calcForecasts(){
 var FORECASTS=calcForecasts();
 const MONTHLY=[];
 // ─── RECALC BROKER METRICS (respects active date filter) ─────────────────────
+// BROKERS_ALL — inclui inativos (desligados); dados deles contam nos totais globais
 function recalcBrokerMetrics(prefix) {
   // Override frentes conforme estrutura definida pelo diretor
-  BROKERS.forEach(b => {
+  BROKERS_ALL.forEach(b => {
     var n = (b.name||'').trim().toLowerCase();
     if(n === 'rodrigo trivellato' || n === 'bruno') b.frente = 'conquista';
   });
-  const fOPPS = applyDateFilter(OPPS, prefix);
-  const fVENDAS = applyDateFilter(VENDAS, prefix);
-  const fLOST = applyDateFilter(LOST_DEALS, prefix);
-  const fTASKS = applyDateFilter(TASKS_RD || [], prefix);
+  // v12: invalida cache antes de recalcular para garantir valores frescos
+  if(typeof _metricsInvalidate === 'function') _metricsInvalidate();
 
-  BROKERS.forEach(b => {
-    const opps = fOPPS.filter(o => o.bid === b.id);
-    const won  = fVENDAS.filter(v => v.bid === b.id);
-    const lost = fLOST.filter(l => l.bid === b.id);
-    const bTasks = fTASKS.filter(t => t.bid === b.id);
+  BROKERS_ALL.forEach(b => {
+    // v12: usa getMetricas() — FONTE CANÔNICA (elimina divergência entre páginas)
+    const M = (typeof getMetricas === 'function') ? getMetricas(b.id, prefix) : null;
+    const opps = M ? M._opps : [];
+    const won  = M ? M._won  : [];
+    const lost = M ? M._lost : [];
 
-    b.vgv      = opps.reduce((a, o) => a + o.vgv, 0);
-    b.vgv_real = won.reduce((a, v)  => a + v.vgv, 0);
-    b.vendas   = won.length;
-    b.descartados = lost.length;
-    const rdVis  = opps.filter(o => ['vis_real','contrato','proposta'].includes(o.st_psm)).length;
-    const ooLogs = (S.ooLogs || {})[b.id] || [];
-    const ooVis  = ooLogs.reduce((acc, lg) => acc + (lg.vis || 0), 0);
-    // Tarefas concluidas no RD CRM (visita/ligacao) — contabilizacao em tempo real
-    const taskVis = bTasks.filter(t => t.type === 'visit').length;
-    const taskLig = bTasks.filter(t => t.type === 'call' || t.type === 'whatsapp').length;
-    b.vis      = rdVis + ooVis + taskVis;
-    b.vis_rd   = rdVis;
-    b.vis_oo   = ooVis;
-    b.vis_task = taskVis;
-    b.lig_task = taskLig;
-    b.agend    = opps.filter(o => ['agendamento','vis_agend','vis_real'].includes(o.st_psm)).length;
-    b.prop     = opps.filter(o => o.st_psm === 'proposta').length;
-    b.lig      = opps.length + taskLig;
-    b.ticketMedio = won.length > 0 ? Math.round(b.vgv_real / won.length) : 0;
+    b.vgv      = M ? M.vgv_pipe : 0;
+    b.vgv_real = M ? M.vgv_real : 0;
+    b.vendas   = M ? M.vendas   : 0;
+    b.descartados = M ? M.perdas : 0;
+    b.vis      = M ? M.vis      : 0;
+    b.vis_rd   = M ? M.vis_rd   : 0;
+    b.vis_oo   = M ? M.vis_oo   : 0;
+    b.vis_task = M ? M.vis_task : 0;
+    b.lig_task = M ? M.lig_task : 0;
+    b.agend    = M ? M.agend    : 0;
+    b.prop     = M ? M.prop     : 0;
+    b.lig      = M ? M.lig      : 0;
+    b.ticketMedio = M ? M.ticketMedio : 0;
     const ciclos = won.filter(v => v.closedAt && v.createdAt).map(v =>
       Math.max(1, Math.round((new Date(v.closedAt) - new Date(v.createdAt)) / 864e5))
     );
@@ -1335,9 +1370,9 @@ function recalcBrokerMetrics(prefix) {
     lost.forEach(l => { const m = l.lostReason || 'Sem motivo'; b.motivosPerda[m] = (b.motivosPerda[m] || 0) + 1; });
     const scores = opps.map(o => o.crm);
     b.crm = scores.length ? Math.round(scores.reduce((a,s) => a+s,0) / scores.length) : 60;
-    b.conversionRate = (won.length + lost.length) > 0 ? parseFloat((won.length / (won.length + lost.length) * 100).toFixed(2)) : 0;
+    b.conversionRate = M ? M.conversao : 0;
     b.volumeLeads = opps.length + won.length + lost.length;
-    b.staleCrm = opps.filter(function(o){return o.dnu >= 4;}).length;
+    b.staleCrm = M ? M.staleCrm : 0;
     // Integracao Meta Individual: propagar S.metaIndiv para b.meta em todas as paginas
     var _curMonth = new Date().getMonth() + 1;
     if(!S.metaIndiv){try{var _mld=localStorage.getItem('psm_meta_indiv');S.metaIndiv=_mld?JSON.parse(_mld):{};}catch(e){S.metaIndiv={};}}
@@ -1355,14 +1390,14 @@ function recalcBrokerMetrics(prefix) {
     }
   });
   
-  // Recalc global metrics for this period
-  const allWon = fVENDAS, allLost = fLOST;
-  S.wonTotal    = allWon.length;
-  S.lostTotal   = allLost.length;
-  S.vgvReal     = allWon.reduce((a, v) => a + v.vgv, 0);
-  S.ticketMedioGeral = allWon.length > 0 ? Math.round(S.vgvReal / allWon.length) : 0;
-  METRICS.pipeline = fOPPS.reduce((a, o) => a + o.vgv, 0);
-  METRICS.leads    = fOPPS.length;
+  // Recalc global metrics for this period — v12: usa getMetricasGlobal
+  const G = (typeof getMetricasGlobal === 'function') ? getMetricasGlobal(prefix) : null;
+  S.wonTotal    = G ? G.vendas : 0;
+  S.lostTotal   = G ? G.perdas : 0;
+  S.vgvReal     = G ? G.vgv_real : 0;
+  S.ticketMedioGeral = G ? G.ticketMedio : 0;
+  METRICS.pipeline = G ? G.vgv_pipe : 0;
+  METRICS.leads    = G ? G.opps : 0;
   METRICS.vgv_real  = S.vgvReal || 0;
   METRICS.vend_real = S.wonTotal || 0;
   METRICS.vis_real  = BROKERS.reduce((a,b) => a + (b.vis||0), 0);
@@ -1739,6 +1774,13 @@ function loadState() {
     if (d.ooRotina) S.ooRotina = d.ooRotina;
     if (d.ooFunilCustom) S.ooFunilCustom = d.ooFunilCustom;
     if (d.ooLateralCustom) S.ooLateralCustom = d.ooLateralCustom;
+    // FIX 2026-04-19: chaves abaixo estavam sendo SALVAS mas nao RESTAURADAS — perda de dados ao recarregar
+    if (d.ooDatas) S.ooDatas = d.ooDatas;
+    if (d.ooObjSemana) S.ooObjSemana = d.ooObjSemana;
+    if (d.ooObjMes) S.ooObjMes = d.ooObjMes;
+    if (d.ooPontosAtencao) S.ooPontosAtencao = d.ooPontosAtencao;
+    if (d.ooFechamento) S.ooFechamento = d.ooFechamento;
+    if (d.ooDiscCustom) S.ooDiscCustom = d.ooDiscCustom;
     if (d.tickerMsgs) S.tickerMsgs = d.tickerMsgs;
     if (d.canalAnonimo) S.canalAnonimo = d.canalAnonimo;
     if (d.premiacoes) S.premiacoes = d.premiacoes;
@@ -2167,13 +2209,16 @@ function FcCard(per,f){
 function medal(i){return i===0?'🥇':i===1?'🥈':i===2?'🥉':'<span style="font-size:11px;color:var(--muted);font-weight:700">'+(i+1)+'</span>';}
 
 // Frente VGV aggregation (by current assignment)
+// BROKERS_ALL — inclui inativos para VGV/vendas de desligados contarem no total da frente
 function frenteStats(){
   const stats={};
   Object.keys(FRENTES).forEach(fid=>stats[fid]={vgv:0,vgv_real:0,meta:0,vend:0,crm_sum:0,count:0,lig:0,vis:0,agend:0,prop:0});
-  BROKERS.forEach(b=>{
+  BROKERS_ALL.forEach(b=>{
     const fid=b.frente;if(!stats[fid])return;
     stats[fid].vgv+=b.vgv||0;stats[fid].vgv_real+=b.vgv_real||0;stats[fid].meta+=b.meta||0;stats[fid].vend+=b.vendas||0;
-    stats[fid].crm_sum+=b.crm;stats[fid].count++;
+    stats[fid].crm_sum+=b.crm;
+    // count so de ativos (para CRM medio nao distorcer com inativos)
+    if(b.status!=='inativo'){ stats[fid].count++; }
     stats[fid].lig+=b.lig;stats[fid].vis+=b.vis;stats[fid].agend+=b.agend;stats[fid].prop+=b.prop;
   });
   Object.values(stats).forEach(s=>{s.crm_avg=s.count?Math.round(s.crm_sum/s.count):0;});
@@ -2185,8 +2230,9 @@ function frenteStats(){
 // ===== VENDAS DIRETORIA HELPER (retorna HTML para Dashboard) =====
 function renderVendasDiretoria(fV){
   if(!S.user || (RLVL[S.user.role]||0) < 3) return '';
+  // BROKERS_ALL: vendas de inativos sao vendas de corretor (mascaradas), NAO vendas de diretoria
   var dirVendas = fV.filter(function(v){
-    return v.bid && BROKERS.filter(function(b){return b.id===v.bid && (b.role==='corretor'||b.role==='lider')}).length === 0;
+    return v.bid && BROKERS_ALL.filter(function(b){return b.id===v.bid && (b.role==='corretor'||b.role==='lider')}).length === 0;
   });
   if(dirVendas.length === 0) return '';
   var dh = '<div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border:1px solid #4338ca;border-radius:16px;padding:20px;margin-top:24px">';
@@ -3265,8 +3311,9 @@ function pgRanking(){
   const fTASKS_rank = applyDateFilter(TASKS_RD || [], 'rank');
 
   // ── Recalculate broker metrics for filtered period ──
+  // BROKERS_ALL inclui inativos/desligados (dados reais contam nos totais)
   const brkData = {};
-  BROKERS.forEach(b => {
+  BROKERS_ALL.forEach(b => {
     const bOpps = fOPPS.filter(o => o.bid === b.id);
     const bWon = fVENDAS.filter(v => v.bid === b.id);
     const bLost = fLOST.filter(l => l.bid === b.id);
@@ -3304,13 +3351,13 @@ function pgRanking(){
       {id:'crm',       label:'CRM Score',        fmt:v=>v+' pts'},
     ];
     if(subTab==='corretores'){
-      const sorted=[...BROKERS].sort((a,b)=>(brkData[b.id]?.vgv_real||0)-(brkData[a.id]?.vgv_real||0));
+      const sorted=[...BROKERS_ALL].sort((a,b)=>(brkData[b.id]?.vgv_real||0)-(brkData[a.id]?.vgv_real||0));
       content='<div class="card"><div class="tw"><table class="rank-tbl"><thead><tr><th>#</th><th>Corretor</th><th>Frente</th>'
         +rdCols.map(c=>'<th style="text-align:right">'+c.label+'</th>').join('')
         +'</tr></thead><tbody>'
-        +sorted.map((b,i)=>{const d=brkData[b.id]||{};return'<tr>'
+        +sorted.map((b,i)=>{const d=brkData[b.id]||{};var bS=safeBrokerObj(b);var rowOp=bS._masked?'opacity:.7':'';return'<tr style="'+rowOp+'">'
           +'<td style="font-size:14px;text-align:center">'+medal(i)+'</td>'
-          +'<td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+b.name+'</span></div></td>'
+          +'<td><div class="flex aic gap1">'+Av(bS,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+bS.name+(bS._masked?' <span style="font-size:9px;color:#94a3b8;font-style:italic">(inativo)</span>':'')+'</span></div></td>'
           +'<td>'+FTag(b.frente)+'</td>'
           +rdCols.map(c=>{const val=d[c.id]||0;return'<td style="text-align:right;font-size:11.5px;font-weight:600;color:'+(c.id==='vgv_real'?'var(--navy)':c.id==='perdidas'?'var(--r-tx)':c.id==='conversao'?(val>=50?'var(--g-tx)':'var(--a-tx)'):c.id==='crm'?(val>=80?'var(--g-tx)':val>=65?'var(--a-tx)':'var(--r-tx)'):'inherit')+'">'+c.fmt(val)+'</td>';}).join('')
           +'</tr>';}).join('')
@@ -3345,16 +3392,16 @@ function pgRanking(){
       {id:'followup',  label:'Follow-ups',        fmt:v=>v},
     ];
     if(subTab==='corretores'){
-      const sorted=[...BROKERS].sort((a,b)=>(b.lig_real||0)-(a.lig_real||0));
+      const sorted=[...BROKERS_ALL].sort((a,b)=>(b.lig_real||0)-(a.lig_real||0));
       content='<div class="card"><div class="tw"><table class="rank-tbl"><thead><tr><th>#</th><th>Corretor</th><th>Frente</th>'
         +ooCols.map(c=>'<th style="text-align:right">'+c.label+'</th>').join('')
         +'</tr></thead><tbody>'
-        +sorted.map((b,i)=>'<tr>'
+        +sorted.map((b,i)=>{var bS=safeBrokerObj(b);var rowOp=bS._masked?'opacity:.7':'';return'<tr style="'+rowOp+'">'
           +'<td style="font-size:14px;text-align:center">'+medal(i)+'</td>'
-          +'<td><div class="flex aic gap1">'+Av(b,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+b.name+'</span></div></td>'
+          +'<td><div class="flex aic gap1">'+Av(bS,'xs',true)+'<span style="font-size:11.5px;font-weight:600">'+bS.name+(bS._masked?' <span style="font-size:9px;color:#94a3b8;font-style:italic">(inativo)</span>':'')+'</span></div></td>'
           +'<td>'+FTag(b.frente)+'</td>'
           +ooCols.map(c=>'<td style="text-align:right;font-size:11.5px;font-weight:600">'+c.fmt(b[c.id]||0)+'</td>').join('')
-          +'</tr>').join('')
+          +'</tr>';}).join('')
         +'</tbody></table></div></div>';
     } else {
       const sortedF=Object.entries(fs).filter(([fid])=>FRENTES[fid]).sort((a,b)=>(b[1].lig_real||0)-(a[1].lig_real||0));
@@ -3656,281 +3703,322 @@ function fmt$(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
 // ARENA PSM â PAGINA UNIFICADA (substitui pgWarRoom + pgWarArena antigos)
 // Usa BROKERS (dados reais RD CRM) + S.metaIndiv (metas One on One)
 
-// ===== MODO TV - Arena PSM Fullscreen =====
+// ═══════════════════════════════════════════════════════════════════════════
+// MODO TV - Arena PSM Fullscreen v12 (2026-04-19)
+// CENAS ROTATIVAS: HERO → RANKING → PULSE → EQUIPES → ALERTAS (15s cada)
+// Consome getMetricas() canonical. Sem controles, sem auto-scroll, sem zoom hack.
+// ═══════════════════════════════════════════════════════════════════════════
 function arenaTV(){
-  // Gera HTML de TODAS as abas em sequência para scroll contínuo
-  var _tabIds = ['timeline','painel','equipes','metas'];
-  var _tabLabels = {timeline:'💡 OPORTUNIDADES',painel:'📊 KPIs & META DO DIA',equipes:'⚔️ EQUIPES',metas:'🏆 RANKING'};
-  var allHTML = '';
-  var origTab = S.arenaTab;
-  _tabIds.forEach(function(tabId){
-    S.arenaTab = tabId;
-    nav('wararena');
-  });
-  // Restaura tab original e captura HTML de cada aba
-  S.arenaTab = _tabIds[0];
-  var _buildAllTabs = function(){
-    var parts = '';
-    _tabIds.forEach(function(tabId){
-      S.arenaTab = tabId;
-      var pc = document.querySelector('#pc');
-      if(!pc) return;
-      // Força render síncrono
-      render({force:true});
-      parts += '<div class="tv-section" style="min-height:60vh;padding-bottom:40px;border-bottom:2px solid #1e293b;margin-bottom:20px">';
-      parts += '<div style="text-align:center;padding:18px 0 12px"><span style="font-size:20px;font-weight:800;color:#60a5fa;letter-spacing:1px">' + (_tabLabels[tabId]||tabId) + '</span></div>';
-      parts += pc.innerHTML;
-      parts += '</div>';
-    });
-    return parts;
-  };
+  // Invalida cache pra pegar dados atuais
+  try { if(typeof _metricsInvalidate==='function') _metricsInvalidate(); recalcBrokerMetrics('war'); } catch(e){}
 
-  // Renderiza a primeira aba, depois constrói todas
-  S.arenaTab = 'timeline';
-  nav('wararena');
-  setTimeout(function(){
-    var allTabsHTML = _buildAllTabs();
-    S.arenaTab = origTab || 'timeline';
+  var overlay = document.createElement('div');
+  overlay.id = 'arena-tv-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:linear-gradient(180deg,#0b1220 0%,#0f172a 100%);overflow:hidden;font-family:Inter,"Segoe UI",system-ui,sans-serif;color:#e2e8f0';
 
-    var overlay = document.createElement('div');
-    overlay.id = 'arena-tv-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:#0b0e17;overflow:hidden;font-family:Inter,system-ui,sans-serif';
+  var stage = document.createElement('div');
+  stage.id = 'tv-stage';
+  stage.style.cssText = 'position:absolute;top:0;left:0;width:100vw;height:calc(100vh - 56px);display:flex;align-items:center;justify-content:center;opacity:1;transition:opacity 450ms ease-out;padding:40px 60px';
+  overlay.appendChild(stage);
 
-    var scroller = document.createElement('div');
-    scroller.id = 'tv-scroller';
-    scroller.style.cssText = 'width:100%;height:calc(100vh - 52px);overflow:auto;position:relative;scrollbar-width:none';
-    var inner = document.createElement('div');
-    inner.id = 'tv-inner';
-    inner.style.cssText = 'padding:18px 20px 80px;zoom:1.65';
-    inner.innerHTML = allTabsHTML;
-    scroller.appendChild(inner);
-    overlay.appendChild(scroller);
+  // Footer
+  var footer = document.createElement('div');
+  footer.id = 'tv-footer';
+  footer.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:56px;padding:0 32px;background:#070c16;border-top:1px solid rgba(212,168,67,0.25);display:flex;justify-content:space-between;align-items:center;z-index:100000;font-family:inherit';
+  footer.innerHTML = ''
+    + '<div style="display:flex;align-items:center;gap:12px">'
+    +   '<div id="tv-dot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px #22c55e"></div>'
+    +   '<span style="font-size:14px;color:#94a3b8;font-weight:600;letter-spacing:2px">ARENA PSM</span>'
+    +   '<span id="tv-scene-label" style="margin-left:20px;font-size:12px;color:#64748b;letter-spacing:3px;text-transform:uppercase"></span>'
+    + '</div>'
+    + '<div id="tv-progress" style="flex:1;max-width:400px;margin:0 32px;height:3px;background:rgba(148,163,184,0.15);border-radius:2px;overflow:hidden;position:relative"><div id="tv-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#d4a843,#fbbf24);border-radius:2px;transition:width 200ms linear"></div></div>'
+    + '<div id="tv-clock" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:22px;font-weight:700;color:#d4a843;letter-spacing:2px">--:--:--</div>'
+    + '<div style="margin-left:20px;font-size:11px;color:#475569;letter-spacing:1.5px">ESC SAIR</div>';
+  overlay.appendChild(footer);
 
-    // CSS overrides
-    var tvStyle = document.createElement('style');
-    tvStyle.id = 'tv-style';
-    tvStyle.textContent = ''
-      + '#arena-tv-overlay *{box-sizing:border-box}'
-      + '#tv-scroller::-webkit-scrollbar{display:none}'
-      // Esconde controles interativos
-      + '#arena-tv-overlay button[onclick*="arenaTV"]{display:none!important}'
-      + '#arena-tv-overlay button[onclick*="arenaTab"]{display:none!important}'
-      + '#arena-tv-overlay button[onclick*="render"]{display:none!important}'
-      + '#arena-tv-overlay button[onclick*="df_war"]{display:none!important}'
-      + '#arena-tv-overlay button[onclick*="toggleInativos"]{display:none!important}'
-      + '#arena-tv-overlay select{display:none!important}'
-      + '#arena-tv-overlay details{display:none!important}'
-      + '#arena-tv-overlay input{display:none!important}'
-      // Grid 2 colunas
-      + '#arena-tv-overlay [style*="grid-template-columns:repeat(6"]{grid-template-columns:repeat(2,1fr)!important}'
-      + '#arena-tv-overlay [style*="grid-template-columns:repeat(5"]{grid-template-columns:repeat(2,1fr)!important}'
-      + '#arena-tv-overlay [style*="grid-template-columns:repeat(4"]{grid-template-columns:repeat(2,1fr)!important}'
-      + '#arena-tv-overlay [style*="grid-template-columns:repeat(3"]{grid-template-columns:repeat(2,1fr)!important}'
-      + '#arena-tv-overlay [style*="minmax(360px"]{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))!important}'
-      + '#arena-tv-overlay [style*="minmax(440px"]{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))!important}'
-      + '#arena-tv-overlay [style*="minmax(260px"]{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))!important}'
-      // Progress bars
-      + '#arena-tv-overlay [style*="height:5px"]{height:8px!important}'
-      + '#arena-tv-overlay [style*="height:6px"]{height:10px!important}'
-      + '#arena-tv-overlay [style*="height:8px"]{height:12px!important}'
-      // Esconde header duplicado do Arena (já tem os separadores de seção)
-      + '#arena-tv-overlay .tv-section > div:first-child + div > div:first-child{display:none!important}';
-    overlay.appendChild(tvStyle);
+  document.body.appendChild(overlay);
 
-    // Esconde botões MODO TV
-    var tvBtns = overlay.querySelectorAll('button[onclick*="arenaTV"]');
-    for(var i=0;i<tvBtns.length;i++) tvBtns[i].style.display='none';
+  // Fullscreen
+  try { if(overlay.requestFullscreen) overlay.requestFullscreen(); else if(overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen(); } catch(e){}
 
-    // ══════ FOOTER ══════
-    var footer = document.createElement('div');
-    footer.id = 'tv-footer';
-    footer.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:52px;padding:0 24px;background:#0b0e17;border-top:1px solid #1e293b;display:flex;justify-content:space-between;align-items:center;z-index:100000';
-    footer.innerHTML = ''
-      + '<div style="display:flex;align-items:center;gap:8px">'
-      +   '<div id="tv-dot" style="width:6px;height:6px;border-radius:50%;background:#22c55e"></div>'
-      +   '<span style="font-size:13px;color:#64748b;font-weight:500">ARENA PSM</span>'
-      + '</div>'
-      + '<div id="tv-clock" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:24px;font-weight:700;color:#d4a843;letter-spacing:1.5px">--:--:--</div>'
-      + '<div style="font-size:12px;color:#475569">ESC sair</div>';
-    overlay.appendChild(footer);
+  // ══════ CENAS ══════
+  function _brMoney(v){ if(!v||isNaN(v)) return 'R$ 0'; if(v>=1e6) return 'R$ '+(v/1e6).toFixed(1)+'M'; if(v>=1e3) return 'R$ '+Math.round(v/1e3)+'k'; return 'R$ '+Math.round(v); }
+  function _initials(name){ return (name||'??').split(/\s+/).slice(0,2).map(function(p){return (p[0]||'').toUpperCase();}).join(''); }
+  function _diasRestMes(){ var n=new Date(); var last=new Date(n.getFullYear(),n.getMonth()+1,0); return Math.max(0, last.getDate()-n.getDate()); }
 
-    // Relógio
-    var tvClockInt = setInterval(function(){
-      var el = document.getElementById('tv-clock');
-      var dot = document.getElementById('tv-dot');
-      if(!el){ clearInterval(tvClockInt); return; }
-      var n = new Date();
-      el.textContent = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0') + ':' + String(n.getSeconds()).padStart(2,'0');
-      if(dot) dot.style.opacity = (n.getSeconds() % 2 === 0) ? '1' : '0.3';
-    }, 1000);
+  function sceneHero(){
+    var G = (typeof getMetricasGlobal==='function') ? getMetricasGlobal('war') : {vgv_real:S.vgvReal||0, vgv_pipe:METRICS.pipeline||0, vendas:S.wonTotal||0};
+    var mg = (typeof getMetaGlobal==='function') ? getMetaGlobal() : null;
+    var curM = new Date().getMonth();
+    var metaMes = (mg && mg.metaTotal) ? mg.metaTotal(curM) : (METRICS.vgv_meta||0);
+    var pct = metaMes>0 ? Math.round(G.vgv_real/metaMes*100) : 0;
+    var gap = Math.max(0, metaMes - G.vgv_real);
+    var dr = _diasRestMes();
+    var mNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var pctCol = pct>=100 ? '#22c55e' : pct>=70 ? '#d4a843' : pct>=40 ? '#f59e0b' : '#ef4444';
+    return ''
+      + '<div style="width:100%;max-width:1600px;text-align:center">'
+      +   '<div style="font-size:14px;color:#64748b;letter-spacing:6px;text-transform:uppercase;margin-bottom:18px">VGV Realizado — ' + mNames[curM] + '</div>'
+      +   '<div style="font-size:clamp(120px,17vw,240px);font-weight:900;letter-spacing:-6px;line-height:0.95;background:linear-gradient(180deg,#fbbf24,#d4a843);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:8px">' + _brMoney(G.vgv_real) + '</div>'
+      +   '<div style="font-size:28px;color:#94a3b8;margin-bottom:50px;font-weight:500">Meta: <b style="color:#e2e8f0">' + _brMoney(metaMes) + '</b> · <span style="color:'+pctCol+';font-weight:800">' + pct + '%</span></div>'
+      +   '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:40px">'
+      +     _heroCard('Vendas', G.vendas, '#22c55e')
+      +     _heroCard('Pipeline', _brMoney(G.vgv_pipe), '#60a5fa')
+      +     _heroCard('Gap p/ Meta', _brMoney(gap), gap>0?'#ef4444':'#22c55e')
+      +     _heroCard('Dias Restantes', dr, '#d4a843')
+      +   '</div>'
+      + '</div>';
+  }
+  function _heroCard(lbl, val, col){
+    return '<div style="background:rgba(30,41,59,0.5);border:1px solid rgba(148,163,184,0.1);border-radius:18px;padding:28px 24px;backdrop-filter:blur(10px)">'
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px">' + lbl + '</div>'
+      + '<div style="font-size:52px;font-weight:800;color:' + col + ';line-height:1">' + val + '</div>'
+      + '</div>';
+  }
 
-    document.body.appendChild(overlay);
-
-    // Fullscreen
-    if(overlay.requestFullscreen) overlay.requestFullscreen();
-    else if(overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen();
-
-    // ══════ AUTO-SCROLL: desce devagar, sobe rápido, repete ══════
-    var scrollSpeed = 0.6;
-    var pauseAtTop = 240;
-    var pauseAtBottom = 150;
-    var pauseCounter = pauseAtTop;
-    var scrollDir = 1;
-    var tvScrollInt = setInterval(function(){
-      var sc = document.getElementById('tv-scroller');
-      if(!sc) { clearInterval(tvScrollInt); return; }
-      var maxScroll = sc.scrollHeight - sc.clientHeight;
-      if(maxScroll <= 0) return;
-      if(pauseCounter > 0) { pauseCounter--; return; }
-      sc.scrollTop += scrollSpeed * scrollDir;
-      if(sc.scrollTop >= maxScroll) {
-        sc.scrollTop = maxScroll;
-        scrollDir = -1;
-        pauseCounter = pauseAtBottom;
-        scrollSpeed = 2.0;
-      }
-      if(sc.scrollTop <= 0) {
-        sc.scrollTop = 0;
-        scrollDir = 1;
-        pauseCounter = pauseAtTop;
-        scrollSpeed = 0.6;
-      }
-    }, 1000/60);
-
-    // ══════ ANTI-STANDBY LG: MÁXIMA AGRESSIVIDADE ══════
-
-    // 1) Wake Lock API
-    var wakeLock = null;
-    async function requestWakeLock(){
-      try {
-        if('wakeLock' in navigator){
-          wakeLock = await navigator.wakeLock.request('screen');
-          wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 500); });
-        }
-      } catch(e){}
-    }
-    requestWakeLock();
-    // Re-request on visibility change (LG webOS drops it)
-    document.addEventListener('visibilitychange', function(){
-      if(document.visibilityState === 'visible') requestWakeLock();
-    });
-
-    // 2) Video invisível (mantém decodificador ativo)
-    var antiSleep = document.createElement('video');
-    antiSleep.setAttribute('playsinline','');
-    antiSleep.setAttribute('muted','');
-    antiSleep.muted = true;
-    antiSleep.loop = true;
-    antiSleep.style.cssText = 'position:fixed;top:-1px;left:-1px;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:100001';
-    antiSleep.src = 'data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwH/////////FUmpZpkq17GDD0JATYCGQ2hyb21lV0WQQ2hyb21lFlSua7+uvdeBAXPFh2YA0AAAAAAAABZUrmtAu4EBAAAAAABH2K5MoQ==';
-    overlay.appendChild(antiSleep);
-    try { antiSleep.play(); } catch(e){}
-    // Re-play video every 30s (LG pauses it)
-    setInterval(function(){ try{ if(antiSleep.paused) antiSleep.play(); }catch(e){} }, 30000);
-
-    // 3) Canvas GRANDE que muda TODA frame (anti pixel-estático)
-    var hbCanvas = document.createElement('canvas');
-    hbCanvas.width = 1920; hbCanvas.height = 6;
-    hbCanvas.style.cssText = 'position:fixed;bottom:52px;left:0;right:0;width:100%;height:6px;z-index:100002;opacity:0.7;pointer-events:none';
-    overlay.appendChild(hbCanvas);
-    var hbCtx = hbCanvas.getContext('2d');
-    var hbPhase = 0;
-    var hbInt = setInterval(function(){
-      if(!document.getElementById('arena-tv-overlay')) { clearInterval(hbInt); return; }
-      hbPhase = (hbPhase + 5) % 1920;
-      hbCtx.clearRect(0,0,1920,6);
-      var grad = hbCtx.createLinearGradient(0,0,1920,0);
-      var pos = hbPhase / 1920;
-      grad.addColorStop(0, 'rgba(96,165,250,0.0)');
-      grad.addColorStop(Math.max(0, pos - 0.06), 'rgba(96,165,250,0.15)');
-      grad.addColorStop(pos, 'rgba(96,165,250,0.8)');
-      grad.addColorStop(Math.min(1, pos + 0.06), 'rgba(96,165,250,0.15)');
-      grad.addColorStop(1, 'rgba(96,165,250,0.0)');
-      hbCtx.fillStyle = grad;
-      hbCtx.fillRect(0,0,1920,6);
-    }, 100); // 10fps — mais agressivo
-
-    // 4) Noise boxes MAIORES nos 4 cantos (mais mudança de pixel)
-    var noiseBoxes = [];
-    [{t:'0',l:'0'},{t:'0',r:'0'},{b:'52px',l:'0'},{b:'52px',r:'0'}].forEach(function(p){
-      var nb = document.createElement('div');
-      var css = 'position:fixed;width:6px;height:6px;z-index:100002;pointer-events:none;opacity:0.7;';
-      if(p.t!==undefined)css+='top:'+p.t+';'; if(p.b!==undefined)css+='bottom:'+p.b+';';
-      if(p.l!==undefined)css+='left:'+p.l+';'; if(p.r!==undefined)css+='right:'+p.r+';';
-      nb.style.cssText = css;
-      overlay.appendChild(nb);
-      noiseBoxes.push(nb);
-    });
-    var noiseInt = setInterval(function(){
-      if(!document.getElementById('arena-tv-overlay')) { clearInterval(noiseInt); return; }
-      noiseBoxes.forEach(function(nb){
-        nb.style.background = 'rgb('+Math.floor(Math.random()*100)+','+Math.floor(Math.random()*100)+','+Math.floor(Math.random()*100)+')';
+  function sceneRanking(){
+    var BR = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
+    var rows = BR.map(function(b){
+      var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : {vgv_real:b.vgv_real||0,vendas:b.vendas||0,meta:b.meta||0,atingimento:0};
+      var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
+      return {id:b.id, name:disp.name||b.name||'--', ini:disp.ini||_initials(b.name), vgv:M.vgv_real, vendas:M.vendas, meta:M.meta, pct:M.atingimento, masked:!!disp._masked};
+    }).filter(function(r){return r.vgv>0 || r.vendas>0;}).sort(function(a,b){return b.vgv - a.vgv;}).slice(0,10);
+    var html = '<div style="width:100%;max-width:1500px">'
+      + '<div style="font-size:14px;color:#64748b;letter-spacing:6px;text-transform:uppercase;margin-bottom:28px;text-align:center">TOP 10 — Corretores do Mês</div>';
+    if(rows.length === 0){
+      html += '<div style="text-align:center;padding:80px;color:#64748b;font-size:24px">Sem vendas registradas neste período</div>';
+    } else {
+      rows.forEach(function(r,i){
+        var pos = i+1;
+        var posCol = pos===1?'#fbbf24':pos===2?'#cbd5e1':pos===3?'#d97706':'#475569';
+        var barW = rows[0].vgv > 0 ? (r.vgv/rows[0].vgv*100) : 0;
+        html += '<div style="display:grid;grid-template-columns:60px 70px 1fr 180px 140px;gap:20px;align-items:center;padding:14px 20px;background:rgba(30,41,59,' + (i%2?0.3:0.5) + ');border-radius:12px;margin-bottom:8px;' + (r.masked?'opacity:0.6':'') + '">'
+          + '<div style="font-size:36px;font-weight:900;color:' + posCol + ';text-align:center">' + pos + '</div>'
+          + '<div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#1e40af,#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff">' + r.ini + '</div>'
+          + '<div><div style="font-size:22px;font-weight:700;color:#e2e8f0">' + r.name + (r.masked?' <span style="font-size:11px;color:#94a3b8">(inativo)</span>':'') + '</div>'
+          +   '<div style="height:6px;background:rgba(148,163,184,0.15);border-radius:3px;margin-top:8px;overflow:hidden"><div style="height:100%;width:' + barW + '%;background:linear-gradient(90deg,#d4a843,#fbbf24);border-radius:3px"></div></div></div>'
+          + '<div style="font-size:26px;font-weight:800;color:#fbbf24;text-align:right">' + _brMoney(r.vgv) + '</div>'
+          + '<div style="text-align:right"><div style="font-size:18px;font-weight:700;color:#22c55e">' + r.vendas + ' vendas</div>'
+          +   (r.pct>0 ? '<div style="font-size:13px;color:#94a3b8">' + r.pct + '% da meta</div>':'')
+          + '</div>'
+          + '</div>';
       });
-    }, 500); // Mais rápido: 500ms
-
-    // 5) User interaction simulation (LG webOS detecta inatividade)
-    var moveInt = setInterval(function(){
-      if(!document.getElementById('arena-tv-overlay')) { clearInterval(moveInt); return; }
-      window.dispatchEvent(new Event('mousemove'));
-      window.dispatchEvent(new Event('keydown'));
-      window.dispatchEvent(new Event('scroll'));
-      // Muda 1 pixel no body para forçar repaint global
-      document.body.style.paddingBottom = (Date.now() % 2 === 0) ? '0px' : '1px';
-    }, 5000); // A cada 5s
-
-    // 6) Audio context (mantém thread de áudio ativa — anti-standby em smart TVs)
-    try {
-      var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      var osc = audioCtx.createOscillator();
-      var gain = audioCtx.createGain();
-      gain.gain.value = 0.001; // inaudível
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      // Resume audio context periodically (LG suspends it)
-      setInterval(function(){ if(audioCtx.state==='suspended') audioCtx.resume(); }, 10000);
-    } catch(e){}
-
-    // 7) Tip de Auto Standby (1x)
-    if(!localStorage.getItem('psm_tv_tip_dismissed')){
-      var tip = document.createElement('div');
-      tip.id = 'tv-standby-tip';
-      tip.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:100003;background:#1e293b;border:1px solid #d4a843;border-radius:12px;padding:14px 20px;max-width:580px;box-shadow:0 8px 32px rgba(0,0,0,0.6);color:#e2e8f0;font-size:13px;line-height:1.5';
-      tip.innerHTML = '<b style="color:#d4a843">TV desligando sozinha?</b> LG: Config. \u2192 Geral \u2192 Temporizadores \u2192 Desl. Autom\u00e1tico = Desativ. Tamb\u00e9m desative HDMI-CEC e Economia de Energia. '
-        + '<button onclick="localStorage.setItem(\'psm_tv_tip_dismissed\',\'1\');this.parentElement.remove()" style="margin-left:12px;padding:4px 12px;background:#d4a843;color:#0f172a;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px">OK</button>';
-      overlay.appendChild(tip);
-      setTimeout(function(){ var t=document.getElementById('tv-standby-tip'); if(t) t.style.opacity='0'; }, 20000);
     }
+    html += '</div>';
+    return html;
+  }
 
-    // ══════ EXIT ══════
-    function exitTV(){
-      var el = document.getElementById('arena-tv-overlay');
-      if(el) el.remove();
-      if(document.fullscreenElement) document.exitFullscreen();
-      if(wakeLock) { try{wakeLock.release();}catch(e){} wakeLock=null; }
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('fullscreenchange', onFs);
-      clearInterval(tvScrollInt);
-      clearInterval(tvRefreshInt);
-      clearInterval(moveInt);
-      try{ clearInterval(hbInt); }catch(e){}
-      try{ clearInterval(noiseInt); }catch(e){}
-      try{ clearInterval(tvClockInt); }catch(e){}
+  function scenePulse(){
+    // Últimas 10 vendas (hoje + ontem)
+    var now = new Date();
+    var cutoff = new Date(now.getTime() - 7*86400000);
+    var ultimas = (VENDAS||[]).filter(function(v){var d=new Date(v.closedAt||v.createdAt||'');return !isNaN(d.getTime()) && d>=cutoff;})
+      .sort(function(a,b){return new Date(b.closedAt||b.createdAt) - new Date(a.closedAt||a.createdAt);}).slice(0,8);
+    var html = '<div style="width:100%;max-width:1500px">'
+      + '<div style="font-size:14px;color:#64748b;letter-spacing:6px;text-transform:uppercase;margin-bottom:28px;text-align:center">PULSE — Últimas Vendas (7 dias)</div>';
+    if(ultimas.length === 0){
+      html += '<div style="text-align:center;padding:80px;color:#64748b;font-size:24px">Nenhuma venda nos últimos 7 dias</div>';
+    } else {
+      html += '<div style="display:flex;flex-direction:column;gap:12px">';
+      ultimas.forEach(function(v,i){
+        var b = (typeof UM!=='undefined') ? (UM[v.bid]||null) : null;
+        var nm = (b && typeof safeBrokerName==='function') ? safeBrokerName(b) : (b?b.name:'--');
+        var d = new Date(v.closedAt||v.createdAt);
+        var dStr = String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+        html += '<div style="display:grid;grid-template-columns:100px 1fr 200px;gap:20px;align-items:center;padding:18px 24px;background:rgba(34,197,94,0.08);border-left:4px solid #22c55e;border-radius:10px">'
+          + '<div style="font-family:ui-monospace,monospace;font-size:13px;color:#94a3b8">' + dStr + '</div>'
+          + '<div><div style="font-size:20px;font-weight:700;color:#e2e8f0">' + (v.name||v.deal_name||'Venda') + '</div>'
+          +   '<div style="font-size:13px;color:#64748b;margin-top:2px">' + nm + '</div></div>'
+          + '<div style="font-size:28px;font-weight:800;color:#22c55e;text-align:right">' + _brMoney(v.vgv||0) + '</div>'
+          + '</div>';
+      });
+      html += '</div>';
     }
-    function onKey(e){ if(e.key==='Escape') exitTV(); }
-    function onFs(){ if(!document.fullscreenElement) exitTV(); }
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('fullscreenchange', onFs);
+    html += '</div>';
+    return html;
+  }
 
-    // Auto-refresh: reconstroi todas as abas a cada 90s com dados frescos
-    var tvRefreshInt = setInterval(function(){
-      var el = document.getElementById('arena-tv-overlay');
-      if(!el){ clearInterval(tvRefreshInt); return; }
-      exitTV();
-      setTimeout(arenaTV, 500);
-    }, 90000);
+  function sceneEquipes(){
+    var BR = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
+    var FR_LIST = [
+      {id:'conquista', label:'🏆 CONQUISTA', col:'#dc2626'},
+      {id:'lancamento', label:'🏢 MAP', col:'#0f172a'},
+      {id:'terceiros', label:'🤝 TERCEIROS', col:'#15803d'}
+    ];
+    var mg = (typeof getMetaGlobal==='function') ? getMetaGlobal() : null;
+    var curM = new Date().getMonth();
+    var html = '<div style="width:100%;max-width:1600px">'
+      + '<div style="font-size:14px;color:#64748b;letter-spacing:6px;text-transform:uppercase;margin-bottom:28px;text-align:center">EQUIPES — Disputa do Mês</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">';
+    FR_LIST.forEach(function(fr){
+      var membros = BR.filter(function(b){return b.frente===fr.id;});
+      var vgv = 0, vendas=0;
+      membros.forEach(function(b){
+        var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : {vgv_real:b.vgv_real||0, vendas:b.vendas||0};
+        vgv += M.vgv_real; vendas += M.vendas;
+      });
+      var meta = (mg && mg.metaFrente) ? mg.metaFrente(fr.id, curM) : 0;
+      var pct = meta>0 ? Math.round(vgv/meta*100) : 0;
+      var pctCol = pct>=100?'#22c55e':pct>=70?'#d4a843':pct>=40?'#f59e0b':'#ef4444';
+      html += '<div style="background:linear-gradient(180deg,rgba(30,41,59,0.7),rgba(15,23,42,0.9));border:2px solid ' + fr.col + ';border-radius:20px;padding:32px 28px;position:relative;overflow:hidden">'
+        + '<div style="font-size:16px;font-weight:800;color:' + fr.col + ';letter-spacing:2px;margin-bottom:20px">' + fr.label + '</div>'
+        + '<div style="font-size:56px;font-weight:900;color:#fbbf24;letter-spacing:-2px;line-height:1">' + _brMoney(vgv) + '</div>'
+        + '<div style="font-size:14px;color:#94a3b8;margin-top:6px">Meta: ' + _brMoney(meta) + '</div>'
+        + '<div style="height:10px;background:rgba(148,163,184,0.15);border-radius:5px;margin-top:20px;overflow:hidden"><div style="height:100%;width:' + Math.min(100,pct) + '%;background:' + pctCol + ';border-radius:5px;transition:width 600ms"></div></div>'
+        + '<div style="display:flex;justify-content:space-between;margin-top:18px;font-size:15px">'
+        +   '<div><span style="color:#64748b">Atingimento: </span><b style="color:' + pctCol + '">' + pct + '%</b></div>'
+        +   '<div><span style="color:#64748b">Vendas: </span><b style="color:#22c55e">' + vendas + '</b></div>'
+        + '</div>'
+        + '<div style="margin-top:14px;font-size:13px;color:#64748b">' + membros.length + ' corretores</div>'
+        + '</div>';
+    });
+    html += '</div></div>';
+    return html;
+  }
 
-  }, 400);
+  function sceneAlertas(){
+    var BR = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
+    var alertas = [];
+    BR.forEach(function(b){
+      var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : null;
+      if(!M) return;
+      var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
+      // Só considera corretores com meta > 0
+      if(M.meta > 0 && M.atingimento < 30 && !disp._masked){
+        alertas.push({name:disp.name, ini:disp.ini||_initials(disp.name), tipo:'meta', msg:'Atingimento ' + M.atingimento + '% da meta', val:_brMoney(M.vgv_real)+' / '+_brMoney(M.meta), prio:1});
+      }
+      if(M.staleCrm >= 5 && !disp._masked){
+        alertas.push({name:disp.name, ini:disp.ini||_initials(disp.name), tipo:'stale', msg:M.staleCrm + ' leads parados 4+ dias', val:'CRM stale', prio:2});
+      }
+    });
+    alertas.sort(function(a,b){return a.prio - b.prio;});
+    alertas = alertas.slice(0,8);
+    var html = '<div style="width:100%;max-width:1500px">'
+      + '<div style="font-size:14px;color:#64748b;letter-spacing:6px;text-transform:uppercase;margin-bottom:28px;text-align:center">ALERTAS — Ação Imediata</div>';
+    if(alertas.length === 0){
+      html += '<div style="text-align:center;padding:80px;color:#22c55e;font-size:32px;font-weight:700">✓ Nenhum alerta crítico</div>';
+    } else {
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+      alertas.forEach(function(a){
+        var col = a.tipo==='meta' ? '#ef4444' : '#f59e0b';
+        var bg = a.tipo==='meta' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)';
+        html += '<div style="display:grid;grid-template-columns:60px 1fr 140px;gap:16px;align-items:center;padding:20px;background:' + bg + ';border-left:4px solid ' + col + ';border-radius:10px">'
+          + '<div style="width:52px;height:52px;border-radius:50%;background:' + col + ';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px">' + a.ini + '</div>'
+          + '<div><div style="font-size:18px;font-weight:700;color:#e2e8f0">' + a.name + '</div>'
+          +   '<div style="font-size:13px;color:#94a3b8;margin-top:2px">' + a.msg + '</div></div>'
+          + '<div style="font-size:14px;color:' + col + ';font-weight:700;text-align:right">' + a.val + '</div>'
+          + '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  var SCENES = [
+    {key:'HERO',     label:'VGV Mensal',   fn:sceneHero,     dur:15000},
+    {key:'RANKING',  label:'Top 10',       fn:sceneRanking,  dur:15000},
+    {key:'PULSE',    label:'Últimas Vendas', fn:scenePulse,  dur:12000},
+    {key:'EQUIPES',  label:'Frentes',      fn:sceneEquipes,  dur:15000},
+    {key:'ALERTAS',  label:'Ação Imediata', fn:sceneAlertas, dur:10000}
+  ];
+  var sceneIdx = 0;
+
+  function showScene(i){
+    var sc = SCENES[i % SCENES.length];
+    var stg = document.getElementById('tv-stage');
+    if(!stg) return;
+    stg.style.opacity = '0';
+    setTimeout(function(){
+      try {
+        if(typeof _metricsInvalidate==='function') _metricsInvalidate();
+        stg.innerHTML = sc.fn();
+        var lbl = document.getElementById('tv-scene-label');
+        if(lbl) lbl.textContent = sc.key + ' · ' + sc.label;
+      } catch(e){ stg.innerHTML = '<div style="color:#ef4444;font-size:24px">Erro na cena: '+e.message+'</div>'; }
+      stg.style.opacity = '1';
+    }, 450);
+  }
+
+  // Loop com barra de progresso
+  showScene(0);
+  var sceneStart = Date.now();
+  var sceneDuration = SCENES[0].dur;
+  var progInt = setInterval(function(){
+    if(!document.getElementById('arena-tv-overlay')){ clearInterval(progInt); return; }
+    var elapsed = Date.now() - sceneStart;
+    var pct = Math.min(100, elapsed/sceneDuration*100);
+    var bar = document.getElementById('tv-progress-bar');
+    if(bar) bar.style.width = pct + '%';
+    if(elapsed >= sceneDuration){
+      sceneIdx = (sceneIdx+1) % SCENES.length;
+      sceneDuration = SCENES[sceneIdx].dur;
+      sceneStart = Date.now();
+      // Recalc metrics a cada ciclo completo
+      if(sceneIdx === 0){ try { recalcBrokerMetrics('war'); } catch(e){} }
+      showScene(sceneIdx);
+    }
+  }, 200);
+
+  // Relógio
+  var tvClockInt = setInterval(function(){
+    var el = document.getElementById('tv-clock');
+    var dot = document.getElementById('tv-dot');
+    if(!el){ clearInterval(tvClockInt); return; }
+    var n = new Date();
+    el.textContent = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0') + ':' + String(n.getSeconds()).padStart(2,'0');
+    if(dot) dot.style.opacity = (n.getSeconds() % 2 === 0) ? '1' : '0.4';
+  }, 1000);
+
+  // ══════ ANTI-STANDBY LG ══════
+  var wakeLock = null;
+  async function requestWakeLock(){
+    try { if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 500); }); } } catch(e){}
+  }
+  requestWakeLock();
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') requestWakeLock(); });
+
+  // Video invisível (decodificador ativo)
+  var antiSleep = document.createElement('video');
+  antiSleep.setAttribute('playsinline',''); antiSleep.setAttribute('muted',''); antiSleep.muted = true; antiSleep.loop = true;
+  antiSleep.style.cssText = 'position:fixed;top:-1px;left:-1px;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:100001';
+  antiSleep.src = 'data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwH/////////FUmpZpkq17GDD0JATYCGQ2hyb21lV0WQQ2hyb21lFlSua7+uvdeBAXPFh2YA0AAAAAAAABZUrmtAu4EBAAAAAABH2K5MoQ==';
+  overlay.appendChild(antiSleep);
+  try { antiSleep.play(); } catch(e){}
+  var playVidInt = setInterval(function(){ try{ if(antiSleep.paused) antiSleep.play(); }catch(e){} }, 30000);
+
+  // User interaction sim
+  var moveInt = setInterval(function(){
+    if(!document.getElementById('arena-tv-overlay')) { clearInterval(moveInt); return; }
+    window.dispatchEvent(new Event('mousemove'));
+    document.body.style.paddingBottom = (Date.now() % 2 === 0) ? '0px' : '1px';
+  }, 5000);
+
+  // Audio ctx
+  try {
+    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var osc = audioCtx.createOscillator(); var gain = audioCtx.createGain();
+    gain.gain.value = 0.001; osc.connect(gain); gain.connect(audioCtx.destination); osc.start();
+    setInterval(function(){ if(audioCtx.state==='suspended') audioCtx.resume(); }, 10000);
+  } catch(e){}
+
+  // ══════ EXIT ══════
+  function exitTV(){
+    var el = document.getElementById('arena-tv-overlay');
+    if(el) el.remove();
+    if(document.fullscreenElement) try{document.exitFullscreen();}catch(e){}
+    if(wakeLock) { try{wakeLock.release();}catch(e){} wakeLock=null; }
+    document.removeEventListener('keydown', onKey);
+    document.removeEventListener('fullscreenchange', onFs);
+    try{ clearInterval(progInt); }catch(e){}
+    try{ clearInterval(tvClockInt); }catch(e){}
+    try{ clearInterval(moveInt); }catch(e){}
+    try{ clearInterval(playVidInt); }catch(e){}
+  }
+  function onKey(e){ if(e.key==='Escape') exitTV(); }
+  function onFs(){ if(!document.fullscreenElement) exitTV(); }
+  document.addEventListener('keydown', onKey);
+  document.addEventListener('fullscreenchange', onFs);
 }
 
 // METAADS TV — Modo TV para Meta Ads (mesma mecanica do arenaTV)
@@ -4081,7 +4169,8 @@ function renderArenaEquipesPanel(opts){
   var monthNames = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
   var equipes = {conquista:{nome:'Conquista',cor:'#22c55e',bids:[]},lancamento:{nome:'Equipe MAP',cor:'#8b5cf6',bids:[]},terceiros:{nome:'Terceiros',cor:'#f59e0b',bids:[]}};
-  BROKERS.forEach(function(b){
+  // BROKERS_ALL — inclui inativos; dados deles contam nas metricas da equipe
+  BROKERS_ALL.forEach(function(b){
     var fr = (typeof TEAM_CONFIG!=='undefined'&&TEAM_CONFIG.assignments?TEAM_CONFIG.assignments[b.id]:null) || b.frente || 'conquista';
     if(equipes[fr]) equipes[fr].bids.push(b.id);
   });
@@ -4298,10 +4387,13 @@ var pgWarArena = function(){
   var eventos = [];
   var mi = S.metaIndiv || {};
 
-  BROKERS.forEach(function(u){
+  // BROKERS_ALL — dados de desligados contam nos totais/equipes; nome sera mascarado
+  BROKERS_ALL.forEach(function(u){
     if(u.role!=='corretor' && u.role!=='lider') return;
     if(u.name && u.name.indexOf('Yara') !== -1) return;
     if(!u.frente) return;
+    var uIsInativo = (u.status === 'inativo');
+    var uDispName = safeBrokerName(u);
     var uVGV = u.vgv_real||0;
     var uVendas = u.vendas||0;
     var uMeta = u.meta||0;
@@ -4332,7 +4424,9 @@ var pgWarArena = function(){
     var uPastas = miPastasLanc||0;
     var score = Math.max(0, uVendas*15 + vgvAbsoluto*8 + vgvScore*3 + uCRM*3 + metaBatidaScore + uVis*2 + uProp*3 + uAgend*1 + miCaptacoes*1 + uPastas*5);
 
-    var cData = {id:u.id, name:u.name, ini:u.ini||u.name.substring(0,2).toUpperCase(), color:u.color||'#6366f1', frente:u.frente, vendas:uVendas, vgv:uVGV, meta:uMeta, metaPct:metaPct, vis:uVis, prop:uProp, lig:uLig, crm:uCRM, agend:uAgend, captacoes:miCaptacoes, pastasLanc:miPastasLanc, score:Math.round(score), staleCrm:uStaleCrm, descartados:uDescartados, penCrm:penCrm, penDesc:penDesc, st:u.st||'offline'};
+    // Se inativo/desligado: mascara nome/iniciais mas preserva metricas (VGV/vendas/etc)
+    var _dispIni = uIsInativo ? '--' : (u.ini||u.name.substring(0,2).toUpperCase());
+    var cData = {id:u.id, name:uDispName, ini:_dispIni, color:u.color||'#6366f1', frente:u.frente, vendas:uVendas, vgv:uVGV, meta:uMeta, metaPct:metaPct, vis:uVis, prop:uProp, lig:uLig, crm:uCRM, agend:uAgend, captacoes:miCaptacoes, pastasLanc:miPastasLanc, score:Math.round(score), staleCrm:uStaleCrm, descartados:uDescartados, penCrm:penCrm, penDesc:penDesc, st:uIsInativo?'offline':(u.st||'offline'), inativo:uIsInativo};
     allCorretores.push(cData);
 
     if(frentes[u.frente]){
@@ -4341,14 +4435,14 @@ var pgWarArena = function(){
       f.corretores.push(cData);
     }
     totalVGV += uVGV; totalVendas += uVendas; totalMeta += uMeta; totalVis += uVis; totalProp += uProp; totalLig += uLig;
-    if(u.st==='online') onlineCount++;
+    if(!uIsInativo && u.st==='online') onlineCount++;
 
-    // Build events for marquee
-    if(uVendas > 0) eventos.push('\ud83c\udfc6 ' + u.name + ' fechou ' + uVendas + ' venda' + (uVendas>1?'s':'') + '!');
-    if(uVis > 0) eventos.push('\ud83c\udfe0 ' + u.name + ' realizou ' + uVis + ' visita' + (uVis>1?'s':''));
-    if(uProp > 0) eventos.push('\ud83d\udcdd ' + u.name + ' enviou ' + uProp + ' proposta' + (uProp>1?'s':''));
-    if(metaPct >= 100) eventos.push('\ud83d\ude80 ' + u.name + ' bateu ' + metaPct + '% da meta!');
-    if(miCaptacoes > 0) eventos.push('\ud83d\udcde ' + u.name + ': ' + miCaptacoes + ' capta\u00e7\u00f5es');
+    // Build events for marquee (usa nome mascarado se inativo)
+    if(uVendas > 0) eventos.push('\ud83c\udfc6 ' + uDispName + ' fechou ' + uVendas + ' venda' + (uVendas>1?'s':'') + '!');
+    if(uVis > 0) eventos.push('\ud83c\udfe0 ' + uDispName + ' realizou ' + uVis + ' visita' + (uVis>1?'s':''));
+    if(uProp > 0) eventos.push('\ud83d\udcdd ' + uDispName + ' enviou ' + uProp + ' proposta' + (uProp>1?'s':''));
+    if(metaPct >= 100) eventos.push('\ud83d\ude80 ' + uDispName + ' bateu ' + metaPct + '% da meta!');
+    if(miCaptacoes > 0) eventos.push('\ud83d\udcde ' + uDispName + ': ' + miCaptacoes + ' capta\u00e7\u00f5es');
   });
 
   // Override totais com VENDAS (mesma fonte do Dashboard) para incluir vendas nao-corretores
@@ -4632,7 +4726,8 @@ var pgWarArena = function(){
   var _opsMes  = {lig_real:0, agend:0, vis:0, prop:0, vend:0};
   // Soma de metas individuais do mês (de metaIndiv/OO_CAMPOS)
   var _opsMeta = {lig_real:0, agend:0, vis:0, prop:0, vend:0};
-  BROKERS.forEach(function(b){
+  // BROKERS_ALL (inclui inativos) — dados de desligados contam no Arena PSM
+  BROKERS_ALL.forEach(function(b){
     if(b.role!=='corretor' && b.role!=='lider') return;
     if(b.name && b.name.indexOf('Yara')!==-1) return;
     // Realizado mês
@@ -8573,6 +8668,121 @@ function ooAggYear(bid, year) {
   }
   return totals;
 }
+// ooAggAll — acumulado ALL-TIME do corretor (soma de todos os meses em ooDaily + ooImportado)
+// Usado no FUNIL 1:1 — ACUMULADO (lado a lado com RD CRM, que é naturalmente acumulado)
+// ═══════════════════════════════════════════════════════════════════════════════
+// getMetricas — FONTE CANÔNICA DE MÉTRICAS por broker/período (v12)
+// Substitui loops duplicados em recalcBrokerMetrics, pgRanking, pgWarArena, etc.
+// prefix: 'dash'|'rank'|'forecast'|'okrs' — usa S.df_<prefix> para filtro de data
+// ═══════════════════════════════════════════════════════════════════════════════
+var _METRICS_CACHE = { prefix:null, ts:0, fOPPS:null, fVENDAS:null, fLOST:null, fTASKS:null };
+function _metricsFiltered(prefix){
+  var now = Date.now();
+  if(_METRICS_CACHE.prefix === prefix && (now - _METRICS_CACHE.ts) < 1500){
+    return _METRICS_CACHE;
+  }
+  _METRICS_CACHE = {
+    prefix: prefix,
+    ts: now,
+    fOPPS: applyDateFilter(OPPS||[], prefix),
+    fVENDAS: applyDateFilter(VENDAS||[], prefix),
+    fLOST: applyDateFilter(LOST_DEALS||[], prefix),
+    fTASKS: applyDateFilter(TASKS_RD||[], prefix)
+  };
+  return _METRICS_CACHE;
+}
+function _metricsInvalidate(){ _METRICS_CACHE.ts = 0; }
+function getMetricas(bid, prefix){
+  prefix = prefix || 'dash';
+  var f = _metricsFiltered(prefix);
+  var opps = f.fOPPS.filter(function(o){return o.bid===bid;});
+  var won  = f.fVENDAS.filter(function(v){return v.bid===bid;});
+  var lost = f.fLOST.filter(function(l){return l.bid===bid;});
+  var bTasks = f.fTASKS.filter(function(t){return t.bid===bid;});
+  var taskVis = bTasks.filter(function(t){return t.type==='visit';}).length;
+  var taskLig = bTasks.filter(function(t){return t.type==='call'||t.type==='whatsapp';}).length;
+  var rdVis = opps.filter(function(o){return ['vis_real','contrato','proposta'].indexOf(o.st_psm)>=0;}).length;
+  var ooLogs = (S.ooLogs||{})[bid] || [];
+  var ooVis = ooLogs.reduce(function(a,lg){return a+(lg.vis||0);},0);
+  var vgv_real = won.reduce(function(a,v){return a+(v.vgv||0);},0);
+  var vgv_pipe = opps.reduce(function(a,o){return a+(o.vgv||0);},0);
+  var _curMonth = new Date().getMonth() + 1;
+  var _miData = (((S.metaIndiv||{})[bid])||{})[_curMonth] || null;
+  var meta = 0;
+  if(_miData && _miData.vgv_meta>0) meta = _miData.vgv_meta;
+  else if((typeof METAS_CONFIG!=='undefined') && METAS_CONFIG[bid] && METAS_CONFIG[bid].vgv_meta>0) meta = METAS_CONFIG[bid].vgv_meta;
+  else { var _b = (typeof UM!=='undefined')?UM[bid]:null; meta = (_b && _b.meta) || 0; }
+  var total = won.length + lost.length;
+  return {
+    bid: bid,
+    periodo: prefix,
+    vgv_real: vgv_real,
+    vgv_pipe: vgv_pipe,
+    vendas: won.length,
+    perdas: lost.length,
+    oppsCount: opps.length,
+    vis: rdVis + ooVis + taskVis,
+    vis_rd: rdVis,
+    vis_oo: ooVis,
+    vis_task: taskVis,
+    lig: opps.length + taskLig,
+    lig_task: taskLig,
+    agend: opps.filter(function(o){return ['agendamento','vis_agend','vis_real'].indexOf(o.st_psm)>=0;}).length,
+    prop: opps.filter(function(o){return o.st_psm==='proposta';}).length,
+    conversao: total>0 ? parseFloat((won.length/total*100).toFixed(2)) : 0,
+    ticketMedio: won.length>0 ? Math.round(vgv_real/won.length) : 0,
+    meta: meta,
+    atingimento: meta>0 ? Math.round(vgv_real/meta*100) : 0,
+    staleCrm: opps.filter(function(o){return o.dnu>=4;}).length,
+    _opps: opps, _won: won, _lost: lost
+  };
+}
+function getMetricasGlobal(prefix){
+  prefix = prefix || 'dash';
+  var f = _metricsFiltered(prefix);
+  var vgv_real = f.fVENDAS.reduce(function(a,v){return a+(v.vgv||0);},0);
+  var vgv_pipe = f.fOPPS.reduce(function(a,o){return a+(o.vgv||0);},0);
+  var total = f.fVENDAS.length + f.fLOST.length;
+  return {
+    periodo: prefix,
+    vgv_real: vgv_real,
+    vgv_pipe: vgv_pipe,
+    vendas: f.fVENDAS.length,
+    perdas: f.fLOST.length,
+    opps: f.fOPPS.length,
+    conversao: total>0 ? parseFloat((f.fVENDAS.length/total*100).toFixed(2)) : 0,
+    ticketMedio: f.fVENDAS.length>0 ? Math.round(vgv_real/f.fVENDAS.length) : 0
+  };
+}
+window.getMetricas = getMetricas;
+window.getMetricasGlobal = getMetricasGlobal;
+window._metricsInvalidate = _metricsInvalidate;
+
+function ooAggAll(bid) {
+  var totals = {};
+  OO_CAMPOS.forEach(function(c){ totals[c.k] = 0; });
+  var daily = (S.ooDaily||{})[bid] || {};
+  Object.keys(daily).forEach(function(mk){
+    var month = daily[mk] || {};
+    Object.keys(month).forEach(function(dk){
+      var d = month[dk] || {};
+      Object.keys(d).forEach(function(k){
+        totals[k] = (totals[k] || 0) + (d[k] || 0);
+      });
+    });
+  });
+  // Soma importados (planilha histórica) que não tenham daily correspondente
+  var imp = (S.ooImportado||{})[bid] || {};
+  Object.keys(imp).forEach(function(mk){
+    var hasDailyMonth = daily[mk] && Object.keys(daily[mk]).length > 0;
+    if (hasDailyMonth) return; // daily já somado acima, evita duplicar
+    var t = (imp[mk] && imp[mk].totals) || {};
+    Object.keys(t).forEach(function(k){
+      totals[k] = (totals[k] || 0) + (t[k] || 0);
+    });
+  });
+  return totals;
+}
 function ooGetMetas(bid, monthKey) {
   return ((S.ooMetas||{})[bid]||{})[monthKey] || {};
 }
@@ -8848,12 +9058,13 @@ function pgOO() {
       });
     }
 
-    // Ranking rápido — Top 5 vendas
+    // Ranking rápido — Top 5 vendas (inclui inativos com nome mascarado)
     content += '<div style="font-size:12px;font-weight:800;color:var(--dark);margin:18px 0 10px">🏆 Top 5 Vendas do Mês</div>';
-    var rankVendas = BROKERS.map(function(b) {
+    var rankVendas = BROKERS_ALL.map(function(b) {
+      var bS = safeBrokerObj(b);
       var ag = ooAggMonth(b.id, monthKey);
       var rd = ooAggMonthRD(b.id, monthKey);
-      return {name:b.name,ini:b.ini,color:b.color,vendas:(ag.vend||0)+(rd.vend||0)-(ag.vend>0&&rd.vend>0?ag.vend:0),vis:ag.vis||0};
+      return {name:bS.name,ini:bS.ini,color:b.color,vendas:(ag.vend||0)+(rd.vend||0)-(ag.vend>0&&rd.vend>0?ag.vend:0),vis:ag.vis||0,masked:bS._masked};
     }).sort(function(a,b){return b.vendas-a.vendas;}).slice(0,5);
     content += '<div style="display:flex;flex-direction:column;gap:4px">';
     rankVendas.forEach(function(r,i) {
@@ -8861,7 +9072,7 @@ function pgOO() {
       content += '<div class="card" style="padding:8px 14px;display:flex;align-items:center;gap:10px">';
       content += '<span style="font-size:14px;width:24px;text-align:center">'+medal+'</span>';
       content += '<div style="width:30px;height:30px;border-radius:50%;background:'+r.color+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)">'+r.ini+'</div>';
-      content += '<div style="flex:1;font-size:12px;font-weight:600;color:var(--dark)">'+r.name+'</div>';
+      content += '<div style="flex:1;font-size:12px;font-weight:600;color:var(--dark)">'+r.name+(r.masked?' <span style="font-size:9px;color:#94a3b8;font-style:italic">(inativo)</span>':'')+'</div>';
       content += '<div style="font-size:14px;font-weight:800;color:var(--g-tx)">'+r.vendas+'</div>';
       content += '<div style="font-size:10px;color:var(--muted)">vendas</div>';
       content += '</div>';
@@ -8954,8 +9165,11 @@ function pgOO() {
     content += '</div>'; // end flex container
     content += '</div>'; // end card
 
-    // === FUNIS LADO A LADO: 1:1 e RD CRM (Paulo 2026-04-15) ===
-    var funnelData = hasDailyData ? realMes : cache;
+    // === FUNIS LADO A LADO: 1:1 ACUMULADO e RD CRM ACUMULADO (Paulo 2026-04-19) ===
+    // Ambos funis agora são ACUMULADOS (all-time) para permitir comparação real de métricas
+    var realAcum = ooAggAll(selBid);
+    var funnelDataMes = hasDailyData ? realMes : cache;   // mantido para referência mensal
+    var funnelData = realAcum;                            // PRINCIPAL: acumulado all-time
     var funilMes = ooGetFunilEquipe(ooGetFrenteForBroker(selBid));
     var fMN = funilMes.length;
     var rdFunil = FUNIS[selFrente] || FUNIS.lancamento;
@@ -9013,31 +9227,53 @@ function pgOO() {
 
     content += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0">';
 
-    // ========== COLUNA 1: FUNIL 1:1 ==========
+    // ========== COLUNA 1: FUNIL 1:1 — ACUMULADO ==========
     content += '<div style="background:#0f172a;border-radius:12px;padding:14px;border:1px solid #1e293b">';
-    content += '<div style="margin:4px 0 12px 0;text-align:center"><span style="font-size:16px;font-weight:700;color:var(--cream)">\uD83D\uDCDD FUNIL 1:1 \u2014 M\u00CAS</span></div>';
+    content += '<div style="margin:4px 0 12px 0;text-align:center"><span style="font-size:16px;font-weight:700;color:var(--cream)">\uD83D\uDCDD FUNIL 1:1 \u2014 ACUMULADO</span></div>';
+    // Badge modo acumulado
+    content += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:6px 10px;background:#064e3b;border-radius:8px;border:1px solid #10b981">';
+    content += '<div style="font-size:11px;color:#6ee7b7;font-weight:700">\u2705 MODO ACUMULADO (hist\u00f3rico 1:1)</div>';
+    content += '<div style="font-size:10px;color:#6ee7b7;opacity:.8">M\u00eas atual: ' + ((funnelDataMes[funilMes[0].k] || 0)) + ' ' + funilMes[0].l + '</div>';
+    content += '</div>';
     content += '<div style="display:flex;gap:10px;align-items:flex-start">';
     content += '<div style="flex:1;min-width:0">';
     funilMes.forEach(function(c, idx) {
-      var v = funnelData[c.k] || 0;
+      var v = funnelData[c.k] || 0;           // acumulado
+      var vM = funnelDataMes[c.k] || 0;       // mês atual (referência)
       var w = Math.round(100 - (idx * (56 / Math.max(fMN - 1, 1))));
       var cor = OO_FUNIL_COLORS[idx % OO_FUNIL_COLORS.length];
       if (idx > 0) {
         var prevV = funnelData[funilMes[idx-1].k] || 0;
-        var convPct = prevV > 0 ? (v/prevV*100).toFixed(1) + '%' : '';
-        content += '<div style="text-align:center;margin:3px 0"><span style="font-size:12px;font-weight:600;color:#94a3b8;background:#1e293b;padding:2px 10px;border-radius:10px;border:1px solid #334155;display:inline-block">' + (convPct ? '\u2193 '+convPct : '') + '</span></div>';
+        var convPct = prevV > 0 ? (v/prevV*100) : 0;
+        var convStr = prevV > 0 ? convPct.toFixed(1) + '%' : '\u2014';
+        var convCor = convPct >= 50 ? '#10b981' : (convPct >= 25 ? '#f59e0b' : '#ef4444');
+        content += '<div style="text-align:center;margin:3px 0"><span style="font-size:11px;font-weight:700;color:' + convCor + ';background:#1e293b;padding:2px 10px;border-radius:10px;border:1px solid ' + convCor + '60;display:inline-block">\u2193 ' + convStr + ' <span style="opacity:.7;font-size:9px">acumulado</span></span></div>';
       }
-      content += '<div style="display:flex;align-items:center;margin-bottom:4px"><div style="width:' + w + '%;background:' + cor + ';color:#fff;padding:10px 12px;border-radius:8px;display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>' + c.l + '</span><span>' + v + '</span></div></div>';
+      content += '<div style="display:flex;align-items:center;margin-bottom:4px"><div style="width:' + w + '%;background:' + cor + ';color:#fff;padding:10px 12px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;gap:8px">';
+      content += '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + c.l + '</span>';
+      content += '<span style="text-align:right;white-space:nowrap"><span style="font-weight:800">' + v + '</span>';
+      if (vM > 0) content += ' <span style="opacity:.65;font-size:10px">\u00B7 ' + vM + ' m\u00eas</span>';
+      content += '</span></div></div>';
     });
+    // Conversao total acumulado
+    var fFirst = funnelData[funilMes[0].k] || 0;
+    var fLast = funnelData[funilMes[fMN-1].k] || 0;
+    var fTotalConv = fFirst > 0 ? (fLast/fFirst*100).toFixed(1) + '%' : '\u2014';
+    content += '<div style="margin-top:10px;padding:8px;background:#1e293b;border-radius:8px;text-align:center">';
+    content += '<span style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">Convers\u00e3o Total (acumulado)</span> ';
+    content += '<span style="font-size:15px;font-weight:800;color:var(--cream)">' + fTotalConv + '</span>';
     content += '</div>';
-    // Sidebar indicadores mensais
+    content += '</div>';
+    // Sidebar indicadores acumulados
     content += '<div style="width:120px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;padding-top:4px">';
     content += '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Indicadores</div>';
     lateralEquipe.forEach(function(c) {
       var v = funnelData[c.k] || 0;
+      var vM = funnelDataMes[c.k] || 0;
       content += '<div style="background:' + c.cor + '20;border:1px solid ' + c.cor + '40;border-radius:8px;padding:8px 6px;text-align:center">';
       content += '<div style="font-size:12px;font-weight:600;color:' + c.cor + ';margin-bottom:3px">' + c.icon + ' ' + c.l + '</div>';
       content += '<div style="font-size:20px;font-weight:800;color:var(--cream)">' + v + '</div>';
+      if (vM > 0) content += '<div style="font-size:9px;color:#94a3b8;margin-top:2px">' + vM + ' m\u00eas</div>';
       content += '</div>';
     });
     content += '</div></div></div>';
