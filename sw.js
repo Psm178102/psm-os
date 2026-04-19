@@ -1,11 +1,11 @@
 // ═════════════════════════════════════════════════════════════════════════════
-// PSM OS — Service Worker v14 (2026-04-19)
+// PSM OS — Service Worker v16 (2026-04-19)
 // Estratégia: NETWORK-FIRST para HTML (resolve cache stale), CACHE-FIRST assets.
 // Limpa caches antigos automaticamente no activate.
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const CACHE_VERSION = 'psm-os-v14-2026-04-19';
+const CACHE_VERSION = 'psm-os-v16-2026-04-19';
 const HTML_CACHE    = CACHE_VERSION + '-html';
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
