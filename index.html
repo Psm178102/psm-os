@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.20-v22i — Hardening pos-auditoria: typo psm_vendas_manuais, timelineItems em SYNC_KEYS, try/catch + circuit-breaker em fbPushState, ooAuditLog concat-dedupe, +6 chaves LS orfas -->
+<!-- PSM-OS v2026.04.20-v22j — Auditoria funcional: saveState em mapPins/iaChat/veraHist, sync chat IA + Sr.Performance, try/catch JSON.parse reset-token, z-index normalizado -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.20-v22i">
+<meta name="version" content="2026.04.20-v22j">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1867,7 +1867,10 @@ var SYNC_KEYS = [
   'metaIndiv','comissaoPct','lancTimeline','lancMetas',
   'premiacoes','comissoes','vendasManuais','oportunidadesPSM','opCorretorList',
   'opEventos','opTreinamentos','agendaReunioes','agendaConfig','agendaCaptConteudo','agendaCaptImovel','fcData',
-  'timelineItems' // FIX v22i: PSM Live timeline (feed) tambem precisa sync multi-device
+  'timelineItems', // FIX v22i: PSM Live timeline (feed) tambem precisa sync multi-device
+  'mapPins',       // FIX v22j: pins do mapa lancamentos
+  'iaChat',        // FIX v22j: historico chat IA Corretor (Gemini/Nano Banana)
+  'veraHist'       // FIX v22j: historico Sr. Performance
 ];
 // Global config keys that also need sync
 var SYNC_GLOBAL_KEYS = ['metasConfig','metasEquipe','teamConfig'];
@@ -5842,7 +5845,7 @@ function arenaCheckMetaHits(){
       playArenaSound(S.arenaSound || 'cash');
       // Flash visual
       var flash = document.createElement('div');
-      flash.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:999999;background:linear-gradient(135deg,#10b981,#22c55e);color:#fff;padding:18px 32px;border-radius:16px;font-size:22px;font-weight:800;box-shadow:0 20px 60px rgba(16,185,129,0.5);animation:metaHitFlash 4s ease forwards;pointer-events:none';
+      flash.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#10b981,#22c55e);color:#fff;padding:18px 32px;border-radius:16px;font-size:22px;font-weight:800;box-shadow:0 20px 60px rgba(16,185,129,0.5);animation:metaHitFlash 4s ease forwards;pointer-events:none';
       flash.innerHTML = '🚀 '+b.name+' bateu 100% da meta! 🎯';
       document.body.appendChild(flash);
       setTimeout(function(){ try{flash.remove();}catch(e){} }, 4500);
@@ -9963,9 +9966,12 @@ function doResetPassword() {
   if (nova!==conf) { S.loginErr='As senhas n\u00e3o conferem'; render(); return; }
   const raw=localStorage.getItem('psm_reset_token');
   if (!raw) { S.loginErr='Token inv\u00e1lido'; render(); return; }
-  const data=JSON.parse(raw);
-  if (data.token!==S.resetToken||Date.now()>data.expires) { localStorage.removeItem('psm_reset_token'); S.loginErr='Token expirado. Solicite novamente.'; render(); return; }
-  const senhas=JSON.parse(localStorage.getItem('psm_senhas')||'{}');
+  // FIX v22j: try/catch envolve JSON.parse — token corrompido nao crasha login
+  let data;
+  try { data=JSON.parse(raw); } catch(e){ localStorage.removeItem('psm_reset_token'); S.loginErr='Token corrompido. Solicite novamente.'; render(); return; }
+  if (!data || data.token!==S.resetToken||Date.now()>data.expires) { localStorage.removeItem('psm_reset_token'); S.loginErr='Token expirado. Solicite novamente.'; render(); return; }
+  let senhas;
+  try { senhas=JSON.parse(localStorage.getItem('psm_senhas')||'{}'); } catch(e){ senhas={}; }
   senhas[data.userId]=nova;
   localStorage.setItem('psm_senhas',JSON.stringify(senhas));
   localStorage.removeItem('psm_reset_token');
@@ -10091,7 +10097,7 @@ function salvarVenda() {
     }
     // Flash visual global
     var flashV = document.createElement('div');
-    flashV.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:999999;background:linear-gradient(135deg,#10b981,#22c55e,#fbbf24);color:#fff;padding:22px 40px;border-radius:18px;font-size:24px;font-weight:900;box-shadow:0 24px 80px rgba(16,185,129,0.6);animation:metaHitFlash 4s ease forwards;pointer-events:none;text-align:center';
+    flashV.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#10b981,#22c55e,#fbbf24);color:#fff;padding:22px 40px;border-radius:18px;font-size:24px;font-weight:900;box-shadow:0 24px 80px rgba(16,185,129,0.6);animation:metaHitFlash 4s ease forwards;pointer-events:none;text-align:center';
     flashV.innerHTML='🎉 VENDA! '+b.name+'<br><span style="font-size:18px;opacity:.9">'+fmt(f.vgv)+'</span>';
     document.body.appendChild(flashV);
     setTimeout(function(){ try{flashV.remove();}catch(e){} }, 4200);
@@ -14384,6 +14390,7 @@ function addMapPin() {
   const statusColors = {'Lançamento':'var(--g)','Em obras':'var(--a)','Pronto':'var(--b)','Esgotado':'var(--r)'};
   S.mapPins = S.mapPins || [];
   S.mapPins.push({nome, status, cor: statusColors[status] || 'var(--muted)'});
+  saveState(); // FIX v22j: persiste pin entre reloads/devices
   toast('Pin adicionado!','ok');
   render();
 }
@@ -19912,6 +19919,7 @@ function iaCorretorSend() {
   if (!S.iaChat) S.iaChat = [];
   S.iaChat.push({role:'user', text:text});
   if (inp) inp.value = '';
+  saveState(); // FIX v22j: persiste historico chat IA
   render();
   // Scroll chat
   setTimeout(function(){ var box = document.getElementById('ia-chat-box'); if(box) box.scrollTop = box.scrollHeight; },50);
@@ -19965,6 +19973,7 @@ function iaCorretorSend() {
 function _iaAddResp(text) {
   if (!S.iaChat) S.iaChat = [];
   S.iaChat.push({role:'assistant', text:text});
+  saveState(); // FIX v22j: persiste resposta IA
   render();
   setTimeout(function(){ var box = document.getElementById('ia-chat-box'); if(box) box.scrollTop = box.scrollHeight; var ld = document.getElementById('ia-loading'); if(ld) ld.style.display='none'; },50);
 }
@@ -20773,6 +20782,7 @@ INSTRUÇÕES: Seja direta, prática e motivadora. Use os dados reais. Máximo 28
       : '⚠️ Erro: ' + e.message;
     S.veraHist.push({role:'assistant', content:errMsg});
   }
+  saveState(); // FIX v22j: persiste historico Sr. Performance entre reloads/devices
   S.veraLoading = false; render();
   setTimeout(() => { const el=document.getElementById('vera-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
 }
@@ -23039,7 +23049,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22i</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22j</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
