@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.19-v22 — Funil TV slice Novo Atend + IBC neutro + PSM Live all pages + cenas espaço otim. (Metas/Vol/Alert/Proj/OO) + v21/v20 -->
+<!-- PSM-OS v2026.04.19-v22b — FIX canAccess: PSM Live/Locacoes/GP agora aparecem no menu + v22 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.19-v22">
+<meta name="version" content="2026.04.19-v22b">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -22270,9 +22270,15 @@ var PAGES_MARKETING=['metaads','sim_criativos','sim_leads','metricas_viab','cron
 // Financeiro: socios + mariane
 var PAGES_FINANCEIRO=['fluxocaixa','dre','comissoes','repasses','custos_fixos','metricas_fin'];
 // Diretoria: apenas socios
-var PAGES_DIRETORIA=['forecast','kpis','metas','governance','equipe','dashboard'];
+var PAGES_DIRETORIA=['forecast','kpis','metas','governance','equipe','dashboard','recados_diretoria','psm_live','organograma','radar_conc'];
 // Intelligence: apenas socios
 var PAGES_INTELLIGENCE=['radar','benchmark','inteldash'];
+// PSM Locacoes: socios + gestores
+var PAGES_LOCACOES=['loc_dashboard','loc_projecoes','loc_viabilidade','loc_contratos_ativos','loc_contratos_vencer','loc_seguros_fianca'];
+// Gestao de Pessoas: socios + gestores
+var PAGES_GP=['gp_treinamentos','gp_reunioes','gp_talentos'];
+// Agentes PSM: todos
+var PAGES_AGENTES=['agente_vera','agente_sol','sr_performance','sr_gerencia','vera'];
 // Config (socios only)
 var PAGES_CONFIG=['rdconfig','config','vendas'];
 
@@ -22298,6 +22304,12 @@ function canAccess(p){
   if(PAGES_DIRETORIA.indexOf(p)!==-1)return isUserSocio();
   // Intelligence: apenas socios
   if(PAGES_INTELLIGENCE.indexOf(p)!==-1)return isUserSocio();
+  // PSM Locacoes: socios + gestores + corretores locacao
+  if(PAGES_LOCACOES.indexOf(p)!==-1)return isUserSocio()||isGestorOrSocio()||getPerfil()==='corretor';
+  // Gestao de Pessoas: socios + gestores
+  if(PAGES_GP.indexOf(p)!==-1)return isUserSocio()||isGestorOrSocio();
+  // Agentes PSM: todos logados
+  if(PAGES_AGENTES.indexOf(p)!==-1)return true;
   // Config: socios only
   if(PAGES_CONFIG.indexOf(p)!==-1)return isUserSocio();
   // Legacy/fallback
@@ -22426,7 +22438,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22b</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
