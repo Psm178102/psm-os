@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.19-v22e — Permissoes refinadas + marquee rapido + scenes RankingCRM/Lancamentos + midia em Recados/PSM Live -->
+<!-- PSM-OS v2026.04.20-v22h — Persistencia abrangente: arrays merge by-id local-wins + DEEP merge METAS + sync 23 chaves localStorage isoladas via monkey-patch -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.19-v22e">
+<meta name="version" content="2026.04.20-v22h">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1871,6 +1871,57 @@ var SYNC_KEYS = [
 // Global config keys that also need sync
 var SYNC_GLOBAL_KEYS = ['metasConfig','metasEquipe','teamConfig'];
 
+// FIX v22h: chaves localStorage isoladas (nao em S.*) que tambem sincronizam via Firebase
+// Sao 23 sub-sistemas que gravavam direto em localStorage sem passar por saveState/fbPushState.
+var SYNC_LS_KEYS = [
+  'psm_meta_global','psm_meta_equipe',
+  'psm_captacao','psm_fluxo_captacoes','psm_tarefas_psm',
+  'psm_fluxocaixa','psm_dre','psm_comissoes','psm_repasses','psm_metricas_fin',
+  'psm_radar_data','psm_radar_ads','psm_radar_ai_result','psm_sim_criativo','psm_tendencias',
+  'psm_integrations','psm_user_roles','psm_vendas_manuais',
+  'psm_gi_brands','psm_gi_okey','psm_gi_gkey',
+  'psm_ma_budgets','psm_ma_cpl','psm_ma_sales'
+];
+
+// Monkey-patch localStorage.setItem para auto-sincronizar SYNC_LS_KEYS via Firebase
+// IMPORTANTE: deve rodar UMA UNICA vez. Idempotente via flag.
+// Originais expostos em window._lsRawSet/_lsRawDel para uso interno (evita loop)
+(function patchLocalStorageForSync(){
+  if (window._psmLsPatched) return;
+  window._psmLsPatched = true;
+  var _origSetItem = Storage.prototype.setItem;
+  var _origRemoveItem = Storage.prototype.removeItem;
+  window._lsRawSet = function(k,v){ _origSetItem.call(localStorage, k, v); };
+  window._lsRawDel = function(k){ _origRemoveItem.call(localStorage, k); };
+  Storage.prototype.setItem = function(k, v) {
+    _origSetItem.call(this, k, v);
+    if (this === localStorage && SYNC_LS_KEYS.indexOf(k) !== -1) {
+      try { if (typeof fbPushState === 'function' && _fbReady) fbPushState(); } catch(e){}
+    }
+  };
+  Storage.prototype.removeItem = function(k) {
+    _origRemoveItem.call(this, k);
+    if (this === localStorage && SYNC_LS_KEYS.indexOf(k) !== -1) {
+      try { if (typeof fbPushState === 'function' && _fbReady) fbPushState(); } catch(e){}
+    }
+  };
+})();
+
+// Helper: deep merge — preserva estrutura aninhada ao receber update parcial do Firebase
+function _psmDeepMerge(target, source){
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return source;
+  if (!target || typeof target !== 'object' || Array.isArray(target)) target = {};
+  Object.keys(source).forEach(function(k){
+    if (source[k] && typeof source[k] === 'object' && !Array.isArray(source[k])
+        && target[k] && typeof target[k] === 'object' && !Array.isArray(target[k])) {
+      target[k] = _psmDeepMerge(target[k], source[k]);
+    } else {
+      target[k] = source[k];
+    }
+  });
+  return target;
+}
+
 var _fbApp = null;
 var _fbDb = null;
 var _fbReady = false;
@@ -1935,37 +1986,71 @@ function fbInit() {
         return;
       }
       // PROTECAO: se salvamos localmente mais recente que o Firebase, nao sobrescreve
+      // FIX v22g: removido !_fbFirstLoad — protecao DEVE rodar tambem no first load,
+      // pois e exatamente quando edicoes nao-pushadas (debounce/abafechada) seriam perdidas.
       var localSavedAt = 0;
       try { var _ls = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); localSavedAt = _ls.savedAt || 0; } catch(e){}
-      if (localSavedAt > (data._lastUpdate||0) && !_fbFirstLoad) {
+      if (localSavedAt > (data._lastUpdate||0)) {
         console.log('[PSM-Sync] Dados locais mais recentes ('+new Date(localSavedAt).toLocaleTimeString()+') que Firebase ('+new Date(data._lastUpdate||0).toLocaleTimeString()+'), ignorando. Push pendente fara o sync.');
+        // FIX v22g: dispara push imediato para sincronizar Firebase com local mais recente
+        if (_fbFirstLoad) {
+          _fbFirstLoad = false;
+          setTimeout(function(){ if (typeof fbPushState==='function') fbPushState(true); }, 500);
+        }
         return;
       }
       console.log('[PSM-Sync] Dados remotos de:', data._updatedBy||'?');
+      // Chaves de mapa (objeto bid→valor) que precisam merge per-key para nao perder edicoes locais recentes
+      var OBJ_MERGE_KEYS = {ooSheetLinks:1,ooSheetCache:1,ooSheetAbandoned:1,ooMetas:1,ooFunnelPct:1,ooFunilCustom:1,ooLateralCustom:1,ooMetaLanc:1,ooMetaVgvMes:1,ooObjetivo:1,ooObjetivoPessoal:1,ooRotina:1,ooDatas:1,ooObjSemana:1,ooObjMes:1,ooPontosAtencao:1,ooFechamento:1,ooDiscCustom:1,ooReunioes:1,sonhos:1,metaIndiv:1,comissoes:1,agendaConfig:1,lancMetas:1};
       // Aplica dados no state — MERGE arrays ao inves de sobrescrever cegamente
       SYNC_KEYS.forEach(function(k) {
         if (data[k] === undefined) return;
-        // Para arrays com IDs (oportunidades, premiacoes, etc): merge por ID
+        // FIX v22h: arrays com IDs — merge per-id preferindo versao com _updatedAt mais novo (default: LOCAL)
         if (Array.isArray(data[k]) && Array.isArray(S[k]) && S[k].length > 0 && data[k].length > 0 && S[k][0] && S[k][0].id) {
-          var merged = data[k].slice(); // start with remote
-          S[k].forEach(function(local) {
-            if (local.id && !merged.find(function(r){ return r.id === local.id; })) {
-              merged.push(local); // add local items not in remote
+          var byId = {};
+          var order = [];
+          data[k].forEach(function(r){ if(r&&r.id){ byId[r.id]=r; order.push(r.id); } });
+          S[k].forEach(function(local){
+            if (!local || !local.id) return;
+            var remote = byId[local.id];
+            if (!remote) {
+              byId[local.id] = local; order.push(local.id);
+            } else {
+              var lt = local._updatedAt || 0, rt = remote._updatedAt || 0;
+              // Empate ou local mais novo -> preserva LOCAL (protege edicoes nao pushadas)
+              if (lt >= rt) byId[local.id] = local;
             }
           });
-          S[k] = merged;
+          // dedupe order
+          var seen = {}; var ordered = [];
+          order.forEach(function(id){ if(!seen[id]){ seen[id]=1; ordered.push(byId[id]); } });
+          S[k] = ordered;
+        } else if (OBJ_MERGE_KEYS[k] && data[k] && typeof data[k] === 'object' && !Array.isArray(data[k])) {
+          // FIX v22f: para mapas tipo {bid: valor}, merge per-key preservando entradas locais
+          var localObj = (S[k] && typeof S[k]==='object' && !Array.isArray(S[k])) ? S[k] : {};
+          var mergedObj = Object.assign({}, localObj);
+          Object.keys(data[k]).forEach(function(bid){ mergedObj[bid] = data[k][bid]; });
+          S[k] = mergedObj;
         } else {
           S[k] = data[k];
         }
       });
-      if (data.metasConfig) Object.assign(METAS_CONFIG, data.metasConfig);
-      if (data.metasEquipe) {
-        for (var fk in data.metasEquipe) {
-          if (METAS_EQUIPE[fk]) Object.assign(METAS_EQUIPE[fk], data.metasEquipe[fk]);
-          else METAS_EQUIPE[fk] = data.metasEquipe[fk];
-        }
+      // FIX v22h: METAS_CONFIG/METAS_EQUIPE/TEAM_CONFIG agora usam DEEP merge, nao Object.assign top-level
+      if (data.metasConfig) _psmDeepMerge(METAS_CONFIG, data.metasConfig);
+      if (data.metasEquipe) _psmDeepMerge(METAS_EQUIPE, data.metasEquipe);
+      if (data.teamConfig)  _psmDeepMerge(TEAM_CONFIG, data.teamConfig);
+      // FIX v22h: aplica chaves localStorage isoladas vindas do Firebase (radar, fluxo, dre, etc.)
+      if (data._lsKeys && typeof data._lsKeys === 'object') {
+        Object.keys(data._lsKeys).forEach(function(lsKey){
+          if (SYNC_LS_KEYS.indexOf(lsKey) === -1) return;
+          try {
+            var val = data._lsKeys[lsKey];
+            // Usa raw setters/removers para evitar loop com fbPushState
+            if (val == null || val === '') (window._lsRawDel||localStorage.removeItem.bind(localStorage))(lsKey);
+            else (window._lsRawSet||localStorage.setItem.bind(localStorage))(lsKey, val);
+          } catch(e){ console.warn('[PSM-Sync] _lsKey '+lsKey+':', e); }
+        });
       }
-      if (data.teamConfig) Object.assign(TEAM_CONFIG, data.teamConfig);
       // SALVA LOCAL SEM REENVIAR PRO FIREBASE (skipFbPush=true) — CORRIGE O LOOP
       saveState(true);
       // Debounce render: protege edicao do usuario
@@ -2124,14 +2209,16 @@ function _fbScheduleAutoBackup() {
   }, 6*3600*1000);
 }
 
-function fbPushState() {
+// FIX v22g: armazena ultimo "run" para flush sincrono no beforeunload/pagehide
+var _fbPendingRun = null;
+function fbPushState(immediate) {
   if (!_fbReady || !_fbDb) return;
   // SINALIZA IMEDIATAMENTE que temos push pendente (protege contra onValue sobrescrever)
   _fbSyncing = true;
   S._localPushPending = Date.now();
-  // Debounce: max 1 push per 5 seconds
   if (_fbDebounceTimer) clearTimeout(_fbDebounceTimer);
-  _fbDebounceTimer = setTimeout(function() {
+  var run = function() {
+    _fbPendingRun = null;
     var shared = {};
     SYNC_KEYS.forEach(function(k) {
       shared[k] = S[k] !== undefined ? S[k] : (Array.isArray(S[k]) ? [] : {});
@@ -2139,18 +2226,48 @@ function fbPushState() {
     shared.metasConfig = METAS_CONFIG || {};
     shared.metasEquipe = METAS_EQUIPE || {};
     shared.teamConfig = TEAM_CONFIG || {};
+    // FIX v22h: snapshot das 23 chaves localStorage isoladas (radar, fluxo, dre, integrations, ma_*, gi_*)
+    shared._lsKeys = {};
+    SYNC_LS_KEYS.forEach(function(lsKey){
+      try { var v = localStorage.getItem(lsKey); if (v != null) shared._lsKeys[lsKey] = v; } catch(e){}
+    });
     shared._lastUpdate = Date.now();
     shared._updatedBy = S.user ? S.user.id : 'unknown';
     _fbDb.ref('shared').set(shared).then(function() {
       _fbSyncing = false;
       _fbLastPush = Date.now();
-      console.log('[PSM-Sync] Push OK');
+      console.log('[PSM-Sync] Push OK' + (immediate?' (immediate)':''));
     }).catch(function(e) {
       _fbSyncing = false;
       console.error('[PSM-Sync] Push error:', e);
     });
-  }, 5000);
+  };
+  _fbPendingRun = run;
+  // FIX v22g: debounce reduzido de 5000ms -> 1500ms (perde menos edicoes em crash)
+  if (immediate) { run(); }
+  else { _fbDebounceTimer = setTimeout(run, 1500); }
 }
+
+// FIX v22g: flush sincrono no fechamento da aba/navegacao
+// Garante que push pendente vai para Firebase mesmo se aba fecha antes do debounce
+(function setupBeforeUnloadFlush(){
+  function flushPending(){
+    if (_fbPendingRun) {
+      try {
+        if (_fbDebounceTimer) { clearTimeout(_fbDebounceTimer); _fbDebounceTimer = null; }
+        var fn = _fbPendingRun;
+        _fbPendingRun = null;
+        fn(); // dispara push imediato (Firebase set retorna Promise mas browser tenta concluir)
+        console.log('[PSM-Sync] Flush no unload disparado');
+      } catch(e) { console.warn('[PSM-Sync] Flush erro:', e); }
+    }
+  }
+  window.addEventListener('beforeunload', flushPending);
+  window.addEventListener('pagehide', flushPending);
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'hidden') flushPending();
+  });
+})();
 
 function fbSetupConfig() {
   var current = fbGetConfig();
@@ -13131,7 +13248,11 @@ function ooEditSheet(bid, name) {
     delete S.ooSheetLinks[bid];
     toast('Link removido para ' + name + ' (voltará ao padrão se houver)', 'ok');
   }
-  saveState();
+  // FIX v22f: skipFbPush=true no saveState pra evitar push debounced redundante
+  // e logo apos disparamos push IMEDIATO (sem 5s debounce) para garantir persistencia
+  // mesmo se usuario fizer refresh rapido.
+  saveState(true);
+  if (typeof fbPushState === 'function' && _fbReady) fbPushState(true);
   render();
 }
 
@@ -22879,7 +23000,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22e</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22h</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
