@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.20-v22h — Persistencia abrangente: arrays merge by-id local-wins + DEEP merge METAS + sync 23 chaves localStorage isoladas via monkey-patch -->
+<!-- PSM-OS v2026.04.20-v22i — Hardening pos-auditoria: typo psm_vendas_manuais, timelineItems em SYNC_KEYS, try/catch + circuit-breaker em fbPushState, ooAuditLog concat-dedupe, +6 chaves LS orfas -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.20-v22h">
+<meta name="version" content="2026.04.20-v22i">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1846,7 +1846,7 @@ function loadState() {
     if (d.showInativos) S.showInativos = d.showInativos;
     // Restore manual vendas (legacy)
     try {
-      const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manual') || '[]');
+      const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manuais') || '[]');
       savedVendas.forEach(v => {
         if (!VENDAS.find(x => x.rdId === v.rdId)) VENDAS.push(v);
       });
@@ -1866,13 +1866,15 @@ var SYNC_KEYS = [
   'tickerMsgs','canalAnonimo','sonhos',
   'metaIndiv','comissaoPct','lancTimeline','lancMetas',
   'premiacoes','comissoes','vendasManuais','oportunidadesPSM','opCorretorList',
-  'opEventos','opTreinamentos','agendaReunioes','agendaConfig','agendaCaptConteudo','agendaCaptImovel','fcData'
+  'opEventos','opTreinamentos','agendaReunioes','agendaConfig','agendaCaptConteudo','agendaCaptImovel','fcData',
+  'timelineItems' // FIX v22i: PSM Live timeline (feed) tambem precisa sync multi-device
 ];
 // Global config keys that also need sync
 var SYNC_GLOBAL_KEYS = ['metasConfig','metasEquipe','teamConfig'];
 
-// FIX v22h: chaves localStorage isoladas (nao em S.*) que tambem sincronizam via Firebase
-// Sao 23 sub-sistemas que gravavam direto em localStorage sem passar por saveState/fbPushState.
+// FIX v22h+v22i: chaves localStorage isoladas (nao em S.*) que tambem sincronizam via Firebase
+// Sub-sistemas que gravavam direto em localStorage sem passar por saveState/fbPushState.
+// Nota: NAO incluir psm_senhas (segredo), psm_audit_log (cresce demais), psm_backup_critical (auto-backup duplo)
 var SYNC_LS_KEYS = [
   'psm_meta_global','psm_meta_equipe',
   'psm_captacao','psm_fluxo_captacoes','psm_tarefas_psm',
@@ -1880,7 +1882,10 @@ var SYNC_LS_KEYS = [
   'psm_radar_data','psm_radar_ads','psm_radar_ai_result','psm_sim_criativo','psm_tendencias',
   'psm_integrations','psm_user_roles','psm_vendas_manuais',
   'psm_gi_brands','psm_gi_okey','psm_gi_gkey',
-  'psm_ma_budgets','psm_ma_cpl','psm_ma_sales'
+  'psm_ma_budgets','psm_ma_cpl','psm_ma_sales',
+  // FIX v22i: chaves orfas detectadas em auditoria (sub-sistemas adicionais)
+  'psm_radar_patterns','psm_radar_global','psm_ads_data',
+  'psm_meta_indiv','psm_webhook_url','psm_hide_mock'
 ];
 
 // Monkey-patch localStorage.setItem para auto-sincronizar SYNC_LS_KEYS via Firebase
@@ -2005,6 +2010,24 @@ function fbInit() {
       // Aplica dados no state — MERGE arrays ao inves de sobrescrever cegamente
       SYNC_KEYS.forEach(function(k) {
         if (data[k] === undefined) return;
+        // FIX v22i: ooAuditLog — array sem id, merge especial concat+dedupe (preserva log de TODAS abas)
+        if (k === 'ooAuditLog' && Array.isArray(data[k])) {
+          var localLog = Array.isArray(S.ooAuditLog) ? S.ooAuditLog : [];
+          var combined = localLog.concat(data[k]);
+          var seenLog = {};
+          var deduped = [];
+          combined.forEach(function(e){
+            if (!e) return;
+            var key = (e.ts||0)+'|'+(e.actor||'')+'|'+(e.kind||'')+'|'+(e.bid||'')+'|'+(e.field||'');
+            if (seenLog[key]) return;
+            seenLog[key] = 1;
+            deduped.push(e);
+          });
+          deduped.sort(function(a,b){ return (a.ts||0)-(b.ts||0); });
+          if (deduped.length > 5000) deduped = deduped.slice(-5000);
+          S.ooAuditLog = deduped;
+          return;
+        }
         // FIX v22h: arrays com IDs — merge per-id preferindo versao com _updatedAt mais novo (default: LOCAL)
         if (Array.isArray(data[k]) && Array.isArray(S[k]) && S[k].length > 0 && data[k].length > 0 && S[k][0] && S[k][0].id) {
           var byId = {};
@@ -2210,37 +2233,53 @@ function _fbScheduleAutoBackup() {
 }
 
 // FIX v22g: armazena ultimo "run" para flush sincrono no beforeunload/pagehide
+// FIX v22i: circuit-breaker — se _fbSyncing fica preso (set throw / network drop), libera apos 30s
 var _fbPendingRun = null;
+var _fbSyncingTimer = null;
+function _fbReleaseSyncing(reason){
+  _fbSyncing = false;
+  if (_fbSyncingTimer) { clearTimeout(_fbSyncingTimer); _fbSyncingTimer = null; }
+  if (reason) console.log('[PSM-Sync] _fbSyncing liberado:', reason);
+}
 function fbPushState(immediate) {
   if (!_fbReady || !_fbDb) return;
   // SINALIZA IMEDIATAMENTE que temos push pendente (protege contra onValue sobrescrever)
   _fbSyncing = true;
+  // FIX v22i: circuit-breaker 30s — se push trava, nao bloqueia onValue indefinidamente
+  if (_fbSyncingTimer) clearTimeout(_fbSyncingTimer);
+  _fbSyncingTimer = setTimeout(function(){ _fbReleaseSyncing('timeout 30s'); }, 30000);
   S._localPushPending = Date.now();
   if (_fbDebounceTimer) clearTimeout(_fbDebounceTimer);
   var run = function() {
     _fbPendingRun = null;
-    var shared = {};
-    SYNC_KEYS.forEach(function(k) {
-      shared[k] = S[k] !== undefined ? S[k] : (Array.isArray(S[k]) ? [] : {});
-    });
-    shared.metasConfig = METAS_CONFIG || {};
-    shared.metasEquipe = METAS_EQUIPE || {};
-    shared.teamConfig = TEAM_CONFIG || {};
-    // FIX v22h: snapshot das 23 chaves localStorage isoladas (radar, fluxo, dre, integrations, ma_*, gi_*)
-    shared._lsKeys = {};
-    SYNC_LS_KEYS.forEach(function(lsKey){
-      try { var v = localStorage.getItem(lsKey); if (v != null) shared._lsKeys[lsKey] = v; } catch(e){}
-    });
-    shared._lastUpdate = Date.now();
-    shared._updatedBy = S.user ? S.user.id : 'unknown';
-    _fbDb.ref('shared').set(shared).then(function() {
-      _fbSyncing = false;
-      _fbLastPush = Date.now();
-      console.log('[PSM-Sync] Push OK' + (immediate?' (immediate)':''));
-    }).catch(function(e) {
-      _fbSyncing = false;
-      console.error('[PSM-Sync] Push error:', e);
-    });
+    try {
+      var shared = {};
+      SYNC_KEYS.forEach(function(k) {
+        shared[k] = S[k] !== undefined ? S[k] : (Array.isArray(S[k]) ? [] : {});
+      });
+      shared.metasConfig = METAS_CONFIG || {};
+      shared.metasEquipe = METAS_EQUIPE || {};
+      shared.teamConfig = TEAM_CONFIG || {};
+      // FIX v22h: snapshot das chaves localStorage isoladas (radar, fluxo, dre, integrations, ma_*, gi_*)
+      shared._lsKeys = {};
+      SYNC_LS_KEYS.forEach(function(lsKey){
+        try { var v = localStorage.getItem(lsKey); if (v != null) shared._lsKeys[lsKey] = v; } catch(e){}
+      });
+      shared._lastUpdate = Date.now();
+      shared._updatedBy = S.user ? S.user.id : 'unknown';
+      // FIX v22i: try/catch envolve set() — sync exception nao mais prende _fbSyncing
+      _fbDb.ref('shared').set(shared).then(function() {
+        _fbReleaseSyncing();
+        _fbLastPush = Date.now();
+        console.log('[PSM-Sync] Push OK' + (immediate?' (immediate)':''));
+      }).catch(function(e) {
+        _fbReleaseSyncing('promise rejected');
+        console.error('[PSM-Sync] Push error:', e);
+      });
+    } catch(syncErr){
+      _fbReleaseSyncing('sync exception');
+      console.error('[PSM-Sync] Push sync error:', syncErr);
+    }
   };
   _fbPendingRun = run;
   // FIX v22g: debounce reduzido de 5000ms -> 1500ms (perde menos edicoes em crash)
@@ -10032,9 +10071,9 @@ function salvarVenda() {
     updated_at:f.date, winStatus:'won', rdId:'manual_'+Date.now(), manual:true};
   VENDAS.push(v);
   try {
-    const saved = JSON.parse(localStorage.getItem('psm_vendas_manual') || '[]');
+    const saved = JSON.parse(localStorage.getItem('psm_vendas_manuais') || '[]');
     saved.push(v);
-    localStorage.setItem('psm_vendas_manual', JSON.stringify(saved));
+    localStorage.setItem('psm_vendas_manuais', JSON.stringify(saved));
   } catch(e) {}
   b.vendas = (b.vendas||0) + 1;
   b.vgv_real = (b.vgv_real||0) + f.vgv;
@@ -23000,7 +23039,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22h</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22i</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
