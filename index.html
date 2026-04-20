@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.19-v21 — PSM Live (Diretoria+topo TV) + Funil TV inicia Novo Atend. + Ranking Anual TV + OO×Meta TV + cenas otimizadas + v20 -->
+<!-- PSM-OS v2026.04.19-v22 — Funil TV slice Novo Atend + IBC neutro + PSM Live all pages + cenas espaço otim. (Metas/Vol/Alert/Proj/OO) + v21/v20 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.19-v21">
+<meta name="version" content="2026.04.19-v22">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4242,26 +4242,51 @@ function arenaTV(){
     var pctProjAno = metaAnual>0 ? Math.round(forecastAnual/metaAnual*100) : 0;
     var colMes = pctProjMes>=100?'#22c55e':pctProjMes>=80?'#d4a843':'#ef4444';
     var colAno = pctProjAno>=100?'#22c55e':pctProjAno>=80?'#d4a843':'#ef4444';
+    // v22: Top 5 corretores com maior gap — preenche espaco vazio
+    var BR = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
+    var topGap = BR.filter(function(b){return b.role!=='socio';}).map(function(b){
+      var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : {vgv_real:0,meta:0};
+      var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
+      var g = Math.max(0, (M.meta||0) - (M.vgv_real||0));
+      return {name:disp.name||b.name, ini:disp.ini||_initials(b.name), gap:g, pct:M.atingimento||0, masked:!!disp._masked};
+    }).filter(function(r){return r.gap>0 && !r.masked;}).sort(function(a,b){return b.gap-a.gap;}).slice(0,5);
+    var topHtml = '';
+    if(topGap.length>0){
+      topHtml = '<div style="background:rgba(15,23,42,0.5);border:1px solid rgba(148,163,184,0.15);border-radius:12px;padding:14px;margin-top:14px">'
+        + '<div style="font-size:11px;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Top 5 Gap vs. Meta · Prioridade</div>'
+        + '<div style="display:flex;flex-direction:column;gap:5px">';
+      topGap.forEach(function(r,i){
+        topHtml += '<div style="display:grid;grid-template-columns:24px 28px 1fr auto auto;gap:8px;align-items:center;padding:4px 8px;background:rgba(30,41,59,' + (i%2?0.3:0.5) + ');border-radius:6px">'
+          + '<div style="font-size:11px;font-weight:800;color:#ef4444;text-align:center">' + (i+1) + '</div>'
+          + '<div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#dc2626,#ef4444);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:9px;color:#fff">' + r.ini + '</div>'
+          + '<div style="font-size:11px;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + '</div>'
+          + '<div style="font-size:11px;color:#ef4444;font-weight:800;white-space:nowrap">' + _brFull(r.gap) + '</div>'
+          + '<div style="font-size:10px;color:#94a3b8;min-width:38px;text-align:right">' + r.pct + '%</div>'
+          + '</div>';
+      });
+      topHtml += '</div></div>';
+    }
     return ''
-      + '<div style="width:100%">'
-      +   '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:18px;text-align:center">PROJEÇÕES — Ritmo Atual</div>'
-      +   '<div style="display:grid;grid-template-columns:1fr;gap:14px">'
-      +     '<div style="background:rgba(30,41,59,0.7);border:1px solid rgba(212,168,67,0.25);border-radius:14px;padding:18px">'
-      +       '<div style="font-size:11px;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Projeção Fim do Mês</div>'
-      +       '<div style="font-size:36px;font-weight:900;color:' + colMes + ';line-height:1;margin-bottom:4px">' + _brFull(projMes) + '</div>'
-      +       '<div style="font-size:13px;color:#94a3b8">' + pctProjMes + '% da meta · Meta: ' + _brFull(metaMes) + '</div>'
+      + '<div style="width:100%;height:100%;display:flex;flex-direction:column">'
+      +   '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:14px;text-align:center;flex-shrink:0">PROJEÇÕES — Ritmo Atual</div>'
+      +   '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;flex-shrink:0">'
+      +     '<div style="background:rgba(30,41,59,0.7);border:1px solid rgba(212,168,67,0.25);border-radius:14px;padding:14px">'
+      +       '<div style="font-size:10px;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Fim do Mês</div>'
+      +       '<div style="font-size:26px;font-weight:900;color:' + colMes + ';line-height:1;margin-bottom:4px">' + _brFull(projMes) + '</div>'
+      +       '<div style="font-size:11px;color:#94a3b8">' + pctProjMes + '% · Meta ' + _brFull(metaMes) + '</div>'
       +     '</div>'
-      +     '<div style="background:rgba(30,41,59,0.7);border:1px solid rgba(96,165,250,0.25);border-radius:14px;padding:18px">'
-      +       '<div style="font-size:11px;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Ritmo Necessário/Dia</div>'
-      +       '<div style="font-size:28px;font-weight:900;color:#60a5fa;line-height:1;margin-bottom:4px">' + _brFull(ritmoNecessario) + '</div>'
-      +       '<div style="font-size:13px;color:#94a3b8">Gap: ' + _brFull(gap) + ' em ' + (lastDay-diaAtual) + ' dias</div>'
+      +     '<div style="background:rgba(30,41,59,0.7);border:1px solid rgba(96,165,250,0.25);border-radius:14px;padding:14px">'
+      +       '<div style="font-size:10px;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Ritmo/Dia</div>'
+      +       '<div style="font-size:22px;font-weight:900;color:#60a5fa;line-height:1;margin-bottom:4px">' + _brFull(ritmoNecessario) + '</div>'
+      +       '<div style="font-size:11px;color:#94a3b8">Gap ' + _brFull(gap) + ' · ' + (lastDay-diaAtual) + 'd</div>'
       +     '</div>'
-      +     '<div style="background:rgba(30,41,59,0.7);border:1px solid rgba(34,197,94,0.25);border-radius:14px;padding:18px">'
-      +       '<div style="font-size:11px;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Forecast Anual 12m</div>'
-      +       '<div style="font-size:30px;font-weight:900;color:' + colAno + ';line-height:1;margin-bottom:4px">' + _brFull(forecastAnual) + '</div>'
-      +       '<div style="font-size:13px;color:#94a3b8">' + pctProjAno + '% da meta anual · Realizado: ' + _brFull(vgvAnual) + '</div>'
+      +     '<div style="background:rgba(30,41,59,0.7);border:1px solid rgba(34,197,94,0.25);border-radius:14px;padding:14px">'
+      +       '<div style="font-size:10px;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Forecast Anual</div>'
+      +       '<div style="font-size:24px;font-weight:900;color:' + colAno + ';line-height:1;margin-bottom:4px">' + _brFull(forecastAnual) + '</div>'
+      +       '<div style="font-size:11px;color:#94a3b8">' + pctProjAno + '% · Real ' + _brFull(vgvAnual) + '</div>'
       +     '</div>'
       +   '</div>'
+      +   topHtml
       + '</div>';
   }
 
@@ -4302,7 +4327,29 @@ function arenaTV(){
     var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column">'
       + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:14px;text-align:center;flex-shrink:0">ALERTAS — Ação Imediata · '+mNames[_curM]+'/'+_curY+'</div>';
     if(alertas.length === 0){
-      html += '<div style="text-align:center;padding:60px;color:#22c55e;font-size:24px;font-weight:700;flex:1">✓ Nenhum alerta crítico</div>';
+      // v22: 0 alertas — ocupa espaco com resumo saude + top3 pontuais
+      var top3H = BR.filter(function(b){return b.role!=='socio';}).map(function(b){
+        var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : {vgv_real:0,atingimento:0,vendas:0};
+        var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
+        return {name:disp.name,ini:disp.ini||_initials(b.name),vgv:M.vgv_real,pct:M.atingimento,vendas:M.vendas,masked:!!disp._masked};
+      }).filter(function(r){return r.vgv>0&&!r.masked;}).sort(function(a,b){return b.vgv-a.vgv;}).slice(0,3);
+      html += '<div style="flex:1;display:flex;flex-direction:column;gap:14px">'
+        + '<div style="text-align:center;padding:30px 20px;color:#22c55e;font-size:22px;font-weight:700;background:rgba(34,197,94,0.08);border-radius:12px;flex-shrink:0">✓ Ritmo saudável — sem alertas críticos</div>';
+      if(top3H.length>0){
+        html += '<div style="font-size:10px;color:#64748b;letter-spacing:3px;text-transform:uppercase;margin-bottom:4px">Destaques do Mês</div>'
+          + '<div style="display:flex;flex-direction:column;gap:6px;flex:1">';
+        var medals=['🥇','🥈','🥉'];
+        top3H.forEach(function(r,i){
+          html += '<div style="display:grid;grid-template-columns:38px 1fr auto auto;gap:10px;align-items:center;padding:10px 14px;background:rgba(251,191,36,0.08);border-left:3px solid #fbbf24;border-radius:8px">'
+            + '<div style="font-size:22px;text-align:center">' + medals[i] + '</div>'
+            + '<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + '</div>'
+            +   '<div style="font-size:10px;color:#94a3b8;margin-top:1px">' + r.vendas + ' vendas · ' + (r.pct||0) + '% da meta</div></div>'
+            + '<div style="font-size:14px;font-weight:800;color:#fbbf24;white-space:nowrap">' + _brFull(r.vgv) + '</div>'
+            + '<div></div></div>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
     } else {
       html += '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:6px">';
       alertas.forEach(function(a){
@@ -4500,9 +4547,10 @@ function arenaTV(){
   function sceneFunilCRM(){
     function _funilData(frenteFilter){
       // frenteFilter: 'all' = MAP+Conquista (sem terceiros), 'lancamento', 'conquista'
-      // v21: TV funil inicia em NOVO ATENDIMENTO — ignora 'carteira' e etapas pre-atendimento
+      // v22: TV funil INICIA em NOVO ATENDIMENTO — corta tudo que vem antes (carteira, precisa_im etc)
       var _rawStages = FUNIS['lancamento'] || [];
-      var stages = _rawStages.filter(function(s){ return s.id !== 'carteira'; });
+      var _ixNovo = _rawStages.findIndex(function(s){ return s.id === 'novo_atend'; });
+      var stages = _ixNovo >= 0 ? _rawStages.slice(_ixNovo) : _rawStages.filter(function(s){ return s.id !== 'carteira'; });
       var brokersAceitos = BROKERS_ALL.filter(function(b){
         if(b.role === 'socio') return false;
         if(frenteFilter === 'all') return b.frente === 'lancamento' || b.frente === 'conquista';
@@ -4606,8 +4654,27 @@ function arenaTV(){
       return '<td style="text-align:right;font-size:10px;padding:3px 6px;white-space:nowrap"><span style="color:' + col + ';font-weight:700">' + _brFull(real) + '</span><div style="font-size:9px;color:#64748b">' + _brFull(meta) + '</div></td>';
     }
 
+    // v22: Totais consolidados pra ocupar espaco e dar visao agregada
+    var tot = rows.reduce(function(a,r){
+      return {
+        vgv_meta:a.vgv_meta+r.vgv_meta, vgv_real:a.vgv_real+r.vgv_real,
+        vis_meta:a.vis_meta+r.vis_meta, vis_real:a.vis_real+r.vis_real,
+        capt_meta:a.capt_meta+r.capt_meta, capt_real:a.capt_real+r.capt_real,
+        prop_real:a.prop_real+r.prop_real
+      };
+    }, {vgv_meta:0,vgv_real:0,vis_meta:0,vis_real:0,capt_meta:0,capt_real:0,prop_real:0});
+    var pctVgvTot = tot.vgv_meta>0 ? Math.round(tot.vgv_real/tot.vgv_meta*100) : 0;
+    var colVgvTot = pctVgvTot>=100?'#22c55e':pctVgvTot>=70?'#d4a843':pctVgvTot>=40?'#f59e0b':'#ef4444';
+
     var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden">'
-      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:10px;text-align:center;flex-shrink:0">METAS × REALIZADO — Individual</div>'
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:8px;text-align:center;flex-shrink:0">METAS × REALIZADO — Individual · ' + rows.length + ' corretores</div>'
+      // Totais agregados (ocupa espaco vazio no topo)
+      + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;flex-shrink:0">'
+      +   '<div style="background:rgba(30,41,59,0.6);border-left:3px solid ' + colVgvTot + ';border-radius:6px;padding:6px 10px"><div style="font-size:9px;color:#64748b;letter-spacing:2px;text-transform:uppercase">VGV Total</div><div style="font-size:12px;font-weight:800;color:' + colVgvTot + '">' + _brFull(tot.vgv_real) + '</div><div style="font-size:9px;color:#94a3b8">/' + _brFull(tot.vgv_meta) + ' · ' + pctVgvTot + '%</div></div>'
+      +   '<div style="background:rgba(30,41,59,0.6);border-left:3px solid #8b5cf6;border-radius:6px;padding:6px 10px"><div style="font-size:9px;color:#64748b;letter-spacing:2px;text-transform:uppercase">Visitas</div><div style="font-size:14px;font-weight:800;color:#8b5cf6">' + tot.vis_real + '</div><div style="font-size:9px;color:#94a3b8">/ ' + tot.vis_meta + ' · ' + (tot.vis_meta>0?Math.round(tot.vis_real/tot.vis_meta*100):0) + '%</div></div>'
+      +   '<div style="background:rgba(30,41,59,0.6);border-left:3px solid #06b6d4;border-radius:6px;padding:6px 10px"><div style="font-size:9px;color:#64748b;letter-spacing:2px;text-transform:uppercase">Captações</div><div style="font-size:14px;font-weight:800;color:#06b6d4">' + tot.capt_real + '</div><div style="font-size:9px;color:#94a3b8">/ ' + tot.capt_meta + ' · ' + (tot.capt_meta>0?Math.round(tot.capt_real/tot.capt_meta*100):0) + '%</div></div>'
+      +   '<div style="background:rgba(30,41,59,0.6);border-left:3px solid #60a5fa;border-radius:6px;padding:6px 10px"><div style="font-size:9px;color:#64748b;letter-spacing:2px;text-transform:uppercase">Propostas</div><div style="font-size:14px;font-weight:800;color:#60a5fa">' + tot.prop_real + '</div></div>'
+      + '</div>'
       + '<div style="flex:1;overflow:hidden"><table style="width:100%;border-collapse:collapse;font-size:10px">'
       + '<thead><tr style="color:#64748b;font-size:9px;text-transform:uppercase;letter-spacing:1px">'
       +   '<th style="text-align:left;padding:4px 6px">Corretor</th>'
@@ -4616,6 +4683,9 @@ function arenaTV(){
       +   '<th style="text-align:right;padding:4px 6px">Captações r/m</th>'
       +   '<th style="text-align:right;padding:4px 6px">Propostas</th>'
       + '</tr></thead><tbody>';
+    if(rows.length===0){
+      html += '<tr><td colspan="5" style="padding:40px;text-align:center;color:#64748b">Sem metas individuais configuradas</td></tr>';
+    }
     rows.forEach(function(r,i){
       html += '<tr style="background:rgba(30,41,59,' + (i%2?0.3:0.5) + ')">'
         + '<td style="padding:3px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px"><span style="color:#e2e8f0;font-weight:700;font-size:11px">' + r.name + '</span></td>'
@@ -4659,9 +4729,22 @@ function arenaTV(){
       return '<span style="color:#d4a843;font-weight:800">ideal</span>';
     }
 
+    // v22: agregados para ocupar espaco vazio
+    var totV = rows.reduce(function(a,r){return {iL:a.iL+r.idealLig,rL:a.rL+r.realLig,iV:a.iV+r.idealVis,rV:a.rV+r.realVis};},{iL:0,rL:0,iV:0,rV:0});
+    var diffLig = totV.rL - totV.iL;
+    var diffVis = totV.rV - totV.iV;
+    var colDL = diffLig>=0?'#22c55e':'#ef4444';
+    var colDV = diffVis>=0?'#22c55e':'#ef4444';
+
     var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden">'
-      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:8px;text-align:center;flex-shrink:0">VOLUME — Ritmo Ideal × Real</div>'
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:6px;text-align:center;flex-shrink:0">VOLUME — Ritmo Ideal × Real</div>'
       + '<div style="font-size:10px;color:#94a3b8;text-align:center;margin-bottom:8px;flex-shrink:0">Dia útil ' + workElapsed + '/' + workDays + ' · meta mensal ÷ dias úteis × passados</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;flex-shrink:0">'
+      +   '<div style="background:rgba(30,41,59,0.6);border-left:3px solid #3b82f6;border-radius:6px;padding:6px 10px"><div style="font-size:9px;color:#64748b;letter-spacing:2px;text-transform:uppercase">Ligações</div><div style="font-size:14px;font-weight:800;color:#3b82f6">' + totV.rL + '</div><div style="font-size:9px;color:#94a3b8">/ ' + totV.iL + ' ideal</div></div>'
+      +   '<div style="background:rgba(30,41,59,0.6);border-left:3px solid ' + colDL + ';border-radius:6px;padding:6px 10px"><div style="font-size:9px;color:#64748b;letter-spacing:2px;text-transform:uppercase">Δ Lig</div><div style="font-size:14px;font-weight:800;color:' + colDL + '">' + (diffLig>=0?'+':'') + diffLig + '</div><div style="font-size:9px;color:#94a3b8">' + (diffLig>=0?'excesso':'falta') + '</div></div>'
+      +   '<div style="background:rgba(30,41,59,0.6);border-left:3px solid #8b5cf6;border-radius:6px;padding:6px 10px"><div style="font-size:9px;color:#64748b;letter-spacing:2px;text-transform:uppercase">Visitas</div><div style="font-size:14px;font-weight:800;color:#8b5cf6">' + totV.rV + '</div><div style="font-size:9px;color:#94a3b8">/ ' + totV.iV + ' ideal</div></div>'
+      +   '<div style="background:rgba(30,41,59,0.6);border-left:3px solid ' + colDV + ';border-radius:6px;padding:6px 10px"><div style="font-size:9px;color:#64748b;letter-spacing:2px;text-transform:uppercase">Δ Vis</div><div style="font-size:14px;font-weight:800;color:' + colDV + '">' + (diffVis>=0?'+':'') + diffVis + '</div><div style="font-size:9px;color:#94a3b8">' + (diffVis>=0?'excesso':'falta') + '</div></div>'
+      + '</div>'
       + '<div style="flex:1;overflow:hidden"><table style="width:100%;border-collapse:collapse;font-size:10px">'
       + '<thead><tr style="color:#64748b;font-size:9px;text-transform:uppercase;letter-spacing:1px">'
       +   '<th style="text-align:left;padding:4px 6px">Corretor</th>'
@@ -4718,11 +4801,34 @@ function arenaTV(){
     }
 
     var mNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    // v22: totais agregados no topo
+    var totLig = rows.reduce(function(a,r){return a+r.lig;},0);
+    var totVis = rows.reduce(function(a,r){return a+r.vis;},0);
+    var totProp = rows.reduce(function(a,r){return a+r.prop;},0);
+    var totFup = rows.reduce(function(a,r){return a+r.fup;},0);
+    var totMetaLig = rows.reduce(function(a,r){return a+r.metaLig;},0);
+    var totMetaVis = rows.reduce(function(a,r){return a+r.metaVis;},0);
+    var totMetaProp = rows.reduce(function(a,r){return a+r.metaProp;},0);
+    function _agg(real,meta,col){
+      var pct = meta>0 ? Math.round(real/meta*100) : 0;
+      var pctCol = pct>=100?'#22c55e':pct>=70?'#d4a843':pct>=40?'#f59e0b':'#ef4444';
+      return '<div style="background:rgba(30,41,59,0.6);border-left:3px solid ' + col + ';border-radius:8px;padding:8px 12px">'
+        + '<div style="font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">Total</div>'
+        + '<div style="font-size:20px;font-weight:900;color:' + col + ';line-height:1.1">' + real + (meta>0?'<span style="font-size:12px;color:#64748b">/' + meta + '</span>':'') + '</div>'
+        + (meta>0 ? '<div style="font-size:10px;color:' + pctCol + ';font-weight:700">' + pct + '%</div>' : '')
+        + '</div>';
+    }
     var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden">'
       + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:10px;text-align:center;flex-shrink:0">ONE ON ONE — Métricas × Meta · '+mNames[_now.getMonth()]+'</div>';
     if(rows.length === 0){
       html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:16px;flex:1">Sem registros One on One no período</div>';
     } else {
+      html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;flex-shrink:0">'
+        + _agg(totLig, totMetaLig, '#3b82f6')
+        + _agg(totVis, totMetaVis, '#8b5cf6')
+        + _agg(totProp, totMetaProp, '#dc2626')
+        + '<div style="background:rgba(30,41,59,0.6);border-left:3px solid #f59e0b;border-radius:8px;padding:8px 12px"><div style="font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">F.up</div><div style="font-size:20px;font-weight:900;color:#f59e0b;line-height:1.1">' + totFup + '</div></div>'
+        + '</div>';
       html += '<div style="flex:1;overflow:hidden"><table style="width:100%;border-collapse:collapse;font-size:11px">'
         + '<thead><tr style="color:#64748b;font-size:9px;text-transform:uppercase;letter-spacing:1px">'
         +   '<th style="text-align:left;padding:4px 6px">#</th>'
@@ -12659,6 +12765,8 @@ function renderPerfilCompTab(bid, user, lvl){
   h += '<div style="height:6px;background:var(--cream3);border-radius:3px;margin-top:6px"><div style="width:'+(respondidas/25*100).toFixed(1)+'%;height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:3px;transition:width .3s"></div></div></div>';
   h += '</div></div>';
 
+  // v22: durante resposta NAO revela perfil (sem icone/cor do IBC) — so check neutro
+  //      resultado (icones + %) so aparece apos finalizar
   PERFIL_COMP_QUESTOES.forEach(function(q, idx){
     var selected = draft[idx];
     h += '<div class="card mb2" style="border-left:4px solid '+(selected?'#10b981':'#cbd5e1')+'">';
@@ -12666,9 +12774,13 @@ function renderPerfilCompTab(bid, user, lvl){
     h += '<div style="display:flex;flex-direction:column;gap:6px">';
     q.opts.forEach(function(o){
       var sel = selected === o.l;
-      var p = PERFIL_COMP_PERFIS[o.l];
-      h += '<label style="display:flex;align-items:center;gap:10px;padding:10px;background:'+(sel?p.cor+'20':'var(--cream2)')+';border:1px solid '+(sel?p.cor:'transparent')+';border-radius:8px;cursor:pointer;transition:all .15s" onclick="perfilCompSelecionar('+idx+',\''+o.l+'\')">';
-      h += '<span style="font-size:18px">'+(sel?p.ico:'○')+'</span>';
+      // Cores neutras — nao denunciam o perfil (nao usar PERFIL_COMP_PERFIS.cor/ico)
+      var bg  = sel ? 'rgba(16,185,129,0.10)' : 'var(--cream2)';
+      var bd  = sel ? '#10b981' : 'transparent';
+      var mark= sel ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#10b981;color:#fff;font-size:12px;font-weight:900">\u2713</span>'
+                    : '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:2px solid #cbd5e1"></span>';
+      h += '<label style="display:flex;align-items:center;gap:10px;padding:10px;background:'+bg+';border:1px solid '+bd+';border-radius:8px;cursor:pointer;transition:all .15s" onclick="perfilCompSelecionar('+idx+',\''+o.l+'\')">';
+      h += mark;
       h += '<span style="flex:1;font-size:13px;color:var(--navy)">'+o.t+'</span>';
       h += '</label>';
     });
@@ -22314,7 +22426,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v21</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -22330,8 +22442,9 @@ function renderSB() {
 // ─── TOPBAR ───────────────────────────────────────────────────────────────────
 // ═══ v17: TIMELINE GLOBAL (barra de eventos/recados/premiações/oportunidades) ═══
 function renderGlobalTimeline(){
-  // Não exibe em modos TV (war/arena/dashboard exec)
-  if(document.getElementById('warTvOv') || document.getElementById('dashExecTvOv') || document.getElementById('arenaTvOv')) return '';
+  // Não exibe em modos TV (war/arena/dashboard exec) — v22: IDs corretos
+  if(document.getElementById('warTvOv') || document.getElementById('dashExecTvOv') ||
+     document.getElementById('arenaTvOv') || document.getElementById('arena-tv-overlay')) return '';
   if(!S.user) return '';
   if(!S.timelineItems){
     S.timelineItems = [
