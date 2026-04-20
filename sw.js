@@ -5,7 +5,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const CACHE_VERSION = 'psm-os-v21-2026-04-19';
+const CACHE_VERSION = 'psm-os-v21b-2026-04-19';
 const HTML_CACHE    = CACHE_VERSION + '-html';
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
@@ -13,6 +13,13 @@ const ASSET_CACHE   = CACHE_VERSION + '-assets';
 const PRECACHE = [
   '/',
   '/index.html',
+  '/manifest.json',
+  '/favicon.ico',
+  '/favicon-16.png',
+  '/favicon-32.png',
+  '/apple-touch-icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
   '/logo-psm-navy.png'
 ];
 
