@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.19-v22d — Timeline TV mes vigente + metricas expandidas + @Instagram Talentos + seed 74 -->
+<!-- PSM-OS v2026.04.19-v22e — Permissoes refinadas + marquee rapido + scenes RankingCRM/Lancamentos + midia em Recados/PSM Live -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.19-v22d">
+<meta name="version" content="2026.04.19-v22e">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -917,6 +917,7 @@ const USERS_BASE=[
   // Usuários RD extras (sem login no sistema, mas têm deals ativos)
   {id:'leire',name:'Leire',ini:'LE',color:'#475569',role:'backoffice',frente:null,email:'leire@imobiliariapsm.com.br',rdId:''},
   {id:'mariane',name:'Mariane',ini:'MA',color:'#475569',role:'backoffice',frente:null,email:'mariane@imobiliariapsm.com.br',rdId:''},
+  {id:'marcos_anderson',name:'Marcos Anderson',ini:'MN',color:'#d4a843',role:'socio',frente:null,email:'marcos@imobiliariapsm.com.br',rdId:''},
   {id:'guilherme',name:'Guilherme',ini:'GU',color:'#0ea5e9',role:'marketing',frente:null,email:'guilherme@imobiliariapsm.com.br',rdId:''},
   {id:'gestor_trafego',name:'Gestor de Trafego',ini:'GT',color:'#0ea5e9',role:'marketing',frente:null,email:'trafego@imobiliariapsm.com.br',rdId:''}
 ];
@@ -4421,7 +4422,7 @@ function arenaTV(){
       (S.timelineItems||[]).forEach(function(it){
         if(it.exp && it.exp<now) return;
         var corMap = {evento:'#d4a843', recado:'#3b82f6', premiacao:'#22c55e', oportunidade:'#a855f7', urgente:'#ef4444'};
-        items.push({ts:it.dt||now, type:it.tipo||'recado', icon:it.ico||'✨', title:(it.txt||'').slice(0,90), sub:'PSM Live', val:'', col:corMap[it.tipo]||'#d4a843'});
+        items.push({ts:it.dt||now, type:it.tipo||'recado', icon:it.ico||'✨', title:(it.txt||'').slice(0,90), sub:'PSM Live', val:'', col:corMap[it.tipo]||'#d4a843', media:it.media||null});
       });
     }catch(e){}
 
@@ -4431,7 +4432,7 @@ function arenaTV(){
         if(r.exp && r.exp<now) return;
         var icoMap = {urgente:'🚨', info:'📢', parabens:'🎉', geral:'💬'};
         var colMap = {urgente:'#ef4444', info:'#3b82f6', parabens:'#22c55e', geral:'#94a3b8'};
-        items.push({ts:r.dt||now, type:'recado', icon:icoMap[r.tipo]||'📢', title:(r.msg||'').slice(0,90), sub:'['+(r.autorNome||'DIRETORIA').toUpperCase()+']', val:'', col:colMap[r.tipo]||'#3b82f6'});
+        items.push({ts:r.dt||now, type:'recado', icon:icoMap[r.tipo]||'📢', title:(r.msg||'').slice(0,90), sub:'['+(r.autorNome||'DIRETORIA').toUpperCase()+']', val:'', col:colMap[r.tipo]||'#3b82f6', media:r.media||null});
       });
     }catch(e){}
 
@@ -4561,12 +4562,20 @@ function arenaTV(){
       + '<div id="tv-tl-scroll" style="overflow:hidden;position:relative;height:calc(100% - 44px)">'
       +   '<div id="tv-tl-track" style="display:flex;flex-direction:column;gap:8px">';
     items.forEach(function(it){
-      html += '<div style="display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;padding:10px 12px;background:rgba(30,41,59,0.5);border-left:3px solid ' + it.col + ';border-radius:8px">'
-        + '<div style="font-size:20px;text-align:center">' + it.icon + '</div>'
-        + '<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + it.title + '</div>'
-        +   (it.sub ? '<div style="font-size:11px;color:#94a3b8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + it.sub + '</div>' : '')
+      var mediaHtml = '';
+      if(it.media && it.media.url){
+        if(it.media.type==='video') mediaHtml = '<video src="'+it.media.url+'" autoplay loop muted playsinline style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-top:6px"></video>';
+        else mediaHtml = '<img src="'+it.media.url+'" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-top:6px">';
+      }
+      html += '<div style="padding:10px 12px;background:rgba(30,41,59,0.5);border-left:3px solid ' + it.col + ';border-radius:8px">'
+        + '<div style="display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center">'
+        +   '<div style="font-size:20px;text-align:center">' + it.icon + '</div>'
+        +   '<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + it.title + '</div>'
+        +     (it.sub ? '<div style="font-size:11px;color:#94a3b8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + it.sub + '</div>' : '')
+        +   '</div>'
+        +   (it.val ? '<div style="font-size:12px;font-weight:800;color:' + it.col + ';white-space:nowrap">' + it.val + '</div>' : '')
         + '</div>'
-        + (it.val ? '<div style="font-size:12px;font-weight:800;color:' + it.col + ';white-space:nowrap">' + it.val + '</div>' : '')
+        + mediaHtml
         + '</div>';
     });
     html += '</div></div>';
@@ -5071,10 +5080,123 @@ function arenaTV(){
     return html;
   }
 
+  // v22e: cena RANKING CRM COMPLETO — todas as metricas (VGV, vendas, perdidas, conversao, agend, vis, prop, CRM Score)
+  function sceneRankingCRM(){
+    var BR = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
+    BR = BR.filter(function(b){return b.role!=='socio';});
+    var FR_LBL = {conquista:'Conquista', lancamento:'MAP', terceiros:'Terceiros', locacao:'Locação'};
+    var FR_COL = {conquista:'#dc2626', lancamento:'#3b82f6', terceiros:'#15803d', locacao:'#a855f7'};
+    var rows = BR.map(function(b){
+      var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : {vgv_real:0,vendas:0,perdas:0,conversao:0,agend:0,vis:0,prop:0};
+      var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
+      return {id:b.id, name:disp.name||b.name, ini:disp.ini||_initials(b.name), color:b.color||'#3b82f6', frente:b.frente, vgv:M.vgv_real||0, vendas:M.vendas||0, perdas:M.perdas||0, conv:M.conversao||0, agend:M.agend||0, vis:M.vis||0, prop:M.prop||0, crm:b.crm||0, masked:!!disp._masked};
+    }).sort(function(a,b){return b.vgv - a.vgv;});
+    var totVgv = rows.reduce(function(a,r){return a+r.vgv;},0);
+    var totVendas = rows.reduce(function(a,r){return a+r.vendas;},0);
+    var totPerd = rows.reduce(function(a,r){return a+r.perdas;},0);
+    var totAgend = rows.reduce(function(a,r){return a+r.agend;},0);
+    var totVis = rows.reduce(function(a,r){return a+r.vis;},0);
+    var totProp = rows.reduce(function(a,r){return a+r.prop;},0);
+    var crmAvg = rows.length ? Math.round(rows.reduce(function(a,r){return a+r.crm;},0)/rows.length) : 0;
+    var totConv = (totVendas+totPerd)>0 ? (totVendas/(totVendas+totPerd)*100).toFixed(2) : '0.00';
+    var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden">'
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:8px;text-align:center;flex-shrink:0">RD CRM · ' + rows.length + ' Corretores</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;flex-shrink:0">'
+      +   '<div style="background:rgba(251,191,36,0.08);border-left:3px solid #fbbf24;border-radius:6px;padding:6px 10px"><div style="font-size:8px;color:#64748b;letter-spacing:1px;text-transform:uppercase">VGV</div><div style="font-size:14px;font-weight:900;color:#fbbf24">' + _brFull(totVgv) + '</div></div>'
+      +   '<div style="background:rgba(34,197,94,0.08);border-left:3px solid #22c55e;border-radius:6px;padding:6px 10px"><div style="font-size:8px;color:#64748b;letter-spacing:1px;text-transform:uppercase">Vendas/Perdidas</div><div style="font-size:14px;font-weight:900;color:#22c55e">' + totVendas + ' / <span style="color:#ef4444">' + totPerd + '</span></div></div>'
+      +   '<div style="background:rgba(168,85,247,0.08);border-left:3px solid #a855f7;border-radius:6px;padding:6px 10px"><div style="font-size:8px;color:#64748b;letter-spacing:1px;text-transform:uppercase">Conversão</div><div style="font-size:14px;font-weight:900;color:#a855f7">' + totConv + '%</div></div>'
+      +   '<div style="background:rgba(59,130,246,0.08);border-left:3px solid #3b82f6;border-radius:6px;padding:6px 10px"><div style="font-size:8px;color:#64748b;letter-spacing:1px;text-transform:uppercase">CRM Médio</div><div style="font-size:14px;font-weight:900;color:' + (crmAvg>=80?'#22c55e':crmAvg>=65?'#d4a843':'#ef4444') + '">' + crmAvg + ' pts</div></div>'
+      + '</div>';
+    if(rows.length===0){
+      html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:16px;flex:1">Sem dados de CRM</div>';
+    } else {
+      html += '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column">'
+        + '<div style="display:grid;grid-template-columns:24px 28px 1fr 60px 78px 38px 38px 50px 32px 32px 32px 36px;gap:4px;padding:4px 6px;font-size:8px;color:#64748b;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid rgba(148,163,184,0.15);flex-shrink:0">'
+        +   '<div>#</div><div></div><div>Corretor</div><div>Frente</div><div style="text-align:right">VGV</div><div style="text-align:center">V</div><div style="text-align:center">P</div><div style="text-align:center">Conv%</div><div style="text-align:center">Ag</div><div style="text-align:center">Vis</div><div style="text-align:center">Pr</div><div style="text-align:center">CRM</div>'
+        + '</div>'
+        + '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:2px;margin-top:3px">';
+      rows.forEach(function(r,i){
+        var pos = i+1;
+        var posCol = pos===1?'#fbbf24':pos===2?'#cbd5e1':pos===3?'#d97706':'#475569';
+        var convCol = r.conv>=2?'#22c55e':r.conv>=1?'#d4a843':r.conv>0?'#f59e0b':'#475569';
+        var crmCol = r.crm>=80?'#22c55e':r.crm>=65?'#d4a843':r.crm>0?'#ef4444':'#475569';
+        var frBadge = r.frente ? '<span style="background:rgba(' + (r.frente==='conquista'?'220,38,38':r.frente==='lancamento'?'59,130,246':r.frente==='terceiros'?'21,128,61':'168,85,247') + ',0.2);color:' + (FR_COL[r.frente]||'#64748b') + ';padding:1px 4px;border-radius:3px;font-size:8px;font-weight:700">' + (FR_LBL[r.frente]||r.frente) + '</span>' : '<span style="color:#475569;font-size:8px">—</span>';
+        html += '<div style="display:grid;grid-template-columns:24px 28px 1fr 60px 78px 38px 38px 50px 32px 32px 32px 36px;gap:4px;padding:4px 6px;background:rgba(30,41,59,' + (i%2?0.3:0.5) + ');border-radius:5px;align-items:center;' + (r.masked?'opacity:0.6':'') + '">'
+          + '<div style="font-size:11px;font-weight:900;color:' + posCol + ';text-align:center">' + pos + '</div>'
+          + '<div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,' + r.color + ',' + r.color + 'aa);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff">' + r.ini + '</div>'
+          + '<div style="font-size:11px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + '</div>'
+          + '<div>' + frBadge + '</div>'
+          + '<div style="text-align:right;font-size:10px;font-weight:800;color:#fbbf24;white-space:nowrap">' + (r.vgv>0?_brFull(r.vgv):'R$ 0') + '</div>'
+          + '<div style="text-align:center;font-size:10px;font-weight:800;color:' + (r.vendas>0?'#22c55e':'#475569') + '">' + r.vendas + '</div>'
+          + '<div style="text-align:center;font-size:10px;font-weight:700;color:' + (r.perdas>0?'#ef4444':'#475569') + '">' + r.perdas + '</div>'
+          + '<div style="text-align:center;font-size:10px;font-weight:800;color:' + convCol + '">' + (r.conv>0?r.conv.toFixed(2)+'%':'—') + '</div>'
+          + '<div style="text-align:center;font-size:10px;color:#3b82f6;font-weight:700">' + r.agend + '</div>'
+          + '<div style="text-align:center;font-size:10px;color:#a855f7;font-weight:700">' + r.vis + '</div>'
+          + '<div style="text-align:center;font-size:10px;color:#0ea5e9;font-weight:700">' + r.prop + '</div>'
+          + '<div style="text-align:center;font-size:10px;font-weight:800;color:' + crmCol + '">' + r.crm + '</div>'
+          + '</div>';
+      });
+      html += '</div></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  // v22e: cena LANCAMENTOS 2026 — timeline visual editorial
+  function sceneLancamentos(){
+    var anoCur = new Date().getFullYear();
+    var mesAtual = new Date().getMonth() + 1;
+    var LANC = S.lancTimeline || [];
+    var MES_NM = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+    var byMonth = {};
+    for(var i=1;i<=12;i++) byMonth[i] = [];
+    LANC.forEach(function(l){ if(byMonth[l.mes]) byMonth[l.mes].push(l); });
+    var total = LANC.length;
+    var jaLanc = LANC.filter(function(l){return l.mes<=mesAtual;}).length;
+    var aLanc = total - jaLanc;
+    var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden">'
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:8px;text-align:center;flex-shrink:0">LANÇAMENTOS ' + anoCur + ' — TIMELINE EDITORIAL</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;flex-shrink:0">'
+      +   '<div style="background:rgba(212,168,67,0.08);border-left:3px solid #d4a843;border-radius:8px;padding:8px 12px"><div style="font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">Total Anual</div><div style="font-size:22px;font-weight:900;color:#d4a843">' + total + '</div></div>'
+      +   '<div style="background:rgba(34,197,94,0.08);border-left:3px solid #22c55e;border-radius:8px;padding:8px 12px"><div style="font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">Já Lançados</div><div style="font-size:22px;font-weight:900;color:#22c55e">' + jaLanc + '</div></div>'
+      +   '<div style="background:rgba(59,130,246,0.08);border-left:3px solid #3b82f6;border-radius:8px;padding:8px 12px"><div style="font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">A Lançar</div><div style="font-size:22px;font-weight:900;color:#3b82f6">' + aLanc + '</div></div>'
+      + '</div>';
+    if(total === 0){
+      html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:16px;flex:1">Nenhum lançamento cadastrado</div>';
+    } else {
+      html += '<div style="flex:1;overflow:hidden;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:6px">';
+      for(var m=1;m<=12;m++){
+        var lst = byMonth[m] || [];
+        var passou = m < mesAtual;
+        var atual = m === mesAtual;
+        var bgCol = atual ? 'rgba(212,168,67,0.15)' : passou ? 'rgba(34,197,94,0.06)' : 'rgba(59,130,246,0.06)';
+        var brCol = atual ? '#fbbf24' : passou ? '#22c55e' : '#3b82f6';
+        html += '<div style="background:' + bgCol + ';border:1px solid ' + brCol + ';border-radius:8px;padding:8px;display:flex;flex-direction:column;overflow:hidden;min-height:0">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0">'
+          +   '<div style="font-size:11px;font-weight:900;color:' + brCol + ';letter-spacing:2px">' + MES_NM[m-1] + (atual?' ●':'') + '</div>'
+          +   '<div style="font-size:14px;font-weight:800;color:#fbbf24">' + lst.length + '</div>'
+          + '</div>'
+          + '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:2px">';
+        lst.slice(0,4).forEach(function(l){
+          html += '<div style="font-size:9px;color:#e2e8f0;background:rgba(0,0,0,0.25);border-left:2px solid ' + (l.cor||'#475569') + ';padding:2px 5px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + l.nome + '</div>';
+        });
+        if(lst.length > 4){
+          html += '<div style="font-size:8px;color:#64748b;padding-left:5px">+' + (lst.length-4) + ' mais</div>';
+        }
+        html += '</div></div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
   var SCENES = [
     {key:'HERO',        label:'VGV Mensal + Pódio', fn:sceneHero,       dur:10000},
     {key:'RANKING',     label:'Todos Corretores',   fn:sceneRanking,    dur:12000},
     {key:'RANK_ANUAL',  label:'Ranking Anual',      fn:sceneRankingAnual, dur:14000},
+    {key:'RANK_CRM',    label:'RD CRM Completo',    fn:sceneRankingCRM, dur:14000},
+    {key:'LANC_2026',   label:'Lançamentos ' + new Date().getFullYear(), fn:sceneLancamentos, dur:14000},
     {key:'FUNIL',       label:'Pipeline RD CRM',    fn:sceneFunilCRM,   dur:12000},
     {key:'PULSE',       label:'Vendas + Top Opps',  fn:scenePulse,      dur:12000, densFn:function(){var c=new Date(Date.now()-7*86400000);var vc=(VENDAS||[]).filter(function(v){var d=new Date(v.closedAt||v.createdAt||'');return !isNaN(d.getTime())&&d>=c;}).length;var oc=(OPPS||[]).filter(function(o){return o.vgv>0&&o.st_psm&&o.st_psm!=='carteira'&&o.st_psm!=='perdido'&&o.st_psm!=='ganho';}).length;return vc+oc;}},
     {key:'EQUIPES',     label:'Frentes & Times',    fn:sceneEquipes,    dur:12000},
@@ -5130,7 +5252,7 @@ function arenaTV(){
       return (it.ico||'✨') + ' ' + (it.txt||'');
     }).join('   ●   ');
     // Duplica pra loop suave
-    t.innerHTML = '<span style="display:inline-block;animation:psmMarquee 60s linear infinite">' + texto + '   ●   ' + texto + '</span>';
+    t.innerHTML = '<span style="display:inline-block;animation:psmMarquee 25s linear infinite">' + texto + '   ●   ' + texto + '</span>';
   }
 
   // Loop com barra de progresso
@@ -7207,6 +7329,10 @@ function pgRecadosDiretoria(){
   // Form
   h += '<div class="card mb2" style="border-left:4px solid #6366f1"><div class="ctitle">✍️ Novo recado</div>';
   h += '<textarea id="recDirTxt" rows="3" placeholder="Digite o recado para o time..." style="width:100%;padding:10px;font-size:14px;border:1px solid var(--cream3);border-radius:8px;resize:vertical;margin-bottom:10px"></textarea>';
+  h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">';
+  h += '<label style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--cream2);border-radius:6px;cursor:pointer;font-size:12px;color:var(--mid)">📎 Anexar imagem/vídeo<input type="file" id="recDirFile" accept="image/*,video/*" onchange="_recDirFilePreview(this)" style="display:none"></label>';
+  h += '<div id="recDirPreview" style="font-size:11px;color:var(--muted)"></div>';
+  h += '</div>';
   h += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
   h += '<select id="recDirTipo" class="finp" style="padding:8px 10px;font-size:13px">';
   h += '<option value="info">📢 Informativo</option>';
@@ -7234,7 +7360,11 @@ function pgRecadosDiretoria(){
       h += '<div style="display:flex;gap:10px;padding:12px;background:var(--cream2);border-left:4px solid '+(tipoBg[r.tipo]||'#6366f1')+';border-radius:8px">';
       h += '<div style="font-size:22px">'+(tipoIco[r.tipo]||'📢')+'</div>';
       h += '<div style="flex:1"><div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:4px">'+r.msg+'</div>';
-      h += '<div style="font-size:11px;color:var(--muted)">— '+(r.autorNome||'Diretoria')+' · '+new Date(r.dt).toLocaleDateString('pt-BR')+' · expira em '+dias+' dia(s)</div></div>';
+      if(r.media && r.media.url){
+        if(r.media.type==='video') h += '<video src="'+r.media.url+'" controls style="max-width:240px;max-height:160px;border-radius:6px;margin-top:6px"></video>';
+        else h += '<img src="'+r.media.url+'" style="max-width:240px;max-height:160px;border-radius:6px;margin-top:6px;object-fit:cover">';
+      }
+      h += '<div style="font-size:11px;color:var(--muted);margin-top:4px">— '+(r.autorNome||'Diretoria')+' · '+new Date(r.dt).toLocaleDateString('pt-BR')+' · expira em '+dias+' dia(s)'+(r.media?' · 📎 '+r.media.type:'')+'</div></div>';
       h += '<button class="btn bsm bout" onclick="removerRecadoDir(\''+r.id+'\')" style="color:#ef4444">🗑️</button>';
       h += '</div>';
     });
@@ -7243,6 +7373,17 @@ function pgRecadosDiretoria(){
   h += '</div></div>';
   return h;
 }
+window._recDirFilePreview = function(input){
+  var prev = document.getElementById('recDirPreview'); if(!prev) return;
+  var f = input.files && input.files[0]; if(!f){ prev.innerHTML=''; window._recDirMedia=null; return; }
+  if(f.size > 8*1024*1024){ toast('Arquivo muito grande (max 8MB)','warn'); input.value=''; window._recDirMedia=null; return; }
+  var rd = new FileReader();
+  rd.onload = function(e){
+    window._recDirMedia = {url:e.target.result, type:f.type.indexOf('video')===0?'video':'image', name:f.name};
+    prev.innerHTML = '✅ '+f.name+' ('+Math.round(f.size/1024)+' KB) <button onclick="window._recDirMedia=null;document.getElementById(\'recDirFile\').value=\'\';this.parentNode.innerHTML=\'\'" style="background:none;border:none;color:#ef4444;cursor:pointer;margin-left:8px">✕</button>';
+  };
+  rd.readAsDataURL(f);
+};
 window.publicarRecadoDir = function(){
   var txt = (document.getElementById('recDirTxt')||{}).value;
   if(!txt || !txt.trim()){ toast('Digite o recado','warn'); return; }
@@ -7254,8 +7395,10 @@ window.publicarRecadoDir = function(){
   var rec = {
     id: 'rec_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
     msg: txt.trim(), tipo: tipo, dt: Date.now(), exp: Date.now() + dur*86400000,
-    autorId: autor.id, autorNome: (autor.name||'Diretoria').split(' ')[0]
+    autorId: autor.id, autorNome: (autor.name||'Diretoria').split(' ')[0],
+    media: window._recDirMedia || null
   };
+  window._recDirMedia = null;
   S.arenaRecados.push(rec);
   // Tambem publica no ticker global (mesma mecânica)
   try{ tickerAddMsg('[DIRETORIA] '+txt.trim(), tipo, autor.id, dur); }catch(e){}
@@ -7298,6 +7441,10 @@ function pgPsmLive(){
     h += '<input id="plDias" type="number" min="0" max="365" placeholder="Expira em N dias (0=perpétuo)" value="0" style="padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155">';
     h += '</div>';
     h += '<textarea id="plMsg" placeholder="Mensagem (aparece no marquee)" style="width:100%;margin-top:8px;padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;min-height:60px"></textarea>';
+    h += '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">';
+    h += '<label style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#0f172a;color:#fff;border:1px solid #334155;border-radius:6px;cursor:pointer;font-size:12px">📎 Anexar imagem/vídeo<input type="file" id="plFile" accept="image/*,video/*" onchange="_plFilePreview(this)" style="display:none"></label>';
+    h += '<div id="plPreview" style="font-size:11px;color:#94a3b8"></div>';
+    h += '</div>';
     h += '<button class="btn bp1 bsm" style="margin-top:8px" onclick="psmLiveAdd()">➕ Publicar</button>';
     h += '</div>';
   }
@@ -7314,8 +7461,12 @@ function pgPsmLive(){
       var expTxt = it.exp ? new Date(it.exp).toLocaleDateString('pt-BR') : 'perpétuo';
       h += '<div style="display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border-left:3px solid '+col+';background:rgba(15,23,42,0.4);border-radius:6px;margin-bottom:6px">';
       h += '<div style="font-size:20px;text-align:center">'+ico+'</div>';
-      h += '<div style="min-width:0"><div style="font-weight:700;font-size:13px;color:'+col+';text-transform:uppercase;letter-spacing:1px">'+it.tipo+'</div>';
+      h += '<div style="min-width:0"><div style="font-weight:700;font-size:13px;color:'+col+';text-transform:uppercase;letter-spacing:1px">'+it.tipo+(it.media?' · 📎 '+it.media.type:'')+'</div>';
       h += '<div style="font-size:12px;color:#e2e8f0;margin-top:2px">'+_esc(it.txt)+'</div>';
+      if(it.media && it.media.url){
+        if(it.media.type==='video') h += '<video src="'+it.media.url+'" controls style="max-width:200px;max-height:140px;border-radius:6px;margin-top:4px;display:block"></video>';
+        else h += '<img src="'+it.media.url+'" style="max-width:200px;max-height:140px;border-radius:6px;margin-top:4px;object-fit:cover;display:block">';
+      }
       h += '<div style="font-size:10px;color:var(--muted);margin-top:2px">Expira: '+expTxt+'</div></div>';
       if(canEdit){
         h += '<div><button onclick="psmLiveEdit(\''+it.id+'\')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:14px">✏️</button> ';
@@ -7327,6 +7478,17 @@ function pgPsmLive(){
   h += '</div></div>';
   return h;
 }
+window._plFilePreview = function(input){
+  var prev = document.getElementById('plPreview'); if(!prev) return;
+  var f = input.files && input.files[0]; if(!f){ prev.innerHTML=''; window._plMedia=null; return; }
+  if(f.size > 8*1024*1024){ toast('Arquivo muito grande (max 8MB)','warn'); input.value=''; window._plMedia=null; return; }
+  var rd = new FileReader();
+  rd.onload = function(e){
+    window._plMedia = {url:e.target.result, type:f.type.indexOf('video')===0?'video':'image', name:f.name};
+    prev.innerHTML = '✅ '+f.name+' ('+Math.round(f.size/1024)+' KB) <button onclick="window._plMedia=null;document.getElementById(\'plFile\').value=\'\';this.parentNode.innerHTML=\'\'" style="background:none;border:none;color:#ef4444;cursor:pointer;margin-left:8px">✕</button>';
+  };
+  rd.readAsDataURL(f);
+};
 window.psmLiveAdd = function(){
   var msg = (document.getElementById('plMsg')||{}).value;
   if(!msg || !msg.trim()){ toast('Mensagem obrigatória','err'); return; }
@@ -7342,8 +7504,10 @@ window.psmLiveAdd = function(){
     txt:msg.trim(),
     dt:Date.now(),
     exp: dias>0 ? Date.now()+dias*86400000 : 0,
-    autor:(S.user||{}).id||''
+    autor:(S.user||{}).id||'',
+    media: window._plMedia || null
   });
+  window._plMedia = null;
   saveState();
   if(typeof notifPush==='function') notifPush({title:'📡 PSM Live', body:msg.trim().slice(0,80), cat:'recado'});
   render();
@@ -21242,12 +21406,13 @@ async function testConnectors() {
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
 
 // === SISTEMA DE PERFIS E PERMISSOES PSM OS ===
-var PERFIL_MAP={paulo:'diretor',isa:'diretor',leire:'backoffice',mariane:'backoffice',marcus_l:'lider',guilherme:'marketing',gestor_trafego:'marketing'};
+var PERFIL_MAP={paulo:'diretor',isa:'diretor',marcos_anderson:'diretor',leire:'backoffice',mariane:'backoffice',marcus_l:'lider',guilherme:'marketing',gestor_trafego:'marketing'};
 function getPerfil(){if(!S.user||!S.user.id)return "corretor";if(PERFIL_MAP[S.user.id])return PERFIL_MAP[S.user.id];if(S.user.role==="socio")return "diretor";if(S.user.role==="lider")return "lider";if(S.user.role==="backoffice")return "backoffice";if(S.user.role==="marketing")return "marketing";return "corretor";}
 function isUserSocio(){var pf=getPerfil();return pf==='diretor';}
 function isUserLeire(){return S.user&&S.user.id==='leire';}
 function isUserGuilherme(){return S.user&&S.user.id==='guilherme';}
 function isUserMariane(){return S.user&&S.user.id==='mariane';}
+function isUserMarcosAnderson(){return S.user&&S.user.id==='marcos_anderson';}
 function isUserMarketing(){var pf=getPerfil();return pf==='marketing'||isUserSocio();}
 function isGestorOrSocio(){var pf=getPerfil();return pf==='diretor'||pf==='lider';}
 function isCorretorOrAbove(){var pf=getPerfil();return ['diretor','lider','corretor'].indexOf(pf)!==-1;}
@@ -22581,10 +22746,10 @@ function canAccess(p){
   if(PAGES_DIRETORIA.indexOf(p)!==-1)return isUserSocio();
   // Intelligence: apenas socios
   if(PAGES_INTELLIGENCE.indexOf(p)!==-1)return isUserSocio();
-  // PSM Locacoes: socios + gestores + corretores locacao
-  if(PAGES_LOCACOES.indexOf(p)!==-1)return isUserSocio()||isGestorOrSocio()||getPerfil()==='corretor';
-  // Gestao de Pessoas: socios + gestores
-  if(PAGES_GP.indexOf(p)!==-1)return isUserSocio()||isGestorOrSocio();
+  // PSM Locacoes: socios + gestores + mariane (corretores removidos v22e)
+  if(PAGES_LOCACOES.indexOf(p)!==-1)return isUserSocio()||isGestorOrSocio()||isUserMariane();
+  // Gestao de Pessoas: socios + gestores + marcos_anderson (v22e)
+  if(PAGES_GP.indexOf(p)!==-1)return isUserSocio()||isGestorOrSocio()||isUserMarcosAnderson();
   // Agentes PSM: todos logados
   if(PAGES_AGENTES.indexOf(p)!==-1)return true;
   // Config: socios only
@@ -22714,7 +22879,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22d</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22e</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
