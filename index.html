@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.19-v22b — FIX canAccess: PSM Live/Locacoes/GP agora aparecem no menu + v22 -->
+<!-- PSM-OS v2026.04.19-v22c — Codigo de Etica completo (17 cap/69 arts), favicon oficial PSM, remove Kenlo -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.19-v22b">
+<meta name="version" content="2026.04.19-v22c">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14478,27 +14478,7 @@ function pgManual() {
     + '\u2705 Comunicação clara e profissional<br>'
     + '\u2705 Vestimenta e apresentação alinhadas à marca PSM</p>'
     + '</div></div>';
-  var eticaContent = '<div style="padding:20px">'
-    + '<h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:16px">\u2696\uFE0F Código de Ética PSM Imóveis</h2>'
-    + '<div style="font-size:13px;line-height:1.8;color:var(--tx)">'
-    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\uD83D\uDCCC Princípios Fundamentais</h3>'
-    + '<p>O Código de Ética da PSM Assessoria Imobiliária estabelece os padrões de conduta profissional esperados de todos os colaboradores. Seu cumprimento é obrigatório e reflete nosso compromisso com a excelência.</p>'
-    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\uD83D\uDEAB Condutas Proibidas</h3>'
-    + '<p style="color:var(--r-tx)">\u274C Desvio de leads ou clientes de outros corretores<br>'
-    + '\u274C Informações falsas ou enganosas a clientes<br>'
-    + '\u274C Negociações paralelas fora do sistema PSM<br>'
-    + '\u274C Desrespeito à roleta e regras de distribuição<br>'
-    + '\u274C Compartilhamento indevido de informações internas<br>'
-    + '\u274C Assédio ou discriminação de qualquer natureza</p>'
-    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\u2705 Condutas Esperadas</h3>'
-    + '<p style="color:var(--g-tx)">\u2714\uFE0F Transparência total com clientes e colegas<br>'
-    + '\u2714\uFE0F Registro fiel de todas as atividades no CRM<br>'
-    + '\u2714\uFE0F Atendimento dentro dos prazos e cadências definidos<br>'
-    + '\u2714\uFE0F Colaboração ativa com a equipe e liderança<br>'
-    + '\u2714\uFE0F Melhoria contínua pessoal e profissional</p>'
-    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\u26A0\uFE0F Consequências</h3>'
-    + '<p>O descumprimento do código de ética pode resultar em: advertência verbal, advertência formal, suspensão temporária das atividades ou desligamento, conforme a gravidade da infração e decisão da diretoria.</p>'
-    + '</div></div>';
+  var eticaContent = renderCodigoEticaCompleto();
   var adminUpload = lvl >= 5 ? '<div class="card mb2"><div class="ctitle">\u2699\uFE0F Gerenciar Documentos (Links Externos)</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
     + '<div><div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px">Link — Manual de Cultura (PDF/Drive)</div>'
@@ -14544,6 +14524,165 @@ function pgManual() {
     + srPerformanceFooter();
 }
 
+// ─── CÓDIGO DE ÉTICA COMPLETO — v22c (17 capítulos, 69 artigos — conforme PDF oficial) ──
+var CODIGO_ETICA_CAPITULOS = [
+  {num:1, tit:'Princípios e Ética Profissional', intro:'Valores essenciais: integridade, verdade, transparência e lealdade à parceria.', arts:[
+    {n:'1', t:'Compromisso com a integridade', c:'Todo profissional parceiro da PSM deve atuar com ética, transparência e responsabilidade, mantendo conduta íntegra em qualquer situação, dentro ou fora da negociação.', m:'Alinhamento com a liderança, advertência formal e, em casos graves ou reincidentes, encerramento da parceria e adoção de medidas legais cabíveis.'},
+    {n:'2', t:'Proibição de favorecimentos, propinas ou corrupção', c:'É vedado qualquer tipo de benefício informal, propina, pagamento "por fora" ou tentativa de favorecer uma parte em detrimento da integridade da operação. Inclui: recebimento ou oferta de comissões não formalizadas; favorecimento em rankings, pontuação ou distribuição de leads; apoio a clientes para burlar regras internas ou evitar a intermediação da PSM.', m:'Rescisão imediata do contrato de parceria, retenção de comissões indevidas e encaminhamento jurídico em caso de fraude ou dano à reputação da empresa.'},
+    {n:'3', t:'Fidelidade à PSM e exclusividade de atuação', c:'Nenhum parceiro pode representar concorrentes ou atuar em nome de outras empresas utilizando estrutura, imagem, leads ou recursos vinculados à PSM.', m:'Encerramento imediato da parceria, bloqueio de acessos, cancelamento de campanhas vinculadas e responsabilização contratual por uso indevido de estrutura institucional.'},
+    {n:'4', t:'Fraude e manipulação de dados', c:'É proibido manipular registros, dados ou sistemas com o objetivo de se beneficiar ou distorcer a realidade das operações. Inclui: inserção de visitas falsas no CRM; alteração de datas com intenção de obter pontuação indevida; criação de grupos ou canais não autorizados para gerar vantagem competitiva.', m:'Advertência severa, suspensão de programas de incentivo, perda de pontos e investigação interna com possível rescisão da parceria, conforme a gravidade do caso.'},
+    {n:'5', t:'Conflito de interesses', c:'Todo parceiro deve declarar previamente qualquer envolvimento pessoal, familiar, financeiro ou comercial com imóveis, clientes ou empreendimentos relacionados à atuação imobiliária. Inclui: venda de imóvel próprio ou de familiar sem comunicação formal; participação em empreendimentos concorrentes; indicações com benefício oculto.', m:'Advertência formal, bloqueio da negociação em andamento e, se comprovada má-fé, rescisão contratual e bloqueio de comissões.'},
+    {n:'6', t:'Uso indevido de documentos e simulações falsas', c:'É expressamente proibido produzir ou aceitar documentos inverídicos, simulações com dados falsos ou omissões relevantes (como IPTU, condomínio, pendências judiciais).', m:'Encerramento imediato da parceria, registro interno da infração e comunicação a órgãos legais se houver implicação jurídica.'},
+    {n:'6-A', t:'Comunicação de envolvimento jurídico relevante', c:'Todo parceiro deve comunicar à liderança da PSM, no prazo de até 24 horas, qualquer citação, notificação judicial ou envolvimento direto em ações, inquéritos ou investigações que possam impactar sua reputação, integridade ou a imagem da empresa. A medida visa preservar a transparência institucional e prevenir riscos à operação.', m:'Advertência formal com registro e análise do caso pela liderança. Se houver risco reputacional ou jurídico para a empresa, poderá ocorrer bloqueio preventivo de atividades, suspensão ou rescisão contratual conforme avaliação do jurídico parceiro.'}
+  ]},
+  {num:2, tit:'Relacionamento e Ambiente Saudável', intro:'Comportamentos esperados no convívio entre parceiros, clientes e equipe de apoio — ambiente respeitoso, colaborativo e seguro.', arts:[
+    {n:'7', t:'Respeito nas relações interpessoais', c:'O relacionamento entre parceiros da PSM deve ser pautado por respeito, empatia, colaboração e comunicação assertiva. Atitudes como fofoca, isolamento intencional, hostilidade, rivalidade desleal ou comentários depreciativos sobre colegas são incompatíveis com a cultura da empresa.', m:'Advertência formal, mediação com a liderança e, se houver reincidência ou impacto coletivo, reavaliação da permanência na parceria.'},
+    {n:'8', t:'Prevenção e enfrentamento de assédio ou preconceito', c:'Não são toleradas condutas de assédio, discriminação ou preconceito, seja por parte de colegas, clientes, fornecedores ou terceiros. Isso inclui comentários ofensivos, conotação sexual, abordagens invasivas, constrangimento físico ou verbal, ou qualquer forma de exclusão com base em gênero, aparência, raça, orientação sexual, sotaque ou deficiência.', m:'Encaminhamento imediato à liderança, suporte à vítima, registro interno e, nos casos aplicáveis, encerramento da parceria e medidas legais.'},
+    {n:'9', t:'Comunicação respeitosa em todos os canais', c:'A comunicação com colegas, clientes, prestadores ou membros da equipe de apoio deve ser sempre respeitosa, mesmo diante de conflitos ou frustrações. É proibido usar grupos oficiais para expor críticas, ironias, indiretas ou provocar constrangimento.', m:'Advertência formal, conversa direta com a liderança e acompanhamento da conduta.'},
+    {n:'10', t:'Conduta em situações de conflito', c:'Conflitos sobre atendimentos, captações, leads ou clientes devem ser resolvidos com diálogo direto, empatia e, se necessário, com mediação da liderança. É proibido espalhar boatos ou adotar posturas hostis em situações de desentendimento profissional.', m:'Mediação formal com registro interno e advertência em caso de conduta desrespeitosa ou recorrente.'},
+    {n:'11', t:'Respeito à equipe de apoio', c:'Nenhum parceiro deve tratar com agressividade ou desrespeito os membros da equipe administrativa, operacional, jurídica, de marketing ou qualquer outro setor de suporte da PSM.', m:'Mediação com liderança, orientação formal sobre conduta e possível restrição de suporte ou recursos, conforme a gravidade do caso.'}
+  ]},
+  {num:3, tit:'Relacionamentos Pessoais', intro:'Condução ética e transparente de vínculos afetivos no ambiente profissional.', arts:[
+    {n:'12', t:'Relacionamentos afetivos entre parceiros da PSM', c:'Relacionamentos afetivos ou íntimos entre profissionais parceiros devem ser comunicados à liderança assim que estabelecidos, visando a prevenção de conflitos de interesse, favorecimentos ou impactos no ambiente da equipe. A comunicação será tratada com confidencialidade e responsabilidade.', m:'Alerta formal com registro, acompanhamento da liderança e, se necessário, redistribuição de atendimentos ou reavaliação de alocação de plantões.'},
+    {n:'13', t:'Relacionamento com clientes ativos', c:'Envolvimentos afetivos com clientes que estejam em atendimento ativo devem ser imediatamente informados à liderança, a fim de evitar situações de influência, conflito de interesse ou quebra de confiança profissional. O atendimento deve ser realocado se houver risco de impacto ético ou comercial.', m:'Análise interna, redistribuição do atendimento, eventual bloqueio do lead e registro do caso para prevenção de reincidência.'}
+  ]},
+  {num:4, tit:'Imagem Profissional e Apresentação Pessoal', intro:'Padrões de imagem, postura e apresentação alinhados à identidade da PSM.', arts:[
+    {n:'14', t:'Vestimenta e aparência profissional', c:'A imagem dos parceiros da PSM deve refletir sobriedade, organização e coerência com o ambiente de trabalho. Recomenda-se estilo casual básico, com roupas limpas, bem-cuidadas e sem excessos. São vedadas peças inadequadas, como moletom, chinelo, boné, óculos escuros em ambiente interno, sandálias rasteiras, roupas curtas, camisetas de incorporadoras ou com estampas polêmicas. Em eventos e lançamentos, o traje deve seguir a orientação específica da liderança.', m:'Advertência leve, orientação direta sobre imagem profissional e, em casos de repetição, limitação da participação em ações presenciais.'},
+    {n:'15', t:'Postura e conduta visual nos ambientes PSM', c:'A postura visual do parceiro — incluindo cuidados com higiene, apresentação pessoal, linguagem corporal e tom de voz — deve estar alinhada com a experiência de excelência que a PSM busca transmitir aos clientes, fornecedores e parceiros externos.', m:'Feedback individual com registro de orientação e, em casos de impacto direto na reputação da marca, acompanhamento formal pela liderança.'}
+  ]},
+  {num:5, tit:'Atendimento ao Cliente', intro:'Princípios e padrões de excelência no relacionamento com clientes, do primeiro contato ao pós-venda.', arts:[
+    {n:'16', t:'Atendimento com igualdade e excelência', c:'Todos os clientes devem ser atendidos com o mesmo padrão de dedicação, cortesia e profissionalismo, independentemente do valor do imóvel, do canal de origem ou do seu perfil pessoal.', m:'Feedback individual, perda de pontos em programas internos e, em casos recorrentes, bloqueio de leads e revisão de participação em campanhas.'},
+    {n:'17', t:'Compromisso com horários e pontualidade', c:'O não comparecimento a visitas ou reuniões sem aviso prévio ao cliente ou à equipe, especialmente em horários agendados, compromete a imagem da PSM. É dever do parceiro respeitar os compromissos assumidos.', m:'Advertência formal, perda de pontos e possível restrição em plantões ou repasses de oportunidade.'},
+    {n:'18', t:'Continuidade e responsabilidade no atendimento', c:'Nenhum cliente pode ser deixado desassistido. Em caso de ausência temporária ou necessidade de afastamento, o parceiro deve comunicar a liderança com antecedência para realocação responsável.', m:'Advertência com registro, realocação supervisionada do cliente e possível bloqueio de novas oportunidades até a regularização.'},
+    {n:'19', t:'Respeito à escolha do cliente e ao trabalho dos colegas', c:'É direito do cliente decidir com qual profissional deseja negociar. Nenhum parceiro deve criticar, influenciar negativamente ou desmerecer outro colega durante esse processo.', m:'Advertência com registro, aconselhamento individual e, em caso de reincidência, avaliação ética da permanência na parceria.'},
+    {n:'20', t:'Abordagem em situações de retorno de cliente', c:'Se um cliente retornar após ter sido oficialmente descartado por outro parceiro, o atendimento poderá ser assumido livremente, sem necessidade de comunicação ou validação. No entanto, se o cliente estiver em atendimento ativo, deve-se respeitar o vínculo vigente, evitando qualquer tentativa de apropriação do lead.', m:'Mediação com registro interno e validação do atendimento ativo de forma justa para ambas as partes, observando a boa-fé entre os parceiros.'},
+    {n:'21', t:'Troca de responsável por atendimento', c:'A substituição ou retirada de um parceiro de um atendimento somente poderá ocorrer com consentimento da liderança e comunicação clara, tanto ao colega quanto ao cliente.', m:'Advertência formal e mediação com a liderança para prevenir conflitos futuros.'},
+    {n:'21-A', t:'Preenchimento da ficha de atendimento', c:'É obrigação do parceiro preencher a ficha de atendimento de forma completa, precisa e atualizada, a fim de assegurar rastreabilidade, continuidade no atendimento e registro formal da negociação.', m:'Advertência com registro formal, bloqueio de leads até regularização e acompanhamento da reincidência.'}
+  ]},
+  {num:6, tit:'Visitas e Acesso aos Imóveis', intro:'Condições para agendamento, realização e registro de visitas.', arts:[
+    {n:'22', t:'Visitas somente com autorização formal', c:'Nenhuma visita pode ser realizada sem autorização expressa do proprietário, responsável legal ou parceiro autorizado. Visitas em imóveis com bloqueio judicial, pendência contratual ou impedimento legal também são terminantemente proibidas.', m:'Advertência severa, perda de pontos e, conforme a gravidade, rescisão da parceria por descumprimento contratual.'},
+    {n:'23', t:'Agendamento com respeito à disponibilidade do imóvel', c:'Visitas a imóveis ocupados, com inquilinos ou proprietários presentes, devem ser agendadas com no mínimo 24 horas de antecedência. O parceiro deve respeitar os horários permitidos e evitar agendamentos sem viabilidade logística real.', m:'Alinhamento formal, advertência e, em caso de reincidência, suspensão temporária da autonomia em agendamentos.'},
+    {n:'24', t:'Acesso compartilhado e colaboração entre parceiros', c:'Imóveis compartilhados devem ter acesso justo entre os parceiros autorizados. É proibido bloquear, omitir ou dificultar propositalmente o acesso de outros colegas para benefício próprio.', m:'Advertência com registro e, em caso de conduta reincidente, suspensão da autorização de uso do imóvel e responsabilização formal, incluindo medidas contratuais mais severas quando houver prejuízo direto ao cliente ou à operação.'},
+    {n:'25', t:'Devolução imediata das chaves', c:'As chaves utilizadas em visita devem ser devolvidas logo após o uso, respeitando os combinados com o proprietário ou parceiro responsável. A posse indevida pode comprometer a confiança na atuação da PSM.\\n\\nAlíneas complementares:\\na) Quem perde a chave, arca com os custos de substituição.\\nb) Danos causados durante a visita, se comprovada a culpa, deverão ser pagos integralmente.\\nc) Para retirada de chave com terceiros (outras corretoras ou imobiliárias), é necessária autorização da liderança e consentimento do cliente.\\nd) O controle de chaves deve incluir registro e assinatura na retirada e devolução.', m:'Advertência com responsabilização formal, perda de pontos e restrição de novos acessos até regularização.'},
+    {n:'25-B', t:'Preparação e cuidado com salas de reunião', c:'É responsabilidade do parceiro preparar a sala de reunião antes do uso e garantir sua organização após o término, incluindo limpeza, reposição de materiais e desligamento de equipamentos.', m:'Advertência formal e restrição temporária ao uso de salas em caso de descuido reincidente.'},
+    {n:'26', t:'Registro correto de visitas realizadas', c:'Somente visitas reais e efetivamente realizadas devem ser registradas no CRM. É vedado lançar visitas fictícias, adiantar registros ou alterar datas para obter vantagem.', m:'Desclassificação imediata de rankings, advertência formal, perda de pontos e possível exclusão de programas de incentivo.'}
+  ]},
+  {num:7, tit:'CRM e Registro de Atividades', intro:'Diretrizes para uso correto do CRM e demais sistemas da PSM.', arts:[
+    {n:'27', t:'Registro completo e fiel das atividades', c:'Todo atendimento, visita ou movimentação relevante deve ser registrado no CRM oficial da PSM. Omissões frequentes, dados incompletos ou falhas intencionais comprometem o controle dos processos e a confiabilidade da atuação do parceiro.', m:'Advertência formal, reforço sobre o uso correto do sistema e, em caso de reincidência, bloqueio de leads e suspensão de repasses automáticos.'},
+    {n:'28', t:'Proibição de lançamentos fictícios ou manipulados', c:'É proibido lançar visitas não realizadas, alterar datas para subir em rankings, duplicar registros ou usar o sistema para gerar vantagem indevida. Tais ações são consideradas fraudes contra os critérios de transparência da PSM.', m:'Advertência severa, perda de pontos, exclusão imediata de campanhas ou programas de premiação e análise para possível rescisão contratual.'},
+    {n:'29', t:'Acesso pessoal e intransferível', c:'Os acessos à plataforma, senhas e logins são de uso exclusivo e individual. Compartilhar credenciais ou utilizar acessos de terceiros é estritamente proibido.', m:'Corte imediato de acesso, advertência formal, reavaliação do vínculo e encaminhamento para medidas judiciais cabíveis em caso de violação à LGPD ou comprometimento da segurança da informação.'},
+    {n:'30', t:'Atualização regular de negócios e dados', c:'Todos os negócios ativos no CRM devem ser atualizados com frequência. Negócios abandonados ou dados desatualizados prejudicam o fluxo operacional e a experiência do cliente.', m:'Advertência, perda de prioridade em distribuição de leads e suspensão de acesso temporário a ferramentas até normalização.'}
+  ]},
+  {num:8, tit:'Divulgação e Comunicação de Imóveis', intro:'Diretrizes para uso de imagens, materiais de divulgação e identidade visual.', arts:[
+    {n:'31', t:'Uso responsável da identidade visual', c:'Todo material de divulgação deve respeitar o padrão visual oficial da PSM, com uso correto de logotipo, cores, fontes e formatos definidos. É vedado o uso de identidade desatualizada, distorcida ou materiais produzidos sem aprovação prévia, principalmente em campanhas e redes sociais.', m:'Advertência, exigência de correção imediata e, em caso de reincidência, suspensão temporária de publicações ou acesso a materiais institucionais.'},
+    {n:'32', t:'Autorização prévia para publicação de imóveis', c:'A publicação de qualquer imóvel só é permitida após entrega de toda documentação obrigatória, autorização formal do proprietário e validação interna, quando aplicável.', m:'Advertência formal, bloqueio da publicação e, em caso de risco jurídico, análise contratual com bloqueio e exclusão do responsável. Se houver prejuízo legal, o corretor assumirá integralmente as consequências, incluindo multa e responsabilização civil.'},
+    {n:'33', t:'Qualidade e veracidade das imagens', c:'Todas as imagens usadas nas divulgações devem ser reais, atuais e representar fielmente o imóvel. É proibido o uso de fotos desatualizadas, retocadas em excesso, com distorção de proporções ou que omitam aspectos importantes do imóvel.', m:'Advertência com exigência de nova padronização, refação da publicação e perda de pontos em caso de comprovação de tentativa de manipulação.'},
+    {n:'34', t:'Respeito à privacidade em fotografias', c:'É proibido fotografar imóveis com objetos ou pertences pessoais do morador sem autorização expressa. Também é vedado divulgar imagens de clientes, parceiros ou terceiros sem consentimento formal, incluindo prints, conversas ou vídeos.', m:'Advertência, obrigação de remoção do conteúdo, pedido formal de retratação e, em caso de reincidência, encaminhamento jurídico conforme LGPD.'},
+    {n:'35', t:'Produção de conteúdo audiovisual em imóveis', c:'Lives, vídeos ou qualquer tipo de gravação feita dentro de imóveis exige autorização prévia do proprietário, mesmo que o conteúdo seja usado apenas em redes sociais.', m:'Advertência e retirada imediata do conteúdo publicado, com possibilidade de bloqueio para ações de mídia. Em caso de prejuízo jurídico à empresa ou cliente, o corretor será integralmente responsabilizado, podendo arcar com multa e responder judicialmente.'}
+  ]},
+  {num:9, tit:'Captação e Exclusividades', intro:'Princípios éticos no processo de captação de imóveis.', arts:[
+    {n:'36', t:'Respeito à exclusividade de captação', c:'Captações com exclusividade vigente por outra imobiliária ou corretor devem ser respeitadas. É proibido tentar burlar ou anular uma exclusividade sem autorização expressa do proprietário ou sem encerramento formal da anterior.', m:'Advertência, bloqueio da captação irregular e, em caso de reincidência, avaliação contratual e restrição temporária em ações de captação.'},
+    {n:'37', t:'Proibição de copiar anúncios ou usar materiais de colegas', c:'É vedado copiar publicações, descrições, imagens, textos ou qualquer material criado por outro parceiro sem consentimento explícito. Também não é permitido publicar imóvel captado por outro parceiro sem checar validade ou autorização.', m:'Advertência, perda de pontos e, se houver má-fé comprovada ou reincidência, suspensão da parceria ou exclusão da captação.'},
+    {n:'38', t:'Origem e transparência nas captações', c:'Toda captação deve ter origem legítima e transparente. É proibido induzir o proprietário a romper exclusividade com outra imobiliária, utilizar imagens de terceiros sem autorização ou ocultar o vínculo com a PSM a pedido do cliente.', m:'Advertência formal, bloqueio da captação e, em caso de violação contratual grave, rescisão imediata da parceria com perdas e danos.'}
+  ]},
+  {num:10, tit:'Confidencialidade e Proteção de Dados', intro:'Uso, proteção e sigilo de informações — LGPD.', arts:[
+    {n:'39', t:'Proteção de dados e informações sensíveis', c:'É dever do parceiro proteger todas as informações recebidas em razão da atuação na PSM, incluindo dados de clientes, contratos, valores, documentos, prints, conversas e propostas. Vazamentos, compartilhamento indevido ou divulgação externa, mesmo em tom informal, não serão tolerados.', m:'Advertência formal, reeducação ética, bloqueio de acessos e, em casos mais graves, rescisão da parceria e encaminhamento jurídico conforme previsto na LGPD.'},
+    {n:'40', t:'Compartilhamento de conteúdo com terceiros', c:'É proibido compartilhar qualquer tipo de conteúdo — como propostas, prints de conversas, dados cadastrais ou documentos — com pessoas não diretamente envolvidas no processo de negociação.', m:'Advertência formal, registro em ata e rebaixamento de nível em programas de pontuação e confiança.'},
+    {n:'41', t:'Uso de imagens e identidade de clientes ou parceiros', c:'Imagens, vídeos, nomes, mensagens ou qualquer dado que identifique um cliente, parceiro ou colaborador só podem ser divulgados com autorização expressa, de acordo com as diretrizes da LGPD.', m:'Advertência com retirada imediata do conteúdo, reeducação em boas práticas de proteção de dados e, em reincidência, avaliação contratual.'},
+    {n:'42', t:'Acesso indevido a informações restritas', c:'É proibido acessar documentos, contratos ou registros confidenciais que não estejam diretamente relacionados à função ou ao atendimento em curso.', m:'Corte imediato de acesso, advertência formal e, em casos de violação grave, rescisão contratual por quebra de sigilo.'}
+  ]},
+  {num:11, tit:'Comunicação Institucional', intro:'Comunicação dentro dos ambientes oficiais e conduta em ambientes públicos/digitais.', arts:[
+    {n:'43', t:'Críticas e feedbacks à gestão', c:'Críticas à empresa, à liderança ou aos processos internos devem ser feitas exclusivamente por canais institucionais apropriados, de forma respeitosa e construtiva. É proibido expor reclamações ou frustrações em grupos oficiais, redes sociais ou ambientes externos.', m:'Advertência formal, conversa direta com a liderança e, em caso de reincidência, suspensão de participação em programas de incentivo e avaliação da continuidade da parceria.'},
+    {n:'44', t:'Postura em grupos oficiais e canais de comunicação', c:'É vedado apagar mensagens para esconder informações, utilizar tom sarcástico ou desrespeitoso, ou criar grupos paralelos de atendimento ou captação fora dos canais oficiais da empresa.', m:'Advertência, registro em ata e perda de pontos. Em caso de tentativa de manipulação de processos, rebaixamento de nível de comissão ou rescisão da parceria.'},
+    {n:'45', t:'Uso da imagem e nome da PSM em redes sociais', c:'Todo conteúdo que envolva a marca PSM (logotipo, nome, slogan, imóveis da empresa ou campanhas) deve ser aprovado ou orientado previamente pela liderança. O parceiro não deve utilizar logotipo próprio ou identidade visual empresarial independente. O padrão correto é o uso do nome completo com número de CRECI, acompanhado da identidade oficial da PSM.', m:'Advertência com exigência de correção ou retirada imediata do conteúdo, além de restrição temporária de autorização para uso da marca.'},
+    {n:'45-A', t:'Canais oficiais de comunicação', c:'Toda comunicação profissional com clientes ou colegas deve ser feita exclusivamente pelos canais autorizados pela PSM, incluindo e-mail institucional e WhatsApp corporativo. É vedado o uso de e-mail pessoal ou números não vinculados à estrutura da empresa para tratativas comerciais.', m:'Advertência formal e, em caso de reincidência, bloqueio do lead e suspensão de novas oportunidades.'}
+  ]},
+  {num:12, tit:'Contratos, Propostas e Formalizações', intro:'Regras para elaboração, envio, assinatura e gestão de propostas, contratos e reservas.', arts:[
+    {n:'46', t:'Formalização obrigatória de negociações', c:'Toda negociação deve ser formalizada por escrito, com documentação completa e comunicação à liderança. É proibido aceitar pagamentos informais, fechar acordos verbais ou realizar qualquer tratativa "por fora" da estrutura oficial da PSM.', m:'Advertência severa, bloqueio da negociação, perda de comissão e, em caso de reincidência ou prejuízo às partes envolvidas, encaminhamento para medidas judiciais cabíveis.'},
+    {n:'47', t:'Propostas reais, completas e autorizadas', c:'Propostas comerciais devem conter todas as condições reais e válidas, com consentimento claro do cliente. É proibido enviar propostas incompletas, com campos em branco, dados fictícios ou promessas não aprovadas.', m:'Advertência formal, retratação com o cliente, bloqueio da proposta e encaminhamento jurídico em caso de violação contratual ou fraude.'},
+    {n:'48', t:'Assinatura digital e procedimentos com imóveis de terceiros ou repasse', c:'Contratos de imóveis de terceiros ou repasse devem ser elaborados exclusivamente pelo escritório jurídico parceiro da PSM e enviados para assinatura digital utilizando o login institucional da empresa. É proibido enviar contratos por e-mail pessoal, WhatsApp ou assinar manualmente fora do sistema autorizado.', m:'Advertência formal, invalidação do contrato, perda de comissão e, em caso de fraude ou dano jurídico, responsabilização cível e criminal conforme orientações do jurídico parceiro.'},
+    {n:'48-A', t:'Propostas paralelas e negociações externas', c:'É expressamente proibido elaborar ou conduzir propostas fora dos canais institucionais da PSM, mesmo que a tratativa tenha iniciado por fora. Isso inclui: uso de contratos próprios, formulários externos, envio de dados por e-mail pessoal ou WhatsApp, acordos verbais, promessas sem formalização ou qualquer tratativa que não passe pelo sistema da empresa.', m:'Advertência formal, bloqueio da negociação, perda de comissão e responsabilização contratual e jurídica em caso de prejuízo ao cliente, à empresa ou a terceiros envolvidos.'},
+    {n:'49', t:'Procedimentos em imóveis adquiridos junto à incorporadora', c:'Em negociações diretamente com incorporadoras, é responsabilidade do parceiro manter a PSM informada durante todas as etapas, garantindo que a comunicação, envio de documentos e informações estejam sempre acessíveis à empresa. Cópias dos contratos assinados devem ser compartilhadas com a PSM e arquivadas conforme padrão interno.', m:'Advertência, bloqueio de leads em caso de omissão ou negligência e, se houver tentativa de ocultação, revisão contratual imediata.'},
+    {n:'49-A', t:'Documentação completa nas propostas', c:'O envio de propostas deve estar sempre acompanhado da documentação completa do cliente, incluindo os documentos pessoais, comprovantes, autorizações e, quando aplicável, as certidões negativas exigidas para análise jurídica.', m:'Advertência formal, bloqueio da proposta e responsabilização do corretor em caso de prejuízo ou atraso decorrente da omissão.'},
+    {n:'50', t:'Alterações contratuais e cláusulas não autorizadas', c:'Nenhuma cláusula pode ser incluída, modificada ou omitida sem validação expressa da liderança ou do jurídico da PSM. Alterações em modelos, prazos ou valores devem sempre passar por análise e aprovação formal.', m:'Invalidação do contrato, advertência severa e necessidade de revalidação junto ao cliente ou incorporadora.'},
+    {n:'51', t:'Confirmação da intermediação e vínculo com a PSM', c:'A intermediação da PSM deve estar expressa e formalizada em todos os documentos, propostas e contratos. Qualquer tentativa de omitir ou reduzir o papel da empresa, mesmo a pedido do cliente, é considerada grave violação ética.', m:'Rescisão imediata da parceria, retenção ou cancelamento de comissão e responsabilização por perdas e danos.'}
+  ]},
+  {num:13, tit:'Comissões e Remuneração', intro:'Regras para recebimento de comissões, proibições de acordos informais e divulgação de valores.', arts:[
+    {n:'52', t:'Proibição de comissões informais ou "por fora"', c:'É terminantemente proibido oferecer, aceitar ou negociar qualquer tipo de comissão não registrada formalmente nos processos da PSM, seja com clientes, proprietários, parceiros ou quaisquer outros participantes do processo, como seguradoras, administradoras de condomínio, corretores de seguro, consórcio ou advogados.', m:'Rescisão imediata da parceria, retenção de valores envolvidos, bloqueio da comissão devida e responsabilização contratual e jurídica.'},
+    {n:'53', t:'Divulgação inadequada de ganhos ou comissões', c:'É proibido compartilhar prints, valores recebidos ou demonstrar ganhos em ambientes informais, grupos de equipe ou redes sociais. A remuneração é um dado sensível, individual e deve ser tratada com discrição.', m:'Advertência formal, rebaixamento de nível em programas de reconhecimento e, em caso de reincidência, restrição de participação em campanhas e bonificações.'},
+    {n:'54', t:'Alterações em valores ou porcentagens de comissão', c:'Nenhuma alteração em comissões, tabelas de porcentagem ou formas de repasse pode ser realizada sem aprovação da liderança.', m:'Caso efetivado, o corretor assume integralmente o compromisso, ônus, perdas e danos decorrentes da alteração não autorizada, além de perder o direito à comissão original.'},
+    {n:'55', t:'Comissão em imóveis próprios ou de familiares', c:'Parceiros que estiverem vendendo imóveis próprios ou de familiares devem declarar formalmente essa informação à liderança antes do início da divulgação. É proibido ocultar a origem do imóvel ou desviar leads da PSM para benefício pessoal ou deixar de pagar a comissão devida.', m:'Advertência formal, bloqueio da comissão, revisão da negociação e, em caso de omissão intencional, rescisão contratual e responsabilização por perdas e danos.'},
+    {n:'55-A', t:'Comissão entre corretores parceiros', c:'A divisão de comissão entre parceiros da mesma equipe deve ser previamente alinhada e comunicada à liderança, sendo vedados acordos verbais ou informais sem registro no sistema interno.', m:'Advertência formal e, em caso of impasse ou omissão, retenção temporária da comissão até regularização.'}
+  ]},
+  {num:14, tit:'Parcerias e Indicações', intro:'Conduta ética na indicação de prestadores de serviço e relacionamento com parceiros externos.', arts:[
+    {n:'56', t:'Indicações com isenção e responsabilidade', c:'Ao indicar prestadores de serviço como advogados, despachantes, arquitetos, reformas ou outros, o parceiro deve agir com total isenção, focando no interesse do cliente. É proibido trocar favores, aceitar comissões ocultas ou condicionar atendimento a benefício pessoal.', m:'Advertência formal, rompimento da parceria com o prestador envolvido e, em caso de reincidência, rescisão contratual por quebra de conduta ética.'},
+    {n:'57', t:'Exclusividades e acordos com terceiros', c:'Exclusividades ou parcerias com terceiros (como proprietários, investidores ou imobiliárias externas) só têm validade se forem formalizadas por contrato reconhecido pela PSM. Nenhum parceiro está autorizado a assinar ou representar institucionalmente a empresa.', m:'Advertência formal e, em caso de prejuízo à imagem ou estrutura jurídica da PSM, responsabilização legal por falsa representação institucional.'},
+    {n:'57-A', t:'Atuação sem CRECI ativo', c:'É proibido atuar na intermediação imobiliária sem registro válido no CRECI. Caso o parceiro esteja com o registro suspenso ou vencido, deve comunicar imediatamente à liderança e se abster de exercer atividades até a regularização.', m:'Suspensão imediata das atividades e, em caso de atuação comprovada sem habilitação, aplicação de multa e rescisão contratual.'},
+    {n:'58', t:'Solicitações e ações junto a parceiros externos', c:'Qualquer solicitação feita em nome da PSM a parceiros externos — como construtoras, incorporadoras, correspondentes bancários ou advogados — deve ser previamente alinhada com a liderança e registrada no CRM.', m:'Advertência com bloqueio temporário de acessos, realinhamento estratégico com a liderança e revisão de autonomia operacional.'},
+    {n:'58-A', t:'Participação em serviços ou contratações externas', c:'O parceiro não deve se envolver diretamente na contratação de reformas, manutenção, obras, serviços domésticos ou quaisquer providências operacionais em nome do cliente.', m:'Advertência formal e responsabilização direta por qualquer prejuízo causado.'}
+  ]},
+  {num:15, tit:'Infraestrutura e Recursos', intro:'Uso dos recursos físicos, digitais e operacionais da PSM.', arts:[
+    {n:'59', t:'Uso adequado dos recursos da empresa', c:'Recursos como veículos, computadores, impressoras, sistemas internos, salas de reunião e materiais de apoio são de uso exclusivo para fins profissionais vinculados às atividades da PSM. É proibido utilizá-los para interesses pessoais ou negócios externos.', m:'Advertência formal, corte de acesso ao recurso em questão e, em caso de prejuízo ou má-fé, responsabilização contratual com possível ressarcimento.'},
+    {n:'60', t:'Preservação e organização dos ambientes', c:'É dever de todos manter os espaços físicos da empresa organizados, limpos e em condições adequadas de uso. Isso inclui o cuidado com móveis, equipamentos, banheiros, cozinha, salas de atendimento e estrutura compartilhada.', m:'Advertência leve, orientação imediata e, em caso de danos, reposição do item ou indenização proporcional.'},
+    {n:'60-A', t:'Proibição de recebimento de correspondência', c:'É terminantemente proibido utilizar o endereço da PSM para recebimento de correspondências pessoais ou comerciais.', m:'Advertência formal e, em caso de reincidência, bloqueio temporário de acesso ao escritório.'},
+    {n:'61', t:'Acesso e senhas pessoais', c:'Todos os acessos fornecidos pela PSM — como logins, senhas, usuários de plataformas e ferramentas digitais — são de uso individual e intransferível.', m:'Corte imediato do acesso, advertência formal, rescisão da parceria em caso de violação grave e encaminhamento jurídico por quebra de sigilo e confidencialidade.'},
+    {n:'62', t:'Permanência em canais oficiais', c:'Todos os parceiros devem permanecer nos grupos oficiais de comunicação e nos canais operacionais ativos da empresa, salvo autorização expressa da liderança. A saída voluntária sem aviso pode comprometer a fluidez do trabalho coletivo.', m:'Advertência com alinhamento formal e, em caso de reincidência, suspensão temporária da atuação em campanhas e canais institucionais.'}
+  ]},
+  {num:16, tit:'Responsabilidades em Representação da Marca', intro:'Comportamento esperado ao atuar em nome da PSM ou utilizar sua identidade institucional.', arts:[
+    {n:'63', t:'Lealdade na representação da PSM', c:'Ao atuar sob a bandeira da PSM, o parceiro assume o compromisso de defender a integridade da marca, respeitar os princípios da intermediação transparente e evitar qualquer atitude que desvalorize a atuação institucional. É proibido sugerir que o cliente "negocie por fora" para evitar comissão, minimizar a relevância da empresa ou omitir sua participação no processo.', m:'Rescisão imediata da parceria, cobrança da comissão devida, bloqueio de acesso à estrutura e responsabilização por perdas e danos.'},
+    {n:'64', t:'Conduta em atendimentos externos e eventos', c:'A postura do parceiro em eventos, visitas, plantões, reuniões externas e redes sociais deve refletir os valores e o profissionalismo da PSM. Comportamentos inadequados, desorganização, atrasos recorrentes ou linguagem imprópria comprometem a credibilidade institucional.', m:'Advertência formal, exclusão de escalas ou eventos futuros e acompanhamento individual da conduta.'},
+    {n:'65', t:'Uso responsável da imagem da empresa', c:'É vedado usar o nome, logotipo, campanhas, identidade visual ou materiais da PSM para ações individuais, conteúdo pessoal ou comunicação não autorizada. A marca só pode ser utilizada conforme orientações oficiais da liderança.', m:'Advertência com obrigação de correção ou retirada do conteúdo, bloqueio do uso de marca e revisão do vínculo com a estrutura de divulgação institucional.'}
+  ]},
+  {num:17, tit:'Penalidades Finais e Procedimentos de Encerramento', intro:'Critérios para aplicação de penalidades e procedimentos formais para encerramento de parceria.', arts:[
+    {n:'66', t:'Escalonamento de consequências', c:'As medidas corretivas seguem o princípio da proporcionalidade e podem incluir: feedback verbal, advertência leve, advertência formal, suspensão de campanhas ou benefícios, bloqueio de acesso a ferramentas, perda de pontos, mediação com a liderança, corte de comissão e rescisão do contrato de parceria. A reincidência ou a gravidade da conduta determinará o nível de ação aplicado.', m:'A liderança tem autonomia para aplicar as medidas conforme cada caso, com registro em sistema interno e comunicação direta ao parceiro envolvido.'},
+    {n:'67', t:'Fatos que configuram rescisão imediata da parceria', c:'Serão considerados motivos diretos para encerramento imediato da parceria, sem necessidade de advertência prévia, os seguintes casos: tentativa de fraude, corrupção ou comissão "por fora"; quebra de sigilo institucional; uso indevido da estrutura da PSM em benefício de terceiros ou concorrência; assédio; preconceito; desvio de cliente; uso de documentos falsos; e manipulação intencional de registros.', m:'Rescisão contratual imediata, bloqueio de comissões, exclusão de campanhas, registro da ocorrência nos sistemas da empresa e adoção das medidas judiciais cabíveis conforme a gravidade do caso.'},
+    {n:'68', t:'Encerramento por alinhamento cultural', c:'A parceria também poderá ser encerrada quando for identificado, de forma contínua, desalinhamento de valores, baixa adesão às diretrizes institucionais, comportamento incompatível com a cultura da PSM ou resistências constantes à conduta esperada.', m:'Alinhamento com a liderança, registro de histórico e formalização do encerramento com base contratual.'},
+    {n:'69', t:'Processo de comunicação e registro das medidas', c:'Toda ação corretiva será comunicada ao parceiro de forma direta, com registro no sistema interno. Em casos mais relevantes, será solicitado o aceite formal do termo de ciência da infração. Situações que envolvam quebra de sigilo, ética ou impacto jurídico poderão ser compartilhadas com o escritório parceiro de advocacia para orientação adequada.', m:'Aplicação do processo formal de desligamento com base no contrato de parceria vigente, preservando a segurança institucional da PSM.'}
+  ]}
+];
+
+function _eticaEscape(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderCodigoEticaCompleto(){
+  var html = '<div style="padding:18px 20px;max-height:calc(100vh - 300px);overflow-y:auto">'
+    + '<div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);color:#fff;padding:18px 22px;border-radius:12px;margin-bottom:18px">'
+    + '<div style="font-size:22px;font-weight:900;letter-spacing:.5px">\u2696\uFE0F Código de Ética PSM Imóveis</div>'
+    + '<div style="font-size:12px;opacity:.8;margin-top:4px">17 Capítulos · 69 Artigos · Conduta profissional obrigatória</div>'
+    + '</div>'
+    + '<div style="font-size:13px;line-height:1.75;color:var(--tx)">';
+  // Sumário
+  html += '<div style="background:var(--cream2);border-radius:10px;padding:14px 18px;margin-bottom:18px">'
+    + '<div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:8px">\uD83D\uDCD1 Sumário</div>'
+    + '<ol style="margin:0;padding-left:22px;font-size:12px;color:var(--muted);line-height:1.9">';
+  CODIGO_ETICA_CAPITULOS.forEach(function(cap){
+    html += '<li><a href="#cap-' + cap.num + '" style="color:var(--navy);text-decoration:none">' + _eticaEscape(cap.tit) + '</a></li>';
+  });
+  html += '</ol></div>';
+  // Capítulos
+  CODIGO_ETICA_CAPITULOS.forEach(function(cap){
+    html += '<div id="cap-' + cap.num + '" style="margin:22px 0 16px;padding-top:10px;border-top:2px solid var(--navy)">'
+      + '<h3 style="font-size:16px;font-weight:900;color:var(--navy);margin:0 0 4px">CAPÍTULO ' + cap.num + ' — ' + _eticaEscape(cap.tit) + '</h3>'
+      + '<div style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:12px">' + _eticaEscape(cap.intro) + '</div>';
+    cap.arts.forEach(function(a){
+      var corpo = _eticaEscape(a.c).replace(/\\n/g, '<br>');
+      html += '<div style="background:var(--cream2);border-left:4px solid var(--gold);border-radius:8px;padding:12px 16px;margin-bottom:10px">'
+        + '<div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:6px">Art. ' + a.n + ' — ' + _eticaEscape(a.t) + '</div>'
+        + '<div style="font-size:12.5px;color:var(--tx);margin-bottom:8px">' + corpo + '</div>'
+        + '<div style="background:#fff7ed;border-left:3px solid #f59e0b;padding:8px 12px;border-radius:6px;font-size:11.5px">'
+        +   '<span style="font-weight:800;color:#b45309">\u26A0\uFE0F Consequência:</span> '
+        +   '<span style="color:var(--tx)">' + _eticaEscape(a.m) + '</span>'
+        + '</div>'
+        + '</div>';
+    });
+    html += '</div>';
+  });
+  html += '<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:10px;padding:14px 18px;margin-top:20px;text-align:center;font-size:12px;color:#78350f;font-weight:600">'
+    + 'Este código é parte integrante do contrato de parceria. O descumprimento pode acarretar nas consequências descritas em cada artigo.'
+    + '</div>';
+  html += '</div></div>';
+  return html;
+}
+
 // ─── CÓDIGO DE ÉTICA (pagina propria, separada do Manual de Cultura) ─────────
 function pgCodigoEtica(){
   var u = S.user; if(!u) return '';
@@ -14554,27 +14693,7 @@ function pgCodigoEtica(){
       {nome:'Código de Ética PSM Imóveis', tipo:'etica', ico:'\u2696\uFE0F', desc:'', url:''}
     ];
   }
-  var eticaContent = '<div style="padding:20px">'
-    + '<h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:16px">\u2696\uFE0F Código de Ética PSM Imóveis</h2>'
-    + '<div style="font-size:13px;line-height:1.8;color:var(--tx)">'
-    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\uD83D\uDCCC Princípios Fundamentais</h3>'
-    + '<p>O Código de Ética da PSM Assessoria Imobiliária estabelece os padrões de conduta profissional esperados de todos os colaboradores. Seu cumprimento é obrigatório e reflete nosso compromisso com a excelência.</p>'
-    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\uD83D\uDEAB Condutas Proibidas</h3>'
-    + '<p style="color:var(--r-tx)">\u274C Desvio de leads ou clientes de outros corretores<br>'
-    + '\u274C Informações falsas ou enganosas a clientes<br>'
-    + '\u274C Negociações paralelas fora do sistema PSM<br>'
-    + '\u274C Desrespeito à roleta e regras de distribuição<br>'
-    + '\u274C Compartilhamento indevido de informações internas<br>'
-    + '\u274C Assédio ou discriminação de qualquer natureza</p>'
-    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\u2705 Condutas Esperadas</h3>'
-    + '<p style="color:var(--g-tx)">\u2714\uFE0F Transparência total com clientes e colegas<br>'
-    + '\u2714\uFE0F Registro fiel de todas as atividades no CRM<br>'
-    + '\u2714\uFE0F Atendimento dentro dos prazos e cadências definidos<br>'
-    + '\u2714\uFE0F Colaboração ativa com a equipe e liderança<br>'
-    + '\u2714\uFE0F Melhoria contínua pessoal e profissional</p>'
-    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\u26A0\uFE0F Consequências</h3>'
-    + '<p>O descumprimento do código de ética pode resultar em: advertência verbal, advertência formal, suspensão temporária das atividades ou desligamento, conforme a gravidade da infração e decisão da diretoria.</p>'
-    + '</div></div>';
+  var eticaContent = renderCodigoEticaCompleto();
   var adminUpload = lvl >= 5 ? '<div class="card mb2"><div class="ctitle">\u2699\uFE0F Link Externo (PDF/Drive)</div>'
     + '<div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px">Link — Código de Ética</div>'
     + '<input id="eti-url-pg" class="finp" placeholder="Cole o link do Código de Ética" value="'+(S.manualDocs[1].url||'')+'" style="width:100%;font-size:11px;padding:6px 8px;margin-bottom:6px">'
@@ -22254,7 +22373,7 @@ function premDel(id) {
 
 // === NOVO SISTEMA DE PERMISSOES POR SECAO ===
 // Paginas visiveis para TODOS
-var PAGES_ALL=['checkin','wararena','lancamentos_ano','ranking','agenda_psm','tabela','drive','mapa','base_conhecimento','simuladores','formacao','manual','playbook','codigo_etica','simvpl','simincc','sim_energia','simrep','canal_anonimo','kenlo','agente_vera','agente_sol','sr_performance','sr_gerencia'];
+var PAGES_ALL=['checkin','wararena','lancamentos_ano','ranking','agenda_psm','tabela','drive','mapa','base_conhecimento','simuladores','formacao','manual','playbook','codigo_etica','simvpl','simincc','sim_energia','simrep','canal_anonimo','agente_vera','agente_sol','sr_performance','sr_gerencia'];
 // Painel do Corretor: socios, gestores(lider), corretores
 var PAGES_PAINEL_CORRETOR=['oneonone','oportunidades','premiacoes','fluxo_cadencia','criativos','plantoes','ficha_captacao','fichas_propostas','ia_corretor','captacao'];
 // Vendas & Comissoes: diretores, lideres, corretores
@@ -22371,7 +22490,6 @@ function renderSB() {
       {id:'base_conhecimento', lbl:'Forma\u00e7\u00e3o & Cultura', ico:'\uD83D\uDCDA'},
       {id:'simuladores',   lbl:'Simuladores',             ico:'\uD83E\uDDEE'},
       {id:'canal_anonimo', lbl:'Canal An\u00f4nimo',      ico:'\uD83D\uDD12'},
-      {id:'kenlo',         lbl:'Kenlo',                   ico:'\uD83C\uDFE0'},
     ]},
     {sec:'Frentes', items:[
       {id:'conquista',  lbl:'Equipe Conquista', ico:'\uD83C\uDFC6'},
@@ -22438,7 +22556,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22b</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22c</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'

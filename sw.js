@@ -5,7 +5,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const CACHE_VERSION = 'psm-os-v22b-2026-04-19';
+const CACHE_VERSION = 'psm-os-v22c-2026-04-19';
 const HTML_CACHE    = CACHE_VERSION + '-html';
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
