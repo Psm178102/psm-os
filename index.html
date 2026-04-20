@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.19-v20 — Gestão de Pessoas (Treinamentos/Reuniões/Talentos) + PSM Locações (6 páginas) + v19 -->
+<!-- PSM-OS v2026.04.19-v21 — PSM Live (Diretoria+topo TV) + Funil TV inicia Novo Atend. + Ranking Anual TV + OO×Meta TV + cenas otimizadas + v20 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.19-v20">
+<meta name="version" content="2026.04.19-v21">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3966,10 +3966,28 @@ function arenaTV(){
   overlay.id = 'arena-tv-overlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:linear-gradient(180deg,#0b1220 0%,#0f172a 100%);overflow:hidden;font-family:Inter,"Segoe UI",system-ui,sans-serif;color:#e2e8f0';
 
+  // ── TOP BAR PSM LIVE — marquee gigante rolando ─────────────────────────────
+  var psmLiveBar = document.createElement('div');
+  psmLiveBar.id = 'tv-psm-live';
+  psmLiveBar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:76px;z-index:100001;background:linear-gradient(90deg,#0b1220 0%,#1e293b 50%,#0b1220 100%);border-bottom:2px solid #d4a843;display:flex;align-items:center;overflow:hidden';
+  psmLiveBar.innerHTML = ''
+    + '<div style="flex-shrink:0;padding:0 22px;height:100%;display:flex;align-items:center;background:linear-gradient(135deg,#d4a843,#fbbf24);color:#0b1220;font-weight:900;font-size:22px;letter-spacing:4px;border-right:3px solid #0b1220">'
+    +   '<span style="animation:psmPulse 1.6s infinite;margin-right:10px;font-size:18px">●</span>PSM LIVE'
+    + '</div>'
+    + '<div id="tv-psm-live-track" style="flex:1;white-space:nowrap;font-size:32px;font-weight:800;color:#fbbf24;letter-spacing:2px;padding:0 40px;overflow:hidden;position:relative"></div>';
+  overlay.appendChild(psmLiveBar);
+  // Keyframes marquee + pulse (inject once)
+  if(!document.getElementById('tv-psm-live-style')){
+    var stl = document.createElement('style');
+    stl.id = 'tv-psm-live-style';
+    stl.textContent = '@keyframes psmMarquee { 0%{transform:translateX(100vw)} 100%{transform:translateX(-100%)} } @keyframes psmPulse { 0%,100%{opacity:1} 50%{opacity:0.35} }';
+    document.head.appendChild(stl);
+  }
+
   // CONTAINER SPLIT: stage (cenas rotativas) | timeline (permanente)
   var splitWrap = document.createElement('div');
   splitWrap.id = 'tv-split';
-  splitWrap.style.cssText = 'position:absolute;top:0;left:0;width:100vw;height:calc(100vh - 56px);display:grid;grid-template-columns:1fr 1fr;gap:0';
+  splitWrap.style.cssText = 'position:absolute;top:76px;left:0;width:100vw;height:calc(100vh - 56px - 76px);display:grid;grid-template-columns:1fr 1fr;gap:0';
   overlay.appendChild(splitWrap);
 
   var stage = document.createElement('div');
@@ -4018,17 +4036,41 @@ function arenaTV(){
     var dr = _diasRestMes();
     var mNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     var pctCol = pct>=100 ? '#22c55e' : pct>=70 ? '#d4a843' : pct>=40 ? '#f59e0b' : '#ef4444';
+    // v21: Top 3 corretores do mes — aproveita espaco vazio
+    var BR_h = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
+    var top3 = BR_h.filter(function(b){return b.role!=='socio';}).map(function(b){
+      var Mx = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : {vgv_real:0,vendas:0};
+      var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
+      return {name:disp.name, ini:disp.ini||_initials(b.name), vgv:Mx.vgv_real, vendas:Mx.vendas, masked:!!disp._masked};
+    }).filter(function(r){return r.vgv>0 && !r.masked;}).sort(function(a,b){return b.vgv-a.vgv;}).slice(0,3);
+    var medals = ['🥇','🥈','🥉'];
+    var top3Html = '';
+    if(top3.length>0){
+      top3Html = '<div style="margin-top:20px;padding-top:18px;border-top:1px solid rgba(212,168,67,0.2)">'
+        + '<div style="font-size:10px;color:#64748b;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px">Pódio do Mês</div>'
+        + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+      top3.forEach(function(r,i){
+        top3Html += '<div style="background:rgba(30,41,59,0.5);border-radius:10px;padding:10px 8px;text-align:center">'
+          + '<div style="font-size:22px;margin-bottom:2px">' + medals[i] + '</div>'
+          + '<div style="font-size:11px;color:#e2e8f0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + '</div>'
+          + '<div style="font-size:12px;color:#fbbf24;font-weight:800;margin-top:2px">' + _brFull(r.vgv) + '</div>'
+          + '<div style="font-size:9px;color:#22c55e;font-weight:700">' + r.vendas + ' vendas</div>'
+          + '</div>';
+      });
+      top3Html += '</div></div>';
+    }
     return ''
       + '<div style="width:100%;text-align:center">'
-      +   '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:14px">VGV Realizado — ' + mNames[curM] + '</div>'
-      +   '<div style="font-size:clamp(56px,7vw,110px);font-weight:900;letter-spacing:-3px;line-height:1;background:linear-gradient(180deg,#fbbf24,#d4a843);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:10px;word-break:break-word">' + _brFull(G.vgv_real) + '</div>'
-      +   '<div style="font-size:20px;color:#94a3b8;margin-bottom:30px;font-weight:500">Meta: <b style="color:#e2e8f0">' + _brFull(metaMes) + '</b> · <span style="color:'+pctCol+';font-weight:800">' + pct + '%</span></div>'
-      +   '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:24px">'
+      +   '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:10px">VGV Realizado — ' + mNames[curM] + '</div>'
+      +   '<div style="font-size:clamp(48px,6vw,90px);font-weight:900;letter-spacing:-3px;line-height:1;background:linear-gradient(180deg,#fbbf24,#d4a843);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:6px;word-break:break-word">' + _brFull(G.vgv_real) + '</div>'
+      +   '<div style="font-size:17px;color:#94a3b8;margin-bottom:16px;font-weight:500">Meta: <b style="color:#e2e8f0">' + _brFull(metaMes) + '</b> · <span style="color:'+pctCol+';font-weight:800">' + pct + '%</span></div>'
+      +   '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">'
       +     _heroCard('Vendas', G.vendas, '#22c55e')
       +     _heroCard('Pipeline', _brFull(G.vgv_pipe), '#60a5fa')
       +     _heroCard('Gap p/ Meta', _brFull(gap), gap>0?'#ef4444':'#22c55e')
       +     _heroCard('Dias Restantes', dr, '#d4a843')
       +   '</div>'
+      +   top3Html
       + '</div>';
   }
   function _heroCard(lbl, val, col){
@@ -4081,21 +4123,41 @@ function arenaTV(){
     var ultimas = (VENDAS||[]).filter(function(v){var d=new Date(v.closedAt||v.createdAt||'');return !isNaN(d.getTime()) && d>=cutoff;})
       .sort(function(a,b){return new Date(b.closedAt||b.createdAt) - new Date(a.closedAt||a.createdAt);});
     var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column">'
-      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:14px;text-align:center;flex-shrink:0">PULSE — ' + ultimas.length + ' Vendas Recentes</div>';
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:12px;text-align:center;flex-shrink:0">PULSE — ' + ultimas.length + ' Vendas Recentes</div>';
     if(ultimas.length === 0){
-      html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:18px;flex:1">Nenhuma venda nos últimos 7 dias</div>';
+      html += '<div style="text-align:center;padding:30px;color:#64748b;font-size:16px;flex-shrink:0">Nenhuma venda nos últimos 7 dias</div>';
     } else {
-      html += '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:6px">';
-      ultimas.forEach(function(v){
+      html += '<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;flex-shrink:0;max-height:50%;overflow:hidden">';
+      ultimas.slice(0,6).forEach(function(v){
         var b = (typeof UM!=='undefined') ? (UM[v.bid]||null) : null;
         var nm = (b && typeof safeBrokerName==='function') ? safeBrokerName(b) : (b?b.name:'--');
         var d = new Date(v.closedAt||v.createdAt);
         var dStr = String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-        html += '<div style="display:grid;grid-template-columns:78px 1fr auto;gap:12px;align-items:center;padding:10px 14px;background:rgba(34,197,94,0.08);border-left:3px solid #22c55e;border-radius:8px">'
+        html += '<div style="display:grid;grid-template-columns:78px 1fr auto;gap:12px;align-items:center;padding:8px 12px;background:rgba(34,197,94,0.08);border-left:3px solid #22c55e;border-radius:8px">'
           + '<div style="font-family:ui-monospace,monospace;font-size:11px;color:#94a3b8">' + dStr + '</div>'
-          + '<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (v.name||v.deal_name||'Venda') + '</div>'
+          + '<div style="min-width:0"><div style="font-size:12px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (v.name||v.deal_name||'Venda') + '</div>'
           +   '<div style="font-size:11px;color:#64748b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nm + '</div></div>'
-          + '<div style="font-size:15px;font-weight:800;color:#22c55e;white-space:nowrap">' + _brFull(v.vgv||0) + '</div>'
+          + '<div style="font-size:14px;font-weight:800;color:#22c55e;white-space:nowrap">' + _brFull(v.vgv||0) + '</div>'
+          + '</div>';
+      });
+      html += '</div>';
+    }
+    // v21: unifica com Top Oportunidades — otimiza espaco vazio
+    var topOpps = (OPPS||[]).filter(function(o){
+      var b = (typeof UM!=='undefined') ? UM[o.bid] : null;
+      if(b && b.role==='socio') return false;
+      return o.vgv > 0 && o.st_psm && o.st_psm !== 'carteira' && o.st_psm !== 'perdido' && o.st_psm !== 'ganho';
+    }).sort(function(a,b){return (b.vgv||0) - (a.vgv||0);}).slice(0,8);
+    if(topOpps.length > 0){
+      html += '<div style="font-size:11px;color:#60a5fa;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;padding-top:10px;border-top:1px solid rgba(96,165,250,0.2);flex-shrink:0">Top Oportunidades Abertas</div>';
+      html += '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:4px">';
+      topOpps.forEach(function(o){
+        var b = (typeof UM!=='undefined') ? UM[o.bid] : null;
+        var bnm = b ? (b.name||'--') : '--';
+        html += '<div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:7px 12px;background:rgba(96,165,250,0.06);border-left:3px solid #60a5fa;border-radius:8px">'
+          + '<div style="min-width:0"><div style="font-size:12px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (o.name||'Oportunidade') + '</div>'
+          +   '<div style="font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + bnm + ' · ' + (o.st_psm||'—') + '</div></div>'
+          + '<div style="font-size:13px;font-weight:800;color:#60a5fa;white-space:nowrap">' + _brFull(o.vgv||0) + '</div>'
           + '</div>';
       });
       html += '</div>';
@@ -4255,10 +4317,11 @@ function arenaTV(){
   }
 
   // ══════ TIMELINE PERMANENTE (metade direita) ══════
+  // v21: tudo que for atualizado no sistema aparece aqui — vendas, recados (perpetuos inclusive),
+  // treinamentos, reunioes, talentos, contratos locacao, PSM Live, lancamentos, agenda.
   function buildTimeline(){
     var items = [];
-    var now = new Date();
-    // Filtro: ocultar atividade de SÓCIOS (Paulo, Isabella) — TV é para gestão de corretores
+    var now = Date.now();
     var isSocioBid = function(bid){
       try {
         var b = (typeof UM!=='undefined') ? UM[bid] : null;
@@ -4267,7 +4330,7 @@ function arenaTV(){
       } catch(e){ return false; }
     };
 
-    // 1) Últimas vendas (20 mais recentes) — exclui sócios
+    // 1) Vendas recentes (todas) — exclui sócios
     (VENDAS||[]).slice().filter(function(v){return !isSocioBid(v.bid);}).sort(function(a,b){return new Date(b.closedAt||b.createdAt) - new Date(a.closedAt||a.createdAt);}).slice(0,20).forEach(function(v){
       var b = (typeof UM!=='undefined') ? (UM[v.bid]||null) : null;
       var nm = (b && typeof safeBrokerName==='function') ? safeBrokerName(b) : (b?b.name:'--');
@@ -4275,7 +4338,26 @@ function arenaTV(){
       items.push({ts:d.getTime(), type:'venda', icon:'🎯', title:(v.name||v.deal_name||'Venda fechada'), sub:nm, val:_brFull(v.vgv||0), col:'#22c55e'});
     });
 
-    // 2) Oportunidades publicadas (S.oportunidadesPSM)
+    // 2) PSM Live (S.timelineItems) — inclui perpetuos (exp=0)
+    try{
+      (S.timelineItems||[]).forEach(function(it){
+        if(it.exp && it.exp<now) return;
+        var corMap = {evento:'#d4a843', recado:'#3b82f6', premiacao:'#22c55e', oportunidade:'#a855f7', urgente:'#ef4444'};
+        items.push({ts:it.dt||now, type:it.tipo||'recado', icon:it.ico||'✨', title:(it.txt||'').slice(0,90), sub:'PSM Live', val:'', col:corMap[it.tipo]||'#d4a843'});
+      });
+    }catch(e){}
+
+    // 3) Recados Arena (S.arenaRecados) — inclui perpetuos
+    try{
+      (S.arenaRecados||[]).forEach(function(r){
+        if(r.exp && r.exp<now) return;
+        var icoMap = {urgente:'🚨', info:'📢', parabens:'🎉', geral:'💬'};
+        var colMap = {urgente:'#ef4444', info:'#3b82f6', parabens:'#22c55e', geral:'#94a3b8'};
+        items.push({ts:r.dt||now, type:'recado', icon:icoMap[r.tipo]||'📢', title:(r.msg||'').slice(0,90), sub:'['+(r.autorNome||'DIRETORIA').toUpperCase()+']', val:'', col:colMap[r.tipo]||'#3b82f6'});
+      });
+    }catch(e){}
+
+    // 4) Oportunidades publicadas
     if(S.oportunidadesPSM && Array.isArray(S.oportunidadesPSM)){
       S.oportunidadesPSM.slice(0,15).forEach(function(op){
         var d = new Date(op.createdAt || op.data || Date.now());
@@ -4284,32 +4366,58 @@ function arenaTV(){
       });
     }
 
-    // 3) Scores dos corretores (top ativos) — exclui sócios
-    try {
-      var BR = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
-      BR.filter(function(b){return !isMaskedBroker(b.id) && b.role !== 'socio';}).slice(0,10).forEach(function(b){
-        var score = b.score || 0;
-        if(score > 0){
-          items.push({ts:Date.now(), type:'score', icon:'⭐', title:b.name, sub:'Score atual', val:score+' pts', col:'#d4a843'});
+    // 5) Treinamentos (Gestão de Pessoas)
+    try{
+      (S.gpTreinamentos||[]).slice(0,12).forEach(function(t){
+        var d = new Date(t.criadoEm||Date.now());
+        items.push({ts:d.getTime(), type:'treinamento', icon:'🎓', title:t.titulo||'Treinamento', sub:'Público: '+(t.publico||'—')+' · '+(t.status||''), val:t.prazo||'', col:'#8b5cf6'});
+      });
+    }catch(e){}
+
+    // 6) Reuniões 1:1
+    try{
+      (S.gpReunioes||[]).slice(0,10).forEach(function(r){
+        var b = (typeof UM!=='undefined') ? UM[r.brokerId] : null;
+        var d = new Date(r.data||Date.now());
+        items.push({ts:d.getTime(), type:'reuniao', icon:'🤝', title:'Reunião '+(r.tipo||'1x1'), sub:(b?b.name:'—'), val:r.data||'', col:'#06b6d4'});
+      });
+    }catch(e){}
+
+    // 7) Talentos novos
+    try{
+      (S.gpTalentos||[]).slice(0,8).forEach(function(t){
+        var d = new Date(t.criadoEm||Date.now());
+        items.push({ts:d.getTime(), type:'talento', icon:'👤', title:t.nome||'Talento', sub:(t.funcao||'')+(t.setor?' · '+t.setor:''), val:'', col:'#0ea5e9'});
+      });
+    }catch(e){}
+
+    // 8) Contratos locação recentes
+    try{
+      (S.locContratos||[]).slice(0,10).forEach(function(c){
+        var d = new Date(c.criadoEm||Date.now());
+        items.push({ts:d.getTime(), type:'contrato', icon:'🏘️', title:c.imovel||'Contrato locação', sub:(c.locatario||'—')+' · '+(c.status||''), val:_brFull(c.valor||0), col:'#10b981'});
+      });
+    }catch(e){}
+
+    // 9) Lançamentos recentes
+    try{
+      (S.lancamentos||[]).slice(0,8).forEach(function(l){
+        var d = new Date(l.dataUpd||l.dataCreated||l.data||Date.now());
+        items.push({ts:d.getTime(), type:'lancamento', icon:'🚀', title:l.nome||'Lançamento', sub:(l.construtora||'')+(l.frente?' · '+l.frente:''), val:'', col:'#f97316'});
+      });
+    }catch(e){}
+
+    // 10) Agenda PSM
+    try{
+      (S.agenda||[]).slice(0,12).forEach(function(a){
+        var d = new Date(a.dt||a.data||Date.now());
+        if(d.getTime() > now - 30*86400000 && d.getTime() < now + 30*86400000){
+          items.push({ts:d.getTime(), type:'agenda', icon:'📅', title:a.titulo||a.tipo||'Agenda', sub:(a.envolvidos||a.local||''), val:a.data||'', col:'#f59e0b'});
         }
       });
-    } catch(e){}
+    }catch(e){}
 
-    // 4) Alertas críticos — exclui sócios
-    try {
-      var BR2 = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
-      BR2.forEach(function(b){
-        if(b.role === 'socio') return;
-        var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : null;
-        if(!M) return;
-        var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
-        if(M.staleCrm >= 5 && !disp._masked){
-          items.push({ts:Date.now()-1, type:'alerta', icon:'⚠️', title:disp.name, sub:M.staleCrm+' leads parados', val:'CRM', col:'#f59e0b'});
-        }
-      });
-    } catch(e){}
-
-    // 5) Premiações (ranking top 3) — exclui sócios
+    // 11) Premiações top 3 mes
     try {
       var BR3 = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
       var rk = BR3.filter(function(b){return b.role !== 'socio';}).map(function(b){
@@ -4319,13 +4427,26 @@ function arenaTV(){
       }).filter(function(r){return r.vgv>0 && !r.masked;}).sort(function(a,b){return b.vgv-a.vgv;}).slice(0,3);
       var medals = ['🥇','🥈','🥉'];
       rk.forEach(function(r,i){
-        items.push({ts:Date.now()-100-i, type:'premio', icon:medals[i], title:r.name, sub:(i+1)+'º lugar do mês', val:_brFull(r.vgv), col:'#fbbf24'});
+        items.push({ts:now-100-i, type:'premio', icon:medals[i], title:r.name, sub:(i+1)+'º lugar do mês', val:_brFull(r.vgv), col:'#fbbf24'});
       });
     } catch(e){}
 
-    // Ordenar por timestamp desc e limitar
+    // 12) Alertas críticos — exclui sócios
+    try {
+      var BR2 = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
+      BR2.forEach(function(b){
+        if(b.role === 'socio') return;
+        var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : null;
+        if(!M) return;
+        var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
+        if(M.staleCrm >= 5 && !disp._masked){
+          items.push({ts:now-1, type:'alerta', icon:'⚠️', title:disp.name, sub:M.staleCrm+' leads parados', val:'CRM', col:'#f59e0b'});
+        }
+      });
+    } catch(e){}
+
     items.sort(function(a,b){return b.ts - a.ts;});
-    return items.slice(0, 30);
+    return items.slice(0, 50);
   }
 
   function renderTimeline(){
@@ -4374,7 +4495,9 @@ function arenaTV(){
   function sceneFunilCRM(){
     function _funilData(frenteFilter){
       // frenteFilter: 'all' = MAP+Conquista (sem terceiros), 'lancamento', 'conquista'
-      var stages = FUNIS['lancamento'] || [];
+      // v21: TV funil inicia em NOVO ATENDIMENTO — ignora 'carteira' e etapas pre-atendimento
+      var _rawStages = FUNIS['lancamento'] || [];
+      var stages = _rawStages.filter(function(s){ return s.id !== 'carteira'; });
       var brokersAceitos = BROKERS_ALL.filter(function(b){
         if(b.role === 'socio') return false;
         if(frenteFilter === 'all') return b.frente === 'lancamento' || b.frente === 'conquista';
@@ -4556,6 +4679,7 @@ function arenaTV(){
   }
 
   // ══════ CENA: RANKING ONE ON ONE ══════
+  // v21: exibe metricas OO por corretor com metas e % atingimento
   function sceneRankingOO(){
     var _now = new Date();
     var mk = _now.getFullYear() + '-' + String(_now.getMonth()+1).padStart(2,'0');
@@ -4563,15 +4687,34 @@ function arenaTV(){
     var rows = BR.map(function(b){
       var ag = (typeof ooAggMonth==='function') ? ooAggMonth(b.id, mk) : {};
       var rd = (typeof ooAggMonthRD==='function') ? ooAggMonthRD(b.id, mk) : {};
+      var meta = ((S.metaIndiv||{})[b.id]||{})[mk] || {};
+      var lig = (ag.lig_real||0) + (rd.lig_real||0);
+      var vis = (ag.vis||0) + (rd.vis_oo||0);
+      var prop = (ag.prop||0) + (rd.prop_oo||0);
+      var fup = (rd.cf_follow_up||0) + (ag.tent_agend||0);
+      var metaLig = meta.lig_real || 0;
+      var metaVis = meta.visitas || 0;
+      var metaProp = meta.propostas || 0;
       return {
         name:b.name, ini:b.ini,
-        lig:ag.lig_real||0, vis:ag.vis||0, prop:ag.prop||0,
-        fup:(rd.cf_follow_up||0) + (ag.tent_agend||0)
+        lig:lig, vis:vis, prop:prop, fup:fup,
+        metaLig:metaLig, metaVis:metaVis, metaProp:metaProp,
+        score:lig+vis*3+prop*5
       };
-    }).filter(function(r){return r.lig>0 || r.vis>0 || r.prop>0 || r.fup>0;}).sort(function(a,b){return b.lig-a.lig;});
+    }).filter(function(r){return r.lig>0 || r.vis>0 || r.prop>0 || r.fup>0 || r.metaLig>0 || r.metaVis>0;}).sort(function(a,b){return b.score-a.score;});
 
+    function _pctCol(p){return p>=100?'#22c55e':p>=70?'#d4a843':p>=40?'#f59e0b':'#ef4444';}
+    function _metricCell(real, meta, col){
+      if(meta>0){
+        var pct = Math.round(real/meta*100);
+        return '<td style="text-align:right;padding:4px 6px;font-size:10px"><span style="color:' + col + ';font-weight:800">' + real + '</span><span style="color:#64748b">/' + meta + '</span> <span style="color:' + _pctCol(pct) + ';font-weight:700;font-size:9px">' + pct + '%</span></td>';
+      }
+      return '<td style="text-align:right;padding:4px 6px;font-size:11px;color:' + col + ';font-weight:700">' + real + '</td>';
+    }
+
+    var mNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden">'
-      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:10px;text-align:center;flex-shrink:0">RANKING ONE ON ONE — Atividades</div>';
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:10px;text-align:center;flex-shrink:0">ONE ON ONE — Métricas × Meta · '+mNames[_now.getMonth()]+'</div>';
     if(rows.length === 0){
       html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:16px;flex:1">Sem registros One on One no período</div>';
     } else {
@@ -4579,22 +4722,83 @@ function arenaTV(){
         + '<thead><tr style="color:#64748b;font-size:9px;text-transform:uppercase;letter-spacing:1px">'
         +   '<th style="text-align:left;padding:4px 6px">#</th>'
         +   '<th style="text-align:left;padding:4px 6px">Corretor</th>'
-        +   '<th style="text-align:right;padding:4px 6px">📞 Lig</th>'
-        +   '<th style="text-align:right;padding:4px 6px">🏠 Vis</th>'
-        +   '<th style="text-align:right;padding:4px 6px">📝 Prop</th>'
+        +   '<th style="text-align:right;padding:4px 6px">📞 Lig r/m</th>'
+        +   '<th style="text-align:right;padding:4px 6px">🏠 Vis r/m</th>'
+        +   '<th style="text-align:right;padding:4px 6px">📝 Prop r/m</th>'
         +   '<th style="text-align:right;padding:4px 6px">🔄 F.up</th>'
         + '</tr></thead><tbody>';
       rows.forEach(function(r,i){
         html += '<tr style="background:rgba(30,41,59,' + (i%2?0.3:0.5) + ')">'
           + '<td style="padding:4px 6px;color:#fbbf24;font-weight:800;text-align:center;font-size:12px">' + (i+1) + '</td>'
-          + '<td style="padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;color:#e2e8f0;font-weight:700">' + r.name + '</td>'
-          + '<td style="text-align:right;padding:4px 6px;color:#3b82f6;font-weight:700">' + r.lig + '</td>'
-          + '<td style="text-align:right;padding:4px 6px;color:#8b5cf6;font-weight:700">' + r.vis + '</td>'
-          + '<td style="text-align:right;padding:4px 6px;color:#dc2626;font-weight:700">' + r.prop + '</td>'
+          + '<td style="padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;color:#e2e8f0;font-weight:700">' + r.name + '</td>'
+          + _metricCell(r.lig, r.metaLig, '#3b82f6')
+          + _metricCell(r.vis, r.metaVis, '#8b5cf6')
+          + _metricCell(r.prop, r.metaProp, '#dc2626')
           + '<td style="text-align:right;padding:4px 6px;color:#f59e0b;font-weight:700">' + r.fup + '</td>'
           + '</tr>';
       });
       html += '</tbody></table></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  // v21: RANKING ANUAL completo — VGV + vendas do ano inteiro, todos os corretores
+  function sceneRankingAnual(){
+    var BR = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
+    BR = BR.filter(function(b){return b.role!=='socio';});
+    var anoCur = new Date().getFullYear();
+    // Agrupa VENDAS por broker no ano atual
+    var agg = {};
+    (VENDAS||[]).forEach(function(v){
+      var d = new Date(v.closedAt||v.createdAt||'');
+      if(isNaN(d.getTime())) return;
+      if(d.getFullYear() !== anoCur) return;
+      if(!v.bid) return;
+      if(!agg[v.bid]) agg[v.bid] = {vgv:0, vendas:0};
+      agg[v.bid].vgv += (v.vgv||0);
+      agg[v.bid].vendas += 1;
+    });
+    // Meta anual individual
+    var rows = BR.map(function(b){
+      var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
+      var a = agg[b.id] || {vgv:0, vendas:0};
+      var metaAno = 0;
+      try{
+        var meta_map = (S.metaIndiv||{})[b.id] || {};
+        for(var mi=0; mi<12; mi++){
+          var mk2 = anoCur + '-' + String(mi+1).padStart(2,'0');
+          metaAno += ((meta_map[mk2]||{}).vgv_meta || 0);
+        }
+      }catch(e){}
+      return {id:b.id, name:disp.name||b.name, ini:disp.ini||_initials(b.name), vgv:a.vgv, vendas:a.vendas, metaAno:metaAno, masked:!!disp._masked};
+    }).filter(function(r){return r.vgv>0 || r.vendas>0 || r.metaAno>0;}).sort(function(a,b){return b.vgv-a.vgv;});
+    var maxVgv = rows.length && rows[0].vgv>0 ? rows[0].vgv : 1;
+    var totalVgv = rows.reduce(function(a,r){return a+r.vgv;},0);
+    var totalVendas = rows.reduce(function(a,r){return a+r.vendas;},0);
+    var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column">'
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:8px;text-align:center;flex-shrink:0">RANKING ANUAL ' + anoCur + ' — ' + rows.length + ' Corretores · ' + totalVendas + ' vendas · ' + _brFull(totalVgv) + '</div>';
+    if(rows.length === 0){
+      html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:18px;flex:1">Sem vendas registradas em ' + anoCur + '</div>';
+    } else {
+      html += '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:3px">';
+      rows.forEach(function(r,i){
+        var pos = i+1;
+        var posCol = pos===1?'#fbbf24':pos===2?'#cbd5e1':pos===3?'#d97706':'#475569';
+        var barW = (r.vgv/maxVgv*100);
+        var pctMeta = r.metaAno>0 ? Math.round(r.vgv/r.metaAno*100) : 0;
+        var pctCol = pctMeta>=100?'#22c55e':pctMeta>=70?'#d4a843':pctMeta>=40?'#f59e0b':'#ef4444';
+        html += '<div style="display:grid;grid-template-columns:30px 32px 1fr auto auto auto;gap:8px;align-items:center;padding:5px 10px;background:rgba(30,41,59,' + (i%2?0.3:0.5) + ');border-radius:7px;' + (r.masked?'opacity:0.6':'') + '">'
+          + '<div style="font-size:14px;font-weight:900;color:' + posCol + ';text-align:center">' + pos + '</div>'
+          + '<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#1e40af,#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;color:#fff">' + r.ini + '</div>'
+          + '<div style="min-width:0"><div style="font-size:12px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + r.name + '</div>'
+          +   '<div style="height:3px;background:rgba(148,163,184,0.15);border-radius:2px;margin-top:2px;overflow:hidden"><div style="height:100%;width:' + barW + '%;background:linear-gradient(90deg,#d4a843,#fbbf24);border-radius:2px"></div></div></div>'
+          + '<div style="font-size:13px;font-weight:800;color:#fbbf24;text-align:right;white-space:nowrap">' + _brFull(r.vgv) + '</div>'
+          + '<div style="text-align:right;min-width:48px"><div style="font-size:11px;font-weight:700;color:#22c55e">' + r.vendas + 'v</div></div>'
+          + (r.metaAno>0 ? '<div style="text-align:right;min-width:44px"><div style="font-size:10px;color:' + pctCol + ';font-weight:800">' + pctMeta + '%</div></div>' : '<div style="min-width:44px"></div>')
+          + '</div>';
+      });
+      html += '</div>';
     }
     html += '</div>';
     return html;
@@ -4700,18 +4904,19 @@ function arenaTV(){
   }
 
   var SCENES = [
-    {key:'HERO',       label:'VGV Mensal',       fn:sceneHero,       dur:10000},
-    {key:'RANKING',    label:'Todos Corretores', fn:sceneRanking,    dur:12000},
-    {key:'FUNIL',      label:'Pipeline RD CRM',  fn:sceneFunilCRM,   dur:12000},
-    {key:'PULSE',      label:'Vendas Recentes',  fn:scenePulse,      dur:10000, densFn:function(){var c=new Date(Date.now()-7*86400000);return (VENDAS||[]).filter(function(v){var d=new Date(v.closedAt||v.createdAt||'');return !isNaN(d.getTime())&&d>=c;}).length;}},
-    {key:'EQUIPES',    label:'Frentes & Times',  fn:sceneEquipes,    dur:12000},
-    {key:'METAS',      label:'Metas × Real',     fn:sceneMetasIndiv, dur:12000},
-    {key:'APROV',      label:'Aproveitamento',   fn:sceneAproveitamento, dur:12000},
-    {key:'VOL_APROV',  label:'Volume + Aprov.',  fn:sceneVolumeAprov,    dur:12000},
-    {key:'VOLUME',     label:'Ritmo Ideal',      fn:sceneVolume,     dur:10000},
-    {key:'ONEONONE',   label:'Atividades OO',    fn:sceneRankingOO,  dur:10000},
-    {key:'PROJECOES',  label:'Forecast',         fn:sceneProjecoes,  dur:10000},
-    {key:'ALERTAS',    label:'Ação Imediata',    fn:sceneAlertas,    dur:8000,  densFn:function(){var n=0;try{(BROKERS_ALL||BROKERS||[]).forEach(function(b){var M=(typeof getMetricas==='function')?getMetricas(b.id,'war'):null;if(!M)return;if(M.meta>0&&M.atingimento<30)n++;});}catch(e){}return n;}}
+    {key:'HERO',        label:'VGV Mensal + Pódio', fn:sceneHero,       dur:10000},
+    {key:'RANKING',     label:'Todos Corretores',   fn:sceneRanking,    dur:12000},
+    {key:'RANK_ANUAL',  label:'Ranking Anual',      fn:sceneRankingAnual, dur:14000},
+    {key:'FUNIL',       label:'Pipeline RD CRM',    fn:sceneFunilCRM,   dur:12000},
+    {key:'PULSE',       label:'Vendas + Top Opps',  fn:scenePulse,      dur:12000, densFn:function(){var c=new Date(Date.now()-7*86400000);var vc=(VENDAS||[]).filter(function(v){var d=new Date(v.closedAt||v.createdAt||'');return !isNaN(d.getTime())&&d>=c;}).length;var oc=(OPPS||[]).filter(function(o){return o.vgv>0&&o.st_psm&&o.st_psm!=='carteira'&&o.st_psm!=='perdido'&&o.st_psm!=='ganho';}).length;return vc+oc;}},
+    {key:'EQUIPES',     label:'Frentes & Times',    fn:sceneEquipes,    dur:12000},
+    {key:'METAS',       label:'Metas × Real',       fn:sceneMetasIndiv, dur:12000},
+    {key:'APROV',       label:'Aproveitamento',     fn:sceneAproveitamento, dur:12000},
+    {key:'VOL_APROV',   label:'Volume + Aprov.',    fn:sceneVolumeAprov,    dur:12000},
+    {key:'VOLUME',      label:'Ritmo Ideal',        fn:sceneVolume,     dur:10000},
+    {key:'ONEONONE',    label:'OO × Meta',          fn:sceneRankingOO,  dur:12000},
+    {key:'PROJECOES',   label:'Forecast',           fn:sceneProjecoes,  dur:10000},
+    {key:'ALERTAS',     label:'Ação Imediata',      fn:sceneAlertas,    dur:8000,  densFn:function(){var n=0;try{(BROKERS_ALL||BROKERS||[]).forEach(function(b){var M=(typeof getMetricas==='function')?getMetricas(b.id,'war'):null;if(!M)return;if(M.meta>0&&M.atingimento<30)n++;});}catch(e){}return n;}}
   ];
   // v17: duracao adaptativa — cenas com pouquissimos dados ficam menos tempo
   function _adaptiveDuration(sc){
@@ -4742,13 +4947,33 @@ function arenaTV(){
     }, 450);
   }
 
+  // ── PSM LIVE marquee render ────────────────────────────────────────────────
+  function renderPsmLive(){
+    var t = document.getElementById('tv-psm-live-track');
+    if(!t) return;
+    var now = Date.now();
+    var items = (S.timelineItems||[]).filter(function(it){ return !it.exp || it.exp>now; });
+    if(items.length === 0){
+      t.innerHTML = '<span style="color:#64748b;font-size:22px;letter-spacing:3px;animation:none">PSM OS · Sistema de Gestão Imobiliária</span>';
+      return;
+    }
+    // Concatena todos os itens separados por ● com icones
+    var texto = items.map(function(it){
+      return (it.ico||'✨') + ' ' + (it.txt||'');
+    }).join('   ●   ');
+    // Duplica pra loop suave
+    t.innerHTML = '<span style="display:inline-block;animation:psmMarquee 60s linear infinite">' + texto + '   ●   ' + texto + '</span>';
+  }
+
   // Loop com barra de progresso
   showScene(0);
   renderTimeline();
+  renderPsmLive();
   // Refresh timeline a cada 15s
   var tlRefreshInt = setInterval(function(){
     if(!document.getElementById('arena-tv-overlay')){ clearInterval(tlRefreshInt); return; }
     renderTimeline();
+    renderPsmLive();
   }, 15000);
   var sceneStart = Date.now();
   var sceneDuration = _adaptiveDuration(SCENES[0]);
@@ -6876,6 +7101,98 @@ window.publicarRecadoDir = function(){
 window.removerRecadoDir = function(id){
   if(!confirm('Remover este recado?')) return;
   S.arenaRecados = (S.arenaRecados||[]).filter(function(r){return r.id!==id;});
+  saveState(); render();
+};
+
+// ─── PAGE: PSM LIVE (v21) ─────────────────────────────────────────────────────
+// CRUD completo da timeline PSM Live. Reusa S.timelineItems.
+// Aparece em todas páginas (via renderGlobalTimeline) e em letras grandes no topo do modo TV.
+function pgPsmLive(){
+  if(!S.user) return '<div style="padding:40px">Faça login</div>';
+  var lvl = RLVL[S.user.role]||0;
+  var canEdit = lvl>=5 || S.user.role==='socio' || S.user.role==='diretor' || S.user.role==='lider' || S.user.role==='backoffice';
+  if(!S.timelineItems) S.timelineItems = [];
+  var now = Date.now();
+  // purge expirados (deixa perpetuos exp=0)
+  S.timelineItems = S.timelineItems.filter(function(it){ return !it.exp || it.exp>now; });
+
+  var h = '<div style="padding:20px;max-width:1280px;margin:0 auto">';
+  h += '<div class="phd"><h1>📡 PSM Live</h1><p>Timeline pública — aparece em todas as páginas e no topo do modo TV Arena PSM</p></div>';
+
+  if(!canEdit){
+    h += '<div class="card" style="padding:20px;text-align:center;color:var(--muted)">Somente gestores podem editar a PSM Live.</div>';
+  } else {
+    h += '<div class="card mb2"><div class="ctitle">➕ Novo anúncio PSM Live</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">';
+    h += '<select id="plTipo" style="padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155">';
+    h += '<option value="evento">🎉 Evento</option><option value="recado">📢 Recado</option><option value="premiacao">🏆 Premiação</option><option value="oportunidade">💡 Oportunidade</option><option value="urgente">🚨 Urgente</option></select>';
+    h += '<input id="plIco" placeholder="Ícone (emoji) — opcional" style="padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155">';
+    h += '<input id="plDias" type="number" min="0" max="365" placeholder="Expira em N dias (0=perpétuo)" value="0" style="padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155">';
+    h += '</div>';
+    h += '<textarea id="plMsg" placeholder="Mensagem (aparece no marquee)" style="width:100%;margin-top:8px;padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;min-height:60px"></textarea>';
+    h += '<button class="btn bp1 bsm" style="margin-top:8px" onclick="psmLiveAdd()">➕ Publicar</button>';
+    h += '</div>';
+  }
+
+  h += '<div class="card"><div class="ctitle">📋 Itens ativos <span class="csub">'+S.timelineItems.length+'</span></div>';
+  if(!S.timelineItems.length){
+    h += '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Nenhum item publicado</div>';
+  } else {
+    var icoMap = {evento:'🎉', recado:'📢', premiacao:'🏆', oportunidade:'💡', urgente:'🚨'};
+    var corMap = {evento:'#d4a843', recado:'#3b82f6', premiacao:'#22c55e', oportunidade:'#a855f7', urgente:'#ef4444'};
+    S.timelineItems.slice().sort(function(a,b){return b.dt-a.dt;}).forEach(function(it){
+      var col = corMap[it.tipo]||'#d4a843';
+      var ico = it.ico || icoMap[it.tipo] || '✨';
+      var expTxt = it.exp ? new Date(it.exp).toLocaleDateString('pt-BR') : 'perpétuo';
+      h += '<div style="display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border-left:3px solid '+col+';background:rgba(15,23,42,0.4);border-radius:6px;margin-bottom:6px">';
+      h += '<div style="font-size:20px;text-align:center">'+ico+'</div>';
+      h += '<div style="min-width:0"><div style="font-weight:700;font-size:13px;color:'+col+';text-transform:uppercase;letter-spacing:1px">'+it.tipo+'</div>';
+      h += '<div style="font-size:12px;color:#e2e8f0;margin-top:2px">'+_esc(it.txt)+'</div>';
+      h += '<div style="font-size:10px;color:var(--muted);margin-top:2px">Expira: '+expTxt+'</div></div>';
+      if(canEdit){
+        h += '<div><button onclick="psmLiveEdit(\''+it.id+'\')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:14px">✏️</button> ';
+        h += '<button onclick="psmLiveDel(\''+it.id+'\')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px">🗑️</button></div>';
+      } else { h += '<div></div>'; }
+      h += '</div>';
+    });
+  }
+  h += '</div></div>';
+  return h;
+}
+window.psmLiveAdd = function(){
+  var msg = (document.getElementById('plMsg')||{}).value;
+  if(!msg || !msg.trim()){ toast('Mensagem obrigatória','err'); return; }
+  var tipo = (document.getElementById('plTipo')||{}).value || 'evento';
+  var icoIn = (document.getElementById('plIco')||{}).value || '';
+  var dias = parseInt((document.getElementById('plDias')||{}).value) || 0;
+  var icoMap = {evento:'🎉', recado:'📢', premiacao:'🏆', oportunidade:'💡', urgente:'🚨'};
+  if(!S.timelineItems) S.timelineItems = [];
+  S.timelineItems.unshift({
+    id:'pl_'+Date.now(),
+    tipo:tipo,
+    ico:(icoIn||icoMap[tipo]||'✨'),
+    txt:msg.trim(),
+    dt:Date.now(),
+    exp: dias>0 ? Date.now()+dias*86400000 : 0,
+    autor:(S.user||{}).id||''
+  });
+  saveState();
+  if(typeof notifPush==='function') notifPush({title:'📡 PSM Live', body:msg.trim().slice(0,80), cat:'recado'});
+  render();
+};
+window.psmLiveEdit = function(id){
+  var it = (S.timelineItems||[]).find(function(x){return x.id===id;}); if(!it) return;
+  var msg = prompt('Mensagem:', it.txt); if(msg===null) return;
+  var dias = prompt('Expira em quantos dias? (0=perpétuo)', it.exp?Math.max(1,Math.round((it.exp-Date.now())/86400000)):'0');
+  if(dias===null) return;
+  it.txt = msg.trim();
+  var d = parseInt(dias)||0;
+  it.exp = d>0 ? Date.now()+d*86400000 : 0;
+  saveState(); render();
+};
+window.psmLiveDel = function(id){
+  if(!confirm('Remover item da PSM Live?')) return;
+  S.timelineItems = (S.timelineItems||[]).filter(function(x){return x.id!==id;});
   saveState(); render();
 };
 
@@ -21888,6 +22205,7 @@ function renderSB() {
       {id:'metas',       lbl:'Metas',               ico:'\uD83C\uDFAF'},
       {id:'governance',  lbl:'Governan\u00e7a',     ico:'\uD83D\uDEE1'},
       {id:'recados_diretoria', lbl:'Recados Arena', ico:'\uD83D\uDCE2'},
+      {id:'psm_live',    lbl:'PSM Live',            ico:'\uD83D\uDCE1'},
       {id:'organograma', lbl:'Organograma',         ico:'\uD83C\uDFE2'},
       {id:'radar_conc',  lbl:'Radar Concorr\u00eancia', ico:'\uD83D\uDEF0\uFE0F'},
       {id:'dashboard',   lbl:'Dashboard',           ico:'\uD83D\uDCCA'},
@@ -21991,7 +22309,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v20</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v21</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -22159,6 +22477,7 @@ function route() {
     case 'oneonone':   return pgOO();
     case 'governance': return pgGovernance();
     case 'recados_diretoria': return pgRecadosDiretoria();
+    case 'psm_live': return pgPsmLive();
     case 'organograma': return pgOrganograma();
     case 'loc_dashboard':
     case 'loc_projecoes':
