@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.19-v22c — Codigo de Etica completo (17 cap/69 arts), favicon oficial PSM, remove Kenlo -->
+<!-- PSM-OS v2026.04.19-v22d — Timeline TV mes vigente + metricas expandidas + @Instagram Talentos + seed 74 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.19-v22c">
+<meta name="version" content="2026.04.19-v22d">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4094,8 +4094,23 @@ function arenaTV(){
     }).filter(function(r){return r.vgv>0 || r.vendas>0 || r.meta>0;}).sort(function(a,b){return b.vgv - a.vgv;});
     // TODOS os corretores — sem slice
     var maxVgv = rows.length && rows[0].vgv>0 ? rows[0].vgv : 1;
+    // v22d: agregados de topo (VGV total, vendas, meta, % atingimento)
+    var totVgv = rows.reduce(function(a,r){return a+r.vgv;},0);
+    var totVendas = rows.reduce(function(a,r){return a+r.vendas;},0);
+    var totMeta = rows.reduce(function(a,r){return a+(r.meta||0);},0);
+    var totPct = totMeta>0 ? Math.round(totVgv/totMeta*100) : 0;
+    var pctColT = totPct>=100?'#22c55e':totPct>=70?'#d4a843':totPct>=40?'#f59e0b':'#ef4444';
+    var ticket = totVendas>0 ? (totVgv/totVendas) : 0;
+    var _now = new Date();
+    var _mN = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][_now.getMonth()];
     var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column">'
-      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:14px;text-align:center;flex-shrink:0">RANKING — ' + rows.length + ' Corretores do Mês</div>';
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:10px;text-align:center;flex-shrink:0">RANKING ' + _mN.toUpperCase() + ' — ' + rows.length + ' Corretores</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;flex-shrink:0">'
+      +   '<div style="background:rgba(251,191,36,0.08);border-left:3px solid #fbbf24;border-radius:8px;padding:8px 12px"><div style="font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">VGV Total</div><div style="font-size:17px;font-weight:900;color:#fbbf24;line-height:1.1">' + _brFull(totVgv) + '</div><div style="font-size:9px;color:#94a3b8;margin-top:2px">Meta: ' + _brFull(totMeta) + '</div></div>'
+      +   '<div style="background:rgba(34,197,94,0.08);border-left:3px solid #22c55e;border-radius:8px;padding:8px 12px"><div style="font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">Vendas</div><div style="font-size:22px;font-weight:900;color:#22c55e;line-height:1.1">' + totVendas + '</div><div style="font-size:9px;color:#94a3b8;margin-top:2px">Ticket médio: ' + _brFull(ticket) + '</div></div>'
+      +   '<div style="background:rgba(' + (totPct>=100?'34,197,94':totPct>=70?'212,168,67':'239,68,68') + ',0.08);border-left:3px solid ' + pctColT + ';border-radius:8px;padding:8px 12px"><div style="font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">% Meta Consolidada</div><div style="font-size:22px;font-weight:900;color:' + pctColT + ';line-height:1.1">' + totPct + '%</div><div style="height:3px;background:rgba(148,163,184,0.15);border-radius:2px;margin-top:5px;overflow:hidden"><div style="height:100%;width:' + Math.min(100,totPct) + '%;background:' + pctColT + ';border-radius:2px"></div></div></div>'
+      +   '<div style="background:rgba(59,130,246,0.08);border-left:3px solid #3b82f6;border-radius:8px;padding:8px 12px"><div style="font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">Ativos / Meta ≥100%</div><div style="font-size:22px;font-weight:900;color:#3b82f6;line-height:1.1">' + rows.filter(function(r){return r.vendas>0;}).length + ' / ' + rows.filter(function(r){return r.meta>0 && r.pct>=100;}).length + '</div><div style="font-size:9px;color:#94a3b8;margin-top:2px">' + rows.length + ' no ranking</div></div>'
+      + '</div>';
     if(rows.length === 0){
       html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:18px;flex:1">Sem vendas registradas neste período</div>';
     } else {
@@ -4382,8 +4397,19 @@ function arenaTV(){
       } catch(e){ return false; }
     };
 
-    // 1) Vendas recentes (todas) — exclui sócios
-    (VENDAS||[]).slice().filter(function(v){return !isSocioBid(v.bid);}).sort(function(a,b){return new Date(b.closedAt||b.createdAt) - new Date(a.closedAt||a.createdAt);}).slice(0,20).forEach(function(v){
+    // 1) Vendas recentes — SO MES VIGENTE (v22d fix) — exclui sócios
+    var _nowDt = new Date();
+    var _curY = _nowDt.getFullYear();
+    var _curM = _nowDt.getMonth();
+    var _mStart = new Date(_curY, _curM, 1).getTime();
+    var _mEnd = new Date(_curY, _curM+1, 1).getTime();
+    (VENDAS||[]).slice().filter(function(v){
+      if(isSocioBid(v.bid)) return false;
+      var d = new Date(v.closedAt||v.createdAt||'');
+      if(isNaN(d.getTime())) return false;
+      var t = d.getTime();
+      return t >= _mStart && t < _mEnd;
+    }).sort(function(a,b){return new Date(b.closedAt||b.createdAt) - new Date(a.closedAt||a.createdAt);}).slice(0,30).forEach(function(v){
       var b = (typeof UM!=='undefined') ? (UM[v.bid]||null) : null;
       var nm = (b && typeof safeBrokerName==='function') ? safeBrokerName(b) : (b?b.name:'--');
       var d = new Date(v.closedAt||v.createdAt||Date.now());
@@ -4409,63 +4435,84 @@ function arenaTV(){
       });
     }catch(e){}
 
-    // 4) Oportunidades publicadas
+    // 4) Oportunidades publicadas — mes vigente
     if(S.oportunidadesPSM && Array.isArray(S.oportunidadesPSM)){
-      S.oportunidadesPSM.slice(0,15).forEach(function(op){
+      S.oportunidadesPSM.forEach(function(op){
         var d = new Date(op.createdAt || op.data || Date.now());
+        if(isNaN(d.getTime())) return;
+        var t = d.getTime();
+        if(t < _mStart || t >= _mEnd) return;
         var ico = op.icon || '💡';
-        items.push({ts:d.getTime(), type:'opp', icon:ico, title:op.titulo||op.title||'Oportunidade', sub:op.tipo||'', val:op.valor?_brFull(op.valor):'', col:'#60a5fa'});
+        items.push({ts:t, type:'opp', icon:ico, title:op.titulo||op.title||'Oportunidade', sub:op.tipo||'', val:op.valor?_brFull(op.valor):'', col:'#60a5fa'});
       });
     }
 
-    // 5) Treinamentos (Gestão de Pessoas)
+    // 5) Treinamentos (Gestão de Pessoas) — mes vigente
     try{
-      (S.gpTreinamentos||[]).slice(0,12).forEach(function(t){
+      (S.gpTreinamentos||[]).forEach(function(t){
         var d = new Date(t.criadoEm||Date.now());
-        items.push({ts:d.getTime(), type:'treinamento', icon:'🎓', title:t.titulo||'Treinamento', sub:'Público: '+(t.publico||'—')+' · '+(t.status||''), val:t.prazo||'', col:'#8b5cf6'});
+        if(isNaN(d.getTime())) return;
+        var ts = d.getTime();
+        if(ts < _mStart || ts >= _mEnd) return;
+        items.push({ts:ts, type:'treinamento', icon:'🎓', title:t.titulo||'Treinamento', sub:'Público: '+(t.publico||'—')+' · '+(t.status||''), val:t.prazo||'', col:'#8b5cf6'});
       });
     }catch(e){}
 
-    // 6) Reuniões 1:1
+    // 6) Reuniões 1:1 — mes vigente
     try{
-      (S.gpReunioes||[]).slice(0,10).forEach(function(r){
+      (S.gpReunioes||[]).forEach(function(r){
         var b = (typeof UM!=='undefined') ? UM[r.brokerId] : null;
         var d = new Date(r.data||Date.now());
-        items.push({ts:d.getTime(), type:'reuniao', icon:'🤝', title:'Reunião '+(r.tipo||'1x1'), sub:(b?b.name:'—'), val:r.data||'', col:'#06b6d4'});
+        if(isNaN(d.getTime())) return;
+        var ts = d.getTime();
+        if(ts < _mStart || ts >= _mEnd) return;
+        items.push({ts:ts, type:'reuniao', icon:'🤝', title:'Reunião '+(r.tipo||'1x1'), sub:(b?b.name:'—'), val:r.data||'', col:'#06b6d4'});
       });
     }catch(e){}
 
-    // 7) Talentos novos
+    // 7) Talentos novos — mes vigente
     try{
-      (S.gpTalentos||[]).slice(0,8).forEach(function(t){
+      (S.gpTalentos||[]).forEach(function(t){
         var d = new Date(t.criadoEm||Date.now());
-        items.push({ts:d.getTime(), type:'talento', icon:'👤', title:t.nome||'Talento', sub:(t.funcao||'')+(t.setor?' · '+t.setor:''), val:'', col:'#0ea5e9'});
+        if(isNaN(d.getTime())) return;
+        var ts = d.getTime();
+        if(ts < _mStart || ts >= _mEnd) return;
+        items.push({ts:ts, type:'talento', icon:'👤', title:t.nome||'Talento', sub:(t.funcao||'')+(t.setor?' · '+t.setor:''), val:'', col:'#0ea5e9'});
       });
     }catch(e){}
 
-    // 8) Contratos locação recentes
+    // 8) Contratos locação recentes — mes vigente
     try{
-      (S.locContratos||[]).slice(0,10).forEach(function(c){
+      (S.locContratos||[]).forEach(function(c){
         var d = new Date(c.criadoEm||Date.now());
-        items.push({ts:d.getTime(), type:'contrato', icon:'🏘️', title:c.imovel||'Contrato locação', sub:(c.locatario||'—')+' · '+(c.status||''), val:_brFull(c.valor||0), col:'#10b981'});
+        if(isNaN(d.getTime())) return;
+        var ts = d.getTime();
+        if(ts < _mStart || ts >= _mEnd) return;
+        items.push({ts:ts, type:'contrato', icon:'🏘️', title:c.imovel||'Contrato locação', sub:(c.locatario||'—')+' · '+(c.status||''), val:_brFull(c.valor||0), col:'#10b981'});
       });
     }catch(e){}
 
-    // 9) Lançamentos recentes
+    // 9) Lançamentos recentes — mes vigente (criados/atualizados)
     try{
-      (S.lancamentos||[]).slice(0,8).forEach(function(l){
+      (S.lancamentos||[]).forEach(function(l){
         var d = new Date(l.dataUpd||l.dataCreated||l.data||Date.now());
-        items.push({ts:d.getTime(), type:'lancamento', icon:'🚀', title:l.nome||'Lançamento', sub:(l.construtora||'')+(l.frente?' · '+l.frente:''), val:'', col:'#f97316'});
+        if(isNaN(d.getTime())) return;
+        var ts = d.getTime();
+        if(ts < _mStart || ts >= _mEnd) return;
+        items.push({ts:ts, type:'lancamento', icon:'🚀', title:l.nome||'Lançamento', sub:(l.construtora||'')+(l.frente?' · '+l.frente:''), val:'', col:'#f97316'});
       });
     }catch(e){}
 
-    // 10) Agenda PSM
+    // 10) Agenda PSM — mes vigente + ±7 dias
     try{
-      (S.agenda||[]).slice(0,12).forEach(function(a){
+      var _agStart = _mStart - 7*86400000;
+      var _agEnd = _mEnd + 7*86400000;
+      (S.agenda||[]).forEach(function(a){
         var d = new Date(a.dt||a.data||Date.now());
-        if(d.getTime() > now - 30*86400000 && d.getTime() < now + 30*86400000){
-          items.push({ts:d.getTime(), type:'agenda', icon:'📅', title:a.titulo||a.tipo||'Agenda', sub:(a.envolvidos||a.local||''), val:a.data||'', col:'#f59e0b'});
-        }
+        if(isNaN(d.getTime())) return;
+        var ts = d.getTime();
+        if(ts < _agStart || ts >= _agEnd) return;
+        items.push({ts:ts, type:'agenda', icon:'📅', title:a.titulo||a.tipo||'Agenda', sub:(a.envolvidos||a.local||''), val:a.data||'', col:'#f59e0b'});
       });
     }catch(e){}
 
@@ -4498,7 +4545,7 @@ function arenaTV(){
     } catch(e){}
 
     items.sort(function(a,b){return b.ts - a.ts;});
-    return items.slice(0, 50);
+    return items.slice(0, 80);
   }
 
   function renderTimeline(){
@@ -4887,8 +4934,18 @@ function arenaTV(){
     var maxVgv = rows.length && rows[0].vgv>0 ? rows[0].vgv : 1;
     var totalVgv = rows.reduce(function(a,r){return a+r.vgv;},0);
     var totalVendas = rows.reduce(function(a,r){return a+r.vendas;},0);
+    var totalMetaAno = rows.reduce(function(a,r){return a+(r.metaAno||0);},0);
+    var pctAno = totalMetaAno>0 ? Math.round(totalVgv/totalMetaAno*100) : 0;
+    var pctAnoCol = pctAno>=100?'#22c55e':pctAno>=70?'#d4a843':pctAno>=40?'#f59e0b':'#ef4444';
+    var ticketAno = totalVendas>0 ? (totalVgv/totalVendas) : 0;
     var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column">'
-      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:8px;text-align:center;flex-shrink:0">RANKING ANUAL ' + anoCur + ' — ' + rows.length + ' Corretores · ' + totalVendas + ' vendas · ' + _brFull(totalVgv) + '</div>';
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:8px;text-align:center;flex-shrink:0">RANKING ANUAL ' + anoCur + ' — ' + rows.length + ' Corretores</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;flex-shrink:0">'
+      +   '<div style="background:rgba(251,191,36,0.08);border-left:3px solid #fbbf24;border-radius:8px;padding:8px 12px"><div style="font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">VGV Ano</div><div style="font-size:16px;font-weight:900;color:#fbbf24;line-height:1.1">' + _brFull(totalVgv) + '</div><div style="font-size:9px;color:#94a3b8;margin-top:2px">Meta: ' + _brFull(totalMetaAno) + '</div></div>'
+      +   '<div style="background:rgba(34,197,94,0.08);border-left:3px solid #22c55e;border-radius:8px;padding:8px 12px"><div style="font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">Vendas</div><div style="font-size:22px;font-weight:900;color:#22c55e;line-height:1.1">' + totalVendas + '</div><div style="font-size:9px;color:#94a3b8;margin-top:2px">Ticket: ' + _brFull(ticketAno) + '</div></div>'
+      +   '<div style="background:rgba(' + (pctAno>=100?'34,197,94':pctAno>=70?'212,168,67':'239,68,68') + ',0.08);border-left:3px solid ' + pctAnoCol + ';border-radius:8px;padding:8px 12px"><div style="font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">% Meta Anual</div><div style="font-size:22px;font-weight:900;color:' + pctAnoCol + ';line-height:1.1">' + pctAno + '%</div><div style="height:3px;background:rgba(148,163,184,0.15);border-radius:2px;margin-top:5px;overflow:hidden"><div style="height:100%;width:' + Math.min(100,pctAno) + '%;background:' + pctAnoCol + ';border-radius:2px"></div></div></div>'
+      +   '<div style="background:rgba(139,92,246,0.08);border-left:3px solid #8b5cf6;border-radius:8px;padding:8px 12px"><div style="font-size:9px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">Top Performer</div><div style="font-size:14px;font-weight:900;color:#8b5cf6;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (rows[0]?rows[0].name:'—') + '</div><div style="font-size:10px;color:#fbbf24;margin-top:2px;font-weight:700">' + (rows[0]?_brFull(rows[0].vgv):'—') + '</div></div>'
+      + '</div>';
     if(rows.length === 0){
       html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:18px;flex:1">Sem vendas registradas em ' + anoCur + '</div>';
     } else {
@@ -7450,6 +7507,100 @@ function pgGestaoPessoas(page){
   if(!S.gpTreinamentos) S.gpTreinamentos = [];
   if(!S.gpReunioes) S.gpReunioes = [];
   if(!S.gpTalentos) S.gpTalentos = [];
+  // v22d: seed inicial com 74 candidatos do mapeamento PSM (Nomes.xlsx)
+  if(!S._talentosSeedV1){
+    var _SEED_TALENTOS = [
+      {nome:'PEIXE',setor:'PSM',funcao:'AUTONOMO',cenario:'CRECI: SIM · Perfil: MCMV + LOTE · Vaga: MENTOR · Disp: IMEDIATA · Apresentação: OK · Status: ACEITO · Prazo: 24/11/2025 · Aceito: OK'},
+      {nome:'GUILHERME CAVAZANA',setor:'PSM',funcao:'TARRAF',cenario:'CRECI: SIM · Perfil: MAP · Vaga: PLENO · Disp: JANEIRO · Apresentação: OK (ENVIAR DETALHES) · Status: ANALISANDO PROPOSTA'},
+      {nome:'GUILHERME MIQUELETTI',setor:'PSM',funcao:'MARCIO CARDOSO',cenario:'CRECI: ?'},
+      {nome:'THIAGO OLIVEIRA',setor:'PSM',funcao:'MARCIO CARDOSO',cenario:''},
+      {nome:'THAIS CARDOSO',setor:'PSM/MARCUS',funcao:'FG',cenario:'CRECI: SIM · Perfil: MCMV/MAP'},
+      {nome:'KELLY',setor:'PSM',funcao:'ZANI',cenario:''},
+      {nome:'Wagner',setor:'PSM - RODRIGO TRIVELLATO',funcao:'RVE',cenario:''},
+      {nome:'NANI',setor:'PSM',funcao:'HDAUFF',cenario:''},
+      {nome:'FERNANDA VENERANDA',setor:'PSM',funcao:'?',cenario:'CRECI: ? · Perfil: MCMV'},
+      {nome:'ITALO',setor:'PSM',funcao:'HUGO ENG',cenario:'Status: ANALISANDO PROPOSTA'},
+      {nome:'YARA FERRETI',setor:'RODRIGO TRIVELLATO',funcao:'MARCIO CARDOSO',cenario:'Status: ACEITO · Prazo: 11/12/2025 · Aceito: OK'},
+      {nome:'THIAGO GIRON',setor:'RODRIGO TRIVELLATO',funcao:'CARROS - TIGGO',cenario:''},
+      {nome:'GUILHERME JUANAZZI VENTURELLI',setor:'RODRIGO TRIVELLATO',funcao:'AUDICENTER',cenario:''},
+      {nome:'PEDRO',setor:'KADU - INDICACAO',funcao:'',cenario:'Status: MAIO / JUNHO DE 2026'},
+      {nome:'GABRIEL BRITO',setor:'MARCUS LOPES',funcao:'GIORGI BROKER',cenario:'Status: ANALISANDO PROPOSTA · Prazo: 15/12/2025 · Aceito: OK'},
+      {nome:'PEDRO BETTIOLI',setor:'PEIXE',funcao:'',cenario:''},
+      {nome:'GISLENE CAMARGO BETTIOLI',setor:'PEIXE',funcao:'',cenario:''},
+      {nome:'JOAO PEDRO B.',setor:'PSM',funcao:'',cenario:'Prazo: 10/01/2026 · Aceito: ok'},
+      {nome:'NATALY',setor:'PSM',funcao:'VITTA',cenario:''},
+      {nome:'KAUE',setor:'PSM',funcao:'VITTA',cenario:''},
+      {nome:'KALEBE',setor:'PSM - RODRIGO TRIVELLATO',funcao:'ALONSO',cenario:''},
+      {nome:'RICARDO OLIVEIRA',setor:'PSM',funcao:'VITTA',cenario:''},
+      {nome:'VINICIUS CARDOSO',setor:'PSM',funcao:'VITTA',cenario:''},
+      {nome:'JESSICA SARTORI',setor:'PSM',funcao:'RR BROKER',cenario:''},
+      {nome:'PEDRO JEPEZ',setor:'PSM - MARCUS',funcao:'SHIMANA/M&C',cenario:''},
+      {nome:'NILO NADATTI',setor:'PSM - MARCUS',funcao:'SHIMANA',cenario:''},
+      {nome:'MARCUS BUENO',setor:'PSM - RODRIGO TRIVELLATO',funcao:'PACAEMBU',cenario:''},
+      {nome:'ANGELICA FRANCO',setor:'PSM',funcao:'TARRAF',cenario:''},
+      {nome:'WILLIS ALENCAR',setor:'PSM',funcao:'LOCABENS',cenario:'Status: AGENDAR'},
+      {nome:'RAPHAEL GUINZELLI',setor:'PSM',funcao:'',cenario:''},
+      {nome:'MARCELA PIMENTEL',setor:'PSM',funcao:'SÃO JOSE',cenario:''},
+      {nome:'HERBERT CAVALCANTE',setor:'PSM',funcao:'MERCEDEZ?',cenario:''},
+      {nome:'VINICIUS ALBUQUERQUE',setor:'PSM',funcao:'',cenario:''},
+      {nome:'FELIPE BEGA DE OLIVEIRA',setor:'PSM',funcao:'',cenario:''},
+      {nome:'BRUNO IANI',setor:'PSM',funcao:'',cenario:''},
+      {nome:'JACQUE MARCONDES',setor:'PSM',funcao:'',cenario:''},
+      {nome:'JACQUE AMIGA JACQUE',setor:'PSM',funcao:'',cenario:''},
+      {nome:'DANILO ANDRADE',setor:'PEIXE',funcao:'',cenario:'Status: ACEITO · Prazo: 01/12/2025 · Aceito: OK'},
+      {nome:'RODRIGO CAMARGO',setor:'PEIXE',funcao:'',cenario:'Status: ACEITO · Prazo: 01/12/2025 · Aceito: OK'},
+      {nome:'VITOR OLIVEIRA',setor:'MARCUS LOPES',funcao:'IMOB',cenario:'Status: FUTURO'},
+      {nome:'CAMILA - PRIMA DO MARCUS',setor:'MARCUS LOPES',funcao:'AUTONOMA',cenario:'Status: ACEITO · Aceito: OK'},
+      {nome:'RENATO NASCIMENTO',setor:'MARCUS LOPES',funcao:'IMPPER HOUSE',cenario:'Perfil: estagio · Prazo: 01/01/2026'},
+      {nome:'VINICIUS MARCON',setor:'RODRIGO TRIVELLATO',funcao:'ESTAGIO',cenario:''},
+      {nome:'LUCAS CHEIDDI',setor:'RODRIGO TRIVELLATO',funcao:'ESTAGIO',cenario:''},
+      {nome:'ANA PAULA',setor:'RODRIGO TRIVELLATO',funcao:'LOCAL',cenario:''},
+      {nome:'CUNHADO DENTISTA DO KADU - RICARDO',setor:'KADU - INDICACAO',funcao:'ESTAGIO',cenario:''},
+      {nome:'VIVIAN - IRMA YARA',setor:'RODRIGO TRIVELLATO',funcao:'MARCIO CARDOSO',cenario:'Status: POSTERGADO · Prazo: 11/11/2025 · Aceito: OK'},
+      {nome:'VITOR TORRES',setor:'PSM',funcao:'AUTONOMO',cenario:'Status: AGUARDANDO RESP · Prazo: 24/11/2025'},
+      {nome:'Victoria Santana',setor:'SHIMANA',funcao:'PSM',cenario:''},
+      {nome:'LIVIA BAPTISTA',setor:'PSM',funcao:'SÃO JOSE',cenario:''},
+      {nome:'ANDRE FERNANDES',setor:'MARCUS LOPES',funcao:'IMOB',cenario:''},
+      {nome:'TACIO AVEIRO',setor:'RODRIGO TRIVELLATO',funcao:'ESTAGIO',cenario:''},
+      {nome:'MARINA AVENZI',setor:'PSM',funcao:'FIT PRIME',cenario:''},
+      {nome:'VICTORIA FIORINI (GIO IMOVEIS)',setor:'PSM',funcao:'AUTONOMA?',cenario:''},
+      {nome:'ARIANE CRIVELARO',setor:'PSM',funcao:'ERP',cenario:''},
+      {nome:'Mayara Fanani',setor:'PSM > Marcus Lopes',funcao:'Renascer & JALES',cenario:''},
+      {nome:'Michelle Mendonca',setor:'PSM > MARCUS LOPES',funcao:'VITTA',cenario:''},
+      {nome:'Giancarlo Ribeiro',setor:'PSM > PEIXE',funcao:'FG',cenario:''},
+      {nome:'Juliane Baltazar',setor:'PSM > MARCUS',funcao:'IMPPER HOUSE',cenario:'CRECI: LOCACAO'},
+      {nome:'Nathalia Vicentim',setor:'PSM > Marcus',funcao:'ERP',cenario:''},
+      {nome:'EVANDRO (INDICADO GABRIEL)',setor:'PSM > MARCUS',funcao:'GIORGI BROKER',cenario:'Prazo: 07/01/2026'},
+      {nome:'BRUNA CORRETORA',setor:'PSM > MARCUS',funcao:'AUTONOMA',cenario:'Status: AGUARDANDO RESPOSTA'},
+      {nome:'RAFAEL RENE (Ohjoovem)',setor:'PSM > MARCUS LOPES',funcao:'House Tarraf',cenario:'Status: aguardar resposta até 19/12'},
+      {nome:'BRUNO FIRMINO',setor:'PSM > MARCUS LOPES',funcao:'Estágio - corrida',cenario:'Status: JANEIRO 2026?'},
+      {nome:'Sabrina Roveda',setor:'GABRIEL > MARCUS',funcao:'UNICOS',cenario:'Status: AGENDADA 16/12'},
+      {nome:'IAN TOMAZ',setor:'GABRIEL > MARCUS',funcao:'GIORGI BROKER',cenario:'Status: AGENDAMENTO'},
+      {nome:'CAMILLO',setor:'',funcao:'',cenario:''},
+      {nome:'Dani Barboza',setor:'PEIXE',funcao:'',cenario:'Status: ACEITO 11/12'},
+      {nome:'Maria Eduarda Navarro',setor:'RODRIGO TRIVELLATO',funcao:'Adv',cenario:'Perfil: ESTAGIO · Status: Aguardando até 20/01'},
+      {nome:'Victoria (esposa Peixe)',setor:'PEIXE',funcao:'ESTÁG - CORRETORA',cenario:'Status: ANALISAR'},
+      {nome:'YOHAN',setor:'AUTONOMO',funcao:'',cenario:''},
+      {nome:'GABRIEL - BILD',setor:'BILD',funcao:'',cenario:''},
+      {nome:'ANDRESSA CORREA',setor:'INDICACAO GABRIEL',funcao:'',cenario:''},
+      {nome:'MANU CICOTTI',setor:'DANIELA',funcao:'MY BROKER',cenario:''}
+    ];
+    var _existentes = {};
+    (S.gpTalentos||[]).forEach(function(t){ if(t.nome) _existentes[t.nome.trim().toLowerCase()] = true; });
+    var _seedBase = Date.now();
+    _SEED_TALENTOS.forEach(function(t, i){
+      if(_existentes[t.nome.trim().toLowerCase()]) return;
+      S.gpTalentos.push({
+        id:'gpt_seed_'+_seedBase+'_'+i,
+        nome:t.nome, email:'', contato:'', instagram:'',
+        data:'', setor:t.setor||'', funcao:t.funcao||'', cenario:t.cenario||'',
+        criadoEm:new Date().toISOString(),
+        _seed:true
+      });
+    });
+    S._talentosSeedV1 = true;
+    try{ saveState(); }catch(e){}
+  }
 
   var tab = page || 'gp_treinamentos';
   var tabs = [
@@ -7609,9 +7760,10 @@ function _gpTalentos(canEdit){
     h += '<input id="gptNome" placeholder="Nome" style="padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155">';
     h += '<input id="gptEmail" placeholder="E-mail" style="padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155">';
     h += '<input id="gptContato" placeholder="Contato (tel/WhatsApp)" style="padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155">';
+    h += '<input id="gptInsta" placeholder="@ Instagram" style="padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155">';
     h += '<input id="gptData" type="date" value="'+(new Date().toISOString().slice(0,10))+'" style="padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155">';
-    h += '<input id="gptSetor" placeholder="Setor" style="padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155">';
-    h += '<input id="gptFuncao" placeholder="Função" style="padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155">';
+    h += '<input id="gptSetor" placeholder="Setor/Origem" style="padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155">';
+    h += '<input id="gptFuncao" placeholder="Função/Local Atual" style="padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155">';
     h += '</div>';
     h += '<textarea id="gptCenario" placeholder="Cenário atual (experiência, motivações, diferenciais, status)" style="width:100%;margin-top:8px;padding:8px;border-radius:6px;background:#0f172a;color:#fff;border:1px solid #334155;min-height:60px"></textarea>';
     h += '<button class="btn bp1 bsm" style="margin-top:8px" onclick="gpAddTalento()">➕ Adicionar</button>';
@@ -7625,12 +7777,15 @@ function _gpTalentos(canEdit){
   else {
     Object.keys(porSetor).sort().forEach(function(setor){
       h += '<div style="margin:10px 0"><div style="font-size:12px;font-weight:800;color:#818cf8;margin-bottom:6px;text-transform:uppercase">'+_esc(setor)+' · '+porSetor[setor].length+'</div>';
-      h += '<div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>Função</th><th>E-mail</th><th>Contato</th><th>Data</th><th>Cenário</th><th></th></tr></thead><tbody>';
+      h += '<div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>Função</th><th>E-mail</th><th>Contato</th><th>@ Instagram</th><th>Data</th><th>Cenário</th><th></th></tr></thead><tbody>';
       porSetor[setor].forEach(function(t){
+        var ig = (t.instagram||'').replace(/^@/,'');
+        var igCell = ig ? '<a href="https://instagram.com/'+_esc(ig)+'" target="_blank" rel="noopener" style="color:#ec4899;font-weight:700">@'+_esc(ig)+'</a>' : '—';
         h += '<tr><td style="font-weight:600">'+_esc(t.nome)+'</td>';
         h += '<td>'+_esc(t.funcao||'—')+'</td>';
         h += '<td><a href="mailto:'+_esc(t.email||'')+'" style="color:#818cf8">'+_esc(t.email||'—')+'</a></td>';
         h += '<td>'+_esc(t.contato||'—')+'</td>';
+        h += '<td>'+igCell+'</td>';
         h += '<td>'+_esc(t.data||'—')+'</td>';
         h += '<td style="font-size:11px;max-width:240px">'+_esc(t.cenario||'—')+'</td>';
         h += '<td>'+(canEdit?'<button onclick="gpEditTalento(\''+t.id+'\')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:14px">✏️</button> <button onclick="gpDelTalento(\''+t.id+'\')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px">🗑️</button>':'')+'</td></tr>';
@@ -7644,11 +7799,13 @@ function _gpTalentos(canEdit){
 window.gpAddTalento = function(){
   var nome = (document.getElementById('gptNome')||{}).value;
   if(!nome){ toast('Nome obrigatório','err'); return; }
+  var ig = ((document.getElementById('gptInsta')||{}).value||'').trim().replace(/^@/,'');
   S.gpTalentos.push({
     id:'gpt_'+Date.now(),
     nome:nome,
     email:(document.getElementById('gptEmail')||{}).value||'',
     contato:(document.getElementById('gptContato')||{}).value||'',
+    instagram:ig,
     data:(document.getElementById('gptData')||{}).value||new Date().toISOString().slice(0,10),
     setor:(document.getElementById('gptSetor')||{}).value||'',
     funcao:(document.getElementById('gptFuncao')||{}).value||'',
@@ -7662,10 +7819,11 @@ window.gpEditTalento = function(id){
   var nome = prompt('Nome:', t.nome); if(nome===null) return;
   var email = prompt('E-mail:', t.email||''); if(email===null) return;
   var contato = prompt('Contato:', t.contato||''); if(contato===null) return;
-  var setor = prompt('Setor:', t.setor||''); if(setor===null) return;
-  var funcao = prompt('Função:', t.funcao||''); if(funcao===null) return;
+  var instagram = prompt('@ Instagram (sem @):', (t.instagram||'').replace(/^@/,'')); if(instagram===null) return;
+  var setor = prompt('Setor/Origem:', t.setor||''); if(setor===null) return;
+  var funcao = prompt('Função/Local Atual:', t.funcao||''); if(funcao===null) return;
   var cenario = prompt('Cenário:', t.cenario||''); if(cenario===null) return;
-  t.nome = nome; t.email = email; t.contato = contato; t.setor = setor; t.funcao = funcao; t.cenario = cenario;
+  t.nome = nome; t.email = email; t.contato = contato; t.instagram = (instagram||'').replace(/^@/,''); t.setor = setor; t.funcao = funcao; t.cenario = cenario;
   saveState(); render();
 };
 window.gpDelTalento = function(id){
@@ -22556,7 +22714,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22c</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22d</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
