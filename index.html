@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.19-v16 — Dashboard Exec modo TV + Tabela PSM upload (gestor) + Ranking score unificado + OO período -->
+<!-- PSM-OS v2026.04.19-v19 — Perfil Comportamental IBC (Águia/Gato/Lobo/Tubarão) em One-on-One + v18 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.19-v16">
+<meta name="version" content="2026.04.19-v19">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1090,14 +1090,16 @@ const METRICS=(function(){
 
 function calcOKRs(){
   const M = typeof METRICS !== 'undefined' ? METRICS : {vgv_meta:0,vend_meta:20,vis_meta:100,mes:'—'};
+  // META CANONICA
+  try{var _mgOkr=getMetaGlobal();if(_mgOkr&&_mgOkr.metaTotal){var _cmo=new Date().getMonth();M.vgv_meta=_mgOkr.metaTotal(_cmo)||M.vgv_meta||0;}}catch(e){}
   const vgvReal=VENDAS.reduce((a,v)=>a+(v.vgv||0),0);
   const vgvMeta=M.vgv_meta||0;
   const vendReal=VENDAS.length;
   const vendMeta=M.vend_meta||20;
   const crmMedio=BROKERS.length?Math.round(BROKERS.reduce((a,b)=>a+(b.crm||0),0)/BROKERS.length):0;
   const visReal=BROKERS.reduce((a,b)=>a+(b.vis||0),0);
-  const pctVgv=parseFloat((vgvReal/Math.max(1,vgvMeta)*100).toFixed(2));
-  const pctVend=parseFloat((vendReal/Math.max(1,vendMeta)*100).toFixed(2));
+  const pctVgv=vgvMeta>0?parseFloat((vgvReal/vgvMeta*100).toFixed(2)):0;
+  const pctVend=vendMeta>0?parseFloat((vendReal/vendMeta*100).toFixed(2)):0;
   return [
     {id:'okr1',obj:'Atingir meta de VGV mensal',ciclo:M.mes||'—',prog:pctVgv,status:pctVgv>=80?'on_track':pctVgv>=50?'at_risk':'off_track',
      krs:[
@@ -2323,11 +2325,11 @@ function pgDashboard(){
   const vgvLost=fLOST.reduce((a,l)=>a+(l.vgv||0),0);
   const pW=fOPPS.reduce((a,o)=>{const stages=FUNIS[o.fr]||FUNIS.lancamento||[];const s=stages.find?stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st)):null;return a+(o.vgv*(s?s.w:.1));},0);
   const fs=frenteStats();
-  const pctMeta=parseFloat((vgvR/Math.max(1,m.vgv_meta)*100).toFixed(2));
+  const pctMeta=(m.vgv_meta||0)>0?parseFloat((vgvR/m.vgv_meta*100).toFixed(2)):0;
   const convRate=fVENDAS.length+fLOST.length>0?parseFloat((fVENDAS.length/(fVENDAS.length+fLOST.length)*100).toFixed(2)):0;
   const duRest=m.du_rest||0;
   const velocidade=m.du_pass>0?vgvR/m.du_pass:0;
-  const gap=m.vgv_meta-vgvR;
+  const gap=(m.vgv_meta||0)-vgvR;
   const ticketMedio=fVENDAS.length>0?vgvR/fVENDAS.length:0;
   const audits=generateAudits();
   const semRetorno=fOPPS.filter(o=>(o.dnu||0)>=3).length;
@@ -2707,7 +2709,7 @@ function pgDashboard(){
   h+='<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>M\u00eas</th><th style="text-align:right">VGV</th><th style="text-align:right">Vendas</th><th style="text-align:right">Meta</th><th style="text-align:right">%</th><th style="text-align:right">Var.</th></tr></thead><tbody>';
   h+=(typeof MONTHLY!=='undefined'&&MONTHLY.length?MONTHLY.map(function(mm,i){
     var prev=i>0?MONTHLY[i-1]:null;
-    var pct=parseFloat(((mm.vgv||0)/Math.max(1,mm.meta||1)*100).toFixed(2));
+    var pct=(mm.meta||0)>0?parseFloat(((mm.vgv||0)/mm.meta*100).toFixed(2)):0;
     var variacao=prev?Math.round(((mm.vgv||0)-(prev.vgv||0))/(Math.max(1,prev.vgv||1))*100):0;
     return'<tr><td style="font-weight:700">'+mm.m+'</td>'
       +'<td style="text-align:right;font-weight:700;color:var(--navy)">'+fmt(mm.vgv||0)+'</td>'
@@ -2789,13 +2791,13 @@ function renderDashboardExecTV(){
   var m = METRICS;
   var vgvR = fV.reduce(function(a,v){return a+(v.vgv||0);},0);
   var vgvPipe = fO.reduce(function(a,o){return a+(o.vgv||0);},0);
-  var pctMeta = parseFloat((vgvR/Math.max(1,m.vgv_meta)*100).toFixed(1));
+  var pctMeta = (m.vgv_meta||0)>0?parseFloat((vgvR/m.vgv_meta*100).toFixed(1)):0;
   var pctTempo = m.du_tot>0 ? parseFloat((m.du_pass/m.du_tot*100).toFixed(1)) : 0;
   var ritmoDelta = pctMeta - pctTempo;
   var ritmoCor = ritmoDelta>=0 ? '#22c55e' : (ritmoDelta>=-15 ? '#f59e0b' : '#ef4444');
   var convRate = fV.length+fL.length>0 ? parseFloat((fV.length/(fV.length+fL.length)*100).toFixed(1)) : 0;
   var velocidade = m.du_pass>0 ? vgvR/m.du_pass : 0;
-  var gap = m.vgv_meta - vgvR;
+  var gap = (m.vgv_meta||0) - vgvR;
   var ticketMedio = fV.length>0 ? vgvR/fV.length : 0;
   var projMes = (FORECASTS && FORECASTS.mes) ? (FORECASTS.mes.proj||0) : Math.round(vgvR + velocidade*m.du_rest);
   var projPct = m.vgv_meta>0 ? parseFloat((projMes/m.vgv_meta*100).toFixed(1)) : 0;
@@ -2933,14 +2935,14 @@ function pgAgendaPSM(){
     var t=g('ag_ev_titulo');if(!t){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
     S.opEventos.push({titulo:t,data:g('ag_ev_data'),hora:g('ag_ev_hora'),local:g('ag_ev_local'),tipo:g('ag_ev_tipo'),descricao:g('ag_ev_desc'),criadoEm:new Date().toISOString()});
     _agSave();toast('\u2705 Evento cadastrado','ok');S.agendaFormType=null;render();
-    _agNotifyAll('\uD83C\uDF89 Novo Evento: '+t+' em '+g('ag_ev_data'));
+    _agNotifyAll('\uD83C\uDF89 Novo Evento: '+t+' em '+g('ag_ev_data'), '');
   };
   window.agSaveTreinamento=function(){
     var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
     var t=g('ag_tr_titulo');if(!t){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
     S.opTreinamentos.push({titulo:t,data:g('ag_tr_data'),hora:g('ag_tr_hora'),instrutor:g('ag_tr_inst'),categoria:g('ag_tr_cat'),link:g('ag_tr_link'),descricao:g('ag_tr_desc'),criadoEm:new Date().toISOString()});
     _agSave();toast('\u2705 Treinamento cadastrado','ok');S.agendaFormType=null;render();
-    _agNotifyAll('\uD83C\uDF93 Novo Treinamento: '+t+' em '+g('ag_tr_data'));
+    _agNotifyAll('\uD83C\uDF93 Novo Treinamento: '+t+' em '+g('ag_tr_data'), g('ag_tr_inst'));
   };
   window.agSaveReuniao=function(){
     var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
@@ -2948,7 +2950,7 @@ function pgAgendaPSM(){
     if(!S.agendaReunioes) S.agendaReunioes=[];
     S.agendaReunioes.push({titulo:t,data:g('ag_re_data'),hora:g('ag_re_hora'),local:g('ag_re_local'),participantes:g('ag_re_part'),descricao:g('ag_re_desc'),criadoEm:new Date().toISOString()});
     _agSave();toast('\u2705 Reuni\u00e3o cadastrada','ok');S.agendaFormType=null;render();
-    _agNotifyAll('\uD83E\uDD1D Nova Reuni\u00e3o: '+t+' em '+g('ag_re_data'));
+    _agNotifyAll('\uD83E\uDD1D Nova Reuni\u00e3o: '+t+' em '+g('ag_re_data'), g('ag_re_part'));
   };
   window.agRemoveEvento=function(i){if(confirm('Remover este evento?')){S.opEventos.splice(i,1);_agSave();render();}};
   window.agRemoveTreinamento=function(i){if(confirm('Remover este treinamento?')){S.opTreinamentos.splice(i,1);_agSave();render();}};
@@ -2963,7 +2965,7 @@ function pgAgendaPSM(){
     var t=g('ag_cc_titulo');if(!t){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
     S.agendaCaptConteudo.push({titulo:t,data:g('ag_cc_data'),horaInicio:g('ag_cc_hi'),horaFim:g('ag_cc_hf'),local:g('ag_cc_local'),envolvidos:g('ag_cc_env'),descricao:g('ag_cc_desc'),criadoEm:new Date().toISOString()});
     _agSave();toast('\u2705 Capta\u00e7\u00e3o de Conte\u00fado cadastrada','ok');S.agendaFormType=null;render();
-    _agNotifyAll('\uD83D\uDCF8 Nova Capta\u00e7\u00e3o de Conte\u00fado: '+t+' em '+g('ag_cc_data'));
+    _agNotifyAll('\uD83D\uDCF8 Nova Capta\u00e7\u00e3o de Conte\u00fado: '+t+' em '+g('ag_cc_data'), g('ag_cc_env'));
   };
   window.agRemoveCaptConteudo=function(i){if(confirm('Remover esta capta\u00e7\u00e3o de conte\u00fado?')){S.agendaCaptConteudo.splice(i,1);_agSave();render();}};
   window.agSaveCaptImovel=function(){
@@ -2971,18 +2973,37 @@ function pgAgendaPSM(){
     var t=g('ag_ci_titulo');if(!t){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
     S.agendaCaptImovel.push({titulo:t,data:g('ag_ci_data'),horaInicio:g('ag_ci_hi'),horaFim:g('ag_ci_hf'),local:g('ag_ci_local'),envolvidos:g('ag_ci_env'),descricao:g('ag_ci_desc'),criadoEm:new Date().toISOString()});
     _agSave();toast('\u2705 Capta\u00e7\u00e3o de Im\u00f3vel cadastrada','ok');S.agendaFormType=null;render();
-    _agNotifyAll('\uD83C\uDFE2 Nova Capta\u00e7\u00e3o de Im\u00f3vel: '+t+' em '+g('ag_ci_data'));
+    _agNotifyAll('\uD83C\uDFE2 Nova Capta\u00e7\u00e3o de Im\u00f3vel: '+t+' em '+g('ag_ci_data'), g('ag_ci_env'));
   };
   window.agRemoveCaptImovel=function(i){if(confirm('Remover esta capta\u00e7\u00e3o de im\u00f3vel?')){S.agendaCaptImovel.splice(i,1);_agSave();render();}};
 
   function _agSave(){saveState();}
-  function _agNotifyAll(msg){
-    // Browser notification
-    if('Notification' in window && Notification.permission==='granted'){
-      try{new Notification('PSM Agenda',{body:msg,icon:'/favicon.ico'});}catch(e){}
+  function _agNotifyAll(msg, envolvidosTxt){
+    // v18: usa notifEngine unificado (Notification + toast + som)
+    try{
+      if(typeof notifPush==='function'){
+        notifPush({title:'📅 PSM Agenda', body:msg, icon:'📅', cat:'agenda', page:'agenda_psm'});
+      } else if('Notification' in window && Notification.permission==='granted'){
+        try{new Notification('PSM Agenda',{body:msg,icon:'logo-psm-navy.png'});}catch(e){}
+      }
+    }catch(e){}
+    // v18: log de envolvidos (quando informado no form)
+    if(envolvidosTxt && envolvidosTxt.trim()){
+      try{
+        if(!S.notifPorUsuario) S.notifPorUsuario = {};
+        // extrair brokers pelo nome mencionado
+        var tokens = envolvidosTxt.split(/[,;]/).map(function(s){return s.trim().toLowerCase();}).filter(Boolean);
+        (S.brokers||[]).forEach(function(b){
+          var match = tokens.some(function(t){ return b.nome && b.nome.toLowerCase().indexOf(t)>=0; });
+          if(match){
+            if(!S.notifPorUsuario[b.id]) S.notifPorUsuario[b.id] = [];
+            S.notifPorUsuario[b.id].unshift({msg:msg, ts:Date.now(), read:false});
+            if(S.notifPorUsuario[b.id].length > 20) S.notifPorUsuario[b.id].splice(20);
+          }
+        });
+        saveState();
+      }catch(e){}
     }
-    // Schedule future notifications for the event
-    // (handled by notification scheduler below)
   }
 
   // ── Collect ALL events ──
@@ -4180,6 +4201,15 @@ function arenaTV(){
   function sceneAlertas(){
     var BR = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
     var alertas = [];
+    // v17: filtro explicito mes vigente — alertas so do mes atual
+    var _nowD = new Date();
+    var _curY = _nowD.getFullYear();
+    var _curM = _nowD.getMonth();
+    var _inCurMonth = function(d){
+      if(!d) return false;
+      var dt = (d instanceof Date) ? d : new Date(d);
+      return dt.getFullYear()===_curY && dt.getMonth()===_curM;
+    };
     BR.forEach(function(b){
       var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : null;
       if(!M) return;
@@ -4187,13 +4217,23 @@ function arenaTV(){
       if(M.meta > 0 && M.atingimento < 30 && !disp._masked){
         alertas.push({name:disp.name, ini:disp.ini||_initials(disp.name), tipo:'meta', msg:'Atingimento ' + M.atingimento + '% da meta', val:_brFull(M.vgv_real)+' / '+_brFull(M.meta), prio:1});
       }
-      if(M.staleCrm >= 5 && !disp._masked){
-        alertas.push({name:disp.name, ini:disp.ini||_initials(disp.name), tipo:'stale', msg:M.staleCrm + ' leads parados 4+ dias', val:'CRM stale', prio:2});
+      // staleCrm: so conta OPPS criadas no mes vigente
+      var staleCur = 0;
+      try{
+        (OPPS||[]).forEach(function(o){
+          if(o.bid!==b.id) return;
+          if(!_inCurMonth(o.createdAt||o.lastActivityAt)) return;
+          if((o.dnu||0) >= 4) staleCur++;
+        });
+      }catch(e){}
+      if(staleCur >= 5 && !disp._masked){
+        alertas.push({name:disp.name, ini:disp.ini||_initials(disp.name), tipo:'stale', msg:staleCur + ' leads parados 4+ dias (mês vigente)', val:'CRM stale', prio:2});
       }
     });
     alertas.sort(function(a,b){return a.prio - b.prio;});
+    var mNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column">'
-      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:14px;text-align:center;flex-shrink:0">ALERTAS — Ação Imediata</div>';
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:14px;text-align:center;flex-shrink:0">ALERTAS — Ação Imediata · '+mNames[_curM]+'/'+_curY+'</div>';
     if(alertas.length === 0){
       html += '<div style="text-align:center;padding:60px;color:#22c55e;font-size:24px;font-weight:700;flex:1">✓ Nenhum alerta crítico</div>';
     } else {
@@ -4350,22 +4390,45 @@ function arenaTV(){
       return out;
     }
     function _renderFunil(title, data, accent){
+      // v17: formato CONE com taxas de conversao reais (igual One-on-One)
       var maxCount = Math.max.apply(null, data.map(function(s){return s.count;}).concat([1]));
       var totalVGVPond = data.reduce(function(a,s){return a + s.vgv*s.w;},0);
       var html = '<div style="background:rgba(15,23,42,0.6);border:1px solid ' + accent + '44;border-radius:12px;padding:10px 12px;margin-bottom:8px">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
         +   '<div style="font-size:12px;font-weight:800;color:' + accent + ';letter-spacing:2px">' + title + '</div>'
         +   '<div style="font-size:11px;color:#94a3b8">Proj: <b style="color:#fbbf24">' + _brFull(totalVGVPond) + '</b></div>'
         + '</div>'
-        + '<div style="display:flex;flex-direction:column;gap:2px">';
-      data.forEach(function(st){
-        var w = maxCount>0 ? (st.count/maxCount*100) : 0;
-        html += '<div style="display:grid;grid-template-columns:90px 1fr 42px;gap:6px;align-items:center;font-size:10px">'
-          + '<div style="color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + st.label + ' <span style="color:#64748b">W' + Math.round(st.w*100) + '%</span></div>'
-          + '<div style="height:14px;background:rgba(148,163,184,0.08);border-radius:3px;position:relative;overflow:hidden"><div style="position:absolute;top:0;left:0;bottom:0;width:' + w + '%;background:' + st.color + ';border-radius:3px"></div></div>'
-          + '<div style="text-align:right;color:#e2e8f0;font-weight:700">' + st.count + '</div>'
+        + '<div style="display:flex;flex-direction:column;gap:3px;padding:4px 0">';
+      data.forEach(function(st, i){
+        // Cone: largura decresce conforme o funil
+        var w = maxCount>0 ? Math.max(15, (st.count/maxCount*100)) : 15;
+        // Taxa de conversao vs etapa anterior
+        var convLbl = '';
+        if(i>0){
+          var prev = data[i-1].count;
+          var conv = prev>0 ? (st.count/prev*100) : 0;
+          var convCol = conv>=70?'#22c55e':conv>=40?'#d4a843':'#ef4444';
+          convLbl = '<span style="color:'+convCol+';font-weight:700;font-size:9px">▼ '+conv.toFixed(1)+'%</span>';
+        }
+        html += '<div style="display:grid;grid-template-columns:110px 1fr 48px;gap:8px;align-items:center;font-size:10px">'
+          + '<div style="color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+st.label+' <span style="color:#64748b">W'+Math.round(st.w*100)+'%</span></div>'
+          + '<div style="display:flex;justify-content:center;align-items:center;gap:6px">'
+          +   '<div style="height:18px;width:'+w+'%;background:linear-gradient(90deg,'+st.color+'cc,'+st.color+');border-radius:3px;position:relative;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.3)">'
+          +     '<span style="font-size:9px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.6)">'+st.count+'</span>'
+          +   '</div>'
+          +   convLbl
+          + '</div>'
+          + '<div style="text-align:right;color:#e2e8f0;font-weight:700;font-size:10px">'+_brFull(st.vgv)+'</div>'
           + '</div>';
       });
+      // Taxa de conversao geral (primeiro -> ultimo)
+      if(data.length>1){
+        var first = data[0].count;
+        var last = data[data.length-1].count;
+        var total = first>0 ? (last/first*100) : 0;
+        var totalCol = total>=20?'#22c55e':total>=10?'#d4a843':'#ef4444';
+        html += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(148,163,184,0.12);font-size:10px;color:#94a3b8;text-align:right">Conversão Total: <b style="color:'+totalCol+'">'+total.toFixed(2)+'%</b></div>';
+      }
       html += '</div></div>';
       return html;
     }
@@ -4537,18 +4600,130 @@ function arenaTV(){
     return html;
   }
 
+  // v17: cena APROVEITAMENTO — taxa por corretor (2 casas decimais, mes vigente)
+  function sceneAproveitamento(){
+    var BR = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
+    BR = BR.filter(function(b){return b.role!=='socio' && !((typeof isMaskedBroker==='function')?isMaskedBroker(b.id):false);});
+    var _now = new Date();
+    var mk = _now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0');
+    var rows = BR.map(function(b){
+      var ag = (typeof ooAggMonth==='function') ? ooAggMonth(b.id, mk) : {vis:0,prop:0};
+      var rd = (typeof ooAggMonthRD==='function') ? ooAggMonthRD(b.id, mk) : {vis_oo:0,prop_oo:0};
+      var lig = (ag.lig_real||0) + (rd.lig_real||0);
+      var vis = (ag.vis||0) + (rd.vis_oo||0);
+      var prop = (ag.prop||0) + (rd.prop_oo||0);
+      var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : {vendas:0,vgv_real:0};
+      var vendas = M.vendas||0;
+      // Taxas (2 casas decimais minimo)
+      var taxaVis = lig>0 ? (vis/lig*100) : 0;        // lig -> vis
+      var taxaProp = vis>0 ? (prop/vis*100) : 0;      // vis -> prop
+      var taxaVenda = prop>0 ? (vendas/prop*100) : 0; // prop -> venda
+      var taxaGeral = lig>0 ? (vendas/lig*100) : 0;   // lig -> venda (aproveitamento global)
+      return {name:b.name, ini:b.ini||_initials(b.name), lig:lig, vis:vis, prop:prop, vendas:vendas, tVis:taxaVis, tProp:taxaProp, tVenda:taxaVenda, tGeral:taxaGeral};
+    }).filter(function(r){return r.lig>0||r.vis>0||r.prop>0||r.vendas>0;}).sort(function(a,b){return b.tGeral - a.tGeral;});
+    var mNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden">'
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:10px;text-align:center;flex-shrink:0">APROVEITAMENTO POR CORRETOR · '+mNames[_now.getMonth()]+'/'+_now.getFullYear()+'</div>';
+    if(rows.length===0){
+      html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:16px;flex:1">Sem atividade registrada neste mês</div>';
+    } else {
+      html += '<div style="flex:1;overflow:hidden"><table style="width:100%;border-collapse:collapse;font-size:11px">'
+        + '<thead><tr style="color:#64748b;font-size:9px;text-transform:uppercase;letter-spacing:1px">'
+        +   '<th style="text-align:left;padding:5px 6px">#</th>'
+        +   '<th style="text-align:left;padding:5px 6px">Corretor</th>'
+        +   '<th style="text-align:right;padding:5px 6px">Lig→Vis</th>'
+        +   '<th style="text-align:right;padding:5px 6px">Vis→Prop</th>'
+        +   '<th style="text-align:right;padding:5px 6px">Prop→Venda</th>'
+        +   '<th style="text-align:right;padding:5px 6px">Aprov. Global</th>'
+        + '</tr></thead><tbody>';
+      rows.forEach(function(r,i){
+        function _col(p){return p>=50?'#22c55e':p>=25?'#d4a843':p>=10?'#f59e0b':'#ef4444';}
+        html += '<tr style="background:rgba(30,41,59,'+(i%2?0.3:0.5)+')">'
+          + '<td style="padding:5px 6px;color:#fbbf24;font-weight:800;text-align:center">'+(i+1)+'</td>'
+          + '<td style="padding:5px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px;color:#e2e8f0;font-weight:700">'+r.name+'</td>'
+          + '<td style="text-align:right;padding:5px 6px;color:'+_col(r.tVis)+';font-weight:700">'+r.tVis.toFixed(2)+'%</td>'
+          + '<td style="text-align:right;padding:5px 6px;color:'+_col(r.tProp)+';font-weight:700">'+r.tProp.toFixed(2)+'%</td>'
+          + '<td style="text-align:right;padding:5px 6px;color:'+_col(r.tVenda)+';font-weight:700">'+r.tVenda.toFixed(2)+'%</td>'
+          + '<td style="text-align:right;padding:5px 6px;color:'+_col(r.tGeral)+';font-weight:800;font-size:12px">'+r.tGeral.toFixed(2)+'%</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  // v17: cena VOLUME + APROVEITAMENTO (volume de atividades + taxa global)
+  function sceneVolumeAprov(){
+    var BR = (typeof BROKERS_ALL!=='undefined') ? BROKERS_ALL : (BROKERS||[]);
+    BR = BR.filter(function(b){return b.role!=='socio' && !((typeof isMaskedBroker==='function')?isMaskedBroker(b.id):false);});
+    var _now = new Date();
+    var mk = _now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0');
+    var rows = BR.map(function(b){
+      var ag = (typeof ooAggMonth==='function') ? ooAggMonth(b.id, mk) : {};
+      var rd = (typeof ooAggMonthRD==='function') ? ooAggMonthRD(b.id, mk) : {};
+      var lig = (ag.lig_real||0) + (rd.lig_real||0);
+      var vis = (ag.vis||0) + (rd.vis_oo||0);
+      var prop = (ag.prop||0) + (rd.prop_oo||0);
+      var M = (typeof getMetricas==='function') ? getMetricas(b.id,'war') : {vendas:0,vgv_real:0};
+      var vendas = M.vendas||0;
+      var vol = lig + vis + prop + vendas;
+      var aprov = lig>0 ? (vendas/lig*100) : 0;
+      return {name:b.name, ini:b.ini||_initials(b.name), lig:lig, vis:vis, prop:prop, vendas:vendas, vol:vol, aprov:aprov, vgv:M.vgv_real||0};
+    }).filter(function(r){return r.vol>0;}).sort(function(a,b){return b.vol - a.vol;});
+    var maxVol = rows.length ? rows[0].vol : 1;
+    var mNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var html = '<div style="width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden">'
+      + '<div style="font-size:12px;color:#64748b;letter-spacing:5px;text-transform:uppercase;margin-bottom:10px;text-align:center;flex-shrink:0">VOLUME + APROVEITAMENTO · '+mNames[_now.getMonth()]+'/'+_now.getFullYear()+'</div>';
+    if(rows.length===0){
+      html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:16px;flex:1">Sem atividade registrada neste mês</div>';
+    } else {
+      html += '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:4px">';
+      rows.forEach(function(r,i){
+        var aprovCol = r.aprov>=20?'#22c55e':r.aprov>=10?'#d4a843':r.aprov>=5?'#f59e0b':'#ef4444';
+        var volPct = r.vol/maxVol*100;
+        html += '<div style="display:grid;grid-template-columns:30px 32px 1fr 70px 70px;gap:8px;align-items:center;padding:6px 10px;background:rgba(30,41,59,'+(i%2?0.3:0.5)+');border-radius:8px">'
+          + '<div style="font-size:14px;font-weight:900;color:'+(i===0?'#fbbf24':i===1?'#cbd5e1':i===2?'#d97706':'#475569')+';text-align:center">'+(i+1)+'</div>'
+          + '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#1e40af,#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;color:#fff">'+r.ini+'</div>'
+          + '<div style="min-width:0"><div style="font-size:12px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+r.name+'</div>'
+          +   '<div style="display:flex;gap:6px;font-size:9px;color:#94a3b8;margin-top:2px"><span>📞'+r.lig+'</span><span>🏠'+r.vis+'</span><span>📝'+r.prop+'</span><span style="color:#22c55e;font-weight:700">✓'+r.vendas+'</span></div>'
+          +   '<div style="height:4px;background:rgba(148,163,184,0.15);border-radius:2px;overflow:hidden;margin-top:3px"><div style="height:100%;width:'+volPct+'%;background:linear-gradient(90deg,#3b82f6,#60a5fa);border-radius:2px"></div></div>'
+          + '</div>'
+          + '<div style="text-align:right;color:#3b82f6;font-weight:800;font-size:13px">Vol '+r.vol+'</div>'
+          + '<div style="text-align:right;color:'+aprovCol+';font-weight:800;font-size:13px">'+r.aprov.toFixed(2)+'%</div>'
+          + '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
   var SCENES = [
     {key:'HERO',       label:'VGV Mensal',       fn:sceneHero,       dur:10000},
     {key:'RANKING',    label:'Todos Corretores', fn:sceneRanking,    dur:12000},
     {key:'FUNIL',      label:'Pipeline RD CRM',  fn:sceneFunilCRM,   dur:12000},
-    {key:'PULSE',      label:'Vendas Recentes',  fn:scenePulse,      dur:10000},
+    {key:'PULSE',      label:'Vendas Recentes',  fn:scenePulse,      dur:10000, densFn:function(){var c=new Date(Date.now()-7*86400000);return (VENDAS||[]).filter(function(v){var d=new Date(v.closedAt||v.createdAt||'');return !isNaN(d.getTime())&&d>=c;}).length;}},
     {key:'EQUIPES',    label:'Frentes & Times',  fn:sceneEquipes,    dur:12000},
     {key:'METAS',      label:'Metas × Real',     fn:sceneMetasIndiv, dur:12000},
+    {key:'APROV',      label:'Aproveitamento',   fn:sceneAproveitamento, dur:12000},
+    {key:'VOL_APROV',  label:'Volume + Aprov.',  fn:sceneVolumeAprov,    dur:12000},
     {key:'VOLUME',     label:'Ritmo Ideal',      fn:sceneVolume,     dur:10000},
     {key:'ONEONONE',   label:'Atividades OO',    fn:sceneRankingOO,  dur:10000},
     {key:'PROJECOES',  label:'Forecast',         fn:sceneProjecoes,  dur:10000},
-    {key:'ALERTAS',    label:'Ação Imediata',    fn:sceneAlertas,    dur:8000}
+    {key:'ALERTAS',    label:'Ação Imediata',    fn:sceneAlertas,    dur:8000,  densFn:function(){var n=0;try{(BROKERS_ALL||BROKERS||[]).forEach(function(b){var M=(typeof getMetricas==='function')?getMetricas(b.id,'war'):null;if(!M)return;if(M.meta>0&&M.atingimento<30)n++;});}catch(e){}return n;}}
   ];
+  // v17: duracao adaptativa — cenas com pouquissimos dados ficam menos tempo
+  function _adaptiveDuration(sc){
+    if(typeof sc.densFn!=='function') return sc.dur;
+    try{
+      var n = sc.densFn();
+      if(n===0) return 3000;       // vazia: passa rapido
+      if(n<=2) return Math.max(4000, Math.round(sc.dur*0.45));
+      if(n<=5) return Math.max(6000, Math.round(sc.dur*0.7));
+      return sc.dur;
+    }catch(e){ return sc.dur; }
+  }
   var sceneIdx = 0;
 
   function showScene(i){
@@ -4576,7 +4751,7 @@ function arenaTV(){
     renderTimeline();
   }, 15000);
   var sceneStart = Date.now();
-  var sceneDuration = SCENES[0].dur;
+  var sceneDuration = _adaptiveDuration(SCENES[0]);
   var progInt = setInterval(function(){
     if(!document.getElementById('arena-tv-overlay')){ clearInterval(progInt); return; }
     var elapsed = Date.now() - sceneStart;
@@ -4585,7 +4760,7 @@ function arenaTV(){
     if(bar) bar.style.width = pct + '%';
     if(elapsed >= sceneDuration){
       sceneIdx = (sceneIdx+1) % SCENES.length;
-      sceneDuration = SCENES[sceneIdx].dur;
+      sceneDuration = _adaptiveDuration(SCENES[sceneIdx]);
       sceneStart = Date.now();
       // Recalc metrics a cada ciclo completo
       if(sceneIdx === 0){ try { recalcBrokerMetrics('war'); renderTimeline(); } catch(e){} }
@@ -4948,6 +5123,10 @@ var ARENA_SOUNDS = {
   'arcade':    {name:'🎮 Arcade Win',       desc:'Bip estilo arcade de vitória',           type:'synth', tones:[[523,0.08],[784,0.08],[1047,0.08],[1319,0.12],[1568,0.2]]},
   'ascend':    {name:'📈 Escala Ascendente',desc:'Escala subindo do grave ao agudo',       type:'synth', tones:[[392,0.08],[494,0.08],[587,0.08],[698,0.08],[880,0.2]]},
   'gong':      {name:'🥁 Gong Oriental',    desc:'Gong grave com reverberação',            type:'synth', tones:[[196,0.5]]},
+  'victory':   {name:'🏆 Vitória Épica',    desc:'Fanfarra longa para venda concluída',    type:'synth', tones:[[523,0.12],[659,0.12],[784,0.12],[1047,0.18],[1319,0.22],[1568,0.35]]},
+  'party':     {name:'🎉 Festa',            desc:'Animado — venda concluída',              type:'synth', tones:[[659,0.1],[784,0.1],[988,0.1],[1319,0.15],[1047,0.1],[1319,0.25]]},
+  'alert':     {name:'⚠️ Alerta',           desc:'Bip duplo de alerta',                    type:'synth', tones:[[880,0.1],[0,0.05],[880,0.15]]},
+  'ding':      {name:'🔔 Ding',             desc:'Notificação suave',                      type:'synth', tones:[[1047,0.08],[1319,0.18]]},
   'none':      {name:'🔇 Silencioso',       desc:'Sem som',                                type:'none',  tones:[]}
 };
 window.ARENA_SOUNDS = ARENA_SOUNDS;
@@ -4962,13 +5141,14 @@ function playArenaSound(soundKey){
     var t0 = ctx.currentTime;
     s.tones.forEach(function(tn, idx){
       var freq = tn[0], dur = tn[1];
+      var startT = t0 + (idx * 0.05);
+      for(var i=0;i<idx;i++) startT += s.tones[i][1];
+      if(freq <= 0){ return; } // silêncio (pausa)
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
       osc.type = 'triangle';
       osc.frequency.value = freq;
       osc.connect(gain); gain.connect(ctx.destination);
-      var startT = t0 + (idx * 0.05);
-      for(var i=0;i<idx;i++) startT += s.tones[i][1];
       gain.gain.setValueAtTime(0.0001, startT);
       gain.gain.exponentialRampToValueAtTime(0.35, startT + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, startT + dur);
@@ -6616,6 +6796,224 @@ function pgCRM(){
     +bar+bhead+content+bCards;
 }
 
+// ─── PAGE: RECADOS DIRETORIA (v18) ────────────────────────────────────────────
+// Gestor/sócio/diretor escreve recado → aparece Arena TV timeline + notifica todos
+function pgRecadosDiretoria(){
+  if(!S.user) return '<div style="padding:40px">Faça login</div>';
+  var lvl = RLVL[S.user.role]||0;
+  var role = S.user.role;
+  var isGestor = lvl>=5 || role==='socio' || role==='diretor' || role==='lider' || role==='backoffice';
+  if(!isGestor) return '<div style="padding:40px;text-align:center;color:var(--muted)"><h2>🔒 Acesso restrito</h2><p>Página exclusiva para diretoria/gestão.</p></div>';
+  if(!S.arenaRecados) S.arenaRecados = [];
+  var now = Date.now();
+  // limpa expirados
+  S.arenaRecados = S.arenaRecados.filter(function(r){ return !r.exp || r.exp >= now; });
+  var h = '<div style="padding:20px;max-width:1100px;margin:0 auto">';
+  h += '<div class="phd"><h1>📢 Recados Arena PSM</h1><p>Mensagens da diretoria exibidas na timeline global e no Arena PSM (TV). Ao publicar, todos recebem notificação.</p></div>';
+
+  // Form
+  h += '<div class="card mb2" style="border-left:4px solid #6366f1"><div class="ctitle">✍️ Novo recado</div>';
+  h += '<textarea id="recDirTxt" rows="3" placeholder="Digite o recado para o time..." style="width:100%;padding:10px;font-size:14px;border:1px solid var(--cream3);border-radius:8px;resize:vertical;margin-bottom:10px"></textarea>';
+  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+  h += '<select id="recDirTipo" class="finp" style="padding:8px 10px;font-size:13px">';
+  h += '<option value="info">📢 Informativo</option>';
+  h += '<option value="urgente">🚨 Urgente</option>';
+  h += '<option value="parabens">🎉 Parabéns</option>';
+  h += '<option value="geral">💬 Geral</option>';
+  h += '</select>';
+  h += '<select id="recDirDur" class="finp" style="padding:8px 10px;font-size:13px">';
+  h += '<option value="1">1 dia</option><option value="3">3 dias</option><option value="7" selected>7 dias</option><option value="14">14 dias</option><option value="30">30 dias</option>';
+  h += '</select>';
+  h += '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mid)"><input type="checkbox" id="recDirNotify" checked> Notificar todos</label>';
+  h += '<button class="btn bp1" onclick="publicarRecadoDir()" style="margin-left:auto">📢 Publicar</button>';
+  h += '</div></div>';
+
+  // Lista
+  h += '<div class="card"><div class="ctitle">📋 Recados ativos ('+S.arenaRecados.length+')</div>';
+  if(S.arenaRecados.length===0){
+    h += '<div style="padding:24px;text-align:center;color:var(--muted)">Nenhum recado ativo</div>';
+  } else {
+    h += '<div style="display:flex;flex-direction:column;gap:10px">';
+    var tipoIco = {info:'📢',urgente:'🚨',parabens:'🎉',geral:'💬'};
+    var tipoBg = {info:'#6366f1',urgente:'#ef4444',parabens:'#10b981',geral:'#8b5cf6'};
+    S.arenaRecados.slice().sort(function(a,b){return b.dt-a.dt;}).forEach(function(r){
+      var dias = r.exp ? Math.max(0, Math.ceil((r.exp - now)/86400000)) : 0;
+      h += '<div style="display:flex;gap:10px;padding:12px;background:var(--cream2);border-left:4px solid '+(tipoBg[r.tipo]||'#6366f1')+';border-radius:8px">';
+      h += '<div style="font-size:22px">'+(tipoIco[r.tipo]||'📢')+'</div>';
+      h += '<div style="flex:1"><div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:4px">'+r.msg+'</div>';
+      h += '<div style="font-size:11px;color:var(--muted)">— '+(r.autorNome||'Diretoria')+' · '+new Date(r.dt).toLocaleDateString('pt-BR')+' · expira em '+dias+' dia(s)</div></div>';
+      h += '<button class="btn bsm bout" onclick="removerRecadoDir(\''+r.id+'\')" style="color:#ef4444">🗑️</button>';
+      h += '</div>';
+    });
+    h += '</div>';
+  }
+  h += '</div></div>';
+  return h;
+}
+window.publicarRecadoDir = function(){
+  var txt = (document.getElementById('recDirTxt')||{}).value;
+  if(!txt || !txt.trim()){ toast('Digite o recado','warn'); return; }
+  var tipo = (document.getElementById('recDirTipo')||{}).value || 'info';
+  var dur = parseInt((document.getElementById('recDirDur')||{}).value || 7);
+  var notify = (document.getElementById('recDirNotify')||{}).checked !== false;
+  if(!S.arenaRecados) S.arenaRecados = [];
+  var autor = S.user||{};
+  var rec = {
+    id: 'rec_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    msg: txt.trim(), tipo: tipo, dt: Date.now(), exp: Date.now() + dur*86400000,
+    autorId: autor.id, autorNome: (autor.name||'Diretoria').split(' ')[0]
+  };
+  S.arenaRecados.push(rec);
+  // Tambem publica no ticker global (mesma mecânica)
+  try{ tickerAddMsg('[DIRETORIA] '+txt.trim(), tipo, autor.id, dur); }catch(e){}
+  saveState();
+  toast('📢 Recado publicado!','ok');
+  if(notify && typeof notifPush==='function'){
+    notifPush({title:'📢 Recado da Diretoria', body:txt.trim().slice(0,120), icon:'📢', cat:'recado', page:'recados_diretoria'});
+  }
+  render();
+};
+window.removerRecadoDir = function(id){
+  if(!confirm('Remover este recado?')) return;
+  S.arenaRecados = (S.arenaRecados||[]).filter(function(r){return r.id!==id;});
+  saveState(); render();
+};
+
+// ─── PAGE: ORGANOGRAMA PSM (v18) ──────────────────────────────────────────────
+// Estrutura editável: setores, funções, nomes. Baseado no PSM 4.0 (19/04/2026).
+function _orgSeed(){
+  return {
+    raiz: {id:'root', nome:'SÓCIOS', tipo:'orgao'},
+    nodes: [
+      // Isabella/Paulo
+      {id:'ip', parent:'root', nome:'Isabella / Paulo', tipo:'socio', funcao:'Sócios'},
+      {id:'secvendas', parent:'ip', nome:'Secretaria de Vendas', tipo:'setor'},
+      {id:'adm', parent:'ip', nome:'Administrativo', tipo:'setor'},
+      {id:'financ', parent:'ip', nome:'Financeiro', tipo:'setor'},
+      {id:'juridico', parent:'ip', nome:'Jurídico', tipo:'setor'},
+      // Paulo
+      {id:'paulo', parent:'root', nome:'Paulo', tipo:'socio', funcao:'Sócio'},
+      {id:'estrategia', parent:'paulo', nome:'Estratégia', tipo:'setor'},
+      {id:'marketing', parent:'paulo', nome:'Marketing', tipo:'setor'},
+      // Marcos/Anderson
+      {id:'ma', parent:'root', nome:'Marcos / Anderson', tipo:'socio', funcao:'Sócios'},
+      {id:'gpessoas', parent:'ma', nome:'Gestão de Pessoas', tipo:'setor'},
+      {id:'rh', parent:'ma', nome:'RH', tipo:'setor'},
+      // Isabella
+      {id:'isa', parent:'root', nome:'Isabella', tipo:'socio', funcao:'Sócia'},
+      {id:'conq_loc', parent:'isa', nome:'Conquista + Locação', tipo:'equipe'},
+      {id:'map', parent:'isa', nome:'MAP (Marcus)', tipo:'equipe'},
+      // Paulo - Terceiros
+      {id:'paulo3', parent:'root', nome:'Paulo', tipo:'socio', funcao:'Sócio'},
+      {id:'terceiros', parent:'paulo3', nome:'Terceiros (3º)', tipo:'equipe'}
+    ]
+  };
+}
+function pgOrganograma(){
+  if(!S.user) return '<div style="padding:40px">Faça login</div>';
+  var lvl = RLVL[S.user.role]||0;
+  var canEdit = lvl>=5 || S.user.role==='socio' || S.user.role==='diretor' || S.user.role==='backoffice';
+  if(!S.organograma || !S.organograma.nodes) S.organograma = _orgSeed();
+  var org = S.organograma;
+
+  var h = '<div style="padding:20px;max-width:1400px;margin:0 auto">';
+  h += '<div class="phd"><h1>🏢 Organograma PSM 4.0</h1><p>Estrutura organizacional · '+(canEdit?'modo edição':'somente visualização')+'</p></div>';
+
+  // Toolbar
+  if(canEdit){
+    h += '<div class="card mb2" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+    h += '<button class="btn bp1 bsm" onclick="orgAddNode()">➕ Novo setor/função</button>';
+    h += '<button class="btn bsm bout" onclick="orgReset()" style="color:#ef4444">🔄 Restaurar padrão</button>';
+    h += '<span style="margin-left:auto;font-size:11px;color:var(--muted)">'+org.nodes.length+' nós</span>';
+    h += '</div>';
+  }
+
+  // Render tree
+  function renderNode(node, depth){
+    var children = org.nodes.filter(function(n){return n.parent===node.id;});
+    var tipoCols = {orgao:'#0f172a',socio:'#6366f1',setor:'#10b981',equipe:'#f59e0b',funcao:'#8b5cf6'};
+    var col = tipoCols[node.tipo||'setor']||'#10b981';
+    var s = '<div style="display:flex;flex-direction:column;align-items:center;min-width:160px">';
+    s += '<div style="background:'+col+';color:#fff;padding:10px 14px;border-radius:10px;font-weight:800;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.15);text-align:center;min-width:140px;max-width:200px">';
+    s += '<div>'+esc(node.nome||'—')+'</div>';
+    if(node.funcao) s += '<div style="font-size:10px;opacity:.85;font-weight:500;margin-top:2px">'+esc(node.funcao)+'</div>';
+    if(node.responsavel) s += '<div style="font-size:10px;opacity:.85;font-weight:500;margin-top:2px">👤 '+esc(node.responsavel)+'</div>';
+    if(canEdit){
+      s += '<div style="display:flex;gap:4px;justify-content:center;margin-top:6px">';
+      s += '<button onclick="orgEditNode(\''+node.id+'\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer">✏️</button>';
+      s += '<button onclick="orgAddChild(\''+node.id+'\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer">➕</button>';
+      if(node.id!=='root') s += '<button onclick="orgDelNode(\''+node.id+'\')" style="background:rgba(239,68,68,.8);border:none;color:#fff;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer">🗑️</button>';
+      s += '</div>';
+    }
+    s += '</div>';
+    if(children.length){
+      s += '<div style="width:2px;height:20px;background:#94a3b8"></div>';
+      s += '<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;justify-content:center;border-top:2px solid #94a3b8;padding-top:20px;position:relative">';
+      children.forEach(function(c){ s += '<div style="position:relative">'+renderNode(c, depth+1)+'</div>'; });
+      s += '</div>';
+    }
+    s += '</div>';
+    return s;
+  }
+  function esc(t){ return String(t||'').replace(/[<>&"']/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  h += '<div class="card" style="overflow-x:auto;padding:30px">';
+  h += '<div style="display:flex;justify-content:center">'+renderNode(org.raiz, 0)+'</div>';
+  h += '</div>';
+
+  // Legenda
+  h += '<div class="card mt2" style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mid)">';
+  h += '<span><span style="display:inline-block;width:12px;height:12px;background:#0f172a;border-radius:3px;vertical-align:middle"></span> Órgão</span>';
+  h += '<span><span style="display:inline-block;width:12px;height:12px;background:#6366f1;border-radius:3px;vertical-align:middle"></span> Sócio</span>';
+  h += '<span><span style="display:inline-block;width:12px;height:12px;background:#10b981;border-radius:3px;vertical-align:middle"></span> Setor</span>';
+  h += '<span><span style="display:inline-block;width:12px;height:12px;background:#f59e0b;border-radius:3px;vertical-align:middle"></span> Equipe</span>';
+  h += '<span><span style="display:inline-block;width:12px;height:12px;background:#8b5cf6;border-radius:3px;vertical-align:middle"></span> Função</span>';
+  h += '</div>';
+
+  h += '</div>';
+  return h;
+}
+window.orgAddNode = function(){
+  var nome = prompt('Nome do novo setor/função/equipe:'); if(!nome) return;
+  var tipo = prompt('Tipo (socio, setor, equipe, funcao):','setor') || 'setor';
+  var parent = prompt('ID do pai (ex: root, ip, paulo, ma, isa):','root') || 'root';
+  if(!S.organograma.nodes.find(function(n){return n.id===parent;}) && parent!=='root'){ toast('Pai não encontrado','err'); return; }
+  S.organograma.nodes.push({id:'n_'+Date.now(), parent:parent, nome:nome, tipo:tipo});
+  saveState(); render();
+};
+window.orgAddChild = function(parentId){
+  var nome = prompt('Nome do novo filho:'); if(!nome) return;
+  var tipo = prompt('Tipo (setor, equipe, funcao):','setor') || 'setor';
+  S.organograma.nodes.push({id:'n_'+Date.now(), parent:parentId, nome:nome, tipo:tipo});
+  saveState(); render();
+};
+window.orgEditNode = function(id){
+  var n = (id==='root') ? S.organograma.raiz : S.organograma.nodes.find(function(x){return x.id===id;});
+  if(!n) return;
+  var nome = prompt('Nome:', n.nome); if(nome===null) return;
+  n.nome = nome;
+  var funcao = prompt('Função (opcional):', n.funcao||''); if(funcao!==null) n.funcao = funcao;
+  var resp = prompt('Responsável (opcional):', n.responsavel||''); if(resp!==null) n.responsavel = resp;
+  saveState(); render();
+};
+window.orgDelNode = function(id){
+  if(id==='root'){ toast('Raiz não pode ser removida','err'); return; }
+  if(!confirm('Remover este nó e todos os filhos?')) return;
+  function collectIds(pid){
+    var r = [pid];
+    S.organograma.nodes.filter(function(n){return n.parent===pid;}).forEach(function(c){ r = r.concat(collectIds(c.id)); });
+    return r;
+  }
+  var rm = collectIds(id);
+  S.organograma.nodes = S.organograma.nodes.filter(function(n){return rm.indexOf(n.id)<0;});
+  saveState(); render();
+};
+window.orgReset = function(){
+  if(!confirm('Restaurar organograma padrão PSM 4.0?')) return;
+  S.organograma = _orgSeed();
+  saveState(); render();
+};
+
 // ─── PAGE: GOVERNANÇA ─────────────────────────────────────────────────────────
 function pgGovernance(){
   if(!S.df_gov) S.df_gov = {preset:'Mes'};
@@ -6797,7 +7195,7 @@ function pgForecast(){
   +[{lbl:'Pessimista',mult:0.7,c:'var(--r)',ico:'📉',desc:'Queda no ritmo (-30%)'},{lbl:'Realista',mult:1.0,c:'var(--a)',ico:'📊',desc:'Mantém ritmo atual'},{lbl:'Otimista',mult:1.3,c:'var(--g)',ico:'📈',desc:'Aceleração (+30%)'}].map(function(s){
       // Projeção blended: realizado + (velocidade * duRest * mult) — mais realista que vgvR/pctM (que explode no início do mês)
       var proj=Math.round(vgvR + (velocidade*duRest*s.mult));
-      var pctMeta=parseFloat((proj/Math.max(1,metaM)*100).toFixed(2));
+      var pctMeta=metaM>0?parseFloat((proj/metaM*100).toFixed(2)):0;
       var vendaRitmo=duPass>0?fVENDAS.length/duPass:0;
       var vendasProj=Math.round(fVENDAS.length + vendaRitmo*duRest*s.mult);
       return'<div style="padding:18px;background:var(--cream2);border-radius:12px;border-top:3px solid '+s.c+';text-align:center">'
@@ -6831,6 +7229,8 @@ function pgKpis(){
   if(!S.df_kpis) S.df_kpis = {preset:'Mes'};
   const df=DateFilter('kpis','Período');
   recalcBrokerMetrics('kpis');
+  // META CANONICA: sempre sincroniza com Metas do menu (S.mg via getMetaGlobal)
+  try{var _mgSync=getMetaGlobal();if(_mgSync&&_mgSync.metaTotal){var _cm=new Date().getMonth();METRICS.vgv_meta=_mgSync.metaTotal(_cm)||0;}}catch(e){}
   const fOPPS=applyDateFilter(OPPS,'kpis');
   const fVENDAS=applyDateFilter(VENDAS,'kpis');
   const fLOST=applyDateFilter(LOST_DEALS,'kpis');
@@ -6840,7 +7240,7 @@ function pgKpis(){
   const vgvPipe=fOPPS.reduce((a,o)=>a+(o.vgv||0),0);
   const vgvLost=fLOST.reduce((a,l)=>a+(l.vgv||0),0);
   const metaM=METRICS.vgv_meta||0;
-  const pctMeta=parseFloat((vgvR/Math.max(1,metaM)*100).toFixed(2));
+  const pctMeta=metaM>0?parseFloat((vgvR/metaM*100).toFixed(2)):0;
   const ticketMedio=fVENDAS.length>0?vgvR/fVENDAS.length:0;
   const ticketPipe=fOPPS.length>0?vgvPipe/fOPPS.length:0;
   const convRate=fVENDAS.length+fLOST.length>0?parseFloat((fVENDAS.length/(fVENDAS.length+fLOST.length)*100).toFixed(2)):0;
@@ -8253,6 +8653,19 @@ function salvarVenda() {
   S.vendaMsg = '✅ ' + fmt(f.vgv) + ' registrado para ' + b.name + '!';
   S.vendaForm = {};
   toast('Venda registrada! Ranking atualizado.', 'ok');
+  // v18: som animador + notif para todos
+  try{ if(typeof playArenaSound==='function') playArenaSound('victory'); }catch(e){}
+  try{
+    if(typeof notifPush==='function'){
+      notifPush({title:'🎉 VENDA REGISTRADA!', body:b.name+' — '+fmt(f.vgv)+(f.prod?' • '+f.prod:''), icon:'🏆', cat:'venda', page:'ranking'});
+    }
+    // Flash visual global
+    var flashV = document.createElement('div');
+    flashV.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:999999;background:linear-gradient(135deg,#10b981,#22c55e,#fbbf24);color:#fff;padding:22px 40px;border-radius:18px;font-size:24px;font-weight:900;box-shadow:0 24px 80px rgba(16,185,129,0.6);animation:metaHitFlash 4s ease forwards;pointer-events:none;text-align:center';
+    flashV.innerHTML='🎉 VENDA! '+b.name+'<br><span style="font-size:18px;opacity:.9">'+fmt(f.vgv)+'</span>';
+    document.body.appendChild(flashV);
+    setTimeout(function(){ try{flashV.remove();}catch(e){} }, 4200);
+  }catch(e){}
   render();
 }
 
@@ -9505,7 +9918,7 @@ function pgOO() {
   const df_oo = DateFilter('oo','Período');
   const u = S.user; if (!u) return df_oo + '';
   const lvl = RLVL[u.role] || 0;
-  var _allTabs=[{id:'dashboard',lbl:'📊 Dashboard',minLvl:5},{id:'dia',lbl:'Dia a Dia'},{id:'acumulado',lbl:'Acumulado'},{id:'metricas',lbl:'Métricas'},{id:'reuniao',lbl:'Reunião 1:1'},{id:'rotina',lbl:'Rotina'},{id:'metas',lbl:'Metas'},{id:'gestao',lbl:'Gestão',minLvl:5}];
+  var _allTabs=[{id:'dashboard',lbl:'📊 Dashboard',minLvl:5},{id:'dia',lbl:'Dia a Dia'},{id:'acumulado',lbl:'Acumulado'},{id:'metricas',lbl:'Métricas'},{id:'reuniao',lbl:'Reunião 1:1'},{id:'rotina',lbl:'Rotina'},{id:'metas',lbl:'Metas'},{id:'perfil_comp',lbl:'🧠 Perfil Comportamental'},{id:'gestao',lbl:'Gestão',minLvl:5}];
   const tabs = _allTabs.filter(function(t){ return !t.minLvl || lvl >= t.minLvl; });
   var _vt = tabs.map(function(t){ return t.id; });
   const tab = _vt.indexOf(S.ooTab)!==-1 ? S.ooTab : 'dia';
@@ -11202,10 +11615,227 @@ function pgOO() {
     content += '</div></div></div>';
   }
 
+  // ============================================================
+  // TAB: PERFIL COMPORTAMENTAL (Avaliação IBC — Águia/Gato/Lobo/Tubarão)
+  // ============================================================
+  else if (tab === 'perfil_comp') {
+    content = renderPerfilCompTab(selBid, selUser, lvl);
+  }
+
   return '<div class="phd"><h1>One on One</h1><p>Acompanhamento individual de performance</p></div>'
     + brokerSel + checkinCard + sheetBar + tabBar + content
     + '<div id="oo_sheet_status" style="text-align:center;padding:4px;margin-top:6px"></div>'
     + '<img src="" onerror="if(typeof _ooFetchSheet===\'function\')_ooFetchSheet(\''+ selBid +'\');" style="display:none">';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PERFIL COMPORTAMENTAL IBC — Águia / Gato / Lobo / Tubarão
+// Fonte: Avaliação de Perfil Comportamental (Instituto Brasileiro de Coaching)
+// 25 questões × 4 alternativas. Letras: I=Águia, C=Gato, O=Lobo, A=Tubarão
+// Cálculo: soma marcadas × 4 = %. Total sempre 100%.
+// ═══════════════════════════════════════════════════════════════════
+var PERFIL_COMP_QUESTOES = [
+  {q:'Eu sou...', opts:[{l:'I',t:'Idealista, criativo e visionário'},{l:'C',t:'Divertido, espiritual e benéfico'},{l:'O',t:'Confiável, meticuloso e previsível'},{l:'A',t:'Focado, determinado e persistente'}]},
+  {q:'Eu gosto de...', opts:[{l:'A',t:'Ser piloto'},{l:'C',t:'Conversar com os passageiros'},{l:'O',t:'Planejar a viagem'},{l:'I',t:'Explorar novas rotas'}]},
+  {q:'Se você quiser se dar bem comigo...', opts:[{l:'I',t:'Me dê liberdade'},{l:'O',t:'Me deixe saber sua expectativa'},{l:'A',t:'Lidere, siga ou saia do caminho'},{l:'C',t:'Seja amigável, carinhoso e compreensivo'}]},
+  {q:'Para conseguir obter bons resultados é preciso...', opts:[{l:'I',t:'Ter incertezas'},{l:'O',t:'Controlar o essencial'},{l:'C',t:'Diversão e celebração'},{l:'A',t:'Planejar e obter recursos'}]},
+  {q:'Eu me divirto quando...', opts:[{l:'A',t:'Estou me exercitando'},{l:'I',t:'Tenho novidades'},{l:'C',t:'Estou com os outros'},{l:'O',t:'Determino as regras'}]},
+  {q:'Eu penso que...', opts:[{l:'C',t:'Unidos venceremos, divididos perderemos'},{l:'A',t:'O ataque é melhor que a defesa'},{l:'I',t:'É bom ser manso, mas andar com um porrete'},{l:'O',t:'Um homem prevenido vale por dois'}]},
+  {q:'Minha preocupação é...', opts:[{l:'I',t:'Gerar a ideia global'},{l:'C',t:'Fazer com que as pessoas gostem'},{l:'O',t:'Fazer com que funcione'},{l:'A',t:'Fazer com que aconteça'}]},
+  {q:'Eu prefiro...', opts:[{l:'I',t:'Perguntas a respostas'},{l:'O',t:'Ter todos os detalhes'},{l:'A',t:'Vantagens a meu favor'},{l:'C',t:'Que todos tenham a chance de ser ouvido'}]},
+  {q:'Eu gosto de...', opts:[{l:'A',t:'Fazer progresso'},{l:'C',t:'Construir memórias'},{l:'O',t:'Fazer sentido'},{l:'I',t:'Tornar as pessoas confortáveis'}]},
+  {q:'Eu gosto de chegar...', opts:[{l:'A',t:'Na frente'},{l:'C',t:'Junto'},{l:'O',t:'Na hora'},{l:'I',t:'Em outro lugar'}]},
+  {q:'Um ótimo dia para mim é quando...', opts:[{l:'A',t:'Consigo fazer muitas coisas'},{l:'C',t:'Me divirto com meus amigos'},{l:'O',t:'Tudo segue conforme planejado'},{l:'I',t:'Desfruto de coisas novas e estimulantes'}]},
+  {q:'Eu vejo a morte como...', opts:[{l:'I',t:'Uma grande aventura misteriosa'},{l:'C',t:'Oportunidade para rever os falecidos'},{l:'O',t:'Um modo de receber recompensas'},{l:'A',t:'Algo que sempre chega muito cedo'}]},
+  {q:'Minha filosofia de vida é...', opts:[{l:'A',t:'Há ganhadores e perdedores, e eu acredito ser um ganhador'},{l:'C',t:'Para eu ganhar, ninguém precisa perder'},{l:'O',t:'Para ganhar é preciso seguir as regras'},{l:'I',t:'Para ganhar, é necessário inventar novas regras'}]},
+  {q:'Eu sempre gostei de...', opts:[{l:'I',t:'Explorar'},{l:'O',t:'Evitar surpresas'},{l:'A',t:'Focalizar a meta'},{l:'C',t:'Realizar uma abordagem natural'}]},
+  {q:'Eu gosto de mudanças se...', opts:[{l:'A',t:'Me der uma vantagem competitiva'},{l:'C',t:'For divertido e puder ser compartilhado'},{l:'I',t:'Me der mais liberdade e variedade'},{l:'O',t:'Melhorar ou me der mais controle'}]},
+  {q:'Não existe nada de errado em...', opts:[{l:'A',t:'Se colocar na frente'},{l:'C',t:'Colocar os outros na frente'},{l:'I',t:'Mudar de ideia'},{l:'O',t:'Ser consistente'}]},
+  {q:'Eu gosto de buscar conselhos de...', opts:[{l:'A',t:'Pessoas bem-sucedidas'},{l:'O',t:'Anciões e conselheiros'},{l:'C',t:'Autoridades no assunto'},{l:'I',t:'Lugares, os mais estranhos'}]},
+  {q:'Meu lema é...', opts:[{l:'I',t:'Fazer o que precisa ser feito'},{l:'O',t:'Fazer bem feito'},{l:'C',t:'Fazer junto com o grupo'},{l:'A',t:'Simplesmente fazer'}]},
+  {q:'Eu gosto de...', opts:[{l:'I',t:'Complexidade, mesmo se confuso'},{l:'O',t:'Ordem e sistematização'},{l:'C',t:'Calor humano e animação'},{l:'A',t:'Coisas claras e simples'}]},
+  {q:'Tempo para mim é...', opts:[{l:'A',t:'Algo que detesto desperdiçar'},{l:'C',t:'Um grande ciclo'},{l:'O',t:'Uma flecha que leva ao inevitável'},{l:'I',t:'Irrelevante'}]},
+  {q:'Se eu fosse bilionário...', opts:[{l:'C',t:'Faria doações para muitas entidades'},{l:'O',t:'Criaria uma poupança avantajada'},{l:'I',t:'Faria o que desse na cabeça'},{l:'A',t:'Exibiria bastante com algumas pessoas'}]},
+  {q:'Eu acredito que...', opts:[{l:'A',t:'O destino é mais importante que a jornada'},{l:'C',t:'A jornada é mais importante que o destino'},{l:'O',t:'Um centavo economizado é um centavo ganho'},{l:'I',t:'Bastam um navio e uma estrela para navegar'}]},
+  {q:'Eu acredito também que...', opts:[{l:'A',t:'Aquele que hesita está perdido'},{l:'O',t:'De grão em grão a galinha enche o papo'},{l:'C',t:'O que vai, volta'},{l:'I',t:'Um sorriso ou uma careta é o mesmo para quem é cego'}]},
+  {q:'Eu acredito ainda que...', opts:[{l:'O',t:'É melhor prudência do que arrependimento'},{l:'I',t:'A autoridade deve ser desafiada'},{l:'A',t:'Ganhar é fundamental'},{l:'C',t:'O coletivo é mais importante do que o individual'}]},
+  {q:'Eu penso que...', opts:[{l:'I',t:'Não é fácil ficar encurralado'},{l:'O',t:'É preferível olhar, antes de pular'},{l:'C',t:'Duas cabeças pensam melhor do que uma'},{l:'A',t:'Se você não tem condições de competir, não compita'}]}
+];
+
+var PERFIL_COMP_PERFIS = {
+  I: {key:'aguia', nome:'Águia', ico:'🦅', cor:'#f59e0b', slogan:'FAZER DIFERENTE',
+      comportamentos:['Criativo','Intuitivo','Foco no futuro','Distraído','Curioso','Informal/Casual','Flexível'],
+      fortes:['Provoca mudanças radicais','Antecipar o futuro','Criatividade'],
+      melhoria:['Falta de atenção para o aqui e agora','Impaciência e rebeldia','Defender o novo pelo novo'],
+      motivacoes:['Liberdade de expressão','Ausência de controles rígidos','Ambiente descentralizado','Liberdade para fazer exceções','Oportunidade para delegar tarefas e detalhes']},
+  C: {key:'gato', nome:'Gato', ico:'🐱', cor:'#10b981', slogan:'FAZER JUNTO',
+      comportamentos:['Sensível','Relacionamentos','Time','Tradicionalistas','Contribuição','Busca harmonia','Delega autoridade'],
+      fortes:['Manter comunicação harmoniosa','Desenvolver e manter a cultura empresarial','Comunicação aberta'],
+      melhoria:['Esconder conflitos','Felicidade acima dos resultados','Manipulação através dos sentimentos'],
+      motivacoes:['Segurança','Aceitação social','Construir o consenso','Reconhecimento da equipe','Supervisão compreensiva','Ambiente harmônico','Trabalho em grupo']},
+  O: {key:'lobo', nome:'Lobo', ico:'🐺', cor:'#6366f1', slogan:'FAZER CERTO',
+      comportamentos:['Detalhista','Organizado','Estrategista','Busca do conhecimento','Pontual','Conservador','Previsível'],
+      fortes:['Passado, Presente e Futuro','Consistência, conformidade e qualidade','Lealdade e segurança','Regras e responsabilidades'],
+      melhoria:['Dificuldades de se adaptar às mudanças','Pode impedir o progresso','Detalhista, estruturado e demasiadamente sistematizado'],
+      motivacoes:['Certeza e compreensão exata das regras','Conhecimento específico do trabalho','Ausência de riscos e erros','Ver o produto acabado (começo, meio, fim)']},
+  A: {key:'tubarao', nome:'Tubarão', ico:'🦈', cor:'#ef4444', slogan:'FAZER RÁPIDO',
+      comportamentos:['Senso de urgência','Ação, iniciativa','Impulsivo, prático','Vencer desafios','Aqui e agora','Auto suficiente','Não gosta de delegar poder'],
+      fortes:['Fazer que ocorra','Parar com a burocracia','Motivação'],
+      melhoria:['Socialmente um desastre','Faz do modo mais fácil','Relacionamento complicado'],
+      motivacoes:['Liberdade para agir individualmente','Controle das próprias atividades','Resolver os problemas do seu jeito','Competição individual','Variedade de atividades','Não ter que repetir tarefas']}
+};
+
+function perfilCompCalc(respostas){
+  var cnt = {I:0, C:0, O:0, A:0};
+  (respostas||[]).forEach(function(r){ if(r && cnt[r]!==undefined) cnt[r]++; });
+  return {I:cnt.I*4, C:cnt.C*4, O:cnt.O*4, A:cnt.A*4, total:(cnt.I+cnt.C+cnt.O+cnt.A)*4};
+}
+
+function perfilCompDominante(scores){
+  var max = -1, domKey = 'I';
+  ['I','C','O','A'].forEach(function(k){ if(scores[k] > max){ max = scores[k]; domKey = k; } });
+  return domKey;
+}
+
+window.perfilCompSelecionar = function(qIdx, letra){
+  if(!S.perfilCompDraft) S.perfilCompDraft = {};
+  S.perfilCompDraft[qIdx] = letra;
+  // Não salvar ainda, só quando clicar em Finalizar
+  render();
+};
+
+window.perfilCompLimpar = function(){
+  if(!confirm('Limpar todas respostas?')) return;
+  S.perfilCompDraft = {};
+  render();
+};
+
+window.perfilCompFinalizar = function(bid){
+  var draft = S.perfilCompDraft || {};
+  var respostas = [];
+  for(var i=0;i<25;i++){ respostas.push(draft[i]||null); }
+  var faltando = respostas.filter(function(r){return !r;}).length;
+  if(faltando > 0){ toast('Faltam '+faltando+' respostas','warn'); return; }
+  var scores = perfilCompCalc(respostas);
+  var dom = perfilCompDominante(scores);
+  var perfilInfo = PERFIL_COMP_PERFIS[dom];
+  if(!S.perfilComp) S.perfilComp = {};
+  S.perfilComp[bid] = {
+    respostas: respostas,
+    scores: scores,
+    dominante: dom,
+    perfilKey: perfilInfo.key,
+    perfilNome: perfilInfo.nome,
+    avaliadoEm: new Date().toISOString(),
+    avaliadoPor: (S.user||{}).id
+  };
+  S.perfilCompDraft = {};
+  saveState();
+  toast('🎯 Perfil: '+perfilInfo.ico+' '+perfilInfo.nome,'ok');
+  try{ if(typeof notifPush==='function') notifPush({title:'🧠 Perfil Comportamental', body:(S.user&&S.user.name||'Corretor')+' concluiu avaliação — perfil: '+perfilInfo.nome, icon:perfilInfo.ico, cat:'default', page:'oneonone'}); }catch(e){}
+  render();
+};
+
+window.perfilCompRefazer = function(bid){
+  if(!confirm('Refazer avaliação? O perfil atual será mantido até uma nova finalização.')) return;
+  S.perfilCompDraft = {};
+  if(S.perfilComp && S.perfilComp[bid]) S.perfilComp[bid]._refazendo = true;
+  render();
+};
+
+window.perfilCompCancelarRefazer = function(bid){
+  if(S.perfilComp && S.perfilComp[bid]) delete S.perfilComp[bid]._refazendo;
+  S.perfilCompDraft = {};
+  render();
+};
+
+function renderPerfilCompTab(bid, user, lvl){
+  var isSelf = S.user && S.user.id === bid;
+  var canEdit = isSelf || lvl >= 5;
+  var saved = (S.perfilComp||{})[bid];
+  var refazendo = saved && saved._refazendo;
+  var h = '';
+
+  // Se tem salvo e não está refazendo: mostra resultado
+  if(saved && !refazendo){
+    var info = PERFIL_COMP_PERFIS[saved.dominante] || PERFIL_COMP_PERFIS.I;
+    var sc = saved.scores;
+    h += '<div style="background:linear-gradient(135deg,'+info.cor+'20,'+info.cor+'05);border:2px solid '+info.cor+';border-radius:16px;padding:30px;margin-bottom:20px;text-align:center">';
+    h += '<div style="font-size:72px">'+info.ico+'</div>';
+    h += '<h2 style="font-size:32px;font-weight:900;margin:10px 0;color:'+info.cor+'">'+info.nome.toUpperCase()+'</h2>';
+    h += '<div style="font-size:14px;color:var(--mid);letter-spacing:3px;font-weight:700;margin-bottom:16px">"'+info.slogan+'"</div>';
+    h += '<div style="font-size:11px;color:var(--muted)">Avaliado em '+new Date(saved.avaliadoEm).toLocaleDateString('pt-BR')+'</div>';
+    h += '</div>';
+    // Scores por categoria
+    h += '<div class="card mb2"><div class="ctitle">📊 Pontuação por perfil</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:10px">';
+    ['I','C','O','A'].forEach(function(k){
+      var p = PERFIL_COMP_PERFIS[k];
+      var val = sc[k]||0;
+      h += '<div style="padding:14px;background:'+p.cor+'10;border-left:4px solid '+p.cor+';border-radius:8px">';
+      h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:22px">'+p.ico+'</span><b style="color:'+p.cor+'">'+p.nome+'</b></div>';
+      h += '<div style="font-size:28px;font-weight:900;color:'+p.cor+'">'+val+'%</div>';
+      h += '<div style="height:6px;background:var(--cream3);border-radius:3px;margin-top:6px"><div style="width:'+val+'%;height:100%;background:'+p.cor+';border-radius:3px"></div></div>';
+      h += '</div>';
+    });
+    h += '</div></div>';
+    // Detalhes do perfil dominante
+    h += '<div class="card mb2"><div class="ctitle">'+info.ico+' Seu perfil: '+info.nome+'</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:10px">';
+    var secs = [{t:'COMPORTAMENTOS',l:info.comportamentos,c:'#6366f1'},{t:'PONTOS FORTES',l:info.fortes,c:'#10b981'},{t:'PONTOS DE MELHORIA',l:info.melhoria,c:'#ef4444'},{t:'MOTIVAÇÕES',l:info.motivacoes,c:'#f59e0b'}];
+    secs.forEach(function(s){
+      h += '<div style="padding:14px;background:var(--cream2);border-top:3px solid '+s.c+';border-radius:8px">';
+      h += '<div style="font-size:11px;font-weight:800;color:'+s.c+';letter-spacing:1.5px;margin-bottom:10px">'+s.t+'</div>';
+      h += '<ul style="margin:0;padding-left:18px;font-size:12px;color:var(--navy);line-height:1.7">';
+      s.l.forEach(function(it){ h += '<li>'+it+'</li>'; });
+      h += '</ul></div>';
+    });
+    h += '</div></div>';
+    if(canEdit){
+      h += '<div style="text-align:center"><button class="btn bout" onclick="perfilCompRefazer(\''+bid+'\')">🔄 Refazer avaliação</button></div>';
+    }
+    return h;
+  }
+
+  if(!canEdit){
+    return '<div class="card" style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">🧠</div><h3>Avaliação não realizada</h3><p style="color:var(--muted)">'+user.name+' ainda não completou a avaliação de perfil comportamental.</p></div>';
+  }
+
+  // Form das perguntas
+  var draft = S.perfilCompDraft || {};
+  var respondidas = 0;
+  for(var i=0;i<25;i++){ if(draft[i]) respondidas++; }
+
+  h += '<div class="card mb2" style="background:linear-gradient(135deg,#6366f110,#6366f105);border-left:4px solid #6366f1">';
+  h += '<div style="display:flex;align-items:center;gap:12px">';
+  h += '<div style="font-size:32px">🧠</div>';
+  h += '<div style="flex:1"><h3 style="margin:0;color:var(--navy)">Avaliação de Perfil Comportamental</h3>';
+  h += '<p style="margin:4px 0 0;font-size:12px;color:var(--muted)">Escolha 1 alternativa por pergunta. Progresso: '+respondidas+'/25</p>';
+  h += '<div style="height:6px;background:var(--cream3);border-radius:3px;margin-top:6px"><div style="width:'+(respondidas/25*100).toFixed(1)+'%;height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:3px;transition:width .3s"></div></div></div>';
+  h += '</div></div>';
+
+  PERFIL_COMP_QUESTOES.forEach(function(q, idx){
+    var selected = draft[idx];
+    h += '<div class="card mb2" style="border-left:4px solid '+(selected?'#10b981':'#cbd5e1')+'">';
+    h += '<div style="font-weight:800;color:var(--navy);margin-bottom:10px;font-size:14px">'+(idx+1)+'. '+q.q+'</div>';
+    h += '<div style="display:flex;flex-direction:column;gap:6px">';
+    q.opts.forEach(function(o){
+      var sel = selected === o.l;
+      var p = PERFIL_COMP_PERFIS[o.l];
+      h += '<label style="display:flex;align-items:center;gap:10px;padding:10px;background:'+(sel?p.cor+'20':'var(--cream2)')+';border:1px solid '+(sel?p.cor:'transparent')+';border-radius:8px;cursor:pointer;transition:all .15s" onclick="perfilCompSelecionar('+idx+',\''+o.l+'\')">';
+      h += '<span style="font-size:18px">'+(sel?p.ico:'○')+'</span>';
+      h += '<span style="flex:1;font-size:13px;color:var(--navy)">'+o.t+'</span>';
+      h += '</label>';
+    });
+    h += '</div></div>';
+  });
+
+  h += '<div style="display:flex;gap:8px;justify-content:center;margin-top:20px;padding:20px;background:var(--cream2);border-radius:12px;position:sticky;bottom:10px">';
+  if(refazendo) h += '<button class="btn bout" onclick="perfilCompCancelarRefazer(\''+bid+'\')">Cancelar</button>';
+  h += '<button class="btn bout" onclick="perfilCompLimpar()">🗑️ Limpar</button>';
+  h += '<button class="btn bp1" onclick="perfilCompFinalizar(\''+bid+'\')" '+(respondidas<25?'disabled style="opacity:.5"':'')+'>✅ Finalizar ('+respondidas+'/25)</button>';
+  h += '</div>';
+
+  return h;
 }
 
 function ooEditSheet(bid, name) {
@@ -12852,11 +13482,12 @@ function srPerformanceFooter() {
     + 'onclick="nav(\'vera\')">Falar com Sr. Performance</button></div>';
 }
 
-// ─── MANUAL DE CULTURA & ÉTICA ─────────────────────────────────────────────
+// ─── MANUAL DE CULTURA ─────────────────────────────────────────────────────
+// v17: Código de Ética virou pagina propria (case 'codigo_etica'), separado daqui
 function pgManual() {
   var u = S.user; if (!u) return '';
   var lvl = RLVL[u.role] || 0;
-  if (!S.manualTab) S.manualTab = 'cultura';
+  S.manualTab = 'cultura'; // v17: forca sempre cultura (etica tem pagina propria)
   if (!S.manualDocs) {
     S.manualDocs = [
       {nome:'Manual de Cultura PSM Imóveis', tipo:'cultura', ico:'\uD83D\uDCD6', desc:'Valores, missão, visão e cultura da PSM Assessoria Imobiliária', url:''},
@@ -12917,15 +13548,15 @@ function pgManual() {
     + '<div><div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px">Link — Código de Ética (PDF/Drive)</div>'
     + '<input id="eti-url" class="finp" placeholder="Cole o link do Código de Ética" value="'+(S.manualDocs[1].url||'')+'" style="width:100%;font-size:11px;padding:6px 8px"></div>'
     + '</div><button class="btn bp1" onclick="S.manualDocs[0].url=document.getElementById(\'man-url\').value;S.manualDocs[1].url=document.getElementById(\'eti-url\').value;toast(\'Links salvos!\',\'ok\');render()">Salvar Links</button></div>' : '';
-  var tabBar = '<div class="card mb2" style="padding:6px;display:flex;gap:4px">'
-    + '<button class="btn '+(S.manualTab==='cultura'?'bp1':'bout')+'" style="flex:1;font-size:13px" onclick="S.manualTab=\'cultura\';render()">\uD83D\uDCD6 Manual de Cultura</button>'
-    + '<button class="btn '+(S.manualTab==='etica'?'bp1':'bout')+'" style="flex:1;font-size:13px" onclick="S.manualTab=\'etica\';render()">\u2696\uFE0F Código de Ética</button></div>';
-  var docContent = '<div class="card mb2" style="max-height:calc(100vh - 440px);overflow-y:auto">' + (S.manualTab === 'cultura' ? culturaContent : eticaContent) + '</div>';
+  // v17: tab bar removida — pagina mostra SOMENTE cultura. Código de Ética virou pagina separada.
+  var tabBar = '';
+  var docContent = '<div class="card mb2" style="max-height:calc(100vh - 440px);overflow-y:auto">' + culturaContent + '</div>';
   var extLink = '';
-  var docIdx = S.manualTab === 'cultura' ? 0 : 1;
-  if (S.manualDocs[docIdx] && S.manualDocs[docIdx].url) {
-    extLink = '<div style="text-align:center;margin-bottom:12px"><a href="'+S.manualDocs[docIdx].url+'" target="_blank" rel="noreferrer" class="btn bp1" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">\uD83D\uDCC4 Abrir documento completo (PDF/Drive)</a></div>';
+  if (S.manualDocs[0] && S.manualDocs[0].url) {
+    extLink = '<div style="text-align:center;margin-bottom:12px"><a href="'+S.manualDocs[0].url+'" target="_blank" rel="noreferrer" class="btn bp1" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">\uD83D\uDCC4 Abrir Manual de Cultura completo (PDF/Drive)</a></div>';
   }
+  // Link rápido para pagina de Código de Ética (separada)
+  extLink += '<div style="text-align:center;margin-bottom:12px"><button class="btn bout" onclick="nav(\'codigo_etica\')" style="font-size:12px">\u2696\uFE0F Ver Código de Ética \u2192</button></div>';
   var qaSection = '<div class="card mb2" style="background:linear-gradient(135deg,#0a1628 0%,#1a2d4a 100%);padding:20px;border-radius:var(--radius)">'
     + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
     + '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#d4a017);display:flex;align-items:center;justify-content:center;font-size:18px">\uD83C\uDF96\uFE0F</div>'
@@ -12946,13 +13577,58 @@ function pgManual() {
     {ico:'\uD83C\uDFC6',t:'Meritocracia',d:'Reconhecimento baseado em resultados reais'}
   ];
   var valH = valores.map(function(v){ return '<div style="padding:14px;background:var(--cream2);border-radius:10px;text-align:center"><div style="font-size:24px;margin-bottom:6px">'+v.ico+'</div><div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px">'+v.t+'</div><div style="font-size:10.5px;color:var(--muted)">'+v.d+'</div></div>'; }).join('');
-  return '<div class="phd"><h1>\uD83D\uDCD6 Manual de Cultura & Código de Ética</h1><p>Valores, princípios e condutas que guiam a equipe PSM</p></div>'
-    + adminUpload + tabBar + extLink + docContent + qaSection
+  return '<div class="phd"><h1>\uD83D\uDCD6 Manual de Cultura</h1><p>Valores, missão e visão que guiam a equipe PSM</p></div>'
+    + adminUpload + extLink + docContent + qaSection
     + '<div class="card"><div class="ctitle">\uD83D\uDC9B Nossos Valores</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px">' + valH + '</div></div>'
     + '<div class="card mb2" style="margin-top:16px;background:linear-gradient(135deg,var(--navy) 0%,#1e3a5f 100%);color:#fff;padding:24px;text-align:center">'
     + '<div style="font-size:20px;font-weight:800;margin-bottom:6px">PSM Assessoria Imobiliária</div>'
     + '<div style="font-size:13px;opacity:.7;max-width:500px;margin:0 auto">Transformamos sonhos em endereços. Cada negociação é uma oportunidade de impactar vidas com ética, excelência e resultado.</div></div>'
     + srPerformanceFooter();
+}
+
+// ─── CÓDIGO DE ÉTICA (pagina propria, separada do Manual de Cultura) ─────────
+function pgCodigoEtica(){
+  var u = S.user; if(!u) return '';
+  var lvl = RLVL[u.role] || 0;
+  if(!S.manualDocs){
+    S.manualDocs = [
+      {nome:'Manual de Cultura PSM Imóveis', tipo:'cultura', ico:'\uD83D\uDCD6', desc:'', url:''},
+      {nome:'Código de Ética PSM Imóveis', tipo:'etica', ico:'\u2696\uFE0F', desc:'', url:''}
+    ];
+  }
+  var eticaContent = '<div style="padding:20px">'
+    + '<h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:16px">\u2696\uFE0F Código de Ética PSM Imóveis</h2>'
+    + '<div style="font-size:13px;line-height:1.8;color:var(--tx)">'
+    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\uD83D\uDCCC Princípios Fundamentais</h3>'
+    + '<p>O Código de Ética da PSM Assessoria Imobiliária estabelece os padrões de conduta profissional esperados de todos os colaboradores. Seu cumprimento é obrigatório e reflete nosso compromisso com a excelência.</p>'
+    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\uD83D\uDEAB Condutas Proibidas</h3>'
+    + '<p style="color:var(--r-tx)">\u274C Desvio de leads ou clientes de outros corretores<br>'
+    + '\u274C Informações falsas ou enganosas a clientes<br>'
+    + '\u274C Negociações paralelas fora do sistema PSM<br>'
+    + '\u274C Desrespeito à roleta e regras de distribuição<br>'
+    + '\u274C Compartilhamento indevido de informações internas<br>'
+    + '\u274C Assédio ou discriminação de qualquer natureza</p>'
+    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\u2705 Condutas Esperadas</h3>'
+    + '<p style="color:var(--g-tx)">\u2714\uFE0F Transparência total com clientes e colegas<br>'
+    + '\u2714\uFE0F Registro fiel de todas as atividades no CRM<br>'
+    + '\u2714\uFE0F Atendimento dentro dos prazos e cadências definidos<br>'
+    + '\u2714\uFE0F Colaboração ativa com a equipe e liderança<br>'
+    + '\u2714\uFE0F Melhoria contínua pessoal e profissional</p>'
+    + '<h3 style="font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 8px">\u26A0\uFE0F Consequências</h3>'
+    + '<p>O descumprimento do código de ética pode resultar em: advertência verbal, advertência formal, suspensão temporária das atividades ou desligamento, conforme a gravidade da infração e decisão da diretoria.</p>'
+    + '</div></div>';
+  var adminUpload = lvl >= 5 ? '<div class="card mb2"><div class="ctitle">\u2699\uFE0F Link Externo (PDF/Drive)</div>'
+    + '<div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px">Link — Código de Ética</div>'
+    + '<input id="eti-url-pg" class="finp" placeholder="Cole o link do Código de Ética" value="'+(S.manualDocs[1].url||'')+'" style="width:100%;font-size:11px;padding:6px 8px;margin-bottom:6px">'
+    + '<button class="btn bp1 bsm" onclick="S.manualDocs[1].url=document.getElementById(\'eti-url-pg\').value;saveState();toast(\'Link salvo!\',\'ok\');render()">Salvar Link</button></div>' : '';
+  var extLink = '';
+  if(S.manualDocs[1] && S.manualDocs[1].url){
+    extLink = '<div style="text-align:center;margin-bottom:12px"><a href="'+S.manualDocs[1].url+'" target="_blank" rel="noreferrer" class="btn bp1" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">\uD83D\uDCC4 Abrir documento completo (PDF/Drive)</a></div>';
+  }
+  return '<div class="phd"><h1>\u2696\uFE0F Código de Ética PSM</h1><p>Conduta profissional e princípios éticos da equipe</p></div>'
+    + adminUpload + extLink
+    + '<div class="card mb2" style="max-height:calc(100vh - 300px);overflow-y:auto">' + eticaContent + '</div>'
+    + '<div style="text-align:center;margin-top:16px"><button class="btn bout" onclick="nav(\'manual\')" style="font-size:12px">\u2190 Voltar para Manual de Cultura</button></div>';
 }
 
 // ─── CAPTAÇÃO DE IMÓVEIS ──────────────────────────────────────────────────────
@@ -16668,26 +17344,7 @@ function pgLancamentosAno() {
   var header = '<div class="ph"><div class="phtitle">\u{1F3D7}\uFE0F Lan\u00e7amentos 2026</div>'
     + '<div class="phsub">Timeline edit\u00e1vel \u2014 clique + para adicionar ou \u00d7 para remover lan\u00e7amentos</div></div>';
 
-  var metasCard = '';
-  if (isDiretor) {
-    metasCard = '<div class="card mb2"><div class="ctitle" style="margin-bottom:4px">\u{1F3AF} Metas de Lan\u00e7amentos 2026</div>'
-      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">'
-      + '<div><label class="flabel">Meta VGV (R$)</label><input class="finp" type="number" value="'+metas.meta_vgv+'" oninput="S.lancMetas.meta_vgv=+this.value"></div>'
-      + '<div><label class="flabel">Meta Estoque</label><input class="finp" type="number" value="'+metas.meta_estoque+'" oninput="S.lancMetas.meta_estoque=+this.value"></div>'
-      + '<div><label class="flabel">Meta Impper</label><input class="finp" type="number" value="'+metas.meta_impper+'" oninput="S.lancMetas.meta_impper=+this.value"></div>'
-      + '</div>'
-      + '<button class="btn bpri bsm mt1" onclick="saveState();render()">Salvar Metas</button>'
-      + '</div>';
-  } else {
-    var hasAnyMeta = metas.meta_vgv || metas.meta_estoque || metas.meta_impper;
-    if (hasAnyMeta) {
-      metasCard = '<div class="kgrid mb2">'
-        + (metas.meta_vgv ? Kpi('Meta VGV', fmt(metas.meta_vgv), 'lan\u00e7amentos 2026', null, 'var(--navy)') : '')
-        + (metas.meta_estoque ? Kpi('Meta Estoque', metas.meta_estoque, 'unidades', null, 'var(--b)') : '')
-        + (metas.meta_impper ? Kpi('Meta Impper', fmt(metas.meta_impper), 'valor', null, '#8b5cf6') : '')
-        + '</div>';
-    }
-  }
+  // v17: metas definidas SOMENTE na pagina Metas do menu — card removido daqui
 
   var totalLanc = LANC.length;
   var mesesAtivos = Object.keys(byMonth).filter(function(k){ return byMonth[k].length > 0; }).length;
@@ -16727,14 +17384,18 @@ function pgLancamentosAno() {
   }
   tl += '</div></div>';
 
-  // Lista mensal editavel
+  // Lista mensal editavel — v17 com drag & drop entre meses
   var lista = '';
+  if(isDiretor){
+    lista += '<div style="font-size:11px;color:var(--muted);background:var(--cream2);padding:8px 12px;border-radius:8px;margin-bottom:12px">\u{1F446} Arraste lan\u00e7amentos entre meses para reagendar</div>';
+  }
   for (var mi = 1; mi <= 12; mi++) {
     var litems = byMonth[mi] || [];
     var isPastMonth = mi <= mesAtual;
     var isNow = mi === mesAtual + 1;
     var statusTag = isPastMonth ? '<span style="font-size:9px;padding:2px 6px;border-radius:8px;background:var(--g);color:#fff;margin-left:8px">Lan\u00e7ado</span>' : isNow ? '<span style="font-size:9px;padding:2px 6px;border-radius:8px;background:#d4a843;color:#fff;margin-left:8px">Atual</span>' : '<span style="font-size:9px;padding:2px 6px;border-radius:8px;background:var(--b);color:#fff;margin-left:8px">Futuro</span>';
-    lista += '<div class="card mb2" style="'+(isNow?'border-left:4px solid var(--g)':'')+'">';
+    var ddAttrs = isDiretor ? ' ondragover="lancDragOver(event,'+mi+')" ondragleave="lancDragLeave(event)" ondrop="lancDrop(event,'+mi+')" data-mes-drop="'+mi+'"' : '';
+    lista += '<div class="card mb2 lanc-drop-zone" style="'+(isNow?'border-left:4px solid var(--g)':'')+';transition:background .15s"'+ddAttrs+'>';
     lista += '<div class="ctitle" style="display:flex;align-items:center">';
     lista += '<span style="font-size:14px;margin-right:6px">'+(isNow?'\u{1F3E2}':isPastMonth?'\u2705':'\u{1F4C6}')+'</span>';
     lista += MESES[mi-1] + ' 2026 ' + statusTag;
@@ -16744,12 +17405,14 @@ function pgLancamentosAno() {
     for (var li = 0; li < litems.length; li++) {
       var it = litems[li];
       var idx = LANC.indexOf(it);
-      lista += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--cream2)">';
+      var dragAttrs = isDiretor ? ' draggable="true" ondragstart="lancDragStart(event,'+idx+')" ondragend="lancDragEnd(event)" style="cursor:grab;"' : '';
+      lista += '<div'+dragAttrs+' style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--cream2);'+(isDiretor?'cursor:grab;':'')+'">';
+      if(isDiretor) lista += '<span style="color:#94a3b8;font-size:14px;cursor:grab">\u2630</span>';
       lista += '<div style="width:10px;height:10px;border-radius:50%;background:'+it.cor+';flex-shrink:0"></div>';
       lista += '<div style="flex:1;font-size:13px;font-weight:600;color:var(--navy)">'+it.nome+'</div>';
       if (isDiretor) {
         lista += '<div style="display:flex;gap:4px;align-items:center;flex-shrink:0">';
-        lista += '<input class="finp" type="number" placeholder="Meta VGV" value="'+(it.meta_vgv||'')+'" style="width:90px;font-size:10px;padding:4px 6px" onchange="updLancMeta('+idx+',\'meta_vgv\',+this.value)">';
+        lista += '<input class="finp" type="number" placeholder="Meta VGV" value="'+(it.meta_vgv||'')+'" style="width:90px;font-size:10px;padding:4px 6px" onchange="updLancMeta('+idx+',\'meta_vgv\',+this.value)" ondragstart="event.stopPropagation()" draggable="false">';
         lista += '<button class="btn bout bsm" style="color:#ef4444;border-color:#ef4444;padding:2px 8px;font-size:11px" onclick="rmLanc('+idx+')">\u00d7</button>';
         lista += '</div>';
       } else {
@@ -16767,7 +17430,7 @@ function pgLancamentosAno() {
     lista += '</div>';
   }
 
-  return header + metasCard + kpis + tl + lista;
+  return header + kpis + tl + lista;
 }
 
 function addLanc(mes) {
@@ -16803,6 +17466,47 @@ function updLancMeta(idx, key, val) {
 function saveLancData() {
   saveState();
 }
+
+// ═══ v17: DRAG & DROP de lancamentos entre meses ═══
+function lancDragStart(ev, idx){
+  try{ ev.dataTransfer.setData('text/plain', String(idx)); ev.dataTransfer.effectAllowed='move'; }catch(e){}
+  if(ev.currentTarget) ev.currentTarget.style.opacity='0.4';
+}
+function lancDragEnd(ev){
+  if(ev.currentTarget) ev.currentTarget.style.opacity='';
+  document.querySelectorAll('.lanc-drop-zone').forEach(function(el){ el.style.background=''; el.style.outline=''; });
+}
+function lancDragOver(ev, mes){
+  ev.preventDefault();
+  try{ ev.dataTransfer.dropEffect='move'; }catch(e){}
+  var el = ev.currentTarget;
+  if(el){ el.style.background='rgba(212,168,67,0.12)'; el.style.outline='2px dashed #d4a843'; }
+}
+function lancDragLeave(ev){
+  var el = ev.currentTarget;
+  if(el){ el.style.background=''; el.style.outline=''; }
+}
+function lancDrop(ev, novoMes){
+  ev.preventDefault();
+  var el = ev.currentTarget;
+  if(el){ el.style.background=''; el.style.outline=''; }
+  var idx;
+  try{ idx = parseInt(ev.dataTransfer.getData('text/plain'),10); }catch(e){ idx = NaN; }
+  if(isNaN(idx) || !S.lancTimeline || idx<0 || idx>=S.lancTimeline.length) return;
+  var it = S.lancTimeline[idx];
+  if(!it || it.mes === novoMes) return;
+  var antes = it.mes;
+  it.mes = novoMes;
+  saveLancData();
+  if(typeof PSM !== 'undefined' && PSM.auditLog) PSM.auditLog('lancTimeline.moved', {idx:idx, de:antes, para:novoMes, nome:it.nome}, 'pgLancamentosAno');
+  if(typeof toast==='function') toast('\u2705 "'+it.nome+'" movido para '+['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][novoMes-1],'ok');
+  if(typeof render==='function') render();
+}
+window.lancDragStart = lancDragStart;
+window.lancDragEnd = lancDragEnd;
+window.lancDragOver = lancDragOver;
+window.lancDragLeave = lancDragLeave;
+window.lancDrop = lancDrop;
 // ═══════════════════════════════════════════════════════════════════════════════
 // CHECK-IN / CHECK-OUT + DISCIPLINA OPERACIONAL
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -20659,6 +21363,8 @@ function renderSB() {
       {id:'kpis',        lbl:'KPIs',                ico:'\uD83D\uDCC8'},
       {id:'metas',       lbl:'Metas',               ico:'\uD83C\uDFAF'},
       {id:'governance',  lbl:'Governan\u00e7a',     ico:'\uD83D\uDEE1'},
+      {id:'recados_diretoria', lbl:'Recados Arena', ico:'\uD83D\uDCE2'},
+      {id:'organograma', lbl:'Organograma',         ico:'\uD83C\uDFE2'},
       {id:'radar_conc',  lbl:'Radar Concorr\u00eancia', ico:'\uD83D\uDEF0\uFE0F'},
       {id:'dashboard',   lbl:'Dashboard',           ico:'\uD83D\uDCCA'},
     ]},
@@ -20747,8 +21453,8 @@ function renderSB() {
   const syncDot = S.rdSyncStatus==='ok' ? '<span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;margin-right:5px"></span>' : '';
 
   return '<nav class="sb">'
-    + '<div class="sb-logo"><div class="logo-mark">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:2px">OS v8</div></div>'
+    + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v19</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -20762,6 +21468,73 @@ function renderSB() {
 }
 
 // ─── TOPBAR ───────────────────────────────────────────────────────────────────
+// ═══ v17: TIMELINE GLOBAL (barra de eventos/recados/premiações/oportunidades) ═══
+function renderGlobalTimeline(){
+  // Não exibe em modos TV (war/arena/dashboard exec)
+  if(document.getElementById('warTvOv') || document.getElementById('dashExecTvOv') || document.getElementById('arenaTvOv')) return '';
+  if(!S.user) return '';
+  if(!S.timelineItems){
+    S.timelineItems = [
+      {id:'tl1', tipo:'evento', ico:'\uD83C\uDF89', txt:'Premiação mensal — sexta 18h', dt:Date.now(), exp:0},
+      {id:'tl2', tipo:'recado', ico:'\uD83D\uDCE2', txt:'Reunião de alinhamento toda segunda 9h', dt:Date.now(), exp:0}
+    ];
+  }
+  var perfil = (typeof getPerfil==='function') ? getPerfil() : 'corretor';
+  var canEdit = perfil==='diretor' || perfil==='socio' || perfil==='backoffice' || perfil==='lider';
+  var now = Date.now();
+  var items = (S.timelineItems||[]).filter(function(it){ return !it.exp || it.exp>now; });
+  // v18: injetar recados da diretoria
+  (S.arenaRecados||[]).forEach(function(r){
+    if(r.exp && r.exp < now) return;
+    var icoMap = {urgente:'\uD83D\uDEA8', info:'\uD83D\uDCE2', parabens:'\uD83C\uDF89', geral:'\uD83D\uDCAC'};
+    items.unshift({id:'dir_'+r.id, tipo:'recado', ico:icoMap[r.tipo]||'\uD83D\uDCE2', txt:'['+(r.autorNome||'DIRETORIA').toUpperCase()+'] '+r.msg, dt:r.dt, exp:r.exp});
+  });
+  var corMap = {evento:'#d4a843', recado:'#3b82f6', premiacao:'#22c55e', oportunidade:'#a855f7'};
+  var marquee = items.length===0 ? '<span style="color:#94a3b8;font-style:italic">Sem eventos no momento</span>' :
+    items.map(function(it){
+      var c = corMap[it.tipo] || '#d4a843';
+      var rmBtn = canEdit ? ' <button onclick="rmTimelineItem(\''+it.id+'\')" style="background:none;border:none;color:#94a3b8;font-size:11px;cursor:pointer;margin-left:4px" title="Remover">×</button>' : '';
+      return '<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(15,23,42,0.55);border-radius:14px;border-left:3px solid '+c+';margin-right:14px;font-size:12px;color:#e2e8f0;white-space:nowrap">'
+        + '<span style="font-size:14px">'+it.ico+'</span><b style="color:'+c+';text-transform:uppercase;font-size:10px;letter-spacing:1px">'+it.tipo+'</b><span>'+it.txt+'</span>'+rmBtn+'</span>';
+    }).join('');
+  var addBtn = canEdit ? '<button onclick="addTimelineItem()" title="Adicionar evento" style="flex-shrink:0;background:linear-gradient(135deg,#d4a843,#e8c263);color:#0f172a;border:none;border-radius:8px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;margin-left:8px">+ Evento</button>' : '';
+  return '<div id="psm-global-timeline" style="background:linear-gradient(90deg,#0f172a,#1e293b);border-bottom:2px solid rgba(212,168,67,0.4);padding:8px 16px;display:flex;align-items:center;gap:8px;overflow:hidden;position:sticky;top:52px;z-index:99">'
+    + '<span style="color:#d4a843;font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0">\u23F1 PSM Live</span>'
+    + '<div style="flex:1;overflow:hidden;mask-image:linear-gradient(90deg,transparent 0,#000 30px,#000 calc(100% - 30px),transparent 100%)">'
+    + '<div class="psm-tl-track" style="display:inline-flex;animation:psmTlScroll 60s linear infinite;white-space:nowrap">'+marquee+'&nbsp;&nbsp;&nbsp;'+marquee+'</div>'
+    + '</div>'
+    + addBtn
+    + '</div>'
+    + '<style>@keyframes psmTlScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}#psm-global-timeline:hover .psm-tl-track{animation-play-state:paused}</style>';
+}
+function addTimelineItem(){
+  var tipo = prompt('Tipo (evento / recado / premiacao / oportunidade):','evento');
+  if(!tipo) return;
+  tipo = tipo.toLowerCase().trim();
+  var icoMap = {evento:'\uD83C\uDF89', recado:'\uD83D\uDCE2', premiacao:'\uD83C\uDFC6', oportunidade:'\uD83D\uDCA1'};
+  var ico = icoMap[tipo] || '\u2728';
+  var txt = prompt('Mensagem:');
+  if(!txt || !txt.trim()) return;
+  var dias = prompt('Expira em quantos dias? (vazio = nunca)','7');
+  var exp = 0;
+  if(dias && !isNaN(dias) && +dias>0) exp = Date.now() + (+dias)*24*3600*1000;
+  if(!S.timelineItems) S.timelineItems = [];
+  S.timelineItems.unshift({id:'tl'+Date.now(), tipo:tipo, ico:ico, txt:txt.trim(), dt:Date.now(), exp:exp});
+  saveState();
+  if(typeof PSM!=='undefined' && PSM.auditLog) PSM.auditLog('timeline.added',{tipo:tipo,txt:txt},'globalTimeline');
+  if(typeof toast==='function') toast('\u2705 Evento adicionado','ok');
+  if(typeof render==='function') render();
+}
+function rmTimelineItem(id){
+  if(!S.timelineItems) return;
+  S.timelineItems = S.timelineItems.filter(function(it){return it.id!==id;});
+  saveState();
+  if(typeof render==='function') render();
+}
+window.addTimelineItem = addTimelineItem;
+window.rmTimelineItem = rmTimelineItem;
+window.renderGlobalTimeline = renderGlobalTimeline;
+
 function renderHDR() {
   const titles = {
     // Topo (todos)
@@ -20848,6 +21621,8 @@ function route() {
     case 'metricas':   return pgMetricas();
     case 'oneonone':   return pgOO();
     case 'governance': return pgGovernance();
+    case 'recados_diretoria': return pgRecadosDiretoria();
+    case 'organograma': return pgOrganograma();
     case 'warroom':    return pgWarRoom();
       case 'wararena': return pgWarArena();
     case 'metaads': return pgMetaAds();
@@ -20902,7 +21677,7 @@ function route() {
     case 'ia_corretor':      return pgIACorretor();
     // Ferramentas
     case 'playbook':         return pgPlaceholder('Playbook','Em breve: playbook completo de vendas PSM.');
-    case 'codigo_etica':     return pgPlaceholder('C\u00f3digo de \u00c9tica','Em breve: c\u00f3digo de \u00e9tica profissional PSM.');
+    case 'codigo_etica':     return pgCodigoEtica();
     case 'sim_energia':      return pgSimEnergia();
     case 'kenlo':            return pgKenlo();
     // Marketing
@@ -24338,7 +25113,7 @@ document.addEventListener("click",function(){_renderForced=true;setTimeout(funct
 function _isUserInteracting(){var ae=document.activeElement;if(ae&&(ae.tagName==="INPUT"||ae.tagName==="TEXTAREA"||ae.isContentEditable))return true;/* Janela curta (3s) so para proteger o ultimo keystroke antes do blur — NAO deve bloquear cliques em botoes */if(_lastUserActivity&&(Date.now()-_lastUserActivity<3000))return true;var m=document.querySelector(".modal.show,.swal2-container,.popup-overlay");if(m)return true;/* Bloqueia render se ha qualquer campo OO com salvamento pendente */if(document.querySelector('[data-oo-pending="1"]'))return true;return false;}
 function render(opts){var force=(opts&&opts.force)||_renderForced;_renderForced=false;if(!force&&_isUserInteracting()){_renderPending=true;if(_renderPendingTimer)clearTimeout(_renderPendingTimer);_renderPendingTimer=setTimeout(function(){if(!_isUserInteracting()){_renderPending=false;render({force:true})}else{_renderPendingTimer=setTimeout(arguments.callee,2000)}},2000);return}_renderPending=false;if(_renderPendingTimer){clearTimeout(_renderPendingTimer);_renderPendingTimer=null}/* DEFESA: flush sincrono de QUALQUER campo OO com salvamento pendente antes de destruir DOM */if(typeof window._ooFlushAll==='function')window._ooFlushAll();
 const app=document.getElementById("app");if(!app)return;var _pc0=document.getElementById("pc"),_scr=_pc0?_pc0.scrollTop:0;if(!S.user){if(S.loginView==="forgot"){app.innerHTML=renderForgotPassword();return}if(S.loginView==="reset"){app.innerHTML=renderResetPassword();return}app.innerHTML=renderLogin();_fillRememberedLogin();return}
-var existingPc=document.getElementById("pc");if(existingPc&&!force){try{/* Preserve scroll positions (sidebar + window) so o menu não "pisca" voltando ao topo */var _sbEl0=document.getElementById("sb-wrap");var _sbScr=_sbEl0?_sbEl0.scrollTop:0;var _winScr=window.pageYOffset||document.documentElement.scrollTop||0;/* Preserve focused element (nao perder cursor ao digitar) */var _ae=document.activeElement;var _aeId=_ae&&_ae.id?_ae.id:null;var _aeSel=_ae&&_ae.tagName==='INPUT'?[_ae.selectionStart,_ae.selectionEnd]:null;existingPc.innerHTML=safeRoute();/* Only re-render sidebar if the menu needs to change (page changed). Otherwise keep DOM intact — prevents scroll reset. */var _sbNew=renderSB();if(_sbEl0&&_sbEl0.getAttribute('data-sig')!==String(S.page)){_sbEl0.innerHTML=_sbNew;_sbEl0.setAttribute('data-sig',String(S.page));}var hdrEl=document.getElementById("hdr-wrap");if(hdrEl){var _hdrNew=renderHDR();if(hdrEl.innerHTML!==_hdrNew)hdrEl.innerHTML=_hdrNew;}var mobNav=document.getElementById("mob-nav");if(mobNav){var _mnNew=renderMobNav();if(mobNav.outerHTML!==_mnNew)mobNav.outerHTML=_mnNew;}saveState();if(_pc0)existingPc.scrollTop=_scr;if(_sbEl0)_sbEl0.scrollTop=_sbScr;try{window.scrollTo(0,_winScr);}catch(e){}/* Restore focus */if(_aeId){var _aeR=document.getElementById(_aeId);if(_aeR&&typeof _aeR.focus==='function'){try{_aeR.focus();if(_aeSel&&_aeR.setSelectionRange){_aeR.setSelectionRange(_aeSel[0],_aeSel[1]);}}catch(e){}}}return}catch(e){console.warn("[PSM] Smart render falhou:",e.message)}}
+var existingPc=document.getElementById("pc");if(existingPc&&!force){try{/* Preserve scroll positions (sidebar + window) so o menu não "pisca" voltando ao topo */var _sbEl0=document.getElementById("sb-wrap");var _sbScr=_sbEl0?_sbEl0.scrollTop:0;var _winScr=window.pageYOffset||document.documentElement.scrollTop||0;/* Preserve focused element (nao perder cursor ao digitar) */var _ae=document.activeElement;var _aeId=_ae&&_ae.id?_ae.id:null;var _aeSel=_ae&&_ae.tagName==='INPUT'?[_ae.selectionStart,_ae.selectionEnd]:null;existingPc.innerHTML=safeRoute();/* Only re-render sidebar if the menu needs to change (page changed). Otherwise keep DOM intact — prevents scroll reset. */var _sbNew=renderSB();if(_sbEl0&&_sbEl0.getAttribute('data-sig')!==String(S.page)){_sbEl0.innerHTML=_sbNew;_sbEl0.setAttribute('data-sig',String(S.page));}var hdrEl=document.getElementById("hdr-wrap");if(hdrEl){var _hdrNew=renderHDR();if(hdrEl.innerHTML!==_hdrNew)hdrEl.innerHTML=_hdrNew;}/* v17: timeline global */var tlEl=document.getElementById("psm-global-timeline");var _tlNew=(typeof renderGlobalTimeline==='function')?renderGlobalTimeline():'';if(tlEl){if(!_tlNew){tlEl.remove();}else{var _tmp=document.createElement('div');_tmp.innerHTML=_tlNew;var _newEl=_tmp.firstElementChild;if(_newEl&&tlEl.outerHTML!==_newEl.outerHTML)tlEl.outerHTML=_newEl.outerHTML;}}else if(_tlNew&&hdrEl&&hdrEl.parentNode){hdrEl.insertAdjacentHTML('afterend',_tlNew);}var mobNav=document.getElementById("mob-nav");if(mobNav){var _mnNew=renderMobNav();if(mobNav.outerHTML!==_mnNew)mobNav.outerHTML=_mnNew;}saveState();if(_pc0)existingPc.scrollTop=_scr;if(_sbEl0)_sbEl0.scrollTop=_sbScr;try{window.scrollTo(0,_winScr);}catch(e){}/* Restore focus */if(_aeId){var _aeR=document.getElementById(_aeId);if(_aeR&&typeof _aeR.focus==='function'){try{_aeR.focus();if(_aeSel&&_aeR.setSelectionRange){_aeR.setSelectionRange(_aeSel[0],_aeSel[1]);}}catch(e){}}}return}catch(e){console.warn("[PSM] Smart render falhou:",e.message)}}
   app.innerHTML = (S.rdSyncing ? '<div class="sync-bar active"></div>' : '') + '<div id="mob-ham" onclick="toggleMobSB()">☰</div>'
     + '<button id="cap-fab" onclick="nav(\'vera\')" title="Sr. Performance" style="position:fixed;bottom:72px;right:18px;z-index:500;width:54px;height:54px;border-radius:50%;background:var(--navy);color:#fff;font-size:22px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35);transition:transform .2s" onmouseover="this.style.transform=\'scale(1.1)\'" onmouseout="this.style.transform=\'scale(1)\'">🫡</button>'
     + '<div id="sb-overlay" onclick="toggleMobSB()"></div>'
@@ -24347,6 +25122,7 @@ var existingPc=document.getElementById("pc");if(existingPc&&!force){try{/* Prese
     + '<div class="layout">'
     + '<div id="sb-wrap">'+renderSB()+'</div>'
     + '<div class="main"><div id="hdr-wrap" style="position:sticky;top:0;z-index:100">'+renderHDR()+'</div>'
+    + renderGlobalTimeline()
     + '<div id="pc" class="page-content">'+safeRoute()+'</div></div></div>';
   saveState();
   var _pc1=document.getElementById('pc');if(_pc1)_pc1.scrollTop=_scr;
@@ -24805,6 +25581,14 @@ function tickerCleanExpired() {
 function renderTicker() {
   tickerCleanExpired();
   var msgs = tickerGetMsgs();
+  // v18: adiciona recados da diretoria no topo
+  var nowRD = Date.now();
+  (S.arenaRecados||[]).forEach(function(r){
+    if(r.exp && r.exp < nowRD) return;
+    if(!msgs.some(function(m){return m.id==='dir_'+r.id;})){
+      msgs.unshift({id:'dir_'+r.id, texto:'[DIRETORIA] '+r.msg, tipo:r.tipo||'info', autorId:r.autorId, autorNome:(r.autorNome||'Diretoria'), criadoEm:r.dt, expiresAt:r.exp});
+    }
+  });
   var tipoIcons = {urgente:'\uD83D\uDEA8',info:'\uD83D\uDCE2',parabens:'\uD83C\uDF89',geral:'\uD83D\uDCAC',oportunidade:'\uD83D\uDCA1',premiacao:'\uD83C\uDFC6'};
   var items = '';
   msgs.forEach(function(m) {
@@ -24954,12 +25738,42 @@ function requestNotifPerm() {
     else toast('Notificações bloqueadas', 'warn');
   });
 }
-function sendNotif(title, body, icon='🫡') {
+// v18: Som por categoria de notificação
+var NOTIF_SOUND_MAP = {
+  venda:'victory', meta:'cash', plantao:'ding', agenda:'ding',
+  alerta:'alert', recado:'trumpet', oportunidade:'ascend', default:'ding'
+};
+function sendNotif(title, body, icon='🫡', cat) {
   if (Notification.permission === 'granted') {
-    try { new Notification(title, {body, icon: '/favicon.ico', badge: '/favicon.ico'}); } catch(e){}
+    try { new Notification(title, {body, icon: 'logo-psm-navy.png', badge: 'logo-psm-navy.png'}); } catch(e){}
   }
   toast(icon + ' ' + title + ': ' + body, 'ok');
+  // v18: tocar som da categoria se habilitado
+  try{
+    if(S.notifSoundEnabled !== false){
+      var snd = NOTIF_SOUND_MAP[cat||'default'] || NOTIF_SOUND_MAP.default;
+      if(typeof playArenaSound === 'function') playArenaSound(snd);
+    }
+  }catch(e){}
 }
+// v18: API unificada
+function notifPush(opts){
+  opts = opts || {};
+  sendNotif(opts.title||'PSM', opts.body||'', opts.icon||'🔔', opts.cat||'default');
+  if(opts.page){
+    NOTIFS.unshift({tipo:opts.tipo||'ok', title:opts.title, msg:opts.body, page:opts.page, read:false, ts:Date.now()});
+    if(NOTIFS.length > 30) NOTIFS.splice(30);
+  }
+}
+window.notifPush = notifPush;
+// v18: auto-pedir permissão após primeiro login
+window.addEventListener('psm-login', function(){
+  try{
+    if('Notification' in window && Notification.permission === 'default'){
+      setTimeout(function(){ Notification.requestPermission(); }, 3000);
+    }
+  }catch(e){}
+});
 function scheduleNotifs() {
   // Check SLA overdue
   const overdue = OPPS.filter(o => (o.sla||'') === 'overdue');
@@ -24975,9 +25789,22 @@ function scheduleNotifs() {
   // Keep only last 20 notifs
   if (NOTIFS.length > 20) NOTIFS.splice(20);
 }
-// ─── NOTIFICAÇÕES DE PLANTÃO ──────────────────────────────────────────────
-var ESCALA_PSM_NOTIF = {2:'Legacy',5:'Legacy',8:'Legacy',11:'Legacy',14:'Legacy',17:'Legacy',20:'Legacy',23:'Legacy',26:'Legacy',29:'Legacy'};
-var ESCALA_PSM_MES = 3, ESCALA_PSM_ANO = 2026;
+// ─── NOTIFICAÇÕES DE PLANTÃO (v18: dinâmico por mês corrente) ──────────────
+function _buildEscalaNotif(){
+  try{
+    var _esc = (typeof ESCALA_PSM !== 'undefined') ? ESCALA_PSM : null;
+    if(_esc && _esc.dias){
+      var m = {};
+      Object.keys(_esc.dias).forEach(function(d){ m[d] = (_esc.dias[d].local||'PSM'); });
+      return {map:m, mes:_esc.mes, ano:_esc.ano};
+    }
+  }catch(e){}
+  var now = new Date();
+  return {map:{}, mes:now.getMonth(), ano:now.getFullYear()};
+}
+var _escN = _buildEscalaNotif();
+var ESCALA_PSM_NOTIF = _escN.map;
+var ESCALA_PSM_MES = _escN.mes, ESCALA_PSM_ANO = _escN.ano;
 
 function checkPlantaoNotifs(){
   if(!S.user) return;
