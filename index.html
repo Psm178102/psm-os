@@ -21327,11 +21327,14 @@ function pgConfig() {
     + '</div>'
     + '<div class="card mt2" style="grid-column:1/-1"><div class="ctitle">🤖 Inteligência Artificial</div>'
     + '<div style="font-size:11px;color:var(--muted);margin-bottom:12px">Configure as chaves de API para o Sr. Performance e assistentes de IA do sistema.</div>'
-    + connectorSection('Sr. Performance — Google Gemini','gemini','#4285f4',[
+    + connectorSection('Claude (Anthropic) — primary p/ Vera, Sol, Sr Gerencia','claude','#cc785c',[
+        {key:'claude_api_key', label:'API Key Claude', placeholder:'sk-ant-... (console.anthropic.com)', type:'password'},
+      ])
+    + connectorSection('Gemini (Google) — primary p/ Sr Performance','gemini','#4285f4',[
         {key:'gemini_api_key', label:'API Key Google Gemini', placeholder:'AIza... (grátis em aistudio.google.com/apikey)', type:'password'},
       ])
-    + connectorSection('ChatGPT — OpenAI','openai','#10a37f',[
-        {key:'openai_api_key', label:'API Key OpenAI', placeholder:'sk-... (opcional)', type:'password'},
+    + connectorSection('GPT (OpenAI) — fallback','openai','#10a37f',[
+        {key:'openai_api_key', label:'API Key OpenAI', placeholder:'sk-... (opcional, fallback)', type:'password'},
       ])
     + connectorSection('Vera 5.0 — NotebookLM','vera_nb','#8b5cf6',[
         {key:'vera_notebook_url', label:'Link do NotebookLM', placeholder:'https://notebooklm.google.com/notebook/...', type:'text'},
@@ -21350,12 +21353,14 @@ function pgConfig() {
     + '</div>'
     + '<div style="margin-top:16px;padding:14px;background:var(--cream2);border-radius:10px;border:1px solid var(--cream3)">'
     + '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6">'
-    + 'Os tokens salvam no navegador (localStorage) e funcionam sem servidor. Clique em "Testar Conexões" para validar.'
+    + 'Tokens salvam em <strong>3 lugares</strong>: Firebase (sincroniza entre dispositivos), localStorage (offline) e memoria. Configurou 1x = funciona em qualquer maquina logada.'
     + '</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
-    + '<button class="btn bout bsm" onclick="testConnectors()">🧪 Testar Conexões</button>'
+    + '<button class="btn bout bsm" onclick="testConnectors()">\uD83E\uDDEA Testar Conexoes</button>'
+    + '<button class="btn bp1 bsm" onclick="psmIAHealth()">\uD83E\uDDE0 Status IA (3 providers)</button>'
     + '</div>'
     + '<div id="conn-status" style="font-size:11px;color:var(--muted);margin-top:8px"></div>'
+    + '<div id="psm-ia-health" style="font-size:11px;margin-top:10px"></div>'
     + '</div>'
     + '</div>'
     + '<div class="card mt2" style="grid-column:1/-1"><div class="ctitle">\u2601\uFE0F Backup em Nuvem (Google Drive)</div>'
@@ -29435,6 +29440,43 @@ document.addEventListener('keydown', function(e){
   };
 
   console.log('[PSM-IA v23.3] Score/Historico/PDF pronto');
+})();
+</script>
+
+<!-- ═════════ v26.4 — Painel Status IA (multi-provider) ═════════ -->
+<script>
+(function(){
+  'use strict';
+  window.psmIAHealth = function(){
+    var el = document.getElementById('psm-ia-health');
+    if (!el) return;
+    if (!window.psmIA){ el.innerHTML = '<span style="color:#b00020">Engine IA nao carregado</span>'; return; }
+    el.innerHTML = '<span style="color:var(--muted)">\u23F3 Testando providers...</span>';
+    var ks = window.psmIA.keysStatus();
+    window.psmIA.healthCheck().then(function(r){
+      var rows = ['claude','gemini','gpt'].map(function(p){
+        var conf = ks[p].configured;
+        var test = r.providers[p];
+        var status, color;
+        if (!conf){ status = 'sem key'; color = '#94a3b8'; }
+        else if (test && test.ok){ status = 'OK'; color = '#0a7a2f'; }
+        else if (test){ status = 'erro: ' + (test.error||'').slice(0,80); color = '#b00020'; }
+        else { status = 'nao testado'; color = '#94a3b8'; }
+        var nameMap = {claude:'Claude (Anthropic)', gemini:'Gemini (Google)', gpt:'GPT (OpenAI)'};
+        return '<div style="display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--cream3)">'
+          + '<span style="font-weight:600">'+nameMap[p]+' <span style="color:#94a3b8;font-weight:400">'+ks[p].mask+'</span></span>'
+          + '<span style="color:'+color+';font-weight:700">'+status+'</span>'
+          + '</div>';
+      }).join('');
+      el.innerHTML = '<div style="background:#fff;border-radius:8px;border:1px solid var(--cream3);overflow:hidden">'
+        + '<div style="padding:8px 10px;background:var(--cream2);font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.6px">Status providers \u00B7 ordem default: '+r.order.join(' \u2192 ')+'</div>'
+        + rows
+        + '</div>';
+    }).catch(function(e){
+      el.innerHTML = '<span style="color:#b00020">Falhou: '+(e.message||e)+'</span>';
+    });
+  };
+  console.log('[PSM-IA v26.4] psmIAHealth pronto');
 })();
 </script>
 </body>

@@ -23,11 +23,20 @@
   // Ordem default de provider (override via S.iaProvider ou localStorage.psm_ia_provider)
   var DEFAULT_ORDER = ['claude','gemini','gpt'];
 
+  // Ordem especializada por persona (Claude lidera conversa, Gemini lidera analise de dados)
+  var PERSONA_ORDER = {
+    vera:           ['claude','gpt','gemini'],     // cliente alto padrao — tom/nuance
+    sol:            ['claude','gpt','gemini'],     // cliente MCMV — empatia
+    sr_gerencia:    ['claude','gpt','gemini'],     // cobra corretor — firmeza humana
+    sr_performance: ['gemini','claude','gpt']      // analise dados — Gemini e rapido e barato
+  };
+
   var PROVIDERS = {
     claude: {
       url: 'https://api.anthropic.com/v1/messages',
       model: 'claude-sonnet-4-6',
       keyPath: 'claude_key',
+      keyPathLegacy: 'claude_api_key',
       keyLS:   'psm_claude_key',
       build: function(prompt, system, key){
         return {
@@ -55,6 +64,7 @@
     gemini: {
       url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
       keyPath: 'gemini_key',
+      keyPathLegacy: 'gemini_api_key',
       keyLS:   'psm_gemini_key',
       build: function(prompt, system, key){
         var fullPrompt = system ? (system + '\n\n' + prompt) : prompt;
@@ -79,6 +89,7 @@
       url: 'https://api.openai.com/v1/chat/completions',
       model: 'gpt-4o-mini',
       keyPath: 'openai_key',
+      keyPathLegacy: 'openai_api_key',
       keyLS:   'psm_openai_key',
       build: function(prompt, system, key){
         var msgs = [];
@@ -113,13 +124,43 @@
   function getKey(provName){
     var p = PROVIDERS[provName];
     if (!p) return '';
-    return (window.S && window.S.connectors && window.S.connectors[p.keyPath])
-      || localStorage.getItem(p.keyLS) || '';
+    var c = (window.S && window.S.connectors) || {};
+    return (c[p.keyPath] || (p.keyPathLegacy && c[p.keyPathLegacy]) || localStorage.getItem(p.keyLS) || '').trim();
   }
 
-  function getProviderOrder(){
+  // Salva key em 3 lugares: S.connectors (sync Firebase), localStorage (offline), retorna persistido
+  function setKey(provName, key){
+    var p = PROVIDERS[provName];
+    if (!p) throw new Error('Provider invalido: '+provName);
+    key = (key||'').trim();
+    if (!window.S) window.S = {};
+    if (!window.S.connectors) window.S.connectors = {};
+    window.S.connectors[p.keyPath] = key;
+    if (key) localStorage.setItem(p.keyLS, key);
+    else { localStorage.removeItem(p.keyLS); delete window.S.connectors[p.keyPath]; }
+    // Sync Firebase via saveState (se disponivel)
+    try { if (typeof window.saveState === 'function') window.saveState(); } catch(_){}
+    console.log('[PSM-IA] key '+provName+' salva (Firebase + localStorage)');
+    return !!key;
+  }
+
+  // Boot: copia keys do localStorage pra S.connectors se S vazio (1a vez no device)
+  function bootKeys(){
+    if (!window.S) window.S = {};
+    if (!window.S.connectors) window.S.connectors = {};
+    Object.keys(PROVIDERS).forEach(function(name){
+      var p = PROVIDERS[name];
+      var ls = localStorage.getItem(p.keyLS);
+      if (ls && !window.S.connectors[p.keyPath] && !(p.keyPathLegacy && window.S.connectors[p.keyPathLegacy])){
+        window.S.connectors[p.keyPath] = ls.trim();
+      }
+    });
+  }
+
+  function getProviderOrder(personaId){
     var forced = (window.S && window.S.iaProvider) || localStorage.getItem('psm_ia_provider');
     if (forced && PROVIDERS[forced]) return [forced].concat(DEFAULT_ORDER.filter(function(p){return p!==forced;}));
+    if (personaId && PERSONA_ORDER[personaId]) return PERSONA_ORDER[personaId].slice();
     return DEFAULT_ORDER.slice();
   }
 
@@ -192,8 +233,8 @@
   }
 
   // Chamada principal com fallback automatico entre providers
-  function callAI(prompt, system){
-    var order = getProviderOrder();
+  function callAI(prompt, system, personaId){
+    var order = getProviderOrder(personaId);
     var i = 0;
     var errors = [];
     function tryNext(){
@@ -321,7 +362,7 @@
     if (contexto && typeof contexto === 'object'){
       prompt = 'CONTEXTO (JSON):\n' + JSON.stringify(contexto, null, 2) + '\n\nMENSAGEM:\n' + mensagem;
     }
-    return callAI(prompt, system).then(function(res){
+    return callAI(prompt, system, personaId).then(function(res){
       return {
         persona: p.nome,
         resposta: res.text,
@@ -441,6 +482,17 @@
       console.log('[PSM-IA] provider='+name);
     },
     getProviderOrder:  getProviderOrder,
+    setKey:            setKey,
+    getKey:            function(name){ return getKey(name) ? '***' + getKey(name).slice(-4) : ''; },
+    bootKeys:          bootKeys,
+    keysStatus:        function(){
+      var s = {};
+      Object.keys(PROVIDERS).forEach(function(n){
+        var k = getKey(n);
+        s[n] = {configured: !!k, mask: k ? '***'+k.slice(-4) : '(vazio)'};
+      });
+      return s;
+    },
 
     // Diagnostico
     healthCheck:       healthCheck,
@@ -450,5 +502,9 @@
     _version:          '26.4'
   };
 
+  // Auto-boot: hidrata S.connectors a partir do localStorage no carregamento
+  bootKeys();
+
   console.log('[PSM-IA] v26.4 pronto — multi-provider (Claude/Gemini/GPT) + 4 personas (Vera, Sol, Sr Performance, Sr Gerencia)');
+  console.log('[PSM-IA] keys status:', window.psmIA && typeof window.psmIA.keysStatus === 'function' ? window.psmIA.keysStatus() : 'n/a');
 })();
