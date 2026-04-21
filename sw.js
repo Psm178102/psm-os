@@ -1,11 +1,11 @@
 // ═════════════════════════════════════════════════════════════════════════════
-// PSM OS — Service Worker v26 (2026-04-21 v26.1 — +BI Socio)
+// PSM OS — Service Worker v26 (2026-04-21 v26.2 — sprint divida tecnica)
 // Estratégia: NETWORK-FIRST para HTML (resolve cache stale), CACHE-FIRST assets.
 // Limpa caches antigos automaticamente no activate.
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const CACHE_VERSION = 'psm-os-v26-1-2026-04-21';
+const CACHE_VERSION = 'psm-os-v26-2-2026-04-21';
 const HTML_CACHE    = CACHE_VERSION + '-html';
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
