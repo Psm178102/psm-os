@@ -1,0 +1,5 @@
+// PSM OS — Supabase config (v22m)
+// Servido como /api/supabase-config para compatibilidade com setup Vercel.
+// Em hosting estatico, este arquivo basta como JS estatico.
+window.PSM_SUPABASE_URL = 'https://fdlnvpmlertjdgfkduzc.supabase.co';
+window.PSM_SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkbG52cG1sZXJ0amRnZmtkdXpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2MTY4NTEsImV4cCI6MjA5MTE5Mjg1MX0.NTnSvJ1EbNdrWXPPlvaiNm1TUndpINn3wZ7YPXLtHbA';

@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.20-v22j — Auditoria funcional: saveState em mapPins/iaChat/veraHist, sync chat IA + Sr.Performance, try/catch JSON.parse reset-token, z-index normalizado -->
+<!-- PSM-OS v2026.04.21-v23.2 — v23.1 + Analise IA Equipe batch (health panel) -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,9 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.20-v22j">
+<meta name="version" content="2026.04.21-v23.2">
+<!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -722,6 +724,7 @@ html{height:100%;overflow:hidden}
 <!-- PSM Supabase: config via Vercel env vars + wrapper com dual-write -->
 <script src="/api/supabase-config"></script>
 <script src="/lib/psm-supabase.js" defer></script>
+<script src="/lib/psm-ia.js" defer></script>
 </head>
 <body>
 <div id="app"></div>
@@ -1766,8 +1769,85 @@ function saveState(skipFbPush) {
     } catch(e3) {}
     // === FIREBASE SYNC: push shared data (NUNCA quando dados vem do Firebase) ===
     if (_fbReady && !skipFbPush) fbPushState();
+    // === v22k: IndexedDB mirror (sobrevive limpeza localStorage) ===
+    try { if (typeof _psmIdbMirror === 'function') _psmIdbMirror(toSave); } catch(_){}
   } catch(e) { console.warn('[PSM] Save error:', e); }
 }
+
+// === v22k: persist() wrapper — garante saveState + fbPushState + IDB mirror ===
+// Uso: persist(function(){ S.xxx.push(...); }) ou persist('label', fn)
+window.persist = function(labelOrFn, maybeFn){
+  var label = typeof labelOrFn === 'string' ? labelOrFn : 'mutation';
+  var fn = typeof labelOrFn === 'function' ? labelOrFn : maybeFn;
+  try { if (typeof fn === 'function') fn(); } catch(e){ console.error('[persist:'+label+']', e); throw e; }
+  try { saveState(); } catch(e){ console.error('[persist:saveState]', e); }
+  try { if (typeof fbPushState === 'function' && window._fbReady) fbPushState(); } catch(e){ console.error('[persist:fb]', e); }
+  try { localStorage.setItem('psm_last_persist', JSON.stringify({label:label, ts:Date.now()})); } catch(_){}
+};
+
+// === v22k: IndexedDB mirror — backup secundario que sobrevive limpeza de localStorage ===
+var _psmIdb = null;
+(function initIdb(){
+  try {
+    if (!window.indexedDB) return;
+    var req = indexedDB.open('psm_os_backup', 1);
+    req.onupgradeneeded = function(e){
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains('snapshots')) db.createObjectStore('snapshots', {keyPath:'id'});
+    };
+    req.onsuccess = function(e){ _psmIdb = e.target.result; };
+    req.onerror = function(){ console.warn('[PSM-IDB] indisponivel'); };
+  } catch(e) {}
+})();
+window._psmIdbMirror = function(snapshot){
+  if (!_psmIdb) return;
+  try {
+    var tx = _psmIdb.transaction('snapshots','readwrite');
+    var store = tx.objectStore('snapshots');
+    store.put({id:'last', ts:Date.now(), data:snapshot});
+  } catch(e) {}
+};
+window.psmRestoreFromIdb = function(){
+  if (!_psmIdb) { alert('IndexedDB indisponivel neste navegador.'); return; }
+  var tx = _psmIdb.transaction('snapshots','readonly');
+  var req = tx.objectStore('snapshots').get('last');
+  req.onsuccess = function(e){
+    var r = e.target.result;
+    if (!r || !r.data) { alert('Nenhum snapshot IDB encontrado.'); return; }
+    if (!confirm('Restaurar backup IndexedDB de '+new Date(r.ts).toLocaleString('pt-BR')+'?')) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(r.data));
+      toast('✅ Backup IDB restaurado. Recarregando...','ok');
+      setTimeout(function(){ location.reload(); }, 800);
+    } catch(e){ alert('Erro: '+e.message); }
+  };
+};
+
+// === v22k: forcar backup agora (expose botao UI) ===
+window.psmForcarBackup = function(){
+  try {
+    saveState();
+    if (typeof fbPushState === 'function' && window._fbReady) fbPushState();
+    toast('✅ Backup forcado: localStorage + Firebase + IndexedDB','ok');
+  } catch(e){ toast('❌ Erro no backup: '+e.message,'err'); }
+};
+
+// === v22k: health-check periodico — detecta estado divergente ===
+setInterval(function(){
+  try {
+    if (!window._fbReady) return;
+    var local = localStorage.getItem(STORAGE_KEY);
+    if (!local) return;
+    var lp = JSON.parse(localStorage.getItem('psm_last_persist')||'{}');
+    var stale = lp.ts ? (Date.now() - lp.ts) : 0;
+    // Se nao houve persist em 10min mas S foi mutado recentemente, forcar save
+    if (stale > 600000 && S && S._dirty) {
+      console.warn('[PSM-HEALTH] Mutacao sem persist detectada. Forcando save.');
+      saveState();
+    }
+  } catch(e) {}
+}, 60000);
+
 function loadState() {
   try {
     var raw = localStorage.getItem(STORAGE_KEY);
@@ -2274,13 +2354,16 @@ function fbPushState(immediate) {
       _fbDb.ref('shared').set(shared).then(function() {
         _fbReleaseSyncing();
         _fbLastPush = Date.now();
+        if (typeof window.psmFbReportSuccess === 'function') window.psmFbReportSuccess();
         console.log('[PSM-Sync] Push OK' + (immediate?' (immediate)':''));
       }).catch(function(e) {
         _fbReleaseSyncing('promise rejected');
+        if (typeof window.psmFbReportFail === 'function') window.psmFbReportFail();
         console.error('[PSM-Sync] Push error:', e);
       });
     } catch(syncErr){
       _fbReleaseSyncing('sync exception');
+      if (typeof window.psmFbReportFail === 'function') window.psmFbReportFail();
       console.error('[PSM-Sync] Push sync error:', syncErr);
     }
   };
@@ -2593,6 +2676,15 @@ function pgDashboard(){
     });
     h+='</div></div>';
   })();
+  h+='</div>';
+
+  // ── v23.1 PAINEL IA — Previsao + Alertas + Sugestoes ──
+  h+='<div class="card" style="margin-bottom:16px;border-left:4px solid #8b5cf6">';
+  h+='<div class="ctitle" style="display:flex;align-items:center;gap:8px;justify-content:space-between">';
+  h+='<span>\uD83E\uDD16 IA Sr. Performance</span>';
+  h+='<button class="btn bp1 bsm" onclick="psmIARodar()">\u26A1 Rodar IA Agora</button>';
+  h+='</div>';
+  h+='<div id="psm-ia-painel" style="padding:4px 0;font-size:12px;color:var(--muted)">\u23F3 Clique "Rodar IA" para analise preditiva (previsao mes + alertas + sugestoes).</div>';
   h+='</div>';
 
   // ── BLOCO 360º: MARKETING · FINANCEIRO · META ADS · CONCORRÊNCIA ──
@@ -9767,13 +9859,13 @@ function renderLogin() {
     // Email field
     + '<div style="margin-bottom:20px">'
     + '<label style="display:block;font-size:11px;font-weight:600;color:#64748b;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">E-mail corporativo</label>'
-    + '<input id="le" type="email" placeholder="nome@imobiliariapsm.com.br" style="width:100%;padding:14px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:var(--font);color:#0f172a;background:#fff;outline:none;transition:all .2s;box-sizing:border-box" onfocus="this.style.borderColor=\'#0f172a\';this.style.boxShadow=\'0 0 0 4px rgba(15,23,42,.06)\'" onblur="this.style.borderColor=\'#e2e8f0\';this.style.boxShadow=\'none\'" onkeydown="if(event.key===\'Enter\')doLogin()">'
+    + '<input id="le" type="email" placeholder="nome@imobiliariapsm.com.br" aria-label="E-mail corporativo" autocomplete="email" required style="width:100%;padding:14px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:var(--font);color:#0f172a;background:#fff;outline:none;transition:all .2s;box-sizing:border-box" onfocus="this.style.borderColor=\'#0f172a\';this.style.boxShadow=\'0 0 0 4px rgba(15,23,42,.06)\'" onblur="this.style.borderColor=\'#e2e8f0\';this.style.boxShadow=\'none\'" onkeydown="if(event.key===\'Enter\')doLogin()">'
     + '</div>'
 
     // Password field
     + '<div style="margin-bottom:28px">'
     + '<label style="display:block;font-size:11px;font-weight:600;color:#64748b;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">Senha</label>'
-    + '<input id="lp" type="password" placeholder="••••••••" style="width:100%;padding:14px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:var(--font);color:#0f172a;background:#fff;outline:none;transition:all .2s;box-sizing:border-box" onfocus="this.style.borderColor=\'#0f172a\';this.style.boxShadow=\'0 0 0 4px rgba(15,23,42,.06)\'" onblur="this.style.borderColor=\'#e2e8f0\';this.style.boxShadow=\'none\'" onkeydown="if(event.key===\'Enter\')doLogin()">'
+    + '<input id="lp" type="password" placeholder="••••••••" aria-label="Senha" autocomplete="current-password" required style="width:100%;padding:14px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:var(--font);color:#0f172a;background:#fff;outline:none;transition:all .2s;box-sizing:border-box" onfocus="this.style.borderColor=\'#0f172a\';this.style.boxShadow=\'0 0 0 4px rgba(15,23,42,.06)\'" onblur="this.style.borderColor=\'#e2e8f0\';this.style.boxShadow=\'none\'" onkeydown="if(event.key===\'Enter\')doLogin()">'
     + '</div>'
 
     // Manter conectado checkbox
@@ -9841,13 +9933,32 @@ const _LOCAL_AUTH = {
 };
 const _IS_LOCAL = true; // TODO: set back to auto-detect when /api/auth backend is deployed
 
-function _localLogin(email, senha) {
-  // Checa senha redefinida primeiro
+// v22l: usa psmCheckPassword para comparar hash SHA-256 (legado plain suportado)
+async function _localLogin(email, senha) {
   const entry = _LOCAL_AUTH[email];
   if (!entry) return null;
   const [pw, uid] = entry.split('|');
-  const senhas = JSON.parse(localStorage.getItem('psm_senhas')||'{}');
-  if (senhas[uid]) return senhas[uid] === senha ? uid : null;
+  let senhas = {};
+  try { senhas = JSON.parse(localStorage.getItem('psm_senhas')||'{}'); } catch(e){ senhas = {}; }
+  if (senhas[uid]) {
+    if (typeof window.psmCheckPassword === 'function') {
+      const ok = await window.psmCheckPassword(senha, senhas[uid]);
+      if (ok) {
+        // Migracao silenciosa: se ainda esta em plain/b64, reescreve como sha256
+        if (typeof senhas[uid] === 'string' && senhas[uid].indexOf('sha256:') !== 0) {
+          try {
+            const h = await window.psmHash(senha);
+            senhas[uid] = h;
+            localStorage.setItem('psm_senhas', JSON.stringify(senhas));
+            console.log('[PSM-v22l] senha de', uid, 'migrada para sha256');
+          } catch(_){}
+        }
+        return uid;
+      }
+      return null;
+    }
+    return senhas[uid] === senha ? uid : null;
+  }
   return pw === simpleHash(senha) ? uid : null;
 }
 
@@ -9863,8 +9974,8 @@ async function doLogin() {
   let uid = null;
 
   if (_IS_LOCAL) {
-    // Fallback local para dev
-    uid = _localLogin(email, senha);
+    // Fallback local para dev — v22l: _localLogin agora e async (SHA-256)
+    uid = await _localLogin(email, senha);
     if (!uid) {
       S.loginErr = 'E-mail ou senha incorretos';
       S.loginLoading = false; render(); return;
@@ -9888,7 +9999,7 @@ async function doLogin() {
       uid = data.uid;
     } catch(e) {
       // Se fetch falhar (ex: offline ou sem server), tenta fallback local
-      uid = _localLogin(email, senha);
+      uid = await _localLogin(email, senha);
       if (!uid) {
         S.loginErr = 'Sem conexão e credenciais não reconhecidas';
         S.loginLoading = false; render(); return;
@@ -9958,7 +10069,7 @@ function doForgotPassword() {
   render();
 }
 
-function doResetPassword() {
+async function doResetPassword() {
   const nova=(document.getElementById('rpNova')||{}).value||'';
   const conf=(document.getElementById('rpConf')||{}).value||'';
   if (!nova||!conf) { S.loginErr='Preencha todos os campos'; render(); return; }
@@ -9972,7 +10083,12 @@ function doResetPassword() {
   if (!data || data.token!==S.resetToken||Date.now()>data.expires) { localStorage.removeItem('psm_reset_token'); S.loginErr='Token expirado. Solicite novamente.'; render(); return; }
   let senhas;
   try { senhas=JSON.parse(localStorage.getItem('psm_senhas')||'{}'); } catch(e){ senhas={}; }
-  senhas[data.userId]=nova;
+  // v22l: salva senha como hash SHA-256 (nao plain text)
+  let novaHash = nova;
+  if (typeof window.psmHash === 'function') {
+    try { novaHash = await window.psmHash(nova); } catch(e){ console.warn('[v22l] hash fail, fallback plain', e); }
+  }
+  senhas[data.userId]=novaHash;
   localStorage.setItem('psm_senhas',JSON.stringify(senhas));
   localStorage.removeItem('psm_reset_token');
   S.loginView=null; S.loginErr=''; S.loginMsg='Senha redefinida com sucesso! Fa\u00e7a login.'; render();
@@ -21243,6 +21359,15 @@ function pgConfig() {
     + '<div id="conn-status" style="font-size:11px;color:var(--muted);margin-top:8px"></div>'
     + '</div>'
     + '</div>'
+    + '<div class="card mt2" style="grid-column:1/-1"><div class="ctitle">\u2601\uFE0F Backup em Nuvem (Google Drive)</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6">Backup automatico a cada 6h na pasta <strong>PSM-OS-Backups</strong> do seu Drive. Rota\u00e7\u00e3o mant\u00e9m \u00faltimos 30 snapshots. Requer login Google (OAuth).</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">'
+    +   '<button class="btn bp1 bsm" onclick="psmDriveBackup(true)">\u2601\uFE0F Backup Drive Agora</button>'
+    +   '<button class="btn bout bsm" onclick="psmDriveRestore()">\u21A9\uFE0F Restaurar \u00daltimo Backup</button>'
+    +   '<button class="btn bout bsm" onclick="psmDriveRotate().then(function(r){toast(\'Rota\\u00e7\\u00e3o: \'+(r&&r.removed||0)+\' removidos\',\'ok\')})">\uD83D\uDD04 Rotacionar Agora</button>'
+    + '</div>'
+    + (function(){var t=parseInt(localStorage.getItem('psm_drive_last_backup')||'0',10);if(!t)return '<div style="font-size:10.5px;color:var(--muted)">Nenhum backup feito ainda.</div>';var min=Math.round((Date.now()-t)/60000);var s=min<60?min+'min':Math.round(min/60)+'h';return '<div style="font-size:10.5px;color:var(--muted)">\u00daltimo backup: <strong style="color:var(--navy)">'+s+' atr\u00e1s</strong> ('+new Date(t).toLocaleString('pt-BR')+')</div>';})()
+    + '</div>'
     + '<div class="card mt2" style="grid-column:1/-1"><div class="ctitle" style="margin-bottom:4px">\u{1F517} Integra\u00e7\u00f5es Externas</div>'
     + '<div style="font-size:11px;color:var(--muted);margin-bottom:16px">Conecte sistemas externos ao House PSM. Cole a chave API/Token de cada sistema e teste a conex\u00e3o.</div>'
     + intCard('kenlo','Kenlo Imob','#1a73e8','Im\u00f3veis terceiros, portais e site','Token API Kenlo')
@@ -22139,7 +22264,7 @@ function pgOportunidades() {
       if(ev.local)h+='<span style="font-size:11px;color:#94a3b8;">\uD83D\uDCCD '+ev.local+'</span>';
       if(ev.descricao)h+='<div style="font-size:12px;color:#94a3b8;margin-top:4px;">'+ev.descricao+'</div>';
       h+='</div>';
-      if(isGestor)h+='<button onclick="S.opEventos.splice('+i+',1);render()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;">\uD83D\uDDD1</button>';
+      if(isGestor)h+='<button onclick="opDelEvento('+i+')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;">\uD83D\uDDD1</button>';
       h+='</div>';
     });
     h+='</div>';return h;
@@ -22174,7 +22299,7 @@ function pgOportunidades() {
       if(tr.descricao)h+='<div style="font-size:12px;color:#94a3b8;margin-top:4px;">'+tr.descricao+'</div>';
       if(tr.link)h+='<div style="margin-top:4px;"><a href="'+tr.link+'" target="_blank" style="font-size:11px;color:#6366f1;">\uD83D\uDD17 Material</a></div>';
       h+='</div>';
-      if(isGestor)h+='<button onclick="S.opTreinamentos.splice('+i+',1);render()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;">\uD83D\uDDD1</button>';
+      if(isGestor)h+='<button onclick="opDelTreinamento('+i+')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;">\uD83D\uDDD1</button>';
       h+='</div>';
     });
     h+='</div>';return h;
@@ -22632,18 +22757,36 @@ function opCorretorDel(id) {
 
 // === PREMIACOES ===
 // Save Evento
+window.opDelEvento=function(i){
+  if(!confirm('Remover este evento?'))return;
+  if(!Array.isArray(S.opEventos))return;
+  S.opEventos.splice(i,1);
+  saveState();if(typeof fbPushState==='function')fbPushState();
+  toast('Evento removido','ok');render();
+};
+window.opDelTreinamento=function(i){
+  if(!confirm('Remover este treinamento?'))return;
+  if(!Array.isArray(S.opTreinamentos))return;
+  S.opTreinamentos.splice(i,1);
+  saveState();if(typeof fbPushState==='function')fbPushState();
+  toast('Treinamento removido','ok');render();
+};
 function opSaveEvento(){
   var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
   var titulo=g('ev_titulo');if(!titulo){toast('Nome do evento obrigat\u00f3rio','warn');return;}
-  S.opEventos.push({titulo:titulo,data:g('ev_data'),hora:g('ev_hora'),local:g('ev_local'),tipo:g('ev_tipo'),descricao:g('ev_desc'),criadoEm:new Date().toISOString()});
-  S.opEvForm=false;toast('\u2705 Evento adicionado','ok');render();
+  S.opEventos.push({id:'ev_'+Date.now(),titulo:titulo,data:g('ev_data'),hora:g('ev_hora'),local:g('ev_local'),tipo:g('ev_tipo'),descricao:g('ev_desc'),criadoEm:new Date().toISOString()});
+  S.opEvForm=false;
+  saveState();if(typeof fbPushState==='function')fbPushState();
+  toast('\u2705 Evento adicionado','ok');render();
 }
 // Save Treinamento
 function opSaveTreinamento(){
   var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
   var titulo=g('tr_titulo');if(!titulo){toast('Nome do treinamento obrigat\u00f3rio','warn');return;}
-  S.opTreinamentos.push({titulo:titulo,data:g('tr_data'),hora:g('tr_hora'),instrutor:g('tr_instrutor'),categoria:g('tr_cat'),link:g('tr_link'),descricao:g('tr_desc'),criadoEm:new Date().toISOString()});
-  S.opTrForm=false;toast('\u2705 Treinamento adicionado','ok');render();
+  S.opTreinamentos.push({id:'tr_'+Date.now(),titulo:titulo,data:g('tr_data'),hora:g('tr_hora'),instrutor:g('tr_instrutor'),categoria:g('tr_cat'),link:g('tr_link'),descricao:g('tr_desc'),criadoEm:new Date().toISOString()});
+  S.opTrForm=false;
+  saveState();if(typeof fbPushState==='function')fbPushState();
+  toast('\u2705 Treinamento adicionado','ok');render();
 }
 
 
@@ -23049,7 +23192,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px">OS v22j</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v23.2</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -27601,15 +27744,15 @@ function _fillRememberedLogin() {
   if (em) { var el = document.getElementById('le'); if (el) el.value = em; }
 }
 
-// Auto-login "Manter conectado"
-function _tryRememberLogin() {
+// Auto-login "Manter conectado" — v22l: async por causa de SHA-256 check
+async function _tryRememberLogin() {
   if (S.user) return;
   if (localStorage.getItem('psm_remember') !== '1') return;
   var em = localStorage.getItem('psm_remember_email');
   var pw = localStorage.getItem('psm_remember_pw');
   if (!em || !pw) return;
   try { pw = atob(pw); } catch(e) { return; }
-  var uid = _localLogin(em, pw);
+  var uid = await _localLogin(em, pw);
   if (!uid) return;
   var user = USERS_BASE.find(function(u){ return u.id === uid; });
   if (!user) return;
@@ -27621,6 +27764,7 @@ function _tryRememberLogin() {
     S.veraHist = [{role:'assistant', content:'Ol\u00e1, ' + S.user.name.split(' ')[0] + '! Sou o Sr. Performance. Como posso te ajudar?'}];
   }
   scheduleVeraNotifs();
+  try { render(); } catch(_){}
 }
 
 
@@ -28139,6 +28283,798 @@ document.addEventListener("click", function(e) {
   if (tabId && S.ooTab !== tabId) { S.ooTab = tabId; render(); }
 });
 /* FIM EVENT DELEGATION FIX */
+</script>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     v22l SECURITY + UX BUNDLE
+     - psmConfirm/psmPrompt/psmAlert (modal custom Promise-based)
+     - psmHash (SubtleCrypto SHA-256 para senhas)
+     - LGPD modal consentimento + export + delete
+     - Firebase fail counter (3x = aviso visivel)
+     - Helpers de sanitizacao
+     ════════════════════════════════════════════════════════════════════════ -->
+<style>
+.psm-modal-bd{position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:psmFadeIn .15s ease}
+.psm-modal{background:#fff;border-radius:16px;max-width:480px;width:100%;box-shadow:0 25px 50px -12px rgba(0,0,0,.4);animation:psmZoomIn .2s cubic-bezier(.4,0,.2,1);overflow:hidden}
+.psm-modal h3{margin:0;padding:24px 28px 8px;font-size:18px;color:#0f172a;font-weight:700}
+.psm-modal .psm-modal-body{padding:8px 28px 20px;color:#334155;font-size:14px;line-height:1.6;white-space:pre-wrap}
+.psm-modal input.psm-modal-input{width:calc(100% - 56px);margin:0 28px 20px;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:inherit;color:#0f172a;outline:none;transition:border-color .15s}
+.psm-modal input.psm-modal-input:focus{border-color:#0f172a}
+.psm-modal .psm-modal-act{display:flex;gap:8px;justify-content:flex-end;padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0}
+.psm-modal button{padding:10px 20px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.psm-modal .psm-btn-cancel{background:#fff;color:#475569;border:1.5px solid #cbd5e1}
+.psm-modal .psm-btn-cancel:hover{background:#f1f5f9;border-color:#94a3b8}
+.psm-modal .psm-btn-ok{background:#0f172a;color:#fff}
+.psm-modal .psm-btn-ok:hover{background:#1e293b}
+.psm-modal .psm-btn-danger{background:#dc2626;color:#fff}
+.psm-modal .psm-btn-danger:hover{background:#b91c1c}
+@keyframes psmFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes psmZoomIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.psm-fb-down{position:fixed;top:8px;left:50%;transform:translateX(-50%);background:#dc2626;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;z-index:99998;box-shadow:0 4px 12px rgba(220,38,38,.4);cursor:pointer}
+.psm-fb-down:hover{background:#b91c1c}
+</style>
+<script>
+(function(){
+'use strict';
+
+// ═══ MODAL CUSTOM ═══════════════════════════════════════════════════
+function _psmShowModal(opts){
+  return new Promise(function(resolve){
+    var bd = document.createElement('div');
+    bd.className = 'psm-modal-bd';
+    var modal = document.createElement('div');
+    modal.className = 'psm-modal';
+    modal.setAttribute('role','dialog');
+    modal.setAttribute('aria-modal','true');
+    var h3 = document.createElement('h3');
+    h3.textContent = opts.title || 'Confirmar';
+    var body = document.createElement('div');
+    body.className = 'psm-modal-body';
+    body.textContent = opts.message || '';
+    var input = null;
+    if (opts.type === 'prompt') {
+      input = document.createElement('input');
+      input.className = 'psm-modal-input';
+      input.type = opts.inputType || 'text';
+      input.value = opts.defaultValue || '';
+      input.setAttribute('aria-label', opts.title || 'Valor');
+    }
+    var act = document.createElement('div');
+    act.className = 'psm-modal-act';
+    function close(value){
+      try { document.body.removeChild(bd); } catch(_){}
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    }
+    function onKey(e){
+      if (e.key === 'Escape') close(opts.type==='alert'?true:(opts.type==='prompt'?null:false));
+      if (e.key === 'Enter' && opts.type !== 'prompt') { e.preventDefault(); close(true); }
+      if (e.key === 'Enter' && opts.type === 'prompt') { e.preventDefault(); close(input.value); }
+    }
+    if (opts.type !== 'alert') {
+      var cancel = document.createElement('button');
+      cancel.className = 'psm-btn-cancel';
+      cancel.textContent = opts.cancelLabel || 'Cancelar';
+      cancel.onclick = function(){ close(opts.type==='prompt'?null:false); };
+      act.appendChild(cancel);
+    }
+    var ok = document.createElement('button');
+    ok.className = opts.danger ? 'psm-btn-danger' : 'psm-btn-ok';
+    ok.textContent = opts.okLabel || 'OK';
+    ok.onclick = function(){ close(opts.type==='prompt' ? input.value : true); };
+    act.appendChild(ok);
+    modal.appendChild(h3);
+    modal.appendChild(body);
+    if (input) modal.appendChild(input);
+    modal.appendChild(act);
+    bd.appendChild(modal);
+    bd.onclick = function(e){ if (e.target===bd) close(opts.type==='alert'?true:(opts.type==='prompt'?null:false)); };
+    document.body.appendChild(bd);
+    document.addEventListener('keydown', onKey);
+    setTimeout(function(){ (input||ok).focus(); }, 50);
+  });
+}
+window.psmConfirm = function(message, opts){ opts=opts||{}; return _psmShowModal({type:'confirm',title:opts.title||'Confirmar',message:message,okLabel:opts.okLabel,cancelLabel:opts.cancelLabel,danger:opts.danger}); };
+window.psmPrompt  = function(message, defaultValue, opts){ opts=opts||{}; return _psmShowModal({type:'prompt',title:opts.title||'Digite',message:message,defaultValue:defaultValue||'',inputType:opts.inputType,okLabel:opts.okLabel,cancelLabel:opts.cancelLabel}); };
+window.psmAlert   = function(message, opts){ opts=opts||{}; return _psmShowModal({type:'alert',title:opts.title||'Aviso',message:message,okLabel:opts.okLabel||'OK'}); };
+
+// ═══ CRYPTO HELPERS (SHA-256 senha + base64 wrapper) ════════════════
+window.psmHash = async function(text){
+  if (!window.crypto || !window.crypto.subtle) {
+    // Fallback: btoa (nao seguro mas evita crash em browsers antigos)
+    try { return 'b64:' + btoa(unescape(encodeURIComponent(text||''))); } catch(_){ return 'b64:' + (text||''); }
+  }
+  try {
+    var enc = new TextEncoder().encode(text||'');
+    var buf = await crypto.subtle.digest('SHA-256', enc);
+    var arr = Array.from(new Uint8Array(buf));
+    return 'sha256:' + arr.map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+  } catch(e){
+    try { return 'b64:' + btoa(unescape(encodeURIComponent(text||''))); } catch(_){ return 'b64:' + (text||''); }
+  }
+};
+window.psmCheckPassword = async function(plain, stored){
+  if (!stored) return false;
+  if (typeof stored !== 'string') return false;
+  // Suporta senha salva em plain (legado), btoa, ou sha256
+  if (stored.indexOf('sha256:') === 0) {
+    var h = await window.psmHash(plain);
+    return h === stored;
+  }
+  if (stored.indexOf('b64:') === 0) {
+    try { return btoa(unescape(encodeURIComponent(plain||''))) === stored.slice(4); } catch(_){ return false; }
+  }
+  // legado plain
+  return plain === stored;
+};
+
+// ═══ FIREBASE FAIL COUNTER (3x consecutivos = aviso visivel) ══════════
+var _fbFailCount = 0;
+var _fbWarnEl = null;
+window.psmFbReportFail = function(){
+  _fbFailCount++;
+  if (_fbFailCount >= 3 && !_fbWarnEl) {
+    _fbWarnEl = document.createElement('div');
+    _fbWarnEl.className = 'psm-fb-down';
+    _fbWarnEl.textContent = '⚠️ Sincronizacao Firebase falhou. Clique para detalhes.';
+    _fbWarnEl.title = 'Dados estao salvos localmente mas nao sincronizam multi-device. Verifique conexao ou Firebase rules.';
+    _fbWarnEl.onclick = function(){
+      window.psmAlert(
+        'Sincronizacao Firebase falhou ' + _fbFailCount + 'x consecutivas.\n\n' +
+        'Seus dados estao seguros LOCALMENTE (localStorage + IndexedDB) e em backup.\n\n' +
+        'Mas mudancas NAO estao indo para outros dispositivos enquanto isso.\n\n' +
+        'Acoes:\n' +
+        '1. Verificar conexao internet\n' +
+        '2. Recarregar pagina (F5)\n' +
+        '3. Configuracoes > Backup > Forcar Backup',
+        {title:'Firebase offline'}
+      );
+    };
+    document.body.appendChild(_fbWarnEl);
+  }
+};
+window.psmFbReportSuccess = function(){
+  if (_fbFailCount > 0) console.log('[PSM-FB] recuperado apos', _fbFailCount, 'falhas');
+  _fbFailCount = 0;
+  if (_fbWarnEl) { try { document.body.removeChild(_fbWarnEl); } catch(_){} _fbWarnEl = null; }
+};
+
+// ═══ LGPD: consentimento + export + delete ═══════════════════════════
+window.psmLgpdShow = function(){
+  if (localStorage.getItem('psm_lgpd_consent') === '1') return;
+  setTimeout(function(){
+    window.psmConfirm(
+      'PSM OS coleta e processa dados de uso interno (vendas, atendimentos, metas) para finalidade legitima de gestao da imobiliaria.\n\n' +
+      'Voce pode a qualquer momento:\n' +
+      '• Exportar todos os seus dados\n' +
+      '• Solicitar exclusao\n' +
+      '• Revisar quem tem acesso\n\n' +
+      'Acesse: Configuracoes > Privacidade (LGPD)\n\n' +
+      'Concorda com o tratamento dos dados?',
+      {title:'Privacidade & LGPD',okLabel:'Concordo',cancelLabel:'Recusar'}
+    ).then(function(ok){
+      if (ok) {
+        localStorage.setItem('psm_lgpd_consent','1');
+        localStorage.setItem('psm_lgpd_consent_ts', String(Date.now()));
+      } else {
+        window.psmAlert('Sem consentimento, voce nao pode usar o sistema. Faca logout.',{title:'Consentimento necessario'});
+      }
+    });
+  }, 1500);
+};
+window.psmLgpdExportar = function(){
+  try {
+    var dump = {};
+    for (var i=0;i<localStorage.length;i++){
+      var k = localStorage.key(i);
+      if (k && k.indexOf('psm_') === 0 && k !== 'psm_senhas') dump[k] = localStorage.getItem(k);
+    }
+    var blob = new Blob([JSON.stringify(dump,null,2)],{type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'psm-os-dados-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    if (typeof toast === 'function') toast('✅ Dados exportados','ok');
+  } catch(e){ window.psmAlert('Erro ao exportar: '+e.message); }
+};
+window.psmLgpdDeletar = function(){
+  window.psmConfirm(
+    'EXCLUIR TODOS os seus dados deste dispositivo?\n\n' +
+    'Isso apaga: sessao, preferencias, cache, historicos.\n\n' +
+    'Dados compartilhados (vendas, metas) permanecem para a equipe.\n\n' +
+    'Esta acao e IRREVERSIVEL.',
+    {title:'LGPD: Excluir Dados',okLabel:'Excluir Tudo',danger:true}
+  ).then(function(ok){
+    if (!ok) return;
+    var keys = [];
+    for (var i=0;i<localStorage.length;i++){
+      var k = localStorage.key(i);
+      if (k && k.indexOf('psm_') === 0) keys.push(k);
+    }
+    keys.forEach(function(k){ localStorage.removeItem(k); });
+    if (window._psmIdb) try { window._psmIdb.transaction('snapshots','readwrite').objectStore('snapshots').clear(); } catch(_){}
+    window.psmAlert('Dados deletados. Recarregando...').then(function(){ location.reload(); });
+  });
+};
+
+// Auto mostrar consentimento apos login
+document.addEventListener('DOMContentLoaded', function(){
+  setTimeout(function(){
+    if (window.S && window.S.user) window.psmLgpdShow();
+  }, 3000);
+});
+
+// ═══ SANITIZADOR (escape HTML para evitar XSS em strings de usuario) ══
+window.psmEscape = function(s){
+  if (s==null) return '';
+  return String(s).replace(/[&<>"']/g, function(c){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+  });
+};
+
+// ═══ SENTRY STUB — ativa quando DSN configurado ═════════════════════
+// Cole em Configuracoes > Integracoes > Sentry DSN, ou console:
+//   localStorage.setItem('psm_sentry_dsn','https://xxx@oNNN.ingest.sentry.io/NNN'); location.reload();
+(function initSentry(){
+  // v22m: DSN hardcoded (override via localStorage se quiser outro projeto)
+  var DEFAULT_DSN = 'https://78303a833fddf9ecf6236f441edd9501@o4511259826913280.ingest.us.sentry.io/4511259830714368';
+  var dsn = localStorage.getItem('psm_sentry_dsn') || DEFAULT_DSN;
+  if (!dsn || dsn.indexOf('https://') !== 0) return;
+  var s = document.createElement('script');
+  s.src = 'https://browser.sentry-cdn.com/7.119.0/bundle.min.js';
+  s.crossOrigin = 'anonymous';
+  s.onload = function(){
+    try {
+      window.Sentry.init({
+        dsn: dsn,
+        environment: 'production',
+        release: 'psm-os-v23.2',
+        tracesSampleRate: 0.1,
+        beforeSend: function(event){
+          // Nao envia console.log/warn, so erros de verdade
+          if (event.level === 'log') return null;
+          // Remove senha de breadcrumbs
+          if (event.breadcrumbs) event.breadcrumbs.forEach(function(b){
+            if (b.data && b.data.senha) delete b.data.senha;
+          });
+          return event;
+        }
+      });
+      window.Sentry.setUser({ id: (window.S && window.S.user && window.S.user.id) || 'anonymous' });
+      console.log('[PSM-Sentry] ativo');
+      // Captura erros nao tratados
+      window.addEventListener('error', function(e){
+        try { window.Sentry.captureException(e.error || new Error(e.message)); } catch(_){}
+      });
+      window.addEventListener('unhandledrejection', function(e){
+        try { window.Sentry.captureException(e.reason || new Error('Unhandled promise rejection')); } catch(_){}
+      });
+    } catch(err){ console.warn('[PSM-Sentry] init fail', err); }
+  };
+  s.onerror = function(){ console.warn('[PSM-Sentry] CDN load fail'); };
+  document.head.appendChild(s);
+})();
+window.psmSentryCapture = function(err, ctx){
+  try { if (window.Sentry) window.Sentry.captureException(err, {extra:ctx||{}}); } catch(_){}
+};
+
+// ═══ SMOKE TESTS — rodar: psmTest.runAll() no console ═════════════════
+window.psmTest = {
+  results: [],
+  log: function(name, ok, msg){
+    this.results.push({name:name, ok:ok, msg:msg||''});
+    console.log((ok?'✅':'❌'), name, msg||'');
+  },
+  async runAll(){
+    this.results = [];
+    console.log('═══ PSM SMOKE TESTS ═══');
+    // 1. localStorage
+    try { localStorage.setItem('__psm_test','1'); var v = localStorage.getItem('__psm_test'); localStorage.removeItem('__psm_test'); this.log('localStorage', v==='1'); } catch(e){ this.log('localStorage', false, e.message); }
+    // 2. IndexedDB
+    this.log('IndexedDB', !!window._psmIdb, window._psmIdb ? 'conectado' : 'nao inicializado');
+    // 3. State loaded
+    this.log('State.user', !!(window.S && window.S.user), (window.S && window.S.user) ? window.S.user.id : 'nao logado');
+    // 4. SYNC_KEYS integrity
+    var missingKeys = [];
+    (window.SYNC_KEYS||[]).forEach(function(k){
+      if (window.S && (window.S[k]===undefined)) missingKeys.push(k);
+    });
+    this.log('SYNC_KEYS integras', missingKeys.length===0, missingKeys.length ? ('faltam: '+missingKeys.join(',')) : (window.SYNC_KEYS||[]).length+' chaves');
+    // 5. Firebase
+    this.log('Firebase ready', !!window._fbReady);
+    // 6. Service Worker
+    if (navigator.serviceWorker) {
+      var reg = await navigator.serviceWorker.getRegistration();
+      this.log('Service Worker', !!reg, reg ? (reg.active && reg.active.scriptURL) : 'nao registrado');
+    } else this.log('Service Worker', false, 'API indisponivel');
+    // 7. Crypto
+    try {
+      var h = await window.psmHash('test');
+      this.log('psmHash SHA-256', h && h.indexOf('sha256:')===0, h);
+    } catch(e){ this.log('psmHash', false, e.message); }
+    // 8. saveState funciona
+    try {
+      var before = localStorage.getItem('psm_os_state') || '';
+      saveState();
+      var after = localStorage.getItem('psm_os_state') || '';
+      this.log('saveState roda', after.length > 0);
+    } catch(e){ this.log('saveState', false, e.message); }
+    // 9. Last persist
+    try {
+      var lp = JSON.parse(localStorage.getItem('psm_last_persist')||'{}');
+      var age = lp.ts ? Math.round((Date.now()-lp.ts)/1000) : -1;
+      this.log('Last persist', age>=0, age>=0 ? age+'s atras' : 'nunca');
+    } catch(e){ this.log('Last persist', false); }
+    // 10. Quota
+    try {
+      if (navigator.storage && navigator.storage.estimate) {
+        var est = await navigator.storage.estimate();
+        var pct = est.quota ? Math.round(est.usage/est.quota*100) : -1;
+        this.log('Storage quota', pct<80, pct+'% usado ('+Math.round(est.usage/1024/1024)+'MB / '+Math.round(est.quota/1024/1024)+'MB)');
+      } else this.log('Storage quota', true, 'API indisponivel (OK)');
+    } catch(e){ this.log('Storage quota', false, e.message); }
+    console.log('═══ Total:', this.results.filter(function(r){return r.ok;}).length + '/' + this.results.length, 'OK ═══');
+    return this.results;
+  }
+};
+
+// ═══ HEALTH PANEL — diagnostico visual ═════════════════════════════════
+window.psmHealth = async function(){
+  var results = await window.psmTest.runAll();
+  var html = results.map(function(r){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px">'
+      + '<span style="font-size:16px">' + (r.ok?'✅':'❌') + '</span>'
+      + '<span style="flex:1;font-weight:600;color:#0f172a">' + window.psmEscape(r.name) + '</span>'
+      + '<span style="color:#64748b;font-size:12px">' + window.psmEscape(r.msg||'') + '</span>'
+      + '</div>';
+  }).join('');
+  var lp = JSON.parse(localStorage.getItem('psm_last_persist')||'{}');
+  var lpTxt = lp.ts ? new Date(lp.ts).toLocaleString('pt-BR') : 'nunca';
+  var fbStatus = window._fbReady ? '🟢 conectado' : '🔴 offline';
+  var actions = '<div style="display:flex;gap:8px;flex-wrap:wrap;padding:16px;border-top:2px solid #e2e8f0;background:#f8fafc">'
+    + '<button onclick="psmForcarBackup()" style="padding:8px 14px;background:#0f172a;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">💾 Forcar Backup</button>'
+    + '<button onclick="psmRestoreFromIdb()" style="padding:8px 14px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">⏮ Restaurar IDB</button>'
+    + '<button onclick="psmLgpdExportar()" style="padding:8px 14px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">📤 Exportar Dados (LGPD)</button>'
+    + '<button onclick="psmLgpdDeletar()" style="padding:8px 14px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🗑 Deletar Dados (LGPD)</button>'
+    + '<button onclick="psmAnaliseIAEquipe()" style="padding:8px 14px;background:#8b5cf6;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🤖 Analise IA Equipe</button>'
+    + '<button onclick="psmTest.runAll().then(function(){psmHealth();})" style="padding:8px 14px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 Re-testar</button>'
+    + '<button onclick="document.getElementById(\'psm-health-panel\').remove()" style="padding:8px 14px;background:#fff;color:#475569;border:1.5px solid #cbd5e1;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Fechar</button>'
+    + '</div>';
+  var summary = '<div style="padding:14px 16px;background:#f1f5f9;border-bottom:2px solid #e2e8f0;font-size:12px;color:#475569">'
+    + '<b>Firebase:</b> ' + fbStatus + ' &nbsp;&nbsp; <b>Ultimo save:</b> ' + lpTxt + '</div>';
+  var prev = document.getElementById('psm-health-panel'); if (prev) prev.remove();
+  var wrap = document.createElement('div');
+  wrap.id = 'psm-health-panel';
+  wrap.className = 'psm-modal-bd';
+  wrap.innerHTML = '<div class="psm-modal" style="max-width:600px"><h3>🏥 PSM Health Check</h3>' + summary + '<div style="max-height:400px;overflow-y:auto">' + html + '</div>' + actions + '</div>';
+  wrap.onclick = function(e){ if (e.target===wrap) wrap.remove(); };
+  document.body.appendChild(wrap);
+};
+
+// Atalho teclado Ctrl+Shift+H = health panel
+document.addEventListener('keydown', function(e){
+  if (e.ctrlKey && e.shiftKey && (e.key==='H'||e.key==='h')) {
+    e.preventDefault();
+    window.psmHealth();
+  }
+});
+
+})();
+</script>
+
+<!-- ═════════ v22m — DRIVE OAUTH BACKUP (6h) ═════════ -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+(function(){
+  'use strict';
+  var CLIENT_ID = '426926312426-l1k5q7e7fmuk3n272v6otavtntvprmof.apps.googleusercontent.com';
+  var SCOPES = 'https://www.googleapis.com/auth/drive.file';
+  var FOLDER_NAME = 'PSM-OS-Backups';
+  var BACKUP_INTERVAL = 6 * 60 * 60 * 1000; // 6h
+  var TOKEN_KEY = 'psm_drive_token';
+  var LAST_BACKUP_KEY = 'psm_drive_last_backup';
+
+  // Token client (GIS) — inicializa quando biblioteca carrega
+  var tokenClient = null;
+  function initTokenClient(cb){
+    if (!window.google || !window.google.accounts || !window.google.accounts.oauth2){
+      return setTimeout(function(){ initTokenClient(cb); }, 500);
+    }
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: function(resp){
+        if (resp && resp.access_token){
+          localStorage.setItem(TOKEN_KEY, JSON.stringify({
+            token: resp.access_token,
+            expires: Date.now() + (resp.expires_in * 1000)
+          }));
+          if (cb) cb(resp.access_token);
+        }
+      }
+    });
+    if (cb) cb(null);
+  }
+  initTokenClient();
+
+  function getValidToken(){
+    try {
+      var raw = localStorage.getItem(TOKEN_KEY);
+      if (!raw) return null;
+      var t = JSON.parse(raw);
+      if (t.expires && t.expires > Date.now() + 60000) return t.token;
+      return null;
+    } catch(_){ return null; }
+  }
+
+  function requestAuth(interactive){
+    if (!tokenClient) return Promise.reject(new Error('GIS nao carregou'));
+    return new Promise(function(resolve, reject){
+      tokenClient.callback = function(resp){
+        if (resp && resp.access_token){
+          localStorage.setItem(TOKEN_KEY, JSON.stringify({
+            token: resp.access_token,
+            expires: Date.now() + (resp.expires_in * 1000)
+          }));
+          resolve(resp.access_token);
+        } else reject(new Error('sem token'));
+      };
+      tokenClient.requestAccessToken({ prompt: interactive ? 'consent' : '' });
+    });
+  }
+
+  async function findOrCreateFolder(token){
+    // Busca folder existente
+    var q = encodeURIComponent("name='"+FOLDER_NAME+"' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+    var r = await fetch('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id,name)', {
+      headers: { 'Authorization': 'Bearer '+token }
+    });
+    var j = await r.json();
+    if (j.files && j.files.length) return j.files[0].id;
+    // Cria
+    var cr = await fetch('https://www.googleapis.com/drive/v3/files', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+    });
+    var cj = await cr.json();
+    return cj.id;
+  }
+
+  async function uploadBackup(token){
+    var folderId = await findOrCreateFolder(token);
+    var snapshot = {
+      ts: Date.now(),
+      version: '2026.04.21-v22m',
+      state: JSON.parse(localStorage.getItem('psm_os_state_v1') || '{}')
+    };
+    var blob = new Blob([JSON.stringify(snapshot)], {type:'application/json'});
+    var fname = 'psm-os-backup-'+new Date().toISOString().slice(0,19).replace(/[:.]/g,'-')+'.json';
+
+    var meta = { name: fname, parents: [folderId] };
+    var fd = new FormData();
+    fd.append('metadata', new Blob([JSON.stringify(meta)], {type:'application/json'}));
+    fd.append('file', blob);
+
+    var resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer '+token },
+      body: fd
+    });
+    if (!resp.ok) throw new Error('upload fail '+resp.status);
+    var j = await resp.json();
+    localStorage.setItem(LAST_BACKUP_KEY, JSON.stringify({ ts: Date.now(), fileId: j.id, name: fname }));
+    return j;
+  }
+
+  window.psmDriveBackup = async function(interactive){
+    try {
+      var token = getValidToken();
+      if (!token) token = await requestAuth(interactive === true);
+      var res = await uploadBackup(token);
+      if (window.toast) window.toast('Backup Drive OK: '+res.name, 'ok');
+      console.log('[PSM-Drive] backup OK', res);
+      return {ok:true, file:res};
+    } catch(e){
+      console.warn('[PSM-Drive] backup fail', e);
+      if (window.psmSentryCapture) window.psmSentryCapture(e, {where:'drive-backup'});
+      if (window.toast) window.toast('Backup Drive falhou: '+e.message, 'err');
+      return {ok:false, err:e};
+    }
+  };
+
+  // Auto-backup 6h se autorizado
+  function scheduleAutoBackup(){
+    try {
+      var raw = localStorage.getItem(LAST_BACKUP_KEY);
+      var last = raw ? JSON.parse(raw).ts : 0;
+      var elapsed = Date.now() - last;
+      if (getValidToken() && elapsed > BACKUP_INTERVAL){
+        window.psmDriveBackup(false);
+      }
+    } catch(_){}
+  }
+  setInterval(scheduleAutoBackup, 10 * 60 * 1000); // checa a cada 10min
+  setTimeout(scheduleAutoBackup, 30 * 1000); // primeira checagem 30s apos load
+
+  console.log('[PSM-Drive] modulo pronto (client_id', CLIENT_ID.slice(0,20)+'...)');
+})();
+</script>
+
+<!-- ═════════ v22n — DRIVE RESTORE + ROTATION + INDICADOR ═════════ -->
+<script>
+(function(){
+  'use strict';
+  var FOLDER_NAME = 'PSM-OS-Backups';
+  var MAX_BACKUPS = 30;
+
+  // Restaurar do Drive: lista backups, usuario escolhe, baixa, confirma, aplica
+  window.psmDriveRestore = async function(){
+    try {
+      var tokRaw = localStorage.getItem('psm_drive_token');
+      if (!tokRaw){ if (window.psmAlert) psmAlert('Autorize o Drive primeiro (psmDriveBackup)'); return; }
+      var tok = JSON.parse(tokRaw).token;
+
+      // 1. acha folder
+      var q = encodeURIComponent("name='"+FOLDER_NAME+"' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+      var r1 = await fetch('https://www.googleapis.com/drive/v3/files?q='+q, {headers:{Authorization:'Bearer '+tok}});
+      var j1 = await r1.json();
+      if (!j1.files || !j1.files.length){ psmAlert('Pasta PSM-OS-Backups nao encontrada'); return; }
+      var folderId = j1.files[0].id;
+
+      // 2. lista backups
+      var q2 = encodeURIComponent("'"+folderId+"' in parents and trashed=false");
+      var r2 = await fetch('https://www.googleapis.com/drive/v3/files?q='+q2+'&fields=files(id,name,createdTime)&orderBy=createdTime%20desc&pageSize=30', {headers:{Authorization:'Bearer '+tok}});
+      var j2 = await r2.json();
+      if (!j2.files || !j2.files.length){ psmAlert('Nenhum backup encontrado'); return; }
+
+      // 3. prompt escolha (ultimos 5)
+      var opcoes = j2.files.slice(0,10).map(function(f,i){ return (i+1)+'. '+f.name.replace('psm-os-backup-','').replace('.json',''); }).join('\n');
+      var escolha = await psmPrompt('Qual backup restaurar? (numero 1-'+Math.min(10,j2.files.length)+')\n\n'+opcoes, '1');
+      if (!escolha) return;
+      var idx = parseInt(escolha,10)-1;
+      if (isNaN(idx) || idx<0 || idx>=j2.files.length){ psmAlert('Numero invalido'); return; }
+      var file = j2.files[idx];
+
+      // 4. confirma
+      var ok = await psmConfirm('Restaurar '+file.name+'?\n\nISSO VAI SOBRESCREVER SEU ESTADO ATUAL.\nRecomendado: faca backup agora antes (psmDriveBackup) caso queira voltar.');
+      if (!ok) return;
+
+      // 5. baixa e aplica
+      var r3 = await fetch('https://www.googleapis.com/drive/v3/files/'+file.id+'?alt=media', {headers:{Authorization:'Bearer '+tok}});
+      var snap = await r3.json();
+      if (!snap.state){ psmAlert('Arquivo invalido'); return; }
+      localStorage.setItem('psm_os_state_v1', JSON.stringify(snap.state));
+      if (window.psmSentryCapture) window.psmSentryCapture(new Error('drive restore applied'), {file:file.name});
+      psmAlert('Restaurado. Pagina sera recarregada.');
+      setTimeout(function(){ location.reload(); }, 1500);
+    } catch(e){
+      console.warn('[PSM-Drive] restore fail', e);
+      if (window.psmSentryCapture) window.psmSentryCapture(e, {where:'drive-restore'});
+      psmAlert('Falha ao restaurar: '+e.message);
+    }
+  };
+
+  // Rotacao: ao final de cada backup, remove excedentes (mantem 30 mais recentes)
+  window.psmDriveRotate = async function(){
+    try {
+      var tokRaw = localStorage.getItem('psm_drive_token');
+      if (!tokRaw) return;
+      var tok = JSON.parse(tokRaw).token;
+      var q = encodeURIComponent("name='"+FOLDER_NAME+"' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+      var r1 = await fetch('https://www.googleapis.com/drive/v3/files?q='+q, {headers:{Authorization:'Bearer '+tok}});
+      var j1 = await r1.json();
+      if (!j1.files || !j1.files.length) return;
+      var folderId = j1.files[0].id;
+      var q2 = encodeURIComponent("'"+folderId+"' in parents and trashed=false");
+      var r2 = await fetch('https://www.googleapis.com/drive/v3/files?q='+q2+'&fields=files(id,name,createdTime)&orderBy=createdTime%20desc&pageSize=100', {headers:{Authorization:'Bearer '+tok}});
+      var j2 = await r2.json();
+      if (!j2.files || j2.files.length <= MAX_BACKUPS) return;
+      var remover = j2.files.slice(MAX_BACKUPS);
+      for (var i=0;i<remover.length;i++){
+        await fetch('https://www.googleapis.com/drive/v3/files/'+remover[i].id, {method:'DELETE', headers:{Authorization:'Bearer '+tok}});
+      }
+      console.log('[PSM-Drive] rotacao: '+remover.length+' backups antigos removidos');
+    } catch(e){ console.warn('[PSM-Drive] rotate fail', e); }
+  };
+
+  // Engancha rotacao ao backup bem-sucedido
+  var origBackup = window.psmDriveBackup;
+  window.psmDriveBackup = async function(interactive){
+    var res = await origBackup(interactive);
+    if (res && res.ok){ setTimeout(window.psmDriveRotate, 3000); }
+    return res;
+  };
+
+  // Indicador rodape: "Ultimo backup Drive: HH:MM"
+  function updateFooter(){
+    var el = document.getElementById('psm-drive-footer');
+    if (!el){
+      el = document.createElement('div');
+      el.id = 'psm-drive-footer';
+      el.style.cssText = 'position:fixed;left:14px;bottom:14px;z-index:99997;background:rgba(15,23,42,0.75);backdrop-filter:blur(6px);color:#94a3b8;padding:6px 12px;border-radius:8px;border:1px solid rgba(148,163,184,.25);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:10px;letter-spacing:.5px;cursor:pointer;user-select:none';
+      el.title = 'Clique para backup agora';
+      el.onclick = function(){ if (window.psmDriveBackup) psmDriveBackup(true); };
+      document.body.appendChild(el);
+    }
+    try {
+      var raw = localStorage.getItem('psm_drive_last_backup');
+      if (!raw){ el.textContent = '☁ Drive: nao autorizado'; el.style.color='#64748b'; return; }
+      var t = JSON.parse(raw).ts;
+      var mins = Math.floor((Date.now()-t)/60000);
+      var txt;
+      if (mins < 1) txt = 'agora';
+      else if (mins < 60) txt = mins+'min atras';
+      else if (mins < 1440) txt = Math.floor(mins/60)+'h atras';
+      else txt = Math.floor(mins/1440)+'d atras';
+      el.textContent = '☁ Drive: '+txt;
+      el.style.color = mins < 60*24 ? '#d4a843' : '#ef4444';
+    } catch(_){}
+  }
+  setInterval(updateFooter, 60*1000);
+  setTimeout(updateFooter, 5000);
+
+  console.log('[PSM-Drive v22n] restore + rotate + footer prontos');
+})();
+</script>
+
+<!-- ═════════ v22n — SUPABASE-FIRST LOGIN ═════════ -->
+<script>
+(function(){
+  'use strict';
+  // Wrapper que tenta Supabase primeiro, fallback para local
+  window.psmLoginSupaFirst = async function(email, senha){
+    try {
+      if (window.psmSupabase && window.psmSupabase.signIn){
+        var r = await window.psmSupabase.signIn(email, senha);
+        if (r && r.data && r.data.user){
+          console.log('[PSM-Login] autenticado via Supabase:', email);
+          return {via:'supabase', user:r.data.user};
+        }
+        if (r && r.error){
+          console.log('[PSM-Login] Supabase recusou, tentando local:', r.error.message);
+        }
+      }
+    } catch(e){
+      console.warn('[PSM-Login] Supabase erro, fallback local', e);
+    }
+    // Fallback: se _localLogin existir, chama
+    if (typeof window._localLogin === 'function'){
+      var r2 = await window._localLogin(email, senha);
+      return r2 ? {via:'local', user:r2} : null;
+    }
+    return null;
+  };
+  console.log('[PSM-Login v22n] wrapper Supabase-first pronto');
+})();
+</script>
+
+<!-- ═════════ v23.1 — PAINEL IA Runner (Dashboard Executivo) ═════════ -->
+<script>
+(function(){
+  'use strict';
+  window.psmIARodar = async function(){
+    var el = document.getElementById('psm-ia-painel');
+    if (!el) return;
+    if (!window.psmIA){ el.textContent = '\u26A0 psmIA nao carregou (ver console)'; return; }
+    var key = (window.S && window.S.connectors && window.S.connectors.gemini_key) || '';
+    if (!key){ el.innerHTML = '\u26A0 Configure API Key Gemini em <a href="#" onclick="nav(\'config\');return false" style="color:var(--navy);font-weight:700">Configura\u00e7\u00f5es \u2192 Conectores</a>'; return; }
+    el.innerHTML = '\u23F3 Analisando com Gemini... (10-20s)';
+    try {
+      var m = (typeof getMetricas === 'function') ? getMetricas() : {};
+      var atual = {
+        vgv_real: m.vgv_real || 0,
+        vgv_meta: m.vgv_meta || 0,
+        vendas: (typeof fVENDAS !== 'undefined' ? fVENDAS.length : 0),
+        du_pass: m.du_pass || 0,
+        du_tot:  m.du_tot || 0,
+        mes: m.mes || new Date().toLocaleString('pt-BR',{month:'long'})
+      };
+      // Historico: usa S.historicoMensal se existir, senao mock vazio
+      var hist = (window.S && window.S.historicoMensal) ? window.S.historicoMensal.slice(-6) : [];
+      var prev = await window.psmIA.preverVenda(hist, atual);
+      var sug = await window.psmIA.sugerirAcoes({
+        funil_atual: atual,
+        meta_mes: atual.vgv_meta,
+        dias_restantes: (atual.du_tot - atual.du_pass),
+        vendas_feitas: atual.vendas
+      });
+      var prevCor = prev.confianca==='alta' ? '#22c55e' : prev.confianca==='media' ? '#d97706' : '#ef4444';
+      var h = '<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;align-items:start">';
+      // Previsao
+      h += '<div style="padding:12px;background:linear-gradient(135deg,#1e1b4b,#312e81);color:#fff;border-radius:10px">';
+      h +=   '<div style="font-size:10px;color:#c4b5fd;text-transform:uppercase;letter-spacing:0.6px">Previsao fim do mes</div>';
+      h +=   '<div style="font-size:24px;font-weight:800;margin:4px 0">R$ '+(prev.previsto||0).toLocaleString('pt-BR')+'</div>';
+      h +=   '<div style="font-size:10px;color:'+prevCor+';font-weight:700;text-transform:uppercase">Confianca: '+(prev.confianca||'—')+'</div>';
+      h +=   '<div style="font-size:10.5px;color:#ddd6fe;margin-top:8px;line-height:1.4">'+(prev.base||'')+'</div>';
+      if (prev.risco) h += '<div style="font-size:10px;color:#fca5a5;margin-top:6px">\u26A0 '+prev.risco+'</div>';
+      h += '</div>';
+      // Sugestoes
+      h += '<div><div style="font-size:11px;color:var(--navy);font-weight:700;margin-bottom:8px">\uD83D\uDCA1 Acoes sugeridas para bater meta:</div>';
+      var arr = Array.isArray(sug) ? sug : [];
+      if (!arr.length) h += '<div style="font-size:11px;color:var(--muted)">Sem sugestoes (IA nao retornou lista).</div>';
+      arr.forEach(function(a, i){
+        var pCor = a.prioridade==='alta' ? '#ef4444' : a.prioridade==='media' ? '#d97706' : '#64748b';
+        h += '<div style="display:flex;gap:10px;padding:8px 10px;background:var(--cream2);border-radius:8px;margin-bottom:6px;border-left:3px solid '+pCor+'">';
+        h +=   '<div style="font-size:16px;font-weight:800;color:'+pCor+';min-width:22px">'+(i+1)+'</div>';
+        h +=   '<div style="flex:1"><div style="font-size:12px;color:var(--navy);font-weight:600">'+(a.acao||'')+'</div>';
+        h +=     '<div style="font-size:10px;color:var(--muted);margin-top:2px">Prioridade: <strong style="color:'+pCor+'">'+(a.prioridade||'—')+'</strong> \u00B7 Impacto: '+(a.impacto_esperado||'—')+'</div>';
+        h +=   '</div>';
+        h += '</div>';
+      });
+      h += '</div></div>';
+      h += '<div style="margin-top:8px;font-size:9.5px;color:var(--muted);text-align:right">Gerado via Gemini 2.0 Flash \u00B7 '+new Date().toLocaleString('pt-BR')+'</div>';
+      el.innerHTML = h;
+    } catch(e){
+      el.innerHTML = '\u274C IA falhou: '+(e.message||e);
+      if (window.Sentry) window.Sentry.captureException(e);
+    }
+  };
+  console.log('[PSM-IA v23.1] psmIARodar pronto');
+})();
+</script>
+
+<!-- ═════════ v23.2 — ANALISE IA EQUIPE (health panel) ═════════ -->
+<script>
+(function(){
+  'use strict';
+  window.psmAnaliseIAEquipe = async function(){
+    if (!window.psmIA){ toast && toast('IA nao carregada','err'); return; }
+    var key = (window.S && window.S.connectors && window.S.connectors.gemini_key) || '';
+    if (!key){ toast && toast('Configure Gemini em Conectores','err'); return; }
+    var brokers = (typeof BROKERS !== 'undefined' ? BROKERS : []).slice(0, 8); // top 8 para nao estourar quota
+    if (!brokers.length){ toast && toast('Sem corretores ativos','warn'); return; }
+    // Modal loading
+    var mid = 'psm-ia-equipe';
+    var prev = document.getElementById(mid); if (prev) prev.remove();
+    var w = document.createElement('div');
+    w.id = mid; w.className = 'psm-modal-bd';
+    w.innerHTML = '<div class="psm-modal" style="max-width:720px"><h3>\uD83E\uDD16 An\u00e1lise IA da Equipe</h3>'
+      + '<div id="psm-ia-eq-body" style="padding:16px;max-height:500px;overflow-y:auto"><div style="text-align:center;padding:24px;color:#64748b">\u23F3 Analisando '+brokers.length+' corretores via Gemini...</div></div>'
+      + '<div style="padding:12px 16px;border-top:1px solid #e2e8f0;background:#f8fafc;text-align:right"><button onclick="document.getElementById(\''+mid+'\').remove()" style="padding:8px 14px;background:#fff;border:1.5px solid #cbd5e1;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Fechar</button></div>'
+      + '</div>';
+    w.onclick = function(e){ if(e.target===w) w.remove(); };
+    document.body.appendChild(w);
+    var body = document.getElementById('psm-ia-eq-body');
+    // Monta payload por broker (ultimas 4 semanas baseado em VENDAS)
+    var now = Date.now(), ms7 = 7*24*3600*1000;
+    var tasks = brokers.map(function(b){
+      var semanas = [];
+      for (var k=3; k>=0; k--){
+        var ini = now - (k+1)*ms7, fim = now - k*ms7;
+        var vs = (typeof VENDAS !== 'undefined' ? VENDAS : []).filter(function(v){
+          var t = v.dt ? new Date(v.dt).getTime() : 0;
+          return v.bid===b.id && t>=ini && t<fim;
+        });
+        var vgv = vs.reduce(function(a,v){return a+(v.vgv||0);},0);
+        semanas.push({semana:'S-'+k, vendas:vs.length, leads:0, vgv:vgv});
+      }
+      return window.psmIA.alertaPerformance({nome:b.name, semanas:semanas})
+        .then(function(r){ return {broker:b, result:r}; })
+        .catch(function(e){ return {broker:b, result:{erro:true, mensagem:e.message}}; });
+    });
+    var all = await Promise.all(tasks);
+    // Render
+    var h = '';
+    all.forEach(function(x){
+      var r = x.result || {};
+      var cor = r.severidade==='high' ? '#ef4444' : r.severidade==='med' ? '#d97706' : r.alerta ? '#d97706' : '#22c55e';
+      var ico = r.alerta ? (r.severidade==='high' ? '\uD83D\uDEA8' : '\u26A0') : '\u2705';
+      h += '<div style="padding:12px 14px;border-left:4px solid '+cor+';background:#f8fafc;border-radius:8px;margin-bottom:10px">';
+      h +=   '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">';
+      h +=     '<span style="font-size:18px">'+ico+'</span>';
+      h +=     '<strong style="flex:1;color:#0f172a">'+x.broker.name+'</strong>';
+      h +=     '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:'+cor+';color:#fff;text-transform:uppercase">'+(r.severidade||(r.alerta?'alerta':'ok'))+'</span>';
+      h +=   '</div>';
+      h +=   '<div style="font-size:12px;color:#334155;margin-bottom:4px">'+(r.mensagem||'Sem observacao')+'</div>';
+      if (r.recomendacao) h += '<div style="font-size:11px;color:#64748b"><strong style="color:#7c3aed">\uD83D\uDCA1 Recomendacao:</strong> '+r.recomendacao+'</div>';
+      h += '</div>';
+    });
+    body.innerHTML = h + '<div style="text-align:right;font-size:9.5px;color:#94a3b8;margin-top:8px">Gemini 2.0 Flash \u00B7 '+new Date().toLocaleString('pt-BR')+'</div>';
+  };
+  console.log('[PSM-IA v23.2] psmAnaliseIAEquipe pronto');
+})();
 </script>
 </body>
 </html>
