@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v26.2 — Sprint divida tecnica: 147 catches +error, render rAF debounce, parseInt radix, XSS escape, touch targets, dead code purge, Sentry release auto -->
+<!-- PSM-OS v2026.04.21-v26.4 — Multi-IA (Claude/Gemini/GPT) + 4 Personas (Vera, Sol, Sr Performance, Sr Gerencia) -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.21-v26.2">
+<meta name="version" content="2026.04.21-v26.4">
 <!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
@@ -23192,7 +23192,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v26.2</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v26.4</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -27125,21 +27125,27 @@ function psmRdcExportCSV(){
   var a = document.createElement('a'); a.href=url; a.download='psm_radar_concorrencia_'+Date.now()+'.csv'; a.click();
 }
 
-// ─── v26.1 BI SOCIO (lvl 10) ───────────────────────────────────────────────
-// Lucro/corretor, ROI canal, Forecast 6m IA, Comparativo mercado SJRP
+// ─── v26.2 BI SOCIO (lvl 10) — fix comissao caso a caso ────────────────────
+// Lucro/corretor, ROI canal, Forecast 6m IA, Mercado SJRP (disclaimer)
 function pgBiSocio(){
-  var pct = (S.comissaoPct || 6) / 100;
-  var custoFixo = 3500; // custo medio corretor (CLT-PJ-station) — editavel v26.2
+  // v26.2: default 4% (PSM real), override por venda em v.comissaoPct
+  var pctDefault = (S.comissaoPct || 4) / 100;
+  var custoFixo = (S.cfgBiSocio && S.cfgBiSocio.custoFixo) || 3500;
   var brokers = (typeof UM !== 'undefined' && UM) ? Object.keys(UM) : [];
   var rows = [];
   var total = {vgv:0, comissao:0, custo:0, lucro:0};
   brokers.forEach(function(bid){
     var u = UM[bid]; if(!u || u.oculto) return;
     var m; try { m = getMetricas(bid, 'dash'); } catch(e){ return; }
-    var comissao = m.vgv_real * pct;
-    var lucro = comissao - custoFixo;
-    total.vgv += m.vgv_real; total.comissao += comissao; total.custo += custoFixo; total.lucro += lucro;
-    rows.push({nome:u.name||bid, vgv:m.vgv_real, vendas:m.vendas, comissao:comissao, lucro:lucro});
+    // v26.2: comissao caso a caso — soma por venda
+    var comissaoTotal = 0;
+    (m._won || []).forEach(function(v){
+      var p = (v.comissaoPct != null ? v.comissaoPct : pctDefault*100) / 100;
+      comissaoTotal += (v.vgv || 0) * p;
+    });
+    var lucro = comissaoTotal - custoFixo;
+    total.vgv += m.vgv_real; total.comissao += comissaoTotal; total.custo += custoFixo; total.lucro += lucro;
+    rows.push({nome:u.name||bid, vgv:m.vgv_real, vendas:m.vendas, comissao:comissaoTotal, lucro:lucro});
   });
   rows.sort(function(a,b){ return b.lucro - a.lucro; });
 
@@ -27148,7 +27154,7 @@ function pgBiSocio(){
   // ── Card 1: Lucro por Corretor ────────────────────────────────────────
   var c1 = '<div class="card" style="margin-bottom:14px">'
     + '<div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:10px">\uD83D\uDCB0 Lucro por Corretor (mes vigente)</div>'
-    + '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">Comissao '+(pct*100)+'% \u00b7 Custo fixo '+fmtBR(custoFixo)+'/corretor</div>'
+    + '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">Comissao '+(pctDefault*100)+'% padrao (caso a caso via venda.comissaoPct) \u00b7 Custo fixo '+fmtBR(custoFixo)+'/corretor</div>'
     + '<div style="overflow-x:auto"><table style="width:100%;font-size:11.5px;border-collapse:collapse">'
     + '<thead><tr style="background:var(--cream2);text-align:left">'
     + '<th style="padding:8px">Corretor</th><th style="padding:8px">Vendas</th><th style="padding:8px">VGV</th>'
@@ -27191,7 +27197,7 @@ function pgBiSocio(){
     var c = canais[k];
     c.canal = k;
     c.conv = c.leads>0 ? (c.vendas/c.leads*100).toFixed(1) : '0.0';
-    c.comissao = c.vgv * pct;
+    c.comissao = c.vgv * pctDefault;
     return c;
   }).sort(function(a,b){ return b.comissao - a.comissao; });
 
@@ -27232,26 +27238,31 @@ function pgBiSocio(){
     + '<button class="btn bp1 bsm" onclick="psmBiForecast6m()">\u26A1 Gerar Forecast 6m</button>'
     + '<div id="psm-bi-forecast-out">'+forecastHtml+'</div></div>';
 
-  // ── Card 4: Comparativo mercado SJRP ──────────────────────────────────
-  // Benchmarks SECOVI/CBIC/FipeZap SJRP 2025-2026 (estimativas conservadoras)
+  // ── Card 4: Self-benchmark PSM (v26.3 — sem dados falsos) ─────────────
+  // ATENCAO: removidos benchmarks externos SECOVI/CBIC/FipeZap (eram estimativas, nao dados reais).
+  // v26.4 vai integrar feed real (CBIC API ou scrape mensal).
+  var totVendas = rows.reduce(function(a,r){return a+r.vendas;},0);
+  var totLeads = allOpps.length;
+  var ticketMedio = totVendas>0 ? total.vgv/totVendas : 0;
+  var convGlobal = totLeads>0 ? (totVendas/totLeads*100).toFixed(1) : '0.0';
   var bench = [
-    {ind:'Ticket medio residencial SJRP', merc:'R$ 480k', psm:fmtBR(total.vgv/Math.max(1,rows.reduce(function(a,r){return a+r.vendas;},0)))},
-    {ind:'Conversao lead->venda (mercado)', merc:'2,8%', psm:'ver Card 2 por canal'},
-    {ind:'Tempo medio ciclo venda', merc:'45 dias', psm:'ver Radar ciclo'},
-    {ind:'Crescimento VGV YoY SJRP', merc:'+8,4%', psm:'calc v26.3'},
-    {ind:'Share MCMV no residencial', merc:'62%', psm:'PSM Conquista'}
+    {ind:'Ticket medio PSM (mes)', val:fmtBR(ticketMedio)},
+    {ind:'Conversao global lead->venda', val:convGlobal+'%'},
+    {ind:'Total vendas no mes', val:totVendas+''},
+    {ind:'VGV total realizado', val:fmtBR(total.vgv)},
+    {ind:'Comissao total (caso a caso)', val:fmtBR(total.comissao)},
+    {ind:'Lucro liquido (- custo fixo)', val:fmtBR(total.lucro)}
   ];
   var c4 = '<div class="card" style="margin-bottom:14px">'
-    + '<div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:10px">\uD83C\uDFD9\uFE0F Comparativo Mercado SJRP</div>'
-    + '<div style="font-size:10px;color:var(--muted);margin-bottom:8px">Fonte: SECOVI-SP / CBIC / FipeZap (benchmarks 2025-2026)</div>'
+    + '<div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:10px">\uD83D\uDCC8 Self-benchmark PSM</div>'
+    + '<div style="font-size:10px;color:#b00020;margin-bottom:8px">\u26A0\uFE0F Benchmarks externos (SECOVI/CBIC/FipeZap) removidos em v26.3 — eram estimativas, nao dados reais. Integracao oficial planejada v26.4.</div>'
     + '<table style="width:100%;font-size:11.5px;border-collapse:collapse">'
     + '<thead><tr style="background:var(--cream2);text-align:left">'
-    + '<th style="padding:8px">Indicador</th><th style="padding:8px">Mercado SJRP</th><th style="padding:8px">PSM</th></tr></thead><tbody>';
+    + '<th style="padding:8px">Indicador interno</th><th style="padding:8px">Valor</th></tr></thead><tbody>';
   bench.forEach(function(b){
     c4 += '<tr style="border-top:1px solid var(--cream3)">'
       + '<td style="padding:7px">'+b.ind+'</td>'
-      + '<td style="padding:7px">'+b.merc+'</td>'
-      + '<td style="padding:7px;font-weight:700">'+b.psm+'</td></tr>';
+      + '<td style="padding:7px;font-weight:700">'+b.val+'</td></tr>';
   });
   c4 += '</tbody></table></div>';
 
@@ -29150,15 +29161,16 @@ document.addEventListener('keydown', function(e){
     if (!window.psmIA){ el.textContent = '\u26A0 psmIA nao carregou (ver console)'; return; }
     var key = (window.S && window.S.connectors && window.S.connectors.gemini_key) || '';
     if (!key){ el.innerHTML = '\u26A0 Configure API Key Gemini em <a href="#" onclick="nav(\'config\');return false" style="color:var(--navy);font-weight:700">Configura\u00e7\u00f5es \u2192 Conectores</a>'; return; }
-    el.innerHTML = '\u23F3 Analisando com Gemini... (10-20s)';
+    el.innerHTML = '\u23F3 Analisando com Gemini... (10-25s)';
     try {
-      var m = (typeof getMetricas === 'function') ? getMetricas() : {};
+      // v26.3: usa getMetricasGlobal (visao agregada) em vez de getMetricas() sem args
+      var m = (typeof getMetricasGlobal === 'function') ? getMetricasGlobal('dash') : {};
       var atual = {
         vgv_real: m.vgv_real || 0,
         vgv_meta: m.vgv_meta || 0,
-        vendas: (typeof fVENDAS !== 'undefined' ? fVENDAS.length : 0),
+        vendas: (typeof fVENDAS !== 'undefined' ? fVENDAS.length : (m.vendas||0)),
         du_pass: m.du_pass || 0,
-        du_tot:  m.du_tot || 0,
+        du_tot:  m.du_tot || 22,
         mes: m.mes || new Date().toLocaleString('pt-BR',{month:'long'})
       };
       // Historico: usa S.historicoMensal se existir, senao mock vazio
