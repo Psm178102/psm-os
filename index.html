@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v23.2 — v23.1 + Analise IA Equipe batch (health panel) -->
+<!-- PSM-OS v2026.04.21-v23.3 — v23.1 + Analise IA Equipe batch (health panel) -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.21-v23.2">
+<meta name="version" content="2026.04.21-v23.3">
 <!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
@@ -2680,9 +2680,14 @@ function pgDashboard(){
 
   // ── v23.1 PAINEL IA — Previsao + Alertas + Sugestoes ──
   h+='<div class="card" style="margin-bottom:16px;border-left:4px solid #8b5cf6">';
-  h+='<div class="ctitle" style="display:flex;align-items:center;gap:8px;justify-content:space-between">';
+  h+='<div class="ctitle" style="display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap">';
   h+='<span>\uD83E\uDD16 IA Sr. Performance</span>';
-  h+='<button class="btn bp1 bsm" onclick="psmIARodar()">\u26A1 Rodar IA Agora</button>';
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  h+='<button class="btn bp1 bsm" onclick="psmIARodar()">\u26A1 Rodar IA</button>';
+  h+='<button class="btn bout bsm" onclick="psmScoreLeads()">\uD83C\uDFAF Score Leads</button>';
+  h+='<button class="btn bout bsm" onclick="psmHistoricoIA()">\uD83D\uDCCA Historico</button>';
+  h+='<button class="btn bout bsm" onclick="psmExportarIAPDF()">\uD83D\uDCC4 PDF</button>';
+  h+='</div>';
   h+='</div>';
   h+='<div id="psm-ia-painel" style="padding:4px 0;font-size:12px;color:var(--muted)">\u23F3 Clique "Rodar IA" para analise preditiva (previsao mes + alertas + sugestoes).</div>';
   h+='</div>';
@@ -23192,7 +23197,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v23.2</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v23.3</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -28529,7 +28534,7 @@ window.psmEscape = function(s){
       window.Sentry.init({
         dsn: dsn,
         environment: 'production',
-        release: 'psm-os-v23.2',
+        release: 'psm-os-v23.3',
         tracesSampleRate: 0.1,
         beforeSend: function(event){
           // Nao envia console.log/warn, so erros de verdade
@@ -28980,6 +28985,14 @@ document.addEventListener('keydown', function(e){
         dias_restantes: (atual.du_tot - atual.du_pass),
         vendas_feitas: atual.vendas
       });
+      // v23.3: salvar em historico
+      try {
+        var hk = 'psm_ia_historico';
+        var arr = JSON.parse(localStorage.getItem(hk) || '[]');
+        arr.unshift({ at: Date.now(), mes: atual.mes, du_pass: atual.du_pass, du_tot: atual.du_tot, vgv_real: atual.vgv_real, vgv_meta: atual.vgv_meta, previsao: prev, sugestoes: sug });
+        if (arr.length > 60) arr = arr.slice(0, 60);
+        localStorage.setItem(hk, JSON.stringify(arr));
+      } catch(_){}
       var prevCor = prev.confianca==='alta' ? '#22c55e' : prev.confianca==='media' ? '#d97706' : '#ef4444';
       var h = '<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;align-items:start">';
       // Previsao
@@ -29074,6 +29087,157 @@ document.addEventListener('keydown', function(e){
     body.innerHTML = h + '<div style="text-align:right;font-size:9.5px;color:#94a3b8;margin-top:8px">Gemini 2.0 Flash \u00B7 '+new Date().toLocaleString('pt-BR')+'</div>';
   };
   console.log('[PSM-IA v23.2] psmAnaliseIAEquipe pronto');
+})();
+</script>
+
+<!-- ═════════ v23.3 — SCORE LEADS + HISTORICO + EXPORT PDF ═════════ -->
+<script>
+(function(){
+  'use strict';
+
+  // ── 1. SCORE LEADS (modal com oportunidades + botao Score IA por linha) ──
+  window.psmScoreLeads = async function(){
+    if (!window.psmIA){ if(window.toast)toast('IA nao carregada','err'); return; }
+    var key = (window.S && window.S.connectors && window.S.connectors.gemini_key) || '';
+    if (!key){ if(window.toast)toast('Configure Gemini em Conectores','err'); return; }
+    var opps = (typeof OPPS !== 'undefined' ? OPPS : []).slice(0, 30); // top 30 opps
+    if (!opps.length){ if(window.toast)toast('Sem oportunidades','warn'); return; }
+    var mid = 'psm-score-leads';
+    var prev = document.getElementById(mid); if (prev) prev.remove();
+    var w = document.createElement('div');
+    w.id = mid; w.className = 'psm-modal-bd';
+    var headerBtns = '<button onclick="psmScoreLeadsBatch()" style="padding:6px 12px;background:#8b5cf6;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px">\uD83C\uDFAF Score Todos (top 10)</button>'
+      + '<button onclick="document.getElementById(\''+mid+'\').remove()" style="padding:6px 12px;background:#fff;color:#475569;border:1.5px solid #cbd5e1;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Fechar</button>';
+    var rows = opps.map(function(o, i){
+      var nome = (o.cl||o.titulo||'Lead '+(i+1));
+      var vgv = o.vgv?('R$ '+o.vgv.toLocaleString('pt-BR')):'—';
+      var st = o.st||'—';
+      var bn = o.bn||'—';
+      var oid = 'opp-score-'+i;
+      return '<tr><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#0f172a">'+nome+'</td>'
+        + '<td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;color:#334155">'+bn+'</td>'
+        + '<td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;text-align:right;color:#0f172a">'+vgv+'</td>'
+        + '<td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">'+st+'</td>'
+        + '<td id="'+oid+'" style="padding:7px 8px;border-bottom:1px solid #f1f5f9;text-align:center">'
+        +   '<button onclick="psmScorarOpp('+i+',\''+oid+'\')" style="padding:4px 10px;background:#8b5cf6;color:#fff;border:none;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer">Score IA</button>'
+        + '</td></tr>';
+    }).join('');
+    w.innerHTML = '<div class="psm-modal" style="max-width:880px">'
+      + '<h3 style="display:flex;align-items:center;justify-content:space-between">\uD83C\uDFAF Score IA de Leads <div>'+headerBtns+'</div></h3>'
+      + '<div style="padding:0;max-height:520px;overflow-y:auto">'
+      +   '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      +     '<thead><tr style="background:#f8fafc"><th style="text-align:left;padding:8px">Lead</th><th style="text-align:left;padding:8px">Corretor</th><th style="text-align:right;padding:8px">VGV</th><th style="text-align:left;padding:8px">Etapa</th><th style="padding:8px">IA</th></tr></thead>'
+      +     '<tbody>'+rows+'</tbody>'
+      +   '</table>'
+      + '</div></div>';
+    w.onclick = function(e){ if(e.target===w) w.remove(); };
+    document.body.appendChild(w);
+    window._psmScoreOpps = opps; // cache para psmScorarOpp
+  };
+
+  window.psmScorarOpp = async function(idx, cellId){
+    var opps = window._psmScoreOpps || [];
+    var o = opps[idx]; if (!o) return;
+    var cell = document.getElementById(cellId);
+    if (!cell) return;
+    cell.innerHTML = '<span style="font-size:10px;color:#64748b">\u23F3...</span>';
+    var lead = {
+      nome: o.cl||o.titulo||'Lead',
+      fonte: o.fonte||o.src||'—',
+      dias_funil: o.dnu||o.idade||0,
+      interacoes: o.intc||o.ints||0,
+      orcamento: o.vgv||0,
+      regiao: o.regiao||o.cidade||'SJRP',
+      etapa: o.st||'—'
+    };
+    try {
+      var r = await window.psmIA.scoreLead(lead);
+      var s = r.score||50;
+      var cor = s>=80 ? '#22c55e' : s>=60 ? '#d97706' : s>=40 ? '#f59e0b' : '#ef4444';
+      cell.innerHTML = '<div style="display:inline-block;padding:4px 10px;background:'+cor+';color:#fff;border-radius:6px;font-weight:800;font-size:11px" title="'+(r.motivo||'').replace(/"/g,"&quot;")+'\n\n\u27A1 '+(r.proxima_acao||'')+'">'+s+'</div>';
+    } catch(e){
+      cell.innerHTML = '<span style="font-size:10px;color:#ef4444">erro</span>';
+    }
+  };
+
+  window.psmScoreLeadsBatch = async function(){
+    var opps = window._psmScoreOpps || [];
+    var lote = opps.slice(0, 10);
+    for (var i=0; i<lote.length; i++){
+      await window.psmScorarOpp(i, 'opp-score-'+i);
+    }
+    if (window.toast) toast('Score batch concluido ('+lote.length+' leads)','ok');
+  };
+
+  // ── 2. HISTORICO DE PREVISOES ──
+  window.psmHistoricoIA = function(){
+    var arr = [];
+    try { arr = JSON.parse(localStorage.getItem('psm_ia_historico') || '[]'); } catch(_){}
+    var mid = 'psm-ia-hist';
+    var prev = document.getElementById(mid); if (prev) prev.remove();
+    var w = document.createElement('div');
+    w.id = mid; w.className = 'psm-modal-bd';
+    var body = '';
+    if (!arr.length){
+      body = '<div style="padding:30px;text-align:center;color:#64748b">Nenhuma previsao registrada ainda.<br><br>Clique \"\u26A1 Rodar IA\" para gerar a primeira.</div>';
+    } else {
+      body = '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+        + '<thead><tr style="background:#f8fafc"><th style="text-align:left;padding:8px">Data</th><th style="text-align:left;padding:8px">Mes</th><th style="text-align:right;padding:8px">Previsto</th><th style="text-align:right;padding:8px">Realizado (hoje)</th><th style="text-align:left;padding:8px">Confianca</th><th style="text-align:left;padding:8px">Delta</th></tr></thead><tbody>';
+      arr.forEach(function(h){
+        var prev = (h.previsao&&h.previsao.previsto)||0;
+        var real = h.vgv_real||0;
+        var delta = prev>0 ? ((real-prev)/prev*100).toFixed(1) : '—';
+        var dCor = delta==='—' ? '#64748b' : (Math.abs(parseFloat(delta))<=10 ? '#22c55e' : Math.abs(parseFloat(delta))<=25 ? '#d97706' : '#ef4444');
+        body += '<tr>'
+          + '<td style="padding:7px 8px;border-bottom:1px solid #f1f5f9">'+new Date(h.at).toLocaleString('pt-BR')+'</td>'
+          + '<td style="padding:7px 8px;border-bottom:1px solid #f1f5f9">'+(h.mes||'—')+' ('+h.du_pass+'/'+h.du_tot+' DU)</td>'
+          + '<td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700">R$ '+prev.toLocaleString('pt-BR')+'</td>'
+          + '<td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;text-align:right">R$ '+real.toLocaleString('pt-BR')+'</td>'
+          + '<td style="padding:7px 8px;border-bottom:1px solid #f1f5f9"><span style="padding:2px 8px;border-radius:4px;background:#e0e7ff;color:#4338ca;font-size:10px;font-weight:700">'+((h.previsao&&h.previsao.confianca)||'—').toUpperCase()+'</span></td>'
+          + '<td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;color:'+dCor+';font-weight:700">'+(delta==='—'?'—':(delta+'%'))+'</td>'
+          + '</tr>';
+      });
+      body += '</tbody></table>';
+      body += '<div style="padding:10px 12px;font-size:10px;color:#64748b;background:#f8fafc;margin-top:10px;border-radius:6px"><strong>Delta = (Realizado-Previsto)/Previsto.</strong> Verde = erro &le;10%. Amarelo = &le;25%. Vermelho = &gt;25%.</div>';
+    }
+    w.innerHTML = '<div class="psm-modal" style="max-width:800px"><h3>\uD83D\uDCCA Historico de Previsoes IA</h3>'
+      + '<div style="padding:14px;max-height:500px;overflow-y:auto">'+body+'</div>'
+      + '<div style="padding:10px 14px;border-top:1px solid #e2e8f0;background:#f8fafc;text-align:right">'
+      +   '<button onclick="if(confirm(\'Limpar historico?\')){localStorage.removeItem(\'psm_ia_historico\');document.getElementById(\''+mid+'\').remove();psmHistoricoIA();}" style="padding:6px 12px;background:#fff;border:1.5px solid #ef4444;color:#ef4444;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;margin-right:6px">\uD83D\uDDD1 Limpar</button>'
+      +   '<button onclick="document.getElementById(\''+mid+'\').remove()" style="padding:6px 12px;background:#fff;border:1.5px solid #cbd5e1;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Fechar</button>'
+      + '</div></div>';
+    w.onclick = function(e){ if(e.target===w) w.remove(); };
+    document.body.appendChild(w);
+  };
+
+  // ── 3. EXPORT PDF da analise IA ──
+  window.psmExportarIAPDF = function(){
+    var painel = document.getElementById('psm-ia-painel');
+    if (!painel || !painel.textContent || painel.textContent.indexOf('Clique') >= 0){
+      if (window.toast) toast('Rode IA primeiro','warn'); return;
+    }
+    // Usa janela de impressao nativa (pdf sem dependencia externa)
+    var hist = [];
+    try { hist = JSON.parse(localStorage.getItem('psm_ia_historico') || '[]').slice(0,5); } catch(_){}
+    var histHtml = hist.length ? hist.map(function(h){
+      return '<tr><td>'+new Date(h.at).toLocaleDateString('pt-BR')+'</td><td>'+(h.mes||'—')+'</td><td style="text-align:right">R$ '+((h.previsao&&h.previsao.previsto)||0).toLocaleString('pt-BR')+'</td><td>'+((h.previsao&&h.previsao.confianca)||'—')+'</td></tr>';
+    }).join('') : '<tr><td colspan="4" style="text-align:center;color:#888">Sem historico</td></tr>';
+    var win = window.open('', '_blank');
+    win.document.write('<!DOCTYPE html><html><head><title>Analise IA PSM - '+new Date().toLocaleDateString('pt-BR')+'</title>'
+      + '<style>body{font-family:Arial,sans-serif;padding:30px;color:#0f172a;max-width:800px;margin:0 auto}h1{color:#1e1b4b;border-bottom:3px solid #8b5cf6;padding-bottom:10px}h2{color:#4338ca;margin-top:24px}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{padding:8px;border-bottom:1px solid #e2e8f0;text-align:left}th{background:#f8fafc}.painel{background:#f8fafc;border-left:4px solid #8b5cf6;padding:16px;border-radius:8px;margin:14px 0}.footer{margin-top:30px;padding-top:14px;border-top:1px solid #e2e8f0;font-size:10px;color:#64748b;text-align:center}</style></head><body>'
+      + '<h1>\uD83E\uDD16 Analise IA Sr. Performance</h1>'
+      + '<div style="color:#64748b;font-size:12px">Gerado em '+new Date().toLocaleString('pt-BR')+'</div>'
+      + '<h2>Analise Atual</h2>'
+      + '<div class="painel">'+painel.innerHTML+'</div>'
+      + '<h2>Historico de Previsoes (ultimas 5)</h2>'
+      + '<table><thead><tr><th>Data</th><th>Mes</th><th>Previsto</th><th>Confianca</th></tr></thead><tbody>'+histHtml+'</tbody></table>'
+      + '<div class="footer">PSM Assessoria Imobiliaria \u2022 IA Gemini 2.0 Flash \u2022 Analise preditiva</div>'
+      + '<scr'+'ipt>setTimeout(function(){window.print();},400);<\/scr'+'ipt>'
+      + '</body></html>');
+    win.document.close();
+  };
+
+  console.log('[PSM-IA v23.3] Score/Historico/PDF pronto');
 })();
 </script>
 </body>
