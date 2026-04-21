@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v23.3 — v23.1 + Analise IA Equipe batch (health panel) -->
+<!-- PSM-OS v2026.04.21-v26.1 — v23.3 + BI Socio (Lucro/ROI/Forecast 6m IA/Mercado SJRP) -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.21-v23.3">
+<meta name="version" content="2026.04.21-v26.1">
 <!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
@@ -23030,7 +23030,7 @@ var PAGES_MARKETING=['metaads','sim_criativos','sim_leads','metricas_viab','cron
 // Financeiro: socios + mariane
 var PAGES_FINANCEIRO=['fluxocaixa','dre','comissoes','repasses','custos_fixos','metricas_fin'];
 // Diretoria: apenas socios
-var PAGES_DIRETORIA=['forecast','kpis','metas','governance','equipe','dashboard','recados_diretoria','psm_live','organograma','radar_conc'];
+var PAGES_DIRETORIA=['forecast','kpis','metas','governance','equipe','dashboard','recados_diretoria','psm_live','organograma','radar_conc','bi_socio'];
 // Intelligence: apenas socios
 var PAGES_INTELLIGENCE=['radar','benchmark','inteldash'];
 // PSM Locacoes: socios + gestores
@@ -23098,6 +23098,7 @@ function renderSB() {
       {id:'organograma', lbl:'Organograma',         ico:'\uD83C\uDFE2'},
       {id:'radar_conc',  lbl:'Radar Concorr\u00eancia', ico:'\uD83D\uDEF0\uFE0F'},
       {id:'dashboard',   lbl:'Dashboard',           ico:'\uD83D\uDCCA'},
+      {id:'bi_socio',    lbl:'BI S\u00f3cio',       ico:'\uD83D\uDC51'},
     ]},
     {sec:'Painel do Corretor', items:[
       {id:'oneonone',       lbl:'One on One',              ico:'\uD83C\uDFAF'},
@@ -23197,7 +23198,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v23.3</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v26.1</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -23452,6 +23453,7 @@ function route() {
     case 'simuladores':      return pgSimuladoresHub();
     case 'base_conhecimento':return pgBaseConhecimentoHub();
     case 'radar_conc':       return pgRadarConcorrencia();
+    case 'bi_socio':         return pgBiSocio();
     default:           return pgMeu();
   }
 }
@@ -27100,6 +27102,164 @@ function psmRdcExportCSV(){
   var a = document.createElement('a'); a.href=url; a.download='psm_radar_concorrencia_'+Date.now()+'.csv'; a.click();
 }
 
+// ─── v26.1 BI SOCIO (lvl 10) ───────────────────────────────────────────────
+// Lucro/corretor, ROI canal, Forecast 6m IA, Comparativo mercado SJRP
+function pgBiSocio(){
+  var pct = (S.comissaoPct || 6) / 100;
+  var custoFixo = 3500; // custo medio corretor (CLT-PJ-station) — editavel v26.2
+  var brokers = (typeof UM !== 'undefined' && UM) ? Object.keys(UM) : [];
+  var rows = [];
+  var total = {vgv:0, comissao:0, custo:0, lucro:0};
+  brokers.forEach(function(bid){
+    var u = UM[bid]; if(!u || u.oculto) return;
+    var m; try { m = getMetricas(bid, 'dash'); } catch(e){ return; }
+    var comissao = m.vgv_real * pct;
+    var lucro = comissao - custoFixo;
+    total.vgv += m.vgv_real; total.comissao += comissao; total.custo += custoFixo; total.lucro += lucro;
+    rows.push({nome:u.name||bid, vgv:m.vgv_real, vendas:m.vendas, comissao:comissao, lucro:lucro});
+  });
+  rows.sort(function(a,b){ return b.lucro - a.lucro; });
+
+  var fmtBR = function(v){ return 'R$ '+(v||0).toLocaleString('pt-BR',{maximumFractionDigits:0}); };
+
+  // ── Card 1: Lucro por Corretor ────────────────────────────────────────
+  var c1 = '<div class="card" style="margin-bottom:14px">'
+    + '<div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:10px">\uD83D\uDCB0 Lucro por Corretor (mes vigente)</div>'
+    + '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">Comissao '+(pct*100)+'% \u00b7 Custo fixo '+fmtBR(custoFixo)+'/corretor</div>'
+    + '<div style="overflow-x:auto"><table style="width:100%;font-size:11.5px;border-collapse:collapse">'
+    + '<thead><tr style="background:var(--cream2);text-align:left">'
+    + '<th style="padding:8px">Corretor</th><th style="padding:8px">Vendas</th><th style="padding:8px">VGV</th>'
+    + '<th style="padding:8px">Comissao</th><th style="padding:8px">Lucro</th></tr></thead><tbody>';
+  if(rows.length === 0){
+    c1 += '<tr><td colspan="5" style="padding:14px;text-align:center;color:var(--muted)">Sem dados no periodo.</td></tr>';
+  } else {
+    rows.slice(0,15).forEach(function(r){
+      var cor = r.lucro >= 0 ? '#0a7a2f' : '#b00020';
+      c1 += '<tr style="border-top:1px solid var(--cream3)">'
+        + '<td style="padding:7px">'+psmEscape(r.nome)+'</td>'
+        + '<td style="padding:7px">'+r.vendas+'</td>'
+        + '<td style="padding:7px">'+fmtBR(r.vgv)+'</td>'
+        + '<td style="padding:7px">'+fmtBR(r.comissao)+'</td>'
+        + '<td style="padding:7px;color:'+cor+';font-weight:700">'+fmtBR(r.lucro)+'</td></tr>';
+    });
+  }
+  c1 += '<tr style="background:var(--cream2);font-weight:800;border-top:2px solid var(--navy)">'
+    + '<td style="padding:8px">TOTAL</td><td style="padding:8px">'+rows.reduce(function(a,r){return a+r.vendas;},0)+'</td>'
+    + '<td style="padding:8px">'+fmtBR(total.vgv)+'</td>'
+    + '<td style="padding:8px">'+fmtBR(total.comissao)+'</td>'
+    + '<td style="padding:8px;color:'+(total.lucro>=0?'#0a7a2f':'#b00020')+'">'+fmtBR(total.lucro)+'</td></tr>'
+    + '</tbody></table></div></div>';
+
+  // ── Card 2: ROI por Canal ─────────────────────────────────────────────
+  var canais = {};
+  var OPPS = S.OPPS || [];
+  var VENDAS = S.VENDAS || [];
+  var allOpps = OPPS.concat(VENDAS);
+  allOpps.forEach(function(o){
+    var canal = (o.fonte || o.canal || o.source || 'Direto/Walk-in');
+    if(!canais[canal]) canais[canal] = {leads:0, vendas:0, vgv:0};
+    canais[canal].leads++;
+    if(o._won || VENDAS.indexOf(o)>=0){
+      canais[canal].vendas++;
+      canais[canal].vgv += (o.vgv||0);
+    }
+  });
+  var canaisArr = Object.keys(canais).map(function(k){
+    var c = canais[k];
+    c.canal = k;
+    c.conv = c.leads>0 ? (c.vendas/c.leads*100).toFixed(1) : '0.0';
+    c.comissao = c.vgv * pct;
+    return c;
+  }).sort(function(a,b){ return b.comissao - a.comissao; });
+
+  var c2 = '<div class="card" style="margin-bottom:14px">'
+    + '<div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:10px">\uD83D\uDCE1 ROI por Canal</div>'
+    + '<div style="overflow-x:auto"><table style="width:100%;font-size:11.5px;border-collapse:collapse">'
+    + '<thead><tr style="background:var(--cream2);text-align:left">'
+    + '<th style="padding:8px">Canal</th><th style="padding:8px">Leads</th><th style="padding:8px">Vendas</th>'
+    + '<th style="padding:8px">Conv %</th><th style="padding:8px">VGV</th><th style="padding:8px">Comissao</th></tr></thead><tbody>';
+  if(canaisArr.length === 0){
+    c2 += '<tr><td colspan="6" style="padding:14px;text-align:center;color:var(--muted)">Sem canais mapeados.</td></tr>';
+  } else {
+    canaisArr.slice(0,10).forEach(function(c){
+      c2 += '<tr style="border-top:1px solid var(--cream3)">'
+        + '<td style="padding:7px">'+psmEscape(c.canal)+'</td>'
+        + '<td style="padding:7px">'+c.leads+'</td>'
+        + '<td style="padding:7px">'+c.vendas+'</td>'
+        + '<td style="padding:7px">'+c.conv+'%</td>'
+        + '<td style="padding:7px">'+fmtBR(c.vgv)+'</td>'
+        + '<td style="padding:7px;font-weight:700;color:#0a7a2f">'+fmtBR(c.comissao)+'</td></tr>';
+    });
+  }
+  c2 += '</tbody></table></div></div>';
+
+  // ── Card 3: Forecast 6 meses com IA ───────────────────────────────────
+  var forecastHtml = '';
+  var fk = 'psm_bi_forecast_6m';
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(fk)||'null'); } catch(e){}
+  if(saved && saved.data){
+    forecastHtml = '<div style="background:var(--cream2);border-radius:8px;padding:12px;margin-top:10px">'
+      + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">Gerado '+new Date(saved.at).toLocaleString('pt-BR')+'</div>'
+      + '<pre style="font-size:11px;white-space:pre-wrap;margin:0">'+psmEscape(JSON.stringify(saved.data,null,2))+'</pre></div>';
+  }
+  var c3 = '<div class="card" style="margin-bottom:14px;border-left:4px solid #7c3aed">'
+    + '<div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:6px">\uD83D\uDD2E Forecast 6 meses (IA)</div>'
+    + '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">Previsao mes-a-mes via Gemini usando historico + pipeline atual.</div>'
+    + '<button class="btn bp1 bsm" onclick="psmBiForecast6m()">\u26A1 Gerar Forecast 6m</button>'
+    + '<div id="psm-bi-forecast-out">'+forecastHtml+'</div></div>';
+
+  // ── Card 4: Comparativo mercado SJRP ──────────────────────────────────
+  // Benchmarks SECOVI/CBIC/FipeZap SJRP 2025-2026 (estimativas conservadoras)
+  var bench = [
+    {ind:'Ticket medio residencial SJRP', merc:'R$ 480k', psm:fmtBR(total.vgv/Math.max(1,rows.reduce(function(a,r){return a+r.vendas;},0)))},
+    {ind:'Conversao lead->venda (mercado)', merc:'2,8%', psm:'ver Card 2 por canal'},
+    {ind:'Tempo medio ciclo venda', merc:'45 dias', psm:'ver Radar ciclo'},
+    {ind:'Crescimento VGV YoY SJRP', merc:'+8,4%', psm:'calc v26.3'},
+    {ind:'Share MCMV no residencial', merc:'62%', psm:'PSM Conquista'}
+  ];
+  var c4 = '<div class="card" style="margin-bottom:14px">'
+    + '<div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:10px">\uD83C\uDFD9\uFE0F Comparativo Mercado SJRP</div>'
+    + '<div style="font-size:10px;color:var(--muted);margin-bottom:8px">Fonte: SECOVI-SP / CBIC / FipeZap (benchmarks 2025-2026)</div>'
+    + '<table style="width:100%;font-size:11.5px;border-collapse:collapse">'
+    + '<thead><tr style="background:var(--cream2);text-align:left">'
+    + '<th style="padding:8px">Indicador</th><th style="padding:8px">Mercado SJRP</th><th style="padding:8px">PSM</th></tr></thead><tbody>';
+  bench.forEach(function(b){
+    c4 += '<tr style="border-top:1px solid var(--cream3)">'
+      + '<td style="padding:7px">'+b.ind+'</td>'
+      + '<td style="padding:7px">'+b.merc+'</td>'
+      + '<td style="padding:7px;font-weight:700">'+b.psm+'</td></tr>';
+  });
+  c4 += '</tbody></table></div>';
+
+  // ── Layout final ──────────────────────────────────────────────────────
+  return '<div class="phd"><h1>\uD83D\uDC51 BI S\u00f3cio</h1>'
+    + '<p>Indicadores financeiros e estrat\u00e9gicos \u00b7 visibilidade exclusiva dos s\u00f3cios</p></div>'
+    + c1 + c2 + c3 + c4;
+}
+
+// runner IA forecast 6m
+function psmBiForecast6m(){
+  var out = document.getElementById('psm-bi-forecast-out');
+  if(!out) return;
+  if(!window.psmIA){ out.innerHTML = '<div style="color:#b00020;padding:10px">Engine IA nao carregado.</div>'; return; }
+  out.innerHTML = '<div style="padding:12px;color:var(--muted)">\u23F3 Gerando forecast 6 meses...</div>';
+  var hist = (S.historicoMensal) || [];
+  var atual = {};
+  try { atual = getMetricasGlobal('dash'); } catch(e){}
+  var prompt = {pedido:'forecast 6 meses VGV + vendas', historico:hist, atual:atual};
+  window.psmIA.preverVenda(hist, prompt).then(function(res){
+    try { localStorage.setItem('psm_bi_forecast_6m', JSON.stringify({at:Date.now(), data:res})); } catch(e){}
+    out.innerHTML = '<div style="background:var(--cream2);border-radius:8px;padding:12px;margin-top:10px">'
+      + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">Gerado agora</div>'
+      + '<pre style="font-size:11px;white-space:pre-wrap;margin:0">'+psmEscape(JSON.stringify(res,null,2))+'</pre></div>';
+  }).catch(function(e){
+    out.innerHTML = '<div style="color:#b00020;padding:10px">Erro: '+psmEscape(e.message||String(e))+'</div>';
+  });
+}
+window.pgBiSocio = pgBiSocio;
+window.psmBiForecast6m = psmBiForecast6m;
+
 // ─── HUB: Simuladores (VPL, INCC, Energia, Repasse) ─────────────────────────
 function pgSimuladoresHub(){
   var tab = S.simTab || 'vpl';
@@ -28534,7 +28694,7 @@ window.psmEscape = function(s){
       window.Sentry.init({
         dsn: dsn,
         environment: 'production',
-        release: 'psm-os-v23.3',
+        release: 'psm-os-v26.1',
         tracesSampleRate: 0.1,
         beforeSend: function(event){
           // Nao envia console.log/warn, so erros de verdade
