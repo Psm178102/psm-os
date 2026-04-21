@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v26.4 — Multi-IA (Claude/Gemini/GPT) + 4 Personas (Vera, Sol, Sr Performance, Sr Gerencia) -->
+<!-- PSM-OS v2026.04.21-v26.5 — Logo PSM Imoveis oficial em posts gerados (proibe vetor/SVG, composita PNG real) -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.21-v26.4">
+<meta name="version" content="2026.04.21-v26.5">
 <!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
@@ -23197,7 +23197,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v26.4</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v26.5</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -23614,6 +23614,8 @@ async function giGenerate() {
       var result;
       if (S.giSrc === 'dalle') result = await giCallDalle(S.giOKey, S.giPrompts[i]);
       else result = await giCallGemini(S.giGKey, S.giPrompts[i]);
+      // v26.5: composita logo oficial PNG (substitui qualquer vetor PSM gerado pela IA)
+      try { result.url = await giCompositeLogo(result.url); } catch(e){ console.warn('composite skip', e); }
       arr.push({num: i+1, url: result.url, revised: result.revised, prompt: S.giPrompts[i]});
     }
     S.giImgs = arr;
@@ -23635,6 +23637,7 @@ async function giRegen(idx) {
     var result;
     if (S.giSrc === 'dalle') result = await giCallDalle(S.giOKey, S.giPrompts[idx]);
     else result = await giCallGemini(S.giGKey, S.giPrompts[idx]);
+    try { result.url = await giCompositeLogo(result.url); } catch(e){ console.warn('composite skip', e); }
     S.giImgs[idx] = {num: idx+1, url: result.url, revised: result.revised, prompt: S.giPrompts[idx]};
     render();
   } catch(e) {
@@ -23817,6 +23820,7 @@ async function giRefine(idx) {
     var result;
     if (S.giSrc === 'dalle') result = await giCallDalle(S.giOKey, refined);
     else result = await giCallGemini(S.giGKey, refined);
+    try { result.url = await giCompositeLogo(result.url); } catch(e){ console.warn('composite skip', e); }
     S.giImgs[idx] = {num:idx+1, url:result.url, revised:result.revised, prompt:refined};
     S.giRefining = false; render();
   } catch(e) { S.giErr = 'Refinar slide ' + (idx+1) + ': ' + e.message; S.giRefining = false; render(); }
@@ -23835,8 +23839,8 @@ var GI_BRAND_DEFAULTS = {
     ],
     fontes: 'Titulos: Montserrat Extra Bold / Corpo: Inter Regular',
     tom: 'Acessivel, motivador, direto. Fala com quem quer sair do aluguel. Tom de amigo que entende do assunto. Usa "voce" e evita jargao tecnico pesado.',
-    regras: '1) Sempre incluir @psmconquista no rodape\n2) Formato Instagram: 1024x1792 portrait\n3) Fundo escuro (#0F172A) com destaques em laranja/dourado\n4) Tipografia bold e grande para headlines\n5) CTA visivel e direto\n6) Nunca usar imagens de luxo/alto padrao\n7) Fotos: obras reais, familias, apartamentos compactos\n8) Icones simples e modernos\n9) Indicador de slide (1/5) em carrosseis\n10) Seta de swipe no primeiro slide',
-    logo: '',
+    regras: '1) Sempre incluir @psmconquista no rodape\n2) Formato Instagram: 1024x1792 portrait\n3) Fundo escuro (#0F172A) com destaques em laranja/dourado\n4) Tipografia bold e grande para headlines\n5) CTA visivel e direto\n6) Nunca usar imagens de luxo/alto padrao\n7) Fotos: obras reais, familias, apartamentos compactos\n8) Icones simples e modernos\n9) Indicador de slide (1/5) em carrosseis\n10) Seta de swipe no primeiro slide\n11) NUNCA desenhar/criar/inventar vetor ou SVG do logo PSM CONQUISTA. Deixar espaco RESERVADO de 180x60px no canto inferior direito com fundo solido (sem texto, sem marca, sem iniciais) para o logo oficial ser sobreposto em pos-producao',
+    logo: 'https://raw.githubusercontent.com/Psm178102/psm-os/main/logo%20psm%20conquista.png',
     refImgs: [],
     exemplos: 'Carrossel educativo sobre MCMV, Stories com urgencia de unidades, Post comparativo aluguel vs financiamento'
   },
@@ -23850,8 +23854,8 @@ var GI_BRAND_DEFAULTS = {
     ],
     fontes: 'Titulos: Playfair Display Bold / Corpo: Lato Light',
     tom: 'Sofisticado, exclusivo, consultivo. Fala com investidores e compradores de alto padrao. Tom de consultor de confianca. Dados e argumentos solidos.',
-    regras: '1) Sempre incluir @psmimoveis no rodape\n2) Formato Instagram: 1024x1792 portrait\n3) Fundo escuro elegante com dourado\n4) Tipografia refinada, espacamento generoso\n5) Fotos de alta qualidade: interiores premium, vistas, acabamentos\n6) Nunca usar linguagem popular ou MCMV\n7) CTA elegante e discreto\n8) Layout limpo com muito respiro\n9) Dados de valorizacao e ROI quando aplicavel\n10) Minimalismo sofisticado',
-    logo: '',
+    regras: '1) Sempre incluir @psmimoveis no rodape\n2) Formato Instagram: 1024x1792 portrait\n3) Fundo escuro elegante com dourado\n4) Tipografia refinada, espacamento generoso\n5) Fotos de alta qualidade: interiores premium, vistas, acabamentos\n6) Nunca usar linguagem popular ou MCMV\n7) CTA elegante e discreto\n8) Layout limpo com muito respiro\n9) Dados de valorizacao e ROI quando aplicavel\n10) Minimalismo sofisticado\n11) NUNCA desenhar/criar/inventar vetor ou SVG do logo PSM IMOVEIS. Deixar espaco RESERVADO de 180x60px no canto inferior direito com fundo solido (sem texto, sem marca, sem iniciais) para o logo oficial ser sobreposto em pos-producao',
+    logo: 'logo-psm-navy.png',
     refImgs: [],
     exemplos: 'Tour virtual de cobertura, Analise de valorizacao por bairro, Lancamento exclusivo com planta'
   }
@@ -23861,7 +23865,19 @@ function giLoadBrands() {
   if (S.giBrands) return;
   try {
     var saved = localStorage.getItem('psm_gi_brands');
-    if (saved) { S.giBrands = JSON.parse(saved); return; }
+    if (saved) {
+      S.giBrands = JSON.parse(saved);
+      // v26.5: migracao - se usuario tem brand sem logo (defaults antigos), aplica logo oficial
+      var dirty = false;
+      ['conquista','imoveis'].forEach(function(k){
+        if (S.giBrands[k] && !S.giBrands[k].logo && GI_BRAND_DEFAULTS[k] && GI_BRAND_DEFAULTS[k].logo){
+          S.giBrands[k].logo = GI_BRAND_DEFAULTS[k].logo;
+          dirty = true;
+        }
+      });
+      if (dirty) { try { localStorage.setItem('psm_gi_brands', JSON.stringify(S.giBrands)); } catch(_){} }
+      return;
+    }
   } catch(e){console.error("[PSM v26.2]",e);}
   S.giBrands = JSON.parse(JSON.stringify(GI_BRAND_DEFAULTS));
 }
@@ -23943,8 +23959,56 @@ function giBrandPrompt() {
   p += 'Tom de Voz: ' + b.tom + '\n';
   p += 'Regras Visuais:\n' + b.regras + '\n';
   if (b.exemplos) p += 'Exemplos de Conteudo: ' + b.exemplos + '\n';
+  // v26.5: hard constraint - NUNCA gerar logo PSM como vetor (sai horrivel)
+  p += '\n=== REGRA CRITICA - LOGO ===\n';
+  p += 'PROIBIDO desenhar, vetorizar, estilizar ou inventar QUALQUER versao do logo "' + b.nome + '".\n';
+  p += 'PROIBIDO escrever as letras "PSM", "P S M", "PSM IMOVEIS" ou "PSM CONQUISTA" como marca grafica/iniciais/monograma.\n';
+  p += 'OBRIGATORIO reservar uma area limpa de 180x60px no canto inferior direito (fundo solido na cor da marca, SEM texto, SEM forma, SEM marca dagua) — o logo OFICIAL em PNG sera sobreposto em pos-producao pelo sistema.\n';
+  p += '=== FIM REGRA CRITICA ===\n';
   p += '=== FIM BRAND GUIDELINES ===\n\n';
   return p;
+}
+
+// v26.5: composita logo oficial PNG sobre imagem gerada (canto inf direito)
+function giCompositeLogo(imageUrl) {
+  return new Promise(function(resolve){
+    try {
+      giLoadBrands();
+      var b = S.giBrands[S.giBrandTab || 'conquista'];
+      var logoSrc = (b && b.logo) || '';
+      if (!logoSrc) { resolve(imageUrl); return; }
+      var bg = new Image(); bg.crossOrigin = 'anonymous';
+      var lg = new Image(); lg.crossOrigin = 'anonymous';
+      var done = 0, w = 1024, h = 1024;
+      var fail = function(){ resolve(imageUrl); };
+      bg.onload = function(){
+        w = bg.naturalWidth || w; h = bg.naturalHeight || h;
+        if (++done === 2) draw();
+      };
+      lg.onload = function(){ if (++done === 2) draw(); };
+      bg.onerror = fail; lg.onerror = fail;
+      bg.src = imageUrl; lg.src = logoSrc;
+      function draw(){
+        try {
+          var c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          var ctx = c.getContext('2d');
+          ctx.drawImage(bg, 0, 0, w, h);
+          // Logo no canto inferior direito, max 180x60 mantendo aspect ratio
+          var maxW = Math.round(w * 0.18), maxH = Math.round(h * 0.06);
+          var ratio = Math.min(maxW / lg.naturalWidth, maxH / lg.naturalHeight);
+          var lw = Math.round(lg.naturalWidth * ratio);
+          var lh = Math.round(lg.naturalHeight * ratio);
+          var pad = Math.round(w * 0.025);
+          // Fundo branco semi-transparente atras do logo p/ contraste
+          ctx.fillStyle = 'rgba(255,255,255,0.92)';
+          ctx.fillRect(w - lw - pad - 8, h - lh - pad - 8, lw + 16, lh + 16);
+          ctx.drawImage(lg, w - lw - pad, h - lh - pad, lw, lh);
+          resolve(c.toDataURL('image/png'));
+        } catch(e){ console.warn('[giCompositeLogo]', e); resolve(imageUrl); }
+      }
+    } catch(e){ resolve(imageUrl); }
+  });
 }
 
 
