@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v27.7 — iOS COMPAT + AUDIT FIX-PASS: migra 41 confirm() + ~30 prompt() + 13 alert() para psmConfirm/psmPrompt/psmAlert; psmSafeParse/psmLSGet defensivos; ~30 JSON.parse(localStorage) blindados; logs [PSM v27.7]. Mantem v27.6: AES-GCM em psm_remember_pw + auto-migra legado. -->
+<!-- PSM-OS v2026.04.21-v27.8 — RUNTIME FIX-PASS: psmAuth.isReady + audioCtx leak TV + btoa unicode + Drive 401 retry + offline dead cleanup + psmFetch timeout. Mantem v27.7: iOS compat (alert/confirm/prompt), AES-GCM, psmSafeParse/psmLSGet, JSON.parse blindados. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.21-v27.7">
+<meta name="version" content="2026.04.21-v27.8">
 <script>window.PSM_VERSION='27.7';</script>
 <!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
@@ -1620,6 +1620,18 @@ window.psmSafeParse = function(raw, fallback){
 window.psmLSGet = function(key, fallback){
   try { return window.psmSafeParse(localStorage.getItem(key), fallback); }
   catch(_){ return fallback; }
+};
+
+// === FETCH COM TIMEOUT (v27.8) ======================================
+// Wrapper defensivo para fetch — evita travar em rede ruim/server lento.
+// Default 15s. Aborta via AbortController. Caller deve try/catch normal.
+window.psmFetch = function(url, opts, timeoutMs){
+  opts = opts || {};
+  timeoutMs = timeoutMs || 15000;
+  var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  if (ctrl) opts.signal = opts.signal || ctrl.signal;
+  var to = setTimeout(function(){ try { if (ctrl) ctrl.abort(); } catch(_){} }, timeoutMs);
+  return fetch(url, opts).finally(function(){ clearTimeout(to); });
 };
 
 // === CROSS-TAB SYNC ================================================
@@ -5671,12 +5683,13 @@ function arenaTV(){
     document.body.style.paddingBottom = (Date.now() % 2 === 0) ? '0px' : '1px';
   }, 5000);
 
-  // Audio ctx
+  // Audio ctx — v27.7 fix: audioResumeInt agora rastreado e limpo no exit (evita leak em entradas multiplas TV)
+  var audioCtx = null, audioResumeInt = null;
   try {
-    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     var osc = audioCtx.createOscillator(); var gain = audioCtx.createGain();
     gain.gain.value = 0.001; osc.connect(gain); gain.connect(audioCtx.destination); osc.start();
-    setInterval(function(){ if(audioCtx.state==='suspended') audioCtx.resume(); }, 10000);
+    audioResumeInt = setInterval(function(){ if(audioCtx && audioCtx.state==='suspended') audioCtx.resume(); }, 10000);
   } catch(e){console.error("[PSM v27.7]",e);}
 
   // ══════ EXIT ══════
@@ -5693,6 +5706,8 @@ function arenaTV(){
     try{ clearInterval(playVidInt); }catch(e){console.error("[PSM v27.7]",e);}
     try{ clearInterval(tlRefreshInt); }catch(e){console.error("[PSM v27.7]",e);}
     try{ if(window._tvTLInt) clearInterval(window._tvTLInt); }catch(e){console.error("[PSM v27.7]",e);}
+    try{ if(audioResumeInt) clearInterval(audioResumeInt); audioResumeInt = null; }catch(e){console.error("[PSM v27.7]",e);}
+    try{ if(audioCtx && audioCtx.state !== 'closed') audioCtx.close(); audioCtx = null; }catch(e){console.error("[PSM v27.7]",e);}
   }
   function onKey(e){ if(e.key==='Escape') exitTV(); }
   function onFs(){ if(!document.fullscreenElement) exitTV(); }
@@ -10217,9 +10232,11 @@ async function doLogin() {
     localStorage.setItem('psm_remember_email', email);
     try {
       var _enc = await window.psmEncryptCred(senha);
-      localStorage.setItem('psm_remember_pw', _enc || ('b64:'+btoa(senha)));
+      var _b64 = (function(s){ try { return 'b64:'+btoa(unescape(encodeURIComponent(s))); } catch(_){ return 'b64:'+s; } })(senha);
+      localStorage.setItem('psm_remember_pw', _enc || _b64);
     } catch(_) {
-      localStorage.setItem('psm_remember_pw', 'b64:'+btoa(senha));
+      try { localStorage.setItem('psm_remember_pw', 'b64:'+btoa(unescape(encodeURIComponent(senha)))); }
+      catch(__){ localStorage.removeItem('psm_remember_pw'); }
     }
   } else {
     localStorage.removeItem('psm_remember');
@@ -29544,7 +29561,7 @@ document.addEventListener('keydown', function(e){
     var folderId = await findOrCreateFolder(token);
     var snapshot = {
       ts: Date.now(),
-      version: '2026.04.21-v22m',
+      version: (document.querySelector('meta[name="version"]')||{}).content || '2026.04.21-v27.7',
       state: window.psmLSGet('psm_os_state_v1', {})
     };
     var blob = new Blob([JSON.stringify(snapshot)], {type:'application/json'});
@@ -29560,6 +29577,8 @@ document.addEventListener('keydown', function(e){
       headers: { 'Authorization': 'Bearer '+token },
       body: fd
     });
+    // v27.8 fix: 401 = token revogado; lanca erro especifico para reauth no caller
+    if (resp.status === 401){ localStorage.removeItem(TOKEN_KEY); var err401 = new Error('upload 401'); err401.code = 401; throw err401; }
     if (!resp.ok) throw new Error('upload fail '+resp.status);
     var j = await resp.json();
     localStorage.setItem(LAST_BACKUP_KEY, JSON.stringify({ ts: Date.now(), fileId: j.id, name: fname }));
@@ -29570,7 +29589,15 @@ document.addEventListener('keydown', function(e){
     try {
       var token = getValidToken();
       if (!token) token = await requestAuth(interactive === true);
-      var res = await uploadBackup(token);
+      var res;
+      try { res = await uploadBackup(token); }
+      catch(e1){
+        // v27.8 fix: token expirado/revogado — retry uma vez com reauth silencioso
+        if (e1 && e1.code === 401){
+          var tk2 = await requestAuth(false);
+          res = await uploadBackup(tk2);
+        } else throw e1;
+      }
       if (window.toast) window.toast('Backup Drive OK: '+res.name, 'ok');
       console.log('[PSM-Drive] backup OK', res);
       return {ok:true, file:res};
