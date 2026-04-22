@@ -1,11 +1,11 @@
 // ═════════════════════════════════════════════════════════════════════════════
-// PSM OS — Service Worker v27.2 (2026-04-21 — Batch fix persistencia 10 chaves)
+// PSM OS — Service Worker v27.3 (2026-04-21 — Audit profunda: checkin + lanc + agenda + canalAnonimo + pattern matcher)
 // Estratégia: NETWORK-FIRST para HTML (resolve cache stale), CACHE-FIRST assets.
 // Limpa caches antigos automaticamente no activate.
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const CACHE_VERSION = 'psm-os-v27.2-2026-04-21-batch-persist-fix';
+const CACHE_VERSION = 'psm-os-v27.3-2026-04-21-deep-audit-checkin-lanc-agenda';
 const HTML_CACHE    = CACHE_VERSION + '-html';
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

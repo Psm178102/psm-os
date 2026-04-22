@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v27.2 — BATCH FIX persistencia: 10 chaves (gpTalentos/Treinamentos/Reunioes, locContratos, tpData, drivePath, tabelaUploads, vera/sol/srPerfHist) + persist() wrapper -->
+<!-- PSM-OS v2026.04.21-v27.3 — Audit profunda: checkin/rdStageHistCache persistidos, lancamentos/agenda/canalAnonimo migrados para persist(), pattern matcher SYNC_LS p/ psm_plantoes_* -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,8 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.21-v27.2">
-<script>window.PSM_VERSION='27.2';</script>
+<meta name="version" content="2026.04.21-v27.3">
+<script>window.PSM_VERSION='27.3';</script>
 <!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
@@ -1697,6 +1697,9 @@ function saveState(skipFbPush) {
       veraAgHist: (S.veraAgHist || []).slice(-100),
       solAgHist: (S.solAgHist || []).slice(-100),
       srPerfHist: (S.srPerfHist || []).slice(-100),
+      // FIX v27.3: check-in/out e cache historico RD
+      checkin: S.checkin || null,
+      rdStageHistCache: S.rdStageHistCache || {},
       savedAt: Date.now(),
     };
     // === SALVAMENTO PRINCIPAL COM DETECÇÃO DE QUOTA ===
@@ -1959,6 +1962,9 @@ function loadState() {
     if (d.veraAgHist) S.veraAgHist = d.veraAgHist;
     if (d.solAgHist) S.solAgHist = d.solAgHist;
     if (d.srPerfHist) S.srPerfHist = d.srPerfHist;
+    // FIX v27.3: check-in e cache RD restaurados
+    if (d.checkin) S.checkin = d.checkin;
+    if (d.rdStageHistCache) S.rdStageHistCache = d.rdStageHistCache;
     // Restore manual vendas (legacy)
     try {
       const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manuais') || '[]');
@@ -1990,7 +1996,9 @@ var SYNC_KEYS = [
   // FIX v27.2: 10 chaves adicionais que mutavam mas nao sincronizavam
   'gpTalentos','gpTreinamentos','gpReunioes',
   'locContratos','tpData','drivePath','tabelaUploads',
-  'veraAgHist','solAgHist','srPerfHist'
+  'veraAgHist','solAgHist','srPerfHist',
+  // FIX v27.3: check-in compartilhado entre dispositivos do mesmo usuario
+  'checkin'
 ];
 // Global config keys that also need sync
 var SYNC_GLOBAL_KEYS = ['metasConfig','metasEquipe','teamConfig'];
@@ -2022,15 +2030,22 @@ var SYNC_LS_KEYS = [
   var _origRemoveItem = Storage.prototype.removeItem;
   window._lsRawSet = function(k,v){ _origSetItem.call(localStorage, k, v); };
   window._lsRawDel = function(k){ _origRemoveItem.call(localStorage, k); };
+  // FIX v27.3: pattern matcher para chaves dinamicas (psm_plantoes_YYYY_M, psm_radar_*, etc.)
+  var SYNC_LS_PATTERNS = [/^psm_plantoes_\d+_\d+$/];
+  function _shouldSync(k){
+    if (SYNC_LS_KEYS.indexOf(k) !== -1) return true;
+    for (var i=0; i<SYNC_LS_PATTERNS.length; i++) if (SYNC_LS_PATTERNS[i].test(k)) return true;
+    return false;
+  }
   Storage.prototype.setItem = function(k, v) {
     _origSetItem.call(this, k, v);
-    if (this === localStorage && SYNC_LS_KEYS.indexOf(k) !== -1) {
+    if (this === localStorage && _shouldSync(k)) {
       try { if (typeof fbPushState === 'function' && _fbReady) fbPushState(); } catch(e){console.error("[PSM v26.2]",e);}
     }
   };
   Storage.prototype.removeItem = function(k) {
     _origRemoveItem.call(this, k);
-    if (this === localStorage && SYNC_LS_KEYS.indexOf(k) !== -1) {
+    if (this === localStorage && _shouldSync(k)) {
       try { if (typeof fbPushState === 'function' && _fbReady) fbPushState(); } catch(e){console.error("[PSM v26.2]",e);}
     }
   };
@@ -3236,51 +3251,53 @@ function pgAgendaPSM(){
   window.agSaveEvento=function(){
     var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
     var t=g('ag_ev_titulo');if(!t){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
-    S.opEventos.push({titulo:t,data:g('ag_ev_data'),hora:g('ag_ev_hora'),local:g('ag_ev_local'),tipo:g('ag_ev_tipo'),descricao:g('ag_ev_desc'),criadoEm:new Date().toISOString()});
-    _agSave();toast('\u2705 Evento cadastrado','ok');S.agendaFormType=null;render();
+    persist('agSaveEvento',function(){ S.opEventos.push({titulo:t,data:g('ag_ev_data'),hora:g('ag_ev_hora'),local:g('ag_ev_local'),tipo:g('ag_ev_tipo'),descricao:g('ag_ev_desc'),criadoEm:new Date().toISOString()}); });
+    toast('\u2705 Evento cadastrado','ok');S.agendaFormType=null;render();
     _agNotifyAll('\uD83C\uDF89 Novo Evento: '+t+' em '+g('ag_ev_data'), '');
   };
   window.agSaveTreinamento=function(){
     var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
     var t=g('ag_tr_titulo');if(!t){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
-    S.opTreinamentos.push({titulo:t,data:g('ag_tr_data'),hora:g('ag_tr_hora'),instrutor:g('ag_tr_inst'),categoria:g('ag_tr_cat'),link:g('ag_tr_link'),descricao:g('ag_tr_desc'),criadoEm:new Date().toISOString()});
-    _agSave();toast('\u2705 Treinamento cadastrado','ok');S.agendaFormType=null;render();
+    persist('agSaveTreinamento',function(){ S.opTreinamentos.push({titulo:t,data:g('ag_tr_data'),hora:g('ag_tr_hora'),instrutor:g('ag_tr_inst'),categoria:g('ag_tr_cat'),link:g('ag_tr_link'),descricao:g('ag_tr_desc'),criadoEm:new Date().toISOString()}); });
+    toast('\u2705 Treinamento cadastrado','ok');S.agendaFormType=null;render();
     _agNotifyAll('\uD83C\uDF93 Novo Treinamento: '+t+' em '+g('ag_tr_data'), g('ag_tr_inst'));
   };
   window.agSaveReuniao=function(){
     var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
     var t=g('ag_re_titulo');if(!t){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
-    if(!S.agendaReunioes) S.agendaReunioes=[];
-    S.agendaReunioes.push({titulo:t,data:g('ag_re_data'),hora:g('ag_re_hora'),local:g('ag_re_local'),participantes:g('ag_re_part'),descricao:g('ag_re_desc'),criadoEm:new Date().toISOString()});
-    _agSave();toast('\u2705 Reuni\u00e3o cadastrada','ok');S.agendaFormType=null;render();
+    persist('agSaveReuniao',function(){
+      if(!S.agendaReunioes) S.agendaReunioes=[];
+      S.agendaReunioes.push({titulo:t,data:g('ag_re_data'),hora:g('ag_re_hora'),local:g('ag_re_local'),participantes:g('ag_re_part'),descricao:g('ag_re_desc'),criadoEm:new Date().toISOString()});
+    });
+    toast('\u2705 Reuni\u00e3o cadastrada','ok');S.agendaFormType=null;render();
     _agNotifyAll('\uD83E\uDD1D Nova Reuni\u00e3o: '+t+' em '+g('ag_re_data'), g('ag_re_part'));
   };
-  window.agRemoveEvento=function(i){if(confirm('Remover este evento?')){S.opEventos.splice(i,1);_agSave();render();}};
-  window.agRemoveTreinamento=function(i){if(confirm('Remover este treinamento?')){S.opTreinamentos.splice(i,1);_agSave();render();}};
-  window.agRemoveReuniao=function(i){if(!S.agendaReunioes)return;if(confirm('Remover esta reuni\u00e3o?')){S.agendaReunioes.splice(i,1);_agSave();render();}};
+  window.agRemoveEvento=function(i){if(confirm('Remover este evento?')){persist('agRemoveEvento',function(){S.opEventos.splice(i,1);});render();}};
+  window.agRemoveTreinamento=function(i){if(confirm('Remover este treinamento?')){persist('agRemoveTreinamento',function(){S.opTreinamentos.splice(i,1);});render();}};
+  window.agRemoveReuniao=function(i){if(!S.agendaReunioes)return;if(confirm('Remover esta reuni\u00e3o?')){persist('agRemoveReuniao',function(){S.agendaReunioes.splice(i,1);});render();}};
   window.agSaveConfig=function(){
     var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
-    S.agendaConfig={googleAgendaApi:g('ag_cfg_google'),zohoMailApi:g('ag_cfg_zoho')};
-    saveState();toast('\u2705 Configura\u00e7\u00f5es salvas','ok');
+    persist('agSaveConfig',function(){ S.agendaConfig={googleAgendaApi:g('ag_cfg_google'),zohoMailApi:g('ag_cfg_zoho')}; });
+    toast('\u2705 Configura\u00e7\u00f5es salvas','ok');
   };
   window.agSaveCaptConteudo=function(){
     var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
     var t=g('ag_cc_titulo');if(!t){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
-    S.agendaCaptConteudo.push({titulo:t,data:g('ag_cc_data'),horaInicio:g('ag_cc_hi'),horaFim:g('ag_cc_hf'),local:g('ag_cc_local'),envolvidos:g('ag_cc_env'),descricao:g('ag_cc_desc'),criadoEm:new Date().toISOString()});
-    _agSave();toast('\u2705 Capta\u00e7\u00e3o de Conte\u00fado cadastrada','ok');S.agendaFormType=null;render();
+    persist('agSaveCaptConteudo',function(){ S.agendaCaptConteudo.push({titulo:t,data:g('ag_cc_data'),horaInicio:g('ag_cc_hi'),horaFim:g('ag_cc_hf'),local:g('ag_cc_local'),envolvidos:g('ag_cc_env'),descricao:g('ag_cc_desc'),criadoEm:new Date().toISOString()}); });
+    toast('\u2705 Capta\u00e7\u00e3o de Conte\u00fado cadastrada','ok');S.agendaFormType=null;render();
     _agNotifyAll('\uD83D\uDCF8 Nova Capta\u00e7\u00e3o de Conte\u00fado: '+t+' em '+g('ag_cc_data'), g('ag_cc_env'));
   };
-  window.agRemoveCaptConteudo=function(i){if(confirm('Remover esta capta\u00e7\u00e3o de conte\u00fado?')){S.agendaCaptConteudo.splice(i,1);_agSave();render();}};
+  window.agRemoveCaptConteudo=function(i){if(confirm('Remover esta capta\u00e7\u00e3o de conte\u00fado?')){persist('agRemoveCaptConteudo',function(){S.agendaCaptConteudo.splice(i,1);});render();}};
   window.agSaveCaptImovel=function(){
     var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
     var t=g('ag_ci_titulo');if(!t){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
-    S.agendaCaptImovel.push({titulo:t,data:g('ag_ci_data'),horaInicio:g('ag_ci_hi'),horaFim:g('ag_ci_hf'),local:g('ag_ci_local'),envolvidos:g('ag_ci_env'),descricao:g('ag_ci_desc'),criadoEm:new Date().toISOString()});
-    _agSave();toast('\u2705 Capta\u00e7\u00e3o de Im\u00f3vel cadastrada','ok');S.agendaFormType=null;render();
+    persist('agSaveCaptImovel',function(){ S.agendaCaptImovel.push({titulo:t,data:g('ag_ci_data'),horaInicio:g('ag_ci_hi'),horaFim:g('ag_ci_hf'),local:g('ag_ci_local'),envolvidos:g('ag_ci_env'),descricao:g('ag_ci_desc'),criadoEm:new Date().toISOString()}); });
+    toast('\u2705 Capta\u00e7\u00e3o de Im\u00f3vel cadastrada','ok');S.agendaFormType=null;render();
     _agNotifyAll('\uD83C\uDFE2 Nova Capta\u00e7\u00e3o de Im\u00f3vel: '+t+' em '+g('ag_ci_data'), g('ag_ci_env'));
   };
-  window.agRemoveCaptImovel=function(i){if(confirm('Remover esta capta\u00e7\u00e3o de im\u00f3vel?')){S.agendaCaptImovel.splice(i,1);_agSave();render();}};
+  window.agRemoveCaptImovel=function(i){if(confirm('Remover esta capta\u00e7\u00e3o de im\u00f3vel?')){persist('agRemoveCaptImovel',function(){S.agendaCaptImovel.splice(i,1);});render();}};
 
-  function _agSave(){saveState();}
+  function _agSave(){persist('agSave',function(){});}
   function _agNotifyAll(msg, envolvidosTxt){
     // v18: usa notifEngine unificado (Notification + toast + som)
     try{
@@ -19285,11 +19302,12 @@ function addLanc(mes) {
   if (!nome || !nome.trim()) return;
   var corChoice = prompt('Tipo: 1=Destaque (verde) 2=Normal (escuro)', '2');
   var cor = corChoice === '1' ? '#0f9d58' : '#0f172a';
-  if (!S.lancTimeline) S.lancTimeline = [];
-  var maxId = 0;
-  S.lancTimeline.forEach(function(l){ if (l.id > maxId) maxId = l.id; });
-  S.lancTimeline.push({ id: maxId + 1, mes: mes, nome: nome.trim(), cor: cor, meta_vgv: 0, meta_pastas: 0 });
-  saveLancData();
+  persist('addLanc',function(){
+    if (!S.lancTimeline) S.lancTimeline = [];
+    var maxId = 0;
+    S.lancTimeline.forEach(function(l){ if (l.id > maxId) maxId = l.id; });
+    S.lancTimeline.push({ id: maxId + 1, mes: mes, nome: nome.trim(), cor: cor, meta_vgv: 0, meta_pastas: 0 });
+  });
   render();
 }
 
@@ -19297,21 +19315,20 @@ function rmLanc(idx) {
   if (!S.lancTimeline || idx < 0 || idx >= S.lancTimeline.length) return;
   var nome = S.lancTimeline[idx].nome;
   if (!confirm('Remover lan\u00e7amento "' + nome + '"?')) return;
-  S.lancTimeline.splice(idx, 1);
-  saveLancData();
+  persist('rmLanc',function(){ S.lancTimeline.splice(idx, 1); });
   render();
 }
 
 function updLancMeta(idx, key, val) {
   if (!S.lancTimeline || idx < 0 || idx >= S.lancTimeline.length) return;
-  S.lancTimeline[idx][key] = val;
-  saveLancData();
+  persist('updLancMeta',function(){ S.lancTimeline[idx][key] = val; });
   if(typeof PSM !== 'undefined' && PSM.auditLog) PSM.auditLog('lancTimeline.updated', {idx:idx,key:key,val:val}, 'pgMetasV2');
   toast('\u2705 Salvo: ' + key + ' = ' + val, 'ok');
 }
 
 function saveLancData() {
-  saveState();
+  // v27.3: usa persist() para sync Firebase + IDB
+  persist('lancTimeline',function(){});
 }
 
 // ═══ v17: DRAG & DROP de lancamentos entre meses ═══
@@ -19687,21 +19704,24 @@ async function doCheckin() {
   var mm = String(now.getMinutes()).padStart(2,'0');
   var today = now.toISOString().slice(0,10);
   var uid = S.user.id;
-  if (!S.checkin.logs[uid]) S.checkin.logs[uid] = [];
-  var log = S.checkin.logs[uid].find(function(l) { return l.date === today; });
-  if (!log) {
-    log = { date: today, checkinTime: null, checkoutTime: null, status: 'offline', pausas: [], alertas: [] };
-    S.checkin.logs[uid].push(log);
-  }
-  log.checkinTime = hh + ':' + mm;
-  log.status = 'online';
-  // v27: captura foto + GPS (nativo ou web)
+  // v27: captura foto + GPS (nativo ou web) — fora do persist (async)
   var cap = await _checkinCapture();
-  if (cap.photo) log.checkinPhoto = cap.photo.dataUrl;
-  if (cap.geo)   log.checkinGeo   = { lat: cap.geo.lat, lng: cap.geo.lng, acc: cap.geo.accuracy };
-  saveState();
+  var snapshot;
+  persist('doCheckin',function(){
+    if (!S.checkin.logs[uid]) S.checkin.logs[uid] = [];
+    var log = S.checkin.logs[uid].find(function(l) { return l.date === today; });
+    if (!log) {
+      log = { date: today, checkinTime: null, checkoutTime: null, status: 'offline', pausas: [], alertas: [] };
+      S.checkin.logs[uid].push(log);
+    }
+    log.checkinTime = hh + ':' + mm;
+    log.status = 'online';
+    if (cap.photo) log.checkinPhoto = cap.photo.dataUrl;
+    if (cap.geo)   log.checkinGeo   = { lat: cap.geo.lat, lng: cap.geo.lng, acc: cap.geo.accuracy };
+    snapshot = log;
+  });
   // v27: enfileira pra Supabase (funciona offline, sincroniza depois)
-  try { if (window.psmOffline) window.psmOffline.enqueue('checkins', 'upsert', { user_id: uid, date: today, ...log }); } catch(_){}
+  try { if (window.psmOffline && snapshot) window.psmOffline.enqueue('checkins', 'upsert', { user_id: uid, date: today, ...snapshot }); } catch(_){}
   render();
 }
 
@@ -19711,20 +19731,24 @@ async function doCheckout() {
   var mm = String(now.getMinutes()).padStart(2,'0');
   var today = now.toISOString().slice(0,10);
   var uid = S.user.id;
-  var log = (S.checkin.logs[uid] || []).find(function(l) { return l.date === today; });
-  if (!log) return;
-  // Close any open pause
-  (log.pausas || []).forEach(function(p) {
-    if (p.inicio && !p.fim) p.fim = hh + ':' + mm;
-  });
-  log.checkoutTime = hh + ':' + mm;
-  log.status = 'finalizado';
-  // v27: captura foto + GPS tambem no checkout
+  var existingLog = (S.checkin.logs[uid] || []).find(function(l) { return l.date === today; });
+  if (!existingLog) return;
+  // v27: captura foto + GPS tambem no checkout — fora do persist (async)
   var cap = await _checkinCapture();
-  if (cap.photo) log.checkoutPhoto = cap.photo.dataUrl;
-  if (cap.geo)   log.checkoutGeo   = { lat: cap.geo.lat, lng: cap.geo.lng, acc: cap.geo.accuracy };
-  saveState();
-  try { if (window.psmOffline) window.psmOffline.enqueue('checkins', 'upsert', { user_id: uid, date: today, ...log }); } catch(_){}
+  var snapshot;
+  persist('doCheckout',function(){
+    var log = (S.checkin.logs[uid] || []).find(function(l) { return l.date === today; });
+    if (!log) return;
+    (log.pausas || []).forEach(function(p) {
+      if (p.inicio && !p.fim) p.fim = hh + ':' + mm;
+    });
+    log.checkoutTime = hh + ':' + mm;
+    log.status = 'finalizado';
+    if (cap.photo) log.checkoutPhoto = cap.photo.dataUrl;
+    if (cap.geo)   log.checkoutGeo   = { lat: cap.geo.lat, lng: cap.geo.lng, acc: cap.geo.accuracy };
+    snapshot = log;
+  });
+  try { if (window.psmOffline && snapshot) window.psmOffline.enqueue('checkins', 'upsert', { user_id: uid, date: today, ...snapshot }); } catch(_){}
   render();
 }
 
@@ -19741,9 +19765,10 @@ function doPausa(motivo) {
     alert('Limite de pausas atingido (' + cfg.max_pausas_dia + '/dia)');
     return;
   }
-  log.pausas.push({ inicio: hh + ':' + mm, fim: null, motivo: motivo });
-  log.status = motivo;
-  saveState();
+  persist('doPausa',function(){
+    log.pausas.push({ inicio: hh + ':' + mm, fim: null, motivo: motivo });
+    log.status = motivo;
+  });
   render();
 }
 
@@ -19755,11 +19780,11 @@ function voltarOnline() {
   var uid = S.user.id;
   var log = (S.checkin.logs[uid] || []).find(function(l) { return l.date === today; });
   if (!log) return;
-  // Close last open pause
-  var openPause = (log.pausas || []).find(function(p) { return p.inicio && !p.fim; });
-  if (openPause) openPause.fim = hh + ':' + mm;
-  log.status = 'online';
-  saveState();
+  persist('voltarOnline',function(){
+    var openPause = (log.pausas || []).find(function(p) { return p.inicio && !p.fim; });
+    if (openPause) openPause.fim = hh + ':' + mm;
+    log.status = 'online';
+  });
   render();
 }
 function pgSimVPL() {
@@ -22029,9 +22054,10 @@ function enviarCanalAnonimo() {
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
 
   function finalizarEnvio(entry) {
-    if (!S.canalAnonimo) S.canalAnonimo = [];
-    S.canalAnonimo.push(entry);
-    saveState();
+    persist('canalAnonimoSend',function(){
+      if (!S.canalAnonimo) S.canalAnonimo = [];
+      S.canalAnonimo.push(entry);
+    });
     document.getElementById('ca_msg').value = '';
     if (fileInput) fileInput.value = '';
     if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDE80 Enviar Mensagem'; }
@@ -22072,8 +22098,7 @@ function caMarcarLida(idx) {
 }
 function caMarcarTodasLidas() {
   if (!S.canalAnonimo) return;
-  S.canalAnonimo.forEach(function(m){ m.lido = true; });
-  saveState();
+  persist('caMarcarTodasLidas',function(){ S.canalAnonimo.forEach(function(m){ m.lido = true; }); });
   render();
 }
 
