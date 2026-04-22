@@ -1634,6 +1634,41 @@ window.psmFetch = function(url, opts, timeoutMs){
   return fetch(url, opts).finally(function(){ clearTimeout(to); });
 };
 
+// === PROXY BACKEND (v28) ============================================
+// Cloudflare Worker esconde API keys (Gemini, Supabase service role, Sentry, PagerDuty).
+// Configurar: localStorage.setItem('PSM_PROXY_URL','https://psm-proxy.seudominio.workers.dev')
+// Sem proxy → modo legado (API keys client-side). Com proxy → tudo roteado.
+window.psmProxyUrl = function(){
+  try { return (window.PSM_PROXY_URL || localStorage.getItem('PSM_PROXY_URL') || '').replace(/\/$/, ''); }
+  catch(_){ return ''; }
+};
+window.psmProxyFetch = function(endpoint, opts, timeoutMs){
+  var base = window.psmProxyUrl();
+  if (!base) return Promise.reject(new Error('PSM_PROXY_URL nao configurado'));
+  opts = opts || {};
+  opts.headers = opts.headers || {};
+  // Adiciona token user para autenticacao no proxy
+  try {
+    var tok = localStorage.getItem('psm_supabase_token') || localStorage.getItem('sb-access-token') || '';
+    if (tok) opts.headers['X-PSM-Token'] = tok;
+    if (window.S && window.S.user && window.S.user.email) opts.headers['X-PSM-User'] = window.S.user.email;
+  } catch(_){}
+  var url = base + (endpoint.charAt(0) === '/' ? endpoint : '/' + endpoint);
+  return window.psmFetch(url, opts, timeoutMs || 30000);
+};
+
+// === PAGERDUTY AUTO-BOOTSTRAP (v28) ================================
+// Se PSM_PAGERDUTY_WEBHOOK configurado → psmMonitor envia alertas automaticamente
+(function bootstrapPagerDuty(){
+  try {
+    var key = localStorage.getItem('PSM_PAGERDUTY_WEBHOOK') || window.PSM_PAGERDUTY_WEBHOOK;
+    if (key && window.psmMonitor && typeof window.psmMonitor.setWebhook === 'function') {
+      window.psmMonitor.setWebhook(key);
+      console.log('[v28] PagerDuty webhook configurado');
+    }
+  } catch(_){}
+})();
+
 // === CROSS-TAB SYNC ================================================
 // Se o usuário tem múltiplas abas abertas, edições numa aba refletem
 // automaticamente nas outras (evita sobrescritas e estados divergentes).
@@ -2431,8 +2466,23 @@ function _fbReleaseSyncing(reason){
   if (_fbSyncingTimer) { clearTimeout(_fbSyncingTimer); _fbSyncingTimer = null; }
   if (reason) console.log('[PSM-Sync] _fbSyncing liberado:', reason);
 }
+// v28: Firebase rate limiter — impede storm de writes (limite 30 pushes/min por client)
+var _fbRateLimit = { window: 60000, max: 30, events: [] };
+function _fbRateCheck() {
+  var now = Date.now();
+  _fbRateLimit.events = _fbRateLimit.events.filter(function(t){ return (now - t) < _fbRateLimit.window; });
+  if (_fbRateLimit.events.length >= _fbRateLimit.max) {
+    console.warn('[PSM-FB] rate limit atingido: ' + _fbRateLimit.max + '/min. Push descartado.');
+    try { if (window.psmMonitor) window.psmMonitor.alert('warn', 'Firebase rate limit hit (' + _fbRateLimit.max + '/min)'); } catch(_){}
+    return false;
+  }
+  _fbRateLimit.events.push(now);
+  return true;
+}
+
 function fbPushState(immediate) {
   if (!_fbReady || !_fbDb) return;
+  if (!_fbRateCheck()) return;  // v28: rate limit guard
   // SINALIZA IMEDIATAMENTE que temos push pendente (protege contra onValue sobrescrever)
   _fbSyncing = true;
   // FIX v22i: circuit-breaker 30s — se push trava, nao bloqueia onValue indefinidamente
@@ -10183,7 +10233,18 @@ const _LOCAL_AUTH = {
   'guilherme@imobiliariapsm.com.br':  simpleHash('Gui@mkt26')+'|guilherme',
   'trafego@imobiliariapsm.com.br':    simpleHash('Traf@mkt26')+'|gestor_trafego',
 };
-const _IS_LOCAL = true; // TODO: set back to auto-detect when /api/auth backend is deployed
+// v28: auto-detect _IS_LOCAL. Proxy backend em PSM_PROXY_URL (set via localStorage ou meta tag).
+// Se proxy configurado E hostname nao eh localhost/127/test → usa /api/auth via proxy.
+const _IS_LOCAL = (function(){
+  try {
+    var host = location.hostname || '';
+    var isLocalHost = /^(localhost|127\.|0\.0\.0\.0|192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(host) || host === '' || host.endsWith('.test') || host.endsWith('.local');
+    var proxyUrl = (window.PSM_PROXY_URL || localStorage.getItem('PSM_PROXY_URL') || '').trim();
+    // Se estamos em producao E temos proxy configurado → NAO eh local
+    if (!isLocalHost && proxyUrl) return false;
+    return true;
+  } catch(_){ return true; }
+})();
 
 // v22l: usa psmCheckPassword para comparar hash SHA-256 (legado plain suportado)
 async function _localLogin(email, senha) {
@@ -10283,17 +10344,23 @@ async function doLogin() {
     }).catch(function(e){ console.warn('[psm-sb bridge] fail', e); });
   }
 
-  // Manter conectado — salvar ou limpar (v27.6: AES-GCM no lugar de btoa)
+  // Manter conectado — v28: APENAS AES-GCM. Remove fallback btoa plaintext (seguranca).
   if (_rememberChecked) {
     localStorage.setItem('psm_remember', '1');
     localStorage.setItem('psm_remember_email', email);
     try {
       var _enc = await window.psmEncryptCred(senha);
-      var _b64 = (function(s){ try { return 'b64:'+btoa(unescape(encodeURIComponent(s))); } catch(_){ return 'b64:'+s; } })(senha);
-      localStorage.setItem('psm_remember_pw', _enc || _b64);
-    } catch(_) {
-      try { localStorage.setItem('psm_remember_pw', 'b64:'+btoa(unescape(encodeURIComponent(senha)))); }
-      catch(__){ localStorage.removeItem('psm_remember_pw'); }
+      if (_enc && typeof _enc === 'string' && (_enc.indexOf('aes:') === 0 || _enc.indexOf('enc:') === 0)) {
+        localStorage.setItem('psm_remember_pw', _enc);
+      } else {
+        // AES indisponivel (WebCrypto falhou) → NAO salva em plaintext, apenas avisa.
+        localStorage.removeItem('psm_remember_pw');
+        console.warn('[v28] AES-GCM indisponivel: "Manter conectado" desabilitado por seguranca');
+        try { toast && toast('Navegador nao suporta criptografia segura. "Manter conectado" desativado.', 'warn'); } catch(_){}
+      }
+    } catch(e) {
+      localStorage.removeItem('psm_remember_pw');
+      console.warn('[v28] psmEncryptCred falhou, remember_pw nao salvo:', e);
     }
   } else {
     localStorage.removeItem('psm_remember');

@@ -1,0 +1,177 @@
+name: PSM-OS CI/CD
+
+on:
+  push:
+    branches: [main, staging, develop]
+  pull_request:
+    branches: [main, staging]
+
+jobs:
+  lint-syntax:
+    name: Lint & Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Validar sintaxe HTML+JS
+        run: node scripts/validate-syntax.js
+      - name: ESLint libs
+        run: npx eslint lib/*.js --no-eslintrc --parser-options=ecmaVersion:2022
+
+  unit-tests:
+    name: Unit Tests (Jest)
+    runs-on: ubuntu-latest
+    needs: lint-syntax
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run Jest
+        run: npx jest --coverage --ci
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Run Playwright E2E
+        run: npx playwright test
+        env:
+          PSM_TEST_FIREBASE_URL: ${{ secrets.PSM_TEST_FIREBASE_URL }}
+          PSM_TEST_SUPABASE_URL: ${{ secrets.PSM_TEST_SUPABASE_URL }}
+          PSM_TEST_USER: ${{ secrets.PSM_TEST_USER }}
+          PSM_TEST_PASS: ${{ secrets.PSM_TEST_PASS }}
+      - name: Upload E2E artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+  smoke-jsdom:
+    name: Runtime Smoke (JSDOM)
+    runs-on: ubuntu-latest
+    needs: lint-syntax
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: node runtime-smoke.js
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [unit-tests, e2e-tests, smoke-jsdom]
+    if: github.ref == 'refs/heads/staging'
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy Netlify Staging
+        uses: netlify/actions/cli@master
+        with:
+          args: deploy --dir=mnt/outputs --alias=staging
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_STAGING_SITE_ID }}
+      - name: Notify PagerDuty - Deploy OK
+        run: |
+          curl -X POST https://events.pagerduty.com/v2/enqueue \
+            -H "Content-Type: application/json" \
+            -d '{
+              "routing_key": "${{ secrets.PAGERDUTY_ROUTING_KEY }}",
+              "event_action": "trigger",
+              "payload": {
+                "summary": "PSM-OS staging deploy SUCCESS",
+                "severity": "info",
+                "source": "github-actions"
+              }
+            }'
+
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [unit-tests, e2e-tests, smoke-jsdom]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag release version
+        id: ver
+        run: echo "version=$(grep -oP 'PSM_VERSION=.\K[0-9.]+' mnt/outputs/index.html | head -1)" >> $GITHUB_OUTPUT
+      - name: Create GitHub Release (rollback point)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}-${{ github.run_number }}
+          files: |
+            mnt/outputs/index.html
+            mnt/outputs/sw.js
+            mnt/outputs/lib/*
+      - name: Deploy Netlify Production
+        uses: netlify/actions/cli@master
+        with:
+          args: deploy --dir=mnt/outputs --prod
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_PROD_SITE_ID }}
+      - name: Smoke test prod URL
+        run: |
+          sleep 10
+          curl -f https://psm-os.netlify.app/index.html
+          curl -f https://psm-os.netlify.app/sw.js
+      - name: Notify PagerDuty - Prod deploy OK
+        run: |
+          curl -X POST https://events.pagerduty.com/v2/enqueue \
+            -H "Content-Type: application/json" \
+            -d '{
+              "routing_key": "${{ secrets.PAGERDUTY_ROUTING_KEY }}",
+              "event_action": "trigger",
+              "payload": {
+                "summary": "PSM-OS PROD deploy SUCCESS v${{ steps.ver.outputs.version }}",
+                "severity": "info",
+                "source": "github-actions"
+              }
+            }'
+
+  health-monitor:
+    name: Health Monitor Prod
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Ping prod
+        run: |
+          code=$(curl -o /dev/null -s -w "%{http_code}" https://psm-os.netlify.app/index.html)
+          if [ "$code" != "200" ]; then
+            curl -X POST https://events.pagerduty.com/v2/enqueue \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"routing_key\": \"${{ secrets.PAGERDUTY_ROUTING_KEY }}\",
+                \"event_action\": \"trigger\",
+                \"payload\": {
+                  \"summary\": \"PSM-OS PROD DOWN: HTTP $code\",
+                  \"severity\": \"critical\",
+                  \"source\": \"gh-health\"
+                }
+              }"
+            exit 1
+          fi
