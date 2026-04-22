@@ -1,11 +1,11 @@
 // ═════════════════════════════════════════════════════════════════════════════
-// PSM OS — Service Worker v27.7 (2026-04-21 — iOS COMPAT: migra confirm()/prompt() residuais para psmConfirm/psmPrompt; mantem AES-GCM remember_pw)
+// PSM OS — Service Worker v27.9 (2026-04-22 — TV LG webOS FIX: video MP4 real playing, input spoof agressivo, deteccao webOS, aviso config TV)
 // Estratégia: NETWORK-FIRST para HTML (resolve cache stale), CACHE-FIRST assets.
 // Limpa caches antigos automaticamente no activate.
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const CACHE_VERSION = 'psm-os-v27.7-2026-04-21-ios-compat-confirm-prompt';
+const CACHE_VERSION = 'psm-os-v27.9-2026-04-22-tv-lg-webos-fix';
 const HTML_CACHE    = CACHE_VERSION + '-html';
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

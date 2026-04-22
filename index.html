@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v27.8 — RUNTIME FIX-PASS: psmAuth.isReady + audioCtx leak TV + btoa unicode + Drive 401 retry + offline dead cleanup + psmFetch timeout. Mantem v27.7: iOS compat (alert/confirm/prompt), AES-GCM, psmSafeParse/psmLSGet, JSON.parse blindados. -->
+<!-- PSM-OS v2026.04.22-v27.9 — TV LG webOS FIX: video MP4 real playing + input spoof agressivo (mouse+key+scroll 2s) + deteccao webOS + aviso config TV. Mantem v27.8: psmAuth.isReady, audioCtx leak, btoa unicode, Drive 401 retry, offline cleanup, psmFetch timeout. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,8 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.21-v27.8">
-<script>window.PSM_VERSION='27.7';</script>
+<meta name="version" content="2026.04.22-v27.9">
+<script>window.PSM_VERSION='27.9';</script>
 <!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
@@ -5659,29 +5659,55 @@ function arenaTV(){
     if(dot) dot.style.opacity = (n.getSeconds() % 2 === 0) ? '1' : '0.4';
   }, 1000);
 
-  // ══════ ANTI-STANDBY LG ══════
+  // ══════ ANTI-STANDBY LG webOS (v27.9 fix: webOS browser nao suporta wakeLock, usa video real + input spoof agressivo) ══════
+  var _isWebOS = /Web0S|webOS|SmartTV|LG Browser|NetCast/i.test(navigator.userAgent || '');
   var wakeLock = null;
   async function requestWakeLock(){
-    try { if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 500); }); } } catch(e){console.error("[PSM v27.7]",e);}
+    try { if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 500); }); } } catch(e){console.error("[PSM v27.9]",e);}
   }
   requestWakeLock();
   document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') requestWakeLock(); });
 
-  // Video invisível (decodificador ativo)
+  // Video VISIVEL playing loop real (webOS detecta midia ativa = nao dorme)
   var antiSleep = document.createElement('video');
-  antiSleep.setAttribute('playsinline',''); antiSleep.setAttribute('muted',''); antiSleep.muted = true; antiSleep.loop = true;
-  antiSleep.style.cssText = 'position:fixed;top:-1px;left:-1px;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:100001';
-  antiSleep.src = 'data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwH/////////FUmpZpkq17GDD0JATYCGQ2hyb21lV0WQQ2hyb21lFlSua7+uvdeBAXPFh2YA0AAAAAAAABZUrmtAu4EBAAAAAABH2K5MoQ==';
+  antiSleep.setAttribute('playsinline',''); antiSleep.setAttribute('muted',''); antiSleep.muted = true; antiSleep.loop = true; antiSleep.autoplay = true;
+  antiSleep.setAttribute('webkit-playsinline','');
+  // webOS precisa video visivel com area >= 50x50 e reproduzindo. Escondemos atras do conteudo mas visivel ao render engine.
+  antiSleep.style.cssText = 'position:fixed;bottom:45px;right:8px;width:80px;height:45px;opacity:0.02;pointer-events:none;z-index:99998;object-fit:cover';
+  // Video real de 1s loop (webOS aceita MP4 melhor que WebM)
+  antiSleep.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAACphtZGF0AAACrwYF//+r3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE1NSByMjkxNyAwYTg0ZDk4IC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAxOCAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTMgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTI1IHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yOC4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAAAEmWIhAAn//8aLxn3S3Zr6d2EAAADAAE5dABHnYBdwACgAAD//gIwABQBACAJCKZAAUAX8AgCQAAFWEVhEIRCEIRCERaLCAEAAGYoAKCnA==';
   overlay.appendChild(antiSleep);
-  try { antiSleep.play(); } catch(e){console.error("[PSM v27.7]",e);}
-  var playVidInt = setInterval(function(){ try{ if(antiSleep.paused) antiSleep.play(); }catch(e){console.error("[PSM v27.7]",e);} }, 30000);
+  try { antiSleep.play(); } catch(e){console.error("[PSM v27.9]",e);}
+  var playVidInt = setInterval(function(){ try{ if(antiSleep.paused || antiSleep.ended) { antiSleep.currentTime = 0; antiSleep.play(); } }catch(e){console.error("[PSM v27.9]",e);} }, 5000);
 
-  // User interaction sim
+  // User interaction sim AGRESSIVO (webOS timeout = inatividade de entrada)
   var moveInt = setInterval(function(){
     if(!document.getElementById('arena-tv-overlay')) { clearInterval(moveInt); return; }
-    window.dispatchEvent(new Event('mousemove'));
-    document.body.style.paddingBottom = (Date.now() % 2 === 0) ? '0px' : '1px';
-  }, 5000);
+    try {
+      window.dispatchEvent(new Event('mousemove'));
+      window.dispatchEvent(new Event('mousedown'));
+      window.dispatchEvent(new Event('mouseup'));
+      document.dispatchEvent(new KeyboardEvent('keydown', {key:'Shift', bubbles:true}));
+      document.dispatchEvent(new KeyboardEvent('keyup', {key:'Shift', bubbles:true}));
+      document.body.style.paddingBottom = (Date.now() % 2 === 0) ? '0px' : '1px';
+      // Scroll micro pra webOS detectar atividade
+      window.scrollBy(0, 1); window.scrollBy(0, -1);
+    } catch(e){}
+  }, 2000);
+
+  // Aviso webOS LG (uma unica vez por sessao)
+  if (_isWebOS && !sessionStorage.getItem('psm_tv_lg_warned')){
+    try {
+      sessionStorage.setItem('psm_tv_lg_warned', '1');
+      setTimeout(function(){
+        var warn = document.createElement('div');
+        warn.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(212,175,55,0.95);color:#0b1120;padding:12px 24px;border-radius:8px;font-weight:700;font-size:14px;z-index:100002;box-shadow:0 4px 20px rgba(0,0,0,0.5);max-width:600px;text-align:center';
+        warn.textContent = 'TV LG: desative "Economia de energia" em Config > Geral > Economia de energia > Desligada. Sem isso a TV dorme apos 4h.';
+        document.body.appendChild(warn);
+        setTimeout(function(){ try{ warn.remove(); }catch(_){} }, 12000);
+      }, 3000);
+    } catch(_){}
+  }
 
   // Audio ctx — v27.7 fix: audioResumeInt agora rastreado e limpo no exit (evita leak em entradas multiplas TV)
   var audioCtx = null, audioResumeInt = null;
@@ -5793,17 +5819,46 @@ function metaAdsTV(){
       el.style.transform = 'translateY(' + (-scrollPos) + 'px)';
     }, 1000/60);
 
-    // Wake lock
+    // Wake lock + anti-sleep agressivo (v27.9 fix LG webOS)
+    var _isWebOS = /Web0S|webOS|SmartTV|LG Browser|NetCast/i.test(navigator.userAgent || '');
     var wakeLock = null;
     async function requestWakeLock(){
-      try { if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 1000); }); } } catch(e){console.error("[PSM v27.7]",e);}
+      try { if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 1000); }); } } catch(e){console.error("[PSM v27.9]",e);}
     }
     requestWakeLock();
 
+    // Video visivel pra webOS detectar midia ativa
+    var matvVideo = document.createElement('video');
+    matvVideo.muted = true; matvVideo.loop = true; matvVideo.autoplay = true;
+    matvVideo.setAttribute('playsinline',''); matvVideo.setAttribute('webkit-playsinline','');
+    matvVideo.style.cssText = 'position:fixed;bottom:45px;right:8px;width:80px;height:45px;opacity:0.02;pointer-events:none;z-index:99998;object-fit:cover';
+    matvVideo.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAACphtZGF0AAACrwYF//+r3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE1NSByMjkxNyAwYTg0ZDk4IC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAxOCAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTMgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTI1IHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yOC4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAAAEmWIhAAn//8aLxn3S3Zr6d2EAAADAAE5dABHnYBdwACgAAD//gIwABQBACAJCKZAAUAX8AgCQAAFWEVhEIRCEIRCERaLCAEAAGYoAKCnA==';
+    overlay.appendChild(matvVideo);
+    try { matvVideo.play(); } catch(_){}
+    var matvPlayInt = setInterval(function(){ try{ if(matvVideo.paused) matvVideo.play(); }catch(_){} }, 5000);
+
     var moveInt = setInterval(function(){
       if(!document.getElementById('metaads-tv-overlay')) { clearInterval(moveInt); return; }
-      window.dispatchEvent(new Event('mousemove'));
-    }, 30000);
+      try {
+        window.dispatchEvent(new Event('mousemove'));
+        document.dispatchEvent(new KeyboardEvent('keydown', {key:'Shift', bubbles:true}));
+        document.dispatchEvent(new KeyboardEvent('keyup', {key:'Shift', bubbles:true}));
+        window.scrollBy(0, 1); window.scrollBy(0, -1);
+      } catch(_){}
+    }, 2000);
+
+    if (_isWebOS && !sessionStorage.getItem('psm_tv_lg_warned')){
+      try {
+        sessionStorage.setItem('psm_tv_lg_warned', '1');
+        setTimeout(function(){
+          var warn = document.createElement('div');
+          warn.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(212,175,55,0.95);color:#0b1120;padding:12px 24px;border-radius:8px;font-weight:700;font-size:14px;z-index:100002;max-width:600px;text-align:center';
+          warn.textContent = 'TV LG: desative "Economia de energia" em Config > Geral. Sem isso a TV dorme.';
+          document.body.appendChild(warn);
+          setTimeout(function(){ try{ warn.remove(); }catch(_){} }, 12000);
+        }, 3000);
+      } catch(_){}
+    }
 
     // Exit
     function exitTV(){
@@ -5819,6 +5874,8 @@ function metaAdsTV(){
       clearInterval(tvRefreshInt);
       clearInterval(moveInt);
       clearInterval(clockInt);
+      try{ clearInterval(matvPlayInt); }catch(_){}
+      try{ if(matvVideo){ matvVideo.pause(); matvVideo.src=''; matvVideo.remove(); } }catch(_){}
     }
     function onKey(e){ if(e.key==='Escape') exitTV(); }
     function onFs(){ if(!document.fullscreenElement) exitTV(); }
