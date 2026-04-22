@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v27.3 — Audit profunda: checkin/rdStageHistCache persistidos, lancamentos/agenda/canalAnonimo migrados para persist(), pattern matcher SYNC_LS p/ psm_plantoes_* -->
+<!-- PSM-OS v2026.04.21-v27.5 — 5 chaves CRITICAS adicionadas a sync (tabelaCatalog/kenloProps/competitorsState/perfilComp/notifPorUsuario) + 20+ handlers extras migrados saveState→persist (premiacoes/oportunidades/opEventos/opTreinamentos/canalAnonimo/mapPins/iaChat/veraHist/tickerMsgs/perfilComp/radar/fluxoCaixa/setTabelaRef/talentosSeed/ooSheetCache/miUpd/ooSheetAbandoned). Bugs encontrados: dados sumiam ao recarregar/cross-device. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,8 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.21-v27.3">
-<script>window.PSM_VERSION='27.3';</script>
+<meta name="version" content="2026.04.21-v27.4">
+<script>window.PSM_VERSION='27.4';</script>
 <!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
@@ -1565,15 +1565,14 @@ function ooToggleSheetAbandoned(bid, name) {
   var cur = S.ooSheetAbandoned[bid] || false;
   if (cur) {
     if (!confirm('Reativar vínculo da planilha para '+name+'?\n\nSistema vai voltar a buscar dados da Google Sheet.')) return;
-    delete S.ooSheetAbandoned[bid];
+    persist('ooSheetReativar', function(){ delete S.ooSheetAbandoned[bid]; });
     toast('📊 Planilha de '+name+' REATIVADA','ok');
   } else {
     if (!confirm('⚠️ Abandonar planilha de '+name+'?\n\n• Sistema PARA de buscar dados da Google Sheet\n• Histórico já importado em S.ooImportado é preservado\n• Novos lançamentos só no sistema\n• Reversível (pode reativar depois)\n\nIMPORTANTE: garanta que você já importou o histórico antes!\n\nContinuar?')) return;
-    S.ooSheetAbandoned[bid] = Date.now();
+    persist('ooSheetAbandonar', function(){ S.ooSheetAbandoned[bid] = Date.now(); });
     if (typeof ooAudit === 'function') ooAudit('planilha', bid, '-', 'abandoned', 'false', 'true');
     toast('🚫 Planilha de '+name+' ABANDONADA. Só sistema agora.','ok');
   }
-  saveState();
   render();
 }
 
@@ -1700,6 +1699,14 @@ function saveState(skipFbPush) {
       // FIX v27.3: check-in/out e cache historico RD
       checkin: S.checkin || null,
       rdStageHistCache: S.rdStageHistCache || {},
+      // FIX v27.4: organograma editavel sumia ao recarregar
+      organograma: S.organograma || null,
+      // FIX v27.5: tabela + kenloProps + radar + perfil + notif por usuario
+      tabelaCatalog: S.tabelaCatalog || null,
+      kenloProps: S.kenloProps || [],
+      competitorsState: S.competitorsState || {},
+      perfilComp: S.perfilComp || {},
+      notifPorUsuario: S.notifPorUsuario || {},
       savedAt: Date.now(),
     };
     // === SALVAMENTO PRINCIPAL COM DETECÇÃO DE QUOTA ===
@@ -1965,6 +1972,14 @@ function loadState() {
     // FIX v27.3: check-in e cache RD restaurados
     if (d.checkin) S.checkin = d.checkin;
     if (d.rdStageHistCache) S.rdStageHistCache = d.rdStageHistCache;
+    // FIX v27.4: organograma restaurado
+    if (d.organograma) S.organograma = d.organograma;
+    // FIX v27.5: tabela + kenloProps + radar + perfil + notif por usuario
+    if (d.tabelaCatalog) S.tabelaCatalog = d.tabelaCatalog;
+    if (d.kenloProps) S.kenloProps = d.kenloProps;
+    if (d.competitorsState) S.competitorsState = d.competitorsState;
+    if (d.perfilComp) S.perfilComp = d.perfilComp;
+    if (d.notifPorUsuario) S.notifPorUsuario = d.notifPorUsuario;
     // Restore manual vendas (legacy)
     try {
       const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manuais') || '[]');
@@ -1998,7 +2013,11 @@ var SYNC_KEYS = [
   'locContratos','tpData','drivePath','tabelaUploads',
   'veraAgHist','solAgHist','srPerfHist',
   // FIX v27.3: check-in compartilhado entre dispositivos do mesmo usuario
-  'checkin'
+  'checkin',
+  // FIX v27.4: organograma editavel sincroniza entre socios/diretores
+  'organograma',
+  // FIX v27.5: tabela + kenlo + radar + perfil + notif por usuario
+  'tabelaCatalog','kenloProps','competitorsState','perfilComp','notifPorUsuario'
 ];
 // Global config keys that also need sync
 var SYNC_GLOBAL_KEYS = ['metasConfig','metasEquipe','teamConfig'];
@@ -3310,18 +3329,19 @@ function pgAgendaPSM(){
     // v18: log de envolvidos (quando informado no form)
     if(envolvidosTxt && envolvidosTxt.trim()){
       try{
-        if(!S.notifPorUsuario) S.notifPorUsuario = {};
-        // extrair brokers pelo nome mencionado
-        var tokens = envolvidosTxt.split(/[,;]/).map(function(s){return s.trim().toLowerCase();}).filter(Boolean);
-        (S.brokers||[]).forEach(function(b){
-          var match = tokens.some(function(t){ return b.nome && b.nome.toLowerCase().indexOf(t)>=0; });
-          if(match){
-            if(!S.notifPorUsuario[b.id]) S.notifPorUsuario[b.id] = [];
-            S.notifPorUsuario[b.id].unshift({msg:msg, ts:Date.now(), read:false});
-            if(S.notifPorUsuario[b.id].length > 20) S.notifPorUsuario[b.id].splice(20);
-          }
+        persist('notifEnvolvidos', function(){
+          if(!S.notifPorUsuario) S.notifPorUsuario = {};
+          // extrair brokers pelo nome mencionado
+          var tokens = envolvidosTxt.split(/[,;]/).map(function(s){return s.trim().toLowerCase();}).filter(Boolean);
+          (S.brokers||[]).forEach(function(b){
+            var match = tokens.some(function(t){ return b.nome && b.nome.toLowerCase().indexOf(t)>=0; });
+            if(match){
+              if(!S.notifPorUsuario[b.id]) S.notifPorUsuario[b.id] = [];
+              S.notifPorUsuario[b.id].unshift({msg:msg, ts:Date.now(), read:false});
+              if(S.notifPorUsuario[b.id].length > 20) S.notifPorUsuario[b.id].splice(20);
+            }
+          });
         });
-        saveState();
       }catch(e){console.error("[PSM v26.2]",e);}
     }
   }
@@ -7344,15 +7364,16 @@ window.meUpdAuto=function(){
   render();
 };
 function miUpd(bid,key,val){
-  if(!S.metaIndiv) S.metaIndiv={};
-  if(!S.metaIndiv[bid]) S.metaIndiv[bid]={};
-  var m=S.miMes||new Date().getMonth()+1;
-  if(!S.metaIndiv[bid][m]) S.metaIndiv[bid][m]={vgv_meta:0,visitas:0,captacoes:0,pastas_lanc:0,vgv_pessoal:0};
-  S.metaIndiv[bid][m][key]=+(val)||0;
-  if(!METAS_CONFIG[bid]) METAS_CONFIG[bid]={};
-  METAS_CONFIG[bid][key]=+(val)||0;
-  localStorage.setItem('psm_meta_indiv',JSON.stringify(S.metaIndiv));
-  saveState();
+  persist('miUpd', function(){
+    if(!S.metaIndiv) S.metaIndiv={};
+    if(!S.metaIndiv[bid]) S.metaIndiv[bid]={};
+    var m=S.miMes||new Date().getMonth()+1;
+    if(!S.metaIndiv[bid][m]) S.metaIndiv[bid][m]={vgv_meta:0,visitas:0,captacoes:0,pastas_lanc:0,vgv_pessoal:0};
+    S.metaIndiv[bid][m][key]=+(val)||0;
+    if(!METAS_CONFIG[bid]) METAS_CONFIG[bid]={};
+    METAS_CONFIG[bid][key]=+(val)||0;
+    localStorage.setItem('psm_meta_indiv',JSON.stringify(S.metaIndiv));
+  });
 }
 window.miUpd=miUpd;
 window.miFmt=function(v){try{return fmtCompact(+v||0);}catch(e){return 'R$ '+(+v||0);}};
@@ -7956,23 +7977,31 @@ window.orgAddNode = function(){
   var tipo = prompt('Tipo (socio, setor, equipe, funcao):','setor') || 'setor';
   var parent = prompt('ID do pai (ex: root, ip, paulo, ma, isa):','root') || 'root';
   if(!S.organograma.nodes.find(function(n){return n.id===parent;}) && parent!=='root'){ toast('Pai não encontrado','err'); return; }
-  S.organograma.nodes.push({id:'n_'+Date.now(), parent:parent, nome:nome, tipo:tipo});
-  saveState(); render();
+  persist('orgAddNode',function(){
+    S.organograma.nodes.push({id:'n_'+Date.now(), parent:parent, nome:nome, tipo:tipo});
+  });
+  render();
 };
 window.orgAddChild = function(parentId){
   var nome = prompt('Nome do novo filho:'); if(!nome) return;
   var tipo = prompt('Tipo (setor, equipe, funcao):','setor') || 'setor';
-  S.organograma.nodes.push({id:'n_'+Date.now(), parent:parentId, nome:nome, tipo:tipo});
-  saveState(); render();
+  persist('orgAddChild',function(){
+    S.organograma.nodes.push({id:'n_'+Date.now(), parent:parentId, nome:nome, tipo:tipo});
+  });
+  render();
 };
 window.orgEditNode = function(id){
   var n = (id==='root') ? S.organograma.raiz : S.organograma.nodes.find(function(x){return x.id===id;});
   if(!n) return;
   var nome = prompt('Nome:', n.nome); if(nome===null) return;
-  n.nome = nome;
-  var funcao = prompt('Função (opcional):', n.funcao||''); if(funcao!==null) n.funcao = funcao;
-  var resp = prompt('Responsável (opcional):', n.responsavel||''); if(resp!==null) n.responsavel = resp;
-  saveState(); render();
+  var funcao = prompt('Função (opcional):', n.funcao||'');
+  var resp = prompt('Responsável (opcional):', n.responsavel||'');
+  persist('orgEditNode',function(){
+    n.nome = nome;
+    if(funcao!==null) n.funcao = funcao;
+    if(resp!==null) n.responsavel = resp;
+  });
+  render();
 };
 window.orgDelNode = function(id){
   if(id==='root'){ toast('Raiz não pode ser removida','err'); return; }
@@ -7983,13 +8012,15 @@ window.orgDelNode = function(id){
     return r;
   }
   var rm = collectIds(id);
-  S.organograma.nodes = S.organograma.nodes.filter(function(n){return rm.indexOf(n.id)<0;});
-  saveState(); render();
+  persist('orgDelNode',function(){
+    S.organograma.nodes = S.organograma.nodes.filter(function(n){return rm.indexOf(n.id)<0;});
+  });
+  render();
 };
 window.orgReset = function(){
   if(!confirm('Restaurar organograma padrão PSM 4.0?')) return;
-  S.organograma = _orgSeed();
-  saveState(); render();
+  persist('orgReset',function(){ S.organograma = _orgSeed(); });
+  render();
 };
 
 // ─── PAGE: GESTÃO DE PESSOAS ──────────────────────────────────────────────────
@@ -8092,7 +8123,7 @@ function pgGestaoPessoas(page){
       });
     });
     S._talentosSeedV1 = true;
-    try{ saveState(); }catch(e){console.error("[PSM v26.2]",e);}
+    try{ persist('talentosSeed', function(){ /* state ja mutado */ }); }catch(e){console.error("[PSM v26.2]",e);}
   }
 
   var tab = page || 'gp_treinamentos';
@@ -10944,7 +10975,7 @@ function _ooFetchSheet(bid) {
     Object.keys(totals).forEach(function(k){ S.ooSheetCache[bid][k] = totals[k]; });
     if (!S.ooSheetCache[bid].monthly) S.ooSheetCache[bid].monthly = {};
     S.ooSheetCache[bid].monthly[_monthKey] = totals;
-    saveState();
+    persist('ooSheetCache', function(){ /* state ja mutado */ });
   }
   // Tenta a aba do mes primeiro (gviz), fallback para default (export)
   fetch(directUrl).then(function(r) {
@@ -11104,21 +11135,25 @@ function ooSaveFunilCustom(frente) {
   if (last.k !== 'vend') {
     etapas[etapas.length - 1].k = 'vend';
   }
-  S.ooFunilCustom[frente] = etapas;
-  // Also reset funnel %s for this frente since steps changed
-  if (S.ooFunnelPct && S.ooFunnelPct[frente]) {
-    delete S.ooFunnelPct[frente];
-  }
-  saveState();
+  // FIX v27.4: persist garante sync Firebase (funil customizado eh SYNC_KEY)
+  persist('ooFunilCustomSave', function(){
+    S.ooFunilCustom[frente] = etapas;
+    // Also reset funnel %s for this frente since steps changed
+    if (S.ooFunnelPct && S.ooFunnelPct[frente]) {
+      delete S.ooFunnelPct[frente];
+    }
+  });
   toast('✅ Funil salvo para ' + frente + '!','ok');
   render();
 }
 
 function ooResetFunilCustom(frente) {
   if (!confirm('Restaurar o funil padrão para ' + frente + '?')) return;
-  if (S.ooFunilCustom) delete S.ooFunilCustom[frente];
-  if (S.ooFunnelPct && S.ooFunnelPct[frente]) delete S.ooFunnelPct[frente];
-  saveState();
+  // FIX v27.4: persist
+  persist('ooFunilCustomReset', function(){
+    if (S.ooFunilCustom) delete S.ooFunilCustom[frente];
+    if (S.ooFunnelPct && S.ooFunnelPct[frente]) delete S.ooFunnelPct[frente];
+  });
   toast('Funil restaurado ao padrão','ok');
   render();
 }
@@ -11208,15 +11243,17 @@ function ooSaveLateralCustom(frente) {
     }
   });
   if (items.length < 1) { toast('Adicione pelo menos 1 indicador','warn'); return; }
-  S.ooLateralCustom[frente] = items;
-  saveState();
+  // FIX v27.4: persist (lateral custom eh SYNC_KEY)
+  persist('ooLateralCustomSave', function(){ S.ooLateralCustom[frente] = items; });
   toast('\u2705 Indicadores laterais salvos para ' + frente + '!','ok');
   render();
 }
 function ooResetLateralCustom(frente) {
   if (!confirm('Restaurar os indicadores laterais padr\u00e3o para ' + frente + '?')) return;
-  if (S.ooLateralCustom) delete S.ooLateralCustom[frente];
-  saveState();
+  // FIX v27.4: persist
+  persist('ooLateralCustomReset', function(){
+    if (S.ooLateralCustom) delete S.ooLateralCustom[frente];
+  });
   toast('Indicadores laterais restaurados ao padr\u00e3o','ok');
   render();
 }
@@ -11287,8 +11324,8 @@ function ooGetFunnelPct(frente) {
 }
 function ooSaveFunnelPct(frente, data) {
   if (!S.ooFunnelPct) S.ooFunnelPct = {};
-  S.ooFunnelPct[frente] = data;
-  saveState();
+  // FIX v27.4: persist (ooFunnelPct eh SYNC_KEY)
+  persist('ooFunnelPctSave', function(){ S.ooFunnelPct[frente] = data; });
 }
 function ooCalcFunnelPctFromData(realizado, frente) {
   var steps = frente ? ooGetFunnelStepsEquipe(frente) : OO_FUNNEL_STEPS;
@@ -11570,7 +11607,8 @@ function ooSaveDaily(bid, dayKey, data) {
   var mk = dayKey.substring(0, 7);
   if (!S.ooDaily[bid][mk]) S.ooDaily[bid][mk] = {};
   var _before = S.ooDaily[bid][mk][dayKey];
-  S.ooDaily[bid][mk][dayKey] = data;
+  // FIX v27.4: persist garante sync Firebase + IDB (ooDaily eh SYNC_KEY)
+  persist('ooSaveDaily', function(){ S.ooDaily[bid][mk][dayKey] = data; });
   // Log audit comparando before/after campo a campo (resumido)
   try {
     if (typeof ooAudit === 'function') {
@@ -11585,13 +11623,12 @@ function ooSaveDaily(bid, dayKey, data) {
       });
     }
   } catch(e){console.error("[PSM v26.2]",e);}
-  saveState();
 }
 function ooSaveMetas(bid, key, data) {
   if (!S.ooMetas) S.ooMetas = {};
   if (!S.ooMetas[bid]) S.ooMetas[bid] = {};
-  S.ooMetas[bid][key] = data;
-  saveState();
+  // FIX v27.4: persist (ooMetas eh SYNC_KEY)
+  persist('ooSaveMetas', function(){ S.ooMetas[bid][key] = data; });
 }
 
 
@@ -13446,18 +13483,19 @@ window.perfilCompFinalizar = function(bid){
   var scores = perfilCompCalc(respostas);
   var dom = perfilCompDominante(scores);
   var perfilInfo = PERFIL_COMP_PERFIS[dom];
-  if(!S.perfilComp) S.perfilComp = {};
-  S.perfilComp[bid] = {
-    respostas: respostas,
-    scores: scores,
-    dominante: dom,
-    perfilKey: perfilInfo.key,
-    perfilNome: perfilInfo.nome,
-    avaliadoEm: new Date().toISOString(),
-    avaliadoPor: (S.user||{}).id
-  };
-  S.perfilCompDraft = {};
-  saveState();
+  persist('perfilCompFinalizar', function(){
+    if(!S.perfilComp) S.perfilComp = {};
+    S.perfilComp[bid] = {
+      respostas: respostas,
+      scores: scores,
+      dominante: dom,
+      perfilKey: perfilInfo.key,
+      perfilNome: perfilInfo.nome,
+      avaliadoEm: new Date().toISOString(),
+      avaliadoPor: (S.user||{}).id
+    };
+    S.perfilCompDraft = {};
+  });
   toast('🎯 Perfil: '+perfilInfo.ico+' '+perfilInfo.nome,'ok');
   try{ if(typeof notifPush==='function') notifPush({title:'🧠 Perfil Comportamental', body:(S.user&&S.user.name||'Corretor')+' concluiu avaliação — perfil: '+perfilInfo.nome, icon:perfilInfo.ico, cat:'default', page:'oneonone'}); }catch(e){console.error("[PSM v26.2]",e);}
   render();
@@ -13640,7 +13678,8 @@ var _ooFieldSaveTimer = null;
 function _ooFieldChanged() {
   if (_ooFieldSaveTimer) clearTimeout(_ooFieldSaveTimer);
   _ooFieldSaveTimer = setTimeout(function() {
-    saveState();
+    // FIX v27.4: persist garante sync Firebase + IDB (era saveState local-only)
+    persist('ooFieldDebounce', function(){ /* state ja mutado */ });
     _ooFieldSaveTimer = null;
   }, 800);
 }
@@ -13679,20 +13718,25 @@ function ooRotinaAddObj(bid, weekKey) {
   if (!S.ooRotina) S.ooRotina = {};
   if (!S.ooRotina[bid]) S.ooRotina[bid] = {};
   if (!S.ooRotina[bid][weekKey]) S.ooRotina[bid][weekKey] = {obj:[],dias:{}};
-  S.ooRotina[bid][weekKey].obj.push({txt:txt.trim(),done:false});
-  saveState(); render();
+  // FIX v27.4: persist (ooRotina eh SYNC_KEY)
+  persist('ooRotinaAddObj', function(){
+    S.ooRotina[bid][weekKey].obj.push({txt:txt.trim(),done:false});
+  });
+  render();
 }
 function ooRotinaToggleObj(bid, weekKey, idx) {
   var o = ((S.ooRotina||{})[bid]||{})[weekKey];
   if (!o || !o.obj[idx]) return;
-  o.obj[idx].done = !o.obj[idx].done;
-  saveState(); render();
+  // FIX v27.4: persist
+  persist('ooRotinaToggleObj', function(){ o.obj[idx].done = !o.obj[idx].done; });
+  render();
 }
 function ooRotinaRemoveObj(bid, weekKey, idx) {
   var o = ((S.ooRotina||{})[bid]||{})[weekKey];
   if (!o) return;
-  o.obj.splice(idx, 1);
-  saveState(); render();
+  // FIX v27.4: persist
+  persist('ooRotinaRemoveObj', function(){ o.obj.splice(idx, 1); });
+  render();
 }
 function ooRotinaAddTask(bid, weekKey, dayIdx) {
   var txt = prompt('Nova tarefa:');
@@ -13701,28 +13745,35 @@ function ooRotinaAddTask(bid, weekKey, dayIdx) {
   if (!S.ooRotina[bid]) S.ooRotina[bid] = {};
   if (!S.ooRotina[bid][weekKey]) S.ooRotina[bid][weekKey] = {obj:[],dias:{}};
   if (!S.ooRotina[bid][weekKey].dias[dayIdx]) S.ooRotina[bid][weekKey].dias[dayIdx] = [];
-  S.ooRotina[bid][weekKey].dias[dayIdx].push({txt:txt.trim(),done:false});
-  saveState(); render();
+  // FIX v27.4: persist
+  persist('ooRotinaAddTask', function(){
+    S.ooRotina[bid][weekKey].dias[dayIdx].push({txt:txt.trim(),done:false});
+  });
+  render();
 }
 function ooRotinaToggleTask(bid, weekKey, dayIdx, taskIdx) {
   var d = ((S.ooRotina||{})[bid]||{})[weekKey];
   if (!d || !d.dias[dayIdx] || !d.dias[dayIdx][taskIdx]) return;
-  d.dias[dayIdx][taskIdx].done = !d.dias[dayIdx][taskIdx].done;
-  saveState(); render();
+  // FIX v27.4: persist
+  persist('ooRotinaToggleTask', function(){
+    d.dias[dayIdx][taskIdx].done = !d.dias[dayIdx][taskIdx].done;
+  });
+  render();
 }
 function ooRotinaRemoveTask(bid, weekKey, dayIdx, taskIdx) {
   var d = ((S.ooRotina||{})[bid]||{})[weekKey];
   if (!d || !d.dias[dayIdx]) return;
-  d.dias[dayIdx].splice(taskIdx, 1);
-  saveState(); render();
+  // FIX v27.4: persist
+  persist('ooRotinaRemoveTask', function(){ d.dias[dayIdx].splice(taskIdx, 1); });
+  render();
 }
 
 // Objetivo Pessoal helper
 function ooSaveObjetivoPessoal(bid, mesKey, texto) {
   if (!S.ooObjetivoPessoal) S.ooObjetivoPessoal = {};
   if (!S.ooObjetivoPessoal[bid]) S.ooObjetivoPessoal[bid] = {};
-  S.ooObjetivoPessoal[bid][mesKey] = texto;
-  saveState();
+  // FIX v27.4: persist (ooObjetivoPessoal eh SYNC_KEY)
+  persist('ooSaveObjetivoPessoal', function(){ S.ooObjetivoPessoal[bid][mesKey] = texto; });
   toast('\uD83C\uDFAF Objetivo salvo!','ok');
 }
 
@@ -13956,7 +14007,8 @@ async function ooImportarHistoricoCompleto() {
   S.ooImportStatus.running = false;
   S.ooImportStatus.lastRun = Date.now();
   S.ooImportStatus.progress = 'Concluído: '+ok+' abas importadas, '+fail+' sem dados/erro (de '+total+')';
-  saveState();
+  // FIX v27.4: persist final garante sync Firebase + IDB do batch importado
+  persist('ooImportSheets', function(){ /* state ja mutado */ });
   render();
   toast('📥 Importação concluída: '+ok+'/'+total+' abas','ok');
 }
@@ -14012,7 +14064,8 @@ function ooImportJSON(inputEl) {
         S.ooAuditLog.sort(function(a,b){return a.ts-b.ts;});
         if (S.ooAuditLog.length > 5000) S.ooAuditLog = S.ooAuditLog.slice(-5000);
       }
-      saveState();
+      // FIX v27.4: persist garante sync Firebase + IDB do merge
+      persist('ooImportJSON', function(){ /* state ja mutado */ });
       render();
       toast('📥 Backup mesclado: '+merged+' chaves importadas','ok');
     } catch(err) {
@@ -14124,16 +14177,18 @@ function ooAddReuniao(bid, monthKey) {
   var numReun = S.ooReunioes[bid][monthKey].length + 1;
   var today = new Date().toISOString().slice(0,10);
   var novoId = 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-  S.ooReunioes[bid][monthKey].push({
-    _id: novoId,
-    semana: 'Semana ' + numReun,
-    data: today,
-    objetivos: '',
-    observacoes: '',
-    plano: ''
+  // FIX v27.4: persist (ooReunioes eh SYNC_KEY)
+  persist('ooAddReuniao', function(){
+    S.ooReunioes[bid][monthKey].push({
+      _id: novoId,
+      semana: 'Semana ' + numReun,
+      data: today,
+      objetivos: '',
+      observacoes: '',
+      plano: ''
+    });
   });
   ooAudit('reuniao_add', bid, monthKey, novoId, '', 'Semana ' + numReun + ' ('+today+')');
-  saveState();
   render();
 }
 
@@ -14147,8 +14202,8 @@ function ooRemoveReuniao(bid, monthKey, idx) {
       '[REMOVIDA]'
     );
   }
-  arr.splice(idx, 1);
-  saveState();
+  // FIX v27.4: persist
+  persist('ooRemoveReuniao', function(){ arr.splice(idx, 1); });
   render();
 }
 
@@ -14214,9 +14269,9 @@ function ooUpdateReuniao(bid, monthKey, idxOrId, field, value) {
   }
   if (!target) return;
   var _before = target[field];
-  target[field] = value;
+  // FIX v27.4: persist (ooReunioes eh SYNC_KEY)
+  persist('ooUpdateReuniao', function(){ target[field] = value; });
   ooAudit('reuniao_update', bid, monthKey + '/' + (target._id || idxOrId), field, _before, value);
-  saveState();
 }
 
 // === DISC profile editing (gestor) ===
@@ -14224,16 +14279,19 @@ function ooSaveDisc(bid, field, value) {
   if (!S.ooDiscCustom) S.ooDiscCustom = {};
   if (!S.ooDiscCustom[bid]) S.ooDiscCustom[bid] = {};
   var _before = S.ooDiscCustom[bid][field];
-  S.ooDiscCustom[bid][field] = value;
-  if (!DISC_PROFILES[bid]) DISC_PROFILES[bid] = {perfil:'',cor:'#64748b',desc:''};
-  DISC_PROFILES[bid][field] = value;
-  if (field === 'perfil') {
-    var cores = {Diretor:'#dc2626',Influente:'#f59e0b','Est\u00e1vel':'#16a34a',Conforme:'#2563eb',Operador:'#0891b2'};
-    DISC_PROFILES[bid].cor = cores[value] || '#64748b';
-    S.ooDiscCustom[bid].cor = DISC_PROFILES[bid].cor;
-  }
+  // FIX v27.4: persist (ooDiscCustom eh SYNC_KEY)
+  persist('ooSaveDisc', function(){
+    S.ooDiscCustom[bid][field] = value;
+    if (!DISC_PROFILES[bid]) DISC_PROFILES[bid] = {perfil:'',cor:'#64748b',desc:''};
+    DISC_PROFILES[bid][field] = value;
+    if (field === 'perfil') {
+      var cores = {Diretor:'#dc2626',Influente:'#f59e0b','Est\u00e1vel':'#16a34a',Conforme:'#2563eb',Operador:'#0891b2'};
+      DISC_PROFILES[bid].cor = cores[value] || '#64748b';
+      S.ooDiscCustom[bid].cor = DISC_PROFILES[bid].cor;
+    }
+  });
   ooAudit('disc', bid, '-', field, _before, value);
-  saveState(); toast('Perfil atualizado!','ok');
+  toast('Perfil atualizado!','ok');
 }
 
 // === Corretor dates ===
@@ -14241,9 +14299,10 @@ function ooSaveData(bid, field, value) {
   if (!S.ooDatas) S.ooDatas = {};
   if (!S.ooDatas[bid]) S.ooDatas[bid] = {};
   var _before = S.ooDatas[bid][field];
-  S.ooDatas[bid][field] = value;
+  // FIX v27.4: persist (ooDatas eh SYNC_KEY)
+  persist('ooSaveData', function(){ S.ooDatas[bid][field] = value; });
   ooAudit('data', bid, '-', field, _before, value);
-  saveState(); toast('Data salva!','ok');
+  toast('Data salva!','ok');
 }
 
 // === Weekly objectives ===
@@ -14253,18 +14312,25 @@ function ooAddObjSemana(bid, weekKey) {
   if (!S.ooObjSemana) S.ooObjSemana = {};
   if (!S.ooObjSemana[bid]) S.ooObjSemana[bid] = {};
   if (!S.ooObjSemana[bid][weekKey]) S.ooObjSemana[bid][weekKey] = [];
-  S.ooObjSemana[bid][weekKey].push({txt: txt.trim(), done: false});
-  saveState(); render();
+  // FIX v27.4: persist (ooObjSemana eh SYNC_KEY)
+  persist('ooAddObjSemana', function(){
+    S.ooObjSemana[bid][weekKey].push({txt: txt.trim(), done: false});
+  });
+  render();
 }
 function ooToggleObjSemana(bid, weekKey, idx) {
   if (!S.ooObjSemana || !S.ooObjSemana[bid] || !S.ooObjSemana[bid][weekKey]) return;
-  S.ooObjSemana[bid][weekKey][idx].done = !S.ooObjSemana[bid][weekKey][idx].done;
-  saveState(); render();
+  // FIX v27.4: persist
+  persist('ooToggleObjSemana', function(){
+    S.ooObjSemana[bid][weekKey][idx].done = !S.ooObjSemana[bid][weekKey][idx].done;
+  });
+  render();
 }
 function ooRemoveObjSemana(bid, weekKey, idx) {
   if (!S.ooObjSemana || !S.ooObjSemana[bid] || !S.ooObjSemana[bid][weekKey]) return;
-  S.ooObjSemana[bid][weekKey].splice(idx, 1);
-  saveState(); render();
+  // FIX v27.4: persist
+  persist('ooRemoveObjSemana', function(){ S.ooObjSemana[bid][weekKey].splice(idx, 1); });
+  render();
 }
 
 // === Monthly objectives ===
@@ -14274,18 +14340,25 @@ function ooAddObjMes(bid, monthKey) {
   if (!S.ooObjMes) S.ooObjMes = {};
   if (!S.ooObjMes[bid]) S.ooObjMes[bid] = {};
   if (!S.ooObjMes[bid][monthKey]) S.ooObjMes[bid][monthKey] = [];
-  S.ooObjMes[bid][monthKey].push({txt: txt.trim(), done: false});
-  saveState(); render();
+  // FIX v27.4: persist (ooObjMes eh SYNC_KEY)
+  persist('ooAddObjMes', function(){
+    S.ooObjMes[bid][monthKey].push({txt: txt.trim(), done: false});
+  });
+  render();
 }
 function ooToggleObjMes(bid, monthKey, idx) {
   if (!S.ooObjMes || !S.ooObjMes[bid] || !S.ooObjMes[bid][monthKey]) return;
-  S.ooObjMes[bid][monthKey][idx].done = !S.ooObjMes[bid][monthKey][idx].done;
-  saveState(); render();
+  // FIX v27.4: persist
+  persist('ooToggleObjMes', function(){
+    S.ooObjMes[bid][monthKey][idx].done = !S.ooObjMes[bid][monthKey][idx].done;
+  });
+  render();
 }
 function ooRemoveObjMes(bid, monthKey, idx) {
   if (!S.ooObjMes || !S.ooObjMes[bid] || !S.ooObjMes[bid][monthKey]) return;
-  S.ooObjMes[bid][monthKey].splice(idx, 1);
-  saveState(); render();
+  // FIX v27.4: persist
+  persist('ooRemoveObjMes', function(){ S.ooObjMes[bid][monthKey].splice(idx, 1); });
+  render();
 }
 
 // === Pontos de Aten\u00e7\u00e3o ===
@@ -14294,13 +14367,17 @@ function ooAddPontoAtencao(bid) {
   if (!txt || !txt.trim()) return;
   if (!S.ooPontosAtencao) S.ooPontosAtencao = {};
   if (!S.ooPontosAtencao[bid]) S.ooPontosAtencao[bid] = [];
-  S.ooPontosAtencao[bid].push({txt: txt.trim(), data: new Date().toISOString().slice(0,10), autor: S.user ? S.user.name : ''});
-  saveState(); render();
+  // FIX v27.4: persist (ooPontosAtencao eh SYNC_KEY)
+  persist('ooAddPontoAtencao', function(){
+    S.ooPontosAtencao[bid].push({txt: txt.trim(), data: new Date().toISOString().slice(0,10), autor: S.user ? S.user.name : ''});
+  });
+  render();
 }
 function ooRemovePontoAtencao(bid, idx) {
   if (!S.ooPontosAtencao || !S.ooPontosAtencao[bid]) return;
-  S.ooPontosAtencao[bid].splice(idx, 1);
-  saveState(); render();
+  // FIX v27.4: persist
+  persist('ooRemovePontoAtencao', function(){ S.ooPontosAtencao[bid].splice(idx, 1); });
+  render();
 }
 
 // === Fechamento da Semana ===
@@ -14308,8 +14385,11 @@ function ooAddFechamento(bid, weekKey) {
   if (!S.ooFechamento) S.ooFechamento = {};
   if (!S.ooFechamento[bid]) S.ooFechamento[bid] = {};
   if (!S.ooFechamento[bid][weekKey]) S.ooFechamento[bid][weekKey] = [];
-  S.ooFechamento[bid][weekKey].push({_id: 'f_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), nome:'', produto:'', vgv:'', necessario:''});
-  saveState(); render();
+  // FIX v27.4: persist (ooFechamento eh SYNC_KEY)
+  persist('ooAddFechamento', function(){
+    S.ooFechamento[bid][weekKey].push({_id: 'f_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), nome:'', produto:'', vgv:'', necessario:''});
+  });
+  render();
 }
 function ooUpdateFechamento(bid, weekKey, idxOrId, field, value) {
   if (!S.ooFechamento || !S.ooFechamento[bid] || !S.ooFechamento[bid][weekKey]) return;
@@ -14322,13 +14402,14 @@ function ooUpdateFechamento(bid, weekKey, idxOrId, field, value) {
     target = arr[idxOrId];
   }
   if (!target) return;
-  target[field] = value;
-  saveState();
+  // FIX v27.4: persist
+  persist('ooUpdateFechamento', function(){ target[field] = value; });
 }
 function ooRemoveFechamento(bid, weekKey, idx) {
   if (!S.ooFechamento || !S.ooFechamento[bid] || !S.ooFechamento[bid][weekKey]) return;
-  S.ooFechamento[bid][weekKey].splice(idx, 1);
-  saveState(); render();
+  // FIX v27.4: persist
+  persist('ooRemoveFechamento', function(){ S.ooFechamento[bid][weekKey].splice(idx, 1); });
+  render();
 }
 
 // Gestão: Meta por lançamento
@@ -14339,24 +14420,24 @@ function ooSaveMetaLanc(bid, lancId, field, value) {
     var old = S.ooMetaLanc[bid][lancId];
     S.ooMetaLanc[bid][lancId] = { pastas: typeof old === 'number' ? old : 0, vgv: 0 };
   }
-  S.ooMetaLanc[bid][lancId][field] = parseFloat(value) || 0;
-  saveState();
+  // FIX v27.4: persist (ooMetaLanc eh SYNC_KEY)
+  persist('ooSaveMetaLanc', function(){ S.ooMetaLanc[bid][lancId][field] = parseFloat(value) || 0; });
 }
 
 // Gestão: Meta VGV mês a mês
 function ooSaveMetaVgvMes(bid, monthKey, value) {
   if (!S.ooMetaVgvMes) S.ooMetaVgvMes = {};
   if (!S.ooMetaVgvMes[bid]) S.ooMetaVgvMes[bid] = {};
-  S.ooMetaVgvMes[bid][monthKey] = parseFloat(value) || 0;
-  saveState();
+  // FIX v27.4: persist (ooMetaVgvMes eh SYNC_KEY)
+  persist('ooSaveMetaVgvMes', function(){ S.ooMetaVgvMes[bid][monthKey] = parseFloat(value) || 0; });
 }
 
 // Gestão: Objetivo pessoal
 function ooSaveObjetivo(bid, field, value) {
   if (!S.ooObjetivo) S.ooObjetivo = {};
   if (!S.ooObjetivo[bid]) S.ooObjetivo[bid] = {};
-  S.ooObjetivo[bid][field] = value;
-  saveState();
+  // FIX v27.4: persist (ooObjetivo eh SYNC_KEY)
+  persist('ooSaveObjetivo', function(){ S.ooObjetivo[bid][field] = value; });
 }
 
 function ooSetFoto(bid) {
@@ -14364,8 +14445,8 @@ function ooSetFoto(bid) {
   if (url === null) return;
   if (!S.ooObjetivo) S.ooObjetivo = {};
   if (!S.ooObjetivo[bid]) S.ooObjetivo[bid] = {};
-  S.ooObjetivo[bid].foto = url.trim();
-  saveState();
+  // FIX v27.4: persist
+  persist('ooSetFoto', function(){ S.ooObjetivo[bid].foto = url.trim(); });
   render();
 }
 
@@ -14681,9 +14762,10 @@ function addMapPin() {
   const status = document.getElementById('pin-status')?.value;
   if (!nome) { toast('Informe o nome','warn'); return; }
   const statusColors = {'Lançamento':'var(--g)','Em obras':'var(--a)','Pronto':'var(--b)','Esgotado':'var(--r)'};
-  S.mapPins = S.mapPins || [];
-  S.mapPins.push({nome, status, cor: statusColors[status] || 'var(--muted)'});
-  saveState(); // FIX v22j: persiste pin entre reloads/devices
+  persist('addMapPin', function(){
+    S.mapPins = S.mapPins || [];
+    S.mapPins.push({nome, status, cor: statusColors[status] || 'var(--muted)'});
+  });
   toast('Pin adicionado!','ok');
   render();
 }
@@ -15058,8 +15140,7 @@ function removeTabelaUpload(idx){
 }
 function setTabelaRef(v){
   if(!S.tabelaCatalog) return;
-  S.tabelaCatalog.ref = v || S.tabelaCatalog.ref;
-  if(typeof saveState==='function') saveState();
+  persist('setTabelaRef', function(){ S.tabelaCatalog.ref = v || S.tabelaCatalog.ref; });
 }
 function addTabela() {}
 function removeTabela() {}
@@ -15762,7 +15843,7 @@ function pgFluxoCaptacoes() {
   };
   function _fcSave(){
     try{localStorage.setItem('psm_fluxo_captacoes',JSON.stringify(S.fcData));}catch(e){console.error("[PSM v26.2]",e);}
-    saveState();
+    persist('fcSave', function(){ /* state ja mutado */ });
   }
 
   // Filter data
@@ -20253,10 +20334,11 @@ function iaCorretorSend() {
   var inp = document.getElementById('ia-input');
   var text = (inp ? inp.value : '').trim();
   if (!text) return;
-  if (!S.iaChat) S.iaChat = [];
-  S.iaChat.push({role:'user', text:text});
+  persist('iaChatUser', function(){
+    if (!S.iaChat) S.iaChat = [];
+    S.iaChat.push({role:'user', text:text});
+  });
   if (inp) inp.value = '';
-  saveState(); // FIX v22j: persiste historico chat IA
   render();
   // Scroll chat
   setTimeout(function(){ var box = document.getElementById('ia-chat-box'); if(box) box.scrollTop = box.scrollHeight; },50);
@@ -20308,9 +20390,10 @@ function iaCorretorSend() {
 }
 
 function _iaAddResp(text) {
-  if (!S.iaChat) S.iaChat = [];
-  S.iaChat.push({role:'assistant', text:text});
-  saveState(); // FIX v22j: persiste resposta IA
+  persist('iaChatResp', function(){
+    if (!S.iaChat) S.iaChat = [];
+    S.iaChat.push({role:'assistant', text:text});
+  });
   render();
   setTimeout(function(){ var box = document.getElementById('ia-chat-box'); if(box) box.scrollTop = box.scrollHeight; var ld = document.getElementById('ia-loading'); if(ld) ld.style.display='none'; },50);
 }
@@ -20862,7 +20945,7 @@ function kenloSync() {
         url: p.url || p.link || ''
       };
     });
-    saveState();
+    persist('kenloSync', function(){ /* state ja mutado */ });
     toast('✅ '+S.kenloProps.length+' imóveis sincronizados','ok');
     render();
   }).catch(function(err) {
@@ -21119,7 +21202,7 @@ INSTRUÇÕES: Seja direta, prática e motivadora. Use os dados reais. Máximo 28
       : '⚠️ Erro: ' + e.message;
     S.veraHist.push({role:'assistant', content:errMsg});
   }
-  saveState(); // FIX v22j: persiste historico Sr. Performance entre reloads/devices
+  persist('veraHist', function(){ /* state ja mutado */ }); // FIX v27.5: era saveState local
   S.veraLoading = false; render();
   setTimeout(() => { const el=document.getElementById('vera-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
 }
@@ -22092,8 +22175,7 @@ function enviarCanalAnonimo() {
 }
 function caMarcarLida(idx) {
   if (!S.canalAnonimo || !S.canalAnonimo[idx]) return;
-  S.canalAnonimo[idx].lido = true;
-  saveState();
+  persist('caMarcarLida', function(){ S.canalAnonimo[idx].lido = true; });
   render();
 }
 function caMarcarTodasLidas() {
@@ -22903,7 +22985,7 @@ function opSave() {
     S.oportunidadesPSM.push(item);
   }
   S.opEdit = {}; S.opForm = false;
-  saveState(); fbPushState();
+  persist('opSave', function(){ /* state ja mutado */ });
   toast('\u2705 Oportunidade '+(ed.id?'atualizada':'publicada')+'!','ok');
   render();
 }
@@ -22918,8 +23000,9 @@ function opEdit(id) {
 
 function opDel(id) {
   if (!confirm('Remover esta oportunidade?')) return;
-  S.oportunidadesPSM = (S.oportunidadesPSM||[]).filter(function(x){ return x.id !== id; });
-  saveState(); fbPushState();
+  persist('opDel', function(){
+    S.oportunidadesPSM = (S.oportunidadesPSM||[]).filter(function(x){ return x.id !== id; });
+  });
   toast('\uD83D\uDDD1\uFE0F Oportunidade removida','ok');
   render();
 }
@@ -22959,7 +23042,7 @@ function opCorretorSave(tipoOp) {
     S.opCorretorList.push(item);
   }
   S.opCorretorForm = false; S.opCorretorEdit = {};
-  saveState(); fbPushState();
+  persist('opCorretorSave', function(){ /* state ja mutado */ });
   toast('\u2705 Oportunidade '+(oce.id?'atualizada':'registrada')+'!','ok');
   render();
 }
@@ -22975,8 +23058,9 @@ function opCorretorEditFn(id) {
 
 function opCorretorDel(id) {
   if (!confirm('Remover esta oportunidade?')) return;
-  S.opCorretorList = (S.opCorretorList||[]).filter(function(x){ return x.id !== id; });
-  saveState(); fbPushState();
+  persist('opCorretorDel', function(){
+    S.opCorretorList = (S.opCorretorList||[]).filter(function(x){ return x.id !== id; });
+  });
   toast('\uD83D\uDDD1\uFE0F Oportunidade removida','ok');
   render();
 }
@@ -22986,15 +23070,13 @@ function opCorretorDel(id) {
 window.opDelEvento=function(i){
   if(!confirm('Remover este evento?'))return;
   if(!Array.isArray(S.opEventos))return;
-  S.opEventos.splice(i,1);
-  saveState();if(typeof fbPushState==='function')fbPushState();
+  persist('opDelEvento', function(){ S.opEventos.splice(i,1); });
   toast('Evento removido','ok');render();
 };
 window.opDelTreinamento=function(i){
   if(!confirm('Remover este treinamento?'))return;
   if(!Array.isArray(S.opTreinamentos))return;
-  S.opTreinamentos.splice(i,1);
-  saveState();if(typeof fbPushState==='function')fbPushState();
+  persist('opDelTreinamento', function(){ S.opTreinamentos.splice(i,1); });
   toast('Treinamento removido','ok');render();
 };
 function opSaveEvento(){
@@ -23002,7 +23084,7 @@ function opSaveEvento(){
   var titulo=g('ev_titulo');if(!titulo){toast('Nome do evento obrigat\u00f3rio','warn');return;}
   S.opEventos.push({id:'ev_'+Date.now(),titulo:titulo,data:g('ev_data'),hora:g('ev_hora'),local:g('ev_local'),tipo:g('ev_tipo'),descricao:g('ev_desc'),criadoEm:new Date().toISOString()});
   S.opEvForm=false;
-  saveState();if(typeof fbPushState==='function')fbPushState();
+  persist('opSaveEvento', function(){ /* state ja mutado */ });
   toast('\u2705 Evento adicionado','ok');render();
 }
 // Save Treinamento
@@ -23011,7 +23093,7 @@ function opSaveTreinamento(){
   var titulo=g('tr_titulo');if(!titulo){toast('Nome do treinamento obrigat\u00f3rio','warn');return;}
   S.opTreinamentos.push({id:'tr_'+Date.now(),titulo:titulo,data:g('tr_data'),hora:g('tr_hora'),instrutor:g('tr_instrutor'),categoria:g('tr_cat'),link:g('tr_link'),descricao:g('tr_desc'),criadoEm:new Date().toISOString()});
   S.opTrForm=false;
-  saveState();if(typeof fbPushState==='function')fbPushState();
+  persist('opSaveTreinamento', function(){ /* state ja mutado */ });
   toast('\u2705 Treinamento adicionado','ok');render();
 }
 
@@ -23208,8 +23290,7 @@ function premSave() {
   }
   S.premEdit = {};
   S.premForm = false;
-  saveState();
-  fbPushState();
+  persist('premSave', function(){ /* state ja mutado */ });
   render();
 }
 
@@ -23226,9 +23307,9 @@ function premEditFn(id) {
 
 function premDel(id) {
   if (!confirm('Tem certeza que deseja remover esta premia\u00e7\u00e3o?')) return;
-  S.premiacoes = (S.premiacoes||[]).filter(function(x){ return x.id !== id; });
-  saveState();
-  fbPushState();
+  persist('premDel', function(){
+    S.premiacoes = (S.premiacoes||[]).filter(function(x){ return x.id !== id; });
+  });
   toast('\uD83D\uDDD1\uFE0F Premia\u00e7\u00e3o removida','ok');
   render();
 }
@@ -27363,11 +27444,13 @@ function pgRadarConcorrencia(){
 
 // Helpers do Radar
 function psmRdcMarcarChecado(pageId){
-  if(!S.competitorsState) S.competitorsState = {};
-  S.competitorsState[pageId] = S.competitorsState[pageId] || {};
-  S.competitorsState[pageId].lastCheck = Date.now();
+  persist('rdcChecado', function(){
+    if(!S.competitorsState) S.competitorsState = {};
+    S.competitorsState[pageId] = S.competitorsState[pageId] || {};
+    S.competitorsState[pageId].lastCheck = Date.now();
+  });
   PSM.auditLog('rdc.checked', COMPETITORS.find(function(c){return c.id===pageId;})||{}, pageId);
-  saveState(); render(); toast('Marcado como checado','ok');
+  render(); toast('Marcado como checado','ok');
 }
 function psmRdcReportarMudanca(pageId){
   var c = COMPETITORS.find(function(c){return c.id===pageId;});
@@ -27401,19 +27484,22 @@ function psmRdcReportarMudanca(pageId){
   }).then(function(ok){
     toast(ok?'Alerta enviado aos s\u00f3cios \u2705':'Mudan\u00e7a registrada (webhook n\u00e3o configurado)', ok?'ok':'warn');
   });
-  saveState(); render();
+  persist('rdcFlag', function(){ /* state ja mutado */ });
+  render();
 }
 function psmRdcLimparFlag(pageId){
   if(!S.competitorsState || !S.competitorsState[pageId]) return;
-  S.competitorsState[pageId].flagged = false;
+  persist('rdcUnflag', function(){ S.competitorsState[pageId].flagged = false; });
   PSM.auditLog('rdc.unflag', '', pageId);
-  saveState(); render();
+  render();
 }
 function psmRdcLimparFlags(){
   if(!confirm('Limpar TODOS os flags de concorr\u00eancia?')) return;
-  Object.keys(S.competitorsState||{}).forEach(function(k){ S.competitorsState[k].flagged = false; });
+  persist('rdcUnflagAll', function(){
+    Object.keys(S.competitorsState||{}).forEach(function(k){ S.competitorsState[k].flagged = false; });
+  });
   PSM.auditLog('rdc.unflag_all','','');
-  saveState(); render();
+  render();
 }
 function psmRdcAbrirTodos(which){
   var list;
@@ -27708,7 +27794,7 @@ function showDrill(kind, extra){
 function nav(page) {
   // Flush pendentes do One on One antes de mudar de página
   if(typeof window._ooFlushAll==='function') window._ooFlushAll();
-  if(_ooFieldSaveTimer){clearTimeout(_ooFieldSaveTimer);_ooFieldSaveTimer=null;saveState();}
+  if(_ooFieldSaveTimer){clearTimeout(_ooFieldSaveTimer);_ooFieldSaveTimer=null;persist('ooFieldNavFlush', function(){ /* state ja mutado */ });}
   BROKERS=getBrokers();
   if(!canAccess(page)){page=getDefaultPage();}
   S.page = page; S.notifOpen = false; render({force:true});
@@ -27785,7 +27871,7 @@ function psmImportBackup(inputEl) {
         if (data.ooMetaLanc) S.ooMetaLanc = data.ooMetaLanc;
         if (data.ooMetaVgvMes) S.ooMetaVgvMes = data.ooMetaVgvMes;
         if (data.tickerMsgs) S.tickerMsgs = data.tickerMsgs;
-        saveState();
+        persist('importBackup', function(){ /* state ja mutado */ });
         toast('\u2705 Backup restaurado com sucesso! (' + data._exportedAt + ')','ok');
         render();
       } catch(err) { toast('Erro ao ler backup: ' + err.message,'warn'); }
@@ -27816,32 +27902,32 @@ function tickerGetMsgs() {
   });
 }
 function tickerAddMsg(texto, tipo, autorId, duracaoDias) {
-  if (!S.tickerMsgs) S.tickerMsgs = [];
   var autor = USERS_BASE.find(function(u){ return u.id === autorId; });
   var autorNome = autor ? autor.name.split(' ')[0] : 'Sistema';
   var dur = parseInt(duracaoDias, 10) || 7;
-  S.tickerMsgs.push({
-    id: Date.now() + '_' + Math.random().toString(36).slice(2,6),
-    texto: texto,
-    tipo: tipo || 'info', // info, urgente, parabens, geral
-    autorId: autorId,
-    autorNome: autorNome,
-    criadoEm: Date.now(),
-    expiresAt: Date.now() + dur * 86400000
+  persist('tickerAdd', function(){
+    if (!S.tickerMsgs) S.tickerMsgs = [];
+    S.tickerMsgs.push({
+      id: Date.now() + '_' + Math.random().toString(36).slice(2,6),
+      texto: texto,
+      tipo: tipo || 'info', // info, urgente, parabens, geral
+      autorId: autorId,
+      autorNome: autorNome,
+      criadoEm: Date.now(),
+      expiresAt: Date.now() + dur * 86400000
+    });
   });
-  saveState();
 }
 function tickerRemoveMsg(msgId) {
   if (!S.tickerMsgs) return;
-  S.tickerMsgs = S.tickerMsgs.filter(function(m){ return m.id !== msgId; });
-  saveState();
+  persist('tickerRemove', function(){ S.tickerMsgs = S.tickerMsgs.filter(function(m){ return m.id !== msgId; }); });
 }
 function tickerCleanExpired() {
   if (!S.tickerMsgs) return;
   var now = Date.now();
   var before = S.tickerMsgs.length;
-  S.tickerMsgs = S.tickerMsgs.filter(function(m){ return !m.expiresAt || m.expiresAt >= now; });
-  if (S.tickerMsgs.length !== before) saveState();
+  var next = S.tickerMsgs.filter(function(m){ return !m.expiresAt || m.expiresAt >= now; });
+  if (next.length !== before) persist('tickerClean', function(){ S.tickerMsgs = next; });
 }
 
 function renderTicker() {

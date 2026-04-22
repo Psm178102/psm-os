@@ -1,11 +1,11 @@
 // ═════════════════════════════════════════════════════════════════════════════
-// PSM OS — Service Worker v27.3 (2026-04-21 — Audit profunda: checkin + lanc + agenda + canalAnonimo + pattern matcher)
+// PSM OS — Service Worker v27.5 (2026-04-21 — 5 chaves criticas adicionadas a sync: tabelaCatalog/kenloProps/competitorsState/perfilComp/notifPorUsuario + 20+ handlers migrados saveState→persist)
 // Estratégia: NETWORK-FIRST para HTML (resolve cache stale), CACHE-FIRST assets.
 // Limpa caches antigos automaticamente no activate.
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const CACHE_VERSION = 'psm-os-v27.3-2026-04-21-deep-audit-checkin-lanc-agenda';
+const CACHE_VERSION = 'psm-os-v27.5-2026-04-21-5-keys-criticas-sync';
 const HTML_CACHE    = CACHE_VERSION + '-html';
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
