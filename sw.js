@@ -1,11 +1,11 @@
 // ═════════════════════════════════════════════════════════════════════════════
-// PSM OS — Service Worker v26 (2026-04-21 v26.5 — logo PSM oficial em posts gerados)
+// PSM OS — Service Worker v27 (2026-04-21 — Capacitor nativo + offline CRDT + backup + monitor)
 // Estratégia: NETWORK-FIRST para HTML (resolve cache stale), CACHE-FIRST assets.
 // Limpa caches antigos automaticamente no activate.
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const CACHE_VERSION = 'psm-os-v26-5-2026-04-21';
+const CACHE_VERSION = 'psm-os-v27.1-2026-04-21-recados-fix';
 const HTML_CACHE    = CACHE_VERSION + '-html';
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
@@ -20,7 +20,13 @@ const PRECACHE = [
   '/apple-touch-icon.png',
   '/icon-192.png',
   '/icon-512.png',
-  '/logo-psm-navy.png'
+  '/logo-psm-navy.png',
+  '/lib/psm-supabase.js',
+  '/lib/psm-ia.js',
+  '/lib/psm-native.js',
+  '/lib/psm-offline.js',
+  '/lib/psm-backup.js',
+  '/lib/psm-monitor.js'
 ];
 
 // ─── INSTALL ────────────────────────────────────────────────────────────────

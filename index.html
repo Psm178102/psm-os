@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v27 — Capacitor iOS/Android (camera+GPS+biometria+push+bg) + offline CRDT + backup diario + monitor 24/7 -->
+<!-- PSM-OS v2026.04.21-v27.1 — FIX CRITICO: arenaRecados + timelineItems agora persistem (saveState/loadState/SYNC_KEYS + persist() wrapper) -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,8 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.21-v27">
-<script>window.PSM_VERSION='27.0';</script>
+<meta name="version" content="2026.04.21-v27.1">
+<script>window.PSM_VERSION='27.1';</script>
 <!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
@@ -17,14 +17,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="House PSM">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="manifest" href="manifest.json">
-<link rel="shortcut icon" href="favicon.ico">
-<link rel="icon" type="image/x-icon" href="favicon.ico">
-<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json?v=27">
+<link rel="shortcut icon" href="favicon.ico?v=27">
+<link rel="icon" type="image/x-icon" href="favicon.ico?v=27">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=27">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=27">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=27">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=27">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=27">
 <title>House PSM</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
@@ -1681,6 +1681,11 @@ function saveState(skipFbPush) {
       oportunidadesPSM: S.oportunidadesPSM || [],
       opCorretorList: S.opCorretorList || [],
       showInativos: S.showInativos || false,
+      // FIX v27.1: bug critico — recados/timeline nunca eram persistidos
+      arenaRecados: S.arenaRecados || [],
+      timelineItems: S.timelineItems || [],
+      mapPins: S.mapPins || [],
+      iaChat: S.iaChat || [],
       savedAt: Date.now(),
     };
     // === SALVAMENTO PRINCIPAL COM DETECÇÃO DE QUOTA ===
@@ -1927,6 +1932,11 @@ function loadState() {
     if (d.oportunidadesPSM) S.oportunidadesPSM = d.oportunidadesPSM;
     if (d.opCorretorList) S.opCorretorList = d.opCorretorList;
     if (d.showInativos) S.showInativos = d.showInativos;
+    // FIX v27.1: restaurar recados e timeline (bug critico — antes nunca eram restaurados)
+    if (d.arenaRecados) S.arenaRecados = d.arenaRecados;
+    if (d.timelineItems) S.timelineItems = d.timelineItems;
+    if (d.mapPins) S.mapPins = d.mapPins;
+    if (d.iaChat) S.iaChat = d.iaChat;
     // Restore manual vendas (legacy)
     try {
       const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manuais') || '[]');
@@ -1953,7 +1963,8 @@ var SYNC_KEYS = [
   'timelineItems', // FIX v22i: PSM Live timeline (feed) tambem precisa sync multi-device
   'mapPins',       // FIX v22j: pins do mapa lancamentos
   'iaChat',        // FIX v22j: historico chat IA Corretor (Gemini/Nano Banana)
-  'veraHist'       // FIX v22j: historico Sr. Performance
+  'veraHist',      // FIX v22j: historico Sr. Performance
+  'arenaRecados'   // FIX v27.1: BUG CRITICO — recados Diretoria nunca sincronizavam (perdiam ao recarregar)
 ];
 // Global config keys that also need sync
 var SYNC_GLOBAL_KEYS = ['metasConfig','metasEquipe','teamConfig'];
@@ -7658,10 +7669,11 @@ window.publicarRecadoDir = function(){
     media: window._recDirMedia || null
   };
   window._recDirMedia = null;
-  S.arenaRecados.push(rec);
-  // Tambem publica no ticker global (mesma mecânica)
-  try{ tickerAddMsg('[DIRETORIA] '+txt.trim(), tipo, autor.id, dur); }catch(e){console.error("[PSM v26.2]",e);}
-  saveState();
+  // FIX v27.1: usa persist() — garante saveState + fbPushState + IDB mirror
+  persist('recado-arena', function(){
+    S.arenaRecados.push(rec);
+    try{ tickerAddMsg('[DIRETORIA] '+txt.trim(), tipo, autor.id, dur); }catch(e){console.error("[PSM v27.1]",e);}
+  });
   toast('📢 Recado publicado!','ok');
   if(notify && typeof notifPush==='function'){
     notifPush({title:'📢 Recado da Diretoria', body:txt.trim().slice(0,120), icon:'📢', cat:'recado', page:'recados_diretoria'});
@@ -7670,8 +7682,11 @@ window.publicarRecadoDir = function(){
 };
 window.removerRecadoDir = function(id){
   if(!confirm('Remover este recado?')) return;
-  S.arenaRecados = (S.arenaRecados||[]).filter(function(r){return r.id!==id;});
-  saveState(); render();
+  // FIX v27.1: persist garante sync
+  persist('recado-arena-del', function(){
+    S.arenaRecados = (S.arenaRecados||[]).filter(function(r){return r.id!==id;});
+  });
+  render();
 };
 
 // ─── PAGE: PSM LIVE (v21) ─────────────────────────────────────────────────────
@@ -7756,7 +7771,7 @@ window.psmLiveAdd = function(){
   var dias = parseInt((document.getElementById('plDias')||{}).value) || 0;
   var icoMap = {evento:'🎉', recado:'📢', premiacao:'🏆', oportunidade:'💡', urgente:'🚨'};
   if(!S.timelineItems) S.timelineItems = [];
-  S.timelineItems.unshift({
+  var newItem = {
     id:'pl_'+Date.now(),
     tipo:tipo,
     ico:(icoIn||icoMap[tipo]||'✨'),
@@ -7764,10 +7779,14 @@ window.psmLiveAdd = function(){
     dt:Date.now(),
     exp: dias>0 ? Date.now()+dias*86400000 : 0,
     autor:(S.user||{}).id||'',
-    media: window._plMedia || null
-  });
+    media: window._plMedia || null,
+    _updatedAt: Date.now()
+  };
   window._plMedia = null;
-  saveState();
+  // FIX v27.1: persist garante saveState + fbPushState + IDB
+  persist('psm-live-add', function(){
+    S.timelineItems.unshift(newItem);
+  });
   if(typeof notifPush==='function') notifPush({title:'📡 PSM Live', body:msg.trim().slice(0,80), cat:'recado'});
   render();
 };
@@ -7776,15 +7795,22 @@ window.psmLiveEdit = function(id){
   var msg = prompt('Mensagem:', it.txt); if(msg===null) return;
   var dias = prompt('Expira em quantos dias? (0=perpétuo)', it.exp?Math.max(1,Math.round((it.exp-Date.now())/86400000)):'0');
   if(dias===null) return;
-  it.txt = msg.trim();
-  var d = parseInt(dias, 10)||0;
-  it.exp = d>0 ? Date.now()+d*86400000 : 0;
-  saveState(); render();
+  // FIX v27.1: persist garante sync
+  persist('psm-live-edit', function(){
+    it.txt = msg.trim();
+    var d = parseInt(dias, 10)||0;
+    it.exp = d>0 ? Date.now()+d*86400000 : 0;
+    it._updatedAt = Date.now();
+  });
+  render();
 };
 window.psmLiveDel = function(id){
   if(!confirm('Remover item da PSM Live?')) return;
-  S.timelineItems = (S.timelineItems||[]).filter(function(x){return x.id!==id;});
-  saveState(); render();
+  // FIX v27.1: persist garante sync
+  persist('psm-live-del', function(){
+    S.timelineItems = (S.timelineItems||[]).filter(function(x){return x.id!==id;});
+  });
+  render();
 };
 
 // ─── PAGE: ORGANOGRAMA PSM (v18) ──────────────────────────────────────────────
@@ -23362,16 +23388,20 @@ function addTimelineItem(){
   var exp = 0;
   if(dias && !isNaN(dias) && +dias>0) exp = Date.now() + (+dias)*24*3600*1000;
   if(!S.timelineItems) S.timelineItems = [];
-  S.timelineItems.unshift({id:'tl'+Date.now(), tipo:tipo, ico:ico, txt:txt.trim(), dt:Date.now(), exp:exp});
-  saveState();
+  // FIX v27.1: persist garante saveState + fbPushState + IDB
+  persist('timeline-add', function(){
+    S.timelineItems.unshift({id:'tl'+Date.now(), tipo:tipo, ico:ico, txt:txt.trim(), dt:Date.now(), exp:exp, _updatedAt:Date.now()});
+  });
   if(typeof PSM!=='undefined' && PSM.auditLog) PSM.auditLog('timeline.added',{tipo:tipo,txt:txt},'globalTimeline');
   if(typeof toast==='function') toast('\u2705 Evento adicionado','ok');
   if(typeof render==='function') render();
 }
 function rmTimelineItem(id){
   if(!S.timelineItems) return;
-  S.timelineItems = S.timelineItems.filter(function(it){return it.id!==id;});
-  saveState();
+  // FIX v27.1: persist garante sync
+  persist('timeline-del', function(){
+    S.timelineItems = S.timelineItems.filter(function(it){return it.id!==id;});
+  });
   if(typeof render==='function') render();
 }
 window.addTimelineItem = addTimelineItem;
