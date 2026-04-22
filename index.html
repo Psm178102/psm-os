@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v26.5 — Logo PSM Imoveis oficial em posts gerados (proibe vetor/SVG, composita PNG real) -->
+<!-- PSM-OS v2026.04.21-v27 — Capacitor iOS/Android (camera+GPS+biometria+push+bg) + offline CRDT + backup diario + monitor 24/7 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,7 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.21-v26.5">
+<meta name="version" content="2026.04.21-v27">
+<script>window.PSM_VERSION='27.0';</script>
 <!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
@@ -719,6 +720,14 @@ html{height:100%;overflow:hidden}
 <script src="/api/supabase-config.js"></script>
 <script src="/lib/psm-supabase.js" defer></script>
 <script src="/lib/psm-ia.js" defer></script>
+<!-- v27: bridge nativo (Capacitor iOS/Android + fallback web) -->
+<script src="/lib/psm-native.js" defer></script>
+<!-- v27: engine offline CRDT (IndexedDB + vector clocks + conflito) -->
+<script src="/lib/psm-offline.js" defer></script>
+<!-- v27: backup diario automatico (GitHub Releases) -->
+<script src="/lib/psm-backup.js" defer></script>
+<!-- v27: monitor 24/7 (heartbeat + PagerDuty) -->
+<script src="/lib/psm-monitor.js" defer></script>
 </head>
 <body>
 <div id="app"></div>
@@ -9878,6 +9887,9 @@ function renderLogin() {
     + (S.loginLoading ? '<span style="display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:8px;vertical-align:middle"></span>Entrando...' : 'Entrar')
     + '</button>'
 
+    // v27: Biometria (FaceID / Touch ID / Fingerprint) — so aparece no app nativo
+    + '<button id="lbio" onclick="doBiometricLogin()" style="display:none;width:100%;margin-top:10px;padding:14px;background:#fff;color:#0f172a;border:2px solid #0f172a;border-radius:10px;font-size:14px;font-weight:700;font-family:var(--font);letter-spacing:.3px;cursor:pointer;transition:all .25s" onmouseover="this.style.background=\'#0f172a\';this.style.color=\'#fff\'" onmouseout="this.style.background=\'#fff\';this.style.color=\'#0f172a\'">🔐 Entrar com biometria</button>'
+
     // Esqueci minha senha
     + '<div style="margin-top:14px;text-align:center"><a href="javascript:void(0)" onclick="showForgotPassword()" style="color:#0f172a;font-size:12px;text-decoration:none;font-weight:500;opacity:.7" onmouseover="this.style.opacity=1;this.style.textDecoration=\'underline\'" onmouseout="this.style.opacity=.7;this.style.textDecoration=\'none\'">Esqueci minha senha</a></div>'
 
@@ -10043,6 +10055,30 @@ async function doLogin() {
 
   toast('Bem-vindo, ' + S.user.name.split(' ')[0] + '! 👋', 'ok');
   render();
+
+  // ══ v27: Nativo — push + biometria (apenas no app iOS/Android, noop em web) ══
+  try {
+    if (window.psmNative) {
+      // Registra token FCM/APNs pra receber leads quentes em tempo real
+      if (window.psmNative.isNative) {
+        window.psmNative.requestPushPermission().then(function(r){
+          if (r && r.granted) console.log('[v27] push OK');
+        }).catch(function(){});
+        // Ouve pushes recebidos e mostra toast local
+        window.psmNative.onPushReceived(function(ev){
+          if (ev.type === 'token' && window.firebase) {
+            try { firebase.database().ref('pushTokens/' + S.user.id).set({ token: ev.token, platform: window.psmNative.platform, updatedAt: Date.now() }); } catch(_){}
+          }
+          if (ev.type === 'received') toast((ev.notification && ev.notification.title) || 'Nova notificacao', 'info');
+        });
+      }
+      // Salva credenciais no Keychain/Keystore se o usuario marcou "manter conectado"
+      if (_rememberChecked && window.psmNative.isNative) {
+        window.psmNative.saveBiometricCreds(email, senha).catch(function(){});
+      }
+    }
+  } catch(e){ console.warn('[v27 nativo login]', e); }
+
   // Faz sync do RD com tokens armazenados no navegador
   setTimeout(() => { RD.sync(true).then(() => RD.startAutoSync()); }, 200);
   if (!S.veraHist?.length) {
@@ -10050,6 +10086,38 @@ async function doLogin() {
   }
   scheduleVeraNotifs();
 }
+
+// ══════ v27: BIOMETRIA (FaceID / Touch ID / Fingerprint) ══════
+async function doBiometricLogin() {
+  if (!window.psmNative || !window.psmNative.isNative) { toast('Biometria so funciona no app iOS/Android','warn'); return; }
+  try {
+    var creds = await window.psmNative.biometricLogin('Acesse sua conta PSM');
+    if (!creds || !creds.email) { toast('Biometria sem credenciais salvas','warn'); return; }
+    document.getElementById('le').value = creds.email;
+    document.getElementById('lp').value = creds.password;
+    await doLogin();
+  } catch(e){ console.warn('[biometric]', e); toast('Biometria falhou: ' + (e.message||e), 'err'); }
+}
+// Mostra botao biometrico no login quando app nativo detecta disponibilidade
+(function _bioInit(){
+  if (typeof window === 'undefined') return;
+  var tryShow = function(){
+    var btn = document.getElementById('lbio');
+    if (!btn || !window.psmNative || !window.psmNative.isNative) return;
+    window.psmNative.isBiometricAvailable().then(function(r){
+      if (r && r.available) btn.style.display = 'block';
+    }).catch(function(){});
+  };
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(tryShow, 500); });
+  // tambem roda apos cada render
+  if (!window._psmBioObserver) {
+    window._psmBioObserver = new MutationObserver(function(){ tryShow(); });
+    setTimeout(function(){
+      var app = document.getElementById('app');
+      if (app) window._psmBioObserver.observe(app, { childList:true, subtree:true });
+    }, 1000);
+  }
+})();
 
 // ══════ RECUPERACAO DE SENHA ══════
 function showForgotPassword() { S.loginView='forgot'; S.loginErr=''; S.loginMsg=''; S.resetLink=null; render(); }
@@ -19495,7 +19563,27 @@ function pgCheckin() {
 }
 
 // ─── CHECK-IN ACTIONS ─────────────────────────────────────────────────────────
-function doCheckin() {
+// v27: captura opcional foto + geolocalizacao via psmNative (nativo iOS/Android + fallback web)
+async function _checkinCapture() {
+  var out = { photo:null, geo:null };
+  try {
+    if (window.psmNative && window.psmNative.isNative) {
+      try { out.photo = await window.psmNative.takePhoto({ quality: 60, width: 720, height: 720 }); } catch(_){}
+      try { out.geo = await window.psmNative.getLocation({ highAccuracy: true, timeout: 10000 }); } catch(_){}
+    } else if (navigator.geolocation) {
+      out.geo = await new Promise(function(res){
+        navigator.geolocation.getCurrentPosition(
+          function(p){ res({ lat:p.coords.latitude, lng:p.coords.longitude, accuracy:p.coords.accuracy, source:'web' }); },
+          function(){ res(null); },
+          { enableHighAccuracy:true, timeout:8000 }
+        );
+      });
+    }
+  } catch(_){}
+  return out;
+}
+
+async function doCheckin() {
   var now = new Date();
   var hh = String(now.getHours()).padStart(2,'0');
   var mm = String(now.getMinutes()).padStart(2,'0');
@@ -19509,11 +19597,17 @@ function doCheckin() {
   }
   log.checkinTime = hh + ':' + mm;
   log.status = 'online';
+  // v27: captura foto + GPS (nativo ou web)
+  var cap = await _checkinCapture();
+  if (cap.photo) log.checkinPhoto = cap.photo.dataUrl;
+  if (cap.geo)   log.checkinGeo   = { lat: cap.geo.lat, lng: cap.geo.lng, acc: cap.geo.accuracy };
   saveState();
+  // v27: enfileira pra Supabase (funciona offline, sincroniza depois)
+  try { if (window.psmOffline) window.psmOffline.enqueue('checkins', 'upsert', { user_id: uid, date: today, ...log }); } catch(_){}
   render();
 }
 
-function doCheckout() {
+async function doCheckout() {
   var now = new Date();
   var hh = String(now.getHours()).padStart(2,'0');
   var mm = String(now.getMinutes()).padStart(2,'0');
@@ -19527,7 +19621,12 @@ function doCheckout() {
   });
   log.checkoutTime = hh + ':' + mm;
   log.status = 'finalizado';
+  // v27: captura foto + GPS tambem no checkout
+  var cap = await _checkinCapture();
+  if (cap.photo) log.checkoutPhoto = cap.photo.dataUrl;
+  if (cap.geo)   log.checkoutGeo   = { lat: cap.geo.lat, lng: cap.geo.lng, acc: cap.geo.accuracy };
   saveState();
+  try { if (window.psmOffline) window.psmOffline.enqueue('checkins', 'upsert', { user_id: uid, date: today, ...log }); } catch(_){}
   render();
 }
 
@@ -23197,7 +23296,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v26.5</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v27</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
