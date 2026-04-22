@@ -1,11 +1,11 @@
 // ═════════════════════════════════════════════════════════════════════════════
-// PSM OS — Service Worker v27 (2026-04-21 — Capacitor nativo + offline CRDT + backup + monitor)
+// PSM OS — Service Worker v27.2 (2026-04-21 — Batch fix persistencia 10 chaves)
 // Estratégia: NETWORK-FIRST para HTML (resolve cache stale), CACHE-FIRST assets.
 // Limpa caches antigos automaticamente no activate.
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const CACHE_VERSION = 'psm-os-v27.1-2026-04-21-recados-fix';
+const CACHE_VERSION = 'psm-os-v27.2-2026-04-21-batch-persist-fix';
 const HTML_CACHE    = CACHE_VERSION + '-html';
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

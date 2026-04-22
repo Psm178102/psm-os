@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v27.1 — FIX CRITICO: arenaRecados + timelineItems agora persistem (saveState/loadState/SYNC_KEYS + persist() wrapper) -->
+<!-- PSM-OS v2026.04.21-v27.2 — BATCH FIX persistencia: 10 chaves (gpTalentos/Treinamentos/Reunioes, locContratos, tpData, drivePath, tabelaUploads, vera/sol/srPerfHist) + persist() wrapper -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,8 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.21-v27.1">
-<script>window.PSM_VERSION='27.1';</script>
+<meta name="version" content="2026.04.21-v27.2">
+<script>window.PSM_VERSION='27.2';</script>
 <!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
@@ -1686,6 +1686,17 @@ function saveState(skipFbPush) {
       timelineItems: S.timelineItems || [],
       mapPins: S.mapPins || [],
       iaChat: S.iaChat || [],
+      // FIX v27.2: 10 chaves adicionais que mutavam mas nao salvavam
+      gpTalentos: S.gpTalentos || [],
+      gpTreinamentos: S.gpTreinamentos || [],
+      gpReunioes: S.gpReunioes || [],
+      locContratos: S.locContratos || [],
+      tpData: S.tpData || {},
+      drivePath: S.drivePath || [],
+      tabelaUploads: S.tabelaUploads || [],
+      veraAgHist: (S.veraAgHist || []).slice(-100),
+      solAgHist: (S.solAgHist || []).slice(-100),
+      srPerfHist: (S.srPerfHist || []).slice(-100),
       savedAt: Date.now(),
     };
     // === SALVAMENTO PRINCIPAL COM DETECÇÃO DE QUOTA ===
@@ -1937,6 +1948,17 @@ function loadState() {
     if (d.timelineItems) S.timelineItems = d.timelineItems;
     if (d.mapPins) S.mapPins = d.mapPins;
     if (d.iaChat) S.iaChat = d.iaChat;
+    // FIX v27.2: restaurar 10 chaves criticas adicionais
+    if (d.gpTalentos) S.gpTalentos = d.gpTalentos;
+    if (d.gpTreinamentos) S.gpTreinamentos = d.gpTreinamentos;
+    if (d.gpReunioes) S.gpReunioes = d.gpReunioes;
+    if (d.locContratos) S.locContratos = d.locContratos;
+    if (d.tpData) S.tpData = d.tpData;
+    if (d.drivePath) S.drivePath = d.drivePath;
+    if (d.tabelaUploads) S.tabelaUploads = d.tabelaUploads;
+    if (d.veraAgHist) S.veraAgHist = d.veraAgHist;
+    if (d.solAgHist) S.solAgHist = d.solAgHist;
+    if (d.srPerfHist) S.srPerfHist = d.srPerfHist;
     // Restore manual vendas (legacy)
     try {
       const savedVendas = JSON.parse(localStorage.getItem('psm_vendas_manuais') || '[]');
@@ -1964,7 +1986,11 @@ var SYNC_KEYS = [
   'mapPins',       // FIX v22j: pins do mapa lancamentos
   'iaChat',        // FIX v22j: historico chat IA Corretor (Gemini/Nano Banana)
   'veraHist',      // FIX v22j: historico Sr. Performance
-  'arenaRecados'   // FIX v27.1: BUG CRITICO — recados Diretoria nunca sincronizavam (perdiam ao recarregar)
+  'arenaRecados',  // FIX v27.1: BUG CRITICO — recados Diretoria nunca sincronizavam (perdiam ao recarregar)
+  // FIX v27.2: 10 chaves adicionais que mutavam mas nao sincronizavam
+  'gpTalentos','gpTreinamentos','gpReunioes',
+  'locContratos','tpData','drivePath','tabelaUploads',
+  'veraAgHist','solAgHist','srPerfHist'
 ];
 // Global config keys that also need sync
 var SYNC_GLOBAL_KEYS = ['metasConfig','metasEquipe','teamConfig'];
@@ -1982,7 +2008,8 @@ var SYNC_LS_KEYS = [
   'psm_ma_budgets','psm_ma_cpl','psm_ma_sales',
   // FIX v22i: chaves orfas detectadas em auditoria (sub-sistemas adicionais)
   'psm_radar_patterns','psm_radar_global','psm_ads_data',
-  'psm_meta_indiv','psm_webhook_url','psm_hide_mock'
+  'psm_meta_indiv','psm_webhook_url','psm_hide_mock',
+  'psm_bi_forecast_6m' // FIX v27.2: forecast BI Socio nao sincronizava multi-device
 ];
 
 // Monkey-patch localStorage.setItem para auto-sincronizar SYNC_LS_KEYS via Firebase
@@ -8112,34 +8139,44 @@ function _gpTreinamentos(canEdit){
 window.gpAddTreinamento = function(){
   var tit = (document.getElementById('gptrTit')||{}).value;
   if(!tit){ toast('Título obrigatório','err'); return; }
-  S.gpTreinamentos.push({
-    id:'gptr_'+Date.now(),
-    titulo:tit,
-    publico:(document.getElementById('gptrPub')||{}).value||'',
-    tipo:(document.getElementById('gptrTipo')||{}).value||'tecnico',
-    prazo:(document.getElementById('gptrPrazo')||{}).value||'',
-    status:(document.getElementById('gptrStatus')||{}).value||'planejado',
-    conteudo:(document.getElementById('gptrCont')||{}).value||'',
-    criadoEm:new Date().toISOString(),
-    criadoPor:(S.user||{}).id||''
+  // FIX v27.2: persist garante save + Firebase + IDB
+  persist('gp-treinamento-add', function(){
+    if(!S.gpTreinamentos) S.gpTreinamentos = [];
+    S.gpTreinamentos.push({
+      id:'gptr_'+Date.now(),
+      titulo:tit,
+      publico:(document.getElementById('gptrPub')||{}).value||'',
+      tipo:(document.getElementById('gptrTipo')||{}).value||'tecnico',
+      prazo:(document.getElementById('gptrPrazo')||{}).value||'',
+      status:(document.getElementById('gptrStatus')||{}).value||'planejado',
+      conteudo:(document.getElementById('gptrCont')||{}).value||'',
+      criadoEm:new Date().toISOString(),
+      criadoPor:(S.user||{}).id||'',
+      _updatedAt:Date.now()
+    });
   });
-  saveState();
   if(typeof notifPush==='function') notifPush({title:'🎓 Treinamento mapeado', body:tit, cat:'agenda'});
   render();
 };
 window.gpEditTreinamento = function(id){
-  var t = S.gpTreinamentos.find(function(x){return x.id===id;}); if(!t) return;
+  var t = (S.gpTreinamentos||[]).find(function(x){return x.id===id;}); if(!t) return;
   var tit = prompt('Título:', t.titulo); if(tit===null) return;
   var pub = prompt('Público-alvo:', t.publico||''); if(pub===null) return;
   var st = prompt('Status (planejado/em_andamento/concluido):', t.status||'planejado'); if(st===null) return;
   var cont = prompt('Conteúdo:', t.conteudo||''); if(cont===null) return;
-  t.titulo = tit; t.publico = pub; t.status = st; t.conteudo = cont;
-  saveState(); render();
+  // FIX v27.2: persist
+  persist('gp-treinamento-edit', function(){
+    t.titulo = tit; t.publico = pub; t.status = st; t.conteudo = cont; t._updatedAt = Date.now();
+  });
+  render();
 };
 window.gpDelTreinamento = function(id){
   if(!confirm('Remover treinamento?')) return;
-  S.gpTreinamentos = S.gpTreinamentos.filter(function(x){return x.id!==id;});
-  saveState(); render();
+  // FIX v27.2: persist
+  persist('gp-treinamento-del', function(){
+    S.gpTreinamentos = (S.gpTreinamentos||[]).filter(function(x){return x.id!==id;});
+  });
+  render();
 };
 
 function _gpReunioes(canEdit){
@@ -8181,24 +8218,31 @@ function _gpReunioes(canEdit){
 window.gpAddReuniao = function(){
   var bid = (document.getElementById('gprBroker')||{}).value;
   if(!bid){ toast('Selecione um corretor','err'); return; }
-  S.gpReunioes.push({
-    id:'gpr_'+Date.now(),
-    brokerId:bid,
-    data:(document.getElementById('gprData')||{}).value||new Date().toISOString().slice(0,10),
-    tipo:(document.getElementById('gprTipo')||{}).value||'1x1',
-    observacoes:(document.getElementById('gprObs')||{}).value||'',
-    analises:(document.getElementById('gprAna')||{}).value||'',
-    feedbacks:(document.getElementById('gprFb')||{}).value||'',
-    criadoPor:(S.user||{}).id||''
+  // FIX v27.2: persist
+  persist('gp-reuniao-add', function(){
+    if(!S.gpReunioes) S.gpReunioes = [];
+    S.gpReunioes.push({
+      id:'gpr_'+Date.now(),
+      brokerId:bid,
+      data:(document.getElementById('gprData')||{}).value||new Date().toISOString().slice(0,10),
+      tipo:(document.getElementById('gprTipo')||{}).value||'1x1',
+      observacoes:(document.getElementById('gprObs')||{}).value||'',
+      analises:(document.getElementById('gprAna')||{}).value||'',
+      feedbacks:(document.getElementById('gprFb')||{}).value||'',
+      criadoPor:(S.user||{}).id||'',
+      _updatedAt:Date.now()
+    });
   });
-  saveState();
   if(typeof notifPush==='function') notifPush({title:'📅 Reunião registrada', body:(BROKERS.find(function(x){return x.id===bid;})||{name:''}).name, cat:'agenda'});
   render();
 };
 window.gpDelReuniao = function(id){
   if(!confirm('Remover reunião?')) return;
-  S.gpReunioes = S.gpReunioes.filter(function(x){return x.id!==id;});
-  saveState(); render();
+  // FIX v27.2: persist
+  persist('gp-reuniao-del', function(){
+    S.gpReunioes = (S.gpReunioes||[]).filter(function(x){return x.id!==id;});
+  });
+  render();
 };
 
 function _gpTalentos(canEdit){
@@ -8249,22 +8293,27 @@ window.gpAddTalento = function(){
   var nome = (document.getElementById('gptNome')||{}).value;
   if(!nome){ toast('Nome obrigatório','err'); return; }
   var ig = ((document.getElementById('gptInsta')||{}).value||'').trim().replace(/^@/,'');
-  S.gpTalentos.push({
-    id:'gpt_'+Date.now(),
-    nome:nome,
-    email:(document.getElementById('gptEmail')||{}).value||'',
-    contato:(document.getElementById('gptContato')||{}).value||'',
-    instagram:ig,
-    data:(document.getElementById('gptData')||{}).value||new Date().toISOString().slice(0,10),
-    setor:(document.getElementById('gptSetor')||{}).value||'',
-    funcao:(document.getElementById('gptFuncao')||{}).value||'',
-    cenario:(document.getElementById('gptCenario')||{}).value||'',
-    criadoEm:new Date().toISOString()
+  // FIX v27.2: persist
+  persist('gp-talento-add', function(){
+    if(!S.gpTalentos) S.gpTalentos = [];
+    S.gpTalentos.push({
+      id:'gpt_'+Date.now(),
+      nome:nome,
+      email:(document.getElementById('gptEmail')||{}).value||'',
+      contato:(document.getElementById('gptContato')||{}).value||'',
+      instagram:ig,
+      data:(document.getElementById('gptData')||{}).value||new Date().toISOString().slice(0,10),
+      setor:(document.getElementById('gptSetor')||{}).value||'',
+      funcao:(document.getElementById('gptFuncao')||{}).value||'',
+      cenario:(document.getElementById('gptCenario')||{}).value||'',
+      criadoEm:new Date().toISOString(),
+      _updatedAt:Date.now()
+    });
   });
-  saveState(); render();
+  render();
 };
 window.gpEditTalento = function(id){
-  var t = S.gpTalentos.find(function(x){return x.id===id;}); if(!t) return;
+  var t = (S.gpTalentos||[]).find(function(x){return x.id===id;}); if(!t) return;
   var nome = prompt('Nome:', t.nome); if(nome===null) return;
   var email = prompt('E-mail:', t.email||''); if(email===null) return;
   var contato = prompt('Contato:', t.contato||''); if(contato===null) return;
@@ -8272,13 +8321,19 @@ window.gpEditTalento = function(id){
   var setor = prompt('Setor/Origem:', t.setor||''); if(setor===null) return;
   var funcao = prompt('Função/Local Atual:', t.funcao||''); if(funcao===null) return;
   var cenario = prompt('Cenário:', t.cenario||''); if(cenario===null) return;
-  t.nome = nome; t.email = email; t.contato = contato; t.instagram = (instagram||'').replace(/^@/,''); t.setor = setor; t.funcao = funcao; t.cenario = cenario;
-  saveState(); render();
+  // FIX v27.2: persist
+  persist('gp-talento-edit', function(){
+    t.nome = nome; t.email = email; t.contato = contato; t.instagram = (instagram||'').replace(/^@/,''); t.setor = setor; t.funcao = funcao; t.cenario = cenario; t._updatedAt = Date.now();
+  });
+  render();
 };
 window.gpDelTalento = function(id){
   if(!confirm('Remover talento?')) return;
-  S.gpTalentos = S.gpTalentos.filter(function(x){return x.id!==id;});
-  saveState(); render();
+  // FIX v27.2: persist
+  persist('gp-talento-del', function(){
+    S.gpTalentos = (S.gpTalentos||[]).filter(function(x){return x.id!==id;});
+  });
+  render();
 };
 
 // ─── PAGE: PSM LOCAÇÕES ───────────────────────────────────────────────────────
@@ -8464,27 +8519,34 @@ function _locContratoForm(tipo){
 window.locAddContrato = function(){
   var imovel = (document.getElementById('locImovel')||{}).value;
   if(!imovel){ toast('Imóvel obrigatório','err'); return; }
-  S.locContratos = S.locContratos||[];
-  S.locContratos.push({
-    id:'loc_'+Date.now(),
-    imovel:imovel,
-    locador:(document.getElementById('locLocador')||{}).value||'',
-    locatario:(document.getElementById('locLocatario')||{}).value||'',
-    valor:parseFloat((document.getElementById('locValor')||{}).value)||0,
-    inicio:(document.getElementById('locInicio')||{}).value||'',
-    fim:(document.getElementById('locFim')||{}).value||'',
-    status:(document.getElementById('locStatus')||{}).value||'ativo',
-    seguradora:(document.getElementById('locSegur')||{}).value||'',
-    apolice:(document.getElementById('locApolice')||{}).value||'',
-    segVenc:(document.getElementById('locSegVenc')||{}).value||'',
-    criadoEm:new Date().toISOString()
+  // FIX v27.2: persist
+  persist('loc-contrato-add', function(){
+    S.locContratos = S.locContratos||[];
+    S.locContratos.push({
+      id:'loc_'+Date.now(),
+      imovel:imovel,
+      locador:(document.getElementById('locLocador')||{}).value||'',
+      locatario:(document.getElementById('locLocatario')||{}).value||'',
+      valor:parseFloat((document.getElementById('locValor')||{}).value)||0,
+      inicio:(document.getElementById('locInicio')||{}).value||'',
+      fim:(document.getElementById('locFim')||{}).value||'',
+      status:(document.getElementById('locStatus')||{}).value||'ativo',
+      seguradora:(document.getElementById('locSegur')||{}).value||'',
+      apolice:(document.getElementById('locApolice')||{}).value||'',
+      segVenc:(document.getElementById('locSegVenc')||{}).value||'',
+      criadoEm:new Date().toISOString(),
+      _updatedAt:Date.now()
+    });
   });
-  saveState(); render();
+  render();
 };
 window.locDelContrato = function(id){
   if(!confirm('Remover contrato?')) return;
-  S.locContratos = (S.locContratos||[]).filter(function(x){return x.id!==id;});
-  saveState(); render();
+  // FIX v27.2: persist
+  persist('loc-contrato-del', function(){
+    S.locContratos = (S.locContratos||[]).filter(function(x){return x.id!==id;});
+  });
+  render();
 };
 window.locEditContrato = function(id){
   var c = (S.locContratos||[]).find(function(x){return x.id===id;}); if(!c) return;
@@ -8492,8 +8554,11 @@ window.locEditContrato = function(id){
   var fim = prompt('Fim (YYYY-MM-DD):', c.fim||''); if(fim===null) return;
   var st = prompt('Status (ativo/encerrado/inadimplente):', c.status||'ativo'); if(st===null) return;
   var segV = prompt('Venc. seguro (YYYY-MM-DD):', c.segVenc||''); if(segV===null) return;
-  c.valor = parseFloat(v)||0; c.fim = fim; c.status = st; c.segVenc = segV;
-  saveState(); render();
+  // FIX v27.2: persist
+  persist('loc-contrato-edit', function(){
+    c.valor = parseFloat(v)||0; c.fim = fim; c.status = st; c.segVenc = segV; c._updatedAt = Date.now();
+  });
+  render();
 };
 
 function _daysTo(dateStr){
@@ -14369,12 +14434,14 @@ if (!S.driveLoading) S.driveLoading = false;
 async function navigateDrive(folderId, folderName) {
   S.driveLoading = true; render();
   // Se clicar numa pasta que ja esta no path, volta pra ela (breadcrumb)
-  const pathIdx = S.drivePath.findIndex(p => p.id === folderId);
-  if (pathIdx >= 0) {
-    S.drivePath = S.drivePath.slice(0, pathIdx + 1);
-  } else {
-    S.drivePath.push({ id: folderId, name: folderName });
-  }
+  persist('drivePath',function(){
+    const pathIdx = S.drivePath.findIndex(p => p.id === folderId);
+    if (pathIdx >= 0) {
+      S.drivePath = S.drivePath.slice(0, pathIdx + 1);
+    } else {
+      S.drivePath.push({ id: folderId, name: folderName });
+    }
+  });
   S.driveFiles = await fetchDriveFiles(folderId);
   S.driveLoading = false;
   S.driveSearch = '';
@@ -14944,21 +15011,22 @@ function uploadTabelaFile(input){
   }
   var reader = new FileReader();
   reader.onload = function(e){
-    if(!Array.isArray(S.tabelaUploads)) S.tabelaUploads = [];
-    var now = new Date();
-    var mk = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-    S.tabelaUploads.unshift({
-      name: file.name,
-      type: file.type || 'application/octet-stream',
-      size: file.size,
-      dataUrl: e.target.result,
-      uploadedAt: now.toISOString(),
-      uploaderId: u.id,
-      uploaderName: u.nome || u.name || u.email || 'Gestor',
-      month: mk
+    persist('tabelaUploadAdd',function(){
+      if(!Array.isArray(S.tabelaUploads)) S.tabelaUploads = [];
+      var now = new Date();
+      var mk = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+      S.tabelaUploads.unshift({
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        size: file.size,
+        dataUrl: e.target.result,
+        uploadedAt: now.toISOString(),
+        uploaderId: u.id,
+        uploaderName: u.nome || u.name || u.email || 'Gestor',
+        month: mk
+      });
+      if(S.tabelaUploads.length > 12) S.tabelaUploads = S.tabelaUploads.slice(0,12);
     });
-    if(S.tabelaUploads.length > 12) S.tabelaUploads = S.tabelaUploads.slice(0,12);
-    if(typeof saveState==='function') saveState();
     input.value = '';
     if(typeof render==='function') render();
   };
@@ -14968,8 +15036,7 @@ function uploadTabelaFile(input){
 function removeTabelaUpload(idx){
   if(!Array.isArray(S.tabelaUploads)) return;
   if(!confirm('Remover este arquivo?')) return;
-  S.tabelaUploads.splice(idx,1);
-  if(typeof saveState==='function') saveState();
+  persist('tabelaUploadRemove',function(){ S.tabelaUploads.splice(idx,1); });
   if(typeof render==='function') render();
 }
 function setTabelaRef(v){
@@ -15893,7 +15960,7 @@ function pgTarefasPSM() {
         {titulo:'CANCELAR WAPLUS',status:'nao_iniciado',responsaveis:[],prioridade:'',prazoInicio:'',prazoFim:'',descricao:'',createdAt:_n,updatedAt:_n,log:[]},
         {titulo:'MKT PLACE',status:'em_andamento',responsaveis:[],prioridade:'',prazoInicio:'',prazoFim:'',descricao:'',createdAt:_n,updatedAt:_n,log:[]}
       ];
-      try{localStorage.setItem('psm_tarefas_psm',JSON.stringify(S.tpData));}catch(e){console.error("[PSM v26.2]",e);}
+      persist('tpDataSeed',function(){});
     }
   }
   if(!S.tpView) S.tpView='kanban';
@@ -15918,29 +15985,34 @@ function pgTarefasPSM() {
   window.tpFilterResp=function(v){S.tpFilterResp=v;render({force:true});};
   window.tpMoveStatus=function(idx,ns){
     if(!S.tpData[idx])return;var old=S.tpData[idx].status;
-    S.tpData[idx].status=ns;S.tpData[idx].updatedAt=new Date().toISOString();
-    if(!S.tpData[idx].log)S.tpData[idx].log=[];
-    S.tpData[idx].log.push({de:old,para:ns,por:(u.nome||''),em:new Date().toISOString()});
-    _tpSave();render({force:true});toast('Tarefa movida para '+statusLbl(ns),'ok');
+    persist('tpMoveStatus',function(){
+      S.tpData[idx].status=ns;S.tpData[idx].updatedAt=new Date().toISOString();
+      if(!S.tpData[idx].log)S.tpData[idx].log=[];
+      S.tpData[idx].log.push({de:old,para:ns,por:(u.nome||''),em:new Date().toISOString()});
+    });
+    render({force:true});toast('Tarefa movida para '+statusLbl(ns),'ok');
   };
-  window.tpDelete=function(idx){if(!confirm('Excluir esta tarefa?'))return;S.tpData.splice(idx,1);_tpSave();render({force:true});};
+  window.tpDelete=function(idx){if(!confirm('Excluir esta tarefa?'))return;persist('tpDelete',function(){S.tpData.splice(idx,1);});render({force:true});};
   window.tpSaveForm=function(){
     var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
     var titulo=g('tp_titulo');if(!titulo){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
     var respSel=[];var opts=document.querySelectorAll('.tp-resp-chk:checked');
     for(var i=0;i<opts.length;i++)respSel.push(opts[i].value);
     var obj={titulo:titulo,status:g('tp_status')||'nao_iniciado',responsaveis:respSel,prioridade:g('tp_prio'),prazoInicio:g('tp_prazo_ini'),prazoFim:g('tp_prazo_fim'),descricao:g('tp_desc'),updatedAt:new Date().toISOString()};
-    if(typeof S.tpEditIdx==='number'&&S.tpData[S.tpEditIdx]){
-      obj.createdAt=S.tpData[S.tpEditIdx].createdAt;obj.log=S.tpData[S.tpEditIdx].log||[];
-      obj.log.push({acao:'editado',por:(u.nome||''),em:new Date().toISOString()});
-      S.tpData[S.tpEditIdx]=obj;toast('\u2705 Tarefa atualizada','ok');
-    }else{
-      obj.createdAt=new Date().toISOString();obj.log=[{acao:'criado',por:(u.nome||''),em:new Date().toISOString()}];
-      S.tpData.push(obj);toast('\u2705 Nova tarefa adicionada','ok');
-    }
-    _tpSave();S.tpShowForm=false;S.tpEditIdx=null;render({force:true});
+    persist('tpSaveForm',function(){
+      if(typeof S.tpEditIdx==='number'&&S.tpData[S.tpEditIdx]){
+        obj.createdAt=S.tpData[S.tpEditIdx].createdAt;obj.log=S.tpData[S.tpEditIdx].log||[];
+        obj.log.push({acao:'editado',por:(u.nome||''),em:new Date().toISOString()});
+        S.tpData[S.tpEditIdx]=obj;
+      }else{
+        obj.createdAt=new Date().toISOString();obj.log=[{acao:'criado',por:(u.nome||''),em:new Date().toISOString()}];
+        S.tpData.push(obj);
+      }
+    });
+    toast(typeof S.tpEditIdx==='number'?'\u2705 Tarefa atualizada':'\u2705 Nova tarefa adicionada','ok');
+    S.tpShowForm=false;S.tpEditIdx=null;render({force:true});
   };
-  function _tpSave(){try{localStorage.setItem('psm_tarefas_psm',JSON.stringify(S.tpData));}catch(e){console.error("[PSM v26.2]",e);}}
+  function _tpSave(){persist('tpData',function(){});}
   var items=S.tpData.slice();
   if(S.tpFilterResp)items=items.filter(function(t){return t.responsaveis&&t.responsaveis.indexOf(S.tpFilterResp)>=0;});
   if(S.tpSearch){var q=S.tpSearch.toLowerCase();items=items.filter(function(t){return(t.titulo||'').toLowerCase().indexOf(q)>=0||(t.descricao||'').toLowerCase().indexOf(q)>=0;});}
@@ -26505,6 +26577,29 @@ function removerPlantao(dia, idx) {
   nav('plantoes');
 }
 
+// v27.2 fix: handler salvarAtivPlantao estava ausente (botao quebrado)
+function salvarAtivPlantao(dia, idx) {
+  var u = S.user; if(!u){ toast('Faca login','warn'); return; }
+  var myBid = u.id || u.email || 'anon';
+  var visEl = document.getElementById('plt-vis-'+dia+'-'+idx);
+  var obsEl = document.getElementById('plt-obsC-'+dia+'-'+idx);
+  var visitas = visEl ? Math.max(0, parseInt(visEl.value, 10) || 0) : 0;
+  var obs = obsEl ? (obsEl.value||'').trim() : '';
+  var now = new Date();
+  var storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
+  var plantoes = [];
+  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e){console.error("[PSM v27.2]",e);}
+  var dayP = plantoes.filter(function(p){return p.dia === dia;});
+  if (!dayP[idx]) { toast('Plantao nao encontrado','err'); return; }
+  var globalIdx = plantoes.indexOf(dayP[idx]);
+  if (!plantoes[globalIdx].atividades) plantoes[globalIdx].atividades = {};
+  plantoes[globalIdx].atividades[myBid] = { visitas: visitas, obs: obs, em: new Date().toISOString(), nome: u.nome||u.name||'' };
+  try { localStorage.setItem(storageKey, JSON.stringify(plantoes)); } catch(e){console.error("[PSM v27.2]",e);}
+  toast('\u2705 Atividade salva','ok');
+  if(typeof render==='function') render({force:true});
+}
+window.salvarAtivPlantao = salvarAtivPlantao;
+
 // === FICHAS & PROPOSTAS — Modelos de documentos para download ===
 function pgFichasPropostas() {
   var docs = [
@@ -28306,7 +28401,7 @@ function pgAgenteVera() {
     h += '<div style="background:#1e293b;border-radius:14px;overflow:hidden;border:1px solid #334155">';
     h += '<div style="padding:14px 18px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center">';
     h += '<span style="color:#e2e8f0;font-size:13px;font-weight:700">💬 Testar conversa com a Vera</span>';
-    h += '<button onclick="S.veraAgHist=[];render()" style="padding:4px 10px;background:#334155;color:#94a3b8;border:none;border-radius:6px;cursor:pointer;font-size:11px">Limpar</button>';
+    h += '<button onclick="persist(\'veraAgHistClear\',function(){S.veraAgHist=[];});render()" style="padding:4px 10px;background:#334155;color:#94a3b8;border:none;border-radius:6px;cursor:pointer;font-size:11px">Limpar</button>';
     h += '</div>';
 
     // Messages area
@@ -28460,8 +28555,10 @@ function pgAgenteVera() {
 
 // Vera Agent test chat
 function testVeraMsg(msg) {
-  S.veraAgHist = S.veraAgHist || [];
-  S.veraAgHist.push({role:'user', content:msg});
+  persist('veraAgHistUser',function(){
+    S.veraAgHist = S.veraAgHist || [];
+    S.veraAgHist.push({role:'user', content:msg});
+  });
   sendVeraAgent(true);
 }
 
@@ -28470,15 +28567,17 @@ function sendVeraAgent(skipInput) {
     var inp = document.getElementById('vera-ag-inp');
     var txt = (inp ? inp.value : '').trim();
     if (!txt) return;
-    S.veraAgHist = S.veraAgHist || [];
-    S.veraAgHist.push({role:'user', content:txt});
+    persist('veraAgHistUser',function(){
+      S.veraAgHist = S.veraAgHist || [];
+      S.veraAgHist.push({role:'user', content:txt});
+    });
     if (inp) inp.value = '';
   }
   S.veraAgLoading = true; render();
   setTimeout(function(){ var el=document.getElementById('vera-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 50);
   var gKey = ((S.connectors||{}).gemini_api_key || '').trim();
   if (!gKey) {
-    S.veraAgHist.push({role:'assistant', content:'Configure a API Key Gemini em Configura\u00e7\u00f5es \u2192 Conectores para ativar a Vera.'});
+    persist('veraAgHistAssist',function(){ S.veraAgHist.push({role:'assistant', content:'Configure a API Key Gemini em Configura\u00e7\u00f5es \u2192 Conectores para ativar a Vera.'}); });
     S.veraAgLoading = false; render(); return;
   }
   var hist = (S.veraAgHist||[]).map(function(m){return {role:m.role==='user'?'user':'model',parts:[{text:m.content}]};});
@@ -28490,11 +28589,11 @@ function sendVeraAgent(skipInput) {
   }).then(function(r){return r.json();}).then(function(data){
     var txt2='Sem resposta';
     try{txt2=data.candidates[0].content.parts[0].text;}catch(e){txt2='Erro: '+(data.error&&data.error.message?data.error.message:JSON.stringify(data).slice(0,200));}
-    S.veraAgHist.push({role:'assistant', content:txt2});
+    persist('veraAgHistAssist',function(){ S.veraAgHist.push({role:'assistant', content:txt2}); });
     S.veraAgLoading = false; render();
     setTimeout(function(){ var el=document.getElementById('vera-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
   }).catch(function(e){
-    S.veraAgHist.push({role:'assistant', content:'Erro: '+e.message});
+    persist('veraAgHistAssist',function(){ S.veraAgHist.push({role:'assistant', content:'Erro: '+e.message}); });
     S.veraAgLoading = false; render();
   });
 }
@@ -28517,7 +28616,7 @@ function pgAgenteSol() {
   h += '<div style="background:#1e293b;border-radius:14px;overflow:hidden;border:1px solid #334155">';
   h += '<div style="padding:14px 18px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center">';
   h += '<span style="color:#e2e8f0;font-size:13px;font-weight:700">☀️ Testar conversa com a Sol</span>';
-  h += '<button onclick="S.solAgHist=[];render()" style="padding:4px 10px;background:#334155;color:#94a3b8;border:none;border-radius:6px;cursor:pointer;font-size:11px">Limpar</button>';
+  h += '<button onclick="persist(\'solAgHistClear\',function(){S.solAgHist=[];});render()" style="padding:4px 10px;background:#334155;color:#94a3b8;border:none;border-radius:6px;cursor:pointer;font-size:11px">Limpar</button>';
   h += '</div>';
   h += '<div id="sol-ag-msgs" style="height:400px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px">';
   if (hist.length === 0) {
@@ -28556,15 +28655,17 @@ function sendSolAgent(skipInput) {
     var inp = document.getElementById('sol-ag-inp');
     var txt = (inp ? inp.value : '').trim();
     if (!txt) return;
-    S.solAgHist = S.solAgHist || [];
-    S.solAgHist.push({role:'user', content:txt});
+    persist('solAgHistUser',function(){
+      S.solAgHist = S.solAgHist || [];
+      S.solAgHist.push({role:'user', content:txt});
+    });
     if (inp) inp.value = '';
   }
   S.solAgLoading = true; render();
   setTimeout(function(){ var el=document.getElementById('sol-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 50);
   var gKey = ((S.connectors||{}).gemini_api_key || '').trim();
   if (!gKey) {
-    S.solAgHist.push({role:'assistant', content:'Configure a API Key Gemini em Configura\u00e7\u00f5es \u2192 Conectores para ativar a Sol.'});
+    persist('solAgHistAssist',function(){ S.solAgHist.push({role:'assistant', content:'Configure a API Key Gemini em Configura\u00e7\u00f5es \u2192 Conectores para ativar a Sol.'}); });
     S.solAgLoading = false; render(); return;
   }
   var hist = (S.solAgHist||[]).map(function(m){return {role:m.role==='user'?'user':'model',parts:[{text:m.content}]};});
@@ -28576,11 +28677,11 @@ function sendSolAgent(skipInput) {
   }).then(function(r){return r.json();}).then(function(data){
     var txt2='Sem resposta';
     try{txt2=data.candidates[0].content.parts[0].text;}catch(e){txt2='Erro: '+(data.error&&data.error.message?data.error.message:JSON.stringify(data).slice(0,200));}
-    S.solAgHist.push({role:'assistant', content:txt2});
+    persist('solAgHistAssist',function(){ S.solAgHist.push({role:'assistant', content:txt2}); });
     S.solAgLoading = false; render();
     setTimeout(function(){ var el=document.getElementById('sol-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
   }).catch(function(e){
-    S.solAgHist.push({role:'assistant', content:'Erro: '+e.message});
+    persist('solAgHistAssist',function(){ S.solAgHist.push({role:'assistant', content:'Erro: '+e.message}); });
     S.solAgLoading = false; render();
   });
 }
@@ -28621,14 +28722,16 @@ function sendSrPerf() {
   var inp = document.getElementById("sr-perf-inp");
   var txt = (inp ? inp.value : "").trim();
   if (!txt) return;
-  S.srPerfHist = S.srPerfHist || [];
-  S.srPerfHist.push({role:"user", content:txt});
+  persist('srPerfHistUser',function(){
+    S.srPerfHist = S.srPerfHist || [];
+    S.srPerfHist.push({role:"user", content:txt});
+  });
   if (inp) inp.value = "";
   S.srPerfLoading = true; render();
   setTimeout(function(){ var el=document.getElementById("sr-perf-msgs"); if(el) el.scrollTop=el.scrollHeight; }, 50);
   var gKey = ((S.connectors||{}).gemini_api_key || '').trim();
   if (!gKey) {
-    S.srPerfHist.push({role:"assistant", content:"⚠️ Configure a API Key Gemini em Configurações > Conectores para usar o Sr. Performance."});
+    persist('srPerfHistAssist',function(){ S.srPerfHist.push({role:"assistant", content:"⚠️ Configure a API Key Gemini em Configurações > Conectores para usar o Sr. Performance."}); });
     S.srPerfLoading = false; render();
     return;
   }
@@ -28660,11 +28763,11 @@ function sendSrPerf() {
       text = '❌ Sem resposta da API. Verifique sua chave Gemini em Configurações > Conectores.';
     }
     text = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
-    S.srPerfHist.push({role:"assistant", content: text});
+    persist('srPerfHistAssist',function(){ S.srPerfHist.push({role:"assistant", content: text}); });
     S.srPerfLoading = false; render();
     setTimeout(function(){ var el=document.getElementById("sr-perf-msgs"); if(el) el.scrollTop=el.scrollHeight; }, 80);
   }).catch(function(e){
-    S.srPerfHist.push({role:"assistant", content:"❌ Erro de conexão: " + e.message});
+    persist('srPerfHistAssist',function(){ S.srPerfHist.push({role:"assistant", content:"❌ Erro de conexão: " + e.message}); });
     S.srPerfLoading = false; render();
   });
 }
