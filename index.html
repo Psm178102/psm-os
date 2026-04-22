@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v27.7 — iOS COMPAT: migra 41 confirm() + ~30 prompt() para psmConfirm/psmPrompt (iOS Capacitor WebView nao renderiza dialogs nativos do browser). Mantem v27.6: AES-GCM em psm_remember_pw + auto-migra legado. -->
+<!-- PSM-OS v2026.04.21-v27.7 — iOS COMPAT + AUDIT FIX-PASS: migra 41 confirm() + ~30 prompt() + 13 alert() para psmConfirm/psmPrompt/psmAlert; psmSafeParse/psmLSGet defensivos; ~30 JSON.parse(localStorage) blindados; logs [PSM v27.7]. Mantem v27.6: AES-GCM em psm_remember_pw + auto-migra legado. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,8 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.21-v27.4">
-<script>window.PSM_VERSION='27.4';</script>
+<meta name="version" content="2026.04.21-v27.7">
+<script>window.PSM_VERSION='27.7';</script>
 <!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
@@ -759,7 +759,7 @@ html{height:100%;overflow:hidden}
   if ('wakeLock' in navigator) {
     var _wl = null;
     async function reqWL(){
-      try { _wl = await navigator.wakeLock.request('screen'); _wl.addEventListener('release', function(){ _wl = null; }); } catch(e){console.error("[PSM v26.2]",e);}
+      try { _wl = await navigator.wakeLock.request('screen'); _wl.addEventListener('release', function(){ _wl = null; }); } catch(e){console.error("[PSM v27.7]",e);}
     }
     reqWL();
     document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible' && !_wl) reqWL(); });
@@ -775,7 +775,7 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').then(function(reg){
       console.log('[PSM-PWA] SW registrado:', reg.scope);
       // Check for update a cada 10 minutos (network-first ja resolve HTML stale)
-      setInterval(function(){ try{reg.update();}catch(e){console.error("[PSM v26.2]",e);} }, 600000);
+      setInterval(function(){ try{reg.update();}catch(e){console.error("[PSM v27.7]",e);} }, 600000);
       // Notify user when new version is ready
       reg.addEventListener('updatefound', function(){
         var nw = reg.installing;
@@ -783,8 +783,8 @@ if ('serviceWorker' in navigator) {
         nw.addEventListener('statechange', function(){
           if(nw.state === 'installed' && navigator.serviceWorker.controller){
             // Ativa imediatamente a nova versao
-            try { nw.postMessage({type:'skipWaiting'}); } catch(e){console.error("[PSM v26.2]",e);}
-            try { toast('Nova versao disponivel — recarregue','ok'); } catch(e){console.error("[PSM v26.2]",e);}
+            try { nw.postMessage({type:'skipWaiting'}); } catch(e){console.error("[PSM v27.7]",e);}
+            try { toast('Nova versao disponivel — recarregue','ok'); } catch(e){console.error("[PSM v27.7]",e);}
           }
         });
       });
@@ -943,7 +943,7 @@ let TEAM_CONFIG={
 try {
   var _roleMap = JSON.parse(localStorage.getItem('psm_user_roles')||'{}');
   USERS_BASE.forEach(function(u){ if(_roleMap[u.id]) u.role = _roleMap[u.id]; });
-} catch(e){console.error("[PSM v26.2]",e);}
+} catch(e){console.error("[PSM v27.7]",e);}
 
 function buildUsers(){
   return USERS_BASE.map(u=>{
@@ -959,7 +959,7 @@ let INATIVOS=ALL_BROKERS.filter(u=>u.status==='inativo');
 let INATIVOS_IDS=INATIVOS.map(u=>u.id);
 function getBrokers(){
   // Sócios com S.showInativos=true veem todos; demais veem apenas ativos
-  try { if(S && S.user && S.user.role==='socio' && S.showInativos) return ALL_BROKERS.slice(); } catch(e){console.error("[PSM v26.2]",e);}
+  try { if(S && S.user && S.user.role==='socio' && S.showInativos) return ALL_BROKERS.slice(); } catch(e){console.error("[PSM v27.7]",e);}
   return ALL_BROKERS.filter(u=>u.status!=='inativo');
 }
 let BROKERS=ALL_BROKERS.filter(u=>u.status!=='inativo');
@@ -978,7 +978,7 @@ function isHiddenBroker(brokerId){
 function isMaskedBroker(brokerId){
   if(!brokerId) return false;
   if(INATIVOS_IDS.indexOf(brokerId)===-1) return false;
-  try { if(S && S.user && S.user.role==='socio' && S.showInativos) return false; } catch(e){console.error("[PSM v26.2]",e);}
+  try { if(S && S.user && S.user.role==='socio' && S.showInativos) return false; } catch(e){console.error("[PSM v27.7]",e);}
   return true;
 }
 // safeBrokerName — retorna nome seguro (mascarado se desligado e usuario nao autorizado)
@@ -1103,7 +1103,7 @@ const METRICS=(function(){
 function calcOKRs(){
   const M = typeof METRICS !== 'undefined' ? METRICS : {vgv_meta:0,vend_meta:20,vis_meta:100,mes:'—'};
   // META CANONICA
-  try{var _mgOkr=getMetaGlobal();if(_mgOkr&&_mgOkr.metaTotal){var _cmo=new Date().getMonth();M.vgv_meta=_mgOkr.metaTotal(_cmo)||M.vgv_meta||0;}}catch(e){console.error("[PSM v26.2]",e);}
+  try{var _mgOkr=getMetaGlobal();if(_mgOkr&&_mgOkr.metaTotal){var _cmo=new Date().getMonth();M.vgv_meta=_mgOkr.metaTotal(_cmo)||M.vgv_meta||0;}}catch(e){console.error("[PSM v27.7]",e);}
   const vgvReal=VENDAS.reduce((a,v)=>a+(v.vgv||0),0);
   const vgvMeta=M.vgv_meta||0;
   const vendReal=VENDAS.length;
@@ -1231,8 +1231,8 @@ PSM.auditLog = function(action, detail, target){
     };
     S.auditLog.unshift(entry);
     if(S.auditLog.length>2000) S.auditLog.length=2000;
-    try{localStorage.setItem('psm_audit_log', JSON.stringify(S.auditLog.slice(0,500)));}catch(e){console.error("[PSM v26.2]",e);}
-  }catch(e){console.error("[PSM v26.2]",e);}
+    try{localStorage.setItem('psm_audit_log', JSON.stringify(S.auditLog.slice(0,500)));}catch(e){console.error("[PSM v27.7]",e);}
+  }catch(e){console.error("[PSM v27.7]",e);}
 };
 // Restaura audit log do localStorage
 (function(){
@@ -1240,7 +1240,7 @@ PSM.auditLog = function(action, detail, target){
     if(typeof S==='undefined') return;
     var saved=localStorage.getItem('psm_audit_log');
     if(saved && !S.auditLog) S.auditLog=JSON.parse(saved)||[];
-  }catch(e){console.error("[PSM v26.2]",e);}
+  }catch(e){console.error("[PSM v27.7]",e);}
 })();
 
 // ── Sistema 6: Webhook de alertas (push p/ Zapier/Make/n8n \u2192 WhatsApp/Slack) ─
@@ -1271,10 +1271,10 @@ function getMetaGlobal(){
   // Carrega meta global do localStorage (S.mg) para obter metas reais por mes
   var _s;try{_s=S;}catch(e){_s=null;}
   if(_s&&!_s.mg){
-    try{var saved=localStorage.getItem('psm_meta_global');if(saved)_s.mg=JSON.parse(saved);}catch(e){console.error("[PSM v26.2]",e);}
+    try{var saved=localStorage.getItem('psm_meta_global');if(saved)_s.mg=JSON.parse(saved);}catch(e){console.error("[PSM v27.7]",e);}
   }
   if(!_s||!_s.mg){
-    try{var saved2=localStorage.getItem('psm_meta_global');if(saved2){var parsed=JSON.parse(saved2);if(parsed){var m2=parsed;function mt2(i){return (m2.metaImpper[i]||0)+(m2.metaTerc[i]||0)+(m2.metaEstMAP[i]||0)+(m2.metaEstConq[i]||0)+(m2.metaLanc[i]||0);}return {mg:m2,metaTotal:mt2};}}}catch(e){console.error("[PSM v26.2]",e);}
+    try{var saved2=localStorage.getItem('psm_meta_global');if(saved2){var parsed=JSON.parse(saved2);if(parsed){var m2=parsed;function mt2(i){return (m2.metaImpper[i]||0)+(m2.metaTerc[i]||0)+(m2.metaEstMAP[i]||0)+(m2.metaEstConq[i]||0)+(m2.metaLanc[i]||0);}return {mg:m2,metaTotal:mt2};}}}catch(e){console.error("[PSM v27.7]",e);}
     return null;
   }
   var m=_s.mg;
@@ -1606,6 +1606,22 @@ let METAS_EQUIPE = {
 // ─── PERSISTENCE ─────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'psm_os_state';
 
+// === SAFE JSON PARSE (v27.7) ========================================
+// Wrapper defensivo para JSON.parse(localStorage.getItem(...))
+// Retorna fallback se string corrompida, evitando crashes em paginas
+// auxiliares (Financeiro, Radar, Captacoes, Tendencias).
+window.psmSafeParse = function(raw, fallback){
+  if(raw === null || raw === undefined || raw === '') return fallback;
+  try { return JSON.parse(raw); } catch(e){
+    console.warn('[psmSafeParse] dado corrompido', e && e.message);
+    return fallback;
+  }
+};
+window.psmLSGet = function(key, fallback){
+  try { return window.psmSafeParse(localStorage.getItem(key), fallback); }
+  catch(_){ return fallback; }
+};
+
 // === CROSS-TAB SYNC ================================================
 // Se o usuário tem múltiplas abas abertas, edições numa aba refletem
 // automaticamente nas outras (evita sobrescritas e estados divergentes).
@@ -1620,7 +1636,7 @@ const STORAGE_KEY = 'psm_os_state';
       // Recarrega state e força re-render (sem push ao Firebase pra evitar loop)
       if (typeof loadState === 'function') loadState();
       if (typeof render === 'function') render();
-      try { if (typeof toast === 'function') toast('🔄 Dados atualizados em outra aba','ok'); } catch(_){console.error("[PSM v26.2]",_);}
+      try { if (typeof toast === 'function') toast('🔄 Dados atualizados em outra aba','ok'); } catch(_){console.error("[PSM v27.7]",_);}
     } catch(e){ console.warn('[cross-tab sync]', e); }
     setTimeout(function(){ _syncing = false; }, 100);
   });
@@ -1741,13 +1757,13 @@ function saveState(skipFbPush) {
           }
           // Tenta de novo
           localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-          try { if (typeof toast === 'function') toast('⚠️ Armazenamento local liberado. Backup está seguro no Firebase.','warn'); } catch(_){console.error("[PSM v26.2]",_);}
+          try { if (typeof toast === 'function') toast('⚠️ Armazenamento local liberado. Backup está seguro no Firebase.','warn'); } catch(_){console.error("[PSM v27.7]",_);}
         } catch(retryErr) {
           // Ainda falhou — notifica claramente
           try {
             if (typeof toast === 'function') toast('❌ ARMAZENAMENTO LOCAL CHEIO — mas dados seguem no Firebase.','err');
-            else alert('PSM OS: localStorage local cheio. Seus dados estão seguros no Firebase. Recarregue a página.');
-          } catch(_){console.error("[PSM v26.2]",_);}
+            else (window.psmAlert||alert)('PSM OS: localStorage local cheio. Seus dados estão seguros no Firebase. Recarregue a página.');
+          } catch(_){console.error("[PSM v27.7]",_);}
           // Também registra flag pra UI avisar
           S._storageFullWarned = Date.now();
         }
@@ -1784,7 +1800,7 @@ function saveState(skipFbPush) {
         savedAt: Date.now()
       };
       localStorage.setItem('psm_backup_critical', JSON.stringify(criticalData));
-    } catch(e2){console.error("[PSM v26.2]",e2);}
+    } catch(e2){console.error("[PSM v27.7]",e2);}
     // Backup rotativo a cada hora (mantém últimas 3 cópias)
     try {
       var lastRotate = parseInt(localStorage.getItem('psm_backup_lastrotate') || '0');
@@ -1797,11 +1813,11 @@ function saveState(skipFbPush) {
         localStorage.setItem('psm_backup_h1', JSON.stringify(criticalData));
         localStorage.setItem('psm_backup_lastrotate', String(Date.now()));
       }
-    } catch(e3){console.error("[PSM v26.2]",e3);}
+    } catch(e3){console.error("[PSM v27.7]",e3);}
     // === FIREBASE SYNC: push shared data (NUNCA quando dados vem do Firebase) ===
     if (_fbReady && !skipFbPush) fbPushState();
     // === v22k: IndexedDB mirror (sobrevive limpeza localStorage) ===
-    try { if (typeof _psmIdbMirror === 'function') _psmIdbMirror(toSave); } catch(_){console.error("[PSM v26.2]",_);}
+    try { if (typeof _psmIdbMirror === 'function') _psmIdbMirror(toSave); } catch(_){console.error("[PSM v27.7]",_);}
   } catch(e) { console.warn('[PSM] Save error:', e); }
 }
 
@@ -1813,7 +1829,7 @@ window.persist = function(labelOrFn, maybeFn){
   try { if (typeof fn === 'function') fn(); } catch(e){ console.error('[persist:'+label+']', e); throw e; }
   try { saveState(); } catch(e){ console.error('[persist:saveState]', e); }
   try { if (typeof fbPushState === 'function' && window._fbReady) fbPushState(); } catch(e){ console.error('[persist:fb]', e); }
-  try { localStorage.setItem('psm_last_persist', JSON.stringify({label:label, ts:Date.now()})); } catch(_){console.error("[PSM v26.2]",_);}
+  try { localStorage.setItem('psm_last_persist', JSON.stringify({label:label, ts:Date.now()})); } catch(_){console.error("[PSM v27.7]",_);}
 };
 
 // === v22k: IndexedDB mirror — backup secundario que sobrevive limpeza de localStorage ===
@@ -1828,7 +1844,7 @@ var _psmIdb = null;
     };
     req.onsuccess = function(e){ _psmIdb = e.target.result; };
     req.onerror = function(){ console.warn('[PSM-IDB] indisponivel'); };
-  } catch(e){console.error("[PSM v26.2]",e);}
+  } catch(e){console.error("[PSM v27.7]",e);}
 })();
 window._psmIdbMirror = function(snapshot){
   if (!_psmIdb) return;
@@ -1836,10 +1852,10 @@ window._psmIdbMirror = function(snapshot){
     var tx = _psmIdb.transaction('snapshots','readwrite');
     var store = tx.objectStore('snapshots');
     store.put({id:'last', ts:Date.now(), data:snapshot});
-  } catch(e){console.error("[PSM v26.2]",e);}
+  } catch(e){console.error("[PSM v27.7]",e);}
 };
 window.psmRestoreFromIdb = function(){
-  if (!_psmIdb) { alert('IndexedDB indisponivel neste navegador.'); return; }
+  if (!_psmIdb) { (window.psmAlert||alert)('IndexedDB indisponivel neste navegador.'); return; }
   var tx = _psmIdb.transaction('snapshots','readonly');
   var req = tx.objectStore('snapshots').get('last');
   req.onsuccess = async function(e){
@@ -1870,14 +1886,14 @@ setInterval(function(){
     if (!window._fbReady) return;
     var local = localStorage.getItem(STORAGE_KEY);
     if (!local) return;
-    var lp = JSON.parse(localStorage.getItem('psm_last_persist')||'{}');
+    var lp = window.psmLSGet('psm_last_persist', {});
     var stale = lp.ts ? (Date.now() - lp.ts) : 0;
     // Se nao houve persist em 10min mas S foi mutado recentemente, forcar save
     if (stale > 600000 && S && S._dirty) {
       console.warn('[PSM-HEALTH] Mutacao sem persist detectada. Forcando save.');
       saveState();
     }
-  } catch(e){console.error("[PSM v26.2]",e);}
+  } catch(e){console.error("[PSM v27.7]",e);}
 }, 60000);
 
 function loadState() {
@@ -1898,7 +1914,7 @@ function loadState() {
         try {
           var bRaw = localStorage.getItem(backupKeys[bi]);
           if (bRaw) { d = JSON.parse(bRaw); console.warn('[PSM] Recuperado de ' + backupKeys[bi]); break; }
-        } catch(e){console.error("[PSM v26.2]",e);}
+        } catch(e){console.error("[PSM v27.7]",e);}
       }
       if (!d) { console.error('[PSM] Nenhum backup válido encontrado!'); return; }
     }
@@ -1912,9 +1928,9 @@ function loadState() {
     if (d.metasEquipe) { for(var _fk in d.metasEquipe){ if(METAS_EQUIPE[_fk]) Object.assign(METAS_EQUIPE[_fk], d.metasEquipe[_fk]); else METAS_EQUIPE[_fk]=d.metasEquipe[_fk]; } }
     if (d.teamConfig) Object.assign(TEAM_CONFIG, d.teamConfig);
     if (d.connectors) S.connectors = {...S.connectors, ...d.connectors};
-    try { const _ii = localStorage.getItem('psm_integrations'); if (_ii) S.integrations = JSON.parse(_ii); } catch(e){console.error("[PSM v26.2]",e);}
+    try { const _ii = localStorage.getItem('psm_integrations'); if (_ii) S.integrations = JSON.parse(_ii); } catch(e){console.error("[PSM v27.7]",e);}
     if (d.lancTimeline) S.lancTimeline = d.lancTimeline;
-    if (d.mg) { S.mg = d.mg; try { localStorage.setItem('psm_meta_global', JSON.stringify(d.mg)); } catch(e){console.error("[PSM v26.2]",e);} }
+    if (d.mg) { S.mg = d.mg; try { localStorage.setItem('psm_meta_global', JSON.stringify(d.mg)); } catch(e){console.error("[PSM v27.7]",e);} }
     if (d.opEventos) S.opEventos = d.opEventos;
     if (d.opTreinamentos) S.opTreinamentos = d.opTreinamentos;
     if (d.agendaReunioes) S.agendaReunioes = d.agendaReunioes;
@@ -1989,7 +2005,7 @@ function loadState() {
       savedVendas.forEach(v => {
         if (!VENDAS.find(x => x.rdId === v.rdId)) VENDAS.push(v);
       });
-    } catch(e){console.error("[PSM v26.2]",e);}
+    } catch(e){console.error("[PSM v27.7]",e);}
     console.log('[PSM] State restored from', new Date(d.savedAt).toLocaleString('pt-BR'));
   } catch(e) { console.warn('[PSM] Load error:', e); }
 }
@@ -2062,13 +2078,13 @@ var SYNC_LS_KEYS = [
   Storage.prototype.setItem = function(k, v) {
     _origSetItem.call(this, k, v);
     if (this === localStorage && _shouldSync(k)) {
-      try { if (typeof fbPushState === 'function' && _fbReady) fbPushState(); } catch(e){console.error("[PSM v26.2]",e);}
+      try { if (typeof fbPushState === 'function' && _fbReady) fbPushState(); } catch(e){console.error("[PSM v27.7]",e);}
     }
   };
   Storage.prototype.removeItem = function(k) {
     _origRemoveItem.call(this, k);
     if (this === localStorage && _shouldSync(k)) {
-      try { if (typeof fbPushState === 'function' && _fbReady) fbPushState(); } catch(e){console.error("[PSM v26.2]",e);}
+      try { if (typeof fbPushState === 'function' && _fbReady) fbPushState(); } catch(e){console.error("[PSM v27.7]",e);}
     }
   };
 })();
@@ -2123,7 +2139,7 @@ function fbInit() {
   }
   try {
     if (_fbApp) {
-      try { _fbApp.delete(); } catch(e){console.error("[PSM v26.2]",e);}
+      try { _fbApp.delete(); } catch(e){console.error("[PSM v27.7]",e);}
     }
     _fbApp = firebase.initializeApp(cfg, 'psm-sync');
     _fbDb = firebase.database(_fbApp);
@@ -2155,7 +2171,7 @@ function fbInit() {
       // FIX v22g: removido !_fbFirstLoad — protecao DEVE rodar tambem no first load,
       // pois e exatamente quando edicoes nao-pushadas (debounce/abafechada) seriam perdidas.
       var localSavedAt = 0;
-      try { var _ls = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); localSavedAt = _ls.savedAt || 0; } catch(e){console.error("[PSM v26.2]",e);}
+      try { var _ls = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); localSavedAt = _ls.savedAt || 0; } catch(e){console.error("[PSM v27.7]",e);}
       if (localSavedAt > (data._lastUpdate||0)) {
         console.log('[PSM-Sync] Dados locais mais recentes ('+new Date(localSavedAt).toLocaleTimeString()+') que Firebase ('+new Date(data._lastUpdate||0).toLocaleTimeString()+'), ignorando. Push pendente fara o sync.');
         // FIX v22g: dispara push imediato para sincronizar Firebase com local mais recente
@@ -2425,7 +2441,7 @@ function fbPushState(immediate) {
       // FIX v22h: snapshot das chaves localStorage isoladas (radar, fluxo, dre, integrations, ma_*, gi_*)
       shared._lsKeys = {};
       SYNC_LS_KEYS.forEach(function(lsKey){
-        try { var v = localStorage.getItem(lsKey); if (v != null) shared._lsKeys[lsKey] = v; } catch(e){console.error("[PSM v26.2]",e);}
+        try { var v = localStorage.getItem(lsKey); if (v != null) shared._lsKeys[lsKey] = v; } catch(e){console.error("[PSM v27.7]",e);}
       });
       shared._lastUpdate = Date.now();
       shared._updatedBy = S.user ? S.user.id : 'unknown';
@@ -2484,7 +2500,7 @@ function fbSetupConfig() {
     + '</textarea>'
     + '<div style="display:flex;gap:8px;margin-top:12px">'
     + '<button onclick="var t=document.getElementById(\'fb_cfg_input\').value.trim();if(!t){toast(\'Cole o JSON\',\'warn\');return;}try{var c=JSON.parse(t);if(!c.databaseURL){toast(\'Falta databaseURL\',\'warn\');return;}fbSaveConfig(c);fbInit();document.getElementById(\'fb_setup_overlay\').remove();toast(\'\u2705 Firebase configurado!\',\'ok\');render();}catch(e){toast(\'JSON inv\u00e1lido: \'+e.message,\'warn\');}" style="flex:1;padding:10px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px">\u2714 Salvar e Conectar</button>'
-    + '<button onclick="fbSaveConfig(null);_fbReady=false;if(_fbApp){try{_fbDb.ref(\'shared\').off();_fbApp.delete();}catch(e){console.error("[PSM v26.2]",e);}_fbApp=null;_fbDb=null;}document.getElementById(\'fb_setup_overlay\').remove();toast(\'Firebase desconectado\',\'ok\');render()" style="padding:10px 16px;background:#dc262620;color:#fca5a5;border:1px solid #dc262640;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">\u2715 Desconectar</button>'
+    + '<button onclick="fbSaveConfig(null);_fbReady=false;if(_fbApp){try{_fbDb.ref(\'shared\').off();_fbApp.delete();}catch(e){console.error("[PSM v27.7]",e);}_fbApp=null;_fbDb=null;}document.getElementById(\'fb_setup_overlay\').remove();toast(\'Firebase desconectado\',\'ok\');render()" style="padding:10px 16px;background:#dc262620;color:#fca5a5;border:1px solid #dc262640;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">\u2715 Desconectar</button>'
     + '</div>'
     + '<div style="margin-top:12px;font-size:11px;color:#64748b;line-height:1.5">'
     + '<strong>Como criar:</strong> Firebase Console \u2192 Novo Projeto \u2192 Realtime Database \u2192 Criar \u2192 Modo de teste \u2192 Copiar config do SDK Web'
@@ -2928,7 +2944,7 @@ function pgDashboard(){
           items.push({ts:ts, ico:'\uD83D\uDEA9', cor:c.tier==='A'?'#ef4444':'#f59e0b', tit:'Concorrente: '+c.n+(c.tier==='A'?' (Tier A)':''), desc:(s.lastChangeNote||'mudan\u00e7a detectada')});
         }
       });
-    } catch(e){console.error("[PSM v26.2]",e);}
+    } catch(e){console.error("[PSM v27.7]",e);}
 
     items.sort(function(a,b){return b.ts-a.ts;});
     items=items.slice(0,12);
@@ -3098,7 +3114,7 @@ function openDashboardExecTV(){
     document.body.appendChild(ov);
   }
   ov.innerHTML = renderDashboardExecTV();
-  try { if(ov.requestFullscreen) ov.requestFullscreen().catch(function(){}); } catch(e){console.error("[PSM v26.2]",e);}
+  try { if(ov.requestFullscreen) ov.requestFullscreen().catch(function(){}); } catch(e){console.error("[PSM v27.7]",e);}
   if(window._dashExecTvTimer) clearInterval(window._dashExecTvTimer);
   window._dashExecTvTimer = setInterval(function(){
     var el = document.getElementById('dashExecTvOv');
@@ -3114,7 +3130,7 @@ function closeDashboardExecTV(){
   if(ov) ov.remove();
   if(window._dashExecTvTimer){ clearInterval(window._dashExecTvTimer); window._dashExecTvTimer=null; }
   if(window._dashExecTvEsc){ document.removeEventListener('keydown', window._dashExecTvEsc); window._dashExecTvEsc=null; }
-  try { if(document.fullscreenElement) document.exitFullscreen().catch(function(){}); } catch(e){console.error("[PSM v26.2]",e);}
+  try { if(document.fullscreenElement) document.exitFullscreen().catch(function(){}); } catch(e){console.error("[PSM v27.7]",e);}
 }
 function renderDashboardExecTV(){
   // Mesmos dados do pgDashboard — NAO alteramos valores exibidos
@@ -3327,9 +3343,9 @@ function pgAgendaPSM(){
       if(typeof notifPush==='function'){
         notifPush({title:'📅 PSM Agenda', body:msg, icon:'📅', cat:'agenda', page:'agenda_psm'});
       } else if('Notification' in window && Notification.permission==='granted'){
-        try{new Notification('PSM Agenda',{body:msg,icon:'logo-psm-navy.png'});}catch(e){console.error("[PSM v26.2]",e);}
+        try{new Notification('PSM Agenda',{body:msg,icon:'logo-psm-navy.png'});}catch(e){console.error("[PSM v27.7]",e);}
       }
-    }catch(e){console.error("[PSM v26.2]",e);}
+    }catch(e){console.error("[PSM v27.7]",e);}
     // v18: log de envolvidos (quando informado no form)
     if(envolvidosTxt && envolvidosTxt.trim()){
       try{
@@ -3346,7 +3362,7 @@ function pgAgendaPSM(){
             }
           });
         });
-      }catch(e){console.error("[PSM v26.2]",e);}
+      }catch(e){console.error("[PSM v27.7]",e);}
     }
   }
 
@@ -3379,12 +3395,12 @@ function pgAgendaPSM(){
           var hf=p.horaFim||'';
           evs.push({date:ds,hora:hi,horaFim:hf,title:'Plant\u00e3o'+(p.empreendimento?' \u2014 '+p.empreendimento:'')+(p.local?' \u2014 '+p.local:''),type:'Plant\u00e3o',color:'#6366f1',ico:'\uD83C\uDFE0',detail:nomes,src:'plantao'});
         });
-      }catch(e){console.error("[PSM v26.2]",e);}
+      }catch(e){console.error("[PSM v27.7]",e);}
     }
     // 3b) Plant\u00f5es da ESCALA_PSM (hardcoded)
     try{
       var _esc=null;
-      try{_esc=typeof ESCALA_PSM!=='undefined'?ESCALA_PSM:null;}catch(e){console.error("[PSM v26.2]",e);}
+      try{_esc=typeof ESCALA_PSM!=='undefined'?ESCALA_PSM:null;}catch(e){console.error("[PSM v27.7]",e);}
       if(!_esc){
         // Rebuild ESCALA_PSM inline for Agenda access
         _esc={mes:3,ano:2026,horarios:{raizes:{semana:'9:00\u201318:00',sabado:'9:00\u201314:00',domferiado:'9:00\u201312:00'},prime:{semana:'9:00\u201318:30',sabado:'9:00\u201317:00',domferiado:'9:00\u201313:00'}},dias:{2:{dw:'QUI',local:'Legacy'},5:{dw:'DOM',local:'Legacy'},8:{dw:'QUA',local:'Legacy'},11:{dw:'S\u00c1B',local:'Legacy'},14:{dw:'TER',local:'Legacy'},17:{dw:'SEX',local:'Legacy'},20:{dw:'SEG',local:'Legacy'},23:{dw:'QUI',local:'Legacy'},26:{dw:'DOM',local:'Legacy'},29:{dw:'QUA',local:'Legacy'}}};
@@ -3417,7 +3433,7 @@ function pgAgendaPSM(){
           }
         });
       }
-    }catch(e){console.error("[PSM v26.2]",e);}
+    }catch(e){console.error("[PSM v27.7]",e);}
     // 4) Reuni\u00f5es registradas na Agenda
     (S.agendaReunioes||[]).forEach(function(r,i){
       if(!r.data)return;
@@ -4304,7 +4320,7 @@ function fmt$(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
 // ═══════════════════════════════════════════════════════════════════════════
 function arenaTV(){
   // Invalida cache pra pegar dados atuais
-  try { if(typeof _metricsInvalidate==='function') _metricsInvalidate(); recalcBrokerMetrics('war'); } catch(e){console.error("[PSM v26.2]",e);}
+  try { if(typeof _metricsInvalidate==='function') _metricsInvalidate(); recalcBrokerMetrics('war'); } catch(e){console.error("[PSM v27.7]",e);}
 
   var overlay = document.createElement('div');
   overlay.id = 'arena-tv-overlay';
@@ -4362,7 +4378,7 @@ function arenaTV(){
   document.body.appendChild(overlay);
 
   // Fullscreen
-  try { if(overlay.requestFullscreen) overlay.requestFullscreen(); else if(overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen(); } catch(e){console.error("[PSM v26.2]",e);}
+  try { if(overlay.requestFullscreen) overlay.requestFullscreen(); else if(overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen(); } catch(e){console.error("[PSM v27.7]",e);}
 
   // ══════ CENAS ══════
   // TV usa SEMPRE números completos (R$ 967.000, nunca R$ 967k)
@@ -4671,7 +4687,7 @@ function arenaTV(){
           if(!_inCurMonth(o.createdAt||o.lastActivityAt)) return;
           if((o.dnu||0) >= 4) staleCur++;
         });
-      }catch(e){console.error("[PSM v26.2]",e);}
+      }catch(e){console.error("[PSM v27.7]",e);}
       if(staleCur >= 5 && !disp._masked){
         alertas.push({name:disp.name, ini:disp.ini||_initials(disp.name), tipo:'stale', msg:staleCur + ' leads parados 4+ dias (mês vigente)', val:'CRM stale', prio:2});
       }
@@ -4762,7 +4778,7 @@ function arenaTV(){
         var corMap = {evento:'#d4a843', recado:'#3b82f6', premiacao:'#22c55e', oportunidade:'#a855f7', urgente:'#ef4444'};
         items.push({ts:it.dt||now, type:it.tipo||'recado', icon:it.ico||'✨', title:(it.txt||'').slice(0,90), sub:'PSM Live', val:'', col:corMap[it.tipo]||'#d4a843', media:it.media||null});
       });
-    }catch(e){console.error("[PSM v26.2]",e);}
+    }catch(e){console.error("[PSM v27.7]",e);}
 
     // 3) Recados Arena (S.arenaRecados) — inclui perpetuos
     try{
@@ -4772,7 +4788,7 @@ function arenaTV(){
         var colMap = {urgente:'#ef4444', info:'#3b82f6', parabens:'#22c55e', geral:'#94a3b8'};
         items.push({ts:r.dt||now, type:'recado', icon:icoMap[r.tipo]||'📢', title:(r.msg||'').slice(0,90), sub:'['+(r.autorNome||'DIRETORIA').toUpperCase()+']', val:'', col:colMap[r.tipo]||'#3b82f6', media:r.media||null});
       });
-    }catch(e){console.error("[PSM v26.2]",e);}
+    }catch(e){console.error("[PSM v27.7]",e);}
 
     // 4) Oportunidades publicadas — mes vigente
     if(S.oportunidadesPSM && Array.isArray(S.oportunidadesPSM)){
@@ -4795,7 +4811,7 @@ function arenaTV(){
         if(ts < _mStart || ts >= _mEnd) return;
         items.push({ts:ts, type:'treinamento', icon:'🎓', title:t.titulo||'Treinamento', sub:'Público: '+(t.publico||'—')+' · '+(t.status||''), val:t.prazo||'', col:'#8b5cf6'});
       });
-    }catch(e){console.error("[PSM v26.2]",e);}
+    }catch(e){console.error("[PSM v27.7]",e);}
 
     // 6) Reuniões 1:1 — mes vigente
     try{
@@ -4807,7 +4823,7 @@ function arenaTV(){
         if(ts < _mStart || ts >= _mEnd) return;
         items.push({ts:ts, type:'reuniao', icon:'🤝', title:'Reunião '+(r.tipo||'1x1'), sub:(b?b.name:'—'), val:r.data||'', col:'#06b6d4'});
       });
-    }catch(e){console.error("[PSM v26.2]",e);}
+    }catch(e){console.error("[PSM v27.7]",e);}
 
     // 7) Talentos novos — mes vigente
     try{
@@ -4818,7 +4834,7 @@ function arenaTV(){
         if(ts < _mStart || ts >= _mEnd) return;
         items.push({ts:ts, type:'talento', icon:'👤', title:t.nome||'Talento', sub:(t.funcao||'')+(t.setor?' · '+t.setor:''), val:'', col:'#0ea5e9'});
       });
-    }catch(e){console.error("[PSM v26.2]",e);}
+    }catch(e){console.error("[PSM v27.7]",e);}
 
     // 8) Contratos locação recentes — mes vigente
     try{
@@ -4829,7 +4845,7 @@ function arenaTV(){
         if(ts < _mStart || ts >= _mEnd) return;
         items.push({ts:ts, type:'contrato', icon:'🏘️', title:c.imovel||'Contrato locação', sub:(c.locatario||'—')+' · '+(c.status||''), val:_brFull(c.valor||0), col:'#10b981'});
       });
-    }catch(e){console.error("[PSM v26.2]",e);}
+    }catch(e){console.error("[PSM v27.7]",e);}
 
     // 9) Lançamentos recentes — mes vigente (criados/atualizados)
     try{
@@ -4840,7 +4856,7 @@ function arenaTV(){
         if(ts < _mStart || ts >= _mEnd) return;
         items.push({ts:ts, type:'lancamento', icon:'🚀', title:l.nome||'Lançamento', sub:(l.construtora||'')+(l.frente?' · '+l.frente:''), val:'', col:'#f97316'});
       });
-    }catch(e){console.error("[PSM v26.2]",e);}
+    }catch(e){console.error("[PSM v27.7]",e);}
 
     // 10) Agenda PSM — mes vigente + ±7 dias
     try{
@@ -4853,7 +4869,7 @@ function arenaTV(){
         if(ts < _agStart || ts >= _agEnd) return;
         items.push({ts:ts, type:'agenda', icon:'📅', title:a.titulo||a.tipo||'Agenda', sub:(a.envolvidos||a.local||''), val:a.data||'', col:'#f59e0b'});
       });
-    }catch(e){console.error("[PSM v26.2]",e);}
+    }catch(e){console.error("[PSM v27.7]",e);}
 
     // 11) Premiações top 3 mes
     try {
@@ -4867,7 +4883,7 @@ function arenaTV(){
       rk.forEach(function(r,i){
         items.push({ts:now-100-i, type:'premio', icon:medals[i], title:r.name, sub:(i+1)+'º lugar do mês', val:_brFull(r.vgv), col:'#fbbf24'});
       });
-    } catch(e){console.error("[PSM v26.2]",e);}
+    } catch(e){console.error("[PSM v27.7]",e);}
 
     // 12) Alertas críticos — exclui sócios
     try {
@@ -4881,7 +4897,7 @@ function arenaTV(){
           items.push({ts:now-1, type:'alerta', icon:'⚠️', title:disp.name, sub:M.staleCrm+' leads parados', val:'CRM', col:'#f59e0b'});
         }
       });
-    } catch(e){console.error("[PSM v26.2]",e);}
+    } catch(e){console.error("[PSM v27.7]",e);}
 
     items.sort(function(a,b){return b.ts - a.ts;});
     return items.slice(0, 80);
@@ -5275,7 +5291,7 @@ function arenaTV(){
           var mk2 = anoCur + '-' + String(mi+1).padStart(2,'0');
           metaAno += ((meta_map[mk2]||{}).vgv_meta || 0);
         }
-      }catch(e){console.error("[PSM v26.2]",e);}
+      }catch(e){console.error("[PSM v27.7]",e);}
       return {id:b.id, name:disp.name||b.name, ini:disp.ini||_initials(b.name), vgv:a.vgv, vendas:a.vendas, metaAno:metaAno, masked:!!disp._masked};
     }).filter(function(r){return r.vgv>0 || r.vendas>0 || r.metaAno>0;}).sort(function(a,b){return b.vgv-a.vgv;});
     var maxVgv = rows.length && rows[0].vgv>0 ? rows[0].vgv : 1;
@@ -5544,7 +5560,7 @@ function arenaTV(){
     {key:'VOLUME',      label:'Ritmo Ideal',        fn:sceneVolume,     dur:10000},
     {key:'ONEONONE',    label:'OO × Meta',          fn:sceneRankingOO,  dur:12000},
     {key:'PROJECOES',   label:'Forecast',           fn:sceneProjecoes,  dur:10000},
-    {key:'ALERTAS',     label:'Ação Imediata',      fn:sceneAlertas,    dur:8000,  densFn:function(){var n=0;try{(BROKERS_ALL||BROKERS||[]).forEach(function(b){var M=(typeof getMetricas==='function')?getMetricas(b.id,'war'):null;if(!M)return;if(M.meta>0&&M.atingimento<30)n++;});}catch(e){console.error("[PSM v26.2]",e);}return n;}}
+    {key:'ALERTAS',     label:'Ação Imediata',      fn:sceneAlertas,    dur:8000,  densFn:function(){var n=0;try{(BROKERS_ALL||BROKERS||[]).forEach(function(b){var M=(typeof getMetricas==='function')?getMetricas(b.id,'war'):null;if(!M)return;if(M.meta>0&&M.atingimento<30)n++;});}catch(e){console.error("[PSM v27.7]",e);}return n;}}
   ];
   // v17: duracao adaptativa — cenas com pouquissimos dados ficam menos tempo
   function _adaptiveDuration(sc){
@@ -5616,7 +5632,7 @@ function arenaTV(){
       sceneDuration = _adaptiveDuration(SCENES[sceneIdx]);
       sceneStart = Date.now();
       // Recalc metrics a cada ciclo completo
-      if(sceneIdx === 0){ try { recalcBrokerMetrics('war'); renderTimeline(); } catch(e){console.error("[PSM v26.2]",e);} }
+      if(sceneIdx === 0){ try { recalcBrokerMetrics('war'); renderTimeline(); } catch(e){console.error("[PSM v27.7]",e);} }
       showScene(sceneIdx);
     }
   }, 200);
@@ -5634,7 +5650,7 @@ function arenaTV(){
   // ══════ ANTI-STANDBY LG ══════
   var wakeLock = null;
   async function requestWakeLock(){
-    try { if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 500); }); } } catch(e){console.error("[PSM v26.2]",e);}
+    try { if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 500); }); } } catch(e){console.error("[PSM v27.7]",e);}
   }
   requestWakeLock();
   document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') requestWakeLock(); });
@@ -5645,8 +5661,8 @@ function arenaTV(){
   antiSleep.style.cssText = 'position:fixed;top:-1px;left:-1px;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:100001';
   antiSleep.src = 'data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwH/////////FUmpZpkq17GDD0JATYCGQ2hyb21lV0WQQ2hyb21lFlSua7+uvdeBAXPFh2YA0AAAAAAAABZUrmtAu4EBAAAAAABH2K5MoQ==';
   overlay.appendChild(antiSleep);
-  try { antiSleep.play(); } catch(e){console.error("[PSM v26.2]",e);}
-  var playVidInt = setInterval(function(){ try{ if(antiSleep.paused) antiSleep.play(); }catch(e){console.error("[PSM v26.2]",e);} }, 30000);
+  try { antiSleep.play(); } catch(e){console.error("[PSM v27.7]",e);}
+  var playVidInt = setInterval(function(){ try{ if(antiSleep.paused) antiSleep.play(); }catch(e){console.error("[PSM v27.7]",e);} }, 30000);
 
   // User interaction sim
   var moveInt = setInterval(function(){
@@ -5661,22 +5677,22 @@ function arenaTV(){
     var osc = audioCtx.createOscillator(); var gain = audioCtx.createGain();
     gain.gain.value = 0.001; osc.connect(gain); gain.connect(audioCtx.destination); osc.start();
     setInterval(function(){ if(audioCtx.state==='suspended') audioCtx.resume(); }, 10000);
-  } catch(e){console.error("[PSM v26.2]",e);}
+  } catch(e){console.error("[PSM v27.7]",e);}
 
   // ══════ EXIT ══════
   function exitTV(){
     var el = document.getElementById('arena-tv-overlay');
     if(el) el.remove();
-    if(document.fullscreenElement) try{document.exitFullscreen();}catch(e){console.error("[PSM v26.2]",e);}
-    if(wakeLock) { try{wakeLock.release();}catch(e){console.error("[PSM v26.2]",e);} wakeLock=null; }
+    if(document.fullscreenElement) try{document.exitFullscreen();}catch(e){console.error("[PSM v27.7]",e);}
+    if(wakeLock) { try{wakeLock.release();}catch(e){console.error("[PSM v27.7]",e);} wakeLock=null; }
     document.removeEventListener('keydown', onKey);
     document.removeEventListener('fullscreenchange', onFs);
-    try{ clearInterval(progInt); }catch(e){console.error("[PSM v26.2]",e);}
-    try{ clearInterval(tvClockInt); }catch(e){console.error("[PSM v26.2]",e);}
-    try{ clearInterval(moveInt); }catch(e){console.error("[PSM v26.2]",e);}
-    try{ clearInterval(playVidInt); }catch(e){console.error("[PSM v26.2]",e);}
-    try{ clearInterval(tlRefreshInt); }catch(e){console.error("[PSM v26.2]",e);}
-    try{ if(window._tvTLInt) clearInterval(window._tvTLInt); }catch(e){console.error("[PSM v26.2]",e);}
+    try{ clearInterval(progInt); }catch(e){console.error("[PSM v27.7]",e);}
+    try{ clearInterval(tvClockInt); }catch(e){console.error("[PSM v27.7]",e);}
+    try{ clearInterval(moveInt); }catch(e){console.error("[PSM v27.7]",e);}
+    try{ clearInterval(playVidInt); }catch(e){console.error("[PSM v27.7]",e);}
+    try{ clearInterval(tlRefreshInt); }catch(e){console.error("[PSM v27.7]",e);}
+    try{ if(window._tvTLInt) clearInterval(window._tvTLInt); }catch(e){console.error("[PSM v27.7]",e);}
   }
   function onKey(e){ if(e.key==='Escape') exitTV(); }
   function onFs(){ if(!document.fullscreenElement) exitTV(); }
@@ -5765,7 +5781,7 @@ function metaAdsTV(){
     // Wake lock
     var wakeLock = null;
     async function requestWakeLock(){
-      try { if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 1000); }); } } catch(e){console.error("[PSM v26.2]",e);}
+      try { if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 1000); }); } } catch(e){console.error("[PSM v27.7]",e);}
     }
     requestWakeLock();
 
@@ -5781,7 +5797,7 @@ function metaAdsTV(){
       var st = document.getElementById('matv-style');
       if(st) st.remove();
       if(document.fullscreenElement) document.exitFullscreen();
-      if(wakeLock) { try{wakeLock.release();}catch(e){console.error("[PSM v26.2]",e);} wakeLock=null; }
+      if(wakeLock) { try{wakeLock.release();}catch(e){console.error("[PSM v27.7]",e);} wakeLock=null; }
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('fullscreenchange', onFs);
       clearInterval(tvScrollInt);
@@ -5798,7 +5814,7 @@ function metaAdsTV(){
     var tvRefreshInt = setInterval(function(){
       var el = document.getElementById('metaads-tv-overlay');
       if(!el) { clearInterval(tvRefreshInt); return; }
-      try { if(typeof window.maFetch === 'function') window.maFetch({nocache:true}); } catch(e){console.error("[PSM v26.2]",e);}
+      try { if(typeof window.maFetch === 'function') window.maFetch({nocache:true}); } catch(e){console.error("[PSM v27.7]",e);}
       setTimeout(function(){
         exitTV();
         setTimeout(metaAdsTV, 500);
@@ -6027,7 +6043,7 @@ function arenaCheckMetaHits(){
       flash.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#10b981,#22c55e);color:#fff;padding:18px 32px;border-radius:16px;font-size:22px;font-weight:800;box-shadow:0 20px 60px rgba(16,185,129,0.5);animation:metaHitFlash 4s ease forwards;pointer-events:none';
       flash.innerHTML = '🚀 '+b.name+' bateu 100% da meta! 🎯';
       document.body.appendChild(flash);
-      setTimeout(function(){ try{flash.remove();}catch(e){console.error("[PSM v26.2]",e);} }, 4500);
+      setTimeout(function(){ try{flash.remove();}catch(e){console.error("[PSM v27.7]",e);} }, 4500);
     }
   });
 }
@@ -6867,7 +6883,7 @@ var pgWarArena = function(){
   }
 
   // Hook: dispara som quando alguém bate meta (check após render)
-  setTimeout(function(){ try{ arenaCheckMetaHits(); }catch(e){console.error("[PSM v26.2]",e);} }, 500);
+  setTimeout(function(){ try{ arenaCheckMetaHits(); }catch(e){console.error("[PSM v27.7]",e);} }, 500);
 
   return h;
 };
@@ -6979,7 +6995,7 @@ function pgMetas(){
   };
   if(!S.mg) {
     var saved = localStorage.getItem('psm_meta_global');
-    if(saved) { try { S.mg = JSON.parse(saved); } catch(e){console.error("[PSM v26.2]",e);} }
+    if(saved) { try { S.mg = JSON.parse(saved); } catch(e){console.error("[PSM v27.7]",e);} }
   }
   // Migração forçada: se S.mg existe mas é versão antiga, substitui pelas metas 2026
   // mantendo o que o usuário possa ter editado em "realizado"
@@ -6987,11 +7003,11 @@ function pgMetas(){
     var _prevReal = (S.mg && S.mg.realizado) || MG_DEFAULT_2026.realizado;
     S.mg = JSON.parse(JSON.stringify(MG_DEFAULT_2026));
     S.mg.realizado = _prevReal;
-    try { localStorage.setItem('psm_meta_global', JSON.stringify(S.mg)); } catch(e){console.error("[PSM v26.2]",e);}
+    try { localStorage.setItem('psm_meta_global', JSON.stringify(S.mg)); } catch(e){console.error("[PSM v27.7]",e);}
   }
   if(!S.mg) {
     S.mg = JSON.parse(JSON.stringify(MG_DEFAULT_2026));
-    try { localStorage.setItem('psm_meta_global', JSON.stringify(S.mg)); } catch(e){console.error("[PSM v26.2]",e);}
+    try { localStorage.setItem('psm_meta_global', JSON.stringify(S.mg)); } catch(e){console.error("[PSM v27.7]",e);}
   }
   return pgMetasV2();
 }
@@ -7012,8 +7028,8 @@ function _psmCalcRealizadoPorMes(year){
     var f=(fr||'').toLowerCase();
     if(byFrente[f])byFrente[f][mi]+=(+vgv||0);
   }
-  try{if(typeof VENDAS!=='undefined'&&VENDAS&&VENDAS.length){VENDAS.forEach(function(v){addV(v.vgv,v.closedAt||v.createdAt,v.fr);});}}catch(e){console.error("[PSM v26.2]",e);}
-  try{if(S.vendasManuais&&S.vendasManuais.length){S.vendasManuais.forEach(function(v){addV(v.vgv,v.data,v.frente);});}}catch(e){console.error("[PSM v26.2]",e);}
+  try{if(typeof VENDAS!=='undefined'&&VENDAS&&VENDAS.length){VENDAS.forEach(function(v){addV(v.vgv,v.closedAt||v.createdAt,v.fr);});}}catch(e){console.error("[PSM v27.7]",e);}
+  try{if(S.vendasManuais&&S.vendasManuais.length){S.vendasManuais.forEach(function(v){addV(v.vgv,v.data,v.frente);});}}catch(e){console.error("[PSM v27.7]",e);}
   return{total:arr,byFrente:byFrente};
 }
 function pgMetasV2(){
@@ -7237,7 +7253,7 @@ function pgMetasV2(){
   // TAB 3: EQUIPES — Meta por frente
   // ──────────────────────────────────────────────────────────────────────
   if(tab==='equipes'){
-    if(!S.metaEquipe){try{S.metaEquipe=JSON.parse(localStorage.getItem('psm_meta_equipe')||'null');}catch(e){console.error("[PSM v26.2]",e);}}
+    if(!S.metaEquipe){try{S.metaEquipe=JSON.parse(localStorage.getItem('psm_meta_equipe')||'null');}catch(e){console.error("[PSM v27.7]",e);}}
     if(!S.metaEquipe) S.metaEquipe={};
     var _curMi=new Date().getMonth();
     // BUG 3 FIX: auto-calcular metas de equipe a partir do painel principal (S.mg)
@@ -8131,7 +8147,7 @@ function pgGestaoPessoas(page){
       });
     });
     S._talentosSeedV1 = true;
-    try{ persist('talentosSeed', function(){ /* state ja mutado */ }); }catch(e){console.error("[PSM v26.2]",e);}
+    try{ persist('talentosSeed', function(){ /* state ja mutado */ }); }catch(e){console.error("[PSM v27.7]",e);}
   }
 
   var tab = page || 'gp_treinamentos';
@@ -8916,7 +8932,7 @@ function pgKpis(){
   const df=DateFilter('kpis','Período');
   recalcBrokerMetrics('kpis');
   // META CANONICA: sempre sincroniza com Metas do menu (S.mg via getMetaGlobal)
-  try{var _mgSync=getMetaGlobal();if(_mgSync&&_mgSync.metaTotal){var _cm=new Date().getMonth();METRICS.vgv_meta=_mgSync.metaTotal(_cm)||0;}}catch(e){console.error("[PSM v26.2]",e);}
+  try{var _mgSync=getMetaGlobal();if(_mgSync&&_mgSync.metaTotal){var _cm=new Date().getMonth();METRICS.vgv_meta=_mgSync.metaTotal(_cm)||0;}}catch(e){console.error("[PSM v27.7]",e);}
   const fOPPS=applyDateFilter(OPPS,'kpis');
   const fVENDAS=applyDateFilter(VENDAS,'kpis');
   const fLOST=applyDateFilter(LOST_DEALS,'kpis');
@@ -10115,7 +10131,7 @@ async function _localLogin(email, senha) {
             senhas[uid] = h;
             localStorage.setItem('psm_senhas', JSON.stringify(senhas));
             console.log('[PSM-v22l] senha de', uid, 'migrada para sha256');
-          } catch(_){console.error("[PSM v26.2]",_);}
+          } catch(_){console.error("[PSM v27.7]",_);}
         }
         return uid;
       }
@@ -10337,7 +10353,9 @@ function renderForgotPassword() {
 function renderResetPassword() {
   const u='logo-psm-navy.png';
   const raw=localStorage.getItem('psm_reset_token');
-  const tokenData = raw ? JSON.parse(raw) : null;
+  // FIX v27.7: try/catch envolve JSON.parse — token corrompido nao crasha tela
+  let tokenData = null;
+  try { tokenData = raw ? JSON.parse(raw) : null; } catch(e) { localStorage.removeItem('psm_reset_token'); tokenData = null; }
   const valid = tokenData && tokenData.token === S.resetToken && tokenData.expires > Date.now();
   if (!valid) {
     return '<div style="min-height:100vh;display:flex;background:linear-gradient(135deg,#f0f4f8 0%,#e2e8f0 100%)">' +
@@ -10421,7 +10439,7 @@ function salvarVenda() {
     const saved = JSON.parse(localStorage.getItem('psm_vendas_manuais') || '[]');
     saved.push(v);
     localStorage.setItem('psm_vendas_manuais', JSON.stringify(saved));
-  } catch(e){console.error("[PSM v26.2]",e);}
+  } catch(e){console.error("[PSM v27.7]",e);}
   b.vendas = (b.vendas||0) + 1;
   b.vgv_real = (b.vgv_real||0) + f.vgv;
   b.ticketMedio = b.vendas > 0 ? Math.round(b.vgv_real / b.vendas) : 0;
@@ -10431,7 +10449,7 @@ function salvarVenda() {
   S.vendaForm = {};
   toast('Venda registrada! Ranking atualizado.', 'ok');
   // v18: som animador + notif para todos
-  try{ if(typeof playArenaSound==='function') playArenaSound('victory'); }catch(e){console.error("[PSM v26.2]",e);}
+  try{ if(typeof playArenaSound==='function') playArenaSound('victory'); }catch(e){console.error("[PSM v27.7]",e);}
   try{
     if(typeof notifPush==='function'){
       notifPush({title:'🎉 VENDA REGISTRADA!', body:b.name+' — '+fmt(f.vgv)+(f.prod?' • '+f.prod:''), icon:'🏆', cat:'venda', page:'ranking'});
@@ -10441,8 +10459,8 @@ function salvarVenda() {
     flashV.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#10b981,#22c55e,#fbbf24);color:#fff;padding:22px 40px;border-radius:18px;font-size:24px;font-weight:900;box-shadow:0 24px 80px rgba(16,185,129,0.6);animation:metaHitFlash 4s ease forwards;pointer-events:none;text-align:center';
     flashV.innerHTML='🎉 VENDA! '+b.name+'<br><span style="font-size:18px;opacity:.9">'+fmt(f.vgv)+'</span>';
     document.body.appendChild(flashV);
-    setTimeout(function(){ try{flashV.remove();}catch(e){console.error("[PSM v26.2]",e);} }, 4200);
-  }catch(e){console.error("[PSM v26.2]",e);}
+    setTimeout(function(){ try{flashV.remove();}catch(e){console.error("[PSM v27.7]",e);} }, 4200);
+  }catch(e){console.error("[PSM v27.7]",e);}
   render();
 }
 
@@ -11643,7 +11661,7 @@ function ooSaveDaily(bid, dayKey, data) {
         }
       });
     }
-  } catch(e){console.error("[PSM v26.2]",e);}
+  } catch(e){console.error("[PSM v27.7]",e);}
 }
 function ooSaveMetas(bid, key, data) {
   if (!S.ooMetas) S.ooMetas = {};
@@ -13519,7 +13537,7 @@ window.perfilCompFinalizar = function(bid){
     S.perfilCompDraft = {};
   });
   toast('🎯 Perfil: '+perfilInfo.ico+' '+perfilInfo.nome,'ok');
-  try{ if(typeof notifPush==='function') notifPush({title:'🧠 Perfil Comportamental', body:(S.user&&S.user.name||'Corretor')+' concluiu avaliação — perfil: '+perfilInfo.nome, icon:perfilInfo.ico, cat:'default', page:'oneonone'}); }catch(e){console.error("[PSM v26.2]",e);}
+  try{ if(typeof notifPush==='function') notifPush({title:'🧠 Perfil Comportamental', body:(S.user&&S.user.name||'Corretor')+' concluiu avaliação — perfil: '+perfilInfo.nome, icon:perfilInfo.ico, cat:'default', page:'oneonone'}); }catch(e){console.error("[PSM v27.7]",e);}
   render();
 };
 
@@ -14060,7 +14078,7 @@ function ooImportJSON(inputEl) {
           ooImportado: S.ooImportado, ooDaily: S.ooDaily, ooAuditLog: S.ooAuditLog,
           ooReunioes: S.ooReunioes, at: Date.now()
         }));
-      } catch(e){console.error("[PSM v26.2]",e);}
+      } catch(e){console.error("[PSM v27.7]",e);}
       // Merge
       var merged = 0;
       ['ooImportado','ooDaily','ooReunioes','ooMetas','ooRotina','ooObjetivo',
@@ -15130,7 +15148,7 @@ function uploadTabelaFile(input){
   var u = S.user; if(!u) return;
   var maxMB = 25;
   if(file.size > maxMB*1024*1024){
-    alert('Arquivo muito grande (máx '+maxMB+' MB). Use link externo ou comprima o arquivo.');
+    (window.psmAlert||alert)('Arquivo muito grande (máx '+maxMB+' MB). Use link externo ou comprima o arquivo.');
     input.value = '';
     return;
   }
@@ -15155,7 +15173,7 @@ function uploadTabelaFile(input){
     input.value = '';
     if(typeof render==='function') render();
   };
-  reader.onerror = function(){ alert('Erro ao ler arquivo.'); };
+  reader.onerror = function(){ (window.psmAlert||alert)('Erro ao ler arquivo.'); };
   reader.readAsDataURL(file);
 }
 async function removeTabelaUpload(idx){
@@ -15656,7 +15674,7 @@ function pgCaptacao() {
 
   } else {
     // === CONTROLE (tabela antiga) ===
-    var captacoes = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
+    var captacoes = window.psmLSGet('psm_captacao', []);
     var total = captacoes.length;
     var ativas = captacoes.filter(function(c){return c.status === 'ativo'}).length;
     var vendidas = captacoes.filter(function(c){return c.status === 'vendido'}).length;
@@ -15708,13 +15726,13 @@ function pgCaptacao() {
         var tipo = (await psmPrompt('Tipo (apartamento/casa/terreno/comercial):')) || 'apartamento';
         var bairro = (await psmPrompt('Bairro:')) || '\u2014';
         var valor = (await psmPrompt('Valor (R$):')) || '0';
-        var arr = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
+        var arr = window.psmLSGet('psm_captacao', []);
         arr.push({ nome:nome, tipo:tipo, bairro:bairro, valor: parseFloat(valor) || 0, status: 'ativo', data: new Date().toISOString().split('T')[0] });
         localStorage.setItem('psm_captacao', JSON.stringify(arr));
         render();
       };
       window.removeCaptacao = function(i) {
-        var arr = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
+        var arr = window.psmLSGet('psm_captacao', []);
         arr.splice(i, 1);
         localStorage.setItem('psm_captacao', JSON.stringify(arr));
         render();
@@ -15761,7 +15779,7 @@ function pgFluxoCaptacoes() {
         {titulo:'8 Unidades Time Garetti',bairro:'Time',tipo:'Apartamento',objetivo:'Loca\u00e7\u00e3o',proprietario:'Evandro',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'PEND\u00caNCIA DE AGENDAMENTO',termoAuth:'',obs:'Chamar final do ano - 8 unidades',status:'A_FAZER',descricao:'8 Unidades no Time Garetti - Evandro - chamar final do ano',createdAt:_now,updatedAt:_now,log:[]},
         {titulo:'Ch\u00e1cara Luis Gouveia Eventos',bairro:'',tipo:'Chacara',objetivo:'Loca\u00e7\u00e3o',proprietario:'Luis Gouveia',contato:'',email:'',endereco:'',valorVenda:'',valorLocacao:'',situacao:'',codigoKenlo:'',responsavel:'',dataAgendamento:'',pendencia:'',termoAuth:'',obs:'Ch\u00e1cara para eventos',status:'A_FAZER',descricao:'Ch\u00e1cara do Luis Gouveia - Eventos',createdAt:_now,updatedAt:_now,log:[]}
       ];
-      try{localStorage.setItem('psm_fluxo_captacoes',JSON.stringify(S.fcData));}catch(e){console.error("[PSM v26.2]",e);}
+      try{localStorage.setItem('psm_fluxo_captacoes',JSON.stringify(S.fcData));}catch(e){console.error("[PSM v27.7]",e);}
     }
   }
   if(!S.fcView) S.fcView='kanban';
@@ -15871,7 +15889,7 @@ function pgFluxoCaptacoes() {
     _fcSave();S.fcShowForm=false;S.fcEditIdx=null;render({force:true});
   };
   function _fcSave(){
-    try{localStorage.setItem('psm_fluxo_captacoes',JSON.stringify(S.fcData));}catch(e){console.error("[PSM v26.2]",e);}
+    try{localStorage.setItem('psm_fluxo_captacoes',JSON.stringify(S.fcData));}catch(e){console.error("[PSM v27.7]",e);}
     persist('fcSave', function(){ /* state ja mutado */ });
   }
 
@@ -16805,7 +16823,7 @@ function pgMarketing() {
 
 // ─── PAGE: FLUXO DE CAIXA ────────────────────────────────────────────────
 function pgFluxocaixa() {
-  const dados = JSON.parse(localStorage.getItem('psm_fluxocaixa') || '{"entradas":[],"saidas":[]}');
+  const dados = window.psmLSGet('psm_fluxocaixa', {entradas:[],saidas:[]});
   function calcTotal(arr) { return arr.reduce((s, i) => s + (parseFloat(i.valor) || 0), 0); }
   const totalEntradas = calcTotal(dados.entradas || []);
   const totalSaidas = calcTotal(dados.saidas || []);
@@ -16872,14 +16890,14 @@ function pgFluxocaixa() {
       const desc = await psmPrompt('Descrição:'); if (!desc) return;
       const valor = await psmPrompt('Valor (R$):'); if (!valor) return;
       const categoria = (await psmPrompt('Categoria:')) || 'Geral';
-      const d = JSON.parse(localStorage.getItem('psm_fluxocaixa') || '{"entradas":[],"saidas":[]}');
+      const d = window.psmLSGet('psm_fluxocaixa', {entradas:[],saidas:[]});
       if (!d[tipo]) d[tipo] = [];
       d[tipo].push({ descricao: desc, valor: parseFloat(valor) || 0, categoria, data: new Date().toISOString().split('T')[0] });
       localStorage.setItem('psm_fluxocaixa', JSON.stringify(d));
       render();
     };
     window.removeFluxo = function(tipo, idx) {
-      const d = JSON.parse(localStorage.getItem('psm_fluxocaixa') || '{"entradas":[],"saidas":[]}');
+      const d = window.psmLSGet('psm_fluxocaixa', {entradas:[],saidas:[]});
       if (d[tipo]) { d[tipo].splice(idx, 1); localStorage.setItem('psm_fluxocaixa', JSON.stringify(d)); }
       render();
     };
@@ -16888,7 +16906,7 @@ function pgFluxocaixa() {
 
 // ─── PAGE: DRE ────────────────────────────────────────────────
 function pgDre() {
-  const dados = JSON.parse(localStorage.getItem('psm_dre') || '{}');
+  const dados = window.psmLSGet('psm_dre', {});
   const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const mesAtual = new Date().getMonth();
   const categorias = [
@@ -16966,7 +16984,7 @@ function pgDre() {
     window.editDre = async function(key, label) {
       const val = await psmPrompt('Valor para ' + label + ' (R$):');
       if (val === null) return;
-      const d = JSON.parse(localStorage.getItem('psm_dre') || '{}');
+      const d = window.psmLSGet('psm_dre', {});
       d[key] = parseFloat(val) || 0;
       localStorage.setItem('psm_dre', JSON.stringify(d));
       render();
@@ -16976,7 +16994,7 @@ function pgDre() {
 
 // ─── PAGE: COMISSÕES ────────────────────────────────────────────────
 function pgComissoes() {
-  const comissoes = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
+  const comissoes = window.psmLSGet('psm_comissoes', []);
   const total = comissoes.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
   const pagas = comissoes.filter(c => c.status === 'pago');
   const pendentes = comissoes.filter(c => c.status !== 'pago');
@@ -16987,18 +17005,18 @@ function pgComissoes() {
     const corretor = await psmPrompt('Nome do corretor:'); if (!corretor) return;
     const imovel = (await psmPrompt('Im\u00f3vel:')) || '\u2014';
     const valor = (await psmPrompt('Valor da comiss\u00e3o (R$):')) || '0';
-    const arr = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
+    const arr = window.psmLSGet('psm_comissoes', []);
     arr.push({ corretor, imovel, valor: parseFloat(valor) || 0, status: 'pendente', data: new Date().toISOString().split('T')[0] });
     localStorage.setItem('psm_comissoes', JSON.stringify(arr));
     pgComissoes();
   };
   window.toggleComissao = function(i) {
-    const arr = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
+    const arr = window.psmLSGet('psm_comissoes', []);
     if (arr[i]) { arr[i].status = arr[i].status === 'pago' ? 'pendente' : 'pago'; localStorage.setItem('psm_comissoes', JSON.stringify(arr)); }
     pgComissoes();
   };
   window.removeComissao = function(i) {
-    const arr = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
+    const arr = window.psmLSGet('psm_comissoes', []);
     arr.splice(i, 1); localStorage.setItem('psm_comissoes', JSON.stringify(arr));
     pgComissoes();
   };
@@ -17060,7 +17078,7 @@ function pgComissoes() {
 
 // ─── PAGE: REPASSES ────────────────────────────────────────────────
 function pgRepasses() {
-  const repasses = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
+  const repasses = window.psmLSGet('psm_repasses', []);
   const total = repasses.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
   const realizados = repasses.filter(r => r.status === 'realizado');
   const agendados = repasses.filter(r => r.status !== 'realizado');
@@ -17069,18 +17087,18 @@ function pgRepasses() {
     const descricao = await psmPrompt('Descri\u00e7\u00e3o do repasse:'); if (!descricao) return;
     const destinatario = (await psmPrompt('Destinat\u00e1rio:')) || '\u2014';
     const valor = (await psmPrompt('Valor (R$):')) || '0';
-    const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
+    const arr = window.psmLSGet('psm_repasses', []);
     arr.push({ descricao, destinatario, valor: parseFloat(valor) || 0, status: 'agendado', data: new Date().toISOString().split('T')[0] });
     localStorage.setItem('psm_repasses', JSON.stringify(arr));
     pgRepasses();
   };
   window.toggleRepasse = function(i) {
-    const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
+    const arr = window.psmLSGet('psm_repasses', []);
     if (arr[i]) { arr[i].status = arr[i].status === 'realizado' ? 'agendado' : 'realizado'; localStorage.setItem('psm_repasses', JSON.stringify(arr)); if(typeof PSM !== 'undefined' && PSM.auditLog) PSM.auditLog('repasse.toggled', {idx:i, status:arr[i].status}, 'pgRepasses'); }
     pgRepasses();
   };
   window.removeRepasse = function(i) {
-    const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
+    const arr = window.psmLSGet('psm_repasses', []);
     arr.splice(i, 1); localStorage.setItem('psm_repasses', JSON.stringify(arr));
     pgRepasses();
   };
@@ -17552,7 +17570,7 @@ radarDefaults={
 '@simonemoreno_negimobiliarios':{seguidores:'12K',seguindo:'7087',total_posts:'1050',posts_mes:'—',engajamento:'—',site:'—',portais:'—',observacoes:'Corretora. Transformando sonhos em realidade. SJRP',creci:'213635-F',pontos_fortes:'—',pontos_fracos:'—',padrao_visual:'—',trafego_estimado:'—',principal_canal:'Instagram',posicionamento:'Terceiros',coleta:'2026-04-05'},
 '@jeandoniani':{seguidores:'18K',seguindo:'395',total_posts:'155',posts_mes:'—',engajamento:'—',site:'—',portais:'—',observacoes:'Empresário no mercado imobiliário. Fundador da @imobiliaria_saojose',creci:'—',pontos_fortes:'—',pontos_fracos:'—',padrao_visual:'—',trafego_estimado:'—',principal_canal:'Instagram',posicionamento:'MAP',coleta:'2026-04-05'}
 };
-var storedRadar=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');
+var storedRadar=window.psmLSGet('psm_radar_data', {});
 var radarData={};
 Object.keys(radarDefaults).forEach(function(k){radarData[k]=Object.assign({},radarDefaults[k],storedRadar[k]||{});});
 Object.keys(storedRadar).forEach(function(k){if(!radarData[k])radarData[k]=storedRadar[k];});
@@ -17862,7 +17880,7 @@ setTimeout(render,0);
 return '<div id="main-content"></div>';
 function renderTraffic(fc){
 var h='';
-var adLib=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
+var adLib=window.psmLSGet('psm_radar_ads', {});
 var adData=adLib.data||{};
 var scanDate=adLib.scanDate?new Date(adLib.scanDate).toLocaleDateString('pt-BR'):'—';
 h+='<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;margin-bottom:20px;">';
@@ -17999,7 +18017,7 @@ h+='<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;p
 h+='<h4 style="color:var(--gold);font-size:1rem;margin:0 0 14px;">\ud83c\udfc6 Padr\u00f5es de An\u00fancios de Sucesso</h4>';
 h+='<p style="color:#b8c4d4;font-size:.78rem;margin:0 0 16px;">Padr\u00f5es observados nos an\u00fancios com melhor desempenho entre os concorrentes monitorados.</p>';
 h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">';
-var patterns=JSON.parse(localStorage.getItem('psm_radar_patterns')||'{}');
+var patterns=window.psmLSGet('psm_radar_patterns', {});
 var cats=[
 {key:'criativo',title:'\ud83c\udfa8 Tipo de Criativo',desc:'Qual formato performa melhor?',ph:'Ex: V\u00eddeos curtos (15s) com tour virtual, Carrossel com antes/depois'},
 {key:'copy',title:'\u270d\ufe0f Estilo de Copy',desc:'Que tipo de texto engaja mais?',ph:'Ex: Copy emocional, depoimentos, urgency (\u00faltimas unidades)'},
@@ -18019,7 +18037,7 @@ h+='</div></div>';
 h+='<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;">';
 h+='<h4 style="color:var(--gold);font-size:1rem;margin:0 0 14px;">\ud83e\udde0 Intelig\u00eancia Competitiva Global</h4>';
 h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">';
-var gp=JSON.parse(localStorage.getItem('psm_radar_global')||'{}');
+var gp=window.psmLSGet('psm_radar_global', {});
 var gcats=[
 {key:'tendencia_mercado',title:'\ud83d\udcc8 Tend\u00eancias do Mercado',ph:'Ex: Aumento de v\u00eddeos verticais, storytelling em an\u00fancios'},
 {key:'oportunidade_psm',title:'\ud83d\udca1 Oportunidades para PSM',ph:'Ex: Nenhum concorrente usa Reels com tours 3D. Podemos ser pioneiros.'},
@@ -18048,7 +18066,7 @@ h+='<span style="color:#667;font-size:.75rem;">A IA analisa e preenche automatic
 h+='</div></div>';
 
 // Ads data from localStorage
-var adsData=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
+var adsData=window.psmLSGet('psm_radar_ads', {});
 
 // Page IDs map for Meta Ads Library links
 var pageIds={'@fg_inteligenciaimobiliaria':'251428058048549','@imobiliaria_saojose':'109950098309921','@gruponexgen':'857841284076491','@renascerejalesjk':'1029339286932287','@house3imobiliaria':'336027406258118','@imobiliariagrupozani':'101587087976514','@imobiliariairmaosferreira':'1693511670731545','@condominiumimoveis':'144347112425008','@imobiliariawestim':'109584225112402','@shimanaimoveis':'770368413001259','@atlas.imb':'499455473247880','@5gimoveis':'112977187072469','@gemimnegociosimobiliarios':'103782116143274','@anaancheta.imoveis':'101422654811836','@allegroprime.oficial':'111717875267207','@imoveisnovageracaorp':'102488338043286','@imoveisaltopadrao_sjrp':'111269225330893','@alonso_negociosimobiliarios':'214733118396261','@blessriopreto':'103307098655854','@gabrieleleganceimoveis':'105005082503023','@imobiliariafitprime':'295625953995','@imobiliariafelixemaciel':'102118282459296','@martincarrazoneimoveis':'115113878175989','@vanessabrianti_imoveis':'113367191712975','@corretorguilhermeneilly':'138696206182055','@joaogabriel.imoveis':'105145695585523','@rrbroker':'102105819067766','@porta8imoveis':'143973272408652','@compactoimoveis':'162069463838814','@allianzanegociosimobiliarios':'224665664377834','@andreatorquatto':'107423092330441','@fredtonellineto':'100753819443379','@simonemoreno_negimobiliarios':'136649406194023','@jeandoniani':'108483898529870'};
@@ -18189,7 +18207,7 @@ h+='</div>';
 // PSM data inputs
 h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
 var psmBrands=[{key:'psm_imoveis',label:'PSM Im\u00f3veis',desc:'Alto padr\u00e3o, m\u00e9dio/alto, investidores'},{key:'psm_conquista',label:'PSM Conquista',desc:'Residencial, MCMV, primeiro im\u00f3vel'}];
-var psmAds=JSON.parse(localStorage.getItem('psm_ads_data')||'{}');
+var psmAds=window.psmLSGet('psm_ads_data', {});
 psmBrands.forEach(function(brand){
 var bd=psmAds[brand.key]||{};
 h+='<div style="background:#1e293b;border:1px solid var(--gold);border-radius:12px;padding:18px">';
@@ -18220,13 +18238,13 @@ var btnAnalyze=document.getElementById('radar-ai-analyze');
 var btnClear=document.getElementById('radar-ai-clear');
 if(btnAnalyze){btnAnalyze.onclick=function(){
 var gKey2=((S.connectors||{}).gemini_api_key||'').trim();
-if(!gKey2){alert('Configure a API Key do Gemini.');return;}
+if(!gKey2){(window.psmAlert||alert)('Configure a API Key do Gemini.');return;}
 var el=document.getElementById('radar-ai-result');
 if(el)el.innerHTML='<div style="color:var(--gold);">\u23F3 Analisando com Gemini... aguarde.</div>';
 // Build context
-var adsData2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
-var psmAds2=JSON.parse(localStorage.getItem('psm_ads_data')||'{}');
-var pats=JSON.parse(localStorage.getItem('psm_radar_patterns')||'{}');
+var adsData2=window.psmLSGet('psm_radar_ads', {});
+var psmAds2=window.psmLSGet('psm_ads_data', {});
+var pats=window.psmLSGet('psm_radar_patterns', {});
 var ctx='Voc\u00ea \u00e9 um analista de marketing imobili\u00e1rio especializado em an\u00fancios digitais.\n\n';
 ctx+='== PSM IM\u00d3VEIS (alto padr\u00e3o) ==\n'+JSON.stringify(psmAds2.psm_imoveis||{})+'\n\n';
 ctx+='== PSM CONQUISTA (residencial MCMV) ==\n'+JSON.stringify(psmAds2.psm_conquista||{})+'\n\n';
@@ -18261,7 +18279,7 @@ if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+
 return r.json();
 }).then(function(data){
 var txt='';
-try{txt=data.candidates[0].content.parts[0].text;}catch(e){console.error("[PSM v26.2]",e);}
+try{txt=data.candidates[0].content.parts[0].text;}catch(e){console.error("[PSM v27.7]",e);}
 if(!txt&&data.error)txt='\u274C Erro da API: '+(data.error.message||JSON.stringify(data.error));
 if(!txt)txt='\u274C Sem resposta. Verifique a chave Gemini. Raw: '+JSON.stringify(data).substring(0,300);
 localStorage.setItem('psm_radar_ai_result',txt);
@@ -18304,7 +18322,7 @@ function _radarGeminiCall(gKey, prompt, maxTokens){
 function _radarParseJsonArray(raw){
   var txt=raw.replace(/```json/g,'').replace(/```/g,'').trim();
   // Remove trailing text after last complete object
-  try{return JSON.parse(txt);}catch(e){console.error("[PSM v26.2]",e);}
+  try{return JSON.parse(txt);}catch(e){console.error("[PSM v27.7]",e);}
   // Try to recover: find last complete object in array
   var start=txt.indexOf('[');
   if(start<0) start=0;
@@ -18317,14 +18335,14 @@ function _radarParseJsonArray(raw){
     if(sub.charAt(sub.length-1)!==']') sub+=']';
     // Remove trailing commas before ]
     sub=sub.replace(/,\s*\]/g,']');
-    try{var arr=JSON.parse(sub);if(Array.isArray(arr))return arr;}catch(e2){console.error("[PSM v26.2]",e2);}
+    try{var arr=JSON.parse(sub);if(Array.isArray(arr))return arr;}catch(e2){console.error("[PSM v27.7]",e2);}
   }
   // Last resort: extract individual JSON objects with regex
   var objs=[];
   var regex=/\{[^{}]*\}/g;
   var m;
   while((m=regex.exec(txt))!==null){
-    try{objs.push(JSON.parse(m[0]));}catch(e3){console.error("[PSM v26.2]",e3);}
+    try{objs.push(JSON.parse(m[0]));}catch(e3){console.error("[PSM v27.7]",e3);}
   }
   if(objs.length>0)return objs;
   throw new Error('Não foi possível parsear o JSON da resposta');
@@ -18362,7 +18380,7 @@ function _radarCloseModal(delay){
 // ── adsIntelAI: single competitor ──────────────────────────────────────────
 window.adsIntelAI=function(handle, adsLink){
   var gKey=((S.connectors||{}).gemini_api_key||'').trim();
-  if(!gKey){alert('Configure a API Key Gemini em Configurações > Conectores.');return;}
+  if(!gKey){(window.psmAlert||alert)('Configure a API Key Gemini em Configurações > Conectores.');return;}
   var cInfo={};
   (window._radarCompetitors||[]).forEach(function(c){if(c.handle===handle)cInfo=c;});
   var btn=event&&event.target?event.target:null;
@@ -18377,7 +18395,7 @@ window.adsIntelAI=function(handle, adsLink){
   _radarGeminiCall(gKey, prompt, 300).then(function(txt){
     txt=txt.replace(/```json/g,'').replace(/```/g,'').trim();
     var parsed=JSON.parse(txt);
-    var adsData2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
+    var adsData2=window.psmLSGet('psm_radar_ads', {});
     adsData2[handle]={qty:parsed.qty||'',status:parsed.status||'',empreend:parsed.empreend||'',criativo:parsed.criativo||'',obs:parsed.obs||''};
     localStorage.setItem('psm_radar_ads',JSON.stringify(adsData2));
     if(btn){btn.innerHTML='\u2705';btn.style.color='#22c55e';}
@@ -18391,14 +18409,14 @@ window.adsIntelAI=function(handle, adsLink){
 // ── adsIntelBulkAI: ALL competitors in batches ─────────────────────────────
 window.adsIntelBulkAI=function(){
   var gKey=((S.connectors||{}).gemini_api_key||'').trim();
-  if(!gKey){alert('Configure a API Key Gemini em Configurações > Conectores.');return;}
+  if(!gKey){(window.psmAlert||alert)('Configure a API Key Gemini em Configurações > Conectores.');return;}
   var comps=window._radarCompetitors||[];
-  if(!comps.length){alert('Nenhum concorrente cadastrado.');return;}
+  if(!comps.length){(window.psmAlert||alert)('Nenhum concorrente cadastrado.');return;}
   var BATCH=8;
   var batches=_radarBatch(comps, BATCH);
   _radarShowModal('\uD83E\uDD16 Preenchendo Ads Intelligence com IA',
     '<div style="color:var(--gold);">\u23F3 Analisando '+comps.length+' concorrentes em '+batches.length+' lotes... aguarde.</div>');
-  var ad2=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');
+  var ad2=window.psmLSGet('psm_radar_ads', {});
   var totalCount=0;
   var batchIdx=0;
   function nextBatch(){
@@ -18438,16 +18456,16 @@ window.adsIntelBulkAI=function(){
 // ── radarAIFillAll: SWOT / Métricas / Digital / Visão Geral in batches ────
 window.radarAIFillAll=function(scope){
   var gKey=((S.connectors||{}).gemini_api_key||'').trim();
-  if(!gKey){alert('Configure a API Key Gemini em Configurações > Conectores.');return;}
+  if(!gKey){(window.psmAlert||alert)('Configure a API Key Gemini em Configurações > Conectores.');return;}
   var comps=window._radarCompetitors||[];
-  if(!comps.length){alert('Nenhum concorrente cadastrado.');return;}
+  if(!comps.length){(window.psmAlert||alert)('Nenhum concorrente cadastrado.');return;}
   var rd=window._radarData||{};
   var BATCH=8;
   var batches=_radarBatch(comps, BATCH);
   var scopeLabel=scope==='swot'?'SWOT':scope==='metrics'?'Métricas':scope==='digital'?'Presença Digital':scope==='overview'?'Visão Geral':'Dados';
   _radarShowModal('\uD83E\uDD16 Preenchendo '+scopeLabel+' com IA',
     '<div style="color:var(--gold);">\u23F3 Analisando '+comps.length+' concorrentes em '+batches.length+' lotes...</div>');
-  var stored=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');
+  var stored=window.psmLSGet('psm_radar_data', {});
   var totalCount=0;
   var batchIdx=0;
 
@@ -18509,7 +18527,7 @@ window.radarAIFillAll=function(scope){
 function pgRadarEdit(){
 var handle=window._radarEditHandle;
 if(!handle)return;
-var radarData=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');
+var radarData=window.psmLSGet('psm_radar_data', {});
 var d=radarData[handle]||{};
 var fields=[
 {key:'seguidores',label:'Seguidores',ph:'Ex: 12.5K'},
@@ -18572,7 +18590,7 @@ ov.onclick=function(e){if(e.target===ov)ov.remove();};
 document.body.appendChild(ov);
 }
 function pgRadarSave(handle){
-var radarData=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');
+var radarData=window.psmLSGet('psm_radar_data', {});
 if(!radarData[handle])radarData[handle]={};
 var fields=['seguidores','posts_mes','engajamento','site','portais','google_ads','meta_ads','youtube','tiktok','score_digital','preco_medio','vol_anuncios','tempo_mercado','n_corretores','area_atuacao','diferencial','observacoes','meta_ads_count','google_ads_count','ad_types','ad_frequency','ad_copy_style','ad_cta','ad_comments','ad_sentiment','ad_engagement_rate','ad_spend_estimate','ad_top_performer','ad_weakness','swot_forca','swot_fraqueza','swot_oportunidade','swot_ameaca','estrategia_principal','diferencial_competitivo'];
 fields.forEach(function(f){
@@ -18586,9 +18604,9 @@ pgRadar();
 }
 
 function pgSimuladorCriativo(){
-var sim=JSON.parse(localStorage.getItem('psm_sim_criativo')||'{}');
+var sim=window.psmLSGet('psm_sim_criativo', {});
 var results=sim.lastResults||null;
-var patterns=JSON.parse(localStorage.getItem('psm_radar_patterns')||'{}');
+var patterns=window.psmLSGet('psm_radar_patterns', {});
 var WEIGHTS={hook:20,formato:15,copy:15,cta:12,visual:13,publico:10,freq:8,timing:7};
 function calcScore(){
 var f={};
@@ -18883,7 +18901,7 @@ setTimeout(render,0);
 return '<div id="main-content"></div>';
 }
 function pgBenchmark() {
-  const radarObj = JSON.parse(localStorage.getItem('psm_radar_data') || '{}');
+  const radarObj = window.psmLSGet('psm_radar_data', {});
   const concorrentes = Object.keys(radarObj).map(handle => ({ handle, name: handle, ...radarObj[handle] }));
   const metricas = [
     { key: 'seguidores', label: 'Seguidores', icon: '👥', format: v => v ? Number(v).toLocaleString('pt-BR') : '—' },
@@ -18997,7 +19015,7 @@ function pgTendencias() {
   });
   function renderTendTab(tab) {
     const box = document.querySelector('#tend-content');
-    const data = JSON.parse(localStorage.getItem('psm_tendencias') || '[]');
+    const data = window.psmLSGet('psm_tendencias', []);
     if (tab === 'painel') {
       const categorias = {};
       data.forEach(t => { const cat = t.categoria || 'Geral'; if (!categorias[cat]) categorias[cat] = []; categorias[cat].push(t); });
@@ -19086,12 +19104,12 @@ function pgTendencias() {
         </div>`;
       box.querySelector('#tend-save').onclick = () => {
         const titulo = box.querySelector('#tend-titulo').value.trim();
-        if (!titulo) return alert('Preencha o t\u00edtulo.');
+        if (!titulo) return (window.psmAlert||alert)('Preencha o t\u00edtulo.');
         const item = { titulo, categoria: box.querySelector('#tend-cat').value, direcao: box.querySelector('#tend-dir').value, impacto: box.querySelector('#tend-imp').value, descricao: box.querySelector('#tend-desc').value.trim(), data: new Date().toISOString().split('T')[0] };
-        const arr = JSON.parse(localStorage.getItem('psm_tendencias') || '[]');
+        const arr = window.psmLSGet('psm_tendencias', []);
         arr.push(item);
         localStorage.setItem('psm_tendencias', JSON.stringify(arr));
-        alert('Tend\u00eancia registrada!');
+        (window.psmAlert||alert)('Tend\u00eancia registrada!');
         document.querySelector('.tend-tab[data-tab=painel]').click();
       };
     } else if (tab === 'historico') {
@@ -19147,7 +19165,7 @@ function pgTendencias() {
 // --- PAGE: INTELLIGENCE DASHBOARD ---
 function pgIntelDash(){
 if(Object.keys(radarDefaults).length===0){pgRadar();}
-var storedRadar=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');
+var storedRadar=window.psmLSGet('psm_radar_data', {});
 var radarData={};
 Object.keys(radarDefaults).forEach(function(k){radarData[k]=Object.assign({},radarDefaults[k],storedRadar[k]||{});});
 Object.keys(storedRadar).forEach(function(k){if(!radarData[k])radarData[k]=storedRadar[k];});
@@ -19444,7 +19462,7 @@ function saveLancData() {
 
 // ═══ v17: DRAG & DROP de lancamentos entre meses ═══
 function lancDragStart(ev, idx){
-  try{ ev.dataTransfer.setData('text/plain', String(idx)); ev.dataTransfer.effectAllowed='move'; }catch(e){console.error("[PSM v26.2]",e);}
+  try{ ev.dataTransfer.setData('text/plain', String(idx)); ev.dataTransfer.effectAllowed='move'; }catch(e){console.error("[PSM v27.7]",e);}
   if(ev.currentTarget) ev.currentTarget.style.opacity='0.4';
 }
 function lancDragEnd(ev){
@@ -19453,7 +19471,7 @@ function lancDragEnd(ev){
 }
 function lancDragOver(ev, mes){
   ev.preventDefault();
-  try{ ev.dataTransfer.dropEffect='move'; }catch(e){console.error("[PSM v26.2]",e);}
+  try{ ev.dataTransfer.dropEffect='move'; }catch(e){console.error("[PSM v27.7]",e);}
   var el = ev.currentTarget;
   if(el){ el.style.background='rgba(212,168,67,0.12)'; el.style.outline='2px dashed #d4a843'; }
 }
@@ -19873,7 +19891,7 @@ function doPausa(motivo) {
   if (!log) return;
   var cfg = S.checkin.config;
   if ((log.pausas || []).length >= cfg.max_pausas_dia && motivo === 'pausa') {
-    alert('Limite de pausas atingido (' + cfg.max_pausas_dia + '/dia)');
+    (window.psmAlert||alert)('Limite de pausas atingido (' + cfg.max_pausas_dia + '/dia)');
     return;
   }
   persist('doPausa',function(){
@@ -21542,14 +21560,14 @@ function pgConfig() {
       // Ocultar mocks
       + '<div style="background:var(--cream2);border-radius:10px;padding:14px">'
       + '<div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:8px">🧼 Ocultar Dados de Exemplo</div>'
-      + '<label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" '+(_hideMock?'checked':'')+' onchange="S.cfg=S.cfg||{};S.cfg.hideMock=this.checked;try{localStorage.setItem(\'psm_hide_mock\',this.checked?\'1\':\'0\');}catch(e){console.error("[PSM v26.2]",e);};PSM.auditLog(\'cfg.hideMock\',this.checked);saveState();render()"><span style="font-size:12px">Ocultar registros marcados como mock/exemplo</span></label>'
+      + '<label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" '+(_hideMock?'checked':'')+' onchange="S.cfg=S.cfg||{};S.cfg.hideMock=this.checked;try{localStorage.setItem(\'psm_hide_mock\',this.checked?\'1\':\'0\');}catch(e){console.error("[PSM v27.7]",e);};PSM.auditLog(\'cfg.hideMock\',this.checked);saveState();render()"><span style="font-size:12px">Ocultar registros marcados como mock/exemplo</span></label>'
       + '<div style="font-size:10.5px;color:var(--muted);margin-top:6px;line-height:1.4">Listas e KPIs passam a mostrar apenas dados reais. Registros novos ficam marcados via campo <code>_mock:true</code>.</div>'
       + '</div>'
       // Webhook alertas
       + '<div style="background:var(--cream2);border-radius:10px;padding:14px">'
       + '<div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:8px">🔔 Webhook de Alertas (WhatsApp/Slack)</div>'
       + '<label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px">URL do endpoint (Zapier, Make, n8n, etc.)</label>'
-      + '<input type="text" class="finp" placeholder="https://hook.zapier.com/..." value="'+_hook+'" onchange="S.cfg=S.cfg||{};S.cfg.webhookUrl=this.value;try{localStorage.setItem(\'psm_webhook_url\',this.value);}catch(e){console.error("[PSM v26.2]",e);};PSM.auditLog(\'cfg.webhookUrl\',\'alterado\');saveState()" style="width:100%;padding:6px 10px;font-size:11px;margin-bottom:8px">'
+      + '<input type="text" class="finp" placeholder="https://hook.zapier.com/..." value="'+_hook+'" onchange="S.cfg=S.cfg||{};S.cfg.webhookUrl=this.value;try{localStorage.setItem(\'psm_webhook_url\',this.value);}catch(e){console.error("[PSM v27.7]",e);};PSM.auditLog(\'cfg.webhookUrl\',\'alterado\');saveState()" style="width:100%;padding:6px 10px;font-size:11px;margin-bottom:8px">'
       + '<button class="btn bout bsm" style="width:100%" onclick="PSM.sendAlert({title:\'Teste PSM OS\',body:\'Webhook funcionando\',severity:\'info\'}).then(function(ok){toast(ok?\'Webhook enviado ✅\':\'Falha — confira a URL\',ok?\'ok\':\'err\')})">Enviar teste</button>'
       + '<div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.4">Payload JSON com <code>title, body, severity, timestamp</code>. Configure seu Zapier/Make para encaminhar ao WhatsApp via API.</div>'
       + '</div>'
@@ -21560,7 +21578,7 @@ function pgConfig() {
       + '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">eventos registrados</div>'
       + '<div style="display:flex;gap:6px">'
       + '<button class="btn bout bsm" style="flex:1" onclick="var l=S.auditLog||[];var csv=\'ts,user,role,action,target,detail\\n\'+l.map(function(e){return [new Date(e.ts).toISOString(),e.user,e.role,e.action,e.target,(e.detail||\'\').replace(/,/g,\';\')].join(\',\');}).join(\'\\n\');var b=new Blob([csv],{type:\'text/csv\'});var u=URL.createObjectURL(b);var a=document.createElement(\'a\');a.href=u;a.download=\'psm_audit_\'+Date.now()+\'.csv\';a.click();">⬇ Export CSV</button>'
-      + '<button class="btn bout bsm" onclick="psmConfirm(\'Limpar audit log?\',{danger:true}).then(function(ok){if(ok){S.auditLog=[];try{localStorage.removeItem(\'psm_audit_log\');}catch(e){console.error(\'[PSM v26.2]\',e);};saveState();render();}})">🗑</button>'
+      + '<button class="btn bout bsm" onclick="psmConfirm(\'Limpar audit log?\',{danger:true}).then(function(ok){if(ok){S.auditLog=[];try{localStorage.removeItem(\'psm_audit_log\');}catch(e){console.error(\'[PSM v27.7]\',e);};saveState();render();}})">🗑</button>'
       + '</div>'
       + '</div>'
       + '</div></div>';
@@ -21750,7 +21768,7 @@ function pgConfig() {
     + (function(){
         var items = [];
         var mainTs = null;
-        try { var m = JSON.parse(localStorage.getItem('psm_os_data')||'{}'); mainTs = m.savedAt; } catch(e){console.error("[PSM v26.2]",e);}
+        try { var m = JSON.parse(localStorage.getItem('psm_os_data')||'{}'); mainTs = m.savedAt; } catch(e){console.error("[PSM v27.7]",e);}
         items.push({l:'💾 Dados Principais', ts: mainTs});
         try { var c = JSON.parse(localStorage.getItem('psm_backup_critical')||'{}'); items.push({l:'🔴 Backup Crítico', ts: c._ts}); } catch(e){ items.push({l:'🔴 Backup Crítico', ts: null}); }
         for(var hi=1;hi<=3;hi++){
@@ -21801,7 +21819,7 @@ function saveIntKey(id, val) {
 function testIntKey(id) {
   const ints = S.integrations || {};
   const val = ints[id] || '';
-  if (!val) { alert('Cole a chave API antes de testar.'); return; }
+  if (!val) { (window.psmAlert||alert)('Cole a chave API antes de testar.'); return; }
   const el = document.getElementById('int_'+id);
   if (el) el.style.borderColor = '#d4a843';
   const endpoints = {
@@ -21892,7 +21910,7 @@ function setUserRole(userId, newRole) {
     const map = JSON.parse(localStorage.getItem('psm_user_roles')||'{}');
     map[userId] = newRole;
     localStorage.setItem('psm_user_roles', JSON.stringify(map));
-  } catch(e){console.error("[PSM v26.2]",e);}
+  } catch(e){console.error("[PSM v27.7]",e);}
   if (typeof saveState === 'function') saveState();
   toast('\u2705 Perfil de '+(u.name||userId)+' alterado para '+newRole, 'ok');
   render();
@@ -24223,7 +24241,7 @@ function giLoadBrands() {
       if (dirty) { try { localStorage.setItem('psm_gi_brands', JSON.stringify(S.giBrands)); } catch(_){} }
       return;
     }
-  } catch(e){console.error("[PSM v26.2]",e);}
+  } catch(e){console.error("[PSM v27.7]",e);}
   S.giBrands = JSON.parse(JSON.stringify(GI_BRAND_DEFAULTS));
 }
 function giSaveBrands() {
@@ -24268,7 +24286,7 @@ function giRemCor(i) {
 function giAddRefImg(input) {
   var file = input.files && input.files[0];
   if (!file || !file.type.startsWith('image/')) return;
-  if (file.size > 5*1024*1024) { alert('Max 5MB por imagem'); return; }
+  if (file.size > 5*1024*1024) { (window.psmAlert||alert)('Max 5MB por imagem'); return; }
   var reader = new FileReader();
   reader.onload = function(e) {
     var b = S.giBrands[S.giBrandTab || 'conquista'];
@@ -24436,7 +24454,7 @@ window.maToggleAuto=function(){S.maAuto=!S.maAuto;render({force:true});};
 window.maApplyCustom=function(){
   var si=document.getElementById('maSince');
   var un=document.getElementById('maUntil');
-  if(!si||!un||!si.value||!un.value){alert('Selecione data inicial e final');return;}
+  if(!si||!un||!si.value||!un.value){(window.psmAlert||alert)('Selecione data inicial e final');return;}
   S.maSince=si.value; S.maUntil=un.value; S.maPreset='';
   window.maFetch({nocache:true});
 };
@@ -24454,15 +24472,15 @@ window.maSaveCfg=function(){
     if(bEl){var v=parseFloat(bEl.value.replace(/[^0-9.,-]/g,'').replace(',','.'))||0;S.maBudgets[a.id]=v;}
     if(cEl){var v2=parseFloat(cEl.value.replace(/[^0-9.,-]/g,'').replace(',','.'))||0;S.maCplTargets[a.id]=v2;}
   });
-  try{localStorage.setItem('psm_ma_budgets',JSON.stringify(S.maBudgets));}catch(e){console.error("[PSM v26.2]",e);}
-  try{localStorage.setItem('psm_ma_cpl',JSON.stringify(S.maCplTargets));}catch(e){console.error("[PSM v26.2]",e);}
+  try{localStorage.setItem('psm_ma_budgets',JSON.stringify(S.maBudgets));}catch(e){console.error("[PSM v27.7]",e);}
+  try{localStorage.setItem('psm_ma_cpl',JSON.stringify(S.maCplTargets));}catch(e){console.error("[PSM v27.7]",e);}
   S.maShowCfg=false;
   render({force:true});
 };
 window.maRunAi=function(){
   if(!window.S.maData){return;}
   if(!window.S.giGKey){
-    try{window.S.giGKey=localStorage.getItem('gi_gkey')||'';}catch(e){console.error("[PSM v26.2]",e);}
+    try{window.S.giGKey=localStorage.getItem('gi_gkey')||'';}catch(e){console.error("[PSM v27.7]",e);}
   }
   if(!window.S.giGKey){
     S.maAiErr='API key Gemini não configurada. Vá em Criação de Imagens → ⚙ API Keys para adicionar.';
@@ -24789,7 +24807,7 @@ window.maSaveSales=function(){
   var tEl=document.getElementById('ma_ticket_medio');
   if(vEl)S.maSalesData.vendas=parseInt(vEl.value, 10)||0;
   if(tEl)S.maSalesData.ticket=parseFloat(tEl.value)||0;
-  try{localStorage.setItem('psm_ma_sales',JSON.stringify(S.maSalesData));}catch(e){console.error("[PSM v26.2]",e);}
+  try{localStorage.setItem('psm_ma_sales',JSON.stringify(S.maSalesData));}catch(e){console.error("[PSM v27.7]",e);}
   render({force:true});
 };
 var mVendas=S.maSalesData.vendas||0;
@@ -25617,10 +25635,10 @@ var META_PAGE_IDS={
 function pgIntelAds(){
 // ===== INTELLIGENCE ADS — MONITORAMENTO DA BIBLIOTECA DE ANÚNCIOS META =====
 // Carrega dados dos concorrentes do radar
-if(typeof radarDefaults==='undefined'||Object.keys(radarDefaults).length===0){try{pgRadar();}catch(e){console.error("[PSM v26.2]",e);}}
+if(typeof radarDefaults==='undefined'||Object.keys(radarDefaults).length===0){try{pgRadar();}catch(e){console.error("[PSM v27.7]",e);}}
 var _rd=radarDefaults||{};
-var _ls={};try{_ls=JSON.parse(localStorage.getItem('psm_radar_data')||'{}');}catch(e){console.error("[PSM v26.2]",e);}
-var adLib={};try{adLib=JSON.parse(localStorage.getItem('psm_radar_ads')||'{}');}catch(e){console.error("[PSM v26.2]",e);}
+var _ls={};try{_ls=window.psmLSGet('psm_radar_data', {});}catch(e){console.error("[PSM v27.7]",e);}
+var adLib={};try{adLib=window.psmLSGet('psm_radar_ads', {});}catch(e){console.error("[PSM v27.7]",e);}
 var adData=adLib.data||{};
 var scanDate=adLib.scanDate?new Date(adLib.scanDate).toLocaleDateString('pt-BR'):'Nunca';
 
@@ -26412,7 +26430,7 @@ function pgPlantoes() {
   // Load plantoes manuais from localStorage
   var storageKey = 'psm_plantoes_' + anoAtual + '_' + mesAtual;
   var plantoes = [];
-  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e){console.error("[PSM v26.2]",e);}
+  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e){console.error("[PSM v27.7]",e);}
 
   // ====== CALENDAR GRID ======
   var calHTML = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:12px;">';
@@ -26544,7 +26562,7 @@ function abrirDiaPlantao(dia) {
   var now = new Date();
   var storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
   var plantoes = [];
-  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e){console.error("[PSM v26.2]",e);}
+  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e){console.error("[PSM v27.7]",e);}
   var dayP = plantoes.filter(function(p){return p.dia === dia;});
 
   var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">';
@@ -26592,7 +26610,7 @@ function abrirDiaPlantao(dia) {
         html += '<div style="font-weight:700;margin-bottom:4px;">Registros dos colegas:</div>';
         outrosKeys.forEach(function(k){
           var at = atividades[k];
-          var nome = k; try{ USERS_BASE.forEach(function(u){if(u.id===k) nome=u.name;}); }catch(e){console.error("[PSM v26.2]",e);}
+          var nome = k; try{ USERS_BASE.forEach(function(u){if(u.id===k) nome=u.name;}); }catch(e){console.error("[PSM v27.7]",e);}
           html += '<div style="margin-top:3px;">\u2022 <strong>'+nome+'</strong>: '+(at.visitas||0)+' visita(s)'+(at.obs?' \u2014 '+at.obs:'')+'</div>';
         });
         html += '</div>';
@@ -26618,7 +26636,7 @@ function abrirFormPlantao(dia, editIdx) {
   var existing = null;
   if(isEdit){
     var sk = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
-    var pl = []; try { pl = JSON.parse(localStorage.getItem(sk)) || []; } catch(e){console.error("[PSM v26.2]",e);}
+    var pl = []; try { pl = JSON.parse(localStorage.getItem(sk)) || []; } catch(e){console.error("[PSM v27.7]",e);}
     var dayP = pl.filter(function(p){return p.dia===d;});
     existing = dayP[editIdx] || null;
   }
@@ -26686,7 +26704,7 @@ function salvarPlantao(dia, editIdx) {
   var now = new Date();
   var storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
   var plantoes = [];
-  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e){console.error("[PSM v26.2]",e);}
+  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e){console.error("[PSM v27.7]",e);}
 
   var registro = {dia:dia, local:local, horaInicio:horaInicio, horaFim:horaFim, nomes:nomes, orientacoes:orientacoes, criadoPor:S.user.nome, criadoEm:new Date().toISOString()};
 
@@ -26712,7 +26730,7 @@ async function removerPlantao(dia, idx) {
   var now = new Date();
   var storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
   var plantoes = [];
-  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e){console.error("[PSM v26.2]",e);}
+  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e){console.error("[PSM v27.7]",e);}
   var dayP = plantoes.filter(function(p){return p.dia === dia;});
   if (dayP[idx]) {
     var globalIdx = plantoes.indexOf(dayP[idx]);
@@ -27301,7 +27319,7 @@ document.addEventListener("click",function(){_renderForced=true;setTimeout(funct
 function _isUserInteracting(){var ae=document.activeElement;if(ae&&(ae.tagName==="INPUT"||ae.tagName==="TEXTAREA"||ae.isContentEditable))return true;/* Janela curta (3s) so para proteger o ultimo keystroke antes do blur — NAO deve bloquear cliques em botoes */if(_lastUserActivity&&(Date.now()-_lastUserActivity<3000))return true;var m=document.querySelector(".modal.show,.swal2-container,.popup-overlay");if(m)return true;/* Bloqueia render se ha qualquer campo OO com salvamento pendente */if(document.querySelector('[data-oo-pending="1"]'))return true;return false;}
 function render(opts){var force=(opts&&opts.force)||_renderForced;_renderForced=false;if(!force&&_isUserInteracting()){_renderPending=true;if(_renderPendingTimer)clearTimeout(_renderPendingTimer);_renderPendingTimer=setTimeout(function(){if(!_isUserInteracting()){_renderPending=false;render({force:true})}else{_renderPendingTimer=setTimeout(arguments.callee,2000)}},2000);return}_renderPending=false;if(_renderPendingTimer){clearTimeout(_renderPendingTimer);_renderPendingTimer=null}/* DEFESA: flush sincrono de QUALQUER campo OO com salvamento pendente antes de destruir DOM */if(typeof window._ooFlushAll==='function')window._ooFlushAll();
 const app=document.getElementById("app");if(!app)return;var _pc0=document.getElementById("pc"),_scr=_pc0?_pc0.scrollTop:0;if(!S.user){if(S.loginView==="forgot"){app.innerHTML=renderForgotPassword();return}if(S.loginView==="reset"){app.innerHTML=renderResetPassword();return}app.innerHTML=renderLogin();_fillRememberedLogin();return}
-var existingPc=document.getElementById("pc");if(existingPc&&!force){try{/* Preserve scroll positions (sidebar + window) so o menu não "pisca" voltando ao topo */var _sbEl0=document.getElementById("sb-wrap");var _sbScr=_sbEl0?_sbEl0.scrollTop:0;var _winScr=window.pageYOffset||document.documentElement.scrollTop||0;/* Preserve focused element (nao perder cursor ao digitar) */var _ae=document.activeElement;var _aeId=_ae&&_ae.id?_ae.id:null;var _aeSel=_ae&&_ae.tagName==='INPUT'?[_ae.selectionStart,_ae.selectionEnd]:null;existingPc.innerHTML=safeRoute();/* Only re-render sidebar if the menu needs to change (page changed). Otherwise keep DOM intact — prevents scroll reset. */var _sbNew=renderSB();if(_sbEl0&&_sbEl0.getAttribute('data-sig')!==String(S.page)){_sbEl0.innerHTML=_sbNew;_sbEl0.setAttribute('data-sig',String(S.page));}var hdrEl=document.getElementById("hdr-wrap");if(hdrEl){var _hdrNew=renderHDR();if(hdrEl.innerHTML!==_hdrNew)hdrEl.innerHTML=_hdrNew;}/* v17: timeline global */var tlEl=document.getElementById("psm-global-timeline");var _tlNew=(typeof renderGlobalTimeline==='function')?renderGlobalTimeline():'';if(tlEl){if(!_tlNew){tlEl.remove();}else{var _tmp=document.createElement('div');_tmp.innerHTML=_tlNew;var _newEl=_tmp.firstElementChild;if(_newEl&&tlEl.outerHTML!==_newEl.outerHTML)tlEl.outerHTML=_newEl.outerHTML;}}else if(_tlNew&&hdrEl&&hdrEl.parentNode){hdrEl.insertAdjacentHTML('afterend',_tlNew);}var mobNav=document.getElementById("mob-nav");if(mobNav){var _mnNew=renderMobNav();if(mobNav.outerHTML!==_mnNew)mobNav.outerHTML=_mnNew;}saveState();if(_pc0)existingPc.scrollTop=_scr;if(_sbEl0)_sbEl0.scrollTop=_sbScr;try{window.scrollTo(0,_winScr);}catch(e){console.error("[PSM v26.2]",e);}/* Restore focus */if(_aeId){var _aeR=document.getElementById(_aeId);if(_aeR&&typeof _aeR.focus==='function'){try{_aeR.focus();if(_aeSel&&_aeR.setSelectionRange){_aeR.setSelectionRange(_aeSel[0],_aeSel[1]);}}catch(e){console.error("[PSM v26.2]",e);}}}return}catch(e){console.warn("[PSM] Smart render falhou:",e.message)}}
+var existingPc=document.getElementById("pc");if(existingPc&&!force){try{/* Preserve scroll positions (sidebar + window) so o menu não "pisca" voltando ao topo */var _sbEl0=document.getElementById("sb-wrap");var _sbScr=_sbEl0?_sbEl0.scrollTop:0;var _winScr=window.pageYOffset||document.documentElement.scrollTop||0;/* Preserve focused element (nao perder cursor ao digitar) */var _ae=document.activeElement;var _aeId=_ae&&_ae.id?_ae.id:null;var _aeSel=_ae&&_ae.tagName==='INPUT'?[_ae.selectionStart,_ae.selectionEnd]:null;existingPc.innerHTML=safeRoute();/* Only re-render sidebar if the menu needs to change (page changed). Otherwise keep DOM intact — prevents scroll reset. */var _sbNew=renderSB();if(_sbEl0&&_sbEl0.getAttribute('data-sig')!==String(S.page)){_sbEl0.innerHTML=_sbNew;_sbEl0.setAttribute('data-sig',String(S.page));}var hdrEl=document.getElementById("hdr-wrap");if(hdrEl){var _hdrNew=renderHDR();if(hdrEl.innerHTML!==_hdrNew)hdrEl.innerHTML=_hdrNew;}/* v17: timeline global */var tlEl=document.getElementById("psm-global-timeline");var _tlNew=(typeof renderGlobalTimeline==='function')?renderGlobalTimeline():'';if(tlEl){if(!_tlNew){tlEl.remove();}else{var _tmp=document.createElement('div');_tmp.innerHTML=_tlNew;var _newEl=_tmp.firstElementChild;if(_newEl&&tlEl.outerHTML!==_newEl.outerHTML)tlEl.outerHTML=_newEl.outerHTML;}}else if(_tlNew&&hdrEl&&hdrEl.parentNode){hdrEl.insertAdjacentHTML('afterend',_tlNew);}var mobNav=document.getElementById("mob-nav");if(mobNav){var _mnNew=renderMobNav();if(mobNav.outerHTML!==_mnNew)mobNav.outerHTML=_mnNew;}saveState();if(_pc0)existingPc.scrollTop=_scr;if(_sbEl0)_sbEl0.scrollTop=_sbScr;try{window.scrollTo(0,_winScr);}catch(e){console.error("[PSM v27.7]",e);}/* Restore focus */if(_aeId){var _aeR=document.getElementById(_aeId);if(_aeR&&typeof _aeR.focus==='function'){try{_aeR.focus();if(_aeSel&&_aeR.setSelectionRange){_aeR.setSelectionRange(_aeSel[0],_aeSel[1]);}}catch(e){console.error("[PSM v27.7]",e);}}}return}catch(e){console.warn("[PSM] Smart render falhou:",e.message)}}
   app.innerHTML = (S.rdSyncing ? '<div class="sync-bar active"></div>' : '') + '<div id="mob-ham" onclick="toggleMobSB()">☰</div>'
     + '<button id="cap-fab" onclick="nav(\'vera\')" title="Sr. Performance" style="position:fixed;bottom:72px;right:18px;z-index:500;width:54px;height:54px;border-radius:50%;background:var(--navy);color:#fff;font-size:22px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35);transition:transform .2s" onmouseover="this.style.transform=\'scale(1.1)\'" onmouseout="this.style.transform=\'scale(1)\'">🫡</button>'
     + '<div id="sb-overlay" onclick="toggleMobSB()"></div>'
@@ -27671,7 +27689,7 @@ function pgBiSocio(){
   var forecastHtml = '';
   var fk = 'psm_bi_forecast_6m';
   var saved = null;
-  try { saved = JSON.parse(localStorage.getItem(fk)||'null'); } catch(e){console.error("[PSM v26.2]",e);}
+  try { saved = JSON.parse(localStorage.getItem(fk)||'null'); } catch(e){console.error("[PSM v27.7]",e);}
   if(saved && saved.data){
     forecastHtml = '<div style="background:var(--cream2);border-radius:8px;padding:12px;margin-top:10px">'
       + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">Gerado '+new Date(saved.at).toLocaleString('pt-BR')+'</div>'
@@ -27725,10 +27743,10 @@ function psmBiForecast6m(){
   out.innerHTML = '<div style="padding:12px;color:var(--muted)">\u23F3 Gerando forecast 6 meses...</div>';
   var hist = (S.historicoMensal) || [];
   var atual = {};
-  try { atual = getMetricasGlobal('dash'); } catch(e){console.error("[PSM v26.2]",e);}
+  try { atual = getMetricasGlobal('dash'); } catch(e){console.error("[PSM v27.7]",e);}
   var prompt = {pedido:'forecast 6 meses VGV + vendas', historico:hist, atual:atual};
   window.psmIA.preverVenda(hist, prompt).then(function(res){
-    try { localStorage.setItem('psm_bi_forecast_6m', JSON.stringify({at:Date.now(), data:res})); } catch(e){console.error("[PSM v26.2]",e);}
+    try { localStorage.setItem('psm_bi_forecast_6m', JSON.stringify({at:Date.now(), data:res})); } catch(e){console.error("[PSM v27.7]",e);}
     out.innerHTML = '<div style="background:var(--cream2);border-radius:8px;padding:12px;margin-top:10px">'
       + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">Gerado agora</div>'
       + '<pre style="font-size:11px;white-space:pre-wrap;margin:0">'+psmEscape(JSON.stringify(res,null,2))+'</pre></div>';
@@ -28139,7 +28157,7 @@ var NOTIF_SOUND_MAP = {
 };
 function sendNotif(title, body, icon='🫡', cat) {
   if (Notification.permission === 'granted') {
-    try { new Notification(title, {body, icon: 'logo-psm-navy.png', badge: 'logo-psm-navy.png'}); } catch(e){console.error("[PSM v26.2]",e);}
+    try { new Notification(title, {body, icon: 'logo-psm-navy.png', badge: 'logo-psm-navy.png'}); } catch(e){console.error("[PSM v27.7]",e);}
   }
   toast(icon + ' ' + title + ': ' + body, 'ok');
   // v18: tocar som da categoria se habilitado
@@ -28148,7 +28166,7 @@ function sendNotif(title, body, icon='🫡', cat) {
       var snd = NOTIF_SOUND_MAP[cat||'default'] || NOTIF_SOUND_MAP.default;
       if(typeof playArenaSound === 'function') playArenaSound(snd);
     }
-  }catch(e){console.error("[PSM v26.2]",e);}
+  }catch(e){console.error("[PSM v27.7]",e);}
 }
 // v18: API unificada
 function notifPush(opts){
@@ -28166,7 +28184,7 @@ window.addEventListener('psm-login', function(){
     if('Notification' in window && Notification.permission === 'default'){
       setTimeout(function(){ Notification.requestPermission(); }, 3000);
     }
-  }catch(e){console.error("[PSM v26.2]",e);}
+  }catch(e){console.error("[PSM v27.7]",e);}
 });
 function scheduleNotifs() {
   // Check SLA overdue
@@ -28192,7 +28210,7 @@ function _buildEscalaNotif(){
       Object.keys(_esc.dias).forEach(function(d){ m[d] = (_esc.dias[d].local||'PSM'); });
       return {map:m, mes:_esc.mes, ano:_esc.ano};
     }
-  }catch(e){console.error("[PSM v26.2]",e);}
+  }catch(e){console.error("[PSM v27.7]",e);}
   var now = new Date();
   return {map:{}, mes:now.getMonth(), ano:now.getFullYear()};
 }
@@ -28216,17 +28234,17 @@ function checkPlantaoNotifs(){
   // Chave para evitar notificações duplicadas no mesmo dia
   var notifKey = 'psm_plt_notif_' + anoAtual + '_' + mesAtual + '_' + hoje;
   var sent = {};
-  try { sent = JSON.parse(localStorage.getItem(notifKey)) || {}; } catch(e){console.error("[PSM v26.2]",e);}
+  try { sent = JSON.parse(localStorage.getItem(notifKey)) || {}; } catch(e){console.error("[PSM v27.7]",e);}
 
   // Carregar plantões manuais do mês atual
   var storageKey = 'psm_plantoes_' + anoAtual + '_' + mesAtual;
   var plantoes = [];
-  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e){console.error("[PSM v26.2]",e);}
+  try { plantoes = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e){console.error("[PSM v27.7]",e);}
 
   // Plantões de amanhã (carregar do mês de amanhã se necessário)
   var storageKeyAmanha = 'psm_plantoes_' + anoAmanha + '_' + mesAmanha;
   var plantoesAmanha = [];
-  try { plantoesAmanha = JSON.parse(localStorage.getItem(storageKeyAmanha)) || []; } catch(e){console.error("[PSM v26.2]",e);}
+  try { plantoesAmanha = JSON.parse(localStorage.getItem(storageKeyAmanha)) || []; } catch(e){console.error("[PSM v27.7]",e);}
 
   // === NOTIFICAÇÃO 1 DIA ANTES (a partir das 18h do dia anterior) ===
   if(!sent.vespera && hora >= 18){
@@ -28289,7 +28307,7 @@ function checkPlantaoNotifs(){
   // Limpar chaves antigas (mais de 3 dias)
   for(var k in localStorage){
     if(k.indexOf('psm_plt_notif_')===0 && k !== notifKey){
-      try{localStorage.removeItem(k);}catch(e){console.error("[PSM v26.2]",e);}
+      try{localStorage.removeItem(k);}catch(e){console.error("[PSM v27.7]",e);}
     }
   }
   if(NOTIFS.length > 20) NOTIFS.splice(20);
@@ -28334,7 +28352,7 @@ window.addEventListener('offline', () => { toast('⚠️ Sem conexão com a inte
 window.addEventListener('beforeunload', function() {
   if(typeof window._ooFlushAll==='function') window._ooFlushAll();
   if(typeof _ooFieldSaveTimer!=='undefined' && _ooFieldSaveTimer){clearTimeout(_ooFieldSaveTimer);_ooFieldSaveTimer=null;}
-  try { saveState(); } catch(e){console.error("[PSM v26.2]",e);}
+  try { saveState(); } catch(e){console.error("[PSM v27.7]",e);}
 });
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -28424,7 +28442,7 @@ async function _tryRememberLogin() {
     S.veraHist = [{role:'assistant', content:'Ol\u00e1, ' + S.user.name.split(' ')[0] + '! Sou o Sr. Performance. Como posso te ajudar?'}];
   }
   scheduleVeraNotifs();
-  try { render(); } catch(_){console.error("[PSM v26.2]",_);}
+  try { render(); } catch(_){console.error("[PSM v27.7]",_);}
 }
 
 
@@ -29010,7 +29028,7 @@ function _psmShowModal(opts){
     var act = document.createElement('div');
     act.className = 'psm-modal-act';
     function close(value){
-      try { document.body.removeChild(bd); } catch(_){console.error("[PSM v26.2]",_);}
+      try { document.body.removeChild(bd); } catch(_){console.error("[PSM v27.7]",_);}
       document.removeEventListener('keydown', onKey);
       resolve(value);
     }
@@ -29214,7 +29232,7 @@ window.psmFbReportFail = function(){
 window.psmFbReportSuccess = function(){
   if (_fbFailCount > 0) console.log('[PSM-FB] recuperado apos', _fbFailCount, 'falhas');
   _fbFailCount = 0;
-  if (_fbWarnEl) { try { document.body.removeChild(_fbWarnEl); } catch(_){console.error("[PSM v26.2]",_);} _fbWarnEl = null; }
+  if (_fbWarnEl) { try { document.body.removeChild(_fbWarnEl); } catch(_){console.error("[PSM v27.7]",_);} _fbWarnEl = null; }
 };
 
 // ═══ LGPD: consentimento + export + delete ═══════════════════════════
@@ -29271,7 +29289,7 @@ window.psmLgpdDeletar = function(){
       if (k && k.indexOf('psm_') === 0) keys.push(k);
     }
     keys.forEach(function(k){ localStorage.removeItem(k); });
-    if (window._psmIdb) try { window._psmIdb.transaction('snapshots','readwrite').objectStore('snapshots').clear(); } catch(_){console.error("[PSM v26.2]",_);}
+    if (window._psmIdb) try { window._psmIdb.transaction('snapshots','readwrite').objectStore('snapshots').clear(); } catch(_){console.error("[PSM v27.7]",_);}
     window.psmAlert('Dados deletados. Recarregando...').then(function(){ location.reload(); });
   });
 };
@@ -29325,10 +29343,10 @@ window.psmEscape = function(s){
       console.log('[PSM-Sentry] ativo');
       // Captura erros nao tratados
       window.addEventListener('error', function(e){
-        try { window.Sentry.captureException(e.error || new Error(e.message)); } catch(_){console.error("[PSM v26.2]",_);}
+        try { window.Sentry.captureException(e.error || new Error(e.message)); } catch(_){console.error("[PSM v27.7]",_);}
       });
       window.addEventListener('unhandledrejection', function(e){
-        try { window.Sentry.captureException(e.reason || new Error('Unhandled promise rejection')); } catch(_){console.error("[PSM v26.2]",_);}
+        try { window.Sentry.captureException(e.reason || new Error('Unhandled promise rejection')); } catch(_){console.error("[PSM v27.7]",_);}
       });
     } catch(err){ console.warn('[PSM-Sentry] init fail', err); }
   };
@@ -29336,7 +29354,7 @@ window.psmEscape = function(s){
   document.head.appendChild(s);
 })();
 window.psmSentryCapture = function(err, ctx){
-  try { if (window.Sentry) window.Sentry.captureException(err, {extra:ctx||{}}); } catch(_){console.error("[PSM v26.2]",_);}
+  try { if (window.Sentry) window.Sentry.captureException(err, {extra:ctx||{}}); } catch(_){console.error("[PSM v27.7]",_);}
 };
 
 // ═══ SMOKE TESTS — rodar: psmTest.runAll() no console ═════════════════
@@ -29409,7 +29427,7 @@ window.psmHealth = async function(){
       + '<span style="color:#64748b;font-size:12px">' + window.psmEscape(r.msg||'') + '</span>'
       + '</div>';
   }).join('');
-  var lp = JSON.parse(localStorage.getItem('psm_last_persist')||'{}');
+  var lp = window.psmLSGet('psm_last_persist', {});
   var lpTxt = lp.ts ? new Date(lp.ts).toLocaleString('pt-BR') : 'nunca';
   var fbStatus = window._fbReady ? '🟢 conectado' : '🔴 offline';
   var actions = '<div style="display:flex;gap:8px;flex-wrap:wrap;padding:16px;border-top:2px solid #e2e8f0;background:#f8fafc">'
@@ -29527,7 +29545,7 @@ document.addEventListener('keydown', function(e){
     var snapshot = {
       ts: Date.now(),
       version: '2026.04.21-v22m',
-      state: JSON.parse(localStorage.getItem('psm_os_state_v1') || '{}')
+      state: window.psmLSGet('psm_os_state_v1', {})
     };
     var blob = new Blob([JSON.stringify(snapshot)], {type:'application/json'});
     var fname = 'psm-os-backup-'+new Date().toISOString().slice(0,19).replace(/[:.]/g,'-')+'.json';
@@ -29573,7 +29591,7 @@ document.addEventListener('keydown', function(e){
       if (getValidToken() && elapsed > BACKUP_INTERVAL){
         window.psmDriveBackup(false);
       }
-    } catch(_){console.error("[PSM v26.2]",_);}
+    } catch(_){console.error("[PSM v27.7]",_);}
   }
   setInterval(scheduleAutoBackup, 10 * 60 * 1000); // checa a cada 10min
   setTimeout(scheduleAutoBackup, 30 * 1000); // primeira checagem 30s apos load
@@ -29690,7 +29708,7 @@ document.addEventListener('keydown', function(e){
       else txt = Math.floor(mins/1440)+'d atras';
       el.textContent = '☁ Drive: '+txt;
       el.style.color = mins < 60*24 ? '#d4a843' : '#ef4444';
-    } catch(_){console.error("[PSM v26.2]",_);}
+    } catch(_){console.error("[PSM v27.7]",_);}
   }
   setInterval(updateFooter, 60*1000);
   setTimeout(updateFooter, 5000);
@@ -29768,7 +29786,7 @@ document.addEventListener('keydown', function(e){
         arr.unshift({ at: Date.now(), mes: atual.mes, du_pass: atual.du_pass, du_tot: atual.du_tot, vgv_real: atual.vgv_real, vgv_meta: atual.vgv_meta, previsao: prev, sugestoes: sug });
         if (arr.length > 60) arr = arr.slice(0, 60);
         localStorage.setItem(hk, JSON.stringify(arr));
-      } catch(_){console.error("[PSM v26.2]",_);}
+      } catch(_){console.error("[PSM v27.7]",_);}
       var prevCor = prev.confianca==='alta' ? '#22c55e' : prev.confianca==='media' ? '#d97706' : '#ef4444';
       var h = '<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;align-items:start">';
       // Previsao
@@ -29948,7 +29966,7 @@ document.addEventListener('keydown', function(e){
   // ── 2. HISTORICO DE PREVISOES ──
   window.psmHistoricoIA = function(){
     var arr = [];
-    try { arr = JSON.parse(localStorage.getItem('psm_ia_historico') || '[]'); } catch(_){console.error("[PSM v26.2]",_);}
+    try { arr = JSON.parse(localStorage.getItem('psm_ia_historico') || '[]'); } catch(_){console.error("[PSM v27.7]",_);}
     var mid = 'psm-ia-hist';
     var prev = document.getElementById(mid); if (prev) prev.remove();
     var w = document.createElement('div');
@@ -29994,7 +30012,7 @@ document.addEventListener('keydown', function(e){
     }
     // Usa janela de impressao nativa (pdf sem dependencia externa)
     var hist = [];
-    try { hist = JSON.parse(localStorage.getItem('psm_ia_historico') || '[]').slice(0,5); } catch(_){console.error("[PSM v26.2]",_);}
+    try { hist = JSON.parse(localStorage.getItem('psm_ia_historico') || '[]').slice(0,5); } catch(_){console.error("[PSM v27.7]",_);}
     var histHtml = hist.length ? hist.map(function(h){
       return '<tr><td>'+new Date(h.at).toLocaleDateString('pt-BR')+'</td><td>'+(h.mes||'—')+'</td><td style="text-align:right">R$ '+((h.previsao&&h.previsao.previsto)||0).toLocaleString('pt-BR')+'</td><td>'+((h.previsao&&h.previsao.confianca)||'—')+'</td></tr>';
     }).join('') : '<tr><td colspan="4" style="text-align:center;color:#888">Sem historico</td></tr>';
