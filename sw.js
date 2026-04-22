@@ -1,18 +1,20 @@
 // ═════════════════════════════════════════════════════════════════════════════
-// PSM OS — Service Worker v27.9 (2026-04-22 — TV LG webOS FIX: video MP4 real playing, input spoof agressivo, deteccao webOS, aviso config TV)
-// Estratégia: NETWORK-FIRST para HTML (resolve cache stale), CACHE-FIRST assets.
-// Limpa caches antigos automaticamente no activate.
+// PSM OS — Service Worker v28 (2026-04-22 — AUTO-UPDATE: fim da versao antiga stale)
+// - NETWORK-ONLY para HTML (sem cache) + libs JS do app
+// - CACHE-FIRST apenas assets imutaveis (imagens, icones, manifest)
+// - skipWaiting + clients.claim imediato
+// - Purge total de caches antigos no activate
+// - postMessage NEW_VERSION aos clients quando SW novo ativa
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const CACHE_VERSION = 'psm-os-v27.9-2026-04-22-tv-lg-webos-fix';
-const HTML_CACHE    = CACHE_VERSION + '-html';
+const SW_VERSION = 'v28.0.0-2026-04-22-auto-update';
+const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
-// Assets a pré-cachear (fallback offline)
-const PRECACHE = [
-  '/',
-  '/index.html',
+// Apenas assets imutaveis (imagens, icones, manifest) entram no cache.
+// HTML, JS do app (lib/*), CSS → SEMPRE rede, nunca cache.
+const IMMUTABLE_ASSETS = [
   '/manifest.json',
   '/favicon.ico',
   '/favicon-16.png',
@@ -20,90 +22,158 @@ const PRECACHE = [
   '/apple-touch-icon.png',
   '/icon-192.png',
   '/icon-512.png',
-  '/logo-psm-navy.png',
-  '/lib/psm-supabase.js',
-  '/lib/psm-ia.js',
-  '/lib/psm-native.js',
-  '/lib/psm-offline.js',
-  '/lib/psm-backup.js',
-  '/lib/psm-monitor.js'
+  '/logo-psm-navy.png'
 ];
+
+// Rotas que NUNCA devem ser cacheadas (sempre rede + no-store)
+function isNeverCache(url, req){
+  var p = url.pathname;
+  // HTML
+  if (req.mode === 'navigate') return true;
+  if ((req.headers.get('accept')||'').indexOf('text/html') >= 0) return true;
+  if (p === '/' || p.endsWith('.html')) return true;
+  // JS do app (lib/*, sw.js) — sempre fresh
+  if (p.startsWith('/lib/')) return true;
+  if (p === '/sw.js') return true;
+  // Version manifest
+  if (p === '/version.json') return true;
+  return false;
+}
+
+function isImmutableAsset(url){
+  var p = url.pathname;
+  if (IMMUTABLE_ASSETS.indexOf(p) >= 0) return true;
+  // imagens/fontes
+  if (/\.(png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot)$/i.test(p)) return true;
+  return false;
+}
 
 // ─── INSTALL ────────────────────────────────────────────────────────────────
 self.addEventListener('install', function(event){
   event.waitUntil(
-    caches.open(HTML_CACHE).then(function(cache){
-      return cache.addAll(PRECACHE).catch(function(e){
+    caches.open(ASSET_CACHE).then(function(cache){
+      return cache.addAll(IMMUTABLE_ASSETS).catch(function(e){
         console.warn('[SW] precache parcial:', e);
       });
-    }).then(function(){ return self.skipWaiting(); })
+    }).then(function(){
+      // Ativa imediatamente sem esperar tabs fecharem
+      return self.skipWaiting();
+    })
   );
 });
 
-// ─── ACTIVATE — limpa caches antigos ────────────────────────────────────────
+// ─── ACTIVATE — purga TODOS caches antigos ─────────────────────────────────
 self.addEventListener('activate', function(event){
   event.waitUntil(
     caches.keys().then(function(keys){
       return Promise.all(keys.map(function(k){
-        if(k !== HTML_CACHE && k !== ASSET_CACHE){
-          console.log('[SW] removendo cache antigo:', k);
+        // Remove QUALQUER cache que nao seja do SW atual
+        if (k !== ASSET_CACHE) {
+          console.log('[SW] purgando cache antigo:', k);
           return caches.delete(k);
         }
       }));
-    }).then(function(){ return self.clients.claim(); })
+    }).then(function(){
+      return self.clients.claim();
+    }).then(function(){
+      // Notifica TODAS tabs abertas que ha nova versao
+      return self.clients.matchAll({ includeUncontrolled: true }).then(function(clients){
+        clients.forEach(function(client){
+          try {
+            client.postMessage({ type: 'NEW_VERSION', version: SW_VERSION });
+          } catch(_){}
+        });
+      });
+    })
   );
 });
 
-// ─── FETCH — network-first para HTML, cache-first para assets ───────────────
+// ─── FETCH ─────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', function(event){
   var req = event.request;
-  if(req.method !== 'GET') return;
+  if (req.method !== 'GET') return;
 
-  var url = new URL(req.url);
+  var url;
+  try { url = new URL(req.url); } catch(_){ return; }
 
-  // Ignora cross-origin (Firebase, RD, fontes externas)
-  if(url.origin !== self.location.origin) return;
+  // Ignora cross-origin (Firebase, RD, CDNs, etc)
+  if (url.origin !== self.location.origin) return;
 
-  var isHTML = req.mode === 'navigate' ||
-               (req.headers.get('accept')||'').indexOf('text/html') >= 0 ||
-               url.pathname === '/' || url.pathname.endsWith('.html');
-
-  if(isHTML){
-    // NETWORK-FIRST: sempre tenta buscar do servidor primeiro
+  // NEVER CACHE: HTML, /lib/*, sw.js, version.json → sempre rede
+  if (isNeverCache(url, req)) {
     event.respondWith(
-      fetch(req).then(function(resp){
-        if(resp && resp.ok){
-          var clone = resp.clone();
-          caches.open(HTML_CACHE).then(function(cache){ cache.put(req, clone); });
-        }
-        return resp;
-      }).catch(function(){
-        return caches.match(req).then(function(cached){
-          return cached || caches.match('/index.html');
+      fetch(req, { cache: 'no-store' }).catch(function(e){
+        // Offline fallback: tenta cache apenas se offline total
+        return caches.match(req).then(function(c){
+          if (c) return c;
+          // Se for navegacao e offline, mostra mensagem
+          if (req.mode === 'navigate') {
+            return new Response(
+              '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Offline</title><style>body{font-family:system-ui;background:#0f172a;color:#fff;padding:40px;text-align:center}</style></head><body><h1>Sem conexao</h1><p>Verifique sua internet e tente novamente.</p><button onclick="location.reload()">Recarregar</button></body></html>',
+              { headers: { 'Content-Type': 'text/html; charset=UTF-8' }, status: 503 }
+            );
+          }
+          throw e;
         });
       })
     );
     return;
   }
 
-  // CACHE-FIRST para assets estáticos (imagens, css, js)
+  // IMMUTABLE ASSETS: cache-first (imagens, icones)
+  if (isImmutableAsset(url)) {
+    event.respondWith(
+      caches.match(req).then(function(cached){
+        if (cached) return cached;
+        return fetch(req).then(function(resp){
+          if (resp && resp.ok) {
+            var clone = resp.clone();
+            caches.open(ASSET_CACHE).then(function(cache){ cache.put(req, clone); });
+          }
+          return resp;
+        });
+      })
+    );
+    return;
+  }
+
+  // DEFAULT: network-first, cache como fallback offline
   event.respondWith(
-    caches.match(req).then(function(cached){
-      if(cached) return cached;
-      return fetch(req).then(function(resp){
-        if(resp && resp.ok){
-          var clone = resp.clone();
-          caches.open(ASSET_CACHE).then(function(cache){ cache.put(req, clone); });
-        }
-        return resp;
-      }).catch(function(){ return cached; });
+    fetch(req, { cache: 'no-store' }).then(function(resp){
+      if (resp && resp.ok) {
+        var clone = resp.clone();
+        caches.open(ASSET_CACHE).then(function(cache){ cache.put(req, clone); });
+      }
+      return resp;
+    }).catch(function(){
+      return caches.match(req);
     })
   );
 });
 
-// ─── MESSAGE — permite forçar skipWaiting de dentro do app ──────────────────
+// ─── MESSAGE ────────────────────────────────────────────────────────────────
 self.addEventListener('message', function(event){
-  if(event.data === 'skipWaiting' || (event.data && event.data.type === 'skipWaiting')){
+  var data = event.data;
+  if (data === 'skipWaiting' || (data && data.type === 'skipWaiting')) {
     self.skipWaiting();
+  }
+  // Comando PURGE_ALL: limpa todos caches do SW
+  if (data && data.type === 'PURGE_ALL') {
+    event.waitUntil(
+      caches.keys().then(function(keys){
+        return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+      }).then(function(){
+        // Responde ao client com resultado
+        if (event.source) {
+          try { event.source.postMessage({ type: 'PURGE_ALL_DONE' }); } catch(_){}
+        }
+      })
+    );
+  }
+  // Comando GET_VERSION
+  if (data && data.type === 'GET_VERSION') {
+    if (event.source) {
+      try { event.source.postMessage({ type: 'SW_VERSION', version: SW_VERSION }); } catch(_){}
+    }
   }
 });

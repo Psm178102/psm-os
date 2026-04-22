@@ -1,14 +1,14 @@
-<!-- PSM-OS v2026.04.22-v27.9 — TV LG webOS FIX: video MP4 real playing + input spoof agressivo (mouse+key+scroll 2s) + deteccao webOS + aviso config TV. Mantem v27.8: psmAuth.isReady, audioCtx leak, btoa unicode, Drive 401 retry, offline cleanup, psmFetch timeout. -->
+<!-- PSM-OS v2026.04.22-v28 — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.22-v27.9">
-<script>window.PSM_VERSION='27.9';</script>
+<meta name="version" content="2026.04.22-v28">
+<script>window.PSM_VERSION='28.0.0';window.PSM_VERSION_META='2026.04.22-v28';</script>
 <!-- v22m: CSP + accounts.google.com (Drive OAuth) + browser.sentry-cdn (Sentry) + supabase.co -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.googleapis.com https://accounts.google.com https://browser.sentry-cdn.com https://*.sentry.io https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: blob:; frame-src 'self' https://accounts.google.com https://content.googleapis.com; base-uri 'self'; form-action 'self'; object-src 'none';">
 <!-- PWA (2026-04-15): mobile-first, instalável -->
@@ -769,36 +769,135 @@ html{height:100%;overflow:hidden}
 
 <script>
 'use strict';
-// ─── PWA: registra Service Worker v12 network-first (2026-04-19) ─────────────
-if ('serviceWorker' in navigator) {
+// ─── PWA v28: SW + AUTO-UPDATE AGRESSIVO (fim da versao antiga stale) ────────
+(function(){
+  if (!('serviceWorker' in navigator)) return;
+
+  var _reloading = false;
+  var _updateBannerShown = false;
+
+  function _showUpdateBanner(){
+    if (_updateBannerShown) return;
+    _updateBannerShown = true;
+    try {
+      var b = document.createElement('div');
+      b.id = 'psm-update-banner';
+      b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#d4af37,#f4c430);color:#0f172a;padding:10px 16px;font-weight:700;font-size:13px;text-align:center;z-index:999999;box-shadow:0 2px 10px rgba(0,0,0,0.3);font-family:system-ui';
+      b.innerHTML = '<span>Nova versao disponivel — atualizando em <span id="_psm_cd">3</span>s...</span> <button id="_psm_update_now" style="margin-left:12px;background:#0f172a;color:#d4af37;border:none;padding:4px 12px;border-radius:4px;font-weight:700;cursor:pointer">Atualizar agora</button> <button id="_psm_update_later" style="margin-left:6px;background:transparent;color:#0f172a;border:1px solid #0f172a;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px">Depois</button>';
+      document.body.appendChild(b);
+
+      var cd = 3;
+      var iv = setInterval(function(){
+        cd--;
+        var el = document.getElementById('_psm_cd');
+        if (el) el.textContent = cd;
+        if (cd <= 0) { clearInterval(iv); _doReload(); }
+      }, 1000);
+
+      document.getElementById('_psm_update_now').onclick = function(){ clearInterval(iv); _doReload(); };
+      document.getElementById('_psm_update_later').onclick = function(){ clearInterval(iv); b.remove(); _updateBannerShown = false; };
+    } catch(_){ _doReload(); }
+  }
+
+  function _doReload(){
+    if (_reloading) return;
+    _reloading = true;
+    try {
+      // Purga todos caches ANTES de reload (belt + suspenders)
+      if (window.caches && caches.keys) {
+        caches.keys().then(function(keys){
+          return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+        }).finally(function(){
+          // Reload forcando bypass cache
+          window.location.reload(true);
+        });
+      } else {
+        window.location.reload(true);
+      }
+    } catch(_){ window.location.reload(); }
+  }
+
+  // Expose purge manual para console/botao config
+  window.psmForceUpdate = function(){
+    console.log('[PSM-PWA] forcando update manual');
+    if (navigator.serviceWorker.controller) {
+      try { navigator.serviceWorker.controller.postMessage({ type: 'PURGE_ALL' }); } catch(_){}
+    }
+    setTimeout(_doReload, 500);
+  };
+
   window.addEventListener('load', function(){
-    navigator.serviceWorker.register('/sw.js').then(function(reg){
-      console.log('[PSM-PWA] SW registrado:', reg.scope);
-      // Check for update a cada 10 minutos (network-first ja resolve HTML stale)
-      setInterval(function(){ try{reg.update();}catch(e){console.error("[PSM v27.7]",e);} }, 600000);
-      // Notify user when new version is ready
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(function(reg){
+      console.log('[PSM-PWA v28] SW registrado:', reg.scope);
+
+      // Check update a cada 60s (era 10min - era muito tempo)
+      setInterval(function(){
+        try { reg.update(); } catch(_){}
+      }, 60000);
+
+      // Update imediato quando tab volta a ficar visivel (user voltou do celular/outra aba)
+      document.addEventListener('visibilitychange', function(){
+        if (document.visibilityState === 'visible') {
+          try { reg.update(); } catch(_){}
+        }
+      });
+
       reg.addEventListener('updatefound', function(){
         var nw = reg.installing;
-        if(!nw) return;
+        if (!nw) return;
         nw.addEventListener('statechange', function(){
-          if(nw.state === 'installed' && navigator.serviceWorker.controller){
-            // Ativa imediatamente a nova versao
-            try { nw.postMessage({type:'skipWaiting'}); } catch(e){console.error("[PSM v27.7]",e);}
-            try { toast('Nova versao disponivel — recarregue','ok'); } catch(e){console.error("[PSM v27.7]",e);}
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            // Nova versao disponivel — ativa imediatamente
+            try { nw.postMessage({ type: 'skipWaiting' }); } catch(_){}
+            _showUpdateBanner();
           }
         });
       });
-      // Reload automatico quando novo SW assume controle
-      var _reloading = false;
+
+      // controllerchange = SW novo assumiu → reload automatico
       navigator.serviceWorker.addEventListener('controllerchange', function(){
-        if(_reloading) return;
-        _reloading = true;
-        console.log('[PSM-PWA] novo SW ativo — recarregando');
-        setTimeout(function(){ window.location.reload(); }, 500);
+        console.log('[PSM-PWA v28] novo SW controlando — reload');
+        _doReload();
       });
-    }).catch(function(err){ console.warn('[PSM-PWA] SW falhou:', err); });
+
+      // Mensagens do SW (NEW_VERSION, PURGE_ALL_DONE, etc)
+      navigator.serviceWorker.addEventListener('message', function(ev){
+        var d = ev.data || {};
+        if (d.type === 'NEW_VERSION') {
+          console.log('[PSM-PWA v28] SW anunciou NEW_VERSION:', d.version);
+          _showUpdateBanner();
+        }
+        if (d.type === 'PURGE_ALL_DONE') {
+          console.log('[PSM-PWA v28] caches purgados pelo SW');
+        }
+      });
+
+    }).catch(function(err){ console.warn('[PSM-PWA v28] SW falhou:', err); });
   });
-}
+
+  // === VERSION CHECKER CLIENT-SIDE (defense-in-depth) ===
+  // Verifica /version.json a cada 60s. Se version > window.PSM_VERSION → banner.
+  var _clientVer = window.PSM_VERSION || '0';
+  function _checkVersion(){
+    fetch('/version.json?_=' + Date.now(), { cache: 'no-store' }).then(function(r){
+      if (!r.ok) return;
+      return r.json();
+    }).then(function(j){
+      if (!j || !j.version) return;
+      if (j.version !== _clientVer) {
+        console.log('[PSM-PWA v28] version mismatch: client=' + _clientVer + ' server=' + j.version);
+        _showUpdateBanner();
+      }
+    }).catch(function(){ /* offline - silencia */ });
+  }
+  // Primeiro check 30s apos load, depois a cada 60s
+  setTimeout(_checkVersion, 30000);
+  setInterval(_checkVersion, 60000);
+  // Check quando user volta pra tab
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'visible') setTimeout(_checkVersion, 1000);
+  });
+})();
 // ─── UTILS ───────────────────────────────────────────────────────────────────
 const fmt=n=>{if(n===null||n===undefined||isNaN(n))return'—';return'R$ '+Math.round(n).toLocaleString('pt-BR');};
 const pN=(v,t)=>t>0?parseFloat((v/t*100).toFixed(2)):0;
