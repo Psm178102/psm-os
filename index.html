@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v27.5 — 5 chaves CRITICAS adicionadas a sync (tabelaCatalog/kenloProps/competitorsState/perfilComp/notifPorUsuario) + 20+ handlers extras migrados saveState→persist (premiacoes/oportunidades/opEventos/opTreinamentos/canalAnonimo/mapPins/iaChat/veraHist/tickerMsgs/perfilComp/radar/fluxoCaixa/setTabelaRef/talentosSeed/ooSheetCache/miUpd/ooSheetAbandoned). Bugs encontrados: dados sumiam ao recarregar/cross-device. -->
+<!-- PSM-OS v2026.04.21-v27.6 — SECURITY: AES-GCM substitui btoa em psm_remember_pw. Adiciona psmEncryptCred/psmDecryptCred com chave AES-256 em IndexedDB, fallback localStorage. doLogin agora encripta senha; _tryRememberLogin descripta + auto-migra legado btoa→AES. Antes: btoa(senha) leia em texto claro de qq aba devTools. Agora: AES-GCM authenticated encryption. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -10181,11 +10181,16 @@ async function doLogin() {
     }).catch(function(e){ console.warn('[psm-sb bridge] fail', e); });
   }
 
-  // Manter conectado — salvar ou limpar
+  // Manter conectado — salvar ou limpar (v27.6: AES-GCM no lugar de btoa)
   if (_rememberChecked) {
     localStorage.setItem('psm_remember', '1');
     localStorage.setItem('psm_remember_email', email);
-    localStorage.setItem('psm_remember_pw', btoa(senha));
+    try {
+      var _enc = await window.psmEncryptCred(senha);
+      localStorage.setItem('psm_remember_pw', _enc || ('b64:'+btoa(senha)));
+    } catch(_) {
+      localStorage.setItem('psm_remember_pw', 'b64:'+btoa(senha));
+    }
   } else {
     localStorage.removeItem('psm_remember');
     localStorage.removeItem('psm_remember_email');
@@ -28348,13 +28353,28 @@ function _fillRememberedLogin() {
 }
 
 // Auto-login "Manter conectado" — v22l: async por causa de SHA-256 check
+// v27.6: descripta AES-GCM + auto-migra legado btoa
 async function _tryRememberLogin() {
   if (S.user) return;
   if (localStorage.getItem('psm_remember') !== '1') return;
   var em = localStorage.getItem('psm_remember_email');
   var pw = localStorage.getItem('psm_remember_pw');
   if (!em || !pw) return;
-  try { pw = atob(pw); } catch(e) { return; }
+  var senha = '';
+  if (typeof window.psmDecryptCred === 'function') {
+    try { senha = await window.psmDecryptCred(pw); } catch(_) { senha = ''; }
+  } else {
+    try { senha = atob(pw); } catch(_) { return; }
+  }
+  if (!senha) return;
+  // Auto-migra legado btoa puro -> AES-GCM
+  if (pw.indexOf('aes:') !== 0 && typeof window.psmEncryptCred === 'function') {
+    try {
+      var _newEnc = await window.psmEncryptCred(senha);
+      if (_newEnc) localStorage.setItem('psm_remember_pw', _newEnc);
+    } catch(_){}
+  }
+  var pw_orig = pw; pw = senha;
   var uid = await _localLogin(em, pw);
   if (!uid) return;
   var user = USERS_BASE.find(function(u){ return u.id === uid; });
@@ -29018,6 +29038,116 @@ window.psmCheckPassword = async function(plain, stored){
   // legado plain
   return plain === stored;
 };
+
+// ═══ v27.6: AES-GCM CREDENCIAIS (substitui btoa para psm_remember_pw) ════════
+// Chave AES gerada por dispositivo, persistida em IndexedDB (mais dificil de extrair que localStorage)
+// Fallback: localStorage com prefixo 'psmck:' caso IndexedDB falhe
+(function _psmCredCryptoInit(){
+  var DB_NAME='psmCredKey', STORE='k', KEY_ID='aesGcm256';
+  var _keyCache=null;
+  function _idbOpen(){
+    return new Promise(function(res,rej){
+      try{
+        var r=indexedDB.open(DB_NAME,1);
+        r.onupgradeneeded=function(){ try{r.result.createObjectStore(STORE);}catch(_){} };
+        r.onsuccess=function(){res(r.result);};
+        r.onerror=function(){rej(r.error);};
+      }catch(e){rej(e);}
+    });
+  }
+  function _idbGet(){
+    return _idbOpen().then(function(db){
+      return new Promise(function(res,rej){
+        try{
+          var tx=db.transaction(STORE,'readonly');
+          var rq=tx.objectStore(STORE).get(KEY_ID);
+          rq.onsuccess=function(){res(rq.result||null);};
+          rq.onerror=function(){rej(rq.error);};
+        }catch(e){rej(e);}
+      });
+    });
+  }
+  function _idbPut(jwk){
+    return _idbOpen().then(function(db){
+      return new Promise(function(res,rej){
+        try{
+          var tx=db.transaction(STORE,'readwrite');
+          tx.objectStore(STORE).put(jwk,KEY_ID);
+          tx.oncomplete=function(){res(true);};
+          tx.onerror=function(){rej(tx.error);};
+        }catch(e){rej(e);}
+      });
+    });
+  }
+  async function _getKey(){
+    if(_keyCache) return _keyCache;
+    if(!window.crypto || !window.crypto.subtle) throw new Error('SubtleCrypto indisponivel');
+    var jwk=null;
+    try{ jwk=await _idbGet(); }catch(_){}
+    if(!jwk){
+      // tenta fallback localStorage
+      try{
+        var raw=localStorage.getItem('psmck_aes');
+        if(raw) jwk=JSON.parse(raw);
+      }catch(_){}
+    }
+    if(jwk){
+      try{
+        _keyCache=await crypto.subtle.importKey('jwk',jwk,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+        return _keyCache;
+      }catch(_){jwk=null;}
+    }
+    // Gera nova chave
+    var k=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']);
+    var exported=await crypto.subtle.exportKey('jwk',k);
+    try{ await _idbPut(exported); }catch(_){
+      try{ localStorage.setItem('psmck_aes',JSON.stringify(exported)); }catch(_){}
+    }
+    _keyCache=k;
+    return k;
+  }
+  function _b64FromBytes(bytes){
+    var s=''; for(var i=0;i<bytes.length;i++) s+=String.fromCharCode(bytes[i]); return btoa(s);
+  }
+  function _bytesFromB64(b64){
+    var s=atob(b64); var a=new Uint8Array(s.length); for(var i=0;i<s.length;i++) a[i]=s.charCodeAt(i); return a;
+  }
+  window.psmEncryptCred=async function(plain){
+    if(!plain) return '';
+    try{
+      var key=await _getKey();
+      var iv=crypto.getRandomValues(new Uint8Array(12));
+      var enc=new TextEncoder().encode(plain);
+      var ct=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},key,enc);
+      return 'aes:'+_b64FromBytes(iv)+'.'+_b64FromBytes(new Uint8Array(ct));
+    }catch(e){
+      // Fallback: btoa (nao seguro, ultimo recurso pra nao quebrar)
+      console.warn('[v27.6] AES encrypt fail, fallback btoa', e);
+      try{ return 'b64:'+btoa(unescape(encodeURIComponent(plain))); }catch(_){ return ''; }
+    }
+  };
+  window.psmDecryptCred=async function(stored){
+    if(!stored) return '';
+    if(typeof stored!=='string') return '';
+    if(stored.indexOf('aes:')===0){
+      try{
+        var rest=stored.slice(4);
+        var dot=rest.indexOf('.');
+        if(dot<0) return '';
+        var iv=_bytesFromB64(rest.slice(0,dot));
+        var ct=_bytesFromB64(rest.slice(dot+1));
+        var key=await _getKey();
+        var pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:iv},key,ct);
+        return new TextDecoder().decode(pt);
+      }catch(e){ console.warn('[v27.6] AES decrypt fail', e); return ''; }
+    }
+    if(stored.indexOf('b64:')===0){
+      try{ return decodeURIComponent(escape(atob(stored.slice(4)))); }catch(_){ return ''; }
+    }
+    // Legado: btoa puro (psm_remember_pw pre-v27.6)
+    try{ return atob(stored); }catch(_){ return ''; }
+  };
+})();
 
 // ═══ FIREBASE FAIL COUNTER (3x consecutivos = aviso visivel) ══════════
 var _fbFailCount = 0;
