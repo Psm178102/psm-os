@@ -1,11 +1,11 @@
 // ═════════════════════════════════════════════════════════════════════════════
-// PSM OS — Service Worker v27.6 (2026-04-21 — AES-GCM remember_pw substitui btoa: psmEncryptCred/psmDecryptCred + chave em IndexedDB + auto-migra legado)
+// PSM OS — Service Worker v27.7 (2026-04-21 — iOS COMPAT: migra confirm()/prompt() residuais para psmConfirm/psmPrompt; mantem AES-GCM remember_pw)
 // Estratégia: NETWORK-FIRST para HTML (resolve cache stale), CACHE-FIRST assets.
 // Limpa caches antigos automaticamente no activate.
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const CACHE_VERSION = 'psm-os-v27.6-2026-04-21-aes-gcm-remember-pw';
+const CACHE_VERSION = 'psm-os-v27.7-2026-04-21-ios-compat-confirm-prompt';
 const HTML_CACHE    = CACHE_VERSION + '-html';
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

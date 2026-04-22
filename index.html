@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.21-v27.6 — SECURITY: AES-GCM substitui btoa em psm_remember_pw. Adiciona psmEncryptCred/psmDecryptCred com chave AES-256 em IndexedDB, fallback localStorage. doLogin agora encripta senha; _tryRememberLogin descripta + auto-migra legado btoa→AES. Antes: btoa(senha) leia em texto claro de qq aba devTools. Agora: AES-GCM authenticated encryption. -->
+<!-- PSM-OS v2026.04.21-v27.7 — iOS COMPAT: migra 41 confirm() + ~30 prompt() para psmConfirm/psmPrompt (iOS Capacitor WebView nao renderiza dialogs nativos do browser). Mantem v27.6: AES-GCM em psm_remember_pw + auto-migra legado. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -1559,16 +1559,18 @@ function ooGetSheetLink(bid) {
   return (S.ooSheetLinks||{})[bid] || OO_SHEET_DEFAULTS[bid] || '';
 }
 
-function ooToggleSheetAbandoned(bid, name) {
+async function ooToggleSheetAbandoned(bid, name) {
   if (!S.user || (S.user.lvl||0) < 5) { toast('Apenas diretores.','warn'); return; }
   if (!S.ooSheetAbandoned) S.ooSheetAbandoned = {};
   var cur = S.ooSheetAbandoned[bid] || false;
   if (cur) {
-    if (!confirm('Reativar vínculo da planilha para '+name+'?\n\nSistema vai voltar a buscar dados da Google Sheet.')) return;
+    var ok1 = await psmConfirm('Reativar vínculo da planilha para '+name+'?\n\nSistema vai voltar a buscar dados da Google Sheet.');
+    if (!ok1) return;
     persist('ooSheetReativar', function(){ delete S.ooSheetAbandoned[bid]; });
     toast('📊 Planilha de '+name+' REATIVADA','ok');
   } else {
-    if (!confirm('⚠️ Abandonar planilha de '+name+'?\n\n• Sistema PARA de buscar dados da Google Sheet\n• Histórico já importado em S.ooImportado é preservado\n• Novos lançamentos só no sistema\n• Reversível (pode reativar depois)\n\nIMPORTANTE: garanta que você já importou o histórico antes!\n\nContinuar?')) return;
+    var ok2 = await psmConfirm('⚠️ Abandonar planilha de '+name+'?\n\n• Sistema PARA de buscar dados da Google Sheet\n• Histórico já importado em S.ooImportado é preservado\n• Novos lançamentos só no sistema\n• Reversível (pode reativar depois)\n\nIMPORTANTE: garanta que você já importou o histórico antes!\n\nContinuar?', {danger:true});
+    if (!ok2) return;
     persist('ooSheetAbandonar', function(){ S.ooSheetAbandoned[bid] = Date.now(); });
     if (typeof ooAudit === 'function') ooAudit('planilha', bid, '-', 'abandoned', 'false', 'true');
     toast('🚫 Planilha de '+name+' ABANDONADA. Só sistema agora.','ok');
@@ -1840,15 +1842,16 @@ window.psmRestoreFromIdb = function(){
   if (!_psmIdb) { alert('IndexedDB indisponivel neste navegador.'); return; }
   var tx = _psmIdb.transaction('snapshots','readonly');
   var req = tx.objectStore('snapshots').get('last');
-  req.onsuccess = function(e){
+  req.onsuccess = async function(e){
     var r = e.target.result;
-    if (!r || !r.data) { alert('Nenhum snapshot IDB encontrado.'); return; }
-    if (!confirm('Restaurar backup IndexedDB de '+new Date(r.ts).toLocaleString('pt-BR')+'?')) return;
+    if (!r || !r.data) { (window.psmAlert||alert)('Nenhum snapshot IDB encontrado.'); return; }
+    var ok = await psmConfirm('Restaurar backup IndexedDB de '+new Date(r.ts).toLocaleString('pt-BR')+'?');
+    if (!ok) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(r.data));
       toast('✅ Backup IDB restaurado. Recarregando...','ok');
       setTimeout(function(){ location.reload(); }, 800);
-    } catch(e){ alert('Erro: '+e.message); }
+    } catch(e){ (window.psmAlert||alert)('Erro: '+e.message); }
   };
 };
 
@@ -2338,10 +2341,11 @@ function fbListBackups() {
   });
 }
 
-function fbRestoreBackup(ts) {
+async function fbRestoreBackup(ts) {
   if (!_fbReady || !_fbDb) { toast('Firebase não conectado','err'); return; }
   if (!S.user || (S.user.lvl||0) < 5) { toast('Apenas diretores.','warn'); return; }
-  if (!confirm('⚠️ RESTAURAR backup de ' + new Date(ts).toLocaleString('pt-BR') + '?\n\n• Vai MESCLAR com dados atuais (dados do backup prevalecem em conflito)\n• Um snapshot do estado atual é salvo automaticamente antes\n• Operação reversível restaurando outro backup\n\nContinuar?')) return;
+  var ok = await psmConfirm('⚠️ RESTAURAR backup de ' + new Date(ts).toLocaleString('pt-BR') + '?\n\n• Vai MESCLAR com dados atuais (dados do backup prevalecem em conflito)\n• Um snapshot do estado atual é salvo automaticamente antes\n• Operação reversível restaurando outro backup\n\nContinuar?', {danger:true});
+  if (!ok) return;
   // Snapshot do estado atual antes
   fbSaveBackup('pre-restore').then(function(){
     return _fbDb.ref('backups/' + ts).once('value');
@@ -3291,9 +3295,9 @@ function pgAgendaPSM(){
     toast('\u2705 Reuni\u00e3o cadastrada','ok');S.agendaFormType=null;render();
     _agNotifyAll('\uD83E\uDD1D Nova Reuni\u00e3o: '+t+' em '+g('ag_re_data'), g('ag_re_part'));
   };
-  window.agRemoveEvento=function(i){if(confirm('Remover este evento?')){persist('agRemoveEvento',function(){S.opEventos.splice(i,1);});render();}};
-  window.agRemoveTreinamento=function(i){if(confirm('Remover este treinamento?')){persist('agRemoveTreinamento',function(){S.opTreinamentos.splice(i,1);});render();}};
-  window.agRemoveReuniao=function(i){if(!S.agendaReunioes)return;if(confirm('Remover esta reuni\u00e3o?')){persist('agRemoveReuniao',function(){S.agendaReunioes.splice(i,1);});render();}};
+  window.agRemoveEvento=function(i){psmConfirm('Remover este evento?',{danger:true}).then(function(ok){if(ok){persist('agRemoveEvento',function(){S.opEventos.splice(i,1);});render();}});};
+  window.agRemoveTreinamento=function(i){psmConfirm('Remover este treinamento?',{danger:true}).then(function(ok){if(ok){persist('agRemoveTreinamento',function(){S.opTreinamentos.splice(i,1);});render();}});};
+  window.agRemoveReuniao=function(i){if(!S.agendaReunioes)return;psmConfirm('Remover esta reuni\u00e3o?',{danger:true}).then(function(ok){if(ok){persist('agRemoveReuniao',function(){S.agendaReunioes.splice(i,1);});render();}});};
   window.agSaveConfig=function(){
     var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
     persist('agSaveConfig',function(){ S.agendaConfig={googleAgendaApi:g('ag_cfg_google'),zohoMailApi:g('ag_cfg_zoho')}; });
@@ -3306,7 +3310,7 @@ function pgAgendaPSM(){
     toast('\u2705 Capta\u00e7\u00e3o de Conte\u00fado cadastrada','ok');S.agendaFormType=null;render();
     _agNotifyAll('\uD83D\uDCF8 Nova Capta\u00e7\u00e3o de Conte\u00fado: '+t+' em '+g('ag_cc_data'), g('ag_cc_env'));
   };
-  window.agRemoveCaptConteudo=function(i){if(confirm('Remover esta capta\u00e7\u00e3o de conte\u00fado?')){persist('agRemoveCaptConteudo',function(){S.agendaCaptConteudo.splice(i,1);});render();}};
+  window.agRemoveCaptConteudo=function(i){psmConfirm('Remover esta capta\u00e7\u00e3o de conte\u00fado?',{danger:true}).then(function(ok){if(ok){persist('agRemoveCaptConteudo',function(){S.agendaCaptConteudo.splice(i,1);});render();}});};
   window.agSaveCaptImovel=function(){
     var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
     var t=g('ag_ci_titulo');if(!t){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
@@ -3314,7 +3318,7 @@ function pgAgendaPSM(){
     toast('\u2705 Capta\u00e7\u00e3o de Im\u00f3vel cadastrada','ok');S.agendaFormType=null;render();
     _agNotifyAll('\uD83C\uDFE2 Nova Capta\u00e7\u00e3o de Im\u00f3vel: '+t+' em '+g('ag_ci_data'), g('ag_ci_env'));
   };
-  window.agRemoveCaptImovel=function(i){if(confirm('Remover esta capta\u00e7\u00e3o de im\u00f3vel?')){persist('agRemoveCaptImovel',function(){S.agendaCaptImovel.splice(i,1);});render();}};
+  window.agRemoveCaptImovel=function(i){psmConfirm('Remover esta capta\u00e7\u00e3o de im\u00f3vel?',{danger:true}).then(function(ok){if(ok){persist('agRemoveCaptImovel',function(){S.agendaCaptImovel.splice(i,1);});render();}});};
 
   function _agSave(){persist('agSave',function(){});}
   function _agNotifyAll(msg, envolvidosTxt){
@@ -7745,8 +7749,9 @@ window.publicarRecadoDir = function(){
   }
   render();
 };
-window.removerRecadoDir = function(id){
-  if(!confirm('Remover este recado?')) return;
+window.removerRecadoDir = async function(id){
+  var ok = await psmConfirm('Remover este recado?',{danger:true});
+  if(!ok) return;
   // FIX v27.1: persist garante sync
   persist('recado-arena-del', function(){
     S.arenaRecados = (S.arenaRecados||[]).filter(function(r){return r.id!==id;});
@@ -7855,11 +7860,11 @@ window.psmLiveAdd = function(){
   if(typeof notifPush==='function') notifPush({title:'📡 PSM Live', body:msg.trim().slice(0,80), cat:'recado'});
   render();
 };
-window.psmLiveEdit = function(id){
+window.psmLiveEdit = async function(id){
   var it = (S.timelineItems||[]).find(function(x){return x.id===id;}); if(!it) return;
-  var msg = prompt('Mensagem:', it.txt); if(msg===null) return;
-  var dias = prompt('Expira em quantos dias? (0=perpétuo)', it.exp?Math.max(1,Math.round((it.exp-Date.now())/86400000)):'0');
-  if(dias===null) return;
+  var msg = await psmPrompt('Mensagem:', it.txt); if(msg===null||msg===undefined) return;
+  var dias = await psmPrompt('Expira em quantos dias? (0=perpétuo)', it.exp?Math.max(1,Math.round((it.exp-Date.now())/86400000)):'0');
+  if(dias===null||dias===undefined) return;
   // FIX v27.1: persist garante sync
   persist('psm-live-edit', function(){
     it.txt = msg.trim();
@@ -7869,8 +7874,9 @@ window.psmLiveEdit = function(id){
   });
   render();
 };
-window.psmLiveDel = function(id){
-  if(!confirm('Remover item da PSM Live?')) return;
+window.psmLiveDel = async function(id){
+  var ok = await psmConfirm('Remover item da PSM Live?',{danger:true});
+  if(!ok) return;
   // FIX v27.1: persist garante sync
   persist('psm-live-del', function(){
     S.timelineItems = (S.timelineItems||[]).filter(function(x){return x.id!==id;});
@@ -7972,40 +7978,41 @@ function pgOrganograma(){
   h += '</div>';
   return h;
 }
-window.orgAddNode = function(){
-  var nome = prompt('Nome do novo setor/função/equipe:'); if(!nome) return;
-  var tipo = prompt('Tipo (socio, setor, equipe, funcao):','setor') || 'setor';
-  var parent = prompt('ID do pai (ex: root, ip, paulo, ma, isa):','root') || 'root';
+window.orgAddNode = async function(){
+  var nome = await psmPrompt('Nome do novo setor/função/equipe:'); if(!nome) return;
+  var tipo = (await psmPrompt('Tipo (socio, setor, equipe, funcao):','setor')) || 'setor';
+  var parent = (await psmPrompt('ID do pai (ex: root, ip, paulo, ma, isa):','root')) || 'root';
   if(!S.organograma.nodes.find(function(n){return n.id===parent;}) && parent!=='root'){ toast('Pai não encontrado','err'); return; }
   persist('orgAddNode',function(){
     S.organograma.nodes.push({id:'n_'+Date.now(), parent:parent, nome:nome, tipo:tipo});
   });
   render();
 };
-window.orgAddChild = function(parentId){
-  var nome = prompt('Nome do novo filho:'); if(!nome) return;
-  var tipo = prompt('Tipo (setor, equipe, funcao):','setor') || 'setor';
+window.orgAddChild = async function(parentId){
+  var nome = await psmPrompt('Nome do novo filho:'); if(!nome) return;
+  var tipo = (await psmPrompt('Tipo (setor, equipe, funcao):','setor')) || 'setor';
   persist('orgAddChild',function(){
     S.organograma.nodes.push({id:'n_'+Date.now(), parent:parentId, nome:nome, tipo:tipo});
   });
   render();
 };
-window.orgEditNode = function(id){
+window.orgEditNode = async function(id){
   var n = (id==='root') ? S.organograma.raiz : S.organograma.nodes.find(function(x){return x.id===id;});
   if(!n) return;
-  var nome = prompt('Nome:', n.nome); if(nome===null) return;
-  var funcao = prompt('Função (opcional):', n.funcao||'');
-  var resp = prompt('Responsável (opcional):', n.responsavel||'');
+  var nome = await psmPrompt('Nome:', n.nome); if(nome===null||nome===undefined) return;
+  var funcao = await psmPrompt('Função (opcional):', n.funcao||'');
+  var resp = await psmPrompt('Responsável (opcional):', n.responsavel||'');
   persist('orgEditNode',function(){
     n.nome = nome;
-    if(funcao!==null) n.funcao = funcao;
-    if(resp!==null) n.responsavel = resp;
+    if(funcao!==null && funcao!==undefined) n.funcao = funcao;
+    if(resp!==null && resp!==undefined) n.responsavel = resp;
   });
   render();
 };
-window.orgDelNode = function(id){
+window.orgDelNode = async function(id){
   if(id==='root'){ toast('Raiz não pode ser removida','err'); return; }
-  if(!confirm('Remover este nó e todos os filhos?')) return;
+  var ok = await psmConfirm('Remover este nó e todos os filhos?',{danger:true});
+  if(!ok) return;
   function collectIds(pid){
     var r = [pid];
     S.organograma.nodes.filter(function(n){return n.parent===pid;}).forEach(function(c){ r = r.concat(collectIds(c.id)); });
@@ -8017,8 +8024,9 @@ window.orgDelNode = function(id){
   });
   render();
 };
-window.orgReset = function(){
-  if(!confirm('Restaurar organograma padrão PSM 4.0?')) return;
+window.orgReset = async function(){
+  var ok = await psmConfirm('Restaurar organograma padrão PSM 4.0?',{danger:true});
+  if(!ok) return;
   persist('orgReset',function(){ S.organograma = _orgSeed(); });
   render();
 };
@@ -8206,20 +8214,21 @@ window.gpAddTreinamento = function(){
   if(typeof notifPush==='function') notifPush({title:'🎓 Treinamento mapeado', body:tit, cat:'agenda'});
   render();
 };
-window.gpEditTreinamento = function(id){
+window.gpEditTreinamento = async function(id){
   var t = (S.gpTreinamentos||[]).find(function(x){return x.id===id;}); if(!t) return;
-  var tit = prompt('Título:', t.titulo); if(tit===null) return;
-  var pub = prompt('Público-alvo:', t.publico||''); if(pub===null) return;
-  var st = prompt('Status (planejado/em_andamento/concluido):', t.status||'planejado'); if(st===null) return;
-  var cont = prompt('Conteúdo:', t.conteudo||''); if(cont===null) return;
+  var tit = await psmPrompt('Título:', t.titulo); if(tit===null||tit===undefined) return;
+  var pub = await psmPrompt('Público-alvo:', t.publico||''); if(pub===null||pub===undefined) return;
+  var st = await psmPrompt('Status (planejado/em_andamento/concluido):', t.status||'planejado'); if(st===null||st===undefined) return;
+  var cont = await psmPrompt('Conteúdo:', t.conteudo||''); if(cont===null||cont===undefined) return;
   // FIX v27.2: persist
   persist('gp-treinamento-edit', function(){
     t.titulo = tit; t.publico = pub; t.status = st; t.conteudo = cont; t._updatedAt = Date.now();
   });
   render();
 };
-window.gpDelTreinamento = function(id){
-  if(!confirm('Remover treinamento?')) return;
+window.gpDelTreinamento = async function(id){
+  var ok = await psmConfirm('Remover treinamento?',{danger:true});
+  if(!ok) return;
   // FIX v27.2: persist
   persist('gp-treinamento-del', function(){
     S.gpTreinamentos = (S.gpTreinamentos||[]).filter(function(x){return x.id!==id;});
@@ -8284,8 +8293,9 @@ window.gpAddReuniao = function(){
   if(typeof notifPush==='function') notifPush({title:'📅 Reunião registrada', body:(BROKERS.find(function(x){return x.id===bid;})||{name:''}).name, cat:'agenda'});
   render();
 };
-window.gpDelReuniao = function(id){
-  if(!confirm('Remover reunião?')) return;
+window.gpDelReuniao = async function(id){
+  var ok = await psmConfirm('Remover reunião?',{danger:true});
+  if(!ok) return;
   // FIX v27.2: persist
   persist('gp-reuniao-del', function(){
     S.gpReunioes = (S.gpReunioes||[]).filter(function(x){return x.id!==id;});
@@ -8360,23 +8370,25 @@ window.gpAddTalento = function(){
   });
   render();
 };
-window.gpEditTalento = function(id){
+window.gpEditTalento = async function(id){
   var t = (S.gpTalentos||[]).find(function(x){return x.id===id;}); if(!t) return;
-  var nome = prompt('Nome:', t.nome); if(nome===null) return;
-  var email = prompt('E-mail:', t.email||''); if(email===null) return;
-  var contato = prompt('Contato:', t.contato||''); if(contato===null) return;
-  var instagram = prompt('@ Instagram (sem @):', (t.instagram||'').replace(/^@/,'')); if(instagram===null) return;
-  var setor = prompt('Setor/Origem:', t.setor||''); if(setor===null) return;
-  var funcao = prompt('Função/Local Atual:', t.funcao||''); if(funcao===null) return;
-  var cenario = prompt('Cenário:', t.cenario||''); if(cenario===null) return;
+  var _u=function(v){return v===null||v===undefined;};
+  var nome = await psmPrompt('Nome:', t.nome); if(_u(nome)) return;
+  var email = await psmPrompt('E-mail:', t.email||''); if(_u(email)) return;
+  var contato = await psmPrompt('Contato:', t.contato||''); if(_u(contato)) return;
+  var instagram = await psmPrompt('@ Instagram (sem @):', (t.instagram||'').replace(/^@/,'')); if(_u(instagram)) return;
+  var setor = await psmPrompt('Setor/Origem:', t.setor||''); if(_u(setor)) return;
+  var funcao = await psmPrompt('Função/Local Atual:', t.funcao||''); if(_u(funcao)) return;
+  var cenario = await psmPrompt('Cenário:', t.cenario||''); if(_u(cenario)) return;
   // FIX v27.2: persist
   persist('gp-talento-edit', function(){
     t.nome = nome; t.email = email; t.contato = contato; t.instagram = (instagram||'').replace(/^@/,''); t.setor = setor; t.funcao = funcao; t.cenario = cenario; t._updatedAt = Date.now();
   });
   render();
 };
-window.gpDelTalento = function(id){
-  if(!confirm('Remover talento?')) return;
+window.gpDelTalento = async function(id){
+  var ok = await psmConfirm('Remover talento?',{danger:true});
+  if(!ok) return;
   // FIX v27.2: persist
   persist('gp-talento-del', function(){
     S.gpTalentos = (S.gpTalentos||[]).filter(function(x){return x.id!==id;});
@@ -8588,20 +8600,22 @@ window.locAddContrato = function(){
   });
   render();
 };
-window.locDelContrato = function(id){
-  if(!confirm('Remover contrato?')) return;
+window.locDelContrato = async function(id){
+  var ok = await psmConfirm('Remover contrato?',{danger:true});
+  if(!ok) return;
   // FIX v27.2: persist
   persist('loc-contrato-del', function(){
     S.locContratos = (S.locContratos||[]).filter(function(x){return x.id!==id;});
   });
   render();
 };
-window.locEditContrato = function(id){
+window.locEditContrato = async function(id){
   var c = (S.locContratos||[]).find(function(x){return x.id===id;}); if(!c) return;
-  var v = prompt('Valor aluguel:', c.valor); if(v===null) return;
-  var fim = prompt('Fim (YYYY-MM-DD):', c.fim||''); if(fim===null) return;
-  var st = prompt('Status (ativo/encerrado/inadimplente):', c.status||'ativo'); if(st===null) return;
-  var segV = prompt('Venc. seguro (YYYY-MM-DD):', c.segVenc||''); if(segV===null) return;
+  var _u=function(v){return v===null||v===undefined;};
+  var v = await psmPrompt('Valor aluguel:', c.valor); if(_u(v)) return;
+  var fim = await psmPrompt('Fim (YYYY-MM-DD):', c.fim||''); if(_u(fim)) return;
+  var st = await psmPrompt('Status (ativo/encerrado/inadimplente):', c.status||'ativo'); if(_u(st)) return;
+  var segV = await psmPrompt('Venc. seguro (YYYY-MM-DD):', c.segVenc||''); if(_u(segV)) return;
   // FIX v27.2: persist
   persist('loc-contrato-edit', function(){
     c.valor = parseFloat(v)||0; c.fim = fim; c.status = st; c.segVenc = segV; c._updatedAt = Date.now();
@@ -11152,8 +11166,9 @@ function ooSaveFunilCustom(frente) {
   render();
 }
 
-function ooResetFunilCustom(frente) {
-  if (!confirm('Restaurar o funil padrão para ' + frente + '?')) return;
+async function ooResetFunilCustom(frente) {
+  var ok = await psmConfirm('Restaurar o funil padrão para ' + frente + '?');
+  if (!ok) return;
   // FIX v27.4: persist
   persist('ooFunilCustomReset', function(){
     if (S.ooFunilCustom) delete S.ooFunilCustom[frente];
@@ -11253,8 +11268,9 @@ function ooSaveLateralCustom(frente) {
   toast('\u2705 Indicadores laterais salvos para ' + frente + '!','ok');
   render();
 }
-function ooResetLateralCustom(frente) {
-  if (!confirm('Restaurar os indicadores laterais padr\u00e3o para ' + frente + '?')) return;
+async function ooResetLateralCustom(frente) {
+  var ok = await psmConfirm('Restaurar os indicadores laterais padr\u00e3o para ' + frente + '?');
+  if (!ok) return;
   // FIX v27.4: persist
   persist('ooLateralCustomReset', function(){
     if (S.ooLateralCustom) delete S.ooLateralCustom[frente];
@@ -13473,8 +13489,9 @@ window.perfilCompSelecionar = function(qIdx, letra){
   render();
 };
 
-window.perfilCompLimpar = function(){
-  if(!confirm('Limpar todas respostas?')) return;
+window.perfilCompLimpar = async function(){
+  var ok = await psmConfirm('Limpar todas respostas?');
+  if(!ok) return;
   S.perfilCompDraft = {};
   render();
 };
@@ -13506,8 +13523,9 @@ window.perfilCompFinalizar = function(bid){
   render();
 };
 
-window.perfilCompRefazer = function(bid){
-  if(!confirm('Refazer avaliação? O perfil atual será mantido até uma nova finalização.')) return;
+window.perfilCompRefazer = async function(bid){
+  var ok = await psmConfirm('Refazer avaliação? O perfil atual será mantido até uma nova finalização.');
+  if(!ok) return;
   S.perfilCompDraft = {};
   if(S.perfilComp && S.perfilComp[bid]) S.perfilComp[bid]._refazendo = true;
   render();
@@ -13614,10 +13632,10 @@ function renderPerfilCompTab(bid, user, lvl){
   return h;
 }
 
-function ooEditSheet(bid, name) {
+async function ooEditSheet(bid, name) {
   const current = ooGetSheetLink(bid);
-  const url = prompt('Cole o link da planilha Google Sheets para ' + name + ':', current);
-  if (url === null) return; // cancelled
+  const url = await psmPrompt('Cole o link da planilha Google Sheets para ' + name + ':', current);
+  if (url === null || url === undefined) return; // cancelled
   if (!S.ooSheetLinks) S.ooSheetLinks = {};
   if (url.trim()) {
     S.ooSheetLinks[bid] = url.trim();
@@ -13717,8 +13735,8 @@ function ooDecField(bid, monthKey, dayKey, fieldKey) {
 }
 
 // ===== ROTINA (OKRs semanais) helpers =====
-function ooRotinaAddObj(bid, weekKey) {
-  var txt = prompt('Qual o objetivo da semana?');
+async function ooRotinaAddObj(bid, weekKey) {
+  var txt = await psmPrompt('Qual o objetivo da semana?');
   if (!txt || !txt.trim()) return;
   if (!S.ooRotina) S.ooRotina = {};
   if (!S.ooRotina[bid]) S.ooRotina[bid] = {};
@@ -13743,8 +13761,8 @@ function ooRotinaRemoveObj(bid, weekKey, idx) {
   persist('ooRotinaRemoveObj', function(){ o.obj.splice(idx, 1); });
   render();
 }
-function ooRotinaAddTask(bid, weekKey, dayIdx) {
-  var txt = prompt('Nova tarefa:');
+async function ooRotinaAddTask(bid, weekKey, dayIdx) {
+  var txt = await psmPrompt('Nova tarefa:');
   if (!txt || !txt.trim()) return;
   if (!S.ooRotina) S.ooRotina = {};
   if (!S.ooRotina[bid]) S.ooRotina[bid] = {};
@@ -13916,7 +13934,8 @@ async function ooImportarHistoricoCompleto() {
     toast('Importação já em andamento.','warn');
     return;
   }
-  if (!confirm('⚠️ Importar histórico completo das 9 planilhas?\n\nIsso vai varrer todas as abas mensais (2025-01 a mês atual) de cada corretor e gravar em S.ooImportado.\n\n• Cria backup antes\n• Não sobrescreve S.ooDaily\n• Registra no ooAuditLog\n\nContinuar?')) return;
+  var _okHist = await psmConfirm('⚠️ Importar histórico completo das 9 planilhas?\n\nIsso vai varrer todas as abas mensais (2025-01 a mês atual) de cada corretor e gravar em S.ooImportado.\n\n• Cria backup antes\n• Não sobrescreve S.ooDaily\n• Registra no ooAuditLog\n\nContinuar?');
+  if (!_okHist) return;
 
   // Backup
   try {
@@ -14026,13 +14045,15 @@ function ooImportJSON(inputEl) {
   var file = inputEl && inputEl.files && inputEl.files[0];
   if (!file) return;
   var reader = new FileReader();
-  reader.onload = function(ev){
+  reader.onload = async function(ev){
     try {
       var data = JSON.parse(ev.target.result);
       if (data._type !== 'PSM_OS_1x1_EXPORT') {
-        if (!confirm('Arquivo não é backup 1:1 oficial. Tentar importar mesmo assim?')) return;
+        var _ok1 = await psmConfirm('Arquivo não é backup 1:1 oficial. Tentar importar mesmo assim?');
+        if (!_ok1) return;
       }
-      if (!confirm('⚠️ Importar backup?\n\nIsso MESCLA com dados atuais (não sobrescreve):\n• ooImportado, ooAuditLog, ooReunioes → merge por bid/monthKey\n• Dados do arquivo prevalecem quando há conflito\n\nCriar backup antes de continuar?')) return;
+      var _ok2 = await psmConfirm('⚠️ Importar backup?\n\nIsso MESCLA com dados atuais (não sobrescreve):\n• ooImportado, ooAuditLog, ooReunioes → merge por bid/monthKey\n• Dados do arquivo prevalecem quando há conflito\n\nCriar backup antes de continuar?');
+      if (!_ok2) return;
       // Backup antes
       try {
         localStorage.setItem('psm_os_oo_backup_preimportjson_' + Date.now(), JSON.stringify({
@@ -14311,8 +14332,8 @@ function ooSaveData(bid, field, value) {
 }
 
 // === Weekly objectives ===
-function ooAddObjSemana(bid, weekKey) {
-  var txt = prompt('Novo objetivo da semana:');
+async function ooAddObjSemana(bid, weekKey) {
+  var txt = await psmPrompt('Novo objetivo da semana:');
   if (!txt || !txt.trim()) return;
   if (!S.ooObjSemana) S.ooObjSemana = {};
   if (!S.ooObjSemana[bid]) S.ooObjSemana[bid] = {};
@@ -14339,8 +14360,8 @@ function ooRemoveObjSemana(bid, weekKey, idx) {
 }
 
 // === Monthly objectives ===
-function ooAddObjMes(bid, monthKey) {
-  var txt = prompt('Novo objetivo do m\u00eas:');
+async function ooAddObjMes(bid, monthKey) {
+  var txt = await psmPrompt('Novo objetivo do m\u00eas:');
   if (!txt || !txt.trim()) return;
   if (!S.ooObjMes) S.ooObjMes = {};
   if (!S.ooObjMes[bid]) S.ooObjMes[bid] = {};
@@ -14367,8 +14388,8 @@ function ooRemoveObjMes(bid, monthKey, idx) {
 }
 
 // === Pontos de Aten\u00e7\u00e3o ===
-function ooAddPontoAtencao(bid) {
-  var txt = prompt('Ponto de aten\u00e7\u00e3o / alerta:');
+async function ooAddPontoAtencao(bid) {
+  var txt = await psmPrompt('Ponto de aten\u00e7\u00e3o / alerta:');
   if (!txt || !txt.trim()) return;
   if (!S.ooPontosAtencao) S.ooPontosAtencao = {};
   if (!S.ooPontosAtencao[bid]) S.ooPontosAtencao[bid] = [];
@@ -14445,8 +14466,8 @@ function ooSaveObjetivo(bid, field, value) {
   persist('ooSaveObjetivo', function(){ S.ooObjetivo[bid][field] = value; });
 }
 
-function ooSetFoto(bid) {
-  var url = prompt('Cole a URL da imagem do objetivo/sonho do corretor:');
+async function ooSetFoto(bid) {
+  var url = await psmPrompt('Cole a URL da imagem do objetivo/sonho do corretor:');
   if (url === null) return;
   if (!S.ooObjetivo) S.ooObjetivo = {};
   if (!S.ooObjetivo[bid]) S.ooObjetivo[bid] = {};
@@ -15137,9 +15158,10 @@ function uploadTabelaFile(input){
   reader.onerror = function(){ alert('Erro ao ler arquivo.'); };
   reader.readAsDataURL(file);
 }
-function removeTabelaUpload(idx){
+async function removeTabelaUpload(idx){
   if(!Array.isArray(S.tabelaUploads)) return;
-  if(!confirm('Remover este arquivo?')) return;
+  var ok = await psmConfirm('Remover este arquivo?',{danger:true});
+  if(!ok) return;
   persist('tabelaUploadRemove',function(){ S.tabelaUploads.splice(idx,1); });
   if(typeof render==='function') render();
 }
@@ -15680,12 +15702,12 @@ function pgCaptacao() {
     // setTimeout for button bindings
     setTimeout(function() {
       var addBtn = document.querySelector('#cap-add');
-      if (addBtn) addBtn.onclick = function() {
-        var nome = prompt('Nome/Identificação do imóvel:');
+      if (addBtn) addBtn.onclick = async function() {
+        var nome = await psmPrompt('Nome/Identificação do imóvel:');
         if (!nome) return;
-        var tipo = prompt('Tipo (apartamento/casa/terreno/comercial):') || 'apartamento';
-        var bairro = prompt('Bairro:') || '\u2014';
-        var valor = prompt('Valor (R$):') || '0';
+        var tipo = (await psmPrompt('Tipo (apartamento/casa/terreno/comercial):')) || 'apartamento';
+        var bairro = (await psmPrompt('Bairro:')) || '\u2014';
+        var valor = (await psmPrompt('Valor (R$):')) || '0';
         var arr = JSON.parse(localStorage.getItem('psm_captacao') || '[]');
         arr.push({ nome:nome, tipo:tipo, bairro:bairro, valor: parseFloat(valor) || 0, status: 'ativo', data: new Date().toISOString().split('T')[0] });
         localStorage.setItem('psm_captacao', JSON.stringify(arr));
@@ -15805,8 +15827,10 @@ function pgFluxoCaptacoes() {
     render({force:true});
   };
   window.fcDelete=function(idx){
-    if(!confirm('Excluir esta capta\u00e7\u00e3o?'))return;
-    S.fcData.splice(idx,1);_fcSave();render({force:true});
+    psmConfirm('Excluir esta capta\u00e7\u00e3o?',{danger:true}).then(function(ok){
+      if(!ok) return;
+      S.fcData.splice(idx,1);_fcSave();render({force:true});
+    });
   };
   // ── Drag & Drop handlers ──
   window._fcDragIdx=null;
@@ -16095,7 +16119,7 @@ function pgTarefasPSM() {
     });
     render({force:true});toast('Tarefa movida para '+statusLbl(ns),'ok');
   };
-  window.tpDelete=function(idx){if(!confirm('Excluir esta tarefa?'))return;persist('tpDelete',function(){S.tpData.splice(idx,1);});render({force:true});};
+  window.tpDelete=function(idx){psmConfirm('Excluir esta tarefa?',{danger:true}).then(function(ok){if(!ok)return;persist('tpDelete',function(){S.tpData.splice(idx,1);});render({force:true});});};
   window.tpSaveForm=function(){
     var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
     var titulo=g('tp_titulo');if(!titulo){toast('T\u00edtulo obrigat\u00f3rio','warn');return;}
@@ -16844,10 +16868,10 @@ function pgFluxocaixa() {
     </div>
   </div>`;
   setTimeout(() => {
-    window.addFluxo = function(tipo) {
-      const desc = prompt('Descrição:'); if (!desc) return;
-      const valor = prompt('Valor (R$):'); if (!valor) return;
-      const categoria = prompt('Categoria:') || 'Geral';
+    window.addFluxo = async function(tipo) {
+      const desc = await psmPrompt('Descrição:'); if (!desc) return;
+      const valor = await psmPrompt('Valor (R$):'); if (!valor) return;
+      const categoria = (await psmPrompt('Categoria:')) || 'Geral';
       const d = JSON.parse(localStorage.getItem('psm_fluxocaixa') || '{"entradas":[],"saidas":[]}');
       if (!d[tipo]) d[tipo] = [];
       d[tipo].push({ descricao: desc, valor: parseFloat(valor) || 0, categoria, data: new Date().toISOString().split('T')[0] });
@@ -16939,8 +16963,8 @@ function pgDre() {
     </div>
   </div>`;
   setTimeout(() => {
-    window.editDre = function(key, label) {
-      const val = prompt('Valor para ' + label + ' (R$):');
+    window.editDre = async function(key, label) {
+      const val = await psmPrompt('Valor para ' + label + ' (R$):');
       if (val === null) return;
       const d = JSON.parse(localStorage.getItem('psm_dre') || '{}');
       d[key] = parseFloat(val) || 0;
@@ -16959,10 +16983,10 @@ function pgComissoes() {
   const totalPago = pagas.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
   const totalPendente = pendentes.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
   setTimeout(() => {
-  document.querySelector('#com-add').onclick = () => {
-    const corretor = prompt('Nome do corretor:'); if (!corretor) return;
-    const imovel = prompt('Im\u00f3vel:') || '\u2014';
-    const valor = prompt('Valor da comiss\u00e3o (R$):') || '0';
+  document.querySelector('#com-add').onclick = async () => {
+    const corretor = await psmPrompt('Nome do corretor:'); if (!corretor) return;
+    const imovel = (await psmPrompt('Im\u00f3vel:')) || '\u2014';
+    const valor = (await psmPrompt('Valor da comiss\u00e3o (R$):')) || '0';
     const arr = JSON.parse(localStorage.getItem('psm_comissoes') || '[]');
     arr.push({ corretor, imovel, valor: parseFloat(valor) || 0, status: 'pendente', data: new Date().toISOString().split('T')[0] });
     localStorage.setItem('psm_comissoes', JSON.stringify(arr));
@@ -17041,10 +17065,10 @@ function pgRepasses() {
   const realizados = repasses.filter(r => r.status === 'realizado');
   const agendados = repasses.filter(r => r.status !== 'realizado');
   setTimeout(() => {
-  document.querySelector('#rep-add').onclick = () => {
-    const descricao = prompt('Descri\u00e7\u00e3o do repasse:'); if (!descricao) return;
-    const destinatario = prompt('Destinat\u00e1rio:') || '\u2014';
-    const valor = prompt('Valor (R$):') || '0';
+  document.querySelector('#rep-add').onclick = async () => {
+    const descricao = await psmPrompt('Descri\u00e7\u00e3o do repasse:'); if (!descricao) return;
+    const destinatario = (await psmPrompt('Destinat\u00e1rio:')) || '\u2014';
+    const valor = (await psmPrompt('Valor (R$):')) || '0';
     const arr = JSON.parse(localStorage.getItem('psm_repasses') || '[]');
     arr.push({ descricao, destinatario, valor: parseFloat(valor) || 0, status: 'agendado', data: new Date().toISOString().split('T')[0] });
     localStorage.setItem('psm_repasses', JSON.stringify(arr));
@@ -17404,7 +17428,7 @@ function mfTabHTML(tab){
         <h2 style="color:#e2e8f0;font-size:22px;font-weight:700;margin:0">\uD83D\uDCCA M\u00e9tricas Financeiro</h2>
         <p style="color:#64748b;font-size:13px;margin:4px 0 0">Painel completo de custos, receitas, ROI e proje\u00e7\u00f5es da PSM</p>
       </div>
-      <button onclick="if(confirm('Limpar todos os dados? Essa a\u00e7\u00e3o n\u00e3o pode ser desfeita.')){localStorage.removeItem('psm_metricas_fin');render()}"
+      <button onclick="psmConfirm('Limpar todos os dados? Essa a\u00e7\u00e3o n\u00e3o pode ser desfeita.',{danger:true}).then(function(ok){if(ok){localStorage.removeItem('psm_metricas_fin');render();}})"
         style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px">
         \uD83D\uDDD1 Resetar Dados
       </button>
@@ -19383,10 +19407,10 @@ function pgLancamentosAno() {
   return header + kpis + tl + lista;
 }
 
-function addLanc(mes) {
-  var nome = prompt('Nome do lan\u00e7amento:');
+async function addLanc(mes) {
+  var nome = await psmPrompt('Nome do lan\u00e7amento:');
   if (!nome || !nome.trim()) return;
-  var corChoice = prompt('Tipo: 1=Destaque (verde) 2=Normal (escuro)', '2');
+  var corChoice = await psmPrompt('Tipo: 1=Destaque (verde) 2=Normal (escuro)', '2');
   var cor = corChoice === '1' ? '#0f9d58' : '#0f172a';
   persist('addLanc',function(){
     if (!S.lancTimeline) S.lancTimeline = [];
@@ -19397,10 +19421,11 @@ function addLanc(mes) {
   render();
 }
 
-function rmLanc(idx) {
+async function rmLanc(idx) {
   if (!S.lancTimeline || idx < 0 || idx >= S.lancTimeline.length) return;
   var nome = S.lancTimeline[idx].nome;
-  if (!confirm('Remover lan\u00e7amento "' + nome + '"?')) return;
+  var ok = await psmConfirm('Remover lan\u00e7amento "' + nome + '"?',{danger:true});
+  if (!ok) return;
   persist('rmLanc',function(){ S.lancTimeline.splice(idx, 1); });
   render();
 }
@@ -21535,7 +21560,7 @@ function pgConfig() {
       + '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">eventos registrados</div>'
       + '<div style="display:flex;gap:6px">'
       + '<button class="btn bout bsm" style="flex:1" onclick="var l=S.auditLog||[];var csv=\'ts,user,role,action,target,detail\\n\'+l.map(function(e){return [new Date(e.ts).toISOString(),e.user,e.role,e.action,e.target,(e.detail||\'\').replace(/,/g,\';\')].join(\',\');}).join(\'\\n\');var b=new Blob([csv],{type:\'text/csv\'});var u=URL.createObjectURL(b);var a=document.createElement(\'a\');a.href=u;a.download=\'psm_audit_\'+Date.now()+\'.csv\';a.click();">⬇ Export CSV</button>'
-      + '<button class="btn bout bsm" onclick="if(confirm(\'Limpar audit log?\')){S.auditLog=[];try{localStorage.removeItem(\'psm_audit_log\');}catch(e){console.error("[PSM v26.2]",e);};saveState();render();}">🗑</button>'
+      + '<button class="btn bout bsm" onclick="psmConfirm(\'Limpar audit log?\',{danger:true}).then(function(ok){if(ok){S.auditLog=[];try{localStorage.removeItem(\'psm_audit_log\');}catch(e){console.error(\'[PSM v26.2]\',e);};saveState();render();}})">🗑</button>'
       + '</div>'
       + '</div>'
       + '</div></div>';
@@ -22072,7 +22097,7 @@ function pgCanalAnonimo() {
     h += '<div style="display:flex;gap:6px">';
     if (msgs.length > 0) {
       h += '<button onclick="caMarcarTodasLidas()" class="btn bout bsm">\u2705 Marcar todas como lidas</button>';
-      h += '<button onclick="if(confirm(\'Apagar TODAS as mensagens do canal an\u00f4nimo? Essa a\u00e7\u00e3o n\u00e3o pode ser desfeita.\')){S.canalAnonimo=[];saveState();render();}" class="btn bout bsm" style="color:#fca5a5;border-color:#dc262640">\uD83D\uDDD1 Limpar tudo</button>';
+      h += '<button onclick="psmConfirm(\'Apagar TODAS as mensagens do canal an\u00f4nimo? Essa a\u00e7\u00e3o n\u00e3o pode ser desfeita.\',{danger:true}).then(function(ok){if(ok){persist(\'caClearAll\',function(){S.canalAnonimo=[];});render();}})" class="btn bout bsm" style="color:#fca5a5;border-color:#dc262640">\uD83D\uDDD1 Limpar tudo</button>';
     }
     h += '</div></div>';
 
@@ -22509,8 +22534,9 @@ function rvAddVenda() {
   render();
 }
 
-function rvDelVenda(idx) {
-  if (!confirm('Excluir esta venda manual?')) return;
+async function rvDelVenda(idx) {
+  var ok = await psmConfirm('Excluir esta venda manual?',{danger:true});
+  if (!ok) return;
   var vm = S.vendasManuais[idx];
   if (vm && S.comissoes[vm.id]) delete S.comissoes[vm.id];
   S.vendasManuais.splice(idx, 1);
@@ -23003,8 +23029,9 @@ function opEdit(id) {
   render();
 }
 
-function opDel(id) {
-  if (!confirm('Remover esta oportunidade?')) return;
+async function opDel(id) {
+  var ok = await psmConfirm('Remover esta oportunidade?',{danger:true});
+  if (!ok) return;
   persist('opDel', function(){
     S.oportunidadesPSM = (S.oportunidadesPSM||[]).filter(function(x){ return x.id !== id; });
   });
@@ -23061,8 +23088,9 @@ function opCorretorEditFn(id) {
   setTimeout(function(){ var el = document.getElementById('opc_nome'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); }, 100);
 }
 
-function opCorretorDel(id) {
-  if (!confirm('Remover esta oportunidade?')) return;
+async function opCorretorDel(id) {
+  var ok = await psmConfirm('Remover esta oportunidade?',{danger:true});
+  if (!ok) return;
   persist('opCorretorDel', function(){
     S.opCorretorList = (S.opCorretorList||[]).filter(function(x){ return x.id !== id; });
   });
@@ -23073,16 +23101,20 @@ function opCorretorDel(id) {
 // === PREMIACOES ===
 // Save Evento
 window.opDelEvento=function(i){
-  if(!confirm('Remover este evento?'))return;
-  if(!Array.isArray(S.opEventos))return;
-  persist('opDelEvento', function(){ S.opEventos.splice(i,1); });
-  toast('Evento removido','ok');render();
+  psmConfirm('Remover este evento?',{danger:true}).then(function(ok){
+    if(!ok) return;
+    if(!Array.isArray(S.opEventos)) return;
+    persist('opDelEvento', function(){ S.opEventos.splice(i,1); });
+    toast('Evento removido','ok'); render();
+  });
 };
 window.opDelTreinamento=function(i){
-  if(!confirm('Remover este treinamento?'))return;
-  if(!Array.isArray(S.opTreinamentos))return;
-  persist('opDelTreinamento', function(){ S.opTreinamentos.splice(i,1); });
-  toast('Treinamento removido','ok');render();
+  psmConfirm('Remover este treinamento?',{danger:true}).then(function(ok){
+    if(!ok) return;
+    if(!Array.isArray(S.opTreinamentos)) return;
+    persist('opDelTreinamento', function(){ S.opTreinamentos.splice(i,1); });
+    toast('Treinamento removido','ok'); render();
+  });
 };
 function opSaveEvento(){
   var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
@@ -23310,8 +23342,9 @@ function premEditFn(id) {
   if (pc) pc.scrollTop = 0;
 }
 
-function premDel(id) {
-  if (!confirm('Tem certeza que deseja remover esta premia\u00e7\u00e3o?')) return;
+async function premDel(id) {
+  var ok = await psmConfirm('Tem certeza que deseja remover esta premia\u00e7\u00e3o?',{danger:true});
+  if (!ok) return;
   persist('premDel', function(){
     S.premiacoes = (S.premiacoes||[]).filter(function(x){ return x.id !== id; });
   });
@@ -23559,15 +23592,15 @@ function renderGlobalTimeline(){
     + '</div>'
     + '<style>@keyframes psmTlScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}#psm-global-timeline:hover .psm-tl-track{animation-play-state:paused}</style>';
 }
-function addTimelineItem(){
-  var tipo = prompt('Tipo (evento / recado / premiacao / oportunidade):','evento');
+async function addTimelineItem(){
+  var tipo = await psmPrompt('Tipo (evento / recado / premiacao / oportunidade):','evento');
   if(!tipo) return;
   tipo = tipo.toLowerCase().trim();
   var icoMap = {evento:'\uD83C\uDF89', recado:'\uD83D\uDCE2', premiacao:'\uD83C\uDFC6', oportunidade:'\uD83D\uDCA1'};
   var ico = icoMap[tipo] || '\u2728';
-  var txt = prompt('Mensagem:');
+  var txt = await psmPrompt('Mensagem:');
   if(!txt || !txt.trim()) return;
-  var dias = prompt('Expira em quantos dias? (vazio = nunca)','7');
+  var dias = await psmPrompt('Expira em quantos dias? (vazio = nunca)','7');
   var exp = 0;
   if(dias && !isNaN(dias) && +dias>0) exp = Date.now() + (+dias)*24*3600*1000;
   if(!S.timelineItems) S.timelineItems = [];
@@ -26673,8 +26706,9 @@ function salvarPlantao(dia, editIdx) {
   nav('plantoes');
 }
 
-function removerPlantao(dia, idx) {
-  if (!confirm('Remover este plant\u00e3o?')) return;
+async function removerPlantao(dia, idx) {
+  var ok = await psmConfirm('Remover este plant\u00e3o?',{danger:true});
+  if (!ok) return;
   var now = new Date();
   var storageKey = 'psm_plantoes_' + now.getFullYear() + '_' + now.getMonth();
   var plantoes = [];
@@ -27457,11 +27491,11 @@ function psmRdcMarcarChecado(pageId){
   PSM.auditLog('rdc.checked', COMPETITORS.find(function(c){return c.id===pageId;})||{}, pageId);
   render(); toast('Marcado como checado','ok');
 }
-function psmRdcReportarMudanca(pageId){
+async function psmRdcReportarMudanca(pageId){
   var c = COMPETITORS.find(function(c){return c.id===pageId;});
   if(!c) return;
-  var adCount = prompt('Quantos an\u00fancios ativos voc\u00ea viu agora em '+c.n+'?\n(Deixe em branco se n\u00e3o contou)');
-  var note = prompt('O que mudou? (novo criativo, oferta, aumento de volume, nova campanha, preço agressivo, etc.)\n\nExemplo: "Lan\u00e7ou 5 criativos novos com entrada de 10% no Residencial X"');
+  var adCount = await psmPrompt('Quantos an\u00fancios ativos voc\u00ea viu agora em '+c.n+'?\n(Deixe em branco se n\u00e3o contou)');
+  var note = await psmPrompt('O que mudou? (novo criativo, oferta, aumento de volume, nova campanha, preço agressivo, etc.)\n\nExemplo: "Lan\u00e7ou 5 criativos novos com entrada de 10% no Residencial X"');
   if(!note) return;
   S.competitorsState[pageId] = S.competitorsState[pageId] || {};
   var st = S.competitorsState[pageId];
@@ -27498,15 +27532,16 @@ function psmRdcLimparFlag(pageId){
   PSM.auditLog('rdc.unflag', '', pageId);
   render();
 }
-function psmRdcLimparFlags(){
-  if(!confirm('Limpar TODOS os flags de concorr\u00eancia?')) return;
+async function psmRdcLimparFlags(){
+  var ok = await psmConfirm('Limpar TODOS os flags de concorr\u00eancia?',{danger:true});
+  if(!ok) return;
   persist('rdcUnflagAll', function(){
     Object.keys(S.competitorsState||{}).forEach(function(k){ S.competitorsState[k].flagged = false; });
   });
   PSM.auditLog('rdc.unflag_all','','');
   render();
 }
-function psmRdcAbrirTodos(which){
+async function psmRdcAbrirTodos(which){
   var list;
   if(which==='A') list = COMPETITORS.filter(function(c){return c.tier==='A';});
   else if(which==='stale'){
@@ -27514,7 +27549,8 @@ function psmRdcAbrirTodos(which){
     list = COMPETITORS.filter(function(c){var s=(S.competitorsState||{})[c.id]||{};return !s.lastCheck || (_now-s.lastCheck)>_week;});
   } else list = COMPETITORS;
   if(list.length>15){
-    if(!confirm('Abrir '+list.length+' abas? Pode travar o navegador.')) return;
+    var ok = await psmConfirm('Abrir '+list.length+' abas? Pode travar o navegador.');
+    if(!ok) return;
   }
   list.forEach(function(c,i){ setTimeout(function(){ window.open(competitorLibUrl(c.id),'_blank'); }, i*200); });
 }
@@ -27859,11 +27895,12 @@ function psmImportBackup(inputEl) {
   function processFile(file) {
     if (!file) return;
     var reader = new FileReader();
-    reader.onload = function(ev) {
+    reader.onload = async function(ev) {
       try {
         var data = JSON.parse(ev.target.result);
         if (data._type !== 'PSM_OS_BACKUP') { toast('Arquivo não é um backup PSM válido','warn'); return; }
-        if (!confirm('Isso irá restaurar TODOS os dados do backup (dados diários, metas, reuniões, etc). Os dados atuais serão substituídos. Continuar?')) return;
+        var ok = await psmConfirm('Isso irá restaurar TODOS os dados do backup (dados diários, metas, reuniões, etc). Os dados atuais serão substituídos. Continuar?',{danger:true});
+        if (!ok) return;
         if (data.ooDaily) S.ooDaily = data.ooDaily;
         if (data.ooMetas) S.ooMetas = data.ooMetas;
         if (data.ooRotina) S.ooRotina = data.ooRotina;
@@ -29942,7 +29979,7 @@ document.addEventListener('keydown', function(e){
     w.innerHTML = '<div class="psm-modal" style="max-width:800px"><h3>\uD83D\uDCCA Historico de Previsoes IA</h3>'
       + '<div style="padding:14px;max-height:500px;overflow-y:auto">'+body+'</div>'
       + '<div style="padding:10px 14px;border-top:1px solid #e2e8f0;background:#f8fafc;text-align:right">'
-      +   '<button onclick="if(confirm(\'Limpar historico?\')){localStorage.removeItem(\'psm_ia_historico\');document.getElementById(\''+mid+'\').remove();psmHistoricoIA();}" style="padding:6px 12px;background:#fff;border:1.5px solid #ef4444;color:#ef4444;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;margin-right:6px">\uD83D\uDDD1 Limpar</button>'
+      +   '<button onclick="psmConfirm(\'Limpar historico?\',{danger:true}).then(function(ok){if(ok){localStorage.removeItem(\'psm_ia_historico\');document.getElementById(\''+mid+'\').remove();psmHistoricoIA();}})" style="padding:6px 12px;background:#fff;border:1.5px solid #ef4444;color:#ef4444;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;margin-right:6px">\uD83D\uDDD1 Limpar</button>'
       +   '<button onclick="document.getElementById(\''+mid+'\').remove()" style="padding:6px 12px;background:#fff;border:1.5px solid #cbd5e1;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Fechar</button>'
       + '</div></div>';
     w.onclick = function(e){ if(e.target===w) w.remove(); };
