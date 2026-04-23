@@ -1,4 +1,4 @@
-// api/meta-ads.js â Vercel Serverless Function
+// api/meta-ads.js â Vercel Serverless Function
 // Proxy seguro para Meta Marketing API (nÃ£o expÃµe token no frontend)
 
 const GRAPH_API = 'https://graph.facebook.com/v21.0';
