@@ -1,5 +1,5 @@
 // ═════════════════════════════════════════════════════════════════════════════
-// PSM OS — Service Worker v28 (2026-04-22 — AUTO-UPDATE: fim da versao antiga stale)
+// PSM OS — Service Worker v29 (2026-04-25 — Sprint 0: fim da versao antiga stale)
 // - NETWORK-ONLY para HTML (sem cache) + libs JS do app
 // - CACHE-FIRST apenas assets imutaveis (imagens, icones, manifest)
 // - skipWaiting + clients.claim imediato
@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v28.0.0-2026-04-22-auto-update';
+const SW_VERSION = 'v29.0.0-2026-04-25-sprint-0';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

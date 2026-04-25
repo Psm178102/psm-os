@@ -1,6 +1,7 @@
 {
-  "version": "28.0.0",
-  "meta": "2026.04.22-v28",
-  "built": "2026-04-22T08:00:00Z",
-  "sw": "v28.0.0-2026-04-22-auto-update"
+  "version": "29.0.0",
+  "meta": "2026.04.25-v29",
+  "built": "2026-04-25T19:30:00Z",
+  "sw": "v29.0.0-2026-04-25-sprint-0",
+  "sprint": "Sprint 0: 4 libs stub + /api/auth + FB freeze toggle"
 }
