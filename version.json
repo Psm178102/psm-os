@@ -1,7 +1,7 @@
 {
-  "version": "29.0.0",
-  "meta": "2026.04.25-v29",
-  "built": "2026-04-25T19:30:00Z",
-  "sw": "v29.0.0-2026-04-25-sprint-0",
-  "sprint": "Sprint 0: 4 libs stub + /api/auth + FB freeze toggle"
+  "version": "30.0.0",
+  "meta": "2026.04.25-v30",
+  "built": "2026-04-25T22:30:00Z",
+  "sw": "v30.0.0-2026-04-25-sprint-2",
+  "sprint": "Sprint 2: legacy uid sintetico em user_kv (writes individuais funcionam)"
 }
