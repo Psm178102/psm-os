@@ -1,28 +1,41 @@
 {
-    "rewrites": [
-          { "source": "/api/agent", "destination": "/api/agent" },
-          { "source": "/api/properties", "destination": "/api/properties" },
-          { "source": "/api/rd", "destination": "/api/rd" },
-          { "source": "/prompts/:path*", "destination": "/prompts/:path*" },
-          { "source": "/lib/:path*", "destination": "/lib/:path*" },
-          { "source": "/((?!api/|prompts/|lib/).*)", "destination": "/index.html" }
-    ],
-    "headers": [
-          {
-                  "source": "/index.html",
-                  "headers": [
-                            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-                            { "key": "Pragma", "value": "no-cache" },
-                            { "key": "Expires", "value": "0" }
-                  ]
-          },
-          {
-                  "source": "/(.*)",
-                  "headers": [
-                            { "key": "X-Frame-Options", "value": "DENY" },
-                            { "key": "X-Content-Type-Options", "value": "nosniff" },
-                            { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
-                  ]
-          }
-    ]
+  "rewrites": [
+    { "source": "/api/agent", "destination": "/api/agent" },
+    { "source": "/api/properties", "destination": "/api/properties" },
+    { "source": "/api/rd", "destination": "/api/rd" },
+    { "source": "/prompts/:path*", "destination": "/prompts/:path*" },
+    { "source": "/lib/:path*", "destination": "/lib/:path*" },
+    { "source": "/v2/:path*", "destination": "/v2/:path*" },
+    { "source": "/((?!api/|prompts/|lib/|v2/|admin\\.html|sw\\.js|manifest\\.json|version\\.json|favicon|icon-|apple-touch|logo).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Pragma", "value": "no-cache" },
+        { "key": "Expires", "value": "0" }
+      ]
+    },
+    {
+      "source": "/v2/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/admin.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
 }

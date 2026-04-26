@@ -1,7 +1,7 @@
 {
-  "version": "32.0.0",
-  "meta": "2026.04.26-v32",
-  "built": "2026-04-26T01:10:00Z",
-  "sw": "v32.0.0-2026-04-26-sprint-4",
-  "sprint": "Sprint 4: auto-backfill LS -> Supabase + audit triggers"
+  "version": "34.1.0",
+  "meta": "2026.04.26-v34.1",
+  "built": "2026-04-26T03:30:00Z",
+  "sw": "v34.1.0-2026-04-26-mvp-v2-uxfix",
+  "sprint": "v34.1: auto-update sem auto-reload (UX fix)"
 }

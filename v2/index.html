@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+<title>PSM /v2 — MVP Operação Olho-no-Olho</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="/api/supabase-config"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+  .card{background:#1e293b;border:1px solid #334155;border-radius:10px}
+  .btn{background:#d4a843;color:#0f172a;border:none;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer;font-size:13px}
+  .btn:hover{opacity:0.9}
+  .btn-out{background:transparent;color:#d4a843;border:1px solid #d4a843}
+  .input{background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:8px 12px;border-radius:6px;font-size:14px;width:100%}
+  .input:focus{outline:none;border-color:#d4a843}
+  .field-counter{display:flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:6px 8px}
+  .field-counter button{background:#334155;color:#fff;width:28px;height:28px;border:none;border-radius:4px;font-weight:700;cursor:pointer}
+  .field-counter button:hover{background:#475569}
+  .field-counter input{background:transparent;border:none;color:#fff;text-align:center;width:40px;font-size:16px;font-weight:700;outline:none}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useCallback } = React;
+
+const SBURL = window.SUPABASE_URL;
+const SBKEY = window.SUPABASE_ANON_KEY;
+const sb = (SBURL && SBKEY && window.supabase) ? window.supabase.createClient(SBURL, SBKEY) : null;
+
+// ── Util: deriva uuid sintetico do legacy id (espelha psm-supabase.js) ──────
+function legacyUid(psmId) {
+  if (!psmId) return null;
+  let hex = '';
+  for (let i = 0; i < psmId.length; i++) hex += psmId.charCodeAt(i).toString(16).padStart(2,'0');
+  hex = (hex + '00000000000000000000000000000000').substring(0,32);
+  return hex.substring(0,8) + '-' + hex.substring(8,12) + '-' + hex.substring(12,16) + '-' + hex.substring(16,20) + '-' + hex.substring(20,32);
+}
+
+// ── Auth via Supabase user_kv (le credenciais salvas pelo monolito v32+) ────
+// Como o login do PSM eh local (psm_senhas em LS), aqui fazemos auth simples:
+// usuario digita email + senha → batemos contra USERS_BASE hardcoded (sincronizado com monolito)
+const USERS = [
+  {id:'paulo', name:'Paulo', email:'paulo@imobiliariapsm.com.br', role:'socio'},
+  {id:'isa', name:'Isabella', email:'isabella@imobiliariapsm.com.br', role:'socio'},
+  {id:'marcos_anderson', name:'Marcos Anderson', email:'marcos@imobiliariapsm.com.br', role:'socio'},
+  {id:'marcus_l', name:'Marcus Lopes', email:'marcus@imobiliariapsm.com.br', role:'lider'},
+  {id:'gabriel_b', name:'Gabriel Brito', email:'gabriel@imobiliariapsm.com.br', role:'corretor'},
+  {id:'kadu', name:'Kadu Ozório', email:'kadu@imobiliariapsm.com.br', role:'corretor'},
+  {id:'julia', name:'Júlia', email:'julia@imobiliariapsm.com.br', role:'corretor'},
+  {id:'danilo_a', name:'Danilo Andrade', email:'danilo@imobiliariapsm.com.br', role:'corretor'},
+  {id:'rafaela_m', name:'Rafaela Metzger', email:'rafaela@imobiliariapsm.com.br', role:'corretor'},
+  {id:'camila_b', name:'Camila Boni', email:'camila@imobiliariapsm.com.br', role:'corretor'},
+  {id:'rodrigo_c', name:'Rodrigo Camargo', email:'rodrigocamargo@imobiliariapsm.com.br', role:'corretor'},
+  {id:'evandro', name:'Evandro', email:'evandro@imobiliariapsm.com.br', role:'corretor'},
+  {id:'yara', name:'Yara Fetti', email:'yara@imobiliariapsm.com.br', role:'corretor'},
+  {id:'bruno', name:'Bruno', email:'bruno@imobiliariapsm.com.br', role:'corretor'},
+  {id:'vitor_o', name:'Vitor Oliveira', email:'vitor@imobiliariapsm.com.br', role:'corretor'},
+];
+
+// ── OO field schema ─────────────────────────────────────────────────────────
+const OO_FIELDS = [
+  { key: 'lig', label: 'Ligações', emoji: '📞' },
+  { key: 'wpp', label: 'WhatsApp', emoji: '💬' },
+  { key: 'vis', label: 'Visitas', emoji: '🏠' },
+  { key: 'prop', label: 'Propostas', emoji: '📝' },
+  { key: 'ass', label: 'Assinaturas', emoji: '✍️' },
+  { key: 'reun', label: 'Reuniões', emoji: '🤝' },
+];
+
+function todayKey() {
+  return new Date().toISOString().slice(0,10);
+}
+function monthKey() {
+  return new Date().toISOString().slice(0,7);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// LoginPage
+// ──────────────────────────────────────────────────────────────────────────
+function LoginPage({ onLogin }) {
+  const [selectedId, setSelectedId] = useState('');
+  const [err, setErr] = useState('');
+
+  function doLogin() {
+    if (!selectedId) { setErr('Selecione seu nome'); return; }
+    const u = USERS.find(x => x.id === selectedId);
+    if (!u) { setErr('Usuário não encontrado'); return; }
+    localStorage.setItem('psm_v2_user', JSON.stringify(u));
+    onLogin(u);
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="card p-8 w-full max-w-md">
+        <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>PSM /v2 — MVP</h1>
+        <p className="text-sm text-slate-400 mb-6">Operação Olho-no-Olho • Reescrita parcial</p>
+
+        <div className="mb-4">
+          <label className="block text-xs text-slate-400 mb-2">Quem é você?</label>
+          <select className="input" value={selectedId} onChange={e => { setSelectedId(e.target.value); setErr(''); }}>
+            <option value="">— selecionar —</option>
+            {USERS.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+          </select>
+        </div>
+
+        {err && <div className="text-red-400 text-sm mb-3">{err}</div>}
+
+        <button className="btn w-full" onClick={doLogin}>Entrar</button>
+
+        <div className="mt-6 text-xs text-slate-500 border-t border-slate-700 pt-4">
+          MVP /v2 roda em paralelo ao sistema principal. Dados salvos vão pro Supabase via uuid sintético derivado do seu id PSM. Senha não é pedida nesta versão (Sprint 6 traz auth real).
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Sidebar
+// ──────────────────────────────────────────────────────────────────────────
+function Sidebar({ user, page, onNavigate, onLogout }) {
+  const items = [
+    { id: 'oo', label: 'Operação Olho-no-Olho', emoji: '👁️' },
+    { id: 'dashboard', label: 'Dashboard', emoji: '📊' },
+  ];
+  return (
+    <aside className="w-60 bg-slate-900 border-r border-slate-700 p-4 flex flex-col">
+      <div className="mb-6">
+        <div className="font-bold text-lg" style={{color:'#d4a843'}}>PSM /v2</div>
+        <div className="text-xs text-slate-500">MVP Reescrita</div>
+      </div>
+      <nav className="flex-1 space-y-1">
+        {items.map(it => (
+          <button key={it.id} onClick={() => onNavigate(it.id)}
+            className={'w-full text-left px-3 py-2 rounded text-sm font-medium transition ' + (page === it.id ? 'bg-yellow-600/20 text-yellow-400' : 'text-slate-300 hover:bg-slate-800')}>
+            <span className="mr-2">{it.emoji}</span>{it.label}
+          </button>
+        ))}
+      </nav>
+      <div className="mt-4 pt-4 border-t border-slate-700">
+        <div className="text-sm font-medium">{user.name}</div>
+        <div className="text-xs text-slate-500 mb-2">{user.role}</div>
+        <button className="btn-out btn text-xs w-full" onClick={onLogout}>Sair</button>
+      </div>
+    </aside>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// OOPage
+// ──────────────────────────────────────────────────────────────────────────
+function OOPage({ user }) {
+  const lvl = { socio: 10, lider: 5, corretor: 2 }[user.role] || 0;
+  const canViewOthers = lvl >= 5;
+  const [selectedBid, setSelectedBid] = useState(user.id);
+  const [data, setData] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
+  const [err, setErr] = useState('');
+  const [date, setDate] = useState(todayKey());
+
+  const targetUid = useMemo(() => legacyUid(selectedBid), [selectedBid]);
+  const mk = useMemo(() => date.slice(0,7), [date]);
+  const dk = useMemo(() => date, [date]);
+
+  // Carrega ooDaily do Supabase (chave OO_<bid>)
+  useEffect(() => {
+    if (!sb || !selectedBid) return;
+    setLoading(true);
+    setErr('');
+    sb.from('user_kv').select('value').eq('user_id', targetUid).eq('key', 'OO_DAILY_' + selectedBid).maybeSingle()
+      .then(({ data: row, error }) => {
+        if (error) { setErr(error.message); }
+        const all = (row && row.value) || {};
+        const today = (all[mk] && all[mk][dk]) || {};
+        const empty = OO_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: today[f.key] || 0 }), {});
+        setData(empty);
+        setLoading(false);
+      });
+  }, [selectedBid, dk, mk, targetUid]);
+
+  function setField(k, v) {
+    const num = Math.max(0, parseInt(v, 10) || 0);
+    setData(prev => ({ ...prev, [k]: num }));
+  }
+  function inc(k) { setField(k, (data[k] || 0) + 1); }
+  function dec(k) { setField(k, (data[k] || 0) - 1); }
+
+  async function save() {
+    if (!sb) { setErr('Supabase não configurado'); return; }
+    setSaving(true); setErr('');
+    try {
+      // Le valor atual completo, atualiza dia, salva de volta
+      const { data: row } = await sb.from('user_kv').select('value').eq('user_id', targetUid).eq('key', 'OO_DAILY_' + selectedBid).maybeSingle();
+      const all = (row && row.value) || {};
+      if (!all[mk]) all[mk] = {};
+      all[mk][dk] = data;
+      const up = await sb.from('user_kv').upsert({ user_id: targetUid, key: 'OO_DAILY_' + selectedBid, value: all }, { onConflict: 'user_id,key' });
+      if (up.error) throw up.error;
+      setSavedAt(Date.now());
+    } catch(e) {
+      setErr(e.message || String(e));
+    }
+    setSaving(false);
+  }
+
+  const total = OO_FIELDS.reduce((sum, f) => sum + (data[f.key] || 0), 0);
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>👁️ Operação Olho-no-Olho</h1>
+          <p className="text-sm text-slate-400">Registro diário de atividades comerciais</p>
+        </div>
+        {canViewOthers && (
+          <select className="input max-w-xs" value={selectedBid} onChange={e => setSelectedBid(e.target.value)}>
+            {USERS.filter(u => ['corretor','lider'].includes(u.role)).map(u => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+            {canViewOthers && <option value={user.id}>{user.name} (eu)</option>}
+          </select>
+        )}
+      </div>
+
+      <div className="card p-4 mb-4 flex items-center gap-4 flex-wrap">
+        <div>
+          <label className="text-xs text-slate-400 block mb-1">Data</label>
+          <input type="date" className="input" value={date} onChange={e => setDate(e.target.value)} />
+        </div>
+        <div className="flex-1">
+          <div className="text-xs text-slate-400">Corretor</div>
+          <div className="font-bold text-lg">{USERS.find(u => u.id === selectedBid)?.name || selectedBid}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-xs text-slate-400">Total atividades</div>
+          <div className="text-3xl font-bold" style={{color:'#d4a843'}}>{total}</div>
+        </div>
+      </div>
+
+      {loading && <div className="text-center text-slate-500 py-8">Carregando…</div>}
+      {!loading && (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+            {OO_FIELDS.map(f => (
+              <div key={f.key} className="card p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">{f.emoji}</span>
+                  <span className="font-bold text-sm">{f.label}</span>
+                </div>
+                <div className="field-counter">
+                  <button onClick={() => dec(f.key)}>−</button>
+                  <input type="number" min="0" value={data[f.key] || 0} onChange={e => setField(f.key, e.target.value)} />
+                  <button onClick={() => inc(f.key)}>+</button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <button className="btn" onClick={save} disabled={saving}>{saving ? 'Salvando…' : '💾 Salvar dia'}</button>
+            {savedAt && <span className="text-green-400 text-sm">✓ Salvo {new Date(savedAt).toLocaleTimeString('pt-BR')}</span>}
+            {err && <span className="text-red-400 text-sm">⚠ {err}</span>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// DashboardPage
+// ──────────────────────────────────────────────────────────────────────────
+function DashboardPage({ user }) {
+  const [snapshot, setSnapshot] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!sb) { setLoading(false); return; }
+    const today = todayKey();
+    const mk = monthKey();
+    Promise.all(
+      USERS.filter(u => ['corretor','lider'].includes(u.role)).map(async u => {
+        const { data: row } = await sb.from('user_kv').select('value').eq('user_id', legacyUid(u.id)).eq('key', 'OO_DAILY_' + u.id).maybeSingle();
+        const all = (row && row.value) || {};
+        const todayData = (all[mk] && all[mk][today]) || {};
+        const total = OO_FIELDS.reduce((s, f) => s + (todayData[f.key] || 0), 0);
+        return { id: u.id, name: u.name, total, fields: todayData };
+      })
+    ).then(rows => {
+      rows.sort((a,b) => b.total - a.total);
+      setSnapshot(rows);
+      setLoading(false);
+    });
+  }, []);
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>📊 Dashboard — Hoje</h1>
+      <p className="text-sm text-slate-400 mb-6">Atividades dos corretores em {new Date().toLocaleDateString('pt-BR')}</p>
+
+      {loading && <div className="text-slate-500">Carregando…</div>}
+      {!loading && snapshot && (
+        <div className="card overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-slate-900 text-xs text-slate-400 uppercase">
+                <th className="text-left p-3">Corretor</th>
+                {OO_FIELDS.map(f => <th key={f.key} className="text-center p-3">{f.emoji}</th>)}
+                <th className="text-right p-3">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {snapshot.map(r => (
+                <tr key={r.id} className="border-t border-slate-700 hover:bg-slate-900/50">
+                  <td className="p-3 font-medium">{r.name}</td>
+                  {OO_FIELDS.map(f => <td key={f.key} className="text-center p-3 text-slate-300">{r.fields[f.key] || 0}</td>)}
+                  <td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>{r.total}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// App
+// ──────────────────────────────────────────────────────────────────────────
+function App() {
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('psm_v2_user') || 'null'); } catch(_) { return null; }
+  });
+  const [page, setPage] = useState('oo');
+
+  function logout() {
+    localStorage.removeItem('psm_v2_user');
+    setUser(null);
+  }
+
+  if (!user) return <LoginPage onLogin={setUser} />;
+
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar user={user} page={page} onNavigate={setPage} onLogout={logout} />
+      <main className="flex-1 overflow-auto">
+        {page === 'oo' && <OOPage user={user} />}
+        {page === 'dashboard' && <DashboardPage user={user} />}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

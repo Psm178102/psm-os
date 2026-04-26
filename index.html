@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.26-v32 (Sprint 4: auto-backfill LS->Supabase (Sprint 3 + 5 abas removidas)) (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
+<!-- PSM-OS v2026.04.26-v34.1 (v34.1 UX fix - sem auto-reload (MVP /v2 React + admin + backfill)) (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,8 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.26-v32.1">
-<script>window.PSM_VERSION='31.1.0';window.PSM_VERSION_META='2026.04.26-v32.1';
+<meta name="version" content="2026.04.26-v34.1.1">
+<script>window.PSM_VERSION='31.1.0';window.PSM_VERSION_META='2026.04.26-v34.1.1';
 // ═════════════════════════════════════════════════════════════════════════════
 // PSM Sprint 0 — Firebase write toggle (2026-04-25)
 // Default: false (Firebase escreve normalmente). Flip pra true via console:
@@ -799,19 +799,25 @@ html{height:100%;overflow:hidden}
       var b = document.createElement('div');
       b.id = 'psm-update-banner';
       b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#d4af37,#f4c430);color:#0f172a;padding:10px 16px;font-weight:700;font-size:13px;text-align:center;z-index:999999;box-shadow:0 2px 10px rgba(0,0,0,0.3);font-family:system-ui';
-      b.innerHTML = '<span>Nova versao disponivel — atualizando em <span id="_psm_cd">3</span>s...</span> <button id="_psm_update_now" style="margin-left:12px;background:#0f172a;color:#d4af37;border:none;padding:4px 12px;border-radius:4px;font-weight:700;cursor:pointer">Atualizar agora</button> <button id="_psm_update_later" style="margin-left:6px;background:transparent;color:#0f172a;border:1px solid #0f172a;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px">Depois</button>';
+      b.innerHTML = '<span>Nova versao disponivel.</span> <button id="_psm_update_now" style="margin-left:12px;background:#0f172a;color:#d4af37;border:none;padding:4px 12px;border-radius:4px;font-weight:700;cursor:pointer">Atualizar agora</button> <button id="_psm_update_later" style="margin-left:6px;background:transparent;color:#0f172a;border:1px solid #0f172a;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px">Depois</button>';
       document.body.appendChild(b);
 
-      var cd = 3;
-      var iv = setInterval(function(){
-        cd--;
-        var el = document.getElementById('_psm_cd');
-        if (el) el.textContent = cd;
-        if (cd <= 0) { clearInterval(iv); _doReload(); }
-      }, 1000);
+      // SEM countdown automatico — usuario decide quando atualizar (Sprint 6 fix UX)
+      // Auto-reload SO se aba ficar oculta E ja passar 30s
+      var hideTimer = null;
+      var visHandler = function(){
+        if (document.visibilityState === 'hidden') {
+          hideTimer = setTimeout(function(){
+            try { if (b.parentNode) _doReload(); } catch(_){}
+          }, 30000);
+        } else {
+          if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+        }
+      };
+      document.addEventListener('visibilitychange', visHandler);
 
-      document.getElementById('_psm_update_now').onclick = function(){ clearInterval(iv); _doReload(); };
-      document.getElementById('_psm_update_later').onclick = function(){ clearInterval(iv); b.remove(); _updateBannerShown = false; };
+      document.getElementById('_psm_update_now').onclick = function(){ document.removeEventListener('visibilitychange', visHandler); _doReload(); };
+      document.getElementById('_psm_update_later').onclick = function(){ document.removeEventListener('visibilitychange', visHandler); b.remove(); _updateBannerShown = false; };
     } catch(_){ _doReload(); }
   }
 
@@ -849,11 +855,13 @@ html{height:100%;overflow:hidden}
       // Check update a cada 60s (era 10min - era muito tempo)
       setInterval(function(){
         try { reg.update(); } catch(_){}
-      }, 60000);
+      }, 300000); // 5min (era 60s — Sprint 6 UX fix)
 
-      // Update imediato quando tab volta a ficar visivel (user voltou do celular/outra aba)
+      // Update quando tab volta a ficar visivel — MAS so se passou >5min do ultimo check
+      var _lastVisCheck = Date.now();
       document.addEventListener('visibilitychange', function(){
-        if (document.visibilityState === 'visible') {
+        if (document.visibilityState === 'visible' && (Date.now() - _lastVisCheck) > 300000) {
+          _lastVisCheck = Date.now();
           try { reg.update(); } catch(_){}
         }
       });
@@ -870,10 +878,10 @@ html{height:100%;overflow:hidden}
         });
       });
 
-      // controllerchange = SW novo assumiu → reload automatico
+      // controllerchange = SW novo assumiu — NAO reload automatico (Sprint 6 UX fix)
+      // Banner ja aparece via NEW_VERSION; usuario decide quando recarregar
       navigator.serviceWorker.addEventListener('controllerchange', function(){
-        console.log('[PSM-PWA v28] novo SW controlando — reload');
-        _doReload();
+        console.log('[PSM-PWA v34+] novo SW controlando — banner mostrado, sem auto-reload');
       });
 
       // Mensagens do SW (NEW_VERSION, PURGE_ALL_DONE, etc)
@@ -908,7 +916,7 @@ html{height:100%;overflow:hidden}
   }
   // Primeiro check 30s apos load, depois a cada 60s
   setTimeout(_checkVersion, 30000);
-  setInterval(_checkVersion, 60000);
+  setInterval(_checkVersion, 300000); // 5min (era 60s — Sprint 6 UX fix)
   // Check quando user volta pra tab
   document.addEventListener('visibilitychange', function(){
     if (document.visibilityState === 'visible') setTimeout(_checkVersion, 1000);
@@ -23987,7 +23995,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v32</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v34.1</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -29967,7 +29975,7 @@ document.addEventListener('keydown', function(e){
     var folderId = await findOrCreateFolder(token);
     var snapshot = {
       ts: Date.now(),
-      version: (document.querySelector('meta[name="version"]')||{}).content || '2026.04.26-v32',
+      version: (document.querySelector('meta[name="version"]')||{}).content || '2026.04.26-v34.1',
       state: window.psmLSGet('psm_os_state_v1', {})
     };
     var blob = new Blob([JSON.stringify(snapshot)], {type:'application/json'});

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+<title>PSM Admin — Monitoramento Supabase</title>
+<script src="/api/supabase-config"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;padding:20px}
+  h1{color:#d4a843;font-size:24px;margin-bottom:6px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:24px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:24px}
+  .card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px}
+  .card h3{color:#d4a843;font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+  .stat{font-size:32px;font-weight:700;color:#fff;margin:8px 0}
+  .label{color:#94a3b8;font-size:12px}
+  .ok{color:#22c55e}.warn{color:#f59e0b}.err{color:#ef4444}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
+  th{text-align:left;padding:8px;background:#0f172a;color:#94a3b8;font-weight:600;border-bottom:1px solid #334155}
+  td{padding:8px;border-bottom:1px solid #1e293b}
+  tr:hover td{background:#0f172a}
+  .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase}
+  .badge-insert{background:#16a34a30;color:#22c55e}
+  .badge-update{background:#3b82f630;color:#60a5fa}
+  .badge-delete{background:#dc262630;color:#ef4444}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+  button{background:#d4a843;color:#0f172a;border:none;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer;font-size:12px}
+  button:hover{opacity:0.9}
+  .filter{background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:12px}
+  .err-banner{background:#dc262620;border:1px solid #dc2626;padding:12px;border-radius:8px;margin-bottom:16px;color:#fca5a5;font-size:13px}
+  .json{font-family:monospace;font-size:10px;color:#94a3b8;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+  .json:hover{color:#fff;white-space:normal;overflow:visible}
+  .last-update{color:#94a3b8;font-size:11px;text-align:right;margin-top:8px}
+</style>
+</head>
+<body>
+<h1>PSM Admin — Monitoramento Supabase</h1>
+<div class="sub">Dashboard interno em tempo real — quem está salvando o quê, saúde do banco, ultimos eventos</div>
+
+<div id="err"></div>
+
+<div class="row">
+  <button onclick="refreshAll()">🔄 Atualizar</button>
+  <select id="autoRefresh" class="filter">
+    <option value="0">Sem auto-refresh</option>
+    <option value="10000">A cada 10s</option>
+    <option value="30000" selected>A cada 30s</option>
+    <option value="60000">A cada 60s</option>
+  </select>
+  <span class="last-update" id="lastUpdate"></span>
+</div>
+
+<div class="grid">
+  <div class="card"><h3>Total chaves shared_kv</h3><div class="stat" id="sharedCount">—</div><div class="label">Dados globais (BROKERS, METAS, RANKINGS, etc)</div></div>
+  <div class="card"><h3>Total chaves user_kv</h3><div class="stat" id="userCount">—</div><div class="label">Dados individuais por corretor</div></div>
+  <div class="card"><h3>Eventos audit (24h)</h3><div class="stat" id="auditCount">—</div><div class="label">Toda mudança gravada</div></div>
+  <div class="card"><h3>Usuarios distintos (audit)</h3><div class="stat" id="distinctUsers">—</div><div class="label">Quantos user_ids gravaram dados</div></div>
+</div>
+
+<div class="card">
+  <h3>📋 Últimos 50 eventos audit_log</h3>
+  <div class="row">
+    <select id="filterTable" class="filter" onchange="refreshAudit()">
+      <option value="">Todas tabelas</option>
+      <option value="shared_kv">shared_kv</option>
+      <option value="user_kv">user_kv</option>
+    </select>
+    <select id="filterOp" class="filter" onchange="refreshAudit()">
+      <option value="">Todas operações</option>
+      <option value="insert">insert</option>
+      <option value="update">update</option>
+      <option value="delete">delete</option>
+    </select>
+  </div>
+  <table>
+    <thead><tr><th>Quando</th><th>Tabela</th><th>Op</th><th>Chave</th><th>User</th><th>Valor (resumido)</th></tr></thead>
+    <tbody id="auditTbody"><tr><td colspan="6">Carregando...</td></tr></tbody>
+  </table>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h3>👥 Top 20 chaves user_kv por usuario</h3>
+  <table>
+    <thead><tr><th>user_id (legacy)</th><th>Chaves gravadas</th><th>Ultima atividade</th></tr></thead>
+    <tbody id="userTbody"><tr><td colspan="3">Carregando...</td></tr></tbody>
+  </table>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h3>🌐 shared_kv (chaves globais)</h3>
+  <table>
+    <thead><tr><th>Chave</th><th>Tamanho</th><th>Ultima alteracao</th></tr></thead>
+    <tbody id="sharedTbody"><tr><td colspan="3">Carregando...</td></tr></tbody>
+  </table>
+</div>
+
+<script>
+'use strict';
+var SBURL = window.SUPABASE_URL;
+var SBKEY = window.SUPABASE_ANON_KEY;
+var sb = (SBURL && SBKEY && window.supabase) ? window.supabase.createClient(SBURL, SBKEY) : null;
+
+if (!sb) {
+  document.getElementById('err').innerHTML = '<div class="err-banner">❌ Supabase não configurado. Verifique /api/supabase-config.</div>';
+}
+
+function fmtDate(ts) {
+  try {
+    var d = new Date(ts);
+    var dd = String(d.getDate()).padStart(2,'0');
+    var mm = String(d.getMonth()+1).padStart(2,'0');
+    var hh = String(d.getHours()).padStart(2,'0');
+    var mi = String(d.getMinutes()).padStart(2,'0');
+    var ss = String(d.getSeconds()).padStart(2,'0');
+    return dd+'/'+mm+' '+hh+':'+mi+':'+ss;
+  } catch(_) { return '—'; }
+}
+function shortJson(v) {
+  if (v === null || v === undefined) return '—';
+  try { var s = JSON.stringify(v); return s.length > 80 ? s.substring(0,80)+'…' : s; } catch(_) { return '—'; }
+}
+function safeUid(uid) {
+  if (!uid) return '—';
+  // Tenta detectar se é uuid sintético derivado de psm legacy id
+  // padrão: hex(asciiPaulo) + zeros = "70617575-6c6f-0000-..."
+  try {
+    var hex = uid.replace(/-/g,'').toLowerCase();
+    if (/0{16,}$/.test(hex)) {
+      var prefix = hex.replace(/0+$/,'');
+      var name = '';
+      for (var i = 0; i < prefix.length; i += 2) {
+        var c = parseInt(prefix.substr(i,2), 16);
+        if (c >= 32 && c < 127) name += String.fromCharCode(c);
+      }
+      if (name) return name + ' (sint.)';
+    }
+  } catch(_){}
+  return uid.substring(0,8) + '…';
+}
+
+async function loadStats() {
+  if (!sb) return;
+  try {
+    var since = new Date(Date.now() - 24*60*60*1000).toISOString();
+    var [shared, userKv, audit24h, distinct] = await Promise.all([
+      sb.from('shared_kv').select('key', { count: 'exact', head: true }),
+      sb.from('user_kv').select('user_id', { count: 'exact', head: true }),
+      sb.from('audit_log').select('id', { count: 'exact', head: true }).gte('created_at', since),
+      sb.from('audit_log').select('user_id').not('user_id','is',null).limit(2000)
+    ]);
+    document.getElementById('sharedCount').textContent = shared.count || 0;
+    document.getElementById('userCount').textContent = userKv.count || 0;
+    document.getElementById('auditCount').textContent = audit24h.count || 0;
+    var ds = new Set();
+    (distinct.data || []).forEach(function(r){ if (r.user_id) ds.add(r.user_id); });
+    document.getElementById('distinctUsers').textContent = ds.size;
+  } catch(e) {
+    console.error('stats', e);
+  }
+}
+
+async function refreshAudit() {
+  if (!sb) return;
+  var ft = document.getElementById('filterTable').value;
+  var fo = document.getElementById('filterOp').value;
+  var q = sb.from('audit_log').select('*').order('created_at', { ascending: false }).limit(50);
+  if (ft) q = q.eq('table_name', ft);
+  if (fo) q = q.eq('operation', fo);
+  var { data, error } = await q;
+  if (error) { console.error('audit', error); return; }
+  var html = (data || []).map(function(r){
+    var badge = 'badge-' + r.operation;
+    return '<tr><td>'+fmtDate(r.created_at)+'</td><td>'+r.table_name+'</td><td><span class="badge '+badge+'">'+r.operation+'</span></td><td>'+(r.key||'—')+'</td><td>'+safeUid(r.user_id)+'</td><td class="json" title="'+shortJson(r.new_value).replace(/"/g,'&quot;')+'">'+shortJson(r.new_value)+'</td></tr>';
+  }).join('') || '<tr><td colspan="6">Sem eventos</td></tr>';
+  document.getElementById('auditTbody').innerHTML = html;
+}
+
+async function loadUserKvSummary() {
+  if (!sb) return;
+  var { data, error } = await sb.from('user_kv').select('user_id,updated_at').order('updated_at', { ascending: false }).limit(2000);
+  if (error) { console.error('userkv', error); return; }
+  var byUser = {};
+  (data || []).forEach(function(r){
+    if (!byUser[r.user_id]) byUser[r.user_id] = { count: 0, last: r.updated_at };
+    byUser[r.user_id].count++;
+    if (r.updated_at > byUser[r.user_id].last) byUser[r.user_id].last = r.updated_at;
+  });
+  var rows = Object.entries(byUser).sort(function(a,b){ return b[1].count - a[1].count; }).slice(0,20);
+  document.getElementById('userTbody').innerHTML = rows.map(function(r){
+    return '<tr><td>'+safeUid(r[0])+'</td><td>'+r[1].count+'</td><td>'+fmtDate(r[1].last)+'</td></tr>';
+  }).join('') || '<tr><td colspan="3">—</td></tr>';
+}
+
+async function loadShared() {
+  if (!sb) return;
+  var { data, error } = await sb.from('shared_kv').select('key,value,updated_at').order('updated_at', { ascending: false }).limit(50);
+  if (error) { console.error('shared', error); return; }
+  document.getElementById('sharedTbody').innerHTML = (data || []).map(function(r){
+    var sz = '—';
+    try { sz = JSON.stringify(r.value).length + ' B'; } catch(_){}
+    return '<tr><td>'+r.key+'</td><td>'+sz+'</td><td>'+fmtDate(r.updated_at)+'</td></tr>';
+  }).join('') || '<tr><td colspan="3">Vazio</td></tr>';
+}
+
+async function refreshAll() {
+  await Promise.all([loadStats(), refreshAudit(), loadUserKvSummary(), loadShared()]);
+  document.getElementById('lastUpdate').textContent = 'Atualizado: ' + fmtDate(Date.now());
+}
+
+var autoTimer = null;
+document.getElementById('autoRefresh').addEventListener('change', function(e){
+  if (autoTimer) clearInterval(autoTimer);
+  var ms = parseInt(e.target.value, 10);
+  if (ms > 0) autoTimer = setInterval(refreshAll, ms);
+});
+
+window.addEventListener('load', function(){
+  setTimeout(function(){
+    refreshAll();
+    autoTimer = setInterval(refreshAll, 30000);
+  }, 500);
+});
+</script>
+</body>
+</html>
