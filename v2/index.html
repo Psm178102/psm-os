@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
-<title>PSM /v2 — MVP Operação Olho-no-Olho</title>
+<title>PSM /v2 — Reescrita</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="/api/supabase-config"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -16,13 +16,22 @@
   .card{background:#1e293b;border:1px solid #334155;border-radius:10px}
   .btn{background:#d4a843;color:#0f172a;border:none;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer;font-size:13px}
   .btn:hover{opacity:0.9}
+  .btn:disabled{opacity:0.5;cursor:not-allowed}
   .btn-out{background:transparent;color:#d4a843;border:1px solid #d4a843}
+  .btn-danger{background:#dc2626;color:#fff}
+  .btn-success{background:#16a34a;color:#fff}
+  .btn-sm{padding:4px 10px;font-size:11px}
   .input{background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:8px 12px;border-radius:6px;font-size:14px;width:100%}
   .input:focus{outline:none;border-color:#d4a843}
   .field-counter{display:flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:6px 8px}
   .field-counter button{background:#334155;color:#fff;width:28px;height:28px;border:none;border-radius:4px;font-weight:700;cursor:pointer}
   .field-counter button:hover{background:#475569}
-  .field-counter input{background:transparent;border:none;color:#fff;text-align:center;width:40px;font-size:16px;font-weight:700;outline:none}
+  .field-counter input{background:transparent;border:none;color:#fff;text-align:center;width:50px;font-size:16px;font-weight:700;outline:none}
+  .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase}
+  .badge-socio{background:#d4a84330;color:#fde68a}
+  .badge-lider{background:#16a34a30;color:#86efac}
+  .badge-corretor{background:#3b82f630;color:#93c5fd}
+  .badge-inativo{background:#dc262630;color:#fca5a5}
 </style>
 </head>
 <body>
@@ -35,7 +44,6 @@ const SBURL = window.SUPABASE_URL;
 const SBKEY = window.SUPABASE_ANON_KEY;
 const sb = (SBURL && SBKEY && window.supabase) ? window.supabase.createClient(SBURL, SBKEY) : null;
 
-// ── Util: deriva uuid sintetico do legacy id (espelha psm-supabase.js) ──────
 function legacyUid(psmId) {
   if (!psmId) return null;
   let hex = '';
@@ -44,28 +52,32 @@ function legacyUid(psmId) {
   return hex.substring(0,8) + '-' + hex.substring(8,12) + '-' + hex.substring(12,16) + '-' + hex.substring(16,20) + '-' + hex.substring(20,32);
 }
 
-// ── Auth via Supabase user_kv (le credenciais salvas pelo monolito v32+) ────
-// Como o login do PSM eh local (psm_senhas em LS), aqui fazemos auth simples:
-// usuario digita email + senha → batemos contra USERS_BASE hardcoded (sincronizado com monolito)
+const RLVL = { socio:10, gerente:7, backoffice:6, lider:5, marketing:3, corretor:2 };
+
 const USERS = [
-  {id:'paulo', name:'Paulo', email:'paulo@imobiliariapsm.com.br', role:'socio'},
-  {id:'isa', name:'Isabella', email:'isabella@imobiliariapsm.com.br', role:'socio'},
-  {id:'marcos_anderson', name:'Marcos Anderson', email:'marcos@imobiliariapsm.com.br', role:'socio'},
-  {id:'marcus_l', name:'Marcus Lopes', email:'marcus@imobiliariapsm.com.br', role:'lider'},
-  {id:'gabriel_b', name:'Gabriel Brito', email:'gabriel@imobiliariapsm.com.br', role:'corretor'},
-  {id:'kadu', name:'Kadu Ozório', email:'kadu@imobiliariapsm.com.br', role:'corretor'},
-  {id:'julia', name:'Júlia', email:'julia@imobiliariapsm.com.br', role:'corretor'},
-  {id:'danilo_a', name:'Danilo Andrade', email:'danilo@imobiliariapsm.com.br', role:'corretor'},
-  {id:'rafaela_m', name:'Rafaela Metzger', email:'rafaela@imobiliariapsm.com.br', role:'corretor'},
-  {id:'camila_b', name:'Camila Boni', email:'camila@imobiliariapsm.com.br', role:'corretor'},
-  {id:'rodrigo_c', name:'Rodrigo Camargo', email:'rodrigocamargo@imobiliariapsm.com.br', role:'corretor'},
-  {id:'evandro', name:'Evandro', email:'evandro@imobiliariapsm.com.br', role:'corretor'},
-  {id:'yara', name:'Yara Fetti', email:'yara@imobiliariapsm.com.br', role:'corretor'},
-  {id:'bruno', name:'Bruno', email:'bruno@imobiliariapsm.com.br', role:'corretor'},
-  {id:'vitor_o', name:'Vitor Oliveira', email:'vitor@imobiliariapsm.com.br', role:'corretor'},
+  {id:'paulo', name:'Paulo', email:'paulo@imobiliariapsm.com.br', role:'socio', frente:null},
+  {id:'isa', name:'Isabella', email:'isabella@imobiliariapsm.com.br', role:'socio', frente:null},
+  {id:'marcos_anderson', name:'Marcos Anderson', email:'marcos@imobiliariapsm.com.br', role:'socio', frente:null},
+  {id:'marcus_l', name:'Marcus Lopes', email:'marcus@imobiliariapsm.com.br', role:'lider', frente:'lancamento'},
+  {id:'gabriel_b', name:'Gabriel Brito', email:'gabriel@imobiliariapsm.com.br', role:'corretor', frente:'lancamento'},
+  {id:'vitor_o', name:'Vitor Oliveira', email:'vitor@imobiliariapsm.com.br', role:'corretor', frente:'lancamento'},
+  {id:'kadu', name:'Kadu Ozório', email:'kadu@imobiliariapsm.com.br', role:'corretor', frente:'conquista'},
+  {id:'julia', name:'Júlia', email:'julia@imobiliariapsm.com.br', role:'corretor', frente:'conquista'},
+  {id:'danilo_a', name:'Danilo Andrade', email:'danilo@imobiliariapsm.com.br', role:'corretor', frente:'conquista'},
+  {id:'rafaela_m', name:'Rafaela Metzger', email:'rafaela@imobiliariapsm.com.br', role:'corretor', frente:'conquista'},
+  {id:'bruno', name:'Bruno', email:'bruno@imobiliariapsm.com.br', role:'corretor', frente:'conquista'},
+  {id:'camila_b', name:'Camila Boni', email:'camila@imobiliariapsm.com.br', role:'corretor', frente:'terceiros'},
+  {id:'rodrigo_c', name:'Rodrigo Camargo', email:'rodrigocamargo@imobiliariapsm.com.br', role:'corretor', frente:'terceiros'},
+  {id:'evandro', name:'Evandro', email:'evandro@imobiliariapsm.com.br', role:'corretor', frente:'terceiros'},
+  {id:'yara', name:'Yara Fetti', email:'yara@imobiliariapsm.com.br', role:'corretor', frente:'terceiros'},
 ];
 
-// ── OO field schema ─────────────────────────────────────────────────────────
+const FRENTES = {
+  lancamento: { label:'MAP / Lançamento', color:'#1e293b', emoji:'🚀' },
+  conquista: { label:'Conquista', color:'#dc2626', emoji:'🏆' },
+  terceiros: { label:'Terceiros', color:'#15803d', emoji:'🤝' },
+};
+
 const OO_FIELDS = [
   { key: 'lig', label: 'Ligações', emoji: '📞' },
   { key: 'wpp', label: 'WhatsApp', emoji: '💬' },
@@ -75,20 +87,70 @@ const OO_FIELDS = [
   { key: 'reun', label: 'Reuniões', emoji: '🤝' },
 ];
 
-function todayKey() {
-  return new Date().toISOString().slice(0,10);
-}
-function monthKey() {
-  return new Date().toISOString().slice(0,7);
+function todayKey() { return new Date().toISOString().slice(0,10); }
+function monthKey() { return new Date().toISOString().slice(0,7); }
+function fmtMoney(n) { return 'R$ ' + (Number(n)||0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+function fmtDate(ts) {
+  if (!ts) return '—';
+  try {
+    const d = new Date(ts);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  } catch(_) { return '—'; }
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// LoginPage
+// Hooks de leitura/escrita Supabase
+// ──────────────────────────────────────────────────────────────────────────
+function useShared(key) {
+  const [value, setValue] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const reload = useCallback(() => {
+    if (!sb || !key) return;
+    setLoading(true);
+    sb.from('shared_kv').select('value,updated_at').eq('key', key).maybeSingle()
+      .then(({ data }) => {
+        setValue(data ? data.value : null);
+        setLoading(false);
+      });
+  }, [key]);
+  useEffect(() => { reload(); }, [reload]);
+  const save = useCallback(async (newVal) => {
+    if (!sb || !key) return { error: 'no sb' };
+    const r = await sb.from('shared_kv').upsert({ key, value: newVal }, { onConflict: 'key' });
+    if (!r.error) setValue(newVal);
+    return r;
+  }, [key]);
+  return { value, loading, save, reload };
+}
+
+function useUserKv(uid, key) {
+  const [value, setValue] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const reload = useCallback(() => {
+    if (!sb || !uid || !key) return;
+    setLoading(true);
+    sb.from('user_kv').select('value,updated_at').eq('user_id', uid).eq('key', key).maybeSingle()
+      .then(({ data }) => {
+        setValue(data ? data.value : null);
+        setLoading(false);
+      });
+  }, [uid, key]);
+  useEffect(() => { reload(); }, [reload]);
+  const save = useCallback(async (newVal) => {
+    if (!sb || !uid || !key) return { error: 'no sb' };
+    const r = await sb.from('user_kv').upsert({ user_id: uid, key, value: newVal }, { onConflict: 'user_id,key' });
+    if (!r.error) setValue(newVal);
+    return r;
+  }, [uid, key]);
+  return { value, loading, save, reload };
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Login
 // ──────────────────────────────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
   const [selectedId, setSelectedId] = useState('');
   const [err, setErr] = useState('');
-
   function doLogin() {
     if (!selectedId) { setErr('Selecione seu nome'); return; }
     const u = USERS.find(x => x.id === selectedId);
@@ -96,27 +158,20 @@ function LoginPage({ onLogin }) {
     localStorage.setItem('psm_v2_user', JSON.stringify(u));
     onLogin(u);
   }
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="card p-8 w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>PSM /v2 — MVP</h1>
-        <p className="text-sm text-slate-400 mb-6">Operação Olho-no-Olho • Reescrita parcial</p>
-
-        <div className="mb-4">
-          <label className="block text-xs text-slate-400 mb-2">Quem é você?</label>
-          <select className="input" value={selectedId} onChange={e => { setSelectedId(e.target.value); setErr(''); }}>
-            <option value="">— selecionar —</option>
-            {USERS.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
-          </select>
-        </div>
-
+        <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>PSM /v2</h1>
+        <p className="text-sm text-slate-400 mb-6">Sistema reescrito • Versão paralela</p>
+        <label className="block text-xs text-slate-400 mb-2">Quem é você?</label>
+        <select className="input mb-4" value={selectedId} onChange={e => { setSelectedId(e.target.value); setErr(''); }}>
+          <option value="">— selecionar —</option>
+          {USERS.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+        </select>
         {err && <div className="text-red-400 text-sm mb-3">{err}</div>}
-
         <button className="btn w-full" onClick={doLogin}>Entrar</button>
-
         <div className="mt-6 text-xs text-slate-500 border-t border-slate-700 pt-4">
-          MVP /v2 roda em paralelo ao sistema principal. Dados salvos vão pro Supabase via uuid sintético derivado do seu id PSM. Senha não é pedida nesta versão (Sprint 6 traz auth real).
+          Auth simplificada (sem senha). Sprint próxima traz auth real Supabase.
         </div>
       </div>
     </div>
@@ -127,18 +182,23 @@ function LoginPage({ onLogin }) {
 // Sidebar
 // ──────────────────────────────────────────────────────────────────────────
 function Sidebar({ user, page, onNavigate, onLogout }) {
+  const lvl = RLVL[user.role] || 0;
   const items = [
-    { id: 'oo', label: 'Operação Olho-no-Olho', emoji: '👁️' },
-    { id: 'dashboard', label: 'Dashboard', emoji: '📊' },
+    { id: 'oo', label: 'Olho-no-Olho', emoji: '👁️' },
+    { id: 'dashboard', label: 'Dashboard Hoje', emoji: '📊' },
+    { id: 'equipe', label: 'Equipe', emoji: '👥' },
+    { id: 'metas', label: 'Metas', emoji: '🎯', minLvl: 5 },
+    { id: 'recados', label: 'Recados', emoji: '📢' },
   ];
+  const visible = items.filter(it => !it.minLvl || lvl >= it.minLvl);
   return (
-    <aside className="w-60 bg-slate-900 border-r border-slate-700 p-4 flex flex-col">
+    <aside className="w-60 bg-slate-900 border-r border-slate-700 p-4 flex flex-col min-h-screen">
       <div className="mb-6">
         <div className="font-bold text-lg" style={{color:'#d4a843'}}>PSM /v2</div>
-        <div className="text-xs text-slate-500">MVP Reescrita</div>
+        <div className="text-xs text-slate-500">Reescrita parcial</div>
       </div>
       <nav className="flex-1 space-y-1">
-        {items.map(it => (
+        {visible.map(it => (
           <button key={it.id} onClick={() => onNavigate(it.id)}
             className={'w-full text-left px-3 py-2 rounded text-sm font-medium transition ' + (page === it.id ? 'bg-yellow-600/20 text-yellow-400' : 'text-slate-300 hover:bg-slate-800')}>
             <span className="mr-2">{it.emoji}</span>{it.label}
@@ -148,17 +208,17 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
       <div className="mt-4 pt-4 border-t border-slate-700">
         <div className="text-sm font-medium">{user.name}</div>
         <div className="text-xs text-slate-500 mb-2">{user.role}</div>
-        <button className="btn-out btn text-xs w-full" onClick={onLogout}>Sair</button>
+        <button className="btn-out btn btn-sm w-full" onClick={onLogout}>Sair</button>
       </div>
     </aside>
   );
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// OOPage
+// OOPage (módulo Olho-no-Olho)
 // ──────────────────────────────────────────────────────────────────────────
 function OOPage({ user }) {
-  const lvl = { socio: 10, lider: 5, corretor: 2 }[user.role] || 0;
+  const lvl = RLVL[user.role] || 0;
   const canViewOthers = lvl >= 5;
   const [selectedBid, setSelectedBid] = useState(user.id);
   const [data, setData] = useState({});
@@ -167,71 +227,54 @@ function OOPage({ user }) {
   const [savedAt, setSavedAt] = useState(null);
   const [err, setErr] = useState('');
   const [date, setDate] = useState(todayKey());
-
   const targetUid = useMemo(() => legacyUid(selectedBid), [selectedBid]);
   const mk = useMemo(() => date.slice(0,7), [date]);
-  const dk = useMemo(() => date, [date]);
 
-  // Carrega ooDaily do Supabase (chave OO_<bid>)
   useEffect(() => {
     if (!sb || !selectedBid) return;
-    setLoading(true);
-    setErr('');
+    setLoading(true); setErr('');
     sb.from('user_kv').select('value').eq('user_id', targetUid).eq('key', 'OO_DAILY_' + selectedBid).maybeSingle()
       .then(({ data: row, error }) => {
-        if (error) { setErr(error.message); }
+        if (error) setErr(error.message);
         const all = (row && row.value) || {};
-        const today = (all[mk] && all[mk][dk]) || {};
-        const empty = OO_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: today[f.key] || 0 }), {});
-        setData(empty);
+        const today = (all[mk] && all[mk][date]) || {};
+        setData(OO_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: today[f.key] || 0 }), {}));
         setLoading(false);
       });
-  }, [selectedBid, dk, mk, targetUid]);
+  }, [selectedBid, date, mk, targetUid]);
 
-  function setField(k, v) {
-    const num = Math.max(0, parseInt(v, 10) || 0);
-    setData(prev => ({ ...prev, [k]: num }));
-  }
-  function inc(k) { setField(k, (data[k] || 0) + 1); }
-  function dec(k) { setField(k, (data[k] || 0) - 1); }
-
+  function setField(k, v) { setData(prev => ({ ...prev, [k]: Math.max(0, parseInt(v,10) || 0) })); }
   async function save() {
     if (!sb) { setErr('Supabase não configurado'); return; }
     setSaving(true); setErr('');
     try {
-      // Le valor atual completo, atualiza dia, salva de volta
       const { data: row } = await sb.from('user_kv').select('value').eq('user_id', targetUid).eq('key', 'OO_DAILY_' + selectedBid).maybeSingle();
       const all = (row && row.value) || {};
       if (!all[mk]) all[mk] = {};
-      all[mk][dk] = data;
+      all[mk][date] = data;
       const up = await sb.from('user_kv').upsert({ user_id: targetUid, key: 'OO_DAILY_' + selectedBid, value: all }, { onConflict: 'user_id,key' });
       if (up.error) throw up.error;
       setSavedAt(Date.now());
-    } catch(e) {
-      setErr(e.message || String(e));
-    }
+    } catch(e) { setErr(e.message || String(e)); }
     setSaving(false);
   }
 
   const total = OO_FIELDS.reduce((sum, f) => sum + (data[f.key] || 0), 0);
+  const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>👁️ Operação Olho-no-Olho</h1>
-          <p className="text-sm text-slate-400">Registro diário de atividades comerciais</p>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>👁️ Olho-no-Olho</h1>
+          <p className="text-sm text-slate-400">Registro diário de atividades</p>
         </div>
         {canViewOthers && (
           <select className="input max-w-xs" value={selectedBid} onChange={e => setSelectedBid(e.target.value)}>
-            {USERS.filter(u => ['corretor','lider'].includes(u.role)).map(u => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
-            {canViewOthers && <option value={user.id}>{user.name} (eu)</option>}
+            {corretores.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
         )}
       </div>
-
       <div className="card p-4 mb-4 flex items-center gap-4 flex-wrap">
         <div>
           <label className="text-xs text-slate-400 block mb-1">Data</label>
@@ -242,13 +285,11 @@ function OOPage({ user }) {
           <div className="font-bold text-lg">{USERS.find(u => u.id === selectedBid)?.name || selectedBid}</div>
         </div>
         <div className="text-right">
-          <div className="text-xs text-slate-400">Total atividades</div>
+          <div className="text-xs text-slate-400">Total</div>
           <div className="text-3xl font-bold" style={{color:'#d4a843'}}>{total}</div>
         </div>
       </div>
-
-      {loading && <div className="text-center text-slate-500 py-8">Carregando…</div>}
-      {!loading && (
+      {loading ? <div className="text-center text-slate-500 py-8">Carregando…</div> : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
             {OO_FIELDS.map(f => (
@@ -258,14 +299,13 @@ function OOPage({ user }) {
                   <span className="font-bold text-sm">{f.label}</span>
                 </div>
                 <div className="field-counter">
-                  <button onClick={() => dec(f.key)}>−</button>
+                  <button onClick={() => setField(f.key, (data[f.key]||0) - 1)}>−</button>
                   <input type="number" min="0" value={data[f.key] || 0} onChange={e => setField(f.key, e.target.value)} />
-                  <button onClick={() => inc(f.key)}>+</button>
+                  <button onClick={() => setField(f.key, (data[f.key]||0) + 1)}>+</button>
                 </div>
               </div>
             ))}
           </div>
-
           <div className="flex items-center gap-3 flex-wrap">
             <button className="btn" onClick={save} disabled={saving}>{saving ? 'Salvando…' : '💾 Salvar dia'}</button>
             {savedAt && <span className="text-green-400 text-sm">✓ Salvo {new Date(savedAt).toLocaleTimeString('pt-BR')}</span>}
@@ -283,7 +323,6 @@ function OOPage({ user }) {
 function DashboardPage({ user }) {
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     if (!sb) { setLoading(false); return; }
     const today = todayKey();
@@ -294,7 +333,7 @@ function DashboardPage({ user }) {
         const all = (row && row.value) || {};
         const todayData = (all[mk] && all[mk][today]) || {};
         const total = OO_FIELDS.reduce((s, f) => s + (todayData[f.key] || 0), 0);
-        return { id: u.id, name: u.name, total, fields: todayData };
+        return { id: u.id, name: u.name, frente: u.frente, total, fields: todayData };
       })
     ).then(rows => {
       rows.sort((a,b) => b.total - a.total);
@@ -302,27 +341,24 @@ function DashboardPage({ user }) {
       setLoading(false);
     });
   }, []);
-
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>📊 Dashboard — Hoje</h1>
-      <p className="text-sm text-slate-400 mb-6">Atividades dos corretores em {new Date().toLocaleDateString('pt-BR')}</p>
-
-      {loading && <div className="text-slate-500">Carregando…</div>}
-      {!loading && snapshot && (
+      <p className="text-sm text-slate-400 mb-6">Atividades em {new Date().toLocaleDateString('pt-BR')}</p>
+      {loading ? <div className="text-slate-500">Carregando…</div> : snapshot && (
         <div className="card overflow-hidden">
           <table className="w-full">
-            <thead>
-              <tr className="bg-slate-900 text-xs text-slate-400 uppercase">
-                <th className="text-left p-3">Corretor</th>
-                {OO_FIELDS.map(f => <th key={f.key} className="text-center p-3">{f.emoji}</th>)}
-                <th className="text-right p-3">Total</th>
-              </tr>
-            </thead>
+            <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
+              <th className="text-left p-3">Corretor</th>
+              <th className="text-left p-3">Frente</th>
+              {OO_FIELDS.map(f => <th key={f.key} className="text-center p-3" title={f.label}>{f.emoji}</th>)}
+              <th className="text-right p-3">Total</th>
+            </tr></thead>
             <tbody>
               {snapshot.map(r => (
                 <tr key={r.id} className="border-t border-slate-700 hover:bg-slate-900/50">
                   <td className="p-3 font-medium">{r.name}</td>
+                  <td className="p-3 text-xs">{r.frente ? FRENTES[r.frente]?.emoji + ' ' + FRENTES[r.frente]?.label : '—'}</td>
                   {OO_FIELDS.map(f => <td key={f.key} className="text-center p-3 text-slate-300">{r.fields[f.key] || 0}</td>)}
                   <td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>{r.total}</td>
                 </tr>
@@ -336,6 +372,227 @@ function DashboardPage({ user }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// EquipePage
+// ──────────────────────────────────────────────────────────────────────────
+function EquipePage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  const isSocio = user.role === 'socio';
+  const { value: disabled, save: saveDisabled, loading } = useShared('USER_DISABLED');
+  const dmap = disabled || {};
+
+  async function toggleDisabled(uid) {
+    if (!isSocio) return;
+    if (uid === user.id) { alert('Você não pode desativar você mesmo'); return; }
+    const target = USERS.find(x => x.id === uid);
+    const isOn = !!dmap[uid];
+    const action = isOn ? 'reativar' : 'desativar';
+    if (!confirm('Confirma ' + action + ' ' + target.name + '?\nDados são preservados.')) return;
+    const next = { ...dmap };
+    if (isOn) delete next[uid];
+    else next[uid] = { disabledAt: Date.now(), disabledBy: user.id };
+    const r = await saveDisabled(next);
+    if (r.error) alert('Erro: ' + r.error.message);
+  }
+
+  const grouped = useMemo(() => {
+    const byFrente = {};
+    USERS.forEach(u => {
+      const k = u.frente || '_outros';
+      if (!byFrente[k]) byFrente[k] = [];
+      byFrente[k].push(u);
+    });
+    return byFrente;
+  }, []);
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>👥 Equipe</h1>
+      <p className="text-sm text-slate-400 mb-6">{USERS.length} usuários cadastrados • {Object.keys(dmap).length} desativados</p>
+      {loading ? <div className="text-slate-500">Carregando…</div> : (
+        Object.entries(grouped).map(([fid, list]) => (
+          <div key={fid} className="mb-6">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">
+              {FRENTES[fid] ? FRENTES[fid].emoji + ' ' + FRENTES[fid].label : '🔧 Outros'}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {list.map(u => {
+                const isDis = !!dmap[u.id];
+                return (
+                  <div key={u.id} className="card p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <div className="font-bold">{u.name}</div>
+                        <div className="text-xs text-slate-500">{u.email}</div>
+                      </div>
+                      <div className="flex flex-col gap-1 items-end">
+                        <span className={'badge badge-' + u.role}>{u.role}</span>
+                        {isDis && <span className="badge badge-inativo">desativado</span>}
+                      </div>
+                    </div>
+                    {isSocio && u.id !== user.id && (
+                      <button
+                        className={'btn btn-sm w-full mt-2 ' + (isDis ? 'btn-success' : 'btn-danger')}
+                        onClick={() => toggleDisabled(u.id)}
+                      >
+                        {isDis ? '✓ Reativar acesso' : '🚫 Desativar acesso'}
+                      </button>
+                    )}
+                    {isDis && dmap[u.id]?.disabledAt && (
+                      <div className="text-xs text-slate-500 mt-2">
+                        Desativado em {fmtDate(dmap[u.id].disabledAt)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// MetasPage (configurar meta mensal por corretor)
+// ──────────────────────────────────────────────────────────────────────────
+function MetasPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  const canEdit = lvl >= 5;
+  const [editingId, setEditingId] = useState(null);
+  const [editVal, setEditVal] = useState('');
+  const [savingId, setSavingId] = useState(null);
+  const { value: metas, save: saveMetas, loading } = useShared('METAS_INDIVIDUAIS');
+  const m = metas || {};
+
+  async function commit(uid) {
+    setSavingId(uid);
+    const next = { ...m, [uid]: { vgv: parseFloat(editVal) || 0, updatedAt: Date.now(), updatedBy: user.id } };
+    const r = await saveMetas(next);
+    if (r.error) alert('Erro: ' + r.error.message);
+    setEditingId(null); setEditVal(''); setSavingId(null);
+  }
+
+  const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
+  const totalMeta = corretores.reduce((s, u) => s + (m[u.id]?.vgv || 0), 0);
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🎯 Metas</h1>
+      <p className="text-sm text-slate-400 mb-6">Meta mensal de VGV por corretor</p>
+      <div className="card p-4 mb-4">
+        <div className="text-xs text-slate-400">Soma das metas individuais</div>
+        <div className="text-3xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(totalMeta)}</div>
+      </div>
+      {loading ? <div className="text-slate-500">Carregando…</div> : (
+        <div className="card overflow-hidden">
+          <table className="w-full">
+            <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
+              <th className="text-left p-3">Corretor</th>
+              <th className="text-left p-3">Frente</th>
+              <th className="text-right p-3">Meta VGV (R$)</th>
+              <th className="text-right p-3">Atualizado</th>
+              {canEdit && <th className="p-3"></th>}
+            </tr></thead>
+            <tbody>
+              {corretores.map(u => {
+                const cur = m[u.id]?.vgv || 0;
+                const isEditing = editingId === u.id;
+                return (
+                  <tr key={u.id} className="border-t border-slate-700">
+                    <td className="p-3 font-medium">{u.name}</td>
+                    <td className="p-3 text-xs">{u.frente ? FRENTES[u.frente]?.label : '—'}</td>
+                    <td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>
+                      {isEditing ? (
+                        <input type="number" className="input text-right max-w-xs" value={editVal} onChange={e => setEditVal(e.target.value)} />
+                      ) : fmtMoney(cur)}
+                    </td>
+                    <td className="text-right p-3 text-xs text-slate-500">{m[u.id]?.updatedAt ? fmtDate(m[u.id].updatedAt) : '—'}</td>
+                    {canEdit && <td className="p-3 text-right whitespace-nowrap">
+                      {isEditing ? (
+                        <>
+                          <button className="btn btn-sm btn-success" onClick={() => commit(u.id)} disabled={savingId === u.id}>{savingId === u.id ? '...' : '✓'}</button>
+                          <button className="btn btn-sm btn-out ml-1" onClick={() => { setEditingId(null); setEditVal(''); }}>×</button>
+                        </>
+                      ) : (
+                        <button className="btn btn-sm btn-out" onClick={() => { setEditingId(u.id); setEditVal(String(cur)); }}>Editar</button>
+                      )}
+                    </td>}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// RecadosPage (mural simples)
+// ──────────────────────────────────────────────────────────────────────────
+function RecadosPage({ user }) {
+  const { value: recados, save: saveRecados, loading } = useShared('RECADOS_DIRETORIA');
+  const list = Array.isArray(recados) ? recados : [];
+  const [text, setText] = useState('');
+  const [posting, setPosting] = useState(false);
+  const isSocio = user.role === 'socio';
+
+  async function postRecado() {
+    if (!text.trim()) return;
+    setPosting(true);
+    const next = [
+      { id: 'r' + Date.now(), text: text.trim(), author: user.id, authorName: user.name, ts: Date.now() },
+      ...list
+    ].slice(0, 200);
+    const r = await saveRecados(next);
+    if (!r.error) setText('');
+    setPosting(false);
+  }
+  async function deleteRecado(id) {
+    if (!confirm('Apagar este recado?')) return;
+    const next = list.filter(r => r.id !== id);
+    await saveRecados(next);
+  }
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>📢 Recados</h1>
+      <p className="text-sm text-slate-400 mb-6">Mural compartilhado da diretoria/equipe</p>
+      {isSocio && (
+        <div className="card p-4 mb-6">
+          <textarea className="input mb-3" rows="3" placeholder="Escreva um recado..." value={text} onChange={e => setText(e.target.value)} />
+          <button className="btn" onClick={postRecado} disabled={posting || !text.trim()}>{posting ? 'Postando…' : '📌 Postar recado'}</button>
+        </div>
+      )}
+      {loading ? <div className="text-slate-500">Carregando…</div> : (
+        list.length === 0 ? (
+          <div className="text-center text-slate-500 py-8">Nenhum recado ainda.</div>
+        ) : (
+          <div className="space-y-3">
+            {list.map(r => (
+              <div key={r.id} className="card p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <div className="font-bold text-sm">{r.authorName || r.author}</div>
+                    <div className="text-xs text-slate-500">{fmtDate(r.ts)}</div>
+                  </div>
+                  {isSocio && (
+                    <button className="text-red-400 hover:text-red-300 text-xs" onClick={() => deleteRecado(r.id)}>Apagar</button>
+                  )}
+                </div>
+                <div className="text-slate-200 whitespace-pre-wrap">{r.text}</div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // App
 // ──────────────────────────────────────────────────────────────────────────
 function App() {
@@ -343,20 +600,17 @@ function App() {
     try { return JSON.parse(localStorage.getItem('psm_v2_user') || 'null'); } catch(_) { return null; }
   });
   const [page, setPage] = useState('oo');
-
-  function logout() {
-    localStorage.removeItem('psm_v2_user');
-    setUser(null);
-  }
-
+  function logout() { localStorage.removeItem('psm_v2_user'); setUser(null); }
   if (!user) return <LoginPage onLogin={setUser} />;
-
   return (
     <div className="min-h-screen flex">
       <Sidebar user={user} page={page} onNavigate={setPage} onLogout={logout} />
       <main className="flex-1 overflow-auto">
         {page === 'oo' && <OOPage user={user} />}
         {page === 'dashboard' && <DashboardPage user={user} />}
+        {page === 'equipe' && <EquipePage user={user} />}
+        {page === 'metas' && <MetasPage user={user} />}
+        {page === 'recados' && <RecadosPage user={user} />}
       </main>
     </div>
   );
