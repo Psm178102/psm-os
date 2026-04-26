@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.25-v31 (Sprint 3: socios podem desativar usuarios) (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
+<!-- PSM-OS v2026.04.26-v32 (Sprint 4: auto-backfill LS->Supabase (Sprint 3 + 5 abas removidas)) (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,8 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.25-v31">
-<script>window.PSM_VERSION='31.0.0';window.PSM_VERSION_META='2026.04.25-v31';
+<meta name="version" content="2026.04.26-v32.1">
+<script>window.PSM_VERSION='31.1.0';window.PSM_VERSION_META='2026.04.26-v32.1';
 // ═════════════════════════════════════════════════════════════════════════════
 // PSM Sprint 0 — Firebase write toggle (2026-04-25)
 // Default: false (Firebase escreve normalmente). Flip pra true via console:
@@ -1073,6 +1073,86 @@ try {
     }
   });
 } catch(e){console.error("[PSM-disable boot]",e);}
+
+// ── Sprint 4 (2026-04-26): Auto-backfill localStorage -> Supabase ────────────
+// Roda UMA VEZ por device apos v32 boot. Empurra todas as chaves psm_* + globais
+// (BROKERS, METAS, etc) que estao em LocalStorage para o Supabase via psmDb.
+// Marca conclusao em psm_backfill_v32_done pra nao repetir.
+window.psmRunBackfill = function(force){
+  if (!force && localStorage.getItem('psm_backfill_v32_done') === '1') {
+    console.log('[backfill] ja executado nesse device');
+    return Promise.resolve({skipped:true});
+  }
+  if (!(window.psmDb && window.psmDb.write)) {
+    console.warn('[backfill] psmDb indisponivel, abortando');
+    return Promise.reject(new Error('psmDb not ready'));
+  }
+  var pushed = 0, skipped = 0, failed = 0;
+  var keysToPush = [];
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (!k) continue;
+      // Pula segredos e ruido (token, senhas, audit volumoso)
+      if (k === 'psm_token' || k === 'psm_senhas' || k === 'psm_audit_log' ||
+          k === 'psm_backfill_v32_done' || k === 'psm_offline_queue' ||
+          k === 'psm_remember_pwhash' || k === 'psm_remember_pwhash_legacy') {
+        skipped++; continue;
+      }
+      // Empurra qualquer key psm_* OU keys globais conhecidas (BROKERS, METAS, etc)
+      var isPsm = k.indexOf('psm_') === 0;
+      var isGlobal = ['BROKERS','PROJETOS','LEADS_POOL','LEADS','PRODUTOS','CALENDARIO',
+                      'METAS','AVISOS','SUPRIMENTOS','TREINAMENTOS','ATAS','DOCUMENTOS',
+                      'COMISSOES','REGRAS','CONFIG','INCENTIVOS','REUNIOES_GERAIS',
+                      'POSTVENDA','LOCACAO_IMOVEIS','LOCACAO_INQUILINOS','LOCACAO_PROPRIETARIOS',
+                      'TERCEIROS_IMOVEIS','ARENA_STATE','PARCEIROS','RANKINGS','MAPA_VENDAS',
+                      'CAMPANHAS','INDICADORES','LOG_AUDITORIA','MENSAGENS','USER_DISABLED'].indexOf(k) !== -1;
+      if (!isPsm && !isGlobal) { skipped++; continue; }
+      keysToPush.push(k);
+    }
+  } catch(e){ console.error('[backfill] erro lendo LS:', e); }
+
+  console.log('[backfill] ' + keysToPush.length + ' chaves a enviar (pulados=' + skipped + ')');
+
+  // Enfileira em chunks de 30 com debounce do wrapper
+  keysToPush.forEach(function(k){
+    try {
+      var raw = localStorage.getItem(k);
+      var val;
+      try { val = JSON.parse(raw); } catch(_){ val = raw; }
+      window.psmDb.write(k, val);
+      pushed++;
+    } catch(e){ failed++; console.warn('[backfill] falha key=' + k, e); }
+  });
+
+  // Forca flush apos 3s e marca conclusao
+  return new Promise(function(resolve){
+    setTimeout(function(){
+      if (window.psmDb.flush) {
+        window.psmDb.flush();
+      }
+      setTimeout(function(){
+        try { localStorage.setItem('psm_backfill_v32_done', '1'); } catch(_){}
+        try { localStorage.setItem('psm_backfill_v32_at', String(Date.now())); } catch(_){}
+        var summary = { pushed: pushed, skipped: skipped, failed: failed, completedAt: Date.now() };
+        console.log('[backfill] concluido', summary);
+        if (typeof toast === 'function' && pushed > 0) {
+          try { toast(pushed + ' chaves migradas para Supabase', 'ok'); } catch(_){}
+        }
+        resolve(summary);
+      }, 4000);
+    }, 3000);
+  });
+};
+
+// Auto-trigger: 8s depois do boot, se psmDb estiver pronto e usuario logado
+setTimeout(function(){
+  try {
+    if (S && S.user && window.psmDb && window.psmDb.write) {
+      window.psmRunBackfill().catch(function(e){ console.warn('[backfill auto]', e); });
+    }
+  } catch(_){}
+}, 8000);
 
 function buildUsers(){
   return USERS_BASE.map(u=>{
@@ -23740,7 +23820,7 @@ var PAGES_SECRETARIA=['fluxo_captacoes','tarefas_psm'];
 // Pipeline & CRM: socios + gestores(lider)
 var PAGES_PIPELINE=['crm','metricas'];
 // Marketing: socios + marketing
-var PAGES_MARKETING=['metaads','sim_criativos','sim_leads','metricas_viab','crono_conquista','crono_psm','curadoria_conquista','curadoria_psm','gerador_img','gerador_video','gerador_motion'];
+var PAGES_MARKETING=['metaads','sim_criativos','sim_leads','metricas_viab','crono_conquista','crono_psm'];
 // Financeiro: socios + mariane
 var PAGES_FINANCEIRO=['fluxocaixa','dre','comissoes','repasses','custos_fixos','metricas_fin'];
 // Diretoria: apenas socios
@@ -23868,11 +23948,6 @@ function renderSB() {
       {id:'metricas_viab',    lbl:'M\u00e9tricas Viabilidade ADS',ico:'\uD83D\uDCCA'},
       {id:'crono_conquista',  lbl:'Cronograma Conquista',        ico:'\uD83D\uDCC5'},
       {id:'crono_psm',        lbl:'Cronograma PSM',              ico:'\uD83D\uDCC5'},
-      {id:'curadoria_conquista',lbl:'Curadoria Conquista',       ico:'\uD83D\uDCCB'},
-      {id:'curadoria_psm',    lbl:'Curadoria PSM',              ico:'\uD83D\uDCCB'},
-      {id:'gerador_img',      lbl:'Gerador Imagens',            ico:'\uD83D\uDDBC\uFE0F'},
-      {id:'gerador_video',    lbl:'Gerador V\u00eddeos',        ico:'\uD83C\uDFA5'},
-      {id:'gerador_motion',   lbl:'Gerador Motion',             ico:'\uD83C\uDFAC'},
     ]},
     {sec:'Financeiro', items:[
       {id:'fluxocaixa',  lbl:'Fluxo de Caixa',            ico:'\uD83D\uDCB0'},
@@ -23912,7 +23987,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v31</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v32</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -24025,9 +24100,6 @@ function renderHDR() {
     metaads:'\uD83D\uDCE3 Meta ADS',intelads:'\uD83D\uDCF0 Intelligence Ads',sim_criativos:'\uD83C\uDFA8 Simulador de Criativos',
     sim_leads:'\uD83C\uDFAF Simulador de Leads',metricas_viab:'\uD83D\uDCCA M\u00e9tricas Viabilidade ADS',
     crono_conquista:'\uD83D\uDCC5 Cronograma Conquista',crono_psm:'\uD83D\uDCC5 Cronograma PSM',
-    curadoria_conquista:'\uD83D\uDCCB Curadoria Conquista',curadoria_psm:'\uD83D\uDCCB Curadoria PSM',
-    gerador_img:'\uD83D\uDDBC\uFE0F Gerador de Imagens',gerador_video:'\uD83C\uDFA5 Gerador de V\u00eddeos',
-    gerador_motion:'\uD83C\uDFAC Gerador Motion',
     // Financeiro
     fluxocaixa:'\uD83D\uDCB0 Fluxo de Caixa',dre:'\uD83D\uDCCA DRE',comissoes:'\uD83D\uDC8E Comiss\u00f5es',
     repasses:'\uD83D\uDD04 Repasses',custos_fixos:'\uD83D\uDCC9 Custos Fixos & Vari\u00e1veis',
@@ -24156,11 +24228,6 @@ function route() {
     // Marketing
     case 'crono_conquista':  S.mkTab='cronograma'; return pgMarketing();
     case 'crono_psm':        S.mkTab='cronoimoveis'; return pgMarketing();
-    case 'curadoria_conquista': return pgPlaceholder('Curadoria Conquista','Em breve: curadoria de conte\u00fados Conquista.');
-    case 'curadoria_psm':    return pgPlaceholder('Curadoria PSM','Em breve: curadoria de conte\u00fados PSM.');
-    case 'gerador_img':      return pgCriacaoImg();
-    case 'gerador_video':    return pgPlaceholder('Gerador de V\u00eddeos','Em breve: ferramenta de gera\u00e7\u00e3o de v\u00eddeos.');
-    case 'gerador_motion':   return pgPlaceholder('Gerador Motion','Em breve: ferramenta de gera\u00e7\u00e3o de motions.');
     // Financeiro
     case 'custos_fixos':     return pgPlaceholder('Custos Fixos & Vari\u00e1veis','Em breve: controle de custos fixos e vari\u00e1veis.');
     case 'metricas_fin':     return pgMetricasFinanceiro();
@@ -29900,7 +29967,7 @@ document.addEventListener('keydown', function(e){
     var folderId = await findOrCreateFolder(token);
     var snapshot = {
       ts: Date.now(),
-      version: (document.querySelector('meta[name="version"]')||{}).content || '2026.04.25-v31',
+      version: (document.querySelector('meta[name="version"]')||{}).content || '2026.04.26-v32',
       state: window.psmLSGet('psm_os_state_v1', {})
     };
     var blob = new Blob([JSON.stringify(snapshot)], {type:'application/json'});

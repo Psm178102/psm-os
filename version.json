@@ -1,7 +1,7 @@
 {
-  "version": "31.0.0",
-  "meta": "2026.04.25-v31",
-  "built": "2026-04-26T00:30:00Z",
-  "sw": "v31.0.0-2026-04-25-sprint-3",
-  "sprint": "Sprint 3: setUserDisabled - socios podem desativar usuarios (preserva dados)"
+  "version": "32.0.0",
+  "meta": "2026.04.26-v32",
+  "built": "2026-04-26T01:10:00Z",
+  "sw": "v32.0.0-2026-04-26-sprint-4",
+  "sprint": "Sprint 4: auto-backfill LS -> Supabase + audit triggers"
 }
