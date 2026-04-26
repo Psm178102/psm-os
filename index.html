@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.25-v30 (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
+<!-- PSM-OS v2026.04.25-v31 (Sprint 3: socios podem desativar usuarios) (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,8 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.25-v30">
-<script>window.PSM_VERSION='30.0.0';window.PSM_VERSION_META='2026.04.25-v30';
+<meta name="version" content="2026.04.25-v31">
+<script>window.PSM_VERSION='31.0.0';window.PSM_VERSION_META='2026.04.25-v31';
 // ═════════════════════════════════════════════════════════════════════════════
 // PSM Sprint 0 — Firebase write toggle (2026-04-25)
 // Default: false (Firebase escreve normalmente). Flip pra true via console:
@@ -1058,7 +1058,21 @@ let TEAM_CONFIG={
 try {
   var _roleMap = JSON.parse(localStorage.getItem('psm_user_roles')||'{}');
   USERS_BASE.forEach(function(u){ if(_roleMap[u.id]) u.role = _roleMap[u.id]; });
-} catch(e){console.error("[PSM v27.7]",e);}
+} catch(e){console.error("[PSM v30]",e);}
+
+// ── Sprint 3 (2026-04-25): Desativacao de usuarios pelos socios ──────────
+// Estrutura: psm_user_disabled = { 'broker_id': { disabledAt: ts, disabledBy: 'paulo', motivo?: '...' } }
+// Aplica status='inativo' aos desativados (oculta no UI, bloqueia login, preserva dados).
+try {
+  var _disabledMap = JSON.parse(localStorage.getItem('psm_user_disabled')||'{}');
+  USERS_BASE.forEach(function(u){
+    if (_disabledMap[u.id]) {
+      u.status = 'inativo';
+      u.desligadoEm = (_disabledMap[u.id].disabledAt) ? new Date(_disabledMap[u.id].disabledAt).toISOString().slice(0,10) : u.desligadoEm;
+      u._disabled = _disabledMap[u.id];
+    }
+  });
+} catch(e){console.error("[PSM-disable boot]",e);}
 
 function buildUsers(){
   return USERS_BASE.map(u=>{
@@ -10438,6 +10452,16 @@ async function doLogin() {
 
   const user = USERS_BASE.find(u => u.id === uid);
   if (!user) { S.loginErr = 'Usuário não encontrado'; S.loginLoading = false; render(); return; }
+
+  // Sprint 3 (2026-04-25): Bloqueia login de usuarios desativados pelos socios
+  try {
+    var _dmap = JSON.parse(localStorage.getItem('psm_user_disabled')||'{}');
+    if (_dmap[user.id]) {
+      var _by = _dmap[user.id].disabledBy || 'direcao';
+      S.loginErr = 'Acesso desativado. Procure a direcao (' + _by + ') para reativar.';
+      S.loginLoading = false; render(); return;
+    }
+  } catch(e){ console.error('[login disabled check]', e); }
 
   S.user = {...UM[user.id], ...user};
   const lvl = RLVL[S.user.role] || 0;
@@ -21877,6 +21901,7 @@ function pgConfig() {
                 + '<select class="finp" style="padding:5px 8px;font-size:11px;font-weight:700;min-width:120px;border-left:3px solid '+info.color+'" onchange="setUserRole(\''+usr.id+'\', this.value)">'
                 +   rolesList.map(function(r){return '<option value="'+r.id+'"'+(cur===r.id?' selected':'')+'>'+r.ico+' '+r.lbl+' \u00B7 L'+r.lvl+'</option>';}).join('')
                 + '</select>'
+                + (function(){ var disabled = !!(usr._disabled || usr.status==='inativo'); var color = disabled ? '#16a34a' : '#dc2626'; var label = disabled ? '\u2705 Reativar' : '\uD83D\uDEAB Desativar'; var title = disabled ? 'Reativar acesso de '+usr.name : 'Desativar acesso de '+usr.name+' (preserva dados, bloqueia login)'; return (S.user && S.user.role === 'socio') ? '<button class="btn bp1 bsm" style="padding:4px 8px;font-size:10px;font-weight:700;background:'+color+';color:#fff;border:none;border-radius:6px;cursor:pointer;margin-left:6px" title="'+title+'" onclick="setUserDisabled(\''+usr.id+'\', '+(!disabled)+')">'+label+'</button>' : ''; })()
                 + '</div>';
             }).join('')
           + '</div>'
@@ -22172,6 +22197,80 @@ function setUserRole(userId, newRole) {
   toast('\u2705 Perfil de '+(u.name||userId)+' alterado para '+newRole, 'ok');
   render();
 }
+
+// ── Sprint 3 (2026-04-25): Desativar/reativar usuario (so socios) ─────────
+function setUserDisabled(userId, disable, motivo) {
+  if (!userId) return;
+  var me = S.user;
+  var myLvl = RLVL[me && me.role] || 0;
+  if (myLvl < 10) { toast('Apenas Socio/Diretor pode desativar usuarios', 'err'); return; }
+  if (userId === (me && me.id)) { toast('Voce nao pode desativar voce mesmo', 'err'); return; }
+  var u = USERS_BASE.find(function(x){ return x.id === userId; });
+  if (!u) { toast('Usuario nao encontrado', 'err'); return; }
+
+  var map = {};
+  try { map = JSON.parse(localStorage.getItem('psm_user_disabled')||'{}'); } catch(_){}
+
+  if (disable) {
+    if (u.role === 'socio') {
+      if (!confirm('ATENCAO: '+u.name+' eh socio. Confirma desativar acesso?')) return;
+    } else {
+      if (!confirm('Desativar acesso de '+u.name+'? Os dados (vendas, deals, oportunidades) sao preservados, mas o usuario nao podera mais entrar no sistema.')) return;
+    }
+    map[userId] = {
+      disabledAt: Date.now(),
+      disabledBy: me.id,
+      motivo: motivo || ''
+    };
+    u.status = 'inativo';
+    u._disabled = map[userId];
+    u.desligadoEm = new Date().toISOString().slice(0,10);
+  } else {
+    if (!confirm('Reativar acesso de '+u.name+'?')) return;
+    delete map[userId];
+    u.status = 'ativo';
+    u._disabled = null;
+    u.desligadoEm = null;
+  }
+
+  try { localStorage.setItem('psm_user_disabled', JSON.stringify(map)); } catch(e){ console.error('[setUserDisabled persist]', e); }
+
+  // Sincroniza pro Supabase via wrapper psm-supabase
+  try {
+    if (window.psmDb && window.psmDb.write) window.psmDb.write('USER_DISABLED', map);
+  } catch(_){}
+
+  // Rebuild USERS / BROKERS / INATIVOS pra refletir estado novo
+  try {
+    USERS = buildUsers();
+    UM = Object.fromEntries(USERS.map(function(x){return [x.id,x];}));
+    ALL_BROKERS = USERS.filter(function(x){return ['corretor','lider'].includes(x.role);});
+    INATIVOS = ALL_BROKERS.filter(function(x){return x.status==='inativo';});
+    INATIVOS_IDS = INATIVOS.map(function(x){return x.id;});
+    BROKERS = ALL_BROKERS.filter(function(x){return x.status!=='inativo';});
+    BROKERS_ALL = ALL_BROKERS.slice();
+  } catch(e){ console.error('[setUserDisabled rebuild]', e); }
+
+  // Audit log
+  try {
+    if (Array.isArray(S.auditLog)) {
+      S.auditLog.unshift({
+        ts: Date.now(),
+        actor: me.id,
+        action: disable ? 'user.disabled' : 'user.enabled',
+        target: userId,
+        meta: { name: u.name, motivo: motivo || '' }
+      });
+      S.auditLog = S.auditLog.slice(0, 500);
+    }
+  } catch(_){}
+
+  saveState && saveState();
+  toast(disable ? ('Acesso de '+u.name+' DESATIVADO') : ('Acesso de '+u.name+' reativado'), disable ? 'warn' : 'ok');
+  render();
+}
+window.setUserDisabled = setUserDisabled;
+
 
 function addBrokerManual() {
   const name = document.getElementById('new-broker-name')?.value?.trim();
@@ -23813,7 +23912,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v30</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v31</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -29801,7 +29900,7 @@ document.addEventListener('keydown', function(e){
     var folderId = await findOrCreateFolder(token);
     var snapshot = {
       ts: Date.now(),
-      version: (document.querySelector('meta[name="version"]')||{}).content || '2026.04.25-v30',
+      version: (document.querySelector('meta[name="version"]')||{}).content || '2026.04.25-v31',
       state: window.psmLSGet('psm_os_state_v1', {})
     };
     var blob = new Blob([JSON.stringify(snapshot)], {type:'application/json'});
