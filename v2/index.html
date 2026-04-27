@@ -191,6 +191,10 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
     { id: 'captacao', label: 'Captação', emoji: '📍' },
     { id: 'plantoes', label: 'Plantões', emoji: '📅' },
     { id: 'tarefas', label: 'Tarefas', emoji: '✅' },
+    { id: 'kpis', label: 'KPIs', emoji: '📊' },
+    { id: 'lancarvenda', label: 'Lançar Venda', emoji: '📝' },
+    { id: 'tabelaimoveis', label: 'Tabela Imóveis', emoji: '🏠' },
+    { id: 'fichas', label: 'Fichas/Propostas', emoji: '📋' },
     { id: 'crm', label: 'CRM', emoji: '💼' },
     { id: 'comissoes', label: 'Comissões', emoji: '💎' },
     { id: 'fluxocaixa', label: 'Fluxo de Caixa', emoji: '💰', minLvl: 5 },
@@ -1557,6 +1561,476 @@ function CriativosPage({ user }) {
   );
 }
 
+
+// ──────────────────────────────────────────────────────────────────────────
+// LancarVendaPage (registrar venda manual)
+// ──────────────────────────────────────────────────────────────────────────
+function LancarVendaPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  const { value: vendas, save: saveVendas, loading } = useShared('VENDAS_MANUAIS');
+  const list = Array.isArray(vendas) ? vendas : [];
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    cliente: '', empreendimento: '', unidade: '',
+    vgv: '', dataVenda: todayKey(), corretorId: user.id,
+    formaPagamento: 'financiamento', obs: '', status: 'fechada'
+  });
+
+  async function add() {
+    if (!form.cliente || !form.vgv) return;
+    const item = {
+      id: 'v' + Date.now(),
+      ...form,
+      vgv: parseFloat(form.vgv) || 0,
+      lancadoPor: user.id,
+      lancadoEm: Date.now()
+    };
+    await saveVendas([item, ...list].slice(0, 2000));
+    setForm({ cliente: '', empreendimento: '', unidade: '', vgv: '', dataVenda: todayKey(), corretorId: user.id, formaPagamento: 'financiamento', obs: '', status: 'fechada' });
+    setShowForm(false);
+  }
+  async function setStatus(id, status) {
+    const next = list.map(v => v.id === id ? { ...v, status, statusAt: Date.now() } : v);
+    await saveVendas(next);
+  }
+  async function remove(id) {
+    if (!confirm('Apagar venda?')) return;
+    await saveVendas(list.filter(v => v.id !== id));
+  }
+
+  const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
+  const visible = lvl >= 5 ? list : list.filter(v => v.corretorId === user.id);
+  const totalVgv = visible.filter(v => v.status !== 'distratada').reduce((s,v) => s + (v.vgv||0), 0);
+  const fechadas = visible.filter(v => v.status === 'fechada').length;
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>📝 Lançar Venda</h1>
+          <p className="text-sm text-slate-400">Registro de vendas fechadas</p>
+        </div>
+        <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Nova venda'}</button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+        <div className="card p-3"><div className="text-xs text-slate-400">VGV total</div><div className="text-2xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(totalVgv)}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">Fechadas</div><div className="text-2xl font-bold text-green-400">{fechadas}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">Total registros</div><div className="text-2xl font-bold">{visible.length}</div></div>
+      </div>
+
+      {showForm && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Nome do cliente" value={form.cliente} onChange={e => setForm({...form, cliente: e.target.value})} />
+            <input className="input" placeholder="Empreendimento" value={form.empreendimento} onChange={e => setForm({...form, empreendimento: e.target.value})} />
+            <input className="input" placeholder="Unidade (apto/lote/casa)" value={form.unidade} onChange={e => setForm({...form, unidade: e.target.value})} />
+            <input type="number" className="input" placeholder="VGV (R$)" value={form.vgv} onChange={e => setForm({...form, vgv: e.target.value})} />
+            <input type="date" className="input" value={form.dataVenda} onChange={e => setForm({...form, dataVenda: e.target.value})} />
+            <select className="input" value={form.corretorId} onChange={e => setForm({...form, corretorId: e.target.value})} disabled={lvl < 5}>
+              {corretores.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <select className="input" value={form.formaPagamento} onChange={e => setForm({...form, formaPagamento: e.target.value})}>
+              <option value="financiamento">Financiamento</option>
+              <option value="a_vista">À vista</option>
+              <option value="parcelado">Parcelado direto</option>
+              <option value="permuta">Permuta</option>
+              <option value="misto">Misto</option>
+            </select>
+            <select className="input" value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
+              <option value="fechada">Fechada</option>
+              <option value="em_analise">Em análise</option>
+              <option value="distratada">Distratada</option>
+            </select>
+          </div>
+          <textarea className="input mb-3" rows="2" placeholder="Observações" value={form.obs} onChange={e => setForm({...form, obs: e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.cliente || !form.vgv}>💾 Lançar venda</button>
+        </div>
+      )}
+
+      {loading ? <div className="text-slate-500">Carregando…</div> : (
+        <div className="card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
+              <th className="text-left p-3">Data</th>
+              <th className="text-left p-3">Corretor</th>
+              <th className="text-left p-3">Cliente</th>
+              <th className="text-left p-3">Empreend.</th>
+              <th className="text-right p-3">VGV</th>
+              <th className="text-center p-3">Pagamento</th>
+              <th className="text-center p-3">Status</th>
+              <th></th>
+            </tr></thead>
+            <tbody>
+              {visible.sort((a,b) => (b.dataVenda||'').localeCompare(a.dataVenda||'')).map(v => {
+                const c = corretores.find(x => x.id === v.corretorId);
+                const stColor = v.status==='fechada' ? '#16a34a' : v.status==='em_analise' ? '#d4a843' : '#dc2626';
+                return (
+                  <tr key={v.id} className="border-t border-slate-700">
+                    <td className="p-3 text-xs">{v.dataVenda}</td>
+                    <td className="p-3 font-medium">{c?.name || v.corretorId}</td>
+                    <td className="p-3">{v.cliente}</td>
+                    <td className="p-3 text-xs">{v.empreendimento} {v.unidade && '· '+v.unidade}</td>
+                    <td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>{fmtMoney(v.vgv)}</td>
+                    <td className="text-center p-3 text-xs">{v.formaPagamento}</td>
+                    <td className="text-center p-3"><span className="badge" style={{background:stColor+'30',color:stColor}}>{v.status}</span></td>
+                    <td className="p-3 whitespace-nowrap">
+                      {v.status !== 'distratada' && lvl >= 5 && <button className="btn btn-sm btn-out" onClick={() => setStatus(v.id, 'distratada')}>Distratar</button>}
+                      {(user.role === 'socio' || v.lancadoPor === user.id) && <button className="text-red-400 text-xs ml-2" onClick={() => remove(v.id)}>×</button>}
+                    </td>
+                  </tr>
+                );
+              })}
+              {visible.length === 0 && <tr><td colSpan="8" className="text-center text-slate-500 p-8">Nenhuma venda registrada.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// KPIsPage (dashboard consolidado de KPIs)
+// ──────────────────────────────────────────────────────────────────────────
+function KPIsPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  const { value: vendas } = useShared('VENDAS_MANUAIS');
+  const { value: metas } = useShared('METAS_INDIVIDUAIS');
+  const { value: deals } = useShared('CRM_DEALS');
+  const list = Array.isArray(vendas) ? vendas : [];
+  const m = metas || {};
+  const dealsList = Array.isArray(deals) ? deals : [];
+
+  const [refMes, setRefMes] = useState(monthKey());
+
+  const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
+  const visible = lvl >= 5 ? corretores : corretores.filter(c => c.id === user.id);
+
+  const stats = useMemo(() => {
+    return visible.map(c => {
+      const myVendas = list.filter(v => v.corretorId === c.id && v.status === 'fechada' && v.dataVenda?.startsWith(refMes));
+      const vgv = myVendas.reduce((s,v) => s + (v.vgv||0), 0);
+      const meta = m[c.id]?.vgv || 0;
+      const pctMeta = meta > 0 ? Math.round(vgv/meta*100) : 0;
+      const myDeals = dealsList.filter(d => d.corretorId === c.id);
+      const pipeline = myDeals.filter(d => !['fechado','perdido'].includes(d.status)).reduce((s,d) => s+(d.valor||0),0);
+      return { corretor: c, vendas: myVendas.length, vgv, meta, pctMeta, pipeline };
+    }).sort((a,b) => b.vgv - a.vgv);
+  }, [visible, list, m, dealsList, refMes]);
+
+  const totalVgv = stats.reduce((s,r) => s+r.vgv, 0);
+  const totalMeta = stats.reduce((s,r) => s+r.meta, 0);
+  const pctTotal = totalMeta > 0 ? Math.round(totalVgv/totalMeta*100) : 0;
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>📊 KPIs</h1>
+          <p className="text-sm text-slate-400">Performance consolidada do mês</p>
+        </div>
+        <input type="month" className="input max-w-xs" value={refMes} onChange={e => setRefMes(e.target.value)} />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
+        <div className="card p-4"><div className="text-xs text-slate-400">VGV mês</div><div className="text-2xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(totalVgv)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Meta mês</div><div className="text-2xl font-bold">{fmtMoney(totalMeta)}</div></div>
+        <div className="card p-4" style={{borderColor: pctTotal >= 100 ? '#16a34a' : pctTotal >= 70 ? '#d4a843' : '#dc2626'}}>
+          <div className="text-xs text-slate-400">% atingimento</div>
+          <div className="text-2xl font-bold" style={{color: pctTotal >= 100 ? '#22c55e' : pctTotal >= 70 ? '#d4a843' : '#ef4444'}}>{pctTotal}%</div>
+        </div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Vendas fechadas</div><div className="text-2xl font-bold text-green-400">{stats.reduce((s,r)=>s+r.vendas,0)}</div></div>
+      </div>
+
+      <div className="card overflow-hidden">
+        <table className="w-full">
+          <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
+            <th className="text-left p-3">Corretor</th>
+            <th className="text-left p-3">Frente</th>
+            <th className="text-right p-3">Vendas</th>
+            <th className="text-right p-3">VGV</th>
+            <th className="text-right p-3">Meta</th>
+            <th className="text-right p-3">% Meta</th>
+            <th className="text-right p-3">Pipeline (CRM)</th>
+          </tr></thead>
+          <tbody>
+            {stats.map(r => (
+              <tr key={r.corretor.id} className="border-t border-slate-700">
+                <td className="p-3 font-medium">{r.corretor.name}</td>
+                <td className="p-3 text-xs">{r.corretor.frente ? FRENTES[r.corretor.frente]?.label : '—'}</td>
+                <td className="text-right p-3">{r.vendas}</td>
+                <td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>{fmtMoney(r.vgv)}</td>
+                <td className="text-right p-3 text-slate-400">{fmtMoney(r.meta)}</td>
+                <td className="text-right p-3 font-bold" style={{color: r.pctMeta >= 100 ? '#22c55e' : r.pctMeta >= 70 ? '#d4a843' : '#ef4444'}}>
+                  <div className="flex items-center justify-end gap-2">
+                    <div className="w-16 h-2 bg-slate-700 rounded overflow-hidden">
+                      <div style={{width: Math.min(100, r.pctMeta)+'%', height:'100%', background: r.pctMeta >= 100 ? '#22c55e' : r.pctMeta >= 70 ? '#d4a843' : '#ef4444'}}></div>
+                    </div>
+                    {r.pctMeta}%
+                  </div>
+                </td>
+                <td className="text-right p-3 text-blue-400">{fmtMoney(r.pipeline)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// TabelaImoveisPage (catalogo simples)
+// ──────────────────────────────────────────────────────────────────────────
+function TabelaImoveisPage({ user }) {
+  const { value: imoveis, save } = useShared('TABELA_IMOVEIS');
+  const list = Array.isArray(imoveis) ? imoveis : [];
+  const isStaff = user.role === 'socio' || user.role === 'lider';
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ titulo: '', empreendimento: '', tipo: 'apartamento', dorms: '2', area: '', valor: '', regiao: '', status: 'disponivel', obs: '' });
+  const [filter, setFilter] = useState({ regiao: '', tipo: '', status: '' });
+
+  async function add() {
+    if (!form.titulo) return;
+    const item = {
+      id: 'i' + Date.now(),
+      ...form,
+      dorms: parseInt(form.dorms) || 0,
+      area: parseFloat(form.area) || 0,
+      valor: parseFloat(form.valor) || 0,
+      createdBy: user.id,
+      ts: Date.now()
+    };
+    await save([item, ...list].slice(0, 1000));
+    setForm({ titulo: '', empreendimento: '', tipo: 'apartamento', dorms: '2', area: '', valor: '', regiao: '', status: 'disponivel', obs: '' });
+    setShowForm(false);
+  }
+  async function setStatus(id, status) {
+    await save(list.map(i => i.id === id ? { ...i, status } : i));
+  }
+  async function remove(id) {
+    if (!confirm('Apagar imóvel?')) return;
+    await save(list.filter(i => i.id !== id));
+  }
+
+  const filtered = list.filter(i =>
+    (!filter.regiao || (i.regiao||'').toLowerCase().includes(filter.regiao.toLowerCase())) &&
+    (!filter.tipo || i.tipo === filter.tipo) &&
+    (!filter.status || i.status === filter.status)
+  );
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>🏠 Tabela de Imóveis</h1>
+          <p className="text-sm text-slate-400">{list.length} imóveis no catálogo</p>
+        </div>
+        {isStaff && <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Novo imóvel'}</button>}
+      </div>
+
+      <div className="card p-3 mb-4 flex gap-2 flex-wrap">
+        <input className="input max-w-xs" placeholder="Filtrar região..." value={filter.regiao} onChange={e => setFilter({...filter, regiao: e.target.value})} />
+        <select className="input max-w-xs" value={filter.tipo} onChange={e => setFilter({...filter, tipo: e.target.value})}>
+          <option value="">Todos tipos</option>
+          <option value="apartamento">Apartamento</option>
+          <option value="casa">Casa</option>
+          <option value="terreno">Terreno</option>
+          <option value="comercial">Comercial</option>
+        </select>
+        <select className="input max-w-xs" value={filter.status} onChange={e => setFilter({...filter, status: e.target.value})}>
+          <option value="">Todos status</option>
+          <option value="disponivel">Disponível</option>
+          <option value="reservado">Reservado</option>
+          <option value="vendido">Vendido</option>
+        </select>
+      </div>
+
+      {showForm && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <input className="input" placeholder="Título" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} />
+            <input className="input" placeholder="Empreendimento" value={form.empreendimento} onChange={e => setForm({...form, empreendimento: e.target.value})} />
+            <select className="input" value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})}>
+              <option value="apartamento">Apartamento</option><option value="casa">Casa</option><option value="terreno">Terreno</option><option value="comercial">Comercial</option>
+            </select>
+            <input type="number" className="input" placeholder="Dorms" value={form.dorms} onChange={e => setForm({...form, dorms: e.target.value})} />
+            <input type="number" className="input" placeholder="Área (m²)" value={form.area} onChange={e => setForm({...form, area: e.target.value})} />
+            <input type="number" className="input" placeholder="Valor (R$)" value={form.valor} onChange={e => setForm({...form, valor: e.target.value})} />
+            <input className="input" placeholder="Região" value={form.regiao} onChange={e => setForm({...form, regiao: e.target.value})} />
+            <select className="input" value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
+              <option value="disponivel">Disponível</option><option value="reservado">Reservado</option><option value="vendido">Vendido</option>
+            </select>
+          </div>
+          <textarea className="input mb-3" rows="2" placeholder="Observações" value={form.obs} onChange={e => setForm({...form, obs: e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.titulo}>💾 Cadastrar imóvel</button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {filtered.map(i => {
+          const stColor = i.status==='disponivel' ? '#16a34a' : i.status==='reservado' ? '#d4a843' : '#64748b';
+          return (
+            <div key={i.id} className="card p-4">
+              <div className="flex items-start justify-between mb-2">
+                <span className="badge" style={{background: stColor+'30', color: stColor}}>{i.status}</span>
+                <span className="badge" style={{background:'#3b82f630', color:'#93c5fd'}}>{i.tipo}</span>
+              </div>
+              <div className="font-bold mb-1">{i.titulo}</div>
+              <div className="text-sm text-slate-400 mb-2">{i.empreendimento}</div>
+              <div className="text-xs text-slate-500 mb-3">
+                {i.dorms} dorms • {i.area}m² • {i.regiao}
+              </div>
+              <div className="text-xl font-bold mb-3" style={{color:'#d4a843'}}>{fmtMoney(i.valor)}</div>
+              {i.obs && <div className="text-xs text-slate-400 italic mb-2">{i.obs}</div>}
+              {isStaff && (
+                <div className="flex gap-1 flex-wrap mt-2">
+                  {i.status !== 'disponivel' && <button className="btn btn-sm btn-out" onClick={() => setStatus(i.id, 'disponivel')}>Disponibilizar</button>}
+                  {i.status !== 'reservado' && <button className="btn btn-sm btn-out" onClick={() => setStatus(i.id, 'reservado')}>Reservar</button>}
+                  {i.status !== 'vendido' && <button className="btn btn-sm btn-out" onClick={() => setStatus(i.id, 'vendido')}>Marcar vendido</button>}
+                  <button className="text-red-400 text-xs ml-2" onClick={() => remove(i.id)}>×</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {filtered.length === 0 && <div className="text-center text-slate-500 py-8 col-span-3">Nenhum imóvel cadastrado.</div>}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// FichasPage (lista de fichas/propostas geradas)
+// ──────────────────────────────────────────────────────────────────────────
+function FichasPage({ user }) {
+  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const { value: fichas, save } = useUserKv(targetUid, 'FICHAS_PROPOSTAS');
+  const list = Array.isArray(fichas) ? fichas : [];
+  const [showForm, setShowForm] = useState(false);
+  const [tipo, setTipo] = useState('proposta');
+  const [form, setForm] = useState({
+    cliente: '', cpf: '', telefone: '', email: '',
+    empreendimento: '', unidade: '', valor: '', entrada: '',
+    formaPagamento: 'financiamento', condicoes: '', validade: '', obs: ''
+  });
+
+  async function add() {
+    if (!form.cliente) return;
+    const item = {
+      id: 'f' + Date.now(),
+      tipo,
+      ...form,
+      valor: parseFloat(form.valor) || 0,
+      entrada: parseFloat(form.entrada) || 0,
+      createdAt: Date.now(),
+      corretorId: user.id,
+      corretorName: user.name
+    };
+    await save([item, ...list].slice(0, 500));
+    setForm({ cliente: '', cpf: '', telefone: '', email: '', empreendimento: '', unidade: '', valor: '', entrada: '', formaPagamento: 'financiamento', condicoes: '', validade: '', obs: '' });
+    setShowForm(false);
+  }
+  async function remove(id) {
+    if (!confirm('Apagar?')) return;
+    await save(list.filter(f => f.id !== id));
+  }
+  function downloadAsText(f) {
+    const txt = [
+      f.tipo === 'proposta' ? 'PROPOSTA DE COMPRA E VENDA' : 'FICHA DE CADASTRO',
+      '=====================================',
+      'Cliente: ' + f.cliente,
+      'CPF: ' + f.cpf,
+      'Telefone: ' + f.telefone,
+      'E-mail: ' + f.email,
+      '',
+      'Empreendimento: ' + f.empreendimento,
+      'Unidade: ' + f.unidade,
+      'Valor total: ' + fmtMoney(f.valor),
+      'Entrada: ' + fmtMoney(f.entrada),
+      'Forma de pagamento: ' + f.formaPagamento,
+      'Validade: ' + f.validade,
+      '',
+      'Condições:',
+      f.condicoes,
+      '',
+      'Observações:',
+      f.obs,
+      '',
+      'Corretor: ' + f.corretorName,
+      'Gerado em: ' + new Date(f.createdAt).toLocaleString('pt-BR')
+    ].join('\n');
+    const blob = new Blob([txt], { type:'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = (f.tipo) + '_' + f.cliente.replace(/\s/g,'_') + '_' + new Date(f.createdAt).toISOString().slice(0,10) + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>📋 Fichas e Propostas</h1>
+          <p className="text-sm text-slate-400">Suas fichas pessoais</p>
+        </div>
+        <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Nova ficha/proposta'}</button>
+      </div>
+
+      {showForm && (
+        <div className="card p-4 mb-4">
+          <div className="flex gap-2 mb-3">
+            <button className={'btn btn-sm ' + (tipo==='proposta' ? '' : 'btn-out')} onClick={() => setTipo('proposta')}>Proposta</button>
+            <button className={'btn btn-sm ' + (tipo==='ficha' ? '' : 'btn-out')} onClick={() => setTipo('ficha')}>Ficha cadastro</button>
+            <button className={'btn btn-sm ' + (tipo==='cessao' ? '' : 'btn-out')} onClick={() => setTipo('cessao')}>Cessão de direitos</button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Cliente" value={form.cliente} onChange={e => setForm({...form, cliente: e.target.value})} />
+            <input className="input" placeholder="CPF" value={form.cpf} onChange={e => setForm({...form, cpf: e.target.value})} />
+            <input className="input" placeholder="Telefone" value={form.telefone} onChange={e => setForm({...form, telefone: e.target.value})} />
+            <input className="input" placeholder="E-mail" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
+            <input className="input" placeholder="Empreendimento" value={form.empreendimento} onChange={e => setForm({...form, empreendimento: e.target.value})} />
+            <input className="input" placeholder="Unidade" value={form.unidade} onChange={e => setForm({...form, unidade: e.target.value})} />
+            <input type="number" className="input" placeholder="Valor (R$)" value={form.valor} onChange={e => setForm({...form, valor: e.target.value})} />
+            <input type="number" className="input" placeholder="Entrada (R$)" value={form.entrada} onChange={e => setForm({...form, entrada: e.target.value})} />
+            <select className="input" value={form.formaPagamento} onChange={e => setForm({...form, formaPagamento: e.target.value})}>
+              <option value="financiamento">Financiamento</option><option value="a_vista">À vista</option><option value="parcelado">Parcelado direto</option>
+            </select>
+            <input type="date" className="input" placeholder="Validade" value={form.validade} onChange={e => setForm({...form, validade: e.target.value})} />
+          </div>
+          <textarea className="input mb-3" rows="3" placeholder="Condições de pagamento" value={form.condicoes} onChange={e => setForm({...form, condicoes: e.target.value})} />
+          <textarea className="input mb-3" rows="2" placeholder="Observações" value={form.obs} onChange={e => setForm({...form, obs: e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.cliente}>💾 Salvar {tipo}</button>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {list.map(f => (
+          <div key={f.id} className="card p-4">
+            <div className="flex items-start justify-between mb-2 flex-wrap gap-2">
+              <div>
+                <div className="flex gap-2 items-center mb-1">
+                  <span className="badge" style={{background:'#d4a84330', color:'#fde68a'}}>{f.tipo}</span>
+                  <span className="font-bold">{f.cliente}</span>
+                </div>
+                <div className="text-xs text-slate-400">{f.empreendimento} {f.unidade && '· '+f.unidade} · {fmtMoney(f.valor)}</div>
+                <div className="text-xs text-slate-500 mt-1">Gerado {fmtDate(f.createdAt)}</div>
+              </div>
+              <div className="flex gap-2">
+                <button className="btn btn-sm btn-out" onClick={() => downloadAsText(f)}>↓ Baixar TXT</button>
+                <button className="text-red-400 text-xs hover:text-red-300" onClick={() => remove(f.id)}>×</button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {list.length === 0 && <div className="text-center text-slate-500 py-8">Nenhuma ficha gerada ainda.</div>}
+      </div>
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // App
 // ──────────────────────────────────────────────────────────────────────────
@@ -1578,6 +2052,10 @@ function App() {
         {page === 'captacao' && <CaptacaoPage user={user} />}
         {page === 'plantoes' && <PlantoesPage user={user} />}
         {page === 'tarefas' && <TarefasPage user={user} />}
+        {page === 'kpis' && <KPIsPage user={user} />}
+        {page === 'lancarvenda' && <LancarVendaPage user={user} />}
+        {page === 'tabelaimoveis' && <TabelaImoveisPage user={user} />}
+        {page === 'fichas' && <FichasPage user={user} />}
         {page === 'crm' && <CRMPage user={user} />}
         {page === 'comissoes' && <ComissoesPage user={user} />}
         {page === 'fluxocaixa' && <FluxoCaixaPage user={user} />}
