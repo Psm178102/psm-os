@@ -1,7 +1,7 @@
 {
-  "version": "37.0.0",
-  "meta": "2026.04.26-v37",
-  "built": "2026-04-26T04:30:00Z",
-  "sw": "v37.0.0-2026-04-26-modulos-v2",
-  "sprint": "v37: /v2 com 11 modulos (+CRM+Comissoes+FluxoCaixa)"
+  "version": "38.0.0",
+  "meta": "2026.04.26-v38",
+  "built": "2026-04-26T04:50:00Z",
+  "sw": "v38.0.0-2026-04-26-modulos-v2",
+  "sprint": "v38: /v2 com 14 modulos (+IA Sol+Meta Ads+Criativos)"
 }

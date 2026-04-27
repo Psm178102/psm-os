@@ -194,6 +194,9 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
     { id: 'crm', label: 'CRM', emoji: '💼' },
     { id: 'comissoes', label: 'Comissões', emoji: '💎' },
     { id: 'fluxocaixa', label: 'Fluxo de Caixa', emoji: '💰', minLvl: 5 },
+    { id: 'iasol', label: 'Agente IA', emoji: '☀️' },
+    { id: 'metaads', label: 'Meta Ads', emoji: '📣', minLvl: 5 },
+    { id: 'criativos', label: 'Criativos', emoji: '🎨' },
     { id: 'recados', label: 'Recados', emoji: '📢' },
   ];
   const visible = items.filter(it => !it.minLvl || lvl >= it.minLvl);
@@ -1233,6 +1236,327 @@ function FluxoCaixaPage({ user }) {
   );
 }
 
+
+// ──────────────────────────────────────────────────────────────────────────
+// IASolPage (chat com /api/agent)
+// ──────────────────────────────────────────────────────────────────────────
+function IASolPage({ user }) {
+  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const { value: hist, save: saveHist } = useUserKv(targetUid, 'IA_SOL_HIST');
+  const conversation = Array.isArray(hist) ? hist : [];
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [agent, setAgent] = useState('sol');
+  const messagesEndRef = React.useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [conversation.length]);
+
+  async function send() {
+    if (!input.trim() || sending) return;
+    const msg = { role: 'user', content: input.trim(), ts: Date.now() };
+    const next = [...conversation, msg].slice(-100);
+    await saveHist(next);
+    setInput(''); setSending(true);
+
+    try {
+      const r = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent,
+          message: msg.content,
+          conversationId: 'v2-' + user.id + '-' + agent,
+          channel: 'web-v2',
+          metadata: { userId: user.id, userName: user.name, userRole: user.role }
+        })
+      });
+      const data = await r.json();
+      const reply = {
+        role: 'assistant',
+        content: data.reply || data.response || data.message || data.error || 'Sem resposta',
+        ts: Date.now(),
+        properties: data.properties || []
+      };
+      await saveHist([...next, reply].slice(-100));
+    } catch(e) {
+      await saveHist([...next, { role: 'assistant', content: '⚠ Erro: ' + e.message, ts: Date.now() }].slice(-100));
+    }
+    setSending(false);
+  }
+
+  async function clearChat() {
+    if (!confirm('Limpar todo histórico?')) return;
+    await saveHist([]);
+  }
+
+  const AGENTS = [
+    { id: 'sol', name: 'Sol', desc: 'Vendedora — qualifica leads, recomenda imóveis', emoji: '☀️' },
+    { id: 'vera', name: 'Vera', desc: 'Performance — análise de campanhas, sugestões', emoji: '🦅' },
+    { id: 'intelligence', name: 'Sr. Inteligência', desc: 'Estratégia — concorrência e mercado', emoji: '🧠' },
+  ];
+  const cur = AGENTS.find(a => a.id === agent) || AGENTS[0];
+
+  return (
+    <div className="p-6 flex flex-col" style={{height:'calc(100vh - 0px)'}}>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>{cur.emoji} Agente IA — {cur.name}</h1>
+          <p className="text-sm text-slate-400">{cur.desc}</p>
+        </div>
+        <div className="flex gap-2 items-center">
+          <select className="input max-w-xs" value={agent} onChange={e => setAgent(e.target.value)}>
+            {AGENTS.map(a => <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>)}
+          </select>
+          <button className="btn btn-sm btn-out" onClick={clearChat}>Limpar</button>
+        </div>
+      </div>
+
+      <div className="card flex-1 overflow-y-auto p-4 mb-4 space-y-3">
+        {conversation.length === 0 ? (
+          <div className="text-center text-slate-500 py-12">
+            <div className="text-5xl mb-3">{cur.emoji}</div>
+            <div>Comece uma conversa com {cur.name}</div>
+            <div className="text-xs mt-2">Ex: "Cliente quer apto 3 dorms na zona sul até 600k"</div>
+          </div>
+        ) : conversation.map((m, i) => (
+          <div key={i} className={'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')}>
+            <div className={'max-w-2xl rounded-lg p-3 ' + (m.role === 'user' ? 'bg-yellow-600/20 text-yellow-50' : 'bg-slate-700/50')}>
+              <div className="text-xs text-slate-400 mb-1">{m.role === 'user' ? user.name : cur.name} • {fmtDate(m.ts)}</div>
+              <div className="whitespace-pre-wrap text-sm">{m.content}</div>
+              {m.properties && m.properties.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {m.properties.slice(0,5).map((p, j) => (
+                    <div key={j} className="text-xs bg-slate-800/50 rounded p-2">
+                      <div className="font-bold">{p.nome || p.title}</div>
+                      <div className="text-slate-400">{p.regiao} • {fmtMoney(p.preco || p.valor)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        {sending && <div className="text-slate-500 text-sm italic">{cur.name} está pensando…</div>}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="card p-3 flex gap-2">
+        <input
+          className="input flex-1"
+          placeholder={'Pergunte para ' + cur.name + '...'}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+          disabled={sending}
+        />
+        <button className="btn" onClick={send} disabled={sending || !input.trim()}>{sending ? '⏳' : 'Enviar'}</button>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// MetaAdsPage (relatorio campanhas via /api/meta-ads)
+// ──────────────────────────────────────────────────────────────────────────
+function MetaAdsPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  if (lvl < 5) return <div className="p-6 text-slate-500">Acesso restrito a líder+ e sócios.</div>;
+
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+  const [datePreset, setDatePreset] = useState('last_30d');
+
+  async function load() {
+    setLoading(true); setErr('');
+    try {
+      const r = await fetch('/api/meta-ads?date_preset=' + datePreset);
+      const j = await r.json();
+      if (j.error) setErr(j.error);
+      else setData(j);
+    } catch(e) { setErr(e.message); }
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, [datePreset]);
+
+  const totals = data ? data.campaigns.reduce((acc, c) => ({
+    spend: acc.spend + (c.spend||0),
+    impressions: acc.impressions + (c.impressions||0),
+    clicks: acc.clicks + (c.clicks||0),
+    results: acc.results + (c.results||0),
+    reach: acc.reach + (c.reach||0),
+  }), { spend:0, impressions:0, clicks:0, results:0, reach:0 }) : null;
+
+  const PRESETS = [
+    { id: 'today', lbl: 'Hoje' },
+    { id: 'yesterday', lbl: 'Ontem' },
+    { id: 'last_7d', lbl: '7 dias' },
+    { id: 'last_30d', lbl: '30 dias' },
+    { id: 'this_month', lbl: 'Este mês' },
+  ];
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>📣 Meta Ads</h1>
+          <p className="text-sm text-slate-400">Campanhas Facebook & Instagram</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {PRESETS.map(p => (
+            <button key={p.id} className={'btn btn-sm ' + (datePreset===p.id ? '' : 'btn-out')} onClick={() => setDatePreset(p.id)}>{p.lbl}</button>
+          ))}
+          <button className="btn btn-sm btn-out" onClick={load}>↻</button>
+        </div>
+      </div>
+
+      {err && <div className="card p-4 mb-4 border-red-500/50 text-red-400">⚠ {err}</div>}
+
+      {loading ? <div className="text-slate-500">Carregando Meta Ads…</div> : !data ? <div className="text-slate-500">Sem dados</div> : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+            <div className="card p-3"><div className="text-xs text-slate-400">Investimento</div><div className="text-xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(totals.spend)}</div></div>
+            <div className="card p-3"><div className="text-xs text-slate-400">Impressões</div><div className="text-xl font-bold">{totals.impressions.toLocaleString('pt-BR')}</div></div>
+            <div className="card p-3"><div className="text-xs text-slate-400">Alcance</div><div className="text-xl font-bold">{totals.reach.toLocaleString('pt-BR')}</div></div>
+            <div className="card p-3"><div className="text-xs text-slate-400">Cliques</div><div className="text-xl font-bold">{totals.clicks.toLocaleString('pt-BR')}</div></div>
+            <div className="card p-3"><div className="text-xs text-slate-400">Resultados</div><div className="text-xl font-bold text-green-400">{totals.results.toLocaleString('pt-BR')}</div></div>
+          </div>
+
+          {data.accounts && data.accounts.length > 0 && (
+            <div className="card p-4 mb-4">
+              <div className="text-sm font-bold mb-2 text-slate-400 uppercase">Contas</div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {data.accounts.map(a => (
+                  <div key={a.id} className="card p-3" style={{background:'#0f172a'}}>
+                    <div className="font-bold">{a.label}</div>
+                    <div className="text-sm text-slate-400">{fmtMoney(a.spend)} • {a.clicks} cliques</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
+                <th className="text-left p-3">Campanha</th>
+                <th className="text-left p-3">Conta</th>
+                <th className="text-center p-3">Status</th>
+                <th className="text-right p-3">Spend</th>
+                <th className="text-right p-3">Impressões</th>
+                <th className="text-right p-3">CTR</th>
+                <th className="text-right p-3">Resultados</th>
+                <th className="text-right p-3">CPR</th>
+              </tr></thead>
+              <tbody>
+                {data.campaigns.sort((a,b) => (b.spend||0) - (a.spend||0)).map(c => (
+                  <tr key={c.id} className="border-t border-slate-700 hover:bg-slate-900/50">
+                    <td className="p-3 font-medium">{c.name}</td>
+                    <td className="p-3 text-xs">{c.account}</td>
+                    <td className="text-center p-3">
+                      <span className="badge" style={{background: c.status==='active' ? '#16a34a30' : '#64748b30', color: c.status==='active' ? '#86efac' : '#94a3b8'}}>{c.status}</span>
+                    </td>
+                    <td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>{fmtMoney(c.spend)}</td>
+                    <td className="text-right p-3">{(c.impressions||0).toLocaleString('pt-BR')}</td>
+                    <td className="text-right p-3">{(c.ctr||0).toFixed(2)}%</td>
+                    <td className="text-right p-3 text-green-400 font-bold">{c.results||0}</td>
+                    <td className="text-right p-3">{c.cpr ? fmtMoney(c.cpr) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// CriativosPage (lista links/criativos compartilhados)
+// ──────────────────────────────────────────────────────────────────────────
+function CriativosPage({ user }) {
+  const { value: list, save } = useShared('CRIATIVOS_LINKS');
+  const arr = Array.isArray(list) ? list : [];
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ titulo: '', url: '', tipo: 'video', tags: '' });
+  const isStaff = user.role === 'socio' || user.role === 'lider' || user.role === 'marketing';
+
+  async function add() {
+    if (!form.titulo.trim() || !form.url.trim()) return;
+    const item = {
+      id: 'cr' + Date.now(),
+      ...form,
+      tags: form.tags.split(',').map(s => s.trim()).filter(Boolean),
+      createdBy: user.id,
+      createdByName: user.name,
+      ts: Date.now()
+    };
+    await save([item, ...arr].slice(0, 500));
+    setForm({ titulo: '', url: '', tipo: 'video', tags: '' });
+    setShowForm(false);
+  }
+  async function remove(id) {
+    if (!confirm('Apagar criativo?')) return;
+    await save(arr.filter(c => c.id !== id));
+  }
+
+  const TIPOS = { video: '🎥 Vídeo', imagem: '🖼️ Imagem', carrossel: '🔄 Carrossel', stories: '📱 Stories', reel: '🎬 Reel' };
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>🎨 Criativos</h1>
+          <p className="text-sm text-slate-400">Pasta compartilhada de criativos</p>
+        </div>
+        {isStaff && <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Novo criativo'}</button>}
+      </div>
+
+      {showForm && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Título" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} />
+            <input className="input" placeholder="URL (Drive, Dropbox, link público)" value={form.url} onChange={e => setForm({...form, url: e.target.value})} />
+            <select className="input" value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})}>
+              {Object.entries(TIPOS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <input className="input" placeholder="Tags (separadas por vírgula)" value={form.tags} onChange={e => setForm({...form, tags: e.target.value})} />
+          </div>
+          <button className="btn" onClick={add} disabled={!form.titulo.trim() || !form.url.trim()}>💾 Salvar criativo</button>
+        </div>
+      )}
+
+      {arr.length === 0 ? (
+        <div className="text-center text-slate-500 py-8">Nenhum criativo cadastrado.</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {arr.map(c => (
+            <div key={c.id} className="card p-4">
+              <div className="flex items-start justify-between mb-2">
+                <span className="badge" style={{background:'#d4a84330', color:'#fde68a'}}>{TIPOS[c.tipo] || c.tipo}</span>
+                {(user.role === 'socio' || c.createdBy === user.id) && (
+                  <button className="text-red-400 text-xs hover:text-red-300" onClick={() => remove(c.id)}>×</button>
+                )}
+              </div>
+              <div className="font-bold mb-2">{c.titulo}</div>
+              {c.tags.length > 0 && (
+                <div className="flex gap-1 flex-wrap mb-2">
+                  {c.tags.map((t,i) => <span key={i} className="text-xs px-2 py-1 bg-slate-700 rounded">{t}</span>)}
+                </div>
+              )}
+              <a href={c.url} target="_blank" rel="noopener noreferrer" className="btn btn-sm w-full text-center block">↗ Abrir</a>
+              <div className="text-xs text-slate-500 mt-2">{c.createdByName} • {fmtDate(c.ts)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // App
 // ──────────────────────────────────────────────────────────────────────────
@@ -1257,6 +1581,9 @@ function App() {
         {page === 'crm' && <CRMPage user={user} />}
         {page === 'comissoes' && <ComissoesPage user={user} />}
         {page === 'fluxocaixa' && <FluxoCaixaPage user={user} />}
+        {page === 'iasol' && <IASolPage user={user} />}
+        {page === 'metaads' && <MetaAdsPage user={user} />}
+        {page === 'criativos' && <CriativosPage user={user} />}
         {page === 'recados' && <RecadosPage user={user} />}
       </main>
     </div>
