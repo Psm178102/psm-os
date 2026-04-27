@@ -1,7 +1,7 @@
 {
-  "version": "42.0.0",
-  "meta": "2026.04.26-v42",
-  "built": "2026-04-26T06:10:00Z",
-  "sw": "v42.0.0-2026-04-26-modulos-v2",
-  "sprint": "v42: /v2 com 30 modulos (+DRE+Repasses+Custos+Forecast)"
+  "version": "44.0.0",
+  "meta": "2026.04.26-v44",
+  "built": "2026-04-26T07:00:00Z",
+  "sw": "v44.0.0-2026-04-26-modulos-v2",
+  "sprint": "v44: /v2 com 38 modulos (+Agenda+Ranking+Checkin+ArenaTV)"
 }

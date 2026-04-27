@@ -213,6 +213,14 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
     { id: 'organograma', label: 'Organograma', emoji: '🧑‍🤝‍🧑' },
     { id: 'manual', label: 'Manual', emoji: '📚' },
     { id: 'etica', label: 'Ética', emoji: '⚖️' },
+    { id: 'gestaopessoas', label: 'Gestão de Pessoas', emoji: '👤', minLvl: 5 },
+    { id: 'locacoes', label: 'Locações', emoji: '🏠' },
+    { id: 'governance', label: 'Governance', emoji: '📜', minLvl: 7 },
+    { id: 'config', label: 'Configurações', emoji: '⚙️' },
+    { id: 'agenda', label: 'Agenda PSM', emoji: '📅' },
+    { id: 'ranking', label: 'Ranking', emoji: '🏅' },
+    { id: 'checkin', label: 'Check-in', emoji: '⏱️' },
+    { id: 'arena', label: 'Arena TV', emoji: '📺' },
     { id: 'recados', label: 'Recados', emoji: '📢' },
   ];
   const visible = items.filter(it => !it.minLvl || lvl >= it.minLvl);
@@ -3107,6 +3115,845 @@ function ForecastPage({ user }) {
   );
 }
 
+
+// ──────────────────────────────────────────────────────────────────────────
+// GestaoPessoasPage (talentos / treinamentos / 1:1)
+// ──────────────────────────────────────────────────────────────────────────
+function GestaoPessoasPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  if (lvl < 5) return <div className="p-6 text-slate-500">Acesso restrito a líder+ e sócios.</div>;
+
+  const [tab, setTab] = useState('talentos');
+  const { value: talentos, save: saveTalentos } = useShared('GP_TALENTOS');
+  const { value: reunioes, save: saveReunioes } = useShared('GP_REUNIOES_1A1');
+
+  const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
+  const tlist = Array.isArray(talentos) ? talentos : [];
+  const rlist = Array.isArray(reunioes) ? reunioes : [];
+
+  const [showFormT, setShowFormT] = useState(false);
+  const [formT, setFormT] = useState({ corretorId:'', avaliacao:'B', pontosFortes:'', pontosMelhoria:'', proximaAcao:'', refMes:monthKey() });
+  const [showFormR, setShowFormR] = useState(false);
+  const [formR, setFormR] = useState({ corretorId:'', data:todayKey(), assuntos:'', acoes:'', proximaReuniao:'' });
+
+  async function addTalento() {
+    if (!formT.corretorId) return;
+    const item = { id:'gt'+Date.now(), ...formT, ts:Date.now(), avaliadoPor:user.id };
+    await saveTalentos([item, ...tlist].slice(0,500));
+    setFormT({ corretorId:'', avaliacao:'B', pontosFortes:'', pontosMelhoria:'', proximaAcao:'', refMes:monthKey() });
+    setShowFormT(false);
+  }
+  async function addReuniao() {
+    if (!formR.corretorId) return;
+    const item = { id:'gr'+Date.now(), ...formR, ts:Date.now(), conduzidaPor:user.id };
+    await saveReunioes([item, ...rlist].slice(0,500));
+    setFormR({ corretorId:'', data:todayKey(), assuntos:'', acoes:'', proximaReuniao:'' });
+    setShowFormR(false);
+  }
+  async function removeT(id) { if (!confirm('Apagar?')) return; await saveTalentos(tlist.filter(t => t.id !== id)); }
+  async function removeR(id) { if (!confirm('Apagar?')) return; await saveReunioes(rlist.filter(r => r.id !== id)); }
+
+  const NOTAS = { 'A+':'#16a34a', 'A':'#22c55e', 'B':'#d4a843', 'C':'#f97316', 'D':'#dc2626' };
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>👤 Gestão de Pessoas</h1>
+      <p className="text-sm text-slate-400 mb-4">Avaliações + 1:1 individuais</p>
+
+      <div className="flex gap-2 mb-4">
+        <button className={'btn btn-sm ' + (tab==='talentos'?'':'btn-out')} onClick={() => setTab('talentos')}>🌟 Talentos ({tlist.length})</button>
+        <button className={'btn btn-sm ' + (tab==='reunioes'?'':'btn-out')} onClick={() => setTab('reunioes')}>🤝 Reuniões 1:1 ({rlist.length})</button>
+      </div>
+
+      {tab === 'talentos' && (
+        <>
+          <div className="flex justify-end mb-4"><button className="btn" onClick={() => setShowFormT(s => !s)}>{showFormT ? '× Cancelar' : '+ Avaliar talento'}</button></div>
+          {showFormT && (
+            <div className="card p-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                <select className="input" value={formT.corretorId} onChange={e => setFormT({...formT, corretorId:e.target.value})}>
+                  <option value="">— corretor —</option>
+                  {corretores.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <select className="input" value={formT.avaliacao} onChange={e => setFormT({...formT, avaliacao:e.target.value})}>
+                  {Object.keys(NOTAS).map(n => <option key={n} value={n}>Nota {n}</option>)}
+                </select>
+                <input type="month" className="input" value={formT.refMes} onChange={e => setFormT({...formT, refMes:e.target.value})} />
+              </div>
+              <textarea className="input mb-2" rows="2" placeholder="Pontos fortes" value={formT.pontosFortes} onChange={e => setFormT({...formT, pontosFortes:e.target.value})} />
+              <textarea className="input mb-2" rows="2" placeholder="Pontos de melhoria" value={formT.pontosMelhoria} onChange={e => setFormT({...formT, pontosMelhoria:e.target.value})} />
+              <textarea className="input mb-3" rows="2" placeholder="Próxima ação" value={formT.proximaAcao} onChange={e => setFormT({...formT, proximaAcao:e.target.value})} />
+              <button className="btn" onClick={addTalento} disabled={!formT.corretorId}>💾 Salvar avaliação</button>
+            </div>
+          )}
+          <div className="space-y-3">
+            {tlist.map(t => {
+              const c = corretores.find(x => x.id === t.corretorId);
+              return (
+                <div key={t.id} className="card p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="font-bold">{c?.name || t.corretorId}</div>
+                      <div className="text-xs text-slate-500">{t.refMes} • {fmtDate(t.ts)}</div>
+                    </div>
+                    <div className="text-3xl font-bold" style={{color: NOTAS[t.avaliacao] || '#d4a843'}}>{t.avaliacao}</div>
+                  </div>
+                  {t.pontosFortes && <div className="text-sm mb-1"><span className="text-green-400">✓</span> {t.pontosFortes}</div>}
+                  {t.pontosMelhoria && <div className="text-sm mb-1"><span className="text-yellow-400">!</span> {t.pontosMelhoria}</div>}
+                  {t.proximaAcao && <div className="text-sm"><span className="text-blue-400">→</span> {t.proximaAcao}</div>}
+                  <button className="text-red-400 text-xs hover:text-red-300 mt-2" onClick={() => removeT(t.id)}>Apagar</button>
+                </div>
+              );
+            })}
+            {tlist.length === 0 && <div className="text-center text-slate-500 py-8">Nenhuma avaliação.</div>}
+          </div>
+        </>
+      )}
+
+      {tab === 'reunioes' && (
+        <>
+          <div className="flex justify-end mb-4"><button className="btn" onClick={() => setShowFormR(s => !s)}>{showFormR ? '× Cancelar' : '+ Registrar 1:1'}</button></div>
+          {showFormR && (
+            <div className="card p-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                <select className="input" value={formR.corretorId} onChange={e => setFormR({...formR, corretorId:e.target.value})}>
+                  <option value="">— corretor —</option>
+                  {corretores.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <input type="date" className="input" value={formR.data} onChange={e => setFormR({...formR, data:e.target.value})} />
+                <input type="date" className="input" placeholder="Próxima reunião" value={formR.proximaReuniao} onChange={e => setFormR({...formR, proximaReuniao:e.target.value})} />
+              </div>
+              <textarea className="input mb-2" rows="3" placeholder="Assuntos discutidos" value={formR.assuntos} onChange={e => setFormR({...formR, assuntos:e.target.value})} />
+              <textarea className="input mb-3" rows="2" placeholder="Ações combinadas" value={formR.acoes} onChange={e => setFormR({...formR, acoes:e.target.value})} />
+              <button className="btn" onClick={addReuniao} disabled={!formR.corretorId}>💾 Salvar 1:1</button>
+            </div>
+          )}
+          <div className="space-y-3">
+            {rlist.map(r => {
+              const c = corretores.find(x => x.id === r.corretorId);
+              return (
+                <div key={r.id} className="card p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="font-bold">{c?.name || r.corretorId}</div>
+                      <div className="text-xs text-slate-500">Realizada em {r.data}</div>
+                    </div>
+                    {r.proximaReuniao && <span className="badge" style={{background:'#3b82f630', color:'#93c5fd'}}>Próxima: {r.proximaReuniao}</span>}
+                  </div>
+                  {r.assuntos && <div className="text-sm mb-2"><strong className="text-slate-400">Assuntos:</strong> {r.assuntos}</div>}
+                  {r.acoes && <div className="text-sm"><strong className="text-slate-400">Ações:</strong> {r.acoes}</div>}
+                  <button className="text-red-400 text-xs hover:text-red-300 mt-2" onClick={() => removeR(r.id)}>Apagar</button>
+                </div>
+              );
+            })}
+            {rlist.length === 0 && <div className="text-center text-slate-500 py-8">Nenhuma 1:1 registrada.</div>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// LocacoesPage (contratos de locacao)
+// ──────────────────────────────────────────────────────────────────────────
+function LocacoesPage({ user }) {
+  const { value: contratos, save } = useShared('LOCACAO_CONTRATOS');
+  const list = Array.isArray(contratos) ? contratos : [];
+  const isStaff = user.role === 'socio' || user.role === 'lider';
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ imovel:'', endereco:'', proprietario:'', telProprietario:'', inquilino:'', telInquilino:'', valorAluguel:'', dataInicio:todayKey(), dataFim:'', taxa:'10', status:'ativo', obs:'' });
+  const [filter, setFilter] = useState('ativo');
+
+  async function add() {
+    if (!form.imovel || !form.inquilino) return;
+    const item = { id:'lc'+Date.now(), ...form, valorAluguel:parseFloat(form.valorAluguel)||0, taxa:parseFloat(form.taxa)||10, ts:Date.now(), createdBy:user.id };
+    await save([item, ...list].slice(0,500));
+    setForm({ imovel:'', endereco:'', proprietario:'', telProprietario:'', inquilino:'', telInquilino:'', valorAluguel:'', dataInicio:todayKey(), dataFim:'', taxa:'10', status:'ativo', obs:'' });
+    setShowForm(false);
+  }
+  async function setStatus(id, status) { await save(list.map(c => c.id===id ? {...c, status, statusAt:Date.now()} : c)); }
+  async function remove(id) { if (!confirm('Apagar?')) return; await save(list.filter(c => c.id !== id)); }
+
+  const filtered = filter === 'todos' ? list : list.filter(c => c.status === filter);
+  const totalAluguel = list.filter(c => c.status === 'ativo').reduce((s,c) => s + (c.valorAluguel||0), 0);
+  const totalTaxa = list.filter(c => c.status === 'ativo').reduce((s,c) => s + ((c.valorAluguel||0) * (c.taxa||10) / 100), 0);
+
+  const STATUS = { ativo:'🟢 Ativo', pendente:'🟡 Pendente', encerrado:'⚪ Encerrado', inadimplente:'🔴 Inadimplente' };
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>🏠 Locações</h1>
+          <p className="text-sm text-slate-400">{list.filter(c => c.status==='ativo').length} contratos ativos</p>
+        </div>
+        {isStaff && <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Novo contrato'}</button>}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div className="card p-4"><div className="text-xs text-slate-400">Receita aluguel/mês</div><div className="text-xl font-bold">{fmtMoney(totalAluguel)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Taxa administração/mês</div><div className="text-xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(totalTaxa)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Inadimplentes</div><div className="text-xl font-bold text-red-400">{list.filter(c => c.status==='inadimplente').length}</div></div>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        <button className={'btn btn-sm ' + (filter==='todos'?'':'btn-out')} onClick={() => setFilter('todos')}>Todos ({list.length})</button>
+        {Object.entries(STATUS).map(([k, lbl]) => <button key={k} className={'btn btn-sm ' + (filter===k?'':'btn-out')} onClick={() => setFilter(k)}>{lbl} ({list.filter(c => c.status===k).length})</button>)}
+      </div>
+
+      {showForm && isStaff && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Imóvel" value={form.imovel} onChange={e => setForm({...form, imovel:e.target.value})} />
+            <input className="input" placeholder="Endereço" value={form.endereco} onChange={e => setForm({...form, endereco:e.target.value})} />
+            <input className="input" placeholder="Proprietário" value={form.proprietario} onChange={e => setForm({...form, proprietario:e.target.value})} />
+            <input className="input" placeholder="Telefone proprietário" value={form.telProprietario} onChange={e => setForm({...form, telProprietario:e.target.value})} />
+            <input className="input" placeholder="Inquilino" value={form.inquilino} onChange={e => setForm({...form, inquilino:e.target.value})} />
+            <input className="input" placeholder="Telefone inquilino" value={form.telInquilino} onChange={e => setForm({...form, telInquilino:e.target.value})} />
+            <input type="number" step="0.01" className="input" placeholder="Aluguel (R$)" value={form.valorAluguel} onChange={e => setForm({...form, valorAluguel:e.target.value})} />
+            <input type="number" step="0.1" className="input" placeholder="Taxa adm (%)" value={form.taxa} onChange={e => setForm({...form, taxa:e.target.value})} />
+            <input type="date" className="input" value={form.dataInicio} onChange={e => setForm({...form, dataInicio:e.target.value})} />
+            <input type="date" className="input" placeholder="Fim contrato" value={form.dataFim} onChange={e => setForm({...form, dataFim:e.target.value})} />
+            <select className="input" value={form.status} onChange={e => setForm({...form, status:e.target.value})}>
+              {Object.entries(STATUS).map(([k, lbl]) => <option key={k} value={k}>{lbl}</option>)}
+            </select>
+          </div>
+          <textarea className="input mb-3" rows="2" placeholder="Observações" value={form.obs} onChange={e => setForm({...form, obs:e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.imovel || !form.inquilino}>💾 Cadastrar contrato</button>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {filtered.map(c => (
+          <div key={c.id} className="card p-4">
+            <div className="flex items-start justify-between mb-2 flex-wrap gap-2">
+              <div className="flex-1">
+                <div className="flex gap-2 items-center mb-1">
+                  <span className="badge">{STATUS[c.status] || c.status}</span>
+                  <span className="font-bold text-lg">{c.imovel}</span>
+                </div>
+                <div className="text-sm text-slate-400">{c.endereco}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-slate-500">Aluguel</div>
+                <div className="text-xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(c.valorAluguel)}</div>
+                <div className="text-xs text-slate-400">Taxa: {fmtMoney(c.valorAluguel * c.taxa / 100)} ({c.taxa}%)</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mt-2">
+              <div><strong className="text-slate-400">👤 Proprietário:</strong> {c.proprietario} {c.telProprietario && '· '+c.telProprietario}</div>
+              <div><strong className="text-slate-400">🏠 Inquilino:</strong> {c.inquilino} {c.telInquilino && '· '+c.telInquilino}</div>
+              <div className="text-xs text-slate-500">Início: {c.dataInicio} {c.dataFim && '· Fim: '+c.dataFim}</div>
+            </div>
+            {c.obs && <div className="text-sm text-slate-400 mt-2 italic">{c.obs}</div>}
+            {isStaff && (
+              <div className="flex gap-1 mt-3 flex-wrap">
+                {Object.entries(STATUS).filter(([k]) => k !== c.status).map(([k, lbl]) => (
+                  <button key={k} className="btn btn-sm btn-out" style={{padding:'2px 8px',fontSize:'10px'}} onClick={() => setStatus(c.id, k)}>{lbl}</button>
+                ))}
+                <button className="text-red-400 text-xs hover:text-red-300 ml-2" onClick={() => remove(c.id)}>×</button>
+              </div>
+            )}
+          </div>
+        ))}
+        {filtered.length === 0 && <div className="text-center text-slate-500 py-8">Nenhum contrato.</div>}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// GovernancePage (audit log via Supabase)
+// ──────────────────────────────────────────────────────────────────────────
+function GovernancePage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  if (lvl < 7) return <div className="p-6 text-slate-500">Acesso restrito a sócios e gerentes.</div>;
+
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+  const [filterTable, setFilterTable] = useState('');
+  const [filterOp, setFilterOp] = useState('');
+
+  async function load() {
+    if (!sb) { setErr('Supabase não disponível'); setLoading(false); return; }
+    setLoading(true); setErr('');
+    try {
+      let q = sb.from('audit_log').select('*').order('created_at', { ascending: false }).limit(200);
+      if (filterTable) q = q.eq('table_name', filterTable);
+      if (filterOp) q = q.eq('operation', filterOp);
+      const { data, error } = await q;
+      if (error) setErr(error.message);
+      else setLogs(data || []);
+    } catch(e) { setErr(e.message); }
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, [filterTable, filterOp]);
+
+  function decodeUid(uid) {
+    if (!uid) return 'anônimo';
+    try {
+      const hex = uid.replace(/-/g,'').toLowerCase();
+      if (/0{16,}$/.test(hex)) {
+        const prefix = hex.replace(/0+$/,'');
+        let name = '';
+        for (let i = 0; i < prefix.length; i += 2) {
+          const c = parseInt(prefix.substr(i,2), 16);
+          if (c >= 32 && c < 127) name += String.fromCharCode(c);
+        }
+        if (name) return name;
+      }
+    } catch(_){}
+    return uid.substring(0,8);
+  }
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>📜 Governance — Audit Log</h1>
+          <p className="text-sm text-slate-400">Histórico de mudanças no banco (auditoria automática)</p>
+        </div>
+        <button className="btn btn-sm btn-out" onClick={load}>↻ Atualizar</button>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        <select className="input max-w-xs" value={filterTable} onChange={e => setFilterTable(e.target.value)}>
+          <option value="">Todas tabelas</option>
+          <option value="shared_kv">shared_kv</option>
+          <option value="user_kv">user_kv</option>
+        </select>
+        <select className="input max-w-xs" value={filterOp} onChange={e => setFilterOp(e.target.value)}>
+          <option value="">Todas operações</option>
+          <option value="insert">Insert</option>
+          <option value="update">Update</option>
+          <option value="delete">Delete</option>
+        </select>
+      </div>
+
+      {err && <div className="card p-4 mb-4 text-red-400">⚠ {err}</div>}
+      {loading ? <div className="text-slate-500">Carregando…</div> : (
+        <div className="card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
+              <th className="text-left p-3">Quando</th>
+              <th className="text-left p-3">Usuário</th>
+              <th className="text-left p-3">Tabela</th>
+              <th className="text-left p-3">Op</th>
+              <th className="text-left p-3">Chave</th>
+            </tr></thead>
+            <tbody>
+              {logs.map(l => {
+                const opColor = l.operation==='insert' ? '#16a34a' : l.operation==='update' ? '#3b82f6' : '#dc2626';
+                return (
+                  <tr key={l.id} className="border-t border-slate-700 hover:bg-slate-900/50">
+                    <td className="p-3 text-xs">{fmtDate(l.created_at)}</td>
+                    <td className="p-3 font-medium">{decodeUid(l.user_id)}</td>
+                    <td className="p-3 text-xs">{l.table_name}</td>
+                    <td className="p-3"><span className="badge" style={{background:opColor+'30',color:opColor}}>{l.operation}</span></td>
+                    <td className="p-3 text-xs font-mono">{l.key || '—'}</td>
+                  </tr>
+                );
+              })}
+              {logs.length === 0 && <tr><td colSpan="5" className="text-center text-slate-500 p-8">Sem eventos.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// ConfiguracoesPage (preferencias gerais)
+// ──────────────────────────────────────────────────────────────────────────
+function ConfiguracoesPage({ user }) {
+  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const { value: pref, save: savePref } = useUserKv(targetUid, 'PREFERENCIAS_USUARIO');
+  const p = pref || {};
+
+  const [form, setForm] = useState({
+    nomeExibicao: p.nomeExibicao || user.name,
+    notifEmail: p.notifEmail !== false,
+    notifSistema: p.notifSistema !== false,
+    tema: p.tema || 'dark',
+    emailContato: p.emailContato || user.email,
+    telefone: p.telefone || '',
+    bio: p.bio || ''
+  });
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
+
+  useEffect(() => {
+    if (p && Object.keys(p).length > 0) {
+      setForm({
+        nomeExibicao: p.nomeExibicao || user.name,
+        notifEmail: p.notifEmail !== false,
+        notifSistema: p.notifSistema !== false,
+        tema: p.tema || 'dark',
+        emailContato: p.emailContato || user.email,
+        telefone: p.telefone || '',
+        bio: p.bio || ''
+      });
+    }
+  }, [pref]);
+
+  async function salvar() {
+    setSaving(true);
+    await savePref({ ...form, updatedAt: Date.now() });
+    setSavedAt(Date.now());
+    setSaving(false);
+  }
+
+  function clearLocal() {
+    if (!confirm('Limpar TODOS os dados locais deste navegador? (Você precisará fazer login novamente. Os dados no Supabase ficam.)')) return;
+    localStorage.clear();
+    location.reload();
+  }
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>⚙️ Configurações</h1>
+      <p className="text-sm text-slate-400 mb-6">Suas preferências pessoais</p>
+
+      <div className="card p-4 mb-4">
+        <h2 className="font-bold mb-3">👤 Perfil</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div><label className="text-xs text-slate-400 block mb-1">Nome de exibição</label><input className="input" value={form.nomeExibicao} onChange={e => setForm({...form, nomeExibicao:e.target.value})} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">E-mail contato</label><input className="input" value={form.emailContato} onChange={e => setForm({...form, emailContato:e.target.value})} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Telefone</label><input className="input" value={form.telefone} onChange={e => setForm({...form, telefone:e.target.value})} /></div>
+        </div>
+        <div className="mt-3"><label className="text-xs text-slate-400 block mb-1">Bio curta</label><textarea className="input" rows="2" value={form.bio} onChange={e => setForm({...form, bio:e.target.value})} /></div>
+      </div>
+
+      <div className="card p-4 mb-4">
+        <h2 className="font-bold mb-3">🔔 Notificações</h2>
+        <label className="flex items-center gap-2 mb-2"><input type="checkbox" checked={form.notifEmail} onChange={e => setForm({...form, notifEmail:e.target.checked})} className="w-5 h-5" style={{accentColor:'#d4a843'}} /> Receber notificações por e-mail</label>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={form.notifSistema} onChange={e => setForm({...form, notifSistema:e.target.checked})} className="w-5 h-5" style={{accentColor:'#d4a843'}} /> Receber notificações dentro do sistema</label>
+      </div>
+
+      <div className="card p-4 mb-4">
+        <h2 className="font-bold mb-3">🎨 Aparência</h2>
+        <div className="flex gap-2">
+          <button className={'btn btn-sm ' + (form.tema==='dark'?'':'btn-out')} onClick={() => setForm({...form, tema:'dark'})}>🌙 Escuro</button>
+          <button className={'btn btn-sm ' + (form.tema==='light'?'':'btn-out')} onClick={() => setForm({...form, tema:'light'})}>☀️ Claro</button>
+          <button className={'btn btn-sm ' + (form.tema==='auto'?'':'btn-out')} onClick={() => setForm({...form, tema:'auto'})}>🔄 Auto</button>
+        </div>
+        <div className="text-xs text-slate-500 mt-2">Tema claro será implementado em sprint futuro.</div>
+      </div>
+
+      <div className="flex gap-2 mb-6">
+        <button className="btn" onClick={salvar} disabled={saving}>{saving ? 'Salvando…' : '💾 Salvar configurações'}</button>
+        {savedAt && <span className="text-green-400 text-sm self-center">✓ Salvo {new Date(savedAt).toLocaleTimeString('pt-BR')}</span>}
+      </div>
+
+      <div className="card p-4 border-red-500/30">
+        <h2 className="font-bold mb-3 text-red-400">⚠️ Zona perigosa</h2>
+        <button className="btn btn-danger btn-sm" onClick={clearLocal}>Limpar dados locais deste navegador</button>
+        <div className="text-xs text-slate-500 mt-2">Apaga só o cache do seu navegador. Dados no Supabase permanecem.</div>
+      </div>
+    </div>
+  );
+}
+
+
+// ──────────────────────────────────────────────────────────────────────────
+// AgendaPSMPage (eventos/reunioes corporativas)
+// ──────────────────────────────────────────────────────────────────────────
+function AgendaPSMPage({ user }) {
+  const { value: eventos, save } = useShared('AGENDA_EVENTOS');
+  const list = Array.isArray(eventos) ? eventos : [];
+  const isStaff = user.role === 'socio' || user.role === 'lider';
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ titulo:'', tipo:'reuniao', dataInicio:todayKey()+'T09:00', dataFim:todayKey()+'T10:00', local:'', participantes:[], descricao:'' });
+  const [filter, setFilter] = useState('proximos');
+
+  async function add() {
+    if (!form.titulo) return;
+    const item = { id:'ev'+Date.now(), ...form, ts:Date.now(), createdBy:user.id, createdByName:user.name };
+    await save([item, ...list].slice(0,500));
+    setForm({ titulo:'', tipo:'reuniao', dataInicio:todayKey()+'T09:00', dataFim:todayKey()+'T10:00', local:'', participantes:[], descricao:'' });
+    setShowForm(false);
+  }
+  async function remove(id) { if (!confirm('Apagar?')) return; await save(list.filter(e => e.id !== id)); }
+  function toggleParticipante(uid) {
+    const ps = form.participantes.includes(uid) ? form.participantes.filter(x => x !== uid) : [...form.participantes, uid];
+    setForm({...form, participantes: ps});
+  }
+
+  const TIPOS = { reuniao:'🤝 Reunião', treinamento:'🎓 Treinamento', evento:'🎉 Evento', visita:'🏠 Visita', outro:'📌 Outro' };
+  const now = new Date().toISOString();
+  const filtered = filter === 'proximos' ? list.filter(e => e.dataInicio >= now) : filter === 'passados' ? list.filter(e => e.dataInicio < now) : list;
+  filtered.sort((a,b) => filter === 'passados' ? b.dataInicio.localeCompare(a.dataInicio) : a.dataInicio.localeCompare(b.dataInicio));
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>📅 Agenda PSM</h1>
+          <p className="text-sm text-slate-400">Eventos e reuniões corporativas</p>
+        </div>
+        {isStaff && <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Novo evento'}</button>}
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        <button className={'btn btn-sm ' + (filter==='proximos'?'':'btn-out')} onClick={() => setFilter('proximos')}>Próximos ({list.filter(e => e.dataInicio >= now).length})</button>
+        <button className={'btn btn-sm ' + (filter==='passados'?'':'btn-out')} onClick={() => setFilter('passados')}>Passados ({list.filter(e => e.dataInicio < now).length})</button>
+        <button className={'btn btn-sm ' + (filter==='todos'?'':'btn-out')} onClick={() => setFilter('todos')}>Todos ({list.length})</button>
+      </div>
+
+      {showForm && isStaff && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Título" value={form.titulo} onChange={e => setForm({...form, titulo:e.target.value})} />
+            <select className="input" value={form.tipo} onChange={e => setForm({...form, tipo:e.target.value})}>
+              {Object.entries(TIPOS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <input type="datetime-local" className="input" value={form.dataInicio} onChange={e => setForm({...form, dataInicio:e.target.value})} />
+            <input type="datetime-local" className="input" value={form.dataFim} onChange={e => setForm({...form, dataFim:e.target.value})} />
+            <input className="input md:col-span-2" placeholder="Local (escritório, online, endereço)" value={form.local} onChange={e => setForm({...form, local:e.target.value})} />
+          </div>
+          <div className="mb-3">
+            <label className="text-xs text-slate-400 block mb-2">Participantes</label>
+            <div className="flex flex-wrap gap-1">
+              {USERS.map(u => (
+                <button key={u.id} type="button" className={'btn btn-sm ' + (form.participantes.includes(u.id) ? '' : 'btn-out')} onClick={() => toggleParticipante(u.id)}>{u.name.split(' ')[0]}</button>
+              ))}
+            </div>
+          </div>
+          <textarea className="input mb-3" rows="3" placeholder="Descrição/pauta" value={form.descricao} onChange={e => setForm({...form, descricao:e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.titulo}>💾 Salvar evento</button>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {filtered.map(e => {
+          const dt = new Date(e.dataInicio);
+          const dtFim = new Date(e.dataFim);
+          const dia = dt.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short' });
+          const hr = dt.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) + '–' + dtFim.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+          const participantes = e.participantes?.map(pid => USERS.find(u => u.id===pid)?.name?.split(' ')[0] || pid).filter(Boolean) || [];
+          return (
+            <div key={e.id} className="card p-4">
+              <div className="flex items-start justify-between mb-2 flex-wrap gap-2">
+                <div className="flex gap-3">
+                  <div className="text-center px-3 py-2 rounded" style={{background:'#0f172a', minWidth:80}}>
+                    <div className="text-xs text-slate-400 uppercase">{dia.split(',')[0]}</div>
+                    <div className="text-2xl font-bold" style={{color:'#d4a843'}}>{dt.getDate()}</div>
+                    <div className="text-xs text-slate-400">{dt.toLocaleDateString('pt-BR', { month:'short' })}</div>
+                  </div>
+                  <div>
+                    <div className="flex gap-2 items-center mb-1">
+                      <span className="badge" style={{background:'#d4a84330',color:'#fde68a'}}>{TIPOS[e.tipo]||e.tipo}</span>
+                      <span className="font-bold text-lg">{e.titulo}</span>
+                    </div>
+                    <div className="text-sm text-slate-400">⏰ {hr} {e.local && '· 📍 '+e.local}</div>
+                  </div>
+                </div>
+                {(user.role === 'socio' || e.createdBy === user.id) && <button className="text-red-400 text-xs" onClick={() => remove(e.id)}>Apagar</button>}
+              </div>
+              {participantes.length > 0 && <div className="text-xs text-slate-400 mt-2">👥 {participantes.join(', ')}</div>}
+              {e.descricao && <div className="text-sm text-slate-300 mt-2">{e.descricao}</div>}
+            </div>
+          );
+        })}
+        {filtered.length === 0 && <div className="text-center text-slate-500 py-8">Nenhum evento.</div>}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// RankingPage (corretores ordenados por VGV/vendas)
+// ──────────────────────────────────────────────────────────────────────────
+function RankingPage({ user }) {
+  const { value: vendas } = useShared('VENDAS_MANUAIS');
+  const { value: metas } = useShared('METAS_INDIVIDUAIS');
+  const list = Array.isArray(vendas) ? vendas : [];
+  const m = metas || {};
+
+  const [refMes, setRefMes] = useState(monthKey());
+  const [criterio, setCriterio] = useState('vgv');
+
+  const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
+  const ranking = useMemo(() => {
+    return corretores.map(c => {
+      const myVendas = list.filter(v => v.corretorId === c.id && v.status === 'fechada' && v.dataVenda?.startsWith(refMes));
+      const vgv = myVendas.reduce((s,v) => s + (v.vgv||0), 0);
+      const meta = m[c.id]?.vgv || 0;
+      const pctMeta = meta > 0 ? (vgv/meta*100) : 0;
+      return { corretor: c, vendas: myVendas.length, vgv, meta, pctMeta };
+    }).sort((a,b) => {
+      if (criterio === 'vendas') return b.vendas - a.vendas;
+      if (criterio === 'pct') return b.pctMeta - a.pctMeta;
+      return b.vgv - a.vgv;
+    });
+  }, [corretores, list, m, refMes, criterio]);
+
+  const MEDALS = ['🥇','🥈','🥉'];
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>🏅 Ranking</h1>
+          <p className="text-sm text-slate-400">Performance dos corretores</p>
+        </div>
+        <div className="flex gap-2 items-center">
+          <input type="month" className="input" value={refMes} onChange={e => setRefMes(e.target.value)} />
+          <select className="input" value={criterio} onChange={e => setCriterio(e.target.value)}>
+            <option value="vgv">Por VGV</option>
+            <option value="vendas">Por nº vendas</option>
+            <option value="pct">Por % de meta</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {ranking.map((r, i) => {
+          const medal = MEDALS[i] || ('#' + (i+1));
+          const isTop3 = i < 3;
+          const colors = ['#d4a843','#94a3b8','#92400e'];
+          return (
+            <div key={r.corretor.id} className="card p-4" style={{borderColor: isTop3 ? colors[i] : '#334155', borderWidth: isTop3 ? 2 : 1}}>
+              <div className="flex items-center gap-4">
+                <div className="text-3xl w-12 text-center">{medal}</div>
+                <div className="flex-1">
+                  <div className="font-bold text-lg">{r.corretor.name}</div>
+                  <div className="text-xs text-slate-400">{r.corretor.frente ? FRENTES[r.corretor.frente]?.label : '—'} • {r.vendas} vendas</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(r.vgv)}</div>
+                  {r.meta > 0 && <div className="text-xs" style={{color: r.pctMeta >= 100 ? '#22c55e' : r.pctMeta >= 70 ? '#d4a843' : '#ef4444'}}>{r.pctMeta.toFixed(0)}% da meta</div>}
+                </div>
+              </div>
+              {r.meta > 0 && (
+                <div className="h-2 bg-slate-700 rounded overflow-hidden mt-3">
+                  <div style={{width: Math.min(100, r.pctMeta)+'%', height:'100%', background: r.pctMeta >= 100 ? '#22c55e' : '#d4a843'}}></div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// CheckinPage (jornada de trabalho diaria)
+// ──────────────────────────────────────────────────────────────────────────
+function CheckinPage({ user }) {
+  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const { value: log, save: saveLog } = useUserKv(targetUid, 'CHECKIN_LOG');
+  const list = Array.isArray(log) ? log : [];
+  const today = todayKey();
+  const todayLog = list.find(l => l.date === today);
+
+  async function checkIn() {
+    const now = new Date();
+    const time = now.toTimeString().slice(0,5);
+    const next = todayLog
+      ? list.map(l => l.date === today ? { ...l, checkin: time, ts: Date.now() } : l)
+      : [{ date: today, checkin: time, pausas: [], checkout: null, ts: Date.now() }, ...list];
+    await saveLog(next.slice(0, 365));
+  }
+  async function checkOut() {
+    const now = new Date();
+    const time = now.toTimeString().slice(0,5);
+    const next = list.map(l => l.date === today ? { ...l, checkout: time, ts: Date.now() } : l);
+    await saveLog(next);
+  }
+  async function togglePausa() {
+    const now = new Date();
+    const time = now.toTimeString().slice(0,5);
+    let next;
+    if (!todayLog) return;
+    const lastPausa = todayLog.pausas?.[todayLog.pausas.length - 1];
+    if (lastPausa && !lastPausa.fim) {
+      // Encerrar pausa
+      next = list.map(l => l.date === today ? {
+        ...l,
+        pausas: l.pausas.map((p, i) => i === l.pausas.length - 1 ? { ...p, fim: time } : p)
+      } : l);
+    } else {
+      next = list.map(l => l.date === today ? { ...l, pausas: [...(l.pausas||[]), { inicio: time, fim: null }] } : l);
+    }
+    await saveLog(next);
+  }
+
+  function calcHoras(l) {
+    if (!l.checkin || !l.checkout) return null;
+    const [h1, m1] = l.checkin.split(':').map(Number);
+    const [h2, m2] = l.checkout.split(':').map(Number);
+    let total = (h2*60 + m2) - (h1*60 + m1);
+    (l.pausas||[]).forEach(p => {
+      if (p.inicio && p.fim) {
+        const [pi, pmi] = p.inicio.split(':').map(Number);
+        const [pf, pmf] = p.fim.split(':').map(Number);
+        total -= (pf*60 + pmf) - (pi*60 + pmi);
+      }
+    });
+    return Math.max(0, total);
+  }
+
+  const inPausa = todayLog?.pausas?.length && !todayLog.pausas[todayLog.pausas.length - 1].fim;
+  const isClocked = !!todayLog?.checkin && !todayLog?.checkout;
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>⏱️ Check-in / Check-out</h1>
+      <p className="text-sm text-slate-400 mb-6">Controle pessoal de jornada</p>
+
+      <div className="card p-6 mb-6 text-center">
+        <div className="text-sm text-slate-400 mb-2">Hoje • {new Date().toLocaleDateString('pt-BR')}</div>
+        <div className="text-5xl font-bold mb-4" style={{color:'#d4a843'}}>
+          {todayLog?.checkin || '--:--'} {todayLog?.checkout && '→ ' + todayLog.checkout}
+        </div>
+        {todayLog && calcHoras(todayLog) !== null && (
+          <div className="text-lg text-green-400 mb-4">⏰ {Math.floor(calcHoras(todayLog)/60)}h{String(calcHoras(todayLog)%60).padStart(2,'0')} trabalhadas</div>
+        )}
+        <div className="flex gap-3 justify-center flex-wrap">
+          {!todayLog?.checkin && <button className="btn btn-success" onClick={checkIn}>✓ Check-in</button>}
+          {isClocked && <button className={'btn ' + (inPausa ? 'btn-success' : 'btn-out')} onClick={togglePausa}>{inPausa ? '▶️ Voltar pausa' : '⏸️ Iniciar pausa'}</button>}
+          {isClocked && <button className="btn btn-danger" onClick={checkOut}>⏹ Check-out</button>}
+        </div>
+        {inPausa && <div className="text-yellow-400 text-sm mt-3">⏸️ Em pausa desde {todayLog.pausas[todayLog.pausas.length-1].inicio}</div>}
+      </div>
+
+      <div className="card p-4">
+        <h2 className="font-bold mb-3">📋 Histórico (últimos 30)</h2>
+        <table className="w-full text-sm">
+          <thead><tr className="text-xs text-slate-400 uppercase border-b border-slate-700">
+            <th className="text-left p-2">Data</th>
+            <th className="text-center p-2">Check-in</th>
+            <th className="text-center p-2">Check-out</th>
+            <th className="text-center p-2">Pausas</th>
+            <th className="text-right p-2">Horas</th>
+          </tr></thead>
+          <tbody>
+            {list.slice(0,30).map(l => {
+              const h = calcHoras(l);
+              return (
+                <tr key={l.date} className="border-t border-slate-700">
+                  <td className="p-2">{l.date}</td>
+                  <td className="text-center p-2">{l.checkin || '—'}</td>
+                  <td className="text-center p-2">{l.checkout || '—'}</td>
+                  <td className="text-center p-2">{l.pausas?.length || 0}</td>
+                  <td className="text-right p-2 font-bold" style={{color:'#d4a843'}}>{h !== null ? Math.floor(h/60)+'h'+String(h%60).padStart(2,'0') : '—'}</td>
+                </tr>
+              );
+            })}
+            {list.length === 0 && <tr><td colSpan="5" className="text-center text-slate-500 p-6">Sem registros.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// ArenaTVPage (modo TV — display em tela grande do escritorio)
+// ──────────────────────────────────────────────────────────────────────────
+function ArenaTVPage({ user }) {
+  const { value: vendas } = useShared('VENDAS_MANUAIS');
+  const { value: metas } = useShared('METAS_INDIVIDUAIS');
+  const { value: recados } = useShared('RECADOS_DIRETORIA');
+  const list = Array.isArray(vendas) ? vendas : [];
+  const m = metas || {};
+  const recList = Array.isArray(recados) ? recados : [];
+
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const i = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(i);
+  }, []);
+
+  const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
+  const refMes = monthKey();
+  const ranking = corretores.map(c => {
+    const myVendas = list.filter(v => v.corretorId === c.id && v.status === 'fechada' && v.dataVenda?.startsWith(refMes));
+    const vgv = myVendas.reduce((s,v) => s + (v.vgv||0), 0);
+    const meta = m[c.id]?.vgv || 0;
+    return { corretor: c, vgv, meta, vendas: myVendas.length, pct: meta > 0 ? (vgv/meta*100) : 0 };
+  }).sort((a,b) => b.vgv - a.vgv).slice(0, 8);
+
+  const totalVgv = corretores.reduce((s,c) => {
+    const v = list.filter(x => x.corretorId === c.id && x.status === 'fechada' && x.dataVenda?.startsWith(refMes)).reduce((s2,v) => s2+(v.vgv||0), 0);
+    return s + v;
+  }, 0);
+  const totalMeta = corretores.reduce((s,c) => s + (m[c.id]?.vgv || 0), 0);
+  const pctTotal = totalMeta > 0 ? (totalVgv/totalMeta*100) : 0;
+
+  const ultimoRecado = recList[0];
+
+  return (
+    <div className="min-h-screen p-8" style={{background:'#0f172a'}}>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-5xl font-bold" style={{color:'#d4a843'}}>PSM ARENA</h1>
+          <div className="text-xl text-slate-400 mt-1">{now.toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })}</div>
+        </div>
+        <div className="text-6xl font-mono font-bold" style={{color:'#d4a843'}}>{now.toTimeString().slice(0,5)}</div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-6 mb-8">
+        <div className="card p-6 text-center">
+          <div className="text-sm text-slate-400 uppercase mb-2">VGV do Mês</div>
+          <div className="text-4xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(totalVgv)}</div>
+        </div>
+        <div className="card p-6 text-center">
+          <div className="text-sm text-slate-400 uppercase mb-2">Meta do Mês</div>
+          <div className="text-4xl font-bold">{fmtMoney(totalMeta)}</div>
+        </div>
+        <div className="card p-6 text-center" style={{borderColor: pctTotal >= 100 ? '#16a34a' : pctTotal >= 70 ? '#d4a843' : '#dc2626', borderWidth:3}}>
+          <div className="text-sm text-slate-400 uppercase mb-2">% Atingimento</div>
+          <div className="text-5xl font-bold" style={{color: pctTotal >= 100 ? '#22c55e' : pctTotal >= 70 ? '#d4a843' : '#ef4444'}}>{pctTotal.toFixed(0)}%</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-6">
+        <div className="col-span-2 card p-6">
+          <h2 className="text-2xl font-bold mb-4" style={{color:'#d4a843'}}>🏅 RANKING DO MÊS</h2>
+          <div className="space-y-3">
+            {ranking.map((r, i) => {
+              const medal = ['🥇','🥈','🥉'][i] || ('#'+(i+1));
+              return (
+                <div key={r.corretor.id} className="flex items-center gap-4">
+                  <div className="text-3xl w-12">{medal}</div>
+                  <div className="flex-1">
+                    <div className="text-xl font-bold">{r.corretor.name}</div>
+                    <div className="h-3 bg-slate-700 rounded overflow-hidden mt-1">
+                      <div style={{width: Math.min(100, r.pct)+'%', height:'100%', background: r.pct >= 100 ? '#22c55e' : '#d4a843'}}></div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(r.vgv)}</div>
+                    <div className="text-sm text-slate-400">{r.vendas} vendas {r.meta > 0 && '· '+r.pct.toFixed(0)+'%'}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="card p-6">
+          <h2 className="text-xl font-bold mb-4" style={{color:'#d4a843'}}>📢 RECADO</h2>
+          {ultimoRecado ? (
+            <div>
+              <div className="text-xs text-slate-400 mb-2">{ultimoRecado.authorName} • {fmtDate(ultimoRecado.ts)}</div>
+              <div className="text-lg whitespace-pre-wrap">{ultimoRecado.text}</div>
+            </div>
+          ) : <div className="text-slate-500">Nenhum recado.</div>}
+        </div>
+      </div>
+
+      <div className="text-center text-slate-500 text-xs mt-6">PSM /v2 ARENA — atualização ao vivo</div>
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // App
 // ──────────────────────────────────────────────────────────────────────────
@@ -3150,6 +3997,14 @@ function App() {
         {page === 'organograma' && <OrganogramaPage user={user} />}
         {page === 'manual' && <ManualPage user={user} />}
         {page === 'etica' && <EticaPage user={user} />}
+        {page === 'gestaopessoas' && <GestaoPessoasPage user={user} />}
+        {page === 'locacoes' && <LocacoesPage user={user} />}
+        {page === 'governance' && <GovernancePage user={user} />}
+        {page === 'config' && <ConfiguracoesPage user={user} />}
+        {page === 'agenda' && <AgendaPSMPage user={user} />}
+        {page === 'ranking' && <RankingPage user={user} />}
+        {page === 'checkin' && <CheckinPage user={user} />}
+        {page === 'arena' && <ArenaTVPage user={user} />}
         {page === 'recados' && <RecadosPage user={user} />}
       </main>
     </div>
