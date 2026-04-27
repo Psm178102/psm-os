@@ -1,7 +1,7 @@
 {
-  "version": "39.0.0",
-  "meta": "2026.04.26-v39",
-  "built": "2026-04-26T05:00:00Z",
-  "sw": "v39.0.0-2026-04-26-modulos-v2",
-  "sprint": "v39: /v2 com 18 modulos (+KPIs+LancarVenda+Tabela+Fichas)"
+  "version": "40.0.0",
+  "meta": "2026.04.26-v40",
+  "built": "2026-04-26T05:30:00Z",
+  "sw": "v40.0.0-2026-04-26-modulos-v2",
+  "sprint": "v40: /v2 com 22 modulos (+Mapa+Premiacoes+Oportunidades+CanalAnonimo)"
 }

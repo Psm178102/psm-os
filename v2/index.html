@@ -201,6 +201,10 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
     { id: 'iasol', label: 'Agente IA', emoji: '☀️' },
     { id: 'metaads', label: 'Meta Ads', emoji: '📣', minLvl: 5 },
     { id: 'criativos', label: 'Criativos', emoji: '🎨' },
+    { id: 'mapa', label: 'Mapa Lançamentos', emoji: '🗺️' },
+    { id: 'premiacoes', label: 'Premiações', emoji: '🏆' },
+    { id: 'oportunidades', label: 'Oportunidades', emoji: '💡' },
+    { id: 'canal', label: 'Canal Anônimo', emoji: '🔇' },
     { id: 'recados', label: 'Recados', emoji: '📢' },
   ];
   const visible = items.filter(it => !it.minLvl || lvl >= it.minLvl);
@@ -2031,6 +2035,356 @@ function FichasPage({ user }) {
   );
 }
 
+
+// ──────────────────────────────────────────────────────────────────────────
+// MapaLancamentosPage (lista de pins/lançamentos com regiões)
+// ──────────────────────────────────────────────────────────────────────────
+function MapaLancamentosPage({ user }) {
+  const { value: pins, save } = useShared('MAPA_LANCAMENTOS');
+  const list = Array.isArray(pins) ? pins : [];
+  const isStaff = user.role === 'socio' || user.role === 'lider';
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ nome:'', incorporadora:'', regiao:'', endereco:'', tipo:'apartamento', vgv:'', unidades:'', lancamento:'', status:'pre_lancamento', obs:'' });
+  const [filterStatus, setFilterStatus] = useState('todos');
+
+  async function add() {
+    if (!form.nome) return;
+    const item = { id:'mp'+Date.now(), ...form, vgv:parseFloat(form.vgv)||0, unidades:parseInt(form.unidades)||0, ts:Date.now(), addedBy:user.id };
+    await save([item, ...list].slice(0,500));
+    setForm({ nome:'', incorporadora:'', regiao:'', endereco:'', tipo:'apartamento', vgv:'', unidades:'', lancamento:'', status:'pre_lancamento', obs:'' });
+    setShowForm(false);
+  }
+  async function setStatus(id, status) { await save(list.map(p => p.id===id ? {...p, status} : p)); }
+  async function remove(id) { if (!confirm('Apagar?')) return; await save(list.filter(p => p.id !== id)); }
+
+  const STATUS_LABELS = { pre_lancamento:'🟡 Pré-lançamento', lancamento:'🟢 Lançamento', em_obras:'🟠 Em obras', entregue:'⚪ Entregue', vendido:'🔴 Vendido' };
+  const filtered = filterStatus === 'todos' ? list : list.filter(p => p.status === filterStatus);
+  const byRegiao = {};
+  filtered.forEach(p => { const k = p.regiao || 'Sem região'; if(!byRegiao[k]) byRegiao[k]=[]; byRegiao[k].push(p); });
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>🗺️ Mapa de Lançamentos</h1>
+          <p className="text-sm text-slate-400">{list.length} empreendimentos catalogados</p>
+        </div>
+        {isStaff && <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Novo lançamento'}</button>}
+      </div>
+
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <button className={'btn btn-sm ' + (filterStatus==='todos'?'':'btn-out')} onClick={() => setFilterStatus('todos')}>Todos ({list.length})</button>
+        {Object.entries(STATUS_LABELS).map(([k, lbl]) => {
+          const cnt = list.filter(p => p.status===k).length;
+          return <button key={k} className={'btn btn-sm ' + (filterStatus===k?'':'btn-out')} onClick={() => setFilterStatus(k)}>{lbl} ({cnt})</button>;
+        })}
+      </div>
+
+      {showForm && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <input className="input" placeholder="Nome do empreendimento" value={form.nome} onChange={e => setForm({...form, nome:e.target.value})} />
+            <input className="input" placeholder="Incorporadora" value={form.incorporadora} onChange={e => setForm({...form, incorporadora:e.target.value})} />
+            <input className="input" placeholder="Região (Sul/Norte/...)" value={form.regiao} onChange={e => setForm({...form, regiao:e.target.value})} />
+            <input className="input" placeholder="Endereço" value={form.endereco} onChange={e => setForm({...form, endereco:e.target.value})} />
+            <select className="input" value={form.tipo} onChange={e => setForm({...form, tipo:e.target.value})}>
+              <option value="apartamento">Apartamento</option><option value="casa">Casa</option><option value="loteamento">Loteamento</option><option value="comercial">Comercial</option>
+            </select>
+            <select className="input" value={form.status} onChange={e => setForm({...form, status:e.target.value})}>
+              {Object.entries(STATUS_LABELS).map(([k, lbl]) => <option key={k} value={k}>{lbl}</option>)}
+            </select>
+            <input type="number" className="input" placeholder="VGV total (R$)" value={form.vgv} onChange={e => setForm({...form, vgv:e.target.value})} />
+            <input type="number" className="input" placeholder="Unidades" value={form.unidades} onChange={e => setForm({...form, unidades:e.target.value})} />
+            <input type="date" className="input" placeholder="Data lançamento" value={form.lancamento} onChange={e => setForm({...form, lancamento:e.target.value})} />
+          </div>
+          <textarea className="input mb-3" rows="2" placeholder="Observações" value={form.obs} onChange={e => setForm({...form, obs:e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.nome}>💾 Salvar lançamento</button>
+        </div>
+      )}
+
+      {Object.keys(byRegiao).length === 0 ? <div className="text-center text-slate-500 py-8">Nenhum empreendimento.</div> : (
+        Object.entries(byRegiao).sort((a,b) => a[0].localeCompare(b[0])).map(([reg, items]) => (
+          <div key={reg} className="mb-6">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">📍 {reg} ({items.length})</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {items.map(p => (
+                <div key={p.id} className="card p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <span className="badge" style={{background:'#d4a84330', color:'#fde68a'}}>{p.tipo}</span>
+                    <span className="text-xs">{STATUS_LABELS[p.status] || p.status}</span>
+                  </div>
+                  <div className="font-bold mb-1">{p.nome}</div>
+                  <div className="text-sm text-slate-400 mb-2">{p.incorporadora}</div>
+                  <div className="text-xs text-slate-500 mb-2">{p.endereco}</div>
+                  <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                    <div><div className="text-xs text-slate-500">VGV</div><div className="font-bold" style={{color:'#d4a843'}}>{fmtMoney(p.vgv)}</div></div>
+                    <div><div className="text-xs text-slate-500">Unidades</div><div className="font-bold">{p.unidades||'—'}</div></div>
+                  </div>
+                  {p.lancamento && <div className="text-xs text-slate-400">Lançamento: {p.lancamento}</div>}
+                  {p.obs && <div className="text-xs text-slate-400 mt-2 italic">{p.obs}</div>}
+                  {isStaff && (
+                    <div className="flex gap-1 mt-3 flex-wrap">
+                      {Object.entries(STATUS_LABELS).filter(([k]) => k !== p.status).map(([k, lbl]) => (
+                        <button key={k} className="btn btn-sm btn-out" style={{padding:'2px 6px',fontSize:'9px'}} onClick={() => setStatus(p.id, k)}>→ {lbl}</button>
+                      ))}
+                      <button className="text-red-400 text-xs hover:text-red-300" onClick={() => remove(p.id)}>×</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// PremiacoesPage (premiacoes/incentivos da equipe)
+// ──────────────────────────────────────────────────────────────────────────
+function PremiacoesPage({ user }) {
+  const { value: prem, save } = useShared('PREMIACOES');
+  const list = Array.isArray(prem) ? prem : [];
+  const isStaff = user.role === 'socio' || user.role === 'lider';
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ titulo:'', criterio:'maior_vgv', metaValor:'', premio:'', vigencia:'mensal', refMes:monthKey(), descricao:'' });
+
+  async function add() {
+    if (!form.titulo) return;
+    const item = { id:'pr'+Date.now(), ...form, metaValor:parseFloat(form.metaValor)||0, ts:Date.now(), createdBy:user.id, ativo:true };
+    await save([item, ...list].slice(0,300));
+    setForm({ titulo:'', criterio:'maior_vgv', metaValor:'', premio:'', vigencia:'mensal', refMes:monthKey(), descricao:'' });
+    setShowForm(false);
+  }
+  async function toggleAtivo(id) {
+    await save(list.map(p => p.id===id ? {...p, ativo: !p.ativo} : p));
+  }
+  async function remove(id) { if (!confirm('Apagar?')) return; await save(list.filter(p => p.id !== id)); }
+
+  const CRITERIOS = { maior_vgv:'Maior VGV', mais_vendas:'Mais vendas', meta_batida:'Bater meta', maior_pct_meta:'Maior % de meta' };
+  const VIGENCIAS = { mensal:'Mensal', trimestral:'Trimestral', anual:'Anual', avulsa:'Avulsa' };
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>🏆 Premiações</h1>
+          <p className="text-sm text-slate-400">Programa de incentivos da equipe</p>
+        </div>
+        {isStaff && <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Nova premiação'}</button>}
+      </div>
+
+      {showForm && isStaff && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Título" value={form.titulo} onChange={e => setForm({...form, titulo:e.target.value})} />
+            <input className="input" placeholder="Prêmio (R$ 5.000 / Viagem / etc)" value={form.premio} onChange={e => setForm({...form, premio:e.target.value})} />
+            <select className="input" value={form.criterio} onChange={e => setForm({...form, criterio:e.target.value})}>
+              {Object.entries(CRITERIOS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <input type="number" className="input" placeholder="Meta R$ (opcional)" value={form.metaValor} onChange={e => setForm({...form, metaValor:e.target.value})} />
+            <select className="input" value={form.vigencia} onChange={e => setForm({...form, vigencia:e.target.value})}>
+              {Object.entries(VIGENCIAS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <input type="month" className="input" value={form.refMes} onChange={e => setForm({...form, refMes:e.target.value})} />
+          </div>
+          <textarea className="input mb-3" rows="2" placeholder="Descrição/regras" value={form.descricao} onChange={e => setForm({...form, descricao:e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.titulo}>💾 Criar premiação</button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {list.map(p => (
+          <div key={p.id} className="card p-4" style={{opacity: p.ativo === false ? 0.5 : 1}}>
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex gap-2 items-center">
+                <span className="text-2xl">🏆</span>
+                <div>
+                  <div className="font-bold">{p.titulo}</div>
+                  <div className="text-xs text-slate-400">{CRITERIOS[p.criterio] || p.criterio} • {VIGENCIAS[p.vigencia] || p.vigencia} • {p.refMes}</div>
+                </div>
+              </div>
+              {p.ativo === false && <span className="badge" style={{background:'#64748b30',color:'#94a3b8'}}>encerrada</span>}
+            </div>
+            <div className="text-lg font-bold mb-2" style={{color:'#d4a843'}}>{p.premio}</div>
+            {p.metaValor > 0 && <div className="text-sm text-slate-400 mb-2">Meta: {fmtMoney(p.metaValor)}</div>}
+            {p.descricao && <div className="text-sm text-slate-300 mb-3">{p.descricao}</div>}
+            {isStaff && (
+              <div className="flex gap-2 mt-3">
+                <button className="btn btn-sm btn-out" onClick={() => toggleAtivo(p.id)}>{p.ativo === false ? 'Reativar' : 'Encerrar'}</button>
+                <button className="text-red-400 text-xs hover:text-red-300" onClick={() => remove(p.id)}>Apagar</button>
+              </div>
+            )}
+          </div>
+        ))}
+        {list.length === 0 && <div className="text-center text-slate-500 py-8 col-span-2">Nenhuma premiação.</div>}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// OportunidadesPage (oportunidades compartilhadas — leads "para a casa")
+// ──────────────────────────────────────────────────────────────────────────
+function OportunidadesPage({ user }) {
+  const { value: opos, save } = useShared('OPORTUNIDADES_PSM');
+  const list = Array.isArray(opos) ? opos : [];
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ titulo:'', empreendimento:'', incorporadora:'', valor:'', validade:'', descricao:'', urgente:false });
+
+  async function add() {
+    if (!form.titulo) return;
+    const item = { id:'op'+Date.now(), ...form, valor:parseFloat(form.valor)||0, ts:Date.now(), postedBy:user.id, postedByName:user.name, status:'aberta' };
+    await save([item, ...list].slice(0,300));
+    setForm({ titulo:'', empreendimento:'', incorporadora:'', valor:'', validade:'', descricao:'', urgente:false });
+    setShowForm(false);
+  }
+  async function pegar(id) {
+    if (!confirm('Pegar essa oportunidade?')) return;
+    const next = list.map(o => o.id===id ? {...o, status:'pega', pegoPor:user.id, pegoPorName:user.name, pegoEm:Date.now()} : o);
+    await save(next);
+  }
+  async function remove(id) { if (!confirm('Apagar?')) return; await save(list.filter(o => o.id !== id)); }
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>💡 Oportunidades</h1>
+          <p className="text-sm text-slate-400">Mural de oportunidades para a equipe pegar</p>
+        </div>
+        <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Nova oportunidade'}</button>
+      </div>
+
+      {showForm && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Título" value={form.titulo} onChange={e => setForm({...form, titulo:e.target.value})} />
+            <input className="input" placeholder="Empreendimento" value={form.empreendimento} onChange={e => setForm({...form, empreendimento:e.target.value})} />
+            <input className="input" placeholder="Incorporadora" value={form.incorporadora} onChange={e => setForm({...form, incorporadora:e.target.value})} />
+            <input type="number" className="input" placeholder="Valor R$ (opcional)" value={form.valor} onChange={e => setForm({...form, valor:e.target.value})} />
+            <input type="date" className="input" placeholder="Validade" value={form.validade} onChange={e => setForm({...form, validade:e.target.value})} />
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.urgente} onChange={e => setForm({...form, urgente:e.target.checked})} className="w-5 h-5" style={{accentColor:'#dc2626'}} /> URGENTE</label>
+          </div>
+          <textarea className="input mb-3" rows="3" placeholder="Descrição/contexto" value={form.descricao} onChange={e => setForm({...form, descricao:e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.titulo}>📌 Postar oportunidade</button>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {list.map(o => {
+          const isAberta = o.status === 'aberta';
+          return (
+            <div key={o.id} className="card p-4" style={{borderColor: o.urgente && isAberta ? '#dc2626' : (isAberta ? '#d4a843' : '#475569')}}>
+              <div className="flex items-start justify-between mb-2 flex-wrap gap-2">
+                <div className="flex-1">
+                  <div className="flex gap-2 items-center mb-1">
+                    {o.urgente && isAberta && <span className="badge" style={{background:'#dc262630', color:'#fca5a5'}}>🔥 URGENTE</span>}
+                    {!isAberta && <span className="badge" style={{background:'#16a34a30', color:'#86efac'}}>✓ Pega por {o.pegoPorName || o.pegoPor}</span>}
+                    <span className="font-bold text-lg">{o.titulo}</span>
+                  </div>
+                  <div className="text-sm text-slate-400">{o.empreendimento} {o.incorporadora && '· '+o.incorporadora}</div>
+                </div>
+                {o.valor > 0 && <div className="text-xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(o.valor)}</div>}
+              </div>
+              {o.descricao && <div className="text-slate-300 mb-3">{o.descricao}</div>}
+              <div className="text-xs text-slate-500 mb-3">Postado por {o.postedByName || o.postedBy} em {fmtDate(o.ts)} {o.validade && '· Válido até '+o.validade}</div>
+              <div className="flex gap-2 flex-wrap">
+                {isAberta && <button className="btn btn-sm btn-success" onClick={() => pegar(o.id)}>✋ Pegar oportunidade</button>}
+                {(user.role === 'socio' || o.postedBy === user.id) && <button className="text-red-400 text-xs hover:text-red-300" onClick={() => remove(o.id)}>Apagar</button>}
+              </div>
+            </div>
+          );
+        })}
+        {list.length === 0 && <div className="text-center text-slate-500 py-8">Nenhuma oportunidade aberta.</div>}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// CanalAnonimoPage (denuncias/sugestoes anonimas para a diretoria)
+// ──────────────────────────────────────────────────────────────────────────
+function CanalAnonimoPage({ user }) {
+  const { value: msgs, save } = useShared('CANAL_ANONIMO');
+  const list = Array.isArray(msgs) ? msgs : [];
+  const isSocio = user.role === 'socio';
+  const [text, setText] = useState('');
+  const [tipo, setTipo] = useState('sugestao');
+  const [posting, setPosting] = useState(false);
+
+  async function post() {
+    if (!text.trim()) return;
+    setPosting(true);
+    // anonymous: NAO grava user.id
+    const item = { id:'an'+Date.now(), tipo, text:text.trim(), ts:Date.now(), status:'aberta', resposta:null };
+    await save([item, ...list].slice(0,500));
+    setText('');
+    setPosting(false);
+    alert('Mensagem anônima enviada para a diretoria.');
+  }
+  async function responder(id) {
+    if (!isSocio) return;
+    const r = prompt('Resposta da diretoria (será visível apenas pra socios):');
+    if (!r) return;
+    await save(list.map(m => m.id===id ? {...m, status:'respondida', resposta:r, respondedBy:user.id, respondedAt:Date.now()} : m));
+  }
+  async function arquivar(id) {
+    if (!isSocio) return;
+    await save(list.map(m => m.id===id ? {...m, status:'arquivada'} : m));
+  }
+
+  const TIPOS = { sugestao:'💡 Sugestão', critica:'⚠️ Crítica', denuncia:'🚨 Denúncia', elogio:'🌟 Elogio' };
+
+  if (!isSocio) {
+    return (
+      <div className="p-6 max-w-2xl">
+        <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🔇 Canal Anônimo</h1>
+        <p className="text-sm text-slate-400 mb-4">Envie sugestões, críticas ou denúncias anonimamente para a diretoria. Sua identidade NÃO é registrada.</p>
+        <div className="card p-4">
+          <select className="input mb-3" value={tipo} onChange={e => setTipo(e.target.value)}>
+            {Object.entries(TIPOS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+          <textarea className="input mb-3" rows="6" placeholder="Escreva sua mensagem..." value={text} onChange={e => setText(e.target.value)} />
+          <button className="btn" onClick={post} disabled={posting || !text.trim()}>{posting ? 'Enviando…' : '📤 Enviar anonimamente'}</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Socio view: lista mensagens recebidas
+  return (
+    <div className="p-6 max-w-3xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🔇 Canal Anônimo — Diretoria</h1>
+      <p className="text-sm text-slate-400 mb-6">Mensagens anônimas recebidas. Apenas sócios veem.</p>
+
+      <div className="space-y-3">
+        {list.map(m => (
+          <div key={m.id} className="card p-4">
+            <div className="flex items-start justify-between mb-2">
+              <span className="badge" style={{background:'#d4a84330', color:'#fde68a'}}>{TIPOS[m.tipo] || m.tipo}</span>
+              <div className="text-xs text-slate-500">{fmtDate(m.ts)}</div>
+            </div>
+            <div className="text-slate-200 whitespace-pre-wrap mb-3">{m.text}</div>
+            {m.resposta && (
+              <div className="bg-slate-900/50 p-3 rounded mb-3">
+                <div className="text-xs text-yellow-400 font-bold mb-1">↳ Resposta da diretoria</div>
+                <div className="text-sm text-slate-300">{m.resposta}</div>
+              </div>
+            )}
+            <div className="flex gap-2">
+              {m.status === 'aberta' && <button className="btn btn-sm btn-out" onClick={() => responder(m.id)}>Responder</button>}
+              {m.status !== 'arquivada' && <button className="btn btn-sm btn-out" onClick={() => arquivar(m.id)}>Arquivar</button>}
+            </div>
+          </div>
+        ))}
+        {list.length === 0 && <div className="text-center text-slate-500 py-8">Nenhuma mensagem recebida.</div>}
+      </div>
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // App
 // ──────────────────────────────────────────────────────────────────────────
@@ -2062,6 +2416,10 @@ function App() {
         {page === 'iasol' && <IASolPage user={user} />}
         {page === 'metaads' && <MetaAdsPage user={user} />}
         {page === 'criativos' && <CriativosPage user={user} />}
+        {page === 'mapa' && <MapaLancamentosPage user={user} />}
+        {page === 'premiacoes' && <PremiacoesPage user={user} />}
+        {page === 'oportunidades' && <OportunidadesPage user={user} />}
+        {page === 'canal' && <CanalAnonimoPage user={user} />}
         {page === 'recados' && <RecadosPage user={user} />}
       </main>
     </div>
