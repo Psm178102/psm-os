@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.26-v46 (v46 - /v2 com 46 modulos (+SimRepasse+SimEnergia+SimCriativo+MetricasViab)) (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
+<!-- PSM-OS v2026.04.26-v47 (v47 - 3 fixes Arena TV (lancamentos + clarificar timeline + locacao separada)) (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,8 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.26-v46.1">
-<script>window.PSM_VERSION='31.1.0';window.PSM_VERSION_META='2026.04.26-v46.1';
+<meta name="version" content="2026.04.26-v47.1">
+<script>window.PSM_VERSION='31.1.0';window.PSM_VERSION_META='2026.04.26-v47.1';
 // ═════════════════════════════════════════════════════════════════════════════
 // PSM Sprint 0 — Firebase write toggle (2026-04-25)
 // Default: false (Firebase escreve normalmente). Flip pra true via console:
@@ -5174,7 +5174,8 @@ function arenaTV(){
         if(!M) return;
         var disp = (typeof safeBrokerObj==='function') ? safeBrokerObj(b) : b;
         if(M.staleCrm >= 5 && !disp._masked){
-          items.push({ts:now-1, type:'alerta', icon:'⚠️', title:disp.name, sub:M.staleCrm+' leads parados', val:'CRM', col:'#f59e0b'});
+          // FIX v47: clarificar — sao oportunidades RD CRM (vendas) sem mexer >= 4 dias
+          items.push({ts:now-1, type:'alerta', icon:'⚠️', title:disp.name, sub:M.staleCrm+' negociações sem follow-up há 4+ dias', val:'RD CRM', col:'#f59e0b'});
         }
       });
     } catch(e){console.error("[PSM v27.7]",e);}
@@ -5798,24 +5799,47 @@ function arenaTV(){
     if(total === 0){
       html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:16px;flex:1">Nenhum lançamento cadastrado</div>';
     } else {
-      html += '<div style="flex:1;overflow:hidden;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:6px">';
+      // FIX v47 (2026-04-26): layout mais limpo — barra de progresso anual + grid 6x2 maior
+      var pctAno = total>0 ? Math.round(jaLanc/total*100) : 0;
+      html += '<div style="margin-bottom:10px;flex-shrink:0">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:10px;letter-spacing:1.5px;color:#64748b;text-transform:uppercase">'
+        +   '<span>Progresso anual</span>'
+        +   '<span style="color:#fbbf24;font-weight:800">' + pctAno + '%</span>'
+        + '</div>'
+        + '<div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden">'
+        +   '<div style="width:' + pctAno + '%;height:100%;background:linear-gradient(90deg,#22c55e,#fbbf24);transition:width 0.6s"></div>'
+        + '</div>'
+        + '</div>';
+      html += '<div style="flex:1;overflow:auto;display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(2,minmax(170px,1fr));gap:8px">';
       for(var m=1;m<=12;m++){
         var lst = byMonth[m] || [];
         var passou = m < mesAtual;
         var atual = m === mesAtual;
-        var bgCol = atual ? 'rgba(212,168,67,0.15)' : passou ? 'rgba(34,197,94,0.06)' : 'rgba(59,130,246,0.06)';
-        var brCol = atual ? '#fbbf24' : passou ? '#22c55e' : '#3b82f6';
-        html += '<div style="background:' + bgCol + ';border:1px solid ' + brCol + ';border-radius:8px;padding:8px;display:flex;flex-direction:column;overflow:hidden;min-height:0">'
-          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0">'
-          +   '<div style="font-size:11px;font-weight:900;color:' + brCol + ';letter-spacing:2px">' + MES_NM[m-1] + (atual?' ●':'') + '</div>'
-          +   '<div style="font-size:14px;font-weight:800;color:#fbbf24">' + lst.length + '</div>'
+        var bgCol, brCol, lblCor, statusTxt;
+        if(atual)        { bgCol='linear-gradient(135deg,rgba(251,191,36,0.18),rgba(212,168,67,0.10))'; brCol='#fbbf24'; lblCor='#fde68a'; statusTxt='ATUAL'; }
+        else if(passou)  { bgCol='rgba(34,197,94,0.08)';   brCol='#22c55e';        lblCor='#86efac'; statusTxt='✓ feito'; }
+        else             { bgCol='rgba(59,130,246,0.06)';  brCol='rgba(59,130,246,0.5)'; lblCor='#93c5fd'; statusTxt='a lançar'; }
+        html += '<div style="background:' + bgCol + ';border:' + (atual?'2':'1') + 'px solid ' + brCol + ';border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;overflow:hidden;min-height:0;' + (atual?'box-shadow:0 0 18px rgba(251,191,36,0.25)':'') + '">'
+          + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-shrink:0">'
+          +   '<div>'
+          +     '<div style="font-size:14px;font-weight:900;color:' + lblCor + ';letter-spacing:1.5px;line-height:1">' + MES_NM[m-1] + '</div>'
+          +     '<div style="font-size:8px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;margin-top:2px">' + statusTxt + '</div>'
+          +   '</div>'
+          +   '<div style="text-align:right">'
+          +     '<div style="font-size:24px;font-weight:900;color:#fbbf24;line-height:1">' + lst.length + '</div>'
+          +     '<div style="font-size:8px;color:#64748b;letter-spacing:1px;text-transform:uppercase">' + (lst.length===1?'lanç.':'lançs.') + '</div>'
+          +   '</div>'
           + '</div>'
-          + '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:2px">';
-        lst.slice(0,4).forEach(function(l){
-          html += '<div style="font-size:9px;color:#e2e8f0;background:rgba(0,0,0,0.25);border-left:2px solid ' + (l.cor||'#475569') + ';padding:2px 5px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + l.nome + '</div>';
+          + '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:3px">';
+        var maxItems = atual ? 6 : 4;
+        lst.slice(0,maxItems).forEach(function(l){
+          html += '<div style="font-size:10px;color:#e2e8f0;background:rgba(0,0,0,0.30);border-left:3px solid ' + (l.cor||'#475569') + ';padding:3px 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600">' + l.nome + '</div>';
         });
-        if(lst.length > 4){
-          html += '<div style="font-size:8px;color:#64748b;padding-left:5px">+' + (lst.length-4) + ' mais</div>';
+        if(lst.length > maxItems){
+          html += '<div style="font-size:9px;color:#94a3b8;padding-left:6px;font-weight:600">+ ' + (lst.length-maxItems) + ' mais</div>';
+        }
+        if(lst.length === 0){
+          html += '<div style="font-size:10px;color:#475569;padding:6px;text-align:center;font-style:italic">— vazio —</div>';
         }
         html += '</div></div>';
       }
@@ -11901,13 +11925,17 @@ function _metricsFiltered(prefix){
   if(_METRICS_CACHE.prefix === prefix && (now - _METRICS_CACHE.ts) < 1500){
     return _METRICS_CACHE;
   }
+  // FIX v47 (2026-04-26): Locacao NUNCA entra em metricas de venda/terceiros.
+  // Dados de locacao tem dashboard proprio (pgPsmLocacoes). VGV/comissao/funil de
+  // locacao usa modelo diferente (taxa adm) e nao deve poluir vendas.
+  function _excludeLocacao(arr){ return (arr||[]).filter(function(x){ return (x.fr||'').toLowerCase() !== 'locacao'; }); }
   _METRICS_CACHE = {
     prefix: prefix,
     ts: now,
-    fOPPS: applyDateFilter(OPPS||[], prefix),
-    fVENDAS: applyDateFilter(VENDAS||[], prefix),
-    fLOST: applyDateFilter(LOST_DEALS||[], prefix),
-    fTASKS: applyDateFilter(TASKS_RD||[], prefix)
+    fOPPS:   applyDateFilter(_excludeLocacao(OPPS),       prefix),
+    fVENDAS: applyDateFilter(_excludeLocacao(VENDAS),     prefix),
+    fLOST:   applyDateFilter(_excludeLocacao(LOST_DEALS), prefix),
+    fTASKS:  applyDateFilter(TASKS_RD||[], prefix)
   };
   return _METRICS_CACHE;
 }
@@ -23995,7 +24023,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v46</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v47</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -29975,7 +30003,7 @@ document.addEventListener('keydown', function(e){
     var folderId = await findOrCreateFolder(token);
     var snapshot = {
       ts: Date.now(),
-      version: (document.querySelector('meta[name="version"]')||{}).content || '2026.04.26-v46',
+      version: (document.querySelector('meta[name="version"]')||{}).content || '2026.04.26-v47',
       state: window.psmLSGet('psm_os_state_v1', {})
     };
     var blob = new Blob([JSON.stringify(snapshot)], {type:'application/json'});
