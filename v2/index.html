@@ -205,6 +205,10 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
     { id: 'iasol', label: 'Agente IA', emoji: '☀️' },
     { id: 'metaads', label: 'Meta Ads', emoji: '📣', minLvl: 5 },
     { id: 'criativos', label: 'Criativos', emoji: '🎨' },
+    { id: 'radar', label: 'Radar Concorrência', emoji: '🛰️', minLvl: 5 },
+    { id: 'sim_vpl', label: 'Simulador VPL', emoji: '🧮' },
+    { id: 'sim_incc', label: 'Simulador INCC', emoji: '🧮' },
+    { id: 'sim_leads', label: 'Simulador Leads', emoji: '🧮' },
     { id: 'mapa', label: 'Mapa Lançamentos', emoji: '🗺️' },
     { id: 'premiacoes', label: 'Premiações', emoji: '🏆' },
     { id: 'oportunidades', label: 'Oportunidades', emoji: '💡' },
@@ -3954,6 +3958,333 @@ function ArenaTVPage({ user }) {
   );
 }
 
+
+// ──────────────────────────────────────────────────────────────────────────
+// RadarPage (radar de concorrencia)
+// ──────────────────────────────────────────────────────────────────────────
+function RadarPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  if (lvl < 5) return <div className="p-6 text-slate-500">Acesso restrito a líder+ e sócios.</div>;
+
+  const { value: concorrentes, save } = useShared('RADAR_CONCORRENTES');
+  const list = Array.isArray(concorrentes) ? concorrentes : [];
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ nome:'', site:'', meta_page:'', regiao:'', perfil:'similar', forca:3, obs:'' });
+  const [analise, setAnalise] = useState('');
+  const [analisando, setAnalisando] = useState(false);
+  const [errSr, setErrSr] = useState('');
+  const [target, setTarget] = useState('');
+
+  async function add() {
+    if (!form.nome) return;
+    const item = { id:'rd'+Date.now(), ...form, forca:parseInt(form.forca)||3, ts:Date.now() };
+    await save([item, ...list].slice(0,200));
+    setForm({ nome:'', site:'', meta_page:'', regiao:'', perfil:'similar', forca:3, obs:'' });
+    setShowForm(false);
+  }
+  async function remove(id) { if (!confirm('Apagar?')) return; await save(list.filter(c => c.id !== id)); }
+
+  async function analisar() {
+    if (!target) return;
+    setAnalisando(true); setErrSr(''); setAnalise('');
+    try {
+      const c = list.find(x => x.id === target);
+      const r = await fetch('/api/sr', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ concorrente: c, contexto: 'PSM Imobiliária - Sao Jose do Rio Preto' })
+      });
+      const j = await r.json();
+      if (j.error) setErrSr(j.error);
+      else setAnalise(j.analise || j.response || j.message || 'Sem retorno');
+    } catch(e) { setErrSr(e.message); }
+    setAnalisando(false);
+  }
+
+  const PERFIS = { similar:'🟰 Similar', maior:'⬆️ Maior', menor:'⬇️ Menor', nicho:'🎯 Nicho' };
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>🛰️ Radar Concorrência</h1>
+          <p className="text-sm text-slate-400">Mapa + análise IA dos concorrentes</p>
+        </div>
+        <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Novo concorrente'}</button>
+      </div>
+
+      {showForm && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Nome" value={form.nome} onChange={e => setForm({...form, nome:e.target.value})} />
+            <input className="input" placeholder="Site" value={form.site} onChange={e => setForm({...form, site:e.target.value})} />
+            <input className="input" placeholder="Página Meta Ads (URL)" value={form.meta_page} onChange={e => setForm({...form, meta_page:e.target.value})} />
+            <input className="input" placeholder="Região" value={form.regiao} onChange={e => setForm({...form, regiao:e.target.value})} />
+            <select className="input" value={form.perfil} onChange={e => setForm({...form, perfil:e.target.value})}>
+              {Object.entries(PERFIS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <select className="input" value={form.forca} onChange={e => setForm({...form, forca:e.target.value})}>
+              <option value="1">1 - Fraco</option><option value="2">2</option><option value="3">3 - Médio</option><option value="4">4</option><option value="5">5 - Forte</option>
+            </select>
+          </div>
+          <textarea className="input mb-3" rows="2" placeholder="Observações estratégicas" value={form.obs} onChange={e => setForm({...form, obs:e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.nome}>💾 Cadastrar</button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+        {list.map(c => (
+          <div key={c.id} className="card p-4">
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <div className="font-bold text-lg">{c.nome}</div>
+                <div className="text-xs text-slate-400">{c.regiao} • {PERFIS[c.perfil]}</div>
+              </div>
+              <div className="flex gap-1">
+                {[1,2,3,4,5].map(n => <span key={n} style={{color: n <= c.forca ? '#d4a843' : '#475569'}}>★</span>)}
+              </div>
+            </div>
+            {c.site && <div className="text-xs"><a href={c.site} target="_blank" rel="noopener noreferrer" className="text-blue-400">↗ {c.site}</a></div>}
+            {c.meta_page && <div className="text-xs"><a href={c.meta_page} target="_blank" rel="noopener noreferrer" className="text-blue-400">📣 Biblioteca de Anúncios</a></div>}
+            {c.obs && <div className="text-sm text-slate-400 mt-2 italic">{c.obs}</div>}
+            <button className="text-red-400 text-xs mt-2 hover:text-red-300" onClick={() => remove(c.id)}>Apagar</button>
+          </div>
+        ))}
+        {list.length === 0 && <div className="text-center text-slate-500 py-8 col-span-2">Nenhum concorrente.</div>}
+      </div>
+
+      {list.length > 0 && (
+        <div className="card p-4">
+          <h2 className="font-bold mb-3">🤖 Análise estratégica via Sr. Performance</h2>
+          <div className="flex gap-2 mb-3">
+            <select className="input flex-1" value={target} onChange={e => setTarget(e.target.value)}>
+              <option value="">— escolha um concorrente —</option>
+              {list.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>
+            <button className="btn" onClick={analisar} disabled={!target || analisando}>{analisando ? '...' : 'Analisar'}</button>
+          </div>
+          {errSr && <div className="text-red-400 text-sm mb-2">⚠ {errSr}</div>}
+          {analise && <div className="bg-slate-900/50 p-4 rounded text-sm whitespace-pre-wrap">{analise}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// SimVPLPage (Valor Presente Liquido)
+// ──────────────────────────────────────────────────────────────────────────
+function SimVPLPage({ user }) {
+  const [taxa, setTaxa] = useState(1.5);
+  const [investimento, setInvestimento] = useState(500000);
+  const [fluxos, setFluxos] = useState([10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000]);
+
+  function vpl() {
+    let total = -investimento;
+    fluxos.forEach((fc, i) => {
+      total += fc / Math.pow(1 + taxa/100, i+1);
+    });
+    return total;
+  }
+  function tir() {
+    // Bisseccao para achar TIR
+    let lo = -0.99, hi = 10;
+    for (let i = 0; i < 100; i++) {
+      const mid = (lo+hi)/2;
+      let v = -investimento;
+      fluxos.forEach((fc, j) => { v += fc / Math.pow(1 + mid, j+1); });
+      if (Math.abs(v) < 0.01) return mid;
+      if (v > 0) lo = mid; else hi = mid;
+    }
+    return (lo+hi)/2;
+  }
+  function payback() {
+    let acc = -investimento;
+    for (let i = 0; i < fluxos.length; i++) {
+      acc += fluxos[i];
+      if (acc >= 0) return i + 1;
+    }
+    return null;
+  }
+
+  function setFluxo(i, v) { const next = [...fluxos]; next[i] = parseFloat(v) || 0; setFluxos(next); }
+  function aplicarPadrao(v) { setFluxos(fluxos.map(() => parseFloat(v) || 0)); }
+
+  const v = vpl();
+  const t = tir() * 100;
+  const pb = payback();
+
+  return (
+    <div className="p-6 max-w-4xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🧮 Simulador VPL</h1>
+      <p className="text-sm text-slate-400 mb-6">Valor Presente Líquido + TIR + Payback de investimento imobiliário</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+        <div className="card p-3"><div className="text-xs text-slate-400">VPL ({fluxos.length} meses)</div><div className="text-2xl font-bold" style={{color: v >= 0 ? '#22c55e' : '#ef4444'}}>{fmtMoney(v)}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">TIR (% mês)</div><div className="text-2xl font-bold" style={{color:'#d4a843'}}>{t.toFixed(2)}%</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">Payback (meses)</div><div className="text-2xl font-bold">{pb || 'Não atinge'}</div></div>
+      </div>
+
+      <div className="card p-4 mb-4">
+        <h2 className="font-bold mb-3">Parâmetros</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+          <div><label className="text-xs text-slate-400 block mb-1">Taxa de desconto (% ao mês)</label><input type="number" step="0.1" className="input" value={taxa} onChange={e => setTaxa(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Investimento inicial (R$)</label><input type="number" className="input" value={investimento} onChange={e => setInvestimento(parseFloat(e.target.value)||0)} /></div>
+        </div>
+        <div className="flex gap-2 mb-3">
+          <button className="btn btn-sm btn-out" onClick={() => aplicarPadrao(5000)}>R$ 5k/mês</button>
+          <button className="btn btn-sm btn-out" onClick={() => aplicarPadrao(10000)}>R$ 10k/mês</button>
+          <button className="btn btn-sm btn-out" onClick={() => aplicarPadrao(15000)}>R$ 15k/mês</button>
+        </div>
+      </div>
+
+      <div className="card p-4">
+        <h2 className="font-bold mb-3">Fluxos de caixa mensais</h2>
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+          {fluxos.map((fc, i) => (
+            <div key={i}>
+              <label className="text-xs text-slate-400 block mb-1">Mês {i+1}</label>
+              <input type="number" className="input" style={{padding:'4px 6px',fontSize:'11px'}} value={fc} onChange={e => setFluxo(i, e.target.value)} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// SimINCCPage (Simulador INCC para correcao)
+// ──────────────────────────────────────────────────────────────────────────
+function SimINCCPage({ user }) {
+  const [valorInicial, setValorInicial] = useState(500000);
+  const [meses, setMeses] = useState(36);
+  const [inccMensal, setInccMensal] = useState(0.6);
+  const [igpmAlt, setIgpmAlt] = useState(0.4);
+
+  const valFinalIncc = valorInicial * Math.pow(1 + inccMensal/100, meses);
+  const valFinalIgpm = valorInicial * Math.pow(1 + igpmAlt/100, meses);
+  const correcaoIncc = valFinalIncc - valorInicial;
+  const correcaoIgpm = valFinalIgpm - valorInicial;
+  const diferenca = correcaoIncc - correcaoIgpm;
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🧮 Simulador INCC vs IGP-M</h1>
+      <p className="text-sm text-slate-400 mb-6">Compara correção INCC (construção) vs IGP-M para parcelas</p>
+
+      <div className="card p-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div><label className="text-xs text-slate-400 block mb-1">Valor inicial (R$)</label><input type="number" className="input" value={valorInicial} onChange={e => setValorInicial(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Período (meses)</label><input type="number" className="input" value={meses} onChange={e => setMeses(parseInt(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">INCC mensal médio (%)</label><input type="number" step="0.01" className="input" value={inccMensal} onChange={e => setInccMensal(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">IGP-M alternativo (%)</label><input type="number" step="0.01" className="input" value={igpmAlt} onChange={e => setIgpmAlt(parseFloat(e.target.value)||0)} /></div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+        <div className="card p-4" style={{borderColor:'#d4a843'}}>
+          <div className="text-sm text-slate-400 mb-2">📈 Pelo INCC</div>
+          <div className="text-xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(valFinalIncc)}</div>
+          <div className="text-sm text-red-400 mt-1">+ {fmtMoney(correcaoIncc)} ({((correcaoIncc/valorInicial)*100).toFixed(1)}%)</div>
+        </div>
+        <div className="card p-4">
+          <div className="text-sm text-slate-400 mb-2">📈 Pelo IGP-M</div>
+          <div className="text-xl font-bold">{fmtMoney(valFinalIgpm)}</div>
+          <div className="text-sm text-red-400 mt-1">+ {fmtMoney(correcaoIgpm)} ({((correcaoIgpm/valorInicial)*100).toFixed(1)}%)</div>
+        </div>
+      </div>
+
+      <div className="card p-4">
+        <div className="text-sm text-slate-400 mb-1">Diferença INCC − IGP-M</div>
+        <div className="text-2xl font-bold" style={{color: diferenca >= 0 ? '#ef4444' : '#22c55e'}}>{fmtMoney(diferenca)}</div>
+        <div className="text-xs text-slate-500 mt-2">
+          INCC tende a subir mais que IGP-M em momentos de aquecimento da construção. Use estimativas conservadoras: INCC histórico ~0.5-0.8% a.m., IGP-M ~0.3-0.5% a.m.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// SimLeadsPage (Simulador de leads)
+// ──────────────────────────────────────────────────────────────────────────
+function SimLeadsPage({ user }) {
+  const [investimento, setInvestimento] = useState(10000);
+  const [cpl, setCpl] = useState(50);
+  const [taxaQualif, setTaxaQualif] = useState(40);
+  const [taxaVisita, setTaxaVisita] = useState(25);
+  const [taxaProposta, setTaxaProposta] = useState(30);
+  const [taxaFechamento, setTaxaFechamento] = useState(50);
+  const [vgvMedio, setVgvMedio] = useState(400000);
+  const [comissaoPct, setComissaoPct] = useState(6);
+
+  const leads = investimento / cpl;
+  const qualificados = leads * taxaQualif/100;
+  const visitas = qualificados * taxaVisita/100;
+  const propostas = visitas * taxaProposta/100;
+  const fechadas = propostas * taxaFechamento/100;
+  const vgv = fechadas * vgvMedio;
+  const receita = vgv * comissaoPct/100;
+  const lucro = receita - investimento;
+  const roi = investimento > 0 ? (lucro/investimento*100) : 0;
+  const cac = fechadas > 0 ? (investimento/fechadas) : 0;
+
+  return (
+    <div className="p-6 max-w-4xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🧮 Simulador de Leads</h1>
+      <p className="text-sm text-slate-400 mb-6">Funil de leads → vendas → ROI</p>
+
+      <div className="card p-4 mb-4">
+        <h2 className="font-bold mb-3">Parâmetros</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div><label className="text-xs text-slate-400 block mb-1">Investimento (R$)</label><input type="number" className="input" value={investimento} onChange={e => setInvestimento(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">CPL — custo por lead (R$)</label><input type="number" className="input" value={cpl} onChange={e => setCpl(parseFloat(e.target.value)||1)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">VGV médio venda (R$)</label><input type="number" className="input" value={vgvMedio} onChange={e => setVgvMedio(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">% Lead → Qualif</label><input type="number" step="1" className="input" value={taxaQualif} onChange={e => setTaxaQualif(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">% Qualif → Visita</label><input type="number" step="1" className="input" value={taxaVisita} onChange={e => setTaxaVisita(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">% Visita → Proposta</label><input type="number" step="1" className="input" value={taxaProposta} onChange={e => setTaxaProposta(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">% Proposta → Fech.</label><input type="number" step="1" className="input" value={taxaFechamento} onChange={e => setTaxaFechamento(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">% Comissão</label><input type="number" step="0.1" className="input" value={comissaoPct} onChange={e => setComissaoPct(parseFloat(e.target.value)||0)} /></div>
+        </div>
+      </div>
+
+      <div className="card p-4 mb-4">
+        <h2 className="font-bold mb-3">Funil esperado</h2>
+        <div className="space-y-2">
+          {[
+            { lbl:'Leads', val: leads, color:'#3b82f6' },
+            { lbl:'Qualificados', val: qualificados, color:'#06b6d4' },
+            { lbl:'Visitas', val: visitas, color:'#d4a843' },
+            { lbl:'Propostas', val: propostas, color:'#a855f7' },
+            { lbl:'Fechadas', val: fechadas, color:'#16a34a' },
+          ].map(s => {
+            const pct = leads > 0 ? (s.val/leads*100) : 0;
+            return (
+              <div key={s.lbl}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>{s.lbl}</span>
+                  <span className="font-bold">{Math.floor(s.val)} ({pct.toFixed(1)}%)</span>
+                </div>
+                <div className="h-3 bg-slate-700 rounded overflow-hidden">
+                  <div style={{width:pct+'%', height:'100%', background:s.color}}></div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="card p-4"><div className="text-xs text-slate-400">VGV total</div><div className="text-xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(vgv)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Receita comissão</div><div className="text-xl font-bold text-green-400">{fmtMoney(receita)}</div></div>
+        <div className="card p-4" style={{borderColor: lucro >= 0 ? '#16a34a' : '#dc2626'}}><div className="text-xs text-slate-400">Lucro</div><div className="text-xl font-bold" style={{color: lucro >= 0 ? '#22c55e' : '#ef4444'}}>{fmtMoney(lucro)}</div><div className="text-xs">{roi.toFixed(0)}% ROI</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">CAC (custo/cliente)</div><div className="text-xl font-bold">{fmtMoney(cac)}</div></div>
+      </div>
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // App
 // ──────────────────────────────────────────────────────────────────────────
@@ -3989,6 +4320,10 @@ function App() {
         {page === 'iasol' && <IASolPage user={user} />}
         {page === 'metaads' && <MetaAdsPage user={user} />}
         {page === 'criativos' && <CriativosPage user={user} />}
+        {page === 'radar' && <RadarPage user={user} />}
+        {page === 'sim_vpl' && <SimVPLPage user={user} />}
+        {page === 'sim_incc' && <SimINCCPage user={user} />}
+        {page === 'sim_leads' && <SimLeadsPage user={user} />}
         {page === 'mapa' && <MapaLancamentosPage user={user} />}
         {page === 'premiacoes' && <PremiacoesPage user={user} />}
         {page === 'oportunidades' && <OportunidadesPage user={user} />}
