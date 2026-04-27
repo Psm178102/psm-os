@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.26-v45 (v45 - /v2 com 42 modulos (+Radar+SimVPL+SimINCC+SimLeads)) (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
+<!-- PSM-OS v2026.04.26-v46 (v46 - /v2 com 46 modulos (+SimRepasse+SimEnergia+SimCriativo+MetricasViab)) (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,8 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.26-v45.1">
-<script>window.PSM_VERSION='31.1.0';window.PSM_VERSION_META='2026.04.26-v45.1';
+<meta name="version" content="2026.04.26-v46.1">
+<script>window.PSM_VERSION='31.1.0';window.PSM_VERSION_META='2026.04.26-v46.1';
 // ═════════════════════════════════════════════════════════════════════════════
 // PSM Sprint 0 — Firebase write toggle (2026-04-25)
 // Default: false (Firebase escreve normalmente). Flip pra true via console:
@@ -23995,7 +23995,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v45</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v46</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -29975,7 +29975,7 @@ document.addEventListener('keydown', function(e){
     var folderId = await findOrCreateFolder(token);
     var snapshot = {
       ts: Date.now(),
-      version: (document.querySelector('meta[name="version"]')||{}).content || '2026.04.26-v45',
+      version: (document.querySelector('meta[name="version"]')||{}).content || '2026.04.26-v46',
       state: window.psmLSGet('psm_os_state_v1', {})
     };
     var blob = new Blob([JSON.stringify(snapshot)], {type:'application/json'});

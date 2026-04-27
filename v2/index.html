@@ -209,6 +209,10 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
     { id: 'sim_vpl', label: 'Simulador VPL', emoji: '🧮' },
     { id: 'sim_incc', label: 'Simulador INCC', emoji: '🧮' },
     { id: 'sim_leads', label: 'Simulador Leads', emoji: '🧮' },
+    { id: 'sim_repasse', label: 'Simulador Repasse', emoji: '🧮' },
+    { id: 'sim_energia', label: 'Simulador Energia', emoji: '🧮' },
+    { id: 'sim_criativo', label: 'Simulador Criativo', emoji: '🧮' },
+    { id: 'metricas_viab', label: 'Métricas Viab ADS', emoji: '🎯', minLvl: 5 },
     { id: 'mapa', label: 'Mapa Lançamentos', emoji: '🗺️' },
     { id: 'premiacoes', label: 'Premiações', emoji: '🏆' },
     { id: 'oportunidades', label: 'Oportunidades', emoji: '💡' },
@@ -4285,6 +4289,263 @@ function SimLeadsPage({ user }) {
   );
 }
 
+
+// ──────────────────────────────────────────────────────────────────────────
+// SimRepassePage (Simulador de Repasse imobiliario)
+// ──────────────────────────────────────────────────────────────────────────
+function SimRepassePage({ user }) {
+  const [valorImovel, setValorImovel] = useState(500000);
+  const [pagoConstrutora, setPagoConstrutora] = useState(120000);
+  const [parcelasRestantes, setParcelasRestantes] = useState(36);
+  const [valorParcela, setValorParcela] = useState(2500);
+  const [taxaJuros, setTaxaJuros] = useState(8);
+  const [prazoFin, setPrazoFin] = useState(360);
+
+  const saldoDevedor = parcelasRestantes * valorParcela;
+  const valorRepasse = valorImovel - saldoDevedor;
+  // Calculo basico SAC
+  const taxaMes = taxaJuros / 100 / 12;
+  const amortizacao = saldoDevedor / prazoFin;
+  const primeiraParcela = amortizacao + (saldoDevedor * taxaMes);
+  const ultimaParcela = amortizacao + (amortizacao * taxaMes);
+  const totalPago = (primeiraParcela + ultimaParcela) / 2 * prazoFin;
+  const jurosTotais = totalPago - saldoDevedor;
+
+  return (
+    <div className="p-6 max-w-4xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🧮 Simulador de Repasse</h1>
+      <p className="text-sm text-slate-400 mb-6">Cliente compra imóvel direto da construtora e depois faz repasse bancário</p>
+
+      <div className="card p-4 mb-4">
+        <h2 className="font-bold mb-3">Dados do imóvel</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div><label className="text-xs text-slate-400 block mb-1">Valor do imóvel (R$)</label><input type="number" className="input" value={valorImovel} onChange={e => setValorImovel(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Já pago à construtora (R$)</label><input type="number" className="input" value={pagoConstrutora} onChange={e => setPagoConstrutora(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Parcelas restantes (meses)</label><input type="number" className="input" value={parcelasRestantes} onChange={e => setParcelasRestantes(parseInt(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Valor parcela atual (R$)</label><input type="number" className="input" value={valorParcela} onChange={e => setValorParcela(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Taxa juros banco (% a.a.)</label><input type="number" step="0.1" className="input" value={taxaJuros} onChange={e => setTaxaJuros(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Prazo financiamento (meses)</label><input type="number" className="input" value={prazoFin} onChange={e => setPrazoFin(parseInt(e.target.value)||0)} /></div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+        <div className="card p-4"><div className="text-xs text-slate-400">Saldo devedor à construtora</div><div className="text-2xl font-bold text-red-400">{fmtMoney(saldoDevedor)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Valor a financiar (repasse)</div><div className="text-2xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(valorRepasse)}</div></div>
+      </div>
+
+      <div className="card p-4 mb-4">
+        <h2 className="font-bold mb-3">Simulação SAC banco</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+          <div><div className="text-xs text-slate-400">1ª parcela</div><div className="text-xl font-bold">{fmtMoney(primeiraParcela)}</div></div>
+          <div><div className="text-xs text-slate-400">Última parcela</div><div className="text-xl font-bold">{fmtMoney(ultimaParcela)}</div></div>
+          <div><div className="text-xs text-slate-400">Total juros</div><div className="text-xl font-bold text-red-400">{fmtMoney(jurosTotais)}</div></div>
+        </div>
+        <div className="text-xs text-slate-500">Cálculo SAC simplificado. Banco real pode incluir CET, seguros, tarifas. Use como referência inicial.</div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// SimEnergiaPage (custo energia solar / payback)
+// ──────────────────────────────────────────────────────────────────────────
+function SimEnergiaPage({ user }) {
+  const [contaMensal, setContaMensal] = useState(800);
+  const [investimentoSistema, setInvestimentoSistema] = useState(35000);
+  const [reducao, setReducao] = useState(90);
+  const [aumentoAnual, setAumentoAnual] = useState(8);
+  const [vidaUtil, setVidaUtil] = useState(25);
+
+  const economiaMensal = contaMensal * reducao / 100;
+  const economiaAno1 = economiaMensal * 12;
+  const payback = investimentoSistema / economiaMensal;
+  let total25Anos = 0;
+  let economia = economiaAno1;
+  for (let i = 0; i < vidaUtil; i++) {
+    total25Anos += economia;
+    economia *= (1 + aumentoAnual/100);
+  }
+  const lucroVidaUtil = total25Anos - investimentoSistema;
+  const roi = investimentoSistema > 0 ? (lucroVidaUtil/investimentoSistema*100) : 0;
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🧮 Simulador Energia Solar</h1>
+      <p className="text-sm text-slate-400 mb-6">Payback + economia ao longo da vida útil do sistema</p>
+
+      <div className="card p-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div><label className="text-xs text-slate-400 block mb-1">Conta mensal atual (R$)</label><input type="number" className="input" value={contaMensal} onChange={e => setContaMensal(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Investimento sistema (R$)</label><input type="number" className="input" value={investimentoSistema} onChange={e => setInvestimentoSistema(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">% Redução conta (real ~85-95%)</label><input type="number" step="1" className="input" value={reducao} onChange={e => setReducao(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Aumento conta a.a. (%)</label><input type="number" step="0.5" className="input" value={aumentoAnual} onChange={e => setAumentoAnual(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Vida útil (anos)</label><input type="number" className="input" value={vidaUtil} onChange={e => setVidaUtil(parseInt(e.target.value)||25)} /></div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+        <div className="card p-4"><div className="text-xs text-slate-400">Economia/mês</div><div className="text-2xl font-bold text-green-400">{fmtMoney(economiaMensal)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Economia ano 1</div><div className="text-2xl font-bold">{fmtMoney(economiaAno1)}</div></div>
+        <div className="card p-4" style={{borderColor:'#d4a843'}}><div className="text-xs text-slate-400">Payback</div><div className="text-2xl font-bold" style={{color:'#d4a843'}}>{Math.floor(payback)} meses</div><div className="text-xs">{(payback/12).toFixed(1)} anos</div></div>
+        <div className="card p-4" style={{borderColor:'#16a34a'}}><div className="text-xs text-slate-400">Lucro {vidaUtil} anos</div><div className="text-2xl font-bold text-green-400">{fmtMoney(lucroVidaUtil)}</div><div className="text-xs">{roi.toFixed(0)}% ROI</div></div>
+      </div>
+
+      <div className="card p-4">
+        <div className="text-sm text-slate-400">💡 Use como ferramenta de pitch comercial pra cliente investidor (lote/casa/loteamento) interessado em sustentabilidade ou redução de custos pós-construção.</div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// SimCriativoPage (Simulador desempenho de criativo)
+// ──────────────────────────────────────────────────────────────────────────
+function SimCriativoPage({ user }) {
+  const [budget, setBudget] = useState(1000);
+  const [cpm, setCpm] = useState(20);
+  const [hookRate, setHookRate] = useState(35);
+  const [holdRate, setHoldRate] = useState(40);
+  const [ctr, setCtr] = useState(2);
+  const [convRate, setConvRate] = useState(15);
+
+  const impressoes = (budget / cpm) * 1000;
+  const hooks = impressoes * hookRate / 100;
+  const holds = hooks * holdRate / 100;
+  const cliques = impressoes * ctr / 100;
+  const leads = cliques * convRate / 100;
+  const cpHook = hooks > 0 ? budget/hooks : 0;
+  const cpClique = cliques > 0 ? budget/cliques : 0;
+  const cpl = leads > 0 ? budget/leads : 0;
+
+  function classify(metric, value) {
+    const t = { hookRate:[20,30,40], holdRate:[25,35,45], ctr:[1,2,3], convRate:[5,10,20] };
+    const [low, mid, high] = t[metric] || [0,0,0];
+    if (value >= high) return ['#22c55e','Excelente'];
+    if (value >= mid) return ['#d4a843','Bom'];
+    if (value >= low) return ['#f97316','Mediano'];
+    return ['#ef4444','Baixo'];
+  }
+
+  return (
+    <div className="p-6 max-w-4xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🧮 Simulador de Criativo</h1>
+      <p className="text-sm text-slate-400 mb-6">Estima desempenho de criativo Meta Ads antes de subir</p>
+
+      <div className="card p-4 mb-4">
+        <h2 className="font-bold mb-3">Parâmetros</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div><label className="text-xs text-slate-400 block mb-1">Budget (R$)</label><input type="number" className="input" value={budget} onChange={e => setBudget(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">CPM esperado (R$)</label><input type="number" step="0.1" className="input" value={cpm} onChange={e => setCpm(parseFloat(e.target.value)||1)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">CTR esperado (%)</label><input type="number" step="0.1" className="input" value={ctr} onChange={e => setCtr(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Hook Rate — vê 3s (%)</label><input type="number" step="1" className="input" value={hookRate} onChange={e => setHookRate(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Hold Rate — vê 75% (%)</label><input type="number" step="1" className="input" value={holdRate} onChange={e => setHoldRate(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">% Clique → Lead</label><input type="number" step="1" className="input" value={convRate} onChange={e => setConvRate(parseFloat(e.target.value)||0)} /></div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className="card p-3"><div className="text-xs text-slate-400">Impressões</div><div className="text-xl font-bold">{Math.floor(impressoes).toLocaleString('pt-BR')}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">Hooks (3s+)</div><div className="text-xl font-bold">{Math.floor(hooks).toLocaleString('pt-BR')}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">Holds (75%)</div><div className="text-xl font-bold">{Math.floor(holds).toLocaleString('pt-BR')}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">Cliques</div><div className="text-xl font-bold">{Math.floor(cliques).toLocaleString('pt-BR')}</div></div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div className="card p-4"><div className="text-xs text-slate-400">Leads esperados</div><div className="text-2xl font-bold text-green-400">{Math.floor(leads)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">CPL esperado</div><div className="text-2xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(cpl)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">CPC esperado</div><div className="text-2xl font-bold">{fmtMoney(cpClique)}</div></div>
+      </div>
+
+      <div className="card p-4">
+        <h2 className="font-bold mb-3">📊 Diagnóstico do criativo</h2>
+        <div className="space-y-2 text-sm">
+          {[
+            { lbl:'Hook Rate', val:hookRate, key:'hookRate' },
+            { lbl:'Hold Rate', val:holdRate, key:'holdRate' },
+            { lbl:'CTR', val:ctr, key:'ctr' },
+            { lbl:'% Conversão', val:convRate, key:'convRate' },
+          ].map(m => {
+            const [color, label] = classify(m.key, m.val);
+            return (
+              <div key={m.key} className="flex items-center justify-between">
+                <span>{m.lbl}: <strong>{m.val}%</strong></span>
+                <span className="badge" style={{background:color+'30', color}}>{label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// MetricasViabPage (Metricas de viabilidade ADS)
+// ──────────────────────────────────────────────────────────────────────────
+function MetricasViabPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  if (lvl < 5) return <div className="p-6 text-slate-500">Acesso restrito a líder+ e sócios.</div>;
+
+  const [investimento, setInvestimento] = useState(20000);
+  const [vendasGeradas, setVendasGeradas] = useState(2);
+  const [vgvMedio, setVgvMedio] = useState(450000);
+  const [comissaoBruta, setComissaoBruta] = useState(6);
+  const [parteCorretor, setParteCorretor] = useState(50);
+
+  const vgvTotal = vendasGeradas * vgvMedio;
+  const receitaBruta = vgvTotal * comissaoBruta / 100;
+  const comissoesPagas = receitaBruta * parteCorretor / 100;
+  const receitaLiquida = receitaBruta - comissoesPagas;
+  const lucroLiquido = receitaLiquida - investimento;
+  const roas = investimento > 0 ? (receitaBruta/investimento) : 0;
+  const roi = investimento > 0 ? (lucroLiquido/investimento*100) : 0;
+  const cpv = vendasGeradas > 0 ? investimento/vendasGeradas : 0;
+
+  const breakeven = vgvMedio > 0 && comissaoBruta > 0 ? Math.ceil(investimento / (vgvMedio * comissaoBruta/100 * (1 - parteCorretor/100))) : 0;
+
+  return (
+    <div className="p-6 max-w-4xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🎯 Métricas Viabilidade ADS</h1>
+      <p className="text-sm text-slate-400 mb-6">Vale a pena investir nessa campanha?</p>
+
+      <div className="card p-4 mb-4">
+        <h2 className="font-bold mb-3">Dados</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div><label className="text-xs text-slate-400 block mb-1">Investimento ADS (R$)</label><input type="number" className="input" value={investimento} onChange={e => setInvestimento(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Vendas geradas (estimadas)</label><input type="number" className="input" value={vendasGeradas} onChange={e => setVendasGeradas(parseInt(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">VGV médio venda (R$)</label><input type="number" className="input" value={vgvMedio} onChange={e => setVgvMedio(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">Comissão bruta (%)</label><input type="number" step="0.1" className="input" value={comissaoBruta} onChange={e => setComissaoBruta(parseFloat(e.target.value)||0)} /></div>
+          <div><label className="text-xs text-slate-400 block mb-1">% comissão p/ corretor</label><input type="number" step="1" className="input" value={parteCorretor} onChange={e => setParteCorretor(parseFloat(e.target.value)||0)} /></div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+        <div className="card p-3"><div className="text-xs text-slate-400">VGV total</div><div className="text-xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(vgvTotal)}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">Receita bruta</div><div className="text-xl font-bold">{fmtMoney(receitaBruta)}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">(−) Comissões</div><div className="text-xl font-bold text-red-400">− {fmtMoney(comissoesPagas)}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">Receita líquida</div><div className="text-xl font-bold">{fmtMoney(receitaLiquida)}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">CPV (custo/venda)</div><div className="text-xl font-bold">{fmtMoney(cpv)}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">ROAS</div><div className="text-xl font-bold">{roas.toFixed(2)}x</div></div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="card p-6 text-center" style={{borderColor: lucroLiquido >= 0 ? '#16a34a' : '#dc2626', borderWidth:3}}>
+          <div className="text-sm text-slate-400 uppercase mb-2">Lucro líquido</div>
+          <div className="text-4xl font-bold" style={{color: lucroLiquido >= 0 ? '#22c55e' : '#ef4444'}}>{fmtMoney(lucroLiquido)}</div>
+          <div className="text-lg mt-1" style={{color: roi >= 0 ? '#22c55e' : '#ef4444'}}>{roi >= 0 ? '+' : ''}{roi.toFixed(0)}% ROI</div>
+        </div>
+        <div className="card p-6 text-center">
+          <div className="text-sm text-slate-400 uppercase mb-2">Break-even</div>
+          <div className="text-4xl font-bold" style={{color:'#d4a843'}}>{breakeven}</div>
+          <div className="text-sm text-slate-500 mt-1">vendas necessárias pra empatar</div>
+          {vendasGeradas >= breakeven && <div className="text-green-400 text-sm mt-2">✓ Já passou o break-even</div>}
+          {vendasGeradas < breakeven && <div className="text-yellow-400 text-sm mt-2">Falta {breakeven - vendasGeradas} venda(s)</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // App
 // ──────────────────────────────────────────────────────────────────────────
@@ -4324,6 +4585,10 @@ function App() {
         {page === 'sim_vpl' && <SimVPLPage user={user} />}
         {page === 'sim_incc' && <SimINCCPage user={user} />}
         {page === 'sim_leads' && <SimLeadsPage user={user} />}
+        {page === 'sim_repasse' && <SimRepassePage user={user} />}
+        {page === 'sim_energia' && <SimEnergiaPage user={user} />}
+        {page === 'sim_criativo' && <SimCriativoPage user={user} />}
+        {page === 'metricas_viab' && <MetricasViabPage user={user} />}
         {page === 'mapa' && <MapaLancamentosPage user={user} />}
         {page === 'premiacoes' && <PremiacoesPage user={user} />}
         {page === 'oportunidades' && <OportunidadesPage user={user} />}
