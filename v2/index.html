@@ -198,6 +198,10 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
     { id: 'crm', label: 'CRM', emoji: '💼' },
     { id: 'comissoes', label: 'Comissões', emoji: '💎' },
     { id: 'fluxocaixa', label: 'Fluxo de Caixa', emoji: '💰', minLvl: 5 },
+    { id: 'dre', label: 'DRE', emoji: '📈', minLvl: 5 },
+    { id: 'repasses', label: 'Repasses', emoji: '🔄', minLvl: 5 },
+    { id: 'custos', label: 'Custos Fixos', emoji: '📉', minLvl: 5 },
+    { id: 'forecast', label: 'Forecast', emoji: '🔮', minLvl: 5 },
     { id: 'iasol', label: 'Agente IA', emoji: '☀️' },
     { id: 'metaads', label: 'Meta Ads', emoji: '📣', minLvl: 5 },
     { id: 'criativos', label: 'Criativos', emoji: '🎨' },
@@ -205,6 +209,10 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
     { id: 'premiacoes', label: 'Premiações', emoji: '🏆' },
     { id: 'oportunidades', label: 'Oportunidades', emoji: '💡' },
     { id: 'canal', label: 'Canal Anônimo', emoji: '🔇' },
+    { id: 'formacao', label: 'Formação', emoji: '🎓' },
+    { id: 'organograma', label: 'Organograma', emoji: '🧑‍🤝‍🧑' },
+    { id: 'manual', label: 'Manual', emoji: '📚' },
+    { id: 'etica', label: 'Ética', emoji: '⚖️' },
     { id: 'recados', label: 'Recados', emoji: '📢' },
   ];
   const visible = items.filter(it => !it.minLvl || lvl >= it.minLvl);
@@ -2385,6 +2393,720 @@ function CanalAnonimoPage({ user }) {
   );
 }
 
+
+// ──────────────────────────────────────────────────────────────────────────
+// FormacaoPage (treinamentos/cursos da equipe)
+// ──────────────────────────────────────────────────────────────────────────
+function FormacaoPage({ user }) {
+  const { value: cursos, save } = useShared('FORMACAO_CURSOS');
+  const list = Array.isArray(cursos) ? cursos : [];
+  const isStaff = user.role === 'socio' || user.role === 'lider';
+  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const { value: progresso, save: saveProgresso } = useUserKv(targetUid, 'FORMACAO_PROGRESSO');
+  const meu = progresso || {};
+
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ titulo:'', categoria:'vendas', descricao:'', url:'', duracao:'', obrigatorio:false });
+
+  async function add() {
+    if (!form.titulo) return;
+    const item = { id:'cu'+Date.now(), ...form, ts:Date.now(), createdBy:user.id };
+    await save([item, ...list].slice(0,500));
+    setForm({ titulo:'', categoria:'vendas', descricao:'', url:'', duracao:'', obrigatorio:false });
+    setShowForm(false);
+  }
+  async function remove(id) { if (!confirm('Apagar?')) return; await save(list.filter(c => c.id !== id)); }
+
+  async function marcarConcluido(id) {
+    const next = { ...meu, [id]: { concluido: true, concluidoEm: Date.now() } };
+    await saveProgresso(next);
+  }
+  async function marcarPendente(id) {
+    const next = { ...meu };
+    delete next[id];
+    await saveProgresso(next);
+  }
+
+  const CATS = { vendas:'💼 Vendas', juridico:'⚖️ Jurídico', produto:'🏗️ Produto', marketing:'📣 Marketing', tecnologia:'💻 Tecnologia', soft:'🧠 Soft skills' };
+  const grouped = {};
+  list.forEach(c => { if(!grouped[c.categoria]) grouped[c.categoria]=[]; grouped[c.categoria].push(c); });
+  const totalConcluidos = list.filter(c => meu[c.id]?.concluido).length;
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>🎓 Formação</h1>
+          <p className="text-sm text-slate-400">{totalConcluidos}/{list.length} concluídos por você</p>
+        </div>
+        {isStaff && <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Novo curso'}</button>}
+      </div>
+
+      {showForm && isStaff && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Título do curso" value={form.titulo} onChange={e => setForm({...form, titulo:e.target.value})} />
+            <select className="input" value={form.categoria} onChange={e => setForm({...form, categoria:e.target.value})}>
+              {Object.entries(CATS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <input className="input" placeholder="Link/URL (YouTube, Drive, plataforma)" value={form.url} onChange={e => setForm({...form, url:e.target.value})} />
+            <input className="input" placeholder="Duração (ex: 1h30)" value={form.duracao} onChange={e => setForm({...form, duracao:e.target.value})} />
+            <label className="flex items-center gap-2 text-sm md:col-span-2"><input type="checkbox" checked={form.obrigatorio} onChange={e => setForm({...form, obrigatorio:e.target.checked})} className="w-5 h-5" style={{accentColor:'#d4a843'}} /> Curso obrigatório</label>
+          </div>
+          <textarea className="input mb-3" rows="2" placeholder="Descrição" value={form.descricao} onChange={e => setForm({...form, descricao:e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.titulo}>💾 Cadastrar curso</button>
+        </div>
+      )}
+
+      {Object.keys(grouped).length === 0 ? <div className="text-center text-slate-500 py-8">Nenhum curso cadastrado.</div> : (
+        Object.entries(grouped).map(([cat, items]) => (
+          <div key={cat} className="mb-6">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">{CATS[cat] || cat}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {items.map(c => {
+                const done = !!meu[c.id]?.concluido;
+                return (
+                  <div key={c.id} className="card p-4" style={{borderColor: done ? '#16a34a' : '#334155'}}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex gap-2 items-center">
+                        {c.obrigatorio && <span className="badge" style={{background:'#dc262630',color:'#fca5a5'}}>obrigatório</span>}
+                        {done && <span className="badge" style={{background:'#16a34a30',color:'#86efac'}}>✓ concluído</span>}
+                      </div>
+                      <span className="text-xs text-slate-500">{c.duracao}</span>
+                    </div>
+                    <div className="font-bold mb-2">{c.titulo}</div>
+                    {c.descricao && <div className="text-sm text-slate-400 mb-3">{c.descricao}</div>}
+                    <div className="flex gap-2 flex-wrap">
+                      {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" className="btn btn-sm">↗ Acessar</a>}
+                      {!done ? <button className="btn btn-sm btn-success" onClick={() => marcarConcluido(c.id)}>Marcar concluído</button>
+                              : <button className="btn btn-sm btn-out" onClick={() => marcarPendente(c.id)}>Reverter</button>}
+                      {isStaff && <button className="text-red-400 text-xs ml-1 hover:text-red-300" onClick={() => remove(c.id)}>Apagar</button>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// OrganogramaPage (visualizacao da hierarquia)
+// ──────────────────────────────────────────────────────────────────────────
+function OrganogramaPage({ user }) {
+  const socios = USERS.filter(u => u.role === 'socio');
+  const lideres = USERS.filter(u => u.role === 'lider');
+  const corretores = USERS.filter(u => u.role === 'corretor');
+
+  function CardUser({ u, color }) {
+    return (
+      <div className="card p-3 text-center" style={{background:'#0f172a', borderColor:color, borderWidth:2}}>
+        <div className="font-bold">{u.name}</div>
+        <div className="text-xs text-slate-400 mt-1">{u.role}</div>
+        {u.frente && <div className="text-xs mt-1">{FRENTES[u.frente]?.emoji} {FRENTES[u.frente]?.label}</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🧑‍🤝‍🧑 Organograma</h1>
+      <p className="text-sm text-slate-400 mb-6">{USERS.length} membros da equipe</p>
+
+      <div className="mb-8">
+        <h2 className="text-sm uppercase tracking-wider text-slate-400 font-bold mb-3 text-center">⭐ Sócios / Direção</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-3xl mx-auto">
+          {socios.map(s => <CardUser key={s.id} u={s} color="#d4a843" />)}
+        </div>
+      </div>
+
+      <div className="border-t border-slate-700 my-6"></div>
+
+      {Object.entries(FRENTES).map(([fid, f]) => {
+        const fLideres = lideres.filter(l => l.frente === fid);
+        const fCorr = corretores.filter(c => c.frente === fid);
+        if (fLideres.length === 0 && fCorr.length === 0) return null;
+        return (
+          <div key={fid} className="mb-8">
+            <h2 className="text-sm uppercase tracking-wider text-slate-400 font-bold mb-3 text-center">{f.emoji} {f.label}</h2>
+            {fLideres.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto mb-3">
+                {fLideres.map(l => <CardUser key={l.id} u={l} color="#16a34a" />)}
+              </div>
+            )}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {fCorr.map(c => <CardUser key={c.id} u={c} color="#3b82f6" />)}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// ManualPage (manual interno editavel)
+// ──────────────────────────────────────────────────────────────────────────
+function ManualPage({ user }) {
+  const { value: secs, save } = useShared('MANUAL_INTERNO');
+  const list = Array.isArray(secs) ? secs : [];
+  const isStaff = user.role === 'socio';
+  const [openId, setOpenId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ titulo:'', conteudo:'', categoria:'geral' });
+  const [showForm, setShowForm] = useState(false);
+
+  async function add() {
+    if (!editForm.titulo) return;
+    const item = { id:'mn'+Date.now(), ...editForm, ts:Date.now() };
+    await save([...list, item]);
+    setEditForm({ titulo:'', conteudo:'', categoria:'geral' });
+    setShowForm(false);
+  }
+  async function update(id) {
+    const next = list.map(s => s.id===id ? {...s, ...editForm, updatedAt:Date.now()} : s);
+    await save(next);
+    setEditingId(null);
+    setEditForm({ titulo:'', conteudo:'', categoria:'geral' });
+  }
+  async function remove(id) { if (!confirm('Apagar seção?')) return; await save(list.filter(s => s.id !== id)); setOpenId(null); }
+  function startEdit(s) { setEditingId(s.id); setEditForm({ titulo:s.titulo, conteudo:s.conteudo, categoria:s.categoria }); }
+
+  const CATS = { geral:'📖 Geral', vendas:'💼 Vendas', juridico:'⚖️ Jurídico', operacional:'⚙️ Operacional', rh:'👥 RH' };
+  const grouped = {};
+  list.forEach(s => { if(!grouped[s.categoria]) grouped[s.categoria]=[]; grouped[s.categoria].push(s); });
+
+  return (
+    <div className="p-6 max-w-4xl">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>📚 Manual Interno</h1>
+          <p className="text-sm text-slate-400">{list.length} seções no manual</p>
+        </div>
+        {isStaff && <button className="btn" onClick={() => { setShowForm(s => !s); setEditingId(null); }}>{showForm ? '× Cancelar' : '+ Nova seção'}</button>}
+      </div>
+
+      {showForm && isStaff && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Título" value={editForm.titulo} onChange={e => setEditForm({...editForm, titulo:e.target.value})} />
+            <select className="input" value={editForm.categoria} onChange={e => setEditForm({...editForm, categoria:e.target.value})}>
+              {Object.entries(CATS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          <textarea className="input mb-3" rows="6" placeholder="Conteúdo (markdown simples suportado)" value={editForm.conteudo} onChange={e => setEditForm({...editForm, conteudo:e.target.value})} />
+          <button className="btn" onClick={add} disabled={!editForm.titulo}>💾 Adicionar seção</button>
+        </div>
+      )}
+
+      {Object.entries(grouped).map(([cat, items]) => (
+        <div key={cat} className="mb-6">
+          <h2 className="text-sm uppercase tracking-wider text-slate-400 font-bold mb-3">{CATS[cat] || cat}</h2>
+          <div className="space-y-2">
+            {items.map(s => (
+              <div key={s.id} className="card p-4">
+                {editingId === s.id ? (
+                  <>
+                    <input className="input mb-3" value={editForm.titulo} onChange={e => setEditForm({...editForm, titulo:e.target.value})} />
+                    <textarea className="input mb-3" rows="6" value={editForm.conteudo} onChange={e => setEditForm({...editForm, conteudo:e.target.value})} />
+                    <div className="flex gap-2">
+                      <button className="btn btn-sm btn-success" onClick={() => update(s.id)}>Salvar</button>
+                      <button className="btn btn-sm btn-out" onClick={() => setEditingId(null)}>Cancelar</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between cursor-pointer" onClick={() => setOpenId(openId === s.id ? null : s.id)}>
+                      <div className="font-bold">{s.titulo}</div>
+                      <div className="text-slate-400">{openId === s.id ? '▲' : '▼'}</div>
+                    </div>
+                    {openId === s.id && (
+                      <>
+                        <div className="text-slate-300 whitespace-pre-wrap mt-3 text-sm leading-relaxed">{s.conteudo}</div>
+                        {isStaff && (
+                          <div className="flex gap-2 mt-3">
+                            <button className="btn btn-sm btn-out" onClick={() => startEdit(s)}>Editar</button>
+                            <button className="text-red-400 text-xs ml-1 hover:text-red-300" onClick={() => remove(s.id)}>Apagar</button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      {list.length === 0 && <div className="text-center text-slate-500 py-8">Manual vazio. {isStaff && 'Adicione a primeira seção.'}</div>}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// EticaPage (codigo de etica/compliance)
+// ──────────────────────────────────────────────────────────────────────────
+function EticaPage({ user }) {
+  const { value: codigo, save } = useShared('ETICA_CODIGO');
+  const isSocio = user.role === 'socio';
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState('');
+  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const { value: aceite, save: saveAceite } = useUserKv(targetUid, 'ETICA_ACEITE');
+
+  useEffect(() => { if (codigo?.texto) setText(codigo.texto); }, [codigo]);
+
+  async function salvar() {
+    await save({ texto: text, atualizadoEm: Date.now(), atualizadoPor: user.id });
+    setEditing(false);
+  }
+  async function aceitar() {
+    if (!confirm('Confirmar aceite do código de ética?\nEste registro fica gravado com seu nome e data.')) return;
+    await saveAceite({ aceitouEm: Date.now(), versaoTexto: codigo?.texto?.substring(0,200) });
+  }
+
+  const TEXTO_PADRAO = `CÓDIGO DE ÉTICA E COMPLIANCE — PSM IMOBILIÁRIA
+
+1. INTEGRIDADE
+Toda comunicação com clientes, parceiros e colegas deve ser honesta, transparente e respeitosa.
+
+2. CONFIDENCIALIDADE
+Informações de clientes, valores de venda, comissões e estratégias internas são confidenciais.
+
+3. ANTI-CORRUPÇÃO
+Não é permitido oferecer, receber ou intermediar pagamentos indevidos a/de funcionários públicos ou agentes privados.
+
+4. CONFLITO DE INTERESSE
+Comunicar à direção qualquer relação pessoal ou financeira que possa influenciar decisões profissionais.
+
+5. ASSÉDIO E DISCRIMINAÇÃO
+Tolerância zero a qualquer forma de assédio moral, sexual ou discriminação por raça, gênero, idade, orientação sexual, religião ou condição.
+
+6. USO DE DADOS PESSOAIS (LGPD)
+Dados de clientes só podem ser usados para os fins acordados. Não compartilhar listas de leads externamente.
+
+7. CONCORRÊNCIA LEAL
+Não falar mal da concorrência publicamente. Competir com qualidade e profissionalismo.
+
+8. CANAL DE DENÚNCIAS
+Toda violação deste código deve ser reportada via Canal Anônimo do sistema, ou diretamente à direção.`;
+
+  const conteudo = codigo?.texto || TEXTO_PADRAO;
+  const meuAceite = aceite?.aceitouEm;
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>⚖️ Código de Ética</h1>
+          <p className="text-sm text-slate-400">Compliance e conduta profissional</p>
+        </div>
+        {isSocio && !editing && <button className="btn" onClick={() => { setText(conteudo); setEditing(true); }}>Editar</button>}
+      </div>
+
+      {meuAceite && (
+        <div className="card p-3 mb-4" style={{background:'#16a34a20', borderColor:'#16a34a'}}>
+          <div className="text-sm text-green-400">✓ Você aceitou em {fmtDate(meuAceite)}</div>
+        </div>
+      )}
+
+      {editing ? (
+        <div className="card p-4">
+          <textarea className="input mb-3" rows="20" value={text} onChange={e => setText(e.target.value)} />
+          <div className="flex gap-2">
+            <button className="btn btn-success" onClick={salvar}>Salvar</button>
+            <button className="btn btn-out" onClick={() => setEditing(false)}>Cancelar</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="card p-6 mb-4">
+            <div className="text-slate-200 whitespace-pre-wrap leading-relaxed text-sm">{conteudo}</div>
+            {codigo?.atualizadoEm && <div className="text-xs text-slate-500 mt-4 pt-4 border-t border-slate-700">Última atualização: {fmtDate(codigo.atualizadoEm)}</div>}
+          </div>
+          {!meuAceite && (
+            <button className="btn btn-success w-full" onClick={aceitar}>✓ Eu li e aceito o Código de Ética</button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+
+// ──────────────────────────────────────────────────────────────────────────
+// DREPage (Demonstrativo de Resultados)
+// ──────────────────────────────────────────────────────────────────────────
+function DREPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  if (lvl < 5) return <div className="p-6 text-slate-500">Acesso restrito a líder+ e sócios.</div>;
+
+  const [refMes, setRefMes] = useState(monthKey());
+  const { value: vendas } = useShared('VENDAS_MANUAIS');
+  const { value: comissoes } = useShared('COMISSOES_PAGAMENTOS');
+  const { value: fluxo } = useShared('FLUXO_CAIXA_' + refMes);
+  const { value: custos } = useShared('CUSTOS_FIXOS_' + refMes);
+
+  const vendasMes = (Array.isArray(vendas) ? vendas : []).filter(v => v.status === 'fechada' && v.dataVenda?.startsWith(refMes));
+  const vgvBruto = vendasMes.reduce((s,v) => s + (v.vgv||0), 0);
+  const comissoesMes = (Array.isArray(comissoes) ? comissoes : []).filter(c => c.refMes === refMes);
+  const totalComissoes = comissoesMes.reduce((s,c) => s+(c.valor||0), 0);
+  const fluxoList = Array.isArray(fluxo) ? fluxo : [];
+  const totalDespesas = fluxoList.filter(f => f.tipo === 'saida').reduce((s,f) => s+(f.valor||0), 0);
+  const custosList = Array.isArray(custos) ? custos : [];
+  const totalCustosFixos = custosList.reduce((s,c) => s + (c.valor||0), 0);
+
+  // Estimativa receita imobiliária: assumindo 6% comissão direta + 1% gerência sobre VGV
+  const receitaEstimada = vgvBruto * 0.07;
+  const lucroBruto = receitaEstimada - totalComissoes;
+  const lucroOperacional = lucroBruto - totalDespesas - totalCustosFixos;
+  const margem = receitaEstimada > 0 ? (lucroOperacional / receitaEstimada * 100) : 0;
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>📈 DRE</h1>
+          <p className="text-sm text-slate-400">Demonstrativo de Resultados — {refMes}</p>
+        </div>
+        <input type="month" className="input max-w-xs" value={refMes} onChange={e => setRefMes(e.target.value)} />
+      </div>
+
+      <div className="card overflow-hidden mb-4">
+        <table className="w-full text-sm">
+          <tbody>
+            <tr className="border-b border-slate-700"><td className="p-3 font-bold">VGV vendido (bruto)</td><td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>{fmtMoney(vgvBruto)}</td></tr>
+            <tr className="border-b border-slate-700"><td className="p-3 text-slate-400">Receita estimada (7% sobre VGV)</td><td className="text-right p-3 text-slate-400">+ {fmtMoney(receitaEstimada)}</td></tr>
+            <tr className="border-b border-slate-700"><td className="p-3 text-slate-400">(−) Comissões a pagar</td><td className="text-right p-3 text-red-400">− {fmtMoney(totalComissoes)}</td></tr>
+            <tr className="border-b border-slate-700 bg-slate-900"><td className="p-3 font-bold">= Lucro Bruto</td><td className="text-right p-3 font-bold" style={{color: lucroBruto >= 0 ? '#22c55e' : '#ef4444'}}>{fmtMoney(lucroBruto)}</td></tr>
+            <tr className="border-b border-slate-700"><td className="p-3 text-slate-400">(−) Despesas operacionais (fluxo de caixa)</td><td className="text-right p-3 text-red-400">− {fmtMoney(totalDespesas)}</td></tr>
+            <tr className="border-b border-slate-700"><td className="p-3 text-slate-400">(−) Custos fixos do mês</td><td className="text-right p-3 text-red-400">− {fmtMoney(totalCustosFixos)}</td></tr>
+            <tr className="bg-slate-900"><td className="p-3 font-bold text-lg">= Lucro Operacional</td><td className="text-right p-3 font-bold text-lg" style={{color: lucroOperacional >= 0 ? '#22c55e' : '#ef4444'}}>{fmtMoney(lucroOperacional)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div className="card p-4"><div className="text-xs text-slate-400">Vendas no mês</div><div className="text-2xl font-bold">{vendasMes.length}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Margem operacional</div><div className="text-2xl font-bold" style={{color: margem >= 20 ? '#22c55e' : margem >= 0 ? '#d4a843' : '#ef4444'}}>{margem.toFixed(1)}%</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Comissão média / venda</div><div className="text-2xl font-bold">{fmtMoney(vendasMes.length > 0 ? totalComissoes / vendasMes.length : 0)}</div></div>
+      </div>
+
+      <div className="card p-4">
+        <div className="text-sm text-slate-400 mb-2">⚠️ Observações</div>
+        <ul className="text-xs text-slate-500 space-y-1 list-disc list-inside">
+          <li>Receita estimada = 7% sobre VGV (assumindo média histórica). Ajuste manual via Fluxo de Caixa.</li>
+          <li>Despesas operacionais = lançamentos do tipo "saída" no Fluxo de Caixa do mês.</li>
+          <li>Custos fixos = lançados separadamente em Custos Fixos & Variáveis.</li>
+          <li>Comissões consideram TODAS do mês (pendentes + pagas).</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// RepassesPage (controle de repasses para incorporadoras/parceiros)
+// ──────────────────────────────────────────────────────────────────────────
+function RepassesPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  if (lvl < 5) return <div className="p-6 text-slate-500">Acesso restrito a líder+ e sócios.</div>;
+
+  const { value: repasses, save } = useShared('REPASSES');
+  const list = Array.isArray(repasses) ? repasses : [];
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ destinatario:'', referencia:'', valor:'', vencimento:todayKey(), status:'a_pagar', comprovante:'', obs:'' });
+
+  async function add() {
+    if (!form.destinatario || !form.valor) return;
+    const item = { id:'rp'+Date.now(), ...form, valor:parseFloat(form.valor)||0, ts:Date.now(), createdBy:user.id };
+    await save([item, ...list].slice(0,1000));
+    setForm({ destinatario:'', referencia:'', valor:'', vencimento:todayKey(), status:'a_pagar', comprovante:'', obs:'' });
+    setShowForm(false);
+  }
+  async function setStatus(id, status) { await save(list.map(r => r.id===id ? {...r, status, statusAt:Date.now()} : r)); }
+  async function remove(id) { if (!confirm('Apagar?')) return; await save(list.filter(r => r.id !== id)); }
+
+  const totalAPagar = list.filter(r => r.status === 'a_pagar').reduce((s,r) => s+(r.valor||0), 0);
+  const totalPago = list.filter(r => r.status === 'pago').reduce((s,r) => s+(r.valor||0), 0);
+  const atrasados = list.filter(r => r.status === 'a_pagar' && r.vencimento && r.vencimento < todayKey()).length;
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>🔄 Repasses</h1>
+          <p className="text-sm text-slate-400">Pagamentos para incorporadoras e parceiros</p>
+        </div>
+        <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Novo repasse'}</button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div className="card p-4"><div className="text-xs text-slate-400">A pagar</div><div className="text-2xl font-bold text-yellow-400">{fmtMoney(totalAPagar)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Pago</div><div className="text-2xl font-bold text-green-400">{fmtMoney(totalPago)}</div></div>
+        <div className="card p-4" style={{borderColor: atrasados > 0 ? '#dc2626' : '#334155'}}><div className="text-xs text-slate-400">Atrasados</div><div className="text-2xl font-bold" style={{color: atrasados > 0 ? '#ef4444' : '#94a3b8'}}>{atrasados}</div></div>
+      </div>
+
+      {showForm && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Destinatário (incorporadora/parceiro)" value={form.destinatario} onChange={e => setForm({...form, destinatario:e.target.value})} />
+            <input className="input" placeholder="Referência (cliente/empreendimento)" value={form.referencia} onChange={e => setForm({...form, referencia:e.target.value})} />
+            <input type="number" step="0.01" className="input" placeholder="Valor (R$)" value={form.valor} onChange={e => setForm({...form, valor:e.target.value})} />
+            <input type="date" className="input" value={form.vencimento} onChange={e => setForm({...form, vencimento:e.target.value})} />
+            <input className="input" placeholder="Comprovante/NF (URL)" value={form.comprovante} onChange={e => setForm({...form, comprovante:e.target.value})} />
+            <select className="input" value={form.status} onChange={e => setForm({...form, status:e.target.value})}>
+              <option value="a_pagar">A pagar</option><option value="pago">Pago</option><option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+          <textarea className="input mb-3" rows="2" placeholder="Observações" value={form.obs} onChange={e => setForm({...form, obs:e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.destinatario || !form.valor}>💾 Salvar repasse</button>
+        </div>
+      )}
+
+      <div className="card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
+            <th className="text-left p-3">Vencimento</th>
+            <th className="text-left p-3">Destinatário</th>
+            <th className="text-left p-3">Referência</th>
+            <th className="text-right p-3">Valor</th>
+            <th className="text-center p-3">Status</th>
+            <th></th>
+          </tr></thead>
+          <tbody>
+            {list.sort((a,b) => (a.vencimento||'').localeCompare(b.vencimento||'')).map(r => {
+              const atrasado = r.status === 'a_pagar' && r.vencimento && r.vencimento < todayKey();
+              const stColor = r.status === 'pago' ? '#16a34a' : r.status === 'cancelado' ? '#64748b' : (atrasado ? '#dc2626' : '#d4a843');
+              const stLbl = atrasado ? '🔴 Atrasado' : r.status === 'pago' ? '✓ Pago' : r.status === 'cancelado' ? '× Cancelado' : '⏳ A pagar';
+              return (
+                <tr key={r.id} className="border-t border-slate-700">
+                  <td className="p-3 text-xs">{r.vencimento}</td>
+                  <td className="p-3 font-medium">{r.destinatario}</td>
+                  <td className="p-3 text-xs">{r.referencia}</td>
+                  <td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>{fmtMoney(r.valor)}</td>
+                  <td className="text-center p-3"><span className="badge" style={{background:stColor+'30',color:stColor}}>{stLbl}</span></td>
+                  <td className="p-3 whitespace-nowrap">
+                    {r.status === 'a_pagar' && <button className="btn btn-sm btn-success" onClick={() => setStatus(r.id, 'pago')}>Marcar pago</button>}
+                    {r.comprovante && <a href={r.comprovante} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-out ml-1">↗ NF</a>}
+                    <button className="text-red-400 text-xs ml-2" onClick={() => remove(r.id)}>×</button>
+                  </td>
+                </tr>
+              );
+            })}
+            {list.length === 0 && <tr><td colSpan="6" className="text-center text-slate-500 p-8">Nenhum repasse.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// CustosFixosPage (custos fixos e variaveis mensais)
+// ──────────────────────────────────────────────────────────────────────────
+function CustosFixosPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  if (lvl < 5) return <div className="p-6 text-slate-500">Acesso restrito a líder+ e sócios.</div>;
+
+  const [refMes, setRefMes] = useState(monthKey());
+  const { value: custos, save } = useShared('CUSTOS_FIXOS_' + refMes);
+  const list = Array.isArray(custos) ? custos : [];
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ titulo:'', categoria:'aluguel', tipo:'fixo', valor:'', vencimento:'', recorrente:true, obs:'' });
+
+  async function add() {
+    if (!form.titulo) return;
+    const item = { id:'cf'+Date.now(), ...form, valor:parseFloat(form.valor)||0, ts:Date.now() };
+    await save([item, ...list].slice(0,500));
+    setForm({ titulo:'', categoria:'aluguel', tipo:'fixo', valor:'', vencimento:'', recorrente:true, obs:'' });
+    setShowForm(false);
+  }
+  async function remove(id) { if (!confirm('Apagar?')) return; await save(list.filter(c => c.id !== id)); }
+
+  const CATS = { aluguel:'🏢 Aluguel', salarios:'👥 Salários', impostos:'📋 Impostos', sistemas:'💻 Sistemas/SaaS', marketing:'📣 Marketing', servicos:'🔧 Serviços', outros:'📦 Outros' };
+  const totalFixo = list.filter(c => c.tipo === 'fixo').reduce((s,c) => s+(c.valor||0), 0);
+  const totalVar = list.filter(c => c.tipo === 'variavel').reduce((s,c) => s+(c.valor||0), 0);
+  const total = totalFixo + totalVar;
+
+  const byCategoria = {};
+  list.forEach(c => { if(!byCategoria[c.categoria]) byCategoria[c.categoria]=0; byCategoria[c.categoria] += c.valor||0; });
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>📉 Custos Fixos & Variáveis</h1>
+          <p className="text-sm text-slate-400">Estrutura de custos do mês</p>
+        </div>
+        <div className="flex gap-2">
+          <input type="month" className="input" value={refMes} onChange={e => setRefMes(e.target.value)} />
+          <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Novo custo'}</button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div className="card p-4"><div className="text-xs text-slate-400">Custos fixos</div><div className="text-2xl font-bold text-red-400">{fmtMoney(totalFixo)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Custos variáveis</div><div className="text-2xl font-bold text-yellow-400">{fmtMoney(totalVar)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Total</div><div className="text-2xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(total)}</div></div>
+      </div>
+
+      {showForm && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <input className="input" placeholder="Título" value={form.titulo} onChange={e => setForm({...form, titulo:e.target.value})} />
+            <select className="input" value={form.categoria} onChange={e => setForm({...form, categoria:e.target.value})}>
+              {Object.entries(CATS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <select className="input" value={form.tipo} onChange={e => setForm({...form, tipo:e.target.value})}>
+              <option value="fixo">Fixo</option><option value="variavel">Variável</option>
+            </select>
+            <input type="number" step="0.01" className="input" placeholder="Valor (R$)" value={form.valor} onChange={e => setForm({...form, valor:e.target.value})} />
+            <input type="date" className="input" placeholder="Vencimento" value={form.vencimento} onChange={e => setForm({...form, vencimento:e.target.value})} />
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.recorrente} onChange={e => setForm({...form, recorrente:e.target.checked})} className="w-5 h-5" style={{accentColor:'#d4a843'}} /> Recorrente</label>
+          </div>
+          <textarea className="input mb-3" rows="2" placeholder="Observações" value={form.obs} onChange={e => setForm({...form, obs:e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.titulo}>💾 Salvar custo</button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="card p-4">
+          <div className="text-sm font-bold mb-3 text-slate-400 uppercase">Por Categoria</div>
+          <div className="space-y-2">
+            {Object.entries(byCategoria).sort((a,b) => b[1]-a[1]).map(([cat, val]) => {
+              const pct = total > 0 ? (val/total*100) : 0;
+              return (
+                <div key={cat}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>{CATS[cat] || cat}</span>
+                    <span className="font-bold">{fmtMoney(val)} ({pct.toFixed(0)}%)</span>
+                  </div>
+                  <div className="h-2 bg-slate-700 rounded overflow-hidden">
+                    <div style={{width:pct+'%', height:'100%', background:'#d4a843'}}></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="card overflow-hidden">
+          <div className="text-sm font-bold p-3 border-b border-slate-700 text-slate-400 uppercase">Lançamentos</div>
+          <div className="max-h-96 overflow-y-auto">
+            <table className="w-full text-sm">
+              <tbody>
+                {list.sort((a,b) => (b.valor||0)-(a.valor||0)).map(c => (
+                  <tr key={c.id} className="border-t border-slate-700">
+                    <td className="p-2">{c.titulo}</td>
+                    <td className="text-xs text-slate-400">{c.tipo}</td>
+                    <td className="text-right p-2 font-bold">{fmtMoney(c.valor)}</td>
+                    <td className="p-2 text-right"><button className="text-red-400 text-xs" onClick={() => remove(c.id)}>×</button></td>
+                  </tr>
+                ))}
+                {list.length === 0 && <tr><td colSpan="4" className="text-center text-slate-500 p-6">Sem lançamentos.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// ForecastPage (projecao 6 meses)
+// ──────────────────────────────────────────────────────────────────────────
+function ForecastPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  if (lvl < 5) return <div className="p-6 text-slate-500">Acesso restrito a líder+ e sócios.</div>;
+
+  const { value: vendas } = useShared('VENDAS_MANUAIS');
+  const { value: deals } = useShared('CRM_DEALS');
+  const { value: metas } = useShared('METAS_INDIVIDUAIS');
+
+  const list = Array.isArray(vendas) ? vendas : [];
+  const dealsList = Array.isArray(deals) ? deals : [];
+  const m = metas || {};
+
+  const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
+  const totalMetaMes = corretores.reduce((s,c) => s + (m[c.id]?.vgv || 0), 0);
+
+  // Calcula media historica (ultimos 3 meses fechados)
+  const meses = [];
+  const now = new Date();
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const mk = d.toISOString().slice(0,7);
+    const lbl = d.toLocaleDateString('pt-BR', { month:'short', year:'2-digit' });
+    const vendasMes = list.filter(v => v.status==='fechada' && v.dataVenda?.startsWith(mk));
+    const vgvReal = vendasMes.reduce((s,v) => s+(v.vgv||0), 0);
+    const isFuturo = mk > monthKey();
+    const isPassado = mk < monthKey();
+    const dealsAtivos = dealsList.filter(d => !['fechado','perdido'].includes(d.status));
+    const pipelineFuturo = isFuturo ? dealsAtivos.reduce((s,d) => s+(d.valor||0), 0) * 0.3 : 0; // assume 30% de conversão
+    const projecao = isPassado ? vgvReal : (isFuturo ? Math.max(totalMetaMes * 0.85, pipelineFuturo) : (vgvReal + (totalMetaMes * 0.5)));
+    meses.push({ mk, lbl, vgvReal, projecao, meta: totalMetaMes, isFuturo, isPassado, vendas: vendasMes.length });
+  }
+
+  const totalProjecao6m = meses.reduce((s,m) => s + m.projecao, 0);
+  const totalReal3mPassado = meses.slice(0,3).filter(x => x.isPassado).reduce((s,m) => s + m.vgvReal, 0);
+  const mediaReal = totalReal3mPassado / 3;
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🔮 Forecast 6 meses</h1>
+      <p className="text-sm text-slate-400 mb-6">Projeção baseada em metas + pipeline + histórico</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div className="card p-4"><div className="text-xs text-slate-400">Projeção 6 meses</div><div className="text-2xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(totalProjecao6m)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Média real (3m passados)</div><div className="text-2xl font-bold">{fmtMoney(mediaReal)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Meta mensal soma</div><div className="text-2xl font-bold">{fmtMoney(totalMetaMes)}</div></div>
+      </div>
+
+      <div className="card overflow-hidden mb-4">
+        <table className="w-full text-sm">
+          <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
+            <th className="text-left p-3">Mês</th>
+            <th className="text-right p-3">Projeção / Real</th>
+            <th className="text-right p-3">Meta</th>
+            <th className="text-right p-3">% Meta</th>
+            <th className="text-right p-3">Vendas</th>
+            <th className="text-center p-3">Status</th>
+          </tr></thead>
+          <tbody>
+            {meses.map(mes => {
+              const pct = mes.meta > 0 ? (mes.projecao / mes.meta * 100) : 0;
+              return (
+                <tr key={mes.mk} className="border-t border-slate-700">
+                  <td className="p-3 font-medium uppercase">{mes.lbl}</td>
+                  <td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>{fmtMoney(mes.projecao)}</td>
+                  <td className="text-right p-3 text-slate-400">{fmtMoney(mes.meta)}</td>
+                  <td className="text-right p-3 font-bold" style={{color: pct >= 100 ? '#22c55e' : pct >= 70 ? '#d4a843' : '#ef4444'}}>{pct.toFixed(0)}%</td>
+                  <td className="text-right p-3">{mes.vendas || '—'}</td>
+                  <td className="text-center p-3">
+                    {mes.isPassado ? <span className="badge" style={{background:'#16a34a30', color:'#86efac'}}>real</span>
+                      : mes.isFuturo ? <span className="badge" style={{background:'#3b82f630', color:'#93c5fd'}}>projeção</span>
+                      : <span className="badge" style={{background:'#d4a84330', color:'#fde68a'}}>em curso</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="card p-4">
+        <div className="text-xs text-slate-500 leading-relaxed">
+          <strong>Metodologia:</strong> Meses passados usam VGV real (vendas fechadas). Mês corrente combina real + 50% da meta restante. Meses futuros usam o maior valor entre 85% da meta ou 30% do pipeline ativo (CRM).
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // App
 // ──────────────────────────────────────────────────────────────────────────
@@ -2413,6 +3135,10 @@ function App() {
         {page === 'crm' && <CRMPage user={user} />}
         {page === 'comissoes' && <ComissoesPage user={user} />}
         {page === 'fluxocaixa' && <FluxoCaixaPage user={user} />}
+        {page === 'dre' && <DREPage user={user} />}
+        {page === 'repasses' && <RepassesPage user={user} />}
+        {page === 'custos' && <CustosFixosPage user={user} />}
+        {page === 'forecast' && <ForecastPage user={user} />}
         {page === 'iasol' && <IASolPage user={user} />}
         {page === 'metaads' && <MetaAdsPage user={user} />}
         {page === 'criativos' && <CriativosPage user={user} />}
@@ -2420,6 +3146,10 @@ function App() {
         {page === 'premiacoes' && <PremiacoesPage user={user} />}
         {page === 'oportunidades' && <OportunidadesPage user={user} />}
         {page === 'canal' && <CanalAnonimoPage user={user} />}
+        {page === 'formacao' && <FormacaoPage user={user} />}
+        {page === 'organograma' && <OrganogramaPage user={user} />}
+        {page === 'manual' && <ManualPage user={user} />}
+        {page === 'etica' && <EticaPage user={user} />}
         {page === 'recados' && <RecadosPage user={user} />}
       </main>
     </div>
