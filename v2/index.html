@@ -188,6 +188,12 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
     { id: 'dashboard', label: 'Dashboard Hoje', emoji: '📊' },
     { id: 'equipe', label: 'Equipe', emoji: '👥' },
     { id: 'metas', label: 'Metas', emoji: '🎯', minLvl: 5 },
+    { id: 'captacao', label: 'Captação', emoji: '📍' },
+    { id: 'plantoes', label: 'Plantões', emoji: '📅' },
+    { id: 'tarefas', label: 'Tarefas', emoji: '✅' },
+    { id: 'crm', label: 'CRM', emoji: '💼' },
+    { id: 'comissoes', label: 'Comissões', emoji: '💎' },
+    { id: 'fluxocaixa', label: 'Fluxo de Caixa', emoji: '💰', minLvl: 5 },
     { id: 'recados', label: 'Recados', emoji: '📢' },
   ];
   const visible = items.filter(it => !it.minLvl || lvl >= it.minLvl);
@@ -592,6 +598,641 @@ function RecadosPage({ user }) {
   );
 }
 
+
+// ──────────────────────────────────────────────────────────────────────────
+// CaptacaoPage (lista imóveis para captação)
+// ──────────────────────────────────────────────────────────────────────────
+function CaptacaoPage({ user }) {
+  const { value: capt, save: saveCapt, loading } = useShared('CAPTACOES');
+  const list = Array.isArray(capt) ? capt : [];
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ titulo: '', endereco: '', tipo: 'casa', valor: '', proprietario: '', telefone: '', obs: '' });
+  const [filter, setFilter] = useState('todos');
+  const [posting, setPosting] = useState(false);
+
+  async function add() {
+    if (!form.titulo.trim()) return;
+    setPosting(true);
+    const item = {
+      id: 'c' + Date.now(),
+      ...form,
+      valor: parseFloat(form.valor) || 0,
+      status: 'novo',
+      capturadoPor: user.id,
+      capturadoPorName: user.name,
+      ts: Date.now()
+    };
+    await saveCapt([item, ...list].slice(0, 500));
+    setForm({ titulo: '', endereco: '', tipo: 'casa', valor: '', proprietario: '', telefone: '', obs: '' });
+    setShowForm(false);
+    setPosting(false);
+  }
+  async function setStatus(id, status) {
+    const next = list.map(c => c.id === id ? { ...c, status, statusAt: Date.now(), statusBy: user.id } : c);
+    await saveCapt(next);
+  }
+  async function remove(id) {
+    if (!confirm('Apagar captação?')) return;
+    await saveCapt(list.filter(c => c.id !== id));
+  }
+
+  const filtered = filter === 'todos' ? list : list.filter(c => c.status === filter);
+  const counts = list.reduce((acc, c) => { acc[c.status] = (acc[c.status]||0)+1; return acc; }, {});
+
+  const statusColors = { novo: '#3b82f6', visita_agendada: '#d4a843', em_negociacao: '#a855f7', captado: '#16a34a', perdido: '#dc2626' };
+  const statusLabels = { novo: '🆕 Novo', visita_agendada: '📅 Visita agendada', em_negociacao: '💬 Em negociação', captado: '✅ Captado', perdido: '❌ Perdido' };
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>📍 Captação</h1>
+          <p className="text-sm text-slate-400">{list.length} imóveis em captação</p>
+        </div>
+        <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Nova captação'}</button>
+      </div>
+      {showForm && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Título do imóvel" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} />
+            <input className="input" placeholder="Endereço" value={form.endereco} onChange={e => setForm({...form, endereco: e.target.value})} />
+            <select className="input" value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})}>
+              <option value="casa">Casa</option>
+              <option value="apartamento">Apartamento</option>
+              <option value="terreno">Terreno</option>
+              <option value="comercial">Comercial</option>
+              <option value="rural">Rural</option>
+            </select>
+            <input type="number" className="input" placeholder="Valor (R$)" value={form.valor} onChange={e => setForm({...form, valor: e.target.value})} />
+            <input className="input" placeholder="Proprietário" value={form.proprietario} onChange={e => setForm({...form, proprietario: e.target.value})} />
+            <input className="input" placeholder="Telefone" value={form.telefone} onChange={e => setForm({...form, telefone: e.target.value})} />
+          </div>
+          <textarea className="input mb-3" rows="2" placeholder="Observações" value={form.obs} onChange={e => setForm({...form, obs: e.target.value})} />
+          <button className="btn" onClick={add} disabled={posting || !form.titulo.trim()}>{posting ? 'Salvando…' : '💾 Salvar captação'}</button>
+        </div>
+      )}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <button className={'btn btn-sm ' + (filter==='todos' ? '' : 'btn-out')} onClick={() => setFilter('todos')}>Todos ({list.length})</button>
+        {Object.entries(statusLabels).map(([k, lbl]) => (
+          <button key={k} className={'btn btn-sm ' + (filter===k ? '' : 'btn-out')} onClick={() => setFilter(k)}>{lbl} ({counts[k]||0})</button>
+        ))}
+      </div>
+      {loading ? <div className="text-slate-500">Carregando…</div> : (
+        filtered.length === 0 ? <div className="text-center text-slate-500 py-8">Nenhuma captação.</div> : (
+          <div className="space-y-3">
+            {filtered.map(c => (
+              <div key={c.id} className="card p-4">
+                <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                  <div>
+                    <div className="font-bold text-lg">{c.titulo}</div>
+                    <div className="text-xs text-slate-400">{c.endereco} • {c.tipo}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(c.valor)}</div>
+                    <span className="badge" style={{background: statusColors[c.status]+'30', color: statusColors[c.status]}}>{statusLabels[c.status]}</span>
+                  </div>
+                </div>
+                {c.proprietario && <div className="text-sm text-slate-300">👤 {c.proprietario} {c.telefone && '• 📞 '+c.telefone}</div>}
+                {c.obs && <div className="text-sm text-slate-400 mt-2 italic">{c.obs}</div>}
+                <div className="text-xs text-slate-500 mt-2">Capturado por {c.capturadoPorName || c.capturadoPor} em {fmtDate(c.ts)}</div>
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  {Object.entries(statusLabels).filter(([k]) => k !== c.status).map(([k, lbl]) => (
+                    <button key={k} className="btn btn-sm btn-out" onClick={() => setStatus(c.id, k)}>{lbl}</button>
+                  ))}
+                  {(user.role === 'socio' || user.id === c.capturadoPor) && (
+                    <button className="btn btn-sm btn-danger" onClick={() => remove(c.id)}>Apagar</button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// PlantoesPage (calendário mensal de plantão)
+// ──────────────────────────────────────────────────────────────────────────
+function PlantoesPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  const canEdit = lvl >= 5;
+  const today = new Date();
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth() + 1);
+  const key = 'PLANTOES_' + year + '_' + String(month).padStart(2,'0');
+  const { value: plantao, save: savePlantao, loading } = useShared(key);
+  const data = plantao || {};
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const firstDow = new Date(year, month - 1, 1).getDay();
+  const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
+
+  async function setDay(day, brokerId) {
+    if (!canEdit) return;
+    const next = { ...data, [day]: brokerId };
+    if (!brokerId) delete next[day];
+    await savePlantao(next);
+  }
+
+  function prevMonth() {
+    if (month === 1) { setYear(y => y-1); setMonth(12); } else setMonth(m => m-1);
+  }
+  function nextMonth() {
+    if (month === 12) { setYear(y => y+1); setMonth(1); } else setMonth(m => m+1);
+  }
+
+  const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const dows = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+  const colorByBroker = useMemo(() => {
+    const palette = ['#3b82f6','#16a34a','#d4a843','#a855f7','#dc2626','#06b6d4','#f97316','#ec4899'];
+    const map = {};
+    corretores.forEach((u, i) => { map[u.id] = palette[i % palette.length]; });
+    return map;
+  }, []);
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>📅 Plantões</h1>
+          <p className="text-sm text-slate-400">Escala mensal de atendimento</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="btn btn-sm btn-out" onClick={prevMonth}>‹</button>
+          <div className="font-bold text-lg min-w-[180px] text-center">{monthNames[month-1]} {year}</div>
+          <button className="btn btn-sm btn-out" onClick={nextMonth}>›</button>
+        </div>
+      </div>
+      {loading ? <div className="text-slate-500">Carregando…</div> : (
+        <div className="card p-4">
+          <div className="grid grid-cols-7 gap-2 mb-2">
+            {dows.map(d => <div key={d} className="text-xs text-slate-400 text-center font-bold">{d}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-2">
+            {Array.from({length: firstDow}).map((_, i) => <div key={'e'+i}></div>)}
+            {Array.from({length: daysInMonth}, (_, i) => {
+              const day = i + 1;
+              const bid = data[day];
+              const broker = corretores.find(b => b.id === bid);
+              const isToday = year === today.getFullYear() && month === today.getMonth()+1 && day === today.getDate();
+              return (
+                <div key={day} className="card p-2" style={{minHeight:80, borderColor: isToday ? '#d4a843' : '#334155'}}>
+                  <div className="text-xs text-slate-500 mb-1 flex justify-between"><span>{day}</span>{isToday && <span className="text-yellow-400">hoje</span>}</div>
+                  {canEdit ? (
+                    <select
+                      className="input"
+                      style={{padding:'4px 6px', fontSize:'10px', background: bid ? colorByBroker[bid]+'30' : '#0f172a', color: bid ? colorByBroker[bid] : '#94a3b8', borderColor: bid ? colorByBroker[bid] : '#334155'}}
+                      value={bid || ''}
+                      onChange={e => setDay(day, e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {corretores.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                  ) : (
+                    <div style={{padding:'4px 6px', borderRadius:4, fontSize:'10px', background: bid ? colorByBroker[bid]+'30' : '#0f172a', color: bid ? colorByBroker[bid] : '#64748b', textAlign:'center'}}>
+                      {broker ? broker.name.split(' ')[0] : '—'}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-4 flex gap-3 flex-wrap text-xs">
+            {corretores.map(b => {
+              const cnt = Object.values(data).filter(v => v === b.id).length;
+              if (cnt === 0) return null;
+              return <div key={b.id} className="flex items-center gap-2"><span style={{width:12, height:12, borderRadius:3, background: colorByBroker[b.id], display:'inline-block'}}></span>{b.name} ({cnt})</div>;
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// TarefasPage (lista de tarefas pessoais, sincronizadas via user_kv)
+// ──────────────────────────────────────────────────────────────────────────
+function TarefasPage({ user }) {
+  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const { value: tarefas, save: saveTarefas, loading } = useUserKv(targetUid, 'TAREFAS_PESSOAIS');
+  const list = Array.isArray(tarefas) ? tarefas : [];
+  const [text, setText] = useState('');
+  const [filter, setFilter] = useState('abertas');
+
+  async function add() {
+    if (!text.trim()) return;
+    const item = { id: 't' + Date.now(), text: text.trim(), done: false, createdAt: Date.now() };
+    await saveTarefas([item, ...list].slice(0, 500));
+    setText('');
+  }
+  async function toggle(id) {
+    const next = list.map(t => t.id === id ? { ...t, done: !t.done, doneAt: !t.done ? Date.now() : null } : t);
+    await saveTarefas(next);
+  }
+  async function remove(id) {
+    await saveTarefas(list.filter(t => t.id !== id));
+  }
+
+  const filtered = filter === 'abertas' ? list.filter(t => !t.done) : filter === 'feitas' ? list.filter(t => t.done) : list;
+  const counts = { abertas: list.filter(t => !t.done).length, feitas: list.filter(t => t.done).length };
+
+  return (
+    <div className="p-6 max-w-2xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>✅ Tarefas</h1>
+      <p className="text-sm text-slate-400 mb-6">Sua lista pessoal • salva no Supabase, sincroniza entre devices</p>
+
+      <div className="card p-4 mb-4 flex gap-2">
+        <input className="input flex-1" placeholder="Nova tarefa..." value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') add(); }} />
+        <button className="btn" onClick={add} disabled={!text.trim()}>+ Adicionar</button>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        <button className={'btn btn-sm ' + (filter==='abertas' ? '' : 'btn-out')} onClick={() => setFilter('abertas')}>Abertas ({counts.abertas})</button>
+        <button className={'btn btn-sm ' + (filter==='feitas' ? '' : 'btn-out')} onClick={() => setFilter('feitas')}>Feitas ({counts.feitas})</button>
+        <button className={'btn btn-sm ' + (filter==='todas' ? '' : 'btn-out')} onClick={() => setFilter('todas')}>Todas ({list.length})</button>
+      </div>
+
+      {loading ? <div className="text-slate-500">Carregando…</div> : (
+        filtered.length === 0 ? <div className="text-center text-slate-500 py-8">Nenhuma tarefa {filter==='abertas' && 'aberta'}.</div> : (
+          <div className="space-y-2">
+            {filtered.map(t => (
+              <div key={t.id} className="card p-3 flex items-center gap-3">
+                <input type="checkbox" checked={!!t.done} onChange={() => toggle(t.id)} className="w-5 h-5" style={{accentColor:'#d4a843'}} />
+                <div className="flex-1">
+                  <div className={t.done ? 'line-through text-slate-500' : ''}>{t.text}</div>
+                  <div className="text-xs text-slate-500">
+                    {t.done ? '✓ Feita ' + fmtDate(t.doneAt) : 'Criada ' + fmtDate(t.createdAt)}
+                  </div>
+                </div>
+                <button className="text-red-400 hover:text-red-300 text-xs" onClick={() => remove(t.id)}>Apagar</button>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+
+// ──────────────────────────────────────────────────────────────────────────
+// CRMPage (kanban simples por status)
+// ──────────────────────────────────────────────────────────────────────────
+function CRMPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  const canViewAll = lvl >= 5;
+  const { value: deals, save: saveDeals, loading } = useShared('CRM_DEALS');
+  const list = Array.isArray(deals) ? deals : [];
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ cliente: '', valor: '', corretorId: user.id, obs: '', status: 'prospect' });
+  const [filterCorretor, setFilterCorretor] = useState(canViewAll ? 'todos' : user.id);
+
+  const STAGES = [
+    { id: 'prospect',     lbl: 'Prospect',       color: '#3b82f6' },
+    { id: 'atendimento',  lbl: 'Atendimento',    color: '#06b6d4' },
+    { id: 'proposta',     lbl: 'Proposta',       color: '#d4a843' },
+    { id: 'fechado',      lbl: 'Fechado',        color: '#16a34a' },
+    { id: 'perdido',      lbl: 'Perdido',        color: '#dc2626' },
+  ];
+
+  async function add() {
+    if (!form.cliente.trim()) return;
+    const item = {
+      id: 'd' + Date.now(),
+      ...form,
+      valor: parseFloat(form.valor) || 0,
+      createdAt: Date.now(),
+      createdBy: user.id
+    };
+    await saveDeals([item, ...list].slice(0, 1000));
+    setForm({ cliente: '', valor: '', corretorId: user.id, obs: '', status: 'prospect' });
+    setShowForm(false);
+  }
+  async function moveTo(id, newStatus) {
+    const next = list.map(d => d.id === id ? { ...d, status: newStatus, statusAt: Date.now() } : d);
+    await saveDeals(next);
+  }
+  async function remove(id) {
+    if (!confirm('Apagar deal?')) return;
+    await saveDeals(list.filter(d => d.id !== id));
+  }
+
+  const filtered = filterCorretor === 'todos' ? list : list.filter(d => d.corretorId === filterCorretor);
+  const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
+  const totals = STAGES.reduce((acc, s) => ({ ...acc, [s.id]: filtered.filter(d => d.status === s.id) }), {});
+  const pipelineTotal = filtered.filter(d => d.status !== 'perdido').reduce((s, d) => s + (d.valor||0), 0);
+  const fechadoTotal = filtered.filter(d => d.status === 'fechado').reduce((s, d) => s + (d.valor||0), 0);
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>💼 CRM</h1>
+          <p className="text-sm text-slate-400">Pipeline de oportunidades</p>
+        </div>
+        <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Novo deal'}</button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className="card p-3"><div className="text-xs text-slate-400">Pipeline (R$)</div><div className="text-xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(pipelineTotal)}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">Fechado (R$)</div><div className="text-xl font-bold text-green-400">{fmtMoney(fechadoTotal)}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">Total deals</div><div className="text-xl font-bold">{filtered.length}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">Conversão</div><div className="text-xl font-bold">{filtered.length ? Math.round(totals.fechado.length / filtered.length * 100) : 0}%</div></div>
+      </div>
+
+      {showForm && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Nome do cliente" value={form.cliente} onChange={e => setForm({...form, cliente: e.target.value})} />
+            <input type="number" className="input" placeholder="Valor (R$)" value={form.valor} onChange={e => setForm({...form, valor: e.target.value})} />
+            <select className="input" value={form.corretorId} onChange={e => setForm({...form, corretorId: e.target.value})} disabled={!canViewAll}>
+              {corretores.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <select className="input" value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
+              {STAGES.map(s => <option key={s.id} value={s.id}>{s.lbl}</option>)}
+            </select>
+          </div>
+          <textarea className="input mb-3" rows="2" placeholder="Observações" value={form.obs} onChange={e => setForm({...form, obs: e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.cliente.trim()}>💾 Salvar deal</button>
+        </div>
+      )}
+
+      {canViewAll && (
+        <div className="mb-4">
+          <select className="input max-w-xs" value={filterCorretor} onChange={e => setFilterCorretor(e.target.value)}>
+            <option value="todos">Todos os corretores ({list.length})</option>
+            {corretores.map(c => <option key={c.id} value={c.id}>{c.name} ({list.filter(d => d.corretorId === c.id).length})</option>)}
+          </select>
+        </div>
+      )}
+
+      {loading ? <div className="text-slate-500">Carregando…</div> : (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {STAGES.map(s => (
+            <div key={s.id} className="card p-3" style={{borderTop: '3px solid '+s.color}}>
+              <div className="font-bold text-sm mb-2" style={{color: s.color}}>{s.lbl} ({totals[s.id].length})</div>
+              <div className="text-xs text-slate-500 mb-3">{fmtMoney(totals[s.id].reduce((a,b) => a+(b.valor||0), 0))}</div>
+              <div className="space-y-2 min-h-[60px]">
+                {totals[s.id].map(d => {
+                  const c = corretores.find(x => x.id === d.corretorId);
+                  return (
+                    <div key={d.id} className="card p-2" style={{background:'#0f172a'}}>
+                      <div className="font-bold text-sm">{d.cliente}</div>
+                      <div className="text-xs" style={{color:'#d4a843'}}>{fmtMoney(d.valor)}</div>
+                      <div className="text-xs text-slate-500">{c?.name || d.corretorId}</div>
+                      {d.obs && <div className="text-xs text-slate-400 mt-1 italic">{d.obs}</div>}
+                      <div className="flex gap-1 mt-2 flex-wrap">
+                        {STAGES.filter(x => x.id !== d.status).map(x => (
+                          <button key={x.id} className="btn btn-sm btn-out" style={{padding:'2px 6px',fontSize:'9px'}} onClick={() => moveTo(d.id, x.id)}>→ {x.lbl}</button>
+                        ))}
+                        {(user.role === 'socio' || d.createdBy === user.id) && (
+                          <button className="text-red-400 text-xs hover:text-red-300" onClick={() => remove(d.id)}>×</button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// ComissoesPage (tabela de comissoes por corretor)
+// ──────────────────────────────────────────────────────────────────────────
+function ComissoesPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  const canEdit = lvl >= 5;
+  const { value: comissoes, save: saveComissoes, loading } = useShared('COMISSOES_PAGAMENTOS');
+  const list = Array.isArray(comissoes) ? comissoes : [];
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ corretorId: '', cliente: '', vgv: '', percent: '3', status: 'pendente', refMes: monthKey() });
+
+  async function add() {
+    if (!form.corretorId || !form.cliente) return;
+    const item = {
+      id: 'cm' + Date.now(),
+      ...form,
+      vgv: parseFloat(form.vgv) || 0,
+      percent: parseFloat(form.percent) || 0,
+      valor: ((parseFloat(form.vgv) || 0) * (parseFloat(form.percent) || 0) / 100),
+      createdAt: Date.now(),
+      createdBy: user.id
+    };
+    await saveComissoes([item, ...list].slice(0, 2000));
+    setForm({ corretorId: '', cliente: '', vgv: '', percent: '3', status: 'pendente', refMes: monthKey() });
+    setShowForm(false);
+  }
+  async function setStatus(id, status) {
+    const next = list.map(c => c.id === id ? { ...c, status, statusAt: Date.now() } : c);
+    await saveComissoes(next);
+  }
+  async function remove(id) {
+    if (!confirm('Apagar comissão?')) return;
+    await saveComissoes(list.filter(c => c.id !== id));
+  }
+
+  const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
+  const filtered = canEdit ? list : list.filter(c => c.corretorId === user.id);
+  const totalPendente = filtered.filter(c => c.status === 'pendente').reduce((s, c) => s + (c.valor||0), 0);
+  const totalPago = filtered.filter(c => c.status === 'pago').reduce((s, c) => s + (c.valor||0), 0);
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>💎 Comissões</h1>
+          <p className="text-sm text-slate-400">Pagamentos de comissão por corretor</p>
+        </div>
+        {canEdit && <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Nova comissão'}</button>}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+        <div className="card p-3"><div className="text-xs text-slate-400">Pendente</div><div className="text-xl font-bold text-yellow-400">{fmtMoney(totalPendente)}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">Pago</div><div className="text-xl font-bold text-green-400">{fmtMoney(totalPago)}</div></div>
+        <div className="card p-3"><div className="text-xs text-slate-400">Total</div><div className="text-xl font-bold">{fmtMoney(totalPendente + totalPago)}</div></div>
+      </div>
+
+      {showForm && canEdit && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <select className="input" value={form.corretorId} onChange={e => setForm({...form, corretorId: e.target.value})}>
+              <option value="">— corretor —</option>
+              {corretores.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <input className="input" placeholder="Cliente" value={form.cliente} onChange={e => setForm({...form, cliente: e.target.value})} />
+            <input type="month" className="input" value={form.refMes} onChange={e => setForm({...form, refMes: e.target.value})} />
+            <input type="number" className="input" placeholder="VGV (R$)" value={form.vgv} onChange={e => setForm({...form, vgv: e.target.value})} />
+            <input type="number" step="0.1" className="input" placeholder="% comissão" value={form.percent} onChange={e => setForm({...form, percent: e.target.value})} />
+            <select className="input" value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
+              <option value="pendente">Pendente</option>
+              <option value="pago">Pago</option>
+            </select>
+          </div>
+          <div className="text-sm text-slate-400 mb-3">Valor calculado: <span className="font-bold" style={{color:'#d4a843'}}>{fmtMoney((parseFloat(form.vgv)||0) * (parseFloat(form.percent)||0) / 100)}</span></div>
+          <button className="btn" onClick={add} disabled={!form.corretorId || !form.cliente}>💾 Salvar comissão</button>
+        </div>
+      )}
+
+      {loading ? <div className="text-slate-500">Carregando…</div> : (
+        <div className="card overflow-hidden">
+          <table className="w-full">
+            <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
+              <th className="text-left p-3">Mês</th>
+              <th className="text-left p-3">Corretor</th>
+              <th className="text-left p-3">Cliente</th>
+              <th className="text-right p-3">VGV</th>
+              <th className="text-right p-3">%</th>
+              <th className="text-right p-3">Comissão</th>
+              <th className="text-center p-3">Status</th>
+              {canEdit && <th></th>}
+            </tr></thead>
+            <tbody>
+              {filtered.map(c => {
+                const corr = corretores.find(x => x.id === c.corretorId);
+                return (
+                  <tr key={c.id} className="border-t border-slate-700">
+                    <td className="p-3 text-xs">{c.refMes}</td>
+                    <td className="p-3 font-medium">{corr?.name || c.corretorId}</td>
+                    <td className="p-3">{c.cliente}</td>
+                    <td className="text-right p-3">{fmtMoney(c.vgv)}</td>
+                    <td className="text-right p-3">{c.percent}%</td>
+                    <td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>{fmtMoney(c.valor)}</td>
+                    <td className="text-center p-3">
+                      {c.status === 'pago' ? <span className="badge" style={{background:'#16a34a30',color:'#86efac'}}>✓ Pago</span> : <span className="badge" style={{background:'#d4a84330',color:'#fde68a'}}>⏳ Pendente</span>}
+                    </td>
+                    {canEdit && <td className="p-3 whitespace-nowrap">
+                      {c.status !== 'pago' && <button className="btn btn-sm btn-success" onClick={() => setStatus(c.id, 'pago')}>Marcar pago</button>}
+                      {c.status === 'pago' && <button className="btn btn-sm btn-out" onClick={() => setStatus(c.id, 'pendente')}>Reverter</button>}
+                      <button className="text-red-400 text-xs ml-2" onClick={() => remove(c.id)}>×</button>
+                    </td>}
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && <tr><td colSpan="8" className="text-center text-slate-500 p-8">Nenhuma comissão.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// FluxoCaixaPage (entradas/saidas mensais)
+// ──────────────────────────────────────────────────────────────────────────
+function FluxoCaixaPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  const canEdit = lvl >= 5;
+  const [refMes, setRefMes] = useState(monthKey());
+  const { value: fluxo, save: saveFluxo, loading } = useShared('FLUXO_CAIXA_' + refMes);
+  const list = Array.isArray(fluxo) ? fluxo : [];
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ tipo: 'entrada', categoria: 'comissao', descricao: '', valor: '', data: todayKey() });
+
+  async function add() {
+    if (!form.descricao || !form.valor) return;
+    const item = {
+      id: 'fx' + Date.now(),
+      ...form,
+      valor: Math.abs(parseFloat(form.valor)) || 0,
+      createdAt: Date.now(),
+      createdBy: user.id
+    };
+    await saveFluxo([item, ...list].slice(0, 2000));
+    setForm({ tipo: 'entrada', categoria: 'comissao', descricao: '', valor: '', data: todayKey() });
+    setShowForm(false);
+  }
+  async function remove(id) {
+    if (!confirm('Apagar lançamento?')) return;
+    await saveFluxo(list.filter(c => c.id !== id));
+  }
+
+  const entradas = list.filter(c => c.tipo === 'entrada');
+  const saidas = list.filter(c => c.tipo === 'saida');
+  const totalEntradas = entradas.reduce((s, c) => s + (c.valor||0), 0);
+  const totalSaidas = saidas.reduce((s, c) => s + (c.valor||0), 0);
+  const saldo = totalEntradas - totalSaidas;
+
+  const CATS_ENTRADA = ['comissao','venda_propria','rental','outros'];
+  const CATS_SAIDA = ['salario','marketing','aluguel','impostos','sistemas','outros'];
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>💰 Fluxo de Caixa</h1>
+          <p className="text-sm text-slate-400">Entradas e saídas mensais</p>
+        </div>
+        <div className="flex gap-2">
+          <input type="month" className="input" value={refMes} onChange={e => setRefMes(e.target.value)} />
+          {canEdit && <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Lançamento'}</button>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div className="card p-4"><div className="text-xs text-slate-400">Entradas</div><div className="text-2xl font-bold text-green-400">{fmtMoney(totalEntradas)}</div><div className="text-xs text-slate-500">{entradas.length} lançamentos</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Saídas</div><div className="text-2xl font-bold text-red-400">{fmtMoney(totalSaidas)}</div><div className="text-xs text-slate-500">{saidas.length} lançamentos</div></div>
+        <div className="card p-4" style={{borderColor: saldo >= 0 ? '#16a34a' : '#dc2626'}}><div className="text-xs text-slate-400">Saldo</div><div className="text-2xl font-bold" style={{color: saldo >= 0 ? '#22c55e' : '#ef4444'}}>{fmtMoney(saldo)}</div></div>
+      </div>
+
+      {showForm && canEdit && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+            <select className="input" value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value, categoria: e.target.value === 'entrada' ? 'comissao' : 'salario'})}>
+              <option value="entrada">↑ Entrada</option>
+              <option value="saida">↓ Saída</option>
+            </select>
+            <select className="input" value={form.categoria} onChange={e => setForm({...form, categoria: e.target.value})}>
+              {(form.tipo === 'entrada' ? CATS_ENTRADA : CATS_SAIDA).map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <input type="date" className="input" value={form.data} onChange={e => setForm({...form, data: e.target.value})} />
+            <input className="input" placeholder="Descrição" value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} />
+            <input type="number" step="0.01" className="input" placeholder="Valor (R$)" value={form.valor} onChange={e => setForm({...form, valor: e.target.value})} />
+          </div>
+          <button className="btn" onClick={add} disabled={!form.descricao || !form.valor}>💾 Salvar lançamento</button>
+        </div>
+      )}
+
+      {loading ? <div className="text-slate-500">Carregando…</div> : (
+        <div className="card overflow-hidden">
+          <table className="w-full">
+            <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
+              <th className="text-left p-3">Data</th>
+              <th className="text-left p-3">Tipo</th>
+              <th className="text-left p-3">Categoria</th>
+              <th className="text-left p-3">Descrição</th>
+              <th className="text-right p-3">Valor</th>
+              {canEdit && <th></th>}
+            </tr></thead>
+            <tbody>
+              {list.sort((a,b) => (b.data||'').localeCompare(a.data||'')).map(c => (
+                <tr key={c.id} className="border-t border-slate-700">
+                  <td className="p-3 text-xs">{c.data}</td>
+                  <td className="p-3"><span className="badge" style={{background: c.tipo==='entrada' ? '#16a34a30' : '#dc262630', color: c.tipo==='entrada' ? '#86efac' : '#fca5a5'}}>{c.tipo === 'entrada' ? '↑ Entrada' : '↓ Saída'}</span></td>
+                  <td className="p-3 text-xs">{c.categoria}</td>
+                  <td className="p-3">{c.descricao}</td>
+                  <td className="text-right p-3 font-bold" style={{color: c.tipo === 'entrada' ? '#22c55e' : '#ef4444'}}>{c.tipo === 'entrada' ? '+' : '−'}{fmtMoney(c.valor)}</td>
+                  {canEdit && <td className="p-3"><button className="text-red-400 text-xs" onClick={() => remove(c.id)}>×</button></td>}
+                </tr>
+              ))}
+              {list.length === 0 && <tr><td colSpan="6" className="text-center text-slate-500 p-8">Nenhum lançamento neste mês.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // App
 // ──────────────────────────────────────────────────────────────────────────
@@ -610,6 +1251,12 @@ function App() {
         {page === 'dashboard' && <DashboardPage user={user} />}
         {page === 'equipe' && <EquipePage user={user} />}
         {page === 'metas' && <MetasPage user={user} />}
+        {page === 'captacao' && <CaptacaoPage user={user} />}
+        {page === 'plantoes' && <PlantoesPage user={user} />}
+        {page === 'tarefas' && <TarefasPage user={user} />}
+        {page === 'crm' && <CRMPage user={user} />}
+        {page === 'comissoes' && <ComissoesPage user={user} />}
+        {page === 'fluxocaixa' && <FluxoCaixaPage user={user} />}
         {page === 'recados' && <RecadosPage user={user} />}
       </main>
     </div>
