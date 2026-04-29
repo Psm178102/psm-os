@@ -229,6 +229,10 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
     { id: 'ranking', label: 'Ranking', emoji: '🏅' },
     { id: 'checkin', label: 'Check-in', emoji: '⏱️' },
     { id: 'arena', label: 'Arena TV', emoji: '📺' },
+    { id: 'psm_live', label: 'PSM Live', emoji: '📰' },
+    { id: 'crono_conquista', label: 'Cronograma Conquista', emoji: '🎬' },
+    { id: 'crono_psm', label: 'Cronograma PSM', emoji: '🎬' },
+    { id: 'integracao_rd', label: 'Integração RD CRM', emoji: '🔌', minLvl: 7 },
     { id: 'recados', label: 'Recados', emoji: '📢' },
   ];
   const visible = items.filter(it => !it.minLvl || lvl >= it.minLvl);
@@ -4546,6 +4550,220 @@ function MetricasViabPage({ user }) {
   );
 }
 
+
+// ──────────────────────────────────────────────────────────────────────────
+// PSMLivePage (feed cronologico de eventos do mes)
+// ──────────────────────────────────────────────────────────────────────────
+function PSMLivePage({ user }) {
+  const { value: vendas } = useShared('VENDAS_MANUAIS');
+  const { value: oportunidades } = useShared('OPORTUNIDADES_PSM');
+  const { value: recados } = useShared('RECADOS_DIRETORIA');
+  const { value: capt } = useShared('CAPTACOES');
+  const [filter, setFilter] = useState('todos');
+
+  const events = useMemo(() => {
+    const out = [];
+    (Array.isArray(vendas) ? vendas : []).forEach(v => {
+      if (v.status !== 'fechada') return;
+      const corr = USERS.find(u => u.id === v.corretorId);
+      out.push({ ts: v.lancadoEm || (v.dataVenda ? new Date(v.dataVenda).getTime() : Date.now()), type:'venda', icon:'🏆', color:'#16a34a', title:'Venda fechada — '+(corr?.name||v.corretorId), sub:v.cliente+' · '+v.empreendimento+(v.unidade?' · '+v.unidade:''), val:fmtMoney(v.vgv) });
+    });
+    (Array.isArray(oportunidades) ? oportunidades : []).forEach(o => {
+      out.push({ ts:o.ts, type:'oportunidade', icon:o.urgente?'🔥':'💡', color:o.urgente?'#dc2626':'#3b82f6', title:'Oportunidade '+(o.status==='pega'?'pega':'aberta')+' — '+o.titulo, sub:o.empreendimento+' · '+(o.postedByName||o.postedBy), val:o.valor>0?fmtMoney(o.valor):'' });
+    });
+    (Array.isArray(recados) ? recados : []).forEach(r => {
+      out.push({ ts:r.ts, type:'recado', icon:'📢', color:'#a855f7', title:'Recado de '+(r.authorName||r.author), sub:r.text.substring(0,80)+(r.text.length>80?'…':''), val:'' });
+    });
+    (Array.isArray(capt) ? capt : []).forEach(c => {
+      const corr = USERS.find(u => u.id === c.capturadoPor);
+      out.push({ ts:c.ts, type:'captacao', icon:'📍', color:'#f97316', title:'Captação — '+c.titulo, sub:(corr?.name||'')+' · '+c.endereco, val:c.valor>0?fmtMoney(c.valor):'' });
+    });
+    return out.sort((a,b) => b.ts - a.ts);
+  }, [vendas, oportunidades, recados, capt]);
+
+  const filtered = filter === 'todos' ? events : events.filter(e => e.type === filter);
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>📰 PSM Live</h1>
+      <p className="text-sm text-slate-400 mb-4">Feed agregado de eventos da empresa</p>
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <button className={'btn btn-sm ' + (filter==='todos'?'':'btn-out')} onClick={() => setFilter('todos')}>Todos ({events.length})</button>
+        <button className={'btn btn-sm ' + (filter==='venda'?'':'btn-out')} onClick={() => setFilter('venda')}>🏆 Vendas ({events.filter(e=>e.type==='venda').length})</button>
+        <button className={'btn btn-sm ' + (filter==='oportunidade'?'':'btn-out')} onClick={() => setFilter('oportunidade')}>💡 Oport. ({events.filter(e=>e.type==='oportunidade').length})</button>
+        <button className={'btn btn-sm ' + (filter==='captacao'?'':'btn-out')} onClick={() => setFilter('captacao')}>📍 Capt. ({events.filter(e=>e.type==='captacao').length})</button>
+        <button className={'btn btn-sm ' + (filter==='recado'?'':'btn-out')} onClick={() => setFilter('recado')}>📢 Rec. ({events.filter(e=>e.type==='recado').length})</button>
+      </div>
+      <div className="space-y-2">
+        {filtered.map((e, i) => (
+          <div key={i} className="card p-3 flex items-start gap-3" style={{borderLeftWidth:4, borderLeftColor:e.color}}>
+            <div className="text-2xl">{e.icon}</div>
+            <div className="flex-1">
+              <div className="font-bold text-sm">{e.title}</div>
+              <div className="text-xs text-slate-400 mt-1">{e.sub}</div>
+              <div className="text-xs text-slate-500 mt-1">{fmtDate(e.ts)}</div>
+            </div>
+            {e.val && <div className="text-lg font-bold" style={{color:'#d4a843'}}>{e.val}</div>}
+          </div>
+        ))}
+        {filtered.length === 0 && <div className="text-center text-slate-500 py-12">Nenhum evento.</div>}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// CronogramaPage (Conquista + PSM)
+// ──────────────────────────────────────────────────────────────────────────
+function CronogramaPage({ user, marca }) {
+  const isStaff = user.role === 'socio' || user.role === 'lider' || user.role === 'marketing';
+  const sharedKey = 'CRONOGRAMA_' + (marca || 'CONQUISTA').toUpperCase();
+  const { value: itens, save } = useShared(sharedKey);
+  const list = Array.isArray(itens) ? itens : [];
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ titulo:'', tipo:'post', dataPub:todayKey(), canal:'instagram', responsavel:user.id, status:'planejado', briefing:'' });
+
+  async function add() {
+    if (!form.titulo) return;
+    await save([{ id:'cr'+Date.now(), ...form, ts:Date.now(), createdBy:user.id }, ...list].slice(0,500));
+    setForm({ titulo:'', tipo:'post', dataPub:todayKey(), canal:'instagram', responsavel:user.id, status:'planejado', briefing:'' });
+    setShowForm(false);
+  }
+  async function setStatus(id, status) { await save(list.map(i => i.id===id ? {...i, status, statusAt:Date.now()} : i)); }
+  async function remove(id) { if (!confirm('Apagar?')) return; await save(list.filter(i => i.id !== id)); }
+
+  const TIPOS = { post:'📱 Post', reels:'🎬 Reels', stories:'⚡ Stories', carrossel:'🔄 Carrossel', email:'✉️ Email', anuncio:'📣 Anúncio' };
+  const CANAIS = { instagram:'Instagram', facebook:'Facebook', whatsapp:'WhatsApp', email:'E-mail', meta:'Meta Ads', site:'Site' };
+  const STATUS = { planejado:'#94a3b8', em_producao:'#d4a843', revisao:'#a855f7', publicado:'#22c55e', cancelado:'#dc2626' };
+  const ST_LBL = { planejado:'📋 Planejado', em_producao:'🎨 Em produção', revisao:'👀 Revisão', publicado:'✓ Publicado', cancelado:'× Cancelado' };
+
+  const byWeek = {};
+  list.forEach(i => {
+    const d = new Date(i.dataPub);
+    const ws = new Date(d); ws.setDate(d.getDate() - d.getDay());
+    const wk = ws.toISOString().slice(0,10);
+    if (!byWeek[wk]) byWeek[wk] = [];
+    byWeek[wk].push(i);
+  });
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>🎬 Cronograma {marca === 'PSM' ? 'PSM' : 'Conquista'}</h1>
+          <p className="text-sm text-slate-400">Calendário editorial de marketing</p>
+        </div>
+        {isStaff && <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Novo'}</button>}
+      </div>
+
+      {showForm && isStaff && (
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <input className="input" placeholder="Título" value={form.titulo} onChange={e => setForm({...form, titulo:e.target.value})} />
+            <input type="date" className="input" value={form.dataPub} onChange={e => setForm({...form, dataPub:e.target.value})} />
+            <select className="input" value={form.tipo} onChange={e => setForm({...form, tipo:e.target.value})}>{Object.entries(TIPOS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select>
+            <select className="input" value={form.canal} onChange={e => setForm({...form, canal:e.target.value})}>{Object.entries(CANAIS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select>
+            <select className="input" value={form.responsavel} onChange={e => setForm({...form, responsavel:e.target.value})}>{USERS.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
+            <select className="input" value={form.status} onChange={e => setForm({...form, status:e.target.value})}>{Object.entries(ST_LBL).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select>
+          </div>
+          <textarea className="input mb-3" rows="3" placeholder="Briefing" value={form.briefing} onChange={e => setForm({...form, briefing:e.target.value})} />
+          <button className="btn" onClick={add} disabled={!form.titulo}>💾 Adicionar</button>
+        </div>
+      )}
+
+      {Object.keys(byWeek).sort().reverse().map(wk => (
+        <div key={wk} className="mb-6">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2">📅 Semana {new Date(wk).toLocaleDateString('pt-BR')}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {byWeek[wk].sort((a,b) => (a.dataPub||'').localeCompare(b.dataPub||'')).map(i => {
+              const resp = USERS.find(u => u.id === i.responsavel);
+              return (
+                <div key={i.id} className="card p-4" style={{borderLeftWidth:4, borderLeftColor:STATUS[i.status]}}>
+                  <div className="flex items-start justify-between mb-2">
+                    <span className="badge" style={{background:STATUS[i.status]+'30', color:STATUS[i.status]}}>{ST_LBL[i.status]}</span>
+                    <div className="text-xs text-slate-500">{i.dataPub}</div>
+                  </div>
+                  <div className="font-bold mb-1">{i.titulo}</div>
+                  <div className="text-xs text-slate-400 mb-2">{TIPOS[i.tipo]} · {CANAIS[i.canal]}</div>
+                  {i.briefing && <div className="text-sm text-slate-300 mb-2">{i.briefing}</div>}
+                  <div className="text-xs text-slate-500">👤 {resp?.name||i.responsavel}</div>
+                  {isStaff && (
+                    <div className="flex gap-1 mt-3 flex-wrap">
+                      {Object.keys(ST_LBL).filter(k => k !== i.status).slice(0,3).map(k => (
+                        <button key={k} className="btn btn-sm btn-out" style={{padding:'2px 6px',fontSize:'9px'}} onClick={() => setStatus(i.id, k)}>→ {ST_LBL[k]}</button>
+                      ))}
+                      <button className="text-red-400 text-xs ml-1" onClick={() => remove(i.id)}>×</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {list.length === 0 && <div className="text-center text-slate-500 py-12">Cronograma vazio.</div>}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// IntegracaoRDPage
+// ──────────────────────────────────────────────────────────────────────────
+function IntegracaoRDPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  if (lvl < 7) return <div className="p-6 text-slate-500">Acesso restrito a sócios e gerentes.</div>;
+  const [status, setStatus] = useState({ check:'idle', token:null, expira:null, err:null });
+
+  async function check() {
+    setStatus({ check:'loading', token:null, expira:null, err:null });
+    try {
+      const r = await fetch('/api/rd-auth?action=status');
+      const j = await r.json();
+      setStatus({ check:'done', token:j.connected||j.has_token, expira:j.expires_at||j.expira, err:null });
+    } catch(e) { setStatus({ check:'done', token:false, err:e.message }); }
+  }
+  useEffect(() => { check(); }, []);
+
+  async function refreshToken() {
+    setStatus(s => ({...s, check:'loading'}));
+    try {
+      const r = await fetch('/api/rd-refresh', { method:'POST' });
+      const j = await r.json();
+      if (j.error) setStatus({ check:'done', token:false, err:j.error });
+      else { setStatus({ check:'done', token:true, expira:j.expires_at, err:null }); alert('Token renovado.'); }
+    } catch(e) { setStatus({ check:'done', token:false, err:e.message }); }
+  }
+  function reconectar() { window.location.href = '/api/rd-auth?action=login&redirect=' + encodeURIComponent(location.href); }
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🔌 Integração RD CRM</h1>
+      <p className="text-sm text-slate-400 mb-6">Status e configuração do sync</p>
+      <div className="card p-6 mb-4">
+        <div className="flex items-center gap-3 mb-3">
+          <div className={'w-3 h-3 rounded-full ' + (status.token ? 'bg-green-500' : status.check==='loading' ? 'bg-yellow-500' : 'bg-red-500')}></div>
+          <h2 className="font-bold">{status.check==='loading'?'Verificando…':status.token?'✓ Conectado':'✗ Desconectado'}</h2>
+        </div>
+        {status.expira && <div className="text-sm text-slate-400 mb-2">Token expira: {fmtDate(status.expira)}</div>}
+        {status.err && <div className="text-red-400 text-sm mb-3">⚠ {status.err}</div>}
+        <div className="flex gap-2 mt-4 flex-wrap">
+          <button className="btn btn-sm btn-out" onClick={check}>↻ Verificar</button>
+          {status.token && <button className="btn btn-sm" onClick={refreshToken}>🔄 Renovar</button>}
+          <button className="btn btn-sm btn-success" onClick={reconectar}>{status.token?'Reconectar':'Conectar RD CRM'}</button>
+        </div>
+      </div>
+      <div className="card p-4">
+        <h2 className="font-bold mb-3">📋 Como funciona</h2>
+        <ul className="text-sm text-slate-300 space-y-2 list-disc list-inside">
+          <li>Sync de deals abertos + fechados + perdidos + tasks</li>
+          <li>Mapeamento user_id RD → broker_id PSM via `rdId` em USERS</li>
+          <li><strong>Locação separada:</strong> deals do pipeline "Locação" não entram no funil de vendas (fix v47)</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // App
 // ──────────────────────────────────────────────────────────────────────────
@@ -4605,6 +4823,10 @@ function App() {
         {page === 'ranking' && <RankingPage user={user} />}
         {page === 'checkin' && <CheckinPage user={user} />}
         {page === 'arena' && <ArenaTVPage user={user} />}
+        {page === 'psm_live' && <PSMLivePage user={user} />}
+        {page === 'crono_conquista' && <CronogramaPage user={user} marca="CONQUISTA" />}
+        {page === 'crono_psm' && <CronogramaPage user={user} marca="PSM" />}
+        {page === 'integracao_rd' && <IntegracaoRDPage user={user} />}
         {page === 'recados' && <RecadosPage user={user} />}
       </main>
     </div>
