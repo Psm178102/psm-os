@@ -11,8 +11,79 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<!-- v57: charts + export -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="manifest" href="/v2/manifest.json">
+<meta name="theme-color" content="#0f172a">
 <style>
-  body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+  :root {
+    --bg: #0f172a;
+    --bg-card: #1e293b;
+    --bg-input: #0f172a;
+    --bd: #334155;
+    --tx: #e2e8f0;
+    --tx-muted: #94a3b8;
+    --tx-dim: #64748b;
+    --accent: #d4a843;
+  }
+  body.theme-light {
+    --bg: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-input: #f1f5f9;
+    --bd: #cbd5e1;
+    --tx: #0f172a;
+    --tx-muted: #475569;
+    --tx-dim: #64748b;
+  }
+  body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,sans-serif;transition:background 0.2s, color 0.2s}
+  /* S5 Mobile: drawer + tables responsivas */
+  @media (max-width: 768px) {
+    .sidebar-mobile { position:fixed; top:0; left:0; bottom:0; width:240px; z-index:100; transform:translateX(-100%); transition:transform 0.3s; box-shadow:4px 0 20px rgba(0,0,0,0.5) }
+    .sidebar-mobile.open { transform:translateX(0) }
+    .sidebar-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:99; display:none }
+    .sidebar-overlay.open { display:block }
+    .mobile-only { display:flex !important }
+    .desktop-only { display:none !important }
+    table { font-size:11px }
+    table th, table td { padding:6px 4px !important }
+    .grid-2-mobile { grid-template-columns:1fr !important }
+    h1 { font-size:1.5rem !important }
+    h2 { font-size:1.2rem !important }
+    .p-6 { padding:1rem !important }
+    .card { padding:0.75rem !important }
+  }
+  @media (min-width: 769px) {
+    .mobile-only { display:none !important }
+  }
+  .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch }
+  .table-scroll table { min-width:100% }
+  /* v61: animations */
+  @keyframes fadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+  @keyframes slideUp { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+  @keyframes pulse { 0%, 100% { opacity:1; } 50% { opacity:0.6; } }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .anim-fade { animation: fadeIn 0.3s ease-out }
+  .anim-slide { animation: slideUp 0.35s ease-out }
+  .anim-pulse { animation: pulse 1.5s ease-in-out infinite }
+  .anim-spin { animation: spin 1s linear infinite }
+  .card { transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s }
+  .card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.25) }
+  .btn { transition: all 0.15s }
+  .btn:active { transform: scale(0.96) }
+  .badge { transition: all 0.2s }
+  /* notif toast */
+  .notif-toast { animation: slideUp 0.3s ease-out; }
+  /* v62 drag-drop */
+  .drag-card { cursor: grab; transition: transform 0.15s, opacity 0.15s }
+  .drag-card.dragging { opacity: 0.4; cursor: grabbing }
+  .drop-zone { transition: background 0.2s, border 0.2s }
+  .drop-zone.over { background: rgba(212,168,67,0.12); border-color: #d4a843 !important; }
+  .month-cell { min-height: 90px; transition: background 0.15s }
+  .month-cell:hover { background: rgba(255,255,255,0.04) }
+  .delta-up { color: #22c55e }
+  .delta-down { color: #ef4444 }
   .card{background:#1e293b;border:1px solid #334155;border-radius:10px}
   .btn{background:#d4a843;color:#0f172a;border:none;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer;font-size:13px}
   .btn:hover{opacity:0.9}
@@ -39,6 +110,27 @@
 
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useCallback } = React;
+
+// v59: register service worker (offline support)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/v2/sw.js', { scope: '/v2/' }).catch(() => {});
+  });
+}
+
+// v59: helpers WhatsApp + Email
+function whatsappLink(phone, msg) {
+  const num = String(phone || '').replace(/\D/g, '');
+  if (!num) return '';
+  const t = encodeURIComponent(msg || '');
+  return 'https://wa.me/' + (num.startsWith('55') ? num : '55' + num) + (t ? ('?text=' + t) : '');
+}
+function mailtoLink(to, subject, body) {
+  const params = [];
+  if (subject) params.push('subject=' + encodeURIComponent(subject));
+  if (body) params.push('body=' + encodeURIComponent(body));
+  return 'mailto:' + (to || '') + (params.length ? '?' + params.join('&') : '');
+}
 
 const SBURL = window.SUPABASE_URL;
 const SBKEY = window.SUPABASE_ANON_KEY;
@@ -123,9 +215,19 @@ function useShared(key) {
   return { value, loading, save, reload };
 }
 
-function useUserKv(uid, key) {
+function useUserKv(uidArg, key) {
+  // FIX Sprint S1: aceita auth.uid() real do Supabase. Se uidArg for null/undefined,
+  // tenta usar a sessao auth atual (mais seguro). RLS agora exige user_id = auth.uid().
   const [value, setValue] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authUid, setAuthUid] = useState(null);
+
+  useEffect(() => {
+    if (!sb) return;
+    sb.auth.getSession().then(({ data }) => setAuthUid(data?.session?.user?.id || null));
+  }, []);
+  const uid = uidArg || authUid;
+
   const reload = useCallback(() => {
     if (!sb || !uid || !key) return;
     setLoading(true);
@@ -145,33 +247,973 @@ function useUserKv(uid, key) {
   return { value, loading, save, reload };
 }
 
+
 // ──────────────────────────────────────────────────────────────────────────
-// Login
+// S2: RD CRM SYNC ENGINE — porta processDeals do monolito v34
+// ──────────────────────────────────────────────────────────────────────────
+const RD_STAGE_MAP = {
+  // Mesmo mapping do monolito (linha 9489+ do index.html v47).
+  // Estagio RD ID → { frente, psm: nome curto, w: peso ponderado }
+  // Estes IDs sao do RD CRM real da PSM. Sao estaticos.
+  '66746deb31be9e0014e3e9fb': {frente:'locacao', psm:'carteira', w:.03},
+  '65f8b7004dc21b0012537044': {frente:'locacao', psm:'precisa_im', w:.06},
+  '65f8b6a8ee035f000d555d3d': {frente:'locacao', psm:'novo_atend', w:.08},
+  '65f8b6a8ee035f000d555d3f': {frente:'locacao', psm:'tent_contato', w:.10},
+  '65f8b6a8ee035f000d555d40': {frente:'locacao', psm:'contato_qual', w:.18},
+  '65f8b70a4aa50b0012cddd60': {frente:'locacao', psm:'agendamento', w:.25},
+  '65f8b71eb700cb000d954917': {frente:'locacao', psm:'vis_real', w:.42},
+  '68c160f07f778b001495ca4f': {frente:'locacao', psm:'analise_doc', w:.58},
+  '65f8b73e7e5ecf000d3a3f9b': {frente:'locacao', psm:'garantia', w:.70},
+  '65f8b7343eac96000d1d14b2': {frente:'locacao', psm:'proposta', w:.82},
+};
+
+function classifyDeal(d) {
+  const stageId = d.deal_stage?._id || d.deal_stage?.id || '';
+  const stInfo = RD_STAGE_MAP[stageId] || null;
+  let frente = stInfo ? stInfo.frente : 'lancamento';
+  const plName = (d.deal_pipeline?.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (plName.includes('terceiro')) frente = 'terceiros';
+  else if (plName.includes('locac') || plName.includes('aluguel')) frente = 'locacao';
+  else if (plName.includes('conquista')) frente = 'conquista';
+  else if (plName.includes('map') || plName.includes('lancamento')) frente = 'lancamento';
+  return { stageId, stInfo, frente };
+}
+
+async function rdFetchAll() {
+  // Chama /api/rd com action=sync para buscar deals + tasks
+  const r = await fetch('/api/rd?action=sync&include_won=1&include_lost=1', { cache: 'no-store' });
+  if (!r.ok) throw new Error('RD API ' + r.status);
+  return await r.json();
+}
+
+async function rdSyncToSupabase() {
+  if (!sb) throw new Error('Supabase indisponivel');
+  const t0 = Date.now();
+  const data = await rdFetchAll();
+  const open = data.open_deals || data.openDeals || data.deals || [];
+  const won = data.won_deals || data.wonDeals || [];
+  const lost = data.lost_deals || data.lostDeals || [];
+
+  function processDeals(arr, winStatus) {
+    return arr.map(d => {
+      const { stageId, stInfo, frente } = classifyDeal(d);
+      const cl = (d.contacts?.[0]?.name || d.name || 'Sem nome').slice(0, 64).trim();
+      const dnu = d.updated_at ? Math.floor((Date.now() - new Date(d.updated_at)) / 864e5) : 0;
+      return {
+        id: d._id || d.id,
+        cl,
+        bid: d.user?._id || d.user?.id || '',
+        bn: d.user?.name || d.user?.nome || '',
+        fr: frente,
+        vgv: d.amount_total || 0,
+        st: stageId,
+        st_psm: stInfo ? stInfo.psm : '',
+        st_rd: d.deal_stage?.name || '',
+        win: !!d.win,
+        winStatus,
+        dnu,
+        sla: dnu >= 5 ? 'overdue' : dnu >= 3 ? 'warning' : 'ok',
+        rdId: d._id || d.id,
+        closedAt: d.closed_at || d.win_date || null,
+        updated_at: d.updated_at || '',
+        createdAt: d.created_at || '',
+      };
+    });
+  }
+
+  const opps = processDeals(open, 'open');
+  const wons = processDeals(won, 'won');
+  const losts = processDeals(lost, 'lost');
+
+  // Salva em shared_kv (apenas socio/equipe ve, nao e dado pessoal)
+  await sb.from('shared_kv').upsert([
+    { key: 'RD_OPPS', value: opps },
+    { key: 'RD_VENDAS', value: wons },
+    { key: 'RD_LOST', value: losts },
+    { key: 'RD_LAST_SYNC', value: { ts: Date.now(), counts: { open: opps.length, won: wons.length, lost: losts.length }, durMs: Date.now() - t0 } }
+  ], { onConflict: 'key' });
+
+  return { open: opps.length, won: wons.length, lost: losts.length, durMs: Date.now() - t0 };
+}
+
+
+
+// ──────────────────────────────────────────────────────────────────────────
+// v57: Chart wrapper React-friendly
+// ──────────────────────────────────────────────────────────────────────────
+function ChartCanvas({ type, data, options, height }) {
+  const ref = React.useRef(null);
+  const chartRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!ref.current || !window.Chart) return;
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new window.Chart(ref.current, {
+      type,
+      data,
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color:'#e2e8f0' } } }, scales: { x: { ticks: { color:'#94a3b8' }, grid:{ color:'#334155' } }, y: { ticks: { color:'#94a3b8' }, grid:{ color:'#334155' } } }, ...options }
+    });
+    return () => { if (chartRef.current) chartRef.current.destroy(); };
+  }, [type, JSON.stringify(data), JSON.stringify(options)]);
+  return <div style={{height: height || 280}}><canvas ref={ref}></canvas></div>;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// v57: Realtime subscription helper
+// ──────────────────────────────────────────────────────────────────────────
+function useRealtimeShared(key) {
+  const { value, save, loading, reload } = useShared(key);
+  React.useEffect(() => {
+    if (!sb || !key) return;
+    const ch = sb.channel('rt-' + key)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shared_kv', filter: 'key=eq.' + key }, payload => {
+        reload();
+      })
+      .subscribe();
+    return () => { try { sb.removeChannel(ch); } catch(_){} };
+  }, [key]);
+  return { value, save, loading, reload };
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// v57: Export helpers (PDF + XLSX)
+// ──────────────────────────────────────────────────────────────────────────
+function exportToPDF(title, headers, rows, filename) {
+  if (!window.jspdf) { alert('jsPDF não carregado'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: rows[0]?.length > 5 ? 'landscape' : 'portrait' });
+  doc.setFontSize(16);
+  doc.text(title, 14, 18);
+  doc.setFontSize(9);
+  doc.text('Gerado em ' + new Date().toLocaleString('pt-BR'), 14, 25);
+  const startY = 32;
+  const colW = (doc.internal.pageSize.getWidth() - 28) / headers.length;
+  doc.setFillColor(212, 168, 67);
+  doc.setTextColor(15, 23, 42);
+  doc.rect(14, startY, doc.internal.pageSize.getWidth() - 28, 8, 'F');
+  headers.forEach((h, i) => doc.text(String(h), 16 + colW*i, startY + 5.5));
+  doc.setTextColor(0, 0, 0);
+  let y = startY + 12;
+  rows.forEach(row => {
+    if (y > doc.internal.pageSize.getHeight() - 15) { doc.addPage(); y = 20; }
+    row.forEach((cell, i) => {
+      const txt = String(cell || '').substring(0, 30);
+      doc.text(txt, 16 + colW*i, y);
+    });
+    y += 6;
+  });
+  doc.save(filename || (title.replace(/\s/g,'_') + '.pdf'));
+}
+
+function exportToXLSX(title, headers, rows, filename) {
+  if (!window.XLSX) { alert('XLSX não carregado'); return; }
+  const ws = window.XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const wb = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(wb, ws, title.substring(0, 30));
+  window.XLSX.writeFile(wb, filename || (title.replace(/\s/g,'_') + '.xlsx'));
+}
+
+
+
+
+
+
+
+
+
+
+
+// ──────────────────────────────────────────────────────────────────────────
+// v64: Backup/Restore completo (export/import JSON de tudo)
+// ──────────────────────────────────────────────────────────────────────────
+async function exportFullBackup() {
+  if (!sb) return;
+  const t0 = Date.now();
+  try {
+    const [shared, userKv, profiles] = await Promise.all([
+      sb.from('shared_kv').select('*'),
+      sb.from('user_kv').select('*'),
+      sb.from('profiles').select('*')
+    ]);
+    const backup = {
+      version: 'v64',
+      exportedAt: new Date().toISOString(),
+      durationMs: Date.now() - t0,
+      counts: { shared: shared.data?.length||0, user_kv: userKv.data?.length||0, profiles: profiles.data?.length||0 },
+      shared_kv: shared.data || [],
+      user_kv: userKv.data || [],
+      profiles: profiles.data || []
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'psm-v2-backup-' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    return backup;
+  } catch(e) { alert('Erro: ' + e.message); }
+}
+
+async function aiSummarize(question, context) {
+  // Usa /api/agent (Sol/Vera) pra resumir
+  try {
+    const r = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent: 'intelligence', message: question + '\n\nContexto:\n' + JSON.stringify(context).substring(0, 4000), conversationId: 'summary-' + Date.now(), channel: 'web-v2', metadata: {} })
+    });
+    const j = await r.json();
+    return j.reply || j.response || j.message || 'Sem resposta';
+  } catch(e) { return '⚠ ' + e.message; }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// v64: BackupRestorePage
+// ──────────────────────────────────────────────────────────────────────────
+function BackupRestorePage({ user }) {
+  if (user.role !== 'socio' && user.role !== 'admin') return <div className="p-6 text-slate-500">Apenas sócios.</div>;
+  const [exporting, setExporting] = useState(false);
+  const [info, setInfo] = useState(null);
+
+  async function fazerBackup() {
+    setExporting(true);
+    const r = await exportFullBackup();
+    if (r) setInfo(r);
+    setExporting(false);
+  }
+
+  async function importarBackup(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!confirm('Importar backup? Vai SOBRESCREVER chaves existentes (merge inteligente). Recomendado fazer backup atual antes.')) return;
+    try {
+      const txt = await file.text();
+      const bk = JSON.parse(txt);
+      if (!bk.shared_kv) { alert('Arquivo inválido'); return; }
+      // Restore shared_kv
+      for (const row of bk.shared_kv) {
+        await sb.from('shared_kv').upsert({ key: row.key, value: row.value }, { onConflict: 'key' });
+      }
+      alert('Restore concluído: ' + bk.shared_kv.length + ' chaves shared. Recarregue a página.');
+    } catch(e) { alert('Erro: ' + e.message); }
+  }
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>💾 Backup & Restore</h1>
+      <p className="text-sm text-slate-400 mb-6">Exportar/importar dados completos do sistema</p>
+
+      <div className="card p-6 mb-4">
+        <h2 className="font-bold mb-3">📤 Exportar backup completo</h2>
+        <p className="text-sm text-slate-400 mb-4">Baixa um arquivo JSON com TUDO: shared_kv (vendas, metas, captações...), user_kv (OO, tarefas, fichas...) e profiles. Use pra arquivar trimestralmente.</p>
+        <button className="btn" onClick={fazerBackup} disabled={exporting}>{exporting ? '⏳ Exportando...' : '📥 Exportar agora'}</button>
+        {info && (
+          <div className="mt-4 p-3 rounded text-sm" style={{background:'var(--bg-input)'}}>
+            ✓ Backup gerado em {info.durationMs}ms
+            <ul className="text-xs text-slate-400 mt-2 list-disc list-inside">
+              <li>shared_kv: {info.counts.shared} chaves</li>
+              <li>user_kv: {info.counts.user_kv} chaves</li>
+              <li>profiles: {info.counts.profiles} usuários</li>
+            </ul>
+          </div>
+        )}
+      </div>
+
+      <div className="card p-6 mb-4">
+        <h2 className="font-bold mb-3">📤 Importar backup</h2>
+        <p className="text-sm text-slate-400 mb-4">⚠ Sobrescreve chaves shared_kv com mesmo nome. Faça backup atual primeiro.</p>
+        <input type="file" accept=".json" onChange={importarBackup} className="text-sm" />
+      </div>
+
+      <div className="card p-4 text-xs text-slate-500">
+        💡 <strong>Dica:</strong> agende backup mensal automático via cron + script chamando /api/agent ou GitHub Actions.
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// v64: AISummaryPage (resumo IA do estado da empresa)
+// ──────────────────────────────────────────────────────────────────────────
+function AISummaryPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  if (lvl < 5) return <div className="p-6 text-slate-500">Acesso restrito a líder+ e sócios.</div>;
+
+  const { value: vendas } = useShared('VENDAS_MANUAIS');
+  const { value: rdVendas } = useShared('RD_VENDAS');
+  const { value: rdOpps } = useShared('RD_OPPS');
+  const { value: metas } = useShared('METAS_INDIVIDUAIS');
+  const [summary, setSummary] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [topic, setTopic] = useState('geral');
+
+  async function gerar() {
+    setLoading(true); setErr(''); setSummary('');
+    const refMes = monthKey();
+    const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
+    const list = [...(Array.isArray(vendas)?vendas:[]), ...(Array.isArray(rdVendas)?rdVendas:[]).filter(v => v.fr !== 'locacao').map(v => ({...v, status:'fechada', dataVenda: v.closedAt?.slice(0,10), corretorId: v.bid}))];
+    const stats = corretores.map(c => {
+      const myV = list.filter(v => v.corretorId === c.id && v.status === 'fechada' && v.dataVenda?.startsWith(refMes));
+      const vgv = myV.reduce((s,v) => s+(v.vgv||0),0);
+      const meta = metas?.[c.id]?.vgv || 0;
+      return { nome: c.name, frente: c.frente, vendas: myV.length, vgv, meta, pct: meta>0?Math.round(vgv/meta*100):0 };
+    });
+    const totalVgv = stats.reduce((s,r) => s+r.vgv, 0);
+    const totalMeta = stats.reduce((s,r) => s+r.meta, 0);
+    const opps = (Array.isArray(rdOpps)?rdOpps:[]).filter(o => o.fr !== 'locacao');
+
+    const ctx = { mes: refMes, totalVgv, totalMeta, pctTotal: totalMeta>0?Math.round(totalVgv/totalMeta*100):0, stats, oppsCount: opps.length, oppsPipeline: opps.reduce((s,o)=>s+(o.vgv||0),0) };
+    let q = '';
+    if (topic === 'geral') q = 'Resuma em 5 frases o estado atual da empresa: performance vs meta, top performers, gargalos, recomendações de ação imediata. Seja direto, cortando jargão.';
+    else if (topic === 'vendas') q = 'Analise o pipeline e vendas. Identifique: 3 corretores que precisam de atenção (baixo % meta) e 3 que estão indo bem. Sugira 1 ação concreta por categoria.';
+    else if (topic === 'risco') q = 'Aponte 3 riscos do mês corrente baseado nos dados. Para cada um, sugira mitigação concreta.';
+    else if (topic === 'comemorar') q = 'O que vale comemorar este mês? Identifique 3 conquistas concretas dos números.';
+    const r = await aiSummarize(q, ctx);
+    setSummary(r);
+    setLoading(false);
+  }
+
+  return (
+    <div className="p-6 max-w-4xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>🧠 AI Insights</h1>
+      <p className="text-sm text-slate-400 mb-6">Resumo automático IA do estado atual</p>
+
+      <div className="card p-4 mb-4">
+        <div className="flex gap-2 flex-wrap mb-3">
+          <button className={'btn btn-sm ' + (topic==='geral'?'':'btn-out')} onClick={() => setTopic('geral')}>📊 Resumo geral</button>
+          <button className={'btn btn-sm ' + (topic==='vendas'?'':'btn-out')} onClick={() => setTopic('vendas')}>🏆 Top/Bottom corretores</button>
+          <button className={'btn btn-sm ' + (topic==='risco'?'':'btn-out')} onClick={() => setTopic('risco')}>⚠ Riscos</button>
+          <button className={'btn btn-sm ' + (topic==='comemorar'?'':'btn-out')} onClick={() => setTopic('comemorar')}>🎉 Para comemorar</button>
+        </div>
+        <button className="btn" onClick={gerar} disabled={loading}>{loading ? '🤔 Pensando...' : '🚀 Gerar resumo IA'}</button>
+        {err && <div className="text-red-400 text-sm mt-2">⚠ {err}</div>}
+      </div>
+
+      {summary && (
+        <div className="card p-6 anim-fade">
+          <div className="text-sm text-slate-400 mb-2 uppercase tracking-wider">Resumo IA — {topic}</div>
+          <div className="whitespace-pre-wrap text-slate-200" style={{lineHeight:1.7}}>{summary}</div>
+          <div className="text-xs text-slate-500 mt-4 pt-4 border-t border-slate-700">Gerado por IA. Pode conter imprecisões — valide antes de tomar decisões.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// v63: Comments helper (timeline de notas em qualquer entidade)
+// ──────────────────────────────────────────────────────────────────────────
+function useComments(scope) {
+  const key = 'COMMENTS_' + (scope || '').toUpperCase();
+  return useShared(key);
+}
+
+function CommentsThread({ scope, user, entityId, entityLabel }) {
+  const { value: all, save } = useComments(scope);
+  const map = (typeof all === 'object' && all && !Array.isArray(all)) ? all : {};
+  const list = Array.isArray(map[entityId]) ? map[entityId] : [];
+  const [text, setText] = useState('');
+  const [posting, setPosting] = useState(false);
+
+  async function postComment() {
+    if (!text.trim()) return;
+    setPosting(true);
+    const c = { id:'cm'+Date.now(), text:text.trim(), authorId:user.id, authorName:user.name, ts:Date.now() };
+    const next = { ...map, [entityId]: [...list, c] };
+    await save(next);
+    setText(''); setPosting(false);
+  }
+  async function removeComment(id) {
+    if (!confirm('Apagar comentário?')) return;
+    const next = { ...map, [entityId]: list.filter(c => c.id !== id) };
+    await save(next);
+  }
+
+  return (
+    <div style={{borderTop:'1px solid var(--bd)', marginTop:8, paddingTop:8}}>
+      <div className="text-xs font-bold mb-2 text-slate-400">💬 Notas ({list.length})</div>
+      {list.length > 0 && (
+        <div className="space-y-2 mb-2 max-h-60 overflow-y-auto">
+          {list.slice().reverse().map(c => (
+            <div key={c.id} className="p-2 rounded text-xs anim-fade" style={{background:'var(--bg-input)'}}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-bold text-yellow-400">{c.authorName}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500">{fmtDate(c.ts)}</span>
+                  {(c.authorId === user.id || user.role === 'socio') && (
+                    <button onClick={() => removeComment(c.id)} className="text-red-400 hover:text-red-300">×</button>
+                  )}
+                </div>
+              </div>
+              <div className="text-slate-200 whitespace-pre-wrap">{c.text}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <input className="input" placeholder={'Adicionar nota em ' + (entityLabel||entityId)+'...'} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); postComment(); } }} />
+        <button className="btn btn-sm" onClick={postComment} disabled={posting || !text.trim()}>+</button>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// v63: File upload via Supabase Storage
+// ──────────────────────────────────────────────────────────────────────────
+async function uploadFileToSupabase(file, path) {
+  if (!sb) throw new Error('Supabase indisponivel');
+  const ext = file.name.split('.').pop();
+  const filename = path + '/' + Date.now() + '_' + Math.random().toString(36).substring(2,8) + '.' + ext;
+  const { data, error } = await sb.storage.from('psm-files').upload(filename, file);
+  if (error) throw error;
+  const { data: pub } = sb.storage.from('psm-files').getPublicUrl(filename);
+  return { path: filename, url: pub.publicUrl, name: file.name, size: file.size, mime: file.type };
+}
+
+function FileUploader({ scope, entityId, files, onChange, user }) {
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState('');
+  const fileInputRef = React.useRef(null);
+
+  async function handleFiles(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    setUploading(true); setErr('');
+    try {
+      const novos = [];
+      for (const f of fileList) {
+        if (f.size > 20 * 1024 * 1024) { setErr('Arquivo > 20MB: ' + f.name); continue; }
+        const meta = await uploadFileToSupabase(f, scope + '/' + entityId);
+        novos.push({ ...meta, uploadedBy: user.id, uploadedByName: user.name, ts: Date.now() });
+      }
+      onChange([...(files||[]), ...novos]);
+    } catch(e) { setErr(e.message); }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+  async function removeFile(idx) {
+    if (!confirm('Remover arquivo?')) return;
+    const f = files[idx];
+    try { if (f.path && sb) await sb.storage.from('psm-files').remove([f.path]); } catch(_){}
+    onChange(files.filter((_, i) => i !== idx));
+  }
+
+  return (
+    <div style={{borderTop:'1px solid var(--bd)', marginTop:8, paddingTop:8}}>
+      <div className="text-xs font-bold mb-2 text-slate-400">📎 Anexos ({(files||[]).length})</div>
+      {(files||[]).length > 0 && (
+        <div className="space-y-1 mb-2">
+          {files.map((f,i) => (
+            <div key={i} className="flex items-center gap-2 text-xs p-2 rounded" style={{background:'var(--bg-input)'}}>
+              <span>📄</span>
+              <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-yellow-400 hover:text-yellow-300 flex-1 truncate">{f.name}</a>
+              <span className="text-slate-500">{(f.size/1024).toFixed(0)} KB</span>
+              <button onClick={() => removeFile(i)} className="text-red-400 hover:text-red-300">×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2 items-center">
+        <input ref={fileInputRef} type="file" multiple onChange={e => handleFiles(e.target.files)} className="text-xs" style={{flex:1}} disabled={uploading} />
+        {uploading && <span className="text-xs text-yellow-400">⏳</span>}
+      </div>
+      {err && <div className="text-xs text-red-400 mt-1">⚠ {err}</div>}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// v63: TagsInput (chips editaveis)
+// ──────────────────────────────────────────────────────────────────────────
+function TagsInput({ value, onChange, suggestions }) {
+  const tags = Array.isArray(value) ? value : [];
+  const [text, setText] = useState('');
+  function addTag(t) {
+    t = (t||'').trim();
+    if (!t || tags.includes(t)) return;
+    onChange([...tags, t]);
+    setText('');
+  }
+  function removeTag(t) { onChange(tags.filter(x => x !== t)); }
+  return (
+    <div>
+      <div className="flex gap-1 flex-wrap mb-2">
+        {tags.map(t => (
+          <span key={t} className="badge" style={{background:'#d4a84330', color:'#fde68a', padding:'2px 8px', display:'inline-flex', alignItems:'center', gap:4}}>
+            #{t} <button onClick={() => removeTag(t)} className="hover:text-red-300">×</button>
+          </span>
+        ))}
+      </div>
+      <input className="input" placeholder="Digite tag e Enter..." value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(text); } }} />
+      {suggestions && suggestions.length > 0 && (
+        <div className="flex gap-1 flex-wrap mt-2">
+          {suggestions.filter(s => !tags.includes(s)).slice(0,8).map(s => (
+            <button key={s} className="badge hover:opacity-80" style={{background:'var(--bg-input)', color:'var(--tx-muted)', padding:'2px 6px', fontSize:10}} onClick={() => addTag(s)}>+ {s}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// v61: in-app notification toast + history
+// ──────────────────────────────────────────────────────────────────────────
+const NotifContext = React.createContext({ notify: () => {}, history: [], clear: () => {} });
+
+function NotifProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+  const [history, setHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('psm_v2_notif_history') || '[]'); } catch(_) { return []; }
+  });
+
+  const notify = useCallback((title, body, opts) => {
+    const id = 'n' + Date.now() + Math.random();
+    const item = { id, title, body, ts: Date.now(), color: opts?.color || '#d4a843', icon: opts?.icon || '🔔' };
+    setToasts(t => [...t, item]);
+    setHistory(h => {
+      const next = [item, ...h].slice(0, 100);
+      try { localStorage.setItem('psm_v2_notif_history', JSON.stringify(next)); } catch(_){}
+      return next;
+    });
+    // Auto-remove toast after 5s
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 5000);
+    // Browser notif paralela
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, { body, icon: '/icon-192.png', tag: id });
+      }
+    } catch(_){}
+  }, []);
+
+  const clear = useCallback(() => {
+    setHistory([]);
+    try { localStorage.removeItem('psm_v2_notif_history'); } catch(_){}
+  }, []);
+
+  return (
+    <NotifContext.Provider value={{ notify, history, clear }}>
+      {children}
+      <div style={{position:'fixed', bottom:20, right:20, zIndex:9999, display:'flex', flexDirection:'column', gap:10, maxWidth:380}}>
+        {toasts.map(t => (
+          <div key={t.id} className="notif-toast card" style={{padding:'12px 14px', borderLeftWidth:4, borderLeftColor:t.color, background:'var(--bg-card)', boxShadow:'0 4px 12px rgba(0,0,0,0.4)'}}>
+            <div style={{display:'flex', gap:8, alignItems:'flex-start'}}>
+              <span style={{fontSize:20}}>{t.icon}</span>
+              <div style={{flex:1, minWidth:0}}>
+                <div style={{fontWeight:700, fontSize:13}}>{t.title}</div>
+                <div style={{fontSize:12, color:'var(--tx-muted)', marginTop:2}}>{t.body}</div>
+              </div>
+              <button onClick={() => setToasts(ts => ts.filter(x => x.id !== t.id))} style={{background:'none', border:'none', color:'var(--tx-dim)', cursor:'pointer'}}>×</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </NotifContext.Provider>
+  );
+}
+
+function useNotif() { return React.useContext(NotifContext); }
+
+// ──────────────────────────────────────────────────────────────────────────
+// v61: NotificacoesPage (historico)
+// ──────────────────────────────────────────────────────────────────────────
+function NotificacoesPage({ user }) {
+  const { history, clear } = useNotif();
+  return (
+    <div className="p-6 max-w-3xl">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>🔔 Notificações</h1>
+          <p className="text-sm text-slate-400">Histórico recente neste navegador (últimas 100)</p>
+        </div>
+        {history.length > 0 && <button className="btn btn-sm btn-out" onClick={clear}>Limpar tudo</button>}
+      </div>
+      {history.length === 0 ? <div className="text-center text-slate-500 py-12">Nenhuma notificação ainda.</div> : (
+        <div className="space-y-2">
+          {history.map(n => (
+            <div key={n.id} className="card p-3 anim-fade" style={{borderLeftWidth:4, borderLeftColor:n.color}}>
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">{n.icon}</span>
+                <div className="flex-1">
+                  <div className="font-bold text-sm">{n.title}</div>
+                  <div className="text-xs text-slate-400 mt-1">{n.body}</div>
+                  <div className="text-xs text-slate-500 mt-1">{fmtDate(n.ts)}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// v61: BulkSelector hook reutilizavel
+// ──────────────────────────────────────────────────────────────────────────
+function useBulkSelect() {
+  const [selected, setSelected] = useState(new Set());
+  const toggle = (id) => setSelected(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const clear = () => setSelected(new Set());
+  const selectAll = (ids) => setSelected(new Set(ids));
+  return { selected, toggle, clear, selectAll, count: selected.size };
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// v60: SearchBar reutilizavel + auto-refresh hook + atalhos
+// ──────────────────────────────────────────────────────────────────────────
+function SearchBar({ placeholder, value, onChange, autoFocus }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (autoFocus && ref.current) ref.current.focus();
+    function handler(e) {
+      if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        if (ref.current) ref.current.focus();
+      }
+    }
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+  return (
+    <div style={{position:'relative'}}>
+      <input
+        ref={ref}
+        type="search"
+        className="input"
+        placeholder={placeholder || '🔍 Filtrar... (aperte / pra focar)'}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{paddingLeft:30}}
+      />
+      <span style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', fontSize:14, color:'var(--tx-muted)'}}>🔍</span>
+    </div>
+  );
+}
+
+function useAutoRefresh(reloadFn, intervalMs, enabled) {
+  React.useEffect(() => {
+    if (!enabled || !reloadFn) return;
+    const t = setInterval(() => reloadFn(), intervalMs || 60000);
+    return () => clearInterval(t);
+  }, [enabled, intervalMs, reloadFn]);
+}
+
+function matchSearch(text, query) {
+  if (!query) return true;
+  const q = query.toLowerCase().trim();
+  if (!q) return true;
+  return String(text || '').toLowerCase().includes(q);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// v58: Search Global (Cmd+K / Ctrl+K)
+// ──────────────────────────────────────────────────────────────────────────
+function GlobalSearch({ user, onNavigate, open, setOpen }) {
+  const [query, setQuery] = useState('');
+  const inputRef = React.useRef(null);
+  const lvl = RLVL[user.role] || 0;
+
+  const PAGES = [
+    { id:'oo', label:'Olho-no-Olho', kw:'oo dia diario atividade' },
+    { id:'dashboard', label:'Dashboard Hoje', kw:'kpis ranking hoje' },
+    { id:'kpis', label:'KPIs', kw:'metas vendas indicadores' },
+    { id:'lancarvenda', label:'Lançar Venda', kw:'venda fechada vgv' },
+    { id:'tabelaimoveis', label:'Tabela Imóveis', kw:'catalogo imoveis casas aptos' },
+    { id:'fichas', label:'Fichas/Propostas', kw:'proposta cliente cessao' },
+    { id:'crm', label:'CRM', kw:'pipeline deals oportunidades' },
+    { id:'rd_sync', label:'Sync RD CRM', kw:'rd station sincronia' },
+    { id:'comissoes', label:'Comissões', kw:'pagamento comissao corretor' },
+    { id:'fluxocaixa', label:'Fluxo de Caixa', kw:'entrada saida saldo' },
+    { id:'dre', label:'DRE', kw:'lucro receita demonstrativo' },
+    { id:'repasses', label:'Repasses', kw:'pagamento incorporadora' },
+    { id:'custos', label:'Custos Fixos', kw:'aluguel salario despesa' },
+    { id:'forecast', label:'Forecast', kw:'projecao previsao 6 meses' },
+    { id:'equipe', label:'Equipe', kw:'corretores time pessoas' },
+    { id:'metas', label:'Metas', kw:'meta vgv mensal' },
+    { id:'captacao', label:'Captação', kw:'captar imovel proprietario' },
+    { id:'plantoes', label:'Plantões', kw:'escala calendario' },
+    { id:'tarefas', label:'Tarefas', kw:'todo lista checklist' },
+    { id:'recados', label:'Recados', kw:'mural diretoria' },
+    { id:'mapa', label:'Mapa Lançamentos', kw:'empreendimento construtora regiao' },
+    { id:'premiacoes', label:'Premiações', kw:'premio incentivo bonificacao' },
+    { id:'oportunidades', label:'Oportunidades', kw:'oportunidade lead pega' },
+    { id:'canal', label:'Canal Anônimo', kw:'denuncia sugestao critica' },
+    { id:'iasol', label:'Agente IA', kw:'sol vera ai chatbot' },
+    { id:'metaads', label:'Meta Ads', kw:'facebook instagram ads campanha', minLvl:5 },
+    { id:'criativos', label:'Criativos', kw:'pasta drive video imagem' },
+    { id:'radar', label:'Radar Concorrência', kw:'concorrente competidor', minLvl:5 },
+    { id:'sim_vpl', label:'Simulador VPL', kw:'vpl tir payback' },
+    { id:'sim_incc', label:'Simulador INCC', kw:'incc igpm correcao' },
+    { id:'sim_leads', label:'Simulador Leads', kw:'funil leads cpl' },
+    { id:'sim_repasse', label:'Simulador Repasse', kw:'sac banco financiamento' },
+    { id:'sim_energia', label:'Simulador Energia', kw:'solar payback' },
+    { id:'sim_criativo', label:'Simulador Criativo', kw:'hook hold rate' },
+    { id:'metricas_viab', label:'Métricas Viab ADS', kw:'roas roi cac', minLvl:5 },
+    { id:'agenda', label:'Agenda PSM', kw:'reuniao evento' },
+    { id:'ranking', label:'Ranking', kw:'top corretores medalha' },
+    { id:'checkin', label:'Check-in', kw:'jornada ponto entrada saida' },
+    { id:'arena', label:'Arena TV', kw:'tv display escritorio' },
+    { id:'gestaopessoas', label:'Gestão de Pessoas', kw:'talentos 1:1', minLvl:5 },
+    { id:'locacoes', label:'Locações', kw:'aluguel inquilino contrato' },
+    { id:'governance', label:'Governance', kw:'audit log seguranca', minLvl:7 },
+    { id:'config', label:'Configurações', kw:'preferencias perfil' },
+    { id:'migracao', label:'Migração v1→v2', kw:'importar antigo backup', minLvl:5 },
+    { id:'formacao', label:'Formação', kw:'curso treinamento aprender' },
+    { id:'organograma', label:'Organograma', kw:'hierarquia time' },
+    { id:'manual', label:'Manual', kw:'documentacao interno' },
+    { id:'etica', label:'Ética', kw:'codigo compliance' },
+    { id:'psm_live', label:'PSM Live', kw:'feed eventos timeline' },
+    { id:'crono_conquista', label:'Cronograma Conquista', kw:'calendario editorial conquista' },
+    { id:'crono_psm', label:'Cronograma PSM', kw:'calendario editorial psm' },
+    { id:'integracao_rd', label:'Integração RD CRM', kw:'oauth rd token', minLvl:7 },
+  ].filter(p => !p.minLvl || lvl >= p.minLvl);
+
+  React.useEffect(() => {
+    function handler(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setOpen(true); }
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
+  React.useEffect(() => {
+    if (open && inputRef.current) setTimeout(() => inputRef.current.focus(), 50);
+  }, [open]);
+
+  if (!open) return null;
+  const q = query.toLowerCase().trim();
+  const filtered = q
+    ? PAGES.filter(p => (p.label.toLowerCase() + ' ' + p.kw).includes(q)).slice(0, 12)
+    : PAGES.slice(0, 12);
+
+  return (
+    <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', zIndex:999, display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:80}} onClick={() => setOpen(false)}>
+      <div className="card" style={{width:'90%', maxWidth:600, padding:0, overflow:'hidden'}} onClick={e => e.stopPropagation()}>
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder="🔍 Buscar página... (Esc fecha)"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && filtered[0]) { onNavigate(filtered[0].id); setOpen(false); setQuery(''); }
+          }}
+          className="input"
+          style={{borderRadius:0, border:'none', borderBottom:'1px solid var(--bd)', fontSize:18, padding:'16px 20px'}}
+        />
+        <div style={{maxHeight:400, overflowY:'auto'}}>
+          {filtered.length === 0 ? (
+            <div style={{padding:20, textAlign:'center', color:'var(--tx-muted)'}}>Nenhuma página encontrada.</div>
+          ) : filtered.map((p, i) => (
+            <button key={p.id} onClick={() => { onNavigate(p.id); setOpen(false); setQuery(''); }}
+              style={{width:'100%', textAlign:'left', padding:'12px 20px', background: i===0?'rgba(212,168,67,0.08)':'transparent', border:'none', color:'var(--tx)', cursor:'pointer', borderBottom:'1px solid var(--bd)'}}>
+              <div style={{fontWeight:600}}>{p.label}</div>
+              <div style={{fontSize:11, color:'var(--tx-dim)', marginTop:2}}>{p.kw}</div>
+            </button>
+          ))}
+        </div>
+        <div style={{padding:'8px 20px', fontSize:11, color:'var(--tx-dim)', background:'var(--bg-input)'}}>
+          ↵ abrir · Esc fechar · ⌘K abrir busca
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// v58: Push Notifications via Realtime
+// ──────────────────────────────────────────────────────────────────────────
+function useNotifications(user) {
+  const { notify } = useNotif();
+  React.useEffect(() => {
+    if (!sb || !user) return;
+    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+    const channels = [];
+    const watch = [
+      { key: 'RD_VENDAS', fn: (payload) => {
+          const arr = payload.new?.value || [];
+          if (Array.isArray(arr) && arr.length > 0) {
+            const last = arr[arr.length-1];
+            notify('Nova venda!', last.bn + ' · ' + last.cl + ' · R$ ' + (last.vgv||0).toLocaleString('pt-BR'), { icon:'🏆', color:'#16a34a' });
+          }
+      } },
+      { key: 'OPORTUNIDADES_PSM', fn: (payload) => {
+          const novo = (payload.new?.value || [])[0];
+          const old = (payload.old?.value || [])[0];
+          if (novo && (!old || novo.id !== old.id)) {
+            notify((novo.urgente ? 'Oportunidade URGENTE' : 'Nova oportunidade'), novo.titulo, { icon: novo.urgente?'🔥':'💡', color: novo.urgente?'#dc2626':'#3b82f6' });
+          }
+      } },
+      { key: 'RECADOS_DIRETORIA', fn: (payload) => {
+          const novo = (payload.new?.value || [])[0];
+          const old = (payload.old?.value || [])[0];
+          if (novo && (!old || novo.id !== old.id)) {
+            notify(novo.authorName || 'Diretoria', novo.text.substring(0, 100), { icon:'📢', color:'#a855f7' });
+          }
+      } },
+    ];
+    watch.forEach(w => {
+      const ch = sb.channel('notif-' + w.key)
+        .on('postgres_changes', { event: 'UPDATE', schema:'public', table:'shared_kv', filter:'key=eq.'+w.key }, w.fn)
+        .subscribe();
+      channels.push(ch);
+    });
+    return () => channels.forEach(ch => { try { sb.removeChannel(ch); } catch(_){} });
+  }, [user]);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// v58: Theme toggle
+// ──────────────────────────────────────────────────────────────────────────
+function useTheme() {
+  const [theme, setTheme] = useState(() => localStorage.getItem('psm_v2_theme') || 'dark');
+  React.useEffect(() => {
+    document.body.className = theme === 'light' ? 'theme-light' : '';
+    localStorage.setItem('psm_v2_theme', theme);
+  }, [theme]);
+  return [theme, setTheme];
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Login REAL (Sprint S1 — 2026-04-29)
 // ──────────────────────────────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
-  const [selectedId, setSelectedId] = useState('');
+  const [view, setView] = useState('login'); // login | reset
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [novaSenha, setNovaSenha] = useState('');
+  const [novaSenhaConf, setNovaSenhaConf] = useState('');
   const [err, setErr] = useState('');
-  function doLogin() {
-    if (!selectedId) { setErr('Selecione seu nome'); return; }
-    const u = USERS.find(x => x.id === selectedId);
-    if (!u) { setErr('Usuário não encontrado'); return; }
-    localStorage.setItem('psm_v2_user', JSON.stringify(u));
-    onLogin(u);
+  const [info, setInfo] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function doLogin() {
+    if (!sb) { setErr('Supabase indisponível'); return; }
+    if (!email || !senha) { setErr('Preencha email e senha'); return; }
+    setLoading(true); setErr(''); setInfo('');
+    try {
+      const { data, error } = await sb.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: senha });
+      if (error) throw error;
+      const sess = data.session;
+      // Carrega profile pra pegar legacy_id, nome, role
+      const { data: prof, error: pErr } = await sb.from('profiles').select('*').eq('user_id', sess.user.id).maybeSingle();
+      if (pErr) throw pErr;
+      if (!prof) {
+        setErr('Conta sem profile — peça para um sócio criar seu cadastro completo.');
+        await sb.auth.signOut();
+        setLoading(false); return;
+      }
+      if (prof.ativo === false) {
+        setErr('Acesso desativado. Procure a direção.');
+        await sb.auth.signOut();
+        setLoading(false); return;
+      }
+      const u = {
+        id: prof.legacy_id,
+        name: prof.nome,
+        email: prof.email,
+        role: prof.role,
+        frente: prof.frente,
+        authUserId: sess.user.id,
+        rd_id: prof.rd_id
+      };
+      localStorage.setItem('psm_v2_user', JSON.stringify(u));
+      onLogin(u);
+    } catch(e) {
+      setErr(e.message || 'Erro ao entrar');
+    }
+    setLoading(false);
   }
+
+  async function doReset() {
+    if (!sb) { setErr('Supabase indisponível'); return; }
+    if (!email) { setErr('Informe seu email'); return; }
+    setLoading(true); setErr(''); setInfo('');
+    try {
+      const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: window.location.origin + '/v2/'
+      });
+      if (error) throw error;
+      setInfo('Enviamos um link de redefinição para ' + email + '. Verifique sua caixa de entrada.');
+    } catch(e) { setErr(e.message); }
+    setLoading(false);
+  }
+
+  // Detecta sessão de recovery (vinda do email de reset)
+  useEffect(() => {
+    if (!sb) return;
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery')) {
+      setView('newpass');
+    }
+    // Auto-login se já tem sessão
+    sb.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        sb.from('profiles').select('*').eq('user_id', data.session.user.id).maybeSingle().then(({ data: prof }) => {
+          if (prof && prof.ativo !== false) {
+            const u = { id:prof.legacy_id, name:prof.nome, email:prof.email, role:prof.role, frente:prof.frente, authUserId:data.session.user.id, rd_id:prof.rd_id };
+            localStorage.setItem('psm_v2_user', JSON.stringify(u));
+            onLogin(u);
+          }
+        });
+      }
+    });
+  }, []);
+
+  async function setNewPassword() {
+    if (!novaSenha || novaSenha.length < 8) { setErr('Senha precisa de ao menos 8 caracteres'); return; }
+    if (novaSenha !== novaSenhaConf) { setErr('Senhas não conferem'); return; }
+    setLoading(true); setErr('');
+    try {
+      const { error } = await sb.auth.updateUser({ password: novaSenha });
+      if (error) throw error;
+      setInfo('Senha redefinida. Faça login com a nova senha.');
+      setView('login');
+      setNovaSenha(''); setNovaSenhaConf('');
+      window.location.hash = '';
+    } catch(e) { setErr(e.message); }
+    setLoading(false);
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="card p-8 w-full max-w-md">
+      <div className="card p-8 w-full max-w-md anim-slide">
         <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>PSM /v2</h1>
-        <p className="text-sm text-slate-400 mb-6">Sistema reescrito • Versão paralela</p>
-        <label className="block text-xs text-slate-400 mb-2">Quem é você?</label>
-        <select className="input mb-4" value={selectedId} onChange={e => { setSelectedId(e.target.value); setErr(''); }}>
-          <option value="">— selecionar —</option>
-          {USERS.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
-        </select>
-        {err && <div className="text-red-400 text-sm mb-3">{err}</div>}
-        <button className="btn w-full" onClick={doLogin}>Entrar</button>
+        <p className="text-sm text-slate-400 mb-6">{view === 'reset' ? 'Recuperar senha' : view === 'newpass' ? 'Definir nova senha' : 'Acessar sistema'}</p>
+
+        {view === 'login' && <>
+          <label className="block text-xs text-slate-400 mb-1">E-mail</label>
+          <input type="email" className="input mb-3" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@imobiliariapsm.com.br" autoComplete="email" />
+          <label className="block text-xs text-slate-400 mb-1">Senha</label>
+          <input type="password" className="input mb-4" value={senha} onChange={e => setSenha(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') doLogin(); }} placeholder="********" autoComplete="current-password" />
+          {err && <div className="text-red-400 text-sm mb-3">⚠ {err}</div>}
+          {info && <div className="text-green-400 text-sm mb-3">✓ {info}</div>}
+          <button className="btn w-full mb-3" onClick={doLogin} disabled={loading}>{loading ? 'Entrando…' : 'Entrar'}</button>
+          <button className="text-xs text-slate-400 hover:text-yellow-400 underline" onClick={() => { setView('reset'); setErr(''); setInfo(''); }}>Esqueci minha senha</button>
+        </>}
+
+        {view === 'reset' && <>
+          <label className="block text-xs text-slate-400 mb-1">E-mail</label>
+          <input type="email" className="input mb-4" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@imobiliariapsm.com.br" />
+          {err && <div className="text-red-400 text-sm mb-3">⚠ {err}</div>}
+          {info && <div className="text-green-400 text-sm mb-3">✓ {info}</div>}
+          <button className="btn w-full mb-3" onClick={doReset} disabled={loading}>{loading ? 'Enviando…' : 'Enviar link de recuperação'}</button>
+          <button className="text-xs text-slate-400 hover:text-yellow-400 underline" onClick={() => { setView('login'); setErr(''); setInfo(''); }}>Voltar ao login</button>
+        </>}
+
+        {view === 'newpass' && <>
+          <div className="text-xs text-slate-400 mb-3">Você está redefinindo sua senha. Escolha uma nova:</div>
+          <input type="password" className="input mb-3" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="Nova senha (mín 8 caracteres)" />
+          <input type="password" className="input mb-4" value={novaSenhaConf} onChange={e => setNovaSenhaConf(e.target.value)} placeholder="Confirme a nova senha" />
+          {err && <div className="text-red-400 text-sm mb-3">⚠ {err}</div>}
+          {info && <div className="text-green-400 text-sm mb-3">✓ {info}</div>}
+          <button className="btn w-full" onClick={setNewPassword} disabled={loading}>{loading ? 'Salvando…' : 'Salvar nova senha'}</button>
+        </>}
+
         <div className="mt-6 text-xs text-slate-500 border-t border-slate-700 pt-4">
-          Auth simplificada (sem senha). Sprint próxima traz auth real Supabase.
+          🔐 Auth real Supabase • Senha temporária inicial: <code className="text-yellow-400">psm2026!</code> — troque no primeiro login.
         </div>
       </div>
     </div>
@@ -181,8 +1223,9 @@ function LoginPage({ onLogin }) {
 // ──────────────────────────────────────────────────────────────────────────
 // Sidebar
 // ──────────────────────────────────────────────────────────────────────────
-function Sidebar({ user, page, onNavigate, onLogout }) {
+function Sidebar({ user, page, onNavigate, onLogout, mobileOpen, setMobileOpen }) {
   const lvl = RLVL[user.role] || 0;
+  function handleNavigate(id) { onNavigate(id); if (setMobileOpen) setMobileOpen(false); }
   const items = [
     { id: 'oo', label: 'Olho-no-Olho', emoji: '👁️' },
     { id: 'dashboard', label: 'Dashboard Hoje', emoji: '📊' },
@@ -225,6 +1268,7 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
     { id: 'locacoes', label: 'Locações', emoji: '🏠' },
     { id: 'governance', label: 'Governance', emoji: '📜', minLvl: 7 },
     { id: 'config', label: 'Configurações', emoji: '⚙️' },
+    { id: 'migracao', label: 'Migração v1→v2', emoji: '📦', minLvl: 5 },
     { id: 'agenda', label: 'Agenda PSM', emoji: '📅' },
     { id: 'ranking', label: 'Ranking', emoji: '🏅' },
     { id: 'checkin', label: 'Check-in', emoji: '⏱️' },
@@ -233,18 +1277,24 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
     { id: 'crono_conquista', label: 'Cronograma Conquista', emoji: '🎬' },
     { id: 'crono_psm', label: 'Cronograma PSM', emoji: '🎬' },
     { id: 'integracao_rd', label: 'Integração RD CRM', emoji: '🔌', minLvl: 7 },
+    { id: 'rd_sync', label: 'Sync RD CRM', emoji: '🔄', minLvl: 5 },
+    { id: 'ai_summary', label: 'AI Insights', emoji: '🧠', minLvl: 5 },
+    { id: 'backup', label: 'Backup & Restore', emoji: '💾' },
+    { id: 'notificacoes', label: 'Notificações', emoji: '🔔' },
     { id: 'recados', label: 'Recados', emoji: '📢' },
   ];
   const visible = items.filter(it => !it.minLvl || lvl >= it.minLvl);
   return (
-    <aside className="w-60 bg-slate-900 border-r border-slate-700 p-4 flex flex-col min-h-screen">
+    <>
+    {mobileOpen !== undefined && <div className={'sidebar-overlay ' + (mobileOpen ? 'open' : '')} onClick={() => setMobileOpen(false)}></div>}
+    <aside className={'w-60 bg-slate-900 border-r border-slate-700 p-4 flex flex-col min-h-screen ' + (mobileOpen !== undefined ? ('sidebar-mobile ' + (mobileOpen ? 'open' : '')) : '')}>
       <div className="mb-6">
         <div className="font-bold text-lg" style={{color:'#d4a843'}}>PSM /v2</div>
         <div className="text-xs text-slate-500">Reescrita parcial</div>
       </div>
       <nav className="flex-1 space-y-1">
         {visible.map(it => (
-          <button key={it.id} onClick={() => onNavigate(it.id)}
+          <button key={it.id} onClick={() => handleNavigate(it.id)}
             className={'w-full text-left px-3 py-2 rounded text-sm font-medium transition ' + (page === it.id ? 'bg-yellow-600/20 text-yellow-400' : 'text-slate-300 hover:bg-slate-800')}>
             <span className="mr-2">{it.emoji}</span>{it.label}
           </button>
@@ -253,9 +1303,13 @@ function Sidebar({ user, page, onNavigate, onLogout }) {
       <div className="mt-4 pt-4 border-t border-slate-700">
         <div className="text-sm font-medium">{user.name}</div>
         <div className="text-xs text-slate-500 mb-2">{user.role}</div>
-        <button className="btn-out btn btn-sm w-full" onClick={onLogout}>Sair</button>
+        <button className="btn-out btn btn-sm w-full mb-2" onClick={onLogout}>Sair</button>
+        <div className="flex gap-1">
+          <button className="btn-out btn btn-sm flex-1" title="Buscar (⌘K)" onClick={() => { if (window.psmOpenSearch) window.psmOpenSearch(); }}>🔍 ⌘K</button>
+        </div>
       </div>
     </aside>
+    </>
   );
 }
 
@@ -368,7 +1422,8 @@ function OOPage({ user }) {
 function DashboardPage({ user }) {
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
+  const [autoR, setAutoR] = useState(true);
+  const reloadDash = useCallback(() => {
     if (!sb) { setLoading(false); return; }
     const today = todayKey();
     const mk = monthKey();
@@ -386,9 +1441,14 @@ function DashboardPage({ user }) {
       setLoading(false);
     });
   }, []);
+  useEffect(() => { loadDash(); }, [loadDash]);
+  useAutoRefresh(loadDash, 60000, autoR);
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>📊 Dashboard — Hoje</h1>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>📊 Dashboard — Hoje</h1>
+        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={autoR} onChange={e => setAutoR(e.target.checked)} className="w-4 h-4" style={{accentColor:'#d4a843'}} /> Auto-refresh 60s</label>
+      </div>
       <p className="text-sm text-slate-400 mb-6">Atividades em {new Date().toLocaleDateString('pt-BR')}</p>
       {loading ? <div className="text-slate-500">Carregando…</div> : snapshot && (
         <div className="card overflow-hidden">
@@ -422,7 +1482,7 @@ function DashboardPage({ user }) {
 function EquipePage({ user }) {
   const lvl = RLVL[user.role] || 0;
   const isSocio = user.role === 'socio';
-  const { value: disabled, save: saveDisabled, loading } = useShared('USER_DISABLED');
+  const { value: disabled, save: saveDisabled, loading } = useRealtimeShared('USER_DISABLED');
   const dmap = disabled || {};
 
   async function toggleDisabled(uid) {
@@ -453,6 +1513,19 @@ function EquipePage({ user }) {
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>👥 Equipe</h1>
       <p className="text-sm text-slate-400 mb-6">{USERS.length} usuários cadastrados • {Object.keys(dmap).length} desativados</p>
+      {bulk.count > 0 && (
+        <div className="card p-3 mb-3 anim-fade" style={{background:'#d4a84320', borderColor:'#d4a843'}}>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="text-sm font-bold">{bulk.count} selecionado{bulk.count>1?'s':''}</div>
+            <div className="flex gap-2 flex-wrap">
+              <button className="btn btn-sm btn-out" onClick={() => bulkSetStatus('captado')}>→ Captado</button>
+              <button className="btn btn-sm btn-out" onClick={() => bulkSetStatus('perdido')}>→ Perdido</button>
+              <button className="btn btn-sm btn-danger" onClick={bulkRemove}>🗑 Apagar</button>
+              <button className="btn btn-sm" onClick={bulk.clear}>×</button>
+            </div>
+          </div>
+        </div>
+      )}
       {loading ? <div className="text-slate-500">Carregando…</div> : (
         Object.entries(grouped).map(([fid, list]) => (
           <div key={fid} className="mb-6">
@@ -507,7 +1580,7 @@ function MetasPage({ user }) {
   const [editingId, setEditingId] = useState(null);
   const [editVal, setEditVal] = useState('');
   const [savingId, setSavingId] = useState(null);
-  const { value: metas, save: saveMetas, loading } = useShared('METAS_INDIVIDUAIS');
+  const { value: metas, save: saveMetas, loading } = useRealtimeShared('METAS_INDIVIDUAIS');
   const m = metas || {};
 
   async function commit(uid) {
@@ -578,7 +1651,7 @@ function MetasPage({ user }) {
 // RecadosPage (mural simples)
 // ──────────────────────────────────────────────────────────────────────────
 function RecadosPage({ user }) {
-  const { value: recados, save: saveRecados, loading } = useShared('RECADOS_DIRETORIA');
+  const { value: recados, save: saveRecados, loading } = useRealtimeShared('RECADOS_DIRETORIA');
   const list = Array.isArray(recados) ? recados : [];
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
@@ -617,7 +1690,7 @@ function RecadosPage({ user }) {
         ) : (
           <div className="space-y-3">
             {list.map(r => (
-              <div key={r.id} className="card p-4">
+              <div key={r.id} className="card p-4 anim-fade">
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <div className="font-bold text-sm">{r.authorName || r.author}</div>
@@ -647,6 +1720,7 @@ function CaptacaoPage({ user }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ titulo: '', endereco: '', tipo: 'casa', valor: '', proprietario: '', telefone: '', obs: '' });
   const [filter, setFilter] = useState('todos');
+  const [qSearch, setQSearch] = useState('');
   const [posting, setPosting] = useState(false);
 
   async function add() {
@@ -674,8 +1748,22 @@ function CaptacaoPage({ user }) {
     if (!confirm('Apagar captação?')) return;
     await saveCapt(list.filter(c => c.id !== id));
   }
+  const bulk = useBulkSelect();
+  async function bulkRemove() {
+    if (bulk.count === 0) return;
+    if (!confirm('Apagar ' + bulk.count + ' captações selecionadas?')) return;
+    await saveCapt(list.filter(c => !bulk.selected.has(c.id)));
+    bulk.clear();
+  }
+  async function bulkSetStatus(status) {
+    if (bulk.count === 0) return;
+    const next = list.map(c => bulk.selected.has(c.id) ? { ...c, status, statusAt: Date.now(), statusBy: user.id } : c);
+    await saveCapt(next);
+    bulk.clear();
+  }
 
-  const filtered = filter === 'todos' ? list : list.filter(c => c.status === filter);
+  let filtered = filter === 'todos' ? list : list.filter(c => c.status === filter);
+  if (qSearch) filtered = filtered.filter(c => matchSearch(c.titulo, qSearch) || matchSearch(c.endereco, qSearch) || matchSearch(c.proprietario, qSearch));
   const counts = list.reduce((acc, c) => { acc[c.status] = (acc[c.status]||0)+1; return acc; }, {});
 
   const statusColors = { novo: '#3b82f6', visita_agendada: '#d4a843', em_negociacao: '#a855f7', captado: '#16a34a', perdido: '#dc2626' };
@@ -707,9 +1795,14 @@ function CaptacaoPage({ user }) {
             <input className="input" placeholder="Telefone" value={form.telefone} onChange={e => setForm({...form, telefone: e.target.value})} />
           </div>
           <textarea className="input mb-3" rows="2" placeholder="Observações" value={form.obs} onChange={e => setForm({...form, obs: e.target.value})} />
+          <div className="mb-3">
+            <label className="block text-xs text-slate-400 mb-1">Tags</label>
+            <TagsInput value={form.tags||[]} onChange={tags => setForm({...form, tags})} suggestions={['premium','urgente','exclusivo','pre-lancamento','com-foto','sem-foto','reformado','novo']} />
+          </div>
           <button className="btn" onClick={add} disabled={posting || !form.titulo.trim()}>{posting ? 'Salvando…' : '💾 Salvar captação'}</button>
         </div>
       )}
+      <div className="mb-4"><SearchBar value={qSearch} onChange={setQSearch} placeholder="🔍 Buscar imóvel, endereço, proprietário..." /></div>
       <div className="flex gap-2 mb-4 flex-wrap">
         <button className={'btn btn-sm ' + (filter==='todos' ? '' : 'btn-out')} onClick={() => setFilter('todos')}>Todos ({list.length})</button>
         {Object.entries(statusLabels).map(([k, lbl]) => (
@@ -720,8 +1813,9 @@ function CaptacaoPage({ user }) {
         filtered.length === 0 ? <div className="text-center text-slate-500 py-8">Nenhuma captação.</div> : (
           <div className="space-y-3">
             {filtered.map(c => (
-              <div key={c.id} className="card p-4">
+              <div key={c.id} className="card p-4 anim-fade" style={{borderColor: bulk.selected.has(c.id) ? '#d4a843' : undefined}}>
                 <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                  <input type="checkbox" checked={bulk.selected.has(c.id)} onChange={() => bulk.toggle(c.id)} className="w-5 h-5" style={{accentColor:'#d4a843', marginTop:4}} />
                   <div>
                     <div className="font-bold text-lg">{c.titulo}</div>
                     <div className="text-xs text-slate-400">{c.endereco} • {c.tipo}</div>
@@ -732,8 +1826,24 @@ function CaptacaoPage({ user }) {
                   </div>
                 </div>
                 {c.proprietario && <div className="text-sm text-slate-300">👤 {c.proprietario} {c.telefone && '• 📞 '+c.telefone}</div>}
+                {c.telefone && (
+                  <div className="flex gap-2 mt-2">
+                    <a href={whatsappLink(c.telefone, 'Olá ' + (c.proprietario||'') + ', tudo bem? Sou ' + user.name + ' da PSM. Tenho interesse em apresentar uma proposta para o ' + c.titulo + '.')} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-success" style={{padding:'4px 10px',fontSize:'11px'}}>💬 WhatsApp</a>
+                    <a href={'tel:' + c.telefone.replace(/\D/g,'')} className="btn btn-sm btn-out" style={{padding:'4px 10px',fontSize:'11px'}}>📞 Ligar</a>
+                  </div>
+                )}
                 {c.obs && <div className="text-sm text-slate-400 mt-2 italic">{c.obs}</div>}
+                {c.tags && c.tags.length > 0 && (
+                  <div className="flex gap-1 flex-wrap mt-2">
+                    {c.tags.map(t => <span key={t} className="badge" style={{background:'#d4a84330', color:'#fde68a', padding:'2px 6px', fontSize:10}}>#{t}</span>)}
+                  </div>
+                )}
                 <div className="text-xs text-slate-500 mt-2">Capturado por {c.capturadoPorName || c.capturadoPor} em {fmtDate(c.ts)}</div>
+                <CommentsThread scope="captacao" user={user} entityId={c.id} entityLabel={c.titulo} />
+                <FileUploader scope="captacao" entityId={c.id} files={c.files||[]} user={user} onChange={async novos => {
+                  const next = list.map(x => x.id === c.id ? {...x, files: novos} : x);
+                  await saveCapt(next);
+                }} />
                 <div className="flex gap-2 mt-3 flex-wrap">
                   {Object.entries(statusLabels).filter(([k]) => k !== c.status).map(([k, lbl]) => (
                     <button key={k} className="btn btn-sm btn-out" onClick={() => setStatus(c.id, k)}>{lbl}</button>
@@ -846,6 +1956,16 @@ function PlantoesPage({ user }) {
               return <div key={b.id} className="flex items-center gap-2"><span style={{width:12, height:12, borderRadius:3, background: colorByBroker[b.id], display:'inline-block'}}></span>{b.name} ({cnt})</div>;
             })}
           </div>
+          {Object.keys(data).length > 0 && (
+            <div className="mt-4 pt-4 border-t border-slate-700">
+              <h3 className="text-xs font-bold mb-2 text-slate-400 uppercase">Distribuição</h3>
+              <ChartCanvas type="bar" height={180}
+                data={{ labels: corretores.filter(b => Object.values(data).filter(v=>v===b.id).length>0).map(b => b.name.split(' ')[0]),
+                  datasets: [{ label: 'Plantões', data: corretores.filter(b => Object.values(data).filter(v=>v===b.id).length>0).map(b => Object.values(data).filter(v => v === b.id).length), backgroundColor: corretores.filter(b => Object.values(data).filter(v=>v===b.id).length>0).map(b => colorByBroker[b.id]) }] }}
+                options={{ plugins:{legend:{display:false}} }}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -856,7 +1976,7 @@ function PlantoesPage({ user }) {
 // TarefasPage (lista de tarefas pessoais, sincronizadas via user_kv)
 // ──────────────────────────────────────────────────────────────────────────
 function TarefasPage({ user }) {
-  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const targetUid = useMemo(() => user.authUserId || legacyUid(user.id), [user.authUserId, user.id]);
   const { value: tarefas, save: saveTarefas, loading } = useUserKv(targetUid, 'TAREFAS_PESSOAIS');
   const list = Array.isArray(tarefas) ? tarefas : [];
   const [text, setText] = useState('');
@@ -929,6 +2049,28 @@ function CRMPage({ user }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ cliente: '', valor: '', corretorId: user.id, obs: '', status: 'prospect' });
   const [filterCorretor, setFilterCorretor] = useState(canViewAll ? 'todos' : user.id);
+  const [qSearch, setQSearch] = useState('');
+  // v62 saved filters
+  const [savedFilters, setSavedFilters] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('psm_v2_crm_filters')||'[]'); } catch(_) { return []; }
+  });
+  function saveCurrentFilter() {
+    const name = prompt('Nome do filtro:');
+    if (!name) return;
+    const f = { id: 'f' + Date.now(), name, q: qSearch, corretor: filterCorretor };
+    const next = [f, ...savedFilters].slice(0, 10);
+    setSavedFilters(next);
+    localStorage.setItem('psm_v2_crm_filters', JSON.stringify(next));
+  }
+  function applyFilter(f) {
+    setQSearch(f.q || '');
+    setFilterCorretor(f.corretor || 'todos');
+  }
+  function removeFilter(id) {
+    const next = savedFilters.filter(f => f.id !== id);
+    setSavedFilters(next);
+    localStorage.setItem('psm_v2_crm_filters', JSON.stringify(next));
+  }
 
   const STAGES = [
     { id: 'prospect',     lbl: 'Prospect',       color: '#3b82f6' },
@@ -959,8 +2101,22 @@ function CRMPage({ user }) {
     if (!confirm('Apagar deal?')) return;
     await saveDeals(list.filter(d => d.id !== id));
   }
+  const bulkCrm = useBulkSelect();
+  async function bulkMove(stage) {
+    if (bulkCrm.count === 0) return;
+    const next = list.map(d => bulkCrm.selected.has(d.id) ? { ...d, status: stage, statusAt: Date.now() } : d);
+    await saveDeals(next);
+    bulkCrm.clear();
+  }
+  async function bulkRemoveCrm() {
+    if (bulkCrm.count === 0) return;
+    if (!confirm('Apagar ' + bulkCrm.count + ' deals?')) return;
+    await saveDeals(list.filter(d => !bulkCrm.selected.has(d.id)));
+    bulkCrm.clear();
+  }
 
-  const filtered = filterCorretor === 'todos' ? list : list.filter(d => d.corretorId === filterCorretor);
+  let filtered = filterCorretor === 'todos' ? list : list.filter(d => d.corretorId === filterCorretor);
+  if (qSearch) filtered = filtered.filter(d => matchSearch(d.cliente, qSearch) || matchSearch(d.obs, qSearch) || matchSearch(d.telefone, qSearch));
   const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
   const totals = STAGES.reduce((acc, s) => ({ ...acc, [s.id]: filtered.filter(d => d.status === s.id) }), {});
   const pipelineTotal = filtered.filter(d => d.status !== 'perdido').reduce((s, d) => s + (d.valor||0), 0);
@@ -988,6 +2144,8 @@ function CRMPage({ user }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
             <input className="input" placeholder="Nome do cliente" value={form.cliente} onChange={e => setForm({...form, cliente: e.target.value})} />
             <input type="number" className="input" placeholder="Valor (R$)" value={form.valor} onChange={e => setForm({...form, valor: e.target.value})} />
+            <input className="input" placeholder="Telefone (opcional)" value={form.telefone||''} onChange={e => setForm({...form, telefone: e.target.value})} />
+            <input className="input" placeholder="Email (opcional)" value={form.email||''} onChange={e => setForm({...form, email: e.target.value})} />
             <select className="input" value={form.corretorId} onChange={e => setForm({...form, corretorId: e.target.value})} disabled={!canViewAll}>
               {corretores.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -996,34 +2154,95 @@ function CRMPage({ user }) {
             </select>
           </div>
           <textarea className="input mb-3" rows="2" placeholder="Observações" value={form.obs} onChange={e => setForm({...form, obs: e.target.value})} />
+          <div className="mb-3">
+            <label className="block text-xs text-slate-400 mb-1">Tags</label>
+            <TagsInput value={form.tags||[]} onChange={tags => setForm({...form, tags})} suggestions={['urgente','quente','frio','negociando','reagendar','documentacao','financiamento','aprovado']} />
+          </div>
           <button className="btn" onClick={add} disabled={!form.cliente.trim()}>💾 Salvar deal</button>
         </div>
       )}
 
-      {canViewAll && (
-        <div className="mb-4">
+      <div className="mb-4 flex gap-2 flex-wrap">
+        <div className="flex-1 max-w-md"><SearchBar value={qSearch} onChange={setQSearch} placeholder="🔍 Buscar cliente, obs..." /></div>
+        <button className="btn btn-sm btn-out" onClick={saveCurrentFilter} title="Salvar filtro atual">⭐</button>
+        {canViewAll && (
           <select className="input max-w-xs" value={filterCorretor} onChange={e => setFilterCorretor(e.target.value)}>
             <option value="todos">Todos os corretores ({list.length})</option>
             {corretores.map(c => <option key={c.id} value={c.id}>{c.name} ({list.filter(d => d.corretorId === c.id).length})</option>)}
           </select>
+        )}
+      </div>
+      {savedFilters.length > 0 && (
+        <div className="flex gap-2 flex-wrap mb-3 text-xs">
+          <span className="text-slate-400 self-center">Salvos:</span>
+          {savedFilters.map(f => (
+            <span key={f.id} className="card px-2 py-1 flex items-center gap-1" style={{padding:'2px 8px'}}>
+              <button className="text-yellow-400 hover:text-yellow-300" onClick={() => applyFilter(f)}>{f.name}</button>
+              <button className="text-red-400 ml-1" onClick={() => removeFilter(f.id)}>×</button>
+            </span>
+          ))}
         </div>
       )}
 
+      {bulkCrm.count > 0 && (
+        <div className="card p-3 mb-3 anim-fade" style={{background:'#d4a84320', borderColor:'#d4a843'}}>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="text-sm font-bold">{bulkCrm.count} deal{bulkCrm.count>1?'s':''} selecionado{bulkCrm.count>1?'s':''}</div>
+            <div className="flex gap-2 flex-wrap">
+              {STAGES.map(s => <button key={s.id} className="btn btn-sm btn-out" style={{padding:'2px 8px',fontSize:'10px'}} onClick={() => bulkMove(s.id)}>→ {s.lbl}</button>)}
+              <button className="btn btn-sm btn-danger" onClick={bulkRemoveCrm}>🗑</button>
+              <button className="btn btn-sm" onClick={bulkCrm.clear}>×</button>
+            </div>
+          </div>
+        </div>
+      )}
       {loading ? <div className="text-slate-500">Carregando…</div> : (
+        <>
+        <div className="card p-4 mb-4">
+          <h3 className="text-sm font-bold mb-3 text-slate-400 uppercase">🎯 Pipeline visual</h3>
+          <ChartCanvas type="bar" height={200}
+            data={{ labels: STAGES.map(s => s.lbl),
+              datasets: [{ label: 'Quantidade', data: STAGES.map(s => totals[s.id].length), backgroundColor: STAGES.map(s => s.color) }] }}
+            options={{ indexAxis: 'y', plugins: { legend: { display: false } } }}
+          />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {STAGES.map(s => (
-            <div key={s.id} className="card p-3" style={{borderTop: '3px solid '+s.color}}>
+            <div key={s.id} className="card drop-zone p-3"
+              onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('over'); }}
+              onDragLeave={e => e.currentTarget.classList.remove('over')}
+              onDrop={async e => {
+                e.preventDefault(); e.currentTarget.classList.remove('over');
+                const id = e.dataTransfer.getData('dealId');
+                if (id) await moveTo(id, s.id);
+              }}
+              style={{borderTop: '3px solid '+s.color}}>
               <div className="font-bold text-sm mb-2" style={{color: s.color}}>{s.lbl} ({totals[s.id].length})</div>
               <div className="text-xs text-slate-500 mb-3">{fmtMoney(totals[s.id].reduce((a,b) => a+(b.valor||0), 0))}</div>
               <div className="space-y-2 min-h-[60px]">
                 {totals[s.id].map(d => {
                   const c = corretores.find(x => x.id === d.corretorId);
                   return (
-                    <div key={d.id} className="card p-2" style={{background:'#0f172a'}}>
-                      <div className="font-bold text-sm">{d.cliente}</div>
+                    <div key={d.id} draggable onDragStart={e => { e.dataTransfer.setData('dealId', d.id); e.currentTarget.classList.add('dragging'); }} onDragEnd={e => e.currentTarget.classList.remove('dragging')} className="card drag-card p-2 anim-fade" style={{background:'#0f172a', borderColor: bulkCrm.selected.has(d.id) ? '#d4a843' : undefined}}>
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" checked={bulkCrm.selected.has(d.id)} onChange={() => bulkCrm.toggle(d.id)} className="w-4 h-4" style={{accentColor:'#d4a843'}} />
+                        <div className="font-bold text-sm">{d.cliente}</div>
+                      </div>
                       <div className="text-xs" style={{color:'#d4a843'}}>{fmtMoney(d.valor)}</div>
                       <div className="text-xs text-slate-500">{c?.name || d.corretorId}</div>
                       {d.obs && <div className="text-xs text-slate-400 mt-1 italic">{d.obs}</div>}
+                      {d.tags && d.tags.length > 0 && (
+                        <div className="flex gap-1 flex-wrap mt-1">
+                          {d.tags.map(t => <span key={t} className="badge" style={{background:'#d4a84330', color:'#fde68a', padding:'1px 5px', fontSize:9}}>#{t}</span>)}
+                        </div>
+                      )}
+                      {(d.telefone || d.email) && (
+                        <div className="flex gap-1 mt-2">
+                          {d.telefone && <a href={whatsappLink(d.telefone, 'Olá ' + d.cliente + ', sobre nosso contato sobre ' + (corretores.find(x=>x.id===d.corretorId)?.name||'PSM'))} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 text-xs" style={{padding:'1px 5px',fontSize:'9px',background:'rgba(34,197,94,0.15)',borderRadius:3}}>💬</a>}
+                          {d.email && <a href={mailtoLink(d.email, 'Contato PSM — ' + d.cliente, 'Olá ' + d.cliente + ', sobre nosso atendimento.')} className="text-blue-400 hover:text-blue-300 text-xs" style={{padding:'1px 5px',fontSize:'9px',background:'rgba(59,130,246,0.15)',borderRadius:3}}>📧</a>}
+                          {d.telefone && <a href={'tel:' + d.telefone.replace(/\D/g,'')} className="text-yellow-400 text-xs" style={{padding:'1px 5px',fontSize:'9px',background:'rgba(212,168,67,0.15)',borderRadius:3}}>📞</a>}
+                        </div>
+                      )}
                       <div className="flex gap-1 mt-2 flex-wrap">
                         {STAGES.filter(x => x.id !== d.status).map(x => (
                           <button key={x.id} className="btn btn-sm btn-out" style={{padding:'2px 6px',fontSize:'9px'}} onClick={() => moveTo(d.id, x.id)}>→ {x.lbl}</button>
@@ -1032,6 +2251,13 @@ function CRMPage({ user }) {
                           <button className="text-red-400 text-xs hover:text-red-300" onClick={() => remove(d.id)}>×</button>
                         )}
                       </div>
+                      <details>
+                        <summary className="text-xs text-slate-400 mt-2 cursor-pointer hover:text-yellow-400">💬 Notas / 📎 Anexos</summary>
+                        <CommentsThread scope="crm" user={user} entityId={d.id} entityLabel={d.cliente} />
+                        <FileUploader scope="crm" entityId={d.id} files={d.files||[]} user={user} onChange={async novos => {
+                          await saveDeals(list.map(x => x.id === d.id ? {...x, files: novos} : x));
+                        }} />
+                      </details>
                     </div>
                   );
                 })}
@@ -1039,6 +2265,7 @@ function CRMPage({ user }) {
             </div>
           ))}
         </div>
+        </>
       )}
     </div>
   );
@@ -1122,6 +2349,16 @@ function ComissoesPage({ user }) {
       )}
 
       {loading ? <div className="text-slate-500">Carregando…</div> : (
+        <>
+        {filtered.length > 0 && (
+          <div className="card p-4 mb-4">
+            <h3 className="text-sm font-bold mb-3 text-slate-400 uppercase">📊 Comissões por status</h3>
+            <ChartCanvas type="doughnut" height={220}
+              data={{ labels:['Pendente','Pago'], datasets: [{ data:[totalPendente, totalPago], backgroundColor:['#d4a843','#16a34a'] }] }}
+              options={{ scales: {} }}
+            />
+          </div>
+        )}
         <div className="card overflow-hidden">
           <table className="w-full">
             <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
@@ -1160,6 +2397,7 @@ function ComissoesPage({ user }) {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );
@@ -1242,6 +2480,30 @@ function FluxoCaixaPage({ user }) {
       )}
 
       {loading ? <div className="text-slate-500">Carregando…</div> : (
+        <>
+        {list.length > 0 && (() => {
+          // agrupa por dia
+          const byDia = {};
+          list.forEach(c => {
+            if (!byDia[c.data]) byDia[c.data] = { entradas: 0, saidas: 0 };
+            if (c.tipo === 'entrada') byDia[c.data].entradas += c.valor||0;
+            else byDia[c.data].saidas += c.valor||0;
+          });
+          const dias = Object.keys(byDia).sort();
+          return (
+            <div className="card p-4 mb-4">
+              <h3 className="text-sm font-bold mb-3 text-slate-400 uppercase">📊 Entradas × Saídas (mês)</h3>
+              <ChartCanvas type="bar" height={250}
+                data={{ labels: dias.map(d => d.slice(8,10)),
+                  datasets: [
+                    { label: 'Entradas', data: dias.map(d => byDia[d].entradas), backgroundColor:'#16a34a' },
+                    { label: 'Saídas', data: dias.map(d => byDia[d].saidas), backgroundColor:'#dc2626' }
+                  ] }}
+                options={{ scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ '+(v/1000).toFixed(0)+'k' } } } }}
+              />
+            </div>
+          );
+        })()}
         <div className="card overflow-hidden">
           <table className="w-full">
             <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
@@ -1277,7 +2539,7 @@ function FluxoCaixaPage({ user }) {
 // IASolPage (chat com /api/agent)
 // ──────────────────────────────────────────────────────────────────────────
 function IASolPage({ user }) {
-  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const targetUid = useMemo(() => user.authUserId || legacyUid(user.id), [user.authUserId, user.id]);
   const { value: hist, save: saveHist } = useUserKv(targetUid, 'IA_SOL_HIST');
   const conversation = Array.isArray(hist) ? hist : [];
   const [input, setInput] = useState('');
@@ -1474,6 +2736,16 @@ function MetaAdsPage({ user }) {
             </div>
           )}
 
+          {data.campaigns.length > 0 && (
+            <div className="card p-4 mb-4">
+              <h3 className="text-sm font-bold mb-3 text-slate-400 uppercase">📊 Top 10 campanhas — Spend</h3>
+              <ChartCanvas type="bar" height={300}
+                data={{ labels: data.campaigns.sort((a,b)=>(b.spend||0)-(a.spend||0)).slice(0,10).map(c => c.name.substring(0,40)),
+                  datasets: [{ label: 'Spend (R$)', data: data.campaigns.sort((a,b)=>(b.spend||0)-(a.spend||0)).slice(0,10).map(c => c.spend||0), backgroundColor:'#d4a843' }] }}
+                options={{ indexAxis:'y', plugins:{legend:{display:false}}, scales:{ x:{ ticks:{ callback:v=>'R$ '+(v/1000).toFixed(0)+'k' } } } }}
+              />
+            </div>
+          )}
           <div className="card overflow-hidden">
             <table className="w-full text-sm">
               <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
@@ -1727,29 +2999,51 @@ function LancarVendaPage({ user }) {
 // ──────────────────────────────────────────────────────────────────────────
 function KPIsPage({ user }) {
   const lvl = RLVL[user.role] || 0;
+  // S4: KPIs grounded — vendas manuais + RD real, exclui locação
   const { value: vendas } = useShared('VENDAS_MANUAIS');
-  const { value: metas } = useShared('METAS_INDIVIDUAIS');
+  const { value: rdVendas } = useRealtimeShared('RD_VENDAS');
+  const { value: metas } = useRealtimeShared('METAS_INDIVIDUAIS');
   const { value: deals } = useShared('CRM_DEALS');
-  const list = Array.isArray(vendas) ? vendas : [];
+  const { value: rdOpps } = useRealtimeShared('RD_OPPS');
+  const vManuais = Array.isArray(vendas) ? vendas : [];
+  const rdV = (Array.isArray(rdVendas) ? rdVendas : []).filter(v => v.fr !== 'locacao');
+  const rdSet = new Set(rdV.map(v => v.rdId));
+  const list = [
+    ...vManuais.filter(v => !rdSet.has(v.rdId)),
+    ...rdV.map(v => ({ ...v, status:'fechada', dataVenda: v.closedAt?.slice(0,10) || v.updated_at?.slice(0,10), corretorId: v.bid }))
+  ];
   const m = metas || {};
-  const dealsList = Array.isArray(deals) ? deals : [];
+  const dealsLocal = Array.isArray(deals) ? deals : [];
+  const dealsRD = (Array.isArray(rdOpps) ? rdOpps : []).filter(o => o.fr !== 'locacao').map(o => ({ id:o.rdId, status:o.st_psm, valor:o.vgv, corretorId:o.bid }));
+  const dealsList = [...dealsLocal, ...dealsRD];
 
   const [refMes, setRefMes] = useState(monthKey());
+
+  // v62: mês anterior pra comparativo
+  function prevMonth(mk) {
+    const [y, mo] = mk.split('-').map(Number);
+    const d = new Date(y, mo - 2, 1);
+    return d.toISOString().slice(0,7);
+  }
+  const refMesAnt = prevMonth(refMes);
 
   const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
   const visible = lvl >= 5 ? corretores : corretores.filter(c => c.id === user.id);
 
   const stats = useMemo(() => {
     return visible.map(c => {
-      const myVendas = list.filter(v => v.corretorId === c.id && v.status === 'fechada' && v.dataVenda?.startsWith(refMes));
-      const vgv = myVendas.reduce((s,v) => s + (v.vgv||0), 0);
+      const myVendasAtual = list.filter(v => v.corretorId === c.id && v.status === 'fechada' && v.dataVenda?.startsWith(refMes));
+      const myVendasAnt = list.filter(v => v.corretorId === c.id && v.status === 'fechada' && v.dataVenda?.startsWith(refMesAnt));
+      const vgv = myVendasAtual.reduce((s,v) => s + (v.vgv||0), 0);
+      const vgvAnt = myVendasAnt.reduce((s,v) => s + (v.vgv||0), 0);
       const meta = m[c.id]?.vgv || 0;
       const pctMeta = meta > 0 ? Math.round(vgv/meta*100) : 0;
+      const deltaVgv = vgvAnt > 0 ? ((vgv - vgvAnt) / vgvAnt * 100) : (vgv > 0 ? 100 : 0);
       const myDeals = dealsList.filter(d => d.corretorId === c.id);
       const pipeline = myDeals.filter(d => !['fechado','perdido'].includes(d.status)).reduce((s,d) => s+(d.valor||0),0);
-      return { corretor: c, vendas: myVendas.length, vgv, meta, pctMeta, pipeline };
+      return { corretor: c, vendas: myVendasAtual.length, vendasAnt: myVendasAnt.length, vgv, vgvAnt, meta, pctMeta, deltaVgv, pipeline };
     }).sort((a,b) => b.vgv - a.vgv);
-  }, [visible, list, m, dealsList, refMes]);
+  }, [visible, list, m, dealsList, refMes, refMesAnt]);
 
   const totalVgv = stats.reduce((s,r) => s+r.vgv, 0);
   const totalMeta = stats.reduce((s,r) => s+r.meta, 0);
@@ -1775,13 +3069,34 @@ function KPIsPage({ user }) {
         <div className="card p-4"><div className="text-xs text-slate-400">Vendas fechadas</div><div className="text-2xl font-bold text-green-400">{stats.reduce((s,r)=>s+r.vendas,0)}</div></div>
       </div>
 
+      {stats.length > 0 && (
+        <div className="card p-4 mb-4">
+          <h3 className="text-sm font-bold mb-3 text-slate-400 uppercase">📊 VGV vs Meta — visual</h3>
+          <ChartCanvas type="bar"
+            data={{ labels: stats.map(s => s.corretor.name.split(' ')[0]),
+              datasets: [
+                { label: 'VGV realizado', data: stats.map(s => s.vgv), backgroundColor: '#d4a843' },
+                { label: 'Meta', data: stats.map(s => s.meta), backgroundColor: '#475569' }
+              ] }}
+            options={{ scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ '+(v/1000).toFixed(0)+'k', color:'#94a3b8' } } } }}
+          />
+        </div>
+      )}
       <div className="card overflow-hidden">
+        <div className="flex items-center justify-between p-3 bg-slate-900 border-b border-slate-700">
+          <div className="text-xs text-slate-400 uppercase font-bold">Tabela detalhada</div>
+          <div className="flex gap-2">
+            <button className="btn btn-sm btn-out" onClick={() => exportToXLSX('KPIs '+refMes, ['Corretor','Frente','Vendas','VGV','Meta','% Meta','Pipeline'], stats.map(r => [r.corretor.name, r.corretor.frente||'', r.vendas, r.vgv, r.meta, r.pctMeta.toFixed(0)+'%', r.pipeline]), 'kpis_'+refMes+'.xlsx')}>📊 Excel</button>
+            <button className="btn btn-sm btn-out" onClick={() => exportToPDF('KPIs '+refMes, ['Corretor','Frente','Vendas','VGV','Meta','% Meta','Pipeline'], stats.map(r => [r.corretor.name, r.corretor.frente||'', r.vendas, fmtMoney(r.vgv), fmtMoney(r.meta), r.pctMeta.toFixed(0)+'%', fmtMoney(r.pipeline)]), 'kpis_'+refMes+'.pdf')}>📄 PDF</button>
+          </div>
+        </div>
         <table className="w-full">
           <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
             <th className="text-left p-3">Corretor</th>
             <th className="text-left p-3">Frente</th>
             <th className="text-right p-3">Vendas</th>
             <th className="text-right p-3">VGV</th>
+            <th className="text-right p-3">vs mês ant.</th>
             <th className="text-right p-3">Meta</th>
             <th className="text-right p-3">% Meta</th>
             <th className="text-right p-3">Pipeline (CRM)</th>
@@ -1793,6 +3108,10 @@ function KPIsPage({ user }) {
                 <td className="p-3 text-xs">{r.corretor.frente ? FRENTES[r.corretor.frente]?.label : '—'}</td>
                 <td className="text-right p-3">{r.vendas}</td>
                 <td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>{fmtMoney(r.vgv)}</td>
+                <td className="text-right p-3 text-xs">
+                  <span className={r.deltaVgv >= 0 ? 'delta-up' : 'delta-down'}>{r.deltaVgv >= 0 ? '↑' : '↓'} {Math.abs(r.deltaVgv).toFixed(0)}%</span>
+                  <div className="text-slate-500" style={{fontSize:9}}>ant: {fmtMoney(r.vgvAnt)}</div>
+                </td>
                 <td className="text-right p-3 text-slate-400">{fmtMoney(r.meta)}</td>
                 <td className="text-right p-3 font-bold" style={{color: r.pctMeta >= 100 ? '#22c55e' : r.pctMeta >= 70 ? '#d4a843' : '#ef4444'}}>
                   <div className="flex items-center justify-end gap-2">
@@ -1822,6 +3141,7 @@ function TabelaImoveisPage({ user }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ titulo: '', empreendimento: '', tipo: 'apartamento', dorms: '2', area: '', valor: '', regiao: '', status: 'disponivel', obs: '' });
   const [filter, setFilter] = useState({ regiao: '', tipo: '', status: '' });
+  const [qSearch, setQSearch] = useState('');
 
   async function add() {
     if (!form.titulo) return;
@@ -1849,7 +3169,8 @@ function TabelaImoveisPage({ user }) {
   const filtered = list.filter(i =>
     (!filter.regiao || (i.regiao||'').toLowerCase().includes(filter.regiao.toLowerCase())) &&
     (!filter.tipo || i.tipo === filter.tipo) &&
-    (!filter.status || i.status === filter.status)
+    (!filter.status || i.status === filter.status) &&
+    (!qSearch || matchSearch(i.titulo, qSearch) || matchSearch(i.empreendimento, qSearch) || matchSearch(i.obs, qSearch))
   );
 
   return (
@@ -1862,6 +3183,7 @@ function TabelaImoveisPage({ user }) {
         {isStaff && <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Novo imóvel'}</button>}
       </div>
 
+      <div className="mb-4"><SearchBar value={qSearch} onChange={setQSearch} placeholder="🔍 Buscar imóvel, empreendimento, observações..." /></div>
       <div className="card p-3 mb-4 flex gap-2 flex-wrap">
         <input className="input max-w-xs" placeholder="Filtrar região..." value={filter.regiao} onChange={e => setFilter({...filter, regiao: e.target.value})} />
         <select className="input max-w-xs" value={filter.tipo} onChange={e => setFilter({...filter, tipo: e.target.value})}>
@@ -1896,6 +3218,10 @@ function TabelaImoveisPage({ user }) {
             </select>
           </div>
           <textarea className="input mb-3" rows="2" placeholder="Observações" value={form.obs} onChange={e => setForm({...form, obs: e.target.value})} />
+          <div className="mb-3">
+            <label className="block text-xs text-slate-400 mb-1">Tags</label>
+            <TagsInput value={form.tags||[]} onChange={tags => setForm({...form, tags})} suggestions={['lancamento','pronto','reformado','com-mobilia','aceita-financiamento','permuta']} />
+          </div>
           <button className="btn" onClick={add} disabled={!form.titulo}>💾 Cadastrar imóvel</button>
         </div>
       )}
@@ -1916,6 +3242,14 @@ function TabelaImoveisPage({ user }) {
               </div>
               <div className="text-xl font-bold mb-3" style={{color:'#d4a843'}}>{fmtMoney(i.valor)}</div>
               {i.obs && <div className="text-xs text-slate-400 italic mb-2">{i.obs}</div>}
+              {i.tags && i.tags.length > 0 && (
+                <div className="flex gap-1 flex-wrap mb-2">
+                  {i.tags.map(t => <span key={t} className="badge" style={{background:'#d4a84330', color:'#fde68a', padding:'1px 6px', fontSize:9}}>#{t}</span>)}
+                </div>
+              )}
+              <FileUploader scope="imoveis" entityId={i.id} files={i.files||[]} user={user} onChange={async novos => {
+                await save(list.map(x => x.id === i.id ? {...x, files: novos} : x));
+              }} />
               {isStaff && (
                 <div className="flex gap-1 flex-wrap mt-2">
                   {i.status !== 'disponivel' && <button className="btn btn-sm btn-out" onClick={() => setStatus(i.id, 'disponivel')}>Disponibilizar</button>}
@@ -1937,7 +3271,7 @@ function TabelaImoveisPage({ user }) {
 // FichasPage (lista de fichas/propostas geradas)
 // ──────────────────────────────────────────────────────────────────────────
 function FichasPage({ user }) {
-  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const targetUid = useMemo(() => user.authUserId || legacyUid(user.id), [user.authUserId, user.id]);
   const { value: fichas, save } = useUserKv(targetUid, 'FICHAS_PROPOSTAS');
   const list = Array.isArray(fichas) ? fichas : [];
   const [showForm, setShowForm] = useState(false);
@@ -2050,8 +3384,14 @@ function FichasPage({ user }) {
                 <div className="text-xs text-slate-400">{f.empreendimento} {f.unidade && '· '+f.unidade} · {fmtMoney(f.valor)}</div>
                 <div className="text-xs text-slate-500 mt-1">Gerado {fmtDate(f.createdAt)}</div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button className="btn btn-sm btn-out" onClick={() => downloadAsText(f)}>↓ Baixar TXT</button>
+                {f.email && (
+                  <a href={mailtoLink(f.email, (f.tipo === 'proposta' ? 'Proposta de Compra e Venda — ' : 'Ficha — ') + f.cliente, 'Olá ' + f.cliente + ',\n\nSegue ' + (f.tipo==='proposta'?'a proposta':'a ficha') + ' do imóvel ' + f.empreendimento + ' (' + f.unidade + ') no valor de ' + fmtMoney(f.valor) + '.\n\nCondições:\n' + (f.condicoes||'') + '\n\nValidade: ' + (f.validade||'') + '\n\nQualquer dúvida, estou à disposição.\n\n' + f.corretorName + '\nPSM Imobiliária')} className="btn btn-sm btn-success" style={{padding:'4px 10px',fontSize:'11px'}}>📧 Enviar email</a>
+                )}
+                {f.telefone && (
+                  <a href={whatsappLink(f.telefone, 'Olá ' + f.cliente + ', segue a proposta do ' + f.empreendimento + ' (' + f.unidade + ') por ' + fmtMoney(f.valor) + '. Detalhes: ' + (f.condicoes||'').substring(0,200))} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-success" style={{padding:'4px 10px',fontSize:'11px'}}>💬 WhatsApp</a>
+                )}
                 <button className="text-red-400 text-xs hover:text-red-300" onClick={() => remove(f.id)}>×</button>
               </div>
             </div>
@@ -2222,6 +3562,19 @@ function PremiacoesPage({ user }) {
         </div>
       )}
 
+      {list.length > 0 && (() => {
+        const byVig = {};
+        list.forEach(p => { byVig[p.vigencia||'avulsa'] = (byVig[p.vigencia||'avulsa']||0) + 1; });
+        return (
+          <div className="card p-4 mb-4">
+            <h3 className="text-sm font-bold mb-3 text-slate-400 uppercase">📊 Premiações por vigência</h3>
+            <ChartCanvas type="doughnut" height={200}
+              data={{ labels: Object.keys(byVig), datasets:[{ data: Object.values(byVig), backgroundColor:['#d4a843','#3b82f6','#16a34a','#dc2626'] }] }}
+              options={{ scales:{} }}
+            />
+          </div>
+        );
+      })()}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {list.map(p => (
           <div key={p.id} className="card p-4" style={{opacity: p.ativo === false ? 0.5 : 1}}>
@@ -2256,7 +3609,7 @@ function PremiacoesPage({ user }) {
 // OportunidadesPage (oportunidades compartilhadas — leads "para a casa")
 // ──────────────────────────────────────────────────────────────────────────
 function OportunidadesPage({ user }) {
-  const { value: opos, save } = useShared('OPORTUNIDADES_PSM');
+  const { value: opos, save } = useRealtimeShared('OPORTUNIDADES_PSM');
   const list = Array.isArray(opos) ? opos : [];
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ titulo:'', empreendimento:'', incorporadora:'', valor:'', validade:'', descricao:'', urgente:false });
@@ -2335,7 +3688,7 @@ function OportunidadesPage({ user }) {
 // CanalAnonimoPage (denuncias/sugestoes anonimas para a diretoria)
 // ──────────────────────────────────────────────────────────────────────────
 function CanalAnonimoPage({ user }) {
-  const { value: msgs, save } = useShared('CANAL_ANONIMO');
+  const { value: msgs, save } = useRealtimeShared('CANAL_ANONIMO');
   const list = Array.isArray(msgs) ? msgs : [];
   const isSocio = user.role === 'socio';
   const [text, setText] = useState('');
@@ -2421,7 +3774,7 @@ function FormacaoPage({ user }) {
   const { value: cursos, save } = useShared('FORMACAO_CURSOS');
   const list = Array.isArray(cursos) ? cursos : [];
   const isStaff = user.role === 'socio' || user.role === 'lider';
-  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const targetUid = useMemo(() => user.authUserId || legacyUid(user.id), [user.authUserId, user.id]);
   const { value: progresso, save: saveProgresso } = useUserKv(targetUid, 'FORMACAO_PROGRESSO');
   const meu = progresso || {};
 
@@ -2674,7 +4027,7 @@ function EticaPage({ user }) {
   const isSocio = user.role === 'socio';
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
-  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const targetUid = useMemo(() => user.authUserId || legacyUid(user.id), [user.authUserId, user.id]);
   const { value: aceite, save: saveAceite } = useUserKv(targetUid, 'ETICA_ACEITE');
 
   useEffect(() => { if (codigo?.texto) setText(codigo.texto); }, [codigo]);
@@ -2765,22 +4118,46 @@ function DREPage({ user }) {
   if (lvl < 5) return <div className="p-6 text-slate-500">Acesso restrito a líder+ e sócios.</div>;
 
   const [refMes, setRefMes] = useState(monthKey());
+  function prevMonth(mk) { const [y, mo] = mk.split('-').map(Number); return new Date(y, mo - 2, 1).toISOString().slice(0,7); }
+  const refMesAnt = prevMonth(refMes);
   const { value: vendas } = useShared('VENDAS_MANUAIS');
   const { value: comissoes } = useShared('COMISSOES_PAGAMENTOS');
   const { value: fluxo } = useShared('FLUXO_CAIXA_' + refMes);
+  const { value: fluxoAnt } = useShared('FLUXO_CAIXA_' + refMesAnt);
   const { value: custos } = useShared('CUSTOS_FIXOS_' + refMes);
+  const { value: custosAnt } = useShared('CUSTOS_FIXOS_' + refMesAnt);
 
   const vendasMes = (Array.isArray(vendas) ? vendas : []).filter(v => v.status === 'fechada' && v.dataVenda?.startsWith(refMes));
+  const vendasAnt = (Array.isArray(vendas) ? vendas : []).filter(v => v.status === 'fechada' && v.dataVenda?.startsWith(refMesAnt));
   const vgvBruto = vendasMes.reduce((s,v) => s + (v.vgv||0), 0);
+  const vgvAnt = vendasAnt.reduce((s,v) => s + (v.vgv||0), 0);
   const comissoesMes = (Array.isArray(comissoes) ? comissoes : []).filter(c => c.refMes === refMes);
+  const comissoesAnt = (Array.isArray(comissoes) ? comissoes : []).filter(c => c.refMes === refMesAnt);
   const totalComissoes = comissoesMes.reduce((s,c) => s+(c.valor||0), 0);
+  const totalComissoesAnt = comissoesAnt.reduce((s,c) => s+(c.valor||0), 0);
   const fluxoList = Array.isArray(fluxo) ? fluxo : [];
+  const fluxoAntList = Array.isArray(fluxoAnt) ? fluxoAnt : [];
   const totalDespesas = fluxoList.filter(f => f.tipo === 'saida').reduce((s,f) => s+(f.valor||0), 0);
+  const totalDespesasAnt = fluxoAntList.filter(f => f.tipo === 'saida').reduce((s,f) => s+(f.valor||0), 0);
   const custosList = Array.isArray(custos) ? custos : [];
+  const custosAntList = Array.isArray(custosAnt) ? custosAnt : [];
   const totalCustosFixos = custosList.reduce((s,c) => s + (c.valor||0), 0);
+  const totalCustosFixosAnt = custosAntList.reduce((s,c) => s + (c.valor||0), 0);
+  function delta(atual, ant) {
+    if (ant === 0) return atual > 0 ? '↑ novo' : '—';
+    const pct = (atual - ant) / ant * 100;
+    return (pct >= 0 ? '↑' : '↓') + ' ' + Math.abs(pct).toFixed(0) + '%';
+  }
+  function deltaCls(atual, ant) {
+    if (ant === 0) return '';
+    return (atual - ant) >= 0 ? 'delta-up' : 'delta-down';
+  }
 
-  // Estimativa receita imobiliária: assumindo 6% comissão direta + 1% gerência sobre VGV
-  const receitaEstimada = vgvBruto * 0.07;
+  // S4: DRE grounded — receita real = comissoes pagas + VGV bruto * taxa configuravel
+  // Usuario configura taxa de receita (default 7%) via Configuracoes futuramente
+  const TAXA_RECEITA = 0.07;
+  const receitaEstimada = vgvBruto * TAXA_RECEITA;
+  // Comissoes a pagar ja vem de COMISSOES_PAGAMENTOS (real)
   const lucroBruto = receitaEstimada - totalComissoes;
   const lucroOperacional = lucroBruto - totalDespesas - totalCustosFixos;
   const margem = receitaEstimada > 0 ? (lucroOperacional / receitaEstimada * 100) : 0;
@@ -2797,14 +4174,15 @@ function DREPage({ user }) {
 
       <div className="card overflow-hidden mb-4">
         <table className="w-full text-sm">
+          <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase border-b border-slate-700"><th className="p-3 text-left">Linha</th><th className="p-3 text-right">{refMes}</th><th className="p-3 text-right">{refMesAnt}</th><th className="p-3 text-right">Δ</th></tr></thead>
           <tbody>
-            <tr className="border-b border-slate-700"><td className="p-3 font-bold">VGV vendido (bruto)</td><td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>{fmtMoney(vgvBruto)}</td></tr>
-            <tr className="border-b border-slate-700"><td className="p-3 text-slate-400">Receita estimada (7% sobre VGV)</td><td className="text-right p-3 text-slate-400">+ {fmtMoney(receitaEstimada)}</td></tr>
-            <tr className="border-b border-slate-700"><td className="p-3 text-slate-400">(−) Comissões a pagar</td><td className="text-right p-3 text-red-400">− {fmtMoney(totalComissoes)}</td></tr>
-            <tr className="border-b border-slate-700 bg-slate-900"><td className="p-3 font-bold">= Lucro Bruto</td><td className="text-right p-3 font-bold" style={{color: lucroBruto >= 0 ? '#22c55e' : '#ef4444'}}>{fmtMoney(lucroBruto)}</td></tr>
-            <tr className="border-b border-slate-700"><td className="p-3 text-slate-400">(−) Despesas operacionais (fluxo de caixa)</td><td className="text-right p-3 text-red-400">− {fmtMoney(totalDespesas)}</td></tr>
-            <tr className="border-b border-slate-700"><td className="p-3 text-slate-400">(−) Custos fixos do mês</td><td className="text-right p-3 text-red-400">− {fmtMoney(totalCustosFixos)}</td></tr>
-            <tr className="bg-slate-900"><td className="p-3 font-bold text-lg">= Lucro Operacional</td><td className="text-right p-3 font-bold text-lg" style={{color: lucroOperacional >= 0 ? '#22c55e' : '#ef4444'}}>{fmtMoney(lucroOperacional)}</td></tr>
+            <tr className="border-b border-slate-700"><td className="p-3 font-bold">VGV vendido (bruto)</td><td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>{fmtMoney(vgvBruto)}</td><td className="text-right p-3 text-slate-500">{fmtMoney(vgvAnt)}</td><td className={'text-right p-3 ' + deltaCls(vgvBruto, vgvAnt)}>{delta(vgvBruto, vgvAnt)}</td></tr>
+            <tr className="border-b border-slate-700"><td className="p-3 text-slate-400">(+) Receita estimada (7%)</td><td className="text-right p-3 text-slate-400">{fmtMoney(receitaEstimada)}</td><td className="text-right p-3 text-slate-500">{fmtMoney(vgvAnt * 0.07)}</td><td className={'text-right p-3 ' + deltaCls(receitaEstimada, vgvAnt*0.07)}>{delta(receitaEstimada, vgvAnt*0.07)}</td></tr>
+            <tr className="border-b border-slate-700"><td className="p-3 text-slate-400">(−) Comissões</td><td className="text-right p-3 text-red-400">{fmtMoney(totalComissoes)}</td><td className="text-right p-3 text-slate-500">{fmtMoney(totalComissoesAnt)}</td><td className={'text-right p-3 ' + deltaCls(totalComissoes, totalComissoesAnt)}>{delta(totalComissoes, totalComissoesAnt)}</td></tr>
+            <tr className="border-b border-slate-700 bg-slate-900"><td className="p-3 font-bold">= Lucro Bruto</td><td className="text-right p-3 font-bold" style={{color: lucroBruto >= 0 ? '#22c55e' : '#ef4444'}}>{fmtMoney(lucroBruto)}</td><td className="text-right p-3 text-slate-500">{fmtMoney(vgvAnt * 0.07 - totalComissoesAnt)}</td><td className="text-right p-3 text-xs">—</td></tr>
+            <tr className="border-b border-slate-700"><td className="p-3 text-slate-400">(−) Despesas operacionais</td><td className="text-right p-3 text-red-400">{fmtMoney(totalDespesas)}</td><td className="text-right p-3 text-slate-500">{fmtMoney(totalDespesasAnt)}</td><td className={'text-right p-3 ' + deltaCls(totalDespesas, totalDespesasAnt)}>{delta(totalDespesas, totalDespesasAnt)}</td></tr>
+            <tr className="border-b border-slate-700"><td className="p-3 text-slate-400">(−) Custos fixos</td><td className="text-right p-3 text-red-400">{fmtMoney(totalCustosFixos)}</td><td className="text-right p-3 text-slate-500">{fmtMoney(totalCustosFixosAnt)}</td><td className={'text-right p-3 ' + deltaCls(totalCustosFixos, totalCustosFixosAnt)}>{delta(totalCustosFixos, totalCustosFixosAnt)}</td></tr>
+            <tr className="bg-slate-900"><td className="p-3 font-bold text-lg">= Lucro Operacional</td><td className="text-right p-3 font-bold text-lg" style={{color: lucroOperacional >= 0 ? '#22c55e' : '#ef4444'}}>{fmtMoney(lucroOperacional)}</td><td className="text-right p-3 text-slate-500">{fmtMoney(vgvAnt * 0.07 - totalComissoesAnt - totalDespesasAnt - totalCustosFixosAnt)}</td><td className="text-right p-3 text-xs">—</td></tr>
           </tbody>
         </table>
       </div>
@@ -2815,6 +4193,13 @@ function DREPage({ user }) {
         <div className="card p-4"><div className="text-xs text-slate-400">Comissão média / venda</div><div className="text-2xl font-bold">{fmtMoney(vendasMes.length > 0 ? totalComissoes / vendasMes.length : 0)}</div></div>
       </div>
 
+      <div className="card p-4 mb-4">
+        <h3 className="text-sm font-bold mb-3 text-slate-400 uppercase">📊 Distribuição financeira</h3>
+        <ChartCanvas type="doughnut" height={250}
+          data={{ labels:['Receita estimada','Comissões','Despesas operacionais','Custos fixos'], datasets:[{ data:[receitaEstimada, totalComissoes, totalDespesas, totalCustosFixos], backgroundColor:['#16a34a','#d4a843','#f97316','#dc2626'] }] }}
+          options={{ scales:{} }}
+        />
+      </div>
       <div className="card p-4">
         <div className="text-sm text-slate-400 mb-2">⚠️ Observações</div>
         <ul className="text-xs text-slate-500 space-y-1 list-disc list-inside">
@@ -2993,6 +4378,15 @@ function CustosFixosPage({ user }) {
         </div>
       )}
 
+      {list.length > 0 && (
+        <div className="card p-4 mb-4">
+          <h3 className="text-sm font-bold mb-3 text-slate-400 uppercase">📊 Distribuição por categoria</h3>
+          <ChartCanvas type="doughnut" height={280}
+            data={{ labels: Object.keys(byCategoria).map(c => CATS[c]||c), datasets:[{ data: Object.values(byCategoria), backgroundColor:['#d4a843','#3b82f6','#16a34a','#a855f7','#dc2626','#06b6d4','#f97316'] }] }}
+            options={{ scales:{} }}
+          />
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div className="card p-4">
           <div className="text-sm font-bold mb-3 text-slate-400 uppercase">Por Categoria</div>
@@ -3043,12 +4437,24 @@ function ForecastPage({ user }) {
   const lvl = RLVL[user.role] || 0;
   if (lvl < 5) return <div className="p-6 text-slate-500">Acesso restrito a líder+ e sócios.</div>;
 
+  // S4: Forecast grounded — combina vendas manuais + RD CRM vendas reais
   const { value: vendas } = useShared('VENDAS_MANUAIS');
+  const { value: rdVendas } = useRealtimeShared('RD_VENDAS');
   const { value: deals } = useShared('CRM_DEALS');
-  const { value: metas } = useShared('METAS_INDIVIDUAIS');
+  const { value: rdOpps } = useRealtimeShared('RD_OPPS');
+  const { value: metas } = useRealtimeShared('METAS_INDIVIDUAIS');
 
-  const list = Array.isArray(vendas) ? vendas : [];
-  const dealsList = Array.isArray(deals) ? deals : [];
+  // Mescla vendas manuais + RD (excluindo locação) sem duplicatas
+  const vendasManuais = Array.isArray(vendas) ? vendas : [];
+  const rdV = (Array.isArray(rdVendas) ? rdVendas : []).filter(v => v.fr !== 'locacao');
+  const rdSet = new Set(rdV.map(v => v.rdId));
+  const list = [
+    ...vendasManuais.filter(v => v.status === 'fechada' && !rdSet.has(v.rdId)),
+    ...rdV.map(v => ({ ...v, status: 'fechada', vgv: v.vgv, dataVenda: v.closedAt?.slice(0,10) || v.updated_at?.slice(0,10), corretorId: v.bid }))
+  ];
+  const dealsLocal = Array.isArray(deals) ? deals : [];
+  const dealsRD = (Array.isArray(rdOpps) ? rdOpps : []).filter(o => o.fr !== 'locacao').map(o => ({ id: o.rdId, status: o.st_psm, valor: o.vgv, corretorId: o.bid }));
+  const dealsList = [...dealsLocal, ...dealsRD];
   const m = metas || {};
 
   const corretores = USERS.filter(u => ['corretor','lider'].includes(u.role));
@@ -3086,6 +4492,17 @@ function ForecastPage({ user }) {
         <div className="card p-4"><div className="text-xs text-slate-400">Meta mensal soma</div><div className="text-2xl font-bold">{fmtMoney(totalMetaMes)}</div></div>
       </div>
 
+      <div className="card p-4 mb-4">
+        <h3 className="text-sm font-bold mb-3 text-slate-400 uppercase">📈 Projeção 6 meses</h3>
+        <ChartCanvas type="line"
+          data={{ labels: meses.map(m => m.lbl),
+            datasets: [
+              { label: 'Projeção / Real', data: meses.map(m => m.projecao), borderColor:'#d4a843', backgroundColor:'#d4a84320', fill:true, tension:0.3 },
+              { label: 'Meta', data: meses.map(m => m.meta), borderColor:'#94a3b8', borderDash:[5,5], fill:false }
+            ] }}
+          options={{ scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ '+(v/1000).toFixed(0)+'k', color:'#94a3b8' } } } }}
+        />
+      </div>
       <div className="card overflow-hidden mb-4">
         <table className="w-full text-sm">
           <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
@@ -3276,6 +4693,7 @@ function LocacoesPage({ user }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ imovel:'', endereco:'', proprietario:'', telProprietario:'', inquilino:'', telInquilino:'', valorAluguel:'', dataInicio:todayKey(), dataFim:'', taxa:'10', status:'ativo', obs:'' });
   const [filter, setFilter] = useState('ativo');
+  const [qSearch, setQSearch] = useState('');
 
   async function add() {
     if (!form.imovel || !form.inquilino) return;
@@ -3287,7 +4705,8 @@ function LocacoesPage({ user }) {
   async function setStatus(id, status) { await save(list.map(c => c.id===id ? {...c, status, statusAt:Date.now()} : c)); }
   async function remove(id) { if (!confirm('Apagar?')) return; await save(list.filter(c => c.id !== id)); }
 
-  const filtered = filter === 'todos' ? list : list.filter(c => c.status === filter);
+  let filtered = filter === 'todos' ? list : list.filter(c => c.status === filter);
+  if (qSearch) filtered = filtered.filter(c => matchSearch(c.imovel, qSearch) || matchSearch(c.endereco, qSearch) || matchSearch(c.proprietario, qSearch) || matchSearch(c.inquilino, qSearch));
   const totalAluguel = list.filter(c => c.status === 'ativo').reduce((s,c) => s + (c.valorAluguel||0), 0);
   const totalTaxa = list.filter(c => c.status === 'ativo').reduce((s,c) => s + ((c.valorAluguel||0) * (c.taxa||10) / 100), 0);
 
@@ -3309,7 +4728,8 @@ function LocacoesPage({ user }) {
         <div className="card p-4"><div className="text-xs text-slate-400">Inadimplentes</div><div className="text-xl font-bold text-red-400">{list.filter(c => c.status==='inadimplente').length}</div></div>
       </div>
 
-      <div className="flex gap-2 mb-4">
+      <div className="mb-4"><SearchBar value={qSearch} onChange={setQSearch} placeholder="🔍 Buscar imóvel, proprietário, inquilino..." /></div>
+      <div className="flex gap-2 mb-4 flex-wrap">
         <button className={'btn btn-sm ' + (filter==='todos'?'':'btn-out')} onClick={() => setFilter('todos')}>Todos ({list.length})</button>
         {Object.entries(STATUS).map(([k, lbl]) => <button key={k} className={'btn btn-sm ' + (filter===k?'':'btn-out')} onClick={() => setFilter(k)}>{lbl} ({list.filter(c => c.status===k).length})</button>)}
       </div>
@@ -3354,8 +4774,18 @@ function LocacoesPage({ user }) {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mt-2">
-              <div><strong className="text-slate-400">👤 Proprietário:</strong> {c.proprietario} {c.telProprietario && '· '+c.telProprietario}</div>
-              <div><strong className="text-slate-400">🏠 Inquilino:</strong> {c.inquilino} {c.telInquilino && '· '+c.telInquilino}</div>
+              <div>
+                <strong className="text-slate-400">👤 Proprietário:</strong> {c.proprietario} {c.telProprietario && '· '+c.telProprietario}
+                {c.telProprietario && (
+                  <a href={whatsappLink(c.telProprietario, 'Olá ' + c.proprietario + ', sobre o contrato do ' + c.imovel)} target="_blank" rel="noopener noreferrer" className="ml-2 text-green-400 hover:text-green-300 text-xs">💬</a>
+                )}
+              </div>
+              <div>
+                <strong className="text-slate-400">🏠 Inquilino:</strong> {c.inquilino} {c.telInquilino && '· '+c.telInquilino}
+                {c.telInquilino && (
+                  <a href={whatsappLink(c.telInquilino, 'Olá ' + c.inquilino + ', sobre o contrato do ' + c.imovel)} target="_blank" rel="noopener noreferrer" className="ml-2 text-green-400 hover:text-green-300 text-xs">💬</a>
+                )}
+              </div>
               <div className="text-xs text-slate-500">Início: {c.dataInicio} {c.dataFim && '· Fim: '+c.dataFim}</div>
             </div>
             {c.obs && <div className="text-sm text-slate-400 mt-2 italic">{c.obs}</div>}
@@ -3481,7 +4911,7 @@ function GovernancePage({ user }) {
 // ConfiguracoesPage (preferencias gerais)
 // ──────────────────────────────────────────────────────────────────────────
 function ConfiguracoesPage({ user }) {
-  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const targetUid = useMemo(() => user.authUserId || legacyUid(user.id), [user.authUserId, user.id]);
   const { value: pref, save: savePref } = useUserKv(targetUid, 'PREFERENCIAS_USUARIO');
   const p = pref || {};
 
@@ -3548,11 +4978,19 @@ function ConfiguracoesPage({ user }) {
       <div className="card p-4 mb-4">
         <h2 className="font-bold mb-3">🎨 Aparência</h2>
         <div className="flex gap-2">
-          <button className={'btn btn-sm ' + (form.tema==='dark'?'':'btn-out')} onClick={() => setForm({...form, tema:'dark'})}>🌙 Escuro</button>
-          <button className={'btn btn-sm ' + (form.tema==='light'?'':'btn-out')} onClick={() => setForm({...form, tema:'light'})}>☀️ Claro</button>
-          <button className={'btn btn-sm ' + (form.tema==='auto'?'':'btn-out')} onClick={() => setForm({...form, tema:'auto'})}>🔄 Auto</button>
+          <button className={'btn btn-sm ' + ((document.body.className.includes('light'))?'btn-out':'')} onClick={() => { document.body.className=''; localStorage.setItem('psm_v2_theme','dark'); }}>🌙 Escuro</button>
+          <button className={'btn btn-sm ' + ((document.body.className.includes('light'))?'':'btn-out')} onClick={() => { document.body.className='theme-light'; localStorage.setItem('psm_v2_theme','light'); }}>☀️ Claro</button>
         </div>
-        <div className="text-xs text-slate-500 mt-2">Tema claro será implementado em sprint futuro.</div>
+        <div className="text-xs text-slate-500 mt-2">Tema aplicado imediatamente. Persiste entre sessões.</div>
+      </div>
+      <div className="card p-4 mb-4">
+        <h2 className="font-bold mb-3">🔔 Notificações Push</h2>
+        <p className="text-sm text-slate-400 mb-3">Receba alertas de vendas, recados, oportunidades em tempo real.</p>
+        <button className="btn btn-sm" onClick={() => {
+          if (!('Notification' in window)) { alert('Navegador não suporta notificações'); return; }
+          Notification.requestPermission().then(p => { alert('Permissão: ' + p); });
+        }}>Habilitar notificações</button>
+        <div className="text-xs text-slate-500 mt-2">Status atual: {(typeof Notification !== 'undefined') ? Notification.permission : 'não suportado'}</div>
       </div>
 
       <div className="flex gap-2 mb-6">
@@ -3609,11 +5047,54 @@ function AgendaPSMPage({ user }) {
         {isStaff && <button className="btn" onClick={() => setShowForm(s => !s)}>{showForm ? '× Cancelar' : '+ Novo evento'}</button>}
       </div>
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 flex-wrap">
         <button className={'btn btn-sm ' + (filter==='proximos'?'':'btn-out')} onClick={() => setFilter('proximos')}>Próximos ({list.filter(e => e.dataInicio >= now).length})</button>
         <button className={'btn btn-sm ' + (filter==='passados'?'':'btn-out')} onClick={() => setFilter('passados')}>Passados ({list.filter(e => e.dataInicio < now).length})</button>
         <button className={'btn btn-sm ' + (filter==='todos'?'':'btn-out')} onClick={() => setFilter('todos')}>Todos ({list.length})</button>
+        <button className={'btn btn-sm ' + (filter==='calendario'?'':'btn-out')} onClick={() => setFilter('calendario')}>📅 Calendário</button>
       </div>
+      {filter === 'calendario' && (() => {
+        const today = new Date();
+        const [yr, mo] = [today.getFullYear(), today.getMonth()];
+        const firstDow = new Date(yr, mo, 1).getDay();
+        const daysInMonth = new Date(yr, mo + 1, 0).getDate();
+        const dows = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+        const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+        const eventosPorDia = {};
+        list.forEach(e => {
+          const d = new Date(e.dataInicio);
+          if (d.getFullYear() === yr && d.getMonth() === mo) {
+            const key = d.getDate();
+            if (!eventosPorDia[key]) eventosPorDia[key] = [];
+            eventosPorDia[key].push(e);
+          }
+        });
+        return (
+          <div className="card p-4 mb-4">
+            <div className="text-center font-bold mb-3" style={{color:'#d4a843'}}>{monthNames[mo]} {yr}</div>
+            <div className="grid grid-cols-7 gap-2 mb-2">
+              {dows.map(d => <div key={d} className="text-xs text-slate-400 text-center font-bold">{d}</div>)}
+            </div>
+            <div className="grid grid-cols-7 gap-2">
+              {Array.from({length:firstDow}).map((_,i) => <div key={'e'+i}></div>)}
+              {Array.from({length:daysInMonth}, (_,i) => {
+                const day = i+1;
+                const evs = eventosPorDia[day] || [];
+                const isToday = day === today.getDate();
+                return (
+                  <div key={day} className="card month-cell p-2" style={{borderColor: isToday ? '#d4a843' : '#334155'}}>
+                    <div className="text-xs text-slate-500 mb-1">{day}{isToday && ' •'}</div>
+                    {evs.slice(0,3).map(e => (
+                      <div key={e.id} className="text-xs mb-1 px-1 py-0.5 rounded truncate" style={{background:'#d4a84320', color:'#fde68a', fontSize:9}}>{TIPOS[e.tipo]?.split(' ')[0]} {e.titulo}</div>
+                    ))}
+                    {evs.length > 3 && <div className="text-xs text-slate-500" style={{fontSize:9}}>+{evs.length-3}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {showForm && isStaff && (
         <div className="card p-4 mb-4">
@@ -3681,8 +5162,15 @@ function AgendaPSMPage({ user }) {
 // ──────────────────────────────────────────────────────────────────────────
 function RankingPage({ user }) {
   const { value: vendas } = useShared('VENDAS_MANUAIS');
-  const { value: metas } = useShared('METAS_INDIVIDUAIS');
-  const list = Array.isArray(vendas) ? vendas : [];
+  const { value: rdVendas } = useRealtimeShared('RD_VENDAS');
+  const { value: metas } = useRealtimeShared('METAS_INDIVIDUAIS');
+  const vManuais = Array.isArray(vendas) ? vendas : [];
+  const rdV = (Array.isArray(rdVendas) ? rdVendas : []).filter(v => v.fr !== 'locacao');
+  const rdSet = new Set(rdV.map(v => v.rdId));
+  const list = [
+    ...vManuais.filter(v => !rdSet.has(v.rdId)),
+    ...rdV.map(v => ({ ...v, status:'fechada', dataVenda: v.closedAt?.slice(0,10) || v.updated_at?.slice(0,10), corretorId: v.bid }))
+  ];
   const m = metas || {};
 
   const [refMes, setRefMes] = useState(monthKey());
@@ -3722,6 +5210,15 @@ function RankingPage({ user }) {
         </div>
       </div>
 
+      {ranking.length > 0 && (
+        <div className="card p-4 mb-4">
+          <h3 className="text-sm font-bold mb-3 text-slate-400 uppercase">🏅 Ranking visual</h3>
+          <ChartCanvas type="bar" height={Math.max(200, ranking.length * 35)}
+            data={{ labels: ranking.map(r => r.corretor.name), datasets: [{ label: criterio==='vgv'?'VGV':criterio==='vendas'?'Vendas':'% Meta', data: ranking.map(r => criterio==='vgv'?r.vgv:criterio==='vendas'?r.vendas:r.pctMeta), backgroundColor:'#d4a843' }] }}
+            options={{ indexAxis:'y', plugins:{legend:{display:false}} }}
+          />
+        </div>
+      )}
       <div className="space-y-2">
         {ranking.map((r, i) => {
           const medal = MEDALS[i] || ('#' + (i+1));
@@ -3757,7 +5254,7 @@ function RankingPage({ user }) {
 // CheckinPage (jornada de trabalho diaria)
 // ──────────────────────────────────────────────────────────────────────────
 function CheckinPage({ user }) {
-  const targetUid = useMemo(() => legacyUid(user.id), [user.id]);
+  const targetUid = useMemo(() => user.authUserId || legacyUid(user.id), [user.authUserId, user.id]);
   const { value: log, save: saveLog } = useUserKv(targetUid, 'CHECKIN_LOG');
   const list = Array.isArray(log) ? log : [];
   const today = todayKey();
@@ -3870,9 +5367,16 @@ function CheckinPage({ user }) {
 // ──────────────────────────────────────────────────────────────────────────
 function ArenaTVPage({ user }) {
   const { value: vendas } = useShared('VENDAS_MANUAIS');
-  const { value: metas } = useShared('METAS_INDIVIDUAIS');
-  const { value: recados } = useShared('RECADOS_DIRETORIA');
-  const list = Array.isArray(vendas) ? vendas : [];
+  const { value: rdVendas } = useRealtimeShared('RD_VENDAS');
+  const { value: metas } = useRealtimeShared('METAS_INDIVIDUAIS');
+  const { value: recados } = useRealtimeShared('RECADOS_DIRETORIA');
+  const vManuais = Array.isArray(vendas) ? vendas : [];
+  const rdV = (Array.isArray(rdVendas) ? rdVendas : []).filter(v => v.fr !== 'locacao');
+  const rdSet = new Set(rdV.map(v => v.rdId));
+  const list = [
+    ...vManuais.filter(v => !rdSet.has(v.rdId)),
+    ...rdV.map(v => ({ ...v, status:'fechada', dataVenda: v.closedAt?.slice(0,10) || v.updated_at?.slice(0,10), corretorId: v.bid }))
+  ];
   const m = metas || {};
   const recList = Array.isArray(recados) ? recados : [];
 
@@ -4556,8 +6060,8 @@ function MetricasViabPage({ user }) {
 // ──────────────────────────────────────────────────────────────────────────
 function PSMLivePage({ user }) {
   const { value: vendas } = useShared('VENDAS_MANUAIS');
-  const { value: oportunidades } = useShared('OPORTUNIDADES_PSM');
-  const { value: recados } = useShared('RECADOS_DIRETORIA');
+  const { value: oportunidades } = useRealtimeShared('OPORTUNIDADES_PSM');
+  const { value: recados } = useRealtimeShared('RECADOS_DIRETORIA');
   const { value: capt } = useShared('CAPTACOES');
   const [filter, setFilter] = useState('todos');
 
@@ -4764,6 +6268,256 @@ function IntegracaoRDPage({ user }) {
   );
 }
 
+
+// ──────────────────────────────────────────────────────────────────────────
+// RDSyncPage (S2 — controle de sync + status + ultimas vendas/opps)
+// ──────────────────────────────────────────────────────────────────────────
+function RDSyncPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  const canSync = lvl >= 5;
+  const { value: opps, loading: lOpps } = useRealtimeShared('RD_OPPS');
+  const { value: vendas, loading: lV } = useRealtimeShared('RD_VENDAS');
+  const { value: lost } = useShared('RD_LOST');
+  const { value: lastSync } = useShared('RD_LAST_SYNC');
+  const [syncing, setSyncing] = useState(false);
+  const [err, setErr] = useState('');
+  const [autoSync, setAutoSync] = useState(false);
+
+  async function doSync() {
+    if (!canSync) { setErr('Apenas líder+ pode sincronizar'); return; }
+    setSyncing(true); setErr('');
+    try {
+      const r = await rdSyncToSupabase();
+      // resultado em lastSync via shared_kv reload
+    } catch(e) { setErr(e.message); }
+    setSyncing(false);
+  }
+
+  // Auto-sync a cada 5min se ligado
+  useEffect(() => {
+    if (!autoSync || !canSync) return;
+    const i = setInterval(() => { if (!syncing) doSync(); }, 300000);
+    return () => clearInterval(i);
+  }, [autoSync, canSync, syncing]);
+
+  const oppsList = Array.isArray(opps) ? opps : [];
+  const vendasList = Array.isArray(vendas) ? vendas : [];
+  const lostList = Array.isArray(lost) ? lost : [];
+  const oppsExLoc = oppsList.filter(o => o.fr !== 'locacao');
+  const vendasExLoc = vendasList.filter(v => v.fr !== 'locacao');
+  const totalPipeline = oppsExLoc.reduce((s,o) => s + (o.vgv||0), 0);
+  const totalFechado = vendasExLoc.reduce((s,v) => s + (v.vgv||0), 0);
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{color:'#d4a843'}}>🔄 Sync RD CRM</h1>
+          <p className="text-sm text-slate-400">Pull de deals + vendas + perdidos do RD Station</p>
+        </div>
+        {canSync && (
+          <div className="flex gap-2 items-center">
+            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={autoSync} onChange={e => setAutoSync(e.target.checked)} className="w-4 h-4" style={{accentColor:'#d4a843'}} /> Auto-sync 5min</label>
+            <button className="btn" onClick={doSync} disabled={syncing}>{syncing ? '⏳ Sincronizando…' : '🔄 Sincronizar agora'}</button>
+          </div>
+        )}
+      </div>
+
+      {err && <div className="card p-4 mb-4 text-red-400">⚠ {err}</div>}
+
+      {lastSync && (
+        <div className="card p-4 mb-4">
+          <div className="text-xs text-slate-400 mb-1">Última sincronização</div>
+          <div className="text-lg font-bold">{fmtDate(lastSync.ts)}</div>
+          <div className="text-sm text-slate-400 mt-1">
+            {lastSync.counts.open} abertos · {lastSync.counts.won} ganhos · {lastSync.counts.lost} perdidos · {Math.round(lastSync.durMs/1000)}s
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
+        <div className="card p-4"><div className="text-xs text-slate-400">Pipeline (excl. locação)</div><div className="text-2xl font-bold" style={{color:'#d4a843'}}>{fmtMoney(totalPipeline)}</div><div className="text-xs text-slate-500">{oppsExLoc.length} negociações</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Fechado total</div><div className="text-2xl font-bold text-green-400">{fmtMoney(totalFechado)}</div><div className="text-xs text-slate-500">{vendasExLoc.length} vendas</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Perdidos</div><div className="text-2xl font-bold text-red-400">{lostList.length}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-400">Locação separada</div><div className="text-xl font-bold text-blue-400">{oppsList.filter(o=>o.fr==='locacao').length} opps</div><div className="text-xs text-slate-500">não conta no funil de vendas</div></div>
+      </div>
+
+      <div className="card overflow-hidden mb-4">
+        <div className="text-sm font-bold p-3 border-b border-slate-700 text-slate-400 uppercase">Top 20 oportunidades — Pipeline ativo</div>
+        <table className="w-full text-sm">
+          <thead><tr className="bg-slate-900 text-xs text-slate-400 uppercase">
+            <th className="text-left p-3">Cliente</th>
+            <th className="text-left p-3">Estágio</th>
+            <th className="text-left p-3">Frente</th>
+            <th className="text-right p-3">VGV</th>
+            <th className="text-right p-3">Dias parado</th>
+            <th className="text-center p-3">SLA</th>
+          </tr></thead>
+          <tbody>
+            {oppsExLoc.sort((a,b) => (b.vgv||0)-(a.vgv||0)).slice(0,20).map(o => (
+              <tr key={o.id} className="border-t border-slate-700 hover:bg-slate-900/50">
+                <td className="p-3">{o.cl}</td>
+                <td className="p-3 text-xs">{o.st_rd || o.st_psm}</td>
+                <td className="p-3 text-xs">{FRENTES[o.fr]?.label || o.fr}</td>
+                <td className="text-right p-3 font-bold" style={{color:'#d4a843'}}>{fmtMoney(o.vgv)}</td>
+                <td className="text-right p-3">{o.dnu}d</td>
+                <td className="text-center p-3"><span className="badge" style={{background: o.sla==='overdue'?'#dc262630':o.sla==='warning'?'#d4a84330':'#16a34a30', color: o.sla==='overdue'?'#fca5a5':o.sla==='warning'?'#fde68a':'#86efac'}}>{o.sla}</span></td>
+              </tr>
+            ))}
+            {oppsExLoc.length === 0 && <tr><td colSpan="6" className="text-center text-slate-500 p-8">Sem oportunidades sincronizadas. Clique em "Sincronizar agora".</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {!canSync && <div className="text-xs text-slate-500 italic">Apenas líderes e sócios podem disparar sync. Você só visualiza os dados.</div>}
+    </div>
+  );
+}
+
+
+// ──────────────────────────────────────────────────────────────────────────
+// MigracaoPage (S3 — Backfill: monolito LocalStorage → Supabase /v2)
+// ──────────────────────────────────────────────────────────────────────────
+function MigracaoPage({ user }) {
+  const lvl = RLVL[user.role] || 0;
+  const [scanned, setScanned] = useState(null);
+  const [progress, setProgress] = useState(null);
+  const [done, setDone] = useState(false);
+
+  const SHARED_KEYS = [
+    'BROKERS','PROJETOS','METAS','METAS_INDIVIDUAIS','AVISOS','RECADOS_DIRETORIA',
+    'CALENDARIO','AGENDA_EVENTOS','OPORTUNIDADES_PSM','PREMIACOES','CAPTACOES',
+    'CRM_DEALS','VENDAS_MANUAIS','COMISSOES_PAGAMENTOS','RADAR_CONCORRENTES',
+    'TABELA_IMOVEIS','MAPA_LANCAMENTOS','LOCACAO_CONTRATOS','GP_TALENTOS',
+    'GP_REUNIOES_1A1','MANUAL_INTERNO','ETICA_CODIGO','FORMACAO_CURSOS',
+    'CRIATIVOS_LINKS','CRONOGRAMA_CONQUISTA','CRONOGRAMA_PSM','USER_DISABLED',
+    'CANAL_ANONIMO'
+  ];
+  const USER_KEY_PREFIXES = ['OO_DAILY_','TAREFAS_PESSOAIS','CHECKIN_LOG','IA_SOL_HIST','FICHAS_PROPOSTAS','ETICA_ACEITE','FORMACAO_PROGRESSO','PREFERENCIAS_USUARIO'];
+
+  function scan() {
+    const found = { shared: [], userKeys: [], outros: [], totalBytes: 0 };
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k) continue;
+        const v = localStorage.getItem(k) || '';
+        found.totalBytes += v.length;
+        if (k === 'psm_token' || k === 'psm_senhas' || k.startsWith('psm_remember') || k === 'psm_v2_user' || k.startsWith('sb-')) continue;
+        // Mapeia chaves do monolito psm_* pros shared_keys do /v2
+        const upperK = k.replace(/^psm_/, '').toUpperCase();
+        if (SHARED_KEYS.indexOf(upperK) >= 0 || SHARED_KEYS.indexOf(k) >= 0) {
+          found.shared.push({ source: k, target: SHARED_KEYS.indexOf(upperK) >= 0 ? upperK : k, size: v.length });
+        } else if (k.startsWith('psm_') || USER_KEY_PREFIXES.some(p => k.toUpperCase().includes(p))) {
+          found.userKeys.push({ source: k, target: k.toUpperCase().replace(/^PSM_/,''), size: v.length });
+        } else {
+          found.outros.push({ k, size: v.length });
+        }
+      }
+    } catch(e) { console.error('scan error', e); }
+    setScanned(found);
+  }
+
+  async function migrar() {
+    if (!sb) { alert('Supabase indisponível'); return; }
+    if (!user.authUserId) { alert('Você precisa estar logado com Auth real (S1) antes de migrar.'); return; }
+    if (!confirm('Migrar ' + (scanned.shared.length + scanned.userKeys.length) + ' chaves? Dados existentes no Supabase serão MESCLADOS (não sobrescritos quando ja existir).')) return;
+
+    setProgress({ total: scanned.shared.length + scanned.userKeys.length, done: 0, errors: 0, log: [] });
+
+    // Migra shared
+    for (const item of scanned.shared) {
+      try {
+        const raw = localStorage.getItem(item.source);
+        const val = JSON.parse(raw);
+        // Verifica se ja existe no Supabase
+        const { data: existing } = await sb.from('shared_kv').select('value').eq('key', item.target).maybeSingle();
+        if (existing) {
+          // Mescla: se array, concatena; se objeto, merge
+          let merged = val;
+          if (Array.isArray(existing.value) && Array.isArray(val)) {
+            const ids = new Set(existing.value.map(x => x.id || JSON.stringify(x)));
+            merged = [...existing.value, ...val.filter(x => !ids.has(x.id || JSON.stringify(x)))];
+          } else if (typeof existing.value === 'object' && typeof val === 'object') {
+            merged = { ...existing.value, ...val };
+          }
+          await sb.from('shared_kv').update({ value: merged }).eq('key', item.target);
+        } else {
+          await sb.from('shared_kv').insert({ key: item.target, value: val });
+        }
+        setProgress(p => ({ ...p, done: p.done+1, log: [...p.log.slice(-50), '✓ shared: '+item.target] }));
+      } catch(e) {
+        setProgress(p => ({ ...p, errors: p.errors+1, log: [...p.log.slice(-50), '✗ shared '+item.target+': '+e.message] }));
+      }
+    }
+
+    // Migra user keys
+    for (const item of scanned.userKeys) {
+      try {
+        const raw = localStorage.getItem(item.source);
+        const val = JSON.parse(raw);
+        await sb.from('user_kv').upsert({ user_id: user.authUserId, key: item.target, value: val }, { onConflict: 'user_id,key' });
+        setProgress(p => ({ ...p, done: p.done+1, log: [...p.log.slice(-50), '✓ user: '+item.target] }));
+      } catch(e) {
+        setProgress(p => ({ ...p, errors: p.errors+1, log: [...p.log.slice(-50), '✗ user '+item.target+': '+e.message] }));
+      }
+    }
+
+    setDone(true);
+  }
+
+  return (
+    <div className="p-6 max-w-4xl">
+      <h1 className="text-2xl font-bold mb-1" style={{color:'#d4a843'}}>📦 Migração — Monolito → /v2</h1>
+      <p className="text-sm text-slate-400 mb-6">Importa dados do localStorage do sistema antigo (housepsm.com.br/) para o /v2 (Supabase)</p>
+
+      {!scanned && (
+        <div className="card p-6 mb-4">
+          <h2 className="font-bold mb-3">Passo 1 — Escanear LocalStorage</h2>
+          <p className="text-sm text-slate-400 mb-4">
+            Abra primeiro <a href="/" className="text-yellow-400 underline">housepsm.com.br/</a> em outra aba e faça login normalmente. Depois volte aqui e clique em escanear.
+          </p>
+          <button className="btn" onClick={scan}>🔍 Escanear dados deste navegador</button>
+        </div>
+      )}
+
+      {scanned && !progress && (
+        <>
+          <div className="card p-4 mb-4">
+            <h2 className="font-bold mb-3">Resultado do scan</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+              <div><div className="text-xs text-slate-400">Chaves compartilhadas</div><div className="text-2xl font-bold" style={{color:'#d4a843'}}>{scanned.shared.length}</div></div>
+              <div><div className="text-xs text-slate-400">Chaves pessoais</div><div className="text-2xl font-bold">{scanned.userKeys.length}</div></div>
+              <div><div className="text-xs text-slate-400">Tamanho total</div><div className="text-2xl font-bold">{(scanned.totalBytes/1024).toFixed(0)} KB</div></div>
+            </div>
+            {scanned.shared.length > 0 && <details className="mb-2"><summary className="text-sm cursor-pointer text-slate-400">📋 Ver chaves compartilhadas ({scanned.shared.length})</summary><ul className="text-xs mt-2 space-y-1">{scanned.shared.map((s,i) => <li key={i} className="text-slate-300">{s.source} → <strong>{s.target}</strong> ({(s.size/1024).toFixed(1)} KB)</li>)}</ul></details>}
+            {scanned.userKeys.length > 0 && <details className="mb-2"><summary className="text-sm cursor-pointer text-slate-400">👤 Ver chaves pessoais ({scanned.userKeys.length})</summary><ul className="text-xs mt-2 space-y-1">{scanned.userKeys.map((s,i) => <li key={i} className="text-slate-300">{s.source} → <strong>{s.target}</strong> ({(s.size/1024).toFixed(1)} KB)</li>)}</ul></details>}
+          </div>
+          <button className="btn btn-success w-full" onClick={migrar}>📤 Iniciar migração ({scanned.shared.length + scanned.userKeys.length} chaves)</button>
+        </>
+      )}
+
+      {progress && (
+        <div className="card p-4">
+          <h2 className="font-bold mb-3">{done ? '✓ Migração concluída' : '⏳ Migrando…'}</h2>
+          <div className="h-3 bg-slate-700 rounded overflow-hidden mb-3">
+            <div style={{width: (progress.done/progress.total*100)+'%', height:'100%', background:'#22c55e', transition:'width 0.3s'}}></div>
+          </div>
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div><div className="text-xs text-slate-400">Total</div><div className="text-xl font-bold">{progress.total}</div></div>
+            <div><div className="text-xs text-slate-400">Migrados</div><div className="text-xl font-bold text-green-400">{progress.done}</div></div>
+            <div><div className="text-xs text-slate-400">Erros</div><div className="text-xl font-bold text-red-400">{progress.errors}</div></div>
+          </div>
+          <details><summary className="text-sm cursor-pointer text-slate-400">📋 Log detalhado</summary>
+            <pre className="text-xs mt-2 bg-slate-900 p-3 rounded overflow-auto max-h-64">{progress.log.join('\n')}</pre>
+          </details>
+          {done && <div className="mt-4 p-3 bg-green-900/30 border border-green-600 rounded text-green-300">Migração concluída. Os dados agora estão no Supabase e disponíveis em todos os módulos do /v2.</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // App
 // ──────────────────────────────────────────────────────────────────────────
@@ -4772,11 +6526,29 @@ function App() {
     try { return JSON.parse(localStorage.getItem('psm_v2_user') || 'null'); } catch(_) { return null; }
   });
   const [page, setPage] = useState('oo');
-  function logout() { localStorage.removeItem('psm_v2_user'); setUser(null); }
+  async function logout() {
+    try { if (sb) await sb.auth.signOut(); } catch(_){}
+    localStorage.removeItem('psm_v2_user');
+    setUser(null);
+  }
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [theme, setTheme] = useTheme();
+  useNotifications(user);
+  React.useEffect(() => { window.psmOpenSearch = () => setSearchOpen(true); }, []);
   if (!user) return <LoginPage onLogin={setUser} />;
   return (
-    <div className="min-h-screen flex">
-      <Sidebar user={user} page={page} onNavigate={setPage} onLogout={logout} />
+    <div className="min-h-screen flex flex-col md:flex-row">
+      <div className="mobile-only" style={{display:'none', position:'sticky', top:0, zIndex:50, background:'var(--bg)', borderBottom:'1px solid var(--bd)', padding:'10px 14px', alignItems:'center', justifyContent:'space-between'}}>
+        <button onClick={() => setMobileOpen(true)} style={{background:'transparent', border:'none', color:'#d4a843', fontSize:24, cursor:'pointer', padding:4}}>☰</button>
+        <div style={{fontWeight:700, color:'#d4a843'}}>PSM /v2</div>
+        <div style={{display:'flex', gap:8, alignItems:'center'}}>
+          <button onClick={() => setSearchOpen(true)} style={{background:'transparent', border:'none', color:'var(--tx-muted)', fontSize:18, cursor:'pointer', padding:4}}>🔍</button>
+          <button onClick={() => setTheme(theme==='dark'?'light':'dark')} style={{background:'transparent', border:'none', color:'var(--tx-muted)', fontSize:18, cursor:'pointer', padding:4}}>{theme==='dark'?'☀️':'🌙'}</button>
+        </div>
+      </div>
+      <GlobalSearch user={user} onNavigate={setPage} open={searchOpen} setOpen={setSearchOpen} />
+      <Sidebar user={user} page={page} onNavigate={setPage} onLogout={logout} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <main className="flex-1 overflow-auto">
         {page === 'oo' && <OOPage user={user} />}
         {page === 'dashboard' && <DashboardPage user={user} />}
@@ -4819,6 +6591,7 @@ function App() {
         {page === 'locacoes' && <LocacoesPage user={user} />}
         {page === 'governance' && <GovernancePage user={user} />}
         {page === 'config' && <ConfiguracoesPage user={user} />}
+        {page === 'migracao' && <MigracaoPage user={user} />}
         {page === 'agenda' && <AgendaPSMPage user={user} />}
         {page === 'ranking' && <RankingPage user={user} />}
         {page === 'checkin' && <CheckinPage user={user} />}
@@ -4827,13 +6600,17 @@ function App() {
         {page === 'crono_conquista' && <CronogramaPage user={user} marca="CONQUISTA" />}
         {page === 'crono_psm' && <CronogramaPage user={user} marca="PSM" />}
         {page === 'integracao_rd' && <IntegracaoRDPage user={user} />}
+        {page === 'rd_sync' && <RDSyncPage user={user} />}
+        {page === 'ai_summary' && <AISummaryPage user={user} />}
+        {page === 'backup' && <BackupRestorePage user={user} />}
+        {page === 'notificacoes' && <NotificacoesPage user={user} />}
         {page === 'recados' && <RecadosPage user={user} />}
       </main>
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')).render(<NotifProvider><App /></NotifProvider>);
 </script>
 </body>
 </html>
