@@ -1,7 +1,7 @@
 {
-  "version": "64.1.0",
-  "meta": "2026.04.29-v64.1",
-  "built": "2026-04-29T19:30:00Z",
-  "sw": "v64.1.0-2026-04-29-FIX",
-  "sprint": "v64.1: hotfix Fragment close em FluxoCaixaPage"
+  "version": "64.4.0",
+  "meta": "2026.04.29-v64.4",
+  "built": "2026-04-29T21:30:00Z",
+  "sw": "v64.4.0-2026-04-29-FIX",
+  "sprint": "v64.4: +Kaue lider Conquista. Marcus mantem MAP. Total 16 users."
 }
