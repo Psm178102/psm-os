@@ -784,6 +784,79 @@ html{height:100%;overflow:hidden}
 </script>
 
 <script>
+
+// ── NoSleep.js v0.12.0 (MIT) — inline pra evitar dependencia CDN ──────────
+// https://github.com/richtr/NoSleep.js
+window.NoSleep = (function(){
+  function NS(){
+    this.enabled=false;
+    this._video=null;
+    this._wakeLock=null;
+    this._wakeLockListener=null;
+    this._supportsWakeLock=('wakeLock' in navigator);
+  }
+  NS.prototype.enable=async function(){
+    var self=this;
+    // Try Wake Lock API first (Chrome 84+, Safari 16.4+)
+    if(this._supportsWakeLock){
+      try{
+        this._wakeLock=await navigator.wakeLock.request('screen');
+        this._wakeLockListener=function(){
+          if(document.visibilityState==='visible' && self.enabled){
+            self.enable().catch(function(){});
+          }
+        };
+        document.addEventListener('visibilitychange',this._wakeLockListener);
+        this.enabled=true;
+        return;
+      }catch(e){
+        // Fallback to video
+      }
+    }
+    // Video fallback (LG webOS, older browsers)
+    if(!this._video){
+      this._video=document.createElement('video');
+      this._video.setAttribute('muted','');
+      this._video.setAttribute('title','No Sleep');
+      this._video.setAttribute('playsinline','');
+      this._video.muted=true;
+      this._video.loop=true;
+      // 1s MP4 video (44 frames, base64) — funciona em LG webOS, Tizen, Chromecast, mobile
+      this._video.src='data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAACphtZGF0AAACrwYF//+r3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE1NSByMjkxNyAwYTg0ZDk4IC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAxOCAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTMgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTI1IHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yOC4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAAAEmWIhAAn//8aLxn3S3Zr6d2EAAADAAE5dABHnYBdwACgAAD//gIwABQBACAJCKZAAUAX8AgCQAAFWEVhEIRCEIRCERaLCAEAAGYoAKCnA==';
+      this._video.style.cssText='position:fixed;bottom:60px;right:12px;width:200px;height:120px;opacity:0.06;pointer-events:none;z-index:99998;border:1px solid rgba(212,168,67,0.15);border-radius:4px;object-fit:cover';
+      document.body.appendChild(this._video);
+    }
+    try{
+      await this._video.play();
+      this.enabled=true;
+    }catch(e){
+      throw e;
+    }
+  };
+  NS.prototype.disable=function(){
+    if(this._wakeLock){
+      try{this._wakeLock.release();}catch(e){}
+      this._wakeLock=null;
+      if(this._wakeLockListener){
+        document.removeEventListener('visibilitychange',this._wakeLockListener);
+        this._wakeLockListener=null;
+      }
+    }
+    if(this._video){
+      try{this._video.pause();}catch(e){}
+      try{this._video.remove();}catch(e){}
+      this._video=null;
+    }
+    this.enabled=false;
+  };
+  NS.prototype.isEnabled=function(){return this.enabled;};
+  return NS;
+})();
+
+
+</script>
+
+<script>
 'use strict';
 // ─── PWA v28: SW + AUTO-UPDATE AGRESSIVO (fim da versao antiga stale) ────────
 (function(){
@@ -4599,8 +4672,9 @@ function fmt$(v){return 'R$ '+Math.round(v).toLocaleString('pt-BR');}
 // Números SEMPRE completos (via fmt global). Ranking e equipes mostram TODOS.
 // ═══════════════════════════════════════════════════════════════════════════
 function arenaTV(){
+  // v65 REDESIGN: 6 cenas essenciais, layout limpo, anti-sleep TV LG agressivo, locacao excluida (fix v47).
   // Invalida cache pra pegar dados atuais
-  try { if(typeof _metricsInvalidate==='function') _metricsInvalidate(); recalcBrokerMetrics('war'); } catch(e){console.error("[PSM v27.7]",e);}
+  try { if(typeof _metricsInvalidate==='function') _metricsInvalidate(); recalcBrokerMetrics('war'); } catch(e){console.error("[PSM v65]",e);}
 
   var overlay = document.createElement('div');
   overlay.id = 'arena-tv-overlay';
@@ -5799,72 +5873,88 @@ function arenaTV(){
     if(total === 0){
       html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:16px;flex:1">Nenhum lançamento cadastrado</div>';
     } else {
-      // FIX v47 (2026-04-26): layout mais limpo — barra de progresso anual + grid 6x2 maior
+      // FIX v66 (2026-04-29): TIMELINE HORIZONTAL real — linha do tempo com lancamentos como pinos.
       var pctAno = total>0 ? Math.round(jaLanc/total*100) : 0;
-      html += '<div style="margin-bottom:10px;flex-shrink:0">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:10px;letter-spacing:1.5px;color:#64748b;text-transform:uppercase">'
+      html += '<div style="margin-bottom:14px;flex-shrink:0">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:11px;letter-spacing:1.5px;color:#94a3b8;text-transform:uppercase">'
         +   '<span>Progresso anual</span>'
         +   '<span style="color:#fbbf24;font-weight:800">' + pctAno + '%</span>'
         + '</div>'
-        + '<div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden">'
-        +   '<div style="width:' + pctAno + '%;height:100%;background:linear-gradient(90deg,#22c55e,#fbbf24);transition:width 0.6s"></div>'
+        + '<div style="height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;position:relative">'
+        +   '<div style="width:' + pctAno + '%;height:100%;background:linear-gradient(90deg,#22c55e,#fbbf24);box-shadow:0 0 12px rgba(251,191,36,0.4);transition:width 0.6s"></div>'
         + '</div>'
         + '</div>';
-      html += '<div style="flex:1;overflow:auto;display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(2,minmax(170px,1fr));gap:8px">';
+
+      // ── TIMELINE HORIZONTAL ──────────────────────────────────────────────
+      html += '<div style="flex:1;display:flex;flex-direction:column;overflow:hidden">';
+
+      // Eixo dos meses (top: nome do mes + count)
+      html += '<div style="display:flex;width:100%;border-bottom:2px solid rgba(212,168,67,0.25);padding-bottom:6px;margin-bottom:6px;flex-shrink:0">';
       for(var m=1;m<=12;m++){
         var lst = byMonth[m] || [];
         var passou = m < mesAtual;
         var atual = m === mesAtual;
-        var bgCol, brCol, lblCor, statusTxt;
-        if(atual)        { bgCol='linear-gradient(135deg,rgba(251,191,36,0.18),rgba(212,168,67,0.10))'; brCol='#fbbf24'; lblCor='#fde68a'; statusTxt='ATUAL'; }
-        else if(passou)  { bgCol='rgba(34,197,94,0.08)';   brCol='#22c55e';        lblCor='#86efac'; statusTxt='✓ feito'; }
-        else             { bgCol='rgba(59,130,246,0.06)';  brCol='rgba(59,130,246,0.5)'; lblCor='#93c5fd'; statusTxt='a lançar'; }
-        html += '<div style="background:' + bgCol + ';border:' + (atual?'2':'1') + 'px solid ' + brCol + ';border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;overflow:hidden;min-height:0;' + (atual?'box-shadow:0 0 18px rgba(251,191,36,0.25)':'') + '">'
-          + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-shrink:0">'
-          +   '<div>'
-          +     '<div style="font-size:14px;font-weight:900;color:' + lblCor + ';letter-spacing:1.5px;line-height:1">' + MES_NM[m-1] + '</div>'
-          +     '<div style="font-size:8px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;margin-top:2px">' + statusTxt + '</div>'
-          +   '</div>'
-          +   '<div style="text-align:right">'
-          +     '<div style="font-size:24px;font-weight:900;color:#fbbf24;line-height:1">' + lst.length + '</div>'
-          +     '<div style="font-size:8px;color:#64748b;letter-spacing:1px;text-transform:uppercase">' + (lst.length===1?'lanç.':'lançs.') + '</div>'
-          +   '</div>'
-          + '</div>'
-          + '<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:3px">';
-        var maxItems = atual ? 6 : 4;
-        lst.slice(0,maxItems).forEach(function(l){
-          html += '<div style="font-size:10px;color:#e2e8f0;background:rgba(0,0,0,0.30);border-left:3px solid ' + (l.cor||'#475569') + ';padding:3px 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600">' + l.nome + '</div>';
-        });
-        if(lst.length > maxItems){
-          html += '<div style="font-size:9px;color:#94a3b8;padding-left:6px;font-weight:600">+ ' + (lst.length-maxItems) + ' mais</div>';
-        }
-        if(lst.length === 0){
-          html += '<div style="font-size:10px;color:#475569;padding:6px;text-align:center;font-style:italic">— vazio —</div>';
-        }
-        html += '</div></div>';
+        var lblCor = atual ? '#fde68a' : passou ? '#86efac' : '#93c5fd';
+        var dotCor = atual ? '#fbbf24' : passou ? '#22c55e' : '#3b82f6';
+        html += '<div style="flex:1;text-align:center;position:relative">'
+          +   '<div style="font-size:13px;font-weight:900;color:' + lblCor + ';letter-spacing:2px">' + MES_NM[m-1] + '</div>'
+          +   '<div style="font-size:18px;font-weight:900;color:#fbbf24;line-height:1.1">' + (lst.length || '·') + '</div>'
+          + '</div>';
       }
       html += '</div>';
+
+      // Linha do tempo principal — 1 linha horizontal com pinos por mes
+      html += '<div style="position:relative;height:14px;flex-shrink:0;margin-bottom:10px">'
+        +   '<div style="position:absolute;top:50%;left:2%;right:2%;height:3px;background:linear-gradient(90deg,#22c55e 0%,#22c55e ' + ((mesAtual-1)/12*100) + '%,#fbbf24 ' + ((mesAtual-1)/12*100) + '%,#fbbf24 ' + (mesAtual/12*100) + '%,rgba(59,130,246,0.5) ' + (mesAtual/12*100) + '%);transform:translateY(-50%);border-radius:2px"></div>';
+      for(var m2=1;m2<=12;m2++){
+        var lst2 = byMonth[m2] || [];
+        var passou2 = m2 < mesAtual;
+        var atual2 = m2 === mesAtual;
+        var pos = ((m2-1) + 0.5) / 12 * 100;
+        var dotSize = atual2 ? 18 : (lst2.length>0 ? 14 : 8);
+        var dotBg = atual2 ? '#fbbf24' : passou2 ? '#22c55e' : '#3b82f6';
+        html += '<div style="position:absolute;top:50%;left:' + pos + '%;transform:translate(-50%,-50%);width:' + dotSize + 'px;height:' + dotSize + 'px;border-radius:50%;background:' + dotBg + ';box-shadow:0 0 ' + (atual2?12:6) + 'px ' + dotBg + ';border:2px solid #0b1220;z-index:2"></div>';
+      }
+      html += '</div>';
+
+      // Cards horizontais de lancamentos por mes (scroll horizontal interno se precisar)
+      html += '<div style="flex:1;display:flex;gap:4px;overflow-x:auto;overflow-y:hidden;padding-bottom:6px">';
+      for(var m3=1;m3<=12;m3++){
+        var lst3 = byMonth[m3] || [];
+        var passou3 = m3 < mesAtual;
+        var atual3 = m3 === mesAtual;
+        var brCor = atual3 ? '#fbbf24' : passou3 ? '#22c55e' : 'rgba(59,130,246,0.4)';
+        html += '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding:4px;border-left:1px dashed rgba(148,163,184,0.15)' + (m3===12?';border-right:1px dashed rgba(148,163,184,0.15)':'') + '">';
+        var maxItems3 = atual3 ? 8 : 6;
+        if (lst3.length === 0) {
+          html += '<div style="font-size:9px;color:#475569;text-align:center;padding:8px 2px;font-style:italic">—</div>';
+        } else {
+          lst3.slice(0,maxItems3).forEach(function(l){
+            var cor = l.cor || brCor;
+            html += '<div style="font-size:9px;color:#e2e8f0;background:rgba(0,0,0,0.35);border-left:2px solid ' + cor + ';padding:2px 4px;border-radius:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;line-height:1.2" title="' + (l.nome||'').replace(/"/g,'') + '">' + l.nome + '</div>';
+          });
+          if(lst3.length > maxItems3){
+            html += '<div style="font-size:8px;color:#94a3b8;text-align:center;padding-top:2px">+ ' + (lst3.length-maxItems3) + '</div>';
+          }
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+
+      html += '</div>'; // fim timeline
     }
     html += '</div>';
     return html;
   }
 
+  // v65: REDESIGN — 6 cenas essenciais (era 15). Foco no que realmente importa em TV.
   var SCENES = [
-    {key:'HERO',        label:'VGV Mensal + Pódio', fn:sceneHero,       dur:10000},
-    {key:'RANKING',     label:'Todos Corretores',   fn:sceneRanking,    dur:12000},
-    {key:'RANK_ANUAL',  label:'Ranking Anual',      fn:sceneRankingAnual, dur:14000},
-    {key:'RANK_CRM',    label:'RD CRM Completo',    fn:sceneRankingCRM, dur:14000},
-    {key:'LANC_2026',   label:'Lançamentos ' + new Date().getFullYear(), fn:sceneLancamentos, dur:14000},
-    {key:'FUNIL',       label:'Pipeline RD CRM',    fn:sceneFunilCRM,   dur:12000},
-    {key:'PULSE',       label:'Vendas + Top Opps',  fn:scenePulse,      dur:12000, densFn:function(){var c=new Date(Date.now()-7*86400000);var vc=(VENDAS||[]).filter(function(v){var d=new Date(v.closedAt||v.createdAt||'');return !isNaN(d.getTime())&&d>=c;}).length;var oc=(OPPS||[]).filter(function(o){return o.vgv>0&&o.st_psm&&o.st_psm!=='carteira'&&o.st_psm!=='perdido'&&o.st_psm!=='ganho';}).length;return vc+oc;}},
-    {key:'EQUIPES',     label:'Frentes & Times',    fn:sceneEquipes,    dur:12000},
-    {key:'METAS',       label:'Metas × Real',       fn:sceneMetasIndiv, dur:12000},
-    {key:'APROV',       label:'Aproveitamento',     fn:sceneAproveitamento, dur:12000},
-    {key:'VOL_APROV',   label:'Volume + Aprov.',    fn:sceneVolumeAprov,    dur:12000},
-    {key:'VOLUME',      label:'Ritmo Ideal',        fn:sceneVolume,     dur:10000},
-    {key:'ONEONONE',    label:'OO × Meta',          fn:sceneRankingOO,  dur:12000},
-    {key:'PROJECOES',   label:'Forecast',           fn:sceneProjecoes,  dur:10000},
-    {key:'ALERTAS',     label:'Ação Imediata',      fn:sceneAlertas,    dur:8000,  densFn:function(){var n=0;try{(BROKERS_ALL||BROKERS||[]).forEach(function(b){var M=(typeof getMetricas==='function')?getMetricas(b.id,'war'):null;if(!M)return;if(M.meta>0&&M.atingimento<30)n++;});}catch(e){console.error("[PSM v27.7]",e);}return n;}}
+    {key:'HERO',        label:'VGV + Podio do Mes',  fn:sceneHero,         dur:14000},
+    {key:'RANKING',     label:'Ranking Top Corretores', fn:sceneRanking,   dur:14000},
+    {key:'LANC_2026',   label:'Lancamentos ' + new Date().getFullYear(), fn:sceneLancamentos, dur:14000},
+    {key:'FUNIL',       label:'Pipeline Vendas',     fn:sceneFunilCRM,     dur:12000},
+    {key:'METAS',       label:'Metas vs Real',       fn:sceneMetasIndiv,   dur:12000},
+    {key:'ALERTAS',     label:'Acao Imediata',       fn:sceneAlertas,      dur:8000, densFn:function(){var n=0;try{(BROKERS_ALL||BROKERS||[]).forEach(function(b){var M=(typeof getMetricas==='function')?getMetricas(b.id,'war'):null;if(!M)return;if(M.meta>0&&M.atingimento<30)n++;});}catch(e){console.error("[PSM v65]",e);}return n;}}
   ];
   // v17: duracao adaptativa — cenas com pouquissimos dados ficam menos tempo
   function _adaptiveDuration(sc){
@@ -5951,41 +6041,28 @@ function arenaTV(){
     if(dot) dot.style.opacity = (n.getSeconds() % 2 === 0) ? '1' : '0.4';
   }, 1000);
 
-  // ══════ ANTI-STANDBY LG webOS (v27.9 fix: webOS browser nao suporta wakeLock, usa video real + input spoof agressivo) ══════
+  // ══════ v66: ANTI-STANDBY via NoSleep.js ══════
+  // Usa lib NoSleep.js (richtr/NoSleep.js) — combina Wake Lock API + video fallback.
+  // Funciona em Chrome/Safari/LG webOS/Tizen sem hacks de input spoof.
   var _isWebOS = /Web0S|webOS|SmartTV|LG Browser|NetCast/i.test(navigator.userAgent || '');
-  var wakeLock = null;
-  async function requestWakeLock(){
-    try { if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function(){ setTimeout(requestWakeLock, 500); }); } } catch(e){console.error("[PSM v27.9]",e);}
-  }
-  requestWakeLock();
-  document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') requestWakeLock(); });
-
-  // Video VISIVEL playing loop real (webOS detecta midia ativa = nao dorme)
-  var antiSleep = document.createElement('video');
-  antiSleep.setAttribute('playsinline',''); antiSleep.setAttribute('muted',''); antiSleep.muted = true; antiSleep.loop = true; antiSleep.autoplay = true;
-  antiSleep.setAttribute('webkit-playsinline','');
-  // webOS precisa video visivel com area >= 50x50 e reproduzindo. Escondemos atras do conteudo mas visivel ao render engine.
-  antiSleep.style.cssText = 'position:fixed;bottom:45px;right:8px;width:80px;height:45px;opacity:0.02;pointer-events:none;z-index:99998;object-fit:cover';
-  // Video real de 1s loop (webOS aceita MP4 melhor que WebM)
-  antiSleep.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAACphtZGF0AAACrwYF//+r3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE1NSByMjkxNyAwYTg0ZDk4IC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAxOCAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTMgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTI1IHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yOC4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAAAEmWIhAAn//8aLxn3S3Zr6d2EAAADAAE5dABHnYBdwACgAAD//gIwABQBACAJCKZAAUAX8AgCQAAFWEVhEIRCEIRCERaLCAEAAGYoAKCnA==';
-  overlay.appendChild(antiSleep);
-  try { antiSleep.play(); } catch(e){console.error("[PSM v27.9]",e);}
-  var playVidInt = setInterval(function(){ try{ if(antiSleep.paused || antiSleep.ended) { antiSleep.currentTime = 0; antiSleep.play(); } }catch(e){console.error("[PSM v27.9]",e);} }, 5000);
-
-  // User interaction sim AGRESSIVO (webOS timeout = inatividade de entrada)
-  var moveInt = setInterval(function(){
-    if(!document.getElementById('arena-tv-overlay')) { clearInterval(moveInt); return; }
-    try {
-      window.dispatchEvent(new Event('mousemove'));
-      window.dispatchEvent(new Event('mousedown'));
-      window.dispatchEvent(new Event('mouseup'));
-      document.dispatchEvent(new KeyboardEvent('keydown', {key:'Shift', bubbles:true}));
-      document.dispatchEvent(new KeyboardEvent('keyup', {key:'Shift', bubbles:true}));
-      document.body.style.paddingBottom = (Date.now() % 2 === 0) ? '0px' : '1px';
-      // Scroll micro pra webOS detectar atividade
-      window.scrollBy(0, 1); window.scrollBy(0, -1);
-    } catch(e){}
-  }, 2000);
+  var noSleep = null;
+  try {
+    noSleep = new NoSleep();
+    // Precisa de gesture do user pra autorizar video — registra handler no overlay
+    var _enableNoSleep = function(){
+      if (noSleep && !noSleep.isEnabled()) {
+        noSleep.enable().catch(function(e){ console.warn("[NoSleep] enable falhou:", e.message); });
+      }
+      overlay.removeEventListener('click', _enableNoSleep);
+      overlay.removeEventListener('keydown', _enableNoSleep);
+      overlay.removeEventListener('touchstart', _enableNoSleep);
+    };
+    overlay.addEventListener('click', _enableNoSleep);
+    overlay.addEventListener('keydown', _enableNoSleep);
+    overlay.addEventListener('touchstart', _enableNoSleep);
+    // Tenta direto (funciona em browsers permissivos)
+    setTimeout(function(){ try { noSleep.enable().catch(function(){}); } catch(_){} }, 100);
+  } catch(e){ console.warn("[NoSleep] init falhou:", e); }
 
   // Aviso webOS LG (uma unica vez por sessao)
   if (_isWebOS && !sessionStorage.getItem('psm_tv_lg_warned')){
@@ -6015,13 +6092,13 @@ function arenaTV(){
     var el = document.getElementById('arena-tv-overlay');
     if(el) el.remove();
     if(document.fullscreenElement) try{document.exitFullscreen();}catch(e){console.error("[PSM v27.7]",e);}
-    if(wakeLock) { try{wakeLock.release();}catch(e){console.error("[PSM v27.7]",e);} wakeLock=null; }
+    try { if(noSleep && noSleep.isEnabled()) noSleep.disable(); } catch(_){}
     document.removeEventListener('keydown', onKey);
     document.removeEventListener('fullscreenchange', onFs);
     try{ clearInterval(progInt); }catch(e){console.error("[PSM v27.7]",e);}
     try{ clearInterval(tvClockInt); }catch(e){console.error("[PSM v27.7]",e);}
     try{ clearInterval(moveInt); }catch(e){console.error("[PSM v27.7]",e);}
-    try{ clearInterval(playVidInt); }catch(e){console.error("[PSM v27.7]",e);}
+    try{ /* removed v66 */ }catch(e){console.error("[PSM v27.7]",e);}
     try{ clearInterval(tlRefreshInt); }catch(e){console.error("[PSM v27.7]",e);}
     try{ if(window._tvTLInt) clearInterval(window._tvTLInt); }catch(e){console.error("[PSM v27.7]",e);}
     try{ if(audioResumeInt) clearInterval(audioResumeInt); audioResumeInt = null; }catch(e){console.error("[PSM v27.7]",e);}
