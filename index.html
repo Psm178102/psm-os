@@ -5873,71 +5873,92 @@ function arenaTV(){
     if(total === 0){
       html += '<div style="text-align:center;padding:60px;color:#64748b;font-size:16px;flex:1">Nenhum lançamento cadastrado</div>';
     } else {
-      // FIX v66 (2026-04-29): TIMELINE HORIZONTAL real — linha do tempo com lancamentos como pinos.
+      // FIX v67 (2026-04-29): TIMELINE HORIZONTAL VERDADEIRA — linha continua, badges flutuantes acima/abaixo da linha.
+      // Sem colunas, sem boxes. Eixo do tempo de Jan a Dez. Lancamentos passados/atuais ACIMA, futuros ABAIXO.
       var pctAno = total>0 ? Math.round(jaLanc/total*100) : 0;
+      var maxStack = 5; // empilha ate 5 badges por mes em cada lado
+
       html += '<div style="margin-bottom:14px;flex-shrink:0">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:11px;letter-spacing:1.5px;color:#94a3b8;text-transform:uppercase">'
         +   '<span>Progresso anual</span>'
-        +   '<span style="color:#fbbf24;font-weight:800">' + pctAno + '%</span>'
+        +   '<span style="color:#fbbf24;font-weight:800">' + pctAno + '%  ·  ' + jaLanc + '/' + total + '</span>'
         + '</div>'
-        + '<div style="height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;position:relative">'
+        + '<div style="height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden">'
         +   '<div style="width:' + pctAno + '%;height:100%;background:linear-gradient(90deg,#22c55e,#fbbf24);box-shadow:0 0 12px rgba(251,191,36,0.4);transition:width 0.6s"></div>'
         + '</div>'
         + '</div>';
 
-      // ── TIMELINE HORIZONTAL ──────────────────────────────────────────────
-      html += '<div style="flex:1;display:flex;flex-direction:column;overflow:hidden">';
+      // Container horizontal da timeline
+      html += '<div style="flex:1;position:relative;display:flex;flex-direction:column;overflow:hidden">';
 
-      // Eixo dos meses (top: nome do mes + count)
-      html += '<div style="display:flex;width:100%;border-bottom:2px solid rgba(212,168,67,0.25);padding-bottom:6px;margin-bottom:6px;flex-shrink:0">';
+      // ── ZONA DE CIMA: lancamentos passados + atuais (empilham PRA CIMA da linha) ──
+      html += '<div style="flex:1;display:flex;align-items:flex-end;justify-content:space-between;padding:0 0.5%;gap:0">';
       for(var m=1;m<=12;m++){
         var lst = byMonth[m] || [];
         var passou = m < mesAtual;
         var atual = m === mesAtual;
-        var lblCor = atual ? '#fde68a' : passou ? '#86efac' : '#93c5fd';
-        var dotCor = atual ? '#fbbf24' : passou ? '#22c55e' : '#3b82f6';
-        html += '<div style="flex:1;text-align:center;position:relative">'
-          +   '<div style="font-size:13px;font-weight:900;color:' + lblCor + ';letter-spacing:2px">' + MES_NM[m-1] + '</div>'
-          +   '<div style="font-size:18px;font-weight:900;color:#fbbf24;line-height:1.1">' + (lst.length || '·') + '</div>'
-          + '</div>';
+        if (passou || atual) {
+          var stackTop = lst.slice(0, maxStack);
+          html += '<div style="flex:1;min-width:0;display:flex;flex-direction:column-reverse;align-items:center;gap:2px;padding:0 2px">';
+          stackTop.forEach(function(l){
+            var cor = l.cor || (atual?'#fbbf24':'#22c55e');
+            html += '<div style="font-size:10px;color:#e2e8f0;background:rgba(0,0,0,0.5);border-left:3px solid ' + cor + ';padding:3px 6px;border-radius:3px;font-weight:700;line-height:1.1;width:96%;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (l.nome||'').replace(/"/g,'') + '">' + l.nome + '</div>';
+          });
+          if (lst.length > maxStack) html += '<div style="font-size:8px;color:#94a3b8;font-weight:700;letter-spacing:1px">+ ' + (lst.length - maxStack) + ' mais</div>';
+          html += '</div>';
+        } else {
+          html += '<div style="flex:1;min-width:0"></div>';
+        }
       }
       html += '</div>';
 
-      // Linha do tempo principal — 1 linha horizontal com pinos por mes
-      html += '<div style="position:relative;height:14px;flex-shrink:0;margin-bottom:10px">'
-        +   '<div style="position:absolute;top:50%;left:2%;right:2%;height:3px;background:linear-gradient(90deg,#22c55e 0%,#22c55e ' + ((mesAtual-1)/12*100) + '%,#fbbf24 ' + ((mesAtual-1)/12*100) + '%,#fbbf24 ' + (mesAtual/12*100) + '%,rgba(59,130,246,0.5) ' + (mesAtual/12*100) + '%);transform:translateY(-50%);border-radius:2px"></div>';
+      // ── LINHA BASE DO TEMPO + pinos + labels meses ──
+      html += '<div style="position:relative;height:64px;flex-shrink:0;margin:6px 0">';
+      // linha continua
+      html += '<div style="position:absolute;top:18px;left:0;right:0;height:5px;background:linear-gradient(90deg,#22c55e 0%,#22c55e ' + ((mesAtual-1)/12*100) + '%,#fbbf24 ' + ((mesAtual-1)/12*100) + '%,#fbbf24 ' + (mesAtual/12*100) + '%,rgba(59,130,246,0.45) ' + (mesAtual/12*100) + '%,rgba(59,130,246,0.45) 100%);border-radius:3px;box-shadow:0 0 12px rgba(212,168,67,0.25)"></div>';
+      // pinos + labels
       for(var m2=1;m2<=12;m2++){
         var lst2 = byMonth[m2] || [];
         var passou2 = m2 < mesAtual;
         var atual2 = m2 === mesAtual;
         var pos = ((m2-1) + 0.5) / 12 * 100;
-        var dotSize = atual2 ? 18 : (lst2.length>0 ? 14 : 8);
+        var dotSize = atual2 ? 24 : (lst2.length>0 ? 16 : 9);
         var dotBg = atual2 ? '#fbbf24' : passou2 ? '#22c55e' : '#3b82f6';
-        html += '<div style="position:absolute;top:50%;left:' + pos + '%;transform:translate(-50%,-50%);width:' + dotSize + 'px;height:' + dotSize + 'px;border-radius:50%;background:' + dotBg + ';box-shadow:0 0 ' + (atual2?12:6) + 'px ' + dotBg + ';border:2px solid #0b1220;z-index:2"></div>';
+        var glow = atual2 ? 20 : (lst2.length>0 ? 8 : 4);
+        var pulseAnim = atual2 ? 'animation:psmPulse 1.6s infinite;' : '';
+        // pino
+        html += '<div style="position:absolute;top:18px;left:' + pos + '%;transform:translate(-50%,-50%);width:' + dotSize + 'px;height:' + dotSize + 'px;border-radius:50%;background:' + dotBg + ';box-shadow:0 0 ' + glow + 'px ' + dotBg + ';border:3px solid #0b1220;z-index:3;' + pulseAnim + '"></div>';
+        // marcador HOJE
+        if (atual2) {
+          html += '<div style="position:absolute;top:-2px;left:' + pos + '%;transform:translateX(-50%);background:#fbbf24;color:#0b1220;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:900;letter-spacing:1.5px;white-space:nowrap;z-index:4;box-shadow:0 2px 6px rgba(0,0,0,0.4)">HOJE</div>';
+        }
+        // label do mes embaixo
+        var lblCor = atual2 ? '#fde68a' : passou2 ? '#86efac' : '#93c5fd';
+        html += '<div style="position:absolute;top:38px;left:' + pos + '%;transform:translateX(-50%);text-align:center;z-index:1">'
+          +   '<div style="font-size:13px;font-weight:900;color:' + lblCor + ';letter-spacing:2px">' + MES_NM[m2-1] + '</div>'
+          +   '<div style="font-size:14px;font-weight:900;color:#fbbf24;line-height:1.1;margin-top:1px">' + (lst2.length || '·') + '</div>'
+          + '</div>';
       }
       html += '</div>';
 
-      // Cards horizontais de lancamentos por mes (scroll horizontal interno se precisar)
-      html += '<div style="flex:1;display:flex;gap:4px;overflow-x:auto;overflow-y:hidden;padding-bottom:6px">';
+      // ── ZONA DE BAIXO: lancamentos futuros (empilham PRA BAIXO da linha) ──
+      html += '<div style="flex:1;display:flex;align-items:flex-start;justify-content:space-between;padding:0 0.5%;gap:0">';
       for(var m3=1;m3<=12;m3++){
         var lst3 = byMonth[m3] || [];
         var passou3 = m3 < mesAtual;
         var atual3 = m3 === mesAtual;
-        var brCor = atual3 ? '#fbbf24' : passou3 ? '#22c55e' : 'rgba(59,130,246,0.4)';
-        html += '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding:4px;border-left:1px dashed rgba(148,163,184,0.15)' + (m3===12?';border-right:1px dashed rgba(148,163,184,0.15)':'') + '">';
-        var maxItems3 = atual3 ? 8 : 6;
-        if (lst3.length === 0) {
-          html += '<div style="font-size:9px;color:#475569;text-align:center;padding:8px 2px;font-style:italic">—</div>';
-        } else {
-          lst3.slice(0,maxItems3).forEach(function(l){
-            var cor = l.cor || brCor;
-            html += '<div style="font-size:9px;color:#e2e8f0;background:rgba(0,0,0,0.35);border-left:2px solid ' + cor + ';padding:2px 4px;border-radius:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;line-height:1.2" title="' + (l.nome||'').replace(/"/g,'') + '">' + l.nome + '</div>';
+        if (!passou3 && !atual3) {
+          var stackBot = lst3.slice(0, maxStack);
+          html += '<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:0 2px">';
+          stackBot.forEach(function(l){
+            var cor = l.cor || '#3b82f6';
+            html += '<div style="font-size:10px;color:#e2e8f0;background:rgba(0,0,0,0.5);border-left:3px solid ' + cor + ';padding:3px 6px;border-radius:3px;font-weight:700;line-height:1.1;width:96%;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + (l.nome||'').replace(/"/g,'') + '">' + l.nome + '</div>';
           });
-          if(lst3.length > maxItems3){
-            html += '<div style="font-size:8px;color:#94a3b8;text-align:center;padding-top:2px">+ ' + (lst3.length-maxItems3) + '</div>';
-          }
+          if (lst3.length > maxStack) html += '<div style="font-size:8px;color:#94a3b8;font-weight:700;letter-spacing:1px">+ ' + (lst3.length - maxStack) + ' mais</div>';
+          html += '</div>';
+        } else {
+          html += '<div style="flex:1;min-width:0"></div>';
         }
-        html += '</div>';
       }
       html += '</div>';
 

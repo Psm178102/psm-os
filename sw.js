@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v66.0.0-2026-04-29-NOSLEEP-TIMELINE';
+const SW_VERSION = 'v67.0.0-2026-04-29-TIMELINE-REAL';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
