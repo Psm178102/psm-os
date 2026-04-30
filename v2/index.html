@@ -1444,8 +1444,8 @@ function DashboardPage({ user }) {
       setLoading(false);
     });
   }, []);
-  useEffect(() => { loadDash(); }, [loadDash]);
-  useAutoRefresh(loadDash, 60000, autoR);
+  useEffect(() => { reloadDash(); }, [reloadDash]);
+  useAutoRefresh(reloadDash, 60000, autoR);
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-2">
