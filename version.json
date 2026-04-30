@@ -1,7 +1,7 @@
 {
-  "version": "64.0.0",
-  "meta": "2026.04.29-v64-FINAL",
-  "built": "2026-04-29T19:00:00Z",
-  "sw": "v64.0.0-2026-04-29-FINAL",
-  "sprint": "v64 FINAL: AI Insights + Backup/Restore \u2014 fim da reescrita+evolucao"
+  "version": "64.1.0",
+  "meta": "2026.04.29-v64.1",
+  "built": "2026-04-29T19:30:00Z",
+  "sw": "v64.1.0-2026-04-29-FIX",
+  "sprint": "v64.1: hotfix Fragment close em FluxoCaixaPage"
 }
