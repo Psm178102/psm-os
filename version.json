@@ -1,6 +1,6 @@
 {
-  "version": "68.1.0",
-  "meta": "2026.04.30-v68.1",
-  "built": "2026-05-04T18:07:42.759Z",
-  "sw": "v68.1.0-fix-agenda"
+  "version": "68.3.0",
+  "meta": "2026.04.30-v68.3",
+  "built": "2026-05-04T18:19:43.496Z",
+  "sw": "v68.3.0-fix-pgComissoes-pgTarefas"
 }
