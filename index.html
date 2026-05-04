@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.30-v68.5 (v68.4 fix tpData all methods + comissoes + Agenda + timeline horizontal real — /v2 com 50 modulos paridade completa) (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
+<!-- PSM-OS v2026.04.30-v68.4 (v68.4 fix tpData all methods + comissoes + Agenda + timeline horizontal real — /v2 com 50 modulos paridade completa) (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,8 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.30-v68.5">
-<script>window.PSM_VERSION='68.1.0';window.PSM_VERSION_META='2026.04.30-v68.5';
+<meta name="version" content="2026.04.30-v68.4">
+<script>window.PSM_VERSION='68.1.0';window.PSM_VERSION_META='2026.04.30-v68.4';
 // ═════════════════════════════════════════════════════════════════════════════
 // PSM Sprint 0 — Firebase write toggle (2026-04-25)
 // Default: false (Firebase escreve normalmente). Flip pra true via console:
@@ -6512,7 +6512,7 @@ function arenaCheckMetaHits(){
 window.arenaCheckMetaHits = arenaCheckMetaHits;
 
 // ===============================================
-var pgWarArena = function(){ try{window.psmKeepTvAwake&&window.psmKeepTvAwake();}catch(_){} 
+var pgWarArena = function(){
   BROKERS = getBrokers(); // recalcula excluindo inativos
   if(!S.user) return '<div style="padding:40px;text-align:center;color:var(--muted)">Fa\u00e7a login para acessar a War Arena</div>';
   if(!S.df_war) S.df_war = {preset:'Ano'};
@@ -12212,7 +12212,7 @@ function ooSaveMetasForm(bid, monthKey, btnEl) {
   setTimeout(function() { render(); }, 1500);
 }
 
-function pgOO() {
+function pgOO() { try{if(window.S){['comissoes','tarefas','vendas','plantoes','captacoes','metas','tpData','oosNotes','oosHist','oneOnOne'].forEach(function(k){var v=S[k];if(v!=null&&!Array.isArray(v)&&typeof v==='object')S[k]=Object.values(v);else if(v==null)S[k]=[];});}}catch(_){} 
   const df_oo = DateFilter('oo','Período');
   const u = S.user; if (!u) return df_oo + '';
   const lvl = RLVL[u.role] || 0;
@@ -24121,7 +24121,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v68.5</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v68.4</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
@@ -30594,9 +30594,7 @@ document.addEventListener('keydown', function(e){
       + '<table><thead><tr><th>Data</th><th>Mes</th><th>Previsto</th><th>Confianca</th></tr></thead><tbody>'+histHtml+'</tbody></table>'
       + '<div class="footer">PSM Assessoria Imobiliaria \u2022 IA Gemini 2.0 Flash \u2022 Analise preditiva</div>'
       + '<scr'+'ipt>setTimeout(function(){window.print();},400);<\/scr'+'ipt>'
-      + '
-<script>(function(){if(window.psmKeepTvAwake)return;var WL=null,NS=null,T=null;async function lock(){try{if('wakeLock' in navigator){WL=await navigator.wakeLock.request('screen');WL.addEventListener('release',function(){setTimeout(lock,2000)});}}catch(e){}try{if(typeof NoSleep==='function'&&!NS){NS=new NoSleep();}if(NS&&!NS.enabled){var rs=NS.enable();if(rs&&rs.then)rs.catch(function(){});}}catch(e){}}window.psmKeepTvAwake=function(){lock();if(T)clearInterval(T);T=setInterval(lock,30000);document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')lock();});};})();</script>
-</body></html>');
+      + '</body></html>');
     win.document.close();
   };
 
