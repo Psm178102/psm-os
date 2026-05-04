@@ -30594,9 +30594,7 @@ document.addEventListener('keydown', function(e){
       + '<table><thead><tr><th>Data</th><th>Mes</th><th>Previsto</th><th>Confianca</th></tr></thead><tbody>'+histHtml+'</tbody></table>'
       + '<div class="footer">PSM Assessoria Imobiliaria \u2022 IA Gemini 2.0 Flash \u2022 Analise preditiva</div>'
       + '<scr'+'ipt>setTimeout(function(){window.print();},400);<\/scr'+'ipt>'
-      + '
-<script>(function(){if(window.psmKeepTvAwake)return;var WL=null,NS=null,T=null;async function lock(){try{if('wakeLock' in navigator){WL=await navigator.wakeLock.request('screen');WL.addEventListener('release',function(){setTimeout(lock,2000)});}}catch(e){}try{if(typeof NoSleep==='function'&&!NS){NS=new NoSleep();}if(NS&&!NS.enabled){var rs=NS.enable();if(rs&&rs.then)rs.catch(function(){});}}catch(e){}}window.psmKeepTvAwake=function(){lock();if(T)clearInterval(T);T=setInterval(lock,30000);document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')lock();});};})();</script>
-</body></html>');
+      + '</body></html>');
     win.document.close();
   };
 
@@ -30640,5 +30638,7 @@ document.addEventListener('keydown', function(e){
   console.log('[PSM-IA v26.4] psmIAHealth pronto');
 })();
 </script>
+
+<script>(function(){if(window.psmKeepTvAwake)return;var WL=null,NS=null,T=null;async function lock(){try{if('wakeLock' in navigator){WL=await navigator.wakeLock.request('screen');WL.addEventListener('release',function(){setTimeout(lock,2000)});}}catch(e){}try{if(typeof NoSleep==='function'&&!NS){NS=new NoSleep();}if(NS&&!NS.enabled){var rs=NS.enable();if(rs&&rs.then)rs.catch(function(){});}}catch(e){}}window.psmKeepTvAwake=function(){lock();if(T)clearInterval(T);T=setInterval(lock,30000);document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')lock();});};})();</script>
 </body>
 </html>
