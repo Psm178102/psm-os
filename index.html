@@ -16585,7 +16585,7 @@ function pgTarefasPSM() {
   var u=S.user;if(!u)return '';
   if(!S.tpData){
     try{var sv=localStorage.getItem('psm_tarefas_psm');S.tpData=sv?JSON.parse(sv):[];}catch(e){S.tpData=[];}
-    if(S.tpData.length===0){
+    if((Array.isArray(S.tpData)?S.tpData:[]).length===0){
       var _n=new Date().toISOString();
       S.tpData=[
         {titulo:'ENVIAR TERMO DE AUTORIZA\u00c7\u00c3O DE IMAGEM CORRETORES',status:'em_andamento',responsaveis:['Mariane'],prioridade:'Alta',prazoInicio:'2026-02-03',prazoFim:'2026-02-09',descricao:'@Mariane Barbosa?',createdAt:_n,updatedAt:_n,log:[]},
@@ -16653,11 +16653,11 @@ function pgTarefasPSM() {
     S.tpShowForm=false;S.tpEditIdx=null;render({force:true});
   };
   function _tpSave(){persist('tpData',function(){});}
-  var items=S.tpData.slice();
+  var items=(Array.isArray(S.tpData)?S.tpData:[]).slice();
   if(S.tpFilterResp)items=items.filter(function(t){return t.responsaveis&&t.responsaveis.indexOf(S.tpFilterResp)>=0;});
   if(S.tpSearch){var q=S.tpSearch.toLowerCase();items=items.filter(function(t){return(t.titulo||'').toLowerCase().indexOf(q)>=0||(t.descricao||'').toLowerCase().indexOf(q)>=0;});}
   var stats={};STATUS_COLS.forEach(function(s){stats[s.id]=0;});
-  S.tpData.forEach(function(t){stats[t.status]=(stats[t.status]||0)+1;});
+  (Array.isArray(S.tpData)?S.tpData:[]).forEach(function(t){stats[t.status]=(stats[t.status]||0)+1;});
   var h='<div style="padding:24px;max-width:1800px;margin:0 auto;">';
   h+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:20px;">';
   h+='<div><h2 style="margin:0;color:var(--navy);font-size:1.4rem;font-weight:800;">\u2705 Tarefas PSM 2026</h2>';
@@ -16674,7 +16674,7 @@ function pgTarefasPSM() {
   h+='</div></div>';
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:18px;">';
   STATUS_COLS.forEach(function(s){h+='<div style="background:'+s.bg+';border:1px solid '+s.color+'33;border-radius:10px;padding:10px 12px;text-align:center;"><div style="font-size:1.4rem;font-weight:900;color:'+s.color+';">'+(stats[s.id]||0)+'</div><div style="font-size:.68rem;font-weight:700;color:'+s.color+';text-transform:uppercase;letter-spacing:.4px;">'+s.lbl+'</div></div>';});
-  h+='<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:10px;padding:10px 12px;text-align:center;"><div style="font-size:1.4rem;font-weight:900;color:#6366f1;">'+S.tpData.length+'</div><div style="font-size:.68rem;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.4px;">Total</div></div></div>';
+  h+='<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:10px;padding:10px 12px;text-align:center;"><div style="font-size:1.4rem;font-weight:900;color:#6366f1;">'+(Array.isArray(S.tpData)?S.tpData:[]).length+'</div><div style="font-size:.68rem;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.4px;">Total</div></div></div>';
   if(S.tpShowForm){
     var ed=(typeof S.tpEditIdx==='number')?S.tpData[S.tpEditIdx]:null;
     var gv=function(k){return ed?((ed[k]||'').toString().replace(/"/g,'&quot;')):'';};
@@ -16704,7 +16704,7 @@ function pgTarefasPSM() {
       h+='<div style="min-width:280px;max-width:340px;flex:1;background:'+col.bg+';border:1px solid '+col.color+'22;border-radius:12px;padding:12px;">';
       h+='<div style="font-size:.78rem;font-weight:800;color:'+col.color+';text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid '+col.color+'33;display:flex;justify-content:space-between;">'+col.ico+' '+col.lbl+' <span style="background:'+col.color+';color:#fff;font-size:.6rem;padding:2px 8px;border-radius:8px;">'+colItems.length+'</span></div>';
       colItems.forEach(function(t){
-        var ri=S.tpData.indexOf(t);
+        var ri=(Array.isArray(S.tpData)?S.tpData:[]).indexOf(t);
         h+='<div style="background:#fff;border:1px solid var(--cream3);border-left:3px solid '+col.color+';border-radius:8px;padding:10px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);cursor:pointer;" onclick="tpOpenForm('+ri+')">';
         h+='<div style="font-weight:700;font-size:.8rem;color:var(--navy);margin-bottom:4px;">'+t.titulo+'</div>';
         if(t.prioridade)h+='<span style="font-size:.6rem;padding:2px 6px;border-radius:4px;font-weight:700;background:'+(t.prioridade==='Alta'?'#fef2f2;color:#ef4444':t.prioridade==='M\u00e9dia'?'#fffbeb;color:#f59e0b':'#f0fdf4;color:#22c55e')+';">'+t.prioridade+'</span>';
@@ -16728,7 +16728,7 @@ function pgTarefasPSM() {
     h+='</tr></thead><tbody>';
     if(items.length===0)h+='<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--muted);">Nenhuma tarefa encontrada.</td></tr>';
     else items.forEach(function(t){
-      var ri=S.tpData.indexOf(t);var sc=statusCol(t.status);
+      var ri=(Array.isArray(S.tpData)?S.tpData:[]).indexOf(t);var sc=statusCol(t.status);
       h+='<tr style="border-bottom:1px solid var(--cream2);cursor:pointer;" onclick="tpOpenForm('+ri+')">';
       h+='<td style="padding:10px 6px;font-weight:700;color:var(--navy);max-width:300px;">'+t.titulo+'</td>';
       h+='<td style="padding:10px 6px;"><span style="color:'+sc+';font-weight:700;font-size:.72rem;">'+statusLbl(t.status)+'</span></td>';
