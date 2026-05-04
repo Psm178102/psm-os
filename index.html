@@ -1,4 +1,4 @@
-<!-- PSM-OS v2026.04.30-v68.2 (fix tpData.slice + comissoes.reduce + fix tpData Agenda + v68 sync header + timeline horizontal real — /v2 com 50 modulos paridade completa) (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
+<!-- PSM-OS v2026.04.30-v68.1 (fix tpData Agenda + v68 sync header + timeline horizontal real — /v2 com 50 modulos paridade completa) (Sprint 2: psm-supabase.js v0.2 — user_kv writes via uuid sintetico) (Sprint 0: 4 libs stub + /api/auth + FB freeze toggle) — AUTO-UPDATE: fim da versao antiga stale. SW purge total + version checker client-side a cada 60s + auto-reload silencioso. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,8 +7,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.04.30-v68.2">
-<script>window.PSM_VERSION='68.2.0';window.PSM_VERSION_META='2026.04.30-v68.2';
+<meta name="version" content="2026.04.30-v68.1">
+<script>window.PSM_VERSION='68.1.0';window.PSM_VERSION_META='2026.04.30-v68.1';
 // ═════════════════════════════════════════════════════════════════════════════
 // PSM Sprint 0 — Firebase write toggle (2026-04-25)
 // Default: false (Firebase escreve normalmente). Flip pra true via console:
@@ -16653,11 +16653,11 @@ function pgTarefasPSM() {
     S.tpShowForm=false;S.tpEditIdx=null;render({force:true});
   };
   function _tpSave(){persist('tpData',function(){});}
-  var items=(Array.isArray(S.tpData)?S.tpData:[]).slice();
+  var items=S.tpData.slice();
   if(S.tpFilterResp)items=items.filter(function(t){return t.responsaveis&&t.responsaveis.indexOf(S.tpFilterResp)>=0;});
   if(S.tpSearch){var q=S.tpSearch.toLowerCase();items=items.filter(function(t){return(t.titulo||'').toLowerCase().indexOf(q)>=0||(t.descricao||'').toLowerCase().indexOf(q)>=0;});}
   var stats={};STATUS_COLS.forEach(function(s){stats[s.id]=0;});
-  (Array.isArray(S.tpData)?S.tpData:[]).forEach(function(t){stats[t.status]=(stats[t.status]||0)+1;});
+  S.tpData.forEach(function(t){stats[t.status]=(stats[t.status]||0)+1;});
   var h='<div style="padding:24px;max-width:1800px;margin:0 auto;">';
   h+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:20px;">';
   h+='<div><h2 style="margin:0;color:var(--navy);font-size:1.4rem;font-weight:800;">\u2705 Tarefas PSM 2026</h2>';
@@ -17490,9 +17490,9 @@ function pgDre() {
 // ─── PAGE: COMISSÕES ────────────────────────────────────────────────
 function pgComissoes() {
   const comissoes = window.psmLSGet('psm_comissoes', []);
-  const total = comissoes.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
-  const pagas = comissoes.filter(c => c.status === 'pago');
-  const pendentes = comissoes.filter(c => c.status !== 'pago');
+  const total = (Array.isArray(comissoes)?comissoes:[]).reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
+  const pagas = (Array.isArray(comissoes)?comissoes:[]).filter(c => c.status === 'pago');
+  const pendentes = (Array.isArray(comissoes)?comissoes:[]).filter(c => c.status !== 'pago');
   const totalPago = pagas.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
   const totalPendente = pendentes.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
   setTimeout(() => {
@@ -17544,7 +17544,7 @@ function pgComissoes() {
         <h3 style="color:var(--navy);margin:0;font-size:16px">Registro de Comiss\u00f5es</h3>
         <button id="com-add" style="padding:6px 14px;border-radius:8px;border:none;background:#3b82f6;color:#fff;cursor:pointer;font-size:12px">+ Nova Comiss\u00e3o</button>
       </div>
-      ${comissoes.length === 0 ? '<p style="color:#64748b;font-size:13px">\u2014 Nenhuma comiss\u00e3o registrada</p>' : `
+      ${(Array.isArray(comissoes)?comissoes:[]).length === 0 ? '<p style="color:#64748b;font-size:13px">\u2014 Nenhuma comiss\u00e3o registrada</p>' : `
       <table style="width:100%;border-collapse:collapse">
         <thead><tr style="border-bottom:2px solid var(--cream4)">
           <th style="padding:10px;text-align:left;color:#94a3b8;font-size:11px">DATA</th>
@@ -17554,7 +17554,7 @@ function pgComissoes() {
           <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">STATUS</th>
           <th style="padding:10px;text-align:center;color:#94a3b8;font-size:11px">A\u00c7\u00c3O</th>
         </tr></thead>
-        <tbody>${comissoes.map((c, i) => `
+        <tbody>${(Array.isArray(comissoes)?comissoes:[]).map((c, i) => `
           <tr style="border-bottom:1px solid var(--cream4)">
             <td style="padding:8px 10px;color:#64748b;font-size:12px">${c.data || '\u2014'}</td>
             <td style="padding:8px 10px;color:var(--navy);font-size:12px">${c.corretor || '\u2014'}</td>
@@ -24121,7 +24121,7 @@ function renderSB() {
 
   return '<nav class="sb">'
     + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
-    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v68.2</div></div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v68.1</div></div>'
     + '<div class="sb-user">'
     + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
     + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
