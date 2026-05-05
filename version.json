@@ -1,6 +1,6 @@
 {
-  "version": "68.8.0",
-  "meta": "2026.04.30-v68.8",
-  "built": "2026-05-05T11:44:26.931Z",
-  "sw": "v68.8.0-dynamic-autosave-regex"
+  "version": "68.9.0",
+  "meta": "2026.04.30-v68.9",
+  "built": "2026-05-05T11:58:41.662Z",
+  "sw": "v68.9.0-publicarRecadoDir"
 }
