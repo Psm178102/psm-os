@@ -1,6 +1,6 @@
 {
-  "version": "68.6.0",
-  "meta": "2026.04.30-v68.6",
-  "built": "2026-05-04T19:24:32.279Z",
-  "sw": "v68.6.0-fix-oo-persistence-critical"
+  "version": "68.7.0",
+  "meta": "2026.04.30-v68.7",
+  "built": "2026-05-05T11:42:28.610Z",
+  "sw": "v68.7.0-global-autosave-80fns"
 }
