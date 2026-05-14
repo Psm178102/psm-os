@@ -1,0 +1,24 @@
+{
+  "name": "house-psm",
+  "version": "74.0.0",
+  "private": true,
+  "description": "House PSM — Sistema de gestao imobiliaria PSM Conquista (Dashboard TV + CRM)",
+  "scripts": {
+    "dev": "npx serve -p 3000 .",
+    "dev:vercel": "vercel dev",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel",
+    "smoke-test": "open http://localhost:3000/scripts/smoke-test.html",
+    "gen-admin-hash": "bash scripts/gen-admin-hash.sh",
+    "lint:syntax": "for f in lib/*.js api/*.js; do node -c \"$f\" && echo OK $f; done",
+    "lint:json": "for f in vercel.json version.json manifest.json; do node -e \"JSON.parse(require('fs').readFileSync('$f','utf8'))\" && echo OK $f; done"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "private"
+  },
+  "license": "UNLICENSED"
+}

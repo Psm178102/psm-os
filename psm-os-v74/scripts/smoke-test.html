@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>House PSM · Smoke Test v74</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;background:#0f172a;color:#e2e8f0;padding:24px;line-height:1.5}
+  h1{color:#d4af37;font-size:24px;margin-bottom:8px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:24px}
+  .row{display:flex;gap:12px;align-items:center;margin-bottom:24px;flex-wrap:wrap}
+  input{flex:1;min-width:280px;padding:10px 14px;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;font-size:14px;font-family:monospace}
+  button{padding:10px 20px;background:#d4af37;color:#0f172a;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px}
+  button:hover{opacity:.9}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .test{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;font-size:14px}
+  .test .icon{font-size:18px;width:24px;text-align:center}
+  .test .name{flex:1;font-weight:600}
+  .test .msg{color:#94a3b8;font-size:12px;font-family:monospace}
+  .pass{border-left:4px solid #22c55e}
+  .fail{border-left:4px solid #ef4444}
+  .pending{border-left:4px solid #64748b;opacity:.6}
+  .skip{border-left:4px solid #f59e0b}
+  .summary{margin-top:24px;padding:16px;background:#1e293b;border-radius:10px;font-size:14px}
+  code{background:#0f172a;padding:2px 6px;border-radius:4px;color:#d4af37;font-size:12px}
+</style>
+</head>
+<body>
+<h1>🩺 Smoke Test — House PSM v74</h1>
+<div class="sub">Verifica se o deploy está saudável. Cole a URL de produção abaixo e rode.</div>
+
+<div class="row">
+  <input type="url" id="baseUrl" placeholder="https://seu-dominio.vercel.app" value="">
+  <button id="runBtn">Rodar testes</button>
+</div>
+
+<div id="results"></div>
+<div id="summary" class="summary" style="display:none"></div>
+
+<script>
+'use strict';
+
+const TESTS = [
+  {
+    name: '/version.json acessível',
+    run: async (base) => {
+      const r = await fetch(base + '/version.json?_=' + Date.now(), {cache:'no-store'});
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      if (!j.version) throw new Error('version field ausente');
+      return 'v' + j.version + ' · ' + j.sprint.split(' - ')[0];
+    }
+  },
+  {
+    name: 'Versão é v73+ (esperado v74)',
+    run: async (base, ctx) => {
+      const r = await fetch(base + '/version.json?_=' + Date.now(), {cache:'no-store'});
+      const j = await r.json();
+      const major = parseInt(j.version.split('.')[0], 10);
+      if (major < 73) throw new Error('versão antiga: ' + j.version);
+      return j.version;
+    }
+  },
+  {
+    name: '/api/config retorna JSON válido',
+    run: async (base) => {
+      const r = await fetch(base + '/api/config');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      if (!j.serverTime) throw new Error('serverTime ausente');
+      return 'serverTime: ' + j.serverTime;
+    }
+  },
+  {
+    name: '/api/config.firebase populado',
+    run: async (base) => {
+      const r = await fetch(base + '/api/config');
+      const j = await r.json();
+      if (!j.firebase) throw new Error('firebase=null — env vars FIREBASE_* faltando');
+      if (!j.firebase.databaseURL) throw new Error('databaseURL ausente');
+      return j.firebase.projectId + ' (' + j.firebase.databaseURL + ')';
+    }
+  },
+  {
+    name: '/api/config.googleApiKey populado',
+    run: async (base) => {
+      const r = await fetch(base + '/api/config');
+      const j = await r.json();
+      if (!j.googleApiKey) throw new Error('googleApiKey=null — env GOOGLE_API_KEY faltando');
+      return 'OK (' + j.googleApiKey.substring(0,8) + '...)';
+    }
+  },
+  {
+    name: '/api/config.adminSha256 populado',
+    run: async (base) => {
+      const r = await fetch(base + '/api/config');
+      const j = await r.json();
+      if (!j.adminSha256) throw new Error('adminSha256=null — env ADMIN_SHA256 faltando (admin.html ficará inacessível)');
+      if (!/^[a-f0-9]{64}$/i.test(j.adminSha256)) throw new Error('hash inválido (esperado 64 hex chars)');
+      return 'OK (hash válido de 64 chars)';
+    }
+  },
+  {
+    name: '/api/supabase-config retorna JS',
+    run: async (base) => {
+      const r = await fetch(base + '/api/supabase-config');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const txt = await r.text();
+      if (!txt.includes('window.SUPABASE_URL')) throw new Error('não define window.SUPABASE_URL');
+      const hasUrl = /window\.SUPABASE_URL\s*=\s*"https?:\/\/.+\..+"/.test(txt);
+      if (hasUrl) return 'OK + URL populada (Supabase ativo)';
+      return 'OK (SUPABASE_URL vazio — feature v73 inativa, normal)';
+    },
+    skipOnError: true
+  },
+  {
+    name: '/index.html carrega libs PSM',
+    run: async (base) => {
+      const r = await fetch(base + '/index.html', {cache:'no-store'});
+      const html = await r.text();
+      const libs = (html.match(/\/lib\/psm-[a-z-]+\.js/g) || []);
+      const unique = [...new Set(libs)];
+      if (unique.length < 15) throw new Error('só ' + unique.length + ' libs (esperado 18+)');
+      return unique.length + ' libs referenciadas';
+    }
+  },
+  {
+    name: '/lib/psm-logger.js acessível',
+    run: async (base) => {
+      const r = await fetch(base + '/lib/psm-logger.js?_=' + Date.now());
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const txt = await r.text();
+      if (!txt.includes('PSM.log')) throw new Error('conteúdo errado');
+      return 'OK';
+    }
+  },
+  {
+    name: '/lib/psm-firebase.js acessível',
+    run: async (base) => {
+      const r = await fetch(base + '/lib/psm-firebase.js?_=' + Date.now());
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const txt = await r.text();
+      if (!txt.includes('fbInit')) throw new Error('conteúdo errado');
+      return 'OK (' + (txt.length / 1024).toFixed(1) + ' KB)';
+    }
+  },
+  {
+    name: '/sw.js disponível',
+    run: async (base) => {
+      const r = await fetch(base + '/sw.js?_=' + Date.now());
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const txt = await r.text();
+      const m = txt.match(/SW_VERSION = '([^']+)'/);
+      if (!m) throw new Error('SW_VERSION não encontrado');
+      return m[1];
+    }
+  },
+  {
+    name: '/manifest.json válido',
+    run: async (base) => {
+      const r = await fetch(base + '/manifest.json');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      if (!j.name || !j.icons || j.icons.length < 2) throw new Error('manifest incompleto');
+      return j.name + ' (' + j.icons.length + ' icons)';
+    }
+  },
+  {
+    name: '/admin.html tem gate de senha',
+    run: async (base) => {
+      const r = await fetch(base + '/admin.html');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const html = await r.text();
+      if (!html.includes('psm-admin-gate')) throw new Error('gate ausente');
+      if (!html.includes('_psmSha256')) throw new Error('verificação SHA-256 ausente');
+      return 'OK';
+    }
+  },
+  {
+    name: 'Header X-Frame-Options=DENY',
+    run: async (base) => {
+      const r = await fetch(base + '/', {redirect:'manual'});
+      const xfo = r.headers.get('x-frame-options');
+      if (xfo !== 'DENY') throw new Error('X-Frame-Options=' + xfo);
+      return 'DENY ✓';
+    }
+  },
+  {
+    name: 'Header Strict-Transport-Security',
+    run: async (base) => {
+      const r = await fetch(base + '/');
+      const hsts = r.headers.get('strict-transport-security');
+      if (!hsts) throw new Error('HSTS ausente');
+      return hsts;
+    }
+  }
+];
+
+const $results = document.getElementById('results');
+const $summary = document.getElementById('summary');
+const $btn = document.getElementById('runBtn');
+const $url = document.getElementById('baseUrl');
+
+// Auto-preencher URL se rodar de produção
+if (location.protocol === 'https:') {
+  $url.value = location.origin;
+}
+
+function row(test, status, msg){
+  const div = document.createElement('div');
+  div.className = 'test ' + status;
+  const icon = status === 'pass' ? '✅' : status === 'fail' ? '❌' : status === 'skip' ? '⚠️' : '⏳';
+  div.innerHTML = '<span class="icon">' + icon + '</span><span class="name">' + test.name + '</span><span class="msg">' + (msg || '') + '</span>';
+  return div;
+}
+
+$btn.addEventListener('click', async () => {
+  const base = $url.value.trim().replace(/\/$/, '');
+  if (!base.startsWith('http')) {
+    alert('URL inválida — deve começar com http(s)://');
+    return;
+  }
+  $btn.disabled = true;
+  $btn.textContent = 'Rodando...';
+  $results.innerHTML = '';
+  $summary.style.display = 'none';
+
+  let pass = 0, fail = 0, skip = 0;
+  const ctx = {};
+
+  for (const t of TESTS) {
+    const pending = row(t, 'pending', '...');
+    $results.appendChild(pending);
+    try {
+      const msg = await t.run(base, ctx);
+      pending.replaceWith(row(t, 'pass', msg || ''));
+      pass++;
+    } catch (e) {
+      if (t.skipOnError) {
+        pending.replaceWith(row(t, 'skip', e.message));
+        skip++;
+      } else {
+        pending.replaceWith(row(t, 'fail', e.message));
+        fail++;
+      }
+    }
+  }
+
+  $summary.style.display = 'block';
+  const total = TESTS.length;
+  $summary.innerHTML =
+    '<strong>' + pass + ' passou</strong> · ' +
+    (fail > 0 ? '<strong style="color:#ef4444">' + fail + ' falhou</strong>' : '0 falhou') + ' · ' +
+    (skip > 0 ? '<strong style="color:#f59e0b">' + skip + ' ignorado</strong>' : '0 ignorado') +
+    ' (de ' + total + ' testes)' +
+    (fail === 0 ? '<br><br>🎉 <strong>Deploy saudável!</strong> Prossiga para os smoke tests manuais no DEPLOY.md §4.' : '<br><br>⚠️ <strong>Falhas detectadas.</strong> Veja DEPLOY.md §Troubleshooting.');
+
+  $btn.disabled = false;
+  $btn.textContent = 'Rodar testes';
+});
+</script>
+</body>
+</html>

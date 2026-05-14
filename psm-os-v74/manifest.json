@@ -1,0 +1,35 @@
+{
+  "name": "House PSM — Gestao Imobiliaria",
+  "short_name": "House PSM",
+  "description": "Sistema de gestao imobiliaria PSM com Dashboard TV, CRM corretores, timeline de lancamentos e integracoes.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "pt-BR",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/favicon-32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "/favicon-16.png", "sizes": "16x16", "type": "image/png" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard TV",
+      "short_name": "TV",
+      "description": "Modo vitrine para escritorio",
+      "url": "/?page=arena-tv",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "CRM",
+      "short_name": "CRM",
+      "description": "Pipeline de vendas",
+      "url": "/?page=crm",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
