@@ -1,0 +1,16 @@
+# Vercel CLI metadata local
+.vercel/
+
+# Env files
+.env
+.env.*
+*.env
+
+# Temp / cache
+*.tmp
+.DS_Store
+node_modules/
+.cache/
+
+# Dev-only docs (não publicar)
+DIAGNOSTICO-*.md

@@ -1,6 +1,7 @@
 {
-  "version": "68.9.0",
-  "meta": "2026.04.30-v68.9",
-  "built": "2026-05-05T11:58:41.662Z",
-  "sw": "v68.9.0-publicarRecadoDir"
+  "version": "75.10.0",
+  "meta": "2026.05.17-v75.10",
+  "built": "2026-05-17T00:00:00Z",
+  "sw": "v75.10.0-2026-05-17-OO-SO-RD-PSM",
+  "sprint": "v75.10: One on One — Google Sheets DESVINCULADAS. Sistema agora roda 100% com RD CRM (visitas, atividades, follow-ups) + Sistema PSM (lancamentos manuais em ooDaily). Removido: 9 links hardcoded de Sheets, Bloco 5 visual, sheetBar, painel de Migracao + status das 9 planilhas, funcoes _ooFetchSheet/Tab, ooImportarHistoricoCompleto, ooSetupProxy, ooEditSheet (no-op), campo excel_url da config. Preservado: S.ooSheetCache, S.ooImportado, S.ooAuditLog (historico). Migration auto marca legacy bids como abandoned. -19KB de codigo."
 }

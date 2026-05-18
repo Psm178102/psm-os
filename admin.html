@@ -37,6 +37,67 @@
 </style>
 </head>
 <body>
+<!-- v69 SECURITY: gate de senha basico antes de qualquer renderizacao. -->
+<!-- A senha eh checada por SHA-256 contra um hash configurado em /api/config (env ADMIN_SHA256). -->
+<!-- Defesa-em-camada, NAO substitui auth real (RLS Supabase + JWT). -->
+<div id="psm-admin-gate" style="position:fixed;inset:0;background:#0f172a;display:flex;align-items:center;justify-content:center;z-index:999999;flex-direction:column;gap:14px;padding:20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:32px;max-width:380px;width:100%;text-align:center">
+    <div style="font-size:32px;margin-bottom:8px">🔒</div>
+    <h2 style="color:#d4a843;font-size:18px;margin-bottom:6px">Admin PSM</h2>
+    <div style="color:#94a3b8;font-size:12px;margin-bottom:18px">Acesso restrito a administradores</div>
+    <input id="psm-admin-pw" type="password" placeholder="Senha de administrador"
+      autocomplete="current-password" aria-label="Senha de administrador"
+      style="width:100%;padding:10px 12px;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;font-size:14px;margin-bottom:12px"
+      onkeydown="if(event.key==='Enter')psmAdminCheck()">
+    <button onclick="psmAdminCheck()" aria-label="Entrar no admin"
+      style="width:100%;background:#d4a843;color:#0f172a;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px">Entrar</button>
+    <div id="psm-admin-err" style="color:#ef4444;font-size:11px;margin-top:10px;min-height:14px" aria-live="polite"></div>
+  </div>
+</div>
+<script>
+// SHA-256 → hex via Web Crypto API (sem libs externas)
+async function _psmSha256(s){
+  var enc = new TextEncoder().encode(s);
+  var buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+async function psmAdminCheck(){
+  var input = document.getElementById('psm-admin-pw');
+  var err = document.getElementById('psm-admin-err');
+  err.textContent = '';
+  var pw = (input.value||'').trim();
+  if (!pw) { err.textContent = 'Digite a senha'; return; }
+  try {
+    var cfgResp = await fetch('/api/config', {cache:'no-store',credentials:'same-origin'});
+    var cfg = await cfgResp.json();
+    var expected = cfg && cfg.adminSha256;
+    if (!expected) {
+      // fallback DEV: hash de "psm-admin-dev" para nao quebrar local
+      expected = '46c0a3f4f0c0c5e1a91efb4d8d7b0f6a76d9c1a3e7e3b0c9a2e6f0d8b1c5a7e4'; // placeholder
+      err.textContent = 'ADMIN_SHA256 nao configurada no /api/config — bloqueado em prod';
+      return;
+    }
+    var got = await _psmSha256(pw);
+    if (got === expected) {
+      sessionStorage.setItem('psm_admin_ok', '1');
+      document.getElementById('psm-admin-gate').remove();
+    } else {
+      err.textContent = 'Senha incorreta';
+      input.value = '';
+      input.focus();
+    }
+  } catch(e){
+    err.textContent = 'Erro: ' + (e.message||'falha de rede');
+  }
+}
+// Auto-skip gate se ja autenticado nesta sessao
+if (sessionStorage.getItem('psm_admin_ok') === '1') {
+  var g = document.getElementById('psm-admin-gate'); if (g) g.remove();
+} else {
+  setTimeout(function(){ var i=document.getElementById('psm-admin-pw'); if (i) i.focus(); }, 100);
+}
+</script>
+
 <h1>PSM Admin — Monitoramento Supabase</h1>
 <div class="sub">Dashboard interno em tempo real — quem está salvando o quê, saúde do banco, ultimos eventos</div>
 
