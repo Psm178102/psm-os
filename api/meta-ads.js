@@ -1,12 +1,270 @@
-// api/meta-ads.js â Vercel Serverless Function
-// Proxy seguro para Meta Marketing API (nÃ£o expÃµe token no frontend)
+// api/meta-ads.js — Vercel Serverless Function
+// v75.7: Proxy seguro para Meta Marketing API (nao expoe token no frontend)
+//
+// CHANGELOG v75.7:
+// - Cache TTL 30s → 5min (rate-limit relief, dashboard nao precisa de fresh-fresh)
+// - Paralelizacao: cada conta processa seus 3 fetches em Promise.all
+// - Paralelizacao: contas multiplas processam em paralelo (Promise.all)
+// - Timeout 25s por fetch (AbortController) — evita travar Lambda em ate 60s
+// - Fix robustez: CPL fallback spend/results quando cost_per_action_type vazio
 
 const GRAPH_API = 'https://graph.facebook.com/v21.0';
 
-// In-memory cache (lives per warm Lambda instance). 30s TTL.
-// Evita estourar rate limit com auto-refresh do frontend.
+// In-memory cache (lives per warm Lambda instance). 5min TTL.
+// Dashboard de Meta ADS nao precisa de fresh-fresh; spend nao muda a cada 30s.
 var __cache = {};
-var CACHE_TTL_MS = 30 * 1000;
+var CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
+// Timeout helper: fetch com AbortController
+function fetchWithTimeout(url, ms) {
+  ms = ms || 25000;
+  var controller = new AbortController();
+  var timeout = setTimeout(function(){ controller.abort(); }, ms);
+  return fetch(url, { signal: controller.signal }).then(function(r){
+    clearTimeout(timeout);
+    return r;
+  }).catch(function(e){
+    clearTimeout(timeout);
+    if (e && e.name === 'AbortError') throw new Error('Meta API timeout ('+(ms/1000)+'s)');
+    throw e;
+  });
+}
+
+// Processa UMA conta: 3 fetches em paralelo (campaigns + insights + acctInsights)
+async function processAccount(actId, actLabel, actToken, dateParams) {
+  var campaignsUrl = GRAPH_API + '/' + actId + '/campaigns'
+    + '?fields=name,status,objective,effective_status'
+    + '&effective_status=["ACTIVE","PAUSED","CAMPAIGN_PAUSED"]'
+    + '&limit=100'
+    + '&access_token=' + actToken;
+
+  var insightsUrl = GRAPH_API + '/' + actId + '/insights'
+    + '?fields=campaign_id,campaign_name,spend,impressions,reach,frequency,clicks,ctr,cpm,'
+    + 'inline_link_clicks,action_values,'
+    + 'actions,cost_per_action_type,'
+    + 'quality_ranking,engagement_rate_ranking,conversion_rate_ranking,'
+    + 'video_avg_time_watched_actions,'
+    + 'video_3_sec_watched_actions,'
+    + 'video_p25_watched_actions,video_p50_watched_actions,'
+    + 'video_p75_watched_actions,video_p95_watched_actions,video_p100_watched_actions,'
+    + 'video_play_actions'
+    + '&level=campaign'
+    + '&limit=100'
+    + '&access_token=' + actToken
+    + dateParams;
+
+  var acctInsUrl = GRAPH_API + '/' + actId + '/insights'
+    + '?fields=spend,impressions,reach,frequency,clicks,actions,action_values'
+    + '&access_token=' + actToken
+    + dateParams;
+
+  // PARALELIZACAO: 3 fetches simultaneos (era serializado, 3x mais lento)
+  var results = await Promise.all([
+    fetchWithTimeout(campaignsUrl).then(function(r){ return r.json(); }),
+    fetchWithTimeout(insightsUrl).then(function(r){ return r.json(); }),
+    fetchWithTimeout(acctInsUrl).then(function(r){ return r.json(); })
+  ]);
+
+  var campData = results[0];
+  var insData = results[1];
+  var acctData = results[2];
+
+  if (campData.error) throw new Error('Conta '+actId+' (campaigns): '+campData.error.message);
+  if (insData.error) throw new Error('Conta '+actId+' (insights): '+insData.error.message);
+  // acctData.error nao bloqueia — total da conta e nice-to-have
+
+  var campaigns = campData.data || [];
+  var insights = insData.data || [];
+  var acctIns = (acctData.data && acctData.data[0]) || {};
+
+  var insightsMap = {};
+  insights.forEach(function(ins) { insightsMap[ins.campaign_id] = ins; });
+
+  var accountTotal = {
+    id: actId,
+    label: actLabel,
+    spend: parseFloat(acctIns.spend || 0),
+    impressions: parseInt(acctIns.impressions || 0),
+    reach: parseInt(acctIns.reach || 0),
+    frequency: parseFloat(acctIns.frequency || 0),
+    clicks: parseInt(acctIns.clicks || 0)
+  };
+
+  // Calcular results/cpl agregados da conta a partir das actions do acctIns
+  var acctActions = acctIns.actions || [];
+  var acctResults = 0;
+  acctActions.forEach(function(a){
+    if (a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
+        a.action_type === 'onsite_conversion.messaging_first_reply' ||
+        a.action_type === 'lead' ||
+        a.action_type === 'offsite_conversion.fb_pixel_lead') {
+      acctResults += parseInt(a.value || 0);
+    }
+  });
+  accountTotal.results = acctResults;
+  accountTotal.cpr = (acctResults > 0 && accountTotal.spend > 0) ? (accountTotal.spend / acctResults) : 0;
+  accountTotal.ctr = (accountTotal.impressions > 0) ? ((accountTotal.clicks / accountTotal.impressions) * 100) : 0;
+  accountTotal.cpm = (accountTotal.impressions > 0) ? ((accountTotal.spend / accountTotal.impressions) * 1000) : 0;
+  accountTotal.cpc = (accountTotal.clicks > 0) ? (accountTotal.spend / accountTotal.clicks) : 0;
+  // v75.9: agrega ROAS da conta a partir dos action_values
+  var acctPurchVal = 0;
+  (acctIns.action_values || []).forEach(function(av){
+    if (av.action_type === 'purchase' || av.action_type === 'offsite_conversion.fb_pixel_purchase') {
+      acctPurchVal += parseFloat(av.value || 0);
+    }
+  });
+  accountTotal.purchaseValue = acctPurchVal;
+  accountTotal.roas = (accountTotal.spend > 0 && acctPurchVal > 0) ? (acctPurchVal / accountTotal.spend) : 0;
+
+  var allCampaigns = campaigns.map(function(camp){
+    var ins = insightsMap[camp.id] || {};
+    var spend = parseFloat(ins.spend || 0);
+    var impressions = parseInt(ins.impressions || 0);
+    var reach = parseInt(ins.reach || 0);
+    var frequency = parseFloat(ins.frequency || 0);
+    if (!frequency && reach > 0) frequency = impressions / reach;
+    var clicks = parseInt(ins.clicks || 0);
+    var ctr = parseFloat(ins.ctr || 0);
+    var cpm = parseFloat(ins.cpm || 0);
+
+    // v75.9: link clicks separados do clicks totais
+    var inlineLinkClicks = parseInt(ins.inline_link_clicks || 0);
+    // CPC explicito
+    var cpc = clicks > 0 ? (spend / clicks) : 0;
+
+    // Results: leads/messages do actions
+    var results = 0;
+    var tipo = 'leadgen';
+    var purchases = 0;
+    var actions = ins.actions || [];
+    actions.forEach(function(a) {
+      if (a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
+          a.action_type === 'onsite_conversion.messaging_first_reply') {
+        results += parseInt(a.value || 0);
+        tipo = 'whatsapp';
+      }
+      if (a.action_type === 'lead' || a.action_type === 'offsite_conversion.fb_pixel_lead') {
+        results += parseInt(a.value || 0);
+      }
+      if (a.action_type === 'purchase' || a.action_type === 'offsite_conversion.fb_pixel_purchase') {
+        purchases += parseInt(a.value || 0);
+      }
+    });
+
+    // v75.9: ROAS — soma valor de purchases via action_values, dividido por spend
+    var purchaseValue = 0;
+    var actionValues = ins.action_values || [];
+    actionValues.forEach(function(av){
+      if (av.action_type === 'purchase' || av.action_type === 'offsite_conversion.fb_pixel_purchase') {
+        purchaseValue += parseFloat(av.value || 0);
+      }
+    });
+    var roas = (spend > 0 && purchaseValue > 0) ? (purchaseValue / spend) : 0;
+
+    // CPL — prefer Meta cost_per_action_type; fallback spend/results
+    var cpr = 0;
+    var costPerConversation = 0;
+    var costActions = ins.cost_per_action_type || [];
+    costActions.forEach(function(ca) {
+      if (ca.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
+          ca.action_type === 'lead' ||
+          ca.action_type === 'offsite_conversion.fb_pixel_lead' ||
+          ca.action_type === 'onsite_conversion.messaging_first_reply') {
+        cpr = parseFloat(ca.value || 0);
+      }
+      // v75.9: custo por conversa especificamente WhatsApp
+      if (ca.action_type === 'onsite_conversion.messaging_conversation_started_7d') {
+        costPerConversation = parseFloat(ca.value || 0);
+      }
+    });
+    if (cpr === 0 && results > 0 && spend > 0) cpr = spend / results;
+
+    // v75.9: Video — agora com 3s plays e avg watch time
+    var views = 0, v3 = 0, v25 = 0, v50 = 0, v75 = 0, v95 = 0, v100 = 0;
+    var avgWatchTimeSec = 0;
+    (ins.video_play_actions || []).forEach(function(v) { views += parseInt(v.value || 0); });
+    (ins.video_3_sec_watched_actions || []).forEach(function(v) { v3 += parseInt(v.value || 0); });
+    (ins.video_p25_watched_actions || []).forEach(function(v) { v25 += parseInt(v.value || 0); });
+    (ins.video_p50_watched_actions || []).forEach(function(v) { v50 += parseInt(v.value || 0); });
+    (ins.video_p75_watched_actions || []).forEach(function(v) { v75 += parseInt(v.value || 0); });
+    (ins.video_p95_watched_actions || []).forEach(function(v) { v95 += parseInt(v.value || 0); });
+    (ins.video_p100_watched_actions || []).forEach(function(v) { v100 += parseInt(v.value || 0); });
+    // avg watch time vem em milissegundos por placement/action_type, faz media
+    var avgArr = ins.video_avg_time_watched_actions || [];
+    if (avgArr.length > 0) {
+      var sum=0, cnt=0;
+      avgArr.forEach(function(v){ var n=parseFloat(v.value||0); if(n>0){ sum+=n; cnt++; } });
+      // Meta retorna em segundos ja (nao ms), mas alguns endpoints sao ms. Heuristica: >300 = ms
+      avgWatchTimeSec = cnt>0 ? (sum/cnt) : 0;
+      if (avgWatchTimeSec > 300) avgWatchTimeSec = avgWatchTimeSec/1000;
+    }
+
+    var hookRate = views > 0 ? v25 / views : 0;
+    var holdRate = v25 > 0 ? v75 / v25 : 0;
+    var vtr = views > 0 ? v100 / views : 0; // view-through rate (assistencia completa)
+    var thumbstop = impressions > 0 ? v3 / impressions : 0; // % de quem para o scroll por >=3s
+
+    // v75.9: Rankings da Meta (qualidade, engajamento, conversao)
+    // Valores: ABOVE_AVERAGE | AVERAGE | BELOW_AVERAGE_35_55 | BELOW_AVERAGE_20_35 | BELOW_AVERAGE_10_20 | UNKNOWN
+    var qualityRanking = ins.quality_ranking || 'UNKNOWN';
+    var engagementRanking = ins.engagement_rate_ranking || 'UNKNOWN';
+    var conversionRanking = ins.conversion_rate_ranking || 'UNKNOWN';
+
+    var nameLower = (camp.name || '').toLowerCase();
+    if (nameLower.indexOf('whatsapp') !== -1 || nameLower.indexOf('[whatsapp]') !== -1) {
+      tipo = 'whatsapp';
+    } else if (nameLower.indexOf('forms') !== -1 || nameLower.indexOf('[forms]') !== -1) {
+      tipo = 'leadgen';
+    }
+
+    var statusMap = {
+      'ACTIVE': 'active',
+      'PAUSED': 'paused',
+      'CAMPAIGN_PAUSED': 'paused'
+    };
+
+    return {
+      id: camp.id,
+      name: camp.name,
+      status: statusMap[camp.effective_status] || camp.effective_status,
+      account: actLabel,
+      accountId: actId,
+      tipo: tipo,
+      spend: spend,
+      impressions: impressions,
+      reach: reach,
+      frequency: frequency,
+      clicks: clicks,
+      inlineLinkClicks: inlineLinkClicks,
+      ctr: ctr,
+      cpc: cpc,
+      cpm: cpm,
+      results: results,
+      cpr: cpr,
+      costPerConversation: costPerConversation,
+      purchases: purchases,
+      purchaseValue: purchaseValue,
+      roas: roas,
+      views: views,
+      v3: v3,
+      v25: v25,
+      v50: v50,
+      v75: v75,
+      v95: v95,
+      v100: v100,
+      avgWatchTime: avgWatchTimeSec,
+      hookRate: hookRate,
+      holdRate: holdRate,
+      vtr: vtr,
+      thumbstop: thumbstop,
+      qualityRanking: qualityRanking,
+      engagementRanking: engagementRanking,
+      conversionRanking: conversionRanking
+    };
+  });
+
+  return { accountTotal: accountTotal, campaigns: allCampaigns };
+}
 
 module.exports = async function handler(req, res) {
   // CORS
@@ -25,207 +283,45 @@ module.exports = async function handler(req, res) {
     var hit = __cache[cacheKey];
     if (hit && (Date.now() - hit.t) < CACHE_TTL_MS) {
       res.setHeader('X-Cache', 'HIT');
+      res.setHeader('X-Cache-Age', String(Math.floor((Date.now() - hit.t) / 1000)));
       return res.status(200).json(hit.d);
     }
   }
 
   var token = process.env.META_ACCESS_TOKEN;
-  // Comma-separated: "act_123456,act_789012"
   var accountIds = (process.env.META_AD_ACCOUNT_IDS || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
-  // Comma-separated labels matching accounts: "Paulo Morimatsu,PSM Imoveis"
   var accountLabels = (process.env.META_AD_ACCOUNT_LABELS || '').split(',').map(function(s){ return s.trim(); });
-  // Optional comma-separated per-account tokens matching accounts. Empty entry = fallback to META_ACCESS_TOKEN.
-  // Useful when each ad account is in a different Business Manager and needs its own System User token.
   var accountTokens = (process.env.META_AD_ACCOUNT_TOKENS || '').split(',').map(function(s){ return s.trim(); });
 
   if (!token || accountIds.length === 0) {
     return res.status(500).json({
-      error: 'META_ACCESS_TOKEN e META_AD_ACCOUNT_IDS nÃ£o configurados nas env vars do Vercel'
+      error: 'META_ACCESS_TOKEN e META_AD_ACCOUNT_IDS nao configurados nas env vars do Vercel'
     });
   }
 
-  // Date range (default: last 30 days)
   var datePreset = req.query.date_preset || 'last_30d';
   var sinceDate = req.query.since || '';
   var untilDate = req.query.until || '';
 
-  try {
-    var allCampaigns = [];
-    var accountSpend = [];
+  var dateParams = (sinceDate && untilDate)
+    ? '&time_range={"since":"' + sinceDate + '","until":"' + untilDate + '"}'
+    : '&date_preset=' + datePreset;
 
-    for (var i = 0; i < accountIds.length; i++) {
-      var actId = accountIds[i];
+  try {
+    // PARALELIZACAO: todas as contas processam ao mesmo tempo
+    var perAccount = await Promise.all(accountIds.map(function(actId, i){
       var actLabel = accountLabels[i] || actId;
       var actToken = (accountTokens[i] && accountTokens[i].length > 0) ? accountTokens[i] : token;
+      return processAccount(actId, actLabel, actToken, dateParams);
+    }));
 
-      // 1. Get active campaigns
-      var campaignsUrl = GRAPH_API + '/' + actId + '/campaigns'
-        + '?fields=name,status,objective,effective_status'
-        + '&effective_status=["ACTIVE","PAUSED","CAMPAIGN_PAUSED"]'
-        + '&limit=100'
-        + '&access_token=' + actToken;
+    var accountSpend = [];
+    var allCampaigns = [];
+    perAccount.forEach(function(r){
+      accountSpend.push(r.accountTotal);
+      allCampaigns = allCampaigns.concat(r.campaigns);
+    });
 
-      var campResp = await fetch(campaignsUrl);
-      var campData = await campResp.json();
-
-      if (campData.error) {
-        return res.status(400).json({ error: campData.error.message, account: actId });
-      }
-
-      var campaigns = campData.data || [];
-
-      // 2. Get insights at campaign level
-      var insightsUrl = GRAPH_API + '/' + actId + '/insights'
-        + '?fields=campaign_id,campaign_name,spend,impressions,reach,frequency,clicks,ctr,cpm,'
-        + 'actions,cost_per_action_type,'
-        + 'video_avg_time_watched_actions,'
-        + 'video_p25_watched_actions,video_p50_watched_actions,'
-        + 'video_p75_watched_actions,video_p95_watched_actions,video_p100_watched_actions,'
-        + 'video_play_actions'
-        + '&level=campaign'
-        + '&limit=100'
-        + '&access_token=' + actToken;
-
-      if (sinceDate && untilDate) {
-        insightsUrl += '&time_range={"since":"' + sinceDate + '","until":"' + untilDate + '"}';
-      } else {
-        insightsUrl += '&date_preset=' + datePreset;
-      }
-
-      var insResp = await fetch(insightsUrl);
-      var insData = await insResp.json();
-
-      if (insData.error) {
-        return res.status(400).json({ error: insData.error.message, account: actId });
-      }
-
-      var insights = insData.data || [];
-      var insightsMap = {};
-      insights.forEach(function(ins) {
-        insightsMap[ins.campaign_id] = ins;
-      });
-
-      // 3. Get account-level insights for total spend
-      var acctInsUrl = GRAPH_API + '/' + actId + '/insights'
-        + '?fields=spend,impressions,reach,frequency,clicks,actions'
-        + '&access_token=' + actToken;
-
-      if (sinceDate && untilDate) {
-        acctInsUrl += '&time_range={"since":"' + sinceDate + '","until":"' + untilDate + '"}';
-      } else {
-        acctInsUrl += '&date_preset=' + datePreset;
-      }
-
-      var acctResp = await fetch(acctInsUrl);
-      var acctData = await acctResp.json();
-      var acctIns = (acctData.data && acctData.data[0]) || {};
-
-      accountSpend.push({
-        id: actId,
-        label: actLabel,
-        spend: parseFloat(acctIns.spend || 0),
-        impressions: parseInt(acctIns.impressions || 0),
-        reach: parseInt(acctIns.reach || 0),
-        frequency: parseFloat(acctIns.frequency || 0),
-        clicks: parseInt(acctIns.clicks || 0)
-      });
-
-      // 4. Merge campaign + insights data
-      campaigns.forEach(function(camp) {
-        var ins = insightsMap[camp.id] || {};
-        var spend = parseFloat(ins.spend || 0);
-        var impressions = parseInt(ins.impressions || 0);
-        var reach = parseInt(ins.reach || 0);
-        var frequency = parseFloat(ins.frequency || 0);
-        if (!frequency && reach > 0) frequency = impressions / reach;
-        var clicks = parseInt(ins.clicks || 0);
-        var ctr = parseFloat(ins.ctr || 0);
-        var cpm = parseFloat(ins.cpm || 0);
-
-        // Extract results (leads/messages) from actions
-        var results = 0;
-        var tipo = 'leadgen';
-        var actions = ins.actions || [];
-        actions.forEach(function(a) {
-          if (a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
-              a.action_type === 'onsite_conversion.messaging_first_reply') {
-            results += parseInt(a.value || 0);
-            tipo = 'whatsapp';
-          }
-          if (a.action_type === 'lead' || a.action_type === 'offsite_conversion.fb_pixel_lead') {
-            results += parseInt(a.value || 0);
-          }
-        });
-
-        // Cost per result
-        var cpr = 0;
-        var costActions = ins.cost_per_action_type || [];
-        costActions.forEach(function(ca) {
-          if (ca.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
-              ca.action_type === 'lead' ||
-              ca.action_type === 'offsite_conversion.fb_pixel_lead' ||
-              ca.action_type === 'onsite_conversion.messaging_first_reply') {
-            cpr = parseFloat(ca.value || 0);
-          }
-        });
-        if (cpr === 0 && results > 0) cpr = spend / results;
-
-        // Video metrics
-        var views = 0, v25 = 0, v50 = 0, v75 = 0, v95 = 0, v100 = 0;
-        var videoPlay = ins.video_play_actions || [];
-        videoPlay.forEach(function(v) { views += parseInt(v.value || 0); });
-        (ins.video_p25_watched_actions || []).forEach(function(v) { v25 += parseInt(v.value || 0); });
-        (ins.video_p50_watched_actions || []).forEach(function(v) { v50 += parseInt(v.value || 0); });
-        (ins.video_p75_watched_actions || []).forEach(function(v) { v75 += parseInt(v.value || 0); });
-        (ins.video_p95_watched_actions || []).forEach(function(v) { v95 += parseInt(v.value || 0); });
-        (ins.video_p100_watched_actions || []).forEach(function(v) { v100 += parseInt(v.value || 0); });
-
-        var hookRate = views > 0 ? v25 / views : 0;
-        var holdRate = v25 > 0 ? v75 / v25 : 0;
-
-        // Detect tipo from campaign name
-        var nameLower = camp.name.toLowerCase();
-        if (nameLower.indexOf('whatsapp') !== -1 || nameLower.indexOf('[whatsapp]') !== -1) {
-          tipo = 'whatsapp';
-        } else if (nameLower.indexOf('forms') !== -1 || nameLower.indexOf('[forms]') !== -1) {
-          tipo = 'leadgen';
-        }
-
-        var statusMap = {
-          'ACTIVE': 'active',
-          'PAUSED': 'paused',
-          'CAMPAIGN_PAUSED': 'paused'
-        };
-
-        allCampaigns.push({
-          id: camp.id,
-          name: camp.name,
-          status: statusMap[camp.effective_status] || camp.effective_status,
-          account: actLabel,
-          accountId: actId,
-          tipo: tipo,
-          spend: spend,
-          impressions: impressions,
-          reach: reach,
-          frequency: frequency,
-          clicks: clicks,
-          ctr: ctr,
-          cpm: cpm,
-          results: results,
-          cpr: cpr,
-          views: views,
-          v25: v25,
-          v50: v50,
-          v75: v75,
-          v95: v95,
-          v100: v100,
-          hookRate: hookRate,
-          holdRate: holdRate
-        });
-      });
-    }
-
-    // Build response
     var today = new Date();
     var thirtyAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
     var period = (sinceDate || formatDate(thirtyAgo)) + ' - ' + (untilDate || formatDate(today));
