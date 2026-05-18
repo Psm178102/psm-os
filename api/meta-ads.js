@@ -44,7 +44,6 @@ async function processAccount(actId, actLabel, actToken, dateParams) {
     + 'actions,cost_per_action_type,'
     + 'quality_ranking,engagement_rate_ranking,conversion_rate_ranking,'
     + 'video_avg_time_watched_actions,'
-    + 'video_3_sec_watched_actions,'
     + 'video_p25_watched_actions,video_p50_watched_actions,'
     + 'video_p75_watched_actions,video_p95_watched_actions,video_p100_watched_actions,'
     + 'video_play_actions'
@@ -179,11 +178,15 @@ async function processAccount(actId, actLabel, actToken, dateParams) {
     });
     if (cpr === 0 && results > 0 && spend > 0) cpr = spend / results;
 
-    // v75.9: Video — agora com 3s plays e avg watch time
+    // v75.12: Video — sem video_3_sec_watched_actions (field nao existe na API).
+    // Thumbstop agora deriva de actions[action_type=video_view] (ThruPlay) que tem semantica equivalente.
     var views = 0, v3 = 0, v25 = 0, v50 = 0, v75 = 0, v95 = 0, v100 = 0;
     var avgWatchTimeSec = 0;
     (ins.video_play_actions || []).forEach(function(v) { views += parseInt(v.value || 0); });
-    (ins.video_3_sec_watched_actions || []).forEach(function(v) { v3 += parseInt(v.value || 0); });
+    // v75.12: thumbstop via actions.video_view (ThruPlay = 15s ou 97%; melhor proxy disponivel)
+    actions.forEach(function(a){
+      if (a.action_type === 'video_view') v3 += parseInt(a.value || 0);
+    });
     (ins.video_p25_watched_actions || []).forEach(function(v) { v25 += parseInt(v.value || 0); });
     (ins.video_p50_watched_actions || []).forEach(function(v) { v50 += parseInt(v.value || 0); });
     (ins.video_p75_watched_actions || []).forEach(function(v) { v75 += parseInt(v.value || 0); });
@@ -308,8 +311,8 @@ module.exports = async function handler(req, res) {
     : '&date_preset=' + datePreset;
 
   try {
-    // PARALELIZACAO: todas as contas processam ao mesmo tempo
-    var perAccount = await Promise.all(accountIds.map(function(actId, i){
+    // v75.11: resilience — uma conta com erro nao quebra todas. Usa Promise.allSettled.
+    var perAccountSettled = await Promise.allSettled(accountIds.map(function(actId, i){
       var actLabel = accountLabels[i] || actId;
       var actToken = (accountTokens[i] && accountTokens[i].length > 0) ? accountTokens[i] : token;
       return processAccount(actId, actLabel, actToken, dateParams);
@@ -317,9 +320,32 @@ module.exports = async function handler(req, res) {
 
     var accountSpend = [];
     var allCampaigns = [];
-    perAccount.forEach(function(r){
-      accountSpend.push(r.accountTotal);
-      allCampaigns = allCampaigns.concat(r.campaigns);
+    var accountErrors = []; // v75.11: lista de contas que falharam
+
+    perAccountSettled.forEach(function(s, i){
+      var actId = accountIds[i];
+      var actLabel = accountLabels[i] || actId;
+      if (s.status === 'fulfilled') {
+        accountSpend.push(s.value.accountTotal);
+        allCampaigns = allCampaigns.concat(s.value.campaigns);
+      } else {
+        // Conta falhou — registra erro mas nao bloqueia as outras
+        var errMsg = (s.reason && s.reason.message) ? s.reason.message : String(s.reason);
+        accountErrors.push({
+          id: actId,
+          label: actLabel,
+          error: errMsg
+        });
+        // Insere placeholder zerado pra conta aparecer no UI com indicador de erro
+        accountSpend.push({
+          id: actId,
+          label: actLabel,
+          spend: 0, impressions: 0, reach: 0, frequency: 0, clicks: 0,
+          results: 0, cpr: 0, ctr: 0, cpm: 0, cpc: 0,
+          purchaseValue: 0, roas: 0,
+          _error: errMsg
+        });
+      }
     });
 
     var today = new Date();
@@ -327,14 +353,19 @@ module.exports = async function handler(req, res) {
     var period = (sinceDate || formatDate(thirtyAgo)) + ' - ' + (untilDate || formatDate(today));
 
     var payload = {
-      success: true,
+      success: accountErrors.length === 0,
+      partial: accountErrors.length > 0 && accountErrors.length < accountIds.length,
       period: period,
       accounts: accountSpend,
       campaigns: allCampaigns,
+      errors: accountErrors,  // v75.11: lista de erros por conta (nao bloqueia o response)
       fetchedAt: new Date().toISOString()
     };
-    __cache[cacheKey] = { t: Date.now(), d: payload };
-    res.setHeader('X-Cache', 'MISS');
+    // So cacheia se nao houver erros (evita cachear estado parcialmente quebrado)
+    if (accountErrors.length === 0) {
+      __cache[cacheKey] = { t: Date.now(), d: payload };
+    }
+    res.setHeader('X-Cache', accountErrors.length === 0 ? 'MISS' : 'PARTIAL');
     return res.status(200).json(payload);
 
   } catch (err) {
