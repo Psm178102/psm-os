@@ -1,12 +1,11 @@
 // api/ai-analysis.js — Vercel Serverless Function
-// v75.7: Proxy seguro para Google Gemini API (não expõe API key no frontend).
+// v75.16: Análise IA Profunda (Meta ADS, etc) — MIGRADO de Gemini para Claude Haiku 4.5.
 //
-// Antes (bug crítico): cliente chamava generativelanguage.googleapis.com direto com
-// ?key=<gemini_key> na URL. Qualquer um inspecionando rede via DevTools via a chave.
-// Agora: chave fica em GEMINI_API_KEY (env Vercel), client só envia prompt+contexto.
+// Antes (v75.7): proxy Gemini Flash com GEMINI_API_KEY no env
+// Agora (v75.16): proxy Claude Haiku 4.5 com ANTHROPIC_API_KEY no env
 //
-// Recebe: POST { prompt: string, model?: string, temperature?: number, maxTokens?: number }
-// Devolve: { ok: true, text: string } ou { ok: false, error: string }
+// Recebe: POST { prompt: string, max_tokens?: number, temperature?: number }
+// Devolve: { ok: true, text: string, model } ou { ok: false, error: string }
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,52 +14,46 @@ module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok:false, error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'Method not allowed' });
 
-  var apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ ok:false, error: 'GEMINI_API_KEY nao configurado no Vercel' });
-  }
+  var apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.status(500).json({ ok:false, error: 'ANTHROPIC_API_KEY nao configurado no Vercel' });
 
-  // Parse body (Vercel já parseia JSON automaticamente)
   var body = req.body || {};
-  if (typeof body === 'string') { try { body = JSON.parse(body); } catch(_) { body = {}; } }
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch(_){ body = {}; } }
 
   var prompt = String(body.prompt || '').trim();
-  if (!prompt) {
-    return res.status(400).json({ ok:false, error: 'prompt obrigatorio' });
-  }
-  if (prompt.length > 32000) {
-    return res.status(400).json({ ok:false, error: 'prompt muito longo (max 32000 chars)' });
-  }
+  if (!prompt) return res.status(400).json({ ok:false, error: 'prompt obrigatorio' });
+  if (prompt.length > 40000) return res.status(400).json({ ok:false, error: 'prompt muito longo (max 40000 chars)' });
 
-  var model = String(body.model || 'gemini-2.5-flash');
-  // sanitiza model para evitar injection
-  if (!/^gemini-[a-z0-9.-]+$/.test(model)) {
-    return res.status(400).json({ ok:false, error: 'modelo invalido' });
-  }
-  var temperature = Number(body.temperature);
-  if (isNaN(temperature) || temperature < 0 || temperature > 2) temperature = 0.5;
-  var maxTokens = parseInt(body.maxTokens, 10);
+  var maxTokens = parseInt(body.max_tokens, 10);
   if (isNaN(maxTokens) || maxTokens < 1 || maxTokens > 8192) maxTokens = 2048;
 
-  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + apiKey;
+  var temperature = Number(body.temperature);
+  if (isNaN(temperature) || temperature < 0 || temperature > 1) temperature = 0.5;
+
+  var model = 'claude-haiku-4-5';
+
+  var system = 'Você é um analista senior de marketing digital especializado em Meta Ads para o segmento imobiliário no Brasil. ';
+  system += 'Você é direto, prático, conhece bem o cotidiano de uma imobiliária (lançamentos, MCMV, lead WhatsApp, ficha, visita, proposta). ';
+  system += 'Responda em português BR com markdown limpo.';
 
   try {
-    // Timeout 30s
     var controller = new AbortController();
     var timeout = setTimeout(function(){ controller.abort(); }, 30000);
-    var resp = await fetch(url, {
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          maxOutputTokens: maxTokens,
-          temperature: temperature
-        }
+        model: model,
+        max_tokens: maxTokens,
+        temperature: temperature,
+        system: system,
+        messages: [{ role: 'user', content: prompt }]
       }),
       signal: controller.signal
     });
@@ -68,23 +61,15 @@ module.exports = async function handler(req, res) {
 
     if (!resp.ok) {
       var errText = await resp.text();
-      return res.status(resp.status).json({ ok:false, error: 'Gemini API HTTP ' + resp.status + ': ' + errText.substring(0,500) });
+      return res.status(resp.status).json({ ok:false, error: 'Claude HTTP ' + resp.status + ': ' + errText.substring(0,500) });
     }
     var data = await resp.json();
     var text = '';
-    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-      text = data.candidates[0].content.parts[0].text || '';
-    }
-    if (!text && data.error) {
-      var em = typeof data.error === 'string' ? data.error : String(data.error.message || JSON.stringify(data.error));
-      return res.status(502).json({ ok:false, error: 'Gemini retornou erro: ' + em });
-    }
-    if (!text) {
-      return res.status(502).json({ ok:false, error: 'Gemini retornou resposta vazia/inesperada' });
-    }
-    return res.status(200).json({ ok:true, text: text });
+    if (Array.isArray(data.content)) data.content.forEach(function(c){ if (c && c.type === 'text') text += (c.text || ''); });
+    if (!text) return res.status(502).json({ ok:false, error: 'Claude retornou resposta vazia/inesperada' });
+    return res.status(200).json({ ok:true, text: text, model: model, usage: data.usage || {} });
   } catch(e) {
-    var msg = (e && e.name === 'AbortError') ? 'Gemini timeout (30s)' : String(e && e.message || e);
+    var msg = (e && e.name === 'AbortError') ? 'Claude timeout (30s)' : String(e && e.message || e);
     return res.status(502).json({ ok:false, error: msg });
   }
 };

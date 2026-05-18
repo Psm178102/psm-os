@@ -1,19 +1,9 @@
 // api/sol-coach.js — Vercel Serverless Function
-// v75.15: Sol Coach Diário — copilot IA personalizado por corretor.
+// v75.16: Sr. Performance Diário (renomeado de "Sol Coach") — copilot IA pessoal por corretor.
+// MIGRADO de Gemini para Claude Haiku 4.5 (qualidade superior, mesmo schema de input/output).
 //
-// Recebe contexto do corretor (DISC + dados dos últimos 7 dias) e devolve
-// um plano de 3 ações prioritárias para HOJE, com tom adaptado ao perfil.
-//
-// Input (POST):
-//   {
-//     bid, name, role, disc: {perfil, desc},
-//     metas: {...}, ooDaily: [...últimos 7 dias],
-//     rdAtividades: [...] (opcional, do RD CRM),
-//     tarefasPendentes: [...] (do dirTarefas filtrado por responsavel),
-//     leadsParados: [...] (opcional)
-//   }
-// Output:
-//   { ok: true, plan: { date, actions: [{prio,icon,title,why}], summary }, model: 'gemini-...' }
+// Input (POST): { bid, name, role, disc, ooDaily, metas, tarefasPendentes, rdAtividades?, leadsParados? }
+// Output: { ok, plan: { date, bid, actions:[{id,prio,icon,title,why}], summary, generated_at }, model }
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -24,8 +14,8 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok:false, error: 'Method not allowed' });
 
-  var apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(500).json({ ok:false, error: 'GEMINI_API_KEY nao configurado' });
+  var apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.status(500).json({ ok:false, error: 'ANTHROPIC_API_KEY nao configurado no Vercel' });
 
   var body = req.body || {};
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch(_){ body = {}; } }
@@ -36,106 +26,73 @@ module.exports = async function handler(req, res) {
   var ooDaily = Array.isArray(body.ooDaily) ? body.ooDaily : [];
   var metas = body.metas || {};
   var tarefas = Array.isArray(body.tarefasPendentes) ? body.tarefasPendentes : [];
-  var rdAtividades = Array.isArray(body.rdAtividades) ? body.rdAtividades : [];
-  var leadsParados = Array.isArray(body.leadsParados) ? body.leadsParados : [];
 
-  // Tom adaptado ao DISC (D-I-S-C / Diretor-Influente-Estavel-Conforme)
   var tomMap = {
-    'Diretor':   'Direto, objetivo, foco em resultados. Sem rodeios. Ações claras e mensuraveis.',
-    'Influente': 'Motivacional, energético, foco em relacionamento. Use linguagem entusiasmada.',
+    'Diretor':   'Direto, objetivo, foco em resultados. Sem rodeios. Ações claras e mensuráveis.',
+    'Influente': 'Motivacional, energético, foco em relacionamento. Linguagem entusiasmada.',
     'Estavel':   'Empático, organizado, foco em consistência. Tom amigável e estruturado.',
     'Conforme':  'Detalhado, técnico, foco em qualidade e processo. Cite dados específicos.',
     'Operador':  'Pragmático, foco em execução. Linguagem direta e prática.'
   };
   var tom = tomMap[perfil] || 'Profissional, equilibrado, motivacional sem excesso.';
 
-  // Resumo dos últimos 7 dias (compactar pra economizar tokens)
-  var resumo7d = {
-    ligacoes_realizadas: 0,
-    ligacoes_atendidas: 0,
-    tentativas_agendar: 0,
-    agendamentos: 0,
-    visitas: 0,
-    propostas: 0,
-    vendas: 0,
-    captacoes: 0,
-    pastas_abertas: 0
-  };
+  // Resumo dos últimos 7 dias
+  var r = { lig_real:0, lig_atend:0, tent_agend:0, agend:0, vis:0, prop:0, vend:0, capt:0, pastas:0 };
   ooDaily.forEach(function(d){
     if (!d) return;
-    resumo7d.ligacoes_realizadas += (d.lig_real || 0);
-    resumo7d.ligacoes_atendidas += (d.lig_atend || 0);
-    resumo7d.tentativas_agendar += (d.tent_agend || 0);
-    resumo7d.agendamentos += (d.agend || 0);
-    resumo7d.visitas += (d.vis || 0);
-    resumo7d.propostas += (d.prop || 0);
-    resumo7d.vendas += (d.vend || 0);
-    resumo7d.captacoes += (d.capt || 0);
-    resumo7d.pastas_abertas += (d.pastas || 0);
+    r.lig_real += (d.lig_real||0); r.lig_atend += (d.lig_atend||0); r.tent_agend += (d.tent_agend||0);
+    r.agend += (d.agend||0); r.vis += (d.vis||0); r.prop += (d.prop||0); r.vend += (d.vend||0);
+    r.capt += (d.capt||0); r.pastas += (d.pastas||0);
   });
 
-  var prompt = 'Voce e o Sol, copilot de IA pessoal do corretor ' + nome + ' da imobiliaria PSM (Sao Jose do Rio Preto/SP).\n\n';
-  prompt += 'CONTEXTO DO CORRETOR:\n';
-  prompt += '- Nome: ' + nome + '\n';
-  if (perfil) prompt += '- Perfil DISC: ' + perfil + ' (' + (disc.desc || '') + ')\n';
-  prompt += '- Tom da sua resposta: ' + tom + '\n\n';
+  var system = 'Você é o Sr. Performance, copilot de IA pessoal dos corretores da PSM Assessoria Imobiliária (São José do Rio Preto/SP). ';
+  system += 'Você analisa dados reais do corretor e gera planos de ação diários priorizados, com tom adaptado ao perfil DISC. ';
+  system += 'Você é direto, prático, conhece o cotidiano do corretor (ligações, agendamentos, visitas, propostas, captações, pastas) e da operação imobiliária brasileira (MCMV, lançamentos, financiamento, FGTS). ';
+  system += 'Você fala em português BR.';
 
-  prompt += 'DADOS DOS ULTIMOS 7 DIAS (Sistema PSM):\n';
-  prompt += JSON.stringify(resumo7d) + '\n\n';
-
-  if (metas && Object.keys(metas).length > 0) {
-    prompt += 'METAS DO MES:\n' + JSON.stringify(metas) + '\n\n';
-  }
-
-  if (rdAtividades.length > 0) {
-    prompt += 'ATIVIDADES RD CRM (ultimos 7 dias, top ' + Math.min(rdAtividades.length, 15) + '):\n';
-    prompt += JSON.stringify(rdAtividades.slice(0,15)) + '\n\n';
-  }
-
-  if (leadsParados.length > 0) {
-    prompt += 'LEADS PARADOS (sem contato > 3 dias):\n';
-    prompt += JSON.stringify(leadsParados.slice(0,10)) + '\n\n';
-  }
-
+  var userPrompt = 'Corretor: ' + nome + '\n';
+  if (perfil) userPrompt += 'Perfil DISC: ' + perfil + ' — ' + (disc.desc || '') + '\n';
+  userPrompt += 'Tom da sua resposta: ' + tom + '\n\n';
+  userPrompt += 'DADOS DOS ULTIMOS 7 DIAS (Sistema PSM):\n' + JSON.stringify(r) + '\n\n';
+  if (metas && Object.keys(metas).length > 0) userPrompt += 'METAS DO MES:\n' + JSON.stringify(metas) + '\n\n';
   if (tarefas.length > 0) {
-    prompt += 'TAREFAS PENDENTES ATRIBUIDAS A ' + nome.toUpperCase() + ':\n';
-    prompt += JSON.stringify(tarefas.slice(0,10).map(function(t){
-      return {titulo:t.titulo,prazo:t.prazo,prioridade:t.prioridade,status:t.status};
+    userPrompt += 'TAREFAS PENDENTES DELE:\n';
+    userPrompt += JSON.stringify(tarefas.slice(0,10).map(function(t){
+      return { titulo:t.titulo, prazo:t.prazo, prioridade:t.prioridade, status:t.status };
     })) + '\n\n';
   }
+  userPrompt += 'GERE o plano de hoje para ' + nome + ' com EXATAMENTE 3 ações priorizadas.\n';
+  userPrompt += 'Seja específico — cite números/contextos quando relevante.\n';
+  userPrompt += 'Cada ação deve estar mais perto da meta de vendas.\n\n';
+  userPrompt += 'Responda APENAS JSON válido neste formato:\n';
+  userPrompt += '{\n';
+  userPrompt += '  "summary": "1 frase motivacional contextualizada (max 120 chars)",\n';
+  userPrompt += '  "actions": [\n';
+  userPrompt += '    { "prio": "alta", "icon": "📞", "title": "ação concreta (max 80 chars)", "why": "motivo em 1 frase (max 100 chars)" },\n';
+  userPrompt += '    { "prio": "media", "icon": "📝", "title": "...", "why": "..." },\n';
+  userPrompt += '    { "prio": "baixa", "icon": "💬", "title": "...", "why": "..." }\n';
+  userPrompt += '  ]\n';
+  userPrompt += '}\n';
+  userPrompt += 'prio aceita: critica|alta|media|baixa\nNenhum texto fora do JSON.';
 
-  prompt += 'TAREFA:\n';
-  prompt += 'Analise o contexto e devolva o PLANO DE HOJE com 3 acoes prioritarias (max).\n';
-  prompt += 'Seja especifico — cite nomes/numeros do contexto quando relevante.\n';
-  prompt += 'Cada acao deve ter ROI claro (mais perto da venda, mais perto da meta).\n\n';
-  prompt += 'RESPONDA APENAS EM JSON VALIDO (sem markdown, sem ```json), neste formato exato:\n';
-  prompt += '{\n';
-  prompt += '  "summary": "1 frase motivacional contextualizada (max 120 chars)",\n';
-  prompt += '  "actions": [\n';
-  prompt += '    { "prio": "alta", "icon": "📞", "title": "acao concreta (max 80 chars)", "why": "motivo em 1 frase (max 100 chars)" },\n';
-  prompt += '    { "prio": "media", "icon": "📝", "title": "...", "why": "..." },\n';
-  prompt += '    { "prio": "baixa", "icon": "💬", "title": "...", "why": "..." }\n';
-  prompt += '  ]\n';
-  prompt += '}\n';
-  prompt += 'prio aceita: critica|alta|media|baixa\n';
-  prompt += 'icon: emoji unico relevante a acao\n';
-  prompt += 'Responda em portugues BR. Nenhum texto fora do JSON.';
-
-  var model = 'gemini-2.5-flash';
-  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + apiKey;
+  var model = 'claude-haiku-4-5';
 
   try {
     var controller = new AbortController();
     var timeout = setTimeout(function(){ controller.abort(); }, 30000);
-    var resp = await fetch(url, {
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          maxOutputTokens: 1024,
-          temperature: 0.7
-        }
+        model: model,
+        max_tokens: 1024,
+        temperature: 0.6,
+        system: system,
+        messages: [{ role: 'user', content: userPrompt }]
       }),
       signal: controller.signal
     });
@@ -143,30 +100,22 @@ module.exports = async function handler(req, res) {
 
     if (!resp.ok) {
       var errText = await resp.text();
-      return res.status(resp.status).json({ ok:false, error: 'Gemini HTTP ' + resp.status + ': ' + errText.substring(0,400) });
+      return res.status(resp.status).json({ ok:false, error: 'Claude HTTP '+resp.status+': '+errText.substring(0,400) });
     }
     var data = await resp.json();
     var text = '';
-    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-      text = (data.candidates[0].content.parts[0].text || '').trim();
-    }
-    if (!text) return res.status(502).json({ ok:false, error: 'Gemini retornou resposta vazia' });
+    if (Array.isArray(data.content)) data.content.forEach(function(c){ if (c && c.type === 'text') text += (c.text || ''); });
+    if (!text) return res.status(502).json({ ok:false, error:'Claude retornou resposta vazia' });
 
-    // Tira ```json ... ``` se vier
-    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-
+    text = text.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();
     var plan;
     try { plan = JSON.parse(text); }
-    catch(e){
-      return res.status(502).json({ ok:false, error: 'Gemini retornou JSON invalido: ' + text.substring(0,300), raw: text });
-    }
+    catch(e){ return res.status(502).json({ ok:false, error: 'Claude retornou JSON invalido: '+text.substring(0,300), raw: text }); }
 
-    // Sanity: precisa ter actions
     if (!plan || !Array.isArray(plan.actions) || plan.actions.length === 0) {
       return res.status(502).json({ ok:false, error: 'Plano sem acoes' });
     }
 
-    // Adicionar IDs únicos para cada action (para tracking de completion)
     plan.actions = plan.actions.map(function(a, i){
       return {
         id: 'a' + Date.now() + '_' + i,
@@ -189,10 +138,11 @@ module.exports = async function handler(req, res) {
         summary: (plan.summary || '').toString().substring(0, 200),
         generated_at: Date.now()
       },
-      model: model
+      model: model,
+      usage: data.usage || {}
     });
   } catch(e) {
-    var msg = (e && e.name === 'AbortError') ? 'Gemini timeout (30s)' : String(e && e.message || e);
+    var msg = (e && e.name === 'AbortError') ? 'Claude timeout (30s)' : String(e && e.message || e);
     return res.status(502).json({ ok:false, error: msg });
   }
 };
