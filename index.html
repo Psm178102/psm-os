@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.05.17-v75.10">
+<meta name="version" content="2026.05.17-v75.11">
 <!-- v69 SEO: meta tags para social preview (WhatsApp/LinkedIn/Telegram) e indexacao -->
 <meta name="description" content="House PSM — Sistema de gestao imobiliaria com Dashboard TV, CRM corretores, timeline de lancamentos, integracoes Firebase/Supabase/RD Station e analise IA.">
 <meta name="author" content="PSM Conquista">
@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.10.0';window.PSM_VERSION_META='2026.05.17-v75.10';
+</style><script>window.PSM_VERSION='75.11.0';window.PSM_VERSION_META='2026.05.17-v75.11';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -26379,6 +26379,8 @@ window.maFetch=function(opts){
       }else{
         window._maApiErrCount=0;
         S.maData=j;
+        // v75.11: erros parciais por conta (resilience)
+        S.maAccountErrors = (j.errors && j.errors.length>0) ? j.errors : null;
         // v75.8: dispara engine de alertas com dados frescos
         window.maAlertEngine && window.maAlertEngine({data:j});
       }
@@ -27220,6 +27222,28 @@ if(S.maShowCfg){
   h+='<button onclick="maSaveCfg()" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--gold);color:#0b1120;font-weight:800;font-size:.88rem;cursor:pointer;">Salvar</button>';
   h+='<button onclick="maCloseCfg()" style="padding:10px 18px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;font-weight:700;font-size:.82rem;cursor:pointer;">Cancelar</button>';
   h+='</div></div></div>';
+}
+
+// v75.11: BANNER de erros parciais (uma ou mais contas falharam mas as outras carregaram)
+if(S.maAccountErrors && S.maAccountErrors.length>0){
+  h+='<div style="margin-bottom:14px;padding:12px 16px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.35);border-left:4px solid #f59e0b;border-radius:8px;">';
+  h+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">';
+  h+='<div><div style="font-weight:700;color:#fbbf24;font-size:.92rem;margin-bottom:4px;">⚠ '+S.maAccountErrors.length+' conta(s) com erro de acesso — dashboard mostra dados parciais</div>';
+  h+='<div style="font-size:.74rem;color:#cbd5e1;line-height:1.55;">As contas abaixo não carregaram. As outras continuam funcionando normalmente.</div></div>';
+  h+='<button onclick="maFetch({nocache:true})" style="padding:6px 12px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.35);color:#fbbf24;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:700;white-space:nowrap;">↻ Tentar novamente</button>';
+  h+='</div>';
+  h+='<div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">';
+  S.maAccountErrors.forEach(function(e){
+    h+='<div style="background:rgba(0,0,0,.25);border:1px solid rgba(245,158,11,.2);border-radius:6px;padding:8px 10px;font-size:.72rem;">';
+    h+='<div style="color:#fbbf24;font-weight:700;margin-bottom:3px;">📈 '+(e.label||e.id)+' <span style="font-family:monospace;font-weight:400;color:#94a3b8;font-size:.66rem;">'+e.id+'</span></div>';
+    h+='<div style="color:#fda4a4;font-family:monospace;font-size:.68rem;word-break:break-word;">'+(e.error||'').substring(0,260)+'</div>';
+    // Heuristica: se for erro de permissao, sugere acao
+    if((e.error||'').indexOf('permission')>=0 || (e.error||'').indexOf('#200')>=0){
+      h+='<div style="color:#94a3b8;font-size:.66rem;margin-top:4px;">💡 Conta não compartilhada com seu Business Manager. Solução: peça ao dono da conta para adicionar seu BM como <b>parceiro</b> (não usuário).</div>';
+    }
+    h+='</div>';
+  });
+  h+='</div></div>';
 }
 
 // ─── ACCOUNT TABS ──────────────────────────────────────────
