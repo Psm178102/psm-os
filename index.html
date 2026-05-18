@@ -25385,7 +25385,7 @@ function getDefaultPage(){return DEFAULT_PAGE[getPerfil()]||"checkin";}
 function renderSB() {
   const u = S.user; const lvl = RLVL[u?.role]||0;
   const MENU = [
-    // ─── Itens iniciais (sem header) ───────────────────────────────────────
+    // === Itens iniciais (sem header) ===
     {sec:null, items:[
       {id:'checkin',        lbl:'Check-in / out',    ico:'\u23F0'},
       {id:'wararena',       lbl:'Arena PSM',         ico:'\u2694\uFE0F'},
@@ -25393,7 +25393,7 @@ function renderSB() {
       {id:'ranking',        lbl:'Ranking',           ico:'\uD83C\uDFC6'},
       {id:'agenda_psm',     lbl:'Agenda PSM',        ico:'\uD83D\uDCC5'},
     ]},
-    // ─── 2. Diretoria ──────────────────────────────────────────────────────
+    // === 2. Diretoria ===
     {sec:'Diretoria', items:[
       {id:'forecast',   lbl:'Proje\u00e7\u00f5es',  ico:'\uD83D\uDCC9'},
       {id:'kpis',        lbl:'KPIs',                ico:'\uD83D\uDCC8'},
@@ -25406,7 +25406,7 @@ function renderSB() {
       {id:'dashboard',   lbl:'Dashboard',           ico:'\uD83D\uDCCA'},
       {id:'bi_socio',    lbl:'BI S\u00f3cio',       ico:'\uD83D\uDC51'},
     ]},
-    // ─── 3. Painel do Corretor ─────────────────────────────────────────────
+    // === 3. Painel do Corretor ===
     {sec:'Painel do Corretor', items:[
       {id:'oneonone',       lbl:'One on One',              ico:'\uD83C\uDFAF'},
       {id:'oportunidades',  lbl:'Oportunidades',           ico:'\uD83D\uDCA1'},
@@ -25419,7 +25419,7 @@ function renderSB() {
       {id:'fichas_propostas',lbl:'Fichas & Propostas',     ico:'\uD83D\uDCC4'},
       {id:'ia_corretor',    lbl:'IA do Corretor',          ico:'\uD83E\uDD16'},
     ]},
-    // ─── 4. Ferramentas ────────────────────────────────────────────────────
+    // === 4. Ferramentas ===
     {sec:'Ferramentas', items:[
       {id:'tabela',        lbl:'Tabela PSM',              ico:'\uD83D\uDCCB'},
       {id:'drive',         lbl:'Drive',                   ico:'\uD83D\uDCC1'},
@@ -25428,12 +25428,12 @@ function renderSB() {
       {id:'simuladores',   lbl:'Simuladores',             ico:'\uD83E\uDDEE'},
       {id:'canal_anonimo', lbl:'Canal An\u00f4nimo',      ico:'\uD83D\uDD12'},
     ]},
-    // ─── 5. Secretaria de Vendas ───────────────────────────────────────────
+    // === 5. Secretaria de Vendas ===
     {sec:'Secretaria de Vendas', items:[
       {id:'fluxo_captacoes', lbl:'Fluxo Capta\u00e7\u00f5es', ico:'\uD83C\uDFE0'},
       {id:'tarefas_psm',     lbl:'Tarefas PSM',     ico:'\u2705'},
     ]},
-    // ─── 6. Marketing ──────────────────────────────────────────────────────
+    // === 6. Marketing ===
     {sec:'Marketing', items:[
       {id:'metaads',          lbl:'Meta ADS',                    ico:'\uD83D\uDCE3'},
       {id:'sim_criativos',    lbl:'Simulador de Criativos',      ico:'\uD83C\uDFA8'},
@@ -25442,14 +25442,14 @@ function renderSB() {
       {id:'crono_conquista',  lbl:'Cronograma Conquista',        ico:'\uD83D\uDCC5'},
       {id:'crono_psm',        lbl:'Cronograma PSM',              ico:'\uD83D\uDCC5'},
     ]},
-    // ─── 7. Intelligence ───────────────────────────────────────────────────
+    // === 7. Intelligence ===
     {sec:'Intelligence', items:[
       {id:'inteldash',  lbl:'Dashboard Intel',       ico:'\ud83e\udde0'},
       {id:'radar',      lbl:'Radar Concorrentes',   ico:'\uD83D\uDCE1'},
       {id:'intelads',   lbl:'Intelligence Ads',      ico:'\uD83D\uDCF0'},
       {id:'benchmark',  lbl:'Benchmark',            ico:'\uD83D\uDCCA'},
     ]},
-    // ─── Restante (em sequencia) ───────────────────────────────────────────
+    // === Restante (em sequencia) ===
     {sec:'Pipeline & CRM', items:[
       {id:'crm',       lbl:'CRM / Funil',     ico:'\uD83D\uDD00'},
       {id:'metricas',  lbl:'M\u00e9tricas RD',ico:'\uD83D\uDCC8'},
@@ -25492,6 +25492,43 @@ function renderSB() {
       {id:'config',    lbl:'Configura\u00E7\u00F5es',ico:'\u2699\uFE0F'},
       {id:'vendas',    lbl:'Lan\u00e7ar Venda',    ico:'\uD83D\uDCB0'},
     ]},
+  ];  const sections = MENU.map(sec => {
+    const items = sec.items.filter(function(m){return canAccess(m.id);});
+    if (!items.length) return '';
+    var secHeader = sec.sec ? '<div class="sb-sec">'+sec.sec+'</div>' : '';
+    return secHeader
+      + items.map(i => '<button class="sb-lnk'+(S.page===i.id?' on':'')+'" onclick="nav(\''+i.id+'\')">'
+        + '<span class="sb-ico">'+i.ico+'</span>'+i.lbl+'</button>').join('');
+  }).join('');
+
+  const syncDot = S.rdSyncStatus==='ok' ? '<span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;margin-right:5px"></span>' : '';
+
+  return '<nav class="sb">'
+    + '<div class="sb-logo"><img src="logo-psm-navy.png" alt="PSM" style="max-width:120px;max-height:42px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="logo-mark" style="display:none">PSM</div>'
+    + '<div style="font-size:9px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:6px;cursor:pointer" onclick="if(window.psmHealth)psmHealth()" title="Saude do sistema (Ctrl+Shift+H)">OS v'+(window.PSM_VERSION||'74.0')+'</div></div>'
+    + '<div class="sb-user">'
+    + '<div style="width:30px;height:30px;border-radius:9px;background:'+(u?.color||'#d4a843')+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">'+(u?.ini||'?')+'</div>'
+    + '<div style="flex:1;min-width:0"><div class="sb-uname">'+u?.name.split(' ')[0]+'</div>'
+    + '<div class="sb-urole">'+syncDot+(u?.role||'')+'</div></div>'
+    + '<button class="sb-out" onclick="doLogout()">Sair</button>'
+    + '</div>'
+    + '<div class="sb-body">'+sections+'</div>'
+    + '<div class="sb-foot" style="font-size:9px;color:rgba(255,255,255,.2);padding:10px 16px">'
+    + 'House PSM v8 \u00B7 '+(RD.lastSync?'Sync '+RD.lastSync.toLocaleTimeString('pt-BR'):'Aguardando sync')+'</div>'
+    + '</nav>';
+}
+
+// ─── TOPBAR ───────────────────────────────────────────────────────────────────
+// ═══ v17: TIMELINE GLOBAL (barra de eventos/recados/premiações/oportunidades) ═══
+function renderGlobalTimeline(){
+  // Não exibe em modos TV (war/arena/dashboard exec) — v22: IDs corretos
+  if(document.getElementById('warTvOv') || document.getElementById('dashExecTvOv') ||
+     document.getElementById('arenaTvOv') || document.getElementById('arena-tv-overlay')) return '';
+  if(!S.user) return '';
+  if(!S.timelineItems){
+    S.timelineItems = [
+      {id:'tl1', tipo:'evento', ico:'\uD83C\uDF89', txt:'Premiação mensal — sexta 18h', dt:Date.now(), exp:0},
+      {id:'tl2', tipo:'recado', ico:'\uD83D\uDCE2', txt:'Reunião de alinhamento toda segunda 9h', dt:Date.now(), exp:0}
     ];
   }
   var perfil = (typeof getPerfil==='function') ? getPerfil() : 'corretor';

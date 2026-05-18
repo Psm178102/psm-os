@@ -3,5 +3,5 @@
   "meta": "2026.05.17-v75.13",
   "built": "2026-05-17T00:00:00Z",
   "sw": "v75.13.0-2026-05-17-MENU-REORDER",
-  "sprint": "v75.13: Menu lateral reordenado conforme pedido — itens iniciais, Diretoria, Painel do Corretor, Ferramentas, Secretaria de Vendas, Marketing, Intelligence, depois restante (Pipeline, Frentes, Locacoes, Gestao Pessoas, Financeiro, Agentes, Configuracoes)."
+  "sprint": "v75.13: Menu lateral reordenado (Iniciais > Diretoria > Painel Corretor > Ferramentas > Secretaria > Marketing > Intelligence > restante). Reaplicado cirurgicamente sobre v75.12 limpa apos primeiro deploy ter apagado renderSB e renderGlobalTimeline. Funcoes preservadas. Inclui resilience da v75.11 e fix video_3_sec_watched_actions da v75.12."
 }
