@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.18.0-2026-05-18-AI-FALLBACK';
+const SW_VERSION = 'v75.19.0-2026-05-18-TV-BLOOMBERG';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

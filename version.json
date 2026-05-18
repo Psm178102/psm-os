@@ -1,7 +1,7 @@
 {
-  "version": "75.18.0",
-  "meta": "2026.05.18-v75.18",
-  "built": "2026-05-18T21:00:00Z",
-  "sw": "v75.18.0-2026-05-18-AI-FALLBACK",
-  "sprint": "v75.18: IA hibrida — tenta Claude Haiku 4.5 primeiro, fallback automatico para Gemini Flash se Claude falhar (credito esgotado, auth error, timeout, etc). Helper unificado /api/_ai.js com callAI(). Os 3 endpoints (/api/claude, /api/ai-analysis, /api/sol-coach) agora usam o helper. Resposta inclui model_used + fallback_reason para debug. Funciona com ANTHROPIC_API_KEY E/OU GEMINI_API_KEY (qualquer um disponivel)."
+  "version": "75.19.0",
+  "meta": "2026.05.18-v75.19",
+  "built": "2026-05-18T22:00:00Z",
+  "sw": "v75.19.0-2026-05-18-TV-BLOOMBERG",
+  "sprint": "v75.19: MODO TV redesign COMPLETO estilo Bloomberg/Trading Floor com foco em URGENCIA/COMPETICAO. Tipografia JetBrains Mono + Inter Bold. Fundo preto absoluto. Cores high-contrast (gold/red/green). Header com clock gigante + LIVE pulsando. Footer com ticker Reuters rolando contínuo. 5 cenas novas: LEADERBOARD (ranking ao vivo com sparklines), TIME-ATTACK (countdown gigante do mês + falta/dia), HOT-MOMENTS (live feed Reuters style), HEATMAP (quem está zero hoje fica exposto em vermelho), WAR-ROOM (projeção vai bater ou não). Cada cena dura 18-22s. ESC fecha. arenaTV antiga preservada como arenaTV_LEGACY."
 }
