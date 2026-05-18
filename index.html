@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.05.17-v75.14">
+<meta name="version" content="2026.05.17-v75.15">
 <!-- v69 SEO: meta tags para social preview (WhatsApp/LinkedIn/Telegram) e indexacao -->
 <meta name="description" content="House PSM — Sistema de gestao imobiliaria com Dashboard TV, CRM corretores, timeline de lancamentos, integracoes Firebase/Supabase/RD Station e analise IA.">
 <meta name="author" content="PSM Conquista">
@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.14.0';window.PSM_VERSION_META='2026.05.17-v75.14';
+</style><script>window.PSM_VERSION='75.15.0';window.PSM_VERSION_META='2026.05.17-v75.15';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -10069,6 +10069,8 @@ function pgMinhasTarefas(){
     if (t.prazo && t.status!=='concluido' && t.status!=='cancelado' && new Date(t.prazo+'T23:59:59').getTime() < hoje.getTime()) atrasadas++;
   });
   var h = '<div style="padding:20px;max-width:1100px;margin:0 auto;">';
+  // v75.15: Sol Coach widget no topo
+  if (typeof _solCoachWidget === 'function') h += _solCoachWidget(meId);
   h += '<div style="margin-bottom:16px;">';
   h += '<h1 style="color:#f8fafc;font-size:1.4rem;margin:0;font-weight:800;">✅ Minhas Tarefas</h1>';
   h += '<div style="color:#94a3b8;font-size:.78rem;margin-top:4px;">'+minhas.length+' tarefa(s) atribuída(s) a você';
@@ -10436,6 +10438,208 @@ function pgDirEstrategia(){
   h += '</div>';
   return h;
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// v75.15 — SOL COACH DIÁRIO (copilot IA pessoal do corretor)
+// ═════════════════════════════════════════════════════════════════════════════
+// State:
+//   S.solCoach = {
+//     plans: { 'bid': { 'YYYY-MM-DD': {actions:[], summary, generated_at} } },
+//     completions: { 'bid': { 'YYYY-MM-DD': ['actionId1','actionId2'] } },
+//     streak: { 'bid': {count, lastDate, best} }
+//   }
+// API: POST /api/sol-coach → recebe contexto, retorna plano com 3 acoes IA
+
+(function _solCoachHydrate(){
+  try {
+    if (!window.S) return;
+    if (!S.solCoach) {
+      var raw = localStorage.getItem('psm_sol_coach');
+      S.solCoach = raw ? JSON.parse(raw) : { plans:{}, completions:{}, streak:{} };
+    }
+  } catch(_){ S.solCoach = { plans:{}, completions:{}, streak:{} }; }
+})();
+
+function _solCoachSave(){
+  try { localStorage.setItem('psm_sol_coach', JSON.stringify(S.solCoach||{})); } catch(_){}
+  try { if (typeof persist==='function') persist('sol_coach', function(){}); } catch(_){}
+}
+
+function _solCoachToday(){
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function _solCoachBuildContext(bid){
+  var broker = (typeof BROKERS!=='undefined') ? BROKERS.find(function(b){return b.id===bid;}) : null;
+  if (!broker) return null;
+  var ctx = { bid: bid, name: broker.name || '?', role: broker.role || '', disc: {} };
+  try {
+    if (typeof DISC_PROFILES !== 'undefined' && DISC_PROFILES[bid]) {
+      ctx.disc = Object.assign({}, DISC_PROFILES[bid], (S.ooDiscCustom||{})[bid] || {});
+    } else if ((S.ooDiscCustom||{})[bid]) {
+      ctx.disc = (S.ooDiscCustom||{})[bid];
+    }
+  } catch(_){}
+  ctx.ooDaily = [];
+  try {
+    var hoje = new Date();
+    for (var i=0; i<7; i++){
+      var d = new Date(hoje);
+      d.setDate(hoje.getDate() - i);
+      var key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      var dayData = (S.ooDaily && S.ooDaily[bid] && S.ooDaily[bid][key]) ? S.ooDaily[bid][key] : null;
+      if (dayData) ctx.ooDaily.push(Object.assign({date:key}, dayData));
+    }
+  } catch(_){}
+  try {
+    var monthKey = new Date().toISOString().slice(0,7);
+    ctx.metas = (S.ooMetas && S.ooMetas[bid] && S.ooMetas[bid][monthKey]) ? S.ooMetas[bid][monthKey] : {};
+  } catch(_){ ctx.metas = {}; }
+  try {
+    ctx.tarefasPendentes = (S.dirTarefas||[])
+      .filter(function(t){ return t.responsavel === bid && t.status !== 'concluido' && t.status !== 'cancelado'; })
+      .map(function(t){ return { titulo:t.titulo, prazo:t.prazo, prioridade:t.prioridade, status:t.status }; });
+  } catch(_){ ctx.tarefasPendentes = []; }
+  return ctx;
+}
+
+window.solCoachGerar = function(bid){
+  var ctx = _solCoachBuildContext(bid);
+  if (!ctx) { if (typeof toast==='function') toast('Corretor nao encontrado', 'err'); return Promise.reject('no broker'); }
+  if (!S.solCoachLoading) S.solCoachLoading = {};
+  S.solCoachLoading[bid] = true;
+  if (typeof render==='function') render({force:true});
+  return fetch('/api/sol-coach', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(ctx)
+  }).then(function(r){ return r.json(); }).then(function(j){
+    S.solCoachLoading[bid] = false;
+    if (!j.ok) {
+      if (typeof toast==='function') toast('Erro IA: ' + (j.error||'?'), 'err');
+      if (typeof render==='function') render({force:true});
+      return;
+    }
+    if (!S.solCoach) S.solCoach = { plans:{}, completions:{}, streak:{} };
+    if (!S.solCoach.plans[bid]) S.solCoach.plans[bid] = {};
+    var today = _solCoachToday();
+    S.solCoach.plans[bid][today] = j.plan;
+    _solCoachSave();
+    if (typeof toast==='function') toast('✨ Plano de hoje gerado!', 'ok');
+    if (typeof render==='function') render({force:true});
+  }).catch(function(e){
+    S.solCoachLoading[bid] = false;
+    if (typeof toast==='function') toast('Erro: ' + String(e.message||e), 'err');
+    if (typeof render==='function') render({force:true});
+  });
+};
+
+window.solCoachToggleAction = function(bid, actionId){
+  if (!S.solCoach) return;
+  if (!S.solCoach.completions[bid]) S.solCoach.completions[bid] = {};
+  var today = _solCoachToday();
+  if (!S.solCoach.completions[bid][today]) S.solCoach.completions[bid][today] = [];
+  var arr = S.solCoach.completions[bid][today];
+  var idx = arr.indexOf(actionId);
+  if (idx >= 0) arr.splice(idx, 1); else arr.push(actionId);
+  var plan = (S.solCoach.plans[bid]||{})[today];
+  if (plan && plan.actions && arr.length === plan.actions.length) {
+    if (!S.solCoach.streak[bid]) S.solCoach.streak[bid] = { count:0, lastDate:'', best:0 };
+    var st = S.solCoach.streak[bid];
+    var hoje = new Date(); hoje.setHours(0,0,0,0);
+    var ontem = new Date(hoje); ontem.setDate(hoje.getDate()-1);
+    var ontemKey = ontem.getFullYear()+'-'+String(ontem.getMonth()+1).padStart(2,'0')+'-'+String(ontem.getDate()).padStart(2,'0');
+    if (st.lastDate === today) {}
+    else if (st.lastDate === ontemKey) { st.count = (st.count||0) + 1; }
+    else { st.count = 1; }
+    st.lastDate = today;
+    if (st.count > (st.best||0)) st.best = st.count;
+  }
+  _solCoachSave();
+  if (typeof render==='function') render({force:true});
+};
+
+function _solCoachWidget(bid){
+  if (!bid) return '';
+  var today = _solCoachToday();
+  var plan = (S.solCoach && S.solCoach.plans && S.solCoach.plans[bid]) ? S.solCoach.plans[bid][today] : null;
+  var completions = (S.solCoach && S.solCoach.completions && S.solCoach.completions[bid] && S.solCoach.completions[bid][today]) || [];
+  var streak = (S.solCoach && S.solCoach.streak && S.solCoach.streak[bid]) || {count:0,best:0};
+  var loading = !!(S.solCoachLoading && S.solCoachLoading[bid]);
+  var broker = (typeof BROKERS!=='undefined') ? BROKERS.find(function(b){return b.id===bid;}) : null;
+  var nome = broker ? (broker.name||'').split(' ')[0] : 'você';
+  var hora = new Date().getHours();
+  var saudacao = hora < 12 ? '☀️ Bom dia' : (hora < 18 ? '🌤️ Boa tarde' : '🌙 Boa noite');
+
+  var h = '<div style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#1e3a8a 100%);border:1px solid rgba(167,139,250,.3);border-radius:14px;padding:18px 20px;margin-bottom:16px;position:relative;overflow:hidden;">';
+  h += '<div style="position:absolute;top:-30px;right:-30px;width:160px;height:160px;background:radial-gradient(circle,rgba(251,191,36,.2) 0%,transparent 70%);border-radius:50%;pointer-events:none;"></div>';
+  h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;position:relative;z-index:1;flex-wrap:wrap;margin-bottom:12px;">';
+  h += '<div><div style="font-size:.72rem;color:#a78bfa;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px;">☀ Sol Coach · '+today.split('-').reverse().join('/')+'</div>';
+  h += '<div style="font-size:1.15rem;font-weight:800;color:#fff;">'+saudacao+', '+nome+'!</div></div>';
+  if (streak.count > 0) {
+    h += '<div style="background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.4);border-radius:10px;padding:6px 12px;text-align:center;">';
+    h += '<div style="font-size:.6rem;color:#fcd34d;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔥 Streak</div>';
+    h += '<div style="font-size:1.2rem;font-weight:800;color:#fbbf24;line-height:1;">'+streak.count+'d</div>';
+    if (streak.best > streak.count) h += '<div style="font-size:.58rem;color:#94a3b8;margin-top:1px;">recorde '+streak.best+'d</div>';
+    h += '</div>';
+  }
+  h += '</div>';
+
+  if (loading) {
+    h += '<div style="text-align:center;padding:40px 20px;color:#a78bfa;position:relative;z-index:1;">';
+    h += '<div style="font-size:2rem;margin-bottom:8px;animation:psmSolSpin 1.5s linear infinite;display:inline-block;">✨</div>';
+    h += '<div style="font-size:.85rem;font-weight:600;">Gerando seu plano pelo Sol...</div>';
+    h += '<div style="font-size:.7rem;color:#7c3aed;margin-top:4px;">Analisando últimos 7 dias + tarefas pendentes</div>';
+    h += '</div>';
+    h += '<style>@keyframes psmSolSpin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}</style>';
+  } else if (!plan) {
+    h += '<div style="text-align:center;padding:20px 0;position:relative;z-index:1;">';
+    h += '<div style="font-size:.85rem;color:#cbd5e1;margin-bottom:12px;line-height:1.5;">Sou seu copilot diário. Vou analisar seus últimos 7 dias e gerar um plano com <b style="color:#fbbf24;">3 ações prioritárias</b> para hoje.</div>';
+    h += '<button onclick="solCoachGerar(\''+bid+'\')" style="padding:12px 24px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border:none;color:#0b1120;border-radius:10px;cursor:pointer;font-size:.92rem;font-weight:800;box-shadow:0 4px 14px rgba(251,191,36,.3);">✨ Gerar plano de hoje</button>';
+    h += '</div>';
+  } else {
+    if (plan.summary) {
+      h += '<div style="font-size:.85rem;color:#e2e8f0;font-style:italic;line-height:1.5;padding:10px 14px;background:rgba(255,255,255,.04);border-left:3px solid #fbbf24;border-radius:6px;margin-bottom:14px;position:relative;z-index:1;">"' + plan.summary + '"</div>';
+    }
+    var totalActions = (plan.actions||[]).length;
+    var doneActions = completions.length;
+    var pct = totalActions > 0 ? Math.round(doneActions / totalActions * 100) : 0;
+    h += '<div style="margin-bottom:12px;position:relative;z-index:1;">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:.7rem;color:#a78bfa;font-weight:700;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;"><span>Progresso de hoje</span><span>'+doneActions+'/'+totalActions+' '+(pct===100?'🎉':'')+'</span></div>';
+    h += '<div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#fbbf24,#10b981);transition:width .5s;"></div></div></div>';
+
+    var prioColors = {
+      'critica':{cor:'#ef4444',bg:'rgba(239,68,68,.12)',label:'CRÍTICA'},
+      'alta':   {cor:'#f59e0b',bg:'rgba(245,158,11,.12)',label:'ALTA'},
+      'media':  {cor:'#3b82f6',bg:'rgba(59,130,246,.12)',label:'MÉDIA'},
+      'baixa':  {cor:'#94a3b8',bg:'rgba(148,163,184,.12)',label:'BAIXA'}
+    };
+    h += '<div style="display:flex;flex-direction:column;gap:8px;position:relative;z-index:1;">';
+    (plan.actions||[]).forEach(function(a){
+      var done = completions.indexOf(a.id) >= 0;
+      var pc = prioColors[a.prio] || prioColors.media;
+      h += '<div onclick="solCoachToggleAction(\''+bid+'\',\''+a.id+'\')" style="background:'+(done?'rgba(34,197,94,.08)':'rgba(255,255,255,.04)')+';border:1px solid '+(done?'rgba(34,197,94,.3)':'rgba(255,255,255,.08)')+';border-radius:10px;padding:11px 13px;cursor:pointer;transition:all .2s;'+(done?'opacity:.7;':'')+'">';
+      h += '<div style="display:flex;gap:10px;align-items:flex-start;">';
+      h += '<div style="width:22px;height:22px;border-radius:6px;border:2px solid '+(done?'#22c55e':'#475569')+';background:'+(done?'#22c55e':'transparent')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-size:.8rem;color:#fff;font-weight:800;">'+(done?'✓':'')+'</div>';
+      h += '<div style="flex:1;min-width:0;">';
+      h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap;">';
+      h += '<span style="font-size:1rem;">'+(a.icon||'✦')+'</span>';
+      h += '<span style="font-size:.62rem;font-weight:800;color:'+pc.cor+';background:'+pc.bg+';padding:2px 7px;border-radius:4px;letter-spacing:.5px;">'+pc.label+'</span></div>';
+      h += '<div style="font-size:.88rem;font-weight:700;color:#fff;line-height:1.35;'+(done?'text-decoration:line-through;color:#94a3b8;':'')+'">'+(a.title||'')+'</div>';
+      if (a.why) h += '<div style="font-size:.72rem;color:#cbd5e1;margin-top:3px;line-height:1.4;">💡 '+a.why+'</div>';
+      h += '</div></div></div>';
+    });
+    h += '</div>';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);position:relative;z-index:1;flex-wrap:wrap;gap:8px;">';
+    h += '<div style="font-size:.66rem;color:#a78bfa;">Gerado por Gemini · '+new Date(plan.generated_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</div>';
+    h += '<button onclick="if(confirm(\'Gerar novo plano substituindo o atual?\'))solCoachGerar(\''+bid+'\')" style="padding:5px 11px;background:transparent;border:1px solid rgba(255,255,255,.15);color:#a78bfa;border-radius:6px;cursor:pointer;font-size:.7rem;font-weight:700;">🔄 Gerar novo</button>';
+    h += '</div>';
+  }
+  h += '</div>';
+  return h;
+}
+window._solCoachWidget = _solCoachWidget;
 
 // ─── PAGE: RECADOS DIRETORIA (v18) ────────────────────────────────────────────
 // Gestor/sócio/diretor escreve recado → aparece Arena TV timeline + notifica todos
