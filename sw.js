@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.13.0-2026-05-17-MENU-REORDER';
+const SW_VERSION = 'v75.14.0-2026-05-17-TAREFAS-ESTRATEGIA';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
