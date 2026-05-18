@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.15.0-2026-05-17-SOL-COACH';
+const SW_VERSION = 'v75.16.0-2026-05-18-CLAUDE-MIGRATION';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

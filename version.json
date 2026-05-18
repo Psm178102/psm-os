@@ -1,7 +1,7 @@
 {
-  "version": "75.15.0",
-  "meta": "2026.05.17-v75.15",
-  "built": "2026-05-17T00:00:00Z",
-  "sw": "v75.15.0-2026-05-17-SOL-COACH",
-  "sprint": "v75.15: SOL COACH DIARIO — copilot IA pessoal por corretor. Cada manha o corretor vai em Minhas Tarefas e clica em Gerar plano. Gemini analisa ultimos 7 dias (ooDaily + metas + tarefas pendentes + DISC) e devolve 3 acoes priorizadas com tom adaptado ao perfil. Streak counter quando completa todas. Endpoint /api/sol-coach novo. Widget visual com gradient roxo/dourado, progresso, checkboxes."
+  "version": "75.16.0",
+  "meta": "2026.05.18-v75.16",
+  "built": "2026-05-18T00:00:00Z",
+  "sw": "v75.16.0-2026-05-18-CLAUDE-MIGRATION",
+  "sprint": "v75.16: TUDO IA agora via Claude Haiku 4.5 (Anthropic). Migrado de Gemini para Claude: /api/ai-analysis, /api/sol-coach (renomeado Sr. Performance Diario), Chat Sr. Performance, Chat Vera, Chat Sol, Analise IA Equipe (Diretoria), Radar Concorrencia, IA Corretor. Chave fora do client (ANTHROPIC_API_KEY no env Vercel). Novo: /api/claude.js proxy generico. Novo agente Sr. Gerencia com 3 tabs (chat, diagnostico equipe, pre-prep 1on1)."
 }

@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="2026.05.17-v75.15">
+<meta name="version" content="2026.05.18-v75.16">
 <!-- v69 SEO: meta tags para social preview (WhatsApp/LinkedIn/Telegram) e indexacao -->
 <meta name="description" content="House PSM — Sistema de gestao imobiliaria com Dashboard TV, CRM corretores, timeline de lancamentos, integracoes Firebase/Supabase/RD Station e analise IA.">
 <meta name="author" content="PSM Conquista">
@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.15.0';window.PSM_VERSION_META='2026.05.17-v75.15';
+</style><script>window.PSM_VERSION='75.16.0';window.PSM_VERSION_META='2026.05.18-v75.16';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -8862,27 +8862,16 @@ function arenaGeminiAnalise() {
   var prompt = 'Analise de performance de uma imobili\u00e1ria. Dados do m\u00eas atual:\n\nPor equipe:\n' +
     JSON.stringify(dados.equipes) + '\n\nPor corretor:\n' + JSON.stringify(dados.individuais) +
     '\n\nFa\u00e7a:\n1) An\u00e1lise por EQUIPE (qual vai bem, qual precisa de aten\u00e7\u00e3o)\n2) Top 3 destaques individuais\n3) Top 3 alertas individuais (quem precisa de suporte)\n4) Sugest\u00f5es de a\u00e7\u00e3o para a diretoria\n\nSeja direto, use m\u00e1ximo 300 palavras. Responda em portugu\u00eas.';
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + gKey, {
+  // v75.16: migrado para /api/ai-analysis (Claude Haiku, chave fora do client)
+  fetch('/api/ai-analysis', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({contents:[{parts:[{text:prompt}]}]})
-  }).then(function(r){
-    if (!r.ok) { return r.text().then(function(t){ throw new Error('HTTP ' + r.status + ': ' + t.substring(0,200)); }); }
-    return r.json();
-  }).then(function(data){
+    body: JSON.stringify({ prompt: prompt, max_tokens: 1500, temperature: 0.6 })
+  }).then(function(r){ return r.json(); }).then(function(j){
     var text = '';
-    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-      text = data.candidates[0].content.parts[0].text || '';
-    }
-    if (!text && data.error) {
-      text = '❌ Erro da API Gemini: ' + (data.error.message || JSON.stringify(data.error));
-    }
-    if (!text && data.promptFeedback) {
-      text = '❌ Bloqueado pelo filtro de segurança: ' + JSON.stringify(data.promptFeedback);
-    }
-    if (!text) {
-      text = '❌ Sem resposta. Verifique se a API Key Gemini está correta em Configurações > Conectores.\nResposta bruta: ' + JSON.stringify(data).substring(0,300);
-    }
+    if (j && j.ok && j.text) text = j.text;
+    else if (j && j.error) text = '❌ Erro IA: ' + j.error;
+    else text = '❌ Sem resposta da IA.';
     // v74.4 ISSUE #7: safeMD escapa TUDO + reintroduz apenas <strong> e <br>
     var safeTxt = (window.PSM && PSM.security && PSM.security.safeMD)
       ? PSM.security.safeMD(text)
@@ -10575,7 +10564,7 @@ function _solCoachWidget(bid){
   var h = '<div style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#1e3a8a 100%);border:1px solid rgba(167,139,250,.3);border-radius:14px;padding:18px 20px;margin-bottom:16px;position:relative;overflow:hidden;">';
   h += '<div style="position:absolute;top:-30px;right:-30px;width:160px;height:160px;background:radial-gradient(circle,rgba(251,191,36,.2) 0%,transparent 70%);border-radius:50%;pointer-events:none;"></div>';
   h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;position:relative;z-index:1;flex-wrap:wrap;margin-bottom:12px;">';
-  h += '<div><div style="font-size:.72rem;color:#a78bfa;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px;">☀ Sol Coach · '+today.split('-').reverse().join('/')+'</div>';
+  h += '<div><div style="font-size:.72rem;color:#a78bfa;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px;">🤖 Sr. Performance · '+today.split('-').reverse().join('/')+'</div>';
   h += '<div style="font-size:1.15rem;font-weight:800;color:#fff;">'+saudacao+', '+nome+'!</div></div>';
   if (streak.count > 0) {
     h += '<div style="background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.4);border-radius:10px;padding:6px 12px;text-align:center;">';
@@ -10588,14 +10577,14 @@ function _solCoachWidget(bid){
 
   if (loading) {
     h += '<div style="text-align:center;padding:40px 20px;color:#a78bfa;position:relative;z-index:1;">';
-    h += '<div style="font-size:2rem;margin-bottom:8px;animation:psmSolSpin 1.5s linear infinite;display:inline-block;">✨</div>';
-    h += '<div style="font-size:.85rem;font-weight:600;">Gerando seu plano pelo Sol...</div>';
+    h += '<div style="font-size:2rem;margin-bottom:8px;animation:psmSolSpin 1.5s linear infinite;display:inline-block;">🤖</div>';
+    h += '<div style="font-size:.85rem;font-weight:600;">Sr. Performance analisando seus dados...</div>';
     h += '<div style="font-size:.7rem;color:#7c3aed;margin-top:4px;">Analisando últimos 7 dias + tarefas pendentes</div>';
     h += '</div>';
     h += '<style>@keyframes psmSolSpin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}</style>';
   } else if (!plan) {
     h += '<div style="text-align:center;padding:20px 0;position:relative;z-index:1;">';
-    h += '<div style="font-size:.85rem;color:#cbd5e1;margin-bottom:12px;line-height:1.5;">Sou seu copilot diário. Vou analisar seus últimos 7 dias e gerar um plano com <b style="color:#fbbf24;">3 ações prioritárias</b> para hoje.</div>';
+    h += '<div style="font-size:.85rem;color:#cbd5e1;margin-bottom:12px;line-height:1.5;">Sou o <b style="color:#fbbf24;">Sr. Performance</b>, seu copilot diário. Vou analisar seus últimos 7 dias e gerar um plano com <b style="color:#fbbf24;">3 ações prioritárias</b> para hoje.</div>';
     h += '<button onclick="solCoachGerar(\''+bid+'\')" style="padding:12px 24px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border:none;color:#0b1120;border-radius:10px;cursor:pointer;font-size:.92rem;font-weight:800;box-shadow:0 4px 14px rgba(251,191,36,.3);">✨ Gerar plano de hoje</button>';
     h += '</div>';
   } else {
@@ -10632,7 +10621,7 @@ function _solCoachWidget(bid){
     });
     h += '</div>';
     h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);position:relative;z-index:1;flex-wrap:wrap;gap:8px;">';
-    h += '<div style="font-size:.66rem;color:#a78bfa;">Gerado por Gemini · '+new Date(plan.generated_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</div>';
+    h += '<div style="font-size:.66rem;color:#a78bfa;">Sr. Performance · Claude Haiku · '+new Date(plan.generated_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</div>';
     h += '<button onclick="if(confirm(\'Gerar novo plano substituindo o atual?\'))solCoachGerar(\''+bid+'\')" style="padding:5px 11px;background:transparent;border:1px solid rgba(255,255,255,.15);color:#a78bfa;border-radius:6px;cursor:pointer;font-size:.7rem;font-weight:700;">🔄 Gerar novo</button>';
     h += '</div>';
   }
@@ -20973,17 +20962,12 @@ ctx+='5) Sugira a\u00e7\u00f5es concretas para melhorar os resultados\n';
 ctx+='6) Identifique quais empreendimentos est\u00e3o sendo mais anunciados pela concorr\u00eancia\n';
 ctx+='Seja detalhado e pr\u00e1tico.';
 
-fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey2,{
+// v75.16: migrado para /api/ai-analysis (Claude Haiku)
+fetch('/api/ai-analysis',{
 method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({contents:[{parts:[{text:ctx}]}],generationConfig:{maxOutputTokens:4096,temperature:0.7}})
-}).then(function(r){
-if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.substring(0,200));});
-return r.json();
-}).then(function(data){
-var txt='';
-try{txt=data.candidates[0].content.parts[0].text;}catch(e){console.error("[PSM v27.7]",e);}
-if(!txt&&data.error)txt='\u274C Erro da API: '+(data.error.message||JSON.stringify(data.error));
-if(!txt)txt='\u274C Sem resposta. Verifique a chave Gemini. Raw: '+JSON.stringify(data).substring(0,300);
+body:JSON.stringify({prompt:ctx,max_tokens:4096,temperature:0.7})
+}).then(function(r){return r.json();}).then(function(j){
+var txt = (j && j.ok && j.text) ? j.text : ('\u274C Erro: '+(j && j.error || 'sem resposta'));
 localStorage.setItem('psm_radar_ai_result',txt);
 if(el)el.innerHTML=txt.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--gold)">$1</strong>');
 }).catch(function(err){
@@ -21005,18 +20989,14 @@ return h;
 // ── RADAR AI FUNCTIONS (GLOBAL SCOPE - outside pgRadar) ─────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
 
-// Helper: call Gemini API
+// Helper: call AI API (v75.16 — Claude Haiku via /api/ai-analysis; ignora gKey por retrocompat)
 function _radarGeminiCall(gKey, prompt, maxTokens){
-  return fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey,{
+  return fetch('/api/ai-analysis',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:maxTokens||4096,temperature:0.3}})
-  }).then(function(r){
-    if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status);});
-    return r.json();
-  }).then(function(data){
-    var txt='';
-    try{txt=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('Sem resposta do Gemini');}
-    return txt;
+    body:JSON.stringify({prompt:prompt,max_tokens:maxTokens||4096,temperature:0.3})
+  }).then(function(r){ return r.json(); }).then(function(j){
+    if (!j.ok) throw new Error(j.error||'sem resposta');
+    return j.text;
   });
 }
 
@@ -23108,16 +23088,15 @@ function iaCorretorSend() {
     if (oo) ctx += 'Dados do mês: VGV='+fmt(oo.vgv)+', Vendas='+oo.vendas+', Visitas='+oo.vis+', Propostas='+oo.prop+', Ligações='+oo.lig+'. ';
   }
 
-  if (provider === 'gemini') {
-    var gKey = (conn.gemini_api_key || '').trim();
-    if (!gKey) { _iaAddResp('⚠️ Configure a API Key do Gemini em Configurações → Conectores.'); return; }
-    fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey, {
+  if (provider === 'gemini' || provider === 'claude' || !provider) {
+    // v75.16: migrado para /api/ai-analysis (Claude Haiku via proxy seguro)
+    fetch('/api/ai-analysis', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({contents:[{parts:[{text:ctx+'\n\nPergunta do corretor: '+text}]}]})
-    }).then(function(r){return r.json()}).then(function(d){
-      var resp = (d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts && d.candidates[0].content.parts[0]) ? d.candidates[0].content.parts[0].text : 'Sem resposta do Gemini.';
+      body:JSON.stringify({prompt: ctx+'\n\nPergunta do corretor: '+text, max_tokens: 1500, temperature: 0.6})
+    }).then(function(r){return r.json()}).then(function(j){
+      var resp = (j && j.ok && j.text) ? j.text : ('❌ '+(j && j.error || 'sem resposta'));
       _iaAddResp(resp);
-    }).catch(function(e){ _iaAddResp('❌ Erro Gemini: '+e.message); });
+    }).catch(function(e){ _iaAddResp('❌ Erro IA: '+e.message); });
 
   } else if (provider === 'nano') {
     var nbKey = (conn.nano_banana_key || '').trim();
@@ -26777,7 +26756,7 @@ function route() {
     // Diretoria
     case 'kpis':             return pgKpis();
     // Agentes
-    case 'sr_gerencia':      return pgPlaceholder('Sr. Ger\u00eancia','\uD83D\uDC54 Em constru\u00e7\u00e3o: agente de gest\u00e3o e ger\u00eancia.');
+    case 'sr_gerencia':      return pgSrGerencia();
     case 'simuladores':      return pgSimuladoresHub();
     case 'base_conhecimento':return pgBaseConhecimentoHub();
     case 'radar_conc':       return pgRadarConcorrencia();
@@ -32462,20 +32441,14 @@ function sendVeraAgent(skipInput) {
   }
   S.veraAgLoading = true; render();
   setTimeout(function(){ var el=document.getElementById('vera-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 50);
-  var gKey = ((S.connectors||{}).gemini_api_key || '').trim();
-  if (!gKey) {
-    persist('veraAgHistAssist',function(){ S.veraAgHist.push({role:'assistant', content:'Configure a API Key Gemini em Configura\u00e7\u00f5es \u2192 Conectores para ativar a Vera.'}); });
-    S.veraAgLoading = false; render(); return;
-  }
-  var hist = (S.veraAgHist||[]).map(function(m){return {role:m.role==='user'?'user':'model',parts:[{text:m.content}]};});
-  var sysPrompt = 'Voc\u00ea \u00e9 a Vera, assistente virtual da PSM Assessoria Imobili\u00e1ria em S\u00e3o Jos\u00e9 do Rio Preto/SP. Somos especialistas em im\u00f3veis de alto padr\u00e3o e lan\u00e7amentos. Responda de forma amig\u00e1vel, profissional e consultiva. Foque em qualificar o lead, entender o que procura, e direcionar para visita ou corretor. Use emojis com modera\u00e7\u00e3o. M\u00e1ximo 150 palavras por resposta.';
-  var contents = [{role:'user',parts:[{text:sysPrompt}]},{role:'model',parts:[{text:'Entendido! Sou a Vera da PSM Assessoria.'}]}].concat(hist);
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey, {
+  // v75.16: migrado de Gemini direto para Claude via /api/claude
+  var system = 'Voc\u00ea \u00e9 a Vera, assistente virtual da PSM Assessoria Imobili\u00e1ria em S\u00e3o Jos\u00e9 do Rio Preto/SP. Somos especialistas em im\u00f3veis de alto padr\u00e3o e lan\u00e7amentos. Responda de forma amig\u00e1vel, profissional e consultiva. Foque em qualificar o lead, entender o que procura, e direcionar para visita ou corretor. Use emojis com modera\u00e7\u00e3o. M\u00e1ximo 150 palavras por resposta.';
+  var messages = (S.veraAgHist||[]).map(function(m){ return { role: m.role==='user'?'user':'assistant', content: m.content }; });
+  fetch('/api/claude', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:contents,generationConfig:{maxOutputTokens:1024,temperature:0.7}})
-  }).then(function(r){return r.json();}).then(function(data){
-    var txt2='Sem resposta';
-    try{txt2=data.candidates[0].content.parts[0].text;}catch(e){txt2='Erro: '+(data.error&&data.error.message?data.error.message:JSON.stringify(data).slice(0,200));}
+    body: JSON.stringify({ model:'claude-haiku-4-5', system: system, messages: messages, max_tokens: 1024, temperature: 0.7 })
+  }).then(function(r){ return r.json(); }).then(function(j){
+    var txt2 = (j && j.ok && j.text) ? j.text : ('Erro: '+(j && j.error || 'sem resposta'));
     persist('veraAgHistAssist',function(){ S.veraAgHist.push({role:'assistant', content:txt2}); });
     S.veraAgLoading = false; render();
     setTimeout(function(){ var el=document.getElementById('vera-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
@@ -32550,20 +32523,14 @@ function sendSolAgent(skipInput) {
   }
   S.solAgLoading = true; render();
   setTimeout(function(){ var el=document.getElementById('sol-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 50);
-  var gKey = ((S.connectors||{}).gemini_api_key || '').trim();
-  if (!gKey) {
-    persist('solAgHistAssist',function(){ S.solAgHist.push({role:'assistant', content:'Configure a API Key Gemini em Configura\u00e7\u00f5es \u2192 Conectores para ativar a Sol.'}); });
-    S.solAgLoading = false; render(); return;
-  }
-  var hist = (S.solAgHist||[]).map(function(m){return {role:m.role==='user'?'user':'model',parts:[{text:m.content}]};});
-  var sysPrompt = 'Voc\u00ea \u00e9 a Sol, assistente virtual da PSM Conquista em S\u00e3o Jos\u00e9 do Rio Preto/SP. Somos especialistas em im\u00f3veis residenciais, Minha Casa Minha Vida, primeiro im\u00f3vel e lan\u00e7amentos populares. Responda com tom acolhedor, did\u00e1tico e empolgante. Ajude o lead a entender subs\u00eddios, financiamento, entrada facilitada. Use emojis com modera\u00e7\u00e3o. M\u00e1ximo 150 palavras por resposta.';
-  var contents = [{role:'user',parts:[{text:sysPrompt}]},{role:'model',parts:[{text:'Entendido! Sou a Sol da PSM Conquista! \u2600\uFE0F'}]}].concat(hist);
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+gKey, {
+  // v75.16: migrado para /api/claude
+  var system = 'Voc\u00ea \u00e9 a Sol, assistente virtual da PSM Conquista em S\u00e3o Jos\u00e9 do Rio Preto/SP. Somos especialistas em im\u00f3veis residenciais, Minha Casa Minha Vida, primeiro im\u00f3vel e lan\u00e7amentos populares. Responda com tom acolhedor, did\u00e1tico e empolgante. Ajude o lead a entender subs\u00eddios, financiamento, entrada facilitada. Use emojis com modera\u00e7\u00e3o. M\u00e1ximo 150 palavras por resposta.';
+  var messages = (S.solAgHist||[]).map(function(m){ return { role: m.role==='user'?'user':'assistant', content: m.content }; });
+  fetch('/api/claude', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:contents,generationConfig:{maxOutputTokens:1024,temperature:0.7}})
-  }).then(function(r){return r.json();}).then(function(data){
-    var txt2='Sem resposta';
-    try{txt2=data.candidates[0].content.parts[0].text;}catch(e){txt2='Erro: '+(data.error&&data.error.message?data.error.message:JSON.stringify(data).slice(0,200));}
+    body: JSON.stringify({ model:'claude-haiku-4-5', system: system, messages: messages, max_tokens: 1024, temperature: 0.7 })
+  }).then(function(r){ return r.json(); }).then(function(j){
+    var txt2 = (j && j.ok && j.text) ? j.text : ('Erro: '+(j && j.error || 'sem resposta'));
     persist('solAgHistAssist',function(){ S.solAgHist.push({role:'assistant', content:txt2}); });
     S.solAgLoading = false; render();
     setTimeout(function(){ var el=document.getElementById('sol-ag-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
@@ -32572,6 +32539,286 @@ function sendSolAgent(skipInput) {
     S.solAgLoading = false; render();
   });
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// v75.16 — SR. GERÊNCIA (agente IA de gestão consolidada — só sócios/líderes)
+// ═════════════════════════════════════════════════════════════════════════════
+// 3 tabs:
+//   • Chat livre com consultor de gestão (Claude Haiku)
+//   • Diagnóstico da Equipe (análise consolidada via IA, gerada sob demanda)
+//   • Pré-prep dos 1on1 (lista de corretores + sugestões IA para cada)
+
+function pgSrGerencia(){
+  S.srGerHist = S.srGerHist || [];
+  S.srGerTab = S.srGerTab || 'chat';
+  S.srGerDiag = S.srGerDiag || null;       // {generated_at, text}
+  S.srGerLoading = !!S.srGerLoading;
+
+  var tabs = [
+    {id:'chat',  ico:'💬', label:'Chat'},
+    {id:'diag',  ico:'📊', label:'Diagnóstico da Equipe'},
+    {id:'prep11',ico:'🎯', label:'Pré-prep 1on1'}
+  ];
+  var tabsHtml = tabs.map(function(t){
+    var sel = S.srGerTab===t.id;
+    return '<button onclick="S.srGerTab=\''+t.id+'\';render()" style="padding:8px 16px;border-radius:8px;border:none;cursor:pointer;'+
+      (sel?'background:#1e293b;color:#fff':'background:#f1f5f9;color:#334155')+'">'+t.ico+' '+t.label+'</button>';
+  }).join(' ');
+
+  var content = '';
+
+  if (S.srGerTab === 'chat') {
+    var msgs = (S.srGerHist||[]).map(function(m){
+      var isU = m.role==='user';
+      return '<div style="display:flex;justify-content:'+(isU?'flex-end':'flex-start')+';margin:6px 0"><div style="max-width:75%;padding:10px 14px;border-radius:12px;background:'+(isU?'#1e293b':'#f1f5f9')+';color:'+(isU?'#fff':'#1e293b')+'">'+m.content+'</div></div>';
+    }).join('');
+    if (!S.srGerHist.length) {
+      msgs = '<div style="text-align:center;padding:40px;color:#94a3b8">'+
+        '<p style="font-size:40px">👔</p>'+
+        '<p>Sou o <b>Sr. Gerência</b>, seu consultor de gestão.</p>'+
+        '<p>Pergunte sobre <b>análise de equipe</b>, <b>estratégia comercial</b>, <b>tomada de decisão</b>, <b>OKRs</b>, <b>indicadores</b> ou <b>ajustes de processo</b>.</p>'+
+        '</div>';
+    }
+    content = '<div id="sr-ger-msgs" style="flex:1;overflow-y:auto;padding:16px">'+msgs+
+      (S.srGerLoading?'<div style="display:flex;justify-content:flex-start;margin:6px 0"><div style="padding:10px 14px;border-radius:12px;background:#f1f5f9;color:#94a3b8">Pensando...</div></div>':'')+
+      '</div>'+
+      '<div style="padding:12px;border-top:1px solid #e2e8f0;display:flex;gap:8px">'+
+        '<input id="sr-ger-inp" onkeydown="if(event.key===\'Enter\')sendSrGer()" placeholder="Pergunte ao Sr. Gerência..." style="flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px">'+
+        '<button onclick="sendSrGer()" style="padding:10px 20px;background:#1e293b;color:#fff;border:none;border-radius:8px;cursor:pointer">Enviar</button>'+
+      '</div>';
+  }
+  else if (S.srGerTab === 'diag') {
+    content = '<div style="padding:24px;flex:1;overflow-y:auto">';
+    content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">';
+    content += '<div><h3 style="margin:0;color:#1e293b;font-size:16px">📊 Diagnóstico Consolidado da Equipe</h3>';
+    content += '<p style="margin:4px 0 0;color:#64748b;font-size:13px">Análise IA dos últimos 7 dias: top/bottom performers, gaps de processo, sugestões estratégicas</p></div>';
+    content += '<button onclick="srGerGerarDiag()" '+(S.srGerLoading?'disabled':'')+' style="padding:9px 18px;background:linear-gradient(135deg,#3b82f6,#6366f1);border:none;color:#fff;border-radius:8px;cursor:'+(S.srGerLoading?'wait':'pointer')+';font-weight:700;font-size:13px">'+(S.srGerLoading?'⏳ Analisando equipe...':'✨ Gerar diagnóstico')+'</button>';
+    content += '</div>';
+    if (S.srGerDiag && S.srGerDiag.text) {
+      content += '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:18px 22px;line-height:1.6;color:#1e293b;font-size:13.5px">';
+      content += S.srGerDiag.text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'</p><p style="margin:10px 0">').replace(/\n/g,'<br>');
+      content += '</div>';
+      content += '<div style="margin-top:8px;color:#64748b;font-size:11px;text-align:right">Gerado por Claude Haiku · '+new Date(S.srGerDiag.generated_at).toLocaleString('pt-BR')+'</div>';
+    } else if (S.srGerLoading) {
+      content += '<div style="text-align:center;padding:60px;color:#3b82f6"><div style="font-size:36px;animation:psmSpin 1.5s linear infinite;display:inline-block">⏳</div><p style="margin-top:8px">Lendo dados de '+(BROKERS||[]).filter(function(b){return b.active!==false;}).length+' corretores...</p></div>';
+    } else {
+      content += '<div style="text-align:center;padding:60px 20px;color:#94a3b8;background:#fafafa;border:1px dashed #e2e8f0;border-radius:10px"><div style="font-size:36px">📊</div><p style="margin-top:8px;font-size:14px">Clique em "Gerar diagnóstico" para começar.</p></div>';
+    }
+    content += '</div>';
+  }
+  else if (S.srGerTab === 'prep11') {
+    content = '<div style="padding:24px;flex:1;overflow-y:auto">';
+    content += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">';
+    content += '<div><h3 style="margin:0;color:#1e293b;font-size:16px">🎯 Pré-prep dos 1on1</h3>';
+    content += '<p style="margin:4px 0 0;color:#64748b;font-size:13px">Para cada corretor: o que falar, qual ângulo, pergunta-chave (gerado por IA, adaptado ao DISC)</p></div>';
+    content += '</div>';
+    var activeBrokers = (typeof BROKERS !== 'undefined' ? BROKERS : []).filter(function(b){return b && b.active !== false && b.role !== 'socio';});
+    if (activeBrokers.length === 0) {
+      content += '<div style="text-align:center;padding:60px;color:#94a3b8">Sem corretores ativos para listar.</div>';
+    } else {
+      content += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">';
+      activeBrokers.forEach(function(b){
+        var prep = (S.srGerPrep11 && S.srGerPrep11[b.id]) || null;
+        var loading = !!(S.srGerPrep11Loading && S.srGerPrep11Loading[b.id]);
+        var ini = (b.name||'?').split(' ').slice(0,2).map(function(w){return (w[0]||'').toUpperCase();}).join('');
+        content += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px">';
+        content += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">';
+        content += '<div style="width:34px;height:34px;border-radius:8px;background:'+(b.color||'#64748b')+';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px">'+ini+'</div>';
+        content += '<div style="flex:1;min-width:0"><div style="font-weight:700;color:#1e293b;font-size:14px">'+b.name+'</div>';
+        content += '<div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px">'+(b.role||'corretor')+(b.frente?' · '+b.frente:'')+'</div></div>';
+        content += '</div>';
+        if (loading) {
+          content += '<div style="color:#3b82f6;font-size:12px;padding:10px 0">⏳ Gerando análise...</div>';
+        } else if (prep && prep.text) {
+          content += '<div style="font-size:12.5px;color:#334155;line-height:1.55;background:#f8fafc;border-left:3px solid #6366f1;padding:8px 12px;border-radius:4px">'+prep.text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')+'</div>';
+          content += '<div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:10px;color:#94a3b8">'+new Date(prep.generated_at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})+'</span><button onclick="srGerPrep11(\''+b.id+'\')" style="font-size:11px;background:transparent;border:1px solid #e2e8f0;color:#64748b;padding:3px 8px;border-radius:5px;cursor:pointer">🔄 Atualizar</button></div>';
+        } else {
+          content += '<button onclick="srGerPrep11(\''+b.id+'\')" style="width:100%;padding:9px;background:linear-gradient(135deg,#3b82f6,#6366f1);border:none;color:#fff;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer">✨ Gerar pré-prep IA</button>';
+        }
+        content += '</div>';
+      });
+      content += '</div>';
+    }
+    content += '</div>';
+  }
+
+  return '<div style="max-width:1100px;margin:0 auto">'+
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">'+
+      '<span style="font-size:32px">👔</span>'+
+      '<div><h2 style="margin:0;font-size:22px;color:#1e293b">Sr. Gerência</h2>'+
+      '<p style="margin:2px 0 0;color:#64748b;font-size:14px">Consultor IA de gestão · Diagnósticos · Pré-prep 1on1 · Decisão estratégica</p></div>'+
+      '<button onclick="nav(\'agentes\')" style="margin-left:auto;padding:6px 14px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:13px">← Central</button>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">'+tabsHtml+'</div>'+
+    '<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;min-height:480px;display:flex;flex-direction:column">'+content+'</div>'+
+    '</div>';
+}
+
+function sendSrGer(){
+  var inp = document.getElementById('sr-ger-inp');
+  var txt = (inp ? inp.value : '').trim();
+  if (!txt) return;
+  persist('srGerHistUser', function(){
+    S.srGerHist = S.srGerHist || [];
+    S.srGerHist.push({role:'user', content: txt});
+  });
+  if (inp) inp.value = '';
+  S.srGerLoading = true; render();
+  setTimeout(function(){ var el=document.getElementById('sr-ger-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 50);
+
+  var system = 'Você é o Sr. Gerência, consultor de IA de gestão da PSM Assessoria Imobiliária (São José do Rio Preto/SP). ' +
+    'Sua audiência são SÓCIOS e LÍDERES (Paulo, Isabella, gestores de equipe). ' +
+    'Você analisa dados, sugere ações estratégicas, ajuda em decisões de gestão, RH, processo, indicadores, OKRs, conflitos de equipe. ' +
+    'Você conhece o segmento imobiliário brasileiro (MCMV, lançamentos, RD CRM, corretagem, processo de venda). ' +
+    'Tom: consultivo, analítico, direto. Foque em ações concretas e mensuráveis. Em português BR. Máximo 400 palavras por resposta.';
+
+  var messages = S.srGerHist.map(function(m){
+    return { role: m.role === 'user' ? 'user' : 'assistant', content: m.content };
+  });
+
+  fetch('/api/claude', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-haiku-4-5',
+      system: system,
+      messages: messages,
+      max_tokens: 1500,
+      temperature: 0.7
+    })
+  }).then(function(r){ return r.json(); }).then(function(j){
+    var text = '';
+    if (j && j.ok && j.text) text = j.text;
+    else if (j && j.error) text = '❌ Erro IA: ' + j.error;
+    else text = '❌ Sem resposta da IA.';
+    text = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+    persist('srGerHistAssist', function(){ S.srGerHist.push({role:'assistant', content: text}); });
+    S.srGerLoading = false; render();
+    setTimeout(function(){ var el=document.getElementById('sr-ger-msgs'); if(el) el.scrollTop=el.scrollHeight; }, 80);
+  }).catch(function(e){
+    persist('srGerHistAssist', function(){ S.srGerHist.push({role:'assistant', content:'❌ Erro de conexão: '+e.message}); });
+    S.srGerLoading = false; render();
+  });
+}
+
+// Gerar diagnóstico consolidado da equipe (análise IA dos últimos 7 dias)
+function srGerGerarDiag(){
+  S.srGerLoading = true; render();
+  // Coleta dados consolidados
+  var brokers = (typeof BROKERS !== 'undefined' ? BROKERS : []).filter(function(b){return b && b.active !== false && b.role !== 'socio';});
+  var hoje = new Date();
+  var ctx = {
+    total_corretores: brokers.length,
+    periodo: '7d',
+    corretores: brokers.map(function(b){
+      var ooStats = { lig_real:0, lig_atend:0, agend:0, vis:0, prop:0, vend:0, capt:0 };
+      for (var i=0; i<7; i++){
+        var d = new Date(hoje); d.setDate(hoje.getDate() - i);
+        var key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        var day = (S.ooDaily && S.ooDaily[b.id] && S.ooDaily[b.id][key]) ? S.ooDaily[b.id][key] : null;
+        if (day) {
+          ooStats.lig_real += (day.lig_real||0); ooStats.lig_atend += (day.lig_atend||0);
+          ooStats.agend += (day.agend||0); ooStats.vis += (day.vis||0);
+          ooStats.prop += (day.prop||0); ooStats.vend += (day.vend||0);
+          ooStats.capt += (day.capt||0);
+        }
+      }
+      var monthKey = new Date().toISOString().slice(0,7);
+      var metas = (S.ooMetas && S.ooMetas[b.id] && S.ooMetas[b.id][monthKey]) || {};
+      return { id: b.id, nome: b.name, frente: b.frente || '?', role: b.role || 'corretor', stats7d: ooStats, metas_mes: metas };
+    })
+  };
+
+  var prompt = 'Faça um DIAGNÓSTICO EXECUTIVO da equipe comercial da PSM com base nos dados dos últimos 7 dias.\n\n';
+  prompt += 'DADOS:\n' + JSON.stringify(ctx, null, 1) + '\n\n';
+  prompt += 'ESTRUTURE A RESPOSTA EM 5 BLOCOS (markdown limpo):\n';
+  prompt += '1. **🟢 DESTAQUES** — Top 3 corretores e por quê\n';
+  prompt += '2. **🟡 ATENÇÃO** — Quem está abaixo do esperado e qual o gap específico\n';
+  prompt += '3. **🔴 CRÍTICO** — Quem precisa de 1on1 URGENTE e motivo\n';
+  prompt += '4. **📊 PADRÕES** — O que os números revelam (gargalo no funil, queda em alguma etapa, etc)\n';
+  prompt += '5. **🎯 AÇÕES PRA SEMANA** — 3 ações concretas que você (gestor) deve tomar\n\n';
+  prompt += 'Seja específico — cite NOMES e NÚMEROS. Direto, sem rodeios. Tom consultivo executivo.';
+
+  fetch('/api/ai-analysis', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ prompt: prompt, max_tokens: 2500, temperature: 0.5 })
+  }).then(function(r){ return r.json(); }).then(function(j){
+    if (!j.ok) {
+      S.srGerDiag = { text: '❌ Erro: '+(j.error||'?'), generated_at: Date.now() };
+    } else {
+      S.srGerDiag = { text: j.text, generated_at: Date.now() };
+    }
+    S.srGerLoading = false; render();
+  }).catch(function(e){
+    S.srGerDiag = { text: '❌ Erro: '+e.message, generated_at: Date.now() };
+    S.srGerLoading = false; render();
+  });
+}
+
+// Pré-prep individual de 1on1 (por corretor)
+function srGerPrep11(bid){
+  if (!S.srGerPrep11Loading) S.srGerPrep11Loading = {};
+  if (!S.srGerPrep11) S.srGerPrep11 = {};
+  S.srGerPrep11Loading[bid] = true; render();
+  var b = (typeof BROKERS !== 'undefined') ? BROKERS.find(function(x){return x.id===bid;}) : null;
+  if (!b) { S.srGerPrep11Loading[bid] = false; render(); return; }
+  // Coleta contexto do corretor (igual ao Sr. Performance Diário, mas usado pra outro fim)
+  var hoje = new Date();
+  var stats7d = { lig_real:0, lig_atend:0, agend:0, vis:0, prop:0, vend:0, capt:0 };
+  for (var i=0; i<7; i++){
+    var d = new Date(hoje); d.setDate(hoje.getDate() - i);
+    var key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    var day = (S.ooDaily && S.ooDaily[bid] && S.ooDaily[bid][key]) ? S.ooDaily[bid][key] : null;
+    if (day) {
+      stats7d.lig_real += (day.lig_real||0); stats7d.lig_atend += (day.lig_atend||0);
+      stats7d.agend += (day.agend||0); stats7d.vis += (day.vis||0);
+      stats7d.prop += (day.prop||0); stats7d.vend += (day.vend||0);
+      stats7d.capt += (day.capt||0);
+    }
+  }
+  var monthKey = new Date().toISOString().slice(0,7);
+  var metas = (S.ooMetas && S.ooMetas[bid] && S.ooMetas[bid][monthKey]) || {};
+  var disc = {};
+  try {
+    if (typeof DISC_PROFILES !== 'undefined' && DISC_PROFILES[bid]) disc = Object.assign({}, DISC_PROFILES[bid], (S.ooDiscCustom||{})[bid] || {});
+    else if ((S.ooDiscCustom||{})[bid]) disc = (S.ooDiscCustom||{})[bid];
+  } catch(_){}
+
+  var system = 'Você é o Sr. Gerência, consultor IA de gestão. Está ajudando um líder a preparar um 1on1 com um corretor. ' +
+    'Seu trabalho: analisar os dados do corretor e gerar um briefing curto (max 6 linhas) com 3 elementos: ' +
+    '(a) PONTO FORTE da semana, (b) PONTO DE ATENÇÃO, (c) PERGUNTA-CHAVE para abrir conversa. ' +
+    'Tom: adaptado ao DISC do corretor. Em português BR, direto, sem rodeios. Use bullets curtos.';
+
+  var prompt = 'Corretor: ' + b.name + ' (' + (b.role||'corretor') + ', frente: ' + (b.frente||'?') + ')\n';
+  if (disc.perfil) prompt += 'Perfil DISC: ' + disc.perfil + ' — ' + (disc.desc || '') + '\n';
+  prompt += '\nÚltimos 7 dias:\n' + JSON.stringify(stats7d) + '\n';
+  if (Object.keys(metas).length > 0) prompt += '\nMetas do mês:\n' + JSON.stringify(metas) + '\n';
+  prompt += '\nGere o briefing de 1on1 em markdown:\n**🟢 Ponto forte:** ...\n**🟡 Ponto de atenção:** ...\n**❓ Pergunta-chave:** "..."';
+
+  fetch('/api/claude', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-haiku-4-5', system: system,
+      messages: [{role:'user', content: prompt}],
+      max_tokens: 600, temperature: 0.6
+    })
+  }).then(function(r){ return r.json(); }).then(function(j){
+    if (j.ok && j.text) {
+      S.srGerPrep11[bid] = { text: j.text, generated_at: Date.now() };
+    } else {
+      S.srGerPrep11[bid] = { text: '❌ Erro: '+(j.error||'?'), generated_at: Date.now() };
+    }
+    S.srGerPrep11Loading[bid] = false; render();
+  }).catch(function(e){
+    S.srGerPrep11[bid] = { text: '❌ Erro: '+e.message, generated_at: Date.now() };
+    S.srGerPrep11Loading[bid] = false; render();
+  });
+}
+
+window.pgSrGerencia = pgSrGerencia;
+window.sendSrGer = sendSrGer;
+window.srGerGerarDiag = srGerGerarDiag;
+window.srGerPrep11 = srGerPrep11;
 
 function pgSrPerformance() {
   S.srPerfHist = S.srPerfHist || [];
@@ -32606,6 +32853,7 @@ function pgSrPerformance() {
 }
 
 function sendSrPerf() {
+  // v75.16: migrado de Gemini direto para Claude via /api/claude (chave fora do client)
   var inp = document.getElementById("sr-perf-inp");
   var txt = (inp ? inp.value : "").trim();
   if (!txt) return;
@@ -32616,39 +32864,33 @@ function sendSrPerf() {
   if (inp) inp.value = "";
   S.srPerfLoading = true; render();
   setTimeout(function(){ var el=document.getElementById("sr-perf-msgs"); if(el) el.scrollTop=el.scrollHeight; }, 50);
-  var gKey = ((S.connectors||{}).gemini_api_key || '').trim();
-  if (!gKey) {
-    persist('srPerfHistAssist',function(){ S.srPerfHist.push({role:"assistant", content:"⚠️ Configure a API Key Gemini em Configurações > Conectores para usar o Sr. Performance."}); });
-    S.srPerfLoading = false; render();
-    return;
-  }
-  var sysPrompt = 'Você é o Sr. Performance, mentor de corretores de imóveis da PSM Assessoria Imobiliária em São José do Rio Preto, SP. ' +
-    'Seu papel é treinar, motivar e desenvolver corretores. Você é especialista em:\n' +
-    '- Scripts de ligação, abordagem e follow-up\n' +
-    '- Técnicas de objeções (preço, localização, momento, cônjuge, financiamento)\n' +
-    '- Rotina produtiva do corretor (ligações, agendamentos, visitas, propostas)\n' +
-    '- Funil de vendas imobiliário e métricas de conversão\n' +
-    '- Motivação e mindset de alta performance\n' +
-    '- MCMV, lançamentos, estoque próprio e de terceiros\n\n' +
-    'Responda sempre em português, de forma direta e prática. Use exemplos reais do dia a dia do corretor. ' +
+
+  var system = 'Você é o Sr. Performance, mentor de corretores da PSM Assessoria Imobiliária (São José do Rio Preto/SP). ' +
+    'Especialista em: scripts de ligação/abordagem/follow-up, objeções (preço, localização, momento, cônjuge, financiamento), ' +
+    'rotina produtiva do corretor (ligações, agendamentos, visitas, propostas), funil de vendas imobiliário, motivação, ' +
+    'MCMV, lançamentos, estoque próprio e de terceiros.\n\n' +
+    'Responda em português BR, direto e prático. Use exemplos reais do dia a dia. ' +
     'Seja encorajador mas exigente — como um técnico que quer o melhor do time. Máximo 300 palavras por resposta.';
-  var hist = S.srPerfHist.map(function(m){ return {role: m.role==='user'?'user':'model', parts:[{text:m.content}]}; });
-  var contents = [{role:'user',parts:[{text:sysPrompt}]},{role:'model',parts:[{text:'Entendido! Sou o Sr. Performance, mentor de corretores da PSM. Estou pronto para treinar, dar scripts, resolver objeções e ajudar o time a bater meta. Como posso ajudar?'}]}].concat(hist);
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + gKey, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:contents, generationConfig:{maxOutputTokens:1024, temperature:0.7}})
-  }).then(function(r){ return r.json(); }).then(function(data){
+
+  var messages = S.srPerfHist.map(function(m){
+    return { role: m.role === 'user' ? 'user' : 'assistant', content: m.content };
+  });
+
+  fetch('/api/claude', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5',
+      system: system,
+      messages: messages,
+      max_tokens: 1024,
+      temperature: 0.7
+    })
+  }).then(function(r){ return r.json(); }).then(function(j){
     var text = '';
-    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-      text = data.candidates[0].content.parts[0].text || '';
-    }
-    if (!text && data.error) {
-      text = '❌ Erro da API: ' + (data.error.message || JSON.stringify(data.error));
-    }
-    if (!text) {
-      text = '❌ Sem resposta da API. Verifique sua chave Gemini em Configurações > Conectores.';
-    }
+    if (j && j.ok && j.text) text = j.text;
+    else if (j && j.error) text = '❌ Erro IA: ' + j.error;
+    else text = '❌ Sem resposta da IA.';
     text = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
     persist('srPerfHistAssist',function(){ S.srPerfHist.push({role:"assistant", content: text}); });
     S.srPerfLoading = false; render();
