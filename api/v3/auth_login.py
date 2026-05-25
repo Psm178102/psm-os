@@ -14,7 +14,7 @@ import time
 # Permite importar _auth_lib do mesmo dir
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import (  # type: ignore
-    supabase_client, verify_password, sign_jwt
+    supabase_client, verify_password, sign_jwt, enrich_user
 )
 
 
@@ -25,7 +25,7 @@ def _find_user_by_email(sb, email: str):
     email = email.strip().lower()
     res = (
         sb.table("users")
-        .select("id,name,email,role,team,frente,ini,color,rd_id,status,lvl,is_lider,is_diretor,password_hash")
+        .select("id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,last_login_at,password_hash")
         .ilike("email", email)
         .limit(1)
         .execute()
@@ -112,8 +112,9 @@ class handler(BaseHTTPRequestHandler):
                 time.sleep(0.3 - elapsed)
             return self._send(401, {"ok": False, "error": "email ou senha inválidos"})
 
-        # Status check
-        if user.get("status") == "inactive" or user.get("status") == "disabled":
+        # Status check (aceita variantes pt/en)
+        st = (user.get("status") or "").lower()
+        if st in ("inactive", "inativo", "disabled", "desativado"):
             return self._send(403, {"ok": False, "error": "usuário desativado"})
 
         # IP + user agent
@@ -131,8 +132,9 @@ class handler(BaseHTTPRequestHandler):
         _record_login(sb, user["id"], ip)
         _record_session(sb, jti, user["id"], exp, ua, ip)
 
-        # Remove password_hash da resposta
+        # Remove password_hash + enriquece com lvl/is_lider/is_diretor
         safe_user = {k: v for k, v in user.items() if k != "password_hash"}
+        safe_user = enrich_user(safe_user)
 
         return self._send(200, {
             "ok": True,

@@ -80,6 +80,32 @@ def _jwt_ttl_seconds() -> int:
     return max(1, hours) * 3600
 
 
+ROLE_LVL = {
+    "socio": 10, "diretor": 10,
+    "gerente": 7,
+    "backoffice": 6, "back_office": 6, "back-office": 6,
+    "lider": 5, "líder": 5,
+    "marketing": 3,
+    "corretor": 2,
+}
+
+
+def lvl_of(role: str) -> int:
+    """Computa nível hierárquico a partir do role string. Default 2 (corretor)."""
+    return ROLE_LVL.get((role or "").strip().lower(), 2)
+
+
+def enrich_user(u: dict) -> dict:
+    """Adiciona campos derivados (lvl, is_lider, is_diretor) sem persistir."""
+    if not u:
+        return u
+    role = (u.get("role") or "corretor").lower()
+    u["lvl"] = lvl_of(role)
+    u["is_lider"] = role in ("lider", "líder", "gerente", "socio", "diretor")
+    u["is_diretor"] = role in ("socio", "diretor")
+    return u
+
+
 def sign_jwt(user: dict, user_agent: str = "", ip: str = "") -> Tuple[str, str, int]:
     """
     Assina um JWT pro usuário. Retorna (token, jti, expires_at_unix).
@@ -89,13 +115,14 @@ def sign_jwt(user: dict, user_agent: str = "", ip: str = "") -> Tuple[str, str, 
     jti = uuid.uuid4().hex
     now = int(time.time())
     exp = now + _jwt_ttl_seconds()
+    role = (user.get("role") or "corretor").lower()
     payload = {
         "sub": user.get("id"),
         "name": user.get("name") or "",
         "email": user.get("email") or "",
-        "role": user.get("role") or "corretor",
-        "team": user.get("team") or user.get("frente") or "geral",
-        "lvl": user.get("lvl") or 2,
+        "role": role,
+        "team": user.get("team") or "geral",
+        "lvl": lvl_of(role),
         "iss": _jwt_issuer(),
         "iat": now,
         "exp": exp,
@@ -151,10 +178,12 @@ def current_user(handler) -> Optional[dict]:
         return None
     try:
         res = sb.table("users").select(
-            "id,name,email,role,team,frente,ini,color,rd_id,status,lvl,is_lider,is_diretor"
+            "id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,last_login_at"
         ).eq("id", claims.get("sub")).limit(1).execute()
         rows = res.data or []
-        return rows[0] if rows else None
+        if not rows:
+            return None
+        return enrich_user(rows[0])
     except Exception as e:
         print(f"[auth_lib] erro buscar user: {e}")
         return None
