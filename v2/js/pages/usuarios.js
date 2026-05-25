@@ -25,6 +25,7 @@ const TEAMS = [
 
 // State
 let _users = [];
+let _lastAuditByUser = {};   // target_id -> "Editado por X há Yh"
 let _filterTeam = 'todos';
 let _filterStatus = 'todos';
 let _rootEl = null;
@@ -37,12 +38,39 @@ export async function pageUsuarios(ctx, root) {
 
 async function reload() {
   try {
-    const r = await api.request('/api/v3/users/list');
-    _users = r.users || [];
+    const [u, a] = await Promise.all([
+      api.request('/api/v3/users/list'),
+      api.request('/api/v3/audit/list?limit=300').catch(() => ({ entries: [] })),
+    ]);
+    _users = u.users || [];
+    _lastAuditByUser = {};
+    for (const e of (a.entries || [])) {
+      if (!e.target_id) continue;
+      if (e.action && (e.action.startsWith('user.') || e.action.startsWith('auth.'))) {
+        if (!_lastAuditByUser[e.target_id]) {
+          const ago = relTime(e.ts);
+          const actor = e.actor_name || e.actor_id || 'sistema';
+          _lastAuditByUser[e.target_id] = `${e.action.split('.')[1]} por ${actor} · ${ago}`;
+        }
+      }
+    }
     render();
   } catch (e) {
     _rootEl.innerHTML = `<div class="alert alert-err">Erro ao carregar: ${escapeHtml(e.message)}</div>`;
   }
+}
+
+function relTime(iso) {
+  if (!iso) return '';
+  const ts = new Date(iso).getTime();
+  const m = Math.round((Date.now() - ts) / 60000);
+  if (m < 1) return 'agora';
+  if (m < 60) return m + 'min atrás';
+  const h = Math.round(m / 60);
+  if (h < 24) return h + 'h atrás';
+  const d = Math.round(h / 24);
+  if (d < 30) return d + 'd atrás';
+  return new Date(iso).toLocaleDateString('pt-BR');
 }
 
 function render() {
@@ -138,6 +166,7 @@ function userRow(u, isSocio, myId) {
   const hidden = !!u.hide_from_ranking;
   const isMe = myId === u.id;
   const editable = isSocio && !isMe;
+  const lastAudit = _lastAuditByUser[u.id];
 
   return `
     <div style="display:grid;grid-template-columns:42px 1fr auto auto auto auto auto;gap:10px;padding:10px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r-md);align-items:center${inactive ? ';opacity:0.65' : ''}">
@@ -145,6 +174,7 @@ function userRow(u, isSocio, myId) {
       <div style="min-width:0">
         <div style="font-weight:700;font-size:13px">${escapeHtml(u.name || 'Sem nome')}${isMe ? ' <span style="font-size:9px;background:var(--psm-navy);color:#fff;padding:1px 6px;border-radius:3px;letter-spacing:1px;margin-left:6px">VOCÊ</span>' : ''}</div>
         <div class="tiny muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.email || 'sem email')}</div>
+        ${lastAudit ? `<div class="tiny" style="color:var(--info);margin-top:2px"><a href="#/auditoria" data-link-audit="${u.id}">📜 ${escapeHtml(lastAudit)}</a></div>` : ''}
       </div>
       <select class="select" data-action="role" data-id="${u.id}" ${editable ? '' : 'disabled'} style="padding:5px 8px;font-size:11px;font-weight:700;min-width:170px;border-left:3px solid ${role.color}" title="Papel hierárquico">
         ${ROLES.map(r => `<option value="${r.id}"${u.role === r.id ? ' selected' : ''}>${r.ico} ${r.lbl} · L${r.lvl}</option>`).join('')}

@@ -205,3 +205,48 @@ def require_user(handler, min_lvl: int = 0) -> dict:
     if (u.get("lvl") or 0) < min_lvl:
         raise AuthError(403, f"requer nível ≥ {min_lvl}")
     return u
+
+
+# ─── Audit log ─────────────────────────────────────────────────────────────
+def audit(handler, actor, action: str, target_type: str = None,
+          target_id: str = None, before=None, after=None, notes: str = None) -> None:
+    """
+    Grava entrada de audit_log. Best-effort — falha não bloqueia o request.
+    Use em TODOS os endpoints que mudam dados.
+
+    Args:
+      handler: BaseHTTPRequestHandler (pra extrair ip/user-agent)
+      actor:   dict do user logado (pode ser None p/ bootstrap)
+      action:  string 'dominio.acao'  ex: 'user.update', 'auth.login'
+      target_type: 'user', 'commission', etc.
+      target_id:   id da entidade alvo
+      before/after: snapshots JSON-serializable das mudanças
+      notes:   string livre p/ contexto extra
+    """
+    try:
+        sb = supabase_client()
+        if not sb:
+            return
+        try:
+            ip = (handler.headers.get("X-Forwarded-For") or "").split(",")[0].strip() \
+                 or handler.headers.get("X-Real-IP") or ""
+            ua = handler.headers.get("User-Agent") or ""
+        except Exception:
+            ip = ""
+            ua = ""
+        row = {
+            "actor_id":    (actor or {}).get("id"),
+            "actor_name":  (actor or {}).get("name"),
+            "actor_role":  (actor or {}).get("role"),
+            "action":      action,
+            "target_type": target_type,
+            "target_id":   target_id,
+            "before_data": before,
+            "after_data":  after,
+            "ip":          (ip or "")[:64] or None,
+            "user_agent":  (ua or "")[:255] or None,
+            "notes":       notes,
+        }
+        sb.table("audit_log").insert(row).execute()
+    except Exception as e:
+        print(f"[audit] falha gravar: {e}")

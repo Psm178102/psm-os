@@ -1,7 +1,7 @@
 {
-  "version": "75.43.0",
-  "meta": "2026.05.25-v75.43-sprint7.2-usuarios",
-  "built": "2026-05-25T22:50:00Z",
-  "sw": "v75.43.0-2026-05-25-SPRINT7.2-USUARIOS",
-  "sprint": "v75.43 Sprint 7.2 — tela Usuários completa no /v2/. Novos endpoints /api/v3/users/{list,update,create,admin_reset_password} com auth JWT (próprio user ou Sócio). Página /v2/usuarios com CRUD inline: troca papel/equipe via select, toggle ativo/inativo + visível/oculto, adicionar novo, resetar senha (Sócio). PATCH semantics — só campos enviados são atualizados."
+  "version": "75.44.0",
+  "meta": "2026.05.25-v75.44-sprint7.2-auditoria",
+  "built": "2026-05-25T23:15:00Z",
+  "sw": "v75.44.0-2026-05-25-SPRINT7.2-AUDITORIA",
+  "sprint": "v75.44 Sprint 7.2 + auditoria: nova tabela audit_log no Postgres (id, ts, actor_id, actor_name, actor_role, action, target_type, target_id, before_data, after_data, ip, user_agent, notes). audit() helper em _auth_lib.py grava em TODAS as operações: auth.login_ok, auth.login_fail, auth.bootstrap_password, auth.change_password, auth.admin_reset_password, user.create, user.update. Endpoint GET /api/v3/audit/list com filtros (action, target_id, actor_id, since). Página /v2/auditoria com filtros + diff before/after. Tela Usuários mostra última audit por user."
 }

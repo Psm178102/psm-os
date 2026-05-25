@@ -12,7 +12,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, current_user, enrich_user  # type: ignore
+from _auth_lib import supabase_client, current_user, enrich_user, audit  # type: ignore
 
 
 # Campos que podem ser atualizados (whitelist)
@@ -84,12 +84,25 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
 
+        # Snapshot ANTES (só dos campos que estão sendo mudados)
+        try:
+            cols_sel = ",".join(["id"] + list(patch.keys()))
+            before_res = sb.table("users").select(cols_sel).eq("id", target_id).limit(1).execute()
+            before = (before_res.data or [None])[0]
+        except Exception:
+            before = None
+
         # Update + return
         try:
             res = sb.table("users").update(patch).eq("id", target_id).execute()
             rows = res.data or []
             if not rows:
                 return self._send(404, {"ok": False, "error": "user não encontrado"})
+            after = {"id": target_id, **patch}
+            # Audit
+            audit(self, actor, "user.update", target_type="user", target_id=target_id,
+                  before=before, after=after,
+                  notes="self-update" if is_self else None)
             return self._send(200, {"ok": True, "user": enrich_user(rows[0])})
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"erro update: {e}"})

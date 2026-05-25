@@ -12,7 +12,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, hash_password, require_user, AuthError  # type: ignore
+from _auth_lib import supabase_client, hash_password, require_user, AuthError, audit  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -67,6 +67,9 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(404, {"ok": False, "error": "user não encontrado"})
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"erro reset: {e}"})
+
+        audit(self, actor, "auth.admin_reset_password", target_type="user", target_id=user_id,
+              notes=f"resetada por Sócio {actor.get('name')}")
 
         return self._send(200, {
             "ok": True,

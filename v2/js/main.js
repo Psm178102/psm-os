@@ -5,6 +5,7 @@ import { auth } from './auth.js';
 import { router } from './router.js';
 import { api } from './api.js';
 import { pageUsuarios as pageUsuariosV2 } from './pages/usuarios.js';
+import { pageAuditoria } from './pages/auditoria.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -27,6 +28,7 @@ import { pageUsuarios as pageUsuariosV2 } from './pages/usuarios.js';
   // 4) Registra rotas
   router.register('/',          { render: pageDashboard });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários'); highlight('/usuarios'); await pageUsuariosV2(ctx, root); } });
+  router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
   router.register('*',          { render: page404 });
 
@@ -45,6 +47,7 @@ function shellHTML(user) {
         <button class="sb-link on" data-nav="/"><span class="sb-ico">🏠</span> Dashboard</button>
         <div class="sb-sec">Gestão</div>
         <button class="sb-link" data-nav="/usuarios"><span class="sb-ico">👥</span> Usuários</button>
+        <button class="sb-link" data-nav="/auditoria"><span class="sb-ico">📜</span> Auditoria</button>
         <div class="sb-sec">Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
         <div style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.5">v2.0.0-sprint7</div>

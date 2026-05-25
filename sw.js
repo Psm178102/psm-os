@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.43.0-2026-05-25-SPRINT7.2-USUARIOS';
+const SW_VERSION = 'v75.44.0-2026-05-25-SPRINT7.2-AUDITORIA';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

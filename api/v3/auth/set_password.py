@@ -17,7 +17,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import (  # type: ignore
-    supabase_client, hash_password, current_user
+    supabase_client, hash_password, current_user, audit
 )
 
 
@@ -73,6 +73,7 @@ class handler(BaseHTTPRequestHandler):
         # Bootstrap: se ainda não tem senha, permite sem auth (modo "primeira definição")
         is_bootstrap = not target.get("password_hash")
 
+        actor = None
         if not is_bootstrap:
             # Requer auth: ou o próprio user, ou Sócio
             actor = current_user(self)
@@ -90,6 +91,13 @@ class handler(BaseHTTPRequestHandler):
             }).eq("id", user_id).execute()
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"erro gravar senha: {e}"})
+
+        # Audit
+        action = "auth.bootstrap_password" if is_bootstrap else (
+            "auth.change_password" if (actor and actor["id"] == user_id) else "auth.admin_set_password"
+        )
+        audit(self, actor, action, target_type="user", target_id=user_id,
+              notes="bootstrap (sem auth prévia)" if is_bootstrap else None)
 
         return self._send(200, {
             "ok": True,

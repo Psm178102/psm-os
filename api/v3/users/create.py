@@ -12,7 +12,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, enrich_user  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, enrich_user, audit  # type: ignore
 
 
 _ID_RE = re.compile(r"^[a-z0-9_\-]{2,40}$")
@@ -102,6 +102,8 @@ class handler(BaseHTTPRequestHandler):
         try:
             res = sb.table("users").insert(new_row).execute()
             row = (res.data or [new_row])[0]
+            audit(self, actor, "user.create", target_type="user", target_id=user_id,
+                  after=new_row)
             return self._send(200, {"ok": True, "user": enrich_user(row)})
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"erro insert: {e}"})

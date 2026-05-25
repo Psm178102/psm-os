@@ -14,7 +14,7 @@ import time
 # Permite importar _auth_lib do mesmo dir
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import (  # type: ignore
-    supabase_client, verify_password, sign_jwt, enrich_user
+    supabase_client, verify_password, sign_jwt, enrich_user, audit
 )
 
 
@@ -110,6 +110,8 @@ class handler(BaseHTTPRequestHandler):
             elapsed = time.time() - t0
             if elapsed < 0.3:
                 time.sleep(0.3 - elapsed)
+            audit(self, None, "auth.login_fail", target_type="user",
+                  target_id=(user or {}).get("id"), notes=f"email={email}")
             return self._send(401, {"ok": False, "error": "email ou senha inválidos"})
 
         # Status check (aceita variantes pt/en)
@@ -131,6 +133,9 @@ class handler(BaseHTTPRequestHandler):
         # Atualiza last_login + grava sessão (best effort, não bloqueia)
         _record_login(sb, user["id"], ip)
         _record_session(sb, jti, user["id"], exp, ua, ip)
+
+        # Audit
+        audit(self, user, "auth.login_ok", target_type="user", target_id=user["id"])
 
         # Remove password_hash + enriquece com lvl/is_lider/is_diretor
         safe_user = {k: v for k, v in user.items() if k != "password_hash"}
