@@ -1,7 +1,7 @@
 {
-  "version": "75.46.0",
-  "meta": "2026.05.25-v75.46-sprint7.4-crm-fin",
-  "built": "2026-05-26T00:20:00Z",
-  "sw": "v75.46.0-2026-05-26-SPRINT7.4-CRM-FIN",
-  "sprint": "v75.46 Sprint 7.4 fase 1 — Financeiro NIBO live + CRM funis. Novo /api/v3/finance/summary consolida 2 CNPJs (multi-tenant) com receita/despesa previstas+realizadas, top categorias, mês atual, breakdown por empresa. /api/v3/crm/funnels lê rd_pipelines+rd_stages do Postgres com filtro por role. Páginas /v2/financeiro (KPI hero + por empresa + top categorias) e /v2/crm (cards de funil com stages). Sidebar com nova seção Operação."
+  "version": "75.47.0",
+  "meta": "2026.05.26-v75.47-sprint7.5-dre12m",
+  "built": "2026-05-26T00:50:00Z",
+  "sw": "v75.47.0-2026-05-26-SPRINT7.5-DRE12M",
+  "sprint": "v75.47 Sprint 7.5 fase 1 — DRE 12 meses Plano vs Real + tabs no /v2/financeiro. Novo /api/v3/finance/dre agrega receita/despesa NIBO em buckets mensais (real vs previsto). Página /v2/financeiro reorganizada com tabs: Resumo, DRE 12m, Comissões (placeholder), Repasses (placeholder). Tabela DRE com 7 colunas (real, prev, saldo, count) e totais. Cache client-side por tab+empresa pra evitar refetch."
 }

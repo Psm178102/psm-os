@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.46.0-2026-05-26-SPRINT7.4-CRM-FIN';
+const SW_VERSION = 'v75.47.0-2026-05-26-SPRINT7.5-DRE12M';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
