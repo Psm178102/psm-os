@@ -1,7 +1,7 @@
 {
-  "version": "75.26.2",
-  "meta": "2026.05.24-v75.26.2",
-  "built": "2026-05-24T16:30:00Z",
-  "sw": "v75.26.2-2026-05-24-FIN-BP-ROUTE-FIX",
-  "sprint": "v75.26.2 HOTFIX CRITICO: route() NAO TINHA case 'fin_bp' — quando o user clicava em 'Plano Consolidado' (Financeiro > fin_bp), o S.page mudava para 'fin_bp' mas route() caia no fallback porque o case estava AUSENTE no switch. Isso fazia o pgFinBP() nunca ser chamado — NIBO Live + DRE Excel + Caixa Mensal + CAC + Ponto Equilibrio + Empresas drill-down TODOS invisiveis. Adicionado o case faltante. Agora Paulo + Isabella + Mariane veem toda a tela Plano Consolidado com os 7 sub-tabs funcionando."
+  "version": "75.27.0",
+  "meta": "2026.05.25-v75.27",
+  "built": "2026-05-25T13:00:00Z",
+  "sw": "v75.27.0-2026-05-25-USERS-FROM-POSTGRES",
+  "sprint": "v75.27 = v2 Sprint 1B: index.html agora HIDRATA o array USERS a partir do Postgres no boot (/api/v2/users). Os dados hardcoded em USERS_BASE viram apenas FALLBACK quando a API falha. Cache local de 5min em localStorage evita flash de conteúdo. Arrays UM/ALL_BROKERS/INATIVOS/INATIVOS_IDS/BROKERS/BROKERS_ALL são recomputados in-place quando a API responde, e um render({force:true}) é disparado pra atualizar a UI. Resultado: promoções/desativações feitas via futura UI (Sprint 1C) ou via Supabase direto PERSISTEM entre deploys. Kaue Bordini como gerente da Conquista agora vem do Postgres."
 }

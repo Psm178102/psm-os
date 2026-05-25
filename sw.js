@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.26.2-2026-05-24-FIN-BP-ROUTE-FIX';
+const SW_VERSION = 'v75.27.0-2026-05-25-USERS-FROM-POSTGRES';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

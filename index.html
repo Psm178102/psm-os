@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.26.2';window.PSM_VERSION_META='2026.05.24-v75.26.2';
+</style><script>window.PSM_VERSION='75.27.0';window.PSM_VERSION_META='2026.05.25-v75.27';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -1545,6 +1545,96 @@ let BROKERS=ALL_BROKERS.filter(u=>u.status!=='inativo');
 // BROKERS_ALL — SEMPRE inclui inativos; use para calculos de metricas globais
 // (rankings, arena, modo tv) onde dados de desligados DEVEM contar mas nome sera mascarado
 var BROKERS_ALL = ALL_BROKERS.slice();
+
+// ════════════════════════════════════════════════════════════════════════════
+// v2 Sprint 1B (2026-05-25): hidrata USERS do Postgres em vez do hardcoded
+// ─ Antes: USERS_BASE hardcoded acima era a "fonte da verdade" → mudanças via
+//   UI (promover gerente, mudar equipe) sumiam no próximo deploy do index.html
+// ─ Agora: este bloco busca /api/v2/users e SOBRESCREVE in-place os arrays
+//   USERS, UM, ALL_BROKERS, INATIVOS, INATIVOS_IDS, BROKERS, BROKERS_ALL com
+//   os dados reais do Postgres. Hardcoded vira FALLBACK só se API falhar.
+// ─ Cache local 5min em localStorage pra evitar flash de conteúdo no boot.
+// ─ Se /api/v2/users retornar 200 com users, render() é chamado pra atualizar.
+// ════════════════════════════════════════════════════════════════════════════
+(function _hydrateUsersFromBackend(){
+  if (window._psmUsersHydratedAt) return;
+
+  function _mapPgToJs(pgUser){
+    // Postgres → forma JS esperada pelo resto do código
+    var defaults = { st:'offline', lig:0, vis:0, prop:0, vend:0, vgv:0, meta:700000, crm:0, agend:0 };
+    var js = Object.assign({}, defaults, {
+      id:    pgUser.id,
+      name:  pgUser.name,
+      ini:   pgUser.ini   || (pgUser.name||'?').slice(0,2).toUpperCase(),
+      color: pgUser.color || '#94a3b8',
+      role:  pgUser.role,
+      frente: pgUser.team,       // pg.team → js.frente
+      email: pgUser.email || '',
+      rdId:  pgUser.rd_id || ''
+    });
+    if (pgUser.status && pgUser.status !== 'ativo') js.status = pgUser.status;
+    if (pgUser.hide_from_ranking) js.oculto = true;
+    return js;
+  }
+
+  function _applyUsers(pgUsers){
+    if (!Array.isArray(pgUsers) || !pgUsers.length) return;
+    var mapped = pgUsers.map(_mapPgToJs);
+    // Sobrescreve USERS in-place (preserva referência pro resto do código)
+    USERS.length = 0;
+    Array.prototype.push.apply(USERS, mapped);
+    // Recalcula UM (id → user)
+    Object.keys(UM).forEach(function(k){ delete UM[k]; });
+    USERS.forEach(function(u){ UM[u.id] = u; });
+    // Recalcula ALL_BROKERS / INATIVOS / INATIVOS_IDS / BROKERS / BROKERS_ALL
+    ALL_BROKERS.length = 0;
+    Array.prototype.push.apply(ALL_BROKERS, USERS.filter(function(u){
+      return ['corretor','lider'].indexOf(u.role) >= 0;
+    }));
+    INATIVOS.length = 0;
+    Array.prototype.push.apply(INATIVOS, ALL_BROKERS.filter(function(u){ return u.status==='inativo'; }));
+    INATIVOS_IDS.length = 0;
+    Array.prototype.push.apply(INATIVOS_IDS, INATIVOS.map(function(u){ return u.id; }));
+    BROKERS.length = 0;
+    Array.prototype.push.apply(BROKERS, ALL_BROKERS.filter(function(u){ return u.status!=='inativo'; }));
+    BROKERS_ALL.length = 0;
+    Array.prototype.push.apply(BROKERS_ALL, ALL_BROKERS);
+    window._psmUsersHydratedAt = Date.now();
+    // Re-render se já tem alguém logado e a função render existe
+    try { if (typeof render === 'function' && window.S && window.S.user) render({force:true}); } catch(_){}
+  }
+
+  // Tenta cache local primeiro (evita flash do USERS hardcoded antes da API)
+  try {
+    var cachedAt = parseInt(localStorage.getItem('psm_v2_users_at') || '0', 10);
+    if (cachedAt && (Date.now() - cachedAt) < 5*60*1000) {
+      var cachedRaw = localStorage.getItem('psm_v2_users');
+      if (cachedRaw) {
+        var cached = JSON.parse(cachedRaw);
+        if (cached && cached.length) _applyUsers(cached);
+      }
+    }
+  } catch(_){}
+
+  // Busca fresco do backend (em paralelo com a render inicial)
+  fetch('/api/v2/users?_=' + Date.now())
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if (!d || !d.ok || !Array.isArray(d.users)) {
+        console.warn('[v2/users] resposta inválida — mantém cache/fallback');
+        return;
+      }
+      _applyUsers(d.users);
+      try {
+        localStorage.setItem('psm_v2_users', JSON.stringify(d.users));
+        localStorage.setItem('psm_v2_users_at', String(Date.now()));
+      } catch(_){}
+      console.log('[v2/users] ✅ hidratou '+d.users.length+' usuários do Postgres');
+    })
+    .catch(function(e){
+      console.warn('[v2/users] hidratação falhou — usando fallback hardcoded:', e.message);
+    });
+})();
 
 // Helper global: checa se um broker deve ser ocultado (inativo e sócio não ativou toggle)
 // IMPORTANTE (2026-04-19): isHiddenBroker agora SEMPRE retorna false para filtros de DEALS.
