@@ -67,8 +67,8 @@ async function drawBody() {
   try {
     if (_tab === 'resumo')        body.innerHTML = await renderResumo();
     else if (_tab === 'dre')      body.innerHTML = await renderDre();
-    else if (_tab === 'comissoes')body.innerHTML = renderPlaceholder('Comissões', 'Cruzamento RD CRM × 4% + NIBO. Migração na Sprint 7.5 fase 2.');
-    else if (_tab === 'repasses') body.innerHTML = renderPlaceholder('Repasses', 'Filtro NIBO por descrição "REPASSE/ALUGUEL". Migração na Sprint 7.5 fase 3.');
+    else if (_tab === 'comissoes')body.innerHTML = await renderComissoes();
+    else if (_tab === 'repasses') body.innerHTML = await renderRepasses();
   } catch (e) {
     body.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message)}</div>`;
   }
@@ -219,9 +219,144 @@ function dreRow(r, maxRec, maxDes) {
   `;
 }
 
-// ─── Placeholder ────────────────────────────────────────────────────────
-function renderPlaceholder(title, msg) {
-  return `<div class="alert alert-warn"><b>${escapeHtml(title)} — em construção.</b> ${escapeHtml(msg)}<br>Por enquanto, use o /v1 (sistema antigo). Quando migrarmos, os dados aparecem aqui automaticamente — mesma base.</div>`;
+// ─── Tab: Comissões ─────────────────────────────────────────────────────
+async function renderComissoes() {
+  const key = 'comissoes|' + _company;
+  if (!_cache[key]) _cache[key] = await api.request('/api/v3/finance/comissoes?company=' + encodeURIComponent(_company));
+  const d = _cache[key];
+  return `
+    <div class="tiny muted" style="margin-bottom:10px">
+      Filtrando NIBO por: <code>${(d.matched_keywords || []).join(', ')}</code> · Atualizado ${new Date(d.fetched_at).toLocaleString('pt-BR')}
+    </div>
+
+    <div class="flex gap-3" style="flex-wrap:wrap;margin-bottom:14px">
+      ${kpiMini('# Lançamentos', d.total_lancamentos || 0)}
+      ${kpiMini('Total',          'R$ ' + money(d.total_valor), '#7c3aed')}
+      ${kpiMini('Pago',           'R$ ' + money(d.pago),         '#16a34a')}
+      ${kpiMini('Previsto',       'R$ ' + money(d.previsto),     '#d97706')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:14px">
+      <div class="card" style="margin:0">
+        <h3 class="card-title">🏆 Top 20 destinatários</h3>
+        ${(d.top_stakeholders || []).length ? `
+          <div style="display:grid;gap:4px;max-height:520px;overflow-y:auto">
+            ${d.top_stakeholders.map((s, i) => `
+              <div style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;padding:6px 8px;background:var(--bg-3);border-radius:var(--r-sm);font-size:12.5px;align-items:center">
+                <span class="tiny muted">${i + 1}</span>
+                <div style="min-width:0">
+                  <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(s.stakeholder)}</div>
+                  <div class="tiny muted">${s.count} lançamentos · R$ ${money(s.pago)} pago · R$ ${money(s.previsto)} previsto</div>
+                </div>
+                <div style="font-weight:800;color:#7c3aed">R$ ${money(s.valor)}</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : '<div class="muted tiny">Nenhum destinatário identificado.</div>'}
+      </div>
+
+      <div class="card" style="margin:0">
+        <h3 class="card-title">📋 Lançamentos (últimos 500)</h3>
+        ${(d.rows || []).length ? `
+          <div style="max-height:520px;overflow-y:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+              <thead style="position:sticky;top:0;background:var(--bg-3);z-index:1">
+                <tr>
+                  <th style="text-align:left;padding:6px 8px">Data</th>
+                  <th style="text-align:left;padding:6px 8px">Destinatário</th>
+                  <th style="text-align:left;padding:6px 8px">Categoria</th>
+                  <th style="text-align:right;padding:6px 8px">Valor</th>
+                  <th style="text-align:center;padding:6px 8px">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${d.rows.map(r => `
+                  <tr style="border-bottom:1px solid var(--border)">
+                    <td style="padding:5px 8px" class="muted">${r.data ? new Date(r.data).toLocaleDateString('pt-BR') : '—'}</td>
+                    <td style="padding:5px 8px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px" title="${escapeHtml(r.stakeholder)}">${escapeHtml(r.stakeholder)}</td>
+                    <td style="padding:5px 8px" class="muted">${escapeHtml(r.category)}</td>
+                    <td style="text-align:right;padding:5px 8px;font-weight:700;color:#7c3aed">R$ ${money(r.valor)}</td>
+                    <td style="text-align:center;padding:5px 8px">${r.settled ? '<span style="color:#16a34a">✓</span>' : '<span style="color:#d97706">⏳</span>'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : '<div class="muted tiny">Nenhum lançamento.</div>'}
+      </div>
+    </div>
+  `;
+}
+
+// ─── Tab: Repasses ──────────────────────────────────────────────────────
+async function renderRepasses() {
+  const key = 'repasses|' + _company;
+  if (!_cache[key]) _cache[key] = await api.request('/api/v3/finance/repasses?company=' + encodeURIComponent(_company));
+  const d = _cache[key];
+  return `
+    <div class="tiny muted" style="margin-bottom:10px">
+      Filtrando NIBO por: <code>${(d.matched_keywords || []).join(', ')}</code> · Atualizado ${new Date(d.fetched_at).toLocaleString('pt-BR')}
+    </div>
+
+    <div class="flex gap-3" style="flex-wrap:wrap;margin-bottom:14px">
+      ${kpiMini('# Lançamentos', d.total_lancamentos || 0)}
+      ${kpiMini('Total',          'R$ ' + money(d.total_valor))}
+      ${kpiMini('A Pagar (debit)','R$ ' + money(d.a_pagar),    '#dc2626')}
+      ${kpiMini('A Receber (cred)','R$ ' + money(d.a_receber), '#16a34a')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:14px">
+      <div class="card" style="margin:0">
+        <h3 class="card-title">👤 Top 20 proprietários / inquilinos</h3>
+        ${(d.top_stakeholders || []).length ? `
+          <div style="display:grid;gap:4px;max-height:520px;overflow-y:auto">
+            ${d.top_stakeholders.map((s, i) => `
+              <div style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;padding:6px 8px;background:var(--bg-3);border-radius:var(--r-sm);font-size:12.5px;align-items:center">
+                <span class="tiny muted">${i + 1}</span>
+                <div style="min-width:0">
+                  <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(s.stakeholder)}</div>
+                  <div class="tiny muted">${s.count} lançamentos</div>
+                </div>
+                <div style="font-weight:800">R$ ${money(s.valor)}</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : '<div class="muted tiny">Nenhum proprietário identificado.</div>'}
+      </div>
+
+      <div class="card" style="margin:0">
+        <h3 class="card-title">📋 Lançamentos (últimos 500)</h3>
+        ${(d.rows || []).length ? `
+          <div style="max-height:520px;overflow-y:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+              <thead style="position:sticky;top:0;background:var(--bg-3);z-index:1">
+                <tr>
+                  <th style="text-align:left;padding:6px 8px">Data</th>
+                  <th style="text-align:center;padding:6px 8px">↕</th>
+                  <th style="text-align:left;padding:6px 8px">Quem</th>
+                  <th style="text-align:left;padding:6px 8px">Categoria</th>
+                  <th style="text-align:right;padding:6px 8px">Valor</th>
+                  <th style="text-align:center;padding:6px 8px">✓</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${d.rows.map(r => `
+                  <tr style="border-bottom:1px solid var(--border)">
+                    <td style="padding:5px 8px" class="muted">${r.data ? new Date(r.data).toLocaleDateString('pt-BR') : '—'}</td>
+                    <td style="text-align:center;padding:5px 8px">${r.direction === 'credit' ? '<span title="Receber" style="color:#16a34a">↓</span>' : '<span title="Pagar" style="color:#dc2626">↑</span>'}</td>
+                    <td style="padding:5px 8px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px" title="${escapeHtml(r.stakeholder)}">${escapeHtml(r.stakeholder)}</td>
+                    <td style="padding:5px 8px" class="muted">${escapeHtml(r.category)}</td>
+                    <td style="text-align:right;padding:5px 8px;font-weight:700;color:${r.direction === 'credit' ? '#16a34a' : '#dc2626'}">R$ ${money(r.valor)}</td>
+                    <td style="text-align:center;padding:5px 8px">${r.settled ? '<span style="color:#16a34a">✓</span>' : '<span style="color:#d97706">⏳</span>'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : '<div class="muted tiny">Nenhum lançamento.</div>'}
+      </div>
+    </div>
+  `;
 }
 
 // ─── Componentes ────────────────────────────────────────────────────────

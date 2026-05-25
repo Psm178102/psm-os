@@ -1,7 +1,7 @@
 {
-  "version": "75.47.0",
-  "meta": "2026.05.26-v75.47-sprint7.5-dre12m",
-  "built": "2026-05-26T00:50:00Z",
-  "sw": "v75.47.0-2026-05-26-SPRINT7.5-DRE12M",
-  "sprint": "v75.47 Sprint 7.5 fase 1 — DRE 12 meses Plano vs Real + tabs no /v2/financeiro. Novo /api/v3/finance/dre agrega receita/despesa NIBO em buckets mensais (real vs previsto). Página /v2/financeiro reorganizada com tabs: Resumo, DRE 12m, Comissões (placeholder), Repasses (placeholder). Tabela DRE com 7 colunas (real, prev, saldo, count) e totais. Cache client-side por tab+empresa pra evitar refetch."
+  "version": "75.48.0",
+  "meta": "2026.05.26-v75.48-comissoes-repasses",
+  "built": "2026-05-26T01:15:00Z",
+  "sw": "v75.48.0-2026-05-26-COMISSOES-REPASSES",
+  "sprint": "v75.48 Sprint 7.5 fase 2 — Comissões e Repasses reais (NIBO filtrado). /api/v3/finance/comissoes filtra por keywords (comiss, honor, corretor, 4%) e retorna top destinatários + 500 lançamentos. /api/v3/finance/repasses filtra (repasse, aluguel, locador) com debit+credit, top proprietários, status pago/previsto. Páginas com tabela inline + ranking de stakeholders."
 }
