@@ -1,7 +1,7 @@
 {
-  "version": "75.48.0",
-  "meta": "2026.05.26-v75.48-comissoes-repasses",
-  "built": "2026-05-26T01:15:00Z",
-  "sw": "v75.48.0-2026-05-26-COMISSOES-REPASSES",
-  "sprint": "v75.48 Sprint 7.5 fase 2 — Comissões e Repasses reais (NIBO filtrado). /api/v3/finance/comissoes filtra por keywords (comiss, honor, corretor, 4%) e retorna top destinatários + 500 lançamentos. /api/v3/finance/repasses filtra (repasse, aluguel, locador) com debit+credit, top proprietários, status pago/previsto. Páginas com tabela inline + ranking de stakeholders."
+  "version": "75.49.0",
+  "meta": "2026.05.26-v75.49-equipe-page",
+  "built": "2026-05-26T01:30:00Z",
+  "sw": "v75.49.0-2026-05-26-EQUIPE",
+  "sprint": "v75.49 Sprint 7.5 fase 3 — Página /v2/equipe (visão por time). Cards de cada equipe (Lançamento, Conquista, Terceiros, IMPPER, Locação, Geral) com gerente/líder no header, lista ordenada por hierarquia (Sócio→Gerente→Líder→Back→Marketing→Corretor), ícones de role, badge VOCÊ, contadores ativos/inativos, ocultos com opacity reduzida."
 }
