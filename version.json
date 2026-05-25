@@ -1,7 +1,7 @@
 {
-  "version": "75.35.0",
-  "meta": "2026.05.25-v75.35",
-  "built": "2026-05-25T18:00:00Z",
-  "sw": "v75.35.0-2026-05-25-FIN-DARK-CONTAINER",
-  "sprint": "v75.35 HOTFIX LAYOUT: pgFinExec (Dashboard Executivo) e pgMetricasFinanceiro (tab Tempo Real) agora têm container DARK MODE FULL — background #0b1120 que ocupa toda a viewport via margin negativo. Headers, alertas, tabela e links agora ficam visíveis e profissionais (estilo trading floor / Bloomberg). Antes: texto branco em fundo claro do app = invisível. Agora: paleta consistente com cards escuros."
+  "version": "75.36.0",
+  "meta": "2026.05.25-v75.36",
+  "built": "2026-05-25T18:30:00Z",
+  "sw": "v75.36.0-2026-05-25-COMISSOES-NIBO-RD",
+  "sprint": "v75.36 = Sprint 6: Comissões com Hero NIBO + RD CRM cruzados. Container dark no topo: 4 KPIs (Comissão esperada mês = vendas × 4%, NIBO pagas 30d, NIBO a pagar 30d, Manual LS) + Top 10 corretores do mês (vendas × VGV × comissão 4%) + Lançamentos NIBO próximos 30 dias com 'COMISSÃO' na descrição. Detecta empresa (Imóveis/Locação) tagged colorido. Tabela manual abaixo mantida pra ajustes."
 }

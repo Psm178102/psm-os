@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.35.0';window.PSM_VERSION_META='2026.05.25-v75.35';
+</style><script>window.PSM_VERSION='75.36.0';window.PSM_VERSION_META='2026.05.25-v75.36';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -21411,8 +21411,110 @@ function pgDre() {
 
 // ─── PAGE: COMISSÕES (v75.25: banner direcionando pra Plano Consolidado) ───
 function pgComissoes() {
-  // v75.25: Comissoes calculadas automaticamente em Plano Consolidado a partir de VENDAS
-  var _autoBanner = _pgFinAutoBanner('empresas', 'Comissões consolidadas');
+  // v75.36 Sprint 6: blocos NIBO + RD CRM
+  if (!S.niboData) S.niboData = { accounts:null, debits:null, credits:null, loading:false, error:null, lastFetch:0 };
+  if (!S.niboData.debits && !S.niboData.loading && typeof window._niboLoadAll === 'function') {
+    window._niboLoadAll();
+  }
+  var nd = S.niboData;
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var mesAtual = hoje.getMonth();
+  var anoAtual = hoje.getFullYear();
+  var ate30 = new Date(hoje.getTime() + 30*86400000);
+  var de30 = new Date(hoje.getTime() - 30*86400000);
+
+  function fmtBR(n){ return 'R$ '+(parseFloat(n)||0).toLocaleString('pt-BR',{maximumFractionDigits:2,minimumFractionDigits:2}); }
+  function fmtK(n){ var v=parseFloat(n)||0; if(Math.abs(v)>=1000000) return 'R$ '+(v/1000000).toFixed(2)+'M'; if(Math.abs(v)>=1000) return 'R$ '+(v/1000).toFixed(1)+'k'; return 'R$ '+v.toFixed(0); }
+
+  // NIBO debits com "COMISSAO" na descrição (pagos últimos 30d + a pagar próximos 30d)
+  var niboComissoes = (nd.debits||[]).filter(function(d){
+    var desc = String(d.description||d.referenceCode||'').toUpperCase();
+    return /COMISS[AÃ]O|COMISSAO/.test(desc);
+  });
+  var comissaoPagas30d = niboComissoes.filter(function(d){var dt=d.paymentDate||d.dueDate;if(!dt)return false;var date=new Date(dt);return date>=de30&&date<=hoje;});
+  var comissaoProx30d = niboComissoes.filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt>=hoje&&dt<=ate30;});
+  var totalNiboPagas = comissaoPagas30d.reduce(function(s,d){return s+(d.value||0);},0);
+  var totalNiboProx = comissaoProx30d.reduce(function(s,d){return s+(d.value||0);},0);
+
+  // VENDAS won × 4% padrão = comissão esperada
+  var VENDAS = window.VENDAS || [];
+  var vendasMes = VENDAS.filter(function(v){if(!v.closedAt)return false;var d=new Date(v.closedAt);return d.getMonth()===mesAtual && d.getFullYear()===anoAtual;});
+  var pctPadrao = 0.04;  // 4% comissão bruta padrão PSM
+  var comissaoEsperadaMes = vendasMes.reduce(function(s,v){return s+(parseFloat(v.vgv)||0);},0) * pctPadrao;
+
+  // Comissões esperadas por corretor (mês atual)
+  var porCorretor = {};
+  vendasMes.forEach(function(v){
+    var k = v.bid || '_sem_corretor';
+    var nome = v.bn || (UM&&UM[v.bid]?UM[v.bid].name:'Sem corretor');
+    if (!porCorretor[k]) porCorretor[k] = { nome:nome, vgv:0, comissao:0, vendas:0 };
+    porCorretor[k].vgv += (parseFloat(v.vgv)||0);
+    porCorretor[k].comissao += (parseFloat(v.vgv)||0) * pctPadrao;
+    porCorretor[k].vendas += 1;
+  });
+  var topCorretores = Object.values(porCorretor).sort(function(a,b){return b.comissao-a.comissao;}).slice(0,10);
+
+  // Hero block dark (cruzamento NIBO + RD)
+  var heroDark = '<div style="background:#0b1120;margin:-20px -20px 0;padding:20px 24px 16px;color:#f8fafc">';
+  heroDark += '<div style="max-width:1200px;margin:0 auto">';
+  heroDark += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">';
+  heroDark += '<div><h2 style="margin:0;color:#f8fafc;font-size:1.2rem;font-weight:800">💎 Comissões · Tempo Real</h2>';
+  heroDark += '<div style="color:#94a3b8;font-size:.72rem;margin-top:3px">RD CRM (vendas) × 4% padrão + NIBO debits "COMISSÃO" · '+(nd.lastFetch?'atualizado '+new Date(nd.lastFetch).toLocaleTimeString('pt-BR'):'aguardando NIBO')+'</div></div></div>';
+  // 4 KPIs
+  heroDark += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px">';
+  heroDark += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-left:3px solid #22c55e;border-radius:10px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">💰 Comissão esperada · mês</div><div style="color:#22c55e;font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+fmtK(comissaoEsperadaMes)+'</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">'+vendasMes.length+' vendas × 4%</div></div>';
+  heroDark += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-left:3px solid #3b82f6;border-radius:10px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">📤 NIBO pagas 30d</div><div style="color:#3b82f6;font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+fmtK(totalNiboPagas)+'</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">'+comissaoPagas30d.length+' lançamentos</div></div>';
+  heroDark += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-left:3px solid #f59e0b;border-radius:10px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">⏳ NIBO a pagar 30d</div><div style="color:#f59e0b;font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+fmtK(totalNiboProx)+'</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">'+comissaoProx30d.length+' lançamentos</div></div>';
+  heroDark += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-left:3px solid #a855f7;border-radius:10px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">📊 Manual (LS)</div><div style="color:#a855f7;font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+fmtK(window.psmLSGet('psm_comissoes',[]).reduce(function(s,c){return s+(parseFloat(c.valor)||0);},0))+'</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">'+window.psmLSGet('psm_comissoes',[]).length+' lançadas</div></div>';
+  heroDark += '</div>';
+
+  // Top 10 corretores deste mês
+  if (topCorretores.length > 0) {
+    heroDark += '<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:10px">';
+    heroDark += '<h3 style="margin:0 0 10px;font-size:.85rem;color:#f8fafc;font-weight:800">🏆 Top Corretores · Comissão Esperada · '+(['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][mesAtual])+' '+anoAtual+'</h3>';
+    heroDark += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.76rem">';
+    heroDark += '<thead><tr style="border-bottom:1px solid #334155;color:#94a3b8">';
+    ['#','Corretor','Vendas','VGV','Comissão (4%)'].forEach(function(c){heroDark+='<th style="padding:7px;text-align:left;font-size:.6rem;text-transform:uppercase">'+c+'</th>';});
+    heroDark += '</tr></thead><tbody>';
+    topCorretores.forEach(function(c,i){
+      heroDark += '<tr style="border-bottom:1px solid #0f172a;color:#e2e8f0">';
+      heroDark += '<td style="padding:7px;color:#94a3b8">#'+(i+1)+'</td>';
+      heroDark += '<td style="padding:7px;font-weight:600">'+c.nome+'</td>';
+      heroDark += '<td style="padding:7px;color:#94a3b8">'+c.vendas+'</td>';
+      heroDark += '<td style="padding:7px;color:#3b82f6">'+fmtK(c.vgv)+'</td>';
+      heroDark += '<td style="padding:7px;font-weight:800;color:#22c55e">'+fmtK(c.comissao)+'</td>';
+      heroDark += '</tr>';
+    });
+    heroDark += '</tbody></table></div></div>';
+  }
+
+  // Lançamentos NIBO próximos 30d (comissões a pagar)
+  if (comissaoProx30d.length > 0) {
+    heroDark += '<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px">';
+    heroDark += '<h3 style="margin:0 0 10px;font-size:.85rem;color:#f8fafc;font-weight:800">⏳ Comissões NIBO · Próximos 30 dias ('+comissaoProx30d.length+')</h3>';
+    heroDark += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.76rem">';
+    heroDark += '<thead><tr style="border-bottom:1px solid #334155;color:#94a3b8">';
+    ['Vence','Empresa','Descrição','Valor'].forEach(function(c){heroDark+='<th style="padding:7px;text-align:left;font-size:.6rem;text-transform:uppercase">'+c+'</th>';});
+    heroDark += '</tr></thead><tbody>';
+    comissaoProx30d.sort(function(a,b){return new Date(a.dueDate)-new Date(b.dueDate);}).slice(0,15).forEach(function(d){
+      var dt = new Date(d.dueDate);
+      var dias = Math.floor((dt-hoje)/86400000);
+      var corDias = dias <= 3 ? '#ef4444' : (dias <= 7 ? '#f59e0b' : '#94a3b8');
+      var corEmp = d._company==='imoveis' ? '#a855f7' : (d._company==='locacao' ? '#10b981' : '#64748b');
+      heroDark += '<tr style="border-bottom:1px solid #0f172a;color:#e2e8f0">';
+      heroDark += '<td style="padding:7px"><div style="font-weight:700">'+dt.toLocaleDateString('pt-BR')+'</div><div style="font-size:.58rem;color:'+corDias+'">em '+dias+'d</div></td>';
+      heroDark += '<td style="padding:7px"><span style="font-size:.58rem;color:'+corEmp+';background:rgba(0,0,0,.25);border:1px solid '+corEmp+';padding:2px 6px;border-radius:4px;font-weight:700">'+(d._companyLabel||d._company||'?')+'</span></td>';
+      heroDark += '<td style="padding:7px">'+(d.description||d.referenceCode||'(sem desc)').substring(0,50)+'</td>';
+      heroDark += '<td style="padding:7px;font-weight:800;color:#fbbf24">'+fmtBR(d.value||0)+'</td>';
+      heroDark += '</tr>';
+    });
+    heroDark += '</tbody></table></div></div>';
+  }
+
+  heroDark += '</div></div>';
+
+  // v75.36: substitui banner antigo pelo bloco hero NIBO+RD
+  var _autoBanner = heroDark;
   const comissoes = window.psmLSGet('psm_comissoes', []);
   const total = (Array.isArray(comissoes)?comissoes:[]).reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
   const pagas = (Array.isArray(comissoes)?comissoes:[]).filter(c => c.status === 'pago');
