@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.32.0';window.PSM_VERSION_META='2026.05.25-v75.32';
+</style><script>window.PSM_VERSION='75.33.0';window.PSM_VERSION_META='2026.05.25-v75.33';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -21525,7 +21525,58 @@ function pgComissoes() {
 
 // ─── PAGE: REPASSES ────────────────────────────────────────────────
 function pgRepasses() {
-  // v75.25: NIBO debits filtrados por "REPASSE" estao em Plano Consolidado > NIBO Live
+  // v75.33 Sprint 4B: bloco NIBO inline com repasses reais
+  if (!S.niboData) S.niboData = { accounts:null, debits:null, credits:null, loading:false, error:null, lastFetch:0 };
+  if (!S.niboData.debits && !S.niboData.loading && typeof window._niboLoadAll === 'function') {
+    window._niboLoadAll();
+  }
+  // Bloco NIBO: debits cuja descrição contém "REPASSE" ou "ALUGUEL"
+  var nd = S.niboData;
+  var niboRepasses = (nd.debits||[]).filter(function(d){
+    var desc = String(d.description||d.referenceCode||'').toUpperCase();
+    return /REPASSE|ALUGUEL/.test(desc);
+  });
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var ate30 = new Date(hoje.getTime() + 30*86400000);
+  var prox30 = niboRepasses.filter(function(d){
+    if (!d.dueDate) return false;
+    var dt = new Date(d.dueDate);
+    return dt >= hoje && dt <= ate30;
+  }).sort(function(a,b){return new Date(a.dueDate) - new Date(b.dueDate);});
+  var totalProx = prox30.reduce(function(s,d){return s+(d.value||0);},0);
+
+  var niboBlock = '<div style="max-width:1200px;margin:0 auto;padding:20px 24px 0">';
+  niboBlock += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-radius:14px;padding:18px;margin-bottom:18px;color:#f8fafc">';
+  niboBlock += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">';
+  niboBlock += '<div><h3 style="margin:0;font-size:.95rem;font-weight:800">🔄 Repasses NIBO Real-Time · Próximos 30 dias</h3>';
+  niboBlock += '<div style="color:#94a3b8;font-size:.7rem;margin-top:3px">'+prox30.length+' repasses · '+(nd.lastFetch ? 'atualizado '+new Date(nd.lastFetch).toLocaleTimeString('pt-BR') : (nd.loading?'⏳ carregando...':'aguardando NIBO...'))+'</div></div>';
+  niboBlock += '<div style="text-align:right"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">Total</div><div style="color:#fbbf24;font-size:1.4rem;font-weight:800;line-height:1">R$ '+totalProx.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>';
+  niboBlock += '</div>';
+  if (prox30.length === 0) {
+    niboBlock += '<div style="padding:20px;text-align:center;color:#64748b;font-size:.85rem">Nenhum repasse NIBO próximo dos próximos 30 dias.</div>';
+  } else {
+    niboBlock += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem">';
+    niboBlock += '<thead><tr style="border-bottom:1px solid #334155;color:#94a3b8">';
+    ['Vence','Empresa','Descrição','Valor'].forEach(function(c){niboBlock+='<th style="padding:8px;text-align:left;font-size:.65rem;text-transform:uppercase">'+c+'</th>';});
+    niboBlock += '</tr></thead><tbody>';
+    prox30.slice(0,15).forEach(function(d){
+      var dt = new Date(d.dueDate);
+      var dias = Math.floor((dt - hoje)/86400000);
+      var corDias = dias <= 3 ? '#ef4444' : (dias <= 7 ? '#f59e0b' : '#94a3b8');
+      var corEmp = d._company==='imoveis' ? '#a855f7' : (d._company==='locacao' ? '#10b981' : '#64748b');
+      niboBlock += '<tr style="border-bottom:1px solid #0f172a;color:#e2e8f0">';
+      niboBlock += '<td style="padding:7px"><div style="font-weight:700">'+dt.toLocaleDateString('pt-BR')+'</div><div style="font-size:.6rem;color:'+corDias+'">em '+dias+'d</div></td>';
+      niboBlock += '<td style="padding:7px"><span style="font-size:.6rem;color:'+corEmp+';background:rgba(0,0,0,.25);border:1px solid '+corEmp+';padding:2px 6px;border-radius:4px;font-weight:700">'+(d._companyLabel||d._company||'?')+'</span></td>';
+      niboBlock += '<td style="padding:7px">'+(d.description||d.referenceCode||'(sem desc)').substring(0,55)+'</td>';
+      niboBlock += '<td style="padding:7px;font-weight:800;color:#fbbf24">R$ '+(d.value||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>';
+      niboBlock += '</tr>';
+    });
+    if (prox30.length > 15) niboBlock += '<tr><td colspan="4" style="padding:8px;text-align:center;color:#64748b;font-size:.7rem">+ '+(prox30.length-15)+' repasses · ver detalhe no NIBO Live</td></tr>';
+    niboBlock += '</tbody></table></div>';
+  }
+  niboBlock += '</div></div>';
+
+  // Banner antigo (mantém retrocompat)
   var _autoBanner = _pgFinAutoBanner('nibo', 'Repasses (NIBO real-time)');
   const repasses = window.psmLSGet('psm_repasses', []);
   const total = repasses.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
@@ -21575,7 +21626,7 @@ function pgRepasses() {
     pgRepasses();
   };
   }, 0);
-  return _autoBanner + `
+  return niboBlock + _autoBanner + `
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\ud83d\udd04</span>
@@ -21937,6 +21988,168 @@ function mfTabHTML(tab){
     <!-- Tab Content -->
     ${isInput ? inputTab : metricsTab}
   </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// v75.33 Sprint 4B — pgCustosFixos REAL (era placeholder)
+// ─ NIBO debits agrupados por categoria (mensal médio últimos 90d)
+// ─ Salários + softwares do PSM_BP (Excel)
+// ─ Identifica recorrentes (mesmo valor entre meses)
+// ════════════════════════════════════════════════════════════════════
+function pgCustosFixos(){
+  if (!S.user) return '<div style="padding:40px">Faça login</div>';
+  if (!S.niboData) S.niboData = { accounts:null, debits:null, credits:null, loading:false, error:null, lastFetch:0 };
+  if (!S.niboData.debits && !S.niboData.loading && typeof window._niboLoadAll === 'function') {
+    window._niboLoadAll();
+  }
+
+  var nd = S.niboData;
+  var debits = (nd.debits || []);
+  var bp = window.PSM_BP || {};
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+
+  // Função helper de format
+  function fmtBR(n){ return 'R$ '+(parseFloat(n)||0).toLocaleString('pt-BR',{maximumFractionDigits:2,minimumFractionDigits:2}); }
+  function fmtK(n){ var v=parseFloat(n)||0; if(Math.abs(v)>=1000000) return 'R$ '+(v/1000000).toFixed(2)+'M'; if(Math.abs(v)>=1000) return 'R$ '+(v/1000).toFixed(1)+'k'; return 'R$ '+v.toFixed(0); }
+
+  // ─── Agrupa NIBO debits por categoria (extrai dos primeiros tokens da descrição) ─
+  function _categorizar(desc){
+    desc = String(desc||'').toUpperCase().trim();
+    if (/REPASSE|ALUGUEL/.test(desc)) return 'Repasses/Aluguéis';
+    if (/SAL[AÁ]RIO|FOLHA|FUNCION[AÁ]RIO/.test(desc)) return 'Salários';
+    if (/IMPOSTO|IR\b|ISS|PIS|COFINS|CSLL/.test(desc)) return 'Impostos';
+    if (/INSS|FGTS|GPS|GFIP/.test(desc)) return 'Encargos';
+    if (/META|GOOGLE|ADS|FACEBOOK|INSTAGRAM|MARKETING/.test(desc)) return 'Marketing/Ads';
+    if (/INTERNET|CELULAR|TELEFONE|VIVO|CLARO|TIM/.test(desc)) return 'Telecom';
+    if (/ENERGIA|ELETRIC|CPFL|EDP|LUZ/.test(desc)) return 'Energia';
+    if (/AGUA|SABESP|SAAEP/.test(desc)) return 'Água';
+    if (/CONDOM[IÍ]NIO|IPTU/.test(desc)) return 'Imóvel';
+    if (/SOFTWARE|SISTEMA|RD STATION|KENLO|CLICKSIGN|SUPABASE|VERCEL/.test(desc)) return 'Software';
+    if (/CONTADOR|CONTABIL|JUR[IÍ]DICO|ADVOGADO/.test(desc)) return 'Profissionais';
+    if (/COMBUST[IÍ]VEL|GASOLINA|UBER/.test(desc)) return 'Combustível';
+    if (/RESTAURANTE|ALIMENT|MERCADO/.test(desc)) return 'Alimentação';
+    if (/BANCO|TARIFA|TAXA/.test(desc)) return 'Tarifas Bancárias';
+    return 'Outros';
+  }
+
+  // Últimos 90 dias de debits (com paymentDate OU dueDate <= hoje)
+  var noventa = new Date(hoje.getTime() - 90*86400000);
+  var pagos90d = debits.filter(function(d){
+    var dt = d.paymentDate || d.dueDate;
+    if (!dt) return false;
+    var date = new Date(dt);
+    return date >= noventa && date <= hoje;
+  });
+
+  // Agrupa por categoria — mostra total e média mensal
+  var porCategoria = {};
+  pagos90d.forEach(function(d){
+    var cat = _categorizar(d.description||d.referenceCode||'');
+    if (!porCategoria[cat]) porCategoria[cat] = { total:0, count:0, items:[] };
+    porCategoria[cat].total += (d.value||0);
+    porCategoria[cat].count += 1;
+    porCategoria[cat].items.push(d);
+  });
+  // Ordena por total desc
+  var catList = Object.entries(porCategoria).map(function(e){ return {nome:e[0], total:e[1].total, mediaMes:e[1].total/3, count:e[1].count}; }).sort(function(a,b){return b.total-a.total;});
+
+  // PSM_BP salários + softwares (do Excel v2.xlsx importado)
+  var allSalarios = [];
+  ['conquista','imoveis'].forEach(function(emp){
+    ((bp[emp] && bp[emp].salarios) || []).forEach(function(s){ allSalarios.push(Object.assign({}, s, {_empresa:emp})); });
+  });
+  var allSoftwares = ((bp.locacao && bp.locacao.softwares) || []).slice();
+  var totalSalarios = allSalarios.reduce(function(s,x){return s+(parseFloat(x.custo_total)||0);}, 0);
+  var totalSoftwares = allSoftwares.reduce(function(s,x){return s+(parseFloat(x.valor_mes)||0);}, 0);
+  var totalBpFixo = totalSalarios + totalSoftwares;
+
+  // Total NIBO últimos 30d
+  var trinta = new Date(hoje.getTime() - 30*86400000);
+  var pagos30d = debits.filter(function(d){
+    var dt = d.paymentDate || d.dueDate;
+    if (!dt) return false;
+    var date = new Date(dt);
+    return date >= trinta && date <= hoje;
+  });
+  var totalNibo30d = pagos30d.reduce(function(s,d){return s+(d.value||0);},0);
+
+  var h = '<div style="padding:24px;max-width:1400px;margin:0 auto">';
+
+  // Header
+  h += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">';
+  h += '<span style="font-size:30px">📉</span>';
+  h += '<div><h1 style="margin:0;color:#f8fafc;font-size:1.4rem;font-weight:800">Custos Fixos & Variáveis</h1>';
+  h += '<div style="color:#94a3b8;font-size:.78rem;margin-top:3px">NIBO real-time (últimos 90d) + Plano BP (Excel v2) · 🔒 visível apenas sócios + Mariane</div></div></div>';
+
+  // Hero: 3 cards
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:18px">';
+  h += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-left:4px solid #ef4444;border-radius:12px;padding:16px;color:#f8fafc"><div style="font-size:.66rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:700">💸 NIBO últimos 30d</div><div style="color:#ef4444;font-size:1.6rem;font-weight:800;line-height:1;margin-top:6px">'+fmtBR(totalNibo30d)+'</div><div style="font-size:.66rem;color:#94a3b8;margin-top:4px">'+pagos30d.length+' contas pagas</div></div>';
+  h += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-left:4px solid #3b82f6;border-radius:12px;padding:16px;color:#f8fafc"><div style="font-size:.66rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:700">👥 Folha Plano BP</div><div style="color:#3b82f6;font-size:1.6rem;font-weight:800;line-height:1;margin-top:6px">'+fmtBR(totalSalarios)+'</div><div style="font-size:.66rem;color:#94a3b8;margin-top:4px">'+allSalarios.length+' funcionários</div></div>';
+  h += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-left:4px solid #a855f7;border-radius:12px;padding:16px;color:#f8fafc"><div style="font-size:.66rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:700">💻 Softwares Plano BP</div><div style="color:#a855f7;font-size:1.6rem;font-weight:800;line-height:1;margin-top:6px">'+fmtBR(totalSoftwares)+'</div><div style="font-size:.66rem;color:#94a3b8;margin-top:4px">'+allSoftwares.length+' assinaturas</div></div>';
+  h += '</div>';
+
+  // Tabela NIBO por categoria
+  h += '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;margin-bottom:18px;color:#f8fafc">';
+  h += '<h3 style="margin:0 0 12px;font-size:.95rem;font-weight:800">🏦 Custos NIBO por Categoria · últimos 90 dias</h3>';
+  if (catList.length === 0) {
+    h += '<div style="padding:24px;text-align:center;color:#64748b;font-size:.85rem">Sem dados NIBO ainda — aguardando carga ou nenhum débito nos últimos 90 dias.</div>';
+  } else {
+    h += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem">';
+    h += '<thead><tr style="border-bottom:1px solid #334155;color:#94a3b8">';
+    ['Categoria','Total 90d','Média/Mês','# Contas'].forEach(function(c){h+='<th style="padding:8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.3px">'+c+'</th>';});
+    h += '</tr></thead><tbody>';
+    catList.forEach(function(c){
+      h += '<tr style="border-bottom:1px solid #0f172a">';
+      h += '<td style="padding:9px 8px;font-weight:600;color:#e2e8f0">'+c.nome+'</td>';
+      h += '<td style="padding:9px 8px;font-weight:700;color:#fbbf24">'+fmtBR(c.total)+'</td>';
+      h += '<td style="padding:9px 8px;font-weight:700;color:#a855f7">'+fmtBR(c.mediaMes)+'</td>';
+      h += '<td style="padding:9px 8px;color:#94a3b8">'+c.count+'</td>';
+      h += '</tr>';
+    });
+    var totalCatGeral = catList.reduce(function(s,c){return s+c.total;},0);
+    h += '<tr style="border-top:2px solid #334155;background:rgba(239,68,68,.05)"><td style="padding:10px 8px;font-weight:800;color:#ef4444">TOTAL 90d</td><td style="padding:10px 8px;font-weight:800;color:#ef4444">'+fmtBR(totalCatGeral)+'</td><td style="padding:10px 8px;font-weight:800;color:#ef4444">'+fmtBR(totalCatGeral/3)+'</td><td></td></tr>';
+    h += '</tbody></table></div>';
+  }
+  h += '</div>';
+
+  // Salários Plano BP
+  if (allSalarios.length > 0) {
+    h += '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;margin-bottom:18px;color:#f8fafc">';
+    h += '<h3 style="margin:0 0 12px;font-size:.95rem;font-weight:800">👥 Folha Salarial · Plano BP (Excel)</h3>';
+    h += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem">';
+    h += '<thead><tr style="border-bottom:1px solid #334155;color:#94a3b8">';
+    ['Empresa','Função','Fixo','Provisões','Total'].forEach(function(c){h+='<th style="padding:8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.3px">'+c+'</th>';});
+    h += '</tr></thead><tbody>';
+    allSalarios.forEach(function(s){
+      var corEmp = s._empresa==='conquista' ? '#22c55e' : '#a855f7';
+      h += '<tr style="border-bottom:1px solid #0f172a">';
+      h += '<td style="padding:8px"><span style="font-size:.6rem;color:'+corEmp+';background:rgba(0,0,0,.25);border:1px solid '+corEmp+';padding:2px 6px;border-radius:4px;font-weight:700">'+s._empresa+'</span></td>';
+      h += '<td style="padding:8px;color:#e2e8f0">'+(s.funcao||'?')+'</td>';
+      h += '<td style="padding:8px;color:#94a3b8">'+fmtBR(s.salario_fixo)+'</td>';
+      h += '<td style="padding:8px;color:#94a3b8">'+((parseFloat(s.provisoes_pct)||0)*100).toFixed(0)+'%</td>';
+      h += '<td style="padding:8px;font-weight:700;color:#3b82f6">'+fmtBR(s.custo_total)+'</td>';
+      h += '</tr>';
+    });
+    h += '<tr style="border-top:2px solid #334155;background:rgba(59,130,246,.05)"><td colspan="4" style="padding:10px;font-weight:800;color:#3b82f6">TOTAL FOLHA</td><td style="padding:10px;font-weight:800;color:#3b82f6">'+fmtBR(totalSalarios)+'</td></tr>';
+    h += '</tbody></table></div></div>';
+  }
+
+  // Softwares Plano BP
+  if (allSoftwares.length > 0) {
+    h += '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;margin-bottom:18px;color:#f8fafc">';
+    h += '<h3 style="margin:0 0 12px;font-size:.95rem;font-weight:800">💻 Softwares Recorrentes · Plano BP</h3>';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">';
+    allSoftwares.forEach(function(s){
+      h += '<div style="background:#0f172a;border:1px solid #334155;border-left:3px solid #a855f7;border-radius:8px;padding:12px">';
+      h += '<div style="font-size:.85rem;font-weight:700;color:#fff;margin-bottom:4px">'+(s.nome||'?')+'</div>';
+      h += '<div style="font-size:1.1rem;color:#a855f7;font-weight:800">'+fmtBR(s.valor_mes)+'<span style="font-size:.6rem;color:#94a3b8;font-weight:500">/mês</span></div>';
+      h += '</div>';
+    });
+    h += '</div></div>';
+  }
+
+  h += '</div>';
+  return h;
 }
 
 function pgMetricasFinanceiro(){
@@ -28519,7 +28732,7 @@ function route() {
     // Marketing
     // v75.17: crono_conquista e crono_psm removidos do menu (Marketing integrado com Intelligence)
     // Financeiro
-    case 'custos_fixos':     return pgPlaceholder('Custos Fixos & Vari\u00e1veis','Em breve: controle de custos fixos e vari\u00e1veis.');
+    case 'custos_fixos':     return pgCustosFixos();
     case 'metricas_fin':     return pgMetricasFinanceiro();
     // Diretoria
     case 'kpis':             return pgKpis();

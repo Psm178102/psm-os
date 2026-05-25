@@ -1,7 +1,7 @@
 {
-  "version": "75.32.0",
-  "meta": "2026.05.25-v75.32",
-  "built": "2026-05-25T16:30:00Z",
-  "sw": "v75.32.0-2026-05-25-DRE-NIBO-REALTIME",
-  "sprint": "v75.32 = Sprint 4A: DRE REAL-TIME. pgDre reescrito. Hero card mostra receita real do NIBO (mês atual) + custos real + resultado vs EBITDA plano (PSM_BP do Excel). Tabela mensal Plano vs Realizado vs Resultado integrando NIBO credits/debits agrupados por mês + comparação com dre_mensal do BP. Ajustes manuais (impostos, contábeis) ainda permitidos abaixo. Próximo (Sprint 4B): pgCustosFixos (era placeholder) + pgRepasses bloco NIBO + pgMetricasFinanceiro integração."
+  "version": "75.33.0",
+  "meta": "2026.05.25-v75.33",
+  "built": "2026-05-25T17:00:00Z",
+  "sw": "v75.33.0-2026-05-25-CUSTOS-REPASSES-NIBO",
+  "sprint": "v75.33 = Sprint 4B: (1) pgCustosFixos REAL — substitui o placeholder 'Em breve'. Mostra 3 hero KPIs (NIBO 30d, Folha BP, Softwares BP) + tabela NIBO por categoria (últimos 90 dias categorizados automaticamente: Salários, Marketing/Ads, Impostos, Encargos, Telecom, Energia, Software, etc) + folha salarial detalhada do PSM_BP + softwares recorrentes. (2) pgRepasses ganhou bloco NIBO no topo: lista próximos 30 dias de débitos com 'REPASSE' ou 'ALUGUEL' na descrição, com prazo, empresa (Imóveis/Locação tagged) e valor. Total agregado. Próximo (v75.34): pgMetricasFinanceiro tab Tempo Real."
 }
