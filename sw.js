@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.25.0-2026-05-24-UPDATE-SMART-FIN-REAL';
+const SW_VERSION = 'v75.26.0-2026-05-24-META-ADS-DRAWER-ACTIONS';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

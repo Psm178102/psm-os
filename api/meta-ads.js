@@ -269,11 +269,72 @@ async function processAccount(actId, actLabel, actToken, dateParams) {
   return { accountTotal: accountTotal, campaigns: allCampaigns };
 }
 
+// v75.26: Action handler — pausar/retomar campanha, ajustar budget
+// POST /api/meta-ads { action: 'pause'|'resume'|'adjust_budget', campaign_id, value? }
+async function executeAction(body) {
+  var action = body.action || '';
+  var campaignId = body.campaign_id || '';
+  var value = body.value;
+  if (!campaignId) throw new Error('campaign_id obrigatorio');
+  var token = process.env.META_ACCESS_TOKEN;
+  if (!token) throw new Error('META_ACCESS_TOKEN nao configurado');
+
+  // Endpoint base
+  var baseUrl = 'https://graph.facebook.com/v22.0/' + encodeURIComponent(campaignId);
+
+  if (action === 'pause' || action === 'resume') {
+    var newStatus = action === 'pause' ? 'PAUSED' : 'ACTIVE';
+    var url = baseUrl + '?status=' + newStatus + '&access_token=' + encodeURIComponent(token);
+    var r = await fetchWithTimeoutOpts(url, 20000, { method: 'POST' });
+    var j = await r.json();
+    if (j.error) throw new Error('Meta API: ' + j.error.message);
+    return { ok: true, action: action, campaign_id: campaignId, new_status: newStatus, meta: j };
+  }
+
+  if (action === 'adjust_budget') {
+    // value = novo daily_budget em centavos (R$ 50,00 → 5000)
+    var v = parseInt(value);
+    if (!v || v < 100) throw new Error('value (cents) >= 100 obrigatorio para adjust_budget');
+    var url2 = baseUrl + '?daily_budget=' + v + '&access_token=' + encodeURIComponent(token);
+    var r2 = await fetchWithTimeoutOpts(url2, 20000, { method: 'POST' });
+    var j2 = await r2.json();
+    if (j2.error) throw new Error('Meta API: ' + j2.error.message);
+    return { ok: true, action: action, campaign_id: campaignId, new_daily_budget_cents: v, meta: j2 };
+  }
+
+  throw new Error('action desconhecida: ' + action + ' (aceitos: pause, resume, adjust_budget)');
+}
+
+// Helper extendido com POST/body
+function fetchWithTimeoutOpts(url, ms, opts) {
+  ms = ms || 15000;
+  opts = opts || {};
+  return new Promise(function (resolve, reject) {
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); reject(new Error('timeout ' + ms + 'ms')); }, ms);
+    var fetchOpts = Object.assign({}, opts, { signal: controller.signal });
+    fetch(url, fetchOpts).then(function (resp) { clearTimeout(timer); resolve(resp); }).catch(function (e) { clearTimeout(timer); reject(e); });
+  });
+}
+
 module.exports = async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // v75.26: POST = ação (pause/resume/adjust_budget)
+  if (req.method === 'POST') {
+    try {
+      var body = req.body || {};
+      if (typeof body === 'string') { try { body = JSON.parse(body); } catch(_){ body = {}; } }
+      var result = await executeAction(body);
+      return res.status(200).json(result);
+    } catch (e) {
+      return res.status(400).json({ ok: false, error: String(e.message || e) });
+    }
+  }
 
   // Cache check
   var cacheKey = JSON.stringify({

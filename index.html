@@ -30028,7 +30028,7 @@ if(tableCamps.length===0){
     var hookColor=hookPct>=30?'#22c55e':(hookPct>=20?'#f59e0b':(hookPct>0?'#ef4444':'#64748b'));
     var tgt=S.maCplTargets[c.accountId]||0;
     var cprColor=(tgt>0 && c.cpr>0)?(c.cpr<=tgt?'#22c55e':(c.cpr<=tgt*1.5?'#f59e0b':'#ef4444')):'#e2e8f0';
-    h+='<tr style="border-bottom:1px solid #0f172a;color:#e2e8f0;border-left:3px solid '+leadColor+';">';
+    h+='<tr onclick="maOpenDrawer(\''+c.id+'\')" style="border-bottom:1px solid #0f172a;color:#e2e8f0;border-left:3px solid '+leadColor+';cursor:pointer;transition:background .15s;" onmouseover="this.style.background=\'rgba(212,168,67,.04)\'" onmouseout="this.style.background=\'\'">';
     h+='<td style="padding:10px 6px 10px 10px;color:'+statusColor+';font-size:1rem;">'+statusDot+'</td>';
     h+='<td style="padding:10px 6px;font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+String(c.name).replace(/"/g,'&quot;')+'">'+c.name+'</td>';
     h+='<td style="padding:10px 6px;color:#94a3b8;font-size:.7rem;">'+(c.account||'')+'</td>';
@@ -30270,9 +30270,152 @@ if((S.maToasts||[]).length>0){
   h+='<style id="psm-toast-css">@keyframes psmToastIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}</style>';
 }
 
+// === v75.26: CAMPAIGN DRAWER (drill-down + acoes) ===
+if(S.maDrawerCampaignId){
+  var _camp = (data && data.campaigns||[]).find(function(c){return c.id===S.maDrawerCampaignId;});
+  if(_camp){
+    var _alList = (alertIdx[_camp.id]||[]);
+    var _tgt = S.maCplTargets[_camp.accountId]||0;
+    var _isActive = _camp.status==='active' || _camp.status==='ACTIVE';
+    h+='<div onclick="maCloseDrawer()" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9100;backdrop-filter:blur(3px);"></div>';
+    h+='<div onclick="event.stopPropagation()" style="position:fixed;top:0;right:0;bottom:0;width:min(540px,100vw);background:#0b1120;border-left:1px solid #1e293b;z-index:9101;overflow-y:auto;box-shadow:-12px 0 32px rgba(0,0,0,.5);">';
+    // Header
+    h+='<div style="padding:16px 18px;border-bottom:1px solid #1e293b;background:linear-gradient(135deg,#0f172a,#1e293b);position:sticky;top:0;z-index:1;">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">';
+    h+='<div style="flex:1;min-width:0;">';
+    h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">';
+    h+='<span style="font-size:.65rem;color:'+( _isActive?'#22c55e':'#94a3b8')+';font-weight:800;text-transform:uppercase;letter-spacing:.5px;">'+( _isActive?'● ACTIVE':'○ PAUSED')+'</span>';
+    h+='<span style="font-size:.62rem;color:#64748b;">· '+(_camp.account||'')+'</span>';
+    if(_camp.tipo==='whatsapp')h+='<span style="background:rgba(34,197,94,.12);color:#22c55e;padding:1px 7px;border-radius:4px;font-size:.6rem;font-weight:700;">WHATSAPP</span>';
+    h+='</div>';
+    h+='<div style="font-size:1rem;font-weight:800;color:#f8fafc;line-height:1.3;word-break:break-word;">'+(_camp.name||'(sem nome)')+'</div>';
+    h+='<div style="font-size:.62rem;color:#475569;margin-top:3px;font-family:ui-monospace,monospace;">ID: '+_camp.id+'</div>';
+    h+='</div>';
+    h+='<button onclick="maCloseDrawer()" style="background:transparent;border:0;color:#94a3b8;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px;">×</button>';
+    h+='</div>';
+    h+='</div>';
+    // KPIs
+    h+='<div style="padding:14px 18px;">';
+    h+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;">';
+    var _kpis = [
+      {l:'Gasto',v:fmtBRLc(_camp.spend),c:'#fbbf24'},
+      {l:'Resultados',v:fmtNum(_camp.results),c:'#22c55e'},
+      {l:'CPL',v:_camp.results>0?fmtBRL(_camp.cpr):'—',c:(_tgt>0&&_camp.cpr>0)?(_camp.cpr<=_tgt?'#22c55e':(_camp.cpr<=_tgt*1.5?'#f59e0b':'#ef4444')):'#e2e8f0',sub:_tgt>0?'meta '+fmtBRL(_tgt):''},
+      {l:'CTR',v:fmtPct(_camp.ctr),c:'#3b82f6'},
+      {l:'Frequência',v:Number(_camp.frequency||0)>0?fmtFreq(_camp.frequency):'—',c:Number(_camp.frequency||0)>=3?'#ef4444':'#e2e8f0'},
+      {l:'CPM',v:fmtBRLc(_camp.cpm),c:'#94a3b8'},
+      {l:'Impressões',v:fmtNum(_camp.impressions),c:'#94a3b8'},
+      {l:'Alcance',v:fmtNum(_camp.reach),c:'#94a3b8'}
+    ];
+    _kpis.forEach(function(k){
+      h+='<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 12px;">';
+      h+='<div style="font-size:.6rem;color:#64748b;text-transform:uppercase;letter-spacing:.4px;font-weight:700;">'+k.l+'</div>';
+      h+='<div style="font-size:1.1rem;font-weight:800;color:'+k.c+';margin-top:3px;line-height:1.1;">'+k.v+'</div>';
+      if(k.sub)h+='<div style="font-size:.6rem;color:#64748b;margin-top:1px;">'+k.sub+'</div>';
+      h+='</div>';
+    });
+    h+='</div>';
+    // Video metrics se tiver
+    if(_camp.views>0){
+      h+='<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 12px;margin-bottom:14px;">';
+      h+='<div style="font-size:.7rem;color:#94a3b8;font-weight:700;margin-bottom:6px;">🎬 Vídeo</div>';
+      h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:.72rem;">';
+      h+='<div><div style="color:#64748b;font-size:.6rem;">Hook (3s)</div><div style="color:#e2e8f0;font-weight:700;">'+((Number(_camp.hookRate||0)*100).toFixed(1))+'%</div></div>';
+      h+='<div><div style="color:#64748b;font-size:.6rem;">Hold (25%)</div><div style="color:#e2e8f0;font-weight:700;">'+((Number(_camp.holdRate||0)*100).toFixed(1))+'%</div></div>';
+      h+='<div><div style="color:#64748b;font-size:.6rem;">VTR (100%)</div><div style="color:#e2e8f0;font-weight:700;">'+((Number(_camp.vtr||0)*100).toFixed(1))+'%</div></div>';
+      h+='</div></div>';
+    }
+    // Alertas
+    if(_alList.length>0){
+      h+='<div style="margin-bottom:14px;">';
+      h+='<div style="font-size:.7rem;color:#94a3b8;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px;">⚠ Alertas ativos</div>';
+      _alList.forEach(function(k){
+        var A=ALERTS[k];
+        h+='<div style="background:'+A.color+'14;border:1px solid '+A.color+'30;border-left:3px solid '+A.color+';border-radius:6px;padding:8px 10px;margin-bottom:5px;">';
+        h+='<div style="font-size:.78rem;font-weight:700;color:'+A.color+';">'+A.icon+' '+A.lbl+'</div>';
+        h+='<div style="font-size:.68rem;color:#cbd5e1;margin-top:2px;">'+A.desc+'</div>';
+        h+='</div>';
+      });
+      h+='</div>';
+    }
+    // AÇÕES (v75.26)
+    h+='<div style="margin-bottom:14px;padding:12px 14px;background:rgba(212,168,67,.05);border:1px solid rgba(212,168,67,.15);border-radius:10px;">';
+    h+='<div style="font-size:.7rem;color:#d4a843;font-weight:800;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">🎯 Ações in-app</div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
+    if(_isActive){
+      h+='<button onclick="maAction(\''+_camp.id+'\',\'pause\')" style="padding:9px 12px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:#fca5a5;border-radius:6px;cursor:pointer;font-size:.78rem;font-weight:700;">⏸ Pausar</button>';
+    }else{
+      h+='<button onclick="maAction(\''+_camp.id+'\',\'resume\')" style="padding:9px 12px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.4);color:#86efac;border-radius:6px;cursor:pointer;font-size:.78rem;font-weight:700;">▶ Retomar</button>';
+    }
+    h+='<button onclick="maAdjustBudget(\''+_camp.id+'\')" style="padding:9px 12px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.4);color:#93c5fd;border-radius:6px;cursor:pointer;font-size:.78rem;font-weight:700;">💰 Ajustar budget</button>';
+    h+='</div>';
+    h+='<div style="font-size:.62rem;color:#64748b;margin-top:8px;line-height:1.4;">Ações aplicadas direto na Meta API. Cache atualiza em ~30s após mudança.</div>';
+    h+='</div>';
+    // Link Meta
+    h+='<a href="https://business.facebook.com/adsmanager/manage/campaigns?act='+_camp.accountId+'&selected_campaign_ids='+_camp.id+'" target="_blank" style="display:block;padding:10px 12px;text-align:center;background:transparent;border:1px solid #334155;color:#94a3b8;border-radius:6px;text-decoration:none;font-size:.74rem;font-weight:600;">🔗 Abrir no Meta Ads Manager</a>';
+    h+='</div></div>';
+  }
+}
+
 h+='</div>';
 return h;
 }
+
+// === v75.26: HANDLERS DO DRAWER DE CAMPANHA ===
+window.maOpenDrawer = function(campaignId){
+  S.maDrawerCampaignId = campaignId;
+  render({force:true});
+};
+window.maCloseDrawer = function(){
+  S.maDrawerCampaignId = null;
+  render({force:true});
+};
+window.maAction = async function(campaignId, action){
+  var lbl = action==='pause'?'pausar':(action==='resume'?'retomar':'modificar');
+  var ok = await psmConfirm('Confirma '+lbl+' a campanha?',{danger: action==='pause'});
+  if(!ok) return;
+  toast('Executando '+lbl+'...','');
+  try{
+    var resp = await fetch('/api/meta-ads', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:action, campaign_id:campaignId})
+    });
+    var j = await resp.json();
+    if(!j.ok){
+      toast('Erro: '+(j.error||'desconhecido'),'err');
+      console.error('[maAction]', j);
+      return;
+    }
+    toast('✅ Campanha '+lbl+'da!','ok');
+    // Force refresh com bypass cache
+    setTimeout(function(){ window.maFetch && window.maFetch({nocache:true}); }, 1500);
+  }catch(e){
+    toast('Falha: '+e.message,'err');
+  }
+};
+window.maAdjustBudget = async function(campaignId){
+  var v = await psmPrompt('Novo budget DIÁRIO da campanha em R$ (ex: 50,00):');
+  if(!v) return;
+  var cents = Math.round(parseFloat(String(v).replace(',','.')) * 100);
+  if(!cents || cents < 100){ toast('Valor inválido (mínimo R$ 1,00)','err'); return; }
+  var ok = await psmConfirm('Definir budget DIÁRIO de R$ '+(cents/100).toFixed(2)+'?');
+  if(!ok) return;
+  toast('Atualizando budget...','');
+  try{
+    var resp = await fetch('/api/meta-ads', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'adjust_budget', campaign_id:campaignId, value:cents})
+    });
+    var j = await resp.json();
+    if(!j.ok){ toast('Erro: '+(j.error||'desconhecido'),'err'); return; }
+    toast('✅ Budget atualizado para R$ '+(cents/100).toFixed(2),'ok');
+    setTimeout(function(){ window.maFetch && window.maFetch({nocache:true}); }, 1500);
+  }catch(e){
+    toast('Falha: '+e.message,'err');
+  }
+};
 
 
 // Captura elemento como imagem e faz download (VPL, INCC, etc.)
