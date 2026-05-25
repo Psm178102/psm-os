@@ -1,7 +1,7 @@
 {
-  "version": "75.19.0",
-  "meta": "2026.05.18-v75.19",
-  "built": "2026-05-18T22:00:00Z",
-  "sw": "v75.19.0-2026-05-18-TV-BLOOMBERG",
-  "sprint": "v75.19: MODO TV redesign COMPLETO estilo Bloomberg/Trading Floor com foco em URGENCIA/COMPETICAO. Tipografia JetBrains Mono + Inter Bold. Fundo preto absoluto. Cores high-contrast (gold/red/green). Header com clock gigante + LIVE pulsando. Footer com ticker Reuters rolando contínuo. 5 cenas novas: LEADERBOARD (ranking ao vivo com sparklines), TIME-ATTACK (countdown gigante do mês + falta/dia), HOT-MOMENTS (live feed Reuters style), HEATMAP (quem está zero hoje fica exposto em vermelho), WAR-ROOM (projeção vai bater ou não). Cada cena dura 18-22s. ESC fecha. arenaTV antiga preservada como arenaTV_LEGACY."
+  "version": "75.21.0",
+  "meta": "2026.05.24-v75.21",
+  "built": "2026-05-24T12:00:00Z",
+  "sw": "v75.21.0-2026-05-24-NIBO-MULTITENANT",
+  "sprint": "v75.21: NIBO MULTI-TENANT 2 CNPJs. Proxy /api/nibo.js agora consolida PSM Imoveis (CNPJ 50.741.349/0001-52) + PSM Locacao (CNPJ 45.078.081/0001-80) em uma resposta unica. Suporta ?company=imoveis|locacao|all (default=all). Cada item retornado tem _company tag. Aba NIBO Live ganhou 3 sub-tabs: Imoveis - Locacao - Consolidado, com cards comparativos das 2 empresas e badges de origem nas tabelas. Promise.allSettled garante que falha em 1 empresa nao derruba a outra (errors[] separado por empresa). Tokens: NIBO_API_TOKEN (Imoveis) + NIBO_TOKEN_LOCACAO (Locacao) em env Vercel."
 }
