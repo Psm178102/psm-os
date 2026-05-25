@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.30.1-2026-05-25-FINANCE-COLUMN-FIX';
+const SW_VERSION = 'v75.31.0-2026-05-25-FINANCE-WRITEBACK';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

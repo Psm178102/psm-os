@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.30.1';window.PSM_VERSION_META='2026.05.25-v75.30.1';
+</style><script>window.PSM_VERSION='75.31.0';window.PSM_VERSION_META='2026.05.25-v75.31';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -1794,6 +1794,36 @@ window._rdMap = window._rdMap || { frente_by_pipeline:{}, stages_by_pipeline:{},
     console.warn('[v2/finance] hidratação falhou:', e.message);
   });
 })();
+
+// ════════════════════════════════════════════════════════════════════════════
+// v2 Sprint 3B (2026-05-25): helpers globais pra write-back ao Postgres
+// Usados em pgComissoes, pgRepasses, dirTarefaCommit, etc. Fire-and-forget
+// (não bloqueia UI). Erros são logados no console mas não interrompem ação local.
+// ════════════════════════════════════════════════════════════════════════════
+window._psmApiPost = function(table, data){
+  try {
+    return fetch('/api/v2/' + table, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data || {})
+    }).then(function(r){ return r.ok ? r.json() : null; })
+      .catch(function(e){ console.warn('[v2/'+table+'] POST falhou:', e.message); return null; });
+  } catch(e){
+    console.warn('[v2/'+table+'] POST exception:', e.message);
+    return Promise.resolve(null);
+  }
+};
+window._psmApiDelete = function(table, id){
+  if (!id) return Promise.resolve({ok:true, _skipped:'no_id'});
+  try {
+    return fetch('/api/v2/' + table + '?id=' + encodeURIComponent(id), {method:'DELETE'})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .catch(function(e){ console.warn('[v2/'+table+'] DELETE falhou:', e.message); return null; });
+  } catch(e){
+    console.warn('[v2/'+table+'] DELETE exception:', e.message);
+    return Promise.resolve(null);
+  }
+};
 
 // Helper global: checa se um broker deve ser ocultado (inativo e sócio não ativou toggle)
 // IMPORTANTE (2026-04-19): isHiddenBroker agora SEMPRE retorna false para filtros de DEALS.
@@ -10506,6 +10536,32 @@ window.dirTarefaSave = function(){
   try { if (typeof persist==='function') persist('dir_tarefas', function(){}); } catch(_){}
 };
 
+// v75.31 Sprint 3B: write-back de UMA tarefa ao Postgres (fire-and-forget)
+window._dirTarefaPostgres = function(t, op){
+  if (!window._psmApiPost || !t || !t.id) return;
+  if (op === 'delete') {
+    if (window._psmApiDelete) window._psmApiDelete('dir_tasks', t.id);
+    return;
+  }
+  // Mapeia camelCase → snake_case (compat com schema Postgres)
+  var pg = {
+    id: t.id,
+    titulo: t.titulo || '',
+    descricao: t.descricao || null,
+    status: t.status || 'backlog',
+    observacoes: t.observacoes || null,
+    inicio: t.inicio || null,
+    prazo: t.prazo || null,
+    responsavel: t.responsavel || null,
+    criado_por: t.criadoPor || null,
+    criado_em: t.criadoEm || null,
+    prioridade: t.prioridade || 'media',
+    categoria: t.categoria || null,
+    historico: t.historico || []
+  };
+  window._psmApiPost('dir_tasks', pg);
+};
+
 // CREATE/UPDATE
 window.dirTarefaCommit = function(t){
   if (!S.dirTarefas) S.dirTarefas = [];
@@ -10544,13 +10600,18 @@ window.dirTarefaCommit = function(t){
     }
   }
   dirTarefaSave();
+  // v75.31 Sprint 3B: write-back ao Postgres
+  try { window._dirTarefaPostgres && window._dirTarefaPostgres(t, 'upsert'); } catch(_){}
   if (typeof render==='function') render({force:true});
 };
 
 window.dirTarefaDelete = function(id){
   if (!confirm('Excluir esta tarefa permanentemente?')) return;
+  var removed = (S.dirTarefas||[]).find(function(x){return x.id===id;});
   S.dirTarefas = (S.dirTarefas||[]).filter(function(x){return x.id!==id;});
   dirTarefaSave();
+  // v75.31 Sprint 3B: write-back delete
+  try { window._dirTarefaPostgres && window._dirTarefaPostgres(removed || {id:id}, 'delete'); } catch(_){}
   if (typeof render==='function') render({force:true});
 };
 
@@ -21287,7 +21348,17 @@ function pgComissoes() {
     const novaCom = { corretor, imovel, valor: parseFloat(valor) || 0, status: 'pendente', data: new Date().toISOString().split('T')[0] };
     arr.push(novaCom);
     _psmSaveComissoesDebounced(arr);
-    // v74.4 ISSUE #10: audit log
+    // v75.31 Sprint 3B: write-back ao Postgres (fire-and-forget)
+    if (window._psmApiPost) {
+      window._psmApiPost('commissions', novaCom).then(function(d){
+        if (d && d.ok && d.commission && d.commission.id) {
+          var cur = window.psmLSGet('psm_comissoes', []);
+          var idx = cur.indexOf(novaCom);
+          if (idx < 0) { for (var k=cur.length-1; k>=0; k--){ if(cur[k].corretor===novaCom.corretor && cur[k].valor===novaCom.valor && !cur[k].id){ idx=k; break; }} }
+          if (idx >= 0) { cur[idx].id = d.commission.id; _psmSaveComissoesDebounced(cur); }
+        }
+      });
+    }
     if (window.PSM && PSM.auditLog) PSM.auditLog('comissao.add', novaCom, corretor);
     pgComissoes();
   };
@@ -21297,7 +21368,10 @@ function pgComissoes() {
       var oldStatus = arr[i].status;
       arr[i].status = arr[i].status === 'pago' ? 'pendente' : 'pago';
       _psmSaveComissoesDebounced(arr);
-      // v74.4 ISSUE #10: audit log
+      // v75.31 Sprint 3B: write-back
+      if (arr[i].id && window._psmApiPost) {
+        window._psmApiPost('commissions', {id: arr[i].id, status: arr[i].status});
+      }
       if (window.PSM && PSM.auditLog) PSM.auditLog('comissao.toggle', {from:oldStatus, to:arr[i].status, corretor:arr[i].corretor, valor:arr[i].valor}, arr[i].corretor);
     }
     pgComissoes();
@@ -21306,7 +21380,10 @@ function pgComissoes() {
     const arr = window.psmLSGet('psm_comissoes', []);
     var removed = arr[i];
     arr.splice(i, 1); _psmSaveComissoesDebounced(arr);
-    // v74.4 ISSUE #10: audit log
+    // v75.31 Sprint 3B: write-back delete
+    if (removed && removed.id && window._psmApiDelete) {
+      window._psmApiDelete('commissions', removed.id);
+    }
     if (removed && window.PSM && PSM.auditLog) PSM.auditLog('comissao.remove', removed, removed.corretor||'');
     pgComissoes();
   };
@@ -21380,18 +21457,41 @@ function pgRepasses() {
     const destinatario = (await psmPrompt('Destinat\u00e1rio:')) || '\u2014';
     const valor = (await psmPrompt('Valor (R$):')) || '0';
     const arr = window.psmLSGet('psm_repasses', []);
-    arr.push({ descricao, destinatario, valor: parseFloat(valor) || 0, status: 'agendado', data: new Date().toISOString().split('T')[0] });
+    const novoRep = { descricao, destinatario, valor: parseFloat(valor) || 0, status: 'agendado', data: new Date().toISOString().split('T')[0] };
+    arr.push(novoRep);
     localStorage.setItem('psm_repasses', JSON.stringify(arr));
+    // v75.31 Sprint 3B: write-back
+    if (window._psmApiPost) {
+      window._psmApiPost('transfers', novoRep).then(function(d){
+        if (d && d.ok && d.transfer && d.transfer.id) {
+          var cur = window.psmLSGet('psm_repasses', []);
+          var idx = cur.indexOf(novoRep);
+          if (idx < 0) { for (var k=cur.length-1; k>=0; k--){ if(cur[k].descricao===novoRep.descricao && cur[k].valor===novoRep.valor && !cur[k].id){ idx=k; break; }} }
+          if (idx >= 0) { cur[idx].id = d.transfer.id; localStorage.setItem('psm_repasses', JSON.stringify(cur)); }
+        }
+      });
+    }
     pgRepasses();
   };
   window.toggleRepasse = function(i) {
     const arr = window.psmLSGet('psm_repasses', []);
-    if (arr[i]) { arr[i].status = arr[i].status === 'realizado' ? 'agendado' : 'realizado'; localStorage.setItem('psm_repasses', JSON.stringify(arr)); if(typeof PSM !== 'undefined' && PSM.auditLog) PSM.auditLog('repasse.toggled', {idx:i, status:arr[i].status}, 'pgRepasses'); }
+    if (arr[i]) {
+      arr[i].status = arr[i].status === 'realizado' ? 'agendado' : 'realizado';
+      localStorage.setItem('psm_repasses', JSON.stringify(arr));
+      if (arr[i].id && window._psmApiPost) {
+        window._psmApiPost('transfers', {id: arr[i].id, status: arr[i].status});
+      }
+      if(typeof PSM !== 'undefined' && PSM.auditLog) PSM.auditLog('repasse.toggled', {idx:i, status:arr[i].status}, 'pgRepasses');
+    }
     pgRepasses();
   };
   window.removeRepasse = function(i) {
     const arr = window.psmLSGet('psm_repasses', []);
+    var removed = arr[i];
     arr.splice(i, 1); localStorage.setItem('psm_repasses', JSON.stringify(arr));
+    if (removed && removed.id && window._psmApiDelete) {
+      window._psmApiDelete('transfers', removed.id);
+    }
     pgRepasses();
   };
   }, 0);
