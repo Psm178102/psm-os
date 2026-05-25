@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.39.0-2026-05-25-CONFIG-CENTRALIZADO';
+const SW_VERSION = 'v75.40.0-2026-05-25-SPRINT7-FUNDACAO';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
@@ -37,6 +37,8 @@ function isNeverCache(url, req){
   if (p === '/sw.js') return true;
   // Version manifest
   if (p === '/version.json') return true;
+  // v75.40 Sprint 7: /v2/* sempre fresh (frontend modular em construção)
+  if (p.startsWith('/v2/')) return true;
   return false;
 }
 

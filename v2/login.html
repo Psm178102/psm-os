@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login · PSM OS v2</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/v2/css/tokens.css">
+  <link rel="stylesheet" href="/v2/css/app.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <form class="login-card" id="form-login" autocomplete="on">
+      <div class="login-brand">
+        <h1>PSM <span style="color:var(--psm-gold)">OS</span></h1>
+        <p>v2 · Sprint 7 · Python real</p>
+      </div>
+
+      <div id="login-msg"></div>
+
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input id="email" name="email" type="email" class="input" required autocomplete="email" placeholder="seuemail@imobiliariapsm.com.br">
+      </div>
+
+      <div class="field">
+        <label for="password">Senha</label>
+        <input id="password" name="password" type="password" class="input" required autocomplete="current-password" placeholder="••••••••">
+      </div>
+
+      <button id="btn-login" class="btn btn-primary btn-block btn-lg" type="submit">
+        Entrar
+      </button>
+
+      <div class="tiny muted text-center mt-4">
+        Primeira vez? Use <button type="button" id="link-bootstrap" class="btn btn-ghost" style="padding:2px 8px;font-size:11px">definir senha inicial</button>.
+      </div>
+    </form>
+
+    <!-- Modal: definir senha inicial -->
+    <dialog id="dlg-bootstrap" style="border:none;border-radius:var(--r-xl);padding:0;max-width:420px;width:100%;box-shadow:var(--shadow-lg);background:var(--bg-2)">
+      <form class="login-card" id="form-bootstrap" style="margin:0;box-shadow:none;max-width:none">
+        <div class="login-brand">
+          <h1 style="font-size:var(--fs-2xl)">Definir senha inicial</h1>
+          <p>Use o e-mail cadastrado pelo Sócio</p>
+        </div>
+        <div id="bootstrap-msg"></div>
+        <div class="field">
+          <label>E-mail</label>
+          <input id="bs-email" type="email" class="input" required autocomplete="email">
+        </div>
+        <div class="field">
+          <label>Nova senha (≥ 6 caracteres)</label>
+          <input id="bs-pwd" type="password" class="input" required minlength="6" autocomplete="new-password">
+        </div>
+        <div class="field">
+          <label>Confirmar</label>
+          <input id="bs-pwd-2" type="password" class="input" required minlength="6" autocomplete="new-password">
+        </div>
+        <div class="flex gap-2 mt-3">
+          <button type="button" class="btn btn-ghost" id="bs-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-gold btn-block">Definir senha</button>
+        </div>
+        <div class="tiny muted text-center mt-3">
+          Funciona só se você ainda não tem senha definida.
+        </div>
+      </form>
+    </dialog>
+  </div>
+
+  <script type="module">
+    import { auth } from '/v2/js/auth.js';
+    import { api, ApiError } from '/v2/js/api.js';
+
+    // Se já logado, redireciona
+    if (auth.isLoggedIn()) {
+      location.replace('/v2/');
+    }
+
+    const form = document.getElementById('form-login');
+    const msg  = document.getElementById('login-msg');
+    const btn  = document.getElementById('btn-login');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.innerHTML = '';
+      btn.disabled = true;
+      const email = document.getElementById('email').value.trim();
+      const pwd   = document.getElementById('password').value;
+      try {
+        await auth.login(email, pwd);
+        // Redirect pra origem (se veio com ?from=) ou root
+        const from = new URLSearchParams(location.search).get('from');
+        location.href = from && from.startsWith('/') ? from : '/v2/';
+      } catch (err) {
+        msg.innerHTML = `<div class="alert alert-err">${
+          (err && err.message) || 'Falha no login'
+        }</div>`;
+        btn.disabled = false;
+      }
+    });
+
+    // Bootstrap (primeira definição de senha)
+    const dlg = document.getElementById('dlg-bootstrap');
+    document.getElementById('link-bootstrap').addEventListener('click', () => dlg.showModal());
+    document.getElementById('bs-cancel').addEventListener('click', () => dlg.close());
+
+    document.getElementById('form-bootstrap').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const bsMsg = document.getElementById('bootstrap-msg');
+      bsMsg.innerHTML = '';
+      const email = document.getElementById('bs-email').value.trim();
+      const a = document.getElementById('bs-pwd').value;
+      const b = document.getElementById('bs-pwd-2').value;
+      if (a !== b) { bsMsg.innerHTML = '<div class="alert alert-err">Senhas não conferem.</div>'; return; }
+
+      // 1) pega user id via /api/v2/users (lookup por email — vamos filtrar client-side)
+      try {
+        const r = await api.listUsers();
+        const usr = (r.users || []).find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+        if (!usr) {
+          bsMsg.innerHTML = '<div class="alert alert-err">E-mail não encontrado. Peça ao Sócio para cadastrar.</div>';
+          return;
+        }
+        await api.setPassword(usr.id, a);
+        bsMsg.innerHTML = '<div class="alert alert-ok">Senha definida! Volte e faça login.</div>';
+        setTimeout(() => { dlg.close(); document.getElementById('email').value = email; document.getElementById('password').focus(); }, 1200);
+      } catch (err) {
+        bsMsg.innerHTML = `<div class="alert alert-err">${(err && err.message) || 'Falha ao definir senha'}</div>`;
+      }
+    });
+  </script>
+</body>
+</html>

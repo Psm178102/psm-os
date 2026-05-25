@@ -1,7 +1,7 @@
 {
-  "version": "75.39.0",
-  "meta": "2026.05.25-v75.39",
-  "built": "2026-05-25T21:00:00Z",
-  "sw": "v75.39.0-2026-05-25-CONFIG-CENTRALIZADO",
-  "sprint": "v75.39 Configurações > Gestão de Usuários centralizada num único card (Perfil + Equipe + Acesso + Visibilidade + Adicionar manualmente). Removido card duplicado. Removido item 'Lançar Venda' do menu (PAGES_CONFIG sem vendas). Inclui v75.38: pgConfig agora renderiza USERS hidratado (24 do Postgres) em vez de USERS_BASE hardcoded — Christian, Fernanda, Stephanie, Kaue agora aparecem na tela."
+  "version": "75.40.0",
+  "meta": "2026.05.25-v75.40-sprint7",
+  "built": "2026-05-25T21:30:00Z",
+  "sw": "v75.40.0-2026-05-25-SPRINT7-FUNDACAO",
+  "sprint": "v75.40 SPRINT 7 fundação — backend Python real em /api/v3/ (auth_login + auth_me + auth_set_password + health) com bcrypt+JWT; frontend modular Vanilla JS em /v2/ (login.html, index.html, css/tokens.css, css/app.css, js/{api,auth,router,main}.js). Schema SQL em docs/v3_auth_schema.sql adiciona password_hash, last_login, user_sessions. Sistema atual (v1/index.html) continua em paralelo. PRECISA: 1) env vars JWT_SECRET no Vercel; 2) rodar v3_auth_schema.sql no Postgres; 3) Paulo acessa /v2/login.html e clica 'definir senha inicial'."
 }

@@ -1,0 +1,117 @@
+/* ============================================================================
+   PSM-OS v2 — Design Tokens
+   ============================================================================
+   Cores, tipografia, spacing, shadows. Tudo via CSS vars.
+   Tema light por padrão; .dark switch troca pra dark.
+============================================================================ */
+
+:root {
+  /* Brand */
+  --psm-navy:       #0f172a;
+  --psm-navy-2:     #1e293b;
+  --psm-gold:       #d4a843;
+  --psm-gold-2:     #b8861f;
+  --psm-red:        #dc2626;
+  --psm-blue:       #3b82f6;
+  --psm-green:      #10b981;
+  --psm-purple:     #a855f7;
+
+  /* Surface (light) */
+  --bg:             #f8fafc;
+  --bg-2:           #ffffff;
+  --bg-3:           #f1f5f9;
+  --border:         #e2e8f0;
+  --border-2:       #cbd5e1;
+
+  /* Ink */
+  --ink:            #0f172a;
+  --ink-2:          #334155;
+  --ink-muted:      #64748b;
+  --ink-inverted:   #ffffff;
+
+  /* State */
+  --ok:             #16a34a;
+  --warn:           #d97706;
+  --err:            #dc2626;
+  --info:           #2563eb;
+
+  /* Typography */
+  --font-sans:      -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+                    "Helvetica Neue", Arial, sans-serif;
+  --font-mono:      ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+  --fs-xs:          11px;
+  --fs-sm:          12.5px;
+  --fs-base:        14px;
+  --fs-lg:          16px;
+  --fs-xl:          18px;
+  --fs-2xl:         22px;
+  --fs-3xl:         28px;
+  --fs-4xl:         36px;
+  --lh-tight:       1.2;
+  --lh-base:        1.5;
+
+  /* Spacing scale */
+  --s-1:            4px;
+  --s-2:            8px;
+  --s-3:            12px;
+  --s-4:            16px;
+  --s-5:            20px;
+  --s-6:            24px;
+  --s-8:            32px;
+  --s-10:           40px;
+  --s-12:           48px;
+  --s-16:           64px;
+
+  /* Radius */
+  --r-sm:           6px;
+  --r-md:           10px;
+  --r-lg:           14px;
+  --r-xl:           20px;
+  --r-full:         9999px;
+
+  /* Shadow */
+  --shadow-sm:      0 1px 2px rgba(15,23,42,0.06);
+  --shadow-md:      0 4px 12px rgba(15,23,42,0.08);
+  --shadow-lg:      0 12px 32px rgba(15,23,42,0.12);
+
+  /* Z layers */
+  --z-toast:        1000;
+  --z-modal:        900;
+  --z-dropdown:     800;
+  --z-header:       100;
+  --z-sidebar:      90;
+}
+
+/* Dark mode */
+:root.dark {
+  --bg:             #0b1120;
+  --bg-2:           #111827;
+  --bg-3:           #1f2937;
+  --border:         #1f2937;
+  --border-2:       #334155;
+
+  --ink:            #f8fafc;
+  --ink-2:          #cbd5e1;
+  --ink-muted:      #94a3b8;
+  --ink-inverted:   #0f172a;
+}
+
+/* Reset base */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+a { color: var(--info); text-decoration: none; }
+a:hover { text-decoration: underline; }
