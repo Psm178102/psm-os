@@ -1,7 +1,7 @@
 {
-  "version": "75.31.0",
-  "meta": "2026.05.25-v75.31",
-  "built": "2026-05-25T16:00:00Z",
-  "sw": "v75.31.0-2026-05-25-FINANCE-WRITEBACK",
-  "sprint": "v75.31 = v2 Sprint 3B: WRITE-BACK financeiro completo. Helpers globais window._psmApiPost e window._psmApiDelete. Handlers de Comissões (add/toggle/remove), Repasses (add/toggle/remove) e Tarefas Diretoria (commit/delete) agora fazem POST/DELETE no Postgres ALÉM de gravar em localStorage. Fire-and-forget — não bloqueia UI. Items adicionados em um browser agora SINCRONIZAM via Postgres pro próximo boot em qualquer outro browser. Ciclo de leitura+escrita FECHADO."
+  "version": "75.32.0",
+  "meta": "2026.05.25-v75.32",
+  "built": "2026-05-25T16:30:00Z",
+  "sw": "v75.32.0-2026-05-25-DRE-NIBO-REALTIME",
+  "sprint": "v75.32 = Sprint 4A: DRE REAL-TIME. pgDre reescrito. Hero card mostra receita real do NIBO (mês atual) + custos real + resultado vs EBITDA plano (PSM_BP do Excel). Tabela mensal Plano vs Realizado vs Resultado integrando NIBO credits/debits agrupados por mês + comparação com dre_mensal do BP. Ajustes manuais (impostos, contábeis) ainda permitidos abaixo. Próximo (Sprint 4B): pgCustosFixos (era placeholder) + pgRepasses bloco NIBO + pgMetricasFinanceiro integração."
 }

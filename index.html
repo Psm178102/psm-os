@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.31.0';window.PSM_VERSION_META='2026.05.25-v75.31';
+</style><script>window.PSM_VERSION='75.32.0';window.PSM_VERSION_META='2026.05.25-v75.32';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -21241,11 +21241,74 @@ function _pgFinAutoBanner(targetTab, lbl){
 }
 
 function pgDre() {
-  // v75.25: prepend banner direcionando pro DRE consolidado real
-  var _autoBanner = _pgFinAutoBanner('dre', 'DRE Mensal');
+  // v75.32 Sprint 4: DRE REAL-TIME com NIBO + comparação com Plano (PSM_BP)
   const dados = window.psmLSGet('psm_dre', {});
   const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const mesAtual = new Date().getMonth();
+  const anoAtual = new Date().getFullYear();
+
+  // ─── Bloco 1: garante NIBO carregado ──────────────────────────────────
+  if (!S.niboData) S.niboData = { accounts:null, debits:null, credits:null, loading:false, error:null, lastFetch:0 };
+  if (!S.niboData.accounts && !S.niboData.loading && typeof window._niboLoadAll === 'function') {
+    window._niboLoadAll();
+  }
+
+  // ─── Bloco 2: agrega NIBO por mês (últimos 12 meses) ──────────────────
+  function _agregaNiboPorMes(items, dateField){
+    var byMonth = {};
+    (items||[]).forEach(function(it){
+      var d = it && it[dateField];
+      if (!d) return;
+      var dt = new Date(d);
+      if (isNaN(dt.getTime())) return;
+      var key = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0');
+      byMonth[key] = (byMonth[key] || 0) + (parseFloat(it.value) || 0);
+    });
+    return byMonth;
+  }
+  var creditsPorMes = _agregaNiboPorMes(S.niboData.credits||[], 'dueDate');
+  var debitsPorMes  = _agregaNiboPorMes(S.niboData.debits||[],  'dueDate');
+
+  // Mês atual (chave 'YYYY-MM')
+  var mesKey = anoAtual + '-' + String(mesAtual+1).padStart(2,'0');
+  var receitaNiboMes = creditsPorMes[mesKey] || 0;
+  var custoNiboMes   = debitsPorMes[mesKey]  || 0;
+  var lucroNiboMes   = receitaNiboMes - custoNiboMes;
+
+  // ─── Bloco 3: comparação com plano (PSM_BP.holding.dre_mensal) ────────
+  var bp = window.PSM_BP || {};
+  var dreMensal = (bp.holding && bp.holding.dre_mensal) || {};
+  var planoReceita = (dreMensal.total_volume||[])[mesAtual] || 0;
+  var planoEbitda  = (dreMensal.ebitda_total||[])[mesAtual] || 0;
+
+  // Helper render: linha mês a mês comparando plano vs real
+  function _linhaMesAMes(label, planoArr, realPorMes, isReceita) {
+    var planoCells = '';
+    var realCells = '';
+    var deltaCells = '';
+    for (var i=0; i<12; i++) {
+      var k = anoAtual + '-' + String(i+1).padStart(2,'0');
+      var p = (planoArr||[])[i] || 0;
+      var r = realPorMes[k] || 0;
+      var delta = r - p;
+      var corDelta = isReceita
+        ? (delta >= 0 ? '#22c55e' : '#ef4444')
+        : (delta <= 0 ? '#22c55e' : '#ef4444');
+      planoCells += '<td style="padding:6px 8px;text-align:right;color:#94a3b8;font-size:.7rem;">'+(p?_fmtBRLk(p):'—')+'</td>';
+      realCells  += '<td style="padding:6px 8px;text-align:right;color:#e2e8f0;font-size:.7rem;font-weight:700;">'+(r?_fmtBRLk(r):'—')+'</td>';
+      deltaCells += '<td style="padding:6px 8px;text-align:right;color:'+corDelta+';font-size:.65rem;">'+(delta?( (delta>0?'+':'')+_fmtBRLk(delta)):'—')+'</td>';
+    }
+    return planoCells + realCells + deltaCells;
+  }
+
+  function _fmtBRLk(v){
+    v = parseFloat(v)||0;
+    if (Math.abs(v) >= 1000000) return 'R$ '+(v/1000000).toFixed(2)+'M';
+    if (Math.abs(v) >= 1000)    return 'R$ '+(v/1000).toFixed(1)+'k';
+    return 'R$ '+v.toFixed(0);
+  }
+
+  // Custos categorizados (manual) — mantém retrocompat
   const categorias = [
     { grupo: 'RECEITAS', color: '#22c55e', items: [
       { key: 'receita_vendas', label: 'Receita com Vendas' },
@@ -21271,35 +21334,52 @@ function pgDre() {
   const totalImposto = categorias[2].items.reduce((s, i) => s + getVal(i.key), 0);
   const lucro = totalReceita - totalCusto - totalImposto;
   const margem = totalReceita > 0 ? ((lucro / totalReceita) * 100).toFixed(1) : '\u2014';
-  return _autoBanner + `
-  <div style="max-width:1200px;margin:auto;padding:24px">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <span style="font-size:32px">\ud83d\udcca</span>
-      <div>
-        <h2 style="margin:0;color:var(--navy);font-size:22px">DRE \u2014 Demonstrativo de Resultados</h2>
-        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Refer\u00eancia: ${meses[mesAtual]} ${new Date().getFullYear()}</p>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">
-      <div style="background:var(--cream2);border-radius:12px;padding:20px;border-left:4px solid #22c55e">
-        <div style="color:var(--mid);font-size:12px">RECEITA TOTAL</div>
-        <div style="color:#22c55e;font-size:22px;font-weight:700;margin-top:6px">R$ ${totalReceita.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
-      </div>
-      <div style="background:var(--cream2);border-radius:12px;padding:20px;border-left:4px solid #ef4444">
-        <div style="color:var(--mid);font-size:12px">CUSTOS + IMPOSTOS</div>
-        <div style="color:#ef4444;font-size:22px;font-weight:700;margin-top:6px">R$ ${(totalCusto + totalImposto).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
-      </div>
-      <div style="background:var(--cream2);border-radius:12px;padding:20px;border-left:4px solid ${lucro >= 0 ? '#3b82f6' : '#ef4444'}">
-        <div style="color:var(--mid);font-size:12px">LUCRO L\u00cdQUIDO</div>
-        <div style="color:${lucro >= 0 ? '#3b82f6' : '#ef4444'};font-size:22px;font-weight:700;margin-top:6px">R$ ${lucro.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
-      </div>
-      <div style="background:var(--cream2);border-radius:12px;padding:20px;border-left:4px solid #8b5cf6">
-        <div style="color:var(--mid);font-size:12px">MARGEM</div>
-        <div style="color:#8b5cf6;font-size:22px;font-weight:700;margin-top:6px">${margem}%</div>
-      </div>
-    </div>
+  // v75.32 Sprint 4: HERO NIBO REAL-TIME
+  var deltaReceita = receitaNiboMes - planoReceita;
+  var deltaLucro   = lucroNiboMes - planoEbitda;
+  var heroNibo = '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-radius:14px;padding:20px;margin-bottom:18px;color:#f8fafc">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">'
+    + '<div><h3 style="margin:0;font-size:1rem;font-weight:800">🏦 DRE Real-Time · NIBO + Plano BP</h3>'
+    + '<div style="color:#94a3b8;font-size:.72rem;margin-top:3px">'+meses[mesAtual]+' '+anoAtual+' · '+(S.niboData.lastFetch ? 'Atualizado '+new Date(S.niboData.lastFetch).toLocaleTimeString('pt-BR') : (S.niboData.loading ? '⏳ Carregando...' : 'Aguardando NIBO...'))+'</div></div>'
+    + '<button onclick="window._niboLoadAll && window._niboLoadAll(true)" style="padding:6px 12px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;border-radius:6px;cursor:pointer;font-size:.74rem;font-weight:700">↻ Atualizar</button>'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">'
+    + '<div style="background:rgba(255,255,255,.04);border-radius:10px;padding:14px;border-left:3px solid #22c55e"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">📥 Receita Real (NIBO)</div><div style="color:#22c55e;font-size:1.5rem;font-weight:800;line-height:1;margin-top:6px">'+_fmtBRLk(receitaNiboMes)+'</div><div style="font-size:.62rem;color:'+(deltaReceita>=0?'#22c55e':'#ef4444')+';margin-top:4px">'+(deltaReceita>=0?'+':'')+_fmtBRLk(deltaReceita)+' vs plano '+_fmtBRLk(planoReceita)+'</div></div>'
+    + '<div style="background:rgba(255,255,255,.04);border-radius:10px;padding:14px;border-left:3px solid #ef4444"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">📤 Custos Real (NIBO)</div><div style="color:#ef4444;font-size:1.5rem;font-weight:800;line-height:1;margin-top:6px">'+_fmtBRLk(custoNiboMes)+'</div><div style="font-size:.62rem;color:#94a3b8;margin-top:4px">Contas a pagar do mês</div></div>'
+    + '<div style="background:rgba(255,255,255,.04);border-radius:10px;padding:14px;border-left:3px solid '+(lucroNiboMes>=0?'#3b82f6':'#ef4444')+'"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">💰 Resultado (Real)</div><div style="color:'+(lucroNiboMes>=0?'#3b82f6':'#ef4444')+';font-size:1.5rem;font-weight:800;line-height:1;margin-top:6px">'+_fmtBRLk(lucroNiboMes)+'</div><div style="font-size:.62rem;color:'+(deltaLucro>=0?'#22c55e':'#ef4444')+';margin-top:4px">'+(deltaLucro>=0?'+':'')+_fmtBRLk(deltaLucro)+' vs EBITDA plano</div></div>'
+    + '<div style="background:linear-gradient(135deg,rgba(212,168,67,.10),rgba(255,255,255,.04));border-radius:10px;padding:14px;border-left:3px solid var(--gold)"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">📊 Plano (BP Excel)</div><div style="color:var(--gold);font-size:1.5rem;font-weight:800;line-height:1;margin-top:6px">'+_fmtBRLk(planoReceita)+'</div><div style="font-size:.62rem;color:#94a3b8;margin-top:4px">Receita planejada · EBITDA '+_fmtBRLk(planoEbitda)+'</div></div>'
+    + '</div></div>';
+
+  // v75.32: Tabela mês a mês — PLANO vs REAL
+  var planoCells = (dreMensal.total_volume||[]).map(function(v){return '<td style="padding:8px;text-align:right;color:#94a3b8;font-size:.7rem">'+(v?_fmtBRLk(v):'—')+'</td>';}).join('');
+  var ebCells = (dreMensal.ebitda_total||[]).map(function(v){return '<td style="padding:8px;text-align:right;color:var(--gold);font-size:.7rem">'+(v?_fmtBRLk(v):'—')+'</td>';}).join('');
+  var realRec = meses.map(function(_,i){var k=anoAtual+'-'+String(i+1).padStart(2,'0');var v=creditsPorMes[k]||0;return '<td style="padding:8px;text-align:right;color:#22c55e;font-weight:700;font-size:.7rem">'+(v?_fmtBRLk(v):'—')+'</td>';}).join('');
+  var realCust = meses.map(function(_,i){var k=anoAtual+'-'+String(i+1).padStart(2,'0');var v=debitsPorMes[k]||0;return '<td style="padding:8px;text-align:right;color:#ef4444;font-weight:700;font-size:.7rem">'+(v?_fmtBRLk(v):'—')+'</td>';}).join('');
+  var realRes = meses.map(function(_,i){var k=anoAtual+'-'+String(i+1).padStart(2,'0');var v=(creditsPorMes[k]||0)-(debitsPorMes[k]||0);return '<td style="padding:8px;text-align:right;color:'+(v>=0?'#3b82f6':'#ef4444')+';font-weight:800;font-size:.74rem">'+(v?_fmtBRLk(v):'—')+'</td>';}).join('');
+  var headerCells = meses.map(function(m){return '<th style="padding:8px;text-align:right;font-size:.6rem;text-transform:uppercase">'+m+'</th>';}).join('');
+
+  var tabelaMesAMes = '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;margin-bottom:18px;color:#f8fafc">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    + '<h3 style="margin:0;font-size:.95rem;font-weight:800">📅 DRE Mensal · Plano vs Realizado · '+anoAtual+'</h3>'
+    + '<button onclick="nav(\'fin_bp\');S.finBpTab=\'dre\';render({force:true})" style="background:transparent;border:1px solid #334155;color:#94a3b8;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.7rem">Ver Plano BP detalhado →</button>'
+    + '</div>'
+    + '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.72rem;min-width:1000px">'
+    + '<thead><tr style="border-bottom:1px solid #334155;color:#94a3b8">'
+    + '<th style="padding:8px;text-align:left;font-size:.62rem;text-transform:uppercase">Linha</th>'
+    + headerCells
+    + '</tr></thead><tbody>'
+    + '<tr style="border-bottom:1px solid #0f172a"><td style="padding:8px;color:#94a3b8;font-weight:700">📊 Plano (BP)</td>'+planoCells+'</tr>'
+    + '<tr style="border-bottom:1px solid #0f172a"><td style="padding:8px;color:#22c55e;font-weight:700">📥 Real (NIBO receitas)</td>'+realRec+'</tr>'
+    + '<tr style="border-bottom:1px solid #0f172a"><td style="padding:8px;color:#ef4444;font-weight:700">📤 Real (NIBO custos)</td>'+realCust+'</tr>'
+    + '<tr style="border-bottom:1px solid #334155;background:rgba(59,130,246,.08)"><td style="padding:8px;color:#3b82f6;font-weight:800">💰 Resultado Real</td>'+realRes+'</tr>'
+    + '<tr style="background:rgba(212,168,67,.05)"><td style="padding:8px;color:var(--gold);font-weight:700">📈 EBITDA Plano</td>'+ebCells+'</tr>'
+    + '</tbody></table></div></div>';
+
+  return heroNibo + tabelaMesAMes + `
+  <div style="max-width:1200px;margin:auto;padding:0 24px 24px">
     <div style="background:var(--cream2);border-radius:12px;padding:24px">
-      <h3 style="color:var(--navy);margin:0 0 16px;font-size:16px">Detalhamento</h3>
+      <h3 style="color:var(--navy);margin:0 0 16px;font-size:16px">Ajustes manuais · ${meses[mesAtual]} ${anoAtual}</h3>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:14px">Use os campos abaixo para registrar valores específicos do mês que não vêm do NIBO automaticamente (impostos, ajustes contábeis, etc.)</div>
       <table style="width:100%;border-collapse:collapse">
         ${categorias.map(cat => `
           <tr style="background:var(--cream)"><td colspan="3" style="padding:10px 14px;color:${cat.color};font-size:13px;font-weight:700">${cat.grupo}</td></tr>
@@ -21307,10 +21387,10 @@ function pgDre() {
           <tr style="border-bottom:1px solid var(--cream4)">
             <td style="padding:8px 14px 8px 28px;color:#64748b;font-size:13px">${item.label}</td>
             <td style="padding:8px 14px;text-align:right;color:var(--navy);font-size:13px">R$ ${getVal(item.key).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-            <td style="padding:8px 14px;width:40px"><button onclick="editDre('${item.key}','${item.label}')" style="background:none;border:none;color:#3b82f6;cursor:pointer;font-size:12px">\u270f\ufe0f</button></td>
+            <td style="padding:8px 14px;width:40px"><button onclick="editDre('${item.key}','${item.label}')" style="background:none;border:none;color:#3b82f6;cursor:pointer;font-size:12px">✏️</button></td>
           </tr>`).join('')}`).join('')}
         <tr style="background:var(--cream);border-top:2px solid var(--cream4)">
-          <td style="padding:12px 14px;color:var(--navy);font-size:14px;font-weight:700">RESULTADO L\u00cdQUIDO</td>
+          <td style="padding:12px 14px;color:var(--navy);font-size:14px;font-weight:700">SUBTOTAL AJUSTES MANUAIS</td>
           <td style="padding:12px 14px;text-align:right;color:${lucro >= 0 ? '#22c55e' : '#ef4444'};font-size:16px;font-weight:700">R$ ${lucro.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
           <td></td>
         </tr>
