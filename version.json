@@ -1,7 +1,7 @@
 {
-  "version": "75.41.0",
-  "meta": "2026.05.25-v75.41-sprint7-hotfix",
-  "built": "2026-05-25T22:00:00Z",
-  "sw": "v75.41.0-2026-05-25-SPRINT7-HOTFIX",
-  "sprint": "v75.41 Sprint 7 hotfix backend: _auth_lib.py e auth_login.py NÃO referenciam mais colunas inexistentes (frente, is_lider, is_diretor, lvl). Agora computa lvl/is_lider/is_diretor a partir de role via ROLE_LVL map. SQL schema rodado em prod inclui só colunas reais. JWT_SECRET configurado no Vercel + redeploy disparado."
+  "version": "75.42.0",
+  "meta": "2026.05.25-v75.42-auth-routes",
+  "built": "2026-05-25T22:30:00Z",
+  "sw": "v75.42.0-2026-05-25-AUTH-ROUTES-FIX",
+  "sprint": "v75.42 fix routes Vercel mapeia /api/v3/auth/login.py → /api/v3/auth/login (URL com barra). Reorganizado em subpasta auth/. _auth_lib.py duplicado em api/v3/ (p/ health.py) e api/v3/auth/ (p/ login.py, me.py, set_password.py)."
 }
