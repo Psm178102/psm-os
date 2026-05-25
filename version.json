@@ -1,7 +1,7 @@
 {
-  "version": "75.28.0",
-  "meta": "2026.05.25-v75.28",
-  "built": "2026-05-25T14:00:00Z",
-  "sw": "v75.28.0-2026-05-25-RD-PIPELINES-FROM-POSTGRES",
-  "sprint": "v75.28 = v2 Sprint 2 Etapas B+C: RD CRM pipelines/stages agora vêm do Postgres. NOVO endpoint /api/v2/rd_pipelines.py retorna mapeamento canônico (pipeline_id → frente). NOVO bloco no index.html hidrata window._rdMap no boot e usa em processDeals (substitui name-matching frágil). Deals do FUNIL CONQUISTA do RD (id 69f5...) agora caem corretamente em conquista — antes caíam em lancamento. Deals dos pipelines CARTEIRA MAP PAULO e FUNIL DE PARCERIA marcados como excluded são IGNORADOS (não contam em VGV/métricas PSM). Próximo: Sprint 2 Etapa D = UI multi-funil (abas por funil na Pipeline view)."
+  "version": "75.29.0",
+  "meta": "2026.05.25-v75.29",
+  "built": "2026-05-25T15:00:00Z",
+  "sw": "v75.29.0-2026-05-25-CRM-MULTI-FUNIL-UI",
+  "sprint": "v75.29 = v2 Sprint 2 Etapa D: UI MULTI-FUNIL no CRM (pgCRM). (1) Substituído o select dropdown 'Todas Frentes' por abas visuais coloridas no topo: [🔀 Consolidado] [🏢 MAP] [🏆 Conquista] [🤝 Terceiros] [🔑 Locação]. Cada aba mostra contador de deals + VGV agregado da frente. (2) Kanban agora prefere stages do Postgres (window._rdMap.stages_by_pipeline) em vez do FUNIS hardcoded — quando user troca pipeline no RD, basta atualizar Postgres. Cores do FUNIS preservadas via mapeamento psm_stage_key→color. Fallback FUNIS hardcoded mantido pra retrocompatibilidade."
 }

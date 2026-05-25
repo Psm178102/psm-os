@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.28.0';window.PSM_VERSION_META='2026.05.25-v75.28';
+</style><script>window.PSM_VERSION='75.29.0';window.PSM_VERSION_META='2026.05.25-v75.29';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -10173,12 +10173,43 @@ function pgCRM(){
       +'</div>';
   }
 
-  // -- FILTER BAR --
-  let bar=syncBar+'<div class="crm-bar">';
-  bar+='<select class="fs sel-f" onchange="S.crmFrente=this.value;render()">'
-    +'<option value="all">Todas Frentes</option>'
-    +Object.values(FRENTES).map(f=>'<option value="'+f.id+'"'+(ff===f.id?' selected':'')+'>'+f.icon+' '+f.label+'</option>').join('')
-    +'</select>';
+  // v75.29 (v2 Sprint 2D): abas visuais por funil, com contadores ao vivo
+  // Calcula counters por frente (excluindo pipelines marcados como excluded no Postgres)
+  const _frenteOpps = (frente) => OPPS.filter(o =>
+    o.fr === frente &&
+    (sf==='all'||o.sla===sf) &&
+    (!effectiveBid||o.bid===effectiveBid) &&
+    (!S.crmSearch||((o.cl||'').toLowerCase().includes((S.crmSearch||'').toLowerCase())))
+  );
+  const _funilTabs = [
+    {id:'all',        lbl:'Consolidado',    icon:'🔀', color:'#64748b'},
+    {id:'lancamento', lbl:'MAP',            icon:'🏢', color:'#0f172a'},
+    {id:'conquista',  lbl:'Conquista',      icon:'🏆', color:'#dc2626'},
+    {id:'terceiros',  lbl:'Terceiros',      icon:'🤝', color:'#15803d'},
+    {id:'locacao',    lbl:'Locação',        icon:'🔑', color:'#1d4ed8'}
+  ];
+  let funilBar = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;border-bottom:1px solid var(--cream3);padding-bottom:8px;">';
+  _funilTabs.forEach(t => {
+    const sel = ff === t.id;
+    const cnt = t.id === 'all' ? OPPS.length : _frenteOpps(t.id).length;
+    const vgv = t.id === 'all'
+      ? OPPS.reduce((a,o)=>a+(o.vgv||0),0)
+      : _frenteOpps(t.id).reduce((a,o)=>a+(o.vgv||0),0);
+    funilBar += '<button onclick="S.crmFrente=\''+t.id+'\';render()" style="padding:8px 12px;background:'+(sel?t.color:'transparent')+';color:'+(sel?'#fff':t.color)+';border:1.5px solid '+t.color+(sel?'':'40')+';border-radius:8px;cursor:pointer;font-size:12px;font-weight:'+(sel?'800':'600')+';display:inline-flex;align-items:center;gap:6px;transition:all .15s;">';
+    funilBar += '<span style="font-size:14px">'+t.icon+'</span>';
+    funilBar += '<span>'+t.lbl+'</span>';
+    if (cnt > 0) {
+      funilBar += '<span style="background:'+(sel?'rgba(255,255,255,.25)':t.color+'18')+';color:'+(sel?'#fff':t.color)+';font-size:10px;font-weight:800;padding:1px 7px;border-radius:9px;line-height:1.4;">'+cnt+'</span>';
+    }
+    if (vgv > 0) {
+      funilBar += '<span style="font-size:10px;font-weight:600;opacity:.8;">· '+fmt(vgv)+'</span>';
+    }
+    funilBar += '</button>';
+  });
+  funilBar += '</div>';
+
+  // -- FILTER BAR (sem o select de Frentes — substituído pelas abas acima) --
+  let bar=syncBar+funilBar+'<div class="crm-bar">';
   bar+='<select class="fs sel-f" onchange="S.crmSla=this.value;render()">'
     +'<option value="all">Todos os Prazos</option>'
     +'<option value="ok"'+(sf==='ok'?' selected':'')+'>OK</option>'
@@ -10220,7 +10251,31 @@ function pgCRM(){
   let content='';
   if(view==='kanban'){
     const fid=ff!=='all'?ff:(selBroker?.frente||'lancamento');
-    const stages=FUNIS[fid]||FUNIS.lancamento||[];
+    // v75.29: PREFERE stages do Postgres (window._rdMap) — fallback FUNIS hardcoded
+    let stages = null;
+    try {
+      if (window._rdMap && window._rdMap.stages_by_pipeline && window._rdMap.frente_by_pipeline) {
+        const pid = Object.entries(window._rdMap.frente_by_pipeline).find(p => p[1] === fid);
+        const pgStages = pid && window._rdMap.stages_by_pipeline[pid[0]];
+        if (pgStages && pgStages.length) {
+          // Mapeia cores do FUNIS hardcoded por psm_stage_key (mantém estética)
+          const oldStages = FUNIS[fid] || FUNIS.lancamento || [];
+          const colorMap = {};
+          oldStages.forEach(s => { colorMap[s.id] = s.color; });
+          stages = pgStages
+            .filter(s => s.active !== false)
+            .sort((a,b) => (a.position||0) - (b.position||0))
+            .map(s => ({
+              id: s.psm_stage_key || 'tent_contato',
+              label: s.name,
+              color: colorMap[s.psm_stage_key] || '#64748b',
+              w: s.weight || 0.1,
+              rdIds: [s.id]
+            }));
+        }
+      }
+    } catch(_){}
+    if (!stages) stages = FUNIS[fid] || FUNIS.lancamento || [];
     const pW=vis.reduce((a,o)=>{const s=stages.find?stages.find(x=>(x.rdIds&&x.rdIds.includes(o.st))||(x.id===o.st_psm||x.id===o.st)):null;return a+(o.vgv*(s?s.w:.05));},0);
     content='<div style="overflow-x:auto;padding-bottom:8px"><div style="display:flex;gap:10px;min-width:max-content;padding:4px 2px">';
     stages.forEach(s=>{

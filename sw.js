@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.28.0-2026-05-25-RD-PIPELINES-FROM-POSTGRES';
+const SW_VERSION = 'v75.29.0-2026-05-25-CRM-MULTI-FUNIL-UI';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
