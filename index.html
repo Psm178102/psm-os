@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.36.0';window.PSM_VERSION_META='2026.05.25-v75.36';
+</style><script>window.PSM_VERSION='75.37.0';window.PSM_VERSION_META='2026.05.25-v75.37';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -13561,57 +13561,67 @@ const RD = {
             const name = (u.name || '').toLowerCase().trim();
             return !EXCLUDED_NAMES.some(ex => name.includes(ex));
           });
-          // Merge with existing USERS_BASE — keep existing data, add new ones
+          // v75.37 BUG FIX: Postgres é fonte da verdade. RD sync NÃO sobrescreve role/frente.
+          // Match agressivo por nome normalizado pra EVITAR DUPLICATAS (Kaue Bordini ≠ kbordini, etc)
+          function _normName(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z]/g,'').trim(); }
           activeRdUsers.forEach(rdu => {
             const rdId = rdu._id || rdu.id;
-            const existing = USERS_BASE.find(u => u.rdId === rdId) || USERS_BASE.find(u => u.name.toLowerCase() === (rdu.name||'').toLowerCase() && !u.rdId);
-            if (existing && !existing.rdId) {
-              // Match by name — update rdId for future syncs
-              existing.rdId = rdId;
-              console.log('[RD sync] Linked', existing.name, 'to rdId', rdId);
-            } else if (!existing) {
-              // New user from RD — add them
+            const ruNorm = _normName(rdu.name);
+            // Procura em USERS (hidratado do Postgres), não em USERS_BASE
+            let existing = USERS.find(u => u.rdId === rdId);
+            if (!existing) existing = USERS.find(u => _normName(u.name) === ruNorm);
+            // Também tenta match por primeiro/último nome
+            if (!existing && ruNorm.length > 4) {
+              existing = USERS.find(u => {
+                var un = _normName(u.name);
+                return un.length > 4 && (un.indexOf(ruNorm.slice(0,6)) >= 0 || ruNorm.indexOf(un.slice(0,6)) >= 0);
+              });
+            }
+            if (existing) {
+              // Match — só atualiza rdId pra ligar com RD CRM. PRESERVA role/frente do Postgres
+              if (!existing.rdId) existing.rdId = rdId;
+              if (rdu.email && !existing.email) existing.email = rdu.email;
+              console.log('[RD sync] Linked', existing.name, '→ rdId', rdId, '(preservando role/frente do Postgres)');
+            } else {
+              // Realmente novo (não está no Postgres) — adiciona como corretor default
               const nameParts = (rdu.name || '').trim().split(/\s+/).filter(function(p){return p;});
               const ini = nameParts.length >= 2
                 ? (nameParts[0][0] + nameParts[nameParts.length-1][0]).toUpperCase()
                 : (rdu.nickname || rdu.name || 'XX').slice(0,2).toUpperCase();
               const colors = ['#0f172a','#1e293b','#0d9488','#7c3aed','#dc2626','#0891b2','#16a34a','#a21caf','#9333ea','#15803d'];
               const color = colors[Math.abs(rdId.charCodeAt(rdId.length-1)) % colors.length];
-
-              USERS_BASE.push({
+              var newU = {
                 id: rdId.slice(-8),
                 name: rdu.name || rdu.nickname || 'Sem Nome',
                 ini, color,
                 role: 'corretor',
-                frente: 'lancamento', // default, will be overridden by deal pipeline
+                frente: null,  // v75.37: NÃO força 'lancamento' default — fica sem frente até ser configurado
                 email: rdu.email || '',
                 rdId,
                 st: 'online',
                 meta: 800000, crm: 70,
                 _fromRD: true,
-              });
-              console.log('[RD sync] Novo corretor adicionado:', rdu.name, rdId);
-            } else {
-              // Update name if changed
-              if (rdu.name && rdu.name !== existing.name) {
-                existing.name = rdu.name;
-              }
+              };
+              USERS.push(newU);
+              UM[newU.id] = newU;
+              console.log('[RD sync] Novo corretor (NÃO estava no Postgres):', rdu.name, rdId);
             }
           });
 
-          // Remove users that are no longer active in RD (except socios/gerentes)
+          // Remove _fromRD users que viraram inativos no RD
           const activeRdIds = new Set(activeRdUsers.map(u => u._id || u.id));
-          USERS_BASE.forEach(u => {
-            if (u.rdId && !activeRdIds.has(u.rdId) && u.role === 'corretor' && u._fromRD) {
+          USERS.forEach(u => {
+            if (u._fromRD && u.rdId && !activeRdIds.has(u.rdId) && u.role === 'corretor') {
               u._inactive = true;
               console.log('[RD sync] Corretor desativado:', u.name);
             }
           });
 
-          // Rebuild USERS/BROKERS/UM
-          USERS = buildUsers().filter(u => !u._inactive);
-          UM = Object.fromEntries(USERS.map(u => [u.id, u]));
-          BROKERS = USERS.filter(u => ['corretor','lider'].includes(u.role));
+          // Recalcula UM/BROKERS in-place (NÃO rebuilda USERS do USERS_BASE — perderia dados do Postgres)
+          Object.keys(UM).forEach(function(k){ delete UM[k]; });
+          USERS.filter(function(u){return !u._inactive;}).forEach(function(u){ UM[u.id] = u; });
+          BROKERS.length = 0;
+          Array.prototype.push.apply(BROKERS, USERS.filter(function(u){return !u._inactive && ['corretor','lider'].indexOf(u.role)>=0;}));
         }
 
         // Update pipelines/stages dynamically

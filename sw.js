@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.36.0-2026-05-25-COMISSOES-NIBO-RD';
+const SW_VERSION = 'v75.37.0-2026-05-25-RDSYNC-NAO-SOBRESCREVE';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
