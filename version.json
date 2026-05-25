@@ -1,7 +1,7 @@
 {
-  "version": "75.44.0",
-  "meta": "2026.05.25-v75.44-sprint7.2-auditoria",
-  "built": "2026-05-25T23:15:00Z",
-  "sw": "v75.44.0-2026-05-25-SPRINT7.2-AUDITORIA",
-  "sprint": "v75.44 Sprint 7.2 + auditoria: nova tabela audit_log no Postgres (id, ts, actor_id, actor_name, actor_role, action, target_type, target_id, before_data, after_data, ip, user_agent, notes). audit() helper em _auth_lib.py grava em TODAS as operações: auth.login_ok, auth.login_fail, auth.bootstrap_password, auth.change_password, auth.admin_reset_password, user.create, user.update. Endpoint GET /api/v3/audit/list com filtros (action, target_id, actor_id, since). Página /v2/auditoria com filtros + diff before/after. Tela Usuários mostra última audit por user."
+  "version": "75.45.0",
+  "meta": "2026.05.25-v75.45-sprint7.3-dashboard",
+  "built": "2026-05-25T23:50:00Z",
+  "sw": "v75.45.0-2026-05-25-SPRINT7.3-DASHBOARD",
+  "sprint": "v75.45 Sprint 7.3 — Dashboard + Painel do Corretor no /v2/. Novo endpoint GET /api/v3/metrics/overview retorna KPIs role-based (Sócio/Gerente vê global, Líder vê time, Corretor vê próprio). Página /v2/ (Dashboard) com KPI cards, top actions, eventos recentes, comissões. Página /v2/painel mostra perfil do corretor logado + comissões pessoais + audit pessoal + atalhos. Sidebar com link Meu Painel."
 }
