@@ -1,7 +1,7 @@
 {
-  "version": "75.23.0",
-  "meta": "2026.05.24-v75.23",
-  "built": "2026-05-24T14:00:00Z",
-  "sw": "v75.23.0-2026-05-24-DIRETORIA-UNIFICACOES",
-  "sprint": "v75.23: DIRETORIA UNIFICACOES. (1) 'Recados Arena' + 'PSM Live' fundidos em uma so pagina 'Comunicacao Arena' (psm_live). Wrapper pgComunicacaoArena com 2 abas internas: PSM Live (marquee global + topo TV) e Recados Arena (cards body TV + notificacao push). (2) 'Dashboard' + 'BI Socio' fundidos em 'Dashboard Executivo' (dashboard). Wrapper pgDashboardExecutivo com 2 abas: Operacao (KPIs tempo real, ritmo meta, IA Sr.Performance) e BI Socio (lucro por corretor, ROI canal, forecast 6m IA, self-benchmark). Menu Diretoria reduzido de 12 para 10 itens. Backward compat: case 'recados_diretoria' e 'bi_socio' redirecionam pro hub com aba pre-selecionada (notificacoes antigas continuam funcionando). Inclui tambem v75.22 (Painel Corretor hub) + v75.21.1 (fin_bp access fix)."
+  "version": "75.25.0",
+  "meta": "2026.05.24-v75.25",
+  "built": "2026-05-24T15:00:00Z",
+  "sw": "v75.25.0-2026-05-24-UPDATE-SMART-FIN-REAL",
+  "sprint": "v75.25: (A) Update notification INTELIGENTE. Patch (mesmo MAJOR.MINOR) = auto-update silencioso quando user idle 8s. Major (MINOR diferente) = banner com botao Mais tarde (snooze 4h). Antes mostrava banner em todo deploy. (B) Financeiro REAL — Fluxo de Caixa agora puxa NIBO real-time consolidado (saldo bancario + a receber 30d + a pagar 30d + projecao). DRE/Comissoes/Repasses ganharam banner amarelo direcionando pro Plano Consolidado que tem os dados reais auto-populados do Excel v2 + NIBO. Inclui tambem v75.24 (Painel reorder), v75.23 (Diretoria unificacoes), v75.22 (Painel hub), v75.21.1 (fin_bp access fix), v75.21 (NIBO multi-tenant)."
 }

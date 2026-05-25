@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.17.0';window.PSM_VERSION_META='2026.05.18-v75.17';
+</style><script>window.PSM_VERSION='75.25.0';window.PSM_VERSION_META='2026.05.24-v75.25';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -1106,14 +1106,52 @@ window.NoSleep = (function(){
   var _reloading = false;
   var _updateBannerShown = false;
 
-  function _showUpdateBanner(){
+  // v75.25: politica inteligente de notificacao de update
+  // - PATCH (mesmo MAJOR.MINOR, ex 75.21.0 -> 75.21.1): auto-update SILENCIOSO apos 3s
+  // - MAJOR (MINOR diferente, ex 75.21 -> 75.22): mostra banner ao usuario
+  // - Auto-update silencioso espera user estar idle (sem clique nos ultimos 8s)
+  function _isPatchOnly(newVer){
+    try{
+      var cur = String(window.PSM_VERSION||'0').split('-')[0].split('.');
+      var nv = String(newVer||'').split('-')[0].split('.');
+      if(!nv[0] || !nv[1]) return false;
+      // mesmo MAJOR.MINOR = patch
+      return cur[0]===nv[0] && cur[1]===nv[1];
+    }catch(_){ return false; }
+  }
+  function _silentReloadWhenIdle(){
+    // espera o usuario estar idle >=8s antes de recarregar
+    var lastAct = 0;
+    var bumpAct = function(){ lastAct = Date.now(); };
+    ['click','keydown','mousemove','scroll','touchstart'].forEach(function(ev){
+      document.addEventListener(ev, bumpAct, {passive:true});
+    });
+    bumpAct();
+    var tryReload = function(){
+      if (Date.now() - lastAct >= 8000) {
+        console.log('[PSM-PWA v75.25] patch update silencioso aplicado (idle)');
+        _doReload();
+      } else {
+        setTimeout(tryReload, 2000);
+      }
+    };
+    setTimeout(tryReload, 3000);
+  }
+  function _showUpdateBanner(newVer){
     if (_updateBannerShown) return;
+    // v75.25: patch sem prompt — silencioso quando o user estiver idle
+    if (newVer && _isPatchOnly(newVer)) {
+      console.log('[PSM-PWA v75.25] patch detectado ('+window.PSM_VERSION+' -> '+newVer+') — auto-update silencioso');
+      _silentReloadWhenIdle();
+      return;
+    }
     _updateBannerShown = true;
     try {
       var b = document.createElement('div');
       b.id = 'psm-update-banner';
       b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#d4af37,#f4c430);color:#0f172a;padding:10px 16px;font-weight:700;font-size:13px;text-align:center;z-index:999999;box-shadow:0 2px 10px rgba(0,0,0,0.3);font-family:system-ui';
-      b.innerHTML = '<span>Nova versao disponivel.</span> <button id="_psm_update_now" style="margin-left:12px;background:#0f172a;color:#d4af37;border:none;padding:4px 12px;border-radius:4px;font-weight:700;cursor:pointer">Atualizar agora</button> <button id="_psm_update_later" style="margin-left:6px;background:transparent;color:#0f172a;border:1px solid #0f172a;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px">Depois</button>';
+      var lblVer = newVer ? ' (v'+newVer+')' : '';
+      b.innerHTML = '<span>Nova versao disponivel'+lblVer+'.</span> <button id="_psm_update_now" style="margin-left:12px;background:#0f172a;color:#d4af37;border:none;padding:4px 12px;border-radius:4px;font-weight:700;cursor:pointer">Atualizar agora</button> <button id="_psm_update_later" style="margin-left:6px;background:transparent;color:#0f172a;border:1px solid #0f172a;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px">Mais tarde (4h)</button>';
       document.body.appendChild(b);
 
       // SEM countdown automatico — usuario decide quando atualizar (Sprint 6 fix UX)
@@ -1131,7 +1169,12 @@ window.NoSleep = (function(){
       document.addEventListener('visibilitychange', visHandler);
 
       document.getElementById('_psm_update_now').onclick = function(){ document.removeEventListener('visibilitychange', visHandler); _doReload(); };
-      document.getElementById('_psm_update_later').onclick = function(){ document.removeEventListener('visibilitychange', visHandler); b.remove(); _updateBannerShown = false; };
+      document.getElementById('_psm_update_later').onclick = function(){
+        // v75.25: snooze de 4h (em vez de mostrar de novo no proximo check)
+        try{ localStorage.setItem('psm_update_snooze_until', String(Date.now()+4*3600*1000)); }catch(_){}
+        document.removeEventListener('visibilitychange', visHandler);
+        b.remove(); _updateBannerShown = false;
+      };
     } catch(_){ _doReload(); }
   }
 
@@ -1203,7 +1246,7 @@ window.NoSleep = (function(){
         var d = ev.data || {};
         if (d.type === 'NEW_VERSION') {
           console.log('[PSM-PWA v28] SW anunciou NEW_VERSION:', d.version);
-          _showUpdateBanner();
+          _showUpdateBanner(d.version);  // v75.25: passa versao p/ deteccao patch vs major
         }
         if (d.type === 'PURGE_ALL_DONE') {
           console.log('[PSM-PWA v28] caches purgados pelo SW');
@@ -1217,6 +1260,11 @@ window.NoSleep = (function(){
   // Verifica /version.json a cada 60s. Se version > window.PSM_VERSION → banner.
   var _clientVer = window.PSM_VERSION || '0';
   function _checkVersion(){
+    // v75.25: respeita snooze de 4h se user clicou "Mais tarde"
+    try {
+      var snz = parseInt(localStorage.getItem('psm_update_snooze_until')||'0') || 0;
+      if (snz && Date.now() < snz) return;
+    } catch(_){}
     fetch('/version.json?_=' + Date.now(), { cache: 'no-store' }).then(function(r){
       if (!r.ok) return;
       return r.json();
@@ -1224,7 +1272,7 @@ window.NoSleep = (function(){
       if (!j || !j.version) return;
       if (j.version !== _clientVer) {
         console.log('[PSM-PWA v28] version mismatch: client=' + _clientVer + ' server=' + j.version);
-        _showUpdateBanner();
+        _showUpdateBanner(j.version);  // v75.25: passa versao p/ patch vs major
       }
     }).catch(function(){ /* offline - silencia */ });
   }
@@ -20122,13 +20170,56 @@ function pgMarketing() {
 }
 
 
-// ─── PAGE: FLUXO DE CAIXA ────────────────────────────────────────────────
+// ─── PAGE: FLUXO DE CAIXA (v75.25: NIBO real-time + ajustes manuais) ────────────
 function pgFluxocaixa() {
+  // v75.25: dispara load NIBO uma vez se ainda nao tiver
+  if (!S.niboData) S.niboData = { accounts:null, debits:null, credits:null, loading:false, error:null, partialErrors:[], lastFetch:0 };
+  if (!S.niboData.accounts && !S.niboData.loading && typeof window._niboLoadAll === 'function') {
+    window._niboLoadAll();
+  }
+
   const dados = window.psmLSGet('psm_fluxocaixa', {entradas:[],saidas:[]});
   function calcTotal(arr) { return arr.reduce((s, i) => s + (parseFloat(i.valor) || 0), 0); }
   const totalEntradas = calcTotal(dados.entradas || []);
   const totalSaidas = calcTotal(dados.saidas || []);
   const saldo = totalEntradas - totalSaidas;
+
+  // ─── NIBO REAL-TIME BLOCK (v75.25) ────────────────────────────────────
+  var niboBlock = '';
+  try {
+    var nd = S.niboData;
+    var hoje = new Date(); hoje.setHours(0,0,0,0);
+    var ate30 = new Date(hoje.getTime() + 30*86400000);
+    var receberProx = (nd.credits||[]).filter(function(d){
+      if(!d.dueDate) return false;
+      var dt = new Date(d.dueDate); return dt>=hoje && dt<=ate30;
+    });
+    var pagarProx = (nd.debits||[]).filter(function(d){
+      if(!d.dueDate) return false;
+      var dt = new Date(d.dueDate); return dt>=hoje && dt<=ate30;
+    });
+    var totalReceber = receberProx.reduce(function(s,d){return s+(d.value||0);},0);
+    var totalPagar = pagarProx.reduce(function(s,d){return s+(d.value||0);},0);
+    var saldoBancario = (nd.accounts||[]).reduce(function(s,a){return s+(a.isVirtual?0:(a.openBalance||0));},0);
+    var projecao30d = saldoBancario + totalReceber - totalPagar;
+    var corProj = projecao30d>=0 ? '#22c55e' : '#ef4444';
+    var corBan = saldoBancario>=0 ? '#3b82f6' : '#ef4444';
+
+    niboBlock = '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-radius:14px;padding:20px;margin-bottom:18px;color:#f8fafc">';
+    niboBlock += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">';
+    niboBlock += '<div><h3 style="margin:0;font-size:1rem;font-weight:800;color:#f8fafc">🏦 Tempo Real · NIBO (2 CNPJs consolidados)</h3>';
+    niboBlock += '<div style="color:#94a3b8;font-size:.7rem;margin-top:3px">' + (nd.lastFetch ? 'Atualizado '+new Date(nd.lastFetch).toLocaleString('pt-BR') : (nd.loading?'⏳ Carregando...':'Aguardando carga...')) + ' · Próximos 30 dias</div></div>';
+    niboBlock += '<button onclick="window._niboLoadAll && window._niboLoadAll(true)" '+(nd.loading?'disabled':'')+' style="padding:6px 12px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:700">↻ Atualizar</button>';
+    niboBlock += '</div>';
+    niboBlock += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">';
+    niboBlock += '<div style="background:rgba(255,255,255,.04);border-radius:10px;padding:14px;border-left:3px solid '+corBan+'"><div style="font-size:.66rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:700">Saldo bancário</div><div style="color:'+corBan+';font-size:1.4rem;font-weight:800;line-height:1.2;margin-top:6px">R$ '+saldoBancario.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+'</div><div style="font-size:.66rem;color:#64748b;margin-top:2px">'+((nd.accounts||[]).filter(function(a){return !a.isVirtual;}).length)+' contas</div></div>';
+    niboBlock += '<div style="background:rgba(255,255,255,.04);border-radius:10px;padding:14px;border-left:3px solid #22c55e"><div style="font-size:.66rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:700">A receber 30d</div><div style="color:#22c55e;font-size:1.4rem;font-weight:800;line-height:1.2;margin-top:6px">R$ '+totalReceber.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+'</div><div style="font-size:.66rem;color:#64748b;margin-top:2px">'+receberProx.length+' contas</div></div>';
+    niboBlock += '<div style="background:rgba(255,255,255,.04);border-radius:10px;padding:14px;border-left:3px solid #ef4444"><div style="font-size:.66rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:700">A pagar 30d</div><div style="color:#ef4444;font-size:1.4rem;font-weight:800;line-height:1.2;margin-top:6px">R$ '+totalPagar.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+'</div><div style="font-size:.66rem;color:#64748b;margin-top:2px">'+pagarProx.length+' contas</div></div>';
+    niboBlock += '<div style="background:linear-gradient(135deg,rgba(212,168,67,.10),rgba(255,255,255,.04));border-radius:10px;padding:14px;border-left:3px solid '+corProj+'"><div style="font-size:.66rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:700">Projeção em 30d</div><div style="color:'+corProj+';font-size:1.4rem;font-weight:800;line-height:1.2;margin-top:6px">R$ '+projecao30d.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+'</div><div style="font-size:.66rem;color:#64748b;margin-top:2px">Saldo + Receber − Pagar</div></div>';
+    niboBlock += '</div>';
+    niboBlock += '<div style="margin-top:12px;text-align:right"><button onclick="nav(\'fin_bp\');S.finBpTab=\'nibo\';render({force:true})" style="background:transparent;border:1px solid #334155;color:#94a3b8;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.72rem;font-weight:700">Ver detalhe NIBO Live →</button></div>';
+    niboBlock += '</div>';
+  } catch(e) { niboBlock = ''; }
 
   return `
   <div style="max-width:1200px;margin:auto;padding:24px">
@@ -20136,9 +20227,11 @@ function pgFluxocaixa() {
       <span style="font-size:32px">\ud83d\udcb5</span>
       <div>
         <h2 style="margin:0;color:var(--navy);font-size:22px">Fluxo de Caixa</h2>
-        <p style="margin:4px 0 0;color:var(--mid);font-size:13px">Controle de entradas e sa\u00eddas financeiras</p>
+        <p style="margin:4px 0 0;color:var(--mid);font-size:13px">Tempo real do NIBO + ajustes manuais</p>
       </div>
     </div>
+    ${'$'}{niboBlock}
+    <div style="background:#0f172a;color:#94a3b8;border:1px dashed #334155;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:.78rem">📋 <b>Ajustes manuais</b> abaixo — para itens que ainda não estão no NIBO.</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px">
       <div style="background:var(--cream2);border-radius:12px;padding:20px;border-left:4px solid #22c55e">
         <div style="color:var(--mid);font-size:12px;margin-bottom:8px">ENTRADAS</div>
@@ -20768,7 +20861,14 @@ function pgFinBP(){
   return h;
 }
 
+// v75.25: banner topo direcionando pro DRE auto-populado em Plano Consolidado
+function _pgFinAutoBanner(targetTab, lbl){
+  return '<div style="max-width:1200px;margin:0 auto 14px;padding:0 24px"><div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #fbbf24;border-left:4px solid #f59e0b;border-radius:10px;padding:14px 16px;color:#78350f;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div style="flex:1;min-width:200px"><div style="font-weight:800;font-size:.92rem;margin-bottom:3px">📊 '+lbl+' AUTO-POPULADO disponível</div><div style="font-size:.78rem;font-weight:600">Esta tela é só pra ajustes manuais. Os dados reais do '+lbl+' (importados do Excel v2 + NIBO real-time) estão em <b>Financeiro › Plano Consolidado</b>.</div></div><button onclick="nav(\'fin_bp\');S.finBpTab=\''+targetTab+'\';render({force:true})" style="background:#0f172a;color:#fbbf24;border:none;padding:9px 16px;border-radius:8px;font-weight:800;cursor:pointer;font-size:.82rem;white-space:nowrap">Abrir Plano Consolidado →</button></div></div>';
+}
+
 function pgDre() {
+  // v75.25: prepend banner direcionando pro DRE consolidado real
+  var _autoBanner = _pgFinAutoBanner('dre', 'DRE Mensal');
   const dados = window.psmLSGet('psm_dre', {});
   const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const mesAtual = new Date().getMonth();
@@ -20797,7 +20897,7 @@ function pgDre() {
   const totalImposto = categorias[2].items.reduce((s, i) => s + getVal(i.key), 0);
   const lucro = totalReceita - totalCusto - totalImposto;
   const margem = totalReceita > 0 ? ((lucro / totalReceita) * 100).toFixed(1) : '\u2014';
-  return `
+  return _autoBanner + `
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\ud83d\udcca</span>
@@ -20855,8 +20955,10 @@ function pgDre() {
   }, 0);
 }
 
-// ─── PAGE: COMISSÕES ────────────────────────────────────────────────
+// ─── PAGE: COMISSÕES (v75.25: banner direcionando pra Plano Consolidado) ───
 function pgComissoes() {
+  // v75.25: Comissoes calculadas automaticamente em Plano Consolidado a partir de VENDAS
+  var _autoBanner = _pgFinAutoBanner('empresas', 'Comissões consolidadas');
   const comissoes = window.psmLSGet('psm_comissoes', []);
   const total = (Array.isArray(comissoes)?comissoes:[]).reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
   const pagas = (Array.isArray(comissoes)?comissoes:[]).filter(c => c.status === 'pago');
@@ -20896,7 +20998,7 @@ function pgComissoes() {
     pgComissoes();
   };
   }, 0);
-  return `
+  return _autoBanner + `
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\ud83d\udcb0</span>
@@ -20953,6 +21055,8 @@ function pgComissoes() {
 
 // ─── PAGE: REPASSES ────────────────────────────────────────────────
 function pgRepasses() {
+  // v75.25: NIBO debits filtrados por "REPASSE" estao em Plano Consolidado > NIBO Live
+  var _autoBanner = _pgFinAutoBanner('nibo', 'Repasses (NIBO real-time)');
   const repasses = window.psmLSGet('psm_repasses', []);
   const total = repasses.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
   const realizados = repasses.filter(r => r.status === 'realizado');
@@ -20978,7 +21082,7 @@ function pgRepasses() {
     pgRepasses();
   };
   }, 0);
-  return `
+  return _autoBanner + `
   <div style="max-width:1200px;margin:auto;padding:24px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
       <span style="font-size:32px">\ud83d\udd04</span>
@@ -27577,6 +27681,7 @@ function renderSB() {
       {id:'lancamentos_ano',lbl:'Lan\u00e7amentos',  ico:'\uD83D\uDE80'},
       {id:'ranking',        lbl:'Ranking',           ico:'\uD83C\uDFC6'},
       {id:'agenda_psm',     lbl:'Agenda PSM',        ico:'\uD83D\uDCC5'},
+      {id:'painel_corretor_hub', lbl:'Painel do Corretor', ico:'\uD83D\uDC64'},  // v75.24: movido pra c\u00E1 (era se\u00e7\u00E3o 3)
     ]},
     // === 2. Diretoria (v75.23: unificacoes - psm_live engloba recados, dashboard engloba bi_socio) ===
     {sec:'Diretoria', items:[
@@ -27591,10 +27696,7 @@ function renderSB() {
       {id:'radar_conc',  lbl:'Radar Concorr\u00eancia', ico:'\uD83D\uDEF0\uFE0F'},
       {id:'dashboard',   lbl:'Dashboard Executivo', ico:'\uD83D\uDC51'},
     ]},
-    // === 3. Painel do Corretor (v75.22: hub central, 1 item compacto que abre grid) ===
-    {sec:null, items:[
-      {id:'painel_corretor_hub', lbl:'Painel do Corretor',  ico:'\uD83D\uDC64'},
-    ]},
+    // v75.24: Painel do Corretor MOVIDO pra se\u00E7\u00E3o 1 (logo ap\u00F3s Agenda PSM)
     // === 4. Ferramentas ===
     {sec:'Ferramentas', items:[
       {id:'tabela',        lbl:'Tabela PSM',              ico:'\uD83D\uDCCB'},
