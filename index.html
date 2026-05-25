@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.27.0';window.PSM_VERSION_META='2026.05.25-v75.27';
+</style><script>window.PSM_VERSION='75.28.0';window.PSM_VERSION_META='2026.05.25-v75.28';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -1633,6 +1633,63 @@ var BROKERS_ALL = ALL_BROKERS.slice();
     })
     .catch(function(e){
       console.warn('[v2/users] hidratação falhou — usando fallback hardcoded:', e.message);
+    });
+})();
+
+// ════════════════════════════════════════════════════════════════════════════
+// v2 Sprint 2 Etapa C (2026-05-25): hidrata mapeamento RD pipelines do Postgres
+// ─ Antes: FUNIS hardcoded + name-matching frágil (pipeline.name.includes('conquista'))
+// ─ Bug detectado: FUNIL CONQUISTA do RD usa IDs novos (69f5...) que não estavam
+//   no FUNIS.conquista hardcoded — deals da Conquista caíam como Lançamento.
+// ─ Agora: carrega /api/v2/rd_pipelines (que lê da tabela rd_pipelines do Postgres)
+//   e atribui em window._rdMap = { frente_by_pipeline, stages_by_pipeline, excluded }.
+// ─ processDeals usa esse mapa em vez de chutar por nome.
+// ════════════════════════════════════════════════════════════════════════════
+window._rdMap = window._rdMap || { frente_by_pipeline:{}, stages_by_pipeline:{}, excluded_pipelines:[], pipelines:[], loaded:false };
+(function _hydrateRdPipelinesFromBackend(){
+  if (window._psmRdMapHydratedAt) return;
+  // Cache local 1h (mapeamento muda raramente)
+  try {
+    var cachedAt = parseInt(localStorage.getItem('psm_v2_rdmap_at') || '0', 10);
+    if (cachedAt && (Date.now() - cachedAt) < 3600*1000) {
+      var cachedRaw = localStorage.getItem('psm_v2_rdmap');
+      if (cachedRaw) {
+        var cached = JSON.parse(cachedRaw);
+        if (cached && cached.frente_by_pipeline) {
+          window._rdMap = Object.assign(window._rdMap, cached, {loaded:true});
+        }
+      }
+    }
+  } catch(_){}
+
+  fetch('/api/v2/rd_pipelines?_=' + Date.now())
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if (!d || !d.ok) {
+        console.warn('[v2/rd_pipelines] resposta inválida — mantém fallback FUNIS hardcoded');
+        return;
+      }
+      window._rdMap = {
+        pipelines: d.pipelines || [],
+        frente_by_pipeline: d.frente_by_pipeline || {},
+        stages_by_pipeline: d.stages_by_pipeline || {},
+        excluded_pipelines: d.excluded_pipelines || [],
+        loaded: true
+      };
+      window._psmRdMapHydratedAt = Date.now();
+      try {
+        localStorage.setItem('psm_v2_rdmap', JSON.stringify(d));
+        localStorage.setItem('psm_v2_rdmap_at', String(Date.now()));
+      } catch(_){}
+      var pcount = (d.pipelines||[]).length;
+      var fcount = Object.keys(d.frente_by_pipeline||{}).length;
+      var ecount = (d.excluded_pipelines||[]).length;
+      console.log('[v2/rd_pipelines] ✅ '+pcount+' pipelines · '+fcount+' mapeados · '+ecount+' excluidos');
+      // Re-render caso o usuário já esteja na tela CRM
+      try { if (typeof render === 'function' && window.S && window.S.user) render({force:true}); } catch(_){}
+    })
+    .catch(function(e){
+      console.warn('[v2/rd_pipelines] hidratação falhou — usando fallback FUNIS hardcoded:', e.message);
     });
 })();
 
@@ -13103,7 +13160,14 @@ const RD = {
   processDeals(deals, winStatus) {
     // winStatus: 'open' | 'won' | 'lost'
     const processed = [];
+    // v75.28 (v2 Sprint 2C): exclui deals de pipelines `excluded` no Postgres
+    // (CARTEIRA MAP PAULO + FUNIL DE PARCERIA = funis pessoais, nao contam em metricas PSM)
+    const _excluded = (window._rdMap && window._rdMap.excluded_pipelines) || [];
+    const _frenteMap = (window._rdMap && window._rdMap.frente_by_pipeline) || {};
     deals.forEach(d => {
+      const pipelineId = d.deal_pipeline?._id || d.deal_pipeline?.id || '';
+      // SKIP deals de pipelines excluidos
+      if (pipelineId && _excluded.indexOf(pipelineId) >= 0) return;
       const stageId = d.deal_stage?._id || d.deal_stage?.id || '';
       const stInfo  = this.STAGES[stageId] || null;
       const rdUid   = d.user?._id || d.user?.id || '';
@@ -13111,19 +13175,21 @@ const RD = {
       const broker  = bid ? UM[bid] : null;
       const rdName  = d.user?.name || d.user?.nome || '—';
 
-      // Determine frente from stage mapping or deal pipeline
-      let frente = stInfo ? stInfo.frente : 'lancamento';
-      // Also check deal_pipeline name for frente detection
-      const plName = (d.deal_pipeline?.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      if (plName.includes('terceiro')) frente = 'terceiros';
-      else if (plName.includes('locac') || plName.includes('aluguel')) frente = 'locacao';
-      else if (plName.includes('conquista')) frente = 'conquista';
-      else if (plName.includes('map') || plName.includes('assessoria') || plName.includes('lancamento') || plName.includes('psm')) frente = 'lancamento';
-      // Conquista override: same pipeline as lançamento, but broker is conquista team
-      else if (frente === 'lancamento' && bid) {
-        const bUser = USERS_BASE.find(u => u.id === bid);
-        if (bUser && bUser.frente === 'conquista') frente = 'conquista';
-        else if (bUser && bUser.frente) frente = bUser.frente;
+      // v75.28 — Frente vem do mapeamento Postgres (pipeline_id -> frente)
+      // FALLBACK name-matching antigo se _rdMap ainda nao carregou
+      let frente = _frenteMap[pipelineId];
+      if (!frente) {
+        frente = stInfo ? stInfo.frente : 'lancamento';
+        const plName = (d.deal_pipeline?.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (plName.includes('terceiro')) frente = 'terceiros';
+        else if (plName.includes('locac') || plName.includes('aluguel')) frente = 'locacao';
+        else if (plName.includes('conquista')) frente = 'conquista';
+        else if (plName.includes('map') || plName.includes('assessoria') || plName.includes('lancamento') || plName.includes('psm')) frente = 'lancamento';
+        else if (frente === 'lancamento' && bid) {
+          const bUser = USERS_BASE.find(u => u.id === bid);
+          if (bUser && bUser.frente === 'conquista') frente = 'conquista';
+          else if (bUser && bUser.frente) frente = bUser.frente;
+        }
       }
 
       const cl = (d.contacts?.[0]?.name || d.name || 'Sem nome').slice(0, 42).trim();
