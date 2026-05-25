@@ -4,6 +4,7 @@
 import { auth } from './auth.js';
 import { router } from './router.js';
 import { api } from './api.js';
+import { pageUsuarios as pageUsuariosV2 } from './pages/usuarios.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -25,7 +26,7 @@ import { api } from './api.js';
 
   // 4) Registra rotas
   router.register('/',          { render: pageDashboard });
-  router.register('/usuarios',  { render: pageUsuarios });
+  router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários'); highlight('/usuarios'); await pageUsuariosV2(ctx, root); } });
   router.register('/conta',     { render: pageConta });
   router.register('*',          { render: page404 });
 
