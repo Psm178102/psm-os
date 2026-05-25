@@ -1,7 +1,7 @@
 {
-  "version": "75.38.0",
-  "meta": "2026.05.25-v75.38",
-  "built": "2026-05-25T20:30:00Z",
-  "sw": "v75.38.0-2026-05-25-PGCONFIG-USA-USERS-HIDRATADO",
-  "sprint": "v75.38 HOTFIX pgConfig (tela Configurações > Usuários) renderizava USERS_BASE (20 hardcoded) em vez de USERS (24 hidratado do Postgres). Christian, Fernanda, Stephanie, Kaue não apareciam na lista. FIX: linhas 26712/26718/26719 trocadas para USERS. Agora a tela mostra os 24 reais do Postgres com role/frente corretos. v75.37 inclusa: RD.sync não sobrescreve mais Postgres. v75.36 inclusa: comissões com hero NIBO + cruzamento RD CRM × 4%."
+  "version": "75.39.0",
+  "meta": "2026.05.25-v75.39",
+  "built": "2026-05-25T21:00:00Z",
+  "sw": "v75.39.0-2026-05-25-CONFIG-CENTRALIZADO",
+  "sprint": "v75.39 Configurações > Gestão de Usuários centralizada num único card (Perfil + Equipe + Acesso + Visibilidade + Adicionar manualmente). Removido card duplicado. Removido item 'Lançar Venda' do menu (PAGES_CONFIG sem vendas). Inclui v75.38: pgConfig agora renderiza USERS hidratado (24 do Postgres) em vez de USERS_BASE hardcoded — Christian, Fernanda, Stephanie, Kaue agora aparecem na tela."
 }

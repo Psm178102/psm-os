@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.38.0';window.PSM_VERSION_META='2026.05.25-v75.38';
+</style><script>window.PSM_VERSION='75.39.0';window.PSM_VERSION_META='2026.05.25-v75.39';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -26788,21 +26788,29 @@ function pgConfig() {
           +   '\u2022 <b>Vis\u00edvel/Oculto</b>: login funciona normal, mas nome <b>n\u00e3o aparece</b> em rankings/TV. Use para licen\u00e7as.<br>'
           +   '\u2022 Mudan\u00e7as s\u00e3o <b>auditadas</b> e sincronizadas entre dispositivos via Firebase.'
           + '</div>'
-          + '<div style="margin-top:10px;padding:10px;background:var(--cream2);border-radius:8px;font-size:10.5px;color:var(--muted);line-height:1.5"><strong style="color:var(--navy)">N\u00edveis hier\u00e1rquicos:</strong> S\u00f3cio(10) \u2022 Gerente(7) \u2022 Back Office(6) \u2022 L\u00edder(5) \u2022 Marketing(3) \u2022 Corretor(2)</div>';
+          + '<div style="margin-top:10px;padding:10px;background:var(--cream2);border-radius:8px;font-size:10.5px;color:var(--muted);line-height:1.5"><strong style="color:var(--navy)">N\u00edveis hier\u00e1rquicos:</strong> S\u00f3cio(10) \u2022 Gerente(7) \u2022 Back Office(6) \u2022 L\u00edder(5) \u2022 Marketing(3) \u2022 Corretor(2)</div>'
+          // v75.39: form "Adicionar corretor manualmente" centralizado dentro do mesmo card
+          + '<div style="margin-top:14px;padding:14px;background:#f8fafc;border-radius:10px;border:1px dashed var(--cream3)">'
+          +   '<div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:6px">\u2795 Adicionar corretor manualmente</div>'
+          +   '<div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">Use apenas quando o RD CRM ainda n\u00e3o sincronizou. Ap\u00f3s o pr\u00f3ximo sync, o RD enriquece automaticamente. Corretores ativos: <strong style=\"color:var(--navy)\">'+BROKERS.length+'</strong>.</div>'
+          +   '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+          +     '<input id="new-broker-name-v2" class="finp" style="width:200px;padding:6px 10px;font-size:12px" placeholder="Nome completo">'
+          +     '<input id="new-broker-email-v2" class="finp" style="width:240px;padding:6px 10px;font-size:12px" placeholder="email@imobiliariapsm.com.br">'
+          +     '<select id="new-broker-frente-v2" class="fs sel-f" style="padding:6px 10px;font-size:12px">'
+          +       Object.entries(FRENTES).map(function(en){var fid=en[0],f=en[1];return '<option value="'+fid+'">'+f.icon+' '+f.label+'</option>';}).join('')
+          +     '</select>'
+          +     '<button class="btn bp1 bsm" onclick="(function(){var n=document.getElementById(\'new-broker-name-v2\').value;var e=document.getElementById(\'new-broker-email-v2\').value;var fr=document.getElementById(\'new-broker-frente-v2\').value;document.getElementById(\'new-broker-name\').value=n;document.getElementById(\'new-broker-email\').value=e;document.getElementById(\'new-broker-frente\').value=fr;addBrokerManual();})()">+ Adicionar</button>'
+          +   '</div>'
+          + '</div>';
       })() : '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;background:var(--cream2);border-radius:8px">\uD83D\uDD12 Apenas S\u00f3cio/Diretor pode editar perfis hier\u00e1rquicos</div>')
     + '</div>'
-    // Planilhas One on One movidas para dentro da propria aba One on One de cada corretor
-    + '<div class="card mt2"><div class="ctitle">👥 Gestão de Usuários</div>'
-    + '<div style="font-size:11px;color:var(--muted);margin-bottom:12px">Adicione ou remova corretores do sistema (será sincronizado com o RD CRM no próximo sync).</div>'
-    + '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
-    + '<input id="new-broker-name" class="finp" style="width:200px;padding:6px 10px;font-size:12px" placeholder="Nome completo">'
-    + '<input id="new-broker-email" class="finp" style="width:220px;padding:6px 10px;font-size:12px" placeholder="email@imobiliariapsm.com.br">'
-    + '<select id="new-broker-frente" class="fs sel-f" style="padding:6px 10px;font-size:12px">'
-    + Object.entries(FRENTES).map(([fid,f]) => '<option value="'+fid+'">'+f.icon+' '+f.label+'</option>').join('')
+    // v75.39: card "👥 Gestão de Usuários" duplicado REMOVIDO — form centralizado dentro do card principal acima
+    + '<div style="display:none">'
+    + '<input id="new-broker-name" class="finp" placeholder="Nome completo">'
+    + '<input id="new-broker-email" class="finp" placeholder="email@imobiliariapsm.com.br">'
+    + '<select id="new-broker-frente" class="fs sel-f">'
+    + Object.entries(FRENTES).map(function(en){var fid=en[0],f=en[1];return '<option value="'+fid+'">'+f.icon+' '+f.label+'</option>';}).join('')
     + '</select>'
-    + '<button class="btn bp1 bsm" onclick="addBrokerManual()">+ Adicionar</button>'
-    + '</div>'
-    + '<div style="font-size:10px;color:var(--muted)">Corretores ativos: '+BROKERS.length+' \u00B7 O RD CRM sincroniza automaticamente — use este formulário apenas para adicionar manualmente.</div>'
     + '</div>'
     // ── Conectores & API Keys ──
     + '<div class="card mt2" style="grid-column:1/-1"><div class="ctitle">🔗 Conectores & API Keys</div>'
@@ -28761,7 +28769,7 @@ var PAGES_GP=['gp_treinamentos','gp_reunioes','gp_talentos'];
 // Agentes PSM: todos
 var PAGES_AGENTES=['agente_vera','agente_sol','sr_performance','sr_gerencia','vera'];
 // Config (socios only)
-var PAGES_CONFIG=['rdconfig','config','vendas'];
+var PAGES_CONFIG=['rdconfig','config']; // v75.39: 'vendas' removido
 
 function canAccess(p){
   if(!S.user)return false;
@@ -28891,10 +28899,10 @@ function renderSB() {
       {id:'sr_performance', lbl:'Sr. Performance',   ico:'\uD83E\uDD16'},
       {id:'sr_gerencia',    lbl:'Sr. Ger\u00eancia', ico:'\uD83D\uDC54'},
     ]},
-    {sec:'Configura\u00E7\u00F5es', items:[
+    {sec:'Configura\u00e7\u00F5es', items:[
       {id:'rdconfig',  lbl:'RD Station',           ico:'\uD83D\uDD17'},
-      {id:'config',    lbl:'Configura\u00E7\u00F5es',ico:'\u2699\uFE0F'},
-      {id:'vendas',    lbl:'Lan\u00e7ar Venda',    ico:'\uD83D\uDCB0'},
+      {id:'config',    lbl:'Configura\u00e7\u00F5es',ico:'\u2699\uFE0F'},
+      // v75.39: 'vendas' removido do menu \u2014 diretoria n\u00E3o usa entrada manual de vendas (vendas v\u00EAm via RD/NIBO)
     ]},
   ];  const sections = MENU.map(sec => {
     const items = sec.items.filter(function(m){return canAccess(m.id);});
