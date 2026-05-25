@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.29.0';window.PSM_VERSION_META='2026.05.25-v75.29';
+</style><script>window.PSM_VERSION='75.30.0';window.PSM_VERSION_META='2026.05.25-v75.30';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -1691,6 +1691,108 @@ window._rdMap = window._rdMap || { frente_by_pipeline:{}, stages_by_pipeline:{},
     .catch(function(e){
       console.warn('[v2/rd_pipelines] hidratação falhou — usando fallback FUNIS hardcoded:', e.message);
     });
+})();
+
+// ════════════════════════════════════════════════════════════════════════════
+// v2 Sprint 3 (2026-05-25): hidrata Financeiro manual + Tarefas Diretoria do Postgres
+// ─ Antes: psm_comissoes / psm_repasses / psm_dir_tarefas viviam SÓ em localStorage
+//   → user limpava cache → perdia tudo. Outro browser → não via os dados.
+// ─ Agora: no boot, fetch /api/v2/commissions, /transfers, /dir_tasks. Popula
+//   localStorage com a versão "oficial" do Postgres.
+// ─ Sprint 3B (próximo): write-back nos handlers (add/edit/delete) chamando POST.
+//   Por enquanto, o user pode editar via Supabase Table Editor e ao recarregar verá.
+// ════════════════════════════════════════════════════════════════════════════
+(function _hydrateFinanceFromBackend(){
+  if (window._psmFinanceHydratedAt) return;
+
+  function _applyToLocalStorage(key, items){
+    if (!Array.isArray(items)) return;
+    try { localStorage.setItem(key, JSON.stringify(items)); } catch(_){}
+  }
+
+  // Mapeamento PG → forma esperada pelo frontend
+  function _mapCommissions(rows){
+    return rows.map(function(r){
+      return {
+        id: r.id,                    // UUID — sprint 3B usa pra updates
+        corretor: r.corretor,
+        imovel: r.imovel || '—',
+        valor: parseFloat(r.valor || 0),
+        status: r.status,
+        data: r.data || ''
+      };
+    });
+  }
+  function _mapTransfers(rows){
+    return rows.map(function(r){
+      return {
+        id: r.id,                    // UUID
+        descricao: r.descricao,
+        destinatario: r.destinatario || '—',
+        valor: parseFloat(r.valor || 0),
+        status: r.status,
+        data: r.data || ''
+      };
+    });
+  }
+  function _mapDirTasks(rows){
+    return rows.map(function(r){
+      return {
+        id: r.id,                    // TEXT 'tr_TIMESTAMP_RAND'
+        titulo: r.titulo,
+        descricao: r.descricao || '',
+        status: r.status,
+        observacoes: r.observacoes || '',
+        inicio: r.inicio || '',
+        prazo: r.prazo || '',
+        responsavel: r.responsavel || '',
+        criadoPor: r.criado_por || '',
+        criadoEm: r.criado_em || Date.now(),
+        prioridade: r.prioridade || 'media',
+        categoria: r.categoria || '',
+        historico: Array.isArray(r.historico) ? r.historico : []
+      };
+    });
+  }
+
+  function _fetchAll(){
+    return Promise.allSettled([
+      fetch('/api/v2/commissions?_=' + Date.now()).then(function(r){return r.ok?r.json():null;}),
+      fetch('/api/v2/transfers?_=' + Date.now()).then(function(r){return r.ok?r.json():null;}),
+      fetch('/api/v2/dir_tasks?_=' + Date.now()).then(function(r){return r.ok?r.json():null;})
+    ]).then(function(results){
+      var summary = {commissions:0, transfers:0, dir_tasks:0, errors:[]};
+      // commissions
+      var d0 = results[0].status==='fulfilled' ? results[0].value : null;
+      if (d0 && d0.ok && Array.isArray(d0.commissions)) {
+        var mapped = _mapCommissions(d0.commissions);
+        _applyToLocalStorage('psm_comissoes', mapped);
+        summary.commissions = mapped.length;
+      } else { summary.errors.push('commissions'); }
+      // transfers
+      var d1 = results[1].status==='fulfilled' ? results[1].value : null;
+      if (d1 && d1.ok && Array.isArray(d1.transfers)) {
+        var mapped1 = _mapTransfers(d1.transfers);
+        _applyToLocalStorage('psm_repasses', mapped1);
+        summary.transfers = mapped1.length;
+      } else { summary.errors.push('transfers'); }
+      // dir_tasks
+      var d2 = results[2].status==='fulfilled' ? results[2].value : null;
+      if (d2 && d2.ok && Array.isArray(d2.tasks)) {
+        var mapped2 = _mapDirTasks(d2.tasks);
+        _applyToLocalStorage('psm_dir_tarefas', mapped2);
+        // Sincroniza S.dirTarefas no estado runtime
+        try { if (window.S) window.S.dirTarefas = mapped2.slice(); } catch(_){}
+        summary.dir_tasks = mapped2.length;
+      } else { summary.errors.push('dir_tasks'); }
+      window._psmFinanceHydratedAt = Date.now();
+      console.log('[v2/finance] ✅ hidratou: '+summary.commissions+' comissões, '+summary.transfers+' repasses, '+summary.dir_tasks+' tarefas'+(summary.errors.length?' (erros: '+summary.errors.join(',')+')':''));
+      try { if (typeof render === 'function' && window.S && window.S.user) render({force:true}); } catch(_){}
+    });
+  }
+  _fetchAll().catch(function(e){
+    console.warn('[v2/finance] hidratação falhou:', e.message);
+  });
 })();
 
 // Helper global: checa se um broker deve ser ocultado (inativo e sócio não ativou toggle)

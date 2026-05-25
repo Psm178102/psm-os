@@ -1,7 +1,7 @@
 {
-  "version": "75.29.0",
-  "meta": "2026.05.25-v75.29",
-  "built": "2026-05-25T15:00:00Z",
-  "sw": "v75.29.0-2026-05-25-CRM-MULTI-FUNIL-UI",
-  "sprint": "v75.29 = v2 Sprint 2 Etapa D: UI MULTI-FUNIL no CRM (pgCRM). (1) Substituído o select dropdown 'Todas Frentes' por abas visuais coloridas no topo: [🔀 Consolidado] [🏢 MAP] [🏆 Conquista] [🤝 Terceiros] [🔑 Locação]. Cada aba mostra contador de deals + VGV agregado da frente. (2) Kanban agora prefere stages do Postgres (window._rdMap.stages_by_pipeline) em vez do FUNIS hardcoded — quando user troca pipeline no RD, basta atualizar Postgres. Cores do FUNIS preservadas via mapeamento psm_stage_key→color. Fallback FUNIS hardcoded mantido pra retrocompatibilidade."
+  "version": "75.30.0",
+  "meta": "2026.05.25-v75.30",
+  "built": "2026-05-25T15:30:00Z",
+  "sw": "v75.30.0-2026-05-25-FINANCE-FROM-POSTGRES",
+  "sprint": "v75.30 = v2 Sprint 3A: Comissões + Repasses + Tarefas Diretoria agora HIDRATAM do Postgres no boot. 3 novas tabelas (commissions, transfers, dir_tasks) + 3 endpoints Python (/api/v2/commissions, /api/v2/transfers, /api/v2/dir_tasks). Frontend lê do API e popula psm_comissoes, psm_repasses, psm_dir_tarefas em localStorage como cache local. Schema alinhado com formato JS atual (status backlog/em_andamento/concluido). Sprint 3B (próximo): write-back nos handlers add/edit/delete pra POST no Postgres."
 }
