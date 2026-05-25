@@ -1,7 +1,7 @@
 {
-  "version": "75.45.0",
-  "meta": "2026.05.25-v75.45-sprint7.3-dashboard",
-  "built": "2026-05-25T23:50:00Z",
-  "sw": "v75.45.0-2026-05-25-SPRINT7.3-DASHBOARD",
-  "sprint": "v75.45 Sprint 7.3 — Dashboard + Painel do Corretor no /v2/. Novo endpoint GET /api/v3/metrics/overview retorna KPIs role-based (Sócio/Gerente vê global, Líder vê time, Corretor vê próprio). Página /v2/ (Dashboard) com KPI cards, top actions, eventos recentes, comissões. Página /v2/painel mostra perfil do corretor logado + comissões pessoais + audit pessoal + atalhos. Sidebar com link Meu Painel."
+  "version": "75.46.0",
+  "meta": "2026.05.25-v75.46-sprint7.4-crm-fin",
+  "built": "2026-05-26T00:20:00Z",
+  "sw": "v75.46.0-2026-05-26-SPRINT7.4-CRM-FIN",
+  "sprint": "v75.46 Sprint 7.4 fase 1 — Financeiro NIBO live + CRM funis. Novo /api/v3/finance/summary consolida 2 CNPJs (multi-tenant) com receita/despesa previstas+realizadas, top categorias, mês atual, breakdown por empresa. /api/v3/crm/funnels lê rd_pipelines+rd_stages do Postgres com filtro por role. Páginas /v2/financeiro (KPI hero + por empresa + top categorias) e /v2/crm (cards de funil com stages). Sidebar com nova seção Operação."
 }

@@ -8,6 +8,8 @@ import { pageUsuarios as pageUsuariosV2 } from './pages/usuarios.js';
 import { pageAuditoria } from './pages/auditoria.js';
 import { pageDashboard as pageDashboardV2 } from './pages/dashboard.js';
 import { pagePainel } from './pages/painel.js';
+import { pageFinanceiro } from './pages/financeiro.js';
+import { pageCrm } from './pages/crm.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -30,6 +32,8 @@ import { pagePainel } from './pages/painel.js';
   // 4) Registra rotas (Sprint 7.3: dashboard + painel modulares)
   router.register('/',          { render: async (ctx, root) => { setHeader('Dashboard'); highlight('/');          await pageDashboardV2(ctx, root); } });
   router.register('/painel',    { render: async (ctx, root) => { setHeader('Meu Painel'); highlight('/painel');   await pagePainel(ctx, root); } });
+  router.register('/financeiro',{ render: async (ctx, root) => { setHeader('Financeiro');highlight('/financeiro');await pageFinanceiro(ctx, root); } });
+  router.register('/crm',       { render: async (ctx, root) => { setHeader('CRM');       highlight('/crm');       await pageCrm(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -49,6 +53,9 @@ function shellHTML(user) {
         <div class="sb-sec">Início</div>
         <button class="sb-link on" data-nav="/"><span class="sb-ico">🏠</span> Dashboard</button>
         <button class="sb-link" data-nav="/painel"><span class="sb-ico">👤</span> Meu Painel</button>
+        <div class="sb-sec">Operação</div>
+        <button class="sb-link" data-nav="/financeiro"><span class="sb-ico">💰</span> Financeiro</button>
+        <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM</button>
         <div class="sb-sec">Gestão</div>
         <button class="sb-link" data-nav="/usuarios"><span class="sb-ico">👥</span> Usuários</button>
         <button class="sb-link" data-nav="/auditoria"><span class="sb-ico">📜</span> Auditoria</button>
