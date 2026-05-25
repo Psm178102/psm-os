@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.34.0';window.PSM_VERSION_META='2026.05.25-v75.34';
+</style><script>window.PSM_VERSION='75.35.0';window.PSM_VERSION_META='2026.05.25-v75.35';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -22175,7 +22175,7 @@ function pgFinExec(){
   var de30 = new Date(hoje.getTime() - 30*86400000);
   var meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
-  // ─── CAIXA (NIBO) ─────────────────────────────────────
+  // CAIXA
   var saldoBancario = (nd.accounts||[]).reduce(function(s,a){return s+(a.isVirtual?0:(a.openBalance||0));},0);
   var totalReceber = (nd.credits||[]).filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt>=hoje&&dt<=ate30;}).reduce(function(s,d){return s+(d.value||0);},0);
   var totalPagar = (nd.debits||[]).filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt>=hoje&&dt<=ate30;}).reduce(function(s,d){return s+(d.value||0);},0);
@@ -22185,7 +22185,7 @@ function pgFinExec(){
   var projecao30d = saldoBancario + totalReceber - totalPagar;
   var runwayDias = burnDiario > 0 ? Math.floor(saldoBancario / burnDiario) : 999;
 
-  // ─── VENDAS (RD) ──────────────────────────────────────
+  // VENDAS (RD)
   var VENDAS = window.VENDAS || [];
   var OPPS = window.OPPS || [];
   var LOST = window.LOST_DEALS || [];
@@ -22195,7 +22195,7 @@ function pgFinExec(){
   var pipelineVgv = OPPS.reduce(function(s,o){return s+(parseFloat(o.vgv)||0);},0);
   var taxaConv = (VENDAS.length+LOST.length) > 0 ? VENDAS.length/(VENDAS.length+LOST.length) : 0;
 
-  // ─── PLANO (PSM_BP do Excel) ──────────────────────────
+  // PLANO (PSM_BP)
   var bp = window.PSM_BP || {};
   var holding = bp.holding || {};
   var resumo = holding.resumo_anual || {};
@@ -22211,7 +22211,7 @@ function pgFinExec(){
   var vgvSustentavel = pontoEq.vgv_sustentavel || 0;
   var coberturaMeta = vgvBreakEven>0 ? vgvMes/vgvBreakEven : 0;
 
-  // ─── ALERTAS DE NEGÓCIO ───────────────────────────────
+  // ALERTAS
   var alertas = [];
   if (runwayDias<60 && burnDiario>0) alertas.push({sev:'critico', cat:'CAIXA', titulo:'Runway crítico', desc:runwayDias+'d de caixa — abaixo de 2 meses. Burn diário '+fmtK(burnDiario)+'.', acao:'Reduzir custos ou acelerar receber'});
   if (projecao30d<0) alertas.push({sev:'critico', cat:'CAIXA', titulo:'Caixa projetado NEGATIVO em 30d', desc:'Saldo + receber − pagar = '+fmtK(projecao30d), acao:'Renegociar prazos ou injetar caixa'});
@@ -22220,7 +22220,9 @@ function pgFinExec(){
   if (totalPagar>totalReceber*1.3) alertas.push({sev:'aviso', cat:'CAIXA', titulo:'Pagar muito > Receber', desc:fmtK(totalPagar)+' a pagar vs '+fmtK(totalReceber)+' a receber (30d)', acao:'Revisar agendamento de pagamentos'});
   if (OPPS.length>0 && pipelineVgv<vgvBreakEven*3) alertas.push({sev:'aviso', cat:'PIPELINE', titulo:'Pipeline insuficiente', desc:'Pipeline '+fmtK(pipelineVgv)+' < 3x break-even ('+fmtK(vgvBreakEven*3)+'). Cobertura baixa.', acao:'Aumentar geração de leads'});
 
-  var h = '<div style="padding:20px 24px;max-width:1400px;margin:0 auto">';
+  // v75.35: container FULL DARK MODE pra não conflitar com tema claro do app
+  var h = '<div style="background:#0b1120;min-height:100vh;margin:-20px;padding:24px;color:#f8fafc;font-family:inherit">';
+  h += '<div style="max-width:1400px;margin:0 auto">';
 
   // Header
   h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px">';
@@ -22231,29 +22233,28 @@ function pgFinExec(){
   h += '<button onclick="window._niboLoadAll && window._niboLoadAll(true);RD&&RD.sync&&RD.sync(true);" style="padding:8px 14px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:700">↻ Atualizar tudo</button>';
   h += '</div>';
 
-  // ── ALERTAS ──
+  // ALERTAS
   if (alertas.length > 0) {
-    h += '<div style="background:rgba(239,68,68,.04);border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:14px 16px;margin-bottom:16px">';
+    h += '<div style="background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.35);border-radius:12px;padding:14px 16px;margin-bottom:16px">';
     h += '<div style="font-size:.75rem;color:#fca5a5;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">⚠ '+alertas.length+' alerta'+(alertas.length>1?'s':'')+' ativo'+(alertas.length>1?'s':'')+'</div>';
     h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">';
     alertas.forEach(function(a){
       var corBd = a.sev==='critico' ? '#ef4444' : '#f59e0b';
-      var corFg = a.sev==='critico' ? '#fca5a5' : '#fcd34d';
-      h += '<div style="background:rgba(0,0,0,.2);border-left:3px solid '+corBd+';border-radius:6px;padding:10px 12px">';
-      h += '<div style="display:flex;justify-content:space-between;gap:6px;margin-bottom:4px"><span style="font-size:.62rem;color:'+corBd+';font-weight:800;text-transform:uppercase;letter-spacing:.4px">'+a.cat+'</span><span style="font-size:.55rem;color:'+corFg+';background:rgba(0,0,0,.3);padding:1px 6px;border-radius:3px;font-weight:700">'+a.sev.toUpperCase()+'</span></div>';
+      var corFg = a.sev==='critico' ? '#fecaca' : '#fde68a';
+      h += '<div style="background:rgba(15,23,42,.7);border:1px solid '+corBd+'66;border-left:3px solid '+corBd+';border-radius:6px;padding:10px 12px">';
+      h += '<div style="display:flex;justify-content:space-between;gap:6px;margin-bottom:4px"><span style="font-size:.62rem;color:'+corBd+';font-weight:800;text-transform:uppercase;letter-spacing:.4px">'+a.cat+'</span><span style="font-size:.55rem;color:#0f172a;background:'+corBd+';padding:1px 6px;border-radius:3px;font-weight:700">'+a.sev.toUpperCase()+'</span></div>';
       h += '<div style="font-size:.82rem;font-weight:700;color:'+corFg+';margin-bottom:3px">'+a.titulo+'</div>';
-      h += '<div style="font-size:.7rem;color:#cbd5e1;line-height:1.35;margin-bottom:4px">'+a.desc+'</div>';
-      h += '<div style="font-size:.62rem;color:#94a3b8;font-style:italic">→ '+a.acao+'</div>';
+      h += '<div style="font-size:.72rem;color:#e2e8f0;line-height:1.4;margin-bottom:4px">'+a.desc+'</div>';
+      h += '<div style="font-size:.65rem;color:#94a3b8;font-style:italic">→ '+a.acao+'</div>';
       h += '</div>';
     });
     h += '</div></div>';
   } else {
-    h += '<div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-left:3px solid #22c55e;border-radius:8px;padding:12px 14px;margin-bottom:16px;color:#86efac;font-size:.85rem;font-weight:600">✅ Nenhum alerta ativo · operação saudável</div>';
+    h += '<div style="background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.35);border-left:3px solid #22c55e;border-radius:8px;padding:12px 14px;margin-bottom:16px;color:#bbf7d0;font-size:.85rem;font-weight:600">✅ Nenhum alerta ativo · operação saudável</div>';
   }
 
-  // ── HERO 4 PILARES ──
+  // 4 PILARES
   h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:16px">';
-
   // 1. CAIXA
   var corRunway = runwayDias<60?'#ef4444':(runwayDias<120?'#f59e0b':'#22c55e');
   h += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-top:4px solid '+corRunway+';border-radius:12px;padding:16px;color:#f8fafc">';
@@ -22262,65 +22263,58 @@ function pgFinExec(){
   h += '<div style="display:flex;justify-content:space-between;font-size:.72rem;color:#cbd5e1"><span>📥 R: <b style="color:#22c55e">'+fmtK(totalReceber)+'</b></span><span>📤 P: <b style="color:#ef4444">'+fmtK(totalPagar)+'</b></span></div>';
   h += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #334155;font-size:.72rem"><span style="color:#94a3b8">Projeção 30d: </span><b style="color:'+(projecao30d>=0?'#3b82f6':'#ef4444')+'">'+fmtK(projecao30d)+'</b></div>';
   h += '</div>';
-
   // 2. VENDAS
   var corMeta = pctMeta>=1?'#22c55e':(pctMeta>=0.7?'#f59e0b':'#ef4444');
   h += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-top:4px solid '+corMeta+';border-radius:12px;padding:16px;color:#f8fafc">';
   h += '<div style="font-size:.65rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:800;margin-bottom:8px">📊 VENDAS</div>';
   h += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="color:#3b82f6;font-size:1.5rem;font-weight:800">'+fmtK(vgvMes)+'</span><span style="color:'+corMeta+';font-size:.85rem;font-weight:700">'+fmtPct(pctMeta)+' meta</span></div>';
-  h += '<div style="display:flex;justify-content:space-between;font-size:.72rem;color:#cbd5e1"><span>Vendas: <b>'+vendasMes.length+'</b></span><span>TM: <b>'+fmtK(ticketMedio)+'</b></span></div>';
+  h += '<div style="display:flex;justify-content:space-between;font-size:.72rem;color:#cbd5e1"><span>Vendas: <b style="color:#fff">'+vendasMes.length+'</b></span><span>TM: <b style="color:#fff">'+fmtK(ticketMedio)+'</b></span></div>';
   h += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #334155;font-size:.72rem"><span style="color:#94a3b8">Pipeline: </span><b style="color:#f59e0b">'+fmtK(pipelineVgv)+'</b> <span style="color:#94a3b8">· Conv: </span><b style="color:#06b6d4">'+fmtPct(taxaConv)+'</b></div>';
   h += '</div>';
-
-  // 3. VIABILIDADE (vs ponto equilíbrio)
+  // 3. VIABILIDADE
   var corViab = coberturaMeta>=1?'#22c55e':(coberturaMeta>=0.5?'#f59e0b':'#ef4444');
   h += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-top:4px solid '+corViab+';border-radius:12px;padding:16px;color:#f8fafc">';
   h += '<div style="font-size:.65rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:800;margin-bottom:8px">⚖️ VIABILIDADE</div>';
   h += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="color:'+corViab+';font-size:1.5rem;font-weight:800">'+fmtPct(coberturaMeta)+'</span><span style="color:#94a3b8;font-size:.75rem;">do break-even</span></div>';
-  h += '<div style="font-size:.7rem;color:#cbd5e1;margin-bottom:3px"><span style="color:#94a3b8">Vendas mês: </span><b>'+fmtK(vgvMes)+'</b></div>';
+  h += '<div style="font-size:.7rem;color:#cbd5e1;margin-bottom:3px"><span style="color:#94a3b8">Vendas mês: </span><b style="color:#fff">'+fmtK(vgvMes)+'</b></div>';
   h += '<div style="font-size:.7rem;color:#cbd5e1;margin-bottom:3px"><span style="color:#94a3b8">Break-even: </span><b style="color:#ef4444">'+fmtK(vgvBreakEven)+'</b></div>';
   h += '<div style="font-size:.7rem;color:#cbd5e1"><span style="color:#94a3b8">Sustentável: </span><b style="color:#22c55e">'+fmtK(vgvSustentavel)+'</b></div>';
   h += '</div>';
-
   // 4. EBITDA
   var corEbit = ebitdaPlano>=0?'#22c55e':'#ef4444';
   h += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-top:4px solid '+corEbit+';border-radius:12px;padding:16px;color:#f8fafc">';
   h += '<div style="font-size:.65rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:800;margin-bottom:8px">💰 EBITDA PLANO</div>';
   h += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="color:'+corEbit+';font-size:1.5rem;font-weight:800">'+fmtK(ebitdaPlano)+'</span><span style="color:#94a3b8;font-size:.75rem">mês</span></div>';
-  h += '<div style="font-size:.7rem;color:#cbd5e1;margin-bottom:3px"><span style="color:#94a3b8">Receita planejada: </span><b>'+fmtK((holding.dre_mensal&&holding.dre_mensal.total_volume?holding.dre_mensal.total_volume[mesAtual]:0))+'</b></div>';
-  h += '<div style="font-size:.7rem;color:#cbd5e1"><span style="color:#94a3b8">Margem: </span><b>'+fmtPct(totalGrupo.margem||0)+'</b></div>';
-  h += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #334155;font-size:.65rem;color:#94a3b8;font-style:italic">Fonte: v2.xlsx</div>';
+  h += '<div style="font-size:.7rem;color:#cbd5e1;margin-bottom:3px"><span style="color:#94a3b8">Receita planejada: </span><b style="color:#fff">'+fmtK((holding.dre_mensal&&holding.dre_mensal.total_volume?holding.dre_mensal.total_volume[mesAtual]:0))+'</b></div>';
+  h += '<div style="font-size:.7rem;color:#cbd5e1"><span style="color:#94a3b8">Margem: </span><b style="color:#fff">'+fmtPct(totalGrupo.margem||0)+'</b></div>';
+  h += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #334155;font-size:.65rem;color:#64748b;font-style:italic">Fonte: v2.xlsx</div>';
+  h += '</div>';
   h += '</div>';
 
-  h += '</div>';
-
-  // ── COMPARATIVO REAL vs PLANO ──
-  var ebitdaReal = (function(){
-    var receitas = (nd.credits||[]).filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt.getMonth()===mesAtual && dt.getFullYear()===anoAtual;}).reduce(function(s,d){return s+(d.value||0);},0);
-    var custos = (nd.debits||[]).filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt.getMonth()===mesAtual && dt.getFullYear()===anoAtual;}).reduce(function(s,d){return s+(d.value||0);},0);
-    return receitas - custos;
-  })();
+  // COMPARATIVO REAL vs PLANO
   var receitaPlano = (holding.dre_mensal&&holding.dre_mensal.total_volume)?(holding.dre_mensal.total_volume[mesAtual]||0):0;
   var receitaReal = (nd.credits||[]).filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt.getMonth()===mesAtual && dt.getFullYear()===anoAtual;}).reduce(function(s,d){return s+(d.value||0);},0);
+  var custosReal = (nd.debits||[]).filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt.getMonth()===mesAtual && dt.getFullYear()===anoAtual;}).reduce(function(s,d){return s+(d.value||0);},0);
+  var ebitdaReal = receitaReal - custosReal;
 
   h += '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;margin-bottom:16px;color:#f8fafc">';
-  h += '<h3 style="margin:0 0 12px;font-size:.9rem;font-weight:800">📈 Plano vs Realizado · '+meses[mesAtual]+' '+anoAtual+'</h3>';
+  h += '<h3 style="margin:0 0 12px;font-size:.9rem;font-weight:800;color:#f8fafc">📈 Plano vs Realizado · '+meses[mesAtual]+' '+anoAtual+'</h3>';
   h += '<table style="width:100%;border-collapse:collapse;font-size:.78rem"><thead><tr style="color:#94a3b8;border-bottom:1px solid #334155">';
-  ['Indicador','Plano','Real','Δ','Atingimento'].forEach(function(c){h+='<th style="padding:8px;text-align:left;font-size:.62rem;text-transform:uppercase">'+c+'</th>';});
+  ['Indicador','Plano','Real','Δ','Atingimento'].forEach(function(c){h+='<th style="padding:8px;text-align:left;font-size:.62rem;text-transform:uppercase;color:#94a3b8">'+c+'</th>';});
   h += '</tr></thead><tbody>';
   function _linha(lbl, plano, real, isReceita){
     var d = real - plano;
     var p = plano > 0 ? (real / plano) : 0;
     var corD = isReceita?(d>=0?'#22c55e':'#ef4444'):(d<=0?'#22c55e':'#ef4444');
     var corP = p>=1?'#22c55e':(p>=0.7?'#f59e0b':'#ef4444');
-    return '<tr style="border-bottom:1px solid #0f172a"><td style="padding:9px;font-weight:600">'+lbl+'</td><td style="padding:9px;color:#94a3b8">'+fmtK(plano)+'</td><td style="padding:9px;color:#e2e8f0;font-weight:700">'+fmtK(real)+'</td><td style="padding:9px;color:'+corD+';font-weight:700">'+(d>=0?'+':'')+fmtK(d)+'</td><td style="padding:9px;color:'+corP+';font-weight:800">'+fmtPct(p)+'</td></tr>';
+    return '<tr style="border-bottom:1px solid #0f172a;color:#e2e8f0"><td style="padding:9px;font-weight:600;color:#e2e8f0">'+lbl+'</td><td style="padding:9px;color:#94a3b8">'+fmtK(plano)+'</td><td style="padding:9px;color:#f8fafc;font-weight:700">'+fmtK(real)+'</td><td style="padding:9px;color:'+corD+';font-weight:700">'+(d>=0?'+':'')+fmtK(d)+'</td><td style="padding:9px;color:'+corP+';font-weight:800">'+fmtPct(p)+'</td></tr>';
   }
   h += _linha('VGV Vendas (RD CRM)', metaMensal, vgvMes, true);
   h += _linha('Receita (NIBO)', receitaPlano, receitaReal, true);
   h += _linha('EBITDA', ebitdaPlano, ebitdaReal, true);
   h += '</tbody></table></div>';
 
-  // ── LINKS pra outras telas ──
+  // LINKS rápidos
   h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px">';
   [
     {p:'fin_bp', l:'Plano Consolidado'},
@@ -22329,13 +22323,15 @@ function pgFinExec(){
     {p:'custos_fixos', l:'Custos Fixos'},
     {p:'metricas_fin', l:'Métricas Detalhadas'}
   ].forEach(function(b){
-    h += '<button onclick="nav(\''+b.p+'\')" style="padding:8px 14px;background:transparent;border:1px solid #334155;color:#94a3b8;border-radius:7px;cursor:pointer;font-size:.78rem;font-weight:600">→ '+b.l+'</button>';
+    h += '<button onclick="nav(\''+b.p+'\')" style="padding:8px 14px;background:#1e293b;border:1px solid #334155;color:#cbd5e1;border-radius:7px;cursor:pointer;font-size:.78rem;font-weight:600">→ '+b.l+'</button>';
   });
   h += '</div>';
 
-  h += '</div>';
+  h += '</div></div>';
   return h;
 }
+
+
 
 // ════════════════════════════════════════════════════════════════════
 // v75.34 Sprint 4C — Métricas Financeiro com tab "Tempo Real"
@@ -22357,11 +22353,12 @@ function pgMetricasFinanceiro(){
     var sel = window._mfTab === id;
     return '<button onclick="window._mfTab=\''+id+'\';render({force:true})" style="padding:9px 16px;background:'+(sel?'var(--gold)':'transparent')+';color:'+(sel?'var(--navy)':'#94a3b8')+';border:1px solid '+(sel?'var(--gold)':'#334155')+';border-radius:7px;cursor:pointer;font-size:.85rem;font-weight:'+(sel?'800':'600')+';margin-right:6px;display:inline-flex;align-items:center;gap:6px">'+ico+' '+lbl+'</button>';
   }
-  var tabBar = '<div style="padding:18px 24px 0;max-width:1400px;margin:0 auto"><div style="display:flex;gap:6px;border-bottom:1px solid #334155;padding-bottom:10px;flex-wrap:wrap;margin-bottom:18px">';
+  // v75.35: tabBar precisa de container dark — se tab tempo_real, vai junto com o h; se não, embrulha aqui
+  var tabBar = '<div style="background:#0b1120;margin:-20px -20px 0;padding:18px 24px 0;color:#f8fafc"><div style="max-width:1400px;margin:0 auto"><div style="display:flex;gap:6px;border-bottom:1px solid #334155;padding-bottom:10px;flex-wrap:wrap;margin-bottom:18px">';
   tabBar += _tabBtn('tempo_real','Tempo Real','⚡');
   tabBar += _tabBtn('metrics','Métricas Calculadas','📊');
   tabBar += _tabBtn('input','Inputs Manuais','📝');
-  tabBar += '</div></div>';
+  tabBar += '</div></div></div>';  // fecha 3 divs (tab-flex, max-width, dark-container)
 
   if (window._mfTab !== 'tempo_real') {
     return tabBar + mfTabHTML(window._mfTab);
@@ -22407,7 +22404,9 @@ function pgMetricasFinanceiro(){
   var pctMeta = metaMensal > 0 ? (vgvMes / metaMensal * 100) : 0;
 
   // ─── RENDER ──────────────────────────────────────────────────
-  var h = '<div style="padding:0 24px;max-width:1400px;margin:0 auto">';
+  // v75.35: dark container pra não conflitar com tema claro
+  var h = '<div style="background:#0b1120;min-height:100vh;margin:-20px -20px 0;padding:0 24px 24px;color:#f8fafc">';
+  h += '<div style="max-width:1400px;margin:0 auto;padding-top:20px">';
 
   // Header
   h += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">';
@@ -22460,10 +22459,10 @@ function pgMetricasFinanceiro(){
   h += '</div></div>';
 
   h += '<div style="background:#0f172a;border:1px dashed #334155;border-radius:10px;padding:14px;color:#94a3b8;font-size:.78rem;text-align:center;margin-bottom:24px">';
-  h += '💡 Dica: para visão executiva completa (alertas + viabilidade + comparação plano vs real), navegue para <b style="color:var(--gold)">Financeiro › Dashboard Executivo</b>';
+  h += '💡 Dica: para visão executiva completa (alertas + viabilidade + comparação plano vs real), navegue para <b style="color:#fbbf24">Financeiro › Dashboard Executivo</b>';
   h += '</div>';
 
-  h += '</div>';
+  h += '</div></div>';  // v75.35: fecha o div interno + container dark
   return tabBar + h;
 }
 

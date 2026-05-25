@@ -1,7 +1,7 @@
 {
-  "version": "75.34.0",
-  "meta": "2026.05.25-v75.34",
-  "built": "2026-05-25T17:30:00Z",
-  "sw": "v75.34.0-2026-05-25-FIN-EXEC-DASHBOARD",
-  "sprint": "v75.34 = Sprint 4C + Sprint 5. (4C) pgMetricasFinanceiro reescrito: tabs Tempo Real (default) + Métricas Calculadas + Inputs Manuais. Tab Tempo Real tem alertas críticos automáticos + Hero KPIs CAIXA (Saldo, A receber/pagar 30d, Projeção, Runway, Burn diário) cruzando NIBO + Hero VENDAS (VGV mês, %meta, Ticket Médio, Pipeline, Taxa Conv) cruzando RD CRM + meta do PSM_BP. (5) NOVA PÁGINA fin_exec (Dashboard Executivo Financeiro) — adicionada ao menu Financeiro como primeiro item. 4 pilares (Caixa/Vendas/Viabilidade/EBITDA), engine de alertas críticos (Runway<60d, Caixa negativo 30d, Vendas<Break-even, Atrasado vs ritmo, Pagar>Receber, Pipeline insuficiente), tabela Plano vs Real (VGV/Receita/EBITDA) + atalhos pra outras telas Financeiro."
+  "version": "75.35.0",
+  "meta": "2026.05.25-v75.35",
+  "built": "2026-05-25T18:00:00Z",
+  "sw": "v75.35.0-2026-05-25-FIN-DARK-CONTAINER",
+  "sprint": "v75.35 HOTFIX LAYOUT: pgFinExec (Dashboard Executivo) e pgMetricasFinanceiro (tab Tempo Real) agora têm container DARK MODE FULL — background #0b1120 que ocupa toda a viewport via margin negativo. Headers, alertas, tabela e links agora ficam visíveis e profissionais (estilo trading floor / Bloomberg). Antes: texto branco em fundo claro do app = invisível. Agora: paleta consistente com cards escuros."
 }
