@@ -1,7 +1,7 @@
 {
-  "version": "75.33.0",
-  "meta": "2026.05.25-v75.33",
-  "built": "2026-05-25T17:00:00Z",
-  "sw": "v75.33.0-2026-05-25-CUSTOS-REPASSES-NIBO",
-  "sprint": "v75.33 = Sprint 4B: (1) pgCustosFixos REAL — substitui o placeholder 'Em breve'. Mostra 3 hero KPIs (NIBO 30d, Folha BP, Softwares BP) + tabela NIBO por categoria (últimos 90 dias categorizados automaticamente: Salários, Marketing/Ads, Impostos, Encargos, Telecom, Energia, Software, etc) + folha salarial detalhada do PSM_BP + softwares recorrentes. (2) pgRepasses ganhou bloco NIBO no topo: lista próximos 30 dias de débitos com 'REPASSE' ou 'ALUGUEL' na descrição, com prazo, empresa (Imóveis/Locação tagged) e valor. Total agregado. Próximo (v75.34): pgMetricasFinanceiro tab Tempo Real."
+  "version": "75.34.0",
+  "meta": "2026.05.25-v75.34",
+  "built": "2026-05-25T17:30:00Z",
+  "sw": "v75.34.0-2026-05-25-FIN-EXEC-DASHBOARD",
+  "sprint": "v75.34 = Sprint 4C + Sprint 5. (4C) pgMetricasFinanceiro reescrito: tabs Tempo Real (default) + Métricas Calculadas + Inputs Manuais. Tab Tempo Real tem alertas críticos automáticos + Hero KPIs CAIXA (Saldo, A receber/pagar 30d, Projeção, Runway, Burn diário) cruzando NIBO + Hero VENDAS (VGV mês, %meta, Ticket Médio, Pipeline, Taxa Conv) cruzando RD CRM + meta do PSM_BP. (5) NOVA PÁGINA fin_exec (Dashboard Executivo Financeiro) — adicionada ao menu Financeiro como primeiro item. 4 pilares (Caixa/Vendas/Viabilidade/EBITDA), engine de alertas críticos (Runway<60d, Caixa negativo 30d, Vendas<Break-even, Atrasado vs ritmo, Pagar>Receber, Pipeline insuficiente), tabela Plano vs Real (VGV/Receita/EBITDA) + atalhos pra outras telas Financeiro."
 }

@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.33.0';window.PSM_VERSION_META='2026.05.25-v75.33';
+</style><script>window.PSM_VERSION='75.34.0';window.PSM_VERSION_META='2026.05.25-v75.34';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -22152,8 +22152,319 @@ function pgCustosFixos(){
   return h;
 }
 
+// ════════════════════════════════════════════════════════════════════
+// v75.34 Sprint 5 — DASHBOARD EXECUTIVO FINANCEIRO
+// ─ Cruza NIBO (caixa) + RD CRM (vendas) + Plano BP (Excel) + Meta ADS
+// ─ Visão integrada: Caixa · Vendas · Viabilidade · Alertas
+// ════════════════════════════════════════════════════════════════════
+function pgFinExec(){
+  if (!S.user) return '<div style="padding:40px">Faça login</div>';
+  if (!S.niboData) S.niboData = { accounts:null, debits:null, credits:null, loading:false, error:null, lastFetch:0 };
+  if (!S.niboData.accounts && !S.niboData.loading && typeof window._niboLoadAll === 'function') {
+    window._niboLoadAll();
+  }
+
+  function fmtK(n){ var v=parseFloat(n)||0; if(Math.abs(v)>=1000000) return 'R$ '+(v/1000000).toFixed(2)+'M'; if(Math.abs(v)>=1000) return 'R$ '+(v/1000).toFixed(1)+'k'; return 'R$ '+v.toFixed(0); }
+  function fmtPct(n){ return ((parseFloat(n)||0)*100).toFixed(1)+'%'; }
+
+  var nd = S.niboData;
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var mesAtual = hoje.getMonth();
+  var anoAtual = hoje.getFullYear();
+  var ate30 = new Date(hoje.getTime() + 30*86400000);
+  var de30 = new Date(hoje.getTime() - 30*86400000);
+  var meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  // ─── CAIXA (NIBO) ─────────────────────────────────────
+  var saldoBancario = (nd.accounts||[]).reduce(function(s,a){return s+(a.isVirtual?0:(a.openBalance||0));},0);
+  var totalReceber = (nd.credits||[]).filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt>=hoje&&dt<=ate30;}).reduce(function(s,d){return s+(d.value||0);},0);
+  var totalPagar = (nd.debits||[]).filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt>=hoje&&dt<=ate30;}).reduce(function(s,d){return s+(d.value||0);},0);
+  var pagos30d = (nd.debits||[]).filter(function(d){var dt=d.paymentDate||d.dueDate;if(!dt)return false;var date=new Date(dt);return date>=de30&&date<=hoje;});
+  var burn30d = pagos30d.reduce(function(s,d){return s+(d.value||0);},0);
+  var burnDiario = burn30d / 30;
+  var projecao30d = saldoBancario + totalReceber - totalPagar;
+  var runwayDias = burnDiario > 0 ? Math.floor(saldoBancario / burnDiario) : 999;
+
+  // ─── VENDAS (RD) ──────────────────────────────────────
+  var VENDAS = window.VENDAS || [];
+  var OPPS = window.OPPS || [];
+  var LOST = window.LOST_DEALS || [];
+  var vendasMes = VENDAS.filter(function(v){if(!v.closedAt)return false;var d=new Date(v.closedAt);return d.getMonth()===mesAtual && d.getFullYear()===anoAtual;});
+  var vgvMes = vendasMes.reduce(function(s,v){return s+(parseFloat(v.vgv)||0);},0);
+  var ticketMedio = vendasMes.length>0 ? vgvMes/vendasMes.length : 0;
+  var pipelineVgv = OPPS.reduce(function(s,o){return s+(parseFloat(o.vgv)||0);},0);
+  var taxaConv = (VENDAS.length+LOST.length) > 0 ? VENDAS.length/(VENDAS.length+LOST.length) : 0;
+
+  // ─── PLANO (PSM_BP do Excel) ──────────────────────────
+  var bp = window.PSM_BP || {};
+  var holding = bp.holding || {};
+  var resumo = holding.resumo_anual || {};
+  var totalGrupo = resumo.total_grupo || {};
+  var metaVgvAno = totalGrupo.vgv_total || 0;
+  var metaMensal = metaVgvAno / 12;
+  var pctMeta = metaMensal>0 ? vgvMes/metaMensal : 0;
+  var pctTempo = (hoje.getDate() / (new Date(anoAtual,mesAtual+1,0).getDate()));
+  var ritmoDelta = pctMeta - pctTempo;
+  var ebitdaPlano = (holding.dre_mensal && holding.dre_mensal.ebitda_total) ? (holding.dre_mensal.ebitda_total[mesAtual]||0) : 0;
+  var pontoEq = holding.ponto_equilibrio || {};
+  var vgvBreakEven = pontoEq.vgv_break_even || 0;
+  var vgvSustentavel = pontoEq.vgv_sustentavel || 0;
+  var coberturaMeta = vgvBreakEven>0 ? vgvMes/vgvBreakEven : 0;
+
+  // ─── ALERTAS DE NEGÓCIO ───────────────────────────────
+  var alertas = [];
+  if (runwayDias<60 && burnDiario>0) alertas.push({sev:'critico', cat:'CAIXA', titulo:'Runway crítico', desc:runwayDias+'d de caixa — abaixo de 2 meses. Burn diário '+fmtK(burnDiario)+'.', acao:'Reduzir custos ou acelerar receber'});
+  if (projecao30d<0) alertas.push({sev:'critico', cat:'CAIXA', titulo:'Caixa projetado NEGATIVO em 30d', desc:'Saldo + receber − pagar = '+fmtK(projecao30d), acao:'Renegociar prazos ou injetar caixa'});
+  if (vgvMes<vgvBreakEven && vgvBreakEven>0) alertas.push({sev:'critico', cat:'VENDAS', titulo:'Abaixo do break-even', desc:'Vendas do mês ('+fmtK(vgvMes)+') < break-even ('+fmtK(vgvBreakEven)+'). Empresa está queimando margem.', acao:'Acelerar fechamento ou cortar custo'});
+  if (ritmoDelta<-0.15 && hoje.getDate()>10) alertas.push({sev:'aviso', cat:'META', titulo:'Atrasado vs ritmo', desc:'Meta '+fmtPct(pctMeta)+' / Tempo decorrido '+fmtPct(pctTempo)+' = '+(ritmoDelta*100).toFixed(0)+' pts atrasado', acao:'Reforçar pipeline ou aumentar capacidade'});
+  if (totalPagar>totalReceber*1.3) alertas.push({sev:'aviso', cat:'CAIXA', titulo:'Pagar muito > Receber', desc:fmtK(totalPagar)+' a pagar vs '+fmtK(totalReceber)+' a receber (30d)', acao:'Revisar agendamento de pagamentos'});
+  if (OPPS.length>0 && pipelineVgv<vgvBreakEven*3) alertas.push({sev:'aviso', cat:'PIPELINE', titulo:'Pipeline insuficiente', desc:'Pipeline '+fmtK(pipelineVgv)+' < 3x break-even ('+fmtK(vgvBreakEven*3)+'). Cobertura baixa.', acao:'Aumentar geração de leads'});
+
+  var h = '<div style="padding:20px 24px;max-width:1400px;margin:0 auto">';
+
+  // Header
+  h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px">';
+  h += '<div style="display:flex;align-items:center;gap:12px">';
+  h += '<span style="font-size:30px">🎯</span>';
+  h += '<div><h1 style="margin:0;color:#f8fafc;font-size:1.4rem;font-weight:800">Dashboard Executivo Financeiro</h1>';
+  h += '<div style="color:#94a3b8;font-size:.78rem;margin-top:3px">Visão integrada · NIBO + RD CRM + Plano BP · '+meses[mesAtual]+'/'+anoAtual+'</div></div></div>';
+  h += '<button onclick="window._niboLoadAll && window._niboLoadAll(true);RD&&RD.sync&&RD.sync(true);" style="padding:8px 14px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:700">↻ Atualizar tudo</button>';
+  h += '</div>';
+
+  // ── ALERTAS ──
+  if (alertas.length > 0) {
+    h += '<div style="background:rgba(239,68,68,.04);border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:14px 16px;margin-bottom:16px">';
+    h += '<div style="font-size:.75rem;color:#fca5a5;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">⚠ '+alertas.length+' alerta'+(alertas.length>1?'s':'')+' ativo'+(alertas.length>1?'s':'')+'</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">';
+    alertas.forEach(function(a){
+      var corBd = a.sev==='critico' ? '#ef4444' : '#f59e0b';
+      var corFg = a.sev==='critico' ? '#fca5a5' : '#fcd34d';
+      h += '<div style="background:rgba(0,0,0,.2);border-left:3px solid '+corBd+';border-radius:6px;padding:10px 12px">';
+      h += '<div style="display:flex;justify-content:space-between;gap:6px;margin-bottom:4px"><span style="font-size:.62rem;color:'+corBd+';font-weight:800;text-transform:uppercase;letter-spacing:.4px">'+a.cat+'</span><span style="font-size:.55rem;color:'+corFg+';background:rgba(0,0,0,.3);padding:1px 6px;border-radius:3px;font-weight:700">'+a.sev.toUpperCase()+'</span></div>';
+      h += '<div style="font-size:.82rem;font-weight:700;color:'+corFg+';margin-bottom:3px">'+a.titulo+'</div>';
+      h += '<div style="font-size:.7rem;color:#cbd5e1;line-height:1.35;margin-bottom:4px">'+a.desc+'</div>';
+      h += '<div style="font-size:.62rem;color:#94a3b8;font-style:italic">→ '+a.acao+'</div>';
+      h += '</div>';
+    });
+    h += '</div></div>';
+  } else {
+    h += '<div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-left:3px solid #22c55e;border-radius:8px;padding:12px 14px;margin-bottom:16px;color:#86efac;font-size:.85rem;font-weight:600">✅ Nenhum alerta ativo · operação saudável</div>';
+  }
+
+  // ── HERO 4 PILARES ──
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:16px">';
+
+  // 1. CAIXA
+  var corRunway = runwayDias<60?'#ef4444':(runwayDias<120?'#f59e0b':'#22c55e');
+  h += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-top:4px solid '+corRunway+';border-radius:12px;padding:16px;color:#f8fafc">';
+  h += '<div style="font-size:.65rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:800;margin-bottom:8px">🏦 CAIXA</div>';
+  h += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="color:'+(saldoBancario>=0?'#22c55e':'#ef4444')+';font-size:1.5rem;font-weight:800">'+fmtK(saldoBancario)+'</span><span style="color:'+corRunway+';font-size:.85rem;font-weight:700">'+(runwayDias<999?runwayDias+'d runway':'∞ runway')+'</span></div>';
+  h += '<div style="display:flex;justify-content:space-between;font-size:.72rem;color:#cbd5e1"><span>📥 R: <b style="color:#22c55e">'+fmtK(totalReceber)+'</b></span><span>📤 P: <b style="color:#ef4444">'+fmtK(totalPagar)+'</b></span></div>';
+  h += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #334155;font-size:.72rem"><span style="color:#94a3b8">Projeção 30d: </span><b style="color:'+(projecao30d>=0?'#3b82f6':'#ef4444')+'">'+fmtK(projecao30d)+'</b></div>';
+  h += '</div>';
+
+  // 2. VENDAS
+  var corMeta = pctMeta>=1?'#22c55e':(pctMeta>=0.7?'#f59e0b':'#ef4444');
+  h += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-top:4px solid '+corMeta+';border-radius:12px;padding:16px;color:#f8fafc">';
+  h += '<div style="font-size:.65rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:800;margin-bottom:8px">📊 VENDAS</div>';
+  h += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="color:#3b82f6;font-size:1.5rem;font-weight:800">'+fmtK(vgvMes)+'</span><span style="color:'+corMeta+';font-size:.85rem;font-weight:700">'+fmtPct(pctMeta)+' meta</span></div>';
+  h += '<div style="display:flex;justify-content:space-between;font-size:.72rem;color:#cbd5e1"><span>Vendas: <b>'+vendasMes.length+'</b></span><span>TM: <b>'+fmtK(ticketMedio)+'</b></span></div>';
+  h += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #334155;font-size:.72rem"><span style="color:#94a3b8">Pipeline: </span><b style="color:#f59e0b">'+fmtK(pipelineVgv)+'</b> <span style="color:#94a3b8">· Conv: </span><b style="color:#06b6d4">'+fmtPct(taxaConv)+'</b></div>';
+  h += '</div>';
+
+  // 3. VIABILIDADE (vs ponto equilíbrio)
+  var corViab = coberturaMeta>=1?'#22c55e':(coberturaMeta>=0.5?'#f59e0b':'#ef4444');
+  h += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-top:4px solid '+corViab+';border-radius:12px;padding:16px;color:#f8fafc">';
+  h += '<div style="font-size:.65rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:800;margin-bottom:8px">⚖️ VIABILIDADE</div>';
+  h += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="color:'+corViab+';font-size:1.5rem;font-weight:800">'+fmtPct(coberturaMeta)+'</span><span style="color:#94a3b8;font-size:.75rem;">do break-even</span></div>';
+  h += '<div style="font-size:.7rem;color:#cbd5e1;margin-bottom:3px"><span style="color:#94a3b8">Vendas mês: </span><b>'+fmtK(vgvMes)+'</b></div>';
+  h += '<div style="font-size:.7rem;color:#cbd5e1;margin-bottom:3px"><span style="color:#94a3b8">Break-even: </span><b style="color:#ef4444">'+fmtK(vgvBreakEven)+'</b></div>';
+  h += '<div style="font-size:.7rem;color:#cbd5e1"><span style="color:#94a3b8">Sustentável: </span><b style="color:#22c55e">'+fmtK(vgvSustentavel)+'</b></div>';
+  h += '</div>';
+
+  // 4. EBITDA
+  var corEbit = ebitdaPlano>=0?'#22c55e':'#ef4444';
+  h += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-top:4px solid '+corEbit+';border-radius:12px;padding:16px;color:#f8fafc">';
+  h += '<div style="font-size:.65rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:800;margin-bottom:8px">💰 EBITDA PLANO</div>';
+  h += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span style="color:'+corEbit+';font-size:1.5rem;font-weight:800">'+fmtK(ebitdaPlano)+'</span><span style="color:#94a3b8;font-size:.75rem">mês</span></div>';
+  h += '<div style="font-size:.7rem;color:#cbd5e1;margin-bottom:3px"><span style="color:#94a3b8">Receita planejada: </span><b>'+fmtK((holding.dre_mensal&&holding.dre_mensal.total_volume?holding.dre_mensal.total_volume[mesAtual]:0))+'</b></div>';
+  h += '<div style="font-size:.7rem;color:#cbd5e1"><span style="color:#94a3b8">Margem: </span><b>'+fmtPct(totalGrupo.margem||0)+'</b></div>';
+  h += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #334155;font-size:.65rem;color:#94a3b8;font-style:italic">Fonte: v2.xlsx</div>';
+  h += '</div>';
+
+  h += '</div>';
+
+  // ── COMPARATIVO REAL vs PLANO ──
+  var ebitdaReal = (function(){
+    var receitas = (nd.credits||[]).filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt.getMonth()===mesAtual && dt.getFullYear()===anoAtual;}).reduce(function(s,d){return s+(d.value||0);},0);
+    var custos = (nd.debits||[]).filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt.getMonth()===mesAtual && dt.getFullYear()===anoAtual;}).reduce(function(s,d){return s+(d.value||0);},0);
+    return receitas - custos;
+  })();
+  var receitaPlano = (holding.dre_mensal&&holding.dre_mensal.total_volume)?(holding.dre_mensal.total_volume[mesAtual]||0):0;
+  var receitaReal = (nd.credits||[]).filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt.getMonth()===mesAtual && dt.getFullYear()===anoAtual;}).reduce(function(s,d){return s+(d.value||0);},0);
+
+  h += '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;margin-bottom:16px;color:#f8fafc">';
+  h += '<h3 style="margin:0 0 12px;font-size:.9rem;font-weight:800">📈 Plano vs Realizado · '+meses[mesAtual]+' '+anoAtual+'</h3>';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:.78rem"><thead><tr style="color:#94a3b8;border-bottom:1px solid #334155">';
+  ['Indicador','Plano','Real','Δ','Atingimento'].forEach(function(c){h+='<th style="padding:8px;text-align:left;font-size:.62rem;text-transform:uppercase">'+c+'</th>';});
+  h += '</tr></thead><tbody>';
+  function _linha(lbl, plano, real, isReceita){
+    var d = real - plano;
+    var p = plano > 0 ? (real / plano) : 0;
+    var corD = isReceita?(d>=0?'#22c55e':'#ef4444'):(d<=0?'#22c55e':'#ef4444');
+    var corP = p>=1?'#22c55e':(p>=0.7?'#f59e0b':'#ef4444');
+    return '<tr style="border-bottom:1px solid #0f172a"><td style="padding:9px;font-weight:600">'+lbl+'</td><td style="padding:9px;color:#94a3b8">'+fmtK(plano)+'</td><td style="padding:9px;color:#e2e8f0;font-weight:700">'+fmtK(real)+'</td><td style="padding:9px;color:'+corD+';font-weight:700">'+(d>=0?'+':'')+fmtK(d)+'</td><td style="padding:9px;color:'+corP+';font-weight:800">'+fmtPct(p)+'</td></tr>';
+  }
+  h += _linha('VGV Vendas (RD CRM)', metaMensal, vgvMes, true);
+  h += _linha('Receita (NIBO)', receitaPlano, receitaReal, true);
+  h += _linha('EBITDA', ebitdaPlano, ebitdaReal, true);
+  h += '</tbody></table></div>';
+
+  // ── LINKS pra outras telas ──
+  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px">';
+  [
+    {p:'fin_bp', l:'Plano Consolidado'},
+    {p:'fluxocaixa', l:'Fluxo de Caixa'},
+    {p:'dre', l:'DRE'},
+    {p:'custos_fixos', l:'Custos Fixos'},
+    {p:'metricas_fin', l:'Métricas Detalhadas'}
+  ].forEach(function(b){
+    h += '<button onclick="nav(\''+b.p+'\')" style="padding:8px 14px;background:transparent;border:1px solid #334155;color:#94a3b8;border-radius:7px;cursor:pointer;font-size:.78rem;font-weight:600">→ '+b.l+'</button>';
+  });
+  h += '</div>';
+
+  h += '</div>';
+  return h;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// v75.34 Sprint 4C — Métricas Financeiro com tab "Tempo Real"
+// ─ Hero KPIs cruzando NIBO + RD CRM + Meta ADS (Burn Rate, Runway, etc)
+// ════════════════════════════════════════════════════════════════════
 function pgMetricasFinanceiro(){
-  return mfTabHTML();
+  if (!window._mfTab) window._mfTab = 'tempo_real';
+  if (window._mfTab !== 'tempo_real' && window._mfTab !== 'input' && window._mfTab !== 'metrics') {
+    window._mfTab = 'tempo_real';
+  }
+  // Hidrata NIBO se necessário
+  if (!S.niboData) S.niboData = { accounts:null, debits:null, credits:null, loading:false, error:null, lastFetch:0 };
+  if (!S.niboData.accounts && !S.niboData.loading && typeof window._niboLoadAll === 'function') {
+    window._niboLoadAll();
+  }
+
+  // ─── Tab bar com 3 tabs (Tempo Real, Inputs Manuais, Métricas Calculadas) ──
+  function _tabBtn(id, lbl, ico){
+    var sel = window._mfTab === id;
+    return '<button onclick="window._mfTab=\''+id+'\';render({force:true})" style="padding:9px 16px;background:'+(sel?'var(--gold)':'transparent')+';color:'+(sel?'var(--navy)':'#94a3b8')+';border:1px solid '+(sel?'var(--gold)':'#334155')+';border-radius:7px;cursor:pointer;font-size:.85rem;font-weight:'+(sel?'800':'600')+';margin-right:6px;display:inline-flex;align-items:center;gap:6px">'+ico+' '+lbl+'</button>';
+  }
+  var tabBar = '<div style="padding:18px 24px 0;max-width:1400px;margin:0 auto"><div style="display:flex;gap:6px;border-bottom:1px solid #334155;padding-bottom:10px;flex-wrap:wrap;margin-bottom:18px">';
+  tabBar += _tabBtn('tempo_real','Tempo Real','⚡');
+  tabBar += _tabBtn('metrics','Métricas Calculadas','📊');
+  tabBar += _tabBtn('input','Inputs Manuais','📝');
+  tabBar += '</div></div>';
+
+  if (window._mfTab !== 'tempo_real') {
+    return tabBar + mfTabHTML(window._mfTab);
+  }
+
+  // ═══════════ TAB TEMPO REAL ═══════════
+  function fmtBR(n){ return 'R$ '+(parseFloat(n)||0).toLocaleString('pt-BR',{maximumFractionDigits:0}); }
+  function fmtK(n){ var v=parseFloat(n)||0; if(Math.abs(v)>=1000000) return 'R$ '+(v/1000000).toFixed(2)+'M'; if(Math.abs(v)>=1000) return 'R$ '+(v/1000).toFixed(1)+'k'; return 'R$ '+v.toFixed(0); }
+
+  // ─── DADOS NIBO ─────────────────────────────────────────────
+  var nd = S.niboData;
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var ate30 = new Date(hoje.getTime() + 30*86400000);
+  var de30 = new Date(hoje.getTime() - 30*86400000);
+
+  var saldoBancario = (nd.accounts||[]).reduce(function(s,a){return s+(a.isVirtual?0:(a.openBalance||0));},0);
+  var receberProx = (nd.credits||[]).filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt>=hoje&&dt<=ate30;});
+  var pagarProx = (nd.debits||[]).filter(function(d){if(!d.dueDate)return false;var dt=new Date(d.dueDate);return dt>=hoje&&dt<=ate30;});
+  var pagos30d = (nd.debits||[]).filter(function(d){var dt=d.paymentDate||d.dueDate;if(!dt)return false;var date=new Date(dt);return date>=de30&&date<=hoje;});
+  var totalReceber = receberProx.reduce(function(s,d){return s+(d.value||0);},0);
+  var totalPagar = pagarProx.reduce(function(s,d){return s+(d.value||0);},0);
+  var burn30d = pagos30d.reduce(function(s,d){return s+(d.value||0);},0);
+  var burnDiario = burn30d / 30;
+  var projecao30d = saldoBancario + totalReceber - totalPagar;
+  var runwayDias = burnDiario > 0 ? Math.floor(saldoBancario / burnDiario) : 999;
+
+  // ─── DADOS RD CRM ────────────────────────────────────────────
+  var VENDAS = (typeof window !== 'undefined' && window.VENDAS) || [];
+  var OPPS = (typeof window !== 'undefined' && window.OPPS) || [];
+  var mesAtual = new Date().getMonth();
+  var anoAtual = new Date().getFullYear();
+  var vendasMes = VENDAS.filter(function(v){ if(!v.closedAt) return false; var d = new Date(v.closedAt); return d.getMonth()===mesAtual && d.getFullYear()===anoAtual; });
+  var vgvMes = vendasMes.reduce(function(s,v){return s+(parseFloat(v.vgv)||0);},0);
+  var ticketMedio = vendasMes.length > 0 ? vgvMes / vendasMes.length : 0;
+  var totalOpps = OPPS.length;
+  var taxaConv = totalOpps > 0 ? (VENDAS.length / (VENDAS.length + (window.LOST_DEALS||[]).length) * 100) : 0;
+  var pipelineVgv = OPPS.reduce(function(s,o){return s+(parseFloat(o.vgv)||0);},0);
+
+  // ─── DADOS PSM_BP (Excel — meta) ─────────────────────────────
+  var bp = window.PSM_BP || {};
+  var metaVgvAno = bp.holding && bp.holding.resumo_anual && bp.holding.resumo_anual.total_grupo ? bp.holding.resumo_anual.total_grupo.vgv_total : 0;
+  var metaMensal = metaVgvAno / 12;
+  var pctMeta = metaMensal > 0 ? (vgvMes / metaMensal * 100) : 0;
+
+  // ─── RENDER ──────────────────────────────────────────────────
+  var h = '<div style="padding:0 24px;max-width:1400px;margin:0 auto">';
+
+  // Header
+  h += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">';
+  h += '<span style="font-size:30px">⚡</span>';
+  h += '<div><h1 style="margin:0;color:#f8fafc;font-size:1.4rem;font-weight:800">Métricas em Tempo Real</h1>';
+  h += '<div style="color:#94a3b8;font-size:.78rem;margin-top:3px">Cruza NIBO + RD CRM + Plano BP · '+(nd.lastFetch?'atualizado '+new Date(nd.lastFetch).toLocaleTimeString('pt-BR'):'aguardando NIBO')+'</div></div></div>';
+
+  // ── ALERTAS CRÍTICOS ──
+  var alertas = [];
+  if (runwayDias < 60 && burnDiario > 0) alertas.push({sev:'critico', ico:'🚨', msg:'Runway de '+runwayDias+' dias — caixa abaixo de 2 meses de operação'});
+  if (projecao30d < 0) alertas.push({sev:'critico', ico:'💸', msg:'Projeção 30d NEGATIVA ('+fmtK(projecao30d)+') — saldo + receber − pagar'});
+  if (pctMeta < 50 && new Date().getDate() > 15) alertas.push({sev:'aviso', ico:'⚠️', msg:'Mês passou da metade e atingimento da meta é '+pctMeta.toFixed(1)+'%'});
+  if (totalPagar > totalReceber * 1.3 && totalPagar > 10000) alertas.push({sev:'aviso', ico:'⚖️', msg:'Contas a pagar 30d > receber em '+fmtK(totalPagar-totalReceber)+' — gap de '+(((totalPagar-totalReceber)/totalReceber*100)||0).toFixed(0)+'%'});
+  if (alertas.length > 0) {
+    h += '<div style="margin-bottom:18px">';
+    alertas.forEach(function(a){
+      var bg = a.sev==='critico' ? 'rgba(239,68,68,.08)' : 'rgba(251,191,36,.08)';
+      var bd = a.sev==='critico' ? '#ef4444' : '#f59e0b';
+      var fg = a.sev==='critico' ? '#fca5a5' : '#fcd34d';
+      h += '<div style="background:'+bg+';border:1px solid '+bd+'40;border-left:3px solid '+bd+';border-radius:8px;padding:10px 14px;margin-bottom:6px;color:'+fg+';font-size:.85rem;font-weight:600">'+a.ico+' '+a.msg+'</div>';
+    });
+    h += '</div>';
+  }
+
+  // ── HERO KPIS CAIXA ──
+  h += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-radius:14px;padding:20px;margin-bottom:16px;color:#f8fafc">';
+  h += '<h3 style="margin:0 0 12px;font-size:.95rem;font-weight:800;color:#22c55e">🏦 CAIXA · Tempo Real (NIBO)</h3>';
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">';
+  var corSaldo = saldoBancario >= 0 ? '#22c55e' : '#ef4444';
+  var corProj = projecao30d >= 0 ? '#3b82f6' : '#ef4444';
+  var corRunway = runwayDias < 60 ? '#ef4444' : (runwayDias < 120 ? '#f59e0b' : '#22c55e');
+  h += '<div style="background:rgba(255,255,255,.04);border-left:3px solid '+corSaldo+';border-radius:8px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">Saldo Bancário</div><div style="color:'+corSaldo+';font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+fmtK(saldoBancario)+'</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">'+((nd.accounts||[]).filter(function(a){return !a.isVirtual;}).length)+' contas</div></div>';
+  h += '<div style="background:rgba(255,255,255,.04);border-left:3px solid #22c55e;border-radius:8px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">A Receber 30d</div><div style="color:#22c55e;font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+fmtK(totalReceber)+'</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">'+receberProx.length+' contas</div></div>';
+  h += '<div style="background:rgba(255,255,255,.04);border-left:3px solid #ef4444;border-radius:8px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">A Pagar 30d</div><div style="color:#ef4444;font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+fmtK(totalPagar)+'</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">'+pagarProx.length+' contas</div></div>';
+  h += '<div style="background:rgba(255,255,255,.04);border-left:3px solid '+corProj+';border-radius:8px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">Projeção 30d</div><div style="color:'+corProj+';font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+fmtK(projecao30d)+'</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">Saldo + R − P</div></div>';
+  h += '<div style="background:rgba(255,255,255,.04);border-left:3px solid '+corRunway+';border-radius:8px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">🏃 Runway</div><div style="color:'+corRunway+';font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+(runwayDias<999?runwayDias+'d':'∞')+'</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">Saldo ÷ burn diário</div></div>';
+  h += '<div style="background:rgba(255,255,255,.04);border-left:3px solid #fbbf24;border-radius:8px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">🔥 Burn 30d</div><div style="color:#fbbf24;font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+fmtK(burn30d)+'</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">'+fmtK(burnDiario)+' /dia</div></div>';
+  h += '</div></div>';
+
+  // ── KPIS VENDAS (RD) ──
+  h += '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-radius:14px;padding:20px;margin-bottom:16px;color:#f8fafc">';
+  h += '<h3 style="margin:0 0 12px;font-size:.95rem;font-weight:800;color:#3b82f6">📊 VENDAS · '+(['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][mesAtual])+' '+anoAtual+' (RD CRM)</h3>';
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">';
+  var corMeta = pctMeta >= 100 ? '#22c55e' : (pctMeta >= 70 ? '#f59e0b' : '#ef4444');
+  h += '<div style="background:rgba(255,255,255,.04);border-left:3px solid #3b82f6;border-radius:8px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">VGV Mês</div><div style="color:#3b82f6;font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+fmtK(vgvMes)+'</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">'+vendasMes.length+' vendas</div></div>';
+  h += '<div style="background:rgba(255,255,255,.04);border-left:3px solid '+corMeta+';border-radius:8px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">% Meta</div><div style="color:'+corMeta+';font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+pctMeta.toFixed(1)+'%</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">meta '+fmtK(metaMensal)+'</div></div>';
+  h += '<div style="background:rgba(255,255,255,.04);border-left:3px solid #a855f7;border-radius:8px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">Ticket Médio</div><div style="color:#a855f7;font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+fmtK(ticketMedio)+'</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">VGV ÷ vendas mês</div></div>';
+  h += '<div style="background:rgba(255,255,255,.04);border-left:3px solid #f59e0b;border-radius:8px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">Pipeline</div><div style="color:#f59e0b;font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+fmtK(pipelineVgv)+'</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">'+totalOpps+' opps</div></div>';
+  h += '<div style="background:rgba(255,255,255,.04);border-left:3px solid #06b6d4;border-radius:8px;padding:12px"><div style="font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;font-weight:700">Taxa Conv.</div><div style="color:#06b6d4;font-size:1.4rem;font-weight:800;line-height:1.1;margin-top:6px">'+taxaConv.toFixed(1)+'%</div><div style="font-size:.62rem;color:#64748b;margin-top:4px">won ÷ (won+lost)</div></div>';
+  h += '</div></div>';
+
+  h += '<div style="background:#0f172a;border:1px dashed #334155;border-radius:10px;padding:14px;color:#94a3b8;font-size:.78rem;text-align:center;margin-bottom:24px">';
+  h += '💡 Dica: para visão executiva completa (alertas + viabilidade + comparação plano vs real), navegue para <b style="color:var(--gold)">Financeiro › Dashboard Executivo</b>';
+  h += '</div>';
+
+  h += '</div>';
+  return tabBar + h;
 }
 
 // ─── PAGE: RADAR INTELLIGENCE ────────────────────────────────────────────────
@@ -28326,7 +28637,7 @@ var PAGES_PIPELINE=['crm','metricas'];
 var PAGES_MARKETING=['metaads','sim_criativos','sim_leads','metricas_viab','inteldash','radar','intelads','benchmark'];
 // Financeiro: socios + mariane
 // v75.21.1: fin_bp adicionado (Plano Consolidado / NIBO Live estava invisivel pra Paulo+Isabella)
-var PAGES_FINANCEIRO=['fin_bp','fluxocaixa','dre','comissoes','repasses','custos_fixos','metricas_fin'];
+var PAGES_FINANCEIRO=['fin_bp','fluxocaixa','dre','comissoes','repasses','custos_fixos','metricas_fin','fin_exec'];
 // Diretoria: apenas socios
 // v75.14: + dir_tarefas, dir_estrategia
 var PAGES_DIRETORIA=['forecast','kpis','metas','governance','equipe','dashboard','recados_diretoria','psm_live','organograma','radar_conc','bi_socio','dir_tarefas','dir_estrategia'];
@@ -28454,6 +28765,7 @@ function renderSB() {
       {id:'gp_talentos',     lbl:'Base de Talentos',ico:'\uD83D\uDC65'},
     ]},
     {sec:'Financeiro', items:[
+      {id:'fin_exec',    lbl:'Dashboard Executivo',       ico:'\uD83C\uDFAF'},
       {id:'fin_bp',      lbl:'Plano Consolidado',         ico:'\uD83D\uDCCA'},
       {id:'fluxocaixa',  lbl:'Fluxo de Caixa',            ico:'\uD83D\uDCB0'},
       {id:'dre',         lbl:'DRE',                        ico:'\uD83D\uDCCA'},
@@ -28734,6 +29046,7 @@ function route() {
     // Financeiro
     case 'custos_fixos':     return pgCustosFixos();
     case 'metricas_fin':     return pgMetricasFinanceiro();
+    case 'fin_exec':         return pgFinExec();  // v75.34 Sprint 5: Dashboard Executivo Financeiro
     // Diretoria
     case 'kpis':             return pgKpis();
     // Agentes
