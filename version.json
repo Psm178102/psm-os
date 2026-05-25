@@ -1,7 +1,7 @@
 {
-  "version": "75.30.0",
-  "meta": "2026.05.25-v75.30",
-  "built": "2026-05-25T15:30:00Z",
-  "sw": "v75.30.0-2026-05-25-FINANCE-FROM-POSTGRES",
-  "sprint": "v75.30 = v2 Sprint 3A: Comissões + Repasses + Tarefas Diretoria agora HIDRATAM do Postgres no boot. 3 novas tabelas (commissions, transfers, dir_tasks) + 3 endpoints Python (/api/v2/commissions, /api/v2/transfers, /api/v2/dir_tasks). Frontend lê do API e popula psm_comissoes, psm_repasses, psm_dir_tarefas em localStorage como cache local. Schema alinhado com formato JS atual (status backlog/em_andamento/concluido). Sprint 3B (próximo): write-back nos handlers add/edit/delete pra POST no Postgres."
+  "version": "75.30.1",
+  "meta": "2026.05.25-v75.30.1",
+  "built": "2026-05-25T15:45:00Z",
+  "sw": "v75.30.1-2026-05-25-FINANCE-COLUMN-FIX",
+  "sprint": "v75.30.1 HOTFIX: endpoints /api/v2/commissions e /api/v2/transfers referenciavam colunas antigas (data_venda, data_agendada) que foram simplificadas pra apenas 'data' no schema final. Ajustado. Inclui Sprint 3A (v75.30): financeiro hidrata do Postgres."
 }

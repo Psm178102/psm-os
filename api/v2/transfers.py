@@ -71,7 +71,7 @@ class handler(BaseHTTPRequestHandler):
                     return self._send_json(404, {"ok": False, "error": "not found"})
                 return self._send_json(200, {"ok": True, "transfer": rows[0]})
             else:
-                r = sb.table("transfers").select("*").order("data_agendada", desc=True).order("created_at", desc=True).limit(500).execute()
+                r = sb.table("transfers").select("*").order("data", desc=True).order("created_at", desc=True).limit(500).execute()
                 items = r.data or []
                 return self._send_json(200, {"ok": True, "count": len(items), "transfers": items})
         except Exception as e:
