@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.37.0';window.PSM_VERSION_META='2026.05.25-v75.37';
+</style><script>window.PSM_VERSION='75.38.0';window.PSM_VERSION_META='2026.05.25-v75.38';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -26708,15 +26708,15 @@ function pgConfig() {
         var _hmap = {}; try { _hmap = JSON.parse(localStorage.getItem('psm_user_hidden')||'{}'); } catch(_){}
         var filtroFrente = S.cfgGuFrente || 'todos';
         var filtroStatus = S.cfgGuStatus || 'todos';
-        // Filtra USERS_BASE
-        var users = USERS_BASE.slice();
+        // Filtra USERS (hidratado do Postgres — 24 users) — v75.38 fix
+        var users = USERS.slice();
         if (filtroFrente !== 'todos') users = users.filter(function(u){return (u.frente||'geral') === filtroFrente;});
         if (filtroStatus === 'ativos') users = users.filter(function(u){return !_dmap[u.id];});
         else if (filtroStatus === 'inativos') users = users.filter(function(u){return !!_dmap[u.id];});
         else if (filtroStatus === 'ocultos') users = users.filter(function(u){return !!_hmap[u.id];});
         // Stats
-        var nTotal = USERS_BASE.length;
-        var nAtivos = USERS_BASE.filter(function(u){return !_dmap[u.id];}).length;
+        var nTotal = USERS.length;
+        var nAtivos = USERS.filter(function(u){return !_dmap[u.id];}).length;
         var nInativos = nTotal - nAtivos;
         var nOcultos = Object.keys(_hmap).length;
         // HTML

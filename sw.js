@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.37.0-2026-05-25-RDSYNC-NAO-SOBRESCREVE';
+const SW_VERSION = 'v75.38.0-2026-05-25-PGCONFIG-USA-USERS-HIDRATADO';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

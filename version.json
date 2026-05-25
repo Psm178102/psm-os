@@ -1,7 +1,7 @@
 {
-  "version": "75.37.0",
-  "meta": "2026.05.25-v75.37",
-  "built": "2026-05-25T19:00:00Z",
-  "sw": "v75.37.0-2026-05-25-RDSYNC-NAO-SOBRESCREVE",
-  "sprint": "v75.37 HOTFIX CRÍTICO 3 bugs reportados pelo Paulo. CAUSA RAIZ: RD.sync rodava DEPOIS do _hydrateUsersFromBackend e fazia USERS = buildUsers() rebuildando do USERS_BASE hardcoded — DESTRUINDO a hidratação do Postgres. Resultado: Kaue Bordini virava 18a6e1e1 (id auto-gerado RD) com frente=lancamento default. Christian/Fernanda/Stephanie idem. FIX: (1) Match de RD users agora procura em USERS (hidratado), não USERS_BASE (hardcoded), com match agressivo por nome normalizado (sem acentos, sem espaços). (2) Quando matcha, APENAS atualiza rdId — NÃO sobrescreve role nem frente (Postgres é fonte da verdade). (3) Quando realmente novo: frente=null (era 'lancamento' hardcoded). (4) Recalcula UM/BROKERS in-place sem rebuildar USERS. (5) v75.36 inclusa: comissões com hero NIBO + cruzamento RD CRM × 4%. Inclui também todas sprints anteriores."
+  "version": "75.38.0",
+  "meta": "2026.05.25-v75.38",
+  "built": "2026-05-25T20:30:00Z",
+  "sw": "v75.38.0-2026-05-25-PGCONFIG-USA-USERS-HIDRATADO",
+  "sprint": "v75.38 HOTFIX pgConfig (tela Configurações > Usuários) renderizava USERS_BASE (20 hardcoded) em vez de USERS (24 hidratado do Postgres). Christian, Fernanda, Stephanie, Kaue não apareciam na lista. FIX: linhas 26712/26718/26719 trocadas para USERS. Agora a tela mostra os 24 reais do Postgres com role/frente corretos. v75.37 inclusa: RD.sync não sobrescreve mais Postgres. v75.36 inclusa: comissões com hero NIBO + cruzamento RD CRM × 4%."
 }
