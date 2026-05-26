@@ -1,7 +1,7 @@
 {
-  "version": "75.53.0",
-  "meta": "2026.05.26-v75.53-health-rd-check",
-  "built": "2026-05-26T03:30:00Z",
-  "sw": "v75.53.0-2026-05-26-HEALTH-RD-CHECK",
-  "sprint": "v75.53 health endpoint reportando todos env vars (rd_api_token, nibo, etc) + all_ok considera só required (supabase + jwt). Empacota com v75.52 (Deals RD ao vivo) — RD_API_TOKEN já configurado no Vercel."
+  "version": "75.54.0",
+  "meta": "2026.05.26-v75.54-metas",
+  "built": "2026-05-26T04:00:00Z",
+  "sw": "v75.54.0-2026-05-26-METAS",
+  "sprint": "v75.54 Sprint 7.8 — Metas + Atingimento. Nova tabela metas (corretor x ano x mes, UNIQUE constraint) com meta_vgv, meta_vendas, meta_pontos. Endpoints /api/v3/metas/{list,upsert} role-based. Página /v2/metas com matriz 12 meses × N corretores, edição inline por click (Sócio/Gerente), totais por mês/ano, filtros (ano + com/sem meta), KPIs hero (VGV total, cobertura). Próxima fase: cruzar com deals ganhos do RD pra mostrar %atingimento real."
 }
