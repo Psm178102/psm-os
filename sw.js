@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.49.0-2026-05-26-EQUIPE';
+const SW_VERSION = 'v75.50.0-2026-05-26-CUSTOS-RANKING';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

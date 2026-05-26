@@ -38,9 +38,10 @@ function drawShell() {
       </div>
 
       <!-- Tabs -->
-      <div class="flex gap-1" style="margin-top:14px;border-bottom:1px solid var(--border)">
+      <div class="flex gap-1" style="margin-top:14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
         ${tabBtn('resumo',    '📊 Resumo')}
         ${tabBtn('dre',       '📈 DRE 12m')}
+        ${tabBtn('custos',    '🏢 Custos Fixos')}
         ${tabBtn('comissoes', '💎 Comissões')}
         ${tabBtn('repasses',  '🔄 Repasses')}
       </div>
@@ -67,6 +68,7 @@ async function drawBody() {
   try {
     if (_tab === 'resumo')        body.innerHTML = await renderResumo();
     else if (_tab === 'dre')      body.innerHTML = await renderDre();
+    else if (_tab === 'custos')   body.innerHTML = await renderCustos();
     else if (_tab === 'comissoes')body.innerHTML = await renderComissoes();
     else if (_tab === 'repasses') body.innerHTML = await renderRepasses();
   } catch (e) {
@@ -217,6 +219,112 @@ function dreRow(r, maxRec, maxDes) {
       <td style="text-align:right;padding:6px 10px" class="muted">${r.receita_count + r.despesa_count}</td>
     </tr>
   `;
+}
+
+// ─── Tab: Custos Fixos ──────────────────────────────────────────────────
+async function renderCustos() {
+  const key = 'custos|' + _company;
+  if (!_cache[key]) _cache[key] = await api.request('/api/v3/finance/custos_fixos?months=3&company=' + encodeURIComponent(_company));
+  const d = _cache[key];
+  const t = d.totals || {};
+  const buckets = d.buckets || [];
+  const monthKeys = d.month_keys || [];
+
+  return `
+    <div class="tiny muted" style="margin-bottom:10px">
+      Categorias classificadas por keywords desde <code>${escapeHtml(d.since)}</code> · ${d.unclassified || 0} lançamentos fora dos buckets · Atualizado ${new Date(d.fetched_at).toLocaleString('pt-BR')}
+    </div>
+
+    <div class="flex gap-3" style="flex-wrap:wrap;margin-bottom:14px">
+      ${kpiMini('Total 3m',  'R$ ' + money(t.total))}
+      ${kpiMini('Pago',       'R$ ' + money(t.pago), '#16a34a')}
+      ${kpiMini('Previsto',   'R$ ' + money(t.previsto), '#d97706')}
+      ${kpiMini('# categorias com dado', buckets.length)}
+    </div>
+
+    ${buckets.length === 0 ? '<div class="muted">Nenhuma categoria de custo fixo identificada nesse período.</div>' : ''}
+
+    <div style="display:grid;gap:10px">
+      ${buckets.map(b => bucketCard(b, monthKeys, t.total)).join('')}
+    </div>
+  `;
+}
+
+function bucketCard(b, monthKeys, totalGeral) {
+  const pct = totalGeral > 0 ? Math.round((b.total / totalGeral) * 100) : 0;
+  const monthCols = monthKeys.map(mk => {
+    const v = (b.by_month || {})[mk] || 0;
+    return `<td style="text-align:right;padding:6px 10px;font-size:11px">R$ ${money(v)}</td>`;
+  }).join('');
+
+  return `
+    <div class="card" style="margin:0;border-left:4px solid #7c3aed">
+      <div class="flex items-center gap-2" style="margin-bottom:6px">
+        <h3 style="margin:0;font-size:14px;flex:1">${escapeHtml(b.bucket)}</h3>
+        <span class="tiny muted">${b.count} lanç</span>
+        <span style="font-weight:800;color:#7c3aed">R$ ${money(b.total)}</span>
+        <span class="tiny muted">(${pct}%)</span>
+      </div>
+      <div style="background:var(--bg);height:4px;border-radius:2px;overflow:hidden;margin-bottom:8px">
+        <div style="background:#7c3aed;height:100%;width:${Math.min(100, pct * 2)}%"></div>
+      </div>
+      <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:8px">
+        <span class="tiny" style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:var(--r-full);font-weight:600">Pago: R$ ${money(b.pago)}</span>
+        <span class="tiny" style="background:#fef3c7;color:#78350f;padding:2px 8px;border-radius:var(--r-full);font-weight:600">Previsto: R$ ${money(b.previsto)}</span>
+      </div>
+
+      ${monthKeys.length > 1 ? `
+        <table style="width:100%;font-size:11.5px;border-collapse:collapse;margin-bottom:8px">
+          <thead>
+            <tr style="background:var(--bg-3)">
+              <th style="text-align:left;padding:6px 10px;font-size:10px">Mês</th>
+              ${monthKeys.map(mk => `<th style="text-align:right;padding:6px 10px;font-size:10px">${escapeHtml(formatMonth(mk))}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:6px 10px;font-weight:700">Total</td>
+              ${monthCols}
+            </tr>
+          </tbody>
+        </table>
+      ` : ''}
+
+      <details>
+        <summary class="tiny muted" style="cursor:pointer">Ver ${b.rows.length} lançamento(s)</summary>
+        <div style="max-height:240px;overflow-y:auto;margin-top:8px">
+          <table style="width:100%;font-size:11.5px;border-collapse:collapse">
+            <thead style="position:sticky;top:0;background:var(--bg-3)">
+              <tr>
+                <th style="text-align:left;padding:5px 8px">Data</th>
+                <th style="text-align:left;padding:5px 8px">Fornecedor</th>
+                <th style="text-align:right;padding:5px 8px">Valor</th>
+                <th style="text-align:center;padding:5px 8px">✓</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${b.rows.map(r => `
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="padding:4px 8px" class="muted">${r.data ? new Date(r.data).toLocaleDateString('pt-BR') : '—'}</td>
+                  <td style="padding:4px 8px;font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(r.stakeholder)}">${escapeHtml(r.stakeholder)}</td>
+                  <td style="text-align:right;padding:4px 8px;font-weight:700">R$ ${money(r.valor)}</td>
+                  <td style="text-align:center;padding:4px 8px">${r.settled ? '<span style="color:#16a34a">✓</span>' : '<span style="color:#d97706">⏳</span>'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  `;
+}
+
+function formatMonth(mk) {
+  const [y, m] = (mk || '').split('-');
+  const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const i = parseInt(m, 10) - 1;
+  if (i < 0 || i > 11) return mk;
+  return `${names[i]}/${y.slice(-2)}`;
 }
 
 // ─── Tab: Comissões ─────────────────────────────────────────────────────

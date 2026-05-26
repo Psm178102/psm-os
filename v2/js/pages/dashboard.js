@@ -13,12 +13,18 @@ const SCOPE_LBL = {
 
 let _root = null;
 let _data = null;
+let _ranking = null;
 
 export async function pageDashboard(ctx, root) {
   _root = root;
   root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando KPIs…</div></div>';
   try {
-    _data = await api.request('/api/v3/metrics/overview');
+    const [d, r] = await Promise.all([
+      api.request('/api/v3/metrics/overview'),
+      api.request('/api/v3/metrics/activity_ranking?days=30&limit=20').catch(() => ({ ranking: [] })),
+    ]);
+    _data = d;
+    _ranking = r;
     render();
   } catch (e) {
     _root.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message)}</div>`;
@@ -95,6 +101,17 @@ function render() {
         </div>
       `}
 
+      <!-- RANKING ATIVIDADE -->
+      ${(_ranking?.ranking || []).length ? `
+        <div class="card mt-4">
+          <h3 class="card-title">🏆 Top usuários ativos (30 dias)</h3>
+          <p class="card-sub">Score = 2× eventos como ator + 1× eventos como alvo. Quando RD migrar, vira ranking de VGV/vendas.</p>
+          <div style="display:grid;gap:6px">
+            ${_ranking.ranking.map((u, i) => rankingRow(u, i)).join('')}
+          </div>
+        </div>
+      ` : ''}
+
       <!-- ROADMAP -->
       <div class="card mt-4">
         <h3 class="card-title">🚀 Roadmap Sprint 7</h3>
@@ -148,6 +165,48 @@ function recentRow(e) {
       <span class="tiny muted">${ts}</span>
     </div>
   `;
+}
+
+function rankingRow(u, i) {
+  const ini = escapeHtml((u.ini || (u.name || '?').substring(0, 2)).toUpperCase());
+  const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+  const lastLogin = u.last_login_at ? relTime(u.last_login_at) : 'nunca';
+  const lastAction = u.last_action_ts ? relTime(u.last_action_ts) : '—';
+  return `
+    <div style="display:grid;grid-template-columns:36px 32px 1fr auto auto auto;gap:10px;padding:8px 10px;background:var(--bg-3);border-radius:var(--r-sm);align-items:center;font-size:12.5px">
+      <div style="font-size:16px;text-align:center">${medal}</div>
+      <div style="width:28px;height:28px;border-radius:var(--r-sm);background:${u.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px">${ini}</div>
+      <div style="min-width:0">
+        <div style="font-weight:700">${escapeHtml(u.name || 'Sem nome')}</div>
+        <div class="tiny muted">${escapeHtml(u.role || '')} · ${escapeHtml(u.team || 'geral')} · login ${lastLogin} · ação ${lastAction}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="tiny muted">ator</div>
+        <div style="font-weight:800;color:#2563eb">${u.events_as_actor}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="tiny muted">alvo</div>
+        <div style="font-weight:800;color:#a855f7">${u.events_as_target}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="tiny muted">score</div>
+        <div style="font-weight:900;color:#16a34a">${u.score}</div>
+      </div>
+    </div>
+  `;
+}
+
+function relTime(iso) {
+  if (!iso) return '—';
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.round(ms / 60000);
+  if (m < 1) return 'agora';
+  if (m < 60) return m + 'min';
+  const h = Math.round(m / 60);
+  if (h < 24) return h + 'h';
+  const d = Math.round(h / 24);
+  if (d < 30) return d + 'd';
+  return new Date(iso).toLocaleDateString('pt-BR');
 }
 
 function fmtNum(n) { return n == null ? '—' : Number(n).toLocaleString('pt-BR'); }
