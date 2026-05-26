@@ -1,7 +1,7 @@
 {
-  "version": "75.56.0",
-  "meta": "2026.05.26-v75.56-sync-deals",
-  "built": "2026-05-26T05:00:00Z",
-  "sw": "v75.56.0-2026-05-26-SYNC-DEALS",
-  "sprint": "v75.56 Sprint 7.10 — Sync deals RD → Postgres. Nova tabela deals (id PK, name, amount, win, closed_at, pipeline, stage, user_email, user_id FK, rd_raw jsonb, synced_at). Endpoint POST /api/v3/crm/sync (Sócio/Gerente) faz paginação até 30 páginas RD, upsert por id, match user via email. /api/v3/metas/atingimento agora lê do Postgres deals (10× mais rápido) com fallback automático pra RD live se vazio. Botão '⚡ Sincronizar' na tela /v2/metas dispara sync com feedback de progresso."
+  "version": "75.57.0",
+  "meta": "2026.05.26-v75.57-cron-sync",
+  "built": "2026-05-26T05:30:00Z",
+  "sw": "v75.57.0-2026-05-26-CRON-SYNC",
+  "sprint": "v75.57 Sprint 7.11 — Sync RD automático via Vercel Cron. vercel.json com cron schedule '0 6,12,18 * * *' (3×/dia UTC = 03/09/15 BRT) chamando /api/v3/crm/sync_cron. Endpoint protegido por CRON_SECRET (Bearer header). CRON_SECRET configurado no Vercel. Sistema autônomo: deals sempre frescos sem clique manual."
 }
