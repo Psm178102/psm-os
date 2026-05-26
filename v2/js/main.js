@@ -31,8 +31,20 @@ import { initNotifs } from './notifs.js';
 
   // 3) Eventos do shell
   document.getElementById('btn-logout').addEventListener('click', () => auth.logout());
+
+  // Hamburger (mobile)
+  const sidebar = document.querySelector('.app-sidebar');
+  const backdrop = document.getElementById('sb-backdrop');
+  const openSidebar = () => { sidebar.classList.add('open'); backdrop.classList.add('open'); };
+  const closeSidebar = () => { sidebar.classList.remove('open'); backdrop.classList.remove('open'); };
+  document.getElementById('btn-hamburger').addEventListener('click', openSidebar);
+  backdrop.addEventListener('click', closeSidebar);
+
   document.querySelectorAll('[data-nav]').forEach(btn => {
-    btn.addEventListener('click', () => router.go(btn.dataset.nav));
+    btn.addEventListener('click', () => {
+      router.go(btn.dataset.nav);
+      closeSidebar();  // fecha drawer ao navegar (mobile)
+    });
   });
 
   // 4) Registra rotas (Sprint 7.3: dashboard + painel modulares)
@@ -83,6 +95,7 @@ function shellHTML(user) {
         <div style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.5">v2.0.0-sprint7</div>
       </aside>
       <header class="app-header">
+        <button class="h-hamburger" id="btn-hamburger" title="Menu">☰</button>
         <div class="h-title" id="h-title">Dashboard</div>
         <div class="h-spacer"></div>
         <div class="h-user">
@@ -95,6 +108,7 @@ function shellHTML(user) {
           <button class="btn btn-ghost" id="btn-logout">Sair</button>
         </div>
       </header>
+      <div class="sidebar-backdrop" id="sb-backdrop"></div>
       <main class="app-main" id="app-main"></main>
     </div>
   `;

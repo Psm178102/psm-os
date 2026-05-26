@@ -1,7 +1,7 @@
 {
-  "version": "75.61.0",
-  "meta": "2026.05.26-v75.61-notifs-comments",
-  "built": "2026-05-26T07:30:00Z",
-  "sw": "v75.61.0-2026-05-26-NOTIFS-COMMENTS",
-  "sprint": "v75.61 Sprint 7.15 — Notificações + Comentários. Tabelas comments (target_type+target_id, mentions jsonb) e notifications (user_id, tipo, title, body, link, lida). Endpoints /api/v3/comments/{list,upsert} com @mention auto-detect e /api/v3/notifications/{list,mark_read}. Helper notify() em _auth_lib. Integrações automáticas: recado crítico/alerta notifica todo time, task atribuída/status notifica responsável+criador, comentário notifica @mentions + dono do alvo. Frontend: sino 🔔 com badge no header (poll 60s), drawer expandível, componente comments reusável (modal nas Tarefas)."
+  "version": "75.62.0",
+  "meta": "2026.05.26-v75.62-mobile",
+  "built": "2026-05-26T08:00:00Z",
+  "sw": "v75.62.0-2026-05-26-MOBILE",
+  "sprint": "v75.62 Sprint 7.16 — Mobile responsivo. Sidebar vira drawer 280px slide-in com backdrop em telas ≤768px, abre via botão hamburger ☰ no header. Nome do user esconde, avatares menores. Tabelas com font menor + scroll horizontal. KPI cards stack em 2 colunas (≤768) ou 1 coluna (≤480). Modais full-width. Padding reduzido. Pré-requisito pro cutover."
 }

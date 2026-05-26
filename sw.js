@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.61.0-2026-05-26-NOTIFS-COMMENTS';
+const SW_VERSION = 'v75.62.0-2026-05-26-MOBILE';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
