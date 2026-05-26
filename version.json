@@ -1,7 +1,7 @@
 {
-  "version": "75.71.0",
-  "meta": "2026.05.26-v75.71-integracoes",
-  "built": "2026-05-26T13:00:00Z",
-  "sw": "v75.71.0-2026-05-26-INTEGRACOES",
-  "sprint": "v75.71 Sprint 7.26 — Integrações Externas. /api/v3/webhooks/send: dispara webhook configurado (Zapier/Make/n8n) com title/body/severity, auditado. /api/v3/kenlo/sync: framework placeholder pra Kenlo Imob (sem token retorna 503 com instruções, audit kenlo.sync_pending). /api/v3/export/csv: baixa CSV de 10 tabelas whitelist (users/imoveis/lancamentos/locacoes/metas/deals/dir_tasks/eventos/audit_log/concorrentes), limit 5000, audit export.csv. /v2/integracoes: 3 seções (Webhook teste + Kenlo sync Sócio-only + 10 botões export CSV via fetch+blob com Authorization)."
+  "version": "75.72.0",
+  "meta": "2026.05.26-v75.72-backup-print",
+  "built": "2026-05-26T14:00:00Z",
+  "sw": "v75.72.0-2026-05-26-BACKUP-PRINT",
+  "sprint": "v75.72 Sprint 7.27 — Backup & Print/PDF (12/12 — COMPLETO). /api/v3/backup/export: dump JSON 16 tabelas (limit 5000 cada, audit_log/notifs últimos 1000), Sócio only, audit backup.export. /api/v3/backup/restore: upload JSON → upsert/insert chunked 100 linhas, whitelist 14 tabelas (audit_log/notifications append-only NÃO restauráveis), audit backup.restore. /api/v3/backup/drive: framework Google Drive (sem GOOGLE_DRIVE_TOKEN retorna 503 com instruções 7-step). /v2/backup: 3 cards (export download / restore upload+confirm dialog / drive trigger). /v2/relatorios: 6 templates imprimíveis (Vendas Mês, Ranking Geral, Captações 90d, Metas vs Atingido, Plantões Mês, Usuários) com header PSM + footer + CSS @media print + window.print() pra gerar PDF. Cobertura 100% do /v1 atingida (exceto Nano Banana excluído explicitamente)."
 }

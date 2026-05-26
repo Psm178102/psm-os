@@ -36,6 +36,8 @@ import { pageOO } from './pages/oo.js';
 import { pagePlantoes } from './pages/plantoes.js';
 import { pageCaptacoes } from './pages/captacoes.js';
 import { pageIntegracoes } from './pages/integracoes.js';
+import { pageBackup } from './pages/backup.js';
+import { pageRelatorios } from './pages/relatorios.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -95,6 +97,8 @@ import { pageIntegracoes } from './pages/integracoes.js';
   router.register('/plantoes',    { render: async (ctx, root) => { setHeader('Plantões');     highlight('/plantoes');    await pagePlantoes(ctx, root); } });
   router.register('/captacoes',   { render: async (ctx, root) => { setHeader('Captações');    highlight('/captacoes');   await pageCaptacoes(ctx, root); } });
   router.register('/integracoes', { render: async (ctx, root) => { setHeader('Integrações');  highlight('/integracoes'); await pageIntegracoes(ctx, root); } });
+  router.register('/backup',      { render: async (ctx, root) => { setHeader('Backup');       highlight('/backup');      await pageBackup(ctx, root); } });
+  router.register('/relatorios',  { render: async (ctx, root) => { setHeader('Relatórios');   highlight('/relatorios');  await pageRelatorios(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -158,6 +162,8 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/auditoria"><span class="sb-ico">📜</span> Auditoria</button>
         <button class="sb-link" data-nav="/governanca"><span class="sb-ico">⚖️</span> Governança</button>
         <button class="sb-link" data-nav="/integracoes"><span class="sb-ico">🔌</span> Integrações</button>
+        <button class="sb-link" data-nav="/relatorios"><span class="sb-ico">🖨</span> Relatórios</button>
+        <button class="sb-link" data-nav="/backup"><span class="sb-ico">💾</span> Backup</button>
         <div class="sb-sec">Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
         <button class="sb-link" data-nav="/configuracoes"><span class="sb-ico">🔧</span> Configurações</button>
