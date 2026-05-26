@@ -1,7 +1,7 @@
 {
-  "version": "75.55.0",
-  "meta": "2026.05.26-v75.55-atingimento",
-  "built": "2026-05-26T04:30:00Z",
-  "sw": "v75.55.0-2026-05-26-ATINGIMENTO",
-  "sprint": "v75.55 Sprint 7.9 — Atingimento real Metas × Deals RD. /api/v3/metas/atingimento chama RD API (win=true, paginação até 6k deals), cruza com users via email, agrupa por (corretor, mes do closed_at). Retorna grid com {meta_vgv, atingido_vgv, pct, status, vendas_count}. Cache 5min. Página /v2/metas reimplementada com: KPI hero (meta/atingido/% / falta-sobra), célula colorida por status (crítico<50% / atenção 50-89% / bom 90-109% / estourou ≥110%), tooltips com detalhes, 4 visões (pct, meta, atingido, combo), totais por mês no footer."
+  "version": "75.56.0",
+  "meta": "2026.05.26-v75.56-sync-deals",
+  "built": "2026-05-26T05:00:00Z",
+  "sw": "v75.56.0-2026-05-26-SYNC-DEALS",
+  "sprint": "v75.56 Sprint 7.10 — Sync deals RD → Postgres. Nova tabela deals (id PK, name, amount, win, closed_at, pipeline, stage, user_email, user_id FK, rd_raw jsonb, synced_at). Endpoint POST /api/v3/crm/sync (Sócio/Gerente) faz paginação até 30 páginas RD, upsert por id, match user via email. /api/v3/metas/atingimento agora lê do Postgres deals (10× mais rápido) com fallback automático pra RD live se vazio. Botão '⚡ Sincronizar' na tela /v2/metas dispara sync com feedback de progresso."
 }

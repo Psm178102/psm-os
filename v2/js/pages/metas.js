@@ -46,11 +46,17 @@ function render() {
   if (_showOnly === 'com_meta')       grid = grid.filter(g => (g.totals?.meta_vgv || 0) > 0);
   else if (_showOnly === 'sem_meta')  grid = grid.filter(g => (g.totals?.meta_vgv || 0) === 0);
 
+  const sourceBadge = d.source === 'postgres'
+    ? `<span class="tiny" style="background:#dcfce7;color:#166534;padding:3px 8px;border-radius:var(--r-full);font-weight:700">📦 Postgres ${d.deals_synced_at ? '· sync ' + new Date(d.deals_synced_at).toLocaleString('pt-BR') : ''}</span>`
+    : d.source === 'rd_live'
+      ? '<span class="tiny" style="background:#fef3c7;color:#78350f;padding:3px 8px;border-radius:var(--r-full);font-weight:700">🔥 RD live (sem sync ainda)</span>'
+      : '<span class="tiny" style="background:#fee2e2;color:#991b1b;padding:3px 8px;border-radius:var(--r-full);font-weight:700">⚠ Sem dados</span>';
+
   _root.innerHTML = `
     <div class="card">
       <h2 class="card-title">🎯 Metas ${_ano} — Atingimento RD ${canEdit ? '<span class="tiny muted" style="font-weight:400">— click pra editar</span>' : ''}</h2>
       <p class="card-sub">
-        Scope <b>${d.scope}</b> · ${d.cached ? '📦 Cache ' + d.cache_age_s + 's' : '🔥 Fresh'} · Atualizado ${new Date(d.fetched_at).toLocaleString('pt-BR')}
+        Scope <b>${d.scope}</b> · ${d.cached ? '📦 Cache ' + d.cache_age_s + 's' : '🔥 Fresh'} · ${sourceBadge} · Atualizado ${new Date(d.fetched_at).toLocaleString('pt-BR')}
         ${d.rd_error ? `<br><span style="color:var(--warn)">⚠ ${escapeHtml(d.rd_error)}</span>` : ''}
       </p>
 
@@ -84,6 +90,7 @@ function render() {
           <option value="sem_meta"${_showOnly==='sem_meta'?' selected':''}>Sem meta</option>
         </select>
         <button class="btn btn-ghost" id="btn-reload" style="margin-left:auto">🔄 Atualizar</button>
+        ${canEdit ? '<button class="btn btn-primary" id="btn-sync">⚡ Sincronizar RD → Postgres</button>' : ''}
       </div>
 
       <!-- Legenda -->
@@ -119,6 +126,8 @@ function render() {
   document.getElementById('f-view').addEventListener('change', e => { _view = e.target.value; render(); });
   document.getElementById('f-show').addEventListener('change', e => { _showOnly = e.target.value; render(); });
   document.getElementById('btn-reload').addEventListener('click', async () => { await reload(); });
+  const btnSync = document.getElementById('btn-sync');
+  if (btnSync) btnSync.addEventListener('click', doSync);
 
   if (canEdit) {
     document.querySelectorAll('[data-meta-cell]').forEach(td => {
@@ -207,6 +216,24 @@ function footerRow(grid) {
       <td style="text-align:right;padding:8px;background:var(--bg-2)"></td>
     </tr>
   `;
+}
+
+async function doSync() {
+  const btn = document.getElementById('btn-sync');
+  if (!btn) return;
+  if (!confirm('Sincronizar deals do RD → Postgres? Pode demorar 1-3 min.')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Sincronizando…';
+  try {
+    const r = await api.request('/api/v3/crm/sync', { method: 'POST', body: { max_pages: 30 } });
+    alert(`✅ Sync OK\n${r.upserted} deals upserted em ${r.duration_s}s\nPáginas: ${r.pages_done}`);
+    await reload();
+  } catch (e) {
+    alert('Erro: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '⚡ Sincronizar RD → Postgres';
+  }
 }
 
 async function editMeta(td) {
