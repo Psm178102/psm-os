@@ -19,6 +19,8 @@ import { initNotifs } from './notifs.js';
 import { pageConfiguracoes } from './pages/configuracoes.js';
 import { pageMarketing } from './pages/marketing.js';
 import { pageIA } from './pages/ia.js';
+import { pageLancamentos } from './pages/lancamentos.js';
+import { pageLocacoes } from './pages/locacoes.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -62,6 +64,8 @@ import { pageIA } from './pages/ia.js';
   router.register('/diretoria', { render: async (ctx, root) => { setHeader('Diretoria'); highlight('/diretoria'); await pageDiretoria(ctx, root); } });
   router.register('/marketing', { render: async (ctx, root) => { setHeader('Marketing'); highlight('/marketing'); await pageMarketing(ctx, root); } });
   router.register('/ia',        { render: async (ctx, root) => { setHeader('IA');        highlight('/ia');        await pageIA(ctx, root); } });
+  router.register('/lancamentos', { render: async (ctx, root) => { setHeader('Lançamentos'); highlight('/lancamentos'); await pageLancamentos(ctx, root); } });
+  router.register('/locacoes',  { render: async (ctx, root) => { setHeader('Locações');  highlight('/locacoes');  await pageLocacoes(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -95,6 +99,8 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/diretoria"><span class="sb-ico">🏛</span> Diretoria</button>
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing</button>
         <button class="sb-link" data-nav="/ia"><span class="sb-ico">🤖</span> IA Assistentes</button>
+        <button class="sb-link" data-nav="/lancamentos"><span class="sb-ico">🏗</span> Lançamentos</button>
+        <button class="sb-link" data-nav="/locacoes"><span class="sb-ico">🔑</span> Locações</button>
         <div class="sb-sec">Gestão</div>
         <button class="sb-link" data-nav="/usuarios"><span class="sb-ico">👥</span> Usuários</button>
         <button class="sb-link" data-nav="/auditoria"><span class="sb-ico">📜</span> Auditoria</button>

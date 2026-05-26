@@ -1,7 +1,7 @@
 {
-  "version": "75.65.0",
-  "meta": "2026.05.26-v75.65-marketing-ia",
-  "built": "2026-05-26T09:30:00Z",
-  "sw": "v75.65.0-2026-05-26-MARKETING-IA",
-  "sprint": "v75.65 Sprint 7.19+7.20 — Marketing + IAs. /v2/marketing dashboard Meta Ads (wrapper JWT pra /api/meta-ads existente) com KPI hero, contas, campanhas, filtros, presets de período. /v2/ia chat unificado com 4 agentes (Vera, Sol, Sr Performance, Sr Gerência) — endpoint /api/v3/ia/chat com fallback Claude→Gemini→OpenAI, lê API keys das Configurações."
+  "version": "75.66.0",
+  "meta": "2026.05.26-v75.66-lanc-loc",
+  "built": "2026-05-26T10:00:00Z",
+  "sw": "v75.66.0-2026-05-26-LANC-LOC",
+  "sprint": "v75.66 Sprint 7.21 — Lançamentos + Locações. Tabelas lancamentos (construtora, etapa, comissão, VGV, unidades) e locacoes (endereço, proprietário, inquilino, aluguel/condomínio/IPTU, contrato). Endpoints CRUD + páginas com KPIs hero, filtros, modais de criar/editar/apagar, status colorido, alertas (lançamento vendido %, locação vencendo)."
 }
