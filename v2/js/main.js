@@ -31,6 +31,9 @@ import { pageConcorrencia } from './pages/concorrencia.js';
 import { pageBP } from './pages/bp.js';
 import { pageTV } from './pages/tv.js';
 import { pageGovernanca } from './pages/governanca.js';
+import { pageOO } from './pages/oo.js';
+import { pagePlantoes } from './pages/plantoes.js';
+import { pageCaptacoes } from './pages/captacoes.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -86,6 +89,9 @@ import { pageGovernanca } from './pages/governanca.js';
   router.register('/bp',          { render: async (ctx, root) => { setHeader('Plano BP');     highlight('/bp');          await pageBP(ctx, root); } });
   router.register('/tv',          { render: async (ctx, root) => { setHeader('Modo TV');      highlight('/tv');          await pageTV(ctx, root); } });
   router.register('/governanca',  { render: async (ctx, root) => { setHeader('Governança');   highlight('/governanca');  await pageGovernanca(ctx, root); } });
+  router.register('/one-on-one',  { render: async (ctx, root) => { setHeader('One-on-One');   highlight('/one-on-one');  await pageOO(ctx, root); } });
+  router.register('/plantoes',    { render: async (ctx, root) => { setHeader('Plantões');     highlight('/plantoes');    await pagePlantoes(ctx, root); } });
+  router.register('/captacoes',   { render: async (ctx, root) => { setHeader('Captações');    highlight('/captacoes');   await pageCaptacoes(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -130,6 +136,9 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/concorrencia"><span class="sb-ico">🎯</span> Concorrência</button>
         <button class="sb-link" data-nav="/bp"><span class="sb-ico">📋</span> Plano BP</button>
         <button class="sb-link" data-nav="/tv"><span class="sb-ico">📺</span> Modo TV</button>
+        <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
+        <button class="sb-link" data-nav="/plantoes"><span class="sb-ico">🛡</span> Plantões</button>
+        <button class="sb-link" data-nav="/captacoes"><span class="sb-ico">📥</span> Captações</button>
         <div class="sb-sec">Gestão</div>
         <button class="sb-link" data-nav="/usuarios"><span class="sb-ico">👥</span> Usuários</button>
         <button class="sb-link" data-nav="/auditoria"><span class="sb-ico">📜</span> Auditoria</button>

@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.68.0-2026-05-26-COBERTURA-100';
+const SW_VERSION = 'v75.69.0-2026-05-26-OO-PLANTOES-CAP';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
