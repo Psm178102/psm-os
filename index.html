@@ -43,7 +43,7 @@
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { box-shadow: 0 0 0 3px rgba(212,175,55,0.45); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 .sr-only, .psm-sr-only { position: absolute !important; left: -10000px !important; top: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; }
-</style><script>window.PSM_VERSION='75.63.0';window.PSM_VERSION_META='2026.05.26-v75.63-settings';
+</style><script>window.PSM_VERSION='75.64.0';window.PSM_VERSION_META='2026.05.26-v75.64-cutover-soft';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // v74.3 ISSUE #4: helper para catches "silenciosos" — registra em modo debug
@@ -978,6 +978,24 @@ html{height:100%;overflow:hidden}
 <script src="/lib/psm-monitor.js" defer></script>
 </head>
 <body>
+<!-- v75.64 Cutover Soft: banner promovendo /v2 -->
+<div id="psm-v2-banner" style="display:none;position:relative;background:linear-gradient(90deg,#0f172a 0%,#1e293b 50%,#d4a843 100%);color:#fff;padding:10px 16px;font-family:system-ui,-apple-system,sans-serif;text-align:center;font-size:13px;font-weight:500;letter-spacing:0.3px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.2)">
+  ✨ <b>Novo PSM-OS v2 disponível</b> — interface moderna, deals RD ao vivo, métricas avançadas, agenda, notificações.
+  <a href="/v2/login.html" style="background:#d4a843;color:#0f172a;padding:5px 14px;border-radius:6px;text-decoration:none;font-weight:800;margin-left:8px;display:inline-block">Conhecer →</a>
+  <button onclick="(function(){document.getElementById('psm-v2-banner').style.display='none';try{localStorage.setItem('psm_v2_banner_hidden_until',String(Date.now()+86400000));}catch(_){};})()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;font-size:18px;cursor:pointer;opacity:0.7;line-height:1" title="Esconder por 24h">×</button>
+</div>
+<script>
+(function(){
+  try {
+    var hideUntil = parseInt(localStorage.getItem('psm_v2_banner_hidden_until') || '0', 10);
+    if (Date.now() > hideUntil) {
+      document.getElementById('psm-v2-banner').style.display = 'block';
+    }
+  } catch(_) {
+    document.getElementById('psm-v2-banner').style.display = 'block';
+  }
+})();
+</script>
 <!-- v74 A11Y: noscript fallback para usuarios com JS desativado -->
 <noscript>
   <div style="position:fixed;inset:0;background:#0f172a;color:#f8fafc;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;z-index:9999999;font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif">
