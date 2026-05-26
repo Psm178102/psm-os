@@ -21,7 +21,7 @@ import uuid
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, notify  # type: ignore
 
 
 ALLOWED_STATUS = {"aberta", "em_andamento", "concluida", "cancelada", "atrasada"}
@@ -126,6 +126,25 @@ class handler(BaseHTTPRequestHandler):
             audit(self, actor, "task.update", target_type="dir_task", target_id=task_id,
                   before={k: cur.get(k) for k in patch.keys() if k != "historico"},
                   after={k: v for k, v in patch.items() if k != "historico"})
+
+            # Notify: se responsável mudou, avisa o novo. Se status mudou, avisa criador e resp atual.
+            try:
+                new_resp = patch.get("responsavel")
+                if new_resp and new_resp != cur.get("responsavel") and new_resp != actor["id"]:
+                    notify([new_resp], tipo="task.assigned",
+                           title=f"📋 {actor.get('name')} te atribuiu uma tarefa",
+                           body=cur.get("titulo") or "", link="#/tarefas",
+                           target_type="task", target_id=task_id)
+                if "status" in patch and patch["status"] != cur.get("status"):
+                    targets = {cur.get("responsavel"), cur.get("criado_por")} - {actor["id"], None}
+                    if targets:
+                        notify(list(targets), tipo="task.status",
+                               title=f"📋 Tarefa: {patch['status']}",
+                               body=f"{cur.get('titulo')} · alterada por {actor.get('name')}",
+                               link="#/tarefas", target_type="task", target_id=task_id)
+            except Exception as e:
+                print(f"[task] notify err: {e}")
+
             return self._send(200, {"ok": True, "task": row})
 
         # Create
@@ -168,4 +187,16 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(500, {"ok": False, "error": f"erro insert: {e}"})
 
             audit(self, actor, "task.create", target_type="dir_task", target_id=new_id, after=row)
+
+            # Notify responsável (se diferente do criador)
+            try:
+                resp = row.get("responsavel")
+                if resp and resp != actor["id"]:
+                    notify([resp], tipo="task.assigned",
+                           title=f"📋 Nova tarefa de {actor.get('name')}",
+                           body=titulo, link="#/tarefas",
+                           target_type="task", target_id=new_id)
+            except Exception as e:
+                print(f"[task] notify err: {e}")
+
             return self._send(200, {"ok": True, "task": inserted, "created": True})

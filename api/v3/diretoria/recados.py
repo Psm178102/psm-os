@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, notify  # type: ignore
 
 
 ALLOWED_PRIORIDADE = {"info", "alerta", "critica"}
@@ -135,6 +135,20 @@ class handler(BaseHTTPRequestHandler):
             inserted = (res.data or [row])[0]
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"insert: {e}"})
+
+        # Notifica todos os users ativos se recado for crítico ou alerta
+        if prior in ("critica", "alerta"):
+            try:
+                aus = sb.table("users").select("id").eq("status", "ativo").execute().data or []
+                uids = [u["id"] for u in aus if u["id"] != actor["id"]]
+                ico = "🔴" if prior == "critica" else "⚠️"
+                preview = texto[:140] + ("…" if len(texto) > 140 else "")
+                notify(uids, tipo="recado.novo",
+                       title=f"{ico} {prior.upper()}: {actor.get('name')}",
+                       body=preview, link="#/diretoria",
+                       target_type="recado", target_id=new_id)
+            except Exception as e:
+                print(f"[recado] notify err: {e}")
 
         audit(self, actor, "recado.create", target_type="recado", target_id=new_id, after=row)
         return self._send(200, {"ok": True, "recado": inserted, "created": True})

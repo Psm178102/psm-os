@@ -4,6 +4,7 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { mountComments } from '../comments.js';
 
 const STATUS = [
   { id: 'aberta',         lbl: 'Aberta',        color: '#64748b', ico: '📝' },
@@ -188,6 +189,7 @@ function taskRow(t, isSocio, myId) {
 
         <span class="tiny muted" style="margin-left:auto">criado por ${escapeHtml(criadorLbl)}</span>
 
+        <button class="btn btn-ghost tiny" data-task-action="comments" data-id="${t.id}" title="Comentários" style="padding:5px 8px">💬</button>
         ${isSocio ? `<button class="btn btn-ghost tiny" data-task-action="delete" data-id="${t.id}" title="Apagar">🗑</button>` : ''}
       </div>
     </div>
@@ -219,7 +221,32 @@ async function handleTaskAction(ev) {
       await api.request('/api/v3/tasks/delete', { method: 'POST', body: { id } });
       await reload();
     } catch (e) { alert('Erro: ' + e.message); }
+  } else if (action === 'comments') {
+    openCommentsModal(id);
   }
+}
+
+function openCommentsModal(taskId) {
+  const t = _tasks.find(x => x.id === taskId);
+  if (!t) return;
+  let modal = document.getElementById('modal-comments');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modal-comments';
+    document.body.appendChild(modal);
+  }
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div class="card" style="margin:0;max-width:560px;width:100%;max-height:90vh;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <h3 style="margin:0;flex:1">💬 Comentários · ${escapeHtml(t.titulo)}</h3>
+        <button class="btn btn-ghost" id="cm-close">✕</button>
+      </div>
+      <div id="comments-host" style="flex:1;overflow-y:auto"></div>
+    </div>
+  `;
+  document.getElementById('cm-close').addEventListener('click', () => modal.remove());
+  mountComments(document.getElementById('comments-host'), { target_type: 'task', target_id: taskId });
 }
 
 function openNewModal() {

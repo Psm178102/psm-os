@@ -15,6 +15,7 @@ import { pageTarefas } from './pages/tarefas.js';
 import { pageMetas } from './pages/metas.js';
 import { pageAgenda } from './pages/agenda.js';
 import { pageDiretoria } from './pages/diretoria.js';
+import { initNotifs } from './notifs.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -51,6 +52,9 @@ import { pageDiretoria } from './pages/diretoria.js';
 
   // 5) Monta router
   router.mount(document.getElementById('app-main'));
+
+  // 6) Notificações (sino + drawer + poll 60s)
+  initNotifs();
 })();
 
 // ─── Shell ─────────────────────────────────────────────────────────────
@@ -82,6 +86,10 @@ function shellHTML(user) {
         <div class="h-title" id="h-title">Dashboard</div>
         <div class="h-spacer"></div>
         <div class="h-user">
+          <button class="btn btn-ghost" id="btn-notif" style="position:relative;padding:6px 10px" title="Notificações">
+            🔔
+            <span id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#dc2626;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:0 5px;min-width:16px;height:16px;line-height:16px;text-align:center"></span>
+          </button>
           <span>${escapeHtml(user.name || 'Usuário')}</span>
           <div class="h-avatar">${escapeHtml(ini)}</div>
           <button class="btn btn-ghost" id="btn-logout">Sair</button>

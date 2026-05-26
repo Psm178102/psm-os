@@ -250,3 +250,38 @@ def audit(handler, actor, action: str, target_type: str = None,
         sb.table("audit_log").insert(row).execute()
     except Exception as e:
         print(f"[audit] falha gravar: {e}")
+
+
+# ─── Notifications ─────────────────────────────────────────────────────────
+def notify(user_ids, tipo: str, title: str, body: str = None,
+           link: str = None, target_type: str = None, target_id: str = None) -> int:
+    """
+    Gera notification(s) in-app. user_ids: list de ids OU string única.
+    Best-effort. Retorna count de inserts.
+    """
+    if not user_ids:
+        return 0
+    if isinstance(user_ids, str):
+        user_ids = [user_ids]
+    user_ids = [u for u in set(user_ids) if u]  # dedupe + None-filter
+    if not user_ids:
+        return 0
+    try:
+        sb = supabase_client()
+        if not sb:
+            return 0
+        rows = [{
+            "id":          "nt_" + uuid.uuid4().hex[:12],
+            "user_id":     uid,
+            "tipo":        tipo,
+            "title":       title[:255],
+            "body":        (body or "")[:1000] or None,
+            "link":        link,
+            "target_type": target_type,
+            "target_id":   target_id,
+        } for uid in user_ids]
+        sb.table("notifications").insert(rows).execute()
+        return len(rows)
+    except Exception as e:
+        print(f"[notify] falha: {e}")
+        return 0

@@ -1,7 +1,7 @@
 {
-  "version": "75.60.0",
-  "meta": "2026.05.26-v75.60-diretoria",
-  "built": "2026-05-26T07:00:00Z",
-  "sw": "v75.60.0-2026-05-26-DIRETORIA",
-  "sprint": "v75.60 Sprint 7.14 — Dashboard Diretoria. Tabelas recados + estrategia. Endpoints /api/v3/diretoria/{dashboard,recados,estrategia}. Página /v2/diretoria com 3 tabs: 📊 Dashboard (KPIs agregados: VGV ano/mês, atingimento %, equipe ativa, tarefas, eventos, recados), 📢 Recados (feed com prioridade info/alerta/crítica, fixar, expirar, Sócio cria), 🎯 Estratégia (5 tipos: visão/missão/objetivos/OKRs/iniciativas com barra de progresso por ano)."
+  "version": "75.61.0",
+  "meta": "2026.05.26-v75.61-notifs-comments",
+  "built": "2026-05-26T07:30:00Z",
+  "sw": "v75.61.0-2026-05-26-NOTIFS-COMMENTS",
+  "sprint": "v75.61 Sprint 7.15 — Notificações + Comentários. Tabelas comments (target_type+target_id, mentions jsonb) e notifications (user_id, tipo, title, body, link, lida). Endpoints /api/v3/comments/{list,upsert} com @mention auto-detect e /api/v3/notifications/{list,mark_read}. Helper notify() em _auth_lib. Integrações automáticas: recado crítico/alerta notifica todo time, task atribuída/status notifica responsável+criador, comentário notifica @mentions + dono do alvo. Frontend: sino 🔔 com badge no header (poll 60s), drawer expandível, componente comments reusável (modal nas Tarefas)."
 }
