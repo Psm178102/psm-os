@@ -13,6 +13,7 @@ import { pageCrm } from './pages/crm.js';
 import { pageEquipe } from './pages/equipe.js';
 import { pageTarefas } from './pages/tarefas.js';
 import { pageMetas } from './pages/metas.js';
+import { pageAgenda } from './pages/agenda.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -40,6 +41,7 @@ import { pageMetas } from './pages/metas.js';
   router.register('/equipe',    { render: async (ctx, root) => { setHeader('Equipe');    highlight('/equipe');    await pageEquipe(ctx, root); } });
   router.register('/tarefas',   { render: async (ctx, root) => { setHeader('Tarefas');   highlight('/tarefas');   await pageTarefas(ctx, root); } });
   router.register('/metas',     { render: async (ctx, root) => { setHeader('Metas');     highlight('/metas');     await pageMetas(ctx, root); } });
+  router.register('/agenda',    { render: async (ctx, root) => { setHeader('Agenda');    highlight('/agenda');    await pageAgenda(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -65,6 +67,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/equipe"><span class="sb-ico">🛡</span> Equipes</button>
         <button class="sb-link" data-nav="/tarefas"><span class="sb-ico">📋</span> Tarefas</button>
         <button class="sb-link" data-nav="/metas"><span class="sb-ico">🎯</span> Metas</button>
+        <button class="sb-link" data-nav="/agenda"><span class="sb-ico">📅</span> Agenda</button>
         <div class="sb-sec">Gestão</div>
         <button class="sb-link" data-nav="/usuarios"><span class="sb-ico">👥</span> Usuários</button>
         <button class="sb-link" data-nav="/auditoria"><span class="sb-ico">📜</span> Auditoria</button>
