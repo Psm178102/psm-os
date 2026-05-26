@@ -41,6 +41,7 @@ function drawShell() {
       <div class="flex gap-1" style="margin-top:14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
         ${tabBtn('resumo',    '📊 Resumo')}
         ${tabBtn('dre',       '📈 DRE 12m')}
+        ${tabBtn('metricas',  '🚦 Métricas')}
         ${tabBtn('custos',    '🏢 Custos Fixos')}
         ${tabBtn('comissoes', '💎 Comissões')}
         ${tabBtn('repasses',  '🔄 Repasses')}
@@ -68,6 +69,7 @@ async function drawBody() {
   try {
     if (_tab === 'resumo')        body.innerHTML = await renderResumo();
     else if (_tab === 'dre')      body.innerHTML = await renderDre();
+    else if (_tab === 'metricas') body.innerHTML = await renderMetricas();
     else if (_tab === 'custos')   body.innerHTML = await renderCustos();
     else if (_tab === 'comissoes')body.innerHTML = await renderComissoes();
     else if (_tab === 'repasses') body.innerHTML = await renderRepasses();
@@ -219,6 +221,163 @@ function dreRow(r, maxRec, maxDes) {
       <td style="text-align:right;padding:6px 10px" class="muted">${r.receita_count + r.despesa_count}</td>
     </tr>
   `;
+}
+
+// ─── Tab: Métricas (MoM + Fluxo de Caixa + Alertas) ─────────────────────
+async function renderMetricas() {
+  const key = 'metricas|' + _company;
+  if (!_cache[key]) _cache[key] = await api.request('/api/v3/finance/metricas?months=6&days_ahead=90&company=' + encodeURIComponent(_company));
+  const d = _cache[key];
+  const mom = d.mom || [];
+  const cash = d.cashflow || [];
+  const sum = d.summary || {};
+
+  const alertColors = {
+    critica: { bg: '#fee2e2', fg: '#991b1b', ico: '🔴' },
+    alta:    { bg: '#fef3c7', fg: '#78350f', ico: '🟠' },
+    media:   { bg: '#dbeafe', fg: '#1e40af', ico: '🟡' },
+  };
+
+  // Calcular pontos pra mini chart de saldo
+  const maxSaldo = Math.max(...cash.map(c => c.saldo_acumulado), 1);
+  const minSaldo = Math.min(...cash.map(c => c.saldo_acumulado), 0);
+  const range = maxSaldo - minSaldo || 1;
+
+  return `
+    <div class="tiny muted" style="margin-bottom:10px">
+      MoM últimos 6 meses · Fluxo de caixa próximos 90 dias · Atualizado ${new Date(d.fetched_at).toLocaleString('pt-BR')}
+    </div>
+
+    <!-- Hero KPIs -->
+    <div class="flex gap-3" style="flex-wrap:wrap;margin-bottom:14px">
+      ${kpiBig('💧 Saldo previsto 90d', 'R$ ' + money(sum.saldo_90d),
+               (sum.saldo_90d || 0) >= 0 ? 'positivo' : 'NEGATIVO',
+               (sum.saldo_90d || 0) >= 0 ? '#16a34a' : '#dc2626')}
+      ${kpiBig('⚠ Menor saldo previsto',  'R$ ' + money(sum.menor_saldo_90d), 'vale no período', sum.menor_saldo_90d >= 0 ? '#16a34a' : '#dc2626')}
+      ${kpiBig('📉 Dias negativos',       fmtNum(sum.dias_negativos), 'de 90 dias previstos', sum.dias_negativos > 0 ? '#dc2626' : '#16a34a')}
+      ${kpiBig('🚨 Alertas',              d.alerts?.length || 0, 'eventos a monitorar', (d.alerts?.length || 0) > 0 ? '#d97706' : '#16a34a')}
+    </div>
+
+    <!-- Alertas -->
+    ${(d.alerts || []).length ? `
+      <div class="card" style="margin:14px 0">
+        <h3 class="card-title">🚨 Alertas inteligentes</h3>
+        <div style="display:grid;gap:8px">
+          ${d.alerts.map(a => {
+            const ac = alertColors[a.level] || alertColors.media;
+            return `<div style="background:${ac.bg};color:${ac.fg};padding:10px 14px;border-radius:var(--r-sm);font-size:13px;font-weight:600">
+              ${ac.ico} <b>${escapeHtml(a.level.toUpperCase())}</b> · ${escapeHtml(a.msg)}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    ` : '<div class="alert alert-ok">✅ Nenhum alerta crítico no período.</div>'}
+
+    <!-- Tabela MoM -->
+    <div class="card" style="margin:14px 0">
+      <h3 class="card-title">📊 Mês vs Mês (variação %)</h3>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:780px">
+          <thead>
+            <tr style="background:var(--bg-3);border-bottom:2px solid var(--ink)">
+              <th style="text-align:left;padding:8px">Mês</th>
+              <th style="text-align:right;padding:8px;color:#16a34a">Receita</th>
+              <th style="text-align:right;padding:8px;color:#16a34a">Δ%</th>
+              <th style="text-align:right;padding:8px;color:#dc2626">Despesa</th>
+              <th style="text-align:right;padding:8px;color:#dc2626">Δ%</th>
+              <th style="text-align:right;padding:8px">Saldo</th>
+              <th style="text-align:right;padding:8px">Δ%</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${mom.map(m => momRow(m)).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Cashflow timeline -->
+    <div class="card" style="margin:14px 0">
+      <h3 class="card-title">💧 Fluxo de Caixa previsto (90 dias)</h3>
+      <div style="position:relative;height:200px;background:var(--bg-3);border-radius:var(--r-sm);padding:10px;overflow:hidden">
+        <svg viewBox="0 0 ${cash.length || 1} 100" preserveAspectRatio="none" style="width:100%;height:100%">
+          <!-- Linha zero -->
+          ${minSaldo < 0 ? `<line x1="0" y1="${(maxSaldo / range) * 100}" x2="${cash.length}" y2="${(maxSaldo / range) * 100}" stroke="var(--ink-muted)" stroke-width="0.2" stroke-dasharray="2,1"/>` : ''}
+          <!-- Linha do saldo acumulado -->
+          <polyline points="${cash.map((c, i) => `${i},${100 - ((c.saldo_acumulado - minSaldo) / range) * 100}`).join(' ')}"
+                    fill="none" stroke="#2563eb" stroke-width="0.5"/>
+          <!-- Pontos negativos em vermelho -->
+          ${cash.filter(c => c.saldo_acumulado < 0).map((c, idx) => {
+            const i = cash.indexOf(c);
+            return `<circle cx="${i}" cy="${100 - ((c.saldo_acumulado - minSaldo) / range) * 100}" r="0.6" fill="#dc2626"/>`;
+          }).join('')}
+        </svg>
+      </div>
+      <div class="flex" style="justify-content:space-between;font-size:11px;margin-top:6px">
+        <span class="muted">${cash[0]?.data ? new Date(cash[0].data).toLocaleDateString('pt-BR') : ''}</span>
+        <span class="muted">${cash[Math.floor(cash.length/2)]?.data ? new Date(cash[Math.floor(cash.length/2)].data).toLocaleDateString('pt-BR') : ''}</span>
+        <span class="muted">${cash[cash.length-1]?.data ? new Date(cash[cash.length-1].data).toLocaleDateString('pt-BR') : ''}</span>
+      </div>
+      <div class="tiny muted mt-2">
+        Linha azul = saldo acumulado dia a dia · Pontos vermelhos = dias com saldo < 0 ·
+        Considera só lançamentos não-pagos (previstos) NIBO.
+      </div>
+    </div>
+
+    <!-- Eventos próximos 14 dias -->
+    <div class="card" style="margin:14px 0">
+      <h3 class="card-title">📅 Próximos 14 dias (eventos significativos)</h3>
+      ${(() => {
+        const next14 = cash.slice(0, 14).filter(c => c.in > 0 || c.out > 0);
+        if (!next14.length) return '<div class="muted tiny">Sem lançamentos previstos.</div>';
+        return `<table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="background:var(--bg-3)">
+            <th style="text-align:left;padding:6px 8px">Data</th>
+            <th style="text-align:right;padding:6px 8px;color:#16a34a">Entrada</th>
+            <th style="text-align:right;padding:6px 8px;color:#dc2626">Saída</th>
+            <th style="text-align:right;padding:6px 8px">Saldo dia</th>
+            <th style="text-align:right;padding:6px 8px">Acumulado</th>
+          </tr></thead>
+          <tbody>
+            ${next14.map(c => `
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:5px 8px;font-weight:600">${new Date(c.data).toLocaleDateString('pt-BR')}</td>
+                <td style="text-align:right;padding:5px 8px;color:#16a34a">${c.in > 0 ? 'R$ ' + money(c.in) + ` <span class="tiny muted">(${c.in_n})</span>` : '—'}</td>
+                <td style="text-align:right;padding:5px 8px;color:#dc2626">${c.out > 0 ? 'R$ ' + money(c.out) + ` <span class="tiny muted">(${c.out_n})</span>` : '—'}</td>
+                <td style="text-align:right;padding:5px 8px;font-weight:700;color:${c.saldo_dia >= 0 ? '#16a34a' : '#dc2626'}">R$ ${money(c.saldo_dia)}</td>
+                <td style="text-align:right;padding:5px 8px;color:${c.saldo_acumulado >= 0 ? '#16a34a' : '#dc2626'}">R$ ${money(c.saldo_acumulado)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+      })()}
+    </div>
+  `;
+}
+
+function momRow(m) {
+  const fmt = (pct) => {
+    if (pct == null) return '<span class="muted">—</span>';
+    const c = pct > 0 ? '#16a34a' : pct < 0 ? '#dc2626' : 'var(--ink-muted)';
+    const sign = pct > 0 ? '+' : '';
+    return `<span style="color:${c};font-weight:700">${sign}${pct.toFixed(1)}%</span>`;
+  };
+  return `
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 8px;font-weight:700">${escapeHtml(m.label)}</td>
+      <td style="text-align:right;padding:6px 8px;color:#16a34a">R$ ${money(m.receita)}</td>
+      <td style="text-align:right;padding:6px 8px">${fmt(m.receita_pct)}</td>
+      <td style="text-align:right;padding:6px 8px;color:#dc2626">R$ ${money(m.despesa)}</td>
+      <td style="text-align:right;padding:6px 8px">${fmt(m.despesa_pct)}</td>
+      <td style="text-align:right;padding:6px 8px;font-weight:700;color:${m.saldo >= 0 ? '#16a34a' : '#dc2626'}">R$ ${money(m.saldo)}</td>
+      <td style="text-align:right;padding:6px 8px">${fmt(m.saldo_pct)}</td>
+    </tr>
+  `;
+}
+
+function fmtNum(n) {
+  if (n == null) return '—';
+  return Number(n).toLocaleString('pt-BR');
 }
 
 // ─── Tab: Custos Fixos ──────────────────────────────────────────────────
