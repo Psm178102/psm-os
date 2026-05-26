@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.66.0-2026-05-26-LANC-LOC';
+const SW_VERSION = 'v75.67.0-2026-05-26-ARENA-FORECAST-ORG';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

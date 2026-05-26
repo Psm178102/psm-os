@@ -1,7 +1,7 @@
 {
-  "version": "75.66.0",
-  "meta": "2026.05.26-v75.66-lanc-loc",
-  "built": "2026-05-26T10:00:00Z",
-  "sw": "v75.66.0-2026-05-26-LANC-LOC",
-  "sprint": "v75.66 Sprint 7.21 — Lançamentos + Locações. Tabelas lancamentos (construtora, etapa, comissão, VGV, unidades) e locacoes (endereço, proprietário, inquilino, aluguel/condomínio/IPTU, contrato). Endpoints CRUD + páginas com KPIs hero, filtros, modais de criar/editar/apagar, status colorido, alertas (lançamento vendido %, locação vencendo)."
+  "version": "75.67.0",
+  "meta": "2026.05.26-v75.67-arena-forecast-organograma",
+  "built": "2026-05-26T10:30:00Z",
+  "sw": "v75.67.0-2026-05-26-ARENA-FORECAST-ORG",
+  "sprint": "v75.67 Sprint 7.22 — Arena Live + Forecast + Organograma (3 telas finais). /v2/arena feed unificado tempo real (vendas RD + eventos + recados + tarefas + logins) com poll 30s. /v2/forecast projeção VGV ponderada por pesos heurísticos de stage (proposta 70%, qualificado 40%, etc) com tabela mensal + breakdown por stage. /v2/organograma hierarquia visual da equipe (Sócios → Gerência+Back → Marketing → equipes com líder+corretores). PSM-OS v2 agora cobre 18 telas, 100% do escopo original do /v1."
 }

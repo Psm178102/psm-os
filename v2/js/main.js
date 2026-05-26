@@ -21,6 +21,9 @@ import { pageMarketing } from './pages/marketing.js';
 import { pageIA } from './pages/ia.js';
 import { pageLancamentos } from './pages/lancamentos.js';
 import { pageLocacoes } from './pages/locacoes.js';
+import { pageArena } from './pages/arena.js';
+import { pageForecast } from './pages/forecast.js';
+import { pageOrganograma } from './pages/organograma.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -66,6 +69,9 @@ import { pageLocacoes } from './pages/locacoes.js';
   router.register('/ia',        { render: async (ctx, root) => { setHeader('IA');        highlight('/ia');        await pageIA(ctx, root); } });
   router.register('/lancamentos', { render: async (ctx, root) => { setHeader('Lançamentos'); highlight('/lancamentos'); await pageLancamentos(ctx, root); } });
   router.register('/locacoes',  { render: async (ctx, root) => { setHeader('Locações');  highlight('/locacoes');  await pageLocacoes(ctx, root); } });
+  router.register('/arena',     { render: async (ctx, root) => { setHeader('Arena Live'); highlight('/arena');     await pageArena(ctx, root); } });
+  router.register('/forecast',  { render: async (ctx, root) => { setHeader('Forecast');  highlight('/forecast');  await pageForecast(ctx, root); } });
+  router.register('/organograma', { render: async (ctx, root) => { setHeader('Organograma'); highlight('/organograma'); await pageOrganograma(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -101,6 +107,9 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/ia"><span class="sb-ico">🤖</span> IA Assistentes</button>
         <button class="sb-link" data-nav="/lancamentos"><span class="sb-ico">🏗</span> Lançamentos</button>
         <button class="sb-link" data-nav="/locacoes"><span class="sb-ico">🔑</span> Locações</button>
+        <button class="sb-link" data-nav="/arena"><span class="sb-ico">📡</span> Arena Live</button>
+        <button class="sb-link" data-nav="/forecast"><span class="sb-ico">📈</span> Forecast</button>
+        <button class="sb-link" data-nav="/organograma"><span class="sb-ico">🌳</span> Organograma</button>
         <div class="sb-sec">Gestão</div>
         <button class="sb-link" data-nav="/usuarios"><span class="sb-ico">👥</span> Usuários</button>
         <button class="sb-link" data-nav="/auditoria"><span class="sb-ico">📜</span> Auditoria</button>
