@@ -1,7 +1,7 @@
 {
-  "version": "75.62.0",
-  "meta": "2026.05.26-v75.62-mobile",
-  "built": "2026-05-26T08:00:00Z",
-  "sw": "v75.62.0-2026-05-26-MOBILE",
-  "sprint": "v75.62 Sprint 7.16 — Mobile responsivo. Sidebar vira drawer 280px slide-in com backdrop em telas ≤768px, abre via botão hamburger ☰ no header. Nome do user esconde, avatares menores. Tabelas com font menor + scroll horizontal. KPI cards stack em 2 colunas (≤768) ou 1 coluna (≤480). Modais full-width. Padding reduzido. Pré-requisito pro cutover."
+  "version": "75.63.0",
+  "meta": "2026.05.26-v75.63-settings",
+  "built": "2026-05-26T08:30:00Z",
+  "sw": "v75.63.0-2026-05-26-SETTINGS",
+  "sprint": "v75.63 Sprint 7.17 — Configurações no /v2/. Endpoints /api/v3/settings/{list,upsert} usando shared_kv key='psm_os_settings'. Schema whitelist 15 chaves agrupadas em 5 categorias (RD, NIBO, IA, Storage, Comunicação). Secrets mascarados por default; toggle revelar para Sócio L10. Audit log NÃO guarda valores reais (só notes 'had_value/empty -> has_value/cleared'). Página /v2/configuracoes com cards por categoria e save inline."
 }
