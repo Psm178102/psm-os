@@ -24,6 +24,13 @@ import { pageLocacoes } from './pages/locacoes.js';
 import { pageArena } from './pages/arena.js';
 import { pageForecast } from './pages/forecast.js';
 import { pageOrganograma } from './pages/organograma.js';
+import { pageCheckin } from './pages/checkin.js';
+import { pageRanking } from './pages/ranking.js';
+import { pageImoveis } from './pages/imoveis.js';
+import { pageConcorrencia } from './pages/concorrencia.js';
+import { pageBP } from './pages/bp.js';
+import { pageTV } from './pages/tv.js';
+import { pageGovernanca } from './pages/governanca.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -72,6 +79,13 @@ import { pageOrganograma } from './pages/organograma.js';
   router.register('/arena',     { render: async (ctx, root) => { setHeader('Arena Live'); highlight('/arena');     await pageArena(ctx, root); } });
   router.register('/forecast',  { render: async (ctx, root) => { setHeader('Forecast');  highlight('/forecast');  await pageForecast(ctx, root); } });
   router.register('/organograma', { render: async (ctx, root) => { setHeader('Organograma'); highlight('/organograma'); await pageOrganograma(ctx, root); } });
+  router.register('/checkin',     { render: async (ctx, root) => { setHeader('Check-in');     highlight('/checkin');     await pageCheckin(ctx, root); } });
+  router.register('/ranking',     { render: async (ctx, root) => { setHeader('Ranking');      highlight('/ranking');     await pageRanking(ctx, root); } });
+  router.register('/imoveis',     { render: async (ctx, root) => { setHeader('Imóveis');      highlight('/imoveis');     await pageImoveis(ctx, root); } });
+  router.register('/concorrencia',{ render: async (ctx, root) => { setHeader('Concorrência'); highlight('/concorrencia');await pageConcorrencia(ctx, root); } });
+  router.register('/bp',          { render: async (ctx, root) => { setHeader('Plano BP');     highlight('/bp');          await pageBP(ctx, root); } });
+  router.register('/tv',          { render: async (ctx, root) => { setHeader('Modo TV');      highlight('/tv');          await pageTV(ctx, root); } });
+  router.register('/governanca',  { render: async (ctx, root) => { setHeader('Governança');   highlight('/governanca');  await pageGovernanca(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -95,6 +109,8 @@ function shellHTML(user) {
         <div class="sb-sec">Início</div>
         <button class="sb-link on" data-nav="/"><span class="sb-ico">🏠</span> Dashboard</button>
         <button class="sb-link" data-nav="/painel"><span class="sb-ico">👤</span> Meu Painel</button>
+        <button class="sb-link" data-nav="/checkin"><span class="sb-ico">📍</span> Check-in</button>
+        <button class="sb-link" data-nav="/ranking"><span class="sb-ico">🏆</span> Ranking</button>
         <div class="sb-sec">Operação</div>
         <button class="sb-link" data-nav="/financeiro"><span class="sb-ico">💰</span> Financeiro</button>
         <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM</button>
@@ -110,9 +126,14 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/arena"><span class="sb-ico">📡</span> Arena Live</button>
         <button class="sb-link" data-nav="/forecast"><span class="sb-ico">📈</span> Forecast</button>
         <button class="sb-link" data-nav="/organograma"><span class="sb-ico">🌳</span> Organograma</button>
+        <button class="sb-link" data-nav="/imoveis"><span class="sb-ico">🏘</span> Imóveis</button>
+        <button class="sb-link" data-nav="/concorrencia"><span class="sb-ico">🎯</span> Concorrência</button>
+        <button class="sb-link" data-nav="/bp"><span class="sb-ico">📋</span> Plano BP</button>
+        <button class="sb-link" data-nav="/tv"><span class="sb-ico">📺</span> Modo TV</button>
         <div class="sb-sec">Gestão</div>
         <button class="sb-link" data-nav="/usuarios"><span class="sb-ico">👥</span> Usuários</button>
         <button class="sb-link" data-nav="/auditoria"><span class="sb-ico">📜</span> Auditoria</button>
+        <button class="sb-link" data-nav="/governanca"><span class="sb-ico">⚖️</span> Governança</button>
         <div class="sb-sec">Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
         <button class="sb-link" data-nav="/configuracoes"><span class="sb-ico">🔧</span> Configurações</button>

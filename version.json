@@ -1,7 +1,7 @@
 {
-  "version": "75.67.0",
-  "meta": "2026.05.26-v75.67-arena-forecast-organograma",
-  "built": "2026-05-26T10:30:00Z",
-  "sw": "v75.67.0-2026-05-26-ARENA-FORECAST-ORG",
-  "sprint": "v75.67 Sprint 7.22 — Arena Live + Forecast + Organograma (3 telas finais). /v2/arena feed unificado tempo real (vendas RD + eventos + recados + tarefas + logins) com poll 30s. /v2/forecast projeção VGV ponderada por pesos heurísticos de stage (proposta 70%, qualificado 40%, etc) com tabela mensal + breakdown por stage. /v2/organograma hierarquia visual da equipe (Sócios → Gerência+Back → Marketing → equipes com líder+corretores). PSM-OS v2 agora cobre 18 telas, 100% do escopo original do /v1."
+  "version": "75.68.0",
+  "meta": "2026.05.26-v75.68-cobertura-100",
+  "built": "2026-05-26T11:00:00Z",
+  "sw": "v75.68.0-2026-05-26-COBERTURA-100",
+  "sprint": "v75.68 Sprint 7.23 — Cobertura 100% do escopo /v1. 3 tabelas novas (check_ins, imoveis, concorrentes). Endpoints CRUD para checkin, imoveis, concorrentes. 7 páginas novas: /v2/checkin (in/out), /v2/ranking (top VGV + atividade), /v2/imoveis (tabela completa próprios+terceiros), /v2/concorrencia (radar), /v2/bp (plano consolidado), /v2/tv (modo TV fullscreen com Arena+Ranking), /v2/governanca (saúde sistema + integrações + audit). PSM-OS v2 cobre 25 telas — 100% do /v1 + features extras."
 }
