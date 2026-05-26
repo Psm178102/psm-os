@@ -33,10 +33,23 @@ export function teardownNotifs() {
 async function refresh() {
   try {
     const r = await api.request('/api/v3/notifications/list?limit=30');
+    const prevUnread = _unread;
     _unread = r.unread_total || 0;
     _items = r.notifications || [];
     updateBadge();
     if (_drawerEl) renderDrawer();
+    // Toca som se chegou notif nova
+    if (_unread > prevUnread && prevUnread != null) {
+      const newest = _items[0];
+      const tipo = newest?.tipo || '';
+      try {
+        if (tipo === 'comment.new' || tipo === 'task.assigned') {
+          window.dispatchEvent(new CustomEvent('psm:sound', { detail: 'notif' }));
+        } else if (tipo === 'recado.novo') {
+          window.dispatchEvent(new CustomEvent('psm:sound', { detail: 'alerta' }));
+        }
+      } catch {}
+    }
   } catch (e) {
     console.warn('[notifs] refresh err:', e);
   }

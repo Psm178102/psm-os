@@ -1,7 +1,7 @@
 {
-  "version": "75.69.0",
-  "meta": "2026.05.26-v75.69-oo-plantoes-captacoes",
-  "built": "2026-05-26T11:30:00Z",
-  "sw": "v75.69.0-2026-05-26-OO-PLANTOES-CAP",
-  "sprint": "v75.69 Sprint 7.24 — One-on-One + Plantões + Captações. Tabelas one_on_ones (lider×corretor, ações jsonb, próxima_data) e plantoes (data, período, corretor). /api/v3/{oo,plantoes,captacoes}/* CRUD + relatório captações agregado dos imoveis. Páginas /v2/one-on-one (cards por corretor com histórico), /v2/plantoes (calendário mensal navegável + ranking top em plantão), /v2/captacoes (ranking captadores + tabela imóveis)."
+  "version": "75.70.0",
+  "meta": "2026.05.26-v75.70-arena-experience",
+  "built": "2026-05-26T12:00:00Z",
+  "sw": "v75.70.0-2026-05-26-ARENA-EXPERIENCE",
+  "sprint": "v75.70 Sprint 7.25 — Experiência Arena. Sons via Web Audio API (sem MP3): playVenda (4 notas crescentes), playAlerta, playNotif, playCheckin, playError. Toggle 🔊/🔇 no header com localStorage. Notifs disparam som automático (notif/alerta). /v2/tv expandido com 5 modos (Arena Live + Ranking + Metas vs Real + Funil RD + Equipes) + animações slideIn + radial gradients + glow Arena gigante + detecta venda nova e toca som."
 }

@@ -16,6 +16,7 @@ import { pageMetas } from './pages/metas.js';
 import { pageAgenda } from './pages/agenda.js';
 import { pageDiretoria } from './pages/diretoria.js';
 import { initNotifs } from './notifs.js';
+import { sounds } from './sounds.js';
 import { pageConfiguracoes } from './pages/configuracoes.js';
 import { pageMarketing } from './pages/marketing.js';
 import { pageIA } from './pages/ia.js';
@@ -103,6 +104,17 @@ import { pageCaptacoes } from './pages/captacoes.js';
 
   // 6) Notificações (sino + drawer + poll 60s)
   initNotifs();
+
+  // 7) Sons da Arena (Web Audio API)
+  sounds.initSounds();
+
+  // 8) Toggle sons button
+  const btnSons = document.getElementById('btn-sons');
+  if (btnSons) {
+    const refresh = () => { btnSons.textContent = sounds.isEnabled() ? '🔊' : '🔇'; btnSons.title = sounds.isEnabled() ? 'Sons ativos (clique pra mutar)' : 'Sons mutados (clique pra ativar)'; };
+    refresh();
+    btnSons.addEventListener('click', () => { sounds.setEnabled(!sounds.isEnabled()); refresh(); if (sounds.isEnabled()) sounds.notif(); });
+  }
 })();
 
 // ─── Shell ─────────────────────────────────────────────────────────────
@@ -153,6 +165,7 @@ function shellHTML(user) {
         <div class="h-title" id="h-title">Dashboard</div>
         <div class="h-spacer"></div>
         <div class="h-user">
+          <button class="btn btn-ghost" id="btn-sons" style="padding:6px 10px" title="Sons">🔊</button>
           <button class="btn btn-ghost" id="btn-notif" style="position:relative;padding:6px 10px" title="Notificações">
             🔔
             <span id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#dc2626;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:0 5px;min-width:16px;height:16px;line-height:16px;text-align:center"></span>
