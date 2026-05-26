@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.52.0-2026-05-26-DEALS-RD-LIVE';
+const SW_VERSION = 'v75.53.0-2026-05-26-HEALTH-RD-CHECK';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

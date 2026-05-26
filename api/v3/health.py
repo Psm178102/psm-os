@@ -31,6 +31,9 @@ class handler(BaseHTTPRequestHandler):
             "supabase_url": bool(os.environ.get("SUPABASE_URL")),
             "supabase_service_key": bool(os.environ.get("SUPABASE_SERVICE_KEY")),
             "jwt_secret": bool(os.environ.get("JWT_SECRET")) and len(os.environ.get("JWT_SECRET", "")) >= 32,
+            "rd_api_token": bool(os.environ.get("RD_API_TOKEN")),
+            "nibo_api_token": bool(os.environ.get("NIBO_API_TOKEN")),
+            "nibo_token_locacao": bool(os.environ.get("NIBO_TOKEN_LOCACAO")),
         }
 
         sb_ok = False
@@ -48,7 +51,9 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             err = str(e)
 
-        all_ok = all(checks.values()) and sb_ok
+        # Required envs (sem essas, o sistema não funciona)
+        required = ["supabase_url", "supabase_service_key", "jwt_secret"]
+        all_ok = all(checks[k] for k in required) and sb_ok
 
         return self._send(200 if all_ok else 503, {
             "ok": all_ok,

@@ -1,7 +1,7 @@
 {
-  "version": "75.52.0",
-  "meta": "2026.05.26-v75.52-deals-rd-live",
-  "built": "2026-05-26T03:00:00Z",
-  "sw": "v75.52.0-2026-05-26-DEALS-RD-LIVE",
-  "sprint": "v75.52 Sprint 7.7 — Deals RD ao vivo. Novo /api/v3/crm/deals chama RD Station API (https://crm.rdstation.com/api/v1/deals) com paginação até 600 deals, cache 60s in-memory, filtros pipeline/stage/win/owner_email. Role-based: Sócio/Gerente vê tudo, Líder filtra por emails do team, Corretor só seus próprios. Página /v2/crm reimplementada com tabs por funil, cards por stage com VGV+count+amostra de 5 deals, fallback gracioso quando RD_API_TOKEN ausente. Requer adicionar RD_API_TOKEN no Vercel."
+  "version": "75.53.0",
+  "meta": "2026.05.26-v75.53-health-rd-check",
+  "built": "2026-05-26T03:30:00Z",
+  "sw": "v75.53.0-2026-05-26-HEALTH-RD-CHECK",
+  "sprint": "v75.53 health endpoint reportando todos env vars (rd_api_token, nibo, etc) + all_ok considera só required (supabase + jwt). Empacota com v75.52 (Deals RD ao vivo) — RD_API_TOKEN já configurado no Vercel."
 }
