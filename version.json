@@ -1,7 +1,7 @@
 {
-  "version": "75.70.0",
-  "meta": "2026.05.26-v75.70-arena-experience",
-  "built": "2026-05-26T12:00:00Z",
-  "sw": "v75.70.0-2026-05-26-ARENA-EXPERIENCE",
-  "sprint": "v75.70 Sprint 7.25 — Experiência Arena. Sons via Web Audio API (sem MP3): playVenda (4 notas crescentes), playAlerta, playNotif, playCheckin, playError. Toggle 🔊/🔇 no header com localStorage. Notifs disparam som automático (notif/alerta). /v2/tv expandido com 5 modos (Arena Live + Ranking + Metas vs Real + Funil RD + Equipes) + animações slideIn + radial gradients + glow Arena gigante + detecta venda nova e toca som."
+  "version": "75.71.0",
+  "meta": "2026.05.26-v75.71-integracoes",
+  "built": "2026-05-26T13:00:00Z",
+  "sw": "v75.71.0-2026-05-26-INTEGRACOES",
+  "sprint": "v75.71 Sprint 7.26 — Integrações Externas. /api/v3/webhooks/send: dispara webhook configurado (Zapier/Make/n8n) com title/body/severity, auditado. /api/v3/kenlo/sync: framework placeholder pra Kenlo Imob (sem token retorna 503 com instruções, audit kenlo.sync_pending). /api/v3/export/csv: baixa CSV de 10 tabelas whitelist (users/imoveis/lancamentos/locacoes/metas/deals/dir_tasks/eventos/audit_log/concorrentes), limit 5000, audit export.csv. /v2/integracoes: 3 seções (Webhook teste + Kenlo sync Sócio-only + 10 botões export CSV via fetch+blob com Authorization)."
 }
