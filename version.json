@@ -1,7 +1,7 @@
 {
-  "version": "75.64.0",
-  "meta": "2026.05.26-v75.64-cutover-soft",
-  "built": "2026-05-26T09:00:00Z",
-  "sw": "v75.64.0-2026-05-26-CUTOVER-SOFT",
-  "sprint": "v75.64 Sprint 7.18 — Cutover Soft. Banner sticky no topo do /v1 (gradient navy→gold) com botão 'Conhecer →' apontando pra /v2/login.html. Botão ✕ pra esconder por 24h (flag localStorage psm_v2_banner_hidden_until). Login do /v2 ganha link discreto '↩ Voltar ao sistema antigo'. Zero risco: /v1 continua acessível, cada um migra quando quiser."
+  "version": "75.65.0",
+  "meta": "2026.05.26-v75.65-marketing-ia",
+  "built": "2026-05-26T09:30:00Z",
+  "sw": "v75.65.0-2026-05-26-MARKETING-IA",
+  "sprint": "v75.65 Sprint 7.19+7.20 — Marketing + IAs. /v2/marketing dashboard Meta Ads (wrapper JWT pra /api/meta-ads existente) com KPI hero, contas, campanhas, filtros, presets de período. /v2/ia chat unificado com 4 agentes (Vera, Sol, Sr Performance, Sr Gerência) — endpoint /api/v3/ia/chat com fallback Claude→Gemini→OpenAI, lê API keys das Configurações."
 }
