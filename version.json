@@ -1,7 +1,7 @@
 {
-  "version": "75.51.0",
-  "meta": "2026.05.26-v75.51-tarefas",
-  "built": "2026-05-26T02:30:00Z",
-  "sw": "v75.51.0-2026-05-26-TAREFAS",
-  "sprint": "v75.51 Sprint 7.6 — Tarefas Diretoria no /v2/. Endpoints /api/v3/tasks/{list,upsert,delete} usando tabela dir_tasks (já existia vazia). Page /v2/tarefas com filtros (status, responsável, prioridade), agrupamento por status, editáveis inline (Sócio: full; outros: status+observacoes), modal Nova tarefa, alerta ATRASADA quando prazo passou, histórico jsonb por update. Todas as ações vão pro audit_log."
+  "version": "75.52.0",
+  "meta": "2026.05.26-v75.52-deals-rd-live",
+  "built": "2026-05-26T03:00:00Z",
+  "sw": "v75.52.0-2026-05-26-DEALS-RD-LIVE",
+  "sprint": "v75.52 Sprint 7.7 — Deals RD ao vivo. Novo /api/v3/crm/deals chama RD Station API (https://crm.rdstation.com/api/v1/deals) com paginação até 600 deals, cache 60s in-memory, filtros pipeline/stage/win/owner_email. Role-based: Sócio/Gerente vê tudo, Líder filtra por emails do team, Corretor só seus próprios. Página /v2/crm reimplementada com tabs por funil, cards por stage com VGV+count+amostra de 5 deals, fallback gracioso quando RD_API_TOKEN ausente. Requer adicionar RD_API_TOKEN no Vercel."
 }
