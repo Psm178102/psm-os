@@ -67,6 +67,9 @@ import { pageMetricasViab } from './pages/metricas-viab.js';
 import { pageOportunidades } from './pages/oportunidades.js';
 import { pageCadencia } from './pages/cadencia.js';
 import { pageFichasPropostas } from './pages/fichas-propostas.js';
+import { pageSrGerencia } from './pages/sr-gerencia.js';
+import { pageSrPerformance } from './pages/sr-performance.js';
+import { pageMapa } from './pages/mapa.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -157,6 +160,9 @@ import { pageFichasPropostas } from './pages/fichas-propostas.js';
   router.register('/oportunidades', { render: async (ctx, root) => { setHeader('Oportunidades');     highlight('/oportunidades'); await pageOportunidades(ctx, root); } });
   router.register('/cadencia',    { render: async (ctx, root) => { setHeader('Cadência');            highlight('/cadencia');    await pageCadencia(ctx, root); } });
   router.register('/fichas',      { render: async (ctx, root) => { setHeader('Fichas/Propostas');    highlight('/fichas');      await pageFichasPropostas(ctx, root); } });
+  router.register('/sr-gerencia', { render: async (ctx, root) => { setHeader('Sr. Gerência');        highlight('/sr-gerencia'); await pageSrGerencia(ctx, root); } });
+  router.register('/sr-performance', { render: async (ctx, root) => { setHeader('Sr. Performance'); highlight('/sr-performance'); await pageSrPerformance(ctx, root); } });
+  router.register('/mapa',        { render: async (ctx, root) => { setHeader('Mapa de Imóveis');    highlight('/mapa');        await pageMapa(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -207,12 +213,15 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing</button>
         <button class="sb-link" data-nav="/ia"><span class="sb-ico">🤖</span> IA Assistentes</button>
         <button class="sb-link" data-nav="/agentes"><span class="sb-ico">🧠</span> Central Agentes</button>
+        <button class="sb-link" data-nav="/sr-performance"><span class="sb-ico">🎖️</span> Sr. Performance</button>
+        <button class="sb-link" data-nav="/sr-gerencia"><span class="sb-ico">👔</span> Sr. Gerência</button>
         <button class="sb-link" data-nav="/lancamentos"><span class="sb-ico">🏗</span> Lançamentos</button>
         <button class="sb-link" data-nav="/locacoes"><span class="sb-ico">🔑</span> Locações</button>
         <button class="sb-link" data-nav="/arena"><span class="sb-ico">📡</span> Arena Live</button>
         <button class="sb-link" data-nav="/forecast"><span class="sb-ico">📈</span> Forecast</button>
         <button class="sb-link" data-nav="/organograma"><span class="sb-ico">🌳</span> Organograma</button>
         <button class="sb-link" data-nav="/imoveis"><span class="sb-ico">🏘</span> Imóveis</button>
+        <button class="sb-link" data-nav="/mapa"><span class="sb-ico">🗺</span> Mapa Imóveis</button>
         <button class="sb-link" data-nav="/concorrencia"><span class="sb-ico">🎯</span> Concorrência</button>
         <button class="sb-link" data-nav="/benchmark"><span class="sb-ico">📊</span> Benchmark</button>
         <button class="sb-link" data-nav="/intel-ads"><span class="sb-ico">📢</span> Intel Ads</button>

@@ -1,7 +1,7 @@
 {
-  "version": "75.80.0",
-  "meta": "2026.05.27-v75.80-crm-extras",
-  "built": "2026-05-27T17:00:00Z",
-  "sw": "v75.80.0-2026-05-27-CRM-EXTRAS",
-  "sprint": "v75.80 Sprint 8.7 — CRM Extras (Oportunidades + Cadência + Fichas). /v2/oportunidades: quadro Líder publica, qualquer corretor pode 'pegar' (1º que pega assume). Notifica equipe via notify() em nova oportunidade. Tipos: lead/imóvel/parceria/investidor. Status: aberta/pegou/fechada/perdida. /v2/cadencia: CRUD fluxos de follow-up multi-passos (dia + canal + mensagem). Canais: WhatsApp/Email/Ligação/Visita/SMS/Instagram. /v2/fichas: CRUD fichas de proposta (cliente, imóvel, valores, forma pagamento, status), corretor vê só as próprias, lvl>=5 vê todas + edita corretor responsável. Backend: 3 tabelas (oportunidades_psm, cadencia_psm com JSONB, fichas_propostas) + 3 endpoints CRUD com action=pegar. 29/32 telas restantes (~91%)."
+  "version": "75.81.0",
+  "meta": "2026.05.27-v75.81-final-32de32",
+  "built": "2026-05-27T18:00:00Z",
+  "sw": "v75.81.0-2026-05-27-FINAL-32DE32",
+  "sprint": "v75.81 Sprint 8.8 — Sênior (Sr. Gerência + Sr. Performance + Mapa) — 32/32 TELAS COMPLETO. /v2/sr-gerencia: painel Líder+ com KPIs operacionais (corretores ativos, vendas, alertas sub-50%, últimas auditorias) + chat IA dedicado /api/v3/ia/chat agent=sr_gerencia. /v2/sr-performance: painel corretor com KPIs pessoais (meu VGV, meta, conversão, ticket médio) + chat IA sr_performance + sugestões rápidas. /v2/mapa: Leaflet + OpenStreetMap (sem API key), geocoding por bairro (12 bairros Rio Preto), markers coloridos por status, busca + filtros, lista lateral sincronizada. MIGRAÇÃO 100% COMPLETA — 32 telas Sprint 8 + tudo do /v1 exceto Nano Banana (excluído explicitamente)."
 }

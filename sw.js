@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.80.0-2026-05-27-CRM-EXTRAS';
+const SW_VERSION = 'v75.81.0-2026-05-27-FINAL-32DE32';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
