@@ -1,7 +1,7 @@
 {
-  "version": "75.76.0",
-  "meta": "2026.05.27-v75.76-inteligencia",
-  "built": "2026-05-27T13:00:00Z",
-  "sw": "v75.76.0-2026-05-27-INTELIGENCIA",
-  "sprint": "v75.76 Sprint 8.3 — Inteligência (4 telas). /v2/tendencias: CRUD com 3 abas (Painel categorizado + Registrar + Histórico), alta/estável/baixa × alto/médio/baixo impacto. /v2/benchmark: análise estatística (média/mediana/max/min) por métrica + ranking Tiers A/B/C. /v2/intel-ads: Meta Ads Library tracker com filtro por segmento (MAP/MCMV/Terceiros/Locação) + link direto pra biblioteca. /v2/intel-dash: visão consolidada Sócio-only (KPIs + Top 5 anunciantes + Tendências alto impacto). Backend: tabela tendencias + endpoint CRUD com audit (lvl>=5 escrita). 14/30 telas restantes (~47%)."
+  "version": "75.77.0",
+  "meta": "2026.05.27-v75.77-simuladores",
+  "built": "2026-05-27T14:00:00Z",
+  "sw": "v75.77.0-2026-05-27-SIMULADORES",
+  "sprint": "v75.77 Sprint 8.4 — Simuladores (Hub + 6 calculadoras). /v2/simuladores: hub com 6 cards coloridos. /v2/sim-vpl: Valor Presente Líquido com fluxo mês-a-mês (até prazo de obra), desconto VPL, R$/m². /v2/sim-incc: correção INCC mensal cumulativa, total corrigido vs tabela. /v2/sim-repasse: ágio, lucro vendedor, fluxo proposta novo comprador. /v2/sim-energia: produtividade corretor por 10 canais (mix automático via sumproduct, VGV previsto). /v2/sim-leads: CAC, CPL, ROI, funil 6 etapas, LTV/CAC. /v2/sim-criativos: gerador IA via /api/v3/ia/chat agent=sol, retorna 5 headlines + 3 copies + 5 CTAs + 10 hashtags. Persistência localStorage por simulador. 21/30 telas restantes (~70%)."
 }

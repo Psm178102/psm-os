@@ -52,6 +52,13 @@ import { pageTendencias } from './pages/tendencias.js';
 import { pageBenchmark } from './pages/benchmark.js';
 import { pageIntelAds } from './pages/intel-ads.js';
 import { pageIntelDash } from './pages/intel-dash.js';
+import { pageSimuladores } from './pages/simuladores.js';
+import { pageSimVPL } from './pages/sim-vpl.js';
+import { pageSimINCC } from './pages/sim-incc.js';
+import { pageSimRepasse } from './pages/sim-repasse.js';
+import { pageSimEnergia } from './pages/sim-energia.js';
+import { pageSimLeads } from './pages/sim-leads.js';
+import { pageSimCriativos } from './pages/sim-criativos.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -127,6 +134,13 @@ import { pageIntelDash } from './pages/intel-dash.js';
   router.register('/benchmark',   { render: async (ctx, root) => { setHeader('Benchmark de Mercado'); highlight('/benchmark');  await pageBenchmark(ctx, root); } });
   router.register('/intel-ads',   { render: async (ctx, root) => { setHeader('Inteligência Ads');    highlight('/intel-ads');  await pageIntelAds(ctx, root); } });
   router.register('/intel-dash',  { render: async (ctx, root) => { setHeader('Inteligência Estratégica'); highlight('/intel-dash'); await pageIntelDash(ctx, root); } });
+  router.register('/simuladores', { render: async (ctx, root) => { setHeader('Simuladores');         highlight('/simuladores'); await pageSimuladores(ctx, root); } });
+  router.register('/sim-vpl',     { render: async (ctx, root) => { setHeader('Simulador VPL');       highlight('/simuladores'); await pageSimVPL(ctx, root); } });
+  router.register('/sim-incc',    { render: async (ctx, root) => { setHeader('Simulador INCC');      highlight('/simuladores'); await pageSimINCC(ctx, root); } });
+  router.register('/sim-repasse', { render: async (ctx, root) => { setHeader('Simulador Repasse');   highlight('/simuladores'); await pageSimRepasse(ctx, root); } });
+  router.register('/sim-energia', { render: async (ctx, root) => { setHeader('Simulador Energia');   highlight('/simuladores'); await pageSimEnergia(ctx, root); } });
+  router.register('/sim-leads',   { render: async (ctx, root) => { setHeader('Simulador Leads/CAC'); highlight('/simuladores'); await pageSimLeads(ctx, root); } });
+  router.register('/sim-criativos', { render: async (ctx, root) => { setHeader('Simulador Criativos'); highlight('/simuladores'); await pageSimCriativos(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -185,6 +199,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/intel-ads"><span class="sb-ico">📢</span> Intel Ads</button>
         <button class="sb-link" data-nav="/intel-dash"><span class="sb-ico">🔍</span> Intel Dashboard</button>
         <button class="sb-link" data-nav="/tendencias"><span class="sb-ico">📈</span> Tendências</button>
+        <button class="sb-link" data-nav="/simuladores"><span class="sb-ico">🧮</span> Simuladores</button>
         <button class="sb-link" data-nav="/bp"><span class="sb-ico">📋</span> Plano BP</button>
         <button class="sb-link" data-nav="/tv"><span class="sb-ico">📺</span> Modo TV</button>
         <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
