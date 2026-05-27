@@ -43,8 +43,24 @@ function render() {
         <span class="tiny muted">Última atualização: ${new Date().toLocaleString('pt-BR')}</span>
       </p>
 
-      <!-- HERO KPIs -->
+      <!-- HERO KPIs — VENDAS + META -->
       <div class="flex gap-3 mt-4" style="flex-wrap:wrap">
+        ${heroKpi('💰 VGV no Mês',  'R$ ' + fmtKM(d.sales?.vgv_mes), `${d.sales?.vendas_mes || 0} vendas`,                       '#16a34a')}
+        ${heroKpi('🎯 Meta do Mês', 'R$ ' + fmtKM(d.metas?.meta_vgv), pctMeta(d.sales?.vgv_mes, d.metas?.meta_vgv),               '#d4a843')}
+        ${heroKpi('📈 Pipeline',    'R$ ' + fmtKM(d.sales?.pipeline_vgv), `${d.sales?.pipeline_count || 0} negócios abertos`,    '#3b82f6')}
+        ${heroKpi('🏆 Ticket Médio','R$ ' + fmtKM(d.sales?.ticket_medio_mes), 'média venda do mês',                                '#8b5cf6')}
+      </div>
+
+      <!-- KPIs SECUNDÁRIOS -->
+      <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
+        ${kpiCard('💰 VGV 30 dias',  'R$ ' + fmtKM(d.sales?.vgv_30d),    `${d.sales?.vendas_30d || 0} vendas`,                  '#16a34a')}
+        ${kpiCard('💎 VGV no Ano',   'R$ ' + fmtKM(d.sales?.vgv_ano),    `${d.sales?.vendas_ano || 0} vendas anuais`,           '#0891b2')}
+        ${kpiCard('❌ Perdidos mês', 'R$ ' + fmtKM(d.sales?.vgv_perdido_mes), `${d.sales?.perdidos_mes || 0} oportunidades`,    '#dc2626')}
+        ${kpiCard('📋 Tarefas',      fmtNum(d.tasks?.pending),          `${d.tasks?.done || 0} feitas / ${d.tasks?.total || 0} total`, '#f59e0b')}
+      </div>
+
+      <!-- KPIs SISTEMA -->
+      <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
         ${kpiCard('👥 Usuários',  fmtNum(d.users?.total),         `${d.users?.ativos || 0} ativos`,         '#2563eb')}
         ${kpiCard('💎 Comissões', fmtNum(d.commissions?.count),   `R$ ${fmtMoney(d.commissions?.valor_pendente)} pendentes`, '#7c3aed')}
         ${kpiCard('🔗 RD Funis',  fmtNum(d.pipelines?.count_active), `de ${d.pipelines?.count_total || 0} configurados`,      '#dc2626')}
@@ -136,6 +152,31 @@ function kpiCard(label, big, sub, color) {
       <div class="tiny muted">${sub || ''}</div>
     </div>
   `;
+}
+
+function heroKpi(label, big, sub, color) {
+  return `
+    <div style="flex:1;min-width:200px;background:linear-gradient(135deg, ${color}22, ${color}05);border:1px solid ${color}44;border-radius:var(--r-md);padding:16px 18px">
+      <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:700">${label}</div>
+      <div style="font-size:30px;font-weight:900;color:${color};margin-top:4px;line-height:1.1">${big ?? '—'}</div>
+      <div class="tiny muted" style="margin-top:2px">${sub || ''}</div>
+    </div>
+  `;
+}
+
+function pctMeta(real, meta) {
+  if (!meta || meta <= 0) return 'meta não definida';
+  const pct = Math.round((real || 0) / meta * 100);
+  const emoji = pct >= 100 ? '🟢' : pct >= 70 ? '🟡' : '🔴';
+  return `${emoji} ${pct}% atingido`;
+}
+
+function fmtKM(n) {
+  if (n == null) return '0';
+  const v = Number(n);
+  if (v >= 1_000_000) return (v / 1_000_000).toFixed(1) + 'M';
+  if (v >= 1000) return (v / 1000).toFixed(0) + 'k';
+  return Math.round(v).toLocaleString('pt-BR');
 }
 
 function kpiMini(label, value, color) {

@@ -38,6 +38,17 @@ function render(me, d, audit) {
         </div>
       </div>
 
+      <!-- SEU DESEMPENHO (RD ao vivo + Metas) -->
+      <h3 class="card-title mt-4">💰 Seu Desempenho do Mês</h3>
+      <div class="flex gap-3" style="flex-wrap:wrap">
+        ${kpi('🏆 Vendas',        d.sales?.vendas_mes || 0, '#16a34a')}
+        ${kpi('💰 VGV',           'R$ ' + fmtKM(d.sales?.vgv_mes || 0), '#16a34a')}
+        ${kpi('🎯 Sua Meta',      'R$ ' + fmtKM(d.metas?.meta_vgv || 0), '#d4a843')}
+        ${kpi('📊 Atingimento',   pctMeta(d.sales?.vgv_mes, d.metas?.meta_vgv), pctColor(d.sales?.vgv_mes, d.metas?.meta_vgv))}
+        ${kpi('📈 Pipeline',      'R$ ' + fmtKM(d.sales?.pipeline_vgv || 0), '#3b82f6')}
+        ${kpi('💎 VGV no Ano',    'R$ ' + fmtKM(d.sales?.vgv_ano || 0), '#0891b2')}
+      </div>
+
       <!-- Suas comissões -->
       <h3 class="card-title mt-4">💎 Suas comissões</h3>
       ${(d.commissions?.count || 0) > 0 ? `
@@ -48,7 +59,15 @@ function render(me, d, audit) {
           ${kpi('Valor total',   'R$ ' + fmtMoney(d.commissions.valor_total))}
           ${kpi('Valor pendente','R$ ' + fmtMoney(d.commissions.valor_pendente), '#d97706')}
         </div>
-      ` : '<div class="muted tiny">Você não tem comissões registradas no Postgres ainda. O cadastro hoje vive no /v1 (Comissões via NIBO).</div>'}
+      ` : '<div class="muted tiny">Nenhuma comissão registrada ainda.</div>'}
+
+      <!-- Suas tarefas -->
+      <h3 class="card-title mt-4">📋 Suas tarefas</h3>
+      <div class="flex gap-3" style="flex-wrap:wrap">
+        ${kpi('✅ Feitas',       d.tasks?.done || 0, '#16a34a')}
+        ${kpi('⏳ Pendentes',    d.tasks?.pending || 0, '#f59e0b')}
+        ${kpi('📊 Total',        d.tasks?.total || 0)}
+      </div>
 
       <!-- Sua atividade -->
       <h3 class="card-title mt-4">📜 Sua atividade recente</h3>
@@ -68,14 +87,30 @@ function render(me, d, audit) {
         <a href="/" class="btn btn-ghost" title="Sistema atual">↩ Sistema v1 (legacy)</a>
       </div>
 
-      <!-- Em construção -->
-      <div class="alert alert-warn mt-4">
-        <b>Em construção (Sprint 7.4):</b>
-        Vendas do RD ao vivo, ranking, metas pessoais, agenda e fluxo de plantões.
-        Por enquanto continuam no /v1. Quando migrarmos, eles aparecem aqui automaticamente.
-      </div>
     </div>
   `;
+}
+
+function pctMeta(real, meta) {
+  if (!meta || meta <= 0) return '—';
+  const pct = Math.round((real || 0) / meta * 100);
+  return pct + '%';
+}
+
+function pctColor(real, meta) {
+  if (!meta || meta <= 0) return 'var(--muted)';
+  const pct = (real || 0) / meta;
+  if (pct >= 1) return '#16a34a';
+  if (pct >= 0.7) return '#f59e0b';
+  return '#dc2626';
+}
+
+function fmtKM(n) {
+  if (n == null) return '0';
+  const v = Number(n);
+  if (v >= 1_000_000) return (v / 1_000_000).toFixed(1) + 'M';
+  if (v >= 1000) return (v / 1000).toFixed(0) + 'k';
+  return Math.round(v).toLocaleString('pt-BR');
 }
 
 function kpi(label, value, color) {

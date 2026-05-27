@@ -128,6 +128,102 @@ def _pipelines_summary(sb):
     }
 
 
+def _sales_summary(sb, scope, user):
+    """Vendas reais do RD (deals win=true) — VGV + pipeline + perdidos + ticket médio."""
+    now = datetime.now(timezone.utc)
+    iso_30d = (now - timedelta(days=30)).isoformat()
+    inicio_mes = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+    inicio_ano = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+
+    q = sb.table("deals").select("id,amount,closed_at,user_id,user_email,win,lost,created_at").limit(5000)
+    if scope == "self":
+        q = q.eq("user_id", user["id"])
+    rows = q.execute().data or []
+
+    if scope == "team":
+        team = (user.get("team") or "").lower()
+        team_ids = {u["id"] for u in (sb.table("users").select("id").eq("team", team).execute().data or [])}
+        rows = [r for r in rows if r.get("user_id") in team_ids]
+
+    wins = [r for r in rows if r.get("win") is True]
+
+    def in_period(r, iso_start):
+        d = r.get("closed_at") or r.get("created_at") or ""
+        return bool(d) and d >= iso_start
+
+    def sum_vgv(arr):
+        return sum(float(r.get("amount") or 0) for r in arr)
+
+    wins_30d = [r for r in wins if in_period(r, iso_30d)]
+    wins_mes = [r for r in wins if in_period(r, inicio_mes)]
+    wins_ano = [r for r in wins if in_period(r, inicio_ano)]
+
+    abertos = [r for r in rows if not r.get("win") and not r.get("lost")]
+    perdidos_mes = [r for r in rows if r.get("lost") is True and in_period(r, inicio_mes)]
+
+    ticket_medio_mes = (sum_vgv(wins_mes) / len(wins_mes)) if wins_mes else 0
+
+    return {
+        "vendas_30d":      len(wins_30d),
+        "vgv_30d":         sum_vgv(wins_30d),
+        "vendas_mes":      len(wins_mes),
+        "vgv_mes":         sum_vgv(wins_mes),
+        "vendas_ano":      len(wins_ano),
+        "vgv_ano":         sum_vgv(wins_ano),
+        "pipeline_count":  len(abertos),
+        "pipeline_vgv":    sum_vgv(abertos),
+        "perdidos_mes":    len(perdidos_mes),
+        "vgv_perdido_mes": sum_vgv(perdidos_mes),
+        "ticket_medio_mes": ticket_medio_mes,
+        "deals_total":     len(rows),
+    }
+
+
+def _metas_summary(sb, scope, user):
+    """Atingimento de meta do mês."""
+    now = datetime.now(timezone.utc)
+    ano = now.year
+    mes = now.month
+    try:
+        q = sb.table("metas").select("corretor_id,ano,mes,meta_vgv,meta_vendas").eq("ano", ano).eq("mes", mes)
+        if scope == "self":
+            q = q.eq("corretor_id", user["id"])
+        metas = q.execute().data or []
+        if scope == "team":
+            team = (user.get("team") or "").lower()
+            team_ids = {u["id"] for u in (sb.table("users").select("id").eq("team", team).execute().data or [])}
+            metas = [m for m in metas if m.get("corretor_id") in team_ids]
+    except Exception:
+        metas = []
+
+    meta_total_vgv = sum(float(m.get("meta_vgv") or 0) for m in metas)
+    meta_total_vendas = sum(int(m.get("meta_vendas") or 0) for m in metas)
+
+    return {
+        "meta_vgv":            meta_total_vgv,
+        "meta_vendas":         meta_total_vendas,
+        "corretores_com_meta": len(metas),
+        "ano": ano, "mes": mes,
+    }
+
+
+def _tasks_summary(sb, scope, user):
+    """Tarefas diretoria — total, feitas, pendentes."""
+    try:
+        rows = sb.table("dir_tasks").select("id,status,responsavel").limit(2000).execute().data or []
+    except Exception:
+        rows = []
+
+    if scope == "self":
+        rows = [r for r in rows if r.get("responsavel") == user.get("id") or r.get("responsavel") == user.get("name")]
+
+    total = len(rows)
+    done = sum(1 for r in rows if (r.get("status") or "").lower() in ("concluida", "concluído", "feita", "ok", "done"))
+    pending = total - done
+
+    return {"total": total, "done": done, "pending": pending}
+
+
 class handler(BaseHTTPRequestHandler):
 
     def _send(self, status, body):
@@ -174,5 +270,17 @@ class handler(BaseHTTPRequestHandler):
             result["pipelines"]   = _pipelines_summary(sb)
         except Exception as e:
             result["pipelines"] = {"error": str(e)}
+        try:
+            result["sales"]       = _sales_summary(sb, scope, user)
+        except Exception as e:
+            result["sales"] = {"error": str(e)}
+        try:
+            result["metas"]       = _metas_summary(sb, scope, user)
+        except Exception as e:
+            result["metas"] = {"error": str(e)}
+        try:
+            result["tasks"]       = _tasks_summary(sb, scope, user)
+        except Exception as e:
+            result["tasks"] = {"error": str(e)}
 
         return self._send(200, result)
