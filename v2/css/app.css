@@ -112,10 +112,30 @@
 
 /* ─── Sidebar nav ─────────────────────────────────────────────────────── */
 .sb-brand { font-weight: 800; font-size: var(--fs-lg); letter-spacing: 1px; padding: var(--s-2) var(--s-3); margin-bottom: var(--s-4); }
-.sb-sec   { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,0.5); padding: var(--s-3) var(--s-3) var(--s-1); }
-.sb-link  { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-3); color: rgba(255,255,255,0.78); border-radius: var(--r-sm); font-size: var(--fs-sm); cursor: pointer; background: none; border: none; width: 100%; text-align: left; }
+.sb-sec   {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--psm-gold);
+  font-weight: 700;
+  padding: 14px 12px 6px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(212,168,67,0.15);
+  background: rgba(0,0,0,0.15);
+}
+.sb-sec:first-of-type { border-top: none; margin-top: 0; padding-top: 6px; }
+.sb-link  {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: 7px 12px;
+  color: rgba(255,255,255,0.78);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  cursor: pointer; background: none; border: none;
+  width: 100%; text-align: left;
+  margin: 1px 0;
+}
 .sb-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
-.sb-link.on    { background: rgba(212,168,67,0.18); color: var(--psm-gold); font-weight: 700; }
+.sb-link.on    { background: rgba(212,168,67,0.18); color: var(--psm-gold); font-weight: 700; border-left: 3px solid var(--psm-gold); padding-left: 9px; }
 .sb-ico   { width: 18px; display: inline-flex; justify-content: center; }
 
 /* ─── Header ──────────────────────────────────────────────────────────── */

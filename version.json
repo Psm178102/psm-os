@@ -1,7 +1,7 @@
 {
-  "version": "75.84.0",
-  "meta": "2026.05.27-v75.84-fix-dashboards-zerados",
-  "built": "2026-05-27T21:00:00Z",
-  "sw": "v75.84.0-2026-05-27-FIX-DASHBOARDS",
-  "sprint": "v75.84 HOTFIX dashboards zerados. /api/v3/metrics/overview agora retorna 3 seções novas: sales (VGV 30d/mês/ano, vendas, pipeline, ticket médio, perdidos), metas (meta VGV/vendas do mês com scope-aware), tasks (total/feitas/pendentes). /v2/dashboard: HERO KPIs reformulado mostra VGV Mês, Meta, Pipeline, Ticket Médio (4 cards grandes coloridos) + KPIs secundários (VGV 30d/Ano/Perdidos/Tarefas) + KPIs sistema antigos preservados. /v2/painel (Meu Painel): seção 'Seu Desempenho do Mês' com 6 KPIs pessoais (Vendas, VGV, Meta, Atingimento %, Pipeline, VGV Ano), comissões e tarefas. Tudo respeita scope global/team/self automaticamente."
+  "version": "75.85.0",
+  "meta": "2026.05.27-v75.85-sidebar-reorganizado",
+  "built": "2026-05-27T22:00:00Z",
+  "sw": "v75.85.0-2026-05-27-SIDEBAR",
+  "sprint": "v75.85 Reorganização do sidebar — 10 seções claras com 56 entradas distribuídas. Antes: tudo amontoado em 'Operação' (37 entradas misturadas). Depois: 🏠 Início (6) · 🏘 Imóveis & Vendas (9) · 💰 Financeiro & Metas (6) · 📊 Inteligência & Marketing (6) · ⚡ Performance & Equipe (10) · 🤖 IA Assistentes (4) · 🎓 Cultura & Pessoas (7) · 🧮 Ferramentas (2) · ⚙️ Sistema (6) · 👤 Conta (1). CSS sidebar reforçado: títulos de seção em dourado bold com border-top, ativa com border-left dourado, espaçamento melhor. Footer v75.85 dinâmico."
 }
