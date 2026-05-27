@@ -48,6 +48,10 @@ import { pagePremiacoes } from './pages/premiacoes.js';
 import { pageAgentes } from './pages/agentes.js';
 import { pageAgenteVera } from './pages/agente-vera.js';
 import { pageAgenteSol } from './pages/agente-sol.js';
+import { pageTendencias } from './pages/tendencias.js';
+import { pageBenchmark } from './pages/benchmark.js';
+import { pageIntelAds } from './pages/intel-ads.js';
+import { pageIntelDash } from './pages/intel-dash.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -119,6 +123,10 @@ import { pageAgenteSol } from './pages/agente-sol.js';
   router.register('/agentes',     { render: async (ctx, root) => { setHeader('Central de Agentes');  highlight('/agentes');  await pageAgentes(ctx, root); } });
   router.register('/agente-vera', { render: async (ctx, root) => { setHeader('Agente Vera');         highlight('/agente-vera'); await pageAgenteVera(ctx, root); } });
   router.register('/agente-sol',  { render: async (ctx, root) => { setHeader('Agente Sol');          highlight('/agente-sol'); await pageAgenteSol(ctx, root); } });
+  router.register('/tendencias',  { render: async (ctx, root) => { setHeader('Tendências');           highlight('/tendencias'); await pageTendencias(ctx, root); } });
+  router.register('/benchmark',   { render: async (ctx, root) => { setHeader('Benchmark de Mercado'); highlight('/benchmark');  await pageBenchmark(ctx, root); } });
+  router.register('/intel-ads',   { render: async (ctx, root) => { setHeader('Inteligência Ads');    highlight('/intel-ads');  await pageIntelAds(ctx, root); } });
+  router.register('/intel-dash',  { render: async (ctx, root) => { setHeader('Inteligência Estratégica'); highlight('/intel-dash'); await pageIntelDash(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -173,6 +181,10 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/organograma"><span class="sb-ico">🌳</span> Organograma</button>
         <button class="sb-link" data-nav="/imoveis"><span class="sb-ico">🏘</span> Imóveis</button>
         <button class="sb-link" data-nav="/concorrencia"><span class="sb-ico">🎯</span> Concorrência</button>
+        <button class="sb-link" data-nav="/benchmark"><span class="sb-ico">📊</span> Benchmark</button>
+        <button class="sb-link" data-nav="/intel-ads"><span class="sb-ico">📢</span> Intel Ads</button>
+        <button class="sb-link" data-nav="/intel-dash"><span class="sb-ico">🔍</span> Intel Dashboard</button>
+        <button class="sb-link" data-nav="/tendencias"><span class="sb-ico">📈</span> Tendências</button>
         <button class="sb-link" data-nav="/bp"><span class="sb-ico">📋</span> Plano BP</button>
         <button class="sb-link" data-nav="/tv"><span class="sb-ico">📺</span> Modo TV</button>
         <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
