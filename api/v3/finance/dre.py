@@ -39,7 +39,7 @@ def _fetch_nibo(company: str, endpoint: str, top: int = 2000):
     if not token:
         return {"error": f"{cfg['env']} ausente", "items": []}
 
-    url = f"{NIBO_BASE}/{endpoint}?$top={top}&$orderby=dueDate desc"
+    url = f"{NIBO_BASE}/{endpoint}?$top={top}&$orderby=dueDate%20desc"
     req = urllib.request.Request(url, headers={
         "apitoken": token,
         "Accept": "application/json",

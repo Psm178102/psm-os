@@ -69,7 +69,7 @@ def _fetch_nibo(company: str, endpoint: str, top: int = 2000):
     if not cfg: return {"items": []}
     token = os.environ.get(cfg["env"])
     if not token: return {"items": [], "error": f"{cfg['env']} ausente"}
-    url = f"{NIBO_BASE}/{endpoint}?$top={top}&$orderby=dueDate desc"
+    url = f"{NIBO_BASE}/{endpoint}?$top={top}&$orderby=dueDate%20desc"
     req = urllib.request.Request(url, headers={
         "apitoken": token, "Accept": "application/json", "User-Agent": "PSM-OS-v3"
     })
