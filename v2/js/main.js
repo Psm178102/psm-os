@@ -64,6 +64,9 @@ import { pageWarArena } from './pages/war-arena.js';
 import { pageOKRs } from './pages/okrs.js';
 import { pageKpis } from './pages/kpis.js';
 import { pageMetricasViab } from './pages/metricas-viab.js';
+import { pageOportunidades } from './pages/oportunidades.js';
+import { pageCadencia } from './pages/cadencia.js';
+import { pageFichasPropostas } from './pages/fichas-propostas.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -151,6 +154,9 @@ import { pageMetricasViab } from './pages/metricas-viab.js';
   router.register('/okrs',        { render: async (ctx, root) => { setHeader('OKRs');                highlight('/okrs');       await pageOKRs(ctx, root); } });
   router.register('/kpis',        { render: async (ctx, root) => { setHeader('KPIs Executivos');     highlight('/kpis');       await pageKpis(ctx, root); } });
   router.register('/metricas-viab', { render: async (ctx, root) => { setHeader('Métricas Viabilidade'); highlight('/metricas-viab'); await pageMetricasViab(ctx, root); } });
+  router.register('/oportunidades', { render: async (ctx, root) => { setHeader('Oportunidades');     highlight('/oportunidades'); await pageOportunidades(ctx, root); } });
+  router.register('/cadencia',    { render: async (ctx, root) => { setHeader('Cadência');            highlight('/cadencia');    await pageCadencia(ctx, root); } });
+  router.register('/fichas',      { render: async (ctx, root) => { setHeader('Fichas/Propostas');    highlight('/fichas');      await pageFichasPropostas(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -190,6 +196,9 @@ function shellHTML(user) {
         <div class="sb-sec">Operação</div>
         <button class="sb-link" data-nav="/financeiro"><span class="sb-ico">💰</span> Financeiro</button>
         <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM</button>
+        <button class="sb-link" data-nav="/oportunidades"><span class="sb-ico">💡</span> Oportunidades</button>
+        <button class="sb-link" data-nav="/cadencia"><span class="sb-ico">🔄</span> Cadência</button>
+        <button class="sb-link" data-nav="/fichas"><span class="sb-ico">📋</span> Fichas/Propostas</button>
         <button class="sb-link" data-nav="/equipe"><span class="sb-ico">🛡</span> Equipes</button>
         <button class="sb-link" data-nav="/tarefas"><span class="sb-ico">📋</span> Tarefas</button>
         <button class="sb-link" data-nav="/metas"><span class="sb-ico">🎯</span> Metas</button>

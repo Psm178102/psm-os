@@ -1,7 +1,7 @@
 {
-  "version": "75.79.0",
-  "meta": "2026.05.27-v75.79-kpis-okrs",
-  "built": "2026-05-27T16:00:00Z",
-  "sw": "v75.79.0-2026-05-27-KPIS-OKRS",
-  "sprint": "v75.79 Sprint 8.6 — KPIs/OKRs/Métricas Viab. /v2/okrs: CRUD completo Objectives & Key Results (objetivo + ciclo + status + array de KRs com curr/target/unit/status), backend tabela okrs com JSONB. /v2/kpis: dashboard executivo Líder+ com 4 seções (Vendas & Meta · Funil & Conversão · Equipe · Financeiro), 22 KPIs derivados de atingimento + deals + DRE, projeções mês/ano, semáforo verde/amarelo/vermelho. /v2/metricas-viab: análise viabilidade Sócio-only (break-even VGV/vendas, margem líquida, comissão por venda, status acima/abaixo break-even, insights operacionais). 26/32 telas restantes (~81%)."
+  "version": "75.80.0",
+  "meta": "2026.05.27-v75.80-crm-extras",
+  "built": "2026-05-27T17:00:00Z",
+  "sw": "v75.80.0-2026-05-27-CRM-EXTRAS",
+  "sprint": "v75.80 Sprint 8.7 — CRM Extras (Oportunidades + Cadência + Fichas). /v2/oportunidades: quadro Líder publica, qualquer corretor pode 'pegar' (1º que pega assume). Notifica equipe via notify() em nova oportunidade. Tipos: lead/imóvel/parceria/investidor. Status: aberta/pegou/fechada/perdida. /v2/cadencia: CRUD fluxos de follow-up multi-passos (dia + canal + mensagem). Canais: WhatsApp/Email/Ligação/Visita/SMS/Instagram. /v2/fichas: CRUD fichas de proposta (cliente, imóvel, valores, forma pagamento, status), corretor vê só as próprias, lvl>=5 vê todas + edita corretor responsável. Backend: 3 tabelas (oportunidades_psm, cadencia_psm com JSONB, fichas_propostas) + 3 endpoints CRUD com action=pegar. 29/32 telas restantes (~91%)."
 }
