@@ -193,7 +193,7 @@ function shellHTML(user) {
   return `
     <div class="app-shell">
       <aside class="app-sidebar">
-        <div class="sb-brand">PSM <span style="color:var(--psm-gold)">OS</span> v2</div>
+        <div class="sb-brand">House <span style="color:var(--psm-gold)">PSM</span></div>
         <div class="sb-sec">Início</div>
         <button class="sb-link on" data-nav="/"><span class="sb-ico">🏠</span> Dashboard</button>
         <button class="sb-link" data-nav="/painel"><span class="sb-ico">👤</span> Meu Painel</button>
@@ -256,7 +256,7 @@ function shellHTML(user) {
         <div class="sb-sec">Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
         <button class="sb-link" data-nav="/configuracoes"><span class="sb-ico">🔧</span> Configurações</button>
-        <div style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.5">v2.0.0-sprint7</div>
+        <div style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.5">House PSM · v75.83</div>
       </aside>
       <header class="app-header">
         <button class="h-hamburger" id="btn-hamburger" title="Menu">☰</button>
@@ -288,7 +288,7 @@ async function pageDashboard(ctx, root) {
   root.innerHTML = `
     <div class="card">
       <h2 class="card-title">👋 Bem-vindo, ${escapeHtml(user.name || '')}</h2>
-      <p class="card-sub">Você está no <strong>v2</strong> — PSM-OS migrado para Python real (FastAPI-like, JWT, bcrypt).</p>
+      <p class="card-sub">Bem-vindo ao <strong>House PSM</strong> — sistema de gestão imobiliária PSM.</p>
       <div class="flex gap-3 mt-4">
         <div class="card" style="flex:1">
           <div class="muted tiny">USUÁRIO</div>

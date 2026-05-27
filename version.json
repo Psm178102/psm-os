@@ -1,7 +1,7 @@
 {
-  "version": "75.82.0",
-  "meta": "2026.05.27-v75.82-pre-cutover-audit",
-  "built": "2026-05-27T19:00:00Z",
-  "sw": "v75.82.0-2026-05-27-PRE-CUTOVER",
-  "sprint": "v75.82 Auditoria Pré-Cutover. Fixes: (1) /v2/relatorios chamava /api/v3/ranking/list que não existia → trocado por /api/v3/metas/atingimento com sort por VGV. (2) Pasta órfã api/v3/ranking/ com só _auth_lib.py removida. (3) CSS mobile @media (max-width:768px) reforçado pra grids 320px+1fr stackarem vertical nos simuladores/painéis. (4) SQL consolidado supabase/SPRINT8_COMPLETE.sql criado pra rodar 9 tabelas Sprint 8 de uma vez. Auditoria: 65 páginas JS sintaxe OK, 116 endpoints Python sintaxe OK, 22 var(--css) usadas todas definidas, todas rotas registradas têm import, 9 tabelas Sprint 8 mapeadas, audit() + notify() chamados nos endpoints corretos, deploy v75.81 confirmado em prod. PRONTO PRA CUTOVER HARD."
+  "version": "75.83.0",
+  "meta": "2026.05.27-v75.83-house-psm",
+  "built": "2026-05-27T20:00:00Z",
+  "sw": "v75.83.0-2026-05-27-HOUSE-PSM",
+  "sprint": "v75.83 Rename PSM OS V2 → HOUSE PSM. Locais atualizados: v2/index.html (title + boot text), v2/login.html (title + brand), v2/manifest.json (PWA name/short_name/description), v2/js/main.js (sb-brand sidebar + welcome card + footer). Comentários internos /* PSM-OS v2 */ mantidos (não user-facing)."
 }

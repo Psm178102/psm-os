@@ -1,7 +1,7 @@
 {
-  "name": "PSM /v2 — House PSM",
-  "short_name": "PSM /v2",
-  "description": "Sistema de gestão imobiliária PSM",
+  "name": "House PSM",
+  "short_name": "House PSM",
+  "description": "Sistema de gestão imobiliária PSM Imóveis",
   "start_url": "/v2/",
   "display": "standalone",
   "orientation": "portrait",
