@@ -38,6 +38,10 @@ import { pageCaptacoes } from './pages/captacoes.js';
 import { pageIntegracoes } from './pages/integracoes.js';
 import { pageBackup } from './pages/backup.js';
 import { pageRelatorios } from './pages/relatorios.js';
+import { pageManual } from './pages/manual.js';
+import { pageEtica } from './pages/etica.js';
+import { pageCanal } from './pages/canal.js';
+import { pageBase } from './pages/base.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -99,6 +103,10 @@ import { pageRelatorios } from './pages/relatorios.js';
   router.register('/integracoes', { render: async (ctx, root) => { setHeader('Integrações');  highlight('/integracoes'); await pageIntegracoes(ctx, root); } });
   router.register('/backup',      { render: async (ctx, root) => { setHeader('Backup');       highlight('/backup');      await pageBackup(ctx, root); } });
   router.register('/relatorios',  { render: async (ctx, root) => { setHeader('Relatórios');   highlight('/relatorios');  await pageRelatorios(ctx, root); } });
+  router.register('/base',        { render: async (ctx, root) => { setHeader('Base de Conhecimento'); highlight('/base'); await pageBase(ctx, root); } });
+  router.register('/manual',      { render: async (ctx, root) => { setHeader('Manual de Cultura');    highlight('/manual'); await pageManual(ctx, root); } });
+  router.register('/etica',       { render: async (ctx, root) => { setHeader('Código de Ética');     highlight('/etica');  await pageEtica(ctx, root); } });
+  router.register('/canal',       { render: async (ctx, root) => { setHeader('Canal Anônimo');        highlight('/canal');  await pageCanal(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -164,6 +172,11 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/integracoes"><span class="sb-ico">🔌</span> Integrações</button>
         <button class="sb-link" data-nav="/relatorios"><span class="sb-ico">🖨</span> Relatórios</button>
         <button class="sb-link" data-nav="/backup"><span class="sb-ico">💾</span> Backup</button>
+        <div class="sb-sec">Cultura</div>
+        <button class="sb-link" data-nav="/base"><span class="sb-ico">📚</span> Base Conhecimento</button>
+        <button class="sb-link" data-nav="/manual"><span class="sb-ico">📖</span> Manual Cultura</button>
+        <button class="sb-link" data-nav="/etica"><span class="sb-ico">⚖️</span> Código de Ética</button>
+        <button class="sb-link" data-nav="/canal"><span class="sb-ico">🔒</span> Canal Anônimo</button>
         <div class="sb-sec">Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
         <button class="sb-link" data-nav="/configuracoes"><span class="sb-ico">🔧</span> Configurações</button>

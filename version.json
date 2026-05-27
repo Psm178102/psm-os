@@ -1,7 +1,7 @@
 {
-  "version": "75.72.0",
-  "meta": "2026.05.26-v75.72-backup-print",
-  "built": "2026-05-26T14:00:00Z",
-  "sw": "v75.72.0-2026-05-26-BACKUP-PRINT",
-  "sprint": "v75.72 Sprint 7.27 — Backup & Print/PDF (12/12 — COMPLETO). /api/v3/backup/export: dump JSON 16 tabelas (limit 5000 cada, audit_log/notifs últimos 1000), Sócio only, audit backup.export. /api/v3/backup/restore: upload JSON → upsert/insert chunked 100 linhas, whitelist 14 tabelas (audit_log/notifications append-only NÃO restauráveis), audit backup.restore. /api/v3/backup/drive: framework Google Drive (sem GOOGLE_DRIVE_TOKEN retorna 503 com instruções 7-step). /v2/backup: 3 cards (export download / restore upload+confirm dialog / drive trigger). /v2/relatorios: 6 templates imprimíveis (Vendas Mês, Ranking Geral, Captações 90d, Metas vs Atingido, Plantões Mês, Usuários) com header PSM + footer + CSS @media print + window.print() pra gerar PDF. Cobertura 100% do /v1 atingida (exceto Nano Banana excluído explicitamente)."
+  "version": "75.73.0",
+  "meta": "2026.05.27-v75.73-compliance",
+  "built": "2026-05-27T10:00:00Z",
+  "sw": "v75.73.0-2026-05-27-COMPLIANCE",
+  "sprint": "v75.73 Sprint 8.0 — Compliance Suite. /v2/manual: Manual de Cultura PSM (missão/visão/6 valores/regras de convivência). /v2/etica: Código de Ética completo (17 capítulos, 69 artigos com consequências). /v2/canal: Canal Anônimo (envio com/sem identificação + anexos até 2MB, painel diretoria Sócio-only com marca-lida). /v2/base: Hub Base de Conhecimento com 4 cards (Manual + Ética + Formação + Canal). Backend: POST /api/v3/canal/send (auth lvl>=2, notifica Sócios via notify()), GET /api/v3/canal/list (lvl>=7), POST /api/v3/canal/mark_read (lvl>=7). SQL: tabela canal_anonimo com RLS. Sidebar nova seção 'Cultura'."
 }
