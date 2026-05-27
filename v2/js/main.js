@@ -59,6 +59,8 @@ import { pageSimRepasse } from './pages/sim-repasse.js';
 import { pageSimEnergia } from './pages/sim-energia.js';
 import { pageSimLeads } from './pages/sim-leads.js';
 import { pageSimCriativos } from './pages/sim-criativos.js';
+import { pageWarRoom } from './pages/war-room.js';
+import { pageWarArena } from './pages/war-arena.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -141,6 +143,8 @@ import { pageSimCriativos } from './pages/sim-criativos.js';
   router.register('/sim-energia', { render: async (ctx, root) => { setHeader('Simulador Energia');   highlight('/simuladores'); await pageSimEnergia(ctx, root); } });
   router.register('/sim-leads',   { render: async (ctx, root) => { setHeader('Simulador Leads/CAC'); highlight('/simuladores'); await pageSimLeads(ctx, root); } });
   router.register('/sim-criativos', { render: async (ctx, root) => { setHeader('Simulador Criativos'); highlight('/simuladores'); await pageSimCriativos(ctx, root); } });
+  router.register('/war-room',    { render: async (ctx, root) => { setHeader('War Room');            highlight('/war-room');   await pageWarRoom(ctx, root); } });
+  router.register('/war-arena',   { render: async (ctx, root) => { setHeader('War Arena');           highlight('/war-arena');  await pageWarArena(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -200,6 +204,8 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/intel-dash"><span class="sb-ico">🔍</span> Intel Dashboard</button>
         <button class="sb-link" data-nav="/tendencias"><span class="sb-ico">📈</span> Tendências</button>
         <button class="sb-link" data-nav="/simuladores"><span class="sb-ico">🧮</span> Simuladores</button>
+        <button class="sb-link" data-nav="/war-room"><span class="sb-ico">⚔️</span> War Room</button>
+        <button class="sb-link" data-nav="/war-arena"><span class="sb-ico">🔥</span> War Arena</button>
         <button class="sb-link" data-nav="/bp"><span class="sb-ico">📋</span> Plano BP</button>
         <button class="sb-link" data-nav="/tv"><span class="sb-ico">📺</span> Modo TV</button>
         <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
