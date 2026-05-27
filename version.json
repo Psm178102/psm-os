@@ -1,7 +1,7 @@
 {
-  "version": "75.81.0",
-  "meta": "2026.05.27-v75.81-final-32de32",
-  "built": "2026-05-27T18:00:00Z",
-  "sw": "v75.81.0-2026-05-27-FINAL-32DE32",
-  "sprint": "v75.81 Sprint 8.8 — Sênior (Sr. Gerência + Sr. Performance + Mapa) — 32/32 TELAS COMPLETO. /v2/sr-gerencia: painel Líder+ com KPIs operacionais (corretores ativos, vendas, alertas sub-50%, últimas auditorias) + chat IA dedicado /api/v3/ia/chat agent=sr_gerencia. /v2/sr-performance: painel corretor com KPIs pessoais (meu VGV, meta, conversão, ticket médio) + chat IA sr_performance + sugestões rápidas. /v2/mapa: Leaflet + OpenStreetMap (sem API key), geocoding por bairro (12 bairros Rio Preto), markers coloridos por status, busca + filtros, lista lateral sincronizada. MIGRAÇÃO 100% COMPLETA — 32 telas Sprint 8 + tudo do /v1 exceto Nano Banana (excluído explicitamente)."
+  "version": "75.82.0",
+  "meta": "2026.05.27-v75.82-pre-cutover-audit",
+  "built": "2026-05-27T19:00:00Z",
+  "sw": "v75.82.0-2026-05-27-PRE-CUTOVER",
+  "sprint": "v75.82 Auditoria Pré-Cutover. Fixes: (1) /v2/relatorios chamava /api/v3/ranking/list que não existia → trocado por /api/v3/metas/atingimento com sort por VGV. (2) Pasta órfã api/v3/ranking/ com só _auth_lib.py removida. (3) CSS mobile @media (max-width:768px) reforçado pra grids 320px+1fr stackarem vertical nos simuladores/painéis. (4) SQL consolidado supabase/SPRINT8_COMPLETE.sql criado pra rodar 9 tabelas Sprint 8 de uma vez. Auditoria: 65 páginas JS sintaxe OK, 116 endpoints Python sintaxe OK, 22 var(--css) usadas todas definidas, todas rotas registradas têm import, 9 tabelas Sprint 8 mapeadas, audit() + notify() chamados nos endpoints corretos, deploy v75.81 confirmado em prod. PRONTO PRA CUTOVER HARD."
 }

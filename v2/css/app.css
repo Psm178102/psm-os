@@ -89,6 +89,27 @@
   .flex.gap-3[style*="flex-wrap"] > div[style*="min-width"] { min-width: 100% !important; }
 }
 
+/* ─── Mobile: stack 2-col grids fixos (Sprint 8) ────────────────────── */
+@media (max-width: 768px) {
+  /* Padrões "320px 1fr" e similares dos simuladores/painéis stack vertical */
+  [style*="grid-template-columns:320px"],
+  [style*="grid-template-columns: 320px"],
+  [style*="grid-template-columns:300px"],
+  [style*="grid-template-columns: 300px"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* Grids de KPI em 4 colunas: 2 colunas em mobile */
+  [style*="grid-template-columns:repeat(4,1fr)"],
+  [style*="grid-template-columns: repeat(4,1fr)"],
+  [style*="grid-template-columns:repeat(4, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  /* Tabelas com min-width grandes: scroll horizontal */
+  table[style*="min-width"] {
+    font-size: 11px !important;
+  }
+}
+
 /* ─── Sidebar nav ─────────────────────────────────────────────────────── */
 .sb-brand { font-weight: 800; font-size: var(--fs-lg); letter-spacing: 1px; padding: var(--s-2) var(--s-3); margin-bottom: var(--s-4); }
 .sb-sec   { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,0.5); padding: var(--s-3) var(--s-3) var(--s-1); }

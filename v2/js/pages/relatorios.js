@@ -133,8 +133,12 @@ async function loadVendasMes(out) {
 }
 
 async function loadRankingGeral(out) {
-  const r = await api.request('/api/v3/ranking/list?period=mes_atual');
-  const items = (r.ranking || []).slice(0, 20);
+  // Usa /metas/atingimento (por_corretor) ao invés de endpoint ranking inexistente
+  const r = await api.request('/api/v3/metas/atingimento');
+  const items = (r.por_corretor || [])
+    .map(c => ({ name: c.name, team: c.team || c.frente, vgv: +c.vgv_atingido || 0, deals: +c.vendas || 0 }))
+    .sort((a, b) => b.vgv - a.vgv)
+    .slice(0, 20);
   out.innerHTML = `
     <div class="card print-area">
       ${reportHeader('Ranking Geral', `Top 20 — ${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`)}
