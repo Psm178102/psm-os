@@ -1,7 +1,7 @@
 {
-  "version": "75.86.0",
-  "meta": "2026.05.27-v75.86-bugs-criticos",
-  "built": "2026-05-27T23:00:00Z",
-  "sw": "v75.86.0-2026-05-27-BUGS",
-  "sprint": "v75.86 Bugs críticos. 🐛 BUG #1 (gravíssimo): /api/v3/crm/deals retornava SEMPRE apenas 50 deals (scoped[:50] hardcoded) mesmo quando frontend pedia limit=200 ou 500. Isso fazia /v2/kpis, /v2/sr-performance, /v2/sr-gerencia calcularem VGV ERRADO (só dos últimos 50 deals). Fix: respeitar limit_response do client (cap 500). 🐛 BUG #2: /v2/sr-gerencia esperava audit.logs mas endpoint /api/v3/audit/list retorna entries — corrigido. 🐛 BUG #3: CSS @media print só era injetado em /v2/relatorios, mas etica, sim-vpl, sim-incc, sim-repasse, fichas-propostas também chamam window.print() — CSS agora global em app.css (esconde sidebar/header, formata A4)."
+  "version": "75.87.0",
+  "meta": "2026.05.27-v75.87-bugs-schema-deals",
+  "built": "2026-05-27T23:30:00Z",
+  "sw": "v75.87.0-2026-05-27-SCHEMA",
+  "sprint": "v75.87 HOTFIX schema deals. Após audit com token real (Paulo socio lvl 10), descobertos 3 bugs graves em produção: (1) /api/v3/metrics/overview retornava error '42703 column deals.lost does not exist' — tabela deals NÃO tem coluna lost (só win true/false/null). Corrigido: perdido = win is False, aberto = win is None. (2) /api/v3/forecast/summary mesmo erro com 'column deals.updated_at does not exist' (campo se chama updated_at_rd). Corrigido. (3) kpis.js + sr-performance.js filtravam d.lost (sempre undefined) — trocado por d.win === false. Confirmado em prod: deals tem 21 vendas / R$ 6.4M VGV no ano (sync RD funcionando), mas tabelas metas/imoveis/lancamentos/etc estão VAZIAS (dados nunca migrados do legacy /v1)."
 }

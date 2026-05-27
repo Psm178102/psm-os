@@ -52,8 +52,8 @@ class handler(BaseHTTPRequestHandler):
         try:
             start = f"{ano}-01-01T00:00:00+00:00"
             end   = f"{ano+1}-01-01T00:00:00+00:00"
-            rows = sb.table("deals").select("id,name,amount,closed_at,updated_at,stage_name,user_id,win") \
-                .is_("win", "null").gte("updated_at", start).lt("updated_at", end).limit(2000).execute().data or []
+            rows = sb.table("deals").select("id,name,amount,closed_at,updated_at_rd,stage_name,user_id,win") \
+                .is_("win", "null").gte("updated_at_rd", start).lt("updated_at_rd", end).limit(2000).execute().data or []
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"deals: {e}"})
 
@@ -67,8 +67,8 @@ class handler(BaseHTTPRequestHandler):
             amt = float(d.get("amount") or 0)
             stage = d.get("stage_name") or "?"
             w = _weight_for_stage(stage)
-            # Mês: usa closed_at se existe, senão estima updated_at (mês corrente)
-            ts = d.get("closed_at") or d.get("updated_at")
+            # Mês: usa closed_at se existe, senão estima updated_at_rd (mês corrente)
+            ts = d.get("closed_at") or d.get("updated_at_rd")
             try:
                 dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00")) if ts else now
             except: dt = now

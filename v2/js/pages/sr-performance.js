@@ -92,7 +92,7 @@ function renderInsights() {
   const meu = (_data.atg.por_corretor || []).find(c => c.id === me?.id) || {};
   const meusDeals = (_data.deals || []).filter(d => d.user_id === me?.id);
   const ganhos = meusDeals.filter(d => d.win);
-  const perdas = meusDeals.filter(d => d.lost);
+  const perdas = meusDeals.filter(d => d.win === false);
   const conv = meusDeals.length > 0 ? (ganhos.length / (ganhos.length + perdas.length || 1) * 100) : 0;
   const ticketMedio = ganhos.length > 0 ? ganhos.reduce((s, d) => s + (+d.amount || 0), 0) / ganhos.length : 0;
   const pct = meu.meta_vgv > 0 ? (meu.vgv_atingido / meu.meta_vgv * 100) : 0;

@@ -129,13 +129,17 @@ def _pipelines_summary(sb):
 
 
 def _sales_summary(sb, scope, user):
-    """Vendas reais do RD (deals win=true) — VGV + pipeline + perdidos + ticket médio."""
+    """Vendas reais do RD (deals win=true) — VGV + pipeline + perdidos + ticket médio.
+    Schema deals (Postgres): id, name, amount, win (true/false/null), closed_at,
+    created_at_rd, pipeline_id, stage_id, user_id, user_email, rd_raw.
+    NÃO TEM coluna 'lost' — perdido = win is False.
+    """
     now = datetime.now(timezone.utc)
     iso_30d = (now - timedelta(days=30)).isoformat()
     inicio_mes = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
     inicio_ano = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
 
-    q = sb.table("deals").select("id,amount,closed_at,user_id,user_email,win,lost,created_at").limit(5000)
+    q = sb.table("deals").select("id,amount,closed_at,created_at_rd,user_id,user_email,win").limit(5000)
     if scope == "self":
         q = q.eq("user_id", user["id"])
     rows = q.execute().data or []
@@ -146,9 +150,11 @@ def _sales_summary(sb, scope, user):
         rows = [r for r in rows if r.get("user_id") in team_ids]
 
     wins = [r for r in rows if r.get("win") is True]
+    perdidos = [r for r in rows if r.get("win") is False]
+    abertos = [r for r in rows if r.get("win") is None]
 
     def in_period(r, iso_start):
-        d = r.get("closed_at") or r.get("created_at") or ""
+        d = r.get("closed_at") or r.get("created_at_rd") or ""
         return bool(d) and d >= iso_start
 
     def sum_vgv(arr):
@@ -157,9 +163,7 @@ def _sales_summary(sb, scope, user):
     wins_30d = [r for r in wins if in_period(r, iso_30d)]
     wins_mes = [r for r in wins if in_period(r, inicio_mes)]
     wins_ano = [r for r in wins if in_period(r, inicio_ano)]
-
-    abertos = [r for r in rows if not r.get("win") and not r.get("lost")]
-    perdidos_mes = [r for r in rows if r.get("lost") is True and in_period(r, inicio_mes)]
+    perdidos_mes = [r for r in perdidos if in_period(r, inicio_mes)]
 
     ticket_medio_mes = (sum_vgv(wins_mes) / len(wins_mes)) if wins_mes else 0
 

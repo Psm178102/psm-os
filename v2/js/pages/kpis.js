@@ -44,8 +44,9 @@ function renderContent() {
 
   // Vendas e pipeline
   const closed = deals.filter(d => d.win);
-  const open = deals.filter(d => !d.win && !d.lost);
-  const lost = deals.filter(d => d.lost);
+  // win: true=ganho, false=perdido, null/undefined=em aberto
+  const open = deals.filter(d => d.win === null || d.win === undefined);
+  const lost = deals.filter(d => d.win === false);
   const vgvR = closed.reduce((s, d) => s + (+d.amount || 0), 0);
   const vgvPipe = open.reduce((s, d) => s + (+d.amount || 0), 0);
   const vgvLost = lost.reduce((s, d) => s + (+d.amount || 0), 0);
