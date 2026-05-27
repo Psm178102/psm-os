@@ -42,6 +42,9 @@ import { pageManual } from './pages/manual.js';
 import { pageEtica } from './pages/etica.js';
 import { pageCanal } from './pages/canal.js';
 import { pageBase } from './pages/base.js';
+import { pageFormacao } from './pages/formacao.js';
+import { pageGestaoPessoas } from './pages/gestao-pessoas.js';
+import { pagePremiacoes } from './pages/premiacoes.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -107,6 +110,9 @@ import { pageBase } from './pages/base.js';
   router.register('/manual',      { render: async (ctx, root) => { setHeader('Manual de Cultura');    highlight('/manual'); await pageManual(ctx, root); } });
   router.register('/etica',       { render: async (ctx, root) => { setHeader('Código de Ética');     highlight('/etica');  await pageEtica(ctx, root); } });
   router.register('/canal',       { render: async (ctx, root) => { setHeader('Canal Anônimo');        highlight('/canal');  await pageCanal(ctx, root); } });
+  router.register('/formacao',    { render: async (ctx, root) => { setHeader('Formação PSM');         highlight('/formacao'); await pageFormacao(ctx, root); } });
+  router.register('/gestao-pessoas', { render: async (ctx, root) => { setHeader('Gestão de Pessoas'); highlight('/gestao-pessoas'); await pageGestaoPessoas(ctx, root); } });
+  router.register('/premiacoes',  { render: async (ctx, root) => { setHeader('Premiações');           highlight('/premiacoes'); await pagePremiacoes(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -172,11 +178,14 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/integracoes"><span class="sb-ico">🔌</span> Integrações</button>
         <button class="sb-link" data-nav="/relatorios"><span class="sb-ico">🖨</span> Relatórios</button>
         <button class="sb-link" data-nav="/backup"><span class="sb-ico">💾</span> Backup</button>
-        <div class="sb-sec">Cultura</div>
+        <div class="sb-sec">Cultura & Pessoas</div>
         <button class="sb-link" data-nav="/base"><span class="sb-ico">📚</span> Base Conhecimento</button>
         <button class="sb-link" data-nav="/manual"><span class="sb-ico">📖</span> Manual Cultura</button>
         <button class="sb-link" data-nav="/etica"><span class="sb-ico">⚖️</span> Código de Ética</button>
         <button class="sb-link" data-nav="/canal"><span class="sb-ico">🔒</span> Canal Anônimo</button>
+        <button class="sb-link" data-nav="/formacao"><span class="sb-ico">🎓</span> Formação PSM</button>
+        <button class="sb-link" data-nav="/gestao-pessoas"><span class="sb-ico">👥</span> Gestão Pessoas</button>
+        <button class="sb-link" data-nav="/premiacoes"><span class="sb-ico">🏆</span> Premiações</button>
         <div class="sb-sec">Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
         <button class="sb-link" data-nav="/configuracoes"><span class="sb-ico">🔧</span> Configurações</button>

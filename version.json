@@ -1,7 +1,7 @@
 {
-  "version": "75.73.0",
-  "meta": "2026.05.27-v75.73-compliance",
-  "built": "2026-05-27T10:00:00Z",
-  "sw": "v75.73.0-2026-05-27-COMPLIANCE",
-  "sprint": "v75.73 Sprint 8.0 — Compliance Suite. /v2/manual: Manual de Cultura PSM (missão/visão/6 valores/regras de convivência). /v2/etica: Código de Ética completo (17 capítulos, 69 artigos com consequências). /v2/canal: Canal Anônimo (envio com/sem identificação + anexos até 2MB, painel diretoria Sócio-only com marca-lida). /v2/base: Hub Base de Conhecimento com 4 cards (Manual + Ética + Formação + Canal). Backend: POST /api/v3/canal/send (auth lvl>=2, notifica Sócios via notify()), GET /api/v3/canal/list (lvl>=7), POST /api/v3/canal/mark_read (lvl>=7). SQL: tabela canal_anonimo com RLS. Sidebar nova seção 'Cultura'."
+  "version": "75.74.0",
+  "meta": "2026.05.27-v75.74-pessoas-rh",
+  "built": "2026-05-27T11:00:00Z",
+  "sw": "v75.74.0-2026-05-27-PESSOAS-RH",
+  "sprint": "v75.74 Sprint 8.1 — Pessoas/RH. /v2/formacao: Comunidade PSM Kiwify (7 módulos, 32 aulas, CTA pra plataforma). /v2/gestao-pessoas: 3 abas (Treinamentos CRUD + Reuniões redireciona pra /one-on-one + Base de Talentos CRUD com busca). /v2/premiacoes: cards Ativas/Futuras/Encerradas + formulário Sócio + notifica todos corretores em nova premiação. Backend: 3 tabelas (gp_treinamentos, gp_talentos, premiacoes) + 3 endpoints CRUD com audit total (lvl>=5 pra GP, lvl>=7 pra criar premiações). 7/30 telas restantes (~23%)."
 }
