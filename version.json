@@ -1,7 +1,7 @@
 {
-  "version": "75.74.0",
-  "meta": "2026.05.27-v75.74-pessoas-rh",
-  "built": "2026-05-27T11:00:00Z",
-  "sw": "v75.74.0-2026-05-27-PESSOAS-RH",
-  "sprint": "v75.74 Sprint 8.1 — Pessoas/RH. /v2/formacao: Comunidade PSM Kiwify (7 módulos, 32 aulas, CTA pra plataforma). /v2/gestao-pessoas: 3 abas (Treinamentos CRUD + Reuniões redireciona pra /one-on-one + Base de Talentos CRUD com busca). /v2/premiacoes: cards Ativas/Futuras/Encerradas + formulário Sócio + notifica todos corretores em nova premiação. Backend: 3 tabelas (gp_treinamentos, gp_talentos, premiacoes) + 3 endpoints CRUD com audit total (lvl>=5 pra GP, lvl>=7 pra criar premiações). 7/30 telas restantes (~23%)."
+  "version": "75.75.0",
+  "meta": "2026.05.27-v75.75-ia-agentes",
+  "built": "2026-05-27T12:00:00Z",
+  "sw": "v75.75.0-2026-05-27-IA-AGENTES",
+  "sprint": "v75.75 Sprint 8.2 — IAs (Hub + Vera + Sol). /v2/agentes: Central com 5 agentes (Vera, Sol, Sr.Performance, Sr.Gerência, Sr.Intelligence) + KPIs + arquitetura tech. /v2/agente-vera: painel completo Vera (PSM Assessoria) com 4 abas (Chat real via /api/v3/ia/chat + Conversas placeholder + Config persona/regras + Setup WhatsApp/IG). /v2/agente-sol: painel Sol (PSM Conquista) com mesma estrutura. Renderer compartilhado em _agente-painel.js. Capacidades + exemplos de tom por agente. 10/30 telas restantes (~33%)."
 }

@@ -45,6 +45,9 @@ import { pageBase } from './pages/base.js';
 import { pageFormacao } from './pages/formacao.js';
 import { pageGestaoPessoas } from './pages/gestao-pessoas.js';
 import { pagePremiacoes } from './pages/premiacoes.js';
+import { pageAgentes } from './pages/agentes.js';
+import { pageAgenteVera } from './pages/agente-vera.js';
+import { pageAgenteSol } from './pages/agente-sol.js';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -113,6 +116,9 @@ import { pagePremiacoes } from './pages/premiacoes.js';
   router.register('/formacao',    { render: async (ctx, root) => { setHeader('Formação PSM');         highlight('/formacao'); await pageFormacao(ctx, root); } });
   router.register('/gestao-pessoas', { render: async (ctx, root) => { setHeader('Gestão de Pessoas'); highlight('/gestao-pessoas'); await pageGestaoPessoas(ctx, root); } });
   router.register('/premiacoes',  { render: async (ctx, root) => { setHeader('Premiações');           highlight('/premiacoes'); await pagePremiacoes(ctx, root); } });
+  router.register('/agentes',     { render: async (ctx, root) => { setHeader('Central de Agentes');  highlight('/agentes');  await pageAgentes(ctx, root); } });
+  router.register('/agente-vera', { render: async (ctx, root) => { setHeader('Agente Vera');         highlight('/agente-vera'); await pageAgenteVera(ctx, root); } });
+  router.register('/agente-sol',  { render: async (ctx, root) => { setHeader('Agente Sol');          highlight('/agente-sol'); await pageAgenteSol(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -159,6 +165,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/diretoria"><span class="sb-ico">🏛</span> Diretoria</button>
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing</button>
         <button class="sb-link" data-nav="/ia"><span class="sb-ico">🤖</span> IA Assistentes</button>
+        <button class="sb-link" data-nav="/agentes"><span class="sb-ico">🧠</span> Central Agentes</button>
         <button class="sb-link" data-nav="/lancamentos"><span class="sb-ico">🏗</span> Lançamentos</button>
         <button class="sb-link" data-nav="/locacoes"><span class="sb-ico">🔑</span> Locações</button>
         <button class="sb-link" data-nav="/arena"><span class="sb-ico">📡</span> Arena Live</button>

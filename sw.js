@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.74.0-2026-05-27-PESSOAS-RH';
+const SW_VERSION = 'v75.75.0-2026-05-27-IA-AGENTES';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
