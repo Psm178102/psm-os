@@ -25,9 +25,9 @@ async function load() {
     const [atg, deals, audit] = await Promise.all([
       api.request('/api/v3/metas/atingimento').catch(() => ({})),
       api.request('/api/v3/crm/deals?limit=200').catch(() => ({ deals: [] })),
-      api.request('/api/v3/audit/list?limit=20').catch(() => ({ logs: [] })),
+      api.request('/api/v3/audit/list?limit=20').catch(() => ({ entries: [] })),
     ]);
-    _data = { atg, deals: deals.deals || [], audit: audit.logs || [] };
+    _data = { atg, deals: deals.deals || [], audit: audit.entries || [] };
     renderInsights();
   } catch (e) { /* silent */ }
 }

@@ -89,6 +89,21 @@
   .flex.gap-3[style*="flex-wrap"] > div[style*="min-width"] { min-width: 100% !important; }
 }
 
+/* ─── Print (global) — Sprint 8.x ─────────────────────────────────── */
+@media print {
+  body { background: #fff !important; color: #000 !important; }
+  .app-sidebar, .app-header, .no-print, #notif-drawer { display: none !important; }
+  .app-main { padding: 0 !important; margin: 0 !important; }
+  .app-shell { display: block !important; }
+  .card, .print-area { box-shadow: none !important; background: #fff !important; color: #000 !important; padding: 0 !important; border: none !important; }
+  h1, h2, h3, .card-title { color: #0b1f3a !important; }
+  table { page-break-inside: auto; width: 100% !important; }
+  tr { page-break-inside: avoid; page-break-after: auto; }
+  a { color: #0b1f3a !important; text-decoration: none !important; }
+  button, .btn { display: none !important; }
+  @page { margin: 1.2cm; }
+}
+
 /* ─── Mobile: stack 2-col grids fixos (Sprint 8) ────────────────────── */
 @media (max-width: 768px) {
   /* Padrões "320px 1fr" e similares dos simuladores/painéis stack vertical */

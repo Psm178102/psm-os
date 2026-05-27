@@ -179,6 +179,9 @@ class handler(BaseHTTPRequestHandler):
             params.get("limit", "200"),
         ])
 
+        # Cap pra response (evita payload gigante mas permite cálculos corretos)
+        limit_response = min(500, max(50, int(params.get("limit", "50") or "50")))
+
         # Cache check
         now = time.time()
         if cache_key in _cache:
@@ -191,7 +194,7 @@ class handler(BaseHTTPRequestHandler):
                 scoped, scope = _scope_filter(cached["raw_deals"], user, sb)
                 return self._send(200, {
                     **cached,
-                    "deals": scoped[:50],  # limit response size
+                    "deals": scoped[:limit_response],
                     "summary": _summary(scoped),
                     "scope": scope,
                     "user_scope_count": len(scoped),
@@ -218,7 +221,7 @@ class handler(BaseHTTPRequestHandler):
             "ok": True,
             "raw_count": len(raw_deals),
             "raw_deals": raw_deals,   # cached internamente, não enviado direto
-            "deals": scoped[:50],
+            "deals": scoped[:limit_response],
             "summary": _summary(scoped),
             "scope": scope,
             "user_scope_count": len(scoped),
