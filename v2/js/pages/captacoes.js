@@ -1,111 +1,280 @@
-/* PSM-OS v2 — Captações (Sprint 7.24) */
+/* PSM-OS v2 — Captações Kanban (modelo Notion PSM) — Sprint 9.5 */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
-let _root = null, _data = null, _days = 90;
+let _root = null;
+let _items = [];
+let _editing = null;
+
+// Status agrupados (= colunas Kanban do Notion)
+const FASES = [
+  { fase: 'A fazer', cor: '#dc2626', status: [
+    { id: 'colher_dados',  lbl: 'Colher Dados',     cor: '#a16207' },
+    { id: 'a_fazer',       lbl: 'À Fazer Captação', cor: '#dc2626' },
+    { id: 'agendar_prop',  lbl: 'Agendar c/ Prop',  cor: '#ea580c' },
+    { id: 'agendado',      lbl: 'Agendado',         cor: '#3b82f6' },
+    { id: 'pausado',       lbl: 'Pausado',          cor: '#64748b' },
+  ]},
+  { fase: 'Em andamento', cor: '#f59e0b', status: [
+    { id: 'aguardando_autorizacao', lbl: 'Aguardando Autorização', cor: '#a16207' },
+    { id: 'captacao_realizada',     lbl: 'Captação Realizada',     cor: '#ca8a04' },
+    { id: 'edicao_fotos',           lbl: 'Edição Fotos',           cor: '#3b82f6' },
+    { id: 'edicao_videos',          lbl: 'Edição Vídeos',          cor: '#8b5cf6' },
+    { id: 'aprovacao',              lbl: 'Aprovação',              cor: '#ca8a04' },
+  ]},
+  { fase: 'Concluídos', cor: '#16a34a', status: [
+    { id: 'a_fazer_formulario', lbl: 'À Fazer Formulário', cor: '#3b82f6' },
+    { id: 'formulario_kenlo',   lbl: 'Formulário → Kenlo', cor: '#8b5cf6' },
+    { id: 'subir_kenlo',        lbl: 'Subir Direto Kenlo', cor: '#8b5cf6' },
+    { id: 'agendar_mlabs',      lbl: 'Agendar Mlabs',      cor: '#ca8a04' },
+    { id: 'refazer',            lbl: 'Refazer',            cor: '#dc2626' },
+    { id: 'aprovado',           lbl: 'Aprovado',           cor: '#16a34a' },
+    { id: 'concluido',          lbl: 'Concluído',          cor: '#16a34a' },
+  ]},
+];
+const ALL_STATUS = FASES.flatMap(f => f.status);
+const statusCor = id => (ALL_STATUS.find(s => s.id === id)?.cor) || '#64748b';
+
+const TIPOS = ['Apartamento', 'Studio', 'Casa em condomínio', 'Casa', 'Terreno condomínio', 'Loja', 'Sala Comercial', 'Casa Comercial', 'Salão'];
+const SITUACOES = [
+  { id: 'desocupado', lbl: 'Desocupado', cor: '#16a34a' },
+  { id: 'ocupado_proprietario', lbl: 'Ocupado Proprietário', cor: '#dc2626' },
+  { id: 'ocupado_inquilino', lbl: 'Ocupado Inquilino', cor: '#dc2626' },
+  { id: 'inquilino', lbl: 'Inquilino', cor: '#dc2626' },
+  { id: 'reformando', lbl: 'Reformando', cor: '#a16207' },
+];
+const PENDENCIAS = [
+  { id: 'falta_fotos', lbl: 'Falta Fotos', cor: '#3b82f6' },
+  { id: 'falta_fotos_videos', lbl: 'Falta Fotos e Vídeos', cor: '#a16207' },
+  { id: 'falta_video_drone', lbl: 'Falta Vídeo Drone', cor: '#8b5cf6' },
+  { id: 'falta_atualizar_fotos', lbl: 'Falta Atualizar Fotos', cor: '#16a34a' },
+  { id: 'video_corretor', lbl: 'Vídeo com Corretor', cor: '#64748b' },
+  { id: 'pendencia_documentacao', lbl: 'Pendência Documentação', cor: '#a16207' },
+  { id: 'pendencia_chaves', lbl: 'Pendência Chaves', cor: '#be185d' },
+  { id: 'pendencia_agendamento', lbl: 'Pendência Agendamento', cor: '#64748b' },
+  { id: 'atualizado', lbl: 'Atualizado', cor: '#16a34a' },
+];
+const TERMOS = [
+  { id: 'solicitar', lbl: 'Solicitar Autorização', cor: '#3b82f6' },
+  { id: 'pendente', lbl: 'Autorização Pendente', cor: '#a16207' },
+  { id: 'aprovado', lbl: 'Aprovado', cor: '#16a34a' },
+  { id: 'recusado', lbl: 'Recusado', cor: '#dc2626' },
+];
 
 export async function pageCaptacoes(ctx, root) {
   _root = root;
-  if ((auth.user()?.lvl || 0) < 5) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder.</div>'; return; }
-  await reload();
+  render();
+  await load();
 }
 
-async function reload() {
-  _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando captações…</div></div>';
+async function load() {
   try {
-    const since = new Date(Date.now() - _days * 86400000).toISOString().slice(0, 10);
-    _data = await api.request('/api/v3/captacoes/list?since=' + since);
-    render();
+    const r = await api.request('/api/v3/captacoes/kanban');
+    _items = r.captacoes || [];
+    renderBoard();
   } catch (e) {
-    _root.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message)}</div>`;
+    const b = document.getElementById('cap-board');
+    if (b) b.innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
   }
 }
 
 function render() {
-  const ranking = _data.ranking || [];
-  const imoveis = _data.imoveis || [];
-  const totVal = ranking.reduce((s, r) => s + (r.valor || 0), 0);
-
   _root.innerHTML = `
     <div class="card">
-      <h2 class="card-title">📥 Captações</h2>
-      <p class="card-sub">Relatório de imóveis captados nos últimos ${_days} dias. ${_data.count || 0} imóveis · ${ranking.length} captadores ativos · R$ ${money(totVal)} em valor captado.</p>
-
-      <div class="flex gap-2 mt-3" style="align-items:center">
-        <label class="tiny muted">PERÍODO:</label>
-        ${[30, 60, 90, 180, 365].map(d => `<button class="btn ${_days===d?'btn-primary':'btn-ghost'}" data-days="${d}">${d}d</button>`).join('')}
+      <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2 class="card-title">📥 Captações — Kanban</h2>
+          <p class="card-sub">Pipeline de captação de imóveis · notifica responsável + marketing automaticamente</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost" id="cap-refresh">🔄</button>
+          <button class="btn btn-primary" id="cap-novo">➕ Nova Captação</button>
+        </div>
       </div>
-
-      <h3 class="card-title mt-4">🏆 Ranking de captadores</h3>
-      ${ranking.length === 0 ? '<div class="muted tiny">Nenhuma captação no período.</div>' : `
-        <div style="display:grid;gap:6px">
-          ${ranking.map((r, i) => rankRow(r, i)).join('')}
-        </div>
-      `}
-
-      <h3 class="card-title mt-4">📋 Últimos ${Math.min(imoveis.length, 50)} imóveis captados</h3>
-      ${imoveis.length === 0 ? '<div class="muted tiny">Sem imóveis no período.</div>' : `
-        <div style="max-height:480px;overflow-y:auto">
-          <table style="width:100%;font-size:11.5px;border-collapse:collapse">
-            <thead><tr style="background:var(--bg-3);position:sticky;top:0">
-              <th style="text-align:left;padding:6px 8px">Data</th>
-              <th style="text-align:left;padding:6px 8px">Código</th>
-              <th style="text-align:left;padding:6px 8px">Endereço</th>
-              <th style="text-align:right;padding:6px 8px">Valor</th>
-              <th style="text-align:center;padding:6px 8px">Status</th>
-            </tr></thead>
-            <tbody>
-              ${imoveis.slice(0, 50).map(im => `
-                <tr style="border-bottom:1px solid var(--border)">
-                  <td style="padding:5px 8px" class="muted">${im.created_at ? new Date(im.created_at).toLocaleDateString('pt-BR') : '—'}</td>
-                  <td style="padding:5px 8px;font-weight:600">${escapeHtml(im.codigo || '—')}</td>
-                  <td style="padding:5px 8px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(im.endereco || '')}">${escapeHtml(im.endereco || '')}</td>
-                  <td style="text-align:right;padding:5px 8px">R$ ${money(im.valor)}</td>
-                  <td style="text-align:center;padding:5px 8px"><span class="tiny" style="padding:2px 8px;border-radius:var(--r-full);background:${statusColor(im.status)};color:#fff;font-weight:600">${escapeHtml(im.status || '—')}</span></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `}
+      <div id="cap-stats" class="mt-3"></div>
+      <div id="cap-board" class="mt-3"><div class="muted tiny"><span class="spinner"></span> Carregando…</div></div>
     </div>
   `;
-  document.querySelectorAll('[data-days]').forEach(b => b.addEventListener('click', async () => {
-    _days = parseInt(b.dataset.days); await reload();
+  document.getElementById('cap-novo').addEventListener('click', () => { _editing = { status: 'colher_dados', objetivo: 'venda' }; openForm(); });
+  document.getElementById('cap-refresh').addEventListener('click', load);
+}
+
+function renderBoard() {
+  const stats = document.getElementById('cap-stats');
+  const total = _items.length;
+  const porFase = FASES.map(f => ({ fase: f.fase, cor: f.cor, n: _items.filter(i => f.status.some(s => s.id === i.status)).length }));
+  stats.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px">
+      ${kpi('Total', total, '#3b82f6')}
+      ${porFase.map(f => kpi(f.fase, f.n, f.cor)).join('')}
+    </div>
+  `;
+
+  const board = document.getElementById('cap-board');
+  board.innerHTML = `
+    <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;align-items:flex-start">
+      ${FASES.map(fase => faseColumn(fase)).join('')}
+    </div>
+  `;
+  bindBoard();
+}
+
+function faseColumn(fase) {
+  return `
+    <div style="min-width:300px;max-width:330px;flex:1">
+      <div style="font-weight:800;color:${fase.cor};font-size:13px;text-transform:uppercase;letter-spacing:1px;padding:6px 8px;border-bottom:2px solid ${fase.cor};margin-bottom:8px">
+        ${fase.fase}
+      </div>
+      ${fase.status.map(st => {
+        const cards = _items.filter(i => i.status === st.id);
+        if (cards.length === 0) return '';
+        return `
+          <div style="margin-bottom:10px">
+            <div class="tiny" style="color:${st.cor};font-weight:700;padding:2px 6px">● ${st.lbl} (${cards.length})</div>
+            ${cards.map(c => card(c)).join('')}
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function card(c) {
+  const sit = SITUACOES.find(s => s.id === c.situacao_imovel);
+  const pend = PENDENCIAS.find(p => p.id === c.pendencia);
+  const termo = TERMOS.find(t => t.id === c.termo_autorizacao);
+  const precisa = [];
+  if (c.precisa_fotos) precisa.push('📷');
+  if (c.precisa_videos) precisa.push('🎥');
+  if (c.precisa_avaliacao) precisa.push('💰');
+  return `
+    <div data-card="${c.id}" style="background:var(--bg-3);border-left:3px solid ${statusCor(c.status)};border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;font-size:12px">
+      <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:6px">
+        <div style="font-weight:800;flex:1">${esc(c.condominio || 'Sem nome')}</div>
+        ${precisa.length ? `<span>${precisa.join('')}</span>` : ''}
+      </div>
+      <div class="tiny muted">${esc(c.tipo_imovel || '')}${c.localizacao ? ' · ' + esc(c.localizacao) : ''}</div>
+      <div class="flex gap-1 mt-1" style="flex-wrap:wrap">
+        ${c.objetivo ? `<span style="background:${c.objetivo === 'locacao' ? '#a16207' : '#16a34a'}33;color:${c.objetivo === 'locacao' ? '#a16207' : '#16a34a'};padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">${c.objetivo === 'locacao' ? 'Locação' : 'Venda'}</span>` : ''}
+        ${c.responsavel ? `<span style="background:#6366f133;color:#a5b4fc;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">${esc(c.responsavel)}</span>` : ''}
+        ${sit ? `<span style="background:${sit.cor}22;color:${sit.cor};padding:1px 6px;border-radius:4px;font-size:10px">${sit.lbl}</span>` : ''}
+      </div>
+      ${pend ? `<div class="tiny mt-1" style="color:${pend.cor}">⚠ ${pend.lbl}</div>` : ''}
+      ${termo ? `<div class="tiny mt-1" style="color:${termo.cor}">📋 ${termo.lbl}</div>` : ''}
+      ${c.proprietario ? `<div class="tiny muted mt-1">👤 ${esc(c.proprietario)}${c.contato ? ' · ' + esc(c.contato) : ''}</div>` : ''}
+    </div>
+  `;
+}
+
+function bindBoard() {
+  document.querySelectorAll('[data-card]').forEach(el => el.addEventListener('click', () => {
+    _editing = _items.find(x => x.id === el.dataset.card);
+    openForm();
   }));
 }
 
-function rankRow(r, i) {
-  const u = r.user;
-  const ini = escapeHtml((u?.ini || (u?.name || '?').substring(0, 2)).toUpperCase());
-  const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`;
-  return `
-    <div style="display:grid;grid-template-columns:40px 36px 1fr auto auto;gap:10px;padding:10px 14px;background:var(--bg-3);border-radius:var(--r-sm);align-items:center;font-size:12.5px">
-      <div style="font-size:${i<3?'20px':'13px'};text-align:center;font-weight:800">${medal}</div>
-      <div style="width:32px;height:32px;border-radius:var(--r-sm);background:${u?.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${ini}</div>
-      <div>
-        <div style="font-weight:700">${escapeHtml(u?.name || r.captador_id)}</div>
-        <div class="tiny muted">${escapeHtml(u?.team || '')} · ${r.disponiveis} disponíveis · ${r.vendidos} vendidos</div>
+function openForm() {
+  const c = _editing || {};
+  const isLider = (auth.user()?.lvl || 0) >= 5;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  overlay.innerHTML = `
+    <div class="card" style="max-width:620px;width:100%;background:var(--bg-2);margin:auto">
+      <div class="flex" style="justify-content:space-between;align-items:center">
+        <h3 class="card-title">${c.id ? '✏️ Editar' : '➕ Nova'} Captação</h3>
+        <button class="btn btn-ghost btn-sm" id="cf-x">✕</button>
       </div>
-      <div style="text-align:right">
-        <div style="font-size:16px;font-weight:900;color:#2563eb">${r.total}</div>
-        <div class="tiny muted">imóveis</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+        ${sel('cf-status', 'Status', ALL_STATUS.map(s => [s.id, s.lbl]), c.status)}
+        ${sel('cf-obj', 'Objetivo', [['venda', 'Venda'], ['locacao', 'Locação']], c.objetivo)}
+        ${sel('cf-tipo', 'Tipo de imóvel', [['', '—'], ...TIPOS.map(t => [t, t])], c.tipo_imovel)}
+        ${inp('cf-cond', 'Condomínio / Bairro', c.condominio)}
+        ${inp('cf-loc', 'Quadra/Lote/APT/Rua nº', c.localizacao)}
+        ${inp('cf-resp', 'Responsável', c.responsavel, 'Gui, Mariane, Paulo, Isabella, Leire')}
+        ${sel('cf-sit', 'Situação do imóvel', [['', '—'], ...SITUACOES.map(s => [s.id, s.lbl])], c.situacao_imovel)}
+        ${sel('cf-pend', 'Pendência', [['', '—'], ...PENDENCIAS.map(p => [p.id, p.lbl])], c.pendencia)}
+        ${sel('cf-termo', 'Termo Autorização', [['', '—'], ...TERMOS.map(t => [t.id, t.lbl])], c.termo_autorizacao)}
+        ${inp('cf-prop', 'Proprietário', c.proprietario)}
+        ${inp('cf-ctt', 'Contato', c.contato)}
+        ${inp('cf-email', 'Email', c.email)}
+        ${inp('cf-vv', 'Valor de venda (R$)', c.valor_venda, '', 'number')}
+        ${inp('cf-vl', 'Valor locação / COND / IPTU', c.valor_locacao)}
+        ${inp('cf-kenlo', 'Código Kenlo', c.codigo_kenlo)}
+        ${inp('cf-agend', 'Data agendamento', c.data_agendamento, '', 'date')}
       </div>
-      <div style="text-align:right">
-        <div style="font-size:14px;font-weight:800;color:#7c3aed">R$ ${money(r.valor)}</div>
-        <div class="tiny muted">total</div>
+      <div class="flex gap-3 mt-2" style="flex-wrap:wrap">
+        <label class="tiny flex gap-1" style="align-items:center"><input type="checkbox" id="cf-fotos" ${c.precisa_fotos ? 'checked' : ''}> 📷 Precisa Fotos</label>
+        <label class="tiny flex gap-1" style="align-items:center"><input type="checkbox" id="cf-videos" ${c.precisa_videos ? 'checked' : ''}> 🎥 Precisa Vídeos</label>
+        <label class="tiny flex gap-1" style="align-items:center"><input type="checkbox" id="cf-aval" ${c.precisa_avaliacao ? 'checked' : ''}> 💰 Precisa Avaliação</label>
       </div>
+      <div class="mt-2"><label class="tiny muted">Descrição do imóvel</label><textarea id="cf-desc" class="input" rows="2">${esc(c.descricao || '')}</textarea></div>
+      <div class="mt-2"><label class="tiny muted">Observação</label><textarea id="cf-obs" class="input" rows="2">${esc(c.observacao || '')}</textarea></div>
+      <div class="flex gap-2 mt-3">
+        <button class="btn btn-primary" id="cf-save">💾 Salvar</button>
+        ${c.id && isLider ? '<button class="btn btn-ghost" id="cf-del" style="color:#ef4444">🗑 Excluir</button>' : ''}
+      </div>
+      <div id="cf-msg" class="mt-2"></div>
     </div>
   `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#cf-x').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector('#cf-save').addEventListener('click', () => saveForm(overlay));
+  const del = overlay.querySelector('#cf-del');
+  if (del) del.addEventListener('click', async () => {
+    if (!confirm('Excluir captação?')) return;
+    try { await api.request('/api/v3/captacoes/kanban?id=' + encodeURIComponent(c.id), { method: 'DELETE' }); overlay.remove(); await load(); }
+    catch (e) { alert('Erro: ' + e.message); }
+  });
 }
 
-function statusColor(s) {
-  if (s === 'disponivel') return '#16a34a';
-  if (s === 'vendido') return '#7c3aed';
-  if (s === 'em_negociacao') return '#d97706';
-  return '#64748b';
+async function saveForm(overlay) {
+  const g = id => overlay.querySelector('#' + id);
+  const payload = {
+    id: _editing?.id,
+    status: g('cf-status').value,
+    objetivo: g('cf-obj').value,
+    tipo_imovel: g('cf-tipo').value,
+    condominio: g('cf-cond').value.trim(),
+    localizacao: g('cf-loc').value.trim(),
+    responsavel: g('cf-resp').value.trim(),
+    situacao_imovel: g('cf-sit').value,
+    pendencia: g('cf-pend').value,
+    termo_autorizacao: g('cf-termo').value,
+    proprietario: g('cf-prop').value.trim(),
+    contato: g('cf-ctt').value.trim(),
+    email: g('cf-email').value.trim(),
+    valor_venda: parseFloat(g('cf-vv').value) || null,
+    valor_locacao: g('cf-vl').value.trim(),
+    codigo_kenlo: g('cf-kenlo').value.trim(),
+    data_agendamento: g('cf-agend').value || null,
+    precisa_fotos: g('cf-fotos').checked,
+    precisa_videos: g('cf-videos').checked,
+    precisa_avaliacao: g('cf-aval').checked,
+    descricao: g('cf-desc').value.trim(),
+    observacao: g('cf-obs').value.trim(),
+  };
+  if (!payload.condominio && !payload.proprietario) {
+    g('cf-msg').innerHTML = '<div class="alert alert-err">Informe ao menos Condomínio/Bairro ou Proprietário</div>';
+    return;
+  }
+  g('cf-msg').innerHTML = '<div class="muted tiny"><span class="spinner"></span> Salvando…</div>';
+  try {
+    await api.request('/api/v3/captacoes/kanban', { method: 'POST', body: payload });
+    overlay.remove();
+    await load();
+  } catch (e) {
+    g('cf-msg').innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
+  }
 }
-function money(n) { return n == null || isNaN(n) ? '0' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
-function escapeHtml(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function inp(id, label, val, ph, type) {
+  return `<div><label class="tiny muted">${label}</label><input id="${id}" class="input" type="${type || 'text'}" value="${esc(val ?? '')}" placeholder="${esc(ph || '')}"></div>`;
 }
+function sel(id, label, opts, cur) {
+  return `<div><label class="tiny muted">${label}</label><select id="${id}" class="select">${opts.map(([v, l]) => `<option value="${esc(v)}" ${cur === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`;
+}
+function kpi(label, value, color) {
+  return `<div style="background:var(--bg-3);border-left:4px solid ${color};padding:10px;border-radius:6px"><div class="tiny muted">${label}</div><div style="font-size:20px;font-weight:800;color:${color}">${value}</div></div>`;
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

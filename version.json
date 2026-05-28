@@ -1,7 +1,7 @@
 {
-  "version": "75.91.0",
-  "meta": "2026.05.28-v75.91-metas-editor",
-  "built": "2026-05-28T03:00:00Z",
-  "sw": "v75.91.0-2026-05-28-METAS-EDITOR",
-  "sprint": "v75.91 Sprint 9.2b — Metas editor completo (item 10). ALTER TABLE metas: +meta_visitas, +meta_pastas, +meta_propostas, +meta_agendamentos (executado via Chrome MCP). upsert.py aceita os 4 novos campos. atingimento.py retorna todos nas cells (pré-preenche editor). metas.js: click na célula abre MODAL completo (VGV/vendas/agendamentos/visitas/pastas/propostas) em vez do prompt só-VGV. Botão 'Meta por Equipe' aplica mesma meta mensal a todos corretores da equipe. Lançamentos (item 5) confirmado: já tem CRUD editável completo (+Novo/editar/delete) — estava vazio só por falta de dados."
+  "version": "75.92.0",
+  "meta": "2026.05.28-v75.92-captacoes-kanban",
+  "built": "2026-05-28T04:00:00Z",
+  "sw": "v75.92.0-2026-05-28-CAPTACOES-KANBAN",
+  "sprint": "v75.92 Sprint 9.5a — Captações Kanban (item 7, fiel ao Notion PSM). Tabela captacoes criada (via Chrome MCP). Modelo extraído do Notion do Paulo: 17 status em 3 fases (A fazer/Em andamento/Concluídos), objetivo venda/locação, 9 tipos imóvel, situação imóvel, pendência (fotos/vídeos/drone/docs/chaves), termo autorização, proprietário+contato+email, valores venda/locação, código Kenlo, datas. Backend /api/v3/captacoes/kanban (GET/POST upsert+move/DELETE) com NOTIFICAÇÕES: responsável atribuído + marketing (Guilherme) quando precisa fotos/vídeos ou vai pra edição. Frontend Kanban 3 colunas por fase, cards coloridos, modal completo de cadastro/edição. Flags precisa_fotos/videos/avaliacao."
 }
