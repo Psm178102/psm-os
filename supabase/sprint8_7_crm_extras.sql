@@ -11,10 +11,10 @@ CREATE TABLE IF NOT EXISTS oportunidades_psm (
   valor_est   NUMERIC,                       -- valor estimado da oportunidade
   prazo       DATE,
   status      TEXT DEFAULT 'aberta',         -- aberta|pegou|fechada|perdida
-  pegou_por   UUID REFERENCES users(id),
+  pegou_por   TEXT REFERENCES users(id),
   pegou_em    TIMESTAMPTZ,
   criado_em   TIMESTAMPTZ DEFAULT now(),
-  criado_por  UUID REFERENCES users(id),
+  criado_por  TEXT REFERENCES users(id),
   updated_at  TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_op_psm_status ON oportunidades_psm(status);
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS cadencia_psm (
   passos      JSONB DEFAULT '[]',            -- [{dia, canal, mensagem, status}]
   ativa       BOOLEAN DEFAULT TRUE,
   criado_em   TIMESTAMPTZ DEFAULT now(),
-  criado_por  UUID REFERENCES users(id),
+  criado_por  TEXT REFERENCES users(id),
   updated_at  TIMESTAMPTZ DEFAULT now()
 );
 
@@ -43,11 +43,11 @@ CREATE TABLE IF NOT EXISTS fichas_propostas (
   forma_pagto     TEXT,                      -- entrada + mensais + financ
   observacoes     TEXT,
   status          TEXT DEFAULT 'em_analise', -- em_analise|aprovada|recusada|fechada
-  corretor_id     UUID REFERENCES users(id),
+  corretor_id     TEXT REFERENCES users(id),
   data_envio      DATE,
   data_resposta   DATE,
   criado_em       TIMESTAMPTZ DEFAULT now(),
-  criado_por      UUID REFERENCES users(id),
+  criado_por      TEXT REFERENCES users(id),
   updated_at      TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_fichas_status ON fichas_propostas(status);

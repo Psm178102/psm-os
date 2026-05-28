@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS tendencias (
   descricao   TEXT,
   data        DATE DEFAULT CURRENT_DATE,
   criado_em   TIMESTAMPTZ DEFAULT now(),
-  criado_por  UUID REFERENCES users(id),
+  criado_por  TEXT REFERENCES users(id),
   updated_at  TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_tendencias_data ON tendencias(data DESC);

@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS canal_anonimo (
   anexo_type    TEXT,                              -- mime type
   anexo_size    INT,
   lido          BOOLEAN DEFAULT FALSE,
-  lido_por      UUID REFERENCES users(id),
+  lido_por      TEXT REFERENCES users(id),
   lido_em       TIMESTAMPTZ
 );
 

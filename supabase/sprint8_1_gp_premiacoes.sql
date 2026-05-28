@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS gp_treinamentos (
   status      TEXT DEFAULT 'planejado',    -- planejado|em_andamento|concluido
   conteudo    TEXT,
   criado_em   TIMESTAMPTZ DEFAULT now(),
-  criado_por  UUID REFERENCES users(id),
+  criado_por  TEXT REFERENCES users(id),
   updated_at  TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_gp_treinamentos_status ON gp_treinamentos(status);
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS gp_talentos (
   cenario     TEXT,
   status      TEXT,   -- aceito|analisando|aguardando|agendar|postergado|futuro
   criado_em   TIMESTAMPTZ DEFAULT now(),
-  criado_por  UUID REFERENCES users(id),
+  criado_por  TEXT REFERENCES users(id),
   updated_at  TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_gp_talentos_setor ON gp_talentos(setor);
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS premiacoes (
   premio          TEXT,
   icon            TEXT DEFAULT '🏆',
   criado_em       TIMESTAMPTZ DEFAULT now(),
-  criado_por      UUID REFERENCES users(id),
+  criado_por      TEXT REFERENCES users(id),
   updated_at      TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_premiacoes_periodo ON premiacoes(inicio, fim);

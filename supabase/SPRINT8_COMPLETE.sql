@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS canal_anonimo (
   anexo_type    TEXT,
   anexo_size    INT,
   lido          BOOLEAN DEFAULT FALSE,
-  lido_por      UUID REFERENCES users(id),
+  lido_por      TEXT REFERENCES users(id),
   lido_em       TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_canal_ts ON canal_anonimo(ts DESC);
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS gp_treinamentos (
   status      TEXT DEFAULT 'planejado',
   conteudo    TEXT,
   criado_em   TIMESTAMPTZ DEFAULT now(),
-  criado_por  UUID REFERENCES users(id),
+  criado_por  TEXT REFERENCES users(id),
   updated_at  TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_gp_treinamentos_status ON gp_treinamentos(status);
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS gp_talentos (
   cenario     TEXT,
   status      TEXT,
   criado_em   TIMESTAMPTZ DEFAULT now(),
-  criado_por  UUID REFERENCES users(id),
+  criado_por  TEXT REFERENCES users(id),
   updated_at  TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_gp_talentos_setor ON gp_talentos(setor);
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS premiacoes (
   premio          TEXT,
   icon            TEXT DEFAULT '🏆',
   criado_em       TIMESTAMPTZ DEFAULT now(),
-  criado_por      UUID REFERENCES users(id),
+  criado_por      TEXT REFERENCES users(id),
   updated_at      TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_premiacoes_periodo ON premiacoes(inicio, fim);
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS tendencias (
   descricao   TEXT,
   data        DATE DEFAULT CURRENT_DATE,
   criado_em   TIMESTAMPTZ DEFAULT now(),
-  criado_por  UUID REFERENCES users(id),
+  criado_por  TEXT REFERENCES users(id),
   updated_at  TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_tendencias_data ON tendencias(data DESC);
@@ -95,9 +95,9 @@ CREATE TABLE IF NOT EXISTS okrs (
   ciclo       TEXT DEFAULT 'Q1 2026',
   status      TEXT DEFAULT 'on_track',
   krs         JSONB DEFAULT '[]',
-  responsavel UUID REFERENCES users(id),
+  responsavel TEXT REFERENCES users(id),
   criado_em   TIMESTAMPTZ DEFAULT now(),
-  criado_por  UUID REFERENCES users(id),
+  criado_por  TEXT REFERENCES users(id),
   updated_at  TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_okrs_ciclo ON okrs(ciclo);
@@ -114,10 +114,10 @@ CREATE TABLE IF NOT EXISTS oportunidades_psm (
   valor_est   NUMERIC,
   prazo       DATE,
   status      TEXT DEFAULT 'aberta',
-  pegou_por   UUID REFERENCES users(id),
+  pegou_por   TEXT REFERENCES users(id),
   pegou_em    TIMESTAMPTZ,
   criado_em   TIMESTAMPTZ DEFAULT now(),
-  criado_por  UUID REFERENCES users(id),
+  criado_por  TEXT REFERENCES users(id),
   updated_at  TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_op_psm_status ON oportunidades_psm(status);
@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS cadencia_psm (
   passos      JSONB DEFAULT '[]',
   ativa       BOOLEAN DEFAULT TRUE,
   criado_em   TIMESTAMPTZ DEFAULT now(),
-  criado_por  UUID REFERENCES users(id),
+  criado_por  TEXT REFERENCES users(id),
   updated_at  TIMESTAMPTZ DEFAULT now()
 );
 
@@ -144,11 +144,11 @@ CREATE TABLE IF NOT EXISTS fichas_propostas (
   forma_pagto     TEXT,
   observacoes     TEXT,
   status          TEXT DEFAULT 'em_analise',
-  corretor_id     UUID REFERENCES users(id),
+  corretor_id     TEXT REFERENCES users(id),
   data_envio      DATE,
   data_resposta   DATE,
   criado_em       TIMESTAMPTZ DEFAULT now(),
-  criado_por      UUID REFERENCES users(id),
+  criado_por      TEXT REFERENCES users(id),
   updated_at      TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_fichas_status ON fichas_propostas(status);
