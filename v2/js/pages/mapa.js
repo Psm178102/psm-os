@@ -1,5 +1,6 @@
-/* PSM-OS v2 — Mapa de Imóveis (Sprint 8.8) */
+/* PSM-OS v2 — Mapa de Imóveis (Sprint 8.8 + 9.3 Google Earth) */
 import { api } from '../api.js';
+import { getLinks, saveLinks, canEditLinks, promptLink } from '../links.js';
 
 let _root = null;
 let _items = [];
@@ -94,6 +95,10 @@ function render() {
           <h2 class="card-title">🗺 Mapa de Imóveis PSM</h2>
           <p class="card-sub">Localização geográfica dos imóveis ativos — São José do Rio Preto/SP</p>
         </div>
+        <div class="flex gap-2">
+          <button class="btn btn-primary" id="map-earth" style="background:#1a73e8">🌍 Abrir no Google Earth</button>
+          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-earth-edit" title="Editar link do Google Earth">⚙️</button>' : ''}
+        </div>
       </div>
 
       <div id="map-stats" class="mt-3"></div>
@@ -122,6 +127,20 @@ function render() {
       window._mapTimer = setTimeout(() => renderContent(), 300);
     });
   }
+  const earthBtn = document.getElementById('map-earth');
+  if (earthBtn) earthBtn.addEventListener('click', async () => {
+    const links = await getLinks();
+    const url = links.mapa_earth || 'https://earth.google.com/earth/d/15bCIxsaicJySE2OT0yS8dZO7KqcwyJ8o?usp=sharing';
+    window.open(url, '_blank', 'noopener');
+  });
+  const earthEdit = document.getElementById('map-earth-edit');
+  if (earthEdit) earthEdit.addEventListener('click', async () => {
+    const links = await getLinks();
+    const v = promptLink('Link do Google Earth (Mapa dos Imóveis)', links.mapa_earth);
+    if (v === null) return;
+    try { await saveLinks({ mapa_earth: v }); alert('✅ Link do Google Earth salvo!'); }
+    catch (e) { alert('Erro: ' + e.message); }
+  });
 }
 
 function renderContent() {

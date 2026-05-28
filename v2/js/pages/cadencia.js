@@ -1,6 +1,14 @@
-/* PSM-OS v2 — Cadências de Follow-up (Sprint 8.7) */
+/* PSM-OS v2 — Cadências de Follow-up (Sprint 8.7 + 9.3 anexos por equipe) */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { getLinks, saveLinks, canEditLinks, promptLink } from '../links.js';
+
+const CAD_TEAMS = [
+  { key: 'map',       lbl: 'MAP',       cor: '#d4a843' },
+  { key: 'conquista', lbl: 'Conquista', cor: '#dc2626' },
+  { key: 'terceiros', lbl: 'Terceiros', cor: '#3b82f6' },
+  { key: 'locacao',   lbl: 'Locação',   cor: '#10b981' },
+];
 
 let _root = null;
 let _items = [];
@@ -16,7 +24,40 @@ export async function pageCadencia(ctx, root) {
     return;
   }
   render();
+  loadAnexos();
   await load();
+}
+
+async function loadAnexos() {
+  const host = document.getElementById('cad-anexos');
+  if (!host) return;
+  const links = await getLinks();
+  const cad = links.cadencia || {};
+  host.innerHTML = `
+    <div class="card">
+      <h2 class="card-title">📎 Materiais de Cadência por equipe</h2>
+      <p class="card-sub">Roteiros/arquivos de cadência de cada equipe (Google Drive)${canEditLinks() ? ' · gestão edita o link' : ''}.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px">
+        ${CAD_TEAMS.map(t => {
+          const u = cad[t.key] || '';
+          return `<div style="border:1px solid var(--bd,#e5e7eb);border-top:3px solid ${t.cor};border-radius:10px;padding:12px">
+            <div style="font-weight:800;color:${t.cor};margin-bottom:8px">${t.lbl}</div>
+            ${u ? `<a class="btn btn-primary btn-sm btn-block" href="${esc(u)}" target="_blank" rel="noopener">📂 Abrir materiais</a>`
+                : `<div class="tiny muted">Sem material ainda.</div>`}
+            ${canEditLinks() ? `<button class="btn btn-ghost btn-sm btn-block mt-1" data-cadlink="${t.key}">⚙️ ${u ? 'Trocar' : 'Definir'} link</button>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  host.querySelectorAll('[data-cadlink]').forEach(b => b.addEventListener('click', async () => {
+    const key = b.dataset.cadlink;
+    const t = CAD_TEAMS.find(x => x.key === key);
+    const links2 = await getLinks();
+    const v = promptLink('Materiais de Cadência — ' + t.lbl, (links2.cadencia || {})[key]);
+    if (v === null) return;
+    try { await saveLinks({ cadencia: { [key]: v } }); await loadAnexos(); }
+    catch (e) { alert('Erro: ' + e.message); }
+  }));
 }
 
 async function load() {
@@ -31,6 +72,7 @@ async function load() {
 
 function render() {
   _root.innerHTML = `
+    <div id="cad-anexos" style="margin-bottom:14px"></div>
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div>

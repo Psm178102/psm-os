@@ -37,6 +37,7 @@ import { pageOO } from './pages/oo.js';
 import { pagePlantoes } from './pages/plantoes.js';
 import { pageCaptacoes } from './pages/captacoes.js';
 import { pageSdr } from './pages/sdr.js';
+import { pageTabelaImoveis } from './pages/tabela-imoveis.js';
 import { pageIntegracoes } from './pages/integracoes.js';
 import { pageBackup } from './pages/backup.js';
 import { pageRelatorios } from './pages/relatorios.js';
@@ -81,7 +82,7 @@ const ROUTE_GROUP = {
   '/': 'inicio', '/painel': 'inicio', '/checkin': 'inicio', '/ranking': 'inicio', '/agenda': 'inicio', '/tarefas': 'inicio',
   // Imóveis & Vendas (secretaria de vendas)
   '/crm': 'vendas', '/sdr': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/fichas': 'vendas',
-  '/imoveis': 'vendas', '/mapa': 'vendas', '/lancamentos': 'vendas',
+  '/imoveis': 'vendas', '/mapa': 'vendas', '/tabela-imoveis': 'vendas', '/lancamentos': 'vendas',
   // Captações
   '/captacoes': 'captacoes',
   // Locação
@@ -265,6 +266,7 @@ function applyPermissions(user) {
   router.register('/sr-gerencia', { render: async (ctx, root) => { setHeader('Sr. Gerência');        highlight('/sr-gerencia'); await pageSrGerencia(ctx, root); } });
   router.register('/sr-performance', { render: async (ctx, root) => { setHeader('Sr. Performance'); highlight('/sr-performance'); await pageSrPerformance(ctx, root); } });
   router.register('/mapa',        { render: async (ctx, root) => { setHeader('Mapa de Imóveis');    highlight('/mapa');        await pageMapa(ctx, root); } });
+  router.register('/tabela-imoveis', { render: async (ctx, root) => { setHeader('Tabela de Imóveis'); highlight('/tabela-imoveis'); await pageTabelaImoveis(ctx, root); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -328,6 +330,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/fichas"><span class="sb-ico">📋</span> Fichas/Propostas</button>
         <button class="sb-link" data-nav="/imoveis"><span class="sb-ico">🏘</span> Imóveis</button>
         <button class="sb-link" data-nav="/mapa"><span class="sb-ico">🗺</span> Mapa Imóveis</button>
+        <button class="sb-link" data-nav="/tabela-imoveis"><span class="sb-ico">📊</span> Tabela Imóveis</button>
         <button class="sb-link" data-nav="/lancamentos"><span class="sb-ico">🏗</span> Lançamentos</button>
         <button class="sb-link" data-nav="/captacoes"><span class="sb-ico">📥</span> Captações</button>
 
