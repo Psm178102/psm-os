@@ -4,6 +4,7 @@
 import { auth } from './auth.js';
 import { router } from './router.js';
 import { api } from './api.js';
+import { initPush, enablePush, pushSupported, pushPermission } from './push.js';
 import { pageUsuarios as pageUsuariosV2 } from './pages/usuarios.js';
 import { pageAuditoria } from './pages/auditoria.js';
 import { pageDashboard as pageDashboardV2 } from './pages/dashboard.js';
@@ -286,6 +287,21 @@ function applyPermissions(user) {
     refresh();
     btnSons.addEventListener('click', () => { sounds.setEnabled(!sounds.isEnabled()); refresh(); if (sounds.isEnabled()) sounds.notif(); });
   }
+
+  // 9) Service Worker + Web Push (notificações navegador + celular/PWA)
+  const btnPush = document.getElementById('btn-push');
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/v2/sw.js').then(reg => {
+      initPush(reg);
+      if (btnPush && pushSupported() && pushPermission() !== 'granted') {
+        btnPush.style.display = '';
+        btnPush.addEventListener('click', async () => {
+          const ok = await enablePush();
+          if (ok) { btnPush.style.display = 'none'; alert('✅ Notificações ativadas neste dispositivo!'); }
+        });
+      }
+    }).catch(() => {});
+  }
 })();
 
 // ─── Shell ─────────────────────────────────────────────────────────────
@@ -390,6 +406,7 @@ function shellHTML(user) {
             🔔
             <span id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#dc2626;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:0 5px;min-width:16px;height:16px;line-height:16px;text-align:center"></span>
           </button>
+          <button class="btn btn-ghost" id="btn-push" style="display:none;padding:6px 10px" title="Ativar notificações no celular e navegador">📲</button>
           <span>${escapeHtml(user.name || 'Usuário')}</span>
           <div class="h-avatar">${escapeHtml(ini)}</div>
           <button class="btn btn-ghost" id="btn-logout">Sair</button>

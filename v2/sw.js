@@ -1,5 +1,5 @@
 // PSM /v2 — Service Worker (offline-first cache de shell)
-const VERSION = 'v64-2026-05-28-captacoes-board';
+const VERSION = 'v65-2026-05-28-push';
 const SHELL_CACHE = 'psm-v2-shell-' + VERSION;
 // Runtime cache versionado: ao bumpar VERSION, o activate purga o runtime antigo
 // (JS/CSS desatualizado) automaticamente, garantindo que mudanças propaguem.
@@ -71,4 +71,34 @@ self.addEventListener('fetch', evt => {
 
 self.addEventListener('message', evt => {
   if (evt.data === 'skipWaiting') self.skipWaiting();
+});
+
+// ─── Web Push (notificações navegador + celular/PWA) ───────────────────
+self.addEventListener('push', evt => {
+  let d = {};
+  try { d = evt.data ? evt.data.json() : {}; }
+  catch (e) { d = { title: 'House PSM', body: evt.data ? evt.data.text() : '' }; }
+  const title = d.title || 'House PSM';
+  evt.waitUntil(self.registration.showNotification(title, {
+    body: d.body || '',
+    tag: d.tag || 'psm',
+    renotify: true,
+    data: { link: d.link || '/v2/' },
+  }));
+});
+
+self.addEventListener('notificationclick', evt => {
+  evt.notification.close();
+  const link = (evt.notification.data && evt.notification.data.link) || '/v2/';
+  evt.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
+      for (const c of cs) {
+        if (c.url.includes('/v2') && 'focus' in c) {
+          if ('navigate' in c) { try { c.navigate(link); } catch (e) {} }
+          return c.focus();
+        }
+      }
+      return clients.openWindow(link);
+    })
+  );
 });

@@ -286,3 +286,63 @@ def notify(user_ids, tipo: str, title: str, body: str = None,
     except Exception as e:
         print(f"[notify] falha: {e}")
         return 0
+
+
+# ─── Web Push (navegador + celular/PWA) ──────────────────────────────────
+def send_web_push(user_ids, title, body=None, link=None, tag=None):
+    """Envia Web Push pras inscricoes dos usuarios (tabela push_subscriptions).
+    Best-effort, lazy import de pywebpush. Requer VAPID_PRIVATE_KEY no ambiente."""
+    import json as _json
+    if not user_ids:
+        return 0
+    if isinstance(user_ids, str):
+        user_ids = [user_ids]
+    user_ids = [u for u in set(user_ids) if u]
+    if not user_ids:
+        return 0
+    priv = os.environ.get("VAPID_PRIVATE_KEY")
+    if not priv:
+        return 0
+    subj = os.environ.get("VAPID_SUBJECT") or "mailto:contato@housepsm.com.br"
+    try:
+        from pywebpush import webpush  # lazy
+    except Exception:
+        return 0
+    sb = supabase_client()
+    if not sb:
+        return 0
+    try:
+        rows = sb.table("push_subscriptions").select("*").in_("user_id", user_ids).execute().data or []
+    except Exception:
+        return 0
+    payload = _json.dumps({"title": title, "body": body or "", "link": link or "/v2/", "tag": tag or "psm"})
+    sent = 0
+    for r in rows:
+        try:
+            webpush(
+                subscription_info={"endpoint": r.get("endpoint"),
+                                   "keys": {"p256dh": r.get("p256dh"), "auth": r.get("auth")}},
+                data=payload,
+                vapid_private_key=priv,
+                vapid_claims={"sub": subj},
+            )
+            sent += 1
+        except Exception as e:
+            code = getattr(getattr(e, "response", None), "status_code", None)
+            if code in (404, 410):
+                try:
+                    sb.table("push_subscriptions").delete().eq("endpoint", r.get("endpoint")).execute()
+                except Exception:
+                    pass
+    return sent
+
+
+def notify_all(user_ids, tipo, title, body=None, link=None, target_type=None, target_id=None):
+    """Notifica em TODOS os canais: in-app (sino) + Web Push (navegador + celular).
+    (E-mail entra aqui quando o provedor for configurado.) Best-effort."""
+    n = notify(user_ids, tipo, title, body=body, link=link, target_type=target_type, target_id=target_id)
+    try:
+        send_web_push(user_ids, title, body, link, tag=target_type)
+    except Exception:
+        pass
+    return n

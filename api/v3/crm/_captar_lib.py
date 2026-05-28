@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 RD_BASE = "https://crm.rdstation.com/api/v1"
 
 try:
-    from _auth_lib import notify  # type: ignore
+    from _auth_lib import notify_all as notify  # type: ignore  # fan-out (in-app + web push)
 except Exception:  # pragma: no cover
     def notify(*a, **k):  # fallback no-op
         return 0

@@ -16,7 +16,7 @@ import json, os, sys, urllib.parse
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit, notify  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, notify, notify_all  # type: ignore
 
 
 def _find_user_id(sb, nome):
@@ -87,14 +87,21 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._send(500, {"ok": False, "error": str(e)})
             audit(self, actor, "captacao.move", target_type="captacoes", target_id=cid, notes=f"→ {status}")
-            # Notifica marketing quando vai pra edição
+            desc = f"{cur.get('condominio') or 'Imóvel'} — {cur.get('proprietario') or ''}"
+            # SEMPRE notifica o responsável (todos os canais) em qualquer movimentação
+            try:
+                resp_id = _find_user_id(sb, cur.get("responsavel"))
+                if resp_id and resp_id != actor.get("id"):
+                    notify_all([resp_id], "captacao", f"🔄 Captação movida → {status.replace('_', ' ')}",
+                               desc, link="/v2/captacoes", target_type="captacoes", target_id=cid)
+            except Exception: pass
+            # Notifica marketing quando vai pra edição/captação realizada
             if status in ("edicao_fotos", "edicao_videos", "captacao_realizada"):
                 try:
                     ids = _marketing_ids(sb)
                     if ids:
-                        notify(ids, "captacao", f"📸 Captação em {status.replace('_', ' ')}",
-                               f"{cur.get('condominio') or 'Imóvel'} — {cur.get('proprietario') or ''}",
-                               link="/v2/captacoes", target_type="captacoes", target_id=cid)
+                        notify_all(ids, "captacao", f"📸 Captação em {status.replace('_', ' ')}",
+                                   desc, link="/v2/captacoes", target_type="captacoes", target_id=cid)
                 except Exception: pass
             return self._send(200, {"ok": True})
 
@@ -141,12 +148,13 @@ class handler(BaseHTTPRequestHandler):
 
         # Notificações
         try:
-            # Responsável atribuído
+            # Responsável: notificado em TODOS os canais a cada cadastro/edição
             resp_id = _find_user_id(sb, row.get("responsavel"))
             if resp_id and resp_id != actor.get("id"):
-                notify([resp_id], "captacao", "🎯 Captação atribuída a você",
-                       f"{row.get('condominio') or 'Imóvel'} — {row.get('proprietario') or ''}",
-                       link="/v2/captacoes", target_type="captacoes", target_id=cid)
+                titulo = "🎯 Captação atribuída a você" if is_new else "✏️ Captação atualizada"
+                notify_all([resp_id], "captacao", titulo,
+                           f"{row.get('condominio') or 'Imóvel'} — {row.get('proprietario') or ''}",
+                           link="/v2/captacoes", target_type="captacoes", target_id=cid)
             # Marketing se precisa fotos/vídeos
             if row.get("precisa_fotos") or row.get("precisa_videos"):
                 mids = _marketing_ids(sb)
@@ -154,9 +162,9 @@ class handler(BaseHTTPRequestHandler):
                     precisa = []
                     if row.get("precisa_fotos"): precisa.append("fotos")
                     if row.get("precisa_videos"): precisa.append("vídeos")
-                    notify(mids, "captacao", f"📸 Nova captação precisa de {' + '.join(precisa)}",
-                           f"{row.get('condominio') or 'Imóvel'} — {row.get('localizacao') or ''}",
-                           link="/v2/captacoes", target_type="captacoes", target_id=cid)
+                    notify_all(mids, "captacao", f"📸 Captação precisa de {' + '.join(precisa)}",
+                               f"{row.get('condominio') or 'Imóvel'} — {row.get('localizacao') or ''}",
+                               link="/v2/captacoes", target_type="captacoes", target_id=cid)
         except Exception:
             pass
 

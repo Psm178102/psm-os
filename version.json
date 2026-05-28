@@ -1,7 +1,7 @@
 {
-  "version": "75.97.0",
-  "meta": "2026.05.28-v75.97-captacoes-board-linha-unica",
-  "built": "2026-05-28T21:30:00Z",
-  "sw": "v75.97.0-2026-05-28-CAPTACOES-BOARD",
-  "sprint": "v75.97 Sprint 9.8b — Captações Kanban: layout em LINHA ÚNICA (todas as 17 etapas lado a lado, scroll horizontal estilo Trello, não mais empilhado por fase). Cor no topo da coluna indica a fase (vermelho A fazer / âmbar Em andamento / verde Concluídos) + legenda. Cada coluna com rolagem interna (max-height 68vh) pra não esticar a página com colunas cheias (ex: À Fazer Captação 37)."
+  "version": "75.98.0",
+  "meta": "2026.05.28-v75.98-notificacoes-multicanal",
+  "built": "2026-05-28T23:00:00Z",
+  "sw": "v75.98.0-2026-05-28-PUSH",
+  "sprint": "v75.98 Sprint 9.10 — Notificações multicanal nas captações. Responsável é notificado em TODA atividade (criar/editar/mover) em in-app (sino) + Web Push (navegador + celular/PWA). Backend: send_web_push + notify_all no _auth_lib (lazy pywebpush), endpoint /api/v3/push/subscribe (GET vapid pubkey, POST/DELETE inscrição), tabela push_subscriptions, requirements pywebpush. kanban.py/sdr.py/_captar_lib.py usam notify_all. Frontend: registra service worker /v2/sw.js (não registrava antes!), push.js (inscrição+permissão), botão 📲 ativar notificações, handlers push/notificationclick no v2/sw.js. PRECISA env no Vercel: VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY. E-mail fica pra depois (escolha do provedor)."
 }

@@ -24,7 +24,7 @@ import json, os, sys, time, re, urllib.parse, urllib.request, urllib.error
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit, notify  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, notify, notify_all  # type: ignore
 
 RD_BASE = "https://crm.rdstation.com/api/v1"
 _cache = {}            # key -> (ts, payload)
@@ -406,9 +406,9 @@ class handler(BaseHTTPRequestHandler):
                    or "leire" in (r.get("name") or "").lower()]
             ids = [i for i in ids if i and i != actor.get("id")]
             if ids:
-                notify(ids, "captacao", "🎯 Nova captação da prospecção SDR",
-                       f"{nome} — falou que tem imóvel pra vender/alugar",
-                       link="/v2/captacoes", target_type="captacoes", target_id=cid)
+                notify_all(ids, "captacao", "🎯 Nova captação da prospecção SDR",
+                           f"{nome} — falou que tem imóvel pra vender/alugar",
+                           link="/v2/captacoes", target_type="captacoes", target_id=cid)
         except Exception:
             pass
         return cid
