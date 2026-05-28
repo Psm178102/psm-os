@@ -1,7 +1,7 @@
 {
-  "version": "75.89.0",
-  "meta": "2026.05.28-v75.89-menu-diretoria-ranking",
-  "built": "2026-05-28T01:00:00Z",
-  "sw": "v75.89.0-2026-05-28-MENU-DIRETORIA",
-  "sprint": "v75.89 Sprint 9.1 — Menu Diretoria + Locação + Sócios fora de ranking. Menu reorganizado em 12 seções: nova 🔑 Locação (departamento separado), nova 🏛 Diretoria (Estratégia/Dashboard + KPIs + OKRs + Métricas Viab + Plano BP + Governança), Financeiro enxugado, Metas & Performance unificado. Governança movida de Sistema → Diretoria (sem duplicar). Sócios/diretores/gerentes EXCLUÍDOS de rankings públicos (ranking.js, tv.js ranking) — mantidos só em dashboards diretoria. War-arena já filtrava corretor/lider. Respeita hide_from_ranking."
+  "version": "75.90.0",
+  "meta": "2026.05.28-v75.90-equipes-editor",
+  "built": "2026-05-28T02:00:00Z",
+  "sw": "v75.90.0-2026-05-28-EQUIPES",
+  "sprint": "v75.90 Sprint 9.2a — Equipes com editor (item 8). Bug: equipe.js era read-only e usava nomes errados (lancamento em vez de MAP). Novo: backend /api/v3/teams/manage (GET lista equipes+users, POST save_teams + move_user) guardando em shared_kv psm_teams. Default MAP/Conquista/Terceiros/Locação. equipe.js reescrito: botão Gerenciar Equipes (criar/renomear/cor/ícone/excluir) + mover corretor entre equipes via dropdown + seção 'sem equipe'. Mover usa users/update (team field)."
 }
