@@ -17,17 +17,19 @@ from _captar_lib import create_captacao_from_deal, is_captar_stage, _rd_get_deal
 
 
 def _authorized(headers, path):
-    secret = os.environ.get("CRON_SECRET")
-    if not secret:
-        return True  # se não há secret, não bloqueia (melhor que perder evento)
+    # Aceita RD_WEBHOOK_KEY (dedicada, fácil de colar na URL do RD) ou CRON_SECRET.
+    secrets = [s for s in (os.environ.get("RD_WEBHOOK_KEY"), os.environ.get("CRON_SECRET")) if s]
+    if not secrets:
+        return True  # sem segredo configurado, não bloqueia (melhor que perder evento)
     try:
         q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(path).query))
-        if q.get("key") == secret:
+        if q.get("key") in secrets:
             return True
     except Exception:
         pass
     auth = headers.get("Authorization") or headers.get("authorization") or ""
-    return auth.lower().startswith("bearer ") and auth[7:].strip() == secret
+    tok = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+    return tok in secrets
 
 
 class handler(BaseHTTPRequestHandler):
