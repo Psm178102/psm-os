@@ -1,7 +1,7 @@
 {
-  "version": "75.99.0",
-  "meta": "2026.05.28-v75.99-captar-fix",
+  "version": "76.0.0",
+  "meta": "2026.05.28-v76.0-captar-instant",
   "built": "2026-05-28T23:00:00Z",
-  "sw": "v75.99.0-2026-05-28-CAPTAR-FIX",
-  "sprint": "v75.99 fix — Captação automática RD→Kanban agora resolve a etapa CAPTAR pela tabela deals (nome real '🔴 CAPTAR IMÓVEL'), não mais pela rd_stages desatualizada. Backfill dos leads atuais já feito. Cron 15min + piggyback criam os novos automaticamente."
+  "sw": "v76.0.0-2026-05-28-CAPTAR-INSTANT",
+  "sprint": "v76.0 — Captação automática AGORA EM TEMPO REAL. Webhook /api/v3/crm/rd_webhook: RD dispara ao mover deal -> se etapa CAPTAR IMÓVEL cria captação na hora + notifica. Cron de segurança baixado de 15min p/ 2min. Helpers create_captacao_from_deal/is_captar_stage/_rd_get_deal reutilizados. PRECISA configurar webhook no RD apontando p/ a URL."
 }

@@ -101,6 +101,61 @@ def _notify_gestao(sb, nome, cid, actor_id=None):
         pass
 
 
+def _rd_get_deal(deal_id, token):
+    """Busca 1 deal ao vivo no RD (payload completo com contatos/etapa)."""
+    if not deal_id or not token:
+        return None
+    url = f"{RD_BASE}/deals/{urllib.parse.quote(str(deal_id))}?token={urllib.parse.quote(token)}"
+    req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "PSM-OS-v3/captar"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return None
+
+
+def is_captar_stage(d):
+    """True se o deal está numa etapa cujo nome indica 'captar imóvel'."""
+    if not isinstance(d, dict):
+        return False
+    st = d.get("deal_stage") or {}
+    name = st.get("name") if isinstance(st, dict) else (st if isinstance(st, str) else "")
+    return _stage_key(name) == "captar"
+
+
+def create_captacao_from_deal(sb, d):
+    """Cria UMA captação 'À fazer' a partir de um deal RD, se ainda não existir
+    (dedup por rd_deal_id). Notifica gestão/Leire. Retorna o id ou None."""
+    if not sb or not isinstance(d, dict):
+        return None
+    did = str(d.get("id") or "")
+    if not did or did == "None":
+        return None
+    try:
+        ex = sb.table("captacoes").select("id").eq("rd_deal_id", did).limit(1).execute().data or []
+        if ex:
+            return ex[0]["id"]  # já existe — não duplica
+    except Exception:
+        pass
+    nome = _contact_name(d) or d.get("name") or "Proprietário"
+    cid = f"cap_rd_{did}"
+    row = {
+        "id": cid, "objetivo": "venda", "status": "a_fazer",
+        "condominio": (d.get("name") or "")[:255] or None,
+        "proprietario": nome, "contato": _contact_phone(d), "email": _contact_email(d),
+        "rd_deal_id": did, "precisa_avaliacao": True,
+        "observacao": f"Criada automaticamente do RD (etapa CAPTAR IMÓVEL) · deal {did}",
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        sb.table("captacoes").upsert(row, on_conflict="id").execute()
+        _notify_gestao(sb, nome, cid)
+        return cid
+    except Exception as e:
+        print(f"[captar] falha {did}: {e}")
+        return None
+
+
 def import_captar(sb, token):
     """Cria captações 'À fazer' pra cada lead na etapa CAPTAR IMÓVEL.
     Robusto: resolve a etapa pela tabela `deals` (sincronizada do RD, nome real
