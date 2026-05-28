@@ -14,6 +14,10 @@ const TIPO_ICO = {
   'task.assigned': '📋',
   'task.status':   '🔄',
   'recado.novo':   '📢',
+  'captacao':      '📥',
+  'premiacao':     '🏆',
+  'oportunidade':  '💡',
+  'canal':         '🔒',
 };
 
 export function initNotifs() {
@@ -43,7 +47,7 @@ async function refresh() {
       const newest = _items[0];
       const tipo = newest?.tipo || '';
       try {
-        if (tipo === 'comment.new' || tipo === 'task.assigned') {
+        if (tipo === 'comment.new' || tipo === 'task.assigned' || tipo === 'task.status' || tipo === 'captacao') {
           window.dispatchEvent(new CustomEvent('psm:sound', { detail: 'notif' }));
         } else if (tipo === 'recado.novo') {
           window.dispatchEvent(new CustomEvent('psm:sound', { detail: 'alerta' }));

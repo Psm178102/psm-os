@@ -93,7 +93,7 @@ class handler(BaseHTTPRequestHandler):
                 resp_id = _find_user_id(sb, cur.get("responsavel"))
                 if resp_id and resp_id != actor.get("id"):
                     notify_all([resp_id], "captacao", f"🔄 Captação movida → {status.replace('_', ' ')}",
-                               desc, link="/v2/captacoes", target_type="captacoes", target_id=cid)
+                               desc, link="#/captacoes", target_type="captacoes", target_id=cid)
             except Exception: pass
             # Notifica marketing quando vai pra edição/captação realizada
             if status in ("edicao_fotos", "edicao_videos", "captacao_realizada"):
@@ -101,7 +101,7 @@ class handler(BaseHTTPRequestHandler):
                     ids = _marketing_ids(sb)
                     if ids:
                         notify_all(ids, "captacao", f"📸 Captação em {status.replace('_', ' ')}",
-                                   desc, link="/v2/captacoes", target_type="captacoes", target_id=cid)
+                                   desc, link="#/captacoes", target_type="captacoes", target_id=cid)
                 except Exception: pass
             return self._send(200, {"ok": True})
 
@@ -154,7 +154,7 @@ class handler(BaseHTTPRequestHandler):
                 titulo = "🎯 Captação atribuída a você" if is_new else "✏️ Captação atualizada"
                 notify_all([resp_id], "captacao", titulo,
                            f"{row.get('condominio') or 'Imóvel'} — {row.get('proprietario') or ''}",
-                           link="/v2/captacoes", target_type="captacoes", target_id=cid)
+                           link="#/captacoes", target_type="captacoes", target_id=cid)
             # Marketing se precisa fotos/vídeos
             if row.get("precisa_fotos") or row.get("precisa_videos"):
                 mids = _marketing_ids(sb)
@@ -164,7 +164,7 @@ class handler(BaseHTTPRequestHandler):
                     if row.get("precisa_videos"): precisa.append("vídeos")
                     notify_all(mids, "captacao", f"📸 Captação precisa de {' + '.join(precisa)}",
                                f"{row.get('condominio') or 'Imóvel'} — {row.get('localizacao') or ''}",
-                               link="/v2/captacoes", target_type="captacoes", target_id=cid)
+                               link="#/captacoes", target_type="captacoes", target_id=cid)
         except Exception:
             pass
 

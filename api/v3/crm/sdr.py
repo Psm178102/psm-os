@@ -408,7 +408,7 @@ class handler(BaseHTTPRequestHandler):
             if ids:
                 notify_all(ids, "captacao", "🎯 Nova captação da prospecção SDR",
                            f"{nome} — falou que tem imóvel pra vender/alugar",
-                           link="/v2/captacoes", target_type="captacoes", target_id=cid)
+                           link="#/captacoes", target_type="captacoes", target_id=cid)
         except Exception:
             pass
         return cid

@@ -1,5 +1,5 @@
 // PSM /v2 — Service Worker (offline-first cache de shell)
-const VERSION = 'v67-2026-05-28-captar-instant';
+const VERSION = 'v68-2026-05-28-notif-fix';
 const SHELL_CACHE = 'psm-v2-shell-' + VERSION;
 // Runtime cache versionado: ao bumpar VERSION, o activate purga o runtime antigo
 // (JS/CSS desatualizado) automaticamente, garantindo que mudanças propaguem.
@@ -89,16 +89,18 @@ self.addEventListener('push', evt => {
 
 self.addEventListener('notificationclick', evt => {
   evt.notification.close();
-  const link = (evt.notification.data && evt.notification.data.link) || '/v2/';
+  let raw = (evt.notification.data && evt.notification.data.link) || '#/';
+  // Link salvo como rota hash ("#/captacoes") → URL completa do app "/v2/#/captacoes"
+  const url = raw.startsWith('#') ? ('/v2/' + raw) : (raw.startsWith('/') ? raw : '/v2/');
   evt.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
       for (const c of cs) {
         if (c.url.includes('/v2') && 'focus' in c) {
-          if ('navigate' in c) { try { c.navigate(link); } catch (e) {} }
+          if ('navigate' in c) { try { c.navigate(url); } catch (e) {} }
           return c.focus();
         }
       }
-      return clients.openWindow(link);
+      return clients.openWindow(url);
     })
   );
 });

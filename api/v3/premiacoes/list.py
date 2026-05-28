@@ -80,7 +80,7 @@ class handler(BaseHTTPRequestHandler):
                     notify(ids, "premiacao",
                            f"{row['icon']} Nova premiação: {titulo[:60]}",
                            (row.get("premio") or row.get("descricao") or "")[:120],
-                           link="/v2/premiacoes",
+                           link="#/premiacoes",
                            target_type="premiacoes",
                            target_id=row["id"])
             except Exception:

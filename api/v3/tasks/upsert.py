@@ -21,7 +21,7 @@ import uuid
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit, notify  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, notify, notify_all  # type: ignore
 
 
 ALLOWED_STATUS = {"aberta", "em_andamento", "concluida", "cancelada", "atrasada"}
@@ -131,14 +131,14 @@ class handler(BaseHTTPRequestHandler):
             try:
                 new_resp = patch.get("responsavel")
                 if new_resp and new_resp != cur.get("responsavel") and new_resp != actor["id"]:
-                    notify([new_resp], tipo="task.assigned",
+                    notify_all([new_resp], tipo="task.assigned",
                            title=f"📋 {actor.get('name')} te atribuiu uma tarefa",
                            body=cur.get("titulo") or "", link="#/tarefas",
                            target_type="task", target_id=task_id)
                 if "status" in patch and patch["status"] != cur.get("status"):
                     targets = {cur.get("responsavel"), cur.get("criado_por")} - {actor["id"], None}
                     if targets:
-                        notify(list(targets), tipo="task.status",
+                        notify_all(list(targets), tipo="task.status",
                                title=f"📋 Tarefa: {patch['status']}",
                                body=f"{cur.get('titulo')} · alterada por {actor.get('name')}",
                                link="#/tarefas", target_type="task", target_id=task_id)
@@ -192,7 +192,7 @@ class handler(BaseHTTPRequestHandler):
             try:
                 resp = row.get("responsavel")
                 if resp and resp != actor["id"]:
-                    notify([resp], tipo="task.assigned",
+                    notify_all([resp], tipo="task.assigned",
                            title=f"📋 Nova tarefa de {actor.get('name')}",
                            body=titulo, link="#/tarefas",
                            target_type="task", target_id=new_id)

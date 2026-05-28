@@ -108,7 +108,7 @@ class handler(BaseHTTPRequestHandler):
                     notify(ids, "oportunidade",
                            f"💡 Nova oportunidade: {titulo[:60]}",
                            (row.get("descricao") or "")[:120],
-                           link="/v2/oportunidades",
+                           link="#/oportunidades",
                            target_type="oportunidades_psm",
                            target_id=row["id"])
             except Exception:

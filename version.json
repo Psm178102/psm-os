@@ -1,7 +1,7 @@
 {
-  "version": "76.0.0",
-  "meta": "2026.05.28-v76.0-captar-instant",
+  "version": "76.1.0",
+  "meta": "2026.05.28-v76.1-notificacoes-fix",
   "built": "2026-05-28T23:00:00Z",
-  "sw": "v76.0.0-2026-05-28-CAPTAR-INSTANT",
-  "sprint": "v76.0 — Captação automática AGORA EM TEMPO REAL. Webhook /api/v3/crm/rd_webhook: RD dispara ao mover deal -> se etapa CAPTAR IMÓVEL cria captação na hora + notifica. Cron de segurança baixado de 15min p/ 2min. Helpers create_captacao_from_deal/is_captar_stage/_rd_get_deal reutilizados. PRECISA configurar webhook no RD apontando p/ a URL."
+  "sw": "v76.1.0-2026-05-28-NOTIF-FIX",
+  "sprint": "v76.1 — Tarefas & Notificações. (1) Tarefas: atribuição/mudança de status agora usa notify_all (push celular/navegador, não só sino). (2) Fix de roteamento: links de notificação padronizados p/ rota hash (#/captacoes etc.) — clicar no sino abre a tela certa (antes /v2/x virava #/v2/x quebrado). (3) Service worker abre /v2/#/rota no clique do push. (4) Sino: ícones p/ captação/premiação/oportunidade/canal + som em captação e status de tarefa."
 }

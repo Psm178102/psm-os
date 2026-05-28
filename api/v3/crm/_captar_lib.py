@@ -96,7 +96,7 @@ def _notify_gestao(sb, nome, cid, actor_id=None):
         if ids:
             notify(ids, "captacao", "🎯 Nova captação (RD → CAPTAR IMÓVEL)",
                    f"{nome} — entrou na etapa Captar Imóvel do CARTEIRA MAP",
-                   link="/v2/captacoes", target_type="captacoes", target_id=cid)
+                   link="#/captacoes", target_type="captacoes", target_id=cid)
     except Exception:
         pass
 

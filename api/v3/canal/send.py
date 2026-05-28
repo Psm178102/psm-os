@@ -79,7 +79,7 @@ class handler(BaseHTTPRequestHandler):
                 notify(dir_ids, "canal",
                        f"📬 Nova mensagem no Canal Anônimo ({nome})",
                        msg[:120] + ("..." if len(msg) > 120 else ""),
-                       link="/v2/canal",
+                       link="#/canal",
                        target_type="canal_anonimo",
                        target_id=str(inserted.get("id")))
         except Exception:

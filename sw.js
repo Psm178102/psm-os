@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.0.0-2026-05-28-CAPTAR-INSTANT';
+const SW_VERSION = 'v76.1.0-2026-05-28-NOTIF-FIX';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
