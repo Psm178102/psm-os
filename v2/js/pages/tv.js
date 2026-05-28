@@ -39,7 +39,12 @@ async function reload() {
     _arena = arena.events || [];
     _atin = atin;
     if (atin) {
-      _ranking = (atin.grid || []).filter(g => g.totals?.atingido_vgv > 0)
+      // Exclui sócios/diretores/gerentes do ranking público (TV)
+      const ehCompetidor = g => {
+        const r = (g.user?.role || '').toLowerCase();
+        return !['socio', 'diretor', 'gerente'].includes(r) && !g.user?.hide_from_ranking;
+      };
+      _ranking = (atin.grid || []).filter(g => g.totals?.atingido_vgv > 0 && ehCompetidor(g))
         .sort((a, b) => b.totals.atingido_vgv - a.totals.atingido_vgv).slice(0, 10);
     }
     _funnels = funnels.funnels || [];

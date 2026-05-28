@@ -31,9 +31,18 @@ function render() {
     }
   });
 
+  // Sócios, diretores e gerentes NÃO entram em ranking público (só corretores/líderes)
+  const isCompetidor = (u) => {
+    const r = (u.role || '').toLowerCase();
+    if (['socio', 'diretor', 'gerente'].includes(r)) return false;
+    if (u.hide_from_ranking) return false;
+    return true;
+  };
+  const competidores = Object.values(byUser).filter(isCompetidor);
+
   // Ranking por VGV (descrescente) + fallback por score
-  const rankVgv = Object.values(byUser).filter(u => u.vgv > 0).sort((a, b) => b.vgv - a.vgv).slice(0, 20);
-  const rankActivity = Object.values(byUser).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 20);
+  const rankVgv = competidores.filter(u => u.vgv > 0).sort((a, b) => b.vgv - a.vgv).slice(0, 20);
+  const rankActivity = competidores.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 20);
 
   _root.innerHTML = `
     <div class="card">
