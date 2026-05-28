@@ -211,6 +211,11 @@ class handler(BaseHTTPRequestHandler):
                 cells.append({
                     "ano": ano, "mes": mes,
                     "meta_vgv": meta_vgv,
+                    "meta_vendas": int(meta.get("meta_vendas") or 0) if meta else 0,
+                    "meta_visitas": int(meta.get("meta_visitas") or 0) if meta else 0,
+                    "meta_pastas": int(meta.get("meta_pastas") or 0) if meta else 0,
+                    "meta_propostas": int(meta.get("meta_propostas") or 0) if meta else 0,
+                    "meta_agendamentos": int(meta.get("meta_agendamentos") or 0) if meta else 0,
                     "atingido_vgv": at["vgv"],
                     "vendas_count": at["count"],
                     "pct": pct,

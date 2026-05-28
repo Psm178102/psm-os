@@ -75,6 +75,10 @@ class handler(BaseHTTPRequestHandler):
         if "meta_vgv"   in body: payload["meta_vgv"]    = float(body.get("meta_vgv") or 0)
         if "meta_vendas" in body: payload["meta_vendas"] = int(body.get("meta_vendas") or 0)
         if "meta_pontos" in body: payload["meta_pontos"] = float(body.get("meta_pontos") or 0)
+        if "meta_visitas" in body: payload["meta_visitas"] = int(body.get("meta_visitas") or 0)
+        if "meta_pastas" in body: payload["meta_pastas"] = int(body.get("meta_pastas") or 0)
+        if "meta_propostas" in body: payload["meta_propostas"] = int(body.get("meta_propostas") or 0)
+        if "meta_agendamentos" in body: payload["meta_agendamentos"] = int(body.get("meta_agendamentos") or 0)
         if "observacoes" in body: payload["observacoes"] = body.get("observacoes") or None
         payload["criado_por"] = actor["id"]
 

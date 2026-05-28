@@ -90,6 +90,7 @@ function render() {
           <option value="sem_meta"${_showOnly==='sem_meta'?' selected':''}>Sem meta</option>
         </select>
         <button class="btn btn-ghost" id="btn-reload" style="margin-left:auto">🔄 Atualizar</button>
+        ${canEdit ? '<button class="btn btn-ghost" id="btn-meta-equipe">👥 Meta por Equipe</button>' : ''}
         ${canEdit ? '<button class="btn btn-primary" id="btn-sync">⚡ Sincronizar RD → Postgres</button>' : ''}
       </div>
 
@@ -128,6 +129,8 @@ function render() {
   document.getElementById('btn-reload').addEventListener('click', async () => { await reload(); });
   const btnSync = document.getElementById('btn-sync');
   if (btnSync) btnSync.addEventListener('click', doSync);
+  const btnEq = document.getElementById('btn-meta-equipe');
+  if (btnEq) btnEq.addEventListener('click', openMetaEquipe);
 
   if (canEdit) {
     document.querySelectorAll('[data-meta-cell]').forEach(td => {
@@ -238,16 +241,138 @@ async function doSync() {
 
 async function editMeta(td) {
   const [corretor_id, ano, mes] = td.dataset.metaCell.split('|');
-  const novo = prompt(`Meta VGV de ${corretor_id} em ${MES_NAMES[mes-1]}/${ano} (R$):`);
-  if (novo === null) return;
-  const valor = parseFloat(String(novo).replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, ''));
-  if (isNaN(valor) || valor < 0) { alert('Valor inválido'); return; }
-  try {
-    await api.request('/api/v3/metas/upsert', { method: 'POST', body: { corretor_id, ano: parseInt(ano), mes: parseInt(mes), meta_vgv: valor } });
-    await reload();
-  } catch (e) {
-    alert('Erro: ' + e.message);
-  }
+  // Busca a célula atual no grid pra pré-preencher
+  const g = (_data?.grid || []).find(x => x.user?.id === corretor_id);
+  const cell = g?.cells?.[mes - 1] || {};
+  const nome = g?.user?.name || corretor_id;
+  openMetaModal({
+    titulo: `🎯 Meta de ${nome} — ${MES_NAMES[mes - 1]}/${ano}`,
+    valores: {
+      meta_vgv: cell.meta_vgv || 0,
+      meta_vendas: cell.meta_vendas || 0,
+      meta_visitas: cell.meta_visitas || 0,
+      meta_pastas: cell.meta_pastas || 0,
+      meta_propostas: cell.meta_propostas || 0,
+      meta_agendamentos: cell.meta_agendamentos || 0,
+    },
+    onSave: async (vals) => {
+      await api.request('/api/v3/metas/upsert', { method: 'POST', body: {
+        corretor_id, ano: parseInt(ano), mes: parseInt(mes), ...vals,
+      }});
+      await reload();
+    },
+  });
+}
+
+function openMetaEquipe() {
+  // Lista equipes a partir do grid (user.team)
+  const teams = [...new Set((_data?.grid || []).map(g => (g.user?.team || '').toLowerCase()).filter(Boolean))];
+  const mesAtual = new Date().getMonth() + 1;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div class="card" style="max-width:480px;width:100%;background:var(--bg-2)">
+      <h3 class="card-title">👥 Meta por Equipe — ${_ano}</h3>
+      <p class="card-sub">Aplica a mesma meta mensal a TODOS os corretores da equipe escolhida.</p>
+      <div style="display:grid;gap:10px;margin-top:12px">
+        <div>
+          <label class="tiny muted">Equipe</label>
+          <select id="me-team" class="select">${teams.map(t => `<option value="${t}">${t}</option>`).join('')}</select>
+        </div>
+        <div>
+          <label class="tiny muted">Mês</label>
+          <select id="me-mes" class="select">${MES_NAMES.map((m, i) => `<option value="${i + 1}" ${i + 1 === mesAtual ? 'selected' : ''}>${m}</option>`).join('')}</select>
+        </div>
+        ${metaFields({})}
+      </div>
+      <div class="flex gap-2 mt-3">
+        <button class="btn btn-primary" id="me-save">💾 Aplicar à equipe</button>
+        <button class="btn btn-ghost" id="me-cancel">Cancelar</button>
+      </div>
+      <div id="me-msg" class="mt-2"></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#me-cancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector('#me-save').addEventListener('click', async () => {
+    const team = overlay.querySelector('#me-team').value;
+    const mes = parseInt(overlay.querySelector('#me-mes').value);
+    const vals = readMetaFields(overlay);
+    const corretores = (_data?.grid || []).filter(g => (g.user?.team || '').toLowerCase() === team).map(g => g.user.id);
+    const msg = overlay.querySelector('#me-msg');
+    msg.innerHTML = `<div class="muted tiny"><span class="spinner"></span> Aplicando a ${corretores.length} corretores…</div>`;
+    try {
+      for (const cid of corretores) {
+        await api.request('/api/v3/metas/upsert', { method: 'POST', body: { corretor_id: cid, ano: _ano, mes, ...vals } });
+      }
+      msg.innerHTML = `<div class="alert alert-ok">✅ Meta aplicada a ${corretores.length} corretores!</div>`;
+      setTimeout(async () => { overlay.remove(); await reload(); }, 900);
+    } catch (e) {
+      msg.innerHTML = `<div class="alert alert-err">${escapeHtml(e.message)}</div>`;
+    }
+  });
+}
+
+function openMetaModal({ titulo, valores, onSave }) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div class="card" style="max-width:440px;width:100%;background:var(--bg-2)">
+      <h3 class="card-title">${titulo}</h3>
+      <div style="display:grid;gap:10px;margin-top:12px">${metaFields(valores)}</div>
+      <div class="flex gap-2 mt-3">
+        <button class="btn btn-primary" id="mm-save">💾 Salvar</button>
+        <button class="btn btn-ghost" id="mm-cancel">Cancelar</button>
+      </div>
+      <div id="mm-msg" class="mt-2"></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#mm-cancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector('#mm-save').addEventListener('click', async () => {
+    const vals = readMetaFields(overlay);
+    const msg = overlay.querySelector('#mm-msg');
+    msg.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Salvando…</div>';
+    try {
+      await onSave(vals);
+      overlay.remove();
+    } catch (e) {
+      msg.innerHTML = `<div class="alert alert-err">${escapeHtml(e.message)}</div>`;
+    }
+  });
+}
+
+function metaFields(v) {
+  const f = (key, label, money) => `
+    <div>
+      <label class="tiny muted">${label}</label>
+      <input class="input" data-mf="${key}" type="${money ? 'text' : 'number'}" value="${v[key] || 0}" inputmode="${money ? 'decimal' : 'numeric'}">
+    </div>`;
+  return `
+    ${f('meta_vgv', '💰 Meta VGV (R$)', true)}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      ${f('meta_vendas', '🏆 Vendas')}
+      ${f('meta_agendamentos', '📅 Agendamentos')}
+      ${f('meta_visitas', '🚪 Visitas')}
+      ${f('meta_pastas', '📁 Pastas')}
+      ${f('meta_propostas', '📝 Propostas')}
+    </div>
+  `;
+}
+
+function readMetaFields(scope) {
+  const vals = {};
+  scope.querySelectorAll('[data-mf]').forEach(el => {
+    const k = el.dataset.mf;
+    if (k === 'meta_vgv') {
+      vals[k] = parseFloat(String(el.value).replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, '')) || 0;
+    } else {
+      vals[k] = parseInt(el.value) || 0;
+    }
+  });
+  return vals;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────
