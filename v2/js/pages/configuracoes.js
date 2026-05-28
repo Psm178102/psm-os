@@ -56,6 +56,8 @@ function render() {
 
       ${groups.map(g => groupCard(g, isSocio10)).join('')}
 
+      ${permissoesCard()}
+
       <div class="alert alert-warn mt-4">
         <b>⚠ Chaves sensíveis</b> aparecem com bullets (••••) por segurança.
         ${isSocio10 ? 'Toggle "Revelar" exibe valor real. ' : ''}
@@ -68,6 +70,53 @@ function render() {
   if (rev) rev.addEventListener('change', async e => { _reveal = e.target.checked; await reload(); });
 
   document.querySelectorAll('[data-setting-save]').forEach(b => b.addEventListener('click', saveSetting));
+}
+
+// Matriz de permissões por papel (espelha ROLE_ALLOWED de main.js — somente leitura)
+function permissoesCard() {
+  const GRUPOS = [
+    ['inicio', '🏠 Início'], ['vendas', '🏘 Imóveis & Vendas'], ['captacoes', '📥 Captações'],
+    ['locacao', '🔑 Locação'], ['financeiro', '💰 Financeiro'], ['marketing', '📊 Marketing'],
+    ['performance', '🎯 Metas & Performance'], ['diretoria', '🏛 Diretoria'], ['ia', '🤖 IA'],
+    ['cultura', '🎓 Cultura'], ['ferramentas', '🧮 Ferramentas'], ['sistema', '⚙️ Sistema'],
+  ];
+  const PAPEIS = [
+    ['Sócio/Diretor', '👑', '*'],
+    ['Gerente', '🎯', '*'],
+    ['Líder', '🛡️', ['inicio', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'cultura', 'ferramentas']],
+    ['Back Office', '📋', ['inicio', 'captacoes', 'vendas', 'locacao', 'cultura']],
+    ['Financeiro', '💰', ['inicio', 'financeiro', 'cultura']],
+    ['Marketing', '📢', ['inicio', 'marketing', 'captacoes', 'cultura']],
+    ['Corretor', '🏠', ['inicio', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'cultura', 'ferramentas']],
+  ];
+  const cell = (allow, grp) => {
+    const ok = allow === '*' || allow.includes(grp) || grp === 'inicio';
+    return `<td style="text-align:center;padding:6px 4px">${ok ? '<span style="color:#16a34a;font-weight:700">✓</span>' : '<span style="color:#cbd5e1">·</span>'}</td>`;
+  };
+  return `
+    <div class="card mt-4" style="margin-top:14px">
+      <h3 class="card-title">🔐 Permissões por papel</h3>
+      <p class="card-sub">Cada papel vê apenas suas seções no menu. Conta e Início são sempre visíveis. Defina o papel de cada pessoa em <b>Usuários</b>.</p>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:760px">
+          <thead>
+            <tr style="border-bottom:2px solid var(--bd,#e5e7eb)">
+              <th style="text-align:left;padding:6px 8px">Papel</th>
+              ${GRUPOS.map(([, lbl]) => `<th style="padding:6px 4px;font-size:10px;white-space:nowrap">${lbl}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${PAPEIS.map(([nome, ico, allow]) => `
+              <tr style="border-bottom:1px solid var(--bd,#eef2f7)">
+                <td style="padding:6px 8px;font-weight:600;white-space:nowrap">${ico} ${nome}</td>
+                ${GRUPOS.map(([grp]) => cell(allow, grp)).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }
 
 function groupCard(g, canEdit) {

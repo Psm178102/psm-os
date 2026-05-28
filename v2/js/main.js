@@ -35,6 +35,7 @@ import { pageGovernanca } from './pages/governanca.js';
 import { pageOO } from './pages/oo.js';
 import { pagePlantoes } from './pages/plantoes.js';
 import { pageCaptacoes } from './pages/captacoes.js';
+import { pageSdr } from './pages/sdr.js';
 import { pageIntegracoes } from './pages/integracoes.js';
 import { pageBackup } from './pages/backup.js';
 import { pageRelatorios } from './pages/relatorios.js';
@@ -71,6 +72,101 @@ import { pageSrGerencia } from './pages/sr-gerencia.js';
 import { pageSrPerformance } from './pages/sr-performance.js';
 import { pageMapa } from './pages/mapa.js';
 
+// ─── Permissões por role (Sprint 9.6) ──────────────────────────────────
+// Cada rota pertence a um GRUPO. Cada role enxerga só os grupos liberados.
+// 'conta' e 'inicio' são sempre liberados pra qualquer login.
+const ROUTE_GROUP = {
+  // Início (sempre)
+  '/': 'inicio', '/painel': 'inicio', '/checkin': 'inicio', '/ranking': 'inicio', '/agenda': 'inicio', '/tarefas': 'inicio',
+  // Imóveis & Vendas (secretaria de vendas)
+  '/crm': 'vendas', '/sdr': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/fichas': 'vendas',
+  '/imoveis': 'vendas', '/mapa': 'vendas', '/lancamentos': 'vendas',
+  // Captações
+  '/captacoes': 'captacoes',
+  // Locação
+  '/locacoes': 'locacao',
+  // Financeiro
+  '/financeiro': 'financeiro', '/forecast': 'financeiro',
+  // Inteligência & Marketing
+  '/marketing': 'marketing', '/concorrencia': 'marketing', '/benchmark': 'marketing',
+  '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing',
+  // Metas & Performance
+  '/metas': 'performance', '/equipe': 'performance', '/organograma': 'performance',
+  '/one-on-one': 'performance', '/plantoes': 'performance', '/arena': 'performance',
+  '/tv': 'performance', '/war-room': 'performance', '/war-arena': 'performance',
+  // Diretoria
+  '/diretoria': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria',
+  '/metricas-viab': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria',
+  // IA
+  '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
+  // Cultura & Pessoas
+  '/base': 'cultura', '/manual': 'cultura', '/etica': 'cultura', '/canal': 'cultura',
+  '/formacao': 'cultura', '/gestao-pessoas': 'cultura', '/premiacoes': 'cultura',
+  // Ferramentas
+  '/simuladores': 'ferramentas', '/relatorios': 'ferramentas',
+  // Sistema
+  '/usuarios': 'sistema', '/auditoria': 'sistema', '/integracoes': 'sistema',
+  '/backup': 'sistema', '/configuracoes': 'sistema',
+  // Conta (sempre)
+  '/conta': 'conta',
+  // sub-rotas de simuladores herdam ferramentas
+  '/sim-vpl': 'ferramentas', '/sim-incc': 'ferramentas', '/sim-repasse': 'ferramentas',
+  '/sim-energia': 'ferramentas', '/sim-leads': 'ferramentas', '/sim-criativos': 'ferramentas',
+  '/agente-vera': 'ia', '/agente-sol': 'ia',
+};
+
+// '*' = vê tudo. Senão, lista de grupos permitidos (inicio + conta sempre incluídos).
+const ROLE_ALLOWED = {
+  socio:      '*',
+  diretor:    '*',
+  gerente:    '*',
+  // líder: toda a operação + performance da equipe, MAS sem Diretoria nem Sistema (admin)
+  lider:      ['inicio', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'cultura', 'ferramentas', 'conta'],
+  marketing:  ['inicio', 'marketing', 'captacoes', 'cultura', 'conta'],
+  backoffice: ['inicio', 'captacoes', 'vendas', 'locacao', 'cultura', 'conta'],
+  financeiro: ['inicio', 'financeiro', 'cultura', 'conta'],
+  corretor:   ['inicio', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'cultura', 'ferramentas', 'conta'],
+};
+
+function _allowedGroups(user) {
+  const role = (user?.role || 'corretor').toLowerCase();
+  const lvl = user?.lvl || 0;
+  if (lvl >= 7) return '*';  // sócio/diretor/gerente sempre tudo
+  return ROLE_ALLOWED[role] || ROLE_ALLOWED.corretor;
+}
+
+function canSee(path, user) {
+  const allowed = _allowedGroups(user);
+  if (allowed === '*') return true;
+  const base = (path || '/').split('?')[0];
+  const grp = ROUTE_GROUP[base] || 'inicio';
+  if (grp === 'inicio' || grp === 'conta') return true;
+  return allowed.includes(grp);
+}
+
+function applyPermissions(user) {
+  const allowed = _allowedGroups(user);
+  if (allowed === '*') return;  // vê tudo, não filtra
+  // Esconde links não permitidos
+  document.querySelectorAll('.sb-link[data-nav]').forEach(btn => {
+    if (!canSee(btn.dataset.nav, user)) btn.style.display = 'none';
+  });
+  // Esconde seções (sb-sec) que ficaram sem nenhum link visível
+  const sidebar = document.querySelector('.app-sidebar');
+  if (!sidebar) return;
+  const nodes = [...sidebar.children];
+  nodes.forEach((node, i) => {
+    if (!node.classList || !node.classList.contains('sb-sec')) return;
+    // Conta links visíveis até a próxima sb-sec
+    let visible = 0;
+    for (let j = i + 1; j < nodes.length; j++) {
+      if (nodes[j].classList && nodes[j].classList.contains('sb-sec')) break;
+      if (nodes[j].classList && nodes[j].classList.contains('sb-link') && nodes[j].style.display !== 'none') visible++;
+    }
+    if (visible === 0) node.style.display = 'none';
+  });
+}
+
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
   // 1) Tenta hidratar sessão
@@ -101,6 +197,10 @@ import { pageMapa } from './pages/mapa.js';
     });
   });
 
+  // 3.1) Permissões por papel — esconde links/seções não permitidas + guarda rotas
+  applyPermissions(user);
+  router.setGuard((path) => canSee(path, user));
+
   // 4) Registra rotas (Sprint 7.3: dashboard + painel modulares)
   router.register('/',          { render: async (ctx, root) => { setHeader('Dashboard'); highlight('/');          await pageDashboardV2(ctx, root); } });
   router.register('/painel',    { render: async (ctx, root) => { setHeader('Meu Painel'); highlight('/painel');   await pagePainel(ctx, root); } });
@@ -128,6 +228,7 @@ import { pageMapa } from './pages/mapa.js';
   router.register('/one-on-one',  { render: async (ctx, root) => { setHeader('One-on-One');   highlight('/one-on-one');  await pageOO(ctx, root); } });
   router.register('/plantoes',    { render: async (ctx, root) => { setHeader('Plantões');     highlight('/plantoes');    await pagePlantoes(ctx, root); } });
   router.register('/captacoes',   { render: async (ctx, root) => { setHeader('Captações');    highlight('/captacoes');   await pageCaptacoes(ctx, root); } });
+  router.register('/sdr',         { render: async (ctx, root) => { setHeader('Prospecção SDR'); highlight('/sdr');         await pageSdr(ctx, root); } });
   router.register('/integracoes', { render: async (ctx, root) => { setHeader('Integrações');  highlight('/integracoes'); await pageIntegracoes(ctx, root); } });
   router.register('/backup',      { render: async (ctx, root) => { setHeader('Backup');       highlight('/backup');      await pageBackup(ctx, root); } });
   router.register('/relatorios',  { render: async (ctx, root) => { setHeader('Relatórios');   highlight('/relatorios');  await pageRelatorios(ctx, root); } });
@@ -205,6 +306,7 @@ function shellHTML(user) {
 
         <div class="sb-sec">🏘 Imóveis & Vendas</div>
         <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM (RD)</button>
+        <button class="sb-link" data-nav="/sdr"><span class="sb-ico">📞</span> Prospecção SDR</button>
         <button class="sb-link" data-nav="/oportunidades"><span class="sb-ico">💡</span> Oportunidades</button>
         <button class="sb-link" data-nav="/cadencia"><span class="sb-ico">🔄</span> Cadência</button>
         <button class="sb-link" data-nav="/fichas"><span class="sb-ico">📋</span> Fichas/Propostas</button>

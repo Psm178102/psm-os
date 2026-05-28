@@ -1,7 +1,9 @@
 // PSM /v2 — Service Worker (offline-first cache de shell)
-const VERSION = 'v59-2026-04-29';
+const VERSION = 'v64-2026-05-28-captacoes-board';
 const SHELL_CACHE = 'psm-v2-shell-' + VERSION;
-const RUNTIME_CACHE = 'psm-v2-runtime';
+// Runtime cache versionado: ao bumpar VERSION, o activate purga o runtime antigo
+// (JS/CSS desatualizado) automaticamente, garantindo que mudanças propaguem.
+const RUNTIME_CACHE = 'psm-v2-runtime-' + VERSION;
 
 const SHELL_URLS = [
   '/v2/',
@@ -44,7 +46,21 @@ self.addEventListener('fetch', evt => {
     );
     return;
   }
-  // Estatico (CDN, libs): cache-first
+  // JS/CSS do app (/v2/js, /v2/css): stale-while-revalidate
+  // (serve do cache na hora, mas SEMPRE busca atualização em background → próxima carga já é nova)
+  if (url.pathname.startsWith('/v2/js/') || url.pathname.startsWith('/v2/css/') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    evt.respondWith(
+      caches.match(evt.request).then(cached => {
+        const fetched = fetch(evt.request).then(r => {
+          if (r && r.ok) caches.open(RUNTIME_CACHE).then(c => c.put(evt.request, r.clone()));
+          return r;
+        }).catch(() => cached);
+        return cached || fetched;
+      })
+    );
+    return;
+  }
+  // Estatico (CDN, libs imutáveis): cache-first
   evt.respondWith(
     caches.match(evt.request).then(cached => cached || fetch(evt.request).then(r => {
       if (r && r.ok) caches.open(RUNTIME_CACHE).then(c => c.put(evt.request, r.clone()));

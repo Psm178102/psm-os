@@ -10,6 +10,7 @@ const ROLES = [
   { id: 'gerente',    lbl: 'Gerente',           lvl: 7,  color: '#7c3aed', ico: '🎯' },
   { id: 'backoffice', lbl: 'Back Office',       lvl: 6,  color: '#0891b2', ico: '📋' },
   { id: 'lider',      lbl: 'Líder de Equipe',   lvl: 5,  color: '#059669', ico: '🛡️' },
+  { id: 'financeiro', lbl: 'Financeiro',        lvl: 4,  color: '#16a34a', ico: '💰' },
   { id: 'marketing',  lbl: 'Marketing',         lvl: 3,  color: '#d97706', ico: '📢' },
   { id: 'corretor',   lbl: 'Corretor',          lvl: 2,  color: '#64748b', ico: '🏠' },
 ];
@@ -159,7 +160,7 @@ function statCard(label, value, bg, fg) {
 }
 
 function userRow(u, isSocio, myId) {
-  const role = ROLES.find(r => r.id === (u.role || 'corretor')) || ROLES[5];
+  const role = ROLES.find(r => r.id === (u.role || 'corretor')) || ROLES.find(r => r.id === 'corretor');
   const team = TEAMS.find(t => t.id === (u.team || 'geral')) || TEAMS[5];
   const ini = escapeHtml((u.ini || (u.name || '?').substring(0, 2)).toUpperCase());
   const inactive = (u.status || 'ativo') !== 'ativo';

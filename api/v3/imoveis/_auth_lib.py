@@ -86,6 +86,7 @@ ROLE_LVL = {
     "backoffice": 6, "back_office": 6, "back-office": 6,
     "lider": 5, "líder": 5,
     "marketing": 3,
+    "financeiro": 4,
     "corretor": 2,
 }
 

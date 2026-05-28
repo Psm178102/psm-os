@@ -1,14 +1,19 @@
-/* PSM-OS v2 — Captações Kanban (modelo Notion PSM) — Sprint 9.5 */
+/* PSM-OS v2 — Captações Kanban (modelo Notion PSM) — Sprint 9.8 (redesign moderno)
+   Kanban drag-and-drop por status, KPIs, filtros, cards profissionais. */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null;
 let _items = [];
 let _editing = null;
+let _dragId = null;
+let _search = '';
+let _fObj = '';
+let _fResp = '';
 
-// Status agrupados (= colunas Kanban do Notion)
+// Status agrupados (= colunas Kanban do Notion) — 3 fases, 17 status
 const FASES = [
-  { fase: 'A fazer', cor: '#dc2626', status: [
+  { fase: 'A fazer', cor: '#ef4444', status: [
     { id: 'colher_dados',  lbl: 'Colher Dados',     cor: '#a16207' },
     { id: 'a_fazer',       lbl: 'À Fazer Captação', cor: '#dc2626' },
     { id: 'agendar_prop',  lbl: 'Agendar c/ Prop',  cor: '#ea580c' },
@@ -33,7 +38,10 @@ const FASES = [
   ]},
 ];
 const ALL_STATUS = FASES.flatMap(f => f.status);
-const statusCor = id => (ALL_STATUS.find(s => s.id === id)?.cor) || '#64748b';
+const statusInfo = id => ALL_STATUS.find(s => s.id === id) || { lbl: id || '—', cor: '#64748b' };
+const statusCor = id => statusInfo(id).cor;
+const faseOf = id => FASES.find(f => f.status.some(s => s.id === id))?.fase || '';
+const faseCorOf = id => (FASES.find(f => f.status.some(s => s.id === id)) || {}).cor || '#64748b';
 
 const TIPOS = ['Apartamento', 'Studio', 'Casa em condomínio', 'Casa', 'Terreno condomínio', 'Loja', 'Sala Comercial', 'Casa Comercial', 'Salão'];
 const SITUACOES = [
@@ -61,6 +69,11 @@ const TERMOS = [
   { id: 'recusado', lbl: 'Recusado', cor: '#dc2626' },
 ];
 
+const AVATAR_COLORS = ['#6366f1', '#0891b2', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#dc2626', '#0d9488'];
+const colorFor = s => AVATAR_COLORS[[...String(s || '?')].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length];
+const initials = s => (String(s || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('') || '?').toUpperCase();
+const fmtBRL = v => (v || v === 0) ? Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : '';
+
 export async function pageCaptacoes(ctx, root) {
   _root = root;
   render();
@@ -80,97 +93,184 @@ async function load() {
 
 function render() {
   _root.innerHTML = `
-    <div class="card">
-      <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <style>
+      .cap-board::-webkit-scrollbar{height:8px}
+      .cap-board::-webkit-scrollbar-thumb{background:rgba(148,163,184,.4);border-radius:8px}
+      .cap-col{min-width:268px;max-width:300px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:12px;padding:8px;display:flex;flex-direction:column;transition:background .15s,box-shadow .15s}
+      .cap-col.drop{background:rgba(99,102,241,.12);box-shadow:inset 0 0 0 2px #6366f1}
+      .cap-card{background:var(--bg-1,#fff);border-radius:10px;padding:11px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(15,23,42,.06),0 1px 3px rgba(15,23,42,.04);border:1px solid rgba(148,163,184,.16);transition:transform .12s,box-shadow .12s}
+      .cap-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,23,42,.12)}
+      .cap-card.dragging{opacity:.45;transform:rotate(1.5deg)}
+      .cap-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;line-height:1.6}
+      .cap-kpi{background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:12px 14px;flex:1;min-width:120px}
+    </style>
+    <div class="card" style="margin-bottom:14px">
+      <div class="flex" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
         <div>
-          <h2 class="card-title">📥 Captações — Kanban</h2>
-          <p class="card-sub">Pipeline de captação de imóveis · notifica responsável + marketing automaticamente</p>
+          <h2 class="card-title">📥 Captações</h2>
+          <p class="card-sub">Pipeline de captação de imóveis · arraste os cards entre etapas · notifica responsável + marketing</p>
         </div>
         <div class="flex gap-2">
-          <button class="btn btn-ghost" id="cap-refresh">🔄</button>
+          <button class="btn btn-ghost" id="cap-refresh" title="Atualizar">🔄</button>
           <button class="btn btn-primary" id="cap-novo">➕ Nova Captação</button>
         </div>
       </div>
       <div id="cap-stats" class="mt-3"></div>
-      <div id="cap-board" class="mt-3"><div class="muted tiny"><span class="spinner"></span> Carregando…</div></div>
+      <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center">
+        <input id="cap-search" class="input" placeholder="🔎 Buscar condomínio, proprietário, local…" style="max-width:300px" value="${esc(_search)}">
+        <select id="cap-fobj" class="select" style="max-width:150px">
+          <option value="">Todos objetivos</option>
+          <option value="venda"${_fObj === 'venda' ? ' selected' : ''}>Venda</option>
+          <option value="locacao"${_fObj === 'locacao' ? ' selected' : ''}>Locação</option>
+        </select>
+        <select id="cap-fresp" class="select" style="max-width:170px"><option value="">Todos responsáveis</option></select>
+      </div>
     </div>
+    <div id="cap-board"><div class="muted tiny"><span class="spinner"></span> Carregando…</div></div>
   `;
   document.getElementById('cap-novo').addEventListener('click', () => { _editing = { status: 'colher_dados', objetivo: 'venda' }; openForm(); });
   document.getElementById('cap-refresh').addEventListener('click', load);
+  document.getElementById('cap-search').addEventListener('input', e => { _search = e.target.value; renderBoard(); });
+  document.getElementById('cap-fobj').addEventListener('change', e => { _fObj = e.target.value; renderBoard(); });
+  document.getElementById('cap-fresp').addEventListener('change', e => { _fResp = e.target.value; renderBoard(); });
+}
+
+function filtered() {
+  const q = _search.trim().toLowerCase();
+  return _items.filter(i => {
+    if (_fObj && (i.objetivo || 'venda') !== _fObj) return false;
+    if (_fResp && (i.responsavel || '') !== _fResp) return false;
+    if (q) {
+      const hay = [i.condominio, i.proprietario, i.localizacao, i.tipo_imovel, i.contato, i.codigo_kenlo].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
 }
 
 function renderBoard() {
-  const stats = document.getElementById('cap-stats');
-  const total = _items.length;
-  const porFase = FASES.map(f => ({ fase: f.fase, cor: f.cor, n: _items.filter(i => f.status.some(s => s.id === i.status)).length }));
-  stats.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px">
-      ${kpi('Total', total, '#3b82f6')}
+  // popula filtro responsável
+  const resps = [...new Set(_items.map(i => i.responsavel).filter(Boolean))].sort();
+  const fresp = document.getElementById('cap-fresp');
+  if (fresp) fresp.innerHTML = '<option value="">Todos responsáveis</option>' +
+    resps.map(r => `<option value="${esc(r)}"${_fResp === r ? ' selected' : ''}>${esc(r)}</option>`).join('');
+
+  const items = filtered();
+
+  // KPIs
+  const pipeline = items.filter(i => (i.objetivo || 'venda') === 'venda').reduce((s, i) => s + (Number(i.valor_venda) || 0), 0);
+  const porFase = FASES.map(f => ({ fase: f.fase, cor: f.cor, n: items.filter(i => f.status.some(s => s.id === i.status)).length }));
+  const pend = items.filter(i => i.pendencia && i.pendencia !== 'atualizado').length;
+  const midia = items.filter(i => i.precisa_fotos || i.precisa_videos).length;
+  document.getElementById('cap-stats').innerHTML = `
+    <div class="flex gap-2" style="flex-wrap:wrap">
+      ${kpi('Total', items.length, '#3b82f6')}
+      ${kpi('Pipeline (VGV)', fmtBRL(pipeline) || 'R$ 0', '#16a34a')}
       ${porFase.map(f => kpi(f.fase, f.n, f.cor)).join('')}
-    </div>
-  `;
+      ${kpi('⚠ Pendências', pend, '#f59e0b')}
+      ${kpi('📷 Mídia p/ MKT', midia, '#8b5cf6')}
+    </div>`;
 
   const board = document.getElementById('cap-board');
+  if (!items.length) {
+    board.innerHTML = `<div class="card" style="text-align:center;padding:48px 20px">
+      <div style="font-size:40px">📭</div>
+      <h3 style="margin:10px 0 4px">Nenhuma captação ${_search || _fObj || _fResp ? 'com esse filtro' : 'ainda'}</h3>
+      <p class="muted">${_search || _fObj || _fResp ? 'Ajuste a busca/filtros acima.' : 'Cadastre a primeira captação para começar o pipeline.'}</p>
+      <button class="btn btn-primary mt-2" id="cap-empty-novo">➕ Nova Captação</button>
+    </div>`;
+    const b = document.getElementById('cap-empty-novo');
+    if (b) b.addEventListener('click', () => { _editing = { status: 'colher_dados', objetivo: 'venda' }; openForm(); });
+    return;
+  }
+
   board.innerHTML = `
-    <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;align-items:flex-start">
-      ${FASES.map(fase => faseColumn(fase)).join('')}
+    <div class="flex gap-3 tiny muted" style="margin:0 2px 8px;flex-wrap:wrap;align-items:center">
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#ef4444;vertical-align:middle"></span> A fazer</span>
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#f59e0b;vertical-align:middle"></span> Em andamento</span>
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#16a34a;vertical-align:middle"></span> Concluídos</span>
+      <span style="margin-left:auto">← arraste os cards entre as etapas →</span>
     </div>
-  `;
+    <div class="cap-board flex gap-3" style="overflow-x:auto;padding-bottom:12px;align-items:flex-start">
+      ${ALL_STATUS.map(st => statusColumn(st, items)).join('')}
+    </div>`;
   bindBoard();
 }
 
-function faseColumn(fase) {
+function statusColumn(st, items) {
+  const cards = items.filter(i => i.status === st.id);
+  const fcor = faseCorOf(st.id);
   return `
-    <div style="min-width:300px;max-width:330px;flex:1">
-      <div style="font-weight:800;color:${fase.cor};font-size:13px;text-transform:uppercase;letter-spacing:1px;padding:6px 8px;border-bottom:2px solid ${fase.cor};margin-bottom:8px">
-        ${fase.fase}
+    <div class="cap-col" data-status="${st.id}" style="border-top:3px solid ${fcor}">
+      <div class="flex" style="align-items:center;gap:6px;padding:6px 6px 8px">
+        <span style="width:8px;height:8px;border-radius:50%;background:${st.cor}"></span>
+        <span style="font-weight:700;font-size:12px;color:var(--ink,#0f172a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st.lbl}</span>
+        <span class="tiny muted" style="margin-left:auto;background:rgba(148,163,184,.2);padding:0 7px;border-radius:999px;font-weight:700">${cards.length}</span>
       </div>
-      ${fase.status.map(st => {
-        const cards = _items.filter(i => i.status === st.id);
-        if (cards.length === 0) return '';
-        return `
-          <div style="margin-bottom:10px">
-            <div class="tiny" style="color:${st.cor};font-weight:700;padding:2px 6px">● ${st.lbl} (${cards.length})</div>
-            ${cards.map(c => card(c)).join('')}
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
+      <div class="cap-drop" data-status="${st.id}" style="min-height:40px;flex:1;overflow-y:auto;max-height:68vh">
+        ${cards.map(c => card(c)).join('') || '<div class="tiny muted" style="text-align:center;padding:14px 0;opacity:.45">—</div>'}
+      </div>
+    </div>`;
 }
 
 function card(c) {
   const sit = SITUACOES.find(s => s.id === c.situacao_imovel);
   const pend = PENDENCIAS.find(p => p.id === c.pendencia);
   const termo = TERMOS.find(t => t.id === c.termo_autorizacao);
+  const obj = (c.objetivo || 'venda') === 'locacao';
   const precisa = [];
   if (c.precisa_fotos) precisa.push('📷');
   if (c.precisa_videos) precisa.push('🎥');
   if (c.precisa_avaliacao) precisa.push('💰');
+  const valor = obj ? (c.valor_locacao || '') : fmtBRL(c.valor_venda);
   return `
-    <div data-card="${c.id}" style="background:var(--bg-3);border-left:3px solid ${statusCor(c.status)};border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;font-size:12px">
+    <div class="cap-card" draggable="true" data-card="${esc(c.id)}">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:6px">
-        <div style="font-weight:800;flex:1">${esc(c.condominio || 'Sem nome')}</div>
-        ${precisa.length ? `<span>${precisa.join('')}</span>` : ''}
+        <div style="font-weight:800;font-size:13.5px;line-height:1.25">${esc(c.condominio || c.proprietario || 'Sem nome')}</div>
+        ${precisa.length ? `<span style="font-size:12px;white-space:nowrap">${precisa.join('')}</span>` : ''}
       </div>
-      <div class="tiny muted">${esc(c.tipo_imovel || '')}${c.localizacao ? ' · ' + esc(c.localizacao) : ''}</div>
-      <div class="flex gap-1 mt-1" style="flex-wrap:wrap">
-        ${c.objetivo ? `<span style="background:${c.objetivo === 'locacao' ? '#a16207' : '#16a34a'}33;color:${c.objetivo === 'locacao' ? '#a16207' : '#16a34a'};padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">${c.objetivo === 'locacao' ? 'Locação' : 'Venda'}</span>` : ''}
-        ${c.responsavel ? `<span style="background:#6366f133;color:#a5b4fc;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">${esc(c.responsavel)}</span>` : ''}
-        ${sit ? `<span style="background:${sit.cor}22;color:${sit.cor};padding:1px 6px;border-radius:4px;font-size:10px">${sit.lbl}</span>` : ''}
+      ${c.tipo_imovel || c.localizacao ? `<div class="tiny muted" style="margin-top:2px">${esc(c.tipo_imovel || '')}${c.localizacao ? ' · ' + esc(c.localizacao) : ''}</div>` : ''}
+      <div class="flex gap-1" style="flex-wrap:wrap;margin-top:7px">
+        <span class="cap-chip" style="background:${obj ? '#a1620722' : '#16a34a22'};color:${obj ? '#a16207' : '#16a34a'}">${obj ? 'Locação' : 'Venda'}</span>
+        ${sit ? `<span class="cap-chip" style="background:${sit.cor}1f;color:${sit.cor}">${sit.lbl}</span>` : ''}
+        ${valor ? `<span class="cap-chip" style="background:rgba(148,163,184,.18);color:var(--ink,#0f172a)">${esc(valor)}</span>` : ''}
       </div>
-      ${pend ? `<div class="tiny mt-1" style="color:${pend.cor}">⚠ ${pend.lbl}</div>` : ''}
-      ${termo ? `<div class="tiny mt-1" style="color:${termo.cor}">📋 ${termo.lbl}</div>` : ''}
-      ${c.proprietario ? `<div class="tiny muted mt-1">👤 ${esc(c.proprietario)}${c.contato ? ' · ' + esc(c.contato) : ''}</div>` : ''}
-    </div>
-  `;
+      ${pend && c.pendencia !== 'atualizado' ? `<div class="tiny" style="margin-top:6px;color:${pend.cor};font-weight:600">⚠ ${pend.lbl}</div>` : ''}
+      ${termo ? `<div class="tiny" style="margin-top:4px;color:${termo.cor}">📋 ${termo.lbl}</div>` : ''}
+      ${c.proprietario && c.condominio ? `<div class="tiny muted" style="margin-top:6px">👤 ${esc(c.proprietario)}${c.contato ? ' · ' + esc(c.contato) : ''}</div>` : (c.contato ? `<div class="tiny muted" style="margin-top:6px">📞 ${esc(c.contato)}</div>` : '')}
+      ${c.responsavel ? `<div class="flex" style="align-items:center;gap:6px;margin-top:8px">
+        <span style="width:20px;height:20px;border-radius:50%;background:${colorFor(c.responsavel)};color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center">${esc(initials(c.responsavel))}</span>
+        <span class="tiny muted">${esc(c.responsavel)}</span>
+      </div>` : ''}
+    </div>`;
 }
 
 function bindBoard() {
-  document.querySelectorAll('[data-card]').forEach(el => el.addEventListener('click', () => {
-    _editing = _items.find(x => x.id === el.dataset.card);
-    openForm();
-  }));
+  document.querySelectorAll('.cap-card').forEach(el => {
+    el.addEventListener('click', () => { _editing = _items.find(x => x.id === el.dataset.card); openForm(); });
+    el.addEventListener('dragstart', e => { _dragId = el.dataset.card; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    el.addEventListener('dragend', () => { _dragId = null; el.classList.remove('dragging'); document.querySelectorAll('.cap-col.drop').forEach(c => c.classList.remove('drop')); });
+  });
+  document.querySelectorAll('.cap-col').forEach(col => {
+    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drop'); });
+    col.addEventListener('dragleave', () => col.classList.remove('drop'));
+    col.addEventListener('drop', e => { e.preventDefault(); col.classList.remove('drop'); moveCard(_dragId, col.dataset.status); });
+  });
+}
+
+async function moveCard(id, status) {
+  if (!id || !status) return;
+  const item = _items.find(x => x.id === id);
+  if (!item || item.status === status) return;
+  const prev = item.status;
+  item.status = status;        // otimista
+  renderBoard();
+  try {
+    await api.request('/api/v3/captacoes/kanban', { method: 'POST', body: { action: 'move', id, status } });
+  } catch (e) {
+    item.status = prev; renderBoard();
+    alert('Erro ao mover: ' + e.message);
+  }
 }
 
 function openForm() {
@@ -179,7 +279,7 @@ function openForm() {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
   overlay.innerHTML = `
-    <div class="card" style="max-width:620px;width:100%;background:var(--bg-2);margin:auto">
+    <div class="card" style="max-width:640px;width:100%;background:var(--bg-2);margin:auto">
       <div class="flex" style="justify-content:space-between;align-items:center">
         <h3 class="card-title">${c.id ? '✏️ Editar' : '➕ Nova'} Captação</h3>
         <button class="btn btn-ghost btn-sm" id="cf-x">✕</button>
@@ -275,6 +375,6 @@ function sel(id, label, opts, cur) {
   return `<div><label class="tiny muted">${label}</label><select id="${id}" class="select">${opts.map(([v, l]) => `<option value="${esc(v)}" ${cur === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`;
 }
 function kpi(label, value, color) {
-  return `<div style="background:var(--bg-3);border-left:4px solid ${color};padding:10px;border-radius:6px"><div class="tiny muted">${label}</div><div style="font-size:20px;font-weight:800;color:${color}">${value}</div></div>`;
+  return `<div class="cap-kpi" style="border-top:3px solid ${color}"><div class="tiny muted">${label}</div><div style="font-size:19px;font-weight:800;color:${color};line-height:1.3">${value}</div></div>`;
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

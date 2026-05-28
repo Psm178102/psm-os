@@ -161,6 +161,18 @@ class handler(BaseHTTPRequestHandler):
         audit(self, None, "crm.sync_cron", target_type="deals", target_id="*",
               notes=f"upserted={upserted} pages={pages_done} {duration}s")
 
+        # Piggyback: cria captações dos leads na etapa CAPTAR IMÓVEL (rede de segurança
+        # caso o cron dedicado captar_cron falhe). Idempotente (dedup rd_deal_id).
+        captar = None
+        try:
+            from _captar_lib import import_captar  # type: ignore
+            captar = import_captar(sb, rd_token)
+            if captar and captar.get("created"):
+                audit(self, None, "captacao.auto_rd", target_type="captacoes", target_id="*",
+                      notes=f"criadas={captar.get('created')} via sync_cron")
+        except Exception as e:
+            captar = {"ok": False, "error": str(e)}
+
         return self._send(200, {
             "ok": len(errors) == 0,
             "actor": "cron",
@@ -168,6 +180,7 @@ class handler(BaseHTTPRequestHandler):
             "upserted": upserted,
             "pages_done": pages_done,
             "errors": errors,
+            "captar_import": captar,
             "duration_s": duration,
             "synced_at": datetime.now(timezone.utc).isoformat(),
         })
