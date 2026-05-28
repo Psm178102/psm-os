@@ -102,44 +102,59 @@ def _notify_gestao(sb, nome, cid, actor_id=None):
 
 
 def import_captar(sb, token):
-    """Cria captações 'À fazer' pra cada deal novo na etapa CAPTAR IMÓVEL.
-    Idempotente: dedup por captacoes.rd_deal_id. Retorna resumo."""
-    if not sb or not token:
-        return {"ok": False, "error": "sb/token ausente", "created": 0}
-    pipe, stage_id = _resolve_captar_stage(sb)
-    if not stage_id:
-        return {"ok": False, "error": "etapa CAPTAR IMÓVEL não resolvida (rode sync de funis)", "created": 0}
+    """Cria captações 'À fazer' pra cada lead na etapa CAPTAR IMÓVEL.
+    Robusto: resolve a etapa pela tabela `deals` (sincronizada do RD, nome real
+    da etapa, ex. '🔴 CAPTAR IMÓVEL') — NÃO depende de rd_stages (que fica stale).
+    Combina deals já sincronizados (rd_raw) + busca AO VIVO no RD por stage_id
+    (pega quem entrou agora). Idempotente: dedup por rd_deal_id."""
+    if not sb:
+        return {"ok": False, "error": "sb ausente", "created": 0}
 
-    r = _rd_deals_by_stage(stage_id, token)
-    if r.get("error"):
-        return {"ok": False, "error": "RD: " + r["error"], "created": 0}
-    deals = r.get("deals") or []
+    candidates = {}   # deal_id -> payload (rd_raw sincronizado ou deal ao vivo)
+    stage_ids = set()
+    # 1) Fonte robusta: deals já sincronizados cuja etapa contém "captar"
+    try:
+        rows = sb.table("deals").select("id,name,stage_id,stage_name,rd_raw").ilike("stage_name", "%captar%").execute().data or []
+        for r in rows:
+            did = str(r.get("id"))
+            raw = r.get("rd_raw")
+            candidates[did] = raw if isinstance(raw, dict) and raw else {"id": did, "name": r.get("name")}
+            if r.get("stage_id"):
+                stage_ids.add(r["stage_id"])
+    except Exception as e:
+        return {"ok": False, "error": f"deals: {e}", "created": 0}
 
-    # dedup: ids já importados
+    # 2) Tempo real: busca AO VIVO no RD por cada stage_id descoberto (pega novos)
+    if token:
+        for sid in list(stage_ids)[:5]:
+            rr = _rd_deals_by_stage(sid, token)
+            if not rr.get("error"):
+                for d in (rr.get("deals") or []):
+                    candidates[str(d.get("id"))] = d
+
+    if not candidates:
+        return {"ok": True, "created": 0, "deals_na_etapa": 0,
+                "note": "nenhum lead na etapa CAPTAR (deals + RD)"}
+
+    # 3) Dedup contra captações existentes
     try:
         existing = sb.table("captacoes").select("rd_deal_id").execute().data or []
         seen = {str(x["rd_deal_id"]) for x in existing if x.get("rd_deal_id")}
     except Exception as e:
-        return {"ok": False, "error": f"dedup: {e}", "created": 0, "deals": len(deals)}
+        return {"ok": False, "error": f"dedup: {e}", "created": 0}
 
     created = []
-    for d in deals:
-        did = str(d.get("id"))
-        if not did or did in seen:
+    for did, d in candidates.items():
+        if not did or did == "None" or did in seen:
             continue
         nome = _contact_name(d) or d.get("name") or "Proprietário"
         cid = f"cap_rd_{did}"
         row = {
-            "id": cid,
-            "objetivo": "venda",
-            "status": "a_fazer",                       # À Fazer Captação
+            "id": cid, "objetivo": "venda", "status": "a_fazer",   # À Fazer Captação
             "condominio": (d.get("name") or "")[:255] or None,
-            "proprietario": nome,
-            "contato": _contact_phone(d),
-            "email": _contact_email(d),
-            "rd_deal_id": did,
-            "precisa_avaliacao": True,
-            "observacao": f"Criada automaticamente do RD (CARTEIRA MAP → Captar Imóvel) · deal {did}",
+            "proprietario": nome, "contato": _contact_phone(d), "email": _contact_email(d),
+            "rd_deal_id": did, "precisa_avaliacao": True,
+            "observacao": f"Criada automaticamente do RD (etapa CAPTAR IMÓVEL) · deal {did}",
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
         try:
@@ -151,4 +166,4 @@ def import_captar(sb, token):
             print(f"[captar_import] falha {did}: {e}")
 
     return {"ok": True, "created": len(created), "captacao_ids": created,
-            "deals_na_etapa": len(deals), "pipeline": (pipe or {}).get("name")}
+            "deals_na_etapa": len(candidates), "stage_ids": list(stage_ids)}
