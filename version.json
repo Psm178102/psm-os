@@ -1,7 +1,7 @@
 {
-  "version": "75.98.0",
-  "meta": "2026.05.28-v75.98-notificacoes-multicanal",
+  "version": "75.99.0",
+  "meta": "2026.05.28-v75.99-captar-fix",
   "built": "2026-05-28T23:00:00Z",
-  "sw": "v75.98.0-2026-05-28-PUSH",
-  "sprint": "v75.98 Sprint 9.10 — Notificações multicanal nas captações. Responsável é notificado em TODA atividade (criar/editar/mover) em in-app (sino) + Web Push (navegador + celular/PWA). Backend: send_web_push + notify_all no _auth_lib (lazy pywebpush), endpoint /api/v3/push/subscribe (GET vapid pubkey, POST/DELETE inscrição), tabela push_subscriptions, requirements pywebpush. kanban.py/sdr.py/_captar_lib.py usam notify_all. Frontend: registra service worker /v2/sw.js (não registrava antes!), push.js (inscrição+permissão), botão 📲 ativar notificações, handlers push/notificationclick no v2/sw.js. PRECISA env no Vercel: VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY. E-mail fica pra depois (escolha do provedor)."
+  "sw": "v75.99.0-2026-05-28-CAPTAR-FIX",
+  "sprint": "v75.99 fix — Captação automática RD→Kanban agora resolve a etapa CAPTAR pela tabela deals (nome real '🔴 CAPTAR IMÓVEL'), não mais pela rd_stages desatualizada. Backfill dos leads atuais já feito. Cron 15min + piggyback criam os novos automaticamente."
 }
