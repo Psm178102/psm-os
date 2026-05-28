@@ -1,6 +1,7 @@
-/* PSM-OS v2 — Fichas/Propostas (Sprint 8.7) */
+/* PSM-OS v2 — Fichas/Propostas (Sprint 8.7 + 9.4 modelo/WhatsApp/imprimir) */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { getLinks, saveLinks, canEditLinks, promptLink } from '../links.js';
 
 let _root = null;
 let _items = [];
@@ -47,9 +48,13 @@ function render() {
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div>
           <h2 class="card-title">📋 Fichas de Proposta</h2>
-          <p class="card-sub">Propostas enviadas ao cliente — controle de aprovações e fechamentos</p>
+          <p class="card-sub">Propostas ao cliente — preencha, imprima ou mande no WhatsApp. Controle de aprovações.</p>
         </div>
-        <button class="btn btn-primary" id="fic-new">➕ Nova Ficha</button>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost" id="fic-modelo">📄 Modelo</button>
+          ${canEditLinks() ? '<button class="btn btn-ghost" id="fic-modelo-edit" title="Editar link do modelo">⚙️</button>' : ''}
+          <button class="btn btn-primary" id="fic-new">➕ Nova Ficha</button>
+        </div>
       </div>
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
         ${['todas', 'em_analise', 'aprovada', 'fechada', 'recusada'].map(s => `
@@ -68,6 +73,19 @@ function render() {
     render();
     renderList();
   }));
+  const md = document.getElementById('fic-modelo');
+  if (md) md.addEventListener('click', async () => {
+    const links = await getLinks();
+    if (!links.ficha_modelo) { alert('Nenhum modelo configurado ainda.' + (canEditLinks() ? ' Clique na engrenagem pra definir o link do Drive.' : '')); return; }
+    window.open(links.ficha_modelo, '_blank', 'noopener');
+  });
+  const mde = document.getElementById('fic-modelo-edit');
+  if (mde) mde.addEventListener('click', async () => {
+    const links = await getLinks();
+    const v = promptLink('Link do MODELO de Ficha/Proposta (Google Drive/Docs)', links.ficha_modelo);
+    if (v === null) return;
+    try { await saveLinks({ ficha_modelo: v }); alert('✅ Modelo salvo!'); } catch (e) { alert('Erro: ' + e.message); }
+  });
 }
 
 function renderList() {
@@ -204,14 +222,78 @@ function showForm() {
           <input id="ff-res" type="date" class="input" value="${f.data_resposta || ''}">
         </div>
       </div>
-      <div class="flex gap-2 mt-3">
+      <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
         <button class="btn btn-primary" id="ff-save">💾 Salvar</button>
-        <button class="btn btn-ghost" onclick="window.print()">🖨 Imprimir</button>
+        <button class="btn btn-ghost" id="ff-print">🖨 Imprimir</button>
+        <button class="btn btn-ghost" id="ff-wpp" style="color:#16a34a">📲 WhatsApp</button>
       </div>
     </div>
   `;
   document.getElementById('fic-cancel').addEventListener('click', () => { _editing = null; render(); renderList(); });
   document.getElementById('ff-save').addEventListener('click', save);
+  document.getElementById('ff-print').addEventListener('click', () => printFicha(collectForm()));
+  document.getElementById('ff-wpp').addEventListener('click', () => shareWhatsApp(collectForm()));
+}
+
+// Lê os campos do formulário pro objeto da ficha (sem salvar)
+function collectForm() {
+  const g = id => (document.getElementById(id) || {}).value || '';
+  return {
+    cliente: g('ff-cli'), cliente_doc: g('ff-doc'), cliente_contato: g('ff-cont'),
+    imovel: g('ff-imv'), valor_imovel: g('ff-vimv'), valor_proposta: g('ff-vprop'),
+    forma_pagto: g('ff-pagto'), observacoes: g('ff-obs'), data_envio: g('ff-env'),
+  };
+}
+
+function fmtBRL(v) { const n = +v; return isNaN(n) || !n ? '—' : 'R$ ' + n.toLocaleString('pt-BR'); }
+
+function propostaTexto(f) {
+  const L = [];
+  L.push('🏠 *PROPOSTA — PSM IMÓVEIS*'); L.push('');
+  if (f.cliente) L.push(`*Cliente:* ${f.cliente}`);
+  if (f.imovel) L.push(`*Imóvel:* ${f.imovel}`);
+  if (+f.valor_imovel) L.push(`*Valor do imóvel:* ${fmtBRL(f.valor_imovel)}`);
+  if (+f.valor_proposta) L.push(`*Valor da proposta:* ${fmtBRL(f.valor_proposta)}`);
+  if (f.forma_pagto) L.push(`*Forma de pagamento:* ${f.forma_pagto}`);
+  if (f.observacoes) { L.push(''); L.push(`*Observações:* ${f.observacoes}`); }
+  const u = auth.user();
+  L.push(''); L.push(`Corretor: ${u?.name || ''}`);
+  return L.join('\n');
+}
+
+function shareWhatsApp(f) {
+  if (!f.cliente) { alert('Preencha pelo menos o cliente.'); return; }
+  const dig = (f.cliente_contato || '').replace(/\D/g, '');
+  let phone = '';
+  if (dig.length >= 10) phone = dig.length <= 11 ? '55' + dig : dig;
+  const url = (phone ? `https://wa.me/${phone}` : 'https://wa.me/') + '?text=' + encodeURIComponent(propostaTexto(f));
+  window.open(url, '_blank', 'noopener');
+}
+
+function printFicha(f) {
+  const u = auth.user();
+  const row = (k, v) => v ? `<tr><td style="padding:7px 10px;font-weight:700;color:#475569;width:200px">${k}</td><td style="padding:7px 10px">${esc(v)}</td></tr>` : '';
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Proposta — ${esc(f.cliente || '')}</title>
+    <style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#0f172a;max-width:720px;margin:30px auto;padding:0 24px}
+    h1{color:#0a2540;border-bottom:3px solid #d4a843;padding-bottom:8px;font-size:22px}
+    .gold{color:#d4a843} table{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
+    tr:nth-child(even){background:#f8fafc} .foot{margin-top:30px;font-size:12px;color:#64748b;border-top:1px solid #e5e7eb;padding-top:12px}
+    .val{font-size:18px;font-weight:800;color:#0a2540}</style></head><body>
+    <h1>PSM <span class="gold">IMÓVEIS</span> — Proposta</h1>
+    <table>
+      ${row('Cliente', f.cliente)}${row('CPF', f.cliente_doc)}${row('Contato', f.cliente_contato)}
+      ${row('Imóvel', f.imovel)}
+      ${f.valor_imovel ? `<tr><td style="padding:7px 10px;font-weight:700;color:#475569">Valor do imóvel</td><td style="padding:7px 10px" class="val">${fmtBRL(f.valor_imovel)}</td></tr>` : ''}
+      ${f.valor_proposta ? `<tr><td style="padding:7px 10px;font-weight:700;color:#475569">Valor da proposta</td><td style="padding:7px 10px" class="val">${fmtBRL(f.valor_proposta)}</td></tr>` : ''}
+      ${row('Forma de pagamento', f.forma_pagto)}${row('Observações', f.observacoes)}
+      ${row('Data', f.data_envio ? new Date(f.data_envio + 'T12:00').toLocaleDateString('pt-BR') : '')}
+      ${row('Corretor', u?.name || '')}
+    </table>
+    <div class="foot">Documento gerado pelo House PSM · ${new Date().toLocaleString('pt-BR')}</div>
+    <script>window.onload=()=>{window.print()}<\/script></body></html>`;
+  const w = window.open('', '_blank');
+  if (!w) { alert('Permita pop-ups pra imprimir.'); return; }
+  w.document.write(html); w.document.close();
 }
 
 async function save() {

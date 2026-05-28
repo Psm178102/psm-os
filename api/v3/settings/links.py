@@ -25,6 +25,7 @@ DEFAULTS = {
     "mapa_earth": "https://earth.google.com/earth/d/15bCIxsaicJySE2OT0yS8dZO7KqcwyJ8o?usp=sharing",
     "tabela_conquista": "",
     "tabela_map": "",
+    "ficha_modelo": "",
     "cadencia": {"map": "", "conquista": "", "terceiros": "", "locacao": ""},
 }
 

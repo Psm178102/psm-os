@@ -1,7 +1,7 @@
 {
-  "version": "76.2.0",
-  "meta": "2026.05.28-v76.2-links-drive",
+  "version": "76.3.0",
+  "meta": "2026.05.28-v76.3-fichas",
   "built": "2026-05-28T23:00:00Z",
-  "sw": "v76.2.0-2026-05-28-LINKS",
-  "sprint": "v76.2 Sprint 9.3 — Links Google Drive (zero retrabalho mensal). Backend settings/links.py (shared_kv psm_links). Mapa: botão 'Abrir no Google Earth' (link do PSM, gestão edita). Nova página Tabela de Imóveis (PDFs Conquista+MAP embutidos do Drive). Cadência: card 'Materiais por equipe' (MAP/Conquista/Terceiros/Locação) com link Drive. Helper v2/js/links.js (getLinks/saveLinks/driveEmbed)."
+  "sw": "v76.3.0-2026-05-28-FICHAS",
+  "sprint": "v76.3 Sprint 9.4 — Fichas/Propostas: modelo do Drive (botão 📄 Modelo, gestão edita), compartilhar no WhatsApp (📲 monta a proposta e abre wa.me com o contato do cliente) e impressão decente (documento limpo da proposta numa nova janela, não a tela toda). Backend links aceita ficha_modelo."
 }
