@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v75.92.0-2026-05-28-METAS-EDITOR';
+const SW_VERSION = 'v75.92.0-2026-05-28-CAPTACOES-KANBAN';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
