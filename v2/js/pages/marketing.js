@@ -26,10 +26,8 @@ const PRESETS = [
 
 const TABS = [
   { id: 'executiva', lbl: '🎯 Executiva' },
-  { id: 'trafego',   lbl: '📊 Tráfego' },
-  { id: 'criativos', lbl: '🎬 Criativos' },
+  { id: 'trafego',   lbl: '📊 Tráfego' },   // unifica tráfego + criativos + semáforo
   { id: 'vendas',    lbl: '🏁 Vendas' },
-  { id: 'semaforo',  lbl: '🚦 Semáforo' },
   { id: 'marca',     lbl: '🏷 Por Marca' },
 ];
 
@@ -201,10 +199,8 @@ function render() {
 }
 
 function tabBody() {
-  if (_tab === 'trafego')   return tabTrafego();
-  if (_tab === 'criativos') return tabCriativos();
+  if (_tab === 'trafego')   return tabTrafegoCompleto();
   if (_tab === 'vendas')    return tabVendas();
-  if (_tab === 'semaforo')  return tabSemaforo();
   if (_tab === 'marca')     return tabMarca();
   return tabExecutiva();
 }
@@ -347,6 +343,19 @@ function execBrandRows(byBrand) {
     </tr>`);
   });
   return rows.join('') || '<tr><td colspan="7" class="muted tiny" style="padding:14px;text-align:center">Sem cruzamento no período.</td></tr>';
+}
+
+/* ─── ABA UNIFICADA: TRÁFEGO (operacional + criativos + semáforo + breakdowns) ─── */
+function tabTrafegoCompleto() {
+  const div = (t) => `<div style="margin:22px 0 4px;padding-top:16px;border-top:2px solid var(--border)"><h2 class="card-title" style="font-size:16px">${t}</h2></div>`;
+  return `
+    ${div('📊 Tráfego — visão operacional')}
+    ${tabTrafego()}
+    ${div('🎬 Criativos & breakdowns')}
+    ${tabCriativos()}
+    ${div('🚦 Semáforo de campanhas')}
+    ${tabSemaforo()}
+  `;
 }
 
 /* ───────────────────────── ABA: TRÁFEGO (Meta operacional) ───────────────────────── */

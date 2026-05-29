@@ -354,7 +354,8 @@ class handler(BaseHTTPRequestHandler):
                     "deal_name": deal.get("name") or body.get("deal_name"), "action": kind,
                     "by_user": actor.get("id"),
                 }).execute()
-            except Exception: pass
+            except Exception as e:
+                print(f"[sdr] touchpoint insert falhou (deal {deal_id}): {e}")
 
             captacao_id = None
             # ── tem imóvel → cria captação automática ──

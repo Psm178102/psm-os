@@ -52,7 +52,9 @@ class handler(BaseHTTPRequestHandler):
                 ex = sb.table("fichas_propostas").select("corretor_id").eq("id", body["id"]).limit(1).execute().data
                 if ex and ex[0].get("corretor_id") != actor.get("id"):
                     return self._send(403, {"ok": False, "error": "Sem permissão pra editar esta ficha"})
-            except Exception: pass
+            except Exception as e:
+                # fail-closed: se a checagem de dono falhar, NEGA (não cai no write)
+                return self._send(503, {"ok": False, "error": f"checagem de permissão indisponível: {e}"})
 
         row = {
             "id": body.get("id") or f"fic_{int(datetime.now().timestamp()*1000)}",

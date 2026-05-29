@@ -213,6 +213,13 @@ function openRecadoModal(rid) {
           </select>
         </div>
         <div class="field" style="flex:1;min-width:140px">
+          <label>Público-alvo</label>
+          <select id="rec-aud" class="select">
+            ${[['todos','👥 Todos'],['corretores','🧑‍💼 Corretores'],['lideres','⭐ Líderes+'],['gerencia','🎖 Gerência+'],['diretoria','👑 Diretoria']]
+              .map(([v,l]) => `<option value="${v}"${(r?.audiencia||'todos')===v?' selected':''}>${l}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field" style="flex:1;min-width:140px">
           <label>Expira em</label>
           <input id="rec-fim" type="datetime-local" class="input" value="${r?.data_fim ? r.data_fim.substring(0,16) : ''}">
         </div>
@@ -238,6 +245,7 @@ function openRecadoModal(rid) {
         id: r?.id,
         texto,
         prioridade: document.getElementById('rec-prior').value,
+        audiencia: document.getElementById('rec-aud').value,
         data_fim: fim ? new Date(fim).toISOString() : null,
         fixado: document.getElementById('rec-fix').checked,
       } });

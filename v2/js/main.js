@@ -279,6 +279,9 @@ function applyPermissions(user) {
   // 6) Notificações (sino + drawer + poll 60s)
   initNotifs();
 
+  // 6b) Saúde do sistema (indicador no menu — falhas/desatualização/erros)
+  initSystemHealth();
+
   // 7) Sons da Arena (Web Audio API)
   sounds.initSounds();
 
@@ -404,6 +407,9 @@ function shellHTML(user) {
         <div class="h-title" id="h-title">Dashboard</div>
         <div class="h-spacer"></div>
         <div class="h-user">
+          <button class="btn btn-ghost" id="btn-health" style="position:relative;padding:6px 10px" title="Saúde do sistema">
+            <span id="health-dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#94a3b8;vertical-align:middle"></span>
+          </button>
           <button class="btn btn-ghost" id="btn-sons" style="padding:6px 10px" title="Sons">🔊</button>
           <button class="btn btn-ghost" id="btn-notif" style="position:relative;padding:6px 10px" title="Notificações">
             🔔
@@ -561,6 +567,86 @@ async function page404(ctx, root) {
 
 // ─── Helpers ───────────────────────────────────────────────────────────
 function setHeader(t) { const el = document.getElementById('h-title'); if (el) el.textContent = t; }
+
+// ─── Indicador de saúde do sistema (menu principal) ──────────────────────
+let _healthTimer = null, _bootVer = null, _healthData = null;
+
+async function initSystemHealth() {
+  try {
+    const v = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json());
+    _bootVer = v.version;
+  } catch (_) {}
+  document.getElementById('btn-health')?.addEventListener('click', toggleHealthPanel);
+  await pollHealth();
+  if (_healthTimer) clearInterval(_healthTimer);
+  _healthTimer = setInterval(pollHealth, 90000);
+}
+
+async function pollHealth() {
+  let issues = [], status = 'ok';
+  try {
+    const h = await api.request('/api/v3/system_health');
+    issues = h.issues || [];
+    status = h.status || 'ok';
+  } catch (e) {
+    issues = [{ area: 'rede', severity: 'error', message: 'Não consegui checar a saúde do sistema: ' + e.message }];
+    status = 'error';
+  }
+  // Desatualização do cliente (tab antiga aberta após deploy)
+  try {
+    const v = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json());
+    if (_bootVer && v.version && v.version !== _bootVer) {
+      issues = [{ area: 'app', severity: 'warn', message: `Nova versão ${v.version} disponível — recarregue (Cmd+Shift+R).` }, ...issues];
+      if (status === 'ok') status = 'warn';
+    }
+  } catch (_) {}
+  _healthData = { status, issues };
+  renderHealthDot(status, issues.length);
+  const panel = document.getElementById('health-panel');
+  if (panel && panel.style.display !== 'none') renderHealthPanel();
+}
+
+function renderHealthDot(status, count) {
+  const dot = document.getElementById('health-dot');
+  if (!dot) return;
+  const color = status === 'error' ? '#dc2626' : status === 'warn' ? '#d97706' : '#16a34a';
+  dot.style.background = color;
+  dot.style.boxShadow = status === 'ok' ? 'none' : `0 0 0 3px ${color}33`;
+  const btn = document.getElementById('btn-health');
+  if (btn) btn.title = status === 'ok' ? 'Sistema OK' : `${count} aviso(s) do sistema`;
+}
+
+function toggleHealthPanel() {
+  const panel = document.getElementById('health-panel');
+  if (panel && panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+  renderHealthPanel();
+}
+
+function renderHealthPanel() {
+  let panel = document.getElementById('health-panel');
+  if (!panel) { panel = document.createElement('div'); panel.id = 'health-panel'; document.body.appendChild(panel); }
+  const d = _healthData || { status: 'ok', issues: [] };
+  const head = d.status === 'error' ? '🔴 Problemas no sistema'
+    : d.status === 'warn' ? '🟡 Avisos do sistema' : '🟢 Tudo funcionando';
+  panel.style.cssText = 'position:fixed;top:56px;right:12px;z-index:10000;background:var(--bg-2,#fff);color:var(--ink,#111);border:1px solid var(--border,#e5e7eb);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.25);width:344px;max-width:92vw;max-height:72vh;overflow:auto;padding:14px';
+  panel.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <strong style="font-size:14px">${head}</strong>
+      <button id="health-close" style="border:none;background:transparent;cursor:pointer;font-size:16px;line-height:1">✕</button>
+    </div>
+    ${d.issues.length === 0
+      ? '<div style="font-size:13px;color:#16a34a">Nenhuma falha detectada. Integrações e dados em dia.</div>'
+      : d.issues.map(i => {
+          const c = i.severity === 'error' ? '#dc2626' : '#d97706';
+          const ico = i.severity === 'error' ? '🔴' : '⚠️';
+          return `<div style="display:flex;gap:8px;padding:8px;border-left:3px solid ${c};background:${c}14;border-radius:6px;margin-bottom:6px;font-size:12.5px">
+            <span>${ico}</span><div><strong style="text-transform:uppercase;font-size:10px;color:${c}">${escapeHtml(i.area)}</strong><br>${escapeHtml(i.message)}</div></div>`;
+        }).join('')}
+    <div style="margin-top:8px;font-size:10px;opacity:0.5">Atualiza a cada 90s · clique no ponto pra abrir/fechar</div>
+  `;
+  panel.style.display = 'block';
+  document.getElementById('health-close')?.addEventListener('click', () => { panel.style.display = 'none'; });
+}
 function highlight(path) {
   document.querySelectorAll('.sb-link').forEach(b => b.classList.remove('on'));
   const cur = document.querySelector('[data-nav="' + path + '"]');

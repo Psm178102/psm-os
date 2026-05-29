@@ -17,6 +17,28 @@ from _auth_lib import supabase_client, require_user, AuthError, audit, notify  #
 
 
 ALLOWED_PRIORIDADE = {"info", "alerta", "critica"}
+# Audiências suportadas. 'equipe:<nome>' mira uma equipe específica.
+ALLOWED_AUDIENCIA = {"todos", "corretores", "lideres", "gerencia", "diretoria"}
+
+
+def _audience_match(aud, user):
+    """Recado visível pra este usuário? Regra fail-open: audiência desconhecida
+    não esconde (comunicação não deve sumir por engano)."""
+    a = (aud or "todos").strip().lower()
+    lvl = user.get("lvl") or 0
+    if a in ("", "todos", "all"):
+        return True
+    if a.startswith("equipe:"):
+        return (user.get("team") or "").strip().lower() == a.split(":", 1)[1].strip()
+    if a == "corretores":
+        return lvl <= 2
+    if a == "lideres":
+        return lvl >= 5
+    if a == "gerencia":
+        return lvl >= 7
+    if a == "diretoria":
+        return lvl >= 10
+    return True  # desconhecida → não esconde
 
 
 class handler(BaseHTTPRequestHandler):
@@ -57,8 +79,11 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
 
-        # Filter por audiência (TODO: implementar checagem de team/lvl)
-        # Por enquanto retorna todos
+        # Filtro de audiência: gerência/diretoria (lvl>=7) veem tudo (gestão);
+        # os demais só veem recados endereçados a eles.
+        if (user.get("lvl") or 0) < 7:
+            rows = [r for r in rows if _audience_match(r.get("audiencia"), user)]
+
         return self._send(200, {
             "ok": True,
             "count": len(rows),
@@ -121,11 +146,14 @@ class handler(BaseHTTPRequestHandler):
 
         # Create
         new_id = "rc_" + uuid.uuid4().hex[:12]
+        aud = (body.get("audiencia") or "todos").strip()
+        if aud not in ALLOWED_AUDIENCIA and not aud.lower().startswith("equipe:"):
+            aud = "todos"
         row = {
             "id": new_id,
             "texto": texto,
             "autor_id": actor["id"],
-            "audiencia": body.get("audiencia") or "todos",
+            "audiencia": aud,
             "prioridade": prior,
             "data_fim": body.get("data_fim") or None,
             "fixado": bool(body.get("fixado")),
