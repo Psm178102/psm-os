@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.18.0-2026-05-29-GRAFICOS-META';
+const SW_VERSION = 'v76.19.0-2026-05-29-EXECUTIVA-PREMIUM';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

@@ -215,17 +215,166 @@ function crmWarn() {
 }
 
 /* ───────────────────────── ABA: EXECUTIVA (Aba 1) ───────────────────────── */
+/* ───────── Visão Geral premium (estilo relatório de agência) ───────── */
+function sparkSVG(vals, color) {
+  const a = (vals || []).filter(v => typeof v === 'number');
+  if (a.length < 2) return '<div style="height:34px"></div>';
+  const max = Math.max(...a), min = Math.min(...a), rng = (max - min) || 1, n = a.length;
+  const line = a.map((v, i) => `${(i / (n - 1) * 100).toFixed(1)},${(32 - (v - min) / rng * 28).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 100 34" preserveAspectRatio="none" style="width:100%;height:34px;display:block">
+    <polygon points="0,34 ${line} 100,34" fill="${color}" opacity="0.16"/>
+    <polyline points="${line}" fill="none" stroke="${color}" stroke-width="1.6" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+}
+function deltaBadge(pct, invert) {
+  if (pct == null || isNaN(pct)) return '<span style="font-size:11px;color:#64748b">— vs ant.</span>';
+  const good = invert ? pct <= 0 : pct >= 0;
+  const c = good ? '#22c55e' : '#f87171';
+  return `<span style="font-size:11px;font-weight:700;color:${c}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%</span>`;
+}
+function heroKpi(label, value, deltaPct, sparkVals, color, invert) {
+  return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px 10px">
+    <div style="font-size:11px;color:#94a3b8;letter-spacing:.4px">${label}</div>
+    <div style="font-size:23px;font-weight:800;color:#f1f5f9;line-height:1.1;margin-top:3px">${value}</div>
+    <div style="margin-top:2px">${deltaBadge(deltaPct, invert)}</div>
+    <div style="margin-top:6px">${sparkSVG(sparkVals, color)}</div>
+  </div>`;
+}
+function funnelStage(label, val, frac, color) {
+  const w = Math.max(20, Math.round(frac * 100));
+  return `<div style="margin:0 auto;width:${w}%;background:linear-gradient(135deg,${color},${color}bb);border-radius:8px;padding:8px 10px;text-align:center;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25)">
+    <div style="font-size:10px;opacity:.85;letter-spacing:.5px">${label}</div>
+    <div style="font-size:17px;font-weight:800;line-height:1.1">${fmtNum(val)}</div>
+  </div>`;
+}
+function progressCard(label, value, sub, frac, color) {
+  const w = Math.max(2, Math.min(100, Math.round(frac * 100)));
+  return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px">
+    <div style="font-size:11px;color:#94a3b8">${label}</div>
+    <div style="font-size:22px;font-weight:800;color:#f1f5f9;margin-top:2px">${value}</div>
+    <div style="height:7px;border-radius:6px;background:rgba(255,255,255,0.08);margin-top:8px;overflow:hidden"><div style="height:100%;width:${w}%;background:${color}"></div></div>
+    <div style="font-size:10px;color:#64748b;margin-top:4px">${sub}</div>
+  </div>`;
+}
+function execHero(t, accounts) {
+  const d = _data || {};
+  const s = (_ts && _ts.series) || [];
+  const dl = (_ts && _ts.delta) || {};
+  const col = (m) => s.map(p => p[m]);
+  const freq = t.reach > 0 ? (t.impressions / t.reach) : 0;
+  const cpc = t.clicks > 0 ? (t.spend / t.clicks) : 0;
+  const cplTarget = (_th && _th.cpl) || 80;
+  const camps = (d.campaigns || []).slice().sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 5);
+  const maxSp = Math.max(1, ...camps.map(c => c.spend || 0));
+  const maxCl = Math.max(1, ...camps.map(c => c.clicks || 0));
+  const cell = (txt, frac, color) => `<td style="padding:6px 8px;text-align:right;position:relative">
+      <div style="position:absolute;inset:3px auto 3px 0;width:${Math.round(frac * 100)}%;background:${color}22;border-radius:4px"></div>
+      <span style="position:relative;font-weight:700">${txt}</span></td>`;
+  return `
+  <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:18px 18px 20px;color:#e2e8f0;margin-bottom:16px">
+    <div class="flex" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:17px;font-weight:800;color:#fff">∞ Relatório Meta Ads · PSM</div>
+        <div style="font-size:11px;color:#94a3b8">${accounts.length} conta(s) · ${escapeHtml(d.period || _preset)}${_ts && _ts.prev && _ts.prev.since ? ' · vs ' + _ts.prev.since.slice(5) + '–' + (_ts.prev.until || '').slice(5) : ''}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:14px">
+      ${heroKpi('💰 Investimento', 'R$ ' + money(t.spend), dl.spend, col('spend'), '#ef4444')}
+      ${heroKpi('💬 Mensagens/Leads', fmtNum(t.results), dl.results, col('results'), '#22c55e')}
+      ${heroKpi('🖱 Cliques', fmtNum(t.clicks), dl.clicks, col('clicks'), '#3b82f6')}
+      ${heroKpi('👥 Alcance', fmtNum(t.reach), dl.reach, col('reach'), '#a855f7')}
+      ${heroKpi('📊 Impressões', fmtNum(t.impressions), dl.impressions, col('impressions'), '#d4a843')}
+      ${heroKpi('🎯 CTR', (t.ctr || 0).toFixed(2) + '%', dl.ctr, col('ctr'), '#06b6d4')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.05fr 1.35fr;gap:14px;margin-top:16px;align-items:start">
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px">
+        <div style="font-size:13px;font-weight:700;color:#cbd5e1;text-align:center;margin-bottom:10px">Funil de Tráfego</div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          ${funnelStage('IMPRESSÕES', t.impressions, 1, '#1d4ed8')}
+          ${funnelStage('ALCANCE', t.reach, t.impressions ? t.reach / t.impressions : 0.7, '#2563eb')}
+          ${funnelStage('CLIQUES', t.clicks, t.impressions ? Math.max(0.4, t.clicks / t.impressions * 8) : 0.5, '#3b82f6')}
+          ${funnelStage('MENSAGENS/LEADS', t.results, t.impressions ? Math.max(0.28, t.results / t.impressions * 40) : 0.3, '#60a5fa')}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">
+          ${miniStat('CTR', (t.ctr || 0).toFixed(2) + '%')}
+          ${miniStat('Frequência', freq.toFixed(2))}
+          ${miniStat('CPM', 'R$ ' + money(t.cpm || 0))}
+        </div>
+      </div>
+
+      <div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          ${progressCard('Custo por Mensagem/Lead (CPL)', t.cpl ? 'R$ ' + money(t.cpl) : '—', `meta R$ ${money(cplTarget)} · ${deltaTxt(dl.cpl)}`, cplTarget ? (t.cpl / cplTarget) : 0, (t.cpl <= cplTarget ? '#22c55e' : '#f87171'))}
+          ${progressCard('Custo por Clique (CPC)', cpc ? 'R$ ' + money(cpc) : '—', deltaTxt(dl.clicks, true) + ' cliques', Math.min(1, cpc / 5), '#38bdf8')}
+        </div>
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:12px;margin-top:10px">
+          <div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:6px">Investimento × Resultados (dia)</div>
+          <div style="position:relative;height:170px"><canvas id="ch-exec-line"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-top:14px;align-items:start">
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:12px;overflow-x:auto">
+        <div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:6px">Campanhas (top 5 por gasto)</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;min-width:420px">
+          <thead><tr style="color:#94a3b8;font-size:11px"><th style="text-align:left;padding:6px 8px">Campanha</th><th style="text-align:right;padding:6px 8px">Investido</th><th style="text-align:right;padding:6px 8px">Cliques</th><th style="text-align:right;padding:6px 8px">Result.</th></tr></thead>
+          <tbody>${camps.length ? camps.map(c => `<tr style="border-top:1px solid rgba(255,255,255,0.06)">
+            <td style="padding:6px 8px;color:#e2e8f0">${escapeHtml((c.name || '—').slice(0, 34))}</td>
+            ${cell('R$ ' + money(c.spend || 0), (c.spend || 0) / maxSp, '#3b82f6')}
+            ${cell(fmtNum(c.clicks || 0), (c.clicks || 0) / maxCl, '#22c55e')}
+            <td style="padding:6px 8px;text-align:right;font-weight:700">${fmtNum(c.results || 0)}</td></tr>`).join('') : '<tr><td colspan="4" style="padding:12px;text-align:center;color:#64748b">Sem campanhas no período.</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:12px">
+        <div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:6px">Mix de investimento (campanhas)</div>
+        <div style="position:relative;height:210px"><canvas id="ch-exec-donut"></canvas></div>
+      </div>
+    </div>
+  </div>`;
+}
+function miniStat(label, val) {
+  return `<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:8px;text-align:center">
+    <div style="font-size:10px;color:#94a3b8">${label}</div><div style="font-size:15px;font-weight:800;color:#f1f5f9">${val}</div></div>`;
+}
+function deltaTxt(pct, raw) {
+  if (pct == null || isNaN(pct)) return raw ? '' : 'sem comparativo';
+  return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% vs período ant.`;
+}
+
+async function buildExecutivaCharts() {
+  let Chart;
+  try { Chart = await loadChartLib(); } catch (_) { return; }
+  if (!Chart) return;
+  _charts.forEach(c => { try { c.destroy(); } catch (_) {} });
+  _charts = [];
+  const ink = '#cbd5e1', grid = 'rgba(148,163,184,0.14)';
+  const mk = (id, cfg) => { const el = document.getElementById(id); if (el) _charts.push(new Chart(el, cfg)); };
+  const opts = (e) => Object.assign({ responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: ink, font: { size: 10 } } } } }, e || {});
+  if (_ts && _ts.series && _ts.series.length) {
+    const labels = _ts.series.map(p => (p.date || '').slice(5));
+    mk('ch-exec-line', { type: 'line', data: { labels, datasets: [
+      { label: 'Investimento (R$)', data: _ts.series.map(p => p.spend), borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.14)', fill: true, tension: 0.35, pointRadius: 0, yAxisID: 'y' },
+      { label: 'Resultados', data: _ts.series.map(p => p.results), borderColor: '#38bdf8', tension: 0.35, pointRadius: 0, yAxisID: 'y1' },
+    ] }, options: opts({ scales: { x: { ticks: { color: ink, maxTicksLimit: 10 }, grid: { color: grid } }, y: { position: 'left', beginAtZero: true, ticks: { color: ink }, grid: { color: grid } }, y1: { position: 'right', beginAtZero: true, ticks: { color: ink }, grid: { drawOnChartArea: false } } } }) });
+  }
+  const camps = ((_data && _data.campaigns) || []).slice().sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 6).filter(c => (c.spend || 0) > 0);
+  if (camps.length) {
+    const PAL = ['#3b82f6', '#22c55e', '#a855f7', '#f59e0b', '#ef4444', '#06b6d4'];
+    mk('ch-exec-donut', { type: 'doughnut', data: { labels: camps.map(c => (c.name || '—').slice(0, 20)), datasets: [{ data: camps.map(c => c.spend), backgroundColor: camps.map((_, i) => PAL[i % PAL.length]), borderWidth: 0 }] }, options: opts({ cutout: '60%' }) });
+  }
+}
+
 function tabExecutiva() {
   const d = _data || {};
   const accounts = d.accounts || [];
   const t = periodTotals(accounts);
   if (!_crm) {
-    // Mostra ao menos o investimento Meta, mesmo sem CRM
+    // Hero premium + aviso de CRM ausente
     return `
-      <div class="flex gap-3" style="flex-wrap:wrap">
-        ${kpi('💰 Investimento Total', 'R$ ' + money(t.spend), 'mídia no período', '#dc2626')}
-        ${kpi('🎯 Resultados Meta', fmtNum(t.results), t.cpl ? `CPL: R$ ${money(t.cpl)}` : '—', '#2563eb')}
-      </div>
+      ${execHero(t, accounts)}
       <div class="mt-3" style="margin-top:14px">${crmWarn()}</div>`;
   }
   const g = _crm.global;
@@ -240,7 +389,8 @@ function tabExecutiva() {
   const vgvInfLbl = `Meta+Google (origem RD)${attrChip(cov)}`;
 
   return `
-    <p class="card-sub">Visão executiva — mídia paga convertida em venda real. CAC, VGV e ROAS cruzam Meta Ads × deals ganhos no RD no mesmo período.</p>
+    ${execHero(t, accounts)}
+    <p class="card-sub">Cruzamento com CRM — mídia paga convertida em venda real. CAC, VGV e ROAS cruzam Meta Ads × deals ganhos no RD no mesmo período.</p>
     <div class="flex gap-3 mt-3" style="flex-wrap:wrap;margin-top:12px">
       ${kpi('💰 Investimento Total', 'R$ ' + money(t.spend), `${accounts.length} conta(s) Meta`, '#dc2626')}
       ${kpi('🧮 CAC', cac ? 'R$ ' + money(cac) : '—', `${g.vendas} venda(s) no período`, '#ea580c')}
@@ -987,6 +1137,8 @@ function wire() {
 
   // Aba Gráficos: garante a série diária e (re)desenha os charts
   if (_tab === 'graficos') { loadTimeseries(); buildGraficos(); }
+  // Executiva premium: série diária (sparklines/deltas/linha) + charts do hero
+  if (_tab === 'executiva') { loadTimeseries(); buildExecutivaCharts(); }
 
   document.getElementById('ma-th')?.addEventListener('click', () => {
     const p = document.getElementById('ma-th-panel'); if (!p) return;

@@ -50,7 +50,7 @@ def _results(actions):
 
 def _fetch_account_daily(act_id, token, date_params, timeout=30):
     url = (GRAPH_API + "/" + act_id + "/insights?level=account&time_increment=1"
-           + "&fields=spend,impressions,clicks,actions&limit=500"
+           + "&fields=spend,impressions,reach,clicks,actions&limit=500"
            + "&access_token=" + urllib.parse.quote(token) + date_params)
     req = urllib.request.Request(url, headers={
         "Accept": "application/json", "User-Agent": "PSM-OS-v3/meta-timeseries"})
@@ -59,6 +59,22 @@ def _fetch_account_daily(act_id, token, date_params, timeout=30):
     if isinstance(data, dict) and data.get("error"):
         raise RuntimeError(data["error"].get("message") or "Graph API error")
     return data.get("data") or []
+
+
+def _fetch_account_total(act_id, token, since, until, timeout=30):
+    """Totais agregados (sem time_increment) de uma janela — pro período anterior."""
+    tr = '{"since":"%s","until":"%s"}' % (since, until)
+    url = (GRAPH_API + "/" + act_id + "/insights?level=account"
+           + "&fields=spend,impressions,reach,clicks,actions"
+           + "&time_range=" + urllib.parse.quote(tr)
+           + "&access_token=" + urllib.parse.quote(token))
+    req = urllib.request.Request(url, headers={
+        "Accept": "application/json", "User-Agent": "PSM-OS-v3/meta-timeseries"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    if isinstance(data, dict) and data.get("error"):
+        raise RuntimeError(data["error"].get("message") or "Graph API error")
+    return (data.get("data") or [{}])[0] if (data.get("data")) else {}
 
 
 class handler(BaseHTTPRequestHandler):
@@ -125,14 +141,15 @@ class handler(BaseHTTPRequestHandler):
                 d = row.get("date_start")
                 if not d:
                     continue
-                acc = by_day.setdefault(d, {"spend": 0.0, "results": 0, "impressions": 0, "clicks": 0})
+                acc = by_day.setdefault(d, {"spend": 0.0, "results": 0, "impressions": 0, "clicks": 0, "reach": 0})
                 acc["spend"] += float(row.get("spend") or 0)
                 acc["results"] += _results(row.get("actions"))
                 acc["impressions"] += int(float(row.get("impressions") or 0))
                 acc["clicks"] += int(float(row.get("clicks") or 0))
+                acc["reach"] += int(float(row.get("reach") or 0))
 
         series = []
-        tot = {"spend": 0.0, "results": 0, "impressions": 0, "clicks": 0}
+        tot = {"spend": 0.0, "results": 0, "impressions": 0, "clicks": 0, "reach": 0}
         for d in sorted(by_day.keys()):
             v = by_day[d]
             series.append({
@@ -141,6 +158,7 @@ class handler(BaseHTTPRequestHandler):
                 "results": v["results"],
                 "impressions": v["impressions"],
                 "clicks": v["clicks"],
+                "reach": v["reach"],
                 "cpl": round(v["spend"] / v["results"], 2) if v["results"] > 0 else 0,
                 "ctr": round(v["clicks"] / v["impressions"] * 100, 2) if v["impressions"] > 0 else 0,
             })
@@ -150,11 +168,47 @@ class handler(BaseHTTPRequestHandler):
         tot["cpl"] = round(tot["spend"] / tot["results"], 2) if tot["results"] > 0 else 0
         tot["ctr"] = round(tot["clicks"] / tot["impressions"] * 100, 2) if tot["impressions"] > 0 else 0
 
+        # ── Período anterior (mesma duração, imediatamente antes) → % de variação ──
+        prev = {}
+        delta = {}
+        if series:
+            try:
+                from datetime import date as _date, timedelta as _td
+                d0 = _date.fromisoformat(series[0]["date"])
+                d1 = _date.fromisoformat(series[-1]["date"])
+                ndays = (d1 - d0).days + 1
+                p_until = d0 - _td(days=1)
+                p_since = p_until - _td(days=ndays - 1)
+                ps, pu = p_since.isoformat(), p_until.isoformat()
+                pv = {"spend": 0.0, "results": 0, "impressions": 0, "clicks": 0, "reach": 0}
+                for i, act_id in enumerate(account_ids):
+                    act_token = tokens[i] if i < len(tokens) and tokens[i] else token
+                    try:
+                        r = _fetch_account_total(act_id, act_token, ps, pu)
+                    except Exception:
+                        continue
+                    pv["spend"] += float(r.get("spend") or 0)
+                    pv["results"] += _results(r.get("actions"))
+                    pv["impressions"] += int(float(r.get("impressions") or 0))
+                    pv["clicks"] += int(float(r.get("clicks") or 0))
+                    pv["reach"] += int(float(r.get("reach") or 0))
+                pv["spend"] = round(pv["spend"], 2)
+                pv["cpl"] = round(pv["spend"] / pv["results"], 2) if pv["results"] > 0 else 0
+                pv["ctr"] = round(pv["clicks"] / pv["impressions"] * 100, 2) if pv["impressions"] > 0 else 0
+                prev = {"since": ps, "until": pu, **pv}
+                for k in ("spend", "results", "impressions", "clicks", "reach", "cpl", "ctr"):
+                    base = pv.get(k) or 0
+                    delta[k] = round((tot.get(k, 0) - base) / base * 100, 1) if base else None
+            except Exception:
+                prev, delta = {}, {}
+
         payload = {
             "ok": len(errors) == 0,
             "period": {"date_preset": preset, "since": since, "until": until},
             "series": series,
             "totals": tot,
+            "prev": prev,
+            "delta": delta,
             "errors": errors,
             "fetchedAt": datetime.now(timezone.utc).isoformat(),
         }
