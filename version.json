@@ -1,7 +1,7 @@
 {
-  "version": "76.5.0",
-  "meta": "2026.05.28-v76.5-radar-trafego",
-  "built": "2026-05-28T23:59:00Z",
-  "sw": "v76.5.0-2026-05-28-RADAR",
-  "sprint": "v76.5 Sprint 9.8 — Cockpit de Tráfego Meta Ads (KPIs do período + Central de Alertas: verba queimando sem resultado, CPL acima da meta, fadiga de criativo/frequência, CTR baixo, ranking de qualidade baixo; limiares ajustáveis; auto-refresh tempo real; pausar/retomar campanha) + Radar de Concorrência migrado integral do /v1 (46 imobiliárias/corretores de Rio Preto com tier, segmento, Instagram, métricas e link direto p/ Biblioteca de Anúncios Meta)."
+  "version": "76.6.0",
+  "meta": "2026.05.28-v76.6-cockpit-abas",
+  "built": "2026-05-29T00:30:00Z",
+  "sw": "v76.6.0-2026-05-28-COCKPIT",
+  "sprint": "v76.6 Sprint 9.9 — Cockpit de Tráfego Meta Ads reestruturado em abas (planta baixa do Paulo): 📊 Visão Geral (KPIs do período + Central de Alertas), 🎬 Criativos (Laboratório: gancho 3s/retenção/CTR geral×link/freq/CPM/relevância), 🚦 Semáforo (Escala Vertical/Horizontal/Troca de criativo/Sangria/Manter com CPL alvo por marca), 🏷 Por Marca (1 conta Meta = 1 marca: Conquista MCMV R$25 × PSM Imóveis R$150 × Locação R$60). Cada aba sinaliza no roadmap o que depende de RD CRM / Google Ads / breakdowns Meta (próximos sprints)."
 }
