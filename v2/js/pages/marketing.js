@@ -41,6 +41,16 @@ let _preset = 'last_30d';
 let _tab = 'executiva';
 let _filter = '', _sort = 'spend', _statusFilter = 'todos';
 let _auto = false, _timer = null, _busy = false;
+// Sprint 9.15: breakdowns Meta (sob demanda) + Google Ads (gated por env)
+let _bd = null, _bdSel = 'age', _bdBusy = false, _google = null;
+const BREAKDOWNS = [
+  { id: 'age',                'lbl': '🎂 Idade' },
+  { id: 'gender',             'lbl': '⚧ Gênero' },
+  { id: 'publisher_platform', 'lbl': '📱 Plataforma' },
+  { id: 'device_platform',    'lbl': '💻 Dispositivo' },
+  { id: 'region',             'lbl': '📍 Região' },
+  { id: 'hourly_stats_aggregated_by_advertiser_time_zone', 'lbl': '🕐 Hora do dia' },
+];
 
 function loadTh() { try { return { ...DEFAULT_TH, ...(JSON.parse(localStorage.getItem(TH_KEY) || '{}')) }; } catch { return { ...DEFAULT_TH }; } }
 function saveTh(th) { localStorage.setItem(TH_KEY, JSON.stringify(th)); }
@@ -78,19 +88,36 @@ async function reload(silent) {
   if (!silent) _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando Meta Ads + CRM…</div></div>';
   try {
     const qp = '?date_preset=' + encodeURIComponent(_preset);
-    const [meta, crm] = await Promise.allSettled([
+    _bd = null;  // breakdown depende do período; invalida ao recarregar
+    const [meta, crm, goog] = await Promise.allSettled([
       api.request('/api/v3/marketing/summary' + qp),
       api.request('/api/v3/marketing/crm_metrics' + qp),
+      api.request('/api/v3/marketing/google_ads' + qp),
     ]);
     if (meta.status === 'fulfilled') _data = meta.value; else throw meta.reason;
     if (crm.status === 'fulfilled' && crm.value?.ok) { _crm = crm.value; _crmErr = null; }
     else { _crm = null; _crmErr = (crm.reason?.message) || (crm.value?.error) || 'CRM indisponível'; }
+    _google = (goog.status === 'fulfilled') ? goog.value : { ok: false, error: goog.reason?.message };
     render();
   } catch (e) {
     _root.innerHTML = `<div class="alert alert-err">Erro ao consultar Meta: ${escapeHtml(e.message)}</div>
       <div class="mt-2"><button class="btn btn-primary" id="ma-retry">🔄 Tentar de novo</button></div>`;
     document.getElementById('ma-retry')?.addEventListener('click', () => reload());
   } finally { _busy = false; }
+}
+
+// Sprint 9.15: busca breakdown Meta sob demanda (não no load — só quando o gestor pede)
+async function loadBreakdown(sel) {
+  _bdSel = sel || _bdSel;
+  _bdBusy = true; render();
+  try {
+    _bd = await api.request('/api/v3/marketing/meta_breakdowns?breakdown='
+      + encodeURIComponent(_bdSel) + '&date_preset=' + encodeURIComponent(_preset));
+  } catch (e) {
+    _bd = { ok: false, error: e.message };
+  } finally {
+    _bdBusy = false; render();
+  }
 }
 
 function periodTotals(accounts) {
@@ -202,19 +229,23 @@ function tabExecutiva() {
       <div class="mt-3" style="margin-top:14px">${crmWarn()}</div>`;
   }
   const g = _crm.global;
+  const attr = g.attribution || {};
   const byBrand = metaSpendByBrand(accounts);
   const cac = g.vendas > 0 ? t.spend / g.vendas : 0;
-  const vgvInf = g.vgv_pago > 0 ? g.vgv_pago : g.vgv;
-  const vgvInfLbl = g.vgv_pago > 0 ? 'via mídia paga (origem RD)' : 'VGV total ganho (origem não marcada)';
-  const roas = t.spend > 0 ? vgvInf / t.spend : 0;
+  // Honesto (Sprint 9.14): VGV Influenciado = só ganhos com origem Meta/Google
+  // marcada no RD. SEM fallback p/ VGV total (que fingiria que tudo veio de ads).
+  const vgvInf = attr.vgv_paid || 0;
+  const cov = attr.coverage_pct;   // % do VGV ganho que tem origem marcada
+  const roas = (t.spend > 0 && vgvInf > 0) ? vgvInf / t.spend : 0;
+  const vgvInfLbl = `Meta+Google (origem RD)${attrChip(cov)}`;
 
   return `
     <p class="card-sub">Visão executiva — mídia paga convertida em venda real. CAC, VGV e ROAS cruzam Meta Ads × deals ganhos no RD no mesmo período.</p>
     <div class="flex gap-3 mt-3" style="flex-wrap:wrap;margin-top:12px">
       ${kpi('💰 Investimento Total', 'R$ ' + money(t.spend), `${accounts.length} conta(s) Meta`, '#dc2626')}
       ${kpi('🧮 CAC', cac ? 'R$ ' + money(cac) : '—', `${g.vendas} venda(s) no período`, '#ea580c')}
-      ${kpi('🏛 VGV Influenciado', 'R$ ' + moneyShort(vgvInf), vgvInfLbl, '#7c3aed')}
-      ${kpi('📈 ROAS Imobiliário', roas ? roas.toFixed(1) + 'x' : '—', 'VGV ÷ investimento', '#16a34a')}
+      ${kpi('🏛 VGV Influenciado', vgvInf > 0 ? 'R$ ' + moneyShort(vgvInf) : '—', vgvInfLbl, '#7c3aed')}
+      ${kpi('📈 ROAS Imobiliário', roas ? roas.toFixed(1) + 'x' : '—', vgvInf > 0 ? 'VGV influenciado ÷ investimento' : 'sem ganhos com origem paga marcada', '#16a34a')}
     </div>
 
     <div class="flex gap-3 mt-3" style="flex-wrap:wrap;margin-top:10px">
@@ -223,6 +254,13 @@ function tabExecutiva() {
       ${miniKpi('Ticket médio', g.ticket_medio ? 'R$ ' + moneyShort(g.ticket_medio) : '—', '#7c3aed')}
       ${miniKpi('Conversão', g.taxa_conversao != null ? g.taxa_conversao + '%' : '—', '#0891b2', 'ganhos ÷ fechados')}
       ${miniKpi('CPL real (RD)', g.leads_criados ? 'R$ ' + money(t.spend / g.leads_criados) : '—', '#d97706', 'gasto ÷ leads RD')}
+    </div>
+
+    ${attrBanner(attr)}
+
+    <div class="mt-4" style="margin-top:18px">
+      <h3 class="card-title">Atribuição por canal <span class="muted tiny" style="font-weight:500">(origem RD × VGV ganho)</span></h3>
+      ${attrChannelTable(attr)}
     </div>
 
     <div class="mt-4" style="margin-top:18px">
@@ -237,8 +275,50 @@ function tabExecutiva() {
           ${execBrandRows(byBrand)}
         </tbody></table></div>
     </div>
+
+    ${googleSection(attr)}
     ${roadmapMini()}
   `;
+}
+
+/* ─── Google Ads (Sprint 9.15) — dados reais se configurado, senão aviso honesto ─── */
+function googleSection(attr) {
+  const gg = _google;
+  if (!gg) return '';
+  if (gg.configured === false) {
+    const miss = (gg.missing || []).join(', ');
+    return `<div class="alert alert-warn mt-4" style="margin-top:18px">🔌 <strong>Google Ads não conectado.</strong> Configure as credenciais no Vercel para fechar a atribuição do canal Google (ROAS Google). Falta: <code style="font-size:11px">${escapeHtml(miss || 'credenciais')}</code>.</div>`;
+  }
+  if (gg.ok === false) {
+    return `<div class="alert alert-warn mt-4" style="margin-top:18px">⚠️ Google Ads: ${escapeHtml(gg.error || 'erro')}</div>`;
+  }
+  // ROAS Google = VGV ganho via canal google (RD) ÷ gasto Google
+  const gch = ((attr && attr.by_channel) || []).find(c => c.channel === 'google');
+  const gVgv = gch ? gch.vgv : 0;
+  const roas = (gg.spend > 0 && gVgv > 0) ? gVgv / gg.spend : 0;
+  const top = (gg.campaigns || []).slice(0, 6);
+  return `<div class="mt-4" style="margin-top:18px">
+    <h3 class="card-title">🔎 Google Ads</h3>
+    <div class="flex gap-3 mt-2" style="flex-wrap:wrap">
+      ${miniKpi('Investido Google', 'R$ ' + money(gg.spend), '#dc2626')}
+      ${miniKpi('Cliques', fmtNum(gg.clicks), '#2563eb')}
+      ${miniKpi('Conversões (Google)', fmtNum(gg.conversions), '#0891b2')}
+      ${miniKpi('VGV via Google (RD)', gVgv ? 'R$ ' + moneyShort(gVgv) : '—', '#7c3aed')}
+      ${miniKpi('ROAS Google', roas ? roas.toFixed(1) + 'x' : '—', '#16a34a', 'VGV Google ÷ gasto')}
+    </div>
+    ${top.length ? `<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:480px;margin-top:10px">
+      <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">
+        <th style="text-align:left;padding:6px 10px">Campanha</th><th style="text-align:right;padding:6px 8px">Gasto</th>
+        <th style="text-align:right;padding:6px 8px">Cliques</th><th style="text-align:right;padding:6px 8px">Conv.</th>
+      </tr></thead><tbody>
+      ${top.map(c => `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px 10px;font-weight:600">${escapeHtml(c.name)}</td>
+        <td style="text-align:right;padding:6px 8px;color:#dc2626">R$ ${money(c.spend)}</td>
+        <td style="text-align:right;padding:6px 8px">${fmtNum(c.clicks)}</td>
+        <td style="text-align:right;padding:6px 8px">${fmtNum(c.conversions)}</td>
+      </tr>`).join('')}
+      </tbody></table></div>` : ''}
+  </div>`;
 }
 
 function execBrandRows(byBrand) {
@@ -253,8 +333,8 @@ function execBrandRows(byBrand) {
     const vgv = crm?.vgv || 0;
     const leads = crm?.leads_criados || 0;
     const cac = vendas ? spend / vendas : 0;
-    const vgvInf = crm?.vgv_pago > 0 ? crm.vgv_pago : vgv;
-    const roas = spend ? vgvInf / spend : 0;
+    const vgvInf = (crm?.attribution?.vgv_paid) || 0;  // honesto: só Meta/Google, sem fallback
+    const roas = (spend && vgvInf) ? vgvInf / spend : 0;
     const bi = brandInfo(k === 'conquista' ? 'conquista' : k === 'locacao' ? 'locacao' : 'imoveis');
     rows.push(`<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:6px 10px;font-weight:700;color:${bi.cor}">${escapeHtml(crm?.label || bi.brand)}</td>
@@ -393,8 +473,51 @@ function tabCriativos() {
         <span>🟢 ok · 🟠 atenção · 🔴 fraco</span>
         <span>Gancho saudável ≥ 25% · Freq fadiga > ${_th.freq.toFixed(1)} · CTR link bom ≥ 1%</span>
       </div>`}
-    <div class="alert alert-warn mt-3" style="margin-top:12px">🔌 <strong>Roadmap (breakdowns Meta):</strong> First-Time Impression Ratio (saturação real), CTR Decay (queda 3d×14d) e nota de relevância por anúncio dependem de chamadas extras à API — próximo sprint de backend.</div>
+    ${breakdownSection()}
   `;
+}
+
+/* ─── Breakdowns Meta sob demanda (Sprint 9.15) ─── */
+function breakdownSection() {
+  const sel = BREAKDOWNS.map(b => `<option value="${b.id}"${b.id === _bdSel ? ' selected' : ''}>${b.lbl}</option>`).join('');
+  let body;
+  if (_bdBusy) {
+    body = '<div class="flex items-center gap-2 muted tiny" style="padding:10px"><span class="spinner"></span> Consultando o Meta…</div>';
+  } else if (!_bd) {
+    body = '<div class="muted tiny" style="padding:10px">Escolha uma dimensão e clique em <strong>Analisar</strong> para quebrar o gasto/leads do período.</div>';
+  } else if (_bd.ok === false) {
+    body = `<div class="alert alert-warn mt-2">⚠️ ${escapeHtml(_bd.error || 'Falha ao buscar breakdown')}</div>`;
+  } else {
+    body = (_bd.accounts || []).map(acc => {
+      if (!acc.rows || !acc.rows.length) {
+        return `<div class="mt-2"><strong>${escapeHtml(acc.label)}</strong> <span class="muted tiny">— ${acc._error ? escapeHtml(acc._error) : 'sem dados'}</span></div>`;
+      }
+      return `<div class="mt-3" style="margin-top:12px"><strong>${escapeHtml(acc.label)}</strong>
+        <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:560px;margin-top:6px">
+          <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">
+            <th style="text-align:left;padding:6px 10px">Segmento</th>
+            <th style="text-align:right;padding:6px 8px">Gasto</th><th style="text-align:right;padding:6px 8px">Leads</th>
+            <th style="text-align:right;padding:6px 8px">CPL</th><th style="text-align:right;padding:6px 8px">CTR</th>
+          </tr></thead><tbody>
+          ${acc.rows.map(r => `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:6px 10px;font-weight:600">${escapeHtml(r.segment)}</td>
+            <td style="text-align:right;padding:6px 8px;color:#dc2626">R$ ${money(r.spend)}</td>
+            <td style="text-align:right;padding:6px 8px">${fmtNum(r.results)}</td>
+            <td style="text-align:right;padding:6px 8px;font-weight:700">${r.cpl ? 'R$ ' + money(r.cpl) : '—'}</td>
+            <td style="text-align:right;padding:6px 8px">${r.ctr ? r.ctr.toFixed(2) + '%' : '—'}</td>
+          </tr>`).join('')}
+        </tbody></table></div></div>`;
+    }).join('') || '<div class="muted tiny" style="padding:10px">Sem dados no período.</div>';
+  }
+  return `<div class="mt-4" style="margin-top:18px">
+    <div class="flex items-center gap-2" style="flex-wrap:wrap">
+      <h3 class="card-title" style="margin:0">🔍 Breakdowns Meta</h3>
+      <select id="bd-sel" class="select" style="padding:5px 10px;font-size:12px">${sel}</select>
+      <button class="btn btn-primary btn-sm" id="bd-go">Analisar</button>
+      ${_bd && _bd.cache && _bd.cache.hit ? '<span class="muted tiny">cache ' + (_bd.cache.age_s || 0) + 's</span>' : ''}
+    </div>
+    ${body}
+  </div>`;
 }
 function criativoRow(c) {
   const gancho = (c.thumbstop || 0) * 100;            // v3/impressões
@@ -513,6 +636,49 @@ function basisChip(b) {
 }
 function fmtDateBR(iso) { try { return new Date(iso).toLocaleDateString('pt-BR'); } catch (_) { return iso || '—'; } }
 
+/* ─── Atribuição honesta por canal (Sprint 9.14) ─── */
+// Selo de cobertura: % do VGV ganho que tem origem marcada no RD.
+function attrChip(cov) {
+  if (cov == null) return '';
+  const c = cov >= 80 ? '#15803d' : cov >= 50 ? '#b45309' : '#dc2626';
+  const bg = cov >= 80 ? '#dcfce7' : cov >= 50 ? '#fef3c7' : '#fee2e2';
+  return ` <span style="display:inline-block;padding:1px 6px;border-radius:var(--r-full);background:${bg};color:${c};font-weight:800;font-size:10px;vertical-align:middle">${cov}% c/ origem</span>`;
+}
+function attrBanner(attr) {
+  const cov = attr && attr.coverage_pct;
+  if (cov == null) return '';
+  if (cov < 60) {
+    const semOrigem = (100 - cov).toFixed(0);
+    return `<div class="alert alert-warn mt-3" style="margin-top:12px">⚠️ <strong>${semOrigem}% do VGV ganho está sem origem marcada no RD.</strong> VGV Influenciado e ROAS consideram só ganhos com origem de mídia paga (Meta/Google) — nunca o total. Marque a origem dos deals no RD pra subir a precisão.</div>`;
+  }
+  return `<div class="alert alert-ok mt-3" style="margin-top:12px">✅ ${cov}% do VGV ganho com origem marcada no RD — atribuição confiável.</div>`;
+}
+function attrChannelTable(attr) {
+  const rows = (attr && attr.by_channel) || [];
+  if (!rows.length) return '<div class="muted tiny">Sem ganhos/leads com canal no período.</div>';
+  const totalVgv = rows.reduce((s, r) => s + (r.vgv || 0), 0);
+  return `<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:560px">
+    <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">
+      <th style="text-align:left;padding:6px 10px">Canal</th>
+      <th style="text-align:right;padding:6px 8px">Leads</th><th style="text-align:right;padding:6px 8px">Vendas</th>
+      <th style="text-align:right;padding:6px 8px">VGV</th><th style="text-align:right;padding:6px 8px">% VGV</th>
+    </tr></thead><tbody>
+    ${rows.map(r => {
+      const pct = totalVgv > 0 ? (r.vgv / totalVgv * 100) : 0;
+      const isPaid = r.channel === 'meta' || r.channel === 'google';
+      const isUnatt = r.channel === 'nao_atribuido';
+      const col = isUnatt ? '#94a3b8' : isPaid ? '#7c3aed' : '#0891b2';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px 10px;font-weight:700;color:${col}">${escapeHtml(r.label)}${isPaid ? ' 💳' : ''}</td>
+        <td style="text-align:right;padding:6px 8px">${fmtNum(r.leads)}</td>
+        <td style="text-align:right;padding:6px 8px;color:#16a34a">${fmtNum(r.vendas)}</td>
+        <td style="text-align:right;padding:6px 8px;font-weight:700">R$ ${moneyShort(r.vgv)}</td>
+        <td style="text-align:right;padding:6px 8px">${pct.toFixed(0)}%</td>
+      </tr>`;
+    }).join('')}
+    </tbody></table></div>`;
+}
+
 /* ───────────────────────── ABA: SEMÁFORO (Aba 6) ───────────────────────── */
 function classifySemaforo(c) {
   const target = brandInfo(c.account).cplAlvo;
@@ -538,7 +704,7 @@ function tabSemaforo() {
       ${semaCard('🛑', 'Sangria · pausar imediatamente', '#dc2626', buckets.sangria, 'Verba virando pó: 0 resultado com gasto ou CPL muito acima do alvo.', metric, true)}
       ${semaCard('🟢', 'Manter · estável', '#64748b', buckets.manter, 'Dentro do esperado, sem ação urgente.', metric)}
     </div>
-    <div class="alert alert-warn mt-3" style="margin-top:12px">🔌 <strong>Roadmap:</strong> "Perda de IS por orçamento" exige Google Ads; "CTR Decay" e "horário fora de SLA" exigem histórico e breakdown por hora — próximos sprints.</div>
+    <div class="alert alert-warn mt-3" style="margin-top:12px">🔌 <strong>Roadmap:</strong> "Perda de IS por orçamento" exige métricas avançadas do Google Ads; "CTR Decay" exige histórico diário acumulado — próximos sprints. <span class="muted">(Breakdown por hora já disponível na aba Criativos · Google Ads conectável na aba Executiva.)</span></div>
   `;
 }
 function semaCard(icon, title, color, items, desc, fmtItem, withAction) {
@@ -627,7 +793,7 @@ function miniKpi(label, val, color, sub) {
 /* ───────────────────────── compartilhados ───────────────────────── */
 function roadmapMini() {
   return `
-    <div class="alert alert-warn mt-3" style="margin-top:14px">🔌 <strong>Ainda no roadmap:</strong> CPA por dispositivo/OS/placement e mapa de calor por hora (breakdowns Meta) · Impression Share + perdas de IS (Google Ads) · 1ª resposta exata no WhatsApp (atividades RD).</div>`;
+    <div class="alert alert-warn mt-3" style="margin-top:14px">🔌 <strong>Ainda no roadmap:</strong> Impression Share + perdas de IS (métricas avançadas Google Ads) · 1ª resposta exata no WhatsApp (atividades RD). <span class="muted">Breakdowns Meta (idade/gênero/plataforma/dispositivo/região/hora) e atribuição honesta por canal já no ar.</span></div>`;
 }
 
 function campaignRow(c) {
@@ -709,6 +875,8 @@ function wire() {
   document.getElementById('ma-status')?.addEventListener('change', e => { _statusFilter = e.target.value; render(); });
   document.getElementById('ma-sort')?.addEventListener('change', e => { _sort = e.target.value; render(); });
   document.getElementById('ma-filter')?.addEventListener('input', e => { _filter = e.target.value; render(); });
+  document.getElementById('bd-sel')?.addEventListener('change', e => { _bdSel = e.target.value; });
+  document.getElementById('bd-go')?.addEventListener('click', () => loadBreakdown(_bdSel));
 
   document.getElementById('ma-th')?.addEventListener('click', () => {
     const p = document.getElementById('ma-th-panel'); if (!p) return;

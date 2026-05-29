@@ -26,6 +26,7 @@ import json
 import os
 import sys
 import re
+import time
 import urllib.parse
 from datetime import datetime, timezone, timedelta, date
 from collections import defaultdict
@@ -87,6 +88,58 @@ BRAND_LABEL = {
 }
 
 
+# ─── Regras de marca config-driven (tabela brand_rules, Sprint 9.13) ─────────
+# Carrega as regras do Postgres (cache 5min) em vez do regex chumbado. Se a
+# tabela estiver vazia/indisponível, _classify cai no _brand() hardcoded acima —
+# nunca quebra. Gerenciável sem deploy: adicionar marca = inserir linha.
+_BRAND_CACHE = {"t": 0.0, "rules": None, "labels": None, "default": None}
+_BRAND_TTL = 300.0
+
+
+def _load_brand_rules(sb, force=False):
+    """Retorna (rules, labels, default_key). rules=None sinaliza fallback hardcoded.
+    rules = [(compiled_regex, brand_key), ...] por prioridade asc."""
+    now = time.time()
+    if (not force and _BRAND_CACHE["t"] and (now - _BRAND_CACHE["t"]) < _BRAND_TTL):
+        return _BRAND_CACHE["rules"], _BRAND_CACHE["labels"], _BRAND_CACHE["default"]
+    try:
+        rows = (sb.table("brand_rules")
+                .select("pattern,brand_key,label,priority,is_default,active")
+                .eq("active", True).order("priority", desc=False).execute().data or [])
+    except Exception:
+        rows = []
+    if not rows:
+        _BRAND_CACHE.update({"t": now, "rules": None, "labels": None, "default": None})
+        return None, None, None
+    rules, labels, default_key = [], {}, None
+    for r in rows:
+        bk = r.get("brand_key")
+        if not bk:
+            continue
+        labels.setdefault(bk, r.get("label") or bk)
+        if r.get("is_default") and not default_key:
+            default_key = bk
+        pat = r.get("pattern")
+        if pat:
+            try:
+                rules.append((re.compile(pat, re.I), bk))
+            except Exception:
+                continue  # regex inválido na config não derruba o resto
+    default_key = default_key or "imoveis"
+    _BRAND_CACHE.update({"t": now, "rules": rules, "labels": labels, "default": default_key})
+    return rules, labels, default_key
+
+
+def _classify(pipeline_name, rules, default_key):
+    if rules is None:
+        return _brand(pipeline_name)  # tabela vazia → regex hardcoded
+    s = pipeline_name or ""
+    for rx, bk in rules:
+        if rx.search(s):
+            return bk
+    return default_key or "imoveis"
+
+
 # ─── Helpers RD raw ─────────────────────────────────────────────────────────
 def _parse_dt(s):
     if not s:
@@ -135,6 +188,40 @@ def _is_paid_source(src):
     if not src:
         return False
     return bool(re.search(r"meta|facebook|instagram|fb|ig|ads|tr[áa]fego|paga|google|mídia|midia|campanha", src, re.I))
+
+
+# ─── Atribuição honesta por canal (Sprint 9.14) ─────────────────────────────
+# Classifica deal_source do RD num canal. Princípio: NUNCA inventar. Deal sem
+# origem marcada → 'nao_atribuido' (jamais contado como pago). Origem marcada
+# mas fora dos padrões → 'outro' (mostrada, não paga). Só meta+google são pagos.
+CHANNEL_LABEL = {
+    "meta":          "Meta (Facebook/Instagram)",
+    "google":        "Google Ads",
+    "portal":        "Portais (ZAP/VivaReal/OLX)",
+    "indicacao":     "Indicação",
+    "organico":      "Orgânico / Site",
+    "direto":        "Direto / Telefone",
+    "outro":         "Outro (origem marcada)",
+    "nao_atribuido": "Não atribuído (sem origem no RD)",
+}
+PAID_CHANNELS = ("meta", "google")
+_CH_PATTERNS = [
+    ("meta",      re.compile(r"facebook|instagram|\bfb\b|\big\b|\bmeta\b|lead ?ads|fanpage", re.I)),
+    ("google",    re.compile(r"google|adwords|youtube|\bgads\b|rede de pesquisa|\bsearch\b|display", re.I)),
+    ("portal",    re.compile(r"zap|viva ?real|\bolx\b|imovelweb|im[óo]vel ?web|chaves ?na ?m[ãa]o|quintoandar|\bloft\b|portal", re.I)),
+    ("indicacao", re.compile(r"indica|referr|amig|parceir|cliente antig", re.I)),
+    ("organico",  re.compile(r"org[âa]nic|\bsite\b|google meu neg|\bgmn\b|\bmaps\b|whats", re.I)),
+    ("direto",    re.compile(r"direto|telefone|balc[ãa]o|passante|walk|placa|fachada", re.I)),
+]
+
+
+def _channel(src):
+    if not src:
+        return "nao_atribuido"
+    for key, rx in _CH_PATTERNS:
+        if rx.search(src):
+            return key
+    return "outro"
 
 
 # ─── Paginação Supabase ─────────────────────────────────────────────────────
@@ -283,6 +370,7 @@ def _blank_brand():
         "ciclo_dias": [], "sla_horas": [], "ticket_vals": [],
         "vgv_pago": 0.0, "vendas_pago": 0,
         "trash": 0,
+        "channels": defaultdict(lambda: {"leads": 0, "vendas": 0, "vgv": 0.0, "perdas": 0}),
         "motivos": defaultdict(int),
         "origens": defaultdict(int),
         "owners": defaultdict(lambda: {"vendas": 0, "vgv": 0.0, "perdas": 0, "ciclo": [], "nome": None}),
@@ -322,6 +410,12 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
+
+        # Regras de marca config-driven (Sprint 9.13). brand_rules=None → fallback.
+        brand_rules, brand_labels, brand_default = _load_brand_rules(sb)
+        brand_mapping = "config" if brand_rules is not None else "default"
+        if brand_labels is None:
+            brand_labels = BRAND_LABEL
 
         try:
             params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
@@ -373,13 +467,14 @@ class handler(BaseHTTPRequestHandler):
 
         for d in deals:
             raw = d.get("rd_raw") or {}
-            brand = _brand(d.get("pipeline_name"))
+            brand = _classify(d.get("pipeline_name"), brand_rules, brand_default)
             B = brands[brand]
             win = d.get("win")
             amt = _amount(d)
             created = _parse_dt(d.get("created_at_rd")) or _parse_dt(raw.get("created_at"))
             closed = _parse_dt(d.get("closed_at")) or _parse_dt(raw.get("closed_at"))
             src = _source(raw)
+            ch = _channel(src)
             owner_email = (d.get("user_email") or "").lower()
             owner_name = name_by_email.get(owner_email) or (raw.get("user") or {}).get("name") or owner_email or "—"
 
@@ -395,7 +490,9 @@ class handler(BaseHTTPRequestHandler):
                     B["ciclo_dias"].append((closed - created).total_seconds() / 86400.0)
                 if src:
                     B["origens"][src] += 1
-                if _is_paid_source(src):
+                B["channels"][ch]["vendas"] += 1
+                B["channels"][ch]["vgv"] += amt
+                if ch in PAID_CHANNELS:  # honesto: só meta+google contam como pago
                     B["vendas_pago"] += 1
                     B["vgv_pago"] += amt
                 ow = B["owners"][owner_email]
@@ -406,6 +503,7 @@ class handler(BaseHTTPRequestHandler):
                     ow["ciclo"].append((closed - created).total_seconds() / 86400.0)
             elif in_close_win and win is False:
                 B["perdas"] += 1
+                B["channels"][ch]["perdas"] += 1
                 mr = _lost_reason(raw) or "Não informado"
                 B["motivos"][mr] += 1
                 if TRASH_RE.search(mr):
@@ -416,6 +514,7 @@ class handler(BaseHTTPRequestHandler):
             # ── Coorte de leads criados na janela (contact/visita/SLA/origem) ──
             if in_create_win:
                 B["leads_criados"] += 1
+                B["channels"][ch]["leads"] += 1
                 _did = str(d.get("id") or "")
                 _pid = str((((raw or {}).get("deal_pipeline") or {}).get("id")) or "")
                 if _did:
@@ -470,9 +569,31 @@ class handler(BaseHTTPRequestHandler):
             sla_val = real["sla_horas"] if use_real else sla_proxy
             contact_val = real["contact_rate"] if use_real else contact_proxy
             visita_val = real["visita_rate"] if use_real else visita_proxy
+            # ── Atribuição honesta por canal (Sprint 9.14) ──
+            ch_rows = sorted(
+                [{"channel": ck, "label": CHANNEL_LABEL.get(ck, ck),
+                  "leads": cv["leads"], "vendas": cv["vendas"],
+                  "vgv": round(cv["vgv"], 2), "perdas": cv["perdas"]}
+                 for ck, cv in B["channels"].items()
+                 if (cv["leads"] or cv["vendas"] or cv["perdas"])],
+                key=lambda x: -x["vgv"]
+            )
+            vgv_total = B["vgv"]
+            vgv_unassigned = B["channels"].get("nao_atribuido", {}).get("vgv", 0.0)
+            vgv_attributed = vgv_total - vgv_unassigned
+            attribution = {
+                "by_channel": ch_rows,
+                "vgv_total": round(vgv_total, 2),
+                "vgv_attributed": round(vgv_attributed, 2),
+                "vgv_unassigned": round(vgv_unassigned, 2),
+                # cobertura = % do VGV ganho que tem origem marcada no RD
+                "coverage_pct": round(vgv_attributed / vgv_total * 100, 1) if vgv_total else None,
+                "vgv_paid": round(B["vgv_pago"], 2),      # só meta+google
+                "vendas_paid": B["vendas_pago"],
+            }
             return {
                 "brand": key,
-                "label": BRAND_LABEL.get(key, key),
+                "label": brand_labels.get(key, BRAND_LABEL.get(key, key)),
                 "vendas": vendas,
                 "vgv": round(B["vgv"], 2),
                 "perdas": perdas,
@@ -491,6 +612,7 @@ class handler(BaseHTTPRequestHandler):
                 "vendas_pago": B["vendas_pago"],
                 "motivos_perda": motivos[:8],
                 "origens": origens,
+                "attribution": attribution,
                 "ranking": owners[:15],
             }
 
@@ -543,6 +665,33 @@ class handler(BaseHTTPRequestHandler):
             key=lambda x: (-x["vgv"], -x["vendas"])
         )[:15]
 
+        # ── Atribuição global por canal (consolida marcas de venda) ──
+        gch = defaultdict(lambda: {"leads": 0, "vendas": 0, "vgv": 0.0, "perdas": 0})
+        for k in venda_keys:
+            for row in per_brand[k]["attribution"]["by_channel"]:
+                c = gch[row["channel"]]
+                c["leads"] += row["leads"]
+                c["vendas"] += row["vendas"]
+                c["vgv"] += row["vgv"]
+                c["perdas"] += row["perdas"]
+        g_ch_rows = sorted(
+            [{"channel": ck, "label": CHANNEL_LABEL.get(ck, ck), "leads": cv["leads"],
+              "vendas": cv["vendas"], "vgv": round(cv["vgv"], 2), "perdas": cv["perdas"]}
+             for ck, cv in gch.items() if (cv["leads"] or cv["vendas"] or cv["perdas"])],
+            key=lambda x: -x["vgv"]
+        )
+        g_vgv_unassigned = gch.get("nao_atribuido", {}).get("vgv", 0.0)
+        g_vgv_attr = g["vgv"] - g_vgv_unassigned
+        g["attribution"] = {
+            "by_channel": g_ch_rows,
+            "vgv_total": g["vgv"],
+            "vgv_attributed": round(g_vgv_attr, 2),
+            "vgv_unassigned": round(g_vgv_unassigned, 2),
+            "coverage_pct": round(g_vgv_attr / g["vgv"] * 100, 1) if g["vgv"] else None,
+            "vgv_paid": g["vgv_pago"],
+            "vendas_paid": g["vendas_pago"],
+        }
+
         return self._send(200, {
             "ok": True,
             "period": {"since": since_d.isoformat(), "until": until_d.isoformat(),
@@ -551,6 +700,7 @@ class handler(BaseHTTPRequestHandler):
             "truncated": truncated,
             "global": g,
             "brands": per_brand,
+            "brand_mapping": brand_mapping,
             "metrics_basis": metrics_basis,
             "capture_since": cap_since.isoformat() if cap_since else None,
             "v3_user_lvl": user.get("lvl"),

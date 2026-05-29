@@ -1,7 +1,7 @@
 {
-  "version": "76.8.0",
-  "meta": "2026.05.29-v76.8-event-capture",
-  "built": "2026-05-29T02:30:00Z",
-  "sw": "v76.8.0-2026-05-29-EVENT-CAPTURE",
-  "sprint": "v76.8 Sprint 9.11 — Métricas REAIS de SLA/1º contato/visita via event sourcing. Nova tabela deal_stage_events captura cada transição de etapa do RD: webhook (instantâneo) + sync/sync_cron (rede de segurança 3×/dia) + events_backfill (seed idempotente). Helper _events_lib.py idempotente (occurred_at = RD updated_at). crm_metrics passa a calcular SLA/Contact Rate/Show-up REAIS dos eventos quando a janela cai na era de captura, com flag basis ('real' × 'estimativa') por métrica — o frontend mostra selo ✓ real ou ≈ estimativa, sem fingir verdade (RD v1 não guarda histórico → passado é estimativa rotulada). Fim do corte silencioso de 12k: teto 30k + flag truncated. Caminho B (Paulo dá push). Requer: rodar supabase/sprint9_10_deal_stage_events.sql + (opcional) webhook RD em todas as etapas + GET /api/v3/crm/events_backfill uma vez."
+  "version": "76.9.0",
+  "meta": "2026.05.29-v76.9-escala-atribuicao",
+  "built": "2026-05-29T04:30:00Z",
+  "sw": "v76.9.0-2026-05-29-ESCALA-ATRIBUICAO",
+  "sprint": "v76.9 Sprints 9.12–9.15 — Profissionalização do cockpit Meta Ads p/ vários logins. (9.12) Cache COMPARTILHADO de Meta no Postgres (tabela meta_ads_cache) pré-aquecido por cron a cada 10min — fim do cache em-memória-por-Lambda que re-batia na Graph API a cada login; summary.py lê do cache compartilhado com fallback live + write-through + degradação graciosa (serve cache vencido se a API cair). (9.13) Mapeamento de marcas config-driven (tabela brand_rules) substitui o regex chumbado — adicionar/ajustar marca = inserir linha, sem deploy; fallback hardcoded se vazia. (9.14) Atribuição HONESTA por canal: deal_source do RD → meta/google/portal/indicação/orgânico/direto/outro/não-atribuído. VGV Influenciado e ROAS usam SÓ ganhos com origem de mídia paga marcada — eliminado o fallback que fingia que todo VGV veio de ads. Selo de cobertura (% dos ganhos com origem) + tabela por canal + banner de alerta quando cobertura baixa. (9.15) Breakdowns Meta (idade/gênero/plataforma/dispositivo/região/hora) via endpoint Python dedicado + UI sob demanda na aba Criativos; conector Google Ads real (OAuth refresh + GAQL REST v17) GATED por env — inerte e honesto até configurar credenciais, nunca stub falso. Caminho B (Paulo dá push). Requer: rodar supabase/sprint9_12_meta_ads_cache.sql + sprint9_13_brand_rules.sql. Opcional: env GOOGLE_ADS_* p/ ativar Google Ads."
 }

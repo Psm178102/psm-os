@@ -1,9 +1,14 @@
 """
-GET /api/v3/marketing/summary[?date_preset=last_30d|since=YYYY-MM-DD&until=YYYY-MM-DD]
+GET /api/v3/marketing/summary[?date_preset=last_30d|since=YYYY-MM-DD&until=YYYY-MM-DD][&nocache=1]
 Header: Authorization: Bearer <token>
 
 Wrapper autenticado pro /api/meta-ads (já em prod). Requer Líder (lvl>=5).
-Cache do meta-ads (5min) já cuida do rate-limit.
+
+Escala p/ vários logins (Sprint 9.12): lê primeiro do cache COMPARTILHADO no
+Postgres (meta_ads_cache, pré-aquecido pelo meta_cache_cron a cada ~10min), que
+é o mesmo pra todas as instâncias/usuários. Só cai pro fetch live se o cache
+estiver velho/ausente — e nesse caso faz write-through pra aquecer pros próximos.
+?nocache=1 força ignorar o cache (e re-aquece).
 """
 from http.server import BaseHTTPRequestHandler
 import json
@@ -14,7 +19,12 @@ import urllib.request
 import urllib.error
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import require_user, AuthError  # type: ignore
+from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
+from _meta_cache_lib import build_cache_key, read_cache, write_cache, fetch_live  # type: ignore
+
+# Quão velho o cache pode estar e ainda ser servido. O cron aquece a cada ~10min;
+# 15min dá folga pra um cron atrasado sem servir dado obsoleto.
+CACHE_MAX_AGE_S = 15 * 60
 
 
 class handler(BaseHTTPRequestHandler):
@@ -46,34 +56,43 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             params = {}
 
-        # Build URL pro /api/meta-ads (rota interna do Vercel)
-        # Vercel deploys têm o host como ${VERCEL_URL} ou usa headers
         host = self.headers.get("Host") or "www.housepsm.com.br"
-        scheme = "https"
-        qs_parts = []
-        if params.get("date_preset"):
-            qs_parts.append("date_preset=" + urllib.parse.quote(params["date_preset"]))
-        if params.get("since") and params.get("until"):
-            qs_parts.append("since=" + urllib.parse.quote(params["since"]))
-            qs_parts.append("until=" + urllib.parse.quote(params["until"]))
-        if params.get("nocache"):
-            qs_parts.append("nocache=1")
-        qs = "&".join(qs_parts) if qs_parts else "date_preset=last_30d"
-        meta_url = f"{scheme}://{host}/api/meta-ads?{qs}"
+        preset = params.get("date_preset") or ("" if (params.get("since") and params.get("until")) else "last_30d")
+        since = params.get("since") or ""
+        until = params.get("until") or ""
+        nocache = bool(params.get("nocache"))
+        key = build_cache_key(preset, since, until)
 
-        try:
-            req = urllib.request.Request(meta_url, headers={
-                "Accept": "application/json",
-                "User-Agent": "PSM-OS-v3/marketing",
-            })
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            return self._send(502, {"ok": False, "error": f"Meta API HTTP {e.code}"})
-        except Exception as e:
-            return self._send(502, {"ok": False, "error": f"meta-ads err: {e}"})
+        sb = supabase_client()
 
-        # Adiciona scope info pra UI
+        # 1) Cache compartilhado (Postgres) — rápido e igual pra todos os logins.
+        if sb and not nocache:
+            payload, age_s, csource = read_cache(sb, key, CACHE_MAX_AGE_S)
+            if payload:
+                payload["v3_scope"] = "team" if (user.get("lvl") or 0) >= 5 else "self"
+                payload["v3_user_lvl"] = user.get("lvl")
+                payload["cache"] = {"hit": True, "age_s": age_s, "source": csource, "shared": True}
+                return self._send(200, payload)
+
+        # 2) Miss/velho → busca live no /api/meta-ads e faz write-through.
+        data, err = fetch_live(host, preset, since, until, nocache=nocache)
+        if err or not isinstance(data, dict):
+            # Último recurso: serve cache vencido se existir (degradação graciosa).
+            if sb:
+                stale, age_s, csource = read_cache(sb, key, 10 ** 9)
+                if stale:
+                    stale["v3_scope"] = "team" if (user.get("lvl") or 0) >= 5 else "self"
+                    stale["v3_user_lvl"] = user.get("lvl")
+                    stale["cache"] = {"hit": True, "age_s": age_s, "source": csource,
+                                      "shared": True, "stale": True}
+                    return self._send(200, stale)
+            return self._send(502, {"ok": False, "error": err or "meta-ads payload inválido"})
+
+        # Só aquece o cache com resposta inteira (sem conta quebrada).
+        if sb and not data.get("errors"):
+            write_cache(sb, key, preset, since, until, data, source="live")
+
         data["v3_scope"] = "team" if (user.get("lvl") or 0) >= 5 else "self"
         data["v3_user_lvl"] = user.get("lvl")
+        data["cache"] = {"hit": False, "source": "live"}
         return self._send(200, data)
