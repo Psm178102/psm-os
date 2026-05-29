@@ -5,6 +5,7 @@ import { auth } from '../auth.js';
 
 let _root = null;
 let _items = [];
+let _users = [];
 let _editing = null;
 let _dragId = null;
 let _search = '';
@@ -82,8 +83,12 @@ export async function pageCaptacoes(ctx, root) {
 
 async function load() {
   try {
-    const r = await api.request('/api/v3/captacoes/kanban');
+    const [r, u] = await Promise.all([
+      api.request('/api/v3/captacoes/kanban'),
+      _users.length ? Promise.resolve({ users: _users }) : api.request('/api/v3/users/list').catch(() => ({ users: [] })),
+    ]);
     _items = r.captacoes || [];
+    if (u.users) _users = u.users.filter(x => (x.status || 'ativo') === 'ativo').sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     renderBoard();
   } catch (e) {
     const b = document.getElementById('cap-board');
@@ -222,22 +227,27 @@ function card(c) {
   if (c.precisa_fotos) precisa.push('📷');
   if (c.precisa_videos) precisa.push('🎥');
   if (c.precisa_avaliacao) precisa.push('💰');
-  const valor = obj ? (c.valor_locacao || '') : fmtBRL(c.valor_venda);
+  const valor = obj ? (c.valor_locacao ? fmtBRL(c.valor_locacao) : '') : fmtBRL(c.valor_venda);
+  const nome = c.nome_imovel || c.condominio || c.tipo_imovel || c.localizacao || c.proprietario || 'Sem nome';
+  const links = [];
+  if (c.link_fotos) links.push(`<a href="${esc(c.link_fotos)}" target="_blank" rel="noopener" title="Fotos captadas" data-stop="1" style="text-decoration:none">📷</a>`);
+  if (c.link_videos) links.push(`<a href="${esc(c.link_videos)}" target="_blank" rel="noopener" title="Vídeos captados" data-stop="1" style="text-decoration:none">🎥</a>`);
   return `
     <div class="cap-card" draggable="true" data-card="${esc(c.id)}">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:6px">
-        <div style="font-weight:800;font-size:13.5px;line-height:1.25">${esc(c.condominio || c.proprietario || 'Sem nome')}</div>
-        ${precisa.length ? `<span style="font-size:12px;white-space:nowrap">${precisa.join('')}</span>` : ''}
+        <div style="font-weight:800;font-size:13.5px;line-height:1.25">${esc(nome)} <span class="tiny" style="font-weight:700;color:${obj ? '#a16207' : '#16a34a'}">· ${obj ? 'Locação' : 'Venda'}</span></div>
+        <span class="tiny" style="white-space:nowrap;font-weight:700;color:${c.codigo_kenlo ? '#8b5cf6' : '#cbd5e1'}" title="Código Kenlo">🏷 ${c.codigo_kenlo ? esc(c.codigo_kenlo) : '—'}</span>
       </div>
       ${c.tipo_imovel || c.localizacao ? `<div class="tiny muted" style="margin-top:2px">${esc(c.tipo_imovel || '')}${c.localizacao ? ' · ' + esc(c.localizacao) : ''}</div>` : ''}
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:7px">
-        <span class="cap-chip" style="background:${obj ? '#a1620722' : '#16a34a22'};color:${obj ? '#a16207' : '#16a34a'}">${obj ? 'Locação' : 'Venda'}</span>
         ${sit ? `<span class="cap-chip" style="background:${sit.cor}1f;color:${sit.cor}">${sit.lbl}</span>` : ''}
         ${valor ? `<span class="cap-chip" style="background:rgba(148,163,184,.18);color:var(--ink,#0f172a)">${esc(valor)}</span>` : ''}
+        ${precisa.length ? `<span class="cap-chip" style="background:rgba(148,163,184,.14)">${precisa.join('')}</span>` : ''}
       </div>
       ${pend && c.pendencia !== 'atualizado' ? `<div class="tiny" style="margin-top:6px;color:${pend.cor};font-weight:600">⚠ ${pend.lbl}</div>` : ''}
       ${termo ? `<div class="tiny" style="margin-top:4px;color:${termo.cor}">📋 ${termo.lbl}</div>` : ''}
-      ${c.proprietario && c.condominio ? `<div class="tiny muted" style="margin-top:6px">👤 ${esc(c.proprietario)}${c.contato ? ' · ' + esc(c.contato) : ''}</div>` : (c.contato ? `<div class="tiny muted" style="margin-top:6px">📞 ${esc(c.contato)}</div>` : '')}
+      ${c.proprietario ? `<div class="tiny muted" style="margin-top:6px">👤 ${esc(c.proprietario)}${c.contato ? ' · ' + esc(c.contato) : ''}</div>` : (c.contato ? `<div class="tiny muted" style="margin-top:6px">📞 ${esc(c.contato)}</div>` : '')}
+      ${links.length ? `<div class="flex gap-2" style="margin-top:6px;font-size:15px">${links.join('')}</div>` : ''}
       ${c.responsavel ? `<div class="flex" style="align-items:center;gap:6px;margin-top:8px">
         <span style="width:20px;height:20px;border-radius:50%;background:${colorFor(c.responsavel)};color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center">${esc(initials(c.responsavel))}</span>
         <span class="tiny muted">${esc(c.responsavel)}</span>
@@ -247,7 +257,7 @@ function card(c) {
 
 function bindBoard() {
   document.querySelectorAll('.cap-card').forEach(el => {
-    el.addEventListener('click', () => { _editing = _items.find(x => x.id === el.dataset.card); openForm(); });
+    el.addEventListener('click', (e) => { if (e.target.closest('[data-stop]')) return; _editing = _items.find(x => x.id === el.dataset.card); openForm(); });
     el.addEventListener('dragstart', e => { _dragId = el.dataset.card; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
     el.addEventListener('dragend', () => { _dragId = null; el.classList.remove('dragging'); document.querySelectorAll('.cap-col.drop').forEach(c => c.classList.remove('drop')); });
   });
@@ -285,12 +295,13 @@ function openForm() {
         <button class="btn btn-ghost btn-sm" id="cf-x">✕</button>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
-        ${sel('cf-status', 'Status', ALL_STATUS.map(s => [s.id, s.lbl]), c.status)}
+        ${inp('cf-nome', 'Nome do imóvel', c.nome_imovel, 'Ex.: Residencial X / Apto 1203')}
         ${sel('cf-obj', 'Objetivo', [['venda', 'Venda'], ['locacao', 'Locação']], c.objetivo)}
+        ${sel('cf-status', 'Status', ALL_STATUS.map(s => [s.id, s.lbl]), c.status)}
         ${sel('cf-tipo', 'Tipo de imóvel', [['', '—'], ...TIPOS.map(t => [t, t])], c.tipo_imovel)}
         ${inp('cf-cond', 'Condomínio / Bairro', c.condominio)}
         ${inp('cf-loc', 'Quadra/Lote/APT/Rua nº', c.localizacao)}
-        ${inp('cf-resp', 'Responsável', c.responsavel, 'Gui, Mariane, Paulo, Isabella, Leire')}
+        ${respSelect(c)}
         ${sel('cf-sit', 'Situação do imóvel', [['', '—'], ...SITUACOES.map(s => [s.id, s.lbl])], c.situacao_imovel)}
         ${sel('cf-pend', 'Pendência', [['', '—'], ...PENDENCIAS.map(p => [p.id, p.lbl])], c.pendencia)}
         ${sel('cf-termo', 'Termo Autorização', [['', '—'], ...TERMOS.map(t => [t.id, t.lbl])], c.termo_autorizacao)}
@@ -298,9 +309,21 @@ function openForm() {
         ${inp('cf-ctt', 'Contato', c.contato)}
         ${inp('cf-email', 'Email', c.email)}
         ${inp('cf-vv', 'Valor de venda (R$)', c.valor_venda, '', 'number')}
-        ${inp('cf-vl', 'Valor locação / COND / IPTU', c.valor_locacao)}
         ${inp('cf-kenlo', 'Código Kenlo', c.codigo_kenlo)}
         ${inp('cf-agend', 'Data agendamento', c.data_agendamento, '', 'date')}
+
+        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#a16207">🏠 Locação</b></div>
+        ${inp('cf-vl', 'Valor locação (R$)', c.valor_locacao, '', 'number')}
+        ${inp('cf-vcond', 'Valor condomínio (R$)', c.valor_condominio, '', 'number')}
+        ${inp('cf-viptu', 'Valor IPTU (R$)', c.valor_iptu, '', 'number')}
+        <div class="flex gap-2" style="align-items:flex-end">
+          <div style="flex:1">${inp('cf-taxa', 'Taxa adm', c.taxa_adm_valor, '', 'number')}</div>
+          <div style="width:90px">${sel('cf-taxatipo', 'em', [['pct', '%'], ['valor', 'R$']], c.taxa_adm_tipo || 'pct')}</div>
+        </div>
+
+        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#3b82f6">📎 Mídia captada</b></div>
+        ${inp('cf-lfotos', 'Link das fotos', c.link_fotos, 'Drive / URL')}
+        ${inp('cf-lvideos', 'Link dos vídeos', c.link_videos, 'Drive / URL')}
       </div>
       <div class="flex gap-3 mt-2" style="flex-wrap:wrap">
         <label class="tiny flex gap-1" style="align-items:center"><input type="checkbox" id="cf-fotos" ${c.precisa_fotos ? 'checked' : ''}> 📷 Precisa Fotos</label>
@@ -330,22 +353,33 @@ function openForm() {
 
 async function saveForm(overlay) {
   const g = id => overlay.querySelector('#' + id);
+  const num = id => { const v = parseFloat(g(id).value); return isNaN(v) ? null : v; };
+  const respEl = g('cf-resp');
+  const respOpt = respEl ? respEl.options[respEl.selectedIndex] : null;
   const payload = {
     id: _editing?.id,
     status: g('cf-status').value,
     objetivo: g('cf-obj').value,
+    nome_imovel: g('cf-nome').value.trim(),
     tipo_imovel: g('cf-tipo').value,
     condominio: g('cf-cond').value.trim(),
     localizacao: g('cf-loc').value.trim(),
-    responsavel: g('cf-resp').value.trim(),
+    responsavel_id: respEl ? respEl.value : null,
+    responsavel: respOpt ? (respOpt.dataset.name || respOpt.textContent || '').trim() : '',
     situacao_imovel: g('cf-sit').value,
     pendencia: g('cf-pend').value,
     termo_autorizacao: g('cf-termo').value,
     proprietario: g('cf-prop').value.trim(),
     contato: g('cf-ctt').value.trim(),
     email: g('cf-email').value.trim(),
-    valor_venda: parseFloat(g('cf-vv').value) || null,
+    valor_venda: num('cf-vv'),
     valor_locacao: g('cf-vl').value.trim(),
+    valor_condominio: num('cf-vcond'),
+    valor_iptu: num('cf-viptu'),
+    taxa_adm_valor: num('cf-taxa'),
+    taxa_adm_tipo: g('cf-taxatipo').value,
+    link_fotos: g('cf-lfotos').value.trim(),
+    link_videos: g('cf-lvideos').value.trim(),
     codigo_kenlo: g('cf-kenlo').value.trim(),
     data_agendamento: g('cf-agend').value || null,
     precisa_fotos: g('cf-fotos').checked,
@@ -354,8 +388,8 @@ async function saveForm(overlay) {
     descricao: g('cf-desc').value.trim(),
     observacao: g('cf-obs').value.trim(),
   };
-  if (!payload.condominio && !payload.proprietario) {
-    g('cf-msg').innerHTML = '<div class="alert alert-err">Informe ao menos Condomínio/Bairro ou Proprietário</div>';
+  if (!payload.nome_imovel && !payload.condominio && !payload.proprietario) {
+    g('cf-msg').innerHTML = '<div class="alert alert-err">Informe ao menos Nome do imóvel, Condomínio/Bairro ou Proprietário</div>';
     return;
   }
   g('cf-msg').innerHTML = '<div class="muted tiny"><span class="spinner"></span> Salvando…</div>';
@@ -373,6 +407,22 @@ function inp(id, label, val, ph, type) {
 }
 function sel(id, label, opts, cur) {
   return `<div><label class="tiny muted">${label}</label><select id="${id}" class="select">${opts.map(([v, l]) => `<option value="${esc(v)}" ${cur === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`;
+}
+function respSelect(c) {
+  const curId = c.responsavel_id || '';
+  const curName = (c.responsavel || '').trim();
+  const matchName = u => curName && (u.name || '').toLowerCase().startsWith(curName.toLowerCase());
+  const inList = _users.some(u => u.id === curId || matchName(u));
+  const opts = ['<option value="">— Selecione —</option>']
+    .concat(_users.map(u => {
+      const isSel = (curId && u.id === curId) || (!curId && matchName(u));
+      return `<option value="${esc(u.id)}" data-name="${esc(u.name || u.email || '')}"${isSel ? ' selected' : ''}>${esc(u.name || u.email || u.id)}</option>`;
+    }));
+  if (curName && !inList) {
+    // responsável legado (texto) que não bate com nenhum user — mantém selecionável
+    opts.push(`<option value="" data-name="${esc(curName)}" selected>${esc(curName)} (texto)</option>`);
+  }
+  return `<div><label class="tiny muted">Responsável</label><select id="cf-resp" class="select">${opts.join('')}</select></div>`;
 }
 function kpi(label, value, color) {
   return `<div class="cap-kpi" style="border-top:3px solid ${color}"><div class="tiny muted">${label}</div><div style="font-size:19px;font-weight:800;color:${color};line-height:1.3">${value}</div></div>`;

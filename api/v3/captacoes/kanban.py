@@ -90,7 +90,7 @@ class handler(BaseHTTPRequestHandler):
             desc = f"{cur.get('condominio') or 'Imóvel'} — {cur.get('proprietario') or ''}"
             # SEMPRE notifica o responsável (todos os canais) em qualquer movimentação
             try:
-                resp_id = _find_user_id(sb, cur.get("responsavel"))
+                resp_id = cur.get("responsavel_id") or _find_user_id(sb, cur.get("responsavel"))
                 if resp_id and resp_id != actor.get("id"):
                     notify_all([resp_id], "captacao", f"🔄 Captação movida → {status.replace('_', ' ')}",
                                desc, link="#/captacoes", target_type="captacoes", target_id=cid)
@@ -111,10 +111,12 @@ class handler(BaseHTTPRequestHandler):
         row = {
             "id": cid,
             "objetivo": body.get("objetivo") or "venda",
+            "nome_imovel": (body.get("nome_imovel") or "").strip() or None,
             "tipo_imovel": (body.get("tipo_imovel") or "").strip() or None,
             "condominio": (body.get("condominio") or "").strip() or None,
             "localizacao": (body.get("localizacao") or "").strip() or None,
             "responsavel": (body.get("responsavel") or "").strip() or None,
+            "responsavel_id": (body.get("responsavel_id") or "").strip() or None,
             "status": body.get("status") or "colher_dados",
             "situacao_imovel": (body.get("situacao_imovel") or "").strip() or None,
             "pendencia": (body.get("pendencia") or "").strip() or None,
@@ -123,7 +125,13 @@ class handler(BaseHTTPRequestHandler):
             "contato": (body.get("contato") or "").strip() or None,
             "email": (body.get("email") or "").strip() or None,
             "valor_venda": body.get("valor_venda"),
-            "valor_locacao": (body.get("valor_locacao") or "").strip() or None,
+            "valor_locacao": (str(body.get("valor_locacao")).strip() if body.get("valor_locacao") not in (None, "") else None),
+            "valor_condominio": body.get("valor_condominio"),
+            "valor_iptu": body.get("valor_iptu"),
+            "taxa_adm_tipo": (body.get("taxa_adm_tipo") or "").strip() or None,
+            "taxa_adm_valor": body.get("taxa_adm_valor"),
+            "link_fotos": (body.get("link_fotos") or "").strip() or None,
+            "link_videos": (body.get("link_videos") or "").strip() or None,
             "codigo_kenlo": (body.get("codigo_kenlo") or "").strip() or None,
             "descricao": (body.get("descricao") or "").strip() or None,
             "observacao": (body.get("observacao") or "").strip() or None,
@@ -149,7 +157,7 @@ class handler(BaseHTTPRequestHandler):
         # Notificações
         try:
             # Responsável: notificado em TODOS os canais a cada cadastro/edição
-            resp_id = _find_user_id(sb, row.get("responsavel"))
+            resp_id = row.get("responsavel_id") or _find_user_id(sb, row.get("responsavel"))
             if resp_id and resp_id != actor.get("id"):
                 titulo = "🎯 Captação atribuída a você" if is_new else "✏️ Captação atualizada"
                 notify_all([resp_id], "captacao", titulo,
