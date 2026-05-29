@@ -20,7 +20,7 @@ import urllib.error
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
-from _meta_cache_lib import build_cache_key, read_cache, write_cache, fetch_live  # type: ignore
+from _meta_cache_lib import build_cache_key, read_cache, write_cache, fetch_live, is_cacheable  # type: ignore
 
 # Quão velho o cache pode estar e ainda ser servido. O cron aquece a cada ~10min;
 # 15min dá folga pra um cron atrasado sem servir dado obsoleto.
@@ -88,8 +88,9 @@ class handler(BaseHTTPRequestHandler):
                     return self._send(200, stale)
             return self._send(502, {"ok": False, "error": err or "meta-ads payload inválido"})
 
-        # Só aquece o cache com resposta inteira (sem conta quebrada).
-        if sb and not data.get("errors"):
+        # Aquece o cache se pelo menos uma conta funcionou (parcial é útil e
+        # compartilhado; só não cacheia se todas falharam).
+        if sb and is_cacheable(data):
             write_cache(sb, key, preset, since, until, data, source="live")
 
         data["v3_scope"] = "team" if (user.get("lvl") or 0) >= 5 else "self"

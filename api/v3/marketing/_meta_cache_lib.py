@@ -34,6 +34,19 @@ def build_cache_key(preset, since, until):
     return "|".join([(preset or "").strip(), (since or "").strip(), (until or "").strip()])
 
 
+def is_cacheable(payload):
+    """Vale a pena cachear? Sim se há PELO MENOS UMA conta sem erro — assim uma
+    conta com permissão quebrada (ex.: ad account sem ads_read) não impede o
+    cache compartilhado de encher com os dados das contas que funcionam.
+    Só descarta se TODAS as contas falharam (ou não há nenhuma)."""
+    if not isinstance(payload, dict):
+        return False
+    accts = payload.get("accounts") or []
+    if not accts:
+        return False
+    return any(not a.get("_error") for a in accts)
+
+
 def _parse_iso(s):
     if not s:
         return None

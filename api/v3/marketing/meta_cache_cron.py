@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, audit  # type: ignore
 from _meta_cache_lib import (  # type: ignore
-    WARM_PRESETS, build_cache_key, fetch_live, write_cache,
+    WARM_PRESETS, build_cache_key, fetch_live, write_cache, is_cacheable,
 )
 
 
@@ -68,18 +68,23 @@ class handler(BaseHTTPRequestHandler):
                 errors.append({"preset": preset, "error": err or "payload inválido"})
                 warmed.append({"preset": preset, "ok": False})
                 continue
-            # Só cacheia respostas inteiras (sem conta quebrada), igual ao Node:
-            # evita servir estado parcial pra todo mundo.
-            if payload.get("errors"):
-                errors.append({"preset": preset, "error": "resposta parcial — não cacheada"})
-                warmed.append({"preset": preset, "ok": False, "partial": True})
+            # Cacheia se PELO MENOS UMA conta funcionou (uma conta com permissão
+            # quebrada não impede o cache de encher com as que funcionam). Só
+            # descarta se todas falharam.
+            if not is_cacheable(payload):
+                errors.append({"preset": preset, "error": "todas as contas falharam — não cacheada"})
+                warmed.append({"preset": preset, "ok": False})
                 continue
+            accts = payload.get("accounts") or []
+            ok_accts = [a for a in accts if not a.get("_error")]
             key = build_cache_key(preset, "", "")
             ok = write_cache(sb, key, preset, "", "", payload, source="cron")
             warmed.append({
                 "preset": preset,
                 "ok": ok,
-                "accounts": len(payload.get("accounts") or []),
+                "accounts": len(accts),
+                "ok_accounts": len(ok_accts),
+                "partial": bool(payload.get("errors")),
             })
 
         dur = round(time.time() - t0, 2)
