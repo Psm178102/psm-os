@@ -26,6 +26,7 @@ const PRESETS = [
 
 const TABS = [
   { id: 'executiva', lbl: '🎯 Executiva' },
+  { id: 'graficos',  lbl: '📈 Gráficos' },
   { id: 'trafego',   lbl: '📊 Tráfego' },   // unifica tráfego + criativos + semáforo
   { id: 'vendas',    lbl: '🏁 Vendas' },
   { id: 'marca',     lbl: '🏷 Por Marca' },
@@ -41,6 +42,8 @@ let _filter = '', _sort = 'spend', _statusFilter = 'todos';
 let _auto = false, _timer = null, _busy = false;
 // Sprint 9.15: breakdowns Meta (sob demanda) + Google Ads (gated por env)
 let _bd = null, _bdSel = 'age', _bdBusy = false, _google = null;
+// Gráficos (Chart.js já no cache do SW) + série diária sob demanda
+let _ts = null, _tsBusy = false, _charts = [], _chartLibP = null;
 const BREAKDOWNS = [
   { id: 'age',                'lbl': '🎂 Idade' },
   { id: 'gender',             'lbl': '⚧ Gênero' },
@@ -86,7 +89,7 @@ async function reload(silent) {
   if (!silent) _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando Meta Ads + CRM…</div></div>';
   try {
     const qp = '?date_preset=' + encodeURIComponent(_preset);
-    _bd = null;  // breakdown depende do período; invalida ao recarregar
+    _bd = null; _ts = null;  // breakdown/série dependem do período; invalida ao recarregar
     const [meta, crm, goog] = await Promise.allSettled([
       api.request('/api/v3/marketing/summary' + qp),
       api.request('/api/v3/marketing/crm_metrics' + qp),
@@ -199,6 +202,7 @@ function render() {
 }
 
 function tabBody() {
+  if (_tab === 'graficos')  return tabGraficos();
   if (_tab === 'trafego')   return tabTrafegoCompleto();
   if (_tab === 'vendas')    return tabVendas();
   if (_tab === 'marca')     return tabMarca();
@@ -343,6 +347,100 @@ function execBrandRows(byBrand) {
     </tr>`);
   });
   return rows.join('') || '<tr><td colspan="7" class="muted tiny" style="padding:14px;text-align:center">Sem cruzamento no período.</td></tr>';
+}
+
+/* ───────────────────────── ABA: GRÁFICOS (Chart.js) ───────────────────────── */
+function tabGraficos() {
+  if (!_data || !(_data.accounts || []).length) {
+    return `<div class="alert alert-warn mt-2">Sem dados do Meta no período pra plotar.</div>`;
+  }
+  const tsNote = _tsBusy
+    ? '<span class="muted tiny"><span class="spinner"></span> carregando série diária…</span>'
+    : (!_ts ? '<span class="muted tiny">série diária a caminho…</span>'
+      : (_ts.ok === false ? '<span class="tiny" style="color:#d97706">⚠️ série parcial</span>' : '<span class="muted tiny">por dia</span>'));
+  const card = (title, id, sub, h) => `<div class="card" style="margin:0">
+      <div class="flex" style="justify-content:space-between;align-items:baseline;gap:8px"><h3 class="card-title" style="font-size:14px;margin:0">${title}</h3>${sub || ''}</div>
+      <div style="position:relative;height:${h || 280}px;margin-top:8px"><canvas id="${id}"></canvas></div>
+    </div>`;
+  return `
+    <p class="card-sub">Visão gráfica Meta Ads × CRM no período. Tendências diárias, distribuição de investimento e funil de aquisição.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px">
+      <div style="grid-column:1/-1">${card('💰 Gasto por dia (R$)', 'ch-gasto', tsNote, 300)}</div>
+      <div style="grid-column:1/-1">${card('📉 CPL × Resultados por dia', 'ch-cplres', tsNote, 300)}</div>
+      ${card('🏷 Investimento por marca', 'ch-marca', '', 300)}
+      ${card('📡 Leads por canal (origem RD)', 'ch-canal', '', 300)}
+      <div style="grid-column:1/-1">${card('🏆 Top campanhas por gasto', 'ch-camp', '', 360)}</div>
+      <div style="grid-column:1/-1">${card('🔻 Funil de aquisição (escala log)', 'ch-funil', '', 300)}</div>
+    </div>`;
+}
+
+// Chart.js já está no cache do Service Worker (v2/sw.js) → carrega offline-safe.
+function loadChartLib() {
+  if (window.Chart) return Promise.resolve(window.Chart);
+  if (_chartLibP) return _chartLibP;
+  _chartLibP = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+    s.onload = () => res(window.Chart);
+    s.onerror = rej;
+    document.head.appendChild(s);
+  });
+  return _chartLibP;
+}
+
+async function loadTimeseries() {
+  if (_ts || _tsBusy) return;
+  _tsBusy = true;
+  try { _ts = await api.request('/api/v3/marketing/meta_timeseries?date_preset=' + encodeURIComponent(_preset)); }
+  catch (e) { _ts = { ok: false, series: [], error: e.message }; }
+  finally { _tsBusy = false; if (_tab === 'graficos') render(); }
+}
+
+async function buildGraficos() {
+  let Chart;
+  try { Chart = await loadChartLib(); } catch (_) { return; }
+  if (!Chart) return;
+  _charts.forEach(c => { try { c.destroy(); } catch (_) {} });
+  _charts = [];
+  const ink = (getComputedStyle(document.documentElement).getPropertyValue('--ink') || '#0f172a').trim() || '#0f172a';
+  const grid = 'rgba(148,163,184,0.18)';
+  const PAL = ['#2563eb', '#16a34a', '#dc2626', '#d4a843', '#7c3aed', '#0891b2', '#ea580c', '#db2777'];
+  const opts = (extra) => Object.assign({ responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: ink, font: { size: 11 } } } } }, extra || {});
+  const mk = (id, cfg) => { const el = document.getElementById(id); if (el) _charts.push(new Chart(el, cfg)); };
+  const accounts = (_data && _data.accounts) || [];
+  const camps = (_data && _data.campaigns) || [];
+
+  // 1+2 — série diária
+  if (_ts && _ts.series && _ts.series.length) {
+    const labels = _ts.series.map(p => (p.date || '').slice(5));
+    mk('ch-gasto', { type: 'line', data: { labels, datasets: [{ label: 'Gasto (R$)', data: _ts.series.map(p => p.spend), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] },
+      options: opts({ scales: { x: { ticks: { color: ink, maxTicksLimit: 12 }, grid: { color: grid } }, y: { ticks: { color: ink }, grid: { color: grid }, beginAtZero: true } }, plugins: { legend: { display: false } } }) });
+    mk('ch-cplres', { type: 'line', data: { labels, datasets: [
+      { label: 'CPL (R$)', data: _ts.series.map(p => p.cpl), borderColor: '#7c3aed', tension: 0.3, pointRadius: 2, yAxisID: 'y' },
+      { label: 'Resultados', data: _ts.series.map(p => p.results), borderColor: '#16a34a', tension: 0.3, pointRadius: 2, yAxisID: 'y1' },
+    ] }, options: opts({ scales: { x: { ticks: { color: ink, maxTicksLimit: 12 }, grid: { color: grid } }, y: { position: 'left', beginAtZero: true, ticks: { color: ink }, grid: { color: grid } }, y1: { position: 'right', beginAtZero: true, ticks: { color: ink }, grid: { drawOnChartArea: false } } } }) });
+  }
+
+  // 3 — investimento por marca
+  const byBrand = metaSpendByBrand(accounts);
+  const bk = ['conquista', 'imoveis', 'locacao'].filter(k => byBrand[k] && byBrand[k].spend > 0);
+  if (bk.length) mk('ch-marca', { type: 'doughnut', data: { labels: bk.map(k => brandInfo(k).brand), datasets: [{ data: bk.map(k => byBrand[k].spend), backgroundColor: bk.map(k => brandInfo(k).cor) }] }, options: opts() });
+
+  // 4 — leads por canal
+  const ch = (_crm && _crm.global && _crm.global.attribution && _crm.global.attribution.by_channel) || [];
+  const chL = ch.filter(c => c.leads > 0);
+  if (chL.length) mk('ch-canal', { type: 'doughnut', data: { labels: chL.map(c => c.label), datasets: [{ data: chL.map(c => c.leads), backgroundColor: chL.map((_, i) => PAL[i % PAL.length]) }] }, options: opts() });
+
+  // 5 — top campanhas por gasto
+  const top = [...camps].sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 8).filter(c => (c.spend || 0) > 0);
+  if (top.length) mk('ch-camp', { type: 'bar', data: { labels: top.map(c => (c.name || '—').slice(0, 30)), datasets: [{ label: 'Gasto (R$)', data: top.map(c => c.spend || 0), backgroundColor: '#2563eb' }] },
+    options: opts({ indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ticks: { color: ink }, grid: { color: grid }, beginAtZero: true }, y: { ticks: { color: ink, font: { size: 10 } }, grid: { display: false } } } }) });
+
+  // 6 — funil de aquisição (log)
+  const t = periodTotals(accounts);
+  const vendas = (_crm && _crm.global && _crm.global.vendas) || 0;
+  mk('ch-funil', { type: 'bar', data: { labels: ['Impressões', 'Cliques', 'Leads', 'Vendas'], datasets: [{ label: 'Funil', data: [t.impressions, t.clicks, t.results, vendas], backgroundColor: ['#0891b2', '#2563eb', '#7c3aed', '#16a34a'] }] },
+    options: opts({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: ink }, grid: { display: false } }, y: { type: 'logarithmic', ticks: { color: ink }, grid: { color: grid } } } }) });
 }
 
 /* ─── ABA UNIFICADA: TRÁFEGO (operacional + criativos + semáforo + breakdowns) ─── */
@@ -886,6 +984,9 @@ function wire() {
   document.getElementById('ma-filter')?.addEventListener('input', e => { _filter = e.target.value; render(); });
   document.getElementById('bd-sel')?.addEventListener('change', e => { _bdSel = e.target.value; });
   document.getElementById('bd-go')?.addEventListener('click', () => loadBreakdown(_bdSel));
+
+  // Aba Gráficos: garante a série diária e (re)desenha os charts
+  if (_tab === 'graficos') { loadTimeseries(); buildGraficos(); }
 
   document.getElementById('ma-th')?.addEventListener('click', () => {
     const p = document.getElementById('ma-th-panel'); if (!p) return;
