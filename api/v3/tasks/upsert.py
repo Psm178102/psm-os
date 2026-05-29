@@ -15,6 +15,7 @@ Adiciona entry no historico jsonb a cada update.
 from http.server import BaseHTTPRequestHandler
 import json
 import os
+import re
 import sys
 import time
 import uuid
@@ -22,6 +23,25 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, notify, notify_all  # type: ignore
+
+
+def _safe_write(build, row):
+    """Executa insert/update tolerante: se uma coluna não existe no banco
+    (PGRST204), remove essa coluna e tenta de novo — nunca quebra o save inteiro.
+    `build(r)` deve devolver a query pronta pra .execute() a partir do dict r."""
+    r = dict(row)
+    dropped = []
+    for _ in range(15):
+        try:
+            return build(r).execute(), dropped
+        except Exception as e:
+            m = re.search(r"Could not find the '([^']+)' column", str(e))
+            if m and m.group(1) in r:
+                dropped.append(m.group(1))
+                r.pop(m.group(1), None)
+                continue
+            raise
+    return build(r).execute(), dropped
 
 
 ALLOWED_STATUS = {"aberta", "em_andamento", "concluida", "cancelada", "atrasada"}
@@ -117,7 +137,7 @@ class handler(BaseHTTPRequestHandler):
             patch["historico"] = history
 
             try:
-                res = sb.table("dir_tasks").update(patch).eq("id", task_id).execute()
+                res, _dropped = _safe_write(lambda r: sb.table("dir_tasks").update(r).eq("id", task_id), patch)
                 row = (res.data or [None])[0]
             except Exception as e:
                 return self._send(500, {"ok": False, "error": f"erro update: {e}"})
@@ -181,7 +201,7 @@ class handler(BaseHTTPRequestHandler):
                 }],
             }
             try:
-                res = sb.table("dir_tasks").insert(row).execute()
+                res, _dropped = _safe_write(lambda r: sb.table("dir_tasks").insert(r), row)
                 inserted = (res.data or [row])[0]
             except Exception as e:
                 return self._send(500, {"ok": False, "error": f"erro insert: {e}"})
