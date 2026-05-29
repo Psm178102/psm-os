@@ -1,14 +1,15 @@
 /* ============================================================================
-   PSM-OS v2 — Meta Ads · Cockpit do Gestor de Tráfego (abas)
+   PSM-OS v2 — Meta Ads × RD CRM · Cockpit do Gestor de Tráfego (abas)
    ----------------------------------------------------------------------------
-   Estrutura inspirada na "planta baixa" do Paulo:
-     • Visão Geral   — KPIs do período + Central de Alertas
-     • Criativos     — Laboratório (Hook/Hold/CTR geral×link/Freq/Relevância/CPM)
-     • Semáforo      — decisão de escala (Vertical/Horizontal/Sangria/Troca)
-     • Por Marca     — 1 conta Meta = 1 marca (Conquista MCMV × PSM Imóveis × Locação)
-   Métricas que dependem de RD CRM / Google Ads / breakdowns Meta aparecem como
-   roadmap rotulado (próximos sprints).
-   Sprint 9.9 (v76.6). Lê /api/v3/marketing/summary (proxy do /api/meta-ads).
+   Planta baixa do Paulo, agora com CRM cruzado:
+     🎯 Executiva   — Investimento · CAC · VGV Influenciado · ROAS Imobiliário
+     📊 Tráfego     — KPIs Meta do período + Central de Alertas + contas + campanhas
+     🎬 Criativos   — Laboratório (gancho 3s/retenção/CTR geral×link/freq/CPM/relevância)
+     🏁 Vendas      — Motor de Vendas (conversão/ciclo/SLA/contact/show-up/motivos/ranking)
+     🚦 Semáforo    — decisão de escala (Vertical/Horizontal/Troca/Sangria/Manter)
+     🏷 Por Marca   — 1 conta Meta = 1 marca (Conquista MCMV × PSM Imóveis × Locação)
+   Meta: /api/v3/marketing/summary · CRM: /api/v3/marketing/crm_metrics (tabela deals).
+   Sprint 9.10 (v76.7).
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
@@ -24,8 +25,10 @@ const PRESETS = [
 ];
 
 const TABS = [
-  { id: 'geral',     lbl: '📊 Visão Geral' },
+  { id: 'executiva', lbl: '🎯 Executiva' },
+  { id: 'trafego',   lbl: '📊 Tráfego' },
   { id: 'criativos', lbl: '🎬 Criativos' },
+  { id: 'vendas',    lbl: '🏁 Vendas' },
   { id: 'semaforo',  lbl: '🚦 Semáforo' },
   { id: 'marca',     lbl: '🏷 Por Marca' },
 ];
@@ -33,9 +36,9 @@ const TABS = [
 const TH_KEY = 'psm.v2.ads_thresholds';
 const DEFAULT_TH = { cpl: 80, freq: 3.0, ctr: 1.0, gasto: 30 };
 
-let _root = null, _data = null;
+let _root = null, _data = null, _crm = null, _crmErr = null;
 let _preset = 'last_30d';
-let _tab = 'geral';
+let _tab = 'executiva';
 let _filter = '', _sort = 'spend', _statusFilter = 'todos';
 let _auto = false, _timer = null, _busy = false;
 
@@ -46,9 +49,9 @@ let _th = loadTh();
 // 1 conta Meta = 1 marca. Classifica pelo rótulo da conta + metas por segmento.
 function brandInfo(label) {
   const s = (label || '').toLowerCase();
-  if (/conquista|mcmv|minha casa|1º|primeiro/.test(s)) return { brand: 'PSM Conquista', sub: 'MCMV / 1º Imóvel', cor: '#16a34a', cplAlvo: 25 };
-  if (/loca|aluguel|locaç/.test(s))                    return { brand: 'Locação',       sub: 'Aluguel & Adm',  cor: '#d97706', cplAlvo: 60 };
-  return { brand: 'PSM Imóveis', sub: 'Médio / Alto Padrão', cor: '#7c3aed', cplAlvo: 150 };
+  if (/conquista|mcmv|minha casa|1º|primeiro/.test(s)) return { key: 'conquista', brand: 'PSM Conquista', sub: 'MCMV / 1º Imóvel', cor: '#16a34a', cplAlvo: 25 };
+  if (/loca|aluguel|locaç/.test(s))                    return { key: 'locacao',   brand: 'Locação',       sub: 'Aluguel & Adm',  cor: '#d97706', cplAlvo: 60 };
+  return { key: 'imoveis', brand: 'PSM Imóveis', sub: 'Médio / Alto Padrão', cor: '#7c3aed', cplAlvo: 150 };
 }
 
 export async function pageMarketing(ctx, root) {
@@ -72,9 +75,16 @@ function startAuto() {
 async function reload(silent) {
   if (!_root) return;
   _busy = true;
-  if (!silent) _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando Meta Ads…</div></div>';
+  if (!silent) _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando Meta Ads + CRM…</div></div>';
   try {
-    _data = await api.request('/api/v3/marketing/summary?date_preset=' + encodeURIComponent(_preset));
+    const qp = '?date_preset=' + encodeURIComponent(_preset);
+    const [meta, crm] = await Promise.allSettled([
+      api.request('/api/v3/marketing/summary' + qp),
+      api.request('/api/v3/marketing/crm_metrics' + qp),
+    ]);
+    if (meta.status === 'fulfilled') _data = meta.value; else throw meta.reason;
+    if (crm.status === 'fulfilled' && crm.value?.ok) { _crm = crm.value; _crmErr = null; }
+    else { _crm = null; _crmErr = (crm.reason?.message) || (crm.value?.error) || 'CRM indisponível'; }
     render();
   } catch (e) {
     _root.innerHTML = `<div class="alert alert-err">Erro ao consultar Meta: ${escapeHtml(e.message)}</div>
@@ -95,6 +105,17 @@ function periodTotals(accounts) {
   t.freq = t.reach > 0 ? t.impressions / t.reach : 0;
   t.roas = t.spend > 0 && t.purchaseValue > 0 ? t.purchaseValue / t.spend : 0;
   return t;
+}
+
+// Agrupa gasto/resultados Meta por marca (mesma classificação do CRM).
+function metaSpendByBrand(accounts) {
+  const m = {};
+  (accounts || []).forEach(a => {
+    const k = brandInfo(a.label || a.id).key;
+    const b = m[k] || (m[k] = { spend: 0, results: 0, impressions: 0, label: brandInfo(a.label).brand, cor: brandInfo(a.label).cor });
+    b.spend += a.spend || 0; b.results += a.results || 0; b.impressions += a.impressions || 0;
+  });
+  return m;
 }
 
 function computeAlerts(campaigns) {
@@ -121,11 +142,12 @@ function render() {
     <div class="card">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
         <div style="flex:1;min-width:240px">
-          <h2 class="card-title">📢 Cockpit de Tráfego · Meta Ads</h2>
+          <h2 class="card-title">📢 Cockpit de Tráfego · Meta Ads × CRM</h2>
           <p class="card-sub">
             ${accounts.length} conta(s) · período <strong>${escapeHtml(d.period || _preset)}</strong> ·
             atualizado ${d.fetchedAt ? new Date(d.fetchedAt).toLocaleTimeString('pt-BR') : 'agora'}
             ${d.partial ? ' · <span style="color:#d97706">⚠️ parcial</span>' : ''}
+            ${_crm ? ` · <span style="color:#16a34a">CRM ✓ ${_crm.deals_scanned} deals</span>` : ' · <span style="color:#d97706">CRM ⚠️</span>'}
           </p>
         </div>
         <label class="tiny" style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer">
@@ -151,14 +173,103 @@ function render() {
 }
 
 function tabBody() {
+  if (_tab === 'trafego')   return tabTrafego();
   if (_tab === 'criativos') return tabCriativos();
+  if (_tab === 'vendas')    return tabVendas();
   if (_tab === 'semaforo')  return tabSemaforo();
   if (_tab === 'marca')     return tabMarca();
-  return tabGeral();
+  return tabExecutiva();
 }
 
-/* ───────────────────────── ABA: VISÃO GERAL ───────────────────────── */
-function tabGeral() {
+function crmWarn() {
+  return `<div class="alert alert-warn">📭 Sem dados do CRM no período (${escapeHtml(_crmErr || 'RD não sincronizado')}).<br>
+    Esta aba cruza vendas do RD Station com o gasto Meta. Verifique o sync de deals (cron <code>/api/v3/crm/sync_cron</code>) e o <code>RD_API_TOKEN</code>.</div>`;
+}
+
+/* ───────────────────────── ABA: EXECUTIVA (Aba 1) ───────────────────────── */
+function tabExecutiva() {
+  const d = _data || {};
+  const accounts = d.accounts || [];
+  const t = periodTotals(accounts);
+  if (!_crm) {
+    // Mostra ao menos o investimento Meta, mesmo sem CRM
+    return `
+      <div class="flex gap-3" style="flex-wrap:wrap">
+        ${kpi('💰 Investimento Total', 'R$ ' + money(t.spend), 'mídia no período', '#dc2626')}
+        ${kpi('🎯 Resultados Meta', fmtNum(t.results), t.cpl ? `CPL: R$ ${money(t.cpl)}` : '—', '#2563eb')}
+      </div>
+      <div class="mt-3" style="margin-top:14px">${crmWarn()}</div>`;
+  }
+  const g = _crm.global;
+  const byBrand = metaSpendByBrand(accounts);
+  const cac = g.vendas > 0 ? t.spend / g.vendas : 0;
+  const vgvInf = g.vgv_pago > 0 ? g.vgv_pago : g.vgv;
+  const vgvInfLbl = g.vgv_pago > 0 ? 'via mídia paga (origem RD)' : 'VGV total ganho (origem não marcada)';
+  const roas = t.spend > 0 ? vgvInf / t.spend : 0;
+
+  return `
+    <p class="card-sub">Visão executiva — mídia paga convertida em venda real. CAC, VGV e ROAS cruzam Meta Ads × deals ganhos no RD no mesmo período.</p>
+    <div class="flex gap-3 mt-3" style="flex-wrap:wrap;margin-top:12px">
+      ${kpi('💰 Investimento Total', 'R$ ' + money(t.spend), `${accounts.length} conta(s) Meta`, '#dc2626')}
+      ${kpi('🧮 CAC', cac ? 'R$ ' + money(cac) : '—', `${g.vendas} venda(s) no período`, '#ea580c')}
+      ${kpi('🏛 VGV Influenciado', 'R$ ' + moneyShort(vgvInf), vgvInfLbl, '#7c3aed')}
+      ${kpi('📈 ROAS Imobiliário', roas ? roas.toFixed(1) + 'x' : '—', 'VGV ÷ investimento', '#16a34a')}
+    </div>
+
+    <div class="flex gap-3 mt-3" style="flex-wrap:wrap;margin-top:10px">
+      ${miniKpi('Leads gerados (RD)', fmtNum(g.leads_criados), '#2563eb')}
+      ${miniKpi('Vendas ganhas', fmtNum(g.vendas), '#16a34a')}
+      ${miniKpi('Ticket médio', g.ticket_medio ? 'R$ ' + moneyShort(g.ticket_medio) : '—', '#7c3aed')}
+      ${miniKpi('Conversão', g.taxa_conversao != null ? g.taxa_conversao + '%' : '—', '#0891b2', 'ganhos ÷ fechados')}
+      ${miniKpi('CPL real (RD)', g.leads_criados ? 'R$ ' + money(t.spend / g.leads_criados) : '—', '#d97706', 'gasto ÷ leads RD')}
+    </div>
+
+    <div class="mt-4" style="margin-top:18px">
+      <h3 class="card-title">Por marca (Meta × CRM)</h3>
+      <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:680px">
+        <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">
+          <th style="text-align:left;padding:6px 10px">Marca</th><th style="text-align:right;padding:6px 8px">Investido</th>
+          <th style="text-align:right;padding:6px 8px">Leads</th><th style="text-align:right;padding:6px 8px">Vendas</th>
+          <th style="text-align:right;padding:6px 8px">CAC</th><th style="text-align:right;padding:6px 8px">VGV</th>
+          <th style="text-align:right;padding:6px 8px">ROAS</th>
+        </tr></thead><tbody>
+          ${execBrandRows(byBrand)}
+        </tbody></table></div>
+    </div>
+    ${roadmapMini()}
+  `;
+}
+
+function execBrandRows(byBrand) {
+  const order = ['conquista', 'imoveis', 'locacao'];
+  const rows = [];
+  order.forEach(k => {
+    const meta = byBrand[k];
+    const crm = _crm.brands?.[k];
+    if (!meta && !crm) return;
+    const spend = meta?.spend || 0;
+    const vendas = crm?.vendas || 0;
+    const vgv = crm?.vgv || 0;
+    const leads = crm?.leads_criados || 0;
+    const cac = vendas ? spend / vendas : 0;
+    const vgvInf = crm?.vgv_pago > 0 ? crm.vgv_pago : vgv;
+    const roas = spend ? vgvInf / spend : 0;
+    const bi = brandInfo(k === 'conquista' ? 'conquista' : k === 'locacao' ? 'locacao' : 'imoveis');
+    rows.push(`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 10px;font-weight:700;color:${bi.cor}">${escapeHtml(crm?.label || bi.brand)}</td>
+      <td style="text-align:right;padding:6px 8px;color:#dc2626">R$ ${money(spend)}</td>
+      <td style="text-align:right;padding:6px 8px">${fmtNum(leads)}</td>
+      <td style="text-align:right;padding:6px 8px;color:#16a34a">${fmtNum(vendas)}</td>
+      <td style="text-align:right;padding:6px 8px">${cac ? 'R$ ' + money(cac) : '—'}</td>
+      <td style="text-align:right;padding:6px 8px;font-weight:700">R$ ${moneyShort(vgv)}</td>
+      <td style="text-align:right;padding:6px 8px;font-weight:800;color:${roas>=1?'#16a34a':'#ea580c'}">${roas ? roas.toFixed(1) + 'x' : '—'}</td>
+    </tr>`);
+  });
+  return rows.join('') || '<tr><td colspan="7" class="muted tiny" style="padding:14px;text-align:center">Sem cruzamento no período.</td></tr>';
+}
+
+/* ───────────────────────── ABA: TRÁFEGO (Meta operacional) ───────────────────────── */
+function tabTrafego() {
   const d = _data || {};
   const accounts = d.accounts || [];
   const allCampaigns = d.campaigns || [];
@@ -186,7 +297,7 @@ function tabGeral() {
       ${kpi('🎯 Resultados', fmtNum(t.results), t.cpl ? `CPL médio: R$ ${money(t.cpl)}` : 'sem conversões', '#16a34a')}
       ${kpi('👁 Alcance', fmtNum(t.reach), `${fmtNum(t.impressions)} impressões · freq ${t.freq.toFixed(2)}`, '#2563eb')}
       ${kpi('📊 CTR', t.ctr.toFixed(2) + '%', `CPM: R$ ${money(t.cpm)} · ${fmtNum(t.clicks)} cliques`, '#7c3aed')}
-      ${t.roas > 0 ? kpi('📈 ROAS', t.roas.toFixed(2) + 'x', `R$ ${money(t.purchaseValue)} em vendas`, '#0891b2') : ''}
+      ${t.roas > 0 ? kpi('📈 ROAS (pixel)', t.roas.toFixed(2) + 'x', `R$ ${money(t.purchaseValue)} em vendas`, '#0891b2') : ''}
     </div>
 
     <div class="mt-4" style="margin-top:18px">
@@ -254,12 +365,10 @@ function tabGeral() {
             <th style="text-align:right;padding:6px 8px">CPL</th><th style="text-align:center;padding:6px 8px">Ação</th>
           </tr></thead><tbody>${campaigns.map(campaignRow).join('')}</tbody></table></div>`}
     </div>
-
-    ${roadmapCard()}
   `;
 }
 
-/* ───────────────────────── ABA: CRIATIVOS ───────────────────────── */
+/* ───────────────────────── ABA: CRIATIVOS (Aba 4) ───────────────────────── */
 function tabCriativos() {
   const all = (_data?.campaigns || []).filter(c => (c.impressions || 0) > 0);
   all.sort((a, b) => (b.spend || 0) - (a.spend || 0));
@@ -304,7 +413,91 @@ function criativoRow(c) {
     </tr>`;
 }
 
-/* ───────────────────────── ABA: SEMÁFORO ───────────────────────── */
+/* ───────────────────────── ABA: VENDAS (Aba 5 · Motor de Vendas) ───────────────────────── */
+function tabVendas() {
+  if (!_crm) return crmWarn();
+  const g = _crm.global;
+  const motivos = g.motivos_perda || [];
+  const maxMot = motivos.reduce((m, x) => Math.max(m, x.n), 0) || 1;
+  return `
+    <p class="card-sub">Motor de Vendas (TV War Arena) — o que acontece com o lead depois do clique. Dados do RD Station no período.</p>
+    <div class="flex gap-3 mt-3" style="flex-wrap:wrap;margin-top:12px">
+      ${kpi('🎯 Conversão', g.taxa_conversao != null ? g.taxa_conversao + '%' : '—', `${g.vendas} ganhos / ${g.perdas} perdas`, '#16a34a')}
+      ${kpi('⏱ Ciclo de venda', cycleLbl(g.ranking), 'mediana lead → ganho', '#2563eb')}
+      ${kpi('📞 Contact Rate', contactGlobal(), 'leads que saíram da entrada', '#7c3aed')}
+      ${kpi('🚪 Show-up / Visita', visitaGlobal(), 'contatados que chegaram à visita', '#0891b2')}
+      ${kpi('⚡ SLA 1º atend. (aprox)', slaGlobal(), 'created → 1ª atividade RD', '#ea580c')}
+    </div>
+
+    <div class="mt-4" style="margin-top:18px">
+      <h3 class="card-title">🧯 Concentração de motivos de perda</h3>
+      ${motivos.length === 0 ? '<div class="muted tiny">Sem perdas registradas no período.</div>' : `
+        <div style="display:grid;gap:6px;margin-top:8px">
+          ${motivos.map(m => `
+            <div style="display:flex;align-items:center;gap:10px;font-size:12px">
+              <span style="flex:0 0 220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(m.motivo)}">${escapeHtml(m.motivo)}</span>
+              <div style="flex:1;background:var(--bg-3);border-radius:var(--r-full);height:16px;overflow:hidden">
+                <div style="width:${(m.n/maxMot*100).toFixed(0)}%;height:100%;background:#dc2626"></div>
+              </div>
+              <span class="tiny" style="flex:0 0 90px;text-align:right;font-weight:700">${m.n} · ${(m.pct||0).toFixed(0)}%</span>
+            </div>`).join('')}
+        </div>`}
+    </div>
+
+    <div class="mt-4" style="margin-top:18px">
+      <h3 class="card-title">🏆 Ranking de corretores (período)</h3>
+      ${(g.ranking||[]).length === 0 ? '<div class="muted tiny">Sem vendas/perdas atribuídas no período.</div>' : `
+        <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:520px">
+          <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">
+            <th style="text-align:left;padding:6px 10px">#</th><th style="text-align:left;padding:6px 8px">Corretor</th>
+            <th style="text-align:right;padding:6px 8px">Vendas</th><th style="text-align:right;padding:6px 8px">VGV</th>
+            <th style="text-align:right;padding:6px 8px">Perdas</th>
+          </tr></thead><tbody>
+            ${g.ranking.map((o, i) => `<tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:5px 10px;font-weight:800;color:${i===0?'#d97706':'var(--ink-muted)'}">${i+1}º</td>
+              <td style="padding:5px 8px;font-weight:600">${escapeHtml(o.nome || o.email || '—')}</td>
+              <td style="text-align:right;padding:5px 8px;color:#16a34a;font-weight:700">${fmtNum(o.vendas)}</td>
+              <td style="text-align:right;padding:5px 8px;font-weight:700">R$ ${moneyShort(o.vgv)}</td>
+              <td style="text-align:right;padding:5px 8px;color:#dc2626">${fmtNum(o.perdas)}</td>
+            </tr>`).join('')}
+          </tbody></table></div>`}
+    </div>
+    <div class="alert alert-warn mt-3" style="margin-top:12px">🔌 <strong>Roadmap:</strong> Time-to-Action exato (1ª resposta no WhatsApp) e Show-up real exigem o nível de atividades/visitas do RD. Os valores aqui são proxies do funil sincronizado — diretos o suficiente pra gestão, refináveis no próximo sprint.</div>
+  `;
+}
+function cycleLbl(ranking) {
+  // ciclo global = mediana dos ciclos por marca de venda
+  const vals = [];
+  Object.keys(_crm.brands || {}).forEach(k => { if (k !== 'captacao' && _crm.brands[k].ciclo_medio_dias != null) vals.push(_crm.brands[k].ciclo_medio_dias); });
+  if (!vals.length) return '—';
+  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  return avg.toFixed(0) + ' dias';
+}
+function contactGlobal() {
+  // média ponderada por leads
+  let totLeads = 0, totContact = 0;
+  Object.keys(_crm.brands || {}).forEach(k => {
+    if (k === 'captacao') return;
+    const b = _crm.brands[k];
+    if (b.leads_criados && b.contact_rate != null) { totLeads += b.leads_criados; totContact += b.contact_rate / 100 * b.leads_criados; }
+  });
+  return totLeads ? (totContact / totLeads * 100).toFixed(0) + '%' : '—';
+}
+function visitaGlobal() {
+  const vals = [];
+  Object.keys(_crm.brands || {}).forEach(k => { if (k !== 'captacao' && _crm.brands[k].visita_rate != null) vals.push(_crm.brands[k].visita_rate); });
+  if (!vals.length) return '—';
+  return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(0) + '%';
+}
+function slaGlobal() {
+  const vals = [];
+  Object.keys(_crm.brands || {}).forEach(k => { if (k !== 'captacao' && _crm.brands[k].sla_horas_aprox != null) vals.push(_crm.brands[k].sla_horas_aprox); });
+  if (!vals.length) return '—';
+  const h = vals.reduce((a, b) => a + b, 0) / vals.length;
+  return h < 1 ? Math.round(h * 60) + ' min' : h.toFixed(1) + ' h';
+}
+
+/* ───────────────────────── ABA: SEMÁFORO (Aba 6) ───────────────────────── */
 function classifySemaforo(c) {
   const target = brandInfo(c.account).cplAlvo;
   const freq = c.frequency || 0, cpl = c.cpr || 0, res = c.results || 0, spend = c.spend || 0, imp = c.impressions || 0;
@@ -321,7 +514,7 @@ function tabSemaforo() {
   Object.keys(buckets).forEach(k => buckets[k].sort((a, b) => (b.spend || 0) - (a.spend || 0)));
   const metric = c => `CPL <strong>${c.cpr ? 'R$ ' + money(c.cpr) : '—'}</strong> · freq ${(c.frequency||0).toFixed(2)} · ${fmtNum(c.results)} result. · R$ ${money(c.spend)}`;
   return `
-    <p class="card-sub">Decisão de escala sem achismo. CPL alvo por marca: Conquista R$ 25 · Imóveis R$ 150 · Locação R$ 60 (proxy de CPO até integrar o RD CRM).</p>
+    <p class="card-sub">Decisão de escala sem achismo. CPL alvo por marca: Conquista R$ 25 · Imóveis R$ 150 · Locação R$ 60 (proxy de CPO).</p>
     <div style="display:grid;gap:10px;margin-top:12px">
       ${semaCard('🚀', 'Escala Vertical · aumentar orçamento 20%', '#16a34a', buckets.vertical, 'CPL no alvo + frequência baixa (<2.0). O leilão ainda tem lead barato.', metric, true)}
       ${semaCard('🧭', 'Escala Horizontal · novo público / lookalike', '#2563eb', buckets.horizontal, 'CPL ainda ok mas frequência subindo — o público atual está secando.', metric)}
@@ -329,7 +522,7 @@ function tabSemaforo() {
       ${semaCard('🛑', 'Sangria · pausar imediatamente', '#dc2626', buckets.sangria, 'Verba virando pó: 0 resultado com gasto ou CPL muito acima do alvo.', metric, true)}
       ${semaCard('🟢', 'Manter · estável', '#64748b', buckets.manter, 'Dentro do esperado, sem ação urgente.', metric)}
     </div>
-    <div class="alert alert-warn mt-3" style="margin-top:12px">🔌 <strong>Roadmap:</strong> "Perda de IS por orçamento" exige Google Ads; "CTR Decay" e "horário de madrugada/fora de SLA" exigem histórico e breakdown por hora — próximos sprints.</div>
+    <div class="alert alert-warn mt-3" style="margin-top:12px">🔌 <strong>Roadmap:</strong> "Perda de IS por orçamento" exige Google Ads; "CTR Decay" e "horário fora de SLA" exigem histórico e breakdown por hora — próximos sprints.</div>
   `;
 }
 function semaCard(icon, title, color, items, desc, fmtItem, withAction) {
@@ -349,7 +542,7 @@ function semaCard(icon, title, color, items, desc, fmtItem, withAction) {
     </div>`;
 }
 
-/* ───────────────────────── ABA: POR MARCA ───────────────────────── */
+/* ───────────────────────── ABA: POR MARCA (Abas 2+3) ───────────────────────── */
 function tabMarca() {
   const campaigns = _data?.campaigns || [];
   const groups = {};
@@ -357,11 +550,11 @@ function tabMarca() {
   const keys = Object.keys(groups).sort((a, b) => sumSpend(groups[b]) - sumSpend(groups[a]));
   if (!keys.length) return '<div class="muted tiny">Sem campanhas no período.</div>';
   return `
-    <p class="card-sub">Cada conta Meta = uma marca. Metas por segmento embutidas (Conquista MCMV × PSM Imóveis × Locação).</p>
+    <p class="card-sub">Cada conta Meta = uma marca. Metas e funil de venda (RD) embutidos por segmento.</p>
     <div style="display:grid;gap:14px;margin-top:12px">
       ${keys.map(k => marcaPanel(k, groups[k])).join('')}
     </div>
-    <div class="alert alert-warn mt-3" style="margin-top:12px">🔌 <strong>Roadmap (RD CRM):</strong> CPL-R (lead com renda), Custo por Simulação e Drop-off de WhatsApp da Conquista, e CPO/CAC/VGV por marca chegam com a integração do CRM — próximo sprint.</div>
+    ${_crm ? '' : `<div class="mt-3" style="margin-top:12px">${crmWarn()}</div>`}
   `;
 }
 function sumSpend(arr) { return arr.reduce((s, c) => s + (c.spend || 0), 0); }
@@ -374,6 +567,10 @@ function marcaPanel(label, camps) {
   const freq = t.reach > 0 ? t.impressions / t.reach : 0;
   const cplOk = cpl > 0 && cpl <= bi.cplAlvo;
   const ativas = camps.filter(c => (c.status||'').toLowerCase() === 'active').length;
+  // CRM cruzado p/ essa marca
+  const crm = _crm?.brands?.[bi.key];
+  const cac = crm && crm.vendas ? t.spend / crm.vendas : 0;
+  const cpo = crm && crm.leads_criados ? t.spend / crm.leads_criados : 0;
   return `
     <div style="background:var(--bg-2);border:1px solid var(--border);border-left:5px solid ${bi.cor};border-radius:var(--r-md);padding:14px 16px">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
@@ -381,13 +578,26 @@ function marcaPanel(label, camps) {
         <span class="tiny" style="background:${bi.cor}22;color:${bi.cor};padding:2px 8px;border-radius:var(--r-full);font-weight:700">${escapeHtml(bi.brand)} · ${escapeHtml(bi.sub)}</span>
         <span class="tiny muted" style="margin-left:auto">${ativas} ativa(s) / ${camps.length} campanha(s)</span>
       </div>
-      <div class="flex gap-2 mt-2" style="flex-wrap:wrap;margin-top:10px">
+      <div class="tiny muted" style="margin-top:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Mídia (Meta)</div>
+      <div class="flex gap-2 mt-1" style="flex-wrap:wrap;margin-top:4px">
         ${miniKpi('Investido', 'R$ ' + money(t.spend), '#dc2626')}
-        ${miniKpi('Resultados', fmtNum(t.results), '#16a34a')}
-        ${miniKpi('CPL', cpl ? 'R$ ' + money(cpl) : '—', cplOk ? '#16a34a' : '#ea580c', `alvo R$ ${bi.cplAlvo}`)}
+        ${miniKpi('Result. Meta', fmtNum(t.results), '#16a34a')}
+        ${miniKpi('CPL Meta', cpl ? 'R$ ' + money(cpl) : '—', cplOk ? '#16a34a' : '#ea580c', `alvo R$ ${bi.cplAlvo}`)}
         ${miniKpi('CTR', ctr.toFixed(2) + '%', '#7c3aed')}
         ${miniKpi('Freq', freq.toFixed(2), freq > _th.freq ? '#d97706' : '#2563eb')}
       </div>
+      ${crm ? `
+        <div class="tiny muted" style="margin-top:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Vendas (RD CRM)</div>
+        <div class="flex gap-2 mt-1" style="flex-wrap:wrap;margin-top:4px">
+          ${miniKpi('Leads RD', fmtNum(crm.leads_criados), '#2563eb')}
+          ${miniKpi('Vendas', fmtNum(crm.vendas), '#16a34a')}
+          ${miniKpi('CAC', cac ? 'R$ ' + money(cac) : '—', '#ea580c', 'gasto ÷ vendas')}
+          ${miniKpi(bi.key==='conquista'?'CPL-R':'CPO', cpo ? 'R$ ' + money(cpo) : '—', cpo && cpo <= bi.cplAlvo ? '#16a34a' : '#d97706', 'gasto ÷ leads')}
+          ${miniKpi('VGV', 'R$ ' + moneyShort(crm.vgv), '#7c3aed')}
+          ${miniKpi('Conversão', crm.taxa_conversao != null ? crm.taxa_conversao + '%' : '—', '#0891b2')}
+          ${miniKpi('Ciclo', crm.ciclo_medio_dias != null ? crm.ciclo_medio_dias + 'd' : '—', '#64748b')}
+          ${bi.key==='conquista' && crm.trash_rate != null ? miniKpi('Trash Rate', crm.trash_rate + '%', crm.trash_rate <= 25 ? '#16a34a' : '#dc2626', 'leads descartados') : ''}
+        </div>` : ''}
     </div>`;
 }
 function miniKpi(label, val, color, sub) {
@@ -399,16 +609,9 @@ function miniKpi(label, val, color, sub) {
 }
 
 /* ───────────────────────── compartilhados ───────────────────────── */
-function roadmapCard() {
+function roadmapMini() {
   return `
-    <div class="mt-4" style="margin-top:18px">
-      <h3 class="card-title">🔌 Próximas integrações (roadmap do seu blueprint)</h3>
-      <div style="display:grid;gap:8px;margin-top:8px">
-        <div class="tiny" style="background:var(--bg-3);border-left:4px solid #2563eb;border-radius:var(--r-sm);padding:8px 12px"><strong>RD CRM (próximo):</strong> CAC, CPO, VGV influenciado, Time-to-Action/SLA, Contact Rate, Show-up, Trash Rate, Motivos de perda, CPL-R, Custo por Simulação.</div>
-        <div class="tiny" style="background:var(--bg-3);border-left:4px solid #d97706;border-radius:var(--r-sm);padding:8px 12px"><strong>Breakdowns Meta:</strong> CPA por dispositivo/OS/placement, mapa de calor por hora, First-Time Impression Ratio, CTR Decay.</div>
-        <div class="tiny" style="background:var(--bg-3);border-left:4px solid #16a34a;border-radius:var(--r-sm);padding:8px 12px"><strong>Google Ads:</strong> Impression Share + perdas de IS por orçamento/classificação (não existe no Meta).</div>
-      </div>
-    </div>`;
+    <div class="alert alert-warn mt-3" style="margin-top:14px">🔌 <strong>Ainda no roadmap:</strong> CPA por dispositivo/OS/placement e mapa de calor por hora (breakdowns Meta) · Impression Share + perdas de IS (Google Ads) · 1ª resposta exata no WhatsApp (atividades RD).</div>`;
 }
 
 function campaignRow(c) {
@@ -539,4 +742,10 @@ function kpi(label, big, sub, color) {
 }
 function fmtNum(n) { return n == null ? '—' : Number(n).toLocaleString('pt-BR'); }
 function money(n) { if (n == null || isNaN(n)) return '0,00'; return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function moneyShort(n) {
+  n = Number(n) || 0;
+  if (n >= 1e6) return (n / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' mi';
+  if (n >= 1e3) return (n / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil';
+  return money(n);
+}
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

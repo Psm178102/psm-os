@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.6.0-2026-05-28-COCKPIT';
+const SW_VERSION = 'v76.7.0-2026-05-28-COCKPIT-CRM';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

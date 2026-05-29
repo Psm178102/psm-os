@@ -1,7 +1,7 @@
 {
-  "version": "76.6.0",
-  "meta": "2026.05.28-v76.6-cockpit-abas",
-  "built": "2026-05-29T00:30:00Z",
-  "sw": "v76.6.0-2026-05-28-COCKPIT",
-  "sprint": "v76.6 Sprint 9.9 — Cockpit de Tráfego Meta Ads reestruturado em abas (planta baixa do Paulo): 📊 Visão Geral (KPIs do período + Central de Alertas), 🎬 Criativos (Laboratório: gancho 3s/retenção/CTR geral×link/freq/CPM/relevância), 🚦 Semáforo (Escala Vertical/Horizontal/Troca de criativo/Sangria/Manter com CPL alvo por marca), 🏷 Por Marca (1 conta Meta = 1 marca: Conquista MCMV R$25 × PSM Imóveis R$150 × Locação R$60). Cada aba sinaliza no roadmap o que depende de RD CRM / Google Ads / breakdowns Meta (próximos sprints)."
+  "version": "76.7.0",
+  "meta": "2026.05.28-v76.7-cockpit-crm",
+  "built": "2026-05-29T01:30:00Z",
+  "sw": "v76.7.0-2026-05-28-COCKPIT-CRM",
+  "sprint": "v76.7 Sprint 9.10 — Integração RD CRM × Meta Ads no Cockpit. Novo endpoint /api/v3/marketing/crm_metrics (lê tabela deals sincronizada) destrava as métricas pesadas da planta baixa: CAC (invest÷vendas), VGV Influenciado, ROAS Imobiliário (VGV÷invest), Conversão, Ciclo de venda, Contact Rate, Show-up Rate, SLA aprox, Motivos de Perda, Trash Rate e ranking de corretores. Cockpit agora em 6 abas: 🎯 Executiva (CAC/VGV/ROAS por marca), 📊 Tráfego (Meta + Central de Alertas), 🎬 Criativos, 🏁 Vendas (Motor de Vendas), 🚦 Semáforo, 🏷 Por Marca (Mídia Meta × Vendas RD). Matching Meta×CRM por marca (1 conta Meta = 1 marca). Abas de CRM degradam com aviso se a sync falhar; SLA/contact/show-up marcados como proxy no roadmap."
 }
