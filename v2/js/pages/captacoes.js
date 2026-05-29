@@ -232,6 +232,9 @@ function card(c) {
   const links = [];
   if (c.link_fotos) links.push(`<a href="${esc(c.link_fotos)}" target="_blank" rel="noopener" title="Fotos captadas" data-stop="1" style="text-decoration:none">📷</a>`);
   if (c.link_videos) links.push(`<a href="${esc(c.link_videos)}" target="_blank" rel="noopener" title="Vídeos captados" data-stop="1" style="text-decoration:none">🎥</a>`);
+  if (c.link_autorizacao) links.push(`<a href="${esc(c.link_autorizacao)}" target="_blank" rel="noopener" title="Autorização de visita" data-stop="1" style="text-decoration:none">📋</a>`);
+  const agend = c.data_agendamento ? (String(c.data_agendamento).substring(0, 10).split('-').reverse().join('/')) : '';
+  const horas = c.hora_inicio ? (c.hora_inicio + (c.hora_fim ? '–' + c.hora_fim : '')) : '';
   return `
     <div class="cap-card" draggable="true" data-card="${esc(c.id)}">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:6px">
@@ -247,6 +250,7 @@ function card(c) {
       ${pend && c.pendencia !== 'atualizado' ? `<div class="tiny" style="margin-top:6px;color:${pend.cor};font-weight:600">⚠ ${pend.lbl}</div>` : ''}
       ${termo ? `<div class="tiny" style="margin-top:4px;color:${termo.cor}">📋 ${termo.lbl}</div>` : ''}
       ${c.proprietario ? `<div class="tiny muted" style="margin-top:6px">👤 ${esc(c.proprietario)}${c.contato ? ' · ' + esc(c.contato) : ''}</div>` : (c.contato ? `<div class="tiny muted" style="margin-top:6px">📞 ${esc(c.contato)}</div>` : '')}
+      ${agend ? `<div class="tiny muted" style="margin-top:4px">📅 ${esc(agend)}${horas ? ' · ' + esc(horas) : ''}</div>` : ''}
       ${links.length ? `<div class="flex gap-2" style="margin-top:6px;font-size:15px">${links.join('')}</div>` : ''}
       ${c.responsavel ? `<div class="flex" style="align-items:center;gap:6px;margin-top:8px">
         <span style="width:20px;height:20px;border-radius:50%;background:${colorFor(c.responsavel)};color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center">${esc(initials(c.responsavel))}</span>
@@ -305,12 +309,19 @@ function openForm() {
         ${sel('cf-sit', 'Situação do imóvel', [['', '—'], ...SITUACOES.map(s => [s.id, s.lbl])], c.situacao_imovel)}
         ${sel('cf-pend', 'Pendência', [['', '—'], ...PENDENCIAS.map(p => [p.id, p.lbl])], c.pendencia)}
         ${sel('cf-termo', 'Termo Autorização', [['', '—'], ...TERMOS.map(t => [t.id, t.lbl])], c.termo_autorizacao)}
+        ${inp('cf-lautoriz', 'Link autorização de visita', c.link_autorizacao, 'Drive / URL')}
         ${inp('cf-prop', 'Proprietário', c.proprietario)}
         ${inp('cf-ctt', 'Contato', c.contato)}
         ${inp('cf-email', 'Email', c.email)}
         ${inp('cf-vv', 'Valor de venda (R$)', c.valor_venda, '', 'number')}
         ${inp('cf-kenlo', 'Código Kenlo', c.codigo_kenlo)}
-        ${inp('cf-agend', 'Data agendamento', c.data_agendamento, '', 'date')}
+
+        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#3b82f6">📅 Agendamento</b></div>
+        ${inp('cf-agend', 'Data', (c.data_agendamento || '').substring(0, 10), '', 'date')}
+        <div class="flex gap-2">
+          <div style="flex:1">${inp('cf-hini', 'Hora início', c.hora_inicio, '', 'time')}</div>
+          <div style="flex:1">${inp('cf-hfim', 'Hora fim', c.hora_fim, '', 'time')}</div>
+        </div>
 
         <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#a16207">🏠 Locação</b></div>
         ${inp('cf-vl', 'Valor locação (R$)', c.valor_locacao, '', 'number')}
@@ -382,6 +393,9 @@ async function saveForm(overlay) {
     link_videos: g('cf-lvideos').value.trim(),
     codigo_kenlo: g('cf-kenlo').value.trim(),
     data_agendamento: g('cf-agend').value || null,
+    hora_inicio: g('cf-hini').value || null,
+    hora_fim: g('cf-hfim').value || null,
+    link_autorizacao: g('cf-lautoriz').value.trim(),
     precisa_fotos: g('cf-fotos').checked,
     precisa_videos: g('cf-videos').checked,
     precisa_avaliacao: g('cf-aval').checked,
@@ -394,7 +408,12 @@ async function saveForm(overlay) {
   }
   g('cf-msg').innerHTML = '<div class="muted tiny"><span class="spinner"></span> Salvando…</div>';
   try {
-    await api.request('/api/v3/captacoes/kanban', { method: 'POST', body: payload });
+    const res = await api.request('/api/v3/captacoes/kanban', { method: 'POST', body: payload });
+    if (res && res.dropped && res.dropped.length) {
+      await load();
+      g('cf-msg').innerHTML = `<div class="alert alert-warn">Salvo — mas os campos <b>${esc(res.dropped.join(', '))}</b> ainda não existem no banco. Rode <code>supabase/sprint9_16</code> pra eles persistirem.</div>`;
+      return;
+    }
     overlay.remove();
     await load();
   } catch (e) {

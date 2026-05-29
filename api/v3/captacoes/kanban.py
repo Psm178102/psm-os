@@ -12,11 +12,30 @@ Notificações:
 - Ao mudar status pra edição → notifica marketing
 """
 from http.server import BaseHTTPRequestHandler
-import json, os, sys, urllib.parse
+import json, os, re, sys, urllib.parse
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, notify, notify_all  # type: ignore
+
+
+def _safe_upsert(sb, table, row):
+    """Upsert tolerante: se uma coluna não existir no banco (migração ainda não
+    rodada → PGRST204), remove essa coluna e tenta de novo, em vez de quebrar o
+    save inteiro. Os campos sem coluna simplesmente não persistem até rodar o SQL."""
+    r = dict(row)
+    dropped = []
+    for _ in range(15):
+        try:
+            return sb.table(table).upsert(r).execute(), dropped
+        except Exception as e:
+            m = re.search(r"Could not find the '([^']+)' column", str(e))
+            if m and m.group(1) in r:
+                dropped.append(m.group(1))
+                r.pop(m.group(1), None)
+                continue
+            raise
+    return sb.table(table).upsert(r).execute(), dropped
 
 
 def _find_user_id(sb, nome):
@@ -136,6 +155,9 @@ class handler(BaseHTTPRequestHandler):
             "descricao": (body.get("descricao") or "").strip() or None,
             "observacao": (body.get("observacao") or "").strip() or None,
             "data_agendamento": body.get("data_agendamento") or None,
+            "hora_inicio": (body.get("hora_inicio") or "").strip() or None,
+            "hora_fim": (body.get("hora_fim") or "").strip() or None,
+            "link_autorizacao": (body.get("link_autorizacao") or "").strip() or None,
             "data_inicial": body.get("data_inicial") or None,
             "data_final": body.get("data_final") or None,
             "precisa_fotos": bool(body.get("precisa_fotos")),
@@ -147,9 +169,11 @@ class handler(BaseHTTPRequestHandler):
             row["criado_por"] = actor.get("id")
 
         try:
-            r = sb.table("captacoes").upsert(row).execute()
+            r, dropped = _safe_upsert(sb, "captacoes", row)
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
+        if dropped:
+            print(f"[captacoes] colunas ausentes ignoradas (rode sprint9_16/9_17): {dropped}")
 
         audit(self, actor, "captacao.upsert", target_type="captacoes", target_id=cid,
               notes=f"{row.get('condominio') or ''} · {row['status']}")
@@ -176,7 +200,7 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             pass
 
-        return self._send(200, {"ok": True, "row": (r.data or [row])[0]})
+        return self._send(200, {"ok": True, "row": (r.data or [row])[0], "dropped": dropped})
 
     def do_DELETE(self):
         try: actor = require_user(self, min_lvl=5)

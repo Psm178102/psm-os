@@ -9,3 +9,8 @@ alter table captacoes add column if not exists taxa_adm_valor   numeric;  -- % o
 alter table captacoes add column if not exists link_fotos       text;
 alter table captacoes add column if not exists link_videos      text;
 alter table captacoes add column if not exists responsavel_id   text;     -- id do user (dropdown)
+
+-- v76.14: agendamento com horário + link da autorização de visita
+alter table captacoes add column if not exists hora_inicio      text;     -- 'HH:MM'
+alter table captacoes add column if not exists hora_fim         text;     -- 'HH:MM'
+alter table captacoes add column if not exists link_autorizacao text;     -- link da autorização de visita
