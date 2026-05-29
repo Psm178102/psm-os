@@ -543,7 +543,7 @@ async function loadTimeseries() {
   _tsBusy = true;
   try { _ts = await api.request('/api/v3/marketing/meta_timeseries?date_preset=' + encodeURIComponent(_preset)); }
   catch (e) { _ts = { ok: false, series: [], error: e.message }; }
-  finally { _tsBusy = false; if (_tab === 'graficos') render(); }
+  finally { _tsBusy = false; if (_tab === 'graficos' || _tab === 'executiva') render(); }
 }
 
 async function buildGraficos() {
