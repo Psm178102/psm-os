@@ -1,7 +1,7 @@
 {
-  "version": "76.9.0",
-  "meta": "2026.05.29-v76.9-escala-atribuicao",
-  "built": "2026-05-29T04:30:00Z",
-  "sw": "v76.9.0-2026-05-29-ESCALA-ATRIBUICAO",
-  "sprint": "v76.9 Sprints 9.12–9.15 — Profissionalização do cockpit Meta Ads p/ vários logins. (9.12) Cache COMPARTILHADO de Meta no Postgres (tabela meta_ads_cache) pré-aquecido por cron a cada 10min — fim do cache em-memória-por-Lambda que re-batia na Graph API a cada login; summary.py lê do cache compartilhado com fallback live + write-through + degradação graciosa (serve cache vencido se a API cair). (9.13) Mapeamento de marcas config-driven (tabela brand_rules) substitui o regex chumbado — adicionar/ajustar marca = inserir linha, sem deploy; fallback hardcoded se vazia. (9.14) Atribuição HONESTA por canal: deal_source do RD → meta/google/portal/indicação/orgânico/direto/outro/não-atribuído. VGV Influenciado e ROAS usam SÓ ganhos com origem de mídia paga marcada — eliminado o fallback que fingia que todo VGV veio de ads. Selo de cobertura (% dos ganhos com origem) + tabela por canal + banner de alerta quando cobertura baixa. (9.15) Breakdowns Meta (idade/gênero/plataforma/dispositivo/região/hora) via endpoint Python dedicado + UI sob demanda na aba Criativos; conector Google Ads real (OAuth refresh + GAQL REST v17) GATED por env — inerte e honesto até configurar credenciais, nunca stub falso. Caminho B (Paulo dá push). Requer: rodar supabase/sprint9_12_meta_ads_cache.sql + sprint9_13_brand_rules.sql. Opcional: env GOOGLE_ADS_* p/ ativar Google Ads."
+  "version": "76.10.0",
+  "meta": "2026.05.29-v76.10-tv-trafego",
+  "built": "2026-05-29T05:10:00Z",
+  "sw": "v76.10.0-2026-05-29-TV-TRAFEGO",
+  "sprint": "v76.10 — Modo TV de Tráfego (Meta Ads no telão). Novo modo '📊 Tráfego' no Modo TV (/tv): KPIs grandes de Investido hoje / Leads / CPL / Sangria, cards por conta Meta com semáforo de CPL e lista de campanhas sangrando (gasto sem lead). Lê do cache compartilhado (summary date_preset=today), atualiza a cada 20s; só carrega quando o modo está ativo. Requer login Líder+ (lvl>=5) na TV — senão mostra aviso gracioso. Caminho B (Paulo dá push). Não requer SQL nem env novas."
 }

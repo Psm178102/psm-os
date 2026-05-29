@@ -4,6 +4,7 @@ import { sounds } from '../sounds.js';
 
 let _root = null, _arena = [], _ranking = [], _funnels = [], _atin = null, _users = [];
 let _mode = 'arena', _pollTimer = null, _lastSaleId = null;
+let _meta = null;  // Tráfego (Meta Ads) — só carrega no modo 'trafego'
 
 const MODES = [
   { id: 'arena',    lbl: '📡 Arena Live'   },
@@ -11,6 +12,7 @@ const MODES = [
   { id: 'metas',    lbl: '🎯 Metas vs Real'},
   { id: 'funil',    lbl: '🔗 Funil RD'     },
   { id: 'equipes',  lbl: '🛡 Equipes'      },
+  { id: 'trafego',  lbl: '📊 Tráfego'      },
 ];
 
 export async function pageTV(ctx, root) {
@@ -49,6 +51,14 @@ async function reload() {
     }
     _funnels = funnels.funnels || [];
     if (usr.users) _users = usr.users;
+
+    // Tráfego (Meta Ads): só busca quando o painel está nesse modo. Lê do cache
+    // compartilhado (rápido); requer Líder (lvl>=5) — se o login da TV não tiver,
+    // o view mostra aviso gracioso.
+    if (_mode === 'trafego') {
+      try { _meta = await api.request('/api/v3/marketing/summary?date_preset=today'); }
+      catch (e) { _meta = { _err: e.message }; }
+    }
 
     // Detecta venda nova → toca som
     const lastSale = _arena.find(e => e.type === 'venda');
@@ -93,6 +103,7 @@ function render() {
         metas:   metasView,
         funil:   funilView,
         equipes: equipesView,
+        trafego: trafegoView,
       })[_mode]()}
 
       <div style="position:fixed;bottom:16px;right:24px;font-size:13px;opacity:0.6">
@@ -100,7 +111,11 @@ function render() {
       </div>
     </div>
   `;
-  document.querySelectorAll('[data-tv]').forEach(b => b.addEventListener('click', () => { _mode = b.dataset.tv; render(); }));
+  document.querySelectorAll('[data-tv]').forEach(b => b.addEventListener('click', () => {
+    _mode = b.dataset.tv;
+    // Tráfego precisa buscar o Meta (e mostra "carregando" até chegar)
+    if (_mode === 'trafego' && !_meta) { reload(); } else { render(); }
+  }));
 }
 
 function arenaView() {
@@ -226,6 +241,80 @@ function equipesView() {
   `;
 }
 
+function trafegoView() {
+  const m = _meta;
+  if (!m) return '<div style="font-size:28px;opacity:0.7;text-align:center;padding:80px">Carregando tráfego…</div>';
+  if (m._err) {
+    return `<div style="font-size:26px;opacity:0.85;text-align:center;padding:80px">📊 Tráfego indisponível
+      <div style="font-size:16px;opacity:0.6;margin-top:10px">${escapeHtml(m._err)} — a TV precisa estar logada como Líder+ (nível ≥ 5)</div></div>`;
+  }
+  const accounts = m.accounts || [];
+  let spend = 0, results = 0, impressions = 0, clicks = 0;
+  accounts.forEach(a => { spend += a.spend || 0; results += a.results || 0; impressions += a.impressions || 0; clicks += a.clicks || 0; });
+  const cpl = results > 0 ? spend / results : 0;
+  const ctr = impressions > 0 ? (clicks / impressions * 100) : 0;
+  const camps = m.campaigns || [];
+  const sangria = camps.filter(c => (c.results || 0) === 0 && (c.spend || 0) >= 30)
+    .sort((a, b) => (b.spend || 0) - (a.spend || 0));
+  const verbaRisco = sangria.reduce((s, c) => s + (c.spend || 0), 0);
+  const acctColor = a => ((a.results || 0) === 0 && (a.spend || 0) >= 30) ? '#dc2626'
+    : (a.results > 0 && (a.spend / a.results) <= 80) ? '#16a34a' : '#d4a843';
+  const money2 = n => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px">
+      <div style="background:rgba(220,38,38,0.18);border:2px solid #dc2626;border-radius:14px;padding:24px;text-align:center">
+        <div style="font-size:17px;opacity:0.7;letter-spacing:2px">INVESTIDO HOJE</div>
+        <div style="font-size:44px;font-weight:900;margin-top:6px">R$ ${money(spend)}</div>
+      </div>
+      <div style="background:rgba(37,99,235,0.18);border:2px solid #2563eb;border-radius:14px;padding:24px;text-align:center">
+        <div style="font-size:17px;opacity:0.7;letter-spacing:2px">LEADS</div>
+        <div style="font-size:44px;font-weight:900;margin-top:6px;color:#93c5fd">${fmtInt(results)}</div>
+      </div>
+      <div style="background:rgba(124,58,237,0.18);border:2px solid #7c3aed;border-radius:14px;padding:24px;text-align:center">
+        <div style="font-size:17px;opacity:0.7;letter-spacing:2px">CPL</div>
+        <div style="font-size:44px;font-weight:900;margin-top:6px;color:#c4b5fd">${cpl ? 'R$ ' + money2(cpl) : '—'}</div>
+      </div>
+      <div style="background:rgba(${sangria.length ? '220,38,38' : '22,163,74'},0.18);border:2px solid ${sangria.length ? '#dc2626' : '#16a34a'};border-radius:14px;padding:24px;text-align:center">
+        <div style="font-size:17px;opacity:0.7;letter-spacing:2px">🔥 SANGRIA</div>
+        <div style="font-size:44px;font-weight:900;margin-top:6px;color:${sangria.length ? '#fca5a5' : '#86efac'}">${sangria.length}</div>
+        <div style="opacity:0.7;font-size:14px">${sangria.length ? 'R$ ' + money(verbaRisco) + ' em risco' : 'tudo no alvo'}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;margin-top:24px">
+      ${accounts.length === 0 ? '<div style="font-size:22px;opacity:0.6">Sem contas Meta no período.</div>' :
+        accounts.map(a => {
+          const acpl = (a.results > 0) ? a.spend / a.results : 0;
+          return `<div style="background:rgba(255,255,255,0.08);border-left:6px solid ${acctColor(a)};border-radius:12px;padding:20px">
+            <div style="font-size:24px;font-weight:800">${escapeHtml(a.label || a.account || a.accountId || 'Conta')}</div>
+            <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:18px">
+              <span style="opacity:0.7">Investido</span><span style="font-weight:800;color:#fca5a5">R$ ${money(a.spend || 0)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:18px">
+              <span style="opacity:0.7">Leads</span><span style="font-weight:800;color:#93c5fd">${fmtInt(a.results || 0)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:18px">
+              <span style="opacity:0.7">CPL</span><span style="font-weight:900;color:${acctColor(a)}">${acpl ? 'R$ ' + money2(acpl) : '—'}</span>
+            </div>
+            ${a._error ? `<div style="font-size:13px;color:#fca5a5;margin-top:8px">⚠ ${escapeHtml(a._error)}</div>` : ''}
+          </div>`;
+        }).join('')}
+    </div>
+
+    ${sangria.length ? `<div style="margin-top:22px">
+      <div style="font-size:20px;font-weight:800;color:#fca5a5;margin-bottom:10px">🔥 Campanhas sangrando (gasto sem lead)</div>
+      <div style="display:grid;gap:8px">
+        ${sangria.slice(0, 6).map(c => `<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(220,38,38,0.12);border-radius:10px;padding:12px 18px;font-size:18px">
+          <span style="font-weight:700">${escapeHtml(c.name || c.campaign_name || 'Campanha')}</span>
+          <span style="font-weight:900;color:#fca5a5">R$ ${money(c.spend || 0)} · 0 lead</span>
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
+  `;
+}
+
+function fmtInt(n) { return Number(n || 0).toLocaleString('pt-BR'); }
 function money(n) { return n == null || isNaN(n) ? '0' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
