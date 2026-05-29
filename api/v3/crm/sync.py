@@ -150,6 +150,13 @@ class handler(BaseHTTPRequestHandler):
             if not deals:
                 break
             total_fetched += len(deals)
+            # Event sourcing (rede de segurança): grava transições de etapa ANTES
+            # do upsert sobrescrever a etapa armazenada. Idempotente, best-effort.
+            try:
+                from _events_lib import record_changes  # type: ignore
+                record_changes(sb, deals, source="sync")
+            except Exception as _e:
+                print(f"[sync] record_changes: {_e}")
             for d in deals:
                 if not d.get("id"): continue
                 rows_buffer.append(_deal_to_row(d, users_by_email))

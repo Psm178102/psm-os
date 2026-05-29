@@ -70,11 +70,24 @@ class handler(BaseHTTPRequestHandler):
             if live:
                 deal = live
 
-        if not is_captar_stage(deal):
-            return self._send(200, {"ok": True, "skipped": "deal não está na etapa CAPTAR IMÓVEL"})
-
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
+
+        # ── Event sourcing: registra a etapa atual do deal (idempotente). ──
+        # Acontece em TODA mudança de etapa (não só CAPTAR) → alimenta as
+        # métricas REAIS de SLA / 1º contato / visita (deal_stage_events).
+        evented = False
+        try:
+            from _events_lib import record_stage_event  # type: ignore
+            evented = record_stage_event(sb, deal, source="webhook")
+        except Exception as _e:
+            evented = False
+
+        # ── Etapa CAPTAR IMÓVEL → cria captação na hora (comportamento original) ──
+        if not is_captar_stage(deal):
+            return self._send(200, {"ok": True, "evented": evented,
+                                    "skipped": "deal fora da etapa CAPTAR IMÓVEL"})
+
         cid = create_captacao_from_deal(sb, deal)
-        return self._send(200, {"ok": True, "captacao_id": cid, "instant": True})
+        return self._send(200, {"ok": True, "captacao_id": cid, "evented": evented, "instant": True})

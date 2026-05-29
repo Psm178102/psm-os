@@ -1,7 +1,7 @@
 {
-  "version": "76.7.0",
-  "meta": "2026.05.28-v76.7-cockpit-crm",
-  "built": "2026-05-29T01:30:00Z",
-  "sw": "v76.7.0-2026-05-28-COCKPIT-CRM",
-  "sprint": "v76.7 Sprint 9.10 — Integração RD CRM × Meta Ads no Cockpit. Novo endpoint /api/v3/marketing/crm_metrics (lê tabela deals sincronizada) destrava as métricas pesadas da planta baixa: CAC (invest÷vendas), VGV Influenciado, ROAS Imobiliário (VGV÷invest), Conversão, Ciclo de venda, Contact Rate, Show-up Rate, SLA aprox, Motivos de Perda, Trash Rate e ranking de corretores. Cockpit agora em 6 abas: 🎯 Executiva (CAC/VGV/ROAS por marca), 📊 Tráfego (Meta + Central de Alertas), 🎬 Criativos, 🏁 Vendas (Motor de Vendas), 🚦 Semáforo, 🏷 Por Marca (Mídia Meta × Vendas RD). Matching Meta×CRM por marca (1 conta Meta = 1 marca). Abas de CRM degradam com aviso se a sync falhar; SLA/contact/show-up marcados como proxy no roadmap."
+  "version": "76.8.0",
+  "meta": "2026.05.29-v76.8-event-capture",
+  "built": "2026-05-29T02:30:00Z",
+  "sw": "v76.8.0-2026-05-29-EVENT-CAPTURE",
+  "sprint": "v76.8 Sprint 9.11 — Métricas REAIS de SLA/1º contato/visita via event sourcing. Nova tabela deal_stage_events captura cada transição de etapa do RD: webhook (instantâneo) + sync/sync_cron (rede de segurança 3×/dia) + events_backfill (seed idempotente). Helper _events_lib.py idempotente (occurred_at = RD updated_at). crm_metrics passa a calcular SLA/Contact Rate/Show-up REAIS dos eventos quando a janela cai na era de captura, com flag basis ('real' × 'estimativa') por métrica — o frontend mostra selo ✓ real ou ≈ estimativa, sem fingir verdade (RD v1 não guarda histórico → passado é estimativa rotulada). Fim do corte silencioso de 12k: teto 30k + flag truncated. Caminho B (Paulo dá push). Requer: rodar supabase/sprint9_10_deal_stage_events.sql + (opcional) webhook RD em todas as etapas + GET /api/v3/crm/events_backfill uma vez."
 }

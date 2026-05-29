@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.7.0-2026-05-28-COCKPIT-CRM';
+const SW_VERSION = 'v76.8.0-2026-05-29-EVENT-CAPTURE';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

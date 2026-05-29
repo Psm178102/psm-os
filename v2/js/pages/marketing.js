@@ -148,6 +148,7 @@ function render() {
             atualizado ${d.fetchedAt ? new Date(d.fetchedAt).toLocaleTimeString('pt-BR') : 'agora'}
             ${d.partial ? ' · <span style="color:#d97706">⚠️ parcial</span>' : ''}
             ${_crm ? ` · <span style="color:#16a34a">CRM ✓ ${_crm.deals_scanned} deals</span>` : ' · <span style="color:#d97706">CRM ⚠️</span>'}
+            ${_crm && _crm.truncated ? ' · <span style="color:#d97706" title="Mais deals do que o teto desta janela — aumente o recorte ou reduza o período">⚠️ amostra truncada</span>' : ''}
           </p>
         </div>
         <label class="tiny" style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer">
@@ -417,6 +418,8 @@ function criativoRow(c) {
 function tabVendas() {
   if (!_crm) return crmWarn();
   const g = _crm.global;
+  const mb = metricsBasis();
+  const slaLabel = mb === 'real' ? '⚡ SLA 1º contato' : '⚡ SLA 1º atend.';
   const motivos = g.motivos_perda || [];
   const maxMot = motivos.reduce((m, x) => Math.max(m, x.n), 0) || 1;
   return `
@@ -424,9 +427,9 @@ function tabVendas() {
     <div class="flex gap-3 mt-3" style="flex-wrap:wrap;margin-top:12px">
       ${kpi('🎯 Conversão', g.taxa_conversao != null ? g.taxa_conversao + '%' : '—', `${g.vendas} ganhos / ${g.perdas} perdas`, '#16a34a')}
       ${kpi('⏱ Ciclo de venda', cycleLbl(g.ranking), 'mediana lead → ganho', '#2563eb')}
-      ${kpi('📞 Contact Rate', contactGlobal(), 'leads que saíram da entrada', '#7c3aed')}
-      ${kpi('🚪 Show-up / Visita', visitaGlobal(), 'contatados que chegaram à visita', '#0891b2')}
-      ${kpi('⚡ SLA 1º atend. (aprox)', slaGlobal(), 'created → 1ª atividade RD', '#ea580c')}
+      ${kpi('📞 Contact Rate', contactGlobal(), `leads que saíram da entrada ${basisChip(mb)}`, '#7c3aed')}
+      ${kpi('🚪 Show-up / Visita', visitaGlobal(), `contatados que chegaram à visita ${basisChip(mb)}`, '#0891b2')}
+      ${kpi(slaLabel, slaGlobal(), `${mb === 'real' ? 'criação → 1º contato (eventos reais)' : 'criação → última atividade RD'} ${basisChip(mb)}`, '#ea580c')}
     </div>
 
     <div class="mt-4" style="margin-top:18px">
@@ -462,7 +465,11 @@ function tabVendas() {
             </tr>`).join('')}
           </tbody></table></div>`}
     </div>
-    <div class="alert alert-warn mt-3" style="margin-top:12px">🔌 <strong>Roadmap:</strong> Time-to-Action exato (1ª resposta no WhatsApp) e Show-up real exigem o nível de atividades/visitas do RD. Os valores aqui são proxies do funil sincronizado — diretos o suficiente pra gestão, refináveis no próximo sprint.</div>
+    <div class="alert ${mb === 'real' ? 'alert-ok' : 'alert-warn'} mt-3" style="margin-top:12px">
+      ${mb === 'real'
+        ? `✅ <strong>Métricas reais</strong> desde ${fmtDateBR(_crm.capture_since)} — Contact Rate, Show-up e SLA vêm dos <em>eventos de mudança de etapa</em> capturados (webhook RD + sync). O período selecionado está coberto.`
+        : `⏳ <strong>Capturando eventos.</strong> Contact/Show-up/SLA ainda são <em>estimativa</em> do funil sincronizado — o RD v1 não guarda histórico de transição. Assim que houver eventos cobrindo o período inteiro, viram <strong>reais</strong> sozinhos. Ativar o webhook no RD acelera a captura (instantânea em vez de 3×/dia).`}
+    </div>
   `;
 }
 function cycleLbl(ranking) {
@@ -496,6 +503,15 @@ function slaGlobal() {
   const h = vals.reduce((a, b) => a + b, 0) / vals.length;
   return h < 1 ? Math.round(h * 60) + ' min' : h.toFixed(1) + ' h';
 }
+// Base do dado: 'real' (eventos de etapa capturados) vs 'estimativa' (proxy do funil).
+function metricsBasis() { return (_crm && _crm.metrics_basis) || 'estimativa'; }
+function basisChip(b) {
+  b = b || metricsBasis();
+  return b === 'real'
+    ? `<span style="display:inline-block;padding:1px 6px;border-radius:var(--r-full);background:#dcfce7;color:#15803d;font-weight:800;font-size:10px;vertical-align:middle">✓ real</span>`
+    : `<span style="display:inline-block;padding:1px 6px;border-radius:var(--r-full);background:#fef3c7;color:#b45309;font-weight:800;font-size:10px;vertical-align:middle">≈ estimativa</span>`;
+}
+function fmtDateBR(iso) { try { return new Date(iso).toLocaleDateString('pt-BR'); } catch (_) { return iso || '—'; } }
 
 /* ───────────────────────── ABA: SEMÁFORO (Aba 6) ───────────────────────── */
 function classifySemaforo(c) {

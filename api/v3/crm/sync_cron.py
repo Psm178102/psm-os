@@ -136,6 +136,13 @@ class handler(BaseHTTPRequestHandler):
             pages_done = page
             if not deals: break
             total_fetched += len(deals)
+            # Event sourcing (rede de segurança 3x/dia): grava transições de etapa
+            # ANTES do upsert sobrescrever a etapa. Idempotente, best-effort.
+            try:
+                from _events_lib import record_changes  # type: ignore
+                record_changes(sb, deals, source="sync")
+            except Exception as _e:
+                print(f"[sync_cron] record_changes: {_e}")
             for d in deals:
                 if d.get("id"):
                     rows_buffer.append(_deal_to_row(d, users_by_email))

@@ -139,26 +139,32 @@ def _is_paid_source(src):
 
 # ─── Paginação Supabase ─────────────────────────────────────────────────────
 def _fetch_period_deals(sb, since_d, until_d):
-    """Deals que tocam o período (criados OU fechados dentro da janela), com rd_raw."""
+    """Deals que tocam o período (criados OU fechados dentro da janela), com rd_raw.
+    Retorna (rows, erro, truncated). truncated=True se bateu o teto (sinaliza ao
+    usuário — sem corte silencioso)."""
     since_iso = since_d.isoformat()
-    until_iso = (until_d + timedelta(days=1)).isoformat()  # inclusivo no dia final
     cols = "id,name,amount,win,closed_at,created_at_rd,updated_at_rd,pipeline_name,stage_name,user_email,user_id,rd_raw"
     out = []
     page = 0
     size = 1000
-    while page < 12:  # teto 12k linhas
+    max_pages = 30  # teto 30k linhas
+    truncated = False
+    while True:
         try:
             q = (sb.table("deals").select(cols)
                  .or_(f"created_at_rd.gte.{since_iso},closed_at.gte.{since_iso}")
                  .range(page * size, page * size + size - 1))
             rows = q.execute().data or []
         except Exception as e:
-            return out, str(e)
+            return out, str(e), truncated
         out.extend(rows)
         if len(rows) < size:
             break
         page += 1
-    return out, None
+        if page >= max_pages:
+            truncated = True  # ainda havia mais — avisa em vez de cortar calado
+            break
+    return out, None, truncated
 
 
 # ─── Etapas (posição de entrada e de visita por pipeline) ───────────────────
@@ -207,6 +213,66 @@ def _median(vals):
     n = len(v)
     mid = n // 2
     return v[mid] if n % 2 else (v[mid - 1] + v[mid]) / 2.0
+
+
+# ─── Métricas REAIS a partir de deal_stage_events ───────────────────────────
+def _events_for_deals(sb, deal_ids):
+    """{deal_id: [(stage_position, stage_name_lower, occurred_dt), ...]} — só eventos
+    capturados de verdade (exclui source='backfill')."""
+    out = defaultdict(list)
+    ids = [str(x) for x in deal_ids if x]
+    for i in range(0, len(ids), 150):
+        chunk = ids[i:i + 150]
+        try:
+            rows = (sb.table("deal_stage_events")
+                    .select("deal_id,stage_position,stage_name,occurred_at,source")
+                    .in_("deal_id", chunk)
+                    .neq("source", "backfill")
+                    .execute().data or [])
+        except Exception:
+            rows = []
+        for r in rows:
+            out[str(r.get("deal_id"))].append(
+                (r.get("stage_position"), (r.get("stage_name") or "").lower(), _parse_dt(r.get("occurred_at")))
+            )
+    return out
+
+
+def _real_brand_metrics(cohort_brand, events_by_deal, stage_info):
+    """Calcula contact_rate / visita_rate / SLA REAIS de uma coorte de leads (criados
+    na janela), só com eventos capturados. cohort_brand: {deal_id: {created, pid}}."""
+    sla = []
+    contacted = 0
+    visita = 0
+    n = len(cohort_brand)
+    for did, info in cohort_brand.items():
+        evs = events_by_deal.get(did) or []
+        pinfo = stage_info.get(info.get("pid")) or {}
+        entry = pinfo.get("entry")
+        visp = pinfo.get("visita")
+        created = info.get("created")
+        first_contact = None
+        did_visita = False
+        for pos, nm, dt in evs:
+            if pos is not None and entry is not None and pos > entry and dt is not None:
+                if first_contact is None or dt < first_contact:
+                    first_contact = dt
+            if (visp is not None and pos is not None and pos >= visp) or (nm and VISITA_RE.search(nm)):
+                did_visita = True
+        if first_contact is not None:
+            contacted += 1
+            if created and first_contact > created:
+                dh = (first_contact - created).total_seconds() / 3600.0
+                if 0 < dh <= 168:
+                    sla.append(dh)
+        if did_visita:
+            visita += 1
+    return {
+        "n": n,
+        "contact_rate": round(contacted / n * 100, 1) if n else None,
+        "visita_rate": round(visita / contacted * 100, 1) if contacted else None,
+        "sla_horas": round(_median(sla), 1) if sla else None,
+    }
 
 
 # ─── Agregação por marca ────────────────────────────────────────────────────
@@ -266,11 +332,25 @@ class handler(BaseHTTPRequestHandler):
         since_dt = datetime(since_d.year, since_d.month, since_d.day, tzinfo=timezone.utc)
         until_dt = datetime(until_d.year, until_d.month, until_d.day, 23, 59, 59, tzinfo=timezone.utc)
 
-        deals, err = _fetch_period_deals(sb, since_d, until_d)
+        deals, err, truncated = _fetch_period_deals(sb, since_d, until_d)
         if err:
             return self._send(502, {"ok": False, "error": "deals: " + err})
 
         stage_info, _pname = _stage_positions(sb)
+
+        # ── Régua de captura de eventos reais (deal_stage_events) ──
+        # Métrica é REAL quando a janela inteira cai depois do 1º evento capturado
+        # (não-backfill). Antes/cruzando esse marco → estimativa rotulada.
+        cap_since = None
+        try:
+            _ev = (sb.table("deal_stage_events").select("occurred_at")
+                   .neq("source", "backfill").order("occurred_at", desc=False)
+                   .limit(1).execute().data or [])
+            cap_since = _parse_dt(_ev[0]["occurred_at"]) if _ev else None
+        except Exception:
+            cap_since = None
+        metrics_basis = "real" if (cap_since and since_dt >= cap_since) else "estimativa"
+        cohort = defaultdict(dict)  # brand -> {deal_id: {"created": dt, "pid": pid}}
 
         # nomes de corretores
         try:
@@ -336,6 +416,10 @@ class handler(BaseHTTPRequestHandler):
             # ── Coorte de leads criados na janela (contact/visita/SLA/origem) ──
             if in_create_win:
                 B["leads_criados"] += 1
+                _did = str(d.get("id") or "")
+                _pid = str((((raw or {}).get("deal_pipeline") or {}).get("id")) or "")
+                if _did:
+                    cohort[brand][_did] = {"created": created, "pid": _pid}
                 if src:
                     B["origens"].setdefault(src, B["origens"].get(src, 0))
                 # SLA aprox: created → 1ª atividade (proxy = last_activity se plausível)
@@ -375,6 +459,17 @@ class handler(BaseHTTPRequestHandler):
                  for k, v in B["owners"].items() if (v["vendas"] or v["perdas"])],
                 key=lambda x: (-x["vgv"], -x["vendas"])
             )
+            # SLA / contato / visita: usa REAL (eventos) quando a janela está na era
+            # de captura; senão proxy rotulado como estimativa.
+            real = real_by_brand.get(key)
+            use_real = bool(real and real.get("basis") == "real")
+            sla_proxy = round(_median(B["sla_horas"]), 1) if B["sla_horas"] else None
+            contact_proxy = round(B["leads_contatados"] / criados * 100, 1) if criados else None
+            visita_proxy = round(B["leads_visita"] / B["leads_contatados"] * 100, 1) if B["leads_contatados"] else None
+            basis = "real" if use_real else "estimativa"
+            sla_val = real["sla_horas"] if use_real else sla_proxy
+            contact_val = real["contact_rate"] if use_real else contact_proxy
+            visita_val = real["visita_rate"] if use_real else visita_proxy
             return {
                 "brand": key,
                 "label": BRAND_LABEL.get(key, key),
@@ -384,10 +479,13 @@ class handler(BaseHTTPRequestHandler):
                 "ticket_medio": round(ticket, 2),
                 "taxa_conversao": round(conv, 1) if conv is not None else None,
                 "ciclo_medio_dias": round(_median(B["ciclo_dias"]), 1) if B["ciclo_dias"] else None,
-                "sla_horas_aprox": round(_median(B["sla_horas"]), 1) if B["sla_horas"] else None,
+                "sla_horas_aprox": sla_val,
+                "sla_basis": basis,
                 "leads_criados": criados,
-                "contact_rate": round(B["leads_contatados"] / criados * 100, 1) if criados else None,
-                "visita_rate": round(B["leads_visita"] / B["leads_contatados"] * 100, 1) if B["leads_contatados"] else None,
+                "contact_rate": contact_val,
+                "contact_basis": basis,
+                "visita_rate": visita_val,
+                "visita_basis": basis,
                 "trash_rate": round(B["trash"] / perdas * 100, 1) if perdas else None,
                 "vgv_pago": round(B["vgv_pago"], 2),
                 "vendas_pago": B["vendas_pago"],
@@ -395,6 +493,16 @@ class handler(BaseHTTPRequestHandler):
                 "origens": origens,
                 "ranking": owners[:15],
             }
+
+        # Métricas reais por marca (só quando a janela cai na era de captura)
+        real_by_brand = {}
+        if metrics_basis == "real":
+            all_ids = [did for bk in cohort for did in cohort[bk].keys()]
+            events_by_deal = _events_for_deals(sb, all_ids) if all_ids else {}
+            for bk, cdeals in cohort.items():
+                rm = _real_brand_metrics(cdeals, events_by_deal, stage_info)
+                rm["basis"] = "real"
+                real_by_brand[bk] = rm
 
         per_brand = {k: _serialize(k, v) for k, v in brands.items()}
 
@@ -440,8 +548,11 @@ class handler(BaseHTTPRequestHandler):
             "period": {"since": since_d.isoformat(), "until": until_d.isoformat(),
                        "date_preset": params.get("date_preset")},
             "deals_scanned": len(deals),
+            "truncated": truncated,
             "global": g,
             "brands": per_brand,
+            "metrics_basis": metrics_basis,
+            "capture_since": cap_since.isoformat() if cap_since else None,
             "v3_user_lvl": user.get("lvl"),
             "fetched_at": datetime.now(timezone.utc).isoformat(),
         })
