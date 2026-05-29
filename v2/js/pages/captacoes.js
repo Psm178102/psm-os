@@ -256,6 +256,9 @@ function card(c) {
         <span style="width:20px;height:20px;border-radius:50%;background:${colorFor(c.responsavel)};color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center">${esc(initials(c.responsavel))}</span>
         <span class="tiny muted">${esc(c.responsavel)}</span>
       </div>` : ''}
+      <select class="cap-move" data-stop="1" data-card="${esc(c.id)}" title="Mover para outra etapa" style="margin-top:8px;width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg-2,#fff);color:var(--ink,#0f172a);cursor:pointer">
+        ${ALL_STATUS.map(s => `<option value="${esc(s.id)}"${s.id === c.status ? ' selected' : ''}>↪ ${esc(s.lbl)}</option>`).join('')}
+      </select>
     </div>`;
 }
 
@@ -269,6 +272,12 @@ function bindBoard() {
     col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drop'); });
     col.addEventListener('dragleave', () => col.classList.remove('drop'));
     col.addEventListener('drop', e => { e.preventDefault(); col.classList.remove('drop'); moveCard(_dragId, col.dataset.status); });
+  });
+  // Mover por seletor (qualquer etapa → qualquer etapa, 1 clique, sem drag)
+  document.querySelectorAll('.cap-move').forEach(sel => {
+    sel.addEventListener('mousedown', e => e.stopPropagation());
+    sel.addEventListener('click', e => e.stopPropagation());
+    sel.addEventListener('change', e => { e.stopPropagation(); moveCard(sel.dataset.card, sel.value); });
   });
 }
 

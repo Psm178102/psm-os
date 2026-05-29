@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.20.0-2026-05-29-FIX-SPARKLINES';
+const SW_VERSION = 'v76.21.0-2026-05-29-CAPTACAO-MOVER';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
