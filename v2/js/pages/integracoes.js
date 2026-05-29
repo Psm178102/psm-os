@@ -45,10 +45,10 @@ function render() {
       </div>
 
       ${isSocio ? `
-        <h3 class="card-title mt-4">🏢 Kenlo Imob (Import imóveis terceiros)</h3>
-        <p class="tiny muted">Importa imóveis do painel Kenlo → tabela imóveis com origem='terceiros'. Requer KENLO_API_TOKEN nas env vars.</p>
+        <h3 class="card-title mt-4">🏢 Kenlo Imob (Import imóveis terceiros) <span style="font-size:11px;font-weight:700;background:#fef3c7;color:#b45309;padding:1px 7px;border-radius:999px;vertical-align:middle">em breve</span></h3>
+        <p class="tiny muted">Importará imóveis do painel Kenlo → tabela imóveis (origem='terceiros'). Integração ainda não implementada — depende da liberação da API Kenlo (KENLO_API_TOKEN).</p>
         <div class="card" style="background:var(--bg-3);margin:8px 0;padding:14px">
-          <button class="btn btn-primary" id="kenlo-sync">⚡ Disparar sync</button>
+          <button class="btn btn-primary" id="kenlo-sync" disabled title="Em breve — integração Kenlo não implementada" style="opacity:0.5;cursor:not-allowed">⚡ Disparar sync (em breve)</button>
           <div id="kenlo-msg" class="mt-2"></div>
         </div>
       ` : ''}

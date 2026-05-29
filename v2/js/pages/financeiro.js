@@ -79,13 +79,27 @@ async function drawBody() {
 }
 
 // ─── Tab: Resumo ────────────────────────────────────────────────────────
+// Banner honesto de falha/parcial do NIBO — diz QUAL empresa/endpoint falhou.
+function finErrBanner(d) {
+  const errs = (d && d.errors) || [];
+  if (!errs.length && !(d && d.partial)) return '';
+  const labels = { imoveis: 'PSM Imóveis', locacao: 'PSM Locação' };
+  const detail = errs.map(e => `${labels[e.company] || e.company} — ${escapeHtml((e.endpoint || '') + ': ' + (e.msg || 'erro'))}`).join('<br>');
+  const allFail = d && d.ok === false && !d.partial && errs.length;
+  const cls = allFail ? 'alert-err' : 'alert-warn';
+  const head = allFail
+    ? '🔴 NIBO indisponível — os valores abaixo podem estar zerados ou incompletos.'
+    : '⚠ Dados parciais do NIBO — uma empresa/seção falhou. Os totais consideram só o que respondeu:';
+  return `<div class="alert ${cls}">${head}${detail ? '<div class="tiny" style="margin-top:4px">' + detail + '</div>' : ''}</div>`;
+}
+
 async function renderResumo() {
   const key = 'summary|' + _company;
   if (!_cache[key]) _cache[key] = await api.request('/api/v3/finance/summary?company=' + encodeURIComponent(_company));
   const d = _cache[key];
   const r = d.receita || {}, p = d.despesa || {}, sa = d.saldo || {}, m = d.mes_atual || {}, emp = d.por_empresa || {};
   return `
-    ${d.partial ? '<div class="alert alert-warn">⚠ Dados parciais — 1 CNPJ falhou.</div>' : ''}
+    ${finErrBanner(d)}
     <div class="tiny muted" style="margin-bottom:10px">Atualizado: ${new Date(d.fetched_at).toLocaleString('pt-BR')}</div>
 
     <div class="flex gap-3" style="flex-wrap:wrap">
