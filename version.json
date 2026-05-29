@@ -1,7 +1,7 @@
 {
-  "version": "76.3.0",
-  "meta": "2026.05.28-v76.3-fichas",
-  "built": "2026-05-28T23:00:00Z",
-  "sw": "v76.3.0-2026-05-28-FICHAS",
-  "sprint": "v76.3 Sprint 9.4 — Fichas/Propostas: modelo do Drive (botão 📄 Modelo, gestão edita), compartilhar no WhatsApp (📲 monta a proposta e abre wa.me com o contato do cliente) e impressão decente (documento limpo da proposta numa nova janela, não a tela toda). Backend links aceita ficha_modelo."
+  "version": "76.5.0",
+  "meta": "2026.05.28-v76.5-radar-trafego",
+  "built": "2026-05-28T23:59:00Z",
+  "sw": "v76.5.0-2026-05-28-RADAR",
+  "sprint": "v76.5 Sprint 9.8 — Cockpit de Tráfego Meta Ads (KPIs do período + Central de Alertas: verba queimando sem resultado, CPL acima da meta, fadiga de criativo/frequência, CTR baixo, ranking de qualidade baixo; limiares ajustáveis; auto-refresh tempo real; pausar/retomar campanha) + Radar de Concorrência migrado integral do /v1 (46 imobiliárias/corretores de Rio Preto com tier, segmento, Instagram, métricas e link direto p/ Biblioteca de Anúncios Meta)."
 }
