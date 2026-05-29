@@ -25,27 +25,31 @@ from _meta_cache_lib import build_cache_key, read_cache, write_cache  # type: ig
 
 GRAPH_API = "https://graph.facebook.com/v21.0"
 CACHE_MAX_AGE_S = 30 * 60
-_LEAD_ACTIONS = {
+_MSG_ACTIONS = {
     "onsite_conversion.messaging_conversation_started_7d",
     "onsite_conversion.messaging_first_reply",
-    "lead",
-    "offsite_conversion.fb_pixel_lead",
 }
+_LEAD_ONLY = {"lead", "offsite_conversion.fb_pixel_lead"}
+_LEAD_ACTIONS = _MSG_ACTIONS | _LEAD_ONLY  # retrocompat (results = mensagens + leads)
 
 
 def _env_list(name):
     return [s.strip() for s in (os.environ.get(name, "") or "").split(",") if s.strip()]
 
 
-def _results(actions):
+def _count(actions, types):
     t = 0
     for a in (actions or []):
-        if a.get("action_type") in _LEAD_ACTIONS:
+        if a.get("action_type") in types:
             try:
                 t += int(float(a.get("value") or 0))
             except Exception:
                 pass
     return t
+
+
+def _results(actions):
+    return _count(actions, _LEAD_ACTIONS)
 
 
 def _fetch_account_daily(act_id, token, date_params, timeout=30):
@@ -108,7 +112,8 @@ class handler(BaseHTTPRequestHandler):
         since = params.get("since") or ""
         until = params.get("until") or ""
         nocache = bool(params.get("nocache"))
-        key = "ts:" + build_cache_key(preset, since, until)
+        sel = sorted([s.strip() for s in (params.get("accounts") or "").split(",") if s.strip()])
+        key = "ts:" + ((",".join(sel) + ":") if sel else "") + build_cache_key(preset, since, until)
 
         sb = supabase_client()
         if sb and not nocache:
@@ -122,16 +127,19 @@ class handler(BaseHTTPRequestHandler):
         tokens = _env_list("META_AD_ACCOUNT_TOKENS")
         if not token or not account_ids:
             return self._send(503, {"ok": False, "error": "META_ACCESS_TOKEN/META_AD_ACCOUNT_IDS ausentes"})
+        # Pares (conta, token) alinhados; filtra pelas contas selecionadas (item 4)
+        pairs = [(account_ids[i], (tokens[i] if i < len(tokens) and tokens[i] else token)) for i in range(len(account_ids))]
+        if sel:
+            pairs = [p for p in pairs if p[0] in sel]
 
         if since and until:
             date_params = '&time_range={"since":"%s","until":"%s"}' % (since, until)
         else:
             date_params = "&date_preset=" + urllib.parse.quote(preset or "last_30d")
 
-        by_day = {}   # date -> {spend, results, impressions, clicks}
+        by_day = {}   # date -> {spend, results, messages, leads, impressions, clicks, reach}
         errors = []
-        for i, act_id in enumerate(account_ids):
-            act_token = tokens[i] if i < len(tokens) and tokens[i] else token
+        for act_id, act_token in pairs:
             try:
                 rows = _fetch_account_daily(act_id, act_token, date_params)
             except Exception as e:
@@ -141,21 +149,26 @@ class handler(BaseHTTPRequestHandler):
                 d = row.get("date_start")
                 if not d:
                     continue
-                acc = by_day.setdefault(d, {"spend": 0.0, "results": 0, "impressions": 0, "clicks": 0, "reach": 0})
+                acc = by_day.setdefault(d, {"spend": 0.0, "results": 0, "messages": 0, "leads": 0, "impressions": 0, "clicks": 0, "reach": 0})
+                acts = row.get("actions")
                 acc["spend"] += float(row.get("spend") or 0)
-                acc["results"] += _results(row.get("actions"))
+                acc["messages"] += _count(acts, _MSG_ACTIONS)
+                acc["leads"] += _count(acts, _LEAD_ONLY)
+                acc["results"] += _results(acts)
                 acc["impressions"] += int(float(row.get("impressions") or 0))
                 acc["clicks"] += int(float(row.get("clicks") or 0))
                 acc["reach"] += int(float(row.get("reach") or 0))
 
         series = []
-        tot = {"spend": 0.0, "results": 0, "impressions": 0, "clicks": 0, "reach": 0}
+        tot = {"spend": 0.0, "results": 0, "messages": 0, "leads": 0, "impressions": 0, "clicks": 0, "reach": 0}
         for d in sorted(by_day.keys()):
             v = by_day[d]
             series.append({
                 "date": d,
                 "spend": round(v["spend"], 2),
                 "results": v["results"],
+                "messages": v["messages"],
+                "leads": v["leads"],
                 "impressions": v["impressions"],
                 "clicks": v["clicks"],
                 "reach": v["reach"],
@@ -180,15 +193,17 @@ class handler(BaseHTTPRequestHandler):
                 p_until = d0 - _td(days=1)
                 p_since = p_until - _td(days=ndays - 1)
                 ps, pu = p_since.isoformat(), p_until.isoformat()
-                pv = {"spend": 0.0, "results": 0, "impressions": 0, "clicks": 0, "reach": 0}
-                for i, act_id in enumerate(account_ids):
-                    act_token = tokens[i] if i < len(tokens) and tokens[i] else token
+                pv = {"spend": 0.0, "results": 0, "messages": 0, "leads": 0, "impressions": 0, "clicks": 0, "reach": 0}
+                for act_id, act_token in pairs:
                     try:
                         r = _fetch_account_total(act_id, act_token, ps, pu)
                     except Exception:
                         continue
+                    acts = r.get("actions")
                     pv["spend"] += float(r.get("spend") or 0)
-                    pv["results"] += _results(r.get("actions"))
+                    pv["messages"] += _count(acts, _MSG_ACTIONS)
+                    pv["leads"] += _count(acts, _LEAD_ONLY)
+                    pv["results"] += _results(acts)
                     pv["impressions"] += int(float(r.get("impressions") or 0))
                     pv["clicks"] += int(float(r.get("clicks") or 0))
                     pv["reach"] += int(float(r.get("reach") or 0))
@@ -196,7 +211,7 @@ class handler(BaseHTTPRequestHandler):
                 pv["cpl"] = round(pv["spend"] / pv["results"], 2) if pv["results"] > 0 else 0
                 pv["ctr"] = round(pv["clicks"] / pv["impressions"] * 100, 2) if pv["impressions"] > 0 else 0
                 prev = {"since": ps, "until": pu, **pv}
-                for k in ("spend", "results", "impressions", "clicks", "reach", "cpl", "ctr"):
+                for k in ("spend", "results", "messages", "leads", "impressions", "clicks", "reach", "cpl", "ctr"):
                     base = pv.get(k) or 0
                     delta[k] = round((tot.get(k, 0) - base) / base * 100, 1) if base else None
             except Exception:

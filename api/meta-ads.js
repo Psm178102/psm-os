@@ -89,18 +89,24 @@ async function processAccount(actId, actLabel, actToken, dateParams) {
     clicks: parseInt(acctIns.clicks || 0)
   };
 
-  // Calcular results/cpl agregados da conta a partir das actions do acctIns
+  // Calcular results/cpl agregados da conta — MENSAGENS separadas de LEADS
   var acctActions = acctIns.actions || [];
-  var acctResults = 0;
+  var acctMessages = 0, acctLeads = 0;
   acctActions.forEach(function(a){
     if (a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
-        a.action_type === 'onsite_conversion.messaging_first_reply' ||
-        a.action_type === 'lead' ||
+        a.action_type === 'onsite_conversion.messaging_first_reply') {
+      acctMessages += parseInt(a.value || 0);
+    } else if (a.action_type === 'lead' ||
         a.action_type === 'offsite_conversion.fb_pixel_lead') {
-      acctResults += parseInt(a.value || 0);
+      acctLeads += parseInt(a.value || 0);
     }
   });
+  accountTotal.messages = acctMessages;
+  accountTotal.leads = acctLeads;
+  var acctResults = acctMessages + acctLeads;
   accountTotal.results = acctResults;
+  accountTotal.cpl_msg = (acctMessages > 0 && accountTotal.spend > 0) ? (accountTotal.spend / acctMessages) : 0;
+  accountTotal.cpl_lead = (acctLeads > 0 && accountTotal.spend > 0) ? (accountTotal.spend / acctLeads) : 0;
   accountTotal.cpr = (acctResults > 0 && accountTotal.spend > 0) ? (accountTotal.spend / acctResults) : 0;
   accountTotal.ctr = (accountTotal.impressions > 0) ? ((accountTotal.clicks / accountTotal.impressions) * 100) : 0;
   accountTotal.cpm = (accountTotal.impressions > 0) ? ((accountTotal.spend / accountTotal.impressions) * 1000) : 0;
@@ -131,18 +137,20 @@ async function processAccount(actId, actLabel, actToken, dateParams) {
     // CPC explicito
     var cpc = clicks > 0 ? (spend / clicks) : 0;
 
-    // Results: leads/messages do actions
-    var results = 0;
+    // Results: MENSAGENS separadas de LEADS
+    var results = 0, messages = 0, leads = 0;
     var tipo = 'leadgen';
     var purchases = 0;
     var actions = ins.actions || [];
     actions.forEach(function(a) {
       if (a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
           a.action_type === 'onsite_conversion.messaging_first_reply') {
+        messages += parseInt(a.value || 0);
         results += parseInt(a.value || 0);
         tipo = 'whatsapp';
       }
       if (a.action_type === 'lead' || a.action_type === 'offsite_conversion.fb_pixel_lead') {
+        leads += parseInt(a.value || 0);
         results += parseInt(a.value || 0);
       }
       if (a.action_type === 'purchase' || a.action_type === 'offsite_conversion.fb_pixel_purchase') {
@@ -243,6 +251,8 @@ async function processAccount(actId, actLabel, actToken, dateParams) {
       cpc: cpc,
       cpm: cpm,
       results: results,
+      messages: messages,
+      leads: leads,
       cpr: cpr,
       costPerConversation: costPerConversation,
       purchases: purchases,

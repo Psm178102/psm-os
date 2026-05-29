@@ -44,6 +44,8 @@ let _auto = false, _timer = null, _busy = false;
 let _bd = null, _bdSel = 'age', _bdBusy = false, _google = null;
 // Gráficos (Chart.js já no cache do SW) + série diária sob demanda
 let _ts = null, _tsBusy = false, _charts = [], _chartLibP = null;
+// Filtros: período custom (since/until) + contas selecionadas (vazio = todas)
+let _since = '', _until = '', _accSel = [];
 const BREAKDOWNS = [
   { id: 'age',                'lbl': '🎂 Idade' },
   { id: 'gender',             'lbl': '⚧ Gênero' },
@@ -88,7 +90,9 @@ async function reload(silent) {
   _busy = true;
   if (!silent) _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando Meta Ads + CRM…</div></div>';
   try {
-    const qp = '?date_preset=' + encodeURIComponent(_preset);
+    const qp = (_since && _until)
+      ? ('?since=' + encodeURIComponent(_since) + '&until=' + encodeURIComponent(_until))
+      : ('?date_preset=' + encodeURIComponent(_preset));
     _bd = null; _ts = null;  // breakdown/série dependem do período; invalida ao recarregar
     const [meta, crm, goog] = await Promise.allSettled([
       api.request('/api/v3/marketing/summary' + qp),
@@ -122,18 +126,50 @@ async function loadBreakdown(sel) {
 }
 
 function periodTotals(accounts) {
-  const t = { spend: 0, impressions: 0, reach: 0, clicks: 0, results: 0, purchaseValue: 0 };
+  const t = { spend: 0, impressions: 0, reach: 0, clicks: 0, results: 0, messages: 0, leads: 0, purchaseValue: 0 };
   accounts.forEach(a => {
     t.spend += a.spend || 0; t.impressions += a.impressions || 0; t.reach += a.reach || 0;
     t.clicks += a.clicks || 0; t.results += a.results || 0; t.purchaseValue += a.purchaseValue || 0;
+    t.messages += a.messages || 0; t.leads += a.leads || 0;
   });
   t.cpl = t.results > 0 ? t.spend / t.results : 0;
+  t.cpl_msg = t.messages > 0 ? t.spend / t.messages : 0;
+  t.cpl_lead = t.leads > 0 ? t.spend / t.leads : 0;
   t.ctr = t.impressions > 0 ? (t.clicks / t.impressions) * 100 : 0;
   t.cpm = t.impressions > 0 ? (t.spend / t.impressions) * 1000 : 0;
   t.freq = t.reach > 0 ? t.impressions / t.reach : 0;
   t.roas = t.spend > 0 && t.purchaseValue > 0 ? t.purchaseValue / t.spend : 0;
   return t;
 }
+
+// Filtro de conta(s): vazio = todas. Aplica client-side em contas e campanhas.
+function filteredAccounts() {
+  const a = (_data && _data.accounts) || [];
+  return _accSel.length ? a.filter(x => _accSel.includes(x.id)) : a;
+}
+function filteredCampaigns() {
+  const c = (_data && _data.campaigns) || [];
+  return _accSel.length ? c.filter(x => _accSel.includes(x.accountId)) : c;
+}
+// Barra de filtros: período custom (since/until) + chips de conta (uma/várias/todas)
+function filterBar() {
+  const acc = (_data && _data.accounts) || [];
+  const chip = (id, lbl, active) => `<button class="ma-acc" data-acc="${esc(id)}" style="padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid ${active ? '#2563eb' : 'var(--border)'};background:${active ? '#2563eb' : 'transparent'};color:${active ? '#fff' : 'var(--ink-muted)'}">${escapeHtml(lbl)}</button>`;
+  return `
+    <div class="flex items-center gap-2 mt-2" style="flex-wrap:wrap;background:var(--bg-3);border-radius:10px;padding:8px 10px">
+      <span class="tiny" style="font-weight:700">📅 Período:</span>
+      <input type="date" id="ma-since" value="${_since}" class="input" style="padding:3px 6px;font-size:12px;width:140px">
+      <span class="tiny muted">até</span>
+      <input type="date" id="ma-until" value="${_until}" class="input" style="padding:3px 6px;font-size:12px;width:140px">
+      <button class="btn btn-primary btn-sm" id="ma-range-go">Aplicar</button>
+      ${(_since && _until) ? '<button class="btn btn-ghost btn-sm" id="ma-range-clear">limpar</button>' : ''}
+      <span style="width:1px;height:18px;background:var(--border);margin:0 4px"></span>
+      <span class="tiny" style="font-weight:700">🏢 Contas:</span>
+      ${chip('__all__', 'Todas', _accSel.length === 0)}
+      ${acc.map(a => chip(a.id, a.label || a.id, _accSel.includes(a.id))).join('')}
+    </div>`;
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 // Agrupa gasto/resultados Meta por marca (mesma classificação do CRM).
 function metaSpendByBrand(accounts) {
@@ -187,6 +223,8 @@ function render() {
         </select>
         <button class="btn btn-ghost" id="ma-reload" title="Atualizar">🔄</button>
       </div>
+
+      ${filterBar()}
 
       ${(d.errors && d.errors.length) ? `<div class="alert alert-warn mt-2">⚠️ ${d.errors.length} conta(s) com erro: ${escapeHtml(d.errors.map(e => e.label + ' — ' + e.error).join(' · '))}</div>` : ''}
 
@@ -264,7 +302,7 @@ function execHero(t, accounts) {
   const freq = t.reach > 0 ? (t.impressions / t.reach) : 0;
   const cpc = t.clicks > 0 ? (t.spend / t.clicks) : 0;
   const cplTarget = (_th && _th.cpl) || 80;
-  const camps = (d.campaigns || []).slice().sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 5);
+  const camps = filteredCampaigns().slice().sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 5);
   const maxSp = Math.max(1, ...camps.map(c => c.spend || 0));
   const maxCl = Math.max(1, ...camps.map(c => c.clicks || 0));
   const cell = (txt, frac, color) => `<td style="padding:6px 8px;text-align:right;position:relative">
@@ -279,9 +317,10 @@ function execHero(t, accounts) {
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:14px">
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:14px">
       ${heroKpi('💰 Investimento', 'R$ ' + money(t.spend), dl.spend, col('spend'), '#ef4444')}
-      ${heroKpi('💬 Mensagens/Leads', fmtNum(t.results), dl.results, col('results'), '#22c55e')}
+      ${heroKpi('💬 Mensagens', fmtNum(t.messages), dl.messages, col('messages'), '#22c55e')}
+      ${heroKpi('🧲 Leads', fmtNum(t.leads), dl.leads, col('leads'), '#14b8a6')}
       ${heroKpi('🖱 Cliques', fmtNum(t.clicks), dl.clicks, col('clicks'), '#3b82f6')}
       ${heroKpi('👥 Alcance', fmtNum(t.reach), dl.reach, col('reach'), '#a855f7')}
       ${heroKpi('📊 Impressões', fmtNum(t.impressions), dl.impressions, col('impressions'), '#d4a843')}
@@ -315,6 +354,8 @@ function execHero(t, accounts) {
         </div>
       </div>
     </div>
+
+    ${heroAlertas()}
 
     <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-top:14px;align-items:start">
       <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:12px;overflow-x:auto">
@@ -367,9 +408,36 @@ async function buildExecutivaCharts() {
   }
 }
 
+function heroAlertas() {
+  const camps = filteredCampaigns();
+  const al = computeAlerts(camps);
+  const verba = al.burning.reduce((s, c) => s + (c.spend || 0), 0);
+  const buckets = { vertical: 0, horizontal: 0, troca: 0, sangria: 0, manter: 0 };
+  camps.forEach(c => { const k = classifySemaforo(c); if (buckets[k] != null) buckets[k]++; });
+  const stat = (ico, lbl, val, color, sub) => `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 12px;border-left:4px solid ${color}">
+      <div style="font-size:11px;color:#94a3b8">${ico} ${lbl}</div>
+      <div style="font-size:20px;font-weight:800;color:#f1f5f9">${val}</div>
+      ${sub ? `<div style="font-size:10px;color:#64748b">${sub}</div>` : ''}</div>`;
+  return `
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px;margin-top:14px">
+    <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:700;color:#cbd5e1">⚠️ Alertas & Semáforo de Escala</div>
+      <span class="tiny" style="color:#94a3b8">detalhe na aba 📊 Tráfego</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+      ${stat('🛑', 'Sangria (pausar)', al.burning.length, '#dc2626', verba ? ('R$ ' + money(verba) + ' em risco') : 'verba sem retorno')}
+      ${stat('💸', 'CPL acima da meta', al.cplHigh.length, '#ea580c', 'custo por lead alto')}
+      ${stat('😵', 'Fadiga (freq alta)', al.fadiga.length, '#a16207', 'trocar criativo')}
+      ${stat('📉', 'CTR baixo', al.ctrLow.length, '#2563eb', 'gancho fraco')}
+      ${stat('🚀', 'Escalar vertical', buckets.vertical, '#16a34a', 'CPL ok + freq baixa → +20% verba')}
+      ${stat('🧭', 'Escalar horizontal', buckets.horizontal, '#0891b2', 'novo público / lookalike')}
+    </div>
+  </div>`;
+}
+
 function tabExecutiva() {
   const d = _data || {};
-  const accounts = d.accounts || [];
+  const accounts = filteredAccounts();
   const t = periodTotals(accounts);
   if (!_crm) {
     // Hero premium + aviso de CRM ausente
@@ -541,7 +609,13 @@ function loadChartLib() {
 async function loadTimeseries() {
   if (_ts || _tsBusy) return;
   _tsBusy = true;
-  try { _ts = await api.request('/api/v3/marketing/meta_timeseries?date_preset=' + encodeURIComponent(_preset)); }
+  try {
+    let q = (_since && _until)
+      ? ('?since=' + encodeURIComponent(_since) + '&until=' + encodeURIComponent(_until))
+      : ('?date_preset=' + encodeURIComponent(_preset));
+    if (_accSel.length) q += '&accounts=' + encodeURIComponent(_accSel.join(','));
+    _ts = await api.request('/api/v3/marketing/meta_timeseries' + q);
+  }
   catch (e) { _ts = { ok: false, series: [], error: e.message }; }
   finally { _tsBusy = false; if (_tab === 'graficos' || _tab === 'executiva') render(); }
 }
@@ -1134,6 +1208,21 @@ function wire() {
   document.getElementById('ma-filter')?.addEventListener('input', e => { _filter = e.target.value; render(); });
   document.getElementById('bd-sel')?.addEventListener('change', e => { _bdSel = e.target.value; });
   document.getElementById('bd-go')?.addEventListener('click', () => loadBreakdown(_bdSel));
+
+  // Filtro de período custom
+  document.getElementById('ma-range-go')?.addEventListener('click', () => {
+    const s = document.getElementById('ma-since')?.value, u = document.getElementById('ma-until')?.value;
+    if (s && u) { _since = s; _until = u; reload(); }
+    else alert('Informe data de início e fim.');
+  });
+  document.getElementById('ma-range-clear')?.addEventListener('click', () => { _since = ''; _until = ''; reload(); });
+  // Filtro de conta(s): Todas reseta; clicar alterna a conta (multiseleção)
+  document.querySelectorAll('.ma-acc').forEach(b => b.addEventListener('click', () => {
+    const id = b.dataset.acc;
+    if (id === '__all__') { _accSel = []; }
+    else { const i = _accSel.indexOf(id); if (i >= 0) _accSel.splice(i, 1); else _accSel.push(id); }
+    _ts = null; render();
+  }));
 
   // Aba Gráficos: garante a série diária e (re)desenha os charts
   if (_tab === 'graficos') { loadTimeseries(); buildGraficos(); }
