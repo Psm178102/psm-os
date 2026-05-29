@@ -91,17 +91,27 @@ class handler(BaseHTTPRequestHandler):
                 .eq("win", True).gte("closed_at", start).lt("closed_at", end).execute().data or []
             kpis["atingido_vgv_ano"] = sum(float(d.get("amount") or 0) for d in dq)
             kpis["atingido_vendas_ano"] = len(dq)
-            # Mês atual
+            # Mês atual + série mensal real (12 meses) p/ sparklines/gráfico premium
             kpis["atingido_vgv_mes"] = 0; kpis["atingido_vendas_mes"] = 0
+            vgv_mes = [0.0] * 12
+            vendas_mes = [0] * 12
             for d in dq:
                 ca = d.get("closed_at")
                 if not ca: continue
                 try:
                     dt = datetime.fromisoformat(str(ca).replace("Z", "+00:00"))
+                    amt = float(d.get("amount") or 0)
+                    if 1 <= dt.month <= 12:
+                        vgv_mes[dt.month - 1] += amt
+                        vendas_mes[dt.month - 1] += 1
                     if dt.month == mes_atual:
-                        kpis["atingido_vgv_mes"] += float(d.get("amount") or 0)
+                        kpis["atingido_vgv_mes"] += amt
                         kpis["atingido_vendas_mes"] += 1
                 except: pass
+            kpis["vgv_por_mes"] = [round(v, 2) for v in vgv_mes]
+            kpis["vendas_por_mes"] = vendas_mes
+            # Meta mensal = meta anual / 12 (linha de referência no gráfico)
+            kpis["meta_vgv_mes"] = round((kpis.get("meta_vgv_ano") or 0) / 12.0, 2)
             kpis["atingimento_pct"] = (kpis["atingido_vgv_ano"] / kpis["meta_vgv_ano"] * 100) if kpis["meta_vgv_ano"] > 0 else None
         except Exception as e:
             errors.append(f"deals: {e}")

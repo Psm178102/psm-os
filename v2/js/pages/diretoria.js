@@ -4,6 +4,9 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { heroWrap, heroKpi, miniStat, panel, loadChartLib, darkOpts, DARK_INK, DARK_GRID, pctDelta } from '../premium.js';
+
+let _charts = [];
 
 const TIPOS_EST = [
   { id: 'visao',      lbl: 'Visão',      ico: '🎯', color: '#7c3aed' },
@@ -62,6 +65,7 @@ async function loadTab() {
       const d = await api.request('/api/v3/diretoria/dashboard?ano=' + _ano).catch(e => ({ error: e.message }));
       _data.dash = d;
       body.innerHTML = renderDashboard();
+      buildDashCharts();
     } else if (_tab === 'recados') {
       const r = await api.request('/api/v3/diretoria/recados');
       _data.recados = r;
@@ -86,16 +90,10 @@ function renderDashboard() {
   const k = d.kpis;
 
   return `
-    <div class="tiny muted" style="margin-bottom:10px">
-      ${_ano} · ${MES_NAMES[k.mes - 1] || ''}/${_ano} · Atualizado ${new Date(d.fetched_at).toLocaleString('pt-BR')}
-    </div>
+    ${dashHero(k, d)}
 
-    <!-- Hero KPIs -->
-    <div class="flex gap-3" style="flex-wrap:wrap;margin-bottom:14px">
-      ${kpi('💎 VGV Ano (atingido)', 'R$ ' + money(k.atingido_vgv_ano), `${k.atingido_vendas_ano || 0} vendas`, '#7c3aed')}
-      ${kpi('🎯 Meta Ano',           'R$ ' + money(k.meta_vgv_ano), `${k.metas_count || 0} corretores com meta`, '#2563eb')}
-      ${kpi('📊 % Atingimento',      (k.atingimento_pct == null ? '—' : k.atingimento_pct.toFixed(1) + '%'), 'do ano', pctColor(k.atingimento_pct))}
-      ${kpi('💵 VGV Mês',            'R$ ' + money(k.atingido_vgv_mes), `${k.atingido_vendas_mes || 0} vendas no mês`, '#16a34a')}
+    <div class="tiny muted" style="margin-bottom:10px">
+      ${_ano} · ${MES_NAMES[(k.mes || d.mes) - 1] || ''}/${_ano} · Atualizado ${new Date(d.fetched_at).toLocaleString('pt-BR')}
     </div>
 
     <div class="flex gap-3" style="flex-wrap:wrap;margin-bottom:14px">
@@ -138,6 +136,79 @@ function renderDashboard() {
       <a href="#/crm" class="btn btn-ghost">🔗 CRM</a>
     </div>
   `;
+}
+
+// ─── Hero premium (dark + sparklines + gráficos) ────────────────────────
+function dashHero(k, d) {
+  const vgvMes = k.vgv_por_mes || [];
+  const vendasMes = k.vendas_por_mes || [];
+  const mesIdx = (k.mes || d.mes || 1) - 1;
+  // Δ% do mês atual vs mês anterior (VGV)
+  const dVgvMes = mesIdx > 0 ? pctDelta(vgvMes[mesIdx] || 0, vgvMes[mesIdx - 1] || 0) : null;
+  const dVendasMes = mesIdx > 0 ? pctDelta(vendasMes[mesIdx] || 0, vendasMes[mesIdx - 1] || 0) : null;
+  // VGV acumulado mês a mês (pra sparkline de "VGV Ano")
+  let acc = 0; const vgvAcum = vgvMes.map(v => (acc += (v || 0)));
+  const atingPct = k.atingimento_pct;
+  const metaAno = k.meta_vgv_ano || 0;
+  const inner = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
+      ${heroKpi('💎 VGV Ano (atingido)', 'R$ ' + moneyShort(k.atingido_vgv_ano), null, vgvAcum, '#a855f7')}
+      ${heroKpi('🎯 Meta Ano', 'R$ ' + moneyShort(metaAno), null, vgvMes.map(() => metaAno / 12), '#3b82f6')}
+      ${heroKpi('📊 % Atingimento', (atingPct == null ? '—' : atingPct.toFixed(1) + '%'), null, vgvAcum.map(v => metaAno ? v / metaAno * 100 : 0), '#22c55e')}
+      ${heroKpi('💵 VGV Mês', 'R$ ' + moneyShort(k.atingido_vgv_mes), dVgvMes, vgvMes, '#14b8a6')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-top:16px;align-items:start">
+      ${panel('📈 VGV por mês × meta mensal (' + _ano + ')', '<div style="position:relative;height:210px"><canvas id="dir-ch-vgv"></canvas></div>')}
+      ${panel('🛡 Equipe por frente', '<div style="position:relative;height:210px"><canvas id="dir-ch-team"></canvas></div>')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:14px">
+      ${miniStat('Vendas no ano', fmtNum(k.atingido_vendas_ano), '#a855f7')}
+      ${miniStat('Vendas no mês', fmtNum(k.atingido_vendas_mes), '#14b8a6')}
+      ${miniStat('Equipe ativa', fmtNum(k.users_ativos), '#06b6d4')}
+      ${miniStat('Tarefas abertas', fmtNum(k.tarefas_abertas), (k.tarefas_abertas || 0) > 0 ? '#f59e0b' : '#22c55e')}
+      ${miniStat('Eventos 7d', fmtNum(k.eventos_proxima_semana), '#a855f7')}
+      ${miniStat('Recados', fmtNum(k.recados_ativos) + (k.recados_criticos ? ' · ' + k.recados_criticos + '🔴' : ''), k.recados_criticos > 0 ? '#f87171' : '#22c55e')}
+    </div>`;
+  return heroWrap('🏛 Diretoria PSM · Painel Executivo', `Ano ${_ano} · meta R$ ${moneyShort(metaAno)} · atingido R$ ${moneyShort(k.atingido_vgv_ano)}`, inner);
+}
+
+async function buildDashCharts() {
+  let Chart; try { Chart = await loadChartLib(); } catch (_) { return; }
+  if (!Chart) return;
+  _charts.forEach(c => { try { c.destroy(); } catch (_) {} });
+  _charts = [];
+  const k = (_data.dash || {}).kpis || {};
+  const mk = (id, cfg) => { const el = document.getElementById(id); if (el) _charts.push(new Chart(el, cfg)); };
+  const MES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  const vgvMes = k.vgv_por_mes || [];
+  if (vgvMes.length) {
+    const metaMes = (k.meta_vgv_ano || 0) / 12;
+    mk('dir-ch-vgv', {
+      type: 'bar',
+      data: { labels: MES, datasets: [
+        { type: 'bar', label: 'VGV realizado', data: vgvMes, backgroundColor: 'rgba(168,85,247,0.65)', borderRadius: 4, order: 2 },
+        { type: 'line', label: 'Meta mensal', data: MES.map(() => metaMes), borderColor: '#f59e0b', borderDash: [5, 4], pointRadius: 0, borderWidth: 2, order: 1 },
+      ] },
+      options: darkOpts({ scales: {
+        x: { ticks: { color: DARK_INK, font: { size: 10 } }, grid: { color: DARK_GRID } },
+        y: { beginAtZero: true, ticks: { color: DARK_INK, callback: v => 'R$ ' + (v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(0) + 'k' : v) }, grid: { color: DARK_GRID } },
+      } }),
+    });
+  }
+
+  const byTeam = k.users_by_team || {};
+  const teams = Object.keys(byTeam);
+  if (teams.length) {
+    const PAL = ['#3b82f6', '#22c55e', '#a855f7', '#f59e0b', '#ef4444', '#06b6d4', '#14b8a6', '#ec4899'];
+    mk('dir-ch-team', {
+      type: 'doughnut',
+      data: { labels: teams, datasets: [{ data: teams.map(t => byTeam[t]), backgroundColor: teams.map((_, i) => PAL[i % PAL.length]), borderWidth: 0 }] },
+      options: darkOpts({ cutout: '58%' }),
+    });
+  }
 }
 
 // ─── Tab: Recados ──────────────────────────────────────────────────────
@@ -423,6 +494,16 @@ function totalTarefas(t) {
 function money(n) {
   if (n == null || isNaN(n)) return '0';
   return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function moneyShort(n) {
+  const v = Number(n) || 0;
+  if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2).replace('.', ',') + ' mi';
+  if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(0) + ' mil';
+  return money(v);
+}
+function fmtNum(n) {
+  if (n == null || isNaN(n)) return '0';
+  return Number(n).toLocaleString('pt-BR');
 }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

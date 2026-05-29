@@ -1,5 +1,5 @@
 // PSM /v2 — Service Worker (offline-first cache de shell)
-const VERSION = 'v88-2026-05-29-meta-filtros';
+const VERSION = 'v89-2026-05-29-netfirst-js';
 const SHELL_CACHE = 'psm-v2-shell-' + VERSION;
 // Runtime cache versionado: ao bumpar VERSION, o activate purga o runtime antigo
 // (JS/CSS desatualizado) automaticamente, garantindo que mudanças propaguem.
@@ -46,17 +46,16 @@ self.addEventListener('fetch', evt => {
     );
     return;
   }
-  // JS/CSS do app (/v2/js, /v2/css): stale-while-revalidate
-  // (serve do cache na hora, mas SEMPRE busca atualização em background → próxima carga já é nova)
+  // JS/CSS do app (/v2/js, /v2/css): NETWORK-FIRST (no-store)
+  // Antes era stale-while-revalidate → servia o JS VELHO na 1ª carga pós-deploy
+  // (a mudança só aparecia no 2º load → "cadê as mudanças?"). Agora busca SEMPRE
+  // a versão nova da rede; o cache fica só como fallback offline. Deploy propaga de 1ª.
   if (url.pathname.startsWith('/v2/js/') || url.pathname.startsWith('/v2/css/') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
     evt.respondWith(
-      caches.match(evt.request).then(cached => {
-        const fetched = fetch(evt.request).then(r => {
-          if (r && r.ok) caches.open(RUNTIME_CACHE).then(c => c.put(evt.request, r.clone()));
-          return r;
-        }).catch(() => cached);
-        return cached || fetched;
-      })
+      fetch(evt.request, { cache: 'no-store' }).then(r => {
+        if (r && r.ok) caches.open(RUNTIME_CACHE).then(c => c.put(evt.request, r.clone()));
+        return r;
+      }).catch(() => caches.match(evt.request))
     );
     return;
   }

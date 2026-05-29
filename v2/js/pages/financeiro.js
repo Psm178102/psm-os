@@ -3,11 +3,13 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { heroWrap, heroKpi, miniStat, panel, loadChartLib, darkOpts, DARK_INK, DARK_GRID, pctDelta } from '../premium.js';
 
 let _root = null;
 let _company = 'all';
 let _tab = 'resumo';            // resumo | dre | comissoes | repasses
 let _cache = {};                // por tab+company
+let _charts = [];               // instâncias Chart.js do hero (destruídas a cada render)
 
 export async function pageFinanceiro(ctx, root) {
   _root = root;
@@ -66,8 +68,10 @@ function drawShell() {
 async function drawBody() {
   const body = document.getElementById('fin-body');
   if (!body) return;
+  _charts.forEach(c => { try { c.destroy(); } catch (_) {} });
+  _charts = [];
   try {
-    if (_tab === 'resumo')        body.innerHTML = await renderResumo();
+    if (_tab === 'resumo')      { body.innerHTML = await renderResumo(); buildResumoCharts(); }
     else if (_tab === 'dre')      body.innerHTML = await renderDre();
     else if (_tab === 'metricas') body.innerHTML = await renderMetricas();
     else if (_tab === 'custos')   body.innerHTML = await renderCustos();
@@ -97,9 +101,16 @@ async function renderResumo() {
   const key = 'summary|' + _company;
   if (!_cache[key]) _cache[key] = await api.request('/api/v3/finance/summary?company=' + encodeURIComponent(_company));
   const d = _cache[key];
+  // DRE 12m alimenta sparklines + gráfico do hero (série mensal real)
+  const dkey = 'dre|' + _company;
+  if (!_cache[dkey]) {
+    try { _cache[dkey] = await api.request('/api/v3/finance/dre?months=12&company=' + encodeURIComponent(_company)); }
+    catch (_) { _cache[dkey] = { rows: [] }; }
+  }
   const r = d.receita || {}, p = d.despesa || {}, sa = d.saldo || {}, m = d.mes_atual || {}, emp = d.por_empresa || {};
   return `
     ${finErrBanner(d)}
+    ${finHero(d, _cache[dkey])}
     <div class="tiny muted" style="margin-bottom:10px">Atualizado: ${new Date(d.fetched_at).toLocaleString('pt-BR')}</div>
 
     <div class="flex gap-3" style="flex-wrap:wrap">
@@ -157,6 +168,83 @@ async function renderResumo() {
       </div>
     </div>
   `;
+}
+
+// ─── Hero premium (dark + sparklines + gráficos) ────────────────────────
+function dreSeries(dre) {
+  const rows = (dre && dre.rows) || [];
+  return {
+    labels: rows.map(r => r.label),
+    receita: rows.map(r => (r.receita_real || 0) + (r.receita_prev || 0)),
+    despesa: rows.map(r => (r.despesa_real || 0) + (r.despesa_prev || 0)),
+    saldo: rows.map(r => ((r.receita_real || 0) + (r.receita_prev || 0)) - ((r.despesa_real || 0) + (r.despesa_prev || 0))),
+    saldoReal: rows.map(r => r.saldo_real || 0),
+  };
+}
+function lastDelta(arr) {
+  if (!arr || arr.length < 2) return null;
+  return pctDelta(arr[arr.length - 1], arr[arr.length - 2]);
+}
+function finHero(d, dre) {
+  const r = d.receita || {}, p = d.despesa || {}, sa = d.saldo || {}, m = d.mes_atual || {};
+  const s = dreSeries(dre);
+  const compName = _company === 'imoveis' ? 'PSM Imóveis' : _company === 'locacao' ? 'PSM Locação' : 'Consolidado (2 CNPJs)';
+  const margem = (m.receita || 0) > 0 ? (m.saldo || 0) / m.receita * 100 : null;
+  const inner = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
+      ${heroKpi('💚 A Receber (previsto)', 'R$ ' + moneyShort(r.previsto), lastDelta(s.receita), s.receita, '#22c55e')}
+      ${heroKpi('❤️ A Pagar (previsto)', 'R$ ' + moneyShort(p.previsto), lastDelta(s.despesa), s.despesa, '#ef4444', true)}
+      ${heroKpi('📊 Saldo previsto líq.', 'R$ ' + moneyShort(sa.previsto_liquido), lastDelta(s.saldo), s.saldo, (sa.previsto_liquido >= 0 ? '#22c55e' : '#f87171'))}
+      ${heroKpi('✓ Saldo realizado', 'R$ ' + moneyShort(sa.realizado_liquido), lastDelta(s.saldoReal), s.saldoReal, (sa.realizado_liquido >= 0 ? '#14b8a6' : '#f87171'))}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-top:16px;align-items:start">
+      ${panel('📈 Receita × Despesa × Saldo (12 meses)', '<div style="position:relative;height:220px"><canvas id="fin-ch-line"></canvas></div>')}
+      ${panel('❤️ Mix de despesa (categorias)', '<div style="position:relative;height:220px"><canvas id="fin-ch-donut"></canvas></div>')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:14px">
+      ${miniStat('Receita do mês', 'R$ ' + moneyShort(m.receita), '#22c55e')}
+      ${miniStat('Despesa do mês', 'R$ ' + moneyShort(m.despesa), '#f87171')}
+      ${miniStat('Saldo do mês', 'R$ ' + moneyShort(m.saldo), (m.saldo >= 0 ? '#22c55e' : '#f87171'))}
+      ${miniStat('Margem do mês', margem == null ? '—' : margem.toFixed(0) + '%', (margem || 0) >= 0 ? '#14b8a6' : '#f87171')}
+      ${miniStat('# rec / des mês', (m.n_receitas || 0) + ' / ' + (m.n_despesas || 0), '#94a3b8')}
+    </div>`;
+  return heroWrap('💰 Financeiro · NIBO ao vivo', compName + ' · DRE 12 meses · trend mês a mês', inner);
+}
+
+function buildResumoCharts() {
+  loadChartLib().then(Chart => {
+    if (!Chart) return;
+    const mk = (id, cfg) => { const el = document.getElementById(id); if (el) _charts.push(new Chart(el, cfg)); };
+    const dre = _cache['dre|' + _company];
+    const s = dreSeries(dre);
+    const fmtAxis = v => 'R$ ' + (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : Math.abs(v) >= 1e3 ? (v / 1e3).toFixed(0) + 'k' : v);
+    if (s.labels.length) {
+      mk('fin-ch-line', {
+        type: 'line',
+        data: { labels: s.labels, datasets: [
+          { label: 'Receita', data: s.receita, borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.14)', fill: true, tension: 0.35, pointRadius: 0 },
+          { label: 'Despesa', data: s.despesa, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.10)', fill: true, tension: 0.35, pointRadius: 0 },
+          { label: 'Saldo', data: s.saldo, borderColor: '#38bdf8', tension: 0.35, pointRadius: 0, borderWidth: 2 },
+        ] },
+        options: darkOpts({ scales: {
+          x: { ticks: { color: DARK_INK, font: { size: 10 }, maxTicksLimit: 12 }, grid: { color: DARK_GRID } },
+          y: { ticks: { color: DARK_INK, callback: fmtAxis }, grid: { color: DARK_GRID } },
+        } }),
+      });
+    }
+    const sm = _cache['summary|' + _company] || {};
+    const cats = (sm.por_categoria_despesa || []).slice(0, 6).filter(c => Math.abs(c.valor || 0) > 0);
+    if (cats.length) {
+      const PAL = ['#ef4444', '#f59e0b', '#a855f7', '#3b82f6', '#14b8a6', '#ec4899'];
+      mk('fin-ch-donut', {
+        type: 'doughnut',
+        data: { labels: cats.map(c => (c.categoria || '—').slice(0, 22)), datasets: [{ data: cats.map(c => Math.abs(c.valor)), backgroundColor: cats.map((_, i) => PAL[i % PAL.length]), borderWidth: 0 }] },
+        options: darkOpts({ cutout: '58%' }),
+      });
+    }
+  }).catch(() => {});
 }
 
 // ─── Tab: DRE 12m ───────────────────────────────────────────────────────
@@ -679,6 +767,12 @@ function tableCat(cats, color) {
 function money(n) {
   if (n == null || isNaN(n)) return '0,00';
   return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function moneyShort(n) {
+  const v = Number(n) || 0;
+  if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2).replace('.', ',') + ' mi';
+  if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(1).replace('.', ',') + ' mil';
+  return money(v);
 }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
