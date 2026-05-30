@@ -143,9 +143,10 @@ function dashHero(k, d) {
   const vgvMes = k.vgv_por_mes || [];
   const vendasMes = k.vendas_por_mes || [];
   const mesIdx = (k.mes || d.mes || 1) - 1;
-  // Δ% do mês atual vs mês anterior (VGV)
-  const dVgvMes = mesIdx > 0 ? pctDelta(vgvMes[mesIdx] || 0, vgvMes[mesIdx - 1] || 0) : null;
-  const dVendasMes = mesIdx > 0 ? pctDelta(vendasMes[mesIdx] || 0, vendasMes[mesIdx - 1] || 0) : null;
+  // Δ% entre os dois últimos meses COMPLETOS (o mês corrente é parcial e
+  // distorceria o %); cai pra mês-a-mês simples se ainda não há 2 meses fechados.
+  const dVgvMes = mesIdx >= 2 ? pctDelta(vgvMes[mesIdx - 1] || 0, vgvMes[mesIdx - 2] || 0)
+                : mesIdx > 0 ? pctDelta(vgvMes[mesIdx] || 0, vgvMes[mesIdx - 1] || 0) : null;
   // VGV acumulado mês a mês (pra sparkline de "VGV Ano")
   let acc = 0; const vgvAcum = vgvMes.map(v => (acc += (v || 0)));
   const atingPct = k.atingimento_pct;

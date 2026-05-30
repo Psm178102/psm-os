@@ -181,9 +181,20 @@ function dreSeries(dre) {
     saldoReal: rows.map(r => r.saldo_real || 0),
   };
 }
-function lastDelta(arr) {
-  if (!arr || arr.length < 2) return null;
-  return pctDelta(arr[arr.length - 1], arr[arr.length - 2]);
+// Δ% robusto: compara os dois últimos meses COMPLETOS (descarta o mês corrente,
+// que é parcial e distorce o %). Pra saldo (que cruza o zero) suprime o % quando
+// a base é pequena demais ou houve troca de sinal — evita "▲2570%" sem sentido.
+function lastDelta(arr, isSaldo) {
+  if (!arr || arr.length < 3) return null;
+  const cur = arr[arr.length - 2];   // último mês completo
+  const prev = arr[arr.length - 3];  // mês anterior
+  if (prev == null || prev === 0 || isNaN(prev)) return null;
+  if (isSaldo) {
+    const maxAbs = Math.max(...arr.map(v => Math.abs(v || 0)), 1);
+    if (Math.abs(prev) < maxAbs * 0.12) return null;       // base irrelevante → sem %
+    if ((cur < 0) !== (prev < 0)) return null;             // cruzou o zero → sem %
+  }
+  return pctDelta(cur, prev);
 }
 function finHero(d, dre) {
   const r = d.receita || {}, p = d.despesa || {}, sa = d.saldo || {}, m = d.mes_atual || {};
@@ -194,13 +205,16 @@ function finHero(d, dre) {
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
       ${heroKpi('💚 A Receber (previsto)', 'R$ ' + moneyShort(r.previsto), lastDelta(s.receita), s.receita, '#22c55e')}
       ${heroKpi('❤️ A Pagar (previsto)', 'R$ ' + moneyShort(p.previsto), lastDelta(s.despesa), s.despesa, '#ef4444', true)}
-      ${heroKpi('📊 Saldo previsto líq.', 'R$ ' + moneyShort(sa.previsto_liquido), lastDelta(s.saldo), s.saldo, (sa.previsto_liquido >= 0 ? '#22c55e' : '#f87171'))}
-      ${heroKpi('✓ Saldo realizado', 'R$ ' + moneyShort(sa.realizado_liquido), lastDelta(s.saldoReal), s.saldoReal, (sa.realizado_liquido >= 0 ? '#14b8a6' : '#f87171'))}
+      ${heroKpi('📊 Saldo previsto líq.', 'R$ ' + moneyShort(sa.previsto_liquido), lastDelta(s.saldo, true), s.saldo, (sa.previsto_liquido >= 0 ? '#22c55e' : '#f87171'))}
+      ${heroKpi('✓ Saldo realizado', 'R$ ' + moneyShort(sa.realizado_liquido), lastDelta(s.saldoReal, true), s.saldoReal, (sa.realizado_liquido >= 0 ? '#14b8a6' : '#f87171'))}
     </div>
 
     <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-top:16px;align-items:start">
       ${panel('📈 Receita × Despesa × Saldo (12 meses)', '<div style="position:relative;height:220px"><canvas id="fin-ch-line"></canvas></div>')}
-      ${panel('❤️ Mix de despesa (categorias)', '<div style="position:relative;height:220px"><canvas id="fin-ch-donut"></canvas></div>')}
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px">
+        <div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:8px" id="fin-donut-title">Composição</div>
+        <div style="position:relative;height:220px"><canvas id="fin-ch-donut"></canvas></div>
+      </div>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:14px">
@@ -235,16 +249,39 @@ function buildResumoCharts() {
       });
     }
     const sm = _cache['summary|' + _company] || {};
-    const cats = (sm.por_categoria_despesa || []).slice(0, 6).filter(c => Math.abs(c.valor || 0) > 0);
-    if (cats.length) {
-      const PAL = ['#ef4444', '#f59e0b', '#a855f7', '#3b82f6', '#14b8a6', '#ec4899'];
+    const spec = pickDonut(sm, s);
+    const titleEl = document.getElementById('fin-donut-title');
+    if (titleEl) titleEl.textContent = spec.title;
+    if (spec.data.length) {
       mk('fin-ch-donut', {
         type: 'doughnut',
-        data: { labels: cats.map(c => (c.categoria || '—').slice(0, 22)), datasets: [{ data: cats.map(c => Math.abs(c.valor)), backgroundColor: cats.map((_, i) => PAL[i % PAL.length]), borderWidth: 0 }] },
+        data: { labels: spec.labels, datasets: [{ data: spec.data, backgroundColor: spec.colors, borderWidth: 0 }] },
         options: darkOpts({ cutout: '58%' }),
       });
     }
   }).catch(() => {});
+}
+
+// Escolhe a composição mais informativa com dado REAL: 1) categorias de despesa
+// reais (ignora "sem categoria"); 2) despesa por empresa/CNPJ (Consolidado);
+// 3) Receita × Despesa (12m). Nunca cai num donut de 1 fatia "Sem categoria".
+function pickDonut(sm, s) {
+  const PAL = ['#ef4444', '#f59e0b', '#a855f7', '#3b82f6', '#14b8a6', '#ec4899'];
+  const vazio = n => { const t = (n || '').trim().toLowerCase(); return !t || t === 'sem categoria' || t === 'outros' || t === 'não classificado'; };
+  const cats = (sm.por_categoria_despesa || []).filter(c => Math.abs(c.valor || 0) > 0 && !vazio(c.categoria)).slice(0, 6);
+  if (cats.length >= 2) {
+    return { title: '❤️ Mix de despesa (categorias)', labels: cats.map(c => (c.categoria || '—').slice(0, 22)), data: cats.map(c => Math.abs(c.valor)), colors: cats.map((_, i) => PAL[i % PAL.length]) };
+  }
+  const emp = Object.values(sm.por_empresa || {}).filter(e => (e.despesa_total || 0) > 0);
+  if (emp.length >= 2) {
+    return { title: '🏢 Despesa por empresa (CNPJ)', labels: emp.map(e => e.label || '—'), data: emp.map(e => e.despesa_total), colors: emp.map((_, i) => PAL[i % PAL.length]) };
+  }
+  const totRec = (s.receita || []).reduce((a, b) => a + (b || 0), 0);
+  const totDes = (s.despesa || []).reduce((a, b) => a + (b || 0), 0);
+  if (totRec > 0 || totDes > 0) {
+    return { title: '💰 Receita × Despesa (12 meses)', labels: ['Receita', 'Despesa'], data: [totRec, totDes], colors: ['#22c55e', '#ef4444'] };
+  }
+  return { title: 'Composição', labels: [], data: [], colors: [] };
 }
 
 // ─── Tab: DRE 12m ───────────────────────────────────────────────────────
