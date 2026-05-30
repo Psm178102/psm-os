@@ -101,12 +101,16 @@ async function renderResumo() {
   const key = 'summary|' + _company;
   if (!_cache[key]) _cache[key] = await api.request('/api/v3/finance/summary?company=' + encodeURIComponent(_company));
   const d = _cache[key];
-  // DRE 12m alimenta sparklines + gráfico do hero (série mensal real)
+  // DRE 12m alimenta sparklines + gráfico do hero (série mensal real).
+  // Se o NIBO está totalmente fora (summary falhou geral), NÃO dispara a 2ª
+  // chamada — evita empilhar carga numa API que já está recusando (401).
+  const nibodown = d && d.ok === false && !d.partial;
   const dkey = 'dre|' + _company;
-  if (!_cache[dkey]) {
+  if (!nibodown && !_cache[dkey]) {
     try { _cache[dkey] = await api.request('/api/v3/finance/dre?months=12&company=' + encodeURIComponent(_company)); }
     catch (_) { _cache[dkey] = { rows: [] }; }
   }
+  if (!_cache[dkey]) _cache[dkey] = { rows: [] };
   const r = d.receita || {}, p = d.despesa || {}, sa = d.saldo || {}, m = d.mes_atual || {}, emp = d.por_empresa || {};
   return `
     ${finErrBanner(d)}
