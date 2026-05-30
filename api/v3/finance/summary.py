@@ -65,7 +65,26 @@ def _fetch_nibo(company: str, endpoint: str, top: int = 1000):
                 it["_companyLabel"] = cfg["label"]
         return {"items": items, "count": data.get("count") if isinstance(data, dict) else len(items)}
     except urllib.error.HTTPError as e:
-        return {"error": f"HTTP {e.code}", "items": []}
+        # DIAGNÓSTICO: captura o corpo do erro + headers de rate-limit do NIBO
+        # pra distinguir token expirado/inválido de cota/rate-limit estourado.
+        detail = ""
+        try:
+            detail = (e.read().decode("utf-8", "replace") or "").strip()
+        except Exception:
+            detail = ""
+        hdr = {}
+        try:
+            for h in ("WWW-Authenticate", "Retry-After", "X-RateLimit-Remaining",
+                      "X-Rate-Limit-Remaining", "X-RateLimit-Limit", "RateLimit-Remaining",
+                      "X-RateLimit-Reset"):
+                v = e.headers.get(h) if e.headers else None
+                if v:
+                    hdr[h] = v
+        except Exception:
+            pass
+        snippet = (detail[:200] or "").replace("\n", " ").replace("\r", " ")
+        extra = (" | hdr=" + json.dumps(hdr, ensure_ascii=False)) if hdr else ""
+        return {"error": f"HTTP {e.code}: {snippet}{extra}", "items": []}
     except Exception as e:
         return {"error": str(e), "items": []}
 
