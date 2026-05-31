@@ -458,44 +458,42 @@ function tabExecutiva() {
 
   return `
     ${execHero(t, accounts)}
-    <p class="card-sub">Cruzamento com CRM — mídia paga convertida em venda real. CAC, VGV e ROAS cruzam Meta Ads × deals ganhos no RD no mesmo período.</p>
-    <div class="flex gap-3 mt-3" style="flex-wrap:wrap;margin-top:12px">
-      ${kpi('💰 Investimento Total', 'R$ ' + money(t.spend), `${accounts.length} conta(s) Meta`, '#dc2626')}
-      ${kpi('🧮 CAC', cac ? 'R$ ' + money(cac) : '—', `${g.vendas} venda(s) no período`, '#ea580c')}
-      ${kpi('🏛 VGV Influenciado', vgvInf > 0 ? 'R$ ' + moneyShort(vgvInf) : '—', vgvInfLbl, '#7c3aed')}
-      ${kpi('📈 ROAS Imobiliário', roas ? roas.toFixed(1) + 'x' : '—', vgvInf > 0 ? 'VGV influenciado ÷ investimento' : 'sem ganhos com origem paga marcada', '#16a34a')}
-    </div>
+    <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:18px 18px 20px;color:#e2e8f0;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:800;color:#fff">🔗 Cruzamento com CRM · Meta Ads × RD</div>
+      <div style="font-size:11px;color:#94a3b8">Mídia paga convertida em venda real — CAC, VGV e ROAS cruzam Meta Ads × deals ganhos no RD no mesmo período.</div>
 
-    <div class="flex gap-3 mt-3" style="flex-wrap:wrap;margin-top:10px">
-      ${miniKpi('Leads gerados (RD)', fmtNum(g.leads_criados), '#2563eb')}
-      ${miniKpi('Vendas ganhas', fmtNum(g.vendas), '#16a34a')}
-      ${miniKpi('Ticket médio', g.ticket_medio ? 'R$ ' + moneyShort(g.ticket_medio) : '—', '#7c3aed')}
-      ${miniKpi('Conversão', g.taxa_conversao != null ? g.taxa_conversao + '%' : '—', '#0891b2', 'ganhos ÷ fechados')}
-      ${miniKpi('CPL real (RD)', g.leads_criados ? 'R$ ' + money(t.spend / g.leads_criados) : '—', '#d97706', 'gasto ÷ leads RD')}
-    </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
+        ${crmKpiDark('💰 Investimento Total', 'R$ ' + money(t.spend), `${accounts.length} conta(s) Meta`, '#f87171')}
+        ${crmKpiDark('🧮 CAC', cac ? 'R$ ' + money(cac) : '—', `${g.vendas} venda(s) no período`, '#fb923c')}
+        ${crmKpiDark('🏛 VGV Influenciado', vgvInf > 0 ? 'R$ ' + moneyShort(vgvInf) : '—', vgvInfLbl, '#c4b5fd')}
+        ${crmKpiDark('📈 ROAS Imobiliário', roas ? roas.toFixed(1) + 'x' : '—', vgvInf > 0 ? 'VGV influenciado ÷ investimento' : 'sem ganhos com origem paga marcada', '#4ade80')}
+      </div>
 
-    ${attrBanner(attr)}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:12px">
+        ${crmMiniDark('Leads gerados (RD)', fmtNum(g.leads_criados), '#60a5fa')}
+        ${crmMiniDark('Vendas ganhas', fmtNum(g.vendas), '#4ade80')}
+        ${crmMiniDark('Ticket médio', g.ticket_medio ? 'R$ ' + moneyShort(g.ticket_medio) : '—', '#c4b5fd')}
+        ${crmMiniDark('Conversão', g.taxa_conversao != null ? g.taxa_conversao + '%' : '—', '#22d3ee', 'ganhos ÷ fechados')}
+        ${crmMiniDark('CPL real (RD)', g.leads_criados ? 'R$ ' + money(t.spend / g.leads_criados) : '—', '#fbbf24', 'gasto ÷ leads RD')}
+      </div>
 
-    <div class="mt-4" style="margin-top:18px">
-      <h3 class="card-title">Atribuição por canal <span class="muted tiny" style="font-weight:500">(origem RD × VGV ganho)</span></h3>
-      ${attrChannelTable(attr)}
-    </div>
+      ${attrBanner(attr)}
 
-    <div class="mt-4" style="margin-top:18px">
-      <h3 class="card-title">Por marca (Meta × CRM)</h3>
-      <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:680px">
-        <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">
+      ${crmPanelDark('📡 Atribuição por canal', '(origem RD × VGV ganho)', attrChannelTable(attr))}
+
+      ${crmPanelDark('🏷 Por marca (Meta × CRM)', '', `<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:680px">
+        <thead><tr style="color:#94a3b8;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.1)">
           <th style="text-align:left;padding:6px 10px">Marca</th><th style="text-align:right;padding:6px 8px">Investido</th>
           <th style="text-align:right;padding:6px 8px">Leads</th><th style="text-align:right;padding:6px 8px">Vendas</th>
           <th style="text-align:right;padding:6px 8px">CAC</th><th style="text-align:right;padding:6px 8px">VGV</th>
           <th style="text-align:right;padding:6px 8px">ROAS</th>
         </tr></thead><tbody>
           ${execBrandRows(byBrand)}
-        </tbody></table></div>
-    </div>
+        </tbody></table></div>`)}
 
-    ${googleSection(attr)}
-    ${roadmapMini()}
+      ${googleSection(attr)}
+      ${roadmapMini()}
+    </div>
   `;
 }
 
@@ -505,38 +503,36 @@ function googleSection(attr) {
   if (!gg) return '';
   if (gg.configured === false) {
     const miss = (gg.missing || []).join(', ');
-    return `<div class="alert alert-warn mt-4" style="margin-top:18px">🔌 <strong>Google Ads não conectado.</strong> Configure as credenciais no Vercel para fechar a atribuição do canal Google (ROAS Google). Falta: <code style="font-size:11px">${escapeHtml(miss || 'credenciais')}</code>.</div>`;
+    return `<div style="margin-top:14px;background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.35);color:#fde68a;border-radius:12px;padding:10px 14px;font-size:12px">🔌 <strong>Google Ads não conectado.</strong> Configure as credenciais no Vercel para fechar a atribuição do canal Google (ROAS Google). Falta: <code style="font-size:11px;color:#fcd34d">${escapeHtml(miss || 'credenciais')}</code>.</div>`;
   }
   if (gg.ok === false) {
-    return `<div class="alert alert-warn mt-4" style="margin-top:18px">⚠️ Google Ads: ${escapeHtml(gg.error || 'erro')}</div>`;
+    return `<div style="margin-top:14px;background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.35);color:#fde68a;border-radius:12px;padding:10px 14px;font-size:12px">⚠️ Google Ads: ${escapeHtml(gg.error || 'erro')}</div>`;
   }
   // ROAS Google = VGV ganho via canal google (RD) ÷ gasto Google
   const gch = ((attr && attr.by_channel) || []).find(c => c.channel === 'google');
   const gVgv = gch ? gch.vgv : 0;
   const roas = (gg.spend > 0 && gVgv > 0) ? gVgv / gg.spend : 0;
   const top = (gg.campaigns || []).slice(0, 6);
-  return `<div class="mt-4" style="margin-top:18px">
-    <h3 class="card-title">🔎 Google Ads</h3>
-    <div class="flex gap-3 mt-2" style="flex-wrap:wrap">
-      ${miniKpi('Investido Google', 'R$ ' + money(gg.spend), '#dc2626')}
-      ${miniKpi('Cliques', fmtNum(gg.clicks), '#2563eb')}
-      ${miniKpi('Conversões (Google)', fmtNum(gg.conversions), '#0891b2')}
-      ${miniKpi('VGV via Google (RD)', gVgv ? 'R$ ' + moneyShort(gVgv) : '—', '#7c3aed')}
-      ${miniKpi('ROAS Google', roas ? roas.toFixed(1) + 'x' : '—', '#16a34a', 'VGV Google ÷ gasto')}
+  return crmPanelDark('🔎 Google Ads', '', `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">
+      ${crmMiniDark('Investido Google', 'R$ ' + money(gg.spend), '#f87171')}
+      ${crmMiniDark('Cliques', fmtNum(gg.clicks), '#60a5fa')}
+      ${crmMiniDark('Conversões (Google)', fmtNum(gg.conversions), '#22d3ee')}
+      ${crmMiniDark('VGV via Google (RD)', gVgv ? 'R$ ' + moneyShort(gVgv) : '—', '#c4b5fd')}
+      ${crmMiniDark('ROAS Google', roas ? roas.toFixed(1) + 'x' : '—', '#4ade80', 'VGV Google ÷ gasto')}
     </div>
     ${top.length ? `<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:480px;margin-top:10px">
-      <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">
+      <thead><tr style="color:#94a3b8;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.1)">
         <th style="text-align:left;padding:6px 10px">Campanha</th><th style="text-align:right;padding:6px 8px">Gasto</th>
         <th style="text-align:right;padding:6px 8px">Cliques</th><th style="text-align:right;padding:6px 8px">Conv.</th>
       </tr></thead><tbody>
-      ${top.map(c => `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:6px 10px;font-weight:600">${escapeHtml(c.name)}</td>
-        <td style="text-align:right;padding:6px 8px;color:#dc2626">R$ ${money(c.spend)}</td>
-        <td style="text-align:right;padding:6px 8px">${fmtNum(c.clicks)}</td>
-        <td style="text-align:right;padding:6px 8px">${fmtNum(c.conversions)}</td>
+      ${top.map(c => `<tr style="border-top:1px solid rgba(255,255,255,0.06)">
+        <td style="padding:6px 10px;font-weight:600;color:#e2e8f0">${escapeHtml(c.name)}</td>
+        <td style="text-align:right;padding:6px 8px;color:#f87171">R$ ${money(c.spend)}</td>
+        <td style="text-align:right;padding:6px 8px;color:#e2e8f0">${fmtNum(c.clicks)}</td>
+        <td style="text-align:right;padding:6px 8px;color:#e2e8f0">${fmtNum(c.conversions)}</td>
       </tr>`).join('')}
-      </tbody></table></div>` : ''}
-  </div>`;
+      </tbody></table></div>` : ''}`);
 }
 
 function execBrandRows(byBrand) {
@@ -554,17 +550,17 @@ function execBrandRows(byBrand) {
     const vgvInf = (crm?.attribution?.vgv_paid) || 0;  // honesto: só Meta/Google, sem fallback
     const roas = (spend && vgvInf) ? vgvInf / spend : 0;
     const bi = brandInfo(k === 'conquista' ? 'conquista' : k === 'locacao' ? 'locacao' : 'imoveis');
-    rows.push(`<tr style="border-bottom:1px solid var(--border)">
+    rows.push(`<tr style="border-top:1px solid rgba(255,255,255,0.06)">
       <td style="padding:6px 10px;font-weight:700;color:${bi.cor}">${escapeHtml(crm?.label || bi.brand)}</td>
-      <td style="text-align:right;padding:6px 8px;color:#dc2626">R$ ${money(spend)}</td>
-      <td style="text-align:right;padding:6px 8px">${fmtNum(leads)}</td>
-      <td style="text-align:right;padding:6px 8px;color:#16a34a">${fmtNum(vendas)}</td>
-      <td style="text-align:right;padding:6px 8px">${cac ? 'R$ ' + money(cac) : '—'}</td>
-      <td style="text-align:right;padding:6px 8px;font-weight:700">R$ ${moneyShort(vgv)}</td>
-      <td style="text-align:right;padding:6px 8px;font-weight:800;color:${roas>=1?'#16a34a':'#ea580c'}">${roas ? roas.toFixed(1) + 'x' : '—'}</td>
+      <td style="text-align:right;padding:6px 8px;color:#f87171">R$ ${money(spend)}</td>
+      <td style="text-align:right;padding:6px 8px;color:#e2e8f0">${fmtNum(leads)}</td>
+      <td style="text-align:right;padding:6px 8px;color:#4ade80">${fmtNum(vendas)}</td>
+      <td style="text-align:right;padding:6px 8px;color:#cbd5e1">${cac ? 'R$ ' + money(cac) : '—'}</td>
+      <td style="text-align:right;padding:6px 8px;font-weight:700;color:#f1f5f9">R$ ${moneyShort(vgv)}</td>
+      <td style="text-align:right;padding:6px 8px;font-weight:800;color:${roas>=1?'#4ade80':'#fb923c'}">${roas ? roas.toFixed(1) + 'x' : '—'}</td>
     </tr>`);
   });
-  return rows.join('') || '<tr><td colspan="7" class="muted tiny" style="padding:14px;text-align:center">Sem cruzamento no período.</td></tr>';
+  return rows.join('') || '<tr><td colspan="7" style="padding:14px;text-align:center;color:#64748b;font-size:12px">Sem cruzamento no período.</td></tr>';
 }
 
 /* ───────────────────────── ABA: GRÁFICOS (Chart.js) ───────────────────────── */
@@ -980,16 +976,16 @@ function attrBanner(attr) {
   if (cov == null) return '';
   if (cov < 60) {
     const semOrigem = (100 - cov).toFixed(0);
-    return `<div class="alert alert-warn mt-3" style="margin-top:12px">⚠️ <strong>${semOrigem}% do VGV ganho está sem origem marcada no RD.</strong> VGV Influenciado e ROAS consideram só ganhos com origem de mídia paga (Meta/Google) — nunca o total. Marque a origem dos deals no RD pra subir a precisão.</div>`;
+    return `<div style="margin-top:14px;background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.35);color:#fde68a;border-radius:12px;padding:10px 14px;font-size:12px">⚠️ <strong>${semOrigem}% do VGV ganho está sem origem marcada no RD.</strong> VGV Influenciado e ROAS consideram só ganhos com origem de mídia paga (Meta/Google) — nunca o total. Marque a origem dos deals no RD pra subir a precisão.</div>`;
   }
-  return `<div class="alert alert-ok mt-3" style="margin-top:12px">✅ ${cov}% do VGV ganho com origem marcada no RD — atribuição confiável.</div>`;
+  return `<div style="margin-top:14px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#86efac;border-radius:12px;padding:10px 14px;font-size:12px">✅ ${cov}% do VGV ganho com origem marcada no RD — atribuição confiável.</div>`;
 }
 function attrChannelTable(attr) {
   const rows = (attr && attr.by_channel) || [];
-  if (!rows.length) return '<div class="muted tiny">Sem ganhos/leads com canal no período.</div>';
+  if (!rows.length) return '<div style="color:#64748b;font-size:12px">Sem ganhos/leads com canal no período.</div>';
   const totalVgv = rows.reduce((s, r) => s + (r.vgv || 0), 0);
   return `<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:560px">
-    <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">
+    <thead><tr style="color:#94a3b8;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.1)">
       <th style="text-align:left;padding:6px 10px">Canal</th>
       <th style="text-align:right;padding:6px 8px">Leads</th><th style="text-align:right;padding:6px 8px">Vendas</th>
       <th style="text-align:right;padding:6px 8px">VGV</th><th style="text-align:right;padding:6px 8px">% VGV</th>
@@ -998,13 +994,13 @@ function attrChannelTable(attr) {
       const pct = totalVgv > 0 ? (r.vgv / totalVgv * 100) : 0;
       const isPaid = r.channel === 'meta' || r.channel === 'google';
       const isUnatt = r.channel === 'nao_atribuido';
-      const col = isUnatt ? '#94a3b8' : isPaid ? '#7c3aed' : '#0891b2';
-      return `<tr style="border-bottom:1px solid var(--border)">
+      const col = isUnatt ? '#64748b' : isPaid ? '#c4b5fd' : '#7dd3fc';
+      return `<tr style="border-top:1px solid rgba(255,255,255,0.06)">
         <td style="padding:6px 10px;font-weight:700;color:${col}">${escapeHtml(r.label)}${isPaid ? ' 💳' : ''}</td>
-        <td style="text-align:right;padding:6px 8px">${fmtNum(r.leads)}</td>
-        <td style="text-align:right;padding:6px 8px;color:#16a34a">${fmtNum(r.vendas)}</td>
-        <td style="text-align:right;padding:6px 8px;font-weight:700">R$ ${moneyShort(r.vgv)}</td>
-        <td style="text-align:right;padding:6px 8px">${pct.toFixed(0)}%</td>
+        <td style="text-align:right;padding:6px 8px;color:#e2e8f0">${fmtNum(r.leads)}</td>
+        <td style="text-align:right;padding:6px 8px;color:#4ade80">${fmtNum(r.vendas)}</td>
+        <td style="text-align:right;padding:6px 8px;font-weight:700;color:#f1f5f9">R$ ${moneyShort(r.vgv)}</td>
+        <td style="text-align:right;padding:6px 8px;color:#cbd5e1">${pct.toFixed(0)}%</td>
       </tr>`;
     }).join('')}
     </tbody></table></div>`;
@@ -1121,10 +1117,32 @@ function miniKpi(label, val, color, sub) {
   </div>`;
 }
 
+/* ─── Versões DARK p/ a seção CRM da Executiva (mesmo padrão premium do hero) ─── */
+function crmKpiDark(label, value, sub, color) {
+  return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-left:4px solid ${color};border-radius:14px;padding:12px 14px">
+    <div style="font-size:11px;color:#94a3b8;letter-spacing:.4px;text-transform:uppercase;font-weight:700">${label}</div>
+    <div style="font-size:23px;font-weight:800;color:${color};line-height:1.1;margin-top:3px">${value}</div>
+    <div style="font-size:11px;color:#64748b;margin-top:3px">${sub || ''}</div>
+  </div>`;
+}
+function crmMiniDark(label, val, color, sub) {
+  return `<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:8px 10px">
+    <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:700">${label}</div>
+    <div style="font-size:17px;font-weight:800;color:${color || '#f1f5f9'}">${val}</div>
+    ${sub ? `<div style="font-size:10px;color:#64748b">${sub}</div>` : ''}
+  </div>`;
+}
+function crmPanelDark(title, sub, inner) {
+  return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px;margin-top:14px">
+    <div style="font-size:13px;font-weight:700;color:#cbd5e1;margin-bottom:8px">${title}${sub ? ` <span style="font-weight:500;color:#64748b;font-size:11px">${sub}</span>` : ''}</div>
+    ${inner}
+  </div>`;
+}
+
 /* ───────────────────────── compartilhados ───────────────────────── */
 function roadmapMini() {
   return `
-    <div class="alert alert-warn mt-3" style="margin-top:14px">🔌 <strong>Ainda no roadmap:</strong> Impression Share + perdas de IS (métricas avançadas Google Ads) · 1ª resposta exata no WhatsApp (atividades RD). <span class="muted">Breakdowns Meta (idade/gênero/plataforma/dispositivo/região/hora) e atribuição honesta por canal já no ar.</span></div>`;
+    <div style="margin-top:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:10px 14px;font-size:12px;color:#cbd5e1">🔌 <strong style="color:#e2e8f0">Ainda no roadmap:</strong> Impression Share + perdas de IS (métricas avançadas Google Ads) · 1ª resposta exata no WhatsApp (atividades RD). <span style="color:#64748b">Breakdowns Meta (idade/gênero/plataforma/dispositivo/região/hora) e atribuição honesta por canal já no ar.</span></div>`;
 }
 
 function campaignRow(c) {

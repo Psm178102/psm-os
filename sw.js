@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.28.0-2026-05-30-CUTOVER-FIX';
+const SW_VERSION = 'v76.29.0-2026-05-30-CRM-DARK';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
