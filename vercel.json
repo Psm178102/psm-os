@@ -15,6 +15,7 @@
     { "source": "/lib/:path*", "destination": "/lib/:path*" },
     { "source": "/v2/:path*", "destination": "/v2/:path*" },
     { "source": "/login", "destination": "/v2/login.html" },
+    { "source": "/", "destination": "/v2/index.html" },
     { "source": "/((?!api/|prompts/|lib/|v2/|login|admin\\.html|sw\\.js|manifest\\.json|version\\.json|favicon|icon-|apple-touch|logo).*)", "destination": "/v2/index.html" }
   ],
   "headers": [
