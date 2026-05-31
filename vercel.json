@@ -14,9 +14,18 @@
     { "source": "/prompts/:path*", "destination": "/prompts/:path*" },
     { "source": "/lib/:path*", "destination": "/lib/:path*" },
     { "source": "/v2/:path*", "destination": "/v2/:path*" },
-    { "source": "/((?!api/|prompts/|lib/|v2/|admin\\.html|sw\\.js|manifest\\.json|version\\.json|favicon|icon-|apple-touch|logo).*)", "destination": "/index.html" }
+    { "source": "/login", "destination": "/v2/login.html" },
+    { "source": "/((?!api/|prompts/|lib/|v2/|login|admin\\.html|sw\\.js|manifest\\.json|version\\.json|favicon|icon-|apple-touch|logo).*)", "destination": "/v2/index.html" }
   ],
   "headers": [
+    {
+      "source": "/",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Pragma", "value": "no-cache" },
+        { "key": "Expires", "value": "0" }
+      ]
+    },
     {
       "source": "/index.html",
       "headers": [

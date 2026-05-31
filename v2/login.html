@@ -36,9 +36,6 @@
         Primeira vez? Use <button type="button" id="link-bootstrap" class="btn btn-ghost" style="padding:2px 8px;font-size:11px">definir senha inicial</button>.
       </div>
 
-      <div class="tiny muted text-center mt-3" style="opacity:0.7">
-        <a href="/" style="color:var(--ink-muted);text-decoration:underline">↩ Voltar ao sistema antigo (/v1)</a>
-      </div>
     </form>
 
     <!-- Modal: definir senha inicial -->
@@ -78,7 +75,7 @@
 
     // Se já logado, redireciona
     if (auth.isLoggedIn()) {
-      location.replace('/v2/');
+      location.replace('/');
     }
 
     const form = document.getElementById('form-login');
@@ -95,7 +92,7 @@
         await auth.login(email, pwd);
         // Redirect pra origem (se veio com ?from=) ou root
         const from = new URLSearchParams(location.search).get('from');
-        location.href = from && from.startsWith('/') ? from : '/v2/';
+        location.href = from && from.startsWith('/') ? from : '/';
       } catch (err) {
         msg.innerHTML = `<div class="alert alert-err">${
           (err && err.message) || 'Falha no login'

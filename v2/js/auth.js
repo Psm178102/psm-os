@@ -32,7 +32,7 @@ export const auth = {
   logout() {
     tokenStore.clear();
     userStore.clear();
-    location.href = '/v2/login.html';
+    location.href = '/login';
   },
 
   user() { return userStore.get(); },
@@ -41,8 +41,9 @@ export const auth = {
 
 // Listener global: token expirou em qualquer fetch → manda pro login
 window.addEventListener('auth:expired', () => {
-  if (!location.pathname.endsWith('/login.html')) {
-    location.href = '/v2/login.html?from=' + encodeURIComponent(location.pathname);
+  const onLogin = location.pathname === '/login' || location.pathname.endsWith('/login.html');
+  if (!onLogin) {
+    location.href = '/login?from=' + encodeURIComponent(location.pathname + location.hash);
   }
 });
 

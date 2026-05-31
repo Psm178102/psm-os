@@ -174,7 +174,7 @@ function applyPermissions(user) {
   // 1) Tenta hidratar sessão
   const user = await auth.hydrate();
   if (!user) {
-    location.href = '/v2/login.html?from=' + encodeURIComponent(location.pathname + location.hash);
+    location.href = '/login?from=' + encodeURIComponent(location.pathname + location.hash);
     return;
   }
 

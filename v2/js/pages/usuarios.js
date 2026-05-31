@@ -197,7 +197,7 @@ function addUserBlock() {
   return `
     <div class="mt-4" style="padding:14px;background:#f8fafc;border-radius:var(--r-md);border:1px dashed var(--border-2)">
       <div style="font-size:12px;font-weight:800;color:var(--ink);margin-bottom:6px">➕ Adicionar novo usuário</div>
-      <div class="tiny muted" style="margin-bottom:10px">Cria o usuário no Postgres. Depois ele acessa /v2/login.html → "definir senha inicial".</div>
+      <div class="tiny muted" style="margin-bottom:10px">Cria o usuário no Postgres. Depois ele acessa <b>housepsm.com.br/login</b> → "definir senha inicial".</div>
       <div class="flex gap-2 items-center" style="flex-wrap:wrap">
         <input id="nu-name"  class="input" placeholder="Nome completo" style="width:200px;padding:6px 10px;font-size:12px">
         <input id="nu-email" class="input" placeholder="email@imobiliariapsm.com.br" style="width:260px;padding:6px 10px;font-size:12px">
