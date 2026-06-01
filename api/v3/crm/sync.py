@@ -54,11 +54,39 @@ def _amount(d):
     except: return 0.0
 
 
-def _deal_to_row(d, users_by_email):
+def _list_pipelines(sb, token):
+    """[(id, name)] dos funis do RD — necessário porque a LISTAGEM de deals do
+    RD NÃO retorna o funil por deal (só deal_stage). Buscamos os deals por
+    deal_pipeline_id e carimbamos a marca. Preferência: tabela rd_pipelines (já
+    populada); fallback: RD /deal_pipelines; fallback final: [] (passada única)."""
+    try:
+        rows = sb.table("rd_pipelines").select("id,name,active").execute().data or []
+        out = [(r.get("id"), r.get("name")) for r in rows
+               if r.get("id") and r.get("active") is not False]
+        if out:
+            return out
+    except Exception:
+        pass
+    try:
+        url = RD_BASE + "/deal_pipelines?" + urllib.parse.urlencode({"token": token})
+        req = urllib.request.Request(url, headers={
+            "Accept": "application/json", "User-Agent": "PSM-OS-v3/sync"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        pls = data.get("deal_pipelines") or (data if isinstance(data, list) else [])
+        return [(p.get("id"), p.get("name")) for p in pls if p.get("id")]
+    except Exception:
+        return []
+
+
+def _deal_to_row(d, users_by_email, pipe_id=None, pipe_name=None):
     user = d.get("user") or {}
     email = (user.get("email") or "").lower() if isinstance(user, dict) else ""
     matched_uid = users_by_email.get(email)
     pipe = d.get("deal_pipeline") or {}
+    # A listagem do RD não traz deal_pipeline → usa o funil que estamos varrendo.
+    pid = (pipe.get("id") if isinstance(pipe, dict) else None) or pipe_id
+    pname = (pipe.get("name") if isinstance(pipe, dict) else None) or pipe_name
     stage = d.get("deal_stage") or {}
     return {
         "id": d.get("id"),
@@ -68,8 +96,8 @@ def _deal_to_row(d, users_by_email):
         "closed_at": _parse_iso(d.get("closed_at")),
         "created_at_rd": _parse_iso(d.get("created_at")),
         "updated_at_rd": _parse_iso(d.get("updated_at")),
-        "pipeline_id": pipe.get("id") if isinstance(pipe, dict) else None,
-        "pipeline_name": (pipe.get("name") if isinstance(pipe, dict) else None) or None,
+        "pipeline_id": pid,
+        "pipeline_name": pname or None,
         "stage_id": stage.get("id") if isinstance(stage, dict) else None,
         "stage_name": (stage.get("name") if isinstance(stage, dict) else None) or None,
         "user_email": email or None,
@@ -130,46 +158,62 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"users: {e}"})
 
+        # Varredura POR FUNIL (a listagem do RD não retorna o funil por deal).
+        # Se o body especificar pipeline_id, sincroniza só esse; senão todos.
+        pipelines = _list_pipelines(sb, token)
+        explicit = body.get("pipeline_id")
+        if explicit:
+            pname = next((n for (i, n) in pipelines if i == explicit), None)
+            pipelines = [(explicit, pname)]
+        elif not pipelines:
+            pipelines = [(None, None)]  # fallback: passada única (marca fica null)
+
         total_fetched = 0
         rows_buffer = []
         upserted = 0
         errors = []
         pages_done = 0
+        pipes_done = 0
 
-        for page in range(1, max_pages + 1):
-            try:
-                data = _rd_page(token, params, page)
-            except urllib.error.HTTPError as e:
-                errors.append(f"page {page}: HTTP {e.code}")
-                break
-            except Exception as e:
-                errors.append(f"page {page}: {e}")
-                break
-            deals = data.get("deals") or []
-            pages_done = page
-            if not deals:
-                break
-            total_fetched += len(deals)
-            # Event sourcing (rede de segurança): grava transições de etapa ANTES
-            # do upsert sobrescrever a etapa armazenada. Idempotente, best-effort.
-            try:
-                from _events_lib import record_changes  # type: ignore
-                record_changes(sb, deals, source="sync")
-            except Exception as _e:
-                print(f"[sync] record_changes: {_e}")
-            for d in deals:
-                if not d.get("id"): continue
-                rows_buffer.append(_deal_to_row(d, users_by_email))
-            # Flush a cada 200
-            if len(rows_buffer) >= 200:
+        for pid, pname in pipelines:
+            pparams = dict(params)
+            if pid:
+                pparams["deal_pipeline_id"] = pid
+            pipes_done += 1
+            for page in range(1, max_pages + 1):
                 try:
-                    sb.table("deals").upsert(rows_buffer, on_conflict="id").execute()
-                    upserted += len(rows_buffer)
+                    data = _rd_page(token, pparams, page)
+                except urllib.error.HTTPError as e:
+                    errors.append(f"{pname or '-'} p{page}: HTTP {e.code}")
+                    break
                 except Exception as e:
-                    errors.append(f"upsert batch: {e}")
-                rows_buffer = []
-            if len(deals) < 200:
-                break
+                    errors.append(f"{pname or '-'} p{page}: {e}")
+                    break
+                deals = data.get("deals") or []
+                pages_done += 1
+                if not deals:
+                    break
+                total_fetched += len(deals)
+                # Event sourcing (rede de segurança): grava transições de etapa ANTES
+                # do upsert sobrescrever a etapa armazenada. Idempotente, best-effort.
+                try:
+                    from _events_lib import record_changes  # type: ignore
+                    record_changes(sb, deals, source="sync")
+                except Exception as _e:
+                    print(f"[sync] record_changes: {_e}")
+                for d in deals:
+                    if not d.get("id"): continue
+                    rows_buffer.append(_deal_to_row(d, users_by_email, pid, pname))
+                # Flush a cada 200
+                if len(rows_buffer) >= 200:
+                    try:
+                        sb.table("deals").upsert(rows_buffer, on_conflict="id").execute()
+                        upserted += len(rows_buffer)
+                    except Exception as e:
+                        errors.append(f"upsert batch: {e}")
+                    rows_buffer = []
+                if len(deals) < 200:
+                    break
 
         if rows_buffer:
             try:
@@ -187,6 +231,7 @@ class handler(BaseHTTPRequestHandler):
             "total_fetched": total_fetched,
             "upserted": upserted,
             "pages_done": pages_done,
+            "pipes_done": pipes_done,
             "errors": errors,
             "duration_s": round(duration, 2),
             "synced_at": datetime.now(timezone.utc).isoformat(),

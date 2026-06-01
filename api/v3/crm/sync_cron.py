@@ -47,10 +47,37 @@ def _parse_iso(s):
         return None
 
 
-def _deal_to_row(d, users_by_email):
+def _list_pipelines(sb, token):
+    """[(id, name)] dos funis do RD — a listagem de deals NÃO traz o funil por
+    deal, então varremos por deal_pipeline_id e carimbamos a marca. Prefere a
+    tabela rd_pipelines (já populada); fallback RD /deal_pipelines; senão []."""
+    try:
+        rows = sb.table("rd_pipelines").select("id,name,active").execute().data or []
+        out = [(r.get("id"), r.get("name")) for r in rows
+               if r.get("id") and r.get("active") is not False]
+        if out:
+            return out
+    except Exception:
+        pass
+    try:
+        url = RD_BASE + "/deal_pipelines?" + urllib.parse.urlencode({"token": token})
+        req = urllib.request.Request(url, headers={
+            "Accept": "application/json", "User-Agent": "PSM-OS-v3/cron"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        pls = data.get("deal_pipelines") or (data if isinstance(data, list) else [])
+        return [(p.get("id"), p.get("name")) for p in pls if p.get("id")]
+    except Exception:
+        return []
+
+
+def _deal_to_row(d, users_by_email, pipe_id=None, pipe_name=None):
     user = d.get("user") or {}
     email = (user.get("email") or "").lower() if isinstance(user, dict) else ""
     pipe = d.get("deal_pipeline") or {}
+    # A listagem do RD não traz deal_pipeline → usa o funil que estamos varrendo.
+    pid = (pipe.get("id") if isinstance(pipe, dict) else None) or pipe_id
+    pname = (pipe.get("name") if isinstance(pipe, dict) else None) or pipe_name
     stage = d.get("deal_stage") or {}
     try:
         amount = float(d.get("amount_total") or d.get("amount_unique") or 0)
@@ -64,8 +91,8 @@ def _deal_to_row(d, users_by_email):
         "closed_at": _parse_iso(d.get("closed_at")),
         "created_at_rd": _parse_iso(d.get("created_at")),
         "updated_at_rd": _parse_iso(d.get("updated_at")),
-        "pipeline_id": pipe.get("id") if isinstance(pipe, dict) else None,
-        "pipeline_name": (pipe.get("name") if isinstance(pipe, dict) else None) or None,
+        "pipeline_id": pid,
+        "pipeline_name": pname or None,
         "stage_id": stage.get("id") if isinstance(stage, dict) else None,
         "stage_name": (stage.get("name") if isinstance(stage, dict) else None) or None,
         "user_email": email or None,
@@ -124,36 +151,43 @@ class handler(BaseHTTPRequestHandler):
         upserted = 0
         errors = []
         pages_done = 0
+        pipes_done = 0
         max_pages = 30
 
-        for page in range(1, max_pages + 1):
-            try:
-                data = _rd_page(rd_token, {}, page)
-            except Exception as e:
-                errors.append(f"page {page}: {e}")
-                break
-            deals = data.get("deals") or []
-            pages_done = page
-            if not deals: break
-            total_fetched += len(deals)
-            # Event sourcing (rede de segurança 3x/dia): grava transições de etapa
-            # ANTES do upsert sobrescrever a etapa. Idempotente, best-effort.
-            try:
-                from _events_lib import record_changes  # type: ignore
-                record_changes(sb, deals, source="sync")
-            except Exception as _e:
-                print(f"[sync_cron] record_changes: {_e}")
-            for d in deals:
-                if d.get("id"):
-                    rows_buffer.append(_deal_to_row(d, users_by_email))
-            if len(rows_buffer) >= 200:
+        # Varredura POR FUNIL (a listagem do RD não retorna o funil por deal) —
+        # carimba pipeline_name pra classificação de marca funcionar no sistema.
+        pipelines = _list_pipelines(sb, rd_token) or [(None, None)]
+        for pid, pname in pipelines:
+            pparams = {"deal_pipeline_id": pid} if pid else {}
+            pipes_done += 1
+            for page in range(1, max_pages + 1):
                 try:
-                    sb.table("deals").upsert(rows_buffer, on_conflict="id").execute()
-                    upserted += len(rows_buffer)
+                    data = _rd_page(rd_token, pparams, page)
                 except Exception as e:
-                    errors.append(f"upsert: {e}")
-                rows_buffer = []
-            if len(deals) < 200: break
+                    errors.append(f"{pname or '-'} p{page}: {e}")
+                    break
+                deals = data.get("deals") or []
+                pages_done += 1
+                if not deals: break
+                total_fetched += len(deals)
+                # Event sourcing (rede de segurança 3x/dia): grava transições de etapa
+                # ANTES do upsert sobrescrever a etapa. Idempotente, best-effort.
+                try:
+                    from _events_lib import record_changes  # type: ignore
+                    record_changes(sb, deals, source="sync")
+                except Exception as _e:
+                    print(f"[sync_cron] record_changes: {_e}")
+                for d in deals:
+                    if d.get("id"):
+                        rows_buffer.append(_deal_to_row(d, users_by_email, pid, pname))
+                if len(rows_buffer) >= 200:
+                    try:
+                        sb.table("deals").upsert(rows_buffer, on_conflict="id").execute()
+                        upserted += len(rows_buffer)
+                    except Exception as e:
+                        errors.append(f"upsert: {e}")
+                    rows_buffer = []
+                if len(deals) < 200: break
 
         if rows_buffer:
             try:
@@ -186,6 +220,7 @@ class handler(BaseHTTPRequestHandler):
             "total_fetched": total_fetched,
             "upserted": upserted,
             "pages_done": pages_done,
+            "pipes_done": pipes_done,
             "errors": errors,
             "captar_import": captar,
             "duration_s": duration,
