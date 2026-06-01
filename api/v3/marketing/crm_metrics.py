@@ -611,6 +611,8 @@ class handler(BaseHTTPRequestHandler):
                 "sla_horas_aprox": sla_val,
                 "sla_basis": basis,
                 "leads_criados": criados,
+                "leads_contatados": B["leads_contatados"],
+                "leads_visita": B["leads_visita"],
                 "contact_rate": contact_val,
                 "contact_basis": basis,
                 "visita_rate": visita_val,
@@ -643,6 +645,8 @@ class handler(BaseHTTPRequestHandler):
             "vgv": round(sum(per_brand[k]["vgv"] for k in venda_keys), 2),
             "perdas": sum(per_brand[k]["perdas"] for k in venda_keys),
             "leads_criados": sum(per_brand[k]["leads_criados"] for k in venda_keys),
+            "leads_contatados": sum(per_brand[k]["leads_contatados"] for k in venda_keys),
+            "leads_visita": sum(per_brand[k]["leads_visita"] for k in venda_keys),
             "vgv_pago": round(sum(per_brand[k]["vgv_pago"] for k in venda_keys), 2),
             "vendas_pago": sum(per_brand[k]["vendas_pago"] for k in venda_keys),
         }

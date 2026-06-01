@@ -698,6 +698,8 @@ function tabExecutiva() {
           ${execBrandRows(byBrand)}
         </tbody></table></div>`)}
 
+      ${produtoEficienciaPanel()}
+      ${rejeicaoMotivoPanel()}
       ${googleSection(attr)}
       ${roadmapMini()}
     </div>
@@ -1456,9 +1458,91 @@ function crmPanelDark(title, sub, inner) {
 }
 
 /* ───────────────────────── compartilhados ───────────────────────── */
+// ─── Eficiência por Produto (Meta × CRM): CPL · CPQL · Custo/Visita · ROAS ───
+const OO_COMISSAO_PCT = 0.04;  // comissão bruta PSM sobre o VGV (premissa Diretoria)
+function produtoEficienciaPanel() {
+  if (!_crm || !_crm.brands) return '';
+  const byBrand = metaSpendByBrand(filteredAccounts());
+  const order = ['conquista', 'imoveis', 'locacao', 'captacao'];
+  const rows = order.map(k => {
+    const m = byBrand[k], c = _crm.brands?.[k];
+    if (!m && !c) return '';
+    const spend = m?.spend || 0;
+    const leads = c?.leads_criados || 0;
+    const qual = c?.leads_contatados || 0;     // qualificado ≈ lead que avançou/foi contatado
+    const visitas = c?.leads_visita || 0;
+    const vendas = c?.vendas || 0;
+    const vgv = c?.vgv || 0;
+    const comissao = vgv * OO_COMISSAO_PCT;
+    const cpl = leads ? spend / leads : 0;
+    const cpql = qual ? spend / qual : 0;
+    const cpar = visitas ? spend / visitas : 0;
+    const roas = spend ? comissao / spend : 0;
+    const bi = brandInfo(k === 'conquista' ? 'conquista' : k === 'locacao' ? 'locacao' : 'imoveis');
+    const cell = (v, col) => `<td style="text-align:right;padding:6px 8px;color:${col || '#e2e8f0'}">${v}</td>`;
+    return `<tr style="border-top:1px solid rgba(255,255,255,0.06)">
+      <td style="padding:6px 10px;font-weight:700;color:${bi.cor}">${escapeHtml(c?.label || bi.brand)}</td>
+      ${cell('R$ ' + money(spend), '#f87171')}
+      ${cell(fmtNum(leads))}
+      ${cell(cpl ? 'R$ ' + money(cpl) : '—', '#fbbf24')}
+      ${cell(fmtNum(qual))}
+      ${cell(cpql ? 'R$ ' + money(cpql) : '—', '#fb923c')}
+      ${cell(fmtNum(visitas))}
+      ${cell(cpar ? 'R$ ' + money(cpar) : '—', '#f472b6')}
+      ${cell(fmtNum(vendas), '#4ade80')}
+      ${cell('R$ ' + moneyShort(vgv), '#f1f5f9')}
+      ${cell(roas ? roas.toFixed(2) + 'x' : '—', roas >= 1 ? '#4ade80' : '#fb923c')}
+    </tr>`;
+  }).filter(Boolean).join('');
+  if (!rows) return '';
+  return crmPanelDark('💎 Eficiência por Produto (Meta × CRM)', '(CPL · CPQL · custo/visita · ROAS por comissão — distribua o orçamento pro produto mais rentável)', `
+    <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:760px">
+      <thead><tr style="color:#94a3b8;font-size:10.5px;border-bottom:1px solid rgba(255,255,255,0.1)">
+        <th style="text-align:left;padding:6px 10px">Produto</th>
+        <th style="text-align:right;padding:6px 8px">Investido</th><th style="text-align:right;padding:6px 8px">Leads</th>
+        <th style="text-align:right;padding:6px 8px" title="Custo por Lead">CPL</th>
+        <th style="text-align:right;padding:6px 8px" title="Leads qualificados (contatados/avançaram)">Qualif.</th>
+        <th style="text-align:right;padding:6px 8px" title="Custo por Lead Qualificado">CPQL</th>
+        <th style="text-align:right;padding:6px 8px">Visitas</th>
+        <th style="text-align:right;padding:6px 8px" title="Custo por Visita Realizada (CPAR)">Custo/Visita</th>
+        <th style="text-align:right;padding:6px 8px">Vendas</th><th style="text-align:right;padding:6px 8px">VGV</th>
+        <th style="text-align:right;padding:6px 8px" title="Retorno: comissão (VGV×4%) ÷ investido">ROAS</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="font-size:11px;color:#64748b;margin-top:8px">CPQL usa lead qualificado = lead que foi contatado/avançou no funil. ROAS = VGV ganho × <b>${(OO_COMISSAO_PCT*100).toFixed(0)}%</b> de comissão ÷ investido no Meta. Investido por produto = soma das contas Meta da marca.</div>`);
+}
+
+// ─── Rejeição de leads por motivo × produto (ajuste de segmentação) ───────────
+function rejeicaoMotivoPanel() {
+  if (!_crm || !_crm.brands) return '';
+  const order = ['conquista', 'imoveis', 'locacao'];
+  const blocks = order.map(k => {
+    const c = _crm.brands?.[k];
+    const mot = (c?.motivos_perda || []).filter(x => x.n > 0).slice(0, 6);
+    if (!c || !mot.length) return '';
+    const bi = brandInfo(k === 'conquista' ? 'conquista' : k === 'locacao' ? 'locacao' : 'imoveis');
+    const maxN = Math.max(...mot.map(x => x.n));
+    return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 12px">
+      <div style="font-weight:700;font-size:12.5px;color:${bi.cor};margin-bottom:6px">${escapeHtml(c.label)} <span style="color:#64748b;font-weight:400">· ${c.perdas} perdas</span></div>
+      ${mot.map(x => `<div style="margin-bottom:5px">
+        <div class="flex items-center" style="justify-content:space-between;font-size:11.5px;color:#cbd5e1"><span>${escapeHtml(x.motivo)}</span><b>${x.n}${x.pct?` · ${Math.round(x.pct)}%`:''}</b></div>
+        <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.max(4, x.n/maxN*100)}%;background:#fb7185"></div></div>
+      </div>`).join('')}
+    </div>`;
+  }).filter(Boolean).join('');
+  if (!blocks) return '';
+  return crmPanelDark('🚫 Rejeição de leads por motivo × produto', '(motivo da perda no RD por linha — se uma linha descarta muito por "renda/crédito", ajuste a segmentação socioeconômica no Meta)', `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">${blocks}</div>`);
+}
+
 function roadmapMini() {
   return `
-    <div style="margin-top:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:10px 14px;font-size:12px;color:#cbd5e1">🔌 <strong style="color:#e2e8f0">Ainda no roadmap:</strong> Impression Share + perdas de IS (métricas avançadas Google Ads) · 1ª resposta exata no WhatsApp (atividades RD). <span style="color:#64748b">Breakdowns Meta (idade/gênero/plataforma/dispositivo/região/hora) e atribuição honesta por canal já no ar.</span></div>`;
+    <div style="margin-top:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:10px 14px;font-size:12px;color:#cbd5e1">🔌 <strong style="color:#e2e8f0">Ainda no roadmap (precisa de mais integração):</strong>
+      <div style="margin-top:6px;display:grid;gap:4px;font-size:11.5px">
+        <div>📋 <b>Drop-off de formulário (Lead Ads)</b> — exige a API de Lead Forms do Meta (aberturas × envios); não vem no insights padrão.</div>
+        <div>🎬 <b>Ciclo por formato de criativo</b> (vídeo×carrossel×imagem) — precisa capturar o <code style="font-size:10px">ad_id</code>/criativo no lead do RD pra linkar lead→anúncio.</div>
+        <div>🎯 <b>Conversão por roteamento inteligente</b> — depende do sistema de distribuição de leads por patente (War Arena); quando existir, cruzamos roteado vs aleatório.</div>
+        <div style="color:#64748b">✓ Já no ar: CPQL/CPAR/ROAS por produto · rejeição por motivo × produto · breakdowns Meta · atribuição por canal.</div>
+      </div></div>`;
 }
 
 function campaignRow(c) {
