@@ -161,8 +161,11 @@ class handler(BaseHTTPRequestHandler):
             team = u.get("team")
             if can_team and team:
                 try:
-                    members = [m for m in (sb.table("users").select("id,name,email,role,team,ini,color,status").eq("team", team).execute().data or [])
-                               if (m.get("status") or "ativo") == "ativo" and (m.get("role") or "").lower() in ("corretor", "lider")]
+                    tkey = (team or "").strip().lower()
+                    members = [m for m in (sb.table("users").select("id,name,email,role,team,ini,color,status").execute().data or [])
+                               if (m.get("status") or "ativo") == "ativo"
+                               and (m.get("role") or "").lower() in ("corretor", "lider")
+                               and (m.get("team") or "").strip().lower() == tkey]
                 except Exception:
                     members = []
                 mids = [m.get("id") for m in members]
