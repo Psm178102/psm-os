@@ -27,6 +27,9 @@ from datetime import datetime, timezone, timedelta, date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
+# Classificador de marca CANÔNICO (regex config-driven via brand_rules) — o
+# MESMO usado na atribuição/CRM, pra a marca aqui bater com o resto do sistema.
+from crm_metrics import _load_brand_rules, _classify, BRAND_LABEL  # type: ignore
 
 THRESHOLD = 30.0      # alerta quando > 30% dos leads NÃO são de Rio Preto
 MIN_LEADS_ALERT = 5   # só alerta campanha com pelo menos N leads (evita ruído)
@@ -162,24 +165,17 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"deals: {e}"})
 
-        # Regras de marca (config-driven, igual ao resto do sistema): pipeline → marca
-        try:
-            brules = [b for b in (sb.table("brand_rules").select("pattern,label,priority,is_default,active").execute().data or [])
-                      if b.get("active", True)]
-            brules.sort(key=lambda b: -(b.get("priority") or 0))
-        except Exception:
-            brules = []
-        default_brand = next((b.get("label") for b in brules if b.get("is_default")), "Outros")
+        # Regras de marca CONFIG-DRIVEN: reusa o classificador canônico do
+        # crm_metrics (regex compilado da tabela brand_rules, mesmo da atribuição)
+        # → a marca aqui é IDÊNTICA à do resto do sistema. Fallback hardcoded se
+        # a tabela estiver vazia/indisponível (nunca quebra).
+        brand_rules, brand_labels, brand_default = _load_brand_rules(sb)
+        if brand_labels is None:
+            brand_labels = BRAND_LABEL
 
         def _brand(pipeline):
-            p = _strip(pipeline)
-            if not p:
-                return default_brand
-            for b in brules:
-                pat = _strip(b.get("pattern"))
-                if pat and pat in p:
-                    return b.get("label") or default_brand
-            return default_brand
+            bk = _classify(pipeline, brand_rules, brand_default)
+            return brand_labels.get(bk, bk)
 
         by_city = defaultdict(int)             # cidade_display -> leads
         city_is_rp = {}                        # cidade_display -> bool
