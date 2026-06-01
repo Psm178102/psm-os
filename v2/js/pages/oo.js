@@ -1,147 +1,362 @@
-/* PSM-OS v2 — One-on-One (Sprint 7.24) */
+/* PSM-OS v2 — One-on-One · Cockpit de Gestão Individual do Corretor */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
-let _root = null, _items = [], _users = [], _filterCorretor = '';
+let _root = null;
+let _view = 'list';            // 'list' | 'detail'
+let _selId = '';               // corretor selecionado
+let _preset = 'this_month';
+let _ov = null;                // overview (lista)
+let _det = null;               // detalhe do corretor
+let _meet = [];                // reuniões 1:1 do corretor
+let _users = [];
+
+const PRESETS = [
+  { id: 'this_month', lbl: 'Mês atual' },
+  { id: 'last_30d', lbl: 'Últimos 30 dias' },
+  { id: 'last_90d', lbl: 'Últimos 90 dias' },
+  { id: 'this_year', lbl: 'Ano' },
+];
 
 export async function pageOO(ctx, root) {
   _root = root;
-  if ((auth.user()?.lvl || 0) < 5) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder.</div>'; return; }
-  await reload();
+  if ((auth.user()?.lvl || 0) < 5) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder ou acima.</div>'; return; }
+  // deep-link vindo do Organograma
+  const pre = sessionStorage.getItem('oo.open');
+  if (pre) { sessionStorage.removeItem('oo.open'); _selId = pre; _view = 'detail'; }
+  if (_view === 'detail' && _selId) await loadDetail();
+  else await loadList();
 }
 
-async function reload() {
-  _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando…</div></div>';
+/* ───────────────────────── LISTA ───────────────────────── */
+async function loadList() {
+  _view = 'list';
+  _root.innerHTML = spinner('Carregando corretores…');
   try {
-    const qs = _filterCorretor ? '?corretor_id=' + _filterCorretor : '';
-    const [o, u] = await Promise.all([
-      api.request('/api/v3/oo/list' + qs),
-      _users.length ? Promise.resolve({ users: _users }) : api.request('/api/v3/users/list').catch(() => ({ users: [] })),
-    ]);
-    _items = o.items || [];
-    if (u.users) _users = u.users;
-    render();
-  } catch (e) {
-    _root.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message)}</div>`;
-  }
+    _ov = await api.request('/api/v3/oo/overview?date_preset=' + encodeURIComponent(_preset));
+    renderList();
+  } catch (e) { _root.innerHTML = err(e.message); }
 }
 
-function render() {
-  // Agrupa por corretor
-  const byCorr = {};
-  _items.forEach(i => { (byCorr[i.corretor_id] = byCorr[i.corretor_id] || []).push(i); });
-
+function renderList() {
+  const cs = _ov?.corretores || [];
+  const totalVendas = cs.reduce((a, c) => a + (c.vendas || 0), 0);
+  const totalVgv = cs.reduce((a, c) => a + (c.vgv || 0), 0);
+  const atencao = cs.filter(c => c.health_color === 'vermelho').length;
   _root.innerHTML = `
     <div class="card">
-      <h2 class="card-title">👥 One-on-One</h2>
-      <p class="card-sub">Reuniões individuais líder × corretor. ${_items.length} registros · ${Object.keys(byCorr).length} corretores acompanhados.</p>
-
-      <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center;padding:10px;background:var(--bg-3);border-radius:var(--r-sm)">
-        <label class="tiny muted">FILTRAR CORRETOR:</label>
-        <select id="f-corr" class="select" style="padding:5px 10px;font-size:12px">
-          <option value="">Todos</option>
-          ${_users.map(u => `<option value="${escapeHtml(u.id)}"${_filterCorretor===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}
-        </select>
-        <button class="btn btn-primary" id="btn-novo" style="margin-left:auto">+ Nova reunião</button>
-      </div>
-
-      <div class="mt-4" style="display:grid;gap:14px">
-        ${Object.keys(byCorr).length === 0 ? '<div class="muted text-center" style="padding:30px">Nenhuma reunião cadastrada.</div>' :
-          Object.entries(byCorr).map(([cid, items]) => corretorBlock(cid, items)).join('')}
-      </div>
-
-      <div id="modal-oo" style="display:none"></div>
-    </div>
-  `;
-  document.getElementById('f-corr').addEventListener('change', async e => { _filterCorretor = e.target.value; await reload(); });
-  document.getElementById('btn-novo').addEventListener('click', () => openModal());
-  document.querySelectorAll('[data-oo]').forEach(el => el.addEventListener('click', () => openModal(parseInt(el.dataset.oo))));
-}
-
-function corretorBlock(cid, items) {
-  const u = _users.find(x => x.id === cid);
-  items.sort((a, b) => (b.data || '').localeCompare(a.data || ''));
-  const last = items[0];
-  const proxima = last?.proxima_data;
-  return `
-    <div class="card" style="margin:0">
-      <div class="flex items-center gap-2" style="margin-bottom:8px">
-        <div style="flex:1">
-          <div style="font-weight:800;font-size:14px">${escapeHtml(u?.name || cid)}</div>
-          <div class="tiny muted">${items.length} reuniões${proxima ? ' · próxima ' + new Date(proxima).toLocaleDateString('pt-BR') : ''}</div>
+      <div class="flex items-center gap-2" style="flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <h2 class="card-title">👥 One-on-One · Gestão Individual</h2>
+          <p class="card-sub">${cs.length} corretores · ${totalVendas} vendas · R$ ${money(totalVgv)} VGV no período · <b style="color:#dc2626">${atencao}</b> em atenção 🔴</p>
         </div>
+        ${periodSel()}
       </div>
-      <div style="display:grid;gap:6px;max-height:240px;overflow-y:auto">
-        ${items.map(i => ooRow(i)).join('')}
+      <div class="mt-3" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px">
+        ${cs.length ? cs.map(brokerCard).join('') : '<div class="muted text-center" style="padding:30px">Sem corretores com dados no período.</div>'}
       </div>
-    </div>
-  `;
+    </div>`;
+  wirePeriod(loadList);
+  _root.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', () => { _selId = el.dataset.open; loadDetail(); }));
 }
 
-function ooRow(i) {
-  const lider = _users.find(u => u.id === i.lider_id);
-  const dt = i.data ? new Date(i.data + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
-  const acoesCount = Array.isArray(i.acoes) ? i.acoes.length : 0;
+function brokerCard(c) {
+  const dot = healthDot(c.health_color);
+  const att = c.meta_attainment_pct;
+  const attBar = att != null ? bar(Math.min(100, att), c.health_color) : '';
+  const alerts = (c.alertas_top || []).map(a => `<span style="display:inline-block;background:#fef2f2;color:#b91c1c;font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;margin:2px 2px 0 0">⚠ ${escapeHtml(a)}</span>`).join('');
   return `
-    <div data-oo="${i.id}" style="background:var(--bg-3);border-radius:var(--r-sm);padding:8px 12px;cursor:pointer">
-      <div class="flex items-center gap-2">
-        <span style="font-weight:700;font-size:12.5px">📅 ${dt}</span>
-        <span class="tiny muted">com ${escapeHtml(lider?.name || i.lider_id || '?')}</span>
-        ${acoesCount > 0 ? `<span class="tiny" style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:var(--r-full);font-weight:600">${acoesCount} ação(ões)</span>` : ''}
+    <div data-open="${escapeHtml(c.id)}" style="cursor:pointer;background:var(--bg-2);border:1px solid var(--border);border-left:4px solid ${healthHex(c.health_color)};border-radius:var(--r-md);padding:12px;transition:.15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow='none'">
+      <div class="flex items-center gap-2" style="margin-bottom:8px">
+        <div style="width:40px;height:40px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
+        <div style="min-width:0;flex:1">
+          <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || c.id)}</div>
+          <div class="tiny muted">${escapeHtml(c.team || '—')} · ${c.role === 'lider' ? '🛡 Líder' : '🏠 Corretor'}</div>
+        </div>
+        <div style="text-align:center">${dot}<div style="font-size:10px;font-weight:700;color:${healthHex(c.health_color)}">${c.health}</div></div>
       </div>
-      ${i.observacoes ? `<div class="tiny muted" style="margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(i.observacoes)}</div>` : ''}
-    </div>
-  `;
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center;margin-bottom:8px">
+        ${miniKpi('Vendas', c.vendas)} ${miniKpi('Visitas', c.visitas)} ${miniKpi('VGV', 'R$ ' + moneyShort(c.vgv))}
+      </div>
+      ${att != null ? `<div class="tiny muted" style="margin-bottom:2px">Meta VGV: <b>${att}%</b></div>${attBar}` : '<div class="tiny muted">Sem meta no período</div>'}
+      ${alerts ? `<div style="margin-top:6px">${alerts}</div>` : ''}
+      ${c.proxima_oo ? `<div class="tiny muted" style="margin-top:6px">📅 Próxima 1:1: ${fmtD(c.proxima_oo)}</div>` : (c.last_oo ? `<div class="tiny muted" style="margin-top:6px">Última 1:1: ${fmtD(c.last_oo)}</div>` : '<div class="tiny" style="color:#d97706;margin-top:6px">Sem 1:1 registrada</div>')}
+    </div>`;
 }
 
-function openModal(iid) {
-  const i = iid ? _items.find(x => x.id === iid) : null;
+/* ───────────────────────── DETALHE ───────────────────────── */
+async function loadDetail() {
+  _view = 'detail';
+  _root.innerHTML = spinner('Carregando cockpit do corretor…');
+  try {
+    const [d, m, u] = await Promise.all([
+      api.request('/api/v3/oo/corretor?corretor_id=' + encodeURIComponent(_selId) + '&date_preset=' + encodeURIComponent(_preset)),
+      api.request('/api/v3/oo/list?corretor_id=' + encodeURIComponent(_selId)).catch(() => ({ items: [] })),
+      _users.length ? Promise.resolve({ users: _users }) : api.request('/api/v3/users/list').catch(() => ({ users: [] })),
+    ]);
+    _det = d; _meet = m.items || []; if (u.users) _users = u.users;
+    renderDetail();
+  } catch (e) { _root.innerHTML = err(e.message); }
+}
+
+function renderDetail() {
+  const d = _det, c = d.corretor;
+  _root.innerHTML = `
+    <div class="card">
+      <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
+        <button class="btn btn-ghost" id="oo-back">← Corretores</button>
+        ${periodSel()}
+        <button class="btn btn-primary" id="oo-new" style="margin-left:auto">+ Reunião 1:1</button>
+      </div>
+      ${detailHeader(d, c)}
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:14px;align-items:start">
+        <div>${funnelPanel(d)}</div>
+        <div>${kpiVsMeta(d)}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:14px">
+        ${ratesPanel(d)}
+        ${originPanel(d)}
+        ${lossPanel(d)}
+      </div>
+      ${trendPanel(d)}
+      ${meetingsPanel()}
+      <div id="modal-oo" style="display:none"></div>
+    </div>`;
+  document.getElementById('oo-back').addEventListener('click', () => loadList());
+  document.getElementById('oo-new').addEventListener('click', () => openMeeting());
+  wirePeriod(loadDetail);
+  _root.querySelectorAll('[data-meet]').forEach(el => el.addEventListener('click', () => openMeeting(parseInt(el.dataset.meet))));
+  _root.querySelectorAll('[data-pdi]').forEach(el => el.addEventListener('change', () => togglePdi(parseInt(el.dataset.pdi), parseInt(el.dataset.idx), el.checked)));
+}
+
+function detailHeader(d, c) {
+  const hc = d.health_color, att = d.meta_attainment_pct;
+  return `
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:5px solid ${healthHex(hc)}">
+      <div style="width:54px;height:54px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
+      <div style="flex:1;min-width:180px">
+        <div style="font-weight:800;font-size:18px">${escapeHtml(c.name || c.id)}</div>
+        <div class="tiny muted">${escapeHtml(c.team || '—')} · ${c.role === 'lider' ? '🛡 Líder' : '🏠 Corretor'} · período ${fmtD(d.period.since)}–${fmtD(d.period.until)}</div>
+      </div>
+      <div style="text-align:center;padding:0 10px">
+        <div style="font-size:34px;line-height:1">${healthEmoji(hc)}</div>
+        <div style="font-size:11px;font-weight:800;color:${healthHex(hc)}">SAÚDE ${d.health}/100</div>
+      </div>
+      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)">
+        <div style="font-size:24px;font-weight:900;color:${healthHex(hc)}">${att != null ? att + '%' : '—'}</div>
+        <div class="tiny muted">atingimento meta VGV</div>
+      </div>
+      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)">
+        <div style="font-size:24px;font-weight:900">${d.kpis.vendas}</div>
+        <div class="tiny muted">vendas · R$ ${moneyShort(d.kpis.vgv)}</div>
+      </div>
+    </div>
+    ${(d.alertas || []).length ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">${d.alertas.map(a => `<span style="background:${a.level==='alto'?'#fef2f2':'#fffbeb'};color:${a.level==='alto'?'#b91c1c':'#b45309'};border:1px solid ${a.level==='alto'?'#fecaca':'#fde68a'};font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px">${a.level==='alto'?'🚨':'⚠️'} ${escapeHtml(a.txt)}</span>`).join('')}</div>` : '<div style="margin-top:10px;font-size:12px;color:#16a34a">✅ Sem alertas no período.</div>'}`;
+}
+
+function funnelPanel(d) {
+  const f = d.funnel || [];
+  const max = Math.max(1, ...f.map(s => s.n));
+  const colors = ['#94a3b8', '#60a5fa', '#38bdf8', '#22d3ee', '#a78bfa', '#f59e0b', '#22c55e'];
+  return panel('🫧 Funil individual', `
+    <div style="display:grid;gap:6px">
+      ${f.map((s, i) => `
+        <div>
+          <div class="flex items-center" style="justify-content:space-between;font-size:12px;margin-bottom:2px">
+            <span style="font-weight:600">${escapeHtml(s.label)}</span>
+            <span><b>${s.n}</b>${s.conv_from_prev != null ? ` <span style="color:${s.conv_from_prev>=50?'#16a34a':s.conv_from_prev>=25?'#d97706':'#dc2626'};font-size:11px">(${s.conv_from_prev}%)</span>` : ''}</span>
+          </div>
+          <div style="height:16px;background:var(--bg-3);border-radius:6px;overflow:hidden">
+            <div style="height:100%;width:${Math.max(3, s.n / max * 100)}%;background:${colors[i]};border-radius:6px"></div>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="tiny muted" style="margin-top:8px">% = conversão da etapa anterior. Win rate geral: <b>${d.win_rate != null ? d.win_rate + '%' : '—'}</b></div>`);
+}
+
+function kpiVsMeta(d) {
+  const m = d.meta;
+  const row = (lbl, real, meta) => {
+    const pct = meta > 0 ? Math.round(real / meta * 100) : null;
+    const col = pct == null ? '#64748b' : (pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626');
+    return `<div style="margin-bottom:7px">
+      <div class="flex items-center" style="justify-content:space-between;font-size:12px"><span>${lbl}</span><span><b>${real}</b>${meta>0?` / ${meta}`:''} ${pct!=null?`<span style="color:${col};font-size:11px;font-weight:700">${pct}%</span>`:''}</span></div>
+      ${meta>0?`<div style="height:6px;background:var(--bg-3);border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.min(100,pct)}%;background:${col}"></div></div>`:''}
+    </div>`;
+  };
+  return panel('🎯 Meta × Realizado', `
+    ${row('💰 VGV', 'R$ ' + moneyShort(m.real_vgv), m.meta_vgv)}
+    ${row('🤝 Vendas', m.real_vendas, m.meta_vendas)}
+    ${row('👀 Visitas', m.real_visitas, m.meta_visitas)}
+    ${row('📅 Agendamentos', m.real_agendamentos, m.meta_agendamentos)}
+    ${row('📝 Propostas', m.real_propostas, m.meta_propostas)}
+    ${row('📂 Pastas', m.real_pastas, m.meta_pastas)}
+    ${(!m.meta_vgv && !m.meta_visitas) ? '<div class="tiny" style="color:#d97706;margin-top:4px">Defina metas em Menu → Metas pra ver o atingimento.</div>' : ''}`);
+}
+
+function ratesPanel(d) {
+  const fc = d.primeiro_contato_h;
+  const fcTxt = fc == null ? '—' : (fc < 1 ? Math.round(fc * 60) + ' min' : fc.toFixed(1) + ' h');
+  return panel('⏱ Taxas & Tempos', `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      ${stat('Win rate', d.win_rate != null ? d.win_rate + '%' : '—', '#16a34a')}
+      ${stat('Taxa descarte', d.descarte_rate != null ? d.descarte_rate + '%' : '—', '#dc2626')}
+      ${stat('1º contato', fcTxt, '#2563eb', d.primeiro_contato_basis === 'real' ? 'real' : 'sem evento')}
+      ${stat('Ciclo médio', d.ciclo_medio_dias != null ? d.ciclo_medio_dias + ' d' : '—', '#7c3aed')}
+      ${stat('Lixo/descarte', d.trash_rate != null ? d.trash_rate + '%' : '—', '#64748b')}
+      ${stat('Parados +14d', d.pendencias.parados_14d, '#d97706')}
+    </div>`);
+}
+
+function originPanel(d) {
+  const o = d.origem_ultimas_vendas || [];
+  return panel('🧭 Origem das últimas vendas', o.length ? `
+    <div style="display:grid;gap:5px">
+      ${o.map(w => `<div class="flex items-center" style="justify-content:space-between;font-size:12px;border-bottom:1px solid var(--border);padding-bottom:4px">
+        <span>${fmtD(w.data)} · <b>${escapeHtml(w.canal)}</b><span class="muted"> ${escapeHtml(w.origem !== w.canal ? w.origem : '')}</span></span>
+        <span style="font-weight:700">R$ ${moneyShort(w.vgv)}</span></div>`).join('')}
+    </div>` : '<div class="muted tiny">Sem vendas no período.</div>');
+}
+
+function lossPanel(d) {
+  const l = d.motivos_perda || [];
+  return panel('💔 Motivos de perda', l.length ? `
+    <div style="display:grid;gap:4px">
+      ${l.map(m => `<div class="flex items-center" style="justify-content:space-between;font-size:12px"><span>${escapeHtml(m.motivo)}</span><b>${m.n}</b></div>`).join('')}
+    </div>
+    <div class="tiny muted" style="margin-top:6px">${d.perdas} perda(s) no período.</div>` : '<div class="muted tiny">Sem perdas registradas.</div>');
+}
+
+function trendPanel(d) {
+  const t = d.trend || [];
+  if (!t.length) return '';
+  const maxV = Math.max(1, ...t.map(x => x.vgv));
+  return `<div style="margin-top:14px">${panel('📈 Tendência (12 meses)', `
+    <div style="display:flex;align-items:flex-end;gap:6px;height:90px">
+      ${t.map(x => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px" title="${x.mes}: ${x.vendas} venda(s) · R$ ${money(x.vgv)}">
+        <div style="font-size:9px;font-weight:700">${x.vendas || ''}</div>
+        <div style="width:100%;max-width:30px;height:${Math.max(3, x.vgv / maxV * 64)}px;background:linear-gradient(180deg,#22c55e,#16a34a);border-radius:4px 4px 0 0"></div>
+        <div style="font-size:9px;color:var(--ink-muted)">${x.mes.slice(5)}/${x.mes.slice(2,4)}</div>
+      </div>`).join('')}
+    </div>
+    <div class="tiny muted" style="margin-top:4px">Barras = VGV ganho/mês · número em cima = nº de vendas.</div>`)}</div>`;
+}
+
+/* ──────────────── Reunião 1:1 (com PDI) ──────────────── */
+function meetingsPanel() {
+  const items = _meet.slice().sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+  return `<div style="margin-top:14px">${panel('🗓 Reuniões One-on-One', items.length ? `
+    <div style="display:grid;gap:8px">
+      ${items.map(meetRow).join('')}
+    </div>` : '<div class="muted tiny">Nenhuma reunião registrada. Clique em “+ Reunião 1:1”.</div>')}</div>`;
+}
+
+function meetRow(i) {
+  const lider = _users.find(u => u.id === i.lider_id);
+  const acoes = normAcoes(i.acoes);
+  const done = acoes.filter(a => a.done).length;
+  return `
+    <div style="background:var(--bg-3);border-radius:var(--r-sm);padding:10px 12px">
+      <div class="flex items-center gap-2" style="margin-bottom:4px">
+        <span style="font-weight:700;font-size:13px;cursor:pointer" data-meet="${i.id}">📅 ${fmtD(i.data)}</span>
+        <span class="tiny muted">com ${escapeHtml(lider?.name || '?')}</span>
+        ${acoes.length ? `<span class="tiny" style="margin-left:auto;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:999px;font-weight:600">PDI ${done}/${acoes.length}</span>` : ''}
+        <span class="btn btn-ghost btn-sm" data-meet="${i.id}" style="padding:2px 8px;font-size:11px;${acoes.length?'':'margin-left:auto'}">✏️</span>
+      </div>
+      ${i.observacoes ? `<div class="tiny" style="margin-bottom:5px;white-space:pre-wrap">${escapeHtml(i.observacoes)}</div>` : ''}
+      ${acoes.length ? `<div style="display:grid;gap:3px">${acoes.map((a, idx) => `
+        <label class="flex items-center gap-2" style="font-size:12px;cursor:pointer">
+          <input type="checkbox" data-pdi="${i.id}" data-idx="${idx}" ${a.done ? 'checked' : ''}>
+          <span style="${a.done ? 'text-decoration:line-through;color:var(--ink-muted)' : ''}">${escapeHtml(a.t)}${a.prazo ? ` <span class="muted tiny">(até ${fmtD(a.prazo)})</span>` : ''}</span>
+        </label>`).join('')}</div>` : ''}
+      ${i.proxima_data ? `<div class="tiny muted" style="margin-top:5px">Próxima: ${fmtD(i.proxima_data)}</div>` : ''}
+    </div>`;
+}
+
+function normAcoes(acoes) {
+  if (!Array.isArray(acoes)) return [];
+  return acoes.map(a => typeof a === 'string' ? { t: a, done: false } : { t: a.t || a.text || '', done: !!a.done, prazo: a.prazo || null }).filter(a => a.t);
+}
+
+async function togglePdi(meetId, idx, checked) {
+  const it = _meet.find(x => x.id === meetId); if (!it) return;
+  const acoes = normAcoes(it.acoes); if (!acoes[idx]) return;
+  acoes[idx].done = checked; it.acoes = acoes;
+  try { await api.request('/api/v3/oo/upsert', { method: 'POST', body: { id: meetId, corretor_id: it.corretor_id, data: it.data, lider_id: it.lider_id, observacoes: it.observacoes, acoes, proxima_data: it.proxima_data } }); }
+  catch (e) { alert('Erro ao salvar PDI: ' + e.message); }
+}
+
+function openMeeting(iid) {
+  const i = iid ? _meet.find(x => x.id === iid) : null;
+  const acoes = normAcoes(i?.acoes);
   const modal = document.getElementById('modal-oo');
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
   modal.innerHTML = `
-    <div class="card" style="margin:0;max-width:520px;width:100%;max-height:90vh;overflow-y:auto">
-      <h3 class="card-title">${i ? '✏️ Editar' : '➕ Nova'} reunião 1:1</h3>
+    <div class="card" style="margin:0;max-width:540px;width:100%;max-height:90vh;overflow-y:auto">
+      <h3 class="card-title">${i ? '✏️ Editar' : '➕ Nova'} reunião 1:1 — ${escapeHtml(_det.corretor.name)}</h3>
       <div class="flex gap-2" style="flex-wrap:wrap">
-        <div class="field" style="flex:1;min-width:160px">
-          <label>Corretor *</label>
-          <select id="oo-corr" class="select"><option value="">— —</option>${_users.filter(u => (u.role || '').toLowerCase() === 'corretor').map(u => `<option value="${escapeHtml(u.id)}"${i?.corretor_id===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select>
-        </div>
         <div class="field" style="flex:1;min-width:140px"><label>Data *</label><input id="oo-data" type="date" class="input" value="${i?.data || new Date().toISOString().slice(0,10)}"></div>
+        <div class="field" style="flex:1;min-width:160px"><label>Líder/Gestor</label>
+          <select id="oo-lider" class="select">${_users.filter(u => ['lider','gerente','socio','diretor'].includes((u.role||'').toLowerCase())).map(u => `<option value="${escapeHtml(u.id)}"${(i?.lider_id||auth.user()?.id)===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select>
+        </div>
       </div>
-      <div class="field">
-        <label>Líder/Gerente</label>
-        <select id="oo-lider" class="select">${_users.filter(u => ['lider','gerente','socio'].includes((u.role || '').toLowerCase())).map(u => `<option value="${escapeHtml(u.id)}"${(i?.lider_id || auth.user()?.id)===u.id?' selected':''}>${escapeHtml(u.name)} (${escapeHtml(u.role)})</option>`).join('')}</select>
-      </div>
-      <div class="field"><label>Observações da reunião</label><textarea id="oo-obs" class="input" rows="4" placeholder="O que foi conversado, pontos altos, dificuldades...">${i?escapeHtml(i.observacoes||''):''}</textarea></div>
-      <div class="field">
-        <label>Ações combinadas (uma por linha)</label>
-        <textarea id="oo-acoes" class="input" rows="3" placeholder="Ex:&#10;- Fechar 2 visitas até sexta&#10;- Estudar funil Conquista">${i && Array.isArray(i.acoes) ? escapeHtml(i.acoes.join('\n')) : ''}</textarea>
-      </div>
+      <div class="field"><label>Observações / pauta da reunião</label><textarea id="oo-obs" class="input" rows="4" placeholder="Pontos altos, dificuldades, combinados...">${i?escapeHtml(i.observacoes||''):''}</textarea></div>
+      <div class="field"><label>Plano de ação (uma por linha)</label><textarea id="oo-acoes" class="input" rows="3" placeholder="Ex:&#10;Fechar 2 visitas até sexta&#10;Revisar funil de Conquista">${acoes.map(a => a.t).join('\n')}</textarea></div>
       <div class="field"><label>Próxima reunião</label><input id="oo-prox" type="date" class="input" value="${i?.proxima_data || ''}"></div>
       <div id="oo-msg" class="mt-2"></div>
       <div class="flex gap-2 mt-3" style="justify-content:space-between">
         ${i ? '<button class="btn btn-danger" id="oo-del">🗑</button>' : '<span></span>'}
         <div class="flex gap-2"><button class="btn btn-ghost" id="oo-cancel">Cancelar</button><button class="btn btn-primary" id="oo-save">${i ? 'Salvar' : 'Criar'}</button></div>
       </div>
-    </div>
-  `;
+    </div>`;
   modal.style.display = 'flex';
-  document.getElementById('oo-cancel').addEventListener('click', () => modal.style.display = 'none');
+  const close = () => modal.style.display = 'none';
+  document.getElementById('oo-cancel').addEventListener('click', close);
   document.getElementById('oo-save').addEventListener('click', async () => {
-    const acoesText = document.getElementById('oo-acoes').value.trim();
-    const acoes = acoesText ? acoesText.split('\n').map(s => s.trim()).filter(Boolean) : [];
-    const body = { id: i?.id, corretor_id: document.getElementById('oo-corr').value, data: document.getElementById('oo-data').value, lider_id: document.getElementById('oo-lider').value, observacoes: document.getElementById('oo-obs').value.trim() || null, acoes, proxima_data: document.getElementById('oo-prox').value || null };
-    if (!body.corretor_id || !body.data) { document.getElementById('oo-msg').innerHTML = '<div class="alert alert-err">Corretor e data obrigatórios.</div>'; return; }
-    try { await api.request('/api/v3/oo/upsert', { method: 'POST', body }); modal.style.display = 'none'; await reload(); }
-    catch (e) { document.getElementById('oo-msg').innerHTML = `<div class="alert alert-err">${escapeHtml(e.message)}</div>`; }
+    const txt = document.getElementById('oo-acoes').value.trim();
+    const prev = acoes; // preserva status done dos que continuam
+    const novas = txt ? txt.split('\n').map(s => s.trim()).filter(Boolean).map(t => {
+      const old = prev.find(p => p.t === t); return { t, done: old ? old.done : false, prazo: old?.prazo || null };
+    }) : [];
+    const body = { id: i?.id, corretor_id: _selId, data: document.getElementById('oo-data').value, lider_id: document.getElementById('oo-lider').value, observacoes: document.getElementById('oo-obs').value.trim() || null, acoes: novas, proxima_data: document.getElementById('oo-prox').value || null };
+    if (!body.data) { document.getElementById('oo-msg').innerHTML = err('Data obrigatória'); return; }
+    try { await api.request('/api/v3/oo/upsert', { method: 'POST', body }); close(); await loadDetail(); }
+    catch (e) { document.getElementById('oo-msg').innerHTML = err(e.message); }
   });
   if (i) document.getElementById('oo-del').addEventListener('click', async () => {
-    if (!confirm('Apagar?')) return;
-    try { await api.request('/api/v3/oo/upsert', { method: 'POST', body: { id: i.id, _delete: true } }); modal.style.display = 'none'; await reload(); }
+    if (!confirm('Apagar esta reunião?')) return;
+    try { await api.request('/api/v3/oo/upsert', { method: 'POST', body: { id: i.id, _delete: true } }); close(); await loadDetail(); }
     catch (e) { alert('Erro: ' + e.message); }
   });
 }
 
-function escapeHtml(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/* ──────────────── helpers visuais ──────────────── */
+function periodSel() {
+  return `<select id="oo-preset" class="select" style="padding:5px 10px;font-size:12px">
+    ${PRESETS.map(p => `<option value="${p.id}"${p.id === _preset ? ' selected' : ''}>${p.lbl}</option>`).join('')}</select>`;
 }
+function wirePeriod(reloadFn) {
+  document.getElementById('oo-preset')?.addEventListener('change', e => { _preset = e.target.value; reloadFn(); });
+}
+function panel(title, inner) {
+  return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px">
+    <div style="font-weight:800;font-size:13px;margin-bottom:8px">${title}</div>${inner}</div>`;
+}
+function miniKpi(lbl, val) {
+  return `<div style="background:var(--bg-3);border-radius:6px;padding:5px 4px"><div style="font-weight:800;font-size:14px">${val}</div><div style="font-size:9.5px;color:var(--ink-muted)">${lbl}</div></div>`;
+}
+function stat(lbl, val, color, badge) {
+  return `<div style="background:var(--bg-3);border-radius:6px;padding:7px 9px"><div style="font-weight:800;font-size:15px;color:${color}">${val}</div><div style="font-size:10px;color:var(--ink-muted)">${lbl}${badge ? ` · <span style="color:${badge==='real'?'#16a34a':'#d97706'}">${badge==='real'?'✓ real':'≈'}</span>` : ''}</div></div>`;
+}
+function bar(pct, hc) {
+  return `<div style="height:6px;background:var(--bg-3);border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${healthHex(hc)}"></div></div>`;
+}
+function healthDot(c) { return `<div style="width:14px;height:14px;border-radius:50%;background:${healthHex(c)};margin:0 auto"></div>`; }
+function healthHex(c) { return c === 'verde' ? '#16a34a' : c === 'amarelo' ? '#d97706' : '#dc2626'; }
+function healthEmoji(c) { return c === 'verde' ? '🟢' : c === 'amarelo' ? '🟡' : '🔴'; }
+function spinner(t) { return `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> ${t}</div></div>`; }
+function err(m) { return `<div class="alert alert-err">Erro: ${escapeHtml(m)}</div>`; }
+function fmtD(s) { if (!s) return '—'; try { return new Date(s + 'T12:00:00').toLocaleDateString('pt-BR'); } catch { return s; } }
+function money(v) { return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+function moneyShort(v) { v = v || 0; if (v >= 1e6) return (v / 1e6).toFixed(1).replace('.', ',') + 'M'; if (v >= 1e3) return (v / 1e3).toFixed(0) + 'k'; return money(v); }
+function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
