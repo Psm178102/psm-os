@@ -425,6 +425,12 @@ class handler(BaseHTTPRequestHandler):
         since_d, until_d = _window(params)
         since_dt = datetime(since_d.year, since_d.month, since_d.day, tzinfo=timezone.utc)
         until_dt = datetime(until_d.year, until_d.month, until_d.day, 23, 59, 59, tzinfo=timezone.utc)
+        # Filtro de marca (brand_keys, ex.: imoveis,conquista) — espelha a seleção
+        # de conta(s) Meta na toolbar. Vazio = todas. O lead do RD não carrega a
+        # conta de anúncio, então a conta resolve até a marca/funil.
+        brands_filter = set(
+            b.strip().lower() for b in (params.get("brands") or "").split(",") if b.strip()
+        )
 
         deals, err, truncated = _fetch_period_deals(sb, since_d, until_d)
         if err:
@@ -468,6 +474,8 @@ class handler(BaseHTTPRequestHandler):
         for d in deals:
             raw = d.get("rd_raw") or {}
             brand = _classify(d.get("pipeline_name"), brand_rules, brand_default)
+            if brands_filter and brand not in brands_filter:
+                continue  # fora da(s) marca(s) selecionada(s) no filtro de contas
             B = brands[brand]
             win = d.get("win")
             amt = _amount(d)
@@ -700,6 +708,7 @@ class handler(BaseHTTPRequestHandler):
             "truncated": truncated,
             "global": g,
             "brands": per_brand,
+            "brands_filter": sorted(brands_filter) if brands_filter else [],
             "brand_mapping": brand_mapping,
             "metrics_basis": metrics_basis,
             "capture_since": cap_since.isoformat() if cap_since else None,

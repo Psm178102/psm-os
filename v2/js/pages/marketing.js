@@ -97,12 +97,16 @@ async function reload(silent) {
     const qp = (_since && _until)
       ? ('?since=' + encodeURIComponent(_since) + '&until=' + encodeURIComponent(_until))
       : ('?date_preset=' + encodeURIComponent(_preset));
+    // Filtro de conta(s) Meta → marca(s): o CRM/Leads do RD respeitam a seleção
+    // da toolbar (a conta resolve até a marca, pois o lead RD não traz a conta).
+    const bk = selectedBrandKeys();
+    const bq = bk.length ? '&brands=' + encodeURIComponent(bk.join(',')) : '';
     _bd = null; _ts = null;  // breakdown/série dependem do período; invalida ao recarregar
     const [meta, crm, goog, geo] = await Promise.allSettled([
       api.request('/api/v3/marketing/summary' + qp),
-      api.request('/api/v3/marketing/crm_metrics' + qp),
+      api.request('/api/v3/marketing/crm_metrics' + qp + bq),
       api.request('/api/v3/marketing/google_ads' + qp),
-      api.request('/api/v3/marketing/leads_geo' + qp),
+      api.request('/api/v3/marketing/leads_geo' + qp + bq),
     ]);
     if (meta.status === 'fulfilled') _data = meta.value; else throw meta.reason;
     if (crm.status === 'fulfilled' && crm.value?.ok) { _crm = crm.value; _crmErr = null; }
@@ -176,6 +180,26 @@ function filterBar() {
     </div>`;
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+// Marca(s) implícita(s) na seleção de conta(s) — mapeia cada conta selecionada
+// pra sua marca (brandInfo). Vazio = todas. Usado pra filtrar CRM/Leads do RD.
+function selectedBrandKeys() {
+  if (!_accSel.length) return [];
+  const acc = (_data && _data.accounts) || [];
+  const keys = new Set();
+  acc.forEach(a => { if (_accSel.includes(a.id)) keys.add(brandInfo(a.label || a.id).key); });
+  return [...keys];
+}
+
+// Selo de filtro ativo (conta(s) → marca(s)) pros painéis de RD.
+function filterTag() {
+  if (!_accSel.length) return '';
+  const acc = (_data && _data.accounts) || [];
+  const sel = acc.filter(a => _accSel.includes(a.id));
+  const names = sel.map(a => a.label || a.id);
+  const brands = [...new Set(sel.map(a => brandInfo(a.label || a.id).brand))];
+  return `<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:rgba(37,99,235,0.18);border:1px solid rgba(37,99,235,0.4);color:#93c5fd;font-size:10px;font-weight:700" title="O lead do RD não carrega a conta de anúncio; a conta resolve até a marca/funil.">🔎 ${escapeHtml(names.join(' + '))} → ${escapeHtml(brands.join(' / '))}</span>`;
+}
 
 // Agrupa gasto/resultados Meta por marca (mesma classificação do CRM).
 function metaSpendByBrand(accounts) {
@@ -341,10 +365,13 @@ function renderTV() {
   `;
   ov.querySelectorAll('.tv-acc').forEach(b => b.addEventListener('click', () => {
     const id = b.dataset.acc;
+    const before = selectedBrandKeys().slice().sort().join(',');
     if (id === '__all__') _accSel = [];
     else { const i = _accSel.indexOf(id); if (i >= 0) _accSel.splice(i, 1); else _accSel.push(id); }
     _ts = null;                 // série diária depende das contas selecionadas
-    renderTV();
+    // CRM/Leads (RD) seguem a marca da seleção — refaz só se a marca mudou.
+    if (selectedBrandKeys().slice().sort().join(',') !== before) reload(true);
+    else renderTV();
   }));
   ov.querySelectorAll('.tv-dot').forEach(b => b.addEventListener('click', () => { _tab = b.dataset.tab; renderTV(); }));
   ov.querySelector('#tv-prev')?.addEventListener('click', () => tvStep(-1));
@@ -407,7 +434,7 @@ function leadsGeoPanel() {
   return `
   <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:18px;color:#e2e8f0;margin-bottom:16px">
     <div style="font-size:15px;font-weight:800;color:#fff">📍 Leads por Região (DDD do telefone)</div>
-    <div style="font-size:11px;color:#94a3b8">região pelo DDD do telefone do lead (RD) · <b style="color:#86efac">DDD 17 = São José do Rio Preto</b> · alerta quando >${g.threshold_pct}% vêm de fora</div>
+    <div style="font-size:11px;color:#94a3b8">região pelo DDD do telefone do lead (RD) · <b style="color:#86efac">DDD 17 = São José do Rio Preto</b> · alerta quando >${g.threshold_pct}% vêm de fora${filterTag()}</div>
     ${banner}
     ${campAlerts}
     ${brandBlock}
@@ -640,7 +667,7 @@ function tabExecutiva() {
     ${leadsGeoPanel()}
     <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:18px 18px 20px;color:#e2e8f0;margin-bottom:16px">
       <div style="font-size:15px;font-weight:800;color:#fff">🔗 Cruzamento com CRM · Meta Ads × RD</div>
-      <div style="font-size:11px;color:#94a3b8">Mídia paga convertida em venda real — CAC, VGV e ROAS cruzam Meta Ads × deals ganhos no RD no mesmo período.</div>
+      <div style="font-size:11px;color:#94a3b8">Mídia paga convertida em venda real — CAC, VGV e ROAS cruzam Meta Ads × deals ganhos no RD no mesmo período.${filterTag()}</div>
 
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
         ${crmKpiDark('💰 Investimento Total', 'R$ ' + money(t.spend), `${accounts.length} conta(s) Meta`, '#f87171')}
@@ -1524,12 +1551,19 @@ function wire() {
     else alert('Informe data de início e fim.');
   });
   document.getElementById('ma-range-clear')?.addEventListener('click', () => { _since = ''; _until = ''; reload(); });
-  // Filtro de conta(s): Todas reseta; clicar alterna a conta (multiseleção)
+  // Filtro de conta(s): Todas reseta; clicar alterna a conta (multiseleção).
+  // Refaz CRM/Leads (RD) com o filtro de marca da seleção — assim o Cruzamento
+  // com CRM e o Leads por Região respeitam a conta escolhida (separada ou todas).
   document.querySelectorAll('.ma-acc').forEach(b => b.addEventListener('click', () => {
     const id = b.dataset.acc;
+    const before = selectedBrandKeys().slice().sort().join(',');
     if (id === '__all__') { _accSel = []; }
     else { const i = _accSel.indexOf(id); if (i >= 0) _accSel.splice(i, 1); else _accSel.push(id); }
-    _ts = null; render();
+    _ts = null;
+    // Só refaz a chamada de rede se a(s) marca(s) do RD realmente mudaram;
+    // senão é só re-render (filtro Meta é client-side).
+    if (selectedBrandKeys().slice().sort().join(',') !== before) reload(true);
+    else render();
   }));
 
   // Aba Gráficos: garante a série diária e (re)desenha os charts

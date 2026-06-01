@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.37.0-2026-06-01-MARCA-REGEX';
+const SW_VERSION = 'v76.38.0-2026-06-01-FILTRO-CONTA-RD';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

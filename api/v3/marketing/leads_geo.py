@@ -152,6 +152,12 @@ class handler(BaseHTTPRequestHandler):
         since_d, until_d = _window(params)
         since_iso = since_d.isoformat() + "T00:00:00+00:00"
         until_iso = (until_d + timedelta(days=1)).isoformat() + "T00:00:00+00:00"
+        # Filtro de marca (brand_keys, ex.: imoveis,conquista). Vazio = todas.
+        # Mapeia a seleção de conta(s) Meta → marca (1 conta resolve até a marca,
+        # pois o lead do RD não carrega a conta de anúncio, só o funil/marca).
+        brands_filter = set(
+            b.strip().lower() for b in (params.get("brands") or "").split(",") if b.strip()
+        )
 
         sb = supabase_client()
         if not sb:
@@ -173,9 +179,8 @@ class handler(BaseHTTPRequestHandler):
         if brand_labels is None:
             brand_labels = BRAND_LABEL
 
-        def _brand(pipeline):
-            bk = _classify(pipeline, brand_rules, brand_default)
-            return brand_labels.get(bk, bk)
+        def _brand_key(pipeline):
+            return _classify(pipeline, brand_rules, brand_default)
 
         by_city = defaultdict(int)             # cidade_display -> leads
         city_is_rp = {}                        # cidade_display -> bool
@@ -187,6 +192,10 @@ class handler(BaseHTTPRequestHandler):
         outras = 0
 
         for d in rows:
+            bkey = _brand_key(d.get("pipeline_name"))
+            if brands_filter and bkey not in brands_filter:
+                continue  # fora da(s) marca(s) selecionada(s) no filtro de contas
+            marca = brand_labels.get(bkey, bkey)
             total += 1
             raw = d.get("rd_raw") or {}
             if isinstance(raw, str):
@@ -196,7 +205,6 @@ class handler(BaseHTTPRequestHandler):
             ddd = _ddd(phone)
             campanha = _scan(raw, CAMP_KEYS) or (d.get("pipeline_name") or "Sem campanha")
             campanha = str(campanha)[:60]
-            marca = _brand(d.get("pipeline_name"))
 
             if not ddd:
                 sem_cidade += 1
@@ -264,6 +272,7 @@ class handler(BaseHTTPRequestHandler):
             "by_city": city_list,
             "by_campaign": camp_list,
             "by_brand": brand_list,
+            "brands_filter": sorted(brands_filter) if brands_filter else [],
             "threshold_pct": THRESHOLD,
             "alerta_global": bool(pct_outras_global is not None and pct_outras_global > THRESHOLD),
             "fetched_at": datetime.now(timezone.utc).isoformat(),
