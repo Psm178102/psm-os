@@ -11,7 +11,7 @@ import json, os, sys, urllib.parse
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit, notify  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, notify, lvl_of  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -102,8 +102,9 @@ class handler(BaseHTTPRequestHandler):
         # Notifica corretores ativos quando NOVA oportunidade aberta
         if is_new and row["status"] == "aberta":
             try:
-                users = sb.table("users").select("id").gte("lvl", 2).eq("status", "ativo").execute().data or []
-                ids = [u["id"] for u in users if u.get("id")]
+                # lvl é derivado do role (não é coluna) → filtra em Python
+                users = sb.table("users").select("id,role").eq("status", "ativo").execute().data or []
+                ids = [u["id"] for u in users if u.get("id") and lvl_of(u.get("role")) >= 2]
                 if ids:
                     notify(ids, "oportunidade",
                            f"💡 Nova oportunidade: {titulo[:60]}",

@@ -13,7 +13,7 @@ import json, os, sys
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, lvl_of  # type: ignore
 
 KV_KEY = "psm_teams"
 
@@ -59,7 +59,11 @@ class handler(BaseHTTPRequestHandler):
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
         teams = _read_teams(sb)
         try:
-            users = sb.table("users").select("id,name,email,role,team,ini,color,status,lvl,hide_from_ranking").order("name").execute().data or []
+            # lvl NÃO é coluna do banco — é derivado do role. Selecionar lvl direto
+            # quebrava (42703 column users.lvl does not exist). Computa aqui.
+            users = sb.table("users").select("id,name,email,role,team,ini,color,status,hide_from_ranking").order("name").execute().data or []
+            for u in users:
+                u["lvl"] = lvl_of(u.get("role"))
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
         return self._send(200, {"ok": True, "teams": teams, "users": users})

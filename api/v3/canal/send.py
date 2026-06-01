@@ -10,7 +10,7 @@ import json, os, sys
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit, notify  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, notify, lvl_of  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -73,8 +73,9 @@ class handler(BaseHTTPRequestHandler):
 
         # Notifica diretores (lvl>=7)
         try:
-            dirs = sb.table("users").select("id").gte("lvl", 7).execute().data or []
-            dir_ids = [d["id"] for d in dirs if d.get("id")]
+            # lvl é derivado do role (não é coluna) → filtra em Python
+            dirs = sb.table("users").select("id,role").execute().data or []
+            dir_ids = [d["id"] for d in dirs if d.get("id") and lvl_of(d.get("role")) >= 7]
             if dir_ids:
                 notify(dir_ids, "canal",
                        f"📬 Nova mensagem no Canal Anônimo ({nome})",

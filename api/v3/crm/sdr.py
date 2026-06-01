@@ -402,7 +402,7 @@ class handler(BaseHTTPRequestHandler):
               notes=f"auto via SDR · {nome}")
         # notifica gestão + marketing (precisa avaliação/colher dados)
         try:
-            rows = sb.table("users").select("id,name,role,lvl").execute().data or []
+            rows = sb.table("users").select("id,name,role").execute().data or []
             ids = [r["id"] for r in rows if (r.get("role") in ("socio", "diretor", "gerente", "backoffice"))
                    or "leire" in (r.get("name") or "").lower()]
             ids = [i for i in ids if i and i != actor.get("id")]
