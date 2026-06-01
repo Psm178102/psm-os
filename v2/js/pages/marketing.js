@@ -265,7 +265,11 @@ function enterTV() {
   if (_root) { _root.innerHTML = ''; _root.style.display = 'none'; }  // evita IDs de canvas duplicados
   let ov = document.getElementById('ma-tv');
   if (!ov) { ov = document.createElement('div'); ov.id = 'ma-tv'; document.body.appendChild(ov); }
-  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0b1220;color:#e2e8f0;overflow-y:auto;overflow-x:hidden';
+  // Overlay dark + override das variáveis de tema → abas claras (Vendas/Marca/
+  // tabelas) viram dark automaticamente, sem reescrever cada uma.
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0b1220;color:#e2e8f0;overflow-y:auto;overflow-x:hidden;'
+    + '--bg:#0b1220;--bg-2:#111827;--bg-3:rgba(255,255,255,0.06);--ink:#f1f5f9;--ink-muted:#94a3b8;'
+    + '--border:rgba(255,255,255,0.12);--border-2:rgba(255,255,255,0.08);--psm-navy:#1e293b';
   document.addEventListener('keydown', tvKey);
   try {
     const rf = ov.requestFullscreen || ov.webkitRequestFullscreen || ov.msRequestFullscreen;
