@@ -46,6 +46,8 @@ let _bd = null, _bdSel = 'age', _bdBusy = false, _google = null;
 let _ts = null, _tsBusy = false, _charts = [], _chartLibP = null;
 // Filtros: período custom (since/until) + contas selecionadas (vazio = todas)
 let _since = '', _until = '', _accSel = [];
+// Modo TV / tela cheia (overlay fullscreen + rotação automática das abas)
+let _tv = false, _tvRotate = true, _tvTimer = null, _tvDataTimer = null;
 const BREAKDOWNS = [
   { id: 'age',                'lbl': '🎂 Idade' },
   { id: 'gender',             'lbl': '⚧ Gênero' },
@@ -103,7 +105,7 @@ async function reload(silent) {
     if (crm.status === 'fulfilled' && crm.value?.ok) { _crm = crm.value; _crmErr = null; }
     else { _crm = null; _crmErr = (crm.reason?.message) || (crm.value?.error) || 'CRM indisponível'; }
     _google = (goog.status === 'fulfilled') ? goog.value : { ok: false, error: goog.reason?.message };
-    render();
+    if (_tv) renderTV(); else render();
   } catch (e) {
     _root.innerHTML = `<div class="alert alert-err">Erro ao consultar Meta: ${escapeHtml(e.message)}</div>
       <div class="mt-2"><button class="btn btn-primary" id="ma-retry">🔄 Tentar de novo</button></div>`;
@@ -222,6 +224,7 @@ function render() {
           ${PRESETS.map(p => `<option value="${p.id}"${p.id === _preset ? ' selected' : ''}>${p.lbl}</option>`).join('')}
         </select>
         <button class="btn btn-ghost" id="ma-reload" title="Atualizar">🔄</button>
+        <button class="btn btn-primary" id="ma-tv-btn" title="Modo TV / Tela cheia (apresentação)">📺 TV</button>
       </div>
 
       ${filterBar()}
@@ -245,6 +248,91 @@ function tabBody() {
   if (_tab === 'vendas')    return tabVendas();
   if (_tab === 'marca')     return tabMarca();
   return tabExecutiva();
+}
+
+/* ───────────────────────── MODO TV / TELA CHEIA ─────────────────────────
+   Overlay full-viewport (+ Fullscreen API) que mostra SÓ o dashboard, em
+   tela grande, com rotação automática das abas e controles interativos
+   (◀ ▶ play/pause · dots por aba · 🔄 · ✕). Responsivo e navegável por
+   teclado (← → espaço Esc). Reusa as mesmas abas/gráficos do cockpit.      */
+const TV_ROTATE_MS = 18000;    // troca de aba a cada 18s
+const TV_REFRESH_MS = 180000;  // re-puxa dados a cada 3min
+const TVBTN = 'border:none;cursor:pointer;padding:8px 13px;border-radius:10px;font-weight:800;font-size:15px;background:rgba(255,255,255,0.1);color:#e2e8f0;line-height:1';
+
+function enterTV() {
+  if (_tv) return;
+  _tv = true; _tvRotate = true;
+  if (_root) { _root.innerHTML = ''; _root.style.display = 'none'; }  // evita IDs de canvas duplicados
+  let ov = document.getElementById('ma-tv');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'ma-tv'; document.body.appendChild(ov); }
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0b1220;color:#e2e8f0;overflow-y:auto;overflow-x:hidden';
+  document.addEventListener('keydown', tvKey);
+  try {
+    const rf = ov.requestFullscreen || ov.webkitRequestFullscreen || ov.msRequestFullscreen;
+    if (rf) { const p = rf.call(ov); if (p && p.catch) p.catch(() => {}); }
+  } catch (_) {}
+  renderTV();
+  if (!_ts) loadTimeseries();
+  if (_tvTimer) clearInterval(_tvTimer);
+  _tvTimer = setInterval(() => { if (_tv && _tvRotate) tvStep(1); }, TV_ROTATE_MS);
+  if (_tvDataTimer) clearInterval(_tvDataTimer);
+  _tvDataTimer = setInterval(() => { if (_tv && !_busy) reload(true); }, TV_REFRESH_MS);
+}
+
+function exitTV() {
+  _tv = false;
+  if (_tvTimer) { clearInterval(_tvTimer); _tvTimer = null; }
+  if (_tvDataTimer) { clearInterval(_tvDataTimer); _tvDataTimer = null; }
+  document.removeEventListener('keydown', tvKey);
+  try { if (document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
+  const ov = document.getElementById('ma-tv'); if (ov) ov.remove();
+  if (_root) { _root.style.display = ''; render(); }
+}
+
+function tvStep(dir) {
+  const i = TABS.findIndex(t => t.id === _tab);
+  _tab = TABS[(i + dir + TABS.length) % TABS.length].id;
+  renderTV();
+}
+
+function tvKey(e) {
+  if (!_tv) return;
+  if (e.key === 'Escape') exitTV();
+  else if (e.key === 'ArrowRight') tvStep(1);
+  else if (e.key === 'ArrowLeft') tvStep(-1);
+  else if (e.key === ' ') { e.preventDefault(); _tvRotate = !_tvRotate; renderTV(); }
+}
+
+function renderTV() {
+  const ov = document.getElementById('ma-tv'); if (!ov) return;
+  const d = _data || {};
+  const nAcc = (d.accounts || []).length;
+  const dots = TABS.map(t => `<button class="tv-dot" data-tab="${t.id}" style="border:none;cursor:pointer;padding:7px 13px;border-radius:999px;font-weight:800;font-size:14px;background:${t.id===_tab?'#2563eb':'rgba(255,255,255,0.08)'};color:${t.id===_tab?'#fff':'#94a3b8'}">${escapeHtml(t.lbl)}</button>`).join('');
+  ov.innerHTML = `
+    <div style="position:sticky;top:0;z-index:5;background:rgba(11,18,32,0.94);backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,0.08);padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="font-size:19px;font-weight:900;color:#fff;white-space:nowrap">📺 PSM · Meta Ads</div>
+      <div style="font-size:12px;color:#94a3b8;white-space:nowrap">${nAcc} conta(s) · ${escapeHtml(d.period || _preset)} · ${d.fetchedAt ? new Date(d.fetchedAt).toLocaleTimeString('pt-BR') : 'agora'}${d.partial ? ' · ⚠️ parcial' : ''}</div>
+      <div style="flex:1;min-width:10px"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center">${dots}</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button id="tv-prev" title="Anterior (←)" style="${TVBTN}">◀</button>
+        <button id="tv-rotate" title="Auto-rotação (espaço)" style="${TVBTN}${_tvRotate ? ';background:#16a34a;color:#fff' : ''}">${_tvRotate ? '⏸' : '▶'}</button>
+        <button id="tv-next" title="Próximo (→)" style="${TVBTN}">▶</button>
+        <button id="tv-refresh" title="Atualizar dados" style="${TVBTN}">🔄</button>
+        <button id="tv-exit" title="Sair (Esc)" style="${TVBTN};background:#dc2626;color:#fff">✕ Sair</button>
+      </div>
+    </div>
+    <div id="ma-tv-body" style="padding:18px 22px 48px;font-size:15px;max-width:1700px;margin:0 auto">${tabBody()}</div>
+  `;
+  ov.querySelectorAll('.tv-dot').forEach(b => b.addEventListener('click', () => { _tab = b.dataset.tab; renderTV(); }));
+  ov.querySelector('#tv-prev')?.addEventListener('click', () => tvStep(-1));
+  ov.querySelector('#tv-next')?.addEventListener('click', () => tvStep(1));
+  ov.querySelector('#tv-rotate')?.addEventListener('click', () => { _tvRotate = !_tvRotate; renderTV(); });
+  ov.querySelector('#tv-refresh')?.addEventListener('click', () => reload(true));
+  ov.querySelector('#tv-exit')?.addEventListener('click', exitTV);
+  // gráficos da aba atual (canvas vivem no overlay; in-page está vazio → sem conflito de ID)
+  if (_tab === 'executiva') { if (!_ts && !_tsBusy) loadTimeseries(); buildExecutivaCharts(); }
+  if (_tab === 'graficos')  { if (!_ts && !_tsBusy) loadTimeseries(); buildGraficos(); }
 }
 
 function crmWarn() {
@@ -613,7 +701,7 @@ async function loadTimeseries() {
     _ts = await api.request('/api/v3/marketing/meta_timeseries' + q);
   }
   catch (e) { _ts = { ok: false, series: [], error: e.message }; }
-  finally { _tsBusy = false; if (_tab === 'graficos' || _tab === 'executiva') render(); }
+  finally { _tsBusy = false; if (_tv) renderTV(); else if (_tab === 'graficos' || _tab === 'executiva') render(); }
 }
 
 async function buildGraficos() {
@@ -1329,6 +1417,7 @@ function wire() {
   document.querySelectorAll('.ma-tab').forEach(b => b.addEventListener('click', () => { _tab = b.dataset.tab; render(); }));
   document.getElementById('ma-preset')?.addEventListener('change', async e => { _preset = e.target.value; await reload(); });
   document.getElementById('ma-reload')?.addEventListener('click', () => reload());
+  document.getElementById('ma-tv-btn')?.addEventListener('click', enterTV);
   document.getElementById('ma-auto')?.addEventListener('change', e => { _auto = e.target.checked; startAuto(); });
   document.getElementById('ma-status')?.addEventListener('change', e => { _statusFilter = e.target.value; render(); });
   document.getElementById('ma-sort')?.addEventListener('change', e => { _sort = e.target.value; render(); });
