@@ -94,13 +94,14 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             ano = now.year
         force_rd = params.get("fallback_rd") == "1"
+        nocache = params.get("nocache") == "1"
 
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "Supabase indisponível"})
 
         cache_key = f"{ano}|{user['id']}|{force_rd}"
-        if cache_key in _cache:
+        if cache_key in _cache and not nocache:
             ts, cached = _cache[cache_key]
             if (time.time() - ts) < CACHE_TTL:
                 out = dict(cached); out["cached"] = True; out["cache_age_s"] = int(time.time() - ts)

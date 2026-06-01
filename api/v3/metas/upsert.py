@@ -89,15 +89,36 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             before = None
 
-        try:
-            # Upsert via ON CONFLICT
-            res = sb.table("metas").upsert(payload, on_conflict="corretor_id,ano,mes").execute()
-            row = (res.data or [None])[0]
-        except Exception as e:
-            return self._send(500, {"ok": False, "error": f"erro upsert: {e}"})
+        # Upsert TOLERANTE: se uma coluna não existe no banco (migração não
+        # rodada → PGRST204), remove essa coluna e tenta de novo, salvando o
+        # resto. Nunca quebra o preenchimento por causa de 1 coluna faltando.
+        import re as _re
+        dropped = []
+        row = None
+        err = None
+        attempt = dict(payload)
+        for _ in range(8):
+            try:
+                res = sb.table("metas").upsert(attempt, on_conflict="corretor_id,ano,mes").execute()
+                row = (res.data or [None])[0]
+                err = None
+                break
+            except Exception as e:
+                msg = str(e)
+                err = msg
+                mm = (_re.search(r"Could not find the '([a-zA-Z_]+)'", msg)
+                      or _re.search(r"'([a-zA-Z_]+)' column", msg))
+                col = mm.group(1) if mm else None
+                if col and col in attempt and col not in ("corretor_id", "ano", "mes"):
+                    attempt.pop(col, None)
+                    dropped.append(col)
+                    continue
+                break
+        if err:
+            return self._send(500, {"ok": False, "error": f"erro upsert: {err}", "dropped": dropped})
 
         audit(self, actor, "meta.upsert", target_type="meta",
               target_id=f"{corretor_id}:{ano}-{mes:02d}",
               before=before, after=payload)
 
-        return self._send(200, {"ok": True, "meta": row, "created": before is None})
+        return self._send(200, {"ok": True, "meta": row, "created": before is None, "dropped": dropped})
