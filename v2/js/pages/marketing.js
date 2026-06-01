@@ -48,6 +48,8 @@ let _ts = null, _tsBusy = false, _charts = [], _chartLibP = null;
 let _since = '', _until = '', _accSel = [];
 // Modo TV / tela cheia (overlay fullscreen + rotação automática das abas)
 let _tv = false, _tvRotate = true, _tvTimer = null, _tvDataTimer = null;
+// Leads por cidade + alerta de % fora de Rio Preto (fonte: deals/RD)
+let _geo = null;
 const BREAKDOWNS = [
   { id: 'age',                'lbl': '🎂 Idade' },
   { id: 'gender',             'lbl': '⚧ Gênero' },
@@ -96,15 +98,17 @@ async function reload(silent) {
       ? ('?since=' + encodeURIComponent(_since) + '&until=' + encodeURIComponent(_until))
       : ('?date_preset=' + encodeURIComponent(_preset));
     _bd = null; _ts = null;  // breakdown/série dependem do período; invalida ao recarregar
-    const [meta, crm, goog] = await Promise.allSettled([
+    const [meta, crm, goog, geo] = await Promise.allSettled([
       api.request('/api/v3/marketing/summary' + qp),
       api.request('/api/v3/marketing/crm_metrics' + qp),
       api.request('/api/v3/marketing/google_ads' + qp),
+      api.request('/api/v3/marketing/leads_geo' + qp),
     ]);
     if (meta.status === 'fulfilled') _data = meta.value; else throw meta.reason;
     if (crm.status === 'fulfilled' && crm.value?.ok) { _crm = crm.value; _crmErr = null; }
     else { _crm = null; _crmErr = (crm.reason?.message) || (crm.value?.error) || 'CRM indisponível'; }
     _google = (goog.status === 'fulfilled') ? goog.value : { ok: false, error: goog.reason?.message };
+    _geo = (geo.status === 'fulfilled' && geo.value?.ok) ? geo.value : null;
     if (_tv) renderTV(); else render();
   } catch (e) {
     _root.innerHTML = `<div class="alert alert-err">Erro ao consultar Meta: ${escapeHtml(e.message)}</div>
@@ -312,6 +316,9 @@ function renderTV() {
   const d = _data || {};
   const nAcc = (d.accounts || []).length;
   const dots = TABS.map(t => `<button class="tv-dot" data-tab="${t.id}" style="border:none;cursor:pointer;padding:7px 13px;border-radius:999px;font-weight:800;font-size:14px;background:${t.id===_tab?'#2563eb':'rgba(255,255,255,0.08)'};color:${t.id===_tab?'#fff':'#94a3b8'}">${escapeHtml(t.lbl)}</button>`).join('');
+  // chips de conta (analisar contas diferentes dentro do TV)
+  const accBtn = (active, label, id) => `<button class="tv-acc" data-acc="${escapeHtml(id)}" style="border:none;cursor:pointer;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;background:${active ? '#0891b2' : 'rgba(255,255,255,0.08)'};color:${active ? '#fff' : '#94a3b8'}">${escapeHtml(label)}</button>`;
+  const accChips = accBtn(_accSel.length === 0, '🌐 Todas', '__all__') + (d.accounts || []).map(a => accBtn(_accSel.indexOf(a.id) >= 0, a.label || a.id, a.id)).join('');
   ov.innerHTML = `
     <div style="position:sticky;top:0;z-index:5;background:rgba(11,18,32,0.94);backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,0.08);padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="font-size:19px;font-weight:900;color:#fff;white-space:nowrap">📺 PSM · Meta Ads</div>
@@ -326,8 +333,19 @@ function renderTV() {
         <button id="tv-exit" title="Sair (Esc)" style="${TVBTN};background:#dc2626;color:#fff">✕ Sair</button>
       </div>
     </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:8px 18px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(11,18,32,0.85)">
+      <span style="font-size:11px;color:#94a3b8;font-weight:800;letter-spacing:.5px">CONTAS:</span>
+      ${accChips}
+    </div>
     <div id="ma-tv-body" style="padding:18px 22px 48px;font-size:15px;max-width:1700px;margin:0 auto">${tabBody()}</div>
   `;
+  ov.querySelectorAll('.tv-acc').forEach(b => b.addEventListener('click', () => {
+    const id = b.dataset.acc;
+    if (id === '__all__') _accSel = [];
+    else { const i = _accSel.indexOf(id); if (i >= 0) _accSel.splice(i, 1); else _accSel.push(id); }
+    _ts = null;                 // série diária depende das contas selecionadas
+    renderTV();
+  }));
   ov.querySelectorAll('.tv-dot').forEach(b => b.addEventListener('click', () => { _tab = b.dataset.tab; renderTV(); }));
   ov.querySelector('#tv-prev')?.addEventListener('click', () => tvStep(-1));
   ov.querySelector('#tv-next')?.addEventListener('click', () => tvStep(1));
@@ -342,6 +360,60 @@ function renderTV() {
 function crmWarn() {
   return `<div class="alert alert-warn">📭 Sem dados do CRM no período (${escapeHtml(_crmErr || 'RD não sincronizado')}).<br>
     Esta aba cruza vendas do RD Station com o gasto Meta. Verifique o sync de deals (cron <code>/api/v3/crm/sync_cron</code>) e o <code>RD_API_TOKEN</code>.</div>`;
+}
+
+/* ─── Leads por Cidade (tabela, não-mapa) + alerta >30% fora de Rio Preto ─── */
+function leadsGeoPanel() {
+  const g = _geo;
+  if (!g || !g.total) return '';
+  const semPct = g.total > 0 ? Math.round(g.sem_cidade / g.total * 100) : 0;
+  const top = (g.by_city || []).slice(0, 12);
+  const maxLeads = Math.max(1, ...top.map(c => c.leads));
+  const cityRows = top.map(c => {
+    const w = Math.round(c.leads / maxLeads * 100);
+    const col = c.cidade === 'Não informado' ? '#64748b' : (c.is_rio_preto ? '#22c55e' : '#fbbf24');
+    return `<tr style="border-top:1px solid rgba(255,255,255,0.06)">
+      <td style="padding:6px 10px;color:${col};font-weight:700">${c.is_rio_preto ? '📍 ' : ''}${escapeHtml(c.cidade)}</td>
+      <td style="padding:6px 8px;position:relative;min-width:120px"><div style="position:absolute;inset:5px auto 5px 0;width:${w}%;background:${col}33;border-radius:4px"></div><span style="position:relative;font-weight:700;color:#e2e8f0">${fmtNum(c.leads)}</span></td>
+      <td style="text-align:right;padding:6px 10px;color:#cbd5e1">${c.pct}%</td>
+    </tr>`;
+  }).join('');
+  const alerts = (g.by_campaign || []).filter(c => c.alerta);
+  const banner = g.alerta_global
+    ? `<div style="margin-top:12px;background:rgba(239,68,68,0.14);border:1px solid rgba(239,68,68,0.4);color:#fecaca;border-radius:12px;padding:10px 14px;font-size:12px"><strong>⚠️ ${g.pct_outras}% dos leads NÃO são de Rio Preto-SP</strong> — acima do limite de ${g.threshold_pct}% (${g.outras} de ${g.com_cidade} leads com cidade).</div>`
+    : (g.pct_outras != null ? `<div style="margin-top:12px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#86efac;border-radius:12px;padding:10px 14px;font-size:12px">✅ ${(100 - g.pct_outras).toFixed(1)}% dos leads são de Rio Preto-SP · ${g.pct_outras}% de fora (dentro do limite de ${g.threshold_pct}%).</div>` : '');
+  const campAlerts = alerts.length
+    ? `<div style="margin-top:12px"><div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:6px">🚨 Campanhas/públicos com >${g.threshold_pct}% de leads de fora</div>
+       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">
+       ${alerts.slice(0, 12).map(c => `<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:8px 12px">
+          <div style="font-size:12px;color:#fca5a5;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(c.campanha)}">${escapeHtml(c.campanha)}</div>
+          <div style="font-size:18px;font-weight:900;color:#f87171">${c.pct_outras}% fora</div>
+          <div style="font-size:10px;color:#94a3b8">${c.outras} fora · ${c.rio_preto} RP · ${c.leads} leads</div></div>`).join('')}
+       </div></div>`
+    : '';
+  return `
+  <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:18px;color:#e2e8f0;margin-bottom:16px">
+    <div style="font-size:15px;font-weight:800;color:#fff">📍 Leads por Cidade</div>
+    <div style="font-size:11px;color:#94a3b8">origem RD · alerta quando >${g.threshold_pct}% dos leads são de fora de São José do Rio Preto-SP</div>
+    ${banner}
+    ${campAlerts}
+    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:12px;align-items:start">
+      <div style="overflow-x:auto">
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <thead><tr style="color:#94a3b8;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.1)">
+            <th style="text-align:left;padding:6px 10px">Cidade</th><th style="text-align:left;padding:6px 8px">Leads</th><th style="text-align:right;padding:6px 10px">%</th></tr></thead>
+          <tbody>${cityRows}</tbody>
+        </table>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start">
+        ${crmMiniDark('Total de leads', fmtNum(g.total), '#60a5fa')}
+        ${crmMiniDark('📍 Rio Preto-SP', fmtNum(g.rio_preto), '#22c55e', g.com_cidade ? Math.round(g.rio_preto / g.com_cidade * 100) + '% c/ cidade' : '')}
+        ${crmMiniDark('Outras cidades', fmtNum(g.outras), '#fbbf24', g.pct_outras != null ? g.pct_outras + '%' : '')}
+        ${crmMiniDark('Sem cidade (RD)', fmtNum(g.sem_cidade), '#94a3b8', semPct + '% do total')}
+      </div>
+    </div>
+    ${semPct >= 40 ? `<div style="margin-top:10px;font-size:11px;color:#fcd34d">⚠️ ${semPct}% dos leads sem cidade no RD — mapeie o campo "cidade" no formulário/RD pra subir a precisão.</div>` : ''}
+  </div>`;
 }
 
 /* ───────────────────────── ABA: EXECUTIVA (Aba 1) ───────────────────────── */
@@ -535,6 +607,7 @@ function tabExecutiva() {
     // Hero premium + aviso de CRM ausente
     return `
       ${execHero(t, accounts)}
+      ${leadsGeoPanel()}
       <div class="mt-3" style="margin-top:14px">${crmWarn()}</div>`;
   }
   const g = _crm.global;
@@ -550,6 +623,7 @@ function tabExecutiva() {
 
   return `
     ${execHero(t, accounts)}
+    ${leadsGeoPanel()}
     <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:18px 18px 20px;color:#e2e8f0;margin-bottom:16px">
       <div style="font-size:15px;font-weight:800;color:#fff">🔗 Cruzamento com CRM · Meta Ads × RD</div>
       <div style="font-size:11px;color:#94a3b8">Mídia paga convertida em venda real — CAC, VGV e ROAS cruzam Meta Ads × deals ganhos no RD no mesmo período.</div>

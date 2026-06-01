@@ -1,8 +1,8 @@
 {
-  "version": "76.33.0",
-  "meta": "2026.06.01-v76.33-metas-planner",
+  "version": "76.34.0",
+  "meta": "2026.06.01-v76.34-leads-cidade-tv-contas",
   "built": "2026-06-01T02:30:00Z",
-  "sw": "v76.33.0-2026-06-01-METAS-PLANNER",
+  "sw": "v76.34.0-2026-06-01-LEADS-CIDADE",
   "sprint": "v76.31 — Modo TV / Tela cheia pro dashboard de Marketing Meta. Botão '📺 TV' na toolbar abre um overlay full-viewport (+ Fullscreen API) que mostra SÓ o dashboard, em tela grande, com TODAS as abas (Executiva, Gráficos, Tráfego/Cockpit, Vendas, Por Marca). Rotação automática das abas a cada 18s, controles interativos (◀ ▶ play/pause · dots por aba clicáveis · 🔄 refresh · ✕ sair), navegação por teclado (← → espaço Esc), refresh de dados a cada 3min, e gráficos/sparklines/funis renderizando dentro do overlay (sem conflito de canvas — in-page é esvaziado enquanto o TV está ativo). Responsivo (flex-wrap + grids auto-fit). Reusa as mesmas telas premium do cockpit. Caminho B.",
   "sprint_anterior_v76_30": "v76.30 — Cockpit de Métricas Meta completo (diagnóstico dos 3 CSVs: temos ~50 métricas, dashboard mostrava ~10). Backend meta-ads.js: cada campanha passa a retornar engajamento (curtidas/reações, comentários, compartilhamentos, salvamentos, engaj. c/ post e página), tráfego detalhado (cliques no link × todos, CTR/CPC do link, cliques de saída, visitas LP) e valor de conversão de leads — tudo extraído do array actions/action_values que já vinha (sem novo custo de API). Frontend (aba Tráfego): novo 'Cockpit de Métricas' premium dark no topo com 6 blocos — Entrega & Custo, Tráfego (link×todos), Engajamento, Funil de Vídeo (retenção ▶︎→25→50→75→95→100% + tempo médio/VTR/Hook/Hold), Mensagens, Leads & Conversão. Flui via cache compartilhado (renova no cron ~10min). Caminho B.",
   "sprint_anterior_v76_29": "v76.29 — Marketing/Executiva: a seção 'Cruzamento com CRM' (Investimento/CAC/VGV Influenciado/ROAS, mini-stats, atribuição por canal, por marca, Google Ads, roadmap) foi integrada ao layout PREMIUM DARK do dashboard — antes ela ficava no estilo claro antigo, destoando do hero. Agora tudo num container dark coeso: KPIs com borda colorida, mini-stats dark, tabelas dark (cabeçalho cinza-azulado, linhas com divisória sutil), banner/Google Ads/roadmap em dark. Mesma linguagem visual do hero acima. Caminho B.",
