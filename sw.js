@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.50.0-2026-06-01-OO-PERIODO-CUSTOM';
+const SW_VERSION = 'v76.51.0-2026-06-01-META-LEADS-WEBHOOK';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

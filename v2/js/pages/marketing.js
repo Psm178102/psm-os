@@ -50,6 +50,7 @@ let _since = '', _until = '', _accSel = [];
 let _tv = false, _tvRotate = true, _tvTimer = null, _tvDataTimer = null;
 // Leads por cidade + alerta de % fora de Rio Preto (fonte: deals/RD)
 let _geo = null;
+let _leadsCreative = null;
 const BREAKDOWNS = [
   { id: 'age',                'lbl': '🎂 Idade' },
   { id: 'gender',             'lbl': '⚧ Gênero' },
@@ -102,17 +103,19 @@ async function reload(silent) {
     const bk = selectedBrandKeys();
     const bq = bk.length ? '&brands=' + encodeURIComponent(bk.join(',')) : '';
     _bd = null; _ts = null;  // breakdown/série dependem do período; invalida ao recarregar
-    const [meta, crm, goog, geo] = await Promise.allSettled([
+    const [meta, crm, goog, geo, lc] = await Promise.allSettled([
       api.request('/api/v3/marketing/summary' + qp),
       api.request('/api/v3/marketing/crm_metrics' + qp + bq),
       api.request('/api/v3/marketing/google_ads' + qp),
       api.request('/api/v3/marketing/leads_geo' + qp + bq),
+      api.request('/api/v3/marketing/leads_creative' + qp),
     ]);
     if (meta.status === 'fulfilled') _data = meta.value; else throw meta.reason;
     if (crm.status === 'fulfilled' && crm.value?.ok) { _crm = crm.value; _crmErr = null; }
     else { _crm = null; _crmErr = (crm.reason?.message) || (crm.value?.error) || 'CRM indisponível'; }
     _google = (goog.status === 'fulfilled') ? goog.value : { ok: false, error: goog.reason?.message };
     _geo = (geo.status === 'fulfilled' && geo.value?.ok) ? geo.value : null;
+    _leadsCreative = (lc.status === 'fulfilled' && lc.value?.ok) ? lc.value : null;
     if (_tv) renderTV(); else render();
   } catch (e) {
     _root.innerHTML = `<div class="alert alert-err">Erro ao consultar Meta: ${escapeHtml(e.message)}</div>
@@ -700,6 +703,7 @@ function tabExecutiva() {
 
       ${produtoEficienciaPanel()}
       ${rejeicaoMotivoPanel()}
+      ${creativeCyclePanel()}
       ${googleSection(attr)}
       ${roadmapMini()}
     </div>
@@ -1509,6 +1513,33 @@ function produtoEficienciaPanel() {
         <th style="text-align:right;padding:6px 8px" title="Retorno: comissão (VGV×4%) ÷ investido">ROAS</th>
       </tr></thead><tbody>${rows}</tbody></table></div>
     <div style="font-size:11px;color:#64748b;margin-top:8px">CPQL usa lead qualificado = lead que foi contatado/avançou no funil. ROAS = VGV ganho × <b>${(OO_COMISSAO_PCT*100).toFixed(0)}%</b> de comissão ÷ investido no Meta. Investido por produto = soma das contas Meta da marca.</div>`);
+}
+
+// ─── Ciclo de vendas por formato de criativo (#5 — Lead Ads × CRM) ───────────
+function creativeCyclePanel() {
+  const lc = _leadsCreative;
+  if (!lc) return '';
+  if (lc.pending || !(lc.by_creative || []).length) {
+    return crmPanelDark('🎬 Ciclo de vendas por formato de criativo', '(vídeo × carrossel × imagem — prova o ROI do audiovisual)', `
+      <div style="font-size:12px;color:#94a3b8">⏳ Aguardando captação de Lead Ads. Quando o webhook do Meta estiver ligado (token <code style="color:#fcd34d">leads_retrieval</code> + inscrição <code style="color:#fcd34d">leadgen</code>), esta tabela popula sozinha: leads por formato, conversão e <b>tempo médio até a venda</b> — em tempo real, sem depender de ninguém.</div>`);
+  }
+  const rows = lc.by_creative.map(c => `<tr style="border-top:1px solid rgba(255,255,255,0.06)">
+    <td style="padding:6px 10px;font-weight:700;color:#e2e8f0">${escapeHtml(c.label)}</td>
+    <td style="text-align:right;padding:6px 8px">${fmtNum(c.leads)}</td>
+    <td style="text-align:right;padding:6px 8px;color:#4ade80">${fmtNum(c.vendas)}</td>
+    <td style="text-align:right;padding:6px 8px;color:${(c.conv_pct||0)>=2?'#4ade80':'#fbbf24'}">${c.conv_pct != null ? c.conv_pct + '%' : '—'}</td>
+    <td style="text-align:right;padding:6px 8px;color:#f1f5f9">R$ ${moneyShort(c.vgv)}</td>
+    <td style="text-align:right;padding:6px 8px;font-weight:800;color:#22d3ee">${c.ciclo_medio_dias != null ? c.ciclo_medio_dias + ' d' : '—'}</td>
+  </tr>`).join('');
+  return crmPanelDark('🎬 Ciclo de vendas por formato de criativo', `(leads capturados × CRM — ${lc.total_leads} leads no período)`, `
+    <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:520px">
+      <thead><tr style="color:#94a3b8;font-size:10.5px;border-bottom:1px solid rgba(255,255,255,0.1)">
+        <th style="text-align:left;padding:6px 10px">Formato</th><th style="text-align:right;padding:6px 8px">Leads</th>
+        <th style="text-align:right;padding:6px 8px">Vendas</th><th style="text-align:right;padding:6px 8px">Conv.</th>
+        <th style="text-align:right;padding:6px 8px">VGV</th>
+        <th style="text-align:right;padding:6px 8px" title="Tempo médio do lead até a venda">Ciclo médio</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="font-size:11px;color:#64748b;margin-top:8px">Ciclo = dias do lead (entrada no Meta) até o fechamento no RD. Quanto menor o ciclo do vídeo, mais a prova de que o audiovisual gera lead mais maduro.</div>`);
 }
 
 // ─── Rejeição de leads por motivo × produto (ajuste de segmentação) ───────────
