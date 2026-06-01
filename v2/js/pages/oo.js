@@ -42,21 +42,24 @@ async function loadList() {
 
 function renderList() {
   const cs = _ov?.corretores || [];
-  const totalVendas = cs.reduce((a, c) => a + (c.vendas || 0), 0);
-  const totalVgv = cs.reduce((a, c) => a + (c.vgv || 0), 0);
-  const atencao = cs.filter(c => c.health_color === 'vermelho').length;
+  const gestores = cs.filter(c => c.role === 'lider');     // visão de EQUIPE
+  const corretores = cs.filter(c => c.role !== 'lider');   // individual
+  const totalVendas = corretores.reduce((a, c) => a + (c.vendas || 0), 0);
+  const totalVgv = corretores.reduce((a, c) => a + (c.vgv || 0), 0);
+  const atencao = corretores.filter(c => c.health_color === 'vermelho').length;
+  const grid = (arr) => `<div class="mt-3" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px">${arr.map(brokerCard).join('')}</div>`;
   _root.innerHTML = `
     <div class="card">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
         <div style="flex:1;min-width:200px">
-          <h2 class="card-title">👥 One-on-One · Gestão Individual</h2>
-          <p class="card-sub">${cs.length} corretores · ${totalVendas} vendas · R$ ${money(totalVgv)} VGV no período · <b style="color:#dc2626">${atencao}</b> em atenção 🔴</p>
+          <h2 class="card-title">👥 One-on-One · Gestão</h2>
+          <p class="card-sub">${corretores.length} corretores · ${gestores.length} gestor(es) · ${totalVendas} vendas · R$ ${money(totalVgv)} VGV no período · <b style="color:#dc2626">${atencao}</b> em atenção 🔴</p>
         </div>
         ${periodSel()}
       </div>
-      <div class="mt-3" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px">
-        ${cs.length ? cs.map(brokerCard).join('') : '<div class="muted text-center" style="padding:30px">Sem corretores com dados no período.</div>'}
-      </div>
+      ${gestores.length ? `<div style="font-size:12px;font-weight:800;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:14px">🛡 Gestores · visão de equipe</div>${grid(gestores)}` : ''}
+      <div style="font-size:12px;font-weight:800;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:16px">🏠 Corretores · individual</div>
+      ${corretores.length ? grid(corretores) : '<div class="muted text-center" style="padding:30px">Sem corretores com dados no período.</div>'}
     </div>`;
   wirePeriod(loadList);
   _root.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', () => { _selId = el.dataset.open; loadDetail(); }));
@@ -104,43 +107,130 @@ async function loadDetail() {
 
 function renderDetail() {
   const d = _det, c = d.corretor;
-  const hasTeam = !!(d.team && d.team.metrics);
-  const teamMode = hasTeam && _scope === 'equipe';
-  const M = teamMode ? d.team.metrics : d;     // métricas ativas (equipe ou individual)
+  // Líder/gestor = cockpit de GESTÃO da equipe (não é avaliado como corretor).
+  if ((c.role || '') === 'lider' && d.team && d.team.metrics) { renderGestor(d, c); return; }
+  // Corretor = cockpit individual.
   _root.innerHTML = `
     <div class="card">
       <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
         <button class="btn btn-ghost" id="oo-back">← Corretores</button>
-        ${hasTeam ? `<div class="flex" style="gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-          <button class="oo-scope" data-scope="equipe" style="padding:6px 12px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:${teamMode?'#2563eb':'transparent'};color:${teamMode?'#fff':'var(--ink-muted)'}">👥 Equipe</button>
-          <button class="oo-scope" data-scope="individual" style="padding:6px 12px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:${!teamMode?'#2563eb':'transparent'};color:${!teamMode?'#fff':'var(--ink-muted)'}">👤 Individual</button>
-        </div>` : ''}
         ${periodSel()}
         <button class="btn btn-primary" id="oo-new" style="margin-left:auto">+ Reunião 1:1</button>
       </div>
-      ${teamMode ? teamHeader(d) : detailHeader(d, c)}
-      ${teamMode ? teamMembersPanel(d.team) : ''}
+      ${detailHeader(d, c)}
       <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:14px;align-items:start">
-        <div>${funnelPanel(M)}</div>
-        <div>${kpiVsMeta(M)}</div>
+        <div>${funnelPanel(d)}</div>
+        <div>${kpiVsMeta(d)}</div>
       </div>
-      <div style="margin-top:14px">${efficiencyPanel(M)}</div>
+      <div style="margin-top:14px">${efficiencyPanel(d)}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:14px">
-        ${ratesPanel(M)}
-        ${originPanel(M)}
-        ${lossPanel(M)}
+        ${ratesPanel(d)}
+        ${originPanel(d)}
+        ${lossPanel(d)}
       </div>
-      ${trendPanel(M, teamMode ? ('Equipe ' + escapeHtml(d.team.name)) : escapeHtml(c.name))}
+      ${trendPanel(d, escapeHtml(c.name))}
       ${meetingsPanel()}
       <div id="modal-oo" style="display:none"></div>
     </div>`;
+  wireDetailCommon();
+}
+
+/* ───────────────────── COCKPIT DO GESTOR (líder) ───────────────────── */
+function renderGestor(d, c) {
+  const t = d.team, M = t.metrics;
+  _root.innerHTML = `
+    <div class="card">
+      <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
+        <button class="btn btn-ghost" id="oo-back">← Corretores</button>
+        ${periodSel()}
+        <button class="btn btn-primary" id="oo-new" style="margin-left:auto">+ Reunião 1:1</button>
+      </div>
+      ${gestorHeader(d)}
+      ${gestorAlerts(M)}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
+        ${saudeEquipePanel(t)}
+        ${kpiVsMeta(M)}
+      </div>
+      ${rankingPanel(t)}
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:14px;align-items:start">
+        <div>${funnelPanel(M)}</div>
+        <div>${ooCoveragePanel(t)}</div>
+      </div>
+      ${trendPanel(M, 'Equipe ' + escapeHtml(t.name))}
+      ${meetingsPanel('🗓 Minhas reuniões 1:1 (com a diretoria)')}
+      <div id="modal-oo" style="display:none"></div>
+    </div>`;
+  wireDetailCommon();
+}
+
+function wireDetailCommon() {
   document.getElementById('oo-back').addEventListener('click', () => loadList());
   document.getElementById('oo-new').addEventListener('click', () => openMeeting());
   wirePeriod(loadDetail);
-  _root.querySelectorAll('.oo-scope').forEach(b => b.addEventListener('click', () => { _scope = b.dataset.scope; renderDetail(); }));
   _root.querySelectorAll('[data-member]').forEach(el => el.addEventListener('click', () => { _selId = el.dataset.member; loadDetail(); }));
   _root.querySelectorAll('[data-meet]').forEach(el => el.addEventListener('click', () => openMeeting(parseInt(el.dataset.meet))));
   _root.querySelectorAll('[data-pdi]').forEach(el => el.addEventListener('change', () => togglePdi(parseInt(el.dataset.pdi), parseInt(el.dataset.idx), el.checked)));
+}
+
+function gestorHeader(d) {
+  const t = d.team, M = t.metrics, hc = M.health_color, att = M.meta_attainment_pct, c = d.corretor;
+  return `
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:5px solid ${healthHex(hc)}">
+      <div style="width:54px;height:54px;border-radius:50%;background:${c.color || '#2563eb'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
+      <div style="flex:1;min-width:180px">
+        <div style="font-weight:800;font-size:18px">${escapeHtml(c.name)} <span style="font-size:12px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:999px;font-weight:700">🛡 Gestor</span></div>
+        <div class="tiny muted">Equipe ${escapeHtml(t.name)} · ${t.members.length} corretores · período ${fmtD(d.period.since)}–${fmtD(d.period.until)}</div>
+      </div>
+      <div style="text-align:center;padding:0 10px"><div style="font-size:34px;line-height:1">${healthEmoji(hc)}</div><div style="font-size:11px;font-weight:800;color:${healthHex(hc)}">SAÚDE EQUIPE ${M.health}/100</div></div>
+      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900;color:${healthHex(hc)}">${att != null ? att + '%' : '—'}</div><div class="tiny muted">meta VGV equipe</div></div>
+      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900">${M.kpis.vendas}</div><div class="tiny muted">vendas · R$ ${moneyShort(M.kpis.vgv)}</div></div>
+      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900;color:#16a34a">R$ ${moneyShort(M.ano_vgv || 0)}</div><div class="tiny muted">VGV ${new Date().getFullYear()} (ano)</div></div>
+    </div>`;
+}
+
+function gestorAlerts(M) {
+  const a = M.alertas || [];
+  if (!a.length) return '<div style="margin-top:10px;font-size:12px;color:#16a34a">✅ Equipe sem alertas críticos no período.</div>';
+  return `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">${a.map(x => `<span style="background:${x.level==='alto'?'#fef2f2':'#fffbeb'};color:${x.level==='alto'?'#b91c1c':'#b45309'};border:1px solid ${x.level==='alto'?'#fecaca':'#fde68a'};font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px">${x.level==='alto'?'🚨':'⚠️'} ${escapeHtml(x.txt)}</span>`).join('')}</div>`;
+}
+
+function saudeEquipePanel(t) {
+  const ms = t.members || [];
+  const g = ms.filter(m => m.health_color === 'verde').length;
+  const y = ms.filter(m => m.health_color === 'amarelo').length;
+  const r = ms.filter(m => m.health_color === 'vermelho').length;
+  const batendo = ms.filter(m => (m.meta_attainment_pct || 0) >= 100).length;
+  const semVenda = ms.filter(m => !m.vendas).length;
+  return panel('🩺 Saúde da equipe', `
+    <div style="display:flex;gap:14px;justify-content:space-around;margin-bottom:10px">
+      <div style="text-align:center"><div style="font-size:24px;font-weight:900;color:#16a34a">${g}</div><div class="tiny muted">🟢 saudável</div></div>
+      <div style="text-align:center"><div style="font-size:24px;font-weight:900;color:#d97706">${y}</div><div class="tiny muted">🟡 atenção</div></div>
+      <div style="text-align:center"><div style="font-size:24px;font-weight:900;color:#dc2626">${r}</div><div class="tiny muted">🔴 crítico</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;text-align:center">
+      ${miniKpi('Batendo meta', batendo + '/' + ms.length)}
+      ${miniKpi('Sem venda', semVenda + '/' + ms.length)}
+    </div>`);
+}
+
+function rankingPanel(t) {
+  return `<div style="margin-top:14px">${teamMembersPanel(t)}</div>`;
+}
+
+function ooCoveragePanel(t) {
+  const ms = t.members || [];
+  const now = Date.now(), D30 = 30 * 864e5;
+  const hasRecent = m => m.last_oo && (now - new Date(m.last_oo + 'T12:00:00').getTime()) <= D30;
+  const recent = ms.filter(hasRecent);
+  const overdue = ms.filter(m => !hasRecent(m));
+  return panel('🗓 Cobertura de 1:1 (últimos 30 dias)', `
+    <div style="display:flex;gap:14px;text-align:center;margin-bottom:8px">
+      ${miniKpi('Com 1:1 recente', recent.length + '/' + ms.length)}
+      ${miniKpi('Pendentes', overdue.length)}
+    </div>
+    ${overdue.length ? `<div class="tiny muted" style="margin-bottom:4px">Sem 1:1 nos últimos 30d — priorize (clique pra abrir):</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">${overdue.map(m => `<span data-member="${escapeHtml(m.id)}" style="cursor:pointer;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px">${escapeHtml(m.name)} →</span>`).join('')}</div>`
+      : '<div style="font-size:12px;color:#16a34a">✅ Todos os corretores tiveram 1:1 recente.</div>'}`);
 }
 
 function teamHeader(d) {
@@ -162,13 +252,21 @@ function teamHeader(d) {
 
 function teamMembersPanel(t) {
   const ms = t.members || [];
-  return `<div style="margin-top:14px">${panel('👥 Corretores da equipe (clique pra abrir)', `
-    <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">
+  const now = Date.now(), D30 = 30 * 864e5;
+  const ooCell = (m) => {
+    const recent = m.last_oo && (now - new Date(m.last_oo + 'T12:00:00').getTime()) <= D30;
+    if (m.proxima_oo) return `<span class="tiny" style="color:#2563eb">📅 ${fmtD(m.proxima_oo)}</span>`;
+    if (recent) return `<span class="tiny muted">${fmtD(m.last_oo)}</span>`;
+    return '<span class="tiny" style="color:#dc2626;font-weight:700">sem 1:1</span>';
+  };
+  return `${panel('🏅 Ranking de corretores (clique pra abrir o 1:1)', `
+    <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:640px">
       <thead><tr style="color:var(--ink-muted);font-size:11px;text-align:left;border-bottom:1px solid var(--border)">
-        <th style="padding:5px 6px">Corretor</th><th style="text-align:center">Saúde</th><th style="text-align:right">Vendas</th><th style="text-align:right">VGV</th><th style="text-align:right">Visitas</th><th style="text-align:right">Win%</th><th style="text-align:right">Meta</th><th style="text-align:center">⚠</th></tr></thead>
+        <th style="padding:5px 6px">#</th><th>Corretor</th><th style="text-align:center">Saúde</th><th style="text-align:right">Vendas</th><th style="text-align:right">VGV</th><th style="text-align:right">Visitas</th><th style="text-align:right">Win%</th><th style="text-align:right">Meta</th><th style="text-align:center">⚠</th><th style="text-align:right">1:1</th></tr></thead>
       <tbody>
-      ${ms.map(m => `<tr data-member="${escapeHtml(m.id)}" style="border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background='var(--bg-3)'" onmouseout="this.style.background='transparent'">
-        <td style="padding:6px"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:22px;height:22px;border-radius:50%;background:${m.color||'#64748b'};color:#fff;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center">${escapeHtml((m.ini||(m.name||'?').slice(0,2)).toUpperCase())}</span> ${escapeHtml(m.name)}${m.role==='lider'?' 🛡':''}</span></td>
+      ${ms.map((m, i) => `<tr data-member="${escapeHtml(m.id)}" style="border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background='var(--bg-3)'" onmouseout="this.style.background='transparent'">
+        <td style="padding:6px;color:var(--ink-muted)">${i + 1}</td>
+        <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:22px;height:22px;border-radius:50%;background:${m.color||'#64748b'};color:#fff;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center">${escapeHtml((m.ini||(m.name||'?').slice(0,2)).toUpperCase())}</span> ${escapeHtml(m.name)}</span></td>
         <td style="text-align:center">${healthEmoji(m.health_color)} ${m.health}</td>
         <td style="text-align:right;font-weight:700">${m.vendas}</td>
         <td style="text-align:right">R$ ${moneyShort(m.vgv)}</td>
@@ -176,8 +274,10 @@ function teamMembersPanel(t) {
         <td style="text-align:right">${m.win_rate != null ? m.win_rate + '%' : '—'}</td>
         <td style="text-align:right">${m.meta_attainment_pct != null ? m.meta_attainment_pct + '%' : '—'}</td>
         <td style="text-align:center">${m.alertas_count ? '<span style="color:#dc2626;font-weight:700">' + m.alertas_count + '</span>' : '✓'}</td>
+        <td style="text-align:right">${ooCell(m)}</td>
       </tr>`).join('')}
-      </tbody></table></div>`)}</div>`;
+      </tbody></table></div>
+    <div class="tiny muted" style="margin-top:6px">Ordenado por quem precisa de atenção (mais alertas / menor saúde). Clique numa linha pra abrir o cockpit e registrar a 1:1.</div>`)}`;
 }
 
 function detailHeader(d, c) {
@@ -345,9 +445,9 @@ function trendPanel(d, who) {
 }
 
 /* ──────────────── Reunião 1:1 (com PDI) ──────────────── */
-function meetingsPanel() {
+function meetingsPanel(title) {
   const items = _meet.slice().sort((a, b) => (b.data || '').localeCompare(a.data || ''));
-  return `<div style="margin-top:14px">${panel('🗓 Reuniões One-on-One', items.length ? `
+  return `<div style="margin-top:14px">${panel(title || '🗓 Reuniões One-on-One', items.length ? `
     <div style="display:grid;gap:8px">
       ${items.map(meetRow).join('')}
     </div>` : '<div class="muted tiny">Nenhuma reunião registrada. Clique em “+ Reunião 1:1”.</div>')}</div>`;

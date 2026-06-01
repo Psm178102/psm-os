@@ -201,15 +201,29 @@ class handler(BaseHTTPRequestHandler):
                 for d in tdeals:
                     oid = d.get("user_id") or email2id.get((d.get("user_email") or "").lower())
                     deals_by_owner.setdefault(oid, []).append(d)
+                # Cobertura de 1:1: última e próxima reunião de cada corretor da equipe
+                last_oo, prox_oo = {}, {}
+                try:
+                    for r in (sb.table("one_on_ones").select("corretor_id,data,proxima_data")
+                              .in_("corretor_id", mids).order("data", desc=True).limit(2000).execute().data or []):
+                        c = r.get("corretor_id")
+                        if c and c not in last_oo:
+                            last_oo[c] = r.get("data")
+                            prox_oo[c] = r.get("proxima_data")
+                except Exception:
+                    pass
                 membros = []
                 for m in members:
+                    if (m.get("role") or "").lower() == "lider":
+                        continue  # o gestor não aparece como corretor da própria equipe
                     mm = broker_metrics(deals_by_owner.get(m.get("id"), []), {}, meta_for_period(all_metas, m.get("id"), since_d, until_d), since_d, until_d, today, detail=False)
                     membros.append({"id": m.get("id"), "name": m.get("name"), "role": m.get("role"),
                                     "ini": m.get("ini"), "color": m.get("color"),
                                     "vendas": mm["kpis"]["vendas"], "vgv": mm["kpis"]["vgv"],
                                     "visitas": mm["kpis"]["visitas"], "leads": mm["kpis"]["leads"],
                                     "win_rate": mm["win_rate"], "health": mm["health"], "health_color": mm["health_color"],
-                                    "meta_attainment_pct": mm["meta_attainment_pct"], "alertas_count": len(mm["alertas"])})
+                                    "meta_attainment_pct": mm["meta_attainment_pct"], "alertas_count": len(mm["alertas"]),
+                                    "last_oo": last_oo.get(m.get("id")), "proxima_oo": prox_oo.get(m.get("id"))})
                 membros.sort(key=lambda x: (-(x["alertas_count"]), x["health"]))
                 resp["team"] = {"name": team, "members": membros, "metrics": tmetrics, "deals_total": len(tdeals)}
 
