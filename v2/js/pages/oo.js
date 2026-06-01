@@ -167,7 +167,7 @@ function funnelPanel(d) {
             <span><b>${s.n}</b>${s.conv_from_prev != null ? ` <span style="color:${s.conv_from_prev>=50?'#16a34a':s.conv_from_prev>=25?'#d97706':'#dc2626'};font-size:11px">(${s.conv_from_prev}%)</span>` : ''}</span>
           </div>
           <div style="height:16px;background:var(--bg-3);border-radius:6px;overflow:hidden">
-            <div style="height:100%;width:${Math.max(3, s.n / max * 100)}%;background:${colors[i]};border-radius:6px"></div>
+            <div style="height:100%;width:${s.n ? Math.max(3, s.n / max * 100) : 0}%;background:${colors[i]};border-radius:6px"></div>
           </div>
         </div>`).join('')}
     </div>
@@ -176,16 +176,17 @@ function funnelPanel(d) {
 
 function kpiVsMeta(d) {
   const m = d.meta;
-  const row = (lbl, real, meta) => {
-    const pct = meta > 0 ? Math.round(real / meta * 100) : null;
+  // realNum = valor numérico (pro %); disp = texto exibido
+  const row = (lbl, realNum, meta, disp) => {
+    const pct = meta > 0 ? Math.round(realNum / meta * 100) : null;
     const col = pct == null ? '#64748b' : (pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626');
     return `<div style="margin-bottom:7px">
-      <div class="flex items-center" style="justify-content:space-between;font-size:12px"><span>${lbl}</span><span><b>${real}</b>${meta>0?` / ${meta}`:''} ${pct!=null?`<span style="color:${col};font-size:11px;font-weight:700">${pct}%</span>`:''}</span></div>
-      ${meta>0?`<div style="height:6px;background:var(--bg-3);border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.min(100,pct)}%;background:${col}"></div></div>`:''}
+      <div class="flex items-center" style="justify-content:space-between;font-size:12px"><span>${lbl}</span><span><b>${disp != null ? disp : realNum}</b>${meta>0?` / ${meta}`:''} ${pct!=null?`<span style="color:${col};font-size:11px;font-weight:700">${pct}%</span>`:''}</span></div>
+      ${meta>0?`<div style="height:6px;background:var(--bg-3);border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.min(100,Math.max(0,pct))}%;background:${col}"></div></div>`:''}
     </div>`;
   };
   return panel('🎯 Meta × Realizado', `
-    ${row('💰 VGV', 'R$ ' + moneyShort(m.real_vgv), m.meta_vgv)}
+    ${row('💰 VGV', m.real_vgv, m.meta_vgv, 'R$ ' + moneyShort(m.real_vgv))}
     ${row('🤝 Vendas', m.real_vendas, m.meta_vendas)}
     ${row('👀 Visitas', m.real_visitas, m.meta_visitas)}
     ${row('📅 Agendamentos', m.real_agendamentos, m.meta_agendamentos)}

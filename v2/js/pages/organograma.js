@@ -75,7 +75,7 @@ function render() {
 
   _root.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', () => {
     sessionStorage.setItem('oo.open', el.dataset.open);
-    location.hash = '#/oo';
+    location.hash = '#/one-on-one';
   }));
 }
 
