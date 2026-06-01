@@ -13,7 +13,7 @@ import os
 import sys
 import urllib.parse
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
@@ -142,19 +142,18 @@ class handler(BaseHTTPRequestHandler):
         meta_sum = meta_for_period(all_metas, cid, since_d, until_d)
         metrics = broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, detail=True, stage_maps=stage_maps)
 
-        # ── Investimento em ads / lead (CPL global × leads do corretor) ──
-        preset = params.get("date_preset") or "this_month"
-        spend = read_meta_spend(sb, preset)
+        # ── Investimento em ads / lead — CPL é uma TAXA mensal estável (gasto Meta
+        # mensal ÷ leads dos últimos 30 dias); aplicada aos leads do corretor. ──
+        spend = read_meta_spend(sb)
         cpl = None
         try:
-            since_iso = since_d.isoformat() + "T00:00:00+00:00"
-            until_iso = (until_d).isoformat() + "T23:59:59+00:00"
-            res = sb.table("deals").select("id", count="exact").gte("created_at_rd", since_iso).lte("created_at_rd", until_iso).limit(1).execute()
-            total_leads = res.count or 0
-            if spend and total_leads:
-                cpl = round(spend / total_leads, 2)
+            m30 = (today - timedelta(days=29)).isoformat() + "T00:00:00+00:00"
+            res = sb.table("deals").select("id", count="exact").gte("created_at_rd", m30).limit(1).execute()
+            leads_30d = res.count or 0
+            if spend and leads_30d:
+                cpl = round(spend / leads_30d, 2)
         except Exception:
-            total_leads = None
+            pass
         metrics["cpl_global"] = cpl
         metrics["lead_invest"] = round(cpl * (metrics["kpis"]["leads"] or 0), 2) if cpl else None
 

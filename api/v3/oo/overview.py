@@ -13,7 +13,7 @@ import os
 import sys
 import urllib.parse
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
@@ -155,21 +155,27 @@ class handler(BaseHTTPRequestHandler):
                 "pendencias": m["pendencias"],
                 "last_oo": last_oo.get(cid), "proxima_oo": prox_oo.get(cid),
             })
-        # ── Investimento em ads / lead por corretor (CPL × leads) ──
-        preset = params.get("date_preset") or "this_month"
-        spend = read_meta_spend(sb, preset)
-        total_leads = sum(len(by_owner.get(p.get("id"), [])) for p in people)
-        cpl = round(spend / total_leads, 2) if (spend and total_leads) else None
+        # ── Investimento em ads / lead — CPL = taxa mensal (gasto Meta mensal ÷
+        # leads dos últimos 30 dias), aplicada aos leads de cada corretor. ──
+        spend = read_meta_spend(sb)
+        cpl = None
+        try:
+            m30 = (today - timedelta(days=29)).isoformat() + "T00:00:00+00:00"
+            res = sb.table("deals").select("id", count="exact").gte("created_at_rd", m30).limit(1).execute()
+            leads_30d = res.count or 0
+            if spend and leads_30d:
+                cpl = round(spend / leads_30d, 2)
+        except Exception:
+            pass
         for c in out:
-            # líderes (is_team) usam leads da equipe; corretores os próprios
-            c["lead_invest"] = round((cpl or 0) * (c["leads"] or 0), 2) if cpl else None
+            c["lead_invest"] = round(cpl * (c["leads"] or 0), 2) if cpl else None
         # ordena: mais alertas primeiro, depois menor health (quem precisa de atenção)
         out.sort(key=lambda x: (-(x["alertas_count"]), x["health"]))
 
         return self._send(200, {
             "ok": True,
             "period": {"since": since_d.isoformat(), "until": until_d.isoformat(),
-                       "preset": preset},
+                       "preset": params.get("date_preset") or ("custom" if params.get("since") else "this_month")},
             "count": len(out),
             "corretores": out,
             "meta_spend": spend, "cpl_global": cpl, "total_leads": total_leads,

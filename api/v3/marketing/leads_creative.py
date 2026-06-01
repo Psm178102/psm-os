@@ -89,7 +89,12 @@ class handler(BaseHTTPRequestHandler):
                      .gte("created_time", since_iso).lt("created_time", until_iso)
                      .limit(10000).execute().data or [])
         except Exception as e:
-            return self._send(500, {"ok": False, "error": f"meta_leads: {e}"})
+            # Tabela ainda não criada (SQL não rodado) ou indisponível → degrada
+            # pra "pending" (não quebra o dashboard com 500).
+            return self._send(200, {"ok": True, "pending": True,
+                                    "period": {"since": since_d.isoformat(), "until": until_d.isoformat()},
+                                    "by_creative": [], "total_leads": 0,
+                                    "hint": "Tabela meta_leads ainda não criada. Rode supabase/sprint9_18_meta_leads.sql."})
 
         if not leads:
             return self._send(200, {"ok": True, "pending": True,

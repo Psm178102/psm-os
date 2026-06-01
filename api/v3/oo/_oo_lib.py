@@ -152,23 +152,37 @@ def window(params, today=None):
     return today - timedelta(days=days - 1), today
 
 
-def read_meta_spend(sb, preset):
-    """Gasto total em ads (Meta) do período, do cache compartilhado meta_ads_cache.
-    Soma o spend das contas no payload. Retorna float ou None (sem cache)."""
+def read_meta_spend(sb, preset=None):
+    """Gasto MENSAL em ads (Meta) — base estável pro CPL (R$/lead). Lê o cache
+    meta_ads_cache e soma o spend das contas. O CPL é uma TAXA (R$/lead), então
+    usar o gasto mensal é coerente independente do período do One-on-One.
+    Preferência de preset: o pedido (se cacheado) → last_30d → this_month → ...
+    Pula linhas com spend 0. Retorna float>0 ou None (sem dado → front mostra —)."""
     try:
         rows = (sb.table("meta_ads_cache").select("payload,date_preset,refreshed_at")
-                .order("refreshed_at", desc=True).limit(20).execute().data or [])
+                .order("refreshed_at", desc=True).limit(40).execute().data or [])
     except Exception:
         return None
     if not rows:
         return None
-    row = next((r for r in rows if r.get("date_preset") == preset), rows[0])
-    pl = row.get("payload") or {}
-    accs = pl.get("accounts") or []
-    try:
-        return float(sum(float(a.get("spend") or 0) for a in accs))
-    except Exception:
-        return None
+    # spend por preset (linha mais recente de cada preset)
+    spend_by_preset = {}
+    for r in rows:
+        p = r.get("date_preset")
+        if p in spend_by_preset:
+            continue
+        accs = (r.get("payload") or {}).get("accounts") or []
+        try:
+            spend_by_preset[p] = float(sum(float(a.get("spend") or 0) for a in accs))
+        except Exception:
+            spend_by_preset[p] = 0.0
+    order = [preset, "last_30d", "this_month", "last_month", "last_14d", "last_7d"]
+    for p in order:
+        if p and spend_by_preset.get(p, 0) > 0:
+            return spend_by_preset[p]
+    # último recurso: qualquer preset com spend > 0
+    best = max(spend_by_preset.values()) if spend_by_preset else 0
+    return best if best > 0 else None
 
 
 META_FIELDS = ("meta_vgv", "meta_vendas", "meta_visitas", "meta_pastas", "meta_propostas", "meta_agendamentos")
