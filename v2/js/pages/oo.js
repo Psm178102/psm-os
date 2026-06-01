@@ -10,6 +10,7 @@ let _ov = null;                // overview (lista)
 let _det = null;               // detalhe do corretor
 let _meet = [];                // reuniões 1:1 do corretor
 let _users = [];
+let _scope = 'individual';     // 'individual' | 'equipe' (só líderes têm equipe)
 
 const PRESETS = [
   { id: 'this_month', lbl: 'Mês atual' },
@@ -70,8 +71,8 @@ function brokerCard(c) {
       <div class="flex items-center gap-2" style="margin-bottom:8px">
         <div style="width:40px;height:40px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
         <div style="min-width:0;flex:1">
-          <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || c.id)}</div>
-          <div class="tiny muted">${escapeHtml(c.team || '—')} · ${c.role === 'lider' ? '🛡 Líder' : '🏠 Corretor'}</div>
+          <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || c.id)}${c.is_team ? ` <span class="tiny" style="background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:999px;font-weight:700">👥 equipe</span>` : ''}</div>
+          <div class="tiny muted">${escapeHtml(c.team || '—')} · ${c.role === 'lider' ? (c.is_team ? '🛡 Líder · agregado da equipe' : '🛡 Líder') : '🏠 Corretor'}</div>
         </div>
         <div style="text-align:center">${dot}<div style="font-size:10px;font-weight:700;color:${healthHex(c.health_color)}">${c.health}</div></div>
       </div>
@@ -95,38 +96,86 @@ async function loadDetail() {
       _users.length ? Promise.resolve({ users: _users }) : api.request('/api/v3/users/list').catch(() => ({ users: [] })),
     ]);
     _det = d; _meet = m.items || []; if (u.users) _users = u.users;
+    _scope = (d.team && d.team.metrics) ? 'equipe' : 'individual';  // líder abre na visão de equipe
     renderDetail();
   } catch (e) { _root.innerHTML = err(e.message); }
 }
 
 function renderDetail() {
   const d = _det, c = d.corretor;
+  const hasTeam = !!(d.team && d.team.metrics);
+  const teamMode = hasTeam && _scope === 'equipe';
+  const M = teamMode ? d.team.metrics : d;     // métricas ativas (equipe ou individual)
   _root.innerHTML = `
     <div class="card">
       <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
         <button class="btn btn-ghost" id="oo-back">← Corretores</button>
+        ${hasTeam ? `<div class="flex" style="gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <button class="oo-scope" data-scope="equipe" style="padding:6px 12px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:${teamMode?'#2563eb':'transparent'};color:${teamMode?'#fff':'var(--ink-muted)'}">👥 Equipe</button>
+          <button class="oo-scope" data-scope="individual" style="padding:6px 12px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:${!teamMode?'#2563eb':'transparent'};color:${!teamMode?'#fff':'var(--ink-muted)'}">👤 Individual</button>
+        </div>` : ''}
         ${periodSel()}
         <button class="btn btn-primary" id="oo-new" style="margin-left:auto">+ Reunião 1:1</button>
       </div>
-      ${detailHeader(d, c)}
+      ${teamMode ? teamHeader(d) : detailHeader(d, c)}
+      ${teamMode ? teamMembersPanel(d.team) : ''}
       <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:14px;align-items:start">
-        <div>${funnelPanel(d)}</div>
-        <div>${kpiVsMeta(d)}</div>
+        <div>${funnelPanel(M)}</div>
+        <div>${kpiVsMeta(M)}</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:14px">
-        ${ratesPanel(d)}
-        ${originPanel(d)}
-        ${lossPanel(d)}
+        ${ratesPanel(M)}
+        ${originPanel(M)}
+        ${lossPanel(M)}
       </div>
-      ${trendPanel(d)}
+      ${trendPanel(M, teamMode ? ('Equipe ' + escapeHtml(d.team.name)) : escapeHtml(c.name))}
       ${meetingsPanel()}
       <div id="modal-oo" style="display:none"></div>
     </div>`;
   document.getElementById('oo-back').addEventListener('click', () => loadList());
   document.getElementById('oo-new').addEventListener('click', () => openMeeting());
   wirePeriod(loadDetail);
+  _root.querySelectorAll('.oo-scope').forEach(b => b.addEventListener('click', () => { _scope = b.dataset.scope; renderDetail(); }));
+  _root.querySelectorAll('[data-member]').forEach(el => el.addEventListener('click', () => { _selId = el.dataset.member; loadDetail(); }));
   _root.querySelectorAll('[data-meet]').forEach(el => el.addEventListener('click', () => openMeeting(parseInt(el.dataset.meet))));
   _root.querySelectorAll('[data-pdi]').forEach(el => el.addEventListener('change', () => togglePdi(parseInt(el.dataset.pdi), parseInt(el.dataset.idx), el.checked)));
+}
+
+function teamHeader(d) {
+  const t = d.team, M = t.metrics, hc = M.health_color, att = M.meta_attainment_pct;
+  return `
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:5px solid ${healthHex(hc)}">
+      <div style="width:54px;height:54px;border-radius:14px;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;flex-shrink:0">🛡</div>
+      <div style="flex:1;min-width:180px">
+        <div style="font-weight:800;font-size:18px">Equipe ${escapeHtml(t.name)}</div>
+        <div class="tiny muted">${t.members.length} pessoas · líder ${escapeHtml(d.corretor.name)} · período ${fmtD(d.period.since)}–${fmtD(d.period.until)}</div>
+      </div>
+      <div style="text-align:center;padding:0 10px"><div style="font-size:34px;line-height:1">${healthEmoji(hc)}</div><div style="font-size:11px;font-weight:800;color:${healthHex(hc)}">SAÚDE ${M.health}/100</div></div>
+      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900;color:${healthHex(hc)}">${att != null ? att + '%' : '—'}</div><div class="tiny muted">meta VGV equipe</div></div>
+      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900">${M.kpis.vendas}</div><div class="tiny muted">vendas · R$ ${moneyShort(M.kpis.vgv)}</div></div>
+      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900">R$ ${moneyShort(M.ano_vgv || 0)}</div><div class="tiny muted">VGV ${new Date().getFullYear()} (ano)</div></div>
+    </div>
+    ${(M.alertas || []).length ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">${M.alertas.map(a => `<span style="background:${a.level==='alto'?'#fef2f2':'#fffbeb'};color:${a.level==='alto'?'#b91c1c':'#b45309'};border:1px solid ${a.level==='alto'?'#fecaca':'#fde68a'};font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px">${a.level==='alto'?'🚨':'⚠️'} ${escapeHtml(a.txt)}</span>`).join('')}</div>` : ''}`;
+}
+
+function teamMembersPanel(t) {
+  const ms = t.members || [];
+  return `<div style="margin-top:14px">${panel('👥 Corretores da equipe (clique pra abrir)', `
+    <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">
+      <thead><tr style="color:var(--ink-muted);font-size:11px;text-align:left;border-bottom:1px solid var(--border)">
+        <th style="padding:5px 6px">Corretor</th><th style="text-align:center">Saúde</th><th style="text-align:right">Vendas</th><th style="text-align:right">VGV</th><th style="text-align:right">Visitas</th><th style="text-align:right">Win%</th><th style="text-align:right">Meta</th><th style="text-align:center">⚠</th></tr></thead>
+      <tbody>
+      ${ms.map(m => `<tr data-member="${escapeHtml(m.id)}" style="border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background='var(--bg-3)'" onmouseout="this.style.background='transparent'">
+        <td style="padding:6px"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:22px;height:22px;border-radius:50%;background:${m.color||'#64748b'};color:#fff;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center">${escapeHtml((m.ini||(m.name||'?').slice(0,2)).toUpperCase())}</span> ${escapeHtml(m.name)}${m.role==='lider'?' 🛡':''}</span></td>
+        <td style="text-align:center">${healthEmoji(m.health_color)} ${m.health}</td>
+        <td style="text-align:right;font-weight:700">${m.vendas}</td>
+        <td style="text-align:right">R$ ${moneyShort(m.vgv)}</td>
+        <td style="text-align:right">${m.visitas}</td>
+        <td style="text-align:right">${m.win_rate != null ? m.win_rate + '%' : '—'}</td>
+        <td style="text-align:right">${m.meta_attainment_pct != null ? m.meta_attainment_pct + '%' : '—'}</td>
+        <td style="text-align:center">${m.alertas_count ? '<span style="color:#dc2626;font-weight:700">' + m.alertas_count + '</span>' : '✓'}</td>
+      </tr>`).join('')}
+      </tbody></table></div>`)}</div>`;
 }
 
 function detailHeader(d, c) {
@@ -150,28 +199,40 @@ function detailHeader(d, c) {
         <div style="font-size:24px;font-weight:900">${d.kpis.vendas}</div>
         <div class="tiny muted">vendas · R$ ${moneyShort(d.kpis.vgv)}</div>
       </div>
+      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)">
+        <div style="font-size:24px;font-weight:900;color:#16a34a">R$ ${moneyShort(d.ano_vgv || 0)}</div>
+        <div class="tiny muted">VGV ${new Date().getFullYear()} (ano)</div>
+      </div>
     </div>
     ${(d.alertas || []).length ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">${d.alertas.map(a => `<span style="background:${a.level==='alto'?'#fef2f2':'#fffbeb'};color:${a.level==='alto'?'#b91c1c':'#b45309'};border:1px solid ${a.level==='alto'?'#fecaca':'#fde68a'};font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px">${a.level==='alto'?'🚨':'⚠️'} ${escapeHtml(a.txt)}</span>`).join('')}</div>` : '<div style="margin-top:10px;font-size:12px;color:#16a34a">✅ Sem alertas no período.</div>'}`;
 }
 
+function funnelBars(stages, getLabel) {
+  const max = Math.max(1, ...stages.map(s => s.n));
+  const grad = (i, n) => { const t = n ? i / Math.max(1, n - 1) : 0; const h = Math.round(210 - t * 70); return `hsl(${h},75%,55%)`; };
+  return `<div style="display:grid;gap:5px">${stages.map((s, i) => `
+    <div>
+      <div class="flex items-center" style="justify-content:space-between;font-size:11.5px;margin-bottom:2px">
+        <span style="font-weight:600">${getLabel(s)}</span>
+        <span><b>${s.n}</b>${s.conv_from_prev != null ? ` <span style="color:${s.conv_from_prev>=50?'#16a34a':s.conv_from_prev>=25?'#d97706':'#dc2626'};font-size:10.5px">(${s.conv_from_prev}%)</span>` : ''}</span>
+      </div>
+      <div style="height:15px;background:var(--bg-3);border-radius:6px;overflow:hidden"><div style="height:100%;width:${s.n ? Math.max(3, s.n / max * 100) : 0}%;background:${grad(i, stages.length)};border-radius:6px"></div></div>
+    </div>`).join('')}</div>`;
+}
+
 function funnelPanel(d) {
+  const rd = d.rd_funnels || [];
+  if (rd.length) {
+    // Funil REAL do RD por etapa, do funil em que o corretor/equipe participa
+    return rd.map(fn => panel(`🫧 Funil RD · ${escapeHtml(fn.pipeline)} <span class="tiny muted" style="font-weight:400">(${fn.deals} negócios)</span>`,
+      funnelBars(fn.stages, s => escapeHtml(s.name)) +
+      `<div class="tiny muted" style="margin-top:8px">Etapas reais do funil no RD · % = conversão da etapa anterior · win rate: <b>${d.win_rate != null ? d.win_rate + '%' : '—'}</b></div>`
+    )).join('<div style="height:12px"></div>');
+  }
+  // fallback: marcos canônicos
   const f = d.funnel || [];
-  const max = Math.max(1, ...f.map(s => s.n));
-  const colors = ['#94a3b8', '#60a5fa', '#38bdf8', '#22d3ee', '#a78bfa', '#f59e0b', '#22c55e'];
-  return panel('🫧 Funil individual', `
-    <div style="display:grid;gap:6px">
-      ${f.map((s, i) => `
-        <div>
-          <div class="flex items-center" style="justify-content:space-between;font-size:12px;margin-bottom:2px">
-            <span style="font-weight:600">${escapeHtml(s.label)}</span>
-            <span><b>${s.n}</b>${s.conv_from_prev != null ? ` <span style="color:${s.conv_from_prev>=50?'#16a34a':s.conv_from_prev>=25?'#d97706':'#dc2626'};font-size:11px">(${s.conv_from_prev}%)</span>` : ''}</span>
-          </div>
-          <div style="height:16px;background:var(--bg-3);border-radius:6px;overflow:hidden">
-            <div style="height:100%;width:${s.n ? Math.max(3, s.n / max * 100) : 0}%;background:${colors[i]};border-radius:6px"></div>
-          </div>
-        </div>`).join('')}
-    </div>
-    <div class="tiny muted" style="margin-top:8px">% = conversão da etapa anterior. Win rate geral: <b>${d.win_rate != null ? d.win_rate + '%' : '—'}</b></div>`);
+  return panel('🫧 Funil individual', funnelBars(f, s => escapeHtml(s.label)) +
+    `<div class="tiny muted" style="margin-top:8px">% = conversão da etapa anterior. Win rate: <b>${d.win_rate != null ? d.win_rate + '%' : '—'}</b></div>`);
 }
 
 function kpiVsMeta(d) {
@@ -228,19 +289,21 @@ function lossPanel(d) {
     <div class="tiny muted" style="margin-top:6px">${d.perdas} perda(s) no período.</div>` : '<div class="muted tiny">Sem perdas registradas.</div>');
 }
 
-function trendPanel(d) {
+function trendPanel(d, who) {
   const t = d.trend || [];
   if (!t.length) return '';
   const maxV = Math.max(1, ...t.map(x => x.vgv));
-  return `<div style="margin-top:14px">${panel('📈 Tendência (12 meses)', `
-    <div style="display:flex;align-items:flex-end;gap:6px;height:90px">
-      ${t.map(x => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px" title="${x.mes}: ${x.vendas} venda(s) · R$ ${money(x.vgv)}">
-        <div style="font-size:9px;font-weight:700">${x.vendas || ''}</div>
-        <div style="width:100%;max-width:30px;height:${Math.max(3, x.vgv / maxV * 64)}px;background:linear-gradient(180deg,#22c55e,#16a34a);border-radius:4px 4px 0 0"></div>
-        <div style="font-size:9px;color:var(--ink-muted)">${x.mes.slice(5)}/${x.mes.slice(2,4)}</div>
-      </div>`).join('')}
-    </div>
-    <div class="tiny muted" style="margin-top:4px">Barras = VGV ganho/mês · número em cima = nº de vendas.</div>`)}</div>`;
+  const yr = new Date().getFullYear();
+  const MES = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  return `<div style="margin-top:14px">${panel(`📈 VGV ${yr} — ${who || ''} <span class="tiny muted" style="font-weight:400">· total R$ ${money(d.ano_vgv || 0)} · ${d.ano_vendas || 0} vendas</span>`, `
+    <div style="display:flex;align-items:flex-end;gap:8px;height:120px;padding-top:4px">
+      ${t.map(x => { const mm = parseInt(x.mes.slice(5)); return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px" title="${MES[mm]}/${yr}: ${x.vendas} venda(s) · R$ ${money(x.vgv)}">
+        <div style="font-size:10px;font-weight:800;color:#16a34a">${x.vgv ? 'R$' + moneyShort(x.vgv) : ''}</div>
+        <div style="width:100%;max-width:42px;height:${x.vgv ? Math.max(4, x.vgv / maxV * 78) : 2}px;background:${x.vgv ? 'linear-gradient(180deg,#34d399,#16a34a)' : 'var(--border)'};border-radius:5px 5px 0 0"></div>
+        <div style="font-size:10px;color:var(--ink-muted);font-weight:600">${MES[mm]}</div>
+        <div style="font-size:9px;color:var(--ink-muted)">${x.vendas ? x.vendas + 'v' : ''}</div>
+      </div>`; }).join('')}
+    </div>`)}</div>`;
 }
 
 /* ──────────────── Reunião 1:1 (com PDI) ──────────────── */

@@ -120,13 +120,36 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             pass
 
+        # Membros por equipe (pra agregado do líder)
+        members_by_team = defaultdict(list)
+        for u in people:
+            members_by_team[(u.get("team") or "").lower()].append(u)
+        is_socio = (user.get("lvl") or 0) >= 10
+
         out = []
         for u in people:
             cid = u.get("id")
-            m = broker_metrics(by_owner.get(cid, []), {}, meta_by_id.get(cid), since_d, until_d, today, detail=False)
+            is_lider = (u.get("role") or "").lower() == "lider"
+            # Líder vê o agregado da SUA equipe (e sócios veem de todos). Os demais
+            # enxergam o líder como individual (privacidade da visão de equipe).
+            show_team = is_lider and (is_socio or user.get("id") == cid)
+            if show_team:
+                team_key = (u.get("team") or "").lower()
+                tmembers = members_by_team.get(team_key, [])
+                tdeals = []
+                tmeta = {"meta_vgv": 0, "meta_vendas": 0, "meta_visitas": 0, "meta_pastas": 0, "meta_propostas": 0, "meta_agendamentos": 0}
+                for mb in tmembers:
+                    tdeals += by_owner.get(mb.get("id"), [])
+                    ms = meta_by_id.get(mb.get("id"), {})
+                    for k in tmeta:
+                        tmeta[k] += (ms.get(k, 0) if ms else 0)
+                m = broker_metrics(tdeals, {}, tmeta, since_d, until_d, today, detail=False)
+            else:
+                m = broker_metrics(by_owner.get(cid, []), {}, meta_by_id.get(cid), since_d, until_d, today, detail=False)
             out.append({
                 "id": cid, "name": u.get("name"), "role": u.get("role"), "team": u.get("team"),
                 "ini": u.get("ini"), "color": u.get("color"),
+                "is_team": bool(show_team),
                 "vendas": m["kpis"]["vendas"], "vgv": m["kpis"]["vgv"],
                 "visitas": m["kpis"]["visitas"], "agendamentos": m["kpis"]["agendamentos"],
                 "propostas": m["kpis"]["propostas"], "leads": m["kpis"]["leads"],

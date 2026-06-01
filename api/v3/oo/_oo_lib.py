@@ -165,8 +165,90 @@ def months_in_range(since_d, until_d):
     return out
 
 
+# ─── Etapas REAIS do RD (rd_stages) ─────────────────────────────────────────
+def build_stage_maps(stages_rows, pipes_rows=None):
+    """Retorna (pos_by_stage_id, by_pipeline, pipe_names).
+    pos_by_stage_id: {stage_id_qualquer_variante: (pipeline_id, position)}
+    by_pipeline: {pipeline_id: [(position, name)] ordenado}
+    pipe_names:  {pipeline_id: nome do funil}"""
+    pos_by_id, by_pipe = {}, defaultdict(list)
+    for s in (stages_rows or []):
+        pos = s.get("position")
+        if pos is None:
+            pos = s.get("order")
+        try:
+            pos = int(pos)
+        except Exception:
+            continue
+        name = (s.get("name") or "").strip()
+        pid = str(s.get("pipeline_id") or s.get("rd_pipeline_id") or s.get("pipeline") or "")
+        for k in (s.get("id"), s.get("external_id"), s.get("stage_id")):
+            if k:
+                pos_by_id[str(k)] = (pid, pos)
+        by_pipe[pid].append((pos, name))
+    for pid in by_pipe:
+        by_pipe[pid].sort(key=lambda x: x[0])
+    pipe_names = {}
+    for p in (pipes_rows or []):
+        for k in (p.get("id"), p.get("external_id")):
+            if k:
+                pipe_names[str(k)] = p.get("name")
+    return pos_by_id, dict(by_pipe), pipe_names
+
+
+def _rd_funnels(deals, events_by_deal, pos_by_id, by_pipe, pipe_names, since_dt, until_dt):
+    """Funil REAL do RD por etapa (cumulativo: alcançou >= a etapa), pros funis
+    em que o corretor participa no período. Cada deal soma nas etapas até o
+    ponto máximo que alcançou (etapa atual + histórico de eventos)."""
+    in_pipe = defaultdict(list)
+    for d in deals:
+        win = d.get("win")
+        created = parse_dt(d.get("created_at_rd"))
+        closed = parse_dt(d.get("closed_at"))
+        touches = (created and since_dt <= created <= until_dt) or (closed and since_dt <= closed <= until_dt) or win is None
+        if not touches:
+            continue
+        pid = str(d.get("pipeline_id") or "")
+        if not pid and d.get("stage_id"):
+            pid = (pos_by_id.get(str(d.get("stage_id"))) or ("", 0))[0]
+        in_pipe[pid].append(d)
+    out = []
+    # ordena funis por volume de deals (mais relevante primeiro)
+    for pid in sorted(in_pipe.keys(), key=lambda p: -len(in_pipe[p])):
+        stages = by_pipe.get(pid)
+        if not stages:
+            continue
+        ds = in_pipe[pid]
+        if len(ds) < 1:
+            continue
+        # posição máxima alcançada por deal
+        counts = {pos: 0 for (pos, _n) in stages}
+        for d in ds:
+            cur = (pos_by_id.get(str(d.get("stage_id"))) or (pid, 0))[1]
+            mx = cur
+            for ev in (events_by_deal.get(str(d.get("id"))) or []):
+                p = ev[0]
+                if isinstance(p, int):
+                    mx = max(mx, p)
+            if d.get("win") is True:
+                # venda = alcançou a maior posição "de venda" disponível
+                mx = max(mx, cur)
+            for (pos, _n) in stages:
+                if mx >= pos:
+                    counts[pos] += 1
+        rows, prev = [], None
+        for (pos, name) in stages:
+            n = counts[pos]
+            conv = round(n / prev * 100, 1) if (prev not in (None, 0)) else None
+            rows.append({"position": pos, "name": name, "n": n, "conv_from_prev": conv})
+            prev = n
+        out.append({"pipeline_id": pid, "pipeline": pipe_names.get(pid, "Funil"),
+                    "deals": len(ds), "stages": rows})
+    return out[:2]  # no máx. 2 funis (principal + secundário)
+
+
 # ─── Núcleo: métricas de UM corretor ────────────────────────────────────────
-def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, detail=False):
+def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, detail=False, stage_maps=None):
     """
     deals: lista de deals do corretor (já filtrados por dono).
     events_by_deal: {deal_id: [(pos, name_lower, dt)]} (vazio no overview = sem 1º contato).
@@ -282,10 +364,24 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
             {"data": w[0].date().isoformat(), "vgv": round(w[1], 2),
              "origem": w[2] or "—", "canal": CHANNEL_LABEL.get(w[3], w[3])}
             for w in wins[:8]]
-        tr = []
-        for k in sorted(trend.keys())[-12:]:
-            tr.append({"mes": k, "vendas": trend[k]["vendas"], "vgv": round(trend[k]["vgv"], 2)})
-        out["trend"] = tr
+        # Tendência: VGV/vendas mês a mês do ANO corrente (Jan→mês atual), zero-fill
+        yr = today.year
+        ytd = []
+        for mm in range(1, today.month + 1):
+            k = f"{yr:04d}-{mm:02d}"
+            t = trend.get(k) or {}
+            ytd.append({"mes": k, "vendas": t.get("vendas", 0), "vgv": round(t.get("vgv", 0.0), 2)})
+        out["trend"] = ytd
+        out["ano_vgv"] = round(sum(x["vgv"] for x in ytd), 2)
+        out["ano_vendas"] = sum(x["vendas"] for x in ytd)
+        # Funil REAL do RD (etapas do funil em que o corretor participa)
+        if stage_maps:
+            try:
+                pos_by_id, by_pipe, pipe_names = stage_maps
+                out["rd_funnels"] = _rd_funnels(deals, events_by_deal, pos_by_id, by_pipe,
+                                                pipe_names, since_dt, until_dt)
+            except Exception:
+                out["rd_funnels"] = []
 
     # ── Meta × realizado ──
     mv = (meta_sum or {})
