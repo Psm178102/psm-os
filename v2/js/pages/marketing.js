@@ -391,12 +391,26 @@ function leadsGeoPanel() {
           <div style="font-size:10px;color:#94a3b8">${c.outras} fora · ${c.rio_preto} RP · ${c.leads} leads</div></div>`).join('')}
        </div></div>`
     : '';
+  const brands = g.by_brand || [];
+  const brandBlock = brands.length ? `<div style="margin-top:12px">
+    <div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:6px">🏷 Por marca (% de leads de fora de Rio Preto)</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px">
+    ${brands.map(b => {
+      const al = b.alerta;
+      const col = al ? '#f87171' : (b.pct_outras != null && b.pct_outras <= 10 ? '#4ade80' : '#fbbf24');
+      return `<div style="background:${al ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.04)'};border:1px solid ${al ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.08)'};border-radius:10px;padding:8px 12px">
+        <div style="font-size:12px;color:#cbd5e1;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${al ? '🚨 ' : ''}${escapeHtml(b.marca)}</div>
+        <div style="font-size:18px;font-weight:900;color:${col}">${b.pct_outras != null ? b.pct_outras + '% fora' : '—'}</div>
+        <div style="font-size:10px;color:#94a3b8">${fmtNum(b.leads)} leads · ${fmtNum(b.rio_preto)} RP · ${fmtNum(b.outras)} fora</div></div>`;
+    }).join('')}
+    </div></div>` : '';
   return `
   <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:18px;color:#e2e8f0;margin-bottom:16px">
     <div style="font-size:15px;font-weight:800;color:#fff">📍 Leads por Região (DDD do telefone)</div>
     <div style="font-size:11px;color:#94a3b8">região pelo DDD do telefone do lead (RD) · <b style="color:#86efac">DDD 17 = São José do Rio Preto</b> · alerta quando >${g.threshold_pct}% vêm de fora</div>
     ${banner}
     ${campAlerts}
+    ${brandBlock}
     <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:12px;align-items:start">
       <div style="overflow-x:auto">
         <table style="width:100%;font-size:12px;border-collapse:collapse">

@@ -162,9 +162,29 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"deals: {e}"})
 
+        # Regras de marca (config-driven, igual ao resto do sistema): pipeline → marca
+        try:
+            brules = [b for b in (sb.table("brand_rules").select("pattern,label,priority,is_default,active").execute().data or [])
+                      if b.get("active", True)]
+            brules.sort(key=lambda b: -(b.get("priority") or 0))
+        except Exception:
+            brules = []
+        default_brand = next((b.get("label") for b in brules if b.get("is_default")), "Outros")
+
+        def _brand(pipeline):
+            p = _strip(pipeline)
+            if not p:
+                return default_brand
+            for b in brules:
+                pat = _strip(b.get("pattern"))
+                if pat and pat in p:
+                    return b.get("label") or default_brand
+            return default_brand
+
         by_city = defaultdict(int)             # cidade_display -> leads
         city_is_rp = {}                        # cidade_display -> bool
         camp = defaultdict(lambda: {"leads": 0, "rio_preto": 0, "outras": 0})
+        brand_agg = defaultdict(lambda: {"leads": 0, "rio_preto": 0, "outras": 0})
         total = 0
         sem_cidade = 0
         rio_preto = 0
@@ -180,12 +200,14 @@ class handler(BaseHTTPRequestHandler):
             ddd = _ddd(phone)
             campanha = _scan(raw, CAMP_KEYS) or (d.get("pipeline_name") or "Sem campanha")
             campanha = str(campanha)[:60]
+            marca = _brand(d.get("pipeline_name"))
 
             if not ddd:
                 sem_cidade += 1
                 by_city["Sem telefone / DDD inválido"] += 1
                 city_is_rp["Sem telefone / DDD inválido"] = False
                 camp[campanha]["leads"] += 1
+                brand_agg[marca]["leads"] += 1
                 continue
 
             disp = _ddd_label(ddd)
@@ -193,12 +215,15 @@ class handler(BaseHTTPRequestHandler):
             by_city[disp] += 1
             city_is_rp[disp] = is_rp
             camp[campanha]["leads"] += 1
+            brand_agg[marca]["leads"] += 1
             if is_rp:
                 rio_preto += 1
                 camp[campanha]["rio_preto"] += 1
+                brand_agg[marca]["rio_preto"] += 1
             else:
                 outras += 1
                 camp[campanha]["outras"] += 1
+                brand_agg[marca]["outras"] += 1
 
         com_cidade = total - sem_cidade
         # tabela por cidade (ordenada por volume)
@@ -220,6 +245,19 @@ class handler(BaseHTTPRequestHandler):
             })
         camp_list.sort(key=lambda x: (-(x["pct_outras"] or -1), -x["leads"]))
 
+        # Por MARCA: distribuição Rio Preto × fora + alerta por marca
+        brand_list = []
+        for nome, v in brand_agg.items():
+            com = v["rio_preto"] + v["outras"]
+            pct_out = round(v["outras"] / com * 100, 1) if com else None
+            brand_list.append({
+                "marca": nome, "leads": v["leads"],
+                "rio_preto": v["rio_preto"], "outras": v["outras"],
+                "pct_outras": pct_out,
+                "alerta": bool(pct_out is not None and pct_out > THRESHOLD and com >= MIN_LEADS_ALERT),
+            })
+        brand_list.sort(key=lambda x: -x["leads"])
+
         pct_outras_global = round(outras / com_cidade * 100, 1) if com_cidade else None
 
         return self._send(200, {
@@ -229,6 +267,7 @@ class handler(BaseHTTPRequestHandler):
             "rio_preto": rio_preto, "outras": outras, "pct_outras": pct_outras_global,
             "by_city": city_list,
             "by_campaign": camp_list,
+            "by_brand": brand_list,
             "threshold_pct": THRESHOLD,
             "alerta_global": bool(pct_outras_global is not None and pct_outras_global > THRESHOLD),
             "fetched_at": datetime.now(timezone.utc).isoformat(),

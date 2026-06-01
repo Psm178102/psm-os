@@ -9,6 +9,16 @@ let _teams = [];
 let _users = [];
 let _editMode = false;
 
+// Cargos (role) editáveis — mesmo mapa do backend (ROLE_LVL). Mudar o cargo
+// recalcula o nível (lvl) e reflete em TODO o sistema (permissões, metas,
+// ranking, dashboards) — pois tudo lê users.role/lvl/team do Postgres.
+const ROLES = [
+  ['socio', '👑 Sócio'], ['diretor', '👑 Diretor'], ['gerente', '🎯 Gerente'],
+  ['backoffice', '📋 Backoffice'], ['lider', '🛡 Líder'], ['financeiro', '💰 Financeiro'],
+  ['marketing', '📢 Marketing'], ['corretor', '🏠 Corretor'],
+];
+const ROLE_LVL = { socio: 10, diretor: 10, gerente: 7, backoffice: 6, lider: 5, financeiro: 4, marketing: 3, corretor: 2 };
+
 export async function pageEquipe(ctx, root) {
   _root = root;
   root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando equipes…</div></div>';
@@ -83,7 +93,7 @@ function renderEditor() {
         <button class="btn btn-ghost btn-sm" id="eq-add">➕ Nova equipe</button>
         <button class="btn btn-primary btn-sm" id="eq-save">💾 Salvar equipes</button>
       </div>
-      <div class="tiny muted mt-2">Pra mover um corretor de equipe, use o seletor no card dele abaixo.</div>
+      <div class="tiny muted mt-2">No card de cada pessoa (abaixo) você edita o <b>Cargo</b> e a <b>Equipe</b>. Mudanças gravam direto nos usuários e <b>refletem em todo o sistema</b> (metas, dashboards da diretoria, marketing, ranking) — pois tudo lê o cargo/nível/equipe do banco. O cargo recalcula o nível de acesso automaticamente.</div>
     </div>
   `;
 }
@@ -138,11 +148,16 @@ function brokerLine(u, me, isLider) {
         <span class="tiny muted">${roleIco}</span>
       </div>
       ${_editMode && isLider ? `
-        <select class="select" data-move="${u.id}" style="font-size:11px;padding:2px 4px;max-width:120px">
-          <option value="">— equipe —</option>
-          ${_teams.map(t => `<option value="${t.id}" ${(u.team || '').toLowerCase() === t.id ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}
-        </select>
-      ` : `<span class="tiny muted">L${u.lvl || '?'}</span>`}
+        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+          ${(me?.lvl || 0) >= 10 ? `<select class="select" data-role="${u.id}" title="Cargo (muda o nível e reflete no sistema)" style="font-size:11px;padding:2px 4px;max-width:118px">
+            ${ROLES.map(([v, l]) => `<option value="${v}" ${(u.role || '').toLowerCase() === v ? 'selected' : ''}>${l}</option>`).join('')}
+          </select>` : ''}
+          <select class="select" data-move="${u.id}" title="Equipe" style="font-size:11px;padding:2px 4px;max-width:118px">
+            <option value="">— equipe —</option>
+            ${_teams.map(t => `<option value="${t.id}" ${(u.team || '').toLowerCase() === t.id ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}
+          </select>
+        </div>
+      ` : `<span class="tiny muted">${roleIco} L${u.lvl || '?'}</span>`}
     </div>
   `;
 }
@@ -175,7 +190,7 @@ function bindActions() {
       await load();
     } catch (e) { alert('Erro: ' + e.message); }
   });
-  // Mover corretor
+  // Mover corretor de equipe
   _root.querySelectorAll('[data-move]').forEach(sel => sel.addEventListener('change', async e => {
     try {
       await api.request('/api/v3/teams/manage', { method: 'POST', body: { action: 'move_user', user_id: sel.dataset.move, team: e.target.value } });
@@ -183,6 +198,18 @@ function bindActions() {
       if (u) u.team = e.target.value;
       render();
     } catch (err) { alert('Erro: ' + err.message); }
+  }));
+  // Mudar CARGO (role) — grava em users.role → recalcula lvl → reflete no sistema
+  _root.querySelectorAll('[data-role]').forEach(sel => sel.addEventListener('change', async e => {
+    const uid = sel.dataset.role, role = e.target.value;
+    const u = _users.find(x => x.id === uid);
+    const nome = (u?.name || '').split(' ')[0] || 'usuário';
+    if (!confirm(`Mudar o cargo de ${nome} para "${role}"? Isso muda o nível de acesso e reflete em metas, dashboards e ranking.`)) { render(); return; }
+    try {
+      await api.request('/api/v3/users/update', { method: 'POST', body: { id: uid, fields: { role } } });
+      if (u) { u.role = role; u.lvl = ROLE_LVL[role] || u.lvl; }
+      render();
+    } catch (err) { alert('Erro ao mudar cargo: ' + err.message); }
   }));
 }
 
