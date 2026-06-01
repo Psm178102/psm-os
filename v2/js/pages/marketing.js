@@ -380,8 +380,8 @@ function leadsGeoPanel() {
   }).join('');
   const alerts = (g.by_campaign || []).filter(c => c.alerta);
   const banner = g.alerta_global
-    ? `<div style="margin-top:12px;background:rgba(239,68,68,0.14);border:1px solid rgba(239,68,68,0.4);color:#fecaca;border-radius:12px;padding:10px 14px;font-size:12px"><strong>⚠️ ${g.pct_outras}% dos leads NÃO são de Rio Preto-SP</strong> — acima do limite de ${g.threshold_pct}% (${g.outras} de ${g.com_cidade} leads com cidade).</div>`
-    : (g.pct_outras != null ? `<div style="margin-top:12px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#86efac;border-radius:12px;padding:10px 14px;font-size:12px">✅ ${(100 - g.pct_outras).toFixed(1)}% dos leads são de Rio Preto-SP · ${g.pct_outras}% de fora (dentro do limite de ${g.threshold_pct}%).</div>` : '');
+    ? `<div style="margin-top:12px;background:rgba(239,68,68,0.14);border:1px solid rgba(239,68,68,0.4);color:#fecaca;border-radius:12px;padding:10px 14px;font-size:12px"><strong>⚠️ ${g.pct_outras}% dos leads vêm de FORA da região de Rio Preto (DDD ≠ 17)</strong> — acima do limite de ${g.threshold_pct}% (${g.outras} de ${g.com_cidade} leads com DDD).</div>`
+    : (g.pct_outras != null ? `<div style="margin-top:12px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#86efac;border-radius:12px;padding:10px 14px;font-size:12px">✅ ${(100 - g.pct_outras).toFixed(1)}% dos leads são da região de Rio Preto (DDD 17) · ${g.pct_outras}% de fora (dentro do limite de ${g.threshold_pct}%).</div>` : '');
   const campAlerts = alerts.length
     ? `<div style="margin-top:12px"><div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:6px">🚨 Campanhas/públicos com >${g.threshold_pct}% de leads de fora</div>
        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">
@@ -393,26 +393,26 @@ function leadsGeoPanel() {
     : '';
   return `
   <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:18px;color:#e2e8f0;margin-bottom:16px">
-    <div style="font-size:15px;font-weight:800;color:#fff">📍 Leads por Cidade</div>
-    <div style="font-size:11px;color:#94a3b8">origem RD · alerta quando >${g.threshold_pct}% dos leads são de fora de São José do Rio Preto-SP</div>
+    <div style="font-size:15px;font-weight:800;color:#fff">📍 Leads por Região (DDD do telefone)</div>
+    <div style="font-size:11px;color:#94a3b8">região pelo DDD do telefone do lead (RD) · <b style="color:#86efac">DDD 17 = São José do Rio Preto</b> · alerta quando >${g.threshold_pct}% vêm de fora</div>
     ${banner}
     ${campAlerts}
     <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:12px;align-items:start">
       <div style="overflow-x:auto">
         <table style="width:100%;font-size:12px;border-collapse:collapse">
           <thead><tr style="color:#94a3b8;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.1)">
-            <th style="text-align:left;padding:6px 10px">Cidade</th><th style="text-align:left;padding:6px 8px">Leads</th><th style="text-align:right;padding:6px 10px">%</th></tr></thead>
+            <th style="text-align:left;padding:6px 10px">Região (DDD)</th><th style="text-align:left;padding:6px 8px">Leads</th><th style="text-align:right;padding:6px 10px">%</th></tr></thead>
           <tbody>${cityRows}</tbody>
         </table>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start">
         ${crmMiniDark('Total de leads', fmtNum(g.total), '#60a5fa')}
-        ${crmMiniDark('📍 Rio Preto-SP', fmtNum(g.rio_preto), '#22c55e', g.com_cidade ? Math.round(g.rio_preto / g.com_cidade * 100) + '% c/ cidade' : '')}
-        ${crmMiniDark('Outras cidades', fmtNum(g.outras), '#fbbf24', g.pct_outras != null ? g.pct_outras + '%' : '')}
-        ${crmMiniDark('Sem cidade (RD)', fmtNum(g.sem_cidade), '#94a3b8', semPct + '% do total')}
+        ${crmMiniDark('📍 DDD 17 · Rio Preto', fmtNum(g.rio_preto), '#22c55e', g.com_cidade ? Math.round(g.rio_preto / g.com_cidade * 100) + '% dos c/ DDD' : '')}
+        ${crmMiniDark('Outras regiões', fmtNum(g.outras), '#fbbf24', g.pct_outras != null ? g.pct_outras + '%' : '')}
+        ${crmMiniDark('Sem telefone/DDD', fmtNum(g.sem_cidade), '#94a3b8', semPct + '% do total')}
       </div>
     </div>
-    ${semPct >= 40 ? `<div style="margin-top:10px;font-size:11px;color:#fcd34d">⚠️ ${semPct}% dos leads sem cidade no RD — mapeie o campo "cidade" no formulário/RD pra subir a precisão.</div>` : ''}
+    ${semPct >= 40 ? `<div style="margin-top:10px;font-size:11px;color:#fcd34d">⚠️ ${semPct}% dos leads sem telefone/DDD válido no RD.</div>` : ''}
   </div>`;
 }
 

@@ -31,8 +31,31 @@ from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 THRESHOLD = 30.0      # alerta quando > 30% dos leads NÃO são de Rio Preto
 MIN_LEADS_ALERT = 5   # só alerta campanha com pelo menos N leads (evita ruído)
 
-CITY_KEYS = ("cidade", "city", "municipio", "município", "localidade", "town", "cidade_lead")
+# Cidade do lead não é capturada no RD → usamos o DDD do TELEFONE como proxy
+# de região. DDD 17 = São José do Rio Preto e região (noroeste paulista).
+PHONE_KEYS = ("phone", "telefone", "celular", "whatsapp", "fone", "mobile", "tel", "contato")
 CAMP_KEYS = ("utm_campaign", "campaign", "campanha", "ad_name", "adset_name", "publico", "público", "audience")
+RIO_PRETO_DDD = "17"
+DDD_MAP = {
+    "11": "São Paulo · Capital/RMSP", "12": "SP · Vale do Paraíba", "13": "SP · Baixada Santista",
+    "14": "SP · Bauru/Marília", "15": "SP · Sorocaba", "16": "SP · Ribeirão Preto",
+    "17": "São José do Rio Preto · Noroeste SP", "18": "SP · Pres. Prudente", "19": "SP · Campinas",
+    "21": "RJ · Capital", "22": "RJ · Norte/Serra", "24": "RJ · Sul Fluminense",
+    "27": "ES · Vitória", "28": "ES · Sul", "31": "MG · BH", "32": "MG · Juiz de Fora",
+    "33": "MG · Vale do Aço", "34": "MG · Triângulo (Uberlândia)", "35": "MG · Sul de Minas",
+    "37": "MG · Divinópolis", "38": "MG · Norte (Montes Claros)", "41": "PR · Curitiba",
+    "42": "PR · Ponta Grossa", "43": "PR · Londrina", "44": "PR · Maringá", "45": "PR · Cascavel",
+    "46": "PR · Sudoeste", "47": "SC · Joinville/Itajaí", "48": "SC · Florianópolis", "49": "SC · Oeste",
+    "51": "RS · Porto Alegre", "53": "RS · Pelotas", "54": "RS · Caxias", "55": "RS · Santa Maria",
+    "61": "DF · Brasília", "62": "GO · Goiânia", "63": "TO", "64": "GO · Sul", "65": "MT · Cuiabá",
+    "66": "MT · Rondonópolis", "67": "MS · Campo Grande", "68": "AC", "69": "RO",
+    "71": "BA · Salvador", "73": "BA · Itabuna", "74": "BA · Juazeiro", "75": "BA · Feira",
+    "77": "BA · Oeste", "79": "SE · Aracaju", "81": "PE · Recife", "82": "AL · Maceió",
+    "83": "PB · João Pessoa", "84": "RN · Natal", "85": "CE · Fortaleza", "86": "PI · Teresina",
+    "87": "PE · Petrolina", "88": "CE · Interior", "89": "PI · Interior", "91": "PA · Belém",
+    "92": "AM · Manaus", "93": "PA · Santarém", "94": "PA · Marabá", "95": "RR · Boa Vista",
+    "96": "AP · Macapá", "97": "AM · Interior", "98": "MA · São Luís", "99": "MA · Interior",
+}
 
 
 def _strip(s):
@@ -40,11 +63,22 @@ def _strip(s):
     return re.sub(r"\s+", " ", s).strip().lower()
 
 
-def _is_rio_preto(cidade_norm):
-    c = cidade_norm
-    if not c:
-        return False
-    return ("rio preto" in c) or c in ("sjrp", "s j rio preto", "s.j. rio preto", "sjdrp")
+def _ddd(phone):
+    """Extrai o DDD (2 dígitos) de um telefone BR em qualquer formato."""
+    d = re.sub(r"\D", "", phone or "")
+    while d.startswith("0"):
+        d = d[1:]
+    if d.startswith("55") and len(d) >= 12:   # +55 + DDD + número
+        d = d[2:]
+    if len(d) >= 10:
+        return d[:2]
+    return None
+
+
+def _ddd_label(ddd):
+    if not ddd:
+        return None
+    return "DDD %s · %s" % (ddd, DDD_MAP.get(ddd, "Outra região"))
 
 
 def _scan(obj, keyset, depth=0):
@@ -142,20 +176,20 @@ class handler(BaseHTTPRequestHandler):
             if isinstance(raw, str):
                 try: raw = json.loads(raw)
                 except Exception: raw = {}
-            cidade_raw = _scan(raw, CITY_KEYS)
+            phone = _scan(raw, PHONE_KEYS)
+            ddd = _ddd(phone)
             campanha = _scan(raw, CAMP_KEYS) or (d.get("pipeline_name") or "Sem campanha")
             campanha = str(campanha)[:60]
 
-            if not cidade_raw:
+            if not ddd:
                 sem_cidade += 1
-                by_city["Não informado"] += 1
-                city_is_rp["Não informado"] = False
+                by_city["Sem telefone / DDD inválido"] += 1
+                city_is_rp["Sem telefone / DDD inválido"] = False
                 camp[campanha]["leads"] += 1
                 continue
 
-            cnorm = _strip(cidade_raw)
-            disp = cidade_raw.strip().title()
-            is_rp = _is_rio_preto(cnorm)
+            disp = _ddd_label(ddd)
+            is_rp = (ddd == RIO_PRETO_DDD)
             by_city[disp] += 1
             city_is_rp[disp] = is_rp
             camp[campanha]["leads"] += 1
