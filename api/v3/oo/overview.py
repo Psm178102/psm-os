@@ -159,6 +159,7 @@ class handler(BaseHTTPRequestHandler):
         # leads dos últimos 30 dias), aplicada aos leads de cada corretor. ──
         spend = read_meta_spend(sb)
         cpl = None
+        leads_30d = 0
         try:
             m30 = (today - timedelta(days=29)).isoformat() + "T00:00:00+00:00"
             res = sb.table("deals").select("id", count="exact").gte("created_at_rd", m30).limit(1).execute()
@@ -178,6 +179,6 @@ class handler(BaseHTTPRequestHandler):
                        "preset": params.get("date_preset") or ("custom" if params.get("since") else "this_month")},
             "count": len(out),
             "corretores": out,
-            "meta_spend": spend, "cpl_global": cpl, "total_leads": total_leads,
+            "meta_spend": spend, "cpl_global": cpl, "total_leads": leads_30d,
             "fetched_at": datetime.now(timezone.utc).isoformat(),
         })
