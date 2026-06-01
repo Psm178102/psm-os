@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
-from _oo_lib import window, months_in_range, broker_metrics  # type: ignore
+from _oo_lib import window, months_in_range, broker_metrics, read_meta_spend  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -161,14 +161,23 @@ class handler(BaseHTTPRequestHandler):
                 "pendencias": m["pendencias"],
                 "last_oo": last_oo.get(cid), "proxima_oo": prox_oo.get(cid),
             })
+        # ── Investimento em ads / lead por corretor (CPL × leads) ──
+        preset = params.get("date_preset") or "this_month"
+        spend = read_meta_spend(sb, preset)
+        total_leads = sum(len(by_owner.get(p.get("id"), [])) for p in people)
+        cpl = round(spend / total_leads, 2) if (spend and total_leads) else None
+        for c in out:
+            # líderes (is_team) usam leads da equipe; corretores os próprios
+            c["lead_invest"] = round((cpl or 0) * (c["leads"] or 0), 2) if cpl else None
         # ordena: mais alertas primeiro, depois menor health (quem precisa de atenção)
         out.sort(key=lambda x: (-(x["alertas_count"]), x["health"]))
 
         return self._send(200, {
             "ok": True,
             "period": {"since": since_d.isoformat(), "until": until_d.isoformat(),
-                       "preset": params.get("date_preset") or ("custom" if params.get("since") else "this_month")},
+                       "preset": preset},
             "count": len(out),
             "corretores": out,
+            "meta_spend": spend, "cpl_global": cpl, "total_leads": total_leads,
             "fetched_at": datetime.now(timezone.utc).isoformat(),
         })

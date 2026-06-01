@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from _oo_lib import (  # type: ignore
-    window, months_in_range, broker_metrics, parse_dt, build_stage_maps,
+    window, months_in_range, broker_metrics, parse_dt, build_stage_maps, read_meta_spend,
 )
 
 
@@ -142,6 +142,22 @@ class handler(BaseHTTPRequestHandler):
         meta_sum = _meta_sum_for(all_metas, cid, wanted)
         metrics = broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, detail=True, stage_maps=stage_maps)
 
+        # ── Investimento em ads / lead (CPL global × leads do corretor) ──
+        preset = params.get("date_preset") or "this_month"
+        spend = read_meta_spend(sb, preset)
+        cpl = None
+        try:
+            since_iso = since_d.isoformat() + "T00:00:00+00:00"
+            until_iso = (until_d).isoformat() + "T23:59:59+00:00"
+            res = sb.table("deals").select("id", count="exact").gte("created_at_rd", since_iso).lte("created_at_rd", until_iso).limit(1).execute()
+            total_leads = res.count or 0
+            if spend and total_leads:
+                cpl = round(spend / total_leads, 2)
+        except Exception:
+            total_leads = None
+        metrics["cpl_global"] = cpl
+        metrics["lead_invest"] = round(cpl * (metrics["kpis"]["leads"] or 0), 2) if cpl else None
+
         resp = {
             "ok": True,
             "corretor": {"id": u.get("id"), "name": u.get("name"), "email": u.get("email"),
@@ -178,6 +194,8 @@ class handler(BaseHTTPRequestHandler):
                     for k in tmeta:
                         tmeta[k] += ms[k]
                 tmetrics = broker_metrics(tdeals, tevents, tmeta, since_d, until_d, today, detail=True, stage_maps=stage_maps)
+                tmetrics["lead_invest"] = round(cpl * (tmetrics["kpis"]["leads"] or 0), 2) if cpl else None
+                tmetrics["cpl_global"] = cpl
                 # por membro (resumo leve)
                 deals_by_owner = {}
                 email2id = {(m.get("email") or "").lower(): m.get("id") for m in members}

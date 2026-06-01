@@ -152,6 +152,25 @@ def window(params, today=None):
     return today - timedelta(days=days - 1), today
 
 
+def read_meta_spend(sb, preset):
+    """Gasto total em ads (Meta) do período, do cache compartilhado meta_ads_cache.
+    Soma o spend das contas no payload. Retorna float ou None (sem cache)."""
+    try:
+        rows = (sb.table("meta_ads_cache").select("payload,date_preset,refreshed_at")
+                .order("refreshed_at", desc=True).limit(20).execute().data or [])
+    except Exception:
+        return None
+    if not rows:
+        return None
+    row = next((r for r in rows if r.get("date_preset") == preset), rows[0])
+    pl = row.get("payload") or {}
+    accs = pl.get("accounts") or []
+    try:
+        return float(sum(float(a.get("spend") or 0) for a in accs))
+    except Exception:
+        return None
+
+
 def months_in_range(since_d, until_d):
     """Lista de (ano, mes) cobertos pela janela — pra somar metas mensais."""
     out = []
@@ -270,6 +289,9 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
     wins = []                      # (closed_dt, amount, source_name, channel)
     stuck = 0                      # deals abertos parados >14d
     sem_contato = 0                # deals abertos só no Lead há >2d
+    followup_n = 0                 # deals do período com follow-up (>1 interação)
+    estag_days = []                # dias sem atividade (deals abertos) → estagnação
+    win_dates = []                 # datas de fechamento ganho (cadência de vendas)
     trend = defaultdict(lambda: {"vendas": 0, "vgv": 0.0})  # 'YYYY-MM' -> ...
 
     for d in deals:
@@ -291,6 +313,11 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
         if touches:
             for i in range(ms + 1):
                 funnel[i] += 1
+            # follow-up: deal com mais de 1 interação registrada no RD
+            inter = raw.get("interactions")
+            n_int = inter if isinstance(inter, int) else (len(inter) if isinstance(inter, list) else None)
+            if n_int is not None and n_int > 1:
+                followup_n += 1
 
         # Vendas / VGV / ciclo (fechadas ganhas na janela)
         if in_close and win is True:
@@ -300,6 +327,7 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
                 cycle_days.append((closed - created).total_seconds() / 86400.0)
             src = source(raw)
             wins.append((closed, amt, src, channel(src)))
+            win_dates.append(closed)
         elif in_close and win is False:
             perdas += 1
             mr = lost_reason(raw) or "Não informado"
@@ -327,6 +355,12 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
                 stuck += 1
             if ms == 0 and created and (now_dt - created).days > 2:
                 sem_contato += 1
+            # estagnação: dias desde a última atividade do lead aberto
+            la = parse_dt(raw.get("last_activity_at")) or updated or created
+            if la:
+                dd = (now_dt - la).days
+                if dd >= 0:
+                    estag_days.append(dd)
 
     total_fech = vendas + perdas
     win_rate = round(vendas / total_fech * 100, 1) if total_fech else None
@@ -354,6 +388,14 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
         "primeiro_contato_h": round(median(first_contact_h), 1) if first_contact_h else None,
         "primeiro_contato_basis": "real" if first_contact_h else "sem_evento",
         "pendencias": {"parados_14d": stuck, "sem_contato_48h": sem_contato},
+        # ── Métricas de eficiência (pedido Paulo) ──
+        "ticket_medio": round(vgv / vendas, 2) if vendas else None,
+        "visitas_por_venda": round(funnel[3] / vendas, 1) if vendas else None,
+        "atend_por_venda": round(funnel[1] / vendas, 1) if vendas else None,
+        "dias_por_venda": round(((until_d - since_d).days + 1) / vendas, 0) if vendas else None,
+        "qualificacao_rate": round(funnel[1] / funnel[0] * 100, 1) if funnel[0] else None,
+        "followup_rate": round(followup_n / funnel[0] * 100, 1) if funnel[0] else None,
+        "estagnacao_dias": round(median(estag_days), 0) if estag_days else None,
     }
 
     if detail:

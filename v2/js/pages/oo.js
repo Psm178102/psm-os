@@ -123,6 +123,7 @@ function renderDetail() {
         <div>${funnelPanel(M)}</div>
         <div>${kpiVsMeta(M)}</div>
       </div>
+      <div style="margin-top:14px">${efficiencyPanel(M)}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:14px">
         ${ratesPanel(M)}
         ${originPanel(M)}
@@ -254,6 +255,22 @@ function kpiVsMeta(d) {
     ${row('📝 Propostas', m.real_propostas, m.meta_propostas)}
     ${row('📂 Pastas', m.real_pastas, m.meta_pastas)}
     ${(!m.meta_vgv && !m.meta_visitas) ? '<div class="tiny" style="color:#d97706;margin-top:4px">Defina metas em Menu → Metas pra ver o atingimento.</div>' : ''}`);
+}
+
+function efficiencyPanel(d) {
+  const fc = d.primeiro_contato_h;
+  const fcTxt = fc == null ? '—' : (fc < 1 ? Math.round(fc * 60) + ' min' : fc.toFixed(1) + ' h');
+  return panel('⚡ Eficiência & custo', `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px">
+      ${stat('🎟 Ticket médio', d.ticket_medio != null ? 'R$ ' + moneyShort(d.ticket_medio) : '—', '#0ea5e9')}
+      ${stat('👀 Visitas/venda', d.visitas_por_venda != null ? d.visitas_por_venda : '—', '#22d3ee', null, 'Quantas visitas até 1 venda')}
+      ${stat('📞 Atend./venda', d.atend_por_venda != null ? d.atend_por_venda : '—', '#60a5fa', null, 'Atendimentos até 1 venda')}
+      ${stat('📆 Dias/venda', d.dias_por_venda != null ? d.dias_por_venda + ' d' : '—', '#a78bfa', null, 'Ritmo: dias do período por venda')}
+      ${stat('🎯 Qualificação', d.qualificacao_rate != null ? d.qualificacao_rate + '%' : '—', '#16a34a', null, 'Leads que passaram da qualificação')}
+      ${stat('🔁 Follow-up', d.followup_rate != null ? d.followup_rate + '%' : '—', '#f59e0b', null, 'Leads com +1 interação no RD')}
+      ${stat('🕰 Estagnação', d.estagnacao_dias != null ? Math.round(d.estagnacao_dias) + ' d' : '—', '#ef4444', null, 'Mediana de dias sem atividade (abertos)')}
+      ${stat('💸 Invest. leads', d.lead_invest != null ? 'R$ ' + moneyShort(d.lead_invest) : '—', '#fb7185', null, d.cpl_global != null ? ('CPL R$ ' + money(d.cpl_global) + ' × leads') : 'Sem gasto Meta no cache')}
+    </div>`);
 }
 
 function ratesPanel(d) {
@@ -409,8 +426,8 @@ function panel(title, inner) {
 function miniKpi(lbl, val) {
   return `<div style="background:var(--bg-3);border-radius:6px;padding:5px 4px"><div style="font-weight:800;font-size:14px">${val}</div><div style="font-size:9.5px;color:var(--ink-muted)">${lbl}</div></div>`;
 }
-function stat(lbl, val, color, badge) {
-  return `<div style="background:var(--bg-3);border-radius:6px;padding:7px 9px"><div style="font-weight:800;font-size:15px;color:${color}">${val}</div><div style="font-size:10px;color:var(--ink-muted)">${lbl}${badge ? ` · <span style="color:${badge==='real'?'#16a34a':'#d97706'}">${badge==='real'?'✓ real':'≈'}</span>` : ''}</div></div>`;
+function stat(lbl, val, color, badge, tip) {
+  return `<div title="${tip ? escapeHtml(tip) : ''}" style="background:var(--bg-3);border-radius:6px;padding:7px 9px"><div style="font-weight:800;font-size:15px;color:${color}">${val}</div><div style="font-size:10px;color:var(--ink-muted)">${lbl}${badge ? ` · <span style="color:${badge==='real'?'#16a34a':'#d97706'}">${badge==='real'?'✓ real':'≈'}</span>` : ''}</div></div>`;
 }
 function bar(pct, hc) {
   return `<div style="height:6px;background:var(--bg-3);border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${healthHex(hc)}"></div></div>`;
