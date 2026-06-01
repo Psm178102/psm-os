@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
-from _oo_lib import window, months_in_range, broker_metrics, read_meta_spend  # type: ignore
+from _oo_lib import window, months_in_range, broker_metrics, read_meta_spend, meta_for_period  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -92,21 +92,15 @@ class handler(BaseHTTPRequestHandler):
             if oid:
                 by_owner[oid].append(d)
 
-        # Metas dos meses da janela, por corretor
-        wanted = set(months_in_range(since_d, until_d))
-        meta_by_id = defaultdict(lambda: {"meta_vgv": 0, "meta_vendas": 0, "meta_visitas": 0,
-                                          "meta_pastas": 0, "meta_propostas": 0, "meta_agendamentos": 0})
+        # Metas: meta MENSAL × nº de meses (via meta_for_period) — evita somar
+        # metas mensais esparsas (que dava meta incoerente vs realizado).
         try:
-            for m in (sb.table("metas").select("*").execute().data or []):
-                if (m.get("ano"), m.get("mes")) in wanted:
-                    acc = meta_by_id[m.get("corretor_id")]
-                    for k in acc:
-                        try:
-                            acc[k] += float(m.get(k) or 0)
-                        except Exception:
-                            pass
+            all_metas = sb.table("metas").select("*").execute().data or []
         except Exception:
-            pass
+            all_metas = []
+        meta_by_id = {}
+        for u in people:
+            meta_by_id[u.get("id")] = meta_for_period(all_metas, u.get("id"), since_d, until_d)
 
         # Última 1:1 + próxima por corretor
         last_oo, prox_oo = {}, {}

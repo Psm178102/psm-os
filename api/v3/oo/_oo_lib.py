@@ -171,6 +171,35 @@ def read_meta_spend(sb, preset):
         return None
 
 
+META_FIELDS = ("meta_vgv", "meta_vendas", "meta_visitas", "meta_pastas", "meta_propostas", "meta_agendamentos")
+
+
+def meta_for_period(mrows, cid, since_d, until_d):
+    """Meta do corretor no período = meta MENSAL × nº de meses da janela.
+    A mensal de cada campo = o valor mais recente NÃO-ZERO nos meses da janela.
+    Evita somar metas mensais esparsas (que dava 'meta total' incoerente — ex.:
+    visitas viravam 85 enquanto vendas ficavam em 2)."""
+    months = months_in_range(since_d, until_d)
+    n = max(1, len(months))
+    wanted = set(months)
+    rows = [m for m in (mrows or []) if m.get("corretor_id") == cid and (m.get("ano"), m.get("mes")) in wanted]
+    rows.sort(key=lambda x: ((x.get("ano") or 0), (x.get("mes") or 0)), reverse=True)  # mais recente 1º
+    acc = {}
+    for k in META_FIELDS:
+        monthly = 0.0
+        for m in rows:
+            try:
+                v = float(m.get(k) or 0)
+            except Exception:
+                v = 0.0
+            if v > 0:
+                monthly = v
+                break
+        acc[k] = round(monthly * n, 2)
+    acc["_meses"] = n
+    return acc
+
+
 def months_in_range(since_d, until_d):
     """Lista de (ano, mes) cobertos pela janela — pra somar metas mensais."""
     out = []

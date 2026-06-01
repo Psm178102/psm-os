@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from _oo_lib import (  # type: ignore
-    window, months_in_range, broker_metrics, parse_dt, build_stage_maps, read_meta_spend,
+    window, months_in_range, broker_metrics, parse_dt, build_stage_maps, read_meta_spend, meta_for_period,
 )
 
 
@@ -139,7 +139,7 @@ class handler(BaseHTTPRequestHandler):
         # Deals do corretor (individual)
         deals = _deals_for(sb, [cid], [email], cols)
         events_by_deal = _events_for(sb, [d.get("id") for d in deals])
-        meta_sum = _meta_sum_for(all_metas, cid, wanted)
+        meta_sum = meta_for_period(all_metas, cid, since_d, until_d)
         metrics = broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, detail=True, stage_maps=stage_maps)
 
         # ── Investimento em ads / lead (CPL global × leads do corretor) ──
@@ -190,9 +190,9 @@ class handler(BaseHTTPRequestHandler):
                 tevents = _events_for(sb, [d.get("id") for d in tdeals])
                 tmeta = {"meta_vgv": 0, "meta_vendas": 0, "meta_visitas": 0, "meta_pastas": 0, "meta_propostas": 0, "meta_agendamentos": 0}
                 for mid in mids:
-                    ms = _meta_sum_for(all_metas, mid, wanted)
+                    ms = meta_for_period(all_metas, mid, since_d, until_d)
                     for k in tmeta:
-                        tmeta[k] += ms[k]
+                        tmeta[k] += ms.get(k, 0)
                 tmetrics = broker_metrics(tdeals, tevents, tmeta, since_d, until_d, today, detail=True, stage_maps=stage_maps)
                 tmetrics["lead_invest"] = round(cpl * (tmetrics["kpis"]["leads"] or 0), 2) if cpl else None
                 tmetrics["cpl_global"] = cpl
@@ -204,7 +204,7 @@ class handler(BaseHTTPRequestHandler):
                     deals_by_owner.setdefault(oid, []).append(d)
                 membros = []
                 for m in members:
-                    mm = broker_metrics(deals_by_owner.get(m.get("id"), []), {}, _meta_sum_for(all_metas, m.get("id"), wanted), since_d, until_d, today, detail=False)
+                    mm = broker_metrics(deals_by_owner.get(m.get("id"), []), {}, meta_for_period(all_metas, m.get("id"), since_d, until_d), since_d, until_d, today, detail=False)
                     membros.append({"id": m.get("id"), "name": m.get("name"), "role": m.get("role"),
                                     "ini": m.get("ini"), "color": m.get("color"),
                                     "vendas": mm["kpis"]["vendas"], "vgv": mm["kpis"]["vgv"],
