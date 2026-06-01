@@ -324,6 +324,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/ranking"><span class="sb-ico">🏆</span> Ranking</button>
         <button class="sb-link" data-nav="/agenda"><span class="sb-ico">📅</span> Agenda</button>
         <button class="sb-link" data-nav="/tarefas"><span class="sb-ico">📋</span> Tarefas</button>
+        <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
 
         <div class="sb-sec">🏘 Imóveis & Vendas</div>
         <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM (RD)</button>
@@ -356,7 +357,6 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/metas"><span class="sb-ico">🎯</span> Metas</button>
         <button class="sb-link" data-nav="/equipe"><span class="sb-ico">🛡</span> Equipes</button>
         <button class="sb-link" data-nav="/organograma"><span class="sb-ico">🌳</span> Organograma</button>
-        <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
         <button class="sb-link" data-nav="/plantoes"><span class="sb-ico">🛡</span> Plantões</button>
         <button class="sb-link" data-nav="/arena"><span class="sb-ico">📡</span> Arena Live</button>
         <button class="sb-link" data-nav="/tv"><span class="sb-ico">📺</span> Modo TV</button>

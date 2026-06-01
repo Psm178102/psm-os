@@ -211,15 +211,34 @@ function detailHeader(d, c) {
 function funnelBars(stages, getLabel) {
   const max = Math.max(1, ...stages.map(s => s.n));
   const grad = (i, n) => { const t = n ? i / Math.max(1, n - 1) : 0; const h = Math.round(210 - t * 70); return `hsl(${h},75%,55%)`; };
-  return `<div style="display:grid;gap:5px">${stages.map((s, i) => `
+  const convChip = (c) => c == null ? '' :
+    `<span title="conversão da etapa anterior" style="font-size:10.5px;font-weight:800;padding:1px 6px;border-radius:999px;background:${c>=50?'rgba(22,163,74,.15)':c>=25?'rgba(217,119,6,.15)':'rgba(220,38,38,.15)'};color:${c>=50?'#16a34a':c>=25?'#d97706':'#dc2626'}">↓ ${c}%</span>`;
+  return `<div style="display:grid;gap:7px">${stages.map((s, i) => `
     <div>
+      ${i > 0 && s.conv_from_prev != null ? `<div style="text-align:center;margin:-2px 0 1px">${convChip(s.conv_from_prev)}</div>` : ''}
       <div class="flex items-center" style="justify-content:space-between;font-size:11.5px;margin-bottom:2px">
         <span style="font-weight:600">${getLabel(s)}</span>
-        <span><b>${s.n}</b>${s.conv_from_prev != null ? ` <span style="color:${s.conv_from_prev>=50?'#16a34a':s.conv_from_prev>=25?'#d97706':'#dc2626'};font-size:10.5px">(${s.conv_from_prev}%)</span>` : ''}</span>
+        <b>${s.n}</b>
       </div>
-      <div style="height:15px;background:var(--bg-3);border-radius:6px;overflow:hidden"><div style="height:100%;width:${s.n ? Math.max(3, s.n / max * 100) : 0}%;background:${grad(i, stages.length)};border-radius:6px"></div></div>
+      <div style="height:16px;background:var(--bg-3);border-radius:6px;overflow:hidden"><div style="height:100%;width:${s.n ? Math.max(3, s.n / max * 100) : 0}%;background:${grad(i, stages.length)};border-radius:6px"></div></div>
     </div>`).join('')}</div>`;
 }
+
+// Tabela explícita de conversão por etapa (taxa entre etapas do funil RD)
+function convTable(stages) {
+  const rows = stages.map((s, i) => i === 0 ? '' : `<tr style="border-top:1px solid var(--border)">
+    <td style="padding:4px 6px;color:var(--ink-muted)">${escapeHtml(stages[i-1].name || stages[i-1].label)} → <b>${escapeHtml(s.name || s.label)}</b></td>
+    <td style="text-align:right;padding:4px 6px;font-weight:800;color:${(s.conv_from_prev||0)>=50?'#16a34a':(s.conv_from_prev||0)>=25?'#d97706':'#dc2626'}">${s.conv_from_prev != null ? s.conv_from_prev + '%' : '—'}</td>
+  </tr>`).filter(Boolean).join('');
+  const first = stages[0]?.n || 0, last = stages[stages.length-1]?.n || 0;
+  const overall = first ? round1(last / first * 100) : null;
+  return `<table style="width:100%;font-size:11.5px;border-collapse:collapse;margin-top:8px">
+    <thead><tr style="color:var(--ink-muted);font-size:10.5px"><th style="text-align:left;padding:4px 6px">Conversão por etapa</th><th style="text-align:right;padding:4px 6px">taxa</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr style="border-top:2px solid var(--border)"><td style="padding:5px 6px;font-weight:700">${escapeHtml(stages[0]?.name||stages[0]?.label||'')} → ${escapeHtml(stages[stages.length-1]?.name||'')}</td><td style="text-align:right;padding:5px 6px;font-weight:900;color:#2563eb">${overall != null ? overall + '%' : '—'}</td></tr></tfoot>
+  </table>`;
+}
+function round1(n) { return Math.round(n * 10) / 10; }
 
 function funnelPanel(d) {
   const rd = d.rd_funnels || [];
@@ -227,13 +246,14 @@ function funnelPanel(d) {
     // Funil REAL do RD por etapa, do funil em que o corretor/equipe participa
     return rd.map(fn => panel(`🫧 Funil RD · ${escapeHtml(fn.pipeline)} <span class="tiny muted" style="font-weight:400">(${fn.deals} negócios)</span>`,
       funnelBars(fn.stages, s => escapeHtml(s.name)) +
-      `<div class="tiny muted" style="margin-top:8px">Etapas reais do funil no RD · % = conversão da etapa anterior · win rate: <b>${d.win_rate != null ? d.win_rate + '%' : '—'}</b></div>`
+      convTable(fn.stages) +
+      `<div class="tiny muted" style="margin-top:6px">Etapas reais do RD · ↓ = taxa de conversão da etapa anterior · win rate geral: <b>${d.win_rate != null ? d.win_rate + '%' : '—'}</b></div>`
     )).join('<div style="height:12px"></div>');
   }
   // fallback: marcos canônicos
   const f = d.funnel || [];
-  return panel('🫧 Funil individual', funnelBars(f, s => escapeHtml(s.label)) +
-    `<div class="tiny muted" style="margin-top:8px">% = conversão da etapa anterior. Win rate: <b>${d.win_rate != null ? d.win_rate + '%' : '—'}</b></div>`);
+  return panel('🫧 Funil individual', funnelBars(f, s => escapeHtml(s.label)) + convTable(f) +
+    `<div class="tiny muted" style="margin-top:6px">↓ = taxa de conversão da etapa anterior. Win rate: <b>${d.win_rate != null ? d.win_rate + '%' : '—'}</b></div>`);
 }
 
 function kpiVsMeta(d) {
