@@ -158,6 +158,31 @@ async function processAccount(actId, actLabel, actToken, dateParams) {
       }
     });
 
+    // v76.30: Engajamento + tráfego detalhado (extraído do array actions; sem campos novos)
+    var reactions = 0, comments = 0, shares = 0, saves = 0, postEng = 0, pageEng = 0, lpViews = 0, outbound = 0, linkClickAct = 0;
+    actions.forEach(function(a) {
+      var v = parseInt(a.value || 0);
+      switch (a.action_type) {
+        case 'post_reaction': reactions += v; break;
+        case 'comment': comments += v; break;
+        case 'post': shares += v; break;                       // compartilhamentos
+        case 'onsite_conversion.post_save': saves += v; break;  // salvamentos
+        case 'post_engagement': postEng += v; break;
+        case 'page_engagement': pageEng += v; break;
+        case 'landing_page_view': lpViews += v; break;
+        case 'link_click': linkClickAct += v; break;
+        case 'outbound_click': outbound += v; break;
+      }
+    });
+    var linkCtr = impressions > 0 ? (inlineLinkClicks / impressions * 100) : 0;
+    var linkCpc = inlineLinkClicks > 0 ? (spend / inlineLinkClicks) : 0;
+    var costPerEngagement = postEng > 0 ? (spend / postEng) : 0;
+    var costPerLike = reactions > 0 ? (spend / reactions) : 0;
+    var leadValue = 0;
+    (ins.action_values || []).forEach(function(av) {
+      if (av.action_type === 'lead' || av.action_type === 'offsite_conversion.fb_pixel_lead') leadValue += parseFloat(av.value || 0);
+    });
+
     // v75.9: ROAS — soma valor de purchases via action_values, dividido por spend
     var purchaseValue = 0;
     var actionValues = ins.action_values || [];
@@ -272,7 +297,21 @@ async function processAccount(actId, actLabel, actToken, dateParams) {
       thumbstop: thumbstop,
       qualityRanking: qualityRanking,
       engagementRanking: engagementRanking,
-      conversionRanking: conversionRanking
+      conversionRanking: conversionRanking,
+      // v76.30: engajamento + tráfego detalhado + valor de lead
+      reactions: reactions,
+      comments: comments,
+      shares: shares,
+      saves: saves,
+      postEngagement: postEng,
+      pageEngagement: pageEng,
+      landingPageViews: lpViews,
+      outboundClicks: outbound,
+      linkCtr: linkCtr,
+      linkCpc: linkCpc,
+      costPerEngagement: costPerEngagement,
+      costPerLike: costPerLike,
+      leadValue: leadValue
     };
   });
 

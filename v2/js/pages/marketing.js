@@ -676,6 +676,114 @@ function tabTrafegoCompleto() {
   `;
 }
 
+/* ─── Cockpit de métricas completo (todas as métricas Meta em tempo real) ─── */
+function aggMetrics(camps) {
+  const s = { spend:0, impressions:0, reach:0, clicks:0, linkClicks:0, results:0, messages:0, leads:0,
+    reactions:0, comments:0, shares:0, saves:0, postEng:0, pageEng:0, lpViews:0, outbound:0,
+    views:0, v3:0, v25:0, v50:0, v75:0, v95:0, v100:0, leadValue:0, purchaseValue:0, avgWatchSum:0, avgWatchN:0 };
+  camps.forEach(c => {
+    s.spend += c.spend||0; s.impressions += c.impressions||0; s.reach += c.reach||0; s.clicks += c.clicks||0;
+    s.linkClicks += c.inlineLinkClicks||0; s.results += c.results||0; s.messages += c.messages||0; s.leads += c.leads||0;
+    s.reactions += c.reactions||0; s.comments += c.comments||0; s.shares += c.shares||0; s.saves += c.saves||0;
+    s.postEng += c.postEngagement||0; s.pageEng += c.pageEngagement||0; s.lpViews += c.landingPageViews||0; s.outbound += c.outboundClicks||0;
+    s.views += c.views||0; s.v3 += c.v3||0; s.v25 += c.v25||0; s.v50 += c.v50||0; s.v75 += c.v75||0; s.v95 += c.v95||0; s.v100 += c.v100||0;
+    s.leadValue += c.leadValue||0; s.purchaseValue += c.purchaseValue||0;
+    if (c.avgWatchTime) { s.avgWatchSum += c.avgWatchTime; s.avgWatchN++; }
+  });
+  return s;
+}
+function metaMetricsCockpit() {
+  const camps = filteredCampaigns();
+  if (!camps.length) return '';
+  const s = aggMetrics(camps);
+  const freq = s.reach>0 ? s.impressions/s.reach : 0;
+  const cpm = s.impressions>0 ? s.spend/s.impressions*1000 : 0;
+  const ctrAll = s.impressions>0 ? s.clicks/s.impressions*100 : 0;
+  const ctrLink = s.impressions>0 ? s.linkClicks/s.impressions*100 : 0;
+  const cpcAll = s.clicks>0 ? s.spend/s.clicks : 0;
+  const cpcLink = s.linkClicks>0 ? s.spend/s.linkClicks : 0;
+  const engRate = s.impressions>0 ? s.postEng/s.impressions*100 : 0;
+  const costPerEng = s.postEng>0 ? s.spend/s.postEng : 0;
+  const avgWatch = s.avgWatchN>0 ? s.avgWatchSum/s.avgWatchN : 0;
+  const vtr = s.views>0 ? s.v100/s.views*100 : 0;
+  const cplMsg = s.messages>0 ? s.spend/s.messages : 0;
+  const cplLead = s.leads>0 ? s.spend/s.leads : 0;
+  const cpLp = s.lpViews>0 ? s.spend/s.lpViews : 0;
+  const vbase = Math.max(s.views, s.v25, 1);
+  const vstage = (lbl, val, color) => { const w = Math.max(5, Math.round(val/vbase*100)); return `<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:2px"><span>${lbl}</span><span style="color:#e2e8f0;font-weight:700">${fmtNum(val)}</span></div><div style="height:14px;border-radius:6px;background:rgba(255,255,255,0.06);overflow:hidden"><div style="height:100%;width:${w}%;background:${color}"></div></div></div>`; };
+  const grid = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px';
+  return `
+    <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:18px;color:#e2e8f0;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:800;color:#fff">📊 Cockpit de Métricas Meta</div>
+      <div style="font-size:11px;color:#94a3b8">${camps.length} campanha(s) no período · entrega · tráfego · engajamento · vídeo · mensagens · leads — tudo em tempo real</div>
+
+      ${crmPanelDark('🚀 Entrega & Custo', '', `<div style="${grid}">
+        ${crmMiniDark('Investido', 'R$ ' + money(s.spend), '#f87171')}
+        ${crmMiniDark('Impressões', fmtNum(s.impressions), '#fbbf24')}
+        ${crmMiniDark('Alcance', fmtNum(s.reach), '#a855f7')}
+        ${crmMiniDark('Frequência', freq.toFixed(2), '#c4b5fd')}
+        ${crmMiniDark('CPM', 'R$ ' + money(cpm), '#60a5fa')}
+      </div>`)}
+
+      ${crmPanelDark('🖱 Tráfego', '(link × todos)', `<div style="${grid}">
+        ${crmMiniDark('Cliques no link', fmtNum(s.linkClicks), '#60a5fa')}
+        ${crmMiniDark('Cliques (todos)', fmtNum(s.clicks), '#93c5fd')}
+        ${crmMiniDark('CTR link', ctrLink.toFixed(2) + '%', '#22d3ee')}
+        ${crmMiniDark('CTR todos', ctrAll.toFixed(2) + '%', '#67e8f9')}
+        ${crmMiniDark('CPC link', 'R$ ' + money(cpcLink), '#34d399')}
+        ${crmMiniDark('CPC todos', 'R$ ' + money(cpcAll), '#6ee7b7')}
+        ${crmMiniDark('Cliques de saída', fmtNum(s.outbound), '#94a3b8')}
+        ${crmMiniDark('Visitas LP', fmtNum(s.lpViews), '#fbbf24', cpLp ? 'R$ ' + money(cpLp) + '/visita' : '')}
+      </div>`)}
+
+      ${crmPanelDark('❤️ Engajamento', '', `<div style="${grid}">
+        ${crmMiniDark('Engaj. c/ post', fmtNum(s.postEng), '#f472b6')}
+        ${crmMiniDark('Curtidas/Reações', fmtNum(s.reactions), '#fb7185')}
+        ${crmMiniDark('Comentários', fmtNum(s.comments), '#60a5fa')}
+        ${crmMiniDark('Compartilham.', fmtNum(s.shares), '#34d399')}
+        ${crmMiniDark('Salvamentos', fmtNum(s.saves), '#fbbf24')}
+        ${crmMiniDark('Taxa engaj.', engRate.toFixed(2) + '%', '#22d3ee', 'engaj ÷ impr')}
+        ${crmMiniDark('Custo/engaj.', costPerEng ? 'R$ ' + money(costPerEng) : '—', '#6ee7b7')}
+      </div>`)}
+
+      ${s.views > 0 ? crmPanelDark('🎬 Funil de Vídeo', '(retenção de audiência)', `
+        <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;align-items:start">
+          <div>
+            ${vstage('▶︎ Reproduções', s.views, '#3b82f6')}
+            ${vstage('25% assistido', s.v25, '#6366f1')}
+            ${vstage('50% assistido', s.v50, '#8b5cf6')}
+            ${vstage('75% assistido', s.v75, '#a855f7')}
+            ${vstage('95% assistido', s.v95, '#c026d3')}
+            ${vstage('100% (assistiu tudo)', s.v100, '#22c55e')}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            ${crmMiniDark('Tempo médio', avgWatch ? avgWatch.toFixed(1) + 's' : '—', '#a855f7')}
+            ${crmMiniDark('VTR', vtr.toFixed(1) + '%', '#22c55e', '100% ÷ views')}
+            ${crmMiniDark('Hold', s.v25 ? (s.v75/s.v25*100).toFixed(0) + '%' : '—', '#c4b5fd', '75% ÷ 25%')}
+            ${crmMiniDark('Hook', s.views ? (s.v25/s.views*100).toFixed(0) + '%' : '—', '#60a5fa', '25% ÷ views')}
+          </div>
+        </div>`) : ''}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px">
+          <div style="font-size:13px;font-weight:700;color:#cbd5e1;margin-bottom:8px">💬 Mensagens</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            ${crmMiniDark('Conversas iniciadas', fmtNum(s.messages), '#22c55e')}
+            ${crmMiniDark('Custo/conversa', cplMsg ? 'R$ ' + money(cplMsg) : '—', '#6ee7b7')}
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px">
+          <div style="font-size:13px;font-weight:700;color:#cbd5e1;margin-bottom:8px">🧲 Leads & Conversão</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            ${crmMiniDark('Leads', fmtNum(s.leads), '#14b8a6')}
+            ${crmMiniDark('Custo/lead', cplLead ? 'R$ ' + money(cplLead) : '—', '#6ee7b7')}
+            ${crmMiniDark('Valor conv.', s.leadValue ? 'R$ ' + moneyShort(s.leadValue) : 'R$ 0', '#fbbf24')}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
 /* ───────────────────────── ABA: TRÁFEGO (Meta operacional) ───────────────────────── */
 function tabTrafego() {
   const d = _data || {};
@@ -700,6 +808,7 @@ function tabTrafego() {
   });
 
   return `
+    ${metaMetricsCockpit()}
     <div class="flex gap-3" style="flex-wrap:wrap">
       ${kpi('💰 Investido', 'R$ ' + money(t.spend), 'no período', '#dc2626')}
       ${kpi('🎯 Resultados', fmtNum(t.results), t.cpl ? `CPL médio: R$ ${money(t.cpl)}` : 'sem conversões', '#16a34a')}
