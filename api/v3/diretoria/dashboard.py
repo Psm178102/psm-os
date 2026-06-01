@@ -171,6 +171,38 @@ class handler(BaseHTTPRequestHandler):
             errors.append(f"recados: {e}")
             kpis["recados_ativos"] = 0; kpis["recados_criticos"] = 0
 
+        # 8. Métricas executivas (só Diretoria). Premissas de negócio AJUSTÁVEIS via
+        #    shared_kv 'exec_premissas' {comissao_pct, custo_var_pct, custo_fixo_mensal}.
+        try:
+            COMISSAO_PCT, CUSTO_VAR_PCT, CUSTO_FIXO_MENSAL = 0.05, 0.50, None
+            try:
+                cfg = sb.table("shared_kv").select("value").eq("key", "exec_premissas").limit(1).execute().data or []
+                if cfg and isinstance(cfg[0].get("value"), dict):
+                    v = cfg[0]["value"]
+                    COMISSAO_PCT = float(v.get("comissao_pct") or COMISSAO_PCT)
+                    CUSTO_VAR_PCT = float(v.get("custo_var_pct") or CUSTO_VAR_PCT)
+                    CUSTO_FIXO_MENSAL = float(v["custo_fixo_mensal"]) if v.get("custo_fixo_mensal") not in (None, "") else None
+            except Exception:
+                pass
+            v_ano = kpis.get("atingido_vendas_ano") or 0
+            vgv_ano = kpis.get("atingido_vgv_ano") or 0
+            v_mes = kpis.get("atingido_vendas_mes") or 0
+            ticket = (vgv_ano / v_ano) if v_ano else 0.0
+            receita_venda = ticket * COMISSAO_PCT                 # comissão bruta PSM por venda
+            kpis["ticket_medio"] = round(ticket, 2)
+            kpis["margem_contrib_venda"] = round(receita_venda * (1 - CUSTO_VAR_PCT), 2)  # ≈ estimativa
+            kpis["ltv"] = round(receita_venda, 2)                 # valor (comissão) médio por cliente
+            kpis["custo_fixo_mensal"] = CUSTO_FIXO_MENSAL
+            kpis["custo_fixo_por_venda"] = round(CUSTO_FIXO_MENSAL / v_mes, 2) if (CUSTO_FIXO_MENSAL and v_mes) else None
+            ut = kpis.get("users_total") or 0
+            ua = kpis.get("users_ativos") or 0
+            kpis["users_inativos"] = ut - ua
+            kpis["turnover_pct"] = round((ut - ua) / ut * 100, 1) if ut else None
+            kpis["exec_premissas"] = {"comissao_pct": COMISSAO_PCT, "custo_var_pct": CUSTO_VAR_PCT,
+                                       "custo_fixo_mensal": CUSTO_FIXO_MENSAL}
+        except Exception as e:
+            errors.append(f"exec_metrics: {e}")
+
         return self._send(200, {
             "ok": len(errors) == 0,
             "ano": ano,

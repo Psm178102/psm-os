@@ -117,6 +117,9 @@ function renderDashboard() {
       </div>
     ` : ''}
 
+    <!-- Métricas executivas (só Diretoria) -->
+    ${execMetrics(k)}
+
     <!-- Top actions 24h -->
     ${(k.top_actions_24h || []).length ? `
       <div class="card" style="margin:14px 0">
@@ -136,6 +139,28 @@ function renderDashboard() {
       <a href="#/crm" class="btn btn-ghost">🔗 CRM</a>
     </div>
   `;
+}
+
+// ─── Métricas executivas (Diretoria) ────────────────────────────────────
+function execMetrics(k) {
+  const pr = k.exec_premissas || {};
+  const ex = (lbl, val, sub, color) => `<div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:var(--r-md);padding:12px 14px;border-left:4px solid ${color}">
+    <div style="font-size:11px;color:var(--ink-muted);font-weight:600">${lbl}</div>
+    <div style="font-size:22px;font-weight:900;color:${color};margin:2px 0">${val}</div>
+    <div class="tiny muted">${sub}</div></div>`;
+  const cfHint = k.custo_fixo_por_venda != null ? 'mês ÷ vendas do mês' : 'defina o custo fixo mensal nas premissas';
+  return `
+    <div class="card" style="margin:14px 0">
+      <h3 class="card-title">📊 Métricas Executivas <span class="tiny muted" style="font-weight:400">· só Diretoria</span></h3>
+      <div class="flex gap-2" style="flex-wrap:wrap">
+        ${ex('🎟 Ticket médio', 'R$ ' + moneyShort(k.ticket_medio || 0), 'VGV ÷ vendas (ano)', '#0ea5e9')}
+        ${ex('🏦 Custo fixo / venda', k.custo_fixo_por_venda != null ? 'R$ ' + moneyShort(k.custo_fixo_por_venda) : '—', cfHint, '#ef4444')}
+        ${ex('💚 Margem contrib. / venda', 'R$ ' + moneyShort(k.margem_contrib_venda || 0), '≈ comissão − custo variável', '#16a34a')}
+        ${ex('♻️ LTV (comissão/cliente)', 'R$ ' + moneyShort(k.ltv || 0), '≈ ticket × comissão', '#a855f7')}
+        ${ex('🔄 Turnover', k.turnover_pct != null ? k.turnover_pct + '%' : '—', `${k.users_inativos || 0} inativos / ${k.users_total || 0}`, (k.turnover_pct || 0) > 15 ? '#dc2626' : '#d97706')}
+      </div>
+      <div class="tiny muted mt-2">Premissas (ajustáveis): comissão ${((pr.comissao_pct || 0.05) * 100).toFixed(1)}% · custo variável ${((pr.custo_var_pct || 0.5) * 100).toFixed(0)}% · custo fixo/mês ${pr.custo_fixo_mensal ? 'R$ ' + moneyShort(pr.custo_fixo_mensal) : 'não definido'}. Margem/LTV são <b>estimativas</b> com essas premissas — me peça pra ajustar os números.</div>
+    </div>`;
 }
 
 // ─── Hero premium (dark + sparklines + gráficos) ────────────────────────
