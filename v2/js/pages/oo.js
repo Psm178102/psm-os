@@ -6,6 +6,7 @@ let _root = null;
 let _view = 'list';            // 'list' | 'detail'
 let _selId = '';               // corretor selecionado
 let _preset = 'this_month';
+let _since = '', _until = '';  // período custom (data início/fim)
 let _ov = null;                // overview (lista)
 let _det = null;               // detalhe do corretor
 let _meet = [];                // reuniões 1:1 do corretor
@@ -34,7 +35,7 @@ async function loadList() {
   _view = 'list';
   _root.innerHTML = spinner('Carregando corretores…');
   try {
-    _ov = await api.request('/api/v3/oo/overview?date_preset=' + encodeURIComponent(_preset));
+    _ov = await api.request('/api/v3/oo/overview?' + ooQP());
     renderList();
   } catch (e) { _root.innerHTML = err(e.message); }
 }
@@ -91,7 +92,7 @@ async function loadDetail() {
   _root.innerHTML = spinner('Carregando cockpit do corretor…');
   try {
     const [d, m, u] = await Promise.all([
-      api.request('/api/v3/oo/corretor?corretor_id=' + encodeURIComponent(_selId) + '&date_preset=' + encodeURIComponent(_preset)),
+      api.request('/api/v3/oo/corretor?corretor_id=' + encodeURIComponent(_selId) + '&' + ooQP()),
       api.request('/api/v3/oo/list?corretor_id=' + encodeURIComponent(_selId)).catch(() => ({ items: [] })),
       _users.length ? Promise.resolve({ users: _users }) : api.request('/api/v3/users/list').catch(() => ({ users: [] })),
     ]);
@@ -432,12 +433,32 @@ function openMeeting(iid) {
 }
 
 /* ──────────────── helpers visuais ──────────────── */
+function ooQP() {
+  return (_since && _until)
+    ? ('since=' + encodeURIComponent(_since) + '&until=' + encodeURIComponent(_until))
+    : ('date_preset=' + encodeURIComponent(_preset));
+}
 function periodSel() {
-  return `<select id="oo-preset" class="select" style="padding:5px 10px;font-size:12px">
-    ${PRESETS.map(p => `<option value="${p.id}"${p.id === _preset ? ' selected' : ''}>${p.lbl}</option>`).join('')}</select>`;
+  const custom = !!(_since && _until);
+  return `<div class="flex items-center gap-2" style="flex-wrap:wrap">
+    <select id="oo-preset" class="select" style="padding:5px 10px;font-size:12px">
+      ${PRESETS.map(p => `<option value="${p.id}"${(p.id === _preset && !custom) ? ' selected' : ''}>${p.lbl}</option>`).join('')}
+    </select>
+    <span class="tiny muted">ou</span>
+    <input type="date" id="oo-since" value="${_since}" class="input" style="padding:4px 6px;font-size:12px;width:135px">
+    <span class="tiny muted">até</span>
+    <input type="date" id="oo-until" value="${_until}" class="input" style="padding:4px 6px;font-size:12px;width:135px">
+    <button class="btn btn-primary btn-sm" id="oo-range-go">Aplicar</button>
+    ${custom ? '<button class="btn btn-ghost btn-sm" id="oo-range-clear">limpar</button>' : ''}
+  </div>`;
 }
 function wirePeriod(reloadFn) {
-  document.getElementById('oo-preset')?.addEventListener('change', e => { _preset = e.target.value; reloadFn(); });
+  document.getElementById('oo-preset')?.addEventListener('change', e => { _preset = e.target.value; _since = ''; _until = ''; reloadFn(); });
+  document.getElementById('oo-range-go')?.addEventListener('click', () => {
+    const s = document.getElementById('oo-since')?.value, u = document.getElementById('oo-until')?.value;
+    if (s && u) { _since = s; _until = u; reloadFn(); } else alert('Informe data de início e fim.');
+  });
+  document.getElementById('oo-range-clear')?.addEventListener('click', () => { _since = ''; _until = ''; reloadFn(); });
 }
 function panel(title, inner) {
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px">
