@@ -154,35 +154,29 @@ def window(params, today=None):
 
 def read_meta_spend(sb, preset=None):
     """Gasto MENSAL em ads (Meta) — base estável pro CPL (R$/lead). Lê o cache
-    meta_ads_cache e soma o spend das contas. O CPL é uma TAXA (R$/lead), então
-    usar o gasto mensal é coerente independente do período do One-on-One.
-    Preferência de preset: o pedido (se cacheado) → last_30d → this_month → ...
-    Pula linhas com spend 0. Retorna float>0 ou None (sem dado → front mostra —)."""
-    try:
-        rows = (sb.table("meta_ads_cache").select("payload,date_preset,refreshed_at")
-                .order("refreshed_at", desc=True).limit(40).execute().data or [])
-    except Exception:
-        return None
-    if not rows:
-        return None
-    # spend por preset (linha mais recente de cada preset)
-    spend_by_preset = {}
-    for r in rows:
-        p = r.get("date_preset")
-        if p in spend_by_preset:
+    meta_ads_cache UM payload por vez (cada payload é grande — não dá pra puxar
+    vários de uma vez, estoura a função). Tenta os presets mensais em ordem,
+    retorna o 1º com spend>0; senão None. CPL é uma TAXA, então gasto mensal é
+    coerente em qualquer período do One-on-One."""
+    for p in [preset, "last_30d", "this_month", "last_month", "last_14d", "last_7d", "yesterday"]:
+        if not p:
             continue
-        accs = (r.get("payload") or {}).get("accounts") or []
         try:
-            spend_by_preset[p] = float(sum(float(a.get("spend") or 0) for a in accs))
+            rows = (sb.table("meta_ads_cache").select("payload")
+                    .eq("date_preset", p).order("refreshed_at", desc=True)
+                    .limit(1).execute().data or [])
         except Exception:
-            spend_by_preset[p] = 0.0
-    order = [preset, "last_30d", "this_month", "last_month", "last_14d", "last_7d"]
-    for p in order:
-        if p and spend_by_preset.get(p, 0) > 0:
-            return spend_by_preset[p]
-    # último recurso: qualquer preset com spend > 0
-    best = max(spend_by_preset.values()) if spend_by_preset else 0
-    return best if best > 0 else None
+            continue
+        if not rows:
+            continue
+        accs = (rows[0].get("payload") or {}).get("accounts") or []
+        try:
+            s = float(sum(float(a.get("spend") or 0) for a in accs))
+        except Exception:
+            s = 0.0
+        if s > 0:
+            return s
+    return None
 
 
 META_FIELDS = ("meta_vgv", "meta_vendas", "meta_visitas", "meta_pastas", "meta_propostas", "meta_agendamentos")
