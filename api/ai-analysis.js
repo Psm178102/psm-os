@@ -27,9 +27,12 @@ module.exports = async function handler(req, res) {
     const result = await callAI({
       system: system,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: parseInt(body.max_tokens, 10) || 2048,
+      max_tokens: Math.min(8192, parseInt(body.max_tokens, 10) || 2048),
       temperature: typeof body.temperature === 'number' ? body.temperature : 0.5,
-      prefer: 'claude'
+      prefer: 'claude',
+      // Cérebro estratégico no modelo FORTE (Opus 4.8) quando CLAUDE_SMART_MODEL
+      // estiver setado no Vercel; senão cai no default do _ai.js. body.model força.
+      model: body.model || process.env.CLAUDE_SMART_MODEL || undefined,
     });
     return res.status(result.ok ? 200 : 502).json(result);
   } catch (e) {
