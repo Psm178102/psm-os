@@ -258,9 +258,23 @@ async function callAI(opts) {
   return {
     ok: false,
     error: 'Both providers failed',
-    claude_error: claudeError ? (claudeError.message + (claudeError.body ? ': ' + claudeError.body.substring(0, 200) : '')) : null,
-    gemini_error: geminiError ? (geminiError.message + (geminiError.body ? ': ' + geminiError.body.substring(0, 200) : '')) : null
+    claude_error: claudeError ? _redact(claudeError.message + (claudeError.body ? ': ' + claudeError.body.substring(0, 200) : '')) : null,
+    gemini_error: geminiError ? _redact(geminiError.message + (geminiError.body ? ': ' + geminiError.body.substring(0, 200) : '')) : null
   };
+}
+
+/**
+ * Remove credenciais (API keys) de mensagens de erro antes de devolver ao
+ * cliente. O corpo de erro dos provedores às vezes ecoa a própria chave —
+ * nunca pode vazar pro front. Mantém o resto da mensagem pra diagnóstico.
+ */
+function _redact(s) {
+  return String(s || '')
+    .replace(/AIza[0-9A-Za-z\-_]{20,}/g, 'AIza…REDACTED')
+    .replace(/sk-ant-[A-Za-z0-9\-_]{20,}/g, 'sk-ant-…REDACTED')
+    .replace(/api_key:\s*'?[A-Za-z0-9\-_]{12,}'?/gi, 'api_key:REDACTED')
+    .replace(/[?&]key=[A-Za-z0-9\-_]{12,}/g, '&key=REDACTED')
+    .replace(/Bearer\s+[A-Za-z0-9\-_.]{12,}/g, 'Bearer REDACTED');
 }
 
 function _classifyError(err) {
