@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.57.0-2026-06-01-CENTRO-INTELIGENCIA';
+const SW_VERSION = 'v76.58.0-2026-06-01-BIBLIOTECA-ADS';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
