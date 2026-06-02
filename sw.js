@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.56.0-2026-06-01-FIX-OVERVIEW-ORPHAN';
+const SW_VERSION = 'v76.57.0-2026-06-01-CENTRO-INTELIGENCIA';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

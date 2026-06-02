@@ -55,6 +55,7 @@ import { pageTendencias } from './pages/tendencias.js';
 import { pageBenchmark } from './pages/benchmark.js';
 import { pageIntelAds } from './pages/intel-ads.js';
 import { pageIntelDash } from './pages/intel-dash.js';
+import { pageIntelCentro } from './pages/intel-centro.js';
 import { pageSimuladores } from './pages/simuladores.js';
 import { pageSimVPL } from './pages/sim-vpl.js';
 import { pageSimINCC } from './pages/sim-incc.js';
@@ -91,7 +92,7 @@ const ROUTE_GROUP = {
   '/financeiro': 'financeiro', '/forecast': 'financeiro',
   // Inteligência & Marketing
   '/marketing': 'marketing', '/concorrencia': 'marketing', '/benchmark': 'marketing',
-  '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing',
+  '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing', '/inteligencia': 'marketing',
   // Metas & Performance
   '/metas': 'performance', '/equipe': 'performance', '/organograma': 'performance',
   '/one-on-one': 'performance', '/plantoes': 'performance', '/arena': 'performance',
@@ -214,6 +215,7 @@ function applyPermissions(user) {
   router.register('/agenda',    { render: async (ctx, root) => { setHeader('Agenda');    highlight('/agenda');    await pageAgenda(ctx, root); } });
   router.register('/diretoria', { render: async (ctx, root) => { setHeader('Diretoria'); highlight('/diretoria'); await pageDiretoria(ctx, root); } });
   router.register('/marketing', { render: async (ctx, root) => { setHeader('Marketing'); highlight('/marketing'); await pageMarketing(ctx, root); } });
+  router.register('/inteligencia', { render: async (ctx, root) => { setHeader('Centro de Inteligência'); highlight('/inteligencia'); await pageIntelCentro(ctx, root); } });
   router.register('/ia',        { render: async (ctx, root) => { setHeader('IA');        highlight('/ia');        await pageIA(ctx, root); } });
   router.register('/lancamentos', { render: async (ctx, root) => { setHeader('Lançamentos'); highlight('/lancamentos'); await pageLancamentos(ctx, root); } });
   router.register('/locacoes',  { render: async (ctx, root) => { setHeader('Locações');  highlight('/locacoes');  await pageLocacoes(ctx, root); } });
@@ -346,6 +348,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/forecast"><span class="sb-ico">📈</span> Forecast</button>
 
         <div class="sb-sec">📊 Inteligência & Marketing</div>
+        <button class="sb-link" data-nav="/inteligencia"><span class="sb-ico">🧠</span> Centro de Inteligência</button>
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>
         <button class="sb-link" data-nav="/concorrencia"><span class="sb-ico">🎯</span> Concorrência</button>
         <button class="sb-link" data-nav="/benchmark"><span class="sb-ico">📊</span> Benchmark</button>
