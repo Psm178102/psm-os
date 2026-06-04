@@ -346,6 +346,14 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/lancamentos"><span class="sb-ico">🏗</span> Lançamentos</button>
         <button class="sb-link" data-nav="/captacoes"><span class="sb-ico">📥</span> Captações</button>
 
+        <div class="sb-sec">🏛 Diretoria</div>
+        <button class="sb-link" data-nav="/diretoria"><span class="sb-ico">🏛</span> Estratégia / Dashboard</button>
+        <button class="sb-link" data-nav="/kpis"><span class="sb-ico">📊</span> KPIs Executivos</button>
+        <button class="sb-link" data-nav="/okrs"><span class="sb-ico">🎯</span> OKRs</button>
+        <button class="sb-link" data-nav="/metricas-viab"><span class="sb-ico">🧪</span> Métricas Viab</button>
+        <button class="sb-link" data-nav="/bp"><span class="sb-ico">📋</span> Plano BP</button>
+        <button class="sb-link" data-nav="/governanca"><span class="sb-ico">⚖️</span> Governança</button>
+
         <div class="sb-sec">🔑 Locação</div>
         <button class="sb-link" data-nav="/locacoes"><span class="sb-ico">🔑</span> Locações</button>
 
@@ -374,14 +382,6 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/tv"><span class="sb-ico">📺</span> Modo TV</button>
         <button class="sb-link" data-nav="/war-room"><span class="sb-ico">⚔️</span> War Room</button>
         <button class="sb-link" data-nav="/war-arena"><span class="sb-ico">🔥</span> War Arena</button>
-
-        <div class="sb-sec">🏛 Diretoria</div>
-        <button class="sb-link" data-nav="/diretoria"><span class="sb-ico">🏛</span> Estratégia / Dashboard</button>
-        <button class="sb-link" data-nav="/kpis"><span class="sb-ico">📊</span> KPIs Executivos</button>
-        <button class="sb-link" data-nav="/okrs"><span class="sb-ico">🎯</span> OKRs</button>
-        <button class="sb-link" data-nav="/metricas-viab"><span class="sb-ico">🧪</span> Métricas Viab</button>
-        <button class="sb-link" data-nav="/bp"><span class="sb-ico">📋</span> Plano BP</button>
-        <button class="sb-link" data-nav="/governanca"><span class="sb-ico">⚖️</span> Governança</button>
 
         <div class="sb-sec">🤖 IA Assistentes</div>
         <button class="sb-link" data-nav="/agentes"><span class="sb-ico">🧠</span> Central Agentes</button>

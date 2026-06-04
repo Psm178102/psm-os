@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.65.0-2026-06-04-BRIEFING-GUERRA';
+const SW_VERSION = 'v76.66.0-2026-06-04-ROUTER-CLEANUP';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

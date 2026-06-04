@@ -1,6 +1,7 @@
 /* PSM-OS v2 — War Room (estratégico, Sócio only) (Sprint 8.5) */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { router } from '../router.js';
 
 let _root = null;
 let _data = null;
@@ -9,6 +10,7 @@ let _analyzing = false;
 
 export async function pageWarRoom(ctx, root) {
   _root = root;
+  router.onCleanup(() => { if (window._wrClockInt) { clearInterval(window._wrClockInt); window._wrClockInt = null; } });
   if ((auth.user()?.lvl || 0) < 7) {
     root.innerHTML = '<div class="alert alert-warn">🔒 Requer Sócio (lvl 7+).</div>';
     return;

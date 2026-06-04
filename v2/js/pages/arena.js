@@ -1,9 +1,10 @@
 /* PSM-OS v2 — Arena Live (Sprint 7.22) */
 import { api } from '../api.js';
+import { router } from '../router.js';
 
 let _root = null, _events = [], _pollTimer = null;
 
-export async function pageArena(ctx, root) { _root = root; await reload(); startPoll(); }
+export async function pageArena(ctx, root) { _root = root; router.onCleanup(teardownArena); await reload(); startPoll(); }
 export function teardownArena() { if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; } }
 
 async function reload() {

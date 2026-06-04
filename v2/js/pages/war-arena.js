@@ -2,6 +2,7 @@
    Variante visual da Arena Live focada em batalha entre equipes — exibição em TV / projetor */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { router } from '../router.js';
 
 let _root = null;
 let _interval = null;
@@ -9,6 +10,7 @@ let _data = null;
 
 export async function pageWarArena(ctx, root) {
   _root = root;
+  router.onCleanup(() => { if (_interval) { clearInterval(_interval); _interval = null; } });
   render();
   await load();
   // Auto-refresh 20s

@@ -6,17 +6,24 @@ const routes = new Map(); // path -> { render: async fn(ctx) }
 let mountEl = null;
 let currentPath = null;
 let guardFn = null; // (path) => boolean : false bloqueia a rota
+let cleanups = []; // fns p/ limpar timers/estado da rota atual ao trocar de rota
 
 export const router = {
   mount(el) { mountEl = el; window.addEventListener('hashchange', tick); tick(); },
   register(path, handler) { routes.set(path, handler); },
   setGuard(fn) { guardFn = fn; },
+  // Páginas com setInterval/timers registram aqui sua limpeza; o router roda
+  // tudo ANTES de renderizar a próxima rota — evita auto-refresh de uma página
+  // (ex.: Marketing 60s, Arena, TV) "carimbar" o conteúdo da página seguinte.
+  onCleanup(fn) { if (typeof fn === 'function') cleanups.push(fn); },
   go(path)  { location.hash = path.startsWith('#') ? path : '#' + path; },
   current() { return currentPath; },
 };
 
 async function tick() {
   if (!mountEl) return;
+  // Limpa timers/estado da rota anterior antes de montar a próxima
+  if (cleanups.length) { const cs = cleanups.splice(0); cs.forEach(fn => { try { fn(); } catch (_) {} }); }
   const hash = (location.hash || '#/').replace(/^#/, '') || '/';
   const [path, query] = hash.split('?');
   currentPath = path;

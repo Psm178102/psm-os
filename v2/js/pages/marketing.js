@@ -13,6 +13,7 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { router } from '../router.js';
 
 const PRESETS = [
   { id: 'today',      lbl: 'Hoje' },
@@ -75,6 +76,13 @@ function brandInfo(label) {
 export async function pageMarketing(ctx, root) {
   _root = root;
   stopAuto();
+  // Ao sair desta página, garante que NENHUM timer (auto-refresh / TV) continue
+  // rodando e "carimbando" o conteúdo de outras páginas.
+  router.onCleanup(() => {
+    stopAuto();
+    if (_tvTimer) { clearInterval(_tvTimer); _tvTimer = null; }
+    if (_tvDataTimer) { clearInterval(_tvDataTimer); _tvDataTimer = null; }
+  });
   if ((auth.user()?.lvl || 0) < 5) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder (lvl ≥ 5).</div>'; return; }
   await reload();
   if (_auto) startAuto();
