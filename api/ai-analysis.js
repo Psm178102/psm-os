@@ -37,6 +37,8 @@ module.exports = async function handler(req, res) {
       // (Opus) p/ Claude, GEMINI_SMART_MODEL (ex.: gemini-2.5-pro) p/ Gemini.
       // body.model força o modelo Claude.
       model: body.model || process.env.CLAUDE_SMART_MODEL || undefined,
+      // Visão: imagens (base64) — [{base64, media_type}] ou [{url}]. Máx 8.
+      images: Array.isArray(body.images) ? body.images.slice(0, 8) : undefined,
     });
     return res.status(result.ok ? 200 : 502).json(result);
   } catch (e) {

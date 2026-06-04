@@ -129,9 +129,12 @@ function openForm(conc) {
         <div class="field" style="min-width:140px"><label>Produto/linha</label><input id="bl-seg" class="input" placeholder="MCMV / Alto padrão…"></div>
       </div>
       <div class="field"><label>Anúncios colados (copies, um por bloco)</label>
-        <textarea id="bl-cont" class="input" rows="8" placeholder="Cole aqui os textos dos anúncios da Biblioteca (separe os anúncios por linha em branco)."></textarea></div>
+        <textarea id="bl-cont" class="input" rows="6" placeholder="Cole aqui os textos dos anúncios da Biblioteca (separe por linha em branco). Opcional se você anexar prints dos criativos abaixo."></textarea></div>
+      <div class="field"><label>🖼️ Prints dos criativos — a IA ENXERGA a imagem (opcional)</label>
+        <input id="bl-imgs" class="input" type="file" accept="image/*" multiple>
+        <div class="tiny muted" style="margin-top:3px">Tire prints dos anúncios na Biblioteca do Meta e anexe (até 6). A IA analisa gancho visual, overlay de oferta, cores e prova social — não só o texto.</div></div>
       <div class="flex gap-2" style="align-items:center">
-        <button class="btn btn-ghost" id="bl-ai">🧠 Analisar com IA</button>
+        <button class="btn btn-ghost" id="bl-ai">🧠 Analisar com IA (visão)</button>
         <span id="bl-ai-status" class="tiny muted"></span>
       </div>
       <div id="bl-ai-prev" style="margin-top:8px"></div>
@@ -168,36 +171,78 @@ async function analyzeAI() {
   const cont = document.getElementById('bl-cont').value.trim();
   const count = document.getElementById('bl-count').value || '?';
   const seg = document.getElementById('bl-seg').value.trim();
-  if (!cont) { document.getElementById('bl-ai-status').textContent = 'Cole os anúncios primeiro.'; return; }
+  const fileInput = document.getElementById('bl-imgs');
+  const status = document.getElementById('bl-ai-status');
+  const hasImgs = fileInput && fileInput.files && fileInput.files.length;
+  if (!cont && !hasImgs) { status.textContent = 'Cole os anúncios ou anexe prints primeiro.'; return; }
   _aiBusy = true;
-  document.getElementById('bl-ai-status').innerHTML = '<span class="spinner"></span> analisando…';
-  const prompt = `Você é estrategista de tráfego imobiliário. Analise a BIBLIOTECA DE ANÚNCIOS do concorrente "${conc}" (${count} anúncios ativos${seg ? ', linha: ' + seg : ''}) no mercado de São José do Rio Preto. Com base nos anúncios colados abaixo, entregue em markdown curto e prático:
-1) **Produto/oferta** que ele está empurrando.
-2) **Formatos** predominantes (vídeo/carrossel/imagem) — se der pra inferir.
-3) **Principais GANCHOS/ângulos** (liste 3-5 que ele usa pra parar o scroll).
-4) **Frequência/padrão**: parece TESTE (muitos criativos variados) ou ESCALA (poucos criativos repetidos)? Explique.
+  status.innerHTML = '<span class="spinner"></span> lendo imagens…';
+  let imgs = [];
+  try { imgs = await collectImages(fileInput); } catch (_) { imgs = []; }
+  status.innerHTML = '<span class="spinner"></span> a IA está analisando' + (imgs.length ? ` ${imgs.length} criativo(s)…` : '…');
+  const prompt = `Você é estrategista de tráfego imobiliário com olho de diretor de criação. Analise a BIBLIOTECA DE ANÚNCIOS do concorrente "${conc}" (${count} anúncios ativos${seg ? ', linha: ' + seg : ''}) no mercado de São José do Rio Preto.
+${imgs.length ? `Você está VENDO ${imgs.length} print(s) de criativo anexado(s) — analise a IMAGEM: gancho visual dos primeiros segundos, overlay de preço/oferta, paleta de cores, identidade visual, prova social e qualidade de produção.` : ''}
+${cont ? 'Considere também as copies coladas no fim.' : ''}
+Entregue em markdown curto e prático:
+1) **Produto/oferta** que ele empurra.
+2) **Formatos** (vídeo/carrossel/imagem).
+3) **Ganchos** visuais e textuais (3-5 que param o scroll).
+4) **Teste×escala** (muitos criativos variados = teste; poucos repetidos = escala).
 5) **Investimento estimado** (qualitativo BAIXO/MÉDIO/ALTO — deixe claro que NÃO é gasto real, é leitura por volume/variação).
-6) **O que copiar e o que evitar** pra PSM.
-Na ÚLTIMA linha escreva só: NIVEL_INVEST: baixo|medio|alto
-
-ANÚNCIOS:
-${cont.slice(0, 8000)}`;
+6) **Pra PSM**: o que copiar, o que evitar, e 1 ideia de CONTRA-CRIATIVO concreto.
+Na ÚLTIMA linha escreva só: NIVEL_INVEST: baixo|medio|alto${cont ? '\n\nANÚNCIOS (texto):\n' + cont.slice(0, 8000) : ''}`;
   try {
-    const r = await fetch('/api/ai-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, max_tokens: 1200 }) });
+    const r = await fetch('/api/ai-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, max_tokens: 1400, images: imgs }) });
     const j = await r.json();
     if (j.ok && j.text) {
       let txt = j.text, nivel = null;
       const m = txt.match(/NIVEL_INVEST:\s*(baixo|medio|m[ée]dio|alto)/i);
       if (m) { nivel = m[1].toLowerCase().replace('é', 'e'); txt = txt.replace(/NIVEL_INVEST:.*/i, '').trim(); }
       _aiPreview = { text: txt, nivel };
-      document.getElementById('bl-ai-status').innerHTML = '<span style="color:#16a34a">✓ análise pronta (será salva)</span>';
+      status.innerHTML = `<span style="color:#16a34a">✓ análise pronta${imgs.length ? ' · ' + imgs.length + ' criativo(s) lido(s) pela visão' : ''} · ${escapeHtml(j.model_used || 'IA')} (será salva)</span>`;
       document.getElementById('bl-ai-prev').innerHTML = `<div style="background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.25);border-radius:8px;padding:12px;font-size:12.5px;line-height:1.5;max-height:320px;overflow:auto">${mdLite(txt)}</div>`;
     } else {
-      document.getElementById('bl-ai-status').innerHTML = '<span style="color:#dc2626">IA indisponível: ' + escapeHtml(j.error || 'erro') + '</span>';
+      status.innerHTML = '<span style="color:#dc2626">IA indisponível: ' + escapeHtml(j.error || 'erro') + '</span>';
     }
   } catch (e) {
-    document.getElementById('bl-ai-status').innerHTML = '<span style="color:#dc2626">Erro: ' + escapeHtml(e.message) + '</span>';
+    status.innerHTML = '<span style="color:#dc2626">Erro: ' + escapeHtml(e.message) + '</span>';
   } finally { _aiBusy = false; }
+}
+
+/* Lê os arquivos de imagem, redimensiona (≤1024px, JPEG) e devolve base64 —
+   mantém o payload leve pro limite de corpo da função serverless. */
+async function collectImages(input, max = 6) {
+  if (!input || !input.files || !input.files.length) return [];
+  const files = Array.from(input.files).slice(0, max);
+  const out = [];
+  for (const f of files) {
+    if (!/^image\//.test(f.type || '')) continue;
+    const im = await readImageScaled(f).catch(() => null);
+    if (im && im.base64) out.push(im);
+  }
+  return out;
+}
+function readImageScaled(file, maxDim = 1024, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('img'));
+      img.onload = () => {
+        let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+        const scale = Math.min(1, maxDim / Math.max(w, h || 1));
+        w = Math.max(1, Math.round(w * scale)); h = Math.max(1, Math.round(h * scale));
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = c.toDataURL('image/jpeg', quality);
+        resolve({ base64: (dataUrl.split(',')[1] || ''), media_type: 'image/jpeg' });
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 /* ─── helpers ─── */

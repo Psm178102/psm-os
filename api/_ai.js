@@ -37,21 +37,39 @@ async function callClaude(opts) {
   const messages = (opts.messages || []).slice(-30)
     .map(m => ({
       role: m.role === 'assistant' ? 'assistant' : 'user',
-      content: String(m.content || '').slice(0, 60000)
+      content: Array.isArray(m.content) ? m.content : String(m.content || '').slice(0, 60000)
     }))
-    .filter(m => m.content.length > 0);
+    .filter(m => (Array.isArray(m.content) ? m.content.length > 0 : m.content.length > 0));
 
-  // Merge mensagens consecutivas do mesmo role
+  // Merge mensagens consecutivas do mesmo role (apenas texto+texto)
   const merged = [];
   messages.forEach(m => {
-    if (merged.length > 0 && merged[merged.length - 1].role === m.role) {
-      merged[merged.length - 1].content += '\n\n' + m.content;
+    const last = merged[merged.length - 1];
+    if (last && last.role === m.role && typeof last.content === 'string' && typeof m.content === 'string') {
+      last.content += '\n\n' + m.content;
     } else {
       merged.push(m);
     }
   });
   if (merged.length === 0) throw new Error('no_messages');
   if (merged[0].role !== 'user') merged.unshift({ role: 'user', content: '(continuar)' });
+
+  // Visão: anexa imagens ao último turno de USER como blocos de imagem (Claude).
+  const cimgs = Array.isArray(opts.images) ? opts.images.slice(0, 8) : [];
+  if (cimgs.length) {
+    let idx = -1;
+    for (let i = merged.length - 1; i >= 0; i--) { if (merged[i].role === 'user') { idx = i; break; } }
+    if (idx >= 0) {
+      const cur = merged[idx].content;
+      const blocks = (typeof cur === 'string') ? [{ type: 'text', text: cur }] : cur.slice();
+      cimgs.forEach(im => {
+        if (!im) return;
+        if (im.url) blocks.push({ type: 'image', source: { type: 'url', url: String(im.url) } });
+        else if (im.base64 || im.data) blocks.push({ type: 'image', source: { type: 'base64', media_type: im.media_type || 'image/jpeg', data: String(im.base64 || im.data) } });
+      });
+      merged[idx].content = blocks;
+    }
+  }
 
   let system = String(opts.system || '').slice(0, 16000);
   if (opts.response_json === true) {
@@ -118,11 +136,37 @@ async function callGemini(opts) {
   }
   messages.forEach(m => {
     const role = m.role === 'assistant' ? 'model' : 'user';
-    contents.push({ role: role, parts: [{ text: String(m.content || '').slice(0, 60000) }] });
+    let parts;
+    if (Array.isArray(m.content)) {
+      parts = [];
+      m.content.forEach(b => {
+        if (!b) return;
+        if (b.type === 'text') parts.push({ text: String(b.text || '').slice(0, 60000) });
+        else if (b.type === 'image' && b.source && b.source.type === 'base64') parts.push({ inline_data: { mime_type: b.source.media_type || 'image/jpeg', data: b.source.data } });
+      });
+      if (!parts.length) parts = [{ text: '' }];
+    } else {
+      parts = [{ text: String(m.content || '').slice(0, 60000) }];
+    }
+    contents.push({ role: role, parts: parts });
   });
   if (contents.length === 0) throw new Error('no_messages');
   // Gemini exige começar com 'user'
   if (contents[0].role !== 'user') contents.unshift({ role: 'user', parts: [{ text: '(continuar)' }] });
+
+  // Visão: anexa imagens (base64) ao último turno de USER (Gemini inline_data).
+  const gimgs = Array.isArray(opts.images) ? opts.images.slice(0, 8) : [];
+  if (gimgs.length) {
+    let gidx = -1;
+    for (let i = contents.length - 1; i >= 0; i--) { if (contents[i].role === 'user') { gidx = i; break; } }
+    if (gidx >= 0) {
+      gimgs.forEach(im => {
+        if (im && (im.base64 || im.data)) {
+          contents[gidx].parts.push({ inline_data: { mime_type: im.media_type || 'image/jpeg', data: String(im.base64 || im.data) } });
+        }
+      });
+    }
+  }
 
   const model = opts.geminiModel || process.env.GEMINI_SMART_MODEL || DEFAULT_GEMINI_MODEL;
   // Auth via header x-goog-api-key (funciona com chaves AIza… E com o novo
