@@ -125,7 +125,9 @@ async function callGemini(opts) {
   if (contents[0].role !== 'user') contents.unshift({ role: 'user', parts: [{ text: '(continuar)' }] });
 
   const model = opts.geminiModel || process.env.GEMINI_SMART_MODEL || DEFAULT_GEMINI_MODEL;
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + apiKey;
+  // Auth via header x-goog-api-key (funciona com chaves AIza… E com o novo
+  // formato AQ.… do Google; o método antigo ?key= rejeita as chaves novas).
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
   let extraInstructions = '';
   if (opts.response_json === true) {
     extraInstructions = '\n\nIMPORTANTE: Responda APENAS com JSON válido. Sem markdown, sem texto antes ou depois.';
@@ -136,7 +138,7 @@ async function callGemini(opts) {
 
   const resp = await fetchWithTimeout(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
       contents: contents,
       generationConfig: {
