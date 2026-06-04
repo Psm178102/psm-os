@@ -124,7 +124,7 @@ async function callGemini(opts) {
   // Gemini exige começar com 'user'
   if (contents[0].role !== 'user') contents.unshift({ role: 'user', parts: [{ text: '(continuar)' }] });
 
-  const model = opts.geminiModel || DEFAULT_GEMINI_MODEL;
+  const model = opts.geminiModel || process.env.GEMINI_SMART_MODEL || DEFAULT_GEMINI_MODEL;
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + apiKey;
   let extraInstructions = '';
   if (opts.response_json === true) {

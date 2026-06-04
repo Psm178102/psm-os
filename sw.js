@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.60.0-2026-06-01-CEREBRO-VENDAS';
+const SW_VERSION = 'v76.62.0-2026-06-01-GEMINI-PRO';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

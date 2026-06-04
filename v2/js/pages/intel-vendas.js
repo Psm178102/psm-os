@@ -50,7 +50,7 @@ function render() {
         <select id="cv-lb" class="select" style="padding:5px 10px;font-size:12px" title="Janela de análise de fechamentos/perdas">
           ${[90, 120, 180, 365].map(n => `<option value="${n}"${n === _lookback ? ' selected' : ''}>Perdas: ${n}d</option>`).join('')}
         </select>
-        <button class="btn btn-primary" id="cv-ai">🧠 Plano de ataque (Opus 4.8)</button>
+        <button class="btn btn-primary" id="cv-ai">🧠 Plano de ataque (IA)</button>
       </div>
 
       ${forecastPanel(fc)}

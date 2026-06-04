@@ -29,9 +29,13 @@ module.exports = async function handler(req, res) {
       messages: [{ role: 'user', content: prompt }],
       max_tokens: Math.min(8192, parseInt(body.max_tokens, 10) || 2048),
       temperature: typeof body.temperature === 'number' ? body.temperature : 0.5,
-      prefer: 'claude',
-      // Cérebro estratégico no modelo FORTE (Opus 4.8) quando CLAUDE_SMART_MODEL
-      // estiver setado no Vercel; senão cai no default do _ai.js. body.model força.
+      // Motor principal configurável via env AI_PREFER ('gemini' | 'claude').
+      // Com a conta Anthropic sem saldo, setar AI_PREFER=gemini faz o Gemini Pro
+      // ser o primário (sem bater no Claude morto e tomar erro/latência a cada call).
+      prefer: body.prefer || process.env.AI_PREFER || 'claude',
+      // Modelo forte por provedor (quando setado no Vercel): CLAUDE_SMART_MODEL
+      // (Opus) p/ Claude, GEMINI_SMART_MODEL (ex.: gemini-2.5-pro) p/ Gemini.
+      // body.model força o modelo Claude.
       model: body.model || process.env.CLAUDE_SMART_MODEL || undefined,
     });
     return res.status(result.ok ? 200 : 502).json(result);
