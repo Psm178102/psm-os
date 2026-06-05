@@ -16,6 +16,9 @@ import { pageTarefas } from './pages/tarefas.js';
 import { pageMetas } from './pages/metas.js';
 import { pageAgenda } from './pages/agenda.js';
 import { pageDiretoria } from './pages/diretoria.js';
+import { pagePontosAtencao } from './pages/pontos-atencao.js';
+import { pageInsights } from './pages/insights.js';
+import { pageAcademy } from './pages/academy.js';
 import { initNotifs } from './notifs.js';
 import { sounds } from './sounds.js';
 import { pageConfiguracoes } from './pages/configuracoes.js';
@@ -103,6 +106,7 @@ const ROUTE_GROUP = {
   // Diretoria
   '/diretoria': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria',
   '/metricas-viab': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria',
+  '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/academy': 'diretoria',
   // IA
   '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
   // Cultura & Pessoas
@@ -217,6 +221,9 @@ function applyPermissions(user) {
   router.register('/metas',     { render: async (ctx, root) => { setHeader('Metas');     highlight('/metas');     await pageMetas(ctx, root); } });
   router.register('/agenda',    { render: async (ctx, root) => { setHeader('Agenda');    highlight('/agenda');    await pageAgenda(ctx, root); } });
   router.register('/diretoria', { render: async (ctx, root) => { setHeader('Diretoria'); highlight('/diretoria'); await pageDiretoria(ctx, root); } });
+  router.register('/pontos-atencao', { render: async (ctx, root) => { setHeader('Pontos de Atenção'); highlight('/pontos-atencao'); await pagePontosAtencao(ctx, root); } });
+  router.register('/insights', { render: async (ctx, root) => { setHeader('Insights'); highlight('/insights'); await pageInsights(ctx, root); } });
+  router.register('/academy', { render: async (ctx, root) => { setHeader('PSM Academy'); highlight('/academy'); await pageAcademy(ctx, root); } });
   router.register('/marketing', { render: async (ctx, root) => { setHeader('Marketing'); highlight('/marketing'); await pageMarketing(ctx, root); } });
   router.register('/inteligencia', { render: async (ctx, root) => { setHeader('Centro de Inteligência'); highlight('/inteligencia'); await pageIntelCentro(ctx, root); } });
   router.register('/biblioteca-ads', { render: async (ctx, root) => { setHeader('Biblioteca de Anúncios'); highlight('/biblioteca-ads'); await pageBibliotecaAds(ctx, root); } });
@@ -348,6 +355,9 @@ function shellHTML(user) {
 
         <div class="sb-sec">🏛 Diretoria</div>
         <button class="sb-link" data-nav="/diretoria"><span class="sb-ico">🏛</span> Estratégia / Dashboard</button>
+        <button class="sb-link" data-nav="/pontos-atencao"><span class="sb-ico">🚨</span> Pontos de Atenção</button>
+        <button class="sb-link" data-nav="/insights"><span class="sb-ico">💡</span> Insights</button>
+        <button class="sb-link" data-nav="/academy"><span class="sb-ico">🎓</span> Academy</button>
         <button class="sb-link" data-nav="/kpis"><span class="sb-ico">📊</span> KPIs Executivos</button>
         <button class="sb-link" data-nav="/okrs"><span class="sb-ico">🎯</span> OKRs</button>
         <button class="sb-link" data-nav="/metricas-viab"><span class="sb-ico">🧪</span> Métricas Viab</button>

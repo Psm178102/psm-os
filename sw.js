@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.68.0-2026-06-05-CAPTACOES-ENDERECO';
+const SW_VERSION = 'v76.69.0-2026-06-05-DIRETORIA-3-ABAS';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
