@@ -44,7 +44,53 @@ const statusCor = id => statusInfo(id).cor;
 const faseOf = id => FASES.find(f => f.status.some(s => s.id === id))?.fase || '';
 const faseCorOf = id => (FASES.find(f => f.status.some(s => s.id === id)) || {}).cor || '#64748b';
 
-const TIPOS = ['Apartamento', 'Studio', 'Casa em condomínio', 'Casa', 'Terreno condomínio', 'Loja', 'Sala Comercial', 'Casa Comercial', 'Salão'];
+// Tipos de imóvel com ícone + categoria (cor da flag no card)
+const TIPOS = [
+  { v: 'Casa em condomínio', ic: '🏡', cat: 'res' },
+  { v: 'Casa bairro', ic: '🏠', cat: 'res' },
+  { v: 'Apartamento', ic: '🏢', cat: 'res' },
+  { v: 'Duplex', ic: '🏠', cat: 'res' },
+  { v: 'Cobertura', ic: '🌆', cat: 'res' },
+  { v: 'Terreno Residencial aberto', ic: '🟩', cat: 'terreno' },
+  { v: 'Terreno Residencial condomínio', ic: '🟩', cat: 'terreno' },
+  { v: 'Terreno comercial', ic: '🟧', cat: 'terreno' },
+  { v: 'Terreno industrial', ic: '🟫', cat: 'terreno' },
+  { v: 'Studio', ic: '🛋️', cat: 'res' },
+  { v: 'Chácara', ic: '🌳', cat: 'rural' },
+  { v: 'Sítio', ic: '🌾', cat: 'rural' },
+  { v: 'Galpão', ic: '🏭', cat: 'industrial' },
+  { v: 'Barracão', ic: '🏚️', cat: 'industrial' },
+  { v: 'Loja', ic: '🏬', cat: 'com' },
+  { v: 'Salão comercial', ic: '🛍️', cat: 'com' },
+  { v: 'Sala comercial', ic: '🏢', cat: 'com' },
+  { v: 'Andar laje inteira', ic: '🏙️', cat: 'com' },
+];
+const TIPO_CAT_COR = { res: '#16a34a', com: '#2563eb', terreno: '#d97706', rural: '#65a30d', industrial: '#475569' };
+const TIPO_MAP = Object.fromEntries(TIPOS.map(t => [t.v, t]));
+
+// Flag (ícone + tipo) colorida por categoria — vai no topo do card
+function tipoFlag(tipo) {
+  if (!tipo) return '';
+  const t = TIPO_MAP[tipo];
+  const ic = t ? t.ic : '🏠';
+  const cor = t ? (TIPO_CAT_COR[t.cat] || '#64748b') : '#64748b';
+  return `<span class="cap-chip" title="${esc(tipo)}" style="background:${cor}1f;color:${cor};font-weight:700;border:1px solid ${cor}55">${ic} ${esc(tipo)}</span>`;
+}
+
+// Título do card = endereço completo + quadra/lote OU bloco/unidade (fallback: nome)
+function capTitulo(c) {
+  const parts = [];
+  if (c.endereco) parts.push(c.endereco);
+  const ql = [];
+  if (c.quadra) ql.push('Q ' + c.quadra);
+  if (c.lote) ql.push('L ' + c.lote);
+  if (c.bloco) ql.push('Bl ' + c.bloco);
+  if (c.unidade) ql.push('Ap ' + c.unidade);
+  if (ql.length) parts.push(ql.join(' '));
+  if (c.bairro) parts.push(c.bairro);
+  const t = parts.filter(Boolean).join(' · ');
+  return t || c.nome_imovel || c.condominio || c.localizacao || c.proprietario || 'Sem endereço';
+}
 const SITUACOES = [
   { id: 'desocupado', lbl: 'Desocupado', cor: '#16a34a' },
   { id: 'ocupado_proprietario', lbl: 'Ocupado Proprietário', cor: '#dc2626' },
@@ -146,7 +192,7 @@ function filtered() {
     if (_fObj && (i.objetivo || 'venda') !== _fObj) return false;
     if (_fResp && (i.responsavel || '') !== _fResp) return false;
     if (q) {
-      const hay = [i.condominio, i.proprietario, i.localizacao, i.tipo_imovel, i.contato, i.codigo_kenlo].join(' ').toLowerCase();
+      const hay = [i.endereco, i.bairro, i.condominio, i.nome_imovel, i.proprietario, i.localizacao, i.tipo_imovel, i.quadra, i.lote, i.bloco, i.contato, i.codigo_kenlo].join(' ').toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -228,7 +274,8 @@ function card(c) {
   if (c.precisa_videos) precisa.push('🎥');
   if (c.precisa_avaliacao) precisa.push('💰');
   const valor = obj ? (c.valor_locacao ? fmtBRL(c.valor_locacao) : '') : fmtBRL(c.valor_venda);
-  const nome = c.nome_imovel || c.condominio || c.tipo_imovel || c.localizacao || c.proprietario || 'Sem nome';
+  const titulo = capTitulo(c);
+  const subnome = c.nome_imovel || c.condominio || '';
   const links = [];
   if (c.link_fotos) links.push(`<a href="${esc(c.link_fotos)}" target="_blank" rel="noopener" title="Fotos captadas" data-stop="1" style="text-decoration:none">📷</a>`);
   if (c.link_videos) links.push(`<a href="${esc(c.link_videos)}" target="_blank" rel="noopener" title="Vídeos captados" data-stop="1" style="text-decoration:none">🎥</a>`);
@@ -238,10 +285,13 @@ function card(c) {
   return `
     <div class="cap-card" draggable="true" data-card="${esc(c.id)}">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:6px">
-        <div style="font-weight:800;font-size:13.5px;line-height:1.25">${esc(nome)} <span class="tiny" style="font-weight:700;color:${obj ? '#a16207' : '#16a34a'}">· ${obj ? 'Locação' : 'Venda'}</span></div>
+        <div style="font-weight:800;font-size:13.5px;line-height:1.25">${esc(titulo)} <span class="tiny" style="font-weight:700;color:${obj ? '#a16207' : '#16a34a'}">· ${obj ? 'Locação' : 'Venda'}</span></div>
         <span class="tiny" style="white-space:nowrap;font-weight:700;color:${c.codigo_kenlo ? '#8b5cf6' : '#cbd5e1'}" title="Código Kenlo">🏷 ${c.codigo_kenlo ? esc(c.codigo_kenlo) : '—'}</span>
       </div>
-      ${c.tipo_imovel || c.localizacao ? `<div class="tiny muted" style="margin-top:2px">${esc(c.tipo_imovel || '')}${c.localizacao ? ' · ' + esc(c.localizacao) : ''}</div>` : ''}
+      ${(c.tipo_imovel || subnome) ? `<div class="flex gap-1" style="flex-wrap:wrap;align-items:center;margin-top:5px">
+        ${tipoFlag(c.tipo_imovel)}
+        ${subnome ? `<span class="tiny muted">${esc(subnome)}</span>` : ''}
+      </div>` : ''}
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:7px">
         ${sit ? `<span class="cap-chip" style="background:${sit.cor}1f;color:${sit.cor}">${sit.lbl}</span>` : ''}
         ${valor ? `<span class="cap-chip" style="background:rgba(148,163,184,.18);color:var(--ink,#0f172a)">${esc(valor)}</span>` : ''}
@@ -311,9 +361,17 @@ function openForm() {
         ${inp('cf-nome', 'Nome do imóvel', c.nome_imovel, 'Ex.: Residencial X / Apto 1203')}
         ${sel('cf-obj', 'Objetivo', [['venda', 'Venda'], ['locacao', 'Locação']], c.objetivo)}
         ${sel('cf-status', 'Status', ALL_STATUS.map(s => [s.id, s.lbl]), c.status)}
-        ${sel('cf-tipo', 'Tipo de imóvel', [['', '—'], ...TIPOS.map(t => [t, t])], c.tipo_imovel)}
-        ${inp('cf-cond', 'Condomínio / Bairro', c.condominio)}
-        ${inp('cf-loc', 'Quadra/Lote/APT/Rua nº', c.localizacao)}
+        ${sel('cf-tipo', 'Tipo de imóvel', [['', '—'], ...TIPOS.map(t => [t.v, t.ic + ' ' + t.v])], c.tipo_imovel)}
+        ${inp('cf-cond', 'Condomínio / Edifício', c.condominio, 'nome (opcional)')}
+
+        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#16a34a">📍 Endereço <span class="muted" style="font-weight:400">(monta o título do card)</span></b></div>
+        ${inp('cf-end', 'Endereço (rua/av + nº)', c.endereco, 'Ex.: Rua Guatemala, 123')}
+        ${inp('cf-bairro', 'Bairro', c.bairro)}
+        ${inp('cf-quadra', 'Quadra', c.quadra)}
+        ${inp('cf-lote', 'Lote', c.lote)}
+        ${inp('cf-bloco', 'Bloco', c.bloco)}
+        ${inp('cf-unidade', 'Apto / Unidade', c.unidade)}
+        ${inp('cf-loc', 'Complemento / referência', c.localizacao, 'opcional')}
         ${respSelect(c)}
         ${sel('cf-sit', 'Situação do imóvel', [['', '—'], ...SITUACOES.map(s => [s.id, s.lbl])], c.situacao_imovel)}
         ${sel('cf-pend', 'Pendência', [['', '—'], ...PENDENCIAS.map(p => [p.id, p.lbl])], c.pendencia)}
@@ -383,6 +441,12 @@ async function saveForm(overlay) {
     nome_imovel: g('cf-nome').value.trim(),
     tipo_imovel: g('cf-tipo').value,
     condominio: g('cf-cond').value.trim(),
+    endereco: g('cf-end').value.trim(),
+    bairro: g('cf-bairro').value.trim(),
+    quadra: g('cf-quadra').value.trim(),
+    lote: g('cf-lote').value.trim(),
+    bloco: g('cf-bloco').value.trim(),
+    unidade: g('cf-unidade').value.trim(),
     localizacao: g('cf-loc').value.trim(),
     responsavel_id: respEl ? respEl.value : null,
     responsavel: respOpt ? (respOpt.dataset.name || respOpt.textContent || '').trim() : '',

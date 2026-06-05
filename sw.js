@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.67.0-2026-06-05-DASHBOARD-PRO';
+const SW_VERSION = 'v76.68.0-2026-06-05-CAPTACOES-ENDERECO';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
