@@ -14,8 +14,12 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null;
+let _signals = [];
+let _notes = [];
+let _notesPending = false;
 
 const TERMINAIS = new Set(['aprovado', 'concluido']); // captação encerrada
+const PRIO = { alta: { lbl: 'Alta', cor: '#dc2626' }, media: { lbl: 'Média', cor: '#d97706' }, baixa: { lbl: 'Baixa', cor: '#2563eb' } };
 
 export async function pagePontosAtencao(ctx, root) {
   _root = root;
@@ -26,12 +30,15 @@ export async function pagePontosAtencao(ctx, root) {
   root.innerHTML = `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Varrendo o sistema em busca de pontos de atenção…</div></div>`;
 
   const isGestor = (auth.user()?.lvl || 0) >= 5;
-  const [health, metrics, oo, caps] = await Promise.all([
+  const [health, metrics, oo, caps, notes] = await Promise.all([
     api.request('/api/v3/system_health').catch(() => null),
     api.request('/api/v3/metrics/overview').catch(() => null),
     isGestor ? api.request('/api/v3/oo/overview?date_preset=this_month').catch(() => null) : Promise.resolve(null),
     api.request('/api/v3/captacoes/kanban').catch(() => null),
+    api.request('/api/v3/diretoria/notes?kind=atencao').catch(() => null),
   ]);
+  _notes = (notes && notes.notes) || [];
+  _notesPending = !!(notes && notes.pending);
 
   const signals = [];
   collectInfra(signals, health);
@@ -39,8 +46,18 @@ export async function pagePontosAtencao(ctx, root) {
   collectCaptacoes(signals, caps);
   collectEquipe(signals, oo);
   collectOperacao(signals, metrics);
+  _signals = signals;
 
   render(signals);
+}
+
+async function reloadNotes() {
+  try {
+    const r = await api.request('/api/v3/diretoria/notes?kind=atencao');
+    _notes = r.notes || [];
+    _notesPending = !!r.pending;
+  } catch (_) {}
+  render(_signals);
 }
 
 /* ─── Coletores de sinais ─────────────────────────────────────────────── */
@@ -230,11 +247,134 @@ function render(signals) {
         </div>
       `).join('')}
 
-      <div class="tiny muted" style="margin-top:14px">Sinais derivados de dados reais (saúde do sistema, deals do RD, captações, equipe). Sem cadastro manual — resolva pela origem e o ponto some na próxima verificação.</div>
+      ${manualSection()}
+
+      <div class="tiny muted" style="margin-top:14px">🤖 Os cartões coloridos acima são <b>automáticos</b> (dados reais do sistema) — resolva na origem e somem sozinhos. A seção ✍️ abaixo é pra <b>pontos que você escreve à mão</b> e controla manualmente.</div>
     </div>
+    <div id="pa-modal"></div>
   `;
   document.getElementById('pa-reload').addEventListener('click', () => pagePontosAtencao(null, _root));
+  bindManual();
 }
+
+/* ─── Pontos de atenção MANUAIS (escritos pela diretoria) ─────────────── */
+function manualSection() {
+  const abertos = _notes.filter(n => n.status !== 'resolvido');
+  const resolvidos = _notes.filter(n => n.status === 'resolvido');
+  return `
+    <div class="card mt-4" style="background:var(--bg-2);border:1px dashed var(--border)">
+      <div class="flex items-center gap-2" style="flex-wrap:wrap">
+        <h3 class="card-title" style="flex:1;min-width:200px;font-size:14px">✍️ Pontos da diretoria <span class="tiny muted">· escritos à mão</span></h3>
+        <button class="btn btn-primary btn-sm" id="pa-note-new">➕ Anotar ponto</button>
+      </div>
+      ${_notesPending ? `<div class="alert alert-warn" style="margin-top:8px">⏳ Rode <code>supabase/sprint9_23_diretoria_notes.sql</code> pra salvar os pontos manuais.</div>` : ''}
+      ${!_notes.length ? `<div class="tiny muted" style="margin-top:8px">Nenhum ponto anotado. Use o botão acima pra registrar algo que precisa de atenção e ainda não vira sinal automático (ex.: pendência com um proprietário, decisão travada, risco de contrato).</div>` : `
+        <div style="display:grid;gap:8px;margin-top:10px">
+          ${abertos.map(noteRow).join('')}
+        </div>
+        ${resolvidos.length ? `<details style="margin-top:10px"><summary class="tiny muted" style="cursor:pointer">✅ ${resolvidos.length} resolvido(s)</summary><div style="display:grid;gap:8px;margin-top:8px;opacity:.7">${resolvidos.map(noteRow).join('')}</div></details>` : ''}
+      `}
+    </div>`;
+}
+
+function noteRow(n) {
+  const p = PRIO[n.prioridade] || PRIO.media;
+  const done = n.status === 'resolvido';
+  return `
+    <div style="display:flex;gap:11px;align-items:flex-start;background:var(--bg-3);border-left:4px solid ${done ? '#16a34a' : p.cor};border-radius:10px;padding:11px 13px">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:13.5px;${done ? 'text-decoration:line-through;opacity:.7' : ''}">
+          <span class="cap-chip" style="background:${p.cor}1f;color:${p.cor};font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px">${p.lbl}</span>
+          ${esc(n.titulo)}
+        </div>
+        ${n.texto ? `<div class="tiny muted" style="margin-top:3px;line-height:1.45;white-space:pre-wrap">${esc(n.texto)}</div>` : ''}
+        <div class="tiny muted" style="margin-top:4px;opacity:.7">${esc(n.autor_nome || '')}${n.updated_at ? ' · ' + fmtDate(n.updated_at) : ''}</div>
+      </div>
+      <div class="flex gap-1" style="flex-shrink:0;align-self:center">
+        <button class="btn btn-ghost btn-sm" data-note-done="${esc(n.id)}" title="${done ? 'Reabrir' : 'Marcar resolvido'}" style="padding:2px 7px">${done ? '↩' : '✅'}</button>
+        <button class="btn btn-ghost btn-sm" data-note-edit="${esc(n.id)}" title="Editar" style="padding:2px 7px">✏️</button>
+        <button class="btn btn-ghost btn-sm" data-note-del="${esc(n.id)}" title="Excluir" style="padding:2px 7px">🗑</button>
+      </div>
+    </div>`;
+}
+
+function bindManual() {
+  const nw = document.getElementById('pa-note-new');
+  if (nw) nw.addEventListener('click', () => openNoteForm(null));
+  document.querySelectorAll('[data-note-edit]').forEach(b => b.addEventListener('click', () => openNoteForm(_notes.find(n => n.id === b.dataset.noteEdit))));
+  document.querySelectorAll('[data-note-del]').forEach(b => b.addEventListener('click', () => delNote(b.dataset.noteDel)));
+  document.querySelectorAll('[data-note-done]').forEach(b => b.addEventListener('click', () => toggleNote(b.dataset.noteDone)));
+}
+
+function openNoteForm(n) {
+  n = n || {};
+  const modal = document.getElementById('pa-modal');
+  modal.innerHTML = `
+    <div class="modal-backdrop" style="position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:flex-start;justify-content:center;z-index:1000;padding:24px;overflow:auto">
+      <div class="card" style="max-width:540px;width:100%;background:var(--bg-2);margin:auto">
+        <div class="flex" style="justify-content:space-between;align-items:center">
+          <h3 class="card-title">${n.id ? '✏️ Editar' : '➕ Novo'} ponto de atenção</h3>
+          <button class="btn btn-ghost btn-sm" id="pa-x">✕</button>
+        </div>
+        <div style="display:grid;gap:10px;margin-top:12px">
+          <div><label class="tiny muted" style="font-weight:700">Título</label>
+            <input id="pa-f-titulo" class="input" value="${esc(n.titulo || '')}" placeholder="Ex.: Renegociar contrato do proprietário X" style="width:100%" /></div>
+          <div><label class="tiny muted" style="font-weight:700">Prioridade</label>
+            <select id="pa-f-prio" class="input" style="width:100%">
+              ${Object.entries(PRIO).map(([v, o]) => `<option value="${v}"${(n.prioridade || 'media') === v ? ' selected' : ''}>${o.lbl}</option>`).join('')}
+            </select></div>
+          <div><label class="tiny muted" style="font-weight:700">Detalhe</label>
+            <textarea id="pa-f-texto" class="input" rows="4" style="width:100%" placeholder="Contexto, o que precisa ser feito, prazo…">${esc(n.texto || '')}</textarea></div>
+        </div>
+        <div id="pa-f-err" class="tiny" style="color:#dc2626;margin-top:8px"></div>
+        <div class="flex gap-2 mt-3" style="justify-content:flex-end">
+          <button class="btn btn-ghost" id="pa-cancel">Cancelar</button>
+          <button class="btn btn-primary" id="pa-save">${n.id ? 'Salvar' : 'Adicionar'}</button>
+        </div>
+      </div>
+    </div>`;
+  const close = () => { modal.innerHTML = ''; };
+  document.getElementById('pa-x').addEventListener('click', close);
+  document.getElementById('pa-cancel').addEventListener('click', close);
+  modal.querySelector('.modal-backdrop').addEventListener('click', e => { if (e.target.classList.contains('modal-backdrop')) close(); });
+  document.getElementById('pa-save').addEventListener('click', () => saveNote(n));
+}
+
+async function saveNote(n) {
+  const titulo = document.getElementById('pa-f-titulo').value.trim();
+  if (!titulo) { document.getElementById('pa-f-err').textContent = 'O título é obrigatório.'; return; }
+  const payload = {
+    id: n.id || undefined, kind: 'atencao', titulo,
+    prioridade: document.getElementById('pa-f-prio').value,
+    texto: document.getElementById('pa-f-texto').value.trim(),
+    status: n.status || 'aberto',
+  };
+  const btn = document.getElementById('pa-save'); btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    const r = await api.request('/api/v3/diretoria/notes', { method: 'POST', body: payload });
+    if (r && r.ok === false && r.pending) { document.getElementById('pa-f-err').textContent = r.error; btn.disabled = false; btn.textContent = 'Adicionar'; return; }
+    document.getElementById('pa-modal').innerHTML = '';
+    await reloadNotes();
+  } catch (e) { document.getElementById('pa-f-err').textContent = e.message; btn.disabled = false; btn.textContent = 'Salvar'; }
+}
+
+async function toggleNote(id) {
+  const n = _notes.find(x => x.id === id);
+  if (!n) return;
+  try {
+    await api.request('/api/v3/diretoria/notes', { method: 'POST', body: { id: n.id, kind: 'atencao', titulo: n.titulo, texto: n.texto, prioridade: n.prioridade, status: n.status === 'resolvido' ? 'aberto' : 'resolvido' } });
+    await reloadNotes();
+  } catch (e) { alert('Erro: ' + e.message); }
+}
+
+async function delNote(id) {
+  const n = _notes.find(x => x.id === id);
+  if (!confirm(`Excluir "${(n && n.titulo) || 'este ponto'}"?`)) return;
+  try { await api.request('/api/v3/diretoria/notes?id=' + encodeURIComponent(id), { method: 'DELETE' }); await reloadNotes(); }
+  catch (e) { alert('Erro: ' + e.message); }
+}
+
+function fmtDate(s) { try { return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }); } catch { return ''; } }
 
 function sigRow(s) {
   const cor = s.sev === 'crit' ? '#dc2626' : '#d97706';

@@ -13,6 +13,7 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null, _m = null, _oo = null, _busy = false;
+let _notes = [], _notesPending = false;
 
 export async function pageInsights(ctx, root) {
   _root = root;
@@ -21,11 +22,23 @@ export async function pageInsights(ctx, root) {
     return;
   }
   root.innerHTML = `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Lendo os números…</div></div>`;
-  const [m, oo] = await Promise.all([
+  const [m, oo, notes] = await Promise.all([
     api.request('/api/v3/metrics/overview').catch(() => null),
     api.request('/api/v3/oo/overview?date_preset=this_month').catch(() => null),
+    api.request('/api/v3/diretoria/notes?kind=insight').catch(() => null),
   ]);
   _m = m; _oo = oo;
+  _notes = (notes && notes.notes) || [];
+  _notesPending = !!(notes && notes.pending);
+  render();
+}
+
+async function reloadNotes() {
+  try {
+    const r = await api.request('/api/v3/diretoria/notes?kind=insight');
+    _notes = r.notes || [];
+    _notesPending = !!r.pending;
+  } catch (_) {}
   render();
 }
 
@@ -119,11 +132,121 @@ function render() {
 
       <div id="in-out" style="margin-top:14px"></div>
 
-      <div class="tiny muted" style="margin-top:14px">Cards 100% determinísticos (dados do RD + metas). A IA escreve a leitura estratégica a partir desses mesmos fatos — não inventa números.</div>
+      ${manualSection()}
+
+      <div class="tiny muted" style="margin-top:14px">Cards 100% determinísticos (dados do RD + metas). A IA escreve a leitura estratégica a partir desses mesmos fatos — não inventa números. A seção ✍️ é pra você registrar seus próprios insights.</div>
     </div>
+    <div id="in-modal"></div>
   `;
   document.getElementById('in-gen').addEventListener('click', generate);
+  bindManual();
 }
+
+/* ─── Meus insights (escritos pela diretoria) ─────────────────────────── */
+function manualSection() {
+  const ativos = _notes.filter(n => n.status !== 'arquivado');
+  const arquivados = _notes.filter(n => n.status === 'arquivado');
+  return `
+    <div class="card mt-4" style="background:var(--bg-2);border:1px dashed var(--border)">
+      <div class="flex items-center gap-2" style="flex-wrap:wrap">
+        <h3 class="card-title" style="flex:1;min-width:200px;font-size:14px">✍️ Meus insights <span class="tiny muted">· anotações da diretoria</span></h3>
+        <button class="btn btn-primary btn-sm" id="in-note-new">➕ Anotar insight</button>
+      </div>
+      ${_notesPending ? `<div class="alert alert-warn" style="margin-top:8px">⏳ Rode <code>supabase/sprint9_23_diretoria_notes.sql</code> pra salvar os insights manuais.</div>` : ''}
+      ${!_notes.length ? `<div class="tiny muted" style="margin-top:8px">Nenhum insight anotado ainda. Registre ideias, leituras de mercado, padrões que você percebeu — fica tudo guardado aqui pra revisitar e cruzar com os números.</div>` : `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-top:10px">
+          ${ativos.map(noteCard).join('')}
+        </div>
+        ${arquivados.length ? `<details style="margin-top:10px"><summary class="tiny muted" style="cursor:pointer">🗄 ${arquivados.length} arquivado(s)</summary><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-top:8px;opacity:.7">${arquivados.map(noteCard).join('')}</div></details>` : ''}
+      `}
+    </div>`;
+}
+
+function noteCard(n) {
+  const arq = n.status === 'arquivado';
+  return `
+    <div style="background:var(--bg-3);border:1px solid var(--border);border-top:3px solid #2563eb;border-radius:var(--r-md);padding:12px 14px">
+      <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="font-weight:800;font-size:13px;${arq ? 'opacity:.7' : ''}">💡 ${esc(n.titulo)}</div>
+        <div class="flex gap-1" style="flex-shrink:0">
+          <button class="btn btn-ghost btn-sm" data-note-arc="${esc(n.id)}" title="${arq ? 'Reativar' : 'Arquivar'}" style="padding:2px 6px">${arq ? '↩' : '🗄'}</button>
+          <button class="btn btn-ghost btn-sm" data-note-edit="${esc(n.id)}" title="Editar" style="padding:2px 6px">✏️</button>
+          <button class="btn btn-ghost btn-sm" data-note-del="${esc(n.id)}" title="Excluir" style="padding:2px 6px">🗑</button>
+        </div>
+      </div>
+      ${n.texto ? `<div class="tiny muted" style="margin-top:5px;line-height:1.5;white-space:pre-wrap">${esc(n.texto)}</div>` : ''}
+      <div class="tiny muted" style="margin-top:6px;opacity:.7">${esc(n.autor_nome || '')}${n.updated_at ? ' · ' + fmtDate(n.updated_at) : ''}</div>
+    </div>`;
+}
+
+function bindManual() {
+  const nw = document.getElementById('in-note-new');
+  if (nw) nw.addEventListener('click', () => openNoteForm(null));
+  document.querySelectorAll('[data-note-edit]').forEach(b => b.addEventListener('click', () => openNoteForm(_notes.find(n => n.id === b.dataset.noteEdit))));
+  document.querySelectorAll('[data-note-del]').forEach(b => b.addEventListener('click', () => delNote(b.dataset.noteDel)));
+  document.querySelectorAll('[data-note-arc]').forEach(b => b.addEventListener('click', () => archiveNote(b.dataset.noteArc)));
+}
+
+function openNoteForm(n) {
+  n = n || {};
+  const modal = document.getElementById('in-modal');
+  modal.innerHTML = `
+    <div class="modal-backdrop" style="position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:flex-start;justify-content:center;z-index:1000;padding:24px;overflow:auto">
+      <div class="card" style="max-width:540px;width:100%;background:var(--bg-2);margin:auto">
+        <div class="flex" style="justify-content:space-between;align-items:center">
+          <h3 class="card-title">${n.id ? '✏️ Editar' : '➕ Novo'} insight</h3>
+          <button class="btn btn-ghost btn-sm" id="in-x">✕</button>
+        </div>
+        <div style="display:grid;gap:10px;margin-top:12px">
+          <div><label class="tiny muted" style="font-weight:700">Título</label>
+            <input id="in-f-titulo" class="input" value="${esc(n.titulo || '')}" placeholder="Ex.: Clientes de alto padrão respondem melhor a vídeo" style="width:100%" /></div>
+          <div><label class="tiny muted" style="font-weight:700">Detalhe</label>
+            <textarea id="in-f-texto" class="input" rows="5" style="width:100%" placeholder="Sua leitura, hipótese, o que fazer com isso…">${esc(n.texto || '')}</textarea></div>
+        </div>
+        <div id="in-f-err" class="tiny" style="color:#dc2626;margin-top:8px"></div>
+        <div class="flex gap-2 mt-3" style="justify-content:flex-end">
+          <button class="btn btn-ghost" id="in-cancel">Cancelar</button>
+          <button class="btn btn-primary" id="in-save">${n.id ? 'Salvar' : 'Adicionar'}</button>
+        </div>
+      </div>
+    </div>`;
+  const close = () => { modal.innerHTML = ''; };
+  document.getElementById('in-x').addEventListener('click', close);
+  document.getElementById('in-cancel').addEventListener('click', close);
+  modal.querySelector('.modal-backdrop').addEventListener('click', e => { if (e.target.classList.contains('modal-backdrop')) close(); });
+  document.getElementById('in-save').addEventListener('click', () => saveNote(n));
+}
+
+async function saveNote(n) {
+  const titulo = document.getElementById('in-f-titulo').value.trim();
+  if (!titulo) { document.getElementById('in-f-err').textContent = 'O título é obrigatório.'; return; }
+  const payload = { id: n.id || undefined, kind: 'insight', titulo, texto: document.getElementById('in-f-texto').value.trim(), status: n.status || 'aberto' };
+  const btn = document.getElementById('in-save'); btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    const r = await api.request('/api/v3/diretoria/notes', { method: 'POST', body: payload });
+    if (r && r.ok === false && r.pending) { document.getElementById('in-f-err').textContent = r.error; btn.disabled = false; btn.textContent = 'Adicionar'; return; }
+    document.getElementById('in-modal').innerHTML = '';
+    await reloadNotes();
+  } catch (e) { document.getElementById('in-f-err').textContent = e.message; btn.disabled = false; btn.textContent = 'Salvar'; }
+}
+
+async function archiveNote(id) {
+  const n = _notes.find(x => x.id === id);
+  if (!n) return;
+  try {
+    await api.request('/api/v3/diretoria/notes', { method: 'POST', body: { id: n.id, kind: 'insight', titulo: n.titulo, texto: n.texto, status: n.status === 'arquivado' ? 'aberto' : 'arquivado' } });
+    await reloadNotes();
+  } catch (e) { alert('Erro: ' + e.message); }
+}
+
+async function delNote(id) {
+  const n = _notes.find(x => x.id === id);
+  if (!confirm(`Excluir "${(n && n.titulo) || 'este insight'}"?`)) return;
+  try { await api.request('/api/v3/diretoria/notes?id=' + encodeURIComponent(id), { method: 'DELETE' }); await reloadNotes(); }
+  catch (e) { alert('Erro: ' + e.message); }
+}
+
+function fmtDate(s) { try { return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }); } catch { return ''; } }
 
 function card(c) {
   const COR = { good: '#16a34a', warn: '#d97706', bad: '#dc2626', info: '#2563eb' };
