@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.70.0-2026-06-05-DIRETORIA-REFINO';
+const SW_VERSION = 'v76.71.0-2026-06-05-ESTRATEGIA';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
