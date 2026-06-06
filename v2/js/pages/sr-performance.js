@@ -90,11 +90,16 @@ function renderInsights() {
   if (!wrap || !_data) return;
   const me = _data.me;
   const meu = (_data.atg.por_corretor || []).find(c => c.id === me?.id) || {};
-  const meusDeals = (_data.deals || []).filter(d => d.user_id === me?.id);
+  // deals do RD trazem o dono em d.user.email e valor em amount_total/amount_unique
+  const myEmail = (me?.email || '').toLowerCase();
+  const meusDeals = myEmail ? (_data.deals || []).filter(d => ((d.user && d.user.email) || '').toLowerCase() === myEmail) : [];
+  const dealAmt = d => (+d.amount_total || +d.amount_unique || 0);
   const ganhos = meusDeals.filter(d => d.win);
   const perdas = meusDeals.filter(d => d.win === false);
-  const conv = meusDeals.length > 0 ? (ganhos.length / (ganhos.length + perdas.length || 1) * 100) : 0;
-  const ticketMedio = ganhos.length > 0 ? ganhos.reduce((s, d) => s + (+d.amount || 0), 0) / ganhos.length : 0;
+  const conv = (ganhos.length + perdas.length) > 0 ? (ganhos.length / (ganhos.length + perdas.length) * 100) : 0;
+  const vendasCount = (+meu.vendas || ganhos.length || 0);
+  const ticketMedio = ganhos.length > 0 ? ganhos.reduce((s, d) => s + dealAmt(d), 0) / ganhos.length
+    : (vendasCount > 0 ? (+meu.vgv_atingido || 0) / vendasCount : 0);
   const pct = meu.meta_vgv > 0 ? (meu.vgv_atingido / meu.meta_vgv * 100) : 0;
   const statusColor = pct >= 100 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#ef4444';
 
@@ -105,8 +110,8 @@ function renderInsights() {
         <div class="flex" style="justify-content:space-between"><span class="muted">VGV Mês:</span><b>R$ ${(+meu.vgv_atingido || 0).toLocaleString('pt-BR')}</b></div>
         <div class="flex" style="justify-content:space-between"><span class="muted">Meta Mês:</span><b>R$ ${(+meu.meta_vgv || 0).toLocaleString('pt-BR')}</b></div>
         <div class="flex" style="justify-content:space-between"><span class="muted">Atingimento:</span><b style="color:${statusColor}">${pct.toFixed(1)}%</b></div>
-        <div class="flex" style="justify-content:space-between"><span class="muted">Vendas:</span><b>${ganhos.length}</b></div>
-        <div class="flex" style="justify-content:space-between"><span class="muted">Conversão:</span><b>${conv.toFixed(1)}%</b></div>
+        <div class="flex" style="justify-content:space-between"><span class="muted">Vendas:</span><b>${vendasCount}</b></div>
+        <div class="flex" style="justify-content:space-between"><span class="muted">Conversão:</span><b>${(ganhos.length + perdas.length) > 0 ? conv.toFixed(1) + '%' : '—'}</b></div>
         <div class="flex" style="justify-content:space-between"><span class="muted">Ticket Médio:</span><b>R$ ${Math.round(ticketMedio).toLocaleString('pt-BR')}</b></div>
       </div>
     </div>

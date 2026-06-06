@@ -93,9 +93,10 @@ function reportFooter() {
 }
 
 async function loadVendasMes(out) {
-  const r = await api.request('/api/v3/metas/atingimento');
-  const deals = r.deals_won || [];
-  const total = deals.reduce((s,d)=>s+(+d.amount||0),0);
+  const r = await api.request('/api/v3/crm/deals?limit=500');
+  const amt = d => (+d.amount_total || +d.amount_unique || 0);
+  const deals = (r.deals || []).filter(d => d.win === true).sort((a, b) => (b.closed_at || '').localeCompare(a.closed_at || ''));
+  const total = deals.reduce((s, d) => s + amt(d), 0);
 
   out.innerHTML = `
     <div class="card print-area">
@@ -112,9 +113,9 @@ async function loadVendasMes(out) {
         <tbody>
           ${deals.map((d,i)=>`
             <tr style="background:${i%2?'#f8fafc':'#fff'};border-bottom:1px solid #eee">
-              <td style="padding:6px 8px">${escapeHtml(d.user_email || d.user_name || '—')}</td>
+              <td style="padding:6px 8px">${escapeHtml((d.user && (d.user.name || d.user.email)) || '—')}</td>
               <td style="padding:6px 8px">${escapeHtml((d.name||'').substring(0,60))}</td>
-              <td style="padding:6px 8px;text-align:right;font-weight:700">R$ ${formatBR(+d.amount||0)}</td>
+              <td style="padding:6px 8px;text-align:right;font-weight:700">R$ ${formatBR(amt(d))}</td>
               <td style="padding:6px 8px;text-align:center">${escapeHtml((d.closed_at||'').slice(0,10))}</td>
             </tr>
           `).join('')}
@@ -170,7 +171,8 @@ async function loadRankingGeral(out) {
 }
 
 async function loadCaptacoes(out) {
-  const r = await api.request('/api/v3/captacoes/list?days=90');
+  const since = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const r = await api.request('/api/v3/captacoes/list?since=' + since);
   const items = (r.ranking || []).slice(0, 30);
   out.innerHTML = `
     <div class="card print-area">
@@ -190,9 +192,9 @@ async function loadCaptacoes(out) {
           ${items.map((u,i)=>`
             <tr style="background:${i%2?'#f8fafc':'#fff'};border-bottom:1px solid #eee">
               <td style="padding:6px 8px;text-align:center;font-weight:800">${i+1}</td>
-              <td style="padding:6px 8px;font-weight:700">${escapeHtml(u.captador_name || '—')}</td>
-              <td style="padding:6px 8px;text-align:center">${u.count || 0}</td>
-              <td style="padding:6px 8px;text-align:right">R$ ${formatBR(+u.valor_total||0)}</td>
+              <td style="padding:6px 8px;font-weight:700">${escapeHtml((u.user && u.user.name) || '—')}</td>
+              <td style="padding:6px 8px;text-align:center">${u.total || 0}</td>
+              <td style="padding:6px 8px;text-align:right">R$ ${formatBR(+u.valor||0)}</td>
               <td style="padding:6px 8px;text-align:center;color:#16a34a">${u.disponiveis || 0}</td>
               <td style="padding:6px 8px;text-align:center;color:#0ea5e9">${u.vendidos || 0}</td>
             </tr>
@@ -244,7 +246,11 @@ async function loadPlantoesMes(out) {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
   const end = new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().slice(0,10);
-  const r = await api.request(`/api/v3/plantoes/list?start=${start}&end=${end}`);
+  const [r, u] = await Promise.all([
+    api.request(`/api/v3/plantoes/list?since=${start}&until=${end}`),
+    api.request('/api/v3/users/list').catch(() => ({ users: [] })),
+  ]);
+  const nameById = Object.fromEntries((u.users || []).map(x => [x.id, x.name]));
   const items = r.plantoes || [];
   items.sort((a,b)=> (a.data||'').localeCompare(b.data||''));
   out.innerHTML = `

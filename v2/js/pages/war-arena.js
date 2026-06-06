@@ -114,7 +114,9 @@ function aggregateByEquipe(data) {
 function buildEvents(data) {
   const ev = [];
   (data.deals || []).filter(d => d.win).slice(0, 10).forEach(d => {
-    ev.push(`🏆 ${d.user_email || d.user_name || '?'} fechou R$ ${(+d.amount || 0).toLocaleString('pt-BR')}`);
+    const quem = (d.user && (d.user.name || d.user.email)) || d.name || '?';
+    const valor = +d.amount_total || +d.amount_unique || 0;
+    ev.push(`🏆 ${quem} fechou R$ ${valor.toLocaleString('pt-BR')}`);
   });
   return ev;
 }

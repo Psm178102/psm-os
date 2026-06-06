@@ -233,6 +233,19 @@ class handler(BaseHTTPRequestHandler):
             })
             tot_meta += row_meta; tot_atingido += row_atingido; tot_count += row_count
 
+        # Visão achatada por corretor (consumida por relatorios, war-room/arena,
+        # sr-gerencia/performance, metricas-viab — todos esperavam `por_corretor`).
+        por_corretor = [{
+            "id": g["user"].get("id"),
+            "name": g["user"].get("name"),
+            "team": g["user"].get("team") or g["user"].get("equipe") or g["user"].get("frente"),
+            "role": g["user"].get("role"),
+            "vgv_atingido": g["totals"]["atingido_vgv"],
+            "meta_vgv": g["totals"]["meta_vgv"],
+            "vendas": g["totals"]["vendas_count"],
+            "pct": g["totals"]["pct"],
+        } for g in grid]
+
         result = {
             "ok": True, "cached": False, "ano": ano, "scope": scope,
             "source": source, "deals_synced_at": deals_synced_at,
@@ -241,6 +254,10 @@ class handler(BaseHTTPRequestHandler):
                 "vendas_count": tot_count,
                 "pct": (tot_atingido / tot_meta * 100) if tot_meta > 0 else None,
             },
+            # aliases de topo (metricas-viab lê total_vgv/total_vendas)
+            "total_vgv": tot_atingido,
+            "total_vendas": tot_count,
+            "por_corretor": por_corretor,
             "grid": grid,
             "rd_error": rd_error,
             "fetched_at": now.isoformat(),
