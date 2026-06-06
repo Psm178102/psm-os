@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.75.0-2026-06-06-DIAG-FIXES-2';
+const SW_VERSION = 'v76.76.0-2026-06-06-CONCORRENCIA';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
