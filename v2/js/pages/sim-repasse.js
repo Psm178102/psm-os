@@ -27,7 +27,9 @@ function compute() {
   const saldoEntrega = r.saldoDevedor + totalMensais + totalBaloes;
   const entradaComprador = r.novoValor - r.saldoDevedor;
   const comissao = r.novoValor * r.comissaoPct / 100;
-  const lucroVendedor = entradaComprador - comissao - (totalAtualizado - r.valorPago);
+  // Lucro do vendedor = o que recebe (entrada) − o que já desembolsou (valorPago) − comissão.
+  // O comprador assume o saldo devedor, então NÃO se subtrai de novo (antes era contado 2×). Equivale a ágio − comissão.
+  const lucroVendedor = entradaComprador - r.valorPago - comissao;
   const agioValor = r.novoValor - totalAtualizado;
   const agioPct = totalAtualizado > 0 ? ((agioValor / r.valorPago) * 100).toFixed(1) : '0.0';
   const parcelaEntrada = r.parcelasEntrada > 0 ? entradaComprador / r.parcelasEntrada : 0;

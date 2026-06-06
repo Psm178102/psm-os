@@ -106,7 +106,6 @@ function render() {
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center">
         <button class="btn ${_filter === 'all' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-filter="all">🌐 Todos</button>
         <button class="btn ${_filter === 'disponivel' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-filter="disponivel">🟢 Disponíveis</button>
-        <button class="btn ${_filter === 'lancamento' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-filter="lancamento">🚀 Lançamentos</button>
         <button class="btn ${_filter === 'vendido' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-filter="vendido">✅ Vendidos</button>
         <input id="map-search" class="input" placeholder="🔍 Buscar imóvel/bairro…" style="flex:1;min-width:220px" value="${esc(_search)}">
       </div>
@@ -149,14 +148,14 @@ function renderContent() {
 
   const total = _items.length;
   const disp = _items.filter(i => i.status === 'disponivel').length;
-  const lanc = _items.filter(i => (i.tipo || '').toLowerCase().includes('lancamento') || (i.origem || '').toLowerCase() === 'lancamento').length;
   const vend = _items.filter(i => i.status === 'vendido').length;
+  const proprios = _items.filter(i => (i.origem || '').toLowerCase() === 'proprio').length;
 
   stats.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px">
       ${kpi('🏠 Total', total, '#3b82f6')}
       ${kpi('🟢 Disponíveis', disp, '#22c55e')}
-      ${kpi('🚀 Lançamentos', lanc, 'var(--psm-gold)')}
+      ${kpi('🏷 Próprios', proprios, 'var(--psm-gold)')}
       ${kpi('✅ Vendidos', vend, '#8b5cf6')}
       ${kpi('🔎 No Filtro', filtered.length, '#f59e0b')}
     </div>
