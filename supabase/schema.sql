@@ -94,28 +94,12 @@ begin
 end;
 $$;
 
--- Trigger: grava em audit_log toda mudanca em shared_kv
-create or replace function public.log_shared_kv()
-returns trigger language plpgsql security definer as $$
-begin
-  if (tg_op = 'DELETE') then
-    insert into public.audit_log(user_id, table_name, key, operation, old_value, new_value)
-    values (auth.uid(), 'shared_kv', old.key, 'delete', old.value, null);
-    return old;
-  elsif (tg_op = 'UPDATE') then
-    insert into public.audit_log(user_id, table_name, key, operation, old_value, new_value)
-    values (auth.uid(), 'shared_kv', new.key, 'update', old.value, new.value);
-    new.updated_by := auth.uid();
-    return new;
-  elsif (tg_op = 'INSERT') then
-    insert into public.audit_log(user_id, table_name, key, operation, old_value, new_value)
-    values (auth.uid(), 'shared_kv', new.key, 'insert', null, new.value);
-    new.updated_by := auth.uid();
-    return new;
-  end if;
-  return null;
-end;
-$$;
+-- [REMOVIDO em 2026-06 — ver supabase/sprint9_26_fix_kv_audit_trigger.sql]
+-- A função log_shared_kv() inseria em audit_log(USER_ID, ...), mas o audit_log
+-- do app v2 usa actor_id (não user_id). Em produção isso quebrava TODO upsert no
+-- shared_kv com "column user_id does not exist" (upload de Tabela de Imóveis,
+-- Mapa, Cadência, settings). A auditoria do v2 é feita na camada de aplicação
+-- (api/v3/_auth_lib.py → audit()). Função/trigger removidos pra não recriar o bug.
 
 -- ============================================================
 -- TRIGGERS
@@ -136,10 +120,9 @@ create trigger shared_kv_touch
   before update on public.shared_kv
   for each row execute function public.touch_updated_at();
 
+-- shared_kv_audit / log_shared_kv() REMOVIDOS (ver sprint9_26). Auditoria de KV
+-- agora é feita na camada de aplicação (audit() com actor_id), não por trigger.
 drop trigger if exists shared_kv_audit on public.shared_kv;
-create trigger shared_kv_audit
-  after insert or update or delete on public.shared_kv
-  for each row execute function public.log_shared_kv();
 
 -- ============================================================
 -- ROW LEVEL SECURITY
