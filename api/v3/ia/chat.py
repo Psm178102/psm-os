@@ -217,10 +217,13 @@ class handler(BaseHTTPRequestHandler):
 
         # Carrega keys
         sb = supabase_client()
+        # ENV primeiro (fonte de verdade que o /api/ai-analysis já usa e funciona);
+        # settings só como fallback. Antes era settings-first → uma chave velha na
+        # tabela sobrescrevia a chave boa do env e derrubava o chat dos agentes.
         keys = {
-            "anthropic_api_key": _get_setting(sb, "anthropic_api_key") or os.environ.get("ANTHROPIC_API_KEY"),
-            "gemini_api_key":    _get_setting(sb, "gemini_api_key")    or os.environ.get("GEMINI_API_KEY"),
-            "openai_api_key":    _get_setting(sb, "openai_api_key")    or os.environ.get("OPENAI_API_KEY"),
+            "anthropic_api_key": os.environ.get("ANTHROPIC_API_KEY") or _get_setting(sb, "anthropic_api_key"),
+            "gemini_api_key":    os.environ.get("GEMINI_API_KEY")    or _get_setting(sb, "gemini_api_key"),
+            "openai_api_key":    os.environ.get("OPENAI_API_KEY")    or _get_setting(sb, "openai_api_key"),
         }
 
         # Chain de fallback: AI_PREFER (env) tem prioridade sobre o primary do agent.
