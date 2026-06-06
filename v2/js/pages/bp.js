@@ -70,7 +70,7 @@ function render(atin, dre, custos) {
         ${kpi('Receita prev', 'R$ ' + money(dreT.receita_prev), 'a receber', '#0891b2')}
       </div>
 
-      <h3 class="card-title mt-4">🏢 Custos Fixos (3 meses)</h3>
+      <h3 class="card-title mt-4">🏢 Custos Fixos (12 meses)</h3>
       <div class="flex gap-3" style="flex-wrap:wrap">
         ${kpi('Total custos', 'R$ ' + money(custosTotal), (custos?.buckets || []).length + ' categorias', '#7c3aed')}
         ${kpi('Folha+SaaS', 'R$ ' + money(((custos?.buckets || []).find(b => b.bucket==='Folha de Pagamento')?.total || 0) + ((custos?.buckets || []).find(b => b.bucket==='Softwares & SaaS')?.total || 0)), 'principais fixos', '#d97706')}

@@ -108,8 +108,11 @@ def _call_claude(api_key, system, messages):
 
 
 def _call_gemini(api_key, system, messages):
-    """Chama Google Gemini generateContent."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    """Chama Google Gemini generateContent. Modelo via env (GEMINI_SMART_MODEL,
+    default gemini-2.5-flash) e auth via header x-goog-api-key — funciona com
+    chaves AIza… E AQ.… (o método antigo ?key= rejeitava a chave nova)."""
+    model = os.environ.get("GEMINI_SMART_MODEL") or "gemini-2.5-flash"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     # Gemini: sem system separado, prefixa na primeira user message
     contents = []
     if messages and system:
@@ -123,14 +126,15 @@ def _call_gemini(api_key, system, messages):
             "parts": [{"text": m["content"]}],
         })
     payload = {"contents": contents, "generationConfig": {"maxOutputTokens": 1024, "temperature": 0.7}}
-    req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(url, data=json.dumps(payload).encode(),
+                                 headers={"Content-Type": "application/json", "x-goog-api-key": api_key})
     with urllib.request.urlopen(req, timeout=60) as resp:
         data = json.loads(resp.read().decode())
     cands = data.get("candidates") or []
     if not cands: return {"text": "", "provider": "gemini", "error": "no candidates"}
     parts = cands[0].get("content", {}).get("parts", [])
     text = "".join(p.get("text", "") for p in parts)
-    return {"text": text, "provider": "gemini", "model": "gemini-1.5-flash"}
+    return {"text": text, "provider": "gemini", "model": model}
 
 
 def _call_openai(api_key, system, messages):
@@ -219,9 +223,10 @@ class handler(BaseHTTPRequestHandler):
             "openai_api_key":    _get_setting(sb, "openai_api_key")    or os.environ.get("OPENAI_API_KEY"),
         }
 
-        # Chain de fallback baseado no primary do agent
-        primary = agent.get("primary", "claude")
-        chain = [primary] + [p for p in ["claude", "gemini", "openai"] if p != primary]
+        # Chain de fallback: AI_PREFER (env) tem prioridade sobre o primary do agent.
+        # Como a conta Anthropic está sem saldo, o padrão favorece gemini (2.5-flash).
+        primary = os.environ.get("AI_PREFER") or agent.get("primary", "gemini")
+        chain = [primary] + [p for p in ["gemini", "claude", "openai"] if p != primary]
 
         t0 = time.time()
         result = _try_chain(chain, agent["system"], messages, keys)

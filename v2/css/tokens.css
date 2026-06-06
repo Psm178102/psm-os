@@ -29,6 +29,12 @@
   --ink-muted:      #64748b;
   --ink-inverted:   #ffffff;
 
+  /* Aliases legados (várias páginas usam --muted/--bd/--tx) — resolvem ao token
+     correto em ambos os temas via var() (substituição lazy no uso). */
+  --muted:          var(--ink-muted);
+  --bd:             var(--border);
+  --tx:             var(--ink);
+
   /* State */
   --ok:             #16a34a;
   --warn:           #d97706;
