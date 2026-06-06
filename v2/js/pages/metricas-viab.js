@@ -24,11 +24,11 @@ const LINES = [
 ];
 
 const DEFAULTS = {
-  map:       { ticketMedio: 350000, vendasMes: 1, comissaoBrutaPct: 4,   comCorretorPct: 1.4, comSeniorPct: 1.6, aliquotaPct: 8, admPct: 0,  contratosAtivos: 0,   custoDireto: 0,    corretoresManual: '', vgvManual: '' },
-  conquista: { ticketMedio: 200000, vendasMes: 1, comissaoBrutaPct: 5,   comCorretorPct: 2.0, comSeniorPct: 1.0, aliquotaPct: 8, admPct: 0,  contratosAtivos: 0,   custoDireto: 0,    corretoresManual: '', vgvManual: '' },
-  terceiros: { ticketMedio: 250000, vendasMes: 1, comissaoBrutaPct: 6,   comCorretorPct: 3.0, comSeniorPct: 1.0, aliquotaPct: 8, admPct: 0,  contratosAtivos: 0,   custoDireto: 8000, corretoresManual: '', vgvManual: '' },
+  map:       { ticketMedio: 350000, vendasMes: 1, comissaoBrutaPct: 4,   comCorretorPct: 1.4, comSeniorPct: 1.6, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  contratosAtivos: 0,   recorrenteModo: 'abater', custoDireto: 0,    corretoresManual: '', vgvManual: '' },
+  conquista: { ticketMedio: 200000, vendasMes: 1, comissaoBrutaPct: 5,   comCorretorPct: 2.0, comSeniorPct: 1.0, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  contratosAtivos: 0,   recorrenteModo: 'abater', custoDireto: 0,    corretoresManual: '', vgvManual: '' },
+  terceiros: { ticketMedio: 250000, vendasMes: 1, comissaoBrutaPct: 6,   comCorretorPct: 3.0, comSeniorPct: 1.0, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  contratosAtivos: 0,   recorrenteModo: 'abater', custoDireto: 8000, corretoresManual: '', vgvManual: '' },
   // Locação: ticket = aluguel; comissão de captação = 100% do 1º aluguel; adm recorrente = 10% × contratos ativos
-  locacoes:  { ticketMedio: 2500,   vendasMes: 2, comissaoBrutaPct: 100, comCorretorPct: 30,  comSeniorPct: 0,   aliquotaPct: 8, admPct: 10, contratosAtivos: 100, custoDireto: 0,    corretoresManual: '', vgvManual: '' },
+  locacoes:  { ticketMedio: 2500,   vendasMes: 2, comissaoBrutaPct: 100, comCorretorPct: 30,  comSeniorPct: 0,   comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 10, contratosAtivos: 100, recorrenteModo: 'abater', custoDireto: 0,    corretoresManual: '', vgvManual: '' },
 };
 
 const CUSTOS_SEED = [
@@ -169,31 +169,35 @@ function rateio() {
 /* ── viabilidade (tudo MENSAL) ── */
 function computeLine(id, rt) {
   const p = _lines[id], r = resolved(id);
-  const despFixa = (rt.alloc[id] || 0) + (+p.custoDireto || 0);
   const ticket = +p.ticketMedio || 0;
-  // margem PSM líquida REAL por venda (desconta corretor + sênior + imposto)
+  // despesa fixa da linha = rateio + custo direto extra + salário do gerente
+  const despFixa = (rt.alloc[id] || 0) + (+p.custoDireto || 0) + (+p.salarioGerente || 0);
+  // margem PSM líquida REAL por venda (desconta corretor + sênior + GERENTE %VGV + imposto)
   const comBruta = ticket * p.comissaoBrutaPct / 100;
-  const margemPSM = comBruta - comBruta * p.aliquotaPct / 100 - ticket * p.comCorretorPct / 100 - ticket * p.comSeniorPct / 100;
+  const margemPSM = comBruta - comBruta * p.aliquotaPct / 100
+    - ticket * p.comCorretorPct / 100 - ticket * p.comSeniorPct / 100 - ticket * (+p.comGerentePct || 0) / 100;
   const netMarginPct = ticket > 0 ? margemPSM / ticket : 0; // fração líquida da PSM sobre o VGV
   // receita recorrente de administração (locação): 10% × aluguel × contratos ativos
   const recorrente = ticket * (+p.admPct || 0) / 100 * (+p.contratosAtivos || 0);
-  // o que precisa ser coberto por venda/captação = despesa − recorrente
-  const despNet = Math.max(0, despFixa - recorrente);
+  // modo: 'abater' (recorrente reduz o custo fixo a cobrir) ou 'reserva' (vira reserva, não abate)
+  const abate = (p.recorrenteModo === 'reserva') ? 0 : recorrente;
+  const reservaMes = recorrente - abate;
+  const despNet = Math.max(0, despFixa - abate);
   const vgvBreakEven = netMarginPct > 0 ? despNet / netMarginPct : 0;
   const vendasBreakEven = margemPSM > 0 ? Math.ceil(despNet / margemPSM) : 0;
   const nCorr = r.nCorr || 0;
   const vgvMinPorCorretor = nCorr > 0 ? vgvBreakEven / nCorr : 0;
   const vendasMinPorCorretor = nCorr > 0 ? Math.ceil(vendasBreakEven / nCorr) : 0;
-  const lucro = r.vgvRealMes * netMarginPct + recorrente - despFixa;
+  const lucro = r.vgvRealMes * netMarginPct + abate - despFixa;
   const margemReal = r.vgvRealMes > 0 ? (lucro / r.vgvRealMes * 100) : 0;
   const metaPct = r.metaMes > 0 ? (r.vgvRealMes / r.metaMes * 100) : null;
-  return { despFixa, recorrente, vgvBreakEven, vendasBreakEven, margemPSM, netMarginPct, nCorr, ticket,
+  return { despFixa, recorrente, reservaMes, vgvBreakEven, vendasBreakEven, margemPSM, netMarginPct, nCorr, ticket,
     expectativa: expectativa(id), vgvMinPorCorretor, vendasMinPorCorretor,
     vgvRealMes: r.vgvRealMes, metaMes: r.metaMes, metaPct, lucro, margemReal };
 }
 function computeTotal(per) {
-  const t = { despFixa: 0, recorrente: 0, vgvBreakEven: 0, vendasBreakEven: 0, vgvRealMes: 0, metaMes: 0, lucro: 0, nCorr: 0, expectativa: 0 };
-  for (const id of Object.keys(per)) { const c = per[id]; for (const k of ['despFixa','recorrente','vgvBreakEven','vendasBreakEven','vgvRealMes','metaMes','lucro','nCorr','expectativa']) t[k] += c[k]; }
+  const t = { despFixa: 0, recorrente: 0, reservaMes: 0, vgvBreakEven: 0, vendasBreakEven: 0, vgvRealMes: 0, metaMes: 0, lucro: 0, nCorr: 0, expectativa: 0 };
+  for (const id of Object.keys(per)) { const c = per[id]; for (const k of ['despFixa','recorrente','reservaMes','vgvBreakEven','vendasBreakEven','vgvRealMes','metaMes','lucro','nCorr','expectativa']) t[k] += c[k]; }
   t.margemReal = t.vgvRealMes > 0 ? (t.lucro / t.vgvRealMes * 100) : 0;
   t.metaPct = t.metaMes > 0 ? (t.vgvRealMes / t.metaMes * 100) : null;
   t.vgvMinPorCorretor = t.nCorr > 0 ? t.vgvBreakEven / t.nCorr : 0;
@@ -264,21 +268,30 @@ function renderParams() {
       ${inp(isLoc ? 'Comissão captação (% do 1º aluguel)' : 'Comissão Bruta (%)', 'comissaoBrutaPct', '%')}
       ${inp('% Corretor', 'comCorretorPct', '%')}
       ${inp('% Sênior', 'comSeniorPct', '%')}
+      ${inp('Salário Gerente (R$/mês)', 'salarioGerente')}
+      ${inp('% Gerente (sobre VGV da equipe)', 'comGerentePct', '%')}
       ${inp('Alíquota Imposto (%)', 'aliquotaPct', '%')}
       ${isLoc ? inp('% Adm recorrente', 'admPct', '%') : inp('Custo Direto Extra (R$/mês)', 'custoDireto', '', _active === 'terceiros' ? 'Terceiros não rateia' : 'fora da planilha')}
       ${isLoc ? inp('Contratos ativos (carteira)', 'contratosAtivos') : ''}
+      ${isLoc ? selp('Adm recorrente →', 'recorrenteModo', [['abater', '↓ Abater do custo fixo'], ['reserva', '🏦 Reserva financeira']]) : ''}
       ${isLoc ? inp('Custo Direto Extra (R$/mês)', 'custoDireto', '', 'fora da planilha') : ''}
     </div>
     <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
       ${inp('VGV Realizado MENSAL (R$) — vazio = real ÷ meses', 'vgvManual', '', `auto: ${fmt(r.autoVgvMes)}`)}
       <div class="tiny muted" style="margin-top:4px">📐 Expectativa de VGV/mês: <b>${fmt(expectativa(_active))}</b> (nº corretores × ${isLoc ? 'aluguel' : 'ticket'} × ${isLoc ? 'contratos' : 'vendas'}/corretor) — base do rateio proporcional. 🎯 Meta/mês (aba Metas): <b>${fmt(r.metaMes)}</b>.${_active === 'terceiros' ? ' <span style="color:#d97706">Terceiros é EXCLUÍDO do rateio (só custo direto).</span>' : ''}${isLoc ? ' <span style="color:#d97706">Locação: recorrente de adm cobre parte do custo fixo.</span>' : ''}</div>
     </div>`;
-  el.querySelectorAll('[data-key]').forEach(input => { if (input.dataset.key === '_noop_') { input.disabled = true; return; } input.addEventListener('input', e => {
-    const k = input.dataset.key;
-    _lines[_active][k] = (k === 'vgvManual' || k === 'corretoresManual') ? e.target.value.trim() : (parseFloat(e.target.value) || 0);
-    saveAll();
-    clearTimeout(window._vtm); window._vtm = setTimeout(() => { renderTable(); renderBanner(); }, 200);
-  }); });
+  el.querySelectorAll('[data-key]').forEach(input => {
+    const handler = e => {
+      const k = input.dataset.key;
+      if (k === 'recorrenteModo') _lines[_active][k] = e.target.value;
+      else if (k === 'vgvManual' || k === 'corretoresManual') _lines[_active][k] = e.target.value.trim();
+      else _lines[_active][k] = parseFloat(e.target.value) || 0;
+      saveAll();
+      clearTimeout(window._vtm); window._vtm = setTimeout(() => { renderTable(); renderBanner(); }, 200);
+    };
+    input.addEventListener('input', handler);
+    input.addEventListener('change', handler);
+  });
 }
 
 function renderCustos() {
@@ -348,6 +361,7 @@ function renderTable() {
     ['🎯 Meta (aba Metas)' + sufx, id => v(per[id].metaMes), v(tot.metaMes)],
     ['Despesa Fixa' + sufx, id => v(per[id].despFixa), v(tot.despFixa), { strong: 1 }],
     ['Receita recorrente adm' + sufx, id => per[id].recorrente ? v(per[id].recorrente) : '—', tot.recorrente ? v(tot.recorrente) : '—'],
+    ['🏦 Reserva financeira' + sufx, id => per[id].reservaMes ? v(per[id].reservaMes) : '—', tot.reservaMes ? v(tot.reservaMes) : '—'],
     ['VGV Break-Even' + sufx, id => v(per[id].vgvBreakEven), v(tot.vgvBreakEven), { strong: 1 }],
     ['⭐ VGV mín/corretor' + sufx, id => v(per[id].vgvMinPorCorretor), v(tot.vgvMinPorCorretor), { hl: 1 }],
     ['⭐ Vendas mín/corretor' + (f > 1 ? '/ano' : '/mês'), id => (per[id].vendasMinPorCorretor ? cnt(per[id].vendasMinPorCorretor) : '—'), (tot.vendasMinPorCorretor ? cnt(tot.vendasMinPorCorretor) : '—'), { hl: 1 }],
@@ -381,6 +395,10 @@ function renderTable() {
 function inp(label, key, suffix, placeholder) {
   const val = _lines[_active][key];
   return `<div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><div class="flex gap-1"><input type="number" class="input" data-key="${key}" value="${val ?? ''}" ${placeholder ? `placeholder="${placeholder}"` : ''} style="flex:1;font-size:12px;padding:6px 8px">${suffix ? `<span class="tiny muted" style="align-self:center">${suffix}</span>` : ''}</div></div>`;
+}
+function selp(label, key, opts) {
+  const val = _lines[_active][key] || opts[0][0];
+  return `<div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><select class="input" data-key="${key}" style="width:100%;font-size:12px;padding:6px 8px">${opts.map(([v, l]) => `<option value="${v}"${String(v) === String(val) ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`;
 }
 function fmt(n) { return 'R$ ' + Math.round(n || 0).toLocaleString('pt-BR'); }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
