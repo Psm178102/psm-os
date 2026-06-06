@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.72.0-2026-06-05-ACADEMY-FACULDADE';
+const SW_VERSION = 'v76.73.0-2026-06-06-LANCAMENTOS-INTEL';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

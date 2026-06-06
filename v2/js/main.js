@@ -61,6 +61,7 @@ import { pageIntelAds } from './pages/intel-ads.js';
 import { pageIntelDash } from './pages/intel-dash.js';
 import { pageIntelCentro } from './pages/intel-centro.js';
 import { pageBibliotecaAds } from './pages/biblioteca-ads.js';
+import { pageDadosMercado } from './pages/dados-mercado.js';
 import { pageIntelVendas } from './pages/intel-vendas.js';
 import { pageIntelBriefing } from './pages/intel-briefing.js';
 import { pageSimuladores } from './pages/simuladores.js';
@@ -100,6 +101,7 @@ const ROUTE_GROUP = {
   // Inteligência & Marketing
   '/marketing': 'marketing', '/concorrencia': 'marketing', '/benchmark': 'marketing',
   '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing', '/inteligencia': 'marketing', '/biblioteca-ads': 'marketing', '/cerebro-vendas': 'marketing', '/briefing-guerra': 'marketing',
+  '/dados-mercado': 'diretoria',
   // Metas & Performance
   '/metas': 'performance', '/equipe': 'performance', '/organograma': 'performance',
   '/one-on-one': 'performance', '/plantoes': 'performance', '/arena': 'performance',
@@ -228,6 +230,7 @@ function applyPermissions(user) {
   router.register('/academy', { render: async (ctx, root) => { setHeader('PSM Academy'); highlight('/academy'); await pageAcademy(ctx, root); } });
   router.register('/marketing', { render: async (ctx, root) => { setHeader('Marketing'); highlight('/marketing'); await pageMarketing(ctx, root); } });
   router.register('/inteligencia', { render: async (ctx, root) => { setHeader('Centro de Inteligência'); highlight('/inteligencia'); await pageIntelCentro(ctx, root); } });
+  router.register('/dados-mercado', { render: async (ctx, root) => { setHeader('Dados de Mercado'); highlight('/dados-mercado'); await pageDadosMercado(ctx, root); } });
   router.register('/biblioteca-ads', { render: async (ctx, root) => { setHeader('Biblioteca de Anúncios'); highlight('/biblioteca-ads'); await pageBibliotecaAds(ctx, root); } });
   router.register('/cerebro-vendas', { render: async (ctx, root) => { setHeader('Cérebro de Vendas'); highlight('/cerebro-vendas'); await pageIntelVendas(ctx, root); } });
   router.register('/briefing-guerra', { render: async (ctx, root) => { setHeader('Briefing de Guerra'); highlight('/briefing-guerra'); await pageIntelBriefing(ctx, root); } });
@@ -372,17 +375,20 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/financeiro"><span class="sb-ico">💰</span> Financeiro</button>
         <button class="sb-link" data-nav="/forecast"><span class="sb-ico">📈</span> Forecast</button>
 
-        <div class="sb-sec">📊 Inteligência & Marketing</div>
+        <div class="sb-sec">🧠 Inteligência</div>
         <button class="sb-link" data-nav="/inteligencia"><span class="sb-ico">🧠</span> Centro de Inteligência</button>
+        <button class="sb-link" data-nav="/dados-mercado"><span class="sb-ico">📈</span> Dados de Mercado</button>
         <button class="sb-link" data-nav="/cerebro-vendas"><span class="sb-ico">🎯</span> Cérebro de Vendas</button>
         <button class="sb-link" data-nav="/briefing-guerra"><span class="sb-ico">⚔️</span> Briefing de Guerra</button>
-        <button class="sb-link" data-nav="/biblioteca-ads"><span class="sb-ico">📚</span> Biblioteca de Anúncios</button>
-        <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>
-        <button class="sb-link" data-nav="/concorrencia"><span class="sb-ico">🎯</span> Concorrência</button>
+        <button class="sb-link" data-nav="/concorrencia"><span class="sb-ico">🥊</span> Concorrência</button>
         <button class="sb-link" data-nav="/benchmark"><span class="sb-ico">📊</span> Benchmark</button>
-        <button class="sb-link" data-nav="/intel-ads"><span class="sb-ico">📢</span> Intel Ads</button>
         <button class="sb-link" data-nav="/intel-dash"><span class="sb-ico">🔍</span> Intel Dashboard</button>
-        <button class="sb-link" data-nav="/tendencias"><span class="sb-ico">📈</span> Tendências</button>
+        <button class="sb-link" data-nav="/tendencias"><span class="sb-ico">📉</span> Tendências</button>
+
+        <div class="sb-sec">📣 Marketing</div>
+        <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>
+        <button class="sb-link" data-nav="/biblioteca-ads"><span class="sb-ico">📚</span> Biblioteca de Anúncios</button>
+        <button class="sb-link" data-nav="/intel-ads"><span class="sb-ico">🎯</span> Intel Ads</button>
 
         <div class="sb-sec">🎯 Metas & Performance</div>
         <button class="sb-link" data-nav="/metas"><span class="sb-ico">🎯</span> Metas</button>

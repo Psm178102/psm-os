@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
-BOARDS = {"mindmap", "orgchart", "cronograma"}
+BOARDS = {"mindmap", "orgchart", "cronograma", "dados_mercado"}
 
 
 def _missing(e):

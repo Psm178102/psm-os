@@ -44,9 +44,26 @@ function render() {
   const ativos = _items.filter(i => (i.status || 'ativo') === 'ativo').length;
 
   _root.innerHTML = `
+    <style>
+      .lc-tl{position:relative;margin-top:6px}
+      .lc-month{display:flex;align-items:center;gap:8px;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#64748b);margin:16px 0 8px}
+      .lc-month::before{content:'';width:11px;height:11px;border-radius:50%;background:var(--psm-gold,#d4a843);box-shadow:0 0 0 3px rgba(212,168,67,.2)}
+      .lc-row{display:flex;gap:0;align-items:stretch}
+      .lc-rail{width:34px;flex:0 0 34px;position:relative;display:flex;justify-content:center}
+      .lc-rail::before{content:'';position:absolute;top:0;bottom:0;width:2px;background:var(--border)}
+      .lc-dot{position:relative;z-index:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;background:var(--bg-1,#fff);border:2px solid var(--c);margin-top:12px}
+      .lc-card{flex:1;min-width:0;background:var(--bg-1,#fff);border:1px solid var(--border);border-left:4px solid var(--c);border-radius:12px;padding:12px 15px;margin:6px 0 6px 10px;transition:transform .12s,box-shadow .12s}
+      .lc-card.click{cursor:pointer}
+      .lc-card.click:hover{transform:translateX(2px);box-shadow:0 4px 14px rgba(15,23,42,.10)}
+      .lc-step{display:flex;align-items:center;gap:3px;flex-wrap:wrap;margin:8px 0}
+      .lc-step .st{display:flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--bg-3);color:var(--ink-muted,#94a3b8)}
+      .lc-step .st.on{background:var(--c);color:#fff}
+      .lc-step .sep{color:var(--border);font-size:10px}
+      .lc-stat{font-size:12px}.lc-stat b{font-weight:800}
+    </style>
     <div class="card">
       <h2 class="card-title">🏗 Lançamentos</h2>
-      <p class="card-sub">${_items.length} cadastrados · ${ativos} ativos</p>
+      <p class="card-sub">${_items.length} cadastrados · ${ativos} ativos · linha do tempo por data de lançamento</p>
 
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
         ${kpi('🚀 Ativos',       ativos, _items.length + ' total', '#16a34a')}
@@ -64,9 +81,8 @@ function render() {
         ${canEdit ? '<button class="btn btn-primary" id="btn-novo" style="margin-left:auto">+ Novo</button>' : ''}
       </div>
 
-      <div class="mt-4" style="display:grid;gap:8px">
-        ${_items.length === 0 ? '<div class="muted text-center" style="padding:30px">Nenhum lançamento.</div>' :
-          _items.map(i => itemCard(i, canEdit)).join('')}
+      <div class="lc-tl mt-3">
+        ${_items.length === 0 ? '<div class="muted text-center" style="padding:30px">Nenhum lançamento.</div>' : timelineHTML(canEdit)}
       </div>
 
       <div id="modal-lc" style="display:none"></div>
@@ -75,34 +91,69 @@ function render() {
   document.getElementById('f-st').addEventListener('change', async e => { _filterStatus = e.target.value; await reload(); });
   const btnNovo = document.getElementById('btn-novo');
   if (btnNovo) btnNovo.addEventListener('click', () => openModal());
-  document.querySelectorAll('[data-lc]').forEach(el => el.addEventListener('click', () => openModal(el.dataset.lc)));
+  document.querySelectorAll('[data-lc]').forEach(el => el.addEventListener('click', (e) => { if (e.target.closest('[data-stop]')) return; openModal(el.dataset.lc); }));
 }
 
-function itemCard(i, canEdit) {
+// Ordena por data (lançamentos com data primeiro, cronológico) e agrupa por mês/ano
+function timelineHTML(canEdit) {
+  const withDate = _items.filter(i => i.data_lancamento).slice()
+    .sort((a, b) => new Date(a.data_lancamento) - new Date(b.data_lancamento));
+  const noDate = _items.filter(i => !i.data_lancamento);
+  const groups = [];
+  let curKey = null, curArr = null;
+  for (const i of withDate) {
+    const d = new Date(i.data_lancamento);
+    const key = d.getFullYear() + '-' + d.getMonth();
+    if (key !== curKey) { curKey = key; curArr = { label: monthLabel(d), items: [] }; groups.push(curArr); }
+    curArr.items.push(i);
+  }
+  if (noDate.length) groups.push({ label: 'Sem data definida', items: noDate });
+  return groups.map(g => `
+    <div class="lc-month">${esc(g.label)}</div>
+    ${g.items.map(i => launchRow(i, canEdit)).join('')}
+  `).join('');
+}
+
+function launchRow(i, canEdit) {
   const status = STATUS.find(s => s.id === i.status) || STATUS[0];
   const etapa = ETAPAS.find(e => e.id === i.etapa) || ETAPAS[1];
+  const etapaIdx = ETAPAS.findIndex(e => e.id === (i.etapa || 'lancamento'));
   const resp = _users.find(u => u.id === i.responsavel_id);
   const pct = i.unidades_total > 0 ? Math.round(i.unidades_vendidas / i.unidades_total * 100) : 0;
+  const data = i.data_lancamento ? new Date(i.data_lancamento).toLocaleDateString('pt-BR') : '—';
+  const stepper = ETAPAS.map((e, idx) =>
+    `<span class="st${idx <= etapaIdx ? ' on' : ''}" style="--c:${status.color}">${e.ico} ${e.lbl}</span>`
+  ).join('<span class="sep">›</span>');
   return `
-    <div ${canEdit ? `data-lc="${i.id}"` : ''} style="background:var(--bg-3);border-left:4px solid ${status.color};border-radius:var(--r-md);padding:12px 16px;${canEdit ? 'cursor:pointer' : ''}">
-      <div class="flex items-center gap-2" style="margin-bottom:6px">
-        <span style="font-size:18px">${etapa.ico}</span>
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:14px">${escapeHtml(i.nome)}</div>
-          <div class="tiny muted">${escapeHtml(i.construtora || 'sem construtora')}${i.data_lancamento ? ' · ' + new Date(i.data_lancamento).toLocaleDateString('pt-BR') : ''}</div>
+    <div class="lc-row">
+      <div class="lc-rail"><div class="lc-dot" style="--c:${status.color}">${etapa.ico}</div></div>
+      <div class="lc-card${canEdit ? ' click' : ''}" style="--c:${status.color}" ${canEdit ? `data-lc="${i.id}"` : ''}>
+        <div class="flex items-center gap-2" style="flex-wrap:wrap">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800;font-size:14.5px">${esc(i.nome)}</div>
+            <div class="tiny muted">${esc(i.construtora || 'sem construtora')} · 📅 ${esc(data)}</div>
+          </div>
+          <span class="tiny" style="background:${status.color};color:#fff;padding:3px 11px;border-radius:999px;font-weight:700">${status.lbl}</span>
         </div>
-        <span class="tiny" style="background:${status.color};color:#fff;padding:3px 10px;border-radius:var(--r-full);font-weight:700">${status.lbl}</span>
+        <div class="lc-step">${stepper}</div>
+        <div class="flex gap-3" style="flex-wrap:wrap">
+          <div class="lc-stat">💰 <b>R$ ${money(i.vgv_total)}</b> <span class="muted">VGV</span></div>
+          <div class="lc-stat">🤝 <b>${i.comissao_pct || 0}%</b> <span class="muted">comissão</span></div>
+          <div class="lc-stat">🏢 <b>${i.unidades_vendidas || 0}/${i.unidades_total || 0}</b> <span class="muted">(${pct}%)</span></div>
+          ${resp ? `<div class="lc-stat">👤 ${esc(resp.name)}</div>` : ''}
+          ${i.link_pasta ? `<a class="lc-stat" href="${esc(i.link_pasta)}" target="_blank" rel="noopener" data-stop="1" style="text-decoration:none">📁 pasta</a>` : ''}
+        </div>
+        ${i.unidades_total > 0 ? `<div style="background:var(--bg-3);height:5px;border-radius:3px;overflow:hidden;margin-top:7px"><div style="background:${status.color};height:100%;width:${pct}%;transition:width .4s"></div></div>` : ''}
       </div>
-      <div class="flex gap-3" style="flex-wrap:wrap;font-size:12px">
-        <div><b>VGV:</b> R$ ${money(i.vgv_total)}</div>
-        <div><b>Comissão:</b> ${i.comissao_pct || 0}%</div>
-        <div><b>Unidades:</b> ${i.unidades_vendidas || 0}/${i.unidades_total || 0} <span class="muted">(${pct}%)</span></div>
-        ${resp ? `<div><b>Resp:</b> ${escapeHtml(resp.name)}</div>` : ''}
-      </div>
-      ${i.unidades_total > 0 ? `<div style="background:var(--bg);height:4px;border-radius:2px;overflow:hidden;margin-top:6px"><div style="background:#16a34a;height:100%;width:${pct}%"></div></div>` : ''}
     </div>
   `;
 }
+
+function monthLabel(d) {
+  const s = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+const esc = (s) => escapeHtml(s);
 
 function openModal(lid) {
   const i = lid ? _items.find(x => x.id === lid) : null;
