@@ -14,4 +14,6 @@ alter table concorrentes add column if not exists bio            text;
 alter table concorrentes add column if not exists engajamento    numeric;
 alter table concorrentes add column if not exists imoveis_ativos int;
 
-create unique index if not exists concorrentes_slug_ux on concorrentes (slug) where slug is not null;
+-- Índice único NÃO-parcial (ON CONFLICT (slug) do upsert exige; NULLs já são
+-- distintos no Postgres, então linhas sem slug não colidem).
+create unique index if not exists concorrentes_slug_ux on concorrentes (slug);
