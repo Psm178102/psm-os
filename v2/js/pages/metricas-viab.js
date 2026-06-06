@@ -1,18 +1,20 @@
-/* PSM-OS v2 — Métricas de Viabilidade por LINHA + Rateio híbrido de custos (Sprint 9.30)
-   4 linhas: PSM M.A.P · Conquista · Terceiros · Locações + Consolidado.
-   Custos compartilhados (planilha) rateados:
-     - Igual      → ÷ 3 (M.A.P, Conquista, Locações) — exclui Terceiros
-     - Proporcional → pela EXPECTATIVA DE VGV (nº corretores × ticket × vendas/corretor) — exclui Terceiros
-     - Direto     → 100% na linha indicada (qualquer linha)
-   + custo direto extra manual por linha. Tudo editável. VGV mín/corretor pra break-even.
-   Custos persistidos no board `custos_compartilhados` (compartilhado, sem SQL novo). */
+/* PSM-OS v2 — Métricas de Viabilidade por LINHA + Rateio híbrido (Sprint 9.31)
+   4 linhas (M.A.P · Conquista · Terceiros · Locações) + Consolidado.
+   • Período Mensal/Anual (toggle).
+   • Margem PSM líquida REAL (desconta corretor + sênior + imposto) no break-even e lucro.
+   • Locação: comissão = 1º aluguel integral (100%) + receita recorrente 10% adm × contratos ativos.
+   • Meta vem da aba Metas (atingimento). Pró-labore com toggle (set/2026).
+   • Rateio híbrido dos custos: Igual÷3 (excl Terceiros), Proporcional pela expectativa de VGV, Direto.
+   • Params de linha + custos persistidos no board custos_compartilhados (compartilhado). */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
-let _root = null, _data = null, _custos = null, _active = 'map', _showCustos = false, _custosMsg = '';
+let _root = null, _data = null, _custos = null, _lines = null;
+let _active = 'map', _showCustos = false, _periodo = 'mes', _comProLabore = false, _custosMsg = '';
 
 const LKEY = 'psm_v2_metricas_viab_lines';
-const SHARED = ['map', 'conquista', 'locacoes']; // linhas que rateiam custos compartilhados (excl. Terceiros)
+const SHARED = ['map', 'conquista', 'locacoes']; // rateiam os custos compartilhados (excl. Terceiros)
+const MESES_DECORRIDOS = Math.max(1, new Date().getMonth() + 1);
 
 const LINES = [
   { id: 'map',       nome: 'PSM M.A.P',     icon: '🏢', cor: '#7c3aed' },
@@ -22,16 +24,16 @@ const LINES = [
 ];
 
 const DEFAULTS = {
-  map:       { ticketMedio: 350000, vendasMes: 1, comissaoBrutaPct: 4,  comCorretorPct: 1.4, comSeniorPct: 1.6, aliquotaPct: 8, custoDireto: 0, metaMes: 2500000, corretoresManual: '', vgvManual: '' },
-  conquista: { ticketMedio: 200000, vendasMes: 1, comissaoBrutaPct: 5,  comCorretorPct: 2.0, comSeniorPct: 1.0, aliquotaPct: 8, custoDireto: 0, metaMes: 1500000, corretoresManual: '', vgvManual: '' },
-  terceiros: { ticketMedio: 250000, vendasMes: 1, comissaoBrutaPct: 6,  comCorretorPct: 3.0, comSeniorPct: 1.0, aliquotaPct: 8, custoDireto: 8000, metaMes: 800000, corretoresManual: '', vgvManual: '' },
-  locacoes:  { ticketMedio: 2500,   vendasMes: 1, comissaoBrutaPct: 10, comCorretorPct: 4.0, comSeniorPct: 2.0, aliquotaPct: 8, custoDireto: 0, metaMes: 60000,   corretoresManual: '', vgvManual: '' },
+  map:       { ticketMedio: 350000, vendasMes: 1, comissaoBrutaPct: 4,   comCorretorPct: 1.4, comSeniorPct: 1.6, aliquotaPct: 8, admPct: 0,  contratosAtivos: 0,   custoDireto: 0,    corretoresManual: '', vgvManual: '' },
+  conquista: { ticketMedio: 200000, vendasMes: 1, comissaoBrutaPct: 5,   comCorretorPct: 2.0, comSeniorPct: 1.0, aliquotaPct: 8, admPct: 0,  contratosAtivos: 0,   custoDireto: 0,    corretoresManual: '', vgvManual: '' },
+  terceiros: { ticketMedio: 250000, vendasMes: 1, comissaoBrutaPct: 6,   comCorretorPct: 3.0, comSeniorPct: 1.0, aliquotaPct: 8, admPct: 0,  contratosAtivos: 0,   custoDireto: 8000, corretoresManual: '', vgvManual: '' },
+  // Locação: ticket = aluguel; comissão de captação = 100% do 1º aluguel; adm recorrente = 10% × contratos ativos
+  locacoes:  { ticketMedio: 2500,   vendasMes: 2, comissaoBrutaPct: 100, comCorretorPct: 30,  comSeniorPct: 0,   aliquotaPct: 8, admPct: 10, contratosAtivos: 100, custoDireto: 0,    corretoresManual: '', vgvManual: '' },
 };
 
-// Planilha "CUSTOS COMPARTILHADOS — Rateio híbrido (excl. Terceiros)"
 const CUSTOS_SEED = [
-  { item: 'Pró-labore Paulo (set/2026 R$8k)', valor: 0, tipo: 'igual', cat: 'Sócios' },
-  { item: 'Pró-labore Isadora (set/2026 R$8k)', valor: 0, tipo: 'igual', cat: 'Sócios' },
+  { item: 'Pró-labore Paulo (set/2026 R$8k)', valor: 0, tipo: 'igual', cat: 'Sócios', prolabore: 1 },
+  { item: 'Pró-labore Isadora (set/2026 R$8k)', valor: 0, tipo: 'igual', cat: 'Sócios', prolabore: 1 },
   { item: 'Ponto / Aluguel sala', valor: 15000, tipo: 'igual', cat: 'Estrutura' },
   { item: 'Condomínio', valor: 5400, tipo: 'igual', cat: 'Estrutura' },
   { item: 'Energia', valor: 1300, tipo: 'igual', cat: 'Estrutura' },
@@ -76,21 +78,19 @@ const CUSTOS_SEED = [
   { item: 'CRECI / 12', valor: 344.25, tipo: 'proporcional', cat: 'Administrativo' },
   { item: 'Curso Hard3', valor: 99.73, tipo: 'proporcional', cat: 'Treinamento' },
 ];
-
-let _lines = null;
+const PROLABORE_VALOR = 8000; // quando ativado (set/2026)
 
 export async function pageMetricasViab(ctx, root) {
   _root = root;
   if ((auth.user()?.lvl || 0) < 7) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Sócio (lvl 7+).</div>'; return; }
-  try {
-    const saved = JSON.parse(localStorage.getItem(LKEY) || '{}');
-    _lines = {};
-    for (const l of LINES) _lines[l.id] = Object.assign({}, DEFAULTS[l.id], saved[l.id] || {});
-  } catch { _lines = JSON.parse(JSON.stringify(DEFAULTS)); }
+  _lines = freshLines();
+  try { const c = JSON.parse(localStorage.getItem(LKEY) || 'null'); if (c) for (const l of LINES) _lines[l.id] = Object.assign({}, DEFAULTS[l.id], c[l.id] || {}); } catch {}
   _custos = CUSTOS_SEED.map(c => ({ ...c }));
   render();
   await load();
 }
+
+function freshLines() { const o = {}; for (const l of LINES) o[l.id] = { ...DEFAULTS[l.id] }; return o; }
 
 async function load() {
   try {
@@ -99,25 +99,21 @@ async function load() {
       api.request('/api/v3/diretoria/strategy?board=custos_compartilhados').catch(() => null),
     ]);
     _data = atg || {};
-    if (board && board.ok && board.data && Array.isArray(board.data.items) && board.data.items.length) {
-      _custos = board.data.items.map(c => ({ ...c }));
-      _custosMsg = '';
-    } else if (board && board.pending) {
-      _custosMsg = '⏳ Board ainda não criado — usando a planilha base. Edite/salve pra persistir.';
-    } else {
-      _custosMsg = 'Usando a planilha base (padrão). Edite que eu salvo automaticamente.';
-    }
+    const d = board && board.ok ? (board.data || {}) : null;
+    if (d && Array.isArray(d.items) && d.items.length) _custos = d.items.map(c => ({ ...c }));
+    if (d && d.lines) for (const l of LINES) _lines[l.id] = Object.assign({}, DEFAULTS[l.id], d.lines[l.id] || {});
+    _custosMsg = board && board.pending ? '⏳ board não criado — usando base; edite p/ salvar' : (d ? '' : 'usando base padrão');
   } catch { _data = {}; }
-  renderBanner(); renderCustos(); renderParams(); renderTable();
+  renderBanner(); renderParams(); renderCustos(); renderTable();
 }
 
-function saveLines() { try { localStorage.setItem(LKEY, JSON.stringify(_lines)); } catch {} }
-function saveCustos() {
+function saveAll() {
+  try { localStorage.setItem(LKEY, JSON.stringify(_lines)); } catch {}
   clearTimeout(window._cst);
   window._cst = setTimeout(async () => {
     try {
-      const r = await api.request('/api/v3/diretoria/strategy', { method: 'POST', body: { board: 'custos_compartilhados', data: { items: _custos } } });
-      _custosMsg = (r && r.ok) ? '💾 salvo' : (r && r.pending ? '⚠️ ' + (r.error || 'tabela ausente') : '⚠️ erro ao salvar');
+      const r = await api.request('/api/v3/diretoria/strategy', { method: 'POST', body: { board: 'custos_compartilhados', data: { items: _custos, lines: _lines } } });
+      _custosMsg = (r && r.ok) ? '💾 salvo (compartilhado)' : (r && r.pending ? '⚠️ ' + (r.error || '') : '⚠️ erro');
     } catch (e) { _custosMsg = '⚠️ ' + e.message; }
     const m = document.getElementById('custos-msg'); if (m) m.textContent = _custosMsg;
   }, 500);
@@ -129,24 +125,35 @@ function teamAgg() {
   const t = c => (c.team || '').toLowerCase();
   const isLoc = c => t(c).includes('loca'), isConq = c => t(c) === 'conquista', isTerc = c => t(c) === 'terceiros';
   const isMap = c => !isLoc(c) && !isConq(c) && !isTerc(c);
-  const agg = pred => { const r = pc.filter(pred); return { vgv: r.reduce((s, c) => s + (+c.vgv_atingido || 0), 0), vendas: r.reduce((s, c) => s + (+c.vendas || 0), 0), n: r.length }; };
+  const agg = pred => { const r = pc.filter(pred); return {
+    vgv: r.reduce((s, c) => s + (+c.vgv_atingido || 0), 0),
+    vendas: r.reduce((s, c) => s + (+c.vendas || 0), 0),
+    meta: r.reduce((s, c) => s + (+c.meta_vgv || 0), 0),
+    n: r.length }; };
   return { map: agg(isMap), conquista: agg(isConq), terceiros: agg(isTerc), locacoes: agg(isLoc) };
 }
 function resolved(id) {
-  const p = _lines[id], a = teamAgg()[id] || { vgv: 0, vendas: 0, n: 0 };
+  const p = _lines[id], a = teamAgg()[id] || { vgv: 0, vendas: 0, meta: 0, n: 0 };
   const vM = (p.vgvManual !== '' && p.vgvManual != null) ? +p.vgvManual : null;
   const cM = (p.corretoresManual !== '' && p.corretoresManual != null) ? +p.corretoresManual : null;
-  return { vgvReal: vM != null ? vM : a.vgv, vendasReal: a.vendas, nCorr: cM != null ? cM : a.n, autoVgv: a.vgv, autoN: a.n, vgvIsManual: vM != null, corrIsManual: cM != null };
+  // VGV realizado MENSAL: manual já é mensal; auto = acumulado do ano ÷ meses decorridos
+  return {
+    vgvRealMes: vM != null ? vM : (a.vgv / MESES_DECORRIDOS),
+    vgvAnualReal: a.vgv,
+    metaMes: (a.meta || 0) / 12,
+    nCorr: cM != null ? cM : a.n,
+    autoVgvMes: a.vgv / MESES_DECORRIDOS, autoN: a.n,
+    vgvIsManual: vM != null, corrIsManual: cM != null,
+  };
 }
-function expectativa(id) {
-  const p = _lines[id], r = resolved(id);
-  return (r.nCorr || 0) * (+p.ticketMedio || 0) * (+p.vendasMes || 0);
-}
+function expectativa(id) { const p = _lines[id], r = resolved(id); return (r.nCorr || 0) * (+p.ticketMedio || 0) * (+p.vendasMes || 0); }
 
-/* ── rateio híbrido dos custos compartilhados ── */
+/* ── custos: aplica pró-labore toggle ── */
+function custoValor(c) { return (c.prolabore && _comProLabore) ? PROLABORE_VALOR : (+c.valor || 0); }
+
 function rateio() {
-  const igualTotal = _custos.filter(c => c.tipo === 'igual').reduce((s, c) => s + (+c.valor || 0), 0);
-  const propTotal = _custos.filter(c => c.tipo === 'proporcional').reduce((s, c) => s + (+c.valor || 0), 0);
+  const igualTotal = _custos.filter(c => c.tipo === 'igual').reduce((s, c) => s + custoValor(c), 0);
+  const propTotal = _custos.filter(c => c.tipo === 'proporcional').reduce((s, c) => s + custoValor(c), 0);
   const exp = {}; let expTotal = 0;
   for (const id of SHARED) { exp[id] = expectativa(id); expTotal += exp[id]; }
   const out = { map: 0, conquista: 0, terceiros: 0, locacoes: 0 };
@@ -154,30 +161,41 @@ function rateio() {
     out[id] += igualTotal / SHARED.length;
     out[id] += expTotal > 0 ? propTotal * (exp[id] / expTotal) : propTotal / SHARED.length;
   }
-  for (const c of _custos) if (c.tipo === 'direto' && c.linha && out[c.linha] != null) out[c.linha] += (+c.valor || 0);
-  return { alloc: out, igualTotal, propTotal, exp, expTotal };
+  for (const c of _custos) if (c.tipo === 'direto' && c.linha && out[c.linha] != null) out[c.linha] += custoValor(c);
+  const dirTotal = _custos.filter(c => c.tipo === 'direto').reduce((s, c) => s + custoValor(c), 0);
+  return { alloc: out, igualTotal, propTotal, dirTotal };
 }
 
-/* ── viabilidade por linha ── */
+/* ── viabilidade (tudo MENSAL) ── */
 function computeLine(id, rt) {
   const p = _lines[id], r = resolved(id);
   const despFixa = (rt.alloc[id] || 0) + (+p.custoDireto || 0);
-  const margemLiquidaPct = (p.comissaoBrutaPct - p.aliquotaPct * p.comissaoBrutaPct / 100) / 100;
-  const vgvBreakEven = margemLiquidaPct > 0 ? despFixa / margemLiquidaPct : 0;
-  const comBruta = p.ticketMedio * p.comissaoBrutaPct / 100;
-  const margemPSM = comBruta - comBruta * p.aliquotaPct / 100 - p.ticketMedio * p.comCorretorPct / 100 - p.ticketMedio * p.comSeniorPct / 100;
-  const vendasBreakEven = margemPSM > 0 ? Math.ceil(despFixa / margemPSM) : 0;
+  const ticket = +p.ticketMedio || 0;
+  // margem PSM líquida REAL por venda (desconta corretor + sênior + imposto)
+  const comBruta = ticket * p.comissaoBrutaPct / 100;
+  const margemPSM = comBruta - comBruta * p.aliquotaPct / 100 - ticket * p.comCorretorPct / 100 - ticket * p.comSeniorPct / 100;
+  const netMarginPct = ticket > 0 ? margemPSM / ticket : 0; // fração líquida da PSM sobre o VGV
+  // receita recorrente de administração (locação): 10% × aluguel × contratos ativos
+  const recorrente = ticket * (+p.admPct || 0) / 100 * (+p.contratosAtivos || 0);
+  // o que precisa ser coberto por venda/captação = despesa − recorrente
+  const despNet = Math.max(0, despFixa - recorrente);
+  const vgvBreakEven = netMarginPct > 0 ? despNet / netMarginPct : 0;
+  const vendasBreakEven = margemPSM > 0 ? Math.ceil(despNet / margemPSM) : 0;
   const nCorr = r.nCorr || 0;
   const vgvMinPorCorretor = nCorr > 0 ? vgvBreakEven / nCorr : 0;
   const vendasMinPorCorretor = nCorr > 0 ? Math.ceil(vendasBreakEven / nCorr) : 0;
-  const lucroLiquido = r.vgvReal * margemLiquidaPct - despFixa;
-  const margemLiquidaReal = r.vgvReal > 0 ? (lucroLiquido / r.vgvReal * 100) : 0;
-  return { despFixa, vgvBreakEven, vendasBreakEven, margemPSM, nCorr, ticket: +p.ticketMedio || 0, expectativa: expectativa(id), vgvMinPorCorretor, vendasMinPorCorretor, vgvReal: r.vgvReal, lucroLiquido, margemLiquidaReal };
+  const lucro = r.vgvRealMes * netMarginPct + recorrente - despFixa;
+  const margemReal = r.vgvRealMes > 0 ? (lucro / r.vgvRealMes * 100) : 0;
+  const metaPct = r.metaMes > 0 ? (r.vgvRealMes / r.metaMes * 100) : null;
+  return { despFixa, recorrente, vgvBreakEven, vendasBreakEven, margemPSM, netMarginPct, nCorr, ticket,
+    expectativa: expectativa(id), vgvMinPorCorretor, vendasMinPorCorretor,
+    vgvRealMes: r.vgvRealMes, metaMes: r.metaMes, metaPct, lucro, margemReal };
 }
 function computeTotal(per) {
-  const t = { despFixa: 0, vgvBreakEven: 0, vendasBreakEven: 0, vgvReal: 0, lucroLiquido: 0, nCorr: 0, expectativa: 0 };
-  for (const id of Object.keys(per)) { const c = per[id]; t.despFixa += c.despFixa; t.vgvBreakEven += c.vgvBreakEven; t.vendasBreakEven += c.vendasBreakEven; t.vgvReal += c.vgvReal; t.lucroLiquido += c.lucroLiquido; t.nCorr += c.nCorr; t.expectativa += c.expectativa; }
-  t.margemLiquidaReal = t.vgvReal > 0 ? (t.lucroLiquido / t.vgvReal * 100) : 0;
+  const t = { despFixa: 0, recorrente: 0, vgvBreakEven: 0, vendasBreakEven: 0, vgvRealMes: 0, metaMes: 0, lucro: 0, nCorr: 0, expectativa: 0 };
+  for (const id of Object.keys(per)) { const c = per[id]; for (const k of ['despFixa','recorrente','vgvBreakEven','vendasBreakEven','vgvRealMes','metaMes','lucro','nCorr','expectativa']) t[k] += c[k]; }
+  t.margemReal = t.vgvRealMes > 0 ? (t.lucro / t.vgvRealMes * 100) : 0;
+  t.metaPct = t.metaMes > 0 ? (t.vgvRealMes / t.metaMes * 100) : null;
   t.vgvMinPorCorretor = t.nCorr > 0 ? t.vgvBreakEven / t.nCorr : 0;
   t.vendasMinPorCorretor = t.nCorr > 0 ? Math.ceil(t.vendasBreakEven / t.nCorr) : 0;
   return t;
@@ -188,7 +206,7 @@ function render() {
   _root.innerHTML = `
     <div class="card">
       <h2 class="card-title">🧪 Métricas de Viabilidade por Linha</h2>
-      <p class="card-sub">Break-even por unidade + rateio híbrido de custos + VGV mínimo POR CORRETOR · Sócio only</p>
+      <p class="card-sub">Break-even por unidade + rateio híbrido + VGV mín/corretor · valores mensais e anuais · Sócio only</p>
       <div id="viab-banner"></div>
 
       <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:14px 0 6px">Parâmetros da linha (editável)</div>
@@ -199,15 +217,29 @@ function render() {
 
       <div id="viab-custos" style="margin-top:14px"></div>
 
-      <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:18px 0 6px">📊 Quadro comparativo</div>
+      <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:18px 0 6px">
+        <div class="tiny muted" style="text-transform:uppercase;font-weight:800">📊 Quadro comparativo</div>
+        <div class="flex gap-2" style="align-items:center">
+          <label class="tiny" style="cursor:pointer"><input type="checkbox" id="viab-prolabore" ${_comProLabore ? 'checked' : ''}> incluir pró-labore (set/26)</label>
+          <div class="flex gap-1" id="viab-periodo">
+            <button class="btn ${_periodo === 'mes' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-p="mes">Mensal</button>
+            <button class="btn ${_periodo === 'ano' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-p="ano">Anual</button>
+          </div>
+        </div>
+      </div>
       <div id="viab-table"><div class="muted tiny"><span class="spinner"></span> Carregando…</div></div>
-    </div>
-  `;
+    </div>`;
   _root.querySelectorAll('#viab-tabs [data-line]').forEach(b => b.addEventListener('click', () => {
     _active = b.dataset.line;
     _root.querySelectorAll('#viab-tabs [data-line]').forEach(x => x.className = `btn ${x.dataset.line === _active ? 'btn-primary' : 'btn-ghost'} btn-sm`);
     renderParams();
   }));
+  _root.querySelectorAll('#viab-periodo [data-p]').forEach(b => b.addEventListener('click', () => {
+    _periodo = b.dataset.p;
+    _root.querySelectorAll('#viab-periodo [data-p]').forEach(x => x.className = `btn ${x.dataset.p === _periodo ? 'btn-primary' : 'btn-ghost'} btn-sm`);
+    renderTable();
+  }));
+  document.getElementById('viab-prolabore').addEventListener('change', e => { _comProLabore = e.target.checked; renderCustos(); renderTable(); });
   renderParams(); renderCustos();
 }
 
@@ -215,107 +247,84 @@ function renderBanner() {
   const el = document.getElementById('viab-banner'); if (!el) return;
   const a = teamAgg();
   el.innerHTML = `<div class="alert" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);padding:10px 12px;border-radius:8px;margin-top:8px;font-size:12.5px">
-    📡 <b>VGV real (ano):</b> ${fmt(+(_data?.total_vgv || 0))} · ${+(_data?.total_vendas || 0)} venda(s). Por equipe →
-    🏢 M.A.P ${fmt(a.map.vgv)} (${a.map.n}p) · 🏠 Conquista ${fmt(a.conquista.vgv)} (${a.conquista.n}p) · 🤝 Terceiros ${fmt(a.terceiros.vgv)} (${a.terceiros.n}p) · 🔑 Locações ${fmt(a.locacoes.vgv)} (${a.locacoes.n}p).</div>`;
+    📡 <b>VGV real acumulado (ano, ${MESES_DECORRIDOS} ${MESES_DECORRIDOS === 1 ? 'mês' : 'meses'}):</b> ${fmt(+(_data?.total_vgv || 0))} · ${+(_data?.total_vendas || 0)} venda(s). Por equipe →
+    🏢 ${fmt(a.map.vgv)} (${a.map.n}p) · 🏠 ${fmt(a.conquista.vgv)} (${a.conquista.n}p) · 🤝 ${fmt(a.terceiros.vgv)} (${a.terceiros.n}p) · 🔑 ${fmt(a.locacoes.vgv)} (${a.locacoes.n}p).
+    <span class="muted">No quadro, "VGV realizado mensal" = acumulado ÷ ${MESES_DECORRIDOS}.</span></div>`;
 }
 
 function renderParams() {
   const el = document.getElementById('viab-params'); if (!el) return;
-  const l = LINES.find(x => x.id === _active), r = resolved(_active);
+  const l = LINES.find(x => x.id === _active), r = resolved(_active), isLoc = _active === 'locacoes';
   el.innerHTML = `
-    <div style="font-weight:800;color:${l.cor};margin-bottom:8px">${l.icon} ${l.nome}</div>
+    <div style="font-weight:800;color:${l.cor};margin-bottom:8px">${l.icon} ${l.nome}${isLoc ? ' <span class="tiny muted">(comissão = 1º aluguel 100% + adm recorrente)</span>' : ''}</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
       ${inp('Nº de Corretores', 'corretoresManual', '', `real: ${r.autoN}`)}
-      ${inp('Ticket Médio (R$)', 'ticketMedio')}
-      ${inp('Vendas/corretor/mês (p/ expectativa)', 'vendasMes')}
-      ${inp('Comissão Bruta (%)', 'comissaoBrutaPct', '%')}
+      ${inp(isLoc ? 'Aluguel médio (R$)' : 'Ticket Médio (R$)', 'ticketMedio')}
+      ${inp(isLoc ? 'Contratos novos/corretor/mês' : 'Vendas/corretor/mês', 'vendasMes')}
+      ${inp(isLoc ? 'Comissão captação (% do 1º aluguel)' : 'Comissão Bruta (%)', 'comissaoBrutaPct', '%')}
       ${inp('% Corretor', 'comCorretorPct', '%')}
       ${inp('% Sênior', 'comSeniorPct', '%')}
       ${inp('Alíquota Imposto (%)', 'aliquotaPct', '%')}
-      ${inp('Custo Direto Extra (R$/mês)', 'custoDireto', '', _active === 'terceiros' ? 'Terceiros não rateia' : 'fora da planilha')}
-      ${inp('Meta Mês (R$)', 'metaMes')}
+      ${isLoc ? inp('% Adm recorrente', 'admPct', '%') : inp('Custo Direto Extra (R$/mês)', 'custoDireto', '', _active === 'terceiros' ? 'Terceiros não rateia' : 'fora da planilha')}
+      ${isLoc ? inp('Contratos ativos (carteira)', 'contratosAtivos') : ''}
+      ${isLoc ? inp('Custo Direto Extra (R$/mês)', 'custoDireto', '', 'fora da planilha') : ''}
     </div>
     <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
-      ${inp('VGV Realizado (R$) — vazio = dado real da equipe', 'vgvManual', '', `auto: ${fmt(r.autoVgv)}`)}
-      <div class="tiny muted" style="margin-top:4px">📐 Expectativa de VGV/mês desta linha: <b>${fmt(expectativa(_active))}</b> (nº corretores × ticket × vendas/corretor) — é a base do rateio proporcional.${_active === 'terceiros' ? ' <span style="color:#d97706">Terceiros é EXCLUÍDO do rateio compartilhado (só custo direto).</span>' : ''}</div>
+      ${inp('VGV Realizado MENSAL (R$) — vazio = real ÷ meses', 'vgvManual', '', `auto: ${fmt(r.autoVgvMes)}`)}
+      <div class="tiny muted" style="margin-top:4px">📐 Expectativa de VGV/mês: <b>${fmt(expectativa(_active))}</b> (nº corretores × ${isLoc ? 'aluguel' : 'ticket'} × ${isLoc ? 'contratos' : 'vendas'}/corretor) — base do rateio proporcional. 🎯 Meta/mês (aba Metas): <b>${fmt(r.metaMes)}</b>.${_active === 'terceiros' ? ' <span style="color:#d97706">Terceiros é EXCLUÍDO do rateio (só custo direto).</span>' : ''}${isLoc ? ' <span style="color:#d97706">Locação: recorrente de adm cobre parte do custo fixo.</span>' : ''}</div>
     </div>`;
-  el.querySelectorAll('[data-key]').forEach(input => input.addEventListener('input', e => {
+  el.querySelectorAll('[data-key]').forEach(input => { if (input.dataset.key === '_noop_') { input.disabled = true; return; } input.addEventListener('input', e => {
     const k = input.dataset.key;
     _lines[_active][k] = (k === 'vgvManual' || k === 'corretoresManual') ? e.target.value.trim() : (parseFloat(e.target.value) || 0);
-    saveLines();
+    saveAll();
     clearTimeout(window._vtm); window._vtm = setTimeout(() => { renderTable(); renderBanner(); }, 200);
-  }));
+  }); });
 }
 
 function renderCustos() {
   const el = document.getElementById('viab-custos'); if (!el) return;
   const rt = rateio();
-  const dirTotal = _custos.filter(c => c.tipo === 'direto').reduce((s, c) => s + (+c.valor || 0), 0);
-  const total = rt.igualTotal + rt.propTotal + dirTotal;
+  const total = rt.igualTotal + rt.propTotal + rt.dirTotal;
   if (!_showCustos) {
     el.innerHTML = `<div style="background:var(--bg-3);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div style="font-size:12.5px"><b>💸 Custos Compartilhados (rateio híbrido)</b> — ${_custos.length} itens · Igual ${fmt(rt.igualTotal)} · Proporcional ${fmt(rt.propTotal)} · Direto ${fmt(dirTotal)} · <b>Total ${fmt(total)}/mês</b></div>
-      <button class="btn btn-ghost btn-sm" id="custos-toggle">✏️ editar custos</button>
-    </div>`;
+      <div style="font-size:12.5px"><b>💸 Custos Compartilhados (rateio híbrido)</b> — ${_custos.length} itens · Igual ${fmt(rt.igualTotal)} · Proporcional ${fmt(rt.propTotal)} · Direto ${fmt(rt.dirTotal)} · <b>Total ${fmt(total)}/mês</b>${_comProLabore ? ' <span class="tiny" style="color:#16a34a">+pró-labore</span>' : ''}</div>
+      <button class="btn btn-ghost btn-sm" id="custos-toggle">✏️ editar custos</button></div>`;
     document.getElementById('custos-toggle').addEventListener('click', () => { _showCustos = true; renderCustos(); });
     return;
   }
   const lineOpts = id => LINES.map(l => `<option value="${l.id}"${l.id === id ? ' selected' : ''}>${l.nome}</option>`).join('');
-  el.innerHTML = `
-    <div style="background:var(--bg-3);border-radius:10px;padding:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-        <div style="font-weight:800">💸 Custos Compartilhados — rateio híbrido <span class="tiny muted">(excl. Terceiros no Igual/Proporcional)</span></div>
-        <div class="flex gap-2">
-          <button class="btn btn-ghost btn-sm" id="custos-add">＋ item</button>
-          <button class="btn btn-ghost btn-sm" id="custos-reset">↺ planilha base</button>
-          <button class="btn btn-ghost btn-sm" id="custos-close">✓ fechar</button>
-        </div>
-      </div>
-      <div class="tiny muted" id="custos-msg" style="margin-bottom:6px">${escapeHtml(_custosMsg)}</div>
-      <div style="overflow-x:auto;max-height:340px;overflow-y:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:620px">
-          <thead><tr style="background:var(--bg-2);position:sticky;top:0">
-            <th style="text-align:left;padding:6px 8px">Item</th>
-            <th style="text-align:right;padding:6px 8px;width:110px">R$/mês</th>
-            <th style="text-align:left;padding:6px 8px;width:130px">Rateio</th>
-            <th style="text-align:left;padding:6px 8px;width:130px">Linha (se direto)</th>
-            <th style="width:30px"></th>
-          </tr></thead>
-          <tbody>
-            ${_custos.map((c, i) => `<tr style="border-bottom:1px solid var(--border)">
-              <td style="padding:3px 6px"><input class="input" data-idx="${i}" data-field="item" value="${escapeHtml(c.item || '')}" style="width:100%;font-size:12px;padding:4px 6px"></td>
-              <td style="padding:3px 6px"><input class="input" type="number" data-idx="${i}" data-field="valor" value="${c.valor ?? 0}" style="width:100%;font-size:12px;padding:4px 6px;text-align:right"></td>
-              <td style="padding:3px 6px"><select class="input" data-idx="${i}" data-field="tipo" style="width:100%;font-size:12px;padding:4px 6px">
-                <option value="igual"${c.tipo === 'igual' ? ' selected' : ''}>Igual (÷3)</option>
-                <option value="proporcional"${c.tipo === 'proporcional' ? ' selected' : ''}>Proporcional</option>
-                <option value="direto"${c.tipo === 'direto' ? ' selected' : ''}>Direto</option>
-              </select></td>
-              <td style="padding:3px 6px">${c.tipo === 'direto' ? `<select class="input" data-idx="${i}" data-field="linha" style="width:100%;font-size:12px;padding:4px 6px">${lineOpts(c.linha || 'map')}</select>` : '<span class="tiny muted">—</span>'}</td>
-              <td style="padding:3px 6px;text-align:center"><span data-del="${i}" style="cursor:pointer;color:#dc2626">✕</span></td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div class="tiny muted" style="margin-top:6px">Igual <b>${fmt(rt.igualTotal)}</b> ÷ 3 = ${fmt(rt.igualTotal / 3)}/linha · Proporcional <b>${fmt(rt.propTotal)}</b> rateado por expectativa · Direto <b>${fmt(dirTotal)}</b> · Total <b>${fmt(total)}/mês</b></div>
-    </div>`;
-  // binds
-  el.querySelectorAll('input[data-idx]').forEach(inpEl => inpEl.addEventListener('input', e => {
+  el.innerHTML = `<div style="background:var(--bg-3);border-radius:10px;padding:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <div style="font-weight:800">💸 Custos Compartilhados <span class="tiny muted">(Igual÷3 excl. Terceiros · Proporcional pela expectativa · Direto)</span></div>
+      <div class="flex gap-2"><button class="btn btn-ghost btn-sm" id="custos-add">＋ item</button><button class="btn btn-ghost btn-sm" id="custos-reset">↺ base</button><button class="btn btn-ghost btn-sm" id="custos-close">✓ fechar</button></div>
+    </div>
+    <div class="tiny muted" id="custos-msg" style="margin-bottom:6px">${escapeHtml(_custosMsg)}</div>
+    <div style="overflow-x:auto;max-height:320px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:600px">
+      <thead><tr style="background:var(--bg-2);position:sticky;top:0">
+        <th style="text-align:left;padding:6px 8px">Item</th><th style="text-align:right;padding:6px 8px;width:100px">R$/mês</th>
+        <th style="text-align:left;padding:6px 8px;width:120px">Rateio</th><th style="text-align:left;padding:6px 8px;width:120px">Linha</th><th style="width:26px"></th>
+      </tr></thead><tbody>
+        ${_custos.map((c, i) => `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:3px 6px"><input class="input" data-idx="${i}" data-field="item" value="${escapeHtml(c.item || '')}" style="width:100%;font-size:12px;padding:4px 6px"></td>
+          <td style="padding:3px 6px"><input class="input" type="number" data-idx="${i}" data-field="valor" value="${c.valor ?? 0}" style="width:100%;font-size:12px;padding:4px 6px;text-align:right"></td>
+          <td style="padding:3px 6px"><select class="input" data-idx="${i}" data-field="tipo" style="width:100%;font-size:12px;padding:4px 6px">
+            <option value="igual"${c.tipo === 'igual' ? ' selected' : ''}>Igual ÷3</option><option value="proporcional"${c.tipo === 'proporcional' ? ' selected' : ''}>Proporcional</option><option value="direto"${c.tipo === 'direto' ? ' selected' : ''}>Direto</option></select></td>
+          <td style="padding:3px 6px">${c.tipo === 'direto' ? `<select class="input" data-idx="${i}" data-field="linha" style="width:100%;font-size:12px;padding:4px 6px">${lineOpts(c.linha || 'map')}</select>` : '<span class="tiny muted">—</span>'}</td>
+          <td style="padding:3px 6px;text-align:center"><span data-del="${i}" style="cursor:pointer;color:#dc2626">✕</span></td></tr>`).join('')}
+      </tbody></table></div></div>`;
+  el.querySelectorAll('input[data-idx]').forEach(inpEl => inpEl.addEventListener('input', () => {
     const i = +inpEl.dataset.idx, f = inpEl.dataset.field;
-    _custos[i][f] = f === 'valor' ? (parseFloat(e.target.value) || 0) : e.target.value;
-    saveCustos();
-    clearTimeout(window._vtm); window._vtm = setTimeout(renderTable, 250);
+    _custos[i][f] = f === 'valor' ? (parseFloat(inpEl.value) || 0) : inpEl.value;
+    saveAll(); clearTimeout(window._vtm); window._vtm = setTimeout(renderTable, 250);
   }));
   el.querySelectorAll('select[data-idx]').forEach(sel => sel.addEventListener('change', () => {
-    const i = +sel.dataset.idx, f = sel.dataset.field;
-    _custos[i][f] = sel.value;
+    const i = +sel.dataset.idx, f = sel.dataset.field; _custos[i][f] = sel.value;
     if (f === 'tipo' && sel.value === 'direto' && !_custos[i].linha) _custos[i].linha = 'map';
-    saveCustos();
-    if (f === 'tipo') renderCustos(); // mostra/esconde select de linha
-    renderTable();
+    saveAll(); if (f === 'tipo') renderCustos(); renderTable();
   }));
-  el.querySelectorAll('[data-del]').forEach(x => x.addEventListener('click', () => { _custos.splice(+x.dataset.del, 1); saveCustos(); renderCustos(); renderTable(); }));
-  document.getElementById('custos-add').addEventListener('click', () => { _custos.push({ item: 'Novo custo', valor: 0, tipo: 'proporcional', cat: '' }); saveCustos(); renderCustos(); renderTable(); });
-  document.getElementById('custos-reset').addEventListener('click', () => { if (confirm('Restaurar a planilha base? (descarta edições)')) { _custos = CUSTOS_SEED.map(c => ({ ...c })); saveCustos(); renderCustos(); renderTable(); } });
+  el.querySelectorAll('[data-del]').forEach(x => x.addEventListener('click', () => { _custos.splice(+x.dataset.del, 1); saveAll(); renderCustos(); renderTable(); }));
+  document.getElementById('custos-add').addEventListener('click', () => { _custos.push({ item: 'Novo custo', valor: 0, tipo: 'proporcional', cat: '' }); saveAll(); renderCustos(); renderTable(); });
+  document.getElementById('custos-reset').addEventListener('click', () => { if (confirm('Restaurar a planilha base?')) { _custos = CUSTOS_SEED.map(c => ({ ...c })); saveAll(); renderCustos(); renderTable(); } });
   document.getElementById('custos-close').addEventListener('click', () => { _showCustos = false; renderCustos(); });
 }
 
@@ -324,47 +333,47 @@ function renderTable() {
   const rt = rateio();
   const per = {}; for (const l of LINES) per[l.id] = computeLine(l.id, rt);
   const tot = computeTotal(per);
-  const statusCell =(vgvReal, be) => { const ok = vgvReal >= be && be > 0; return `<span style="color:${ok ? '#16a34a' : '#dc2626'};font-weight:800">${ok ? '✅ viável' : '⚠️ abaixo'}</span>`; };
+  const f = _periodo === 'ano' ? 12 : 1;
+  const sufx = _periodo === 'ano' ? '/ano' : '/mês';
+  const v = n => fmt((n || 0) * f);                 // valor R$ escalado
+  const cnt = n => Math.round((n || 0) * f);        // contagem escalada
+  const cnum = n => `<span style="color:${n >= 0 ? '#16a34a' : '#dc2626'}">${fmt((n || 0) * f)}</span>`;
+  const statusCell = (vgvReal, be) => { const ok = vgvReal >= be && be > 0; return `<span style="color:${ok ? '#16a34a' : '#dc2626'};font-weight:800">${ok ? '✅ viável' : '⚠️ abaixo'}</span>`; };
   const colHead = LINES.map(l => `<th style="text-align:right;padding:8px 10px;color:${l.cor};white-space:nowrap">${l.icon} ${l.nome.replace('PSM ', '')}</th>`).join('');
-  const td = v => `<td style="text-align:right;padding:7px 10px">${v}</td>`;
+  const td = x => `<td style="text-align:right;padding:7px 10px">${x}</td>`;
   const rows = [
     ['Nº Corretores', id => per[id].nCorr || '—', tot.nCorr || '—'],
-    ['Ticket Médio', id => fmt(per[id].ticket), '—'],
-    ['Expectativa VGV/mês', id => fmt(per[id].expectativa), fmt(tot.expectativa)],
-    ['Despesa Fixa/mês (rateio+direto)', id => fmt(per[id].despFixa), fmt(tot.despFixa), { strong: 1 }],
-    ['VGV Break-Even (linha)', id => fmt(per[id].vgvBreakEven), fmt(tot.vgvBreakEven), { strong: 1 }],
-    ['⭐ VGV mín / corretor', id => fmt(per[id].vgvMinPorCorretor), fmt(tot.vgvMinPorCorretor), { hl: 1 }],
-    ['⭐ Vendas mín / corretor', id => (per[id].vendasMinPorCorretor || '—'), (tot.vendasMinPorCorretor || '—'), { hl: 1 }],
-    ['Vendas Break-Even (linha)', id => per[id].vendasBreakEven || '—', tot.vendasBreakEven || '—'],
+    [_periodo === 'ano' ? 'Aluguel/Ticket' : 'Ticket Médio', id => fmt(per[id].ticket), '—'],
+    ['Expectativa VGV' + sufx, id => v(per[id].expectativa), v(tot.expectativa)],
+    ['🎯 Meta (aba Metas)' + sufx, id => v(per[id].metaMes), v(tot.metaMes)],
+    ['Despesa Fixa' + sufx, id => v(per[id].despFixa), v(tot.despFixa), { strong: 1 }],
+    ['Receita recorrente adm' + sufx, id => per[id].recorrente ? v(per[id].recorrente) : '—', tot.recorrente ? v(tot.recorrente) : '—'],
+    ['VGV Break-Even' + sufx, id => v(per[id].vgvBreakEven), v(tot.vgvBreakEven), { strong: 1 }],
+    ['⭐ VGV mín/corretor' + sufx, id => v(per[id].vgvMinPorCorretor), v(tot.vgvMinPorCorretor), { hl: 1 }],
+    ['⭐ Vendas mín/corretor' + (f > 1 ? '/ano' : '/mês'), id => (per[id].vendasMinPorCorretor ? cnt(per[id].vendasMinPorCorretor) : '—'), (tot.vendasMinPorCorretor ? cnt(tot.vendasMinPorCorretor) : '—'), { hl: 1 }],
+    ['Vendas Break-Even' + (f > 1 ? '/ano' : '/mês'), id => per[id].vendasBreakEven ? cnt(per[id].vendasBreakEven) : '—', tot.vendasBreakEven ? cnt(tot.vendasBreakEven) : '—'],
     ['Margem PSM / venda', id => fmt(per[id].margemPSM), '—'],
-    ['VGV Realizado', id => fmt(per[id].vgvReal), fmt(tot.vgvReal)],
-    ['Lucro Líquido/mês', id => colorNum(per[id].lucroLiquido), colorNum(tot.lucroLiquido)],
-    ['Margem Líquida %', id => per[id].margemLiquidaReal.toFixed(1) + '%', tot.margemLiquidaReal.toFixed(1) + '%'],
-    ['Status', id => statusCell(per[id].vgvReal, per[id].vgvBreakEven), statusCell(tot.vgvReal, tot.vgvBreakEven)],
+    ['VGV Realizado' + sufx, id => v(per[id].vgvRealMes), v(tot.vgvRealMes)],
+    ['% da Meta atingida', id => per[id].metaPct == null ? '—' : per[id].metaPct.toFixed(0) + '%', tot.metaPct == null ? '—' : tot.metaPct.toFixed(0) + '%'],
+    ['Lucro Líquido' + sufx, id => cnum(per[id].lucro), cnum(tot.lucro), { strong: 1 }],
+    ['Margem Líquida %', id => per[id].margemReal.toFixed(1) + '%', tot.margemReal.toFixed(1) + '%'],
+    ['Status', id => statusCell(per[id].vgvRealMes, per[id].vgvBreakEven), statusCell(tot.vgvRealMes, tot.vgvBreakEven)],
   ];
   body.innerHTML = `
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:780px">
-        <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">
-          <th style="text-align:left;padding:8px 10px">Métrica</th>${colHead}
-          <th style="text-align:right;padding:8px 10px;color:#0f766e;background:rgba(13,148,136,.08);white-space:nowrap">📊 CONSOLIDADO</th>
-        </tr></thead>
-        <tbody>
-          ${rows.map(([label, fn, total, opt]) => {
-            const o = opt || {};
-            return `<tr style="border-bottom:1px solid var(--border)${o.strong ? ';font-weight:700' : ''}${o.hl ? ';background:rgba(124,58,237,.06)' : ''}">
-              <td style="text-align:left;padding:7px 10px;font-weight:600">${label}</td>
-              ${LINES.map(l => td(fn(l.id))).join('')}
-              <td style="text-align:right;padding:7px 10px;font-weight:800;background:rgba(13,148,136,.06)">${total}</td></tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:800px">
+      <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">
+        <th style="text-align:left;padding:8px 10px">Métrica <span class="tiny muted">(${_periodo === 'ano' ? 'anual' : 'mensal'})</span></th>${colHead}
+        <th style="text-align:right;padding:8px 10px;color:#0f766e;background:rgba(13,148,136,.08);white-space:nowrap">📊 CONSOLIDADO</th></tr></thead>
+      <tbody>${rows.map(([label, fn, total, opt]) => { const o = opt || {};
+        return `<tr style="border-bottom:1px solid var(--border)${o.strong ? ';font-weight:700' : ''}${o.hl ? ';background:rgba(124,58,237,.06)' : ''}">
+          <td style="text-align:left;padding:7px 10px;font-weight:600">${label}</td>${LINES.map(l => td(fn(l.id))).join('')}
+          <td style="text-align:right;padding:7px 10px;font-weight:800;background:rgba(13,148,136,.06)">${total}</td></tr>`; }).join('')}</tbody>
+    </table></div>
     <div class="alert" style="background:rgba(99,102,241,.1);color:#6366f1;border:1px solid rgba(99,102,241,.3);padding:12px;border-radius:8px;margin-top:14px;font-size:12.5px">
-      <b>💡 Leitura:</b><br>
-      • ⭐ <b>VGV mín/corretor</b> = quanto CADA corretor da linha precisa vender/mês pra cobrir o break-even (break-even da linha ÷ nº corretores, com o ticket da linha).<br>
-      • <b>Despesa fixa</b> de cada linha sai do <b>rateio híbrido</b> da planilha: Igual ÷3, Proporcional pela expectativa de VGV, Direto cravado + custo direto extra.<br>
-      • Consolidado: break-even ${fmt(tot.vgvBreakEven)}/mês · lucro <b style="color:${tot.lucroLiquido >= 0 ? '#16a34a' : '#dc2626'}">${fmt(tot.lucroLiquido)}/mês</b> (margem ${tot.margemLiquidaReal.toFixed(1)}%).
+      <b>💡 Leitura (${_periodo === 'ano' ? 'anual' : 'mensal'}):</b><br>
+      • ⭐ <b>VGV mín/corretor</b> = quanto cada corretor precisa vender pra cobrir o break-even (com o ticket da linha).<br>
+      • <b>Margem PSM</b> já desconta corretor + sênior + imposto. <b>Locação</b> = 1º aluguel (100%) + adm recorrente (${fmt(tot.recorrente)}/mês) que abate o custo fixo.<br>
+      • Consolidado: break-even ${v(tot.vgvBreakEven)} · lucro <b style="color:${tot.lucro >= 0 ? '#16a34a' : '#dc2626'}">${cnum(tot.lucro)}</b> (margem ${tot.margemReal.toFixed(1)}%).${_comProLabore ? '' : ' <span class="muted">(sem pró-labore — marque o toggle pra simular set/26)</span>'}
     </div>`;
 }
 
@@ -373,6 +382,5 @@ function inp(label, key, suffix, placeholder) {
   const val = _lines[_active][key];
   return `<div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><div class="flex gap-1"><input type="number" class="input" data-key="${key}" value="${val ?? ''}" ${placeholder ? `placeholder="${placeholder}"` : ''} style="flex:1;font-size:12px;padding:6px 8px">${suffix ? `<span class="tiny muted" style="align-self:center">${suffix}</span>` : ''}</div></div>`;
 }
-function colorNum(n) { return `<span style="color:${n >= 0 ? '#16a34a' : '#dc2626'}">${fmt(n)}</span>`; }
 function fmt(n) { return 'R$ ' + Math.round(n || 0).toLocaleString('pt-BR'); }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
