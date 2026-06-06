@@ -107,12 +107,12 @@ const ROUTE_GROUP = {
   // Diretoria
   '/diretoria': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria',
   '/metricas-viab': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria',
-  '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/academy': 'diretoria', '/estrategia': 'diretoria',
+  '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/estrategia': 'diretoria',
   // IA
   '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
   // Cultura & Pessoas
   '/base': 'cultura', '/manual': 'cultura', '/etica': 'cultura', '/canal': 'cultura',
-  '/formacao': 'cultura', '/gestao-pessoas': 'cultura', '/premiacoes': 'cultura',
+  '/formacao': 'cultura', '/gestao-pessoas': 'cultura', '/premiacoes': 'cultura', '/academy': 'cultura',
   // Ferramentas
   '/simuladores': 'ferramentas', '/relatorios': 'ferramentas',
   // Sistema
@@ -360,7 +360,6 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/estrategia"><span class="sb-ico">♟️</span> Estratégia</button>
         <button class="sb-link" data-nav="/pontos-atencao"><span class="sb-ico">🚨</span> Pontos de Atenção</button>
         <button class="sb-link" data-nav="/insights"><span class="sb-ico">💡</span> Insights</button>
-        <button class="sb-link" data-nav="/academy"><span class="sb-ico">🎓</span> Academy</button>
         <button class="sb-link" data-nav="/kpis"><span class="sb-ico">📈</span> KPIs Executivos</button>
         <button class="sb-link" data-nav="/metricas-viab"><span class="sb-ico">🧪</span> Métricas Viab</button>
         <button class="sb-link" data-nav="/bp"><span class="sb-ico">📋</span> Plano BP</button>
@@ -402,6 +401,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/sr-gerencia"><span class="sb-ico">👔</span> Sr. Gerência</button>
 
         <div class="sb-sec">🎓 Cultura & Pessoas</div>
+        <button class="sb-link" data-nav="/academy"><span class="sb-ico">🎓</span> PSM Academy</button>
         <button class="sb-link" data-nav="/base"><span class="sb-ico">📚</span> Base Conhecimento</button>
         <button class="sb-link" data-nav="/manual"><span class="sb-ico">📖</span> Manual Cultura</button>
         <button class="sb-link" data-nav="/etica"><span class="sb-ico">⚖️</span> Código de Ética</button>

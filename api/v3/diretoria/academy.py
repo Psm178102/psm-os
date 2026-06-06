@@ -87,6 +87,56 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
 
+        # ── Instalar currículo (bulk): upsert de muitas aulas de uma vez ──
+        if body.get("action") == "bulk":
+            items = body.get("items") or []
+            if not isinstance(items, list) or not items:
+                return self._send(400, {"ok": False, "error": "items vazio"})
+            now = datetime.now(timezone.utc).isoformat()
+            rows = []
+            for it in items[:1000]:
+                t = (it.get("titulo") or "").strip()
+                if not it.get("id") or not t:
+                    continue
+                rows.append({
+                    "id": str(it.get("id")),
+                    "trilha": (it.get("trilha") or "Geral").strip() or "Geral",
+                    "tipo": (it.get("tipo") or "aula").strip() or "aula",
+                    "titulo": t,
+                    "descricao": (it.get("descricao") or "").strip() or None,
+                    "url": (it.get("url") or "").strip() or None,
+                    "conteudo": (it.get("conteudo") or "").strip() or None,
+                    "cargo": (it.get("cargo") or "todos").strip() or "todos",
+                    "nivel": (it.get("nivel") or "").strip() or None,
+                    "modulo": (it.get("modulo") or "").strip() or None,
+                    "duracao": (it.get("duracao") or "").strip() or None,
+                    "ordem": (lambda v: int(v) if str(v).lstrip("-").isdigit() else 0)(it.get("ordem", 0)),
+                    "criado_por": actor.get("id"),
+                    "updated_at": now,
+                })
+            if not rows:
+                return self._send(400, {"ok": False, "error": "nenhum item válido"})
+            # upsert tolerante: se faltar coluna, remove de todas as linhas e tenta de novo
+            cols_drop = []
+            for _ in range(12):
+                try:
+                    sb.table("academy_items").upsert(rows).execute()
+                    break
+                except Exception as e:
+                    import re as _re
+                    m = _re.search(r"Could not find the '([^']+)' column", str(e))
+                    if m:
+                        c = m.group(1); cols_drop.append(c)
+                        for rr in rows:
+                            rr.pop(c, None)
+                        continue
+                    if "academy_items" in str(e) or "does not exist" in str(e):
+                        return self._send(200, {"ok": False, "pending": True,
+                                                "error": "Tabela academy_items não existe — rode supabase/sprint9_22_academy.sql"})
+                    return self._send(500, {"ok": False, "error": str(e)})
+            audit(self, actor, "academy.bulk_install", target_type="academy_items", notes=f"{len(rows)} aulas")
+            return self._send(200, {"ok": True, "count": len(rows), "dropped": cols_drop})
+
         titulo = (body.get("titulo") or "").strip()
         if not titulo:
             return self._send(400, {"ok": False, "error": "Título é obrigatório"})
@@ -110,6 +160,7 @@ class handler(BaseHTTPRequestHandler):
             "conteudo": (body.get("conteudo") or "").strip() or None,
             "cargo": (body.get("cargo") or "todos").strip() or "todos",
             "nivel": (body.get("nivel") or "").strip() or None,
+            "modulo": (body.get("modulo") or "").strip() or None,
             "duracao": (body.get("duracao") or "").strip() or None,
             "tags": (body.get("tags") or "").strip() or None,
             "ordem": _int(body.get("ordem"), 0),
