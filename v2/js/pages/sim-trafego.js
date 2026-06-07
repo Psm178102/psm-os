@@ -34,13 +34,16 @@ function freshLine(over) {
     ticket: 234000, comissaoPct: 5, corretorPct: 40, descartePct: 10, custoOperMes: 0,
     ltv: 0.5, taxaCarteira: 5, investMes: 7500, mixMsgPct: 40,
     msg: { cpl: 8, conv: 0.5 }, lead: { cpl: 18, conv: 1.0 },
-    tempoConv: 3, crescInvestTrim: 6, encarecCplTrim: 5, metaTipo: 'vgv', metaValor: 5000000,
+    tempoConv: 60, crescInvestTrim: 6, encarecCplTrim: 5, metaTipo: 'vgv', metaValor: 5000000,
   }, over || {});
 }
 const DEFAULTS = {
+  _v: 2,
   active: 'map',
-  map: freshLine({ ticket: 600000, comissaoPct: 6, descartePct: 15, mixMsgPct: 30, msg: { cpl: 18, conv: 0.3 }, lead: { cpl: 45, conv: 0.7 }, tempoConv: 6, taxaCarteira: 4, metaValor: 8000000 }),
-  conquista: freshLine({ ticket: 234000, comissaoPct: 5, descartePct: 10, mixMsgPct: 55, msg: { cpl: 7, conv: 0.7 }, lead: { cpl: 15, conv: 1.3 }, tempoConv: 2, taxaCarteira: 8, metaValor: 4000000 }),
+  // M.A.P (Paulo): ticket 420k, CPL médio 32, comissão 4%, corretor 50%, conversão ~90 dias, descarte 15%
+  map: freshLine({ ticket: 420000, comissaoPct: 4, corretorPct: 50, descartePct: 15, mixMsgPct: 30, msg: { cpl: 32, conv: 0.3 }, lead: { cpl: 32, conv: 0.7 }, tempoConv: 90, taxaCarteira: 4, metaValor: 8000000 }),
+  // Conquista (Paulo): ticket 234k, CPL 12, comissão 4%, corretor 35%, conversão 20-30 dias
+  conquista: freshLine({ ticket: 234000, comissaoPct: 4, corretorPct: 35, descartePct: 10, mixMsgPct: 55, msg: { cpl: 12, conv: 0.7 }, lead: { cpl: 12, conv: 1.3 }, tempoConv: 25, taxaCarteira: 8, metaValor: 4000000 }),
 };
 
 export async function pageSimTrafego(ctx, root) {
@@ -55,6 +58,7 @@ export async function pageSimTrafego(ctx, root) {
   } catch {}
 }
 function mergeDefaults(c) {
+  if (!c || c._v !== DEFAULTS._v) return JSON.parse(JSON.stringify(DEFAULTS)); // descarta dados de versão antiga
   const o = JSON.parse(JSON.stringify(DEFAULTS));
   if (c.active && (c.active === 'consol' || LINES.some(l => l.id === c.active))) o.active = c.active;
   for (const ln of LINES) if (c[ln.id]) {
@@ -136,7 +140,7 @@ function otimizar(L, f) {
 /* projeção com ATRASO de conversão (lag em trimestres) */
 function projData(L) {
   const labels = [], real = new Array(8).fill(0);
-  const lagTri = Math.max(0, Math.round((L.tempoConv || 0) / 3));
+  const lagTri = Math.max(0, Math.round((L.tempoConv || 0) / 90)); // tempoConv em DIAS → trimestres
   let inv = L.investMes, cm = L.msg.cpl, cl = L.lead.cpl;
   for (let t = 0; t < 8; t++) {
     if (t >= 4) { inv *= (1 + L.crescInvestTrim / 100); cm *= (1 + L.encarecCplTrim / 100); cl *= (1 + L.encarecCplTrim / 100); }
@@ -165,7 +169,7 @@ function render() {
       ${field('Comissão imobiliária', 'comissaoPct', { pct: 1 })}
       ${field('% Corretor (do líquido)', 'corretorPct', { pct: 1 })}
       ${field('% Descarte de leads', 'descartePct', { pct: 1 })}
-      ${field('⏱ Tempo de conversão (meses)', 'tempoConv')}
+      ${field('⏱ Tempo de conversão (dias)', 'tempoConv')}
       ${field('Custo operacional/mês', 'custoOperMes', { money: 1 })}
       ${field('LTV (carteira)', 'ltv')}
       ${field('Investimento/mês', 'investMes', { money: 1 })}
@@ -261,7 +265,7 @@ function renderOut() {
   const pd = projData(L);
 
   out.innerHTML = `
-    <div class="st-sec">🎯 Resultado (Realista) — ⏱ converte em ~${L.tempoConv} ${L.tempoConv == 1 ? 'mês' : 'meses'}</div>
+    <div class="st-sec">🎯 Resultado (Realista) — ⏱ converte em ~${L.tempoConv} dias</div>
     <div class="st-kpis">
       ${kpi('VGV / mês', fK(base.vgv), '#1e293b', f1(base.vendas) + ' vendas')}
       ${kpi('💰 Caixa empresa/mês', fK(base.caixa), base.caixa >= 0 ? '#16a34a' : '#dc2626', 'margem ' + base.margemPct.toFixed(0) + '%')}
@@ -309,7 +313,7 @@ function renderOut() {
       </div>
     </div>
 
-    <div class="st-sec">📈 Projeção 24 meses — caixa acumulado <span class="tiny muted" style="font-weight:400">(com atraso de ${L.tempoConv} meses entre lead e venda)</span></div>
+    <div class="st-sec">📈 Projeção 24 meses — caixa acumulado <span class="tiny muted" style="font-weight:400">(com atraso de ${L.tempoConv} dias entre lead e venda)</span></div>
     ${projChart(pd)}
   `;
   const mt = document.getElementById('st-metatipo'); if (mt) mt.addEventListener('change', () => { _s[_s.active].metaTipo = mt.value; save(); renderOut(); });
