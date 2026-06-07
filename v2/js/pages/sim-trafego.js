@@ -182,7 +182,8 @@ function calcWith(investMes, cpl, conv) {
 }
 
 function inp(label, key) {
-  return `<div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><input type="number" step="any" class="input" data-g="${key}" value="${_s[key] ?? ''}" style="width:100%;font-size:12px;padding:6px 8px"></div>`;
+  const money = /R\$/.test(label);
+  return `<div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><div class="flex gap-1" style="align-items:center">${money ? '<span class="tiny muted" style="font-weight:700">R$</span>' : ''}<input type="number" step="any" class="input" data-g="${key}" value="${_s[key] ?? ''}" style="flex:1;font-size:12px;padding:6px 8px"></div></div>`;
 }
 function bind() {
   _root.querySelectorAll('[data-g]').forEach(el => el.addEventListener('input', () => {

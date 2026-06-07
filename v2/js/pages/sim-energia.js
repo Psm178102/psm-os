@@ -135,7 +135,7 @@ function bind() {
 
 function inp(label, key, type, suffix) {
   const val = _s[key] ?? '';
-  return `<div style="margin-bottom:6px"><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><div class="flex gap-1"><input type="${type === 'text' ? 'text' : 'number'}" class="input" data-key="${key}" data-type="${type}" value="${val}" style="flex:1;font-size:12px;padding:6px 8px">${suffix ? `<span class="tiny muted" style="align-self:center">${suffix}</span>` : ''}</div></div>`;
+  return `<div style="margin-bottom:6px"><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><div class="flex gap-1">${(/R\$/.test(label) || suffix === 'R$') ? '<span class="tiny muted" style="align-self:center;font-weight:700">R$</span>' : ''}<input type="${type === 'text' ? 'text' : 'number'}" class="input" data-key="${key}" data-type="${type}" value="${val}" style="flex:1;font-size:12px;padding:6px 8px">${(suffix && suffix !== 'R$') ? `<span class="tiny muted" style="align-self:center">${suffix}</span>` : ''}</div></div>`;
 }
 
 function kpi(label, value, bg, color) {

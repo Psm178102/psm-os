@@ -170,8 +170,9 @@ function inp(label, key, type, suffix) {
     <div>
       <label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label>
       <div class="flex gap-1" style="align-items:center">
+        ${(/R\$/.test(label) || suffix === 'R$') ? '<span class="tiny muted" style="font-weight:700">R$</span>' : ''}
         <input type="${inputType}" class="input" data-key="${key}" data-type="${type}" value="${val}" style="flex:1;font-size:12px;padding:6px 8px">
-        ${suffix ? `<span class="tiny muted">${suffix}</span>` : ''}
+        ${(suffix && suffix !== 'R$') ? `<span class="tiny muted">${suffix}</span>` : ''}
       </div>
     </div>
   `;
