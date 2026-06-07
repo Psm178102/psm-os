@@ -54,7 +54,7 @@ function sumKey(rows, months, key) {
 /* 🔄 Ciclo de feedback #4: VENDAS REAIS → FORECAST → META (run-rate, sem NIBO) */
 function forecastPanel(d, grid) {
   const ALL = [0,1,2,3,4,5,6,7,8,9,10,11];
-  const metaAno = sumKey(grid, ALL, 'vgv');
+  const metaAno = sumKey(grid, ALL, 'meta_vgv');
   const atingido = (d.totals && d.totals.atingido_vgv) || 0;
   const vendas = (d.totals && d.totals.vendas_count) || 0;
   if (metaAno <= 0 && atingido <= 0) return '';
