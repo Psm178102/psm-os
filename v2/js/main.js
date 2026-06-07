@@ -16,6 +16,7 @@ import { pageTarefas } from './pages/tarefas.js';
 import { pageMetas } from './pages/metas.js';
 import { pageAgenda } from './pages/agenda.js';
 import { pageDiretoria } from './pages/diretoria.js';
+import { pageCockpit } from './pages/cockpit.js';
 import { pageEstrategia } from './pages/estrategia.js';
 import { pagePontosAtencao } from './pages/pontos-atencao.js';
 import { pageInsights } from './pages/insights.js';
@@ -107,6 +108,7 @@ const ROUTE_GROUP = {
   '/one-on-one': 'performance', '/plantoes': 'performance', '/arena': 'performance',
   '/tv': 'performance', '/war-room': 'performance', '/war-arena': 'performance',
   // Diretoria
+  '/cockpit': 'diretoria',
   '/diretoria': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria',
   '/metricas-viab': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria',
   '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/estrategia': 'diretoria',
@@ -223,6 +225,7 @@ function applyPermissions(user) {
   router.register('/tarefas',   { render: async (ctx, root) => { setHeader('Tarefas');   highlight('/tarefas');   await pageTarefas(ctx, root); } });
   router.register('/metas',     { render: async (ctx, root) => { setHeader('Metas');     highlight('/metas');     await pageMetas(ctx, root); } });
   router.register('/agenda',    { render: async (ctx, root) => { setHeader('Agenda');    highlight('/agenda');    await pageAgenda(ctx, root); } });
+  router.register('/cockpit', { render: async (ctx, root) => { setHeader('Cockpit de Decisão'); highlight('/cockpit'); await pageCockpit(ctx, root); } });
   router.register('/diretoria', { render: async (ctx, root) => { setHeader('Dashboard Diretoria'); highlight('/diretoria'); await pageDiretoria(ctx, root); } });
   router.register('/estrategia', { render: async (ctx, root) => { setHeader('Estratégia'); highlight('/estrategia'); await pageEstrategia(ctx, root); } });
   router.register('/pontos-atencao', { render: async (ctx, root) => { setHeader('Pontos de Atenção'); highlight('/pontos-atencao'); await pagePontosAtencao(ctx, root); } });
@@ -359,6 +362,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/captacoes"><span class="sb-ico">📥</span> Captações</button>
 
         <div class="sb-sec">🏛 Diretoria</div>
+        <button class="sb-link" data-nav="/cockpit"><span class="sb-ico">🧭</span> Cockpit de Decisão</button>
         <button class="sb-link" data-nav="/diretoria"><span class="sb-ico">📊</span> Dashboard</button>
         <button class="sb-link" data-nav="/estrategia"><span class="sb-ico">♟️</span> Estratégia</button>
         <button class="sb-link" data-nav="/pontos-atencao"><span class="sb-ico">🚨</span> Pontos de Atenção</button>
