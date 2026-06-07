@@ -198,15 +198,26 @@ function computeLine(id, rt) {
   const metaPct = r.metaMes > 0 ? (r.vgvRealMes / r.metaMes * 100) : null;
   // imposto gerado/mês = imposto sobre a comissão das vendas realizadas + imposto do recorrente
   const impostoGerado = r.vgvRealMes * (p.comissaoBrutaPct || 0) / 100 * (p.aliquotaPct || 0) / 100 + recorrenteImposto;
-  return { despFixa, verbaMarketing: +p.verbaMarketing || 0, recorrente, recorrenteImposto, reservaMes, vgvBreakEven, vendasBreakEven, margemPSM, margemPSMpct, netMarginPct, inviavel, nCorr, ticket,
-    expectativa: expectativa(id), vgvMinPorCorretor, vendasMinPorCorretor, impostoGerado,
+  // indicadores por equipe
+  const verbaMarketing = +p.verbaMarketing || 0;
+  const vendasEsp = nCorr * (+p.vendasMes || 0);                          // vendas esperadas/mês da equipe
+  const custoPorCorretor = nCorr > 0 ? despFixa / nCorr : 0;              // custo fixo mensal por corretor
+  const custoFixoPorVenda = vendasEsp > 0 ? despFixa / vendasEsp : 0;     // custo fixo embutido em cada venda
+  const custoFixoPctVenda = ticket > 0 ? (custoFixoPorVenda / ticket * 100) : 0; // % do ticket
+  const cac = vendasEsp > 0 ? verbaMarketing / vendasEsp : 0;            // CAC = mkt ÷ vendas (clientes) da equipe
+  return { despFixa, verbaMarketing, recorrente, recorrenteImposto, reservaMes, vgvBreakEven, vendasBreakEven, margemPSM, margemPSMpct, netMarginPct, inviavel, nCorr, ticket,
+    expectativa: expectativa(id), vendasEsp, custoPorCorretor, custoFixoPorVenda, custoFixoPctVenda, cac,
+    vgvMinPorCorretor, vendasMinPorCorretor, impostoGerado,
     vgvRealMes: r.vgvRealMes, metaMes: r.metaMes, metaPct, lucro, margemReal };
 }
 function computeTotal(per) {
-  const t = { despFixa: 0, verbaMarketing: 0, recorrente: 0, reservaMes: 0, vgvBreakEven: 0, vendasBreakEven: 0, vgvRealMes: 0, metaMes: 0, lucro: 0, nCorr: 0, expectativa: 0, impostoGerado: 0 };
-  for (const id of Object.keys(per)) { const c = per[id]; for (const k of ['despFixa','verbaMarketing','recorrente','reservaMes','vgvBreakEven','vendasBreakEven','vgvRealMes','metaMes','lucro','nCorr','expectativa','impostoGerado']) t[k] += c[k]; }
+  const t = { despFixa: 0, verbaMarketing: 0, recorrente: 0, reservaMes: 0, vgvBreakEven: 0, vendasBreakEven: 0, vgvRealMes: 0, metaMes: 0, lucro: 0, nCorr: 0, expectativa: 0, impostoGerado: 0, vendasEsp: 0 };
+  for (const id of Object.keys(per)) { const c = per[id]; for (const k of ['despFixa','verbaMarketing','recorrente','reservaMes','vgvBreakEven','vendasBreakEven','vgvRealMes','metaMes','lucro','nCorr','expectativa','impostoGerado','vendasEsp']) t[k] += c[k]; }
   t.inviavel = Object.keys(per).some(id => per[id].inviavel);
   t.margemReal = t.vgvRealMes > 0 ? (t.lucro / t.vgvRealMes * 100) : 0;
+  t.custoPorCorretor = t.nCorr > 0 ? t.despFixa / t.nCorr : 0;
+  t.custoFixoPorVenda = t.vendasEsp > 0 ? t.despFixa / t.vendasEsp : 0;
+  t.cac = t.vendasEsp > 0 ? t.verbaMarketing / t.vendasEsp : 0;
   t.metaPct = t.metaMes > 0 ? (t.vgvRealMes / t.metaMes * 100) : null;
   t.vgvMinPorCorretor = t.nCorr > 0 ? t.vgvBreakEven / t.nCorr : 0;
   t.vendasMinPorCorretor = t.nCorr > 0 ? Math.ceil(t.vendasBreakEven / t.nCorr) : 0;
@@ -375,10 +386,14 @@ function renderTable() {
     ['🎯 Meta (aba Metas)' + sufx, id => v(per[id].metaMes), v(tot.metaMes)],
     ['📣 Verba Marketing' + sufx, id => per[id].verbaMarketing ? v(per[id].verbaMarketing) : '—', tot.verbaMarketing ? v(tot.verbaMarketing) : '—'],
     ['Despesa Fixa (c/ mkt)' + sufx, id => v(per[id].despFixa), v(tot.despFixa), { strong: 1 }],
+    ['💵 Custo fixo / corretor' + sufx, id => per[id].nCorr ? v(per[id].custoPorCorretor) : '—', tot.nCorr ? v(tot.custoPorCorretor) : '—'],
     ['Receita recorrente adm' + sufx, id => per[id].recorrente ? v(per[id].recorrente) : '—', tot.recorrente ? v(tot.recorrente) : '—'],
     ['🏦 Reserva financeira' + sufx, id => per[id].reservaMes ? v(per[id].reservaMes) : '—', tot.reservaMes ? v(tot.reservaMes) : '—'],
     ['Margem PSM % / venda', id => pcol(per[id].margemPSMpct), '—'],
     ['Margem PSM R$ / venda', id => mcol(per[id].margemPSM), '—'],
+    ['Custo fixo / venda', id => per[id].vendasEsp ? fmt(per[id].custoFixoPorVenda) : '—', tot.vendasEsp ? fmt(tot.custoFixoPorVenda) : '—'],
+    ['Custo fixo % do ticket', id => per[id].vendasEsp ? per[id].custoFixoPctVenda.toFixed(1) + '%' : '—', '—'],
+    ['📣 CAC (mkt ÷ venda)', id => per[id].vendasEsp ? fmt(per[id].cac) : '—', tot.vendasEsp ? fmt(tot.cac) : '—'],
     ['VGV Break-Even' + sufx, id => vcol(per[id].vgvBreakEven), vcol(tot.vgvBreakEven), { strong: 1 }],
     ['⭐ VGV mín/corretor' + sufx, id => vcol(per[id].vgvMinPorCorretor), vcol(tot.vgvMinPorCorretor), { hl: 1 }],
     ['⭐ Vendas mín/corretor' + (f > 1 ? '/ano' : '/mês'), id => (per[id].inviavel ? '⛔' : (per[id].vendasMinPorCorretor ? cnt(per[id].vendasMinPorCorretor) : '—')), (tot.vendasMinPorCorretor ? cnt(tot.vendasMinPorCorretor) : '—'), { hl: 1 }],
@@ -387,7 +402,7 @@ function renderTable() {
     ['VGV Realizado' + sufx, id => v(per[id].vgvRealMes), v(tot.vgvRealMes)],
     ['% da Meta atingida', id => per[id].metaPct == null ? '—' : per[id].metaPct.toFixed(0) + '%', tot.metaPct == null ? '—' : tot.metaPct.toFixed(0) + '%'],
     ['Lucro Líquido' + sufx, id => cnum(per[id].lucro), cnum(tot.lucro), { strong: 1 }],
-    ['Margem Líquida %', id => `<span style="color:${per[id].margemReal < 0 ? '#dc2626' : 'inherit'}">${per[id].margemReal.toFixed(1)}%</span>`, `<span style="color:${tot.margemReal < 0 ? '#dc2626' : 'inherit'}">${tot.margemReal.toFixed(1)}%</span>`],
+    ['📈 Margem de lucro %', id => `<span style="color:${per[id].margemReal < 0 ? '#dc2626' : '#16a34a'};font-weight:700">${per[id].margemReal.toFixed(1)}%</span>`, `<span style="color:${tot.margemReal < 0 ? '#dc2626' : '#16a34a'};font-weight:700">${tot.margemReal.toFixed(1)}%</span>`],
     ['Status', id => statusCell(per[id].lucro, per[id].inviavel), statusCell(tot.lucro, tot.inviavel)],
   ];
   body.innerHTML = `
