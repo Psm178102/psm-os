@@ -265,11 +265,14 @@ function render() {
         </div>
       </div>
       <div id="viab-table"><div class="muted tiny"><span class="spinner"></span> Carregando…</div></div>
+
+      <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:20px 0 6px">🎚 Alavancas &amp; ⛓ Gargalos <span class="muted" style="text-transform:none;font-weight:400">(sensibilidade · impacto no lucro/mês potencial)</span></div>
+      <div id="viab-alav"></div>
     </div>`;
   _root.querySelectorAll('#viab-tabs [data-line]').forEach(b => b.addEventListener('click', () => {
     _active = b.dataset.line;
     _root.querySelectorAll('#viab-tabs [data-line]').forEach(x => x.className = `btn ${x.dataset.line === _active ? 'btn-primary' : 'btn-ghost'} btn-sm`);
-    renderParams();
+    renderParams(); renderAlavancas();
   }));
   _root.querySelectorAll('#viab-periodo [data-p]').forEach(b => b.addEventListener('click', () => {
     _periodo = b.dataset.p;
@@ -436,7 +439,95 @@ function renderTable() {
       • <b>Locação</b> = 1º aluguel (100%) + adm recorrente líquido de imposto (${fmt(tot.recorrente)}/mês) — abate o custo fixo ou vira reserva, conforme o toggle.<br>
       • Consolidado: break-even ${v(tot.vgvBreakEven)} · lucro <b style="color:${tot.lucro >= 0 ? '#16a34a' : '#dc2626'}">${cnum(tot.lucro)}</b> (margem ${tot.margemReal.toFixed(1)}%).${_comProLabore ? '' : ' <span class="muted">(sem pró-labore — marque o toggle pra simular set/26)</span>'}
     </div>`;
+  renderAlavancas();
 }
+
+/* ── 🎚 Alavancas & ⛓ Gargalos (sensibilidade + restrição) ── */
+// lucro POTENCIAL da linha (se bater a expectativa de VGV) — base da análise de alavancas
+function linePotencial(p, nCorr, alloc) {
+  const ticket = +p.ticketMedio || 0;
+  const comBruta = ticket * (+p.comissaoBrutaPct || 0) / 100;
+  const margemPSM = comBruta - comBruta * (+p.aliquotaPct || 0) / 100
+    - ticket * (+p.comCorretorPct || 0) / 100 - ticket * (+p.comSeniorPct || 0) / 100 - ticket * (+p.comGerentePct || 0) / 100;
+  const netMargin = ticket > 0 ? margemPSM / ticket : 0;
+  const expVGV = (nCorr || 0) * ticket * (+p.vendasMes || 0);
+  const recLiq = ticket * (+p.admPct || 0) / 100 * (+p.contratosAtivos || 0) * (1 - (+p.admAliquotaPct || 0) / 100);
+  const abate = (p.recorrenteModo === 'reserva') ? 0 : recLiq;
+  const despFixa = (alloc || 0) + (+p.custoDireto || 0) + (+p.salarioGerente || 0) + (+p.verbaMarketing || 0);
+  const despNet = Math.max(0, despFixa - abate);
+  return { lucroPot: expVGV * netMargin + abate - despFixa, margemPSM, netMargin, expVGV, despFixa, vgvBE: netMargin > 0 ? despNet / netMargin : 0 };
+}
+function sensibilidade(id, rt) {
+  const base = _lines[id], nCorr = resolved(id).nCorr || 0, alloc = rt.alloc[id] || 0;
+  const baseL = linePotencial(base, nCorr, alloc).lucroPot;
+  const tests = [
+    ['Comissão bruta +1pp', { comissaoBrutaPct: (+base.comissaoBrutaPct || 0) + 1 }, nCorr],
+    ['Repasse corretor −1pp', { comCorretorPct: Math.max(0, (+base.comCorretorPct || 0) - 1) }, nCorr],
+    ['Ticket +10%', { ticketMedio: (+base.ticketMedio || 0) * 1.1 }, nCorr],
+    ['Volume +1 venda/corretor', { vendasMes: (+base.vendasMes || 0) + 1 }, nCorr],
+    ['+1 corretor (bruto)', {}, nCorr + 1],
+  ];
+  const levers = tests.map(([label, patch, n]) => ({ label, delta: linePotencial({ ...base, ...patch }, n, alloc).lucroPot - baseL }))
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  return { baseL, levers };
+}
+function gargalo(id, rt) {
+  const P = linePotencial(_lines[id], resolved(id).nCorr || 0, rt.alloc[id] || 0);
+  if ((resolved(id).nCorr || 0) === 0 && (+_lines[id].ticketMedio || 0) === 0) return { sev: 'warn', txt: 'Linha não preenchida/ inativa.' };
+  if (P.margemPSM <= 0) return { sev: 'bad', txt: 'ESTRUTURAL — comissão paga (corretor+sênior+gerente+imposto) ≥ comissão cobrada. Margem ≤ 0: volume nenhum resolve. Alavanca real = comissão bruta / repasse.' };
+  if (P.lucroPot < 0) return { sev: 'bad', txt: 'CAPACIDADE/CUSTO — nem batendo a expectativa de VGV o lucro fecha. Precisa + volume (corretores/vendas) ou − custo fixo.' };
+  const real = resolved(id).vgvRealMes || 0;
+  if (P.expVGV > 0 && real < P.expVGV * 0.7) return { sev: 'warn', txt: 'EXECUÇÃO — o potencial fecha no azul, mas o realizado está abaixo da expectativa. Gargalo é conversão/ritmo, não estrutura.' };
+  return { sev: 'ok', txt: 'Sem gargalo crítico — linha estruturalmente saudável.' };
+}
+function renderAlavancas() {
+  const el = document.getElementById('viab-alav'); if (!el) return;
+  const rt = rateio();
+  const l = LINES.find(x => x.id === _active);
+  const g = gargalo(_active, rt);
+  const s = sensibilidade(_active, rt);
+  // ranking de alavancas POSITIVAS de todas as linhas (maior impacto = ponto de alavancagem da empresa)
+  const all = [];
+  LINES.forEach(L => sensibilidade(L.id, rt).levers.forEach(lv => { if (lv.delta > 0) all.push({ L, ...lv }); }));
+  all.sort((a, b) => b.delta - a.delta);
+  const topEmpresa = all.slice(0, 5);
+  // gargalo da empresa = pior linha (estrutural > capacidade > execução)
+  const sevRank = { bad: 0, warn: 1, ok: 2 };
+  const gargEmpresa = LINES.map(L => ({ L, g: gargalo(L.id, rt) })).filter(x => x.g.sev !== 'ok')
+    .sort((a, b) => sevRank[a.g.sev] - sevRank[b.g.sev])[0];
+  const cor = { ok: '#16a34a', warn: '#d97706', bad: '#dc2626' };
+  const dot = { ok: '🟢', warn: '🟡', bad: '🔴' };
+  const maxAbs = Math.max(1, ...s.levers.map(x => Math.abs(x.delta)));
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div style="background:var(--bg-3);border-radius:10px;padding:14px">
+        <div style="font-weight:800;color:${l.cor};margin-bottom:8px">${l.icon} ${l.nome} — alavancas</div>
+        ${s.levers.map(lv => {
+          const w = Math.round(Math.abs(lv.delta) / maxAbs * 100);
+          const c = lv.delta >= 0 ? '#16a34a' : '#dc2626';
+          return `<div style="margin-bottom:7px">
+            <div class="flex" style="justify-content:space-between;font-size:12px"><span>${esc(lv.label)}</span><b style="color:${c}">${lv.delta >= 0 ? '+' : ''}${fmt(lv.delta)}/mês</b></div>
+            <div style="height:6px;background:var(--bg-2);border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${w}%;background:${c}"></div></div>
+          </div>`;
+        }).join('')}
+        <div class="tiny muted" style="margin-top:4px">Quanto o lucro/mês potencial muda mexendo só nesse lever.</div>
+      </div>
+      <div style="background:var(--bg-3);border-radius:10px;padding:14px">
+        <div style="font-weight:800;margin-bottom:8px">⛓ Gargalo de <span style="color:${l.cor}">${l.nome}</span></div>
+        <div style="background:${cor[g.sev]}14;border-left:4px solid ${cor[g.sev]};border-radius:8px;padding:10px;font-size:12.5px">${dot[g.sev]} ${g.txt}</div>
+        ${gargEmpresa ? `<div style="font-weight:800;margin:12px 0 6px">⛓ Fator limitante da EMPRESA</div>
+          <div style="background:${cor[gargEmpresa.g.sev]}14;border-left:4px solid ${cor[gargEmpresa.g.sev]};border-radius:8px;padding:10px;font-size:12.5px">${dot[gargEmpresa.g.sev]} <b>${gargEmpresa.L.nome}</b>: ${gargEmpresa.g.txt}</div>` : ''}
+      </div>
+    </div>
+    <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-top:14px">
+      <div style="font-weight:800;margin-bottom:8px">🎚 Maiores pontos de alavancagem da EMPRESA</div>
+      ${topEmpresa.length ? topEmpresa.map((x, i) => `<div class="flex" style="justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span><b>${i + 1}.</b> ${x.L.icon} ${x.L.nome} — ${esc(x.label)}</span><b style="color:#16a34a">+${fmt(x.delta)}/mês</b></div>`).join('')
+        : '<div class="tiny muted">Sem alavancas positivas calculáveis (preencha os parâmetros das linhas).</div>'}
+      <div class="tiny muted" style="margin-top:6px">Ranking do que mais aumenta o lucro com 1 movimento — é onde empurrar primeiro.</div>
+    </div>`;
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 /* ── helpers ── */
 function inp(label, key, suffix, placeholder) {
