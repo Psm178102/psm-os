@@ -44,6 +44,12 @@ function render() {
         ${SEGMENTOS.map(s => `<button class="btn ${_segFilter === s ? 'btn-primary' : 'btn-ghost'} btn-sm" data-seg="${s}">${s === 'all' ? '🌐 Todos' : s}</button>`).join('')}
       </div>
 
+      <input type="file" accept="image/*" id="ads-file" style="display:none">
+      <div class="tiny" style="color:#cbd5e1;margin-bottom:14px;background:#1e293b;padding:10px 12px;border-radius:8px;border-left:3px solid #d4af37">
+        📷 <b>Contar por print (IA):</b> a contagem de anúncios do Meta não pode ser puxada por API (limite da plataforma). Então: clique em <b>🔗 Abrir</b> → vá aos anúncios do concorrente na Biblioteca → tire um print mostrando o "<b>~X resultados</b>" do topo → clique no <b>📷</b> da linha e mande o print. A IA lê o número e preenche.
+        <span id="ads-status" style="margin-left:8px;font-weight:700"></span>
+      </div>
+
       <div id="ads-body"><div class="muted tiny"><span class="spinner"></span> Carregando concorrentes…</div></div>
     </div>
   `;
@@ -52,7 +58,34 @@ function render() {
     render();
     renderContent();
   }));
+  const fi = document.getElementById('ads-file');
+  if (fi) fi.addEventListener('change', onFile);
 }
+
+let _pendingPrint = null;
+function setStatus(msg, color) { const s = document.getElementById('ads-status'); if (s) { s.textContent = msg || ''; s.style.color = color || '#22c55e'; } }
+function startPrint(id) { _pendingPrint = id; const f = document.getElementById('ads-file'); if (f) { f.value = ''; f.click(); } }
+async function onFile(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file || _pendingPrint == null) return;
+  const id = _pendingPrint;
+  setStatus('⏳ IA lendo o print…', '#f59e0b');
+  try {
+    const dataUrl = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+    const r = await api.request('/api/v3/ia/ad_count', { method: 'POST', body: { id: Number(id), image: dataUrl } });
+    if (r && r.ok) {
+      const c = _concorrentes.find(x => String(x.id) === String(id));
+      if (c) { c.anuncios_count = r.count; c.ultima_atualizacao = new Date().toISOString(); }
+      renderContent();
+      setStatus(`✅ ${(c && c.nome) || ''}: ${r.count} anúncios (${r.basis || 'lido'}${r.saved === false ? ' · não salvou no banco' : ''})`, '#22c55e');
+    } else {
+      setStatus('⚠️ Não li o número' + (r && r.error ? ': ' + r.error : '') + '. Use um print nítido com o "~X resultados".', '#ef4444');
+    }
+  } catch (err) {
+    setStatus('⚠️ Erro: ' + err.message, '#ef4444');
+  }
+}
+function fmtDate(s) { try { const d = new Date(s); return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }); } catch { return ''; } }
 
 function renderContent() {
   const body = document.getElementById('ads-body');
@@ -93,15 +126,17 @@ function renderContent() {
             <td style="padding:8px 10px;color:#fff;font-weight:600">${esc(c.nome || '—')}<div style="font-size:10px;color:#94a3b8">${esc(c.link || '')}</div></td>
             <td style="padding:8px 10px;color:#94a3b8">${esc(c.segmento || '—')}</td>
             <td style="padding:8px 10px;text-align:center"><span style="padding:2px 8px;border-radius:4px;background:${tierColor(c.tier)};color:#fff;font-size:11px;font-weight:700">${esc(c.tier || '—')}</span></td>
-            <td style="padding:8px 10px;text-align:right;font-weight:800;color:${c.anuncios_count > 0 ? '#22c55e' : '#64748b'}">${c.anuncios_count || 0}</td>
-            <td style="padding:8px 10px;text-align:center">
+            <td style="padding:8px 10px;text-align:right;font-weight:800;color:${c.anuncios_count > 0 ? '#22c55e' : '#64748b'}">${c.anuncios_count || 0}${c.ultima_atualizacao && c.anuncios_count ? `<div class="tiny" style="font-weight:400;color:#64748b">${fmtDate(c.ultima_atualizacao)}</div>` : ''}</td>
+            <td style="padding:8px 10px;text-align:center;white-space:nowrap">
               <a href="${adLibUrl(c.nome)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="font-size:11px">🔗 Abrir</a>
+              <button class="btn btn-ghost btn-sm" data-print="${c.id}" title="Contar anúncios por print (IA)" style="font-size:11px">📷</button>
             </td>
           </tr>
         `).join('')}
       </tbody>
     </table>
   `;
+  body.querySelectorAll('[data-print]').forEach(b => b.addEventListener('click', () => startPrint(b.dataset.print)));
 }
 
 function adLibUrl(name) {
