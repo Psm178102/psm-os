@@ -4,7 +4,7 @@
    • Margem PSM líquida REAL (desconta corretor + sênior + imposto) no break-even e lucro.
    • Locação: comissão = 1º aluguel integral (100%) + receita recorrente 10% adm × contratos ativos.
    • Meta vem da aba Metas (atingimento). Pró-labore com toggle (set/2026).
-   • Rateio híbrido dos custos: Igual÷3 (excl Terceiros), Proporcional pela expectativa de VGV, Direto.
+   • Rateio híbrido dos custos: Igual÷3 (excl Terceiros), Proporcional por gasto+tamanho da equipe, Direto.
    • Params de linha + custos persistidos no board custos_compartilhados (compartilhado). */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
@@ -154,12 +154,26 @@ function custoValor(c) { return (c.prolabore && _comProLabore) ? PROLABORE_VALOR
 function rateio() {
   const igualTotal = _custos.filter(c => c.tipo === 'igual').reduce((s, c) => s + custoValor(c), 0);
   const propTotal = _custos.filter(c => c.tipo === 'proporcional').reduce((s, c) => s + custoValor(c), 0);
-  const exp = {}; let expTotal = 0;
-  for (const id of SHARED) { exp[id] = expectativa(id); expTotal += exp[id]; }
+  // Rateio Proporcional = média de 2 participações: (a) GASTO direto da equipe
+  // (verba mkt + custo direto + salário gerente) e (b) TAMANHO da equipe (nº corretores).
+  const gasto = {}, corr = {}; let gastoTot = 0, corrTot = 0;
+  for (const id of SHARED) {
+    const p = _lines[id];
+    gasto[id] = (+p.verbaMarketing || 0) + (+p.custoDireto || 0) + (+p.salarioGerente || 0);
+    corr[id] = resolved(id).nCorr || 0;
+    gastoTot += gasto[id]; corrTot += corr[id];
+  }
+  const peso = {}; let pesoTot = 0;
+  for (const id of SHARED) {
+    const sg = gastoTot > 0 ? gasto[id] / gastoTot : (1 / SHARED.length);
+    const sc = corrTot > 0 ? corr[id] / corrTot : (1 / SHARED.length);
+    peso[id] = (sg + sc) / 2;
+    pesoTot += peso[id];
+  }
   const out = { map: 0, conquista: 0, terceiros: 0, locacoes: 0 };
   for (const id of SHARED) {
     out[id] += igualTotal / SHARED.length;
-    out[id] += expTotal > 0 ? propTotal * (exp[id] / expTotal) : propTotal / SHARED.length;
+    out[id] += pesoTot > 0 ? propTotal * (peso[id] / pesoTot) : propTotal / SHARED.length;
   }
   for (const c of _custos) if (c.tipo === 'direto' && c.linha && out[c.linha] != null) out[c.linha] += custoValor(c);
   const dirTotal = _custos.filter(c => c.tipo === 'direto').reduce((s, c) => s + custoValor(c), 0);
@@ -299,7 +313,7 @@ function renderParams() {
     </div>
     <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
       ${inp('VGV Realizado MENSAL (R$) — vazio = real ÷ meses', 'vgvManual', '', `auto: ${fmt(r.autoVgvMes)}`)}
-      <div class="tiny muted" style="margin-top:4px">📐 Expectativa de VGV/mês: <b>${fmt(expectativa(_active))}</b> (nº corretores × ${isLoc ? 'aluguel' : 'ticket'} × ${isLoc ? 'contratos' : 'vendas'}/corretor) — base do rateio proporcional. 🎯 Meta/mês (aba Metas): <b>${fmt(r.metaMes)}</b>.${_active === 'terceiros' ? ' <span style="color:#d97706">Terceiros é EXCLUÍDO do rateio (só custo direto).</span>' : ''}${isLoc ? ' <span style="color:#d97706">Locação: recorrente de adm cobre parte do custo fixo.</span>' : ''}</div>
+      <div class="tiny muted" style="margin-top:4px">📐 Expectativa de VGV/mês: <b>${fmt(expectativa(_active))}</b> (nº corretores × ${isLoc ? 'aluguel' : 'ticket'} × ${isLoc ? 'contratos' : 'vendas'}/corretor — informativo). 📦 Rateio proporcional agora é por <b>gasto + tamanho da equipe</b>. 🎯 Meta/mês (aba Metas): <b>${fmt(r.metaMes)}</b>.${_active === 'terceiros' ? ' <span style="color:#d97706">Terceiros é EXCLUÍDO do rateio (só custo direto).</span>' : ''}${isLoc ? ' <span style="color:#d97706">Locação: recorrente de adm cobre parte do custo fixo.</span>' : ''}</div>
     </div>`;
   el.querySelectorAll('[data-key]').forEach(input => {
     const handler = e => {
@@ -329,7 +343,7 @@ function renderCustos() {
   const lineOpts = id => LINES.map(l => `<option value="${l.id}"${l.id === id ? ' selected' : ''}>${l.nome}</option>`).join('');
   el.innerHTML = `<div style="background:var(--bg-3);border-radius:10px;padding:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-      <div style="font-weight:800">💸 Custos Compartilhados <span class="tiny muted">(Igual÷3 excl. Terceiros · Proporcional pela expectativa · Direto)</span></div>
+      <div style="font-weight:800">💸 Custos Compartilhados <span class="tiny muted">(Igual÷3 excl. Terceiros · Proporcional por gasto+tamanho · Direto)</span></div>
       <div class="flex gap-2"><button class="btn btn-ghost btn-sm" id="custos-add">＋ item</button><button class="btn btn-ghost btn-sm" id="custos-reset">↺ base</button><button class="btn btn-ghost btn-sm" id="custos-close">✓ fechar</button></div>
     </div>
     <div class="tiny muted" id="custos-msg" style="margin-bottom:6px">${escapeHtml(_custosMsg)}</div>
