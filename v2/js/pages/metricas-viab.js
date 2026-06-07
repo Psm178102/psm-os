@@ -364,7 +364,8 @@ function renderTable() {
   const vcol = n => `<span style="color:${(n || 0) < 0 ? '#dc2626' : 'inherit'};${(n || 0) < 0 ? 'font-weight:700' : ''}">${fmt((n || 0) * f)}</span>`; // vermelho se negativo (escala período)
   const mcol = n => `<span style="color:${(n || 0) < 0 ? '#dc2626' : 'inherit'}">${fmt(n)}</span>`;                  // valor por venda (sem escala)
   const pcol = p => `<span style="color:${(p || 0) < 0 ? '#dc2626' : 'inherit'};${(p || 0) < 0 ? 'font-weight:700' : ''}">${(p || 0).toFixed(2)}%</span>`;
-  const statusCell = (vgvReal, be, inviavel) => { if (inviavel) return '<span style="color:#dc2626;font-weight:800">⛔ inviável</span>'; const ok = vgvReal >= be && be > 0; return `<span style="color:${ok ? '#16a34a' : '#dc2626'};font-weight:800">${ok ? '✅ viável' : '⚠️ abaixo'}</span>`; };
+  // viável = a linha cobre os custos (lucro ≥ 0). Trata certo o caso da Locação (break-even negativo pq o recorrente já cobre).
+  const statusCell = (lucro, inviavel) => { if (inviavel) return '<span style="color:#dc2626;font-weight:800">⛔ inviável</span>'; const ok = (lucro || 0) >= 0; return `<span style="color:${ok ? '#16a34a' : '#dc2626'};font-weight:800">${ok ? '✅ viável' : '⚠️ abaixo'}</span>`; };
   const colHead = LINES.map(l => `<th style="text-align:right;padding:8px 10px;color:${l.cor};white-space:nowrap">${l.icon} ${l.nome.replace('PSM ', '')}</th>`).join('');
   const td = x => `<td style="text-align:right;padding:7px 10px">${x}</td>`;
   const rows = [
@@ -387,7 +388,7 @@ function renderTable() {
     ['% da Meta atingida', id => per[id].metaPct == null ? '—' : per[id].metaPct.toFixed(0) + '%', tot.metaPct == null ? '—' : tot.metaPct.toFixed(0) + '%'],
     ['Lucro Líquido' + sufx, id => cnum(per[id].lucro), cnum(tot.lucro), { strong: 1 }],
     ['Margem Líquida %', id => `<span style="color:${per[id].margemReal < 0 ? '#dc2626' : 'inherit'}">${per[id].margemReal.toFixed(1)}%</span>`, `<span style="color:${tot.margemReal < 0 ? '#dc2626' : 'inherit'}">${tot.margemReal.toFixed(1)}%</span>`],
-    ['Status', id => statusCell(per[id].vgvRealMes, per[id].vgvBreakEven, per[id].inviavel), statusCell(tot.vgvRealMes, tot.vgvBreakEven, tot.inviavel)],
+    ['Status', id => statusCell(per[id].lucro, per[id].inviavel), statusCell(tot.lucro, tot.inviavel)],
   ];
   body.innerHTML = `
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:800px">
