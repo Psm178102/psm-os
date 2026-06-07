@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.90.0-2026-06-06-ALAVANCAS';
+const SW_VERSION = 'v76.91.0-2026-06-06-SIMTRAFEGO';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
