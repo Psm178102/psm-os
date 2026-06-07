@@ -9,7 +9,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
-let _root = null, _data = null, _custos = null, _lines = null;
+let _root = null, _data = null, _custos = null, _lines = null, _nibo = null;
 let _active = 'map', _showCustos = false, _periodo = 'mes', _comProLabore = false, _custosMsg = '';
 
 const LKEY = 'psm_v2_metricas_viab_lines';
@@ -94,15 +94,19 @@ function freshLines() { const o = {}; for (const l of LINES) o[l.id] = { ...DEFA
 
 async function load() {
   try {
-    const [atg, board] = await Promise.all([
+    const [atg, board, nibo] = await Promise.all([
       api.request('/api/v3/metas/atingimento').catch(() => ({})),
       api.request('/api/v3/diretoria/strategy?board=custos_compartilhados').catch(() => null),
+      api.request('/api/v3/finance/custos_fixos?months=3&company=all').catch(() => null),
     ]);
     _data = atg || {};
     const d = board && board.ok ? (board.data || {}) : null;
     if (d && Array.isArray(d.items) && d.items.length) _custos = d.items.map(c => ({ ...c }));
     if (d && d.lines) for (const l of LINES) _lines[l.id] = Object.assign({}, DEFAULTS[l.id], d.lines[l.id] || {});
     _custosMsg = board && board.pending ? '⏳ board não criado — usando base; edite p/ salvar' : (d ? '' : 'usando base padrão');
+    // 🔄 Ciclo #2: NIBO realizado → confronta a planilha de custos (premissa × real)
+    const t = nibo && nibo.ok ? (nibo.totals || {}) : null, mm = (nibo && nibo.months) || 3;
+    _nibo = t ? { realMes: (+t.total || 0) / mm, pagoMes: (+t.pago || 0) / mm, months: mm } : null;
   } catch { _data = {}; }
   renderBanner(); renderParams(); renderCustos(); renderTable();
 }
@@ -337,9 +341,17 @@ function renderCustos() {
   const rt = rateio();
   const total = rt.igualTotal + rt.propTotal + rt.dirTotal;
   if (!_showCustos) {
-    el.innerHTML = `<div style="background:var(--bg-3);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div style="font-size:12.5px"><b>💸 Custos Compartilhados (rateio híbrido)</b> — ${_custos.length} itens · Igual ${fmt(rt.igualTotal)} · Proporcional ${fmt(rt.propTotal)} · Direto ${fmt(rt.dirTotal)} · <b>Total ${fmt(total)}/mês</b>${_comProLabore ? ' <span class="tiny" style="color:#16a34a">+pró-labore</span>' : ''}</div>
-      <button class="btn btn-ghost btn-sm" id="custos-toggle">✏️ editar custos</button></div>`;
+    let niboLine = '';
+    if (_nibo) {
+      const d = total - _nibo.pagoMes; // planilha − realizado pago
+      const cor = Math.abs(d) <= total * 0.1 ? '#16a34a' : (d < 0 ? '#dc2626' : '#d97706');
+      niboLine = `<div class="tiny" style="margin-top:4px;color:${cor}">📡 <b>Realizado NIBO</b> (pago, méd. ${_nibo.months}m): <b>${fmt(_nibo.pagoMes)}/mês</b> · planilha ${fmt(total)} → ${d >= 0 ? 'planilha acima' : 'planilha ABAIXO do real'} em <b>${fmt(Math.abs(d))}</b> ${d < 0 ? '⚠️' : ''}</div>`;
+    }
+    el.innerHTML = `<div style="background:var(--bg-3);border-radius:10px;padding:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="font-size:12.5px"><b>💸 Custos Compartilhados (rateio híbrido)</b> — ${_custos.length} itens · Igual ${fmt(rt.igualTotal)} · Proporcional ${fmt(rt.propTotal)} · Direto ${fmt(rt.dirTotal)} · <b>Total ${fmt(total)}/mês</b>${_comProLabore ? ' <span class="tiny" style="color:#16a34a">+pró-labore</span>' : ''}</div>
+        <button class="btn btn-ghost btn-sm" id="custos-toggle">✏️ editar custos</button>
+      </div>${niboLine}</div>`;
     document.getElementById('custos-toggle').addEventListener('click', () => { _showCustos = true; renderCustos(); });
     return;
   }
