@@ -24,11 +24,11 @@ const LINES = [
 ];
 
 const DEFAULTS = {
-  map:       { ticketMedio: 350000, vendasMes: 1, comissaoBrutaPct: 4,   comCorretorPct: 1.4, comSeniorPct: 1.6, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  contratosAtivos: 0,   recorrenteModo: 'abater', custoDireto: 0,    corretoresManual: '', vgvManual: '' },
-  conquista: { ticketMedio: 200000, vendasMes: 1, comissaoBrutaPct: 5,   comCorretorPct: 2.0, comSeniorPct: 1.0, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  contratosAtivos: 0,   recorrenteModo: 'abater', custoDireto: 0,    corretoresManual: '', vgvManual: '' },
-  terceiros: { ticketMedio: 250000, vendasMes: 1, comissaoBrutaPct: 6,   comCorretorPct: 3.0, comSeniorPct: 1.0, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  contratosAtivos: 0,   recorrenteModo: 'abater', custoDireto: 8000, corretoresManual: '', vgvManual: '' },
+  map:       { ticketMedio: 350000, vendasMes: 1, comissaoBrutaPct: 4,   comCorretorPct: 1.4, comSeniorPct: 1.6, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  admAliquotaPct: 8, contratosAtivos: 0,   recorrenteModo: 'abater', custoDireto: 0,    corretoresManual: '', vgvManual: '' },
+  conquista: { ticketMedio: 200000, vendasMes: 1, comissaoBrutaPct: 5,   comCorretorPct: 2.0, comSeniorPct: 1.0, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  admAliquotaPct: 8, contratosAtivos: 0,   recorrenteModo: 'abater', custoDireto: 0,    corretoresManual: '', vgvManual: '' },
+  terceiros: { ticketMedio: 250000, vendasMes: 1, comissaoBrutaPct: 6,   comCorretorPct: 3.0, comSeniorPct: 1.0, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  admAliquotaPct: 8, contratosAtivos: 0,   recorrenteModo: 'abater', custoDireto: 8000, corretoresManual: '', vgvManual: '' },
   // Locação: ticket = aluguel; comissão de captação = 100% do 1º aluguel; adm recorrente = 10% × contratos ativos
-  locacoes:  { ticketMedio: 2500,   vendasMes: 2, comissaoBrutaPct: 100, comCorretorPct: 30,  comSeniorPct: 0,   comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 10, contratosAtivos: 100, recorrenteModo: 'abater', custoDireto: 0,    corretoresManual: '', vgvManual: '' },
+  locacoes:  { ticketMedio: 2500,   vendasMes: 2, comissaoBrutaPct: 100, comCorretorPct: 30,  comSeniorPct: 0,   comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 10, admAliquotaPct: 8, contratosAtivos: 100, recorrenteModo: 'abater', custoDireto: 0,    corretoresManual: '', vgvManual: '' },
 };
 
 const CUSTOS_SEED = [
@@ -177,27 +177,35 @@ function computeLine(id, rt) {
   const margemPSM = comBruta - comBruta * p.aliquotaPct / 100
     - ticket * p.comCorretorPct / 100 - ticket * p.comSeniorPct / 100 - ticket * (+p.comGerentePct || 0) / 100;
   const netMarginPct = ticket > 0 ? margemPSM / ticket : 0; // fração líquida da PSM sobre o VGV
-  // receita recorrente de administração (locação): 10% × aluguel × contratos ativos
-  const recorrente = ticket * (+p.admPct || 0) / 100 * (+p.contratosAtivos || 0);
+  const margemPSMpct = (p.comissaoBrutaPct || 0) - (p.comissaoBrutaPct || 0) * p.aliquotaPct / 100 - (+p.comCorretorPct || 0) - (+p.comSeniorPct || 0) - (+p.comGerentePct || 0); // % líquido s/ ticket
+  const inviavel = margemPSM <= 0; // margem zero/negativa = break-even impossível
+  // receita recorrente de administração (locação): % adm × aluguel × contratos ativos, líquida do imposto do recorrente
+  const recorrenteBruto = ticket * (+p.admPct || 0) / 100 * (+p.contratosAtivos || 0);
+  const recorrenteImposto = recorrenteBruto * (+p.admAliquotaPct || 0) / 100;
+  const recorrente = recorrenteBruto - recorrenteImposto;
   // modo: 'abater' (recorrente reduz o custo fixo a cobrir) ou 'reserva' (vira reserva, não abate)
   const abate = (p.recorrenteModo === 'reserva') ? 0 : recorrente;
   const reservaMes = recorrente - abate;
-  const despNet = Math.max(0, despFixa - abate);
-  const vgvBreakEven = netMarginPct > 0 ? despNet / netMarginPct : 0;
-  const vendasBreakEven = margemPSM > 0 ? Math.ceil(despNet / margemPSM) : 0;
+  const despNet = despFixa - abate;
+  // SEM clamp: se a margem é negativa, break-even sai negativo (sinaliza inviabilidade)
+  const vgvBreakEven = netMarginPct !== 0 ? despNet / netMarginPct : 0;
+  const vendasBreakEven = margemPSM !== 0 ? Math.ceil(despNet / margemPSM) : 0;
   const nCorr = r.nCorr || 0;
   const vgvMinPorCorretor = nCorr > 0 ? vgvBreakEven / nCorr : 0;
   const vendasMinPorCorretor = nCorr > 0 ? Math.ceil(vendasBreakEven / nCorr) : 0;
   const lucro = r.vgvRealMes * netMarginPct + abate - despFixa;
   const margemReal = r.vgvRealMes > 0 ? (lucro / r.vgvRealMes * 100) : 0;
   const metaPct = r.metaMes > 0 ? (r.vgvRealMes / r.metaMes * 100) : null;
-  return { despFixa, recorrente, reservaMes, vgvBreakEven, vendasBreakEven, margemPSM, netMarginPct, nCorr, ticket,
-    expectativa: expectativa(id), vgvMinPorCorretor, vendasMinPorCorretor,
+  // imposto gerado/mês = imposto sobre a comissão das vendas realizadas + imposto do recorrente
+  const impostoGerado = r.vgvRealMes * (p.comissaoBrutaPct || 0) / 100 * (p.aliquotaPct || 0) / 100 + recorrenteImposto;
+  return { despFixa, recorrente, recorrenteImposto, reservaMes, vgvBreakEven, vendasBreakEven, margemPSM, margemPSMpct, netMarginPct, inviavel, nCorr, ticket,
+    expectativa: expectativa(id), vgvMinPorCorretor, vendasMinPorCorretor, impostoGerado,
     vgvRealMes: r.vgvRealMes, metaMes: r.metaMes, metaPct, lucro, margemReal };
 }
 function computeTotal(per) {
-  const t = { despFixa: 0, recorrente: 0, reservaMes: 0, vgvBreakEven: 0, vendasBreakEven: 0, vgvRealMes: 0, metaMes: 0, lucro: 0, nCorr: 0, expectativa: 0 };
-  for (const id of Object.keys(per)) { const c = per[id]; for (const k of ['despFixa','recorrente','reservaMes','vgvBreakEven','vendasBreakEven','vgvRealMes','metaMes','lucro','nCorr','expectativa']) t[k] += c[k]; }
+  const t = { despFixa: 0, recorrente: 0, reservaMes: 0, vgvBreakEven: 0, vendasBreakEven: 0, vgvRealMes: 0, metaMes: 0, lucro: 0, nCorr: 0, expectativa: 0, impostoGerado: 0 };
+  for (const id of Object.keys(per)) { const c = per[id]; for (const k of ['despFixa','recorrente','reservaMes','vgvBreakEven','vendasBreakEven','vgvRealMes','metaMes','lucro','nCorr','expectativa','impostoGerado']) t[k] += c[k]; }
+  t.inviavel = Object.keys(per).some(id => per[id].inviavel);
   t.margemReal = t.vgvRealMes > 0 ? (t.lucro / t.vgvRealMes * 100) : 0;
   t.metaPct = t.metaMes > 0 ? (t.vgvRealMes / t.metaMes * 100) : null;
   t.vgvMinPorCorretor = t.nCorr > 0 ? t.vgvBreakEven / t.nCorr : 0;
@@ -272,6 +280,7 @@ function renderParams() {
       ${inp('% Gerente (sobre VGV da equipe)', 'comGerentePct', '%')}
       ${inp('Alíquota Imposto (%)', 'aliquotaPct', '%')}
       ${isLoc ? inp('% Adm recorrente', 'admPct', '%') : inp('Custo Direto Extra (R$/mês)', 'custoDireto', '', _active === 'terceiros' ? 'Terceiros não rateia' : 'fora da planilha')}
+      ${isLoc ? inp('% Imposto s/ adm (recorrente)', 'admAliquotaPct', '%') : ''}
       ${isLoc ? inp('Contratos ativos (carteira)', 'contratosAtivos') : ''}
       ${isLoc ? selp('Adm recorrente →', 'recorrenteModo', [['abater', '↓ Abater do custo fixo'], ['reserva', '🏦 Reserva financeira']]) : ''}
       ${isLoc ? inp('Custo Direto Extra (R$/mês)', 'custoDireto', '', 'fora da planilha') : ''}
@@ -351,7 +360,10 @@ function renderTable() {
   const v = n => fmt((n || 0) * f);                 // valor R$ escalado
   const cnt = n => Math.round((n || 0) * f);        // contagem escalada
   const cnum = n => `<span style="color:${n >= 0 ? '#16a34a' : '#dc2626'}">${fmt((n || 0) * f)}</span>`;
-  const statusCell = (vgvReal, be) => { const ok = vgvReal >= be && be > 0; return `<span style="color:${ok ? '#16a34a' : '#dc2626'};font-weight:800">${ok ? '✅ viável' : '⚠️ abaixo'}</span>`; };
+  const vcol = n => `<span style="color:${(n || 0) < 0 ? '#dc2626' : 'inherit'};${(n || 0) < 0 ? 'font-weight:700' : ''}">${fmt((n || 0) * f)}</span>`; // vermelho se negativo (escala período)
+  const mcol = n => `<span style="color:${(n || 0) < 0 ? '#dc2626' : 'inherit'}">${fmt(n)}</span>`;                  // valor por venda (sem escala)
+  const pcol = p => `<span style="color:${(p || 0) < 0 ? '#dc2626' : 'inherit'};${(p || 0) < 0 ? 'font-weight:700' : ''}">${(p || 0).toFixed(2)}%</span>`;
+  const statusCell = (vgvReal, be, inviavel) => { if (inviavel) return '<span style="color:#dc2626;font-weight:800">⛔ inviável</span>'; const ok = vgvReal >= be && be > 0; return `<span style="color:${ok ? '#16a34a' : '#dc2626'};font-weight:800">${ok ? '✅ viável' : '⚠️ abaixo'}</span>`; };
   const colHead = LINES.map(l => `<th style="text-align:right;padding:8px 10px;color:${l.cor};white-space:nowrap">${l.icon} ${l.nome.replace('PSM ', '')}</th>`).join('');
   const td = x => `<td style="text-align:right;padding:7px 10px">${x}</td>`;
   const rows = [
@@ -362,16 +374,18 @@ function renderTable() {
     ['Despesa Fixa' + sufx, id => v(per[id].despFixa), v(tot.despFixa), { strong: 1 }],
     ['Receita recorrente adm' + sufx, id => per[id].recorrente ? v(per[id].recorrente) : '—', tot.recorrente ? v(tot.recorrente) : '—'],
     ['🏦 Reserva financeira' + sufx, id => per[id].reservaMes ? v(per[id].reservaMes) : '—', tot.reservaMes ? v(tot.reservaMes) : '—'],
-    ['VGV Break-Even' + sufx, id => v(per[id].vgvBreakEven), v(tot.vgvBreakEven), { strong: 1 }],
-    ['⭐ VGV mín/corretor' + sufx, id => v(per[id].vgvMinPorCorretor), v(tot.vgvMinPorCorretor), { hl: 1 }],
-    ['⭐ Vendas mín/corretor' + (f > 1 ? '/ano' : '/mês'), id => (per[id].vendasMinPorCorretor ? cnt(per[id].vendasMinPorCorretor) : '—'), (tot.vendasMinPorCorretor ? cnt(tot.vendasMinPorCorretor) : '—'), { hl: 1 }],
-    ['Vendas Break-Even' + (f > 1 ? '/ano' : '/mês'), id => per[id].vendasBreakEven ? cnt(per[id].vendasBreakEven) : '—', tot.vendasBreakEven ? cnt(tot.vendasBreakEven) : '—'],
-    ['Margem PSM / venda', id => fmt(per[id].margemPSM), '—'],
+    ['Margem PSM % / venda', id => pcol(per[id].margemPSMpct), '—'],
+    ['Margem PSM R$ / venda', id => mcol(per[id].margemPSM), '—'],
+    ['VGV Break-Even' + sufx, id => vcol(per[id].vgvBreakEven), vcol(tot.vgvBreakEven), { strong: 1 }],
+    ['⭐ VGV mín/corretor' + sufx, id => vcol(per[id].vgvMinPorCorretor), vcol(tot.vgvMinPorCorretor), { hl: 1 }],
+    ['⭐ Vendas mín/corretor' + (f > 1 ? '/ano' : '/mês'), id => (per[id].inviavel ? '⛔' : (per[id].vendasMinPorCorretor ? cnt(per[id].vendasMinPorCorretor) : '—')), (tot.vendasMinPorCorretor ? cnt(tot.vendasMinPorCorretor) : '—'), { hl: 1 }],
+    ['Vendas Break-Even' + (f > 1 ? '/ano' : '/mês'), id => per[id].inviavel ? '⛔' : (per[id].vendasBreakEven ? cnt(per[id].vendasBreakEven) : '—'), tot.vendasBreakEven ? cnt(tot.vendasBreakEven) : '—'],
+    ['Imposto gerado' + sufx, id => v(per[id].impostoGerado), v(tot.impostoGerado)],
     ['VGV Realizado' + sufx, id => v(per[id].vgvRealMes), v(tot.vgvRealMes)],
     ['% da Meta atingida', id => per[id].metaPct == null ? '—' : per[id].metaPct.toFixed(0) + '%', tot.metaPct == null ? '—' : tot.metaPct.toFixed(0) + '%'],
     ['Lucro Líquido' + sufx, id => cnum(per[id].lucro), cnum(tot.lucro), { strong: 1 }],
-    ['Margem Líquida %', id => per[id].margemReal.toFixed(1) + '%', tot.margemReal.toFixed(1) + '%'],
-    ['Status', id => statusCell(per[id].vgvRealMes, per[id].vgvBreakEven), statusCell(tot.vgvRealMes, tot.vgvBreakEven)],
+    ['Margem Líquida %', id => `<span style="color:${per[id].margemReal < 0 ? '#dc2626' : 'inherit'}">${per[id].margemReal.toFixed(1)}%</span>`, `<span style="color:${tot.margemReal < 0 ? '#dc2626' : 'inherit'}">${tot.margemReal.toFixed(1)}%</span>`],
+    ['Status', id => statusCell(per[id].vgvRealMes, per[id].vgvBreakEven, per[id].inviavel), statusCell(tot.vgvRealMes, tot.vgvBreakEven, tot.inviavel)],
   ];
   body.innerHTML = `
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:800px">
@@ -386,7 +400,8 @@ function renderTable() {
     <div class="alert" style="background:rgba(99,102,241,.1);color:#6366f1;border:1px solid rgba(99,102,241,.3);padding:12px;border-radius:8px;margin-top:14px;font-size:12.5px">
       <b>💡 Leitura (${_periodo === 'ano' ? 'anual' : 'mensal'}):</b><br>
       • ⭐ <b>VGV mín/corretor</b> = quanto cada corretor precisa vender pra cobrir o break-even (com o ticket da linha).<br>
-      • <b>Margem PSM</b> já desconta corretor + sênior + imposto. <b>Locação</b> = 1º aluguel (100%) + adm recorrente (${fmt(tot.recorrente)}/mês) que abate o custo fixo.<br>
+      • <b>Margem PSM</b> desconta corretor + sênior + gerente + imposto. Margem <span style="color:#dc2626;font-weight:700">negativa</span> = <b>⛔ inviável</b> (break-even em vermelho/negativo).<br>
+      • <b>Locação</b> = 1º aluguel (100%) + adm recorrente líquido de imposto (${fmt(tot.recorrente)}/mês) — abate o custo fixo ou vira reserva, conforme o toggle.<br>
       • Consolidado: break-even ${v(tot.vgvBreakEven)} · lucro <b style="color:${tot.lucro >= 0 ? '#16a34a' : '#dc2626'}">${cnum(tot.lucro)}</b> (margem ${tot.margemReal.toFixed(1)}%).${_comProLabore ? '' : ' <span class="muted">(sem pró-labore — marque o toggle pra simular set/26)</span>'}
     </div>`;
 }
