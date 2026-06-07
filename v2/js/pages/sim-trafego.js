@@ -8,7 +8,8 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
-let _root = null, _s = null, _msg = '';
+let _root = null, _s = null, _msg = '', _real = null;
+const MESES = Math.max(1, new Date().getMonth() + 1);
 
 // faixas Simples (faturamento anual da comissão → alíquota) — editáveis no futuro
 const FAIXAS = [
@@ -125,6 +126,7 @@ function render() {
           <label class="tiny muted" style="display:block;margin-top:6px">Conversão (%)</label><input type="number" step="0.01" class="input" data-cen="${i}" data-k="conv" value="${c.conv}" style="width:100%;font-size:12px;padding:5px 7px">
         </div>`).join('')}
       </div>
+      ${realPanel()}
       <div class="tiny muted" id="st-msg" style="margin-top:4px">${esc(_msg)}</div>
 
       <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:18px 0 6px">📊 Comparativo dos cenários</div>
@@ -181,6 +183,43 @@ function calcWith(investMes, cpl, conv) {
   return { caixaMes: caixa };
 }
 
+/* ── 🔄 Ciclo de feedback: Meta + CRM → Simulador ── */
+function realPanel() {
+  if (!_real) return `<div style="margin-top:10px"><button class="btn btn-ghost btn-sm" id="st-puxar">📡 Puxar realizado (Meta + CRM)</button> <span class="tiny muted">— traz CPL/investimento do Meta + conversão real do CRM</span></div>`;
+  if (_real.erro) return `<div class="alert alert-warn" style="margin-top:10px">⚠️ ${esc(_real.erro)} <button class="btn btn-ghost btn-sm" id="st-puxar">tentar de novo</button></div>`;
+  const f = n => 'R$ ' + Math.round(n || 0).toLocaleString('pt-BR');
+  const rk = (l, v) => `<div style="background:var(--bg-2);border-radius:8px;padding:8px"><div class="tiny muted">${l}</div><div style="font-weight:800">${v}</div></div>`;
+  return `<div style="margin-top:10px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:12px">
+    <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div style="font-weight:800">📡 Realizado (Meta + CRM) <span class="tiny muted">· ${esc(_real.periodo)}</span></div>
+      <div class="flex gap-2"><button class="btn btn-ghost btn-sm" id="st-puxar">↻ atualizar</button><button class="btn btn-primary btn-sm" id="st-aplicar">aplicar no cenário Equilíbrio →</button></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px;font-size:12.5px">
+      ${rk('Investimento', f(_real.spend))}${rk('Leads', Math.round(_real.leads))}${rk('CPL real', f(_real.cpl))}${rk('Conversão real', _real.convReal.toFixed(2) + '%')}
+    </div>
+    <div class="tiny muted" style="margin-top:6px">Conversão real = vendas/mês do CRM (${_real.vendasMes.toFixed(1)}) ÷ leads do período (Meta) — é um teto (vendas são multicanal). "Aplicar" ajusta CPL e conversão do cenário Equilíbrio com o realizado.</div>
+  </div>`;
+}
+async function puxarReal() {
+  const b = document.getElementById('st-puxar'); if (b) { b.disabled = true; b.textContent = 'Puxando…'; }
+  try {
+    const [mkt, atg] = await Promise.all([
+      api.request('/api/v3/marketing/summary').catch(() => null),
+      api.request('/api/v3/metas/atingimento').catch(() => null),
+    ]);
+    const accs = (mkt && mkt.accounts) || [];
+    const spend = accs.reduce((s, a) => s + (+a.spend || 0), 0);
+    const results = accs.reduce((s, a) => s + (+a.results || 0), 0);
+    const leads = accs.reduce((s, a) => s + (+a.leads || 0), 0) || results;
+    const cpl = results > 0 ? spend / results : (leads > 0 ? spend / leads : 0);
+    const vendasMes = (+(atg && atg.total_vendas || 0)) / MESES;
+    const convReal = leads > 0 ? (vendasMes / leads * 100) : 0;
+    _real = { spend, results, leads, cpl, vendasMes, convReal, periodo: (mkt && mkt.period) || 'período atual' };
+    if (spend === 0 && results === 0) _real = { erro: 'Meta Ads sem dados agora (token/período). Tente pela aba Marketing.' };
+  } catch (e) { _real = { erro: e.message }; }
+  render();
+}
+
 function inp(label, key) {
   const money = /R\$/.test(label);
   return `<div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><div class="flex gap-1" style="align-items:center">${money ? '<span class="tiny muted" style="font-weight:700">R$</span>' : ''}<input type="number" step="any" class="input" data-g="${key}" value="${_s[key] ?? ''}" style="flex:1;font-size:12px;padding:6px 8px"></div></div>`;
@@ -194,5 +233,13 @@ function bind() {
     _s.cenarios[+el.dataset.cen][el.dataset.k] = parseFloat(el.value) || 0; save();
     clearTimeout(window._rdr); window._rdr = setTimeout(render, 250);
   }));
+  const pux = document.getElementById('st-puxar'); if (pux) pux.addEventListener('click', puxarReal);
+  const apl = document.getElementById('st-aplicar'); if (apl) apl.addEventListener('click', () => {
+    if (_real && !_real.erro) {
+      _s.cenarios[1].cpl = Math.round(_real.cpl) || _s.cenarios[1].cpl;
+      _s.cenarios[1].conv = Math.round(_real.convReal * 100) / 100 || _s.cenarios[1].conv;
+      save(); render();
+    }
+  });
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
