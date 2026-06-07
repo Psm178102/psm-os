@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v76.84.0-2026-06-06-VIAB-INV';
+const SW_VERSION = 'v76.85.0-2026-06-06-VIAB-MKT';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

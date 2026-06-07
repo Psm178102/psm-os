@@ -24,11 +24,11 @@ const LINES = [
 ];
 
 const DEFAULTS = {
-  map:       { ticketMedio: 350000, vendasMes: 1, comissaoBrutaPct: 4,   comCorretorPct: 1.4, comSeniorPct: 1.6, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  admAliquotaPct: 8, contratosAtivos: 0,   recorrenteModo: 'abater', custoDireto: 0,    corretoresManual: '', vgvManual: '' },
-  conquista: { ticketMedio: 200000, vendasMes: 1, comissaoBrutaPct: 5,   comCorretorPct: 2.0, comSeniorPct: 1.0, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  admAliquotaPct: 8, contratosAtivos: 0,   recorrenteModo: 'abater', custoDireto: 0,    corretoresManual: '', vgvManual: '' },
-  terceiros: { ticketMedio: 250000, vendasMes: 1, comissaoBrutaPct: 6,   comCorretorPct: 3.0, comSeniorPct: 1.0, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  admAliquotaPct: 8, contratosAtivos: 0,   recorrenteModo: 'abater', custoDireto: 8000, corretoresManual: '', vgvManual: '' },
+  map:       { ticketMedio: 350000, vendasMes: 1, comissaoBrutaPct: 4,   comCorretorPct: 1.4, comSeniorPct: 1.6, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  admAliquotaPct: 8, contratosAtivos: 0,   recorrenteModo: 'abater', verbaMarketing: 0, custoDireto: 0,    corretoresManual: '', vgvManual: '' },
+  conquista: { ticketMedio: 200000, vendasMes: 1, comissaoBrutaPct: 5,   comCorretorPct: 2.0, comSeniorPct: 1.0, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  admAliquotaPct: 8, contratosAtivos: 0,   recorrenteModo: 'abater', verbaMarketing: 0, custoDireto: 0,    corretoresManual: '', vgvManual: '' },
+  terceiros: { ticketMedio: 250000, vendasMes: 1, comissaoBrutaPct: 6,   comCorretorPct: 3.0, comSeniorPct: 1.0, comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 0,  admAliquotaPct: 8, contratosAtivos: 0,   recorrenteModo: 'abater', verbaMarketing: 0, custoDireto: 8000, corretoresManual: '', vgvManual: '' },
   // Locação: ticket = aluguel; comissão de captação = 100% do 1º aluguel; adm recorrente = 10% × contratos ativos
-  locacoes:  { ticketMedio: 2500,   vendasMes: 2, comissaoBrutaPct: 100, comCorretorPct: 30,  comSeniorPct: 0,   comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 10, admAliquotaPct: 8, contratosAtivos: 100, recorrenteModo: 'abater', custoDireto: 0,    corretoresManual: '', vgvManual: '' },
+  locacoes:  { ticketMedio: 2500,   vendasMes: 2, comissaoBrutaPct: 100, comCorretorPct: 30,  comSeniorPct: 0,   comGerentePct: 0, salarioGerente: 0, aliquotaPct: 8, admPct: 10, admAliquotaPct: 8, contratosAtivos: 100, recorrenteModo: 'abater', verbaMarketing: 0, custoDireto: 0,    corretoresManual: '', vgvManual: '' },
 };
 
 const CUSTOS_SEED = [
@@ -170,8 +170,8 @@ function rateio() {
 function computeLine(id, rt) {
   const p = _lines[id], r = resolved(id);
   const ticket = +p.ticketMedio || 0;
-  // despesa fixa da linha = rateio + custo direto extra + salário do gerente
-  const despFixa = (rt.alloc[id] || 0) + (+p.custoDireto || 0) + (+p.salarioGerente || 0);
+  // despesa fixa da linha = rateio + custo direto extra + salário do gerente + verba de marketing própria
+  const despFixa = (rt.alloc[id] || 0) + (+p.custoDireto || 0) + (+p.salarioGerente || 0) + (+p.verbaMarketing || 0);
   // margem PSM líquida REAL por venda (desconta corretor + sênior + GERENTE %VGV + imposto)
   const comBruta = ticket * p.comissaoBrutaPct / 100;
   const margemPSM = comBruta - comBruta * p.aliquotaPct / 100
@@ -198,13 +198,13 @@ function computeLine(id, rt) {
   const metaPct = r.metaMes > 0 ? (r.vgvRealMes / r.metaMes * 100) : null;
   // imposto gerado/mês = imposto sobre a comissão das vendas realizadas + imposto do recorrente
   const impostoGerado = r.vgvRealMes * (p.comissaoBrutaPct || 0) / 100 * (p.aliquotaPct || 0) / 100 + recorrenteImposto;
-  return { despFixa, recorrente, recorrenteImposto, reservaMes, vgvBreakEven, vendasBreakEven, margemPSM, margemPSMpct, netMarginPct, inviavel, nCorr, ticket,
+  return { despFixa, verbaMarketing: +p.verbaMarketing || 0, recorrente, recorrenteImposto, reservaMes, vgvBreakEven, vendasBreakEven, margemPSM, margemPSMpct, netMarginPct, inviavel, nCorr, ticket,
     expectativa: expectativa(id), vgvMinPorCorretor, vendasMinPorCorretor, impostoGerado,
     vgvRealMes: r.vgvRealMes, metaMes: r.metaMes, metaPct, lucro, margemReal };
 }
 function computeTotal(per) {
-  const t = { despFixa: 0, recorrente: 0, reservaMes: 0, vgvBreakEven: 0, vendasBreakEven: 0, vgvRealMes: 0, metaMes: 0, lucro: 0, nCorr: 0, expectativa: 0, impostoGerado: 0 };
-  for (const id of Object.keys(per)) { const c = per[id]; for (const k of ['despFixa','recorrente','reservaMes','vgvBreakEven','vendasBreakEven','vgvRealMes','metaMes','lucro','nCorr','expectativa','impostoGerado']) t[k] += c[k]; }
+  const t = { despFixa: 0, verbaMarketing: 0, recorrente: 0, reservaMes: 0, vgvBreakEven: 0, vendasBreakEven: 0, vgvRealMes: 0, metaMes: 0, lucro: 0, nCorr: 0, expectativa: 0, impostoGerado: 0 };
+  for (const id of Object.keys(per)) { const c = per[id]; for (const k of ['despFixa','verbaMarketing','recorrente','reservaMes','vgvBreakEven','vendasBreakEven','vgvRealMes','metaMes','lucro','nCorr','expectativa','impostoGerado']) t[k] += c[k]; }
   t.inviavel = Object.keys(per).some(id => per[id].inviavel);
   t.margemReal = t.vgvRealMes > 0 ? (t.lucro / t.vgvRealMes * 100) : 0;
   t.metaPct = t.metaMes > 0 ? (t.vgvRealMes / t.metaMes * 100) : null;
@@ -279,6 +279,7 @@ function renderParams() {
       ${inp('Salário Gerente (R$/mês)', 'salarioGerente')}
       ${inp('% Gerente (sobre VGV da equipe)', 'comGerentePct', '%')}
       ${inp('Alíquota Imposto (%)', 'aliquotaPct', '%')}
+      ${inp('📣 Verba Marketing (R$/mês)', 'verbaMarketing')}
       ${isLoc ? inp('% Adm recorrente', 'admPct', '%') : inp('Custo Direto Extra (R$/mês)', 'custoDireto', '', _active === 'terceiros' ? 'Terceiros não rateia' : 'fora da planilha')}
       ${isLoc ? inp('% Imposto s/ adm (recorrente)', 'admAliquotaPct', '%') : ''}
       ${isLoc ? inp('Contratos ativos (carteira)', 'contratosAtivos') : ''}
@@ -371,7 +372,8 @@ function renderTable() {
     [_periodo === 'ano' ? 'Aluguel/Ticket' : 'Ticket Médio', id => fmt(per[id].ticket), '—'],
     ['Expectativa VGV' + sufx, id => v(per[id].expectativa), v(tot.expectativa)],
     ['🎯 Meta (aba Metas)' + sufx, id => v(per[id].metaMes), v(tot.metaMes)],
-    ['Despesa Fixa' + sufx, id => v(per[id].despFixa), v(tot.despFixa), { strong: 1 }],
+    ['📣 Verba Marketing' + sufx, id => per[id].verbaMarketing ? v(per[id].verbaMarketing) : '—', tot.verbaMarketing ? v(tot.verbaMarketing) : '—'],
+    ['Despesa Fixa (c/ mkt)' + sufx, id => v(per[id].despFixa), v(tot.despFixa), { strong: 1 }],
     ['Receita recorrente adm' + sufx, id => per[id].recorrente ? v(per[id].recorrente) : '—', tot.recorrente ? v(tot.recorrente) : '—'],
     ['🏦 Reserva financeira' + sufx, id => per[id].reservaMes ? v(per[id].reservaMes) : '—', tot.reservaMes ? v(tot.reservaMes) : '—'],
     ['Margem PSM % / venda', id => pcol(per[id].margemPSMpct), '—'],
