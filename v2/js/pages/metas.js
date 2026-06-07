@@ -46,6 +46,50 @@ function bucketSum(rows, months) {
   return rows.reduce((s, g) => s + months.reduce((a, mi) => a + (Number(g.cells[mi] && g.cells[mi][k]) || 0), 0), 0);
 }
 function yearSum(rows) { return bucketSum(rows, [0,1,2,3,4,5,6,7,8,9,10,11]); }
+/* soma uma chave específica (ex.: 'vgv') nos meses, independente da métrica selecionada */
+function sumKey(rows, months, key) {
+  return rows.reduce((s, g) => s + months.reduce((a, mi) => a + (Number(g.cells[mi] && g.cells[mi][key]) || 0), 0), 0);
+}
+
+/* 🔄 Ciclo de feedback #4: VENDAS REAIS → FORECAST → META (run-rate, sem NIBO) */
+function forecastPanel(d, grid) {
+  const ALL = [0,1,2,3,4,5,6,7,8,9,10,11];
+  const metaAno = sumKey(grid, ALL, 'vgv');
+  const atingido = (d.totals && d.totals.atingido_vgv) || 0;
+  const vendas = (d.totals && d.totals.vendas_count) || 0;
+  if (metaAno <= 0 && atingido <= 0) return '';
+  const now = new Date(), anoAtual = now.getFullYear();
+  const corrente = (_ano === anoAtual);
+  const mesAtual = corrente ? (now.getMonth() + 1) : 12;
+  const diaAtual = corrente ? now.getDate() : 31;
+  const diasMes = new Date(_ano, mesAtual, 0).getDate();
+  const fracao = Math.min(1, ((mesAtual - 1) + diaAtual / diasMes) / 12);
+  const metaProRata = metaAno * fracao;
+  const ritmoPct = metaProRata > 0 ? atingido / metaProRata * 100 : (atingido > 0 ? 999 : 0);
+  const forecast = fracao > 0 ? atingido / fracao : atingido;
+  const gap = forecast - metaAno;
+  const falta = Math.max(0, metaAno - atingido);
+  const mesesRest = Math.max(0, 12 - 12 * fracao);
+  const necMes = mesesRest > 0 ? falta / mesesRest : 0;
+  const ritmoMes = fracao > 0 ? atingido / (12 * fracao) : 0;
+  const st = ritmoPct >= 100 ? { t: '🟢 No ritmo / à frente', c: '#16a34a' } : ritmoPct >= 90 ? { t: '🟡 Levemente atrás', c: '#d97706' } : { t: '🔴 Atrás do ritmo', c: '#dc2626' };
+  const mny = v => 'R$ ' + money(v);
+  const box = (l, v, sub, c) => `<div style="background:var(--bg-2);border-radius:10px;padding:12px;border-left:4px solid ${c || 'var(--border)'}"><div class="tiny muted" style="font-weight:700">${l}</div><div style="font-size:18px;font-weight:800;margin-top:3px;color:${c || ''}">${v}</div>${sub ? `<div class="tiny muted" style="margin-top:2px">${sub}</div>` : ''}</div>`;
+  return `
+  <div style="margin-top:14px;border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--bg-3)">
+    <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div style="font-weight:800">📊 Forecast ${_ano} <span class="tiny muted" style="font-weight:400">— ritmo real das vendas projeta o fechamento</span></div>
+      <div style="font-weight:800;color:${st.c}">${st.t} · ${ritmoPct >= 999 ? '∞' : ritmoPct.toFixed(0)}% do ritmo</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px">
+      ${box('🎯 Meta anual', mny(metaAno), 'esperado até hoje ' + mny(metaProRata), '#334155')}
+      ${box('↑ Atingido (YTD)', mny(atingido), vendas + ' vendas · ritmo ' + mny(ritmoMes) + '/mês', st.c)}
+      ${box('📈 Forecast fim do ano', mny(forecast), (gap >= 0 ? '✅ ' + mny(gap) + ' acima' : '⚠️ ' + mny(-gap) + ' abaixo') + ' da meta', gap >= 0 ? '#16a34a' : '#dc2626')}
+      ${box('🎯 Pra bater a meta', mny(necMes) + '/mês', 'faltam ' + mny(falta) + ' em ' + mesesRest.toFixed(1) + ' meses', necMes > ritmoMes * 1.05 ? '#dc2626' : '#16a34a')}
+    </div>
+    <div class="tiny muted" style="margin-top:8px">💡 No ritmo atual (${mny(ritmoMes)}/mês) você fecha <b>${mny(forecast)}</b>. Pra bater a meta de ${mny(metaAno)}, precisa de <b>${mny(necMes)}/mês</b> nos meses que faltam${necMes > ritmoMes * 1.05 ? ' — <b style="color:#dc2626">acima do ritmo de hoje</b>, então ou acelera as vendas ou recalibra a meta.' : ' — dentro/abaixo do ritmo de hoje. ✅'}</div>
+  </div>`;
+}
 
 function render() {
   const me = auth.user();
@@ -88,6 +132,8 @@ function render() {
         ${m.id === 'vgv' ? kpi('↑ Atingido VGV', 'R$ ' + money(atingidoVgv), `${(d.totals && d.totals.vendas_count) || 0} vendas (RD)`, atingidoVgv >= totalAno ? '#16a34a' : '#d97706') : ''}
         ${pctVgv != null ? kpi('% Atingimento', pctVgv.toFixed(1) + '%', 'atingido ÷ meta', pctColor(pctVgv)) : ''}
       </div>
+
+      ${forecastPanel(d, grid)}
 
       <!-- Seletor de MÉTRICA -->
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center">
