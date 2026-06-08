@@ -53,6 +53,7 @@ export async function pageSimTrafego(ctx, root) {
     const b = await api.request('/api/v3/diretoria/strategy?board=sim_trafego').catch(() => null);
     if (b && b.ok && b.data && b.data.cfg) { _s = mergeDefaults(b.data.cfg); render(); }
   } catch {}
+  loadReal();   // 📡 carrega o cenário ATUAL real (Meta histórico + CRM) em paralelo
 }
 function mergeDefaults(c) {
   if (!c || c._v !== DEFAULTS._v) return JSON.parse(JSON.stringify(DEFAULTS)); // descarta versão antiga
@@ -130,7 +131,6 @@ function render() {
   let body;
   if (isConsol) body = `<div id="st-out"></div>`;
   else body = `
-    ${realPanel()}
     <div class="st-sec">⚙️ Premissas — ${esc(lineMeta(_s.active).nome)} <span class="tiny muted" style="font-weight:400">(edite; salva no banco)</span></div>
     <div class="st-grid">
       ${field('Ticket médio', 'ticket', { money: 1 })}
@@ -154,7 +154,9 @@ function render() {
   _root.innerHTML = `
   <div class="card">
     <h2 class="card-title">📣 Simulador de Tráfego</h2>
-    <p class="card-sub">Investimento → CPL → leads → descarte → conversão → vendas → VGV → comissão → caixa. Lê de cima pra baixo.</p>
+    <p class="card-sub">📡 Cenário ATUAL (real, dados integrados) em cima · 🧪 cenário simulado (editável) embaixo.</p>
+    ${realPanel()}
+    <div class="st-sec">🧪 Cenário SIMULADO</div>
     <div class="st-tabs">${tabs}</div>
     ${body}
     <div class="tiny muted" style="margin-top:14px"><a href="#/metricas-viab" style="color:var(--psm-gold)">← voltar pra Métrica Viab</a></div>
@@ -176,6 +178,7 @@ function render() {
     @media(max-width:880px){.st-grid{grid-template-columns:repeat(2,1fr)}}
   </style>`;
   _root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { _s.active = b.dataset.tab; save(); render(); }));
+  wireReal();
   if (!isConsol) bindInputs();
   renderOut();
 }
@@ -194,9 +197,18 @@ function bindInputs() {
   _root.querySelectorAll('.st-grid [data-key]').forEach(el => el.addEventListener('input', () => {
     _s[_s.active][el.dataset.key] = parseFloat(el.value) || 0; save(); renderOut();
   }));
-  const pux = document.getElementById('st-puxar'); if (pux) pux.addEventListener('click', puxarReal);
-  const apl = document.getElementById('st-aplicar'); if (apl) apl.addEventListener('click', () => {
-    if (_real && !_real.erro) { const L = _s[_s.active]; L.investMes = Math.round(_real.spend) || L.investMes; L.cpl = Math.round(_real.cpl) || L.cpl; save(); render(); }
+}
+/* wire dos botões do painel REAL (sempre visível, fora das abas) */
+function wireReal() {
+  const rl = document.getElementById('st-real-reload'); if (rl) rl.addEventListener('click', loadReal);
+  const us = document.getElementById('st-real-usar'); if (us) us.addEventListener('click', () => {
+    if (!_real || !_real.ok || _s.active === 'consol') return;
+    const L = _s[_s.active];
+    if (_real.investMes) L.investMes = Math.round(_real.investMes);
+    if (_real.cpl) L.cpl = Math.round(_real.cpl);
+    const c = _real.conv || 0;
+    if (c > 0) { L.convReal = +c.toFixed(2); L.convOtim = +(c * 1.3).toFixed(2); L.convMin = +(c * 0.7).toFixed(2); }
+    save(); render();
   });
 }
 
@@ -306,38 +318,45 @@ function projTable(pd) {
     <div class="tiny muted" style="margin-top:6px">O começo é menor porque a venda só entra depois do tempo de conversão. Acumulado final: <b style="color:${pd.acum[7] >= 0 ? '#16a34a' : '#dc2626'}">${f$(pd.acum[7])}</b> em 24 meses.</div>`;
 }
 
-/* ── 🔄 Puxar realizado: Meta (investimento, CPL) + CRM ── */
+/* ── 📡 Cenário ATUAL (real): Meta histórico (investimento/CPL/leads) + CRM (vendas/VGV) ── */
 function realPanel() {
-  if (!_real) return `<div style="margin-top:10px"><button class="btn btn-ghost btn-sm" id="st-puxar">📡 Puxar realizado (Meta + CRM)</button> <span class="tiny muted">— traz investimento e CPL reais do Meta pra esta linha</span></div>`;
-  if (_real.erro) return `<div class="alert alert-warn" style="margin-top:10px">⚠️ ${esc(_real.erro)} <button class="btn btn-ghost btn-sm" id="st-puxar">tentar de novo</button></div>`;
-  const rk = (l, v) => `<div style="background:var(--bg-2);border-radius:8px;padding:8px"><div class="tiny muted">${l}</div><div style="font-weight:800">${v}</div></div>`;
-  return `<div style="margin-top:10px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:12px;padding:12px">
+  if (_real && _real.loading) return `<div style="margin:6px 0;padding:12px;background:var(--bg-3);border-radius:12px" class="tiny muted"><span class="spinner"></span> 📡 carregando cenário atual (Meta + CRM)…</div>`;
+  if (!_real || _real.erro) return `<div style="margin:6px 0;padding:12px;background:var(--bg-3);border-radius:12px;font-size:12.5px">📡 <b>Cenário ATUAL (real)</b> — ${(_real && _real.erro) ? esc(_real.erro) : 'sem dados ainda'} <button class="btn btn-ghost btn-sm" id="st-real-reload" style="margin-left:6px">↻ tentar</button></div>`;
+  const r = _real;
+  const c = (l, v) => `<div style="background:var(--bg-2);border-radius:8px;padding:8px 10px;text-align:center"><div class="tiny muted">${l}</div><div style="font-weight:800;font-size:14px;margin-top:2px">${v}</div></div>`;
+  const usarBtn = _s.active === 'consol' ? '' : `<button class="btn btn-primary btn-sm" id="st-real-usar">▶ usar no simulado (${esc(lineMeta(_s.active).nome.replace('PSM ', ''))})</button>`;
+  return `<div style="margin:6px 0;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:13px">
     <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div style="font-weight:800">📡 Realizado (Meta) <span class="tiny muted">· ${esc(_real.periodo)}</span></div>
-      <div class="flex gap-2"><button class="btn btn-ghost btn-sm" id="st-puxar">↻ atualizar</button><button class="btn btn-primary btn-sm" id="st-aplicar">usar invest./CPL nesta linha →</button></div>
+      <div style="font-weight:800;color:#16a34a">📡 Cenário ATUAL — real ${r.ano} <span class="tiny muted" style="font-weight:400;color:var(--text-2,#94a3b8)">Meta + CRM · média mensal</span></div>
+      <div class="flex gap-2"><button class="btn btn-ghost btn-sm" id="st-real-reload">↻</button>${usarBtn}</div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px;font-size:12.5px">
-      ${rk('Investimento', f$(_real.spend))}${rk('Leads', Math.round(_real.leads))}${rk('CPL real', f$(_real.cpl))}${rk('Conversão real ↗', _real.convReal.toFixed(2) + '%')}
-    </div>
-    <div class="tiny muted" style="margin-top:6px">Conversão real = vendas/mês do CRM (${_real.vendasMes.toFixed(1)}) ÷ leads do Meta — referência (vendas são do sistema todo). Use pra calibrar suas 3 taxas.</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:8px;margin-top:9px">
+      ${c('💸 Invest/mês', f$(r.investMes))}${c('🎯 CPL', f$(r.cpl))}${c('👥 Leads/mês', f1(r.leadsMes))}${c('🤝 Vendas/mês', f1(r.vendasMes))}${c('📈 Conversão', r.conv.toFixed(2) + '%')}${c('🏆 VGV/mês', fK(r.vgvMes))}${c('🔁 ROAS', f1(r.roas) + 'x')}${c('📊 CPA', f$(r.cpa))}</div>
+    <div class="tiny muted" style="margin-top:7px">Invest./CPL/leads do Meta (${r.mesesMeta} mês(es) arquivados) · vendas/VGV do CRM (÷ ${r.mesesCRM} meses). Conversão real = vendas ÷ leads do ano. "Usar no simulado" leva esses números reais pro cenário editável da linha.</div>
   </div>`;
 }
-async function puxarReal() {
-  const b = document.getElementById('st-puxar'); if (b) { b.disabled = true; b.textContent = 'Puxando…'; }
+async function loadReal() {
+  _real = { loading: true }; render();
+  const ANO = new Date().getFullYear();
   try {
-    const [mkt, atg] = await Promise.all([
-      api.request('/api/v3/marketing/summary').catch(() => null),
-      api.request('/api/v3/metas/atingimento').catch(() => null),
+    const [hist, atg] = await Promise.all([
+      api.request('/api/v3/marketing/history?ano=' + ANO).catch(() => null),
+      api.request('/api/v3/metas/atingimento?ano=' + ANO).catch(() => null),
     ]);
-    const accs = (mkt && mkt.accounts) || [];
-    const spend = accs.reduce((s, a) => s + (+a.spend || 0), 0);
-    const results = accs.reduce((s, a) => s + (+a.results || 0), 0);
-    const leads = accs.reduce((s, a) => s + (+a.leads || 0), 0) || results;
-    const cpl = results > 0 ? spend / results : (leads > 0 ? spend / leads : 0);
-    const vendasMes = (+(atg && atg.total_vendas || 0)) / MESES;
-    const convReal = leads > 0 ? (vendasMes / leads * 100) : 0;
-    _real = (spend === 0 && results === 0) ? { erro: 'Meta Ads sem dados agora (token/período). Veja a aba Marketing.' }
-      : { spend, results, leads, cpl, vendasMes, convReal, periodo: (mkt && mkt.period) || 'período atual' };
+    const ht = (hist && hist.totais) || {};
+    const mesesMeta = (hist && hist.meses_com_dado) || 0;
+    const investAno = +ht.spend || 0, leadsAno = +ht.results || 0;
+    const investMes = mesesMeta > 0 ? investAno / mesesMeta : 0;
+    const leadsMes = mesesMeta > 0 ? leadsAno / mesesMeta : 0;
+    const cpl = +ht.cpl || (leadsAno > 0 ? investAno / leadsAno : 0);
+    const vgvAno = +(atg && atg.total_vgv || 0), vendasAno = +(atg && atg.total_vendas || 0);
+    const vgvMes = vgvAno / MESES, vendasMes = vendasAno / MESES;
+    const conv = leadsAno > 0 ? (vendasAno / leadsAno * 100) : 0;
+    const roas = investMes > 0 ? vgvMes / investMes : 0;
+    const cpa = vendasMes > 0 ? investMes / vendasMes : 0;
+    _real = (investAno === 0 && vgvAno === 0)
+      ? { erro: 'sem dados reais ainda — rode o Histórico Meta (botão Atualizar) e confirme o sync do RD' }
+      : { ok: true, ano: ANO, mesesMeta, mesesCRM: MESES, investMes, leadsMes, cpl, vgvMes, vendasMes, conv, roas, cpa };
   } catch (e) { _real = { erro: e.message }; }
   render();
 }
