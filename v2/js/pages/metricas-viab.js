@@ -408,41 +408,54 @@ function renderTable() {
   const statusCell = (lucro, inviavel) => { if (inviavel) return '<span style="color:#dc2626;font-weight:800">⛔ inviável</span>'; const ok = (lucro || 0) >= 0; return `<span style="color:${ok ? '#16a34a' : '#dc2626'};font-weight:800">${ok ? '✅ viável' : '⚠️ abaixo'}</span>`; };
   const colHead = LINES.map(l => `<th style="text-align:right;padding:8px 10px;color:${l.cor};white-space:nowrap">${l.icon} ${l.nome.replace('PSM ', '')}</th>`).join('');
   const td = x => `<td style="text-align:right;padding:7px 10px">${x}</td>`;
+  const G = t => ({ g: t });
   const rows = [
-    ['Nº Corretores', id => per[id].nCorr || '—', tot.nCorr || '—'],
-    [_periodo === 'ano' ? 'Aluguel/Ticket' : 'Ticket Médio', id => fmt(per[id].ticket), '—'],
-    ['Expectativa VGV' + sufx, id => v(per[id].expectativa), v(tot.expectativa)],
-    ['🎯 Meta (aba Metas)' + sufx, id => v(per[id].metaMes), v(tot.metaMes)],
-    ['📣 Verba Marketing' + sufx, id => per[id].verbaMarketing ? v(per[id].verbaMarketing) : '—', tot.verbaMarketing ? v(tot.verbaMarketing) : '—'],
-    ['Despesa Fixa (c/ mkt)' + sufx, id => v(per[id].despFixa), v(tot.despFixa), { strong: 1 }],
-    ['💵 Custo fixo / corretor' + sufx, id => per[id].nCorr ? v(per[id].custoPorCorretor) : '—', tot.nCorr ? v(tot.custoPorCorretor) : '—'],
-    ['Receita recorrente adm' + sufx, id => per[id].recorrente ? v(per[id].recorrente) : '—', tot.recorrente ? v(tot.recorrente) : '—'],
-    ['🏦 Reserva financeira' + sufx, id => per[id].reservaMes ? v(per[id].reservaMes) : '—', tot.reservaMes ? v(tot.reservaMes) : '—'],
-    ['Margem PSM % / venda', id => pcol(per[id].margemPSMpct), '—'],
-    ['Margem PSM R$ / venda', id => mcol(per[id].margemPSM), '—'],
-    ['Custo fixo / venda', id => per[id].vendasEsp ? fmt(per[id].custoFixoPorVenda) : '—', tot.vendasEsp ? fmt(tot.custoFixoPorVenda) : '—'],
-    ['Custo fixo % do ticket', id => per[id].vendasEsp ? per[id].custoFixoPctVenda.toFixed(1) + '%' : '—', '—'],
-    ['📣 CAC (mkt ÷ venda)', id => per[id].vendasEsp ? fmt(per[id].cac) : '—', tot.vendasEsp ? fmt(tot.cac) : '—'],
-    ['VGV Break-Even' + sufx, id => vcol(per[id].vgvBreakEven), vcol(tot.vgvBreakEven), { strong: 1 }],
-    ['⭐ VGV mín/corretor' + sufx, id => vcol(per[id].vgvMinPorCorretor), vcol(tot.vgvMinPorCorretor), { hl: 1 }],
-    ['⭐ Vendas mín/corretor' + (f > 1 ? '/ano' : '/mês'), id => (per[id].inviavel ? '⛔' : (per[id].vendasMinPorCorretor ? cnt(per[id].vendasMinPorCorretor) : '—')), (tot.vendasMinPorCorretor ? cnt(tot.vendasMinPorCorretor) : '—'), { hl: 1 }],
-    ['Vendas Break-Even' + (f > 1 ? '/ano' : '/mês'), id => per[id].inviavel ? '⛔' : (per[id].vendasBreakEven ? cnt(per[id].vendasBreakEven) : '—'), tot.vendasBreakEven ? cnt(tot.vendasBreakEven) : '—'],
-    ['Imposto gerado' + sufx, id => v(per[id].impostoGerado), v(tot.impostoGerado)],
-    ['VGV Realizado' + sufx, id => v(per[id].vgvRealMes), v(tot.vgvRealMes)],
-    ['% da Meta atingida', id => per[id].metaPct == null ? '—' : per[id].metaPct.toFixed(0) + '%', tot.metaPct == null ? '—' : tot.metaPct.toFixed(0) + '%'],
-    ['Lucro Líquido' + sufx, id => cnum(per[id].lucro), cnum(tot.lucro), { strong: 1 }],
-    ['📈 Margem de lucro %', id => `<span style="color:${per[id].margemReal < 0 ? '#dc2626' : '#16a34a'};font-weight:700">${per[id].margemReal.toFixed(1)}%</span>`, `<span style="color:${tot.margemReal < 0 ? '#dc2626' : '#16a34a'};font-weight:700">${tot.margemReal.toFixed(1)}%</span>`],
-    ['Status', id => statusCell(per[id].lucro, per[id].inviavel), statusCell(tot.lucro, tot.inviavel)],
+    G('🏢 Estrutura da operação'),
+    ['Nº Corretores', id => per[id].nCorr || '—', tot.nCorr || '—', { tip: 'Quantos corretores atuam nesta linha.' }],
+    [_periodo === 'ano' ? 'Aluguel/Ticket' : 'Ticket Médio', id => fmt(per[id].ticket), '—', { tip: 'Valor médio de um imóvel/contrato vendido nesta linha.' }],
+    ['Expectativa VGV' + sufx, id => v(per[id].expectativa), v(tot.expectativa), { tip: 'VGV esperado = nº de corretores × ticket × vendas por corretor.' }],
+    ['🎯 Meta (aba Metas)' + sufx, id => v(per[id].metaMes), v(tot.metaMes), { tip: 'Meta vinda da aba Metas, atribuída a esta linha.' }],
+    G('💸 Custos fixos'),
+    ['📣 Verba Marketing' + sufx, id => per[id].verbaMarketing ? v(per[id].verbaMarketing) : '—', tot.verbaMarketing ? v(tot.verbaMarketing) : '—', { tip: 'Mídia paga que esta linha gasta por mês (entra na despesa fixa).' }],
+    ['Despesa Fixa (c/ mkt)' + sufx, id => v(per[id].despFixa), v(tot.despFixa), { strong: 1, tip: 'Custo fixo TOTAL da linha: rateio dos custos compartilhados + custos diretos + gerente + marketing.' }],
+    ['💵 Custo fixo / corretor' + sufx, id => per[id].nCorr ? v(per[id].custoPorCorretor) : '—', tot.nCorr ? v(tot.custoPorCorretor) : '—', { tip: 'Despesa fixa da linha ÷ nº de corretores.' }],
+    G('🔁 Recorrente (locação)'),
+    ['Receita recorrente adm' + sufx, id => per[id].recorrente ? v(per[id].recorrente) : '—', tot.recorrente ? v(tot.recorrente) : '—', { tip: 'Taxa de administração mensal das locações ativas (já líquida de imposto).' }],
+    ['🏦 Reserva financeira' + sufx, id => per[id].reservaMes ? v(per[id].reservaMes) : '—', tot.reservaMes ? v(tot.reservaMes) : '—', { tip: 'Parte do recorrente guardada como reserva (quando o toggle da linha está em "reserva").' }],
+    G('💰 Margem por venda'),
+    ['Margem PSM % / venda', id => pcol(per[id].margemPSMpct), '—', { tip: 'Quanto sobra pra empresa em cada venda (%). Já desconta corretor + sênior + gerente + imposto.' }],
+    ['Margem PSM R$ / venda', id => mcol(per[id].margemPSM), '—', { tip: 'Quanto sobra pra empresa, em reais, por venda.' }],
+    G('📊 Eficiência'),
+    ['Custo fixo / venda', id => per[id].vendasEsp ? fmt(per[id].custoFixoPorVenda) : '—', tot.vendasEsp ? fmt(tot.custoFixoPorVenda) : '—', { tip: 'Quanto de custo fixo cada venda esperada precisa carregar.' }],
+    ['Custo fixo % do ticket', id => per[id].vendasEsp ? per[id].custoFixoPctVenda.toFixed(1) + '%' : '—', '—', { tip: 'O custo fixo por venda como % do ticket médio.' }],
+    ['📣 CAC (mkt ÷ venda)', id => per[id].vendasEsp ? fmt(per[id].cac) : '—', tot.vendasEsp ? fmt(tot.cac) : '—', { tip: 'Custo de aquisição: verba de marketing ÷ vendas esperadas.' }],
+    G('🎯 Ponto de equilíbrio (break-even)'),
+    ['VGV Break-Even' + sufx, id => vcol(per[id].vgvBreakEven), vcol(tot.vgvBreakEven), { strong: 1, tip: 'VGV que a linha precisa vender pra EMPATAR (cobrir o custo fixo). Vermelho/negativo = margem negativa.' }],
+    ['⭐ VGV mín/corretor' + sufx, id => vcol(per[id].vgvMinPorCorretor), vcol(tot.vgvMinPorCorretor), { hl: 1, tip: 'Quanto CADA corretor precisa vender pra a linha empatar (break-even ÷ nº corretores).' }],
+    ['⭐ Vendas mín/corretor' + (f > 1 ? '/ano' : '/mês'), id => (per[id].inviavel ? '⛔' : (per[id].vendasMinPorCorretor ? cnt(per[id].vendasMinPorCorretor) : '—')), (tot.vendasMinPorCorretor ? cnt(tot.vendasMinPorCorretor) : '—'), { hl: 1, tip: 'Quantas vendas cada corretor precisa fazer pra empatar.' }],
+    ['Vendas Break-Even' + (f > 1 ? '/ano' : '/mês'), id => per[id].inviavel ? '⛔' : (per[id].vendasBreakEven ? cnt(per[id].vendasBreakEven) : '—'), tot.vendasBreakEven ? cnt(tot.vendasBreakEven) : '—', { tip: 'Total de vendas da linha pra empatar.' }],
+    G('🏁 Resultado'),
+    ['Imposto gerado' + sufx, id => v(per[id].impostoGerado), v(tot.impostoGerado), { tip: 'Imposto (Simples Nacional) gerado pela linha no período.' }],
+    ['VGV Realizado' + sufx, id => v(per[id].vgvRealMes), v(tot.vgvRealMes), { tip: 'VGV efetivamente vendido (vem do CRM / aba Metas).' }],
+    ['% da Meta atingida', id => per[id].metaPct == null ? '—' : per[id].metaPct.toFixed(0) + '%', tot.metaPct == null ? '—' : tot.metaPct.toFixed(0) + '%', { tip: 'VGV realizado ÷ meta da linha.' }],
+    ['Lucro Líquido' + sufx, id => cnum(per[id].lucro), cnum(tot.lucro), { strong: 1, big: 1, tip: 'Resultado da linha: margem das vendas − custo fixo (+ recorrente). Verde = lucro, vermelho = prejuízo.' }],
+    ['📈 Margem de lucro %', id => `<span style="color:${per[id].margemReal < 0 ? '#dc2626' : '#16a34a'};font-weight:700">${per[id].margemReal.toFixed(1)}%</span>`, `<span style="color:${tot.margemReal < 0 ? '#dc2626' : '#16a34a'};font-weight:700">${tot.margemReal.toFixed(1)}%</span>`, { tip: 'Lucro ÷ receita.' }],
+    ['Status', id => statusCell(per[id].lucro, per[id].inviavel), statusCell(tot.lucro, tot.inviavel), { big: 1, tip: '✅ viável (lucro ≥ 0) · ⚠️ abaixo (prejuízo, mas margem positiva) · ⛔ inviável (margem por venda negativa).' }],
   ];
   body.innerHTML = `
-    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:800px">
+    <div class="tiny muted" style="margin-bottom:6px">💡 Passe o mouse nas métricas <span style="border-bottom:1px dotted var(--text-2,#94a3b8)">sublinhadas</span> pra ver a explicação. A coluna <b style="color:#0f766e">CONSOLIDADO</b> soma todas as linhas.</div>
+    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:820px">
       <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">
-        <th style="text-align:left;padding:8px 10px">Métrica <span class="tiny muted">(${_periodo === 'ano' ? 'anual' : 'mensal'})</span></th>${colHead}
-        <th style="text-align:right;padding:8px 10px;color:#0f766e;background:rgba(13,148,136,.08);white-space:nowrap">📊 CONSOLIDADO</th></tr></thead>
-      <tbody>${rows.map(([label, fn, total, opt]) => { const o = opt || {};
-        return `<tr style="border-bottom:1px solid var(--border)${o.strong ? ';font-weight:700' : ''}${o.hl ? ';background:rgba(124,58,237,.06)' : ''}">
-          <td style="text-align:left;padding:7px 10px;font-weight:600">${label}</td>${LINES.map(l => td(fn(l.id))).join('')}
-          <td style="text-align:right;padding:7px 10px;font-weight:800;background:rgba(13,148,136,.06)">${total}</td></tr>`; }).join('')}</tbody>
+        <th style="text-align:left;padding:10px">Métrica <span class="tiny muted">(${_periodo === 'ano' ? 'anual' : 'mensal'})</span></th>${colHead}
+        <th style="text-align:right;padding:10px;color:#0f766e;background:rgba(13,148,136,.10);white-space:nowrap">📊 CONSOLIDADO</th></tr></thead>
+      <tbody>${rows.map(r => {
+        if (r.g) return `<tr><td colspan="${LINES.length + 2}" style="background:var(--bg-2);font-weight:800;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-2,#64748b);padding:11px 10px 5px">${r.g}</td></tr>`;
+        const [label, fn, total, o = {}] = r;
+        const lbl = o.tip ? `<span title="${o.tip}" style="border-bottom:1px dotted var(--text-2,#94a3b8);cursor:help">${label}</span>` : label;
+        const fz = o.big ? 'font-size:13.5px;' : '';
+        return `<tr style="border-bottom:1px solid var(--border)${o.strong ? ';font-weight:700' : ''}${o.hl ? ';background:rgba(124,58,237,.06)' : ''}${o.big ? ';border-top:2px solid var(--border)' : ''}">
+          <td style="text-align:left;padding:8px 10px;font-weight:600;${fz}">${lbl}</td>${LINES.map(l => `<td style="text-align:right;padding:8px 10px;${fz}">${fn(l.id)}</td>`).join('')}
+          <td style="text-align:right;padding:8px 10px;font-weight:800;background:rgba(13,148,136,.06);${fz}">${total}</td></tr>`; }).join('')}</tbody>
     </table></div>
     <div class="alert" style="background:rgba(99,102,241,.1);color:#6366f1;border:1px solid rgba(99,102,241,.3);padding:12px;border-radius:8px;margin-top:14px;font-size:12.5px">
       <b>💡 Leitura (${_periodo === 'ano' ? 'anual' : 'mensal'}):</b><br>
