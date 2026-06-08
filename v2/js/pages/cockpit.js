@@ -155,7 +155,38 @@ function render() {
       </div>
       <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:20px 0 6px">🔔 Alertas & Ações (cruzamentos)</div>
       <div id="ck-alertas"></div>
+
+      <div class="flex" style="justify-content:space-between;align-items:center;margin:20px 0 6px;flex-wrap:wrap;gap:8px">
+        <div class="tiny muted" style="text-transform:uppercase;font-weight:800">🧠 Recomendação da IA (decisão da semana)</div>
+        <button class="btn btn-primary btn-sm" id="ck-ia-btn">🧠 Gerar recomendação</button>
+      </div>
+      <div id="ck-ia"><div class="tiny muted">A IA lê todos os fronts + alertas acima e escreve o foco da semana. Clique em "Gerar recomendação".</div></div>
     </div>`;
+  const b = document.getElementById('ck-ia-btn'); if (b) b.addEventListener('click', pedirIA);
+}
+
+let _alertas = [];
+async function pedirIA() {
+  const btn = document.getElementById('ck-ia-btn'); const box = document.getElementById('ck-ia');
+  if (btn) { btn.disabled = true; btn.textContent = '🧠 Pensando…'; }
+  if (box) box.innerHTML = '<div class="tiny muted"><span class="spinner"></span> A IA está lendo o cockpit e priorizando…</div>';
+  // monta o snapshot a partir do que já está carregado
+  const ORDER = ['comercial', 'metas', 'financeiro', 'custos', 'marketing', 'estoque', 'equipe', 'sistema'];
+  const fronts = ORDER.map(k => _f[k]).filter(f => f && !f.__err).map(f => ({ nome: f.nome, status: f.status, kpis: f.kpis || [], alerta: f.alerta || '' }));
+  const veredito = (document.getElementById('ck-veredito')?.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  const snapshot = { fronts, alertas: (_alertas || []).map(a => ({ sev: a.sev, txt: a.txt })), veredito, dia: DIA, dias_mes: DIAS_MES };
+  try {
+    const r = await api.request('/api/v3/ia/cockpit', { method: 'POST', body: { snapshot } });
+    if (r && r.ok && r.text) {
+      box.innerHTML = `<div style="background:var(--bg-3);border:1px solid var(--border);border-left:4px solid #7c3aed;border-radius:12px;padding:16px;white-space:pre-wrap;font-size:13.5px;line-height:1.55">${esc(r.text)}</div>
+        <div class="tiny muted" style="margin-top:6px">Gerado por ${esc(r.provider || 'IA')} · com base no estado atual dos fronts. Recomendação, não ordem — valide com o seu julgamento.</div>`;
+    } else {
+      box.innerHTML = `<div class="alert alert-warn">⚠️ Não consegui gerar agora${r && r.error ? ': ' + esc(r.error) : ''}.</div>`;
+    }
+  } catch (e) {
+    box.innerHTML = `<div class="alert alert-err">⚠️ Erro: ${esc(e.message)}</div>`;
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '🧠 Gerar recomendação'; }
 }
 
 const COR = { ok: '#16a34a', warn: '#d97706', bad: '#dc2626' };
@@ -228,6 +259,7 @@ function renderAlertas() {
   // CRUZAMENTO 8: sistema (infra)
   if (sis && !sis.__err && (sis._issues || []).length) add('warn', `Sistema com ${sis._issues.length} alerta(s) de saúde.`, 'Ver Governança', '/governanca');
 
+  _alertas = A;
   if (!A.length) { el.innerHTML = '<div class="alert" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);padding:12px;border-radius:8px">🟢 Nenhum alerta cruzado no momento — fronts alinhados.</div>'; return; }
   A.sort((a, b) => (a.sev === 'bad' ? -1 : 1) - (b.sev === 'bad' ? -1 : 1));
   el.innerHTML = A.map(a => {
