@@ -64,11 +64,25 @@ function render(d, loading) {
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div><h2 class="card-title">📅 Histórico Meta (mensal)</h2>
         <p class="card-sub">Leads · CPL · investimento · campanha campeã por mês — agora ARMAZENADO (antes era só ao vivo).</p></div>
-        <select class="input" id="hist-ano" style="font-size:12px;padding:6px 10px">${anos.map(a => `<option value="${a}"${a === _ano ? ' selected' : ''}>${a}</option>`).join('')}</select>
+        <div class="flex gap-2" style="align-items:center">
+          <button class="btn btn-primary btn-sm" id="hist-refresh" title="Busca no Meta e arquiva os meses do ano">🔄 Atualizar agora</button>
+          <select class="input" id="hist-ano" style="font-size:12px;padding:6px 10px">${anos.map(a => `<option value="${a}"${a === _ano ? ' selected' : ''}>${a}</option>`).join('')}</select>
+        </div>
       </div>
       <div style="margin-top:14px">${body}</div>
     </div>`;
   const sel = document.getElementById('hist-ano');
   if (sel) sel.addEventListener('change', () => { _ano = +sel.value; pageMarketingHistorico(null, _root); });
+  const rf = document.getElementById('hist-refresh');
+  if (rf) rf.addEventListener('click', async () => {
+    rf.disabled = true; rf.textContent = '⏳ Buscando no Meta…';
+    try {
+      const r = await api.request('/api/v3/marketing/meta_monthly_cron?ano=' + _ano);
+      if (r && r.ok) { await pageMarketingHistorico(null, _root); }
+      else { rf.disabled = false; rf.textContent = '⚠️ ' + ((r && r.error) || 'erro') + ' — tentar de novo'; }
+    } catch (e) {
+      rf.disabled = false; rf.textContent = '⚠️ erro (' + (e.message || '') + ') — tentar de novo';
+    }
+  });
 }
 function kpi(l, v, bg) { return `<div style="background:${bg};color:#fff;border-radius:10px;padding:12px;text-align:center"><div style="font-size:10px;text-transform:uppercase;opacity:.85;font-weight:700">${l}</div><div style="font-size:18px;font-weight:800;margin-top:4px">${v}</div></div>`; }

@@ -16,7 +16,7 @@ import json, os, sys, time, urllib.parse, calendar
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 from _meta_cache_lib import fetch_live  # type: ignore
 
 
@@ -77,8 +77,16 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(body, ensure_ascii=False, default=str).encode("utf-8"))
 
     def do_GET(self):
-        if not _authorized(self.headers, self.path):
-            return self._send(401, {"ok": False, "error": "CRON_SECRET ausente/inválido"})
+        # Autoriza por CRON_SECRET (Vercel) OU por usuário logado lvl≥7 (botão "Atualizar agora")
+        ok_auth = _authorized(self.headers, self.path)
+        if not ok_auth:
+            try:
+                require_user(self, min_lvl=7)
+                ok_auth = True
+            except AuthError:
+                ok_auth = False
+        if not ok_auth:
+            return self._send(401, {"ok": False, "error": "precisa de CRON_SECRET ou login de Diretor (lvl 7+)"})
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "Supabase indisponível"})
