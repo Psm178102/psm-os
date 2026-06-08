@@ -147,7 +147,14 @@ class handler(BaseHTTPRequestHandler):
         try:
             from datetime import timedelta
             since_24h = (now - timedelta(hours=24)).isoformat()
-            aq = sb.table("audit_log").select("action").gte("ts", since_24h).limit(5000).execute().data or []
+            aq = []
+            _pg = 0
+            while True:
+                _ch = sb.table("audit_log").select("action").gte("ts", since_24h).order("ts").range(_pg * 1000, _pg * 1000 + 999).execute().data or []
+                aq.extend(_ch)
+                if len(_ch) < 1000 or _pg >= 30:
+                    break
+                _pg += 1
             kpis["audit_24h"] = len(aq)
             # Top actions
             counts = {}

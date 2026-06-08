@@ -60,8 +60,17 @@ def _users_summary(sb, scope, user):
 
 
 def _commissions_summary(sb, scope, user):
-    res = sb.table("commissions").select("id,corretor_id,valor,status,data,data_pagamento").execute()
-    rows = res.data or []
+    # PAGINA (PostgREST trava em ~1000/resposta) — valores de comissão somados aqui
+    # aparecem no Dashboard de Início; sem paginar, somariam errado se houver +1000 comissões.
+    rows = []
+    _pg = 0
+    while True:
+        _ch = sb.table("commissions").select("id,corretor_id,valor,status,data,data_pagamento") \
+            .order("id").range(_pg * 1000, _pg * 1000 + 999).execute().data or []
+        rows.extend(_ch)
+        if len(_ch) < 1000 or _pg >= 50:
+            break
+        _pg += 1
     if scope == "team":
         # Filtra os do time — precisamos saber os user_ids do time
         team = (user.get("team") or "").lower()
@@ -97,10 +106,17 @@ def _audit_summary(sb, scope, user):
 
     # Top 5 actions (últimos 30d)
     iso_30d = (now - timedelta(days=30)).isoformat()
-    qaction = sb.table("audit_log").select("action").gte("ts", iso_30d)
-    if scope == "self":
-        qaction = qaction.or_(f"actor_id.eq.{user['id']},target_id.eq.{user['id']}")
-    rows = qaction.execute().data or []
+    rows = []
+    _pg = 0
+    while True:
+        _q = sb.table("audit_log").select("action").gte("ts", iso_30d).order("ts").range(_pg * 1000, _pg * 1000 + 999)
+        if scope == "self":
+            _q = _q.or_(f"actor_id.eq.{user['id']},target_id.eq.{user['id']}")
+        _ch = _q.execute().data or []
+        rows.extend(_ch)
+        if len(_ch) < 1000 or _pg >= 30:
+            break
+        _pg += 1
     counts = {}
     for r in rows:
         a = r.get("action") or "?"
@@ -225,10 +241,19 @@ def _metas_summary(sb, scope, user):
 
 def _tasks_summary(sb, scope, user):
     """Tarefas diretoria — total, feitas, pendentes."""
-    try:
-        rows = sb.table("dir_tasks").select("id,status,responsavel").limit(2000).execute().data or []
-    except Exception:
-        rows = []
+    # PAGINA (PostgREST trava em ~1000/resposta; .limit(2000) não bastava).
+    rows = []
+    _pg = 0
+    while True:
+        try:
+            _ch = sb.table("dir_tasks").select("id,status,responsavel") \
+                .order("id").range(_pg * 1000, _pg * 1000 + 999).execute().data or []
+        except Exception:
+            _ch = []
+        rows.extend(_ch)
+        if len(_ch) < 1000 or _pg >= 50:
+            break
+        _pg += 1
 
     if scope == "self":
         rows = [r for r in rows if r.get("responsavel") == user.get("id") or r.get("responsavel") == user.get("name")]

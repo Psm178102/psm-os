@@ -72,8 +72,14 @@ class handler(BaseHTTPRequestHandler):
 
         # Lê audit nos últimos N dias
         try:
-            audit = sb.table("audit_log").select("actor_id,target_id,action,ts").gte("ts", since).limit(5000).execute()
-            entries = audit.data or []
+            entries = []
+            _pg = 0
+            while True:
+                _ch = sb.table("audit_log").select("actor_id,target_id,action,ts").gte("ts", since).order("ts").range(_pg * 1000, _pg * 1000 + 999).execute().data or []
+                entries.extend(_ch)
+                if len(_ch) < 1000 or _pg >= 30:
+                    break
+                _pg += 1
         except Exception as e:
             entries = []
 
