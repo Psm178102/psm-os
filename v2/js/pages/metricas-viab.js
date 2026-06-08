@@ -10,7 +10,7 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null, _data = null, _custos = null, _lines = null, _nibo = null, _meta = null;
-let _active = 'map', _showCustos = false, _periodo = 'mes', _comProLabore = false, _custosMsg = '';
+let _active = 'map', _showCustos = false, _periodo = 'mes', _comProLabore = false, _custosMsg = '', _locRateia = true;
 
 const LKEY = 'psm_v2_metricas_viab_lines';
 const SHARED = ['map', 'conquista', 'locacoes']; // rateiam os custos compartilhados (excl. Terceiros)
@@ -164,28 +164,31 @@ function expectativa(id) { const p = _lines[id], r = resolved(id); return (r.nCo
 function custoValor(c) { return (c.prolabore && _comProLabore) ? PROLABORE_VALOR : (+c.valor || 0); }
 
 function rateio() {
+  // SHARED_EFF: quem rateia o overhead. Toggle "Locação rateia estrutura": se OFF,
+  // a Locação sai do rateio (overhead todo cai em M.A.P + Conquista; locação fica só com custo direto).
+  const SHARED_EFF = _locRateia ? SHARED : SHARED.filter(id => id !== 'locacoes');
   const igualTotal = _custos.filter(c => c.tipo === 'igual').reduce((s, c) => s + custoValor(c), 0);
   const propTotal = _custos.filter(c => c.tipo === 'proporcional').reduce((s, c) => s + custoValor(c), 0);
   // Rateio Proporcional = média de 2 participações: (a) GASTO direto da equipe
   // (verba mkt + custo direto + salário gerente) e (b) TAMANHO da equipe (nº corretores).
   const gasto = {}, corr = {}; let gastoTot = 0, corrTot = 0;
-  for (const id of SHARED) {
+  for (const id of SHARED_EFF) {
     const p = _lines[id];
     gasto[id] = (+p.verbaMarketing || 0) + (+p.custoDireto || 0) + (+p.salarioGerente || 0);
     corr[id] = resolved(id).nCorr || 0;
     gastoTot += gasto[id]; corrTot += corr[id];
   }
   const peso = {}; let pesoTot = 0;
-  for (const id of SHARED) {
-    const sg = gastoTot > 0 ? gasto[id] / gastoTot : (1 / SHARED.length);
-    const sc = corrTot > 0 ? corr[id] / corrTot : (1 / SHARED.length);
+  for (const id of SHARED_EFF) {
+    const sg = gastoTot > 0 ? gasto[id] / gastoTot : (1 / SHARED_EFF.length);
+    const sc = corrTot > 0 ? corr[id] / corrTot : (1 / SHARED_EFF.length);
     peso[id] = (sg + sc) / 2;
     pesoTot += peso[id];
   }
   const out = { map: 0, conquista: 0, terceiros: 0, locacoes: 0 };
-  for (const id of SHARED) {
-    out[id] += igualTotal / SHARED.length;
-    out[id] += pesoTot > 0 ? propTotal * (peso[id] / pesoTot) : propTotal / SHARED.length;
+  for (const id of SHARED_EFF) {
+    out[id] += igualTotal / SHARED_EFF.length;
+    out[id] += pesoTot > 0 ? propTotal * (peso[id] / pesoTot) : propTotal / SHARED_EFF.length;
   }
   for (const c of _custos) if (c.tipo === 'direto' && c.linha && out[c.linha] != null) out[c.linha] += custoValor(c);
   const dirTotal = _custos.filter(c => c.tipo === 'direto').reduce((s, c) => s + custoValor(c), 0);
@@ -281,6 +284,7 @@ function render() {
         <div class="tiny muted" style="text-transform:uppercase;font-weight:800">📊 Quadro comparativo</div>
         <div class="flex gap-2" style="align-items:center">
           <label class="tiny" style="cursor:pointer"><input type="checkbox" id="viab-prolabore" ${_comProLabore ? 'checked' : ''}> incluir pró-labore (set/26)</label>
+          <label class="tiny" style="cursor:pointer" title="OFF = Locação não carrega overhead da estrutura; o custo fixo todo é rateado só entre M.A.P e Conquista"><input type="checkbox" id="viab-locrateia" ${_locRateia ? 'checked' : ''}> 🔑 Locação rateia estrutura</label>
           <div class="flex gap-1" id="viab-periodo">
             <button class="btn ${_periodo === 'mes' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-p="mes">Mensal</button>
             <button class="btn ${_periodo === 'ano' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-p="ano">Anual</button>
@@ -303,6 +307,7 @@ function render() {
     renderTable();
   }));
   document.getElementById('viab-prolabore').addEventListener('change', e => { _comProLabore = e.target.checked; renderCustos(); renderTable(); });
+  document.getElementById('viab-locrateia').addEventListener('change', e => { _locRateia = e.target.checked; renderRealSim(); renderCustos(); renderTable(); });
   renderRealSim(); renderParams(); renderCustos();
 }
 
@@ -420,7 +425,7 @@ function renderCustos() {
   const lineOpts = id => LINES.map(l => `<option value="${l.id}"${l.id === id ? ' selected' : ''}>${l.nome}</option>`).join('');
   el.innerHTML = `<div style="background:var(--bg-3);border-radius:10px;padding:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-      <div style="font-weight:800">💸 Custos Compartilhados <span class="tiny muted">(Igual÷3 · Proporcional · Específico=linhas escolhidas · Direto=1 linha)</span></div>
+      <div style="font-weight:800">💸 Custos Compartilhados <span class="tiny muted">(Igual÷${_locRateia ? 3 : 2} · Proporcional · Específico=linhas escolhidas · Direto=1 linha)</span>${!_locRateia ? ' <span class="tiny" style="color:#d97706;font-weight:700">· 🔑 Locação ISENTA do rateio (overhead só M.A.P+Conquista)</span>' : ''}</div>
       <div class="flex gap-2"><button class="btn btn-ghost btn-sm" id="custos-add">＋ item</button><button class="btn btn-ghost btn-sm" id="custos-reset">↺ base</button><button class="btn btn-ghost btn-sm" id="custos-close">✓ fechar</button></div>
     </div>
     <div class="tiny muted" id="custos-msg" style="margin-bottom:6px">${escapeHtml(_custosMsg)}</div>
