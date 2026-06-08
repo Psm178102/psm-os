@@ -170,13 +170,15 @@ async function pedirIA() {
   const btn = document.getElementById('ck-ia-btn'); const box = document.getElementById('ck-ia');
   if (btn) { btn.disabled = true; btn.textContent = '🧠 Pensando…'; }
   if (box) box.innerHTML = '<div class="tiny muted"><span class="spinner"></span> A IA está lendo o cockpit e priorizando…</div>';
-  // monta o snapshot a partir do que já está carregado
-  const ORDER = ['comercial', 'metas', 'financeiro', 'custos', 'marketing', 'estoque', 'equipe', 'sistema'];
-  const fronts = ORDER.map(k => _f[k]).filter(f => f && !f.__err).map(f => ({ nome: f.nome, status: f.status, kpis: f.kpis || [], alerta: f.alerta || '' }));
-  const veredito = (document.getElementById('ck-veredito')?.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 160);
-  const snapshot = { fronts, alertas: (_alertas || []).map(a => ({ sev: a.sev, txt: a.txt })), veredito, dia: DIA, dias_mes: DIAS_MES };
   try {
-    const r = await api.request('/api/v3/ia/cockpit', { method: 'POST', body: { snapshot } });
+    // monta o snapshot a partir do que já está carregado (dentro do try: qualquer erro aparece, não trava no spinner)
+    const ORDER = ['comercial', 'metas', 'financeiro', 'custos', 'marketing', 'estoque', 'equipe', 'sistema'];
+    const fronts = ORDER.map(k => _f[k]).filter(f => f && !f.__err).map(f => ({ nome: f.nome, status: f.status, kpis: f.kpis || [], alerta: f.alerta || '' }));
+    if (!fronts.length) throw new Error('Os fronts ainda não carregaram — espere os semáforos acima aparecerem e clique de novo.');
+    const veredito = (document.getElementById('ck-veredito')?.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+    const snapshot = { fronts, alertas: (_alertas || []).map(a => ({ sev: a.sev, txt: a.txt })), veredito, dia: DIA, dias_mes: DIAS_MES };
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('a IA demorou demais (timeout) — tente de novo.')), 55000));
+    const r = await Promise.race([api.request('/api/v3/ia/cockpit', { method: 'POST', body: { snapshot } }), timeout]);
     if (r && r.ok && r.text) {
       box.innerHTML = `<div style="background:var(--bg-3);border:1px solid var(--border);border-left:4px solid #7c3aed;border-radius:12px;padding:16px;white-space:pre-wrap;font-size:13.5px;line-height:1.55">${esc(r.text)}</div>
         <div class="tiny muted" style="margin-top:6px">Gerado por ${esc(r.provider || 'IA')} · com base no estado atual dos fronts. Recomendação, não ordem — valide com o seu julgamento.</div>`;
@@ -184,7 +186,7 @@ async function pedirIA() {
       box.innerHTML = `<div class="alert alert-warn">⚠️ Não consegui gerar agora${r && r.error ? ': ' + esc(r.error) : ''}.</div>`;
     }
   } catch (e) {
-    box.innerHTML = `<div class="alert alert-err">⚠️ Erro: ${esc(e.message)}</div>`;
+    if (box) box.innerHTML = `<div class="alert alert-err">⚠️ ${esc(e.message || e)}</div>`;
   }
   if (btn) { btn.disabled = false; btn.textContent = '🧠 Gerar recomendação'; }
 }
