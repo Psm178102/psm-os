@@ -181,7 +181,17 @@ function rateio() {
   }
   for (const c of _custos) if (c.tipo === 'direto' && c.linha && out[c.linha] != null) out[c.linha] += custoValor(c);
   const dirTotal = _custos.filter(c => c.tipo === 'direto').reduce((s, c) => s + custoValor(c), 0);
-  return { alloc: out, igualTotal, propTotal, dirTotal };
+  // ESPECÍFICO: divide IGUALMENTE só entre as linhas escolhidas (c.linhas[])
+  let espTotal = 0;
+  for (const c of _custos) {
+    if (c.tipo !== 'especifico') continue;
+    const lns = (Array.isArray(c.linhas) ? c.linhas : []).filter(ln => out[ln] != null);
+    if (!lns.length) continue;
+    const v = custoValor(c); espTotal += v;
+    const each = v / lns.length;
+    for (const ln of lns) out[ln] += each;
+  }
+  return { alloc: out, igualTotal, propTotal, dirTotal, espTotal };
 }
 
 /* ── viabilidade (tudo MENSAL) ── */
@@ -349,7 +359,7 @@ function renderCustos() {
     }
     el.innerHTML = `<div style="background:var(--bg-3);border-radius:10px;padding:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <div style="font-size:12.5px"><b>💸 Custos Compartilhados (rateio híbrido)</b> — ${_custos.length} itens · Igual ${fmt(rt.igualTotal)} · Proporcional ${fmt(rt.propTotal)} · Direto ${fmt(rt.dirTotal)} · <b>Total ${fmt(total)}/mês</b>${_comProLabore ? ' <span class="tiny" style="color:#16a34a">+pró-labore</span>' : ''}</div>
+        <div style="font-size:12.5px"><b>💸 Custos Compartilhados (rateio híbrido)</b> — ${_custos.length} itens · Igual ${fmt(rt.igualTotal)} · Proporcional ${fmt(rt.propTotal)} · Direto ${fmt(rt.dirTotal)}${rt.espTotal ? ' · Específico ' + fmt(rt.espTotal) : ''} · <b>Total ${fmt(total)}/mês</b>${_comProLabore ? ' <span class="tiny" style="color:#16a34a">+pró-labore</span>' : ''}</div>
         <button class="btn btn-ghost btn-sm" id="custos-toggle">✏️ editar custos</button>
       </div>${niboLine}</div>`;
     document.getElementById('custos-toggle').addEventListener('click', () => { _showCustos = true; renderCustos(); });
@@ -358,7 +368,7 @@ function renderCustos() {
   const lineOpts = id => LINES.map(l => `<option value="${l.id}"${l.id === id ? ' selected' : ''}>${l.nome}</option>`).join('');
   el.innerHTML = `<div style="background:var(--bg-3);border-radius:10px;padding:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-      <div style="font-weight:800">💸 Custos Compartilhados <span class="tiny muted">(Igual÷3 excl. Terceiros · Proporcional por gasto+tamanho · Direto)</span></div>
+      <div style="font-weight:800">💸 Custos Compartilhados <span class="tiny muted">(Igual÷3 · Proporcional · Específico=linhas escolhidas · Direto=1 linha)</span></div>
       <div class="flex gap-2"><button class="btn btn-ghost btn-sm" id="custos-add">＋ item</button><button class="btn btn-ghost btn-sm" id="custos-reset">↺ base</button><button class="btn btn-ghost btn-sm" id="custos-close">✓ fechar</button></div>
     </div>
     <div class="tiny muted" id="custos-msg" style="margin-bottom:6px">${escapeHtml(_custosMsg)}</div>
@@ -371,18 +381,29 @@ function renderCustos() {
           <td style="padding:3px 6px"><input class="input" data-idx="${i}" data-field="item" value="${escapeHtml(c.item || '')}" style="width:100%;font-size:12px;padding:4px 6px"></td>
           <td style="padding:3px 6px"><input class="input" type="number" data-idx="${i}" data-field="valor" value="${c.valor ?? 0}" style="width:100%;font-size:12px;padding:4px 6px;text-align:right"></td>
           <td style="padding:3px 6px"><select class="input" data-idx="${i}" data-field="tipo" style="width:100%;font-size:12px;padding:4px 6px">
-            <option value="igual"${c.tipo === 'igual' ? ' selected' : ''}>Igual ÷3</option><option value="proporcional"${c.tipo === 'proporcional' ? ' selected' : ''}>Proporcional</option><option value="direto"${c.tipo === 'direto' ? ' selected' : ''}>Direto</option></select></td>
-          <td style="padding:3px 6px">${c.tipo === 'direto' ? `<select class="input" data-idx="${i}" data-field="linha" style="width:100%;font-size:12px;padding:4px 6px">${lineOpts(c.linha || 'map')}</select>` : '<span class="tiny muted">—</span>'}</td>
+            <option value="igual"${c.tipo === 'igual' ? ' selected' : ''}>Igual ÷3</option><option value="proporcional"${c.tipo === 'proporcional' ? ' selected' : ''}>Proporcional</option><option value="especifico"${c.tipo === 'especifico' ? ' selected' : ''}>Específico</option><option value="direto"${c.tipo === 'direto' ? ' selected' : ''}>Direto (1 linha)</option></select></td>
+          <td style="padding:3px 6px">${c.tipo === 'direto'
+            ? `<select class="input" data-idx="${i}" data-field="linha" style="width:100%;font-size:12px;padding:4px 6px">${lineOpts(c.linha || 'map')}</select>`
+            : c.tipo === 'especifico'
+              ? LINES.map(l => `<label class="tiny" style="display:inline-flex;align-items:center;gap:2px;margin-right:7px;cursor:pointer;white-space:nowrap"><input type="checkbox" data-idx="${i}" data-ln="${l.id}"${(c.linhas || []).includes(l.id) ? ' checked' : ''}> ${l.nome.replace('PSM ', '')}</label>`).join('')
+              : '<span class="tiny muted">—</span>'}</td>
           <td style="padding:3px 6px;text-align:center"><span data-del="${i}" style="cursor:pointer;color:#dc2626">✕</span></td></tr>`).join('')}
       </tbody></table></div></div>`;
-  el.querySelectorAll('input[data-idx]').forEach(inpEl => inpEl.addEventListener('input', () => {
+  el.querySelectorAll('input[data-field]').forEach(inpEl => inpEl.addEventListener('input', () => {
     const i = +inpEl.dataset.idx, f = inpEl.dataset.field;
     _custos[i][f] = f === 'valor' ? (parseFloat(inpEl.value) || 0) : inpEl.value;
+    saveAll(); clearTimeout(window._vtm); window._vtm = setTimeout(renderTable, 250);
+  }));
+  el.querySelectorAll('input[data-ln]').forEach(cb => cb.addEventListener('change', () => {
+    const i = +cb.dataset.idx, ln = cb.dataset.ln;
+    const arr = Array.isArray(_custos[i].linhas) ? _custos[i].linhas : (_custos[i].linhas = []);
+    if (cb.checked) { if (!arr.includes(ln)) arr.push(ln); } else { _custos[i].linhas = arr.filter(x => x !== ln); }
     saveAll(); clearTimeout(window._vtm); window._vtm = setTimeout(renderTable, 250);
   }));
   el.querySelectorAll('select[data-idx]').forEach(sel => sel.addEventListener('change', () => {
     const i = +sel.dataset.idx, f = sel.dataset.field; _custos[i][f] = sel.value;
     if (f === 'tipo' && sel.value === 'direto' && !_custos[i].linha) _custos[i].linha = 'map';
+    if (f === 'tipo' && sel.value === 'especifico' && !(Array.isArray(_custos[i].linhas) && _custos[i].linhas.length)) _custos[i].linhas = ['map', 'conquista'];
     saveAll(); if (f === 'tipo') renderCustos(); renderTable();
   }));
   el.querySelectorAll('[data-del]').forEach(x => x.addEventListener('click', () => { _custos.splice(+x.dataset.del, 1); saveAll(); renderCustos(); renderTable(); }));
