@@ -396,6 +396,9 @@ function renderTable() {
   const rt = rateio();
   const per = {}; for (const l of LINES) per[l.id] = computeLine(l.id, rt);
   const tot = computeTotal(per);
+  // lucro POTENCIAL = se a linha bater a meta (ou a expectativa, se não tem meta). pot = lucro + (base − realizado) × margem líquida
+  const pot = p => p.lucro + (((p.metaMes > 0 ? p.metaMes : p.expectativa) || 0) - p.vgvRealMes) * (p.netMarginPct || 0);
+  const totPot = LINES.reduce((s, l) => s + pot(per[l.id]), 0);
   const f = _periodo === 'ano' ? 12 : 1;
   const sufx = _periodo === 'ano' ? '/ano' : '/mês';
   const v = n => fmt((n || 0) * f);                 // valor R$ escalado
@@ -438,7 +441,8 @@ function renderTable() {
     ['Imposto gerado' + sufx, id => v(per[id].impostoGerado), v(tot.impostoGerado), { tip: 'Imposto (Simples Nacional) gerado pela linha no período.' }],
     ['VGV Realizado' + sufx, id => v(per[id].vgvRealMes), v(tot.vgvRealMes), { tip: 'VGV efetivamente vendido (vem do CRM / aba Metas).' }],
     ['% da Meta atingida', id => per[id].metaPct == null ? '—' : per[id].metaPct.toFixed(0) + '%', tot.metaPct == null ? '—' : tot.metaPct.toFixed(0) + '%', { tip: 'VGV realizado ÷ meta da linha.' }],
-    ['Lucro Líquido' + sufx, id => cnum(per[id].lucro), cnum(tot.lucro), { strong: 1, big: 1, tip: 'Resultado da linha: margem das vendas − custo fixo (+ recorrente). Verde = lucro, vermelho = prejuízo.' }],
+    ['Lucro Líquido (realizado)' + sufx, id => cnum(per[id].lucro), cnum(tot.lucro), { strong: 1, big: 1, tip: 'Resultado REAL do mês = VGV realizado × margem − custo fixo (+ recorrente). É o realizado: se vendeu pouco no mês, dá prejuízo mesmo a operação sendo viável.' }],
+    ['💡 Lucro potencial (na meta)' + sufx, id => cnum(pot(per[id])), cnum(totPot), { strong: 1, tip: 'Quanto a linha DARIA de lucro se batesse a META (ou a expectativa, se não tem meta). Mostra o potencial estrutural — separado do realizado do mês. Verde = a operação fecha no positivo quando atinge o volume.' }],
     ['📈 Margem de lucro %', id => `<span style="color:${per[id].margemReal < 0 ? '#dc2626' : '#16a34a'};font-weight:700">${per[id].margemReal.toFixed(1)}%</span>`, `<span style="color:${tot.margemReal < 0 ? '#dc2626' : '#16a34a'};font-weight:700">${tot.margemReal.toFixed(1)}%</span>`, { tip: 'Lucro ÷ receita.' }],
     ['Status', id => statusCell(per[id].lucro, per[id].inviavel), statusCell(tot.lucro, tot.inviavel), { big: 1, tip: '✅ viável (lucro ≥ 0) · ⚠️ abaixo (prejuízo, mas margem positiva) · ⛔ inviável (margem por venda negativa).' }],
   ];
