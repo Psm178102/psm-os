@@ -79,6 +79,7 @@ import { pageOKRs } from './pages/okrs.js';
 import { pageKpis } from './pages/kpis.js';
 import { pageMetricasViab } from './pages/metricas-viab.js';
 import { pageSimTrafego } from './pages/sim-trafego.js';
+import { pageMapaCiclos } from './pages/mapa-ciclos.js';
 import { pageOportunidades } from './pages/oportunidades.js';
 import { pageCadencia } from './pages/cadencia.js';
 import { pageFichasPropostas } from './pages/fichas-propostas.js';
@@ -112,7 +113,7 @@ const ROUTE_GROUP = {
   // Diretoria
   '/cockpit': 'diretoria',
   '/diretoria': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria',
-  '/metricas-viab': 'diretoria', '/sim-trafego': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria',
+  '/metricas-viab': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria',
   '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/estrategia': 'diretoria',
   // IA
   '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
@@ -287,6 +288,7 @@ function applyPermissions(user) {
   router.register('/kpis',        { render: async (ctx, root) => { setHeader('KPIs Executivos');     highlight('/kpis');       await pageKpis(ctx, root); } });
   router.register('/metricas-viab', { render: async (ctx, root) => { setHeader('Métricas Viabilidade'); highlight('/metricas-viab'); await pageMetricasViab(ctx, root); } });
   router.register('/sim-trafego', { render: async (ctx, root) => { setHeader('Simulador de Tráfego'); highlight('/sim-trafego'); await pageSimTrafego(ctx, root); } });
+  router.register('/mapa-ciclos', { render: async (ctx, root) => { setHeader('Mapa dos Ciclos'); highlight('/mapa-ciclos'); await pageMapaCiclos(ctx, root); } });
   router.register('/oportunidades', { render: async (ctx, root) => { setHeader('Oportunidades');     highlight('/oportunidades'); await pageOportunidades(ctx, root); } });
   router.register('/cadencia',    { render: async (ctx, root) => { setHeader('Cadência');            highlight('/cadencia');    await pageCadencia(ctx, root); } });
   router.register('/fichas',      { render: async (ctx, root) => { setHeader('Fichas/Propostas');    highlight('/fichas');      await pageFichasPropostas(ctx, root); } });
@@ -374,6 +376,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/kpis"><span class="sb-ico">📈</span> KPIs Executivos</button>
         <button class="sb-link" data-nav="/metricas-viab"><span class="sb-ico">🧪</span> Métricas Viab</button>
         <button class="sb-link" data-nav="/sim-trafego"><span class="sb-ico">📣</span> Simulador de Tráfego</button>
+        <button class="sb-link" data-nav="/mapa-ciclos"><span class="sb-ico">🗺️</span> Mapa dos Ciclos</button>
         <button class="sb-link" data-nav="/bp"><span class="sb-ico">📋</span> Plano BP</button>
         <button class="sb-link" data-nav="/governanca"><span class="sb-ico">⚖️</span> Governança</button>
 
