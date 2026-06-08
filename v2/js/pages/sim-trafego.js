@@ -8,6 +8,7 @@ import { auth } from '../auth.js';
 
 let _root = null, _s = null, _msg = '', _real = null;
 let _opt = { budget: '', obj: 'caixa', capMap: '', capConq: '' };   // ⚡ otimizador de verba (sessão)
+let _alvo = { map: '', conquista: '' };   // 🎯 VGV alvo pra engenharia reversa do orçamento (sessão)
 const MESES = Math.max(1, new Date().getMonth() + 1);
 
 const FAIXAS = [
@@ -252,6 +253,8 @@ function renderOut() {
     </table></div>
     <div class="tiny muted" style="margin-top:6px">💡 Se o <b>CPL atual</b> está <b>abaixo</b> do "CPL necessário pra positivar", o tráfego se paga (✅). Acima, queima caixa (🔴). A coluna <b style="color:#2563eb">Realista</b> é a referência.</div>
 
+    ${orcView(L)}
+
     <div class="st-sec">🗂️ Carteira de leads + LTV <span class="tiny muted" style="font-weight:400">(cenário Realista)</span></div>
     <div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px"><table class="stt"><tbody>
       ${row2('Leads não convertidos/mês', f1(cartR.naoConv))}
@@ -264,6 +267,7 @@ function renderOut() {
     ${projTable(pd)}
   `;
   out.querySelectorAll('[data-key]').forEach(el => el.addEventListener('input', () => { _s[_s.active][el.dataset.key] = parseFloat(el.value) || 0; save(); clearTimeout(window._stoo); window._stoo = setTimeout(renderOut, 350); }));
+  const alvo = document.getElementById('st-alvo'); if (alvo) alvo.addEventListener('change', e => { _alvo[_s.active] = e.target.value.trim(); renderOut(); });
 }
 function grp(t) { return `<tr class="grp"><td colspan="4">${t}</td></tr>`; }
 function row(label, vals, o = {}) {
@@ -396,6 +400,39 @@ function wireOtim() {
     const { am, ac } = otimizar(budget, _opt.obj, +_opt.capMap || 0, +_opt.capConq || 0);
     _s.map.investMes = Math.round(am); _s.conquista.investMes = Math.round(ac); save(); render();
   });
+}
+/* ── 🎯 ORÇAMENTO PRA META (ciclo #3: Viab → Orçamento) ── engenharia reversa do funil:
+   parte do VGV alvo (vem do Ponto de Equilíbrio / meta da Viab) e calcula o investimento de
+   tráfego necessário pra gerá-lo, na conversão Realista da linha. Sem NIBO. */
+function orcamentoPara(L, vgvAlvo) {
+  const ticket = +L.ticket || 0, conv = +L.convReal || 0, desc = +L.descartePct || 0;
+  const vendas = ticket > 0 ? vgvAlvo / ticket : 0;
+  const qualif = conv > 0 ? vendas / (conv / 100) : 0;
+  const leads = desc < 100 ? qualif / (1 - desc / 100) : 0;
+  const invest = leads * (+L.cpl || 0);
+  return { vendas, qualif, leads, invest };
+}
+function orcView(L) {
+  const cur = funil(L, L.convReal);
+  const alvoVal = (_alvo[_s.active] !== '' && +_alvo[_s.active] > 0) ? +_alvo[_s.active] : Math.round(cur.vgv);
+  const o = orcamentoPara(L, alvoVal);
+  const fa = funil({ ...L, investMes: o.invest }, L.convReal);
+  const dInv = o.invest - cur.invest;
+  const ok = (l, v, cor) => `<div style="background:var(--bg-2);border-radius:8px;padding:8px 10px;text-align:center"><div class="tiny muted">${l}</div><div style="font-weight:800;font-size:14px${cor ? ';color:' + cor : ''}">${v}</div></div>`;
+  return `
+    <div class="st-sec">🎯 Orçamento pra meta <span class="tiny muted" style="font-weight:400">— engenharia reversa: do VGV alvo → quanto investir (ciclo Viab → Orçamento)</span></div>
+    <div style="background:var(--bg-3);border-radius:12px;padding:13px">
+      <div class="flex gap-1" style="align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <label class="tiny muted" style="font-weight:600">VGV alvo/mês</label>
+        <span class="tiny muted" style="font-weight:700">R$</span>
+        <input type="number" class="input" id="st-alvo" value="${_alvo[_s.active]}" placeholder="${Math.round(cur.vgv)}" style="max-width:170px;font-size:12px;padding:6px 8px">
+        <span class="tiny muted">— pegue o VGV de equilíbrio/meta no <a href="#/metricas-viab" style="color:var(--psm-gold)">Ponto de Equilíbrio</a></span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px">
+        ${ok('🏆 VGV alvo', fK(alvoVal))}${ok('🤝 Vendas', f1(o.vendas))}${ok('👥 Leads', f1(o.leads))}${ok('💸 Investir/mês', f$(o.invest), '#7c3aed')}${ok('💰 Caixa', f$(fa.caixa), fa.caixa >= 0 ? '#16a34a' : '#dc2626')}${ok('📊 CPA', f$(fa.cpa))}
+      </div>
+      <div class="tiny muted" style="margin-top:7px">Pra fazer <b>${fK(alvoVal)}</b> de VGV na <b>${esc(lineMeta(_s.active).nome)}</b>, invista <b style="color:#7c3aed">${f$(o.invest)}</b>/mês em tráfego (CPL ${f$(L.cpl)}, conversão ${L.convReal}%, descarte ${L.descartePct}%). Hoje você investe ${f$(cur.invest)} → <b style="color:${dInv >= 0 ? '#d97706' : '#16a34a'}">${dInv >= 0 ? '+' : ''}${f$(dInv)}</b>.</div>
+    </div>`;
 }
 function projTable(pd) {
   const th = pd.labels.map(l => `<th style="text-align:right">${l}</th>`).join('');

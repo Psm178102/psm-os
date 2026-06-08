@@ -119,7 +119,7 @@ function render(d, loading) {
     <div class="mc-ciclos">
       ${ciclo('🔄 #1', 'Meta + CRM → Simulador', 'CPL e conversão reais calibram o cenário simulado (botão "usar no simulado").', 'ok')}
       ${ciclo('🔄 #2', 'Financeiro → Viabilidade', 'Custo realizado (NIBO) confronta a planilha de custos da Viab.', fi.ok ? 'ok' : 'warn')}
-      ${ciclo('🔄 #3', 'Viabilidade → Orçamento', 'O ponto de equilíbrio define quanto investir em cada linha (fechar via orçamento).', 'todo')}
+      ${ciclo('🔄 #3', 'Viabilidade → Orçamento', 'VGV de equilíbrio/meta → "Orçamento pra meta" no Simulador calcula quanto investir em tráfego (engenharia reversa).', 'ok')}
       ${ciclo('🔄 #4', 'Vendas → Forecast → Meta', 'O run-rate do realizado projeta o ano e ajusta a meta na aba Metas.', 'ok')}
     </div>
     <div class="tiny muted" style="margin-top:10px">💡 Clique em qualquer bloco pra abrir a tela. Os números são a média mensal do ano (Meta ${m.meses} mês(es) arquivado(s); CRM ÷ ${MESES} meses decorridos).</div>
