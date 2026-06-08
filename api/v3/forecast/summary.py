@@ -52,8 +52,18 @@ class handler(BaseHTTPRequestHandler):
         try:
             start = f"{ano}-01-01T00:00:00+00:00"
             end   = f"{ano+1}-01-01T00:00:00+00:00"
-            rows = sb.table("deals").select("id,name,amount,closed_at,updated_at_rd,stage_name,user_id,win") \
-                .is_("win", "null").gte("updated_at_rd", start).lt("updated_at_rd", end).limit(2000).execute().data or []
+            # PAGINA (PostgREST trava em ~1000/resposta; .limit(2000) não basta e subcontava
+            # o pipeline quando há +1000 deals abertos no ano).
+            rows = []
+            page = 0
+            while True:
+                chunk = sb.table("deals").select("id,name,amount,closed_at,updated_at_rd,stage_name,user_id,win") \
+                    .is_("win", "null").gte("updated_at_rd", start).lt("updated_at_rd", end) \
+                    .order("id").range(page * 1000, page * 1000 + 999).execute().data or []
+                rows.extend(chunk)
+                if len(chunk) < 1000 or page >= 50:
+                    break
+                page += 1
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"deals: {e}"})
 

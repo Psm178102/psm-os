@@ -48,10 +48,18 @@ def _deals_for(sb, ids, emails, cols):
     for fld, vals in (("user_id", ids), ("user_email", emails)):
         for i in range(0, len(vals), 100):
             chunk = vals[i:i + 100]
-            try:
-                rows = sb.table("deals").select(cols).in_(fld, chunk).limit(5000).execute().data or []
-            except Exception:
-                rows = []
+            # PAGINA (PostgREST trava em ~1000/resposta; .limit(5000) não basta).
+            rows = []
+            pg = 0
+            while True:
+                try:
+                    ch = sb.table("deals").select(cols).in_(fld, chunk).order("id").range(pg * 1000, pg * 1000 + 999).execute().data or []
+                except Exception:
+                    ch = []
+                rows.extend(ch)
+                if len(ch) < 1000 or pg >= 50:
+                    break
+                pg += 1
             for r in rows:
                 if r.get("id") not in seen:
                     seen.add(r.get("id")); out.append(r)

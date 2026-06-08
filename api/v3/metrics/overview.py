@@ -139,10 +139,22 @@ def _sales_summary(sb, scope, user):
     inicio_mes = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
     inicio_ano = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
 
-    q = sb.table("deals").select("id,amount,closed_at,created_at_rd,user_id,user_email,win").limit(5000)
-    if scope == "self":
-        q = q.eq("user_id", user["id"])
-    rows = q.execute().data or []
+    # Lê TODOS os deals PAGINANDO. Antes usava .limit(5000), mas o PostgREST do Supabase
+    # trava em ~1000 linhas/resposta — pegava só os 1000 primeiros deals (quase todos abertos)
+    # e perdia quase todas as vendas (VGV ano caía de R$7,5M pra R$222k). Agora pagina tudo,
+    # ficando consistente com /metas/atingimento (mesma tabela deals, win=true).
+    rows = []
+    page = 0
+    while True:
+        q = sb.table("deals").select("id,amount,closed_at,created_at_rd,user_id,user_email,win") \
+            .order("id").range(page * 1000, page * 1000 + 999)
+        if scope == "self":
+            q = q.eq("user_id", user["id"])
+        chunk = q.execute().data or []
+        rows.extend(chunk)
+        if len(chunk) < 1000 or page >= 50:
+            break
+        page += 1
 
     if scope == "team":
         team = (user.get("team") or "").lower()
