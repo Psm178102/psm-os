@@ -27,6 +27,14 @@ async function tick() {
   const hash = (location.hash || '#/').replace(/^#/, '') || '/';
   const [path, query] = hash.split('?');
   currentPath = path;
+  // 🔝 volta ao topo a cada navegação — sem isso, vindo de uma página rolada, telas
+  // curtas (Imóveis, Mapa, etc.) apareciam EM BRANCO (conteúdo ficava acima da viewport).
+  try {
+    window.scrollTo(0, 0);
+    document.scrollingElement && (document.scrollingElement.scrollTop = 0);
+    const mainEl = document.querySelector('main, #app, .content, .app-main');
+    if (mainEl) mainEl.scrollTop = 0;
+  } catch {}
   // Guard de permissões: se a rota não é permitida, mostra aviso e não renderiza
   if (guardFn && path !== '/' && !guardFn(path)) {
     mountEl.innerHTML = '<div class="card"><h2 class="card-title">🔒 Sem permissão</h2>'
