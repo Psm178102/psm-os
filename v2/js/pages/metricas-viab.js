@@ -116,7 +116,7 @@ async function load() {
     const t = nibo && nibo.ok ? (nibo.totals || {}) : null, mm = (nibo && nibo.months) || 3;
     _nibo = t ? { realMes: (+t.total || 0) / mm, pagoMes: (+t.pago || 0) / mm, months: mm } : null;
   } catch { _data = {}; }
-  renderBanner(); renderRealSim(); renderParams(); renderCustos(); renderTable();
+  renderBanner(); renderRealSim(); renderParams(); renderCustos(); renderTable(); renderEquilibrio();
 }
 
 function saveAll() {
@@ -293,6 +293,9 @@ function render() {
       </div>
       <div id="viab-table"><div class="muted tiny"><span class="spinner"></span> Carregando…</div></div>
 
+      <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:20px 0 6px">🎯 Ponto de Equilíbrio da Empresa <span class="muted" style="text-transform:none;font-weight:400">(quanto cada linha precisa vender pra zerar o consolidado)</span></div>
+      <div id="viab-equilibrio"></div>
+
       <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:20px 0 6px">🎚 Alavancas &amp; ⛓ Gargalos <span class="muted" style="text-transform:none;font-weight:400">(sensibilidade · impacto no lucro/mês potencial)</span></div>
       <div id="viab-alav"></div>
     </div>`;
@@ -306,9 +309,9 @@ function render() {
     _root.querySelectorAll('#viab-periodo [data-p]').forEach(x => x.className = `btn ${x.dataset.p === _periodo ? 'btn-primary' : 'btn-ghost'} btn-sm`);
     renderTable();
   }));
-  document.getElementById('viab-prolabore').addEventListener('change', e => { _comProLabore = e.target.checked; renderCustos(); renderTable(); });
-  document.getElementById('viab-locrateia').addEventListener('change', e => { _locRateia = e.target.checked; renderRealSim(); renderCustos(); renderTable(); });
-  renderRealSim(); renderParams(); renderCustos();
+  document.getElementById('viab-prolabore').addEventListener('change', e => { _comProLabore = e.target.checked; renderCustos(); renderTable(); renderEquilibrio(); });
+  document.getElementById('viab-locrateia').addEventListener('change', e => { _locRateia = e.target.checked; renderRealSim(); renderCustos(); renderTable(); renderEquilibrio(); });
+  renderRealSim(); renderParams(); renderCustos(); renderEquilibrio();
 }
 
 function renderBanner() {
@@ -360,6 +363,63 @@ function renderRealSim() {
       </tbody></table></div>
     ${_meta ? `<div class="tiny muted" style="margin-top:7px">📣 <b>Verba mkt REAL</b> (empresa, Meta ${_meta.ano}): <b>${fmt(_meta.investMes)}/mês</b> · ${f1(_meta.leadsMes)} leads/mês · CPL ${fmt(_meta.cpl)}. Premissa de verba (soma das linhas): <b>${fmt(verbaPrem)}/mês</b>${verbaPrem > 0 ? ` <span style="color:${dc(verbaPrem - _meta.investMes)}">(${(_meta.investMes - verbaPrem) >= 0 ? 'real acima' : 'real abaixo'} da premissa)</span>` : ''}.</div>` : ''}
     <div class="tiny muted" style="margin-top:4px">ATUAL = realizado (VGV ÷ ${MESES_DECORRIDOS} meses, CRM). PREMISSA = se a linha bater a ${baseLabel}. O Δ no lucro é o ganho potencial ao fechar o gap.</div>
+  </div>`;
+}
+
+/* 🎯 PONTO DE EQUILÍBRIO DA EMPRESA — quanto cada linha precisa de VGV pra zerar o consolidado.
+   Equação: Σ(VGV_linha × margem_líquida_linha) = custo fixo total líquido. Como a margem da
+   Locação (≈50%) é ~33× a das vendas (≈1,5%), cada R$ de captação da Locação "puxa" muito custo.
+   Cenários: Locação cobrindo 0 / o próprio BE / mais — e o VGV de venda que sobra (no mix real). */
+function renderEquilibrio() {
+  const el = document.getElementById('viab-equilibrio'); if (!el) return;
+  const rt = rateio();
+  const per = {}; for (const l of LINES) per[l.id] = computeLine(l.id, rt);
+  const tot = computeTotal(per);
+  const abate = id => (per[id].recorrente || 0) - (per[id].reservaMes || 0);
+  const totalFixNet = tot.despFixa - LINES.reduce((s, l) => s + abate(l.id), 0);
+  const nmMap = per.map.netMarginPct || 0, nmConq = per.conquista.netMarginPct || 0, nmLoc = per.locacoes.netMarginPct || 0;
+  const tkMap = per.map.ticket || 1, tkConq = per.conquista.ticket || 1, tkLoc = per.locacoes.ticket || 1;
+  const vMap = per.map.vgvRealMes || 0, vConq = per.conquista.vgvRealMes || 0;
+  let wMap = 0.5, wConq = 0.5;
+  if (vMap + vConq > 0) { wMap = vMap / (vMap + vConq); wConq = 1 - wMap; }
+  const denom = wMap * nmMap + wConq * nmConq; // margem ponderada das vendas
+  const locSelfBE = nmLoc > 0 ? per.locacoes.despFixa / nmLoc : 0;
+  const locCobreTudo = nmLoc > 0 ? totalFixNet / nmLoc : 0;
+  const solve = locVgv => {
+    const remaining = Math.max(0, totalFixNet - locVgv * nmLoc);
+    const r = denom > 0 ? remaining / denom : 0;
+    const m = r * wMap, c = r * wConq;
+    return { loc: locVgv, map: m, conq: c, total: m + c + locVgv,
+      nMap: tkMap > 0 ? m / tkMap : 0, nConq: tkConq > 0 ? c / tkConq : 0, nLoc: tkLoc > 0 ? locVgv / tkLoc : 0 };
+  };
+  // cenários de captação da Locação/mês (VGV de 1º aluguéis)
+  const seeds = [0, locSelfBE, 50000, 100000, locCobreTudo].filter((v, i, a) => a.indexOf(v) === i).sort((x, y) => x - y);
+  const cen = seeds.map(solve);
+  const f1 = n => (Math.round((n || 0) * 10) / 10).toLocaleString('pt-BR');
+  const labelLoc = v => v === 0 ? 'Locação ZERO' : (Math.abs(v - locSelfBE) < 1 ? 'Locação só se paga' : (Math.abs(v - locCobreTudo) < 1 ? 'Locação cobre TUDO' : 'Locação ' + fmt(v)));
+  const rows = cen.map(s => {
+    const hi = Math.abs(s.loc - 50000) < 1;
+    return `<tr style="border-bottom:1px solid var(--border)${hi ? ';background:rgba(34,197,94,.10)' : ''}">
+      <td style="text-align:left;padding:7px 10px;font-weight:700">🔑 ${labelLoc(s.loc)}</td>
+      <td style="text-align:right;padding:7px 10px">${fmt(s.loc)}<div class="tiny muted">${f1(s.nLoc)} captações</div></td>
+      <td style="text-align:right;padding:7px 10px">${fmt(s.map)}<div class="tiny muted">${f1(s.nMap)} vendas</div></td>
+      <td style="text-align:right;padding:7px 10px">${fmt(s.conq)}<div class="tiny muted">${f1(s.nConq)} vendas</div></td>
+      <td style="text-align:right;padding:7px 10px;font-weight:800">${fmt(s.total)}</td></tr>`;
+  }).join('');
+  // alavanca: quanto de VGV de venda some a cada R$10k de captação de Locação
+  const alav = denom > 0 ? (10000 * nmLoc / denom) : 0;
+  el.innerHTML = `<div style="background:var(--bg-3);border-radius:12px;padding:13px">
+    <div class="tiny muted" style="margin-bottom:8px">Custo fixo total a cobrir: <b>${fmt(totalFixNet)}/mês</b>${_locRateia ? '' : ' · 🔑 Locação ISENTA do rateio'}. Vendas no <b>mix real</b> (M.A.P ${(wMap * 100).toFixed(0)}% · Conquista ${(wConq * 100).toFixed(0)}%). Margem líq.: M.A.P ${(nmMap * 100).toFixed(2)}% · Conquista ${(nmConq * 100).toFixed(2)}% · Locação ${(nmLoc * 100).toFixed(0)}%.</div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px">
+      <thead><tr style="background:var(--bg-2)">
+        <th style="text-align:left;padding:7px 10px">Cenário</th>
+        <th style="text-align:right;padding:7px 10px">🔑 Locação</th>
+        <th style="text-align:right;padding:7px 10px">🏢 M.A.P</th>
+        <th style="text-align:right;padding:7px 10px">🏠 Conquista</th>
+        <th style="text-align:right;padding:7px 10px">📊 VGV total/mês</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="tiny muted" style="margin-top:8px">🎚 <b>Alavanca da Locação:</b> cada <b>R$ 10.000</b> de captação (≈${f1(10000 / tkLoc)} contratos) tira <b>~${fmt(alav)}</b> de VGV de venda necessário pra empresa fechar no zero — porque a margem da Locação (${(nmLoc * 100).toFixed(0)}%) é ~${nmLoc > 0 && denom > 0 ? (nmLoc / denom).toFixed(0) : '—'}× a das vendas. Não some custo; some <b>VGV de venda</b>.</div>
+    <div class="tiny muted" style="margin-top:2px">Equilíbrio = Σ(VGV × margem líquida) = custo fixo. A Locação sozinha cobriria tudo com <b>${fmt(locCobreTudo)}</b> de captação/mês (${f1(locCobreTudo / tkLoc)} contratos). Cenário em verde = ref. R$50k.</div>
   </div>`;
 }
 
