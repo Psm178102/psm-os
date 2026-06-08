@@ -62,6 +62,7 @@ import { pageIntelAds } from './pages/intel-ads.js';
 import { pageIntelDash } from './pages/intel-dash.js';
 import { pageIntelCentro } from './pages/intel-centro.js';
 import { pageBibliotecaAds } from './pages/biblioteca-ads.js';
+import { pageMarketingHistorico } from './pages/marketing-historico.js';
 import { pageDadosMercado } from './pages/dados-mercado.js';
 import { pageIntelVendas } from './pages/intel-vendas.js';
 import { pageIntelBriefing } from './pages/intel-briefing.js';
@@ -102,7 +103,7 @@ const ROUTE_GROUP = {
   '/financeiro': 'financeiro', '/forecast': 'financeiro',
   // Inteligência & Marketing
   '/marketing': 'marketing', '/concorrencia': 'marketing', '/benchmark': 'marketing',
-  '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing', '/inteligencia': 'marketing', '/biblioteca-ads': 'marketing', '/cerebro-vendas': 'marketing', '/briefing-guerra': 'marketing',
+  '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing', '/inteligencia': 'marketing', '/biblioteca-ads': 'marketing', '/marketing-historico': 'marketing', '/cerebro-vendas': 'marketing', '/briefing-guerra': 'marketing',
   '/dados-mercado': 'diretoria',
   // Metas & Performance
   '/metas': 'performance', '/equipe': 'performance', '/organograma': 'performance',
@@ -236,6 +237,7 @@ function applyPermissions(user) {
   router.register('/inteligencia', { render: async (ctx, root) => { setHeader('Centro de Inteligência'); highlight('/inteligencia'); await pageIntelCentro(ctx, root); } });
   router.register('/dados-mercado', { render: async (ctx, root) => { setHeader('Dados de Mercado'); highlight('/dados-mercado'); await pageDadosMercado(ctx, root); } });
   router.register('/biblioteca-ads', { render: async (ctx, root) => { setHeader('Biblioteca de Anúncios'); highlight('/biblioteca-ads'); await pageBibliotecaAds(ctx, root); } });
+  router.register('/marketing-historico', { render: async (ctx, root) => { setHeader('Histórico Meta'); highlight('/marketing-historico'); await pageMarketingHistorico(ctx, root); } });
   router.register('/cerebro-vendas', { render: async (ctx, root) => { setHeader('Cérebro de Vendas'); highlight('/cerebro-vendas'); await pageIntelVendas(ctx, root); } });
   router.register('/briefing-guerra', { render: async (ctx, root) => { setHeader('Briefing de Guerra'); highlight('/briefing-guerra'); await pageIntelBriefing(ctx, root); } });
   router.register('/ia',        { render: async (ctx, root) => { setHeader('IA');        highlight('/ia');        await pageIA(ctx, root); } });
@@ -394,6 +396,7 @@ function shellHTML(user) {
 
         <div class="sb-sec">📣 Marketing</div>
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>
+        <button class="sb-link" data-nav="/marketing-historico"><span class="sb-ico">📅</span> Histórico Meta</button>
         <button class="sb-link" data-nav="/biblioteca-ads"><span class="sb-ico">📚</span> Biblioteca de Anúncios</button>
         <button class="sb-link" data-nav="/intel-ads"><span class="sb-ico">🎯</span> Intel Ads</button>
 
