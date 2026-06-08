@@ -7,6 +7,7 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null, _s = null, _msg = '', _real = null;
+let _opt = { budget: '', obj: 'caixa', capMap: '', capConq: '' };   // ⚡ otimizador de verba (sessão)
 const MESES = Math.max(1, new Date().getMonth() + 1);
 
 const FAIXAS = [
@@ -215,7 +216,7 @@ function wireReal() {
 /* ── outputs ── */
 function renderOut() {
   const out = document.getElementById('st-out'); if (!out) return;
-  if (_s.active === 'consol') { out.innerHTML = consolView(); return; }
+  if (_s.active === 'consol') { out.innerHTML = consolView(); wireOtim(); return; }
   const L = _s[_s.active];
   const fs = COLS.map(c => funil(L, L[c.key]));   // [otim, real, min]
   const cartR = carteira(L, fs[1]);
@@ -299,10 +300,103 @@ function consolView() {
     <div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px"><table class="stt">
       <thead><tr><th style="text-align:left">Linha</th><th style="text-align:right">Invest.</th><th style="text-align:right">Leads</th><th style="text-align:right">Vendas</th><th style="text-align:right">VGV</th><th style="text-align:right">Caixa</th></tr></thead>
       <tbody>${perLinha}</tbody></table></div>
+    ${otimView()}
     <div class="st-sec">📈 Projeção 24m — caixa acumulado consolidado <span class="tiny muted" style="font-weight:400">(cada linha com seu atraso)</span></div>
     ${projTable({ labels: pdM.labels, invArr, real, acum })}`;
 }
 
+/* ── ⚡ OTIMIZADOR DE VERBA ── aloca o orçamento entre M.A.P e Conquista pra maximizar
+   caixa/VGV/vendas, respeitando teto de capacidade (leads/mês) por linha. Usa o motor funil()
+   no cenário Realista. Alocação marginal gulosa (200 passos) — trata a faixa de imposto e os tetos. */
+function lineFunilAt(id, invest) { return funil({ ..._s[id], investMes: invest }, _s[id].convReal); }
+function objMetric(f, obj) { return obj === 'vgv' ? f.vgv : obj === 'vendas' ? f.vendas : f.caixa; }
+function otimizar(budget, obj, capLeadsMap, capLeadsConq) {
+  let am = 0, ac = 0; const step = budget > 0 ? budget / 200 : 0;
+  const capInvMap = capLeadsMap > 0 ? capLeadsMap * (+_s.map.cpl || 0) : Infinity;
+  const capInvConq = capLeadsConq > 0 ? capLeadsConq * (+_s.conquista.cpl || 0) : Infinity;
+  for (let i = 0; i < 200 && step > 0; i++) {
+    const baseM = objMetric(lineFunilAt('map', am), obj);
+    const baseC = objMetric(lineFunilAt('conquista', ac), obj);
+    const gm = (am + step <= capInvMap + 1) ? objMetric(lineFunilAt('map', am + step), obj) - baseM : -Infinity;
+    const gc = (ac + step <= capInvConq + 1) ? objMetric(lineFunilAt('conquista', ac + step), obj) - baseC : -Infinity;
+    if (gm === -Infinity && gc === -Infinity) break;
+    if (gm >= gc) am += step; else ac += step;
+  }
+  return { am, ac };
+}
+function otimView() {
+  const cur = { map: +_s.map.investMes || 0, conq: +_s.conquista.investMes || 0 };
+  const budget = (_opt.budget !== '' && +_opt.budget > 0) ? +_opt.budget : (cur.map + cur.conq);
+  const obj = _opt.obj, capM = +_opt.capMap || 0, capC = +_opt.capConq || 0;
+  const objNome = obj === 'vgv' ? 'VGV' : obj === 'vendas' ? 'Vendas' : 'Caixa';
+  const { am, ac } = otimizar(budget, obj, capM, capC);
+  const fAtM = lineFunilAt('map', cur.map), fAtC = lineFunilAt('conquista', cur.conq);
+  const fOtM = lineFunilAt('map', am), fOtC = lineFunilAt('conquista', ac);
+  const sk = (a, b, k) => (a[k] || 0) + (b[k] || 0);
+  const atual = { invest: cur.map + cur.conq, vendas: sk(fAtM, fAtC, 'vendas'), vgv: sk(fAtM, fAtC, 'vgv'), caixa: sk(fAtM, fAtC, 'caixa') };
+  const otimo = { invest: am + ac, vendas: sk(fOtM, fOtC, 'vendas'), vgv: sk(fOtM, fOtC, 'vgv'), caixa: sk(fOtM, fOtC, 'caixa') };
+  // eficiência por R$1.000 (referência) por linha
+  const REF = 10000;
+  const effRow = id => { const f = lineFunilAt(id, REF), m = lineMeta(id); const paga = (+_s[id].cpl || 0) <= f.cplPositivar;
+    return `<tr><td class="lbl" style="color:${m.cor}">${m.icon} ${m.nome}</td>
+      <td class="val">${f$(_s[id].cpl)}</td>
+      <td class="val">${f1(f.roas)}x</td>
+      <td class="val" style="font-weight:700;color:${(f.caixa / REF) >= 0 ? '#16a34a' : '#dc2626'}">${(f.caixa / REF).toFixed(2)}</td>
+      <td class="val">${(f.vgv / REF).toFixed(0)}</td>
+      <td class="val">${paga ? '✅ paga' : '🔴 queima'}</td></tr>`; };
+  const dCaixa = otimo.caixa - atual.caixa;
+  const pctM = budget > 0 ? (am / budget * 100) : 0, pctC = budget > 0 ? (ac / budget * 100) : 0;
+  const objBtn = (v, l) => `<button class="btn ${obj === v ? 'btn-primary' : 'btn-ghost'} btn-sm" data-obj="${v}">${l}</button>`;
+  const cmpRow = (lbl, a, b, money, fmt2) => { const f = fmt2 || f$; return `<tr><td class="lbl">${lbl}</td><td class="val">${f(a)}</td><td class="val" style="font-weight:800;color:#16a34a">${f(b)}</td></tr>`; };
+  return `
+    <div class="st-sec">⚡ Otimizador de verba <span class="tiny muted" style="font-weight:400">— onde investir cada R$ pra render mais (cenário Realista)</span></div>
+    <div style="background:var(--bg-3);border-radius:12px;padding:13px">
+      <div class="st-grid" style="grid-template-columns:repeat(4,1fr);background:transparent;padding:0;margin-bottom:10px">
+        <div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:3px">Verba total/mês</label><div class="flex gap-1" style="align-items:center"><span class="tiny muted" style="font-weight:700">R$</span><input type="number" class="input" id="opt-budget" value="${_opt.budget}" placeholder="${cur.map + cur.conq}" style="flex:1;font-size:12px;padding:6px 8px;min-width:0"></div></div>
+        <div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:3px">Teto leads/mês M.A.P</label><input type="number" class="input" id="opt-capmap" value="${_opt.capMap}" placeholder="sem teto" style="width:100%;font-size:12px;padding:6px 8px"></div>
+        <div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:3px">Teto leads/mês Conquista</label><input type="number" class="input" id="opt-capconq" value="${_opt.capConq}" placeholder="sem teto" style="width:100%;font-size:12px;padding:6px 8px"></div>
+        <div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:3px">Maximizar</label><div class="flex gap-1">${objBtn('caixa', '💰 Caixa')}${objBtn('vgv', '🏆 VGV')}${objBtn('vendas', '🤝 Vendas')}</div></div>
+      </div>
+
+      <div class="tiny muted" style="font-weight:700;margin-bottom:4px">📊 Eficiência por linha (R$1 investido)</div>
+      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:12px"><table class="stt">
+        <thead><tr><th style="text-align:left">Linha</th><th style="text-align:right">CPL</th><th style="text-align:right">ROAS</th><th style="text-align:right">Caixa/R$1</th><th style="text-align:right">VGV/R$1</th><th style="text-align:right">Tráfego</th></tr></thead>
+        <tbody>${effRow('map')}${effRow('conquista')}</tbody></table></div>
+
+      <div class="tiny muted" style="font-weight:700;margin-bottom:4px">🎯 Alocação recomendada de ${f$(budget)} (max. ${objNome})</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div style="background:var(--bg-2);border-radius:8px;padding:10px;text-align:center"><div class="tiny muted">🏢 M.A.P</div><div style="font-weight:800;font-size:15px">${f$(am)}</div><div class="tiny muted">${pctM.toFixed(0)}% · ${f1(fOtM.vendas)} vendas</div></div>
+        <div style="background:var(--bg-2);border-radius:8px;padding:10px;text-align:center"><div class="tiny muted">🏠 Conquista</div><div style="font-weight:800;font-size:15px">${f$(ac)}</div><div class="tiny muted">${pctC.toFixed(0)}% · ${f1(fOtC.vendas)} vendas</div></div>
+      </div>
+
+      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px"><table class="stt">
+        <thead><tr><th style="text-align:left">Resultado/mês</th><th style="text-align:right">Hoje (sua divisão)</th><th style="text-align:right;color:#16a34a">⚡ Ótimo</th></tr></thead>
+        <tbody>
+          ${cmpRow('💸 Investimento', atual.invest, otimo.invest)}
+          ${cmpRow('🤝 Vendas', atual.vendas, otimo.vendas, 0, f1)}
+          ${cmpRow('🏆 VGV', atual.vgv, otimo.vgv, 0, fK)}
+          ${cmpRow('💰 Caixa', atual.caixa, otimo.caixa)}
+        </tbody></table></div>
+      <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px">
+        <div class="tiny" style="font-weight:700;color:${dCaixa >= 0 ? '#16a34a' : '#dc2626'}">${dCaixa >= 0 ? '▲' : '▼'} ${f$(Math.abs(dCaixa))}/mês de caixa ${dCaixa >= 0 ? 'a mais' : 'a menos'} com a alocação ótima ${dCaixa >= 0 ? '(' + f$(dCaixa * 12) + '/ano)' : ''}</div>
+        <button class="btn btn-primary btn-sm" id="opt-aplicar">▶ aplicar alocação ótima nas linhas</button>
+      </div>
+      <div class="tiny muted" style="margin-top:6px">O otimizador concentra a verba na linha com mais ${objNome.toLowerCase()} por R$ investido, até o teto de leads/mês (capacidade da equipe). Sem teto, vai 100% na mais eficiente. Os tetos modelam quantos leads cada equipe consegue atender de verdade.</div>
+    </div>`;
+}
+function wireOtim() {
+  const reRender = () => { renderOut(); };
+  const b = document.getElementById('opt-budget'); if (b) b.addEventListener('change', e => { _opt.budget = e.target.value.trim(); reRender(); });
+  const cm = document.getElementById('opt-capmap'); if (cm) cm.addEventListener('change', e => { _opt.capMap = e.target.value.trim(); reRender(); });
+  const cc = document.getElementById('opt-capconq'); if (cc) cc.addEventListener('change', e => { _opt.capConq = e.target.value.trim(); reRender(); });
+  document.querySelectorAll('[data-obj]').forEach(btn => btn.addEventListener('click', () => { _opt.obj = btn.dataset.obj; reRender(); }));
+  const ap = document.getElementById('opt-aplicar'); if (ap) ap.addEventListener('click', () => {
+    const cur = { map: +_s.map.investMes || 0, conq: +_s.conquista.investMes || 0 };
+    const budget = (_opt.budget !== '' && +_opt.budget > 0) ? +_opt.budget : (cur.map + cur.conq);
+    const { am, ac } = otimizar(budget, _opt.obj, +_opt.capMap || 0, +_opt.capConq || 0);
+    _s.map.investMes = Math.round(am); _s.conquista.investMes = Math.round(ac); save(); render();
+  });
+}
 function projTable(pd) {
   const th = pd.labels.map(l => `<th style="text-align:right">${l}</th>`).join('');
   const tdInv = pd.invArr.map(v => `<td class="val">${fK(v)}</td>`).join('');
