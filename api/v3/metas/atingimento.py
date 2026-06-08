@@ -109,8 +109,8 @@ class handler(BaseHTTPRequestHandler):
 
         # 1. Users com filtro de role
         try:
-            users = sb.table("users").select("id,name,email,team,role,color,ini,status").execute().data or []
-            users = [u for u in users if (u.get("status") or "ativo") == "ativo"]
+            all_users = sb.table("users").select("id,name,email,team,role,color,ini,status").execute().data or []
+            users = [u for u in all_users if (u.get("status") or "ativo") == "ativo"]
             lvl = user.get("lvl") or 0
             scope = "all"
             if lvl < 7:
@@ -233,8 +233,42 @@ class handler(BaseHTTPRequestHandler):
             })
             tot_meta += row_meta; tot_atingido += row_atingido; tot_count += row_count
 
+        # ── VGV REAL: inclui vendas de corretores que SAÍRAM (status != ativo).
+        # O grid/ranking acima fica só com ATIVOS; aqui o TOTAL e o por_corretor
+        # passam a contar TODAS as vendas casadas, inclusive de quem deixou a empresa
+        # (a venda foi realizada de verdade). Respeita o escopo do usuário.
+        all_idx = {u["id"]: u for u in all_users}
+        grid_ids = {g["user"].get("id") for g in grid}
+        def _in_scope(uid):
+            if scope == "all":
+                return True
+            u = all_idx.get(uid)
+            if not u:
+                return False
+            if scope == "team":
+                return (u.get("team") or "").lower() == (user.get("team") or "").lower()
+            return uid == user["id"]
+        extra_corretores = []
+        for uid in {k[0] for k in atingido_idx.keys()}:
+            if not uid or uid in grid_ids or not _in_scope(uid):
+                continue
+            av = sum(atingido_idx[(uid, m)]["vgv"] for m in range(1, 13) if (uid, m) in atingido_idx)
+            ac = sum(atingido_idx[(uid, m)]["count"] for m in range(1, 13) if (uid, m) in atingido_idx)
+            if av == 0 and ac == 0:
+                continue
+            u = all_idx.get(uid) or {}
+            tot_atingido += av
+            tot_count += ac
+            extra_corretores.append({
+                "id": uid, "name": u.get("name") or "(corretor que saiu)",
+                "team": u.get("team") or u.get("equipe") or u.get("frente"),
+                "role": u.get("role"), "vgv_atingido": av, "meta_vgv": 0.0,
+                "vendas": ac, "pct": None, "inativo": True,
+            })
+
         # Visão achatada por corretor (consumida por relatorios, war-room/arena,
         # sr-gerencia/performance, metricas-viab — todos esperavam `por_corretor`).
+        # Ativos (com meta/ranking) + os que saíram mas venderam (VGV conta no total).
         por_corretor = [{
             "id": g["user"].get("id"),
             "name": g["user"].get("name"),
@@ -244,7 +278,8 @@ class handler(BaseHTTPRequestHandler):
             "meta_vgv": g["totals"]["meta_vgv"],
             "vendas": g["totals"]["vendas_count"],
             "pct": g["totals"]["pct"],
-        } for g in grid]
+            "inativo": False,
+        } for g in grid] + extra_corretores
 
         result = {
             "ok": True, "cached": False, "ano": ano, "scope": scope,
