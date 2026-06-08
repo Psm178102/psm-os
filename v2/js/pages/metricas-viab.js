@@ -9,7 +9,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
-let _root = null, _data = null, _custos = null, _lines = null, _nibo = null;
+let _root = null, _data = null, _custos = null, _lines = null, _nibo = null, _meta = null;
 let _active = 'map', _showCustos = false, _periodo = 'mes', _comProLabore = false, _custosMsg = '';
 
 const LKEY = 'psm_v2_metricas_viab_lines';
@@ -94,12 +94,20 @@ function freshLines() { const o = {}; for (const l of LINES) o[l.id] = { ...DEFA
 
 async function load() {
   try {
-    const [atg, board, nibo] = await Promise.all([
+    const ANO = new Date().getFullYear();
+    const [atg, board, nibo, hist] = await Promise.all([
       api.request('/api/v3/metas/atingimento').catch(() => ({})),
       api.request('/api/v3/diretoria/strategy?board=custos_compartilhados').catch(() => null),
       api.request('/api/v3/finance/custos_fixos?months=3&company=all').catch(() => null),
+      api.request('/api/v3/marketing/history?ano=' + ANO).catch(() => null),
     ]);
     _data = atg || {};
+    // 📡 Meta Ads real (histórico): investimento/leads/CPL médios do ano → verba de mkt REAL
+    const ht = (hist && hist.totais) || null, mh = (hist && hist.meses_com_dado) || 0;
+    if (ht && mh > 0) {
+      const inv = +ht.spend || 0, lds = +ht.results || 0;
+      _meta = { ano: ANO, investMes: inv / mh, leadsMes: lds / mh, cpl: +ht.cpl || (lds > 0 ? inv / lds : 0), meses: mh };
+    } else _meta = null;
     const d = board && board.ok ? (board.data || {}) : null;
     if (d && Array.isArray(d.items) && d.items.length) _custos = d.items.map(c => ({ ...c }));
     if (d && d.lines) for (const l of LINES) _lines[l.id] = Object.assign({}, DEFAULTS[l.id], d.lines[l.id] || {});
@@ -108,7 +116,7 @@ async function load() {
     const t = nibo && nibo.ok ? (nibo.totals || {}) : null, mm = (nibo && nibo.months) || 3;
     _nibo = t ? { realMes: (+t.total || 0) / mm, pagoMes: (+t.pago || 0) / mm, months: mm } : null;
   } catch { _data = {}; }
-  renderBanner(); renderParams(); renderCustos(); renderTable();
+  renderBanner(); renderRealSim(); renderParams(); renderCustos(); renderTable();
 }
 
 function saveAll() {
@@ -259,6 +267,7 @@ function render() {
       <h2 class="card-title">🧪 Métricas de Viabilidade por Linha</h2>
       <p class="card-sub">Break-even por unidade + rateio híbrido + VGV mín/corretor · valores mensais e anuais · Sócio only</p>
       <div id="viab-banner"></div>
+      <div id="viab-realsim"></div>
 
       <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:14px 0 6px">Parâmetros da linha (editável)</div>
       <div class="flex gap-2" style="flex-wrap:wrap" id="viab-tabs">
@@ -286,7 +295,7 @@ function render() {
   _root.querySelectorAll('#viab-tabs [data-line]').forEach(b => b.addEventListener('click', () => {
     _active = b.dataset.line;
     _root.querySelectorAll('#viab-tabs [data-line]').forEach(x => x.className = `btn ${x.dataset.line === _active ? 'btn-primary' : 'btn-ghost'} btn-sm`);
-    renderParams(); renderAlavancas();
+    renderRealSim(); renderParams(); renderAlavancas();
   }));
   _root.querySelectorAll('#viab-periodo [data-p]').forEach(b => b.addEventListener('click', () => {
     _periodo = b.dataset.p;
@@ -294,7 +303,7 @@ function render() {
     renderTable();
   }));
   document.getElementById('viab-prolabore').addEventListener('change', e => { _comProLabore = e.target.checked; renderCustos(); renderTable(); });
-  renderParams(); renderCustos();
+  renderRealSim(); renderParams(); renderCustos();
 }
 
 function renderBanner() {
@@ -304,6 +313,49 @@ function renderBanner() {
     📡 <b>VGV real acumulado (ano, ${MESES_DECORRIDOS} ${MESES_DECORRIDOS === 1 ? 'mês' : 'meses'}):</b> ${fmt(+(_data?.total_vgv || 0))} · ${+(_data?.total_vendas || 0)} venda(s). Por equipe →
     🏢 ${fmt(a.map.vgv)} (${a.map.n}p) · 🏠 ${fmt(a.conquista.vgv)} (${a.conquista.n}p) · 🤝 ${fmt(a.terceiros.vgv)} (${a.terceiros.n}p) · 🔑 ${fmt(a.locacoes.vgv)} (${a.locacoes.n}p).
     <span class="muted">No quadro, "VGV realizado mensal" = acumulado ÷ ${MESES_DECORRIDOS}.</span></div>`;
+}
+
+/* 📡 ATUAL (real) × 🎯 PREMISSA (na meta) — painel comparativo da LINHA ativa.
+   ATUAL = realizado do CRM (VGV/vendas ÷ meses) + verba real do Meta. PREMISSA = se bater a meta. */
+function renderRealSim() {
+  const el = document.getElementById('viab-realsim'); if (!el) return;
+  const id = _active, rt = rateio();
+  const c = computeLine(id, rt);
+  const ta = teamAgg()[id] || { vgv: 0, vendas: 0, meta: 0, n: 0 };
+  const vendasRealMes = (ta.vendas || 0) / MESES_DECORRIDOS;
+  const ticketReal = ta.vendas > 0 ? ta.vgv / ta.vendas : c.ticket;
+  const base = c.metaMes > 0 ? c.metaMes : c.expectativa;          // VGV alvo (premissa)
+  const baseLabel = c.metaMes > 0 ? 'meta' : 'expectativa';
+  const lucroPot = c.lucro + ((base || 0) - c.vgvRealMes) * (c.netMarginPct || 0);
+  const atingPct = base > 0 ? (c.vgvRealMes / base * 100) : null;
+  const ln = LINES.find(l => l.id === id) || {};
+  const dc = v => v >= 0 ? '#16a34a' : '#dc2626';
+  const pct = n => (Math.round((n || 0) * 10) / 10).toLocaleString('pt-BR') + '%';
+  const f1 = n => (Math.round((n || 0) * 10) / 10).toLocaleString('pt-BR');
+  const row = (label, real, prem, delta, strong) => `<tr style="border-bottom:1px solid var(--border)">
+    <td style="text-align:left;padding:7px 10px;font-weight:600">${label}</td>
+    <td style="text-align:right;padding:7px 10px${strong ? ';font-weight:800' : ''}">${real}</td>
+    <td style="text-align:right;padding:7px 10px;color:var(--text-2,#94a3b8)${strong ? ';font-weight:800' : ''}">${prem}</td>
+    <td style="text-align:right;padding:7px 10px">${delta || ''}</td></tr>`;
+  const verbaPrem = LINES.reduce((s, l) => s + (+_lines[l.id].verbaMarketing || 0), 0);
+  el.innerHTML = `<div style="margin-top:10px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.3);border-radius:12px;padding:13px">
+    <div style="font-weight:800;color:#16a34a">📡 ATUAL (real) × 🎯 PREMISSA — ${ln.icon || ''} ${esc(ln.nome || id)} <span class="tiny muted" style="font-weight:400;color:var(--text-2,#94a3b8)">média mensal · realizado do CRM × se bater a ${baseLabel}</span></div>
+    <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:460px">
+      <thead><tr style="background:var(--bg-3)">
+        <th style="text-align:left;padding:7px 10px">Métrica</th>
+        <th style="text-align:right;padding:7px 10px;color:#16a34a">📡 ATUAL (real)</th>
+        <th style="text-align:right;padding:7px 10px">🎯 PREMISSA (na ${baseLabel})</th>
+        <th style="text-align:right;padding:7px 10px">Δ / gap</th>
+      </tr></thead><tbody>
+      ${row('🏆 VGV/mês', fmt(c.vgvRealMes), fmt(base), atingPct != null ? `<b style="color:${dc((atingPct || 0) - 100)}">${pct(atingPct)}</b>` : '—')}
+      ${row('🤝 Vendas/mês', f1(vendasRealMes), f1(c.vendasEsp), '')}
+      ${row('🎫 Ticket médio', fmt(ticketReal), fmt(c.ticket), '')}
+      ${row('💰 Lucro/mês', `<b style="color:${dc(c.lucro)}">${fmt(c.lucro)}</b>`, `<b style="color:${dc(lucroPot)}">${fmt(lucroPot)}</b>`, `<span style="color:${dc(lucroPot - c.lucro)}">${(lucroPot - c.lucro) >= 0 ? '+' : ''}${fmt(lucroPot - c.lucro)}</span>`, 1)}
+      ${row('📊 Margem líquida', pct(c.margemReal), pct(c.margemPSMpct), '')}
+      </tbody></table></div>
+    ${_meta ? `<div class="tiny muted" style="margin-top:7px">📣 <b>Verba mkt REAL</b> (empresa, Meta ${_meta.ano}): <b>${fmt(_meta.investMes)}/mês</b> · ${f1(_meta.leadsMes)} leads/mês · CPL ${fmt(_meta.cpl)}. Premissa de verba (soma das linhas): <b>${fmt(verbaPrem)}/mês</b>${verbaPrem > 0 ? ` <span style="color:${dc(verbaPrem - _meta.investMes)}">(${(_meta.investMes - verbaPrem) >= 0 ? 'real acima' : 'real abaixo'} da premissa)</span>` : ''}.</div>` : ''}
+    <div class="tiny muted" style="margin-top:4px">ATUAL = realizado (VGV ÷ ${MESES_DECORRIDOS} meses, CRM). PREMISSA = se a linha bater a ${baseLabel}. O Δ no lucro é o ganho potencial ao fechar o gap.</div>
+  </div>`;
 }
 
 function renderParams() {
