@@ -64,6 +64,18 @@ def _window(params):
         first_this = today.replace(day=1)
         last_prev = first_this - timedelta(days=1)
         return last_prev.replace(day=1), last_prev
+    if preset == "last_90d":
+        return today - timedelta(days=90), today
+    if preset == "this_year":
+        return today.replace(month=1, day=1), today
+    if preset == "last_year":
+        return date(today.year - 1, 1, 1), date(today.year - 1, 12, 31)
+    if preset.startswith("year_"):
+        try:
+            yy = int(preset.split("_", 1)[1])
+            return date(yy, 1, 1), (today if yy == today.year else date(yy, 12, 31))
+        except Exception:
+            pass
     return today - timedelta(days=30), today
 
 

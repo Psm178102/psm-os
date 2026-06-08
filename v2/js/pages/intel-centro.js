@@ -10,6 +10,7 @@ let _root = null, _d = {}, _preset = 'last_30d', _ai = null, _aiBusy = false;
 const PRESETS = [
   { id: 'last_7d', lbl: '7 dias' }, { id: 'last_30d', lbl: '30 dias' },
   { id: 'last_90d', lbl: '90 dias' }, { id: 'this_month', lbl: 'Mês atual' },
+  { id: 'this_year', lbl: 'Este ano' },
 ];
 
 export async function pageIntelCentro(ctx, root) {

@@ -23,6 +23,7 @@ const PRESETS = [
   { id: 'last_30d',   lbl: 'Últimos 30 dias' },
   { id: 'this_month', lbl: 'Mês atual' },
   { id: 'last_month', lbl: 'Mês anterior' },
+  { id: 'this_year',  lbl: 'Este ano' },
 ];
 
 const TABS = [

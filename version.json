@@ -1,9 +1,9 @@
 {
-  "version": "77.18.0",
-  "meta": "2026.06.08-v77.18-sweep-paginacao",
+  "version": "77.19.0",
+  "meta": "2026.06.08-v77.19-crm-ano",
   "built": "2026-06-06T21:35:00Z",
-  "sw": "v77.18.0-2026-06-08-SWEEP",
-  "sprint": "v77.18 — 🧹 VARREDURA PREVENTIVA do teto de 1000 (incongruências). Auditadas TODAS as agregações sobre tabelas grandes além de deals. Corrigidas (agora PAGINAM via .range): COMMISSIONS no Dashboard de Início (soma de comissão somava errado se +1000 registros) · DIR_TASKS no Início (contagem de tarefas, .limit(2000) travava em 1000) · AUDIT_LOG em 3 lugares (top-ações 30d no Início, contagem 24h no Dashboard Diretoria, ranking de atividade) — agora paginam com teto de 30k. Confirmado OK (não precisavam): contagens 24h/7d do audit já usavam count=exact; metas/users/rd_stages/shared_kv são tabelas pequenas; eventos/plantões já filtram por janela de data; listas (tendências/okrs/premiações) têm limite proposital. Resultado: nenhum total/contagem do sistema trava mais em 1000 linhas. Caminho B.",
+  "sw": "v77.19.0-2026-06-08-CRMANO",
+  "sprint": "v77.19 — 📊 MÉTRICAS RD CRM DO ANO (janela). O endpoint crm_metrics (descarte/perdas, conversão, ciclo, motivos de perda, origem/atribuição, contact/visita rate, ticket, ranking) NÃO suportava 'this_year' — caía no fallback de 30 dias, mostrando 3 vendas em vez das 24 do ano (parecia incongruência, era janela faltando). Adicionados presets this_year / last_90d / last_year / year_YYYY no _window. Frontend: 'Este ano' agora aparece nos seletores do Centro de Inteligência e do Marketing (Motor de Vendas) → dá pra ver TODAS as métricas RD do ano, consistentes com o atingimento (24/R$7,51M). Achados honestos de dado (não-código): leads_visita=0 (etapa de visita não vem nos eventos de stage capturados) e atribuição majoritariamente 'não atribuído' (deals do RD sem deal_source marcado) — são lacunas de uso do RD, sinalizadas com honestidade. Caminho B.",
   "sprint_fixvgv_v77_17": "v77.17 — 🔴 FIX CRÍTICO VGV: Dashboard de Início mostrava R$222k/1 venda em vez de R$7,51M/24 (deals lido com .limit que travava em 1000). /metrics/overview, /forecast/summary e /oo/corretor agora paginam. Validado ao vivo: bate R$7.512.084/24 (13.052 deals lidos). Caminho B.",
   "sprint_orcmeta_v77_16": "v77.16 — 🎯 CICLO #3 FECHADO (Viab → Orçamento), SEM NIBO. Painel 'Orçamento pra meta' no Simulador (por linha): engenharia reversa do funil (VGV alvo → investimento de tráfego necessário). Caminho B.",
   "sprint_mapaciclos_v77_15": "v77.15 — 🗺️ MAPA DOS CICLOS DE FEEDBACK (Diretoria, lvl≥7). Visão sistêmica: operação real (Meta→CRM→Financeiro) alimenta os instrumentos (Simulador/Viab/Forecast/Otimizador) que voltam pra operação; KPIs ao vivo; 4 ciclos com status. Caminho B.",
