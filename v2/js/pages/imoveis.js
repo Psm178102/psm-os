@@ -84,6 +84,7 @@ function itemCard(i) {
           <div style="font-weight:700;font-size:14px">${escapeHtml(i.endereco)}${i.codigo ? ` <span class="tiny muted">#${escapeHtml(i.codigo)}</span>` : ''}</div>
           <div class="tiny muted">${escapeHtml(i.tipo || '')} · ${escapeHtml(i.bairro || '')}${i.cidade ? ' · ' + escapeHtml(i.cidade) : ''}</div>
         </div>
+        ${i.fonte === 'captacao' ? `<span class="tiny" title="Veio do kanban de Captações (etapa: ${escapeHtml(i.etapa_captacao || '')})" style="background:#0891b2;color:#fff;padding:3px 10px;border-radius:var(--r-full);font-weight:700">📥 Captação</span>` : ''}
         <span class="tiny" style="background:${st.color};color:#fff;padding:3px 10px;border-radius:var(--r-full);font-weight:700">${st.lbl}</span>
       </div>
       <div class="flex gap-3" style="flex-wrap:wrap;font-size:12px">
@@ -99,6 +100,8 @@ function itemCard(i) {
 }
 
 function openModal(iid) {
+  // Imóveis vindos de Captações são read-only aqui — edite no kanban de Captações.
+  if (iid && String(iid).startsWith('cap_')) { location.hash = '#/captacoes'; return; }
   const i = iid ? _items.find(x => x.id === iid) : null;
   const modal = document.getElementById('modal-im');
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
