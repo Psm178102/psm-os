@@ -136,6 +136,19 @@ module.exports = async (req, res) => {
 
     console.log('[WA] Message from', senderPhone, ':', textMessage.slice(0, 100));
 
+    // 📣 Campanha de Ofertas: registra a resposta ("sim" = quente / "sair" = opt-out).
+    // Best-effort (fire-and-forget) — NUNCA bloqueia nem quebra o roteamento dos agentes.
+    try {
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      if (host) {
+        httpsReq('https://' + host + '/api/v3/wa/inbound', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: senderPhone, text: textMessage }),
+        }).catch(() => {});
+      }
+    } catch (_) { /* ignora */ }
+
     // Determine agent
     const agentId = detectAgent(instanceName);
     const conversationId = 'wa_' + agentId + '_' + senderPhone;
