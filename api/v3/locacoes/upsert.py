@@ -6,9 +6,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
 
-ALLOWED = ["endereco", "bairro", "cidade", "proprietario_nome", "proprietario_contato",
+ALLOWED = ["endereco", "bairro", "cidade", "codigo", "proprietario_nome", "proprietario_contato",
            "inquilino_nome", "inquilino_contato", "valor_aluguel", "valor_condominio",
-           "valor_iptu", "dia_vencimento", "data_inicio_contrato", "data_fim_contrato",
+           "valor_iptu", "taxa_adm_pct", "dia_vencimento", "data_inicio_contrato", "data_fim_contrato",
            "status", "responsavel_id", "observacoes"]
 
 

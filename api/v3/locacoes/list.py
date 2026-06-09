@@ -34,13 +34,28 @@ class handler(BaseHTTPRequestHandler):
         # Calcula KPIs
         from datetime import date, timedelta
         today = date.today()
-        in30 = today + timedelta(days=30)
+        tISO = today.isoformat()
+        in30 = (today + timedelta(days=30)).isoformat()
+        in60 = (today + timedelta(days=60)).isoformat()
+        in90 = (today + timedelta(days=90)).isoformat()
+        ocup = [r for r in rows if (r.get("status") or "") == "ocupado"]
+        def vence_em(lim):
+            return sum(1 for r in rows if r.get("data_fim_contrato") and tISO <= r["data_fim_contrato"] <= lim)
+        receita_aluguel = sum(float(r.get("valor_aluguel") or 0) for r in ocup)
+        receita_adm = sum(float(r.get("valor_aluguel") or 0) * float(r.get("taxa_adm_pct") or 0) / 100 for r in ocup)
+        total = len(rows)
         kpis = {
-            "total":        len(rows),
+            "total":        total,
             "disponiveis":  sum(1 for r in rows if (r.get("status") or "") == "disponivel"),
-            "ocupadas":     sum(1 for r in rows if (r.get("status") or "") == "ocupado"),
+            "ocupadas":     len(ocup),
             "em_atraso":    sum(1 for r in rows if (r.get("status") or "") == "em_atraso"),
-            "vence_30d":    sum(1 for r in rows if r.get("data_fim_contrato") and r["data_fim_contrato"] <= in30.isoformat() and r["data_fim_contrato"] >= today.isoformat()),
-            "receita_potencial": sum(float(r.get("valor_aluguel") or 0) for r in rows if (r.get("status") or "") == "ocupado"),
+            "ocupacao_pct": round(len(ocup) / total * 100, 1) if total else 0,
+            "vence_30d":    vence_em(in30),
+            "vence_60d":    vence_em(in60),
+            "vence_90d":    vence_em(in90),
+            "receita_potencial": receita_aluguel,
+            "receita_aluguel":   receita_aluguel,
+            "receita_adm":       round(receita_adm, 2),
+            "ticket_adm_medio":  round(receita_adm / len(ocup), 2) if ocup else 0,
         }
-        return self._send(200, {"ok": True, "count": len(rows), "locacoes": rows, "kpis": kpis})
+        return self._send(200, {"ok": True, "count": total, "locacoes": rows, "kpis": kpis})
