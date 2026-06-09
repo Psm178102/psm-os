@@ -366,7 +366,7 @@ function openForm() {
 
         <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#16a34a">📍 Endereço <span class="muted" style="font-weight:400">(monta o título do card)</span></b></div>
         ${inp('cf-end', 'Endereço (rua/av + nº)', c.endereco, 'Ex.: Rua Guatemala, 123')}
-        ${inp('cf-bairro', 'Bairro', c.bairro)}
+        ${inp('cf-bairro', 'Bairro ⭐', c.bairro, 'obrigatório a partir da captura (vira pino no Mapa)')}
         ${inp('cf-quadra', 'Quadra', c.quadra)}
         ${inp('cf-lote', 'Lote', c.lote)}
         ${inp('cf-bloco', 'Bloco', c.bloco)}
@@ -380,7 +380,7 @@ function openForm() {
         ${inp('cf-prop', 'Proprietário', c.proprietario)}
         ${inp('cf-ctt', 'Contato', c.contato)}
         ${inp('cf-email', 'Email', c.email)}
-        ${inp('cf-vv', 'Valor de venda (R$)', c.valor_venda, '', 'number')}
+        ${inp('cf-vv', 'Valor de venda (R$) ⭐', c.valor_venda, 'obrigatório p/ entrar no inventário', 'number')}
         ${inp('cf-kenlo', 'Código Kenlo', c.codigo_kenlo)}
 
         <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#3b82f6">📅 Agendamento</b></div>
@@ -391,7 +391,7 @@ function openForm() {
         </div>
 
         <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#a16207">🏠 Locação</b></div>
-        ${inp('cf-vl', 'Valor locação (R$)', c.valor_locacao, '', 'number')}
+        ${inp('cf-vl', 'Valor locação (R$) ⭐', c.valor_locacao, 'obrigatório p/ entrar no inventário', 'number')}
         ${inp('cf-vcond', 'Valor condomínio (R$)', c.valor_condominio, '', 'number')}
         ${inp('cf-viptu', 'Valor IPTU (R$)', c.valor_iptu, '', 'number')}
         <div class="flex gap-2" style="align-items:flex-end">
@@ -478,6 +478,23 @@ async function saveForm(overlay) {
   if (!payload.nome_imovel && !payload.condominio && !payload.proprietario) {
     g('cf-msg').innerHTML = '<div class="alert alert-err">Informe ao menos Nome do imóvel, Condomínio/Bairro ou Proprietário</div>';
     return;
+  }
+  // ⭐ A partir da etapa de CAPTURA, a captação vira imóvel do inventário (Imóveis + Mapa):
+  // exige Bairro (pino no mapa) + Valor (estoque). Etapas iniciais de prospecção ficam livres.
+  const CAPTURED = ['colher_dados', 'edicao_fotos', 'subir_kenlo', 'agendar_mlabs', 'concluido'];
+  if (CAPTURED.includes(payload.status)) {
+    const temValor = payload.objetivo === 'locacao'
+      ? (parseFloat(payload.valor_locacao) > 0)
+      : ((payload.valor_venda || 0) > 0);
+    const faltam = [];
+    if (!payload.bairro) faltam.push('Bairro');
+    if (!temValor) faltam.push(payload.objetivo === 'locacao' ? 'Valor de locação' : 'Valor de venda');
+    if (faltam.length) {
+      if (!payload.bairro) g('cf-bairro').style.borderColor = '#dc2626';
+      const vEl = g(payload.objetivo === 'locacao' ? 'cf-vl' : 'cf-vv'); if (vEl && !temValor) vEl.style.borderColor = '#dc2626';
+      g('cf-msg').innerHTML = `<div class="alert alert-warn">📍 Pra entrar no inventário de <b>Imóveis</b> + aparecer no <b>Mapa</b>, preencha: <b>${faltam.join(' e ')}</b>. (Obrigatório a partir da etapa de captura.)</div>`;
+      return;
+    }
   }
   g('cf-msg').innerHTML = '<div class="muted tiny"><span class="spinner"></span> Salvando…</div>';
   try {
