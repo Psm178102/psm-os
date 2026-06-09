@@ -237,7 +237,7 @@ function openImport() {
     if (!rows.length) { msg().innerHTML = '<div class="alert alert-err">Cole o CSV com cabeçalho na 1ª linha.</div>'; return; }
     msg().innerHTML = `<div class="muted tiny"><span class="spinner"></span> Importando ${rows.length}…</div>`;
     try {
-      const r = await api.request('/api/v3/locacoes/import', { method: 'POST', body: { rows } });
+      const r = await api.request('/api/v3/locacoes/import_csv', { method: 'POST', body: { rows } });
       msg().innerHTML = `<div class="alert" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3)">✅ ${r.inserted} contrato(s) importado(s)${r.ignorados ? ' · ' + r.ignorados + ' ignorado(s) (linha sem dados)' : ''}.</div>`;
       setTimeout(async () => { modal.style.display = 'none'; await reload(); }, 1400);
     } catch (e) { msg().innerHTML = `<div class="alert alert-err">${escapeHtml(e.message)}</div>`; }
