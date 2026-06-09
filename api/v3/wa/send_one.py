@@ -10,7 +10,8 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
-from _wa_lib import normalize_phone, render_template, evolution_send, is_opted_out  # type: ignore
+from _wa_lib import (normalize_phone, render_template, evolution_send, cloud_api_send,  # type: ignore
+                     is_opted_out, provider, first_name)
 
 
 class handler(BaseHTTPRequestHandler):
@@ -38,11 +39,20 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
 
+        prov = provider()
+        if prov == "none":
+            return self._send(200, {"ok": False, "sent": False, "paused": True,
+                                    "error": "Campanha PAUSADA — aguardando número dedicado + API key da 360dialog (D360_API_KEY/D360_TEMPLATE)."})
+
         if is_opted_out(sb, phone):
             return self._send(200, {"ok": True, "sent": False, "skipped": "opt-out"})
 
         texto = render_template(tpl, nome)
-        res = evolution_send(phone, texto, body.get("instance"))
+        if prov == "360dialog":
+            # OFICIAL: envia o TEMPLATE aprovado com {{1}}=primeiro nome, {{2}}=oferta
+            res = cloud_api_send(phone, None, [first_name(nome) or (nome or "tudo bem"), body.get("oferta") or ""])
+        else:
+            res = evolution_send(phone, texto, body.get("instance"))
         row = {
             "deal_id": body.get("deal_id"), "phone": phone, "nome": nome,
             "mensagem": texto, "oferta": body.get("oferta"),

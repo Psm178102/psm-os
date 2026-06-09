@@ -72,3 +72,67 @@ def render_template(tpl, nome):
     """Substitui {nome} e {primeiro_nome} na mensagem."""
     n = nome or "tudo bem"
     return (tpl or "").replace("{primeiro_nome}", first_name(n) or n).replace("{nome}", n)
+
+
+# ─── Provider de envio ───────────────────────────────────────────────────────
+# 360dialog (OFICIAL, Cloud API) é o preferido. Evolution (não-oficial) só dispara
+# se explicitamente ligado (WA_USE_EVOLUTION=1). Sem nenhum → 'none' = campanha PAUSADA.
+def provider():
+    if os.environ.get("D360_API_KEY", "").strip() and os.environ.get("D360_TEMPLATE", "").strip():
+        return "360dialog"
+    if (os.environ.get("EVOLUTION_API_URL", "").strip() and os.environ.get("EVOLUTION_API_KEY", "").strip()
+            and os.environ.get("EVOLUTION_INSTANCE", "").strip() and os.environ.get("WA_USE_EVOLUTION", "").strip() == "1"):
+        return "evolution"
+    return "none"
+
+
+def cloud_api_send(phone, template, params, lang="pt_BR"):
+    """Envia TEMPLATE aprovado via 360dialog (WhatsApp Cloud API oficial)."""
+    key = os.environ.get("D360_API_KEY", "").strip()
+    tpl = (template or os.environ.get("D360_TEMPLATE", "")).strip()
+    if not key or not tpl:
+        return {"ok": False, "error": "360dialog nao configurado (D360_API_KEY / D360_TEMPLATE)"}
+    base = os.environ.get("D360_BASE_URL", "https://waba-v2.360dialog.io").rstrip("/")
+    comps = [{"type": "body", "parameters": [{"type": "text", "text": str(p)} for p in (params or [])]}] if params else []
+    payload = {
+        "messaging_product": "whatsapp", "recipient_type": "individual", "to": phone,
+        "type": "template",
+        "template": {"name": tpl, "language": {"code": lang}, "components": comps},
+    }
+    req = urllib.request.Request(base + "/messages", data=json.dumps(payload).encode("utf-8"),
+                                 method="POST", headers={"Content-Type": "application/json", "D360-API-KEY": key})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return {"ok": True, "status": r.status, "resp": (r.read().decode("utf-8") or "")[:300]}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def record_reply(sb, phone, text):
+    """Casa a resposta com um envio recente (wa_sends) → marca is_sim / opt-out.
+    Usado pelo webhook do Evolento E pelo webhook da Cloud API. Idempotente/seguro."""
+    import re as _re
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+    phone = normalize_phone(phone)
+    if not phone:
+        return {"matched": False}
+    now = _dt.now(_tz.utc)
+    sim = is_sim(text)
+    optout = bool(_re.match(r"^(sair|parar|pare|remover|descadastr|n[aã]o quero|stop|cancelar)\b", (text or ""), _re.I))
+    matched = False
+    try:
+        since = (now - _td(days=21)).isoformat()
+        rows = sb.table("wa_sends").select("id").eq("phone", phone).gte("sent_at", since) \
+            .order("sent_at", desc=True).limit(1).execute().data or []
+        if rows:
+            matched = True
+            sb.table("wa_sends").update({"reply_text": (text or "")[:500], "is_sim": sim,
+                                         "status": "replied", "replied_at": now.isoformat()}).eq("id", rows[0]["id"]).execute()
+    except Exception:
+        pass
+    if optout:
+        try:
+            sb.table("wa_optout").upsert({"phone": phone, "motivo": (text or "")[:200]}, on_conflict="phone").execute()
+        except Exception:
+            pass
+    return {"matched": matched, "is_sim": sim, "optout": optout}

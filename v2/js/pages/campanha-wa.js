@@ -5,7 +5,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
-let _root = null, _aud = [], _imoveis = [], _status = null;
+let _root = null, _aud = [], _imoveis = [], _status = null, _cfg = {};
 let _sending = false, _stop = false;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const f$ = n => 'R$ ' + Math.round(+n || 0).toLocaleString('pt-BR');
@@ -17,15 +17,17 @@ export async function pageCampanhaWa(ctx, root) {
   _root = root;
   if ((auth.user()?.lvl || 0) < 7) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Sócio/Diretor (lvl 7+).</div>'; return; }
   render(true);
-  const [aud, imv, st] = await Promise.all([
+  const [aud, imv, st, cfg] = await Promise.all([
     api.request('/api/v3/wa/audience?dias=30').catch(e => ({ erro: e.message })),
     api.request('/api/v3/imoveis/list').catch(() => ({ imoveis: [] })),
     api.request('/api/v3/wa/list').catch(() => ({})),
+    api.request('/api/v3/wa/config').catch(() => ({})),
   ]);
   _aud = (aud && aud.audiencia) || [];
   _audErro = aud && aud.erro;
   _imoveis = (imv && imv.imoveis) || [];
   _status = st || {};
+  _cfg = cfg || {};
   render(false);
 }
 let _audErro = null;
@@ -49,6 +51,15 @@ function render(loading) {
       ${kpi('🔥 Responderam SIM', quentes.length, '#16a34a')}
     </div>
     ${_audErro ? `<div class="alert alert-warn">⚠️ ${esc(_audErro)} ${/wa_|relation|exist/i.test(_audErro) ? '— rode <b>supabase/sprint_wa_campanha.sql</b>.' : ''}</div>` : ''}
+    ${_cfg.pausada ? `
+    <div style="background:rgba(217,119,6,.10);border:1px solid rgba(217,119,6,.4);border-radius:12px;padding:14px;margin:8px 0">
+      <div style="font-weight:800;color:#d97706;font-size:15px">⏸ CAMPANHA PAUSADA — aguardando número dedicado + 360dialog</div>
+      <div class="tiny muted" style="margin:6px 0 10px">Tudo pronto. O disparo só liga quando você criar a conta oficial e setar <code>D360_API_KEY</code> + <code>D360_TEMPLATE</code> no Vercel. Nada é enviado até lá.</div>
+      <div class="tiny" style="font-weight:700;margin-bottom:4px">📋 Checklist (você faz, eu já deixei o código plugado):</div>
+      <div class="tiny muted" style="white-space:pre-line;line-height:1.7">${esc((_cfg.checklist || []).join('\n'))}</div>
+      <div class="tiny" style="font-weight:700;margin:10px 0 4px">📝 Template pra submeter na 360dialog (já com botão de resposta):</div>
+      <div style="background:#0b141a;color:#e9edef;border-radius:10px;padding:12px;white-space:pre-wrap;font-size:13px;max-width:460px">${esc(_cfg.template_texto || '')}</div>
+    </div>` : `<div class="alert" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);padding:8px 12px;border-radius:8px;font-size:12.5px">✅ Pronto pra disparar via <b>${esc(_cfg.oficial ? '360dialog (oficial)' : (_cfg.provider || '—'))}</b>.</div>`}
 
     <div class="st-sec" style="font-size:11px;text-transform:uppercase;font-weight:800;color:#94a3b8;margin:16px 0 8px">1️⃣ A oferta (vai igual pra todos)</div>
     <div style="background:var(--bg-3);border-radius:12px;padding:13px">
@@ -68,7 +79,7 @@ function render(loading) {
         <div><label class="tiny muted" style="font-weight:600;display:block">Intervalo entre msgs (seg)</label><input id="cw-int" type="number" class="input" value="8" style="width:110px"></div>
         <div><label class="tiny muted" style="font-weight:600;display:block">Teto por dia</label><input id="cw-cap" type="number" class="input" value="30" style="width:110px"></div>
         <div style="flex:1"></div>
-        <button class="btn btn-primary" id="cw-disparar" style="font-size:14px;padding:10px 18px">▶ Revisar e Disparar (${_aud.length})</button>
+        <button class="btn ${_cfg.pausada ? 'btn-ghost' : 'btn-primary'}" id="cw-disparar" ${_cfg.pausada ? 'disabled title="Aguardando configuração da 360dialog"' : ''} style="font-size:14px;padding:10px 18px">${_cfg.pausada ? '⏸ Pausada (aguardando 360dialog)' : '▶ Revisar e Disparar (' + _aud.length + ')'}</button>
       </div>
       <div id="cw-prog" class="tiny" style="margin-top:10px"></div>
       <div class="tiny muted" style="margin-top:6px">⚠️ WhatsApp não-oficial: o envio é lento de propósito (1 por vez) pra não banir o número. Quem responder "sair/parar" entra no opt-out automático.</div>
@@ -132,6 +143,7 @@ function wire() {
 }
 
 async function disparar() {
+  if (_cfg.pausada) { return; }
   if (_sending) { _stop = true; return; }
   const prog = document.getElementById('cw-prog');
   const int = Math.max(3, parseInt(document.getElementById('cw-int').value) || 8);
