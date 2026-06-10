@@ -228,6 +228,16 @@ function applyPermissions(user) {
         if (r && r.fresh === false) console.log('[autosync] RD atualizado:', r.upserted, 'deals (estava', r.was_stale_h, 'h velho)');
       }).catch(() => {});
     }
+    // Heartbeat: executa 1 job de cron vencido por boot (captar/históricoMeta/briefing) —
+    // rede de segurança pros crons do Vercel que o plano não roda (debounce 20min).
+    const HB_KEY = 'psm.v2.heartbeat_at';
+    const hbLast = parseInt(localStorage.getItem(HB_KEY) || '0');
+    if (Date.now() - hbLast > 20 * 60 * 1000) {
+      localStorage.setItem(HB_KEY, String(Date.now()));
+      api.request('/api/v3/system/heartbeat').then(r => {
+        if (r && r.ran) console.log('[heartbeat] job executado:', r.ran, r.ok ? 'ok' : r.error);
+      }).catch(() => {});
+    }
   } catch {}
 
   // 3.3) Briefing matinal do diretor: depois das 7h, o 1º diretor que abrir o

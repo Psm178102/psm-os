@@ -1,10 +1,7 @@
 {
   "crons": [
-    { "path": "/api/v3/crm/sync_cron", "schedule": "0 6,12,18 * * *" },
-    { "path": "/api/v3/crm/captar_cron", "schedule": "*/2 * * * *" },
-    { "path": "/api/v3/marketing/meta_cache_cron", "schedule": "*/10 * * * *" },
-    { "path": "/api/v3/marketing/meta_monthly_cron", "schedule": "0 5 * * *" },
-    { "path": "/api/v3/intel/war_briefing_cron", "schedule": "0 10 * * 1" }
+    { "path": "/api/v3/crm/sync_cron", "schedule": "0 6 * * *" },
+    { "path": "/api/v3/marketing/meta_monthly_cron", "schedule": "0 5 * * *" }
   ],
   "rewrites": [
     { "source": "/api/agent", "destination": "/api/agent" },
