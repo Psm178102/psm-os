@@ -118,6 +118,18 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             pass
 
+        # 2d) Heartbeat (v77.32): tabela cron_state existe? jobs rodando?
+        try:
+            rows = sb.table("cron_state").select("key,ran_at").execute().data or []
+            checks["heartbeat_jobs"] = {r.get("key"): r.get("ran_at") for r in rows}
+            cap = next((r for r in rows if r.get("key") == "captar"), None)
+            if cap and cap.get("ran_at"):
+                age = _age_h(cap["ran_at"])
+                if age is not None and age > 12:
+                    add("sistema", "warn", f"Heartbeat sem rodar 'captar' há {age:.0f}h — o sistema está sendo usado?")
+        except Exception:
+            add("sistema", "warn", "Tabela cron_state ausente — heartbeat inativo. Rode supabase/sprint_cron_state.sql (1 linha).")
+
         # 3) Cache Meta (cron a cada 10min → > 40min é desatualização)
         try:
             rows = (sb.table("meta_ads_cache").select("refreshed_at")

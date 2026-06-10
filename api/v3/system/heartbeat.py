@@ -18,7 +18,7 @@ import json, os, sys, urllib.request
 from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, notify  # type: ignore
 
 JOBS = [
     # (key, path, intervalo_horas)  — ordem = prioridade
@@ -31,6 +31,50 @@ JOBS = [
 def _monday_utc(now):
     m = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
     return m
+
+
+def _sla_alarm(sb, now):
+    """⚡ SPEED-TO-LEAD (v77.32): lead criado há +5min SEM nenhuma atividade →
+    notificação in-app pro corretor dono na hora (vira WhatsApp quando o provider
+    oficial ativar). Roda em TODA chamada do heartbeat — barato (1-2 queries),
+    dedup pela própria tabela notifications (tipo=sla_lead). Best-effort."""
+    try:
+        desde = (now - timedelta(hours=24)).isoformat()
+        ate = (now - timedelta(minutes=5)).isoformat()
+        rows = (sb.table("deals").select("id,name,user_id,created_at_rd,updated_at_rd,stage_name")
+                .is_("win", "null").gte("created_at_rd", desde).lte("created_at_rd", ate)
+                .order("created_at_rd", desc=True).limit(100).execute().data or [])
+        # "sem atividade" = nada mexeu desde a criação
+        frios = [d for d in rows if d.get("user_id")
+                 and (d.get("updated_at_rd") or "")[:19] == (d.get("created_at_rd") or "")[:19]]
+        if not frios:
+            return {"checked": len(rows), "alarmados": 0}
+        ids = [d["id"] for d in frios]
+        ja = set()
+        try:
+            for n in (sb.table("notifications").select("target_id").eq("tipo", "sla_lead")
+                      .in_("target_id", ids).execute().data or []):
+                ja.add(n.get("target_id"))
+        except Exception:
+            pass
+        alarmados = 0
+        for d in frios[:20]:
+            if d["id"] in ja:
+                continue
+            mins = ""
+            try:
+                cr = datetime.fromisoformat(str(d["created_at_rd"]).replace("Z", "+00:00"))
+                mins = f"{int((now - cr).total_seconds() / 60)}min"
+            except Exception:
+                pass
+            notify(d["user_id"], "sla_lead",
+                   f"⚡ Lead esperando há {mins or '+5min'}: {(d.get('name') or 'novo lead')[:60]}",
+                   "Lead novo sem nenhum contato. Velocidade fecha negócio — chama AGORA.",
+                   link="#/painel", target_type="deal", target_id=d["id"])
+            alarmados += 1
+        return {"checked": len(rows), "alarmados": alarmados}
+    except Exception as e:
+        return {"error": str(e)[:120]}
 
 
 class handler(BaseHTTPRequestHandler):
@@ -47,15 +91,19 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
+        now = datetime.now(timezone.utc)
+
+        # ⚡ speed-to-lead roda SEMPRE (não depende de cron_state nem de CRON_SECRET)
+        sla = _sla_alarm(sb, now)
+
         secret = os.environ.get("CRON_SECRET", "").strip()
         if not secret:
-            return self._send(200, {"ok": False, "error": "CRON_SECRET ausente — heartbeat inativo"})
+            return self._send(200, {"ok": False, "sla": sla, "error": "CRON_SECRET ausente — heartbeat inativo"})
 
-        now = datetime.now(timezone.utc)
         try:
             rows = sb.table("cron_state").select("key,ran_at").execute().data or []
         except Exception as e:
-            return self._send(200, {"ok": False, "error": f"cron_state: {e} — rode supabase/sprint_cron_state.sql"})
+            return self._send(200, {"ok": False, "sla": sla, "error": f"cron_state: {e} — rode supabase/sprint_cron_state.sql"})
         ran = {}
         for r in rows:
             try:
@@ -76,7 +124,7 @@ class handler(BaseHTTPRequestHandler):
                     alvo = (key, path)
                     break
         if not alvo:
-            return self._send(200, {"ok": True, "idle": True, "jobs": {k: ran.get(k) for k, _, _ in JOBS}})
+            return self._send(200, {"ok": True, "idle": True, "sla": sla, "jobs": {k: ran.get(k) for k, _, _ in JOBS}})
 
         key, path = alvo
         prev = ran.get(key)
@@ -94,7 +142,7 @@ class handler(BaseHTTPRequestHandler):
                                                        "User-Agent": "PSM-OS-heartbeat"})
             with urllib.request.urlopen(req, timeout=40) as r:
                 body = (r.read().decode("utf-8") or "")[:300]
-                return self._send(200, {"ok": True, "ran": key, "status": r.status, "resp": body})
+                return self._send(200, {"ok": True, "ran": key, "status": r.status, "resp": body, "sla": sla})
         except Exception as e:
             # falhou → devolve o ran_at antigo pro próximo heartbeat tentar de novo
             try:

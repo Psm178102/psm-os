@@ -11,14 +11,32 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const f$ = n => 'R$ ' + Math.round(+n || 0).toLocaleString('pt-BR');
 const fone = p => { const s = String(p || ''); return s.length >= 12 ? `(${s.slice(2, 4)}) ${s.slice(4, 9)}-${s.slice(9)}` : s; };
 
-const TPL_PADRAO = 'Oi {primeiro_nome}! Aqui é da PSM Imóveis 🏠\nApareceu uma oportunidade que combina com o que você procurava:\n\n{OFERTA}\n\nQuer que eu te mande os detalhes e fotos? Responde *SIM* que eu já te envio 👍';
+/* v77.32 — 3 máquinas de growth no mesmo motor: reativação, win-back e indicação. */
+const SEGMENTOS = {
+  parados: {
+    lbl: '🛌 Parados +30d (reativação)', dias: 30, cor: '#2563eb',
+    sub: 'Chama leads <b>parados +30 dias</b> do RD com uma oferta.',
+    tpl: 'Oi {primeiro_nome}! Aqui é da PSM Imóveis 🏠\nApareceu uma oportunidade que combina com o que você procurava:\n\n{OFERTA}\n\nQuer que eu te mande os detalhes e fotos? Responde *SIM* que eu já te envio 👍',
+  },
+  perdidos: {
+    lbl: '💔 Perdidos (win-back)', dias: 90, cor: '#dc2626',
+    sub: 'Reaborda quem <b>não fechou nos últimos 90 dias</b> — condições mudam, juros mudam, estoque muda.',
+    tpl: 'Oi {primeiro_nome}! Aqui é da PSM Imóveis 🏠\nSei que da última vez não rolou de seguir com a sua busca — mas as condições mudaram por aqui:\n\n{OFERTA}\n\nQuer dar mais uma olhada, sem compromisso? Responde *SIM* que te mando os detalhes 👍',
+  },
+  ganhos: {
+    lbl: '🏆 Compradores (indicação + NPS)', dias: 180, cor: '#16a34a',
+    sub: 'Quem <b>comprou nos últimos 180 dias</b> — pede indicação (o lead mais barato que existe) + mede satisfação.',
+    tpl: 'Oi {primeiro_nome}! Aqui é da PSM Imóveis 🏠\nPassando pra saber: como está sendo a experiência com o seu imóvel? 😊\n\nE um pedido: se você conhece alguém procurando imóvel, responde *SIM* que a gente cuida dessa pessoa com o mesmo carinho que cuidamos de você 🤝',
+  },
+};
+let _segment = 'parados';
 
 export async function pageCampanhaWa(ctx, root) {
   _root = root;
   if ((auth.user()?.lvl || 0) < 7) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Sócio/Diretor (lvl 7+).</div>'; return; }
   render(true);
   const [aud, imv, st, cfg] = await Promise.all([
-    api.request('/api/v3/wa/audience?dias=30').catch(e => ({ erro: e.message })),
+    api.request('/api/v3/wa/audience?segment=' + _segment + '&dias=' + SEGMENTOS[_segment].dias).catch(e => ({ erro: e.message })),
     api.request('/api/v3/imoveis/list').catch(() => ({ imoveis: [] })),
     api.request('/api/v3/wa/list').catch(() => ({})),
     api.request('/api/v3/wa/config').catch(() => ({})),
@@ -32,6 +50,15 @@ export async function pageCampanhaWa(ctx, root) {
 }
 let _audErro = null;
 
+async function trocarSegmento(seg) {
+  if (!SEGMENTOS[seg]) return;
+  _segment = seg;
+  const aud = await api.request('/api/v3/wa/audience?segment=' + seg + '&dias=' + SEGMENTOS[seg].dias).catch(e => ({ erro: e.message }));
+  _aud = (aud && aud.audiencia) || [];
+  _audErro = aud && aud.erro;
+  render(false);
+}
+
 function render(loading) {
   if (!_root) return;
   if (loading) { _root.innerHTML = `<div class="card"><h2 class="card-title">📣 Campanha de Ofertas (WhatsApp)</h2><div class="muted tiny"><span class="spinner"></span> Carregando audiência (leads parados) + ofertas…</div></div>`; return; }
@@ -40,13 +67,18 @@ function render(loading) {
   const imovelOpts = ['<option value="">— escolher imóvel/oferta —</option>']
     .concat(_imoveis.slice(0, 200).map((i, idx) => `<option value="${idx}">${esc((i.codigo || i.titulo || 'imóvel') + (i.bairro ? ' · ' + i.bairro : '') + (i.valor ? ' · ' + f$(i.valor) : ''))}</option>`)).join('');
 
+  const SEG = SEGMENTOS[_segment];
   _root.innerHTML = `
   <div class="card">
-    <h2 class="card-title">📣 Campanha de Ofertas — WhatsApp</h2>
-    <p class="card-sub">Chama leads <b>parados +30 dias</b> do RD com uma oferta. Quem responder <b>SIM</b> vira 🔥 quente pra você atender. Você revisa e dispara — envio com throttle, respeita opt-out.</p>
+    <h2 class="card-title">📣 Campanhas WhatsApp — Máquinas de Growth</h2>
+    <p class="card-sub">${SEG.sub} Quem responder <b>SIM</b> vira 🔥 quente pra você atender. Você revisa e dispara — envio com throttle, respeita opt-out.</p>
+
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px">
+      ${Object.entries(SEGMENTOS).map(([id, s]) => `<button class="btn ${id === _segment ? 'btn-primary' : 'btn-ghost'}" data-seg="${id}" style="font-size:12.5px;padding:7px 14px">${s.lbl}</button>`).join('')}
+    </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0">
-      ${kpi('🎯 Audiência (c/ telefone)', _aud.length, '#2563eb')}
+      ${kpi('🎯 Audiência (c/ telefone)', _aud.length, SEG.cor)}
       ${kpi('📤 Enviados hoje', enviadosHoje, '#d97706')}
       ${kpi('🔥 Responderam SIM', quentes.length, '#16a34a')}
     </div>
@@ -68,7 +100,7 @@ function render(loading) {
         <select id="cw-imovel" class="select" style="max-width:340px;font-size:12px">${imovelOpts}</select>
         <span class="tiny muted">(ou escreva livre abaixo)</span>
       </div>
-      <textarea id="cw-msg" class="input" rows="7" style="width:100%;font-family:inherit;font-size:13px;line-height:1.5">${esc(TPL_PADRAO)}</textarea>
+      <textarea id="cw-msg" class="input" rows="7" style="width:100%;font-family:inherit;font-size:13px;line-height:1.5">${esc(SEG.tpl)}</textarea>
       <div class="tiny muted" style="margin-top:6px">Use <code>{primeiro_nome}</code> (personaliza por cliente) e <code>{OFERTA}</code> (preenchido pelo imóvel). <b>Prévia:</b></div>
       <div id="cw-preview" style="background:#0b141a;color:#e9edef;border-radius:10px;padding:12px;margin-top:6px;white-space:pre-wrap;font-size:13px;max-width:420px"></div>
     </div>
@@ -134,6 +166,7 @@ function updatePreview() {
 }
 
 function wire() {
+  document.querySelectorAll('[data-seg]').forEach(b => b.addEventListener('click', () => trocarSegmento(b.dataset.seg)));
   const sel = document.getElementById('cw-imovel');
   if (sel) sel.addEventListener('change', () => { updatePreview(); });
   const msg = document.getElementById('cw-msg');
@@ -167,7 +200,7 @@ async function disparar() {
     prog.innerHTML = `📤 Enviando ${k + 1}/${alvos.length} — ${esc(c.nome || c.phone)}… <span class="muted">(✅ ${ok} · ⏭ ${skip} · ⚠️ ${fail})</span>`;
     try {
       const r = await api.request('/api/v3/wa/send_one', { method: 'POST', body: {
-        phone: c.phone, nome: c.nome, deal_id: c.deal_id, oferta, mensagem: msgBase, campaign: 'ofertas_parados',
+        phone: c.phone, nome: c.nome, deal_id: c.deal_id, oferta, mensagem: msgBase, campaign: 'gw_' + _segment,
       } });
       if (r && r.sent) ok++; else if (r && r.skipped) skip++; else fail++;
     } catch { fail++; }
