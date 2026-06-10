@@ -16,10 +16,8 @@ import { pageTarefas } from './pages/tarefas.js';
 import { pageMetas } from './pages/metas.js';
 import { pageAgenda } from './pages/agenda.js';
 import { pageDiretoria } from './pages/diretoria.js';
-import { pageCockpit } from './pages/cockpit.js';
+import { pageCockpitHub } from './pages/cockpit-hub.js';
 import { pageEstrategia } from './pages/estrategia.js';
-import { pagePontosAtencao } from './pages/pontos-atencao.js';
-import { pageInsights } from './pages/insights.js';
 import { pageAcademy } from './pages/academy.js';
 import { initNotifs } from './notifs.js';
 import { sounds } from './sounds.js';
@@ -76,10 +74,8 @@ import { pageSimCriativos } from './pages/sim-criativos.js';
 import { pageWarRoom } from './pages/war-room.js';
 import { pageWarArena } from './pages/war-arena.js';
 import { pageOKRs } from './pages/okrs.js';
-import { pageKpis } from './pages/kpis.js';
 import { pageMetricasViab } from './pages/metricas-viab.js';
 import { pageSimTrafego } from './pages/sim-trafego.js';
-import { pageMapaCiclos } from './pages/mapa-ciclos.js';
 import { pageCampanhaWa } from './pages/campanha-wa.js';
 import { pageOportunidades } from './pages/oportunidades.js';
 import { pageCadencia } from './pages/cadencia.js';
@@ -260,11 +256,12 @@ function applyPermissions(user) {
   router.register('/tarefas',   { render: async (ctx, root) => { setHeader('Tarefas');   highlight('/tarefas');   await pageTarefas(ctx, root); } });
   router.register('/metas',     { render: async (ctx, root) => { setHeader('Metas');     highlight('/metas');     await pageMetas(ctx, root); } });
   router.register('/agenda',    { render: async (ctx, root) => { setHeader('Agenda');    highlight('/agenda');    await pageAgenda(ctx, root); } });
-  router.register('/cockpit', { render: async (ctx, root) => { setHeader('Cockpit de Decisão'); highlight('/cockpit'); await pageCockpit(ctx, root); } });
+  router.register('/cockpit', { render: async (ctx, root) => { setHeader('Cockpit de Decisão'); highlight('/cockpit'); await pageCockpitHub(ctx, root); } });
   router.register('/diretoria', { render: async (ctx, root) => { setHeader('Dashboard Diretoria'); highlight('/diretoria'); await pageDiretoria(ctx, root); } });
   router.register('/estrategia', { render: async (ctx, root) => { setHeader('Estratégia'); highlight('/estrategia'); await pageEstrategia(ctx, root); } });
-  router.register('/pontos-atencao', { render: async (ctx, root) => { setHeader('Pontos de Atenção'); highlight('/pontos-atencao'); await pagePontosAtencao(ctx, root); } });
-  router.register('/insights', { render: async (ctx, root) => { setHeader('Insights'); highlight('/insights'); await pageInsights(ctx, root); } });
+  // v77.30: absorvidas pelo Cockpit Hub — redirects preservam links/hábito antigos
+  router.register('/pontos-atencao', { render: async () => { location.hash = '#/cockpit?tab=atencao'; } });
+  router.register('/insights', { render: async () => { location.hash = '#/cockpit?tab=insights'; } });
   router.register('/academy', { render: async (ctx, root) => { setHeader('PSM Academy'); highlight('/academy'); await pageAcademy(ctx, root); } });
   router.register('/marketing', { render: async (ctx, root) => { setHeader('Marketing'); highlight('/marketing'); await pageMarketing(ctx, root); } });
   router.register('/inteligencia', { render: async (ctx, root) => { setHeader('Centro de Inteligência'); highlight('/inteligencia'); await pageIntelCentro(ctx, root); } });
@@ -317,10 +314,10 @@ function applyPermissions(user) {
   router.register('/war-room',    { render: async (ctx, root) => { setHeader('War Room');            highlight('/war-room');   await pageWarRoom(ctx, root); } });
   router.register('/war-arena',   { render: async (ctx, root) => { setHeader('War Arena');           highlight('/war-arena');  await pageWarArena(ctx, root); } });
   router.register('/okrs',        { render: async (ctx, root) => { setHeader('OKRs');                highlight('/okrs');       await pageOKRs(ctx, root); } });
-  router.register('/kpis',        { render: async (ctx, root) => { setHeader('KPIs Executivos');     highlight('/kpis');       await pageKpis(ctx, root); } });
+  router.register('/kpis',        { render: async () => { location.hash = '#/cockpit?tab=kpis'; } });
   router.register('/metricas-viab', { render: async (ctx, root) => { setHeader('Métricas Viabilidade'); highlight('/metricas-viab'); await pageMetricasViab(ctx, root); } });
   router.register('/sim-trafego', { render: async (ctx, root) => { setHeader('Simulador de Tráfego'); highlight('/sim-trafego'); await pageSimTrafego(ctx, root); } });
-  router.register('/mapa-ciclos', { render: async (ctx, root) => { setHeader('Mapa dos Ciclos'); highlight('/mapa-ciclos'); await pageMapaCiclos(ctx, root); } });
+  router.register('/mapa-ciclos', { render: async () => { location.hash = '#/governanca?tab=mapa'; } });
   router.register('/oportunidades', { render: async (ctx, root) => { setHeader('Oportunidades');     highlight('/oportunidades'); await pageOportunidades(ctx, root); } });
   router.register('/cadencia',    { render: async (ctx, root) => { setHeader('Cadência');            highlight('/cadencia');    await pageCadencia(ctx, root); } });
   router.register('/fichas',      { render: async (ctx, root) => { setHeader('Fichas/Propostas');    highlight('/fichas');      await pageFichasPropostas(ctx, root); } });
@@ -402,16 +399,15 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/campanha-wa"><span class="sb-ico">📣</span> Campanha WhatsApp</button>
 
         <div class="sb-sec">🏛 Diretoria</div>
+        <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Decisão</div>
         <button class="sb-link" data-nav="/cockpit"><span class="sb-ico">🧭</span> Cockpit de Decisão</button>
         <button class="sb-link" data-nav="/diretoria"><span class="sb-ico">📊</span> Dashboard</button>
+        <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Planejamento</div>
         <button class="sb-link" data-nav="/estrategia"><span class="sb-ico">♟️</span> Estratégia</button>
-        <button class="sb-link" data-nav="/pontos-atencao"><span class="sb-ico">🚨</span> Pontos de Atenção</button>
-        <button class="sb-link" data-nav="/insights"><span class="sb-ico">💡</span> Insights</button>
-        <button class="sb-link" data-nav="/kpis"><span class="sb-ico">📈</span> KPIs Executivos</button>
         <button class="sb-link" data-nav="/metricas-viab"><span class="sb-ico">🧪</span> Métricas Viab</button>
         <button class="sb-link" data-nav="/sim-trafego"><span class="sb-ico">📣</span> Simulador de Tráfego</button>
-        <button class="sb-link" data-nav="/mapa-ciclos"><span class="sb-ico">🗺️</span> Mapa dos Ciclos</button>
         <button class="sb-link" data-nav="/bp"><span class="sb-ico">📋</span> Plano BP</button>
+        <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Governança</div>
         <button class="sb-link" data-nav="/governanca"><span class="sb-ico">⚖️</span> Governança</button>
 
         <div class="sb-sec">🔑 Locação</div>

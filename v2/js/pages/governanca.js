@@ -1,13 +1,38 @@
-/* PSM-OS v2 — Governança (Sprint 7.23) */
+/* PSM-OS v2 — Governança (Sprint 7.23 · v77.30: abas Status + Mapa dos Ciclos) */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { pageMapaCiclos } from './mapa-ciclos.js';
 
 let _root = null;
 
 export async function pageGovernanca(ctx, root) {
-  _root = root;
   if ((auth.user()?.lvl || 0) < 7) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Sócio/Gerente.</div>'; return; }
-  await reload();
+  const inicial = (ctx?.query?.tab === 'mapa') ? 'mapa' : 'status';
+  root.innerHTML = `
+    <div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="btn ${inicial === 'status' ? 'btn-primary' : 'btn-ghost'}" data-gvtab="status" style="font-size:12.5px;padding:7px 14px">⚖️ Status & Auditoria</button>
+        <button class="btn ${inicial === 'mapa' ? 'btn-primary' : 'btn-ghost'}" data-gvtab="mapa" style="font-size:12.5px;padding:7px 14px">🗺️ Mapa dos Ciclos</button>
+      </div>
+      <div id="gv-status" style="display:none"></div>
+      <div id="gv-mapa" style="display:none"></div>
+    </div>`;
+  const subs = { status: root.querySelector('#gv-status'), mapa: root.querySelector('#gv-mapa') };
+  const done = {};
+  async function show(id) {
+    root.querySelectorAll('[data-gvtab]').forEach(b => {
+      const on = b.dataset.gvtab === id;
+      b.classList.toggle('btn-primary', on); b.classList.toggle('btn-ghost', !on);
+    });
+    subs.status.style.display = id === 'status' ? '' : 'none';
+    subs.mapa.style.display = id === 'mapa' ? '' : 'none';
+    if (done[id]) return;
+    done[id] = true;
+    if (id === 'status') { _root = subs.status; await reload(); }
+    else { try { await pageMapaCiclos(ctx, subs.mapa); } catch (e) { subs.mapa.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message || e)}</div>`; } }
+  }
+  root.querySelectorAll('[data-gvtab]').forEach(b => b.addEventListener('click', () => show(b.dataset.gvtab)));
+  await show(inicial);
 }
 
 async function reload() {
