@@ -220,6 +220,20 @@ function applyPermissions(user) {
   applyPermissions(user);
   router.setGuard((path) => canSee(path, user));
 
+  // 3.2) Auto-cura do sync RD: o cron do Vercel é não-confiável (limite do plano),
+  // então o próprio uso mantém o dado fresco — se o último sync tiver +6h, dispara
+  // um refresh em background (debounce 30min por navegador; idempotente no server).
+  try {
+    const AUTOSYNC_KEY = 'psm.v2.autosync_at';
+    const lastTry = parseInt(localStorage.getItem(AUTOSYNC_KEY) || '0');
+    if (Date.now() - lastTry > 30 * 60 * 1000) {
+      localStorage.setItem(AUTOSYNC_KEY, String(Date.now()));
+      api.request('/api/v3/crm/sync_if_stale').then(r => {
+        if (r && r.fresh === false) console.log('[autosync] RD atualizado:', r.upserted, 'deals (estava', r.was_stale_h, 'h velho)');
+      }).catch(() => {});
+    }
+  } catch {}
+
   // 4) Registra rotas (Sprint 7.3: dashboard + painel modulares)
   router.register('/',          { render: async (ctx, root) => { setHeader('Dashboard'); highlight('/');          await pageDashboardV2(ctx, root); } });
   router.register('/painel',    { render: async (ctx, root) => { setHeader('Meu Painel'); highlight('/painel');   await pagePainel(ctx, root); } });
