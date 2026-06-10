@@ -18,8 +18,44 @@ export async function pagePainel(ctx, root) {
     // E pega audit pessoal
     const audit = await api.request('/api/v3/audit/list?target_id=' + encodeURIComponent(me.id) + '&limit=20').catch(() => ({ entries: [] }));
     render(me, data, audit);
+    loadFila(); // assíncrono — não trava o painel
   } catch (e) {
     _root.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+/* ── 📞 Fila do Dia: o Cérebro de Vendas vira tarefa ── */
+async function loadFila() {
+  const el = () => document.getElementById('fila-dia');
+  try {
+    const r = await api.request('/api/v3/intel/fila_dia?n=10');
+    if (!el()) return; // usuário navegou pra fora
+    const fila = r.fila || [];
+    if (!fila.length) {
+      el().innerHTML = `<div class="muted tiny">Nenhum negócio aberto na sua carteira${r.aviso ? ' — ' + escapeHtml(r.aviso) : ''}. Novos leads aparecem aqui pontuados pelo Cérebro de Vendas.</div>`;
+      return;
+    }
+    const TEMP = { quente: ['#dc2626', '🔥'], morno: ['#d97706', '🌤'], frio: ['#64748b', '❄️'] };
+    el().innerHTML = `
+      <div class="tiny muted" style="margin-bottom:8px">Os <b>${fila.length}</b> negócios mais quentes da sua carteira (${r.total_abertos} abertos), pontuados pelo Cérebro de Vendas. Comece do topo. 💪</div>
+      <div style="display:grid;gap:6px">
+        ${fila.map((s, i) => {
+          const [c, ico] = TEMP[s.temp] || TEMP.frio;
+          return `
+          <div style="display:flex;align-items:center;gap:10px;background:var(--bg-3);border-left:4px solid ${c};border-radius:var(--r-md);padding:9px 12px">
+            <div style="font-weight:900;color:${c};min-width:54px;text-align:center">${ico} ${s.score}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i + 1}. ${escapeHtml(s.title)}</div>
+              <div class="tiny muted">${escapeHtml(s.stage_name || s.ms_label || '')}${s.amount ? ' · R$ ' + fmtKM(s.amount) : ''}${s.dias_parado != null ? ' · parado ' + s.dias_parado + 'd' : ''}</div>
+              <div class="tiny" style="color:${c};font-weight:600">👉 ${escapeHtml(s.acao || 'Fazer contato')}</div>
+            </div>
+            ${s.phone ? `<a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="https://wa.me/${escapeHtml(s.phone)}" style="white-space:nowrap">💬 Chamar</a>` : '<span class="tiny muted" title="Sem telefone no RD">s/ fone</span>'}
+            <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://crm.rdstation.com/deals/${encodeURIComponent(s.id)}" title="Abrir no RD">🔗</a>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } catch (e) {
+    if (el()) el().innerHTML = `<div class="tiny muted">Fila indisponível agora (${escapeHtml(e.message)}).</div>`;
   }
 }
 
@@ -37,6 +73,10 @@ function render(me, d, audit) {
           ${me.last_login_at ? `<div class="tiny" style="color:var(--info);margin-top:4px">Último login: ${new Date(me.last_login_at).toLocaleString('pt-BR')}</div>` : ''}
         </div>
       </div>
+
+      <!-- FILA DE AÇÃO DO DIA (Cérebro de Vendas → tarefa) -->
+      <h3 class="card-title mt-4">📞 Sua Fila do Dia</h3>
+      <div id="fila-dia"><div class="muted tiny"><span class="spinner"></span> O Cérebro de Vendas está montando suas ligações de hoje…</div></div>
 
       <!-- SEU DESEMPENHO (RD ao vivo + Metas) -->
       <h3 class="card-title mt-4">💰 Seu Desempenho do Mês</h3>

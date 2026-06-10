@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
@@ -86,11 +86,37 @@ class handler(BaseHTTPRequestHandler):
                 age = _age_h(rows[0].get("updated_at_rd"))
                 checks["rd_sync_age_h"] = round(age, 1) if age is not None else None
                 if age is not None and age > 24:
-                    add("crm", "error", f"Sincronização RD parada há {age:.0f}h (cron deveria rodar 3×/dia).")
-                elif age is not None and age > 18:
-                    add("crm", "warn", f"Sincronização RD atrasada (~{age:.0f}h).")
+                    add("crm", "error", f"Sincronização RD parada há {age:.0f}h — auto-sync não rodou (se persistir após recarregar, o RD_API_TOKEN pode ter expirado).")
+                elif age is not None and age > 12:
+                    add("crm", "warn", f"Dados do RD com ~{age:.0f}h — o auto-sync corrige no próximo uso do sistema.")
         except Exception as e:
             add("crm", "warn", f"Tabela deals inacessível: {e}")
+
+        # 2b) Venda sem valor no mês (suja VGV/ticket/atingimento — corrigir no RD)
+        try:
+            brt_now = datetime.now(timezone.utc) - timedelta(hours=3)
+            m0 = (datetime(brt_now.year, brt_now.month, 1, tzinfo=timezone.utc)
+                  + timedelta(hours=3)).isoformat()
+            res = (sb.table("deals").select("id", count="exact").eq("win", True)
+                   .gte("closed_at", m0).eq("amount", 0).execute())
+            n0 = res.count or 0
+            checks["vendas_sem_vgv_mes"] = n0
+            if n0:
+                add("dados", "warn", f"{n0} venda(s) do mês com VGV R$ 0 no RD — preencher o valor pra não sujar ticket/atingimento.")
+        except Exception:
+            pass
+
+        # 2c) Histórico mensal do Meta parado (cron diário não-confiável no plano)
+        try:
+            rows = (sb.table("meta_ads_monthly").select("updated_at")
+                    .order("updated_at", desc=True).limit(1).execute().data or [])
+            if rows and rows[0].get("updated_at"):
+                age = _age_h(rows[0]["updated_at"])
+                checks["meta_monthly_age_h"] = round(age, 1) if age is not None else None
+                if age is not None and age > 50:
+                    add("meta", "warn", f"Histórico mensal do Meta sem atualizar há {age/24:.1f} dia(s) — botão 'Atualizar agora' na tela Histórico Meta resolve.")
+        except Exception:
+            pass
 
         # 3) Cache Meta (cron a cada 10min → > 40min é desatualização)
         try:

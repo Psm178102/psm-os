@@ -234,6 +234,23 @@ function applyPermissions(user) {
     }
   } catch {}
 
+  // 3.3) Briefing matinal do diretor: depois das 7h, o 1º diretor que abrir o
+  // sistema dispara o resumo do dia anterior no WhatsApp (dedup no server,
+  // 1×/dia). Mesma filosofia do auto-sync: o uso substitui o cron.
+  try {
+    if ((user.lvl || 0) >= 7) {
+      const BRIEF_KEY = 'psm.v2.briefing_at';
+      const lastB = parseInt(localStorage.getItem(BRIEF_KEY) || '0');
+      if (Date.now() - lastB > 60 * 60 * 1000) {
+        localStorage.setItem(BRIEF_KEY, String(Date.now()));
+        api.request('/api/v3/intel/briefing_diario?auto=1').then(r => {
+          if (r && r.enviado) console.log('[briefing] enviado no WhatsApp');
+          else if (r && r.pending) console.log('[briefing] pendente:', r.error);
+        }).catch(() => {});
+      }
+    }
+  } catch {}
+
   // 4) Registra rotas (Sprint 7.3: dashboard + painel modulares)
   router.register('/',          { render: async (ctx, root) => { setHeader('Dashboard'); highlight('/');          await pageDashboardV2(ctx, root); } });
   router.register('/painel',    { render: async (ctx, root) => { setHeader('Meu Painel'); highlight('/painel');   await pagePainel(ctx, root); } });
