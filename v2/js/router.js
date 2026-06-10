@@ -35,25 +35,33 @@ async function tick() {
     const mainEl = document.querySelector('main, #app, .content, .app-main');
     if (mainEl) mainEl.scrollTop = 0;
   } catch {}
+  // 🧱 ISOLAMENTO DE NAVEGAÇÃO: cada rota renderiza num root NOVO. Sem isso, uma
+  // página com fetch ainda em voo (que guardou `_root` global) escrevia o conteúdo
+  // DELA por cima da rota seguinte — "Insights" aparecendo dentro de /kpis, erros
+  // "Cannot set properties of null", telas trocadas ao navegar rápido. Com o root
+  // novo, a página antiga escreve num nó órfão (fora do DOM) — inofensivo.
+  const root = document.createElement('div');
+  root.className = 'route-root';
+  root.innerHTML = '<div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando…</div>';
+  mountEl.replaceChildren(root);
   // Guard de permissões: se a rota não é permitida, mostra aviso e não renderiza
   if (guardFn && path !== '/' && !guardFn(path)) {
-    mountEl.innerHTML = '<div class="card"><h2 class="card-title">🔒 Sem permissão</h2>'
+    root.innerHTML = '<div class="card"><h2 class="card-title">🔒 Sem permissão</h2>'
       + '<p class="muted">Você não tem acesso a esta seção. Fale com um gestor se precisar.</p>'
       + '<button class="btn btn-primary mt-3" onclick="location.hash=\'#/\'">← Voltar ao início</button></div>';
     return;
   }
   const route = routes.get(path) || routes.get('*');
   if (!route) {
-    mountEl.innerHTML = '<div class="card"><h2 class="card-title">404</h2><p class="muted">Rota não encontrada: ' + path + '</p></div>';
+    root.innerHTML = '<div class="card"><h2 class="card-title">404</h2><p class="muted">Rota não encontrada: ' + path + '</p></div>';
     return;
   }
   try {
-    mountEl.innerHTML = '<div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando…</div>';
     const ctx = { path, query: Object.fromEntries(new URLSearchParams(query || '')) };
-    await route.render(ctx, mountEl);
+    await route.render(ctx, root);
   } catch (e) {
     console.error('[router]', e);
-    mountEl.innerHTML = '<div class="alert alert-err">Erro ao renderizar: ' + (e.message || e) + '</div>';
+    root.innerHTML = '<div class="alert alert-err">Erro ao renderizar: ' + (e.message || e) + '</div>';
   }
 }
 
