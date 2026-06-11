@@ -15,30 +15,30 @@ let _fResp = '';
 // Status agrupados (= colunas Kanban do Notion) — 3 fases, 17 status
 const FASES = [
   { fase: 'A fazer', cor: '#ef4444', status: [
-    { id: 'colher_dados',  lbl: 'Colher Dados',     cor: '#a16207' },
     { id: 'a_fazer',       lbl: 'À Fazer Captação', cor: '#dc2626' },
     { id: 'agendar_prop',  lbl: 'Agendar c/ Prop',  cor: '#ea580c' },
     { id: 'agendado',      lbl: 'Agendado',         cor: '#3b82f6' },
     { id: 'pausado',       lbl: 'Pausado',          cor: '#64748b' },
   ]},
   { fase: 'Em andamento', cor: '#f59e0b', status: [
-    { id: 'aguardando_autorizacao', lbl: 'Aguardando Autorização', cor: '#a16207' },
     { id: 'captacao_realizada',     lbl: 'Captação Realizada',     cor: '#ca8a04' },
     { id: 'edicao_fotos',           lbl: 'Edição Fotos',           cor: '#3b82f6' },
     { id: 'edicao_videos',          lbl: 'Edição Vídeos',          cor: '#8b5cf6' },
-    { id: 'aprovacao',              lbl: 'Aprovação',              cor: '#ca8a04' },
+    { id: 'aprovacao',              lbl: 'Pendente Aprovação',     cor: '#ca8a04' },
   ]},
   { fase: 'Concluídos', cor: '#16a34a', status: [
-    { id: 'a_fazer_formulario', lbl: 'À Fazer Formulário', cor: '#3b82f6' },
     { id: 'formulario_kenlo',   lbl: 'Formulário → Kenlo', cor: '#8b5cf6' },
     { id: 'subir_kenlo',        lbl: 'Subir Direto Kenlo', cor: '#8b5cf6' },
-    { id: 'agendar_mlabs',      lbl: 'Agendar Mlabs',      cor: '#ca8a04' },
+    { id: 'agendar_mlabs',      lbl: 'Agendar Post',       cor: '#ca8a04' },
     { id: 'refazer',            lbl: 'Refazer',            cor: '#dc2626' },
     { id: 'aprovado',           lbl: 'Aprovado',           cor: '#16a34a' },
     { id: 'concluido',          lbl: 'Concluído',          cor: '#16a34a' },
   ]},
 ];
 const ALL_STATUS = FASES.flatMap(f => f.status);
+// Etapas removidas (v77.37) → pra onde os cards antigos vão (não some nenhum card).
+const STATUS_REMAP = { colher_dados: 'a_fazer', aguardando_autorizacao: 'a_fazer', a_fazer_formulario: 'formulario_kenlo' };
+const normStatus = s => STATUS_REMAP[s] || s;
 const statusInfo = id => ALL_STATUS.find(s => s.id === id) || { lbl: id || '—', cor: '#64748b' };
 const statusCor = id => statusInfo(id).cor;
 const faseOf = id => FASES.find(f => f.status.some(s => s.id === id))?.fase || '';
@@ -181,7 +181,7 @@ function render() {
     </div>
     <div id="cap-board"><div class="muted tiny"><span class="spinner"></span> Carregando…</div></div>
   `;
-  document.getElementById('cap-novo').addEventListener('click', () => { _editing = { status: 'colher_dados', objetivo: 'venda' }; openForm(); });
+  document.getElementById('cap-novo').addEventListener('click', () => { _editing = { status: 'a_fazer', objetivo: 'venda' }; openForm(); });
   document.getElementById('cap-refresh').addEventListener('click', load);
   document.getElementById('cap-rd').addEventListener('click', async () => {
     const st = document.getElementById('cap-rd-status');
@@ -245,7 +245,7 @@ function renderBoard() {
       <button class="btn btn-primary mt-2" id="cap-empty-novo">➕ Nova Captação</button>
     </div>`;
     const b = document.getElementById('cap-empty-novo');
-    if (b) b.addEventListener('click', () => { _editing = { status: 'colher_dados', objetivo: 'venda' }; openForm(); });
+    if (b) b.addEventListener('click', () => { _editing = { status: 'a_fazer', objetivo: 'venda' }; openForm(); });
     return;
   }
 
@@ -263,7 +263,7 @@ function renderBoard() {
 }
 
 function statusColumn(st, items) {
-  const cards = items.filter(i => i.status === st.id);
+  const cards = items.filter(i => normStatus(i.status) === st.id);
   const fcor = faseCorOf(st.id);
   return `
     <div class="cap-col" data-status="${st.id}" style="border-top:3px solid ${fcor}">
