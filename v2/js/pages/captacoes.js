@@ -345,16 +345,30 @@ function bindBoard() {
     });
     el.addEventListener('dragend', () => { _lastDrop = Date.now(); _dragId = null; el.classList.remove('dragging'); document.querySelectorAll('.cap-col.drop').forEach(c => c.classList.remove('drop')); });
   });
-  document.querySelectorAll('.cap-col').forEach(col => {
-    col.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; col.classList.add('drop'); });
-    col.addEventListener('dragleave', e => { if (!col.contains(e.relatedTarget)) col.classList.remove('drop'); });
-    col.addEventListener('drop', e => {
+  // Drop DELEGADO no board inteiro: resolve a coluna por closest('.cap-col').
+  // Antes os listeners eram por coluna e soltar EM CIMA DE UM CARD (coluna cheia,
+  // típico ao voltar o card pra uma etapa anterior) às vezes não registrava o drop
+  // → "de frente pra trás não funcionava". Delegação pega o drop em qualquer ponto.
+  const board = document.querySelector('.cap-board');
+  if (board) {
+    board.addEventListener('dragover', e => {
+      const col = e.target.closest('.cap-col'); if (!col) return;
+      e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      document.querySelectorAll('.cap-col.drop').forEach(c => { if (c !== col) c.classList.remove('drop'); });
+      col.classList.add('drop');
+    });
+    board.addEventListener('drop', e => {
+      const col = e.target.closest('.cap-col'); if (!col) return;
       e.preventDefault(); col.classList.remove('drop');
       _lastDrop = Date.now();
       const id = _dragId || (e.dataTransfer && e.dataTransfer.getData('text/plain'));
       if (id) moveCard(id, col.dataset.status);
     });
-  });
+    board.addEventListener('dragleave', e => {
+      const col = e.target.closest('.cap-col');
+      if (col && !col.contains(e.relatedTarget)) col.classList.remove('drop');
+    });
+  }
   // Mover por seletor (qualquer etapa → qualquer etapa, 1 clique, sem drag)
   document.querySelectorAll('.cap-move').forEach(sel => {
     sel.addEventListener('mousedown', e => e.stopPropagation());
