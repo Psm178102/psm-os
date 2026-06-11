@@ -63,6 +63,19 @@ def _marketing_ids(sb):
         return []
 
 
+def _all_active_ids(sb, exclude=None):
+    """IDs de TODOS os usuários ativos (sino notifica a equipe inteira em qualquer
+    alteração de captação). Exclui quem disparou a ação pra não notificar a si mesmo."""
+    try:
+        rows = sb.table("users").select("id,status").execute().data or []
+        out = [r["id"] for r in rows if r.get("id") and (r.get("status") or "ativo") != "inativo"]
+        if exclude:
+            out = [i for i in out if i != exclude]
+        return out
+    except Exception:
+        return []
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
         self.send_response(s); self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -114,6 +127,12 @@ class handler(BaseHTTPRequestHandler):
                     notify_all([resp_id], "captacao", f"🔄 Captação movida → {status.replace('_', ' ')}",
                                desc, link="#/captacoes", target_type="captacoes", target_id=cid)
             except Exception: pass
+            # Sino pra TODOS os ativos (in-app; push fica só pro responsável acima)
+            try:
+                notify(_all_active_ids(sb, exclude=actor.get("id")), "captacao",
+                       f"🔄 Captação movida → {status.replace('_', ' ')}", desc,
+                       link="#/captacoes", target_type="captacoes", target_id=cid)
+            except Exception: pass
             # Notifica marketing quando vai pra edição/captação realizada
             if status in ("edicao_fotos", "edicao_videos", "captacao_realizada"):
                 try:
@@ -144,6 +163,7 @@ class handler(BaseHTTPRequestHandler):
             "responsavel_id": (body.get("responsavel_id") or "").strip() or None,
             "status": body.get("status") or "colher_dados",
             "situacao_imovel": (body.get("situacao_imovel") or "").strip() or None,
+            "local_chaves": (body.get("local_chaves") or "").strip() or None,
             "pendencia": (body.get("pendencia") or "").strip() or None,
             "termo_autorizacao": (body.get("termo_autorizacao") or "").strip() or None,
             "proprietario": (body.get("proprietario") or "").strip() or None,
@@ -193,6 +213,11 @@ class handler(BaseHTTPRequestHandler):
                 notify_all([resp_id], "captacao", titulo,
                            f"{row.get('condominio') or 'Imóvel'} — {row.get('proprietario') or ''}",
                            link="#/captacoes", target_type="captacoes", target_id=cid)
+            # Sino pra TODOS os ativos (in-app) a cada cadastro/edição
+            _tt = "🎯 Nova captação" if is_new else "✏️ Captação atualizada"
+            notify(_all_active_ids(sb, exclude=actor.get("id")), "captacao", _tt,
+                   f"{row.get('condominio') or 'Imóvel'} — {row.get('proprietario') or ''}",
+                   link="#/captacoes", target_type="captacoes", target_id=cid)
             # Marketing se precisa fotos/vídeos
             if row.get("precisa_fotos") or row.get("precisa_videos"):
                 mids = _marketing_ids(sb)

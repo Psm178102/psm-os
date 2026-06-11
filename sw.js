@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v77.38.0-2026-06-11-RMAPROVADO';
+const SW_VERSION = 'v77.39.0-2026-06-11-CAPTCAMPOS';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

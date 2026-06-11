@@ -8,6 +8,7 @@ let _items = [];
 let _users = [];
 let _editing = null;
 let _dragId = null;
+let _lastDrop = 0;
 let _search = '';
 let _fObj = '';
 let _fResp = '';
@@ -92,6 +93,7 @@ function capTitulo(c) {
 }
 const SITUACOES = [
   { id: 'desocupado', lbl: 'Desocupado', cor: '#16a34a' },
+  { id: 'semi_pronto', lbl: 'Semi Pronto', cor: '#d97706' },
   { id: 'ocupado_proprietario', lbl: 'Ocupado Proprietário', cor: '#dc2626' },
   { id: 'ocupado_inquilino', lbl: 'Ocupado Inquilino', cor: '#dc2626' },
   { id: 'inquilino', lbl: 'Inquilino', cor: '#dc2626' },
@@ -148,7 +150,8 @@ function render() {
       .cap-board::-webkit-scrollbar-thumb{background:rgba(148,163,184,.4);border-radius:8px}
       .cap-col{min-width:268px;max-width:300px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:12px;padding:8px;display:flex;flex-direction:column;transition:background .15s,box-shadow .15s}
       .cap-col.drop{background:rgba(99,102,241,.12);box-shadow:inset 0 0 0 2px #6366f1}
-      .cap-card{background:var(--bg-1,#fff);border-radius:10px;padding:11px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(15,23,42,.06),0 1px 3px rgba(15,23,42,.04);border:1px solid rgba(148,163,184,.16);transition:transform .12s,box-shadow .12s}
+      .cap-card{background:var(--bg-1,#fff);border-radius:10px;padding:11px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(15,23,42,.06),0 1px 3px rgba(15,23,42,.04);border:1px solid rgba(148,163,184,.16);transition:transform .12s,box-shadow .12s;user-select:none;-webkit-user-select:none}
+      .cap-card:active{cursor:grabbing}
       .cap-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,23,42,.12)}
       .cap-card.dragging{opacity:.45;transform:rotate(1.5deg)}
       .cap-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;line-height:1.6}
@@ -314,6 +317,7 @@ function card(c) {
       ${termo ? `<div class="tiny" style="margin-top:4px;color:${termo.cor}">📋 ${termo.lbl}</div>` : ''}
       ${c.proprietario ? `<div class="tiny muted" style="margin-top:6px">👤 ${esc(c.proprietario)}${c.contato ? ' · ' + esc(c.contato) : ''}</div>` : (c.contato ? `<div class="tiny muted" style="margin-top:6px">📞 ${esc(c.contato)}</div>` : '')}
       ${agend ? `<div class="tiny muted" style="margin-top:4px">📅 ${esc(agend)}${horas ? ' · ' + esc(horas) : ''}</div>` : ''}
+      ${c.local_chaves ? `<div class="tiny muted" style="margin-top:4px">🔑 ${esc(c.local_chaves)}</div>` : ''}
       ${links.length ? `<div class="flex gap-2" style="margin-top:6px;font-size:15px">${links.join('')}</div>` : ''}
       ${c.responsavel ? `<div class="flex" style="align-items:center;gap:6px;margin-top:8px">
         <span style="width:20px;height:20px;border-radius:50%;background:${colorFor(c.responsavel)};color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center">${esc(initials(c.responsavel))}</span>
@@ -327,14 +331,29 @@ function card(c) {
 
 function bindBoard() {
   document.querySelectorAll('.cap-card').forEach(el => {
-    el.addEventListener('click', (e) => { if (e.target.closest('[data-stop]')) return; _editing = _items.find(x => x.id === el.dataset.card); openForm(); });
-    el.addEventListener('dragstart', e => { _dragId = el.dataset.card; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
-    el.addEventListener('dragend', () => { _dragId = null; el.classList.remove('dragging'); document.querySelectorAll('.cap-col.drop').forEach(c => c.classList.remove('drop')); });
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('[data-stop]')) return;
+      // Não abrir o modal logo após um arrasto (o clique "fantasma" pós-drop)
+      if (Date.now() - _lastDrop < 300) return;
+      _editing = _items.find(x => x.id === el.dataset.card); openForm();
+    });
+    el.addEventListener('dragstart', e => {
+      _dragId = el.dataset.card;
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', el.dataset.card); } catch (_) {}  // cross-browser (Firefox exige)
+    });
+    el.addEventListener('dragend', () => { _lastDrop = Date.now(); _dragId = null; el.classList.remove('dragging'); document.querySelectorAll('.cap-col.drop').forEach(c => c.classList.remove('drop')); });
   });
   document.querySelectorAll('.cap-col').forEach(col => {
-    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drop'); });
-    col.addEventListener('dragleave', () => col.classList.remove('drop'));
-    col.addEventListener('drop', e => { e.preventDefault(); col.classList.remove('drop'); moveCard(_dragId, col.dataset.status); });
+    col.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; col.classList.add('drop'); });
+    col.addEventListener('dragleave', e => { if (!col.contains(e.relatedTarget)) col.classList.remove('drop'); });
+    col.addEventListener('drop', e => {
+      e.preventDefault(); col.classList.remove('drop');
+      _lastDrop = Date.now();
+      const id = _dragId || (e.dataTransfer && e.dataTransfer.getData('text/plain'));
+      if (id) moveCard(id, col.dataset.status);
+    });
   });
   // Mover por seletor (qualquer etapa → qualquer etapa, 1 clique, sem drag)
   document.querySelectorAll('.cap-move').forEach(sel => {
@@ -387,6 +406,7 @@ function openForm() {
         ${inp('cf-loc', 'Complemento / referência', c.localizacao, 'opcional')}
         ${respSelect(c)}
         ${sel('cf-sit', 'Situação do imóvel', [['', '—'], ...SITUACOES.map(s => [s.id, s.lbl])], c.situacao_imovel)}
+        ${inp('cf-chaves', '🔑 Local de chaves ou senha', c.local_chaves, 'ex: cofre da portaria, senha 1234, com o zelador')}
         ${sel('cf-pend', 'Pendência', [['', '—'], ...PENDENCIAS.map(p => [p.id, p.lbl])], c.pendencia)}
         ${sel('cf-termo', 'Termo Autorização', [['', '—'], ...TERMOS.map(t => [t.id, t.lbl])], c.termo_autorizacao)}
         ${inp('cf-lautoriz', 'Link autorização de visita', c.link_autorizacao, 'Drive / URL')}
@@ -464,6 +484,7 @@ async function saveForm(overlay) {
     responsavel_id: respEl ? respEl.value : null,
     responsavel: respOpt ? (respOpt.dataset.name || respOpt.textContent || '').trim() : '',
     situacao_imovel: g('cf-sit').value,
+    local_chaves: g('cf-chaves').value.trim(),
     pendencia: g('cf-pend').value,
     termo_autorizacao: g('cf-termo').value,
     proprietario: g('cf-prop').value.trim(),
