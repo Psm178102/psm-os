@@ -9,7 +9,7 @@ from _auth_lib import supabase_client, require_user, AuthError, audit  # type: i
 
 ALLOWED = ["nome", "segmento", "anuncios_count", "link", "observacoes", "ultima_atualizacao",
            "slug", "handle", "tipo", "tier", "seguidores", "posts", "creci", "fb", "bio",
-           "engajamento", "imoveis_ativos"]
+           "engajamento", "imoveis_ativos", "anuncios_dias_medio", "investimento_estimado"]
 
 
 class handler(BaseHTTPRequestHandler):
