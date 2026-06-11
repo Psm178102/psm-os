@@ -163,9 +163,11 @@ function render() {
         </div>
         <div class="flex gap-2">
           <button class="btn btn-ghost" id="cap-refresh" title="Atualizar">🔄</button>
+          <button class="btn btn-ghost" id="cap-rd" title="Puxar agora quem entrou na etapa CAPTAR IMÓVEL do RD (CARTEIRA MAP)">📥 Puxar do RD</button>
           <button class="btn btn-primary" id="cap-novo">➕ Nova Captação</button>
         </div>
       </div>
+      <div id="cap-rd-status" class="tiny" style="margin-top:6px"></div>
       <div id="cap-stats" class="mt-3"></div>
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center">
         <input id="cap-search" class="input" placeholder="🔎 Buscar condomínio, proprietário, local…" style="max-width:300px" value="${esc(_search)}">
@@ -181,6 +183,18 @@ function render() {
   `;
   document.getElementById('cap-novo').addEventListener('click', () => { _editing = { status: 'colher_dados', objetivo: 'venda' }; openForm(); });
   document.getElementById('cap-refresh').addEventListener('click', load);
+  document.getElementById('cap-rd').addEventListener('click', async () => {
+    const st = document.getElementById('cap-rd-status');
+    if (st) { st.style.color = '#d97706'; st.innerHTML = '<span class="spinner"></span> Puxando da etapa CAPTAR IMÓVEL do RD…'; }
+    try {
+      const r = await api.request('/api/v3/crm/captar_now');
+      if (st) {
+        if (r && r.ok) { st.style.color = '#16a34a'; st.textContent = `✅ ${r.created || 0} nova(s) captação(ões) criada(s) · ${r.deals_na_etapa || 0} deal(s) na etapa CAPTAR IMÓVEL.`; }
+        else { st.style.color = '#dc2626'; st.textContent = '⚠️ ' + ((r && r.error) || 'não consegui puxar agora'); }
+      }
+      if (r && r.created) await load();
+    } catch (e) { if (st) { st.style.color = '#dc2626'; st.textContent = '⚠️ ' + e.message; } }
+  });
   document.getElementById('cap-search').addEventListener('input', e => { _search = e.target.value; renderBoard(); });
   document.getElementById('cap-fobj').addEventListener('change', e => { _fObj = e.target.value; renderBoard(); });
   document.getElementById('cap-fresp').addEventListener('change', e => { _fResp = e.target.value; renderBoard(); });

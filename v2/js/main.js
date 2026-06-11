@@ -238,6 +238,16 @@ function applyPermissions(user) {
         if (r && r.ran) console.log('[heartbeat] job executado:', r.ran, r.ok ? 'ok' : r.error);
       }).catch(() => {});
     }
+    // Captação RD→Kanban: além do webhook (tempo real), o uso do sistema puxa quem
+    // entrou na etapa CAPTAR IMÓVEL (debounce 15min/navegador) — independe de cron.
+    const CAP_KEY = 'psm.v2.captar_at';
+    const capLast = parseInt(localStorage.getItem(CAP_KEY) || '0');
+    if (Date.now() - capLast > 15 * 60 * 1000) {
+      localStorage.setItem(CAP_KEY, String(Date.now()));
+      api.request('/api/v3/crm/captar_now').then(r => {
+        if (r && r.created) console.log('[captar] novas captações do RD:', r.created);
+      }).catch(() => {});
+    }
   } catch {}
 
   // 3.3) Briefing matinal do diretor: depois das 7h, o 1º diretor que abrir o
