@@ -31,13 +31,12 @@ const FASES = [
     { id: 'subir_kenlo',        lbl: 'Subir Direto Kenlo', cor: '#8b5cf6' },
     { id: 'agendar_mlabs',      lbl: 'Agendar Post',       cor: '#ca8a04' },
     { id: 'refazer',            lbl: 'Refazer',            cor: '#dc2626' },
-    { id: 'aprovado',           lbl: 'Aprovado',           cor: '#16a34a' },
     { id: 'concluido',          lbl: 'Concluído',          cor: '#16a34a' },
   ]},
 ];
 const ALL_STATUS = FASES.flatMap(f => f.status);
 // Etapas removidas (v77.37) → pra onde os cards antigos vão (não some nenhum card).
-const STATUS_REMAP = { colher_dados: 'a_fazer', aguardando_autorizacao: 'a_fazer', a_fazer_formulario: 'formulario_kenlo' };
+const STATUS_REMAP = { colher_dados: 'a_fazer', aguardando_autorizacao: 'a_fazer', a_fazer_formulario: 'formulario_kenlo', aprovado: 'concluido' };
 const normStatus = s => STATUS_REMAP[s] || s;
 const statusInfo = id => ALL_STATUS.find(s => s.id === id) || { lbl: id || '—', cor: '#64748b' };
 const statusCor = id => statusInfo(id).cor;
