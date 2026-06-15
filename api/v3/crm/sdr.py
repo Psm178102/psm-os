@@ -96,7 +96,11 @@ def _rd_pipelines_live(token):
             data = json.loads(resp.read().decode("utf-8"))
     except Exception:
         return []
-    return data.get("deal_pipelines") or data.get("items") or (data if isinstance(data, list) else [])
+    if isinstance(data, list):            # o RD devolve uma LISTA direta de pipelines
+        return data
+    if isinstance(data, dict):
+        return data.get("deal_pipelines") or data.get("items") or []
+    return []
 
 
 # ───────────────────────── parsing ─────────────────────────

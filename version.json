@@ -1,8 +1,8 @@
 {
-  "version": "77.43.0",
-  "meta": "2026.06.15-v77.43-sdr-debug",
+  "version": "77.44.0",
+  "meta": "2026.06.15-v77.44-sdr-stages-fix",
   "built": "2026-06-06T21:35:00Z",
-  "sw": "v77.43.0-2026-06-15-SDRDEBUG",
+  "sw": "v77.44.0-2026-06-15-SDRFIX",
   "sprint": "v77.41 — 🔧 FIX PROSPECÇÃO SDR vazia (Paulo: 'não está funcionando'). DIAGNÓSTICO ao vivo: o funil CARTEIRA MAP PAULO é detectado certo, mas TODAS as colunas vinham com stage_id=null → tudo zerado. Causa: a tabela rd_stages local tem 0 etapas pra esse funil (nunca sincronizadas / vínculo diferente). FIX: novo _rd_pipelines_live() busca as etapas AO VIVO no RD (/deal_pipelines com deal_stages embutidas) e _resolve_pipeline usa como fallback quando a tabela local não resolve ativo/sdr/captar/noventa — robusto igual à captação. Sem depender de re-sync. Caminho B.",
   "sprint_captcampos_v77_39": "v77.39 — 📥 CAPTAÇÕES — 4 ajustes do Paulo. (1) Situação 'Semi Pronto'. (2) Campo 'Local de chaves ou senha' (local_chaves). (3) Sino notifica todos os ativos. (4) Fix drag-and-drop. Caminho B.",
   "sprint_kanetapas_v77_37": "v77.37 — 🗂 KANBAN CAPTAÇÕES: removidas Colher Dados/Aguardando Autorização/À Fazer Formulário + Aprovado; renomeadas Aprovação→Pendente Aprovação, Agendar Mlabs→Agendar Post. Remap automático, sem perder card. Caminho B.",
