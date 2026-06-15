@@ -221,6 +221,7 @@ class handler(BaseHTTPRequestHandler):
         # (ex.: CARTEIRA MAP PAULO sem stages sincronizadas → tudo vazio), busca no RD.
         faltam = [k for k in ("ativo", "sdr", "captar", "noventa") if not by_key.get(k, {}).get("id")]
         if token and faltam:
+          try:
             for p in _rd_pipelines_live(token):
                 if str(p.get("id")) != str(pid):
                     continue
@@ -234,6 +235,8 @@ class handler(BaseHTTPRequestHandler):
                     if k not in by_key:
                         by_key[k] = {"id": s.get("id"), "name": s.get("name")}
                 break
+          except Exception:
+            pass
         return chosen, by_key, carteiras
 
     def _touch_map(self, sb, dias_window=120):
@@ -289,28 +292,35 @@ class handler(BaseHTTPRequestHandler):
             out = dict(_cache[cache_key][1]); out["cached"] = True
             return self._send(200, out)
 
-        touch_map = self._touch_map(sb)
+        try:
+            touch_map = self._touch_map(sb)
 
-        cols = {}
-        errors = []
-        plan = [("sdr", 300, None, None), ("captar", 100, None, None),
-                ("noventa", 300, None, None), ("ativo", ativo_limit, "created_at", "asc")]
-        for key, lim, order, direction in plan:
-            st = stages_by_key.get(key)
-            if not st or not st.get("id") or lim == 0:
-                cols[key] = {"name": st.get("name") if st else key, "stage_id": st.get("id") if st else None, "deals": []}
-                continue
-            r = _rd_deals_by_stage(st["id"], token, limit=lim, order=order, direction=direction)
-            if r.get("error"): errors.append(f"{key}: {r['error']}")
-            deals = r.get("deals") or []
-            if owner:
-                deals = [d for d in deals if ((d.get("user") or {}).get("email") or "").lower() == owner]
-            slim = [_slim(d, touch_map, dias_fup) for d in deals]
-            cols[key] = {"name": st["name"], "stage_id": st["id"], "deals": slim}
+            cols = {}
+            errors = []
+            plan = [("sdr", 300, None, None), ("captar", 100, None, None),
+                    ("noventa", 300, None, None), ("ativo", ativo_limit, "created_at", "asc")]
+            for key, lim, order, direction in plan:
+                st = stages_by_key.get(key)
+                if not st or not st.get("id") or lim == 0:
+                    cols[key] = {"name": st.get("name") if st else key, "stage_id": st.get("id") if st else None, "deals": []}
+                    continue
+                r = _rd_deals_by_stage(st["id"], token, limit=lim, order=order, direction=direction)
+                if r.get("error"): errors.append(f"{key}: {r['error']}")
+                deals = r.get("deals") or []
+                if owner:
+                    deals = [d for d in deals if ((d.get("user") or {}).get("email") or "").lower() == owner]
+                slim = [_slim(d, touch_map, dias_fup) for d in deals]
+                cols[key] = {"name": st["name"], "stage_id": st["id"], "deals": slim}
 
-        # ordena SDR: follow-ups primeiro (mais parados no topo)
-        cols.get("sdr", {}).get("deals", []).sort(key=lambda x: (not x["needs_followup"], -(x["dias_parado"] or 0)))
-        followup_count = sum(1 for d in cols.get("sdr", {}).get("deals", []) if d["needs_followup"])
+            # ordena SDR: follow-ups primeiro (mais parados no topo)
+            cols.get("sdr", {}).get("deals", []).sort(key=lambda x: (not x.get("needs_followup"), -(x.get("dias_parado") or 0)))
+            followup_count = sum(1 for d in cols.get("sdr", {}).get("deals", []) if d.get("needs_followup"))
+        except Exception as e:
+            import traceback
+            return self._send(200, {"ok": False, "error": "SDR falhou ao montar colunas: " + str(e)[:160],
+                                    "trace": traceback.format_exc()[-500:],
+                                    "pipeline": {"id": pid, "name": pipe.get("name")},
+                                    "columns": {}, "carteiras": [{"id": c.get("id"), "name": c.get("name")} for c in carteiras]})
 
         payload = {
             "ok": True, "cached": False,
