@@ -498,7 +498,12 @@ class handler(BaseHTTPRequestHandler):
             owner_email = (d.get("user_email") or "").lower()
             owner_name = name_by_email.get(owner_email) or (raw.get("user") or {}).get("name") or owner_email or "—"
 
-            in_close_win = closed is not None and since_dt <= closed <= until_dt
+            # Data EFETIVA do fechamento: usa closed_at, mas cai p/ created_at_rd quando
+            # o RD não preenche closed_at (a maioria das vendas!). Sem esse fallback o
+            # crm_metrics subcontava feio (3 vendas em vez de 25) e divergia do
+            # /metrics/overview e /metas/atingimento, que já usam closed||created.
+            eff_close = closed or created
+            in_close_win = eff_close is not None and since_dt <= eff_close <= until_dt
             in_create_win = created is not None and since_dt <= created <= until_dt
 
             # ── Vendas / VGV / perdas (fechados na janela) ──
