@@ -48,9 +48,10 @@ function normalize(d) {
   // COMERCIAL (RD)
   f.comercial = okOrErr(d.overview, () => {
     const vgvMes = +sales.vgv_mes || 0, pipe = +sales.pipeline_vgv || 0, vendas = +sales.vendas_mes || 0;
+    const vgvAno = +sales.vgv_ano || 0, vendasAno = +sales.vendas_ano || 0;
     return { nome: 'Comercial', icon: '📈', rota: '/crm',
       status: vgvMes > 0 ? 'ok' : (pipe > 0 ? 'warn' : 'bad'),
-      kpis: [['VGV mês', money(vgvMes)], ['Pipeline', money(pipe)], ['Vendas', vendas]],
+      kpis: [['Vendas mês', vendas], ['VGV mês', money(vgvMes)], ['Vendas ano', vendasAno], ['VGV ano', money(vgvAno)], ['Pipeline', money(pipe)]],
       _vgvMes: vgvMes, _pipe: pipe, _perdido: +sales.vgv_perdido_mes || 0 };
   });
 
