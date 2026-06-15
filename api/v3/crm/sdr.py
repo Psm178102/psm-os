@@ -85,6 +85,20 @@ def _rd_move(deal_id, stage_id, token):
         return {"ok": False, "error": str(e)}
 
 
+def _rd_pipelines_live(token):
+    """Pipelines do RD AO VIVO, cada um com suas deal_stages embutidas.
+    Usado quando a tabela rd_stages local está vazia pro funil (ex.: CARTEIRA MAP
+    PAULO nunca teve as etapas sincronizadas) → resolve as etapas direto da fonte."""
+    url = f"{RD_BASE}/deal_pipelines?token={urllib.parse.quote(token)}&limit=200"
+    req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "PSM-OS-v3/SDR"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return []
+    return data.get("deal_pipelines") or data.get("items") or (data if isinstance(data, list) else [])
+
+
 # ───────────────────────── parsing ─────────────────────────
 def _stage_key(name):
     n = (name or "").lower()
@@ -177,7 +191,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
 
     # ── pipeline/stage resolution ──
-    def _resolve_pipeline(self, sb, want_id):
+    def _resolve_pipeline(self, sb, want_id, token=None):
         """Retorna (pipeline_dict, stages_por_key, lista_carteiras)."""
         try:
             pipes = sb.table("rd_pipelines").select("*").execute().data or []
@@ -203,6 +217,23 @@ class handler(BaseHTTPRequestHandler):
             k = _stage_key(s.get("name"))
             if k not in by_key:  # 1ª ocorrência por key
                 by_key[k] = {"id": s.get("id") or s.get("external_id"), "name": s.get("name")}
+        # Fallback AO VIVO: se a tabela local não resolveu as etapas-chave desse funil
+        # (ex.: CARTEIRA MAP PAULO sem stages sincronizadas → tudo vazio), busca no RD.
+        faltam = [k for k in ("ativo", "sdr", "captar", "noventa") if not by_key.get(k, {}).get("id")]
+        if token and faltam:
+            for p in _rd_pipelines_live(token):
+                if str(p.get("id")) != str(pid):
+                    continue
+                live = p.get("deal_stages") or p.get("stages") or []
+                def _ord(s):
+                    try: return int(s.get("order") or s.get("position") or 0)
+                    except Exception: return 0
+                live.sort(key=_ord)
+                for s in live:
+                    k = _stage_key(s.get("name"))
+                    if k not in by_key:
+                        by_key[k] = {"id": s.get("id"), "name": s.get("name")}
+                break
         return chosen, by_key, carteiras
 
     def _touch_map(self, sb, dias_window=120):
@@ -246,7 +277,7 @@ class handler(BaseHTTPRequestHandler):
         if params.get("mine") == "1":
             owner = (actor.get("email") or "").lower().strip()
 
-        pipe, stages_by_key, carteiras = self._resolve_pipeline(sb, params.get("pipeline_id"))
+        pipe, stages_by_key, carteiras = self._resolve_pipeline(sb, params.get("pipeline_id"), token)
         if not pipe:
             return self._send(404, {"ok": False, "error": "Pipeline CARTEIRA MAP não encontrado. Rode o sync de funis do RD primeiro.",
                                     "carteiras": [{"id": c.get("id"), "name": c.get("name")} for c in carteiras]})
@@ -331,7 +362,7 @@ class handler(BaseHTTPRequestHandler):
         if action == "move":
             to = body.get("to")
             stage_id = body.get("stage_id")
-            pipe, stages_by_key, _ = self._resolve_pipeline(sb, body.get("pipeline_id"))
+            pipe, stages_by_key, _ = self._resolve_pipeline(sb, body.get("pipeline_id"), token)
             if not stage_id and to:
                 st = stages_by_key.get(to)
                 stage_id = st.get("id") if st else None

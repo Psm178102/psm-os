@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v77.40.0-2026-06-11-DRAGTRAS';
+const SW_VERSION = 'v77.41.0-2026-06-15-SDRSTAGES';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
