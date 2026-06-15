@@ -267,21 +267,6 @@ class handler(BaseHTTPRequestHandler):
 
         params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
 
-        # Modo DEBUG (diagnóstico das etapas ao vivo) — ?debug=stages
-        if params.get("debug") == "stages":
-            try:
-                live = _rd_pipelines_live(token)
-                amostra = [{"id": p.get("id"), "name": p.get("name"),
-                            "keys": list(p.keys())[:8],
-                            "n_stages": len(p.get("deal_stages") or p.get("stages") or []),
-                            "stage_names": [s.get("name") for s in (p.get("deal_stages") or p.get("stages") or [])][:8]}
-                           for p in (live or [])][:10]
-                return self._send(200, {"ok": True, "debug": "stages", "tipo": str(type(live)),
-                                        "n_pipelines": len(live or []), "pipelines": amostra})
-            except Exception as e:
-                import traceback
-                return self._send(200, {"ok": False, "debug": "stages", "error": str(e), "trace": traceback.format_exc()[-500:]})
-
         # Modo detalhe (telefone on-demand)
         if params.get("deal_id"):
             d = _rd_get_deal(params["deal_id"], token)
