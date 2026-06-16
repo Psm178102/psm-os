@@ -46,7 +46,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            user = require_user(self, min_lvl=5)
+            user = require_user(self, min_lvl=3)  # Marketing (lvl3) ou acima — é a função-núcleo do cargo
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
 

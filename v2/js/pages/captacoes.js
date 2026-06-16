@@ -473,8 +473,8 @@ function openForm() {
         </div>
 
         <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#3b82f6">📎 Mídia captada</b></div>
-        ${inp('cf-lfotos', 'Link das fotos', c.link_fotos, 'Drive / URL')}
-        ${inp('cf-lvideos', 'Link dos vídeos', c.link_videos, 'Drive / URL')}
+        ${linkInp('cf-lfotos', 'Link das fotos', c.link_fotos, 'Drive / URL')}
+        ${linkInp('cf-lvideos', 'Link dos vídeos', c.link_videos, 'Drive / URL')}
       </div>
       <div class="flex gap-3 mt-2" style="flex-wrap:wrap">
         <label class="tiny flex gap-1" style="align-items:center"><input type="checkbox" id="cf-fotos" ${c.precisa_fotos ? 'checked' : ''}> 📷 Precisa Fotos</label>
@@ -494,6 +494,19 @@ function openForm() {
   overlay.querySelector('#cf-x').addEventListener('click', () => overlay.remove());
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
   overlay.querySelector('#cf-save').addEventListener('click', () => saveForm(overlay));
+  // "🔗 abrir" dos links de mídia: aparece/atualiza ao digitar uma URL válida
+  ['cf-lfotos', 'cf-lvideos'].forEach(id => {
+    const field = overlay.querySelector('#' + id);
+    const go = overlay.querySelector('#' + id + '-go');
+    if (!field || !go) return;
+    const sync = () => {
+      const v = (field.value || '').trim();
+      const ok = /^https?:\/\//i.test(v);
+      go.href = ok ? v : '#';
+      go.style.display = ok ? '' : 'none';
+    };
+    field.addEventListener('input', sync);
+  });
   const del = overlay.querySelector('#cf-del');
   if (del) del.addEventListener('click', async () => {
     if (!confirm('Excluir captação?')) return;
@@ -587,6 +600,17 @@ async function saveForm(overlay) {
 
 function inp(id, label, val, ph, type) {
   return `<div><label class="tiny muted">${label}</label><input id="${id}" class="input" type="${type || 'text'}" value="${esc(val ?? '')}" placeholder="${esc(ph || '')}"></div>`;
+}
+// Campo de link com botão "🔗 abrir" clicável quando há URL (v77.49)
+function linkInp(id, label, val, ph) {
+  const v = (val ?? '').trim();
+  const ok = /^https?:\/\//i.test(v);
+  return `<div><label class="tiny muted">${label}</label>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input id="${id}" class="input" type="url" value="${esc(val ?? '')}" placeholder="${esc(ph || '')}" style="flex:1;min-width:0">
+      <a id="${id}-go" href="${ok ? esc(v) : '#'}" target="_blank" rel="noopener" data-stop="1" title="Abrir link"
+         style="text-decoration:none;font-size:17px;padding:6px 8px;border-radius:8px;background:rgba(59,130,246,.12);${ok ? '' : 'display:none'}">🔗</a>
+    </div></div>`;
 }
 function sel(id, label, opts, cur) {
   return `<div><label class="tiny muted">${label}</label><select id="${id}" class="select">${opts.map(([v, l]) => `<option value="${esc(v)}" ${cur === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`;

@@ -16,7 +16,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET,OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
     def do_GET(self):
-        try: user = require_user(self, min_lvl=5)
+        try: user = require_user(self, min_lvl=3)  # Marketing (lvl3) ou acima — inteligência de concorrência
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})

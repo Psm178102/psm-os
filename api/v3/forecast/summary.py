@@ -38,7 +38,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET,OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
     def do_GET(self):
-        try: user = require_user(self, min_lvl=5)
+        try: user = require_user(self, min_lvl=4)  # Financeiro (lvl4) ou acima
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         try:
             params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))

@@ -145,6 +145,18 @@ const ROLE_ALLOWED = {
   corretor:   ['inicio', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'cultura', 'ferramentas', 'conta'],
 };
 
+// Nível MÍNIMO real (backend) p/ páginas que vivem num grupo compartilhado mas
+// exigem mais do que o cargo mais baixo daquele grupo tem. Sem isso, o item
+// aparecia no menu (grupo permitido) e dava 403 ao clicar (ex.: Guilherme/marketing).
+// Espelha o require_user(min_lvl=) do endpoint primário de cada página (v77.49).
+const ROUTE_MIN_LVL = {
+  '/tabela-imoveis': 5,   // upload de tabelas — não p/ corretor
+  '/campanha-wa': 5,      // disparo de campanha — não p/ corretor
+  '/one-on-one': 5,       // visão de gestor do 1:1
+  '/cerebro-vendas': 5,   // inteligência de vendas (líder+)
+  '/briefing-guerra': 7,  // briefing estratégico (diretoria)
+};
+
 function _allowedGroups(user) {
   const role = (user?.role || 'corretor').toLowerCase();
   const lvl = user?.lvl || 0;
@@ -156,6 +168,8 @@ function canSee(path, user) {
   const allowed = _allowedGroups(user);
   if (allowed === '*') return true;
   const base = (path || '/').split('?')[0];
+  // nível real da rota: se o cargo não alcança, não vê (nem menu, nem rota)
+  if ((user?.lvl || 0) < (ROUTE_MIN_LVL[base] || 0)) return false;
   const grp = ROUTE_GROUP[base] || 'inicio';
   if (grp === 'inicio' || grp === 'conta') return true;
   return allowed.includes(grp);

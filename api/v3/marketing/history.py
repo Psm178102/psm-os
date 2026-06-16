@@ -33,7 +33,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            require_user(self, min_lvl=5)
+            require_user(self, min_lvl=3)  # Marketing (lvl3) ou acima
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         try:

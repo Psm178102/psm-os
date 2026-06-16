@@ -33,11 +33,13 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            actor = require_user(self, min_lvl=7)
+            actor = require_user(self, min_lvl=3)  # conteudo: marketing+ ; negocios: trava em 7 abaixo
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
         board = q.get("board") if q.get("board") in BOARDS else "negocios"
+        if board == "negocios" and (actor.get("lvl") or 0) < 7:
+            return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
@@ -50,9 +52,16 @@ class handler(BaseHTTPRequestHandler):
             return self._send(200, {"ok": False, "error": str(e), "cards": [], "pending": "rode supabase/sprint_paulo_e_captstale.sql"})
         return self._send(200, {"ok": True, "board": board, "cards": rows})
 
+    def _board_of(self, sb, cid):
+        try:
+            r = sb.table("paulo_cards").select("board").eq("id", cid).limit(1).execute().data or []
+            return (r[0].get("board") if r else None)
+        except Exception:
+            return None
+
     def do_POST(self):
         try:
-            actor = require_user(self, min_lvl=7)
+            actor = require_user(self, min_lvl=3)  # conteudo: marketing+ ; negocios: trava em 7 abaixo
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         try:
@@ -65,11 +74,14 @@ class handler(BaseHTTPRequestHandler):
             return self._send(503, {"ok": False, "error": "backend"})
         action = body.get("action") or "upsert"
         now = datetime.now(timezone.utc).isoformat()
+        is_socio = (actor.get("lvl") or 0) >= 7
 
         if action == "delete":
             cid = body.get("id")
             if not cid:
                 return self._send(400, {"ok": False, "error": "id"})
+            if self._board_of(sb, cid) == "negocios" and not is_socio:
+                return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
             try:
                 sb.table("paulo_cards").delete().eq("id", cid).execute()
                 audit(self, actor, "paulo.card_delete", target_type="paulo_cards", target_id=cid)
@@ -81,6 +93,8 @@ class handler(BaseHTTPRequestHandler):
             cid = body.get("id"); status = (body.get("status") or "").strip()
             if not cid or not status:
                 return self._send(400, {"ok": False, "error": "id e status"})
+            if self._board_of(sb, cid) == "negocios" and not is_socio:
+                return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
             try:
                 sb.table("paulo_cards").update({"status": status, "updated_at": now}).eq("id", cid).execute()
                 return self._send(200, {"ok": True})
@@ -89,6 +103,11 @@ class handler(BaseHTTPRequestHandler):
 
         # upsert
         board = body.get("board") if body.get("board") in BOARDS else "negocios"
+        if board == "negocios" and not is_socio:
+            return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
+        # editar card existente de negocios também trava abaixo de 7
+        if body.get("id") and self._board_of(sb, body.get("id")) == "negocios" and not is_socio:
+            return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
         cid = body.get("id")
         row = {k: body.get(k) for k in FIELDS if k in body}
         # normaliza vazios

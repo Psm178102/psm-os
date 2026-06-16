@@ -163,7 +163,7 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         # Auth — apenas Sócio (lvl >= 10) por enquanto (dados sensíveis)
         try:
-            user = require_user(self, min_lvl=5)  # Líder ou acima
+            user = require_user(self, min_lvl=4)  # Financeiro (lvl4) ou acima — é a função-núcleo do cargo
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
 
