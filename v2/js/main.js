@@ -26,6 +26,8 @@ import { pageAcademyStudio } from './pages/academy-studio.js';
 import { initNotifs } from './notifs.js';
 import { sounds } from './sounds.js';
 import { pageConfiguracoes } from './pages/configuracoes.js';
+import { pageConfigMenu } from './pages/config-menu.js';
+import { loadMenuLabels, applyHeaderOverride } from './menu-labels.js';
 import { pageMarketing } from './pages/marketing.js';
 import { pageIA } from './pages/ia.js';
 import { pageLancamentos } from './pages/lancamentos.js';
@@ -127,7 +129,7 @@ const ROUTE_GROUP = {
   '/simuladores': 'ferramentas', '/relatorios': 'ferramentas',
   // Sistema
   '/usuarios': 'sistema', '/auditoria': 'sistema', '/integracoes': 'sistema',
-  '/backup': 'sistema', '/configuracoes': 'sistema',
+  '/backup': 'sistema', '/configuracoes': 'sistema', '/config-menu': 'sistema',
   // Conta (sempre)
   '/conta': 'conta',
   // sub-rotas de simuladores herdam ferramentas
@@ -160,6 +162,7 @@ const ROUTE_MIN_LVL = {
   '/cerebro-vendas': 5,   // inteligência de vendas (líder+)
   '/briefing-guerra': 7,  // briefing estratégico (diretoria)
   '/academy-studio': 5,   // produção/construção da Academy — só time que constrói (líder+)
+  '/config-menu': 10,     // renomear o menu/páginas — só sócio
 };
 
 function _allowedGroups(user) {
@@ -242,6 +245,9 @@ function applyPermissions(user) {
   // 3.1) Permissões por papel — esconde links/seções não permitidas + guarda rotas
   applyPermissions(user);
   router.setGuard((path) => canSee(path, user));
+
+  // 3.1b) Nomes custom do menu/páginas (sócio edita em /config-menu) — vale p/ todos
+  loadMenuLabels();
 
   // 3.2) Auto-cura do sync RD: o cron do Vercel é não-confiável (limite do plano),
   // então o próprio uso mantém o dado fresco — se o último sync tiver +6h, dispara
@@ -383,6 +389,7 @@ function applyPermissions(user) {
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
   router.register('/configuracoes', { render: async (ctx, root) => { setHeader('Configurações'); highlight('/configuracoes'); await pageConfiguracoes(ctx, root); } });
+  router.register('/config-menu', { render: async (ctx, root) => { setHeader('Nomes do Menu'); highlight('/config-menu'); await pageConfigMenu(ctx, root); } });
   router.register('*',          { render: page404 });
 
   // 5) Monta router
@@ -530,6 +537,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/integracoes"><span class="sb-ico">🔌</span> Integrações</button>
         <button class="sb-link" data-nav="/backup"><span class="sb-ico">💾</span> Backup</button>
         <button class="sb-link" data-nav="/configuracoes"><span class="sb-ico">🔧</span> Configurações</button>
+        <button class="sb-link" data-nav="/config-menu"><span class="sb-ico">✏️</span> Nomes do Menu</button>
 
         <div class="sb-sec">👤 Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
@@ -785,5 +793,6 @@ function highlight(path) {
   document.querySelectorAll('.sb-link').forEach(b => b.classList.remove('on'));
   const cur = document.querySelector('[data-nav="' + path + '"]');
   if (cur) cur.classList.add('on');
+  applyHeaderOverride(path);  // título do topo herda o nome custom da rota (se houver)
 }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
