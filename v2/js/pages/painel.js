@@ -31,7 +31,7 @@ async function loadTarget(id) {
   const mine = id === _me.id;
   try {
     const [prof, perf, audit] = await Promise.all([
-      api.request('/api/v3/profile?user_id=' + encodeURIComponent(id)),
+      api.request('/api/v3/profile/data?user_id=' + encodeURIComponent(id)),
       mine ? api.request('/api/v3/metrics/overview').catch(() => null) : Promise.resolve(null),
       mine ? api.request('/api/v3/audit/list?target_id=' + encodeURIComponent(id) + '&limit=20').catch(() => ({ entries: [] })) : Promise.resolve({ entries: [] }),
     ]);
@@ -39,7 +39,8 @@ async function loadTarget(id) {
     render();
     if (mine) loadFila();
   } catch (e) {
-    _root.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message)}</div>`;
+    const msg = e?.message || e?.error || (typeof e === 'string' ? e : JSON.stringify(e));
+    _root.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(msg)}</div>`;
   }
 }
 
@@ -264,7 +265,7 @@ async function save() {
   };
   sv.disabled = true; if (st) st.textContent = 'Salvando…';
   try {
-    await api.request('/api/v3/profile', { method: 'POST', body });
+    await api.request('/api/v3/profile/data', { method: 'POST', body });
     if (st) { st.textContent = '✓ Salvo'; st.style.color = '#16a34a'; }
     // reflete no header (tempo de casa) sem recarregar tudo
     if (_data.profile) Object.assign(_data.profile, body);
