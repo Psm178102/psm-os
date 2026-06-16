@@ -22,6 +22,7 @@ from _auth_lib import supabase_client, require_user, AuthError, notify  # type: 
 
 JOBS = [
     # (key, path, intervalo_horas)  — ordem = prioridade
+    ("lembrete_dia", "/api/v3/paulo/lembrete_dia",          20),  # aviso gravação(Academy)/prazo(Projetos) do dia
     ("captar",       "/api/v3/crm/captar_cron",             2),
     ("meta_monthly", "/api/v3/marketing/meta_monthly_cron", 24),
     ("war_briefing", "/api/v3/intel/war_briefing_cron",     None),  # semanal (lógica própria)

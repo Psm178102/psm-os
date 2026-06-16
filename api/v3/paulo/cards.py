@@ -60,6 +60,56 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             return None
 
+    def _resolve_user(self, sb, nome):
+        """user_id por nome (igual / primeiro nome / contém). None se não achar."""
+        if not nome:
+            return None
+        try:
+            n = nome.strip().lower()
+            for r in (sb.table("users").select("id,name").execute().data or []):
+                full = (r.get("name") or "").lower()
+                if full and (full == n or full.split(" ")[0] == n or n in full):
+                    return r["id"]
+        except Exception:
+            pass
+        return None
+
+    def _sync_event(self, sb, cid):
+        """Espelha card de academy/projetos como evento na Agenda (idempotente por id).
+        data_ref vira a data; status terminal vira 'realizado'. Best-effort — nunca quebra o save."""
+        if not cid:
+            return
+        try:
+            rows = sb.table("paulo_cards").select("id,board,titulo,plataforma,data_ref,status,responsavel,owner_id").eq("id", cid).limit(1).execute().data or []
+            if not rows:
+                return
+            c = rows[0]
+            board = c.get("board")
+            CFG = {
+                "academy":  {"ico": "🎬", "tipo": "evento", "cor": "#7c3aed", "term": "publicada", "lbl": "Gravação Academy"},
+                "projetos": {"ico": "📌", "tipo": "tarefa",  "cor": "#0891b2", "term": "concluido", "lbl": "Projeto"},
+            }
+            cfg = CFG.get(board)
+            ev_id = "evp_" + cid
+            if not cfg or not c.get("data_ref"):
+                sb.table("eventos").delete().eq("id", ev_id).execute()  # sem data ou board sem agenda → remove
+                return
+            ev = {
+                "id": ev_id,
+                "tipo": cfg["tipo"],
+                "titulo": f"{cfg['ico']} {(c.get('titulo') or 'Sem título')[:120]}",
+                "descricao": f"{cfg['lbl']}" + (f" · {c.get('plataforma')}" if c.get('plataforma') else "") + (f" · resp: {c.get('responsavel')}" if c.get('responsavel') else ""),
+                "data": str(c["data_ref"])[:10],
+                "all_day": True,
+                "cor": cfg["cor"],
+                "status": "realizado" if (c.get("status") == cfg["term"]) else "agendado",
+                "corretor_id": self._resolve_user(sb, c.get("responsavel")),
+                "criado_por": c.get("owner_id"),
+            }
+            sb.table("eventos").upsert(ev, on_conflict="id").execute()
+        except Exception as e:
+            print(f"[paulo._sync_event] {e}")
+
     def do_POST(self):
         try:
             actor = require_user(self, min_lvl=3)  # conteudo: marketing+ ; negocios: trava em 7 abaixo
@@ -85,6 +135,8 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
             try:
                 sb.table("paulo_cards").delete().eq("id", cid).execute()
+                try: sb.table("eventos").delete().eq("id", "evp_" + cid).execute()  # remove da Agenda
+                except Exception: pass
                 audit(self, actor, "paulo.card_delete", target_type="paulo_cards", target_id=cid)
                 return self._send(200, {"ok": True, "deleted": cid})
             except Exception as e:
@@ -98,6 +150,7 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
             try:
                 sb.table("paulo_cards").update({"status": status, "updated_at": now}).eq("id", cid).execute()
+                self._sync_event(sb, cid)  # status mudou → atualiza/limpa evento na Agenda
                 return self._send(200, {"ok": True})
             except Exception as e:
                 return self._send(500, {"ok": False, "error": str(e)})
@@ -161,6 +214,7 @@ class handler(BaseHTTPRequestHandler):
                 if not row.get("status"):
                     row["status"] = "ideia" if board == "negocios" else "curadoria"
                 sb.table("paulo_cards").insert(row).execute()
+            self._sync_event(sb, cid)  # academy/projetos com data → evento na Agenda
             audit(self, actor, "paulo.card_upsert", target_type="paulo_cards", target_id=cid)
             return self._send(200, {"ok": True, "id": cid})
         except Exception as e:
