@@ -334,7 +334,8 @@ function parseWorkbook(XLSX, wb, year) {
     const plat = platOfSheet(sn);
     if (!plat) return;
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: false, defval: '' });
-    const hi = rows.findIndex(r => Array.isArray(r) && r.some(c => /SEMANA/i.test(c)) && r.some(c => /DATA/i.test(c)) && r.some(c => /FORMATO/i.test(c)));
+    // cabeçalho: ancora em DATA + (SEMANA/AULA). FORMATO é opcional (YouTube não tem).
+    const hi = rows.findIndex(r => Array.isArray(r) && r.some(c => /SEMANA|AULA/i.test(c)) && r.some(c => /DATA/i.test(c)));
     if (hi < 0) return;
     const H = rows[hi].map(c => String(c || '').toUpperCase());
     const find = (...keys) => { for (const k of keys) { const i = H.findIndex(h => h.includes(k)); if (i >= 0) return i; } return -1; };
@@ -347,10 +348,12 @@ function parseWorkbook(XLSX, wb, year) {
     for (let i = hi + 1; i < rows.length; i++) {
       const r = rows[i] || [];
       const g = idx => (idx >= 0 && r[idx] != null) ? String(r[idx]).trim() : '';
-      const formato = g(ci.formato), data = g(ci.data), titulo = g(ci.titulo);
-      if (!formato || (!data && !titulo)) continue;     // pula separadores / linhas vazias
+      let formato = g(ci.formato); const data = g(ci.data), titulo = g(ci.titulo);
+      if (!data && !titulo) continue;                   // pula separadores / linhas vazias
+      if (!formato && plat === 'youtube') formato = 'Vídeo';   // YouTube não tem coluna de formato
       let semana = null; const sm = g(ci.semana).match(/(\d+)/); if (sm) semana = parseInt(sm[1], 10);
       let data_ref = null; const dm = data.match(/(\d{1,2})[\/\-.](\d{1,2})/); if (dm) data_ref = `${year}-${dm[2].padStart(2, '0')}-${dm[1].padStart(2, '0')}`;
+      if (!semana && dm) semana = Math.min(5, Math.max(1, Math.ceil(parseInt(dm[1], 10) / 7)));  // sem nº na coluna → deriva da data
       const obs = [g(ci.edit), g(ci.copy), g(ci.cta)].filter(Boolean).join('\n');
       out.push({ plataforma: plat, titulo: titulo || '(sem título)', formato, semana, data_ref, obs, status: 'curadoria' });
     }
