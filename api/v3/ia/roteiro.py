@@ -15,6 +15,10 @@ SYSTEM = ("Você é roteirista-chefe da PSM Academy — a faculdade interna de u
           "imobiliário brasileiro (corretor, CRECI, captação, lançamentos, locação). "
           "Linguagem direta, sem enrolação, tom de mentor.")
 
+SYSTEM_PROJ = ("Você é um gerente de projetos sênior da PSM Imóveis (imobiliária de alto padrão "
+               "em São José do Rio Preto/SP). Estrutura planos de projeto objetivos e acionáveis, "
+               "em português do Brasil, com foco em execução, prazos e responsáveis.")
+
 
 def _get_setting(sb, key):
     try:
@@ -24,10 +28,10 @@ def _get_setting(sb, key):
         return None
 
 
-def _gemini(api_key, prompt):
+def _gemini(api_key, prompt, system=SYSTEM):
     model = os.environ.get("GEMINI_SMART_MODEL") or "gemini-2.5-flash"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    payload = {"contents": [{"role": "user", "parts": [{"text": f"[Sistema]: {SYSTEM}\n\n[Tarefa]: {prompt}"}]}],
+    payload = {"contents": [{"role": "user", "parts": [{"text": f"[Sistema]: {system}\n\n[Tarefa]: {prompt}"}]}],
                "generationConfig": {"maxOutputTokens": 1400, "temperature": 0.75}}
     req = urllib.request.Request(url, data=json.dumps(payload).encode(),
                                  headers={"Content-Type": "application/json", "x-goog-api-key": api_key})
@@ -41,6 +45,14 @@ def _gemini(api_key, prompt):
 
 def _prompt(modo, tema, linha, tipo):
     tema = tema or "(sem tema)"; linha = linha or "geral"; tipo = tipo or "vídeo-aula"
+    if modo == "projeto":
+        return (f"Esboce um PLANO DE PROJETO para '{tema}' (área: {linha}). Estruture assim:\n"
+                f"🎯 OBJETIVO (resultado esperado)\n"
+                f"📦 ESCOPO / ENTREGÁVEIS\n"
+                f"🧩 ETAPAS (lista em ordem, cada uma com uma sugestão de responsável)\n"
+                f"⚠️ RISCOS e como mitigar\n"
+                f"📅 CRONOGRAMA MACRO (fases e prazos aproximados)\n"
+                f"✅ CRITÉRIOS DE SUCESSO. Prático, direto e acionável.")
     if modo == "temas":
         return (f"Liste 8 temas de aula para a trilha '{linha}' da PSM Academy, do básico ao avançado. "
                 f"Para cada um: título da aula + 1 linha do que ensina. Formato em lista.")
@@ -84,8 +96,9 @@ class handler(BaseHTTPRequestHandler):
         key = os.environ.get("GEMINI_API_KEY") or (_get_setting(sb, "gemini_api_key") if sb else None)
         if not key:
             return self._send(503, {"ok": False, "error": "IA indisponível (sem chave Gemini)"})
+        sysmsg = SYSTEM_PROJ if modo == "projeto" else SYSTEM
         try:
-            text = _gemini(key, _prompt(modo, body.get("tema"), body.get("linha"), body.get("tipo")))
+            text = _gemini(key, _prompt(modo, body.get("tema"), body.get("linha"), body.get("tipo")), sysmsg)
         except Exception as e:
             return self._send(502, {"ok": False, "error": f"IA: {str(e)[:160]}"})
         if not text:
