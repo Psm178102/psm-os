@@ -17,6 +17,18 @@ const LINHAS = [
 ];
 const TIPOS = ['Vídeo-aula', 'Material / PDF', 'Quiz', 'Live', 'Exercício'];
 const RESP_SUGEST = ['Paulo', 'Guilherme', 'Isabella'];
+// Checklist de produção (ordem do fluxo)
+const CHECK = [
+  { k: 'roteiro',  l: '📝 Roteiro pronto' },
+  { k: 'cenario',  l: '🎥 Cenário / equipamento' },
+  { k: 'gravado',  l: '🎬 Gravado' },
+  { k: 'editado',  l: '✂️ Editado' },
+  { k: 'thumb',    l: '🖼 Thumbnail / capa' },
+  { k: 'legenda',  l: '💬 Legendas' },
+  { k: 'seo',      l: '🔎 Título / descrição (SEO)' },
+  { k: 'publicado',l: '🚀 Publicado' },
+];
+const checkDone = c => CHECK.filter(x => (c.checklist || {})[x.k]).length;
 
 const STAGES = [
   { id: 'ideia',     lbl: '💡 Ideia / Tema', cor: '#64748b' },
@@ -98,6 +110,7 @@ function filtros() {
     <div class="flex gap-2" style="flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
       <div class="as-tab ${_view === 'kanban' ? 'on' : ''}" data-view="kanban">🗂 Produção</div>
       <div class="as-tab ${_view === 'agenda' ? 'on' : ''}" data-view="agenda">📅 Agenda de Gravações</div>
+      <div class="as-tab ${_view === 'metricas' ? 'on' : ''}" data-view="metricas">📊 Métricas</div>
       <div style="flex:1"></div>
       <div><label class="tiny muted">Linha de curso</label>
         <select id="as-flinha" class="select"><option value="">Todas as linhas</option>${linhas.map(l => `<option value="${esc(l)}"${_fLinha === l ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
@@ -120,7 +133,10 @@ function kpis() {
 }
 
 function render() {
-  _root.innerHTML = `${STYLE}${header()}${filtros()}${kpis()}${_view === 'agenda' ? renderAgenda() : `<div class="as-board">${STAGES.map(col).join('')}</div>`}`;
+  const body = _view === 'agenda' ? renderAgenda()
+    : _view === 'metricas' ? renderMetricas()
+    : `<div class="as-board">${STAGES.map(col).join('')}</div>`;
+  _root.innerHTML = `${STYLE}${header()}${filtros()}${_view === 'metricas' ? '' : kpis()}${body}`;
   bind();
 }
 
@@ -147,6 +163,7 @@ function card(c) {
         ${c.formato ? `<span class="as-chip" style="background:rgba(124,58,237,.12);color:#7c3aed">${esc(c.formato)}</span>` : ''}
         ${c.data_ref ? `<span class="as-chip" style="background:rgba(245,158,11,.16);color:#b45309">🎬 ${esc(fmtData(c.data_ref))}</span>` : ''}
       </div>
+      ${(() => { const d = checkDone(c); return d ? `<div style="margin-top:7px"><div style="height:5px;border-radius:3px;background:rgba(148,163,184,.25);overflow:hidden"><div style="height:100%;width:${Math.round(d / CHECK.length * 100)}%;background:${d === CHECK.length ? '#16a34a' : '#7c3aed'}"></div></div><div class="tiny muted" style="margin-top:2px">✔ ${d}/${CHECK.length} produção</div></div>` : ''; })()}
       <div class="flex gap-2" style="margin-top:8px;align-items:center">
         ${c.responsavel ? `<span class="tiny" style="font-weight:700">👤 ${esc(c.responsavel)}</span>` : ''}
         ${c.obs ? '<span class="tiny" title="Tem roteiro" style="color:#16a34a">📝</span>' : ''}
@@ -184,6 +201,61 @@ function renderAgenda() {
       </div>`;
     }).join('')}
     ${semData.length ? `<div class="as-day"><div style="font-weight:800;font-size:14px;color:#64748b">📌 Sem data de gravação (${semData.length})</div>${semData.map(row).join('')}</div>` : ''}`;
+}
+
+/* ── MÉTRICAS: dashboard de produção da Academy ── */
+function renderMetricas() {
+  const f = filtered();
+  if (!f.length) return '<div class="muted tiny">Sem aulas ainda — crie aulas pra ver as métricas de produção.</div>';
+  const n = f.length;
+  const pubTotal = f.filter(c => c.status === 'publicada').length;
+  const pct = Math.round(pubTotal / n * 100);
+  const agendadas = f.filter(c => c.data_ref && c.status !== 'publicada' && c.data_ref >= hoje()).length;
+  const pubs = f.filter(c => c.status === 'publicada' && c.created_at && c.updated_at);
+  let lead = '—';
+  if (pubs.length) { const d = pubs.reduce((s, c) => s + Math.max(0, (new Date(c.updated_at) - new Date(c.created_at)) / 86400000), 0) / pubs.length; lead = Math.round(d) + 'd'; }
+  const bar = (v, max, cor) => `<div style="height:8px;border-radius:4px;background:rgba(148,163,184,.2);overflow:hidden"><div style="height:100%;width:${max ? Math.round(v / max * 100) : 0}%;background:${cor}"></div></div>`;
+  // por etapa
+  const stg = STAGES.map(s => ({ s, n: f.filter(c => (c.status || 'ideia') === s.id).length }));
+  const stgMax = Math.max(1, ...stg.map(x => x.n));
+  // por linha
+  const linhas = {}; f.forEach(c => { const l = c.plataforma || '(sem linha)'; (linhas[l] = linhas[l] || { tot: 0, pub: 0 }); linhas[l].tot++; if (c.status === 'publicada') linhas[l].pub++; });
+  const linhasArr = Object.entries(linhas).sort((a, b) => b[1].tot - a[1].tot);
+  // por responsável
+  const resp = {}; f.forEach(c => { const r = c.responsavel || '(sem resp.)'; resp[r] = (resp[r] || 0) + 1; });
+  const respArr = Object.entries(resp).sort((a, b) => b[1] - a[1]); const respMax = Math.max(1, ...respArr.map(x => x[1]));
+  return `
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
+      <div class="as-kpi"><div class="tiny muted">Total de aulas</div><div style="font-size:20px;font-weight:800">${n}</div></div>
+      <div class="as-kpi"><div class="tiny muted">Publicadas</div><div style="font-size:20px;font-weight:800;color:#16a34a">${pubTotal} <span class="tiny muted">(${pct}%)</span></div></div>
+      <div class="as-kpi"><div class="tiny muted">Lead-time médio</div><div style="font-size:20px;font-weight:800">${lead}</div><div class="tiny muted">ideia→publicada</div></div>
+      <div class="as-kpi"><div class="tiny muted">🎬 Gravações agendadas</div><div style="font-size:20px;font-weight:800;color:#f59e0b">${agendadas}</div></div>
+    </div>
+    <div class="as-day">
+      <div style="font-weight:800;font-size:14px;margin-bottom:8px">Funil de produção</div>
+      ${stg.map(x => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:700;color:${x.s.cor}">${x.s.lbl}</span><span class="tiny muted">${x.n}</span></div>${bar(x.n, stgMax, x.s.cor)}</div>`).join('')}
+    </div>
+    <div class="as-day">
+      <div style="font-weight:800;font-size:14px;margin-bottom:8px">Progresso por linha de curso</div>
+      ${linhasArr.map(([l, v]) => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:700">${esc(l)}</span><span class="tiny muted">${v.pub}/${v.tot} publicadas</span></div>${bar(v.pub, v.tot, linhaCor(l))}</div>`).join('')}
+    </div>
+    <div class="as-day">
+      <div style="font-weight:800;font-size:14px;margin-bottom:8px">Carga por responsável</div>
+      ${respArr.map(([r, v]) => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:700">👤 ${esc(r)}</span><span class="tiny muted">${v} aula${v === 1 ? '' : 's'}</span></div>${bar(v, respMax, '#7c3aed')}</div>`).join('')}
+    </div>`;
+}
+
+async function gerarIA(modo, payload, alvoEl, btn) {
+  const txt0 = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ gerando…'; }
+  try {
+    const r = await api.request('/api/v3/ia/roteiro', { method: 'POST', body: { modo, ...payload } });
+    if (r && r.text) {
+      if (modo === 'roteiro') { alvoEl.value = (alvoEl.value ? alvoEl.value + '\n\n' : '') + r.text; }
+      else { alert(r.text); }
+    } else { alert('IA não retornou conteúdo.'); }
+  } catch (e) { alert('IA indisponível: ' + (e.message || e)); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = txt0; } }
 }
 
 function bind() {
@@ -242,8 +314,18 @@ function openEditor(seed) {
         <div style="flex:1"><label class="tiny muted">Link (material / vídeo / drive)</label>
           <input id="as-f-link" class="input" value="${esc(c.link || '')}" placeholder="https://"></div>
       </div>
-      <label class="tiny muted">📝 Roteiro</label>
-      <textarea id="as-f-obs" class="input" rows="6" placeholder="Roteiro da aula: gancho, tópicos, exemplos, CTA…">${esc(c.obs || '')}</textarea>
+      <div class="flex" style="justify-content:space-between;align-items:center">
+        <label class="tiny muted">📝 Roteiro</label>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost tiny" id="as-ia-roteiro" type="button" title="Gera um rascunho de roteiro com IA">✍️ Gerar com IA</button>
+          <button class="btn btn-ghost tiny" id="as-ia-titulo" type="button" title="Sugere títulos">💡 Título</button>
+        </div>
+      </div>
+      <textarea id="as-f-obs" class="input" rows="6" placeholder="Roteiro da aula: gancho, tópicos, exemplos, CTA… (ou clique em ✍️ Gerar com IA)">${esc(c.obs || '')}</textarea>
+      <label class="tiny muted" style="display:block;margin-top:10px">✅ Checklist de produção</label>
+      <div class="flex" style="flex-wrap:wrap;gap:6px 14px;margin-bottom:6px">
+        ${CHECK.map(x => `<label class="tiny flex gap-1" style="align-items:center;cursor:pointer"><input type="checkbox" class="as-chk" data-k="${x.k}" ${(c.checklist || {})[x.k] ? 'checked' : ''}> ${x.l}</label>`).join('')}
+      </div>
       <div class="flex gap-2 mt-3" style="justify-content:space-between">
         <button class="btn btn-ghost" id="as-del" ${c.id ? '' : 'style="visibility:hidden"'}>🗑 Excluir</button>
         <div class="flex gap-2">
@@ -255,8 +337,14 @@ function openEditor(seed) {
   document.body.appendChild(ov);
   ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
   ov.querySelector('#as-cancel').onclick = () => ov.remove();
+  ov.querySelector('#as-ia-roteiro').onclick = e => gerarIA('roteiro',
+    { tema: ov.querySelector('#as-f-titulo').value, linha: ov.querySelector('#as-f-linha').value, tipo: ov.querySelector('#as-f-tipo').value },
+    ov.querySelector('#as-f-obs'), e.currentTarget);
+  ov.querySelector('#as-ia-titulo').onclick = e => gerarIA('titulo',
+    { tema: ov.querySelector('#as-f-titulo').value, linha: ov.querySelector('#as-f-linha').value }, null, e.currentTarget);
   ov.querySelector('#as-save').onclick = async () => {
     const g = id => ov.querySelector('#as-f-' + id).value;
+    const checklist = {}; ov.querySelectorAll('.as-chk').forEach(ch => { if (ch.checked) checklist[ch.dataset.k] = true; });
     const body = {
       action: 'upsert', board: 'academy', id: c.id || undefined,
       titulo: g('titulo').trim(),
@@ -267,6 +355,7 @@ function openEditor(seed) {
       data_ref: g('data') || null,       // data de gravação
       link: g('link').trim(),
       obs: g('obs').trim(),              // roteiro
+      checklist,
     };
     if (!body.titulo) { ov.querySelector('#as-f-titulo').focus(); return; }
     ov.querySelector('#as-save').disabled = true;
