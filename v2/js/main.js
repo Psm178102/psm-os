@@ -177,6 +177,9 @@ function canSee(path, user) {
   if ((user?.lvl || 0) < (ROUTE_MIN_LVL[base] || 0)) return false;
   const grp = ROUTE_GROUP[base] || 'inicio';
   if (grp === 'inicio' || grp === 'conta' || grp === 'academy') return true;  // sempre visível a todos
+  // override por usuário pode liberar uma ROTA específica (ex.: só "/paulo-conteudo"
+  // dentro de Marketing) além de GRUPOS inteiros — rota liberada vence sem o grupo todo.
+  if (allowed.includes(base)) return true;
   return allowed.includes(grp);
 }
 

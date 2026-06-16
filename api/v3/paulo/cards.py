@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
-FIELDS = ["titulo", "status", "plataforma", "formato", "valor", "link", "data_ref", "obs", "ordem"]
+FIELDS = ["titulo", "status", "plataforma", "formato", "valor", "link", "data_ref", "obs", "ordem", "semana", "responsavel"]
 BOARDS = ("negocios", "conteudo")
 
 
@@ -111,12 +111,15 @@ class handler(BaseHTTPRequestHandler):
         cid = body.get("id")
         row = {k: body.get(k) for k in FIELDS if k in body}
         # normaliza vazios
-        for k in ("titulo", "status", "plataforma", "formato", "link", "obs", "data_ref"):
+        for k in ("titulo", "status", "plataforma", "formato", "link", "obs", "data_ref", "responsavel"):
             if k in row and (row[k] is None or str(row[k]).strip() == ""):
                 row[k] = None
         if "valor" in row:
             try: row["valor"] = float(row["valor"]) if row["valor"] not in (None, "") else None
             except Exception: row["valor"] = None
+        if "semana" in row:
+            try: row["semana"] = int(row["semana"]) if row["semana"] not in (None, "") else None
+            except Exception: row["semana"] = None
         row["updated_at"] = now
         try:
             if cid:
