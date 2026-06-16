@@ -1,5 +1,5 @@
 // PSM /v2 — Service Worker (offline-first cache de shell)
-const VERSION = 'v221-2026-06-16-fixyt';
+const VERSION = 'v222-2026-06-16-acadstudio';
 const SHELL_CACHE = 'psm-v2-shell-' + VERSION;
 // Runtime cache versionado: ao bumpar VERSION, o activate purga o runtime antigo
 // (JS/CSS desatualizado) automaticamente, garantindo que mudanças propaguem.

@@ -21,6 +21,7 @@ import { pagePauloNegocios } from './pages/paulo-negocios.js';
 import { pagePauloConteudo, pageConteudoImoveis, pageConteudoConquista } from './pages/paulo-conteudo.js';
 import { pageEstrategia } from './pages/estrategia.js';
 import { pageAcademy } from './pages/academy.js';
+import { pageAcademyStudio } from './pages/academy-studio.js';
 import { initNotifs } from './notifs.js';
 import { sounds } from './sounds.js';
 import { pageConfiguracoes } from './pages/configuracoes.js';
@@ -117,7 +118,7 @@ const ROUTE_GROUP = {
   // IA
   '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
   // PSM Academy — menu próprio, visível a todos (a "faculdade" da PSM)
-  '/academy': 'academy',
+  '/academy': 'academy', '/academy-studio': 'academy',
   // Cultura & Pessoas
   '/base': 'cultura', '/manual': 'cultura', '/etica': 'cultura', '/canal': 'cultura',
   '/formacao': 'cultura', '/gestao-pessoas': 'cultura', '/premiacoes': 'cultura',
@@ -157,6 +158,7 @@ const ROUTE_MIN_LVL = {
   '/one-on-one': 5,       // visão de gestor do 1:1
   '/cerebro-vendas': 5,   // inteligência de vendas (líder+)
   '/briefing-guerra': 7,  // briefing estratégico (diretoria)
+  '/academy-studio': 5,   // produção/construção da Academy — só time que constrói (líder+)
 };
 
 function _allowedGroups(user) {
@@ -308,6 +310,7 @@ function applyPermissions(user) {
   router.register('/pontos-atencao', { render: async () => { location.hash = '#/cockpit?tab=atencao'; } });
   router.register('/insights', { render: async () => { location.hash = '#/cockpit?tab=insights'; } });
   router.register('/academy', { render: async (ctx, root) => { setHeader('PSM Academy'); highlight('/academy'); await pageAcademy(ctx, root); } });
+  router.register('/academy-studio', { render: async (ctx, root) => { setHeader('Academy · Produção'); highlight('/academy-studio'); await pageAcademyStudio(ctx, root); } });
   router.register('/marketing', { render: async (ctx, root) => { setHeader('Marketing'); highlight('/marketing'); await pageMarketing(ctx, root); } });
   router.register('/paulo-conteudo', { render: async (ctx, root) => { setHeader('Paulo Morimatsu · Conteúdo'); highlight('/paulo-conteudo'); await pagePauloConteudo(ctx, root); } });
   router.register('/conteudo-imoveis', { render: async (ctx, root) => { setHeader('PSM Imóveis · Conteúdo'); highlight('/conteudo-imoveis'); await pageConteudoImoveis(ctx, root); } });
@@ -502,7 +505,8 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/sr-gerencia"><span class="sb-ico">👔</span> Sr. Gerência</button>
 
         <div class="sb-sec">🎓 PSM Academy</div>
-        <button class="sb-link" data-nav="/academy"><span class="sb-ico">🎓</span> PSM Academy</button>
+        <button class="sb-link" data-nav="/academy-studio"><span class="sb-ico">🎬</span> Academy · Produção</button>
+        <button class="sb-link" data-nav="/academy"><span class="sb-ico">🎓</span> PSM Academy (aulas)</button>
 
         <div class="sb-sec">🤝 Cultura & Pessoas</div>
         <button class="sb-link" data-nav="/base"><span class="sb-ico">📚</span> Base Conhecimento</button>
