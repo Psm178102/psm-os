@@ -44,6 +44,20 @@ const statusCor = id => statusInfo(id).cor;
 const faseOf = id => FASES.find(f => f.status.some(s => s.id === id))?.fase || '';
 const faseCorOf = id => (FASES.find(f => f.status.some(s => s.id === id)) || {}).cor || '#64748b';
 
+// Alerta de "parado na etapa" (v77.48): a partir de "Agendar c/ Prop" pra frente,
+// 2+ dias na mesma etapa → cartão amarelo. "Concluído" não alerta (terminal).
+const _alertIdx = ALL_STATUS.findIndex(s => s.id === 'agendar_prop');
+const ALERTAVEL = new Set(ALL_STATUS.slice(_alertIdx).map(s => s.id).filter(id => id !== 'concluido'));
+const STALE_DIAS = 2;
+// Dias parado na etapa atual. Usa stage_changed_at (setado no move); cai pra updated_at.
+function diasParado(c) {
+  const ref = c.stage_changed_at || c.updated_at;
+  if (!ref) return null;
+  const t = new Date(ref).getTime();
+  if (!isFinite(t)) return null;
+  return Math.max(0, Math.floor((Date.now() - t) / 86400000));
+}
+
 // Tipos de imóvel com ícone + categoria (cor da flag no card)
 const TIPOS = [
   { v: 'Casa em condomínio', ic: '🏡', cat: 'res' },
@@ -154,6 +168,10 @@ function render() {
       .cap-card:active{cursor:grabbing}
       .cap-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,23,42,.12)}
       .cap-card.dragging{opacity:.45;transform:rotate(1.5deg)}
+      .cap-card.stale{background:linear-gradient(180deg,#fffbeb,#fef9c3);border-color:#f59e0b;box-shadow:0 0 0 1px #f59e0b,0 1px 3px rgba(180,120,0,.18)}
+      .cap-card.stale:hover{box-shadow:0 0 0 1px #f59e0b,0 6px 16px rgba(180,120,0,.22)}
+      .cap-stale{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:800;background:#f59e0b;color:#fff}
+      .cap-parad0{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(148,163,184,.18);color:var(--ink,#475569)}
       .cap-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;line-height:1.6}
       .cap-kpi{background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:12px 14px;flex:1;min-width:120px}
     </style>
@@ -298,12 +316,20 @@ function card(c) {
   if (c.link_autorizacao) links.push(`<a href="${esc(c.link_autorizacao)}" target="_blank" rel="noopener" title="Autorização de visita" data-stop="1" style="text-decoration:none">📋</a>`);
   const agend = c.data_agendamento ? (String(c.data_agendamento).substring(0, 10).split('-').reverse().join('/')) : '';
   const horas = c.hora_inicio ? (c.hora_inicio + (c.hora_fim ? '–' + c.hora_fim : '')) : '';
+  // Alerta de parado na etapa (v77.48)
+  const stId = normStatus(c.status);
+  const dias = ALERTAVEL.has(stId) ? diasParado(c) : null;
+  const stale = dias != null && dias >= STALE_DIAS;
+  const paradoBadge = dias != null
+    ? `<span class="${stale ? 'cap-stale' : 'cap-parad0'}" title="Dias parado nesta etapa">${stale ? '⏳' : '🕒'} ${dias === 0 ? 'hoje' : dias + 'd parado'}</span>`
+    : '';
   return `
-    <div class="cap-card" draggable="true" data-card="${esc(c.id)}">
+    <div class="cap-card${stale ? ' stale' : ''}" draggable="true" data-card="${esc(c.id)}">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:6px">
         <div style="font-weight:800;font-size:13.5px;line-height:1.25">${esc(titulo)} <span class="tiny" style="font-weight:700;color:${obj ? '#a16207' : '#16a34a'}">· ${obj ? 'Locação' : 'Venda'}</span></div>
         <span class="tiny" style="white-space:nowrap;font-weight:700;color:${c.codigo_kenlo ? '#8b5cf6' : '#cbd5e1'}" title="Código Kenlo">🏷 ${c.codigo_kenlo ? esc(c.codigo_kenlo) : '—'}</span>
       </div>
+      ${paradoBadge ? `<div style="margin-top:6px">${paradoBadge}</div>` : ''}
       ${(c.tipo_imovel || subnome) ? `<div class="flex gap-1" style="flex-wrap:wrap;align-items:center;margin-top:5px">
         ${tipoFlag(c.tipo_imovel)}
         ${subnome ? `<span class="tiny muted">${esc(subnome)}</span>` : ''}

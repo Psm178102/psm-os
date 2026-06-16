@@ -115,9 +115,16 @@ class handler(BaseHTTPRequestHandler):
             try:
                 cur = sb.table("captacoes").select("*").eq("id", cid).limit(1).execute().data or []
                 cur = cur[0] if cur else {}
-                sb.table("captacoes").update({"status": status, "updated_at": datetime.now(timezone.utc).isoformat()}).eq("id", cid).execute()
+                now_iso = datetime.now(timezone.utc).isoformat()
+                sb.table("captacoes").update({"status": status, "updated_at": now_iso}).eq("id", cid).execute()
             except Exception as e:
                 return self._send(500, {"ok": False, "error": str(e)})
+            # carimba a entrada na etapa só quando a etapa REALMENTE muda — best-effort
+            # (base do "X dias parado nesta etapa" no cartão; coluna stage_changed_at
+            #  pode não existir até rodar o SQL, então não pode quebrar o move — v77.48)
+            if (cur.get("status") or "") != status:
+                try: sb.table("captacoes").update({"stage_changed_at": now_iso}).eq("id", cid).execute()
+                except Exception: pass
             audit(self, actor, "captacao.move", target_type="captacoes", target_id=cid, notes=f"→ {status}")
             desc = f"{cur.get('condominio') or 'Imóvel'} — {cur.get('proprietario') or ''}"
             # SEMPRE notifica o responsável (todos os canais) em qualquer movimentação
@@ -193,6 +200,7 @@ class handler(BaseHTTPRequestHandler):
         }
         if is_new:
             row["criado_por"] = actor.get("id")
+            row["stage_changed_at"] = row["updated_at"]  # entrou na etapa agora (v77.48)
 
         try:
             r, dropped = _safe_upsert(sb, "captacoes", row)
