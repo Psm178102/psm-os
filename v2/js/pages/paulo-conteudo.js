@@ -80,7 +80,10 @@ function header() {
         <div style="font-size:20px;font-weight:800">Paulo Morimatsu · Conteúdo</div>
         <div class="tiny muted">Por plataforma e por semana · curadoria → gravação → edição → aprovação → agendamento → publicado.</div>
       </div>
-      <button class="btn btn-primary" id="pc-new">+ Novo conteúdo</button>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost" id="pc-import">📥 Importar planilha</button>
+        <button class="btn btn-primary" id="pc-new">+ Novo conteúdo</button>
+      </div>
     </div>`;
 }
 
@@ -196,6 +199,7 @@ function bind() {
   _root.querySelectorAll('.pc-tab').forEach(t => t.addEventListener('click', () => { _plat = t.dataset.plat; render(); }));
   _root.querySelectorAll('.pc-wk').forEach(w => w.addEventListener('click', () => { _semana = w.dataset.wk; render(); }));
   _root.querySelector('#pc-new')?.addEventListener('click', () => openEditor({ plataforma: _plat === 'planner' ? 'instagram' : _plat, semana: _semana || '' }));
+  _root.querySelector('#pc-import')?.addEventListener('click', openImport);
   _root.querySelectorAll('.pc-add').forEach(b => b.addEventListener('click', () => openEditor({ plataforma: _plat, status: b.dataset.st, semana: _semana || '' })));
   _root.querySelectorAll('.pc-edit').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openEditor(_cards.find(c => c.id === b.dataset.card)); }));
   _root.querySelectorAll('.pc-pl-row').forEach(r => r.addEventListener('click', () => openEditor(_cards.find(c => c.id === r.dataset.card))));
@@ -294,4 +298,129 @@ function openEditor(seed) {
     catch (e) { alert('Erro: ' + e.message); }
   };
   setTimeout(() => ov.querySelector('#pc-f-titulo')?.focus(), 50);
+}
+
+/* ── IMPORTAR PLANILHA (.xlsx) — lê no navegador (não sobe pro servidor) ── */
+function loadSheetJS() {
+  return new Promise((res, rej) => {
+    if (window.XLSX) return res(window.XLSX);
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = () => res(window.XLSX);
+    s.onerror = () => rej(new Error('não consegui carregar o leitor de planilha'));
+    document.head.appendChild(s);
+  });
+}
+
+function platOfSheet(name) {
+  const n = (name || '').toUpperCase();
+  if (n.includes('CARROSS')) return null;            // abas de detalhe de carrossel: ignora
+  if (n.includes('INSTAGRAM') || n === 'IG') return 'instagram';
+  if (n.includes('TIKTOK') || n.includes('TIK TOK')) return 'tiktok';
+  if (n.includes('YOUTUBE') || n.includes('YT')) return 'youtube';
+  return null;
+}
+
+function parseWorkbook(XLSX, wb, year) {
+  const out = [];
+  (wb.SheetNames || []).forEach(sn => {
+    const plat = platOfSheet(sn);
+    if (!plat) return;
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: false, defval: '' });
+    const hi = rows.findIndex(r => Array.isArray(r) && r.some(c => /SEMANA/i.test(c)) && r.some(c => /DATA/i.test(c)) && r.some(c => /FORMATO/i.test(c)));
+    if (hi < 0) return;
+    const H = rows[hi].map(c => String(c || '').toUpperCase());
+    const find = (...keys) => { for (const k of keys) { const i = H.findIndex(h => h.includes(k)); if (i >= 0) return i; } return -1; };
+    const ci = {
+      semana: find('SEMANA'), data: find('DATA'), formato: find('FORMATO'),
+      titulo: find('TÍTULO', 'TITULO', 'TEMA') >= 0 ? find('TÍTULO', 'TITULO', 'TEMA')
+        : (find('GANCHO') >= 0 ? find('GANCHO') : find('SÉRIE', 'SERIE', 'EDITORIA')),
+      copy: find('COPY', 'ROTEIRO', 'FALA'), cta: find('CTA'), edit: find('EDITORIA', 'SÉRIE', 'SERIE', 'FUNIL'),
+    };
+    for (let i = hi + 1; i < rows.length; i++) {
+      const r = rows[i] || [];
+      const g = idx => (idx >= 0 && r[idx] != null) ? String(r[idx]).trim() : '';
+      const formato = g(ci.formato), data = g(ci.data), titulo = g(ci.titulo);
+      if (!formato || (!data && !titulo)) continue;     // pula separadores / linhas vazias
+      let semana = null; const sm = g(ci.semana).match(/(\d+)/); if (sm) semana = parseInt(sm[1], 10);
+      let data_ref = null; const dm = data.match(/(\d{1,2})[\/\-.](\d{1,2})/); if (dm) data_ref = `${year}-${dm[2].padStart(2, '0')}-${dm[1].padStart(2, '0')}`;
+      const obs = [g(ci.edit), g(ci.copy), g(ci.cta)].filter(Boolean).join('\n');
+      out.push({ plataforma: plat, titulo: titulo || '(sem título)', formato, semana, data_ref, obs, status: 'curadoria' });
+    }
+  });
+  return out;
+}
+
+function openImport() {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
+  ov.innerHTML = `
+    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:560px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="font-size:17px;font-weight:800;margin-bottom:4px">📥 Importar planilha de conteúdo</div>
+      <div class="tiny muted" style="margin-bottom:14px">Anexe o .xlsx da linha editorial (abas Instagram/TikTok/YouTube). Cada linha vira um card em <b>Curadoria</b>, com plataforma, semana, formato e data. Itens iguais (mesma plataforma + título + data) não duplicam.</div>
+      <div class="flex gap-2" style="align-items:flex-end;margin-bottom:12px">
+        <div style="flex:1"><label class="tiny muted">Arquivo (.xlsx)</label>
+          <input id="pc-imp-file" type="file" accept=".xlsx,.xls" class="input"></div>
+        <div style="width:110px"><label class="tiny muted">Ano</label>
+          <input id="pc-imp-ano" class="input" type="number" value="2026"></div>
+      </div>
+      <div id="pc-imp-preview" class="tiny muted">Selecione o arquivo para pré-visualizar.</div>
+      <div class="flex gap-2 mt-3" style="justify-content:flex-end">
+        <button class="btn btn-ghost" id="pc-imp-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="pc-imp-go" disabled>Importar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  ov.querySelector('#pc-imp-cancel').onclick = () => ov.remove();
+
+  let parsed = [];
+  const prev = ov.querySelector('#pc-imp-preview');
+  const goBtn = ov.querySelector('#pc-imp-go');
+
+  const reparse = async () => {
+    const file = ov.querySelector('#pc-imp-file').files[0];
+    if (!file) return;
+    const year = parseInt(ov.querySelector('#pc-imp-ano').value, 10) || 2026;
+    prev.innerHTML = '<span class="spinner"></span> Lendo planilha…';
+    goBtn.disabled = true;
+    try {
+      const XLSX = await loadSheetJS();
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      let items = parseWorkbook(XLSX, wb, year);
+      // dedupe contra o que já existe (plataforma+titulo+data)
+      const key = c => `${c.plataforma}|${(c.titulo || '').toLowerCase().trim()}|${c.data_ref || ''}`;
+      const seen = new Set(_cards.map(key));
+      const novos = items.filter(c => !seen.has(key(c)));
+      const dups = items.length - novos.length;
+      parsed = novos;
+      const byPlat = {};
+      novos.forEach(c => { byPlat[c.plataforma] = (byPlat[c.plataforma] || 0) + 1; });
+      const resumo = PLATAFORMAS.filter(p => byPlat[p.id]).map(p => `${p.ic} ${byPlat[p.id]}`).join(' · ') || '—';
+      prev.innerHTML = `Encontrei <b>${items.length}</b> linhas · <b style="color:#16a34a">${novos.length} novos</b> a importar (${resumo})${dups ? ` · ${dups} já existem (ignorados)` : ''}.
+        ${novos.slice(0, 6).map(c => `<div style="margin-top:4px">• <b>${esc(c.titulo)}</b> <span class="muted">— ${esc(platInfo(c.plataforma).lbl)} · ${esc(c.formato || '')}${c.semana ? ' · Sem ' + c.semana : ''}${c.data_ref ? ' · ' + fmtData(c.data_ref) : ''}</span></div>`).join('')}
+        ${novos.length > 6 ? `<div class="muted" style="margin-top:4px">… e mais ${novos.length - 6}</div>` : ''}`;
+      goBtn.disabled = novos.length === 0;
+      goBtn.textContent = `Importar ${novos.length}`;
+    } catch (e) {
+      prev.innerHTML = `<span style="color:#dc2626">Erro ao ler: ${esc(e.message)}</span>`;
+    }
+  };
+  ov.querySelector('#pc-imp-file').addEventListener('change', reparse);
+  ov.querySelector('#pc-imp-ano').addEventListener('change', reparse);
+
+  goBtn.onclick = async () => {
+    if (!parsed.length) return;
+    goBtn.disabled = true; prev.innerHTML = '<span class="spinner"></span> Importando…';
+    try {
+      const r = await api.request('/api/v3/paulo/cards', { method: 'POST', body: { action: 'bulk', cards: parsed } });
+      ov.remove();
+      await pagePauloConteudo(null, _root);
+      alert(`✅ ${(r && r.inserted) || parsed.length} conteúdos importados pra Curadoria.`);
+    } catch (e) {
+      prev.innerHTML = `<span style="color:#dc2626">Erro ao importar: ${esc(e.message)}</span>`;
+      goBtn.disabled = false;
+    }
+  };
 }

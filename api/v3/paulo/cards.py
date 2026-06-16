@@ -101,6 +101,35 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._send(500, {"ok": False, "error": str(e)})
 
+        if action == "bulk":
+            # importação em lote (planilha de conteúdo). Só board=conteudo. v77.55
+            items = body.get("cards") or []
+            if not isinstance(items, list) or not items:
+                return self._send(400, {"ok": False, "error": "cards vazio"})
+            rows = []
+            for it in items[:500]:
+                r = {k: it.get(k) for k in FIELDS if k in it}
+                for k in ("titulo", "status", "plataforma", "formato", "link", "obs", "data_ref", "responsavel"):
+                    if k in r and (r[k] is None or str(r[k]).strip() == ""):
+                        r[k] = None
+                if "semana" in r:
+                    try: r["semana"] = int(r["semana"]) if r["semana"] not in (None, "") else None
+                    except Exception: r["semana"] = None
+                if not r.get("titulo"):
+                    continue
+                r.update({"id": "pc_" + uuid.uuid4().hex[:12], "board": "conteudo",
+                          "owner_id": actor.get("id"), "status": r.get("status") or "curadoria",
+                          "created_at": now, "updated_at": now})
+                rows.append(r)
+            if not rows:
+                return self._send(400, {"ok": False, "error": "nenhuma linha válida"})
+            try:
+                sb.table("paulo_cards").insert(rows).execute()
+                audit(self, actor, "paulo.bulk_import", target_type="paulo_cards", notes=f"{len(rows)} conteúdos")
+                return self._send(200, {"ok": True, "inserted": len(rows)})
+            except Exception as e:
+                return self._send(500, {"ok": False, "error": str(e)})
+
         # upsert
         board = body.get("board") if body.get("board") in BOARDS else "negocios"
         if board == "negocios" and not is_socio:

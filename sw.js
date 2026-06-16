@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v77.54.0-2026-06-16-CONTEUDO';
+const SW_VERSION = 'v77.55.0-2026-06-16-IMPORTXLSX';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
