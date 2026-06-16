@@ -178,9 +178,13 @@ def current_user(handler) -> Optional[dict]:
     if not sb:
         return None
     try:
-        res = sb.table("users").select(
-            "id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,last_login_at"
-        ).eq("id", claims.get("sub")).limit(1).execute()
+        base_cols = "id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,last_login_at"
+        try:
+            # menu_groups = override de menu por usuário (lista branca de grupos); v77.53
+            res = sb.table("users").select(base_cols + ",menu_groups").eq("id", claims.get("sub")).limit(1).execute()
+        except Exception:
+            # coluna ainda não migrada em algum ambiente → não quebra o login
+            res = sb.table("users").select(base_cols).eq("id", claims.get("sub")).limit(1).execute()
         rows = res.data or []
         if not rows:
             return None

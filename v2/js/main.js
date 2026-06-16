@@ -160,6 +160,9 @@ const ROUTE_MIN_LVL = {
 };
 
 function _allowedGroups(user) {
+  // Override por usuário (lista branca de grupos), setado no cadastro (menu_groups).
+  // Quando presente, MANDA — vê só esses grupos + os sempre-visíveis (inicio/conta/academy). v77.53
+  if (Array.isArray(user?.menu_groups)) return user.menu_groups;
   const role = (user?.role || 'corretor').toLowerCase();
   const lvl = user?.lvl || 0;
   if (lvl >= 7) return '*';  // sócio/diretor/gerente sempre tudo
