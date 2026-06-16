@@ -18,7 +18,7 @@ import { pageAgenda } from './pages/agenda.js';
 import { pageDiretoria } from './pages/diretoria.js';
 import { pageCockpitHub } from './pages/cockpit-hub.js';
 import { pagePauloNegocios } from './pages/paulo-negocios.js';
-import { pagePauloConteudo } from './pages/paulo-conteudo.js';
+import { pagePauloConteudo, pageConteudoImoveis, pageConteudoConquista } from './pages/paulo-conteudo.js';
 import { pageEstrategia } from './pages/estrategia.js';
 import { pageAcademy } from './pages/academy.js';
 import { initNotifs } from './notifs.js';
@@ -103,7 +103,7 @@ const ROUTE_GROUP = {
   '/financeiro': 'financeiro', '/forecast': 'financeiro',
   // Inteligência & Marketing
   '/marketing': 'marketing', '/concorrencia': 'marketing', '/benchmark': 'marketing',
-  '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing', '/inteligencia': 'marketing', '/biblioteca-ads': 'marketing', '/marketing-historico': 'marketing', '/cerebro-vendas': 'marketing', '/briefing-guerra': 'marketing', '/paulo-conteudo': 'marketing',
+  '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing', '/inteligencia': 'marketing', '/biblioteca-ads': 'marketing', '/marketing-historico': 'marketing', '/cerebro-vendas': 'marketing', '/briefing-guerra': 'marketing', '/paulo-conteudo': 'marketing', '/conteudo-imoveis': 'marketing', '/conteudo-conquista': 'marketing',
   '/dados-mercado': 'diretoria',
   // Metas & Performance
   '/metas': 'performance', '/equipe': 'performance', '/organograma': 'performance',
@@ -310,6 +310,8 @@ function applyPermissions(user) {
   router.register('/academy', { render: async (ctx, root) => { setHeader('PSM Academy'); highlight('/academy'); await pageAcademy(ctx, root); } });
   router.register('/marketing', { render: async (ctx, root) => { setHeader('Marketing'); highlight('/marketing'); await pageMarketing(ctx, root); } });
   router.register('/paulo-conteudo', { render: async (ctx, root) => { setHeader('Paulo Morimatsu · Conteúdo'); highlight('/paulo-conteudo'); await pagePauloConteudo(ctx, root); } });
+  router.register('/conteudo-imoveis', { render: async (ctx, root) => { setHeader('PSM Imóveis · Conteúdo'); highlight('/conteudo-imoveis'); await pageConteudoImoveis(ctx, root); } });
+  router.register('/conteudo-conquista', { render: async (ctx, root) => { setHeader('PSM Conquista · Conteúdo'); highlight('/conteudo-conquista'); await pageConteudoConquista(ctx, root); } });
   router.register('/inteligencia', { render: async (ctx, root) => { setHeader('Centro de Inteligência'); highlight('/inteligencia'); await pageIntelCentro(ctx, root); } });
   router.register('/dados-mercado', { render: async (ctx, root) => { setHeader('Dados de Mercado'); highlight('/dados-mercado'); await pageDadosMercado(ctx, root); } });
   router.register('/biblioteca-ads', { render: async (ctx, root) => { setHeader('Biblioteca de Anúncios'); highlight('/biblioteca-ads'); await pageBibliotecaAds(ctx, root); } });
@@ -477,6 +479,8 @@ function shellHTML(user) {
         <div class="sb-sec">📣 Marketing</div>
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>
         <button class="sb-link" data-nav="/paulo-conteudo"><span class="sb-ico">🎬</span> Paulo Morimatsu</button>
+        <button class="sb-link" data-nav="/conteudo-imoveis"><span class="sb-ico">🏠</span> PSM Imóveis (conteúdo)</button>
+        <button class="sb-link" data-nav="/conteudo-conquista"><span class="sb-ico">🏆</span> PSM Conquista (conteúdo)</button>
         <button class="sb-link" data-nav="/marketing-historico"><span class="sb-ico">📅</span> Histórico Meta</button>
         <button class="sb-link" data-nav="/biblioteca-ads"><span class="sb-ico">📚</span> Biblioteca de Anúncios</button>
         <button class="sb-link" data-nav="/intel-ads"><span class="sb-ico">🎯</span> Intel Ads</button>

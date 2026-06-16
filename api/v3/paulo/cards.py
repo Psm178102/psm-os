@@ -17,7 +17,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
 FIELDS = ["titulo", "status", "plataforma", "formato", "valor", "link", "data_ref", "obs", "ordem", "semana", "responsavel"]
-BOARDS = ("negocios", "conteudo")
+BOARDS = ("negocios", "conteudo", "conteudo_imoveis", "conteudo_conquista")
+CONTEUDO_BOARDS = ("conteudo", "conteudo_imoveis", "conteudo_conquista")  # compartilhados, lvl>=3
 
 
 class handler(BaseHTTPRequestHandler):
@@ -102,7 +103,8 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(500, {"ok": False, "error": str(e)})
 
         if action == "bulk":
-            # importação em lote (planilha de conteúdo). Só board=conteudo. v77.55
+            # importação em lote (planilha de conteúdo). Qualquer board de conteúdo. v77.55+
+            bb = body.get("board") if body.get("board") in CONTEUDO_BOARDS else "conteudo"
             items = body.get("cards") or []
             if not isinstance(items, list) or not items:
                 return self._send(400, {"ok": False, "error": "cards vazio"})
@@ -117,7 +119,7 @@ class handler(BaseHTTPRequestHandler):
                     except Exception: r["semana"] = None
                 if not r.get("titulo"):
                     continue
-                r.update({"id": "pc_" + uuid.uuid4().hex[:12], "board": "conteudo",
+                r.update({"id": "pc_" + uuid.uuid4().hex[:12], "board": bb,
                           "owner_id": actor.get("id"), "status": r.get("status") or "curadoria",
                           "created_at": now, "updated_at": now})
                 rows.append(r)

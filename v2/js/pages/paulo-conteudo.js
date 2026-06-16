@@ -8,6 +8,9 @@ let _cards = [];
 let _plat = 'instagram';   // aba ativa: instagram|tiktok|youtube|planner
 let _semana = '';          // filtro de semana ('' = todas)
 let _dragId = null;
+let _board = 'conteudo';   // conteudo (Paulo Morimatsu) | conteudo_imoveis | conteudo_conquista
+
+const BOARD_TITLE = { conteudo: 'Paulo Morimatsu', conteudo_imoveis: 'PSM Imóveis', conteudo_conquista: 'PSM Conquista' };
 
 const PLATAFORMAS = [
   { id: 'instagram', lbl: 'Instagram', ic: '📸', cor: '#d6249f' },
@@ -40,11 +43,15 @@ const respCor = n => RESP_COR[n] || '#64748b';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '';
 
-export async function pagePauloConteudo(ctx, root) {
-  _root = root;
+export function pagePauloConteudo(ctx, root) { return mount('conteudo', root); }
+export function pageConteudoImoveis(ctx, root) { return mount('conteudo_imoveis', root); }
+export function pageConteudoConquista(ctx, root) { return mount('conteudo_conquista', root); }
+
+async function mount(board, root) {
+  _root = root; _board = board; _plat = 'instagram'; _semana = '';
   root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando conteúdo…</div></div>';
   try {
-    const r = await api.request('/api/v3/paulo/cards?board=conteudo');
+    const r = await api.request('/api/v3/paulo/cards?board=' + _board);
     if (r && r.pending) { root.innerHTML = `<div class="alert alert-err">Tabela ainda não criada. Rode <code>supabase/sprint_paulo_e_captstale.sql</code>.</div>`; return; }
     _cards = (r && r.cards) || [];
   } catch (e) {
@@ -77,7 +84,7 @@ function header() {
   return `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div>
-        <div style="font-size:20px;font-weight:800">Paulo Morimatsu · Conteúdo</div>
+        <div style="font-size:20px;font-weight:800">${esc(BOARD_TITLE[_board] || 'Conteúdo')} · Conteúdo</div>
         <div class="tiny muted">Por plataforma e por semana · curadoria → gravação → edição → aprovação → agendamento → publicado.</div>
       </div>
       <div class="flex gap-2">
@@ -272,7 +279,7 @@ function openEditor(seed) {
   ov.querySelector('#pc-cancel').onclick = () => ov.remove();
   ov.querySelector('#pc-save').onclick = async () => {
     const body = {
-      action: 'upsert', board: 'conteudo', id: c.id || undefined,
+      action: 'upsert', board: _board, id: c.id || undefined,
       titulo: ov.querySelector('#pc-f-titulo').value.trim(),
       plataforma: ov.querySelector('#pc-f-plat').value,
       formato: ov.querySelector('#pc-f-formato').value,
@@ -289,12 +296,12 @@ function openEditor(seed) {
       await api.request('/api/v3/paulo/cards', { method: 'POST', body });
       if (_plat !== 'planner') _plat = body.plataforma;
       ov.remove();
-      await pagePauloConteudo(null, _root);
+      await mount(_board, _root);
     } catch (e) { alert('Erro ao salvar: ' + e.message); ov.querySelector('#pc-save').disabled = false; }
   };
   ov.querySelector('#pc-del').onclick = async () => {
     if (!c.id || !confirm('Excluir este conteúdo?')) return;
-    try { await api.request('/api/v3/paulo/cards', { method: 'POST', body: { action: 'delete', id: c.id } }); ov.remove(); await pagePauloConteudo(null, _root); }
+    try { await api.request('/api/v3/paulo/cards', { method: 'POST', body: { action: 'delete', id: c.id } }); ov.remove(); await mount(_board, _root); }
     catch (e) { alert('Erro: ' + e.message); }
   };
   setTimeout(() => ov.querySelector('#pc-f-titulo')?.focus(), 50);
@@ -414,9 +421,9 @@ function openImport() {
     if (!parsed.length) return;
     goBtn.disabled = true; prev.innerHTML = '<span class="spinner"></span> Importando…';
     try {
-      const r = await api.request('/api/v3/paulo/cards', { method: 'POST', body: { action: 'bulk', cards: parsed } });
+      const r = await api.request('/api/v3/paulo/cards', { method: 'POST', body: { action: 'bulk', board: _board, cards: parsed } });
       ov.remove();
-      await pagePauloConteudo(null, _root);
+      await mount(_board, _root);
       alert(`✅ ${(r && r.inserted) || parsed.length} conteúdos importados pra Curadoria.`);
     } catch (e) {
       prev.innerHTML = `<span style="color:#dc2626">Erro ao importar: ${esc(e.message)}</span>`;
