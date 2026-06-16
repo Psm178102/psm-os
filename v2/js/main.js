@@ -116,9 +116,11 @@ const ROUTE_GROUP = {
   '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/estrategia': 'diretoria',
   // IA
   '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
+  // PSM Academy — menu próprio, visível a todos (a "faculdade" da PSM)
+  '/academy': 'academy',
   // Cultura & Pessoas
   '/base': 'cultura', '/manual': 'cultura', '/etica': 'cultura', '/canal': 'cultura',
-  '/formacao': 'cultura', '/gestao-pessoas': 'cultura', '/premiacoes': 'cultura', '/academy': 'cultura',
+  '/formacao': 'cultura', '/gestao-pessoas': 'cultura', '/premiacoes': 'cultura',
   // Ferramentas
   '/simuladores': 'ferramentas', '/relatorios': 'ferramentas',
   // Sistema
@@ -171,7 +173,7 @@ function canSee(path, user) {
   // nível real da rota: se o cargo não alcança, não vê (nem menu, nem rota)
   if ((user?.lvl || 0) < (ROUTE_MIN_LVL[base] || 0)) return false;
   const grp = ROUTE_GROUP[base] || 'inicio';
-  if (grp === 'inicio' || grp === 'conta') return true;
+  if (grp === 'inicio' || grp === 'conta' || grp === 'academy') return true;  // sempre visível a todos
   return allowed.includes(grp);
 }
 
@@ -489,8 +491,10 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/sr-performance"><span class="sb-ico">🎖️</span> Sr. Performance</button>
         <button class="sb-link" data-nav="/sr-gerencia"><span class="sb-ico">👔</span> Sr. Gerência</button>
 
-        <div class="sb-sec">🎓 Cultura & Pessoas</div>
+        <div class="sb-sec">🎓 PSM Academy</div>
         <button class="sb-link" data-nav="/academy"><span class="sb-ico">🎓</span> PSM Academy</button>
+
+        <div class="sb-sec">🤝 Cultura & Pessoas</div>
         <button class="sb-link" data-nav="/base"><span class="sb-ico">📚</span> Base Conhecimento</button>
         <button class="sb-link" data-nav="/manual"><span class="sb-ico">📖</span> Manual Cultura</button>
         <button class="sb-link" data-nav="/etica"><span class="sb-ico">⚖️</span> Código de Ética</button>
