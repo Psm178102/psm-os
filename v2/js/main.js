@@ -56,6 +56,7 @@ import { pageCanal } from './pages/canal.js';
 import { pageBase } from './pages/base.js';
 import { pageFormacao } from './pages/formacao.js';
 import { pageGestaoPessoas } from './pages/gestao-pessoas.js';
+import { pageTalentos } from './pages/talentos.js';
 import { pagePremiacoes } from './pages/premiacoes.js';
 import { pageAgentes } from './pages/agentes.js';
 import { pageAgenteVera } from './pages/agente-vera.js';
@@ -125,6 +126,7 @@ const ROUTE_GROUP = {
   // Cultura & Pessoas
   '/base': 'cultura', '/manual': 'cultura', '/etica': 'cultura', '/canal': 'cultura',
   '/formacao': 'cultura', '/gestao-pessoas': 'cultura', '/premiacoes': 'cultura',
+  '/talentos': 'diretoria',
   // Ferramentas
   '/simuladores': 'ferramentas', '/relatorios': 'ferramentas',
   // Sistema
@@ -355,6 +357,7 @@ function applyPermissions(user) {
   router.register('/canal',       { render: async (ctx, root) => { setHeader('Canal Anônimo');        highlight('/canal');  await pageCanal(ctx, root); } });
   router.register('/formacao',    { render: async (ctx, root) => { setHeader('Formação PSM');         highlight('/formacao'); await pageFormacao(ctx, root); } });
   router.register('/gestao-pessoas', { render: async (ctx, root) => { setHeader('Gestão de Pessoas'); highlight('/gestao-pessoas'); await pageGestaoPessoas(ctx, root); } });
+  router.register('/talentos', { render: async (ctx, root) => { setHeader('Base de Talentos'); highlight('/talentos'); await pageTalentos(ctx, root); } });
   router.register('/premiacoes',  { render: async (ctx, root) => { setHeader('Premiações');           highlight('/premiacoes'); await pagePremiacoes(ctx, root); } });
   router.register('/agentes',     { render: async (ctx, root) => { setHeader('Central de Agentes');  highlight('/agentes');  await pageAgentes(ctx, root); } });
   router.register('/agente-vera', { render: async (ctx, root) => { setHeader('Agente Vera');         highlight('/agente-vera'); await pageAgenteVera(ctx, root); } });
@@ -463,6 +466,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/cockpit"><span class="sb-ico">🧭</span> Cockpit de Decisão</button>
         <button class="sb-link" data-nav="/diretoria"><span class="sb-ico">📊</span> Dashboard</button>
         <button class="sb-link" data-nav="/paulo"><span class="sb-ico">🧑‍💼</span> Paulo</button>
+        <button class="sb-link" data-nav="/talentos"><span class="sb-ico">🌟</span> Base de Talentos</button>
         <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Planejamento</div>
         <button class="sb-link" data-nav="/projetos"><span class="sb-ico">📌</span> Projetos</button>
         <button class="sb-link" data-nav="/estrategia"><span class="sb-ico">♟️</span> Estratégia</button>
