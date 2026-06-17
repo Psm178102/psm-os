@@ -5,7 +5,7 @@ import { api } from '../api.js';
 
 let _root = null;
 let _cards = [];
-let _view = 'kanban';   // kanban | prazos | metricas
+let _view = 'kanban';   // kanban | prazos | metricas | insights
 let _fArea = '';
 let _fResp = '';
 let _dragId = null;
@@ -98,6 +98,7 @@ function filtros() {
       <div class="pj-tab ${_view === 'kanban' ? 'on' : ''}" data-view="kanban">🗂 Quadro</div>
       <div class="pj-tab ${_view === 'prazos' ? 'on' : ''}" data-view="prazos">📅 Prazos</div>
       <div class="pj-tab ${_view === 'metricas' ? 'on' : ''}" data-view="metricas">📊 Métricas</div>
+      <div class="pj-tab ${_view === 'insights' ? 'on' : ''}" data-view="insights">🧠 Insights</div>
       <div style="flex:1"></div>
       <div><label class="tiny muted">Área</label>
         <select id="pj-farea" class="select"><option value="">Todas as áreas</option>${areas.map(a => `<option value="${esc(a)}"${_fArea === a ? ' selected' : ''}>${esc(a)}</option>`).join('')}</select></div>
@@ -122,8 +123,10 @@ function kpis() {
 function render() {
   const body = _view === 'prazos' ? renderPrazos()
     : _view === 'metricas' ? renderMetricas()
+    : _view === 'insights' ? renderInsights()
     : `<div class="pj-board">${STAGES.map(col).join('')}</div>`;
-  _root.innerHTML = `${STYLE}${header()}${filtros()}${_view === 'metricas' ? '' : kpis()}${body}`;
+  const semKpi = _view === 'metricas' || _view === 'insights';
+  _root.innerHTML = `${STYLE}${header()}${filtros()}${semKpi ? '' : kpis()}${body}`;
   bind();
 }
 
@@ -219,6 +222,80 @@ function renderMetricas() {
     </div>`;
 }
 
+/* ── INSIGHTS: sinais reais da carteira + leitura executiva por IA ── */
+const _plusDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().substring(0, 10); };
+const _diasAtraso = d => Math.max(0, Math.round((new Date(hoje()) - new Date(d)) / 86400000));
+const _ativo = c => c.status !== 'concluido' && c.status !== 'pausado';
+
+function computeInsights(f) {
+  const ins = [];
+  const atras = f.filter(c => c.data_ref && _ativo(c) && c.data_ref < hoje()).sort((a, b) => a.data_ref.localeCompare(b.data_ref));
+  if (atras.length) ins.push({ sev: 'red', icon: '⏰', title: `${atras.length} projeto(s) atrasado(s)`, sub: 'Passaram do prazo e não foram concluídos nem pausados.', items: atras });
+  const em7 = f.filter(c => c.data_ref && _ativo(c) && c.data_ref >= hoje() && c.data_ref <= _plusDays(7)).sort((a, b) => a.data_ref.localeCompare(b.data_ref));
+  if (em7.length) ins.push({ sev: 'amber', icon: '📅', title: `${em7.length} vencem em até 7 dias`, sub: 'Prazo chegando — confirme se vão entregar.', items: em7 });
+  const altaParada = f.filter(c => c.formato === 'Alta' && (c.status === 'ideia' || c.status === 'planejamento'));
+  if (altaParada.length) ins.push({ sev: 'amber', icon: '⚑', title: `${altaParada.length} de prioridade ALTA ainda no papel`, sub: 'Alta prioridade parada em ideia/planejamento.', items: altaParada });
+  const semPrazo = f.filter(c => c.status === 'andamento' && !c.data_ref);
+  if (semPrazo.length) ins.push({ sev: 'amber', icon: '🗓', title: `${semPrazo.length} em andamento sem prazo`, sub: 'Em execução sem data de entrega — sem cronograma, sem cobrança.', items: semPrazo });
+  const semResp = f.filter(c => _ativo(c) && !c.responsavel);
+  if (semResp.length) ins.push({ sev: 'amber', icon: '👤', title: `${semResp.length} sem responsável`, sub: 'Projeto ativo sem dono definido.', items: semResp });
+  const semValidar = f.filter(c => c.status === 'concluido' && !(c.checklist || {}).validado);
+  if (semValidar.length) ins.push({ sev: 'amber', icon: '☑️', title: `${semValidar.length} concluído(s) sem validação`, sub: 'Marcados como concluídos mas sem "✅ Validado" no checklist.', items: semValidar });
+  // carga concentrada por responsável
+  const carga = {}; f.filter(_ativo).forEach(c => { if (c.responsavel) carga[c.responsavel] = (carga[c.responsavel] || 0) + 1; });
+  const sobre = Object.entries(carga).filter(([, n]) => n >= 5).sort((a, b) => b[1] - a[1]);
+  if (sobre.length) ins.push({ sev: 'amber', icon: '⚖️', title: 'Carga concentrada', sub: sobre.map(([r, n]) => `${r}: ${n} ativos`).join(' · '), items: [] });
+  // positivo
+  if (f.length && !atras.length) ins.push({ sev: 'green', icon: '✅', title: 'Nenhum projeto atrasado', sub: 'Carteira no prazo. 👏', items: [] });
+  return ins;
+}
+
+function renderInsights() {
+  const f = filtered();
+  if (!f.length) return '<div class="muted tiny">Sem projetos ainda — crie o primeiro em "+ Novo projeto".</div>';
+  const ins = computeInsights(f);
+  const SEV = { red: '#ef4444', amber: '#f59e0b', green: '#16a34a' };
+  const linha = c => `<div class="pj-row" data-card="${esc(c.id)}">
+      <span style="font-size:15px">${stageInfo(c.status).lbl.split(' ')[0]}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.titulo || 'Sem nome')}</div>
+        <div class="tiny muted">${esc(c.plataforma || '—')}${c.responsavel ? ' · 👤 ' + esc(c.responsavel) : ''}${c.data_ref ? ' · 📅 ' + esc(fmtData(c.data_ref)) + (_ativo(c) && c.data_ref < hoje() ? ` (${_diasAtraso(c.data_ref)}d atraso)` : '') : ''}</div>
+      </div>
+    </div>`;
+  const block = i => `<div class="pj-day" style="border-left:4px solid ${SEV[i.sev]}">
+      <div class="flex items-center" style="justify-content:space-between">
+        <div style="font-weight:800;font-size:14px;color:${SEV[i.sev]}">${i.icon} ${esc(i.title)}</div>
+        ${i.items.length ? `<span class="tiny muted" style="font-weight:700">${i.items.length}</span>` : ''}
+      </div>
+      ${i.sub ? `<div class="tiny muted" style="margin:2px 0 4px">${esc(i.sub)}</div>` : ''}
+      ${i.items.map(linha).join('')}
+    </div>`;
+  return `
+    <div class="pj-day" style="border-left:4px solid #0891b2">
+      <div class="flex items-center" style="justify-content:space-between">
+        <div style="font-weight:800;font-size:14px">🧠 Leitura executiva (IA)</div>
+        <button class="btn btn-primary tiny" id="pj-ia-insights">Gerar análise</button>
+      </div>
+      <div class="tiny muted" style="margin-top:2px">Resumo dos riscos, foco da semana e próximas ações — gerado a partir dos projetos reais.</div>
+      <div id="pj-ia-out" class="tiny" style="white-space:pre-wrap;margin-top:8px;line-height:1.5;color:var(--ink,#334155)"></div>
+    </div>
+    ${ins.map(block).join('')}`;
+}
+
+async function iaInsights(btn) {
+  const f = filtered();
+  const out = _root.querySelector('#pj-ia-out');
+  if (!out) return;
+  const resumo = `Total ${f.length} projetos. Por etapa: ${STAGES.map(s => `${s.lbl} ${f.filter(c => (c.status || 'ideia') === s.id).length}`).join(', ')}.`;
+  const snap = f.slice(0, 60).map(c => `- [${stageInfo(c.status).lbl}] ${c.titulo || 'Sem nome'} · área:${c.plataforma || '—'} · prioridade:${c.formato || '—'} · resp:${c.responsavel || '—'} · prazo:${c.data_ref ? fmtData(c.data_ref) + (_ativo(c) && c.data_ref < hoje() ? ' (ATRASADO)' : '') : 'sem prazo'} · checklist:${checkDone(c)}/${CHECK.length}`).join('\n');
+  const t0 = btn.textContent; btn.disabled = true; btn.textContent = '⏳ analisando…'; out.textContent = '';
+  try {
+    const r = await api.request('/api/v3/ia/roteiro', { method: 'POST', body: { modo: 'insights', contexto: `${resumo}\n\n${snap}` } });
+    out.textContent = (r && r.text) || 'IA não retornou conteúdo.';
+  } catch (e) { out.textContent = 'IA indisponível: ' + (e.message || e); }
+  finally { btn.disabled = false; btn.textContent = t0; }
+}
+
 async function gerarIA(payload, alvoEl, btn) {
   const t0 = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = '⏳ gerando…'; }
@@ -232,6 +309,7 @@ async function gerarIA(payload, alvoEl, btn) {
 
 function bind() {
   _root.querySelectorAll('.pj-tab').forEach(t => t.addEventListener('click', () => { _view = t.dataset.view; render(); }));
+  _root.querySelector('#pj-ia-insights')?.addEventListener('click', e => iaInsights(e.currentTarget));
   const fa = _root.querySelector('#pj-farea'); if (fa) fa.onchange = () => { _fArea = fa.value; render(); };
   const fr = _root.querySelector('#pj-fresp'); if (fr) fr.onchange = () => { _fResp = fr.value; render(); };
   _root.querySelector('#pj-new')?.addEventListener('click', () => openEditor({ plataforma: _fArea || '' }));

@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v77.63.0-2026-06-17-TALENTOS';
+const SW_VERSION = 'v77.64.0-2026-06-17-PJINSIGHTS';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

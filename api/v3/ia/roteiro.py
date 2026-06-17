@@ -1,7 +1,8 @@
 """POST /api/v3/ia/roteiro — IA de produção da PSM Academy (Gemini). v77.59
-Body: { modo: 'roteiro'|'temas'|'titulo', tema?, linha?, tipo? }
+Body: { modo: 'roteiro'|'temas'|'titulo'|'projeto'|'insights', tema?, linha?, tipo?, contexto? }
 Resp: { ok, text }
-Gera rascunho de roteiro de aula, sugere temas de uma trilha ou títulos SEO.
+Gera roteiro de aula, temas, títulos SEO, plano de projeto ('projeto') ou
+leitura executiva da carteira de projetos ('insights', usa body.contexto).
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, sys, urllib.request
@@ -18,6 +19,11 @@ SYSTEM = ("Você é roteirista-chefe da PSM Academy — a faculdade interna de u
 SYSTEM_PROJ = ("Você é um gerente de projetos sênior da PSM Imóveis (imobiliária de alto padrão "
                "em São José do Rio Preto/SP). Estrutura planos de projeto objetivos e acionáveis, "
                "em português do Brasil, com foco em execução, prazos e responsáveis.")
+
+SYSTEM_INSIGHTS = ("Você é o PMO (analista de portfólio de projetos) da diretoria da PSM Imóveis. "
+                   "Lê o retrato atual da carteira de projetos e devolve uma leitura executiva curta, "
+                   "em português do Brasil, baseada APENAS nos dados fornecidos — nunca invente projetos, "
+                   "prazos ou números. Tom direto, de conselheiro de diretoria.")
 
 
 def _get_setting(sb, key):
@@ -43,7 +49,17 @@ def _gemini(api_key, prompt, system=SYSTEM):
     return "".join(p.get("text", "") for p in cands[0].get("content", {}).get("parts", []))
 
 
-def _prompt(modo, tema, linha, tipo):
+def _prompt(modo, tema, linha, tipo, contexto=""):
+    if modo == "insights":
+        ctx = (contexto or "").strip() or "(sem projetos cadastrados)"
+        return ("Aqui está o retrato ATUAL da carteira de projetos da diretoria:\n\n"
+                f"{ctx}\n\n"
+                "Faça uma LEITURA EXECUTIVA curta e acionável, exatamente nesta ordem:\n"
+                "🔴 RISCOS — o que pode dar errado (atrasos, alta prioridade parada, sem dono/prazo)\n"
+                "🎯 FOCO DA SEMANA — 2 a 3 projetos que merecem atenção AGORA e por quê\n"
+                "⚡ PRÓXIMAS AÇÕES — passos concretos (quem/o quê)\n"
+                "💡 OBSERVAÇÕES — padrões de carga, gargalos por etapa/responsável\n"
+                "Baseie-se SÓ nos dados acima. Não invente projetos. Seja direto.")
     tema = tema or "(sem tema)"; linha = linha or "geral"; tipo = tipo or "vídeo-aula"
     if modo == "projeto":
         return (f"Esboce um PLANO DE PROJETO para '{tema}' (área: {linha}). Estruture assim:\n"
@@ -96,9 +112,9 @@ class handler(BaseHTTPRequestHandler):
         key = os.environ.get("GEMINI_API_KEY") or (_get_setting(sb, "gemini_api_key") if sb else None)
         if not key:
             return self._send(503, {"ok": False, "error": "IA indisponível (sem chave Gemini)"})
-        sysmsg = SYSTEM_PROJ if modo == "projeto" else SYSTEM
+        sysmsg = SYSTEM_INSIGHTS if modo == "insights" else (SYSTEM_PROJ if modo == "projeto" else SYSTEM)
         try:
-            text = _gemini(key, _prompt(modo, body.get("tema"), body.get("linha"), body.get("tipo")), sysmsg)
+            text = _gemini(key, _prompt(modo, body.get("tema"), body.get("linha"), body.get("tipo"), body.get("contexto")), sysmsg)
         except Exception as e:
             return self._send(502, {"ok": False, "error": f"IA: {str(e)[:160]}"})
         if not text:
