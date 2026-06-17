@@ -34,7 +34,7 @@ function render() {
   _root.innerHTML = `
     <div class="card">
       <h2 class="card-title">🌟 Base de Talentos</h2>
-      <p class="card-sub">Pipeline de recrutamento — conectado ao RD Station (funil Parceiros · etapa Base de Talentos) em tempo real + base interna.</p>
+      <p class="card-sub">Pipeline de recrutamento — conectado ao RD Station (funil de Parceria · etapa Banco de Talentos) em tempo real + base interna.</p>
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
         <button class="btn ${_tab === 'rd' ? 'btn-primary' : 'btn-ghost'}" data-tab="rd">🟢 RD ao vivo</button>
         <button class="btn ${_tab === 'manual' ? 'btn-primary' : 'btn-ghost'}" data-tab="manual">📝 Base manual</button>
@@ -93,7 +93,7 @@ function renderRd(r) {
   body.innerHTML = `
     <div class="flex items-center gap-2 mb-3" style="flex-wrap:wrap">
       <span class="badge" style="background:#16a34a22;color:#16a34a;font-weight:700">🟢 ${list.length} talento(s)</span>
-      <span class="tiny muted">${esc(r.pipeline?.name || 'Parceiros')} · ${esc(r.stage?.name || 'Base de Talentos')}</span>
+      <span class="tiny muted">${esc(r.pipeline?.name || 'FUNIL DE PARCERIA – PAULO')} · ${esc(r.stage?.name || 'BANCO DE TALENTOS')}</span>
       <span class="tiny muted" style="margin-left:auto">Atualizado ${ts} · auto a cada 60s</span>
       <button class="btn btn-ghost btn-sm" id="rd-refresh">🔄 Atualizar</button>
     </div>

@@ -1,14 +1,14 @@
 """
 GET /api/v3/crm/talentos — Base de Talentos AO VIVO do RD CRM. v77.63
 
-Lê os deals que estão no funil "Parceiros", etapa "Base de Talentos" direto do
-RD Station CRM (tempo real, cache curto 45s). Resolve funil/etapa pelo NOME
-(live em /deal_pipelines, com fallback nas tabelas locais rd_pipelines/rd_stages),
-então não depende de sync prévio.
+Lê os deals que estão no funil "FUNIL DE PARCERIA – PAULO", etapa "BANCO DE
+TALENTOS" direto do RD Station CRM (tempo real, cache curto 45s). Resolve
+funil/etapa pelo NOME (live em /deal_pipelines, com fallback nas tabelas locais
+rd_pipelines/rd_stages), então não depende de sync prévio.
 
 Query:
-  ?pipeline=parceiros   (substring do nome do funil; default "parceiro")
-  ?stage=base de talentos (substring do nome da etapa; default "talento")
+  ?pipeline=parceria    (substring do nome do funil; default "parceria")
+  ?stage=banco de talentos (substring do nome da etapa; default "talento")
   ?refresh=1            (ignora o cache)
 
 lvl>=5.
@@ -204,7 +204,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(503, {"ok": False, "error": "backend"})
 
         params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
-        want_pipe = _norm(params.get("pipeline")) or "parceiro"
+        want_pipe = _norm(params.get("pipeline")) or "parceria"
         want_stage = _norm(params.get("stage")) or "talento"
 
         ck = f"{want_pipe}|{want_stage}"
