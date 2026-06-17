@@ -34,11 +34,15 @@ def _get_setting(sb, key):
         return None
 
 
-def _gemini(api_key, prompt, system=SYSTEM):
-    model = os.environ.get("GEMINI_SMART_MODEL") or "gemini-2.5-flash"
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+def _gemini_call(url, api_key, base_cfg, prompt, system, with_thinking_off):
+    cfg = dict(base_cfg)
+    # gemini-2.5-flash gasta o orçamento de saída com "thinking" → desligamos
+    # (thinkingBudget:0) p/ a resposta não cortar no meio. Alguns modelos não
+    # aceitam o campo; nesse caso o chamador refaz sem ele.
+    if with_thinking_off:
+        cfg["thinkingConfig"] = {"thinkingBudget": 0}
     payload = {"contents": [{"role": "user", "parts": [{"text": f"[Sistema]: {system}\n\n[Tarefa]: {prompt}"}]}],
-               "generationConfig": {"maxOutputTokens": 1400, "temperature": 0.75}}
+               "generationConfig": cfg}
     req = urllib.request.Request(url, data=json.dumps(payload).encode(),
                                  headers={"Content-Type": "application/json", "x-goog-api-key": api_key})
     with urllib.request.urlopen(req, timeout=60) as resp:
@@ -47,6 +51,19 @@ def _gemini(api_key, prompt, system=SYSTEM):
     if not cands:
         return ""
     return "".join(p.get("text", "") for p in cands[0].get("content", {}).get("parts", []))
+
+
+def _gemini(api_key, prompt, system=SYSTEM):
+    import urllib.error
+    model = os.environ.get("GEMINI_SMART_MODEL") or "gemini-2.5-flash"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    base_cfg = {"maxOutputTokens": 2048, "temperature": 0.75}
+    try:
+        return _gemini_call(url, api_key, base_cfg, prompt, system, with_thinking_off=True)
+    except urllib.error.HTTPError as e:
+        if e.code == 400:  # modelo sem suporte a thinkingConfig → refaz sem o campo
+            return _gemini_call(url, api_key, base_cfg, prompt, system, with_thinking_off=False)
+        raise
 
 
 def _prompt(modo, tema, linha, tipo, contexto=""):
