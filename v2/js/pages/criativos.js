@@ -13,6 +13,7 @@ import { api } from '../api.js';
 
 let _root = null;
 let _cards = [];
+let _resps = [];   // usuários que enxergam Marketing (login p/ responsável)
 let _fTipo = '';
 let _fResp = '';
 let _dragId = null;
@@ -52,10 +53,21 @@ export async function pageCriativos(ctx, root) {
   } catch (e) {
     root.innerHTML = `<div class="alert alert-err">Erro: ${esc(e.message)}</div>`; return;
   }
+  // usuários que têm acesso à aba Criativos (grupo Marketing) — pro dropdown de responsável
+  try {
+    const u = await api.request('/api/v3/users/options?group=marketing&route=' + encodeURIComponent('/criativos'));
+    _resps = (u && u.users) || [];
+  } catch (_) { _resps = []; }
   render();
 }
 
-function respsDisp() { const s = new Set(RESP_SUGEST); _cards.forEach(c => { if (c.responsavel) s.add(c.responsavel); }); return [...s]; }
+// logins dos elegíveis (+ o que já está nos cards, p/ não perder valor antigo no filtro)
+function respsDisp() {
+  const s = new Set(_resps.map(u => u.login).filter(Boolean));
+  _cards.forEach(c => { if (c.responsavel) s.add(c.responsavel); });
+  if (!s.size) RESP_SUGEST.forEach(r => s.add(r));  // fallback se a lista não carregou
+  return [...s];
+}
 function filtered() {
   return _cards.filter(c => (_fTipo === '' || (c.formato || '') === _fTipo) && (_fResp === '' || (c.responsavel || '') === _fResp));
 }
@@ -173,6 +185,20 @@ function bind() {
   });
 }
 
+/* ── opções de responsável: logins dos usuários que enxergam Marketing ── */
+function respOptions(cur) {
+  const seen = new Set();
+  let opts = '<option value="">— sem responsável —</option>';
+  _resps.forEach(u => {
+    if (!u.login || seen.has(u.login)) return;
+    seen.add(u.login);
+    const lbl = u.name ? `${u.name} · ${u.login}` : u.login;
+    opts += `<option value="${esc(u.login)}"${cur === u.login ? ' selected' : ''}>${esc(lbl)}</option>`;
+  });
+  if (cur && !seen.has(cur)) opts += `<option value="${esc(cur)}" selected>${esc(cur)} (atual)</option>`;
+  return opts;
+}
+
 /* ── materiais (repeater) ── */
 function matRow(m = {}) {
   return `<div class="cr-matrow">
@@ -204,9 +230,8 @@ function openEditor(seed) {
         <div style="flex:1"><label class="tiny muted">Campanha / objetivo</label>
           <input id="cr-f-camp" class="input" list="cr-camps" value="${esc(c.plataforma || '')}" placeholder="Pra qual campanha">
           <datalist id="cr-camps">${CAMPANHAS.map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
-        <div style="flex:1"><label class="tiny muted">Responsável (marketing)</label>
-          <input id="cr-f-resp" class="input" list="cr-resps" value="${esc(c.responsavel || '')}" placeholder="Quem produz">
-          <datalist id="cr-resps">${respsDisp().map(r => `<option value="${esc(r)}">`).join('')}</datalist></div>
+        <div style="flex:1"><label class="tiny muted">Responsável (login)</label>
+          <select id="cr-f-resp" class="select">${respOptions(c.responsavel || '')}</select></div>
         <div style="flex:0 0 140px"><label class="tiny muted">📅 Prazo</label>
           <input id="cr-f-data" class="input" type="date" value="${c.data_ref ? String(c.data_ref).substring(0, 10) : ''}"></div>
       </div>
