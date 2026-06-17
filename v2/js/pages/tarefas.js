@@ -24,31 +24,163 @@ const PRIORIDADE = [
 let _root = null;
 let _tasks = [];
 let _users = [];
+let _feed = [];
+let _feedCounts = {};
+let _view = 'central';     // central | board
+let _cOrigem = '';         // filtro de origem na central
+let _cDone = false;        // mostrar concluídos na central
+let _scope = 'mine';
 let _filterStatus = '';
 let _filterResp = '';
 let _filterPrior = '';
 
 export async function pageTarefas(ctx, root) {
   _root = root;
-  root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando tarefas…</div></div>';
+  root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando central…</div></div>';
   await reload();
 }
 
 async function reload() {
   try {
-    const [t, u] = await Promise.all([
+    const [t, u, f] = await Promise.all([
       api.request('/api/v3/tasks/list'),
       api.request('/api/v3/users/list').catch(() => ({ users: [] })),
+      api.request('/api/v3/tasks/feed').catch(() => ({ items: [], counts: {} })),
     ]);
     _tasks = t.tasks || [];
     _users = u.users || [];
-    render(t.scope);
+    _feed = f.items || [];
+    _feedCounts = f.counts || {};
+    _scope = t.scope || 'mine';
+    render();
   } catch (e) {
     _root.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message)}</div>`;
   }
 }
 
-function render(scope) {
+function tabsHTML() {
+  const tab = (id, lbl) => `<div class="tk-tab ${_view === id ? 'on' : ''}" data-tk-tab="${id}">${lbl}</div>`;
+  return `
+    <style>
+      .tk-tab{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border-radius:999px;font-weight:700;font-size:13px;cursor:pointer;border:1px solid rgba(148,163,184,.25);background:var(--bg-1,#fff);color:var(--ink,#334155)}
+      .tk-tab.on{background:#2563eb;border-color:#2563eb;color:#fff}
+      .tk-row{display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--bg-3);border-radius:10px;border-left:4px solid #94a3b8}
+      .tk-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(148,163,184,.16);color:var(--ink,#475569)}
+    </style>
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
+      ${tab('central', '🗂 Central (tudo meu)')}
+      ${tab('board', '📋 Board de tarefas')}
+    </div>`;
+}
+
+function wireTabs() {
+  _root.querySelectorAll('[data-tk-tab]').forEach(t => t.addEventListener('click', () => { _view = t.dataset.tkTab; render(); }));
+}
+
+function render() {
+  if (_view === 'central') renderCentral();
+  else renderBoard(_scope);
+  wireTabs();
+}
+
+/* ─────────────────── CENTRAL (feed unificado) ─────────────────── */
+const ORIGENS = ['Tarefa', 'Agenda', 'Academy', 'Projeto', 'Captação', 'One-on-One', 'Plantão'];
+
+function renderCentral() {
+  const me = auth.user();
+  const hoje = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+  let list = _feed.slice();
+  if (!_cDone) list = list.filter(i => !i.done);
+  if (_cOrigem) list = list.filter(i => i.origem === _cOrigem);
+
+  // grupos por urgência
+  const G = { atrasado: [], hoje: [], semana: [], depois: [], semdata: [] };
+  const sem = new Date(Date.now() + (7 - 3 / 24) * 86400000).toISOString().slice(0, 10);
+  list.forEach(i => {
+    if (!i.data) return G.semdata.push(i);
+    if (i.data < hoje) return G.atrasado.push(i);
+    if (i.data === hoje) return G.hoje.push(i);
+    if (i.data <= sem) return G.semana.push(i);
+    G.depois.push(i);
+  });
+  Object.values(G).forEach(arr => arr.sort((a, b) => (a.data || '9') < (b.data || '9') ? -1 : 1));
+
+  const c = _feedCounts || {};
+  const kpi = (lbl, v, cor) => `<div style="background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:9px 13px;flex:1;min-width:96px"><div class="tiny muted">${lbl}</div><div style="font-size:18px;font-weight:800;color:${cor || 'inherit'}">${v || 0}</div></div>`;
+
+  const sec = (key, lbl, cor) => {
+    const arr = G[key];
+    if (!arr.length) return '';
+    return `<div style="margin-bottom:14px">
+      <div style="font-weight:800;font-size:13px;color:${cor};margin-bottom:6px">${lbl} <span class="muted tiny" style="font-weight:400">(${arr.length})</span></div>
+      <div style="display:grid;gap:6px">${arr.map(centralRow).join('')}</div>
+    </div>`;
+  };
+
+  _root.innerHTML = `
+    <div class="card">
+      ${tabsHTML()}
+      <h2 class="card-title">🗂 Minha Central</h2>
+      <p class="card-sub">Tudo que é seu pra fazer/acompanhar — tarefas, agenda, prazos de Projetos/Academy, captações, 1:1 e plantões — num lugar só, independente da aba.</p>
+      <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
+        ${kpi('Pendentes', c.pendentes, '#2563eb')}
+        ${kpi('⏰ Atrasados', c.atrasados, '#dc2626')}
+        ${kpi('📅 Hoje', c.hoje, '#16a34a')}
+        ${kpi('Próx. 7 dias', c.semana, '#d97706')}
+        ${kpi('Total', c.total)}
+      </div>
+      <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center">
+        <div class="tk-tab ${_cOrigem === '' ? 'on' : ''}" data-orig="">Todas</div>
+        ${ORIGENS.map(o => `<div class="tk-tab ${_cOrigem === o ? 'on' : ''}" data-orig="${o}">${o}${c.por_origem && c.por_origem[o] ? ' · ' + c.por_origem[o] : ''}</div>`).join('')}
+        <label class="tiny muted" style="margin-left:auto;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="c-done" ${_cDone ? 'checked' : ''}> mostrar concluídos</label>
+        <button class="btn btn-primary" id="btn-new">+ Nova tarefa</button>
+      </div>
+      <div class="mt-4">
+        ${list.length ? '' : '<div class="muted tiny" style="text-align:center;padding:24px">Nada pendente pra você agora. 🎉</div>'}
+        ${sec('atrasado', '⏰ Atrasados', '#dc2626')}
+        ${sec('hoje', '📅 Hoje', '#16a34a')}
+        ${sec('semana', '🗓 Próximos 7 dias', '#d97706')}
+        ${sec('depois', '📌 Depois', '#2563eb')}
+        ${sec('semdata', '— Sem data', '#64748b')}
+      </div>
+      <div id="modal-new" style="display:none"></div>
+    </div>`;
+
+  _root.querySelectorAll('[data-orig]').forEach(b => b.addEventListener('click', () => { _cOrigem = b.dataset.orig; render(); }));
+  document.getElementById('c-done').addEventListener('change', e => { _cDone = e.target.checked; render(); });
+  document.getElementById('btn-new').addEventListener('click', () => openNewModal());
+  _root.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => {
+    const link = b.dataset.open;
+    if (link === '#/tarefas') { _view = 'board'; render(); }
+    else location.hash = link;
+  }));
+  _root.querySelectorAll('[data-done-tarefa]').forEach(b => b.addEventListener('click', async () => {
+    b.disabled = true;
+    try { await api.request('/api/v3/tasks/upsert', { method: 'POST', body: { id: b.dataset.doneTarefa, status: 'concluida' } }); await reload(); }
+    catch (e) { alert('Erro: ' + e.message); b.disabled = false; }
+  }));
+}
+
+function centralRow(i) {
+  const hoje = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+  const dataTxt = i.data ? i.data.split('-').reverse().join('/') : '';
+  const overdue = i.data && !i.done && i.data < hoje;
+  const cor = i.done ? '#16a34a' : overdue ? '#dc2626' : '#94a3b8';
+  return `
+    <div class="tk-row" style="border-left-color:${cor}">
+      <span style="font-size:16px">${i.ico || '•'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.done ? '<span style="text-decoration:line-through;opacity:.6">' : ''}${escapeHtml(i.titulo)}${i.done ? '</span>' : ''}</div>
+        <div class="tiny muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.sub ? escapeHtml(i.sub) : ''}</div>
+      </div>
+      <span class="tk-chip">${escapeHtml(i.origem)}</span>
+      ${dataTxt ? `<span class="tiny" style="color:${overdue ? '#dc2626' : 'var(--ink-muted)'};white-space:nowrap">📅 ${dataTxt}${overdue ? ' ⚠' : ''}</span>` : ''}
+      ${i.kind === 'tarefa' && !i.done ? `<button class="btn btn-ghost tiny" data-done-tarefa="${escapeHtml(i.id)}" title="Concluir">✓</button>` : ''}
+      <button class="btn btn-ghost tiny" data-open="${escapeHtml(i.link)}" title="Abrir origem">abrir →</button>
+    </div>`;
+}
+
+function renderBoard(scope) {
   const me = auth.user();
   const isSocio = (me?.lvl || 0) >= 10;
 
@@ -72,6 +204,7 @@ function render(scope) {
 
   _root.innerHTML = `
     <div class="card">
+      ${tabsHTML()}
       <h2 class="card-title">📋 Tarefas Diretoria</h2>
       <p class="card-sub">
         ${scope === 'mine' ? '👤 Você vê apenas tarefas onde é responsável ou criador. ' : '👁 Visão completa (Sócio/Gerente). '}
@@ -110,13 +243,13 @@ function render(scope) {
   `;
 
   // Wire
-  document.getElementById('f-resp').addEventListener('change', e => { _filterResp = e.target.value; render(scope); });
-  document.getElementById('f-prior').addEventListener('change', e => { _filterPrior = e.target.value; render(scope); });
+  document.getElementById('f-resp').addEventListener('change', e => { _filterResp = e.target.value; render(); });
+  document.getElementById('f-prior').addEventListener('change', e => { _filterPrior = e.target.value; render(); });
   document.querySelectorAll('[data-status-chip]').forEach(b => b.addEventListener('click', () => {
     _filterStatus = _filterStatus === b.dataset.statusChip ? '' : b.dataset.statusChip;
-    render(scope);
+    render();
   }));
-  const cs = document.getElementById('clr-status'); if (cs) cs.addEventListener('click', () => { _filterStatus = ''; render(scope); });
+  const cs = document.getElementById('clr-status'); if (cs) cs.addEventListener('click', () => { _filterStatus = ''; render(); });
   document.getElementById('btn-new').addEventListener('click', () => openNewModal());
   document.querySelectorAll('[data-task-action]').forEach(b => b.addEventListener('click', handleTaskAction));
   document.querySelectorAll('[data-task-field]').forEach(s => s.addEventListener('change', handleFieldChange));
