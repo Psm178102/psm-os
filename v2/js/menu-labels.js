@@ -33,11 +33,23 @@ function setBtnLabel(btn, label) {
   if (ico && ico.after) ico.after(tn); else btn.appendChild(tn);
 }
 
+function btnDefaultIcon(btn) {
+  const ico = btn.querySelector('.sb-ico');
+  return ico ? ico.textContent.trim() : '';
+}
+
+function setBtnIcon(btn, icon) {
+  const ico = btn.querySelector('.sb-ico');
+  if (ico) ico.textContent = icon;
+}
+
 export function applyMenuLabels() {
   document.querySelectorAll('.sb-link[data-nav]').forEach(btn => {
     if (!btn.dataset.deflabel) btn.dataset.deflabel = btnDefaultLabel(btn);  // captura padrão 1x
+    if (!btn.dataset.defico) btn.dataset.defico = btnDefaultIcon(btn);
     const nav = btn.dataset.nav;
     setBtnLabel(btn, LABELS[nav] || btn.dataset.deflabel);
+    setBtnIcon(btn, LABELS['ico:' + nav] || btn.dataset.defico);
   });
   document.querySelectorAll('.app-sidebar .sb-sec').forEach(sec => {
     if (!sec.dataset.deflabel) sec.dataset.deflabel = sec.textContent.trim();
@@ -82,7 +94,12 @@ export function enumerateMenu() {
     } else if (node.classList.contains('sb-link') && node.dataset.nav) {
       if (!cur) { cur = { secKey: null, secDef: '', secCurrent: '', items: [] }; groups.push(cur); }
       const def = node.dataset.deflabel || btnDefaultLabel(node);
-      cur.items.push({ nav: node.dataset.nav, def, current: LABELS[node.dataset.nav] || def });
+      const defico = node.dataset.defico || btnDefaultIcon(node);
+      const nav = node.dataset.nav;
+      cur.items.push({
+        nav, def, current: LABELS[nav] || def,
+        defico, ico: LABELS['ico:' + nav] || defico,
+      });
     }
   });
   return groups;

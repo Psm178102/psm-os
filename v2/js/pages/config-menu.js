@@ -31,9 +31,13 @@ export async function pageConfigMenu(ctx, root) {
       </div>` : '';
     const items = g.items.map(it => `
       <div class="cm-row">
-        <div class="cm-def">${esc(it.def)} <span class="cm-route">${esc(it.nav)}</span></div>
-        <input class="input cm-inp" data-key="${esc(it.nav)}" data-def="${esc(it.def)}"
-               value="${esc(it.current !== it.def ? it.current : '')}" placeholder="${esc(it.def)}">
+        <div class="cm-def"><span class="cm-curico">${esc(it.ico)}</span> ${esc(it.def)} <span class="cm-route">${esc(it.nav)}</span></div>
+        <div class="cm-edit">
+          <input class="input cm-inp cm-ico" data-key="ico:${esc(it.nav)}" data-def="${esc(it.defico)}"
+                 value="${esc(it.ico !== it.defico ? it.ico : '')}" placeholder="${esc(it.defico)}" maxlength="16" title="Ícone (emoji)">
+          <input class="input cm-inp" data-key="${esc(it.nav)}" data-def="${esc(it.def)}"
+                 value="${esc(it.current !== it.def ? it.current : '')}" placeholder="${esc(it.def)}" title="Nome do item">
+        </div>
       </div>`).join('');
     return `<div class="card cm-group">${secInput}${items}</div>`;
   }).join('');
@@ -41,11 +45,15 @@ export async function pageConfigMenu(ctx, root) {
   root.innerHTML = `
     <style>
       .cm-group{margin-bottom:14px;padding:10px 14px}
-      .cm-row{display:grid;grid-template-columns:1fr 240px;gap:12px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border,#eef0f3)}
+      .cm-row{display:grid;grid-template-columns:1fr 300px;gap:12px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border,#eef0f3)}
       .cm-row:last-child{border-bottom:none}
       .cm-sec-row{background:var(--bg-1,#f8fafc);margin:0 -14px;padding:9px 14px;border-radius:8px}
       .cm-def{font-size:13.5px;color:var(--ink,#111)}
+      .cm-curico{font-size:15px}
       .cm-route{font-size:11px;color:var(--ink-muted,#94a3b8);margin-left:6px;font-family:ui-monospace,monospace}
+      .cm-edit{display:flex;gap:8px;align-items:center}
+      .cm-edit .input{min-width:0;flex:1}
+      .cm-ico{flex:0 0 56px !important;width:56px;text-align:center;font-size:16px}
       .cm-inp{width:100%}
       .cm-bar{position:sticky;bottom:0;display:flex;gap:10px;align-items:center;justify-content:flex-end;
               background:var(--bg-2,#fff);border-top:1px solid var(--border,#e5e7eb);padding:12px;margin-top:8px;z-index:5}
@@ -55,8 +63,9 @@ export async function pageConfigMenu(ctx, root) {
     <div class="card" style="margin-bottom:14px">
       <h2 style="margin:0 0 4px">✏️ Nomes do Menu</h2>
       <p class="muted" style="margin:0;font-size:13px">
-        Renomeie qualquer item da barra lateral e os títulos de seção. Deixe em branco pra manter o padrão.
-        O nome novo vale para <b>todos os usuários</b> e o título da página no topo acompanha automaticamente.
+        Renomeie qualquer item da barra lateral, troque o <b>ícone</b> (cole um emoji no campo da esquerda) e
+        edite os títulos de seção (o emoji da seção faz parte do texto). Deixe em branco pra manter o padrão.
+        Vale para <b>todos os usuários</b> e o título da página no topo acompanha automaticamente.
       </p>
     </div>
     ${secHtml}
