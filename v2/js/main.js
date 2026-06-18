@@ -97,7 +97,7 @@ import { pageMapa } from './pages/mapa.js';
 // ─── Permissões por role (Sprint 9.6) ──────────────────────────────────
 // Cada rota pertence a um GRUPO. Cada role enxerga só os grupos liberados.
 // 'conta' e 'inicio' são sempre liberados pra qualquer login.
-const ROUTE_GROUP = {
+export const ROUTE_GROUP = {
   // Início (sempre)
   '/': 'inicio', '/painel': 'inicio', '/checkin': 'inicio', '/ranking': 'inicio', '/agenda': 'inicio', '/tarefas': 'inicio',
   // Imóveis & Vendas (secretaria de vendas)
@@ -144,7 +144,7 @@ const ROUTE_GROUP = {
 };
 
 // '*' = vê tudo. Senão, lista de grupos permitidos (inicio + conta sempre incluídos).
-const ROLE_ALLOWED = {
+export const ROLE_ALLOWED = {
   socio:      '*',
   diretor:    '*',
   gerente:    '*',
@@ -160,7 +160,7 @@ const ROLE_ALLOWED = {
 // exigem mais do que o cargo mais baixo daquele grupo tem. Sem isso, o item
 // aparecia no menu (grupo permitido) e dava 403 ao clicar (ex.: Guilherme/marketing).
 // Espelha o require_user(min_lvl=) do endpoint primário de cada página (v77.49).
-const ROUTE_MIN_LVL = {
+export const ROUTE_MIN_LVL = {
   '/tabela-imoveis': 5,   // upload de tabelas — não p/ corretor
   '/campanha-wa': 5,      // disparo de campanha — não p/ corretor
   '/one-on-one': 5,       // visão de gestor do 1:1
@@ -170,6 +170,21 @@ const ROUTE_MIN_LVL = {
   '/config-menu': 10,     // renomear o menu/páginas — só sócio
   '/psmhub': 7,           // auditoria do PSM HUB (Conquista) — diretoria
 };
+
+// Override por PAPEL (matriz editável pelo sócio em Configurações → Permissões por papel).
+// { role: ["/rota", ...] } — só papéis customizados. Vazio = comportamento original. v77.81
+let _rolePerms = {};
+let _catalogRoutes = null;   // Set das rotas que são itens de menu (pra decisão granular)
+
+function buildCatalog() {
+  try {
+    _catalogRoutes = new Set([...document.querySelectorAll('.app-sidebar .sb-link[data-nav]')].map(b => b.dataset.nav));
+  } catch (_) { _catalogRoutes = null; }
+}
+async function loadRolePerms() {
+  try { const r = await api.request('/api/v3/settings/role_perms'); _rolePerms = (r && r.perms) || {}; }
+  catch (_) { _rolePerms = {}; }
+}
 
 function _allowedGroups(user) {
   // Override por usuário (lista branca de grupos), setado no cadastro (menu_groups).
@@ -182,22 +197,37 @@ function _allowedGroups(user) {
 }
 
 function canSee(path, user) {
+  const base = (path || '/').split('?')[0];
+  const role = (user?.role || 'corretor').toLowerCase();
+  const grp = ROUTE_GROUP[base] || 'inicio';
+
+  // override por PAPEL (matriz editável pelo sócio) — só quando o papel foi customizado.
+  // socio nunca entra aqui (não dá pra se trancar fora). v77.81
+  const rp = _rolePerms[role];
+  if (role !== 'socio' && !Array.isArray(user?.menu_groups) && Array.isArray(rp)) {
+    if (grp === 'inicio' || grp === 'conta' || grp === 'academy') return true;  // sempre visíveis
+    if ((user?.lvl || 0) < (ROUTE_MIN_LVL[base] || 0)) return false;            // nível real
+    if (_catalogRoutes && _catalogRoutes.has(base)) return rp.includes(base);   // item de menu: granular
+    return rp.some(r => (ROUTE_GROUP[r] || '') === grp);                        // sub-rota: liberada se o grupo tem item liberado
+  }
+
+  // ── comportamento ORIGINAL (sem customização de papel) ──
   const allowed = _allowedGroups(user);
   if (allowed === '*') return true;
-  const base = (path || '/').split('?')[0];
-  // nível real da rota: se o cargo não alcança, não vê (nem menu, nem rota)
   if ((user?.lvl || 0) < (ROUTE_MIN_LVL[base] || 0)) return false;
-  const grp = ROUTE_GROUP[base] || 'inicio';
-  if (grp === 'inicio' || grp === 'conta' || grp === 'academy') return true;  // sempre visível a todos
-  // override por usuário pode liberar uma ROTA específica (ex.: só "/paulo-conteudo"
-  // dentro de Marketing) além de GRUPOS inteiros — rota liberada vence sem o grupo todo.
+  if (grp === 'inicio' || grp === 'conta' || grp === 'academy') return true;
   if (allowed.includes(base)) return true;
   return allowed.includes(grp);
 }
 
 function applyPermissions(user) {
-  const allowed = _allowedGroups(user);
-  if (allowed === '*') return;  // vê tudo, não filtra
+  // reset (re-aplicável: chamado de novo quando o override de papel chega)
+  document.querySelectorAll('.sb-link[data-nav]').forEach(b => { b.style.display = ''; });
+  document.querySelectorAll('.app-sidebar .sb-sec').forEach(s => { s.style.display = ''; });
+  const role = (user?.role || '').toLowerCase();
+  const customized = role !== 'socio' && !Array.isArray(user?.menu_groups) && Array.isArray(_rolePerms[role]);
+  // vê tudo e não customizado → não filtra
+  if (!customized && _allowedGroups(user) === '*') return;
   // Esconde links não permitidos
   document.querySelectorAll('.sb-link[data-nav]').forEach(btn => {
     if (!canSee(btn.dataset.nav, user)) btn.style.display = 'none';
@@ -249,8 +279,11 @@ function applyPermissions(user) {
   });
 
   // 3.1) Permissões por papel — esconde links/seções não permitidas + guarda rotas
-  applyPermissions(user);
+  buildCatalog();              // mapeia as rotas que são itens de menu (granularidade)
+  applyPermissions(user);      // 1ª passada: comportamento default (igual a hoje)
   router.setGuard((path) => canSee(path, user));
+  // override por papel (matriz editável pelo sócio) chega async e re-aplica
+  loadRolePerms().then(() => applyPermissions(user));
 
   // 3.1b) Nomes custom do menu/páginas (sócio edita em /config-menu) — vale p/ todos
   loadMenuLabels();
