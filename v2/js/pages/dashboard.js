@@ -53,24 +53,50 @@ const corOrigem = o => ORIG_COR[o] || '#64748b';
 const _ymOffset = off => { const n = new Date(Date.now() - 3 * 3600 * 1000); return new Date(n.getFullYear(), n.getMonth() + off, 1); };
 
 const PLANNER_CSS = `<style>
-.pl-head{display:flex;align-items:center;justify-content:center;gap:16px;margin:8px 0}
-.pl-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+/* cabeçalho de card do cockpit */
+.ck-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.ck-title{font-size:16px;font-weight:800;margin:0;display:flex;align-items:center;gap:7px}
+.ck-spacer{flex:1}
+.ck-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;white-space:nowrap}
+/* lista executiva — O QUE / QUANDO / COMO / QUEM */
+.exec-wrap{overflow-x:auto;border:1px solid var(--bd);border-radius:12px}
+.exec-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+.exec-tbl thead th{text-align:left;padding:10px 12px;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-muted,#94a3b8);background:var(--bg-3);font-weight:800;white-space:nowrap}
+.exec-tbl td{padding:9px 12px;border-top:1px solid var(--bd);vertical-align:top}
+.exec-tbl tbody tr{transition:background .15s}
+.exec-tbl tbody tr:hover{background:var(--bg-3)}
+.exec-task{font-weight:700;text-decoration:none;color:inherit;display:flex;align-items:center;gap:6px}
+.exec-origin{display:inline-block;font-size:9.5px;font-weight:800;padding:1px 8px;border-radius:999px;margin-top:4px}
+.exec-when{font-weight:800;font-size:12px;white-space:nowrap}
+.exec-sub{font-size:12px;color:var(--ink-muted,#64748b);max-width:320px}
+.exec-quem{font-size:12px;font-weight:600;white-space:nowrap}
+/* gauges (% meta / % produtividade) */
+.gz{flex:1;min-width:230px;background:var(--bg-1,#fff);border:1px solid var(--bd);border-radius:14px;padding:15px 17px}
+.gz-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.gz-lbl{font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:800;color:var(--ink-muted,#94a3b8)}
+.gz-pct{font-size:28px;font-weight:900;line-height:1}
+.gz-track{height:10px;border-radius:6px;background:rgba(148,163,184,.18);overflow:hidden;margin-top:10px}
+.gz-fill{height:100%;border-radius:6px;transition:width .4s}
+.gz-sub{font-size:11px;color:var(--ink-muted,#94a3b8);margin-top:7px}
+/* planner mensal */
+.pl-head{display:flex;align-items:center;justify-content:center;gap:16px;margin:4px 0 10px}
+.pl-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
 .pl-wd{text-align:center;font-size:10px;font-weight:800;color:var(--ink-muted,#94a3b8);text-transform:uppercase;padding-bottom:2px}
-.pl-cell{min-height:76px;background:var(--bg-3);border-radius:8px;padding:4px 4px 3px;overflow:hidden}
-.pl-empty{background:transparent}
-.pl-today{outline:2px solid #2563eb;outline-offset:-1px}
-.pl-dn{font-size:11px;font-weight:800;color:var(--ink-muted,#94a3b8);margin-bottom:2px;text-align:right;padding-right:2px}
-.pl-ev{display:block;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-decoration:none}
+.pl-cell{min-height:82px;background:var(--bg-3);border:1px solid transparent;border-radius:10px;padding:5px 5px 4px;overflow:hidden}
+.pl-empty{background:transparent;border:none}
+.pl-today{border-color:#2563eb;background:rgba(37,99,235,.07)}
+.pl-dn{font-size:11px;font-weight:800;color:var(--ink-muted,#94a3b8);margin-bottom:3px;text-align:right;padding-right:2px}
+.pl-today .pl-dn{color:#2563eb}
+.pl-ev{display:block;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-decoration:none}
 .pl-more{font-size:9px;color:var(--ink-muted,#94a3b8);font-weight:700;padding-left:3px}
-.cw-th{text-align:left;padding:8px;font-size:10px;letter-spacing:1px;color:var(--ink-muted,#94a3b8)}
 </style>`;
 
 function gauge(label, pct, sub, cor) {
   const p = Math.max(0, Math.min(100, pct || 0));
-  return `<div style="flex:1;min-width:220px;background:var(--bg-1,#fff);border:1px solid ${cor}44;border-radius:14px;padding:14px 16px">
-    <div class="flex items-center" style="justify-content:space-between"><span class="tiny muted" style="text-transform:uppercase;letter-spacing:1px;font-weight:800">${label}</span><span style="font-size:24px;font-weight:900;color:${cor}">${pct == null ? '—' : pct + '%'}</span></div>
-    <div style="height:9px;border-radius:5px;background:rgba(148,163,184,.2);overflow:hidden;margin-top:7px"><div style="height:100%;width:${p}%;background:${cor};transition:width .3s"></div></div>
-    <div class="tiny muted" style="margin-top:5px">${sub || ''}</div></div>`;
+  return `<div class="gz" style="border-color:${cor}55">
+    <div class="gz-top"><span class="gz-lbl">${label}</span><span class="gz-pct" style="color:${cor}">${pct == null ? '—' : pct + '%'}</span></div>
+    <div class="gz-track"><div class="gz-fill" style="width:${p}%;background:${cor}"></div></div>
+    <div class="gz-sub">${sub || ''}</div></div>`;
 }
 function miniMetric(label, big, sub, cor) {
   return `<div style="flex:1;min-width:160px;background:var(--bg-3);border-radius:14px;padding:14px 16px;border-left:4px solid ${cor}">
@@ -123,40 +149,62 @@ function plannerMensal() {
 function listaExec() {
   const hoje = _todayBRT();
   const pend = (_feed || []).filter(i => !i.done).sort((a, b) => (a.data || '9999') < (b.data || '9999') ? -1 : 1);
-  if (!pend.length) return '<div class="muted tiny" style="padding:12px 0;text-align:center">Nada pendente pra você agora. 🎉</div>';
+  if (!pend.length) return `<div class="exec-wrap" style="padding:28px;text-align:center">
+    <div style="font-size:28px">🎉</div>
+    <div class="muted tiny" style="margin-top:4px">Nada pendente pra você agora. Tudo em dia!</div></div>`;
   const rows = pend.slice(0, 40).map(i => {
     const overdue = i.data && i.data < hoje, eh = i.data === hoje;
-    const quando = i.data ? `${i.data.split('-').reverse().slice(0, 2).join('/')}${overdue ? ' ⚠ atrasado' : eh ? ' • hoje' : ''}` : 'sem data';
-    const qcor = overdue ? '#dc2626' : eh ? '#16a34a' : 'var(--ink)';
-    return `<tr style="border-bottom:1px solid var(--bd)">
-      <td style="padding:8px"><a href="${i.link}" style="text-decoration:none;color:inherit;font-weight:700">${i.ico || ''} ${escapeHtml(i.titulo || '')}</a>
-        <div style="margin-top:2px"><span class="tiny" style="background:${corOrigem(i.origem)}1f;color:${corOrigem(i.origem)};padding:1px 7px;border-radius:999px;font-weight:700">${escapeHtml(i.origem)}</span></div></td>
-      <td style="padding:8px;white-space:nowrap;color:${qcor};font-weight:700;font-size:12px">${quando}</td>
-      <td style="padding:8px;font-size:12px;color:var(--ink-muted,#64748b);max-width:300px">${escapeHtml((i.sub || '—').substring(0, 100))}</td>
-      <td style="padding:8px;white-space:nowrap;font-size:12px;font-weight:600">${escapeHtml(i.quem || '—')}</td>
+    const cor = corOrigem(i.origem);
+    const dia = i.data ? i.data.split('-').reverse().slice(0, 2).join('/') : 'sem data';
+    const badge = overdue ? ` <span style="color:#dc2626">⚠ atrasado</span>` : eh ? ` <span style="color:#16a34a">• hoje</span>` : '';
+    const qcor = overdue ? '#dc2626' : eh ? '#16a34a' : 'var(--ink,#0f172a)';
+    return `<tr>
+      <td style="border-left:3px solid ${cor}">
+        <a href="${i.link}" class="exec-task">${i.ico || ''} <span>${escapeHtml(i.titulo || '')}</span></a>
+        <span class="exec-origin" style="background:${cor}1f;color:${cor}">${escapeHtml(i.origem)}</span>
+      </td>
+      <td class="exec-when" style="color:${qcor}">${dia}${badge}</td>
+      <td class="exec-sub">${escapeHtml((i.sub || '—').substring(0, 100))}</td>
+      <td class="exec-quem">${escapeHtml(i.quem || '—')}</td>
     </tr>`;
   }).join('');
-  return `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
-    <thead><tr style="background:var(--bg-3)"><th class="cw-th">🎯 O QUE FAZER</th><th class="cw-th">📅 QUANDO</th><th class="cw-th">🛠 COMO</th><th class="cw-th">👤 QUEM</th></tr></thead>
+  return `<div class="exec-wrap"><table class="exec-tbl">
+    <thead><tr><th>🎯 O que fazer</th><th>📅 Quando</th><th>🛠 Como</th><th>👤 Quem</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
-    ${pend.length > 40 ? `<div class="tiny muted" style="margin-top:6px">+${pend.length - 40} — <a href="#/tarefas">ver todas</a></div>` : ''}`;
+    ${pend.length > 40 ? `<div class="tiny muted" style="margin-top:8px;text-align:right">+${pend.length - 40} item(ns) — <a href="#/tarefas">ver todas</a></div>` : ''}`;
 }
 
-function planoDoMes() {
+// CARD 1 — ✅ TAREFAS & PENDÊNCIAS (ação primeiro: o que fazer / quando / como / quem)
+function tarefasCard() {
   const c = _feedCounts || {};
+  const chip = (n, lbl, cor) => `<span class="ck-chip" style="background:${cor}1a;color:${cor}">${n} ${lbl}</span>`;
   return `${PLANNER_CSS}
     <div class="card mt-4">
-      <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:2px">
-        <h3 class="card-title" style="flex:1;min-width:200px">🗓 Plano do mês</h3>
-        <span class="tiny muted">${c.pendentes || 0} pendente(s) · ${c.atrasados || 0} atrasado(s) · ${c.hoje || 0} hoje</span>
+      <div class="ck-head">
+        <h3 class="ck-title">✅ Tarefas &amp; pendências</h3>
+        <span class="ck-spacer"></span>
+        ${c.atrasados ? chip(c.atrasados, 'atrasada(s)', '#dc2626') : ''}
+        ${c.hoje ? chip(c.hoje, 'hoje', '#16a34a') : ''}
+        ${chip(c.pendentes || 0, 'pendente(s)', '#64748b')}
         <a href="#/agenda" class="btn btn-ghost tiny">📅 Agenda</a>
         <a href="#/tarefas" class="btn btn-ghost tiny">🗂 Ver tudo</a>
       </div>
-      <p class="tiny muted" style="margin:0 0 10px">Seu cronograma e suas pendências de qualquer aba, num lugar só.</p>
+      <p class="tiny muted" style="margin:-4px 0 12px">Tudo que é seu pra fazer — de qualquer aba — num lugar só: <b>o que fazer</b>, <b>quando</b>, <b>como</b> e <b>quem</b>.</p>
+      ${listaExec()}
+    </div>`;
+}
+
+// CARD 2 — 🗓 PLANO DO MÊS (% da meta + % de produtividade + cronograma mensal)
+function planoMesCard() {
+  return `
+    <div class="card mt-4">
+      <div class="ck-head">
+        <h3 class="ck-title">🗓 Plano do mês</h3>
+        <span class="ck-spacer"></span>
+        <span class="tiny muted">% da meta · % de produtividade · cronograma</span>
+      </div>
       ${metricsRow()}
       ${plannerMensal()}
-      <h4 style="font-size:13px;font-weight:800;margin:16px 0 2px">📋 Suas pendências</h4>
-      ${listaExec()}
     </div>`;
 }
 
@@ -181,8 +229,9 @@ function render() {
         ${heroKpi('🏆 Ticket Médio','R$ ' + fmtKM(d.sales?.ticket_medio_mes), 'média da venda no mês',                             '#8b5cf6')}
       </div>
 
-      <!-- 🗓 PLANO DO MÊS (cockpit: metas + produtividade + planner + 4W) -->
-      ${planoDoMes()}
+      <!-- ✅ TAREFAS & PENDÊNCIAS primeiro (ação) · depois 🗓 PLANO DO MÊS (metas/prod + planner) -->
+      ${tarefasCard()}
+      ${planoMesCard()}
 
       <!-- KPIs SECUNDÁRIOS -->
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
