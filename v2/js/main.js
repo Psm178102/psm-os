@@ -19,6 +19,7 @@ import { pageDiretoria } from './pages/diretoria.js';
 import { pageCockpitHub } from './pages/cockpit-hub.js';
 import { pagePauloNegocios } from './pages/paulo-negocios.js';
 import { pageProjetos } from './pages/projetos.js';
+import { pagePsmHub } from './pages/psmhub.js';
 import { pagePauloConteudo, pageConteudoImoveis, pageConteudoConquista } from './pages/paulo-conteudo.js';
 import { pageCriativos } from './pages/criativos.js';
 import { pageEstrategia } from './pages/estrategia.js';
@@ -127,7 +128,7 @@ const ROUTE_GROUP = {
   // Cultura & Pessoas
   '/base': 'cultura', '/manual': 'cultura', '/etica': 'cultura', '/canal': 'cultura',
   '/formacao': 'cultura', '/gestao-pessoas': 'cultura', '/premiacoes': 'cultura',
-  '/talentos': 'diretoria',
+  '/talentos': 'diretoria', '/psmhub': 'diretoria',
   // Ferramentas
   '/simuladores': 'ferramentas', '/relatorios': 'ferramentas',
   // Sistema
@@ -166,6 +167,7 @@ const ROUTE_MIN_LVL = {
   '/briefing-guerra': 7,  // briefing estratégico (diretoria)
   '/academy-studio': 5,   // produção/construção da Academy — só time que constrói (líder+)
   '/config-menu': 10,     // renomear o menu/páginas — só sócio
+  '/psmhub': 7,           // auditoria do PSM HUB (Conquista) — diretoria
 };
 
 function _allowedGroups(user) {
@@ -316,6 +318,7 @@ function applyPermissions(user) {
   router.register('/diretoria', { render: async (ctx, root) => { setHeader('Dashboard Diretoria'); highlight('/diretoria'); await pageDiretoria(ctx, root); } });
   router.register('/paulo', { render: async (ctx, root) => { setHeader('Paulo · Meus Negócios'); highlight('/paulo'); await pagePauloNegocios(ctx, root); } });
   router.register('/projetos', { render: async (ctx, root) => { setHeader('Projetos'); highlight('/projetos'); await pageProjetos(ctx, root); } });
+  router.register('/psmhub', { render: async (ctx, root) => { setHeader('PSM HUB · Conquista'); highlight('/psmhub'); await pagePsmHub(ctx, root); } });
   router.register('/estrategia', { render: async (ctx, root) => { setHeader('Estratégia'); highlight('/estrategia'); await pageEstrategia(ctx, root); } });
   // v77.30: absorvidas pelo Cockpit Hub — redirects preservam links/hábito antigos
   router.register('/pontos-atencao', { render: async () => { location.hash = '#/cockpit?tab=atencao'; } });
@@ -469,6 +472,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/diretoria"><span class="sb-ico">📊</span> Dashboard</button>
         <button class="sb-link" data-nav="/paulo"><span class="sb-ico">🧑‍💼</span> Paulo</button>
         <button class="sb-link" data-nav="/talentos"><span class="sb-ico">🌟</span> Base de Talentos</button>
+        <button class="sb-link" data-nav="/psmhub"><span class="sb-ico">🔌</span> PSM HUB · Conquista</button>
         <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Planejamento</div>
         <button class="sb-link" data-nav="/projetos"><span class="sb-ico">📌</span> Projetos</button>
         <button class="sb-link" data-nav="/estrategia"><span class="sb-ico">♟️</span> Estratégia</button>
