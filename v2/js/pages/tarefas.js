@@ -5,6 +5,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { mountComments } from '../comments.js';
+import { pageAgenda } from './agenda.js';
 
 const STATUS = [
   { id: 'aberta',         lbl: 'Aberta',        color: '#64748b', ico: '📝' },
@@ -30,12 +31,13 @@ let _view = 'central';     // central | board
 let _cOrigem = '';         // filtro de origem na central
 let _cDone = false;        // mostrar concluídos na central
 let _scope = 'mine';
+let _ctx = null;
 let _filterStatus = '';
 let _filterResp = '';
 let _filterPrior = '';
 
 export async function pageTarefas(ctx, root) {
-  _root = root;
+  _root = root; _ctx = ctx;
   root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando central…</div></div>';
   await reload();
 }
@@ -69,6 +71,7 @@ function tabsHTML() {
     </style>
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
       ${tab('central', '🗂 Central (tudo meu)')}
+      ${tab('agenda', '📅 Agenda')}
       ${tab('board', '📋 Board de tarefas')}
     </div>`;
 }
@@ -77,7 +80,16 @@ function wireTabs() {
   _root.querySelectorAll('[data-tk-tab]').forEach(t => t.addEventListener('click', () => { _view = t.dataset.tkTab; render(); }));
 }
 
+/* ─────────────────── AGENDA (calendário embutido) ─────────────────── */
+function renderAgenda() {
+  _root.innerHTML = `<div class="card">${tabsHTML()}<div id="tk-agenda-host"><div class="muted tiny" style="padding:8px"><span class="spinner"></span> Carregando agenda…</div></div></div>`;
+  wireTabs();
+  const host = document.getElementById('tk-agenda-host');
+  if (host) pageAgenda(_ctx, host);   // monta a Agenda (lista + calendário) dentro da central
+}
+
 function render() {
+  if (_view === 'agenda') { renderAgenda(); return; }
   if (_view === 'central') renderCentral();
   else renderBoard(_scope);
   wireTabs();
