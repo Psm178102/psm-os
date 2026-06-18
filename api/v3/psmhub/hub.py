@@ -12,53 +12,11 @@ ENV (setar no Vercel): PSMHUB_EMAIL, PSMHUB_PASSWORD  (opcional PSMHUB_BASE).
 lvl>=7 (diretoria) — é auditoria de gestão.
 """
 from http.server import BaseHTTPRequestHandler
-import json, os, sys, time, urllib.parse, urllib.request, urllib.error
+import json, os, sys, urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError  # type: ignore
-
-BASE = (os.environ.get("PSMHUB_BASE") or "https://psmhub.com.br").rstrip("/")
-_tok = {"value": None, "at": 0}        # cache de token em memória (instância quente)
-TTL = 45 * 60                          # re-loga a cada 45min por segurança
-
-
-def _login():
-    email = os.environ.get("PSMHUB_EMAIL")
-    pw = os.environ.get("PSMHUB_PASSWORD")
-    if not email or not pw:
-        raise RuntimeError("PSMHUB_EMAIL/PSMHUB_PASSWORD não configurados no Vercel")
-    body = json.dumps({"email": email, "password": pw}).encode("utf-8")
-    req = urllib.request.Request(f"{BASE}/api/auth/login", data=body, method="POST",
-                                 headers={"Content-Type": "application/json", "Accept": "application/json",
-                                          "User-Agent": "PSM-OS/psmhub-bridge"})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        data = json.loads(r.read().decode("utf-8"))
-    tok = data.get("token") or data.get("access_token") or data.get("accessToken") or data.get("jwt")
-    if not tok:
-        raise RuntimeError("login psmhub não retornou token")
-    _tok["value"] = tok; _tok["at"] = time.time()
-    return tok
-
-
-def _token(force=False):
-    if force or not _tok["value"] or (time.time() - _tok["at"]) > TTL:
-        return _login()
-    return _tok["value"]
-
-
-def _get(path, retry=True):
-    tok = _token()
-    req = urllib.request.Request(f"{BASE}{path}",
-                                 headers={"Authorization": f"Bearer {tok}", "Accept": "application/json",
-                                          "User-Agent": "PSM-OS/psmhub-bridge"})
-    try:
-        with urllib.request.urlopen(req, timeout=25) as r:
-            return json.loads(r.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        if e.code in (401, 403) and retry:      # token velho → re-loga uma vez
-            _token(force=True)
-            return _get(path, retry=False)
-        raise
+from _psmhub_lib import get as _get, configured  # type: ignore  # login/_get compartilhados
 
 
 class handler(BaseHTTPRequestHandler):
@@ -78,7 +36,7 @@ class handler(BaseHTTPRequestHandler):
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
 
-        if not os.environ.get("PSMHUB_EMAIL") or not os.environ.get("PSMHUB_PASSWORD"):
+        if not configured():
             return self._send(200, {"ok": False, "pending_config": True,
                                     "error": "Configure PSMHUB_EMAIL e PSMHUB_PASSWORD no Vercel pra ligar o PSM HUB."})
 
