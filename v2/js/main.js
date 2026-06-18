@@ -449,8 +449,6 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/painel"><span class="sb-ico">👤</span> Meu Painel</button>
         <button class="sb-link" data-nav="/checkin"><span class="sb-ico">📍</span> Check-in</button>
         <button class="sb-link" data-nav="/ranking"><span class="sb-ico">🏆</span> Ranking</button>
-        <button class="sb-link" data-nav="/agenda"><span class="sb-ico">📅</span> Agenda</button>
-        <button class="sb-link" data-nav="/tarefas"><span class="sb-ico">🗂</span> Tarefas</button>
         <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
 
         <div class="sb-sec">🏘 Imóveis & Vendas</div>
