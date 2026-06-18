@@ -54,8 +54,18 @@ class handler(BaseHTTPRequestHandler):
         uid = user.get("id")
         uname = (user.get("name") or "").strip().lower()
         items = []
+        prod = {"solicitadas": 0, "concluidas": 0, "pendentes": 0, "atrasadas": 0, "pct": None}
+        hoje_iso = _today_brt().isoformat()
 
-        # 1) dir_tasks (minhas)
+        # mapa id->nome (pra resolver QUEM)
+        umap = {}
+        try:
+            for u in (sb.table("users").select("id,name").execute().data or []):
+                umap[u.get("id")] = u.get("name")
+        except Exception:
+            pass
+
+        # 1) dir_tasks (minhas) + cálculo de PRODUTIVIDADE (tarefas atribuídas a mim)
         try:
             rows = (sb.table("dir_tasks").select("*")
                     .or_(f"responsavel.eq.{uid},criado_por.eq.{uid}")
@@ -65,7 +75,16 @@ class handler(BaseHTTPRequestHandler):
                 items.append({"kind": "tarefa", "id": t.get("id"), "titulo": t.get("titulo") or "(sem título)",
                               "sub": t.get("descricao"), "data": _d(t.get("prazo")), "status": st,
                               "prioridade": t.get("prioridade"), "origem": "Tarefa", "ico": "📋",
-                              "link": "#/tarefas", "done": st in TAREFA_DONE})
+                              "link": "#/tarefas", "done": st in TAREFA_DONE,
+                              "quem": umap.get(t.get("responsavel")) or (user.get("name") if t.get("responsavel") == uid else "—")})
+            # produtividade = concluídas ÷ solicitadas (tarefas atribuídas a mim; canceladas fora)
+            mine = [t for t in rows if t.get("responsavel") == uid and (t.get("status") or "") != "cancelada"]
+            sol = len(mine)
+            conc = sum(1 for t in mine if (t.get("status") or "") == "concluida")
+            pend = sum(1 for t in mine if (t.get("status") or "") not in TAREFA_DONE)
+            atr = sum(1 for t in mine if t.get("prazo") and _d(t.get("prazo")) < hoje_iso and (t.get("status") or "") not in TAREFA_DONE)
+            prod = {"solicitadas": sol, "concluidas": conc, "pendentes": pend, "atrasadas": atr,
+                    "pct": round(conc / sol * 100) if sol else None}
         except Exception as e:
             print(f"[feed] dir_tasks: {e}")
 
@@ -91,7 +110,8 @@ class handler(BaseHTTPRequestHandler):
                 items.append({"kind": kind, "id": eid, "titulo": e.get("titulo") or "(evento)",
                               "sub": desc or e.get("local"), "data": _d(e.get("data")), "status": st,
                               "prioridade": None, "origem": origem, "ico": ico, "link": link,
-                              "done": st in EVENTO_DONE})
+                              "done": st in EVENTO_DONE,
+                              "quem": umap.get(e.get("corretor_id")) or umap.get(e.get("criado_por")) or "—"})
         except Exception as e:
             print(f"[feed] eventos: {e}")
 
@@ -109,7 +129,8 @@ class handler(BaseHTTPRequestHandler):
                 items.append({"kind": "captacao", "id": c.get("id"), "titulo": f"📥 {titulo}",
                               "sub": c.get("proprietario"), "data": _d(c.get("stage_changed_at") or c.get("updated_at")),
                               "status": st or "em andamento", "prioridade": None, "origem": "Captação",
-                              "ico": "📥", "link": "#/captacoes", "done": False})
+                              "ico": "📥", "link": "#/captacoes", "done": False,
+                              "quem": c.get("responsavel") or umap.get(c.get("responsavel_id")) or user.get("name")})
         except Exception as e:
             print(f"[feed] captacoes: {e}")
 
@@ -126,7 +147,8 @@ class handler(BaseHTTPRequestHandler):
                 items.append({"kind": "oneonone", "id": o.get("id"), "titulo": "👥 Próximo One-on-One",
                               "sub": (o.get("acoes") or "")[:120] or None, "data": prox, "status": "agendado",
                               "prioridade": None, "origem": "One-on-One", "ico": "👥",
-                              "link": "#/one-on-one", "done": False})
+                              "link": "#/one-on-one", "done": False,
+                              "quem": umap.get(o.get("corretor_id")) or user.get("name")})
         except Exception as e:
             print(f"[feed] one_on_ones: {e}")
 
@@ -142,7 +164,8 @@ class handler(BaseHTTPRequestHandler):
                               "titulo": "🛡 Plantão" + (f" · {per}" if per else ""),
                               "sub": p.get("observacoes"), "data": _d(p.get("data")), "status": st,
                               "prioridade": None, "origem": "Plantão", "ico": "🛡",
-                              "link": "#/plantoes", "done": st in PLANTAO_DONE})
+                              "link": "#/plantoes", "done": st in PLANTAO_DONE,
+                              "quem": user.get("name")})
         except Exception as e:
             print(f"[feed] plantoes: {e}")
 
@@ -161,5 +184,6 @@ class handler(BaseHTTPRequestHandler):
         for i in items:
             counts["por_origem"][i["origem"]] = counts["por_origem"].get(i["origem"], 0) + 1
 
-        return self._send(200, {"ok": True, "items": items, "counts": counts,
+        return self._send(200, {"ok": True, "items": items, "counts": counts, "prod": prod,
+                                "role": (user.get("role") or "corretor"), "lvl": user.get("lvl"),
                                 "fetched_at": datetime.now(timezone.utc).isoformat()})

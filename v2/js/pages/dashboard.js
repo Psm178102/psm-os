@@ -17,6 +17,9 @@ let _data = null;
 let _board = null; // ranking de vendas (gestores)
 let _feed = [];        // central do usuário (agenda + tarefas + tudo)
 let _feedCounts = {};
+let _feedProd = {};    // produtividade (concluídas/solicitadas/atrasadas)
+let _feedRole = '';    // cargo (corretor é exceção da produtividade)
+let _plOffset = 0;     // mês do planner (0 = atual)
 
 export async function pageDashboard(ctx, root) {
   _root = root;
@@ -33,6 +36,8 @@ export async function pageDashboard(ctx, root) {
     _data = d;
     _feed = (f && f.items) || [];
     _feedCounts = (f && f.counts) || {};
+    _feedProd = (f && f.prod) || {};
+    _feedRole = (f && f.role) || (auth.user()?.role) || '';
     _board = oo;
     render();
   } catch (e) {
@@ -42,59 +47,116 @@ export async function pageDashboard(ctx, root) {
 
 function _todayBRT() { return new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10); }
 
-/* 🗂 Bloco integrado: Agenda + Tarefas do usuário, direto na home (sem abas) */
-function agendaTarefas() {
+/* ═══ PLANO DO MÊS — cockpit pessoal (metas + produtividade + planner + 4W) ═══ */
+const ORIG_COR = { 'Tarefa': '#2563eb', 'Agenda': '#0891b2', 'Academy': '#7c3aed', 'Projeto': '#f59e0b', 'Captação': '#16a34a', 'One-on-One': '#d6249f', 'Plantão': '#64748b' };
+const corOrigem = o => ORIG_COR[o] || '#64748b';
+const _ymOffset = off => { const n = new Date(Date.now() - 3 * 3600 * 1000); return new Date(n.getFullYear(), n.getMonth() + off, 1); };
+
+const PLANNER_CSS = `<style>
+.pl-head{display:flex;align-items:center;justify-content:center;gap:16px;margin:8px 0}
+.pl-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.pl-wd{text-align:center;font-size:10px;font-weight:800;color:var(--ink-muted,#94a3b8);text-transform:uppercase;padding-bottom:2px}
+.pl-cell{min-height:76px;background:var(--bg-3);border-radius:8px;padding:4px 4px 3px;overflow:hidden}
+.pl-empty{background:transparent}
+.pl-today{outline:2px solid #2563eb;outline-offset:-1px}
+.pl-dn{font-size:11px;font-weight:800;color:var(--ink-muted,#94a3b8);margin-bottom:2px;text-align:right;padding-right:2px}
+.pl-ev{display:block;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-decoration:none}
+.pl-more{font-size:9px;color:var(--ink-muted,#94a3b8);font-weight:700;padding-left:3px}
+.cw-th{text-align:left;padding:8px;font-size:10px;letter-spacing:1px;color:var(--ink-muted,#94a3b8)}
+</style>`;
+
+function gauge(label, pct, sub, cor) {
+  const p = Math.max(0, Math.min(100, pct || 0));
+  return `<div style="flex:1;min-width:220px;background:var(--bg-1,#fff);border:1px solid ${cor}44;border-radius:14px;padding:14px 16px">
+    <div class="flex items-center" style="justify-content:space-between"><span class="tiny muted" style="text-transform:uppercase;letter-spacing:1px;font-weight:800">${label}</span><span style="font-size:24px;font-weight:900;color:${cor}">${pct == null ? '—' : pct + '%'}</span></div>
+    <div style="height:9px;border-radius:5px;background:rgba(148,163,184,.2);overflow:hidden;margin-top:7px"><div style="height:100%;width:${p}%;background:${cor};transition:width .3s"></div></div>
+    <div class="tiny muted" style="margin-top:5px">${sub || ''}</div></div>`;
+}
+function miniMetric(label, big, sub, cor) {
+  return `<div style="flex:1;min-width:160px;background:var(--bg-3);border-radius:14px;padding:14px 16px;border-left:4px solid ${cor}">
+    <div class="tiny muted" style="text-transform:uppercase;letter-spacing:1px;font-weight:800">${label}</div>
+    <div style="font-size:22px;font-weight:900;color:${cor};margin-top:2px">${big}</div><div class="tiny muted">${sub || ''}</div></div>`;
+}
+
+function metricsRow() {
+  const d = _data || {};
+  const isCorretor = (_feedRole || '').toLowerCase() === 'corretor';
+  const metaVgv = d.metas?.meta_vgv || 0, vgvMes = d.sales?.vgv_mes || 0;
+  const metaPct = metaVgv > 0 ? Math.round(vgvMes / metaVgv * 100) : null;
+  const prod = _feedProd || {};
+  const cards = [];
+  if (metaPct !== null) cards.push(gauge('🎯 Meta do mês', metaPct, `R$ ${fmtKM(vgvMes)} de R$ ${fmtKM(metaVgv)}`, metaPct >= 100 ? '#16a34a' : metaPct >= 70 ? '#d4a843' : '#dc2626'));
+  if (isCorretor) {
+    cards.push(miniMetric('💰 VGV no mês', 'R$ ' + fmtKM(vgvMes), `${d.sales?.vendas_mes || 0} venda(s)`, '#16a34a'));
+    cards.push(miniMetric('📈 Pipeline', 'R$ ' + fmtKM(d.sales?.pipeline_vgv), `${d.sales?.pipeline_count || 0} aberto(s)`, '#3b82f6'));
+  } else {
+    const pct = prod.pct;
+    const sub = prod.solicitadas != null && prod.solicitadas > 0
+      ? `${prod.concluidas || 0}/${prod.solicitadas} concluídas · ${prod.atrasadas || 0} atrasada(s)`
+      : 'sem tarefas atribuídas ainda';
+    cards.push(gauge('⚡ Produtividade', pct, sub, pct == null ? '#94a3b8' : pct >= 80 ? '#16a34a' : pct >= 50 ? '#d4a843' : '#dc2626'));
+  }
+  return `<div class="flex gap-3" style="flex-wrap:wrap;margin-bottom:14px">${cards.join('')}</div>`;
+}
+
+function plannerMensal() {
+  const base = _ymOffset(_plOffset), y = base.getFullYear(), m = base.getMonth();
+  const ym = `${y}-${String(m + 1).padStart(2, '0')}`, today = _todayBRT();
+  const byDay = {};
+  (_feed || []).forEach(i => { if (i.data && i.data.slice(0, 7) === ym) (byDay[i.data] = byDay[i.data] || []).push(i); });
+  const startDow = new Date(y, m, 1).getDay(), days = new Date(y, m + 1, 0).getDate();
+  const MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][m];
+  let cells = '';
+  for (let i = 0; i < startDow; i++) cells += '<div class="pl-cell pl-empty"></div>';
+  for (let dn = 1; dn <= days; dn++) {
+    const ds = `${ym}-${String(dn).padStart(2, '0')}`, its = byDay[ds] || [], isT = ds === today;
+    cells += `<div class="pl-cell${isT ? ' pl-today' : ''}"><div class="pl-dn">${dn}</div>`
+      + its.slice(0, 3).map(i => `<a href="${i.link}" class="pl-ev" title="${escapeHtml((i.titulo || '') + ' — ' + (i.quem || ''))}" style="background:${corOrigem(i.origem)}22;color:${corOrigem(i.origem)}">${escapeHtml((i.titulo || '').substring(0, 15))}</a>`).join('')
+      + (its.length > 3 ? `<div class="pl-more">+${its.length - 3}</div>` : '') + `</div>`;
+  }
+  const WD = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => `<div class="pl-wd">${d}</div>`).join('');
+  return `<div class="pl-head"><button class="btn btn-ghost tiny" data-pl-nav="-1">‹ mês</button><b style="font-size:14px;min-width:150px;text-align:center">${MES} ${y}</b><button class="btn btn-ghost tiny" data-pl-nav="1">mês ›</button></div>
+    <div class="pl-grid">${WD}</div>
+    <div class="pl-grid" style="margin-top:4px">${cells}</div>`;
+}
+
+function listaExec() {
   const hoje = _todayBRT();
-  const sem = new Date(Date.now() + 7 * 86400000 - 3 * 3600 * 1000).toISOString().slice(0, 10);
-  const pend = (_feed || []).filter(i => !i.done);
-  const G = { atrasado: [], hoje: [], semana: [], depois: [], semdata: [] };
-  pend.forEach(i => {
-    if (!i.data) G.semdata.push(i);
-    else if (i.data < hoje) G.atrasado.push(i);
-    else if (i.data === hoje) G.hoje.push(i);
-    else if (i.data <= sem) G.semana.push(i);
-    else G.depois.push(i);
-  });
-  Object.values(G).forEach(a => a.sort((x, y) => (x.data || '9') < (y.data || '9') ? -1 : 1));
+  const pend = (_feed || []).filter(i => !i.done).sort((a, b) => (a.data || '9999') < (b.data || '9999') ? -1 : 1);
+  if (!pend.length) return '<div class="muted tiny" style="padding:12px 0;text-align:center">Nada pendente pra você agora. 🎉</div>';
+  const rows = pend.slice(0, 40).map(i => {
+    const overdue = i.data && i.data < hoje, eh = i.data === hoje;
+    const quando = i.data ? `${i.data.split('-').reverse().slice(0, 2).join('/')}${overdue ? ' ⚠ atrasado' : eh ? ' • hoje' : ''}` : 'sem data';
+    const qcor = overdue ? '#dc2626' : eh ? '#16a34a' : 'var(--ink)';
+    return `<tr style="border-bottom:1px solid var(--bd)">
+      <td style="padding:8px"><a href="${i.link}" style="text-decoration:none;color:inherit;font-weight:700">${i.ico || ''} ${escapeHtml(i.titulo || '')}</a>
+        <div style="margin-top:2px"><span class="tiny" style="background:${corOrigem(i.origem)}1f;color:${corOrigem(i.origem)};padding:1px 7px;border-radius:999px;font-weight:700">${escapeHtml(i.origem)}</span></div></td>
+      <td style="padding:8px;white-space:nowrap;color:${qcor};font-weight:700;font-size:12px">${quando}</td>
+      <td style="padding:8px;font-size:12px;color:var(--ink-muted,#64748b);max-width:300px">${escapeHtml((i.sub || '—').substring(0, 100))}</td>
+      <td style="padding:8px;white-space:nowrap;font-size:12px;font-weight:600">${escapeHtml(i.quem || '—')}</td>
+    </tr>`;
+  }).join('');
+  return `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--bg-3)"><th class="cw-th">🎯 O QUE FAZER</th><th class="cw-th">📅 QUANDO</th><th class="cw-th">🛠 COMO</th><th class="cw-th">👤 QUEM</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    ${pend.length > 40 ? `<div class="tiny muted" style="margin-top:6px">+${pend.length - 40} — <a href="#/tarefas">ver todas</a></div>` : ''}`;
+}
+
+function planoDoMes() {
   const c = _feedCounts || {};
-  const row = i => {
-    const dataTxt = i.data ? i.data.split('-').reverse().join('/') : '';
-    const overdue = i.data && i.data < hoje;
-    return `<a href="${escapeHtml(i.link || '#/')}" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:9px;padding:8px 10px;background:var(--bg-3);border-radius:var(--r-sm);border-left:4px solid ${overdue ? '#dc2626' : '#94a3b8'}">
-        <span style="font-size:15px">${i.ico || '•'}</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(i.titulo || '')}</div>
-          ${i.sub ? `<div class="tiny muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(i.sub)}</div>` : ''}
-        </div>
-        <span class="tiny" style="background:rgba(148,163,184,.16);padding:2px 8px;border-radius:999px;font-weight:700">${escapeHtml(i.origem || '')}</span>
-        ${dataTxt ? `<span class="tiny" style="color:${overdue ? '#dc2626' : 'var(--ink-muted)'};white-space:nowrap">📅 ${dataTxt}${overdue ? ' ⚠' : ''}</span>` : ''}
-      </a>`;
-  };
-  const sec = (k, lbl, cor) => {
-    const arr = G[k]; if (!arr.length) return '';
-    const show = arr.slice(0, 6);
-    return `<div style="margin-top:10px">
-      <div style="font-weight:800;font-size:12.5px;color:${cor};margin-bottom:5px">${lbl} <span class="muted tiny" style="font-weight:400">(${arr.length})</span></div>
-      <div style="display:grid;gap:5px">${show.map(row).join('')}</div>
-      ${arr.length > 6 ? `<a href="#/tarefas" class="tiny" style="display:inline-block;margin-top:5px">+ ${arr.length - 6} — ver todas →</a>` : ''}
-    </div>`;
-  };
-  const vazio = pend.length === 0;
-  return `
+  return `${PLANNER_CSS}
     <div class="card mt-4">
-      <div class="flex items-center gap-2" style="flex-wrap:wrap">
-        <h3 class="card-title" style="flex:1;min-width:200px">🗂 Sua Agenda & Tarefas</h3>
-        <span class="tiny muted">${pend.length} pendente(s) · ${c.atrasados || 0} atrasado(s) · ${c.hoje || 0} hoje</span>
+      <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:2px">
+        <h3 class="card-title" style="flex:1;min-width:200px">🗓 Plano do mês</h3>
+        <span class="tiny muted">${c.pendentes || 0} pendente(s) · ${c.atrasados || 0} atrasado(s) · ${c.hoje || 0} hoje</span>
         <a href="#/agenda" class="btn btn-ghost tiny">📅 Agenda</a>
         <a href="#/tarefas" class="btn btn-ghost tiny">🗂 Ver tudo</a>
       </div>
-      <p class="tiny muted" style="margin:2px 0 0">Tudo que é seu, de qualquer aba — agenda, prazos, captações, 1:1, plantões e tarefas. Clique pra abrir.</p>
-      ${vazio ? '<div class="muted tiny" style="padding:12px 0;text-align:center">Nada pendente pra você agora. 🎉</div>' : ''}
-      ${sec('atrasado', '⏰ Atrasados', '#dc2626')}
-      ${sec('hoje', '📅 Hoje', '#16a34a')}
-      ${sec('semana', '🗓 Próximos 7 dias', '#d97706')}
-      ${sec('depois', '📌 Depois', '#2563eb')}
-      ${sec('semdata', '— Sem data', '#64748b')}
+      <p class="tiny muted" style="margin:0 0 10px">Seu cronograma e suas pendências de qualquer aba, num lugar só.</p>
+      ${metricsRow()}
+      ${plannerMensal()}
+      <h4 style="font-size:13px;font-weight:800;margin:16px 0 2px">📋 Suas pendências</h4>
+      ${listaExec()}
     </div>`;
 }
 
@@ -119,8 +181,8 @@ function render() {
         ${heroKpi('🏆 Ticket Médio','R$ ' + fmtKM(d.sales?.ticket_medio_mes), 'média da venda no mês',                             '#8b5cf6')}
       </div>
 
-      <!-- 🗂 AGENDA + TAREFAS INTEGRADAS NA HOME -->
-      ${agendaTarefas()}
+      <!-- 🗓 PLANO DO MÊS (cockpit: metas + produtividade + planner + 4W) -->
+      ${planoDoMes()}
 
       <!-- KPIs SECUNDÁRIOS -->
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
@@ -176,6 +238,11 @@ function render() {
       </div>
     </div>
   `;
+  // navegação do planner mensal (‹ mês ›)
+  _root.querySelectorAll('[data-pl-nav]').forEach(b => b.addEventListener('click', () => {
+    _plOffset += parseInt(b.dataset.plNav, 10) || 0;
+    render();
+  }));
 }
 
 /* ─── Ranking de vendas do mês (real, via OO) ─── */
