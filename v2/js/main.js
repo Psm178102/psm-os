@@ -34,6 +34,7 @@ import { pageMarketing } from './pages/marketing.js';
 import { pageIA } from './pages/ia.js';
 import { pageLancamentos } from './pages/lancamentos.js';
 import { pageLocacoes } from './pages/locacoes.js';
+import { pageMinutasJuridico, pageMinutasLocacao } from './pages/minutas.js';
 import { pageArena } from './pages/arena.js';
 import { pageForecast } from './pages/forecast.js';
 import { pageOrganograma } from './pages/organograma.js';
@@ -105,7 +106,7 @@ const ROUTE_GROUP = {
   // Captações
   '/captacoes': 'captacoes',
   // Locação
-  '/locacoes': 'locacao',
+  '/locacoes': 'locacao', '/minutas-locacao': 'locacao',
   // Financeiro
   '/financeiro': 'financeiro', '/forecast': 'financeiro',
   // Inteligência & Marketing
@@ -119,7 +120,7 @@ const ROUTE_GROUP = {
   // Diretoria
   '/cockpit': 'diretoria', '/paulo': 'diretoria', '/projetos': 'diretoria',
   '/diretoria': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria',
-  '/metricas-viab': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria',
+  '/metricas-viab': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria', '/minutas': 'diretoria',
   '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/estrategia': 'diretoria',
   // IA
   '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
@@ -319,6 +320,7 @@ function applyPermissions(user) {
   router.register('/paulo', { render: async (ctx, root) => { setHeader('Paulo · Meus Negócios'); highlight('/paulo'); await pagePauloNegocios(ctx, root); } });
   router.register('/projetos', { render: async (ctx, root) => { setHeader('Projetos'); highlight('/projetos'); await pageProjetos(ctx, root); } });
   router.register('/psmhub', { render: async (ctx, root) => { setHeader('PSM HUB · Conquista'); highlight('/psmhub'); await pagePsmHub(ctx, root); } });
+  router.register('/minutas', { render: async (ctx, root) => { setHeader('Minutas padrão'); highlight('/minutas'); await pageMinutasJuridico(ctx, root); } });
   router.register('/estrategia', { render: async (ctx, root) => { setHeader('Estratégia'); highlight('/estrategia'); await pageEstrategia(ctx, root); } });
   // v77.30: absorvidas pelo Cockpit Hub — redirects preservam links/hábito antigos
   router.register('/pontos-atencao', { render: async () => { location.hash = '#/cockpit?tab=atencao'; } });
@@ -339,6 +341,7 @@ function applyPermissions(user) {
   router.register('/ia',        { render: async (ctx, root) => { setHeader('IA');        highlight('/ia');        await pageIA(ctx, root); } });
   router.register('/lancamentos', { render: async (ctx, root) => { setHeader('Lançamentos'); highlight('/lancamentos'); await pageLancamentos(ctx, root); } });
   router.register('/locacoes',  { render: async (ctx, root) => { setHeader('Locações');  highlight('/locacoes');  await pageLocacoes(ctx, root); } });
+  router.register('/minutas-locacao', { render: async (ctx, root) => { setHeader('Minutas e Fichas · Locação'); highlight('/minutas-locacao'); await pageMinutasLocacao(ctx, root); } });
   router.register('/arena',     { render: async (ctx, root) => { setHeader('Arena Live'); highlight('/arena');     await pageArena(ctx, root); } });
   router.register('/forecast',  { render: async (ctx, root) => { setHeader('Forecast');  highlight('/forecast');  await pageForecast(ctx, root); } });
   router.register('/organograma', { render: async (ctx, root) => { setHeader('Organograma'); highlight('/organograma'); await pageOrganograma(ctx, root); } });
@@ -479,9 +482,11 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/bp"><span class="sb-ico">📋</span> Plano BP</button>
         <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Governança</div>
         <button class="sb-link" data-nav="/governanca"><span class="sb-ico">⚖️</span> Governança</button>
+        <button class="sb-link" data-nav="/minutas"><span class="sb-ico">📜</span> Minutas padrão</button>
 
         <div class="sb-sec">🔑 Locação</div>
         <button class="sb-link" data-nav="/locacoes"><span class="sb-ico">🔑</span> Locações</button>
+        <button class="sb-link" data-nav="/minutas-locacao"><span class="sb-ico">📑</span> Minutas e Fichas · Locação</button>
 
         <div class="sb-sec">💰 Financeiro</div>
         <button class="sb-link" data-nav="/financeiro"><span class="sb-ico">💰</span> Financeiro</button>
