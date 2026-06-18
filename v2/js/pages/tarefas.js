@@ -89,10 +89,8 @@ function renderAgenda() {
 }
 
 function render() {
-  if (_view === 'agenda') { renderAgenda(); return; }
-  if (_view === 'central') renderCentral();
-  else renderBoard(_scope);
-  wireTabs();
+  // Sem abas: a página é a Central (tudo do usuário). Agenda/Board viram a Home integrada.
+  renderCentral();
 }
 
 /* ─────────────────── CENTRAL (feed unificado) ─────────────────── */
@@ -131,7 +129,6 @@ function renderCentral() {
 
   _root.innerHTML = `
     <div class="card">
-      ${tabsHTML()}
       <h2 class="card-title">🗂 Minha Central</h2>
       <p class="card-sub">Tudo que é seu pra fazer/acompanhar — tarefas, agenda, prazos de Projetos/Academy, captações, 1:1 e plantões — num lugar só, independente da aba.</p>
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
