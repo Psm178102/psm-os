@@ -111,7 +111,7 @@ function plannerMensal() {
   for (let dn = 1; dn <= days; dn++) {
     const ds = `${ym}-${String(dn).padStart(2, '0')}`, its = byDay[ds] || [], isT = ds === today;
     cells += `<div class="pl-cell${isT ? ' pl-today' : ''}"><div class="pl-dn">${dn}</div>`
-      + its.slice(0, 3).map(i => `<a href="${i.link}" class="pl-ev" title="${escapeHtml((i.titulo || '') + ' — ' + (i.quem || ''))}" style="background:${corOrigem(i.origem)}22;color:${corOrigem(i.origem)}">${escapeHtml((i.titulo || '').substring(0, 15))}</a>`).join('')
+      + its.slice(0, 3).map(i => `<a href="${i.link}" class="pl-ev" title="${escapeHtml((i.titulo || '') + ' — ' + (i.quem || ''))}" style="background:${corOrigem(i.origem)}22;color:${corOrigem(i.origem)}">${(i.ico || '')} ${escapeHtml((i.titulo || '').substring(0, 14))}</a>`).join('')
       + (its.length > 3 ? `<div class="pl-more">+${its.length - 3}</div>` : '') + `</div>`;
   }
   const WD = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => `<div class="pl-wd">${d}</div>`).join('');

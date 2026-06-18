@@ -126,7 +126,7 @@ class handler(BaseHTTPRequestHandler):
                 if st.lower() in CAPT_DONE:
                     continue
                 titulo = c.get("condominio") or c.get("endereco") or "Captação"
-                items.append({"kind": "captacao", "id": c.get("id"), "titulo": f"📥 {titulo}",
+                items.append({"kind": "captacao", "id": c.get("id"), "titulo": titulo,
                               "sub": c.get("proprietario"), "data": _d(c.get("stage_changed_at") or c.get("updated_at")),
                               "status": st or "em andamento", "prioridade": None, "origem": "Captação",
                               "ico": "📥", "link": "#/captacoes", "done": False,
@@ -144,7 +144,7 @@ class handler(BaseHTTPRequestHandler):
                 prox = _d(o.get("proxima_data"))
                 if not prox or prox < hoje:   # só os com retorno marcado pra hoje/futuro
                     continue
-                items.append({"kind": "oneonone", "id": o.get("id"), "titulo": "👥 Próximo One-on-One",
+                items.append({"kind": "oneonone", "id": o.get("id"), "titulo": "Próximo One-on-One",
                               "sub": (o.get("acoes") or "")[:120] or None, "data": prox, "status": "agendado",
                               "prioridade": None, "origem": "One-on-One", "ico": "👥",
                               "link": "#/one-on-one", "done": False,
@@ -161,7 +161,7 @@ class handler(BaseHTTPRequestHandler):
                 st = (p.get("status") or "agendado")
                 per = p.get("periodo")
                 items.append({"kind": "plantao", "id": p.get("id"),
-                              "titulo": "🛡 Plantão" + (f" · {per}" if per else ""),
+                              "titulo": "Plantão" + (f" · {per}" if per else ""),
                               "sub": p.get("observacoes"), "data": _d(p.get("data")), "status": st,
                               "prioridade": None, "origem": "Plantão", "ico": "🛡",
                               "link": "#/plantoes", "done": st in PLANTAO_DONE,
