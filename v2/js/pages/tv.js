@@ -1,6 +1,7 @@
 /* PSM-OS v2 — Modo TV expandido (Sprint 7.25) */
 import { api } from '../api.js';
 import { sounds } from '../sounds.js';
+import { enableWakeLock, disableWakeLock } from '../wakelock.js';
 
 let _root = null, _arena = [], _ranking = [], _funnels = [], _atin = null, _users = [];
 let _mode = 'arena', _pollTimer = null, _lastSaleId = null;
@@ -19,6 +20,7 @@ export async function pageTV(ctx, root) {
   _root = root;
   document.body.classList.add('tv-mode');
   document.documentElement.requestFullscreen?.().catch(() => {});
+  enableWakeLock(updateWakeBadge);   // 🔆 impede a TV de entrar em repouso
   await reload();
   startPoll();
   window.addEventListener('hashchange', cleanup, { once: true });
@@ -27,7 +29,30 @@ export async function pageTV(ctx, root) {
 function cleanup() {
   document.body.classList.remove('tv-mode');
   if (_pollTimer) clearInterval(_pollTimer);
+  disableWakeLock();
+  document.getElementById('tv-wake')?.remove();
   if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+}
+
+// selo fixo (fora do _root, sobrevive aos re-renders) mostrando se a tela está travada acesa
+function updateWakeBadge(s) {
+  let el = document.getElementById('tv-wake');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'tv-wake';
+    el.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:99999;font:600 12px system-ui,sans-serif;padding:4px 11px;border-radius:999px;pointer-events:none;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.3);transition:opacity .4s';
+    document.body.appendChild(el);
+  }
+  if (s.on && s.method === 'wakelock') {
+    el.style.background = '#16a34a'; el.textContent = '🔆 Tela travada acesa';
+    setTimeout(() => { if (el) el.style.opacity = '0.35'; }, 6000);
+  } else if (s.on && s.method === 'video') {
+    el.style.background = '#0891b2'; el.textContent = '🔆 Tela acesa (modo vídeo)';
+    setTimeout(() => { if (el) el.style.opacity = '0.35'; }, 6000);
+  } else {
+    el.style.opacity = '1'; el.style.background = '#d97706';
+    el.textContent = '⚠️ A TV pode dormir — desligue o descanso/economia de tela nas Configurações da TV';
+  }
 }
 
 async function reload() {
