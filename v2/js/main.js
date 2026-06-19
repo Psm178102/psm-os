@@ -28,6 +28,7 @@ import { pageAcademyStudio } from './pages/academy-studio.js';
 import { initNotifs } from './notifs.js';
 import { sounds } from './sounds.js';
 import { pageConfiguracoes } from './pages/configuracoes.js';
+import { pageLogins } from './pages/logins.js';
 import { pageConfigMenu } from './pages/config-menu.js';
 import { loadMenuLabels, applyHeaderOverride } from './menu-labels.js';
 import { pageMarketing } from './pages/marketing.js';
@@ -139,7 +140,7 @@ export const ROUTE_GROUP = {
   '/simuladores': 'ferramentas', '/relatorios': 'ferramentas',
   // Sistema
   '/usuarios': 'sistema', '/auditoria': 'sistema', '/integracoes': 'sistema',
-  '/backup': 'sistema', '/configuracoes': 'sistema', '/config-menu': 'sistema',
+  '/backup': 'sistema', '/configuracoes': 'sistema', '/config-menu': 'sistema', '/logins': 'sistema',
   // Conta (sempre)
   '/conta': 'conta',
   // sub-rotas de simuladores herdam ferramentas
@@ -205,6 +206,10 @@ function canSee(path, user) {
   const base = (path || '/').split('?')[0];
   const role = (user?.role || 'corretor').toLowerCase();
   const grp = ROUTE_GROUP[base] || 'inicio';
+
+  // 🔐 Cofre de Logins e Senhas: acessível a qualquer autenticado — o backend só
+  // devolve a cada um as credenciais liberadas pra ele (viewers). v77.93
+  if (base === '/logins') return true;
 
   // override por PAPEL (matriz editável pelo sócio) — só quando o papel foi customizado.
   // socio nunca entra aqui (não dá pra se trancar fora). v77.81
@@ -484,6 +489,7 @@ function initSectionCollapse() {
   router.register('/conta',     { render: pageConta });
   router.register('/configuracoes', { render: async (ctx, root) => { setHeader('Configurações'); highlight('/configuracoes'); await pageConfiguracoes(ctx, root); } });
   router.register('/config-menu', { render: async (ctx, root) => { setHeader('Nomes do Menu'); highlight('/config-menu'); await pageConfigMenu(ctx, root); } });
+  router.register('/logins',    { render: async (ctx, root) => { setHeader('Logins e Senhas'); highlight('/logins'); await pageLogins(ctx, root); } });
   router.register('*',          { render: page404 });
 
   // 5) Monta router
@@ -640,11 +646,12 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/backup"><span class="sb-ico">💾</span> Backup</button>
         <button class="sb-link" data-nav="/configuracoes"><span class="sb-ico">🔧</span> Configurações</button>
         <button class="sb-link" data-nav="/config-menu"><span class="sb-ico">✏️</span> Nomes do Menu</button>
+        <button class="sb-link" data-nav="/logins"><span class="sb-ico">🔐</span> Logins e Senhas</button>
 
         <div class="sb-sec">👤 Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
 
-        <div style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.5">House PSM · v77.92</div>
+        <div style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.5">House PSM · v77.93</div>
       </aside>
       <header class="app-header">
         <button class="h-hamburger" id="btn-hamburger" title="Menu">☰</button>
