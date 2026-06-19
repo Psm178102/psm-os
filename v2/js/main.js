@@ -127,9 +127,11 @@ export const ROUTE_GROUP = {
   '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
   // PSM Academy — menu próprio, visível a todos (a "faculdade" da PSM)
   '/academy': 'academy', '/academy-studio': 'academy',
-  // Cultura & Pessoas
-  '/base': 'cultura', '/manual': 'cultura', '/etica': 'cultura', '/canal': 'cultura',
-  '/formacao': 'cultura', '/gestao-pessoas': 'cultura', '/premiacoes': 'cultura',
+  // Cultura/Compliance → movidos pro Início (sempre visíveis)
+  '/base': 'inicio', '/manual': 'inicio', '/etica': 'inicio', '/canal': 'inicio',
+  '/formacao': 'inicio', '/premiacoes': 'inicio',
+  // Gestão de Pessoas & RH (grupo próprio)
+  '/gestao-pessoas': 'rh',
   '/talentos': 'diretoria', '/psmhub': 'diretoria',
   // Ferramentas
   '/simuladores': 'ferramentas', '/relatorios': 'ferramentas',
@@ -150,11 +152,11 @@ export const ROLE_ALLOWED = {
   diretor:    '*',
   gerente:    '*',
   // líder: toda a operação + performance da equipe, MAS sem Diretoria nem Sistema (admin)
-  lider:      ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'cultura', 'ferramentas', 'conta'],
-  marketing:  ['inicio', 'secretaria', 'marketing', 'captacoes', 'cultura', 'conta'],
-  backoffice: ['inicio', 'secretaria', 'captacoes', 'vendas', 'locacao', 'cultura', 'conta'],
-  financeiro: ['inicio', 'financeiro', 'cultura', 'conta'],
-  corretor:   ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'cultura', 'ferramentas', 'conta'],
+  lider:      ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
+  marketing:  ['inicio', 'secretaria', 'marketing', 'captacoes', 'rh', 'conta'],
+  backoffice: ['inicio', 'secretaria', 'captacoes', 'vendas', 'locacao', 'rh', 'conta'],
+  financeiro: ['inicio', 'financeiro', 'rh', 'conta'],
+  corretor:   ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
 };
 
 // Nível MÍNIMO real (backend) p/ páginas que vivem num grupo compartilhado mas
@@ -531,6 +533,12 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/checkin"><span class="sb-ico">📍</span> Check-in</button>
         <button class="sb-link" data-nav="/ranking"><span class="sb-ico">🏆</span> Ranking</button>
         <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
+        <button class="sb-link" data-nav="/base"><span class="sb-ico">📚</span> Base Conhecimento</button>
+        <button class="sb-link" data-nav="/manual"><span class="sb-ico">📖</span> Manual Cultura</button>
+        <button class="sb-link" data-nav="/etica"><span class="sb-ico">⚖️</span> Código de Ética</button>
+        <button class="sb-link" data-nav="/canal"><span class="sb-ico">🔒</span> Canal Anônimo</button>
+        <button class="sb-link" data-nav="/formacao"><span class="sb-ico">🎓</span> Formação PSM</button>
+        <button class="sb-link" data-nav="/premiacoes"><span class="sb-ico">🏆</span> Premiações</button>
 
         <div class="sb-sec">🗂 Secretaria de Vendas & Backoffice</div>
         <button class="sb-link" data-nav="/sdr"><span class="sb-ico">📞</span> Prospecção SDR</button>
@@ -613,14 +621,8 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/academy-studio"><span class="sb-ico">🎬</span> Academy · Produção</button>
         <button class="sb-link" data-nav="/academy"><span class="sb-ico">🎓</span> PSM Academy (aulas)</button>
 
-        <div class="sb-sec">🤝 Cultura & Pessoas</div>
-        <button class="sb-link" data-nav="/base"><span class="sb-ico">📚</span> Base Conhecimento</button>
-        <button class="sb-link" data-nav="/manual"><span class="sb-ico">📖</span> Manual Cultura</button>
-        <button class="sb-link" data-nav="/etica"><span class="sb-ico">⚖️</span> Código de Ética</button>
-        <button class="sb-link" data-nav="/canal"><span class="sb-ico">🔒</span> Canal Anônimo</button>
-        <button class="sb-link" data-nav="/formacao"><span class="sb-ico">🎓</span> Formação PSM</button>
-        <button class="sb-link" data-nav="/gestao-pessoas"><span class="sb-ico">👥</span> Gestão Pessoas</button>
-        <button class="sb-link" data-nav="/premiacoes"><span class="sb-ico">🏆</span> Premiações</button>
+        <div class="sb-sec">🧑‍💼 Gestão de Pessoas & RH</div>
+        <button class="sb-link" data-nav="/gestao-pessoas"><span class="sb-ico">👥</span> Gestão de Pessoas</button>
 
         <div class="sb-sec">🧮 Ferramentas</div>
         <button class="sb-link" data-nav="/simuladores"><span class="sb-ico">🧮</span> Simuladores</button>
