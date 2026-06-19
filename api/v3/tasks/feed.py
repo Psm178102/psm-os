@@ -53,6 +53,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(503, {"ok": False, "error": "backend"})
         uid = user.get("id")
         uname = (user.get("name") or "").strip().lower()
+        uemail = (user.get("email") or "").strip().lower()
         items = []
         prod = {"solicitadas": 0, "concluidas": 0, "pendentes": 0, "atrasadas": 0, "pct": None}
         hoje_iso = _today_brt().isoformat()
@@ -168,6 +169,57 @@ class handler(BaseHTTPRequestHandler):
                               "quem": user.get("name")})
         except Exception as e:
             print(f"[feed] plantoes: {e}")
+
+        # 6) paulo_cards — CRIATIVOS + CONTEÚDO atribuídos a mim (briefings/posts pra fazer)
+        #    (academy/projetos já entram via 'eventos'; aqui entram os boards de marketing).
+        #    Match do responsável por E-MAIL (criativos) OU NOME (conteúdo), case-insensitive.
+        CARD_BOARDS = {
+            "criativos":          ("Criativo", "🎨", "#/criativos"),
+            "conteudo":           ("Conteúdo", "🎬", "#/paulo-conteudo"),
+            "conteudo_imoveis":   ("Conteúdo", "🎬", "#/conteudo-imoveis"),
+            "conteudo_conquista": ("Conteúdo", "🎬", "#/conteudo-conquista"),
+        }
+        CARD_DONE = ("publicado", "publicada", "aprovado", "concluido", "concluida", "entregue")
+        CARD_CANCEL = ("cancelado", "cancelada", "arquivado", "arquivada")
+        try:
+            cards = (sb.table("paulo_cards").select("*").in_("board", list(CARD_BOARDS.keys()))
+                     .order("updated_at", desc=True).limit(800).execute().data or [])
+            csol = cconc = cpend = catr = 0
+            for c in cards:
+                resp = (c.get("responsavel") or "").strip().lower()
+                if not resp or (resp != uemail and resp != uname):
+                    continue
+                meta = CARD_BOARDS.get(c.get("board"))
+                if not meta:
+                    continue
+                origem, ico, link = meta
+                st = (c.get("status") or "").lower()
+                d = _d(c.get("data_ref"))
+                done = st in CARD_DONE
+                items.append({"kind": ("criativo" if c.get("board") == "criativos" else "conteudo"),
+                              "id": c.get("id"), "titulo": c.get("titulo") or "(sem título)",
+                              "sub": c.get("formato") or c.get("plataforma"), "data": d,
+                              "status": st or "solicitado", "prioridade": None, "origem": origem,
+                              "ico": ico, "link": link, "done": done,
+                              "quem": c.get("responsavel") or user.get("name")})
+                # produtividade: cada card é uma "solicitação" minha (canceladas/arquivadas fora)
+                if st not in CARD_CANCEL:
+                    csol += 1
+                    if done:
+                        cconc += 1
+                    else:
+                        cpend += 1
+                        if d and d < hoje_iso:
+                            catr += 1
+            # funde os cards na produtividade (relevante p/ marketing, cujo trabalho é criativo/conteúdo)
+            if csol:
+                prod["solicitadas"] += csol
+                prod["concluidas"] += cconc
+                prod["pendentes"] += cpend
+                prod["atrasadas"] += catr
+                prod["pct"] = round(prod["concluidas"] / prod["solicitadas"] * 100) if prod["solicitadas"] else None
+        except Exception as e:
+            print(f"[feed] cards: {e}")
 
         # counts
         hoje = _today_brt().isoformat()
