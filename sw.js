@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v77.89.0-2026-06-18-FEEDCRIATIVOS';
+const SW_VERSION = 'v77.90.0-2026-06-18-HOMEACAO';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

@@ -20,6 +20,10 @@ let _feedCounts = {};
 let _feedProd = {};    // produtividade (concluídas/solicitadas/atrasadas)
 let _feedRole = '';    // cargo (corretor é exceção da produtividade)
 let _plOffset = 0;     // mês do planner (0 = atual)
+let _conclForms = {};  // campos obrigatórios por tipo ao concluir (config editável)
+let _filterOrig = '';  // filtro de origem na lista de pendências
+// tipos que podem ser concluídos direto do Home (os demais abrem a aba)
+const CONCLUDABLE = { tarefa: 1, plantao: 1, criativo: 1, conteudo: 1, captacao: 1 };
 
 export async function pageDashboard(ctx, root) {
   _root = root;
@@ -29,15 +33,18 @@ export async function pageDashboard(ctx, root) {
     const calls = [
       api.request('/api/v3/metrics/overview'),
       api.request('/api/v3/tasks/feed').catch(() => ({ items: [], counts: {} })),
+      api.request('/api/v3/settings/conclusao_forms').catch(() => ({ forms: {} })),
     ];
     // Ranking de vendas real (mês) — só gestor (o endpoint exige lvl>=5)
     if (isGestor) calls.push(api.request('/api/v3/oo/overview?date_preset=this_month').catch(() => null));
-    const [d, f, oo] = await Promise.all(calls);
+    const res = await Promise.all(calls);
+    const d = res[0], f = res[1], cf = res[2], oo = isGestor ? res[3] : null;
     _data = d;
     _feed = (f && f.items) || [];
     _feedCounts = (f && f.counts) || {};
     _feedProd = (f && f.prod) || {};
     _feedRole = (f && f.role) || (auth.user()?.role) || '';
+    _conclForms = (cf && cf.forms) || {};
     _board = oo;
     render();
   } catch (e) {
@@ -70,6 +77,14 @@ const PLANNER_CSS = `<style>
 .exec-when{font-weight:800;font-size:12px;white-space:nowrap}
 .exec-sub{font-size:12px;color:var(--ink-muted,#64748b);max-width:320px}
 .exec-quem{font-size:12px;font-weight:600;white-space:nowrap}
+.exec-done{width:28px;height:28px;border-radius:8px;border:1.5px solid #16a34a;background:transparent;color:#16a34a;font-weight:900;cursor:pointer;line-height:1;transition:all .12s}
+.exec-done:hover{background:#16a34a;color:#fff}
+.exec-filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.exec-fchip{font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px;border:1px solid var(--bd);background:transparent;color:var(--ink-muted,#64748b);cursor:pointer}
+.exec-fchip.on{background:var(--c);border-color:var(--c);color:#fff}
+/* banner bom-dia */
+.bomdia{background:linear-gradient(135deg,#1e293b,#334155);color:#fff;border-radius:12px;padding:12px 16px;font-size:13.5px;font-weight:600;margin-bottom:12px}
+.bomdia.ok{background:linear-gradient(135deg,#14532d,#16a34a)}
 /* gauges (% meta / % produtividade) */
 .gz{flex:1;min-width:230px;background:var(--bg-1,#fff);border:1px solid var(--bd);border-radius:14px;padding:15px 17px}
 .gz-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
@@ -148,16 +163,32 @@ function plannerMensal() {
 
 function listaExec() {
   const hoje = _todayBRT();
-  const pend = (_feed || []).filter(i => !i.done).sort((a, b) => (a.data || '9999') < (b.data || '9999') ? -1 : 1);
-  if (!pend.length) return `<div class="exec-wrap" style="padding:28px;text-align:center">
+  const all = (_feed || []).filter(i => !i.done)
+    .sort((a, b) => (a.data || '9999') < (b.data || '9999') ? -1 : 1);   // atrasados/próximos no topo
+  if (!all.length) return `<div class="exec-wrap" style="padding:28px;text-align:center">
     <div style="font-size:28px">🎉</div>
     <div class="muted tiny" style="margin-top:4px">Nada pendente pra você agora. Tudo em dia!</div></div>`;
+
+  // chips de filtro por origem
+  const origens = [...new Set(all.map(i => i.origem).filter(Boolean))];
+  const chip = (lbl, val) => {
+    const on = _filterOrig === val;
+    const cor = val ? corOrigem(val) : '#475569';
+    return `<button class="exec-fchip${on ? ' on' : ''}" data-forig="${escapeHtml(val)}" style="--c:${cor}">${escapeHtml(lbl)}</button>`;
+  };
+  const filtros = origens.length > 1
+    ? `<div class="exec-filtros">${chip('Tudo', '')}${origens.map(o => chip(o, o)).join('')}</div>` : '';
+
+  const pend = _filterOrig ? all.filter(i => i.origem === _filterOrig) : all;
   const rows = pend.slice(0, 40).map(i => {
     const overdue = i.data && i.data < hoje, eh = i.data === hoje;
     const cor = corOrigem(i.origem);
     const dia = i.data ? i.data.split('-').reverse().slice(0, 2).join('/') : 'sem data';
     const badge = overdue ? ` <span style="color:#dc2626">⚠ atrasado</span>` : eh ? ` <span style="color:#16a34a">• hoje</span>` : '';
     const qcor = overdue ? '#dc2626' : eh ? '#16a34a' : 'var(--ink,#0f172a)';
+    const conc = CONCLUDABLE[i.kind]
+      ? `<button class="exec-done" data-conc="${escapeHtml(i.kind)}|${escapeHtml(i.id)}" title="Concluir">✓</button>`
+      : '';
     return `<tr>
       <td style="border-left:3px solid ${cor}">
         <a href="${i.link}" class="exec-task">${i.ico || ''} <span>${escapeHtml(i.titulo || '')}</span></a>
@@ -166,10 +197,11 @@ function listaExec() {
       <td class="exec-when" style="color:${qcor}">${dia}${badge}</td>
       <td class="exec-sub">${escapeHtml((i.sub || '—').substring(0, 100))}</td>
       <td class="exec-quem">${escapeHtml(i.quem || '—')}</td>
+      <td style="text-align:center">${conc}</td>
     </tr>`;
   }).join('');
-  return `<div class="exec-wrap"><table class="exec-tbl">
-    <thead><tr><th>🎯 O que fazer</th><th>📅 Quando</th><th>🛠 Como</th><th>👤 Quem</th></tr></thead>
+  return `${filtros}<div class="exec-wrap"><table class="exec-tbl">
+    <thead><tr><th>🎯 O que fazer</th><th>📅 Quando</th><th>🛠 Como</th><th>👤 Quem</th><th>✓</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
     ${pend.length > 40 ? `<div class="tiny muted" style="margin-top:8px;text-align:right">+${pend.length - 40} item(ns) — <a href="#/tarefas">ver todas</a></div>` : ''}`;
 }
@@ -189,9 +221,23 @@ function tarefasCard() {
         <a href="#/agenda" class="btn btn-ghost tiny">📅 Agenda</a>
         <a href="#/tarefas" class="btn btn-ghost tiny">🗂 Ver tudo</a>
       </div>
-      <p class="tiny muted" style="margin:-4px 0 12px">Tudo que é seu pra fazer — de qualquer aba — num lugar só: <b>o que fazer</b>, <b>quando</b>, <b>como</b> e <b>quem</b>.</p>
+      ${bomDiaBanner()}
       ${listaExec()}
     </div>`;
+}
+
+function bomDiaBanner() {
+  const c = _feedCounts || {};
+  const h = new Date(Date.now() - 3 * 3600 * 1000).getHours();
+  const saud = h < 12 ? '☀️ Bom dia' : h < 18 ? '👋 Boa tarde' : '🌙 Boa noite';
+  const nome = escapeHtml((auth.user()?.name || '').split(' ')[0]);
+  const atr = c.atrasados || 0, hoje = c.hoje || 0, pend = c.pendentes || 0;
+  if (!pend) return `<div class="bomdia ok">${saud}, ${nome}! Tudo em dia por aqui. 🎉</div>`;
+  const partes = [];
+  if (atr) partes.push(`🔴 <b>${atr} atrasada(s)</b>`);
+  if (hoje) partes.push(`🟢 <b>${hoje} pra hoje</b>`);
+  partes.push(`${pend} pendente(s) no total`);
+  return `<div class="bomdia">${saud}, ${nome}! Hoje você tem ${partes.join(' · ')}. Resolva de cima pra baixo 👇</div>`;
 }
 
 // CARD 2 — 🗓 PLANO DO MÊS (% da meta + % de produtividade + cronograma mensal)
@@ -292,6 +338,71 @@ function render() {
     _plOffset += parseInt(b.dataset.plNav, 10) || 0;
     render();
   }));
+  // filtro por origem na lista de pendências
+  _root.querySelectorAll('[data-forig]').forEach(b => b.addEventListener('click', () => {
+    _filterOrig = b.dataset.forig || ''; render();
+  }));
+  // ✓ concluir (abre form se o tipo exige campos; senão conclui direto)
+  _root.querySelectorAll('[data-conc]').forEach(b => b.addEventListener('click', () => {
+    const [kind, id] = b.dataset.conc.split('|');
+    const item = (_feed || []).find(i => i.kind === kind && String(i.id) === id);
+    abrirConclusao(kind, id, item);
+  }));
+}
+
+/* ─── Concluir item do Home (com campos obrigatórios por tipo) ─── */
+function abrirConclusao(kind, id, item) {
+  const defs = (_conclForms && _conclForms[kind]) || [];
+  const nome = item ? (item.titulo || '') : '';
+  if (!defs.length) {   // 1 clique
+    if (confirm(`Concluir "${nome}"?`)) enviarConclusao(kind, id, {});
+    return;
+  }
+  let ov = document.getElementById('conc-modal');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'conc-modal'; document.body.appendChild(ov); }
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  const field = f => {
+    const id2 = 'cf-' + f.key;
+    if (f.type === 'select') return `<label class="tiny muted" style="font-weight:700">${escapeHtml(f.label)}${f.required ? ' *' : ''}</label>
+      <select id="${id2}" class="select" style="margin-bottom:10px"><option value="">—</option>${(f.options || []).map(o => `<option>${escapeHtml(o)}</option>`).join('')}</select>`;
+    if (f.type === 'textarea') return `<label class="tiny muted" style="font-weight:700">${escapeHtml(f.label)}${f.required ? ' *' : ''}</label>
+      <textarea id="${id2}" class="input" rows="2" style="margin-bottom:10px"></textarea>`;
+    const t = f.type === 'number' ? 'number' : f.type === 'url' ? 'url' : 'text';
+    return `<label class="tiny muted" style="font-weight:700">${escapeHtml(f.label)}${f.required ? ' *' : ''}</label>
+      <input id="${id2}" type="${t}" class="input" style="margin-bottom:10px" placeholder="${f.type === 'url' ? 'https://…' : ''}">`;
+  };
+  ov.innerHTML = `<div class="card" style="max-width:460px;width:100%">
+    <h3 class="card-title" style="font-size:15px">✓ Concluir — ${escapeHtml(nome)}</h3>
+    <p class="tiny muted" style="margin:0 0 12px">Preencha pra registrar a entrega:</p>
+    ${defs.map(field).join('')}
+    <div id="conc-msg"></div>
+    <div class="flex gap-2 mt-2" style="justify-content:flex-end">
+      <button class="btn btn-ghost btn-sm" id="conc-cancel">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="conc-ok">✓ Concluir</button>
+    </div></div>`;
+  ov.querySelector('#conc-cancel').onclick = () => ov.remove();
+  ov.querySelector('#conc-ok').onclick = () => {
+    const fields = {}; let falta = '';
+    defs.forEach(f => {
+      const el = document.getElementById('cf-' + f.key);
+      const v = (el && el.value || '').trim();
+      fields[f.key] = v;
+      if (f.required && !v && !falta) falta = f.label;
+    });
+    if (falta) { ov.querySelector('#conc-msg').innerHTML = `<div class="alert alert-err tiny">Preencha: ${escapeHtml(falta)}</div>`; return; }
+    enviarConclusao(kind, id, fields, ov);
+  };
+}
+
+async function enviarConclusao(kind, id, fields, ov) {
+  try {
+    await api.request('/api/v3/tasks/conclude', { method: 'POST', body: { kind, id, fields } });
+    if (ov) ov.remove();
+    await pageDashboard(null, _root);   // recarrega o feed (item sai das pendências)
+  } catch (e) {
+    if (ov) ov.querySelector('#conc-msg').innerHTML = `<div class="alert alert-err tiny">${escapeHtml(e.message)}</div>`;
+    else alert('Erro: ' + e.message);
+  }
 }
 
 /* ─── Ranking de vendas do mês (real, via OO) ─── */

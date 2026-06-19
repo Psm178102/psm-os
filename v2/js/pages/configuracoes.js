@@ -29,6 +29,10 @@ let _permDefault = {};     // { role: Set(routes) } — default p/ comparar/rest
 let _permRole = 'corretor';
 let _permCanEdit = false;
 
+// ── Editor de "campos de conclusão" por atividade ──
+let _cf = null, _cfKinds = {}, _cfTypes = ['text', 'url', 'number', 'textarea', 'select'], _cfCanEdit = false;
+const _cfSlug = s => String(s || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 32);
+
 export async function pageConfiguracoes(ctx, root) {
   _root = root;
   const me = auth.user();
@@ -78,6 +82,8 @@ function render() {
 
       ${permissoesCard()}
 
+      ${conclusaoCard()}
+
       <div class="alert alert-warn mt-4">
         <b>⚠ Chaves sensíveis</b> aparecem com bullets (••••) por segurança.
         ${isSocio10 ? 'Toggle "Revelar" exibe valor real. ' : ''}
@@ -92,6 +98,7 @@ function render() {
   document.querySelectorAll('[data-setting-save]').forEach(b => b.addEventListener('click', saveSetting));
 
   initPermEditor();   // monta a matriz editável de permissões por papel
+  initConclEditor();  // monta o editor de campos de conclusão por atividade
 }
 
 // Matriz de permissões por papel — EDITÁVEL pelo sócio (lvl≥10). Granular por item de menu.
@@ -277,6 +284,110 @@ async function saveSetting(ev) {
     btn.textContent = '✕ Erro';
     setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 2000);
     alert('Erro: ' + e.message);
+  }
+}
+
+// ── Campos de conclusão por atividade (editável pelo sócio) ──
+function conclusaoCard() {
+  return `
+    <div class="card mt-4" id="concl-card" style="margin-top:14px">
+      <h3 class="card-title">✅ Campos ao concluir cada atividade</h3>
+      <p class="card-sub">Defina o que a pessoa precisa preencher ao marcar como concluída no Home (ex.: Criativo → link + número). Tipos sem campos concluem em 1 clique.</p>
+      <div id="concl-editor"><div class="flex items-center gap-2 muted tiny" style="padding:10px 0"><span class="spinner"></span> Carregando…</div></div>
+    </div>`;
+}
+
+async function initConclEditor() {
+  const host = document.getElementById('concl-editor');
+  if (!host) return;
+  _cfCanEdit = (auth.user()?.lvl || 0) >= 7;
+  try {
+    const r = await api.request('/api/v3/settings/conclusao_forms');
+    _cf = r.forms || {};
+    _cfKinds = r.kinds || {};
+    if (Array.isArray(r.types) && r.types.length) _cfTypes = r.types;
+  } catch (_) { _cf = {}; }
+  renderConclEditor();
+}
+
+function renderConclEditor() {
+  const host = document.getElementById('concl-editor');
+  if (!host) return;
+  const dis = !_cfCanEdit;
+  const kinds = Object.keys(_cfKinds).length ? _cfKinds
+    : { criativo: '🎨 Criativo', conteudo: '🎬 Conteúdo', captacao: '📥 Captação', tarefa: '📋 Tarefa', plantao: '🛡 Plantão' };
+
+  const fieldRow = (kind, f, idx) => `
+    <div class="flex gap-2" style="flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <input class="input" style="flex:2;min-width:160px" value="${escapeHtml(f.label || '')}" ${dis ? 'disabled' : ''}
+             data-cf-edit="${kind}|${idx}|label" placeholder="Rótulo do campo">
+      <select class="select" style="flex:1;min-width:110px" ${dis ? 'disabled' : ''} data-cf-edit="${kind}|${idx}|type">
+        ${_cfTypes.map(t => `<option value="${t}"${(f.type || 'text') === t ? ' selected' : ''}>${t}</option>`).join('')}
+      </select>
+      ${(f.type === 'select') ? `<input class="input" style="flex:1.5;min-width:140px" value="${escapeHtml((f.options || []).join(', '))}" ${dis ? 'disabled' : ''} data-cf-edit="${kind}|${idx}|options" placeholder="opções: A, B, C">` : ''}
+      <label class="tiny" style="font-weight:700;display:flex;align-items:center;gap:4px;white-space:nowrap"><input type="checkbox" ${f.required ? 'checked' : ''} ${dis ? 'disabled' : ''} data-cf-edit="${kind}|${idx}|required"> obrigatório</label>
+      ${dis ? '' : `<button class="btn btn-ghost btn-sm" data-cf-del="${kind}|${idx}" style="color:#dc2626">✕</button>`}
+    </div>`;
+
+  host.innerHTML = `
+    ${Object.entries(kinds).map(([kind, lbl]) => {
+      const fields = (_cf[kind] || []);
+      return `<div class="card" style="margin:0 0 10px;background:var(--bg-3)">
+        <div class="flex items-center gap-2" style="justify-content:space-between">
+          <b style="font-size:13px">${lbl}</b>
+          <span class="tiny muted">${fields.length ? fields.length + ' campo(s)' : '1 clique (sem campos)'}</span>
+        </div>
+        <div style="margin-top:8px">${fields.map((f, i) => fieldRow(kind, f, i)).join('')}</div>
+        ${dis ? '' : `<button class="btn btn-ghost btn-sm" data-cf-add="${kind}" style="margin-top:4px;border:1px dashed var(--bd)">➕ campo</button>`}
+      </div>`;
+    }).join('')}
+    ${_cfCanEdit ? `<div class="flex gap-2 mt-2"><button class="btn btn-primary btn-sm" id="cf-save">💾 Salvar campos</button><span id="cf-msg" class="tiny" style="align-self:center"></span></div>`
+      : '<div class="tiny muted">Somente leitura (edição é do sócio).</div>'}`;
+
+  if (dis) return;
+  host.querySelectorAll('[data-cf-edit]').forEach(el => {
+    const [kind, idx, prop] = el.dataset.cfEdit.split('|');
+    const handler = () => {
+      const f = _cf[kind][+idx];
+      if (prop === 'required') f.required = el.checked;
+      else if (prop === 'options') f.options = el.value.split(',').map(s => s.trim()).filter(Boolean);
+      else { f[prop] = el.value; if (prop === 'type') renderConclEditor(); }   // type muda → re-render (mostra opções)
+    };
+    if (prop === 'type' || prop === 'required') el.onchange = handler; else el.oninput = handler;
+  });
+  host.querySelectorAll('[data-cf-add]').forEach(b => b.onclick = () => {
+    const kind = b.dataset.cfAdd;
+    (_cf[kind] = _cf[kind] || []).push({ key: '', label: '', type: 'text', required: false });
+    renderConclEditor();
+  });
+  host.querySelectorAll('[data-cf-del]').forEach(b => b.onclick = () => {
+    const [kind, idx] = b.dataset.cfDel.split('|');
+    _cf[kind].splice(+idx, 1); renderConclEditor();
+  });
+  const save = host.querySelector('#cf-save');
+  if (save) save.onclick = saveConcl;
+}
+
+async function saveConcl() {
+  // gera chave estável p/ campos novos (mantém as existentes — ex.: link/numero/desfecho)
+  const out = {};
+  Object.entries(_cf).forEach(([kind, fields]) => {
+    const seen = new Set();
+    out[kind] = (fields || []).filter(f => (f.label || '').trim()).map(f => {
+      let key = f.key || _cfSlug(f.label) || 'campo';
+      while (seen.has(key)) key += '_';
+      seen.add(key);
+      const o = { key, label: f.label.trim(), type: f.type || 'text', required: !!f.required };
+      if (o.type === 'select') o.options = f.options || [];
+      return o;
+    });
+  });
+  const msg = document.getElementById('cf-msg');
+  try {
+    await api.request('/api/v3/settings/conclusao_forms', { method: 'POST', body: { forms: out } });
+    if (msg) { msg.textContent = '✓ Salvo'; msg.style.color = '#16a34a'; }
+  } catch (e) {
+    if (msg) { msg.textContent = 'Erro: ' + e.message; msg.style.color = '#dc2626'; }
   }
 }
 
