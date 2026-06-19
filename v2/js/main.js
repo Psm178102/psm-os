@@ -261,32 +261,33 @@ function initSectionCollapse() {
   if (!document.getElementById('sb-collapse-css')) {
     const st = document.createElement('style');
     st.id = 'sb-collapse-css';
-    st.textContent = '.sb-sec{cursor:pointer;user-select:none}.sb-caret{float:right;opacity:.55;font-size:11px;font-weight:400;transition:transform .15s}.menu-collapsed{display:none !important}';
+    // caret via ::after (pseudo-elemento) — sobrevive ao menu-labels, que reescreve o textContent das seções
+    st.textContent = '.sb-sec{cursor:pointer;user-select:none;position:relative;padding-right:22px}'
+      + '.sb-sec::after{content:"▾";position:absolute;right:10px;top:50%;transform:translateY(-50%);opacity:.5;font-size:10px;font-weight:400}'
+      + '.sb-sec.sec-collapsed::after{content:"▸"}'
+      + '.menu-collapsed{display:none !important}';
     document.head.appendChild(st);
   }
   const sidebar = document.querySelector('.app-sidebar');
   if (!sidebar) return;
   sidebar.querySelectorAll('.sb-sec').forEach(sec => {
-    const key = (sec.textContent || '').trim();
+    const key = sec.dataset.deflabel || (sec.textContent || '').trim();
     // itens da seção = irmãos até o próximo sb-sec (inclui sb-subsec + sb-link)
     const items = [];
     let n = sec.nextElementSibling;
     while (n && !(n.classList && n.classList.contains('sb-sec'))) { items.push(n); n = n.nextElementSibling; }
-    if (!sec.querySelector('.sb-caret')) {
-      const car = document.createElement('span');
-      car.className = 'sb-caret';
-      sec.appendChild(car);
-    }
     const apply = () => {
       const isC = collapsed.has(key);
+      sec.classList.toggle('sec-collapsed', isC);
       items.forEach(it => it.classList.toggle('menu-collapsed', isC));
-      const car = sec.querySelector('.sb-caret');
-      if (car) car.textContent = isC ? '▸' : '▾';
     };
-    sec.addEventListener('click', () => {
-      if (collapsed.has(key)) collapsed.delete(key); else collapsed.add(key);
-      apply(); save();
-    });
+    if (!sec._collapseWired) {
+      sec._collapseWired = true;
+      sec.addEventListener('click', () => {
+        if (collapsed.has(key)) collapsed.delete(key); else collapsed.add(key);
+        apply(); save();
+      });
+    }
     apply();
   });
 }

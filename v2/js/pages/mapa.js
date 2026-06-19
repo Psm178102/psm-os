@@ -138,12 +138,13 @@ async function render() {
         </div>
       </div>
 
-      <div class="mt-3" style="border-radius:12px;overflow:hidden;background:var(--bg-3);border:1px solid var(--bd)">
-        <iframe id="earth-frame" src="${esc(earthUrl)}" title="Google Earth PSM" allow="fullscreen"
-                referrerpolicy="no-referrer-when-downgrade" loading="lazy"
-                style="width:100%;height:calc(100vh - 270px);min-height:480px;border:0;display:block"></iframe>
+      <div class="mt-3" style="border-radius:16px;background:linear-gradient(135deg,#0b3d91 0%,#1a73e8 100%);color:#fff;padding:42px 28px;text-align:center;box-shadow:0 8px 30px rgba(26,115,232,.25)">
+        <div style="font-size:58px;line-height:1">🌍</div>
+        <h3 style="margin:12px 0 4px;font-size:21px;font-weight:800">Google Earth da PSM</h3>
+        <p style="margin:0 auto 18px;max-width:540px;opacity:.92;font-size:14px;line-height:1.5">Territórios, regiões e pontos de interesse no nosso Google Earth. Abre em tela cheia, com todos os recursos de navegação 3D.</p>
+        <a class="btn" href="${esc(earthUrl)}" target="_blank" rel="noopener" style="background:#fff;color:#1a73e8;font-weight:800;padding:12px 26px;border-radius:10px;text-decoration:none;display:inline-block;font-size:15px">🌍 Abrir o mapa no Google Earth</a>
       </div>
-      <p class="tiny muted mt-2">💡 Se o mapa não carregar aqui dentro (o Google às vezes bloqueia a exibição embutida), clique em <b>🌍 Abrir em tela cheia</b>.</p>
+      <p class="tiny muted mt-2">🔒 Por segurança, o Google <b>não permite exibir o Earth embutido</b> dentro de outros sistemas — por isso ele abre numa nova aba. Quem precisar acessar precisa ter o link compartilhado pela gestão.</p>
 
       <div class="mt-4">
         <button class="btn btn-ghost btn-sm" id="toggle-captados">📍 Ver imóveis captados (mapa por bairro) ▾</button>
