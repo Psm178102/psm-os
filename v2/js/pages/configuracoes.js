@@ -12,7 +12,7 @@ let _reveal = false;
 
 // ── Editor de Permissões por papel (matriz editável pelo sócio) ──
 const PERM_GROUP_LBL = {
-  vendas: '🏘 Imóveis & Vendas', captacoes: '📥 Captações', locacao: '🔑 Locação',
+  secretaria: '🗂 Secretaria de Vendas & Backoffice', vendas: '🏘 Imóveis & Vendas', locacao: '🔑 Locação',
   financeiro: '💰 Financeiro', marketing: '📊 Marketing', performance: '🎯 Metas & Performance',
   diretoria: '🏛 Diretoria', ia: '🤖 IA', cultura: '🎓 Cultura', ferramentas: '🧮 Ferramentas',
   sistema: '⚙️ Sistema',

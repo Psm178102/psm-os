@@ -101,11 +101,11 @@ import { pageMapa } from './pages/mapa.js';
 export const ROUTE_GROUP = {
   // Início (sempre)
   '/': 'inicio', '/painel': 'inicio', '/checkin': 'inicio', '/ranking': 'inicio', '/agenda': 'inicio', '/tarefas': 'inicio',
-  // Imóveis & Vendas (secretaria de vendas)
-  '/crm': 'vendas', '/sdr': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/fichas': 'vendas', '/campanha-wa': 'vendas',
+  // Secretaria de Vendas & Backoffice (SDR + Captações)
+  '/sdr': 'secretaria', '/captacoes': 'secretaria',
+  // Imóveis & Vendas
+  '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/fichas': 'vendas', '/campanha-wa': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/tabela-imoveis': 'vendas', '/lancamentos': 'vendas',
-  // Captações
-  '/captacoes': 'captacoes',
   // Locação
   '/locacoes': 'locacao', '/minutas-locacao': 'locacao',
   // Financeiro
@@ -150,11 +150,11 @@ export const ROLE_ALLOWED = {
   diretor:    '*',
   gerente:    '*',
   // líder: toda a operação + performance da equipe, MAS sem Diretoria nem Sistema (admin)
-  lider:      ['inicio', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'cultura', 'ferramentas', 'conta'],
-  marketing:  ['inicio', 'marketing', 'captacoes', 'cultura', 'conta'],
-  backoffice: ['inicio', 'captacoes', 'vendas', 'locacao', 'cultura', 'conta'],
+  lider:      ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'cultura', 'ferramentas', 'conta'],
+  marketing:  ['inicio', 'secretaria', 'marketing', 'captacoes', 'cultura', 'conta'],
+  backoffice: ['inicio', 'secretaria', 'captacoes', 'vendas', 'locacao', 'cultura', 'conta'],
   financeiro: ['inicio', 'financeiro', 'cultura', 'conta'],
-  corretor:   ['inicio', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'cultura', 'ferramentas', 'conta'],
+  corretor:   ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'cultura', 'ferramentas', 'conta'],
 };
 
 // Nível MÍNIMO real (backend) p/ páginas que vivem num grupo compartilhado mas
@@ -489,9 +489,12 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/ranking"><span class="sb-ico">🏆</span> Ranking</button>
         <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
 
+        <div class="sb-sec">🗂 Secretaria de Vendas & Backoffice</div>
+        <button class="sb-link" data-nav="/sdr"><span class="sb-ico">📞</span> Prospecção SDR</button>
+        <button class="sb-link" data-nav="/captacoes"><span class="sb-ico">📥</span> Captações</button>
+
         <div class="sb-sec">🏘 Imóveis & Vendas</div>
         <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM (RD)</button>
-        <button class="sb-link" data-nav="/sdr"><span class="sb-ico">📞</span> Prospecção SDR</button>
         <button class="sb-link" data-nav="/oportunidades"><span class="sb-ico">💡</span> Oportunidades</button>
         <button class="sb-link" data-nav="/cadencia"><span class="sb-ico">🔄</span> Cadência</button>
         <button class="sb-link" data-nav="/fichas"><span class="sb-ico">📋</span> Fichas/Propostas</button>
@@ -499,7 +502,6 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/mapa"><span class="sb-ico">🗺</span> Mapa Imóveis</button>
         <button class="sb-link" data-nav="/tabela-imoveis"><span class="sb-ico">📊</span> Tabela Imóveis</button>
         <button class="sb-link" data-nav="/lancamentos"><span class="sb-ico">🏗</span> Lançamentos</button>
-        <button class="sb-link" data-nav="/captacoes"><span class="sb-ico">📥</span> Captações</button>
         <button class="sb-link" data-nav="/campanha-wa"><span class="sb-ico">📣</span> Campanha WhatsApp</button>
 
         <div class="sb-sec">🏛 Diretoria</div>
