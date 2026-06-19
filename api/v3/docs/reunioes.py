@@ -10,7 +10,7 @@ GET  (qualquer autenticado que alcança a aba): {ok, items[], seeded, can_edit}.
 POST (lvl>=7 diretoria): action seed|upsert|delete|reorder. Audita.
 """
 from http.server import BaseHTTPRequestHandler
-import json, os, sys, uuid
+import json, os, sys, re, uuid
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -58,7 +58,8 @@ DEFAULTS = [
 ]
 
 
-def _read(sb):
+def _read_val(sb):
+    """Lê o registro inteiro: { items:[...], drive:{url,label} }."""
     try:
         rows = sb.table("shared_kv").select("value").eq("key", KV_KEY).limit(1).execute().data or []
         val = rows[0]["value"] if rows else {}
@@ -66,13 +67,16 @@ def _read(sb):
             val = json.loads(val)
     except Exception:
         val = {}
-    items = (val or {}).get("items") if isinstance(val, dict) else None
-    return items if isinstance(items, list) else []
+    if not isinstance(val, dict):
+        val = {}
+    val["items"] = val.get("items") if isinstance(val.get("items"), list) else []
+    val["drive"] = val.get("drive") if isinstance(val.get("drive"), dict) else {}
+    return val
 
 
-def _write(sb, items):
+def _write_val(sb, val):
     sb.table("shared_kv").upsert({
-        "key": KV_KEY, "value": {"items": items},
+        "key": KV_KEY, "value": val,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }, on_conflict="key").execute()
 
@@ -112,11 +116,12 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
-        items = _read(sb)
+        val = _read_val(sb)
+        items = val["items"]
         seeded = bool(items)
         if not items:
             items = [dict(x) for x in DEFAULTS]
-        return self._send(200, {"ok": True, "items": items, "seeded": seeded,
+        return self._send(200, {"ok": True, "items": items, "drive": val["drive"], "seeded": seeded,
                                 "can_edit": (user.get("lvl") or 0) >= 7})
 
     def do_POST(self):
@@ -133,10 +138,17 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
 
-        items = _read(sb)
+        val = _read_val(sb)
+        items = val["items"]
         action = (body.get("action") or "").strip()
 
-        if action == "seed":
+        if action == "set_drive":
+            url = str((body.get("drive") or {}).get("url") or "").strip()[:1000]
+            label = str((body.get("drive") or {}).get("label") or "").strip()[:120]
+            if url and not re.match(r"^https?://", url, re.I):
+                return self._send(400, {"ok": False, "error": "Link inválido — use a URL do Google Drive (http/https)"})
+            val["drive"] = {"url": url, "label": label} if url else {}
+        elif action == "seed":
             if not items:
                 items = [dict(x) for x in DEFAULTS]
         elif action == "upsert":
@@ -162,9 +174,10 @@ class handler(BaseHTTPRequestHandler):
         else:
             return self._send(400, {"ok": False, "error": "ação inválida"})
 
+        val["items"] = items
         try:
-            _write(sb, items)
+            _write_val(sb, val)
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
         audit(self, actor, f"reunioes.{action}", target_type="shared_kv", target_id=KV_KEY)
-        return self._send(200, {"ok": True, "items": items, "seeded": True})
+        return self._send(200, {"ok": True, "items": items, "drive": val["drive"], "seeded": True})

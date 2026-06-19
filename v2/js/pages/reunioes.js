@@ -6,6 +6,7 @@
 import { api } from '../api.js';
 
 let _root = null, _items = [], _canEdit = false, _editing = null, _busy = false;
+let _drive = {}, _driveEdit = false;
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const nl2br = s => esc(s).replace(/\n/g, '<br>');
@@ -20,6 +21,7 @@ async function load(maybeSeed) {
   try {
     const r = await api.request('/api/v3/docs/reunioes');
     _items = r.items || [];
+    _drive = r.drive || {};
     _canEdit = !!r.can_edit;
     // 1ª vez: semeia os 4 formatos padrão da PSM (silencioso, só diretoria)
     if (maybeSeed && !r.seeded && _canEdit) {
@@ -41,11 +43,37 @@ function render() {
         </div>
         ${_canEdit ? `<button class="btn btn-primary btn-sm" id="rn-new">➕ Novo formato</button>` : ''}
       </div>
+      ${driveHTML()}
     </div>
     ${_editing === 'new' ? formHTML(null) : ''}
     ${_items.map(it => _editing === it.id ? formHTML(it) : cardHTML(it)).join('')}
     ${!_items.length ? '<div class="card mt-3 muted tiny" style="text-align:center;padding:24px">Nenhum formato cadastrado.</div>' : ''}`;
   wire();
+}
+
+function driveHTML() {
+  if (_driveEdit) {
+    return `
+      <div class="mt-3" style="background:var(--bg-3);border:1px solid var(--bd);border-radius:10px;padding:12px 14px">
+        <div class="tiny muted" style="font-weight:800;margin-bottom:6px">📂 Pasta / arquivo das reuniões no Google Drive</div>
+        <div class="flex gap-2" style="flex-wrap:wrap">
+          <input id="dr-label" class="input" style="flex:1;min-width:160px" placeholder="Rótulo (ex.: Pasta das reuniões)" value="${esc(_drive.label || '')}">
+          <input id="dr-url" class="input" style="flex:2;min-width:240px" placeholder="https://drive.google.com/…" value="${esc(_drive.url || '')}">
+        </div>
+        <div class="flex gap-2 mt-2">
+          <button class="btn btn-primary btn-sm" id="dr-save">💾 Salvar link</button>
+          <button class="btn btn-ghost btn-sm" id="dr-cancel">Cancelar</button>
+        </div>
+        <p class="tiny muted mt-2">💡 No Drive: clique direito → <b>Compartilhar</b> → "Qualquer pessoa com o link" → <b>Copiar link</b>. Pode ser uma pasta (todos baixam os arquivos) ou um arquivo só.</p>
+      </div>`;
+  }
+  if (_drive.url) {
+    return `<div class="flex items-center gap-2 mt-3" style="flex-wrap:wrap">
+      <a class="btn btn-primary btn-sm" href="${esc(_drive.url)}" target="_blank" rel="noopener noreferrer">📂 ${esc(_drive.label || 'Arquivos no Drive')} — Abrir / baixar</a>
+      ${_canEdit ? `<button class="btn btn-ghost btn-sm" id="dr-edit">✏️ Editar link</button>` : ''}
+    </div>`;
+  }
+  return _canEdit ? `<div class="mt-3"><button class="btn btn-ghost btn-sm" id="dr-edit">📂 Definir link do Drive (pasta de arquivos)</button></div>` : '';
 }
 
 function cardHTML(it) {
@@ -125,6 +153,22 @@ function wire() {
   _root.querySelectorAll('[data-del]').forEach(b => b.onclick = () => del(b.dataset.del));
   $('#rf-cancel') && ($('#rf-cancel').onclick = () => { _editing = null; render(); });
   $('#rf-save') && ($('#rf-save').onclick = save);
+  // link mestre do Drive
+  $('#dr-edit') && ($('#dr-edit').onclick = () => { _driveEdit = true; render(); });
+  $('#dr-cancel') && ($('#dr-cancel').onclick = () => { _driveEdit = false; render(); });
+  $('#dr-save') && ($('#dr-save').onclick = saveDrive);
+}
+
+async function saveDrive() {
+  const $ = s => _root.querySelector(s);
+  const url = ($('#dr-url').value || '').trim();
+  const label = ($('#dr-label').value || '').trim();
+  if (url && !/^https?:\/\//i.test(url)) return alert('Cole um link válido do Google Drive (começando com http/https).');
+  try {
+    await api.request('/api/v3/docs/reunioes', { method: 'POST', body: { action: 'set_drive', drive: { url, label } } });
+    _driveEdit = false;
+    await load(false);
+  } catch (e) { alert('Erro ao salvar o link: ' + e.message); }
 }
 
 function parseArquivos(txt) {
