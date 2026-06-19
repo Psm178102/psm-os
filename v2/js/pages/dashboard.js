@@ -22,6 +22,8 @@ let _feedRole = '';    // cargo (corretor é exceção da produtividade)
 let _plOffset = 0;     // mês do planner (0 = atual)
 let _conclForms = {};  // campos obrigatórios por tipo ao concluir (config editável)
 let _filterOrig = '';  // filtro de origem na lista de pendências
+let _pendView = 'kanban';  // 'kanban' (diário/semanal/mensal) | 'lista'
+let _pendLimit = 50;       // quantos itens por página na lista
 // tipos que podem ser concluídos direto do Home (os demais abrem a aba)
 const CONCLUDABLE = { tarefa: 1, plantao: 1, criativo: 1, conteudo: 1, captacao: 1 };
 
@@ -85,6 +87,19 @@ const PLANNER_CSS = `<style>
 /* banner bom-dia */
 .bomdia{background:linear-gradient(135deg,#1e293b,#334155);color:#fff;border-radius:12px;padding:12px 16px;font-size:13.5px;font-weight:600;margin-bottom:12px}
 .bomdia.ok{background:linear-gradient(135deg,#14532d,#16a34a)}
+/* toggle lista/kanban */
+.ck-toggle{display:inline-flex;border:1px solid var(--bd);border-radius:8px;overflow:hidden}
+.ck-toggle button{border:0;background:transparent;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;color:var(--ink-muted,#64748b)}
+.ck-toggle button.on{background:#2563eb;color:#fff}
+/* kanban de pendências */
+.kb-board{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 8px;align-items:flex-start}
+.kb-col{flex:0 0 250px;background:var(--bg-3);border-radius:12px;padding:10px}
+.kb-col-h{font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.kb-n{margin-left:auto;background:rgba(148,163,184,.25);color:var(--ink,#475569);font-size:11px;padding:1px 8px;border-radius:999px}
+.kb-col-body{display:flex;flex-direction:column;gap:7px}
+.kb-card{background:var(--bg-1,#fff);border:1px solid var(--bd);border-radius:9px;padding:9px 10px}
+.kb-t{font-weight:700;font-size:12.5px;text-decoration:none;color:inherit;line-height:1.25}
+.kb-card .exec-done{width:24px;height:24px;border-radius:6px;font-size:13px;flex:0 0 auto}
 /* gauges (% meta / % produtividade) */
 .gz{flex:1;min-width:230px;background:var(--bg-1,#fff);border:1px solid var(--bd);border-radius:14px;padding:15px 17px}
 .gz-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
@@ -161,34 +176,37 @@ function plannerMensal() {
     <div class="pl-grid" style="margin-top:4px">${cells}</div>`;
 }
 
-function listaExec() {
-  const hoje = _todayBRT();
+// pendências filtradas + ordenadas (compartilhado entre lista e kanban)
+function pendFiltradas() {
   const all = (_feed || []).filter(i => !i.done)
-    .sort((a, b) => (a.data || '9999') < (b.data || '9999') ? -1 : 1);   // atrasados/próximos no topo
-  if (!all.length) return `<div class="exec-wrap" style="padding:28px;text-align:center">
-    <div style="font-size:28px">🎉</div>
-    <div class="muted tiny" style="margin-top:4px">Nada pendente pra você agora. Tudo em dia!</div></div>`;
-
-  // chips de filtro por origem
-  const origens = [...new Set(all.map(i => i.origem).filter(Boolean))];
+    .sort((a, b) => (a.data || '9999') < (b.data || '9999') ? -1 : 1);
+  return _filterOrig ? all.filter(i => i.origem === _filterOrig) : all;
+}
+function filtrosChips() {
+  const origens = [...new Set((_feed || []).filter(i => !i.done).map(i => i.origem).filter(Boolean))];
+  if (origens.length <= 1) return '';
   const chip = (lbl, val) => {
-    const on = _filterOrig === val;
-    const cor = val ? corOrigem(val) : '#475569';
+    const on = _filterOrig === val, cor = val ? corOrigem(val) : '#475569';
     return `<button class="exec-fchip${on ? ' on' : ''}" data-forig="${escapeHtml(val)}" style="--c:${cor}">${escapeHtml(lbl)}</button>`;
   };
-  const filtros = origens.length > 1
-    ? `<div class="exec-filtros">${chip('Tudo', '')}${origens.map(o => chip(o, o)).join('')}</div>` : '';
+  return `<div class="exec-filtros">${chip('Tudo', '')}${origens.map(o => chip(o, o)).join('')}</div>`;
+}
+const _concBtn = i => CONCLUDABLE[i.kind]
+  ? `<button class="exec-done" data-conc="${escapeHtml(i.kind)}|${escapeHtml(i.id)}" title="Concluir">✓</button>` : '';
+const _vazio = `<div class="exec-wrap" style="padding:28px;text-align:center"><div style="font-size:28px">🎉</div>
+    <div class="muted tiny" style="margin-top:4px">Nada pendente pra você agora. Tudo em dia!</div></div>`;
 
-  const pend = _filterOrig ? all.filter(i => i.origem === _filterOrig) : all;
-  const rows = pend.slice(0, 40).map(i => {
+function listaExec() {
+  const hoje = _todayBRT();
+  const pend = pendFiltradas();
+  if (!pend.length) return _vazio;
+  const shown = pend.slice(0, _pendLimit);
+  const rows = shown.map(i => {
     const overdue = i.data && i.data < hoje, eh = i.data === hoje;
     const cor = corOrigem(i.origem);
     const dia = i.data ? i.data.split('-').reverse().slice(0, 2).join('/') : 'sem data';
     const badge = overdue ? ` <span style="color:#dc2626">⚠ atrasado</span>` : eh ? ` <span style="color:#16a34a">• hoje</span>` : '';
     const qcor = overdue ? '#dc2626' : eh ? '#16a34a' : 'var(--ink,#0f172a)';
-    const conc = CONCLUDABLE[i.kind]
-      ? `<button class="exec-done" data-conc="${escapeHtml(i.kind)}|${escapeHtml(i.id)}" title="Concluir">✓</button>`
-      : '';
     return `<tr>
       <td style="border-left:3px solid ${cor}">
         <a href="${i.link}" class="exec-task">${i.ico || ''} <span>${escapeHtml(i.titulo || '')}</span></a>
@@ -197,13 +215,51 @@ function listaExec() {
       <td class="exec-when" style="color:${qcor}">${dia}${badge}</td>
       <td class="exec-sub">${escapeHtml((i.sub || '—').substring(0, 100))}</td>
       <td class="exec-quem">${escapeHtml(i.quem || '—')}</td>
-      <td style="text-align:center">${conc}</td>
+      <td style="text-align:center">${_concBtn(i)}</td>
     </tr>`;
   }).join('');
-  return `${filtros}<div class="exec-wrap"><table class="exec-tbl">
+  return `<div class="exec-wrap"><table class="exec-tbl">
     <thead><tr><th>🎯 O que fazer</th><th>📅 Quando</th><th>🛠 Como</th><th>👤 Quem</th><th>✓</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
-    ${pend.length > 40 ? `<div class="tiny muted" style="margin-top:8px;text-align:right">+${pend.length - 40} item(ns) — <a href="#/tarefas">ver todas</a></div>` : ''}`;
+    ${pend.length > _pendLimit ? `<div style="text-align:center;margin-top:10px"><button class="btn btn-ghost btn-sm" data-pend-more="1">▼ Ver mais ${Math.min(50, pend.length - _pendLimit)} (de ${pend.length})</button></div>` : ''}`;
+}
+
+// 🗂 KANBAN por horizonte: Atrasados · Hoje (diário) · Semana · Mês · Depois
+function kanbanPend() {
+  const pend = pendFiltradas();
+  if (!pend.length) return _vazio;
+  const hoje = _todayBRT();
+  const d7 = new Date(Date.now() - 3 * 3600 * 1000); d7.setDate(d7.getDate() + 7);
+  const sem = d7.toISOString().slice(0, 10);
+  const fm = _ymOffset(0); const mfim = new Date(fm.getFullYear(), fm.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const cols = [
+    { id: 'atr', lbl: '🔴 Atrasados', cor: '#dc2626', t: d => d && d < hoje },
+    { id: 'hoje', lbl: '☀️ Hoje', cor: '#16a34a', t: d => d === hoje },
+    { id: 'sem', lbl: '📆 Esta semana', cor: '#2563eb', t: d => d && d > hoje && d <= sem },
+    { id: 'mes', lbl: '🗓 Este mês', cor: '#7c3aed', t: d => d && d > sem && d <= mfim },
+    { id: 'dep', lbl: '⏳ Depois / sem data', cor: '#64748b', t: d => !d || d > mfim },
+  ];
+  const buckets = { atr: [], hoje: [], sem: [], mes: [], dep: [] };
+  pend.forEach(i => { const c = cols.find(c => c.t(i.data)); (buckets[c ? c.id : 'dep']).push(i); });
+  const card = i => {
+    const dia = i.data ? i.data.split('-').reverse().slice(0, 2).join('/') : 'sem data';
+    const cor = corOrigem(i.origem);
+    return `<div class="kb-card" style="border-left:3px solid ${cor}">
+      <div class="flex" style="justify-content:space-between;gap:6px">
+        <a href="${i.link}" class="kb-t">${i.ico || ''} ${escapeHtml(i.titulo || '')}</a>
+        ${_concBtn(i)}
+      </div>
+      <div class="flex" style="gap:6px;flex-wrap:wrap;align-items:center;margin-top:5px">
+        <span class="exec-origin" style="background:${cor}1f;color:${cor}">${escapeHtml(i.origem)}</span>
+        <span class="tiny muted">📅 ${dia}</span>
+        ${i.quem ? `<span class="tiny muted">· ${escapeHtml(i.quem)}</span>` : ''}
+      </div></div>`;
+  };
+  return `<div class="kb-board">${cols.map(c => `
+    <div class="kb-col">
+      <div class="kb-col-h" style="color:${c.cor}">${c.lbl} <span class="kb-n">${buckets[c.id].length}</span></div>
+      <div class="kb-col-body">${buckets[c.id].length ? buckets[c.id].map(card).join('') : '<div class="tiny muted" style="text-align:center;padding:14px 0">—</div>'}</div>
+    </div>`).join('')}</div>`;
 }
 
 // CARD 1 — ✅ TAREFAS & PENDÊNCIAS (ação primeiro: o que fazer / quando / como / quem)
@@ -218,11 +274,16 @@ function tarefasCard() {
         ${c.atrasados ? chip(c.atrasados, 'atrasada(s)', '#dc2626') : ''}
         ${c.hoje ? chip(c.hoje, 'hoje', '#16a34a') : ''}
         ${chip(c.pendentes || 0, 'pendente(s)', '#64748b')}
+        <div class="ck-toggle">
+          <button class="${_pendView === 'kanban' ? 'on' : ''}" data-pview="kanban">🗂 Kanban</button>
+          <button class="${_pendView === 'lista' ? 'on' : ''}" data-pview="lista">📋 Lista</button>
+        </div>
         <a href="#/agenda" class="btn btn-ghost tiny">📅 Agenda</a>
         <a href="#/tarefas" class="btn btn-ghost tiny">🗂 Ver tudo</a>
       </div>
       ${bomDiaBanner()}
-      ${listaExec()}
+      ${filtrosChips()}
+      ${_pendView === 'kanban' ? kanbanPend() : listaExec()}
     </div>`;
 }
 
@@ -337,6 +398,14 @@ function render() {
   _root.querySelectorAll('[data-pl-nav]').forEach(b => b.addEventListener('click', () => {
     _plOffset += parseInt(b.dataset.plNav, 10) || 0;
     render();
+  }));
+  // alterna Kanban / Lista
+  _root.querySelectorAll('[data-pview]').forEach(b => b.addEventListener('click', () => {
+    _pendView = b.dataset.pview; _pendLimit = 50; render();
+  }));
+  // ver mais (lista)
+  _root.querySelectorAll('[data-pend-more]').forEach(b => b.addEventListener('click', () => {
+    _pendLimit += 50; render();
   }));
   // filtro por origem na lista de pendências
   _root.querySelectorAll('[data-forig]').forEach(b => b.addEventListener('click', () => {
