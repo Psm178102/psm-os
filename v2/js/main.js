@@ -121,7 +121,9 @@ export const ROUTE_GROUP = {
   // Diretoria
   '/cockpit': 'diretoria', '/paulo': 'diretoria', '/projetos': 'diretoria',
   '/diretoria': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria',
-  '/metricas-viab': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria', '/minutas': 'diretoria', '/reunioes': 'diretoria',
+  '/metricas-viab': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria', '/reunioes': 'diretoria',
+  // Jurídico (grupo próprio)
+  '/minutas': 'juridico',
   '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/estrategia': 'diretoria',
   // IA
   '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
@@ -129,7 +131,7 @@ export const ROUTE_GROUP = {
   '/academy': 'academy', '/academy-studio': 'academy',
   // Cultura/Compliance → movidos pro Início (sempre visíveis)
   '/base': 'inicio', '/manual': 'inicio', '/etica': 'inicio', '/canal': 'inicio',
-  '/formacao': 'inicio', '/premiacoes': 'inicio',
+  '/formacao': 'academy', '/premiacoes': 'inicio',
   // Gestão de Pessoas & RH (grupo próprio)
   '/gestao-pessoas': 'rh',
   '/talentos': 'diretoria', '/psmhub': 'diretoria',
@@ -538,12 +540,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/manual"><span class="sb-ico">📖</span> Manual Cultura</button>
         <button class="sb-link" data-nav="/etica"><span class="sb-ico">⚖️</span> Código de Ética</button>
         <button class="sb-link" data-nav="/canal"><span class="sb-ico">🔒</span> Canal Anônimo</button>
-        <button class="sb-link" data-nav="/formacao"><span class="sb-ico">🎓</span> Formação PSM</button>
         <button class="sb-link" data-nav="/premiacoes"><span class="sb-ico">🏆</span> Premiações</button>
-
-        <div class="sb-sec">🗂 Secretaria de Vendas & Backoffice</div>
-        <button class="sb-link" data-nav="/sdr"><span class="sb-ico">📞</span> Prospecção SDR</button>
-        <button class="sb-link" data-nav="/captacoes"><span class="sb-ico">📥</span> Captações</button>
 
         <div class="sb-sec">🏘 Imóveis & Vendas</div>
         <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM (RD)</button>
@@ -555,6 +552,42 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/tabela-imoveis"><span class="sb-ico">📊</span> Tabela Imóveis</button>
         <button class="sb-link" data-nav="/lancamentos"><span class="sb-ico">🏗</span> Lançamentos</button>
         <button class="sb-link" data-nav="/campanha-wa"><span class="sb-ico">📣</span> Campanha WhatsApp</button>
+
+        <div class="sb-sec">🎯 Metas & Performance</div>
+        <button class="sb-link" data-nav="/metas"><span class="sb-ico">🎯</span> Metas</button>
+        <button class="sb-link" data-nav="/equipe"><span class="sb-ico">🛡</span> Equipes</button>
+        <button class="sb-link" data-nav="/organograma"><span class="sb-ico">🌳</span> Organograma</button>
+        <button class="sb-link" data-nav="/plantoes"><span class="sb-ico">🛡</span> Plantões</button>
+        <button class="sb-link" data-nav="/arena"><span class="sb-ico">📡</span> Arena Live</button>
+        <button class="sb-link" data-nav="/tv"><span class="sb-ico">📺</span> Modo TV</button>
+        <button class="sb-link" data-nav="/war-room"><span class="sb-ico">⚔️</span> War Room</button>
+        <button class="sb-link" data-nav="/war-arena"><span class="sb-ico">🔥</span> War Arena</button>
+
+        <div class="sb-sec">🎓 PSM Academy</div>
+        <button class="sb-link" data-nav="/academy-studio"><span class="sb-ico">🎬</span> Academy · Produção</button>
+        <button class="sb-link" data-nav="/academy"><span class="sb-ico">🎓</span> PSM Academy (aulas)</button>
+        <button class="sb-link" data-nav="/formacao"><span class="sb-ico">🎓</span> Formação PSM</button>
+
+        <div class="sb-sec">🧮 Ferramentas</div>
+        <button class="sb-link" data-nav="/simuladores"><span class="sb-ico">🧮</span> Simuladores</button>
+        <button class="sb-link" data-nav="/relatorios"><span class="sb-ico">🖨</span> Relatórios</button>
+
+        <div class="sb-sec">🗂 Secretaria de Vendas & Backoffice</div>
+        <button class="sb-link" data-nav="/sdr"><span class="sb-ico">📞</span> Prospecção SDR</button>
+        <button class="sb-link" data-nav="/captacoes"><span class="sb-ico">📥</span> Captações</button>
+
+        <div class="sb-sec">🧑‍💼 Gestão de Pessoas & RH</div>
+        <button class="sb-link" data-nav="/gestao-pessoas"><span class="sb-ico">👥</span> Gestão de Pessoas</button>
+
+        <div class="sb-sec">📣 Marketing</div>
+        <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>
+        <button class="sb-link" data-nav="/criativos"><span class="sb-ico">🎨</span> Criativos</button>
+        <button class="sb-link" data-nav="/paulo-conteudo"><span class="sb-ico">🎬</span> Paulo Morimatsu</button>
+        <button class="sb-link" data-nav="/conteudo-imoveis"><span class="sb-ico">🏠</span> PSM Imóveis (conteúdo)</button>
+        <button class="sb-link" data-nav="/conteudo-conquista"><span class="sb-ico">🏆</span> PSM Conquista (conteúdo)</button>
+        <button class="sb-link" data-nav="/marketing-historico"><span class="sb-ico">📅</span> Histórico Meta</button>
+        <button class="sb-link" data-nav="/biblioteca-ads"><span class="sb-ico">📚</span> Biblioteca de Anúncios</button>
+        <button class="sb-link" data-nav="/intel-ads"><span class="sb-ico">🎯</span> Intel Ads</button>
 
         <div class="sb-sec">🏛 Diretoria</div>
         <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Decisão</div>
@@ -572,15 +605,6 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/reunioes"><span class="sb-ico">🤝</span> Formatos de Reunião</button>
         <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Governança</div>
         <button class="sb-link" data-nav="/governanca"><span class="sb-ico">⚖️</span> Governança</button>
-        <button class="sb-link" data-nav="/minutas"><span class="sb-ico">📜</span> Minutas padrão</button>
-
-        <div class="sb-sec">🔑 Locação</div>
-        <button class="sb-link" data-nav="/locacoes"><span class="sb-ico">🔑</span> Locações</button>
-        <button class="sb-link" data-nav="/minutas-locacao"><span class="sb-ico">📑</span> Minutas e Fichas · Locação</button>
-
-        <div class="sb-sec">💰 Financeiro</div>
-        <button class="sb-link" data-nav="/financeiro"><span class="sb-ico">💰</span> Financeiro</button>
-        <button class="sb-link" data-nav="/forecast"><span class="sb-ico">📈</span> Forecast</button>
 
         <div class="sb-sec">🧠 Inteligência</div>
         <button class="sb-link" data-nav="/inteligencia"><span class="sb-ico">🧠</span> Centro de Inteligência</button>
@@ -592,42 +616,22 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/intel-dash"><span class="sb-ico">🔍</span> Intel Dashboard</button>
         <button class="sb-link" data-nav="/tendencias"><span class="sb-ico">📉</span> Tendências</button>
 
-        <div class="sb-sec">📣 Marketing</div>
-        <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>
-        <button class="sb-link" data-nav="/criativos"><span class="sb-ico">🎨</span> Criativos</button>
-        <button class="sb-link" data-nav="/paulo-conteudo"><span class="sb-ico">🎬</span> Paulo Morimatsu</button>
-        <button class="sb-link" data-nav="/conteudo-imoveis"><span class="sb-ico">🏠</span> PSM Imóveis (conteúdo)</button>
-        <button class="sb-link" data-nav="/conteudo-conquista"><span class="sb-ico">🏆</span> PSM Conquista (conteúdo)</button>
-        <button class="sb-link" data-nav="/marketing-historico"><span class="sb-ico">📅</span> Histórico Meta</button>
-        <button class="sb-link" data-nav="/biblioteca-ads"><span class="sb-ico">📚</span> Biblioteca de Anúncios</button>
-        <button class="sb-link" data-nav="/intel-ads"><span class="sb-ico">🎯</span> Intel Ads</button>
+        <div class="sb-sec">🔑 Locação</div>
+        <button class="sb-link" data-nav="/locacoes"><span class="sb-ico">🔑</span> Locações</button>
+        <button class="sb-link" data-nav="/minutas-locacao"><span class="sb-ico">📑</span> Minutas e Fichas · Locação</button>
 
-        <div class="sb-sec">🎯 Metas & Performance</div>
-        <button class="sb-link" data-nav="/metas"><span class="sb-ico">🎯</span> Metas</button>
-        <button class="sb-link" data-nav="/equipe"><span class="sb-ico">🛡</span> Equipes</button>
-        <button class="sb-link" data-nav="/organograma"><span class="sb-ico">🌳</span> Organograma</button>
-        <button class="sb-link" data-nav="/plantoes"><span class="sb-ico">🛡</span> Plantões</button>
-        <button class="sb-link" data-nav="/arena"><span class="sb-ico">📡</span> Arena Live</button>
-        <button class="sb-link" data-nav="/tv"><span class="sb-ico">📺</span> Modo TV</button>
-        <button class="sb-link" data-nav="/war-room"><span class="sb-ico">⚔️</span> War Room</button>
-        <button class="sb-link" data-nav="/war-arena"><span class="sb-ico">🔥</span> War Arena</button>
+        <div class="sb-sec">💰 Financeiro</div>
+        <button class="sb-link" data-nav="/financeiro"><span class="sb-ico">💰</span> Financeiro</button>
+        <button class="sb-link" data-nav="/forecast"><span class="sb-ico">📈</span> Forecast</button>
+
+        <div class="sb-sec">⚖️ Jurídico</div>
+        <button class="sb-link" data-nav="/minutas"><span class="sb-ico">📜</span> Minutas padrão</button>
 
         <div class="sb-sec">🤖 IA Assistentes</div>
         <button class="sb-link" data-nav="/agentes"><span class="sb-ico">🧠</span> Central Agentes</button>
         <button class="sb-link" data-nav="/ia"><span class="sb-ico">🤖</span> Chat IAs</button>
         <button class="sb-link" data-nav="/sr-performance"><span class="sb-ico">🎖️</span> Sr. Performance</button>
         <button class="sb-link" data-nav="/sr-gerencia"><span class="sb-ico">👔</span> Sr. Gerência</button>
-
-        <div class="sb-sec">🎓 PSM Academy</div>
-        <button class="sb-link" data-nav="/academy-studio"><span class="sb-ico">🎬</span> Academy · Produção</button>
-        <button class="sb-link" data-nav="/academy"><span class="sb-ico">🎓</span> PSM Academy (aulas)</button>
-
-        <div class="sb-sec">🧑‍💼 Gestão de Pessoas & RH</div>
-        <button class="sb-link" data-nav="/gestao-pessoas"><span class="sb-ico">👥</span> Gestão de Pessoas</button>
-
-        <div class="sb-sec">🧮 Ferramentas</div>
-        <button class="sb-link" data-nav="/simuladores"><span class="sb-ico">🧮</span> Simuladores</button>
-        <button class="sb-link" data-nav="/relatorios"><span class="sb-ico">🖨</span> Relatórios</button>
 
         <div class="sb-sec">⚙️ Sistema</div>
         <button class="sb-link" data-nav="/usuarios"><span class="sb-ico">👥</span> Usuários</button>
@@ -640,7 +644,7 @@ function shellHTML(user) {
         <div class="sb-sec">👤 Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
 
-        <div style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.5">House PSM · v75.92</div>
+        <div style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.5">House PSM · v77.92</div>
       </aside>
       <header class="app-header">
         <button class="h-hamburger" id="btn-hamburger" title="Menu">☰</button>
