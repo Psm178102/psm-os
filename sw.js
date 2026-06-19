@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v77.84.0-2026-06-18-SECRETARIA';
+const SW_VERSION = 'v77.85.0-2026-06-18-COLLAPSEEARTH';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

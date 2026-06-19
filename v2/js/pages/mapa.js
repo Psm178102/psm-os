@@ -30,11 +30,13 @@ const BAIRROS_RP = {
   'recanto': [-20.8250, -49.3650],
 };
 
+const DEFAULT_EARTH = 'https://earth.google.com/earth/d/15bCIxsaicJySE2OT0yS8dZO7KqcwyJ8o?usp=sharing';
+let _captadosLoaded = false;
+
 export async function pageMapa(ctx, root) {
   _root = root;
-  await loadLeaflet();
-  render();
-  await load();
+  _captadosLoaded = false;
+  await render();
 }
 
 function loadLeaflet() {
@@ -58,14 +60,47 @@ function loadLeaflet() {
   });
 }
 
-async function load() {
-  try {
-    const r = await api.request('/api/v3/imoveis/list?limit=500').catch(() => ({ imoveis: [] }));
-    _items = r.imoveis || [];
-    renderContent();
-  } catch (e) {
-    document.getElementById('map-body').innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
+async function editEarth() {
+  const links = await getLinks();
+  const v = promptLink('Link do Google Earth (Mapa dos Imóveis)', links.mapa_earth);
+  if (v === null) return;
+  try { await saveLinks({ mapa_earth: v }); alert('✅ Link do Google Earth salvo!'); render(); }
+  catch (e) { alert('Erro: ' + e.message); }
+}
+
+async function toggleCaptados() {
+  const wrap = document.getElementById('captados-wrap');
+  const btn = document.getElementById('toggle-captados');
+  if (!wrap) return;
+  const show = wrap.style.display === 'none';
+  wrap.style.display = show ? '' : 'none';
+  if (btn) btn.textContent = show ? '📍 Ocultar imóveis captados ▴' : '📍 Ver imóveis captados (mapa por bairro) ▾';
+  if (show && !_captadosLoaded) {
+    _captadosLoaded = true;
+    wrap.innerHTML = '<div class="muted tiny" style="padding:14px"><span class="spinner"></span> Carregando imóveis captados…</div>';
+    await loadLeaflet();
+    try { const r = await api.request('/api/v3/imoveis/list?limit=500').catch(() => ({ imoveis: [] })); _items = r.imoveis || []; }
+    catch (_) { _items = []; }
+    renderCaptados();
   }
+}
+
+function renderCaptados() {
+  const wrap = document.getElementById('captados-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="flex gap-2" style="flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <button class="btn ${_filter === 'all' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-filter="all">🌐 Todos</button>
+      <button class="btn ${_filter === 'disponivel' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-filter="disponivel">🟢 Disponíveis</button>
+      <button class="btn ${_filter === 'vendido' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-filter="vendido">✅ Vendidos</button>
+      <input id="map-search" class="input" placeholder="🔍 Buscar imóvel/bairro…" style="flex:1;min-width:220px" value="${esc(_search)}">
+    </div>
+    <div id="map-stats"></div>
+    <div id="map-body" class="mt-3"></div>`;
+  wrap.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => { _filter = b.dataset.filter; renderCaptados(); }));
+  const s = wrap.querySelector('#map-search');
+  if (s) s.addEventListener('input', e => { _search = e.target.value; clearTimeout(window._mapTimer); window._mapTimer = setTimeout(() => renderContent(), 300); });
+  renderContent();
 }
 
 function geocodeBairro(bairro) {
@@ -87,59 +122,39 @@ function jitter(coord, idx) {
   return [coord[0] + Math.cos(angle) * radius, coord[1] + Math.sin(angle) * radius];
 }
 
-function render() {
+async function render() {
+  let earthUrl = DEFAULT_EARTH;
+  try { const links = await getLinks(); earthUrl = links.mapa_earth || DEFAULT_EARTH; } catch (_) {}
   _root.innerHTML = `
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div>
-          <h2 class="card-title">🗺 Mapa de Imóveis PSM</h2>
-          <p class="card-sub">Localização geográfica dos imóveis ativos — São José do Rio Preto/SP</p>
+          <h2 class="card-title">🗺 Mapa de Imóveis · Google Earth</h2>
+          <p class="card-sub">Mapa oficial da PSM no Google Earth — territórios, regiões e pontos de interesse.</p>
         </div>
         <div class="flex gap-2">
-          <button class="btn btn-primary" id="map-earth" style="background:#1a73e8">🌍 Abrir no Google Earth</button>
-          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-earth-edit" title="Editar link do Google Earth">⚙️</button>' : ''}
+          <a class="btn btn-primary" href="${esc(earthUrl)}" target="_blank" rel="noopener" style="background:#1a73e8">🌍 Abrir em tela cheia</a>
+          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-earth-edit" title="Editar link do Google Earth">⚙️ Editar link</button>' : ''}
         </div>
       </div>
 
-      <div id="map-stats" class="mt-3"></div>
-
-      <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center">
-        <button class="btn ${_filter === 'all' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-filter="all">🌐 Todos</button>
-        <button class="btn ${_filter === 'disponivel' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-filter="disponivel">🟢 Disponíveis</button>
-        <button class="btn ${_filter === 'vendido' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-filter="vendido">✅ Vendidos</button>
-        <input id="map-search" class="input" placeholder="🔍 Buscar imóvel/bairro…" style="flex:1;min-width:220px" value="${esc(_search)}">
+      <div class="mt-3" style="border-radius:12px;overflow:hidden;background:var(--bg-3);border:1px solid var(--bd)">
+        <iframe id="earth-frame" src="${esc(earthUrl)}" title="Google Earth PSM" allow="fullscreen"
+                referrerpolicy="no-referrer-when-downgrade" loading="lazy"
+                style="width:100%;height:calc(100vh - 270px);min-height:480px;border:0;display:block"></iframe>
       </div>
+      <p class="tiny muted mt-2">💡 Se o mapa não carregar aqui dentro (o Google às vezes bloqueia a exibição embutida), clique em <b>🌍 Abrir em tela cheia</b>.</p>
 
-      <div id="map-body" class="mt-3"></div>
+      <div class="mt-4">
+        <button class="btn btn-ghost btn-sm" id="toggle-captados">📍 Ver imóveis captados (mapa por bairro) ▾</button>
+        <div id="captados-wrap" style="display:none" class="mt-3"></div>
+      </div>
     </div>
   `;
-  _root.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => {
-    _filter = b.dataset.filter;
-    render();
-    renderContent();
-  }));
-  const s = document.getElementById('map-search');
-  if (s) {
-    s.addEventListener('input', e => {
-      _search = e.target.value;
-      clearTimeout(window._mapTimer);
-      window._mapTimer = setTimeout(() => renderContent(), 300);
-    });
-  }
-  const earthBtn = document.getElementById('map-earth');
-  if (earthBtn) earthBtn.addEventListener('click', async () => {
-    const links = await getLinks();
-    const url = links.mapa_earth || 'https://earth.google.com/earth/d/15bCIxsaicJySE2OT0yS8dZO7KqcwyJ8o?usp=sharing';
-    window.open(url, '_blank', 'noopener');
-  });
-  const earthEdit = document.getElementById('map-earth-edit');
-  if (earthEdit) earthEdit.addEventListener('click', async () => {
-    const links = await getLinks();
-    const v = promptLink('Link do Google Earth (Mapa dos Imóveis)', links.mapa_earth);
-    if (v === null) return;
-    try { await saveLinks({ mapa_earth: v }); alert('✅ Link do Google Earth salvo!'); }
-    catch (e) { alert('Erro: ' + e.message); }
-  });
+  const ee = document.getElementById('map-earth-edit');
+  if (ee) ee.addEventListener('click', editEarth);
+  const tc = document.getElementById('toggle-captados');
+  if (tc) tc.addEventListener('click', toggleCaptados);
 }
 
 function renderContent() {

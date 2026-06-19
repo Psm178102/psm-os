@@ -249,6 +249,46 @@ function applyPermissions(user) {
   });
 }
 
+// Minimizar/expandir categorias do menu (cabeçalhos sb-sec) — estado salvo por usuário.
+// Usa CLASSE css (não inline display) pra não conflitar com a ocultação por permissão. v77.85
+function initSectionCollapse() {
+  const KEY = 'psm.v2.menu_collapsed';
+  let collapsed;
+  try { collapsed = new Set(JSON.parse(localStorage.getItem(KEY) || '[]')); } catch (_) { collapsed = new Set(); }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...collapsed])); } catch (_) {} };
+  if (!document.getElementById('sb-collapse-css')) {
+    const st = document.createElement('style');
+    st.id = 'sb-collapse-css';
+    st.textContent = '.sb-sec{cursor:pointer;user-select:none}.sb-caret{float:right;opacity:.55;font-size:11px;font-weight:400;transition:transform .15s}.menu-collapsed{display:none !important}';
+    document.head.appendChild(st);
+  }
+  const sidebar = document.querySelector('.app-sidebar');
+  if (!sidebar) return;
+  sidebar.querySelectorAll('.sb-sec').forEach(sec => {
+    const key = (sec.textContent || '').trim();
+    // itens da seção = irmãos até o próximo sb-sec (inclui sb-subsec + sb-link)
+    const items = [];
+    let n = sec.nextElementSibling;
+    while (n && !(n.classList && n.classList.contains('sb-sec'))) { items.push(n); n = n.nextElementSibling; }
+    if (!sec.querySelector('.sb-caret')) {
+      const car = document.createElement('span');
+      car.className = 'sb-caret';
+      sec.appendChild(car);
+    }
+    const apply = () => {
+      const isC = collapsed.has(key);
+      items.forEach(it => it.classList.toggle('menu-collapsed', isC));
+      const car = sec.querySelector('.sb-caret');
+      if (car) car.textContent = isC ? '▸' : '▾';
+    };
+    sec.addEventListener('click', () => {
+      if (collapsed.has(key)) collapsed.delete(key); else collapsed.add(key);
+      apply(); save();
+    });
+    apply();
+  });
+}
+
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
   // 1) Tenta hidratar sessão
@@ -285,6 +325,9 @@ function applyPermissions(user) {
   router.setGuard((path) => canSee(path, user));
   // override por papel (matriz editável pelo sócio) chega async e re-aplica
   loadRolePerms().then(() => applyPermissions(user));
+
+  // 3.1c) Minimizar/expandir categorias do menu (estado salvo por usuário)
+  initSectionCollapse();
 
   // 3.1b) Nomes custom do menu/páginas (sócio edita em /config-menu) — vale p/ todos
   loadMenuLabels();
