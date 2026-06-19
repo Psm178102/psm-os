@@ -8,7 +8,14 @@ from _auth_lib import supabase_client, require_user, AuthError, audit  # type: i
 
 ALLOWED = ["nome", "construtora", "data_lancamento", "etapa", "comissao_pct",
            "vgv_total", "unidades_total", "unidades_vendidas", "status",
-           "responsavel_id", "descricao", "link_pasta"]
+           "responsavel_id", "descricao", "link_pasta", "marca"]
+
+
+def _missing_marca(err):
+    """A coluna 'marca' pode ainda não existir no banco (antes do SQL de migração).
+    Detecta o erro p/ degradar com elegância: salva sem marca em vez de quebrar."""
+    s = str(err).lower()
+    return "marca" in s and ("column" in s or "schema cache" in s or "pgrst204" in s or "does not exist" in s)
 
 
 class handler(BaseHTTPRequestHandler):
@@ -43,7 +50,14 @@ class handler(BaseHTTPRequestHandler):
             try:
                 cur = sb.table("lancamentos").select("*").eq("id", lid).limit(1).execute().data or []
                 if not cur: return self._send(404, {"ok": False, "error": "não encontrado"})
-                sb.table("lancamentos").update(patch).eq("id", lid).execute()
+                try:
+                    sb.table("lancamentos").update(patch).eq("id", lid).execute()
+                except Exception as e1:
+                    if "marca" in patch and _missing_marca(e1):
+                        patch.pop("marca", None)
+                        sb.table("lancamentos").update(patch).eq("id", lid).execute()
+                    else:
+                        raise
                 audit(self, actor, "lancamento.update", target_type="lancamento", target_id=lid,
                       before={k: cur[0].get(k) for k in patch}, after=patch)
                 return self._send(200, {"ok": True, "id": lid, "updated": True})
@@ -55,7 +69,14 @@ class handler(BaseHTTPRequestHandler):
         for k in ALLOWED:
             if k in body and body[k] is not None: row[k] = body[k]
         try:
-            res = sb.table("lancamentos").insert(row).execute()
+            try:
+                res = sb.table("lancamentos").insert(row).execute()
+            except Exception as e1:
+                if "marca" in row and _missing_marca(e1):
+                    row.pop("marca", None)
+                    res = sb.table("lancamentos").insert(row).execute()
+                else:
+                    raise
             audit(self, actor, "lancamento.create", target_type="lancamento", target_id=new_id, after=row)
             return self._send(200, {"ok": True, "lancamento": (res.data or [row])[0], "created": True})
         except Exception as e: return self._send(500, {"ok": False, "error": str(e)})
