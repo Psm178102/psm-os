@@ -304,7 +304,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '77.99.0';
+const APP_VERSION = '78.0.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -845,16 +845,27 @@ function setHeader(t) { const el = document.getElementById('h-title'); if (el) e
 let _verWarned = false, _updatePending = null;
 
 function showUpdateBanner(newVer) {
-  if (document.getElementById('upd-banner')) return;
-  const b = document.createElement('div');
-  b.id = 'upd-banner';
-  b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;padding:10px 16px;font-size:13.5px;font-weight:600;box-shadow:0 2px 14px rgba(0,0,0,.35)';
-  b.innerHTML = `<span>🔄 Nova versão disponível${newVer ? ' (v' + newVer + ')' : ''} — atualize para ver as novidades.</span>
-    <button id="upd-go" style="background:var(--psm-gold,#d4af37);color:#0f172a;border:0;border-radius:8px;padding:7px 16px;font-weight:800;cursor:pointer">Atualizar agora</button>
-    <button id="upd-x" title="Agora não" style="background:transparent;color:#fff;border:0;font-size:20px;line-height:1;cursor:pointer;opacity:.7">×</button>`;
-  document.body.appendChild(b);
+  if (document.getElementById('upd-modal')) return;
+  if (!document.getElementById('updpop-css')) {
+    const s = document.createElement('style'); s.id = 'updpop-css';
+    s.textContent = '@keyframes updpop{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}@keyframes updfade{from{opacity:0}to{opacity:1}}';
+    document.head.appendChild(s);
+  }
+  const o = document.createElement('div');
+  o.id = 'upd-modal';
+  o.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(15,23,42,.74);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;animation:updfade .2s ease';
+  o.innerHTML = `
+    <div role="alertdialog" aria-modal="true" style="background:#fff;color:#0f172a;max-width:430px;width:100%;border-radius:20px;padding:32px 26px;text-align:center;box-shadow:0 26px 70px rgba(0,0,0,.45);animation:updpop .26s ease">
+      <div style="font-size:50px;line-height:1">🔄</div>
+      <h2 style="margin:12px 0 8px;font-size:21px;font-weight:800">Nova versão disponível!</h2>
+      <p style="margin:0 0 6px;font-size:14.5px;color:#475569;line-height:1.5">Você está em uma versão <b>desatualizada</b> do sistema${newVer ? ` (a nova é a <b>v${newVer}</b>)` : ''}.</p>
+      <p style="margin:0 0 22px;font-size:14.5px;color:#475569;line-height:1.5">Recarregue a página pra ver as novidades — ou saia e entre de novo.</p>
+      <button id="upd-go" style="width:100%;background:var(--psm-gold,#d4af37);color:#0f172a;border:0;border-radius:13px;padding:15px;font-size:16px;font-weight:800;cursor:pointer">🔄 Atualizar agora</button>
+      <button id="upd-x" style="margin-top:12px;background:transparent;border:0;color:#94a3b8;font-size:13px;cursor:pointer">Agora não</button>
+    </div>`;
+  document.body.appendChild(o);
   document.getElementById('upd-go').onclick = doUpdate;
-  document.getElementById('upd-x').onclick = () => b.remove();
+  document.getElementById('upd-x').onclick = () => o.remove();
 }
 
 async function doUpdate() {
