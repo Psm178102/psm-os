@@ -36,6 +36,7 @@ import { pageIA } from './pages/ia.js';
 import { pageLancamentos } from './pages/lancamentos.js';
 import { pageLocacoes } from './pages/locacoes.js';
 import { pageMinutasJuridico, pageMinutasLocacao } from './pages/minutas.js';
+import { pageCnds } from './pages/cnds.js';
 import { pageReunioes } from './pages/reunioes.js';
 import { pageArena } from './pages/arena.js';
 import { pageForecast } from './pages/forecast.js';
@@ -124,7 +125,7 @@ export const ROUTE_GROUP = {
   '/diretoria': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria',
   '/metricas-viab': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria', '/reunioes': 'diretoria',
   // Jurídico (grupo próprio)
-  '/minutas': 'juridico',
+  '/minutas': 'juridico', '/cnds': 'juridico',
   '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/estrategia': 'diretoria',
   // IA
   '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
@@ -408,6 +409,7 @@ function initSectionCollapse() {
   router.register('/projetos', { render: async (ctx, root) => { setHeader('Projetos'); highlight('/projetos'); await pageProjetos(ctx, root); } });
   router.register('/psmhub', { render: async (ctx, root) => { setHeader('PSM HUB · Conquista'); highlight('/psmhub'); await pagePsmHub(ctx, root); } });
   router.register('/minutas', { render: async (ctx, root) => { setHeader('Minutas padrão'); highlight('/minutas'); await pageMinutasJuridico(ctx, root); } });
+  router.register('/cnds',    { render: async (ctx, root) => { setHeader("CND's"); highlight('/cnds'); await pageCnds(ctx, root); } });
   router.register('/reunioes', { render: async (ctx, root) => { setHeader('Formatos de Reunião'); highlight('/reunioes'); await pageReunioes(ctx, root); } });
   router.register('/estrategia', { render: async (ctx, root) => { setHeader('Estratégia'); highlight('/estrategia'); await pageEstrategia(ctx, root); } });
   // v77.30: absorvidas pelo Cockpit Hub — redirects preservam links/hábito antigos
@@ -632,6 +634,7 @@ function shellHTML(user) {
 
         <div class="sb-sec">⚖️ Jurídico</div>
         <button class="sb-link" data-nav="/minutas"><span class="sb-ico">📜</span> Minutas padrão</button>
+        <button class="sb-link" data-nav="/cnds"><span class="sb-ico">⚖️</span> CND's</button>
 
         <div class="sb-sec">🤖 IA Assistentes</div>
         <button class="sb-link" data-nav="/agentes"><span class="sb-ico">🧠</span> Central Agentes</button>
@@ -651,7 +654,7 @@ function shellHTML(user) {
         <div class="sb-sec">👤 Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
 
-        <div style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.5">House PSM · v77.95</div>
+        <div style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.5">House PSM · v77.96</div>
       </aside>
       <header class="app-header">
         <button class="h-hamburger" id="btn-hamburger" title="Menu">☰</button>
