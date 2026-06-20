@@ -39,6 +39,7 @@ import { pageMinutasJuridico, pageMinutasLocacao } from './pages/minutas.js';
 import { pageCnds } from './pages/cnds.js';
 import { pageLinksUteis } from './pages/links-uteis.js';
 import { pageSacIncorporadoras } from './pages/sac-incorporadoras.js';
+import { pageSistemasIncorporadoras } from './pages/sistemas-incorporadoras.js';
 import { pageReunioes } from './pages/reunioes.js';
 import { pageArena } from './pages/arena.js';
 import { pageForecast } from './pages/forecast.js';
@@ -106,7 +107,7 @@ export const ROUTE_GROUP = {
   // Início (sempre)
   '/': 'inicio', '/painel': 'inicio', '/checkin': 'inicio', '/ranking': 'inicio', '/agenda': 'inicio', '/tarefas': 'inicio',
   // Secretaria de Vendas & Backoffice (SDR + Captações)
-  '/sdr': 'secretaria', '/captacoes': 'secretaria', '/links-uteis': 'secretaria', '/sac-incorporadoras': 'secretaria',
+  '/sdr': 'secretaria', '/captacoes': 'secretaria', '/links-uteis': 'secretaria', '/sac-incorporadoras': 'secretaria', '/sistemas-incorporadoras': 'secretaria',
   // Imóveis & Vendas
   '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/fichas': 'vendas', '/campanha-wa': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/tabela-imoveis': 'vendas', '/lancamentos': 'vendas',
@@ -304,7 +305,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '78.0.0';
+const APP_VERSION = '78.1.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -418,6 +419,7 @@ const APP_VERSION = '78.0.0';
   router.register('/cnds',    { render: async (ctx, root) => { setHeader("CND's"); highlight('/cnds'); await pageCnds(ctx, root); } });
   router.register('/links-uteis', { render: async (ctx, root) => { setHeader('Links úteis'); highlight('/links-uteis'); await pageLinksUteis(ctx, root); } });
   router.register('/sac-incorporadoras', { render: async (ctx, root) => { setHeader('SAC Incorporadoras'); highlight('/sac-incorporadoras'); await pageSacIncorporadoras(ctx, root); } });
+  router.register('/sistemas-incorporadoras', { render: async (ctx, root) => { setHeader('Sistema e Drive Incorporadoras'); highlight('/sistemas-incorporadoras'); await pageSistemasIncorporadoras(ctx, root); } });
   router.register('/reunioes', { render: async (ctx, root) => { setHeader('Formatos de Reunião'); highlight('/reunioes'); await pageReunioes(ctx, root); } });
   router.register('/estrategia', { render: async (ctx, root) => { setHeader('Estratégia'); highlight('/estrategia'); await pageEstrategia(ctx, root); } });
   // v77.30: absorvidas pelo Cockpit Hub — redirects preservam links/hábito antigos
@@ -599,6 +601,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/captacoes"><span class="sb-ico">📥</span> Captações</button>
         <button class="sb-link" data-nav="/links-uteis"><span class="sb-ico">🔗</span> Links úteis</button>
         <button class="sb-link" data-nav="/sac-incorporadoras"><span class="sb-ico">📞</span> SAC Incorporadoras</button>
+        <button class="sb-link" data-nav="/sistemas-incorporadoras"><span class="sb-ico">🏢</span> Sistema e Drive Incorporadoras</button>
 
         <div class="sb-sec">🧑‍💼 Gestão de Pessoas & RH</div>
         <button class="sb-link" data-nav="/gestao-pessoas"><span class="sb-ico">👥</span> Gestão de Pessoas</button>

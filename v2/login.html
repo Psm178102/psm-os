@@ -90,9 +90,8 @@
       const pwd   = document.getElementById('password').value;
       try {
         await auth.login(email, pwd);
-        // Redirect pra origem (se veio com ?from=) ou root
-        const from = new URLSearchParams(location.search).get('from');
-        location.href = from && from.startsWith('/') ? from : '/';
+        // 🏠 Ao logar, SEMPRE cai no Dashboard Diário (ignora ?from= de propósito). v78.1
+        location.href = '/';
       } catch (err) {
         msg.innerHTML = `<div class="alert alert-err">${
           (err && err.message) || 'Falha no login'
