@@ -1,16 +1,16 @@
 """
-GET/POST /api/v3/juridico/cnds — CND's (Certidões Negativas de Débitos). v77.96
+GET/POST /api/v3/juridico/cnds — CND's: catálogo de links de emissão/consulta. v77.97
 
-Registro gerenciável das certidões da imobiliária (Federal, Estadual, Municipal,
-Trabalhista, FGTS…). Personalizável igual ao Cofre de Logins: só o sócio (lvl 10)
-adiciona / edita / exclui; quem alcança a aba do Jurídico visualiza e baixa.
+Catálogo gerenciável dos LINKS para emitir/consultar certidões negativas de débitos
+por esfera/tribunal/comarca (cível, criminal, trabalhista, federal, estadual…), pra
+facilitar achar onde tirar cada certidão. Personalizável igual ao Cofre: só o sócio
+(lvl 10) adiciona / edita / exclui; quem alcança o Jurídico vê e abre os links.
 
-Cada CND = {id, titulo, tipo, empresa, numero, emissao(YYYY-MM-DD),
-            validade(YYYY-MM-DD), link(Drive), obs}. O status (válida / a vencer /
-vencida) é calculado no front a partir de `validade`. Guarda em shared_kv
-key 'juridico_cnds' (sem SQL novo).
+Cada item = {id, titulo, categoria, orgao(tribunal/órgão), comarca(abrangência),
+            link(URL de emissão/consulta), obs}. Agrupa por `categoria` no front.
+Guarda em shared_kv key 'juridico_cnds' (sem SQL novo).
 
-GET  (qualquer autenticado que alcança a página): {ok, items[], tipos[], can_manage}
+GET  (qualquer autenticado que alcança a página): {ok, items[], categorias[], can_manage}
 POST (lvl >= 10): action add|update|delete. Audita.
 """
 from http.server import BaseHTTPRequestHandler
@@ -21,10 +21,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
 KV_KEY = "juridico_cnds"
-MAXN = 300
-# Tipos-referência (o sócio pode digitar qualquer outro; estes alimentam o dropdown)
-TIPOS = ["Federal (RFB/PGFN)", "Estadual", "Municipal", "Trabalhista (CNDT)",
-         "FGTS (CRF)", "Falência/Concordata", "Outras"]
+MAXN = 400
+# Categorias-referência (o sócio pode digitar qualquer outra; alimentam o datalist)
+CATEGORIAS = ["Cível", "Criminal", "Cível e Criminal", "Trabalhista (CNDT)",
+              "Federal (Justiça Federal)", "Estadual (TJ)", "Tributária / Fiscal",
+              "Protesto", "Eleitoral", "Falência e Recuperação", "Família", "Outras"]
 
 
 def _read(sb):
@@ -45,25 +46,12 @@ def _write(sb, items):
                                 on_conflict="key").execute()
 
 
-def _date(s):
-    s = str(s or "").strip()[:10]
-    if not s:
-        return ""
-    try:
-        datetime.strptime(s, "%Y-%m-%d")
-        return s
-    except Exception:
-        return ""
-
-
 def _clean(d):
     return {
-        "titulo": str(d.get("titulo") or "").strip()[:140],
-        "tipo": str(d.get("tipo") or "").strip()[:60],
-        "empresa": str(d.get("empresa") or "").strip()[:120],
-        "numero": str(d.get("numero") or "").strip()[:80],
-        "emissao": _date(d.get("emissao")),
-        "validade": _date(d.get("validade")),
+        "titulo": str(d.get("titulo") or "").strip()[:160],
+        "categoria": str(d.get("categoria") or "").strip()[:60],
+        "orgao": str(d.get("orgao") or "").strip()[:120],
+        "comarca": str(d.get("comarca") or "").strip()[:120],
         "link": str(d.get("link") or "").strip()[:1000],
         "obs": str(d.get("obs") or "").strip()[:600],
     }
@@ -90,7 +78,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(503, {"ok": False, "error": "backend"})
         items = _read(sb)
         manage = (user.get("lvl") or 0) >= 10
-        return self._send(200, {"ok": True, "items": items, "tipos": TIPOS, "can_manage": manage})
+        return self._send(200, {"ok": True, "items": items, "categorias": CATEGORIAS, "can_manage": manage})
 
     def do_POST(self):
         try:
@@ -141,4 +129,4 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
         audit(self, actor, f"cnd.{action}", target_type="juridico_cnds", target_id=str(body.get("id") or ""))
-        return self._send(200, {"ok": True, "items": items, "tipos": TIPOS})
+        return self._send(200, {"ok": True, "items": items, "categorias": CATEGORIAS})
