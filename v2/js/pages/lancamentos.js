@@ -1,5 +1,5 @@
 /* PSM-OS v2 — Lançamentos (Sprint 7.21) */
-import { api } from '../api.js';
+import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
 
 const STATUS = [
@@ -264,7 +264,7 @@ function openModal(lid, prefill) {
         <div class="field" style="flex:1;min-width:100px"><label>Unid. total</label><input id="lc-ut" type="number" class="input" value="${i?.unidades_total || 0}"></div>
         <div class="field" style="flex:1;min-width:100px"><label>Vendidas</label><input id="lc-uv" type="number" class="input" value="${i?.unidades_vendidas || 0}"></div>
       </div>
-      <div class="field"><label>Responsável</label><select id="lc-resp" class="select"><option value="">— —</option>${_users.map(u => `<option value="${escapeHtml(u.id)}"${i?.responsavel_id===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>Responsável</label><select id="lc-resp" class="select"><option value="">— —</option>${selectableUsers(_users, i?.responsavel_id).map(u => `<option value="${escapeHtml(u.id)}"${i?.responsavel_id===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select></div>
       <div class="field"><label>Descrição</label><textarea id="lc-desc" class="input" rows="2">${i?.descricao ? escapeHtml(i.descricao) : ''}</textarea></div>
       <div class="field"><label>Link da pasta (Drive)</label><input id="lc-link" class="input" value="${i ? escapeHtml(i.link_pasta||'') : ''}"></div>
       <div id="lc-msg" class="mt-2"></div>

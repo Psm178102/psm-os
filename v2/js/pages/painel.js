@@ -3,7 +3,7 @@
    Desempenho + Metas (produtividade/resultado) + Perfil + Feedbacks 1:1 + Rotina.
    Para corretor, marketing, adm, financeiro — todos têm painel e metas. v77.50
 ============================================================================ */
-import { api } from '../api.js';
+import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null;
@@ -47,7 +47,7 @@ async function loadTarget(id) {
 function renderSelector() {
   const sel = document.getElementById('painel-userpick');
   if (!sel || !_users.length) return;
-  sel.innerHTML = _users
+  sel.innerHTML = selectableUsers(_users, _targetId)
     .slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''))
     .map(u => `<option value="${escapeHtml(u.id)}"${u.id === _targetId ? ' selected' : ''}>${escapeHtml(u.name)} · ${escapeHtml(u.role || '')}</option>`)
     .join('');

@@ -4,7 +4,7 @@
    Demais usuários veem só as credenciais liberadas pra eles. Senha mascarada +
    revelar/copiar. O backend só devolve a senha a quem está autorizado.
 ============================================================================ */
-import { api } from '../api.js';
+import { api, selectableUsers } from '../api.js';
 
 let _root = null, _items = [], _canManage = false, _users = [], _editing = null, _busy = false;
 let _cats = [], _catOpen = false;   // categorias gerenciáveis + estado do painel
@@ -153,7 +153,7 @@ function formHTML() {
     <div class="mt-2"><label class="tiny muted">Observação</label><input id="vf-obs" class="input" value="${esc(v.obs || '')}" placeholder="2FA, e-mail de recuperação, etc."></div>
     <div class="mt-2"><label class="tiny muted" style="font-weight:700">👁 Quem pode ver esta credencial</label>
       <div style="display:flex;flex-wrap:wrap;gap:6px 14px;max-height:160px;overflow:auto;border:1px solid var(--bd);border-radius:8px;padding:8px;margin-top:4px">
-        ${_users.map(u => `<label class="tiny" style="display:flex;align-items:center;gap:5px;min-width:160px;cursor:pointer"><input type="checkbox" data-viewer="${esc(u.id)}" ${chosen.has(u.id) ? 'checked' : ''}> ${esc(u.name)} <span class="muted">(${esc(u.role || '')})</span></label>`).join('') || '<span class="tiny muted">Sem usuários.</span>'}
+        ${selectableUsers(_users, ...chosen).map(u => `<label class="tiny" style="display:flex;align-items:center;gap:5px;min-width:160px;cursor:pointer"><input type="checkbox" data-viewer="${esc(u.id)}" ${chosen.has(u.id) ? 'checked' : ''}> ${esc(u.name)} <span class="muted">(${esc(u.role || '')})</span></label>`).join('') || '<span class="tiny muted">Sem usuários.</span>'}
       </div>
       <p class="tiny muted" style="margin:4px 0 0">Você (sócio) sempre vê. Marque quem mais pode visualizar.</p>
     </div>

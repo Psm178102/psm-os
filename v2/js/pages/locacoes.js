@@ -1,5 +1,5 @@
 /* PSM-OS v2 — Locações (Sprint 7.21) */
-import { api } from '../api.js';
+import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
 
 const STATUS = [
@@ -136,7 +136,7 @@ function openModal(lid) {
         <div class="field" style="flex:1;min-width:140px"><label>Fim contrato</label><input id="lo-fim" type="date" class="input" value="${i?.data_fim_contrato || ''}"></div>
         <div class="field" style="flex:1;min-width:140px"><label>Status</label><select id="lo-st" class="select">${STATUS.map(s => `<option value="${s.id}"${(i?.status||'disponivel')===s.id?' selected':''}>${s.ico} ${s.lbl}</option>`).join('')}</select></div>
       </div>
-      <div class="field"><label>Responsável</label><select id="lo-resp" class="select"><option value="">— —</option>${_users.map(u => `<option value="${escapeHtml(u.id)}"${i?.responsavel_id===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>Responsável</label><select id="lo-resp" class="select"><option value="">— —</option>${selectableUsers(_users, i?.responsavel_id).map(u => `<option value="${escapeHtml(u.id)}"${i?.responsavel_id===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select></div>
       <div class="field"><label>Observações</label><textarea id="lo-obs" class="input" rows="2">${i?.observacoes ? escapeHtml(i.observacoes) : ''}</textarea></div>
       <div id="lo-msg" class="mt-2"></div>
       <div class="flex gap-2 mt-3" style="justify-content:space-between">

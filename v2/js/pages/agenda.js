@@ -2,7 +2,7 @@
    PSM-OS v2 — Agenda + Eventos
    Sprint 7.13
 ============================================================================ */
-import { api } from '../api.js';
+import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
 
 const TIPOS = [
@@ -90,7 +90,7 @@ function render(scope) {
         <label class="tiny muted" style="font-weight:700;margin-left:10px">CORRETOR:</label>
         <select id="f-corretor" class="select" style="padding:5px 10px;font-size:12px">
           <option value="">Todos</option>
-          ${_users.map(u => `<option value="${escapeHtml(u.id)}"${_filterCorretor===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}
+          ${selectableUsers(_users, _filterCorretor).map(u => `<option value="${escapeHtml(u.id)}"${_filterCorretor===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}
         </select>
         <button class="btn btn-primary" id="btn-novo" style="margin-left:auto">+ Novo evento</button>
       </div>
@@ -270,7 +270,7 @@ function openModal(evId) {
           <label>Responsável</label>
           <select id="ev-corretor" class="select">
             <option value="">— sem responsável —</option>
-            ${_users.map(u => `<option value="${escapeHtml(u.id)}"${ev?.corretor_id === u.id ? ' selected' : ''}>${escapeHtml(u.name)}</option>`).join('')}
+            ${selectableUsers(_users, ev?.corretor_id).map(u => `<option value="${escapeHtml(u.id)}"${ev?.corretor_id === u.id ? ' selected' : ''}>${escapeHtml(u.name)}</option>`).join('')}
           </select>
         </div>
         <div class="field" style="flex:1;min-width:140px">

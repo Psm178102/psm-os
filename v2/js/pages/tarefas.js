@@ -2,7 +2,7 @@
    PSM-OS v2 — Tarefas Diretoria
    Sprint 7.6
 ============================================================================ */
-import { api } from '../api.js';
+import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
 import { mountComments } from '../comments.js';
 import { pageAgenda } from './agenda.js';
@@ -231,7 +231,7 @@ function renderBoard(scope) {
         <label class="tiny muted" style="font-weight:700">RESPONSÁVEL:</label>
         <select id="f-resp" class="select" style="padding:5px 10px;font-size:12px">
           <option value="">Todos</option>
-          ${_users.map(u => `<option value="${escapeHtml(u.id)}"${_filterResp === u.id ? ' selected' : ''}>${escapeHtml(u.name)}</option>`).join('')}
+          ${selectableUsers(_users, _filterResp).map(u => `<option value="${escapeHtml(u.id)}"${_filterResp === u.id ? ' selected' : ''}>${escapeHtml(u.name)}</option>`).join('')}
         </select>
         <label class="tiny muted" style="font-weight:700;margin-left:10px">PRIORIDADE:</label>
         <select id="f-prior" class="select" style="padding:5px 10px;font-size:12px">
@@ -317,7 +317,7 @@ function taskRow(t, isSocio, myId) {
         ${isSocio ? `
           <select class="select" data-task-field="responsavel" data-id="${t.id}" style="padding:4px 10px;font-size:11.5px" title="Responsável">
             <option value="">— sem responsável —</option>
-            ${_users.map(u => `<option value="${escapeHtml(u.id)}"${t.responsavel === u.id ? ' selected' : ''}>${escapeHtml(u.name)}</option>`).join('')}
+            ${selectableUsers(_users, t.responsavel).map(u => `<option value="${escapeHtml(u.id)}"${t.responsavel === u.id ? ' selected' : ''}>${escapeHtml(u.name)}</option>`).join('')}
           </select>
           <select class="select" data-task-field="prioridade" data-id="${t.id}" style="padding:4px 10px;font-size:11.5px">
             ${PRIORIDADE.map(p => `<option value="${p.id}"${t.prioridade === p.id ? ' selected' : ''}>${p.lbl}</option>`).join('')}
@@ -411,7 +411,7 @@ function openNewModal() {
           <label>Responsável</label>
           <select id="nt-resp" class="select">
             <option value="">— sem responsável —</option>
-            ${_users.map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)}</option>`).join('')}
+            ${selectableUsers(_users).map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)}</option>`).join('')}
           </select>
         </div>
         <div class="field" style="flex:1;min-width:140px">

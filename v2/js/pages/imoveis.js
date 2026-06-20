@@ -1,5 +1,5 @@
 /* PSM-OS v2 — Imóveis (Tabela PSM) Sprint 7.23 */
-import { api } from '../api.js';
+import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
 
 const STATUS = [
@@ -126,7 +126,7 @@ function openModal(iid) {
       <div class="flex gap-2" style="flex-wrap:wrap">
         <div class="field" style="flex:1;min-width:140px"><label>Status</label><select id="im-st" class="select">${STATUS.map(s => `<option value="${s.id}"${(i?.status||'disponivel')===s.id?' selected':''}>${s.lbl}</option>`).join('')}</select></div>
         <div class="field" style="flex:1;min-width:140px"><label>Origem</label><select id="im-or" class="select"><option value="proprio"${(i?.origem||'proprio')==='proprio'?' selected':''}>Próprio</option><option value="terceiros"${i?.origem==='terceiros'?' selected':''}>Terceiros</option></select></div>
-        <div class="field" style="flex:1;min-width:160px"><label>Captador</label><select id="im-cap" class="select"><option value="">— —</option>${_users.map(u => `<option value="${escapeHtml(u.id)}"${i?.captador_id===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select></div>
+        <div class="field" style="flex:1;min-width:160px"><label>Captador</label><select id="im-cap" class="select"><option value="">— —</option>${selectableUsers(_users, i?.captador_id).map(u => `<option value="${escapeHtml(u.id)}"${i?.captador_id===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select></div>
       </div>
       <div class="field"><label>Descrição</label><textarea id="im-desc" class="input" rows="3">${i?.descricao?escapeHtml(i.descricao):''}</textarea></div>
       <div class="field"><label>Link fotos</label><input id="im-link" class="input" value="${i?escapeHtml(i.link_fotos||''):''}" placeholder="https://..."></div>

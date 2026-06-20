@@ -1,5 +1,5 @@
 /* PSM-OS v2 — Plantões (Sprint 7.24) */
-import { api } from '../api.js';
+import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
 
 const PERIODOS = [
@@ -139,7 +139,7 @@ function openModal(pid, preDate) {
         <div class="field" style="flex:1;min-width:140px"><label>Data *</label><input id="pl-data" type="date" class="input" value="${p?.data || preDate || ''}"></div>
         <div class="field" style="flex:1;min-width:140px"><label>Período</label><select id="pl-per" class="select">${PERIODOS.map(per => `<option value="${per.id}"${(p?.periodo||'dia_todo')===per.id?' selected':''}>${per.ico} ${per.lbl}</option>`).join('')}</select></div>
       </div>
-      <div class="field"><label>Corretor *</label><select id="pl-corr" class="select"><option value="">— —</option>${_users.filter(u => (u.status||'ativo')==='ativo').map(u => `<option value="${escapeHtml(u.id)}"${p?.corretor_id===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>Corretor *</label><select id="pl-corr" class="select"><option value="">— —</option>${selectableUsers(_users, p?.corretor_id).map(u => `<option value="${escapeHtml(u.id)}"${p?.corretor_id===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select></div>
       <div class="field"><label>Observações</label><textarea id="pl-obs" class="input" rows="2">${p?escapeHtml(p.observacoes||''):''}</textarea></div>
       <div id="pl-msg" class="mt-2"></div>
       <div class="flex gap-2 mt-3" style="justify-content:space-between">

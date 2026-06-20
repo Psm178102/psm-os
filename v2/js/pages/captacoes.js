@@ -1,6 +1,6 @@
 /* PSM-OS v2 — Captações Kanban (modelo Notion PSM) — Sprint 9.8 (redesign moderno)
    Kanban drag-and-drop por status, KPIs, filtros, cards profissionais. */
-import { api } from '../api.js';
+import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null;
@@ -621,7 +621,7 @@ function respSelect(c) {
   const matchName = u => curName && (u.name || '').toLowerCase().startsWith(curName.toLowerCase());
   const inList = _users.some(u => u.id === curId || matchName(u));
   const opts = ['<option value="">— Selecione —</option>']
-    .concat(_users.map(u => {
+    .concat(selectableUsers(_users, curId, ..._users.filter(matchName).map(u => u.id)).map(u => {
       const isSel = (curId && u.id === curId) || (!curId && matchName(u));
       return `<option value="${esc(u.id)}" data-name="${esc(u.name || u.email || '')}"${isSel ? ' selected' : ''}>${esc(u.name || u.email || u.id)}</option>`;
     }));

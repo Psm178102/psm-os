@@ -111,3 +111,17 @@ export const api = {
 };
 
 export default api;
+
+/**
+ * Filtra usuários "selecionáveis" para qualquer dropdown/checkbox de PESSOA no sistema:
+ * remove DESATIVADOS (status !== 'ativo') e OCULTOS (hide_from_ranking = true).
+ * Os ids em `keep` são SEMPRE mantidos (ex.: o responsável já atribuído a um registro),
+ * pra não sumir uma seleção existente nem quebrar a edição de algo antigo.
+ * Use SÓ em opções de seleção — para exibir o NOME de quem já está atribuído, use a
+ * lista completa de usuários (senão o nome de um inativo viraria o id cru).
+ */
+export function selectableUsers(users, ...keep) {
+  const k = new Set(keep.filter(Boolean).map(String));
+  return (users || []).filter(u =>
+    k.has(String(u.id)) || ((u.status || 'ativo') === 'ativo' && !u.hide_from_ranking));
+}

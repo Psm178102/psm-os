@@ -1,5 +1,5 @@
 /* PSM-OS v2 — One-on-One · Cockpit de Gestão Individual do Corretor */
-import { api } from '../api.js';
+import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null;
@@ -499,7 +499,7 @@ function openMeeting(iid) {
       <div class="flex gap-2" style="flex-wrap:wrap">
         <div class="field" style="flex:1;min-width:140px"><label>Data *</label><input id="oo-data" type="date" class="input" value="${i?.data || new Date().toISOString().slice(0,10)}"></div>
         <div class="field" style="flex:1;min-width:160px"><label>Líder/Gestor</label>
-          <select id="oo-lider" class="select">${_users.filter(u => ['lider','gerente','socio','diretor'].includes((u.role||'').toLowerCase())).map(u => `<option value="${escapeHtml(u.id)}"${(i?.lider_id||auth.user()?.id)===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select>
+          <select id="oo-lider" class="select">${selectableUsers(_users.filter(u => ['lider','gerente','socio','diretor'].includes((u.role||'').toLowerCase())), i?.lider_id, auth.user()?.id).map(u => `<option value="${escapeHtml(u.id)}"${(i?.lider_id||auth.user()?.id)===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select>
         </div>
       </div>
       <div class="field"><label>Observações / pauta da reunião</label><textarea id="oo-obs" class="input" rows="4" placeholder="Pontos altos, dificuldades, combinados...">${i?escapeHtml(i.observacoes||''):''}</textarea></div>

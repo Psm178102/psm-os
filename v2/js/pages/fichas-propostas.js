@@ -1,5 +1,5 @@
 /* PSM-OS v2 — Fichas/Propostas (Sprint 8.7 + 9.4 modelo/WhatsApp/imprimir) */
-import { api } from '../api.js';
+import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
 import { getLinks, saveLinks, canEditLinks, promptLink } from '../links.js';
 
@@ -203,7 +203,7 @@ function showForm() {
             <label class="tiny muted">Corretor responsável</label>
             <select id="ff-cor" class="select">
               <option value="">— sem corretor —</option>
-              ${_users.filter(u => u.role === 'corretor' || u.role === 'lider').map(u => `<option value="${u.id}" ${f.corretor_id === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}
+              ${selectableUsers(_users.filter(u => u.role === 'corretor' || u.role === 'lider'), f.corretor_id).map(u => `<option value="${u.id}" ${f.corretor_id === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}
             </select>
           </div>
         ` : ''}

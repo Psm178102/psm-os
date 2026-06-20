@@ -651,7 +651,7 @@ function shellHTML(user) {
         <div class="sb-sec">👤 Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
 
-        <div style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.5">House PSM · v77.94</div>
+        <div style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.5">House PSM · v77.95</div>
       </aside>
       <header class="app-header">
         <button class="h-hamburger" id="btn-hamburger" title="Menu">☰</button>
