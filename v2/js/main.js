@@ -38,6 +38,7 @@ import { pageLocacoes } from './pages/locacoes.js';
 import { pageMinutasJuridico, pageMinutasLocacao } from './pages/minutas.js';
 import { pageCnds } from './pages/cnds.js';
 import { pageLinksUteis } from './pages/links-uteis.js';
+import { pageSacIncorporadoras } from './pages/sac-incorporadoras.js';
 import { pageReunioes } from './pages/reunioes.js';
 import { pageArena } from './pages/arena.js';
 import { pageForecast } from './pages/forecast.js';
@@ -105,7 +106,7 @@ export const ROUTE_GROUP = {
   // Início (sempre)
   '/': 'inicio', '/painel': 'inicio', '/checkin': 'inicio', '/ranking': 'inicio', '/agenda': 'inicio', '/tarefas': 'inicio',
   // Secretaria de Vendas & Backoffice (SDR + Captações)
-  '/sdr': 'secretaria', '/captacoes': 'secretaria', '/links-uteis': 'secretaria',
+  '/sdr': 'secretaria', '/captacoes': 'secretaria', '/links-uteis': 'secretaria', '/sac-incorporadoras': 'secretaria',
   // Imóveis & Vendas
   '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/fichas': 'vendas', '/campanha-wa': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/tabela-imoveis': 'vendas', '/lancamentos': 'vendas',
@@ -301,6 +302,10 @@ function initSectionCollapse() {
   });
 }
 
+// Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
+// quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
+const APP_VERSION = '77.99.0';
+
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
   // 1) Tenta hidratar sessão
@@ -412,6 +417,7 @@ function initSectionCollapse() {
   router.register('/minutas', { render: async (ctx, root) => { setHeader('Minutas padrão'); highlight('/minutas'); await pageMinutasJuridico(ctx, root); } });
   router.register('/cnds',    { render: async (ctx, root) => { setHeader("CND's"); highlight('/cnds'); await pageCnds(ctx, root); } });
   router.register('/links-uteis', { render: async (ctx, root) => { setHeader('Links úteis'); highlight('/links-uteis'); await pageLinksUteis(ctx, root); } });
+  router.register('/sac-incorporadoras', { render: async (ctx, root) => { setHeader('SAC Incorporadoras'); highlight('/sac-incorporadoras'); await pageSacIncorporadoras(ctx, root); } });
   router.register('/reunioes', { render: async (ctx, root) => { setHeader('Formatos de Reunião'); highlight('/reunioes'); await pageReunioes(ctx, root); } });
   router.register('/estrategia', { render: async (ctx, root) => { setHeader('Estratégia'); highlight('/estrategia'); await pageEstrategia(ctx, root); } });
   // v77.30: absorvidas pelo Cockpit Hub — redirects preservam links/hábito antigos
@@ -530,6 +536,12 @@ function initSectionCollapse() {
       }
     }).catch(() => {});
   }
+
+  // 10) Checagem de versão: avisa na hora se a aba está com código antigo,
+  //     re-checa ao voltar pra aba, e o rodapé "House PSM · vX" checa sob clique.
+  checkVersion();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && !_verWarned) checkVersion(); });
+  document.getElementById('app-ver')?.addEventListener('click', () => checkVersion(true));
 })();
 
 // ─── Shell ─────────────────────────────────────────────────────────────
@@ -586,6 +598,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/sdr"><span class="sb-ico">📞</span> Prospecção SDR</button>
         <button class="sb-link" data-nav="/captacoes"><span class="sb-ico">📥</span> Captações</button>
         <button class="sb-link" data-nav="/links-uteis"><span class="sb-ico">🔗</span> Links úteis</button>
+        <button class="sb-link" data-nav="/sac-incorporadoras"><span class="sb-ico">📞</span> SAC Incorporadoras</button>
 
         <div class="sb-sec">🧑‍💼 Gestão de Pessoas & RH</div>
         <button class="sb-link" data-nav="/gestao-pessoas"><span class="sb-ico">👥</span> Gestão de Pessoas</button>
@@ -657,7 +670,7 @@ function shellHTML(user) {
         <div class="sb-sec">👤 Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
 
-        <div style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.5">House PSM · v77.98</div>
+        <div id="app-ver" title="Clique para checar atualizações" style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.55;cursor:pointer">House PSM · v${APP_VERSION}</div>
       </aside>
       <header class="app-header">
         <button class="h-hamburger" id="btn-hamburger" title="Menu">☰</button>
@@ -825,6 +838,52 @@ async function page404(ctx, root) {
 // ─── Helpers ───────────────────────────────────────────────────────────
 function setHeader(t) { const el = document.getElementById('h-title'); if (el) el.textContent = t; }
 
+// ─── Atualização do app (saber/forçar a versão mais nova) ────────────────
+// Compara APP_VERSION (versão do código rodando) com /version.json (versão no ar).
+// Diferente = a aba está com JS antigo → mostra faixa "Atualizar agora" (1 clique
+// limpa cache + recarrega). Pega tanto aba aberta antes do deploy quanto JS em cache.
+let _verWarned = false;
+
+function showUpdateBanner(newVer) {
+  if (document.getElementById('upd-banner')) return;
+  const b = document.createElement('div');
+  b.id = 'upd-banner';
+  b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;padding:10px 16px;font-size:13.5px;font-weight:600;box-shadow:0 2px 14px rgba(0,0,0,.35)';
+  b.innerHTML = `<span>🔄 Nova versão disponível${newVer ? ' (v' + newVer + ')' : ''} — atualize para ver as novidades.</span>
+    <button id="upd-go" style="background:var(--psm-gold,#d4af37);color:#0f172a;border:0;border-radius:8px;padding:7px 16px;font-weight:800;cursor:pointer">Atualizar agora</button>
+    <button id="upd-x" title="Agora não" style="background:transparent;color:#fff;border:0;font-size:20px;line-height:1;cursor:pointer;opacity:.7">×</button>`;
+  document.body.appendChild(b);
+  document.getElementById('upd-go').onclick = doUpdate;
+  document.getElementById('upd-x').onclick = () => b.remove();
+}
+
+async function doUpdate() {
+  const go = document.getElementById('upd-go');
+  if (go) { go.textContent = 'Atualizando…'; go.disabled = true; }
+  try {
+    if ('caches' in window) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
+    if (navigator.serviceWorker) { const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r => r.update().catch(() => {}))); }
+  } catch (_) {}
+  // bypassa cache HTTP do documento
+  try { location.reload(true); } catch (_) { location.reload(); }
+}
+
+async function checkVersion(announce) {
+  try {
+    const v = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json());
+    if (v && v.version && v.version !== APP_VERSION) {
+      _verWarned = true;
+      showUpdateBanner(v.version);
+      return false;
+    }
+    if (announce) alert('✅ Tudo certo! Você está na versão mais recente (v' + APP_VERSION + ').');
+    return true;
+  } catch (_) {
+    if (announce) alert('Não consegui checar agora. Tente de novo em instantes.');
+    return null;
+  }
+}
+
 // ─── Indicador de saúde do sistema (menu principal) ──────────────────────
 let _healthTimer = null, _bootVer = null, _healthData = null;
 
@@ -852,9 +911,10 @@ async function pollHealth() {
   // Desatualização do cliente (tab antiga aberta após deploy)
   try {
     const v = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json());
-    if (_bootVer && v.version && v.version !== _bootVer) {
-      issues = [{ area: 'app', severity: 'warn', message: `Nova versão ${v.version} disponível — recarregue (Cmd+Shift+R).` }, ...issues];
+    if (v.version && v.version !== APP_VERSION) {
+      issues = [{ area: 'app', severity: 'warn', message: `Nova versão ${v.version} disponível — clique em “Atualizar agora”.` }, ...issues];
       if (status === 'ok') status = 'warn';
+      showUpdateBanner(v.version);
     }
   } catch (_) {}
   _healthData = { status, issues };
