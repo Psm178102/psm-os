@@ -842,7 +842,7 @@ function setHeader(t) { const el = document.getElementById('h-title'); if (el) e
 // Compara APP_VERSION (versão do código rodando) com /version.json (versão no ar).
 // Diferente = a aba está com JS antigo → mostra faixa "Atualizar agora" (1 clique
 // limpa cache + recarrega). Pega tanto aba aberta antes do deploy quanto JS em cache.
-let _verWarned = false;
+let _verWarned = false, _updatePending = null;
 
 function showUpdateBanner(newVer) {
   if (document.getElementById('upd-banner')) return;
@@ -873,7 +873,9 @@ async function checkVersion(announce) {
     const v = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json());
     if (v && v.version && v.version !== APP_VERSION) {
       _verWarned = true;
+      _updatePending = v.version;
       showUpdateBanner(v.version);
+      maybeAutoUpdate();   // aplica sozinho na próxima navegação (trava anti-loop)
       return false;
     }
     if (announce) alert('✅ Tudo certo! Você está na versão mais recente (v' + APP_VERSION + ').');
@@ -882,6 +884,25 @@ async function checkVersion(announce) {
     if (announce) alert('Não consegui checar agora. Tente de novo em instantes.');
     return null;
   }
+}
+
+// Atualiza SOZINHO na próxima troca de tela (fronteira segura: navegar já descarta o
+// estado da página, então não perde nada que o usuário esteja digitando). Trava por
+// sessão+versão evita loop de reload se o CDN ainda estiver propagando. Assim, mesmo
+// quem não clicar na faixa entra na versão nova ao abrir qualquer aba — ninguém fica atrás.
+let _autoUpdHooked = false;
+function maybeAutoUpdate() {
+  if (_autoUpdHooked || !_updatePending) return;
+  _autoUpdHooked = true;
+  const target = _updatePending;
+  const handler = () => {
+    if (!_updatePending) return;
+    if (sessionStorage.getItem('psm.autoupd') === target) return;  // já tentou p/ essa versão → não repete
+    sessionStorage.setItem('psm.autoupd', target);
+    window.removeEventListener('hashchange', handler);
+    doUpdate();
+  };
+  window.addEventListener('hashchange', handler);
 }
 
 // ─── Indicador de saúde do sistema (menu principal) ──────────────────────
