@@ -1,5 +1,10 @@
 """
-GET/POST /api/v3/vault/creds — Cofre de Logins e Senhas (com controle de quem vê). v77.93
+GET/POST /api/v3/vault/creds — Cofre de Logins e Senhas (com controle de quem vê). v77.94
+
+Categorias são gerenciáveis pelo sócio (shared_kv 'vault_categories'): ações
+cat_add / cat_rename / cat_delete. Renomear propaga aos itens; excluir solta os
+itens pra "Sem categoria". GET devolve `categories` (semente DEFAULT_CATS até
+o sócio personalizar; inclui "Incorporadora").
 
 Guarda credenciais (apps, redes sociais, assinaturas…) em shared_kv key 'vault_creds'.
 Cada credencial tem uma lista `viewers` (ids de usuários) que podem VÊ-LA. Só o sócio
@@ -22,7 +27,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
 KV_KEY = "vault_creds"
+CAT_KEY = "vault_categories"          # registro de categorias (gerenciável pelo sócio)
 MAXN = 200
+# Categorias-semente (usadas até o sócio personalizar). "Incorporadora" incluída.
+DEFAULT_CATS = ["Incorporadora", "Redes Sociais", "Portais Imobiliários",
+                "Aplicativos", "Sistemas", "E-mail", "Assinaturas", "Bancos & Financeiro", "Outros"]
 
 
 def _read(sb):
@@ -41,6 +50,34 @@ def _write(sb, items):
     sb.table("shared_kv").upsert({"key": KV_KEY, "value": {"items": items},
                                  "updated_at": datetime.now(timezone.utc).isoformat()},
                                 on_conflict="key").execute()
+
+
+def _read_cats(sb):
+    try:
+        rows = sb.table("shared_kv").select("value").eq("key", CAT_KEY).limit(1).execute().data or []
+        val = rows[0]["value"] if rows else None
+        if isinstance(val, str):
+            val = json.loads(val)
+        items = (val or {}).get("items") if isinstance(val, dict) else None
+        cats = [str(c).strip() for c in items if str(c).strip()] if isinstance(items, list) else None
+    except Exception:
+        cats = None
+    return cats if cats else list(DEFAULT_CATS)
+
+
+def _write_cats(sb, cats):
+    sb.table("shared_kv").upsert({"key": CAT_KEY, "value": {"items": cats},
+                                 "updated_at": datetime.now(timezone.utc).isoformat()},
+                                on_conflict="key").execute()
+
+
+def _dedupe(cats):
+    seen, out = set(), []
+    for c in cats:
+        k = c.lower()
+        if c and k not in seen:
+            seen.add(k); out.append(c)
+    return out[:100]
 
 
 def _clean(d):
@@ -82,7 +119,7 @@ class handler(BaseHTTPRequestHandler):
         else:
             # só as credenciais liberadas pra ESTE usuário (as outras nem saem do servidor)
             out = [it for it in items if uid in (it.get("viewers") or [])]
-        return self._send(200, {"ok": True, "items": out, "can_manage": manage})
+        return self._send(200, {"ok": True, "items": out, "categories": _read_cats(sb), "can_manage": manage})
 
     def do_POST(self):
         try:
@@ -100,6 +137,50 @@ class handler(BaseHTTPRequestHandler):
 
         items = _read(sb)
         action = (body.get("action") or "").strip()
+
+        # ── Gestão de CATEGORIAS (só o sócio) ──────────────────────────────
+        if action == "cat_add":
+            name = str(body.get("name") or "").strip()[:60]
+            if not name:
+                return self._send(400, {"ok": False, "error": "Nome da categoria é obrigatório"})
+            cats = _read_cats(sb)
+            if any(c.lower() == name.lower() for c in cats):
+                return self._send(400, {"ok": False, "error": "Categoria já existe"})
+            cats = _dedupe(cats + [name])
+            _write_cats(sb, cats)
+            audit(self, actor, "vault.cat_add", target_type="vault_categories", target_id=name)
+            return self._send(200, {"ok": True, "items": items, "categories": cats})
+        if action == "cat_rename":
+            frm = str(body.get("from") or "").strip()
+            to = str(body.get("to") or "").strip()[:60]
+            if not frm or not to:
+                return self._send(400, {"ok": False, "error": "Informe a categoria e o novo nome"})
+            cats = _dedupe([to if c.lower() == frm.lower() else c for c in _read_cats(sb)])
+            n = 0
+            for it in items:
+                if str(it.get("categoria") or "").lower() == frm.lower():
+                    it["categoria"] = to; n += 1
+            _write_cats(sb, cats)
+            if n:
+                _write(sb, items)
+            audit(self, actor, "vault.cat_rename", target_type="vault_categories",
+                  target_id=frm, notes=f"-> {to} ({n} creds)")
+            return self._send(200, {"ok": True, "items": items, "categories": cats})
+        if action == "cat_delete":
+            name = str(body.get("name") or "").strip()
+            if not name:
+                return self._send(400, {"ok": False, "error": "Informe a categoria"})
+            cats = [c for c in _read_cats(sb) if c.lower() != name.lower()]
+            n = 0
+            for it in items:                       # credenciais órfãs vão pra "Sem categoria"
+                if str(it.get("categoria") or "").lower() == name.lower():
+                    it["categoria"] = ""; n += 1
+            _write_cats(sb, cats)
+            if n:
+                _write(sb, items)
+            audit(self, actor, "vault.cat_delete", target_type="vault_categories",
+                  target_id=name, notes=f"{n} creds soltas")
+            return self._send(200, {"ok": True, "items": items, "categories": cats})
 
         if action == "add":
             c = _clean(body.get("item") or {})
@@ -133,4 +214,4 @@ class handler(BaseHTTPRequestHandler):
         # audita SEM a senha
         audit(self, actor, f"vault.{action}", target_type="vault_creds", target_id=str(body.get("id") or ""))
         # devolve a lista completa (actor é sócio → pode ver tudo)
-        return self._send(200, {"ok": True, "items": items})
+        return self._send(200, {"ok": True, "items": items, "categories": _read_cats(sb)})

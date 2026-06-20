@@ -7,6 +7,7 @@
 import { api } from '../api.js';
 
 let _root = null, _items = [], _canManage = false, _users = [], _editing = null, _busy = false;
+let _cats = [], _catOpen = false;   // categorias gerenciáveis + estado do painel
 const _shown = new Set();   // ids com senha revelada nesta sessão de tela
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -23,6 +24,7 @@ async function load() {
   try {
     const r = await api.request('/api/v3/vault/creds');
     _items = r.items || [];
+    _cats = r.categories || [];
     _canManage = !!r.can_manage;
     if (_canManage && !_users.length) {
       try { const u = await api.request('/api/v3/users/list'); _users = (u && u.users) || []; } catch (_) {}
@@ -35,8 +37,13 @@ async function load() {
 
 function render() {
   const groups = {};
-  _items.forEach(it => { const c = it.categoria || 'Sem categoria'; (groups[c] = groups[c] || []).push(it); });
-  const cats = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  _items.forEach(it => { const c = (it.categoria || '').trim() || 'Sem categoria'; (groups[c] = groups[c] || []).push(it); });
+  // ordem: 1) categorias do registro (na ordem definida), 2) extras fora do registro (alfa), 3) Sem categoria por último
+  const cats = [];
+  _cats.forEach(c => { if (groups[c]) cats.push(c); });
+  Object.keys(groups).filter(c => !_cats.includes(c) && c !== 'Sem categoria')
+    .sort((a, b) => a.localeCompare(b, 'pt-BR')).forEach(c => cats.push(c));
+  if (groups['Sem categoria']) cats.push('Sem categoria');
 
   _root.innerHTML = `
     <style>
@@ -46,6 +53,9 @@ function render() {
       .vk-val{font-family:ui-monospace,monospace;font-size:13px;background:var(--bg-3);padding:3px 9px;border-radius:6px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .vk-ico{cursor:pointer;border:0;background:transparent;font-size:14px;padding:2px 5px;border-radius:6px}
       .vk-ico:hover{background:var(--bg-3)}
+      .vk-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bd);border-left:3px solid var(--c,#888);border-radius:20px;padding:4px 6px 4px 11px;font-size:12.5px;font-weight:600}
+      .vk-chip-b{cursor:pointer;border:0;background:transparent;font-size:12px;padding:2px 4px;border-radius:50%;line-height:1}
+      .vk-chip-b:hover{background:var(--bg-3)}
     </style>
     <div class="card">
       <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
@@ -57,6 +67,7 @@ function render() {
         </div>
         ${_canManage ? `<button class="btn btn-primary btn-sm" id="vk-new">➕ Nova credencial</button>` : ''}
       </div>
+      ${_canManage ? catManagerHTML() : ''}
       ${_editing !== null ? formHTML() : ''}
       ${!_items.length ? `
         <div class="card mt-3" style="text-align:center;padding:30px;background:var(--bg-3)">
@@ -75,6 +86,25 @@ function groupHTML(cat, items) {
       <span style="width:9px;height:9px;border-radius:3px;background:${cor};display:inline-block"></span>${esc(cat)}
       <span class="tiny muted" style="font-weight:400">(${items.length})</span></h3>
     ${items.map(it => cardHTML(it, cor)).join('')}</div>`;
+}
+
+function catManagerHTML() {
+  const count = c => _items.filter(i => ((i.categoria || '').trim() || 'Sem categoria') === c).length;
+  return `<details class="card mt-3" id="vk-catmgr" style="background:var(--bg-3);border:1px solid var(--bd)" ${_catOpen ? 'open' : ''}>
+    <summary style="cursor:pointer;font-weight:800;font-size:13px;list-style:none">🗂 Categorias <span class="tiny muted" style="font-weight:400">(${_cats.length}) — clique para gerenciar</span></summary>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:11px">
+      ${_cats.length ? _cats.map(c => `<span class="vk-chip" style="--c:${catColor(c)}">
+        ${esc(c)}<span class="tiny muted" style="font-weight:400">·${count(c)}</span>
+        <button class="vk-chip-b" data-catren="${esc(c)}" title="Renomear">✏️</button>
+        <button class="vk-chip-b" data-catdel="${esc(c)}" title="Excluir" style="color:#dc2626">✕</button>
+      </span>`).join('') : '<span class="tiny muted">Nenhuma categoria cadastrada.</span>'}
+    </div>
+    <div class="flex gap-2 mt-2" style="max-width:380px">
+      <input id="vk-catnew" class="input" placeholder="Nova categoria (ex.: Incorporadora)">
+      <button class="btn btn-primary btn-sm" id="vk-catadd" style="white-space:nowrap">➕ Adicionar</button>
+    </div>
+    <p class="tiny muted" style="margin:7px 0 0">Renomear atualiza as credenciais; excluir solta as credenciais pra “Sem categoria”.</p>
+  </details>`;
 }
 
 function cardHTML(it, cor) {
@@ -108,8 +138,12 @@ function formHTML() {
     <h3 class="card-title" style="font-size:14px">${it ? '✏️ Editar credencial' : '➕ Nova credencial'}</h3>
     <div class="flex gap-2" style="flex-wrap:wrap">
       <div style="flex:2;min-width:200px"><label class="tiny muted">Título *</label><input id="vf-tit" class="input" value="${esc(v.titulo || '')}" placeholder="Ex.: Instagram PSM Conquista"></div>
-      <div style="flex:1;min-width:140px"><label class="tiny muted">Categoria</label><input id="vf-cat" class="input" list="vf-cats" value="${esc(v.categoria || '')}" placeholder="Rede social / App / Assinatura">
-        <datalist id="vf-cats"><option value="Redes Sociais"><option value="Aplicativos"><option value="Assinaturas"><option value="E-mail"><option value="Sistemas"><option value="Outros"></datalist></div>
+      <div style="flex:1;min-width:140px"><label class="tiny muted">Categoria</label>
+        <select id="vf-cat" class="input">
+          ${(() => { const cur = (v.categoria || '').trim(); const opts = _cats.slice(); if (cur && !opts.includes(cur)) opts.unshift(cur);
+            return `<option value="">— Sem categoria —</option>` + opts.map(c => `<option value="${esc(c)}" ${c === cur ? 'selected' : ''}>${esc(c)}</option>`).join(''); })()}
+        </select>
+        <p class="tiny muted" style="margin:3px 0 0">Gerencie no painel 🗂 acima.</p></div>
     </div>
     <div class="mt-2"><label class="tiny muted">URL (opcional)</label><input id="vf-url" class="input" value="${esc(v.url || '')}" placeholder="https://…"></div>
     <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
@@ -146,6 +180,37 @@ function wire() {
   });
   $('#vf-cancel') && ($('#vf-cancel').onclick = () => { _editing = null; render(); });
   $('#vf-save') && ($('#vf-save').onclick = save);
+  // ── categorias ──
+  const mgr = $('#vk-catmgr'); if (mgr) mgr.ontoggle = () => { _catOpen = mgr.open; };
+  $('#vk-catadd') && ($('#vk-catadd').onclick = catAdd);
+  $('#vk-catnew') && ($('#vk-catnew').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); catAdd(); } });
+  _root.querySelectorAll('[data-catren]').forEach(b => b.onclick = () => catRename(b.dataset.catren));
+  _root.querySelectorAll('[data-catdel]').forEach(b => b.onclick = () => catDelete(b.dataset.catdel));
+}
+
+async function catAdd() {
+  const inp = _root.querySelector('#vk-catnew'); const name = (inp && inp.value || '').trim();
+  if (!name) { inp && inp.focus(); return; }
+  _catOpen = true;
+  try { await api.request('/api/v3/vault/creds', { method: 'POST', body: { action: 'cat_add', name } }); await load(); }
+  catch (e) { alert('Erro ao adicionar categoria: ' + e.message); }
+}
+
+async function catRename(from) {
+  const to = prompt(`Renomear a categoria "${from}" para:`, from);
+  if (to === null) return; const t = to.trim();
+  if (!t || t === from) return;
+  _catOpen = true;
+  try { await api.request('/api/v3/vault/creds', { method: 'POST', body: { action: 'cat_rename', from, to: t } }); await load(); }
+  catch (e) { alert('Erro ao renomear: ' + e.message); }
+}
+
+async function catDelete(name) {
+  const n = _items.filter(i => ((i.categoria || '').trim()) === name).length;
+  if (!confirm(`Excluir a categoria "${name}"?` + (n ? `\n\n${n} credencial(is) ficarão em “Sem categoria”.` : ''))) return;
+  _catOpen = true;
+  try { await api.request('/api/v3/vault/creds', { method: 'POST', body: { action: 'cat_delete', name } }); await load(); }
+  catch (e) { alert('Erro ao excluir: ' + e.message); }
 }
 
 async function save() {
