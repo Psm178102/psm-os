@@ -473,15 +473,20 @@ function efficiencyPanel(d) {
 
 function ratesPanel(d) {
   const fc = d.primeiro_contato_h;
-  const fcTxt = fc == null ? '—' : (fc < 1 ? Math.round(fc * 60) + ' min' : fc.toFixed(1) + ' h');
+  const fcTxt = fc == null ? '—' : (fc < 1 ? Math.round(fc * 60) + ' min' : fc.toFixed(1).replace('.', ',') + ' h');
+  // base das taxas (transparência: win/descarte são sobre FECHADOS no período; lixo sobre as perdas)
+  const vend = (d.kpis && d.kpis.vendas) || 0;
+  const perd = d.perdas || 0;
+  const fech = vend + perd;
+  const trashN = perd ? Math.round((d.trash_rate || 0) / 100 * perd) : 0;
   return panel('⏱ Taxas & Tempos', `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      ${stat('Win rate', pctF(d.win_rate), '#16a34a')}
-      ${stat('Taxa descarte', pctF(d.descarte_rate), '#dc2626')}
+      ${stat('Win rate' + (fech ? ` · ${vend}/${fech} fechados` : ''), pctF(d.win_rate), '#16a34a', null, 'Vendas ÷ negócios FECHADOS (ganhos+perdidos) no período')}
+      ${stat('Taxa descarte' + (fech ? ` · ${perd}/${fech} fechados` : ''), pctF(d.descarte_rate), '#dc2626', null, 'Perdas ÷ negócios fechados no período')}
       ${stat('1º contato', fcTxt, '#2563eb', d.primeiro_contato_basis === 'real' ? 'real' : 'sem evento')}
-      ${stat('Ciclo médio', d.ciclo_medio_dias != null ? d.ciclo_medio_dias + ' d' : '—', '#7c3aed')}
-      ${stat('Lixo/descarte', pctF(d.trash_rate), '#64748b')}
-      ${stat('Parados +14d', d.pendencias.parados_14d, '#d97706')}
+      ${stat('Ciclo médio', d.ciclo_medio_dias != null ? d.ciclo_medio_dias + ' d' : '—', '#7c3aed', null, 'Dias entre criação e fechamento das vendas ganhas (— se não houve venda no período)')}
+      ${stat('Lixo/descarte' + (perd ? ` · ${trashN}/${perd} perdas` : ''), pctF(d.trash_rate), '#64748b', null, 'Das perdas, quantas foram lixo/sem perfil/duplicado')}
+      ${stat('Parados +14d', d.pendencias.parados_14d, '#d97706', null, 'Negócios abertos sem atividade há +14 dias')}
     </div>`);
 }
 

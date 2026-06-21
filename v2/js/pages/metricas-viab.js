@@ -11,8 +11,8 @@ import { auth } from '../auth.js';
 
 let _root = null, _data = null, _custos = null, _lines = null, _nibo = null, _meta = null;
 let _active = 'map', _showCustos = false, _periodo = 'mes', _comProLabore = false, _custosMsg = '', _locRateia = true;
-// 💼 Custo fixo por corretor (v80.0)
-let _ccUsers = null, _ccCustos = {}, _ccEdit = null, _ccDraft = [], _ccCanEdit = false, _ccMsg = '';
+// 💼 Custo fixo por corretor (v80.0 / v80.4 — padrão por equipe + extra individual)
+let _ccUsers = null, _ccData = { byteam: {}, byuser: {} }, _ccEdit = null, _ccDraft = [], _ccCanEdit = false, _ccMsg = '';
 const TEAM_LBL = { conquista: '🏆 Conquista', lancamento: '🏗 Lançamento', terceiros: '🤝 Terceiros', impper: '✨ IMPPER', locacao: '🔑 Locação', '': '— Sem equipe' };
 
 const LKEY = 'psm_v2_metricas_viab_lines';
@@ -106,7 +106,7 @@ async function load() {
       api.request('/api/v3/diretoria/custos_corretor').catch(() => null),
       api.request('/api/v3/users/list').catch(() => null),
     ]);
-    _ccCustos = (ccc && ccc.ok) ? (ccc.byuser || {}) : {};
+    _ccData = { byteam: (ccc && ccc.byteam) || {}, byuser: (ccc && ccc.byuser) || {} };
     _ccCanEdit = !!(ccc && ccc.can_edit);
     _ccUsers = (ccu && (ccu.users || ccu.data)) || (Array.isArray(ccu) ? ccu : []);
     _data = atg || {};
@@ -721,24 +721,28 @@ function selp(label, key, opts) {
   const val = _lines[_active][key] || opts[0][0];
   return `<div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><select class="input" data-key="${key}" style="width:100%;font-size:12px;padding:6px 8px">${opts.map(([v, l]) => `<option value="${v}"${String(v) === String(val) ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`;
 }
-// ───────── 💼 Custo fixo por corretor (por equipe) — v80.0 ─────────
-function ccTotal(uid) {
-  const e = _ccCustos[String(uid)];
-  return e ? (e.itens || []).reduce((s, i) => s + (+i.valor || 0), 0) : 0;
-}
-function ccEditor(u) {
+// ───────── 💼 Custo fixo por corretor: PADRÃO POR EQUIPE + extra individual — v80.4 ─────────
+function ccItensTotal(itens) { return (itens || []).reduce((s, i) => s + (+i.valor || 0), 0); }
+function ccTeamItens(t) { return (_ccData.byteam[String(t).toLowerCase()] || {}).itens || []; }
+function ccUserItens(uid) { return (_ccData.byuser[String(uid)] || {}).itens || []; }
+function ccTeamPadrao(t) { return ccItensTotal(ccTeamItens(t)); }          // R$/corretor da equipe
+function ccUserExtra(uid) { return ccItensTotal(ccUserItens(uid)); }       // extra individual
+function ccCorretorTotal(uid, t) { return ccTeamPadrao(t) + ccUserExtra(uid); }
+
+// Editor genérico (key = 'team:<t>' ou 'user:<uid>')
+function ccEditor(key) {
   const itens = _ccDraft;
   const rows = itens.map((it, i) => `<div style="display:flex;gap:6px;margin-bottom:4px">
       <input class="input" data-cc-field="nome" data-i="${i}" value="${escapeHtml(it.nome || '')}" placeholder="Item (ex.: E-mail Google, Login RD…)" style="flex:1;font-size:12px;padding:4px 6px">
-      <input class="input" data-cc-field="valor" data-i="${i}" type="number" step="0.01" value="${it.valor || ''}" placeholder="R$/mês" style="width:110px;font-size:12px;padding:4px 6px">
+      <input class="input" data-cc-field="valor" data-i="${i}" type="number" step="0.01" value="${it.valor || ''}" placeholder="R$/mês" style="width:120px;font-size:12px;padding:4px 6px">
       <button class="btn btn-ghost btn-sm" data-cc-del="${i}" title="remover">✕</button>
     </div>`).join('');
-  return `<div style="background:var(--bg-3);border-radius:8px;padding:10px;margin:0 4px 8px">
+  return `<div style="background:var(--bg-3);border-radius:8px;padding:10px;margin:6px 4px 8px">
     ${rows || '<div class="tiny muted" style="margin-bottom:4px">Sem itens — adicione abaixo.</div>'}
     <div class="flex gap-2" style="margin-top:6px;align-items:center">
-      <button class="btn btn-ghost btn-sm" data-cc-add="${u.id}">+ item</button>
-      <span class="tiny muted" style="margin-left:auto">subtotal R$ ${itens.reduce((s, i) => s + (+i.valor || 0), 0).toLocaleString('pt-BR')}/mês</span>
-      <button class="btn btn-primary btn-sm" data-cc-save="${u.id}">💾 Salvar</button>
+      <button class="btn btn-ghost btn-sm" data-cc-add="1">+ item</button>
+      <span class="tiny muted" style="margin-left:auto">subtotal ${fmt(ccItensTotal(itens))}/${key.startsWith('team:') ? 'corretor' : 'mês'}</span>
+      <button class="btn btn-primary btn-sm" data-cc-save="${key}">💾 Salvar</button>
     </div>
   </div>`;
 }
@@ -752,29 +756,37 @@ function renderCustosCorretor() {
   let grand = 0;
   const html = teams.map(t => {
     const arr = byTeam[t].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
-    let sub = 0;
+    const padrao = ccTeamPadrao(t);
+    const sub = arr.reduce((s, u) => s + ccCorretorTotal(u.id, t), 0);
+    grand += sub;
+    const teamKey = 'team:' + t, editingTeam = _ccEdit === teamKey;
     const rows = arr.map(u => {
-      const tot = ccTotal(u.id); sub += tot;
-      const editing = _ccEdit === u.id;
+      const extra = ccUserExtra(u.id), tot = padrao + extra;
+      const uKey = 'user:' + u.id, editingU = _ccEdit === uKey;
       return `<div style="border-top:1px solid var(--border)">
         <div style="display:flex;align-items:center;gap:8px;padding:6px 4px">
           <b style="flex:1;font-size:13px;min-width:0">${escapeHtml((u.name || '').trim())}</b>
-          <span style="font-weight:800;font-size:13px;color:${tot > 0 ? '#6366f1' : '#94a3b8'}">${fmt(tot)}/mês</span>
-          ${_ccCanEdit ? `<button class="btn btn-ghost btn-sm" data-cc-edit="${u.id}">${editing ? 'Fechar' : '✏️ Editar'}</button>` : ''}
+          <span class="tiny muted" title="padrão da equipe + extra individual">${fmt(padrao)}${extra ? ' + ' + fmt(extra) : ''} =</span>
+          <span style="font-weight:800;font-size:13px;color:${tot > 0 ? '#6366f1' : '#94a3b8'};min-width:96px;text-align:right">${fmt(tot)}/mês</span>
+          ${_ccCanEdit ? `<button class="btn btn-ghost btn-sm" data-cc-edit="${uKey}">${editingU ? 'Fechar' : '✏️ Extra'}</button>` : ''}
         </div>
-        ${editing ? ccEditor(u) : ''}
+        ${editingU ? ccEditor(uKey) : ''}
       </div>`;
     }).join('');
-    grand += sub;
-    return `<div style="margin-top:14px">
-      <div style="display:flex;justify-content:space-between;font-weight:800;font-size:13px;margin-bottom:2px"><span>${TEAM_LBL[t] || ('🏷 ' + (t || '—'))}</span><span class="muted">${fmt(sub)}/mês · ${arr.length}</span></div>
+    return `<div style="margin-top:16px">
+      <div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px">
+        <span style="flex:1">${TEAM_LBL[t] || ('🏷 ' + (t || '—'))}</span>
+        <span class="muted tiny" style="font-weight:600">padrão ${fmt(padrao)}/corretor · total ${fmt(sub)}/mês · ${arr.length}</span>
+        ${_ccCanEdit ? `<button class="btn ${editingTeam ? 'btn-primary' : 'btn-ghost'} btn-sm" data-cc-edit="${teamKey}">${editingTeam ? 'Fechar' : '✏️ Padrão da equipe'}</button>` : ''}
+      </div>
+      ${editingTeam ? ccEditor(teamKey) : ''}
       ${rows}
     </div>`;
   }).join('');
   el.innerHTML = html
-    + `<div style="border-top:2px solid var(--border);margin-top:14px;padding-top:8px;display:flex;justify-content:space-between;font-weight:900"><span>Total fixo · todos os corretores</span><span style="color:#6366f1">${fmt(grand)}/mês</span></div>`;
+    + `<div style="border-top:2px solid var(--border);margin-top:16px;padding-top:8px;display:flex;justify-content:space-between;font-weight:900"><span>Total fixo · todos os corretores</span><span style="color:#6366f1">${fmt(grand)}/mês</span></div>`;
   const m = document.getElementById('cc-msg');
-  if (m) m.textContent = _ccCanEdit ? ('Clique em ✏️ pra lançar e-mail, logins, licenças por corretor. ' + (_ccMsg || '')) : '🔒 Só sócio/diretoria edita.';
+  if (m) m.textContent = _ccCanEdit ? ('Lance o PADRÃO da equipe (vale por corretor) e, se precisar, o ✏️ Extra de alguém. ' + (_ccMsg || '')) : '🔒 Só sócio/diretoria edita.';
   wireCC();
 }
 function ccSyncDraft() {
@@ -782,26 +794,33 @@ function ccSyncDraft() {
   el.querySelectorAll('[data-cc-field="nome"]').forEach(inp => { const i = +inp.dataset.i; if (_ccDraft[i]) _ccDraft[i].nome = inp.value; });
   el.querySelectorAll('[data-cc-field="valor"]').forEach(inp => { const i = +inp.dataset.i; if (_ccDraft[i]) _ccDraft[i].valor = +inp.value || 0; });
 }
+function ccDraftFor(key) {
+  const [kind, id] = key.split(':');
+  const itens = kind === 'team' ? ccTeamItens(id) : ccUserItens(id);
+  return JSON.parse(JSON.stringify(itens));
+}
 function wireCC() {
   const el = document.getElementById('cc-list'); if (!el) return;
   el.querySelectorAll('[data-cc-edit]').forEach(b => b.onclick = () => {
-    const uid = b.dataset.ccEdit;
-    if (_ccEdit === uid) { ccSyncDraft(); _ccEdit = null; }
-    else { _ccEdit = uid; _ccDraft = JSON.parse(JSON.stringify((_ccCustos[String(uid)] || {}).itens || [])); }
+    const key = b.dataset.ccEdit;
+    if (_ccEdit === key) { ccSyncDraft(); _ccEdit = null; }
+    else { _ccEdit = key; _ccDraft = ccDraftFor(key); }
     renderCustosCorretor();
   });
   el.querySelectorAll('[data-cc-add]').forEach(b => b.onclick = () => { ccSyncDraft(); _ccDraft.push({ nome: '', valor: 0 }); renderCustosCorretor(); });
   el.querySelectorAll('[data-cc-del]').forEach(b => b.onclick = () => { ccSyncDraft(); _ccDraft.splice(+b.dataset.ccDel, 1); renderCustosCorretor(); });
   el.querySelectorAll('[data-cc-save]').forEach(b => b.onclick = () => ccSave(b.dataset.ccSave));
 }
-async function ccSave(uid) {
+async function ccSave(key) {
   ccSyncDraft();
+  const [kind, id] = key.split(':');
   const itens = _ccDraft.filter(i => (i.nome || '').trim() || (+i.valor)).map(i => ({ nome: (i.nome || '').trim(), valor: +i.valor || 0 }));
   _ccMsg = '⏳ salvando…';
   const m = document.getElementById('cc-msg'); if (m) m.textContent = _ccMsg;
   try {
-    const r = await api.request('/api/v3/diretoria/custos_corretor', { method: 'POST', body: { action: 'set_user', uid, itens } });
-    if (r && r.ok) { _ccCustos = r.byuser || _ccCustos; _ccEdit = null; _ccMsg = '💾 salvo'; }
+    const body = kind === 'team' ? { action: 'set_team', team: id, itens } : { action: 'set_user', uid: id, itens };
+    const r = await api.request('/api/v3/diretoria/custos_corretor', { method: 'POST', body });
+    if (r && r.ok) { _ccData = { byteam: r.byteam || {}, byuser: r.byuser || {} }; _ccEdit = null; _ccMsg = '💾 salvo'; }
     else _ccMsg = '⚠️ ' + ((r && r.error) || 'erro');
   } catch (e) { _ccMsg = '⚠️ ' + e.message; }
   renderCustosCorretor();

@@ -176,7 +176,9 @@ class handler(BaseHTTPRequestHandler):
 
         # 💰 Custo total do corretor = investimento em ads (período) + custo fixo (mensal).
         _cf = read_custos_corretor(sb)
-        _cf_corr = _cf.get(str(cid), 0.0)
+        def _cf_of(_uid, _team):
+            return round(_cf["users"].get(str(_uid), 0.0) + _cf["teams"].get((_team or "").strip().lower(), 0.0), 2)
+        _cf_corr = _cf_of(cid, u.get("team"))
         _ads = metrics["ads_invest"]["invest"] or 0
         metrics["custo_fixo"] = _cf_corr
         metrics["custo_total"] = round(_ads + _cf_corr, 2)
@@ -220,7 +222,7 @@ class handler(BaseHTTPRequestHandler):
                 tmetrics["ads_invest"] = _ads_invest(team, tdeals)
                 tmetrics["lead_invest"] = tmetrics["ads_invest"]["invest"]
                 tmetrics["cpl_global"] = _ma["global_cpl"]
-                _cf_team = round(sum(_cf.get(str(x), 0.0) for x in mids), 2)
+                _cf_team = round(sum(_cf_of(x, team) for x in mids), 2)
                 tmetrics["custo_fixo"] = _cf_team
                 tmetrics["custo_total"] = round((tmetrics["ads_invest"]["invest"] or 0) + _cf_team, 2)
                 # 🔮 Previsão por PIPELINE (deals abertos ponderados pela etapa) vs meta
@@ -275,7 +277,7 @@ class handler(BaseHTTPRequestHandler):
                     mm = broker_metrics(deals_by_owner.get(m.get("id"), []), tevents, meta_for_period(all_metas, m.get("id"), since_d, until_d), since_d, until_d, today, detail=True, stage_maps=stage_maps)
                     _fn = mm.get("funnel") or []
                     _minv = _ads_invest(team, deals_by_owner.get(m.get("id"), []))["invest"] or 0
-                    _mcf = _cf.get(str(m.get("id")), 0.0)
+                    _mcf = _cf_of(m.get("id"), team)
                     membros.append({"id": m.get("id"), "name": m.get("name"), "role": m.get("role"),
                                     "ini": m.get("ini"), "color": m.get("color"),
                                     "vendas": mm["kpis"]["vendas"], "vgv": mm["kpis"]["vgv"],

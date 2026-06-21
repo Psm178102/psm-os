@@ -1,17 +1,21 @@
 """
-GET/POST /api/v3/diretoria/custos_corretor — Custo fixo individual por CORRETOR. v80.0
+GET/POST /api/v3/diretoria/custos_corretor — Custo fixo por CORRETOR. v80.4
 
-Quanto cada corretor custa de fixo por mês (e-mail, logins de sistema, licenças,
-softwares, etc). O sócio cadastra itens por corretor; o total alimenta:
-  • Métricas Viab (Diretoria) → custo fixo por corretor, agrupado por equipe;
-  • One-on-One → soma com o investimento em ads = QUANTO CUSTA CADA CORRETOR.
+Quanto cada corretor custa de fixo por mês (e-mail, logins, licenças…). Pra não
+ser trabalhoso, o sócio lança o PADRÃO DA EQUIPE uma vez (vale pra CADA corretor
+do time) e, se precisar, ajustes individuais por corretor (extras). Valores mensais.
 
-Guarda em shared_kv key 'custos_fixos_corretor' (sem SQL). Valores são MENSAIS.
+custo do corretor = itens do padrão da EQUIPE dele + itens individuais (extras).
+total da equipe = (nº de corretores × padrão da equipe) + soma dos extras.
 
-Estrutura: { "byuser": { "<uid>": { "itens": [{nome, valor}], "obs": str } } }
+Guarda em shared_kv 'custos_fixos_corretor' = {
+  "byteam": { "<equipe_lower>": { "itens": [{nome,valor}] } },   # vale por corretor
+  "byuser": { "<uid>":          { "itens": [{nome,valor}], "obs" } }  # extras individuais
+}
 
-GET  (lvl >= 5): { ok, byuser, can_edit }            — gestão lê (pro 1:1 e Viab)
-POST (lvl >= 7): action set_user {uid, itens, obs} | delete_user {uid}  — diretoria edita
+GET  (lvl >= 5): { ok, byteam, byuser, can_edit }
+POST (lvl >= 7): action set_team {team,itens} | delete_team {team}
+                       | set_user {uid,itens,obs} | delete_user {uid}
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, sys
@@ -24,8 +28,24 @@ KV_KEY = "custos_fixos_corretor"
 MAX_ITENS = 40
 
 
+def _clean_itens(raw):
+    out, total = [], 0.0
+    for i in (raw or [])[:MAX_ITENS]:
+        if not isinstance(i, dict):
+            continue
+        nome = str(i.get("nome") or "").strip()[:80]
+        try:
+            valor = round(float(i.get("valor") or 0), 2)
+        except Exception:
+            valor = 0.0
+        if nome or valor:
+            out.append({"nome": nome, "valor": valor})
+            total += valor
+    return out, round(total, 2)
+
+
 def read_custos(sb):
-    """Mapa {uid: {itens:[{nome,valor}], obs, total}}. Reutilizável por outros endpoints."""
+    """{'byteam': {team:{itens,total}}, 'byuser': {uid:{itens,obs,total}}}."""
     try:
         rows = sb.table("shared_kv").select("value").eq("key", KV_KEY).limit(1).execute().data or []
         val = rows[0]["value"] if rows else {}
@@ -33,33 +53,23 @@ def read_custos(sb):
             val = json.loads(val)
     except Exception:
         val = {}
-    byuser = (val or {}).get("byuser") if isinstance(val, dict) else None
-    out = {}
-    if isinstance(byuser, dict):
-        for uid, e in byuser.items():
-            itens = [i for i in (e.get("itens") or []) if isinstance(i, dict)] if isinstance(e, dict) else []
-            total = 0.0
-            clean = []
-            for i in itens:
-                try:
-                    v = float(i.get("valor") or 0)
-                except Exception:
-                    v = 0.0
-                clean.append({"nome": str(i.get("nome") or "").strip()[:80], "valor": round(v, 2)})
-                total += v
-            out[str(uid)] = {"itens": clean, "obs": str((e.get("obs") if isinstance(e, dict) else "") or "")[:300],
-                             "total": round(total, 2)}
-    return out
+    val = val if isinstance(val, dict) else {}
+    byteam_raw = val.get("byteam") if isinstance(val.get("byteam"), dict) else {}
+    byuser_raw = val.get("byuser") if isinstance(val.get("byuser"), dict) else {}
+    byteam = {}
+    for t, e in byteam_raw.items():
+        itens, total = _clean_itens(e.get("itens") if isinstance(e, dict) else None)
+        byteam[str(t).strip().lower()] = {"itens": itens, "total": total}
+    byuser = {}
+    for uid, e in byuser_raw.items():
+        itens, total = _clean_itens(e.get("itens") if isinstance(e, dict) else None)
+        byuser[str(uid)] = {"itens": itens, "total": total,
+                            "obs": str((e.get("obs") if isinstance(e, dict) else "") or "")[:300]}
+    return {"byteam": byteam, "byuser": byuser}
 
 
-def custo_fixo_de(sb_custos, uid):
-    """Total mensal de custo fixo de um corretor (0 se não cadastrado)."""
-    e = (sb_custos or {}).get(str(uid))
-    return (e or {}).get("total", 0.0) if e else 0.0
-
-
-def _write(sb, byuser):
-    sb.table("shared_kv").upsert({"key": KV_KEY, "value": {"byuser": byuser},
+def _write(sb, byteam, byuser):
+    sb.table("shared_kv").upsert({"key": KV_KEY, "value": {"byteam": byteam, "byuser": byuser},
                                  "updated_at": datetime.now(timezone.utc).isoformat()},
                                 on_conflict="key").execute()
 
@@ -89,8 +99,10 @@ class handler(BaseHTTPRequestHandler):
             return self._send(e.status, {"ok": False, "error": e.message})
         try:
             sb = supabase_client()
-            return self._send(200, {"ok": True, "byuser": read_custos(sb),
-                                    "can_edit": (user.get("lvl") or 0) >= 7})
+            cur = read_custos(sb)
+            cur["ok"] = True
+            cur["can_edit"] = (user.get("lvl") or 0) >= 7
+            return self._send(200, cur)
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
 
@@ -105,37 +117,43 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             return self._send(400, {"ok": False, "error": "JSON inválido"})
 
-        action = (body.get("action") or "set_user").strip()
-        uid = str(body.get("uid") or "").strip()
-        if not uid:
-            return self._send(400, {"ok": False, "error": "uid obrigatório"})
+        action = (body.get("action") or "").strip()
         try:
             sb = supabase_client()
             cur = read_custos(sb)
-            byuser = {k: {"itens": v["itens"], "obs": v["obs"]} for k, v in cur.items()}
+            byteam = {t: {"itens": v["itens"]} for t, v in cur["byteam"].items()}
+            byuser = {k: {"itens": v["itens"], "obs": v["obs"]} for k, v in cur["byuser"].items()}
 
-            if action == "delete_user":
-                byuser.pop(uid, None)
-            else:  # set_user
-                raw = body.get("itens") or []
-                itens = []
-                for i in raw[:MAX_ITENS]:
-                    if not isinstance(i, dict):
-                        continue
-                    nome = str(i.get("nome") or "").strip()[:80]
-                    try:
-                        valor = round(float(i.get("valor") or 0), 2)
-                    except Exception:
-                        valor = 0.0
-                    if nome or valor:
-                        itens.append({"nome": nome, "valor": valor})
-                byuser[uid] = {"itens": itens, "obs": str(body.get("obs") or "").strip()[:300]}
+            if action in ("set_team", "delete_team"):
+                team = str(body.get("team") or "").strip().lower()
+                if not team:
+                    return self._send(400, {"ok": False, "error": "team obrigatório"})
+                if action == "delete_team":
+                    byteam.pop(team, None)
+                else:
+                    itens, _ = _clean_itens(body.get("itens"))
+                    byteam[team] = {"itens": itens}
+                tgt = ("team", team)
+            elif action in ("set_user", "delete_user"):
+                uid = str(body.get("uid") or "").strip()
+                if not uid:
+                    return self._send(400, {"ok": False, "error": "uid obrigatório"})
+                if action == "delete_user":
+                    byuser.pop(uid, None)
+                else:
+                    itens, _ = _clean_itens(body.get("itens"))
+                    byuser[uid] = {"itens": itens, "obs": str(body.get("obs") or "").strip()[:300]}
+                tgt = ("user", uid)
+            else:
+                return self._send(400, {"ok": False, "error": "action inválida"})
 
-            _write(sb, byuser)
+            _write(sb, byteam, byuser)
             try:
-                audit(self, actor, "custos_corretor_" + action, "user", uid, notes=None)
+                audit(self, actor, "custos_corretor_" + action, tgt[0], tgt[1], notes=None)
             except Exception:
                 pass
-            return self._send(200, {"ok": True, "byuser": read_custos(sb)})
+            out = read_custos(sb)
+            out["ok"] = True
+            return self._send(200, out)
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
