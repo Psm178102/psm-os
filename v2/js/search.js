@@ -74,6 +74,7 @@ function runQuery(q) {
 }
 
 function resultsHTML() {
+  if (_idx === null) return '<div style="padding:18px;text-align:center;color:#94a3b8;font-size:13px"><span class="spinner"></span> Carregando índice…</div>';
   if (!_results.length) return '<div style="padding:18px;text-align:center;color:#94a3b8;font-size:13px">Nada encontrado. Tente outro termo.</div>';
   return _results.map((r, n) => `
     <div class="gs-row ${n === _sel ? 'on' : ''}" data-i="${n}">
@@ -153,4 +154,6 @@ export function initSearch() {
     if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); _open ? close() : openSearch(); }
   });
   document.getElementById('btn-search')?.addEventListener('click', openSearch);
+  // pré-aquece o índice no boot → quando abrir, já vem instantâneo (sem flash de "nada encontrado")
+  setTimeout(() => { try { ensureIndex(); } catch (_) {} }, 1500);
 }
