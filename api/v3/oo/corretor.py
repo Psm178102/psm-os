@@ -203,6 +203,28 @@ class handler(BaseHTTPRequestHandler):
                 tmetrics = broker_metrics(tdeals, tevents, tmeta, since_d, until_d, today, detail=True, stage_maps=stage_maps)
                 tmetrics["lead_invest"] = round(cpl * (tmetrics["kpis"]["leads"] or 0), 2) if cpl else None
                 tmetrics["cpl_global"] = cpl
+                # 🔮 Previsão por PIPELINE (deals abertos ponderados pela etapa) vs meta
+                def _wstage(name):
+                    n = (name or "").lower()
+                    for kw, w in (("contrato", 0.9), ("pasta", 0.8), ("propost", 0.7), ("negocia", 0.7),
+                                  ("aprova", 0.7), ("visita", 0.5), ("qualific", 0.4), ("agenda", 0.3), ("contato", 0.15)):
+                        if kw in n:
+                            return w
+                    return 0.1
+                _open = [d for d in tdeals if d.get("win") is None]
+                _pb = sum(float(d.get("amount") or 0) for d in _open)
+                _pp = sum(float(d.get("amount") or 0) * _wstage(d.get("stage_name")) for d in _open)
+                _comp = sum(float(d.get("amount") or 0) for d in _open if _wstage(d.get("stage_name")) >= 0.7)
+                _ja = tmetrics["kpis"]["vgv"] or 0
+                _metav = tmeta.get("meta_vgv") or 0
+                _prev = _ja + _pp
+                tmetrics["pipeline"] = {
+                    "abertos": len(_open), "bruto": round(_pb, 2), "ponderado": round(_pp, 2),
+                    "comprometido": round(_comp, 2), "ja_vendido": round(_ja, 2),
+                    "meta_vgv": _metav, "previsto_total": round(_prev, 2),
+                    "gap": round(max(0, _metav - _prev), 2) if _metav else None,
+                    "cobertura_pct": (round(_prev / _metav * 100) if _metav else None),
+                }
                 # por membro (resumo leve)
                 deals_by_owner = {}
                 email2id = {(m.get("email") or "").lower(): m.get("id") for m in members}
@@ -224,13 +246,18 @@ class handler(BaseHTTPRequestHandler):
                 for m in members:
                     if (m.get("role") or "").lower() == "lider":
                         continue  # o gestor não aparece como corretor da própria equipe
-                    mm = broker_metrics(deals_by_owner.get(m.get("id"), []), {}, meta_for_period(all_metas, m.get("id"), since_d, until_d), since_d, until_d, today, detail=False)
+                    mm = broker_metrics(deals_by_owner.get(m.get("id"), []), tevents, meta_for_period(all_metas, m.get("id"), since_d, until_d), since_d, until_d, today, detail=True, stage_maps=stage_maps)
+                    _fn = mm.get("funnel") or []
                     membros.append({"id": m.get("id"), "name": m.get("name"), "role": m.get("role"),
                                     "ini": m.get("ini"), "color": m.get("color"),
                                     "vendas": mm["kpis"]["vendas"], "vgv": mm["kpis"]["vgv"],
                                     "visitas": mm["kpis"]["visitas"], "leads": mm["kpis"]["leads"],
                                     "win_rate": mm["win_rate"], "health": mm["health"], "health_color": mm["health_color"],
                                     "meta_attainment_pct": mm["meta_attainment_pct"], "alertas_count": len(mm["alertas"]),
+                                    # 🔥 conversão por etapa (matriz de coaching) + 📉 tendência mensal
+                                    "conv": [s.get("conv_from_prev") for s in _fn[1:]],
+                                    "funnel_n": [s.get("n") for s in _fn],
+                                    "trend": mm.get("trend") or [],
                                     "last_oo": last_oo.get(m.get("id")), "proxima_oo": prox_oo.get(m.get("id"))})
                 membros.sort(key=lambda x: (-(x["alertas_count"]), x["health"]))
                 resp["team"] = {"name": team, "members": membros, "metrics": tmetrics, "deals_total": len(tdeals)}

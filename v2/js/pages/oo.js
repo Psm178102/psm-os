@@ -155,6 +155,7 @@ function renderGestor(d, c) {
         ${projecaoPanel({ projecao: M.projecao })}
         ${reverseFunnelPanel({ funil_reverso: M.funil_reverso })}
       </div>
+      <div style="margin-top:14px">${pipelinePanel(M)}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
         ${saudeEquipePanel(t)}
         ${kpiVsMeta(M)}
@@ -163,6 +164,8 @@ function renderGestor(d, c) {
         ${gargaloPanel(M)}
         ${focoSemanaPanel(t)}
       </div>
+      <div style="margin-top:14px">${matrizConversaoPanel(t)}</div>
+      <div style="margin-top:14px">${tendenciaPanel(t)}</div>
       ${rankingPanel(t)}
       <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:14px;align-items:start">
         <div>${funnelPanel(M)}</div>
@@ -572,6 +575,75 @@ function wirePeriod(reloadFn) {
   });
   document.getElementById('oo-range-clear')?.addEventListener('click', () => { _since = ''; _until = ''; reloadFn(); });
 }
+/* 🔮 Previsão por pipeline: já vendido + pipeline ponderado vs meta */
+function pipelinePanel(M) {
+  const p = M.pipeline;
+  if (!p) return '';
+  const cob = p.cobertura_pct;
+  const cor = cob == null ? '#64748b' : (cob >= 100 ? '#16a34a' : cob >= 70 ? '#d97706' : '#dc2626');
+  return panel('🔮 Previsão por pipeline (forecast real)', `
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
+      <div><div class="tiny muted">Já vendido</div><div style="font-size:18px;font-weight:900;color:#16a34a">R$ ${moneyShort(p.ja_vendido)}</div></div>
+      <div style="font-size:18px;color:#94a3b8">+</div>
+      <div><div class="tiny muted">Pipeline provável</div><div style="font-size:18px;font-weight:900;color:#2563eb">R$ ${moneyShort(p.ponderado)}</div></div>
+      <div style="font-size:18px;color:#94a3b8">=</div>
+      <div><div class="tiny muted">Previsto no fim</div><div style="font-size:20px;font-weight:900;color:${cor}">R$ ${moneyShort(p.previsto_total)}</div></div>
+      ${p.meta_vgv ? `<div style="margin-left:auto;text-align:right"><div class="tiny muted">da meta</div><div style="font-size:20px;font-weight:900;color:${cor}">${cob}%</div></div>` : ''}
+    </div>
+    ${p.meta_vgv ? bar(Math.min(100, cob || 0), cob >= 100 ? 'verde' : cob >= 70 ? 'amarelo' : 'vermelho') : ''}
+    <div class="tiny muted" style="margin-top:6px">${p.abertos} negócio(s) aberto(s) · 🔒 R$ ${moneyShort(p.comprometido)} quase fechando (proposta/pasta/contrato).
+      ${p.meta_vgv ? (cob >= 100 ? ' ✅ Pipeline cobre a meta.' : ` 🔴 Falta R$ ${moneyShort(p.gap)} entrar no funil pra cobrir a meta.`) : ' Defina a meta da equipe pra ver a cobertura.'}</div>`);
+}
+
+/* 🔥 Matriz de conversão: corretor × etapa do funil (vermelho = onde cada um trava) */
+function matrizConversaoPanel(t) {
+  const ms = (t.members || []).filter(m => (m.conv || []).some(v => v != null));
+  if (!ms.length) return panel('🔥 Conversão por corretor × etapa', '<div class="tiny muted">Sem dados de conversão por etapa no período.</div>');
+  const cols = ['Lead→Cont', 'Cont→Agend', 'Agend→Visita', 'Visita→Prop', 'Prop→Pasta', 'Pasta→Venda'];
+  // média por coluna (pra colorir relativo: vermelho = bem abaixo da média da equipe)
+  const avg = cols.map((_, j) => { const vals = ms.map(m => m.conv[j]).filter(v => v != null); return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null; });
+  const cell = (v, j) => {
+    if (v == null) return '<td style="text-align:center;color:#cbd5e1;padding:5px 4px">—</td>';
+    const a = avg[j]; let bg = '#dcfce7', cor = '#166534';
+    if (a != null) { if (v < a * 0.6) { bg = '#fee2e2'; cor = '#b91c1c'; } else if (v < a) { bg = '#fef3c7'; cor = '#92400e'; } }
+    return `<td style="text-align:center;padding:5px 4px"><span style="background:${bg};color:${cor};font-weight:700;border-radius:6px;padding:2px 6px;font-size:11.5px">${v}%</span></td>`;
+  };
+  return panel('🔥 Conversão por corretor × etapa (foco de coaching)', `
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:620px">
+      <thead><tr style="color:var(--ink-muted);font-size:10.5px"><th style="text-align:left;padding:4px 6px">Corretor</th>${cols.map(c => `<th style="padding:4px 4px">${c}</th>`).join('')}</tr></thead>
+      <tbody>${ms.map(m => `<tr data-member="${escapeHtml(m.id)}" style="cursor:pointer;border-top:1px solid var(--border)" onmouseover="this.style.background='var(--bg-3)'" onmouseout="this.style.background='transparent'">
+        <td style="padding:5px 6px;font-weight:600;white-space:nowrap">${escapeHtml((m.name || '').split(' ')[0])}</td>
+        ${m.conv.map((v, j) => cell(v, j)).join('')}
+      </tr>`).join('')}
+      <tr style="border-top:2px solid var(--border);font-weight:800;color:#64748b"><td style="padding:5px 6px">Média</td>${avg.map(a => `<td style="text-align:center;padding:5px 4px">${a != null ? Math.round(a) + '%' : '—'}</td>`).join('')}</tr>
+      </tbody></table></div>
+    <div class="tiny muted" style="margin-top:6px">🔴 vermelho = bem abaixo da média da equipe naquela etapa → treine isso com a pessoa. Clique no corretor pra abrir.</div>`);
+}
+
+/* 📉 Tendência por corretor: VGV mês a mês + alerta de queda */
+function tendenciaPanel(t) {
+  const ms = (t.members || []).filter(m => (m.trend || []).length >= 2);
+  if (!ms.length) return panel('📉 Tendência por corretor', '<div class="tiny muted">Histórico mensal insuficiente pra calcular tendência ainda.</div>');
+  const spark = (tr) => {
+    const vals = tr.map(x => x.vgv || 0); const mx = Math.max(1, ...vals);
+    return `<span style="display:inline-flex;align-items:flex-end;gap:2px;height:24px">${vals.slice(-6).map(v => `<span style="width:6px;height:${Math.max(2, Math.round(v / mx * 24))}px;background:${v ? '#2563eb' : '#e2e8f0'};border-radius:1px"></span>`).join('')}</span>`;
+  };
+  const rows = ms.map(m => {
+    const tr = m.trend; const ult = tr[tr.length - 1].vgv || 0, pen = tr[tr.length - 2].vgv || 0;
+    const queda = ult < pen, delta = pen ? Math.round((ult - pen) / pen * 100) : (ult ? 100 : 0);
+    return { m, queda, delta, ult, pen, tr };
+  }).sort((a, b) => a.delta - b.delta);
+  return panel('📉 Tendência por corretor (VGV mês a mês)', `
+    <div style="display:flex;flex-direction:column;gap:5px">
+    ${rows.map(r => `<div data-member="${escapeHtml(r.m.id)}" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:8px;background:${r.queda ? '#fef2f2' : 'var(--bg-3)'}">
+      <b style="font-size:13px;flex:1;min-width:0">${escapeHtml((r.m.name || '').split(' ')[0])}</b>
+      ${spark(r.tr)}
+      <span style="font-weight:800;font-size:12px;color:${r.queda ? '#dc2626' : '#16a34a'};min-width:64px;text-align:right">${r.queda ? '🔻' : '🔺'} ${r.delta > 0 ? '+' : ''}${r.delta}%</span>
+    </div>`).join('')}
+    </div>
+    <div class="tiny muted" style="margin-top:6px">Variação do último mês vs o anterior. 🔻 em queda = priorize na 1:1.</div>`);
+}
+
 /* 🔻 Gargalo do funil da equipe: a etapa que MENOS converte = foco de coaching */
 function gargaloPanel(M) {
   const f = (M.funnel || []).filter(s => s.conv_from_prev != null);
