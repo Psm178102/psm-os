@@ -41,6 +41,7 @@ import { pageLinksUteis } from './pages/links-uteis.js';
 import { pageSacIncorporadoras } from './pages/sac-incorporadoras.js';
 import { pageSistemasIncorporadoras } from './pages/sistemas-incorporadoras.js';
 import { initSearch } from './search.js';
+import { pageQualidade } from './pages/qualidade.js';
 import { pageReunioes } from './pages/reunioes.js';
 import { pageArena } from './pages/arena.js';
 import { pageForecast } from './pages/forecast.js';
@@ -146,7 +147,7 @@ export const ROUTE_GROUP = {
   '/simuladores': 'ferramentas', '/relatorios': 'diretoria',
   // Sistema
   '/usuarios': 'sistema', '/auditoria': 'sistema', '/integracoes': 'sistema',
-  '/backup': 'sistema', '/configuracoes': 'sistema', '/config-menu': 'sistema', '/logins': 'sistema',
+  '/backup': 'sistema', '/configuracoes': 'sistema', '/config-menu': 'sistema', '/logins': 'sistema', '/qualidade': 'sistema',
   // Conta (sempre)
   '/conta': 'conta',
   // simuladores Leads/CAC e Criativos migraram p/ Marketing (VPL/INCC/Repasse/Energia → Imóveis & Vendas, acima)
@@ -180,6 +181,7 @@ export const ROUTE_MIN_LVL = {
   '/academy-studio': 5,   // produção/construção da Academy — só time que constrói (líder+)
   '/config-menu': 10,     // renomear o menu/páginas — só sócio
   '/psmhub': 7,           // auditoria do PSM HUB (Conquista) — diretoria
+  '/qualidade': 7,        // saúde dos cadastros — diretoria+
 };
 
 // Override por PAPEL (matriz editável pelo sócio em Configurações → Permissões por papel).
@@ -306,7 +308,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '78.4.0';
+const APP_VERSION = '78.5.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -503,6 +505,7 @@ const APP_VERSION = '78.4.0';
   router.register('/configuracoes', { render: async (ctx, root) => { setHeader('Configurações'); highlight('/configuracoes'); await pageConfiguracoes(ctx, root); } });
   router.register('/config-menu', { render: async (ctx, root) => { setHeader('Nomes do Menu'); highlight('/config-menu'); await pageConfigMenu(ctx, root); } });
   router.register('/logins',    { render: async (ctx, root) => { setHeader('Logins e Senhas'); highlight('/logins'); await pageLogins(ctx, root); } });
+  router.register('/qualidade', { render: async (ctx, root) => { setHeader('Qualidade dos Dados'); highlight('/qualidade'); await pageQualidade(ctx, root); } });
   router.register('*',          { render: page404 });
 
   // 5) Monta router
@@ -675,6 +678,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/configuracoes"><span class="sb-ico">🔧</span> Configurações</button>
         <button class="sb-link" data-nav="/config-menu"><span class="sb-ico">✏️</span> Nomes do Menu</button>
         <button class="sb-link" data-nav="/logins"><span class="sb-ico">🔐</span> Logins e Senhas</button>
+        <button class="sb-link" data-nav="/qualidade"><span class="sb-ico">🧹</span> Qualidade dos Dados</button>
 
         <div class="sb-sec">👤 Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
