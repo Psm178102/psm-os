@@ -20,6 +20,7 @@ from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from _oo_lib import (  # type: ignore
     window, months_in_range, broker_metrics, parse_dt, build_stage_maps, read_meta_spend, meta_for_period,
     read_meta_accounts, match_team_account, read_team_account_override,
+    read_meta_campaigns, compute_ads_invest,
 )
 
 
@@ -156,21 +157,22 @@ class handler(BaseHTTPRequestHandler):
         # Usa o CPL REAL daquela conta (gasto Meta ÷ leads Meta da conta); fallback = CPL global. ──
         _ma = read_meta_accounts(sb)
         _ovr = read_team_account_override(sb)
+        _mc = read_meta_campaigns(sb)        # CPL por campanha (atribuição EXATA por lead)
 
-        def _ads_invest(team, leads):
+        def _ads_invest(team, deals_subset):
             acc = match_team_account(_ma["accounts"], team, _ovr)
-            cpl = acc["cpl"] if (acc and acc.get("cpl") is not None) else _ma["global_cpl"]
-            ld = leads or 0
-            return {
-                "cpl": cpl, "cpl_team": (acc["cpl"] if acc else None), "cpl_global": _ma["global_cpl"],
-                "conta_label": (acc["label"] if acc else None), "conta_id": (acc["id"] if acc else None),
-                "conta_spend": (acc["spend"] if acc else None), "conta_leads": (acc["leads"] if acc else None),
-                "leads_corretor": ld, "invest": round(cpl * ld, 2) if cpl else None,
-                "base": ("equipe" if (acc and acc.get("cpl") is not None) else ("global" if _ma["global_cpl"] else None)),
-                "periodo_cpl": _ma["preset_used"],
-            }
-        metrics["ads_invest"] = _ads_invest(u.get("team"), metrics["kpis"]["leads"])
-        metrics["cpl_global"] = metrics["ads_invest"]["cpl"]            # compat UI
+            team_cpl = acc["cpl"] if (acc and acc.get("cpl") is not None) else None
+            r = compute_ads_invest(deals_subset, since_d, until_d, _mc, team_cpl, _ma["global_cpl"])
+            r["cpl_team"] = team_cpl
+            r["cpl_global"] = _ma["global_cpl"]
+            r["acct_label"] = acc["label"] if acc else None
+            r["acct_id"] = acc["id"] if acc else None
+            r["acct_spend"] = acc["spend"] if acc else None
+            r["acct_leads"] = acc["leads"] if acc else None
+            r["base"] = ("equipe" if team_cpl is not None else ("global" if _ma["global_cpl"] else None))
+            return r
+        metrics["ads_invest"] = _ads_invest(u.get("team"), deals)
+        metrics["cpl_global"] = _ma["global_cpl"]                       # compat UI
         metrics["lead_invest"] = metrics["ads_invest"]["invest"]       # compat UI
 
         resp = {
@@ -209,9 +211,9 @@ class handler(BaseHTTPRequestHandler):
                     for k in tmeta:
                         tmeta[k] += ms.get(k, 0)
                 tmetrics = broker_metrics(tdeals, tevents, tmeta, since_d, until_d, today, detail=True, stage_maps=stage_maps)
-                tmetrics["ads_invest"] = _ads_invest(team, tmetrics["kpis"]["leads"])
+                tmetrics["ads_invest"] = _ads_invest(team, tdeals)
                 tmetrics["lead_invest"] = tmetrics["ads_invest"]["invest"]
-                tmetrics["cpl_global"] = tmetrics["ads_invest"]["cpl"]
+                tmetrics["cpl_global"] = _ma["global_cpl"]
                 # 🔮 Previsão por PIPELINE (deals abertos ponderados pela etapa) vs meta
                 def _wstage(name):
                     n = (name or "").lower()
@@ -269,7 +271,7 @@ class handler(BaseHTTPRequestHandler):
                                     "visitas": mm["kpis"]["visitas"], "leads": mm["kpis"]["leads"],
                                     "win_rate": mm["win_rate"], "health": mm["health"], "health_color": mm["health_color"],
                                     "meta_attainment_pct": mm["meta_attainment_pct"], "alertas_count": len(mm["alertas"]),
-                                    "lead_invest": _ads_invest(team, mm["kpis"]["leads"])["invest"],
+                                    "lead_invest": _ads_invest(team, deals_by_owner.get(m.get("id"), []))["invest"],
                                     # 🔥 conversão por etapa (matriz de coaching) + 📉 tendência mensal
                                     "conv": [s.get("conv_from_prev") for s in _fn[1:]],
                                     "funnel_n": [s.get("n") for s in _fn],

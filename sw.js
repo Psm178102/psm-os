@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v79.5.0-2026-06-20-INVESTADS';
+const SW_VERSION = 'v79.6.0-2026-06-20-INVESTEXATO';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

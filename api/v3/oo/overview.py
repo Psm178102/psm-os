@@ -121,6 +121,17 @@ class handler(BaseHTTPRequestHandler):
             members_by_team[(u.get("team") or "").lower()].append(u)
         is_socio = (user.get("lvl") or 0) >= 10
 
+        # 💸 Investimento em ads por LEAD (CPL exato da campanha do lead; fallback conta da equipe)
+        _ma = read_meta_accounts(sb)
+        _ovr = read_team_account_override(sb)
+        _mc = read_meta_campaigns(sb)
+
+        def _row_invest(team, dsub):
+            acc = match_team_account(_ma["accounts"], team, _ovr)
+            tcpl = acc["cpl"] if (acc and acc.get("cpl") is not None) else None
+            r = compute_ads_invest(dsub, since_d, until_d, _mc, tcpl, _ma["global_cpl"])
+            return r["invest"], ("equipe" if tcpl is not None else ("global" if _ma["global_cpl"] else None)), (acc["label"] if acc else None)
+
         out = []
         for u in people:
             cid = u.get("id")
@@ -139,8 +150,11 @@ class handler(BaseHTTPRequestHandler):
                     for k in tmeta:
                         tmeta[k] += (ms.get(k, 0) if ms else 0)
                 m = broker_metrics(tdeals, {}, tmeta, since_d, until_d, today, detail=False)
+                row_deals = tdeals
             else:
-                m = broker_metrics(by_owner.get(cid, []), {}, meta_by_id.get(cid), since_d, until_d, today, detail=False)
+                row_deals = by_owner.get(cid, [])
+                m = broker_metrics(row_deals, {}, meta_by_id.get(cid), since_d, until_d, today, detail=False)
+            _inv, _invbase, _invlbl = _row_invest(u.get("team"), row_deals)
             out.append({
                 "id": cid, "name": u.get("name"), "role": u.get("role"), "team": u.get("team"),
                 "ini": u.get("ini"), "color": u.get("color"),
@@ -155,18 +169,8 @@ class handler(BaseHTTPRequestHandler):
                 "alertas_top": [a["txt"] for a in m["alertas"][:2]],
                 "pendencias": m["pendencias"],
                 "last_oo": last_oo.get(cid), "proxima_oo": prox_oo.get(cid),
+                "lead_invest": _inv, "cpl_base": _invbase, "conta_label": _invlbl,
             })
-        # ── Investimento em ads / lead — CPL da CONTA da equipe de cada corretor
-        # (gasto Meta ÷ leads Meta da conta) × leads do corretor; fallback CPL global. ──
-        _ma = read_meta_accounts(sb)
-        _ovr = read_team_account_override(sb)
-        cpl = _ma["global_cpl"]
-        for c in out:
-            acc = match_team_account(_ma["accounts"], c.get("team"), _ovr)
-            ccpl = acc["cpl"] if (acc and acc.get("cpl") is not None) else _ma["global_cpl"]
-            c["lead_invest"] = round(ccpl * (c["leads"] or 0), 2) if ccpl else None
-            c["cpl_used"] = ccpl
-            c["cpl_base"] = ("equipe" if (acc and acc.get("cpl") is not None) else ("global" if _ma["global_cpl"] else None))
         # ordena: mais alertas primeiro, depois menor health (quem precisa de atenção)
         out.sort(key=lambda x: (-(x["alertas_count"]), x["health"]))
 

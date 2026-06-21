@@ -246,6 +246,129 @@ def read_team_account_override(sb):
         return {}
 
 
+# ─── 💸 Atribuição EXATA de investimento em ads (CPL por campanha) ──────────────
+def _norm_camp(s):
+    """Normaliza nome de campanha pra casar lead↔Meta (tira prefixo 'PSM X - ' e pontuação)."""
+    s = (s or "").lower()
+    s = re.sub(r"^psm\s+\w+\s*-\s*", "", s)
+    return re.sub(r"[^a-z0-9]+", "", s)
+
+
+def _camp_code(s):
+    """Extrai o código da campanha (Cod.Conquista21, Cód.70A, ConquistaNN) — chave forte de join."""
+    s = (s or "").lower()
+    m = re.search(r"c[oó]d\.?\s*([a-z0-9]+)", s)
+    if m:
+        return "c" + m.group(1)
+    m = re.search(r"(conquista\d+)", s)
+    if m:
+        return "c" + m.group(1)
+    return None
+
+
+def read_meta_campaigns(sb, preset=None):
+    """CPL POR CAMPANHA do cache Meta (índices por nome normalizado e por código), pra
+    cruzar com a campanha de origem de cada lead (rd_raw.campaign). Lê 1 payload mensal."""
+    for p in [preset, "last_30d", "this_month", "last_month", "last_14d", "last_7d"]:
+        if not p:
+            continue
+        try:
+            rows = (sb.table("meta_ads_cache").select("payload")
+                    .eq("date_preset", p).order("refreshed_at", desc=True).limit(1).execute().data or [])
+        except Exception:
+            continue
+        if not rows:
+            continue
+        camps = (rows[0].get("payload") or {}).get("campaigns") or []
+        by_name, by_code, lst = {}, {}, []
+        for c in camps:
+            try:
+                sp = float(c.get("spend") or 0)
+                ld = int(float(c.get("leads") or 0))
+            except Exception:
+                sp, ld = 0.0, 0
+            if ld <= 0:
+                continue
+            rec = {"name": c.get("name"), "cpl": round(sp / ld, 2), "leads": ld, "spend": round(sp, 2)}
+            lst.append(rec)
+            nm, cd = _norm_camp(c.get("name")), _camp_code(c.get("name"))
+            if nm and nm not in by_name:
+                by_name[nm] = rec
+            if cd and cd not in by_code:
+                by_code[cd] = rec
+        if lst:
+            return {"by_name": by_name, "by_code": by_code, "list": lst, "preset_used": p}
+    return {"by_name": {}, "by_code": {}, "list": [], "preset_used": None}
+
+
+def lead_campaign_name(deal):
+    """Nome da campanha de origem do lead (rd_raw.campaign)."""
+    c = (deal.get("rd_raw") or {}).get("campaign")
+    if isinstance(c, dict):
+        return (c.get("name") or "").strip() or None
+    if isinstance(c, str):
+        return c.strip() or None
+    return None
+
+
+def match_campaign_cpl(camp_name, mc):
+    """CPL da campanha Meta pra um nome de campanha de lead: tenta nome normalizado
+    (contains nos 2 sentidos) e depois o código. None se não casar."""
+    if not camp_name or not mc:
+        return None
+    n = _norm_camp(camp_name)
+    if n:
+        rec = mc["by_name"].get(n)
+        if rec:
+            return rec
+        for k, rec in mc["by_name"].items():
+            if k and (n in k or k in n):
+                return rec
+    cd = _camp_code(camp_name)
+    if cd and cd in mc["by_code"]:
+        return mc["by_code"][cd]
+    return None
+
+
+def compute_ads_invest(deals, since_d, until_d, mc, team_cpl, global_cpl):
+    """💸 Investimento em ads por LEAD RECEBIDO no período (created_at em [since,until]).
+    Cascata honesta por lead:
+      1) campanha do lead casa com campanha Meta → CPL EXATO da campanha;
+      2) lead pago (canal Meta) sem match de campanha → CPL da conta da equipe (fallback);
+      3) canal não-pago/Meta (indicação, orgânico, direto, portal, Google) → R$ 0 (não é ads Meta).
+    Devolve invest total + quebra por método (exato / conta / zero) e cobertura."""
+    since_dt = datetime(since_d.year, since_d.month, since_d.day, tzinfo=timezone.utc)
+    until_dt = datetime(until_d.year, until_d.month, until_d.day, 23, 59, 59, tzinfo=timezone.utc)
+    total = exato_n = fb_n = zero_n = 0
+    inv = exato_v = fb_v = 0.0
+    for d in deals:
+        raw = d.get("rd_raw") or {}
+        created = parse_dt(d.get("created_at_rd")) or parse_dt(raw.get("created_at"))
+        if not (created and since_dt <= created <= until_dt):
+            continue
+        total += 1
+        rec = match_campaign_cpl(lead_campaign_name(d), mc)
+        if rec and rec.get("cpl") is not None:
+            inv += rec["cpl"]; exato_v += rec["cpl"]; exato_n += 1
+        elif channel(source(raw)) == "meta":
+            c = team_cpl if team_cpl is not None else global_cpl
+            if c:
+                inv += c; fb_v += c; fb_n += 1
+            else:
+                zero_n += 1
+        else:
+            zero_n += 1
+    return {
+        "metodo": "exato", "leads": total, "invest": round(inv, 2),
+        "exato_leads": exato_n, "exato_valor": round(exato_v, 2),
+        "conta_leads": fb_n, "conta_valor": round(fb_v, 2),
+        "zero_leads": zero_n,
+        "cobertura_pct": (round(exato_n / total * 100) if total else None),
+        "cpl_medio": (round(inv / (exato_n + fb_n), 2) if (exato_n + fb_n) else None),
+        "preset_cpl": mc.get("preset_used") if mc else None,
+    }
+
+
 META_FIELDS = ("meta_vgv", "meta_vendas", "meta_visitas", "meta_pastas", "meta_propostas", "meta_agendamentos")
 
 
