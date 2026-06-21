@@ -96,8 +96,10 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        # 🔒 One-on-One é ferramenta de GESTÃO: só socio/gerente/líder (lvl>=5).
+        # O CORRETOR não vê o 1:1 — nem o dele mesmo (decisão do sócio, v79.9).
         try:
-            user = require_user(self, min_lvl=0)
+            user = require_user(self, min_lvl=5)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
 
@@ -108,9 +110,6 @@ class handler(BaseHTTPRequestHandler):
         cid = params.get("corretor_id")
         if not cid:
             return self._send(400, {"ok": False, "error": "corretor_id obrigatório"})
-        # Permissão: gestão (lvl>=5) vê qualquer um; corretor só a si mesmo.
-        if (user.get("lvl") or 0) < 5 and user.get("id") != cid:
-            return self._send(403, {"ok": False, "error": "sem permissão"})
 
         sb = supabase_client()
         if not sb:
