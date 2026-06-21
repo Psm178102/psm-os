@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v79.2.0-2026-06-20-GESTORINT';
+const SW_VERSION = 'v79.3.0-2026-06-20-FIXPROJ';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

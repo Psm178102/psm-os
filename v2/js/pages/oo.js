@@ -575,24 +575,26 @@ function wirePeriod(reloadFn) {
   });
   document.getElementById('oo-range-clear')?.addEventListener('click', () => { _since = ''; _until = ''; reloadFn(); });
 }
-/* 🔮 Previsão por pipeline: já vendido + pipeline ponderado vs meta */
+/* 🔮 Previsão por pipeline: realista = já vendido + quase fechando; potencial = funil ponderado */
 function pipelinePanel(M) {
   const p = M.pipeline;
   if (!p) return '';
   const cob = p.cobertura_pct;
   const cor = cob == null ? '#64748b' : (cob >= 100 ? '#16a34a' : cob >= 70 ? '#d97706' : '#dc2626');
-  return panel('🔮 Previsão por pipeline (forecast real)', `
+  return panel('🔮 Previsão por pipeline (realista)', `
     <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
       <div><div class="tiny muted">Já vendido</div><div style="font-size:18px;font-weight:900;color:#16a34a">R$ ${moneyShort(p.ja_vendido)}</div></div>
       <div style="font-size:18px;color:#94a3b8">+</div>
-      <div><div class="tiny muted">Pipeline provável</div><div style="font-size:18px;font-weight:900;color:#2563eb">R$ ${moneyShort(p.ponderado)}</div></div>
+      <div><div class="tiny muted">🔒 Quase fechando</div><div style="font-size:18px;font-weight:900;color:#2563eb">R$ ${moneyShort(p.comprometido)}</div></div>
       <div style="font-size:18px;color:#94a3b8">=</div>
-      <div><div class="tiny muted">Previsto no fim</div><div style="font-size:20px;font-weight:900;color:${cor}">R$ ${moneyShort(p.previsto_total)}</div></div>
+      <div><div class="tiny muted">Previsto (realista)</div><div style="font-size:20px;font-weight:900;color:${cor}">R$ ${moneyShort(p.previsto_total)}</div></div>
       ${p.meta_vgv ? `<div style="margin-left:auto;text-align:right"><div class="tiny muted">da meta</div><div style="font-size:20px;font-weight:900;color:${cor}">${cob}%</div></div>` : ''}
     </div>
     ${p.meta_vgv ? bar(Math.min(100, cob || 0), cob >= 100 ? 'verde' : cob >= 70 ? 'amarelo' : 'vermelho') : ''}
-    <div class="tiny muted" style="margin-top:6px">${p.abertos} negócio(s) aberto(s) · 🔒 R$ ${moneyShort(p.comprometido)} quase fechando (proposta/pasta/contrato).
-      ${p.meta_vgv ? (cob >= 100 ? ' ✅ Pipeline cobre a meta.' : ` 🔴 Falta R$ ${moneyShort(p.gap)} entrar no funil pra cobrir a meta.`) : ' Defina a meta da equipe pra ver a cobertura.'}</div>`);
+    <div class="tiny muted" style="margin-top:6px">"Quase fechando" = negócios em proposta/pasta/contrato.
+      ${p.meta_vgv ? (cob >= 100 ? ' ✅ Já comprometido cobre a meta.' : ` 🔴 Falta R$ ${moneyShort(p.gap)} pra cobrir a meta (precisa fechar mais do pipeline).`) : ' Defina a meta da equipe pra ver a cobertura.'}</div>
+    <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)" class="tiny muted">
+      📊 Potencial do funil inteiro (${p.abertos} negócios abertos, ponderados por etapa): <b>R$ ${moneyShort(p.potencial_total)}</b>${p.meta_vgv ? ` (${p.potencial_pct}% da meta)` : ''} — teto otimista se TUDO avançar; não é a previsão do mês.</div>`);
 }
 
 /* 🔥 Matriz de conversão: corretor × etapa do funil (vermelho = onde cada um trava) */
@@ -717,22 +719,24 @@ function reverseFunnelPanel(d) {
     <div class="tiny muted" style="margin-top:6px">Taxas: lead→venda ${fr.taxas.lead_venda_pct}% · ${fr.taxas.visitas_por_venda} visitas/venda · ${fr.taxas.contatos_por_venda} contatos/venda.</div>`);
 }
 
-/* 📈 Projeção individual conforme andamento real (run-rate do período) */
+/* 📈 Projeção: realizado até hoje + (se mês em aberto) projeção pelo ritmo até o fim */
 function projecaoPanel(d) {
   const p = d.projecao;
   if (!p) return '';
   const temMeta = p.meta_vgv > 0;
-  const cor = p.no_ritmo === true ? '#16a34a' : (p.no_ritmo === false ? '#dc2626' : '#64748b');
+  const proj = (p.modo === 'projecao');
   const att = p.atingira_vgv_pct;
-  return panel('📈 Projeção do período (ritmo atual)', `
-    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
-      <div><div class="tiny muted">Projeção VGV</div><div style="font-size:22px;font-weight:900;color:${cor}">R$ ${moneyShort(p.proj_vgv)}</div></div>
-      <div><div class="tiny muted">Projeção vendas</div><div style="font-size:22px;font-weight:900">${p.proj_vendas}</div></div>
-      ${temMeta ? `<div><div class="tiny muted">Da meta VGV</div><div style="font-size:22px;font-weight:900;color:${cor}">${att}%</div></div>` : ''}
+  const cor = p.no_ritmo === true ? '#16a34a' : (p.no_ritmo === false ? '#dc2626' : '#64748b');
+  return panel(proj ? '📈 Projeção do mês (ritmo atual)' : '📈 Realizado do período', `
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
+      <div><div class="tiny muted">Realizado até hoje</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(p.real_vgv)} <span class="tiny muted" style="font-weight:400">· ${p.real_vendas} venda(s)</span></div></div>
+      ${proj ? `<div style="font-size:18px;color:#94a3b8">→</div>
+        <div><div class="tiny muted">Projeção fim do mês</div><div style="font-size:22px;font-weight:900;color:${cor}">R$ ${moneyShort(p.proj_vgv)} <span class="tiny muted" style="font-weight:400">· ${p.proj_vendas} venda(s)</span></div></div>` : ''}
+      ${temMeta ? `<div style="margin-left:auto;text-align:right"><div class="tiny muted">${proj ? 'proj. da meta' : 'da meta'}</div><div style="font-size:22px;font-weight:900;color:${cor}">${att}%</div></div>` : ''}
     </div>
-    <div style="margin-top:6px">${bar(Math.min(100, att || 0), p.no_ritmo ? 'verde' : 'vermelho')}</div>
-    <div class="tiny muted" style="margin-top:6px">${p.dias_decorridos}/${p.dias_total} dias (${p.pace_pct}% do período).
-      ${temMeta ? (p.no_ritmo ? '✅ No ritmo de bater a meta.' : `🔴 Projetado ${att}% da meta — gap de R$ ${moneyShort(p.gap_vgv)}.${p.ritmo_necessario_dia ? ' Precisa de ~' + p.ritmo_necessario_dia + ' venda(s)/dia restante.' : ''}`) : 'Defina a meta pra comparar.'}</div>`);
+    ${temMeta ? `<div style="margin-top:6px">${bar(Math.min(100, att || 0), p.no_ritmo ? 'verde' : (att >= 70 ? 'amarelo' : 'vermelho'))}</div>` : ''}
+    <div class="tiny muted" style="margin-top:6px">${proj ? `${p.dias_decorridos}/${p.dias_total} dias do mês (faltam ${p.dias_restantes}). ` : 'Período fechado — sem extrapolação. '}
+      ${temMeta ? (p.no_ritmo ? '✅ No ritmo de bater a meta.' : `🔴 Projetado ${att}% da meta — gap de R$ ${moneyShort(p.gap_vgv)}.${p.ritmo_necessario_dia ? ' Precisa ~' + p.ritmo_necessario_dia + ' venda(s)/dia.' : ''}`) : 'Defina a meta pra comparar.'}</div>`);
 }
 function miniKpi(lbl, val) {
   return `<div style="background:var(--bg-3);border-radius:6px;padding:5px 4px"><div style="font-weight:800;font-size:14px">${val}</div><div style="font-size:9.5px;color:var(--ink-muted)">${lbl}</div></div>`;

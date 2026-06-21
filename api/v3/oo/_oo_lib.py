@@ -539,19 +539,33 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
             "meta_vgv": meta_vgv_alvo or (round(meta_vendas_alvo * ticket) if ticket else None),
         }
 
-    # ── 📈 PROJEÇÃO INDIVIDUAL (conforme andamento real / run-rate do período) ──
-    dias_rest = max(0, days_total - days_elapsed)
-    proj_vendas = round(vendas / pace) if pace > 0 else vendas
-    proj_vgv = round(vgv / pace, 2) if pace > 0 else vgv
+    # ── 📈 PROJEÇÃO (extrapola pelo ritmo até o FIM do mês corrente; senão só realizado) ──
+    # Bug corrigido: pra "mês atual" o window usa until=hoje → pace dava 100% e a
+    # "projeção" virava o próprio realizado. Agora projeta até o último dia do mês.
+    in_curr_month = (until_d == today and since_d.day == 1 and since_d.month == today.month and since_d.year == today.year)
+    if in_curr_month:
+        _nxt = date(today.year + 1, 1, 1) if today.month == 12 else date(today.year, today.month + 1, 1)
+        ptot = (_nxt - timedelta(days=1)).day
+        pelap = today.day
+        proj_mode = "projecao"
+    else:
+        ptot = max(1, (until_d - since_d).days + 1)
+        pelap = ptot
+        proj_mode = "realizado"
+    ppace = (pelap / ptot) if ptot else 1.0
+    prest = max(0, ptot - pelap)
+    proj_vendas = round(vendas / ppace) if ppace > 0 else vendas
+    proj_vgv = round(vgv / ppace, 2) if ppace > 0 else vgv
     out["projecao"] = {
-        "pace_pct": round(pace * 100),
-        "dias_decorridos": days_elapsed, "dias_total": days_total, "dias_restantes": dias_rest,
+        "modo": proj_mode, "pace_pct": round(ppace * 100),
+        "dias_decorridos": pelap, "dias_total": ptot, "dias_restantes": prest,
+        "real_vgv": round(vgv, 2), "real_vendas": vendas,
         "proj_vendas": proj_vendas, "proj_vgv": proj_vgv,
         "meta_vgv": meta_vgv_alvo, "meta_vendas": mv.get("meta_vendas") or 0,
         "atingira_vgv_pct": (round(proj_vgv / meta_vgv_alvo * 100) if meta_vgv_alvo else None),
         "gap_vgv": round(meta_vgv_alvo - proj_vgv, 2) if meta_vgv_alvo else None,
         "no_ritmo": (proj_vgv >= meta_vgv_alvo) if meta_vgv_alvo else None,
-        "ritmo_necessario_dia": (round(max(0, (mv.get("meta_vendas") or 0) - vendas) / dias_rest, 2) if dias_rest else None),
+        "ritmo_necessario_dia": (round(max(0, (mv.get("meta_vendas") or 0) - vendas) / prest, 2) if prest else None),
     }
 
     return out
