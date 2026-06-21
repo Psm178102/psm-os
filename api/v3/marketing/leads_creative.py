@@ -136,7 +136,7 @@ class handler(BaseHTTPRequestHandler):
                 "leads": a["leads"], "matched": a["matched"], "vendas": a["vendas"],
                 "vgv": round(a["vgv"], 2),
                 "ciclo_medio_dias": round(_median(a["ciclo"]), 1) if a["ciclo"] else None,
-                "conv_pct": round(a["vendas"] / a["leads"] * 100, 1) if a["leads"] else None,
+                "conv_pct": round(a["vendas"] / a["leads"] * 100, 2) if a["leads"] else None,
             })
         out.sort(key=lambda x: -x["leads"])
         return self._send(200, {

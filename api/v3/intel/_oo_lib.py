@@ -295,7 +295,7 @@ def _rd_funnels(deals, events_by_deal, pos_by_id, by_pipe, pipe_names, since_dt,
         rows, prev = [], None
         for (pos, name) in stages:
             n = counts[pos]
-            conv = round(n / prev * 100, 1) if (prev not in (None, 0)) else None
+            conv = round(n / prev * 100, 2) if (prev not in (None, 0)) else None
             rows.append({"position": pos, "name": name, "n": n, "conv_from_prev": conv})
             prev = n
         out.append({"pipeline_id": pid, "pipeline": pipe_names.get(pid, "Funil"),
@@ -400,13 +400,13 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
                     estag_days.append(dd)
 
     total_fech = vendas + perdas
-    win_rate = round(vendas / total_fech * 100, 1) if total_fech else None
-    descarte = round(perdas / total_fech * 100, 1) if total_fech else None
+    win_rate = round(vendas / total_fech * 100, 2) if total_fech else None
+    descarte = round(perdas / total_fech * 100, 2) if total_fech else None
 
     # Conversão entre marcos
     conv = []
     for i in range(6):
-        conv.append(round(funnel[i + 1] / funnel[i] * 100, 1) if funnel[i] else None)
+        conv.append(round(funnel[i + 1] / funnel[i] * 100, 2) if funnel[i] else None)
 
     out = {
         "funnel": [{"key": MILESTONES[i][0], "label": MILESTONES[i][1],
@@ -419,7 +419,7 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
         },
         "win_rate": win_rate,
         "descarte_rate": descarte,
-        "trash_rate": round(trash / perdas * 100, 1) if perdas else None,
+        "trash_rate": round(trash / perdas * 100, 2) if perdas else None,
         "perdas": perdas,
         "ciclo_medio_dias": round(median(cycle_days), 1) if cycle_days else None,
         "primeiro_contato_h": round(median(first_contact_h), 1) if first_contact_h else None,
@@ -430,8 +430,8 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
         "visitas_por_venda": round(funnel[3] / vendas, 1) if vendas else None,
         "atend_por_venda": round(funnel[1] / vendas, 1) if vendas else None,
         "dias_por_venda": round(((until_d - since_d).days + 1) / vendas, 0) if vendas else None,
-        "qualificacao_rate": round(funnel[1] / funnel[0] * 100, 1) if funnel[0] else None,
-        "followup_rate": round(followup_n / funnel[0] * 100, 1) if funnel[0] else None,
+        "qualificacao_rate": round(funnel[1] / funnel[0] * 100, 2) if funnel[0] else None,
+        "followup_rate": round(followup_n / funnel[0] * 100, 2) if funnel[0] else None,
         "estagnacao_dias": round(median(estag_days), 0) if estag_days else None,
     }
 
@@ -491,7 +491,7 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
     health = max(0, min(100, health))
     out["health"] = health
     out["health_color"] = "verde" if health >= 70 else ("amarelo" if health >= 40 else "vermelho")
-    out["meta_attainment_pct"] = round(attain * 100, 1) if attain is not None else None
+    out["meta_attainment_pct"] = round(attain * 100, 2) if attain is not None else None
 
     # ── Alertas automáticos ──
     alerts = []

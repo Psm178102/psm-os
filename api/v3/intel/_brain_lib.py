@@ -209,14 +209,14 @@ def loss_clusters(closed_lost):
     out = []
     for (key, label), c in cats.items():
         out.append({"key": key, "label": label, "n": c["n"],
-                    "pct": round(c["n"] / total * 100, 1) if total else 0,
+                    "pct": round(c["n"] / total * 100, 2) if total else 0,
                     "exemplos": c["exemplos"]})
     out.sort(key=lambda x: -x["n"])
     top_raw = sorted([{"motivo": k, "n": v} for k, v in raw_reasons.items()],
                      key=lambda x: -x["n"])[:10]
     trash = sum(c["n"] for (k, _l), c in cats.items() if k == "lixo")
     return {"total": total, "trash_n": trash,
-            "trash_pct": round(trash / total * 100, 1) if total else 0,
+            "trash_pct": round(trash / total * 100, 2) if total else 0,
             "categorias": out, "top_motivos": top_raw}
 
 
@@ -239,5 +239,5 @@ def forecast(open_scored, wins_month_vgv, wins_month_n, today, meta_vgv_mes=0):
         "pipeline_quente_vgv": round(pipe_quente_vgv, 2),
         "quentes_n": len(quentes),
         "meta_vgv_mes": round(meta_vgv_mes, 2),
-        "run_rate_pct_meta": round(run_rate / meta_vgv_mes * 100) if meta_vgv_mes else None,
+        "run_rate_pct_meta": round(run_rate / meta_vgv_mes * 100, 2) if meta_vgv_mes else None,
     }

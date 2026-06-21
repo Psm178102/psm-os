@@ -229,9 +229,9 @@ class handler(BaseHTTPRequestHandler):
             },
             "forecast": fc,
             "winrate": {
-                "overall_pct": round(overall_wr * 100, 1),
+                "overall_pct": round(overall_wr * 100, 2),
                 "por_canal": sorted(
-                    [{"canal": CHANNEL_LABEL_SAFE(k), "wr_pct": round(v * 100, 1), "n": ch_n.get(k, 0)}
+                    [{"canal": CHANNEL_LABEL_SAFE(k), "wr_pct": round(v * 100, 2), "n": ch_n.get(k, 0)}
                      for k, v in ch_wr.items() if ch_n.get(k, 0) >= 3],
                     key=lambda x: -x["wr_pct"]),
             },

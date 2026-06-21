@@ -1,5 +1,5 @@
 // PSM /v2 — Service Worker (offline-first cache de shell)
-const VERSION = 'v287-2026-06-20-exatosall';
+const VERSION = 'v288-2026-06-20-pctback';
 const SHELL_CACHE = 'psm-v2-shell-' + VERSION;
 // Runtime cache versionado: ao bumpar VERSION, o activate purga o runtime antigo
 // (JS/CSS desatualizado) automaticamente, garantindo que mudanças propaguem.

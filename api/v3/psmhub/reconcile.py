@@ -128,7 +128,7 @@ class handler(BaseHTTPRequestHandler):
 
             ph_vgv = float(er.get("vendaTotal") or 0)
             ph_n = int(er.get("vendaCount") or 0)
-            diff = round((ph_vgv - rd["vgv"]) / rd["vgv"] * 100) if rd["vgv"] > 0 else None
+            diff = round((ph_vgv - rd["vgv"]) / rd["vgv"] * 100, 2) if rd["vgv"] > 0 else None
             rows.append({
                 "nome": nome, "email": email or None,
                 "team": ag.get("teamName") or (u or {}).get("team"),

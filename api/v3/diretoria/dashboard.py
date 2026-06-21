@@ -209,7 +209,7 @@ class handler(BaseHTTPRequestHandler):
             ut = kpis.get("users_total") or 0
             ua = kpis.get("users_ativos") or 0
             kpis["users_inativos"] = ut - ua
-            kpis["turnover_pct"] = round((ut - ua) / ut * 100, 1) if ut else None
+            kpis["turnover_pct"] = round((ut - ua) / ut * 100, 2) if ut else None
             kpis["exec_premissas"] = {"comissao_pct": COMISSAO_PCT, "custo_var_pct": CUSTO_VAR_PCT,
                                        "custo_fixo_mensal": CUSTO_FIXO_MENSAL}
         except Exception as e:

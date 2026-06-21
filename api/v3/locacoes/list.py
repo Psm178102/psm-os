@@ -49,7 +49,7 @@ class handler(BaseHTTPRequestHandler):
             "disponiveis":  sum(1 for r in rows if (r.get("status") or "") == "disponivel"),
             "ocupadas":     len(ocup),
             "em_atraso":    sum(1 for r in rows if (r.get("status") or "") == "em_atraso"),
-            "ocupacao_pct": round(len(ocup) / total * 100, 1) if total else 0,
+            "ocupacao_pct": round(len(ocup) / total * 100, 2) if total else 0,
             "vence_30d":    vence_em(in30),
             "vence_60d":    vence_em(in60),
             "vence_90d":    vence_em(in90),

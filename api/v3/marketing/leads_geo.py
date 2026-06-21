@@ -233,14 +233,14 @@ class handler(BaseHTTPRequestHandler):
         # tabela por cidade (ordenada por volume)
         city_list = sorted(
             [{"cidade": c, "leads": n, "is_rio_preto": city_is_rp.get(c, False),
-              "pct": round(n / total * 100, 1) if total else 0} for c, n in by_city.items()],
+              "pct": round(n / total * 100, 2) if total else 0} for c, n in by_city.items()],
             key=lambda x: -x["leads"])
 
         # alerta por campanha: >30% fora de Rio Preto (entre os COM cidade da campanha)
         camp_list = []
         for nome, v in camp.items():
             com = v["rio_preto"] + v["outras"]
-            pct_out = round(v["outras"] / com * 100, 1) if com else None
+            pct_out = round(v["outras"] / com * 100, 2) if com else None
             camp_list.append({
                 "campanha": nome, "leads": v["leads"],
                 "rio_preto": v["rio_preto"], "outras": v["outras"],
@@ -253,7 +253,7 @@ class handler(BaseHTTPRequestHandler):
         brand_list = []
         for nome, v in brand_agg.items():
             com = v["rio_preto"] + v["outras"]
-            pct_out = round(v["outras"] / com * 100, 1) if com else None
+            pct_out = round(v["outras"] / com * 100, 2) if com else None
             brand_list.append({
                 "marca": nome, "leads": v["leads"],
                 "rio_preto": v["rio_preto"], "outras": v["outras"],
@@ -262,7 +262,7 @@ class handler(BaseHTTPRequestHandler):
             })
         brand_list.sort(key=lambda x: -x["leads"])
 
-        pct_outras_global = round(outras / com_cidade * 100, 1) if com_cidade else None
+        pct_outras_global = round(outras / com_cidade * 100, 2) if com_cidade else None
 
         return self._send(200, {
             "ok": True,

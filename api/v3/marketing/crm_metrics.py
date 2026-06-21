@@ -368,8 +368,8 @@ def _real_brand_metrics(cohort_brand, events_by_deal, stage_info):
             visita += 1
     return {
         "n": n,
-        "contact_rate": round(contacted / n * 100, 1) if n else None,
-        "visita_rate": round(visita / contacted * 100, 1) if contacted else None,
+        "contact_rate": round(contacted / n * 100, 2) if n else None,
+        "visita_rate": round(visita / contacted * 100, 2) if contacted else None,
         "sla_horas": round(_median(sla), 1) if sla else None,
     }
 
@@ -588,8 +588,8 @@ class handler(BaseHTTPRequestHandler):
             real = real_by_brand.get(key)
             use_real = bool(real and real.get("basis") == "real")
             sla_proxy = round(_median(B["sla_horas"]), 1) if B["sla_horas"] else None
-            contact_proxy = round(B["leads_contatados"] / criados * 100, 1) if criados else None
-            visita_proxy = round(B["leads_visita"] / B["leads_contatados"] * 100, 1) if B["leads_contatados"] else None
+            contact_proxy = round(B["leads_contatados"] / criados * 100, 2) if criados else None
+            visita_proxy = round(B["leads_visita"] / B["leads_contatados"] * 100, 2) if B["leads_contatados"] else None
             basis = "real" if use_real else "estimativa"
             sla_val = real["sla_horas"] if use_real else sla_proxy
             contact_val = real["contact_rate"] if use_real else contact_proxy
@@ -612,7 +612,7 @@ class handler(BaseHTTPRequestHandler):
                 "vgv_attributed": round(vgv_attributed, 2),
                 "vgv_unassigned": round(vgv_unassigned, 2),
                 # cobertura = % do VGV ganho que tem origem marcada no RD
-                "coverage_pct": round(vgv_attributed / vgv_total * 100, 1) if vgv_total else None,
+                "coverage_pct": round(vgv_attributed / vgv_total * 100, 2) if vgv_total else None,
                 "vgv_paid": round(B["vgv_pago"], 2),      # só meta+google
                 "vendas_paid": B["vendas_pago"],
             }
@@ -634,7 +634,7 @@ class handler(BaseHTTPRequestHandler):
                 "contact_basis": basis,
                 "visita_rate": visita_val,
                 "visita_basis": basis,
-                "trash_rate": round(B["trash"] / perdas * 100, 1) if perdas else None,
+                "trash_rate": round(B["trash"] / perdas * 100, 2) if perdas else None,
                 "vgv_pago": round(B["vgv_pago"], 2),
                 "vendas_pago": B["vendas_pago"],
                 "motivos_perda": motivos[:8],
@@ -668,7 +668,7 @@ class handler(BaseHTTPRequestHandler):
             "vendas_pago": sum(per_brand[k]["vendas_pago"] for k in venda_keys),
         }
         g["ticket_medio"] = round(g["vgv"] / g["vendas"], 2) if g["vendas"] else 0.0
-        g["taxa_conversao"] = round(g["vendas"] / (g["vendas"] + g["perdas"]) * 100, 1) if (g["vendas"] + g["perdas"]) else None
+        g["taxa_conversao"] = round(g["vendas"] / (g["vendas"] + g["perdas"]) * 100, 2) if (g["vendas"] + g["perdas"]) else None
 
         # motivos de perda consolidados
         mg = defaultdict(int)
@@ -716,7 +716,7 @@ class handler(BaseHTTPRequestHandler):
             "vgv_total": g["vgv"],
             "vgv_attributed": round(g_vgv_attr, 2),
             "vgv_unassigned": round(g_vgv_unassigned, 2),
-            "coverage_pct": round(g_vgv_attr / g["vgv"] * 100, 1) if g["vgv"] else None,
+            "coverage_pct": round(g_vgv_attr / g["vgv"] * 100, 2) if g["vgv"] else None,
             "vgv_paid": g["vgv_pago"],
             "vendas_paid": g["vendas_pago"],
         }

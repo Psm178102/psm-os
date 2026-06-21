@@ -85,7 +85,7 @@ class handler(BaseHTTPRequestHandler):
             pend = sum(1 for t in mine if (t.get("status") or "") not in TAREFA_DONE)
             atr = sum(1 for t in mine if t.get("prazo") and _d(t.get("prazo")) < hoje_iso and (t.get("status") or "") not in TAREFA_DONE)
             prod = {"solicitadas": sol, "concluidas": conc, "pendentes": pend, "atrasadas": atr,
-                    "pct": round(conc / sol * 100) if sol else None}
+                    "pct": round(conc / sol * 100, 2) if sol else None}
         except Exception as e:
             print(f"[feed] dir_tasks: {e}")
 
@@ -217,7 +217,7 @@ class handler(BaseHTTPRequestHandler):
                 prod["concluidas"] += cconc
                 prod["pendentes"] += cpend
                 prod["atrasadas"] += catr
-                prod["pct"] = round(prod["concluidas"] / prod["solicitadas"] * 100) if prod["solicitadas"] else None
+                prod["pct"] = round(prod["concluidas"] / prod["solicitadas"] * 100, 2) if prod["solicitadas"] else None
         except Exception as e:
             print(f"[feed] cards: {e}")
 
