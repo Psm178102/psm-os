@@ -248,8 +248,8 @@ class handler(BaseHTTPRequestHandler):
                     "previsto_total": round(_prev, 2),          # já vendido + quase fechando (realista)
                     "potencial_total": round(_potencial, 2),    # já vendido + funil inteiro ponderado (otimista)
                     "gap": round(max(0, _metav - _prev), 2) if _metav else None,
-                    "cobertura_pct": (round(_prev / _metav * 100) if _metav else None),
-                    "potencial_pct": (round(_potencial / _metav * 100) if _metav else None),
+                    "cobertura_pct": (round(_prev / _metav * 100, 2) if _metav else None),
+                    "potencial_pct": (round(_potencial / _metav * 100, 2) if _metav else None),
                 }
                 # por membro (resumo leve)
                 deals_by_owner = {}

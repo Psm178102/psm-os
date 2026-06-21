@@ -406,7 +406,7 @@ def compute_ads_invest(deals, since_d, until_d, mc, team_cpl, global_cpl, acct_l
     inv_low = round(exato_v + fb_n * (lo_cpl or 0), 2)
     inv_high = round(exato_v + fb_n * (hi_cpl or 0), 2)
     priced = exato_n + fb_n
-    conf_pct = round(exato_n / priced * 100) if priced else None
+    conf_pct = round(exato_n / priced * 100, 2) if priced else None
     conf = None if conf_pct is None else ("alta" if conf_pct >= 85 else ("media" if conf_pct >= 60 else "baixa"))
     return {
         "metodo": "exato", "leads": total, "invest": round(inv, 2),
@@ -415,7 +415,7 @@ def compute_ads_invest(deals, since_d, until_d, mc, team_cpl, global_cpl, acct_l
         "exato_leads": exato_n, "exato_valor": round(exato_v, 2),
         "conta_leads": fb_n, "conta_valor": round(fb_v, 2),
         "zero_leads": zero_n,
-        "cobertura_pct": (round(exato_n / total * 100) if total else None),
+        "cobertura_pct": (round(exato_n / total * 100, 2) if total else None),
         "cpl_medio": (round(inv / priced, 2) if priced else None),
         "preset_cpl": mc.get("preset_used") if mc else None,
     }
@@ -537,7 +537,7 @@ def _rd_funnels(deals, events_by_deal, pos_by_id, by_pipe, pipe_names, since_dt,
         rows, prev = [], None
         for (pos, name) in stages:
             n = counts[pos]
-            conv = round(n / prev * 100, 1) if (prev not in (None, 0)) else None
+            conv = round(n / prev * 100, 2) if (prev not in (None, 0)) else None
             rows.append({"position": pos, "name": name, "n": n, "conv_from_prev": conv})
             prev = n
         out.append({"pipeline_id": pid, "pipeline": pipe_names.get(pid, "Funil"),
@@ -642,13 +642,13 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
                     estag_days.append(dd)
 
     total_fech = vendas + perdas
-    win_rate = round(vendas / total_fech * 100, 1) if total_fech else None
-    descarte = round(perdas / total_fech * 100, 1) if total_fech else None
+    win_rate = round(vendas / total_fech * 100, 2) if total_fech else None
+    descarte = round(perdas / total_fech * 100, 2) if total_fech else None
 
     # Conversão entre marcos
     conv = []
     for i in range(6):
-        conv.append(round(funnel[i + 1] / funnel[i] * 100, 1) if funnel[i] else None)
+        conv.append(round(funnel[i + 1] / funnel[i] * 100, 2) if funnel[i] else None)
 
     out = {
         "funnel": [{"key": MILESTONES[i][0], "label": MILESTONES[i][1],
@@ -661,7 +661,7 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
         },
         "win_rate": win_rate,
         "descarte_rate": descarte,
-        "trash_rate": round(trash / perdas * 100, 1) if perdas else None,
+        "trash_rate": round(trash / perdas * 100, 2) if perdas else None,
         "perdas": perdas,
         "ciclo_medio_dias": round(median(cycle_days), 1) if cycle_days else None,
         "primeiro_contato_h": round(median(first_contact_h), 1) if first_contact_h else None,
@@ -672,8 +672,8 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
         "visitas_por_venda": round(funnel[3] / vendas, 1) if vendas else None,
         "atend_por_venda": round(funnel[1] / vendas, 1) if vendas else None,
         "dias_por_venda": round(((until_d - since_d).days + 1) / vendas, 0) if vendas else None,
-        "qualificacao_rate": round(funnel[1] / funnel[0] * 100, 1) if funnel[0] else None,
-        "followup_rate": round(followup_n / funnel[0] * 100, 1) if funnel[0] else None,
+        "qualificacao_rate": round(funnel[1] / funnel[0] * 100, 2) if funnel[0] else None,
+        "followup_rate": round(followup_n / funnel[0] * 100, 2) if funnel[0] else None,
         "estagnacao_dias": round(median(estag_days), 0) if estag_days else None,
     }
 
@@ -733,7 +733,7 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
     health = max(0, min(100, health))
     out["health"] = health
     out["health_color"] = "verde" if health >= 70 else ("amarelo" if health >= 40 else "vermelho")
-    out["meta_attainment_pct"] = round(attain * 100, 1) if attain is not None else None
+    out["meta_attainment_pct"] = round(attain * 100, 2) if attain is not None else None
 
     # ── Alertas automáticos ──
     alerts = []
@@ -773,7 +773,7 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
         out["funil_reverso"] = {
             "usa_taxas": "individuais" if r_lead_venda else "benchmark",
             "ticket_base": round(ticket, 2) if ticket else None,
-            "taxas": {"lead_venda_pct": round(rv * 100, 1), "visitas_por_venda": round(vpv, 1), "contatos_por_venda": round(apv, 1)},
+            "taxas": {"lead_venda_pct": round(rv * 100, 2), "visitas_por_venda": round(vpv, 1), "contatos_por_venda": round(apv, 1)},
             "necessario": {"leads": leads_nec, "contatos": contatos_nec, "visitas": visitas_nec, "vendas": meta_vendas_alvo},
             "realizado": {"leads": funnel[0], "contatos": funnel[1], "visitas": funnel[3], "vendas": vendas},
             "faltam": {"leads": falta(leads_nec, funnel[0]), "contatos": falta(contatos_nec, funnel[1]),
@@ -803,14 +803,14 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
     unc = (max(0.0, 1 - ppace) * 0.5) if proj_mode == "projecao" else 0.0
     proj_conf = None if proj_mode != "projecao" else ("alta" if ppace >= 0.7 else ("media" if ppace >= 0.4 else "baixa"))
     out["projecao"] = {
-        "modo": proj_mode, "pace_pct": round(ppace * 100),
+        "modo": proj_mode, "pace_pct": round(ppace * 100, 2),
         "dias_decorridos": pelap, "dias_total": ptot, "dias_restantes": prest,
         "real_vgv": round(vgv, 2), "real_vendas": vendas,
         "proj_vendas": proj_vendas, "proj_vgv": proj_vgv,
         "proj_vgv_low": round(proj_vgv * (1 - unc), 2), "proj_vgv_high": round(proj_vgv * (1 + unc), 2),
-        "margem_pct": round(unc * 100), "confianca": proj_conf,
+        "margem_pct": round(unc * 100, 2), "confianca": proj_conf,
         "meta_vgv": meta_vgv_alvo, "meta_vendas": mv.get("meta_vendas") or 0,
-        "atingira_vgv_pct": (round(proj_vgv / meta_vgv_alvo * 100) if meta_vgv_alvo else None),
+        "atingira_vgv_pct": (round(proj_vgv / meta_vgv_alvo * 100, 2) if meta_vgv_alvo else None),
         "gap_vgv": round(meta_vgv_alvo - proj_vgv, 2) if meta_vgv_alvo else None,
         "no_ritmo": (proj_vgv >= meta_vgv_alvo) if meta_vgv_alvo else None,
         "ritmo_necessario_dia": (round(max(0, (mv.get("meta_vendas") or 0) - vendas) / prest, 2) if prest else None),

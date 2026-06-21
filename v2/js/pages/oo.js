@@ -83,7 +83,7 @@ function brokerCard(c) {
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center;margin-bottom:8px">
         ${miniKpi('Vendas', c.vendas)} ${miniKpi('Visitas', c.visitas)} ${miniKpi('VGV', 'R$ ' + moneyShort(c.vgv))}
       </div>
-      ${att != null ? `<div class="tiny muted" style="margin-bottom:2px">Meta VGV: <b>${att}%</b></div>${attBar}` : '<div class="tiny muted">Sem meta no período</div>'}
+      ${att != null ? `<div class="tiny muted" style="margin-bottom:2px">Meta VGV: <b>${pctF(att)}</b></div>${attBar}` : '<div class="tiny muted">Sem meta no período</div>'}
       ${alerts ? `<div style="margin-top:6px">${alerts}</div>` : ''}
       ${c.proxima_oo ? `<div class="tiny muted" style="margin-top:6px">📅 Próxima 1:1: ${fmtD(c.proxima_oo)}</div>` : (c.last_oo ? `<div class="tiny muted" style="margin-top:6px">Última 1:1: ${fmtD(c.last_oo)}</div>` : '<div class="tiny" style="color:#d97706;margin-top:6px">Sem 1:1 registrada</div>')}
     </div>`;
@@ -201,7 +201,7 @@ function gestorHeader(d) {
         <div class="tiny muted">Equipe ${escapeHtml(t.name)} · ${t.members.length} corretores · período ${fmtD(d.period.since)}–${fmtD(d.period.until)}</div>
       </div>
       <div style="text-align:center;padding:0 10px"><div style="font-size:34px;line-height:1">${healthEmoji(hc)}</div><div style="font-size:11px;font-weight:800;color:${healthHex(hc)}">SAÚDE EQUIPE ${M.health}/100</div></div>
-      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900;color:${healthHex(hc)}">${att != null ? att + '%' : '—'}</div><div class="tiny muted">meta VGV equipe</div></div>
+      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900;color:${healthHex(hc)}">${pctF(att)}</div><div class="tiny muted">meta VGV equipe</div></div>
       <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900">${M.kpis.vendas}</div><div class="tiny muted">vendas · R$ ${moneyShort(M.kpis.vgv)}</div></div>
       <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900;color:#16a34a">R$ ${moneyShort(M.ano_vgv || 0)}</div><div class="tiny muted">VGV ${new Date().getFullYear()} (ano)</div></div>
     </div>`;
@@ -262,7 +262,7 @@ function teamHeader(d) {
         <div class="tiny muted">${t.members.length} pessoas · líder ${escapeHtml(d.corretor.name)} · período ${fmtD(d.period.since)}–${fmtD(d.period.until)}</div>
       </div>
       <div style="text-align:center;padding:0 10px"><div style="font-size:34px;line-height:1">${healthEmoji(hc)}</div><div style="font-size:11px;font-weight:800;color:${healthHex(hc)}">SAÚDE ${M.health}/100</div></div>
-      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900;color:${healthHex(hc)}">${att != null ? att + '%' : '—'}</div><div class="tiny muted">meta VGV equipe</div></div>
+      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900;color:${healthHex(hc)}">${pctF(att)}</div><div class="tiny muted">meta VGV equipe</div></div>
       <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900">${M.kpis.vendas}</div><div class="tiny muted">vendas · R$ ${moneyShort(M.kpis.vgv)}</div></div>
       <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900">R$ ${moneyShort(M.ano_vgv || 0)}</div><div class="tiny muted">VGV ${new Date().getFullYear()} (ano)</div></div>
     </div>
@@ -290,8 +290,8 @@ function teamMembersPanel(t) {
         <td style="text-align:right;font-weight:700">${m.vendas}</td>
         <td style="text-align:right">R$ ${moneyShort(m.vgv)}</td>
         <td style="text-align:right">${m.visitas}</td>
-        <td style="text-align:right">${m.win_rate != null ? m.win_rate + '%' : '—'}</td>
-        <td style="text-align:right">${m.meta_attainment_pct != null ? m.meta_attainment_pct + '%' : '—'}</td>
+        <td style="text-align:right">${pctF(m.win_rate)}</td>
+        <td style="text-align:right">${pctF(m.meta_attainment_pct)}</td>
         <td style="text-align:center">${m.alertas_count ? '<span style="color:#dc2626;font-weight:700">' + m.alertas_count + '</span>' : '✓'}</td>
         <td style="text-align:right">${ooCell(m)}</td>
       </tr>`).join('')}
@@ -313,7 +313,7 @@ function detailHeader(d, c) {
         <div style="font-size:11px;font-weight:800;color:${healthHex(hc)}">SAÚDE ${d.health}/100</div>
       </div>
       <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)">
-        <div style="font-size:24px;font-weight:900;color:${healthHex(hc)}">${att != null ? att + '%' : '—'}</div>
+        <div style="font-size:24px;font-weight:900;color:${healthHex(hc)}">${pctF(att)}</div>
         <div class="tiny muted">atingimento meta VGV</div>
       </div>
       <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)">
@@ -332,7 +332,7 @@ function funnelBars(stages, getLabel) {
   const max = Math.max(1, ...stages.map(s => s.n));
   const grad = (i, n) => { const t = n ? i / Math.max(1, n - 1) : 0; const h = Math.round(210 - t * 70); return `hsl(${h},75%,55%)`; };
   const convChip = (c) => c == null ? '' :
-    `<span title="conversão da etapa anterior" style="font-size:10.5px;font-weight:800;padding:1px 6px;border-radius:999px;background:${c>=50?'rgba(22,163,74,.15)':c>=25?'rgba(217,119,6,.15)':'rgba(220,38,38,.15)'};color:${c>=50?'#16a34a':c>=25?'#d97706':'#dc2626'}">↓ ${c}%</span>`;
+    `<span title="conversão da etapa anterior" style="font-size:10.5px;font-weight:800;padding:1px 6px;border-radius:999px;background:${c>=50?'rgba(22,163,74,.15)':c>=25?'rgba(217,119,6,.15)':'rgba(220,38,38,.15)'};color:${c>=50?'#16a34a':c>=25?'#d97706':'#dc2626'}">↓ ${pctF(c)}</span>`;
   return `<div style="display:grid;gap:7px">${stages.map((s, i) => `
     <div>
       ${i > 0 && s.conv_from_prev != null ? `<div style="text-align:center;margin:-2px 0 1px">${convChip(s.conv_from_prev)}</div>` : ''}
@@ -348,14 +348,14 @@ function funnelBars(stages, getLabel) {
 function convTable(stages) {
   const rows = stages.map((s, i) => i === 0 ? '' : `<tr style="border-top:1px solid var(--border)">
     <td style="padding:4px 6px;color:var(--ink-muted)">${escapeHtml(stages[i-1].name || stages[i-1].label)} → <b>${escapeHtml(s.name || s.label)}</b></td>
-    <td style="text-align:right;padding:4px 6px;font-weight:800;color:${(s.conv_from_prev||0)>=50?'#16a34a':(s.conv_from_prev||0)>=25?'#d97706':'#dc2626'}">${s.conv_from_prev != null ? s.conv_from_prev + '%' : '—'}</td>
+    <td style="text-align:right;padding:4px 6px;font-weight:800;color:${(s.conv_from_prev||0)>=50?'#16a34a':(s.conv_from_prev||0)>=25?'#d97706':'#dc2626'}">${pctF(s.conv_from_prev)}</td>
   </tr>`).filter(Boolean).join('');
   const first = stages[0]?.n || 0, last = stages[stages.length-1]?.n || 0;
   const overall = first ? round1(last / first * 100) : null;
   return `<table style="width:100%;font-size:11.5px;border-collapse:collapse;margin-top:8px">
     <thead><tr style="color:var(--ink-muted);font-size:10.5px"><th style="text-align:left;padding:4px 6px">Conversão por etapa</th><th style="text-align:right;padding:4px 6px">taxa</th></tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr style="border-top:2px solid var(--border)"><td style="padding:5px 6px;font-weight:700">${escapeHtml(stages[0]?.name||stages[0]?.label||'')} → ${escapeHtml(stages[stages.length-1]?.name||'')}</td><td style="text-align:right;padding:5px 6px;font-weight:900;color:#2563eb">${overall != null ? overall + '%' : '—'}</td></tr></tfoot>
+    <tfoot><tr style="border-top:2px solid var(--border)"><td style="padding:5px 6px;font-weight:700">${escapeHtml(stages[0]?.name||stages[0]?.label||'')} → ${escapeHtml(stages[stages.length-1]?.name||'')}</td><td style="text-align:right;padding:5px 6px;font-weight:900;color:#2563eb">${pctF(overall)}</td></tr></tfoot>
   </table>`;
 }
 function round1(n) { return Math.round(n * 10) / 10; }
@@ -367,13 +367,13 @@ function funnelPanel(d) {
     return rd.map(fn => panel(`🫧 Funil RD · ${escapeHtml(fn.pipeline)} <span class="tiny muted" style="font-weight:400">(${fn.deals} negócios)</span>`,
       funnelBars(fn.stages, s => escapeHtml(s.name)) +
       convTable(fn.stages) +
-      `<div class="tiny muted" style="margin-top:6px">Etapas reais do RD · ↓ = taxa de conversão da etapa anterior · win rate geral: <b>${d.win_rate != null ? d.win_rate + '%' : '—'}</b></div>`
+      `<div class="tiny muted" style="margin-top:6px">Etapas reais do RD · ↓ = taxa de conversão da etapa anterior · win rate geral: <b>${pctF(d.win_rate)}</b></div>`
     )).join('<div style="height:12px"></div>');
   }
   // fallback: marcos canônicos
   const f = d.funnel || [];
   return panel('🫧 Funil individual', funnelBars(f, s => escapeHtml(s.label)) + convTable(f) +
-    `<div class="tiny muted" style="margin-top:6px">↓ = taxa de conversão da etapa anterior. Win rate: <b>${d.win_rate != null ? d.win_rate + '%' : '—'}</b></div>`);
+    `<div class="tiny muted" style="margin-top:6px">↓ = taxa de conversão da etapa anterior. Win rate: <b>${pctF(d.win_rate)}</b></div>`);
 }
 
 function kpiVsMeta(d) {
@@ -383,7 +383,7 @@ function kpiVsMeta(d) {
     const pct = meta > 0 ? Math.round(realNum / meta * 100) : null;
     const col = pct == null ? '#64748b' : (pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626');
     return `<div style="margin-bottom:7px">
-      <div class="flex items-center" style="justify-content:space-between;font-size:12px"><span>${lbl}</span><span><b>${disp != null ? disp : realNum}</b>${meta>0?` / ${meta}`:''} ${pct!=null?`<span style="color:${col};font-size:11px;font-weight:700">${pct}%</span>`:''}</span></div>
+      <div class="flex items-center" style="justify-content:space-between;font-size:12px"><span>${lbl}</span><span><b>${disp != null ? disp : realNum}</b>${meta>0?` / ${meta}`:''} ${pct!=null?`<span style="color:${col};font-size:11px;font-weight:700">${pctF(pct)}</span>`:''}</span></div>
       ${meta>0?`<div style="height:6px;background:var(--bg-3);border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.min(100,Math.max(0,pct))}%;background:${col}"></div></div>`:''}
     </div>`;
   };
@@ -421,7 +421,7 @@ function adsInvestPanel(d, scope) {
         ${temFaixa ? `<div class="tiny muted">faixa provável R$ ${moneyShort(a.invest_low)} – R$ ${moneyShort(a.invest_high)}</div>` : ''}
       </div>
       <div style="margin-left:auto;text-align:right">
-        <div class="tiny muted">confiança ${a.confianca_pct != null ? '(' + a.confianca_pct + '% exato)' : ''}</div>
+        <div class="tiny muted">confiança ${a.confianca_pct != null ? '(' + pctF(a.confianca_pct) + ' exato)' : ''}</div>
         <span class="tiny" style="background:${cb[1]};color:${cb[2]};border-radius:999px;padding:3px 10px;font-weight:800">${cb[0]}</span>
       </div>
     </div>
@@ -432,7 +432,7 @@ function adsInvestPanel(d, scope) {
     </div>
     <div class="tiny muted" style="margin-top:8px">
       Cada lead recebido no período é cruzado com a campanha de origem (RD) e precificado pelo <b>CPL real daquela campanha no Meta</b> (${presetLbl}).
-      ${(a.conta_leads || 0) > 0 ? `Quando a campanha não está no cache, usa o CPL da conta da equipe. ` : ''}Lead que não veio de ads não custa nada. ${cob != null && cob < 100 ? `Cobertura exata de ${cob}% — o resto é fallback honesto.` : ''}</div>`);
+      ${(a.conta_leads || 0) > 0 ? `Quando a campanha não está no cache, usa o CPL da conta da equipe. ` : ''}Lead que não veio de ads não custa nada. ${cob != null && cob < 100 ? `Cobertura exata de ${pctF(cob)} — o resto é fallback honesto.` : ''}</div>`);
 }
 
 /* 💰 Quanto custa o corretor = investimento em ads (período) + custo fixo (mensal) */
@@ -464,8 +464,8 @@ function efficiencyPanel(d) {
       ${stat('👀 Visitas/venda', d.visitas_por_venda != null ? d.visitas_por_venda : '—', '#22d3ee', null, 'Quantas visitas até 1 venda')}
       ${stat('📞 Atend./venda', d.atend_por_venda != null ? d.atend_por_venda : '—', '#60a5fa', null, 'Atendimentos até 1 venda')}
       ${stat('📆 Dias/venda', d.dias_por_venda != null ? d.dias_por_venda + ' d' : '—', '#a78bfa', null, 'Ritmo: dias do período por venda')}
-      ${stat('🎯 Qualificação', d.qualificacao_rate != null ? d.qualificacao_rate + '%' : '—', '#16a34a', null, 'Leads que passaram da qualificação')}
-      ${stat('🔁 Follow-up', d.followup_rate != null ? d.followup_rate + '%' : '—', '#f59e0b', null, 'Leads com +1 interação no RD')}
+      ${stat('🎯 Qualificação', pctF(d.qualificacao_rate), '#16a34a', null, 'Leads que passaram da qualificação')}
+      ${stat('🔁 Follow-up', pctF(d.followup_rate), '#f59e0b', null, 'Leads com +1 interação no RD')}
       ${stat('🕰 Estagnação', d.estagnacao_dias != null ? Math.round(d.estagnacao_dias) + ' d' : '—', '#ef4444', null, 'Mediana de dias sem atividade (abertos)')}
       ${stat('💸 Invest. ads', (d.ads_invest && d.ads_invest.invest != null) ? 'R$ ' + moneyShort(d.ads_invest.invest) : '—', '#fb7185', null, (d.ads_invest && d.ads_invest.cobertura_pct != null) ? (d.ads_invest.exato_leads + '/' + d.ads_invest.leads + ' leads com CPL exato da campanha (' + d.ads_invest.cobertura_pct + '%)') : 'Sem gasto Meta no cache')}
     </div>`);
@@ -476,11 +476,11 @@ function ratesPanel(d) {
   const fcTxt = fc == null ? '—' : (fc < 1 ? Math.round(fc * 60) + ' min' : fc.toFixed(1) + ' h');
   return panel('⏱ Taxas & Tempos', `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      ${stat('Win rate', d.win_rate != null ? d.win_rate + '%' : '—', '#16a34a')}
-      ${stat('Taxa descarte', d.descarte_rate != null ? d.descarte_rate + '%' : '—', '#dc2626')}
+      ${stat('Win rate', pctF(d.win_rate), '#16a34a')}
+      ${stat('Taxa descarte', pctF(d.descarte_rate), '#dc2626')}
       ${stat('1º contato', fcTxt, '#2563eb', d.primeiro_contato_basis === 'real' ? 'real' : 'sem evento')}
       ${stat('Ciclo médio', d.ciclo_medio_dias != null ? d.ciclo_medio_dias + ' d' : '—', '#7c3aed')}
-      ${stat('Lixo/descarte', d.trash_rate != null ? d.trash_rate + '%' : '—', '#64748b')}
+      ${stat('Lixo/descarte', pctF(d.trash_rate), '#64748b')}
       ${stat('Parados +14d', d.pendencias.parados_14d, '#d97706')}
     </div>`);
 }
@@ -650,13 +650,13 @@ function pipelinePanel(M) {
       <div><div class="tiny muted">🔒 Quase fechando</div><div style="font-size:18px;font-weight:900;color:#2563eb">R$ ${moneyShort(p.comprometido)}</div></div>
       <div style="font-size:18px;color:#94a3b8">=</div>
       <div><div class="tiny muted">Previsto (realista)</div><div style="font-size:20px;font-weight:900;color:${cor}">R$ ${moneyShort(p.previsto_total)}</div></div>
-      ${p.meta_vgv ? `<div style="margin-left:auto;text-align:right"><div class="tiny muted">da meta</div><div style="font-size:20px;font-weight:900;color:${cor}">${cob}%</div></div>` : ''}
+      ${p.meta_vgv ? `<div style="margin-left:auto;text-align:right"><div class="tiny muted">da meta</div><div style="font-size:20px;font-weight:900;color:${cor}">${pctF(cob)}</div></div>` : ''}
     </div>
     ${p.meta_vgv ? bar(Math.min(100, cob || 0), cob >= 100 ? 'verde' : cob >= 70 ? 'amarelo' : 'vermelho') : ''}
     <div class="tiny muted" style="margin-top:6px">"Quase fechando" = negócios em proposta/pasta/contrato.
       ${p.meta_vgv ? (cob >= 100 ? ' ✅ Já comprometido cobre a meta.' : ` 🔴 Falta R$ ${moneyShort(p.gap)} pra cobrir a meta (precisa fechar mais do pipeline).`) : ' Defina a meta da equipe pra ver a cobertura.'}</div>
     <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)" class="tiny muted">
-      📊 Potencial do funil inteiro (${p.abertos} negócios abertos, ponderados por etapa): <b>R$ ${moneyShort(p.potencial_total)}</b>${p.meta_vgv ? ` (${p.potencial_pct}% da meta)` : ''} — teto otimista se TUDO avançar; não é a previsão do mês.</div>`);
+      📊 Potencial do funil inteiro (${p.abertos} negócios abertos, ponderados por etapa): <b>R$ ${moneyShort(p.potencial_total)}</b>${p.meta_vgv ? ` (${pctF(p.potencial_pct)} da meta)` : ''} — teto otimista se TUDO avançar; não é a previsão do mês.</div>`);
 }
 
 /* 🔥 Matriz de conversão: corretor × etapa do funil (vermelho = onde cada um trava) */
@@ -670,7 +670,7 @@ function matrizConversaoPanel(t) {
     if (v == null) return '<td style="text-align:center;color:#cbd5e1;padding:5px 4px">—</td>';
     const a = avg[j]; let bg = '#dcfce7', cor = '#166534';
     if (a != null) { if (v < a * 0.6) { bg = '#fee2e2'; cor = '#b91c1c'; } else if (v < a) { bg = '#fef3c7'; cor = '#92400e'; } }
-    return `<td style="text-align:center;padding:5px 4px"><span style="background:${bg};color:${cor};font-weight:700;border-radius:6px;padding:2px 6px;font-size:11.5px">${v}%</span></td>`;
+    return `<td style="text-align:center;padding:5px 4px"><span style="background:${bg};color:${cor};font-weight:700;border-radius:6px;padding:2px 6px;font-size:11.5px">${pctF(v)}</span></td>`;
   };
   return panel('🔥 Conversão por corretor × etapa (foco de coaching)', `
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:620px">
@@ -679,7 +679,7 @@ function matrizConversaoPanel(t) {
         <td style="padding:5px 6px;font-weight:600;white-space:nowrap">${escapeHtml((m.name || '').split(' ')[0])}</td>
         ${m.conv.map((v, j) => cell(v, j)).join('')}
       </tr>`).join('')}
-      <tr style="border-top:2px solid var(--border);font-weight:800;color:#64748b"><td style="padding:5px 6px">Média</td>${avg.map(a => `<td style="text-align:center;padding:5px 4px">${a != null ? Math.round(a) + '%' : '—'}</td>`).join('')}</tr>
+      <tr style="border-top:2px solid var(--border);font-weight:800;color:#64748b"><td style="padding:5px 6px">Média</td>${avg.map(a => `<td style="text-align:center;padding:5px 4px">${pctF(a)}</td>`).join('')}</tr>
       </tbody></table></div>
     <div class="tiny muted" style="margin-top:6px">🔴 vermelho = bem abaixo da média da equipe naquela etapa → treine isso com a pessoa. Clique no corretor pra abrir.</div>`);
 }
@@ -694,7 +694,7 @@ function tendenciaPanel(t) {
   };
   const rows = ms.map(m => {
     const tr = m.trend; const ult = tr[tr.length - 1].vgv || 0, pen = tr[tr.length - 2].vgv || 0;
-    const queda = ult < pen, delta = pen ? Math.round((ult - pen) / pen * 100) : (ult ? 100 : 0);
+    const queda = ult < pen, delta = pen ? (ult - pen) / pen * 100 : (ult ? 100 : 0);
     return { m, queda, delta, ult, pen, tr };
   }).sort((a, b) => a.delta - b.delta);
   return panel('📉 Tendência por corretor (VGV mês a mês)', `
@@ -702,7 +702,7 @@ function tendenciaPanel(t) {
     ${rows.map(r => `<div data-member="${escapeHtml(r.m.id)}" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:8px;background:${r.queda ? '#fef2f2' : 'var(--bg-3)'}">
       <b style="font-size:13px;flex:1;min-width:0">${escapeHtml((r.m.name || '').split(' ')[0])}</b>
       ${spark(r.tr)}
-      <span style="font-weight:800;font-size:12px;color:${r.queda ? '#dc2626' : '#16a34a'};min-width:64px;text-align:right">${r.queda ? '🔻' : '🔺'} ${r.delta > 0 ? '+' : ''}${r.delta}%</span>
+      <span style="font-weight:800;font-size:12px;color:${r.queda ? '#dc2626' : '#16a34a'};min-width:64px;text-align:right">${r.queda ? '🔻' : '🔺'} ${r.delta > 0 ? '+' : ''}${pctF(r.delta)}</span>
     </div>`).join('')}
     </div>
     <div class="tiny muted" style="margin-top:6px">Variação do último mês vs o anterior. 🔻 em queda = priorize na 1:1.</div>`);
@@ -717,10 +717,10 @@ function gargaloPanel(M) {
   const idx = (M.funnel || []).findIndex(s => s.key === pior.key);
   const ant = idx > 0 ? M.funnel[idx - 1].label : '';
   const chain = (M.funnel || []).map((s, i) => i === 0 ? `${s.label} (${s.n})`
-    : `<span style="${s.key === pior.key ? 'color:#dc2626;font-weight:800' : 'color:#64748b'}">→ ${s.conv_from_prev != null ? s.conv_from_prev + '%' : '—'} → ${s.label} (${s.n})</span>`).join(' ');
+    : `<span style="${s.key === pior.key ? 'color:#dc2626;font-weight:800' : 'color:#64748b'}">→ ${pctF(s.conv_from_prev)} → ${s.label} (${s.n})</span>`).join(' ');
   return panel('🔻 Gargalo do funil (foco de coaching)', `
     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:9px 12px;margin-bottom:8px">
-      <div style="font-weight:800;color:#b91c1c;font-size:13px">Maior perda: ${escapeHtml(ant)} → ${escapeHtml(pior.label)} = ${pior.conv_from_prev}%</div>
+      <div style="font-weight:800;color:#b91c1c;font-size:13px">Maior perda: ${escapeHtml(ant)} → ${escapeHtml(pior.label)} = ${pctF(pior.conv_from_prev)}</div>
       <div class="tiny" style="color:#7f1d1d;margin-top:2px">É aqui que a equipe mais perde negócio. Trabalhe ${escapeHtml(pior.label.toLowerCase())} nas 1:1.</div>
     </div>
     <div class="tiny" style="line-height:1.7">${chain}</div>`);
@@ -738,7 +738,7 @@ function focoSemanaPanel(t) {
     <div style="display:flex;flex-direction:column;gap:6px">
     ${top.map((m, i) => {
       const motivo = !m.vendas ? 'sem vendas no período'
-        : (m.meta_attainment_pct != null && m.meta_attainment_pct < 70) ? `${m.meta_attainment_pct}% da meta`
+        : (m.meta_attainment_pct != null && m.meta_attainment_pct < 70) ? `${pctF(m.meta_attainment_pct)} da meta`
         : (m.alertas_count ? `${m.alertas_count} alerta(s)` : 'acompanhar ritmo');
       return `<div data-member="${escapeHtml(m.id)}" style="cursor:pointer;display:flex;align-items:center;gap:9px;background:var(--bg-3);border-left:4px solid ${healthHex(m.health_color)};border-radius:8px;padding:7px 10px">
         <span style="font-weight:900;color:var(--ink-muted)">${i + 1}</span>
@@ -778,7 +778,7 @@ function reverseFunnelPanel(d) {
         <th style="text-align:left;padding:2px 6px">Etapa</th><th style="padding:2px 6px">Precisa</th><th style="padding:2px 6px">Feito</th><th style="padding:2px 6px">Falta</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div class="tiny muted" style="margin-top:6px">Taxas: lead→venda ${fr.taxas.lead_venda_pct}% · ${fr.taxas.visitas_por_venda} visitas/venda · ${fr.taxas.contatos_por_venda} contatos/venda.</div>`);
+    <div class="tiny muted" style="margin-top:6px">Taxas: lead→venda ${pctF(fr.taxas.lead_venda_pct)} · ${fr.taxas.visitas_por_venda} visitas/venda · ${fr.taxas.contatos_por_venda} contatos/venda.</div>`);
 }
 
 /* 📈 Projeção: realizado até hoje + (se mês em aberto) projeção pelo ritmo até o fim */
@@ -793,12 +793,12 @@ function projecaoPanel(d) {
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
       <div><div class="tiny muted">Realizado até hoje</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(p.real_vgv)} <span class="tiny muted" style="font-weight:400">· ${p.real_vendas} venda(s)</span></div></div>
       ${proj ? `<div style="font-size:18px;color:#94a3b8">→</div>
-        <div><div class="tiny muted">Projeção fim do mês</div><div style="font-size:22px;font-weight:900;color:${cor}">R$ ${moneyShort(p.proj_vgv)} <span class="tiny muted" style="font-weight:400">· ${p.proj_vendas} venda(s)</span></div>${p.margem_pct ? `<div class="tiny muted">faixa R$ ${moneyShort(p.proj_vgv_low)} – R$ ${moneyShort(p.proj_vgv_high)} · ±${p.margem_pct}%</div>` : ''}</div>` : ''}
-      ${temMeta ? `<div style="margin-left:auto;text-align:right"><div class="tiny muted">${proj ? 'proj. da meta' : 'da meta'}</div><div style="font-size:22px;font-weight:900;color:${cor}">${att}%</div></div>` : ''}
+        <div><div class="tiny muted">Projeção fim do mês</div><div style="font-size:22px;font-weight:900;color:${cor}">R$ ${moneyShort(p.proj_vgv)} <span class="tiny muted" style="font-weight:400">· ${p.proj_vendas} venda(s)</span></div>${p.margem_pct ? `<div class="tiny muted">faixa R$ ${moneyShort(p.proj_vgv_low)} – R$ ${moneyShort(p.proj_vgv_high)} · ±${pctF(p.margem_pct)}</div>` : ''}</div>` : ''}
+      ${temMeta ? `<div style="margin-left:auto;text-align:right"><div class="tiny muted">${proj ? 'proj. da meta' : 'da meta'}</div><div style="font-size:22px;font-weight:900;color:${cor}">${pctF(att)}</div></div>` : ''}
     </div>
     ${temMeta ? `<div style="margin-top:6px">${bar(Math.min(100, att || 0), p.no_ritmo ? 'verde' : (att >= 70 ? 'amarelo' : 'vermelho'))}</div>` : ''}
     <div class="tiny muted" style="margin-top:6px">${proj ? `${p.dias_decorridos}/${p.dias_total} dias do mês (faltam ${p.dias_restantes}).${p.confianca ? ' Confiança ' + ({ alta: '🟢 alta', media: '🟡 média', baixa: '🔴 baixa' }[p.confianca]) + ' (±' + p.margem_pct + '%, fecha conforme o mês avança).' : ''} ` : 'Período fechado — sem extrapolação. '}
-      ${temMeta ? (p.no_ritmo ? '✅ No ritmo de bater a meta.' : `🔴 Projetado ${att}% da meta — gap de R$ ${moneyShort(p.gap_vgv)}.${p.ritmo_necessario_dia ? ' Precisa ~' + p.ritmo_necessario_dia + ' venda(s)/dia.' : ''}`) : 'Defina a meta pra comparar.'}</div>`);
+      ${temMeta ? (p.no_ritmo ? '✅ No ritmo de bater a meta.' : `🔴 Projetado ${pctF(att)} da meta — gap de R$ ${moneyShort(p.gap_vgv)}.${p.ritmo_necessario_dia ? ' Precisa ~' + p.ritmo_necessario_dia + ' venda(s)/dia.' : ''}`) : 'Defina a meta pra comparar.'}</div>`);
 }
 function miniKpi(lbl, val) {
   return `<div style="background:var(--bg-3);border-radius:6px;padding:5px 4px"><div style="font-weight:800;font-size:14px">${val}</div><div style="font-size:9.5px;color:var(--ink-muted)">${lbl}</div></div>`;
@@ -815,6 +815,8 @@ function healthEmoji(c) { return c === 'verde' ? '🟢' : c === 'amarelo' ? '�
 function spinner(t) { return `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> ${t}</div></div>`; }
 function err(m) { return `<div class="alert alert-err">Erro: ${escapeHtml(m)}</div>`; }
 function fmtD(s) { if (!s) return '—'; try { return new Date(s + 'T12:00:00').toLocaleDateString('pt-BR'); } catch { return s; } }
-function money(v) { return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
-function moneyShort(v) { v = v || 0; if (v >= 1e6) return (v / 1e6).toFixed(1).replace('.', ',') + 'M'; if (v >= 1e3) return (v / 1e3).toFixed(0) + 'k'; return money(v); }
+// v80.1: SEM arredondamento/abreviação — valores SEMPRE exatos (decisão do sócio).
+function money(v) { return (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function moneyShort(v) { return money(v); }   // alias: não abrevia mais (k/M); valor cheio
+function pctF(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
