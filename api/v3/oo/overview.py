@@ -18,7 +18,8 @@ from datetime import datetime, timezone, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from _oo_lib import (window, months_in_range, broker_metrics, read_meta_spend, meta_for_period,  # type: ignore
-                     read_meta_accounts, match_team_account, read_team_account_override)
+                     read_meta_accounts, match_team_account, read_team_account_override,
+                     read_meta_campaigns, compute_ads_invest)
 
 
 class handler(BaseHTTPRequestHandler):

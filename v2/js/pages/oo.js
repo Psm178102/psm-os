@@ -403,7 +403,8 @@ function adsInvestPanel(d, scope) {
   const presetLbl = { last_30d: 'últimos 30d', this_month: 'mês atual', last_month: 'mês passado', last_14d: 'últimos 14d', last_7d: 'últimos 7d', yesterday: 'ontem' }[a.preset_cpl] || a.preset_cpl || '';
   if (a.invest == null || a.cpl_global == null && a.cpl_team == null) return panel('💸 Investimento em ads', '<div class="tiny muted">Sem gasto Meta no cache pra calcular. Abra o painel de Meta Ads pra popular o cache.</div>');
   const cob = a.cobertura_pct;
-  const cobCor = cob == null ? '#64748b' : (cob >= 70 ? '#16a34a' : cob >= 40 ? '#d97706' : '#dc2626');
+  const temFaixa = a.invest_low != null && a.invest_high != null && a.invest_high > a.invest_low;
+  const cb = { alta: ['🟢 Alta', '#dcfce7', '#166534'], media: ['🟡 Média', '#fef3c7', '#92400e'], baixa: ['🔴 Baixa', '#fee2e2', '#b91c1c'] }[a.confianca] || ['—', '#e2e8f0', '#475569'];
   const row = (cor, lbl, n, val, sub) => `
     <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:8px;background:var(--bg-3)">
       <span style="width:9px;height:9px;border-radius:50%;background:${cor};flex:none"></span>
@@ -412,8 +413,15 @@ function adsInvestPanel(d, scope) {
     </div>`;
   return panel('💸 Investimento em ads — exato por lead', `
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
-      <div><div class="tiny muted">Investido ${who} no período</div><div style="font-size:24px;font-weight:900;color:#fb7185">R$ ${moneyShort(a.invest)}</div></div>
-      <div style="margin-left:auto;text-align:right"><div class="tiny muted">precisão (CPL exato da campanha)</div><div style="font-size:18px;font-weight:900;color:${cobCor}">${cob != null ? cob + '%' : '—'}</div></div>
+      <div>
+        <div class="tiny muted">Investido ${who} no período</div>
+        <div style="font-size:24px;font-weight:900;color:#fb7185">R$ ${moneyShort(a.invest)}</div>
+        ${temFaixa ? `<div class="tiny muted">faixa provável R$ ${moneyShort(a.invest_low)} – R$ ${moneyShort(a.invest_high)}</div>` : ''}
+      </div>
+      <div style="margin-left:auto;text-align:right">
+        <div class="tiny muted">confiança ${a.confianca_pct != null ? '(' + a.confianca_pct + '% exato)' : ''}</div>
+        <span class="tiny" style="background:${cb[1]};color:${cb[2]};border-radius:999px;padding:3px 10px;font-weight:800">${cb[0]}</span>
+      </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:5px">
       ${row('#16a34a', '🎯 CPL exato da campanha', a.exato_leads || 0, a.exato_valor || 0, 'cruzado lead × campanha no Meta')}
@@ -763,11 +771,11 @@ function projecaoPanel(d) {
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
       <div><div class="tiny muted">Realizado até hoje</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(p.real_vgv)} <span class="tiny muted" style="font-weight:400">· ${p.real_vendas} venda(s)</span></div></div>
       ${proj ? `<div style="font-size:18px;color:#94a3b8">→</div>
-        <div><div class="tiny muted">Projeção fim do mês</div><div style="font-size:22px;font-weight:900;color:${cor}">R$ ${moneyShort(p.proj_vgv)} <span class="tiny muted" style="font-weight:400">· ${p.proj_vendas} venda(s)</span></div></div>` : ''}
+        <div><div class="tiny muted">Projeção fim do mês</div><div style="font-size:22px;font-weight:900;color:${cor}">R$ ${moneyShort(p.proj_vgv)} <span class="tiny muted" style="font-weight:400">· ${p.proj_vendas} venda(s)</span></div>${p.margem_pct ? `<div class="tiny muted">faixa R$ ${moneyShort(p.proj_vgv_low)} – R$ ${moneyShort(p.proj_vgv_high)} · ±${p.margem_pct}%</div>` : ''}</div>` : ''}
       ${temMeta ? `<div style="margin-left:auto;text-align:right"><div class="tiny muted">${proj ? 'proj. da meta' : 'da meta'}</div><div style="font-size:22px;font-weight:900;color:${cor}">${att}%</div></div>` : ''}
     </div>
     ${temMeta ? `<div style="margin-top:6px">${bar(Math.min(100, att || 0), p.no_ritmo ? 'verde' : (att >= 70 ? 'amarelo' : 'vermelho'))}</div>` : ''}
-    <div class="tiny muted" style="margin-top:6px">${proj ? `${p.dias_decorridos}/${p.dias_total} dias do mês (faltam ${p.dias_restantes}). ` : 'Período fechado — sem extrapolação. '}
+    <div class="tiny muted" style="margin-top:6px">${proj ? `${p.dias_decorridos}/${p.dias_total} dias do mês (faltam ${p.dias_restantes}).${p.confianca ? ' Confiança ' + ({ alta: '🟢 alta', media: '🟡 média', baixa: '🔴 baixa' }[p.confianca]) + ' (±' + p.margem_pct + '%, fecha conforme o mês avança).' : ''} ` : 'Período fechado — sem extrapolação. '}
       ${temMeta ? (p.no_ritmo ? '✅ No ritmo de bater a meta.' : `🔴 Projetado ${att}% da meta — gap de R$ ${moneyShort(p.gap_vgv)}.${p.ritmo_necessario_dia ? ' Precisa ~' + p.ritmo_necessario_dia + ' venda(s)/dia.' : ''}`) : 'Defina a meta pra comparar.'}</div>`);
 }
 function miniKpi(lbl, val) {

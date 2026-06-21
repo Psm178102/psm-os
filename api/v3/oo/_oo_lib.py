@@ -358,13 +358,29 @@ def compute_ads_invest(deals, since_d, until_d, mc, team_cpl, global_cpl):
                 zero_n += 1
         else:
             zero_n += 1
+    # ── margem de erro: a parte CASADA é exata; a incerteza vem dos leads pagos SEM
+    # campanha no cache (precificados pela faixa p25–p75 dos CPLs de campanha da casa). ──
+    cpls = sorted(c["cpl"] for c in ((mc or {}).get("list") or []) if c.get("cpl"))
+
+    def _pct(q):
+        return cpls[min(len(cpls) - 1, int(q * len(cpls)))] if cpls else None
+    base_cpl = team_cpl if team_cpl is not None else global_cpl
+    lo_cpl = _pct(0.25) if cpls else base_cpl
+    hi_cpl = _pct(0.75) if cpls else base_cpl
+    inv_low = round(exato_v + fb_n * (lo_cpl or 0), 2)
+    inv_high = round(exato_v + fb_n * (hi_cpl or 0), 2)
+    priced = exato_n + fb_n
+    conf_pct = round(exato_n / priced * 100) if priced else None
+    conf = None if conf_pct is None else ("alta" if conf_pct >= 85 else ("media" if conf_pct >= 60 else "baixa"))
     return {
         "metodo": "exato", "leads": total, "invest": round(inv, 2),
+        "invest_low": inv_low, "invest_high": inv_high,
+        "confianca_pct": conf_pct, "confianca": conf,
         "exato_leads": exato_n, "exato_valor": round(exato_v, 2),
         "conta_leads": fb_n, "conta_valor": round(fb_v, 2),
         "zero_leads": zero_n,
         "cobertura_pct": (round(exato_n / total * 100) if total else None),
-        "cpl_medio": (round(inv / (exato_n + fb_n), 2) if (exato_n + fb_n) else None),
+        "cpl_medio": (round(inv / priced, 2) if priced else None),
         "preset_cpl": mc.get("preset_used") if mc else None,
     }
 
@@ -746,11 +762,17 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
     prest = max(0, ptot - pelap)
     proj_vendas = round(vendas / ppace) if ppace > 0 else vendas
     proj_vgv = round(vgv / ppace, 2) if ppace > 0 else vgv
+    # margem de erro da projeção: larga no começo do mês (pouco do período decorrido),
+    # fecha no fim. Só faz sentido no modo projeção (período em aberto).
+    unc = (max(0.0, 1 - ppace) * 0.5) if proj_mode == "projecao" else 0.0
+    proj_conf = None if proj_mode != "projecao" else ("alta" if ppace >= 0.7 else ("media" if ppace >= 0.4 else "baixa"))
     out["projecao"] = {
         "modo": proj_mode, "pace_pct": round(ppace * 100),
         "dias_decorridos": pelap, "dias_total": ptot, "dias_restantes": prest,
         "real_vgv": round(vgv, 2), "real_vendas": vendas,
         "proj_vendas": proj_vendas, "proj_vgv": proj_vgv,
+        "proj_vgv_low": round(proj_vgv * (1 - unc), 2), "proj_vgv_high": round(proj_vgv * (1 + unc), 2),
+        "margem_pct": round(unc * 100), "confianca": proj_conf,
         "meta_vgv": meta_vgv_alvo, "meta_vendas": mv.get("meta_vendas") or 0,
         "atingira_vgv_pct": (round(proj_vgv / meta_vgv_alvo * 100) if meta_vgv_alvo else None),
         "gap_vgv": round(meta_vgv_alvo - proj_vgv, 2) if meta_vgv_alvo else None,
