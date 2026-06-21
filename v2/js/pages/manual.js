@@ -2,7 +2,7 @@
 import { auth } from '../auth.js';
 import { api } from '../api.js';
 
-let _root = null, _m = null, _canEdit = false, _editing = false, _draft = null, _msg = '';
+let _root = null, _m = null, _canEdit = false, _editing = false, _draft = null, _msg = '', _isDefault = false;
 
 export async function pageManual(ctx, root) {
   _root = root; _editing = false; _msg = '';
@@ -11,6 +11,7 @@ export async function pageManual(ctx, root) {
     const r = await api.request('/api/v3/cultura/manual');
     _m = (r && r.manual) || { missao: '', visao: '', valores: [], secoes: [] };
     _canEdit = !!(r && r.can_edit);
+    _isDefault = !!(r && r.is_default);
   } catch (e) {
     _root.innerHTML = `<div class="card"><div class="alert alert-warn">Erro ao carregar: ${escapeHtml(e.message)}</div></div>`;
     return;
@@ -34,6 +35,9 @@ function render() {
         </div>
         ${_canEdit ? '<button class="btn btn-primary btn-sm" id="man-edit">✏️ Editar Manual</button>' : ''}
       </div>
+
+      ${_isDefault ? `<div class="alert" style="background:rgba(217,119,6,.10);border:1px solid rgba(217,119,6,.35);padding:10px 12px;border-radius:8px;margin-top:10px;font-size:12.5px">
+        📌 <b>Base importada do Manual v2.0</b> — conteúdo real da PSM, porém desatualizado. ${_canEdit ? 'Clique em <b>✏️ Editar Manual</b> para revisar e atualizar para a 3.8.' : 'Em revisão para a versão 3.8.'}</div>` : ''}
 
       ${m.missao ? `<div class="mt-4">
         <h3 style="color:var(--psm-gold);font-size:15px;margin-bottom:8px">🎯 Nossa Missão</h3>
