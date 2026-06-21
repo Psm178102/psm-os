@@ -108,10 +108,12 @@ export const ROUTE_GROUP = {
   // Início (sempre)
   '/': 'inicio', '/painel': 'inicio', '/checkin': 'inicio', '/ranking': 'inicio', '/agenda': 'inicio', '/tarefas': 'inicio',
   // Secretaria de Vendas & Backoffice (SDR + Captações)
-  '/sdr': 'secretaria', '/captacoes': 'secretaria', '/links-uteis': 'secretaria', '/sac-incorporadoras': 'secretaria', '/sistemas-incorporadoras': 'secretaria',
-  // Imóveis & Vendas
-  '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/fichas': 'vendas', '/campanha-wa': 'vendas',
+  '/sdr': 'secretaria', '/captacoes': 'secretaria', '/links-uteis': 'secretaria', '/sac-incorporadoras': 'secretaria', '/sistemas-incorporadoras': 'secretaria', '/campanha-wa': 'secretaria',
+  // Imóveis & Vendas (+ Metas/Equipes/Plantões e simuladores VPL/INCC/Repasse/Energia migrados)
+  '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/fichas': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/tabela-imoveis': 'vendas', '/lancamentos': 'vendas',
+  '/metas': 'vendas', '/equipe': 'vendas', '/plantoes': 'vendas',
+  '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas',
   // Locação
   '/locacoes': 'locacao', '/minutas-locacao': 'locacao',
   // Financeiro
@@ -120,9 +122,8 @@ export const ROUTE_GROUP = {
   '/marketing': 'marketing', '/concorrencia': 'marketing', '/benchmark': 'marketing',
   '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing', '/inteligencia': 'marketing', '/biblioteca-ads': 'marketing', '/marketing-historico': 'marketing', '/cerebro-vendas': 'marketing', '/briefing-guerra': 'marketing', '/paulo-conteudo': 'marketing', '/conteudo-imoveis': 'marketing', '/conteudo-conquista': 'marketing', '/criativos': 'marketing',
   '/dados-mercado': 'diretoria',
-  // Metas & Performance
-  '/metas': 'performance', '/equipe': 'performance', '/organograma': 'performance',
-  '/one-on-one': 'performance', '/plantoes': 'performance', '/arena': 'performance',
+  // Arena & Performance (Metas/Equipes/Plantões migraram p/ Imóveis & Vendas)
+  '/organograma': 'performance', '/one-on-one': 'performance', '/arena': 'performance',
   '/tv': 'performance', '/war-room': 'performance', '/war-arena': 'performance',
   // Diretoria
   '/cockpit': 'diretoria', '/paulo': 'diretoria', '/projetos': 'diretoria',
@@ -140,17 +141,16 @@ export const ROUTE_GROUP = {
   '/formacao': 'academy', '/premiacoes': 'inicio',
   // Gestão de Pessoas & RH (grupo próprio)
   '/gestao-pessoas': 'rh',
-  '/talentos': 'diretoria', '/psmhub': 'diretoria',
+  '/talentos': 'rh', '/psmhub': 'diretoria',
   // Ferramentas
-  '/simuladores': 'ferramentas', '/relatorios': 'ferramentas',
+  '/simuladores': 'ferramentas', '/relatorios': 'diretoria',
   // Sistema
   '/usuarios': 'sistema', '/auditoria': 'sistema', '/integracoes': 'sistema',
   '/backup': 'sistema', '/configuracoes': 'sistema', '/config-menu': 'sistema', '/logins': 'sistema',
   // Conta (sempre)
   '/conta': 'conta',
-  // sub-rotas de simuladores herdam ferramentas
-  '/sim-vpl': 'ferramentas', '/sim-incc': 'ferramentas', '/sim-repasse': 'ferramentas',
-  '/sim-energia': 'ferramentas', '/sim-leads': 'ferramentas', '/sim-criativos': 'ferramentas',
+  // simuladores Leads/CAC e Criativos migraram p/ Marketing (VPL/INCC/Repasse/Energia → Imóveis & Vendas, acima)
+  '/sim-leads': 'marketing', '/sim-criativos': 'marketing',
   '/agente-vera': 'ia', '/agente-sol': 'ia',
 };
 
@@ -306,7 +306,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '78.3.0';
+const APP_VERSION = '78.4.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -476,12 +476,12 @@ const APP_VERSION = '78.3.0';
   router.register('/intel-ads',   { render: async (ctx, root) => { setHeader('Inteligência Ads');    highlight('/intel-ads');  await pageIntelAds(ctx, root); } });
   router.register('/intel-dash',  { render: async (ctx, root) => { setHeader('Inteligência Estratégica'); highlight('/intel-dash'); await pageIntelDash(ctx, root); } });
   router.register('/simuladores', { render: async (ctx, root) => { setHeader('Simuladores');         highlight('/simuladores'); await pageSimuladores(ctx, root); } });
-  router.register('/sim-vpl',     { render: async (ctx, root) => { setHeader('Simulador VPL');       highlight('/simuladores'); await pageSimVPL(ctx, root); } });
-  router.register('/sim-incc',    { render: async (ctx, root) => { setHeader('Simulador INCC');      highlight('/simuladores'); await pageSimINCC(ctx, root); } });
-  router.register('/sim-repasse', { render: async (ctx, root) => { setHeader('Simulador Repasse');   highlight('/simuladores'); await pageSimRepasse(ctx, root); } });
-  router.register('/sim-energia', { render: async (ctx, root) => { setHeader('Simulador Energia');   highlight('/simuladores'); await pageSimEnergia(ctx, root); } });
-  router.register('/sim-leads',   { render: async (ctx, root) => { setHeader('Simulador Leads/CAC'); highlight('/simuladores'); await pageSimLeads(ctx, root); } });
-  router.register('/sim-criativos', { render: async (ctx, root) => { setHeader('Simulador Criativos'); highlight('/simuladores'); await pageSimCriativos(ctx, root); } });
+  router.register('/sim-vpl',     { render: async (ctx, root) => { setHeader('Simulador VPL');       highlight('/sim-vpl'); await pageSimVPL(ctx, root); } });
+  router.register('/sim-incc',    { render: async (ctx, root) => { setHeader('Simulador INCC');      highlight('/sim-incc'); await pageSimINCC(ctx, root); } });
+  router.register('/sim-repasse', { render: async (ctx, root) => { setHeader('Simulador Repasse');   highlight('/sim-repasse'); await pageSimRepasse(ctx, root); } });
+  router.register('/sim-energia', { render: async (ctx, root) => { setHeader('Simulador Energia');   highlight('/sim-energia'); await pageSimEnergia(ctx, root); } });
+  router.register('/sim-leads',   { render: async (ctx, root) => { setHeader('Simulador Leads/CAC'); highlight('/sim-leads'); await pageSimLeads(ctx, root); } });
+  router.register('/sim-criativos', { render: async (ctx, root) => { setHeader('Simulador Criativos'); highlight('/sim-criativos'); await pageSimCriativos(ctx, root); } });
   router.register('/war-room',    { render: async (ctx, root) => { setHeader('War Room');            highlight('/war-room');   await pageWarRoom(ctx, root); } });
   router.register('/war-arena',   { render: async (ctx, root) => { setHeader('War Arena');           highlight('/war-arena');  await pageWarArena(ctx, root); } });
   router.register('/okrs',        { render: async (ctx, root) => { setHeader('OKRs');                highlight('/okrs');       await pageOKRs(ctx, root); } });
@@ -564,7 +564,6 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/checkin"><span class="sb-ico">📍</span> Check-in</button>
         <button class="sb-link" data-nav="/ranking"><span class="sb-ico">🏆</span> Ranking</button>
         <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
-        <button class="sb-link" data-nav="/base"><span class="sb-ico">📚</span> Base Conhecimento</button>
         <button class="sb-link" data-nav="/manual"><span class="sb-ico">📖</span> Manual Cultura</button>
         <button class="sb-link" data-nav="/etica"><span class="sb-ico">⚖️</span> Código de Ética</button>
         <button class="sb-link" data-nav="/canal"><span class="sb-ico">🔒</span> Canal Anônimo</button>
@@ -575,18 +574,18 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/oportunidades"><span class="sb-ico">💡</span> Oportunidades</button>
         <button class="sb-link" data-nav="/cadencia"><span class="sb-ico">🔄</span> Cadência</button>
         <button class="sb-link" data-nav="/fichas"><span class="sb-ico">📋</span> Fichas/Propostas</button>
-        <button class="sb-link" data-nav="/imoveis"><span class="sb-ico">🏘</span> Imóveis</button>
         <button class="sb-link" data-nav="/mapa"><span class="sb-ico">🗺</span> Mapa Imóveis</button>
         <button class="sb-link" data-nav="/tabela-imoveis"><span class="sb-ico">📊</span> Tabela Imóveis</button>
         <button class="sb-link" data-nav="/lancamentos"><span class="sb-ico">🏗</span> Lançamentos</button>
-        <button class="sb-link" data-nav="/campanha-wa"><span class="sb-ico">📣</span> Campanha WhatsApp</button>
-
-        <div class="sb-sec">🎯 Metas & Performance</div>
         <button class="sb-link" data-nav="/metas"><span class="sb-ico">🎯</span> Metas</button>
         <button class="sb-link" data-nav="/equipe"><span class="sb-ico">🛡</span> Equipes</button>
-        <button class="sb-link" data-nav="/organograma"><span class="sb-ico">🌳</span> Organograma</button>
         <button class="sb-link" data-nav="/plantoes"><span class="sb-ico">🛡</span> Plantões</button>
-        <button class="sb-link" data-nav="/arena"><span class="sb-ico">📡</span> Arena Live</button>
+        <button class="sb-link" data-nav="/sim-vpl"><span class="sb-ico">🧮</span> Simulador VPL</button>
+        <button class="sb-link" data-nav="/sim-incc"><span class="sb-ico">📈</span> Simulador INCC</button>
+        <button class="sb-link" data-nav="/sim-repasse"><span class="sb-ico">🔁</span> Simulador Repasse</button>
+        <button class="sb-link" data-nav="/sim-energia"><span class="sb-ico">⚡</span> Simulador Energia</button>
+
+        <div class="sb-sec">🔥 Arena & Performance</div>
         <button class="sb-link" data-nav="/tv"><span class="sb-ico">📺</span> Modo TV</button>
         <button class="sb-link" data-nav="/war-room"><span class="sb-ico">⚔️</span> War Room</button>
         <button class="sb-link" data-nav="/war-arena"><span class="sb-ico">🔥</span> War Arena</button>
@@ -598,7 +597,6 @@ function shellHTML(user) {
 
         <div class="sb-sec">🧮 Ferramentas</div>
         <button class="sb-link" data-nav="/simuladores"><span class="sb-ico">🧮</span> Simuladores</button>
-        <button class="sb-link" data-nav="/relatorios"><span class="sb-ico">🖨</span> Relatórios</button>
 
         <div class="sb-sec">🗂 Secretaria de Vendas & Backoffice</div>
         <button class="sb-link" data-nav="/sdr"><span class="sb-ico">📞</span> Prospecção SDR</button>
@@ -606,9 +604,11 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/links-uteis"><span class="sb-ico">🔗</span> Links úteis</button>
         <button class="sb-link" data-nav="/sac-incorporadoras"><span class="sb-ico">📞</span> SAC Incorporadoras</button>
         <button class="sb-link" data-nav="/sistemas-incorporadoras"><span class="sb-ico">🏢</span> Sistema e Drive Incorporadoras</button>
+        <button class="sb-link" data-nav="/campanha-wa"><span class="sb-ico">📣</span> Campanha WhatsApp</button>
 
         <div class="sb-sec">🧑‍💼 Gestão de Pessoas & RH</div>
         <button class="sb-link" data-nav="/gestao-pessoas"><span class="sb-ico">👥</span> Gestão de Pessoas</button>
+        <button class="sb-link" data-nav="/talentos"><span class="sb-ico">🌟</span> Base de Talentos</button>
 
         <div class="sb-sec">📣 Marketing</div>
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>
@@ -619,13 +619,15 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/marketing-historico"><span class="sb-ico">📅</span> Histórico Meta</button>
         <button class="sb-link" data-nav="/biblioteca-ads"><span class="sb-ico">📚</span> Biblioteca de Anúncios</button>
         <button class="sb-link" data-nav="/intel-ads"><span class="sb-ico">🎯</span> Intel Ads</button>
+        <button class="sb-link" data-nav="/sim-leads"><span class="sb-ico">📈</span> Simulador Leads/CAC</button>
+        <button class="sb-link" data-nav="/sim-criativos"><span class="sb-ico">🎨</span> Simulador Criativos</button>
 
         <div class="sb-sec">🏛 Diretoria</div>
         <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Decisão</div>
         <button class="sb-link" data-nav="/cockpit"><span class="sb-ico">🧭</span> Cockpit de Decisão</button>
         <button class="sb-link" data-nav="/diretoria"><span class="sb-ico">📊</span> Dashboard</button>
         <button class="sb-link" data-nav="/paulo"><span class="sb-ico">🧑‍💼</span> Paulo</button>
-        <button class="sb-link" data-nav="/talentos"><span class="sb-ico">🌟</span> Base de Talentos</button>
+        <button class="sb-link" data-nav="/relatorios"><span class="sb-ico">🖨</span> Relatórios</button>
         <button class="sb-link" data-nav="/psmhub"><span class="sb-ico">🔌</span> PSM HUB · Conquista</button>
         <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Planejamento</div>
         <button class="sb-link" data-nav="/projetos"><span class="sb-ico">📌</span> Projetos</button>
