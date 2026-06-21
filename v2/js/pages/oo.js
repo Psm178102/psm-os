@@ -152,8 +152,16 @@ function renderGestor(d, c) {
       ${gestorHeader(d)}
       ${gestorAlerts(M)}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
+        ${projecaoPanel({ projecao: M.projecao })}
+        ${reverseFunnelPanel({ funil_reverso: M.funil_reverso })}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
         ${saudeEquipePanel(t)}
         ${kpiVsMeta(M)}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
+        ${gargaloPanel(M)}
+        ${focoSemanaPanel(t)}
       </div>
       ${rankingPanel(t)}
       <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:14px;align-items:start">
@@ -564,6 +572,47 @@ function wirePeriod(reloadFn) {
   });
   document.getElementById('oo-range-clear')?.addEventListener('click', () => { _since = ''; _until = ''; reloadFn(); });
 }
+/* 🔻 Gargalo do funil da equipe: a etapa que MENOS converte = foco de coaching */
+function gargaloPanel(M) {
+  const f = (M.funnel || []).filter(s => s.conv_from_prev != null);
+  if (!f.length) return panel('🔻 Gargalo do funil', '<div class="tiny muted">Sem dados de conversão por etapa no período.</div>');
+  let pior = f[0];
+  f.forEach(s => { if ((s.conv_from_prev ?? 999) < (pior.conv_from_prev ?? 999)) pior = s; });
+  const idx = (M.funnel || []).findIndex(s => s.key === pior.key);
+  const ant = idx > 0 ? M.funnel[idx - 1].label : '';
+  const chain = (M.funnel || []).map((s, i) => i === 0 ? `${s.label} (${s.n})`
+    : `<span style="${s.key === pior.key ? 'color:#dc2626;font-weight:800' : 'color:#64748b'}">→ ${s.conv_from_prev != null ? s.conv_from_prev + '%' : '—'} → ${s.label} (${s.n})</span>`).join(' ');
+  return panel('🔻 Gargalo do funil (foco de coaching)', `
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:9px 12px;margin-bottom:8px">
+      <div style="font-weight:800;color:#b91c1c;font-size:13px">Maior perda: ${escapeHtml(ant)} → ${escapeHtml(pior.label)} = ${pior.conv_from_prev}%</div>
+      <div class="tiny" style="color:#7f1d1d;margin-top:2px">É aqui que a equipe mais perde negócio. Trabalhe ${escapeHtml(pior.label.toLowerCase())} nas 1:1.</div>
+    </div>
+    <div class="tiny" style="line-height:1.7">${chain}</div>`);
+}
+
+/* 🎯 Foco da semana: os 3 corretores que mais movem o ponteiro (atenção × volume) */
+function focoSemanaPanel(t) {
+  const ms = (t.members || []).slice();
+  const score = m => (100 - (m.health || 0)) * (1 + (m.vgv || 0) / 1e6) + (m.alertas_count || 0) * 8;
+  ms.sort((a, b) => score(b) - score(a));
+  const top = ms.slice(0, 3);
+  if (!top.length) return panel('🎯 Foco da semana', '<div class="tiny muted">Sem corretores na equipe.</div>');
+  return panel('🎯 Foco da semana (prioridade do gestor)', `
+    <div class="tiny muted" style="margin-bottom:6px">Quem mais precisa de você agora (saúde + volume + alertas):</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+    ${top.map((m, i) => {
+      const motivo = !m.vendas ? 'sem vendas no período'
+        : (m.meta_attainment_pct != null && m.meta_attainment_pct < 70) ? `${m.meta_attainment_pct}% da meta`
+        : (m.alertas_count ? `${m.alertas_count} alerta(s)` : 'acompanhar ritmo');
+      return `<div data-member="${escapeHtml(m.id)}" style="cursor:pointer;display:flex;align-items:center;gap:9px;background:var(--bg-3);border-left:4px solid ${healthHex(m.health_color)};border-radius:8px;padding:7px 10px">
+        <span style="font-weight:900;color:var(--ink-muted)">${i + 1}</span>
+        <span style="flex:1;min-width:0"><b style="font-size:13px">${escapeHtml(m.name)}</b> <span class="tiny muted">· ${healthEmoji(m.health_color)} ${m.health}</span><div class="tiny" style="color:#b45309">${motivo} · R$ ${moneyShort(m.vgv)} · ${m.vendas} venda(s)</div></span>
+        <span class="tiny" style="color:#2563eb">abrir →</span>
+      </div>`;
+    }).join('')}
+    </div>`);
+}
+
 function panel(title, inner) {
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px">
     <div style="font-weight:800;font-size:13px;margin-bottom:8px">${title}</div>${inner}</div>`;
