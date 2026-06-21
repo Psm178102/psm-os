@@ -40,6 +40,7 @@ import { pageCnds } from './pages/cnds.js';
 import { pageLinksUteis } from './pages/links-uteis.js';
 import { pageSacIncorporadoras } from './pages/sac-incorporadoras.js';
 import { pageSistemasIncorporadoras } from './pages/sistemas-incorporadoras.js';
+import { initSearch } from './search.js';
 import { pageReunioes } from './pages/reunioes.js';
 import { pageArena } from './pages/arena.js';
 import { pageForecast } from './pages/forecast.js';
@@ -305,7 +306,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '78.1.0';
+const APP_VERSION = '78.2.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -539,6 +540,9 @@ const APP_VERSION = '78.1.0';
     }).catch(() => {});
   }
 
+  // 9.5) Busca global (Cmd/Ctrl+K + botão 🔎 no topo)
+  initSearch();
+
   // 10) Checagem de versão: avisa na hora se a aba está com código antigo,
   //     re-checa ao voltar pra aba, e o rodapé "House PSM · vX" checa sob clique.
   checkVersion();
@@ -680,6 +684,7 @@ function shellHTML(user) {
         <div class="h-title" id="h-title">Dashboard</div>
         <div class="h-spacer"></div>
         <div class="h-user">
+          <button class="btn btn-ghost" id="btn-search" style="padding:6px 10px" title="Buscar (Cmd/Ctrl+K)">🔎</button>
           <button class="btn btn-ghost" id="btn-health" style="position:relative;padding:6px 10px" title="Saúde do sistema">
             <span id="health-dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#94a3b8;vertical-align:middle"></span>
           </button>
