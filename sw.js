@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v80.4.0-2026-06-20-CUSTOEQUIPE';
+const SW_VERSION = 'v80.5.0-2026-06-20-MANUALEDIT';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
