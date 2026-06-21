@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v80.9.0-2026-06-20-MAPAFIX';
+const SW_VERSION = 'v81.0.0-2026-06-20-TABELARENDER';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
