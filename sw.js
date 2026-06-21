@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v79.0.0-2026-06-20-OOGESTOR';
+const SW_VERSION = 'v79.1.0-2026-06-20-RANKAUDIT';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

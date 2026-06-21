@@ -60,8 +60,51 @@ function render() {
       <div style="display:grid;gap:6px">
         ${rankActivity.map((u, i) => rankRow(u, i, 'activity')).join('')}
       </div>
+      <p class="tiny muted mt-3">💰 VGV e vendas vêm do <b>RD CRM</b> (fonte oficial). A auditoria abaixo confere com o PSM HUB.</p>
     </div>
+    <div id="rk-audit"></div>
   `;
+  loadAudit();
+}
+
+/* 🔎 Auditoria RD × PSM HUB (Conquista) — valida fidelidade; não altera o ranking.
+   Só carrega pra diretoria (lvl≥7); pra quem não tem acesso, o endpoint nega e some. */
+async function loadAudit() {
+  const el = document.getElementById('rk-audit');
+  if (!el) return;
+  let r;
+  try { r = await api.request('/api/v3/psmhub/reconcile'); }
+  catch (_) { el.remove(); return; }                 // sem permissão / HUB off → nem mostra
+  if (!r || !r.ok || r.pending_config) { el.remove(); return; }
+  const rows = (r.rows || []).filter(x => (x.psmhub_vgv || 0) > 0 || (x.rd_vgv || 0) > 0);
+  if (!rows.length) { el.innerHTML = `<div class="card mt-3"><h3 class="card-title">🔎 Auditoria RD × PSM HUB</h3><div class="muted tiny">Sem vendas da Conquista no período pra comparar. Conexão com o HUB OK ✅.</div></div>`; return; }
+  const conf = rows.filter(x => x.ok && !x.rd_zero).length;
+  const soHub = rows.filter(x => x.rd_zero && (x.psmhub_vgv || 0) > 0);
+  const diverg = rows.filter(x => !x.ok && !x.rd_zero);
+  const statusCell = x => {
+    if (x.rd_zero && (x.psmhub_vgv || 0) > 0) return '<span style="color:#2563eb;font-weight:700">🟦 só no HUB</span>';
+    if (x.ok) return '<span style="color:#16a34a;font-weight:700">✅ confere</span>';
+    return `<span style="color:#dc2626;font-weight:700">⚠️ diverge ${x.diff_pct != null ? x.diff_pct + '%' : ''}</span>`;
+  };
+  el.innerHTML = `
+    <div class="card mt-3">
+      <h3 class="card-title">🔎 Auditoria RD × PSM HUB (Conquista)</h3>
+      <p class="card-sub">Confere se o VGV/vendas do ranking (RD) batem com o PSM HUB. ${conf}/${rows.length} conferem${diverg.length ? ' · <b style="color:#dc2626">' + diverg.length + ' divergência(s)</b>' : ''}${soHub.length ? ' · <b style="color:#2563eb">' + soHub.length + ' só no HUB</b>' : ''}.</p>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px">
+        <thead><tr style="color:var(--ink-muted);font-size:11px;text-align:left;border-bottom:1px solid var(--border)">
+          <th style="padding:5px 6px">Corretor</th><th style="text-align:right">RD VGV</th><th style="text-align:right">HUB VGV</th><th style="text-align:right">RD vendas</th><th style="text-align:right">HUB vendas</th><th style="text-align:center">Status</th></tr></thead>
+        <tbody>${rows.map(x => `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px">${escapeHtml(x.nome || x.email || '—')}</td>
+          <td style="text-align:right">R$ ${money(x.rd_vgv)}</td>
+          <td style="text-align:right">R$ ${money(x.psmhub_vgv)}</td>
+          <td style="text-align:right">${x.rd_vendas || 0}</td>
+          <td style="text-align:right">${x.psmhub_vendas || 0}</td>
+          <td style="text-align:center">${statusCell(x)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      ${soHub.length ? `<p class="tiny muted mt-2">🟦 "Só no HUB" = venda registrada na Conquista mas ainda não no RD — vale conferir/lançar no RD (fonte oficial).</p>` : ''}
+      ${r.fetched_at ? `<p class="tiny muted" style="margin-top:4px">Reconciliado agora · mês ${r.month}/${r.year}.</p>` : ''}
+    </div>`;
 }
 
 function rankRow(u, i, mode) {
