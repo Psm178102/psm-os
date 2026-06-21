@@ -20,7 +20,7 @@ from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from _oo_lib import (  # type: ignore
     window, months_in_range, broker_metrics, parse_dt, build_stage_maps, read_meta_spend, meta_for_period,
     read_meta_accounts, match_team_account, read_team_account_override,
-    read_meta_campaigns, compute_ads_invest,
+    read_meta_campaigns, compute_ads_invest, read_custos_corretor,
 )
 
 
@@ -174,6 +174,13 @@ class handler(BaseHTTPRequestHandler):
         metrics["cpl_global"] = _ma["global_cpl"]                       # compat UI
         metrics["lead_invest"] = metrics["ads_invest"]["invest"]       # compat UI
 
+        # 💰 Custo total do corretor = investimento em ads (período) + custo fixo (mensal).
+        _cf = read_custos_corretor(sb)
+        _cf_corr = _cf.get(str(cid), 0.0)
+        _ads = metrics["ads_invest"]["invest"] or 0
+        metrics["custo_fixo"] = _cf_corr
+        metrics["custo_total"] = round(_ads + _cf_corr, 2)
+
         resp = {
             "ok": True,
             "corretor": {"id": u.get("id"), "name": u.get("name"), "email": u.get("email"),
@@ -213,6 +220,9 @@ class handler(BaseHTTPRequestHandler):
                 tmetrics["ads_invest"] = _ads_invest(team, tdeals)
                 tmetrics["lead_invest"] = tmetrics["ads_invest"]["invest"]
                 tmetrics["cpl_global"] = _ma["global_cpl"]
+                _cf_team = round(sum(_cf.get(str(x), 0.0) for x in mids), 2)
+                tmetrics["custo_fixo"] = _cf_team
+                tmetrics["custo_total"] = round((tmetrics["ads_invest"]["invest"] or 0) + _cf_team, 2)
                 # 🔮 Previsão por PIPELINE (deals abertos ponderados pela etapa) vs meta
                 def _wstage(name):
                     n = (name or "").lower()
@@ -264,13 +274,15 @@ class handler(BaseHTTPRequestHandler):
                         continue  # o gestor não aparece como corretor da própria equipe
                     mm = broker_metrics(deals_by_owner.get(m.get("id"), []), tevents, meta_for_period(all_metas, m.get("id"), since_d, until_d), since_d, until_d, today, detail=True, stage_maps=stage_maps)
                     _fn = mm.get("funnel") or []
+                    _minv = _ads_invest(team, deals_by_owner.get(m.get("id"), []))["invest"] or 0
+                    _mcf = _cf.get(str(m.get("id")), 0.0)
                     membros.append({"id": m.get("id"), "name": m.get("name"), "role": m.get("role"),
                                     "ini": m.get("ini"), "color": m.get("color"),
                                     "vendas": mm["kpis"]["vendas"], "vgv": mm["kpis"]["vgv"],
                                     "visitas": mm["kpis"]["visitas"], "leads": mm["kpis"]["leads"],
                                     "win_rate": mm["win_rate"], "health": mm["health"], "health_color": mm["health_color"],
                                     "meta_attainment_pct": mm["meta_attainment_pct"], "alertas_count": len(mm["alertas"]),
-                                    "lead_invest": _ads_invest(team, deals_by_owner.get(m.get("id"), []))["invest"],
+                                    "lead_invest": _minv, "custo_fixo": _mcf, "custo_total": round(_minv + _mcf, 2),
                                     # 🔥 conversão por etapa (matriz de coaching) + 📉 tendência mensal
                                     "conv": [s.get("conv_from_prev") for s in _fn[1:]],
                                     "funnel_n": [s.get("n") for s in _fn],

@@ -124,6 +124,7 @@ function renderDetail() {
       </div>
       <div style="margin-top:14px">${efficiencyPanel(d)}</div>
       <div style="margin-top:14px">${adsInvestPanel(d, 'corretor')}</div>
+      <div style="margin-top:14px">${custoTotalPanel(d, 'corretor')}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
         ${reverseFunnelPanel(d)}
         ${projecaoPanel(d)}
@@ -158,6 +159,7 @@ function renderGestor(d, c) {
       </div>
       <div style="margin-top:14px">${pipelinePanel(M)}</div>
       <div style="margin-top:14px">${adsInvestPanel({ ads_invest: M.ads_invest }, 'equipe')}</div>
+      <div style="margin-top:14px">${custoTotalPanel({ ads_invest: M.ads_invest, custo_fixo: M.custo_fixo, custo_total: M.custo_total }, 'equipe')}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
         ${saudeEquipePanel(t)}
         ${kpiVsMeta(M)}
@@ -431,6 +433,26 @@ function adsInvestPanel(d, scope) {
     <div class="tiny muted" style="margin-top:8px">
       Cada lead recebido no período é cruzado com a campanha de origem (RD) e precificado pelo <b>CPL real daquela campanha no Meta</b> (${presetLbl}).
       ${(a.conta_leads || 0) > 0 ? `Quando a campanha não está no cache, usa o CPL da conta da equipe. ` : ''}Lead que não veio de ads não custa nada. ${cob != null && cob < 100 ? `Cobertura exata de ${cob}% — o resto é fallback honesto.` : ''}</div>`);
+}
+
+/* 💰 Quanto custa o corretor = investimento em ads (período) + custo fixo (mensal) */
+function custoTotalPanel(d, scope) {
+  const a = d.ads_invest;
+  const ads = (a && a.invest) || 0;
+  const fixo = d.custo_fixo || 0;
+  const total = d.custo_total != null ? d.custo_total : (ads + fixo);
+  const who = scope === 'equipe' ? 'a equipe custa' : 'o corretor custa';
+  return panel('💰 Quanto ' + who, `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+      <div><div class="tiny muted">💸 Ads (período)</div><div style="font-size:18px;font-weight:900;color:#fb7185">R$ ${moneyShort(ads)}</div></div>
+      <div style="font-size:18px;color:#94a3b8">+</div>
+      <div><div class="tiny muted">🧾 Custo fixo (mensal)</div><div style="font-size:18px;font-weight:900;color:#6366f1">R$ ${moneyShort(fixo)}</div></div>
+      <div style="font-size:18px;color:#94a3b8">=</div>
+      <div><div class="tiny muted">Custo total</div><div style="font-size:24px;font-weight:900;color:#0f172a">R$ ${moneyShort(total)}</div></div>
+    </div>
+    <div class="tiny muted" style="margin-top:8px">${fixo === 0
+      ? '🧾 Custo fixo ainda não cadastrado. Em <b>Diretoria → Métricas Viab</b> o sócio lança logins, e-mail e licenças por corretor.'
+      : 'Custo fixo (logins, e-mail, licenças…) vem de Métricas Viab. Ads do período + fixo mensal = quanto custa de verdade.'}</div>`);
 }
 
 function efficiencyPanel(d) {

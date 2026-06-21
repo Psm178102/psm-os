@@ -11,6 +11,9 @@ import { auth } from '../auth.js';
 
 let _root = null, _data = null, _custos = null, _lines = null, _nibo = null, _meta = null;
 let _active = 'map', _showCustos = false, _periodo = 'mes', _comProLabore = false, _custosMsg = '', _locRateia = true;
+// 💼 Custo fixo por corretor (v80.0)
+let _ccUsers = null, _ccCustos = {}, _ccEdit = null, _ccDraft = [], _ccCanEdit = false, _ccMsg = '';
+const TEAM_LBL = { conquista: '🏆 Conquista', lancamento: '🏗 Lançamento', terceiros: '🤝 Terceiros', impper: '✨ IMPPER', locacao: '🔑 Locação', '': '— Sem equipe' };
 
 const LKEY = 'psm_v2_metricas_viab_lines';
 const SHARED = ['map', 'conquista', 'locacoes']; // rateiam os custos compartilhados (excl. Terceiros)
@@ -95,12 +98,17 @@ function freshLines() { const o = {}; for (const l of LINES) o[l.id] = { ...DEFA
 async function load() {
   try {
     const ANO = new Date().getFullYear();
-    const [atg, board, nibo, hist] = await Promise.all([
+    const [atg, board, nibo, hist, ccc, ccu] = await Promise.all([
       api.request('/api/v3/metas/atingimento').catch(() => ({})),
       api.request('/api/v3/diretoria/strategy?board=custos_compartilhados').catch(() => null),
       api.request('/api/v3/finance/custos_fixos?months=3&company=all').catch(() => null),
       api.request('/api/v3/marketing/history?ano=' + ANO).catch(() => null),
+      api.request('/api/v3/diretoria/custos_corretor').catch(() => null),
+      api.request('/api/v3/users/list').catch(() => null),
     ]);
+    _ccCustos = (ccc && ccc.ok) ? (ccc.byuser || {}) : {};
+    _ccCanEdit = !!(ccc && ccc.can_edit);
+    _ccUsers = (ccu && (ccu.users || ccu.data)) || (Array.isArray(ccu) ? ccu : []);
     _data = atg || {};
     // 📡 Meta Ads real (histórico): investimento/leads/CPL médios do ano → verba de mkt REAL
     const ht = (hist && hist.totais) || null, mh = (hist && hist.meses_com_dado) || 0;
@@ -116,7 +124,7 @@ async function load() {
     const t = nibo && nibo.ok ? (nibo.totals || {}) : null, mm = (nibo && nibo.months) || 3;
     _nibo = t ? { realMes: (+t.total || 0) / mm, pagoMes: (+t.pago || 0) / mm, months: mm } : null;
   } catch { _data = {}; }
-  renderBanner(); renderRealSim(); renderParams(); renderCustos(); renderTable(); renderEquilibrio();
+  renderBanner(); renderRealSim(); renderParams(); renderCustos(); renderTable(); renderEquilibrio(); renderCustosCorretor();
 }
 
 function saveAll() {
@@ -298,6 +306,13 @@ function render() {
 
       <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:20px 0 6px">🎚 Alavancas &amp; ⛓ Gargalos <span class="muted" style="text-transform:none;font-weight:400">(sensibilidade · impacto no lucro/mês potencial)</span></div>
       <div id="viab-alav"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h2 class="card-title">💼 Custo fixo por corretor</h2>
+      <p class="card-sub">Quanto cada corretor custa de fixo por mês (e-mail, logins de sistema, licenças…), por equipe. Soma com o investimento em ads no One-on-One = <b>quanto custa cada corretor</b>. Valores mensais.</p>
+      <div id="cc-msg" class="tiny muted" style="margin-bottom:6px"></div>
+      <div id="cc-list"><div class="muted tiny"><span class="spinner"></span> Carregando…</div></div>
     </div>`;
   _root.querySelectorAll('#viab-tabs [data-line]').forEach(b => b.addEventListener('click', () => {
     _active = b.dataset.line;
@@ -706,5 +721,91 @@ function selp(label, key, opts) {
   const val = _lines[_active][key] || opts[0][0];
   return `<div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><select class="input" data-key="${key}" style="width:100%;font-size:12px;padding:6px 8px">${opts.map(([v, l]) => `<option value="${v}"${String(v) === String(val) ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`;
 }
+// ───────── 💼 Custo fixo por corretor (por equipe) — v80.0 ─────────
+function ccTotal(uid) {
+  const e = _ccCustos[String(uid)];
+  return e ? (e.itens || []).reduce((s, i) => s + (+i.valor || 0), 0) : 0;
+}
+function ccEditor(u) {
+  const itens = _ccDraft;
+  const rows = itens.map((it, i) => `<div style="display:flex;gap:6px;margin-bottom:4px">
+      <input class="input" data-cc-field="nome" data-i="${i}" value="${escapeHtml(it.nome || '')}" placeholder="Item (ex.: E-mail Google, Login RD…)" style="flex:1;font-size:12px;padding:4px 6px">
+      <input class="input" data-cc-field="valor" data-i="${i}" type="number" step="0.01" value="${it.valor || ''}" placeholder="R$/mês" style="width:110px;font-size:12px;padding:4px 6px">
+      <button class="btn btn-ghost btn-sm" data-cc-del="${i}" title="remover">✕</button>
+    </div>`).join('');
+  return `<div style="background:var(--bg-3);border-radius:8px;padding:10px;margin:0 4px 8px">
+    ${rows || '<div class="tiny muted" style="margin-bottom:4px">Sem itens — adicione abaixo.</div>'}
+    <div class="flex gap-2" style="margin-top:6px;align-items:center">
+      <button class="btn btn-ghost btn-sm" data-cc-add="${u.id}">+ item</button>
+      <span class="tiny muted" style="margin-left:auto">subtotal R$ ${itens.reduce((s, i) => s + (+i.valor || 0), 0).toLocaleString('pt-BR')}/mês</span>
+      <button class="btn btn-primary btn-sm" data-cc-save="${u.id}">💾 Salvar</button>
+    </div>
+  </div>`;
+}
+function renderCustosCorretor() {
+  const el = document.getElementById('cc-list'); if (!el) return;
+  const users = (_ccUsers || []).filter(u => ['corretor', 'lider'].includes((u.role || '').toLowerCase()) && (u.status || 'ativo') === 'ativo' && !u.hide_from_ranking);
+  if (!users.length) { el.innerHTML = '<div class="muted tiny">Sem corretores ativos pra exibir.</div>'; return; }
+  const byTeam = {};
+  users.forEach(u => { const t = (u.team || '').toLowerCase().trim(); (byTeam[t] = byTeam[t] || []).push(u); });
+  const teams = Object.keys(byTeam).sort((a, b) => (TEAM_LBL[a] || a).localeCompare(TEAM_LBL[b] || b, 'pt-BR'));
+  let grand = 0;
+  const html = teams.map(t => {
+    const arr = byTeam[t].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+    let sub = 0;
+    const rows = arr.map(u => {
+      const tot = ccTotal(u.id); sub += tot;
+      const editing = _ccEdit === u.id;
+      return `<div style="border-top:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 4px">
+          <b style="flex:1;font-size:13px;min-width:0">${escapeHtml((u.name || '').trim())}</b>
+          <span style="font-weight:800;font-size:13px;color:${tot > 0 ? '#6366f1' : '#94a3b8'}">${fmt(tot)}/mês</span>
+          ${_ccCanEdit ? `<button class="btn btn-ghost btn-sm" data-cc-edit="${u.id}">${editing ? 'Fechar' : '✏️ Editar'}</button>` : ''}
+        </div>
+        ${editing ? ccEditor(u) : ''}
+      </div>`;
+    }).join('');
+    grand += sub;
+    return `<div style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;font-weight:800;font-size:13px;margin-bottom:2px"><span>${TEAM_LBL[t] || ('🏷 ' + (t || '—'))}</span><span class="muted">${fmt(sub)}/mês · ${arr.length}</span></div>
+      ${rows}
+    </div>`;
+  }).join('');
+  el.innerHTML = html
+    + `<div style="border-top:2px solid var(--border);margin-top:14px;padding-top:8px;display:flex;justify-content:space-between;font-weight:900"><span>Total fixo · todos os corretores</span><span style="color:#6366f1">${fmt(grand)}/mês</span></div>`;
+  const m = document.getElementById('cc-msg');
+  if (m) m.textContent = _ccCanEdit ? ('Clique em ✏️ pra lançar e-mail, logins, licenças por corretor. ' + (_ccMsg || '')) : '🔒 Só sócio/diretoria edita.';
+  wireCC();
+}
+function ccSyncDraft() {
+  const el = document.getElementById('cc-list'); if (!el) return;
+  el.querySelectorAll('[data-cc-field="nome"]').forEach(inp => { const i = +inp.dataset.i; if (_ccDraft[i]) _ccDraft[i].nome = inp.value; });
+  el.querySelectorAll('[data-cc-field="valor"]').forEach(inp => { const i = +inp.dataset.i; if (_ccDraft[i]) _ccDraft[i].valor = +inp.value || 0; });
+}
+function wireCC() {
+  const el = document.getElementById('cc-list'); if (!el) return;
+  el.querySelectorAll('[data-cc-edit]').forEach(b => b.onclick = () => {
+    const uid = b.dataset.ccEdit;
+    if (_ccEdit === uid) { ccSyncDraft(); _ccEdit = null; }
+    else { _ccEdit = uid; _ccDraft = JSON.parse(JSON.stringify((_ccCustos[String(uid)] || {}).itens || [])); }
+    renderCustosCorretor();
+  });
+  el.querySelectorAll('[data-cc-add]').forEach(b => b.onclick = () => { ccSyncDraft(); _ccDraft.push({ nome: '', valor: 0 }); renderCustosCorretor(); });
+  el.querySelectorAll('[data-cc-del]').forEach(b => b.onclick = () => { ccSyncDraft(); _ccDraft.splice(+b.dataset.ccDel, 1); renderCustosCorretor(); });
+  el.querySelectorAll('[data-cc-save]').forEach(b => b.onclick = () => ccSave(b.dataset.ccSave));
+}
+async function ccSave(uid) {
+  ccSyncDraft();
+  const itens = _ccDraft.filter(i => (i.nome || '').trim() || (+i.valor)).map(i => ({ nome: (i.nome || '').trim(), valor: +i.valor || 0 }));
+  _ccMsg = '⏳ salvando…';
+  const m = document.getElementById('cc-msg'); if (m) m.textContent = _ccMsg;
+  try {
+    const r = await api.request('/api/v3/diretoria/custos_corretor', { method: 'POST', body: { action: 'set_user', uid, itens } });
+    if (r && r.ok) { _ccCustos = r.byuser || _ccCustos; _ccEdit = null; _ccMsg = '💾 salvo'; }
+    else _ccMsg = '⚠️ ' + ((r && r.error) || 'erro');
+  } catch (e) { _ccMsg = '⚠️ ' + e.message; }
+  renderCustosCorretor();
+}
+
 function fmt(n) { return 'R$ ' + Math.round(n || 0).toLocaleString('pt-BR'); }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

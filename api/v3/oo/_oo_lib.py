@@ -9,6 +9,7 @@ Funil canônico imobiliário (7 marcos), classificado por regex no nome da etapa
   Lead → Contato/Qualif. → Agendamento → Visita → Proposta → Pasta → Venda
 """
 import re
+import json
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta, date
 
@@ -244,6 +245,32 @@ def read_team_account_override(sb):
         return {str(k).strip().lower(): v[k] for k in v} if isinstance(v, dict) else {}
     except Exception:
         return {}
+
+
+def read_custos_corretor(sb):
+    """Custo fixo MENSAL por corretor (shared_kv 'custos_fixos_corretor', editado em
+    Métricas Viab). Devolve {uid: total_mensal}. Soma com o investimento em ads no
+    One-on-One = quanto cada corretor custa. Vazio se não cadastrado."""
+    try:
+        r = (sb.table("shared_kv").select("value").eq("key", "custos_fixos_corretor")
+             .limit(1).execute().data or [])
+        val = (r[0].get("value") if r else None) or {}
+        if isinstance(val, str):
+            val = json.loads(val)
+        byuser = val.get("byuser") if isinstance(val, dict) else None
+    except Exception:
+        byuser = None
+    out = {}
+    if isinstance(byuser, dict):
+        for uid, e in byuser.items():
+            tot = 0.0
+            for i in (e.get("itens") or []) if isinstance(e, dict) else []:
+                try:
+                    tot += float(i.get("valor") or 0)
+                except Exception:
+                    pass
+            out[str(uid)] = round(tot, 2)
+    return out
 
 
 # ─── 💸 Atribuição EXATA de investimento em ads (CPL por campanha) ──────────────
