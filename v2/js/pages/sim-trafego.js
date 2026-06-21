@@ -75,9 +75,10 @@ function save() {
 }
 
 /* ── helpers ── */
-const f$ = n => 'R$ ' + Math.round(n || 0).toLocaleString('pt-BR');
-const fK = n => { n = +n || 0; if (Math.abs(n) >= 1e6) return 'R$ ' + (n / 1e6).toFixed(2) + 'M'; if (Math.abs(n) >= 1e3) return 'R$ ' + (n / 1e3).toFixed(0) + 'k'; return 'R$ ' + Math.round(n); };
+const f$ = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fK = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const f1 = n => (Math.round((n || 0) * 10) / 10).toLocaleString('pt-BR');
+const pct2 = v => v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 const getP = (o, p) => o[p];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const lineMeta = id => LINES.find(l => l.id === id) || LINES[0];
@@ -233,16 +234,16 @@ function renderOut() {
         ${row('🎯 CPL (custo por lead)', fs.map(f => f$(f.cpl)))}
         ${grp('Funil de leads')}
         ${row('👥 Leads gerados', fs.map(f => f1(f.leads)))}
-        ${row('🗑️ (−) Descarte (' + L.descartePct + '%)', fs.map(f => '−' + f1(f.descartados)))}
+        ${row('🗑️ (−) Descarte (' + pct2(L.descartePct) + ')', fs.map(f => '−' + f1(f.descartados)))}
         ${row('✅ Leads qualificados', fs.map(f => f1(f.qualif)))}
-        ${row('📈 Taxa de conversão', COLS.map(c => L[c.key] + '%'))}
+        ${row('📈 Taxa de conversão', COLS.map(c => pct2(L[c.key])))}
         ${row('🤝 Vendas/mês', fs.map(f => f1(f.vendas)), { hi: 1 })}
         ${grp('Financeiro (por mês)')}
         ${row('🏆 VGV', fs.map(f => fK(f.vgv)), { hi: 1 })}
-        ${row('💼 Faturamento (comissão ' + L.comissaoPct + '%)', fs.map(f => f$(f.faturamento)))}
-        ${row('🧾 (−) Imposto Simples (' + (fs[1].aliq * 100).toFixed(1) + '% ' + fs[1].cat + ')', fs.map(f => '−' + f$(f.imposto)))}
+        ${row('💼 Faturamento (comissão ' + pct2(L.comissaoPct) + ')', fs.map(f => f$(f.faturamento)))}
+        ${row('🧾 (−) Imposto Simples (' + pct2(fs[1].aliq * 100) + ' ' + fs[1].cat + ')', fs.map(f => '−' + f$(f.imposto)))}
         ${row('= Líquido', fs.map(f => f$(f.liquido)))}
-        ${row('👔 (−) Comissão corretor (' + L.corretorPct + '%)', fs.map(f => '−' + f$(f.corretor)))}
+        ${row('👔 (−) Comissão corretor (' + pct2(L.corretorPct) + ')', fs.map(f => '−' + f$(f.corretor)))}
         ${row('💰 Caixa da empresa/mês', fs.map(f => f$(f.caixa)), { hi: 1, money: 1 })}
         ${grp('Indicadores & decisão')}
         ${row('📊 CPA (custo/venda)', fs.map(f => f$(f.cpa)))}
@@ -258,7 +259,7 @@ function renderOut() {
     <div class="st-sec">🗂️ Carteira de leads + LTV <span class="tiny muted" style="font-weight:400">(cenário Realista)</span></div>
     <div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px"><table class="stt"><tbody>
       ${row2('Leads não convertidos/mês', f1(cartR.naoConv))}
-      ${row2('Convertem depois (' + L.taxaCarteira + '%)', f1(cartR.vendasFut) + ' vendas')}
+      ${row2('Convertem depois (' + pct2(L.taxaCarteira) + ')', f1(cartR.vendasFut) + ' vendas')}
       ${row2('VGV futuro da carteira', fK(cartR.vgvFut))}
       ${row2('💎 Valor da carteira (× LTV ' + L.ltv + ')', f$(cartR.valorLTV) + '/mês', 1)}
     </tbody></table></div>
@@ -431,7 +432,7 @@ function orcView(L) {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px">
         ${ok('🏆 VGV alvo', fK(alvoVal))}${ok('🤝 Vendas', f1(o.vendas))}${ok('👥 Leads', f1(o.leads))}${ok('💸 Investir/mês', f$(o.invest), '#7c3aed')}${ok('💰 Caixa', f$(fa.caixa), fa.caixa >= 0 ? '#16a34a' : '#dc2626')}${ok('📊 CPA', f$(fa.cpa))}
       </div>
-      <div class="tiny muted" style="margin-top:7px">Pra fazer <b>${fK(alvoVal)}</b> de VGV na <b>${esc(lineMeta(_s.active).nome)}</b>, invista <b style="color:#7c3aed">${f$(o.invest)}</b>/mês em tráfego (CPL ${f$(L.cpl)}, conversão ${L.convReal}%, descarte ${L.descartePct}%). Hoje você investe ${f$(cur.invest)} → <b style="color:${dInv >= 0 ? '#d97706' : '#16a34a'}">${dInv >= 0 ? '+' : ''}${f$(dInv)}</b>.</div>
+      <div class="tiny muted" style="margin-top:7px">Pra fazer <b>${fK(alvoVal)}</b> de VGV na <b>${esc(lineMeta(_s.active).nome)}</b>, invista <b style="color:#7c3aed">${f$(o.invest)}</b>/mês em tráfego (CPL ${f$(L.cpl)}, conversão ${pct2(L.convReal)}, descarte ${pct2(L.descartePct)}). Hoje você investe ${f$(cur.invest)} → <b style="color:${dInv >= 0 ? '#d97706' : '#16a34a'}">${dInv >= 0 ? '+' : ''}${f$(dInv)}</b>.</div>
     </div>`;
 }
 function projTable(pd) {
@@ -462,7 +463,7 @@ function realPanel() {
       <div class="flex gap-2"><button class="btn btn-ghost btn-sm" id="st-real-reload">↻</button>${usarBtn}</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:8px;margin-top:9px">
-      ${c('💸 Invest/mês', f$(r.investMes))}${c('🎯 CPL', f$(r.cpl))}${c('👥 Leads/mês', f1(r.leadsMes))}${c('🤝 Vendas/mês', f1(r.vendasMes))}${c('📈 Conversão', r.conv.toFixed(2) + '%')}${c('🏆 VGV/mês', fK(r.vgvMes))}${c('🔁 ROAS', f1(r.roas) + 'x')}${c('📊 CPA', f$(r.cpa))}</div>
+      ${c('💸 Invest/mês', f$(r.investMes))}${c('🎯 CPL', f$(r.cpl))}${c('👥 Leads/mês', f1(r.leadsMes))}${c('🤝 Vendas/mês', f1(r.vendasMes))}${c('📈 Conversão', pct2(r.conv))}${c('🏆 VGV/mês', fK(r.vgvMes))}${c('🔁 ROAS', f1(r.roas) + 'x')}${c('📊 CPA', f$(r.cpa))}</div>
     <div class="tiny muted" style="margin-top:7px">Invest./CPL/leads do Meta (${r.mesesMeta} mês(es) arquivados) · vendas/VGV do CRM (÷ ${r.mesesCRM} meses). Conversão real = vendas ÷ leads do ano. "Usar no simulado" leva esses números reais pro cenário editável da linha.</div>
   </div>`;
 }

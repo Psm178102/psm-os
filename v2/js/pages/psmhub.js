@@ -9,8 +9,9 @@ let _root = null;
 let _mes = null, _ano = null;
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-const fmtKM = n => { const v = Number(n || 0); if (v >= 1e6) return (v / 1e6).toFixed(1).replace('.', ',') + 'M'; if (v >= 1000) return (v / 1000).toFixed(0) + 'k'; return Math.round(v).toLocaleString('pt-BR'); };
+const fmtKM = n => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtN = n => Number(n || 0).toLocaleString('pt-BR');
+const pct2 = v => v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
 export async function pagePsmHub(ctx, root) {
   _root = root;
@@ -47,11 +48,11 @@ function render(hub, ov, rec) {
   // cruzamento VGV: psmhub (Conquista) × RD/House PSM (overview = empresa)
   const vgvHub = Number(k.vendasVgv || 0);
   const vgvRd = Number(ov?.sales?.vgv_mes || 0);
-  const diffPct = vgvRd > 0 ? Math.round((vgvHub - vgvRd) / vgvRd * 100) : null;
+  const diffPct = vgvRd > 0 ? (vgvHub - vgvRd) / vgvRd * 100 : null;
   const bate = diffPct !== null && Math.abs(diffPct) <= 5;
 
   const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  const metaPct = cfg.metaVgv > 0 ? Math.round(vgvHub / cfg.metaVgv * 100) : null;
+  const metaPct = cfg.metaVgv > 0 ? (vgvHub / cfg.metaVgv * 100) : null;
 
   _root.innerHTML = `
     <div class="card">
@@ -73,7 +74,7 @@ function render(hub, ov, rec) {
         <div class="flex gap-3" style="flex-wrap:wrap">
           ${audCard('PSM HUB (Conquista)', 'R$ ' + fmtKM(vgvHub), `${fmtN(k.totalPastas)} pastas · ${fmtN(k.pastasAprovadas)} aprovadas`, '#0891b2')}
           ${audCard('RD / House PSM', 'R$ ' + fmtKM(vgvRd), `${fmtN(ov?.sales?.vendas_mes)} venda(s) no RD (empresa)`, '#16a34a')}
-          ${audCard('Divergência', diffPct === null ? '—' : (diffPct > 0 ? '+' : '') + diffPct + '%', bate ? '🟢 batem (±5%)' : (diffPct === null ? 'sem base RD' : '🔴 conferir'), bate ? '#16a34a' : '#dc2626')}
+          ${audCard('Divergência', diffPct === null ? '—' : (diffPct > 0 ? '+' : '') + pct2(diffPct), bate ? '🟢 batem (±5%)' : (diffPct === null ? 'sem base RD' : '🔴 conferir'), bate ? '#16a34a' : '#dc2626')}
         </div>
         <p class="tiny muted" style="margin:6px 0 0">RD/overview é da empresa toda; PSM HUB é só Conquista. Quando a Conquista domina as vendas do mês, os números convergem. A reconciliação corretor-a-corretor (via rdUserId) é o próximo passo.</p>
       </div>
@@ -84,7 +85,7 @@ function render(hub, ov, rec) {
         ${kpi('👁 Visitas', fmtN(k.totalVisitas), 'no mês', '#8b5cf6')}
         ${kpi('📁 Pastas', fmtN(k.totalPastas), `${fmtN(k.pastasAprovadas)}✓ · ${fmtN(k.pastasReprovadas)}✕ · ${fmtN(k.pastasRepasse)} repasse`, '#f59e0b')}
         ${kpi('💰 VGV', 'R$ ' + fmtKM(k.vendasVgv), 'ticket ' + 'R$ ' + fmtKM(k.ticketMedio), '#16a34a')}
-        ${kpi('🎯 Meta VGV', 'R$ ' + fmtKM(cfg.metaVgv), metaPct === null ? '' : `${metaPct >= 100 ? '🟢' : metaPct >= 70 ? '🟡' : '🔴'} ${metaPct}% atingido`, '#d4a843')}
+        ${kpi('🎯 Meta VGV', 'R$ ' + fmtKM(cfg.metaVgv), metaPct === null ? '' : `${metaPct >= 100 ? '🟢' : metaPct >= 70 ? '🟡' : '🔴'} ${pct2(metaPct)} atingido`, '#d4a843')}
         ${kpi('📣 Invest. Ads', 'R$ ' + fmtKM(cfg.investimentoAds), cfg.investimentoAds && k.totalLeads ? `CPL R$ ${(cfg.investimentoAds / k.totalLeads).toFixed(2)}` : '', '#dc2626')}
       </div>
 
@@ -121,7 +122,7 @@ function render(hub, ov, rec) {
           <h3 class="card-title" style="font-size:14px">📥 Fontes de lead</h3>
           ${sources.slice(0, 10).map(s => `
             <div style="margin-bottom:7px">
-              <div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:600">${esc(s.source)}</span><span class="tiny muted">${fmtN(s.count)} · ${s.pct}%</span></div>
+              <div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:600">${esc(s.source)}</span><span class="tiny muted">${fmtN(s.count)} · ${pct2(s.pct)}</span></div>
               <div style="height:6px;border-radius:3px;background:rgba(148,163,184,.2);overflow:hidden"><div style="height:100%;width:${Math.min(100, s.pct)}%;background:#2563eb"></div></div>
             </div>`).join('')}
         </div>` : ''}
@@ -176,7 +177,7 @@ function diffCell(r) {
   if (r.rd_zero) return `<span style="color:#d97706;font-weight:800;white-space:nowrap">🟠 RD sem registro</span>`;
   if (r.diff_pct === null || r.diff_pct === undefined) return `<span class="muted">—</span>`;
   const cor = r.ok ? '#16a34a' : '#dc2626';
-  return `<span style="color:${cor};font-weight:800;white-space:nowrap">${r.ok ? '🟢' : '🔴'} ${r.diff_pct > 0 ? '+' : ''}${r.diff_pct}%</span>`;
+  return `<span style="color:${cor};font-weight:800;white-space:nowrap">${r.ok ? '🟢' : '🔴'} ${r.diff_pct > 0 ? '+' : ''}${pct2(r.diff_pct)}</span>`;
 }
 
 function reconcileCard(rec) {
@@ -189,7 +190,7 @@ function reconcileCard(rec) {
   const okN = rows.filter(r => r.ok).length;
   const divN = rows.filter(r => !r.ok && !r.rd_zero && r.diff_pct !== null).length;
   const zeroN = rows.filter(r => r.rd_zero).length;
-  const tDiff = t.rd_conquista_vgv > 0 ? Math.round((t.psmhub_vgv - t.rd_conquista_vgv) / t.rd_conquista_vgv * 100) : null;
+  const tDiff = t.rd_conquista_vgv > 0 ? (t.psmhub_vgv - t.rd_conquista_vgv) / t.rd_conquista_vgv * 100 : null;
 
   return `
   <div class="card mt-3">
@@ -233,7 +234,7 @@ function reconcileCard(rec) {
           <td style="padding:7px;text-align:center">${fmtN(t.psmhub_vendas)}</td>
           <td style="padding:7px;text-align:right">R$ ${fmtKM(t.rd_conquista_vgv)}</td>
           <td style="padding:7px;text-align:center">${fmtN(t.rd_conquista_vendas)}</td>
-          <td style="padding:7px;text-align:right">${tDiff === null ? '—' : `<span style="color:${Math.abs(tDiff) <= 5 ? '#16a34a' : '#dc2626'}">${tDiff > 0 ? '+' : ''}${tDiff}%</span>`}</td>
+          <td style="padding:7px;text-align:right">${tDiff === null ? '—' : `<span style="color:${Math.abs(tDiff) <= 5 ? '#16a34a' : '#dc2626'}">${tDiff > 0 ? '+' : ''}${pct2(tDiff)}</span>`}</td>
         </tr>
       </tfoot>
     </table>

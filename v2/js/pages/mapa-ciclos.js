@@ -7,9 +7,10 @@ import { auth } from '../auth.js';
 
 let _root = null;
 const MESES = Math.max(1, new Date().getMonth() + 1);
-const f$ = n => 'R$ ' + Math.round(n || 0).toLocaleString('pt-BR');
-const fK = n => { n = +n || 0; if (Math.abs(n) >= 1e6) return 'R$ ' + (n / 1e6).toFixed(2) + 'M'; if (Math.abs(n) >= 1e3) return 'R$ ' + (n / 1e3).toFixed(0) + 'k'; return 'R$ ' + Math.round(n); };
+const f$ = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fK = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const f1 = n => (Math.round((n || 0) * 10) / 10).toLocaleString('pt-BR');
+const pct2 = v => v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 export async function pageMapaCiclos(ctx, root) {
@@ -86,7 +87,7 @@ function render(d, loading) {
       ])}
       ${arrow('leads viram oportunidades')}
       ${node('#/crm', '🤝', 'Vendas (CRM/RD)', '#2563eb', 'leads → vendas → VGV', [
-        { v: fK(c.vgvMes), l: 'VGV/mês' }, { v: f1(c.vendasMes), l: 'vendas/mês' }, { v: c.conv.toFixed(2) + '%', l: 'conversão real' },
+        { v: fK(c.vgvMes), l: 'VGV/mês' }, { v: f1(c.vendasMes), l: 'vendas/mês' }, { v: pct2(c.conv), l: 'conversão real' },
       ])}
       ${arrow('comissão vira caixa')}
       ${node('#/financeiro', '💰', 'Financeiro', '#0891b2', fi.ok ? 'caixa & custos' : 'NIBO sem token', [
@@ -100,13 +101,13 @@ function render(d, loading) {
     <div class="mc-band">INSTRUMENTOS DE DECISÃO <span class="tiny muted" style="font-weight:400">— leem o real e projetam o futuro</span></div>
     <div class="mc-grid">
       ${node('#/sim-trafego', '📣', 'Simulador de Tráfego', '#7c3aed', 'real → simulado + otimizador', [
-        { v: f$(m.cpl), l: 'CPL real usado' }, { v: c.conv.toFixed(2) + '%', l: 'conversão base' },
+        { v: f$(m.cpl), l: 'CPL real usado' }, { v: pct2(c.conv), l: 'conversão base' },
       ])}
       ${node('#/metricas-viab', '🧪', 'Métrica de Viabilidade', '#16a34a', 'realizado × premissa + equilíbrio', [
         { v: fK(c.vgvMes), l: 'VGV real/mês' }, { v: fi.ok ? f$(fi.custoMes) : '—', l: 'custo fixo' },
       ])}
       ${node('#/forecast', '🎯', 'Forecast / Metas', '#d97706', 'run-rate → projeção → meta', [
-        { v: fK(fc.projAno), l: 'projeção ano' }, { v: fc.ating == null ? '—' : f1(fc.ating) + '%', l: 'da meta', cor: atingCor },
+        { v: fK(fc.projAno), l: 'projeção ano' }, { v: fc.ating == null ? '—' : pct2(fc.ating), l: 'da meta', cor: atingCor },
       ])}
       ${node('#/sim-trafego', '⚡', 'Otimizador de Verba', '#0ea5e9', 'aloca orçamento ótimo', [
         { v: f$(m.investMes), l: 'verba atual/mês' }, { v: fK(c.vgvMes), l: 'VGV gerado' },

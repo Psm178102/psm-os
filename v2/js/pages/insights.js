@@ -55,14 +55,14 @@ function computeCards() {
   const frac = Math.max(dia / diasMes, 0.01);
   if (meta > 0) {
     const proj = (s.vgv_mes || 0) / frac;
-    const pct = Math.round(proj / meta * 100);
-    const pctReal = Math.round((s.vgv_mes || 0) / meta * 100);
+    const pct = proj / meta * 100;
+    const pctReal = (s.vgv_mes || 0) / meta * 100;
     cards.push({
-      icon: '🎯', titulo: 'Ritmo da meta', valor: pctReal + '%',
+      icon: '🎯', titulo: 'Ritmo da meta', valor: pct2(pctReal),
       tom: pct >= 100 ? 'good' : pct >= 80 ? 'warn' : 'bad',
       insight: pct >= 100
-        ? `No ritmo atual o mês fecha em ~${pct}% da meta. Mantenha a pressão.`
-        : `Atingido ${pctReal}%. Projeção no ritmo de hoje: ~${pct}% — ${pct < 80 ? 'precisa acelerar forte' : 'falta um empurrão'}.`,
+        ? `No ritmo atual o mês fecha em ~${pct2(pct)} da meta. Mantenha a pressão.`
+        : `Atingido ${pct2(pctReal)}. Projeção no ritmo de hoje: ~${pct2(pct)} — ${pct < 80 ? 'precisa acelerar forte' : 'falta um empurrão'}.`,
     });
     const falta = Math.max(meta - (s.vgv_mes || 0), 0);
     const cob = falta > 0 ? (s.pipeline_vgv || 0) / falta : 99;
@@ -78,9 +78,9 @@ function computeCards() {
   // eficiência vendas × perdas
   const v = s.vendas_mes || 0, p = s.perdidos_mes || 0;
   if (v + p > 0) {
-    const wr = Math.round(v / (v + p) * 100);
+    const wr = v / (v + p) * 100;
     cards.push({
-      icon: '⚖️', titulo: 'Aproveitamento (mês)', valor: wr + '%',
+      icon: '⚖️', titulo: 'Aproveitamento (mês)', valor: pct2(wr),
       tom: wr >= 50 ? 'good' : wr >= 30 ? 'warn' : 'bad',
       insight: `${v} ganha(s) × ${p} perdida(s) no mês. ${wr < 30 ? 'Aproveitamento baixo — revisar qualificação/atendimento.' : wr < 50 ? 'Dá pra melhorar a conversão.' : 'Boa taxa de conversão.'}`,
     });
@@ -101,12 +101,12 @@ function computeCards() {
   if (all.length >= 3 && totalVgv > 0) {
     const ranked = all.slice().sort((a, b) => (b.vgv || 0) - (a.vgv || 0));
     const top = ranked[0];
-    const share = Math.round((top.vgv || 0) / totalVgv * 100);
+    const share = (top.vgv || 0) / totalVgv * 100;
     const comVenda = all.filter(c => (c.vendas || 0) > 0).length;
     cards.push({
-      icon: '👥', titulo: 'Concentração de receita', valor: share + '%',
+      icon: '👥', titulo: 'Concentração de receita', valor: pct2(share),
       tom: share >= 60 ? 'bad' : share >= 40 ? 'warn' : 'good',
-      insight: `${esc(top.name || 'Top')} faz ${share}% do VGV. ${comVenda}/${all.length} bateram venda no mês. ${share >= 60 ? 'Dependência alta de uma pessoa.' : 'Distribuição razoável.'}`,
+      insight: `${esc(top.name || 'Top')} faz ${pct2(share)} do VGV. ${comVenda}/${all.length} bateram venda no mês. ${share >= 60 ? 'Dependência alta de uma pessoa.' : 'Distribuição razoável.'}`,
     });
   }
 
@@ -329,10 +329,7 @@ function mdLite(t) {
     .replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
 }
 function km(n) {
-  if (n == null) return '0';
-  const v = Number(n);
-  if (v >= 1_000_000) return (v / 1_000_000).toFixed(1).replace('.', ',') + 'M';
-  if (v >= 1000) return (v / 1000).toFixed(0) + 'k';
-  return Math.round(v).toLocaleString('pt-BR');
+  return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

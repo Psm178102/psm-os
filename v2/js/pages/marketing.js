@@ -405,7 +405,7 @@ function crmWarn() {
 function leadsGeoPanel() {
   const g = _geo;
   if (!g || !g.total) return '';
-  const semPct = g.total > 0 ? Math.round(g.sem_cidade / g.total * 100) : 0;
+  const semPct = g.total > 0 ? (g.sem_cidade / g.total * 100) : 0;
   const top = (g.by_city || []).slice(0, 12);
   const maxLeads = Math.max(1, ...top.map(c => c.leads));
   const cityRows = top.map(c => {
@@ -414,19 +414,19 @@ function leadsGeoPanel() {
     return `<tr style="border-top:1px solid rgba(255,255,255,0.06)">
       <td style="padding:6px 10px;color:${col};font-weight:700">${c.is_rio_preto ? '📍 ' : ''}${escapeHtml(c.cidade)}</td>
       <td style="padding:6px 8px;position:relative;min-width:120px"><div style="position:absolute;inset:5px auto 5px 0;width:${w}%;background:${col}33;border-radius:4px"></div><span style="position:relative;font-weight:700;color:#e2e8f0">${fmtNum(c.leads)}</span></td>
-      <td style="text-align:right;padding:6px 10px;color:#cbd5e1">${c.pct}%</td>
+      <td style="text-align:right;padding:6px 10px;color:#cbd5e1">${pct2(c.pct)}</td>
     </tr>`;
   }).join('');
   const alerts = (g.by_campaign || []).filter(c => c.alerta);
   const banner = g.alerta_global
-    ? `<div style="margin-top:12px;background:rgba(239,68,68,0.14);border:1px solid rgba(239,68,68,0.4);color:#fecaca;border-radius:12px;padding:10px 14px;font-size:12px"><strong>⚠️ ${g.pct_outras}% dos leads vêm de FORA da região de Rio Preto (DDD ≠ 17)</strong> — acima do limite de ${g.threshold_pct}% (${g.outras} de ${g.com_cidade} leads com DDD).</div>`
-    : (g.pct_outras != null ? `<div style="margin-top:12px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#86efac;border-radius:12px;padding:10px 14px;font-size:12px">✅ ${(100 - g.pct_outras).toFixed(1)}% dos leads são da região de Rio Preto (DDD 17) · ${g.pct_outras}% de fora (dentro do limite de ${g.threshold_pct}%).</div>` : '');
+    ? `<div style="margin-top:12px;background:rgba(239,68,68,0.14);border:1px solid rgba(239,68,68,0.4);color:#fecaca;border-radius:12px;padding:10px 14px;font-size:12px"><strong>⚠️ ${pct2(g.pct_outras)} dos leads vêm de FORA da região de Rio Preto (DDD ≠ 17)</strong> — acima do limite de ${g.threshold_pct}% (${g.outras} de ${g.com_cidade} leads com DDD).</div>`
+    : (g.pct_outras != null ? `<div style="margin-top:12px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#86efac;border-radius:12px;padding:10px 14px;font-size:12px">✅ ${pct2(100 - g.pct_outras)} dos leads são da região de Rio Preto (DDD 17) · ${pct2(g.pct_outras)} de fora (dentro do limite de ${g.threshold_pct}%).</div>` : '');
   const campAlerts = alerts.length
     ? `<div style="margin-top:12px"><div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:6px">🚨 Campanhas/públicos com >${g.threshold_pct}% de leads de fora</div>
        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">
        ${alerts.slice(0, 12).map(c => `<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:8px 12px">
           <div style="font-size:12px;color:#fca5a5;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(c.campanha)}">${escapeHtml(c.campanha)}</div>
-          <div style="font-size:18px;font-weight:900;color:#f87171">${c.pct_outras}% fora</div>
+          <div style="font-size:18px;font-weight:900;color:#f87171">${pct2(c.pct_outras)} fora</div>
           <div style="font-size:10px;color:#94a3b8">${c.outras} fora · ${c.rio_preto} RP · ${c.leads} leads</div></div>`).join('')}
        </div></div>`
     : '';
@@ -439,7 +439,7 @@ function leadsGeoPanel() {
       const col = al ? '#f87171' : (b.pct_outras != null && b.pct_outras <= 10 ? '#4ade80' : '#fbbf24');
       return `<div style="background:${al ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.04)'};border:1px solid ${al ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.08)'};border-radius:10px;padding:8px 12px">
         <div style="font-size:12px;color:#cbd5e1;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${al ? '🚨 ' : ''}${escapeHtml(b.marca)}</div>
-        <div style="font-size:18px;font-weight:900;color:${col}">${b.pct_outras != null ? b.pct_outras + '% fora' : '—'}</div>
+        <div style="font-size:18px;font-weight:900;color:${col}">${b.pct_outras != null ? pct2(b.pct_outras) + ' fora' : '—'}</div>
         <div style="font-size:10px;color:#94a3b8">${fmtNum(b.leads)} leads · ${fmtNum(b.rio_preto)} RP · ${fmtNum(b.outras)} fora</div></div>`;
     }).join('')}
     </div></div>` : '';
@@ -460,12 +460,12 @@ function leadsGeoPanel() {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start">
         ${crmMiniDark('Total de leads', fmtNum(g.total), '#60a5fa')}
-        ${crmMiniDark('📍 DDD 17 · Rio Preto', fmtNum(g.rio_preto), '#22c55e', g.com_cidade ? Math.round(g.rio_preto / g.com_cidade * 100) + '% dos c/ DDD' : '')}
-        ${crmMiniDark('Outras regiões', fmtNum(g.outras), '#fbbf24', g.pct_outras != null ? g.pct_outras + '%' : '')}
-        ${crmMiniDark('Sem telefone/DDD', fmtNum(g.sem_cidade), '#94a3b8', semPct + '% do total')}
+        ${crmMiniDark('📍 DDD 17 · Rio Preto', fmtNum(g.rio_preto), '#22c55e', g.com_cidade ? pct2(g.rio_preto / g.com_cidade * 100) + ' dos c/ DDD' : '')}
+        ${crmMiniDark('Outras regiões', fmtNum(g.outras), '#fbbf24', g.pct_outras != null ? pct2(g.pct_outras) : '')}
+        ${crmMiniDark('Sem telefone/DDD', fmtNum(g.sem_cidade), '#94a3b8', pct2(semPct) + ' do total')}
       </div>
     </div>
-    ${semPct >= 40 ? `<div style="margin-top:10px;font-size:11px;color:#fcd34d">⚠️ ${semPct}% dos leads sem telefone/DDD válido no RD.</div>` : ''}
+    ${semPct >= 40 ? `<div style="margin-top:10px;font-size:11px;color:#fcd34d">⚠️ ${pct2(semPct)} dos leads sem telefone/DDD válido no RD.</div>` : ''}
   </div>`;
 }
 
@@ -485,7 +485,7 @@ function deltaBadge(pct, invert) {
   if (pct == null || isNaN(pct)) return '<span style="font-size:11px;color:#64748b">— vs ant.</span>';
   const good = invert ? pct <= 0 : pct >= 0;
   const c = good ? '#22c55e' : '#f87171';
-  return `<span style="font-size:11px;font-weight:700;color:${c}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%</span>`;
+  return `<span style="font-size:11px;font-weight:700;color:${c}">${pct >= 0 ? '▲' : '▼'} ${pct2(Math.abs(pct))}</span>`;
 }
 function heroKpi(label, value, deltaPct, sparkVals, color, invert) {
   return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px 10px">
@@ -541,7 +541,7 @@ function execHero(t, accounts) {
       ${heroKpi('🖱 Cliques', fmtNum(t.clicks), dl.clicks, col('clicks'), '#3b82f6')}
       ${heroKpi('👥 Alcance', fmtNum(t.reach), dl.reach, col('reach'), '#a855f7')}
       ${heroKpi('📊 Impressões', fmtNum(t.impressions), dl.impressions, col('impressions'), '#d4a843')}
-      ${heroKpi('🎯 CTR', (t.ctr || 0).toFixed(2) + '%', dl.ctr, col('ctr'), '#06b6d4')}
+      ${heroKpi('🎯 CTR', pct2(t.ctr || 0), dl.ctr, col('ctr'), '#06b6d4')}
     </div>
 
     <div style="display:grid;grid-template-columns:1.05fr 1.35fr;gap:14px;margin-top:16px;align-items:start">
@@ -554,7 +554,7 @@ function execHero(t, accounts) {
           ${funnelStage('MENSAGENS/LEADS', t.results, t.impressions ? Math.max(0.28, t.results / t.impressions * 40) : 0.3, '#60a5fa')}
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">
-          ${miniStat('CTR', (t.ctr || 0).toFixed(2) + '%')}
+          ${miniStat('CTR', pct2(t.ctr || 0))}
           ${miniStat('Frequência', freq.toFixed(2))}
           ${miniStat('CPM', 'R$ ' + money(t.cpm || 0))}
         </div>
@@ -599,7 +599,7 @@ function miniStat(label, val) {
 }
 function deltaTxt(pct, raw) {
   if (pct == null || isNaN(pct)) return raw ? '' : 'sem comparativo';
-  return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% vs período ant.`;
+  return `${pct >= 0 ? '+' : ''}${pct2(pct)} vs período ant.`;
 }
 
 async function buildExecutivaCharts() {
@@ -692,7 +692,7 @@ function tabExecutiva() {
         ${crmMiniDark('Leads gerados (RD)', fmtNum(g.leads_criados), '#60a5fa')}
         ${crmMiniDark('Vendas ganhas', fmtNum(g.vendas), '#4ade80')}
         ${crmMiniDark('Ticket médio', g.ticket_medio ? 'R$ ' + moneyShort(g.ticket_medio) : '—', '#c4b5fd')}
-        ${crmMiniDark('Conversão', g.taxa_conversao != null ? g.taxa_conversao + '%' : '—', '#22d3ee', 'ganhos ÷ fechados')}
+        ${crmMiniDark('Conversão', g.taxa_conversao != null ? pct2(g.taxa_conversao) : '—', '#22d3ee', 'ganhos ÷ fechados')}
         ${crmMiniDark('CPL real (RD)', g.leads_criados ? 'R$ ' + money(t.spend / g.leads_criados) : '—', '#fbbf24', 'gasto ÷ leads RD')}
       </div>
 
@@ -950,8 +950,8 @@ function metaMetricsCockpit() {
       ${crmPanelDark('🖱 Tráfego', '(link × todos)', `<div style="${grid}">
         ${crmMiniDark('Cliques no link', fmtNum(s.linkClicks), '#60a5fa')}
         ${crmMiniDark('Cliques (todos)', fmtNum(s.clicks), '#93c5fd')}
-        ${crmMiniDark('CTR link', ctrLink.toFixed(2) + '%', '#22d3ee')}
-        ${crmMiniDark('CTR todos', ctrAll.toFixed(2) + '%', '#67e8f9')}
+        ${crmMiniDark('CTR link', pct2(ctrLink), '#22d3ee')}
+        ${crmMiniDark('CTR todos', pct2(ctrAll), '#67e8f9')}
         ${crmMiniDark('CPC link', 'R$ ' + money(cpcLink), '#34d399')}
         ${crmMiniDark('CPC todos', 'R$ ' + money(cpcAll), '#6ee7b7')}
         ${crmMiniDark('Cliques de saída', fmtNum(s.outbound), '#94a3b8')}
@@ -964,7 +964,7 @@ function metaMetricsCockpit() {
         ${crmMiniDark('Comentários', fmtNum(s.comments), '#60a5fa')}
         ${crmMiniDark('Compartilham.', fmtNum(s.shares), '#34d399')}
         ${crmMiniDark('Salvamentos', fmtNum(s.saves), '#fbbf24')}
-        ${crmMiniDark('Taxa engaj.', engRate.toFixed(2) + '%', '#22d3ee', 'engaj ÷ impr')}
+        ${crmMiniDark('Taxa engaj.', pct2(engRate), '#22d3ee', 'engaj ÷ impr')}
         ${crmMiniDark('Custo/engaj.', costPerEng ? 'R$ ' + money(costPerEng) : '—', '#6ee7b7')}
       </div>`)}
 
@@ -980,9 +980,9 @@ function metaMetricsCockpit() {
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             ${crmMiniDark('Tempo médio', avgWatch ? avgWatch.toFixed(1) + 's' : '—', '#a855f7')}
-            ${crmMiniDark('VTR', vtr.toFixed(1) + '%', '#22c55e', '100% ÷ views')}
-            ${crmMiniDark('Hold', s.v25 ? (s.v75/s.v25*100).toFixed(0) + '%' : '—', '#c4b5fd', '75% ÷ 25%')}
-            ${crmMiniDark('Hook', s.views ? (s.v25/s.views*100).toFixed(0) + '%' : '—', '#60a5fa', '25% ÷ views')}
+            ${crmMiniDark('VTR', pct2(vtr), '#22c55e', '100% ÷ views')}
+            ${crmMiniDark('Hold', s.v25 ? pct2(s.v75/s.v25*100) : '—', '#c4b5fd', '75% ÷ 25%')}
+            ${crmMiniDark('Hook', s.views ? pct2(s.v25/s.views*100) : '—', '#60a5fa', '25% ÷ views')}
           </div>
         </div>`) : ''}
 
@@ -1035,7 +1035,7 @@ function tabTrafego() {
       ${kpi('💰 Investido', 'R$ ' + money(t.spend), 'no período', '#dc2626')}
       ${kpi('🎯 Resultados', fmtNum(t.results), t.cpl ? `CPL médio: R$ ${money(t.cpl)}` : 'sem conversões', '#16a34a')}
       ${kpi('👁 Alcance', fmtNum(t.reach), `${fmtNum(t.impressions)} impressões · freq ${t.freq.toFixed(2)}`, '#2563eb')}
-      ${kpi('📊 CTR', t.ctr.toFixed(2) + '%', `CPM: R$ ${money(t.cpm)} · ${fmtNum(t.clicks)} cliques`, '#7c3aed')}
+      ${kpi('📊 CTR', pct2(t.ctr), `CPM: R$ ${money(t.cpm)} · ${fmtNum(t.clicks)} cliques`, '#7c3aed')}
       ${t.roas > 0 ? kpi('📈 ROAS (pixel)', t.roas.toFixed(2) + 'x', `R$ ${money(t.purchaseValue)} em vendas`, '#0891b2') : ''}
     </div>
 
@@ -1051,7 +1051,7 @@ function tabTrafego() {
         ${alertCard('🔴', 'CRÍTICO · Verba queimando sem resultado', '#dc2626', al.burning, `Ativas que já gastaram ≥ R$ ${_th.gasto} e geraram 0 resultados.`, c => `gastou <strong>R$ ${money(c.spend)}</strong> · 0 result.`, true)}
         ${alertCard('🟠', 'CPL acima da meta', '#ea580c', al.cplHigh, `CPL acima de R$ ${_th.cpl}.`, c => `CPL <strong>R$ ${money(c.cpr)}</strong> · ${fmtNum(c.results)} result.`)}
         ${alertCard('🟠', 'Fadiga de criativo (frequência alta)', '#d97706', al.fadiga, `Frequência > ${_th.freq.toFixed(1)} — público saturado.`, c => `freq <strong>${(c.frequency || 0).toFixed(2)}</strong> · alcance ${fmtNum(c.reach)}`)}
-        ${alertCard('🟡', 'CTR baixo (criativo fraco)', '#ca8a04', al.ctrLow, `CTR < ${_th.ctr.toFixed(1)}% com ≥ 500 impressões.`, c => `CTR <strong>${(c.ctr || 0).toFixed(2)}%</strong> · ${fmtNum(c.impressions)} imp.`)}
+        ${alertCard('🟡', 'CTR baixo (criativo fraco)', '#ca8a04', al.ctrLow, `CTR < ${_th.ctr.toFixed(1)}% com ≥ 500 impressões.`, c => `CTR <strong>${pct2(c.ctr || 0)}</strong> · ${fmtNum(c.impressions)} imp.`)}
         ${alertCard('🟡', 'Ranking de qualidade baixo', '#ca8a04', al.qualBaixo, 'Meta classificou abaixo da média — afeta entrega e custo.', c => `qualidade <strong>${escapeHtml(rankLabel(c.qualityRanking))}</strong>`)}
       </div>`}
     </div>
@@ -1070,7 +1070,7 @@ function tabTrafego() {
               <td style="text-align:right;padding:5px 8px;color:#dc2626">R$ ${money(a.spend)}</td>
               <td style="text-align:right;padding:5px 8px;color:#16a34a">${fmtNum(a.results)}</td>
               <td style="text-align:right;padding:5px 8px">${a.cpr ? 'R$ ' + money(a.cpr) : '—'}</td>
-              <td style="text-align:right;padding:5px 8px">${a.ctr != null ? a.ctr.toFixed(2) + '%' : '—'}</td>
+              <td style="text-align:right;padding:5px 8px">${a.ctr != null ? pct2(a.ctr) : '—'}</td>
               <td style="text-align:right;padding:5px 8px">${a.frequency ? a.frequency.toFixed(2) : '—'}</td>
               <td style="text-align:right;padding:5px 8px">${a.roas ? a.roas.toFixed(2) + 'x' : '—'}</td>
             </tr>`).join('')}
@@ -1162,7 +1162,7 @@ function breakdownSection() {
             <td style="text-align:right;padding:6px 8px;color:#dc2626">R$ ${money(r.spend)}</td>
             <td style="text-align:right;padding:6px 8px">${fmtNum(r.results)}</td>
             <td style="text-align:right;padding:6px 8px;font-weight:700">${r.cpl ? 'R$ ' + money(r.cpl) : '—'}</td>
-            <td style="text-align:right;padding:6px 8px">${r.ctr ? r.ctr.toFixed(2) + '%' : '—'}</td>
+            <td style="text-align:right;padding:6px 8px">${r.ctr ? pct2(r.ctr) : '—'}</td>
           </tr>`).join('')}
         </tbody></table></div></div>`;
     }).join('') || '<div class="muted tiny" style="padding:10px">Sem dados no período.</div>';
@@ -1185,10 +1185,10 @@ function criativoRow(c) {
   return `
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:5px 8px"><div style="font-weight:600;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(c.name||'')}">${escapeHtml(c.name||'—')}</div><div class="tiny muted">${escapeHtml(c.account||'')}</div></td>
-      <td style="text-align:right;padding:5px 8px;${gancho?colorVal(gancho>=25?2:gancho>=15?1:0):''}">${isVideo ? gancho.toFixed(0)+'%' : '—'}</td>
-      <td style="text-align:right;padding:5px 8px">${isVideo && ret ? ret.toFixed(0)+'%' : '—'}</td>
-      <td style="text-align:right;padding:5px 8px">${(c.ctr||0).toFixed(2)}%</td>
-      <td style="text-align:right;padding:5px 8px;${colorVal(ctrL>=1?2:ctrL>=0.5?1:0)}">${ctrL.toFixed(2)}%</td>
+      <td style="text-align:right;padding:5px 8px;${gancho?colorVal(gancho>=25?2:gancho>=15?1:0):''}">${isVideo ? pct2(gancho) : '—'}</td>
+      <td style="text-align:right;padding:5px 8px">${isVideo && ret ? pct2(ret) : '—'}</td>
+      <td style="text-align:right;padding:5px 8px">${pct2(c.ctr||0)}</td>
+      <td style="text-align:right;padding:5px 8px;${colorVal(ctrL>=1?2:ctrL>=0.5?1:0)}">${pct2(ctrL)}</td>
       <td style="text-align:right;padding:5px 8px;${colorVal((c.frequency||0)<=2?2:(c.frequency||0)<=_th.freq?1:0)}">${c.frequency?c.frequency.toFixed(2):'—'}</td>
       <td style="text-align:right;padding:5px 8px">R$ ${money(c.cpm)}</td>
       <td style="text-align:center;padding:5px 8px;white-space:nowrap">${rankDot(c.qualityRanking)}${rankDot(c.engagementRanking)}${rankDot(c.conversionRanking)}</td>
@@ -1206,7 +1206,7 @@ function tabVendas() {
   return `
     <p class="card-sub">Motor de Vendas (TV War Arena) — o que acontece com o lead depois do clique. Dados do RD Station no período.</p>
     <div class="flex gap-3 mt-3" style="flex-wrap:wrap;margin-top:12px">
-      ${kpi('🎯 Conversão', g.taxa_conversao != null ? g.taxa_conversao + '%' : '—', `${g.vendas} ganhos / ${g.perdas} perdas`, '#16a34a')}
+      ${kpi('🎯 Conversão', g.taxa_conversao != null ? pct2(g.taxa_conversao) : '—', `${g.vendas} ganhos / ${g.perdas} perdas`, '#16a34a')}
       ${kpi('⏱ Ciclo de venda', cycleLbl(g.ranking), 'mediana lead → ganho', '#2563eb')}
       ${kpi('📞 Contact Rate', contactGlobal(), `leads que saíram da entrada ${basisChip(mb)}`, '#7c3aed')}
       ${kpi('🚪 Show-up / Visita', visitaGlobal(), `contatados que chegaram à visita ${basisChip(mb)}`, '#0891b2')}
@@ -1223,7 +1223,7 @@ function tabVendas() {
               <div style="flex:1;background:var(--bg-3);border-radius:var(--r-full);height:16px;overflow:hidden">
                 <div style="width:${(m.n/maxMot*100).toFixed(0)}%;height:100%;background:#dc2626"></div>
               </div>
-              <span class="tiny" style="flex:0 0 90px;text-align:right;font-weight:700">${m.n} · ${(m.pct||0).toFixed(0)}%</span>
+              <span class="tiny" style="flex:0 0 90px;text-align:right;font-weight:700">${m.n} · ${pct2(m.pct||0)}</span>
             </div>`).join('')}
         </div>`}
     </div>
@@ -1269,13 +1269,13 @@ function contactGlobal() {
     const b = _crm.brands[k];
     if (b.leads_criados && b.contact_rate != null) { totLeads += b.leads_criados; totContact += b.contact_rate / 100 * b.leads_criados; }
   });
-  return totLeads ? (totContact / totLeads * 100).toFixed(0) + '%' : '—';
+  return totLeads ? pct2(totContact / totLeads * 100) : '—';
 }
 function visitaGlobal() {
   const vals = [];
   Object.keys(_crm.brands || {}).forEach(k => { if (k !== 'captacao' && _crm.brands[k].visita_rate != null) vals.push(_crm.brands[k].visita_rate); });
   if (!vals.length) return '—';
-  return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(0) + '%';
+  return pct2(vals.reduce((a, b) => a + b, 0) / vals.length);
 }
 function slaGlobal() {
   const vals = [];
@@ -1300,16 +1300,16 @@ function attrChip(cov) {
   if (cov == null) return '';
   const c = cov >= 80 ? '#15803d' : cov >= 50 ? '#b45309' : '#dc2626';
   const bg = cov >= 80 ? '#dcfce7' : cov >= 50 ? '#fef3c7' : '#fee2e2';
-  return ` <span style="display:inline-block;padding:1px 6px;border-radius:var(--r-full);background:${bg};color:${c};font-weight:800;font-size:10px;vertical-align:middle">${cov}% c/ origem</span>`;
+  return ` <span style="display:inline-block;padding:1px 6px;border-radius:var(--r-full);background:${bg};color:${c};font-weight:800;font-size:10px;vertical-align:middle">${pct2(cov)} c/ origem</span>`;
 }
 function attrBanner(attr) {
   const cov = attr && attr.coverage_pct;
   if (cov == null) return '';
   if (cov < 60) {
-    const semOrigem = (100 - cov).toFixed(0);
-    return `<div style="margin-top:14px;background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.35);color:#fde68a;border-radius:12px;padding:10px 14px;font-size:12px">⚠️ <strong>${semOrigem}% do VGV ganho está sem origem marcada no RD.</strong> VGV Influenciado e ROAS consideram só ganhos com origem de mídia paga (Meta/Google) — nunca o total. Marque a origem dos deals no RD pra subir a precisão.</div>`;
+    const semOrigem = pct2(100 - cov);
+    return `<div style="margin-top:14px;background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.35);color:#fde68a;border-radius:12px;padding:10px 14px;font-size:12px">⚠️ <strong>${semOrigem} do VGV ganho está sem origem marcada no RD.</strong> VGV Influenciado e ROAS consideram só ganhos com origem de mídia paga (Meta/Google) — nunca o total. Marque a origem dos deals no RD pra subir a precisão.</div>`;
   }
-  return `<div style="margin-top:14px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#86efac;border-radius:12px;padding:10px 14px;font-size:12px">✅ ${cov}% do VGV ganho com origem marcada no RD — atribuição confiável.</div>`;
+  return `<div style="margin-top:14px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#86efac;border-radius:12px;padding:10px 14px;font-size:12px">✅ ${pct2(cov)} do VGV ganho com origem marcada no RD — atribuição confiável.</div>`;
 }
 function attrChannelTable(attr) {
   const rows = (attr && attr.by_channel) || [];
@@ -1331,7 +1331,7 @@ function attrChannelTable(attr) {
         <td style="text-align:right;padding:6px 8px;color:#e2e8f0">${fmtNum(r.leads)}</td>
         <td style="text-align:right;padding:6px 8px;color:#4ade80">${fmtNum(r.vendas)}</td>
         <td style="text-align:right;padding:6px 8px;font-weight:700;color:#f1f5f9">R$ ${moneyShort(r.vgv)}</td>
-        <td style="text-align:right;padding:6px 8px;color:#cbd5e1">${pct.toFixed(0)}%</td>
+        <td style="text-align:right;padding:6px 8px;color:#cbd5e1">${pct2(pct)}</td>
       </tr>`;
     }).join('')}
     </tbody></table></div>`;
@@ -1423,7 +1423,7 @@ function marcaPanel(label, camps) {
         ${miniKpi('Investido', 'R$ ' + money(t.spend), '#dc2626')}
         ${miniKpi('Result. Meta', fmtNum(t.results), '#16a34a')}
         ${miniKpi('CPL Meta', cpl ? 'R$ ' + money(cpl) : '—', cplOk ? '#16a34a' : '#ea580c', `alvo R$ ${bi.cplAlvo}`)}
-        ${miniKpi('CTR', ctr.toFixed(2) + '%', '#7c3aed')}
+        ${miniKpi('CTR', pct2(ctr), '#7c3aed')}
         ${miniKpi('Freq', freq.toFixed(2), freq > _th.freq ? '#d97706' : '#2563eb')}
       </div>
       ${crm ? `
@@ -1434,9 +1434,9 @@ function marcaPanel(label, camps) {
           ${miniKpi('CAC', cac ? 'R$ ' + money(cac) : '—', '#ea580c', 'gasto ÷ vendas')}
           ${miniKpi(bi.key==='conquista'?'CPL-R':'CPO', cpo ? 'R$ ' + money(cpo) : '—', cpo && cpo <= bi.cplAlvo ? '#16a34a' : '#d97706', 'gasto ÷ leads')}
           ${miniKpi('VGV', 'R$ ' + moneyShort(crm.vgv), '#7c3aed')}
-          ${miniKpi('Conversão', crm.taxa_conversao != null ? crm.taxa_conversao + '%' : '—', '#0891b2')}
+          ${miniKpi('Conversão', crm.taxa_conversao != null ? pct2(crm.taxa_conversao) : '—', '#0891b2')}
           ${miniKpi('Ciclo', crm.ciclo_medio_dias != null ? crm.ciclo_medio_dias + 'd' : '—', '#64748b')}
-          ${bi.key==='conquista' && crm.trash_rate != null ? miniKpi('Trash Rate', crm.trash_rate + '%', crm.trash_rate <= 25 ? '#16a34a' : '#dc2626', 'leads descartados') : ''}
+          ${bi.key==='conquista' && crm.trash_rate != null ? miniKpi('Trash Rate', pct2(crm.trash_rate), crm.trash_rate <= 25 ? '#16a34a' : '#dc2626', 'leads descartados') : ''}
         </div>` : ''}
     </div>`;
 }
@@ -1521,7 +1521,7 @@ function produtoEficienciaPanel() {
         <th style="text-align:right;padding:6px 8px">Vendas</th><th style="text-align:right;padding:6px 8px">VGV</th>
         <th style="text-align:right;padding:6px 8px" title="Retorno: comissão (VGV×4%) ÷ investido">ROAS</th>
       </tr></thead><tbody>${rows}</tbody></table></div>
-    <div style="font-size:11px;color:#64748b;margin-top:8px">CPQL usa lead qualificado = lead que foi contatado/avançou no funil. ROAS = VGV ganho × <b>${(OO_COMISSAO_PCT*100).toFixed(0)}%</b> de comissão ÷ investido no Meta. Investido por produto = soma das contas Meta da marca.</div>`);
+    <div style="font-size:11px;color:#64748b;margin-top:8px">CPQL usa lead qualificado = lead que foi contatado/avançou no funil. ROAS = VGV ganho × <b>${pct2(OO_COMISSAO_PCT*100)}</b> de comissão ÷ investido no Meta. Investido por produto = soma das contas Meta da marca.</div>`);
 }
 
 // ─── Ciclo de vendas por formato de criativo (#5 — Lead Ads × CRM) ───────────
@@ -1536,7 +1536,7 @@ function creativeCyclePanel() {
     <td style="padding:6px 10px;font-weight:700;color:#e2e8f0">${escapeHtml(c.label)}</td>
     <td style="text-align:right;padding:6px 8px">${fmtNum(c.leads)}</td>
     <td style="text-align:right;padding:6px 8px;color:#4ade80">${fmtNum(c.vendas)}</td>
-    <td style="text-align:right;padding:6px 8px;color:${(c.conv_pct||0)>=2?'#4ade80':'#fbbf24'}">${c.conv_pct != null ? c.conv_pct + '%' : '—'}</td>
+    <td style="text-align:right;padding:6px 8px;color:${(c.conv_pct||0)>=2?'#4ade80':'#fbbf24'}">${c.conv_pct != null ? pct2(c.conv_pct) : '—'}</td>
     <td style="text-align:right;padding:6px 8px;color:#f1f5f9">R$ ${moneyShort(c.vgv)}</td>
     <td style="text-align:right;padding:6px 8px;font-weight:800;color:#22d3ee">${c.ciclo_medio_dias != null ? c.ciclo_medio_dias + ' d' : '—'}</td>
   </tr>`).join('');
@@ -1564,7 +1564,7 @@ function rejeicaoMotivoPanel() {
     return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 12px">
       <div style="font-weight:700;font-size:12.5px;color:${bi.cor};margin-bottom:6px">${escapeHtml(c.label)} <span style="color:#64748b;font-weight:400">· ${c.perdas} perdas</span></div>
       ${mot.map(x => `<div style="margin-bottom:5px">
-        <div class="flex items-center" style="justify-content:space-between;font-size:11.5px;color:#cbd5e1"><span>${escapeHtml(x.motivo)}</span><b>${x.n}${x.pct?` · ${Math.round(x.pct)}%`:''}</b></div>
+        <div class="flex items-center" style="justify-content:space-between;font-size:11.5px;color:#cbd5e1"><span>${escapeHtml(x.motivo)}</span><b>${x.n}${x.pct?` · ${pct2(x.pct)}`:''}</b></div>
         <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.max(4, x.n/maxN*100)}%;background:#fb7185"></div></div>
       </div>`).join('')}
     </div>`;
@@ -1612,7 +1612,7 @@ function campaignRow(c) {
       <td style="padding:5px 8px;font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(c.name||'')}">${escapeHtml(c.name||'—')}</td>
       <td style="text-align:right;padding:5px 8px;color:#dc2626">R$ ${money(c.spend)}</td>
       <td style="text-align:right;padding:5px 8px">${fmtNum(c.impressions)}</td>
-      <td style="text-align:right;padding:5px 8px${ctrLo?';color:#ca8a04;font-weight:700':''}">${c.ctr!=null?c.ctr.toFixed(2)+'%':'—'}</td>
+      <td style="text-align:right;padding:5px 8px${ctrLo?';color:#ca8a04;font-weight:700':''}">${c.ctr!=null?pct2(c.ctr):'—'}</td>
       <td style="text-align:right;padding:5px 8px${freqHi?';color:#d97706;font-weight:700':''}">${c.frequency?c.frequency.toFixed(2):'—'}</td>
       <td style="text-align:right;padding:5px 8px;color:#16a34a">${fmtNum(c.results)}</td>
       <td style="text-align:right;padding:5px 8px;font-weight:700${cplHi?';color:#ea580c':''}">${c.cpr?'R$ '+money(c.cpr):'—'}</td>
@@ -1744,9 +1744,7 @@ function kpi(label, big, sub, color) {
 function fmtNum(n) { return n == null ? '—' : Number(n).toLocaleString('pt-BR'); }
 function money(n) { if (n == null || isNaN(n)) return '0,00'; return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function moneyShort(n) {
-  n = Number(n) || 0;
-  if (n >= 1e6) return (n / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' mi';
-  if (n >= 1e3) return (n / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil';
-  return money(n);
+  return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

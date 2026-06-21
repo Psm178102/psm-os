@@ -79,7 +79,7 @@ function forecastPanel(d, grid) {
   <div style="margin-top:14px;border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--bg-3)">
     <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
       <div style="font-weight:800">📊 Forecast ${_ano} <span class="tiny muted" style="font-weight:400">— ritmo real das vendas projeta o fechamento</span></div>
-      <div style="font-weight:800;color:${st.c}">${st.t} · ${ritmoPct >= 999 ? '∞' : ritmoPct.toFixed(0)}% do ritmo</div>
+      <div style="font-weight:800;color:${st.c}">${st.t} · ${ritmoPct >= 999 ? '∞%' : pct2(ritmoPct)} do ritmo</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px">
       ${box('🎯 Meta anual', mny(metaAno), 'esperado até hoje ' + mny(metaProRata), '#334155')}
@@ -130,7 +130,7 @@ function render() {
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
         ${kpi(`${m.ico} Meta ${m.lbl} · ${_ano}`, fmtVal(totalAno, m.money), `total · ${grid.length} corretores`, m.color)}
         ${m.id === 'vgv' ? kpi('↑ Atingido VGV', 'R$ ' + money(atingidoVgv), `${(d.totals && d.totals.vendas_count) || 0} vendas (RD)`, atingidoVgv >= totalAno ? '#16a34a' : '#d97706') : ''}
-        ${pctVgv != null ? kpi('% Atingimento', pctVgv.toFixed(1) + '%', 'atingido ÷ meta', pctColor(pctVgv)) : ''}
+        ${pctVgv != null ? kpi('% Atingimento', pct2(pctVgv), 'atingido ÷ meta', pctColor(pctVgv)) : ''}
       </div>
 
       ${forecastPanel(d, grid)}
@@ -384,6 +384,7 @@ function fmtVal(n, isMoney) {
   if (isMoney) return 'R$ ' + money(n);
   return Number(n).toLocaleString('pt-BR');
 }
-function money(n) { if (n == null || isNaN(n)) return '0'; return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+function money(n) { if (n == null || isNaN(n)) return '0,00'; return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function pct2(v){ return v==null?'—':(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'; }
 function pctColor(p) { if (p == null) return 'var(--ink-muted)'; if (p < 50) return '#dc2626'; if (p < 90) return '#d97706'; if (p < 110) return '#16a34a'; return '#065f46'; }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

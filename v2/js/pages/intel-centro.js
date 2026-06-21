@@ -86,11 +86,11 @@ function buildInsights() {
     const mot = (b.motivos_perda || []);
     const ruim = mot.filter(x => /renda|cr[ée]dito|perfil|aprov/i.test(x.motivo)).reduce((a, x) => a + x.n, 0);
     if (b.perdas >= 10 && ruim / b.perdas > 0.3) add('mkt', 'medio', `${b.label}: lead fora do perfil financeiro`,
-      `${Math.round(ruim / b.perdas * 100)}% das perdas por renda/crédito/perfil (${ruim} de ${b.perdas}).`,
+      `${pct2(ruim / b.perdas * 100)} das perdas por renda/crédito/perfil (${ruim} de ${b.perdas}).`,
       'Ajustar a segmentação socioeconômica no Meta dessa linha.', '#/marketing');
   });
   if (geo.pct_outras != null && geo.pct_outras > 30) add('mkt', 'medio', 'Muitos leads de fora de Rio Preto',
-    `${geo.pct_outras}% dos leads são de fora do DDD 17 (${geo.outras} de ${geo.com_cidade}).`,
+    `${pct2(geo.pct_outras)} dos leads são de fora do DDD 17 (${geo.outras} de ${geo.com_cidade}).`,
     'Refinar a segmentação geográfica das campanhas.', '#/marketing');
 
   // ── VENDAS ──
@@ -116,7 +116,7 @@ function buildInsights() {
   const fc = forecast();
   if (fc && fc.pct_meta != null && fc.pct_meta < 80)
     add('vendas', fc.pct_meta < 50 ? 'alto' : 'medio', 'Abaixo do ritmo da meta do mês',
-      `Projeção de fechamento R$ ${moneyShort(fc.projecao)} vs meta R$ ${moneyShort(fc.meta)} (${fc.pct_meta}%).`,
+      `Projeção de fechamento R$ ${moneyShort(fc.projecao)} vs meta R$ ${moneyShort(fc.meta)} (${pct2(fc.pct_meta)}).`,
       'Acelerar pipeline: priorizar deals quentes e visitas.', '#/diretoria');
 
   const ordem = { alto: 0, medio: 1, baixo: 2 };
@@ -132,7 +132,7 @@ function forecast() {
   const dia = now.getDate();
   const diasMes = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const projecao = dia > 0 ? vgvMes / dia * diasMes : 0;
-  return { vgvMes, meta, projecao, dia, diasMes, pct_meta: meta > 0 ? Math.round(projecao / meta * 100) : null };
+  return { vgvMes, meta, projecao, dia, diasMes, pct_meta: meta > 0 ? projecao / meta * 100 : null };
 }
 
 /* ───────────────────────── RENDER ───────────────────────── */
@@ -162,11 +162,11 @@ function render() {
         ])}
         ${pillar('🔗 Marketing', cac(), 'CAC (pago ÷ vendas)', '#7c3aed', [
           ['ROAS', roasGlobal()],
-          ['Leads fora RP', (_d.geo && _d.geo.pct_outras != null) ? _d.geo.pct_outras + '%' : '—'],
+          ['Leads fora RP', (_d.geo && _d.geo.pct_outras != null) ? pct2(_d.geo.pct_outras) : '—'],
         ])}
         ${pillar('🤝 Vendas', fmtNum(g.vendas || 0) + ' vendas', 'R$ ' + moneyShort(g.vgv || 0) + ' VGV', '#16a34a', [
-          ['Win rate', g.taxa_conversao != null ? g.taxa_conversao + '%' : '—'],
-          ['Atingimento mês', fc.pct_meta != null ? fc.pct_meta + '%' : '—'],
+          ['Win rate', g.taxa_conversao != null ? pct2(g.taxa_conversao) : '—'],
+          ['Atingimento mês', fc.pct_meta != null ? pct2(fc.pct_meta) : '—'],
         ])}
       </div>
 
@@ -208,7 +208,7 @@ function forecastPanel(fc) {
       <div style="font-size:20px;color:var(--ink-muted)">→</div>
       <div><div style="font-size:11px;color:var(--ink-muted)">Projeção de fechamento</div><div style="font-size:24px;font-weight:900;color:${col}">R$ ${moneyShort(fc.projecao)}</div></div>
       <div><div style="font-size:11px;color:var(--ink-muted)">Meta do mês</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(fc.meta)}</div></div>
-      <div style="text-align:center"><div style="font-size:11px;color:var(--ink-muted)">vs meta</div><div style="font-size:24px;font-weight:900;color:${col}">${fc.pct_meta != null ? fc.pct_meta + '%' : '—'}</div></div>
+      <div style="text-align:center"><div style="font-size:11px;color:var(--ink-muted)">vs meta</div><div style="font-size:24px;font-weight:900;color:${col}">${fc.pct_meta != null ? pct2(fc.pct_meta) : '—'}</div></div>
     </div>
     ${fc.meta > 0 ? `<div style="height:8px;background:var(--bg-3);border-radius:5px;overflow:hidden;margin-top:10px"><div style="height:100%;width:${Math.min(100, fc.pct_meta)}%;background:${col}"></div></div>` : ''}
   </div>`;
@@ -289,7 +289,8 @@ function mdLite(t) {
     .replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
 }
 function spinner(t) { return `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> ${t}</div></div>`; }
-function money(v) { return (v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 }); }
-function moneyShort(v) { v = v || 0; if (v >= 1e6) return (v / 1e6).toFixed(1).replace('.', ',') + 'M'; if (v >= 1e3) return (v / 1e3).toFixed(0) + 'k'; return money(v); }
+function money(v) { return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function moneyShort(v) { return money(v); }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function fmtNum(v) { return (v || 0).toLocaleString('pt-BR'); }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

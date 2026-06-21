@@ -90,7 +90,7 @@ function render() {
         ${kpi('🚀 Ativos',       ativos, _items.length + ' total', '#16a34a')}
         ${kpi('💰 VGV total',    'R$ ' + money(totVgv), 'soma dos VGV', '#7c3aed')}
         ${kpi('🏢 Unidades',     totUnits, totSold + ' vendidas', '#2563eb')}
-        ${kpi('📊 % Vendido',    totUnits > 0 ? Math.round(totSold/totUnits*100) + '%' : '—', 'do total', '#d97706')}
+        ${kpi('📊 % Vendido',    totUnits > 0 ? pct2(totSold/totUnits*100) : '—', 'do total', '#d97706')}
       </div>
 
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center;padding:10px;background:var(--bg-3);border-radius:var(--r-sm)">
@@ -199,7 +199,7 @@ function launchRow(i, canEdit) {
   const etapa = ETAPAS.find(e => e.id === i.etapa) || ETAPAS[1];
   const etapaIdx = ETAPAS.findIndex(e => e.id === (i.etapa || 'lancamento'));
   const resp = _users.find(u => u.id === i.responsavel_id);
-  const pct = i.unidades_total > 0 ? Math.round(i.unidades_vendidas / i.unidades_total * 100) : 0;
+  const pct = i.unidades_total > 0 ? i.unidades_vendidas / i.unidades_total * 100 : 0;
   const data = i.data_lancamento ? new Date(i.data_lancamento).toLocaleDateString('pt-BR') : '—';
   const stepper = ETAPAS.map((e, idx) =>
     `<span class="st${idx <= etapaIdx ? ' on' : ''}" style="--c:${status.color}">${e.ico} ${e.lbl}</span>`
@@ -218,8 +218,8 @@ function launchRow(i, canEdit) {
         <div class="lc-step">${stepper}</div>
         <div class="flex gap-3" style="flex-wrap:wrap">
           <div class="lc-stat">💰 <b>R$ ${money(i.vgv_total)}</b> <span class="muted">VGV</span></div>
-          <div class="lc-stat">🤝 <b>${i.comissao_pct || 0}%</b> <span class="muted">comissão</span></div>
-          <div class="lc-stat">🏢 <b>${i.unidades_vendidas || 0}/${i.unidades_total || 0}</b> <span class="muted">(${pct}%)</span></div>
+          <div class="lc-stat">🤝 <b>${pct2(i.comissao_pct || 0)}</b> <span class="muted">comissão</span></div>
+          <div class="lc-stat">🏢 <b>${i.unidades_vendidas || 0}/${i.unidades_total || 0}</b> <span class="muted">(${pct2(pct)})</span></div>
           ${resp ? `<div class="lc-stat">👤 ${esc(resp.name)}</div>` : ''}
           ${i.link_pasta ? `<a class="lc-stat" href="${esc(i.link_pasta)}" target="_blank" rel="noopener" data-stop="1" style="text-decoration:none">📁 pasta</a>` : ''}
         </div>
@@ -324,8 +324,9 @@ function kpi(label, big, sub, color) {
 }
 function money(n) {
   if (n == null || isNaN(n)) return '0';
-  return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function pct2(v){ return v==null?'—':(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'; }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

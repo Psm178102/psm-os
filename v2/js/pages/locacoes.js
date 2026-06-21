@@ -41,7 +41,7 @@ function render() {
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px">
         ${kpi('💼 Receita ADM/mês', 'R$ ' + money(_kpis.receita_adm), 'recorrente da PSM', '#16a34a')}
-        ${kpi('🔵 Contratos ativos', _kpis.ocupadas || 0, _kpis.ocupacao_pct != null ? _kpis.ocupacao_pct + '% de ocupação' : '', '#2563eb')}
+        ${kpi('🔵 Contratos ativos', _kpis.ocupadas || 0, _kpis.ocupacao_pct != null ? pct2(_kpis.ocupacao_pct) + ' de ocupação' : '', '#2563eb')}
         ${kpi('🏦 Aluguel sob gestão', 'R$ ' + money(_kpis.receita_aluguel), 'soma dos ativos', '#0891b2')}
         ${kpi('⏰ A vencer 30/60/90d', (_kpis.vence_30d || 0) + ' / ' + (_kpis.vence_60d || 0) + ' / ' + (_kpis.vence_90d || 0), 'renovar contrato', '#d97706')}
         ${kpi('🔴 Em atraso', _kpis.em_atraso || 0, 'inadimplência', '#dc2626')}
@@ -253,8 +253,9 @@ function kpi(label, big, sub, color) {
 }
 function money(n) {
   if (n == null || isNaN(n)) return '0';
-  return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function pct2(v){ return v==null?'—':(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'; }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

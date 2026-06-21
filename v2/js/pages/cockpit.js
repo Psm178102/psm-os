@@ -64,7 +64,7 @@ function normalize(d) {
     const noRitmo = pct >= PACE * 100 * 0.9;
     return { nome: 'Metas', icon: '🎯', rota: '/metas',
       status: meta === 0 ? 'warn' : (noRitmo ? 'ok' : (pct >= PACE * 100 * 0.6 ? 'warn' : 'bad')),
-      kpis: [['Atingido', pct.toFixed(0) + '%'], ['Meta', money(meta)], ['Gap', money(gap)]],
+      kpis: [['Atingido', pct2(pct)], ['Meta', money(meta)], ['Gap', money(gap)]],
       _meta: meta, _atg: atg, _gap: gap, _pct: pct };
   });
 
@@ -227,7 +227,7 @@ function renderVeredito() {
   const txt = bad > 0 ? `${bad} front(s) em vermelho — atenção máxima` : (warn > 0 ? `${warn} ponto(s) de atenção` : 'todos os fronts saudáveis');
   el.innerHTML = `<div style="background:linear-gradient(135deg,${cor}22,transparent);border:1px solid ${cor}55;border-radius:10px;padding:14px;margin-top:10px">
     <div style="font-size:15px;font-weight:900;color:${cor}">${bad > 0 ? '🔴' : warn > 0 ? '🟡' : '🟢'} Estado da PSM: ${txt}</div>
-    <div class="tiny muted" style="margin-top:2px">${fronts.length} fronts lidos · dia ${DIA}/${DIAS_MES} do mês (${(PACE * 100).toFixed(0)}% decorrido)</div>
+    <div class="tiny muted" style="margin-top:2px">${fronts.length} fronts lidos · dia ${DIA}/${DIAS_MES} do mês (${pct2(PACE * 100)} decorrido)</div>
   </div>`;
 }
 
@@ -245,7 +245,7 @@ function renderAlertas() {
   }
   // CRUZAMENTO 2: ritmo da meta (Metas × calendário)
   if (m && !m.__err && m._meta > 0 && m._pct < PACE * 100 * 0.9) {
-    add(m._pct < PACE * 100 * 0.6 ? 'bad' : 'warn', `Meta em ${m._pct.toFixed(0)}% com ${(PACE * 100).toFixed(0)}% do mês decorrido — atrás do ritmo.`, 'Ver metas por corretor', '/metas');
+    add(m._pct < PACE * 100 * 0.6 ? 'bad' : 'warn', `Meta em ${pct2(m._pct)} com ${pct2(PACE * 100)} do mês decorrido — atrás do ritmo.`, 'Ver metas por corretor', '/metas');
   }
   // CRUZAMENTO 3: VGV perdido (Comercial)
   if (c && !c.__err && c._perdido > 0 && m && m._meta > 0 && c._perdido > m._meta * 0.15) {
@@ -276,8 +276,6 @@ function renderAlertas() {
 
 /* ── helpers ── */
 function money(n) {
-  const v = +n || 0;
-  if (Math.abs(v) >= 1e6) return 'R$ ' + (v / 1e6).toFixed(1).replace('.', ',') + 'M';
-  if (Math.abs(v) >= 1e3) return 'R$ ' + Math.round(v / 1e3) + 'k';
-  return 'R$ ' + Math.round(v);
+  return 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }

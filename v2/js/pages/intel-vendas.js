@@ -45,7 +45,7 @@ function render() {
       <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
         <div style="flex:1;min-width:240px">
           <h2 class="card-title">🧠 Cérebro de Vendas</h2>
-          <p class="card-sub">${fmtNum(s.open_total || 0)} negócios abertos pontuados · ${fmtNum(s.quentes || 0)} 🟢 quentes · pipeline esperado R$ ${moneyShort(s.pipeline_ponderado_vgv || 0)} · win rate ${wr.overall_pct != null ? wr.overall_pct + '%' : '—'}</p>
+          <p class="card-sub">${fmtNum(s.open_total || 0)} negócios abertos pontuados · ${fmtNum(s.quentes || 0)} 🟢 quentes · pipeline esperado R$ ${moneyShort(s.pipeline_ponderado_vgv || 0)} · win rate ${wr.overall_pct != null ? pct2(wr.overall_pct) : '—'}</p>
         </div>
         <select id="cv-lb" class="select" style="padding:5px 10px;font-size:12px" title="Janela de análise de fechamentos/perdas">
           ${[90, 120, 180, 365].map(n => `<option value="${n}"${n === _lookback ? ' selected' : ''}>Perdas: ${n}d</option>`).join('')}
@@ -120,7 +120,7 @@ function forecastPanel(fc) {
       <div><div class="tiny muted">Realizado (dia ${fc.dia}/${fc.dias_mes})</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(fc.realizado_mes_vgv)}</div><div class="tiny muted">${fc.realizado_mes_vendas || 0} venda(s)</div></div>
       <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">💎 Pipeline ponderado <span title="Soma de (probabilidade × valor) de todos os abertos">ⓘ</span></div><div style="font-size:26px;font-weight:900;color:#7c3aed">R$ ${moneyShort(fc.pipeline_ponderado_vgv)}</div><div class="tiny muted">${fc.pipeline_ponderado_vendas || 0} vendas esperadas · valor esperado do funil</div></div>
       <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">Meta do mês</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(fc.meta_vgv_mes)}</div></div>
-      <div style="text-align:center"><div class="tiny muted">Run-rate vs meta</div><div style="font-size:24px;font-weight:900;color:${col}">${pctMeta != null ? pctMeta + '%' : '—'}</div></div>
+      <div style="text-align:center"><div class="tiny muted">Run-rate vs meta</div><div style="font-size:24px;font-weight:900;color:${col}">${pctMeta != null ? pct2(pctMeta) : '—'}</div></div>
     </div>
     ${fc.dia <= 5 ? `<div class="tiny muted" style="margin-top:8px">⚠️ Run-rate é volátil no começo do mês (dia ${fc.dia}). Use o <b>pipeline ponderado</b> como leitura principal.</div>` : ''}
   </div>`;
@@ -179,7 +179,7 @@ function canalPanel(wr) {
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px">
     <div style="font-weight:800;font-size:13px;margin-bottom:8px">🎯 Conversão real por canal <span class="tiny muted" style="font-weight:400">(base do scoring)</span></div>
     ${rows.map(r => `<div style="margin:6px 0">
-      <div class="flex items-center gap-2" style="font-size:12px"><span style="flex:1">${escapeHtml(r.canal)}</span><span class="tiny muted">${r.n} fech.</span><span style="font-weight:700">${r.wr_pct}%</span></div>
+      <div class="flex items-center gap-2" style="font-size:12px"><span style="flex:1">${escapeHtml(r.canal)}</span><span class="tiny muted">${r.n} fech.</span><span style="font-weight:700">${pct2(r.wr_pct)}</span></div>
       <div style="height:6px;background:var(--bg-3);border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.round((r.wr_pct || 0) / max * 100)}%;background:#16a34a"></div></div>
     </div>`).join('')}
   </div>`;
@@ -192,11 +192,11 @@ function lossPanel(loss) {
   return `<div style="margin-top:16px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px">
     <div class="flex items-center gap-2" style="margin-bottom:4px">
       <div style="font-weight:800;font-size:13px">📉 Por que estamos perdendo</div>
-      <span class="tiny muted" style="margin-left:auto">${loss.total || 0} perdas · ${loss.trash_pct || 0}% lixo/desqualificado</span>
+      <span class="tiny muted" style="margin-left:auto">${loss.total || 0} perdas · ${pct2(loss.trash_pct || 0)} lixo/desqualificado</span>
     </div>
     <div style="display:grid;gap:6px;margin-top:8px">
       ${cats.map(c => `<div>
-        <div class="flex items-center gap-2" style="font-size:12.5px"><span style="font-weight:600">${escapeHtml(c.label)}</span><span class="tiny muted">${c.exemplos && c.exemplos.length ? '· ' + escapeHtml(c.exemplos.slice(0, 2).join(' · ')) : ''}</span><span style="margin-left:auto;font-weight:800">${c.n} <span class="tiny muted">(${c.pct}%)</span></span></div>
+        <div class="flex items-center gap-2" style="font-size:12.5px"><span style="font-weight:600">${escapeHtml(c.label)}</span><span class="tiny muted">${c.exemplos && c.exemplos.length ? '· ' + escapeHtml(c.exemplos.slice(0, 2).join(' · ')) : ''}</span><span style="margin-left:auto;font-weight:800">${c.n} <span class="tiny muted">(${pct2(c.pct)})</span></span></div>
         <div style="height:6px;background:var(--bg-3);border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.round((c.n || 0) / max * 100)}%;background:#dc2626"></div></div>
       </div>`).join('')}
     </div>
@@ -283,7 +283,8 @@ function mdLite(t) {
     .replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
 }
 function spinner(t) { return `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> ${t}</div></div>`; }
-function money(v) { return (v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 }); }
-function moneyShort(v) { v = v || 0; if (v >= 1e6) return (v / 1e6).toFixed(1).replace('.', ',') + 'M'; if (v >= 1e3) return (v / 1e3).toFixed(0) + 'k'; return money(v); }
+function money(v) { return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function moneyShort(v) { return money(v); }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function fmtNum(v) { return (v || 0).toLocaleString('pt-BR'); }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

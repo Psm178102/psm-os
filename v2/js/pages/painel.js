@@ -296,9 +296,10 @@ function tempoCasa(dateStr) {
   return anos + (anos === 1 ? ' ano' : ' anos') + (rm ? ' e ' + rm + 'm' : '') + ' de casa';
 }
 function fmtDate(s) { return s ? String(s).substring(0, 10).split('-').reverse().join('/') : '—'; }
-function pctMeta(real, meta) { if (!meta || meta <= 0) return '—'; return Math.round((real || 0) / meta * 100) + '%'; }
+function pctMeta(real, meta) { if (!meta || meta <= 0) return '—'; return pct2((real || 0) / meta * 100); }
+function pct2(v){ return v==null?'—':(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'; }
 function pctColor(real, meta) { if (!meta || meta <= 0) return 'var(--muted)'; const p = (real || 0) / meta; return p >= 1 ? '#16a34a' : p >= 0.7 ? '#f59e0b' : '#dc2626'; }
-function fmtKM(n) { if (n == null) return '0'; const v = Number(n); if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'; if (v >= 1000) return (v / 1000).toFixed(0) + 'k'; return Math.round(v).toLocaleString('pt-BR'); }
+function fmtKM(n) { return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function kpi(label, value, color) {
   return `<div style="background:var(--bg-3);border-radius:var(--r-sm);padding:10px 14px;min-width:140px"><div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase">${label}</div><div style="font-size:20px;font-weight:800;color:${color || 'var(--ink)'}">${value}</div></div>`;
 }

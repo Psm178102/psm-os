@@ -155,7 +155,7 @@ function openModal(iid) {
 function kpi(label, big, sub, color) {
   return `<div style="flex:1;min-width:180px;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:4px solid ${color}"><div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:700">${label}</div><div style="font-size:20px;font-weight:900;color:${color};margin-top:2px">${big}</div><div class="tiny muted">${sub||''}</div></div>`;
 }
-function money(n) { return n == null || isNaN(n) ? '0' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+function money(n) { return n == null || isNaN(n) ? '0' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

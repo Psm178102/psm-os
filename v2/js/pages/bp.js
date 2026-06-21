@@ -58,7 +58,7 @@ function render(atin, dre, custos) {
       <div class="flex gap-3" style="flex-wrap:wrap">
         ${kpi('Meta VGV ano', 'R$ ' + money(totMeta), atin.grid?.length + ' corretores', '#2563eb')}
         ${kpi('Atingido VGV', 'R$ ' + money(totAtingido), t.vendas_count + ' vendas', '#7c3aed')}
-        ${kpi('% Atingimento', pct == null ? '—' : pct.toFixed(1) + '%', 'do ano', pct >= 90 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626')}
+        ${kpi('% Atingimento', pct == null ? '—' : pct2(pct), 'do ano', pct >= 90 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626')}
         ${kpi('Falta/Sobra', 'R$ ' + money(totAtingido - totMeta), totAtingido >= totMeta ? 'sobra' : 'falta', totAtingido >= totMeta ? '#16a34a' : '#dc2626')}
       </div>
 
@@ -81,7 +81,7 @@ function render(atin, dre, custos) {
         <div style="display:grid;gap:6px">
           ${atin.grid.filter(g => g.totals?.meta_vgv > 0 || g.totals?.atingido_vgv > 0).sort((a,b) => (b.totals?.atingido_vgv||0) - (a.totals?.atingido_vgv||0)).slice(0, 10).map(g => {
             const tt = g.totals || {};
-            const p = tt.pct == null ? '—' : tt.pct.toFixed(0) + '%';
+            const p = tt.pct == null ? '—' : pct2(tt.pct);
             const cor = tt.pct >= 90 ? '#16a34a' : tt.pct >= 50 ? '#d97706' : '#dc2626';
             return `<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:10px;padding:8px 12px;background:var(--bg-3);border-radius:var(--r-sm);font-size:12.5px">
               <div style="font-weight:600">${escapeHtml(g.user.name)}</div>
@@ -104,7 +104,8 @@ function render(atin, dre, custos) {
 function kpi(label, big, sub, color) {
   return `<div style="flex:1;min-width:180px;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:4px solid ${color}"><div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:700">${label}</div><div style="font-size:18px;font-weight:900;color:${color};margin-top:2px">${big}</div><div class="tiny muted">${sub}</div></div>`;
 }
-function money(n) { return n == null || isNaN(n) ? '0' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+function money(n) { return n == null || isNaN(n) ? '0,00' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function pct2(v){ return v==null?'—':(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'; }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

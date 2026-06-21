@@ -247,5 +247,5 @@ function inp(id, label, v, ph = '', type = '') {
 }
 function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
 function numOrNull(id) { const v = val(id); return v === '' ? null : (Number(v) || 0); }
-function money(n) { return Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 }); }
+function money(n) { return Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

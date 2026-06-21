@@ -82,7 +82,7 @@ function render(health, audit, dash) {
         ${kpi('Users ativos', k.users_ativos || 0, `${k.users_total || 0} cadastrados`, '#2563eb')}
         ${kpi('Tarefas abertas', k.tarefas_abertas || 0, '', '#d97706')}
         ${kpi('Eventos próximos 7d', k.eventos_proxima_semana || 0, '', '#7c3aed')}
-        ${kpi('Atingimento ano', k.atingimento_pct == null ? '—' : k.atingimento_pct.toFixed(1) + '%', `R$ ${money(k.atingido_vgv_ano)}`, '#16a34a')}
+        ${kpi('Atingimento ano', k.atingimento_pct == null ? '—' : pct2(k.atingimento_pct), `R$ ${money(k.atingido_vgv_ano)}`, '#16a34a')}
       </div>
 
       <h3 class="card-title mt-4">📜 Últimos 20 eventos do audit</h3>
@@ -108,7 +108,8 @@ function render(health, audit, dash) {
 function kpi(label, big, sub, color) {
   return `<div style="flex:1;min-width:180px;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:4px solid ${color}"><div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:700">${label}</div><div style="font-size:18px;font-weight:900;color:${color};margin-top:2px">${big}</div><div class="tiny muted">${sub||''}</div></div>`;
 }
-function money(n) { return n == null || isNaN(n) ? '0' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+function money(n) { return n == null || isNaN(n) ? '0' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function pct2(v){ return v==null?'—':(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'; }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

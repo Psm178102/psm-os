@@ -47,7 +47,7 @@ function render() {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px">
         ${factCard('🤝 Vendas (mês)', `${v.vendas_mes ?? '—'}`, `R$ ${moneyShort(v.vgv_mes)} VGV · ${v.pipeline_aberto ?? '—'} no pipeline`, '#16a34a')}
         ${factCard('📢 Mídia (Meta)', a.cpl != null ? 'R$ ' + money(a.cpl) : '—', `CPL · ${fmtNum(a.leads_30d)} leads/30d`, '#f59e0b')}
-        ${factCard('📉 Perdas 90d', `${v.perdas_90d ?? '—'}`, `${v.trash_pct ?? '—'}% lixo/desqualificado`, '#dc2626')}
+        ${factCard('📉 Perdas 90d', `${v.perdas_90d ?? '—'}`, `${v.trash_pct == null ? '—' : pct2(v.trash_pct)} lixo/desqualificado`, '#dc2626')}
         ${factCard('🎯 Concorrentes', `${c.length}`, c.length ? c.slice(0,3).map(x=>escapeHtml(x.concorrente)).join(', ') : 'sem captura', '#7c3aed')}
       </div>
 
@@ -110,8 +110,9 @@ function mdLite(t) {
     .replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
 }
 function spinner(t) { return `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> ${t}</div></div>`; }
-function money(v) { return (v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 }); }
-function moneyShort(v) { v = v || 0; if (v >= 1e6) return (v / 1e6).toFixed(1).replace('.', ',') + 'M'; if (v >= 1e3) return (v / 1e3).toFixed(0) + 'k'; return money(v); }
+function money(v) { return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function moneyShort(v) { return money(v); }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function fmtNum(v) { return v == null ? '—' : (v || 0).toLocaleString('pt-BR'); }
 function fmtDT(s) { if (!s) return '—'; try { return new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch { return s; } }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

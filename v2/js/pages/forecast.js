@@ -44,7 +44,7 @@ function render() {
         ${kpi('🎯 Deals abertos',  t.deals || 0, 'em pipeline', '#2563eb')}
         ${kpi('💰 VGV bruto',       'R$ ' + money(t.valor_total),     'soma sem peso',         '#7c3aed')}
         ${kpi('📊 Forecast (ponderado)', 'R$ ' + money(t.valor_ponderado), 'por probabilidade', '#16a34a')}
-        ${kpi('% Conversão est.',  t.valor_total > 0 ? ((t.valor_ponderado / t.valor_total) * 100).toFixed(1) + '%' : '—', 'forecast/bruto', '#d97706')}
+        ${kpi('% Conversão est.',  t.valor_total > 0 ? pct2((t.valor_ponderado / t.valor_total) * 100) : '—', 'forecast/bruto', '#d97706')}
       </div>
 
       <div class="card mt-4" style="margin-top:14px">
@@ -61,7 +61,7 @@ function render() {
             <tbody>
               ${months.length === 0 ? '<tr><td colspan="5" class="muted text-center" style="padding:20px">Sem deals abertos.</td></tr>' :
                 months.map(m => {
-                  const conv = m.valor_total > 0 ? (m.valor_ponderado / m.valor_total * 100).toFixed(0) + '%' : '—';
+                  const conv = m.valor_total > 0 ? pct2(m.valor_ponderado / m.valor_total * 100) : '—';
                   const label = MES_NAMES[parseInt(m.month.split('-')[1])-1] + '/' + m.month.split('-')[0].slice(-2);
                   return `<tr style="border-bottom:1px solid var(--border)">
                     <td style="padding:6px 10px;font-weight:700">${label}</td>
@@ -103,7 +103,7 @@ function stageRow(s, totalGeral) {
       <div style="font-weight:600">${escapeHtml(s.stage)}</div>
       <div class="muted">${s.count} deals</div>
       <div style="text-align:right;font-weight:700">R$ ${money(s.valor)}</div>
-      <div style="text-align:right;color:#16a34a;font-weight:700">${(s.weight*100).toFixed(0)}%</div>
+      <div style="text-align:right;color:#16a34a;font-weight:700">${pct2(s.weight*100)}</div>
     </div>
   `;
 }
@@ -116,9 +116,10 @@ function kpi(label, big, sub, color) {
   </div>`;
 }
 function money(n) {
-  if (n == null || isNaN(n)) return '0';
-  return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  if (n == null || isNaN(n)) return '0,00';
+  return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

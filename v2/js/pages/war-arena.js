@@ -145,7 +145,7 @@ function warCard(e) {
           <div style="font-size:9px;color:#94a3b8;text-transform:uppercase">VGV</div>
         </div>
         <div style="background:#0a0f1c;padding:10px;border-radius:6px;text-align:center">
-          <div style="font-size:24px;font-weight:900;color:${onFire ? '#22c55e' : pct >= 60 ? '#fbbf24' : '#ef4444'}">${pct.toFixed(0)}%</div>
+          <div style="font-size:24px;font-weight:900;color:${onFire ? '#22c55e' : pct >= 60 ? '#fbbf24' : '#ef4444'}">${pct2(pct)}</div>
           <div style="font-size:9px;color:#94a3b8;text-transform:uppercase">Meta</div>
         </div>
       </div>
@@ -166,9 +166,8 @@ function warCard(e) {
 }
 
 function fmtKM(n) {
-  if (n >= 1_000_000) return 'R$ ' + (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1000) return 'R$ ' + (n / 1000).toFixed(0) + 'k';
-  return 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+  return 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

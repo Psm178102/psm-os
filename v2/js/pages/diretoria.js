@@ -157,9 +157,9 @@ function execMetrics(k) {
         ${ex('🏦 Custo fixo / venda', k.custo_fixo_por_venda != null ? 'R$ ' + moneyShort(k.custo_fixo_por_venda) : '—', cfHint, '#ef4444')}
         ${ex('💚 Margem contrib. / venda', 'R$ ' + moneyShort(k.margem_contrib_venda || 0), 'comissão − custo variável', '#16a34a')}
         ${ex('♻️ LTV (comissão/cliente)', 'R$ ' + moneyShort(k.ltv || 0), 'comissão média por cliente', '#a855f7')}
-        ${ex('🔄 Turnover', k.turnover_pct != null ? k.turnover_pct + '%' : '—', `${k.users_inativos || 0} inativos / ${k.users_total || 0}`, (k.turnover_pct || 0) > 15 ? '#dc2626' : '#d97706')}
+        ${ex('🔄 Turnover', k.turnover_pct != null ? pct2(k.turnover_pct) : '—', `${k.users_inativos || 0} inativos / ${k.users_total || 0}`, (k.turnover_pct || 0) > 15 ? '#dc2626' : '#d97706')}
       </div>
-      <div class="tiny muted mt-2">Premissas PSM: comissão <b>${((pr.comissao_pct || 0.04) * 100).toFixed(1)}%</b> do VGV · custo variável <b>${((pr.custo_var_pct || 0.0145) * 100).toFixed(2)}%</b> do VGV · custo fixo/mês <b>${pr.custo_fixo_mensal ? 'R$ ' + moneyShort(pr.custo_fixo_mensal) : '—'}</b>. Margem = comissão (4% VGV) − custo variável (1,45% VGV) por venda.</div>
+      <div class="tiny muted mt-2">Premissas PSM: comissão <b>${pct2((pr.comissao_pct || 0.04) * 100)}</b> do VGV · custo variável <b>${pct2((pr.custo_var_pct || 0.0145) * 100)}</b> do VGV · custo fixo/mês <b>${pr.custo_fixo_mensal ? 'R$ ' + moneyShort(pr.custo_fixo_mensal) : '—'}</b>. Margem = comissão (4% VGV) − custo variável (1,45% VGV) por venda.</div>
     </div>`;
 }
 
@@ -180,7 +180,7 @@ function dashHero(k, d) {
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
       ${heroKpi('💎 VGV Ano (atingido)', 'R$ ' + moneyShort(k.atingido_vgv_ano), null, vgvAcum, '#a855f7')}
       ${heroKpi('🎯 Meta Ano', 'R$ ' + moneyShort(metaAno), null, vgvMes.map(() => metaAno / 12), '#3b82f6')}
-      ${heroKpi('📊 % Atingimento', (atingPct == null ? '—' : atingPct.toFixed(1) + '%'), null, vgvAcum.map(v => metaAno ? v / metaAno * 100 : 0), '#22c55e')}
+      ${heroKpi('📊 % Atingimento', (atingPct == null ? '—' : pct2(atingPct)), null, vgvAcum.map(v => metaAno ? v / metaAno * 100 : 0), '#22c55e')}
       ${heroKpi('💵 VGV Mês', 'R$ ' + moneyShort(k.atingido_vgv_mes), dVgvMes, vgvMes, '#14b8a6')}
     </div>
 
@@ -403,7 +403,7 @@ function estItem(it, isSocio) {
         <div style="background:var(--bg);height:6px;border-radius:3px;overflow:hidden;margin-top:6px">
           <div style="background:#16a34a;height:100%;width:${Math.min(100, it.progresso)}%"></div>
         </div>
-        <div class="tiny muted" style="margin-top:2px">Progresso: ${it.progresso}%</div>
+        <div class="tiny muted" style="margin-top:2px">Progresso: ${pct2(it.progresso)}</div>
       ` : ''}
     </div>
   `;
@@ -519,14 +519,12 @@ function totalTarefas(t) {
 }
 function money(n) {
   if (n == null || isNaN(n)) return '0';
-  return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function moneyShort(n) {
-  const v = Number(n) || 0;
-  if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2).replace('.', ',') + ' mi';
-  if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(0) + ' mil';
-  return money(v);
+  return money(n);
 }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function fmtNum(n) {
   if (n == null || isNaN(n)) return '0';
   return Number(n).toLocaleString('pt-BR');

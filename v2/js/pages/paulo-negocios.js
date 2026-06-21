@@ -18,7 +18,7 @@ const STAGES = [
 const stInfo = id => STAGES.find(s => s.id === id) || STAGES[0];
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-const money = v => (v == null || v === '' || isNaN(+v)) ? '' : (+v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const money = v => (v == null || v === '' || isNaN(+v)) ? '' : (+v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '';
 
 export async function pagePauloNegocios(ctx, root) {

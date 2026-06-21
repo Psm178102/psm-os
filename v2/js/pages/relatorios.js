@@ -231,7 +231,7 @@ async function loadMetasStatus(out) {
               <td style="padding:6px 8px;font-weight:700">${escapeHtml(u.name || '—')}</td>
               <td style="padding:6px 8px;text-align:right">R$ ${formatBR(+u.meta_vgv||0)}</td>
               <td style="padding:6px 8px;text-align:right">R$ ${formatBR(+u.vgv_atingido||0)}</td>
-              <td style="padding:6px 8px;text-align:center;font-weight:800">${pct.toFixed(0)}%</td>
+              <td style="padding:6px 8px;text-align:center;font-weight:800">${pct2(pct)}</td>
               <td style="padding:6px 8px;text-align:center">${status}</td>
             </tr>`;
           }).join('')}
@@ -334,8 +334,9 @@ function injectPrintCSS() {
 }
 
 function formatBR(n) {
-  return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n || 0);
+  return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 }
+function pct2(v){ return v==null?'—':(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'; }
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

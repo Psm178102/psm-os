@@ -69,7 +69,7 @@ function renderContent() {
     meta: equipes.reduce((s, e) => s + e.meta, 0),
     corretores: equipes.reduce((s, e) => s + e.corretores.length, 0),
   };
-  const pct = totals.meta > 0 ? (totals.vgv / totals.meta * 100).toFixed(1) : '0';
+  const pct = totals.meta > 0 ? (totals.vgv / totals.meta * 100) : 0;
 
   body.innerHTML = `
     <!-- Comando geral -->
@@ -80,7 +80,7 @@ function renderContent() {
         ${cmdKpi('Vendas Realizadas', totals.vendas, '#22c55e')}
         ${cmdKpi('VGV Atingido', fmtKM(totals.vgv), '#fbbf24')}
         ${cmdKpi('Meta Total', fmtKM(totals.meta), '#cbd5e1')}
-        ${cmdKpi('% Cumprimento', pct + '%', pct >= 100 ? '#22c55e' : pct >= 70 ? '#fbbf24' : '#ef4444')}
+        ${cmdKpi('% Cumprimento', pct2(pct), pct >= 100 ? '#22c55e' : pct >= 70 ? '#fbbf24' : '#ef4444')}
       </div>
     </div>
 
@@ -144,7 +144,7 @@ function equipeCard(e) {
         <div style="background:#0a0f1c;padding:8px;border-radius:6px"><div style="font-size:9px;color:#94a3b8;text-transform:uppercase">VGV</div><div style="font-weight:800;color:#fbbf24">${fmtKM(e.vgv)}</div></div>
         <div style="background:#0a0f1c;padding:8px;border-radius:6px"><div style="font-size:9px;color:#94a3b8;text-transform:uppercase">Meta</div><div style="font-weight:800">${fmtKM(e.meta)}</div></div>
         <div style="background:#0a0f1c;padding:8px;border-radius:6px"><div style="font-size:9px;color:#94a3b8;text-transform:uppercase">Vendas</div><div style="font-weight:800;color:#22c55e">${e.vendas}</div></div>
-        <div style="background:#0a0f1c;padding:8px;border-radius:6px"><div style="font-size:9px;color:#94a3b8;text-transform:uppercase">%</div><div style="font-weight:800;color:${statusColor}">${pct.toFixed(0)}%</div></div>
+        <div style="background:#0a0f1c;padding:8px;border-radius:6px"><div style="font-size:9px;color:#94a3b8;text-transform:uppercase">%</div><div style="font-weight:800;color:${statusColor}">${pct2(pct)}</div></div>
       </div>
       <!-- Barra de progresso -->
       <div style="background:#0a0f1c;height:6px;border-radius:3px;overflow:hidden;margin-bottom:8px">
@@ -171,8 +171,8 @@ async function analyze() {
 
   const equipes = aggregateByEquipe(_data.atingimento, _data.users);
   const briefing = equipes.map(e => {
-    const pct = e.meta > 0 ? (e.vgv / e.meta * 100).toFixed(1) : '0';
-    return `${e.nome}: ${e.vendas} vendas, VGV R$ ${e.vgv.toLocaleString('pt-BR')}, meta R$ ${e.meta.toLocaleString('pt-BR')} (${pct}%), ${e.corretores.length} corretores`;
+    const pct = e.meta > 0 ? (e.vgv / e.meta * 100) : 0;
+    return `${e.nome}: ${e.vendas} vendas, VGV R$ ${e.vgv.toLocaleString('pt-BR')}, meta R$ ${e.meta.toLocaleString('pt-BR')} (${pct2(pct)}), ${e.corretores.length} corretores`;
   }).join('\n');
 
   const prompt = `Você é Sr. Intelligence, conselheiro estratégico dos sócios da PSM Imóveis (Rio Preto/SP). Analise os dados de batalha do mês:
@@ -213,9 +213,8 @@ function cmdKpi(label, value, color) {
 }
 
 function fmtKM(n) {
-  if (n >= 1_000_000) return 'R$ ' + (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1000) return 'R$ ' + (n / 1000).toFixed(0) + 'k';
-  return 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+  return 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

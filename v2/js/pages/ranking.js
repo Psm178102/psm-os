@@ -97,7 +97,7 @@ async function loadAudit() {
   const statusCell = x => {
     if (x.rd_zero && (x.psmhub_vgv || 0) > 0) return '<span style="color:#2563eb;font-weight:700">🟦 só no HUB</span>';
     if (x.ok) return '<span style="color:#16a34a;font-weight:700">✅ confere</span>';
-    return `<span style="color:#dc2626;font-weight:700">⚠️ diverge ${x.diff_pct != null ? x.diff_pct + '%' : ''}</span>`;
+    return `<span style="color:#dc2626;font-weight:700">⚠️ diverge ${x.diff_pct != null ? pct2(x.diff_pct) : ''}</span>`;
   };
   el.innerHTML = `
     <div class="card mt-3">
@@ -147,7 +147,8 @@ function rankRow(u, i, mode) {
   `;
 }
 
-function money(n) { return n == null || isNaN(n) ? '0' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+function money(n) { return n == null || isNaN(n) ? '0,00' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function pct2(v){ return v==null?'—':(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'; }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

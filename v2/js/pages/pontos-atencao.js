@@ -95,15 +95,15 @@ function collectVendas(arr, m) {
     const diasMes = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const frac = Math.max(dia / diasMes, 0.01);
     const proj = (s.vgv_mes || 0) / frac;
-    const pct = Math.round(proj / meta * 100);
-    const pctReal = Math.round((s.vgv_mes || 0) / meta * 100);
+    const pct = proj / meta * 100;
+    const pctReal = (s.vgv_mes || 0) / meta * 100;
     if (pct < 80) {
-      push(arr, 'crit', 'Vendas & Metas', '🎯', `Meta do mês em risco — projeção ~${pct}%`,
-        `Hoje ${pctReal}% atingido (R$ ${km(s.vgv_mes)} de R$ ${km(meta)}). No ritmo atual o mês fecha em ~${pct}% da meta.`,
+      push(arr, 'crit', 'Vendas & Metas', '🎯', `Meta do mês em risco — projeção ~${pct2(pct)}`,
+        `Hoje ${pct2(pctReal)} atingido (R$ ${km(s.vgv_mes)} de R$ ${km(meta)}). No ritmo atual o mês fecha em ~${pct2(pct)} da meta.`,
         '#/metas', 'Metas');
     } else if (pct < 100) {
-      push(arr, 'warn', 'Vendas & Metas', '🎯', `Meta do mês apertada — projeção ~${pct}%`,
-        `${pctReal}% atingido (R$ ${km(s.vgv_mes)} de R$ ${km(meta)}). Projeção no ritmo atual: ~${pct}%.`,
+      push(arr, 'warn', 'Vendas & Metas', '🎯', `Meta do mês apertada — projeção ~${pct2(pct)}`,
+        `${pct2(pctReal)} atingido (R$ ${km(s.vgv_mes)} de R$ ${km(meta)}). Projeção no ritmo atual: ~${pct2(pct)}.`,
         '#/metas', 'Metas');
     }
     // 2) Pipeline cobre o que falta?
@@ -176,10 +176,10 @@ function collectEquipe(arr, oo) {
   // 1) Concentração de receita num único corretor
   if (totalVgv > 0) {
     const top = all.slice().sort((a, b) => (b.vgv || 0) - (a.vgv || 0))[0];
-    const share = Math.round((top.vgv || 0) / totalVgv * 100);
+    const share = (top.vgv || 0) / totalVgv * 100;
     if (share >= 60) {
-      push(arr, 'warn', 'Equipe', '⚠️', `Receita concentrada em 1 pessoa (${share}%)`,
-        `${esc(top.name || 'um corretor')} responde por ${share}% do VGV do mês. Dependência alta — risco se faltar.`,
+      push(arr, 'warn', 'Equipe', '⚠️', `Receita concentrada em 1 pessoa (${pct2(share)})`,
+        `${esc(top.name || 'um corretor')} responde por ${pct2(share)} do VGV do mês. Dependência alta — risco se faltar.`,
         '#/equipe', 'Equipes');
     }
   }
@@ -404,10 +404,7 @@ function nomeCap(x) {
 }
 function cap(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
 function km(n) {
-  if (n == null) return '0';
-  const v = Number(n);
-  if (v >= 1_000_000) return (v / 1_000_000).toFixed(1).replace('.', ',') + 'M';
-  if (v >= 1000) return (v / 1000).toFixed(0) + 'k';
-  return Math.round(v).toLocaleString('pt-BR');
+  return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

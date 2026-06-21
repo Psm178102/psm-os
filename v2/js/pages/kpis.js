@@ -99,11 +99,11 @@ function renderContent() {
     <!-- Vendas & Meta -->
     ${secTitle('📈 Vendas & Meta · ano')}
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;margin-bottom:18px">
-      ${kpi('💰', 'VGV Realizado', fmtKM(realVGV), pctMeta.toFixed(1) + '% da meta', semStatus(pctMeta, [50, 80, 100]))}
+      ${kpi('💰', 'VGV Realizado', fmtKM(realVGV), pct2(pctMeta) + ' da meta', semStatus(pctMeta, [50, 80, 100]))}
       ${kpi('🎯', 'Meta do Ano', fmtKM(metaVGV), gap > 0 ? 'Falta ' + fmtKM(gap) : '✓ Batida', '#d4a843')}
-      ${kpi('📊', 'Atingimento', pctMeta.toFixed(1) + '%', `${vendas} venda(s) no ano`, semStatus(pctMeta, [50, 80, 100]))}
+      ${kpi('📊', 'Atingimento', pct2(pctMeta), `${vendas} venda(s) no ano`, semStatus(pctMeta, [50, 80, 100]))}
       ${kpi('🏆', 'Ticket Médio', fmtKM(ticketMedio), 'por venda fechada', '#22c55e')}
-      ${kpi('🔮', 'Projeção Ano', fmtKM(projAno), `~${pctProj.toFixed(0)}% da meta no ritmo`, pctProj >= 100 ? '#22c55e' : pctProj >= 80 ? '#f59e0b' : '#ef4444')}
+      ${kpi('🔮', 'Projeção Ano', fmtKM(projAno), `~${pct2(pctProj)} da meta no ritmo`, pctProj >= 100 ? '#22c55e' : pctProj >= 80 ? '#f59e0b' : '#ef4444')}
     </div>
 
     <!-- Pipeline & Funil -->
@@ -134,7 +134,7 @@ function renderContent() {
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px">
         ${kpi('📥', 'Receita', fmtKM(receita), 'NIBO · 12m', '#22c55e')}
         ${kpi('📤', 'Despesas', fmtKM(despesa), 'NIBO · 12m', '#ef4444')}
-        ${kpi('💎', 'Saldo', fmtKM(saldo), margem.toFixed(1) + '% margem', semStatus(margem, [5, 15, 25]))}
+        ${kpi('💎', 'Saldo', fmtKM(saldo), pct2(margem) + ' margem', semStatus(margem, [5, 15, 25]))}
       </div>
     `}
 
@@ -165,11 +165,9 @@ function kpi(ico, label, value, sub, color, textColor) {
   `;
 }
 function fmtKM(n) {
-  n = +n || 0;
-  if (n >= 1_000_000) return 'R$ ' + (n / 1_000_000).toFixed(1).replace('.', ',') + 'M';
-  if (n >= 1000) return 'R$ ' + (n / 1000).toFixed(0) + 'k';
-  return 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+  return 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function fmtNum(n) { return (+n || 0).toLocaleString('pt-BR'); }
 function fmtWhen(s) { if (!s) return '—'; try { return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch { return '—'; } }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

@@ -124,7 +124,7 @@ const PLANNER_CSS = `<style>
 function gauge(label, pct, sub, cor) {
   const p = Math.max(0, Math.min(100, pct || 0));
   return `<div class="gz" style="border-color:${cor}55">
-    <div class="gz-top"><span class="gz-lbl">${label}</span><span class="gz-pct" style="color:${cor}">${pct == null ? '—' : pct + '%'}</span></div>
+    <div class="gz-top"><span class="gz-lbl">${label}</span><span class="gz-pct" style="color:${cor}">${pct2(pct)}</span></div>
     <div class="gz-track"><div class="gz-fill" style="width:${p}%;background:${cor}"></div></div>
     <div class="gz-sub">${sub || ''}</div></div>`;
 }
@@ -138,7 +138,7 @@ function metricsRow() {
   const d = _data || {};
   const isCorretor = (_feedRole || '').toLowerCase() === 'corretor';
   const metaVgv = d.metas?.meta_vgv || 0, vgvMes = d.sales?.vgv_mes || 0;
-  const metaPct = metaVgv > 0 ? Math.round(vgvMes / metaVgv * 100) : null;
+  const metaPct = metaVgv > 0 ? (vgvMes / metaVgv * 100) : null;
   const prod = _feedProd || {};
   const cards = [];
   if (metaPct !== null) cards.push(gauge('🎯 Meta do mês', metaPct, `R$ ${fmtKM(vgvMes)} de R$ ${fmtKM(metaVgv)}`, metaPct >= 100 ? '#16a34a' : metaPct >= 70 ? '#d4a843' : '#dc2626'));
@@ -538,18 +538,15 @@ function heroKpi(label, big, sub, color) {
 
 function pctMeta(real, meta) {
   if (!meta || meta <= 0) return 'meta não definida';
-  const pct = Math.round((real || 0) / meta * 100);
+  const pct = (real || 0) / meta * 100;
   const emoji = pct >= 100 ? '🟢' : pct >= 70 ? '🟡' : '🔴';
-  return `${emoji} ${pct}% atingido`;
+  return `${emoji} ${pct2(pct)} atingido`;
 }
 
 function fmtKM(n) {
-  if (n == null) return '0';
-  const v = Number(n);
-  if (v >= 1_000_000) return (v / 1_000_000).toFixed(1).replace('.', ',') + 'M';
-  if (v >= 1000) return (v / 1000).toFixed(0) + 'k';
-  return Math.round(v).toLocaleString('pt-BR');
+  return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 
 function kpiMini(label, value, color) {
   return `

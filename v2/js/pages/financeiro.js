@@ -225,7 +225,7 @@ function finHero(d, dre) {
       ${miniStat('Receita do mês', 'R$ ' + moneyShort(m.receita), '#22c55e')}
       ${miniStat('Despesa do mês', 'R$ ' + moneyShort(m.despesa), '#f87171')}
       ${miniStat('Saldo do mês', 'R$ ' + moneyShort(m.saldo), (m.saldo >= 0 ? '#22c55e' : '#f87171'))}
-      ${miniStat('Margem do mês', margem == null ? '—' : margem.toFixed(0) + '%', (margem || 0) >= 0 ? '#14b8a6' : '#f87171')}
+      ${miniStat('Margem do mês', margem == null ? '—' : pct2(margem), (margem || 0) >= 0 ? '#14b8a6' : '#f87171')}
       ${miniStat('# rec / des mês', (m.n_receitas || 0) + ' / ' + (m.n_despesas || 0), '#94a3b8')}
     </div>`;
   return heroWrap('💰 Financeiro · NIBO ao vivo', compName + ' · DRE 12 meses · trend mês a mês', inner);
@@ -503,7 +503,7 @@ function momRow(m) {
     if (pct == null) return '<span class="muted">—</span>';
     const c = pct > 0 ? '#16a34a' : pct < 0 ? '#dc2626' : 'var(--ink-muted)';
     const sign = pct > 0 ? '+' : '';
-    return `<span style="color:${c};font-weight:700">${sign}${pct.toFixed(1)}%</span>`;
+    return `<span style="color:${c};font-weight:700">${sign}${pct2(pct)}</span>`;
   };
   return `
     <tr style="border-bottom:1px solid var(--border)">
@@ -554,6 +554,7 @@ async function renderCustos() {
 
 function bucketCard(b, monthKeys, totalGeral) {
   const pct = totalGeral > 0 ? Math.round((b.total / totalGeral) * 100) : 0;
+  const pctExato = totalGeral > 0 ? (b.total / totalGeral) * 100 : 0;
   const monthCols = monthKeys.map(mk => {
     const v = (b.by_month || {})[mk] || 0;
     return `<td style="text-align:right;padding:6px 10px;font-size:11px">R$ ${money(v)}</td>`;
@@ -565,7 +566,7 @@ function bucketCard(b, monthKeys, totalGeral) {
         <h3 style="margin:0;font-size:14px;flex:1">${escapeHtml(b.bucket)}</h3>
         <span class="tiny muted">${b.count} lanç</span>
         <span style="font-weight:800;color:#7c3aed">R$ ${money(b.total)}</span>
-        <span class="tiny muted">(${pct}%)</span>
+        <span class="tiny muted">(${pct2(pctExato)})</span>
       </div>
       <div style="background:var(--bg);height:4px;border-radius:2px;overflow:hidden;margin-bottom:8px">
         <div style="background:#7c3aed;height:100%;width:${Math.min(100, pct * 2)}%"></div>
@@ -810,11 +811,9 @@ function money(n) {
   return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function moneyShort(n) {
-  const v = Number(n) || 0;
-  if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2).replace('.', ',') + ' mi';
-  if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(1).replace('.', ',') + ' mil';
-  return money(v);
+  return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

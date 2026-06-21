@@ -203,11 +203,11 @@ function metasView() {
         </div>
         <div style="background:rgba(${pct>=90?22:pct>=50?217:220},${pct>=90?163:pct>=50?119:38},${pct>=90?74:pct>=50?6:38},0.2);border:2px solid ${pctColor};border-radius:14px;padding:24px;text-align:center">
           <div style="font-size:18px;opacity:0.7;letter-spacing:2px">% ATINGIMENTO</div>
-          <div style="font-size:72px;font-weight:900;margin-top:8px;color:${pctColor}">${pct == null ? '—' : pct.toFixed(1) + '%'}</div>
+          <div style="font-size:72px;font-weight:900;margin-top:8px;color:${pctColor}">${pct2(pct)}</div>
         </div>
       </div>
       <div style="text-align:center;font-size:22px;opacity:0.8">
-        ${pct >= 90 ? '🎉 Meta sendo batida' : pct >= 50 ? '⚠ Atenção: ' + (100 - (pct||0)).toFixed(0) + '% pra meta' : '🔴 Atrás da meta'}
+        ${pct >= 90 ? '🎉 Meta sendo batida' : pct >= 50 ? '⚠ Atenção: ' + pct2(100 - (pct||0)) + ' pra meta' : '🔴 Atrás da meta'}
       </div>
     </div>
   `;
@@ -257,7 +257,7 @@ function equipesView() {
             <div style="font-size:28px;font-weight:800;text-transform:uppercase;letter-spacing:2px">${escapeHtml(t.team)}</div>
             <div style="font-size:14px;opacity:0.6;margin-bottom:14px">${t.count} corretores</div>
             <div style="font-size:32px;font-weight:900;color:${color}">R$ ${money(t.atingido)}</div>
-            <div style="opacity:0.7;margin-top:2px">de R$ ${money(t.meta)} (${pct == null ? '—' : pct.toFixed(0) + '%'})</div>
+            <div style="opacity:0.7;margin-top:2px">de R$ ${money(t.meta)} (${pct2(pct)})</div>
             ${t.meta > 0 ? `<div style="background:rgba(0,0,0,0.3);height:10px;border-radius:5px;margin-top:12px;overflow:hidden"><div style="background:${color};height:100%;width:${Math.min(100, pct || 0)}%"></div></div>` : ''}
           </div>
         `;
@@ -340,7 +340,8 @@ function trafegoView() {
 }
 
 function fmtInt(n) { return Number(n || 0).toLocaleString('pt-BR'); }
-function money(n) { return n == null || isNaN(n) ? '0' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+function money(n) { return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
