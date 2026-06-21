@@ -511,4 +511,47 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
         alerts.append({"level": "medio", "txt": f"1º contato lento (~{out['primeiro_contato_h']}h)"})
     out["alertas"] = alerts
 
+    # ── 🎯 FUNIL REVERSO (da meta → atividades necessárias, pelas taxas REAIS do corretor) ──
+    # Benchmarks de mercado usados só quando o corretor ainda não tem histórico próprio.
+    BASE = {"lead_venda": 0.08, "vpv": 4.0, "apv": 12.0}
+    ticket = (vgv / vendas) if vendas else None
+    meta_vgv_alvo = mv.get("meta_vgv") or 0
+    meta_vendas_alvo = mv.get("meta_vendas") or 0
+    if not meta_vendas_alvo and meta_vgv_alvo and ticket:
+        meta_vendas_alvo = max(1, round(meta_vgv_alvo / ticket))
+    if meta_vendas_alvo:
+        r_lead_venda = (vendas / funnel[0]) if (funnel[0] and vendas) else None
+        vpv = out["visitas_por_venda"] or BASE["vpv"]
+        apv = out["atend_por_venda"] or BASE["apv"]
+        rv = r_lead_venda or BASE["lead_venda"]
+        leads_nec = round(meta_vendas_alvo / rv) if rv else None
+        visitas_nec = round(meta_vendas_alvo * vpv)
+        contatos_nec = round(meta_vendas_alvo * apv)
+        falta = lambda nec, real: max(0, int((nec or 0) - real))
+        out["funil_reverso"] = {
+            "usa_taxas": "individuais" if r_lead_venda else "benchmark",
+            "ticket_base": round(ticket, 2) if ticket else None,
+            "taxas": {"lead_venda_pct": round(rv * 100, 1), "visitas_por_venda": round(vpv, 1), "contatos_por_venda": round(apv, 1)},
+            "necessario": {"leads": leads_nec, "contatos": contatos_nec, "visitas": visitas_nec, "vendas": meta_vendas_alvo},
+            "realizado": {"leads": funnel[0], "contatos": funnel[1], "visitas": funnel[3], "vendas": vendas},
+            "faltam": {"leads": falta(leads_nec, funnel[0]), "contatos": falta(contatos_nec, funnel[1]),
+                       "visitas": falta(visitas_nec, funnel[3]), "vendas": falta(meta_vendas_alvo, vendas)},
+            "meta_vgv": meta_vgv_alvo or (round(meta_vendas_alvo * ticket) if ticket else None),
+        }
+
+    # ── 📈 PROJEÇÃO INDIVIDUAL (conforme andamento real / run-rate do período) ──
+    dias_rest = max(0, days_total - days_elapsed)
+    proj_vendas = round(vendas / pace) if pace > 0 else vendas
+    proj_vgv = round(vgv / pace, 2) if pace > 0 else vgv
+    out["projecao"] = {
+        "pace_pct": round(pace * 100),
+        "dias_decorridos": days_elapsed, "dias_total": days_total, "dias_restantes": dias_rest,
+        "proj_vendas": proj_vendas, "proj_vgv": proj_vgv,
+        "meta_vgv": meta_vgv_alvo, "meta_vendas": mv.get("meta_vendas") or 0,
+        "atingira_vgv_pct": (round(proj_vgv / meta_vgv_alvo * 100) if meta_vgv_alvo else None),
+        "gap_vgv": round(meta_vgv_alvo - proj_vgv, 2) if meta_vgv_alvo else None,
+        "no_ritmo": (proj_vgv >= meta_vgv_alvo) if meta_vgv_alvo else None,
+        "ritmo_necessario_dia": (round(max(0, (mv.get("meta_vendas") or 0) - vendas) / dias_rest, 2) if dias_rest else None),
+    }
+
     return out

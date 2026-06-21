@@ -123,6 +123,10 @@ function renderDetail() {
         <div>${kpiVsMeta(d)}</div>
       </div>
       <div style="margin-top:14px">${efficiencyPanel(d)}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
+        ${reverseFunnelPanel(d)}
+        ${projecaoPanel(d)}
+      </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:14px">
         ${ratesPanel(d)}
         ${originPanel(d)}
@@ -563,6 +567,51 @@ function wirePeriod(reloadFn) {
 function panel(title, inner) {
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px">
     <div style="font-weight:800;font-size:13px;margin-bottom:8px">${title}</div>${inner}</div>`;
+}
+
+/* 🎯 Funil reverso: da meta → atividades necessárias pelas taxas reais do corretor */
+function reverseFunnelPanel(d) {
+  const fr = d.funil_reverso;
+  if (!fr) return panel('🎯 Funil reverso (previsibilidade)',
+    '<div class="tiny muted">Defina a meta de VGV/vendas deste corretor (em Metas) pra simular quantos leads, contatos e visitas são necessários.</div>');
+  const linhas = [['Vendas', 'vendas'], ['Visitas', 'visitas'], ['Contatos', 'contatos'], ['Leads', 'leads']];
+  const fonte = fr.usa_taxas === 'individuais' ? 'taxas REAIS deste corretor' : 'benchmark (sem histórico próprio ainda)';
+  const rows = linhas.map(([lbl, k]) => {
+    const nec = fr.necessario[k] ?? '—', real = fr.realizado[k] ?? 0, falta = fr.faltam[k] ?? 0;
+    const cor = falta > 0 ? '#dc2626' : '#16a34a';
+    return `<tr>
+      <td style="padding:4px 6px;font-weight:600">${lbl}</td>
+      <td style="padding:4px 6px;text-align:center">${nec}</td>
+      <td style="padding:4px 6px;text-align:center;color:#64748b">${real}</td>
+      <td style="padding:4px 6px;text-align:center;font-weight:800;color:${cor}">${falta > 0 ? 'faltam ' + falta : '✓'}</td>
+    </tr>`;
+  }).join('');
+  return panel('🎯 Funil reverso — pra bater a meta', `
+    <div class="tiny muted" style="margin-bottom:6px">Meta: <b>R$ ${money(fr.meta_vgv)}</b> · <b>${fr.necessario.vendas}</b> venda(s). Cálculo pelas ${fonte}.</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+      <thead><tr style="color:#64748b;font-size:10.5px;text-transform:uppercase">
+        <th style="text-align:left;padding:2px 6px">Etapa</th><th style="padding:2px 6px">Precisa</th><th style="padding:2px 6px">Feito</th><th style="padding:2px 6px">Falta</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="tiny muted" style="margin-top:6px">Taxas: lead→venda ${fr.taxas.lead_venda_pct}% · ${fr.taxas.visitas_por_venda} visitas/venda · ${fr.taxas.contatos_por_venda} contatos/venda.</div>`);
+}
+
+/* 📈 Projeção individual conforme andamento real (run-rate do período) */
+function projecaoPanel(d) {
+  const p = d.projecao;
+  if (!p) return '';
+  const temMeta = p.meta_vgv > 0;
+  const cor = p.no_ritmo === true ? '#16a34a' : (p.no_ritmo === false ? '#dc2626' : '#64748b');
+  const att = p.atingira_vgv_pct;
+  return panel('📈 Projeção do período (ritmo atual)', `
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+      <div><div class="tiny muted">Projeção VGV</div><div style="font-size:22px;font-weight:900;color:${cor}">R$ ${moneyShort(p.proj_vgv)}</div></div>
+      <div><div class="tiny muted">Projeção vendas</div><div style="font-size:22px;font-weight:900">${p.proj_vendas}</div></div>
+      ${temMeta ? `<div><div class="tiny muted">Da meta VGV</div><div style="font-size:22px;font-weight:900;color:${cor}">${att}%</div></div>` : ''}
+    </div>
+    <div style="margin-top:6px">${bar(Math.min(100, att || 0), p.no_ritmo ? 'verde' : 'vermelho')}</div>
+    <div class="tiny muted" style="margin-top:6px">${p.dias_decorridos}/${p.dias_total} dias (${p.pace_pct}% do período).
+      ${temMeta ? (p.no_ritmo ? '✅ No ritmo de bater a meta.' : `🔴 Projetado ${att}% da meta — gap de R$ ${moneyShort(p.gap_vgv)}.${p.ritmo_necessario_dia ? ' Precisa de ~' + p.ritmo_necessario_dia + ' venda(s)/dia restante.' : ''}`) : 'Defina a meta pra comparar.'}</div>`);
 }
 function miniKpi(lbl, val) {
   return `<div style="background:var(--bg-3);border-radius:6px;padding:5px 4px"><div style="font-weight:800;font-size:14px">${val}</div><div style="font-size:9.5px;color:var(--ink-muted)">${lbl}</div></div>`;
