@@ -19,6 +19,15 @@ function rel(iso) {
   if (d < 60) return 'agora'; if (d < 3600) return Math.floor(d / 60) + 'min'; if (d < 86400) return Math.floor(d / 3600) + 'h';
   return Math.floor(d / 86400) + 'd';
 }
+// tempo ATÉ uma data futura (expiração)
+function relAte(iso) {
+  if (!iso) return '';
+  const d = (new Date(iso).getTime() - Date.now()) / 1000;
+  if (d <= 0) return 'expirando';
+  if (d < 3600) return 'expira em ' + Math.ceil(d / 60) + 'min';
+  if (d < 86400) return 'expira em ' + Math.ceil(d / 3600) + 'h';
+  return 'expira em ' + Math.ceil(d / 86400) + 'd';
+}
 
 export async function initTimeline() {
   _bar = document.getElementById('timeline-bar');
@@ -50,7 +59,7 @@ function render() {
   const cur = vis[0];
   _bar.innerHTML = `<div class="tl-strip" style="border-left-color:${esc(cur.cor || '#0f172a')}">
     <span class="tl-ico">📣</span>
-    <div class="tl-txt"><b>${esc(cur.texto)}</b> <span class="tl-meta">— ${esc(cur.autor || 'Diretoria')} · ${rel(cur.criado_em)}${cur.expira_em ? ' · expira ' + rel(cur.expira_em).replace('-', '') : ''}</span></div>
+    <div class="tl-txt"><b>${esc(cur.texto)}</b> <span class="tl-meta">— ${esc(cur.autor || 'Diretoria')} · ${rel(cur.criado_em)}${cur.expira_em ? ' · ' + relAte(cur.expira_em) : ' · fixo'}</span></div>
     ${vis.length > 1 ? `<button class="tl-more" id="tl-more">+${vis.length - 1}</button>` : ''}
     ${_canManage ? `<button class="tl-new" id="tl-new">＋</button>${_canManage ? `<button class="tl-del" id="tl-del" title="Excluir este recado">🗑</button>` : ''}` : ''}
     <button class="tl-x" id="tl-x" title="Dispensar">✕</button>
@@ -61,7 +70,7 @@ function render() {
 
 function rowHTML(it) {
   return `<div class="tl-row" style="border-left-color:${esc(it.cor || '#0f172a')}">
-    <div style="flex:1;min-width:0"><b>${esc(it.texto)}</b><div class="tl-meta">${esc(it.autor || 'Diretoria')} · ${rel(it.criado_em)}${it.expira_em ? ' · expira ' + rel(it.expira_em) : ' · fixo'}</div></div>
+    <div style="flex:1;min-width:0"><b>${esc(it.texto)}</b><div class="tl-meta">${esc(it.autor || 'Diretoria')} · ${rel(it.criado_em)}${it.expira_em ? ' · ' + relAte(it.expira_em) : ' · fixo'}</div></div>
     ${_canManage ? `<button class="tl-del" data-del="${esc(it.id)}" title="Excluir">🗑</button>` : ''}
     <button class="tl-xrow" data-x="${esc(it.id)}" title="Dispensar">✕</button>
   </div>`;
