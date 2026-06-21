@@ -179,6 +179,73 @@ def read_meta_spend(sb, preset=None):
     return None
 
 
+def read_meta_accounts(sb, preset=None):
+    """Igual ao read_meta_spend, mas devolve gasto + leads + CPL POR CONTA de anúncios
+    (e o agregado global). CPL por conta = base honesta pra ratear o investimento em ads
+    por EQUIPE (cada equipe roda numa conta). Lê 1 payload mensal por vez (são grandes)."""
+    for p in [preset, "last_30d", "this_month", "last_month", "last_14d", "last_7d", "yesterday"]:
+        if not p:
+            continue
+        try:
+            rows = (sb.table("meta_ads_cache").select("payload")
+                    .eq("date_preset", p).order("refreshed_at", desc=True)
+                    .limit(1).execute().data or [])
+        except Exception:
+            continue
+        if not rows:
+            continue
+        accs = (rows[0].get("payload") or {}).get("accounts") or []
+        out, gs, gl = [], 0.0, 0.0
+        for a in accs:
+            try:
+                sp = float(a.get("spend") or 0)
+                ld = int(float(a.get("leads") or 0))
+            except Exception:
+                sp, ld = 0.0, 0
+            if sp <= 0 and ld <= 0:
+                continue
+            out.append({"id": a.get("id"), "label": (a.get("label") or "").strip(),
+                        "spend": round(sp, 2), "leads": ld,
+                        "cpl": round(sp / ld, 2) if ld else None})
+            gs += sp
+            gl += ld
+        if out:
+            return {"accounts": out, "global_spend": round(gs, 2), "global_leads": int(gl),
+                    "global_cpl": round(gs / gl, 2) if gl else None, "preset_used": p}
+    return {"accounts": [], "global_spend": None, "global_leads": 0, "global_cpl": None, "preset_used": None}
+
+
+def match_team_account(accounts, team, override=None):
+    """Casa a EQUIPE do corretor com a conta de anúncios. 1º tenta override explícito
+    (shared_kv: {equipe_lower: account_id}); senão casa pelo label (substring case-insensitive,
+    ex.: equipe 'Conquista' → conta 'PSM Conquista'). Devolve a conta casada ou None."""
+    t = (team or "").strip().lower()
+    if not t:
+        return None
+    if override:
+        aid = override.get(t)
+        if aid:
+            for a in accounts:
+                if a.get("id") == aid:
+                    return a
+    for a in accounts:
+        lab = (a.get("label") or "").lower()
+        if lab and (t in lab or lab in t):
+            return a
+    return None
+
+
+def read_team_account_override(sb):
+    """Mapa opcional equipe→account_id (shared_kv 'oo_meta_team_account'). Vazio se não houver."""
+    try:
+        r = (sb.table("shared_kv").select("value").eq("key", "oo_meta_team_account")
+             .limit(1).execute().data or [])
+        v = (r[0].get("value") if r else None) or {}
+        return {str(k).strip().lower(): v[k] for k in v} if isinstance(v, dict) else {}
+    except Exception:
+        return {}
+
+
 META_FIELDS = ("meta_vgv", "meta_vendas", "meta_visitas", "meta_pastas", "meta_propostas", "meta_agendamentos")
 
 

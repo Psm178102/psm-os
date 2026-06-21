@@ -17,7 +17,8 @@ from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
-from _oo_lib import window, months_in_range, broker_metrics, read_meta_spend, meta_for_period  # type: ignore
+from _oo_lib import (window, months_in_range, broker_metrics, read_meta_spend, meta_for_period,  # type: ignore
+                     read_meta_accounts, match_team_account, read_team_account_override)
 
 
 class handler(BaseHTTPRequestHandler):
@@ -155,21 +156,17 @@ class handler(BaseHTTPRequestHandler):
                 "pendencias": m["pendencias"],
                 "last_oo": last_oo.get(cid), "proxima_oo": prox_oo.get(cid),
             })
-        # ── Investimento em ads / lead — CPL = taxa mensal (gasto Meta mensal ÷
-        # leads dos últimos 30 dias), aplicada aos leads de cada corretor. ──
-        spend = read_meta_spend(sb)
-        cpl = None
-        leads_30d = 0
-        try:
-            m30 = (today - timedelta(days=29)).isoformat() + "T00:00:00+00:00"
-            res = sb.table("deals").select("id", count="exact").gte("created_at_rd", m30).limit(1).execute()
-            leads_30d = res.count or 0
-            if spend and leads_30d:
-                cpl = round(spend / leads_30d, 2)
-        except Exception:
-            pass
+        # ── Investimento em ads / lead — CPL da CONTA da equipe de cada corretor
+        # (gasto Meta ÷ leads Meta da conta) × leads do corretor; fallback CPL global. ──
+        _ma = read_meta_accounts(sb)
+        _ovr = read_team_account_override(sb)
+        cpl = _ma["global_cpl"]
         for c in out:
-            c["lead_invest"] = round(cpl * (c["leads"] or 0), 2) if cpl else None
+            acc = match_team_account(_ma["accounts"], c.get("team"), _ovr)
+            ccpl = acc["cpl"] if (acc and acc.get("cpl") is not None) else _ma["global_cpl"]
+            c["lead_invest"] = round(ccpl * (c["leads"] or 0), 2) if ccpl else None
+            c["cpl_used"] = ccpl
+            c["cpl_base"] = ("equipe" if (acc and acc.get("cpl") is not None) else ("global" if _ma["global_cpl"] else None))
         # ordena: mais alertas primeiro, depois menor health (quem precisa de atenção)
         out.sort(key=lambda x: (-(x["alertas_count"]), x["health"]))
 
@@ -179,6 +176,7 @@ class handler(BaseHTTPRequestHandler):
                        "preset": params.get("date_preset") or ("custom" if params.get("since") else "this_month")},
             "count": len(out),
             "corretores": out,
-            "meta_spend": spend, "cpl_global": cpl, "total_leads": leads_30d,
+            "meta_spend": _ma["global_spend"], "cpl_global": _ma["global_cpl"], "total_leads": _ma["global_leads"],
+            "meta_accounts": _ma["accounts"], "cpl_periodo": _ma["preset_used"],
             "fetched_at": datetime.now(timezone.utc).isoformat(),
         })

@@ -123,6 +123,7 @@ function renderDetail() {
         <div>${kpiVsMeta(d)}</div>
       </div>
       <div style="margin-top:14px">${efficiencyPanel(d)}</div>
+      <div style="margin-top:14px">${adsInvestPanel(d, 'corretor')}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
         ${reverseFunnelPanel(d)}
         ${projecaoPanel(d)}
@@ -156,6 +157,7 @@ function renderGestor(d, c) {
         ${reverseFunnelPanel({ funil_reverso: M.funil_reverso })}
       </div>
       <div style="margin-top:14px">${pipelinePanel(M)}</div>
+      <div style="margin-top:14px">${adsInvestPanel({ ads_invest: M.ads_invest }, 'equipe')}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
         ${saudeEquipePanel(t)}
         ${kpiVsMeta(M)}
@@ -393,6 +395,30 @@ function kpiVsMeta(d) {
     ${(!m.meta_vgv && !m.meta_visitas) ? '<div class="tiny" style="color:#d97706;margin-top:4px">Defina metas em Menu → Metas pra ver o atingimento.</div>' : ''}`);
 }
 
+/* 💸 Investimento em ads (estimado) — CPL da conta da EQUIPE × leads (rateio honesto) */
+function adsInvestPanel(d, scope) {
+  const a = d.ads_invest;
+  if (!a) return '';
+  const who = scope === 'equipe' ? 'da equipe' : 'do corretor';
+  const presetLbl = { last_30d: 'últimos 30 dias', this_month: 'mês atual', last_month: 'mês passado', last_14d: 'últimos 14 dias', last_7d: 'últimos 7 dias', yesterday: 'ontem' }[a.periodo_cpl] || a.periodo_cpl || '';
+  if (a.cpl == null) return panel('💸 Investimento em ads (estimado)', '<div class="tiny muted">Sem gasto Meta no cache pra calcular. Abra o painel de Meta Ads pra popular o cache.</div>');
+  const eq = a.base === 'equipe';
+  return panel('💸 Investimento em ads (estimado)', `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+      <div><div class="tiny muted">CPL da conta</div><div style="font-size:18px;font-weight:900;color:#fb7185">R$ ${money(a.cpl)}</div></div>
+      <div style="font-size:18px;color:#94a3b8">×</div>
+      <div><div class="tiny muted">Leads ${who}</div><div style="font-size:18px;font-weight:900">${a.leads_corretor || 0}</div></div>
+      <div style="font-size:18px;color:#94a3b8">=</div>
+      <div><div class="tiny muted">Investido (estimado)</div><div style="font-size:22px;font-weight:900;color:#fb7185">R$ ${moneyShort(a.invest)}</div></div>
+      <div style="margin-left:auto"><span class="tiny" style="background:${eq ? '#dcfce7' : '#fef3c7'};color:${eq ? '#166534' : '#92400e'};border-radius:999px;padding:3px 9px;font-weight:700">${eq ? '🛡 CPL da equipe' : '🌐 CPL global'}</span></div>
+    </div>
+    <div class="tiny muted" style="margin-top:8px">
+      ${eq
+        ? `Base: conta <b>${escapeHtml(a.conta_label || 'da equipe')}</b> — R$ ${moneyShort(a.conta_spend)} em ${a.conta_leads} leads (${presetLbl}) → CPL R$ ${money(a.cpl)}.`
+        : `Base: <b>CPL global</b> (não encontrei conta de ads específica desta equipe — usei a média de todas as contas: R$ ${money(a.cpl_global)}).`}
+      <br>📌 Estimativa por rateio: aplica o CPL médio da conta aos leads ${who} no período. Não separa lead orgânico de pago — é o investimento atribuível aos leads, não o custo exato de cada um.</div>`);
+}
+
 function efficiencyPanel(d) {
   const fc = d.primeiro_contato_h;
   const fcTxt = fc == null ? '—' : (fc < 1 ? Math.round(fc * 60) + ' min' : fc.toFixed(1) + ' h');
@@ -405,7 +431,7 @@ function efficiencyPanel(d) {
       ${stat('🎯 Qualificação', d.qualificacao_rate != null ? d.qualificacao_rate + '%' : '—', '#16a34a', null, 'Leads que passaram da qualificação')}
       ${stat('🔁 Follow-up', d.followup_rate != null ? d.followup_rate + '%' : '—', '#f59e0b', null, 'Leads com +1 interação no RD')}
       ${stat('🕰 Estagnação', d.estagnacao_dias != null ? Math.round(d.estagnacao_dias) + ' d' : '—', '#ef4444', null, 'Mediana de dias sem atividade (abertos)')}
-      ${stat('💸 Invest. leads', d.lead_invest != null ? 'R$ ' + moneyShort(d.lead_invest) : '—', '#fb7185', null, d.cpl_global != null ? ('CPL R$ ' + money(d.cpl_global) + ' × leads') : 'Sem gasto Meta no cache')}
+      ${stat('💸 Invest. ads', (d.ads_invest && d.ads_invest.invest != null) ? 'R$ ' + moneyShort(d.ads_invest.invest) : '—', '#fb7185', null, (d.ads_invest && d.ads_invest.cpl != null) ? ('CPL ' + (d.ads_invest.base === 'equipe' ? (d.ads_invest.conta_label || 'equipe') : 'global') + ' R$ ' + money(d.ads_invest.cpl) + ' × ' + (d.ads_invest.leads_corretor || 0) + ' leads') : 'Sem gasto Meta no cache')}
     </div>`);
 }
 

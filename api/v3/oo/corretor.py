@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from _oo_lib import (  # type: ignore
     window, months_in_range, broker_metrics, parse_dt, build_stage_maps, read_meta_spend, meta_for_period,
+    read_meta_accounts, match_team_account, read_team_account_override,
 )
 
 
@@ -150,20 +151,27 @@ class handler(BaseHTTPRequestHandler):
         meta_sum = meta_for_period(all_metas, cid, since_d, until_d)
         metrics = broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, detail=True, stage_maps=stage_maps)
 
-        # ── Investimento em ads / lead — CPL é uma TAXA mensal estável (gasto Meta
-        # mensal ÷ leads dos últimos 30 dias); aplicada aos leads do corretor. ──
-        spend = read_meta_spend(sb)
-        cpl = None
-        try:
-            m30 = (today - timedelta(days=29)).isoformat() + "T00:00:00+00:00"
-            res = sb.table("deals").select("id", count="exact").gte("created_at_rd", m30).limit(1).execute()
-            leads_30d = res.count or 0
-            if spend and leads_30d:
-                cpl = round(spend / leads_30d, 2)
-        except Exception:
-            pass
-        metrics["cpl_global"] = cpl
-        metrics["lead_invest"] = round(cpl * (metrics["kpis"]["leads"] or 0), 2) if cpl else None
+        # ── 💸 Investimento em ads do corretor — CPL da CONTA da equipe × leads do corretor.
+        # Cada equipe roda numa conta de anúncios (ex.: 'Conquista' → conta 'PSM Conquista').
+        # Usa o CPL REAL daquela conta (gasto Meta ÷ leads Meta da conta); fallback = CPL global. ──
+        _ma = read_meta_accounts(sb)
+        _ovr = read_team_account_override(sb)
+
+        def _ads_invest(team, leads):
+            acc = match_team_account(_ma["accounts"], team, _ovr)
+            cpl = acc["cpl"] if (acc and acc.get("cpl") is not None) else _ma["global_cpl"]
+            ld = leads or 0
+            return {
+                "cpl": cpl, "cpl_team": (acc["cpl"] if acc else None), "cpl_global": _ma["global_cpl"],
+                "conta_label": (acc["label"] if acc else None), "conta_id": (acc["id"] if acc else None),
+                "conta_spend": (acc["spend"] if acc else None), "conta_leads": (acc["leads"] if acc else None),
+                "leads_corretor": ld, "invest": round(cpl * ld, 2) if cpl else None,
+                "base": ("equipe" if (acc and acc.get("cpl") is not None) else ("global" if _ma["global_cpl"] else None)),
+                "periodo_cpl": _ma["preset_used"],
+            }
+        metrics["ads_invest"] = _ads_invest(u.get("team"), metrics["kpis"]["leads"])
+        metrics["cpl_global"] = metrics["ads_invest"]["cpl"]            # compat UI
+        metrics["lead_invest"] = metrics["ads_invest"]["invest"]       # compat UI
 
         resp = {
             "ok": True,
@@ -201,8 +209,9 @@ class handler(BaseHTTPRequestHandler):
                     for k in tmeta:
                         tmeta[k] += ms.get(k, 0)
                 tmetrics = broker_metrics(tdeals, tevents, tmeta, since_d, until_d, today, detail=True, stage_maps=stage_maps)
-                tmetrics["lead_invest"] = round(cpl * (tmetrics["kpis"]["leads"] or 0), 2) if cpl else None
-                tmetrics["cpl_global"] = cpl
+                tmetrics["ads_invest"] = _ads_invest(team, tmetrics["kpis"]["leads"])
+                tmetrics["lead_invest"] = tmetrics["ads_invest"]["invest"]
+                tmetrics["cpl_global"] = tmetrics["ads_invest"]["cpl"]
                 # 🔮 Previsão por PIPELINE (deals abertos ponderados pela etapa) vs meta
                 def _wstage(name):
                     n = (name or "").lower()
@@ -260,6 +269,7 @@ class handler(BaseHTTPRequestHandler):
                                     "visitas": mm["kpis"]["visitas"], "leads": mm["kpis"]["leads"],
                                     "win_rate": mm["win_rate"], "health": mm["health"], "health_color": mm["health_color"],
                                     "meta_attainment_pct": mm["meta_attainment_pct"], "alertas_count": len(mm["alertas"]),
+                                    "lead_invest": _ads_invest(team, mm["kpis"]["leads"])["invest"],
                                     # 🔥 conversão por etapa (matriz de coaching) + 📉 tendência mensal
                                     "conv": [s.get("conv_from_prev") for s in _fn[1:]],
                                     "funnel_n": [s.get("n") for s in _fn],
