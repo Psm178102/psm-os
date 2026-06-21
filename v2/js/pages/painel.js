@@ -5,6 +5,7 @@
 ============================================================================ */
 import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
+import { mountDev } from './painel-dev.js';
 
 let _root = null;
 let _me = null;
@@ -125,6 +126,10 @@ function render() {
           <a class="btn btn-ghost mt-2" href="#/one-on-one">📊 Abrir cockpit individual (One-on-One)</a>
         </div>`}
 
+      <!-- ===== DESENVOLVIMENTO INDIVIDUAL (teste, rotina semanal, metas, PDF) ===== -->
+      <h3 class="card-title mt-4">🌟 Desenvolvimento Individual</h3>
+      <div id="dev-extra"></div>
+
       <!-- ===== METAS (produtividade + resultado) ===== -->
       <h3 class="card-title mt-4">🎯 Metas do colaborador</h3>
       <div class="painel-grid">
@@ -208,6 +213,10 @@ function render() {
   // salvar
   const sv = document.getElementById('pf-save');
   if (sv) sv.addEventListener('click', save);
+
+  // 🌟 Desenvolvimento individual (teste comportamental + rotina planner + metas + PDF)
+  const devEl = document.getElementById('dev-extra');
+  if (devEl) mountDev(devEl, { uid: _targetId, canEdit: !!_data.can_edit }).catch(() => {});
 }
 
 function renderPerf(d) {
