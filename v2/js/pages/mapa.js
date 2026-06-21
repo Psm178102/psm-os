@@ -124,6 +124,8 @@ function jitter(coord, idx) {
 
 // Converte link do Google My Maps para a forma embutível (/maps/d/embed?mid=).
 // Google Earth Web (earth.google.com) o próprio Google bloqueia em iframe — vai direto.
+// Só Google My Maps (/maps/d/) e Maps embed embutem em iframe. Earth Web NÃO (Google bloqueia).
+function isEmbeddable(url) { return !!url && /google\.[^/]+\/maps\/(d\/|embed)/.test(url); }
 function toEmbed(url) {
   if (!url) return url;
   const mid = (url.match(/[?&]mid=([^&]+)/) || [])[1];
@@ -131,10 +133,19 @@ function toEmbed(url) {
   return url;
 }
 
+async function editMyMaps() {
+  const links = await getLinks();
+  const v = promptLink('Link do Google My Maps (embute aqui dentro)', links.mapa_mymaps || '');
+  if (v === null) return;
+  try { await saveLinks({ mapa_mymaps: v }); alert('✅ Link do My Maps salvo!'); render(); }
+  catch (e) { alert('Erro: ' + e.message); }
+}
+
 async function render() {
-  let earthUrl = DEFAULT_EARTH;
-  try { const links = await getLinks(); earthUrl = links.mapa_earth || DEFAULT_EARTH; } catch (_) {}
-  const embedUrl = toEmbed(earthUrl);
+  let earthUrl = DEFAULT_EARTH, myMaps = '';
+  try { const links = await getLinks(); earthUrl = links.mapa_earth || DEFAULT_EARTH; myMaps = links.mapa_mymaps || ''; } catch (_) {}
+  // Embute My Maps se houver (ou se o próprio link do Earth for, na verdade, um My Maps).
+  const embedSrc = isEmbeddable(myMaps) ? toEmbed(myMaps) : (isEmbeddable(earthUrl) ? toEmbed(earthUrl) : null);
   _root.innerHTML = `
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
@@ -143,15 +154,25 @@ async function render() {
           <p class="card-sub">Mapa oficial da PSM no Google Earth — territórios, regiões e pontos de interesse.</p>
         </div>
         <div class="flex gap-2">
-          <a class="btn btn-primary" href="${esc(earthUrl)}" target="_blank" rel="noopener" style="background:#1a73e8">🌍 Abrir em tela cheia</a>
-          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-earth-edit" title="Editar link do Google Earth">⚙️ Editar link</button>' : ''}
+          <a class="btn btn-primary" href="${esc(earthUrl)}" target="_blank" rel="noopener" style="background:#1a73e8">🌍 Abrir Earth 3D (tela cheia)</a>
+          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-earth-edit" title="Editar link do Google Earth (3D)">⚙️ Earth</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar link do Google My Maps (embute aqui)">⚙️ My Maps</button>' : ''}
         </div>
       </div>
 
+      ${embedSrc ? `
       <div class="mt-3" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a">
-        <iframe id="map-earth-iframe" src="${esc(embedUrl)}" style="width:100%;height:calc(100vh - 300px);min-height:480px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        <iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 300px);min-height:480px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
       </div>
-      <p class="tiny muted mt-2">🌍 Mapa embutido no sistema. Se aparecer <b>em branco</b>, o Google bloqueia o <b>Earth Web</b> dentro de iframes (restrição deles) — use "🌍 Abrir em tela cheia" ou publique o mapa como <b>Google My Maps</b>, que embute aqui perfeitamente.</p>
+      <p class="tiny muted mt-2">🗺 Google My Maps embutido no sistema. O Google Earth 3D abre em tela cheia pelo botão acima.</p>
+      ` : `
+      <div class="mt-3" style="border-radius:16px;background:linear-gradient(135deg,#0b3d91 0%,#1a73e8 100%);color:#fff;padding:42px 28px;text-align:center;box-shadow:0 8px 30px rgba(26,115,232,.25)">
+        <div style="font-size:58px;line-height:1">🌍</div>
+        <h3 style="margin:12px 0 4px;font-size:21px;font-weight:800">Google Earth da PSM</h3>
+        <p style="margin:0 auto 18px;max-width:560px;opacity:.92;font-size:14px;line-height:1.5">Territórios, regiões e pontos de interesse em 3D. O Google <b>não permite embutir o Earth Web</b> dentro de outros sites (restrição deles) — então o Earth abre em tela cheia, com toda a navegação 3D.</p>
+        <a class="btn" href="${esc(earthUrl)}" target="_blank" rel="noopener" style="background:#fff;color:#1a73e8;font-weight:800;padding:12px 26px;border-radius:10px;text-decoration:none;display:inline-block;font-size:15px">🌍 Abrir o mapa no Google Earth</a>
+      </div>
+      <p class="tiny muted mt-2">💡 Pra ver o mapa <b>embutido aqui dentro</b>, publique os mesmos territórios como <b>Google My Maps</b> e cole o link em <b>⚙️ My Maps</b> — aí ele aparece direto na página (o Earth 3D continua no botão de tela cheia).</p>
+      `}
 
       <div class="mt-4">
         <button class="btn btn-ghost btn-sm" id="toggle-captados">📍 Ver imóveis captados (mapa por bairro) ▾</button>
@@ -161,6 +182,8 @@ async function render() {
   `;
   const ee = document.getElementById('map-earth-edit');
   if (ee) ee.addEventListener('click', editEarth);
+  const mm = document.getElementById('map-mymaps-edit');
+  if (mm) mm.addEventListener('click', editMyMaps);
   const tc = document.getElementById('toggle-captados');
   if (tc) tc.addEventListener('click', toggleCaptados);
 }
