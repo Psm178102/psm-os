@@ -42,7 +42,15 @@ function render() {
 
   // Ranking por VGV (descrescente) + fallback por score
   const rankVgv = competidores.filter(u => u.vgv > 0).sort((a, b) => b.vgv - a.vgv).slice(0, 20);
-  const rankActivity = competidores.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 20);
+
+  // ── Atividade: separa CORRETORES (agrupados por equipe) do TIME INTERNO ──
+  const ehCorretor = u => ['corretor', 'lider'].includes((u.role || '').toLowerCase());
+  const corretores = competidores.filter(ehCorretor);
+  const interno = competidores.filter(u => !ehCorretor(u)).sort((a, b) => (b.score || 0) - (a.score || 0));
+  const teams = {};
+  corretores.forEach(u => { const t = (u.team || '').trim() || 'Sem equipe'; (teams[t] = teams[t] || []).push(u); });
+  const teamNames = Object.keys(teams).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  teamNames.forEach(t => teams[t].sort((a, b) => (b.score || 0) - (a.score || 0)));
 
   _root.innerHTML = `
     <div class="card">
@@ -56,10 +64,15 @@ function render() {
         </div>
       `}
 
-      <h3 class="card-title mt-4">⚡ Top Atividade — Últimos 30 dias</h3>
-      <div style="display:grid;gap:6px">
-        ${rankActivity.map((u, i) => rankRow(u, i, 'activity')).join('')}
-      </div>
+      <h3 class="card-title mt-4">⚡ Atividade dos Corretores — por equipe (30 dias)</h3>
+      ${teamNames.length === 0 ? '<div class="muted tiny">Sem corretores com atividade no período.</div>' : teamNames.map(t => `
+        <div style="font-weight:800;font-size:13px;margin:14px 0 6px;display:flex;align-items:center;gap:8px">🛡 ${escapeHtml(t)} <span class="tiny muted" style="font-weight:400">· ${teams[t].length} pessoa(s)</span></div>
+        <div style="display:grid;gap:6px">${teams[t].map((u, i) => rankRow(u, i, 'activity')).join('')}</div>
+      `).join('')}
+
+      <h3 class="card-title mt-4">🛠 Atividade do Time Interno — Backoffice · Marketing · Financeiro (30 dias)</h3>
+      ${interno.length ? `<div style="display:grid;gap:6px">${interno.map((u, i) => rankRow(u, i, 'activity')).join('')}</div>` : '<div class="muted tiny">Sem registros do time interno no período.</div>'}
+
       <p class="tiny muted mt-3">💰 VGV e vendas vêm do <b>RD CRM</b> (fonte oficial). A auditoria abaixo confere com o PSM HUB.</p>
     </div>
     <div id="rk-audit"></div>
