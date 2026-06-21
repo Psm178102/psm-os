@@ -22,6 +22,8 @@ export async function pageTabelaImoveis(ctx, root) {
   render();
 }
 
+const isSheetUrl = (u) => /\.(xlsx|xls|csv)(\?|$)/i.test(u || '');
+
 async function loadAll() {
   _links = await getLinks(true).catch(() => ({}));
   try {
@@ -29,6 +31,31 @@ async function loadAll() {
     _dados = { conquista: r.conquista || null, map: r.map || null };
     _canEdit = !!r.can_edit;
   } catch (_) { _dados = { conquista: null, map: null }; _canEdit = canEditLinks(); }
+  // Auto-migra planilha antiga: link xlsx/csv salvo mas sem dados parseados → busca, lê e renderiza.
+  for (const s of SECOES) {
+    const d = _dados[s.equipe];
+    const url = _links[s.linkKey];
+    if ((!d || !(d.linhas || []).length) && isSheetUrl(url)) {
+      try { await autoParse(s.equipe, url); } catch (_) { /* CORS/erro → mostra aviso, sem baixar */ }
+    }
+  }
+}
+
+async function autoParse(equipe, url) {
+  await loadXLSX();
+  if (!window.XLSX) throw new Error('sem leitor de planilha');
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('http ' + resp.status);
+  const wb = XLSX.read(await resp.arrayBuffer(), { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '' });
+  if (!aoa.length) throw new Error('vazia');
+  const colunas = (aoa[0] || []).map(c => String(c == null ? '' : c));
+  const linhas = aoa.slice(1).filter(r => r.some(c => String(c).trim() !== '')).map(r => r.map(c => (c == null ? '' : String(c))));
+  let filename = 'tabela';
+  try { filename = decodeURIComponent((url.split('/').pop() || '').split('?')[0]) || 'tabela'; } catch (_) {}
+  await api.request('/api/v3/tabelas/dados', { method: 'POST', body: { equipe, colunas, linhas, filename, url } }).catch(() => {});
+  _dados[equipe] = { colunas, linhas, filename, url, atualizado_em: new Date().toISOString() };
 }
 
 function loadXLSX() {
@@ -71,9 +98,11 @@ function section({ label, linkKey, equipe, cor }) {
       </div>
       ${temTabela
         ? tabelaHtml(d, equipe, cor)
-        : (url
-          ? `<iframe src="${esc(driveEmbed(url))}" style="width:100%;height:72vh;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`
-          : `<div class="alert alert-warn">Sem tabela de ${label}. ${_canEdit ? 'Clique em <b>📤 Atualizar (arquivo do mês)</b> e suba a planilha (xlsx/csv) — ela renderiza aqui dentro.' : 'Peça a um gestor para subir a tabela do mês.'}</div>`)}
+        : (isSheetUrl(url)
+          ? `<div class="alert alert-warn">Não consegui ler a planilha de ${label} automaticamente. ${_canEdit ? 'Clique em <b>📤 Atualizar (arquivo do mês)</b> e suba o arquivo de novo — aí ela renderiza aqui dentro (em vez de baixar).' : 'Peça a um gestor para reenviar a tabela do mês.'}</div>`
+          : (url
+            ? `<iframe src="${esc(driveEmbed(url))}" style="width:100%;height:72vh;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>`
+            : `<div class="alert alert-warn">Sem tabela de ${label}. ${_canEdit ? 'Clique em <b>📤 Atualizar (arquivo do mês)</b> e suba a planilha (xlsx/csv) — ela renderiza aqui dentro.' : 'Peça a um gestor para subir a tabela do mês.'}</div>`))}
     </div>`;
 }
 
