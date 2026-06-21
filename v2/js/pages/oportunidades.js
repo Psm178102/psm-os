@@ -89,6 +89,27 @@ function renderForm() {
           <label class="tiny" style="color:#94a3b8">Prazo</label>
           <input id="of-prazo" type="date" class="input" value="${ed.prazo || ''}" style="background:#0f172a;color:#fff;border-color:#475569">
         </div>
+        <div style="grid-column:1/-1;border-top:1px dashed #475569;margin-top:4px;padding-top:8px"></div>
+        <div style="grid-column:1/-1">
+          <label class="tiny" style="color:#94a3b8">🔗 Link do Kenlo (anúncio no site PSM)</label>
+          <input id="of-kenlo" class="input" placeholder="https://...psm... ou link do Kenlo" value="${esc(ed.kenlo_link || '')}" style="background:#0f172a;color:#fff;border-color:#475569">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="tiny" style="color:#94a3b8">🖼 Imagem/Vídeo (cole o link — Drive, YouTube, foto do anúncio)</label>
+          <input id="of-midia" class="input" placeholder="https://... (jpg/png/mp4/youtube)" value="${esc(ed.midia_url || '')}" style="background:#0f172a;color:#fff;border-color:#475569">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="tiny" style="color:#94a3b8">📝 Condições comerciais</label>
+          <textarea id="of-cond" class="input" rows="2" placeholder="Ex: entrada 20%, saldo em 36x, permuta aceita..." style="background:#0f172a;color:#fff;border-color:#475569">${esc(ed.condicoes || '')}</textarea>
+        </div>
+        <div>
+          <label class="tiny" style="color:#94a3b8">💰 % de comissão</label>
+          <input id="of-comissao" type="number" step="0.01" class="input" placeholder="Ex: 5" value="${ed.comissao_pct != null ? ed.comissao_pct : ''}" style="background:#0f172a;color:#fff;border-color:#475569">
+        </div>
+        <div>
+          <label class="tiny" style="color:#94a3b8">🏆 Prêmio</label>
+          <input id="of-premio" class="input" placeholder="Ex: R$ 500 + bônus / viagem" value="${esc(ed.premio || '')}" style="background:#0f172a;color:#fff;border-color:#475569">
+        </div>
       </div>
       <div class="flex gap-2 mt-3">
         <button class="btn btn-primary" id="of-save">${ed.id ? '💾 Salvar' : '➕ Publicar (notifica equipe)'}</button>
@@ -114,6 +135,11 @@ async function save() {
     origem: document.getElementById('of-origem').value.trim(),
     contato: document.getElementById('of-contato').value.trim(),
     prazo: document.getElementById('of-prazo').value || null,
+    kenlo_link: document.getElementById('of-kenlo').value.trim(),
+    midia_url: document.getElementById('of-midia').value.trim(),
+    condicoes: document.getElementById('of-cond').value.trim(),
+    comissao_pct: parseFloat(document.getElementById('of-comissao').value) || null,
+    premio: document.getElementById('of-premio').value.trim(),
   };
   if (!payload.titulo) { alert('Título obrigatório'); return; }
   try {
@@ -183,11 +209,16 @@ function opCard(o, isLider, canPegar) {
         <span style="font-size:10px;padding:2px 8px;border-radius:99px;background:${cor}22;color:${cor};font-weight:800;text-transform:uppercase">${o.status}</span>
       </div>
       ${o.descricao ? `<div class="tiny" style="margin-bottom:8px;line-height:1.5">${esc(o.descricao)}</div>` : ''}
+      ${o.midia_url ? opMidia(o.midia_url) : ''}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;color:var(--muted)">
-        ${o.valor_est ? `<div>💰 R$ ${(+o.valor_est).toLocaleString('pt-BR')}</div>` : '<div></div>'}
+        ${o.valor_est ? `<div>💰 R$ ${(+o.valor_est).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>` : '<div></div>'}
         ${o.prazo ? `<div>📅 ${o.prazo}</div>` : '<div></div>'}
+        ${o.comissao_pct != null ? `<div>💵 Comissão: <b style="color:#16a34a">${(+o.comissao_pct).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</b></div>` : ''}
+        ${o.premio ? `<div>🏆 ${esc(o.premio)}</div>` : ''}
         ${o.contato ? `<div style="grid-column:1/-1">📞 ${esc(o.contato)}</div>` : ''}
       </div>
+      ${o.condicoes ? `<div class="tiny" style="margin-top:6px;background:var(--bg-2);border-radius:6px;padding:6px;line-height:1.5">📝 <b>Condições:</b> ${esc(o.condicoes)}</div>` : ''}
+      ${o.kenlo_link ? `<div class="mt-2"><a href="${esc(o.kenlo_link)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="text-decoration:none">🔗 Ver anúncio no site PSM</a></div>` : ''}
       <div class="flex gap-2 mt-2">
         ${canPegar ? `<button class="btn btn-primary btn-sm" data-pegar="${o.id}">✋ Pegar</button>` : ''}
         ${isLider ? `<button class="btn btn-ghost btn-sm" data-edit="${o.id}">✏️</button><button class="btn btn-ghost btn-sm" data-del="${o.id}">🗑</button>` : ''}
@@ -217,6 +248,15 @@ function bindList() {
       await load();
     } catch (e) { alert('Erro: ' + e.message); }
   }));
+}
+
+function opMidia(url) {
+  const u = esc(url);
+  if (/\.(jpg|jpeg|png|gif|webp|avif)(\?|$)/i.test(url))
+    return `<a href="${u}" target="_blank" rel="noopener"><img src="${u}" alt="mídia" loading="lazy" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;margin-bottom:8px"></a>`;
+  const yt = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);
+  if (yt) return `<a href="${u}" target="_blank" rel="noopener" style="display:block;position:relative;margin-bottom:8px"><img src="https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;text-shadow:0 2px 6px #000">▶️</span></a>`;
+  return `<a href="${u}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="text-decoration:none;margin-bottom:8px;display:inline-block">🎬 Abrir mídia</a>`;
 }
 
 function kpi(label, value, color) {

@@ -87,6 +87,12 @@ class handler(BaseHTTPRequestHandler):
             "contato": (body.get("contato") or "").strip() or None,
             "valor_est": body.get("valor_est"),
             "prazo": body.get("prazo") or None,
+            # v80.8 — campos novos da oportunidade
+            "kenlo_link": (body.get("kenlo_link") or "").strip() or None,
+            "midia_url": (body.get("midia_url") or "").strip() or None,
+            "condicoes": (body.get("condicoes") or "").strip() or None,
+            "comissao_pct": body.get("comissao_pct"),
+            "premio": (body.get("premio") or "").strip() or None,
             "status": body.get("status") or "aberta",
             "criado_por": actor.get("id"),
             "updated_at": datetime.now(timezone.utc).isoformat(),

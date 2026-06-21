@@ -122,9 +122,19 @@ function jitter(coord, idx) {
   return [coord[0] + Math.cos(angle) * radius, coord[1] + Math.sin(angle) * radius];
 }
 
+// Converte link do Google My Maps para a forma embutível (/maps/d/embed?mid=).
+// Google Earth Web (earth.google.com) o próprio Google bloqueia em iframe — vai direto.
+function toEmbed(url) {
+  if (!url) return url;
+  const mid = (url.match(/[?&]mid=([^&]+)/) || [])[1];
+  if (/google\.[^/]+\/maps\/d\//.test(url) && mid) return 'https://www.google.com/maps/d/embed?mid=' + mid;
+  return url;
+}
+
 async function render() {
   let earthUrl = DEFAULT_EARTH;
   try { const links = await getLinks(); earthUrl = links.mapa_earth || DEFAULT_EARTH; } catch (_) {}
+  const embedUrl = toEmbed(earthUrl);
   _root.innerHTML = `
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
@@ -138,13 +148,10 @@ async function render() {
         </div>
       </div>
 
-      <div class="mt-3" style="border-radius:16px;background:linear-gradient(135deg,#0b3d91 0%,#1a73e8 100%);color:#fff;padding:42px 28px;text-align:center;box-shadow:0 8px 30px rgba(26,115,232,.25)">
-        <div style="font-size:58px;line-height:1">🌍</div>
-        <h3 style="margin:12px 0 4px;font-size:21px;font-weight:800">Google Earth da PSM</h3>
-        <p style="margin:0 auto 18px;max-width:540px;opacity:.92;font-size:14px;line-height:1.5">Territórios, regiões e pontos de interesse no nosso Google Earth. Abre em tela cheia, com todos os recursos de navegação 3D.</p>
-        <a class="btn" href="${esc(earthUrl)}" target="_blank" rel="noopener" style="background:#fff;color:#1a73e8;font-weight:800;padding:12px 26px;border-radius:10px;text-decoration:none;display:inline-block;font-size:15px">🌍 Abrir o mapa no Google Earth</a>
+      <div class="mt-3" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a">
+        <iframe id="map-earth-iframe" src="${esc(embedUrl)}" style="width:100%;height:calc(100vh - 300px);min-height:480px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
       </div>
-      <p class="tiny muted mt-2">🔒 Por segurança, o Google <b>não permite exibir o Earth embutido</b> dentro de outros sistemas — por isso ele abre numa nova aba. Quem precisar acessar precisa ter o link compartilhado pela gestão.</p>
+      <p class="tiny muted mt-2">🌍 Mapa embutido no sistema. Se aparecer <b>em branco</b>, o Google bloqueia o <b>Earth Web</b> dentro de iframes (restrição deles) — use "🌍 Abrir em tela cheia" ou publique o mapa como <b>Google My Maps</b>, que embute aqui perfeitamente.</p>
 
       <div class="mt-4">
         <button class="btn btn-ghost btn-sm" id="toggle-captados">📍 Ver imóveis captados (mapa por bairro) ▾</button>
