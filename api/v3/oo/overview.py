@@ -130,7 +130,7 @@ class handler(BaseHTTPRequestHandler):
         def _row_invest(team, dsub):
             acc = match_team_account(_ma["accounts"], team, _ovr)
             tcpl = acc["cpl"] if (acc and acc.get("cpl") is not None) else None
-            r = compute_ads_invest(dsub, since_d, until_d, _mc, tcpl, _ma["global_cpl"])
+            r = compute_ads_invest(dsub, since_d, until_d, _mc, tcpl, _ma["global_cpl"], acc["label"] if acc else None)
             return r["invest"], ("equipe" if tcpl is not None else ("global" if _ma["global_cpl"] else None)), (acc["label"] if acc else None)
 
         out = []

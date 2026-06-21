@@ -289,7 +289,8 @@ def read_meta_campaigns(sb, preset=None):
                 sp, ld = 0.0, 0
             if ld <= 0:
                 continue
-            rec = {"name": c.get("name"), "cpl": round(sp / ld, 2), "leads": ld, "spend": round(sp, 2)}
+            rec = {"name": c.get("name"), "cpl": round(sp / ld, 2), "leads": ld, "spend": round(sp, 2),
+                   "account": (c.get("account") or "").strip()}
             lst.append(rec)
             nm, cd = _norm_camp(c.get("name")), _camp_code(c.get("name"))
             if nm and nm not in by_name:
@@ -330,7 +331,7 @@ def match_campaign_cpl(camp_name, mc):
     return None
 
 
-def compute_ads_invest(deals, since_d, until_d, mc, team_cpl, global_cpl):
+def compute_ads_invest(deals, since_d, until_d, mc, team_cpl, global_cpl, acct_label=None):
     """💸 Investimento em ads por LEAD RECEBIDO no período (created_at em [since,until]).
     Cascata honesta por lead:
       1) campanha do lead casa com campanha Meta → CPL EXATO da campanha;
@@ -359,14 +360,22 @@ def compute_ads_invest(deals, since_d, until_d, mc, team_cpl, global_cpl):
         else:
             zero_n += 1
     # ── margem de erro: a parte CASADA é exata; a incerteza vem dos leads pagos SEM
-    # campanha no cache (precificados pela faixa p25–p75 dos CPLs de campanha da casa). ──
-    cpls = sorted(c["cpl"] for c in ((mc or {}).get("list") or []) if c.get("cpl"))
+    # campanha no cache, precificados pela faixa p25–p75 dos CPLs das campanhas DA CONTA
+    # da equipe (não de todas as contas — senão a faixa distorce). O ponto (base_cpl)
+    # sempre cai dentro da faixa (clamp). ──
+    lst = (mc or {}).get("list") or []
+    al = (acct_label or "").strip().lower()
+    scoped = [c for c in lst if al and (c.get("account") or "").strip().lower() == al]
+    cpls = sorted(c["cpl"] for c in (scoped or lst) if c.get("cpl"))
 
     def _pct(q):
         return cpls[min(len(cpls) - 1, int(q * len(cpls)))] if cpls else None
     base_cpl = team_cpl if team_cpl is not None else global_cpl
-    lo_cpl = _pct(0.25) if cpls else base_cpl
-    hi_cpl = _pct(0.75) if cpls else base_cpl
+    p25, p75 = (_pct(0.25), _pct(0.75))
+    cand_lo = [x for x in (p25, base_cpl) if x is not None]
+    cand_hi = [x for x in (p75, base_cpl) if x is not None]
+    lo_cpl = min(cand_lo) if cand_lo else base_cpl
+    hi_cpl = max(cand_hi) if cand_hi else base_cpl
     inv_low = round(exato_v + fb_n * (lo_cpl or 0), 2)
     inv_high = round(exato_v + fb_n * (hi_cpl or 0), 2)
     priced = exato_n + fb_n

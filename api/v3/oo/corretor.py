@@ -162,7 +162,7 @@ class handler(BaseHTTPRequestHandler):
         def _ads_invest(team, deals_subset):
             acc = match_team_account(_ma["accounts"], team, _ovr)
             team_cpl = acc["cpl"] if (acc and acc.get("cpl") is not None) else None
-            r = compute_ads_invest(deals_subset, since_d, until_d, _mc, team_cpl, _ma["global_cpl"])
+            r = compute_ads_invest(deals_subset, since_d, until_d, _mc, team_cpl, _ma["global_cpl"], acc["label"] if acc else None)
             r["cpl_team"] = team_cpl
             r["cpl_global"] = _ma["global_cpl"]
             r["acct_label"] = acc["label"] if acc else None
