@@ -42,6 +42,7 @@ import { pageSacIncorporadoras } from './pages/sac-incorporadoras.js';
 import { pageSistemasIncorporadoras } from './pages/sistemas-incorporadoras.js';
 import { initSearch } from './search.js';
 import { pageQualidade } from './pages/qualidade.js';
+import { initTimeline } from './timeline.js';
 import { pageReunioes } from './pages/reunioes.js';
 import { pageArena } from './pages/arena.js';
 import { pageForecast } from './pages/forecast.js';
@@ -308,7 +309,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '78.6.0';
+const APP_VERSION = '78.7.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -509,7 +510,7 @@ const APP_VERSION = '78.6.0';
   router.register('*',          { render: page404 });
 
   // 5) Monta router
-  router.mount(document.getElementById('app-main'));
+  router.mount(document.getElementById('route-mount') || document.getElementById('app-main'));
 
   // 6) Notificações (sino + drawer + poll 60s)
   initNotifs();
@@ -545,6 +546,9 @@ const APP_VERSION = '78.6.0';
 
   // 9.5) Busca global (Cmd/Ctrl+K + botão 🔎 no topo)
   initSearch();
+
+  // 9.6) Timeline de recados no topo (sócios publicam; notifica sino/push)
+  initTimeline();
 
   // 10) Checagem de versão: avisa na hora se a aba está com código antigo,
   //     re-checa ao voltar pra aba, e o rodapé "House PSM · vX" checa sob clique.
@@ -706,7 +710,7 @@ function shellHTML(user) {
         </div>
       </header>
       <div class="sidebar-backdrop" id="sb-backdrop"></div>
-      <main class="app-main" id="app-main"></main>
+      <main class="app-main" id="app-main"><div id="timeline-bar" style="display:none"></div><div id="route-mount"></div></main>
     </div>
   `;
 }
