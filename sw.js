@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v81.2.0-2026-06-20-TABELAAUTO';
+const SW_VERSION = 'v81.3.0-2026-06-20-TABELAEDITOR';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
