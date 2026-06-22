@@ -437,10 +437,16 @@ function planoMesCard() {
     </div>`;
 }
 
+// Time comercial vê os números de venda (VGV/meta/pipeline/ticket/ranking).
+// Backoffice/secretaria, marketing e financeiro NÃO — não faz sentido pra eles.
+const COMERCIAL_ROLES = ['corretor', 'lider', 'líder', 'gerente', 'socio', 'sócio', 'diretor'];
+function ehComercial() { return COMERCIAL_ROLES.includes((auth.user()?.role || '').toLowerCase()); }
+
 function render() {
   const me = auth.user();
   const d = _data || {};
   const hasFunis = (d.pipelines?.count_total || 0) > 0;
+  const comercial = ehComercial();
 
   _root.innerHTML = `
     <div class="card">
@@ -450,23 +456,24 @@ function render() {
         <span class="tiny muted">Atualizado ${new Date().toLocaleString('pt-BR')}</span>
       </p>
 
-      <!-- HERO KPIs — VENDAS + META -->
-      <div class="flex gap-3 mt-4" style="flex-wrap:wrap">
+      <!-- HERO KPIs — VENDAS + META (só time comercial) -->
+      ${comercial ? `<div class="flex gap-3 mt-4" style="flex-wrap:wrap">
         ${heroKpi('💰 VGV no Mês',  'R$ ' + fmtKM(d.sales?.vgv_mes), `${d.sales?.vendas_mes || 0} venda(s) fechada(s)`,          '#16a34a')}
         ${heroKpi('🎯 Meta do Mês', 'R$ ' + fmtKM(d.metas?.meta_vgv), pctMeta(d.sales?.vgv_mes, d.metas?.meta_vgv),               '#d4a843')}
         ${heroKpi('📈 Pipeline',    'R$ ' + fmtKM(d.sales?.pipeline_vgv), `${d.sales?.pipeline_count || 0} negócios abertos`,    '#3b82f6')}
         ${heroKpi('🏆 Ticket Médio','R$ ' + fmtKM(d.sales?.ticket_medio_mes), 'média da venda no mês',                             '#8b5cf6')}
-      </div>
+      </div>` : ''}
 
       <!-- ✅ TAREFAS & PENDÊNCIAS primeiro (ação) · depois 🗓 PLANO DO MÊS (metas/prod + planner) -->
       ${tarefasCard()}
       ${planoMesCard()}
 
-      <!-- KPIs SECUNDÁRIOS -->
+      <!-- KPIs SECUNDÁRIOS (VGV são comerciais; Tarefas vale pra todos) -->
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
+        ${comercial ? `
         ${kpiCard('💰 VGV 30 dias',  'R$ ' + fmtKM(d.sales?.vgv_30d),    `${d.sales?.vendas_30d || 0} vendas`,                  '#16a34a')}
         ${kpiCard('💎 VGV no Ano',   'R$ ' + fmtKM(d.sales?.vgv_ano),    `${d.sales?.vendas_ano || 0} vendas no ano`,           '#0891b2')}
-        ${kpiCard('❌ Perdidos mês', 'R$ ' + fmtKM(d.sales?.vgv_perdido_mes), `${d.sales?.perdidos_mes || 0} oportunidades`,    '#dc2626')}
+        ${kpiCard('❌ Perdidos mês', 'R$ ' + fmtKM(d.sales?.vgv_perdido_mes), `${d.sales?.perdidos_mes || 0} oportunidades`,    '#dc2626')}` : ''}
         ${kpiCard('📋 Tarefas',      fmtNum(d.tasks?.pending),          `${d.tasks?.done || 0} feitas / ${d.tasks?.total || 0} total`, '#f59e0b')}
       </div>
 
@@ -610,6 +617,7 @@ async function enviarConclusao(kind, id, fields, ov) {
 
 /* ─── Ranking de vendas do mês (real, via OO) ─── */
 function salesBoard() {
+  if (!ehComercial()) return '';               // backoffice/marketing/financeiro não veem ranking de vendas
   if ((auth.user()?.lvl || 0) < 5) return ''; // corretor não vê ranking de todos
   if (!_board) return '';
   const all = (_board.corretores || []).filter(c => !c.is_team);
