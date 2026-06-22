@@ -28,6 +28,17 @@ MAX_COLS = 60
 MAX_LINHAS = 5000
 
 
+def _int_or_none(v):
+    """Inteiro ou None — aceita 0 (não cai na armadilha do 'or' que zera o 0)."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return int(v)
+    if isinstance(v, str) and v.strip().lstrip("-").isdigit():
+        return int(v)
+    return None
+
+
 def _read(sb):
     try:
         rows = sb.table("shared_kv").select("value").eq("key", KV_KEY).limit(1).execute().data or []
@@ -48,7 +59,7 @@ def _read(sb):
                 "categoria": str(t.get("categoria") or "")[:120],
                 "vigencia": str(t.get("vigencia") or "")[:40],
                 "cor": (str(t.get("cor") or "")[:9] or None),
-                "ordem": (int(t["ordem"]) if str(t.get("ordem") or "").lstrip("-").isdigit() else None),
+                "ordem": _int_or_none(t.get("ordem")),
                 "tipo": t.get("tipo") if t.get("tipo") in ("grade", "pdf") else "grade",
                 "pdf_url": str(t.get("pdf_url") or "")[:1000] or None,
                 "colunas": [str(c)[:200] for c in (t.get("colunas") or [])][:MAX_COLS],
@@ -125,13 +136,12 @@ class handler(BaseHTTPRequestHandler):
                 for r in (t.get("linhas") or [])[:MAX_LINHAS]:
                     if isinstance(r, list):
                         linhas.append([("" if c is None else str(c))[:500] for c in r[:MAX_COLS]])
-                _ord = t.get("ordem")
                 rec = {
                     "id": str(t.get("id") or "") or ("tbl_" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")),
                     "marca": marca, "categoria": str(t.get("categoria") or "Sem categoria")[:120],
                     "vigencia": str(t.get("vigencia") or "")[:40],
                     "cor": (str(t.get("cor") or "")[:9] or None),
-                    "ordem": (int(_ord) if str(_ord if _ord is not None else "").lstrip("-").isdigit() else None),
+                    "ordem": _int_or_none(t.get("ordem")),
                     "tipo": t.get("tipo") if t.get("tipo") in ("grade", "pdf") else "grade",
                     "pdf_url": str(t.get("pdf_url") or "")[:1000] or None,
                     "colunas": colunas, "linhas": linhas,
