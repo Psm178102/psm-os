@@ -11,14 +11,18 @@ let _canEdit = false;
 let _edit = null;      // id da tabela em edição, ou 'new:conquista' / 'new:imoveis'
 let _draft = null;     // {id, marca, categoria, colunas:[], linhas:[[]]}
 let _msg = '';
+let _marcaFilter = null;  // null = ambas; 'conquista' | 'imoveis' (MAP)
+let _renaming = null;     // id da tabela com título em edição inline
 
 const MARCAS = [
-  { id: 'conquista', label: '🏆 PSM Conquista', cor: '#dc2626' },
-  { id: 'imoveis', label: '✨ PSM Imóveis', cor: '#d4a843' },
+  { id: 'conquista', label: '🏆 PSM Conquista', cor: '#dc2626', blue: false },
+  // PSM Imóveis = MAP — paleta AZUL (igual à planilha): header azul + linhas zebradas
+  { id: 'imoveis', label: '🗺 PSM MAP', cor: '#5b7fb4', blue: true },
 ];
 
-export async function pageTabelaImoveis(ctx, root) {
-  _root = root; _edit = null; _draft = null; _msg = '';
+export async function pageTabelaImoveis(ctx, root, marcaFilter = null) {
+  _root = root; _edit = null; _draft = null; _msg = ''; _renaming = null;
+  _marcaFilter = (marcaFilter === 'conquista' || marcaFilter === 'imoveis') ? marcaFilter : null;
   root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando…</div></div>';
   await load();
   render();
@@ -43,12 +47,21 @@ function loadXLSX() {
 }
 
 function render() {
+  const marcas = _marcaFilter ? MARCAS.filter(m => m.id === _marcaFilter) : MARCAS;
+  const titulo = _marcaFilter === 'conquista' ? '🏆 Tabela de Lançamentos Conquista'
+    : _marcaFilter === 'imoveis' ? '🗺 Tabela de Lançamentos MAP'
+      : '📊 Tabela de Lançamentos PSM';
+  const sub = _marcaFilter === 'imoveis'
+    ? 'Lançamentos do MAP, divididos por categoria. ' + (_canEdit ? 'Edite linhas/colunas, o título e o mês de vigência; importe xlsx pra preencher (links viram clicáveis).' : 'Somente leitura.')
+    : _marcaFilter === 'conquista'
+      ? 'Lançamentos da Conquista por categoria. ' + (_canEdit ? 'Edite linhas/colunas, o título e o mês de vigência aqui.' : 'Somente leitura.')
+      : 'Montada dentro do sistema. ' + (_canEdit ? 'Edite direto aqui; importe xlsx pra preencher rápido.' : 'Somente leitura.');
   _root.innerHTML = `
     <div class="card">
-      <h2 class="card-title">📊 Tabela de Lançamentos PSM</h2>
-      <p class="card-sub">Montada dentro do sistema — <b>🏆 PSM Conquista</b> e <b>✨ PSM Imóveis</b> (com categorias, ex.: MAP). ${_canEdit ? 'Edite linhas e colunas direto aqui; importe xlsx só pra preencher rápido.' : 'Somente leitura.'}</p>
+      <h2 class="card-title">${titulo}</h2>
+      <p class="card-sub">${sub}</p>
       <div id="tl-msg" class="tiny" style="margin:4px 0">${_msg ? esc(_msg) : ''}</div>
-      ${MARCAS.map(m => marcaSection(m)).join('')}
+      ${marcas.map(m => marcaSection(m)).join('')}
     </div>`;
   wire();
 }
@@ -67,22 +80,42 @@ function marcaSection(m) {
         </div>` : ''}
       </div>
       ${editingNew ? editorCard(m.cor) : ''}
-      ${tabs.map(t => (_edit === t.id ? editorCard(m.cor) : viewCard(t, m.cor))).join('')
+      ${tabs.map(t => (_edit === t.id ? editorCard(m.cor) : viewCard(t, m))).join('')
         || (editingNew ? '' : `<div class="tiny muted" style="padding:6px 2px">Nenhuma tabela ainda${_canEdit ? ' — clique em ➕ Nova tabela.' : '.'}</div>`)}
     </div>`;
 }
 
 /* ───────── VIEW ───────── */
-function viewCard(t, cor) {
+// Célula clicável quando o valor é uma URL (ex.: coluna LINK DRIVE da planilha)
+function isUrl(v) { return /^https?:\/\//i.test(String(v || '').trim()); }
+function cellHTML(v) {
+  const s = v != null ? String(v) : '';
+  if (isUrl(s)) return `<a href="${esc(s)}" target="_blank" rel="noopener" style="color:#1d4ed8;font-weight:700;text-decoration:underline">🔗 abrir</a>`;
+  return esc(s);
+}
+
+function viewCard(t, m) {
+  const cor = m.cor, blue = !!m.blue;
   const isPdf = t.tipo === 'pdf' && t.pdf_url;
   const cols = t.colunas && t.colunas.length ? t.colunas : (t.linhas[0] || []).map((_, i) => 'Col ' + (i + 1));
+  // Paleta azul (MAP) → zebra claro + texto escuro; senão tema padrão do app
+  const cellTxt = blue ? 'color:#1f2d3d' : '';
   const head = `<thead><tr>${cols.map(c => `<th style="position:sticky;top:0;background:${cor};color:#fff;padding:7px 9px;font-size:11.5px;text-align:left;white-space:nowrap;z-index:1">${esc(c)}</th>`).join('')}</tr></thead>`;
-  const body = `<tbody>${(t.linhas || []).map(r => `<tr style="border-bottom:1px solid var(--border)">${cols.map((_, i) => `<td style="padding:6px 9px;font-size:12px;white-space:nowrap">${esc(r[i] != null ? r[i] : '')}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  const rowBg = (i) => blue ? `background:${i % 2 ? '#ffffff' : '#dce6f1'}` : '';
+  const body = `<tbody>${(t.linhas || []).map((r, ri) => `<tr style="border-bottom:1px solid ${blue ? '#c7d6ea' : 'var(--border)'};${rowBg(ri)}">${cols.map((_, i) => `<td style="padding:6px 9px;font-size:12px;white-space:nowrap;${cellTxt}">${cellHTML(r[i])}</td>`).join('')}</tr>`).join('')}</tbody>`;
   const meta = isPdf ? '📄 PDF' : `${(t.linhas || []).length} linha(s)`;
+  const renaming = _renaming === t.id;
+  const titulo = renaming
+    ? `<span class="flex gap-1" style="align-items:center">
+         <input class="input" id="tl-rn" value="${esc(t.categoria || '')}" style="height:28px;font-size:13px;width:240px" placeholder="Nome da tabela">
+         <button class="btn btn-primary btn-sm" data-rnsave="${t.id}">💾</button>
+         <button class="btn btn-ghost btn-sm" data-rncancel="1">✕</button>
+       </span>`
+    : `<b style="font-size:13px">${isPdf ? '📕' : '📋'} ${esc(t.categoria || 'Sem categoria')}${_canEdit && !_edit ? ` <button class="btn btn-ghost btn-sm" data-rename="${t.id}" title="Renomear" style="padding:1px 6px">✏️</button>` : ''}${t.vigencia ? ` <span style="background:${cor}22;color:${cor};font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap">📅 ${esc(t.vigencia)}</span>` : ''} <span class="tiny muted" style="font-weight:600">· ${meta} · ${fmtData(t.atualizado_em)}</span></b>`;
   return `
     <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:12px">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
-        <b style="font-size:13px">${isPdf ? '📕' : '📋'} ${esc(t.categoria || 'Sem categoria')}${t.vigencia ? ` <span style="background:${cor}1f;color:${cor};font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap">📅 ${esc(t.vigencia)}</span>` : ''} <span class="tiny muted" style="font-weight:600">· ${meta} · ${fmtData(t.atualizado_em)}</span></b>
+        ${titulo}
         <div class="flex gap-2" style="flex-wrap:wrap">
           ${!isPdf && (t.linhas || []).length ? `<input class="input" data-search="${t.id}" placeholder="🔍 buscar…" style="height:30px;font-size:12px;width:150px">` : ''}
           ${isPdf ? `<a class="btn btn-ghost btn-sm" href="${esc(t.pdf_url)}" target="_blank" rel="noopener" download>↓ Baixar PDF</a>` : ''}
@@ -93,7 +126,7 @@ function viewCard(t, cor) {
       ${isPdf
         ? `<iframe src="${esc(t.pdf_url)}" style="width:100%;height:72vh;border:1px solid var(--border);border-radius:8px;background:#fff"></iframe>`
         : ((t.linhas || []).length
-          ? `<div data-tablewrap="${t.id}" style="max-height:64vh;overflow:auto;border:1px solid var(--border);border-radius:8px"><table style="border-collapse:collapse;width:100%;min-width:max-content">${head}${body}</table></div>`
+          ? `<div data-tablewrap="${t.id}" style="max-height:64vh;overflow:auto;border:1px solid ${blue ? '#c7d6ea' : 'var(--border)'};border-radius:8px${blue ? ';background:#fff' : ''}"><table style="border-collapse:collapse;width:100%;min-width:max-content">${head}${body}</table></div>`
           : `<div class="tiny muted" style="padding:8px">Tabela vazia${_canEdit ? ' — clique em ✏️ Editar pra adicionar linhas.' : '.'}</div>`)}
     </div>`;
 }
@@ -159,6 +192,12 @@ function wire() {
   });
   _root.querySelectorAll('[data-importall]').forEach(inp => inp.addEventListener('change', () => importAllSheets(inp.dataset.importall, inp)));
   _root.querySelectorAll('[data-pdf]').forEach(inp => inp.addEventListener('change', () => attachPdf(inp.dataset.pdf, inp)));
+  // rename inline do título da tabela
+  _root.querySelectorAll('[data-rename]').forEach(b => b.onclick = () => { _renaming = b.dataset.rename; render(); const i = document.getElementById('tl-rn'); if (i) { i.focus(); i.select(); } });
+  _root.querySelectorAll('[data-rncancel]').forEach(b => b.onclick = () => { _renaming = null; render(); });
+  _root.querySelectorAll('[data-rnsave]').forEach(b => b.onclick = () => renameTable(b.dataset.rnsave));
+  const rn = document.getElementById('tl-rn');
+  if (rn) rn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); renameTable(_renaming); } else if (e.key === 'Escape') { _renaming = null; render(); } });
   _root.querySelectorAll('[data-edittbl]').forEach(b => b.onclick = () => {
     const t = _tabelas.find(x => x.id === b.dataset.edittbl); if (!t) return;
     _draft = JSON.parse(JSON.stringify({ id: t.id, marca: t.marca, categoria: t.categoria, vigencia: t.vigencia || '', colunas: t.colunas.slice(), linhas: (t.linhas || []).map(r => r.slice()) }));
@@ -225,8 +264,49 @@ async function saveDraft() {
   } catch (e) { const mm = document.getElementById('tl-msg'); if (mm) mm.textContent = '⚠️ ' + e.message; }
 }
 
+// Renomeia só o título (categoria) — envia a tabela INTEIRA pra não zerar linhas/colunas.
+async function renameTable(id) {
+  const t = _tabelas.find(x => x.id === id); if (!t) return;
+  const novo = (document.getElementById('tl-rn')?.value || '').trim();
+  if (!novo) { alert('Dê um nome à tabela.'); return; }
+  const tabela = {
+    id: t.id, marca: t.marca, categoria: novo, vigencia: t.vigencia || '',
+    tipo: t.tipo || 'grade', pdf_url: t.pdf_url || null,
+    colunas: t.colunas || [], linhas: t.linhas || [],
+  };
+  try {
+    const r = await api.request('/api/v3/tabelas/lancamentos', { method: 'POST', body: { action: 'save', tabela } });
+    _tabelas = r.tabelas || _tabelas; _renaming = null; render();
+  } catch (e) { alert('Erro ao renomear: ' + e.message); }
+}
+
 function fileToB64(file) {
   return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+}
+
+// AOA da planilha trocando o texto da célula pela URL do HYPERLINK (quando houver),
+// pra que a coluna LINK DRIVE chegue como URL clicável (e não só "link").
+function sheetMatrix(ws) {
+  if (!ws || !ws['!ref']) return [];
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const out = [];
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    const row = []; let any = false;
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c })];
+      let v = '';
+      if (cell) {
+        if (cell.l && cell.l.Target) v = cell.l.Target;          // hyperlink → URL real
+        else if (cell.w != null) v = cell.w;                      // texto já formatado
+        else if (cell.v != null) v = cell.v;
+      }
+      v = (v == null ? '' : String(v));
+      if (v.trim() !== '') any = true;
+      row.push(v);
+    }
+    if (any) out.push(row);   // pula linhas totalmente vazias (= blankrows:false)
+  }
+  return out;
 }
 
 // Importa TODAS as abas da planilha — cada aba vira uma tabela (categoria = nome da aba).
@@ -241,7 +321,7 @@ async function importAllSheets(marca, input) {
     let n = 0;
     for (const sheetName of wb.SheetNames) {
       const ws = wb.Sheets[sheetName];
-      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '' });
+      const aoa = sheetMatrix(ws);   // captura URL de hyperlink no lugar do texto "link"
       if (!aoa.length) continue;
       const colunas = (aoa[0] || []).map(c => String(c == null ? '' : c) || 'Coluna');
       const linhas = aoa.slice(1).filter(r => r.some(c => String(c).trim() !== '')).map(r => colunas.map((_, i) => (r[i] == null ? '' : String(r[i]))));
