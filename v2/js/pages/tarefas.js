@@ -36,6 +36,36 @@ let _filterStatus = '';
 let _filterResp = '';
 let _filterPrior = '';
 
+// ── Hierarquia de atribuição (mesma regra do backend tasks/upsert _pode_atribuir) ──
+// sócio/diretor(≥10)→todos · gerente(≥7)→lvl<7 · líder(≥5)→própria equipe lvl<5 · demais→só si.
+const ROLE_LVL_T = { socio: 10, diretor: 10, gerente: 7, backoffice: 6, lider: 5, financeiro: 4, marketing: 3, corretor: 2 };
+function assignableUsers() {
+  const me = auth.user() || {};
+  const lvl = me.lvl || ROLE_LVL_T[String(me.role || '').toLowerCase()] || 2;
+  const team = String(me.team || '').trim().toLowerCase();
+  const lvlOf = u => ROLE_LVL_T[String((u && u.role) || '').toLowerCase()] || 2;
+  const ativos = (_users || []).filter(u => (u.status || 'ativo') === 'ativo' && !u.hide_from_ranking);
+  let list;
+  if (lvl >= 10) list = ativos;
+  else if (lvl >= 7) list = ativos.filter(u => lvlOf(u) < 7);
+  else if (lvl >= 5) list = ativos.filter(u => String(u.team || '').trim().toLowerCase() === team && lvlOf(u) < 5);
+  else list = ativos.filter(u => String(u.id) === String(me.id));
+  if (!list.find(u => String(u.id) === String(me.id))) {
+    const meU = (_users || []).find(u => String(u.id) === String(me.id));
+    if (meU) list = [meU, ...list];
+  }
+  return list;
+}
+// Lista atribuível garantindo que o responsável atual apareça (pra edição inline).
+function assignableFor(currentId) {
+  const list = assignableUsers().slice();
+  if (currentId && !list.find(u => String(u.id) === String(currentId))) {
+    const cur = (_users || []).find(u => String(u.id) === String(currentId));
+    if (cur) list.unshift(cur);
+  }
+  return list;
+}
+
 export async function pageTarefas(ctx, root) {
   _root = root; _ctx = ctx;
   root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando central…</div></div>';
@@ -317,7 +347,7 @@ function taskRow(t, isSocio, myId) {
         ${isSocio ? `
           <select class="select" data-task-field="responsavel" data-id="${t.id}" style="padding:4px 10px;font-size:11.5px" title="Responsável">
             <option value="">— sem responsável —</option>
-            ${selectableUsers(_users, t.responsavel).map(u => `<option value="${escapeHtml(u.id)}"${t.responsavel === u.id ? ' selected' : ''}>${escapeHtml(u.name)}</option>`).join('')}
+            ${assignableFor(t.responsavel).map(u => `<option value="${escapeHtml(u.id)}"${t.responsavel === u.id ? ' selected' : ''}>${escapeHtml(u.name)}</option>`).join('')}
           </select>
           <select class="select" data-task-field="prioridade" data-id="${t.id}" style="padding:4px 10px;font-size:11.5px">
             ${PRIORIDADE.map(p => `<option value="${p.id}"${t.prioridade === p.id ? ' selected' : ''}>${p.lbl}</option>`).join('')}
@@ -411,7 +441,7 @@ function openNewModal() {
           <label>Responsável</label>
           <select id="nt-resp" class="select">
             <option value="">— sem responsável —</option>
-            ${selectableUsers(_users).map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)}</option>`).join('')}
+            ${assignableFor().map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)}</option>`).join('')}
           </select>
         </div>
         <div class="field" style="flex:1;min-width:140px">

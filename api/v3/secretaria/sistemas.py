@@ -45,9 +45,34 @@ def _write(sb, items):
                                 on_conflict="key").execute()
 
 
+def _norm_cidades(d):
+    cid = d.get("cidades")
+    if isinstance(cid, str):
+        cid = cid.replace(";", ",").split(",")
+    out, seen = [], set()
+    for c in (cid or []):
+        c = str(c).strip()[:80]
+        k = c.lower()
+        if c and k not in seen:
+            seen.add(k); out.append(c)
+        if len(out) >= 40:
+            break
+    return out
+
+
+def _norm_cats(d):
+    cats = d.get("categorias") or []
+    if isinstance(cats, str):
+        cats = [cats]
+    up = {str(c).strip().upper() for c in cats}
+    return [c for c in ("MAP", "MCMV") if c in up]   # ordem fixa, sem duplicar
+
+
 def _clean(d):
     return {
         "incorporadora": str(d.get("incorporadora") or "").strip()[:120],
+        "categorias": _norm_cats(d),
+        "cidades": _norm_cidades(d),
         "gerente": str(d.get("gerente") or "").strip()[:120],
         "gerente_whatsapp": str(d.get("gerente_whatsapp") or "").strip()[:40],
         "coordenador": str(d.get("coordenador") or "").strip()[:120],

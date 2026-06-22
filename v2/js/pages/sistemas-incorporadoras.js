@@ -7,15 +7,22 @@
 ============================================================================ */
 import { api } from '../api.js';
 
-let _root = null, _items = [], _canManage = false, _editing = null, _busy = false, _q = '';
+let _root = null, _items = [], _canManage = false, _editing = null, _busy = false, _q = '', _catFilter = '';
 const _shown = new Set();   // ids com senha revelada nesta sessão de tela
+
+// Categoria de atuação da incorporadora (pode ser as duas ao mesmo tempo).
+const CATS = {
+  MAP:  { lbl: '🏙 MAP', full: 'Médio/Alto Padrão', bg: '#d4a84322', fg: '#a87b1e', bd: '#d4a843' },
+  MCMV: { lbl: '🏠 MCMV', full: 'Minha Casa Minha Vida', bg: '#16a34a22', fg: '#15803d', bd: '#16a34a' },
+};
+const catBadge = c => CATS[c] ? `<span title="${CATS[c].full}" style="background:${CATS[c].bg};color:${CATS[c].fg};font-weight:800;font-size:11px;padding:2px 9px;border-radius:20px;white-space:nowrap">${CATS[c].lbl}</span>` : '';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const incColor = c => { let h = 0; for (const ch of String(c || 'x')) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},55%,45%)`; };
 const waLink = num => { const d = String(num || '').replace(/\D/g, ''); return d ? 'https://wa.me/' + (d.length <= 11 ? '55' + d : d) : ''; };
 
 export async function pageSistemasIncorporadoras(ctx, root) {
-  _root = root; _editing = null; _busy = false; _q = ''; _shown.clear();
+  _root = root; _editing = null; _busy = false; _q = ''; _catFilter = ''; _shown.clear();
   root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando incorporadoras…</div></div>';
   await load();
 }
@@ -34,7 +41,9 @@ async function load() {
 function filtrados() {
   const q = _q.trim().toLowerCase();
   let list = _items.slice();
-  if (q) list = list.filter(it => [it.incorporadora, it.gerente, it.coordenador, it.sistema, it.obs].some(v => String(v || '').toLowerCase().includes(q)));
+  if (_catFilter) list = list.filter(it => (it.categorias || []).includes(_catFilter));
+  if (q) list = list.filter(it => [it.incorporadora, it.gerente, it.coordenador, it.sistema, it.obs,
+    (it.cidades || []).join(' '), (it.categorias || []).join(' ')].some(v => String(v || '').toLowerCase().includes(q)));
   return list.sort((a, b) => String(a.incorporadora || '').localeCompare(String(b.incorporadora || ''), 'pt-BR'));
 }
 
@@ -66,7 +75,13 @@ function render() {
 
       ${_editing !== null ? formHTML() : ''}
 
-      ${_items.length ? `<input id="si-q" class="input mt-2" placeholder="🔎 Buscar por incorporadora, gerente, coordenador, sistema…" value="${esc(_q)}">` : ''}
+      ${_items.length ? `<div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:center">
+        ${catFilterChip('', '📋 Todas', _items.length)}
+        ${catFilterChip('MAP', CATS.MAP.lbl, _items.filter(i => (i.categorias || []).includes('MAP')).length)}
+        ${catFilterChip('MCMV', CATS.MCMV.lbl, _items.filter(i => (i.categorias || []).includes('MCMV')).length)}
+      </div>` : ''}
+
+      ${_items.length ? `<input id="si-q" class="input mt-2" placeholder="🔎 Buscar por incorporadora, gerente, coordenador, sistema, cidade…" value="${esc(_q)}">` : ''}
 
       ${!_items.length ? `
         <div class="card mt-3" style="text-align:center;padding:32px;background:var(--bg-3)">
@@ -78,6 +93,11 @@ function render() {
       ${_canManage ? '<p class="tiny muted mt-3">🔒 A senha do sistema fica guardada com acesso restrito do servidor e aparece mascarada — clique 👁 pra revelar. Edição só pelo sócio.</p>' : ''}
     </div>`;
   wire();
+}
+
+function catFilterChip(val, lbl, n) {
+  const on = _catFilter === val;
+  return `<button class="btn ${on ? 'btn-primary' : 'btn-ghost'} btn-sm" data-catf="${val}">${lbl} <span style="opacity:.65;font-weight:600">(${n})</span></button>`;
 }
 
 function cardHTML(it) {
@@ -98,6 +118,10 @@ function cardHTML(it) {
         <button class="btn btn-ghost btn-sm" data-edit="${esc(it.id)}">✏️</button>
         <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" style="color:#dc2626">🗑</button></div>` : ''}
     </div>
+    ${((it.categorias || []).length || (it.cidades || []).length) ? `<div class="flex gap-2" style="flex-wrap:wrap;align-items:center;margin:6px 0 2px">
+      ${(it.categorias || []).map(catBadge).join('')}
+      ${(it.cidades || []).length ? `<span class="tiny muted">📍 ${esc((it.cidades || []).join(' · '))}</span>` : ''}
+    </div>` : ''}
 
     ${temContato ? `<div class="si-sec">👤 Contatos</div>
       ${(it.gerente || it.gerente_whatsapp) ? `<div class="si-row"><span class="lbl">Gerente</span><span>${esc(it.gerente || '—')}</span>${waG ? `<a class="btn btn-sm" href="${esc(waG)}" target="_blank" rel="noopener" style="background:#16a34a;color:#fff;border-color:#16a34a">💬 ${esc(it.gerente_whatsapp)}</a>` : ''}</div>` : ''}
@@ -122,6 +146,18 @@ function formHTML() {
   return `<div class="card mt-3" style="background:var(--bg-3);border:1px solid var(--bd)">
     <h3 class="card-title" style="font-size:14px">${it ? '✏️ Editar incorporadora' : '➕ Nova incorporadora'}</h3>
     <div class="mt-1"><label class="tiny muted">Incorporadora *</label><input id="if-inc" class="input" value="${esc(v.incorporadora || '')}" placeholder="Ex.: MRV, Cyrela, Tarraf…"></div>
+
+    <div class="si-sec" style="margin-top:10px">🏷 Classificação</div>
+    <div class="flex gap-2" style="flex-wrap:wrap;align-items:flex-start">
+      <div style="min-width:230px">
+        <label class="tiny muted">Categoria (pode marcar as duas)</label>
+        <div class="flex gap-3" style="align-items:center;margin-top:5px">
+          <label style="display:flex;gap:6px;align-items:center;cursor:pointer;font-size:13px"><input type="checkbox" id="if-cat-map" ${(v.categorias || []).includes('MAP') ? 'checked' : ''}> 🏙 MAP <span class="tiny muted">(médio/alto padrão)</span></label>
+          <label style="display:flex;gap:6px;align-items:center;cursor:pointer;font-size:13px"><input type="checkbox" id="if-cat-mcmv" ${(v.categorias || []).includes('MCMV') ? 'checked' : ''}> 🏠 MCMV <span class="tiny muted">(Minha Casa Minha Vida)</span></label>
+        </div>
+      </div>
+      <div style="flex:2;min-width:240px"><label class="tiny muted">Cidades que atua (separe por vírgula)</label><input id="if-cidades" class="input" value="${esc((v.cidades || []).join(', '))}" placeholder="Ex.: São José do Rio Preto, Mirassol, Bady Bassitt"></div>
+    </div>
 
     <div class="si-sec" style="margin-top:10px">👤 Contatos</div>
     <div class="flex gap-2" style="flex-wrap:wrap">
@@ -159,6 +195,7 @@ function formHTML() {
 function wire() {
   const $ = s => _root.querySelector(s);
   $('#si-new') && ($('#si-new').onclick = () => { _editing = 'new'; render(); });
+  _root.querySelectorAll('[data-catf]').forEach(b => b.onclick = () => { _catFilter = b.dataset.catf; render(); });
   _root.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { _editing = b.dataset.edit; render(); });
   _root.querySelectorAll('[data-del]').forEach(b => b.onclick = () => del(b.dataset.del));
   _root.querySelectorAll('[data-reveal]').forEach(b => b.onclick = () => { const id = b.dataset.reveal; _shown.has(id) ? _shown.delete(id) : _shown.add(id); render(); });
@@ -177,8 +214,13 @@ function wire() {
 async function save() {
   if (_busy) return;
   const $ = s => _root.querySelector(s);
+  const categorias = [];
+  if ($('#if-cat-map') && $('#if-cat-map').checked) categorias.push('MAP');
+  if ($('#if-cat-mcmv') && $('#if-cat-mcmv').checked) categorias.push('MCMV');
   const item = {
     incorporadora: $('#if-inc').value.trim(),
+    categorias,
+    cidades: $('#if-cidades').value.trim(),   // backend normaliza string→lista
     gerente: $('#if-ger').value.trim(), gerente_whatsapp: $('#if-gerw').value.trim(),
     coordenador: $('#if-coo').value.trim(), coordenador_whatsapp: $('#if-coow').value.trim(),
     grupo_link: $('#if-grupo').value.trim(), tabelas_link: $('#if-tab').value.trim(), drive_link: $('#if-drive').value.trim(),
