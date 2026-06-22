@@ -35,7 +35,16 @@ def _read(sb):
     except Exception:
         v = None
     if not isinstance(v, dict) or not v.get("linhas"):
-        return SEED            # pré-carrega o M.A.P na primeira vez
+        return SEED            # primeira vez: serve a baseline inteira
+    # merge não-destrutivo: anexa linhas da SEED cujo id ainda não existe no salvo
+    # (não sobrescreve nada já editado; só traz linhas novas pré-carregadas).
+    try:
+        have = {l.get("id") for l in v.get("linhas", []) if isinstance(l, dict)}
+        for sl in (SEED.get("linhas") or []):
+            if sl.get("id") not in have:
+                v["linhas"].append(sl)
+    except Exception:
+        pass
     return v
 
 
