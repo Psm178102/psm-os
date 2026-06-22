@@ -82,7 +82,7 @@ function viewCard(t, cor) {
   return `
     <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:12px">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
-        <b style="font-size:13px">${isPdf ? '📕' : '📋'} ${esc(t.categoria || 'Sem categoria')} <span class="tiny muted" style="font-weight:600">· ${meta} · ${fmtData(t.atualizado_em)}</span></b>
+        <b style="font-size:13px">${isPdf ? '📕' : '📋'} ${esc(t.categoria || 'Sem categoria')}${t.vigencia ? ` <span style="background:${cor}1f;color:${cor};font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap">📅 ${esc(t.vigencia)}</span>` : ''} <span class="tiny muted" style="font-weight:600">· ${meta} · ${fmtData(t.atualizado_em)}</span></b>
         <div class="flex gap-2" style="flex-wrap:wrap">
           ${!isPdf && (t.linhas || []).length ? `<input class="input" data-search="${t.id}" placeholder="🔍 buscar…" style="height:30px;font-size:12px;width:150px">` : ''}
           ${isPdf ? `<a class="btn btn-ghost btn-sm" href="${esc(t.pdf_url)}" target="_blank" rel="noopener" download>↓ Baixar PDF</a>` : ''}
@@ -117,9 +117,11 @@ function editorCard(cor) {
   return `
     <div style="background:var(--bg-3);border:2px solid ${cor};border-radius:10px;padding:12px;margin-bottom:12px">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-        <div class="flex gap-2" style="align-items:center">
+        <div class="flex gap-2" style="align-items:center;flex-wrap:wrap">
           <span class="tiny muted" style="font-weight:800">Categoria:</span>
-          <input class="input" id="tl-cat" value="${esc(d.categoria)}" placeholder="ex.: MAP, Alto Padrão, Junho/26" style="height:30px;font-size:13px;width:220px">
+          <input class="input" id="tl-cat" value="${esc(d.categoria)}" placeholder="ex.: MAP, Alto Padrão" style="height:30px;font-size:13px;width:200px">
+          <span class="tiny muted" style="font-weight:800">📅 Vigência:</span>
+          <input class="input" id="tl-vig" value="${esc(d.vigencia || '')}" placeholder="ex.: 05/2026, Maio/26" style="height:30px;font-size:13px;width:140px">
         </div>
         <div class="flex gap-2" style="flex-wrap:wrap">
           <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0">📥 Importar xlsx<input type="file" id="tl-import" accept=".xlsx,.xls,.csv" style="display:none"></label>
@@ -144,6 +146,7 @@ function editorCard(cor) {
 function syncDraft() {
   if (!_draft) return;
   const cat = document.getElementById('tl-cat'); if (cat) _draft.categoria = cat.value;
+  const vig = document.getElementById('tl-vig'); if (vig) _draft.vigencia = vig.value;
   _root.querySelectorAll('[data-h]').forEach(inp => { _draft.colunas[+inp.dataset.h] = inp.value; });
   _root.querySelectorAll('[data-r][data-c]').forEach(inp => { const ri = +inp.dataset.r, ci = +inp.dataset.c; if (_draft.linhas[ri]) _draft.linhas[ri][ci] = inp.value; });
 }
@@ -151,14 +154,14 @@ function syncDraft() {
 function wire() {
   _root.querySelectorAll('[data-new]').forEach(b => b.onclick = () => {
     _edit = 'new:' + b.dataset.new;
-    _draft = { id: '', marca: b.dataset.new, categoria: '', colunas: ['Coluna 1', 'Coluna 2'], linhas: [['', '']] };
+    _draft = { id: '', marca: b.dataset.new, categoria: '', vigencia: '', colunas: ['Coluna 1', 'Coluna 2'], linhas: [['', '']] };
     render();
   });
   _root.querySelectorAll('[data-importall]').forEach(inp => inp.addEventListener('change', () => importAllSheets(inp.dataset.importall, inp)));
   _root.querySelectorAll('[data-pdf]').forEach(inp => inp.addEventListener('change', () => attachPdf(inp.dataset.pdf, inp)));
   _root.querySelectorAll('[data-edittbl]').forEach(b => b.onclick = () => {
     const t = _tabelas.find(x => x.id === b.dataset.edittbl); if (!t) return;
-    _draft = JSON.parse(JSON.stringify({ id: t.id, marca: t.marca, categoria: t.categoria, colunas: t.colunas.slice(), linhas: (t.linhas || []).map(r => r.slice()) }));
+    _draft = JSON.parse(JSON.stringify({ id: t.id, marca: t.marca, categoria: t.categoria, vigencia: t.vigencia || '', colunas: t.colunas.slice(), linhas: (t.linhas || []).map(r => r.slice()) }));
     if (!_draft.colunas.length) _draft.colunas = ['Coluna 1'];
     _edit = t.id; render();
   });
@@ -245,7 +248,7 @@ async function importAllSheets(marca, input) {
       if (!linhas.length && colunas.every(c => !c.trim())) continue;
       const cat = String(sheetName).trim() || ('Aba ' + (n + 1));
       const ex = _tabelas.find(t => t.marca === marca && t.tipo !== 'pdf' && (t.categoria || '').toLowerCase() === cat.toLowerCase());
-      const r = await api.request('/api/v3/tabelas/lancamentos', { method: 'POST', body: { action: 'save', tabela: { id: ex ? ex.id : '', marca, categoria: cat, tipo: 'grade', colunas, linhas } } });
+      const r = await api.request('/api/v3/tabelas/lancamentos', { method: 'POST', body: { action: 'save', tabela: { id: ex ? ex.id : '', marca, categoria: cat, vigencia: ex ? (ex.vigencia || '') : '', tipo: 'grade', colunas, linhas } } });
       _tabelas = r.tabelas || _tabelas; n++;
       setMsg(`⏳ importando… ${n} aba(s)`);
     }

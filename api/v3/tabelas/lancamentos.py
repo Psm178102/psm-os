@@ -46,6 +46,7 @@ def _read(sb):
                 "id": str(t.get("id") or ""),
                 "marca": t.get("marca") if t.get("marca") in MARCAS else "imoveis",
                 "categoria": str(t.get("categoria") or "")[:120],
+                "vigencia": str(t.get("vigencia") or "")[:40],
                 "tipo": t.get("tipo") if t.get("tipo") in ("grade", "pdf") else "grade",
                 "pdf_url": str(t.get("pdf_url") or "")[:1000] or None,
                 "colunas": [str(c)[:200] for c in (t.get("colunas") or [])][:MAX_COLS],
@@ -118,6 +119,7 @@ class handler(BaseHTTPRequestHandler):
                 rec = {
                     "id": str(t.get("id") or "") or ("tbl_" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")),
                     "marca": marca, "categoria": str(t.get("categoria") or "Sem categoria")[:120],
+                    "vigencia": str(t.get("vigencia") or "")[:40],
                     "tipo": t.get("tipo") if t.get("tipo") in ("grade", "pdf") else "grade",
                     "pdf_url": str(t.get("pdf_url") or "")[:1000] or None,
                     "colunas": colunas, "linhas": linhas,
