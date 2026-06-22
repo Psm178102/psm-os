@@ -41,7 +41,13 @@ def _read(sb):
     try:
         have = {l.get("id") for l in v.get("linhas", []) if isinstance(l, dict)}
         for sl in (SEED.get("linhas") or []):
-            if sl.get("id") not in have:
+            if sl.get("id") in have:
+                continue
+            # respeita a ordem: linha de FUNDAÇÃO (ordem < 0) entra no topo; demais ao fim.
+            o = sl.get("ordem")
+            if isinstance(o, (int, float)) and not isinstance(o, bool) and o < 0:
+                v["linhas"].insert(0, sl)
+            else:
                 v["linhas"].append(sl)
     except Exception:
         pass
