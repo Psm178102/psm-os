@@ -4,6 +4,7 @@ const SIMS = [
   { id: '/sim-vpl',       ico: '📐', t: 'VPL',           d: 'Valor Presente Líquido do fluxo de pagamentos',     cor: 'linear-gradient(135deg,#0b1f3a,#1e3a5f)' },
   { id: '/sim-incc',      ico: '📊', t: 'INCC',          d: 'Correção pela inflação INCC durante prazo de obra', cor: 'linear-gradient(135deg,#7c2d12,#9a3412)' },
   { id: '/sim-repasse',   ico: '💰', t: 'Repasse',       d: 'Precificação de repasse com saldo devedor',         cor: 'linear-gradient(135deg,#065f46,#047857)' },
+  { id: '/sim-amortizacao', ico: '🏦', t: 'Amortização',  d: 'Financiamento SAC/PRICE + amortização extra (economia de juros)', cor: 'linear-gradient(135deg,#1e3a5f,#2563eb)' },
   { id: '/sim-energia',   ico: '⚡', t: 'Energia',       d: 'Produtividade do corretor por canal',               cor: 'linear-gradient(135deg,#a16207,#ca8a04)' },
   { id: '/sim-leads',     ico: '🎯', t: 'Leads / CAC',   d: 'Custo por lead, CAC e ROI por canal',               cor: 'linear-gradient(135deg,#4338ca,#6366f1)' },
   { id: '/sim-criativos', ico: '🎨', t: 'Criativos',     d: 'Gerador de copy, headlines e CTA',                  cor: 'linear-gradient(135deg,#be185d,#db2777)' },

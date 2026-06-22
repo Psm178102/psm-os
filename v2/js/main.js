@@ -88,6 +88,7 @@ import { pageSimVPL } from './pages/sim-vpl.js';
 import { pageSimINCC } from './pages/sim-incc.js';
 import { pageSimRepasse } from './pages/sim-repasse.js';
 import { pageSimEnergia } from './pages/sim-energia.js';
+import { pageSimAmortizacao } from './pages/sim-amortizacao.js';
 import { pageSimLeads } from './pages/sim-leads.js';
 import { pageSimCriativos } from './pages/sim-criativos.js';
 import { pageWarRoom } from './pages/war-room.js';
@@ -115,7 +116,7 @@ export const ROUTE_GROUP = {
   '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/fichas': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/lancamentos': 'vendas',
   '/metas': 'vendas', '/equipe': 'vendas', '/plantoes': 'vendas',
-  '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas',
+  '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas', '/sim-amortizacao': 'vendas',
   // Locação
   '/locacoes': 'locacao', '/minutas-locacao': 'locacao',
   // Financeiro
@@ -311,7 +312,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.13.0';
+const APP_VERSION = '81.14.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -485,6 +486,7 @@ const APP_VERSION = '81.13.0';
   router.register('/sim-incc',    { render: async (ctx, root) => { setHeader('Simulador INCC');      highlight('/sim-incc'); await pageSimINCC(ctx, root); } });
   router.register('/sim-repasse', { render: async (ctx, root) => { setHeader('Simulador Repasse');   highlight('/sim-repasse'); await pageSimRepasse(ctx, root); } });
   router.register('/sim-energia', { render: async (ctx, root) => { setHeader('Simulador Energia');   highlight('/sim-energia'); await pageSimEnergia(ctx, root); } });
+  router.register('/sim-amortizacao', { render: async (ctx, root) => { setHeader('Simulador de Amortização'); highlight('/sim-amortizacao'); await pageSimAmortizacao(ctx, root); } });
   router.register('/sim-leads',   { render: async (ctx, root) => { setHeader('Simulador Leads/CAC'); highlight('/sim-leads'); await pageSimLeads(ctx, root); } });
   router.register('/sim-criativos', { render: async (ctx, root) => { setHeader('Simulador Criativos'); highlight('/sim-criativos'); await pageSimCriativos(ctx, root); } });
   router.register('/war-room',    { render: async (ctx, root) => { setHeader('War Room');            highlight('/war-room');   await pageWarRoom(ctx, root); } });
@@ -596,6 +598,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/sim-incc"><span class="sb-ico">📈</span> Simulador INCC</button>
         <button class="sb-link" data-nav="/sim-repasse"><span class="sb-ico">🔁</span> Simulador Repasse</button>
         <button class="sb-link" data-nav="/sim-energia"><span class="sb-ico">⚡</span> Simulador Energia</button>
+        <button class="sb-link" data-nav="/sim-amortizacao"><span class="sb-ico">🏦</span> Simulador de Amortização</button>
 
         <div class="sb-sec">🔥 Arena & Performance</div>
         <button class="sb-link" data-nav="/tv"><span class="sb-ico">📺</span> Modo TV</button>
