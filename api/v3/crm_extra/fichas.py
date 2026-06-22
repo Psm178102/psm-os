@@ -67,6 +67,7 @@ class handler(BaseHTTPRequestHandler):
             "forma_pagto": (body.get("forma_pagto") or "").strip() or None,
             "observacoes": (body.get("observacoes") or "").strip() or None,
             "status": body.get("status") or "em_analise",
+            "anexo_url": (body.get("anexo_url") or "").strip() or None,
             "corretor_id": body.get("corretor_id") or actor.get("id"),
             "data_envio": body.get("data_envio"),
             "data_resposta": body.get("data_resposta"),

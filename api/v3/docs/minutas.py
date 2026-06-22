@@ -26,12 +26,21 @@ SCOPES = {
 }
 MAXN, MAXURL, MAXCAT, MAXOBS = 120, 1000, 60, 500
 
+# Categorias-base (editáveis pelo sócio; viram a lista inicial se nunca configurada).
+DEFAULT_CATS = {
+    "juridico": ['Compra e venda', 'Locação', 'Permuta', 'Distrato', 'Procuração', 'Aditivo',
+                 'Confissão de dívida', 'Notificação', 'Parceria', 'Outros'],
+    "locacao": ['Contrato de locação', 'Ficha cadastral', 'Vistoria', 'Renovação', 'Rescisão',
+                'Garantia / Fiador', 'Termo de entrega', 'Notificação', 'Outros'],
+}
+
 
 def _key(scope):
     return f"minutas:{scope}"
 
 
-def _read(sb, scope):
+def _read_val(sb, scope):
+    """Devolve (items, categorias|None) do shared_kv."""
     try:
         rows = sb.table("shared_kv").select("value").eq("key", _key(scope)).limit(1).execute().data or []
         val = rows[0]["value"] if rows else {}
@@ -39,13 +48,29 @@ def _read(sb, scope):
             val = json.loads(val)
     except Exception:
         val = {}
-    items = (val or {}).get("items") if isinstance(val, dict) else None
-    return items if isinstance(items, list) else []
+    if not isinstance(val, dict):
+        val = {}
+    items = val.get("items") if isinstance(val.get("items"), list) else []
+    cats = val.get("categorias") if isinstance(val.get("categorias"), list) else None
+    return items, cats
 
 
-def _write(sb, scope, items):
+def _read(sb, scope):
+    return _read_val(sb, scope)[0]
+
+
+def _cats(sb, scope):
+    cats = _read_val(sb, scope)[1]
+    return cats if cats is not None else list(DEFAULT_CATS.get(scope, []))
+
+
+def _write(sb, scope, items, cats=None):
+    if cats is None:
+        cats = _read_val(sb, scope)[1]
+        if cats is None:
+            cats = list(DEFAULT_CATS.get(scope, []))
     sb.table("shared_kv").upsert({
-        "key": _key(scope), "value": {"items": items},
+        "key": _key(scope), "value": {"items": items, "categorias": cats},
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }, on_conflict="key").execute()
 
@@ -91,7 +116,7 @@ class handler(BaseHTTPRequestHandler):
         items = _read(sb, scope)
         can_edit = (user.get("lvl") or 0) >= SCOPES[scope]["edit_min_lvl"]
         return self._send(200, {"ok": True, "scope": scope, "label": SCOPES[scope]["label"],
-                                "items": items, "can_edit": can_edit})
+                                "items": items, "categorias": _cats(sb, scope), "can_edit": can_edit})
 
     def do_POST(self):
         try:
@@ -140,6 +165,26 @@ class handler(BaseHTTPRequestHandler):
             order = body.get("order") or []
             pos = {iid: i for i, iid in enumerate(order)}
             items.sort(key=lambda it: pos.get(it.get("id"), 9999))
+        elif action == "set_cats":
+            # Lista de categorias personalizável + cascade de renomeação nos itens.
+            raw = body.get("categorias") or []
+            seen, cats = set(), []
+            for c in raw:
+                c = str(c or "").strip()[:MAXCAT]
+                if c and c.lower() not in seen:
+                    seen.add(c.lower()); cats.append(c)
+            renames = body.get("renames") or {}
+            if isinstance(renames, dict):
+                for it in items:
+                    novo = renames.get(it.get("categoria"))
+                    if novo:
+                        it["categoria"] = str(novo).strip()[:MAXCAT]
+            try:
+                _write(sb, scope, items, cats)
+            except Exception as e:
+                return self._send(500, {"ok": False, "error": str(e)})
+            audit(self, actor, "minutas.set_cats", target_type="shared_kv", target_id=_key(scope))
+            return self._send(200, {"ok": True, "scope": scope, "items": items, "categorias": cats})
         else:
             return self._send(400, {"ok": False, "error": "ação inválida"})
 
@@ -148,4 +193,4 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
         audit(self, actor, f"minutas.{action}", target_type="shared_kv", target_id=_key(scope))
-        return self._send(200, {"ok": True, "scope": scope, "items": items})
+        return self._send(200, {"ok": True, "scope": scope, "items": items, "categorias": _cats(sb, scope)})

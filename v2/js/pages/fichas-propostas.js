@@ -1,7 +1,7 @@
 /* PSM-OS v2 — Fichas/Propostas (Sprint 8.7 + 9.4 modelo/WhatsApp/imprimir) */
 import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
-import { getLinks, saveLinks, canEditLinks, promptLink } from '../links.js';
+import { getLinks, saveLinks, canEditLinks, promptLink, driveDownload, triggerDownload } from '../links.js';
 
 let _root = null;
 let _items = [];
@@ -51,7 +51,7 @@ function render() {
           <p class="card-sub">Propostas ao cliente — preencha, imprima ou mande no WhatsApp. Controle de aprovações.</p>
         </div>
         <div class="flex gap-2">
-          <button class="btn btn-ghost" id="fic-modelo">📄 Modelo</button>
+          <button class="btn btn-ghost" id="fic-modelo">📥 Baixar modelo</button>
           ${canEditLinks() ? '<button class="btn btn-ghost" id="fic-modelo-edit" title="Editar link do modelo">⚙️</button>' : ''}
           <button class="btn btn-primary" id="fic-new">➕ Nova Ficha</button>
         </div>
@@ -77,7 +77,8 @@ function render() {
   if (md) md.addEventListener('click', async () => {
     const links = await getLinks();
     if (!links.ficha_modelo) { alert('Nenhum modelo configurado ainda.' + (canEditLinks() ? ' Clique na engrenagem pra definir o link do Drive.' : '')); return; }
-    window.open(links.ficha_modelo, '_blank', 'noopener');
+    // Baixa o modelo editável (não abre online) — preencha e anexe na ficha.
+    triggerDownload(driveDownload(links.ficha_modelo));
   });
   const mde = document.getElementById('fic-modelo-edit');
   if (mde) mde.addEventListener('click', async () => {
@@ -132,6 +133,7 @@ function renderList() {
                 <td style="padding:8px;text-align:center"><span style="background:${cor}22;color:${cor};padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700">${STATUS_LBL[f.status]}</span></td>
                 <td style="padding:8px;text-align:center;font-size:11px">${f.data_envio || '—'}</td>
                 <td style="padding:8px;text-align:right;white-space:nowrap">
+                  ${f.anexo_url ? `<a class="btn btn-ghost btn-sm" href="${esc(f.anexo_url)}" target="_blank" rel="noopener" title="Anexo">📎</a>` : ''}
                   <button class="btn btn-ghost btn-sm" data-edit="${f.id}">✏️</button>
                   <button class="btn btn-ghost btn-sm" data-del="${f.id}">🗑</button>
                 </td>
@@ -198,6 +200,14 @@ function showForm() {
           <label class="tiny muted">Observações</label>
           <textarea id="ff-obs" class="input" rows="3">${esc(f.observacoes || '')}</textarea>
         </div>
+        <div style="grid-column:1/-1">
+          <label class="tiny muted">📎 Anexo — ficha/proposta preenchida (entra no kanban)</label>
+          <div class="flex gap-2" style="align-items:center;flex-wrap:wrap">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0">📤 Anexar arquivo<input type="file" id="ff-anexo" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*" style="display:none"></label>
+            <span id="ff-anexo-st" class="tiny ${f.anexo_url ? '' : 'muted'}">${f.anexo_url ? '✅ anexado' : 'nenhum anexo'}</span>
+            <a id="ff-anexo-link" class="btn btn-ghost btn-sm" href="${esc(f.anexo_url || '#')}" target="_blank" rel="noopener" style="${f.anexo_url ? '' : 'display:none'};text-decoration:none">↗ ver anexo</a>
+          </div>
+        </div>
         ${isLider ? `
           <div>
             <label class="tiny muted">Corretor responsável</label>
@@ -233,6 +243,21 @@ function showForm() {
   document.getElementById('ff-save').addEventListener('click', save);
   document.getElementById('ff-print').addEventListener('click', () => printFicha(collectForm()));
   document.getElementById('ff-wpp').addEventListener('click', () => shareWhatsApp(collectForm()));
+  const anx = document.getElementById('ff-anexo');
+  if (anx) anx.addEventListener('change', async () => {
+    const file = anx.files && anx.files[0]; if (!file) return;
+    const st = document.getElementById('ff-anexo-st');
+    if (file.size > 4 * 1024 * 1024) { if (st) st.textContent = '⚠️ máx 4MB'; anx.value = ''; return; }
+    if (st) st.textContent = '⏳ enviando…';
+    try {
+      const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+      const r = await api.request('/api/v3/upload_file', { method: 'POST', body: { folder: 'fichas', filename: file.name, content_b64: b64 } });
+      if (!r.ok || !r.url) throw new Error(r.error || 'falha no upload');
+      _editing.anexo_url = r.url;
+      if (st) { st.textContent = '✅ anexado'; st.classList.remove('muted'); }
+      const lk = document.getElementById('ff-anexo-link'); if (lk) { lk.href = r.url; lk.style.display = ''; }
+    } catch (e) { if (st) st.textContent = '⚠️ ' + e.message; }
+  });
 }
 
 // Lê os campos do formulário pro objeto da ficha (sem salvar)
@@ -311,6 +336,7 @@ async function save() {
     status: document.getElementById('ff-st').value,
     data_envio: document.getElementById('ff-env').value || null,
     data_resposta: document.getElementById('ff-res').value || null,
+    anexo_url: _editing?.anexo_url || null,
   };
   if (isLider) {
     payload.corretor_id = document.getElementById('ff-cor').value || null;
