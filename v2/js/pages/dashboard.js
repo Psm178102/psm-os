@@ -27,6 +27,127 @@ let _pendLimit = 50;       // quantos itens por página na lista
 // tipos que podem ser concluídos direto do Home (os demais abrem a aba)
 const CONCLUDABLE = { tarefa: 1, plantao: 1, criativo: 1, conteudo: 1, captacao: 1 };
 
+// ── Criar tarefa (pra si ou pra equipe, conforme hierarquia) ──
+let _taskModal = false;   // modal aberto?
+let _taskUsers = null;    // lista de usuários (lazy)
+let _taskBusy = false;    // salvando?
+let _taskMsg = '';        // feedback
+const ROLE_LVL = { socio: 10, diretor: 10, gerente: 7, backoffice: 6, lider: 5, financeiro: 4, marketing: 3, corretor: 2 };
+const lvlDe = u => (ROLE_LVL[String((u && u.role) || '').toLowerCase()] || 2);
+
+// Quem o usuário atual pode atribuir (mesma regra do backend _pode_atribuir):
+// sócio(≥10)→todos · gerente(≥7)→lvl<7 · líder(≥5)→própria equipe lvl<5 · demais→só si.
+function allowedAssignees() {
+  const me = auth.user() || {};
+  const lvl = me.lvl || ROLE_LVL[String(me.role || '').toLowerCase()] || 2;
+  const team = String(me.team || '').trim().toLowerCase();
+  const ativos = (_taskUsers || []).filter(u => (u.status || 'ativo') === 'ativo');
+  let list;
+  if (lvl >= 10) list = ativos;
+  else if (lvl >= 7) list = ativos.filter(u => lvlDe(u) < 7);
+  else if (lvl >= 5) list = ativos.filter(u => String(u.team || '').trim().toLowerCase() === team && lvlDe(u) < 5);
+  else list = [];
+  list = list.filter(u => u.id !== me.id).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  return [{ id: me.id, name: (me.name || 'Eu') + ' (você)' }, ...list];
+}
+
+async function openTaskModal() {
+  _taskModal = true; _taskMsg = '';
+  render();
+  if (!_taskUsers) {
+    try { const r = await api.listUsers(); _taskUsers = (r && r.users) || []; }
+    catch { _taskUsers = []; }
+    if (_taskModal) render();
+  }
+}
+
+async function saveNewTask() {
+  if (_taskBusy) return;
+  const g = id => document.getElementById(id);
+  const titulo = (g('nt-tit')?.value || '').trim();
+  if (!titulo) { _taskMsg = '⚠️ Título é obrigatório.'; render(); return; }
+  const me = auth.user() || {};
+  const body = {
+    titulo,
+    descricao: (g('nt-desc')?.value || '').trim() || null,
+    prioridade: g('nt-prio')?.value || 'media',
+    prazo: g('nt-prazo')?.value || null,
+    responsavel: g('nt-resp')?.value || me.id,
+    categoria: (g('nt-cat')?.value || '').trim() || null,
+    status: 'aberta',
+  };
+  _taskBusy = true; _taskMsg = '⏳ criando…'; render();
+  try {
+    await api.request('/api/v3/tasks/upsert', { method: 'POST', body });
+    const f = await api.request('/api/v3/tasks/feed').catch(() => null);
+    if (f) { _feed = f.items || _feed; _feedCounts = f.counts || _feedCounts; _feedProd = f.prod || _feedProd; }
+    _taskBusy = false; _taskModal = false; _taskMsg = '';
+    const paraOutro = body.responsavel && body.responsavel !== me.id;
+    render();
+    if (paraOutro) {
+      const nome = (allowedAssignees().find(u => u.id === body.responsavel) || {}).name || 'o responsável';
+      _toast(`✅ Tarefa criada e atribuída a ${nome.replace(' (você)', '')} (ele(a) foi notificado).`);
+    } else _toast('✅ Tarefa criada na sua lista.');
+  } catch (e) {
+    _taskBusy = false; _taskMsg = '⚠️ ' + (e.message || 'erro ao criar'); render();
+  }
+}
+
+function _toast(msg) {
+  try {
+    const d = document.createElement('div');
+    d.textContent = msg;
+    d.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 8px 28px rgba(0,0,0,.3);max-width:90vw';
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 4200);
+  } catch { /* noop */ }
+}
+
+function taskModalHTML() {
+  const opts = allowedAssignees().map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join('');
+  const loading = _taskUsers === null;
+  const hoje = _todayBRT();
+  return `
+  <div class="tl-overlay" data-nt-close="1" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:6vh 14px;overflow:auto">
+    <div class="card" style="max-width:480px;width:100%;margin:0" onclick="event.stopPropagation()">
+      <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 class="card-title" style="margin:0">➕ Nova tarefa</h3>
+        <button class="btn btn-ghost btn-sm" data-nt-close="1">✕</button>
+      </div>
+      <label class="tiny muted">Título *</label>
+      <input id="nt-tit" class="input" placeholder="Ex.: Ligar para o cliente X" style="margin-bottom:9px" autofocus>
+      <label class="tiny muted">Responsável</label>
+      <select id="nt-resp" class="input" style="margin-bottom:9px" ${loading ? 'disabled' : ''}>
+        ${loading ? '<option>⏳ carregando equipe…</option>' : opts}
+      </select>
+      <div class="flex gap-2" style="margin-bottom:9px">
+        <div style="flex:1">
+          <label class="tiny muted">Prioridade</label>
+          <select id="nt-prio" class="input">
+            <option value="baixa">🟢 Baixa</option>
+            <option value="media" selected>🟡 Média</option>
+            <option value="alta">🔴 Alta</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label class="tiny muted">Prazo</label>
+          <input id="nt-prazo" type="date" class="input" min="${hoje}">
+        </div>
+      </div>
+      <label class="tiny muted">Categoria (opcional)</label>
+      <input id="nt-cat" class="input" placeholder="Ex.: Vendas, Follow-up…" style="margin-bottom:9px">
+      <label class="tiny muted">Descrição (opcional)</label>
+      <textarea id="nt-desc" class="input" rows="3" placeholder="Detalhes da tarefa…" style="margin-bottom:6px"></textarea>
+      ${_taskMsg ? `<div class="tiny" style="margin-bottom:8px;color:${_taskMsg[0] === '⚠' ? '#dc2626' : '#64748b'}">${escapeHtml(_taskMsg)}</div>` : ''}
+      <div class="flex gap-2" style="justify-content:flex-end;margin-top:4px">
+        <button class="btn btn-ghost" data-nt-close="1">Cancelar</button>
+        <button class="btn btn-primary" data-nt-save="1" ${_taskBusy ? 'disabled' : ''}>${_taskBusy ? '⏳ Criando…' : '✅ Criar tarefa'}</button>
+      </div>
+      <div class="tiny muted" style="margin-top:8px">💡 Você pode atribuir a si mesmo ou a quem está sob sua gestão. Quem recebe é notificado.</div>
+    </div>
+  </div>`;
+}
+
 export async function pageDashboard(ctx, root) {
   _root = root;
   root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando seu painel…</div></div>';
@@ -278,6 +399,7 @@ function tarefasCard() {
           <button class="${_pendView === 'kanban' ? 'on' : ''}" data-pview="kanban">🗂 Kanban</button>
           <button class="${_pendView === 'lista' ? 'on' : ''}" data-pview="lista">📋 Lista</button>
         </div>
+        <button class="btn btn-primary tiny" data-newtask="1">➕ Nova tarefa</button>
         <a href="#/agenda" class="btn btn-ghost tiny">📅 Agenda</a>
         <a href="#/tarefas" class="btn btn-ghost tiny">🗂 Ver tudo</a>
       </div>
@@ -393,7 +515,19 @@ function render() {
         </div>
       </div>
     </div>
+    ${_taskModal ? taskModalHTML() : ''}
   `;
+  // ➕ nova tarefa (abre modal)
+  _root.querySelectorAll('[data-newtask]').forEach(b => b.addEventListener('click', openTaskModal));
+  // modal: fechar / salvar
+  _root.querySelectorAll('[data-nt-close]').forEach(b => b.addEventListener('click', () => {
+    _taskModal = false; _taskBusy = false; _taskMsg = ''; render();
+  }));
+  _root.querySelectorAll('[data-nt-save]').forEach(b => b.addEventListener('click', saveNewTask));
+  if (_taskModal) {
+    const tit = document.getElementById('nt-tit');
+    if (tit) { tit.focus(); tit.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveNewTask(); } }); }
+  }
   // navegação do planner mensal (‹ mês ›)
   _root.querySelectorAll('[data-pl-nav]').forEach(b => b.addEventListener('click', () => {
     _plOffset += parseInt(b.dataset.plNav, 10) || 0;

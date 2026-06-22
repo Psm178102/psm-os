@@ -22,7 +22,32 @@ import uuid
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit, notify, notify_all  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, notify, notify_all, lvl_of  # type: ignore
+
+
+def _pode_atribuir(sb, actor, resp_id):
+    """Hierarquia de atribuição: si mesmo sempre; sócio(>=10) a qualquer um;
+    gerente(>=7) a lvl<7; líder(>=5) à própria equipe (lvl<5); demais só a si."""
+    if not resp_id or resp_id == actor.get("id"):
+        return True
+    try:
+        urows = sb.table("users").select("id,role,team,status").execute().data or []
+    except Exception:
+        return False
+    by_id = {u.get("id"): u for u in urows}
+    ru = by_id.get(resp_id)
+    if not ru or (ru.get("status") or "ativo") != "ativo":
+        return False
+    au = by_id.get(actor.get("id")) or {}
+    al = actor.get("lvl") or lvl_of(au.get("role"))
+    rl = lvl_of(ru.get("role"))
+    if al >= 10:
+        return True
+    if al >= 7:
+        return rl < 7
+    if al >= 5:
+        return (ru.get("team") or "").strip().lower() == (au.get("team") or "").strip().lower() and rl < 5
+    return False
 
 
 def _safe_write(build, row):
@@ -119,6 +144,10 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(400, {"ok": False, "error": f"status inválido. Use: {sorted(ALLOWED_STATUS)}"})
             if "prioridade" in patch and patch["prioridade"] not in ALLOWED_PRIORIDADE:
                 return self._send(400, {"ok": False, "error": f"prioridade inválida. Use: {sorted(ALLOWED_PRIORIDADE)}"})
+            # 🔒 Hierarquia ao reatribuir
+            if "responsavel" in patch and patch["responsavel"] != cur.get("responsavel") \
+                    and not _pode_atribuir(sb, actor, patch.get("responsavel") or None):
+                return self._send(403, {"ok": False, "error": "Sem permissão pra atribuir a esse usuário (hierarquia)"})
 
             # Histórico
             history = cur.get("historico") or []
@@ -178,6 +207,10 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(400, {"ok": False, "error": "status inválido"})
             if prior not in ALLOWED_PRIORIDADE:
                 return self._send(400, {"ok": False, "error": "prioridade inválida"})
+
+            # 🔒 Hierarquia: só pode atribuir a si ou a quem está abaixo (regra _pode_atribuir).
+            if not _pode_atribuir(sb, actor, body.get("responsavel") or None):
+                return self._send(403, {"ok": False, "error": "Sem permissão pra atribuir a esse usuário (hierarquia)"})
 
             new_id = "t_" + uuid.uuid4().hex[:12]
             row = {
