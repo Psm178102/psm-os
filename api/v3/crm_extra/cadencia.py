@@ -7,6 +7,24 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
 
+def _clean_arquivos(arr):
+    """Anexos da cadência: lista ordenada de {nome,url,tipo,criado_em}. Ordem do array = ordem exibida."""
+    out = []
+    for a in (arr or [])[:80]:
+        if not isinstance(a, dict):
+            continue
+        url = str(a.get("url") or "").strip()[:1000]
+        if not url:
+            continue
+        out.append({
+            "nome": str(a.get("nome") or "arquivo")[:200],
+            "url": url,
+            "tipo": str(a.get("tipo") or "")[:60],
+            "criado_em": str(a.get("criado_em") or "")[:40],
+        })
+    return out
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
         self.send_response(s); self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -47,6 +65,7 @@ class handler(BaseHTTPRequestHandler):
             "nome": nome,
             "publico": (body.get("publico") or "").strip() or None,
             "passos": body.get("passos") or [],
+            "arquivos": _clean_arquivos(body.get("arquivos")),
             "ativa": bool(body.get("ativa", True)),
             "criado_por": actor.get("id"),
             "updated_at": datetime.now(timezone.utc).isoformat(),

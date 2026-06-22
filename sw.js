@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v81.12.0-2026-06-22-DASHCOMERCIAL';
+const SW_VERSION = 'v81.13.0-2026-06-22-CADENCIAANEXOS';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

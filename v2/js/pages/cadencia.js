@@ -13,12 +13,14 @@ const CAD_TEAMS = [
 let _root = null;
 let _items = [];
 let _editing = null;
+let _open = null;        // id da cadência aberta (modo detalhe com materiais embutidos)
+let _openFileIdx = 0;    // arquivo selecionado no visualizador
 
 const CANAIS = ['WhatsApp', 'Email', 'Ligação', 'Visita', 'SMS', 'Instagram'];
 const CANAL_ICO = { WhatsApp: '💬', Email: '📧', 'Ligação': '📞', Visita: '🚪', SMS: '📱', Instagram: '📸' };
 
 export async function pageCadencia(ctx, root) {
-  _root = root;
+  _root = root; _open = null; _editing = null; _openFileIdx = 0;
   if ((auth.user()?.lvl || 0) < 5) {
     root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder (lvl 5+).</div>';
     return;
@@ -64,7 +66,8 @@ async function load() {
   try {
     const r = await api.request('/api/v3/crm_extra/cadencia');
     _items = r.cadencias || [];
-    renderList();
+    if (_open && _items.find(c => c.id === _open)) renderDetail();
+    else { _open = null; renderList(); }
   } catch (e) {
     document.getElementById('cad-body').innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
   }
@@ -101,6 +104,9 @@ function renderList() {
       ${_items.map(c => cadCard(c)).join('')}
     </div>
   `;
+  body.querySelectorAll('[data-open-cad]').forEach(b => b.addEventListener('click', () => {
+    _open = b.dataset.openCad; _openFileIdx = 0; renderDetail();
+  }));
   body.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => {
     _editing = JSON.parse(JSON.stringify(_items.find(x => x.id === b.dataset.edit)));
     showForm();
@@ -136,6 +142,7 @@ function cadCard(c) {
           </div>
         `).join('')}
       </div>
+      <button class="btn btn-ghost btn-sm btn-block mt-2" data-open-cad="${c.id}">📎 Materiais (${(c.arquivos || []).length}) · abrir</button>
     </div>
   `;
 }
@@ -220,6 +227,127 @@ async function save() {
     _editing = null;
     await load();
   } catch (e) { alert('Erro: ' + e.message); }
+}
+
+/* ───────── DETALHE + MATERIAIS (anexos múltiplos, ordem lógica, render embutido) ───────── */
+const canEdit = () => (auth.user()?.lvl || 0) >= 5;
+
+function fileKind(nome) {
+  const ext = (String(nome || '').split('.').pop() || '').toLowerCase();
+  if (ext === 'pdf') return 'pdf';
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'].includes(ext)) return 'image';
+  if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv'].includes(ext)) return 'office';
+  return 'other';
+}
+const KIND_ICO = { pdf: '📕', image: '🖼', office: '📊', other: '📄' };
+// ordem lógica = natural sort por nome (1,2,…,10; D+0, D+1…); reordenável manualmente depois
+function natSort(arr) { return arr.slice().sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', { numeric: true, sensitivity: 'base' })); }
+function fileToB64(file) { return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); }); }
+
+function renderEmbed(a) {
+  const k = fileKind(a.nome), url = esc(a.url);
+  if (k === 'pdf') return `<iframe src="${url}" style="width:100%;height:74vh;border:1px solid var(--bd,#e5e7eb);border-radius:8px;background:#fff"></iframe>`;
+  if (k === 'image') return `<div style="text-align:center;background:var(--bg-3);border-radius:8px;padding:10px"><img src="${url}" alt="${esc(a.nome)}" style="max-width:100%;max-height:74vh;border-radius:6px"></div>`;
+  if (k === 'office') return `<iframe src="https://docs.google.com/viewer?url=${encodeURIComponent(a.url)}&embedded=true" style="width:100%;height:74vh;border:1px solid var(--bd,#e5e7eb);border-radius:8px;background:#fff"></iframe>`;
+  return `<div class="card" style="text-align:center;padding:30px"><div style="font-size:34px">📄</div><div class="muted tiny" style="margin:8px 0">Este tipo não tem visualização embutida.</div><a class="btn btn-primary btn-sm" href="${url}" target="_blank" rel="noopener">⬇️ Abrir / baixar ${esc(a.nome)}</a></div>`;
+}
+
+function renderDetail() {
+  const c = _items.find(x => x.id === _open);
+  const body = document.getElementById('cad-body');
+  if (!c || !body) { _open = null; return renderList(); }
+  const arqs = c.arquivos || [];
+  if (_openFileIdx >= arqs.length) _openFileIdx = 0;
+  const sel = arqs[_openFileIdx];
+  body.innerHTML = `
+    <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+      <button class="btn btn-ghost btn-sm" id="cad-back">← Voltar</button>
+      <button class="btn btn-ghost btn-sm" id="cad-editthis">✏️ Editar passos</button>
+    </div>
+    <div class="card" style="border-left:4px solid ${c.ativa ? '#22c55e' : '#64748b'};margin-bottom:12px">
+      <div style="font-weight:800;font-size:17px">${esc(c.nome)}</div>
+      <div class="tiny muted">${esc(c.publico || '—')} · ${c.ativa ? '🟢 Ativa' : '⚫ Pausada'} · ${(c.passos || []).length} passo(s)</div>
+    </div>
+
+    <div class="card">
+      <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <h3 class="card-title" style="margin:0">📎 Materiais da cadência <span class="tiny muted" style="font-weight:600">· ${arqs.length} arquivo(s) · ordem lógica</span></h3>
+          <p class="card-sub" style="margin:2px 0 0">Anexe vários arquivos — eles entram em ordem (nome) e abrem aqui dentro do sistema. PDF, imagem, Word, Excel.</p>
+        </div>
+        ${canEdit() ? `<label class="btn btn-primary btn-sm" style="cursor:pointer;margin:0">📥 Anexar arquivos<input type="file" id="cad-up" multiple style="display:none"></label>` : ''}
+      </div>
+      <div id="cad-up-msg" class="tiny" style="margin:6px 0;min-height:16px"></div>
+
+      ${arqs.length ? `
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px">
+          ${arqs.map((a, i) => `
+            <div class="flex" style="gap:4px;align-items:center;background:${i === _openFileIdx ? 'var(--psm-gold,#d4a843)' : 'var(--bg-3)'};color:${i === _openFileIdx ? '#000' : 'inherit'};border-radius:8px;padding:5px 8px;font-size:12px">
+              <button data-selfile="${i}" style="background:none;border:0;cursor:pointer;font-weight:700;color:inherit;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${KIND_ICO[fileKind(a.nome)]} ${i + 1}. ${esc(a.nome)}</button>
+              ${canEdit() ? `<button data-mvup="${i}" title="subir" ${i === 0 ? 'disabled' : ''} style="background:none;border:0;cursor:pointer;color:inherit">↑</button>
+              <button data-mvdn="${i}" title="descer" ${i === arqs.length - 1 ? 'disabled' : ''} style="background:none;border:0;cursor:pointer;color:inherit">↓</button>
+              <button data-delfile="${i}" title="remover" style="background:none;border:0;cursor:pointer;color:#dc2626">✕</button>` : ''}
+            </div>`).join('')}
+        </div>
+        ${sel ? renderEmbed(sel) : ''}
+      ` : `<div class="muted tiny" style="text-align:center;padding:30px">Nenhum material ainda${canEdit() ? ' — clique em “📥 Anexar arquivos”.' : '.'}</div>`}
+    </div>
+  `;
+  document.getElementById('cad-back').addEventListener('click', () => { _open = null; renderList(); });
+  document.getElementById('cad-editthis').addEventListener('click', () => { _editing = JSON.parse(JSON.stringify(c)); _open = null; showForm(); });
+  const up = document.getElementById('cad-up');
+  if (up) up.addEventListener('change', () => uploadArquivos(c, up));
+  body.querySelectorAll('[data-selfile]').forEach(b => b.addEventListener('click', () => { _openFileIdx = +b.dataset.selfile; renderDetail(); }));
+  body.querySelectorAll('[data-mvup]').forEach(b => b.addEventListener('click', () => moveArquivo(c, +b.dataset.mvup, -1)));
+  body.querySelectorAll('[data-mvdn]').forEach(b => b.addEventListener('click', () => moveArquivo(c, +b.dataset.mvdn, +1)));
+  body.querySelectorAll('[data-delfile]').forEach(b => b.addEventListener('click', () => delArquivo(c, +b.dataset.delfile)));
+}
+
+async function saveCad(c) {
+  const body = { id: c.id, nome: c.nome, publico: c.publico, ativa: c.ativa, passos: c.passos || [], arquivos: c.arquivos || [] };
+  const r = await api.request('/api/v3/crm_extra/cadencia', { method: 'POST', body });
+  const row = (r && r.row) || c;
+  const i = _items.findIndex(x => x.id === c.id);
+  if (i >= 0) _items[i] = row;
+  _open = row.id;
+  return row;
+}
+
+async function uploadArquivos(c, input) {
+  const files = [...(input.files || [])]; if (!files.length) return;
+  const msg = h => { const e = document.getElementById('cad-up-msg'); if (e) e.textContent = h; };
+  const novos = [];
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    if (f.size > 4 * 1024 * 1024) { msg(`⚠️ "${f.name}" tem ${(f.size / 1048576).toFixed(1)}MB (limite 4MB) — pulado.`); continue; }
+    msg(`⏳ enviando ${i + 1}/${files.length}: ${f.name}…`);
+    try {
+      const up = await api.request('/api/v3/upload_file', { method: 'POST', body: { folder: 'cadencia', filename: f.name, content_b64: await fileToB64(f) } });
+      if (up && up.ok && up.url) novos.push({ nome: f.name, url: up.url, tipo: fileKind(f.name), criado_em: new Date().toISOString() });
+      else msg('⚠️ falha em ' + f.name + (up && up.error ? ': ' + up.error : ''));
+    } catch (e) { msg('⚠️ ' + e.message); }
+  }
+  if (!novos.length) { input.value = ''; return; }
+  c.arquivos = natSort([...(c.arquivos || []), ...novos]);   // auto-organiza em ordem lógica
+  msg('⏳ salvando…');
+  try { await saveCad(c); _openFileIdx = 0; renderDetail(); }
+  catch (e) { msg('⚠️ ' + e.message); }
+  input.value = '';
+}
+
+async function moveArquivo(c, idx, dir) {
+  const arr = c.arquivos || []; const j = idx + dir;
+  if (j < 0 || j >= arr.length) return;
+  [arr[idx], arr[j]] = [arr[j], arr[idx]];
+  c.arquivos = arr;
+  try { await saveCad(c); _openFileIdx = j; renderDetail(); } catch (e) { alert('Erro: ' + e.message); }
+}
+
+async function delArquivo(c, idx) {
+  const arr = c.arquivos || [];
+  if (!confirm('Remover "' + (arr[idx]?.nome || '') + '" desta cadência?')) return;
+  arr.splice(idx, 1); c.arquivos = arr;
+  try { await saveCad(c); _openFileIdx = 0; renderDetail(); } catch (e) { alert('Erro: ' + e.message); }
 }
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
