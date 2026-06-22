@@ -46,6 +46,8 @@ def _read(sb):
                 "id": str(t.get("id") or ""),
                 "marca": t.get("marca") if t.get("marca") in MARCAS else "imoveis",
                 "categoria": str(t.get("categoria") or "")[:120],
+                "tipo": t.get("tipo") if t.get("tipo") in ("grade", "pdf") else "grade",
+                "pdf_url": str(t.get("pdf_url") or "")[:1000] or None,
                 "colunas": [str(c)[:200] for c in (t.get("colunas") or [])][:MAX_COLS],
                 "linhas": [[("" if c is None else str(c))[:500] for c in (r or [])[:MAX_COLS]]
                            for r in (t.get("linhas") or [])[:MAX_LINHAS] if isinstance(r, list)],
@@ -116,6 +118,8 @@ class handler(BaseHTTPRequestHandler):
                 rec = {
                     "id": str(t.get("id") or "") or ("tbl_" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")),
                     "marca": marca, "categoria": str(t.get("categoria") or "Sem categoria")[:120],
+                    "tipo": t.get("tipo") if t.get("tipo") in ("grade", "pdf") else "grade",
+                    "pdf_url": str(t.get("pdf_url") or "")[:1000] or None,
                     "colunas": colunas, "linhas": linhas,
                     "atualizado_em": datetime.now(timezone.utc).isoformat(), "por": actor.get("id"),
                 }

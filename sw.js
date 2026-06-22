@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v81.4.0-2026-06-20-DOCSDOWNLOAD';
+const SW_VERSION = 'v81.5.0-2026-06-20-TABELAABASPDF';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
