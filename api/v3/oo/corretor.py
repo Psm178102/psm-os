@@ -195,8 +195,8 @@ class handler(BaseHTTPRequestHandler):
             "fetched_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        # ── Visão de EQUIPE (só se o alvo é líder) — visível ao próprio líder e sócios ──
-        if (u.get("role") or "").lower() == "lider":
+        # ── Visão de EQUIPE (se o alvo é líder/gerente) — visível ao próprio gestor e sócios ──
+        if (u.get("role") or "").lower() in ("lider", "gerente"):
             can_team = (user.get("id") == cid) or ((user.get("lvl") or 0) >= 10)
             resp["team_allowed"] = bool(can_team)
             team = u.get("team")
@@ -205,7 +205,7 @@ class handler(BaseHTTPRequestHandler):
                     tkey = (team or "").strip().lower()
                     members = [m for m in (sb.table("users").select("id,name,email,role,team,ini,color,status").execute().data or [])
                                if (m.get("status") or "ativo") == "ativo"
-                               and (m.get("role") or "").lower() in ("corretor", "lider")
+                               and (m.get("role") or "").lower() in ("corretor", "lider", "gerente")
                                and (m.get("team") or "").strip().lower() == tkey]
                 except Exception:
                     members = []
@@ -272,7 +272,7 @@ class handler(BaseHTTPRequestHandler):
                     pass
                 membros = []
                 for m in members:
-                    if (m.get("role") or "").lower() == "lider":
+                    if (m.get("role") or "").lower() in ("lider", "gerente"):
                         continue  # o gestor não aparece como corretor da própria equipe
                     mm = broker_metrics(deals_by_owner.get(m.get("id"), []), tevents, meta_for_period(all_metas, m.get("id"), since_d, until_d), since_d, until_d, today, detail=True, stage_maps=stage_maps)
                     _fn = mm.get("funnel") or []

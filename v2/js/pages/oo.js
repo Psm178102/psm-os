@@ -42,8 +42,9 @@ async function loadList() {
 
 function renderList() {
   const cs = _ov?.corretores || [];
-  const gestores = cs.filter(c => c.role === 'lider');     // visão de EQUIPE
-  const corretores = cs.filter(c => c.role !== 'lider');   // individual
+  const isManager = (c) => ['lider', 'gerente'].includes((c.role || '').toLowerCase());
+  const gestores = cs.filter(isManager);          // gerente/líder: visão de EQUIPE
+  const corretores = cs.filter(c => !isManager(c)); // individual
   const totalVendas = corretores.reduce((a, c) => a + (c.vendas || 0), 0);
   const totalVgv = corretores.reduce((a, c) => a + (c.vgv || 0), 0);
   const atencao = corretores.filter(c => c.health_color === 'vermelho').length;
@@ -76,7 +77,7 @@ function brokerCard(c) {
         <div style="width:40px;height:40px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
         <div style="min-width:0;flex:1">
           <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || c.id)}${c.is_team ? ` <span class="tiny" style="background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:999px;font-weight:700">👥 equipe</span>` : ''}</div>
-          <div class="tiny muted">${escapeHtml(c.team || '—')} · ${c.role === 'lider' ? (c.is_team ? '🛡 Líder · agregado da equipe' : '🛡 Líder') : '🏠 Corretor'}</div>
+          <div class="tiny muted">${escapeHtml(c.team || '—')} · ${(() => { const r = (c.role || '').toLowerCase(); if (r === 'lider' || r === 'gerente') { const lbl = r === 'gerente' ? 'Gerente' : 'Líder'; return c.is_team ? `🛡 ${lbl} · agregado da equipe` : `🛡 ${lbl}`; } return '🏠 Corretor'; })()}</div>
         </div>
         <div style="text-align:center">${dot}<div style="font-size:10px;font-weight:700;color:${healthHex(c.health_color)}">${c.health}</div></div>
       </div>
@@ -107,8 +108,8 @@ async function loadDetail() {
 
 function renderDetail() {
   const d = _det, c = d.corretor;
-  // Líder/gestor = cockpit de GESTÃO da equipe (não é avaliado como corretor).
-  if ((c.role || '') === 'lider' && d.team && d.team.metrics) { renderGestor(d, c); return; }
+  // Líder/Gerente = cockpit de GESTÃO da equipe (não é avaliado como corretor).
+  if (['lider', 'gerente'].includes((c.role || '').toLowerCase()) && d.team && d.team.metrics) { renderGestor(d, c); return; }
   // Corretor = cockpit individual.
   _root.innerHTML = `
     <div class="card">
@@ -306,7 +307,7 @@ function detailHeader(d, c) {
       <div style="width:54px;height:54px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
       <div style="flex:1;min-width:180px">
         <div style="font-weight:800;font-size:18px">${escapeHtml(c.name || c.id)}</div>
-        <div class="tiny muted">${escapeHtml(c.team || '—')} · ${c.role === 'lider' ? '🛡 Líder' : '🏠 Corretor'} · período ${fmtD(d.period.since)}–${fmtD(d.period.until)}</div>
+        <div class="tiny muted">${escapeHtml(c.team || '—')} · ${(c.role || '').toLowerCase() === 'gerente' ? '🛡 Gerente' : ((c.role || '').toLowerCase() === 'lider' ? '🛡 Líder' : '🏠 Corretor')} · período ${fmtD(d.period.since)}–${fmtD(d.period.until)}</div>
       </div>
       <div style="text-align:center;padding:0 10px">
         <div style="font-size:34px;line-height:1">${healthEmoji(hc)}</div>

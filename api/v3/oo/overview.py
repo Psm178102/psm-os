@@ -81,7 +81,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(500, {"ok": False, "error": f"users: {e}"})
         team_f = (params.get("team") or "").strip().lower()
         people = [u for u in users
-                  if (u.get("role") or "").lower() in ("corretor", "lider")
+                  if (u.get("role") or "").lower() in ("corretor", "lider", "gerente")
                   and (u.get("status") or "ativo") == "ativo"
                   and (not team_f or (u.get("team") or "").lower() == team_f)]
 
@@ -136,10 +136,10 @@ class handler(BaseHTTPRequestHandler):
         out = []
         for u in people:
             cid = u.get("id")
-            is_lider = (u.get("role") or "").lower() == "lider"
-            # Líder vê o agregado da SUA equipe (e sócios veem de todos). Os demais
-            # enxergam o líder como individual (privacidade da visão de equipe).
-            show_team = is_lider and (is_socio or user.get("id") == cid)
+            is_manager = (u.get("role") or "").lower() in ("lider", "gerente")
+            # Líder/Gerente vê o agregado da SUA equipe (e sócios veem de todos). Os demais
+            # enxergam o gestor como individual (privacidade da visão de equipe).
+            show_team = is_manager and (is_socio or user.get("id") == cid)
             if show_team:
                 team_key = (u.get("team") or "").lower()
                 tmembers = members_by_team.get(team_key, [])

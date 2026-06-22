@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v81.21.0-2026-06-22-CAPTACAO';
+const SW_VERSION = 'v81.22.0-2026-06-22-OO-GERENTE';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
