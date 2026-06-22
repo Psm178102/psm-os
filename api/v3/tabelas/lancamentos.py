@@ -47,6 +47,8 @@ def _read(sb):
                 "marca": t.get("marca") if t.get("marca") in MARCAS else "imoveis",
                 "categoria": str(t.get("categoria") or "")[:120],
                 "vigencia": str(t.get("vigencia") or "")[:40],
+                "cor": (str(t.get("cor") or "")[:9] or None),
+                "ordem": (int(t["ordem"]) if str(t.get("ordem") or "").lstrip("-").isdigit() else None),
                 "tipo": t.get("tipo") if t.get("tipo") in ("grade", "pdf") else "grade",
                 "pdf_url": str(t.get("pdf_url") or "")[:1000] or None,
                 "colunas": [str(c)[:200] for c in (t.get("colunas") or [])][:MAX_COLS],
@@ -108,6 +110,13 @@ class handler(BaseHTTPRequestHandler):
             if action == "delete":
                 tid = str(body.get("id") or "")
                 tabelas = [t for t in tabelas if t["id"] != tid]
+            elif action == "reorder":
+                # body.ids = ordem desejada (lista de ids dentro de uma marca)
+                ids = [str(x) for x in (body.get("ids") or [])]
+                pos = {tid: i for i, tid in enumerate(ids)}
+                for t in tabelas:
+                    if t["id"] in pos:
+                        t["ordem"] = pos[t["id"]]
             else:  # save
                 t = body.get("tabela") or {}
                 marca = t.get("marca") if t.get("marca") in MARCAS else "imoveis"
@@ -116,10 +125,13 @@ class handler(BaseHTTPRequestHandler):
                 for r in (t.get("linhas") or [])[:MAX_LINHAS]:
                     if isinstance(r, list):
                         linhas.append([("" if c is None else str(c))[:500] for c in r[:MAX_COLS]])
+                _ord = t.get("ordem")
                 rec = {
                     "id": str(t.get("id") or "") or ("tbl_" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")),
                     "marca": marca, "categoria": str(t.get("categoria") or "Sem categoria")[:120],
                     "vigencia": str(t.get("vigencia") or "")[:40],
+                    "cor": (str(t.get("cor") or "")[:9] or None),
+                    "ordem": (int(_ord) if str(_ord if _ord is not None else "").lstrip("-").isdigit() else None),
                     "tipo": t.get("tipo") if t.get("tipo") in ("grade", "pdf") else "grade",
                     "pdf_url": str(t.get("pdf_url") or "")[:1000] or None,
                     "colunas": colunas, "linhas": linhas,

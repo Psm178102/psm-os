@@ -19,6 +19,8 @@ const MARCAS = [
   // PSM Imóveis = MAP — paleta AZUL (igual à planilha): header azul + linhas zebradas
   { id: 'imoveis', label: '🗺 PSM MAP', cor: '#5b7fb4', blue: true },
 ];
+// paleta de cores prontas pra colorir cada tabela (cor personalizada via seletor também)
+const SWATCHES = ['#dc2626', '#ea580c', '#d4a843', '#16a34a', '#0891b2', '#5b7fb4', '#2563eb', '#7c3aed', '#db2777', '#475569'];
 
 export async function pageTabelaImoveis(ctx, root, marcaFilter = null) {
   _root = root; _edit = null; _draft = null; _msg = ''; _renaming = null;
@@ -67,7 +69,9 @@ function render() {
 }
 
 function marcaSection(m) {
-  const tabs = _tabelas.filter(t => t.marca === m.id).sort((a, b) => (a.categoria || '').localeCompare(b.categoria || '', 'pt-BR'));
+  // ordem manual (campo ordem); sem ordem definida cai no fim, desempate por categoria
+  const ord = t => (t.ordem == null ? 9999 : t.ordem);
+  const tabs = _tabelas.filter(t => t.marca === m.id).sort((a, b) => (ord(a) - ord(b)) || (a.categoria || '').localeCompare(b.categoria || '', 'pt-BR'));
   const editingNew = _edit === ('new:' + m.id);
   return `
     <div class="mt-4" style="border-top:3px solid ${m.cor};border-radius:10px;padding-top:10px">
@@ -80,7 +84,7 @@ function marcaSection(m) {
         </div>` : ''}
       </div>
       ${editingNew ? editorCard(m.cor) : ''}
-      ${tabs.map(t => (_edit === t.id ? editorCard(m.cor) : viewCard(t, m))).join('')
+      ${tabs.map((t, i) => (_edit === t.id ? editorCard(m.cor) : viewCard(t, m, i, tabs.length))).join('')
         || (editingNew ? '' : `<div class="tiny muted" style="padding:6px 2px">Nenhuma tabela ainda${_canEdit ? ' — clique em ➕ Nova tabela.' : '.'}</div>`)}
     </div>`;
 }
@@ -94,28 +98,31 @@ function cellHTML(v) {
   return esc(s);
 }
 
-function viewCard(t, m) {
-  const cor = m.cor, blue = !!m.blue;
+function viewCard(t, m, idx, total) {
+  const cor = t.cor || m.cor;               // cor efetiva: a da tabela tem prioridade
+  const zebra = !!m.blue || !!t.cor;        // tabela colorida → linhas zebradas estilo planilha
   const isPdf = t.tipo === 'pdf' && t.pdf_url;
   const cols = t.colunas && t.colunas.length ? t.colunas : (t.linhas[0] || []).map((_, i) => 'Col ' + (i + 1));
-  // Paleta azul (MAP) → zebra claro + texto escuro; senão tema padrão do app
-  const cellTxt = blue ? 'color:#1f2d3d' : '';
+  const cellTxt = zebra ? 'color:#1f2d3d' : '';
   const head = `<thead><tr>${cols.map(c => `<th style="position:sticky;top:0;background:${cor};color:#fff;padding:7px 9px;font-size:11.5px;text-align:left;white-space:nowrap;z-index:1">${esc(c)}</th>`).join('')}</tr></thead>`;
-  const rowBg = (i) => blue ? `background:${i % 2 ? '#ffffff' : '#dce6f1'}` : '';
-  const body = `<tbody>${(t.linhas || []).map((r, ri) => `<tr style="border-bottom:1px solid ${blue ? '#c7d6ea' : 'var(--border)'};${rowBg(ri)}">${cols.map((_, i) => `<td style="padding:6px 9px;font-size:12px;white-space:nowrap;${cellTxt}">${cellHTML(r[i])}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  const rowBg = (i) => zebra ? `background:${i % 2 ? '#ffffff' : cor + '1a'}` : '';
+  const body = `<tbody>${(t.linhas || []).map((r, ri) => `<tr style="border-bottom:1px solid ${zebra ? cor + '40' : 'var(--border)'};${rowBg(ri)}">${cols.map((_, i) => `<td style="padding:6px 9px;font-size:12px;white-space:nowrap;${cellTxt}">${cellHTML(r[i])}</td>`).join('')}</tr>`).join('')}</tbody>`;
   const meta = isPdf ? '📄 PDF' : `${(t.linhas || []).length} linha(s)`;
   const renaming = _renaming === t.id;
+  const reorder = _canEdit && !_edit && !renaming && total > 1
+    ? `<span class="flex" style="gap:2px"><button class="btn btn-ghost btn-sm" data-tblup="${t.id}" title="subir" ${idx === 0 ? 'disabled' : ''} style="padding:1px 6px">↑</button><button class="btn btn-ghost btn-sm" data-tbldn="${t.id}" title="descer" ${idx === total - 1 ? 'disabled' : ''} style="padding:1px 6px">↓</button></span>`
+    : '';
   const titulo = renaming
     ? `<span class="flex gap-1" style="align-items:center">
          <input class="input" id="tl-rn" value="${esc(t.categoria || '')}" style="height:28px;font-size:13px;width:240px" placeholder="Nome da tabela">
          <button class="btn btn-primary btn-sm" data-rnsave="${t.id}">💾</button>
          <button class="btn btn-ghost btn-sm" data-rncancel="1">✕</button>
        </span>`
-    : `<b style="font-size:13px">${isPdf ? '📕' : '📋'} ${esc(t.categoria || 'Sem categoria')}${_canEdit && !_edit ? ` <button class="btn btn-ghost btn-sm" data-rename="${t.id}" title="Renomear" style="padding:1px 6px">✏️</button>` : ''}${t.vigencia ? ` <span style="background:${cor}22;color:${cor};font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap">📅 ${esc(t.vigencia)}</span>` : ''} <span class="tiny muted" style="font-weight:600">· ${meta} · ${fmtData(t.atualizado_em)}</span></b>`;
+    : `<b style="font-size:13px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cor};margin-right:5px;vertical-align:middle"></span>${isPdf ? '📕' : '📋'} ${esc(t.categoria || 'Sem categoria')}${_canEdit && !_edit ? ` <button class="btn btn-ghost btn-sm" data-rename="${t.id}" title="Renomear" style="padding:1px 6px">✏️</button>` : ''}${t.vigencia ? ` <span style="background:${cor}22;color:${cor};font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap">📅 ${esc(t.vigencia)}</span>` : ''} <span class="tiny muted" style="font-weight:600">· ${meta} · ${fmtData(t.atualizado_em)}</span></b>`;
   return `
-    <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:12px">
+    <div style="background:var(--bg-2);border:1px solid var(--border);border-left:4px solid ${cor};border-radius:10px;padding:10px;margin-bottom:12px">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
-        ${titulo}
+        <span class="flex gap-1" style="align-items:center">${reorder}${titulo}</span>
         <div class="flex gap-2" style="flex-wrap:wrap">
           ${!isPdf && (t.linhas || []).length ? `<input class="input" data-search="${t.id}" placeholder="🔍 buscar…" style="height:30px;font-size:12px;width:150px">` : ''}
           ${isPdf ? `<a class="btn btn-ghost btn-sm" href="${esc(t.pdf_url)}" target="_blank" rel="noopener" download>↓ Baixar PDF</a>` : ''}
@@ -126,7 +133,7 @@ function viewCard(t, m) {
       ${isPdf
         ? `<iframe src="${esc(t.pdf_url)}" style="width:100%;height:72vh;border:1px solid var(--border);border-radius:8px;background:#fff"></iframe>`
         : ((t.linhas || []).length
-          ? `<div data-tablewrap="${t.id}" style="max-height:64vh;overflow:auto;border:1px solid ${blue ? '#c7d6ea' : 'var(--border)'};border-radius:8px${blue ? ';background:#fff' : ''}"><table style="border-collapse:collapse;width:100%;min-width:max-content">${head}${body}</table></div>`
+          ? `<div data-tablewrap="${t.id}" style="max-height:64vh;overflow:auto;border:1px solid ${zebra ? cor + '40' : 'var(--border)'};border-radius:8px${zebra ? ';background:#fff' : ''}"><table style="border-collapse:collapse;width:100%;min-width:max-content">${head}${body}</table></div>`
           : `<div class="tiny muted" style="padding:8px">Tabela vazia${_canEdit ? ' — clique em ✏️ Editar pra adicionar linhas.' : '.'}</div>`)}
     </div>`;
 }
@@ -155,6 +162,10 @@ function editorCard(cor) {
           <input class="input" id="tl-cat" value="${esc(d.categoria)}" placeholder="ex.: MAP, Alto Padrão" style="height:30px;font-size:13px;width:200px">
           <span class="tiny muted" style="font-weight:800">📅 Vigência:</span>
           <input class="input" id="tl-vig" value="${esc(d.vigencia || '')}" placeholder="ex.: 05/2026, Maio/26" style="height:30px;font-size:13px;width:140px">
+          <span class="tiny muted" style="font-weight:800">🎨 Cor:</span>
+          ${SWATCHES.map(s => `<button type="button" data-cor="${s}" title="${s}" style="width:22px;height:22px;border-radius:6px;background:${s};border:2px solid ${(d.cor || '') === s ? '#111' : 'transparent'};cursor:pointer"></button>`).join('')}
+          <input type="color" id="tl-cor" value="${esc(d.cor || cor)}" title="cor personalizada" style="width:32px;height:26px;padding:0;border:0;background:none;cursor:pointer">
+          <button type="button" class="btn btn-ghost btn-sm" data-cor="" title="usar a cor da marca" style="padding:2px 8px">cor da marca</button>
         </div>
         <div class="flex gap-2" style="flex-wrap:wrap">
           <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0">📥 Importar xlsx<input type="file" id="tl-import" accept=".xlsx,.xls,.csv" style="display:none"></label>
@@ -180,6 +191,7 @@ function syncDraft() {
   if (!_draft) return;
   const cat = document.getElementById('tl-cat'); if (cat) _draft.categoria = cat.value;
   const vig = document.getElementById('tl-vig'); if (vig) _draft.vigencia = vig.value;
+  // _draft.cor é mantido pelos handlers de swatch / seletor de cor (abaixo, no wire)
   _root.querySelectorAll('[data-h]').forEach(inp => { _draft.colunas[+inp.dataset.h] = inp.value; });
   _root.querySelectorAll('[data-r][data-c]').forEach(inp => { const ri = +inp.dataset.r, ci = +inp.dataset.c; if (_draft.linhas[ri]) _draft.linhas[ri][ci] = inp.value; });
 }
@@ -187,11 +199,17 @@ function syncDraft() {
 function wire() {
   _root.querySelectorAll('[data-new]').forEach(b => b.onclick = () => {
     _edit = 'new:' + b.dataset.new;
-    _draft = { id: '', marca: b.dataset.new, categoria: '', vigencia: '', colunas: ['Coluna 1', 'Coluna 2'], linhas: [['', '']] };
+    _draft = { id: '', marca: b.dataset.new, categoria: '', vigencia: '', cor: '', ordem: proximaOrdem(b.dataset.new), colunas: ['Coluna 1', 'Coluna 2'], linhas: [['', '']] };
     render();
   });
   _root.querySelectorAll('[data-importall]').forEach(inp => inp.addEventListener('change', () => importAllSheets(inp.dataset.importall, inp)));
   _root.querySelectorAll('[data-pdf]').forEach(inp => inp.addEventListener('change', () => attachPdf(inp.dataset.pdf, inp)));
+  // 🎨 cor da tabela (swatch / cor personalizada / cor da marca)
+  _root.querySelectorAll('[data-cor]').forEach(b => b.addEventListener('click', () => { if (!_draft) return; syncDraft(); _draft.cor = b.dataset.cor || ''; render(); }));
+  const cc = document.getElementById('tl-cor'); if (cc) cc.addEventListener('input', () => { if (_draft) _draft.cor = cc.value; });
+  // ↑↓ reordenar tabelas
+  _root.querySelectorAll('[data-tblup]').forEach(b => b.onclick = () => moveTabela(b.dataset.tblup, -1));
+  _root.querySelectorAll('[data-tbldn]').forEach(b => b.onclick = () => moveTabela(b.dataset.tbldn, +1));
   // rename inline do título da tabela
   _root.querySelectorAll('[data-rename]').forEach(b => b.onclick = () => { _renaming = b.dataset.rename; render(); const i = document.getElementById('tl-rn'); if (i) { i.focus(); i.select(); } });
   _root.querySelectorAll('[data-rncancel]').forEach(b => b.onclick = () => { _renaming = null; render(); });
@@ -200,7 +218,7 @@ function wire() {
   if (rn) rn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); renameTable(_renaming); } else if (e.key === 'Escape') { _renaming = null; render(); } });
   _root.querySelectorAll('[data-edittbl]').forEach(b => b.onclick = () => {
     const t = _tabelas.find(x => x.id === b.dataset.edittbl); if (!t) return;
-    _draft = JSON.parse(JSON.stringify({ id: t.id, marca: t.marca, categoria: t.categoria, vigencia: t.vigencia || '', colunas: t.colunas.slice(), linhas: (t.linhas || []).map(r => r.slice()) }));
+    _draft = JSON.parse(JSON.stringify({ id: t.id, marca: t.marca, categoria: t.categoria, vigencia: t.vigencia || '', cor: t.cor || '', ordem: (t.ordem == null ? null : t.ordem), colunas: t.colunas.slice(), linhas: (t.linhas || []).map(r => r.slice()) }));
     if (!_draft.colunas.length) _draft.colunas = ['Coluna 1'];
     _edit = t.id; render();
   });
@@ -271,6 +289,7 @@ async function renameTable(id) {
   if (!novo) { alert('Dê um nome à tabela.'); return; }
   const tabela = {
     id: t.id, marca: t.marca, categoria: novo, vigencia: t.vigencia || '',
+    cor: t.cor || '', ordem: (t.ordem == null ? null : t.ordem),
     tipo: t.tipo || 'grade', pdf_url: t.pdf_url || null,
     colunas: t.colunas || [], linhas: t.linhas || [],
   };
@@ -278,6 +297,28 @@ async function renameTable(id) {
     const r = await api.request('/api/v3/tabelas/lancamentos', { method: 'POST', body: { action: 'save', tabela } });
     _tabelas = r.tabelas || _tabelas; _renaming = null; render();
   } catch (e) { alert('Erro ao renomear: ' + e.message); }
+}
+
+// próxima posição (vai pro fim da marca)
+function proximaOrdem(marca) {
+  const os = _tabelas.filter(t => t.marca === marca).map(t => (t.ordem == null ? -1 : t.ordem));
+  return (os.length ? Math.max(...os) : -1) + 1;
+}
+
+// move uma tabela ↑/↓ dentro da marca e persiste a nova ordem (ação reorder)
+async function moveTabela(id, dir) {
+  const t = _tabelas.find(x => x.id === id); if (!t) return;
+  const ord = x => (x.ordem == null ? 9999 : x.ordem);
+  const lista = _tabelas.filter(x => x.marca === t.marca)
+    .sort((a, b) => (ord(a) - ord(b)) || (a.categoria || '').localeCompare(b.categoria || '', 'pt-BR'));
+  const i = lista.findIndex(x => x.id === id), j = i + dir;
+  if (j < 0 || j >= lista.length) return;
+  [lista[i], lista[j]] = [lista[j], lista[i]];
+  const ids = lista.map(x => x.id);
+  try {
+    const r = await api.request('/api/v3/tabelas/lancamentos', { method: 'POST', body: { action: 'reorder', marca: t.marca, ids } });
+    _tabelas = r.tabelas || _tabelas; render();
+  } catch (e) { const mm = document.getElementById('tl-msg'); if (mm) mm.textContent = '⚠️ ' + e.message; }
 }
 
 function fileToB64(file) {
@@ -328,7 +369,7 @@ async function importAllSheets(marca, input) {
       if (!linhas.length && colunas.every(c => !c.trim())) continue;
       const cat = String(sheetName).trim() || ('Aba ' + (n + 1));
       const ex = _tabelas.find(t => t.marca === marca && t.tipo !== 'pdf' && (t.categoria || '').toLowerCase() === cat.toLowerCase());
-      const r = await api.request('/api/v3/tabelas/lancamentos', { method: 'POST', body: { action: 'save', tabela: { id: ex ? ex.id : '', marca, categoria: cat, vigencia: ex ? (ex.vigencia || '') : '', tipo: 'grade', colunas, linhas } } });
+      const r = await api.request('/api/v3/tabelas/lancamentos', { method: 'POST', body: { action: 'save', tabela: { id: ex ? ex.id : '', marca, categoria: cat, vigencia: ex ? (ex.vigencia || '') : '', cor: ex ? (ex.cor || '') : '', ordem: ex ? (ex.ordem == null ? null : ex.ordem) : proximaOrdem(marca), tipo: 'grade', colunas, linhas } } });
       _tabelas = r.tabelas || _tabelas; n++;
       setMsg(`⏳ importando… ${n} aba(s)`);
     }
@@ -347,7 +388,7 @@ async function attachPdf(marca, input) {
     const up = await api.request('/api/v3/upload_file', { method: 'POST', body: { folder: 'tabelas', filename: file.name, content_b64: await fileToB64(file) } });
     if (!up.ok || !up.url) throw new Error(up.error || 'falha no upload');
     const cat = file.name.replace(/\.pdf$/i, '');
-    const r = await api.request('/api/v3/tabelas/lancamentos', { method: 'POST', body: { action: 'save', tabela: { id: '', marca, categoria: cat, tipo: 'pdf', pdf_url: up.url, colunas: [], linhas: [] } } });
+    const r = await api.request('/api/v3/tabelas/lancamentos', { method: 'POST', body: { action: 'save', tabela: { id: '', marca, categoria: cat, ordem: proximaOrdem(marca), tipo: 'pdf', pdf_url: up.url, colunas: [], linhas: [] } } });
     _tabelas = r.tabelas || _tabelas;
     await load(); render();
     setMsg('✅ PDF anexado e exibido.');
