@@ -24,15 +24,18 @@ export function initNotifs() {
   const btn = document.getElementById('btn-notif');
   if (!btn) return;
   btn.addEventListener('click', toggleDrawer);
-  // Poll a cada 60s
+  // Poll a cada 30s (tempo real entre devices)
   refresh();
   if (_pollTimer) clearInterval(_pollTimer);
-  _pollTimer = setInterval(refresh, 60000);
+  _pollTimer = setInterval(refresh, 30000);
 }
 
 export function teardownNotifs() {
   if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
 }
+
+// Atualização sob demanda (ex.: ao focar a aba) — usada pelo refresh global. v81.26
+export function refreshNotifs() { return refresh().catch(() => {}); }
 
 async function refresh() {
   try {

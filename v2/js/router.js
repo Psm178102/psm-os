@@ -5,8 +5,10 @@
 const routes = new Map(); // path -> { render: async fn(ctx) }
 let mountEl = null;
 let currentPath = null;
+let currentQuery = {};    // query da rota atual (pra re-render fiel no refresh)
 let guardFn = null; // (path) => boolean : false bloqueia a rota
 let cleanups = []; // fns p/ limpar timers/estado da rota atual ao trocar de rota
+let _refreshing = false;
 
 export const router = {
   mount(el) { mountEl = el; window.addEventListener('hashchange', tick); tick(); },
@@ -18,6 +20,30 @@ export const router = {
   onCleanup(fn) { if (typeof fn === 'function') cleanups.push(fn); },
   go(path)  { location.hash = path.startsWith('#') ? path : '#' + path; },
   current() { return currentPath; },
+  // 🔄 Re-renderiza a ROTA ATUAL re-buscando os dados (tempo real entre devices).
+  // quiet=true → sem spinner e preservando o scroll (refresh de fundo, sem "piscar").
+  async refresh(opts = {}) {
+    const quiet = !!opts.quiet;
+    if (!mountEl || currentPath == null || _refreshing) return;
+    if (guardFn && currentPath !== '/' && !guardFn(currentPath)) return;
+    const route = routes.get(currentPath) || routes.get('*');
+    if (!route) return;
+    _refreshing = true;
+    if (cleanups.length) { const cs = cleanups.splice(0); cs.forEach(fn => { try { fn(); } catch (_) {} }); }
+    const sy = window.scrollY || 0;
+    const root = document.createElement('div');
+    root.className = 'route-root';
+    if (!quiet) root.innerHTML = '<div class="flex items-center gap-2 muted"><span class="spinner"></span> Atualizando…</div>';
+    mountEl.replaceChildren(root);
+    try {
+      await route.render({ path: currentPath, query: { ...currentQuery } }, root);
+      if (quiet) { try { window.scrollTo(0, sy); } catch (_) {} }
+    } catch (e) {
+      root.innerHTML = '<div class="alert alert-err">Erro ao atualizar: ' + (e.message || e) + '</div>';
+    } finally {
+      _refreshing = false;
+    }
+  },
 };
 
 async function tick() {
@@ -27,6 +53,7 @@ async function tick() {
   const hash = (location.hash || '#/').replace(/^#/, '') || '/';
   const [path, query] = hash.split('?');
   currentPath = path;
+  currentQuery = Object.fromEntries(new URLSearchParams(query || ''));
   // 🔝 volta ao topo a cada navegação — sem isso, vindo de uma página rolada, telas
   // curtas (Imóveis, Mapa, etc.) apareciam EM BRANCO (conteúdo ficava acima da viewport).
   try {

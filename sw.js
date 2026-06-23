@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v81.25.0-2026-06-22-PERMSROBUSTO';
+const SW_VERSION = 'v81.26.0-2026-06-22-TEMPOREAL';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

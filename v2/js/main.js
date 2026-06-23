@@ -25,7 +25,7 @@ import { pageCriativos } from './pages/criativos.js';
 import { pageEstrategia } from './pages/estrategia.js';
 import { pageAcademy } from './pages/academy.js';
 import { pageAcademyStudio } from './pages/academy-studio.js';
-import { initNotifs } from './notifs.js';
+import { initNotifs, refreshNotifs } from './notifs.js';
 import { sounds } from './sounds.js';
 import { pageConfiguracoes } from './pages/configuracoes.js';
 import { pageLogins } from './pages/logins.js';
@@ -42,7 +42,7 @@ import { pageSacIncorporadoras } from './pages/sac-incorporadoras.js';
 import { pageSistemasIncorporadoras } from './pages/sistemas-incorporadoras.js';
 import { initSearch } from './search.js';
 import { pageQualidade } from './pages/qualidade.js';
-import { initTimeline } from './timeline.js';
+import { initTimeline, reloadTimeline } from './timeline.js';
 import { pageReunioes } from './pages/reunioes.js';
 import { pageArena } from './pages/arena.js';
 import { pageForecast } from './pages/forecast.js';
@@ -313,7 +313,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.25.0';
+const APP_VERSION = '81.26.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -567,9 +567,39 @@ const APP_VERSION = '81.25.0';
     // Re-aplica permissões ao voltar pra aba: se o sócio mudou a matriz do papel,
     // o menu atualiza sozinho sem precisar recarregar/deslogar. v81.25
     loadRolePerms().then(() => applyPermissions(user)).catch(() => {});
+    // ⚡ TEMPO REAL: ao focar a aba (trocou de device, desbloqueou o cel), atualiza
+    // a página atual + sino + recados na hora — todo login vê o estado mais novo. v81.26
+    try { router.refresh(); } catch (_) {}
+    try { refreshNotifs(); } catch (_) {}
+    try { reloadTimeline(); } catch (_) {}
   });
   document.getElementById('app-ver')?.addEventListener('click', () => checkVersion(true));
+
+  // ⚡ TEMPO REAL (contínuo): com a aba visível e o usuário OCIOSO, atualiza a página
+  // em silêncio (sem piscar, preservando o scroll). Não roda enquanto digita, com modal
+  // aberto, ou se houve interação nos últimos 30s — pra não atrapalhar o uso. v81.26
+  initLiveRefresh();
 })();
+
+function initLiveRefresh() {
+  let lastInteract = Date.now();
+  const bump = () => { lastInteract = Date.now(); };
+  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev =>
+    document.addEventListener(ev, bump, { passive: true }));
+  const isTyping = () => {
+    const el = document.activeElement; if (!el) return false;
+    const t = (el.tagName || '').toUpperCase();
+    return t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT' || el.isContentEditable === true;
+  };
+  const modalOpen = () => !!document.querySelector(
+    '.modal.open, .modal[style*="flex"], .modal[style*="block"], .overlay.open, dialog[open], [data-modal="open"]');
+  setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
+    if (isTyping() || modalOpen()) return;
+    if (Date.now() - lastInteract < 30000) return;   // só quando ocioso ≥30s
+    try { router.refresh({ quiet: true }); } catch (_) {}
+  }, 45000);
+}
 
 // ─── Shell ─────────────────────────────────────────────────────────────
 function shellHTML(user) {

@@ -34,8 +34,11 @@ export async function initTimeline() {
   if (!_bar) return;
   await load();
   // re-checa de tempo em tempo (recados novos de outros sócios + expiração)
-  setInterval(() => load().catch(() => {}), 120000);
+  setInterval(() => load().catch(() => {}), 60000);
 }
+
+// Recarrega os recados sob demanda (ex.: ao focar a aba). v81.26
+export function reloadTimeline() { return load().catch(() => {}); }
 
 async function load() {
   try {
