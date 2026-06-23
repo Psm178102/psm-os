@@ -315,7 +315,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.29.0';
+const APP_VERSION = '81.30.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -562,13 +562,22 @@ const APP_VERSION = '81.29.0';
 
   // 10) Checagem de versão: avisa na hora se a aba está com código antigo,
   //     re-checa ao voltar pra aba, e o rodapé "House PSM · vX" checa sob clique.
+  // ⚡ Re-aplica as PERMISSÕES DO MENU ao vivo. Quando o sócio muda a matriz de um
+  // papel, o pulso/WebSocket chamam isto e o menu de TODOS os logins daquele papel
+  // se ajusta sozinho — sem reload, sem deslogar. Throttle 5s (perms mudam pouco). v81.30
+  let _lastPermApply = 0;
+  window.__psmApplyPerms = (force) => {
+    const now = Date.now();
+    if (!force && now - _lastPermApply < 5000) return;
+    _lastPermApply = now;
+    loadRolePerms().then(() => applyPermissions(user)).catch(() => {});
+  };
+
   checkVersion();
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) return;
     if (!_verWarned) checkVersion();
-    // Re-aplica permissões ao voltar pra aba: se o sócio mudou a matriz do papel,
-    // o menu atualiza sozinho sem precisar recarregar/deslogar. v81.25
-    loadRolePerms().then(() => applyPermissions(user)).catch(() => {});
+    window.__psmApplyPerms(true);   // re-aplica perms do menu ao focar (force)
     // ⚡ TEMPO REAL: ao focar a aba (trocou de device, desbloqueou o cel), atualiza
     // a página atual + sino + recados na hora — todo login vê o estado mais novo. v81.26
     try { router.refresh(); } catch (_) {}

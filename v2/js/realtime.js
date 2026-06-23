@@ -36,6 +36,7 @@ function applyRefresh() {
   try { router.refresh({ quiet: true }); } catch (_) {}
   try { refreshNotifs(); } catch (_) {}
   try { reloadTimeline(); } catch (_) {}
+  try { window.__psmApplyPerms && window.__psmApplyPerms(); } catch (_) {}  // menu ao vivo c/ mudança de permissão
 }
 function schedule() { clearTimeout(_t); _t = setTimeout(applyRefresh, 250); }  // debounce rajadas
 

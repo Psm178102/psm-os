@@ -50,4 +50,5 @@ async function tick() {
   try { router.refresh({ quiet: true }); } catch (_) {}
   try { refreshNotifs(); } catch (_) {}
   try { reloadTimeline(); } catch (_) {}
+  try { window.__psmApplyPerms && window.__psmApplyPerms(); } catch (_) {}  // menu ao vivo c/ mudança de permissão
 }
