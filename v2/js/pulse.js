@@ -33,6 +33,11 @@ export function initPulse() {
 
 async function tick() {
   if (document.visibilityState !== 'visible') return;
+  // Auto-atualiza versão antiga quando OCIOSO (sem digitar/modal, 20s parado) — converge
+  // todos os clientes pro código novo sem depender de navegação/clique. v81.32
+  if (window.__psmUpdateReady && window.__psmDoUpdate && !isTyping() && !modalOpen() && (Date.now() - _last > 20000)) {
+    window.__psmDoUpdate(); return;
+  }
   // Se o WebSocket (realtime.js) está conectado, o pulso vira só REDE DE SEGURANÇA
   // (a cada ~25s) — o push <1s já cobre o tempo real. Sem socket, mantém os 6s.
   const minGap = window.__psmRT ? 25000 : 0;

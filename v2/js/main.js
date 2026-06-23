@@ -315,7 +315,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.31.0';
+const APP_VERSION = '81.32.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -568,7 +568,7 @@ const APP_VERSION = '81.31.0';
   //   • matriz de permissões por papel (quais abas o cargo vê/usa)
   //   • nomes/renomeações de itens do menu (config-menu)
   // e re-aplica a barra lateral. Throttle 5s (config muda pouco). v81.31
-  let _lastPermApply = 0;
+  let _lastPermApply = 0, _permsSig = null;
   window.__psmApplyPerms = (force) => {
     const now = Date.now();
     if (!force && now - _lastPermApply < 5000) return;
@@ -576,6 +576,15 @@ const APP_VERSION = '81.31.0';
     (async () => {
       try { const fresh = await auth.hydrate(); if (fresh) Object.assign(user, fresh); } catch (_) {}
       try { await loadRolePerms(); } catch (_) {}
+      // À PROVA DE FALHA: se a permissão EFETIVA deste usuário mudou (papel, nível,
+      // override ou a matriz do papel dele), faz um RELOAD limpo — garante o menu
+      // 100% certo, imune a qualquer detalhe de re-render. Perms mudam pouco. v81.32
+      try {
+        const role = (user.role || '').toLowerCase();
+        const sig = JSON.stringify([role, user.lvl, user.menu_groups || null, _rolePerms[role] || null]);
+        if (_permsSig !== null && sig !== _permsSig) { location.reload(); return; }
+        _permsSig = sig;
+      } catch (_) {}
       try { applyPermissions(user); } catch (_) {}
       try { loadMenuLabels(); } catch (_) {}
     })();
@@ -951,6 +960,9 @@ async function checkVersion(announce) {
     if (v && v.version && v.version !== APP_VERSION) {
       _verWarned = true;
       _updatePending = v.version;
+      // Expõe pro pulso auto-atualizar clientes OCIOSOS (converge todos pro código
+      // novo sem depender de navegação/clique — fim da fragmentação de versão). v81.32
+      try { window.__psmUpdateReady = true; window.__psmDoUpdate = doUpdate; } catch (_) {}
       showUpdateBanner(v.version);
       maybeAutoUpdate();   // aplica sozinho na próxima navegação (trava anti-loop)
       return false;
