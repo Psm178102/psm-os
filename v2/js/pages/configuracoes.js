@@ -219,6 +219,13 @@ function renderPermEditor() {
 function _setEq(a, b) { if (a.size !== b.size) return false; for (const x of a) if (!b.has(x)) return false; return true; }
 
 async function savePerms() {
+  // Fonte da verdade = as checkboxes REAIS na tela do papel em edição. Garante que
+  // nada que você marcou seja perdido por dessincronia de estado interno. v81.25
+  if (document.querySelector('input[data-perm-route]')) {
+    _permState[_permRole] = new Set(
+      [...document.querySelectorAll('input[data-perm-route]:checked')].map(cb => cb.dataset.permRoute)
+    );
+  }
   // Higiene: só rotas que EXISTEM como item de menu (catálogo) e que o NÍVEL do
   // papel alcança. Evita "marquei e não funciona" — rota morta/renomeada ou item
   // travado por nível ficavam salvos sem efeito. v81.24

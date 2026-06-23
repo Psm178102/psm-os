@@ -313,7 +313,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.24.0';
+const APP_VERSION = '81.25.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -561,7 +561,13 @@ const APP_VERSION = '81.24.0';
   // 10) Checagem de versão: avisa na hora se a aba está com código antigo,
   //     re-checa ao voltar pra aba, e o rodapé "House PSM · vX" checa sob clique.
   checkVersion();
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && !_verWarned) checkVersion(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    if (!_verWarned) checkVersion();
+    // Re-aplica permissões ao voltar pra aba: se o sócio mudou a matriz do papel,
+    // o menu atualiza sozinho sem precisar recarregar/deslogar. v81.25
+    loadRolePerms().then(() => applyPermissions(user)).catch(() => {});
+  });
   document.getElementById('app-ver')?.addEventListener('click', () => checkVersion(true));
 })();
 
