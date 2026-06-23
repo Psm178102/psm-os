@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v81.30.0-2026-06-22-PERMSLIVE';
+const SW_VERSION = 'v81.31.0-2026-06-22-LIVESYNC';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 
