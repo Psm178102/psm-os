@@ -315,7 +315,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.32.0';
+const APP_VERSION = '81.33.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -591,6 +591,9 @@ const APP_VERSION = '81.32.0';
   };
 
   checkVersion();
+  // ⚡ Checa versão a cada 20s: assim que um deploy sai, TODOS os logins detectam e
+  // são FORÇADOS a recarregar juntos — sem depender de foco/navegação/clique. v81.33
+  setInterval(() => { if (!_verWarned) checkVersion(); }, 20000);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) return;
     if (!_verWarned) checkVersion();
@@ -944,6 +947,7 @@ function showUpdateBanner(newVer) {
 }
 
 async function doUpdate() {
+  if (window.__psmUpdating) return; window.__psmUpdating = true;
   const go = document.getElementById('upd-go');
   if (go) { go.textContent = 'Atualizando…'; go.disabled = true; }
   try {
@@ -954,17 +958,31 @@ async function doUpdate() {
   try { location.reload(true); } catch (_) { location.reload(); }
 }
 
+// ⚡ ATUALIZAÇÃO FORÇADA: saiu versão nova → TODOS os logins recarregam sozinhos (sem
+// modal, sem clicar, sem navegar). Só espera o usuário parar de digitar pra não perder
+// texto de formulário — e mesmo assim força em no máximo ~60s. v81.33
+let _forceTries = 0;
+function forceUpdateSoon() {
+  if (window.__psmUpdating || window.__psmForcing) return;
+  window.__psmForcing = true;
+  const tryNow = () => {
+    const el = document.activeElement;
+    const typing = !!el && (['INPUT', 'TEXTAREA', 'SELECT'].includes((el.tagName || '').toUpperCase()) || el.isContentEditable === true);
+    if (typing && _forceTries < 15) { _forceTries++; setTimeout(tryNow, 4000); return; }
+    doUpdate();
+  };
+  setTimeout(tryNow, 1500);
+}
+
 async function checkVersion(announce) {
   try {
     const v = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json());
     if (v && v.version && v.version !== APP_VERSION) {
       _verWarned = true;
       _updatePending = v.version;
-      // Expõe pro pulso auto-atualizar clientes OCIOSOS (converge todos pro código
-      // novo sem depender de navegação/clique — fim da fragmentação de versão). v81.32
       try { window.__psmUpdateReady = true; window.__psmDoUpdate = doUpdate; } catch (_) {}
-      showUpdateBanner(v.version);
-      maybeAutoUpdate();   // aplica sozinho na próxima navegação (trava anti-loop)
+      showUpdateBanner(v.version);   // mostra "Atualizando…" (informativo)
+      forceUpdateSoon();             // ⚡ FORÇA o reload em TODOS os logins — não depende de clique/navegação. v81.33
       return false;
     }
     if (announce) alert('✅ Tudo certo! Você está na versão mais recente (v' + APP_VERSION + ').');
