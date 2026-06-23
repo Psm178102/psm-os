@@ -2,10 +2,12 @@
 POST /api/v3/users/menu_access — concede/revoga acesso a GRUPOS ou ROTAS específicas
 no menu de um usuário (coluna users.menu_groups, allowlist por usuário). v77.70
 
-Body: { "id": "<user_id>", "add": ["/criativos", ...], "remove": [...], "set": [...] }
+Body: { "id": "<user_id>", "add": ["/criativos", ...], "remove": [...], "set": [...], "clear": true }
   • add    → faz UNIÃO com o menu_groups atual (não derruba o que já tinha)
   • remove → tira da lista
   • set    → substitui a lista inteira (use com cuidado)
+  • clear  → zera o override (menu_groups = NULL) → o usuário volta a seguir as
+            "Permissões por papel". Use pra desfazer uma exceção individual. v81.34
 Header: Authorization: Bearer <token>. Requer Sócio (lvl>=10).
 
 Observação: grupos sempre visíveis (inicio/conta/academy) não precisam estar na lista.
@@ -58,8 +60,9 @@ class handler(BaseHTTPRequestHandler):
         add = _norm_list(body.get("add"))
         remove = _norm_list(body.get("remove"))
         has_set = isinstance(body.get("set"), list)
-        if not add and not remove and not has_set:
-            return self._send(400, {"ok": False, "error": "informe add, remove ou set"})
+        has_clear = bool(body.get("clear"))   # clear=true → zera o override (NULL) → volta a seguir o PAPEL
+        if not add and not remove and not has_set and not has_clear:
+            return self._send(400, {"ok": False, "error": "informe add, remove, set ou clear"})
 
         sb = supabase_client()
         if not sb:
@@ -74,7 +77,9 @@ class handler(BaseHTTPRequestHandler):
         before = cur[0].get("menu_groups")
         base = before if isinstance(before, list) else []
 
-        if has_set:
+        if has_clear:
+            new = None   # NULL real → canSee passa a usar a matriz do PAPEL (não a lista individual)
+        elif has_set:
             new = _norm_list(body.get("set"))
         else:
             new = list(base)

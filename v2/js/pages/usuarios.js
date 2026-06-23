@@ -192,6 +192,10 @@ function userRow(u, isSocio, myId) {
         <div style="font-weight:700;font-size:13px">${escapeHtml(u.name || 'Sem nome')}${isMe ? ' <span style="font-size:9px;background:var(--psm-navy);color:#fff;padding:1px 6px;border-radius:3px;letter-spacing:1px;margin-left:6px">VOCÊ</span>' : ''}</div>
         <div class="tiny muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.email || 'sem email')}</div>
         ${lastAudit ? `<div class="tiny" style="color:var(--info);margin-top:2px"><a href="#/auditoria" data-link-audit="${u.id}">📜 ${escapeHtml(lastAudit)}</a></div>` : ''}
+        ${Array.isArray(u.menu_groups) ? `<div class="tiny" style="margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="background:#fef3c7;color:#78350f;padding:1px 7px;border-radius:3px;font-weight:700" title="Esse usuário tem permissão INDIVIDUAL que IGNORA as Permissões por papel. Liberado só: ${escapeHtml((u.menu_groups || []).join(', ') || '(nada)')}">⚠️ Exceção de menu (${u.menu_groups.length})</span>
+          ${editable ? `<button class="btn btn-ghost" data-action="clear-menu-override" data-id="${u.id}" style="padding:2px 8px;font-size:10px" title="Remover a exceção → passa a seguir as Permissões por papel">↩︎ voltar ao papel</button>` : ''}
+        </div>` : ''}
       </div>
       <select class="select" data-action="role" data-id="${u.id}" ${editable ? '' : 'disabled'} style="padding:5px 8px;font-size:11px;font-weight:700;min-width:170px;border-left:3px solid ${role.color}" title="Papel hierárquico">
         ${ROLES.map(r => `<option value="${r.id}"${u.role === r.id ? ' selected' : ''}>${r.ico} ${r.lbl} · L${r.lvl}</option>`).join('')}
@@ -277,6 +281,12 @@ async function handleClick(ev) {
       if (pwd.length < 6) { toast('Senha precisa ≥ 6 chars', 'err'); return; }
       await api.request('/api/v3/users/admin_reset_password', { method: 'POST', body: { user_id: id, new_password: pwd } });
       toast(`Senha de ${u.name} resetada.`, 'ok');
+    } else if (action === 'clear-menu-override') {
+      const itens = (u.menu_groups || []).join(', ') || '(nada)';
+      if (!confirm(`Remover a exceção de menu de ${u.name}?\n\nHoje ele(a) vê só: ${itens}\n\nDepois passa a seguir as Permissões por papel do cargo "${u.role}".`)) return;
+      await api.request('/api/v3/users/menu_access', { method: 'POST', body: { id, clear: true } });
+      toast(`Exceção removida — ${u.name} agora segue o papel ✓`, 'ok');
+      await reload();
     }
   } catch (e) {
     toast('Falha: ' + e.message, 'err');
