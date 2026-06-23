@@ -4,6 +4,7 @@
 import { auth } from './auth.js';
 import { router } from './router.js';
 import { initPulse } from './pulse.js';
+import { initRealtime } from './realtime.js';
 import { api } from './api.js';
 import { initPush, enablePush, pushSupported, pushPermission } from './push.js';
 import { pageUsuarios as pageUsuariosV2 } from './pages/usuarios.js';
@@ -314,7 +315,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.28.0';
+const APP_VERSION = '81.29.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -580,6 +581,9 @@ const APP_VERSION = '81.28.0';
   // e re-renderiza a página atual em silêncio SÓ quando algo realmente mudou
   // (tarefa, recado, venda, config, notificação…) — em qualquer login/device. v81.27
   initPulse();
+  // ⚡⚡ PUSH <1s: WebSocket (Supabase Realtime). Só ativa se a SUPABASE_ANON_KEY
+  // estiver configurada no Vercel; senão segue no pulso. v81.29
+  initRealtime();
 })();
 
 // ─── Shell ─────────────────────────────────────────────────────────────

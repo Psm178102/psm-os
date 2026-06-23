@@ -64,6 +64,13 @@ async function request(path, { method = 'GET', body = null, auth = true, headers
     const msg = (data && data.error) || (data && data.message) || `HTTP ${resp.status}`;
     throw new ApiError(resp.status, 'http', msg, data);
   }
+  // ⚡ Tempo real: após um write bem-sucedido, avisa os outros logins (push <1s). v81.29
+  try {
+    const m = (method || 'GET').toUpperCase();
+    if (m !== 'GET' && m !== 'HEAD' && typeof window !== 'undefined' && window.__psmNotifyChange) {
+      window.__psmNotifyChange();
+    }
+  } catch (_) {}
   return data;
 }
 

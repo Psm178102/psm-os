@@ -12,7 +12,7 @@ import { refreshNotifs } from './notifs.js';
 import { reloadTimeline } from './timeline.js';
 
 const POLL_MS = 6000;
-let _sig = null, _timer = null, _last = Date.now(), _pending = false;
+let _sig = null, _timer = null, _last = Date.now(), _pending = false, _lastRun = 0;
 
 const bump = () => { _last = Date.now(); };
 const isTyping = () => {
@@ -33,6 +33,11 @@ export function initPulse() {
 
 async function tick() {
   if (document.visibilityState !== 'visible') return;
+  // Se o WebSocket (realtime.js) está conectado, o pulso vira só REDE DE SEGURANÇA
+  // (a cada ~25s) — o push <1s já cobre o tempo real. Sem socket, mantém os 6s.
+  const minGap = window.__psmRT ? 25000 : 0;
+  if (Date.now() - _lastRun < minGap) return;
+  _lastRun = Date.now();
   let sig;
   try { const r = await api.request('/api/v3/pulse'); sig = r && r.sig; } catch (_) { return; }
   if (sig == null) return;
