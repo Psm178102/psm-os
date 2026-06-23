@@ -43,6 +43,15 @@ const respCor = n => RESP_COR[n] || '#64748b';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '';
 
+// Cronograma da demanda: Início ▶ / Entrega 📦 / Post 📣 (v81.35)
+const dateChips = c => {
+  const mk = (ic, d, lbl, bg, fg) => d ? `<span class="pc-chip" title="${lbl}" style="background:${bg};color:${fg}">${ic} ${esc(fmtData(d))}</span>` : '';
+  const chips = mk('▶', c.data_inicio, 'Início', 'rgba(16,185,129,.14)', '#047857')
+    + mk('📦', c.data_entrega, 'Entrega', 'rgba(239,68,68,.14)', '#b91c1c')
+    + mk('📣', c.data_post, 'Post', 'rgba(79,70,229,.14)', '#4f46e5');
+  return chips ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:5px">${chips}</div>` : '';
+};
+
 export function pagePauloConteudo(ctx, root) { return mount('conteudo', root); }
 export function pageConteudoImoveis(ctx, root) { return mount('conteudo_imoveis', root); }
 export function pageConteudoConquista(ctx, root) { return mount('conteudo_conquista', root); }
@@ -152,8 +161,8 @@ function card(c) {
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
         ${c.semana ? `<span class="pc-chip" style="background:rgba(79,70,229,.14);color:#4f46e5">Sem ${esc(c.semana)}</span>` : ''}
         ${c.formato ? `<span class="pc-chip" style="background:rgba(99,102,241,.14);color:#4f46e5">${esc(c.formato)}</span>` : ''}
-        ${c.data_ref ? `<span class="pc-chip" style="background:rgba(202,138,4,.16);color:#a16207">📆 ${esc(fmtData(c.data_ref))}</span>` : ''}
       </div>
+      ${dateChips(c)}
       ${c.responsavel ? `<div style="margin-top:6px">${respBadge(c.responsavel)}</div>` : ''}
       ${c.obs ? `<div class="tiny muted" style="margin-top:6px;white-space:pre-wrap;max-height:48px;overflow:hidden">${esc(c.obs)}</div>` : ''}
       <div class="flex gap-2" style="margin-top:8px;align-items:center">
@@ -255,8 +264,15 @@ function openEditor(seed) {
       <div class="flex gap-2" style="margin-bottom:10px">
         <div style="flex:1"><label class="tiny muted">Semana</label>
           <select id="pc-f-semana" class="input"><option value="">—</option>${SEMANAS.map(w => `<option value="${w}"${String(c.semana || '') === String(w) ? ' selected' : ''}>Semana ${w}</option>`).join('')}</select></div>
-        <div style="flex:1"><label class="tiny muted">Data do post</label>
-          <input id="pc-f-data" class="input" type="date" value="${c.data_ref ? String(c.data_ref).substring(0,10) : ''}"></div>
+      </div>
+      <label class="tiny muted">📅 Cronograma da demanda</label>
+      <div class="flex gap-2" style="margin-bottom:10px;margin-top:3px">
+        <div style="flex:1"><label class="tiny muted">▶ Início</label>
+          <input id="pc-f-inicio" class="input" type="date" value="${c.data_inicio ? String(c.data_inicio).substring(0,10) : ''}"></div>
+        <div style="flex:1"><label class="tiny muted">📦 Entrega</label>
+          <input id="pc-f-entrega" class="input" type="date" value="${c.data_entrega ? String(c.data_entrega).substring(0,10) : ''}"></div>
+        <div style="flex:1"><label class="tiny muted">📣 Post</label>
+          <input id="pc-f-post" class="input" type="date" value="${c.data_post ? String(c.data_post).substring(0,10) : (c.data_ref ? String(c.data_ref).substring(0,10) : '')}"></div>
       </div>
       <label class="tiny muted">Link (roteiro / arquivo / post)</label>
       <input id="pc-f-link" class="input" value="${esc(c.link || '')}" placeholder="https://" style="margin-bottom:10px">
@@ -286,7 +302,10 @@ function openEditor(seed) {
       status: ov.querySelector('#pc-f-status').value,
       responsavel: ov.querySelector('#pc-f-resp').value,
       semana: ov.querySelector('#pc-f-semana').value || null,
-      data_ref: ov.querySelector('#pc-f-data').value || null,
+      data_inicio: ov.querySelector('#pc-f-inicio').value || null,
+      data_entrega: ov.querySelector('#pc-f-entrega').value || null,
+      data_post: ov.querySelector('#pc-f-post').value || null,
+      data_ref: ov.querySelector('#pc-f-post').value || null,   // espelha o Post → mantém a Agenda/planner
       link: ov.querySelector('#pc-f-link').value.trim(),
       obs: ov.querySelector('#pc-f-obs').value.trim(),
     };

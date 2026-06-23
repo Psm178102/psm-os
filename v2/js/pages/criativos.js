@@ -40,6 +40,15 @@ const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '';
 const hoje = () => new Date().toISOString().substring(0, 10);
+// Cronograma da demanda: Início ▶ / Entrega 📦 (alerta de atraso) / Post 📣 (v81.35)
+const dateChips = c => {
+  const atrasE = c.data_entrega && c.status !== 'publicado' && c.status !== 'aprovado' && String(c.data_entrega).substring(0, 10) < hoje();
+  const mk = (ic, d, lbl, bg, fg) => d ? `<span class="cr-chip" title="${lbl}" style="background:${bg};color:${fg}">${ic} ${esc(fmtData(d))}</span>` : '';
+  const chips = mk('▶', c.data_inicio, 'Início', 'rgba(16,185,129,.14)', '#047857')
+    + (c.data_entrega ? `<span class="cr-chip" title="Entrega" style="background:${atrasE ? 'rgba(239,68,68,.18)' : 'rgba(239,68,68,.10)'};color:#b91c1c">📦 ${esc(fmtData(c.data_entrega))}${atrasE ? ' ⚠' : ''}</span>` : '')
+    + mk('📣', c.data_post, 'Post', 'rgba(79,70,229,.14)', '#4f46e5');
+  return chips ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">${chips}</div>` : '';
+};
 const brief = c => (c && typeof c.checklist === 'object' && c.checklist) ? c.checklist : {};
 const mats = c => Array.isArray(brief(c).materiais) ? brief(c).materiais : [];
 
@@ -149,8 +158,8 @@ function card(c) {
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
         ${c.formato ? `<span class="cr-chip" style="background:${(TIPO_COR[c.formato] || '#64748b')}1f;color:${TIPO_COR[c.formato] || '#64748b'}">${esc(c.formato)}</span>` : ''}
         ${c.plataforma ? `<span class="cr-chip" style="background:rgba(148,163,184,.16);color:var(--ink,#475569)">🎯 ${esc(c.plataforma)}</span>` : ''}
-        ${c.data_ref ? `<span class="cr-chip" style="background:${atras ? 'rgba(239,68,68,.16)' : 'rgba(148,163,184,.16)'};color:${atras ? '#dc2626' : 'var(--ink,#475569)'}">📅 ${esc(fmtData(c.data_ref))}${atras ? ' ⚠' : ''}</span>` : ''}
       </div>
+      ${dateChips(c)}
       <div class="flex gap-2" style="margin-top:8px;align-items:center">
         ${c.responsavel ? `<span class="tiny" style="font-weight:700">👤 ${esc(c.responsavel)}</span>` : '<span class="tiny" style="color:#f59e0b;font-weight:700">sem resp.</span>'}
         ${nMat ? `<span class="tiny" title="Materiais anexados">📎 ${nMat}</span>` : ''}
@@ -232,8 +241,15 @@ function openEditor(seed) {
           <datalist id="cr-camps">${CAMPANHAS.map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
         <div style="flex:1"><label class="tiny muted">Responsável (login)</label>
           <select id="cr-f-resp" class="select">${respOptions(c.responsavel || '')}</select></div>
-        <div style="flex:0 0 140px"><label class="tiny muted">📅 Prazo</label>
-          <input id="cr-f-data" class="input" type="date" value="${c.data_ref ? String(c.data_ref).substring(0, 10) : ''}"></div>
+      </div>
+      <label class="tiny muted">📅 Cronograma da demanda</label>
+      <div class="flex gap-2" style="margin-bottom:10px;margin-top:3px">
+        <div style="flex:1"><label class="tiny muted">▶ Início</label>
+          <input id="cr-f-inicio" class="input" type="date" value="${c.data_inicio ? String(c.data_inicio).substring(0,10) : ''}"></div>
+        <div style="flex:1"><label class="tiny muted">📦 Entrega</label>
+          <input id="cr-f-entrega" class="input" type="date" value="${c.data_entrega ? String(c.data_entrega).substring(0,10) : (c.data_ref ? String(c.data_ref).substring(0,10) : '')}"></div>
+        <div style="flex:1"><label class="tiny muted">📣 Post</label>
+          <input id="cr-f-post" class="input" type="date" value="${c.data_post ? String(c.data_post).substring(0,10) : ''}"></div>
       </div>
       <label class="tiny muted">📰 Headline (título do criativo)</label>
       <input id="cr-f-headline" class="input" value="${esc(b.headline || '')}" placeholder="Título que aparece na arte" style="margin-bottom:10px">
@@ -289,7 +305,10 @@ function openEditor(seed) {
       formato: g('tipo'),            // tipo do criativo
       plataforma: g('camp').trim(),  // campanha/objetivo
       responsavel: g('resp').trim(),
-      data_ref: g('data') || null,   // prazo
+      data_inicio: g('inicio') || null,
+      data_entrega: g('entrega') || null,
+      data_post: g('post') || null,
+      data_ref: g('entrega') || null,   // espelha a Entrega (prazo) → mantém alerta/Agenda
       link: g('link').trim(),
       obs: g('obs').trim(),
       status: g('status'),

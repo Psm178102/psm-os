@@ -343,6 +343,11 @@ function card(c) {
       ${termo ? `<div class="tiny" style="margin-top:4px;color:${termo.cor}">📋 ${termo.lbl}</div>` : ''}
       ${c.proprietario ? `<div class="tiny muted" style="margin-top:6px">👤 ${esc(c.proprietario)}${c.contato ? ' · ' + esc(c.contato) : ''}</div>` : (c.contato ? `<div class="tiny muted" style="margin-top:6px">📞 ${esc(c.contato)}</div>` : '')}
       ${agend ? `<div class="tiny muted" style="margin-top:4px">📅 ${esc(agend)}${horas ? ' · ' + esc(horas) : ''}</div>` : ''}
+      ${(c.data_inicio || c.data_entrega || c.data_post) ? `<div class="tiny" style="margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;font-weight:600">
+        ${c.data_inicio ? `<span title="Início" style="color:#047857">▶ ${esc(String(c.data_inicio).substring(0,10).split('-').reverse().join('/'))}</span>` : ''}
+        ${c.data_entrega ? `<span title="Entrega" style="color:#b91c1c">📦 ${esc(String(c.data_entrega).substring(0,10).split('-').reverse().join('/'))}</span>` : ''}
+        ${c.data_post ? `<span title="Post" style="color:#4f46e5">📣 ${esc(String(c.data_post).substring(0,10).split('-').reverse().join('/'))}</span>` : ''}
+      </div>` : ''}
       ${c.local_chaves ? `<div class="tiny muted" style="margin-top:4px">🔑 ${esc(c.local_chaves)}</div>` : ''}
       ${links.length ? `<div class="flex gap-2" style="margin-top:6px;font-size:15px">${links.join('')}</div>` : ''}
       ${c.responsavel ? `<div class="flex" style="align-items:center;gap:6px;margin-top:8px">
@@ -463,6 +468,11 @@ function openForm() {
           <div style="flex:1">${inp('cf-hfim', 'Hora fim', c.hora_fim, '', 'time')}</div>
         </div>
 
+        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#4f46e5">📅 Cronograma da demanda</b></div>
+        ${inp('cf-dini', '▶ Início', (c.data_inicio || '').substring(0, 10), '', 'date')}
+        ${inp('cf-dentr', '📦 Entrega', (c.data_entrega || '').substring(0, 10), '', 'date')}
+        ${inp('cf-dpost', '📣 Post', (c.data_post || '').substring(0, 10), '', 'date')}
+
         <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#a16207">🏠 Locação</b></div>
         ${inp('cf-vl', 'Valor locação (R$) ⭐', c.valor_locacao, 'obrigatório p/ entrar no inventário', 'number')}
         ${inp('cf-vcond', 'Valor condomínio (R$)', c.valor_condominio, '', 'number')}
@@ -553,6 +563,9 @@ async function saveForm(overlay) {
     link_videos: g('cf-lvideos').value.trim(),
     codigo_kenlo: g('cf-kenlo').value.trim(),
     data_agendamento: g('cf-agend').value || null,
+    data_inicio: g('cf-dini').value || null,
+    data_entrega: g('cf-dentr').value || null,
+    data_post: g('cf-dpost').value || null,
     hora_inicio: g('cf-hini').value || null,
     hora_fim: g('cf-hfim').value || null,
     link_autorizacao: g('cf-lautoriz').value.trim(),

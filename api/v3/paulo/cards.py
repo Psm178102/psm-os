@@ -10,13 +10,33 @@ POST   {action:'delete', id}               → apaga
 lvl>=7 (Diretoria/Sócio). negocios é filtrado pelo dono; conteudo é compartilhado.
 """
 from http.server import BaseHTTPRequestHandler
-import json, os, sys, uuid, urllib.parse
+import json, os, sys, uuid, urllib.parse, re
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
-FIELDS = ["titulo", "status", "plataforma", "formato", "valor", "link", "data_ref", "obs", "ordem", "semana", "responsavel", "checklist"]
+
+def _safe_exec(do, payloads):
+    """Executa um write; se o Postgres reclamar de coluna inexistente (PGRST204 —
+    ex.: data_inicio antes de rodar o ADD COLUMN), remove essa coluna de TODOS os
+    dicts e tenta de novo, em vez de quebrar o save. Os campos sem coluna só não
+    persistem até a migração rodar. Espelha o padrão de captacoes/kanban.py. v81.35"""
+    rows = payloads if isinstance(payloads, list) else [payloads]
+    for _ in range(15):
+        try:
+            return do()
+        except Exception as e:
+            m = re.search(r"Could not find the '([^']+)' column", str(e))
+            if m and any(m.group(1) in r for r in rows):
+                for r in rows:
+                    r.pop(m.group(1), None)
+                continue
+            raise
+    return do()
+
+FIELDS = ["titulo", "status", "plataforma", "formato", "valor", "link", "data_ref", "obs", "ordem", "semana", "responsavel", "checklist",
+          "data_inicio", "data_entrega", "data_post"]   # 3 datas da demanda (criativos/conteúdos) v81.35
 BOARDS = ("negocios", "conteudo", "conteudo_imoveis", "conteudo_conquista", "academy", "projetos", "criativos")
 CONTEUDO_BOARDS = ("conteudo", "conteudo_imoveis", "conteudo_conquista", "academy", "projetos", "criativos")  # compartilhados, lvl>=3
 
@@ -164,7 +184,7 @@ class handler(BaseHTTPRequestHandler):
             rows = []
             for it in items[:500]:
                 r = {k: it.get(k) for k in FIELDS if k in it}
-                for k in ("titulo", "status", "plataforma", "formato", "link", "obs", "data_ref", "responsavel"):
+                for k in ("titulo", "status", "plataforma", "formato", "link", "obs", "data_ref", "responsavel", "data_inicio", "data_entrega", "data_post"):
                     if k in r and (r[k] is None or str(r[k]).strip() == ""):
                         r[k] = None
                 if "semana" in r:
@@ -179,7 +199,7 @@ class handler(BaseHTTPRequestHandler):
             if not rows:
                 return self._send(400, {"ok": False, "error": "nenhuma linha válida"})
             try:
-                sb.table("paulo_cards").insert(rows).execute()
+                _safe_exec(lambda: sb.table("paulo_cards").insert(rows).execute(), rows)
                 audit(self, actor, "paulo.bulk_import", target_type="paulo_cards", notes=f"{len(rows)} conteúdos")
                 return self._send(200, {"ok": True, "inserted": len(rows)})
             except Exception as e:
@@ -207,13 +227,13 @@ class handler(BaseHTTPRequestHandler):
         row["updated_at"] = now
         try:
             if cid:
-                sb.table("paulo_cards").update(row).eq("id", cid).execute()
+                _safe_exec(lambda: sb.table("paulo_cards").update(row).eq("id", cid).execute(), row)
             else:
                 cid = "pc_" + uuid.uuid4().hex[:12]
                 row.update({"id": cid, "board": board, "owner_id": actor.get("id"), "created_at": now})
                 if not row.get("status"):
                     row["status"] = "ideia" if board == "negocios" else "curadoria"
-                sb.table("paulo_cards").insert(row).execute()
+                _safe_exec(lambda: sb.table("paulo_cards").insert(row).execute(), row)
             self._sync_event(sb, cid)  # academy/projetos com data → evento na Agenda
             audit(self, actor, "paulo.card_upsert", target_type="paulo_cards", target_id=cid)
             return self._send(200, {"ok": True, "id": cid})

@@ -193,6 +193,9 @@ class handler(BaseHTTPRequestHandler):
             "link_autorizacao": (body.get("link_autorizacao") or "").strip() or None,
             "data_inicial": body.get("data_inicial") or None,
             "data_final": body.get("data_final") or None,
+            "data_inicio": body.get("data_inicio") or None,    # demanda: início / entrega / post v81.35
+            "data_entrega": body.get("data_entrega") or None,
+            "data_post": body.get("data_post") or None,
             "precisa_fotos": bool(body.get("precisa_fotos")),
             "precisa_videos": bool(body.get("precisa_videos")),
             "precisa_avaliacao": bool(body.get("precisa_avaliacao")),
