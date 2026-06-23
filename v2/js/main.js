@@ -3,6 +3,7 @@
 ============================================================================ */
 import { auth } from './auth.js';
 import { router } from './router.js';
+import { initPulse } from './pulse.js';
 import { api } from './api.js';
 import { initPush, enablePush, pushSupported, pushPermission } from './push.js';
 import { pageUsuarios as pageUsuariosV2 } from './pages/usuarios.js';
@@ -313,7 +314,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.26.0';
+const APP_VERSION = '81.27.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -575,31 +576,11 @@ const APP_VERSION = '81.26.0';
   });
   document.getElementById('app-ver')?.addEventListener('click', () => checkVersion(true));
 
-  // ⚡ TEMPO REAL (contínuo): com a aba visível e o usuário OCIOSO, atualiza a página
-  // em silêncio (sem piscar, preservando o scroll). Não roda enquanto digita, com modal
-  // aberto, ou se houve interação nos últimos 30s — pra não atrapalhar o uso. v81.26
-  initLiveRefresh();
+  // ⚡ TEMPO REAL (contínuo): o pulso pergunta ao backend a cada ~12s "mudou algo?"
+  // e re-renderiza a página atual em silêncio SÓ quando algo realmente mudou
+  // (tarefa, recado, venda, config, notificação…) — em qualquer login/device. v81.27
+  initPulse();
 })();
-
-function initLiveRefresh() {
-  let lastInteract = Date.now();
-  const bump = () => { lastInteract = Date.now(); };
-  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev =>
-    document.addEventListener(ev, bump, { passive: true }));
-  const isTyping = () => {
-    const el = document.activeElement; if (!el) return false;
-    const t = (el.tagName || '').toUpperCase();
-    return t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT' || el.isContentEditable === true;
-  };
-  const modalOpen = () => !!document.querySelector(
-    '.modal.open, .modal[style*="flex"], .modal[style*="block"], .overlay.open, dialog[open], [data-modal="open"]');
-  setInterval(() => {
-    if (document.visibilityState !== 'visible') return;
-    if (isTyping() || modalOpen()) return;
-    if (Date.now() - lastInteract < 30000) return;   // só quando ocioso ≥30s
-    try { router.refresh({ quiet: true }); } catch (_) {}
-  }, 45000);
-}
 
 // ─── Shell ─────────────────────────────────────────────────────────────
 function shellHTML(user) {
