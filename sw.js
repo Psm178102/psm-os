@@ -8,7 +8,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const SW_VERSION = 'v81.27.0-2026-06-22-PULSO';
+const SW_VERSION = 'v81.28.0-2026-06-22-PULSO6S';
 const CACHE_VERSION = 'psm-os-' + SW_VERSION;
 const ASSET_CACHE   = CACHE_VERSION + '-assets';
 

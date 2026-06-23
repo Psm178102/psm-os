@@ -11,7 +11,7 @@ import { router } from './router.js';
 import { refreshNotifs } from './notifs.js';
 import { reloadTimeline } from './timeline.js';
 
-const POLL_MS = 12000;
+const POLL_MS = 6000;
 let _sig = null, _timer = null, _last = Date.now(), _pending = false;
 
 const bump = () => { _last = Date.now(); };
