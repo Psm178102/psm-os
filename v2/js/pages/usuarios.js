@@ -40,7 +40,7 @@ export async function pageUsuarios(ctx, root) {
 async function reload() {
   try {
     const [u, a] = await Promise.all([
-      api.request('/api/v3/users/list'),
+      api.request('/api/v3/users/list?all=1'),   // gestão vê TODOS (inclusive arquivados)
       api.request('/api/v3/audit/list?limit=300').catch(() => ({ entries: [] })),
     ]);
     _users = u.users || [];
@@ -78,9 +78,14 @@ function render() {
   const me = auth.user();
   const isSocio = (me?.lvl || 0) >= 10;
 
-  // Filter
-  let list = _users.slice();
-  if (_filterTeam !== 'todos') list = list.filter(u => (u.team || 'geral') === _filterTeam);
+  // Filter — ARQUIVADOS (inativo E oculto) saem da lista principal pra não poluir
+  // e ficam numa seção recolhida no fim. Eles também não aparecem em nenhuma
+  // outra opção do sistema (backend exclui por padrão; só voltam ao reativar).
+  const isArchived = u => (u.status || 'ativo') !== 'ativo' && !!u.hide_from_ranking;
+  let base = _users.slice();
+  if (_filterTeam !== 'todos') base = base.filter(u => (u.team || 'geral') === _filterTeam);
+  const archivedList = base.filter(isArchived);
+  let list = base.filter(u => !isArchived(u));
   if (_filterStatus === 'ativos')   list = list.filter(u => (u.status || 'ativo') === 'ativo');
   else if (_filterStatus === 'inativos') list = list.filter(u => (u.status || 'ativo') !== 'ativo');
   else if (_filterStatus === 'ocultos')  list = list.filter(u => !!u.hide_from_ranking);
@@ -124,10 +129,21 @@ function render() {
         <span style="margin-left:auto" class="tiny muted">${list.length} resultado(s)</span>
       </div>
 
-      <!-- Lista -->
+      <!-- Lista (ativos / não-arquivados) -->
       <div class="mt-4" style="display:grid;gap:8px">
         ${list.map(u => userRow(u, isSocio, me?.id)).join('') || '<div class="muted text-center" style="padding:30px">Nenhum usuário com esse filtro.</div>'}
       </div>
+
+      ${archivedList.length ? `
+      <details style="margin-top:16px;border:1px dashed var(--border-2);border-radius:var(--r-md);background:#fafafa">
+        <summary style="cursor:pointer;padding:12px 14px;font-weight:800;font-size:13px;color:var(--ink-muted);user-select:none;list-style:none">
+          📦 Arquivados · inativos + ocultos (${archivedList.length})
+          <span class="tiny muted" style="font-weight:600">— não aparecem em nenhuma opção do sistema; reative aqui se precisar</span>
+        </summary>
+        <div style="display:grid;gap:8px;padding:0 12px 14px">
+          ${archivedList.map(u => userRow(u, isSocio, me?.id)).join('')}
+        </div>
+      </details>` : ''}
 
       ${isSocio ? addUserBlock() : ''}
     </div>

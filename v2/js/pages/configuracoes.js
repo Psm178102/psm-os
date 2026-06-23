@@ -219,10 +219,17 @@ function renderPermEditor() {
 function _setEq(a, b) { if (a.size !== b.size) return false; for (const x of a) if (!b.has(x)) return false; return true; }
 
 async function savePerms() {
-  // só persiste papéis que DIFEREM do default (mantém papéis intactos dinâmicos)
+  // Higiene: só rotas que EXISTEM como item de menu (catálogo) e que o NÍVEL do
+  // papel alcança. Evita "marquei e não funciona" — rota morta/renomeada ou item
+  // travado por nível ficavam salvos sem efeito. v81.24
+  const minByRoute = {};
+  (_permCatalog || []).forEach(g => g.items.forEach(it => { minByRoute[it.route] = it.minlvl || 0; }));
   const perms = {};
-  PERM_ROLES.forEach(([role]) => {
-    if (!_setEq(_permState[role], _permDefault[role])) perms[role] = [..._permState[role]];
+  PERM_ROLES.forEach(([role, , roleLvl]) => {
+    const clean = new Set([..._permState[role]].filter(r => (r in minByRoute) && minByRoute[r] <= (roleLvl || 0)));
+    _permState[role] = clean;
+    // só persiste papéis que DIFEREM do default (mantém papéis intactos dinâmicos)
+    if (!_setEq(clean, _permDefault[role])) perms[role] = [...clean];
   });
   const btn = document.getElementById('perm-save');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando…'; }
