@@ -13,6 +13,7 @@ let _reveal = false;
 // ── Editor de Permissões por papel (matriz editável pelo sócio) ──
 const PERM_GROUP_LBL = {
   inicio: '🏠 Início',
+  academy: '🎓 PSM Academy',
   secretaria: '🗂 Secretaria de Vendas & Backoffice', vendas: '🏘 Imóveis & Vendas', locacao: '🔑 Locação',
   financeiro: '💰 Financeiro', marketing: '📊 Marketing', performance: '🎯 Metas & Performance',
   diretoria: '🏛 Diretoria', juridico: '⚖️ Jurídico', ia: '🤖 IA', rh: '🧑‍💼 Gestão de Pessoas & RH', ferramentas: '🧮 Ferramentas',
@@ -25,7 +26,7 @@ const PERM_ROLES = [   // socio é fixo (vê tudo) → fora da edição
   ['corretor_conquista', '🏠 Corretor Conquista', 2], ['corretor_map', '🗺️ Corretor MAP', 2],
   ['corretor_locacao', '🔑 Corretor Locação', 2], ['corretor_terceiros', '🤝 Corretor Terceiros', 2],
 ];
-const PERM_ALWAYS = new Set(['conta', 'academy']);  // sempre visíveis (Início agora é configurável) v81.38
+const PERM_ALWAYS = new Set(['conta']);  // só CONTA é sempre visível; Início e PSM Academy são configuráveis na matriz. v81.40
 let _permCatalog = null;   // [{key,label,items:[{route,label,icon,minlvl}]}]
 let _permState = {};       // { role: Set(routes) }
 let _permDefault = {};     // { role: Set(routes) } — default p/ comparar/restaurar

@@ -166,17 +166,17 @@ export const ROLE_ALLOWED = {
   diretor:    '*',
   gerente:    '*',
   // líder: toda a operação + performance da equipe, MAS sem Diretoria nem Sistema (admin)
-  lider:      ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
-  marketing:  ['inicio', 'secretaria', 'marketing', 'captacoes', 'rh', 'conta'],
-  backoffice: ['inicio', 'secretaria', 'captacoes', 'vendas', 'locacao', 'rh', 'conta'],
-  financeiro: ['inicio', 'financeiro', 'rh', 'conta'],
-  corretor:   ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
+  lider:      ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta'],
+  marketing:  ['inicio', 'secretaria', 'marketing', 'captacoes', 'rh', 'academy', 'conta'],
+  backoffice: ['inicio', 'secretaria', 'captacoes', 'vendas', 'locacao', 'rh', 'academy', 'conta'],
+  financeiro: ['inicio', 'financeiro', 'rh', 'academy', 'conta'],
+  corretor:   ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta'],
   // Sub-tipos de corretor (lvl 2) — default = mesmo do corretor; o sócio afina cada um
   // em "Permissões por papel". v81.37
-  corretor_conquista: ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
-  corretor_map:       ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
-  corretor_locacao:   ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
-  corretor_terceiros: ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
+  corretor_conquista: ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta'],
+  corretor_map:       ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta'],
+  corretor_locacao:   ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta'],
+  corretor_terceiros: ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta'],
 };
 
 // Nível MÍNIMO real (backend) p/ páginas que vivem num grupo compartilhado mas
@@ -185,8 +185,8 @@ export const ROLE_ALLOWED = {
 // Espelha o require_user(min_lvl=) do endpoint primário de cada página (v77.49).
 export const ROUTE_MIN_LVL = {
   '/tabela-imoveis': 5,   // upload de tabelas — não p/ corretor
-  '/tabela-conquista': 5, // Tabela de Lançamentos Conquista (gestor: lider/backoffice/gerente/socio)
-  '/tabela-map': 5,       // Tabela de Lançamentos MAP
+  '/tabela-conquista': 2, // Tabela Conquista: VISÍVEL p/ corretor (read-only; upload é travado por can_edit lvl>=5 na página). Quem vê = matriz por papel. v81.40
+  '/tabela-map': 2,       // Tabela MAP: idem
   '/campanha-wa': 5,      // disparo de campanha — não p/ corretor
   '/one-on-one': 5,       // visão de gestor do 1:1
   '/cerebro-vendas': 5,   // inteligência de vendas (líder+)
@@ -235,7 +235,7 @@ function canSee(path, user) {
   // socio nunca entra aqui (não dá pra se trancar fora). v77.81
   const rp = _rolePerms[role];
   if (role !== 'socio' && !Array.isArray(user?.menu_groups) && Array.isArray(rp)) {
-    if (grp === 'conta' || grp === 'academy') return true;  // Conta/Academy sempre visíveis; INÍCIO agora é configurável por papel (v81.38)
+    if (grp === 'conta') return true;  // só CONTA é sempre visível; Início e PSM Academy agora são configuráveis por papel (v81.40)
     if ((user?.lvl || 0) < (ROUTE_MIN_LVL[base] || 0)) return false;            // nível real
     if (_catalogRoutes && _catalogRoutes.has(base)) return rp.includes(base);   // item de menu: granular
     return rp.some(r => (ROUTE_GROUP[r] || '') === grp);                        // sub-rota: liberada se o grupo tem item liberado
@@ -321,7 +321,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.39.0';
+const APP_VERSION = '81.40.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
