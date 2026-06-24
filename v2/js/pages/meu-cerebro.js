@@ -1,11 +1,11 @@
 /* ============================================================================
-   PSM-OS v2 — Meu Cérebro de Vendas  v81.44
+   PSM-OS v2 — Meu Cérebro de Vendas  v81.44 (perf v81.47)
    ----------------------------------------------------------------------------
    O Cérebro de Vendas (lead-scoring + próxima ação) ESCOPADO ao corretor: ele
-   acorda sabendo quem atacar primeiro. Reusa /api/v3/intel/sales_brain, que já
-   aceita ?corretor_id= e devolve, por corretor: leads quentes/mornos/frios,
-   parados, sem 1º contato, pipeline ponderado e — por lead — a AÇÃO recomendada.
-   • Corretor → vê só o SEU funil.   • Gestor/sócio (lvl>=7) → seletor de corretor.
+   acorda sabendo quem atacar primeiro. Reusa /api/v3/intel/sales_brain.
+   • Corretor → pede só o SEU funil (?corretor_id=ele) — rápido.
+   • Gestor/sócio (lvl>=7) → ?list=1 (lista instantânea) p/ o seletor, e busca o
+     cérebro do corretor escolhido sob demanda (também escopado = rápido).
    Gated em sócio por enquanto (ROUTE_MIN_LVL=10). Obs: o backend sales_brain
    exige lvl>=5 — ao abrir pro corretor, baixar esse gate p/ o escopo próprio.
 ============================================================================ */
@@ -15,38 +15,46 @@ import { auth } from '../auth.js';
 const BRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const TEMP = { quente: { c: '#ef4444', e: '🔥', l: 'Quente' }, morno: { c: '#f59e0b', e: '🟡', l: 'Morno' }, frio: { c: '#0ea5e9', e: '🧊', l: 'Frio' } };
+const loadingCard = msg => `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> ${esc(msg)} <span class="tiny" style="opacity:.65">— analisando o funil, pode levar alguns segundos</span></div></div>`;
+const emptyCard = () => `<div class="card muted tiny" style="text-align:center;padding:40px">Sem funil pra analisar (nenhum negócio aberto vinculado). Quando houver deals no CRM, a fila de ataque aparece aqui.</div>`;
 
-let _root = null, _corretores = [], _selId = '', _isGestor = false;
+let _root = null, _list = [], _brain = null, _selId = '', _isGestor = false, _me = {};
 
 export async function pageMeuCerebro(ctx, root) {
   _root = root;
-  const me = auth.user() || {};
-  _isGestor = (me.lvl || 0) >= 7;
-  root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Pensando no seu funil…</div></div>';
+  _me = auth.user() || {};
+  _isGestor = (_me.lvl || 0) >= 7;
+  root.innerHTML = loadingCard('Montando seu cérebro de vendas…');
   try {
-    // gestor vê todos (pra escolher); corretor já pede o próprio
-    const qs = _isGestor ? '' : ('?corretor_id=' + encodeURIComponent(me.id || ''));
-    const r = await api.request('/api/v3/intel/sales_brain' + qs);
-    _corretores = (r && r.corretores) || [];
+    if (_isGestor) {
+      const l = await api.request('/api/v3/intel/sales_brain?list=1');   // instantâneo
+      _list = (l && l.corretores) || [];
+      if (!_list.length) { root.innerHTML = emptyCard(); return; }
+      _selId = _list[0].id;
+    } else {
+      _selId = _me.id || '';
+    }
   } catch (e) {
-    root.innerHTML = `<div class="alert alert-err">Erro ao montar o cérebro: ${esc(e.message)}</div>`;
-    return;
+    root.innerHTML = `<div class="alert alert-err">Erro: ${esc(e.message)}</div>`; return;
   }
-  if (!_corretores.length) {
-    root.innerHTML = `<div class="card muted tiny" style="text-align:center;padding:40px">Sem funil pra analisar (nenhum negócio aberto vinculado). Quando houver deals no CRM, o cérebro monta a fila de ataque aqui.</div>`;
-    return;
-  }
-  // escopo: corretor → ele mesmo; gestor → 1º da lista por padrão
-  if (!_isGestor) {
-    _selId = (_corretores.find(c => c.id === (me.id)) || _corretores[0]).id;
-  } else {
-    _selId = _corretores[0].id;
+  await loadBrain();
+}
+
+async function loadBrain() {
+  _root.innerHTML = loadingCard('Pensando no funil…');
+  try {
+    const r = await api.request('/api/v3/intel/sales_brain?corretor_id=' + encodeURIComponent(_selId));
+    const arr = (r && r.corretores) || [];
+    _brain = arr.find(c => c.id === _selId) || arr[0] || null;
+  } catch (e) {
+    _root.innerHTML = `<div class="alert alert-err">Erro: ${esc(e.message)}</div>`; return;
   }
   render();
 }
 
 function render() {
-  const c = _corretores.find(x => x.id === _selId) || _corretores[0];
+  const c = _brain;
+  if (!c) { _root.innerHTML = emptyCard(); return; }
   const leads = c.top_leads || [];
   const semContato = c.sem_contato_48h || 0, parados = c.parados_14d || 0;
 
@@ -56,7 +64,7 @@ function render() {
         <div style="font-size:21px;font-weight:800">🎯 Meu Cérebro de Vendas</div>
         <div class="tiny muted">Quem atacar primeiro, o que está esfriando e a próxima ação de cada lead.</div>
       </div>
-      ${_isGestor ? `<select id="cb-sel" class="select" style="max-width:260px">${_corretores.map(x => `<option value="${esc(x.id)}"${x.id === _selId ? ' selected' : ''}>${esc(x.name || x.id)}${x.team ? ' · ' + esc(x.team) : ''}</option>`).join('')}</select>` : ''}
+      ${_isGestor ? `<select id="cb-sel" class="select" style="max-width:260px">${_list.map(x => `<option value="${esc(x.id)}"${x.id === _selId ? ' selected' : ''}>${esc(x.name || x.id)}${x.team ? ' · ' + esc(x.team) : ''}</option>`).join('')}</select>` : ''}
     </div>
 
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
@@ -79,7 +87,7 @@ function render() {
     <div class="tiny muted" style="margin-top:12px">Score = prior da etapa × taxa real do canal × recência × engajamento. Estimativa calibrada (não é modelo treinado). Fonte: deals do CRM.</div>`;
 
   const sel = _root.querySelector('#cb-sel');
-  if (sel) sel.onchange = () => { _selId = sel.value; render(); };
+  if (sel) sel.onchange = () => { _selId = sel.value; loadBrain(); };
 }
 
 function leadCard(l) {

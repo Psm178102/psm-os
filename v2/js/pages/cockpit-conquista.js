@@ -23,24 +23,40 @@ const FAIXA_TETO = [
 ];
 const faixaDeValor = v => (FAIXA_TETO.find(f => v <= f.teto) || FAIXA_TETO[FAIXA_TETO.length - 1]);
 
-let _root = null, _corretores = [], _selId = '', _isGestor = false, _me = {};
+let _root = null, _list = [], _brain = null, _selId = '', _isGestor = false, _me = {};
+const loadingCard = msg => `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> ${esc(msg)} <span class="tiny" style="opacity:.65">— analisando o funil, pode levar alguns segundos</span></div></div>`;
 
 export async function pageCockpitConquista(ctx, root) {
   _root = root;
   _me = auth.user() || {};
   _isGestor = (_me.lvl || 0) >= 7;
-  root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Montando seu cockpit…</div></div>';
+  root.innerHTML = loadingCard('Montando seu cockpit…');
   try {
-    const qs = _isGestor ? '' : ('?corretor_id=' + encodeURIComponent(_me.id || ''));
-    const r = await api.request('/api/v3/intel/sales_brain' + qs);
-    _corretores = (r && r.corretores) || [];
+    if (_isGestor) {
+      const l = await api.request('/api/v3/intel/sales_brain?list=1');   // lista instantânea
+      _list = (l && l.corretores) || [];
+      if (!_list.length) { renderShell(null); return; }
+      _selId = _list[0].id;
+    } else {
+      _selId = _me.id || '';
+    }
   } catch (e) {
     root.innerHTML = `<div class="alert alert-err">Erro ao montar o cockpit: ${esc(e.message)}</div>`;
     return;
   }
-  if (!_corretores.length) { renderShell(null); return; }
-  _selId = _isGestor ? _corretores[0].id : (_corretores.find(c => c.id === _me.id) || _corretores[0]).id;
-  renderShell(_corretores.find(c => c.id === _selId) || _corretores[0]);
+  await loadBrain();
+}
+
+async function loadBrain() {
+  _root.innerHTML = loadingCard('Carregando seu pipeline…');
+  try {
+    const r = await api.request('/api/v3/intel/sales_brain?corretor_id=' + encodeURIComponent(_selId));
+    const arr = (r && r.corretores) || [];
+    _brain = arr.find(c => c.id === _selId) || arr[0] || null;
+  } catch (e) {
+    _root.innerHTML = `<div class="alert alert-err">Erro: ${esc(e.message)}</div>`; return;
+  }
+  renderShell(_brain);
 }
 
 const ATALHOS = [
@@ -102,7 +118,7 @@ function renderShell(c) {
         <div style="font-size:22px;font-weight:800">🚀 ${saud}${nome ? ', ' + esc(nome) : ''}!</div>
         <div class="tiny muted">Seu cockpit Conquista — pipeline, meta e a fila de ataque do dia.</div>
       </div>
-      ${_isGestor && _corretores.length ? `<select id="ck-sel" class="select" style="max-width:240px">${_corretores.map(x => `<option value="${esc(x.id)}"${x.id === _selId ? ' selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select>` : ''}
+      ${_isGestor && _list.length ? `<select id="ck-sel" class="select" style="max-width:240px">${_list.map(x => `<option value="${esc(x.id)}"${x.id === _selId ? ' selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select>` : ''}
     </div>
     ${kpis}${faixa}${leads}
     <div style="font-weight:800;margin-bottom:8px">⚡ Atalhos do dia</div>
@@ -112,5 +128,5 @@ function renderShell(c) {
     </div>`;
 
   const sel = _root.querySelector('#ck-sel');
-  if (sel) sel.onchange = () => { _selId = sel.value; renderShell(_corretores.find(c => c.id === _selId)); };
+  if (sel) sel.onchange = () => { _selId = sel.value; loadBrain(); };
 }

@@ -50,13 +50,14 @@ class handler(BaseHTTPRequestHandler):
     _COLS = ("id,amount,win,closed_at,created_at_rd,updated_at_rd,"
              "stage_name,user_id,user_email,rd_raw,pipeline_id,stage_id")
 
-    def _fetch_open(self, sb):
+    def _fetch_open(self, sb, owner_id=None):
         out, page, size = [], 0, 1000
         while page < 30:
             try:
-                rows = (sb.table("deals").select(self._COLS)
-                        .is_("win", "null")
-                        .range(page * size, page * size + size - 1).execute().data or [])
+                q = sb.table("deals").select(self._COLS).is_("win", "null")
+                if owner_id:
+                    q = q.eq("user_id", owner_id)   # escopo por dono → rápido (v81.47)
+                rows = (q.range(page * size, page * size + size - 1).execute().data or [])
             except Exception:
                 break
             out.extend(rows)
@@ -115,8 +116,20 @@ class handler(BaseHTTPRequestHandler):
         email_to_id = {(u.get("email") or "").lower(): u.get("id") for u in users if u.get("email")}
         user_by_id = {u.get("id"): u for u in users}
 
-        # Deals
-        open_deals = self._fetch_open(sb)
+        # Modo LISTA (rápido): só id/nome dos corretores p/ popular seletor, sem scoring. v81.47
+        if (params.get("list") or "").strip() in ("1", "true", "yes"):
+            ppl = sorted(
+                [{"id": u.get("id"), "name": u.get("name"), "team": u.get("team"),
+                  "ini": u.get("ini"), "color": u.get("color"), "role": u.get("role")}
+                 for u in users
+                 if ((u.get("role") or "").lower().startswith("corretor") or (u.get("role") or "").lower() == "lider")
+                 and (u.get("status") or "ativo") == "ativo"
+                 and (not team_f or (u.get("team") or "").lower() == team_f)],
+                key=lambda x: (x.get("name") or "").lower())
+            return self._send(200, {"ok": True, "corretores": ppl, "list": True})
+
+        # Deals (escopa por dono quando corretor_id veio → muito mais rápido)
+        open_deals = self._fetch_open(sb, owner_id=only_id or None)
         closed = self._fetch_closed(sb, since_lb)
         closed_lost = [d for d in closed if d.get("win") is False]
 
@@ -131,6 +144,8 @@ class handler(BaseHTTPRequestHandler):
         by_owner = defaultdict(list)
         for d in open_deals:
             oid = owner_of(d)
+            if only_id and oid != only_id:   # escopo por corretor (backstop ao filtro do fetch)
+                continue
             s = score_open(d, overall_wr, ch_wr, ch_n, now)
             if not s:
                 continue
