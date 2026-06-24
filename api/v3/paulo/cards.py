@@ -37,17 +37,20 @@ def _safe_exec(do, payloads):
 
 FIELDS = ["titulo", "status", "plataforma", "formato", "valor", "link", "data_ref", "obs", "ordem", "semana", "responsavel", "checklist",
           "data_inicio", "data_entrega", "data_post"]   # 3 datas da demanda (criativos/conteúdos) v81.35
-BOARDS = ("negocios", "conteudo", "conteudo_imoveis", "conteudo_conquista", "academy", "projetos", "criativos")
-CONTEUDO_BOARDS = ("conteudo", "conteudo_imoveis", "conteudo_conquista", "academy", "projetos", "criativos")  # compartilhados, lvl>=3
+BOARDS = ("negocios", "conteudo", "conteudo_imoveis", "conteudo_conquista", "academy", "projetos", "criativos", "criativos_lib")
+CONTEUDO_BOARDS = ("conteudo", "conteudo_imoveis", "conteudo_conquista", "academy", "projetos", "criativos", "criativos_lib")  # compartilhados
 
 
-def _board_min_lvl(board):
-    """Nível mínimo por board: negócios=7 (privado do dono); CRIATIVOS=2 (corretor pode
-    ver/pedir criativo — liberável na matriz por papel); demais conteúdos=3 (marketing+). v81.42"""
+def _board_min_lvl(board, write=False):
+    """Nível mínimo por board. negócios=7 (privado). criativos=2 (corretor vê/pede).
+    criativos_lib (biblioteca de DOWNLOAD): corretor VÊ/baixa (2); só marketing+ CURADORIA (3 p/ escrita).
+    demais conteúdos=3 (marketing+). v81.43"""
     if board == "negocios":
         return 7
     if board == "criativos":
         return 2
+    if board == "criativos_lib":
+        return 3 if write else 2
     return 3
 
 
@@ -163,8 +166,8 @@ class handler(BaseHTTPRequestHandler):
             if not cid:
                 return self._send(400, {"ok": False, "error": "id"})
             _bd = self._board_of(sb, cid)
-            if (actor.get("lvl") or 0) < _board_min_lvl(_bd):
-                return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(_bd)}"})
+            if (actor.get("lvl") or 0) < _board_min_lvl(_bd, write=True):
+                return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(_bd, write=True)}"})
             try:
                 sb.table("paulo_cards").delete().eq("id", cid).execute()
                 try: sb.table("eventos").delete().eq("id", "evp_" + cid).execute()  # remove da Agenda
@@ -179,8 +182,8 @@ class handler(BaseHTTPRequestHandler):
             if not cid or not status:
                 return self._send(400, {"ok": False, "error": "id e status"})
             _bd = self._board_of(sb, cid)
-            if (actor.get("lvl") or 0) < _board_min_lvl(_bd):
-                return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(_bd)}"})
+            if (actor.get("lvl") or 0) < _board_min_lvl(_bd, write=True):
+                return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(_bd, write=True)}"})
             try:
                 sb.table("paulo_cards").update({"status": status, "updated_at": now}).eq("id", cid).execute()
                 self._sync_event(sb, cid)  # status mudou → atualiza/limpa evento na Agenda
@@ -191,8 +194,8 @@ class handler(BaseHTTPRequestHandler):
         if action == "bulk":
             # importação em lote (planilha de conteúdo). Qualquer board de conteúdo. v77.55+
             bb = body.get("board") if body.get("board") in CONTEUDO_BOARDS else "conteudo"
-            if (actor.get("lvl") or 0) < _board_min_lvl(bb):
-                return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(bb)}"})
+            if (actor.get("lvl") or 0) < _board_min_lvl(bb, write=True):
+                return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(bb, write=True)}"})
             items = body.get("cards") or []
             if not isinstance(items, list) or not items:
                 return self._send(400, {"ok": False, "error": "cards vazio"})
@@ -222,8 +225,8 @@ class handler(BaseHTTPRequestHandler):
 
         # upsert
         board = body.get("board") if body.get("board") in BOARDS else "negocios"
-        if (actor.get("lvl") or 0) < _board_min_lvl(board):
-            return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(board)}"})
+        if (actor.get("lvl") or 0) < _board_min_lvl(board, write=True):
+            return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(board, write=True)}"})
         # editar card existente de negocios também trava abaixo de 7
         if body.get("id") and self._board_of(sb, body.get("id")) == "negocios" and not is_socio:
             return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
