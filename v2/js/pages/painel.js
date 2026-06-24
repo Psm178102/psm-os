@@ -97,6 +97,10 @@ function render() {
   const mine = _targetId === _me.id;
   const canEdit = !!_data.can_edit;
   const isMgr = (_me.lvl || 0) >= 5;
+  // Corretor (qualquer tipo) tem um Meu Perfil enxuto: sem Metas do colaborador,
+  // Rotina, Feedbacks 1:1, Fila do Dia, Comissões e Atividade recente. O GESTOR que
+  // abre o painel de um corretor continua vendo tudo (visão de 1:1). v81.41
+  const hideForCorretor = (_me.role || '').toLowerCase().startsWith('corretor');
   const ini = escapeHtml((u.ini || (u.name || '?').substring(0, 2)).toUpperCase());
   const d = _perf || {};
 
@@ -130,13 +134,14 @@ function render() {
       <h3 class="card-title mt-4">🌟 Desenvolvimento Individual</h3>
       <div id="dev-extra"></div>
 
-      <!-- ===== METAS (produtividade + resultado) ===== -->
+      <!-- ===== METAS (produtividade + resultado) — oculto p/ corretor ===== -->
+      ${hideForCorretor ? '' : `
       <h3 class="card-title mt-4">🎯 Metas do colaborador</h3>
       <div class="painel-grid">
         ${field('meta_produtividade', '⚡ Meta de PRODUTIVIDADE (atividades)', p.meta_produtividade, canEdit, 'Ex.: 30 ligações/dia · 8 visitas/semana · 12 reels/mês…')}
         ${field('meta_resultado', '🏁 Meta de RESULTADO (output)', p.meta_resultado, canEdit, 'Ex.: R$ X de VGV/mês · 200 leads · CPL < R$ Y · N contratos…')}
         ${field('metas_pessoais', '🌱 Metas pessoais', p.metas_pessoais, canEdit, 'Objetivos pessoais e de carreira…')}
-      </div>
+      </div>`}
 
       <!-- ===== PERFIL & VÍNCULO ===== -->
       <h3 class="card-title mt-4">🧬 Perfil & vínculo</h3>
@@ -158,7 +163,7 @@ function render() {
       <h3 class="card-title mt-4">📌 Acompanhamento</h3>
       <div class="painel-grid">
         ${field('pontos_atencao', '⚠️ Pontos de atenção', p.pontos_atencao, canEdit, 'O que precisa melhorar / observar…')}
-        ${field('rotina', '🗓 Rotina', p.rotina, canEdit, 'Rotina padrão (horários, blocos, rituais)…')}
+        ${hideForCorretor ? '' : field('rotina', '🗓 Rotina', p.rotina, canEdit, 'Rotina padrão (horários, blocos, rituais)…')}
       </div>
 
       ${canEdit ? `<div class="flex gap-2 mt-3" style="align-items:center">
@@ -166,11 +171,12 @@ function render() {
         <span id="pf-status" class="tiny muted"></span>
       </div>` : '<div class="tiny muted mt-3">Você não tem permissão para editar este painel.</div>'}
 
-      <!-- ===== FEEDBACKS 1:1 ===== -->
+      <!-- ===== FEEDBACKS 1:1 — oculto p/ corretor ===== -->
+      ${hideForCorretor ? '' : `
       <h3 class="card-title mt-4">💬 Feedbacks do One-on-One</h3>
-      ${renderFeedbacks(_data.feedbacks || [])}
+      ${renderFeedbacks(_data.feedbacks || [])}`}
 
-      ${mine ? `
+      ${mine && !hideForCorretor ? `
       <!-- Fila + comissões + tarefas + atividade (só meu painel) -->
       <h3 class="card-title mt-4">📞 Sua Fila do Dia</h3>
       <div id="fila-dia"><div class="muted tiny"><span class="spinner"></span> Montando suas ligações de hoje…</div></div>
@@ -261,16 +267,20 @@ async function save() {
   const sv = document.getElementById('pf-save');
   const st = document.getElementById('pf-status');
   const g = id => document.getElementById('pf-' + id);
+  const prof = _data.profile || {};
+  // Campos ocultos (ex.: corretor não vê Metas/Rotina) podem não estar no DOM —
+  // preserva o valor que já estava salvo em vez de apagar. v81.41
+  const val = id => { const el = g(id); return el ? el.value.trim() : (prof[id] || ''); };
   const body = {
     user_id: _targetId,
-    data_inicio: g('data_inicio').value || null,
-    contrato_url: g('contrato_url').value.trim(),
-    perfil_comportamental: g('perfil_comportamental').value.trim(),
-    meta_produtividade: g('meta_produtividade').value.trim(),
-    meta_resultado: g('meta_resultado').value.trim(),
-    metas_pessoais: g('metas_pessoais').value.trim(),
-    pontos_atencao: g('pontos_atencao').value.trim(),
-    rotina: g('rotina').value.trim(),
+    data_inicio: (g('data_inicio') ? g('data_inicio').value : prof.data_inicio) || null,
+    contrato_url: val('contrato_url'),
+    perfil_comportamental: val('perfil_comportamental'),
+    meta_produtividade: val('meta_produtividade'),
+    meta_resultado: val('meta_resultado'),
+    metas_pessoais: val('metas_pessoais'),
+    pontos_atencao: val('pontos_atencao'),
+    rotina: val('rotina'),
   };
   sv.disabled = true; if (st) st.textContent = 'Salvando…';
   try {
