@@ -161,7 +161,7 @@ class handler(BaseHTTPRequestHandler):
 
         # ── Visão por corretor ──
         people = [u for u in users
-                  if (u.get("role") or "").lower() in ("corretor", "lider")
+                  if (u.get("role") or "").lower() in ("corretor", "corretor_conquista", "corretor_map", "corretor_locacao", "lider")
                   and (u.get("status") or "ativo") == "ativo"
                   and (not team_f or (u.get("team") or "").lower() == team_f)
                   and (not only_id or u.get("id") == only_id)]

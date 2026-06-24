@@ -171,6 +171,11 @@ export const ROLE_ALLOWED = {
   backoffice: ['inicio', 'secretaria', 'captacoes', 'vendas', 'locacao', 'rh', 'conta'],
   financeiro: ['inicio', 'financeiro', 'rh', 'conta'],
   corretor:   ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
+  // Sub-tipos de corretor (lvl 2) — default = mesmo do corretor; o sócio afina cada um
+  // em "Permissões por papel". v81.37
+  corretor_conquista: ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
+  corretor_map:       ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
+  corretor_locacao:   ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
 };
 
 // Nível MÍNIMO real (backend) p/ páginas que vivem num grupo compartilhado mas
@@ -315,7 +320,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.36.0';
+const APP_VERSION = '81.37.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {

@@ -81,7 +81,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(500, {"ok": False, "error": f"users: {e}"})
         team_f = (params.get("team") or "").strip().lower()
         people = [u for u in users
-                  if (u.get("role") or "").lower() in ("corretor", "lider", "gerente")
+                  if (u.get("role") or "").lower() in ("corretor", "corretor_conquista", "corretor_map", "corretor_locacao", "lider", "gerente")
                   and (u.get("status") or "ativo") == "ativo"
                   and (not team_f or (u.get("team") or "").lower() == team_f)]
 

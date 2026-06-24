@@ -21,6 +21,7 @@ const PERM_ROLES = [   // socio é fixo (vê tudo) → fora da edição
   ['diretor', '👑 Diretor', 10], ['gerente', '🎯 Gerente', 7], ['lider', '🛡️ Líder', 5],
   ['backoffice', '📋 Back Office', 6], ['financeiro', '💰 Financeiro', 4],
   ['marketing', '📢 Marketing', 3], ['corretor', '🏠 Corretor', 2],
+  ['corretor_conquista', '🏠 Corretor Conquista', 2], ['corretor_map', '🗺️ Corretor MAP', 2], ['corretor_locacao', '🔑 Corretor Locação', 2],
 ];
 const PERM_ALWAYS = new Set(['inicio', 'conta', 'academy']);  // sempre visíveis
 let _permCatalog = null;   // [{key,label,items:[{route,label,icon,minlvl}]}]

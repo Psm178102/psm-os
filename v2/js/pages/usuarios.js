@@ -13,6 +13,9 @@ const ROLES = [
   { id: 'financeiro', lbl: 'Financeiro',        lvl: 4,  color: '#16a34a', ico: '💰' },
   { id: 'marketing',  lbl: 'Marketing',         lvl: 3,  color: '#d97706', ico: '📢' },
   { id: 'corretor',   lbl: 'Corretor',          lvl: 2,  color: '#64748b', ico: '🏠' },
+  { id: 'corretor_conquista', lbl: 'Corretor Conquista', lvl: 2, color: '#f59e0b', ico: '🏠' },
+  { id: 'corretor_map',       lbl: 'Corretor MAP',       lvl: 2, color: '#a855f7', ico: '🗺️' },
+  { id: 'corretor_locacao',   lbl: 'Corretor Locação',   lvl: 2, color: '#a16207', ico: '🔑' },
 ];
 
 const TEAMS = [

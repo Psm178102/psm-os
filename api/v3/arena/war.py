@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 
 BRT = timedelta(hours=-3)
-COMPET = ("corretor", "lider", "líder")
+COMPET = ("corretor", "corretor_conquista", "corretor_map", "corretor_locacao", "lider", "líder")
 
 
 def _all_deals(sb):

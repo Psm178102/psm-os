@@ -205,7 +205,7 @@ class handler(BaseHTTPRequestHandler):
                     tkey = (team or "").strip().lower()
                     members = [m for m in (sb.table("users").select("id,name,email,role,team,ini,color,status").execute().data or [])
                                if (m.get("status") or "ativo") == "ativo"
-                               and (m.get("role") or "").lower() in ("corretor", "lider", "gerente")
+                               and (m.get("role") or "").lower() in ("corretor", "corretor_conquista", "corretor_map", "corretor_locacao", "lider", "gerente")
                                and (m.get("team") or "").strip().lower() == tkey]
                 except Exception:
                     members = []

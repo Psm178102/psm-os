@@ -257,7 +257,7 @@ function miniMetric(label, big, sub, cor) {
 
 function metricsRow() {
   const d = _data || {};
-  const isCorretor = (_feedRole || '').toLowerCase() === 'corretor';
+  const isCorretor = (_feedRole || '').toLowerCase().startsWith('corretor');
   const metaVgv = d.metas?.meta_vgv || 0, vgvMes = d.sales?.vgv_mes || 0;
   const metaPct = metaVgv > 0 ? (vgvMes / metaVgv * 100) : null;
   const prod = _feedProd || {};

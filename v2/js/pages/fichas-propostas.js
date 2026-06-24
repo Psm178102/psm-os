@@ -213,7 +213,7 @@ function showForm() {
             <label class="tiny muted">Corretor responsável</label>
             <select id="ff-cor" class="select">
               <option value="">— sem corretor —</option>
-              ${selectableUsers(_users.filter(u => u.role === 'corretor' || u.role === 'lider'), f.corretor_id).map(u => `<option value="${u.id}" ${f.corretor_id === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}
+              ${selectableUsers(_users.filter(u => (u.role || '').startsWith('corretor') || u.role === 'lider'), f.corretor_id).map(u => `<option value="${u.id}" ${f.corretor_id === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}
             </select>
           </div>
         ` : ''}
