@@ -71,6 +71,11 @@ import { pageBase } from './pages/base.js';
 import { pageFormacao } from './pages/formacao.js';
 import { pageGestaoPessoas } from './pages/gestao-pessoas.js';
 import { pageTalentos } from './pages/talentos.js';
+// Ferramentas Conquista (v81.44) — gated em sócio (ROUTE_MIN_LVL=10) por enquanto
+import { pageCockpitConquista } from './pages/cockpit-conquista.js';
+import { pageMinhaComissao } from './pages/minha-comissao.js';
+import { pageMeuCerebro } from './pages/meu-cerebro.js';
+import { pageSimConquista } from './pages/sim-conquista.js';
 import { pagePremiacoes } from './pages/premiacoes.js';
 import { pageAgentes } from './pages/agentes.js';
 import { pageAgenteVera } from './pages/agente-vera.js';
@@ -120,6 +125,7 @@ export const ROUTE_GROUP = {
   '/imoveis': 'vendas', '/mapa': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/lancamentos': 'vendas',
   '/metas': 'vendas', '/equipe': 'vendas', '/plantoes': 'vendas',
   '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas', '/sim-amortizacao': 'vendas',
+  '/cockpit-conquista': 'vendas', '/minha-comissao': 'vendas', '/meu-cerebro': 'vendas', '/sim-conquista': 'vendas',  // ferramentas Conquista (v81.44)
   // Locação
   '/locacoes': 'locacao', '/minutas-locacao': 'locacao',
   // Financeiro
@@ -195,6 +201,9 @@ export const ROUTE_MIN_LVL = {
   '/config-menu': 10,     // renomear o menu/páginas — só sócio
   '/psmhub': 7,           // auditoria do PSM HUB (Conquista) — diretoria
   '/qualidade': 7,        // saúde dos cadastros — diretoria+
+  // Ferramentas Conquista (v81.44): A PRINCÍPIO só sócio (lvl 10). Pra abrir pro
+  // corretor é só baixar este número (ou liberar na matriz por papel).
+  '/cockpit-conquista': 10, '/minha-comissao': 10, '/meu-cerebro': 10, '/sim-conquista': 10,
 };
 
 // Override por PAPEL (matriz editável pelo sócio em Configurações → Permissões por papel).
@@ -321,7 +330,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.43.0';
+const APP_VERSION = '81.44.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -496,6 +505,10 @@ const APP_VERSION = '81.43.0';
   router.register('/sim-repasse', { render: async (ctx, root) => { setHeader('Simulador Repasse');   highlight('/sim-repasse'); await pageSimRepasse(ctx, root); } });
   router.register('/sim-energia', { render: async (ctx, root) => { setHeader('Simulador Energia');   highlight('/sim-energia'); await pageSimEnergia(ctx, root); } });
   router.register('/sim-amortizacao', { render: async (ctx, root) => { setHeader('Simulador de Amortização'); highlight('/sim-amortizacao'); await pageSimAmortizacao(ctx, root); } });
+  router.register('/cockpit-conquista', { render: async (ctx, root) => { setHeader('Cockpit Conquista'); highlight('/cockpit-conquista'); await pageCockpitConquista(ctx, root); } });
+  router.register('/minha-comissao',   { render: async (ctx, root) => { setHeader('Minha Comissão');    highlight('/minha-comissao'); await pageMinhaComissao(ctx, root); } });
+  router.register('/meu-cerebro',      { render: async (ctx, root) => { setHeader('Meu Cérebro de Vendas'); highlight('/meu-cerebro'); await pageMeuCerebro(ctx, root); } });
+  router.register('/sim-conquista',    { render: async (ctx, root) => { setHeader('Simulador Conquista'); highlight('/sim-conquista'); await pageSimConquista(ctx, root); } });
   router.register('/sim-leads',   { render: async (ctx, root) => { setHeader('Simulador Leads/CAC'); highlight('/sim-leads'); await pageSimLeads(ctx, root); } });
   router.register('/sim-criativos', { render: async (ctx, root) => { setHeader('Simulador Criativos'); highlight('/sim-criativos'); await pageSimCriativos(ctx, root); } });
   router.register('/war-room',    { render: async (ctx, root) => { setHeader('War Room');            highlight('/war-room');   await pageWarRoom(ctx, root); } });
@@ -657,6 +670,10 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/sim-repasse"><span class="sb-ico">🔁</span> Simulador Repasse</button>
         <button class="sb-link" data-nav="/sim-energia"><span class="sb-ico">⚡</span> Simulador Energia</button>
         <button class="sb-link" data-nav="/sim-amortizacao"><span class="sb-ico">🏦</span> Simulador de Amortização</button>
+        <button class="sb-link" data-nav="/cockpit-conquista"><span class="sb-ico">🚀</span> Cockpit Conquista</button>
+        <button class="sb-link" data-nav="/sim-conquista"><span class="sb-ico">🏠</span> Simulador Conquista</button>
+        <button class="sb-link" data-nav="/meu-cerebro"><span class="sb-ico">🎯</span> Meu Cérebro de Vendas</button>
+        <button class="sb-link" data-nav="/minha-comissao"><span class="sb-ico">💰</span> Minha Comissão</button>
 
         <div class="sb-sec">🔥 Arena & Performance</div>
         <button class="sb-link" data-nav="/tv"><span class="sb-ico">📺</span> Modo TV</button>
