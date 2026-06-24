@@ -24,6 +24,7 @@ ROLE_ALLOWED = {
     "corretor_conquista": ["inicio", "vendas", "captacoes", "locacao", "performance", "ia", "cultura", "ferramentas", "conta"],
     "corretor_map":       ["inicio", "vendas", "captacoes", "locacao", "performance", "ia", "cultura", "ferramentas", "conta"],
     "corretor_locacao":   ["inicio", "vendas", "captacoes", "locacao", "performance", "ia", "cultura", "ferramentas", "conta"],
+    "corretor_terceiros": ["inicio", "vendas", "captacoes", "locacao", "performance", "ia", "cultura", "ferramentas", "conta"],
 }
 ALWAYS = ("inicio", "conta", "academy")  # grupos sempre visíveis
 

@@ -12,11 +12,16 @@ const ROLES = [
   { id: 'lider',      lbl: 'Líder de Equipe',   lvl: 5,  color: '#059669', ico: '🛡️' },
   { id: 'financeiro', lbl: 'Financeiro',        lvl: 4,  color: '#16a34a', ico: '💰' },
   { id: 'marketing',  lbl: 'Marketing',         lvl: 3,  color: '#d97706', ico: '📢' },
-  { id: 'corretor',   lbl: 'Corretor',          lvl: 2,  color: '#64748b', ico: '🏠' },
   { id: 'corretor_conquista', lbl: 'Corretor Conquista', lvl: 2, color: '#f59e0b', ico: '🏠' },
   { id: 'corretor_map',       lbl: 'Corretor MAP',       lvl: 2, color: '#a855f7', ico: '🗺️' },
   { id: 'corretor_locacao',   lbl: 'Corretor Locação',   lvl: 2, color: '#a16207', ico: '🔑' },
+  { id: 'corretor_terceiros', lbl: 'Corretor Terceiros', lvl: 2, color: '#0d9488', ico: '🤝' },
+  // legado: não é mais oferecido pra novos; some do seletor, mas continua exibindo
+  // pra quem ainda é 'corretor' (até o sócio reatribuir) + serve de fallback interno. v81.38
+  { id: 'corretor',   lbl: 'Corretor (antigo)', lvl: 2,  color: '#64748b', ico: '🏠', legacy: true },
 ];
+// Papéis OFERECIDOS no seletor: esconde legados, mas mantém o papel atual do usuário
+const roleOptions = (curId) => ROLES.filter(r => !r.legacy || r.id === curId);
 
 const TEAMS = [
   { id: 'lancamento', lbl: 'Lançamento', color: '#d4a843', ico: '🏗' },
@@ -201,7 +206,7 @@ function userRow(u, isSocio, myId) {
         </div>` : ''}
       </div>
       <select class="select" data-action="role" data-id="${u.id}" ${editable ? '' : 'disabled'} style="padding:5px 8px;font-size:11px;font-weight:700;min-width:170px;border-left:3px solid ${role.color}" title="Papel hierárquico">
-        ${ROLES.map(r => `<option value="${r.id}"${u.role === r.id ? ' selected' : ''}>${r.ico} ${r.lbl} · L${r.lvl}</option>`).join('')}
+        ${roleOptions(u.role).map(r => `<option value="${r.id}"${u.role === r.id ? ' selected' : ''}>${r.ico} ${r.lbl} · L${r.lvl}</option>`).join('')}
       </select>
       <select class="select" data-action="team" data-id="${u.id}" ${editable ? '' : 'disabled'} style="padding:5px 8px;font-size:11px;font-weight:700;min-width:150px;border-left:3px solid ${team.color}" title="Equipe / frente">
         ${TEAMS.map(t => `<option value="${t.id}"${u.team === t.id ? ' selected' : ''}>${t.ico} ${t.lbl}</option>`).join('')}
@@ -225,7 +230,7 @@ function addUserBlock() {
         <input id="nu-name"  class="input" placeholder="Nome completo" style="width:200px;padding:6px 10px;font-size:12px">
         <input id="nu-email" class="input" placeholder="email@imobiliariapsm.com.br" style="width:260px;padding:6px 10px;font-size:12px">
         <select id="nu-role" class="select" style="padding:6px 10px;font-size:12px">
-          ${ROLES.map(r => `<option value="${r.id}"${r.id === 'corretor' ? ' selected' : ''}>${r.ico} ${r.lbl}</option>`).join('')}
+          ${roleOptions('').map(r => `<option value="${r.id}"${r.id === 'corretor_conquista' ? ' selected' : ''}>${r.ico} ${r.lbl}</option>`).join('')}
         </select>
         <select id="nu-team" class="select" style="padding:6px 10px;font-size:12px">
           ${TEAMS.map(t => `<option value="${t.id}"${t.id === 'geral' ? ' selected' : ''}>${t.ico} ${t.lbl}</option>`).join('')}

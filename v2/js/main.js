@@ -176,6 +176,7 @@ export const ROLE_ALLOWED = {
   corretor_conquista: ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
   corretor_map:       ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
   corretor_locacao:   ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
+  corretor_terceiros: ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'conta'],
 };
 
 // Nível MÍNIMO real (backend) p/ páginas que vivem num grupo compartilhado mas
@@ -234,7 +235,7 @@ function canSee(path, user) {
   // socio nunca entra aqui (não dá pra se trancar fora). v77.81
   const rp = _rolePerms[role];
   if (role !== 'socio' && !Array.isArray(user?.menu_groups) && Array.isArray(rp)) {
-    if (grp === 'inicio' || grp === 'conta' || grp === 'academy') return true;  // sempre visíveis
+    if (grp === 'conta' || grp === 'academy') return true;  // Conta/Academy sempre visíveis; INÍCIO agora é configurável por papel (v81.38)
     if ((user?.lvl || 0) < (ROUTE_MIN_LVL[base] || 0)) return false;            // nível real
     if (_catalogRoutes && _catalogRoutes.has(base)) return rp.includes(base);   // item de menu: granular
     return rp.some(r => (ROUTE_GROUP[r] || '') === grp);                        // sub-rota: liberada se o grupo tem item liberado
@@ -320,7 +321,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.37.0';
+const APP_VERSION = '81.38.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {

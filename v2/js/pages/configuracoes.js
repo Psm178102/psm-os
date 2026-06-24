@@ -12,6 +12,7 @@ let _reveal = false;
 
 // ── Editor de Permissões por papel (matriz editável pelo sócio) ──
 const PERM_GROUP_LBL = {
+  inicio: '🏠 Início',
   secretaria: '🗂 Secretaria de Vendas & Backoffice', vendas: '🏘 Imóveis & Vendas', locacao: '🔑 Locação',
   financeiro: '💰 Financeiro', marketing: '📊 Marketing', performance: '🎯 Metas & Performance',
   diretoria: '🏛 Diretoria', juridico: '⚖️ Jurídico', ia: '🤖 IA', rh: '🧑‍💼 Gestão de Pessoas & RH', ferramentas: '🧮 Ferramentas',
@@ -20,10 +21,11 @@ const PERM_GROUP_LBL = {
 const PERM_ROLES = [   // socio é fixo (vê tudo) → fora da edição
   ['diretor', '👑 Diretor', 10], ['gerente', '🎯 Gerente', 7], ['lider', '🛡️ Líder', 5],
   ['backoffice', '📋 Back Office', 6], ['financeiro', '💰 Financeiro', 4],
-  ['marketing', '📢 Marketing', 3], ['corretor', '🏠 Corretor', 2],
-  ['corretor_conquista', '🏠 Corretor Conquista', 2], ['corretor_map', '🗺️ Corretor MAP', 2], ['corretor_locacao', '🔑 Corretor Locação', 2],
+  ['marketing', '📢 Marketing', 3],
+  ['corretor_conquista', '🏠 Corretor Conquista', 2], ['corretor_map', '🗺️ Corretor MAP', 2],
+  ['corretor_locacao', '🔑 Corretor Locação', 2], ['corretor_terceiros', '🤝 Corretor Terceiros', 2],
 ];
-const PERM_ALWAYS = new Set(['inicio', 'conta', 'academy']);  // sempre visíveis
+const PERM_ALWAYS = new Set(['conta', 'academy']);  // sempre visíveis (Início agora é configurável) v81.38
 let _permCatalog = null;   // [{key,label,items:[{route,label,icon,minlvl}]}]
 let _permState = {};       // { role: Set(routes) }
 let _permDefault = {};     // { role: Set(routes) } — default p/ comparar/restaurar

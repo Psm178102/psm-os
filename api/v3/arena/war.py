@@ -69,7 +69,8 @@ def _build(sb):
         by_user[uid]["vgv"] += amt; by_user[uid]["vendas"] += 1
 
     def is_competidor(u):
-        return u and (u.get("role") or "").lower() in COMPET and not u.get("hide_from_ranking") and (u.get("status") or "ativo") == "ativo"
+        _r = (u.get("role") or "").lower()
+        return u and (_r.startswith("corretor") or _r in ("lider", "líder")) and not u.get("hide_from_ranking") and (u.get("status") or "ativo") == "ativo"
 
     # guerreiros (competidores ativos) — inclui quem tem meta mesmo sem venda
     guerreiros = []
