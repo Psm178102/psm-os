@@ -41,6 +41,16 @@ BOARDS = ("negocios", "conteudo", "conteudo_imoveis", "conteudo_conquista", "aca
 CONTEUDO_BOARDS = ("conteudo", "conteudo_imoveis", "conteudo_conquista", "academy", "projetos", "criativos")  # compartilhados, lvl>=3
 
 
+def _board_min_lvl(board):
+    """Nível mínimo por board: negócios=7 (privado do dono); CRIATIVOS=2 (corretor pode
+    ver/pedir criativo — liberável na matriz por papel); demais conteúdos=3 (marketing+). v81.42"""
+    if board == "negocios":
+        return 7
+    if board == "criativos":
+        return 2
+    return 3
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
         self.send_response(s); self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -54,13 +64,14 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            actor = require_user(self, min_lvl=3)  # conteudo: marketing+ ; negocios: trava em 7 abaixo
+            actor = require_user(self, min_lvl=0)  # o nível exigido depende do board (abaixo)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
         board = q.get("board") if q.get("board") in BOARDS else "negocios"
-        if board == "negocios" and (actor.get("lvl") or 0) < 7:
-            return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
+        _need = _board_min_lvl(board)
+        if (actor.get("lvl") or 0) < _need:
+            return self._send(403, {"ok": False, "error": f"requer nível ≥ {_need}"})
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
@@ -132,7 +143,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            actor = require_user(self, min_lvl=3)  # conteudo: marketing+ ; negocios: trava em 7 abaixo
+            actor = require_user(self, min_lvl=2)  # piso = corretor; nível real exigido por board (abaixo)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         try:
@@ -151,8 +162,9 @@ class handler(BaseHTTPRequestHandler):
             cid = body.get("id")
             if not cid:
                 return self._send(400, {"ok": False, "error": "id"})
-            if self._board_of(sb, cid) == "negocios" and not is_socio:
-                return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
+            _bd = self._board_of(sb, cid)
+            if (actor.get("lvl") or 0) < _board_min_lvl(_bd):
+                return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(_bd)}"})
             try:
                 sb.table("paulo_cards").delete().eq("id", cid).execute()
                 try: sb.table("eventos").delete().eq("id", "evp_" + cid).execute()  # remove da Agenda
@@ -166,8 +178,9 @@ class handler(BaseHTTPRequestHandler):
             cid = body.get("id"); status = (body.get("status") or "").strip()
             if not cid or not status:
                 return self._send(400, {"ok": False, "error": "id e status"})
-            if self._board_of(sb, cid) == "negocios" and not is_socio:
-                return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
+            _bd = self._board_of(sb, cid)
+            if (actor.get("lvl") or 0) < _board_min_lvl(_bd):
+                return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(_bd)}"})
             try:
                 sb.table("paulo_cards").update({"status": status, "updated_at": now}).eq("id", cid).execute()
                 self._sync_event(sb, cid)  # status mudou → atualiza/limpa evento na Agenda
@@ -178,6 +191,8 @@ class handler(BaseHTTPRequestHandler):
         if action == "bulk":
             # importação em lote (planilha de conteúdo). Qualquer board de conteúdo. v77.55+
             bb = body.get("board") if body.get("board") in CONTEUDO_BOARDS else "conteudo"
+            if (actor.get("lvl") or 0) < _board_min_lvl(bb):
+                return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(bb)}"})
             items = body.get("cards") or []
             if not isinstance(items, list) or not items:
                 return self._send(400, {"ok": False, "error": "cards vazio"})
@@ -207,8 +222,8 @@ class handler(BaseHTTPRequestHandler):
 
         # upsert
         board = body.get("board") if body.get("board") in BOARDS else "negocios"
-        if board == "negocios" and not is_socio:
-            return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
+        if (actor.get("lvl") or 0) < _board_min_lvl(board):
+            return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(board)}"})
         # editar card existente de negocios também trava abaixo de 7
         if body.get("id") and self._board_of(sb, body.get("id")) == "negocios" and not is_socio:
             return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
