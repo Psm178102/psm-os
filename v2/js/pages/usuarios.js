@@ -23,14 +23,17 @@ const ROLES = [
 // Papéis OFERECIDOS no seletor: esconde legados, mas mantém o papel atual do usuário
 const roleOptions = (curId) => ROLES.filter(r => !r.legacy || r.id === curId);
 
-const TEAMS = [
+// Equipes: fallback local; a lista REAL e personalizável vem de /api/v3/settings/teams. v81.39
+const TEAMS_DEFAULT = [
+  { id: 'conquista',  lbl: 'Conquista',  color: '#dc2626', ico: '🏆' },
+  { id: 'map',        lbl: 'MAP',        color: '#a855f7', ico: '🗺️' },
+  { id: 'locacao',    lbl: 'Locação',    color: '#10b981', ico: '🔑' },
+  { id: 'terceiros',  lbl: 'Terceiros',  color: '#3b82f6', ico: '🤝' },
   { id: 'lancamento', lbl: 'Lançamento', color: '#d4a843', ico: '🏗' },
-  { id: 'conquista',  lbl: 'Conquista',   color: '#dc2626', ico: '🏆' },
-  { id: 'terceiros',  lbl: 'Terceiros',   color: '#3b82f6', ico: '🤝' },
-  { id: 'impper',     lbl: 'IMPPER',      color: '#a855f7', ico: '✨' },
-  { id: 'locacao',    lbl: 'Locação',     color: '#10b981', ico: '🔑' },
-  { id: 'geral',      lbl: 'Geral',       color: '#64748b', ico: '📁' },
+  { id: 'geral',      lbl: 'Geral',      color: '#64748b', ico: '📁' },
 ];
+let _teams = TEAMS_DEFAULT;
+const teamInfo = id => _teams.find(t => t.id === id) || { id: id || 'geral', lbl: id || 'Geral', color: '#64748b', ico: '📁' };
 
 // State
 let _users = [];
@@ -47,11 +50,13 @@ export async function pageUsuarios(ctx, root) {
 
 async function reload() {
   try {
-    const [u, a] = await Promise.all([
+    const [u, a, t] = await Promise.all([
       api.request('/api/v3/users/list?all=1'),   // gestão vê TODOS (inclusive arquivados)
       api.request('/api/v3/audit/list?limit=300').catch(() => ({ entries: [] })),
+      api.request('/api/v3/settings/teams').catch(() => ({ teams: TEAMS_DEFAULT })),
     ]);
     _users = u.users || [];
+    _teams = (t.teams && t.teams.length) ? t.teams : TEAMS_DEFAULT;
     _lastAuditByUser = {};
     for (const e of (a.entries || [])) {
       if (!e.target_id) continue;
@@ -125,7 +130,7 @@ function render() {
         <label class="tiny muted" style="font-weight:700;letter-spacing:1px">EQUIPE:</label>
         <select id="f-team" class="select">
           <option value="todos">Todas equipes</option>
-          ${TEAMS.map(t => `<option value="${t.id}">${t.ico} ${t.lbl}</option>`).join('')}
+          ${_teams.map(t => `<option value="${t.id}">${t.ico} ${t.lbl}</option>`).join('')}
         </select>
         <label class="tiny muted" style="font-weight:700;letter-spacing:1px;margin-left:14px">STATUS:</label>
         <select id="f-status" class="select">
@@ -134,6 +139,7 @@ function render() {
           <option value="inativos">Apenas inativos</option>
           <option value="ocultos">Apenas ocultos</option>
         </select>
+        ${isSocio ? `<button class="btn btn-ghost btn-sm" id="btn-equipes" style="margin-left:14px">⚙️ Gerenciar equipes</button>` : ''}
         <span style="margin-left:auto" class="tiny muted">${list.length} resultado(s)</span>
       </div>
 
@@ -162,6 +168,7 @@ function render() {
   const fS = document.getElementById('f-status');
   if (fT) { fT.value = _filterTeam;   fT.addEventListener('change', () => { _filterTeam = fT.value; render(); }); }
   if (fS) { fS.value = _filterStatus; fS.addEventListener('change', () => { _filterStatus = fS.value; render(); }); }
+  document.getElementById('btn-equipes')?.addEventListener('click', openTeamsManager);
 
   // Wire up row controls
   document.querySelectorAll('[data-action]').forEach(el => {
@@ -185,7 +192,7 @@ function statCard(label, value, bg, fg) {
 
 function userRow(u, isSocio, myId) {
   const role = ROLES.find(r => r.id === (u.role || 'corretor')) || ROLES.find(r => r.id === 'corretor');
-  const team = TEAMS.find(t => t.id === (u.team || 'geral')) || TEAMS[5];
+  const team = teamInfo(u.team || 'geral');
   const ini = escapeHtml((u.ini || (u.name || '?').substring(0, 2)).toUpperCase());
   const inactive = (u.status || 'ativo') !== 'ativo';
   const hidden = !!u.hide_from_ranking;
@@ -209,7 +216,7 @@ function userRow(u, isSocio, myId) {
         ${roleOptions(u.role).map(r => `<option value="${r.id}"${u.role === r.id ? ' selected' : ''}>${r.ico} ${r.lbl} · L${r.lvl}</option>`).join('')}
       </select>
       <select class="select" data-action="team" data-id="${u.id}" ${editable ? '' : 'disabled'} style="padding:5px 8px;font-size:11px;font-weight:700;min-width:150px;border-left:3px solid ${team.color}" title="Equipe / frente">
-        ${TEAMS.map(t => `<option value="${t.id}"${u.team === t.id ? ' selected' : ''}>${t.ico} ${t.lbl}</option>`).join('')}
+        ${(_teams.some(t => t.id === u.team) ? _teams : _teams.concat([teamInfo(u.team)])).map(t => `<option value="${t.id}"${u.team === t.id ? ' selected' : ''}>${t.ico} ${t.lbl}</option>`).join('')}
       </select>
       ${isMe
         ? '<span class="tiny muted" style="font-style:italic;padding:0 8px">— você —</span>'
@@ -233,7 +240,7 @@ function addUserBlock() {
           ${roleOptions('').map(r => `<option value="${r.id}"${r.id === 'corretor_conquista' ? ' selected' : ''}>${r.ico} ${r.lbl}</option>`).join('')}
         </select>
         <select id="nu-team" class="select" style="padding:6px 10px;font-size:12px">
-          ${TEAMS.map(t => `<option value="${t.id}"${t.id === 'geral' ? ' selected' : ''}>${t.ico} ${t.lbl}</option>`).join('')}
+          ${_teams.map((t, i) => `<option value="${t.id}"${(t.id === 'conquista' || i === 0) ? ' selected' : ''}>${t.ico} ${t.lbl}</option>`).join('')}
         </select>
         <button id="btn-add-user" class="btn btn-primary">+ Adicionar</button>
       </div>
@@ -321,6 +328,62 @@ async function handleAddUser() {
   } catch (e) {
     msg.innerHTML = `<div class="alert alert-err">${escapeHtml(e.message)}</div>`;
   }
+}
+
+// ─── Gerenciador de equipes (criar/personalizar) ─────────────────────────
+function openTeamsManager() {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  let teams = _teams.map(t => ({ ...t }));
+  ov.innerHTML = `
+    <div class="card" style="max-width:540px;width:100%;background:var(--bg-2);margin:auto">
+      <div class="flex" style="justify-content:space-between;align-items:center">
+        <h3 class="card-title" style="margin:0">⚙️ Equipes da PSM</h3>
+        <button class="btn btn-ghost btn-sm" id="te-x">✕</button>
+      </div>
+      <p class="tiny muted" style="margin:4px 0 10px">Crie e personalize as equipes (emoji, nome, cor). Remover uma equipe NÃO mexe em quem já está nela — continua aparecendo até você reatribuir.</p>
+      <div id="te-rows"></div>
+      <button class="btn btn-ghost btn-sm mt-2" id="te-add" type="button">+ nova equipe</button>
+      <div class="flex gap-2 mt-3" style="justify-content:flex-end">
+        <button class="btn btn-ghost" id="te-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="te-save">💾 Salvar equipes</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const rows = ov.querySelector('#te-rows');
+  const draw = () => {
+    rows.innerHTML = teams.map((t, i) => `
+      <div class="flex gap-2" style="align-items:center;margin-top:6px" data-trow="${i}">
+        <input class="input te-ico" value="${escapeHtml(t.ico || '📁')}" maxlength="4" style="width:52px;text-align:center">
+        <input class="input te-lbl" value="${escapeHtml(t.lbl || '')}" placeholder="Nome da equipe" style="flex:1">
+        <input class="input te-cor" type="color" value="${escapeHtml(t.color || '#64748b')}" style="width:46px;padding:2px;min-width:46px">
+        <button class="btn btn-ghost btn-sm" type="button" data-tdel="${i}" style="color:#dc2626" title="Remover">×</button>
+      </div>`).join('');
+  };
+  draw();
+  const close = () => ov.remove();
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  ov.querySelector('#te-x').onclick = close;
+  ov.querySelector('#te-cancel').onclick = close;
+  ov.querySelector('#te-add').onclick = () => { teams.push({ id: '', lbl: '', color: '#64748b', ico: '📁' }); draw(); };
+  rows.addEventListener('click', e => { const d = e.target.closest('[data-tdel]'); if (d) { teams.splice(+d.dataset.tdel, 1); draw(); } });
+  ov.querySelector('#te-save').onclick = async () => {
+    const out = [...rows.querySelectorAll('[data-trow]')].map(r => {
+      const i = +r.dataset.trow;
+      return {
+        id: (teams[i] && teams[i].id) || '',
+        lbl: r.querySelector('.te-lbl').value.trim(),
+        ico: r.querySelector('.te-ico').value.trim() || '📁',
+        color: r.querySelector('.te-cor').value || '#64748b',
+      };
+    }).filter(t => t.lbl);
+    if (!out.length) return alert('Informe ao menos 1 equipe.');
+    try {
+      const res = await api.request('/api/v3/settings/teams', { method: 'POST', body: { action: 'set', teams: out } });
+      _teams = (res.teams && res.teams.length) ? res.teams : out;
+      close(); render(); toast('Equipes salvas ✓', 'ok');
+    } catch (e) { alert('Erro ao salvar equipes: ' + e.message); }
+  };
 }
 
 // ─── Toast ──────────────────────────────────────────────────────────────
