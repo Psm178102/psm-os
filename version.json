@@ -1,7 +1,7 @@
 {
   "version": "81.39.0",
   "meta": "2026.06.23-v81.39-equipes-gerenciaveis",
-  "built": "2026-06-23T00:00:00Z",
+  "built": "2026-06-23T00:05:00Z",
   "sw": "v81.39.0-2026-06-23-EQUIPES",
   "sprint": "v81.39 — EQUIPES gerenciáveis: tela Usuários ganha '⚙️ Gerenciar equipes' (criar/editar/remover: emoji, nome, cor) gravando na TABELA `teams` (FK users.team — fonte da verdade). Dropdown de equipe agora é dinâmico (vem de /api/v3/settings/teams, repontado pra tabela; fallback local). Dá pra MOVER corretor entre equipes pelo dropdown (Conquista↔MAP). Limpeza de dados: criada equipe id='map' ('Equipe MAP', antes era id='lancamento' bagunçado→desativado) + 'geral'; 18 corretores reatribuídos (17→corretor_conquista+conquista, Yara→corretor_map+map). Remover equipe = soft (active=false), não quebra quem já está nela.",
   "sprint_inicio_terceiros_v81_38": "v81.38 — (1) Menu INÍCIO agora é CONFIGURÁVEL por papel em 'Permissões por papel' (Dashboard, Meu Painel, Check-in, Ranking, Manual, Ética, Canal, Premiações). Conta e Academy seguem sempre-visíveis; o Dashboard '/' tem tela de pouso garantida (router isenta '/'). Papéis já configurados foram migrados pra manter o Início. (2) Removido o 'Corretor' puro do seletor (vira legado oculto/fallback) e adicionado 4º tipo: Corretor Terceiros. Agora só: Conquista, MAP, Locação, Terceiros. Checks de corretor (ranking/arena, 1:1, sales_brain, dashboard, fichas) via startswith('corretor'). 18 usuários ainda são 'corretor' puro — reatribuir aos 4 tipos. Constraint + migração via Management API.",
