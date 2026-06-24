@@ -1,24 +1,37 @@
 /* PSM-OS v2 — Gestão de Pessoas (Sprint 8.1) */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { pageTalentos } from './talentos.js';
 
 let _root = null;
+let _ctx = null;
 let _tab = 'treinamentos';
 let _treinamentos = [];
 let _editing = null;
 let _rh = { onboarding: [], offboarding: [] };   // processos de admissão/desligamento (sócio)
 const isSocio = () => (auth.user()?.lvl || 0) >= 10;
 
-// Entradas diretas pelo menu (abrem a página já na aba certa) — v81.45
+// Abas do hub de Pessoas, na ordem pedida. Onboarding/Offboarding = só sócio (lvl 10);
+// Treinamentos/Base de Talentos = líder+ (lvl 5).
+function visibleTabs() {
+  const t = [];
+  if (isSocio()) t.push({ id: 'onboarding', lbl: '🚀 Onboarding' }, { id: 'offboarding', lbl: '👋 Offboarding' });
+  t.push({ id: 'treinamentos', lbl: '🎓 Treinamentos' }, { id: 'talentos', lbl: '🌟 Base de Talentos' });
+  return t;
+}
+
+// Entradas diretas (deep-link) — abrem a página já na aba certa
 export async function pageOnboarding(ctx, root) { _tab = 'onboarding'; return pageGestaoPessoas(ctx, root); }
 export async function pageOffboarding(ctx, root) { _tab = 'offboarding'; return pageGestaoPessoas(ctx, root); }
 
 export async function pageGestaoPessoas(ctx, root) {
-  _root = root;
+  _root = root; _ctx = ctx;
   if ((auth.user()?.lvl || 0) < 5) {
     root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder (lvl 5+).</div>';
     return;
   }
+  const valid = visibleTabs().map(t => t.id);
+  if (!valid.includes(_tab)) _tab = valid[0];   // default = 1ª aba visível (sócio→Onboarding)
   render();
   await loadData();
 }
@@ -27,13 +40,9 @@ function render() {
   _root.innerHTML = `
     <div class="card">
       <h2 class="card-title">👥 Gestão de Pessoas</h2>
-      <p class="card-sub">Treinamentos e reuniões 1:1 <span class="tiny muted">· Base de Talentos agora fica na Diretoria 🌟</span></p>
+      <p class="card-sub">Admissão, desligamento, treinamentos e base de talentos do time.</p>
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
-        <button class="btn ${_tab === 'treinamentos' ? 'btn-primary' : 'btn-ghost'}" data-tab="treinamentos">🎓 Treinamentos</button>
-        <button class="btn ${_tab === 'reunioes' ? 'btn-primary' : 'btn-ghost'}" data-tab="reunioes">📅 Reuniões 1:1</button>
-        ${isSocio() ? `
-        <button class="btn ${_tab === 'onboarding' ? 'btn-primary' : 'btn-ghost'}" data-tab="onboarding">🚀 Onboarding</button>
-        <button class="btn ${_tab === 'offboarding' ? 'btn-primary' : 'btn-ghost'}" data-tab="offboarding">👋 Offboarding</button>` : ''}
+        ${visibleTabs().map(t => `<button class="btn ${_tab === t.id ? 'btn-primary' : 'btn-ghost'}" data-tab="${t.id}">${t.lbl}</button>`).join('')}
       </div>
       <div id="gp-body" class="mt-4"></div>
     </div>
@@ -46,17 +55,7 @@ function render() {
 }
 
 async function loadData() {
-  if (_tab === 'reunioes') {
-    document.getElementById('gp-body').innerHTML = `
-      <div class="card" style="background:var(--bg-3);text-align:center;padding:40px">
-        <div style="font-size:36px;margin-bottom:10px">📅</div>
-        <div style="font-weight:800;margin-bottom:6px">Reuniões 1:1 estão em página dedicada</div>
-        <div class="tiny muted mb-3">A funcionalidade One-on-One foi expandida e movida pra uma página própria.</div>
-        <button class="btn btn-primary" onclick="location.hash='/one-on-one'">Ir pra One-on-One →</button>
-      </div>
-    `;
-    return;
-  }
+  if (_tab === 'talentos') return pageTalentos(_ctx, document.getElementById('gp-body'));
   if (_tab === 'onboarding' || _tab === 'offboarding') return loadRH(_tab);
   return loadTreinamentos();
 }

@@ -331,7 +331,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.45.0';
+const APP_VERSION = '81.46.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -701,9 +701,6 @@ function shellHTML(user) {
 
         <div class="sb-sec">🧑‍💼 Gestão de Pessoas & RH</div>
         <button class="sb-link" data-nav="/gestao-pessoas"><span class="sb-ico">👥</span> Gestão de Pessoas</button>
-        <button class="sb-link" data-nav="/onboarding"><span class="sb-ico">🚀</span> Onboarding</button>
-        <button class="sb-link" data-nav="/offboarding"><span class="sb-ico">👋</span> Offboarding</button>
-        <button class="sb-link" data-nav="/talentos"><span class="sb-ico">🌟</span> Base de Talentos</button>
 
         <div class="sb-sec">📣 Marketing</div>
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>
