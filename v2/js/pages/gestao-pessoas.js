@@ -9,6 +9,10 @@ let _editing = null;
 let _rh = { onboarding: [], offboarding: [] };   // processos de admissão/desligamento (sócio)
 const isSocio = () => (auth.user()?.lvl || 0) >= 10;
 
+// Entradas diretas pelo menu (abrem a página já na aba certa) — v81.45
+export async function pageOnboarding(ctx, root) { _tab = 'onboarding'; return pageGestaoPessoas(ctx, root); }
+export async function pageOffboarding(ctx, root) { _tab = 'offboarding'; return pageGestaoPessoas(ctx, root); }
+
 export async function pageGestaoPessoas(ctx, root) {
   _root = root;
   if ((auth.user()?.lvl || 0) < 5) {

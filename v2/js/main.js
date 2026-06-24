@@ -69,7 +69,7 @@ import { pageEtica } from './pages/etica.js';
 import { pageCanal } from './pages/canal.js';
 import { pageBase } from './pages/base.js';
 import { pageFormacao } from './pages/formacao.js';
-import { pageGestaoPessoas } from './pages/gestao-pessoas.js';
+import { pageGestaoPessoas, pageOnboarding, pageOffboarding } from './pages/gestao-pessoas.js';
 import { pageTalentos } from './pages/talentos.js';
 // Ferramentas Conquista (v81.44) — gated em sócio (ROUTE_MIN_LVL=10) por enquanto
 import { pageCockpitConquista } from './pages/cockpit-conquista.js';
@@ -152,7 +152,7 @@ export const ROUTE_GROUP = {
   '/base': 'inicio', '/manual': 'inicio', '/etica': 'inicio', '/canal': 'inicio',
   '/formacao': 'academy', '/premiacoes': 'inicio',
   // Gestão de Pessoas & RH (grupo próprio)
-  '/gestao-pessoas': 'rh',
+  '/gestao-pessoas': 'rh', '/onboarding': 'rh', '/offboarding': 'rh',
   '/talentos': 'rh', '/psmhub': 'diretoria',
   // Ferramentas
   '/simuladores': 'ferramentas', '/relatorios': 'diretoria',
@@ -204,6 +204,7 @@ export const ROUTE_MIN_LVL = {
   // Ferramentas Conquista (v81.44): A PRINCÍPIO só sócio (lvl 10). Pra abrir pro
   // corretor é só baixar este número (ou liberar na matriz por papel).
   '/cockpit-conquista': 10, '/minha-comissao': 10, '/meu-cerebro': 10, '/sim-conquista': 10,
+  '/onboarding': 10, '/offboarding': 10,   // RH: admissão/desligamento — só sócio (v81.45)
 };
 
 // Override por PAPEL (matriz editável pelo sócio em Configurações → Permissões por papel).
@@ -330,7 +331,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.44.0';
+const APP_VERSION = '81.45.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -490,6 +491,8 @@ const APP_VERSION = '81.44.0';
   router.register('/canal',       { render: async (ctx, root) => { setHeader('Canal Anônimo');        highlight('/canal');  await pageCanal(ctx, root); } });
   router.register('/formacao',    { render: async (ctx, root) => { setHeader('Formação PSM');         highlight('/formacao'); await pageFormacao(ctx, root); } });
   router.register('/gestao-pessoas', { render: async (ctx, root) => { setHeader('Gestão de Pessoas'); highlight('/gestao-pessoas'); await pageGestaoPessoas(ctx, root); } });
+  router.register('/onboarding',  { render: async (ctx, root) => { setHeader('Onboarding');  highlight('/onboarding');  await pageOnboarding(ctx, root); } });
+  router.register('/offboarding', { render: async (ctx, root) => { setHeader('Offboarding'); highlight('/offboarding'); await pageOffboarding(ctx, root); } });
   router.register('/talentos', { render: async (ctx, root) => { setHeader('Base de Talentos'); highlight('/talentos'); await pageTalentos(ctx, root); } });
   router.register('/premiacoes',  { render: async (ctx, root) => { setHeader('Premiações');           highlight('/premiacoes'); await pagePremiacoes(ctx, root); } });
   router.register('/agentes',     { render: async (ctx, root) => { setHeader('Central de Agentes');  highlight('/agentes');  await pageAgentes(ctx, root); } });
@@ -698,6 +701,8 @@ function shellHTML(user) {
 
         <div class="sb-sec">🧑‍💼 Gestão de Pessoas & RH</div>
         <button class="sb-link" data-nav="/gestao-pessoas"><span class="sb-ico">👥</span> Gestão de Pessoas</button>
+        <button class="sb-link" data-nav="/onboarding"><span class="sb-ico">🚀</span> Onboarding</button>
+        <button class="sb-link" data-nav="/offboarding"><span class="sb-ico">👋</span> Offboarding</button>
         <button class="sb-link" data-nav="/talentos"><span class="sb-ico">🌟</span> Base de Talentos</button>
 
         <div class="sb-sec">📣 Marketing</div>
