@@ -17,15 +17,18 @@ let _trSetor = '', _trEquipe = '';   // filtros do Treinamentos
 // Abas do hub de Pessoas, na ordem pedida (v81.52). Onboarding/Offboarding = só
 // sócio (lvl 10); o resto = líder+ (lvl 5).
 function visibleTabs() {
-  const t = [{ id: 'treinamentos', lbl: '🎓 Treinamentos' }];
-  if (isSocio()) t.push({ id: 'onboarding', lbl: '🚀 Onboarding' }, { id: 'offboarding', lbl: '👋 Offboarding' });
-  t.push(
+  // v81.58: cada aba é rota própria na barra lateral e o acesso é decidido na matriz
+  // por papel (Configurações → Permissões). Aqui só validamos o _tab do deep-link —
+  // por isso TODAS entram (sem filtro de sócio, que resetava o tab errado).
+  return [
+    { id: 'treinamentos', lbl: '🎓 Treinamentos' },
+    { id: 'onboarding', lbl: '🚀 Onboarding' },
+    { id: 'offboarding', lbl: '👋 Offboarding' },
     { id: 'talentos', lbl: '🧲 Recrutamento & Seleção' },
     { id: 'plano', lbl: '📈 Plano de Crescimento' },
     { id: 'clima', lbl: '🌡 Clima Interno' },
     { id: 'avaliacoes', lbl: '⭐ Avaliações & Feedbacks' },
-  );
-  return t;
+  ];
 }
 
 // Entradas diretas (deep-link) — cada aba é um item próprio na barra lateral (v81.55)
@@ -39,8 +42,10 @@ export async function pageRhAvaliacoes(ctx, root) { _tab = 'avaliacoes'; return 
 
 export async function pageGestaoPessoas(ctx, root) {
   _root = root; _ctx = ctx;
-  if ((auth.user()?.lvl || 0) < 5) {
-    root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder (lvl 5+).</div>';
+  // v81.58: quem vê isto é decidido na matriz por papel (Configurações → Permissões).
+  // Piso mínimo só pra barrar não-autenticado/sem cargo.
+  if ((auth.user()?.lvl || 0) < 2) {
+    root.innerHTML = '<div class="alert alert-warn">🔒 Sem acesso a este módulo.</div>';
     return;
   }
   const valid = visibleTabs().map(t => t.id);

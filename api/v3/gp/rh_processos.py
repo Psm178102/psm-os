@@ -88,7 +88,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            require_user(self, min_lvl=10)   # sócio
+            require_user(self, min_lvl=2)   # v81.58: acesso decidido na matriz por papel
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
@@ -99,7 +99,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            actor = require_user(self, min_lvl=10)   # sócio
+            actor = require_user(self, min_lvl=2)   # v81.58: acesso decidido na matriz por papel
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         try:

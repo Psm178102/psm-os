@@ -187,10 +187,13 @@ function renderPermEditor() {
         </label>
         <div class="flex" style="flex-wrap:wrap;gap:8px 18px;margin-top:8px">
           ${g.items.map(it => {
-            const gated = it.minlvl > roleLvl;
-            return `<label class="flex items-center gap-1" style="font-size:12.5px;min-width:200px;cursor:${dis || gated ? 'default' : 'pointer'};opacity:${gated ? .45 : 1}" title="${gated ? 'Exige nível ' + it.minlvl + ' — o cargo não alcança' : ''}">
-              <input type="checkbox" data-perm-route="${it.route}" ${st.has(it.route) ? 'checked' : ''} ${dis || gated ? 'disabled' : ''}>
-              ${it.icon} ${escapeHtml(it.label)}${gated ? ' 🔒' : ''}</label>`;
+            // v81.58: a MATRIZ MANDA. Nada de cadeado — o sócio libera o que quiser pra
+            // qualquer papel. 'warn' é só um aviso suave (ⓘ): o conteúdo pode exigir
+            // nível maior no servidor; aparece no menu mas alguns dados podem não abrir.
+            const warn = it.minlvl > roleLvl;
+            return `<label class="flex items-center gap-1" style="font-size:12.5px;min-width:200px;cursor:${dis ? 'default' : 'pointer'}" title="${warn ? 'Aparece no menu deste cargo. O conteúdo pode exigir nível ' + it.minlvl + ' no servidor — pode não abrir pra cargos abaixo.' : ''}">
+              <input type="checkbox" data-perm-route="${it.route}" ${st.has(it.route) ? 'checked' : ''} ${dis ? 'disabled' : ''}>
+              ${it.icon} ${escapeHtml(it.label)}${warn ? ' <span style="opacity:.45;font-size:11px" title="pode exigir nível maior no servidor">ⓘ</span>' : ''}</label>`;
           }).join('')}
         </div>
       </div>`;
@@ -205,7 +208,7 @@ function renderPermEditor() {
         <button class="btn btn-ghost btn-sm" id="perm-reset">↩ Restaurar padrão deste papel</button>
         <button class="btn btn-primary btn-sm" id="perm-save">💾 Salvar permissões</button>` : `<span class="tiny muted">· somente leitura (edição é do sócio)</span>`}
     </div>
-    <p class="tiny muted" style="margin:0 0 10px">👑 Sócio vê tudo (não editável). 🔒 = item exige nível acima do cargo — fica indisponível pra evitar erro de acesso.</p>
+    <p class="tiny muted" style="margin:0 0 10px">👑 Sócio vê tudo (não editável). Marque/desmarque livremente o que cada papel enxerga no menu — <b>você decide, sem trava de nível</b>. As mudanças propagam pros outros logins em segundos. <span style="opacity:.6">ⓘ = o conteúdo pode exigir nível maior no servidor.</span></p>
     ${groupsHTML || '<div class="muted tiny">Catálogo de menu vazio.</div>'}`;
 
   // tri-state nos checkboxes de grupo
@@ -222,7 +225,7 @@ function renderPermEditor() {
   host.querySelectorAll('input[data-perm-grp]').forEach(cb => cb.onchange = () => {
     const g = (_permCatalog || []).find(x => x.key === cb.dataset.permGrp);
     if (!g) return;
-    g.items.forEach(it => { if (it.minlvl <= roleLvl) { if (cb.checked) _permState[_permRole].add(it.route); else _permState[_permRole].delete(it.route); } });
+    g.items.forEach(it => { if (cb.checked) _permState[_permRole].add(it.route); else _permState[_permRole].delete(it.route); });   // v81.58: sem trava de nível
     renderPermEditor();
   });
   host.querySelector('#perm-reset') && (host.querySelector('#perm-reset').onclick = () => {
@@ -241,14 +244,13 @@ async function savePerms() {
       [...document.querySelectorAll('input[data-perm-route]:checked')].map(cb => cb.dataset.permRoute)
     );
   }
-  // Higiene: só rotas que EXISTEM como item de menu (catálogo) e que o NÍVEL do
-  // papel alcança. Evita "marquei e não funciona" — rota morta/renomeada ou item
-  // travado por nível ficavam salvos sem efeito. v81.24
+  // Higiene: só remove rota MORTA/renomeada (que não existe mais como item de menu).
+  // v81.58: o NÍVEL não trava mais nada — o sócio decide o que cada papel vê.
   const minByRoute = {};
   (_permCatalog || []).forEach(g => g.items.forEach(it => { minByRoute[it.route] = it.minlvl || 0; }));
   const perms = {};
   PERM_ROLES.forEach(([role, , roleLvl]) => {
-    const clean = new Set([..._permState[role]].filter(r => (r in minByRoute) && minByRoute[r] <= (roleLvl || 0)));
+    const clean = new Set([..._permState[role]].filter(r => r in minByRoute));
     _permState[role] = clean;
     // só persiste papéis que DIFEREM do default (mantém papéis intactos dinâmicos)
     if (!_setEq(clean, _permDefault[role])) perms[role] = [...clean];

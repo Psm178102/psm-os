@@ -10,8 +10,8 @@ progresso por pessoa + materiais. Guardado em shared_kv key 'gp_treinamentos2'
   status, materiais:[{tipo,titulo,url}], participantes:[{user_id,nome,status,nota,concluido_em}],
   created_at, updated_at }
 
-GET (lvl>=5): { ok, treinos:[...], usuarios:[{id,name,team,role}] }  — usuarios p/ matrícula.
-POST (lvl>=5): {action:'upsert', treino:{...}} | {action:'delete', id}.
+GET (lvl>=2; acesso real decidido na matriz por papel): { ok, treinos:[...], usuarios:[{id,name,team,role}] }  — usuarios p/ matrícula.
+POST (lvl>=2; idem): {action:'upsert', treino:{...}} | {action:'delete', id}.
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, sys, uuid
@@ -128,7 +128,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
 
     def do_GET(self):
-        try: require_user(self, min_lvl=5)
+        try: require_user(self, min_lvl=2)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
@@ -136,7 +136,7 @@ class handler(BaseHTTPRequestHandler):
         return self._send(200, {"ok": True, "treinos": val["treinos"], "usuarios": _usuarios(sb)})
 
     def do_POST(self):
-        try: actor = require_user(self, min_lvl=5)
+        try: actor = require_user(self, min_lvl=2)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         try:
             length = int(self.headers.get("Content-Length") or 0)

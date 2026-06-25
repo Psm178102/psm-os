@@ -23,7 +23,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
 
     def do_GET(self):
-        try: actor = require_user(self, min_lvl=5)
+        try: actor = require_user(self, min_lvl=2)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
@@ -34,7 +34,7 @@ class handler(BaseHTTPRequestHandler):
         return self._send(200, {"ok": True, "talentos": rows})
 
     def do_POST(self):
-        try: actor = require_user(self, min_lvl=5)
+        try: actor = require_user(self, min_lvl=2)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         try:
             length = int(self.headers.get("Content-Length") or 0)
@@ -70,7 +70,7 @@ class handler(BaseHTTPRequestHandler):
         return self._send(200, {"ok": True, "row": (r.data or [row])[0]})
 
     def do_DELETE(self):
-        try: actor = require_user(self, min_lvl=5)
+        try: actor = require_user(self, min_lvl=2)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         try:
             params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))

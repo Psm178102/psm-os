@@ -208,10 +208,12 @@ export const ROUTE_MIN_LVL = {
   // Ferramentas Conquista (v81.44): A PRINCÍPIO só sócio (lvl 10). Pra abrir pro
   // corretor é só baixar este número (ou liberar na matriz por papel).
   '/cockpit-conquista': 10, '/minha-comissao': 10, '/meu-cerebro': 10, '/sim-conquista': 10,
-  '/onboarding': 10, '/offboarding': 10,   // RH: admissão/desligamento — só sócio (v81.45)
-  '/rh-treinamentos': 5, '/rh-recrutamento': 5, '/rh-plano': 5, '/rh-clima': 5, '/rh-avaliacoes': 5,   // abas RH (líder+)
-  '/sucesso-cliente': 5,   // Customer Success — líder+ (v81.53); abrir mais na matriz
-  '/cs-onboarding': 5, '/cs-carteira': 5, '/cs-suporte': 5, '/cs-retencao': 5, '/cs-metricas': 5, '/cs-upsell': 5, '/cs-marketing': 5, '/cs-avaliacoes': 5, '/cs-indicacoes': 5,
+  // RH + Sucesso do Cliente (v81.58): piso 2 (corretor) — quem vê isso é decidido
+  // 100% na matriz por papel (Configurações → Permissões), sem trava de nível.
+  '/onboarding': 2, '/offboarding': 2,
+  '/rh-treinamentos': 2, '/rh-recrutamento': 2, '/rh-plano': 2, '/rh-clima': 2, '/rh-avaliacoes': 2,
+  '/sucesso-cliente': 2,
+  '/cs-onboarding': 2, '/cs-carteira': 2, '/cs-suporte': 2, '/cs-retencao': 2, '/cs-metricas': 2, '/cs-upsell': 2, '/cs-marketing': 2, '/cs-avaliacoes': 2, '/cs-indicacoes': 2,
 };
 
 // Override por PAPEL (matriz editável pelo sócio em Configurações → Permissões por papel).
@@ -253,7 +255,8 @@ function canSee(path, user) {
   const rp = _rolePerms[role];
   if (role !== 'socio' && !Array.isArray(user?.menu_groups) && Array.isArray(rp)) {
     if (grp === 'conta') return true;  // só CONTA é sempre visível; Início e PSM Academy agora são configuráveis por papel (v81.40)
-    if ((user?.lvl || 0) < (ROUTE_MIN_LVL[base] || 0)) return false;            // nível real
+    // v81.58: a MATRIZ MANDA — o sócio decide o que cada papel vê, SEM trava de nível.
+    // (o backend ainda é a fronteira de segurança real; aqui é só a visibilidade do menu)
     if (_catalogRoutes && _catalogRoutes.has(base)) return rp.includes(base);   // item de menu: granular
     return rp.some(r => (ROUTE_GROUP[r] || '') === grp);                        // sub-rota: liberada se o grupo tem item liberado
   }
@@ -338,7 +341,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.57.0';
+const APP_VERSION = '81.58.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -639,6 +642,10 @@ const APP_VERSION = '81.57.0';
   // ⚡ Checa versão a cada 20s: assim que um deploy sai, TODOS os logins detectam e
   // são FORÇADOS a recarregar juntos — sem depender de foco/navegação/clique. v81.33
   setInterval(() => { if (!_verWarned) checkVersion(); }, 20000);
+  // ⚡ PERMISSÕES EM TEMPO REAL (v81.58): a cada 15s re-busca a matriz por papel e,
+  // se a permissão EFETIVA deste login mudou (o sócio liberou/tirou uma aba), recarrega
+  // com o menu certo — MESMO parado na tela, sem trocar de aba nem recarregar na mão.
+  setInterval(() => { try { window.__psmApplyPerms(); } catch (_) {} }, 15000);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) return;
     if (!_verWarned) checkVersion();

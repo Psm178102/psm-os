@@ -139,7 +139,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
 
     def do_GET(self):
-        try: require_user(self, min_lvl=5)
+        try: require_user(self, min_lvl=2)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
@@ -148,7 +148,7 @@ class handler(BaseHTTPRequestHandler):
                                 "categorias": CATEGORIAS, "statuses": STATUSES})
 
     def do_POST(self):
-        try: actor = require_user(self, min_lvl=5)
+        try: actor = require_user(self, min_lvl=2)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         try:
             length = int(self.headers.get("Content-Length") or 0)
