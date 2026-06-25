@@ -59,31 +59,24 @@ const dateChips = c => {
 const brief = c => (c && typeof c.checklist === 'object' && c.checklist) ? c.checklist : {};
 const mats = c => Array.isArray(brief(c).materiais) ? brief(c).materiais : [];
 
+// SOLICITAÇÕES de criativos (briefing pro marketing produzir) — esteira kanban
 export async function pageCriativos(ctx, root) {
   _root = root;
+  _canEdit = (auth.user()?.lvl || 0) >= 3;
+  root.innerHTML = `${STYLE}<div id="cr-body"><div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando…</div></div></div>`;
+  loadSolicitacoes();
+}
+
+// CRIATIVOS PARA DOWNLOAD (biblioteca de criativos prontos) — página/menu PRÓPRIO,
+// separado das Solicitações: público diferente (corretor baixa × marketing produz). v81.49
+export async function pageCriativosDownload(ctx, root) {
+  _root = root;
   _canEdit = (auth.user()?.lvl || 0) >= 3;   // marketing+ faz a curadoria da biblioteca
-  root.innerHTML = `${STYLE}
-    <div id="cr-tabs" class="flex gap-1" style="border-bottom:1px solid var(--bd,#e2e8f0);margin-bottom:14px;flex-wrap:wrap"></div>
-    <div id="cr-body"><div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando…</div></div></div>`;
-  renderTabs();
-  routeTab();
+  root.innerHTML = `${STYLE}<div id="cr-body"><div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando…</div></div></div>`;
+  loadLib();
 }
 
 const body = () => _root.querySelector('#cr-body');
-
-function renderTabs() {
-  const el = _root.querySelector('#cr-tabs');
-  const tabs = [['solicitacoes', '📋 Solicitações'], ['download', '⬇️ Download']];
-  el.innerHTML = tabs.map(([id, lbl]) => {
-    const on = id === _tab;
-    return `<button class="cr-tabbtn" data-tab="${id}" style="background:none;border:none;padding:10px 18px;cursor:pointer;font-weight:800;font-size:14px;border-bottom:3px solid ${on ? '#d6249f' : 'transparent'};color:${on ? 'var(--ink,#0f172a)' : 'var(--ink-muted,#64748b)'}">${lbl}</button>`;
-  }).join('');
-  el.querySelectorAll('.cr-tabbtn').forEach(b => b.onclick = () => { _tab = b.dataset.tab; renderTabs(); routeTab(); });
-}
-
-function routeTab() {
-  return _tab === 'download' ? loadLib() : loadSolicitacoes();
-}
 
 async function loadSolicitacoes() {
   _fTipo = ''; _fResp = '';
@@ -366,15 +359,19 @@ function openEditor(seed) {
    baixa. Cada item: nome, formato, ativo/inativo em campanha, link Drive.
    Render do Drive: thumbnail nativo (drive.google.com/thumbnail?id=…). v81.43
 ═══════════════════════════════════════════════════════════════════════════ */
-// extrai o FILE_ID de qualquer formato de link do Google Drive
-const driveId = url => {
+// pasta do Drive (não tem prévia/baixar de arquivo único)
+const driveFolderId = url => { const m = String(url || '').match(/\/folders\/([-\w]{15,})/); return m ? m[1] : ''; };
+// FILE_ID de um ARQUIVO do Drive (retorna '' se for pasta)
+const driveFileId = url => {
   const s = String(url || '');
-  const m = s.match(/\/d\/([-\w]{20,})/) || s.match(/[?&]id=([-\w]{20,})/) || s.match(/\/file\/d\/([-\w]{20,})/) || s.match(/([-\w]{28,})/);
+  if (driveFolderId(s)) return '';
+  const m = s.match(/\/file\/d\/([-\w]{15,})/) || s.match(/\/d\/([-\w]{15,})/) || s.match(/[?&]id=([-\w]{15,})/) || s.match(/([-\w]{25,})/);
   return m ? m[1] : '';
 };
 const driveThumb = id => id ? `https://drive.google.com/thumbnail?id=${id}&sz=w800` : '';
+const driveEmbed = id => id ? `https://drive.google.com/file/d/${id}/preview` : '';   // renderiza imagem E vídeo
 const driveDownload = id => id ? `https://drive.google.com/uc?export=download&id=${id}` : '';
-const driveView = (url, id) => id ? `https://drive.google.com/file/d/${id}/view` : url;
+const driveView = (url, id) => id ? `https://drive.google.com/file/d/${id}/view` : (url || '#');
 const isAtivo = c => (c.status || 'ativo') !== 'inativo';
 
 async function loadLib() {
@@ -420,26 +417,35 @@ function renderDownload() {
 }
 
 function libCard(c) {
-  const id = driveId(c.link);
-  const thumb = driveThumb(id);
+  const fid = driveFileId(c.link);
+  const folder = driveFolderId(c.link);
   const ativo = isAtivo(c);
   const fcor = TIPO_COR[c.formato] || '#64748b';
+  // mídia: arquivo → thumbnail (no erro vira embed que renderiza imagem/vídeo); pasta/sem link → placeholder
+  let media;
+  if (fid) {
+    media = `<img src="${esc(driveThumb(fid))}" loading="lazy" referrerpolicy="no-referrer" alt="${esc(c.titulo || '')}" style="width:100%;height:100%;object-fit:cover"
+              onerror="this.style.display='none';var f=this.parentNode.querySelector('iframe');if(f){if(!f.src)f.src=f.dataset.src;f.style.display='block';}">
+             <iframe data-src="${esc(driveEmbed(fid))}" referrerpolicy="no-referrer" allow="autoplay" loading="lazy" style="display:none;width:100%;height:100%;border:0"></iframe>`;
+  } else {
+    const ph = folder ? ['📁', 'isto é uma PASTA<br>cole o link do arquivo'] : ['🔗', 'sem link de arquivo'];
+    media = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#94a3b8;font-size:36px;flex-direction:column;gap:6px;text-align:center;padding:0 8px"><span>${ph[0]}</span><span style="font-size:10px;line-height:1.3">${ph[1]}</span></div>`;
+  }
   return `
     <div style="background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.06);display:flex;flex-direction:column">
       <div style="position:relative;aspect-ratio:4/5;background:#0f172a;display:flex;align-items:center;justify-content:center;overflow:hidden">
-        ${thumb ? `<img src="${esc(thumb)}" loading="lazy" referrerpolicy="no-referrer" alt="${esc(c.titulo || '')}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
-        <div style="display:${thumb ? 'none' : 'flex'};align-items:center;justify-content:center;width:100%;height:100%;color:#475569;font-size:38px;flex-direction:column;gap:6px">${id ? '🖼' : '🔗'}<span style="font-size:10px">${id ? 'prévia indisponível' : 'sem link Drive'}</span></div>
-        <span style="position:absolute;top:8px;left:8px;background:${ativo ? '#16a34a' : 'rgba(100,116,139,.92)'};color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px">${ativo ? '🟢 ATIVO' : '⚪ INATIVO'}</span>
-        ${_canEdit ? `<button class="lib-edit" data-id="${esc(c.id)}" title="Editar" style="position:absolute;top:6px;right:6px;background:rgba(15,23,42,.6);color:#fff;border:none;border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:13px">✏️</button>` : ''}
+        ${media}
+        <span style="position:absolute;top:8px;left:8px;background:${ativo ? '#16a34a' : 'rgba(100,116,139,.92)'};color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;pointer-events:none">${ativo ? '🟢 ATIVO' : '⚪ INATIVO'}</span>
+        ${_canEdit ? `<button class="lib-edit" data-id="${esc(c.id)}" title="Editar" style="position:absolute;top:6px;right:6px;background:rgba(15,23,42,.6);color:#fff;border:none;border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:13px;z-index:2">✏️</button>` : ''}
       </div>
       <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;flex:1">
         <div style="font-weight:800;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
         ${c.formato ? `<span class="cr-chip" style="align-self:flex-start;background:${fcor}1f;color:${fcor}">${esc(c.formato)}</span>` : ''}
         <div class="flex gap-2" style="margin-top:auto">
-          ${id
-            ? `<a class="btn btn-primary tiny" href="${esc(driveDownload(id))}" target="_blank" rel="noopener" style="flex:1;text-align:center">⬇️ Baixar</a>
-               <a class="btn btn-ghost tiny" href="${esc(driveView(c.link, id))}" target="_blank" rel="noopener" title="Abrir no Drive">👁</a>`
-            : (c.link ? `<a class="btn btn-ghost tiny" href="${esc(c.link)}" target="_blank" rel="noopener" style="flex:1;text-align:center">🔗 Abrir link</a>` : '<span class="tiny muted">sem link</span>')}
+          ${fid
+            ? `<a class="btn btn-primary tiny" href="${esc(driveDownload(fid))}" target="_blank" rel="noopener" style="flex:1;text-align:center">⬇️ Baixar</a>
+               <a class="btn btn-ghost tiny" href="${esc(driveView(c.link, fid))}" target="_blank" rel="noopener" title="Abrir no Drive">👁</a>`
+            : (c.link ? `<a class="btn btn-ghost tiny" href="${esc(c.link)}" target="_blank" rel="noopener" style="flex:1;text-align:center">${folder ? '📁 Abrir pasta' : '🔗 Abrir link'}</a>` : '<span class="tiny muted">sem link</span>')}
         </div>
       </div>
     </div>`;
@@ -456,7 +462,13 @@ function openLibEditor(c0) {
   const c = c0 || { status: 'ativo' };
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
-  const prev = id => id ? `<img src="${driveThumb(id)}" referrerpolicy="no-referrer" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:8px" onerror="this.style.display='none'">` : '';
+  // prévia ao vivo: arquivo → embed (renderiza imagem/vídeo); pasta → aviso; vazio → nada
+  const prev = url => {
+    const fid = driveFileId(url), folder = driveFolderId(url);
+    if (fid) return `<iframe src="${driveEmbed(fid)}" referrerpolicy="no-referrer" allow="autoplay" style="width:100%;height:220px;border:0;border-radius:8px;margin-top:8px;background:#0f172a"></iframe>`;
+    if (folder) return `<div class="alert alert-warn" style="margin-top:8px;font-size:12px">📁 Isso é um link de <b>PASTA</b>. Cole o link de um <b>arquivo</b> (vídeo/imagem) — botão direito no arquivo → <b>Compartilhar → Copiar link</b>.</div>`;
+    return '';
+  };
   ov.innerHTML = `
     <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:480px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;overflow:auto">
       <div style="font-size:17px;font-weight:800;margin-bottom:12px">${c.id ? '✏️ Editar criativo' : '⬇️ Anexar criativo pra download'}</div>
@@ -468,10 +480,10 @@ function openLibEditor(c0) {
         <div style="flex:1"><label class="tiny muted">Status em campanha</label>
           <select id="lb-status" class="select"><option value="ativo"${isAtivo(c) ? ' selected' : ''}>🟢 Ativo</option><option value="inativo"${!isAtivo(c) ? ' selected' : ''}>⚪ Inativo</option></select></div>
       </div>
-      <label class="tiny muted">🔗 Link do Google Drive *</label>
+      <label class="tiny muted">🔗 Link do <b>ARQUIVO</b> no Google Drive *</label>
       <input id="lb-link" class="input" value="${esc(c.link || '')}" placeholder="https://drive.google.com/file/d/.../view">
-      <div class="tiny muted" style="margin-top:4px">No Drive: <b>Compartilhar → qualquer pessoa com o link</b> pra renderizar a prévia e liberar o download.</div>
-      <div id="lb-prev" style="text-align:center">${prev(driveId(c.link))}</div>
+      <div class="tiny muted" style="margin-top:4px">Use o link de um <b>arquivo</b> (não de pasta) e compartilhe como <b>qualquer pessoa com o link</b> — sem isso a prévia não renderiza.</div>
+      <div id="lb-prev" style="text-align:center">${prev(c.link)}</div>
       <div class="flex gap-2 mt-3" style="justify-content:space-between;margin-top:14px">
         <button class="btn btn-ghost" id="lb-del" ${c.id ? '' : 'style="visibility:hidden"'}>🗑 Excluir</button>
         <div class="flex gap-2"><button class="btn btn-ghost" id="lb-cancel">Cancelar</button><button class="btn btn-primary" id="lb-save">Salvar</button></div>
@@ -481,7 +493,7 @@ function openLibEditor(c0) {
   ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
   ov.querySelector('#lb-cancel').onclick = () => ov.remove();
   // prévia ao vivo enquanto cola o link
-  ov.querySelector('#lb-link').addEventListener('input', e => { ov.querySelector('#lb-prev').innerHTML = prev(driveId(e.target.value)); });
+  ov.querySelector('#lb-link').addEventListener('input', e => { ov.querySelector('#lb-prev').innerHTML = prev(e.target.value); });
   ov.querySelector('#lb-save').onclick = async () => {
     const titulo = ov.querySelector('#lb-titulo').value.trim();
     const link = ov.querySelector('#lb-link').value.trim();

@@ -23,7 +23,7 @@ import { pagePauloNegocios } from './pages/paulo-negocios.js';
 import { pageProjetos } from './pages/projetos.js';
 import { pagePsmHub } from './pages/psmhub.js';
 import { pagePauloConteudo, pageConteudoImoveis, pageConteudoConquista } from './pages/paulo-conteudo.js';
-import { pageCriativos } from './pages/criativos.js';
+import { pageCriativos, pageCriativosDownload } from './pages/criativos.js';
 import { pageEstrategia } from './pages/estrategia.js';
 import { pageAcademy } from './pages/academy.js';
 import { pageAcademyStudio } from './pages/academy-studio.js';
@@ -132,7 +132,7 @@ export const ROUTE_GROUP = {
   '/financeiro': 'financeiro', '/forecast': 'financeiro',
   // Inteligência & Marketing
   '/marketing': 'marketing', '/concorrencia': 'marketing', '/benchmark': 'marketing',
-  '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing', '/inteligencia': 'marketing', '/biblioteca-ads': 'marketing', '/marketing-historico': 'marketing', '/cerebro-vendas': 'marketing', '/briefing-guerra': 'marketing', '/paulo-conteudo': 'marketing', '/conteudo-imoveis': 'marketing', '/conteudo-conquista': 'marketing', '/criativos': 'marketing',
+  '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing', '/inteligencia': 'marketing', '/biblioteca-ads': 'marketing', '/marketing-historico': 'marketing', '/cerebro-vendas': 'marketing', '/briefing-guerra': 'marketing', '/paulo-conteudo': 'marketing', '/conteudo-imoveis': 'marketing', '/conteudo-conquista': 'marketing', '/criativos': 'marketing', '/criativos-download': 'marketing',
   '/dados-mercado': 'diretoria',
   // Arena & Performance (Metas/Equipes/Plantões migraram p/ Imóveis & Vendas)
   '/organograma': 'performance', '/one-on-one': 'performance', '/arena': 'performance',
@@ -331,7 +331,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.48.0';
+const APP_VERSION = '81.49.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -457,7 +457,8 @@ const APP_VERSION = '81.48.0';
   router.register('/paulo-conteudo', { render: async (ctx, root) => { setHeader('Paulo Morimatsu · Conteúdo'); highlight('/paulo-conteudo'); await pagePauloConteudo(ctx, root); } });
   router.register('/conteudo-imoveis', { render: async (ctx, root) => { setHeader('PSM Imóveis · Conteúdo'); highlight('/conteudo-imoveis'); await pageConteudoImoveis(ctx, root); } });
   router.register('/conteudo-conquista', { render: async (ctx, root) => { setHeader('PSM Conquista · Conteúdo'); highlight('/conteudo-conquista'); await pageConteudoConquista(ctx, root); } });
-  router.register('/criativos', { render: async (ctx, root) => { setHeader('Criativos'); highlight('/criativos'); await pageCriativos(ctx, root); } });
+  router.register('/criativos', { render: async (ctx, root) => { setHeader('Solicitações de Criativos'); highlight('/criativos'); await pageCriativos(ctx, root); } });
+  router.register('/criativos-download', { render: async (ctx, root) => { setHeader('Criativos para Download'); highlight('/criativos-download'); await pageCriativosDownload(ctx, root); } });
   router.register('/inteligencia', { render: async (ctx, root) => { setHeader('Centro de Inteligência'); highlight('/inteligencia'); await pageIntelCentro(ctx, root); } });
   router.register('/dados-mercado', { render: async (ctx, root) => { setHeader('Dados de Mercado'); highlight('/dados-mercado'); await pageDadosMercado(ctx, root); } });
   router.register('/biblioteca-ads', { render: async (ctx, root) => { setHeader('Biblioteca de Anúncios'); highlight('/biblioteca-ads'); await pageBibliotecaAds(ctx, root); } });
@@ -704,7 +705,8 @@ function shellHTML(user) {
 
         <div class="sb-sec">📣 Marketing</div>
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>
-        <button class="sb-link" data-nav="/criativos"><span class="sb-ico">🎨</span> Criativos</button>
+        <button class="sb-link" data-nav="/criativos"><span class="sb-ico">🎨</span> Solicitações de Criativos</button>
+        <button class="sb-link" data-nav="/criativos-download"><span class="sb-ico">⬇️</span> Criativos para Download</button>
         <button class="sb-link" data-nav="/paulo-conteudo"><span class="sb-ico">🎬</span> Paulo Morimatsu</button>
         <button class="sb-link" data-nav="/conteudo-imoveis"><span class="sb-ico">🏠</span> PSM Imóveis (conteúdo)</button>
         <button class="sb-link" data-nav="/conteudo-conquista"><span class="sb-ico">🏆</span> PSM Conquista (conteúdo)</button>
