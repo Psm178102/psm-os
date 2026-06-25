@@ -10,13 +10,21 @@ let _treinamentos = [];
 let _editing = null;
 let _rh = { onboarding: [], offboarding: [] };   // processos de admissão/desligamento (sócio)
 const isSocio = () => (auth.user()?.lvl || 0) >= 10;
+const SETORES = ['Comercial', 'SDR / Prospecção', 'Marketing', 'Backoffice', 'Financeiro', 'RH', 'Diretoria', 'Locação'];
+const EQUIPES_COM = ['Conquista', 'MAP', 'Locação', 'Terceiros'];
+let _trSetor = '', _trEquipe = '';   // filtros do Treinamentos
 
-// Abas do hub de Pessoas, na ordem pedida. Onboarding/Offboarding = só sócio (lvl 10);
-// Treinamentos/Base de Talentos = líder+ (lvl 5).
+// Abas do hub de Pessoas, na ordem pedida (v81.52). Onboarding/Offboarding = só
+// sócio (lvl 10); o resto = líder+ (lvl 5).
 function visibleTabs() {
-  const t = [];
+  const t = [{ id: 'treinamentos', lbl: '🎓 Treinamentos' }];
   if (isSocio()) t.push({ id: 'onboarding', lbl: '🚀 Onboarding' }, { id: 'offboarding', lbl: '👋 Offboarding' });
-  t.push({ id: 'treinamentos', lbl: '🎓 Treinamentos' }, { id: 'talentos', lbl: '🌟 Base de Talentos' });
+  t.push(
+    { id: 'talentos', lbl: '🧲 Recrutamento & Seleção' },
+    { id: 'plano', lbl: '📈 Plano de Crescimento' },
+    { id: 'clima', lbl: '🌡 Clima Interno' },
+    { id: 'avaliacoes', lbl: '⭐ Avaliações & Feedbacks' },
+  );
   return t;
 }
 
@@ -39,8 +47,8 @@ export async function pageGestaoPessoas(ctx, root) {
 function render() {
   _root.innerHTML = `
     <div class="card">
-      <h2 class="card-title">👥 Gestão de Pessoas</h2>
-      <p class="card-sub">Admissão, desligamento, treinamentos e base de talentos do time.</p>
+      <h2 class="card-title">👥 Gestão de Pessoas & RH</h2>
+      <p class="card-sub">Treinamentos, admissão/desligamento, recrutamento, crescimento, clima e avaliações.</p>
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
         ${visibleTabs().map(t => `<button class="btn ${_tab === t.id ? 'btn-primary' : 'btn-ghost'}" data-tab="${t.id}">${t.lbl}</button>`).join('')}
       </div>
@@ -57,6 +65,7 @@ function render() {
 async function loadData() {
   if (_tab === 'talentos') return pageTalentos(_ctx, document.getElementById('gp-body'));
   if (_tab === 'onboarding' || _tab === 'offboarding') return loadRH(_tab);
+  if (_tab === 'plano' || _tab === 'clima' || _tab === 'avaliacoes') return loadReg(_tab);
   return loadTreinamentos();
 }
 
@@ -74,6 +83,7 @@ async function loadTreinamentos() {
 
 function renderTreinamentos() {
   const body = document.getElementById('gp-body');
+  const ft = _treinamentos.filter(t => (!_trSetor || t.setor === _trSetor) && (!_trEquipe || t.equipe === _trEquipe));
   body.innerHTML = `
     <div class="card" style="background:var(--bg-3);margin-bottom:14px;padding:14px">
       <div style="font-weight:800;margin-bottom:8px">🎓 ${_editing?.id ? 'Editar' : 'Mapear'} Treinamento</div>
@@ -83,6 +93,8 @@ function renderTreinamentos() {
         <select id="trt-tipo" class="select">
           ${['tecnico','comportamental','comercial','lideranca','integracao'].map(t => `<option value="${t}" ${_editing?.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}
         </select>
+        <select id="trt-setor" class="select" title="Setor"><option value="">Setor…</option>${SETORES.map(s => `<option ${_editing?.setor === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
+        <select id="trt-equipe" class="select" title="Equipe comercial"><option value="">Equipe comercial…</option>${EQUIPES_COM.map(e => `<option ${_editing?.equipe === e ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>
         <input id="trt-prazo" class="input" type="date" value="${esc(_editing?.prazo || '')}">
         <select id="trt-status" class="select">
           ${['planejado','em_andamento','concluido'].map(s => `<option value="${s}" ${_editing?.status === s ? 'selected' : ''}>${s.replace('_',' ')}</option>`).join('')}
@@ -94,22 +106,26 @@ function renderTreinamentos() {
         ${_editing?.id ? '<button class="btn btn-ghost" id="trt-cancel">Cancelar</button>' : ''}
       </div>
     </div>
-    <div style="font-weight:800;margin-bottom:8px">Treinamentos mapeados (${_treinamentos.length})</div>
-    ${_treinamentos.length === 0 ? '<div class="muted tiny" style="text-align:center;padding:20px">Nenhum treinamento ainda.</div>' : `
+    <div class="flex gap-2 items-center" style="flex-wrap:wrap;margin-bottom:8px">
+      <div style="font-weight:800">Treinamentos (${ft.length})</div>
+      <select id="trf-setor" class="select" style="max-width:170px;margin-left:auto"><option value="">Todos os setores</option>${SETORES.map(s => `<option ${_trSetor === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
+      <select id="trf-equipe" class="select" style="max-width:170px"><option value="">Todas as equipes</option>${EQUIPES_COM.map(e => `<option ${_trEquipe === e ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>
+    </div>
+    ${ft.length === 0 ? '<div class="muted tiny" style="text-align:center;padding:20px">Nenhum treinamento com esse filtro.</div>' : `
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="background:var(--bg-3)">
           <th style="text-align:left;padding:8px">Título</th>
-          <th style="text-align:left;padding:8px">Público</th>
+          <th style="text-align:left;padding:8px">Setor / Equipe</th>
           <th style="text-align:left;padding:8px">Tipo</th>
           <th style="text-align:left;padding:8px">Prazo</th>
           <th style="text-align:left;padding:8px">Status</th>
           <th></th>
         </tr></thead>
         <tbody>
-          ${_treinamentos.map(t => `
+          ${ft.map(t => `
             <tr style="border-bottom:1px solid var(--bd)">
-              <td style="padding:8px"><div style="font-weight:700">${esc(t.titulo)}</div><div class="tiny muted">${esc((t.conteudo || '').substring(0, 80))}</div></td>
-              <td style="padding:8px">${esc(t.publico || '—')}</td>
+              <td style="padding:8px"><div style="font-weight:700">${esc(t.titulo)}</div><div class="tiny muted">${esc(t.publico ? t.publico + ' · ' : '')}${esc((t.conteudo || '').substring(0, 70))}</div></td>
+              <td style="padding:8px">${t.setor ? `<span class="tiny" style="background:rgba(14,165,233,.14);color:#0369a1;padding:1px 7px;border-radius:99px">${esc(t.setor)}</span>` : ''}${t.equipe ? ` <span class="tiny" style="background:rgba(22,163,74,.14);color:#15803d;padding:1px 7px;border-radius:99px">${esc(t.equipe)}</span>` : ''}${!t.setor && !t.equipe ? '<span class="muted">—</span>' : ''}</td>
               <td style="padding:8px">${esc(t.tipo || '—')}</td>
               <td style="padding:8px">${esc(t.prazo || '—')}</td>
               <td style="padding:8px"><span style="color:${t.status === 'concluido' ? '#22c55e' : t.status === 'em_andamento' ? '#f59e0b' : 'var(--muted)'};font-weight:700">${esc((t.status || '').replace('_',' '))}</span></td>
@@ -123,6 +139,8 @@ function renderTreinamentos() {
       </table>
     `}
   `;
+  const fS = document.getElementById('trf-setor'); if (fS) fS.onchange = () => { _trSetor = fS.value; renderTreinamentos(); };
+  const fE = document.getElementById('trf-equipe'); if (fE) fE.onchange = () => { _trEquipe = fE.value; renderTreinamentos(); };
   document.getElementById('trt-save').addEventListener('click', saveTreinamento);
   const cancel = document.getElementById('trt-cancel');
   if (cancel) cancel.addEventListener('click', () => { _editing = null; renderTreinamentos(); });
@@ -145,6 +163,8 @@ async function saveTreinamento() {
     titulo: document.getElementById('trt-titulo').value.trim(),
     publico: document.getElementById('trt-publico').value.trim(),
     tipo: document.getElementById('trt-tipo').value,
+    setor: document.getElementById('trt-setor').value,
+    equipe: document.getElementById('trt-equipe').value,
     prazo: document.getElementById('trt-prazo').value || null,
     status: document.getElementById('trt-status').value,
     conteudo: document.getElementById('trt-conteudo').value.trim(),
@@ -341,4 +361,133 @@ function openRHEditor(tipo, p0) {
     catch (e) { alert('Erro: ' + e.message); }
   };
   setTimeout(() => ov.querySelector('#rh-nome')?.focus(), 50);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MÓDULOS GENÉRICOS DE RH (Plano de Crescimento · Clima Interno · Avaliações)
+   Lista de fichas via shared_kv (gp/rh_registros). O template (campos) mora
+   aqui no front — adicionar campo/módulo é só editar isto. Líder+ (lvl 5). v81.52
+═══════════════════════════════════════════════════════════════════════════ */
+const REG_TPL = {
+  plano: {
+    titulo: '📈 Plano de Crescimento', cor: '#0ea5e9', titleField: 'pessoa',
+    sub: 'Trilha de cargos e PDI: onde cada um está e o próximo passo.',
+    campos: [
+      { k: 'pessoa', lbl: 'Colaborador', type: 'text', req: true },
+      { k: 'cargo_atual', lbl: 'Cargo atual', type: 'select', opts: CARGOS },
+      { k: 'proximo_cargo', lbl: 'Próximo cargo (meta)', type: 'select', opts: CARGOS },
+      { k: 'competencias', lbl: 'Competências a desenvolver', type: 'textarea' },
+      { k: 'prazo', lbl: 'Prazo', type: 'date' },
+      { k: 'status', lbl: 'Status', type: 'select', opts: ['Em andamento', 'No prazo', 'Atrasado', 'Concluído'] },
+      { k: 'obs', lbl: 'Observações', type: 'textarea' },
+    ],
+    chips: r => [r.cargo_atual, r.proximo_cargo ? '→ ' + r.proximo_cargo : '', r.status].filter(Boolean),
+  },
+  clima: {
+    titulo: '🌡 Clima Interno', cor: '#16a34a', titleField: 'periodo',
+    sub: 'Pesquisas de clima / pulso — participação, eNPS e ações.',
+    campos: [
+      { k: 'periodo', lbl: 'Período (ex.: Jun/2026)', type: 'text', req: true },
+      { k: 'participacao', lbl: 'Participação (%)', type: 'number' },
+      { k: 'enps', lbl: 'eNPS (-100 a 100)', type: 'number' },
+      { k: 'destaques', lbl: 'Destaques (o que está bom)', type: 'textarea' },
+      { k: 'pontos_atencao', lbl: 'Pontos de atenção', type: 'textarea' },
+      { k: 'acoes', lbl: 'Ações definidas', type: 'textarea' },
+    ],
+    chips: r => [r.participacao ? r.participacao + '% part.' : '', (r.enps !== undefined && r.enps !== '') ? 'eNPS ' + r.enps : ''].filter(Boolean),
+  },
+  avaliacoes: {
+    titulo: '⭐ Avaliações & Feedbacks', cor: '#f59e0b', titleField: 'pessoa',
+    sub: 'Avaliações de desempenho e feedbacks estruturados por colaborador.',
+    campos: [
+      { k: 'pessoa', lbl: 'Colaborador', type: 'text', req: true },
+      { k: 'periodo', lbl: 'Período / ciclo', type: 'text' },
+      { k: 'nota', lbl: 'Nota (0–10)', type: 'number' },
+      { k: 'pontos_fortes', lbl: 'Pontos fortes', type: 'textarea' },
+      { k: 'a_desenvolver', lbl: 'A desenvolver', type: 'textarea' },
+      { k: 'feedback', lbl: 'Feedback', type: 'textarea' },
+      { k: 'proximos_passos', lbl: 'Próximos passos', type: 'textarea' },
+    ],
+    chips: r => [r.periodo, (r.nota !== undefined && r.nota !== '') ? 'nota ' + r.nota : ''].filter(Boolean),
+  },
+};
+
+let _regs = { plano: [], clima: [], avaliacoes: [] };
+
+async function loadReg(modulo) {
+  const body = document.getElementById('gp-body');
+  body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Carregando…</div>';
+  try {
+    const r = await api.request('/api/v3/gp/rh_registros');
+    const reg = (r && r.registros) || {};
+    _regs = { plano: reg.plano || [], clima: reg.clima || [], avaliacoes: reg.avaliacoes || [] };
+    renderReg(modulo);
+  } catch (e) { body.innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`; }
+}
+
+function renderReg(modulo) {
+  const T = REG_TPL[modulo], list = _regs[modulo] || [];
+  const body = document.getElementById('gp-body');
+  body.innerHTML = `
+    <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+      <div><div style="font-size:17px;font-weight:800;color:${T.cor}">${T.titulo}</div><div class="tiny muted">${T.sub}</div></div>
+      <button class="btn btn-primary" id="reg-new">+ Nova ficha</button>
+    </div>
+    ${!list.length ? `<div class="card muted tiny" style="text-align:center;padding:30px">Nenhuma ficha ainda. Clique em <b>+ Nova ficha</b>.</div>`
+      : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">${list.map(r => regCard(modulo, r)).join('')}</div>`}`;
+  document.getElementById('reg-new').onclick = () => openRegEditor(modulo, null);
+  body.querySelectorAll('[data-reg]').forEach(b => b.onclick = () => openRegEditor(modulo, list.find(r => r.id === b.dataset.reg)));
+}
+
+function regCard(modulo, r) {
+  const T = REG_TPL[modulo];
+  const title = r[T.titleField] || '—';
+  const chips = (T.chips(r) || []).map(c => `<span style="background:${T.cor}1f;color:${T.cor};font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px">${esc(c)}</span>`).join(' ');
+  const pf = T.campos.find(c => c.type === 'textarea' && r[c.k]);
+  const prev = pf ? esc(String(r[pf.k]).slice(0, 90)) : '';
+  return `<div class="card" style="padding:13px;cursor:pointer;border-left:4px solid ${T.cor}" data-reg="${esc(r.id)}">
+    <div style="font-weight:800;font-size:14px">${esc(title)}</div>
+    <div class="flex gap-1" style="flex-wrap:wrap;margin:6px 0">${chips}</div>
+    ${prev ? `<div class="tiny muted">${prev}${String(r[pf.k]).length > 90 ? '…' : ''}</div>` : ''}
+  </div>`;
+}
+
+function openRegEditor(modulo, r0) {
+  const T = REG_TPL[modulo], r = r0 ? { ...r0 } : {};
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
+  const field = c => {
+    const v = r[c.k] != null ? r[c.k] : '';
+    if (c.type === 'textarea') return `<div><label class="tiny muted">${c.lbl}</label><textarea id="rg-${c.k}" class="input" rows="2">${esc(v)}</textarea></div>`;
+    if (c.type === 'select') return `<div><label class="tiny muted">${c.lbl}</label><select id="rg-${c.k}" class="select"><option value="">—</option>${c.opts.map(o => `<option${v === o ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
+    const t = c.type === 'number' ? 'number' : c.type === 'date' ? 'date' : 'text';
+    return `<div><label class="tiny muted">${c.lbl}</label><input id="rg-${c.k}" class="input" type="${t}" value="${esc(c.type === 'date' ? String(v).slice(0, 10) : v)}"></div>`;
+  };
+  ov.innerHTML = `
+    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:520px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;overflow:auto">
+      <div style="font-size:17px;font-weight:800;margin-bottom:12px;color:${T.cor}">${r.id ? 'Editar' : 'Nova'} — ${T.titulo}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">${T.campos.map(field).join('')}</div>
+      <div class="flex gap-2 mt-3" style="justify-content:space-between;margin-top:14px">
+        <button class="btn btn-ghost" id="rg-del" ${r.id ? '' : 'style="visibility:hidden"'}>🗑 Excluir</button>
+        <div class="flex gap-2"><button class="btn btn-ghost" id="rg-cancel">Cancelar</button><button class="btn btn-primary" id="rg-save">Salvar</button></div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  ov.querySelector('#rg-cancel').onclick = () => ov.remove();
+  ov.querySelector('#rg-save').onclick = async () => {
+    const rec = { id: r.id };
+    T.campos.forEach(c => { const el = ov.querySelector('#rg-' + c.k); if (el) rec[c.k] = (el.value || '').trim(); });
+    const reqF = T.campos.find(c => c.req);
+    if (reqF && !rec[reqF.k]) { ov.querySelector('#rg-' + reqF.k).focus(); return; }
+    ov.querySelector('#rg-save').disabled = true;
+    try { await api.request('/api/v3/gp/rh_registros', { method: 'POST', body: { action: 'upsert', modulo, registro: rec } }); ov.remove(); await loadReg(modulo); }
+    catch (e) { alert('Erro: ' + e.message); ov.querySelector('#rg-save').disabled = false; }
+  };
+  ov.querySelector('#rg-del').onclick = async () => {
+    if (!r.id || !confirm('Excluir esta ficha?')) return;
+    try { await api.request('/api/v3/gp/rh_registros', { method: 'POST', body: { action: 'delete', modulo, id: r.id } }); ov.remove(); await loadReg(modulo); }
+    catch (e) { alert('Erro: ' + e.message); }
+  };
+  setTimeout(() => { const f = ov.querySelector('.input'); if (f) f.focus(); }, 50);
 }

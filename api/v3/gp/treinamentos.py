@@ -52,6 +52,8 @@ class handler(BaseHTTPRequestHandler):
             "titulo": titulo,
             "publico": (body.get("publico") or "").strip() or None,
             "tipo": body.get("tipo") or "tecnico",
+            "setor": (body.get("setor") or "").strip() or None,          # v81.52: organizar por setor
+            "equipe": (body.get("equipe") or "").strip() or None,        # e por equipe comercial
             "prazo": body.get("prazo") or None,
             "status": body.get("status") or "planejado",
             "conteudo": body.get("conteudo") or None,
