@@ -222,7 +222,7 @@ function render() {
 
   // 🌟 Desenvolvimento individual (teste comportamental + rotina planner + metas + PDF)
   const devEl = document.getElementById('dev-extra');
-  if (devEl) mountDev(devEl, { uid: _targetId, canEdit: !!_data.can_edit }).catch(() => {});
+  if (devEl) mountDev(devEl, { uid: _targetId, canEdit: !!_data.can_edit, conquista: (_me.role || '').toLowerCase() === 'corretor_conquista' }).catch(() => {});
 }
 
 function renderPerf(d) {

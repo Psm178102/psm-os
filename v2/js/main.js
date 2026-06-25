@@ -331,8 +331,16 @@ function initSectionCollapse() {
     if (!sec._collapseWired) {
       sec._collapseWired = true;
       sec.addEventListener('click', () => {
+        // ⚓ Ancora o cabeçalho clicado: guarda a posição dele na tela, aplica o
+        // colapso/expansão e reajusta o scroll pra ele NÃO sair do lugar — assim as
+        // outras seções não "pulam" sob o cursor e some o erro de clique. v81.61
+        const sc = sec.closest('.app-sidebar') || sidebar;
+        const before = sec.getBoundingClientRect().top;
         if (collapsed.has(key)) collapsed.delete(key); else collapsed.add(key);
         apply(); save();
+        const after = sec.getBoundingClientRect().top;
+        const delta = after - before;
+        if (delta && sc && typeof sc.scrollTop === 'number') sc.scrollTop += delta;
       });
     }
     apply();
@@ -341,7 +349,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.60.0';
+const APP_VERSION = '81.61.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {

@@ -50,10 +50,10 @@ const QUESTOES = [
 const DIAS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 const PERIODOS = ['🌅 Manhã', '☀️ Tarde', '🌙 Noite'];
 
-let _box = null, _uid = null, _canEdit = false, _data = {};
+let _box = null, _uid = null, _canEdit = false, _data = {}, _conquista = false;
 
 export async function mountDev(container, opts) {
-  _box = container; _uid = opts.uid; _canEdit = !!opts.canEdit;
+  _box = container; _uid = opts.uid; _canEdit = !!opts.canEdit; _conquista = !!opts.conquista;
   _box.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Carregando desenvolvimento individual…</div>';
   try {
     const r = await api.request('/api/v3/profile/painel_extra?uid=' + encodeURIComponent(_uid));
@@ -95,7 +95,7 @@ function render() {
     </div>
 
     <!-- ===== ROTINA (planner semanal) ===== -->
-    <div class="dev-card dev-sec">
+    <div class="dev-card dev-sec" id="dev-rotina">
       <h3 class="dev-h">🗓 Rotina — planner semanal <span id="rot-st" class="tiny muted" style="font-weight:400;margin-left:auto"></span></h3>
       <div style="overflow-x:auto"><table class="plan"><thead><tr><th></th>${DIAS.map(d => `<th>${d}</th>`).join('')}</tr></thead>
         <tbody>${PERIODOS.map((p, pi) => `<tr><th>${p}</th>${DIAS.map((d, di) => `<td><textarea data-rot="${pi}_${di}" ${_canEdit ? '' : 'readonly'} placeholder="">${esc((rot[pi + '_' + di]) || '')}</textarea></td>`).join('')}</tr>`).join('')}</tbody>
@@ -120,7 +120,7 @@ function render() {
     </div>
 
     <!-- ===== ANÁLISE COMPORTAMENTAL (PDF) ===== -->
-    <div class="dev-card dev-sec">
+    <div class="dev-card dev-sec" id="dev-pdf">
       <h3 class="dev-h">📎 Análise comportamental (PDF) <span id="pdf-st" class="tiny muted" style="font-weight:400;margin-left:auto"></span></h3>
       <label class="tiny muted">Link do PDF (Google Drive)</label>
       <div class="flex gap-2"><input id="pdf-link" class="input" value="${esc(pdf.link || '')}" placeholder="https://drive.google.com/…" ${_canEdit ? '' : 'disabled'}>
@@ -131,6 +131,8 @@ function render() {
       ${pdf.interpretacao ? `<div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:11px 13px"><div class="tiny muted" style="font-weight:700;margin-bottom:4px">🤖 Interpretação da IA</div><div class="tiny" style="white-space:pre-wrap">${esc(pdf.interpretacao)}</div></div>` : ''}
     </div>`;
   wire();
+  // Corretor PSM Conquista: sem Planner Semanal nem Análise Comportamental (PDF). v81.61
+  if (_conquista) { _box.querySelector('#dev-rotina')?.remove(); _box.querySelector('#dev-pdf')?.remove(); }
 }
 
 function resultadoHTML(comp) {

@@ -25,6 +25,11 @@ const _boardLib = 'criativos_lib';   // biblioteca de DOWNLOAD (criativos pronto
 let _lib = [];
 let _fLibFmt = '';
 let _fLibStatus = '';
+// Categoria/equipe do criativo de download — guardada na coluna `plataforma` do card
+// (livre p/ este board). Abas: MAP+Terceiros / Locação / Conquista. v81.61
+const LIB_CATS = ['Conquista', 'MAP+Terceiros', 'Locação'];
+let _libCat = 'Conquista';
+const _isConquista = () => (auth.user()?.role || '').toLowerCase() === 'corretor_conquista';
 
 const TIPOS = ['Carrossel', 'Estático', 'Vídeo', 'Story / Reels'];
 const TIPO_COR = { 'Carrossel': '#8b5cf6', 'Estático': '#0ea5e9', 'Vídeo': '#ef4444', 'Story / Reels': '#d6249f' };
@@ -389,14 +394,23 @@ async function loadLib() {
 }
 
 function libFiltered() {
-  return _lib.filter(c =>
-    (_fLibFmt === '' || (c.formato || '') === _fLibFmt) &&
-    (_fLibStatus === '' || (isAtivo(c) ? 'ativo' : 'inativo') === _fLibStatus));
+  const conquista = _isConquista();
+  return _lib.filter(c => {
+    const cat = c.plataforma || '';
+    // Conquista: SÓ a categoria Conquista. Gestão/demais: a aba ativa + os sem
+    // categoria (aparecem em todas as abas pra serem categorizados). v81.61
+    if (conquista) { if (cat !== 'Conquista') return false; }
+    else if (cat !== _libCat && cat !== '') return false;
+    return (_fLibFmt === '' || (c.formato || '') === _fLibFmt) &&
+      (_fLibStatus === '' || (isAtivo(c) ? 'ativo' : 'inativo') === _fLibStatus);
+  });
 }
 
 function renderDownload() {
+  const cats = _isConquista() ? ['Conquista'] : LIB_CATS;   // Conquista vê só a aba Conquista
+  if (!cats.includes(_libCat)) _libCat = cats[0];
   const list = libFiltered();
-  const nAtivos = _lib.filter(isAtivo).length;
+  const nAtivos = list.filter(isAtivo).length;
   body().innerHTML = `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div>
@@ -404,6 +418,9 @@ function renderDownload() {
         <div class="tiny muted">Criativos prontos do marketing — veja a prévia e baixe pelo Drive.${_canEdit ? ' Anexe novos pelo link do Drive.' : ''}</div>
       </div>
       ${_canEdit ? `<button class="btn btn-primary" id="lib-new">+ Anexar criativo</button>` : ''}
+    </div>
+    <div class="flex gap-2" style="flex-wrap:wrap;border-bottom:2px solid var(--border,#e2e8f0);padding-bottom:8px;margin-bottom:12px">
+      ${cats.map(cat => `<button class="btn btn-sm ${cat === _libCat ? '' : 'btn-ghost'}" data-libcat="${esc(cat)}" style="${cat === _libCat ? 'background:#d6249f;color:#fff;border-color:#d6249f' : ''}">${esc(cat)} <span class="tiny" style="opacity:.7">(${_lib.filter(c => (c.plataforma || '') === cat).length})</span></button>`).join('')}
     </div>
     <div class="flex gap-2" style="flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
       <div><label class="tiny muted">Formato</label>
@@ -454,6 +471,7 @@ function libCard(c) {
 }
 
 function bindDownload() {
+  body().querySelectorAll('[data-libcat]').forEach(b => b.onclick = () => { _libCat = b.dataset.libcat; renderDownload(); });
   const ff = body().querySelector('#lib-ffmt'); if (ff) ff.onchange = () => { _fLibFmt = ff.value; renderDownload(); };
   const fs = body().querySelector('#lib-fstatus'); if (fs) fs.onchange = () => { _fLibStatus = fs.value; renderDownload(); };
   const nw = body().querySelector('#lib-new'); if (nw) nw.onclick = () => openLibEditor(null);
@@ -482,6 +500,8 @@ function openLibEditor(c0) {
         <div style="flex:1"><label class="tiny muted">Status em campanha</label>
           <select id="lb-status" class="select"><option value="ativo"${isAtivo(c) ? ' selected' : ''}>🟢 Ativo</option><option value="inativo"${!isAtivo(c) ? ' selected' : ''}>⚪ Inativo</option></select></div>
       </div>
+      <label class="tiny muted">Categoria (equipe) — define em qual aba aparece</label>
+      <select id="lb-cat" class="select" style="margin-bottom:10px"><option value="">— sem categoria (aparece em todas) —</option>${LIB_CATS.map(cat => `<option value="${esc(cat)}"${(c.plataforma || '') === cat ? ' selected' : ''}>${esc(cat)}</option>`).join('')}</select>
       <label class="tiny muted">🔗 Link do <b>ARQUIVO</b> no Google Drive *</label>
       <input id="lb-link" class="input" value="${esc(c.link || '')}" placeholder="https://drive.google.com/file/d/.../view">
       <div class="tiny muted" style="margin-top:4px">Use o link de um <b>arquivo</b> (não de pasta) e compartilhe como <b>qualquer pessoa com o link</b> — sem isso a prévia não renderiza.</div>
@@ -500,7 +520,7 @@ function openLibEditor(c0) {
     const titulo = ov.querySelector('#lb-titulo').value.trim();
     const link = ov.querySelector('#lb-link').value.trim();
     if (!titulo) { ov.querySelector('#lb-titulo').focus(); return; }
-    const payload = { action: 'upsert', board: _boardLib, id: c.id || undefined, titulo, formato: ov.querySelector('#lb-fmt').value, status: ov.querySelector('#lb-status').value, link };
+    const payload = { action: 'upsert', board: _boardLib, id: c.id || undefined, titulo, formato: ov.querySelector('#lb-fmt').value, status: ov.querySelector('#lb-status').value, link, plataforma: ov.querySelector('#lb-cat').value };
     ov.querySelector('#lb-save').disabled = true;
     try { await api.request('/api/v3/paulo/cards', { method: 'POST', body: payload }); ov.remove(); await loadLib(); }
     catch (e) { alert('Erro ao salvar: ' + e.message); ov.querySelector('#lb-save').disabled = false; }

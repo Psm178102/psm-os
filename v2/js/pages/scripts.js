@@ -5,6 +5,7 @@
    gestão (lvl≥5) edita. Conteúdo livre (regras, scripts, cadência, gatilhos).
 ============================================================================ */
 import { api } from '../api.js';
+import { auth } from '../auth.js';
 
 let _root = null, _linhas = [], _canEdit = false;
 let _selL = 0, _selE = 0, _edit = false, _busy = false, _msg = '';
@@ -15,6 +16,11 @@ export async function pageScripts(ctx, root) {
   try {
     const r = await api.request('/api/v3/scripts/playbook');
     _linhas = r.linhas || []; _canEdit = !!r.can_edit;
+    // Corretor PSM Conquista só consulta a linha MCMV (as outras ficam ocultas). v81.61
+    if ((auth.user()?.role || '').toLowerCase() === 'corretor_conquista') {
+      _linhas = _linhas.filter(l => /mcmv/i.test(l.nome || ''));
+      _canEdit = false;
+    }
   } catch (e) { _root.innerHTML = `<div class="alert alert-err">Erro: ${esc(e.message)}</div>`; return; }
   render();
 }
