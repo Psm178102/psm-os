@@ -79,6 +79,110 @@ export function applyHeaderOverride(path) {
   if (o) { const el = document.getElementById('h-title'); if (el) el.textContent = o; }
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   LAYOUT do menu (v81.48) — organização editável: em qual seção cada item
+   fica + ordem de itens/seções. Reaproveita o menu estático como catálogo e
+   reorganiza o DOM. NÃO mexe em permissão (quem vê segue na matriz por papel).
+═══════════════════════════════════════════════════════════════════════════ */
+let LAYOUT = { secOrder: [], items: {} };
+export function getLayout() { return LAYOUT; }
+
+const isMenuNode = el => el && el.classList && (el.classList.contains('sb-sec') || el.classList.contains('sb-link') || el.classList.contains('sb-subsec'));
+
+// esconde seções (sb-sec) sem nenhum link visível — espelha applyPermissions
+function rehideEmptySections(sidebar) {
+  const nodes = [...sidebar.children];
+  nodes.forEach((node, i) => {
+    if (!node.classList || !node.classList.contains('sb-sec')) return;
+    let visible = 0;
+    for (let j = i + 1; j < nodes.length; j++) {
+      if (nodes[j].classList && nodes[j].classList.contains('sb-sec')) break;
+      if (nodes[j].classList && nodes[j].classList.contains('sb-link') && nodes[j].style.display !== 'none') visible++;
+    }
+    node.style.display = visible === 0 ? 'none' : '';
+  });
+}
+
+export function applyMenuLayout() {
+  const sidebar = document.querySelector('.app-sidebar');
+  if (!sidebar) return;
+  const secNodes = [...sidebar.querySelectorAll('.sb-sec')];
+  if (!secNodes.length) return;
+  secNodes.forEach(s => { if (!s.dataset.deflabel) s.dataset.deflabel = s.textContent.trim(); });
+
+  const firstSec = secNodes[0];
+  let anchor = null;   // 1º nó após a região do menu que não é menu (footer); null = menu é o último
+  for (let c = firstSec; c; c = c.nextElementSibling) { if (!isMenuNode(c)) { anchor = c; break; } }
+
+  const secById = new Map();   // id(deflabel) -> {node, subsecs:[], items:[]}
+  secNodes.forEach(node => secById.set(node.dataset.deflabel, { node, subsecs: [], items: [] }));
+
+  let curId = null, idx = 0;
+  for (let c = firstSec; c && isMenuNode(c); c = c.nextElementSibling) {
+    if (c.classList.contains('sb-sec')) curId = c.dataset.deflabel;
+    else if (c.classList.contains('sb-subsec')) { const b = secById.get(curId); if (b) b.subsecs.push(c); }
+    else if (c.classList.contains('sb-link') && c.dataset.nav) {
+      const cfg = LAYOUT.items && LAYOUT.items[c.dataset.nav];
+      const tgt = (cfg && cfg.sec && secById.has(cfg.sec)) ? cfg.sec : curId;
+      (secById.get(tgt) || secById.get(curId)).items.push({ node: c, ord: (cfg && typeof cfg.ord === 'number') ? cfg.ord : null, defIdx: idx });
+    }
+    idx++;
+  }
+
+  // ordem das seções: as do layout primeiro, resto na ordem padrão
+  const ordered = [];
+  (LAYOUT.secOrder || []).forEach(id => { if (secById.has(id) && !ordered.includes(id)) ordered.push(id); });
+  secNodes.forEach(s => { const id = s.dataset.deflabel; if (!ordered.includes(id)) ordered.push(id); });
+
+  const frag = document.createDocumentFragment();
+  ordered.forEach(id => {
+    const b = secById.get(id);
+    if (!b) return;
+    frag.appendChild(b.node);
+    b.subsecs.forEach(s => frag.appendChild(s));
+    b.items.sort((a, z) => ((a.ord ?? a.defIdx) - (z.ord ?? z.defIdx)));
+    b.items.forEach(it => frag.appendChild(it.node));
+  });
+  sidebar.insertBefore(frag, anchor);
+  rehideEmptySections(sidebar);
+}
+
+export async function loadMenuLayout() {
+  try { const r = await api.request('/api/v3/settings/menu_layout'); LAYOUT = (r && r.layout) || { secOrder: [], items: {} }; }
+  catch (_) { LAYOUT = { secOrder: [], items: {} }; }
+  if (!LAYOUT.items) LAYOUT.items = {};
+  if (!Array.isArray(LAYOUT.secOrder)) LAYOUT.secOrder = [];
+  applyMenuLayout();
+  return LAYOUT;
+}
+
+export async function saveMenuLayout(layout) {
+  const r = await api.request('/api/v3/settings/menu_layout', { method: 'POST', body: { layout } });
+  if (r && r.ok) { LAYOUT = r.layout || { secOrder: [], items: {} }; applyMenuLayout(); }
+  return r;
+}
+
+// estrutura ATUAL da barra (já reorganizada) p/ o editor: [{id, name, items:[{nav,label,ico}]}]
+export function enumerateMenuFull() {
+  const sidebar = document.querySelector('.app-sidebar');
+  const sections = [];
+  if (!sidebar) return sections;
+  [...sidebar.querySelectorAll('.sb-sec')].forEach(node => {
+    if (!node.dataset.deflabel) node.dataset.deflabel = node.textContent.trim();
+    const sec = { id: node.dataset.deflabel, name: LABELS['sec:' + node.dataset.deflabel] || node.dataset.deflabel, items: [] };
+    let c = node.nextElementSibling;
+    while (c && !(c.classList && c.classList.contains('sb-sec'))) {
+      if (c.classList && c.classList.contains('sb-link') && c.dataset.nav) {
+        const def = c.dataset.deflabel || btnDefaultLabel(c);
+        sec.items.push({ nav: c.dataset.nav, label: LABELS[c.dataset.nav] || def, ico: LABELS['ico:' + c.dataset.nav] || btnDefaultIcon(c) });
+      }
+      c = c.nextElementSibling;
+    }
+    sections.push(sec);
+  });
+  return sections;
+}
+
 // lê a barra renderizada e devolve [{secKey,secDef,secCurrent,items:[{nav,def,current}]}]
 export function enumerateMenu() {
   const sidebar = document.querySelector('.app-sidebar');

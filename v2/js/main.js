@@ -32,7 +32,7 @@ import { sounds } from './sounds.js';
 import { pageConfiguracoes } from './pages/configuracoes.js';
 import { pageLogins } from './pages/logins.js';
 import { pageConfigMenu } from './pages/config-menu.js';
-import { loadMenuLabels, applyHeaderOverride } from './menu-labels.js';
+import { loadMenuLabels, loadMenuLayout, applyHeaderOverride } from './menu-labels.js';
 import { pageMarketing } from './pages/marketing.js';
 import { pageIA } from './pages/ia.js';
 import { pageLancamentos } from './pages/lancamentos.js';
@@ -331,7 +331,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.47.0';
+const APP_VERSION = '81.48.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -373,8 +373,8 @@ const APP_VERSION = '81.47.0';
   // 3.1c) Minimizar/expandir categorias do menu (estado salvo por usuário)
   initSectionCollapse();
 
-  // 3.1b) Nomes custom do menu/páginas (sócio edita em /config-menu) — vale p/ todos
-  loadMenuLabels();
+  // 3.1b) Nomes custom + organização do menu (sócio edita em /config-menu) — vale p/ todos
+  loadMenuLabels().then(() => loadMenuLayout()).catch(() => {});
 
   // 3.2) Auto-cura do sync RD: o cron do Vercel é não-confiável (limite do plano),
   // então o próprio uso mantém o dado fresco — se o último sync tiver +6h, dispara
@@ -536,7 +536,7 @@ const APP_VERSION = '81.47.0';
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
   router.register('/configuracoes', { render: async (ctx, root) => { setHeader('Configurações'); highlight('/configuracoes'); await pageConfiguracoes(ctx, root); } });
-  router.register('/config-menu', { render: async (ctx, root) => { setHeader('Nomes do Menu'); highlight('/config-menu'); await pageConfigMenu(ctx, root); } });
+  router.register('/config-menu', { render: async (ctx, root) => { setHeader('Editor de Menu'); highlight('/config-menu'); await pageConfigMenu(ctx, root); } });
   router.register('/logins',    { render: async (ctx, root) => { setHeader('Logins e Senhas'); highlight('/logins'); await pageLogins(ctx, root); } });
   router.register('/qualidade', { render: async (ctx, root) => { setHeader('Qualidade dos Dados'); highlight('/qualidade'); await pageQualidade(ctx, root); } });
   router.register('*',          { render: page404 });
@@ -608,7 +608,7 @@ const APP_VERSION = '81.47.0';
         _permsSig = sig;
       } catch (_) {}
       try { applyPermissions(user); } catch (_) {}
-      try { loadMenuLabels(); } catch (_) {}
+      try { loadMenuLabels().then(() => loadMenuLayout()).catch(() => {}); } catch (_) {}
     })();
   };
 
@@ -765,7 +765,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/integracoes"><span class="sb-ico">🔌</span> Integrações</button>
         <button class="sb-link" data-nav="/backup"><span class="sb-ico">💾</span> Backup</button>
         <button class="sb-link" data-nav="/configuracoes"><span class="sb-ico">🔧</span> Configurações</button>
-        <button class="sb-link" data-nav="/config-menu"><span class="sb-ico">✏️</span> Nomes do Menu</button>
+        <button class="sb-link" data-nav="/config-menu"><span class="sb-ico">✏️</span> Editor de Menu</button>
         <button class="sb-link" data-nav="/logins"><span class="sb-ico">🔐</span> Logins e Senhas</button>
         <button class="sb-link" data-nav="/qualidade"><span class="sb-ico">🧹</span> Qualidade dos Dados</button>
 
