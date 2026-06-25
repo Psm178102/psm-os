@@ -24,7 +24,7 @@ import { pageProjetos } from './pages/projetos.js';
 import { pagePsmHub } from './pages/psmhub.js';
 import { pagePauloConteudo, pageConteudoImoveis, pageConteudoConquista } from './pages/paulo-conteudo.js';
 import { pageCriativos, pageCriativosDownload } from './pages/criativos.js';
-import { pageSucessoCliente } from './pages/sucesso-cliente.js';
+import { pageSucessoCliente, pageSCOnboarding, pageSCCarteira, pageSCSuporte, pageSCRetencao, pageSCMetricas, pageSCUpsell, pageSCMarketing, pageSCAvaliacoes, pageSCIndicacoes } from './pages/sucesso-cliente.js';
 import { pageEstrategia } from './pages/estrategia.js';
 import { pageAcademy } from './pages/academy.js';
 import { pageAcademyStudio } from './pages/academy-studio.js';
@@ -70,7 +70,7 @@ import { pageEtica } from './pages/etica.js';
 import { pageCanal } from './pages/canal.js';
 import { pageBase } from './pages/base.js';
 import { pageFormacao } from './pages/formacao.js';
-import { pageGestaoPessoas, pageOnboarding, pageOffboarding } from './pages/gestao-pessoas.js';
+import { pageGestaoPessoas, pageOnboarding, pageOffboarding, pageRhTreinamentos, pageRhRecrutamento, pageRhPlano, pageRhClima, pageRhAvaliacoes } from './pages/gestao-pessoas.js';
 import { pageTalentos } from './pages/talentos.js';
 // Ferramentas Conquista (v81.44) — gated em sócio (ROUTE_MIN_LVL=10) por enquanto
 import { pageCockpitConquista } from './pages/cockpit-conquista.js';
@@ -154,7 +154,9 @@ export const ROUTE_GROUP = {
   '/formacao': 'academy', '/premiacoes': 'inicio',
   // Gestão de Pessoas & RH (grupo próprio)
   '/gestao-pessoas': 'rh', '/onboarding': 'rh', '/offboarding': 'rh',
-  '/sucesso-cliente': 'sucesso',   // novo módulo Customer Success (v81.53)
+  '/rh-treinamentos': 'rh', '/rh-recrutamento': 'rh', '/rh-plano': 'rh', '/rh-clima': 'rh', '/rh-avaliacoes': 'rh',   // abas RH soltas (v81.55)
+  '/sucesso-cliente': 'sucesso',   // Customer Success (v81.53)
+  '/cs-onboarding': 'sucesso', '/cs-carteira': 'sucesso', '/cs-suporte': 'sucesso', '/cs-retencao': 'sucesso', '/cs-metricas': 'sucesso', '/cs-upsell': 'sucesso', '/cs-marketing': 'sucesso', '/cs-avaliacoes': 'sucesso', '/cs-indicacoes': 'sucesso',   // abas CS soltas (v81.55)
   '/talentos': 'rh', '/psmhub': 'diretoria',
   // Ferramentas
   '/simuladores': 'ferramentas', '/relatorios': 'diretoria',
@@ -207,7 +209,9 @@ export const ROUTE_MIN_LVL = {
   // corretor é só baixar este número (ou liberar na matriz por papel).
   '/cockpit-conquista': 10, '/minha-comissao': 10, '/meu-cerebro': 10, '/sim-conquista': 10,
   '/onboarding': 10, '/offboarding': 10,   // RH: admissão/desligamento — só sócio (v81.45)
+  '/rh-treinamentos': 5, '/rh-recrutamento': 5, '/rh-plano': 5, '/rh-clima': 5, '/rh-avaliacoes': 5,   // abas RH (líder+)
   '/sucesso-cliente': 5,   // Customer Success — líder+ (v81.53); abrir mais na matriz
+  '/cs-onboarding': 5, '/cs-carteira': 5, '/cs-suporte': 5, '/cs-retencao': 5, '/cs-metricas': 5, '/cs-upsell': 5, '/cs-marketing': 5, '/cs-avaliacoes': 5, '/cs-indicacoes': 5,
 };
 
 // Override por PAPEL (matriz editável pelo sócio em Configurações → Permissões por papel).
@@ -334,7 +338,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.54.0';
+const APP_VERSION = '81.55.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -498,6 +502,20 @@ const APP_VERSION = '81.54.0';
   router.register('/sucesso-cliente', { render: async (ctx, root) => { setHeader('Sucesso do Cliente'); highlight('/sucesso-cliente'); await pageSucessoCliente(ctx, root); } });
   router.register('/onboarding',  { render: async (ctx, root) => { setHeader('Onboarding');  highlight('/onboarding');  await pageOnboarding(ctx, root); } });
   router.register('/offboarding', { render: async (ctx, root) => { setHeader('Offboarding'); highlight('/offboarding'); await pageOffboarding(ctx, root); } });
+  router.register('/rh-treinamentos', { render: async (ctx, root) => { setHeader('Treinamentos'); highlight('/rh-treinamentos'); await pageRhTreinamentos(ctx, root); } });
+  router.register('/rh-recrutamento', { render: async (ctx, root) => { setHeader('Recrutamento & Seleção'); highlight('/rh-recrutamento'); await pageRhRecrutamento(ctx, root); } });
+  router.register('/rh-plano', { render: async (ctx, root) => { setHeader('Plano de Crescimento'); highlight('/rh-plano'); await pageRhPlano(ctx, root); } });
+  router.register('/rh-clima', { render: async (ctx, root) => { setHeader('Clima Interno'); highlight('/rh-clima'); await pageRhClima(ctx, root); } });
+  router.register('/rh-avaliacoes', { render: async (ctx, root) => { setHeader('Avaliações & Feedbacks'); highlight('/rh-avaliacoes'); await pageRhAvaliacoes(ctx, root); } });
+  router.register('/cs-onboarding', { render: async (ctx, root) => { setHeader('Onboarding do Cliente'); highlight('/cs-onboarding'); await pageSCOnboarding(ctx, root); } });
+  router.register('/cs-carteira', { render: async (ctx, root) => { setHeader('Gestão de Carteira'); highlight('/cs-carteira'); await pageSCCarteira(ctx, root); } });
+  router.register('/cs-suporte', { render: async (ctx, root) => { setHeader('Relacionamento & Suporte'); highlight('/cs-suporte'); await pageSCSuporte(ctx, root); } });
+  router.register('/cs-retencao', { render: async (ctx, root) => { setHeader('Retenção & Renovação'); highlight('/cs-retencao'); await pageSCRetencao(ctx, root); } });
+  router.register('/cs-metricas', { render: async (ctx, root) => { setHeader('Métricas de Sucesso'); highlight('/cs-metricas'); await pageSCMetricas(ctx, root); } });
+  router.register('/cs-upsell', { render: async (ctx, root) => { setHeader('Upsell & Cross-sell'); highlight('/cs-upsell'); await pageSCUpsell(ctx, root); } });
+  router.register('/cs-marketing', { render: async (ctx, root) => { setHeader('Customer Marketing'); highlight('/cs-marketing'); await pageSCMarketing(ctx, root); } });
+  router.register('/cs-avaliacoes', { render: async (ctx, root) => { setHeader('Avaliações de Atendimento'); highlight('/cs-avaliacoes'); await pageSCAvaliacoes(ctx, root); } });
+  router.register('/cs-indicacoes', { render: async (ctx, root) => { setHeader('Programa de Indicações'); highlight('/cs-indicacoes'); await pageSCIndicacoes(ctx, root); } });
   router.register('/talentos', { render: async (ctx, root) => { setHeader('Base de Talentos'); highlight('/talentos'); await pageTalentos(ctx, root); } });
   router.register('/premiacoes',  { render: async (ctx, root) => { setHeader('Premiações');           highlight('/premiacoes'); await pagePremiacoes(ctx, root); } });
   router.register('/agentes',     { render: async (ctx, root) => { setHeader('Central de Agentes');  highlight('/agentes');  await pageAgentes(ctx, root); } });
@@ -705,10 +723,24 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/campanha-wa"><span class="sb-ico">📣</span> Campanha WhatsApp</button>
 
         <div class="sb-sec">🧑‍💼 Gestão de Pessoas & RH</div>
-        <button class="sb-link" data-nav="/gestao-pessoas"><span class="sb-ico">👥</span> Gestão de Pessoas</button>
+        <button class="sb-link" data-nav="/rh-treinamentos"><span class="sb-ico">🎓</span> Treinamentos</button>
+        <button class="sb-link" data-nav="/onboarding"><span class="sb-ico">🚀</span> Onboarding</button>
+        <button class="sb-link" data-nav="/offboarding"><span class="sb-ico">👋</span> Offboarding</button>
+        <button class="sb-link" data-nav="/rh-recrutamento"><span class="sb-ico">🧲</span> Recrutamento & Seleção</button>
+        <button class="sb-link" data-nav="/rh-plano"><span class="sb-ico">📈</span> Plano de Crescimento</button>
+        <button class="sb-link" data-nav="/rh-clima"><span class="sb-ico">🌡</span> Clima Interno</button>
+        <button class="sb-link" data-nav="/rh-avaliacoes"><span class="sb-ico">⭐</span> Avaliações & Feedbacks</button>
 
         <div class="sb-sec">🤝 Sucesso do Cliente</div>
-        <button class="sb-link" data-nav="/sucesso-cliente"><span class="sb-ico">🤝</span> Sucesso do Cliente</button>
+        <button class="sb-link" data-nav="/cs-onboarding"><span class="sb-ico">🚀</span> Onboarding do Cliente</button>
+        <button class="sb-link" data-nav="/cs-carteira"><span class="sb-ico">💼</span> Gestão de Carteira</button>
+        <button class="sb-link" data-nav="/cs-suporte"><span class="sb-ico">📞</span> Relacionamento & Suporte</button>
+        <button class="sb-link" data-nav="/cs-retencao"><span class="sb-ico">🔄</span> Retenção & Renovação</button>
+        <button class="sb-link" data-nav="/cs-metricas"><span class="sb-ico">📊</span> Métricas de Sucesso</button>
+        <button class="sb-link" data-nav="/cs-upsell"><span class="sb-ico">📈</span> Upsell & Cross-sell</button>
+        <button class="sb-link" data-nav="/cs-marketing"><span class="sb-ico">⭐</span> Customer Marketing</button>
+        <button class="sb-link" data-nav="/cs-avaliacoes"><span class="sb-ico">🌟</span> Avaliações de Atendimento</button>
+        <button class="sb-link" data-nav="/cs-indicacoes"><span class="sb-ico">🎁</span> Programa de Indicações</button>
 
         <div class="sb-sec">📣 Marketing</div>
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>

@@ -28,9 +28,14 @@ function visibleTabs() {
   return t;
 }
 
-// Entradas diretas (deep-link) — abrem a página já na aba certa
+// Entradas diretas (deep-link) — cada aba é um item próprio na barra lateral (v81.55)
 export async function pageOnboarding(ctx, root) { _tab = 'onboarding'; return pageGestaoPessoas(ctx, root); }
 export async function pageOffboarding(ctx, root) { _tab = 'offboarding'; return pageGestaoPessoas(ctx, root); }
+export async function pageRhTreinamentos(ctx, root) { _tab = 'treinamentos'; return pageGestaoPessoas(ctx, root); }
+export async function pageRhRecrutamento(ctx, root) { _tab = 'talentos'; return pageGestaoPessoas(ctx, root); }
+export async function pageRhPlano(ctx, root) { _tab = 'plano'; return pageGestaoPessoas(ctx, root); }
+export async function pageRhClima(ctx, root) { _tab = 'clima'; return pageGestaoPessoas(ctx, root); }
+export async function pageRhAvaliacoes(ctx, root) { _tab = 'avaliacoes'; return pageGestaoPessoas(ctx, root); }
 
 export async function pageGestaoPessoas(ctx, root) {
   _root = root; _ctx = ctx;

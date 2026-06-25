@@ -75,6 +75,18 @@ export async function pageSucessoCliente(ctx, root) {
   root.innerHTML = `<div id="sc-tabs" class="flex gap-1" style="border-bottom:1px solid var(--bd,#e2e8f0);margin-bottom:14px;flex-wrap:wrap;overflow-x:auto"></div><div id="sc-body"></div>`;
   renderTabs(); route();
 }
+
+// Entradas diretas (deep-link) — cada aba vira item próprio na barra lateral (v81.55)
+const _entry = tab => async (ctx, root) => { _tab = tab; return pageSucessoCliente(ctx, root); };
+export const pageSCOnboarding = _entry('onb_cliente');
+export const pageSCCarteira = _entry('carteira');
+export const pageSCSuporte = _entry('suporte');
+export const pageSCRetencao = _entry('retencao');
+export const pageSCMetricas = _entry('metricas');
+export const pageSCUpsell = _entry('upsell');
+export const pageSCMarketing = _entry('marketing');
+export const pageSCAvaliacoes = _entry('avaliacoes');
+export const pageSCIndicacoes = _entry('indicacoes');
 const body = () => _root.querySelector('#sc-body');
 function renderTabs() {
   _root.querySelector('#sc-tabs').innerHTML = TABS.map(t => {
