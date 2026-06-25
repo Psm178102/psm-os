@@ -18,6 +18,34 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, notify, notify_all  # type: ignore
 
+# ── Etapas do Kanban (devem casar EXATAMENTE com as colunas do front) ─────────
+# Blindagem v81.59: garante que TODA captação tenha um status válido. Sem isso,
+# um status que não bate com nenhuma coluna (ex.: "publicada" vindo do RD, ou
+# "colher_dados" legado) some do kanban — o card vira órfão (invisível).
+VALID_ETAPAS = {
+    "a_fazer", "agendar_prop", "agendado", "pausado", "captacao_realizada",
+    "edicao_fotos", "edicao_videos", "aprovacao", "formulario_kenlo",
+    "subir_kenlo", "agendar_mlabs", "refazer", "concluido",
+}
+# Apelidos de estágios externos (RD / builds antigos) → etapa válida.
+ETAPA_ALIASES = {
+    "publicada": "concluido", "publicado": "concluido", "anunciada": "concluido",
+    "anunciado": "concluido", "no_ar": "concluido", "no ar": "concluido",
+    "finalizada": "concluido", "finalizado": "concluido", "concluída": "concluido",
+    "concluida": "concluido", "em_revisao": "aprovacao", "revisao": "aprovacao",
+    "colher_dados": "a_fazer", "colher dados": "a_fazer",
+}
+
+
+def _norm_etapa(s):
+    """Devolve SEMPRE uma etapa válida do kanban (nenhum card fica órfão).
+    Conhecida → ela mesma; apelido → mapeada; desconhecida → 'a_fazer'
+    (reaparece no início do funil, nunca some). v81.59"""
+    k = (s or "").strip().lower()
+    if k in VALID_ETAPAS:
+        return k
+    return ETAPA_ALIASES.get(k, "a_fazer")
+
 
 def _safe_upsert(sb, table, row):
     """Upsert tolerante: se uma coluna não existir no banco (migração ainda não
@@ -95,6 +123,9 @@ class handler(BaseHTTPRequestHandler):
             rows = sb.table("captacoes").select("*").order("updated_at", desc=True).limit(1000).execute().data or []
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
+        # v81.59: blinda a exibição — qualquer status órfão cai numa coluna válida
+        for r in rows:
+            r["status"] = _norm_etapa(r.get("status"))
         return self._send(200, {"ok": True, "captacoes": rows})
 
     def do_POST(self):
@@ -110,8 +141,9 @@ class handler(BaseHTTPRequestHandler):
         action = body.get("action") or "upsert"
 
         if action == "move":
-            cid = body.get("id"); status = body.get("status")
-            if not cid or not status: return self._send(400, {"ok": False, "error": "id e status obrigatórios"})
+            cid = body.get("id"); raw_status = (body.get("status") or "").strip()
+            if not cid or not raw_status: return self._send(400, {"ok": False, "error": "id e status obrigatórios"})
+            status = _norm_etapa(raw_status)   # v81.59: nunca grava etapa inválida
             try:
                 cur = sb.table("captacoes").select("*").eq("id", cid).limit(1).execute().data or []
                 cur = cur[0] if cur else {}
@@ -168,7 +200,7 @@ class handler(BaseHTTPRequestHandler):
             "localizacao": (body.get("localizacao") or "").strip() or None,
             "responsavel": (body.get("responsavel") or "").strip() or None,
             "responsavel_id": (body.get("responsavel_id") or "").strip() or None,
-            "status": body.get("status") or "colher_dados",
+            "status": _norm_etapa(body.get("status") or "a_fazer"),   # v81.59: sempre etapa válida
             "situacao_imovel": (body.get("situacao_imovel") or "").strip() or None,
             "local_chaves": (body.get("local_chaves") or "").strip() or None,
             "pendencia": (body.get("pendencia") or "").strip() or None,

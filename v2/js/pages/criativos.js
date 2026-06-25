@@ -36,11 +36,13 @@ const MAT_TIPOS = ['imagem', 'vídeo', 'pdf', 'link', 'texto'];
 const MAT_ICO = { imagem: '🖼', 'vídeo': '🎞', pdf: '📄', link: '🔗', texto: '📝' };
 
 const STAGES = [
-  { id: 'solicitado', lbl: '📥 Solicitado',  cor: '#f59e0b' },
-  { id: 'producao',   lbl: '🎨 Em produção', cor: '#0ea5e9' },
-  { id: 'revisao',    lbl: '👁 Em revisão',  cor: '#8b5cf6' },
-  { id: 'aprovado',   lbl: '✅ Aprovado',    cor: '#16a34a' },
-  { id: 'publicado',  lbl: '🚀 Publicado',   cor: '#0891b2' },
+  { id: 'solicitado', lbl: '📥 Solicitado',       cor: '#f59e0b' },
+  { id: 'producao',   lbl: '🎨 Em produção',      cor: '#0ea5e9' },
+  // 'revisao' mantém o ID (renomear o id orfanaria os cards já nessa coluna). v81.59
+  { id: 'revisao',    lbl: '👁 Para aprovação',   cor: '#8b5cf6' },
+  { id: 'corrigir',   lbl: '🔁 Corrigir/Refazer', cor: '#ef4444' },
+  { id: 'aprovado',   lbl: '✅ Aprovado',         cor: '#16a34a' },
+  { id: 'publicado',  lbl: '🚀 Publicado',        cor: '#0891b2' },
 ];
 const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor: '#64748b' };
 
