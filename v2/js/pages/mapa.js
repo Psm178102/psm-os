@@ -268,20 +268,12 @@ async function render() {
           <iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 380px);min-height:420px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
         </div>
       </details>` : (canEditLinks() ? '<p class="tiny muted mt-3">💡 Cole o link do seu <b>Google My Maps</b> em <b>⚙️ My Maps</b> pra os empreendimentos aparecerem no satélite acima.</p>' : '')}
-
-      <details class="mt-3" id="cap-details">
-        <summary style="cursor:pointer;font-weight:700;padding:6px 0">📍 Ver imóveis captados (banco de dados) — satélite</summary>
-        <div id="captados-wrap" class="mt-2"></div>
-      </details>
     </div>
   `;
   const ee = document.getElementById('map-earth-edit'); if (ee) ee.addEventListener('click', editEarth);
   const mm = document.getElementById('map-mymaps-edit'); if (mm) mm.addEventListener('click', editMyMaps);
   const rf = document.getElementById('map-emp-refresh'); if (rf) rf.addEventListener('click', () => loadEmpreendimentos(true));
-  // imóveis captados (do banco) só carregam quando o usuário abre o bloco
-  const cap = document.getElementById('cap-details');
-  if (cap) cap.addEventListener('toggle', () => { if (cap.open) ensureCaptadosLoaded(); });
-  // EMPREENDIMENTOS no satélite — vista principal, carrega já na abertura
+  // EMPREENDIMENTOS do Google My Maps no satélite — única vista (sem imóveis de captação). v81.68
   await loadEmpreendimentos();
 }
 
