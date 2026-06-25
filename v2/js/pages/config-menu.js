@@ -44,6 +44,10 @@ export async function pageConfigMenu(ctx, root) {
       .og-item .lbl{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .og-mini{background:none;border:1px solid rgba(148,163,184,.3);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:12px;flex:0 0 auto}
       .og-mini:disabled{opacity:.3;cursor:default}
+      .og-grip{cursor:grab;color:var(--ink-muted,#94a3b8);font-size:15px;padding:0 4px;flex:0 0 auto;user-select:none;line-height:1}
+      .og-grip:active{cursor:grabbing}
+      .og-dragging{opacity:.45}
+      .og-over{outline:2px dashed var(--psm-gold,#c79a3a);outline-offset:-2px;background:rgba(199,154,58,.08)}
       .og-sel{font-size:12px;max-width:190px}
       @media(max-width:640px){.cm-row{grid-template-columns:1fr;gap:4px}.og-sel{max-width:130px}}
     </style>
@@ -112,6 +116,7 @@ function renderRename(body) {
 
 /* ─────────────── ABA ORGANIZAR (mover / reordenar) ─────────────── */
 let _model = null;   // [{id, name, items:[{nav,label,ico}]}] — modelo de trabalho
+let _drag = null;    // estado do drag-and-drop {kind:'item'|'sec', si, ii}
 
 function renderOrganize(body) {
   if (!_model) _model = enumerateMenuFull();
@@ -122,11 +127,13 @@ function renderOrganize(body) {
       <div class="og-sechd">
         <button class="og-mini" data-secup="${si}" ${si === 0 ? 'disabled' : ''} title="Subir seção">▲</button>
         <button class="og-mini" data-secdn="${si}" ${si === _model.length - 1 ? 'disabled' : ''} title="Descer seção">▼</button>
+        <span class="og-grip" data-gsec="${si}" draggable="true" title="Arrastar seção">⠿</span>
         <span style="flex:1">${esc(sec.name)}</span>
         <span class="tiny muted">${sec.items.length} item(s)</span>
       </div>
       ${sec.items.length ? sec.items.map((it, ii) => `
-        <div class="og-item">
+        <div class="og-item" data-it="${si}:${ii}">
+          <span class="og-grip" data-git="${si}:${ii}" draggable="true" title="Arrastar item">⠿</span>
           <button class="og-mini" data-up="${si}:${ii}" ${ii === 0 ? 'disabled' : ''} title="Subir">▲</button>
           <button class="og-mini" data-dn="${si}:${ii}" ${ii === sec.items.length - 1 ? 'disabled' : ''} title="Descer">▼</button>
           <span class="lbl">${esc(it.ico)} ${esc(it.label)}</span>
@@ -136,8 +143,8 @@ function renderOrganize(body) {
     </div>`).join('');
   body.innerHTML = `
     <div class="card" style="margin-bottom:12px"><p class="muted" style="margin:0;font-size:13px">
-      Arraste a organização do menu: use <b>▲▼</b> pra reordenar itens e seções, e o seletor <b>"mover para"</b> pra jogar um item em outra seção (ex.: Diretoria → Locação).
-      É só <b>posição visual</b> — quem vê cada item continua na matriz <i>Permissões por papel</i>.</p></div>
+      Reorganize o menu: <b>arraste pelo punho ⠿</b> (itens e seções) <b>ou</b> use as setas <b>▲▼</b>. Pra jogar um item em outra seção também dá pelo seletor <b>"mover para"</b> (ex.: Diretoria → Locação).
+      Lembre de clicar em <b>Salvar organização</b>. É só <b>posição visual</b> — quem vê cada item continua na matriz <i>Permissões por papel</i>.</p></div>
     ${secsHtml}
     <div class="cm-bar"><span class="cm-msg muted" id="og-msg"></span>
       <button class="btn" id="og-reset">Restaurar organização</button>
@@ -150,15 +157,54 @@ function renderOrganize(body) {
   // reordenar seção
   body.querySelectorAll('[data-secup]').forEach(b => b.onclick = () => { const si = +b.dataset.secup; [_model[si - 1], _model[si]] = [_model[si], _model[si - 1]]; rerender(); });
   body.querySelectorAll('[data-secdn]').forEach(b => b.onclick = () => { const si = +b.dataset.secdn; [_model[si + 1], _model[si]] = [_model[si], _model[si + 1]]; rerender(); });
-  // mover item p/ outra seção
+  // mover item p/ outra seção (dropdown)
   body.querySelectorAll('[data-mv]').forEach(sel => sel.onchange = () => {
     const [si, ii] = sel.dataset.mv.split(':').map(Number);
-    const toId = sel.value;
-    const tgt = _model.find(s => s.id === toId);
+    const tgt = _model.find(s => s.id === sel.value);
     if (!tgt || tgt === _model[si]) return;
     const [it] = _model[si].items.splice(ii, 1);
     tgt.items.push(it);
     rerender();
+  });
+
+  // ── DRAG-AND-DROP (arrastar pelo punho ⠿) ──
+  body.querySelectorAll('.og-grip').forEach(g => {
+    g.addEventListener('dragstart', e => {
+      if (g.dataset.git != null) { _drag = { kind: 'item', si: +g.dataset.git.split(':')[0], ii: +g.dataset.git.split(':')[1] }; }
+      else if (g.dataset.gsec != null) { _drag = { kind: 'sec', si: +g.dataset.gsec }; }
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', 'x'); } catch (_) {}
+      const card = g.closest('.og-item, .og-sec'); if (card) setTimeout(() => card.classList.add('og-dragging'), 0);
+    });
+    g.addEventListener('dragend', () => { _drag = null; body.querySelectorAll('.og-dragging,.og-over').forEach(el => el.classList.remove('og-dragging', 'og-over')); });
+  });
+  const overEl = e => (_drag && _drag.kind === 'sec') ? e.target.closest('.og-sec') : (e.target.closest('.og-item') || e.target.closest('.og-sec'));
+  body.querySelectorAll('.og-item, .og-sec').forEach(el => {
+    el.addEventListener('dragover', e => { if (!_drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; const t = overEl(e); body.querySelectorAll('.og-over').forEach(x => x.classList.remove('og-over')); if (t) t.classList.add('og-over'); });
+    el.addEventListener('drop', e => {
+      if (!_drag) return; e.preventDefault(); e.stopPropagation();
+      if (_drag.kind === 'item') {
+        const itemEl = e.target.closest('.og-item');
+        const secEl = e.target.closest('.og-sec');
+        const [it] = _model[_drag.si].items.splice(_drag.ii, 1);
+        if (!it) { _drag = null; return; }
+        if (itemEl && itemEl.dataset.it) {
+          let [tsi, tii] = itemEl.dataset.it.split(':').map(Number);
+          if (tsi === _drag.si && _drag.ii < tii) tii--;     // ajusta índice após remoção
+          _model[tsi].items.splice(tii, 0, it);
+        } else if (secEl && secEl.dataset.si != null) {
+          _model[+secEl.dataset.si].items.push(it);          // soltou na seção (vazia/fim)
+        } else { _model[_drag.si].items.splice(_drag.ii, 0, it); }
+        rerender();
+      } else if (_drag.kind === 'sec') {
+        const secEl = e.target.closest('.og-sec');
+        if (secEl && secEl.dataset.si != null) {
+          const tsi = +secEl.dataset.si;
+          if (tsi !== _drag.si) { const [s] = _model.splice(_drag.si, 1); _model.splice(tsi, 0, s); rerender(); }
+        }
+      }
+      _drag = null;
+    });
   });
 
   const msg = body.querySelector('#og-msg');

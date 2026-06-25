@@ -117,17 +117,23 @@ export function applyMenuLayout() {
   const secById = new Map();   // id(deflabel) -> {node, subsecs:[], items:[]}
   secNodes.forEach(node => secById.set(node.dataset.deflabel, { node, subsecs: [], items: [] }));
 
-  let curId = null, idx = 0;
+  let curId = null, idx = 0, pendingSubs = [];   // sub-divisores (sb-subsec) ancoram no item seguinte
   for (let c = firstSec; c && isMenuNode(c); c = c.nextElementSibling) {
-    if (c.classList.contains('sb-sec')) curId = c.dataset.deflabel;
-    else if (c.classList.contains('sb-subsec')) { const b = secById.get(curId); if (b) b.subsecs.push(c); }
-    else if (c.classList.contains('sb-link') && c.dataset.nav) {
-      const cfg = LAYOUT.items && LAYOUT.items[c.dataset.nav];
+    if (c.classList.contains('sb-sec')) {
+      if (pendingSubs.length && secById.get(curId)) secById.get(curId).subsecs.push({ anchor: null, nodes: pendingSubs });
+      curId = c.dataset.deflabel; pendingSubs = [];
+    } else if (c.classList.contains('sb-subsec')) {
+      pendingSubs.push(c);
+    } else if (c.classList.contains('sb-link') && c.dataset.nav) {
+      const route = c.dataset.nav;
+      if (pendingSubs.length && secById.get(curId)) { secById.get(curId).subsecs.push({ anchor: route, nodes: pendingSubs }); pendingSubs = []; }
+      const cfg = LAYOUT.items && LAYOUT.items[route];
       const tgt = (cfg && cfg.sec && secById.has(cfg.sec)) ? cfg.sec : curId;
-      (secById.get(tgt) || secById.get(curId)).items.push({ node: c, ord: (cfg && typeof cfg.ord === 'number') ? cfg.ord : null, defIdx: idx });
+      (secById.get(tgt) || secById.get(curId)).items.push({ route, node: c, ord: (cfg && typeof cfg.ord === 'number') ? cfg.ord : null, defIdx: idx });
     }
     idx++;
   }
+  if (pendingSubs.length && secById.get(curId)) secById.get(curId).subsecs.push({ anchor: null, nodes: pendingSubs });
 
   // ordem das seções: as do layout primeiro, resto na ordem padrão
   const ordered = [];
@@ -139,9 +145,14 @@ export function applyMenuLayout() {
     const b = secById.get(id);
     if (!b) return;
     frag.appendChild(b.node);
-    b.subsecs.forEach(s => frag.appendChild(s));
     b.items.sort((a, z) => ((a.ord ?? a.defIdx) - (z.ord ?? z.defIdx)));
-    b.items.forEach(it => frag.appendChild(it.node));
+    // sub-divisores agrupados pela rota do item-âncora (vão logo antes dele)
+    const subByAnchor = {};
+    b.subsecs.forEach(g => { const k = g.anchor || '__end'; (subByAnchor[k] = subByAnchor[k] || []).push(...g.nodes); });
+    const have = new Set(b.items.map(it => it.route));
+    b.items.forEach(it => { (subByAnchor[it.route] || []).forEach(n => frag.appendChild(n)); frag.appendChild(it.node); });
+    // divisores de fim, ou cujo item-âncora saiu desta seção → no fim
+    Object.keys(subByAnchor).forEach(k => { if (k === '__end' || !have.has(k)) subByAnchor[k].forEach(n => frag.appendChild(n)); });
   });
   sidebar.insertBefore(frag, anchor);
   rehideEmptySections(sidebar);
