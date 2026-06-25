@@ -111,33 +111,43 @@ function permissoesCard() {
   return `
     <div class="card mt-4" id="perm-card" style="margin-top:14px">
       <h3 class="card-title">🔐 Permissões por papel</h3>
-      <p class="card-sub">Escolha o papel e marque <b>cada item de menu</b> que ele pode ver. Início, Conta e Academy são sempre visíveis. O papel de cada pessoa é definido em <b>Usuários</b>.</p>
+      <p class="card-sub">Escolha o papel e marque <b>cada item de menu</b> que ele pode ver. Os itens aparecem <b>nas mesmas seções do menu</b> (se você mover um item no Editor de Menu, ele aparece na seção nova aqui). Conta é sempre visível. O papel de cada pessoa é definido em <b>Usuários</b>.</p>
       <div id="perm-editor"><div class="flex items-center gap-2 muted tiny" style="padding:10px 0"><span class="spinner"></span> Carregando matriz…</div></div>
     </div>`;
 }
 
-// monta o catálogo de itens de menu a partir da barra lateral renderizada (reflete o menu real)
+// monta o catálogo agrupado pela SEÇÃO VISUAL do menu (o .sb-sec que precede o item).
+// Como a barra já foi reorganizada pelo Editor de Menu (applyMenuLayout), mover um
+// item pra outra seção faz ele aparecer sob essa seção AQUI também. v81.54
 function buildPermCatalog() {
-  const buckets = {};   // group -> [{route,label,icon,minlvl}]
-  const order = [];
-  document.querySelectorAll('.app-sidebar .sb-link[data-nav]').forEach(btn => {
-    const route = btn.dataset.nav;
-    const grp = ROUTE_GROUP[route] || 'inicio';
-    if (PERM_ALWAYS.has(grp) || !PERM_GROUP_LBL[grp]) return;   // pula sempre-visíveis e grupos sem rótulo
-    const icon = (btn.querySelector('.sb-ico')?.textContent || '').trim();
-    const label = (btn.textContent || '').replace(icon, '').trim();
-    if (!buckets[grp]) { buckets[grp] = []; order.push(grp); }
-    if (!buckets[grp].some(i => i.route === route))
-      buckets[grp].push({ route, label, icon, minlvl: ROUTE_MIN_LVL[route] || 0 });
+  const sidebar = document.querySelector('.app-sidebar');
+  const groups = [];
+  if (!sidebar) return groups;
+  let cur = null;
+  [...sidebar.children].forEach(node => {
+    if (!node.classList) return;
+    if (node.classList.contains('sb-sec')) {
+      cur = { key: (node.dataset.deflabel || node.textContent.trim()), label: node.textContent.trim(), items: [] };
+      groups.push(cur);
+    } else if (node.classList.contains('sb-link') && node.dataset.nav && cur) {
+      const route = node.dataset.nav;
+      const grp = ROUTE_GROUP[route] || 'inicio';
+      if (PERM_ALWAYS.has(grp) || !PERM_GROUP_LBL[grp]) return;   // pula sempre-visíveis (conta) e sem rótulo
+      const icon = (node.querySelector('.sb-ico')?.textContent || '').trim();
+      const label = (node.textContent || '').replace(icon, '').trim();
+      if (!cur.items.some(i => i.route === route))
+        cur.items.push({ route, label, icon, minlvl: ROUTE_MIN_LVL[route] || 0 });
+    }
   });
-  return order.map(g => ({ key: g, label: PERM_GROUP_LBL[g], items: buckets[g] }));
+  return groups.filter(g => g.items.length);
 }
 
 function defaultSetFor(role) {
   const allow = ROLE_ALLOWED[role];
   const set = new Set();
   (_permCatalog || []).forEach(g => g.items.forEach(it => {
-    if (allow === '*' || (Array.isArray(allow) && (allow.includes(it.route) || allow.includes(g.key)))) set.add(it.route);
+    const grp = ROUTE_GROUP[it.route] || 'inicio';   // permissão padrão é por ROUTE_GROUP (não pela seção visual)
+    if (allow === '*' || (Array.isArray(allow) && (allow.includes(it.route) || allow.includes(grp)))) set.add(it.route);
   }));
   return set;
 }
