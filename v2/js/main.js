@@ -341,7 +341,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.59.0';
+const APP_VERSION = '81.60.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -624,17 +624,21 @@ const APP_VERSION = '81.59.0';
     (async () => {
       try { const fresh = await auth.hydrate(); if (fresh) Object.assign(user, fresh); } catch (_) {}
       try { await loadRolePerms(); } catch (_) {}
-      // À PROVA DE FALHA: se a permissão EFETIVA deste usuário mudou (papel, nível,
-      // override ou a matriz do papel dele), faz um RELOAD limpo — garante o menu
-      // 100% certo, imune a qualquer detalhe de re-render. Perms mudam pouco. v81.32
+      // Carrega rótulos + ORGANIZAÇÃO do menu (global) ANTES da assinatura — assim a
+      // mudança de layout (Editor de Menu) também entra na detecção. v81.60
+      let layoutSig = '';
+      try { await loadMenuLabels(); } catch (_) {}
+      try { const lay = await loadMenuLayout(); layoutSig = JSON.stringify(lay || ''); } catch (_) {}
+      // À PROVA DE FALHA: se a permissão EFETIVA deste usuário OU a organização do
+      // menu mudou, faz um RELOAD limpo — garante o menu 100% certo, imune a
+      // qualquer detalhe de re-render ao vivo (applyMenuLayout usa o DOM já mexido). v81.32/81.60
       try {
         const role = (user.role || '').toLowerCase();
-        const sig = JSON.stringify([role, user.lvl, user.menu_groups || null, _rolePerms[role] || null]);
+        const sig = JSON.stringify([role, user.lvl, user.menu_groups || null, _rolePerms[role] || null, layoutSig]);
         if (_permsSig !== null && sig !== _permsSig) { location.reload(); return; }
         _permsSig = sig;
       } catch (_) {}
       try { applyPermissions(user); } catch (_) {}
-      try { loadMenuLabels().then(() => loadMenuLayout()).catch(() => {}); } catch (_) {}
     })();
   };
 

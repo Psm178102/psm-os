@@ -215,8 +215,10 @@ function renderOrganize(body) {
     try {
       const r = await saveMenuLayout(layout);
       if (!r || !r.ok) throw new Error((r && r.error) || 'falha');
-      btn.textContent = '✓ Salvo'; msg.style.color = 'var(--ok,#16a34a)'; msg.textContent = 'Menu reorganizado pra todos.';
-      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1400);
+      // Reaplicar ao vivo é não-confiável (applyMenuLayout usa o DOM já mexido como
+      // base). Recarregar GARANTE o menu novo — igual ao Restaurar. v81.60
+      btn.textContent = '✓ Salvo'; msg.style.color = 'var(--ok,#16a34a)'; msg.textContent = 'Menu reorganizado pra todos — recarregando…';
+      setTimeout(() => location.reload(), 700);
     } catch (e) { btn.textContent = '✕ Erro'; msg.style.color = 'var(--err,#dc2626)'; msg.textContent = e.message; setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2200); }
   };
   body.querySelector('#og-reset').onclick = async () => {
