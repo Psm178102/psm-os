@@ -62,112 +62,191 @@ async function loadData() {
   return loadTreinamentos();
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   TREINAMENTOS — LMS interno (v81.57): catálogo rico + matrícula/progresso por
+   pessoa + materiais + métricas de conclusão. Backend gp/treinamentos2 (shared_kv).
+═══════════════════════════════════════════════════════════════════════════ */
+let _treinos = [], _trUsers = [];
+let _trF = { setor: '', equipe: '', tipo: '', status: '', trilha: '', obrig: '' };
+const TR_TIPOS = ['tecnico', 'comportamental', 'comercial', 'lideranca', 'integracao'];
+const TR_TIPO_LBL = { tecnico: 'Técnico', comportamental: 'Comportamental', comercial: 'Comercial', lideranca: 'Liderança', integracao: 'Integração' };
+const TR_MODAL = ['presencial', 'online', 'gravado'];
+const TR_STATUS = { planejado: { l: 'Planejado', c: '#64748b' }, ativo: { l: 'Ativo', c: '#0ea5e9' }, concluido: { l: 'Concluído', c: '#16a34a' }, arquivado: { l: 'Arquivado', c: '#94a3b8' } };
+const PART_STATUS = { nao_iniciado: { l: 'Não iniciado', c: '#94a3b8' }, em_andamento: { l: 'Em andamento', c: '#f59e0b' }, concluido: { l: 'Concluído', c: '#16a34a' } };
+const MAT_ICO = { link: '🔗', video: '🎬', pdf: '📄', imagem: '🖼', slide: '📊' };
+const _hojeTr = () => new Date().toISOString().slice(0, 10);
+const _fmtTr = d => d ? String(d).slice(0, 10).split('-').reverse().join('/') : '—';
+const trProg = t => { const ps = t.participantes || []; const done = ps.filter(p => p.status === 'concluido').length; return { done, total: ps.length, pct: ps.length ? Math.round(done / ps.length * 100) : 0 }; };
+const trAtrasado = t => t.prazo && t.status !== 'concluido' && t.status !== 'arquivado' && String(t.prazo).slice(0, 10) < _hojeTr();
+
 async function loadTreinamentos() {
   const body = document.getElementById('gp-body');
-  body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Carregando…</div>';
+  body.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando treinamentos…</div></div>';
   try {
-    const r = await api.request('/api/v3/gp/treinamentos');
-    _treinamentos = r.treinamentos || [];
+    const r = await api.request('/api/v3/gp/treinamentos2');
+    _treinos = r.treinos || []; _trUsers = r.usuarios || [];
     renderTreinamentos();
   } catch (e) {
     body.innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
   }
 }
 
-function renderTreinamentos() {
-  const body = document.getElementById('gp-body');
-  const ft = _treinamentos.filter(t => (!_trSetor || t.setor === _trSetor) && (!_trEquipe || t.equipe === _trEquipe));
-  body.innerHTML = `
-    <div class="card" style="background:var(--bg-3);margin-bottom:14px;padding:14px">
-      <div style="font-weight:800;margin-bottom:8px">🎓 ${_editing?.id ? 'Editar' : 'Mapear'} Treinamento</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:8px">
-        <input id="trt-titulo" class="input" placeholder="Título do treinamento *" value="${esc(_editing?.titulo || '')}">
-        <input id="trt-publico" class="input" placeholder="Público-alvo" value="${esc(_editing?.publico || '')}">
-        <select id="trt-tipo" class="select">
-          ${['tecnico','comportamental','comercial','lideranca','integracao'].map(t => `<option value="${t}" ${_editing?.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}
-        </select>
-        <select id="trt-setor" class="select" title="Setor"><option value="">Setor…</option>${SETORES.map(s => `<option ${_editing?.setor === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
-        <select id="trt-equipe" class="select" title="Equipe comercial"><option value="">Equipe comercial…</option>${EQUIPES_COM.map(e => `<option ${_editing?.equipe === e ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>
-        <input id="trt-prazo" class="input" type="date" value="${esc(_editing?.prazo || '')}">
-        <select id="trt-status" class="select">
-          ${['planejado','em_andamento','concluido'].map(s => `<option value="${s}" ${_editing?.status === s ? 'selected' : ''}>${s.replace('_',' ')}</option>`).join('')}
-        </select>
-      </div>
-      <textarea id="trt-conteudo" class="input mt-2" rows="2" placeholder="Conteúdo / objetivos / materiais">${esc(_editing?.conteudo || '')}</textarea>
-      <div class="flex gap-2 mt-2">
-        <button class="btn btn-primary" id="trt-save">${_editing?.id ? '💾 Salvar' : '➕ Adicionar'}</button>
-        ${_editing?.id ? '<button class="btn btn-ghost" id="trt-cancel">Cancelar</button>' : ''}
-      </div>
-    </div>
-    <div class="flex gap-2 items-center" style="flex-wrap:wrap;margin-bottom:8px">
-      <div style="font-weight:800">Treinamentos (${ft.length})</div>
-      <select id="trf-setor" class="select" style="max-width:170px;margin-left:auto"><option value="">Todos os setores</option>${SETORES.map(s => `<option ${_trSetor === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
-      <select id="trf-equipe" class="select" style="max-width:170px"><option value="">Todas as equipes</option>${EQUIPES_COM.map(e => `<option ${_trEquipe === e ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>
-    </div>
-    ${ft.length === 0 ? '<div class="muted tiny" style="text-align:center;padding:20px">Nenhum treinamento com esse filtro.</div>' : `
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead><tr style="background:var(--bg-3)">
-          <th style="text-align:left;padding:8px">Título</th>
-          <th style="text-align:left;padding:8px">Setor / Equipe</th>
-          <th style="text-align:left;padding:8px">Tipo</th>
-          <th style="text-align:left;padding:8px">Prazo</th>
-          <th style="text-align:left;padding:8px">Status</th>
-          <th></th>
-        </tr></thead>
-        <tbody>
-          ${ft.map(t => `
-            <tr style="border-bottom:1px solid var(--bd)">
-              <td style="padding:8px"><div style="font-weight:700">${esc(t.titulo)}</div><div class="tiny muted">${esc(t.publico ? t.publico + ' · ' : '')}${esc((t.conteudo || '').substring(0, 70))}</div></td>
-              <td style="padding:8px">${t.setor ? `<span class="tiny" style="background:rgba(14,165,233,.14);color:#0369a1;padding:1px 7px;border-radius:99px">${esc(t.setor)}</span>` : ''}${t.equipe ? ` <span class="tiny" style="background:rgba(22,163,74,.14);color:#15803d;padding:1px 7px;border-radius:99px">${esc(t.equipe)}</span>` : ''}${!t.setor && !t.equipe ? '<span class="muted">—</span>' : ''}</td>
-              <td style="padding:8px">${esc(t.tipo || '—')}</td>
-              <td style="padding:8px">${esc(t.prazo || '—')}</td>
-              <td style="padding:8px"><span style="color:${t.status === 'concluido' ? '#22c55e' : t.status === 'em_andamento' ? '#f59e0b' : 'var(--muted)'};font-weight:700">${esc((t.status || '').replace('_',' '))}</span></td>
-              <td style="padding:8px;text-align:right">
-                <button class="btn btn-ghost btn-sm" data-edit-tr="${t.id}">✏️</button>
-                <button class="btn btn-ghost btn-sm" data-del-tr="${t.id}">🗑️</button>
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `}
-  `;
-  const fS = document.getElementById('trf-setor'); if (fS) fS.onchange = () => { _trSetor = fS.value; renderTreinamentos(); };
-  const fE = document.getElementById('trf-equipe'); if (fE) fE.onchange = () => { _trEquipe = fE.value; renderTreinamentos(); };
-  document.getElementById('trt-save').addEventListener('click', saveTreinamento);
-  const cancel = document.getElementById('trt-cancel');
-  if (cancel) cancel.addEventListener('click', () => { _editing = null; renderTreinamentos(); });
-  body.querySelectorAll('[data-edit-tr]').forEach(b => b.addEventListener('click', () => {
-    _editing = _treinamentos.find(x => x.id === b.dataset.editTr);
-    renderTreinamentos();
-  }));
-  body.querySelectorAll('[data-del-tr]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Remover treinamento?')) return;
-    try {
-      await api.request('/api/v3/gp/treinamentos?id=' + encodeURIComponent(b.dataset.delTr), { method: 'DELETE' });
-      loadTreinamentos();
-    } catch (e) { alert('Erro: ' + e.message); }
-  }));
+function trFiltered() {
+  return _treinos.filter(t =>
+    (!_trF.setor || t.setor === _trF.setor) && (!_trF.equipe || t.equipe === _trF.equipe) &&
+    (!_trF.tipo || t.tipo === _trF.tipo) && (!_trF.status || t.status === _trF.status) &&
+    (!_trF.trilha || t.trilha === _trF.trilha) &&
+    (!_trF.obrig || (_trF.obrig === 'sim') === !!t.obrigatorio));
 }
 
-async function saveTreinamento() {
-  const payload = {
-    id: _editing?.id,
-    titulo: document.getElementById('trt-titulo').value.trim(),
-    publico: document.getElementById('trt-publico').value.trim(),
-    tipo: document.getElementById('trt-tipo').value,
-    setor: document.getElementById('trt-setor').value,
-    equipe: document.getElementById('trt-equipe').value,
-    prazo: document.getElementById('trt-prazo').value || null,
-    status: document.getElementById('trt-status').value,
-    conteudo: document.getElementById('trt-conteudo').value.trim(),
+function renderTreinamentos() {
+  const body = document.getElementById('gp-body');
+  const list = trFiltered();
+  const totalP = _treinos.reduce((a, t) => a + (t.participantes || []).length, 0);
+  const doneP = _treinos.reduce((a, t) => a + (t.participantes || []).filter(p => p.status === 'concluido').length, 0);
+  const concl = totalP ? Math.round(doneP / totalP * 100) : 0;
+  const atrasados = _treinos.filter(trAtrasado).length;
+  const ativos = _treinos.filter(t => t.status === 'ativo').length;
+  const obrig = _treinos.filter(t => t.obrigatorio).length;
+  const trilhas = [...new Set(_treinos.map(t => t.trilha).filter(Boolean))];
+  const byPerson = {};
+  _treinos.forEach(t => (t.participantes || []).forEach(p => { if (p.status === 'concluido') byPerson[p.nome] = (byPerson[p.nome] || 0) + 1; }));
+  const ranking = Object.entries(byPerson).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const eqStat = {};
+  _treinos.forEach(t => { const e = t.equipe || '—'; (t.participantes || []).forEach(p => { eqStat[e] = eqStat[e] || { d: 0, t: 0 }; eqStat[e].t++; if (p.status === 'concluido') eqStat[e].d++; }); });
+
+  body.innerHTML = `
+    <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+      <div><div style="font-size:20px;font-weight:800">🎓 Treinamentos</div><div class="tiny muted">Catálogo + matrícula e progresso por pessoa, por setor e equipe.</div></div>
+      <button class="btn btn-primary" id="tr-new">+ Novo treinamento</button>
+    </div>
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:12px">
+      ${[['📚 Treinamentos', _treinos.length, ''], ['▶ Ativos', ativos, '#0ea5e9'], ['✅ % Conclusão', concl + '%', '#16a34a'], ['⏰ Atrasados', atrasados, atrasados ? '#ef4444' : ''], ['❗ Obrigatórios', obrig, '#8b5cf6']]
+        .map(([l, v, c]) => `<div class="card" style="padding:11px 14px;flex:1;min-width:108px${c ? ';border-left:4px solid ' + c : ''}"><div class="tiny muted">${l}</div><div style="font-size:20px;font-weight:800${c ? ';color:' + c : ''}">${v}</div></div>`).join('')}
+    </div>
+    ${(Object.keys(eqStat).length || ranking.length) ? `<div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
+      ${Object.keys(eqStat).length ? `<div class="card" style="padding:12px;flex:1;min-width:230px"><div style="font-weight:800;font-size:13px;margin-bottom:6px">Conclusão por equipe</div>${Object.entries(eqStat).map(([e, s]) => { const p = s.t ? Math.round(s.d / s.t * 100) : 0; return `<div style="margin-bottom:5px"><div class="flex" style="justify-content:space-between"><span class="tiny">${esc(e)}</span><span class="tiny muted">${p}% (${s.d}/${s.t})</span></div><div style="height:6px;background:var(--bg-3,#e2e8f0);border-radius:99px;overflow:hidden"><div style="height:100%;width:${p}%;background:#16a34a"></div></div></div>`; }).join('')}</div>` : ''}
+      ${ranking.length ? `<div class="card" style="padding:12px;flex:1;min-width:200px"><div style="font-weight:800;font-size:13px;margin-bottom:6px">🏆 Quem mais concluiu</div>${ranking.map(([n, c], i) => `<div class="flex tiny" style="justify-content:space-between;padding:2px 0"><span>${['🥇', '🥈', '🥉', '4º', '5º'][i]} ${esc(n)}</span><b>${c}</b></div>`).join('')}</div>` : ''}
+    </div>` : ''}
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:12px">
+      <select id="trf-setor" class="select" style="max-width:150px"><option value="">Setor: todos</option>${SETORES.map(s => `<option${_trF.setor === s ? ' selected' : ''}>${esc(s)}</option>`).join('')}</select>
+      <select id="trf-equipe" class="select" style="max-width:140px"><option value="">Equipe: todas</option>${EQUIPES_COM.map(e => `<option${_trF.equipe === e ? ' selected' : ''}>${esc(e)}</option>`).join('')}</select>
+      <select id="trf-tipo" class="select" style="max-width:140px"><option value="">Tipo: todos</option>${TR_TIPOS.map(t => `<option value="${t}"${_trF.tipo === t ? ' selected' : ''}>${TR_TIPO_LBL[t]}</option>`).join('')}</select>
+      <select id="trf-status" class="select" style="max-width:140px"><option value="">Status: todos</option>${Object.keys(TR_STATUS).map(s => `<option value="${s}"${_trF.status === s ? ' selected' : ''}>${TR_STATUS[s].l}</option>`).join('')}</select>
+      ${trilhas.length ? `<select id="trf-trilha" class="select" style="max-width:160px"><option value="">Trilha: todas</option>${trilhas.map(t => `<option${_trF.trilha === t ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>` : ''}
+      <select id="trf-obrig" class="select" style="max-width:130px"><option value="">Obrig.: todos</option><option value="sim"${_trF.obrig === 'sim' ? ' selected' : ''}>Obrigatórios</option><option value="nao"${_trF.obrig === 'nao' ? ' selected' : ''}>Opcionais</option></select>
+    </div>
+    ${!list.length ? `<div class="card muted tiny" style="text-align:center;padding:34px">Nenhum treinamento${_treinos.length ? ' com esse filtro' : ' ainda — clique em + Novo treinamento'}.</div>`
+      : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">${list.map(trCard).join('')}</div>`}`;
+
+  ['setor', 'equipe', 'tipo', 'status', 'trilha', 'obrig'].forEach(k => { const el = document.getElementById('trf-' + k); if (el) el.onchange = () => { _trF[k] = el.value; renderTreinamentos(); }; });
+  document.getElementById('tr-new').onclick = () => openTrEditor(null);
+  body.querySelectorAll('[data-tr]').forEach(b => b.onclick = () => openTrEditor(_treinos.find(t => t.id === b.dataset.tr)));
+}
+
+function trCard(t) {
+  const pr = trProg(t), st = TR_STATUS[t.status] || TR_STATUS.ativo, atr = trAtrasado(t);
+  const barcor = pr.pct >= 80 ? '#16a34a' : pr.pct >= 40 ? '#f59e0b' : '#ef4444';
+  return `<div class="card" style="padding:13px;cursor:pointer;border-left:4px solid ${st.c}" data-tr="${esc(t.id)}">
+    <div class="flex items-center" style="justify-content:space-between;gap:8px">
+      <div style="font-weight:800;font-size:14px;line-height:1.25">${esc(t.titulo)}${t.obrigatorio ? ' <span class="tiny" style="color:#8b5cf6">❗obrig.</span>' : ''}</div>
+      <span class="tiny" style="color:${st.c};font-weight:800;white-space:nowrap">${st.l}</span>
+    </div>
+    <div class="flex gap-1" style="flex-wrap:wrap;margin:6px 0">
+      <span class="tiny" style="background:rgba(99,102,241,.12);color:#4f46e5;padding:1px 7px;border-radius:99px">${esc(TR_TIPO_LBL[t.tipo] || t.tipo || '—')}</span>
+      ${t.equipe ? `<span class="tiny" style="background:rgba(22,163,74,.14);color:#15803d;padding:1px 7px;border-radius:99px">${esc(t.equipe)}</span>` : ''}
+      ${t.setor ? `<span class="tiny" style="background:rgba(14,165,233,.14);color:#0369a1;padding:1px 7px;border-radius:99px">${esc(t.setor)}</span>` : ''}
+      ${t.modalidade ? `<span class="tiny muted">${esc(t.modalidade)}</span>` : ''}
+      ${t.trilha ? `<span class="tiny" style="background:rgba(214,36,159,.12);color:#be185d;padding:1px 7px;border-radius:99px">🛤 ${esc(t.trilha)}</span>` : ''}
+    </div>
+    ${(t.participantes && t.participantes.length) ? `<div style="height:7px;background:var(--bg-3,#e2e8f0);border-radius:99px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${pr.pct}%;background:${barcor}"></div></div>
+      <div class="tiny muted" style="margin-top:4px">${pr.done}/${pr.total} concluíram (${pr.pct}%)${(t.materiais && t.materiais.length) ? ' · ' + t.materiais.length + ' material(is)' : ''}</div>`
+      : `<div class="tiny muted" style="margin-top:4px">Sem matrículas${(t.materiais && t.materiais.length) ? ' · ' + t.materiais.length + ' material(is)' : ''}</div>`}
+    ${t.prazo ? `<div class="tiny" style="margin-top:4px;color:${atr ? '#b91c1c' : 'var(--ink-muted,#94a3b8)'}">${atr ? '⚠ atrasado · ' : '📅 '}prazo ${_fmtTr(t.prazo)}</div>` : ''}
+  </div>`;
+}
+
+function openTrEditor(t0) {
+  const t = t0 ? JSON.parse(JSON.stringify(t0)) : { tipo: 'tecnico', status: 'ativo', obrigatorio: false, materiais: [], participantes: [] };
+  if (!t.materiais) t.materiais = []; if (!t.participantes) t.participantes = [];
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow:auto';
+  ov.innerHTML = `<div id="tr-modal" style="background:var(--bg-1,#fff);border-radius:14px;max-width:680px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);margin:auto"></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  const m = ov.querySelector('#tr-modal');
+
+  const readForm = () => {
+    const g = id => { const el = m.querySelector('#' + id); return el ? el.value : undefined; };
+    ['titulo', 'descricao', 'tipo', 'setor', 'equipe', 'modalidade', 'carga_horaria', 'instrutor', 'data_inicio', 'prazo', 'trilha', 'status'].forEach(k => { const v = g('tr-' + k); if (v !== undefined) t[k] = v; });
+    const ob = m.querySelector('#tr-obrig'); if (ob) t.obrigatorio = ob.checked;
+    m.querySelectorAll('[data-pstatus]').forEach(s => { const p = t.participantes.find(x => x.user_id === s.dataset.pstatus); if (p) p.status = s.value; });
+    m.querySelectorAll('[data-pnota]').forEach(n => { const p = t.participantes.find(x => x.user_id === n.dataset.pnota); if (p) p.nota = n.value; });
+    m.querySelectorAll('[data-mtipo]').forEach(el => { if (t.materiais[+el.dataset.mtipo]) t.materiais[+el.dataset.mtipo].tipo = el.value; });
+    m.querySelectorAll('[data-mtitulo]').forEach(el => { if (t.materiais[+el.dataset.mtitulo]) t.materiais[+el.dataset.mtitulo].titulo = el.value; });
+    m.querySelectorAll('[data-murl]').forEach(el => { if (t.materiais[+el.dataset.murl]) t.materiais[+el.dataset.murl].url = el.value; });
   };
-  if (!payload.titulo) { alert('Título obrigatório'); return; }
-  try {
-    await api.request('/api/v3/gp/treinamentos', { method: 'POST', body: payload });
-    _editing = null;
-    await loadTreinamentos();
-  } catch (e) { alert('Erro: ' + e.message); }
+
+  const render = () => {
+    const livres = _trUsers.filter(u => !t.participantes.some(p => p.user_id === u.id));
+    m.innerHTML = `
+      <div style="font-size:17px;font-weight:800;margin-bottom:12px">${t.id ? 'Editar' : 'Novo'} treinamento</div>
+      <label class="tiny muted">Título *</label>
+      <input id="tr-titulo" class="input" value="${esc(t.titulo || '')}" placeholder="Ex.: Técnicas de fechamento MCMV" style="margin-bottom:8px">
+      <label class="tiny muted">Objetivo / descrição</label>
+      <textarea id="tr-descricao" class="input" rows="2" style="margin-bottom:8px">${esc(t.descricao || '')}</textarea>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:8px">
+        <div><label class="tiny muted">Tipo</label><select id="tr-tipo" class="select">${TR_TIPOS.map(x => `<option value="${x}"${t.tipo === x ? ' selected' : ''}>${TR_TIPO_LBL[x]}</option>`).join('')}</select></div>
+        <div><label class="tiny muted">Setor</label><select id="tr-setor" class="select"><option value="">—</option>${SETORES.map(s => `<option${t.setor === s ? ' selected' : ''}>${esc(s)}</option>`).join('')}</select></div>
+        <div><label class="tiny muted">Equipe</label><select id="tr-equipe" class="select"><option value="">—</option>${EQUIPES_COM.map(e => `<option${t.equipe === e ? ' selected' : ''}>${esc(e)}</option>`).join('')}</select></div>
+        <div><label class="tiny muted">Modalidade</label><select id="tr-modalidade" class="select"><option value="">—</option>${TR_MODAL.map(x => `<option${t.modalidade === x ? ' selected' : ''}>${x}</option>`).join('')}</select></div>
+        <div><label class="tiny muted">Carga horária</label><input id="tr-carga_horaria" class="input" value="${esc(t.carga_horaria || '')}" placeholder="ex.: 4h"></div>
+        <div><label class="tiny muted">Instrutor</label><input id="tr-instrutor" class="input" value="${esc(t.instrutor || '')}"></div>
+        <div><label class="tiny muted">Início</label><input id="tr-data_inicio" class="input" type="date" value="${esc((t.data_inicio || '').slice(0, 10))}"></div>
+        <div><label class="tiny muted">Prazo</label><input id="tr-prazo" class="input" type="date" value="${esc((t.prazo || '').slice(0, 10))}"></div>
+        <div><label class="tiny muted">Trilha</label><input id="tr-trilha" class="input" value="${esc(t.trilha || '')}" placeholder="ex.: Integração"></div>
+        <div><label class="tiny muted">Status</label><select id="tr-status" class="select">${Object.keys(TR_STATUS).map(s => `<option value="${s}"${t.status === s ? ' selected' : ''}>${TR_STATUS[s].l}</option>`).join('')}</select></div>
+      </div>
+      <label class="flex items-center gap-1" style="font-size:13px;margin-bottom:10px;cursor:pointer"><input type="checkbox" id="tr-obrig"${t.obrigatorio ? ' checked' : ''}> Treinamento obrigatório</label>
+
+      <div style="font-weight:800;font-size:13px;margin:8px 0 4px">📎 Materiais</div>
+      <div>${(t.materiais || []).map((mt, i) => `<div class="flex gap-1" style="margin-bottom:5px">
+        <select class="select" data-mtipo="${i}" style="flex:0 0 96px">${Object.keys(MAT_ICO).map(k => `<option value="${k}"${mt.tipo === k ? ' selected' : ''}>${MAT_ICO[k]} ${k}</option>`).join('')}</select>
+        <input class="input" data-mtitulo="${i}" value="${esc(mt.titulo || '')}" placeholder="Nome" style="flex:0 0 30%">
+        <input class="input" data-murl="${i}" value="${esc(mt.url || '')}" placeholder="Link/URL" style="flex:1">
+        <button class="btn btn-ghost btn-sm" data-mdel="${i}">✕</button></div>`).join('') || '<div class="tiny muted" style="margin-bottom:4px">Nenhum material.</div>'}</div>
+      <button class="btn btn-ghost btn-sm" id="tr-addmat">+ material</button>
+
+      <div style="font-weight:800;font-size:13px;margin:12px 0 4px">👥 Matrícula & progresso ${t.participantes.length ? `(${trProg(t).done}/${t.participantes.length} concluíram)` : ''}</div>
+      <select id="tr-adduser" class="select" style="width:100%;margin-bottom:6px"><option value="">+ matricular pessoa…</option>${livres.map(u => `<option value="${esc(u.id)}">${esc(u.name || u.id)}${u.team ? ' · ' + esc(u.team) : ''}</option>`).join('')}</select>
+      <div>${(t.participantes || []).map(p => `<div class="flex items-center gap-1" style="margin-bottom:5px">
+        <span style="flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.nome)}</span>
+        <select class="select" data-pstatus="${esc(p.user_id)}" style="flex:0 0 150px">${Object.keys(PART_STATUS).map(s => `<option value="${s}"${p.status === s ? ' selected' : ''}>${PART_STATUS[s].l}</option>`).join('')}</select>
+        <input class="input" data-pnota="${esc(p.user_id)}" value="${p.nota != null ? esc(p.nota) : ''}" placeholder="nota" style="flex:0 0 62px" inputmode="decimal">
+        <button class="btn btn-ghost btn-sm" data-pdel="${esc(p.user_id)}">✕</button></div>`).join('') || '<div class="tiny muted">Ninguém matriculado.</div>'}</div>
+
+      <div class="flex gap-2 mt-3" style="justify-content:space-between;margin-top:16px">
+        <button class="btn btn-ghost" id="tr-del" ${t.id ? '' : 'style="visibility:hidden"'}>🗑 Excluir</button>
+        <div class="flex gap-2"><button class="btn btn-ghost" id="tr-cancel">Cancelar</button><button class="btn btn-primary" id="tr-save">Salvar</button></div>
+      </div>`;
+
+    m.querySelector('#tr-addmat').onclick = () => { readForm(); t.materiais.push({ tipo: 'link', titulo: '', url: '' }); render(); };
+    m.querySelectorAll('[data-mdel]').forEach(b => b.onclick = () => { readForm(); t.materiais.splice(+b.dataset.mdel, 1); render(); });
+    const au = m.querySelector('#tr-adduser'); if (au) au.onchange = () => { if (!au.value) return; readForm(); const u = _trUsers.find(x => x.id === au.value); if (u && !t.participantes.some(p => p.user_id === u.id)) t.participantes.push({ user_id: u.id, nome: u.name || u.id, status: 'nao_iniciado', nota: null, concluido_em: null }); render(); };
+    m.querySelectorAll('[data-pdel]').forEach(b => b.onclick = () => { readForm(); t.participantes = t.participantes.filter(p => p.user_id !== b.dataset.pdel); render(); });
+    m.querySelector('#tr-cancel').onclick = () => ov.remove();
+    m.querySelector('#tr-del').onclick = async () => { if (!t.id || !confirm('Excluir este treinamento?')) return; try { await api.request('/api/v3/gp/treinamentos2', { method: 'POST', body: { action: 'delete', id: t.id } }); ov.remove(); await loadTreinamentos(); } catch (e) { alert('Erro: ' + e.message); } };
+    m.querySelector('#tr-save').onclick = async () => {
+      readForm();
+      if (!(t.titulo || '').trim()) { m.querySelector('#tr-titulo').focus(); return; }
+      t.participantes.forEach(p => { if (p.status === 'concluido' && !p.concluido_em) p.concluido_em = _hojeTr(); if (p.status !== 'concluido') p.concluido_em = null; });
+      m.querySelector('#tr-save').disabled = true;
+      try { await api.request('/api/v3/gp/treinamentos2', { method: 'POST', body: { action: 'upsert', treino: t } }); ov.remove(); await loadTreinamentos(); }
+      catch (e) { alert('Erro ao salvar: ' + e.message); m.querySelector('#tr-save').disabled = false; }
+    };
+  };
+  render();
+  setTimeout(() => m.querySelector('#tr-titulo')?.focus(), 50);
 }
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
