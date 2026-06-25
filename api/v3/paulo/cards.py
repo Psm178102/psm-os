@@ -37,8 +37,8 @@ def _safe_exec(do, payloads):
 
 FIELDS = ["titulo", "status", "plataforma", "formato", "valor", "link", "data_ref", "obs", "ordem", "semana", "responsavel", "checklist",
           "data_inicio", "data_entrega", "data_post"]   # 3 datas da demanda (criativos/conteúdos) v81.35
-BOARDS = ("negocios", "conteudo", "conteudo_imoveis", "conteudo_conquista", "academy", "projetos", "criativos", "criativos_lib")
-CONTEUDO_BOARDS = ("conteudo", "conteudo_imoveis", "conteudo_conquista", "academy", "projetos", "criativos", "criativos_lib")  # compartilhados
+BOARDS = ("negocios", "conteudo", "conteudo_imoveis", "conteudo_conquista", "academy", "projetos", "criativos", "criativos_lib", "anuncios_psm")
+CONTEUDO_BOARDS = ("conteudo", "conteudo_imoveis", "conteudo_conquista", "academy", "projetos", "criativos", "criativos_lib", "anuncios_psm")  # compartilhados
 
 
 def _board_min_lvl(board, write=False):
@@ -49,8 +49,8 @@ def _board_min_lvl(board, write=False):
         return 7
     if board == "criativos":
         return 2
-    if board == "criativos_lib":
-        return 3 if write else 2
+    if board in ("criativos_lib", "anuncios_psm"):
+        return 3 if write else 2   # corretor VÊ; só marketing+ CURADORIA escreve. v81.62
     return 3
 
 
