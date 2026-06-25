@@ -24,6 +24,7 @@ import { pageProjetos } from './pages/projetos.js';
 import { pagePsmHub } from './pages/psmhub.js';
 import { pagePauloConteudo, pageConteudoImoveis, pageConteudoConquista } from './pages/paulo-conteudo.js';
 import { pageCriativos, pageCriativosDownload } from './pages/criativos.js';
+import { pageSucessoCliente } from './pages/sucesso-cliente.js';
 import { pageEstrategia } from './pages/estrategia.js';
 import { pageAcademy } from './pages/academy.js';
 import { pageAcademyStudio } from './pages/academy-studio.js';
@@ -153,6 +154,7 @@ export const ROUTE_GROUP = {
   '/formacao': 'academy', '/premiacoes': 'inicio',
   // Gestão de Pessoas & RH (grupo próprio)
   '/gestao-pessoas': 'rh', '/onboarding': 'rh', '/offboarding': 'rh',
+  '/sucesso-cliente': 'sucesso',   // novo módulo Customer Success (v81.53)
   '/talentos': 'rh', '/psmhub': 'diretoria',
   // Ferramentas
   '/simuladores': 'ferramentas', '/relatorios': 'diretoria',
@@ -205,6 +207,7 @@ export const ROUTE_MIN_LVL = {
   // corretor é só baixar este número (ou liberar na matriz por papel).
   '/cockpit-conquista': 10, '/minha-comissao': 10, '/meu-cerebro': 10, '/sim-conquista': 10,
   '/onboarding': 10, '/offboarding': 10,   // RH: admissão/desligamento — só sócio (v81.45)
+  '/sucesso-cliente': 5,   // Customer Success — líder+ (v81.53); abrir mais na matriz
 };
 
 // Override por PAPEL (matriz editável pelo sócio em Configurações → Permissões por papel).
@@ -331,7 +334,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.52.0';
+const APP_VERSION = '81.53.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -492,6 +495,7 @@ const APP_VERSION = '81.52.0';
   router.register('/canal',       { render: async (ctx, root) => { setHeader('Canal Anônimo');        highlight('/canal');  await pageCanal(ctx, root); } });
   router.register('/formacao',    { render: async (ctx, root) => { setHeader('Formação PSM');         highlight('/formacao'); await pageFormacao(ctx, root); } });
   router.register('/gestao-pessoas', { render: async (ctx, root) => { setHeader('Gestão de Pessoas'); highlight('/gestao-pessoas'); await pageGestaoPessoas(ctx, root); } });
+  router.register('/sucesso-cliente', { render: async (ctx, root) => { setHeader('Sucesso do Cliente'); highlight('/sucesso-cliente'); await pageSucessoCliente(ctx, root); } });
   router.register('/onboarding',  { render: async (ctx, root) => { setHeader('Onboarding');  highlight('/onboarding');  await pageOnboarding(ctx, root); } });
   router.register('/offboarding', { render: async (ctx, root) => { setHeader('Offboarding'); highlight('/offboarding'); await pageOffboarding(ctx, root); } });
   router.register('/talentos', { render: async (ctx, root) => { setHeader('Base de Talentos'); highlight('/talentos'); await pageTalentos(ctx, root); } });
@@ -702,6 +706,9 @@ function shellHTML(user) {
 
         <div class="sb-sec">🧑‍💼 Gestão de Pessoas & RH</div>
         <button class="sb-link" data-nav="/gestao-pessoas"><span class="sb-ico">👥</span> Gestão de Pessoas</button>
+
+        <div class="sb-sec">🤝 Sucesso do Cliente</div>
+        <button class="sb-link" data-nav="/sucesso-cliente"><span class="sb-ico">🤝</span> Sucesso do Cliente</button>
 
         <div class="sb-sec">📣 Marketing</div>
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>

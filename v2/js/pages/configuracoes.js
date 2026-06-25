@@ -16,7 +16,8 @@ const PERM_GROUP_LBL = {
   academy: '🎓 PSM Academy',
   secretaria: '🗂 Secretaria de Vendas & Backoffice', vendas: '🏘 Imóveis & Vendas', locacao: '🔑 Locação',
   financeiro: '💰 Financeiro', marketing: '📊 Marketing', performance: '🎯 Metas & Performance',
-  diretoria: '🏛 Diretoria', juridico: '⚖️ Jurídico', ia: '🤖 IA', rh: '🧑‍💼 Gestão de Pessoas & RH', ferramentas: '🧮 Ferramentas',
+  diretoria: '🏛 Diretoria', juridico: '⚖️ Jurídico', ia: '🤖 IA', rh: '🧑‍💼 Gestão de Pessoas & RH',
+  sucesso: '🤝 Sucesso do Cliente', ferramentas: '🧮 Ferramentas',
   sistema: '⚙️ Sistema',
 };
 const PERM_ROLES = [   // socio é fixo (vê tudo) → fora da edição
