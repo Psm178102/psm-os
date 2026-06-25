@@ -33,6 +33,41 @@ const BAIRROS_RP = {
 const DEFAULT_EARTH = 'https://earth.google.com/earth/d/15bCIxsaicJySE2OT0yS8dZO7KqcwyJ8o?usp=sharing';
 let _captadosLoaded = false;
 
+// 📍 Geocodificação automática (Nominatim/OpenStreetMap — grátis, sem chave) pra
+// qualquer imóvel com endereço/bairro virar pin no satélite. Cache em localStorage
+// (cada endereço é geocodificado UMA vez). Respeita ~1 req/s do Nominatim. v81.64
+const GEO_CACHE_KEY = 'psm.v2.geocache';
+let _geoCache = {};
+try { _geoCache = JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}'); } catch (_) { _geoCache = {}; }
+
+async function geocodeAddr(q) {
+  const key = (q || '').toLowerCase().trim();
+  if (!key) return null;
+  if (_geoCache[key]) return _geoCache[key] === 'x' ? null : _geoCache[key];
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=' + encodeURIComponent(q), { headers: { Accept: 'application/json' } }).then(x => x.json());
+    const pos = (r && r[0]) ? [+r[0].lat, +r[0].lon] : null;
+    _geoCache[key] = pos || 'x';   // 'x' = não achou, pra não retentar
+    try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(_geoCache)); } catch (_) {}
+    return pos;
+  } catch (_) { return null; }
+}
+
+// Geocodifica em segundo plano os imóveis sem lat/lng e sem bairro reconhecido;
+// quando termina (achou algum), re-plota os marcadores no satélite.
+async function geocodeFaltantes() {
+  let mudou = false;
+  for (const i of _items) {
+    if ((i.lat && i.lng) || geocodeBairro(i.bairro)) continue;
+    const q = [i.endereco, i.bairro].filter(Boolean).join(', ');
+    if (!q || q.length < 4) continue;
+    const pos = await geocodeAddr(q + ', São José do Rio Preto, SP, Brasil');
+    if (pos) { i.lat = pos[0]; i.lng = pos[1]; mudou = true; }
+    await new Promise(r => setTimeout(r, 1100));   // educação com o Nominatim (~1 req/s)
+  }
+  if (mudou && document.querySelector('#psm-map')) renderContent();
+}
+
 export async function pageMapa(ctx, root) {
   _root = root;
   _captadosLoaded = false;
@@ -80,6 +115,7 @@ async function ensureCaptadosLoaded() {
   try { const r = await api.request('/api/v3/imoveis/list?limit=500').catch(() => ({ imoveis: [] })); _items = r.imoveis || []; }
   catch (_) { _items = []; }
   renderCaptados();
+  geocodeFaltantes();   // fire-and-forget: plota no satélite quem só tem endereço/bairro
 }
 
 function renderCaptados() {
