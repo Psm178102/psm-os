@@ -68,21 +68,18 @@ async function editEarth() {
   catch (e) { alert('Erro: ' + e.message); }
 }
 
-async function toggleCaptados() {
+// Carrega o mapa de satélite dos imóveis JÁ na abertura (antes ficava escondido
+// atrás de um toggle e usava base de ruas → "inútil"). v81.64
+async function ensureCaptadosLoaded() {
   const wrap = document.getElementById('captados-wrap');
-  const btn = document.getElementById('toggle-captados');
   if (!wrap) return;
-  const show = wrap.style.display === 'none';
-  wrap.style.display = show ? '' : 'none';
-  if (btn) btn.textContent = show ? '📍 Ocultar imóveis captados ▴' : '📍 Ver imóveis captados (mapa por bairro) ▾';
-  if (show && !_captadosLoaded) {
-    _captadosLoaded = true;
-    wrap.innerHTML = '<div class="muted tiny" style="padding:14px"><span class="spinner"></span> Carregando imóveis captados…</div>';
-    await loadLeaflet();
-    try { const r = await api.request('/api/v3/imoveis/list?limit=500').catch(() => ({ imoveis: [] })); _items = r.imoveis || []; }
-    catch (_) { _items = []; }
-    renderCaptados();
-  }
+  if (_captadosLoaded) { renderCaptados(); return; }
+  _captadosLoaded = true;
+  wrap.innerHTML = '<div class="muted tiny" style="padding:14px"><span class="spinner"></span> Carregando satélite e imóveis…</div>';
+  await loadLeaflet();
+  try { const r = await api.request('/api/v3/imoveis/list?limit=500').catch(() => ({ imoveis: [] })); _items = r.imoveis || []; }
+  catch (_) { _items = []; }
+  renderCaptados();
 }
 
 function renderCaptados() {
@@ -150,42 +147,35 @@ async function render() {
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div>
-          <h2 class="card-title">🗺 Mapa de Imóveis · Google Earth</h2>
-          <p class="card-sub">Mapa oficial da PSM no Google Earth — territórios, regiões e pontos de interesse.</p>
+          <h2 class="card-title">🛰 Mapa de Imóveis · Satélite</h2>
+          <p class="card-sub">Imóveis da PSM sobre <b>imagem de satélite</b>. Alterne Satélite/Ruas no canto do mapa; o Google Earth 3D abre em tela cheia.</p>
         </div>
         <div class="flex gap-2">
           <a class="btn btn-primary" href="${esc(earthUrl)}" target="_blank" rel="noopener" style="background:#1a73e8">🌍 Abrir Earth 3D (tela cheia)</a>
-          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-earth-edit" title="Editar link do Google Earth (3D)">⚙️ Earth</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar link do Google My Maps (embute aqui)">⚙️ My Maps</button>' : ''}
+          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-earth-edit" title="Editar link do Google Earth (3D)">⚙️ Earth</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar link do Google My Maps (territórios)">⚙️ My Maps</button>' : ''}
         </div>
       </div>
 
-      ${embedSrc ? `
-      <div class="mt-3" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a">
-        <iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 300px);min-height:480px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-      </div>
-      <p class="tiny muted mt-2">🗺 Google My Maps embutido no sistema. O Google Earth 3D abre em tela cheia pelo botão acima.</p>
-      ` : `
-      <div class="mt-3" style="border-radius:16px;background:linear-gradient(135deg,#0b3d91 0%,#1a73e8 100%);color:#fff;padding:42px 28px;text-align:center;box-shadow:0 8px 30px rgba(26,115,232,.25)">
-        <div style="font-size:58px;line-height:1">🌍</div>
-        <h3 style="margin:12px 0 4px;font-size:21px;font-weight:800">Google Earth da PSM</h3>
-        <p style="margin:0 auto 18px;max-width:560px;opacity:.92;font-size:14px;line-height:1.5">Territórios, regiões e pontos de interesse em 3D. O Google <b>não permite embutir o Earth Web</b> dentro de outros sites (restrição deles) — então o Earth abre em tela cheia, com toda a navegação 3D.</p>
-        <a class="btn" href="${esc(earthUrl)}" target="_blank" rel="noopener" style="background:#fff;color:#1a73e8;font-weight:800;padding:12px 26px;border-radius:10px;text-decoration:none;display:inline-block;font-size:15px">🌍 Abrir o mapa no Google Earth</a>
-      </div>
-      <p class="tiny muted mt-2">💡 Pra ver o mapa <b>embutido aqui dentro</b>, publique os mesmos territórios como <b>Google My Maps</b> e cole o link em <b>⚙️ My Maps</b> — aí ele aparece direto na página (o Earth 3D continua no botão de tela cheia).</p>
-      `}
+      <!-- MAPA DE SATÉLITE DOS IMÓVEIS (principal — carrega na abertura) -->
+      <div id="captados-wrap" class="mt-3"></div>
 
-      <div class="mt-4">
-        <button class="btn btn-ghost btn-sm" id="toggle-captados">📍 Ver imóveis captados (mapa por bairro) ▾</button>
-        <div id="captados-wrap" style="display:none" class="mt-3"></div>
-      </div>
+      ${embedSrc ? `
+      <details class="mt-4">
+        <summary style="cursor:pointer;font-weight:700;padding:6px 0">🗺 Territórios no Google My Maps (clique para abrir)</summary>
+        <div class="mt-2" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a">
+          <iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 380px);min-height:420px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+        <p class="tiny muted mt-2">🗺 Seus territórios desenhados no Google My Maps. O satélite dos imóveis fica acima; o Earth 3D abre em tela cheia.</p>
+      </details>
+      ` : (canEditLinks() ? '<p class="tiny muted mt-3">💡 Pra embutir também seus <b>territórios do Google My Maps</b> aqui embaixo, cole o link em <b>⚙️ My Maps</b>. O Google bloqueia embutir o Earth Web 3D — por isso ele abre em tela cheia pelo botão.</p>' : '')}
     </div>
   `;
   const ee = document.getElementById('map-earth-edit');
   if (ee) ee.addEventListener('click', editEarth);
   const mm = document.getElementById('map-mymaps-edit');
   if (mm) mm.addEventListener('click', editMyMaps);
-  const tc = document.getElementById('toggle-captados');
-  if (tc) tc.addEventListener('click', toggleCaptados);
+  // Mapa de satélite dos imóveis abre JÁ (antes ficava escondido + base de ruas).
+  await ensureCaptadosLoaded();
 }
 
 function renderContent() {
@@ -249,10 +239,24 @@ function initMap(items) {
   if (_map) { try { _map.remove(); } catch {} _map = null; _markers = []; }
 
   _map = L.map(el).setView([RP_LAT, RP_LNG], 13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18,
-    attribution: '© OpenStreetMap'
-  }).addTo(_map);
+  // 🛰 SATÉLITE por padrão (Esri World Imagery — grátis, sem chave de API) + rótulos
+  // de ruas/bairros por cima; controle pra alternar com o mapa de Ruas. v81.64
+  const satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: 'Imagem © Esri, Maxar, Earthstar Geographics'
+  });
+  const ruas = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap'
+  });
+  const rotulos = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: '© Esri'
+  });
+  satelite.addTo(_map);
+  rotulos.addTo(_map);   // nomes de bairros/ruas legíveis sobre o satélite
+  L.control.layers(
+    { '🛰 Satélite': satelite, '🗺 Ruas': ruas },
+    { 'Rótulos (ruas/bairros)': rotulos },
+    { position: 'topright', collapsed: true }
+  ).addTo(_map);
 
   // Plota marcadores
   const bairroCounts = {};
@@ -294,6 +298,8 @@ function initMap(items) {
     const group = L.featureGroup(_markers);
     _map.fitBounds(group.getBounds().pad(0.2));
   }
+  // o container é renderizado já visível; reavalia o tamanho após o layout assentar
+  setTimeout(() => { try { _map && _map.invalidateSize(); } catch (_) {} }, 250);
 }
 
 function imovelMini(i) {
