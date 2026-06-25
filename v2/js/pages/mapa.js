@@ -95,6 +95,71 @@ function loadLeaflet() {
   });
 }
 
+// 🛰 Camadas de satélite (Esri World Imagery, grátis) + ruas + rótulos + controle.
+// Reutilizado pelo mapa de empreendimentos E pelo de imóveis captados. v81.67
+function addSatelliteLayers(map) {
+  const satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imagem © Esri, Maxar, Earthstar Geographics' });
+  const ruas = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+  const rotulos = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri' });
+  satelite.addTo(map); rotulos.addTo(map);
+  L.control.layers({ '🛰 Satélite': satelite, '🗺 Ruas': ruas }, { 'Rótulos (ruas/bairros)': rotulos }, { position: 'topright', collapsed: true }).addTo(map);
+}
+
+// ── EMPREENDIMENTOS (Google My Maps "MAPA Empreendimentos PSM") no satélite ──
+// Pega os pins do KML do My Maps (via backend) e plota sobre o satélite Esri. v81.67
+let _emp = { pins: [], shapes: [] };
+let _empMap = null, _empMarkers = [];
+
+async function loadEmpreendimentos(force) {
+  const el = document.getElementById('emp-map');
+  const info = document.getElementById('emp-info');
+  if (!el) return;
+  await loadLeaflet();
+  if (info) info.innerHTML = '<span class="spinner"></span> ' + (force ? 'Re-sincronizando do Google My Maps…' : 'Carregando empreendimentos do seu Google My Maps…');
+  try {
+    const r = await api.request('/api/v3/maps/empreendimentos' + (force ? '?force=1' : ''));
+    _emp = { pins: r.pins || [], shapes: r.shapes || [] };
+    if (info) info.innerHTML = r.aviso ? `<span style="color:#b45309">${esc(r.aviso)}</span>`
+      : `📍 <b>${_emp.pins.length}</b> empreendimentos${_emp.shapes.length ? ' · ' + _emp.shapes.length + ' território(s)' : ''} do seu <b>MAPA Empreendimentos PSM</b>, sobre satélite.`;
+  } catch (e) {
+    _emp = { pins: [], shapes: [] };
+    if (info) info.innerHTML = `<span style="color:#b91c1c">Erro ao carregar empreendimentos: ${esc(e.message)}</span>`;
+  }
+  initEmpMap();
+}
+
+function initEmpMap() {
+  if (!window.L) return;
+  const el = document.getElementById('emp-map');
+  if (!el) return;
+  if (_empMap) { try { _empMap.remove(); } catch (_) {} _empMap = null; _empMarkers = []; }
+  _empMap = L.map(el, { fadeAnimation: false }).setView([RP_LAT, RP_LNG], 12);
+  addSatelliteLayers(_empMap);
+
+  // territórios (polígonos/linhas) desenhados no My Maps
+  (_emp.shapes || []).forEach(s => {
+    if (!s.coords || s.coords.length < 2) return;
+    const style = { color: '#f59e0b', weight: 2, fillColor: '#f59e0b', fillOpacity: .12 };
+    const layer = s.tipo === 'poly' ? L.polygon(s.coords, style) : L.polyline(s.coords, { color: '#f59e0b', weight: 3 });
+    layer.addTo(_empMap);
+    if (s.nome) layer.bindPopup(`<b>${esc(s.nome)}</b>`);
+    _empMarkers.push(layer);
+  });
+  // pins dos empreendimentos
+  (_emp.pins || []).forEach(p => {
+    if (typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
+    const icon = L.divIcon({ className: 'psm-emp-marker', html: `<div style="background:#2563eb;width:16px;height:16px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`, iconSize: [16, 16], iconAnchor: [8, 16] });
+    const m = L.marker([p.lat, p.lng], { icon }).addTo(_empMap);
+    m.bindPopup(`<div style="font-family:system-ui;font-size:13px;font-weight:700">🏗 ${esc(p.nome || 'Empreendimento')}</div>`);
+    _empMarkers.push(m);
+  });
+
+  if (_empMarkers.length) {
+    try { _empMap.fitBounds(L.featureGroup(_empMarkers).getBounds().pad(0.15)); } catch (_) {}
+  }
+  setTimeout(() => { try { _empMap && _empMap.invalidateSize(); } catch (_) {} }, 250);
+}
+
 async function editEarth() {
   const links = await getLinks();
   const v = promptLink('Link do Google Earth (Mapa dos Imóveis)', links.mapa_earth);
@@ -183,35 +248,41 @@ async function render() {
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div>
-          <h2 class="card-title">🛰 Mapa de Imóveis · Satélite</h2>
-          <p class="card-sub">Imóveis da PSM sobre <b>imagem de satélite</b>. Alterne Satélite/Ruas no canto do mapa; o Google Earth 3D abre em tela cheia.</p>
+          <h2 class="card-title">🛰 Mapa de Empreendimentos · Satélite</h2>
+          <p class="card-sub">Os empreendimentos do seu <b>Google My Maps</b> plotados sobre <b>satélite</b>. Alterne Satélite/Ruas no canto; o Earth 3D abre em tela cheia.</p>
         </div>
         <div class="flex gap-2">
           <a class="btn btn-primary" href="${esc(earthUrl)}" target="_blank" rel="noopener" style="background:#1a73e8">🌍 Abrir Earth 3D (tela cheia)</a>
-          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-earth-edit" title="Editar link do Google Earth (3D)">⚙️ Earth</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar link do Google My Maps (territórios)">⚙️ My Maps</button>' : ''}
+          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-emp-refresh" title="Re-sincronizar do Google My Maps">🔄</button><button class="btn btn-ghost" id="map-earth-edit" title="Editar link do Google Earth (3D)">⚙️ Earth</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar link do Google My Maps">⚙️ My Maps</button>' : ''}
         </div>
       </div>
 
-      <!-- MAPA DE SATÉLITE DOS IMÓVEIS (principal — carrega na abertura) -->
-      <div id="captados-wrap" class="mt-3"></div>
+      <!-- EMPREENDIMENTOS DO MY MAPS sobre SATÉLITE (vista principal) -->
+      <div id="emp-map" style="height:calc(100vh - 320px);min-height:460px;border-radius:12px;background:var(--bg-3);position:relative;margin-top:12px"></div>
+      <div id="emp-info" class="tiny muted mt-2"></div>
 
       ${embedSrc ? `
       <details class="mt-4">
-        <summary style="cursor:pointer;font-weight:700;padding:6px 0">🗺 Territórios no Google My Maps (clique para abrir)</summary>
+        <summary style="cursor:pointer;font-weight:700;padding:6px 0">🗺 Ver o mapa original do Google My Maps (com territórios)</summary>
         <div class="mt-2" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a">
           <iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 380px);min-height:420px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
         </div>
-        <p class="tiny muted mt-2">🗺 Seus territórios desenhados no Google My Maps. O satélite dos imóveis fica acima; o Earth 3D abre em tela cheia.</p>
+      </details>` : (canEditLinks() ? '<p class="tiny muted mt-3">💡 Cole o link do seu <b>Google My Maps</b> em <b>⚙️ My Maps</b> pra os empreendimentos aparecerem no satélite acima.</p>' : '')}
+
+      <details class="mt-3" id="cap-details">
+        <summary style="cursor:pointer;font-weight:700;padding:6px 0">📍 Ver imóveis captados (banco de dados) — satélite</summary>
+        <div id="captados-wrap" class="mt-2"></div>
       </details>
-      ` : (canEditLinks() ? '<p class="tiny muted mt-3">💡 Pra embutir também seus <b>territórios do Google My Maps</b> aqui embaixo, cole o link em <b>⚙️ My Maps</b>. O Google bloqueia embutir o Earth Web 3D — por isso ele abre em tela cheia pelo botão.</p>' : '')}
     </div>
   `;
-  const ee = document.getElementById('map-earth-edit');
-  if (ee) ee.addEventListener('click', editEarth);
-  const mm = document.getElementById('map-mymaps-edit');
-  if (mm) mm.addEventListener('click', editMyMaps);
-  // Mapa de satélite dos imóveis abre JÁ (antes ficava escondido + base de ruas).
-  await ensureCaptadosLoaded();
+  const ee = document.getElementById('map-earth-edit'); if (ee) ee.addEventListener('click', editEarth);
+  const mm = document.getElementById('map-mymaps-edit'); if (mm) mm.addEventListener('click', editMyMaps);
+  const rf = document.getElementById('map-emp-refresh'); if (rf) rf.addEventListener('click', () => loadEmpreendimentos(true));
+  // imóveis captados (do banco) só carregam quando o usuário abre o bloco
+  const cap = document.getElementById('cap-details');
+  if (cap) cap.addEventListener('toggle', () => { if (cap.open) ensureCaptadosLoaded(); });
+  // EMPREENDIMENTOS no satélite — vista principal, carrega já na abertura
+  await loadEmpreendimentos();
 }
 
 function renderContent() {
@@ -275,27 +346,9 @@ function initMap(items) {
   if (_map) { try { _map.remove(); } catch {} _map = null; _markers = []; }
 
   // fadeAnimation:false → os tiles do satélite pintam IMEDIATAMENTE (com fade, a
-  // animação travava em opacity:0 quando o mapa era reconstruído pela geocodificação
-  // → mapa branco). v81.66
+  // animação travava em opacity:0 quando o mapa era reconstruído → mapa branco). v81.66
   _map = L.map(el, { fadeAnimation: false }).setView([RP_LAT, RP_LNG], 13);
-  // 🛰 SATÉLITE por padrão (Esri World Imagery — grátis, sem chave de API) + rótulos
-  // de ruas/bairros por cima; controle pra alternar com o mapa de Ruas. v81.64
-  const satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, attribution: 'Imagem © Esri, Maxar, Earthstar Geographics'
-  });
-  const ruas = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '© OpenStreetMap'
-  });
-  const rotulos = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, attribution: '© Esri'
-  });
-  satelite.addTo(_map);
-  rotulos.addTo(_map);   // nomes de bairros/ruas legíveis sobre o satélite
-  L.control.layers(
-    { '🛰 Satélite': satelite, '🗺 Ruas': ruas },
-    { 'Rótulos (ruas/bairros)': rotulos },
-    { position: 'topright', collapsed: true }
-  ).addTo(_map);
+  addSatelliteLayers(_map);
 
   // Plota marcadores
   const bairroCounts = {};
