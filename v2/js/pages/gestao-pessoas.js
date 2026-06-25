@@ -49,22 +49,10 @@ export async function pageGestaoPessoas(ctx, root) {
   await loadData();
 }
 
+// v81.56: cada aba é um item próprio no menu lateral — sem barra de abas interna.
+// A página renderiza direto o conteúdo do módulo da rota (_tab) em #gp-body.
 function render() {
-  _root.innerHTML = `
-    <div class="card">
-      <h2 class="card-title">👥 Gestão de Pessoas & RH</h2>
-      <p class="card-sub">Treinamentos, admissão/desligamento, recrutamento, crescimento, clima e avaliações.</p>
-      <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
-        ${visibleTabs().map(t => `<button class="btn ${_tab === t.id ? 'btn-primary' : 'btn-ghost'}" data-tab="${t.id}">${t.lbl}</button>`).join('')}
-      </div>
-      <div id="gp-body" class="mt-4"></div>
-    </div>
-  `;
-  _root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => {
-    _tab = b.dataset.tab;
-    render();
-    loadData();
-  }));
+  _root.innerHTML = `<div id="gp-body"></div>`;
 }
 
 async function loadData() {

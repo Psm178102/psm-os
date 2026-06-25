@@ -72,8 +72,9 @@ let _root = null, _tab = 'carteira', _regs = {}, _cli = null;
 
 export async function pageSucessoCliente(ctx, root) {
   _root = root;
-  root.innerHTML = `<div id="sc-tabs" class="flex gap-1" style="border-bottom:1px solid var(--bd,#e2e8f0);margin-bottom:14px;flex-wrap:wrap;overflow-x:auto"></div><div id="sc-body"></div>`;
-  renderTabs(); route();
+  // v81.56: cada aba é item do menu lateral — sem barra de abas interna.
+  root.innerHTML = `<div id="sc-body"></div>`;
+  route();
 }
 
 // Entradas diretas (deep-link) — cada aba vira item próprio na barra lateral (v81.55)
