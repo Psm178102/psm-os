@@ -220,8 +220,8 @@ function renderOrganize(body) {
     } catch (e) { btn.textContent = '✕ Erro'; msg.style.color = 'var(--err,#dc2626)'; msg.textContent = e.message; setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2200); }
   };
   body.querySelector('#og-reset').onclick = async () => {
-    if (!confirm('Restaurar a organização do menu para o padrão?')) return;
-    try { await saveMenuLayout({ secOrder: [], items: {} }); _model = null; renderOrganize(body); }
+    if (!confirm('Restaurar a organização do menu para o padrão? A página vai recarregar.')) return;
+    try { await saveMenuLayout({ secOrder: [], items: {} }); location.reload(); }   // reload → barra volta ao layout original
     catch (e) { msg.style.color = 'var(--err,#dc2626)'; msg.textContent = e.message; }
   };
 }
