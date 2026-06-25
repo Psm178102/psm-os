@@ -532,3 +532,146 @@ function openLibEditor(c0) {
   };
   setTimeout(() => ov.querySelector('#lb-titulo')?.focus(), 50);
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   📣 BIBLIOTECA DE ANÚNCIOS PSM (v81.61) — os anúncios que a PSM está rodando:
+   CRIATIVO + COPY, pro corretor ver e usar. Abas por categoria (Conquista /
+   MAP+Terceiros / Locação); corretor Conquista vê só Conquista. Curadoria do
+   marketing (lvl≥3). paulo/cards board 'anuncios_psm' (plataforma=categoria, obs=copy).
+═══════════════════════════════════════════════════════════════════════════ */
+const _boardAnuncios = 'anuncios_psm';
+let _anuncios = [], _anCat = 'Conquista', _fAnStatus = '';
+
+export async function pageAnunciosPSM(ctx, root) {
+  _root = root;
+  _canEdit = (auth.user()?.lvl || 0) >= 3;
+  root.innerHTML = `${STYLE}<div id="cr-body"><div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando…</div></div></div>`;
+  loadAnuncios();
+}
+
+async function loadAnuncios() {
+  body().innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando anúncios…</div></div>';
+  try {
+    const r = await api.request('/api/v3/paulo/cards?board=' + _boardAnuncios);
+    if (r && r.pending) { body().innerHTML = `<div class="alert alert-err">Tabela ainda não criada.</div>`; return; }
+    _anuncios = (r && r.cards) || [];
+  } catch (e) { body().innerHTML = `<div class="alert alert-err">Erro: ${esc(e.message)}</div>`; return; }
+  renderAnuncios();
+}
+
+function anFiltered() {
+  const conquista = _isConquista();
+  return _anuncios.filter(c => {
+    const cat = c.plataforma || '';
+    if (conquista) { if (cat !== 'Conquista') return false; }
+    else if (cat !== _anCat && cat !== '') return false;
+    return _fAnStatus === '' || (isAtivo(c) ? 'ativo' : 'inativo') === _fAnStatus;
+  });
+}
+
+function renderAnuncios() {
+  const cats = _isConquista() ? ['Conquista'] : LIB_CATS;
+  if (!cats.includes(_anCat)) _anCat = cats[0];
+  const list = anFiltered();
+  body().innerHTML = `
+    <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+      <div>
+        <div style="font-size:20px;font-weight:800">📣 Biblioteca de Anúncios</div>
+        <div class="tiny muted">Os anúncios que a PSM está rodando — veja o criativo e copie a copy.${_canEdit ? ' Cadastre novos pelo botão.' : ''}</div>
+      </div>
+      ${_canEdit ? `<button class="btn btn-primary" id="an-new">+ Novo anúncio</button>` : ''}
+    </div>
+    <div class="flex gap-2" style="flex-wrap:wrap;align-items:center;border-bottom:2px solid var(--border,#e2e8f0);padding-bottom:8px;margin-bottom:12px">
+      ${cats.map(cat => `<button class="btn btn-sm ${cat === _anCat ? '' : 'btn-ghost'}" data-ancat="${esc(cat)}" style="${cat === _anCat ? 'background:#d6249f;color:#fff;border-color:#d6249f' : ''}">${esc(cat)} <span class="tiny" style="opacity:.7">(${_anuncios.filter(c => (c.plataforma || '') === cat).length})</span></button>`).join('')}
+      <select id="an-fstatus" class="select" style="margin-left:auto;max-width:150px"><option value="">Todos</option><option value="ativo"${_fAnStatus === 'ativo' ? ' selected' : ''}>🟢 No ar</option><option value="inativo"${_fAnStatus === 'inativo' ? ' selected' : ''}>⚪ Pausados</option></select>
+    </div>
+    ${!list.length
+      ? `<div class="card muted tiny" style="text-align:center;padding:34px">${_anuncios.length ? 'Nenhum anúncio nesta aba.' : 'Nenhum anúncio cadastrado ainda.' + (_canEdit ? ' Clique em <b>+ Novo anúncio</b>.' : '')}</div>`
+      : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">${list.map(anCard).join('')}</div>`}`;
+  bindAnuncios();
+}
+
+function anMedia(c) {
+  const fid = driveFileId(c.link), folder = driveFolderId(c.link);
+  if (fid) return `<img src="${esc(driveThumb(fid))}" loading="lazy" referrerpolicy="no-referrer" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';var f=this.parentNode.querySelector('iframe');if(f){if(!f.src)f.src=f.dataset.src;f.style.display='block';}"><iframe data-src="${esc(driveEmbed(fid))}" referrerpolicy="no-referrer" allow="autoplay" loading="lazy" style="display:none;width:100%;height:100%;border:0"></iframe>`;
+  const ph = folder ? ['📁', 'isto é uma PASTA'] : ['📣', 'sem criativo'];
+  return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#94a3b8;font-size:34px;flex-direction:column;gap:6px;text-align:center;padding:0 8px"><span>${ph[0]}</span><span style="font-size:10px">${ph[1]}</span></div>`;
+}
+
+function anCard(c) {
+  const fid = driveFileId(c.link), ativo = isAtivo(c), cat = c.plataforma || '';
+  const copy = c.obs || '';
+  return `
+    <div style="background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.06);display:flex;flex-direction:column">
+      <div style="position:relative;aspect-ratio:4/5;background:#0f172a;display:flex;align-items:center;justify-content:center;overflow:hidden">
+        ${anMedia(c)}
+        <span style="position:absolute;top:8px;left:8px;background:${ativo ? '#16a34a' : 'rgba(100,116,139,.92)'};color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px">${ativo ? '🟢 NO AR' : '⚪ PAUSADO'}</span>
+        ${_canEdit ? `<button class="an-edit" data-id="${esc(c.id)}" title="Editar" style="position:absolute;top:6px;right:6px;background:rgba(15,23,42,.6);color:#fff;border:none;border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:13px;z-index:2">✏️</button>` : ''}
+      </div>
+      <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;flex:1">
+        <div style="font-weight:800;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
+        <div class="flex gap-1" style="flex-wrap:wrap">${cat ? `<span class="cr-chip" style="background:rgba(214,36,159,.12);color:#be185d">${esc(cat)}</span>` : ''}${c.formato ? `<span class="cr-chip" style="background:#64748b1f;color:#475569">${esc(c.formato)}</span>` : ''}</div>
+        ${copy ? `<div style="font-size:11.5px;line-height:1.4;color:var(--ink-2,#475569);background:var(--bg-3,#f1f5f9);border-radius:8px;padding:8px 9px;max-height:120px;overflow:auto;white-space:pre-wrap">${esc(copy)}</div>
+          <button class="btn btn-ghost tiny an-copybtn" data-copy="${esc(c.id)}">📋 Copiar copy</button>` : '<div class="tiny muted">Sem copy cadastrada.</div>'}
+        <div class="flex gap-2" style="margin-top:auto">
+          ${c.link ? `<a class="btn btn-primary tiny" href="${esc(fid ? driveView(c.link, fid) : c.link)}" target="_blank" rel="noopener" style="flex:1;text-align:center">👁 Ver criativo</a>${fid ? `<a class="btn btn-ghost tiny" href="${esc(driveDownload(fid))}" target="_blank" rel="noopener" title="Baixar">⬇️</a>` : ''}` : '<span class="tiny muted">sem link de criativo</span>'}
+        </div>
+      </div>
+    </div>`;
+}
+
+function bindAnuncios() {
+  body().querySelectorAll('[data-ancat]').forEach(b => b.onclick = () => { _anCat = b.dataset.ancat; renderAnuncios(); });
+  const fs = body().querySelector('#an-fstatus'); if (fs) fs.onchange = () => { _fAnStatus = fs.value; renderAnuncios(); };
+  const nw = body().querySelector('#an-new'); if (nw) nw.onclick = () => openAnEditor(null);
+  body().querySelectorAll('.an-edit').forEach(b => b.onclick = () => openAnEditor(_anuncios.find(c => c.id === b.dataset.id)));
+  body().querySelectorAll('.an-copybtn').forEach(b => b.onclick = () => {
+    const c = _anuncios.find(x => x.id === b.dataset.copy);
+    if (c && navigator.clipboard) navigator.clipboard.writeText(c.obs || '').then(() => { b.textContent = '✓ Copiado'; setTimeout(() => b.textContent = '📋 Copiar copy', 1500); }).catch(() => {});
+  });
+}
+
+function openAnEditor(c0) {
+  const c = c0 || { status: 'ativo' };
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto';
+  const prev = url => { const fid = driveFileId(url); return fid ? `<iframe src="${driveEmbed(fid)}" referrerpolicy="no-referrer" allow="autoplay" style="width:100%;height:200px;border:0;border-radius:8px;margin-top:8px;background:#0f172a"></iframe>` : (driveFolderId(url) ? `<div class="alert alert-warn" style="margin-top:8px;font-size:12px">📁 Link de PASTA — cole o link de um ARQUIVO.</div>` : ''); };
+  ov.innerHTML = `
+    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:520px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);margin:auto">
+      <div style="font-size:17px;font-weight:800;margin-bottom:12px">${c.id ? '✏️ Editar anúncio' : '📣 Novo anúncio'}</div>
+      <label class="tiny muted">Nome do anúncio *</label>
+      <input id="an-titulo" class="input" value="${esc(c.titulo || '')}" placeholder="Ex.: MCMV — Apto 2 quartos a partir de R$ X" style="margin-bottom:10px">
+      <div class="flex gap-2" style="margin-bottom:10px">
+        <div style="flex:1"><label class="tiny muted">Categoria (aba) *</label><select id="an-cat" class="select"><option value="">—</option>${LIB_CATS.map(cat => `<option value="${esc(cat)}"${(c.plataforma || '') === cat ? ' selected' : ''}>${esc(cat)}</option>`).join('')}</select></div>
+        <div style="flex:1"><label class="tiny muted">Formato</label><select id="an-fmt" class="select"><option value="">—</option>${TIPOS.map(t => `<option value="${esc(t)}"${c.formato === t ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+        <div style="flex:1"><label class="tiny muted">Status</label><select id="an-status" class="select"><option value="ativo"${isAtivo(c) ? ' selected' : ''}>🟢 No ar</option><option value="inativo"${!isAtivo(c) ? ' selected' : ''}>⚪ Pausado</option></select></div>
+      </div>
+      <label class="tiny muted">🔗 Link do criativo no Drive (arquivo)</label>
+      <input id="an-link" class="input" value="${esc(c.link || '')}" placeholder="https://drive.google.com/file/d/.../view">
+      <div id="an-prev" style="text-align:center">${prev(c.link)}</div>
+      <label class="tiny muted" style="margin-top:10px;display:block">📝 Copy do anúncio (texto)</label>
+      <textarea id="an-copy" class="input" rows="5" placeholder="Cole aqui a copy/legenda do anúncio para o corretor usar…">${esc(c.obs || '')}</textarea>
+      <div class="flex gap-2 mt-3" style="justify-content:space-between;margin-top:14px">
+        <button class="btn btn-ghost" id="an-del" ${c.id ? '' : 'style="visibility:hidden"'}>🗑 Excluir</button>
+        <div class="flex gap-2"><button class="btn btn-ghost" id="an-cancel">Cancelar</button><button class="btn btn-primary" id="an-save">Salvar</button></div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  ov.querySelector('#an-cancel').onclick = () => ov.remove();
+  ov.querySelector('#an-link').addEventListener('input', e => { ov.querySelector('#an-prev').innerHTML = prev(e.target.value); });
+  ov.querySelector('#an-save').onclick = async () => {
+    const titulo = ov.querySelector('#an-titulo').value.trim();
+    if (!titulo) { ov.querySelector('#an-titulo').focus(); return; }
+    const payload = { action: 'upsert', board: _boardAnuncios, id: c.id || undefined, titulo, plataforma: ov.querySelector('#an-cat').value, formato: ov.querySelector('#an-fmt').value, status: ov.querySelector('#an-status').value, link: ov.querySelector('#an-link').value.trim(), obs: ov.querySelector('#an-copy').value };
+    ov.querySelector('#an-save').disabled = true;
+    try { await api.request('/api/v3/paulo/cards', { method: 'POST', body: payload }); ov.remove(); await loadAnuncios(); }
+    catch (e) { alert('Erro ao salvar: ' + e.message); ov.querySelector('#an-save').disabled = false; }
+  };
+  ov.querySelector('#an-del').onclick = async () => {
+    if (!c.id || !confirm('Excluir este anúncio da biblioteca?')) return;
+    try { await api.request('/api/v3/paulo/cards', { method: 'POST', body: { action: 'delete', id: c.id } }); ov.remove(); await loadAnuncios(); }
+    catch (e) { alert('Erro: ' + e.message); }
+  };
+  setTimeout(() => ov.querySelector('#an-titulo')?.focus(), 50);
+}

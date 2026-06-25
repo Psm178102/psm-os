@@ -23,7 +23,7 @@ import { pagePauloNegocios } from './pages/paulo-negocios.js';
 import { pageProjetos } from './pages/projetos.js';
 import { pagePsmHub } from './pages/psmhub.js';
 import { pagePauloConteudo, pageConteudoImoveis, pageConteudoConquista } from './pages/paulo-conteudo.js';
-import { pageCriativos, pageCriativosDownload } from './pages/criativos.js';
+import { pageCriativos, pageCriativosDownload, pageAnunciosPSM } from './pages/criativos.js';
 import { pageSucessoCliente, pageSCOnboarding, pageSCCarteira, pageSCSuporte, pageSCRetencao, pageSCMetricas, pageSCUpsell, pageSCMarketing, pageSCAvaliacoes, pageSCIndicacoes } from './pages/sucesso-cliente.js';
 import { pageEstrategia } from './pages/estrategia.js';
 import { pageAcademy } from './pages/academy.js';
@@ -133,7 +133,7 @@ export const ROUTE_GROUP = {
   '/financeiro': 'financeiro', '/forecast': 'financeiro',
   // Inteligência & Marketing
   '/marketing': 'marketing', '/concorrencia': 'marketing', '/benchmark': 'marketing',
-  '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing', '/inteligencia': 'marketing', '/biblioteca-ads': 'marketing', '/marketing-historico': 'marketing', '/cerebro-vendas': 'marketing', '/briefing-guerra': 'marketing', '/paulo-conteudo': 'marketing', '/conteudo-imoveis': 'marketing', '/conteudo-conquista': 'marketing', '/criativos': 'marketing', '/criativos-download': 'marketing',
+  '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing', '/inteligencia': 'marketing', '/biblioteca-ads': 'marketing', '/anuncios-concorrentes': 'marketing', '/marketing-historico': 'marketing', '/cerebro-vendas': 'marketing', '/briefing-guerra': 'marketing', '/paulo-conteudo': 'marketing', '/conteudo-imoveis': 'marketing', '/conteudo-conquista': 'marketing', '/criativos': 'marketing', '/criativos-download': 'marketing',
   '/dados-mercado': 'diretoria',
   // Arena & Performance (Metas/Equipes/Plantões migraram p/ Imóveis & Vendas)
   '/organograma': 'performance', '/one-on-one': 'performance', '/arena': 'performance',
@@ -349,7 +349,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.61.0';
+const APP_VERSION = '81.62.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -479,7 +479,10 @@ const APP_VERSION = '81.61.0';
   router.register('/criativos-download', { render: async (ctx, root) => { setHeader('Criativos para Download'); highlight('/criativos-download'); await pageCriativosDownload(ctx, root); } });
   router.register('/inteligencia', { render: async (ctx, root) => { setHeader('Centro de Inteligência'); highlight('/inteligencia'); await pageIntelCentro(ctx, root); } });
   router.register('/dados-mercado', { render: async (ctx, root) => { setHeader('Dados de Mercado'); highlight('/dados-mercado'); await pageDadosMercado(ctx, root); } });
-  router.register('/biblioteca-ads', { render: async (ctx, root) => { setHeader('Biblioteca de Anúncios'); highlight('/biblioteca-ads'); await pageBibliotecaAds(ctx, root); } });
+  // v81.61: "Biblioteca de Anúncios" agora é a dos anúncios DA PSM (criativo + copy).
+  router.register('/biblioteca-ads', { render: async (ctx, root) => { setHeader('Biblioteca de Anúncios'); highlight('/biblioteca-ads'); await pageAnunciosPSM(ctx, root); } });
+  // o monitoramento de concorrentes (antiga biblioteca-ads) virou item próprio.
+  router.register('/anuncios-concorrentes', { render: async (ctx, root) => { setHeader('Anúncios dos Concorrentes'); highlight('/anuncios-concorrentes'); await pageBibliotecaAds(ctx, root); } });
   router.register('/marketing-historico', { render: async (ctx, root) => { setHeader('Histórico Meta'); highlight('/marketing-historico'); await pageMarketingHistorico(ctx, root); } });
   router.register('/cerebro-vendas', { render: async (ctx, root) => { setHeader('Cérebro de Vendas'); highlight('/cerebro-vendas'); await pageIntelVendas(ctx, root); } });
   router.register('/briefing-guerra', { render: async (ctx, root) => { setHeader('Briefing de Guerra'); highlight('/briefing-guerra'); await pageIntelBriefing(ctx, root); } });
@@ -769,7 +772,8 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/conteudo-imoveis"><span class="sb-ico">🏠</span> PSM Imóveis (conteúdo)</button>
         <button class="sb-link" data-nav="/conteudo-conquista"><span class="sb-ico">🏆</span> PSM Conquista (conteúdo)</button>
         <button class="sb-link" data-nav="/marketing-historico"><span class="sb-ico">📅</span> Histórico Meta</button>
-        <button class="sb-link" data-nav="/biblioteca-ads"><span class="sb-ico">📚</span> Biblioteca de Anúncios</button>
+        <button class="sb-link" data-nav="/biblioteca-ads"><span class="sb-ico">📣</span> Biblioteca de Anúncios</button>
+        <button class="sb-link" data-nav="/anuncios-concorrentes"><span class="sb-ico">📡</span> Anúncios dos Concorrentes</button>
         <button class="sb-link" data-nav="/intel-ads"><span class="sb-ico">🎯</span> Intel Ads</button>
         <button class="sb-link" data-nav="/sim-leads"><span class="sb-ico">📈</span> Simulador Leads/CAC</button>
         <button class="sb-link" data-nav="/sim-criativos"><span class="sb-ico">🎨</span> Simulador Criativos</button>
