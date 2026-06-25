@@ -1,8 +1,9 @@
 {
-  "version": "81.65.0",
-  "meta": "2026.06.25-v81.65-mapa-geocode",
-  "built": "2026-06-25T17:40:00Z",
-  "sw": "v81.65.0-2026-06-25-MAPAGEOCODE",
+  "version": "81.66.0",
+  "meta": "2026.06.25-v81.66-mapa-satelite-fix",
+  "built": "2026-06-25T18:20:00Z",
+  "sw": "v81.66.0-2026-06-25-MAPASATELITEFIX",
+  "sprint": "v81.66 — FIX do mapa BRANCO: os tiles de satélite (Esri) carregavam e ficavam no lugar certo, mas com opacity:0 — a animação de fade-in do Leaflet travava em 0 quando o mapa era reconstruído pela geocodificação (renderContent). Resultado: mapa branco com só os pins. Corrigido criando o mapa com {fadeAnimation:false} → os tiles pintam imediatamente. Confirmado por screenshot ao vivo: forçando opacity:1 o satélite de Rio Preto apareceu completo (bairros, rodovia, pins). Agora abre direto em satélite renderizado.",
   "sprint": "v81.65 — Mapa: GEOCODIFICAÇÃO automática dos imóveis. Validação do satélite (v81.64) mostrou 0 pins porque só 3/17 imóveis têm bairro e 0 têm lat/lng (e os bairros nem batem no dicionário fixo). Agora, imóvel sem coordenada é geocodificado por endereço/bairro via Nominatim/OpenStreetMap (grátis, sem chave), em 2º plano e com cache em localStorage (cada endereço 1x, respeitando ~1 req/s), e replota no satélite ao terminar. Imóvel sem nenhum dado de localização segue sem pin (esperado). Satélite Esri validado live: 18/18 tiles + controle Satélite/Ruas OK.",
   "sprint": "v81.64 — MAPA DE IMÓVEIS em SATÉLITE. Antes a base era ruas (OpenStreetMap) e ficava escondida atrás de um toggle → 'inútil'. Agora: base SATÉLITE por padrão (Esri World Imagery, grátis, sem chave de API) + camada de rótulos (ruas/bairros) por cima + controle pra alternar Satélite/Ruas no canto do mapa. O mapa de satélite dos imóveis virou a vista PRINCIPAL e carrega na abertura (com os imóveis plotados por bairro/lat-lng). O Earth 3D segue no botão tela-cheia (Google bloqueia embutir o Earth Web em iframe) e os territórios do Google My Maps ficam num bloco recolhível abaixo. invalidateSize após render pra não cortar tiles.",
   "sprint": "v81.63 — HOTFIX (achado na validação ao vivo): o board 'anuncios_psm' da nova Biblioteca de Anúncios PSM não estava na allowlist BOARDS do paulo/cards → GET/POST caíam no fallback 'negocios' (privado), salvando/lendo no board errado. Registrado 'anuncios_psm' em BOARDS + CONTEUDO_BOARDS (compartilhado) + _board_min_lvl (corretor vê=2, marketing escreve=3, igual criativos_lib). Validado live v81.62: menu sanfona ancorado (Δ=0px), Criativos Download e Biblioteca de Anúncios com as 3 abas, Anúncios dos Concorrentes realocado OK.",

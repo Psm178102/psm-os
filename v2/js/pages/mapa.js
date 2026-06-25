@@ -274,7 +274,10 @@ function initMap(items) {
   // Destrói mapa anterior
   if (_map) { try { _map.remove(); } catch {} _map = null; _markers = []; }
 
-  _map = L.map(el).setView([RP_LAT, RP_LNG], 13);
+  // fadeAnimation:false → os tiles do satélite pintam IMEDIATAMENTE (com fade, a
+  // animação travava em opacity:0 quando o mapa era reconstruído pela geocodificação
+  // → mapa branco). v81.66
+  _map = L.map(el, { fadeAnimation: false }).setView([RP_LAT, RP_LNG], 13);
   // 🛰 SATÉLITE por padrão (Esri World Imagery — grátis, sem chave de API) + rótulos
   // de ruas/bairros por cima; controle pra alternar com o mapa de Ruas. v81.64
   const satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
