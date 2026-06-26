@@ -35,7 +35,7 @@ let _homeRoutes = {};    // { papel: '/rota' } — tela inicial por papel (v81.8
 const PERM_GROUP_LBL = {
   inicio: '🏠 Início',
   academy: '🎓 PSM Academy',
-  secretaria: '🗂 Secretaria de Vendas & Backoffice', vendas: '🏘 Imóveis & Vendas', locacao: '🔑 Locação',
+  secretaria: '🗂 Secretaria de Vendas & Backoffice', adm: '🗄 Backoffice & Adm', vendas: '🏘 Imóveis & Vendas', locacao: '🔑 Locação',
   financeiro: '💰 Financeiro', marketing: '📊 Marketing', performance: '🎯 Metas & Performance',
   diretoria: '🏛 Diretoria', juridico: '⚖️ Jurídico', ia: '🤖 IA', rh: '🧑‍💼 Gestão de Pessoas & RH',
   sucesso: '🤝 Sucesso do Cliente', ferramentas: '🧮 Ferramentas',

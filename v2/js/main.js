@@ -72,6 +72,7 @@ import { pageCanal } from './pages/canal.js';
 import { pageBase } from './pages/base.js';
 import { pageFormacao } from './pages/formacao.js';
 import { pageGestaoPessoas, pageOnboarding, pageOffboarding, pageRhTreinamentos, pageRhRecrutamento, pageRhPlano, pageRhClima, pageRhAvaliacoes } from './pages/gestao-pessoas.js';
+import { pageCompras, pagePatrimonio, pageManutencoes } from './pages/backoffice-adm.js';
 import { pageTalentos } from './pages/talentos.js';
 // Ferramentas Conquista (v81.44) — gated em sócio (ROUTE_MIN_LVL=10) por enquanto
 import { pageCockpitConquista } from './pages/cockpit-conquista.js';
@@ -122,6 +123,8 @@ export const ROUTE_GROUP = {
   '/': 'inicio', '/painel': 'inicio', '/checkin': 'inicio', '/ranking': 'inicio', '/agenda': 'inicio', '/tarefas': 'inicio',
   // Secretaria de Vendas & Backoffice (SDR + Captações)
   '/sdr': 'secretaria', '/captacoes': 'secretaria', '/links-uteis': 'secretaria', '/sac-incorporadoras': 'secretaria', '/sistemas-incorporadoras': 'secretaria', '/campanha-wa': 'secretaria',
+  // Backoffice & Adm (v81.93)
+  '/compras': 'adm', '/patrimonio': 'adm', '/manutencoes': 'adm',
   // Imóveis & Vendas (+ Metas/Equipes/Plantões e simuladores VPL/INCC/Repasse/Energia migrados)
   '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/fichas': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/lancamentos': 'vendas',
@@ -182,11 +185,11 @@ export const ROLE_ALLOWED = {
   gerente_locacao:   '*',
   gerente_terceiros: '*',
   // líder: toda a operação + performance da equipe, MAS sem Diretoria nem Sistema (admin)
-  lider:      ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta'],
+  lider:      ['inicio', 'secretaria', 'adm', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta'],
   marketing:  ['inicio', 'secretaria', 'marketing', 'captacoes', 'rh', 'academy', 'conta'],
-  backoffice: ['inicio', 'secretaria', 'captacoes', 'vendas', 'locacao', 'rh', 'academy', 'conta'],
+  backoffice: ['inicio', 'secretaria', 'adm', 'captacoes', 'vendas', 'locacao', 'rh', 'academy', 'conta'],
   // secretária de vendas (lvl 3) — apoio comercial; o sócio afina na matriz. v81.89
-  secretaria_vendas: ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'academy', 'conta'],
+  secretaria_vendas: ['inicio', 'secretaria', 'adm', 'vendas', 'captacoes', 'locacao', 'academy', 'conta'],
   financeiro: ['inicio', 'financeiro', 'rh', 'academy', 'conta'],
   corretor:   ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta'],
   // Sub-tipos de corretor (lvl 2) — default = mesmo do corretor; o sócio afina cada um
@@ -202,6 +205,7 @@ export const ROLE_ALLOWED = {
 // aparecia no menu (grupo permitido) e dava 403 ao clicar (ex.: Guilherme/marketing).
 // Espelha o require_user(min_lvl=) do endpoint primário de cada página (v77.49).
 export const ROUTE_MIN_LVL = {
+  '/compras': 2, '/patrimonio': 2, '/manutencoes': 2,   // Backoffice & Adm — matriz decide quem vê. v81.93
   '/tabela-imoveis': 5,   // upload de tabelas — não p/ corretor
   '/tabela-conquista': 2, // Tabela Conquista: VISÍVEL p/ corretor (read-only; upload é travado por can_edit lvl>=5 na página). Quem vê = matriz por papel. v81.40
   '/tabela-map': 2,       // Tabela MAP: idem
@@ -357,7 +361,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.92.0';
+const APP_VERSION = '81.93.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -522,6 +526,9 @@ const APP_VERSION = '81.92.0';
   router.register('/formacao',    { render: async (ctx, root) => { setHeader('Formação PSM');         highlight('/formacao'); await pageFormacao(ctx, root); } });
   router.register('/gestao-pessoas', { render: async (ctx, root) => { setHeader('Gestão de Pessoas'); highlight('/gestao-pessoas'); await pageGestaoPessoas(ctx, root); } });
   router.register('/sucesso-cliente', { render: async (ctx, root) => { setHeader('Sucesso do Cliente'); highlight('/sucesso-cliente'); await pageSucessoCliente(ctx, root); } });
+  router.register('/compras',     { render: async (ctx, root) => { setHeader('Compras');     highlight('/compras');     await pageCompras(ctx, root); } });
+  router.register('/patrimonio',  { render: async (ctx, root) => { setHeader('Patrimônio');  highlight('/patrimonio');  await pagePatrimonio(ctx, root); } });
+  router.register('/manutencoes', { render: async (ctx, root) => { setHeader('Manutenções'); highlight('/manutencoes'); await pageManutencoes(ctx, root); } });
   router.register('/onboarding',  { render: async (ctx, root) => { setHeader('Onboarding');  highlight('/onboarding');  await pageOnboarding(ctx, root); } });
   router.register('/offboarding', { render: async (ctx, root) => { setHeader('Offboarding'); highlight('/offboarding'); await pageOffboarding(ctx, root); } });
   router.register('/rh-treinamentos', { render: async (ctx, root) => { setHeader('Treinamentos'); highlight('/rh-treinamentos'); await pageRhTreinamentos(ctx, root); } });
@@ -768,6 +775,11 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/sac-incorporadoras"><span class="sb-ico">📞</span> SAC Incorporadoras</button>
         <button class="sb-link" data-nav="/sistemas-incorporadoras"><span class="sb-ico">🏢</span> Sistema e Drive Incorporadoras</button>
         <button class="sb-link" data-nav="/campanha-wa"><span class="sb-ico">📣</span> Campanha WhatsApp</button>
+
+        <div class="sb-sec">🗄 Backoffice & Adm</div>
+        <button class="sb-link" data-nav="/compras"><span class="sb-ico">🛒</span> Compras</button>
+        <button class="sb-link" data-nav="/patrimonio"><span class="sb-ico">🏢</span> Patrimônio</button>
+        <button class="sb-link" data-nav="/manutencoes"><span class="sb-ico">🛠</span> Manutenções</button>
 
         <div class="sb-sec">🧑‍💼 Gestão de Pessoas & RH</div>
         <button class="sb-link" data-nav="/rh-treinamentos"><span class="sb-ico">🎓</span> Treinamentos</button>
