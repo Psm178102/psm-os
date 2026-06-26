@@ -375,7 +375,14 @@ async function initGoogleMap(key) {
     m.addListener('click', () => { iw.setContent('<div style="font:700 13px system-ui">🏗 ' + esc(p.nome || 'Empreendimento') + '</div>'); iw.open(map, m); });
     bounds.extend(pos);
   });
-  if (!bounds.isEmpty()) map.fitBounds(bounds, 40);
+  if (!bounds.isEmpty()) {
+    map.fitBounds(bounds, 40);
+  } else {
+    // Sem pins (ex.: fonte ainda sem My Maps): o mapa pode iniciar com viewport
+    // defasado e não pintar os tiles (fica cinza). Força um resize + recentra
+    // pra carregar o satélite de Rio Preto mesmo vazio. v81.76
+    setTimeout(() => { try { google.maps.event.trigger(map, 'resize'); map.setCenter({ lat: RP_LAT, lng: RP_LNG }); map.setZoom(12); } catch (_) {} }, 300);
+  }
   const nome = _fonte === 'conquista' ? 'PSM Conquista' : 'MAP';
   if (info) info.innerHTML = aviso
     ? '<span style="color:#b45309">' + esc(aviso) + '</span>'
