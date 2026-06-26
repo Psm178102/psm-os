@@ -59,27 +59,36 @@ class handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length).decode("utf-8") if length > 0 else "{}")
         except: return self._send(400, {"ok": False, "error": "JSON inválido"})
 
-        nome = (body.get("nome") or "").strip()
-        if not nome: return self._send(400, {"ok": False, "error": "nome obrigatório"})
-
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
 
-        def _s(k, n=2000):
+        action = (body.get("action") or "").strip()
+        if action == "avaliar":
+            return self._avaliar(sb, actor, body)
+        if action == "mover":
+            return self._mover(sb, actor, body)
+
+        nome = (body.get("nome") or "").strip()
+        if not nome: return self._send(400, {"ok": False, "error": "nome obrigatório"})
+
+        def _s(k, n=4000):
             v = (body.get(k) or "").strip()
             return v[:n] or None
+        def _i(k):
+            try: return int(body.get(k)) or None
+            except: return None
         row = {
             "id": body.get("id") or f"gpt_{int(datetime.now().timestamp()*1000)}",
             "nome": nome,
             "email": _s("email"),
             "contato": _s("contato"),
-            "instagram": _s("instagram"),
+            "instagram": _s("instagram", 200),
             "data": body.get("data") or None,
             "setor": _s("setor", 60),
             "funcao": _s("funcao", 120),
             "cenario": _s("cenario"),
             "status": _s("status", 60),
-            # classificação rica (v81.83) — colunas novas (upsert tolerante até a migração)
+            # classificação rica (v81.83)
             "responsavel": _s("responsavel", 120),
             "cargo": _s("cargo", 80),
             "categoria": _s("categoria", 40),    # corretor: Conquista/MAP/Terceiros/Locação
@@ -87,6 +96,29 @@ class handler(BaseHTTPRequestHandler):
             "experiencia": _s("experiencia"),
             "atividade_atual": _s("atividade_atual", 60),
             "origem": _s("origem", 20) or "manual",
+            # ── ATS completo (v81.87) — colunas novas (upsert tolerante até a migração) ──
+            "etapa": _s("etapa", 60),
+            "canal": _s("canal", 60),                         # origem de recrutamento
+            "departamento_solicitante": _s("departamento_solicitante", 80),
+            "vaga": _s("vaga", 120),
+            "linkedin": _s("linkedin", 300),
+            "curriculo_url": _s("curriculo_url", 600),
+            "requisitos": _s("requisitos"),
+            "perfil_comportamental": _s("perfil_comportamental"),
+            "feedback_entrevista": _s("feedback_entrevista"),
+            "impeditivos": _s("impeditivos"),
+            "cpf": _s("cpf", 30),
+            "referencias": _s("referencias"),
+            "cnd": _s("cnd"),                                 # situação das CNDs
+            "processos": _s("processos"),
+            "antecedentes": _s("antecedentes"),
+            "analise_juridica": _s("analise_juridica"),
+            "analise_comercial": _s("analise_comercial"),
+            "pretensao": _s("pretensao", 80),
+            "disponibilidade": _s("disponibilidade", 120),
+            "score": _i("score"),
+            "decisao": _s("decisao", 30),
+            "motivo_reprovacao": _s("motivo_reprovacao"),
             "criado_por": actor.get("id"),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -99,6 +131,67 @@ class handler(BaseHTTPRequestHandler):
         audit(self, actor, "gp.talento.upsert", target_type="gp_talentos",
               target_id=row["id"], notes=nome[:80])
         return self._send(200, {"ok": True, "row": (r.data or [row])[0], "dropped": dropped})
+
+    # ── parecer da avaliação interna (RH / sócio / departamento) ──
+    def _avaliar(self, sb, actor, body):
+        tid = body.get("id")
+        if not tid: return self._send(400, {"ok": False, "error": "id obrigatório"})
+        try:
+            cur = sb.table("gp_talentos").select("avaliacoes").eq("id", tid).limit(1).execute().data or []
+        except Exception:
+            cur = []
+        av = (cur[0].get("avaliacoes") if cur else None) or []
+        if isinstance(av, str):
+            try: av = json.loads(av)
+            except: av = []
+        if not isinstance(av, list): av = []
+        parecer = {
+            "by_id": actor.get("id"),
+            "by_nome": actor.get("name") or actor.get("email") or "—",
+            "papel": actor.get("role") or "",
+            "voto": (body.get("voto") or "").strip()[:20],          # Aprovo / Reprovo / Standby
+            "nota": (lambda v: v if isinstance(v, int) else 0)(body.get("nota") if isinstance(body.get("nota"), int) else 0),
+            "texto": (body.get("texto") or "").strip()[:3000],
+            "at": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            parecer["nota"] = max(0, min(5, int(body.get("nota") or 0)))
+        except Exception:
+            parecer["nota"] = 0
+        av.append(parecer)
+        try:
+            _safe_upsert(sb, "gp_talentos", {"id": tid, "avaliacoes": av,
+                                             "updated_at": datetime.now(timezone.utc).isoformat()})
+        except Exception as e:
+            return self._send(500, {"ok": False, "error": str(e)})
+        audit(self, actor, "gp.talento.avaliar", target_type="gp_talentos", target_id=tid,
+              notes=parecer["voto"])
+        return self._send(200, {"ok": True, "avaliacoes": av})
+
+    # ── mover de etapa no pipeline (registra histórico) ──
+    def _mover(self, sb, actor, body):
+        tid = body.get("id"); etapa = (body.get("etapa") or "").strip()[:60]
+        if not tid or not etapa: return self._send(400, {"ok": False, "error": "id e etapa"})
+        try:
+            cur = sb.table("gp_talentos").select("etapa,historico").eq("id", tid).limit(1).execute().data or []
+        except Exception:
+            cur = []
+        de = (cur[0].get("etapa") if cur else None) or ""
+        hist = (cur[0].get("historico") if cur else None) or []
+        if isinstance(hist, str):
+            try: hist = json.loads(hist)
+            except: hist = []
+        if not isinstance(hist, list): hist = []
+        hist.append({"de": de, "para": etapa, "by": actor.get("name") or "—",
+                     "at": datetime.now(timezone.utc).isoformat()})
+        patch = {"id": tid, "etapa": etapa, "historico": hist,
+                 "updated_at": datetime.now(timezone.utc).isoformat()}
+        try:
+            _safe_upsert(sb, "gp_talentos", patch)
+        except Exception as e:
+            return self._send(500, {"ok": False, "error": str(e)})
+        audit(self, actor, "gp.talento.mover", target_type="gp_talentos", target_id=tid, notes=etapa)
+        return self._send(200, {"ok": True, "etapa": etapa, "historico": hist})
 
     def do_DELETE(self):
         try: actor = require_user(self, min_lvl=2)

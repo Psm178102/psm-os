@@ -1,10 +1,12 @@
 /* ============================================================================
-   PSM-OS v2 — Base de Talentos (Diretoria) · v77.63
+   PSM-OS v2 — Recrutamento & Seleção (ATS) · v81.87
    ----------------------------------------------------------------------------
-   Movida de Gestão de Pessoas para a Diretoria. Duas frentes:
    • 🟢 RD ao vivo — deals do funil "Parceiros" / etapa "Base de Talentos" do
      RD Station CRM, em tempo real (auto-refresh 60s + botão atualizar).
-   • 📝 Base manual — cadastro próprio (tabela gp_talentos), com busca e CRUD.
+   • 📋 Pipeline R&S — base interna (gp_talentos) como ATS completo: kanban por
+     etapa (triagem → onboarding), filtros, ficha rica do candidato (origem,
+     currículo, perfil comportamental, due diligence jurídica/comercial,
+     feedback de entrevista) e avaliação interna multi-parte (RH+sócio+depto).
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
@@ -15,7 +17,7 @@ let _talPerms = {};   // resource_perms (visibilidade das abas RD/manual). v81.8
 let _root = null;
 let _tab = 'rd';
 let _talentos = [];   // manuais
-let _editing = null;
+let _editing = null;  // candidato aberto na ficha
 let _rdTimer = null;
 let _lastRd = null;
 let _users = [];      // pra escolher o responsável
@@ -37,8 +39,24 @@ const ATIVIDADES = ['Concorrente', 'Outro do mercado', 'Incorporadora', 'Imobili
 const _allCargos = [...new Set(Object.values(CARGOS).flat())];
 const _isCorretor = v => /corretor/i.test(v || '');
 
+// ── ATS / Pipeline R&S (v81.87) ──
+const ETAPAS = ['Triagem', 'Entrevista RH', 'Entrevista Gestor', 'Avaliação interna', 'Due Diligence', 'Proposta', 'Contratado', 'Banco de Talentos'];
+const ETAPA_COR = { 'Triagem': '#64748b', 'Entrevista RH': '#2563eb', 'Entrevista Gestor': '#7c3aed', 'Avaliação interna': '#b45309', 'Due Diligence': '#dc2626', 'Proposta': '#0891b2', 'Contratado': '#16a34a', 'Banco de Talentos': '#94a3b8' };
+const CANAIS = ['Indicação', 'Indicação interna', 'Prospecção ativa', 'Campanha / Anúncio', 'LinkedIn', 'Instagram', 'Site / Trabalhe conosco', 'RD Station', 'Banco de Talentos', 'Headhunter', 'Evento / Feira', 'Outro'];
+const DECISOES = ['Em andamento', 'Aprovado', 'Reprovado', 'Standby'];
+const VOTOS = ['Aprovo', 'Reprovo', 'Standby'];
+const DISC = ['Dominância (D)', 'Influência (I)', 'Estabilidade (S)', 'Conformidade (C)'];
+
+// filtros / visualização do pipeline
+let _viewMode = 'kanban';   // kanban | lista
+let _search = '', _fEtapa = '', _fSetor = '', _fCanal = '', _fResp = '', _fDecisao = '';
+
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function waLink(phone) { const d = String(phone || '').replace(/\D/g, ''); return d ? `https://wa.me/${d}` : null; }
+function igLink(ig) { ig = String(ig || '').trim(); if (!ig) return null; if (/^https?:\/\//i.test(ig)) return ig; return 'https://instagram.com/' + ig.replace(/^@/, '').replace(/\s+/g, ''); }
+function stars(n) { n = Math.max(0, Math.min(5, parseInt(n) || 0)); return '★'.repeat(n) + '☆'.repeat(5 - n); }
+function chip(txt, cor) { return txt ? `<span style="display:inline-block;background:${cor}1a;color:${cor};font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap">${esc(txt)}</span>` : ''; }
+const optTag = (v, sel) => `<option value="${esc(v)}"${v === (sel || '') ? ' selected' : ''}>${esc(v)}</option>`;
 
 export async function pageTalentos(ctx, root) {
   _root = root;
@@ -59,11 +77,11 @@ export async function pageTalentos(ctx, root) {
 function render() {
   _root.innerHTML = `
     <div class="card">
-      <h2 class="card-title">🌟 Base de Talentos</h2>
-      <p class="card-sub">Pipeline de recrutamento — conectado ao RD Station (funil de Parceria · etapa Banco de Talentos) em tempo real + base interna.</p>
+      <h2 class="card-title">🌟 Recrutamento & Seleção</h2>
+      <p class="card-sub">ATS completo — pipeline da triagem ao onboarding, conectado ao RD Station (funil de Parceria · etapa Banco de Talentos) + base interna com ficha rica e avaliação interna.</p>
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
         ${canSeeResource('talentos_rd', _talPerms) ? `<button class="btn ${_tab === 'rd' ? 'btn-primary' : 'btn-ghost'}" data-tab="rd">🟢 RD ao vivo</button>` : ''}
-        ${canSeeResource('talentos_manual', _talPerms) ? `<button class="btn ${_tab === 'manual' ? 'btn-primary' : 'btn-ghost'}" data-tab="manual">📝 Base manual</button>` : ''}
+        ${canSeeResource('talentos_manual', _talPerms) ? `<button class="btn ${_tab === 'manual' ? 'btn-primary' : 'btn-ghost'}" data-tab="manual">📋 Pipeline R&S</button>` : ''}
       </div>
       <div id="tal-body" class="mt-4"></div>
     </div>
@@ -71,6 +89,7 @@ function render() {
   _root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => {
     if (_tab === b.dataset.tab) return;
     _tab = b.dataset.tab;
+    _editing = null;
     stopRdTimer();
     render();
     if (_tab === 'rd') loadRd(); else loadManual();
@@ -89,7 +108,6 @@ async function loadRd(refresh = false) {
     _lastRd = r;
     renderRd(r);
   } catch (e) {
-    // erro de funil/etapa não encontrados vem no corpo (data) do ApiError
     const d = e.data || {};
     if (d.funis_disponiveis || d.etapas_disponiveis) {
       body.innerHTML = `
@@ -104,7 +122,6 @@ async function loadRd(refresh = false) {
       document.getElementById('rd-retry')?.addEventListener('click', () => loadRd(true));
     }
   }
-  // auto-refresh em tempo real (60s) — só uma vez
   if (!_rdTimer) {
     _rdTimer = setInterval(() => { if (_tab === 'rd' && document.getElementById('tal-body')) loadRd(true); }, 60000);
     router.onCleanup(stopRdTimer);
@@ -136,6 +153,7 @@ function renderRd(r) {
         <tbody>
           ${list.map(t => {
             const wa = waLink(t.phone);
+            const ig = igLink((t.campos || {}).Instagram || (t.campos || {}).instagram || (t.campos || {}).IG);
             const camposTxt = Object.entries(t.campos || {}).slice(0, 3).map(([k, v]) => `${esc(k)}: ${esc(v)}`).join(' · ');
             return `
             <tr style="border-bottom:1px solid var(--bd)">
@@ -152,9 +170,10 @@ function renderRd(r) {
               <td style="padding:8px">${esc(t.owner || '—')}</td>
               <td style="padding:8px">${t.dias_na_etapa != null ? t.dias_na_etapa + 'd' : '—'}</td>
               <td style="padding:8px;text-align:right;white-space:nowrap">
+                ${ig ? `<a class="btn btn-ghost btn-sm" href="${ig}" target="_blank" rel="noopener" title="Instagram">📷</a>` : ''}
                 ${wa ? `<a class="btn btn-ghost btn-sm" href="${wa}" target="_blank" rel="noopener" title="WhatsApp">💬</a>` : ''}
                 <a class="btn btn-ghost btn-sm" href="${esc(t.rd_url)}" target="_blank" rel="noopener" title="Abrir no RD">🔗</a>
-                <button class="btn btn-ghost btn-sm" data-add-manual="${esc(t.id)}" title="Salvar na base interna">⭐</button>
+                <button class="btn btn-ghost btn-sm" data-add-manual="${esc(t.id)}" title="Trazer pro pipeline interno">⭐</button>
               </td>
             </tr>`;
           }).join('')}
@@ -163,7 +182,6 @@ function renderRd(r) {
     `}
   `;
   document.getElementById('rd-refresh')?.addEventListener('click', () => loadRd(true));
-  // ⭐ salva um talento do RD na base manual
   body.querySelectorAll('[data-add-manual]').forEach(b => b.addEventListener('click', async () => {
     const t = list.find(x => x.id === b.dataset.addManual);
     if (!t) return;
@@ -175,17 +193,16 @@ function renderRd(r) {
         instagram: cp.Instagram || cp.instagram || cp.IG || cp.ig || '',
         responsavel: t.owner || '',
         cenario: 'Importado do RD (funil Parceiros · Base de Talentos).' + (t.rd_url ? ' ' + t.rd_url : ''),
-        status: 'em análise', origem: 'rd',
+        status: 'em análise', origem: 'rd', canal: 'RD Station', etapa: 'Triagem',
       } });
-      b.textContent = '✓ classificar';
-      // leva pra base manual com o talento aberto pra classificar (setor/cargo/etc.)
+      b.textContent = '✓ ficha';
       _editing = saved.row || null;
       _tab = 'manual'; stopRdTimer(); render(); await loadManual();
     } catch (e) { b.textContent = '✕'; b.disabled = false; alert('Erro: ' + e.message); }
   }));
 }
 
-/* ─────────────────── Base manual (gp_talentos) ─────────────────── */
+/* ─────────────────── Pipeline R&S (gp_talentos) ─────────────────── */
 async function loadManual() {
   const body = document.getElementById('tal-body');
   if (!body) return;
@@ -205,103 +222,153 @@ async function loadManual() {
 
 function renderManual() {
   const body = document.getElementById('tal-body');
-  const e = _editing || {};
-  const opt = (v, sel) => `<option value="${esc(v)}"${v === (sel || '') ? ' selected' : ''}>${esc(v)}</option>`;
-  const userOpts = _users.map(u => opt(u.name || u.id, e.responsavel)).join('');
-  const showCorr = _isCorretor(e.cargo);
+  if (!body) return;
+  if (_editing) { body.innerHTML = renderDetail(_editing); bindDetail(); return; }
+
+  const respOpts = [...new Set(_talentos.map(t => t.responsavel).filter(Boolean))];
   body.innerHTML = `
-    <div class="card" style="background:var(--bg-3);margin-bottom:14px;padding:14px">
-      <div style="font-weight:800;margin-bottom:10px">👤 ${e.id ? 'Editar' : 'Classificar / Adicionar'} Talento</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));gap:8px">
-        <label class="tiny muted">Nome completo *<input id="tal-nome" class="input" value="${esc(e.nome || '')}"></label>
-        <label class="tiny muted">Contato (WhatsApp/tel)<input id="tal-contato" class="input" value="${esc(e.contato || '')}"></label>
-        <label class="tiny muted">Instagram<input id="tal-instagram" class="input" placeholder="@perfil" value="${esc(e.instagram || '')}"></label>
-        <label class="tiny muted">Responsável<select id="tal-responsavel" class="select"><option value="">—</option>${userOpts}</select></label>
-        <label class="tiny muted">Setor<select id="tal-setor" class="select"><option value="">—</option>${SETORES.map(s => opt(s, e.setor)).join('')}</select></label>
-        <label class="tiny muted">Cargo<input id="tal-cargo" class="input" list="tal-cargos" placeholder="ex.: Corretor, Secretária de Vendas" value="${esc(e.cargo || e.funcao || '')}"><datalist id="tal-cargos">${_allCargos.map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
-        <label class="tiny muted">Atual atividade<select id="tal-atividade" class="select"><option value="">—</option>${ATIVIDADES.map(a => opt(a, e.atividade_atual)).join('')}</select></label>
-        <label class="tiny muted">Status (recrutamento)<input id="tal-status" class="input" placeholder="em análise, aprovado..." value="${esc(e.status || '')}"></label>
-      </div>
-      <div id="tal-corretor" style="display:${showCorr ? 'grid' : 'none'};grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));gap:8px;margin-top:8px;padding:8px;border:1px dashed var(--bd);border-radius:8px;background:rgba(214,36,159,.05)">
-        <label class="tiny muted" style="grid-column:1/-1;font-weight:700;color:#d6249f">🏠 Corretor — classificação</label>
-        <label class="tiny muted">Categoria<select id="tal-categoria" class="select"><option value="">—</option>${CATEGORIAS.map(c => opt(c, e.categoria)).join('')}</select></label>
-        <label class="tiny muted">CRECI<input id="tal-creci" class="input" placeholder="CRECI (se tiver)" value="${esc(e.creci || '')}"></label>
-      </div>
-      <label class="tiny muted" style="display:block;margin-top:8px">Experiência<textarea id="tal-experiencia" class="input" rows="2" placeholder="Tempo de mercado, onde trabalhou, resultados...">${esc(e.experiencia || '')}</textarea></label>
-      <label class="tiny muted" style="display:block;margin-top:8px">Observações<textarea id="tal-cenario" class="input" rows="2" placeholder="Cenário, perfil, disponibilidade, prazo...">${esc(e.cenario || '')}</textarea></label>
-      <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
-        <button class="btn btn-primary" id="tal-save">${e.id ? '💾 Salvar' : '➕ Adicionar'}</button>
-        ${e.id ? '<button class="btn btn-ghost" id="tal-cancel">Cancelar</button>' : ''}
-      </div>
-    </div>
     <div class="flex items-center gap-2 mb-2" style="flex-wrap:wrap">
-      <div style="font-weight:800">Base de Talentos interna (${_talentos.length})</div>
-      <select id="tal-fsetor" class="select" style="max-width:170px;margin-left:auto"><option value="">Todos os setores</option>${SETORES.map(s => opt(s, _fSetor)).join('')}</select>
-      <input id="tal-search" class="input" placeholder="🔍 Buscar..." style="max-width:230px">
+      <button class="btn btn-primary btn-sm" id="tal-new">➕ Novo candidato</button>
+      <div class="flex gap-1" style="margin-left:auto">
+        <button class="btn ${_viewMode === 'kanban' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-vm="kanban">▦ Kanban</button>
+        <button class="btn ${_viewMode === 'lista' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-vm="lista">☰ Lista</button>
+      </div>
     </div>
-    <div id="tal-list">${renderManualList(filterManual())}</div>
+    <div class="flex gap-2 mb-3" style="flex-wrap:wrap">
+      <input id="f-search" class="input" placeholder="🔍 Buscar nome/cargo/CRECI…" style="max-width:210px" value="${esc(_search)}">
+      <select id="f-etapa" class="select" style="max-width:160px"><option value="">Todas as etapas</option>${ETAPAS.map(x => optTag(x, _fEtapa)).join('')}</select>
+      <select id="f-setor" class="select" style="max-width:150px"><option value="">Todo setor</option>${SETORES.map(x => optTag(x, _fSetor)).join('')}</select>
+      <select id="f-canal" class="select" style="max-width:160px"><option value="">Toda origem</option>${CANAIS.map(x => optTag(x, _fCanal)).join('')}</select>
+      <select id="f-resp" class="select" style="max-width:160px"><option value="">Todo responsável</option>${respOpts.map(x => optTag(x, _fResp)).join('')}</select>
+      <select id="f-decisao" class="select" style="max-width:150px"><option value="">Toda decisão</option>${DECISOES.map(x => optTag(x, _fDecisao)).join('')}</select>
+    </div>
+    ${funnelHTML()}
+    <div id="tal-view" class="mt-2"></div>
   `;
-  // corretor: mostra/esconde Categoria+CRECI conforme o cargo
-  const cargoEl = document.getElementById('tal-cargo'), corrEl = document.getElementById('tal-corretor');
-  const toggleCorr = () => { corrEl.style.display = _isCorretor(cargoEl.value) ? 'grid' : 'none'; };
-  cargoEl.addEventListener('input', toggleCorr);
-  // setor sugere o cargo (datalist filtra pelo setor escolhido)
-  const setorEl = document.getElementById('tal-setor');
-  setorEl.addEventListener('change', () => {
-    const dl = document.getElementById('tal-cargos');
-    const lista = CARGOS[setorEl.value] || _allCargos;
-    dl.innerHTML = lista.map(c => `<option value="${esc(c)}">`).join('');
-  });
-  setorEl.dispatchEvent(new Event('change'));
-  document.getElementById('tal-save').addEventListener('click', saveManual);
-  const cancel = document.getElementById('tal-cancel');
-  if (cancel) cancel.addEventListener('click', () => { _editing = null; renderManual(); });
-  const reFilter = () => { document.getElementById('tal-list').innerHTML = renderManualList(filterManual()); bindManualActions(); };
-  document.getElementById('tal-search').addEventListener('input', e2 => { _search = e2.target.value; reFilter(); });
-  document.getElementById('tal-fsetor').addEventListener('change', e2 => { _fSetor = e2.target.value; reFilter(); });
-  bindManualActions();
+  document.getElementById('tal-new').addEventListener('click', () => { _editing = { etapa: 'Triagem', decisao: 'Em andamento' }; renderManual(); });
+  body.querySelectorAll('[data-vm]').forEach(b => b.addEventListener('click', () => { _viewMode = b.dataset.vm; renderManual(); }));
+  const reF = () => drawView();
+  document.getElementById('f-search').addEventListener('input', e => { _search = e.target.value; reF(); });
+  document.getElementById('f-etapa').addEventListener('change', e => { _fEtapa = e.target.value; reF(); });
+  document.getElementById('f-setor').addEventListener('change', e => { _fSetor = e.target.value; reF(); });
+  document.getElementById('f-canal').addEventListener('change', e => { _fCanal = e.target.value; reF(); });
+  document.getElementById('f-resp').addEventListener('change', e => { _fResp = e.target.value; reF(); });
+  document.getElementById('f-decisao').addEventListener('change', e => { _fDecisao = e.target.value; reF(); });
+  drawView();
 }
 
-let _search = '', _fSetor = '';
+function funnelHTML() {
+  const counts = {};
+  ETAPAS.forEach(e => counts[e] = 0);
+  _talentos.forEach(t => { const e = t.etapa || 'Triagem'; if (e in counts) counts[e]++; });
+  return `<div id="tal-funnel" class="flex gap-1" style="flex-wrap:wrap;font-size:11px">
+    ${ETAPAS.map(e => `<span style="background:${ETAPA_COR[e]}1a;color:${ETAPA_COR[e]};font-weight:700;padding:2px 8px;border-radius:6px">${esc(e)}: ${counts[e]}</span>`).join('')}
+  </div>`;
+}
+
 function filterManual() {
   const q = (_search || '').toLowerCase();
   return _talentos.filter(t => {
+    if (_fEtapa && (t.etapa || 'Triagem') !== _fEtapa) return false;
     if (_fSetor && (t.setor || '') !== _fSetor) return false;
+    if (_fCanal && (t.canal || '') !== _fCanal) return false;
+    if (_fResp && (t.responsavel || '') !== _fResp) return false;
+    if (_fDecisao && (t.decisao || 'Em andamento') !== _fDecisao) return false;
     if (!q) return true;
-    return [t.nome, t.setor, t.cargo, t.funcao, t.categoria, t.responsavel, t.creci, t.experiencia].some(v => (v || '').toLowerCase().includes(q));
+    return [t.nome, t.setor, t.cargo, t.funcao, t.categoria, t.responsavel, t.creci, t.experiencia, t.vaga, t.canal].some(v => (v || '').toLowerCase().includes(q));
   });
 }
 
-function renderManualList(items) {
-  if (!items.length) return '<div class="muted tiny" style="text-align:center;padding:20px">Nenhum talento.</div>';
-  const chip = (txt, cor) => txt ? `<span style="display:inline-block;background:${cor}1a;color:${cor};font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap">${esc(txt)}</span>` : '';
+function drawView() {
+  const host = document.getElementById('tal-view');
+  if (!host) return;
+  const items = filterManual();
+  host.innerHTML = _viewMode === 'kanban' ? renderKanban(items) : renderLista(items);
+  bindView();
+}
+
+function renderKanban(items) {
+  return `<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;align-items:flex-start">
+    ${ETAPAS.map(et => {
+      const col = items.filter(t => (t.etapa || 'Triagem') === et);
+      return `<div style="min-width:228px;max-width:240px;flex:0 0 auto;background:var(--bg-3);border-radius:10px;padding:8px">
+        <div style="font-weight:800;font-size:11.5px;color:${ETAPA_COR[et]};display:flex;justify-content:space-between;align-items:center"><span>${esc(et)}</span><span style="background:${ETAPA_COR[et]}22;border-radius:999px;padding:1px 7px">${col.length}</span></div>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+          ${col.map(cardHTML).join('') || '<div class="tiny muted" style="text-align:center;padding:10px">—</div>'}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function cardHTML(t) {
+  const ig = igLink(t.instagram), wa = waLink(t.contato), cv = t.curriculo_url, ln = t.linkedin;
+  const corr = _isCorretor(t.cargo || t.funcao);
+  const dec = t.decisao === 'Aprovado' ? ' ✅' : t.decisao === 'Reprovado' ? ' ⛔' : t.decisao === 'Standby' ? ' ⏸' : '';
+  const nav = avResumo(t);
+  return `<div class="tal-card" style="background:var(--bg-2);border:1px solid var(--bd);border-radius:8px;padding:8px;cursor:pointer" data-open="${t.id}">
+    <div style="font-weight:700;font-size:12.5px">${esc(t.nome)}${dec}</div>
+    <div class="tiny muted">${esc(t.cargo || t.funcao || '—')}${t.setor ? ' · ' + esc(t.setor) : ''}</div>
+    <div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+      ${chip(t.canal, '#7c3aed')}
+      ${corr && t.categoria ? chip(t.categoria, '#d6249f') : ''}
+      ${t.score ? `<span class="tiny" style="color:#f59e0b" title="Score">${stars(t.score)}</span>` : ''}
+      ${nav ? `<span class="tiny muted" title="Pareceres">🗳 ${nav}</span>` : ''}
+    </div>
+    ${t.responsavel ? `<div class="tiny muted" style="margin-top:4px">👤 ${esc(t.responsavel)}</div>` : ''}
+    <div style="margin-top:6px;display:flex;gap:3px;align-items:center">
+      ${ig ? `<a class="btn btn-ghost btn-sm" href="${ig}" target="_blank" rel="noopener" title="Instagram" onclick="event.stopPropagation()">📷</a>` : ''}
+      ${wa ? `<a class="btn btn-ghost btn-sm" href="${wa}" target="_blank" rel="noopener" title="WhatsApp" onclick="event.stopPropagation()">💬</a>` : ''}
+      ${ln ? `<a class="btn btn-ghost btn-sm" href="${esc(ln)}" target="_blank" rel="noopener" title="LinkedIn" onclick="event.stopPropagation()">in</a>` : ''}
+      ${cv ? `<a class="btn btn-ghost btn-sm" href="${esc(cv)}" target="_blank" rel="noopener" title="Currículo" onclick="event.stopPropagation()">📄</a>` : ''}
+      <select class="select tal-move" data-id="${t.id}" title="Mover de etapa" style="margin-left:auto;font-size:10px;padding:2px;max-width:118px" onclick="event.stopPropagation()">
+        ${ETAPAS.map(e => `<option value="${esc(e)}"${(t.etapa || 'Triagem') === e ? ' selected' : ''}>${esc(e)}</option>`).join('')}
+      </select>
+    </div>
+  </div>`;
+}
+
+function avResumo(t) {
+  const av = Array.isArray(t.avaliacoes) ? t.avaliacoes : [];
+  if (!av.length) return '';
+  const ap = av.filter(a => /aprov/i.test(a.voto || '')).length;
+  const rp = av.filter(a => /reprov/i.test(a.voto || '')).length;
+  return `${ap}✓ ${rp}✕`;
+}
+
+function renderLista(items) {
+  if (!items.length) return '<div class="muted tiny" style="text-align:center;padding:20px">Nenhum candidato.</div>';
   return `
     <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:760px">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:880px">
       <thead><tr style="background:var(--bg-3)">
         <th style="text-align:left;padding:8px">Nome / contato</th>
-        <th style="text-align:left;padding:8px">Setor</th>
-        <th style="text-align:left;padding:8px">Cargo</th>
-        <th style="text-align:left;padding:8px">Categoria</th>
-        <th style="text-align:left;padding:8px">Atividade atual</th>
+        <th style="text-align:left;padding:8px">Etapa</th>
+        <th style="text-align:left;padding:8px">Setor / cargo</th>
+        <th style="text-align:left;padding:8px">Origem</th>
         <th style="text-align:left;padding:8px">Responsável</th>
+        <th style="text-align:left;padding:8px">Decisão</th>
         <th></th>
       </tr></thead>
       <tbody>
         ${items.map(t => {
-          const corr = _isCorretor(t.cargo) || _isCorretor(t.funcao);
           const cargo = t.cargo || t.funcao || '';
-          const sub = [t.contato, t.instagram, t.creci ? 'CRECI ' + t.creci : ''].filter(Boolean).join(' · ');
+          const ig = igLink(t.instagram), wa = waLink(t.contato), cv = t.curriculo_url;
+          const sub = [t.contato, t.creci ? 'CRECI ' + t.creci : ''].filter(Boolean).join(' · ');
+          const et = t.etapa || 'Triagem';
           return `
           <tr style="border-bottom:1px solid var(--bd)">
             <td style="padding:8px"><div style="font-weight:700">${esc(t.nome)}${t.origem === 'rd' ? ' <span class="tiny" style="color:#16a34a">🟢RD</span>' : ''}</div>${sub ? `<div class="tiny muted">${esc(sub)}</div>` : ''}</td>
-            <td style="padding:8px">${chip(t.setor, '#2563eb') || '—'}</td>
-            <td style="padding:8px">${esc(cargo) || '—'}</td>
-            <td style="padding:8px">${corr ? (chip(t.categoria, '#d6249f') || '<span class="tiny muted">—</span>') : '<span class="tiny muted">·</span>'}</td>
-            <td style="padding:8px">${chip(t.atividade_atual, '#b45309') || '—'}</td>
+            <td style="padding:8px">${chip(et, ETAPA_COR[et] || '#64748b')}</td>
+            <td style="padding:8px">${esc(cargo) || '—'}${t.setor ? `<div class="tiny muted">${esc(t.setor)}</div>` : ''}</td>
+            <td style="padding:8px">${chip(t.canal, '#7c3aed') || '—'}</td>
             <td style="padding:8px">${esc(t.responsavel || '—')}</td>
+            <td style="padding:8px">${chip(t.decisao || 'Em andamento', t.decisao === 'Aprovado' ? '#16a34a' : t.decisao === 'Reprovado' ? '#dc2626' : '#64748b')}</td>
             <td style="padding:8px;text-align:right;white-space:nowrap">
-              <button class="btn btn-ghost btn-sm" data-edit-tal="${t.id}">✏️</button>
+              ${ig ? `<a class="btn btn-ghost btn-sm" href="${ig}" target="_blank" rel="noopener" title="Instagram">📷</a>` : ''}
+              ${wa ? `<a class="btn btn-ghost btn-sm" href="${wa}" target="_blank" rel="noopener" title="WhatsApp">💬</a>` : ''}
+              ${cv ? `<a class="btn btn-ghost btn-sm" href="${esc(cv)}" target="_blank" rel="noopener" title="Currículo">📄</a>` : ''}
+              <button class="btn btn-ghost btn-sm" data-open="${t.id}">✏️ Abrir</button>
               <button class="btn btn-ghost btn-sm" data-del-tal="${t.id}">🗑️</button>
             </td>
           </tr>`;
@@ -312,44 +379,207 @@ function renderManualList(items) {
   `;
 }
 
-function bindManualActions() {
-  document.querySelectorAll('[data-edit-tal]').forEach(b => b.addEventListener('click', () => {
-    _editing = _talentos.find(x => x.id === b.dataset.editTal);
-    renderManual();
+function bindView() {
+  document.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', () => {
+    _editing = _talentos.find(x => x.id === el.dataset.open) || null;
+    if (_editing) renderManual();
   }));
-  document.querySelectorAll('[data-del-tal]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Remover talento?')) return;
-    try {
-      await api.request('/api/v3/gp/talentos?id=' + encodeURIComponent(b.dataset.delTal), { method: 'DELETE' });
-      loadManual();
-    } catch (e) { alert('Erro: ' + e.message); }
+  document.querySelectorAll('.tal-move').forEach(s => s.addEventListener('change', () => moverEtapa(s.dataset.id, s.value)));
+  document.querySelectorAll('[data-del-tal]').forEach(b => b.addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    if (!confirm('Remover candidato?')) return;
+    try { await api.request('/api/v3/gp/talentos?id=' + encodeURIComponent(b.dataset.delTal), { method: 'DELETE' }); loadManual(); }
+    catch (e) { alert('Erro: ' + e.message); }
   }));
 }
 
-async function saveManual() {
+async function moverEtapa(id, etapa) {
+  try {
+    await api.request('/api/v3/gp/talentos', { method: 'POST', body: { action: 'mover', id, etapa } });
+    const t = _talentos.find(x => x.id === id); if (t) t.etapa = etapa;
+    drawView();
+    const fn = document.getElementById('tal-funnel'); if (fn) fn.outerHTML = funnelHTML();
+  } catch (e) { alert('Erro ao mover: ' + e.message); loadManual(); }
+}
+
+/* ─────────────────── Ficha do candidato ─────────────────── */
+const fInput = (id, lbl, val, ph = '', type = 'text') => `<label class="tiny muted">${lbl}<input id="${id}" class="input" type="${type}" placeholder="${esc(ph)}" value="${esc(val ?? '')}"></label>`;
+const fArea = (id, lbl, val, ph = '', rows = 2) => `<label class="tiny muted" style="display:block">${lbl}<textarea id="${id}" class="input" rows="${rows}" placeholder="${esc(ph)}">${esc(val ?? '')}</textarea></label>`;
+const fSel = (id, lbl, val, opts, blank = '—') => `<label class="tiny muted">${lbl}<select id="${id}" class="select"><option value="">${blank}</option>${opts.map(o => optTag(o, val)).join('')}</select></label>`;
+const sec = (titulo, html) => `<div style="margin-top:12px;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg-2)"><div style="font-weight:800;font-size:12.5px;margin-bottom:8px">${titulo}</div>${html}</div>`;
+const grid = html => `<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(185px, 1fr));gap:8px">${html}</div>`;
+
+function renderDetail(e) {
+  const userOpts = `<option value="">—</option>` + _users.map(u => optTag(u.name || u.id, e.responsavel)).join('');
+  const showCorr = _isCorretor(e.cargo || e.funcao);
+  const ig = igLink(e.instagram), wa = waLink(e.contato), cv = e.curriculo_url, ln = e.linkedin;
+  const av = Array.isArray(e.avaliacoes) ? e.avaliacoes : [];
+  const hist = Array.isArray(e.historico) ? e.historico : [];
+  const ap = av.filter(a => /aprov/i.test(a.voto || '')).length;
+  const rp = av.filter(a => /reprov/i.test(a.voto || '')).length;
+  const sb = av.filter(a => /standby/i.test(a.voto || '')).length;
+  return `
+    <div class="flex items-center gap-2 mb-2" style="flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" id="det-back">← Voltar ao pipeline</button>
+      <div style="font-weight:800;font-size:15px">${e.id ? '👤 ' + esc(e.nome || 'Candidato') : '➕ Novo candidato'}</div>
+      <div style="margin-left:auto;display:flex;gap:4px">
+        ${ig ? `<a class="btn btn-ghost btn-sm" href="${ig}" target="_blank" rel="noopener" title="Instagram">📷 IG</a>` : ''}
+        ${wa ? `<a class="btn btn-ghost btn-sm" href="${wa}" target="_blank" rel="noopener" title="WhatsApp">💬 Zap</a>` : ''}
+        ${ln ? `<a class="btn btn-ghost btn-sm" href="${esc(ln)}" target="_blank" rel="noopener" title="LinkedIn">in</a>` : ''}
+        ${cv ? `<a class="btn btn-ghost btn-sm" href="${esc(cv)}" target="_blank" rel="noopener" title="Currículo">📄 CV</a>` : ''}
+      </div>
+    </div>
+
+    ${sec('🪪 Identificação & vaga', grid(`
+      ${fInput('tal-nome', 'Nome completo *', e.nome)}
+      ${fInput('tal-contato', 'Contato (WhatsApp/tel)', e.contato)}
+      ${fInput('tal-email', 'E-mail', e.email, 'email@…')}
+      ${fInput('tal-instagram', 'Instagram', e.instagram, '@perfil')}
+      ${fInput('tal-linkedin', 'LinkedIn (URL)', e.linkedin, 'https://linkedin.com/in/…')}
+      ${fSel('tal-responsavel', 'Responsável (recrutador)', e.responsavel, _users.map(u => u.name || u.id))}
+      ${fSel('tal-canal', 'Origem (canal)', e.canal, CANAIS)}
+      ${fInput('tal-depto', 'Departamento solicitante', e.departamento_solicitante, 'ex.: Comercial Conquista')}
+      ${fInput('tal-vaga', 'Vaga / posição', e.vaga, 'ex.: Corretor Conquista')}
+      ${fSel('tal-setor', 'Setor', e.setor, SETORES)}
+      <label class="tiny muted">Cargo<input id="tal-cargo" class="input" list="tal-cargos" placeholder="ex.: Corretor, Secretária de Vendas" value="${esc(e.cargo || e.funcao || '')}"><datalist id="tal-cargos">${_allCargos.map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
+      ${fSel('tal-atividade', 'Atividade atual', e.atividade_atual, ATIVIDADES)}
+      ${fInput('tal-pretensao', 'Pretensão salarial', e.pretensao, 'R$ …')}
+      ${fInput('tal-disponibilidade', 'Disponibilidade', e.disponibilidade, 'imediata / 30 dias…')}
+      ${fSel('tal-score', 'Score (estrelas)', String(e.score || ''), ['1', '2', '3', '4', '5'])}
+      ${fSel('tal-etapa', 'Etapa do pipeline', e.etapa || 'Triagem', ETAPAS, 'Triagem')}
+      ${fSel('tal-decisao', 'Decisão', e.decisao || 'Em andamento', DECISOES, 'Em andamento')}
+    `) + `
+      <div id="tal-corretor" style="display:${showCorr ? 'grid' : 'none'};grid-template-columns:repeat(auto-fit, minmax(185px, 1fr));gap:8px;margin-top:8px;padding:8px;border:1px dashed var(--bd);border-radius:8px;background:rgba(214,36,159,.05)">
+        <label class="tiny muted" style="grid-column:1/-1;font-weight:700;color:#d6249f">🏠 Corretor — classificação</label>
+        ${fSel('tal-categoria', 'Categoria', e.categoria, CATEGORIAS)}
+        ${fInput('tal-creci', 'CRECI', e.creci, 'CRECI (se tiver)')}
+      </div>`)}
+
+    ${sec('📄 Currículo, requisitos & experiência', `
+      <label class="tiny muted" style="display:block">Currículo (link Google Drive)
+        <div style="display:flex;gap:6px"><input id="tal-cv" class="input" placeholder="cole o link compartilhável do Drive" value="${esc(e.curriculo_url || '')}" style="flex:1">${cv ? `<a class="btn btn-ghost" href="${esc(cv)}" target="_blank" rel="noopener">Abrir</a>` : ''}</div>
+      </label>
+      ${fArea('tal-requisitos', 'Requisitos de contratação (o que a vaga exige)', e.requisitos, 'CRECI ativo, CNH, experiência mínima, metas…', 2)}
+      ${fArea('tal-experiencia', 'Experiência', e.experiencia, 'Tempo de mercado, onde trabalhou, resultados…', 2)}
+    `)}
+
+    ${sec('🗣 Entrevista & perfil comportamental', `
+      ${fArea('tal-feedback', 'Feedback da entrevista', e.feedback_entrevista, 'Como foi, pontos fortes, atenção, fit cultural…', 3)}
+      ${fArea('tal-perfil', 'Perfil comportamental (após entrevista)', e.perfil_comportamental, `DISC: ${DISC.join(' · ')} — descreva o perfil, âncoras, motivadores…`, 2)}
+    `)}
+
+    ${sec('⚖️ Due diligence — análise jurídica & comercial', grid(`
+      ${fInput('tal-cpf', 'CPF', e.cpf, '000.000.000-00')}
+      ${fInput('tal-cnd', 'CNDs (situação)', e.cnd, 'federal/estadual/trabalhista…')}
+    `) + `
+      ${fArea('tal-referencias', 'Referências (profissionais/comerciais)', e.referencias, 'Quem indicou, contatos, retorno das referências…', 2)}
+      ${fArea('tal-processos', 'Processos (tipos / situação)', e.processos, 'Trabalhistas, cíveis, criminais — números e status…', 2)}
+      ${fArea('tal-antecedentes', 'Antecedentes criminais', e.antecedentes, 'Resultado da consulta de antecedentes…', 2)}
+      ${fArea('tal-juridica', 'Parecer jurídico', e.analise_juridica, 'Análise do jurídico sobre risco/impedimentos…', 2)}
+      ${fArea('tal-comercial', 'Parecer comercial', e.analise_comercial, 'Análise comercial: reputação no mercado, carteira, conflitos…', 2)}
+      ${fArea('tal-impeditivos', '⛔ Impeditivos de contratação', e.impeditivos, 'Algo que impede a contratação? (cláusula, processo, conflito…)', 2)}
+    `)}
+
+    ${e.id ? sec(`🗳 Avaliação interna (RH · sócios · departamento) — ${ap}✓ ${rp}✕ ${sb}⏸`, `
+      ${av.length ? `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">${av.map(a => `
+        <div style="border:1px solid var(--bd);border-radius:8px;padding:7px;background:var(--bg-3)">
+          <div style="display:flex;gap:6px;align-items:center;font-size:12px"><b>${esc(a.by_nome || '—')}</b>${a.papel ? `<span class="tiny muted">${esc(a.papel)}</span>` : ''}
+            <span style="margin-left:auto">${chip(a.voto || '—', /aprov/i.test(a.voto || '') ? '#16a34a' : /reprov/i.test(a.voto || '') ? '#dc2626' : '#64748b')}</span>
+            ${a.nota ? `<span class="tiny" style="color:#f59e0b">${stars(a.nota)}</span>` : ''}</div>
+          ${a.texto ? `<div class="tiny" style="margin-top:4px">${esc(a.texto)}</div>` : ''}
+          <div class="tiny muted" style="margin-top:3px">${a.at ? new Date(a.at).toLocaleString('pt-BR') : ''}</div>
+        </div>`).join('')}</div>` : '<div class="tiny muted" style="margin-bottom:8px">Sem pareceres ainda — registre o seu abaixo.</div>'}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:8px;align-items:end">
+        ${fSel('av-voto', 'Seu voto', '', VOTOS, 'escolha…')}
+        ${fSel('av-nota', 'Nota (1-5)', '', ['1', '2', '3', '4', '5'])}
+      </div>
+      ${fArea('av-texto', 'Parecer', '', 'Sua justificativa / recomendação…', 2)}
+      <button class="btn btn-primary btn-sm mt-2" id="av-add">＋ Registrar meu parecer</button>
+    `) : ''}
+
+    ${hist.length ? sec('🕓 Histórico de etapas', `<div class="tiny muted">${hist.slice().reverse().map(h => `${h.at ? new Date(h.at).toLocaleDateString('pt-BR') : ''}: ${esc(h.de || '—')} → <b>${esc(h.para || '')}</b> (${esc(h.by || '')})`).join('<br>')}</div>`) : ''}
+
+    ${sec('📝 Observações', fArea('tal-cenario', '', e.cenario, 'Cenário, disponibilidade, prazo, notas livres…', 2) + fInput('tal-status', 'Status livre (legado)', e.status, 'em análise, aprovado…'))}
+
+    <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
+      <button class="btn btn-primary" id="tal-save">${e.id ? '💾 Salvar ficha' : '➕ Criar candidato'}</button>
+      ${e.id ? '<button class="btn btn-ghost" id="tal-contratar" title="Mover p/ Contratado + aprovar">✅ Contratar → Onboarding</button>' : ''}
+      <button class="btn btn-ghost" id="tal-cancel">Cancelar</button>
+      ${e.id ? '<button class="btn btn-ghost" id="tal-del" style="margin-left:auto;color:#dc2626">🗑️ Excluir</button>' : ''}
+    </div>
+  `;
+}
+
+function bindDetail() {
+  const cargoEl = document.getElementById('tal-cargo'), corrEl = document.getElementById('tal-corretor');
+  if (cargoEl) cargoEl.addEventListener('input', () => { if (corrEl) corrEl.style.display = _isCorretor(cargoEl.value) ? 'grid' : 'none'; });
+  const setorEl = document.getElementById('tal-setor');
+  if (setorEl) {
+    const apply = () => { const dl = document.getElementById('tal-cargos'); if (dl) dl.innerHTML = (CARGOS[setorEl.value] || _allCargos).map(c => `<option value="${esc(c)}">`).join(''); };
+    setorEl.addEventListener('change', apply); apply();
+  }
+  document.getElementById('det-back').addEventListener('click', () => { _editing = null; renderManual(); });
+  document.getElementById('tal-cancel').addEventListener('click', () => { _editing = null; renderManual(); });
+  document.getElementById('tal-save').addEventListener('click', () => saveDetail(false));
+  const cont = document.getElementById('tal-contratar');
+  if (cont) cont.addEventListener('click', () => saveDetail(true));
+  const del = document.getElementById('tal-del');
+  if (del) del.addEventListener('click', async () => {
+    if (!confirm('Excluir candidato?')) return;
+    try { await api.request('/api/v3/gp/talentos?id=' + encodeURIComponent(_editing.id), { method: 'DELETE' }); _editing = null; await loadManual(); }
+    catch (e) { alert('Erro: ' + e.message); }
+  });
+  const avAdd = document.getElementById('av-add');
+  if (avAdd) avAdd.addEventListener('click', addAvaliacao);
+}
+
+function captureDetail() {
   const g = id => (document.getElementById(id)?.value || '').trim();
   const cargo = g('tal-cargo');
   const corr = _isCorretor(cargo);
-  const payload = {
-    id: _editing?.id,
-    nome: g('tal-nome'),
-    contato: g('tal-contato'),
-    instagram: g('tal-instagram'),
-    responsavel: g('tal-responsavel'),
-    setor: g('tal-setor'),
-    cargo, funcao: cargo,              // mantém 'funcao' espelhado p/ compatibilidade
-    categoria: corr ? g('tal-categoria') : '',
-    creci: corr ? g('tal-creci') : '',
-    atividade_atual: g('tal-atividade'),
-    experiencia: g('tal-experiencia'),
-    status: g('tal-status'),
-    cenario: g('tal-cenario'),
-    origem: _editing?.origem || 'manual',
-  };
-  if (!payload.nome) { alert('Nome obrigatório'); return; }
+  Object.assign(_editing, {
+    nome: g('tal-nome'), contato: g('tal-contato'), email: g('tal-email'),
+    instagram: g('tal-instagram'), linkedin: g('tal-linkedin'),
+    responsavel: g('tal-responsavel'), canal: g('tal-canal'),
+    departamento_solicitante: g('tal-depto'), vaga: g('tal-vaga'),
+    setor: g('tal-setor'), cargo, funcao: cargo,
+    categoria: corr ? g('tal-categoria') : '', creci: corr ? g('tal-creci') : '',
+    atividade_atual: g('tal-atividade'), pretensao: g('tal-pretensao'),
+    disponibilidade: g('tal-disponibilidade'), score: g('tal-score'),
+    etapa: g('tal-etapa') || 'Triagem', decisao: g('tal-decisao') || 'Em andamento',
+    curriculo_url: g('tal-cv'), requisitos: g('tal-requisitos'), experiencia: g('tal-experiencia'),
+    feedback_entrevista: g('tal-feedback'), perfil_comportamental: g('tal-perfil'),
+    cpf: g('tal-cpf'), cnd: g('tal-cnd'), referencias: g('tal-referencias'),
+    processos: g('tal-processos'), antecedentes: g('tal-antecedentes'),
+    analise_juridica: g('tal-juridica'), analise_comercial: g('tal-comercial'),
+    impeditivos: g('tal-impeditivos'), cenario: g('tal-cenario'), status: g('tal-status'),
+  });
+}
+
+async function saveDetail(contratar) {
+  captureDetail();
+  if (!_editing.nome) { alert('Nome obrigatório'); return; }
+  if (contratar) { _editing.etapa = 'Contratado'; _editing.decisao = 'Aprovado'; }
+  const payload = { ...(_editing.id ? { id: _editing.id } : {}), ..._editing, origem: _editing.origem || 'manual' };
+  delete payload.avaliacoes; delete payload.historico;   // gerenciados pelo backend
   try {
     await api.request('/api/v3/gp/talentos', { method: 'POST', body: payload });
     _editing = null;
     await loadManual();
+    if (contratar) alert('✅ Candidato movido para "Contratado". Registre o onboarding na aba RH → Onboarding.');
   } catch (e) { alert('Erro: ' + e.message); }
+}
+
+async function addAvaliacao() {
+  const voto = document.getElementById('av-voto')?.value || '';
+  const nota = document.getElementById('av-nota')?.value || '';
+  const texto = (document.getElementById('av-texto')?.value || '').trim();
+  if (!voto && !texto) { alert('Escolha um voto ou escreva um parecer.'); return; }
+  captureDetail();   // preserva edições não salvas da ficha
+  try {
+    const r = await api.request('/api/v3/gp/talentos', { method: 'POST', body: { action: 'avaliar', id: _editing.id, voto, nota: parseInt(nota) || 0, texto } });
+    _editing.avaliacoes = r.avaliacoes || _editing.avaliacoes || [];
+    const t = _talentos.find(x => x.id === _editing.id); if (t) t.avaliacoes = _editing.avaliacoes;
+    renderManual();
+  } catch (e) { alert('Erro ao avaliar: ' + e.message); }
 }
