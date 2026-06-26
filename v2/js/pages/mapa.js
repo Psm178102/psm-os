@@ -1,6 +1,7 @@
 /* PSM-OS v2 — Mapa de Imóveis (Sprint 8.8 + 9.3 Google Earth) */
 import { api } from '../api.js';
-import { getLinks, saveLinks, canEditLinks, promptLink } from '../links.js';
+import { getLinks, saveLinks, canEditLinks, promptLink, getResourcePerms, canSeeResource, openResourcePermsModal } from '../links.js';
+import { auth } from '../auth.js';
 
 let _root = null;
 let _items = [];
@@ -248,6 +249,14 @@ async function editMyMaps() {
 async function render() {
   let earthUrl = DEFAULT_EARTH, myMaps = '', conquista = '', gkey = '';
   try { const links = await getLinks(); earthUrl = links.mapa_earth || DEFAULT_EARTH; myMaps = links.mapa_mymaps || ''; conquista = links.mapa_conquista || ''; gkey = links.google_maps_key || ''; } catch (_) {}
+  // visibilidade por papel: quem vê MAP × quem vê Conquista (sócio sempre vê + administra). v81.81
+  const perms = await getResourcePerms().catch(() => ({}));
+  const isSocio = (auth.user()?.lvl || 0) >= 10;
+  const canMap = canSeeResource('mapa_map', perms);
+  const canConq = canSeeResource('mapa_conquista', perms);
+  if (_fonte === 'conquista' && !canConq) _fonte = 'map';
+  if (_fonte === 'map' && !canMap) _fonte = canConq ? 'conquista' : 'map';
+  const semAcesso = !canMap && !canConq;
   const isConq = _fonte === 'conquista';
   const nomeFonte = isConq ? 'PSM Conquista' : 'MAP';
   // link da fonte ativa (Conquista usa só o My Maps da Conquista; MAP cai pro Earth como fallback de embed)
@@ -255,8 +264,9 @@ async function render() {
   const embedSrc = isEmbeddable(fonteUrl) ? toEmbed(fonteUrl) : (!isConq && isEmbeddable(earthUrl) ? toEmbed(earthUrl) : null);
   const useGoogle = !!gkey;
   const semFonte = !fonteUrl;   // a fonte ativa ainda não tem My Maps configurado
-  // seletor MAP | PSM Conquista
-  const seg = (f, ico, lbl) => `<button class="btn ${_fonte === f ? 'btn-primary' : 'btn-ghost'} btn-sm" data-fonte="${f}">${ico} ${lbl}</button>`;
+  // seletor MAP | PSM Conquista — só as fontes que o usuário pode ver; sócio tem o 👁 (quem vê)
+  const seg = (f, ico, lbl, can) => can ? `<button class="btn ${_fonte === f ? 'btn-primary' : 'btn-ghost'} btn-sm" data-fonte="${f}">${ico} ${lbl}</button>` : '';
+  const adm = (key) => isSocio ? `<button class="btn btn-ghost btn-sm" data-perm="${key}" title="Administrar quem vê esta fonte" style="padding:4px 9px">👁</button>` : '';
   _root.innerHTML = `
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
@@ -272,12 +282,13 @@ async function render() {
         </div>
       </div>
 
-      <!-- Seletor das duas fontes de empreendimentos -->
+      <!-- Seletor das duas fontes de empreendimentos (gated por papel) -->
       <div class="flex gap-2" style="margin-top:12px;flex-wrap:wrap;align-items:center">
-        ${seg('map', '🗺️', 'MAP')}
-        ${seg('conquista', '🏘️', 'PSM Conquista')}
-        <span class="tiny muted" style="margin-left:auto">Mostrando: <b>${esc(nomeFonte)}</b></span>
+        ${seg('map', '🗺️', 'MAP', canMap)}${adm('mapa_map')}
+        ${seg('conquista', '🏘️', 'PSM Conquista', canConq)}${adm('mapa_conquista')}
+        ${semAcesso ? '' : `<span class="tiny muted" style="margin-left:auto">Mostrando: <b>${esc(nomeFonte)}</b></span>`}
       </div>
+      ${semAcesso ? '<div class="alert alert-warn mt-3" style="font-size:13px">Você ainda não tem acesso a nenhum mapa de empreendimentos. Fale com o sócio.</div>' : ''}
 
       ${useGoogle ? `
       <!-- GOOGLE MAPS satélite (híbrido) + pins NATIVOS (cor + nome) da fonte ativa -->
@@ -296,9 +307,13 @@ async function render() {
     if (b.dataset.fonte === _fonte) return;
     _fonte = b.dataset.fonte; render();
   }));
+  _root.querySelectorAll('[data-perm]').forEach(b => b.addEventListener('click', () =>
+    openResourcePermsModal(b.dataset.perm, b.dataset.perm === 'mapa_conquista' ? 'Mapa PSM Conquista' : 'Mapa MAP', () => render())));
   const gk = document.getElementById('map-gkey'); if (gk) gk.addEventListener('click', editGmapsKey);
   const mm = document.getElementById('map-mymaps-edit'); if (mm) mm.addEventListener('click', editMyMaps);
-  if (useGoogle && semFonte) {
+  if (semAcesso) {
+    // nenhuma fonte liberada pra este papel — não renderiza mapa
+  } else if (useGoogle && semFonte) {
     // Fonte ainda sem My Maps: placeholder claro DENTRO da área do mapa (em vez de
     // satélite vazio/cinza ou quadrado branco). Os pins entram quando colar o My Maps.
     const g = document.getElementById('gmap');

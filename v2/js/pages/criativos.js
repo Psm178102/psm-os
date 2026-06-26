@@ -11,6 +11,12 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { getAdsLibrary, saveAdsLink, deleteAdsLink, getResourcePerms, canSeeResource, openResourcePermsModal } from '../links.js';
+
+// Bibliotecas de Anúncios do Meta (Ad Library) — uma "conta"/categoria por bloco,
+// vários links cada. Visibilidade por papel via resource_perms 'ads_<cat>'. v81.81
+const ADS_CATS = [['conquista', '🏠 Conquista'], ['map', '🗺️ MAP'], ['locacao', '🔑 Locação'], ['terceiros', '🤝 Terceiros']];
+let _adsLib = {}, _adsPerms = {};
 
 let _root = null;
 let _tab = 'solicitacoes';
@@ -552,11 +558,66 @@ export async function pageAnunciosPSM(ctx, root) {
 async function loadAnuncios() {
   body().innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando anúncios…</div></div>';
   try {
-    const r = await api.request('/api/v3/paulo/cards?board=' + _boardAnuncios);
+    const [r, al, rp] = await Promise.all([
+      api.request('/api/v3/paulo/cards?board=' + _boardAnuncios),
+      getAdsLibrary(true).catch(() => ({})),
+      getResourcePerms(true).catch(() => ({})),
+    ]);
     if (r && r.pending) { body().innerHTML = `<div class="alert alert-err">Tabela ainda não criada.</div>`; return; }
     _anuncios = (r && r.cards) || [];
+    _adsLib = al || {}; _adsPerms = rp || {};
   } catch (e) { body().innerHTML = `<div class="alert alert-err">Erro: ${esc(e.message)}</div>`; return; }
   renderAnuncios();
+}
+
+// ── Seção: Bibliotecas de Anúncios do Meta (links por conta/categoria) ──────────
+function adLibsSection() {
+  const u = auth.user() || {};
+  const isSocio = (u.lvl || 0) >= 10;
+  const podeEditar = (u.lvl || 0) >= 3;   // marketing+ cura os links
+  const visiveis = ADS_CATS.filter(([k]) => canSeeResource('ads_' + k, _adsPerms, u));
+  if (!visiveis.length && !isSocio) return '';   // nada pra mostrar a este papel
+  const cats = isSocio ? ADS_CATS : visiveis;    // sócio vê todas (e administra)
+  return `
+    <div class="card" style="margin-bottom:16px">
+      <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div>
+          <div style="font-size:16px;font-weight:800">📚 Bibliotecas de Anúncios do Meta</div>
+          <div class="tiny muted">Veja o que cada conta está anunciando no Facebook/Instagram (Ad Library).${podeEditar ? ' Adicione quantos links quiser por conta.' : ''}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">
+        ${cats.map(([k, lbl]) => {
+          const links = _adsLib[k] || [];
+          const oculto = !canSeeResource('ads_' + k, _adsPerms, u);   // sócio vê, mas marca
+          return `<div style="border:1px solid var(--border,#e2e8f0);border-radius:10px;padding:12px;background:var(--bg-2)">
+            <div class="flex items-center" style="justify-content:space-between;gap:6px;margin-bottom:8px">
+              <div style="font-weight:800;font-size:13px">${lbl}${oculto ? ' <span class="tiny" style="color:#b45309">(oculto)</span>' : ''}</div>
+              ${isSocio ? `<button class="btn btn-ghost btn-sm adl-perm" data-cat="${k}" data-lbl="${esc(lbl)}" title="Quem vê esta conta" style="padding:2px 7px">👁</button>` : ''}
+            </div>
+            ${links.length ? links.map(l => `<div class="flex items-center" style="gap:4px;margin-bottom:6px">
+              <a href="${esc(l.url)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="flex:1;justify-content:flex-start;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📣 ${esc(l.titulo)}</a>
+              ${podeEditar ? `<button class="adl-edit" data-cat="${k}" data-id="${esc(l.id)}" title="Editar" style="background:none;border:none;cursor:pointer;font-size:12px">✏️</button><button class="adl-del" data-cat="${k}" data-id="${esc(l.id)}" title="Remover" style="background:none;border:none;cursor:pointer;font-size:12px">🗑️</button>` : ''}
+            </div>`).join('') : '<div class="tiny muted" style="padding:4px 0 8px">— sem links —</div>'}
+            ${podeEditar ? `<button class="btn btn-ghost btn-sm adl-add" data-cat="${k}" style="width:100%;margin-top:2px;border-style:dashed">+ Link</button>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+async function adlAddEdit(cat, id) {
+  const existing = id ? (_adsLib[cat] || []).find(l => l.id === id) : null;
+  const titulo = prompt('Nome do link (ex.: "Conquista — página principal"):', existing ? existing.titulo : '');
+  if (titulo === null) return;
+  const url = prompt('Cole o link da Biblioteca de Anúncios do Meta\n(facebook.com/ads/library/...):', existing ? existing.url : '');
+  if (url === null || !url.trim()) return;
+  try { _adsLib = await saveAdsLink(cat, { id: id || undefined, titulo: titulo.trim(), url: url.trim() }); renderAnuncios(); }
+  catch (e) { alert('Erro: ' + e.message); }
+}
+async function adlDel(cat, id) {
+  if (!confirm('Remover este link?')) return;
+  try { _adsLib = await deleteAdsLink(cat, id); renderAnuncios(); } catch (e) { alert('Erro: ' + e.message); }
 }
 
 function anFiltered() {
@@ -574,9 +635,10 @@ function renderAnuncios() {
   if (!cats.includes(_anCat)) _anCat = cats[0];
   const list = anFiltered();
   body().innerHTML = `
+    ${adLibsSection()}
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div>
-        <div style="font-size:20px;font-weight:800">📣 Biblioteca de Anúncios</div>
+        <div style="font-size:20px;font-weight:800">📣 Anúncios da PSM (criativo + copy)</div>
         <div class="tiny muted">Os anúncios que a PSM está rodando — veja o criativo e copie a copy.${_canEdit ? ' Cadastre novos pelo botão.' : ''}</div>
       </div>
       ${_canEdit ? `<button class="btn btn-primary" id="an-new">+ Novo anúncio</button>` : ''}
@@ -621,6 +683,11 @@ function anCard(c) {
 }
 
 function bindAnuncios() {
+  // Bibliotecas do Meta (links por conta) — add/editar/remover + quem vê (sócio)
+  body().querySelectorAll('.adl-add').forEach(b => b.onclick = () => adlAddEdit(b.dataset.cat, null));
+  body().querySelectorAll('.adl-edit').forEach(b => b.onclick = () => adlAddEdit(b.dataset.cat, b.dataset.id));
+  body().querySelectorAll('.adl-del').forEach(b => b.onclick = () => adlDel(b.dataset.cat, b.dataset.id));
+  body().querySelectorAll('.adl-perm').forEach(b => b.onclick = () => openResourcePermsModal('ads_' + b.dataset.cat, 'Anúncios — ' + (b.dataset.lbl || b.dataset.cat), () => loadAnuncios()));
   body().querySelectorAll('[data-ancat]').forEach(b => b.onclick = () => { _anCat = b.dataset.ancat; renderAnuncios(); });
   const fs = body().querySelector('#an-fstatus'); if (fs) fs.onchange = () => { _fAnStatus = fs.value; renderAnuncios(); };
   const nw = body().querySelector('#an-new'); if (nw) nw.onclick = () => openAnEditor(null);
