@@ -34,10 +34,22 @@ def _supabase_client():
         return None
 
 
-def _list_users(sb):
-    """Lista usuários da tabela `users`."""
+def _hidden_from_pickers(u):
+    """Some das OPÇÕES/dropdowns do sistema quando o usuário está INATIVO **ou**
+    OCULTO (hide_from_ranking). Inativar OU ocultar OU excluir já tira a pessoa de
+    todo seletor (responsável, talentos, etc.). v81.86"""
+    inativo = (u.get("status") or "ativo") != "ativo"
+    return inativo or bool(u.get("hide_from_ranking"))
+
+
+def _list_users(sb, show_all=False):
+    """Lista usuários da tabela `users`. Por PADRÃO exclui inativos/ocultos (pra não
+    poluir dropdowns); passe show_all=True (?all=1) pra trazer todos. v81.86"""
     res = sb.table("users").select("*").order("name").execute()
-    return res.data or []
+    rows = res.data or []
+    if not show_all:
+        rows = [r for r in rows if not _hidden_from_pickers(r)]
+    return rows
 
 
 def _get_user(sb, user_id):
@@ -107,7 +119,8 @@ class handler(BaseHTTPRequestHandler):
                     return self._send_json(404, {"ok": False, "error": f"user not found: {user_id}"})
                 return self._send_json(200, {"ok": True, "user": u})
             else:
-                users = _list_users(sb)
+                show_all = (params.get("all", "") or "").lower() in ("1", "true", "yes")
+                users = _list_users(sb, show_all)
                 return self._send_json(200, {"ok": True, "count": len(users), "users": users})
         except Exception as e:
             return self._send_json(500, {"ok": False, "error": str(e)})

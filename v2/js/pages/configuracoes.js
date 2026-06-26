@@ -29,6 +29,7 @@ const SUBABA_REGISTRY = [
 ];
 let _resState = {};      // { key: Set(roles) }  — Set vazio = todos veem
 let _resCanEdit = false;
+let _homeRoutes = {};    // { papel: '/rota' } — tela inicial por papel (v81.86)
 
 // ── Editor de Permissões por papel (matriz editável pelo sócio) ──
 const PERM_GROUP_LBL = {
@@ -109,6 +110,8 @@ function render() {
 
       ${subAbasCard()}
 
+      ${homeRoutesCard()}
+
       ${conclusaoCard()}
 
       <div class="alert alert-warn mt-4">
@@ -126,6 +129,7 @@ function render() {
 
   initPermEditor();   // monta a matriz editável de permissões por papel
   initSubAbas();      // monta o painel central de visibilidade de sub-abas
+  initHomeRoutes();   // monta o editor de tela inicial por papel
   initConclEditor();  // monta o editor de campos de conclusão por atividade
 }
 
@@ -419,6 +423,72 @@ async function saveSubAbas() {
   } catch (e) {
     alert('Erro ao salvar: ' + e.message);
     if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar visibilidade'; }
+  }
+}
+
+// ── Tela inicial por papel (home_routes) — modo inicializador v81.86 ──
+function homeRoutesCard() {
+  return `
+    <div class="card mt-4" id="home-card" style="margin-top:14px">
+      <h3 class="card-title">🏠 Tela inicial por papel</h3>
+      <p class="card-sub">Em qual tela o sistema <b>abre</b> pra cada papel (modo inicializador). Padrão = <b>Dashboard inicial</b>. Ex.: corretor Conquista pode iniciar direto no <b>Meu Painel</b> ou <b>Cockpit</b> em vez do Dashboard. Vale só quando a pessoa entra na tela inicial (não atrapalha links diretos). O usuário precisa ter <b>permissão</b> de ver a tela escolhida — senão cai no padrão.</p>
+      <div id="home-editor"><div class="flex items-center gap-2 muted tiny" style="padding:10px 0"><span class="spinner"></span> Carregando…</div></div>
+    </div>`;
+}
+
+function _allRouteOpts(selected) {
+  const cat = (_permCatalog && _permCatalog.length) ? _permCatalog : buildPermCatalog();
+  let opts = `<option value=""${!selected ? ' selected' : ''}>🏠 Dashboard inicial (padrão)</option>`;
+  cat.forEach(g => {
+    opts += `<optgroup label="${escapeHtml(g.label)}">`;
+    g.items.forEach(it => {
+      const sel = selected === it.route ? ' selected' : '';
+      const lbl = ((it.icon ? it.icon + ' ' : '') + it.label).trim();
+      opts += `<option value="${escapeHtml(it.route)}"${sel}>${escapeHtml(lbl)}</option>`;
+    });
+    opts += `</optgroup>`;
+  });
+  if (selected && !cat.some(g => g.items.some(it => it.route === selected)))
+    opts += `<option value="${escapeHtml(selected)}" selected>${escapeHtml(selected)}</option>`;
+  return opts;
+}
+
+async function initHomeRoutes() {
+  const host = document.getElementById('home-editor');
+  if (!host) return;
+  const canEdit = (auth.user()?.lvl || 0) >= 10;
+  try { const r = await api.request('/api/v3/settings/home_routes'); _homeRoutes = (r && r.routes) || {}; } catch (_) { _homeRoutes = {}; }
+  const roles = [['socio', '👑 Sócio'], ...PERM_ROLES.map(r => [r[0], r[1]])];
+  host.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:8px 12px;align-items:center;max-width:580px">
+      ${roles.map(([role, lbl]) => `
+        <div style="font-size:13px;font-weight:600">${escapeHtml(lbl)}</div>
+        <select class="select" data-home-role="${role}" ${canEdit ? '' : 'disabled'}>${_allRouteOpts(_homeRoutes[role] || '')}</select>
+      `).join('')}
+    </div>
+    ${canEdit ? '<div class="flex gap-2" style="margin-top:10px"><button class="btn btn-primary" id="home-save">💾 Salvar tela inicial</button></div>' : '<div class="tiny muted">Só o sócio (lvl 10) edita.</div>'}
+  `;
+  const sv = host.querySelector('#home-save'); if (sv) sv.onclick = saveHomeRoutes;
+}
+
+async function saveHomeRoutes() {
+  const patch = {};
+  document.querySelectorAll('[data-home-role]').forEach(s => { patch[s.dataset.homeRole] = s.value || ''; });
+  const btn = document.getElementById('home-save');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ salvando…'; }
+  try {
+    await api.request('/api/v3/settings/home_routes', { method: 'POST', body: { routes: patch } });
+    // atualiza o cache local do próprio sócio (efeito imediato no próximo boot)
+    try {
+      Object.entries(patch).forEach(([role, route]) => {
+        if (route) localStorage.setItem('psm.v2.home.' + role, route);
+        else localStorage.removeItem('psm.v2.home.' + role);
+      });
+    } catch {}
+    if (btn) { btn.textContent = '✅ Salvo!'; setTimeout(() => { const b = document.getElementById('home-save'); if (b) { b.disabled = false; b.textContent = '💾 Salvar tela inicial'; } }, 1600); }
+  } catch (e) {
+    alert('Erro ao salvar: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar tela inicial'; }
   }
 }
 

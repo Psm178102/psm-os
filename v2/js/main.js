@@ -33,6 +33,7 @@ import { sounds } from './sounds.js';
 import { pageConfiguracoes } from './pages/configuracoes.js';
 import { pageLogins } from './pages/logins.js';
 import { pageConfigMenu } from './pages/config-menu.js';
+import { renderFuncoesTarefas } from './pages/perfil-funcoes.js';
 import { loadMenuLabels, loadMenuLayout, applyHeaderOverride } from './menu-labels.js';
 import { pageMarketing } from './pages/marketing.js';
 import { pageIA } from './pages/ia.js';
@@ -349,7 +350,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.85.0';
+const APP_VERSION = '81.86.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -577,6 +578,23 @@ const APP_VERSION = '81.85.0';
   router.register('/logins',    { render: async (ctx, root) => { setHeader('Logins e Senhas'); highlight('/logins'); await pageLogins(ctx, root); } });
   router.register('/qualidade', { render: async (ctx, root) => { setHeader('Qualidade dos Dados'); highlight('/qualidade'); await pageQualidade(ctx, root); } });
   router.register('*',          { render: page404 });
+
+  // 4.5) Tela inicial por PAPEL (sócio configura em Configurações → "Tela inicial por papel").
+  // Se o usuário abriu na landing padrão ('' ou '/'), redireciona pra rota do papel.
+  // Cache local p/ redirecionar instantâneo (sem flash); refresh async atualiza. v81.86
+  const _isLanding = () => { const h = (location.hash || '').replace(/^#/, ''); return h === '' || h === '/'; };
+  try {
+    const cached = localStorage.getItem('psm.v2.home.' + user.role);
+    if (_isLanding() && cached && cached !== '/' && canSee(cached, user)) location.hash = cached;
+  } catch {}
+  api.request('/api/v3/settings/home_routes').then(r => {
+    const home = ((r && r.routes) || {})[user.role] || '';
+    try {
+      if (home) localStorage.setItem('psm.v2.home.' + user.role, home);
+      else localStorage.removeItem('psm.v2.home.' + user.role);
+    } catch {}
+    if (_isLanding() && home && home !== '/' && canSee(home, user)) location.hash = home;
+  }).catch(() => {});
 
   // 5) Monta router
   router.mount(document.getElementById('route-mount') || document.getElementById('app-main'));
@@ -951,6 +969,26 @@ async function pageConta(ctx, root) {
   highlight('/conta');
   const user = auth.user();
   root.innerHTML = `
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px" id="conta-tabs">
+      <button class="btn btn-primary" data-conta-tab="conta">⚙️ Conta</button>
+      <button class="btn btn-ghost" data-conta-tab="funcoes">✅ Funções e Tarefas</button>
+    </div>
+    <div id="conta-body" data-funcoes-host></div>`;
+  const body = document.getElementById('conta-body');
+  const setTab = (t) => {
+    document.querySelectorAll('[data-conta-tab]').forEach(b =>
+      b.className = 'btn ' + (b.dataset.contaTab === t ? 'btn-primary' : 'btn-ghost'));
+    if (t === 'funcoes') renderFuncoesTarefas(body);
+    else renderContaInfo(body, user);
+  };
+  document.querySelectorAll('[data-conta-tab]').forEach(b =>
+    b.addEventListener('click', () => setTab(b.dataset.contaTab)));
+  const q = new URLSearchParams((location.hash.split('?')[1] || ''));
+  setTab(q.get('tab') === 'funcoes' ? 'funcoes' : 'conta');
+}
+
+function renderContaInfo(body, user) {
+  body.innerHTML = `
     <div class="card">
       <h2 class="card-title">⚙️ Minha conta</h2>
       <div class="field">
