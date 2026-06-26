@@ -73,8 +73,11 @@ async function saveNewTask() {
   const body = {
     titulo,
     descricao: (g('nt-desc')?.value || '').trim() || null,
+    observacoes: (g('nt-obs')?.value || '').trim() || null,
     prioridade: g('nt-prio')?.value || 'media',
     prazo: g('nt-prazo')?.value || null,
+    hora_inicio: g('nt-hini')?.value || null,
+    hora_fim: g('nt-hfim')?.value || null,
     responsavel: g('nt-resp')?.value || me.id,
     categoria: (g('nt-cat')?.value || '').trim() || null,
   };
@@ -151,14 +154,26 @@ function taskModalHTML() {
           </select>
         </div>
         <div style="flex:1">
-          <label class="tiny muted">Prazo</label>
+          <label class="tiny muted">Prazo (data)</label>
           <input id="nt-prazo" type="date" class="input" value="${escapeHtml((ed && ed.data) || '')}">
+        </div>
+      </div>
+      <div class="flex gap-2" style="margin-bottom:9px">
+        <div style="flex:1">
+          <label class="tiny muted">Hora início</label>
+          <input id="nt-hini" type="time" class="input" value="${escapeHtml((ed && ed.hora_inicio) || '')}">
+        </div>
+        <div style="flex:1">
+          <label class="tiny muted">Hora fim</label>
+          <input id="nt-hfim" type="time" class="input" value="${escapeHtml((ed && ed.hora_fim) || '')}">
         </div>
       </div>
       <label class="tiny muted">Categoria (opcional)</label>
       <input id="nt-cat" class="input" placeholder="Ex.: Vendas, Follow-up…" style="margin-bottom:9px" value="${escapeHtml((ed && ed.categoria) || '')}">
       <label class="tiny muted">Descrição (opcional)</label>
-      <textarea id="nt-desc" class="input" rows="3" placeholder="Detalhes da tarefa…" style="margin-bottom:6px">${escapeHtml((ed && (ed.descricao || ed.sub)) || '')}</textarea>
+      <textarea id="nt-desc" class="input" rows="3" placeholder="Detalhes da tarefa…" style="margin-bottom:9px">${escapeHtml((ed && (ed.descricao || ed.sub)) || '')}</textarea>
+      <label class="tiny muted">Observações / comentário</label>
+      <textarea id="nt-obs" class="input" rows="2" placeholder="Andamento, comentário, nota…" style="margin-bottom:6px">${escapeHtml((ed && ed.observacoes) || '')}</textarea>
       ${_taskMsg ? `<div class="tiny" style="margin-bottom:8px;color:${_taskMsg[0] === '⚠' ? '#dc2626' : '#64748b'}">${escapeHtml(_taskMsg)}</div>` : ''}
       <div class="flex gap-2" style="align-items:center;margin-top:4px">
         ${podeExcluir ? '<button class="btn btn-ghost" data-nt-delete="1" style="color:#dc2626">🗑️ Excluir</button>' : ''}

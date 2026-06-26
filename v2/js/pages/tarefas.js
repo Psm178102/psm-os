@@ -465,6 +465,16 @@ function openNewModal() {
           <input id="nt-cat" class="input" placeholder="ex: Operação">
         </div>
       </div>
+      <div class="flex gap-2" style="flex-wrap:wrap">
+        <div class="field" style="flex:1;min-width:140px">
+          <label>Hora início</label>
+          <input id="nt-hini" type="time" class="input">
+        </div>
+        <div class="field" style="flex:1;min-width:140px">
+          <label>Hora fim</label>
+          <input id="nt-hfim" type="time" class="input">
+        </div>
+      </div>
       <div id="nt-msg" class="mt-2"></div>
       <div class="flex gap-2 mt-3">
         <button class="btn btn-ghost" id="nt-cancel">Cancelar</button>
@@ -484,6 +494,8 @@ function openNewModal() {
         prioridade:  document.getElementById('nt-prior').value,
         inicio:      document.getElementById('nt-inicio').value || null,
         prazo:       document.getElementById('nt-prazo').value || null,
+        hora_inicio: document.getElementById('nt-hini').value || null,
+        hora_fim:    document.getElementById('nt-hfim').value || null,
         categoria:   document.getElementById('nt-cat').value.trim() || null,
       } });
       modal.style.display = 'none';

@@ -125,13 +125,19 @@ class handler(BaseHTTPRequestHandler):
             if not is_socio and not owner:
                 return self._send(403, {"ok": False, "error": "apenas Sócio ou responsável/criador pode editar"})
 
-            # Campos permitidos
+            # Campos permitidos. Sócio e CRIADOR editam tudo; o RESPONSÁVEL (que não
+            # criou) atualiza progresso/notas/horário e descrição (mas não redefine
+            # título/prioridade/atribuição). Antes o responsável só podia status/
+            # observacoes/categoria → ao comentar/editar dava "nada para atualizar". v81.88
             patch = {}
-            allowed_keys = ["titulo", "descricao", "status", "prioridade", "categoria",
-                            "responsavel", "prazo", "inicio", "observacoes"]
-            if not is_socio:
-                # Não-Sócio só pode mudar status/observacoes/categoria
-                allowed_keys = ["status", "observacoes", "categoria"]
+            FULL_KEYS = ["titulo", "descricao", "status", "prioridade", "categoria",
+                         "responsavel", "prazo", "inicio", "hora_inicio", "hora_fim", "observacoes"]
+            is_criador = cur.get("criado_por") == actor["id"]
+            if is_socio or is_criador:
+                allowed_keys = FULL_KEYS
+            else:  # responsável
+                allowed_keys = ["status", "observacoes", "descricao", "categoria",
+                                "hora_inicio", "hora_fim"]
             for k in allowed_keys:
                 if k in body and body[k] is not None:
                     patch[k] = body[k]
@@ -225,6 +231,8 @@ class handler(BaseHTTPRequestHandler):
                 "criado_em":   int(time.time() * 1000),
                 "inicio":      body.get("inicio") or None,
                 "prazo":       body.get("prazo") or None,
+                "hora_inicio": body.get("hora_inicio") or None,
+                "hora_fim":    body.get("hora_fim") or None,
                 "observacoes": body.get("observacoes") or None,
                 "historico":   [{
                     "ts": datetime.now(timezone.utc).isoformat(),

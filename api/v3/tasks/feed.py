@@ -77,9 +77,11 @@ class handler(BaseHTTPRequestHandler):
                               "sub": t.get("descricao"), "data": _d(t.get("prazo")), "status": st,
                               "prioridade": t.get("prioridade"), "origem": "Tarefa", "ico": "📋",
                               "link": "#/tarefas", "done": st in TAREFA_DONE,
-                              # campos p/ editar a tarefa direto no dashboard (v81.84)
+                              # campos p/ editar a tarefa direto no dashboard (v81.84 / horas v81.88)
                               "responsavel": t.get("responsavel"), "categoria": t.get("categoria"),
-                              "descricao": t.get("descricao"),
+                              "descricao": t.get("descricao"), "observacoes": t.get("observacoes"),
+                              "inicio": _d(t.get("inicio")), "hora_inicio": t.get("hora_inicio"),
+                              "hora_fim": t.get("hora_fim"),
                               "quem": umap.get(t.get("responsavel")) or (user.get("name") if t.get("responsavel") == uid else "—")})
             # produtividade = concluídas ÷ solicitadas (tarefas atribuídas a mim; canceladas fora)
             mine = [t for t in rows if t.get("responsavel") == uid and (t.get("status") or "") != "cancelada"]
