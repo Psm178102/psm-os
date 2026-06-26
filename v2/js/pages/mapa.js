@@ -403,8 +403,15 @@ async function initGoogleMap(key) {
   // tile → satélite cinza com só os vetores. Dois resizes (350ms e 1200ms) cobrem o
   // layout lento e forçam o download dos tiles do satélite. v81.78
   const _applyView = () => { try { if (!bounds.isEmpty()) map.fitBounds(bounds, 40); else { map.setCenter({ lat: RP_LAT, lng: RP_LNG }); map.setZoom(12); } } catch (_) {} };
+  // "Acorda" o mapa pra reposicionar os tiles do satélite. O resize precoce (v81.78)
+  // não bastava — os tiles carregam DEPOIS e ficavam posicionados pro viewport errado
+  // (satélite cinza com só os pins). Agora disparamos também QUANDO os tiles terminam
+  // ('tilesloaded'/'idle') + um window-resize (que o Google escuta e recalcula tudo).
+  // Validado: o window-resize pós-tiles reposiciona o satélite na hora. v81.80
+  const _kick = () => { try { google.maps.event.trigger(map, 'resize'); window.dispatchEvent(new Event('resize')); _applyView(); } catch (_) {} };
   _applyView();
-  [350, 1200].forEach(ms => setTimeout(() => { try { google.maps.event.trigger(map, 'resize'); _applyView(); } catch (_) {} }, ms));
+  try { google.maps.event.addListenerOnce(map, 'tilesloaded', _kick); google.maps.event.addListenerOnce(map, 'idle', _kick); } catch (_) {}
+  [400, 1200, 2500].forEach(ms => setTimeout(_kick, ms));
   const nome = _fonte === 'conquista' ? 'PSM Conquista' : 'MAP';
   if (info) info.innerHTML = aviso
     ? '<span style="color:#b45309">' + esc(aviso) + '</span>'
