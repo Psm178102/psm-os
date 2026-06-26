@@ -299,7 +299,9 @@ async function render() {
   }));
   const gk = document.getElementById('map-gkey'); if (gk) gk.addEventListener('click', editGmapsKey);
   const mm = document.getElementById('map-mymaps-edit'); if (mm) mm.addEventListener('click', editMyMaps);
-  if (useGoogle && !semFonte) await initGoogleMap(gkey);
+  // Sempre renderiza o satélite (mesmo sem fonte): mapa vazio de Rio Preto + aviso,
+  // em vez de um quadrado branco "quebrado". Os pins entram quando o My Maps for colado.
+  if (useGoogle) await initGoogleMap(gkey);
 }
 
 // Carrega a API JS do Google Maps (uma vez) com a chave do sócio.
