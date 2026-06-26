@@ -2,6 +2,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { pageTalentos } from './talentos.js';
+import { renderAvaliacoes } from './avaliacoes.js';
 
 let _root = null;
 let _ctx = null;
@@ -63,7 +64,8 @@ function render() {
 async function loadData() {
   if (_tab === 'talentos') return pageTalentos(_ctx, document.getElementById('gp-body'));
   if (_tab === 'onboarding' || _tab === 'offboarding') return loadRH(_tab);
-  if (_tab === 'plano' || _tab === 'clima' || _tab === 'avaliacoes') return loadReg(_tab);
+  if (_tab === 'avaliacoes') return renderAvaliacoes(document.getElementById('gp-body'));
+  if (_tab === 'plano' || _tab === 'clima') return loadReg(_tab);
   return loadTreinamentos();
 }
 
