@@ -16,6 +16,24 @@ let _talentos = [];   // manuais
 let _editing = null;
 let _rdTimer = null;
 let _lastRd = null;
+let _users = [];      // pra escolher o responsável
+
+// Classificação (v81.83) — secretaria de vendas é cargo dentro do Comercial
+const SETORES = ['Comercial', 'Backoffice', 'Marketing', 'Administrativo', 'Financeiro', 'RH', 'Jurídico', 'Contábil'];
+const CARGOS = {
+  'Comercial': ['Corretor', 'Secretária de Vendas', 'SDR', 'Gerente Comercial', 'Líder de Equipe'],
+  'Backoffice': ['Backoffice', 'Coordenador de Backoffice'],
+  'Marketing': ['Social Media', 'Gestor de Tráfego', 'Designer', 'Audiovisual', 'Gerente de Marketing'],
+  'Administrativo': ['Assistente Administrativo', 'Recepção', 'Gerente Administrativo'],
+  'Financeiro': ['Analista Financeiro', 'Contas a Pagar/Receber', 'Gerente Financeiro'],
+  'RH': ['Analista de RH', 'Recrutamento & Seleção', 'Departamento Pessoal', 'Gerente de RH'],
+  'Jurídico': ['Advogado(a)', 'Assistente Jurídico'],
+  'Contábil': ['Contador(a)', 'Assistente Contábil'],
+};
+const CATEGORIAS = ['Conquista', 'MAP', 'Terceiros', 'Locação'];   // só quando cargo = Corretor
+const ATIVIDADES = ['Concorrente', 'Outro do mercado', 'Incorporadora', 'Imobiliária', 'Autônomo', 'Livre'];
+const _allCargos = [...new Set(Object.values(CARGOS).flat())];
+const _isCorretor = v => /corretor/i.test(v || '');
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function waLink(phone) { const d = String(phone || '').replace(/\D/g, ''); return d ? `https://wa.me/${d}` : null; }
@@ -142,14 +160,19 @@ function renderRd(r) {
     const t = list.find(x => x.id === b.dataset.addManual);
     if (!t) return;
     b.textContent = '…'; b.disabled = true;
+    const cp = t.campos || {};
     try {
-      await api.request('/api/v3/gp/talentos', { method: 'POST', body: {
+      const saved = await api.request('/api/v3/gp/talentos', { method: 'POST', body: {
         nome: t.name || t.contato || 'Talento', contato: t.phone || '', email: t.email || '',
-        funcao: t.owner ? ('Resp.: ' + t.owner) : '', setor: 'RD · Parceiros',
+        instagram: cp.Instagram || cp.instagram || cp.IG || cp.ig || '',
+        responsavel: t.owner || '',
         cenario: 'Importado do RD (funil Parceiros · Base de Talentos).' + (t.rd_url ? ' ' + t.rd_url : ''),
-        status: 'em análise',
+        status: 'em análise', origem: 'rd',
       } });
-      b.textContent = '✓';
+      b.textContent = '✓ classificar';
+      // leva pra base manual com o talento aberto pra classificar (setor/cargo/etc.)
+      _editing = saved.row || null;
+      _tab = 'manual'; stopRdTimer(); render(); await loadManual();
     } catch (e) { b.textContent = '✕'; b.disabled = false; alert('Erro: ' + e.message); }
   }));
 }
@@ -160,8 +183,12 @@ async function loadManual() {
   if (!body) return;
   body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Carregando…</div>';
   try {
-    const r = await api.request('/api/v3/gp/talentos');
+    const [r, u] = await Promise.all([
+      api.request('/api/v3/gp/talentos'),
+      (_users.length ? Promise.resolve({ users: _users }) : api.listUsers().catch(() => ({ users: [] }))),
+    ]);
     _talentos = r.talentos || [];
+    _users = (u && u.users) || _users;
     renderManual();
   } catch (e) {
     body.innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
@@ -170,65 +197,110 @@ async function loadManual() {
 
 function renderManual() {
   const body = document.getElementById('tal-body');
+  const e = _editing || {};
+  const opt = (v, sel) => `<option value="${esc(v)}"${v === (sel || '') ? ' selected' : ''}>${esc(v)}</option>`;
+  const userOpts = _users.map(u => opt(u.name || u.id, e.responsavel)).join('');
+  const showCorr = _isCorretor(e.cargo);
   body.innerHTML = `
     <div class="card" style="background:var(--bg-3);margin-bottom:14px;padding:14px">
-      <div style="font-weight:800;margin-bottom:8px">👤 ${_editing?.id ? 'Editar' : 'Adicionar'} Talento</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:8px">
-        <input id="tal-nome" class="input" placeholder="Nome completo *" value="${esc(_editing?.nome || '')}">
-        <input id="tal-setor" class="input" placeholder="Setor / Origem" value="${esc(_editing?.setor || '')}">
-        <input id="tal-funcao" class="input" placeholder="Função / Empresa atual" value="${esc(_editing?.funcao || '')}">
-        <input id="tal-contato" class="input" placeholder="Contato (WhatsApp/tel)" value="${esc(_editing?.contato || '')}">
-        <input id="tal-instagram" class="input" placeholder="@instagram" value="${esc(_editing?.instagram || '')}">
-        <input id="tal-status" class="input" placeholder="Status (aceito, analisando, etc)" value="${esc(_editing?.status || '')}">
+      <div style="font-weight:800;margin-bottom:10px">👤 ${e.id ? 'Editar' : 'Classificar / Adicionar'} Talento</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));gap:8px">
+        <label class="tiny muted">Nome completo *<input id="tal-nome" class="input" value="${esc(e.nome || '')}"></label>
+        <label class="tiny muted">Contato (WhatsApp/tel)<input id="tal-contato" class="input" value="${esc(e.contato || '')}"></label>
+        <label class="tiny muted">Instagram<input id="tal-instagram" class="input" placeholder="@perfil" value="${esc(e.instagram || '')}"></label>
+        <label class="tiny muted">Responsável<select id="tal-responsavel" class="select"><option value="">—</option>${userOpts}</select></label>
+        <label class="tiny muted">Setor<select id="tal-setor" class="select"><option value="">—</option>${SETORES.map(s => opt(s, e.setor)).join('')}</select></label>
+        <label class="tiny muted">Cargo<input id="tal-cargo" class="input" list="tal-cargos" placeholder="ex.: Corretor, Secretária de Vendas" value="${esc(e.cargo || e.funcao || '')}"><datalist id="tal-cargos">${_allCargos.map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
+        <label class="tiny muted">Atual atividade<select id="tal-atividade" class="select"><option value="">—</option>${ATIVIDADES.map(a => opt(a, e.atividade_atual)).join('')}</select></label>
+        <label class="tiny muted">Status (recrutamento)<input id="tal-status" class="input" placeholder="em análise, aprovado..." value="${esc(e.status || '')}"></label>
       </div>
-      <textarea id="tal-cenario" class="input mt-2" rows="2" placeholder="Cenário / observações (CRECI, perfil, vaga, disp, prazo...)">${esc(_editing?.cenario || '')}</textarea>
-      <div class="flex gap-2 mt-2">
-        <button class="btn btn-primary" id="tal-save">${_editing?.id ? '💾 Salvar' : '➕ Adicionar'}</button>
-        ${_editing?.id ? '<button class="btn btn-ghost" id="tal-cancel">Cancelar</button>' : ''}
-        <input id="tal-search" class="input" placeholder="🔍 Buscar talento..." style="flex:1;max-width:250px;margin-left:auto">
+      <div id="tal-corretor" style="display:${showCorr ? 'grid' : 'none'};grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));gap:8px;margin-top:8px;padding:8px;border:1px dashed var(--bd);border-radius:8px;background:rgba(214,36,159,.05)">
+        <label class="tiny muted" style="grid-column:1/-1;font-weight:700;color:#d6249f">🏠 Corretor — classificação</label>
+        <label class="tiny muted">Categoria<select id="tal-categoria" class="select"><option value="">—</option>${CATEGORIAS.map(c => opt(c, e.categoria)).join('')}</select></label>
+        <label class="tiny muted">CRECI<input id="tal-creci" class="input" placeholder="CRECI (se tiver)" value="${esc(e.creci || '')}"></label>
+      </div>
+      <label class="tiny muted" style="display:block;margin-top:8px">Experiência<textarea id="tal-experiencia" class="input" rows="2" placeholder="Tempo de mercado, onde trabalhou, resultados...">${esc(e.experiencia || '')}</textarea></label>
+      <label class="tiny muted" style="display:block;margin-top:8px">Observações<textarea id="tal-cenario" class="input" rows="2" placeholder="Cenário, perfil, disponibilidade, prazo...">${esc(e.cenario || '')}</textarea></label>
+      <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
+        <button class="btn btn-primary" id="tal-save">${e.id ? '💾 Salvar' : '➕ Adicionar'}</button>
+        ${e.id ? '<button class="btn btn-ghost" id="tal-cancel">Cancelar</button>' : ''}
       </div>
     </div>
-    <div style="font-weight:800;margin-bottom:8px">Base de Talentos interna (${_talentos.length})</div>
-    <div id="tal-list">${renderManualList(_talentos)}</div>
+    <div class="flex items-center gap-2 mb-2" style="flex-wrap:wrap">
+      <div style="font-weight:800">Base de Talentos interna (${_talentos.length})</div>
+      <select id="tal-fsetor" class="select" style="max-width:170px;margin-left:auto"><option value="">Todos os setores</option>${SETORES.map(s => opt(s, _fSetor)).join('')}</select>
+      <input id="tal-search" class="input" placeholder="🔍 Buscar..." style="max-width:230px">
+    </div>
+    <div id="tal-list">${renderManualList(filterManual())}</div>
   `;
+  // corretor: mostra/esconde Categoria+CRECI conforme o cargo
+  const cargoEl = document.getElementById('tal-cargo'), corrEl = document.getElementById('tal-corretor');
+  const toggleCorr = () => { corrEl.style.display = _isCorretor(cargoEl.value) ? 'grid' : 'none'; };
+  cargoEl.addEventListener('input', toggleCorr);
+  // setor sugere o cargo (datalist filtra pelo setor escolhido)
+  const setorEl = document.getElementById('tal-setor');
+  setorEl.addEventListener('change', () => {
+    const dl = document.getElementById('tal-cargos');
+    const lista = CARGOS[setorEl.value] || _allCargos;
+    dl.innerHTML = lista.map(c => `<option value="${esc(c)}">`).join('');
+  });
+  setorEl.dispatchEvent(new Event('change'));
   document.getElementById('tal-save').addEventListener('click', saveManual);
   const cancel = document.getElementById('tal-cancel');
   if (cancel) cancel.addEventListener('click', () => { _editing = null; renderManual(); });
-  document.getElementById('tal-search').addEventListener('input', e => {
-    const q = e.target.value.toLowerCase();
-    const filtered = _talentos.filter(t => (t.nome || '').toLowerCase().includes(q) || (t.setor || '').toLowerCase().includes(q) || (t.funcao || '').toLowerCase().includes(q));
-    document.getElementById('tal-list').innerHTML = renderManualList(filtered);
-    bindManualActions();
-  });
+  const reFilter = () => { document.getElementById('tal-list').innerHTML = renderManualList(filterManual()); bindManualActions(); };
+  document.getElementById('tal-search').addEventListener('input', e2 => { _search = e2.target.value; reFilter(); });
+  document.getElementById('tal-fsetor').addEventListener('change', e2 => { _fSetor = e2.target.value; reFilter(); });
   bindManualActions();
+}
+
+let _search = '', _fSetor = '';
+function filterManual() {
+  const q = (_search || '').toLowerCase();
+  return _talentos.filter(t => {
+    if (_fSetor && (t.setor || '') !== _fSetor) return false;
+    if (!q) return true;
+    return [t.nome, t.setor, t.cargo, t.funcao, t.categoria, t.responsavel, t.creci, t.experiencia].some(v => (v || '').toLowerCase().includes(q));
+  });
 }
 
 function renderManualList(items) {
   if (!items.length) return '<div class="muted tiny" style="text-align:center;padding:20px">Nenhum talento.</div>';
+  const chip = (txt, cor) => txt ? `<span style="display:inline-block;background:${cor}1a;color:${cor};font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap">${esc(txt)}</span>` : '';
   return `
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:760px">
       <thead><tr style="background:var(--bg-3)">
-        <th style="text-align:left;padding:8px">Nome</th>
+        <th style="text-align:left;padding:8px">Nome / contato</th>
         <th style="text-align:left;padding:8px">Setor</th>
-        <th style="text-align:left;padding:8px">Função</th>
-        <th style="text-align:left;padding:8px">Cenário</th>
+        <th style="text-align:left;padding:8px">Cargo</th>
+        <th style="text-align:left;padding:8px">Categoria</th>
+        <th style="text-align:left;padding:8px">Atividade atual</th>
+        <th style="text-align:left;padding:8px">Responsável</th>
         <th></th>
       </tr></thead>
       <tbody>
-        ${items.map(t => `
+        ${items.map(t => {
+          const corr = _isCorretor(t.cargo) || _isCorretor(t.funcao);
+          const cargo = t.cargo || t.funcao || '';
+          const sub = [t.contato, t.instagram, t.creci ? 'CRECI ' + t.creci : ''].filter(Boolean).join(' · ');
+          return `
           <tr style="border-bottom:1px solid var(--bd)">
-            <td style="padding:8px;font-weight:700">${esc(t.nome)}</td>
-            <td style="padding:8px">${esc(t.setor || '—')}</td>
-            <td style="padding:8px">${esc(t.funcao || '—')}</td>
-            <td style="padding:8px;font-size:11px;color:var(--muted)">${esc((t.cenario || '').substring(0, 100))}</td>
+            <td style="padding:8px"><div style="font-weight:700">${esc(t.nome)}${t.origem === 'rd' ? ' <span class="tiny" style="color:#16a34a">🟢RD</span>' : ''}</div>${sub ? `<div class="tiny muted">${esc(sub)}</div>` : ''}</td>
+            <td style="padding:8px">${chip(t.setor, '#2563eb') || '—'}</td>
+            <td style="padding:8px">${esc(cargo) || '—'}</td>
+            <td style="padding:8px">${corr ? (chip(t.categoria, '#d6249f') || '<span class="tiny muted">—</span>') : '<span class="tiny muted">·</span>'}</td>
+            <td style="padding:8px">${chip(t.atividade_atual, '#b45309') || '—'}</td>
+            <td style="padding:8px">${esc(t.responsavel || '—')}</td>
             <td style="padding:8px;text-align:right;white-space:nowrap">
               <button class="btn btn-ghost btn-sm" data-edit-tal="${t.id}">✏️</button>
               <button class="btn btn-ghost btn-sm" data-del-tal="${t.id}">🗑️</button>
             </td>
-          </tr>
-        `).join('')}
+          </tr>`;
+        }).join('')}
       </tbody>
     </table>
+    </div>
   `;
 }
 
@@ -247,15 +319,24 @@ function bindManualActions() {
 }
 
 async function saveManual() {
+  const g = id => (document.getElementById(id)?.value || '').trim();
+  const cargo = g('tal-cargo');
+  const corr = _isCorretor(cargo);
   const payload = {
     id: _editing?.id,
-    nome: document.getElementById('tal-nome').value.trim(),
-    setor: document.getElementById('tal-setor').value.trim(),
-    funcao: document.getElementById('tal-funcao').value.trim(),
-    contato: document.getElementById('tal-contato').value.trim(),
-    instagram: document.getElementById('tal-instagram').value.trim(),
-    status: document.getElementById('tal-status').value.trim(),
-    cenario: document.getElementById('tal-cenario').value.trim(),
+    nome: g('tal-nome'),
+    contato: g('tal-contato'),
+    instagram: g('tal-instagram'),
+    responsavel: g('tal-responsavel'),
+    setor: g('tal-setor'),
+    cargo, funcao: cargo,              // mantém 'funcao' espelhado p/ compatibilidade
+    categoria: corr ? g('tal-categoria') : '',
+    creci: corr ? g('tal-creci') : '',
+    atividade_atual: g('tal-atividade'),
+    experiencia: g('tal-experiencia'),
+    status: g('tal-status'),
+    cenario: g('tal-cenario'),
+    origem: _editing?.origem || 'manual',
   };
   if (!payload.nome) { alert('Nome obrigatório'); return; }
   try {
