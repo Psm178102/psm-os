@@ -24,6 +24,7 @@ KV_KEY = "psm_links"
 DEFAULTS = {
     "mapa_earth": "https://earth.google.com/earth/d/15bCIxsaicJySE2OT0yS8dZO7KqcwyJ8o?usp=sharing",
     "mapa_mymaps": "",
+    "google_maps_key": "",   # chave JS da Google Maps Platform (restrita por referrer); Mapa em satélite + pins do My Maps. v81.70
     "tabela_conquista": "",
     "tabela_map": "",
     "ficha_modelo": "",

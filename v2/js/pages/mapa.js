@@ -240,51 +240,94 @@ async function editMyMaps() {
 }
 
 async function render() {
-  let earthUrl = DEFAULT_EARTH, myMaps = '';
-  try { const links = await getLinks(); earthUrl = links.mapa_earth || DEFAULT_EARTH; myMaps = links.mapa_mymaps || ''; } catch (_) {}
-  // Embute My Maps se houver (ou se o próprio link do Earth for, na verdade, um My Maps).
+  let earthUrl = DEFAULT_EARTH, myMaps = '', gkey = '';
+  try { const links = await getLinks(); earthUrl = links.mapa_earth || DEFAULT_EARTH; myMaps = links.mapa_mymaps || ''; gkey = links.google_maps_key || ''; } catch (_) {}
   const embedSrc = isEmbeddable(myMaps) ? toEmbed(myMaps) : (isEmbeddable(earthUrl) ? toEmbed(earthUrl) : null);
+  const mid = (String(myMaps).match(/[?&]mid=([^&]+)/) || [])[1] || (String(earthUrl).match(/[?&]mid=([^&]+)/) || [])[1] || '';
+  const kmlUrl = mid ? ('https://www.google.com/maps/d/kml?forcekml=1&mid=' + mid) : '';
+  const useGoogle = !!gkey;
   _root.innerHTML = `
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div>
           <h2 class="card-title">🗺 Mapa de Empreendimentos PSM</h2>
-          <p class="card-sub">Seu Google My Maps com <b>todos os pins, nomes e cores</b> que você cadastrou — aqui dentro do sistema. O Earth 3D abre em tela cheia.</p>
+          <p class="card-sub">${useGoogle
+            ? 'Mapa do <b>Google em satélite</b> com os seus pins do My Maps (nomes, cores, clique pra ver) — dentro do sistema.'
+            : 'Seu Google My Maps com todos os pins, nomes e cores — aqui dentro do sistema.'} O Earth 3D abre em tela cheia.</p>
         </div>
         <div class="flex gap-2">
           <a class="btn btn-primary" href="${esc(earthUrl)}" target="_blank" rel="noopener" style="background:#1a73e8">🌍 Abrir Earth 3D (tela cheia)</a>
-          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-emp-refresh" title="Re-sincronizar os pins do satélite">🔄</button><button class="btn btn-ghost" id="map-earth-edit" title="Editar link do Google Earth (3D)">⚙️ Earth</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar link do Google My Maps">⚙️ My Maps</button>' : ''}
+          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-gkey" title="Chave do Google Maps (satélite + pins)">🔑 Chave Maps</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar link do Google My Maps">⚙️ My Maps</button>' : ''}
         </div>
       </div>
 
-      ${embedSrc ? `
-      <!-- EMBED do My Maps = vista PRINCIPAL: nomes + cores + tudo que ele cadastrou -->
+      ${useGoogle ? `
+      <!-- GOOGLE MAPS satélite (híbrido) + KmlLayer com os pins do My Maps -->
+      <div id="gmap" style="height:calc(100vh - 300px);min-height:480px;border-radius:12px;background:var(--bg-3);position:relative;margin-top:12px"></div>
+      <div id="gmap-info" class="tiny muted mt-2"></div>
+      ${embedSrc ? `<details class="mt-3"><summary style="cursor:pointer;font-weight:700;padding:6px 0">🗺 Ver o My Maps original (embed)</summary><div class="mt-2" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a"><iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 380px);min-height:420px;border:0;display:block" allowfullscreen loading="lazy"></iframe></div></details>` : ''}
+      ` : (embedSrc ? `
+      ${canEditLinks() ? '<div class="alert alert-warn mt-3" style="font-size:13px">🔑 Pra ter o <b>mapa do Google em satélite com os seus pins</b> aqui dentro, cole a <b>chave do Google Maps</b> no botão <b>🔑 Chave Maps</b> acima. Enquanto isso, abaixo está o My Maps embutido.</div>' : ''}
       <div class="mt-3" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a">
-        <iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 300px);min-height:480px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        <iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 320px);min-height:460px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
       </div>
-      <p class="tiny muted mt-2">💡 Pra ver em <b>satélite</b>: abra o seu <b>My Maps</b> → no canto inferior esquerdo clique em <b>"Mapa base"</b> → escolha <b>Satélite</b>. Aí o mapa aqui já aparece em satélite, com seus nomes e cores.</p>
-      <details class="mt-3" id="sat-details">
-        <summary style="cursor:pointer;font-weight:700;padding:6px 0">🛰 Ver os mesmos pins sobre satélite Esri (sem mexer no My Maps)</summary>
-        <div id="emp-map" style="height:calc(100vh - 360px);min-height:440px;border-radius:12px;background:var(--bg-3);position:relative;margin-top:8px"></div>
-        <div id="emp-info" class="tiny muted mt-2"></div>
-      </details>
-      ` : `
-      <div id="emp-map" style="height:calc(100vh - 300px);min-height:480px;border-radius:12px;background:var(--bg-3);position:relative;margin-top:12px"></div>
-      <div id="emp-info" class="tiny muted mt-2"></div>
-      ${canEditLinks() ? '<p class="tiny muted mt-3">💡 Cole o link do seu <b>Google My Maps</b> em <b>⚙️ My Maps</b> pra ele aparecer aqui com todos os pins, nomes e cores.</p>' : ''}
-      `}
+      ` : (canEditLinks() ? '<p class="tiny muted mt-3">💡 Cole o link do <b>Google My Maps</b> em <b>⚙️ My Maps</b> e a <b>chave do Google Maps</b> em <b>🔑 Chave Maps</b>.</p>' : ''))}
     </div>
   `;
-  const ee = document.getElementById('map-earth-edit'); if (ee) ee.addEventListener('click', editEarth);
+  const gk = document.getElementById('map-gkey'); if (gk) gk.addEventListener('click', editGmapsKey);
   const mm = document.getElementById('map-mymaps-edit'); if (mm) mm.addEventListener('click', editMyMaps);
-  const rf = document.getElementById('map-emp-refresh'); if (rf) rf.addEventListener('click', () => loadEmpreendimentos(true));
-  if (embedSrc) {
-    // o satélite Esri (pins) carrega só quando o usuário abre o bloco recolhível
-    const sd = document.getElementById('sat-details');
-    if (sd) sd.addEventListener('toggle', () => { if (sd.open) loadEmpreendimentos(); });
-  } else {
-    await loadEmpreendimentos();   // sem My Maps salvo: usa o satélite Esri direto
+  if (useGoogle) await initGoogleMap(gkey, kmlUrl);
+}
+
+// Carrega a API JS do Google Maps (uma vez) com a chave do sócio.
+function loadGoogleMapsApi(key) {
+  return new Promise((resolve) => {
+    if (window.google && window.google.maps) return resolve(true);
+    if (window.__gmapsLoading) {
+      const iv = setInterval(() => { if (window.google && window.google.maps) { clearInterval(iv); resolve(true); } }, 200);
+      setTimeout(() => { clearInterval(iv); resolve(!!(window.google && window.google.maps)); }, 9000);
+      return;
+    }
+    window.__gmapsLoading = true;
+    const s = document.createElement('script');
+    s.src = 'https://maps.googleapis.com/maps/api/js?v=quarterly&key=' + encodeURIComponent(key);
+    s.async = true; s.defer = true;
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+}
+
+// Mapa do Google em satélite (híbrido) + os pins do My Maps via KmlLayer (mantém
+// nomes, cores e info ao clicar — renderizados pelo próprio Google). v81.70
+async function initGoogleMap(key, kmlUrl) {
+  const el = document.getElementById('gmap'); const info = document.getElementById('gmap-info');
+  if (!el) return;
+  const ok = await loadGoogleMapsApi(key);
+  if (!ok || !(window.google && window.google.maps)) {
+    el.innerHTML = '<div style="padding:26px;text-align:center;color:#b91c1c;font-size:13px">⚠ Não consegui carregar o Google Maps.<br>Confira a chave: <b>Maps JavaScript API ativada</b> + <b>faturamento</b> ligado + restrição de referrer <b>https://www.housepsm.com.br/*</b>.</div>';
+    return;
   }
+  const map = new google.maps.Map(el, {
+    center: { lat: RP_LAT, lng: RP_LNG }, zoom: 12, mapTypeId: 'hybrid',
+    mapTypeControl: true, streetViewControl: false, fullscreenControl: true, tilt: 0,
+  });
+  if (!kmlUrl) { if (info) info.textContent = '⚠ Sem link do My Maps salvo (⚙️ My Maps).'; return; }
+  const kml = new google.maps.KmlLayer({ url: kmlUrl, map, preserveViewport: false, suppressInfoWindows: false });
+  google.maps.event.addListener(kml, 'status_changed', () => {
+    const st = kml.getStatus();
+    if (info) info.textContent = (st === 'OK')
+      ? '📍 Seus empreendimentos do My Maps sobre o satélite do Google (clique num pin pra ver nome/info).'
+      : '⚠ Não consegui carregar os pins do My Maps (status: ' + st + '). Deixe o My Maps como "qualquer pessoa com o link pode ver".';
+  });
+}
+
+async function editGmapsKey() {
+  let links = {}; try { links = await getLinks(); } catch (_) {}
+  const v = prompt('Cole a CHAVE do Google Maps (Maps JavaScript API).\n\nCrie em: console.cloud.google.com → APIs e Serviços → Credenciais → Criar chave de API.\nDepois restrinja por referrer: https://www.housepsm.com.br/*', links.google_maps_key || '');
+  if (v === null) return;
+  try { await saveLinks({ google_maps_key: (v || '').trim() }); alert('✅ Chave salva! Recarregando o mapa…'); render(); }
+  catch (e) { alert('Erro ao salvar a chave: ' + e.message); }
 }
 
 function renderContent() {
