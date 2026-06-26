@@ -52,6 +52,19 @@ def _clean_route(v):
     return v[:MAX_LEN + 1]
 
 
+def _role_ok(r):
+    """Aceita papel fixo (VALID_ROLES), '*' ou papel CUSTOM em formato slug
+    (minúsculo, [a-z0-9_], começa com letra) — assim categorias novas funcionam
+    sem precisar editar este arquivo. v81.91"""
+    if not isinstance(r, str):
+        return False
+    r = r.strip()
+    if r == "*" or r in VALID_ROLES:
+        return True
+    return (2 <= len(r) <= 41 and r == r.lower() and r[0].isalpha()
+            and r.replace("_", "").isalnum())
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
         self.send_response(s); self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -90,7 +103,7 @@ class handler(BaseHTTPRequestHandler):
         cur = _read(sb)
         patch = body.get("routes") if isinstance(body.get("routes"), dict) else body
         for role, route in (patch or {}).items():
-            if not isinstance(role, str) or role.strip() not in VALID_ROLES:
+            if not isinstance(role, str) or not _role_ok(role.strip()):
                 continue
             cur[role.strip()] = _clean_route(route)
         try:

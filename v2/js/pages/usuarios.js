@@ -25,8 +25,10 @@ const ROLES = [
   // pra quem ainda é 'corretor' (até o sócio reatribuir) + serve de fallback interno. v81.38
   { id: 'corretor',   lbl: 'Corretor (antigo)', lvl: 2,  color: '#64748b', ico: '🏠', legacy: true },
 ];
+let _customRoles = [];   // categorias de login CUSTOM (shared_kv 'custom_roles'). v81.91
+const allRolesList = () => [...ROLES, ..._customRoles.map(r => ({ id: r.id, lbl: r.label, lvl: r.lvl, color: r.color || '#64748b', ico: r.ico || '🏷️', custom: true }))];
 // Papéis OFERECIDOS no seletor: esconde legados, mas mantém o papel atual do usuário
-const roleOptions = (curId) => ROLES.filter(r => !r.legacy || r.id === curId);
+const roleOptions = (curId) => allRolesList().filter(r => !r.legacy || r.id === curId);
 
 // Equipes: fallback local; a lista REAL e personalizável vem de /api/v3/settings/teams. v81.39
 const TEAMS_DEFAULT = [
@@ -55,12 +57,14 @@ export async function pageUsuarios(ctx, root) {
 
 async function reload() {
   try {
-    const [u, a, t] = await Promise.all([
+    const [u, a, t, cr] = await Promise.all([
       api.request('/api/v3/users/list?all=1'),   // gestão vê TODOS (inclusive arquivados)
       api.request('/api/v3/audit/list?limit=300').catch(() => ({ entries: [] })),
       api.request('/api/v3/settings/teams').catch(() => ({ teams: TEAMS_DEFAULT })),
+      api.request('/api/v3/settings/roles').catch(() => ({ roles: [] })),
     ]);
     _users = u.users || [];
+    _customRoles = (cr && cr.roles) || [];
     _teams = (t.teams && t.teams.length) ? t.teams : TEAMS_DEFAULT;
     _lastAuditByUser = {};
     for (const e of (a.entries || [])) {
@@ -116,10 +120,13 @@ function render() {
 
   _rootEl.innerHTML = `
     <div class="card">
-      <h2 class="card-title">🔐 Gestão de Usuários · Perfil + Equipe + Acesso</h2>
+      <div class="flex items-center" style="justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <h2 class="card-title" style="margin:0">🔐 Gestão de Usuários · Perfil + Equipe + Acesso</h2>
+        ${isSocio ? '<button class="btn btn-ghost btn-sm" id="btn-cat-login">🏷️ Categorias de login</button>' : ''}
+      </div>
       <p class="card-sub">
-        Fonte: Postgres (24 cadastrados). Edições são auditadas e refletem em todos os dispositivos.
-        ${isSocio ? '' : '<br><b style="color:var(--warn)">Apenas Sócio/Diretor edita.</b>'}
+        Fonte: Postgres. Edições são auditadas e refletem em todos os dispositivos.
+        ${isSocio ? 'Crie/remova <b>categorias de login</b> (papéis) no botão acima.' : '<br><b style="color:var(--warn)">Apenas Sócio/Diretor edita.</b>'}
       </p>
 
       <!-- Stats -->
@@ -174,6 +181,7 @@ function render() {
   if (fT) { fT.value = _filterTeam;   fT.addEventListener('change', () => { _filterTeam = fT.value; render(); }); }
   if (fS) { fS.value = _filterStatus; fS.addEventListener('change', () => { _filterStatus = fS.value; render(); }); }
   document.getElementById('btn-equipes')?.addEventListener('click', openTeamsManager);
+  document.getElementById('btn-cat-login')?.addEventListener('click', openRolesManager);
 
   // Wire up row controls
   document.querySelectorAll('[data-action]').forEach(el => {
@@ -196,7 +204,7 @@ function statCard(label, value, bg, fg) {
 }
 
 function userRow(u, isSocio, myId) {
-  const role = ROLES.find(r => r.id === (u.role || 'corretor')) || ROLES.find(r => r.id === 'corretor');
+  const role = allRolesList().find(r => r.id === (u.role || 'corretor')) || ROLES.find(r => r.id === 'corretor');
   const team = teamInfo(u.team || 'geral');
   const ini = escapeHtml((u.ini || (u.name || '?').substring(0, 2)).toUpperCase());
   const inactive = (u.status || 'ativo') !== 'ativo';
@@ -389,6 +397,63 @@ function openTeamsManager() {
       close(); render(); toast('Equipes salvas ✓', 'ok');
     } catch (e) { alert('Erro ao salvar equipes: ' + e.message); }
   };
+}
+
+// ─── Gerenciar CATEGORIAS DE LOGIN (papéis custom) — sócio ─────────────────
+function openRolesManager() {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:5vh 14px;overflow:auto';
+  const crRow = r => `<div class="flex items-center gap-2" style="border-top:1px solid var(--bd,#e2e8f0);padding:7px 0">
+    <span style="width:26px;text-align:center">${escapeHtml(r.ico || '🏷️')}</span>
+    <span style="flex:1"><b>${escapeHtml(r.label)}</b> <span class="tiny muted">· ${escapeHtml(r.id)} · L${r.lvl}</span></span>
+    <span style="width:16px;height:16px;border-radius:50%;background:${escapeHtml(r.color || '#64748b')}"></span>
+    <button class="btn btn-ghost btn-sm" data-cr-del="${escapeHtml(r.id)}" style="color:#dc2626">remover</button></div>`;
+  const draw = () => {
+    const custom = _customRoles || [];
+    ov.innerHTML = `
+    <div class="card" style="max-width:560px;width:100%;background:var(--bg-2);margin:auto">
+      <div class="flex" style="justify-content:space-between;align-items:center">
+        <h3 class="card-title" style="margin:0">🏷️ Categorias de login</h3>
+        <button class="btn btn-ghost btn-sm" id="cr-x">✕</button>
+      </div>
+      <p class="tiny muted" style="margin:4px 0 10px">Crie categorias (papéis) próprias com um <b>nível de acesso</b>. Os papéis fixos do sistema não aparecem aqui. Depois de criar, defina o que cada uma vê em <b>Configurações → Permissões por papel</b>. Só dá pra remover se nenhum usuário ativo estiver nela.</p>
+      <div style="font-weight:700;font-size:12px;margin-bottom:4px">Suas categorias</div>
+      <div id="cr-list">${custom.length ? custom.map(crRow).join('') : '<div class="tiny muted" style="padding:6px 0">Nenhuma categoria custom ainda.</div>'}</div>
+      <div style="border-top:1px solid var(--bd,#e2e8f0);margin-top:12px;padding-top:10px">
+        <div style="font-weight:700;font-size:12px;margin-bottom:6px">➕ Nova categoria</div>
+        <div class="flex gap-2" style="flex-wrap:wrap;align-items:end">
+          <input id="cr-ico" class="input" value="🏷️" maxlength="4" style="width:52px;text-align:center" title="ícone">
+          <label class="tiny muted">Nome<input id="cr-label" class="input" placeholder="ex.: Consultor Sênior" style="min-width:170px"></label>
+          <label class="tiny muted">Nível 1–10<input id="cr-lvl" class="input" type="number" min="1" max="10" value="2" style="width:74px"></label>
+          <input id="cr-cor" class="input" type="color" value="#0ea5e9" style="width:46px;padding:2px;min-width:46px" title="cor">
+          <button class="btn btn-primary btn-sm" id="cr-add">Criar</button>
+        </div>
+        <div class="tiny muted" style="margin-top:6px">Nível = alçada (2 corretor · 5 líder · 7 gerente · 10 sócio). O acesso fino é pela matriz de permissões.</div>
+      </div>
+      <div class="flex" style="justify-content:flex-end;margin-top:12px"><button class="btn btn-ghost" id="cr-close">Fechar</button></div>
+    </div>`;
+    ov.querySelector('#cr-x').onclick = ov.querySelector('#cr-close').onclick = () => ov.remove();
+    ov.querySelector('#cr-add').onclick = addCat;
+    ov.querySelectorAll('[data-cr-del]').forEach(b => b.onclick = () => delCat(b.dataset.crDel));
+  };
+  const addCat = async () => {
+    const label = ov.querySelector('#cr-label').value.trim();
+    if (!label) return alert('Informe o nome da categoria.');
+    const body = { action: 'add', label, lvl: parseInt(ov.querySelector('#cr-lvl').value) || 2, color: ov.querySelector('#cr-cor').value, ico: ov.querySelector('#cr-ico').value.trim() || '🏷️' };
+    try { const r = await api.request('/api/v3/settings/roles', { method: 'POST', body }); _customRoles = r.roles || _customRoles; draw(); render(); toast('Categoria criada ✓', 'ok'); }
+    catch (e) { alert('Erro: ' + e.message); }
+  };
+  const delCat = async (id, force) => {
+    if (!force && !confirm('Remover a categoria "' + id + '"?')) return;
+    try { const r = await api.request('/api/v3/settings/roles', { method: 'POST', body: { action: 'remove', id, force: !!force } }); _customRoles = r.roles || _customRoles; draw(); render(); toast('Categoria removida ✓', 'ok'); }
+    catch (e) {
+      if (e.data && e.data.em_uso && confirm(e.message + '\n\nRemover mesmo assim (os usuários ficam sem papel válido até reatribuir)?')) return delCat(id, true);
+      alert('Erro: ' + e.message);
+    }
+  };
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  draw();
 }
 
 // ─── Toast ──────────────────────────────────────────────────────────────

@@ -44,7 +44,7 @@ def _clean(payload):
     """Mantém só papéis válidos, listas de strings de rota únicas, com teto."""
     out = {}
     for role, routes in (payload or {}).items():
-        if role not in VALID_ROLES or not isinstance(routes, list):
+        if not _role_ok(role) or not isinstance(routes, list):
             continue
         seen, clean = set(), []
         for r in routes:
@@ -57,6 +57,19 @@ def _clean(payload):
                 break
         out[role] = clean
     return out
+
+
+def _role_ok(r):
+    """Aceita papel fixo (VALID_ROLES), '*' ou papel CUSTOM em formato slug
+    (minúsculo, [a-z0-9_], começa com letra) — assim categorias novas funcionam
+    sem precisar editar este arquivo. v81.91"""
+    if not isinstance(r, str):
+        return False
+    r = r.strip()
+    if r == "*" or r in VALID_ROLES:
+        return True
+    return (2 <= len(r) <= 41 and r == r.lower() and r[0].isalpha()
+            and r.replace("_", "").isalnum())
 
 
 class handler(BaseHTTPRequestHandler):

@@ -48,9 +48,22 @@ def _clean_list(roles):
         if not isinstance(r, str):
             continue
         r = r.strip()
-        if r in VALID_ROLES and r not in seen:
+        if _role_ok(r) and r not in seen:
             seen.add(r); out.append(r)
     return out
+
+
+def _role_ok(r):
+    """Aceita papel fixo (VALID_ROLES), '*' ou papel CUSTOM em formato slug
+    (minúsculo, [a-z0-9_], começa com letra) — assim categorias novas funcionam
+    sem precisar editar este arquivo. v81.91"""
+    if not isinstance(r, str):
+        return False
+    r = r.strip()
+    if r == "*" or r in VALID_ROLES:
+        return True
+    return (2 <= len(r) <= 41 and r == r.lower() and r[0].isalpha()
+            and r.replace("_", "").isalnum())
 
 
 class handler(BaseHTTPRequestHandler):

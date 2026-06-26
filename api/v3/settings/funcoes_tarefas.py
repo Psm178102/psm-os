@@ -71,6 +71,19 @@ def _clean_items(items):
     return out
 
 
+def _role_ok(r):
+    """Aceita papel fixo (VALID_ROLES), '*' ou papel CUSTOM em formato slug
+    (minúsculo, [a-z0-9_], começa com letra) — assim categorias novas funcionam
+    sem precisar editar este arquivo. v81.91"""
+    if not isinstance(r, str):
+        return False
+    r = r.strip()
+    if r == "*" or r in VALID_ROLES:
+        return True
+    return (2 <= len(r) <= 41 and r == r.lower() and r[0].isalpha()
+            and r.replace("_", "").isalnum())
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
         self.send_response(s); self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -121,7 +134,7 @@ class handler(BaseHTTPRequestHandler):
             if lvl < 10:
                 return self._send(403, {"ok": False, "error": "só sócio"})
             role = (body.get("role") or "").strip()
-            if role not in VALID_ROLES:
+            if not _role_ok(role):
                 return self._send(400, {"ok": False, "error": "papel inválido"})
             val["byRole"][role] = _clean_items(body.get("items"))
             audit(self, actor, "funcoes.set_role", target_type="shared_kv", target_id=role)

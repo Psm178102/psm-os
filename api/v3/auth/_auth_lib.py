@@ -91,9 +91,43 @@ ROLE_LVL = {
 }
 
 
+_CUSTOM_LVL = {"d": None, "t": 0.0}
+
+
+def _custom_levels():
+    """Níveis de papéis CUSTOM criados pelo sócio (shared_kv 'custom_roles'),
+    cache de 60s por processo. Consultado só p/ papéis fora do ROLE_LVL fixo. v81.91"""
+    if _CUSTOM_LVL["d"] is not None and (time.time() - _CUSTOM_LVL["t"]) < 60:
+        return _CUSTOM_LVL["d"]
+    out = {}
+    try:
+        import json as _json
+        sb = supabase_client()
+        if sb:
+            rows = sb.table("shared_kv").select("value").eq("key", "custom_roles").limit(1).execute().data or []
+            val = rows[0]["value"] if rows else []
+            if isinstance(val, str):
+                val = _json.loads(val)
+            for r in (val or []):
+                if isinstance(r, dict) and r.get("id"):
+                    try:
+                        out[str(r["id"]).strip().lower()] = max(1, min(10, int(r.get("lvl") or 2)))
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+    _CUSTOM_LVL["d"] = out
+    _CUSTOM_LVL["t"] = time.time()
+    return out
+
+
 def lvl_of(role: str) -> int:
-    """Computa nível hierárquico a partir do role string. Default 2 (corretor)."""
-    return ROLE_LVL.get((role or "").strip().lower(), 2)
+    """Nível do papel. Fixos no ROLE_LVL; papéis CUSTOM vêm do shared_kv
+    'custom_roles' (cache 60s). Default 2 (corretor)."""
+    r = (role or "").strip().lower()
+    if r in ROLE_LVL:
+        return ROLE_LVL[r]
+    return _custom_levels().get(r, 2)
 
 
 def enrich_user(u: dict) -> dict:

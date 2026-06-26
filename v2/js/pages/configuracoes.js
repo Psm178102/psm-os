@@ -51,6 +51,8 @@ const PERM_ROLES = [   // socio é fixo (vê tudo) → fora da edição
   ['corretor_conquista', '🏠 Corretor Conquista', 2], ['corretor_map', '🗺️ Corretor MAP', 2],
   ['corretor_locacao', '🔑 Corretor Locação', 2], ['corretor_terceiros', '🤝 Corretor Terceiros', 2],
 ];
+let _cfgCustomRoles = [];   // categorias de login CUSTOM (shared_kv 'custom_roles'). v81.91
+const permRoles = () => [...PERM_ROLES, ..._cfgCustomRoles.map(r => [r.id, (r.ico ? r.ico + ' ' : '🏷️ ') + r.label, r.lvl || 2])];
 const PERM_ALWAYS = new Set(['conta']);  // só CONTA é sempre visível; Início e PSM Academy são configuráveis na matriz. v81.40
 let _permCatalog = null;   // [{key,label,items:[{route,label,icon,minlvl}]}]
 let _permState = {};       // { role: Set(routes) }
@@ -76,7 +78,12 @@ async function reload() {
   if (!_root) return;
   _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando settings…</div></div>';
   try {
-    _data = await api.request('/api/v3/settings/list' + (_reveal ? '?reveal=1' : ''));
+    const [d, cr] = await Promise.all([
+      api.request('/api/v3/settings/list' + (_reveal ? '?reveal=1' : '')),
+      api.request('/api/v3/settings/roles').catch(() => ({ roles: [] })),
+    ]);
+    _data = d;
+    _cfgCustomRoles = (cr && cr.roles) || [];   // categorias custom entram na matriz/sub-abas/tela inicial
     render();
   } catch (e) {
     _root.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message)}</div>`;
@@ -190,7 +197,7 @@ async function initPermEditor() {
   let saved = {};
   try { const r = await api.request('/api/v3/settings/role_perms'); saved = (r && r.perms) || {}; } catch (_) {}
   _permState = {}; _permDefault = {};
-  PERM_ROLES.forEach(([role]) => {
+  permRoles().forEach(([role]) => {
     _permDefault[role] = defaultSetFor(role);
     _permState[role] = Array.isArray(saved[role]) ? new Set(saved[role]) : new Set(_permDefault[role]);
   });
@@ -200,7 +207,7 @@ async function initPermEditor() {
 function renderPermEditor() {
   const host = document.getElementById('perm-editor');
   if (!host) return;
-  const roleLvl = (PERM_ROLES.find(r => r[0] === _permRole) || [, , 0])[2];
+  const roleLvl = (permRoles().find(r => r[0] === _permRole) || [, , 0])[2];
   const st = _permState[_permRole] || new Set();
   const dis = !_permCanEdit;
 
@@ -232,7 +239,7 @@ function renderPermEditor() {
   host.innerHTML = `
     <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:10px">
       <span class="tiny muted" style="font-weight:700">Editando o papel:</span>
-      <select id="perm-role-sel" class="select">${PERM_ROLES.map(([r, lbl]) => `<option value="${r}"${r === _permRole ? ' selected' : ''}>${lbl}</option>`).join('')}</select>
+      <select id="perm-role-sel" class="select">${permRoles().map(([r, lbl]) => `<option value="${r}"${r === _permRole ? ' selected' : ''}>${lbl}</option>`).join('')}</select>
       ${_permCanEdit ? `
         <span style="flex:1"></span>
         <button class="btn btn-ghost btn-sm" id="perm-reset">↩ Restaurar padrão deste papel</button>
@@ -279,7 +286,7 @@ async function savePerms() {
   const minByRoute = {};
   (_permCatalog || []).forEach(g => g.items.forEach(it => { minByRoute[it.route] = it.minlvl || 0; }));
   const perms = {};
-  PERM_ROLES.forEach(([role, , roleLvl]) => {
+  permRoles().forEach(([role, , roleLvl]) => {
     const clean = new Set([..._permState[role]].filter(r => r in minByRoute));
     _permState[role] = clean;
     // só persiste papéis que DIFEREM do default (mantém papéis intactos dinâmicos)
@@ -395,7 +402,7 @@ function renderSubAbas() {
             <div style="font-size:12.5px;font-weight:600;margin-bottom:5px">${escapeHtml(lbl)}</div>
             <div class="flex" style="gap:5px;flex-wrap:wrap">
               ${todos(key)}
-              ${PERM_ROLES.map(([r, rl]) => chip(key, r, rl.replace(/^\S+\s/, ''))).join('')}
+              ${permRoles().map(([r, rl]) => chip(key, r, rl.replace(/^\S+\s/, ''))).join('')}
             </div>
           </div>`).join('')}
       </div>`).join('')}
@@ -461,7 +468,7 @@ async function initHomeRoutes() {
   if (!host) return;
   const canEdit = (auth.user()?.lvl || 0) >= 10;
   try { const r = await api.request('/api/v3/settings/home_routes'); _homeRoutes = (r && r.routes) || {}; } catch (_) { _homeRoutes = {}; }
-  const roles = [['socio', '👑 Sócio'], ...PERM_ROLES.map(r => [r[0], r[1]])];
+  const roles = [['socio', '👑 Sócio'], ...permRoles().map(r => [r[0], r[1]])];
   host.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:8px 12px;align-items:center;max-width:580px">
       ${roles.map(([role, lbl]) => `
