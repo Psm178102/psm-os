@@ -1,8 +1,9 @@
 {
-  "version": "81.70.0",
-  "meta": "2026.06.25-v81.70-google-maps-satelite-pins",
-  "built": "2026-06-25T21:10:00Z",
-  "sw": "v81.70.0-2026-06-25-GOOGLEMAPSSATELITEPINS",
+  "version": "81.71.0",
+  "meta": "2026.06.26-v81.71-gmaps-pins-cores-nomes",
+  "built": "2026-06-26T12:00:00Z",
+  "sw": "v81.71.0-2026-06-26-GMAPSPINSCORESNOMES",
+  "sprint": "v81.71 — Mapa Google Maps satélite: trocado o KmlLayer por PINS NATIVOS. Agora cada empreendimento aparece com a COR exata do My Maps (backend extrai a cor do KML: <Style>/<StyleMap><IconStyle><color> aabbggrr → #rrggbb) e o NOME FIXO num chip em cima do pin (label nativo com className estilizado). Territórios (polígonos/linhas) também com a cor do My Maps. Clique no pin abre o nome. Cache do endpoint empreendimentos bumpado p/ v2 (pins agora trazem 'cor'). Resolve 'os pins não têm nome fixo nem a cor que deixei no Google Earth'.",
   "sprint": "v81.70 — Mapa: GOOGLE MAPS em satélite (híbrido) + os pins do My Maps por cima, dentro do sistema. Confirmado que o Google Earth Web NÃO pode ser embutido (x-frame-options: SAMEORIGIN — bloqueio do Google). Solução escolhida pelo Paulo: API JS do Google Maps com mapTypeId 'hybrid' (imagem de satélite REAL do Google) + google.maps.KmlLayer carregando o KML do My Maps (mantém nomes, cores e info ao clicar, renderizados pelo próprio Google). Precisa de uma chave Maps JavaScript API: botão 🔑 Chave Maps salva em shared_kv psm_links.google_maps_key (restrita por referrer). Sem chave, cai no embed do My Maps. Pendente: Paulo criar a chave no Google Cloud.",
   "sprint": "v81.69 — Mapa: o EMBED do Google My Maps voltou a ser a vista PRINCIPAL (full-size). Paulo: a versão Leaflet (pins) perdia os NOMES e as CORES que ele escolheu no My Maps; o embed mostra tudo (nomes, cores, infos ao clicar) — 'já funcionou no passado'. Agora: embed do My Maps em tela cheia dentro do sistema + instrução pra deixar em satélite (My Maps → Mapa base → Satélite, ajuste do dono) + o satélite Esri com os 136 pins fica num bloco recolhível como alternativa (sem mexer no My Maps). Earth 3D no botão tela cheia.",
   "sprint": "v81.68 — Mapa: REMOVIDOS de vez os imóveis de captação (Paulo: 'não quero esses de captação, pode excluir'). O Mapa de Empreendimentos agora mostra SÓ os empreendimentos do Google My Maps do Paulo sobre satélite Esri (vista única), + o My Maps original num bloco recolhível e o Earth 3D em tela cheia. O bloco recolhível 'imóveis captados' do banco saiu. Backend maps/empreendimentos (v81.67) lê o KML do My Maps server-side + cache.",

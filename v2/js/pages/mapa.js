@@ -276,7 +276,7 @@ async function render() {
   `;
   const gk = document.getElementById('map-gkey'); if (gk) gk.addEventListener('click', editGmapsKey);
   const mm = document.getElementById('map-mymaps-edit'); if (mm) mm.addEventListener('click', editMyMaps);
-  if (useGoogle) await initGoogleMap(gkey, kmlUrl);
+  if (useGoogle) await initGoogleMap(gkey);
 }
 
 // Carrega a API JS do Google Maps (uma vez) com a chave do sócio.
@@ -298,28 +298,60 @@ function loadGoogleMapsApi(key) {
   });
 }
 
-// Mapa do Google em satélite (híbrido) + os pins do My Maps via KmlLayer (mantém
-// nomes, cores e info ao clicar — renderizados pelo próprio Google). v81.70
-async function initGoogleMap(key, kmlUrl) {
+// Pin SVG colorido (cor do My Maps), com a âncora na ponta e o rótulo acima. v81.71
+function pinIcon(cor) {
+  const c = cor || '#2563eb';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="36" viewBox="0 0 26 36"><path d="M13 0C5.82 0 0 5.82 0 13c0 9.2 13 23 13 23s13-13.8 13-23C26 5.82 20.18 0 13 0z" fill="${c}" stroke="#fff" stroke-width="2"/><circle cx="13" cy="13" r="4.6" fill="#fff"/></svg>`;
+  return { url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg), scaledSize: new google.maps.Size(26, 36), anchor: new google.maps.Point(13, 36), labelOrigin: new google.maps.Point(13, -10) };
+}
+
+// Mapa do Google em satélite (híbrido) + os empreendimentos do My Maps como PINS
+// NATIVOS: cada um com a COR e o NOME (fixo, em cima) do seu Google Earth/My Maps. v81.71
+async function initGoogleMap(key) {
   const el = document.getElementById('gmap'); const info = document.getElementById('gmap-info');
   if (!el) return;
+  if (!document.getElementById('gmap-label-css')) {
+    const st = document.createElement('style'); st.id = 'gmap-label-css';
+    st.textContent = '.gmap-emp-label{background:rgba(15,23,42,.82);padding:1px 6px;border-radius:5px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.5)}';
+    document.head.appendChild(st);
+  }
   const ok = await loadGoogleMapsApi(key);
   if (!ok || !(window.google && window.google.maps)) {
-    el.innerHTML = '<div style="padding:26px;text-align:center;color:#b91c1c;font-size:13px">⚠ Não consegui carregar o Google Maps.<br>Confira a chave: <b>Maps JavaScript API ativada</b> + <b>faturamento</b> ligado + restrição de referrer <b>https://www.housepsm.com.br/*</b>.</div>';
+    el.innerHTML = '<div style="padding:26px;text-align:center;color:#b91c1c;font-size:13px">⚠ Não consegui carregar o Google Maps.<br>Confira a chave: <b>Maps JavaScript API ativada</b> + <b>faturamento</b> + restrição de referrer <b>https://www.housepsm.com.br/*</b>.</div>';
     return;
   }
+  if (info) info.innerHTML = '<span class="spinner"></span> Carregando seus empreendimentos…';
+  let pins = [], shps = [];
+  try { const r = await api.request('/api/v3/maps/empreendimentos'); pins = r.pins || []; shps = r.shapes || []; }
+  catch (e) { if (info) info.textContent = 'Erro: ' + e.message; }
   const map = new google.maps.Map(el, {
     center: { lat: RP_LAT, lng: RP_LNG }, zoom: 12, mapTypeId: 'hybrid',
-    mapTypeControl: true, streetViewControl: false, fullscreenControl: true, tilt: 0,
+    mapTypeControl: true, streetViewControl: false, fullscreenControl: true, gestureHandling: 'greedy',
   });
-  if (!kmlUrl) { if (info) info.textContent = '⚠ Sem link do My Maps salvo (⚙️ My Maps).'; return; }
-  const kml = new google.maps.KmlLayer({ url: kmlUrl, map, preserveViewport: false, suppressInfoWindows: false });
-  google.maps.event.addListener(kml, 'status_changed', () => {
-    const st = kml.getStatus();
-    if (info) info.textContent = (st === 'OK')
-      ? '📍 Seus empreendimentos do My Maps sobre o satélite do Google (clique num pin pra ver nome/info).'
-      : '⚠ Não consegui carregar os pins do My Maps (status: ' + st + '). Deixe o My Maps como "qualquer pessoa com o link pode ver".';
+  const bounds = new google.maps.LatLngBounds();
+  const iw = new google.maps.InfoWindow();
+  // territórios (polígonos/linhas) com a cor do My Maps
+  shps.forEach(s => {
+    if (!s.coords || s.coords.length < 2) return;
+    const path = s.coords.map(c => ({ lat: c[0], lng: c[1] }));
+    const cor = s.cor || '#f59e0b';
+    if (s.tipo === 'poly') new google.maps.Polygon({ paths: path, map, strokeColor: cor, strokeWeight: 2, fillColor: cor, fillOpacity: .1 });
+    else new google.maps.Polyline({ path, map, strokeColor: cor, strokeWeight: 3 });
+    path.forEach(p => bounds.extend(p));
   });
+  // pins coloridos + nome fixo em cima
+  pins.forEach(p => {
+    if (typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
+    const pos = { lat: p.lat, lng: p.lng };
+    const m = new google.maps.Marker({
+      position: pos, map, icon: pinIcon(p.cor), title: p.nome || '',
+      label: p.nome ? { text: p.nome, color: '#fff', fontSize: '11px', fontWeight: '700', className: 'gmap-emp-label' } : undefined,
+    });
+    m.addListener('click', () => { iw.setContent('<div style="font:700 13px system-ui">🏗 ' + esc(p.nome || 'Empreendimento') + '</div>'); iw.open(map, m); });
+    bounds.extend(pos);
+  });
+  if (!bounds.isEmpty()) map.fitBounds(bounds, 40);
+  if (info) info.innerHTML = '📍 <b>' + pins.length + '</b> empreendimentos' + (shps.length ? ' · ' + shps.length + ' território(s)' : '') + ' — com as <b>suas cores e nomes</b>, no satélite do Google.';
 }
 
 async function editGmapsKey() {

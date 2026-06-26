@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 
 LINKS_KEY = "psm_links"
-CACHE_KEY = "maps_empreendimentos_cache"
+CACHE_KEY = "maps_empreendimentos_cache_v2"   # v2: pins agora trazem 'cor'
 CACHE_TTL = 6 * 3600  # 6h
 
 
@@ -66,45 +66,97 @@ def _parse_coords(text):
     return out
 
 
+def _kml_cor_hex(c):
+    """KML cor = aabbggrr → CSS #rrggbb (My Maps guarda a cor do ícone assim)."""
+    c = (c or "").strip()
+    if len(c) >= 8:
+        c = c[-8:]
+        h = "#" + c[6:8] + c[4:6] + c[2:4]   # rr gg bb
+        return h if all(ch in "0123456789abcdefABCDEF" for ch in h[1:]) else ""
+    return ""
+
+
 def _parse_kml(kml_text):
     pins, shapes = [], []
     try:
         root = ET.fromstring(kml_text)
     except Exception:
         return pins, shapes
+
+    # estilos: Style id -> cor ; StyleMap id -> styleUrl do estado 'normal'
+    styles, stylemaps = {}, {}
+    for el in root.iter():
+        ln = _ln(el.tag)
+        if ln == "Style" and el.get("id"):
+            col = ""
+            for c in el.iter():
+                if _ln(c.tag) == "IconStyle":
+                    for cc in c.iter():
+                        if _ln(cc.tag) == "color":
+                            col = cc.text
+            styles[el.get("id")] = _kml_cor_hex(col)
+        elif ln == "StyleMap" and el.get("id"):
+            normal = ""
+            for pair in el.iter():
+                if _ln(pair.tag) != "Pair":
+                    continue
+                key, surl = "", ""
+                for c in pair.iter():
+                    lc = _ln(c.tag)
+                    if lc == "key":
+                        key = (c.text or "").strip()
+                    elif lc == "styleUrl":
+                        surl = (c.text or "").strip().lstrip("#")
+                if key == "normal":
+                    normal = surl
+            stylemaps[el.get("id")] = normal
+
+    def _cor(styleurl):
+        sid = (styleurl or "").strip().lstrip("#")
+        if not sid:
+            return ""
+        if sid in stylemaps:
+            return styles.get(stylemaps[sid], "")
+        return styles.get(sid, "")
+
     for pm in root.iter():
         if _ln(pm.tag) != "Placemark":
             continue
-        nome = ""
-        pt, line, poly = None, None, None
-        for ch in pm.iter():
+        nome, styleurl = "", ""
+        for ch in pm:  # nome e styleUrl são filhos diretos do Placemark
             t = _ln(ch.tag)
             if t == "name" and not nome:
                 nome = (ch.text or "").strip()
-            elif t == "Point":
+            elif t == "styleUrl":
+                styleurl = ch.text or ""
+        pt = line = poly = None
+        for ch in pm.iter():  # geometria pode estar dentro de MultiGeometry
+            t = _ln(ch.tag)
+            if t == "Point":
                 for c in ch.iter():
                     if _ln(c.tag) == "coordinates":
                         pt = c.text
             elif t == "LineString":
                 for c in ch.iter():
                     if _ln(c.tag) == "coordinates":
-                        line = c.text
+                        line = line or c.text
             elif t == "Polygon":
                 for c in ch.iter():
                     if _ln(c.tag) == "coordinates":
-                        poly = poly or c.text  # 1ª = borda externa
+                        poly = poly or c.text
+        cor = _cor(styleurl)
         if pt:
             co = _parse_coords(pt)
             if co:
-                pins.append({"nome": nome[:160], "lat": co[0][0], "lng": co[0][1]})
+                pins.append({"nome": nome[:160], "lat": co[0][0], "lng": co[0][1], "cor": cor})
         elif poly:
             co = _parse_coords(poly)
             if len(co) >= 3:
-                shapes.append({"nome": nome[:160], "tipo": "poly", "coords": co})
+                shapes.append({"nome": nome[:160], "tipo": "poly", "coords": co, "cor": cor})
         elif line:
             co = _parse_coords(line)
             if len(co) >= 2:
-                shapes.append({"nome": nome[:160], "tipo": "line", "coords": co})
+                shapes.append({"nome": nome[:160], "tipo": "line", "coords": co, "cor": cor})
     return pins, shapes
 
 
