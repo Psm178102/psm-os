@@ -6,10 +6,11 @@ POST (lvl>=2):
   move:   muda status (Kanban drag) → notifica responsável
 DELETE ?id=X (lvl>=5)
 
-Notificações:
-- Ao atribuir responsável → notifica ele
-- Ao marcar precisa_fotos/precisa_videos → notifica Guilherme (marketing)
-- Ao mudar status pra edição → notifica marketing
+Notificações (v81.72 — por ALÇADA, nunca a empresa inteira):
+- Responsável atribuído → notificado em todos os canais a cada cadastro/edição/move
+- Gestão (sócio/diretor/gerente/líder) → sino só quando entra captação NOVA
+- Marketing → quando precisa_fotos/precisa_videos OU status entra na esteira de edição
+(Antes: cada move/edição dava sino pra TODOS os ativos — era o spam global. Removido.)
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, re, sys, urllib.parse
@@ -91,12 +92,18 @@ def _marketing_ids(sb):
         return []
 
 
-def _all_active_ids(sb, exclude=None):
-    """IDs de TODOS os usuários ativos (sino notifica a equipe inteira em qualquer
-    alteração de captação). Exclui quem disparou a ação pra não notificar a si mesmo."""
+def _gestao_ids(sb, exclude=None):
+    """IDs da GESTÃO ativa (sócio/diretor/gerente/líder) — a 'alçada' que acompanha
+    o pipeline de captações. v81.72: substitui o antigo broadcast pra TODOS os
+    ativos. Agora captação só notifica (1) o responsável atribuído, (2) a gestão
+    (alçada, e só em captação NOVA) e (3) o marketing (quando precisa da ação dele)
+    — nunca mais a empresa inteira a cada drag no kanban."""
+    GESTAO = ("socio", "diretor", "gerente", "lider")
     try:
-        rows = sb.table("users").select("id,status").execute().data or []
-        out = [r["id"] for r in rows if r.get("id") and (r.get("status") or "ativo") != "inativo"]
+        rows = sb.table("users").select("id,role,status").execute().data or []
+        out = [r["id"] for r in rows if r.get("id")
+               and (r.get("status") or "ativo") not in ("inativo", "desligado")
+               and (r.get("role") or "").lower() in GESTAO]
         if exclude:
             out = [i for i in out if i != exclude]
         return out
@@ -166,12 +173,9 @@ class handler(BaseHTTPRequestHandler):
                     notify_all([resp_id], "captacao", f"🔄 Captação movida → {status.replace('_', ' ')}",
                                desc, link="#/captacoes", target_type="captacoes", target_id=cid)
             except Exception: pass
-            # Sino pra TODOS os ativos (in-app; push fica só pro responsável acima)
-            try:
-                notify(_all_active_ids(sb, exclude=actor.get("id")), "captacao",
-                       f"🔄 Captação movida → {status.replace('_', ' ')}", desc,
-                       link="#/captacoes", target_type="captacoes", target_id=cid)
-            except Exception: pass
+            # v81.72: SEM broadcast pra empresa inteira. Um move só interessa a quem
+            # é da alçada — o responsável (acima) e o marketing (abaixo, se entra na
+            # esteira de fotos/vídeos). Ninguém mais recebe sino por um drag no kanban.
             # Notifica marketing quando vai pra edição/captação realizada
             if status in ("edicao_fotos", "edicao_videos", "captacao_realizada"):
                 try:
@@ -256,11 +260,17 @@ class handler(BaseHTTPRequestHandler):
                 notify_all([resp_id], "captacao", titulo,
                            f"{row.get('condominio') or 'Imóvel'} — {row.get('proprietario') or ''}",
                            link="#/captacoes", target_type="captacoes", target_id=cid)
-            # Sino pra TODOS os ativos (in-app) a cada cadastro/edição
-            _tt = "🎯 Nova captação" if is_new else "✏️ Captação atualizada"
-            notify(_all_active_ids(sb, exclude=actor.get("id")), "captacao", _tt,
-                   f"{row.get('condominio') or 'Imóvel'} — {row.get('proprietario') or ''}",
-                   link="#/captacoes", target_type="captacoes", target_id=cid)
+            # v81.72: a gestão (alçada) recebe sino só quando entra captação NOVA —
+            # nunca a cada edição, e nunca pra empresa inteira. Edição só pinga o
+            # responsável (acima). Não duplica o responsável que já foi notificado.
+            if is_new:
+                gids = _gestao_ids(sb, exclude=actor.get("id"))
+                if resp_id:
+                    gids = [i for i in gids if i != resp_id]
+                if gids:
+                    notify(gids, "captacao", "🎯 Nova captação",
+                           f"{row.get('condominio') or 'Imóvel'} — {row.get('proprietario') or ''}",
+                           link="#/captacoes", target_type="captacoes", target_id=cid)
             # Marketing se precisa fotos/vídeos
             if row.get("precisa_fotos") or row.get("precisa_videos"):
                 mids = _marketing_ids(sb)

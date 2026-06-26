@@ -105,12 +105,18 @@ class handler(BaseHTTPRequestHandler):
         audit(self, actor, "oportunidade.upsert", target_type="oportunidades_psm",
               target_id=row["id"], notes=titulo[:80])
 
-        # Notifica corretores ativos quando NOVA oportunidade aberta
+        # Notifica o time de VENDAS quando NOVA oportunidade aberta (oportunidade é
+        # um pool que o corretor pega — é da alçada de quem tem o módulo Vendas).
+        # v81.72: antes ia pra TODO lvl>=2, incluindo financeiro/marketing que nem
+        # enxergam Oportunidades. Agora só os papéis com acesso ao grupo 'vendas'.
+        VENDAS_ROLES = ("socio", "diretor", "gerente", "lider", "backoffice", "corretor",
+                        "corretor_conquista", "corretor_map", "corretor_locacao", "corretor_terceiros")
         if is_new and row["status"] == "aberta":
             try:
-                # lvl é derivado do role (não é coluna) → filtra em Python
                 users = sb.table("users").select("id,role").eq("status", "ativo").execute().data or []
-                ids = [u["id"] for u in users if u.get("id") and lvl_of(u.get("role")) >= 2]
+                ids = [u["id"] for u in users if u.get("id")
+                       and (u.get("role") or "").lower() in VENDAS_ROLES
+                       and u["id"] != actor.get("id")]
                 if ids:
                     notify(ids, "oportunidade",
                            f"💡 Nova oportunidade: {titulo[:60]}",
