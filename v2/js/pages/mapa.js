@@ -248,33 +248,43 @@ async function render() {
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div>
-          <h2 class="card-title">🛰 Mapa de Empreendimentos · Satélite</h2>
-          <p class="card-sub">Os empreendimentos do seu <b>Google My Maps</b> plotados sobre <b>satélite</b>. Alterne Satélite/Ruas no canto; o Earth 3D abre em tela cheia.</p>
+          <h2 class="card-title">🗺 Mapa de Empreendimentos PSM</h2>
+          <p class="card-sub">Seu Google My Maps com <b>todos os pins, nomes e cores</b> que você cadastrou — aqui dentro do sistema. O Earth 3D abre em tela cheia.</p>
         </div>
         <div class="flex gap-2">
           <a class="btn btn-primary" href="${esc(earthUrl)}" target="_blank" rel="noopener" style="background:#1a73e8">🌍 Abrir Earth 3D (tela cheia)</a>
-          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-emp-refresh" title="Re-sincronizar do Google My Maps">🔄</button><button class="btn btn-ghost" id="map-earth-edit" title="Editar link do Google Earth (3D)">⚙️ Earth</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar link do Google My Maps">⚙️ My Maps</button>' : ''}
+          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-emp-refresh" title="Re-sincronizar os pins do satélite">🔄</button><button class="btn btn-ghost" id="map-earth-edit" title="Editar link do Google Earth (3D)">⚙️ Earth</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar link do Google My Maps">⚙️ My Maps</button>' : ''}
         </div>
       </div>
 
-      <!-- EMPREENDIMENTOS DO MY MAPS sobre SATÉLITE (vista principal) -->
-      <div id="emp-map" style="height:calc(100vh - 320px);min-height:460px;border-radius:12px;background:var(--bg-3);position:relative;margin-top:12px"></div>
-      <div id="emp-info" class="tiny muted mt-2"></div>
-
       ${embedSrc ? `
-      <details class="mt-4">
-        <summary style="cursor:pointer;font-weight:700;padding:6px 0">🗺 Ver o mapa original do Google My Maps (com territórios)</summary>
-        <div class="mt-2" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a">
-          <iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 380px);min-height:420px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-        </div>
-      </details>` : (canEditLinks() ? '<p class="tiny muted mt-3">💡 Cole o link do seu <b>Google My Maps</b> em <b>⚙️ My Maps</b> pra os empreendimentos aparecerem no satélite acima.</p>' : '')}
+      <!-- EMBED do My Maps = vista PRINCIPAL: nomes + cores + tudo que ele cadastrou -->
+      <div class="mt-3" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a">
+        <iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 300px);min-height:480px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </div>
+      <p class="tiny muted mt-2">💡 Pra ver em <b>satélite</b>: abra o seu <b>My Maps</b> → no canto inferior esquerdo clique em <b>"Mapa base"</b> → escolha <b>Satélite</b>. Aí o mapa aqui já aparece em satélite, com seus nomes e cores.</p>
+      <details class="mt-3" id="sat-details">
+        <summary style="cursor:pointer;font-weight:700;padding:6px 0">🛰 Ver os mesmos pins sobre satélite Esri (sem mexer no My Maps)</summary>
+        <div id="emp-map" style="height:calc(100vh - 360px);min-height:440px;border-radius:12px;background:var(--bg-3);position:relative;margin-top:8px"></div>
+        <div id="emp-info" class="tiny muted mt-2"></div>
+      </details>
+      ` : `
+      <div id="emp-map" style="height:calc(100vh - 300px);min-height:480px;border-radius:12px;background:var(--bg-3);position:relative;margin-top:12px"></div>
+      <div id="emp-info" class="tiny muted mt-2"></div>
+      ${canEditLinks() ? '<p class="tiny muted mt-3">💡 Cole o link do seu <b>Google My Maps</b> em <b>⚙️ My Maps</b> pra ele aparecer aqui com todos os pins, nomes e cores.</p>' : ''}
+      `}
     </div>
   `;
   const ee = document.getElementById('map-earth-edit'); if (ee) ee.addEventListener('click', editEarth);
   const mm = document.getElementById('map-mymaps-edit'); if (mm) mm.addEventListener('click', editMyMaps);
   const rf = document.getElementById('map-emp-refresh'); if (rf) rf.addEventListener('click', () => loadEmpreendimentos(true));
-  // EMPREENDIMENTOS do Google My Maps no satélite — única vista (sem imóveis de captação). v81.68
-  await loadEmpreendimentos();
+  if (embedSrc) {
+    // o satélite Esri (pins) carrega só quando o usuário abre o bloco recolhível
+    const sd = document.getElementById('sat-details');
+    if (sd) sd.addEventListener('toggle', () => { if (sd.open) loadEmpreendimentos(); });
+  } else {
+    await loadEmpreendimentos();   // sem My Maps salvo: usa o satélite Esri direto
+  }
 }
 
 function renderContent() {

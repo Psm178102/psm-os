@@ -1,8 +1,9 @@
 {
-  "version": "81.68.0",
-  "meta": "2026.06.25-v81.68-mapa-so-empreendimentos",
-  "built": "2026-06-25T19:40:00Z",
-  "sw": "v81.68.0-2026-06-25-MAPASOEMPREENDIMENTOS",
+  "version": "81.69.0",
+  "meta": "2026.06.25-v81.69-mapa-embed-primario",
+  "built": "2026-06-25T20:20:00Z",
+  "sw": "v81.69.0-2026-06-25-MAPAEMBEDPRIMARIO",
+  "sprint": "v81.69 — Mapa: o EMBED do Google My Maps voltou a ser a vista PRINCIPAL (full-size). Paulo: a versão Leaflet (pins) perdia os NOMES e as CORES que ele escolheu no My Maps; o embed mostra tudo (nomes, cores, infos ao clicar) — 'já funcionou no passado'. Agora: embed do My Maps em tela cheia dentro do sistema + instrução pra deixar em satélite (My Maps → Mapa base → Satélite, ajuste do dono) + o satélite Esri com os 136 pins fica num bloco recolhível como alternativa (sem mexer no My Maps). Earth 3D no botão tela cheia.",
   "sprint": "v81.68 — Mapa: REMOVIDOS de vez os imóveis de captação (Paulo: 'não quero esses de captação, pode excluir'). O Mapa de Empreendimentos agora mostra SÓ os empreendimentos do Google My Maps do Paulo sobre satélite Esri (vista única), + o My Maps original num bloco recolhível e o Earth 3D em tela cheia. O bloco recolhível 'imóveis captados' do banco saiu. Backend maps/empreendimentos (v81.67) lê o KML do My Maps server-side + cache.",
   "sprint": "v81.67 — Mapa agora mostra os EMPREENDIMENTOS do Google My Maps do Paulo ('MAPA Empreendimentos PSM') sobre SATÉLITE — não os imóveis de captação do banco. Backend novo maps/empreendimentos: lê o link do My Maps salvo (psm_links), extrai o mid, baixa o KML público SERVER-SIDE (evita CORS), parseia os Placemarks (pins + polígonos/territórios) e cacheia em shared_kv (~6h, botão 🔄 força re-sync). Front: plota os ~50 pins + territórios sobre o satélite Esri como vista PRINCIPAL; o My Maps original (com territórios) e os imóveis captados do banco viram blocos recolhíveis. Resolve 'eu quero os empreendimentos que cadastrei no google earth, não os de captação'.",
   "sprint": "v81.66 — FIX do mapa BRANCO: os tiles de satélite (Esri) carregavam e ficavam no lugar certo, mas com opacity:0 — a animação de fade-in do Leaflet travava em 0 quando o mapa era reconstruído pela geocodificação (renderContent). Resultado: mapa branco com só os pins. Corrigido criando o mapa com {fadeAnimation:false} → os tiles pintam imediatamente. Confirmado por screenshot ao vivo: forçando opacity:1 o satélite de Rio Preto apareceu completo (bairros, rodovia, pins). Agora abre direto em satélite renderizado.",
