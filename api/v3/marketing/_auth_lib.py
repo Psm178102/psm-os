@@ -82,10 +82,10 @@ def _jwt_ttl_seconds() -> int:
 
 ROLE_LVL = {
     "socio": 10, "diretor": 10,
-    "gerente": 7,
+    "gerente": 7, "gerente_conquista": 7, "gerente_map": 7, "gerente_locacao": 7, "gerente_terceiros": 7,
     "backoffice": 6, "back_office": 6, "back-office": 6,
     "lider": 5, "líder": 5,
-    "marketing": 3,
+    "marketing": 3, "secretaria_vendas": 3,
     "financeiro": 4,
     "corretor": 2,
 }

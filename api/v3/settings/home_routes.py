@@ -21,7 +21,7 @@ from _auth_lib import supabase_client, require_user, AuthError, audit  # type: i
 
 KV_KEY = "home_routes"
 VALID_ROLES = {"socio", "diretor", "gerente", "lider", "backoffice", "financeiro", "marketing",
-               "corretor", "corretor_conquista", "corretor_map", "corretor_locacao", "corretor_terceiros"}
+               "corretor", "corretor_conquista", "corretor_map", "corretor_locacao", "corretor_terceiros", "gerente_conquista", "gerente_map", "gerente_locacao", "gerente_terceiros", "secretaria_vendas"}
 MAX_LEN = 60
 
 

@@ -176,10 +176,17 @@ export const ROLE_ALLOWED = {
   socio:      '*',
   diretor:    '*',
   gerente:    '*',
+  // gerentes por categoria (lvl 7) — default = tudo; o sócio afina cada um na matriz. v81.89
+  gerente_conquista: '*',
+  gerente_map:       '*',
+  gerente_locacao:   '*',
+  gerente_terceiros: '*',
   // líder: toda a operação + performance da equipe, MAS sem Diretoria nem Sistema (admin)
   lider:      ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta'],
   marketing:  ['inicio', 'secretaria', 'marketing', 'captacoes', 'rh', 'academy', 'conta'],
   backoffice: ['inicio', 'secretaria', 'captacoes', 'vendas', 'locacao', 'rh', 'academy', 'conta'],
+  // secretária de vendas (lvl 3) — apoio comercial; o sócio afina na matriz. v81.89
+  secretaria_vendas: ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'academy', 'conta'],
   financeiro: ['inicio', 'financeiro', 'rh', 'academy', 'conta'],
   corretor:   ['inicio', 'secretaria', 'vendas', 'captacoes', 'locacao', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta'],
   // Sub-tipos de corretor (lvl 2) — default = mesmo do corretor; o sócio afina cada um
@@ -350,7 +357,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.88.0';
+const APP_VERSION = '81.89.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {

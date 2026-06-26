@@ -98,7 +98,7 @@ def _gestao_ids(sb, exclude=None):
     ativos. Agora captação só notifica (1) o responsável atribuído, (2) a gestão
     (alçada, e só em captação NOVA) e (3) o marketing (quando precisa da ação dele)
     — nunca mais a empresa inteira a cada drag no kanban."""
-    GESTAO = ("socio", "diretor", "gerente", "lider")
+    GESTAO = ("socio", "diretor", "gerente", "lider", "gerente_conquista", "gerente_map", "gerente_locacao", "gerente_terceiros")
     try:
         rows = sb.table("users").select("id,role,status").execute().data or []
         out = [r["id"] for r in rows if r.get("id")

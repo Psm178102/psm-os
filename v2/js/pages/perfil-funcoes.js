@@ -8,8 +8,11 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 const ROLES = [
-  ['socio', '👑 Sócio'], ['diretor', 'Diretor'], ['gerente', 'Gerente'], ['lider', 'Líder'],
-  ['backoffice', 'Backoffice'], ['financeiro', 'Financeiro'], ['marketing', 'Marketing'],
+  ['socio', '👑 Sócio'], ['diretor', 'Diretor'], ['gerente', 'Gerente (geral)'], ['lider', 'Líder'],
+  ['gerente_conquista', 'Gerente Conquista'], ['gerente_map', 'Gerente MAP'],
+  ['gerente_locacao', 'Gerente Locação'], ['gerente_terceiros', 'Gerente Terceiros'],
+  ['backoffice', 'Backoffice'], ['secretaria_vendas', 'Secretária de Vendas'],
+  ['financeiro', 'Financeiro'], ['marketing', 'Marketing'],
   ['corretor_conquista', 'Corretor Conquista'], ['corretor_map', 'Corretor MAP'],
   ['corretor_locacao', 'Corretor Locação'], ['corretor_terceiros', 'Corretor Terceiros'],
 ];

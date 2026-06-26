@@ -19,6 +19,7 @@ ROLE_ALLOWED = {
     "líder":      ["inicio", "vendas", "captacoes", "locacao", "marketing", "performance", "ia", "cultura", "ferramentas", "conta"],
     "marketing":  ["inicio", "marketing", "captacoes", "cultura", "conta"],
     "backoffice": ["inicio", "captacoes", "vendas", "locacao", "cultura", "conta"],
+    "secretaria_vendas": ["inicio", "vendas", "captacoes", "locacao", "cultura", "conta"],
     "financeiro": ["inicio", "financeiro", "cultura", "conta"],
     "corretor":   ["inicio", "vendas", "captacoes", "locacao", "performance", "ia", "cultura", "ferramentas", "conta"],
     "corretor_conquista": ["inicio", "vendas", "captacoes", "locacao", "performance", "ia", "cultura", "ferramentas", "conta"],

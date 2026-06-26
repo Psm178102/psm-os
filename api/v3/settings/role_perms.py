@@ -24,7 +24,7 @@ from _auth_lib import supabase_client, require_user, AuthError, audit  # type: i
 KV_KEY = "role_perms"
 # 'socio' nunca é customizável (não dá pra trancar o dono pra fora) → ignorado se vier.
 VALID_ROLES = {"diretor", "gerente", "lider", "backoffice", "financeiro", "marketing", "corretor",
-               "corretor_conquista", "corretor_map", "corretor_locacao", "corretor_terceiros"}
+               "corretor_conquista", "corretor_map", "corretor_locacao", "corretor_terceiros", "gerente_conquista", "gerente_map", "gerente_locacao", "gerente_terceiros", "secretaria_vendas"}
 MAX_ROUTES = 300       # teto de rotas por papel
 MAX_LEN = 80           # tamanho de uma chave de rota
 

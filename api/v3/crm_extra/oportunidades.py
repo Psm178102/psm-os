@@ -109,7 +109,7 @@ class handler(BaseHTTPRequestHandler):
         # um pool que o corretor pega — é da alçada de quem tem o módulo Vendas).
         # v81.72: antes ia pra TODO lvl>=2, incluindo financeiro/marketing que nem
         # enxergam Oportunidades. Agora só os papéis com acesso ao grupo 'vendas'.
-        VENDAS_ROLES = ("socio", "diretor", "gerente", "lider", "backoffice", "corretor",
+        VENDAS_ROLES = ("socio", "diretor", "gerente", "lider", "backoffice", "corretor", "gerente_conquista", "gerente_map", "gerente_locacao", "gerente_terceiros", "secretaria_vendas",
                         "corretor_conquista", "corretor_map", "corretor_locacao", "corretor_terceiros")
         if is_new and row["status"] == "aberta":
             try:

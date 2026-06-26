@@ -7,8 +7,13 @@ import { auth } from '../auth.js';
 
 const ROLES = [
   { id: 'socio',      lbl: 'Sócio / Diretor',   lvl: 10, color: '#dc2626', ico: '👑' },
-  { id: 'gerente',    lbl: 'Gerente',           lvl: 7,  color: '#7c3aed', ico: '🎯' },
+  { id: 'gerente',    lbl: 'Gerente (geral)',   lvl: 7,  color: '#7c3aed', ico: '🎯' },
+  { id: 'gerente_conquista', lbl: 'Gerente Conquista', lvl: 7, color: '#f59e0b', ico: '🎯' },
+  { id: 'gerente_map',       lbl: 'Gerente MAP',       lvl: 7, color: '#a855f7', ico: '🎯' },
+  { id: 'gerente_locacao',   lbl: 'Gerente Locação',   lvl: 7, color: '#a16207', ico: '🎯' },
+  { id: 'gerente_terceiros', lbl: 'Gerente Terceiros', lvl: 7, color: '#0d9488', ico: '🎯' },
   { id: 'backoffice', lbl: 'Back Office',       lvl: 6,  color: '#0891b2', ico: '📋' },
+  { id: 'secretaria_vendas', lbl: 'Secretária de Vendas', lvl: 3, color: '#db2777', ico: '🗂️' },
   { id: 'lider',      lbl: 'Líder de Equipe',   lvl: 5,  color: '#059669', ico: '🛡️' },
   { id: 'financeiro', lbl: 'Financeiro',        lvl: 4,  color: '#16a34a', ico: '💰' },
   { id: 'marketing',  lbl: 'Marketing',         lvl: 3,  color: '#d97706', ico: '📢' },
