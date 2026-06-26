@@ -425,8 +425,20 @@ async function initGoogleMap(key) {
   // Validado: o window-resize pós-tiles reposiciona o satélite na hora. v81.80
   const _kick = () => { try { google.maps.event.trigger(map, 'resize'); window.dispatchEvent(new Event('resize')); _applyView(); } catch (_) {} };
   _applyView();
-  try { google.maps.event.addListenerOnce(map, 'tilesloaded', _kick); google.maps.event.addListenerOnce(map, 'idle', _kick); } catch (_) {}
-  [400, 1200, 2500].forEach(ms => setTimeout(_kick, ms));
+  try { google.maps.event.addListenerOnce(map, 'tilesloaded', _kick); } catch (_) {}
+  // Kick REPETIDO nos primeiros ~6s. Os tiles do satélite carregam DEPOIS do resize
+  // precoce e ficam posicionados pro viewport errado (cinza com só os pins). Um
+  // window-resize re-encaixa tudo (validado), então repetimos até um deles cair
+  // depois dos tiles. Idempotente: quando já está certo, vira no-op. v81.82
+  let _k = 0; const _iv = setInterval(() => { _kick(); if (++_k >= 9) clearInterval(_iv); }, 700);
+  // e mais uma rede de segurança quando o container mudar de tamanho (layout tardio)
+  try {
+    if (window.ResizeObserver) {
+      const _ro = new ResizeObserver(() => _kick());
+      _ro.observe(document.getElementById('gmap') || el);
+      setTimeout(() => { try { _ro.disconnect(); } catch (_) {} }, 8000);
+    }
+  } catch (_) {}
   const nome = _fonte === 'conquista' ? 'PSM Conquista' : 'MAP';
   if (info) info.innerHTML = aviso
     ? '<span style="color:#b45309">' + esc(aviso) + '</span>'
