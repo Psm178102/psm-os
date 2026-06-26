@@ -283,7 +283,6 @@ async function render() {
       <!-- GOOGLE MAPS satélite (híbrido) + pins NATIVOS (cor + nome) da fonte ativa -->
       <div id="gmap" style="height:calc(100vh - 330px);min-height:460px;border-radius:12px;background:var(--bg-3);position:relative;margin-top:12px"></div>
       <div id="gmap-info" class="tiny muted mt-2"></div>
-      ${semFonte && canEditLinks() ? `<div class="alert alert-warn mt-2" style="font-size:13px">📍 A fonte <b>${esc(nomeFonte)}</b> ainda não tem um Google My Maps configurado. Cole o link em <b>⚙️ My Maps (${esc(nomeFonte)})</b> que os pins aparecem aqui no satélite.</div>` : ''}
       ${embedSrc ? `<details class="mt-3"><summary style="cursor:pointer;font-weight:700;padding:6px 0">🗺 Ver o My Maps original da ${esc(nomeFonte)} (embed)</summary><div class="mt-2" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a"><iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 380px);min-height:420px;border:0;display:block" allowfullscreen loading="lazy"></iframe></div></details>` : ''}
       ` : (embedSrc ? `
       ${canEditLinks() ? '<div class="alert alert-warn mt-3" style="font-size:13px">🔑 Pra ter o <b>mapa do Google em satélite com os pins</b> aqui dentro, cole a <b>chave do Google Maps</b> no botão <b>🔑 Chave Maps</b>. Enquanto isso, abaixo está o My Maps embutido.</div>' : ''}
@@ -299,9 +298,23 @@ async function render() {
   }));
   const gk = document.getElementById('map-gkey'); if (gk) gk.addEventListener('click', editGmapsKey);
   const mm = document.getElementById('map-mymaps-edit'); if (mm) mm.addEventListener('click', editMyMaps);
-  // Sempre renderiza o satélite (mesmo sem fonte): mapa vazio de Rio Preto + aviso,
-  // em vez de um quadrado branco "quebrado". Os pins entram quando o My Maps for colado.
-  if (useGoogle) await initGoogleMap(gkey);
+  if (useGoogle && semFonte) {
+    // Fonte ainda sem My Maps: placeholder claro DENTRO da área do mapa (em vez de
+    // satélite vazio/cinza ou quadrado branco). Os pins entram quando colar o My Maps.
+    const g = document.getElementById('gmap');
+    if (g) {
+      g.style.display = 'flex';
+      g.innerHTML = `<div style="margin:auto;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:24px;color:var(--muted)">
+        <div style="font-size:42px">🏘️</div>
+        <div style="font-size:15px;font-weight:800;color:var(--ink,#0b1f3a)">Mapa da ${esc(nomeFonte)} ainda sem fonte</div>
+        <div style="font-size:13px;max-width:470px;line-height:1.55">Cole o link do <b>Google My Maps</b> da <b>${esc(nomeFonte)}</b> que os empreendimentos aparecem aqui no satélite — com nome e cor, igual ao MAP. (O link do Google Earth não serve.)</div>
+        ${canEditLinks() ? `<button class="btn btn-primary" id="gmap-add-src" style="margin-top:4px">⚙️ Colar My Maps (${esc(nomeFonte)})</button>` : ''}
+      </div>`;
+      const add = document.getElementById('gmap-add-src'); if (add) add.addEventListener('click', editMyMaps);
+    }
+  } else if (useGoogle) {
+    await initGoogleMap(gkey);
+  }
 }
 
 // Carrega a API JS do Google Maps (uma vez) com a chave do sócio.
