@@ -5,10 +5,30 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { ROUTE_GROUP, ROLE_ALLOWED, ROUTE_MIN_LVL } from '../main.js';
+import { getResourcePerms, saveResourcePerms, ROLE_OPTIONS } from '../links.js';
 
 let _root = null;
 let _data = null;
 let _reveal = false;
+
+// ── Visibilidade de SUB-ABAS (resource_perms) — controle central v81.85 ──
+// Cada sub-aba interna (que não é rota própria) vira um "recurso" com chave;
+// a página confere canSeeResource(chave). Lista por GRUPO de página. Extensível:
+// pra controlar uma sub-aba nova, registra aqui + 1 checagem canSeeResource na página.
+const SUBABA_REGISTRY = [
+  { grupo: '🗺 Mapa de Empreendimentos', itens: [
+    ['mapa_map', 'Aba MAP'], ['mapa_conquista', 'Aba PSM Conquista'] ] },
+  { grupo: '📚 Biblioteca de Anúncios — Bibliotecas do Meta', itens: [
+    ['ads_conquista', 'Conta Conquista'], ['ads_map', 'Conta MAP'],
+    ['ads_locacao', 'Conta Locação'], ['ads_terceiros', 'Conta Terceiros'] ] },
+  { grupo: '📣 Biblioteca de Anúncios — Anúncios PSM (criativo+copy)', itens: [
+    ['adspsm_conquista', 'Aba Conquista'], ['adspsm_map_terceiros', 'Aba MAP+Terceiros'],
+    ['adspsm_locacao', 'Aba Locação'] ] },
+  { grupo: '🌟 Base de Talentos', itens: [
+    ['talentos_rd', 'Aba RD ao vivo'], ['talentos_manual', 'Aba Base manual'] ] },
+];
+let _resState = {};      // { key: Set(roles) }  — Set vazio = todos veem
+let _resCanEdit = false;
 
 // ── Editor de Permissões por papel (matriz editável pelo sócio) ──
 const PERM_GROUP_LBL = {
@@ -87,6 +107,8 @@ function render() {
 
       ${permissoesCard()}
 
+      ${subAbasCard()}
+
       ${conclusaoCard()}
 
       <div class="alert alert-warn mt-4">
@@ -103,6 +125,7 @@ function render() {
   document.querySelectorAll('[data-setting-save]').forEach(b => b.addEventListener('click', saveSetting));
 
   initPermEditor();   // monta a matriz editável de permissões por papel
+  initSubAbas();      // monta o painel central de visibilidade de sub-abas
   initConclEditor();  // monta o editor de campos de conclusão por atividade
 }
 
@@ -319,6 +342,86 @@ async function saveSetting(ev) {
 }
 
 // ── Campos de conclusão por atividade (editável pelo sócio) ──
+// ── Painel central: Visibilidade de SUB-ABAS (resource_perms) v81.85 ──
+function subAbasCard() {
+  return `
+    <div class="card mt-4" id="subaba-card" style="margin-top:14px">
+      <h3 class="card-title">👁 Visibilidade de sub-abas</h3>
+      <p class="card-sub">Controle aqui, num só lugar, quem vê cada <b>sub-aba interna</b> (abas dentro de uma página — que não são item de menu). Marque os papéis que podem ver; <b>nenhum marcado = todos veem</b>. O sócio sempre vê tudo. (Os itens de menu ficam na matriz acima.)</p>
+      <div id="subaba-editor"><div class="flex items-center gap-2 muted tiny" style="padding:10px 0"><span class="spinner"></span> Carregando…</div></div>
+    </div>`;
+}
+
+async function initSubAbas() {
+  const host = document.getElementById('subaba-editor');
+  if (!host) return;
+  _resCanEdit = (auth.user()?.lvl || 0) >= 10;
+  let perms = {};
+  try { perms = await getResourcePerms(true); } catch (_) { perms = {}; }
+  _resState = {};
+  SUBABA_REGISTRY.forEach(g => g.itens.forEach(([key]) => {
+    const list = Array.isArray(perms[key]) ? perms[key] : [];
+    _resState[key] = new Set(list.filter(r => r !== '*'));
+  }));
+  renderSubAbas();
+}
+
+function renderSubAbas() {
+  const host = document.getElementById('subaba-editor');
+  if (!host) return;
+  const dis = !_resCanEdit;
+  const chip = (key, role, lbl) => {
+    const on = (_resState[key] || new Set()).has(role);
+    return `<button class="saba-chip${on ? ' on' : ''}" data-saba="${key}" data-role="${role}" ${dis ? 'disabled' : ''} style="${on ? 'background:#2563eb;color:#fff;border-color:#2563eb' : ''}">${escapeHtml(lbl)}</button>`;
+  };
+  const todos = key => {
+    const empty = !(_resState[key] && _resState[key].size);
+    return `<button class="saba-chip${empty ? ' on' : ''}" data-saba="${key}" data-role="__todos__" ${dis ? 'disabled' : ''} style="${empty ? 'background:#16a34a;color:#fff;border-color:#16a34a' : ''}">🌐 Todos</button>`;
+  };
+  host.innerHTML = `
+    <style>.saba-chip{font-size:11.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--bd,#cbd5e1);background:var(--bg-2);cursor:pointer;white-space:nowrap}.saba-chip[disabled]{cursor:default;opacity:.7}.saba-row{padding:7px 0;border-top:1px solid var(--bd,#e2e8f0)}</style>
+    ${SUBABA_REGISTRY.map(g => `
+      <div style="margin-bottom:10px">
+        <div style="font-weight:800;font-size:13px;margin:8px 0 2px">${escapeHtml(g.grupo)}</div>
+        ${g.itens.map(([key, lbl]) => `
+          <div class="saba-row">
+            <div style="font-size:12.5px;font-weight:600;margin-bottom:5px">${escapeHtml(lbl)}</div>
+            <div class="flex" style="gap:5px;flex-wrap:wrap">
+              ${todos(key)}
+              ${PERM_ROLES.map(([r, rl]) => chip(key, r, rl.replace(/^\S+\s/, ''))).join('')}
+            </div>
+          </div>`).join('')}
+      </div>`).join('')}
+    ${_resCanEdit ? '<div class="flex gap-2" style="margin-top:8px"><button class="btn btn-primary" id="saba-save">💾 Salvar visibilidade</button></div>' : '<div class="tiny muted">Só o sócio (lvl 10) edita.</div>'}
+  `;
+  host.querySelectorAll('[data-saba]').forEach(b => b.addEventListener('click', () => {
+    if (dis) return;
+    const key = b.dataset.saba, role = b.dataset.role;
+    const set = _resState[key] || (_resState[key] = new Set());
+    if (role === '__todos__') set.clear();
+    else if (set.has(role)) set.delete(role); else set.add(role);
+    renderSubAbas();
+  }));
+  const sv = host.querySelector('#saba-save'); if (sv) sv.onclick = saveSubAbas;
+}
+
+async function saveSubAbas() {
+  const patch = {};
+  SUBABA_REGISTRY.forEach(g => g.itens.forEach(([key]) => {
+    const set = _resState[key] || new Set();
+    patch[key] = set.size ? [...set] : [];   // vazio = todos veem
+  }));
+  const btn = document.getElementById('saba-save');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ salvando…'; }
+  try {
+    await saveResourcePerms(patch);
+    if (btn) { btn.textContent = '✅ Salvo!'; setTimeout(() => { const b = document.getElementById('saba-save'); if (b) { b.disabled = false; b.textContent = '💾 Salvar visibilidade'; } }, 1600); }
+  } catch (e) {
+    alert('Erro ao salvar: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar visibilidade'; }
+  }
+}
+
 function conclusaoCard() {
   return `
     <div class="card mt-4" id="concl-card" style="margin-top:14px">

@@ -16,6 +16,8 @@ import { getAdsLibrary, saveAdsLink, deleteAdsLink, getResourcePerms, canSeeReso
 // Bibliotecas de Anúncios do Meta (Ad Library) — uma "conta"/categoria por bloco,
 // vários links cada. Visibilidade por papel via resource_perms 'ads_<cat>'. v81.81
 const ADS_CATS = [['conquista', '🏠 Conquista'], ['map', '🗺️ MAP'], ['locacao', '🔑 Locação'], ['terceiros', '🤝 Terceiros']];
+// chave resource_perms da categoria (aba) dos Anúncios PSM — visibilidade central. v81.85
+const ADSPSM_KEY = { 'Conquista': 'adspsm_conquista', 'MAP+Terceiros': 'adspsm_map_terceiros', 'Locação': 'adspsm_locacao' };
 let _adsLib = {}, _adsPerms = {};
 
 let _root = null;
@@ -631,7 +633,9 @@ function anFiltered() {
 }
 
 function renderAnuncios() {
-  const cats = _isConquista() ? ['Conquista'] : LIB_CATS;
+  let cats = _isConquista() ? ['Conquista'] : LIB_CATS;
+  cats = cats.filter(c => canSeeResource(ADSPSM_KEY[c], _adsPerms));   // visibilidade central por papel
+  if (!cats.length) cats = [_isConquista() ? 'Conquista' : LIB_CATS[0]];
   if (!cats.includes(_anCat)) _anCat = cats[0];
   const list = anFiltered();
   body().innerHTML = `

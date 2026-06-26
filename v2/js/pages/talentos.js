@@ -9,6 +9,8 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { router } from '../router.js';
+import { getResourcePerms, canSeeResource } from '../links.js';
+let _talPerms = {};   // resource_perms (visibilidade das abas RD/manual). v81.85
 
 let _root = null;
 let _tab = 'rd';
@@ -44,7 +46,13 @@ export async function pageTalentos(ctx, root) {
     root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder/Diretoria (lvl 5+).</div>';
     return;
   }
+  try { _talPerms = await getResourcePerms(); } catch (_) { _talPerms = {}; }
+  const canRd = canSeeResource('talentos_rd', _talPerms);
+  const canMan = canSeeResource('talentos_manual', _talPerms);
+  if (_tab === 'rd' && !canRd) _tab = canMan ? 'manual' : 'rd';
+  if (_tab === 'manual' && !canMan) _tab = canRd ? 'rd' : 'manual';
   render();
+  if (!canRd && !canMan) { const b = document.getElementById('tal-body'); if (b) b.innerHTML = '<div class="alert alert-warn">Você não tem acesso às abas da Base de Talentos. Fale com o sócio.</div>'; return; }
   if (_tab === 'rd') loadRd(); else loadManual();
 }
 
@@ -54,8 +62,8 @@ function render() {
       <h2 class="card-title">🌟 Base de Talentos</h2>
       <p class="card-sub">Pipeline de recrutamento — conectado ao RD Station (funil de Parceria · etapa Banco de Talentos) em tempo real + base interna.</p>
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
-        <button class="btn ${_tab === 'rd' ? 'btn-primary' : 'btn-ghost'}" data-tab="rd">🟢 RD ao vivo</button>
-        <button class="btn ${_tab === 'manual' ? 'btn-primary' : 'btn-ghost'}" data-tab="manual">📝 Base manual</button>
+        ${canSeeResource('talentos_rd', _talPerms) ? `<button class="btn ${_tab === 'rd' ? 'btn-primary' : 'btn-ghost'}" data-tab="rd">🟢 RD ao vivo</button>` : ''}
+        ${canSeeResource('talentos_manual', _talPerms) ? `<button class="btn ${_tab === 'manual' ? 'btn-primary' : 'btn-ghost'}" data-tab="manual">📝 Base manual</button>` : ''}
       </div>
       <div id="tal-body" class="mt-4"></div>
     </div>
