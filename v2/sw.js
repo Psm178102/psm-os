@@ -1,5 +1,5 @@
 // PSM /v2 — Service Worker (offline-first cache de shell)
-const VERSION = 'v373-2026-06-26-mapa-tiles-resize';
+const VERSION = 'v374-2026-06-26-mapa-espera-container';
 const SHELL_CACHE = 'psm-v2-shell-' + VERSION;
 // Runtime cache versionado: ao bumpar VERSION, o activate purga o runtime antigo
 // (JS/CSS desatualizado) automaticamente, garantindo que mudanças propaguem.

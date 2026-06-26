@@ -362,7 +362,16 @@ async function initGoogleMap(key) {
   let pins = [], shps = [], aviso = '';
   try { const r = await api.request('/api/v3/maps/empreendimentos?fonte=' + encodeURIComponent(_fonte)); pins = r.pins || []; shps = r.shapes || []; aviso = r.aviso || ''; }
   catch (e) { if (info) info.textContent = 'Erro: ' + e.message; }
-  const map = new google.maps.Map(el, {
+  // Garante que o container tenha tamanho REAL antes de criar o mapa. Se for criado
+  // com 0px (innerHTML do render / troca de aba ainda sem reflow), o Google calcula
+  // viewport vazio e NÃO baixa tile nenhum → satélite cinza. Re-busca o #gmap atual
+  // (a troca de aba recria o elemento) e espera o reflow (até ~0,7s). v81.79
+  let host = document.getElementById('gmap') || el;
+  for (let i = 0; i < 40 && (!host.isConnected || host.getBoundingClientRect().height < 60); i++) {
+    await new Promise(r => requestAnimationFrame(r));
+    host = document.getElementById('gmap') || host;
+  }
+  const map = new google.maps.Map(host, {
     center: { lat: RP_LAT, lng: RP_LNG }, zoom: 12, mapTypeId: 'hybrid',
     mapTypeControl: true, streetViewControl: false, fullscreenControl: true, gestureHandling: 'greedy',
   });
