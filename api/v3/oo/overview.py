@@ -21,6 +21,51 @@ from _oo_lib import (window, months_in_range, broker_metrics, read_meta_spend, m
                      read_meta_accounts, match_team_account, read_team_account_override,
                      read_meta_campaigns, compute_ads_invest)
 
+# ── Cache do overview do 1:1 (v81.74) ────────────────────────────────────────
+# Esta visão recalcula métricas de todos os corretores + puxa Meta Ads a cada load
+# (~3s). Como depende só do período+time (não do chamador), cacheia em shared_kv
+# por uma janela curta — o dashboard (date_preset=this_month) vira instantâneo.
+CACHE_BASE = "oo_overview_cache"
+CACHE_TTL = 180  # segundos (3 min)
+
+
+def _cache_key(params):
+    p = params or {}
+    return CACHE_BASE + ":" + "|".join([
+        (p.get("date_preset") or "this_month"),
+        (p.get("since") or ""), (p.get("until") or ""),
+        (p.get("team") or "").lower(),
+    ])
+
+
+def _cache_read(sb, key):
+    try:
+        rows = sb.table("shared_kv").select("value").eq("key", key).limit(1).execute().data or []
+        if not rows:
+            return None
+        v = rows[0]["value"]
+        if isinstance(v, str):
+            v = json.loads(v)
+        ts = v.get("_cached_at") if isinstance(v, dict) else None
+        if not ts:
+            return None
+        if (datetime.now(timezone.utc) - datetime.fromisoformat(ts)).total_seconds() > CACHE_TTL:
+            return None
+        data = v.get("data")
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def _cache_write(sb, key, data):
+    try:
+        sb.table("shared_kv").upsert(
+            {"key": key, "value": {"_cached_at": datetime.now(timezone.utc).isoformat(), "data": data},
+             "updated_at": datetime.now(timezone.utc).isoformat()},
+            on_conflict="key").execute()
+    except Exception:
+        pass
+
 
 class handler(BaseHTTPRequestHandler):
 
@@ -69,6 +114,15 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
+
+        # Cache por período+time (90s) — o dashboard chama isto a cada abertura. v81.74
+        fresh = params.get("fresh") == "1"
+        ckey = _cache_key(params)
+        if not fresh:
+            cached = _cache_read(sb, ckey)
+            if cached is not None:
+                cached["cached"] = True
+                return self._send(200, cached)
 
         today = datetime.now(timezone.utc).date()
         since_d, until_d = window(params, today)
@@ -175,7 +229,7 @@ class handler(BaseHTTPRequestHandler):
         # ordena: mais alertas primeiro, depois menor health (quem precisa de atenção)
         out.sort(key=lambda x: (-(x["alertas_count"]), x["health"]))
 
-        return self._send(200, {
+        payload = {
             "ok": True,
             "period": {"since": since_d.isoformat(), "until": until_d.isoformat(),
                        "preset": params.get("date_preset") or ("custom" if params.get("since") else "this_month")},
@@ -184,4 +238,6 @@ class handler(BaseHTTPRequestHandler):
             "meta_spend": _ma["global_spend"], "cpl_global": _ma["global_cpl"], "total_leads": _ma["global_leads"],
             "meta_accounts": _ma["accounts"], "cpl_periodo": _ma["preset_used"],
             "fetched_at": datetime.now(timezone.utc).isoformat(),
-        })
+        }
+        _cache_write(sb, ckey, payload)   # alimenta o cache p/ as próximas aberturas (90s)
+        return self._send(200, payload)

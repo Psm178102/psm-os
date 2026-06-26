@@ -24,6 +24,52 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 
+# ── Cache do overview (v81.74) ───────────────────────────────────────────────
+# O dashboard recalculava 7 agregações pesadas (todos os deals, audit 30d, comissões,
+# metas, dir_tasks…) a CADA abertura → ~3-4s morno, pior frio. Agora o resultado é
+# cacheado por ESCOPO em shared_kv por uma janela curta; o campo 'user' é sempre
+# sobreposto fresco na leitura, então o cache de um time não vaza identidade.
+CACHE_BASE = "metrics_overview_cache"
+CACHE_TTL = 180  # segundos (3 min; métrica de painel tolera folga, RD já sincroniza por cron)
+
+
+def _cache_key(scope, user):
+    if scope == "global":
+        return CACHE_BASE + ":global"
+    if scope == "team":
+        return CACHE_BASE + ":team:" + str((user.get("team") or "_")).lower()
+    return CACHE_BASE + ":self:" + str(user.get("id"))
+
+
+def _cache_read(sb, key):
+    try:
+        rows = sb.table("shared_kv").select("value").eq("key", key).limit(1).execute().data or []
+        if not rows:
+            return None
+        v = rows[0]["value"]
+        if isinstance(v, str):
+            v = json.loads(v)
+        ts = v.get("_cached_at") if isinstance(v, dict) else None
+        if not ts:
+            return None
+        age = (datetime.now(timezone.utc) - datetime.fromisoformat(ts)).total_seconds()
+        if age > CACHE_TTL:
+            return None
+        data = v.get("data")
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def _cache_write(sb, key, data):
+    try:
+        sb.table("shared_kv").upsert(
+            {"key": key, "value": {"_cached_at": datetime.now(timezone.utc).isoformat(), "data": data},
+             "updated_at": datetime.now(timezone.utc).isoformat()},
+            on_conflict="key").execute()
+    except Exception:
+        pass
+
 
 def _scope_of(user):
     lvl = user.get("lvl") or 0
@@ -293,8 +339,19 @@ class handler(BaseHTTPRequestHandler):
             return self._send(503, {"ok": False, "error": "backend indisponível"})
 
         scope = _scope_of(user)
+        user_field = {"id": user["id"], "name": user.get("name"), "role": user.get("role"), "team": user.get("team"), "lvl": user.get("lvl")}
+        fresh = "fresh=1" in (self.path or "")
+        ckey = _cache_key(scope, user)
 
-        result = {"ok": True, "scope": scope, "user": {"id": user["id"], "name": user.get("name"), "role": user.get("role"), "team": user.get("team"), "lvl": user.get("lvl")}}
+        # Cache hit → responde na hora (sobrepondo o 'user' do request atual). v81.74
+        if not fresh:
+            cached = _cache_read(sb, ckey)
+            if cached is not None:
+                cached["user"] = user_field
+                cached["cached"] = True
+                return self._send(200, cached)
+
+        result = {"ok": True, "scope": scope, "user": user_field}
         try:
             result["users"]       = _users_summary(sb, scope, user)
         except Exception as e:
@@ -324,4 +381,5 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             result["tasks"] = {"error": str(e)}
 
+        _cache_write(sb, ckey, result)   # alimenta o cache p/ as próximas aberturas (90s)
         return self._send(200, result)
