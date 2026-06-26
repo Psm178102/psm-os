@@ -9,7 +9,7 @@ Cacheado em shared_kv 'maps_empreendimentos_cache' (~6h) pra não bater no Googl
 Resposta: { ok, pins:[{nome,lat,lng}], shapes:[{nome,tipo,coords:[[lat,lng]...]}], count, mid, cached_em }
 """
 from http.server import BaseHTTPRequestHandler
-import json, os, re, sys, urllib.request
+import json, os, re, sys, urllib.request, urllib.parse
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
@@ -17,7 +17,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 
 LINKS_KEY = "psm_links"
-CACHE_KEY = "maps_empreendimentos_cache_v2"   # v2: pins agora trazem 'cor'
+CACHE_KEY = "maps_empreendimentos_cache_v2"        # MAP — pins com 'cor'
+CACHE_KEY_CONQUISTA = "maps_conquista_cache_v1"    # PSM Conquista (fonte separada). v81.73
 CACHE_TTL = 6 * 3600  # 6h
 
 
@@ -184,20 +185,36 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
 
-        force = "force=1" in (self.path or "")
+        # fonte: 'map' (default, My Maps do MAP) ou 'conquista' (My Maps da PSM Conquista). v81.73
+        try:
+            params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
+        except Exception:
+            params = {}
+        fonte = (params.get("fonte") or "map").lower()
+        force = params.get("force") == "1"
         links = _kv_get(sb, LINKS_KEY) or {}
-        mid = _extract_mid(links.get("mapa_mymaps"), links.get("mapa_earth"))
-        if not mid:
-            return self._send(200, {"ok": True, "pins": [], "shapes": [], "count": 0, "mid": "",
-                                    "aviso": "Nenhum link do Google My Maps salvo (⚙️ My Maps no Mapa)."})
 
-        # cache
-        cache = _kv_get(sb, CACHE_KEY) or {}
+        if fonte == "conquista":
+            mid = _extract_mid(links.get("mapa_conquista"))
+            cache_key = CACHE_KEY_CONQUISTA
+            aviso_vazio = "Nenhum My Maps da PSM Conquista salvo (⚙️ My Maps no Mapa, aba PSM Conquista)."
+        else:
+            fonte = "map"
+            mid = _extract_mid(links.get("mapa_mymaps"), links.get("mapa_earth"))
+            cache_key = CACHE_KEY
+            aviso_vazio = "Nenhum link do Google My Maps salvo (⚙️ My Maps no Mapa, aba MAP)."
+
+        if not mid:
+            return self._send(200, {"ok": True, "fonte": fonte, "pins": [], "shapes": [], "count": 0, "mid": "",
+                                    "aviso": aviso_vazio})
+
+        # cache (separado por fonte)
+        cache = _kv_get(sb, cache_key) or {}
         if not force and cache.get("mid") == mid and cache.get("fetched_at"):
             try:
                 age = (_now() - datetime.fromisoformat(cache["fetched_at"])).total_seconds()
                 if age < CACHE_TTL:
-                    return self._send(200, {"ok": True, "pins": cache.get("pins", []), "shapes": cache.get("shapes", []),
+                    return self._send(200, {"ok": True, "fonte": fonte, "pins": cache.get("pins", []), "shapes": cache.get("shapes", []),
                                             "count": len(cache.get("pins", [])), "mid": mid, "cached_em": cache["fetched_at"]})
             except Exception:
                 pass
@@ -207,13 +224,13 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             # cai pro cache antigo se houver
             if cache.get("pins"):
-                return self._send(200, {"ok": True, "pins": cache["pins"], "shapes": cache.get("shapes", []),
+                return self._send(200, {"ok": True, "fonte": fonte, "pins": cache["pins"], "shapes": cache.get("shapes", []),
                                         "count": len(cache["pins"]), "mid": mid, "cached_em": cache.get("fetched_at"),
                                         "aviso": "Usando cache (falha ao atualizar do Google: %s)" % str(e)[:80]})
-            return self._send(502, {"ok": False, "error": "falha ao baixar o KML do Google My Maps: " + str(e)[:120]})
+            return self._send(502, {"ok": False, "fonte": fonte, "error": "falha ao baixar o KML do Google My Maps: " + str(e)[:120]})
 
         pins, shapes = _parse_kml(kml)
         out = {"mid": mid, "pins": pins, "shapes": shapes, "fetched_at": _now().isoformat()}
-        _kv_set(sb, CACHE_KEY, out)
-        return self._send(200, {"ok": True, "pins": pins, "shapes": shapes, "count": len(pins),
+        _kv_set(sb, cache_key, out)
+        return self._send(200, {"ok": True, "fonte": fonte, "pins": pins, "shapes": shapes, "count": len(pins),
                                 "mid": mid, "cached_em": out["fetched_at"]})

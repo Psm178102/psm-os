@@ -8,6 +8,7 @@ let _filter = 'all';
 let _search = '';
 let _map = null;
 let _markers = [];
+let _fonte = 'map';   // qual mapa de empreendimentos está ativo: 'map' (MAP) ou 'conquista' (PSM Conquista). v81.73
 
 // Coordenadas do centro de Rio Preto (default)
 const RP_LAT = -20.8202;
@@ -233,50 +234,72 @@ function toEmbed(url) {
 
 async function editMyMaps() {
   const links = await getLinks();
-  const v = promptLink('Link do Google My Maps (embute aqui dentro)', links.mapa_mymaps || '');
+  const isConq = _fonte === 'conquista';
+  const key = isConq ? 'mapa_conquista' : 'mapa_mymaps';
+  const titulo = isConq
+    ? 'Link do Google My Maps da PSM CONQUISTA (empreendimentos Conquista)'
+    : 'Link do Google My Maps do MAP (empreendimentos MAP)';
+  const v = promptLink(titulo, links[key] || '');
   if (v === null) return;
-  try { await saveLinks({ mapa_mymaps: v }); alert('✅ Link do My Maps salvo!'); render(); }
+  try { await saveLinks({ [key]: v }); alert('✅ Link do My Maps (' + (isConq ? 'PSM Conquista' : 'MAP') + ') salvo!'); render(); }
   catch (e) { alert('Erro: ' + e.message); }
 }
 
 async function render() {
-  let earthUrl = DEFAULT_EARTH, myMaps = '', gkey = '';
-  try { const links = await getLinks(); earthUrl = links.mapa_earth || DEFAULT_EARTH; myMaps = links.mapa_mymaps || ''; gkey = links.google_maps_key || ''; } catch (_) {}
-  const embedSrc = isEmbeddable(myMaps) ? toEmbed(myMaps) : (isEmbeddable(earthUrl) ? toEmbed(earthUrl) : null);
-  const mid = (String(myMaps).match(/[?&]mid=([^&]+)/) || [])[1] || (String(earthUrl).match(/[?&]mid=([^&]+)/) || [])[1] || '';
-  const kmlUrl = mid ? ('https://www.google.com/maps/d/kml?forcekml=1&mid=' + mid) : '';
+  let earthUrl = DEFAULT_EARTH, myMaps = '', conquista = '', gkey = '';
+  try { const links = await getLinks(); earthUrl = links.mapa_earth || DEFAULT_EARTH; myMaps = links.mapa_mymaps || ''; conquista = links.mapa_conquista || ''; gkey = links.google_maps_key || ''; } catch (_) {}
+  const isConq = _fonte === 'conquista';
+  const nomeFonte = isConq ? 'PSM Conquista' : 'MAP';
+  // link da fonte ativa (Conquista usa só o My Maps da Conquista; MAP cai pro Earth como fallback de embed)
+  const fonteUrl = isConq ? conquista : myMaps;
+  const embedSrc = isEmbeddable(fonteUrl) ? toEmbed(fonteUrl) : (!isConq && isEmbeddable(earthUrl) ? toEmbed(earthUrl) : null);
   const useGoogle = !!gkey;
+  const semFonte = !fonteUrl;   // a fonte ativa ainda não tem My Maps configurado
+  // seletor MAP | PSM Conquista
+  const seg = (f, ico, lbl) => `<button class="btn ${_fonte === f ? 'btn-primary' : 'btn-ghost'} btn-sm" data-fonte="${f}">${ico} ${lbl}</button>`;
   _root.innerHTML = `
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div>
-          <h2 class="card-title">🗺 Mapa de Empreendimentos PSM</h2>
+          <h2 class="card-title">🗺 Mapa de Empreendimentos — <span style="color:var(--psm-gold)">${nomeFonte}</span></h2>
           <p class="card-sub">${useGoogle
-            ? 'Mapa do <b>Google em satélite</b> com os seus pins do My Maps (nomes, cores, clique pra ver) — dentro do sistema.'
-            : 'Seu Google My Maps com todos os pins, nomes e cores — aqui dentro do sistema.'} O Earth 3D abre em tela cheia.</p>
+            ? 'Mapa do <b>Google em satélite</b> com os pins do My Maps (nomes, cores, clique pra ver) — dentro do sistema.'
+            : 'Seu Google My Maps com todos os pins, nomes e cores — aqui dentro do sistema.'} Dois mapas separados: <b>MAP</b> e <b>PSM Conquista</b>.</p>
         </div>
         <div class="flex gap-2">
           <a class="btn btn-primary" href="${esc(earthUrl)}" target="_blank" rel="noopener" style="background:#1a73e8">🌍 Abrir Earth 3D (tela cheia)</a>
-          ${canEditLinks() ? '<button class="btn btn-ghost" id="map-gkey" title="Chave do Google Maps (satélite + pins)">🔑 Chave Maps</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar link do Google My Maps">⚙️ My Maps</button>' : ''}
+          ${canEditLinks() ? `<button class="btn btn-ghost" id="map-gkey" title="Chave do Google Maps (satélite + pins)">🔑 Chave Maps</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar o link do My Maps da fonte ${esc(nomeFonte)}">⚙️ My Maps (${esc(nomeFonte)})</button>` : ''}
         </div>
       </div>
 
-      ${useGoogle ? `
-      <!-- GOOGLE MAPS satélite (híbrido) + KmlLayer com os pins do My Maps -->
-      <div id="gmap" style="height:calc(100vh - 300px);min-height:480px;border-radius:12px;background:var(--bg-3);position:relative;margin-top:12px"></div>
-      <div id="gmap-info" class="tiny muted mt-2"></div>
-      ${embedSrc ? `<details class="mt-3"><summary style="cursor:pointer;font-weight:700;padding:6px 0">🗺 Ver o My Maps original (embed)</summary><div class="mt-2" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a"><iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 380px);min-height:420px;border:0;display:block" allowfullscreen loading="lazy"></iframe></div></details>` : ''}
-      ` : (embedSrc ? `
-      ${canEditLinks() ? '<div class="alert alert-warn mt-3" style="font-size:13px">🔑 Pra ter o <b>mapa do Google em satélite com os seus pins</b> aqui dentro, cole a <b>chave do Google Maps</b> no botão <b>🔑 Chave Maps</b> acima. Enquanto isso, abaixo está o My Maps embutido.</div>' : ''}
-      <div class="mt-3" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a">
-        <iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 320px);min-height:460px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      <!-- Seletor das duas fontes de empreendimentos -->
+      <div class="flex gap-2" style="margin-top:12px;flex-wrap:wrap;align-items:center">
+        ${seg('map', '🗺️', 'MAP')}
+        ${seg('conquista', '🏘️', 'PSM Conquista')}
+        <span class="tiny muted" style="margin-left:auto">Mostrando: <b>${esc(nomeFonte)}</b></span>
       </div>
-      ` : (canEditLinks() ? '<p class="tiny muted mt-3">💡 Cole o link do <b>Google My Maps</b> em <b>⚙️ My Maps</b> e a <b>chave do Google Maps</b> em <b>🔑 Chave Maps</b>.</p>' : ''))}
+
+      ${useGoogle ? `
+      <!-- GOOGLE MAPS satélite (híbrido) + pins NATIVOS (cor + nome) da fonte ativa -->
+      <div id="gmap" style="height:calc(100vh - 330px);min-height:460px;border-radius:12px;background:var(--bg-3);position:relative;margin-top:12px"></div>
+      <div id="gmap-info" class="tiny muted mt-2"></div>
+      ${semFonte && canEditLinks() ? `<div class="alert alert-warn mt-2" style="font-size:13px">📍 A fonte <b>${esc(nomeFonte)}</b> ainda não tem um Google My Maps configurado. Cole o link em <b>⚙️ My Maps (${esc(nomeFonte)})</b> que os pins aparecem aqui no satélite.</div>` : ''}
+      ${embedSrc ? `<details class="mt-3"><summary style="cursor:pointer;font-weight:700;padding:6px 0">🗺 Ver o My Maps original da ${esc(nomeFonte)} (embed)</summary><div class="mt-2" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a"><iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 380px);min-height:420px;border:0;display:block" allowfullscreen loading="lazy"></iframe></div></details>` : ''}
+      ` : (embedSrc ? `
+      ${canEditLinks() ? '<div class="alert alert-warn mt-3" style="font-size:13px">🔑 Pra ter o <b>mapa do Google em satélite com os pins</b> aqui dentro, cole a <b>chave do Google Maps</b> no botão <b>🔑 Chave Maps</b>. Enquanto isso, abaixo está o My Maps embutido.</div>' : ''}
+      <div class="mt-3" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a">
+        <iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 350px);min-height:440px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </div>
+      ` : (canEditLinks() ? `<p class="tiny muted mt-3">💡 A fonte <b>${esc(nomeFonte)}</b> ainda não tem mapa. Cole o link do <b>Google My Maps</b> em <b>⚙️ My Maps (${esc(nomeFonte)})</b>${useGoogle ? '' : ' e a <b>chave do Google Maps</b> em <b>🔑 Chave Maps</b>'}.</p>` : `<p class="tiny muted mt-3">Sem mapa configurado para ${esc(nomeFonte)}.</p>`))}
     </div>
   `;
+  _root.querySelectorAll('[data-fonte]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.fonte === _fonte) return;
+    _fonte = b.dataset.fonte; render();
+  }));
   const gk = document.getElementById('map-gkey'); if (gk) gk.addEventListener('click', editGmapsKey);
   const mm = document.getElementById('map-mymaps-edit'); if (mm) mm.addEventListener('click', editMyMaps);
-  if (useGoogle) await initGoogleMap(gkey);
+  if (useGoogle && !semFonte) await initGoogleMap(gkey);
 }
 
 // Carrega a API JS do Google Maps (uma vez) com a chave do sócio.
@@ -320,9 +343,9 @@ async function initGoogleMap(key) {
     el.innerHTML = '<div style="padding:26px;text-align:center;color:#b91c1c;font-size:13px">⚠ Não consegui carregar o Google Maps.<br>Confira a chave: <b>Maps JavaScript API ativada</b> + <b>faturamento</b> + restrição de referrer <b>https://www.housepsm.com.br/*</b>.</div>';
     return;
   }
-  if (info) info.innerHTML = '<span class="spinner"></span> Carregando seus empreendimentos…';
-  let pins = [], shps = [];
-  try { const r = await api.request('/api/v3/maps/empreendimentos'); pins = r.pins || []; shps = r.shapes || []; }
+  if (info) info.innerHTML = '<span class="spinner"></span> Carregando empreendimentos (' + (_fonte === 'conquista' ? 'PSM Conquista' : 'MAP') + ')…';
+  let pins = [], shps = [], aviso = '';
+  try { const r = await api.request('/api/v3/maps/empreendimentos?fonte=' + encodeURIComponent(_fonte)); pins = r.pins || []; shps = r.shapes || []; aviso = r.aviso || ''; }
   catch (e) { if (info) info.textContent = 'Erro: ' + e.message; }
   const map = new google.maps.Map(el, {
     center: { lat: RP_LAT, lng: RP_LNG }, zoom: 12, mapTypeId: 'hybrid',
@@ -351,7 +374,10 @@ async function initGoogleMap(key) {
     bounds.extend(pos);
   });
   if (!bounds.isEmpty()) map.fitBounds(bounds, 40);
-  if (info) info.innerHTML = '📍 <b>' + pins.length + '</b> empreendimentos' + (shps.length ? ' · ' + shps.length + ' território(s)' : '') + ' — com as <b>suas cores e nomes</b>, no satélite do Google.';
+  const nome = _fonte === 'conquista' ? 'PSM Conquista' : 'MAP';
+  if (info) info.innerHTML = aviso
+    ? '<span style="color:#b45309">' + esc(aviso) + '</span>'
+    : '📍 <b>' + pins.length + '</b> empreendimentos (' + nome + ')' + (shps.length ? ' · ' + shps.length + ' território(s)' : '') + ' — com as <b>cores e nomes</b> do seu My Maps, no satélite do Google.';
 }
 
 async function editGmapsKey() {
