@@ -50,6 +50,7 @@ const DISC = ['Dominância (D)', 'Influência (I)', 'Estabilidade (S)', 'Conform
 // filtros / visualização do pipeline
 let _viewMode = 'kanban';   // kanban | lista
 let _search = '', _fEtapa = '', _fSetor = '', _fCanal = '', _fResp = '', _fDecisao = '';
+let _cargosCfg = { recrutamento: {}, offboarding: {} };   // requisitos/impeditivos por cargo (v81.92)
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function waLink(phone) { const d = String(phone || '').replace(/\D/g, ''); return d ? `https://wa.me/${d}` : null; }
@@ -208,12 +209,14 @@ async function loadManual() {
   if (!body) return;
   body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Carregando…</div>';
   try {
-    const [r, u] = await Promise.all([
+    const [r, u, cc] = await Promise.all([
       api.request('/api/v3/gp/talentos'),
       (_users.length ? Promise.resolve({ users: _users }) : api.listUsers().catch(() => ({ users: [] }))),
+      api.request('/api/v3/gp/cargos').catch(() => ({ recrutamento: {}, offboarding: {} })),
     ]);
     _talentos = r.talentos || [];
     _users = (u && u.users) || _users;
+    _cargosCfg = { recrutamento: (cc && cc.recrutamento) || {}, offboarding: (cc && cc.offboarding) || {} };
     renderManual();
   } catch (e) {
     body.innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
@@ -229,6 +232,7 @@ function renderManual() {
   body.innerHTML = `
     <div class="flex items-center gap-2 mb-2" style="flex-wrap:wrap">
       <button class="btn btn-primary btn-sm" id="tal-new">➕ Novo candidato</button>
+      ${(auth.user()?.lvl || 0) >= 5 ? '<button class="btn btn-ghost btn-sm" id="tal-cargos-req">📋 Requisitos por cargo</button>' : ''}
       <div class="flex gap-1" style="margin-left:auto">
         <button class="btn ${_viewMode === 'kanban' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-vm="kanban">▦ Kanban</button>
         <button class="btn ${_viewMode === 'lista' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-vm="lista">☰ Lista</button>
@@ -246,6 +250,7 @@ function renderManual() {
     <div id="tal-view" class="mt-2"></div>
   `;
   document.getElementById('tal-new').addEventListener('click', () => { _editing = { etapa: 'Triagem', decisao: 'Em andamento' }; renderManual(); });
+  const cq = document.getElementById('tal-cargos-req'); if (cq) cq.onclick = openCargosReqModal;
   body.querySelectorAll('[data-vm]').forEach(b => b.addEventListener('click', () => { _viewMode = b.dataset.vm; renderManual(); }));
   const reF = () => drawView();
   document.getElementById('f-search').addEventListener('input', e => { _search = e.target.value; reF(); });
@@ -459,6 +464,7 @@ function renderDetail(e) {
       <label class="tiny muted" style="display:block">Currículo (link Google Drive)
         <div style="display:flex;gap:6px"><input id="tal-cv" class="input" placeholder="cole o link compartilhável do Drive" value="${esc(e.curriculo_url || '')}" style="flex:1">${cv ? `<a class="btn btn-ghost" href="${esc(cv)}" target="_blank" rel="noopener">Abrir</a>` : ''}</div>
       </label>
+      ${cargoRefHTML(e.cargo, 'requisitos')}
       ${fArea('tal-requisitos', 'Requisitos de contratação (o que a vaga exige)', e.requisitos, 'CRECI ativo, CNH, experiência mínima, metas…', 2)}
       ${fArea('tal-experiencia', 'Experiência', e.experiencia, 'Tempo de mercado, onde trabalhou, resultados…', 2)}
     `)}
@@ -477,6 +483,7 @@ function renderDetail(e) {
       ${fArea('tal-antecedentes', 'Antecedentes criminais', e.antecedentes, 'Resultado da consulta de antecedentes…', 2)}
       ${fArea('tal-juridica', 'Parecer jurídico', e.analise_juridica, 'Análise do jurídico sobre risco/impedimentos…', 2)}
       ${fArea('tal-comercial', 'Parecer comercial', e.analise_comercial, 'Análise comercial: reputação no mercado, carteira, conflitos…', 2)}
+      ${cargoRefHTML(e.cargo, 'impeditivos')}
       ${fArea('tal-impeditivos', '⛔ Impeditivos de contratação', e.impeditivos, 'Algo que impede a contratação? (cláusula, processo, conflito…)', 2)}
     `)}
 
@@ -582,4 +589,47 @@ async function addAvaliacao() {
     const t = _talentos.find(x => x.id === _editing.id); if (t) t.avaliacoes = _editing.avaliacoes;
     renderManual();
   } catch (e) { alert('Erro ao avaliar: ' + e.message); }
+}
+
+/* ─────────────── Requisitos & impeditivos por cargo (v81.92) ─────────────── */
+function cargoRefHTML(cargo, field) {
+  const c = (_cargosCfg.recrutamento || {})[cargo]; const v = c && c[field];
+  if (!v) return '';
+  const lbl = field === 'requisitos' ? '📋 Requisitos padrão do cargo' : '⛔ Impeditivos padrão do cargo';
+  const cor = field === 'requisitos' ? '#2563eb' : '#dc2626';
+  return `<div style="background:${cor}0e;border:1px solid ${cor}33;border-radius:8px;padding:7px 9px;margin-bottom:6px;font-size:12px"><b style="color:${cor}">${lbl} «${esc(cargo)}»</b><br>${esc(v).replace(/\n/g, '<br>')}</div>`;
+}
+
+function openCargosReqModal() {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:5vh 14px;overflow:auto';
+  const cargos = [...new Set([..._allCargos, ...Object.keys(_cargosCfg.recrutamento || {})])];
+  let sel = cargos[0] || 'Corretor';
+  const draw = () => {
+    const c = (_cargosCfg.recrutamento || {})[sel] || {};
+    ov.innerHTML = `
+      <div class="card" style="max-width:560px;width:100%;margin:auto">
+        <div class="flex" style="justify-content:space-between;align-items:center">
+          <h3 class="card-title" style="margin:0">📋 Requisitos & impeditivos por cargo</h3>
+          <button class="btn btn-ghost btn-sm" id="cq-x">✕</button>
+        </div>
+        <p class="tiny muted" style="margin:4px 0 8px">Define o padrão de cada cargo — aparece como referência na ficha do candidato com aquele cargo.</p>
+        <label class="tiny muted">Cargo<input id="cq-cargo" class="input" list="cq-list" value="${esc(sel)}"><datalist id="cq-list">${cargos.map(x => `<option value="${esc(x)}">`).join('')}</datalist></label>
+        <label class="tiny muted" style="display:block;margin-top:8px">Requisitos de contratação<textarea id="cq-req" class="input" rows="3" placeholder="CRECI ativo, CNH, experiência mínima, metas…">${esc(c.requisitos || '')}</textarea></label>
+        <label class="tiny muted" style="display:block;margin-top:6px">Impeditivos de contratação<textarea id="cq-imp" class="input" rows="3" placeholder="Processos, conflito de interesse, cláusula de não-concorrência…">${esc(c.impeditivos || '')}</textarea></label>
+        <div class="flex gap-2 mt-3" style="align-items:center"><button class="btn btn-primary" id="cq-save">💾 Salvar cargo</button><span class="tiny muted" id="cq-msg"></span><button class="btn btn-ghost" id="cq-close" style="margin-left:auto">Fechar</button></div>
+        ${Object.keys(_cargosCfg.recrutamento || {}).length ? `<div class="tiny muted" style="margin-top:10px">Configurados: ${Object.keys(_cargosCfg.recrutamento).map(esc).join(' · ')}</div>` : ''}
+      </div>`;
+    ov.querySelector('#cq-x').onclick = ov.querySelector('#cq-close').onclick = () => ov.remove();
+    ov.querySelector('#cq-cargo').addEventListener('change', e => { sel = e.target.value.trim() || sel; draw(); });
+    ov.querySelector('#cq-save').onclick = async () => {
+      const cargo = ov.querySelector('#cq-cargo').value.trim(); if (!cargo) return alert('Informe o cargo.');
+      try {
+        const r = await api.request('/api/v3/gp/cargos', { method: 'POST', body: { action: 'set_recrutamento', cargo, requisitos: ov.querySelector('#cq-req').value, impeditivos: ov.querySelector('#cq-imp').value } });
+        _cargosCfg.recrutamento = r.recrutamento || _cargosCfg.recrutamento; sel = cargo;
+        ov.querySelector('#cq-msg').textContent = '✅ salvo';
+      } catch (e) { alert('Erro: ' + e.message); }
+    };
+  };
+  document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); }); draw();
 }

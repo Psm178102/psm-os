@@ -134,6 +134,10 @@ function render() {
       <h3 class="card-title mt-4">🌟 Desenvolvimento Individual</h3>
       <div id="dev-extra"></div>
 
+      <!-- ===== FUNÇÕES & TAREFAS do colaborador (cargo + login) ===== -->
+      <h3 class="card-title mt-4">📋 Funções & Tarefas</h3>
+      <div id="painel-funcoes"><div class="muted tiny"><span class="spinner"></span> Carregando…</div></div>
+
       <!-- ===== METAS (produtividade + resultado) — oculto p/ corretor ===== -->
       ${hideForCorretor ? '' : `
       <h3 class="card-title mt-4">🎯 Metas do colaborador</h3>
@@ -223,6 +227,35 @@ function render() {
   // 🌟 Desenvolvimento individual (teste comportamental + rotina planner + metas + PDF)
   const devEl = document.getElementById('dev-extra');
   if (devEl) mountDev(devEl, { uid: _targetId, canEdit: !!_data.can_edit, conquista: (_me.role || '').toLowerCase() === 'corretor_conquista' }).catch(() => {});
+
+  // 📋 Funções & Tarefas do colaborador (cargo + login) — marca como feito só no meu painel
+  loadPainelFuncoes(_targetId, _targetId === _me.id);
+}
+
+async function loadPainelFuncoes(uid, canCheck) {
+  const host = document.getElementById('painel-funcoes');
+  if (!host) return;
+  let data;
+  try { data = await api.request('/api/v3/settings/funcoes_tarefas?user_id=' + encodeURIComponent(uid)); }
+  catch { host.innerHTML = '<div class="tiny muted">—</div>'; return; }
+  const items = (data && data.items) || [];
+  const checked = (data && data.checked) || {};
+  if (!items.length) {
+    host.innerHTML = '<div class="tiny muted">Nenhuma função/tarefa cadastrada. O sócio define em <b>Meu Perfil → Funções e Tarefas</b> por cargo e por login.</div>';
+    return;
+  }
+  const done = items.filter(it => checked[it.id]).length;
+  host.innerHTML = `
+    <div class="tiny muted" style="margin-bottom:6px"><b>${done}/${items.length}</b> concluídos · cargo + login</div>
+    <div>${items.map(it => `
+      <label style="display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--border,#e2e8f0);${canCheck ? 'cursor:pointer' : ''}">
+        <input type="checkbox" data-pf-toggle="${escapeHtml(it.id)}" ${checked[it.id] ? 'checked' : ''} ${canCheck ? '' : 'disabled'} style="margin-top:3px;width:16px;height:16px;flex:none">
+        <span style="font-size:13.5px;${checked[it.id] ? 'text-decoration:line-through;opacity:.55' : ''}">${escapeHtml(it.txt)}</span>
+      </label>`).join('')}</div>`;
+  if (canCheck) host.querySelectorAll('[data-pf-toggle]').forEach(cb => cb.addEventListener('change', async () => {
+    try { await api.request('/api/v3/settings/funcoes_tarefas', { method: 'POST', body: { action: 'toggle', itemId: cb.dataset.pfToggle, done: cb.checked } }); loadPainelFuncoes(uid, canCheck); }
+    catch (e) { cb.checked = !cb.checked; alert('Erro: ' + e.message); }
+  }));
 }
 
 function renderPerf(d) {

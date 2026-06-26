@@ -10,6 +10,7 @@ let _tab = 'treinamentos';
 let _treinamentos = [];
 let _editing = null;
 let _rh = { onboarding: [], offboarding: [] };   // processos de admissão/desligamento (sócio)
+let _cargosOff = {};   // offboarding por cargo (requisitos/métricas/checklist). v81.92
 const isSocio = () => (auth.user()?.lvl || 0) >= 10;
 const SETORES = ['Comercial', 'SDR / Prospecção', 'Marketing', 'Backoffice', 'Financeiro', 'RH', 'Diretoria', 'Locação'];
 const EQUIPES_COM = ['Conquista', 'MAP', 'Locação', 'Terceiros'];
@@ -329,6 +330,7 @@ async function loadRH(tipo) {
   try {
     const r = await api.request('/api/v3/gp/rh_processos');
     _rh = { onboarding: r.onboarding || [], offboarding: r.offboarding || [] };
+    if (tipo === 'offboarding') { try { const cc = await api.request('/api/v3/gp/cargos'); _cargosOff = (cc && cc.offboarding) || {}; } catch { /* noop */ } }
     renderRH(tipo);
   } catch (e) {
     body.innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
@@ -346,7 +348,10 @@ function renderRH(tipo) {
         <div style="font-size:18px;font-weight:800;color:${T.cor}">${T.titulo}</div>
         <div class="tiny muted">${T.sub}</div>
       </div>
-      <button class="btn btn-primary" id="rh-new">+ Novo processo</button>
+      <div class="flex gap-2">
+        ${tipo === 'offboarding' && (auth.user()?.lvl || 0) >= 5 ? '<button class="btn btn-ghost" id="off-cargo">📋 Por cargo</button>' : ''}
+        <button class="btn btn-primary" id="rh-new">+ Novo processo</button>
+      </div>
     </div>
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
       <div class="card" style="padding:10px 14px;flex:1;min-width:120px"><div class="tiny muted">Em andamento</div><div style="font-size:20px;font-weight:800;color:${T.cor}">${ativos.length}</div></div>
@@ -357,6 +362,7 @@ function renderRH(tipo) {
       ? `<div class="card muted tiny" style="text-align:center;padding:34px">Nenhum processo de ${tipo === 'onboarding' ? 'admissão' : 'desligamento'} ainda. Clique em <b>+ Novo processo</b>.</div>`
       : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${list.map(p => rhCard(tipo, p)).join('')}</div>`}`;
   document.getElementById('rh-new').onclick = () => openRHEditor(tipo, null);
+  const oc = document.getElementById('off-cargo'); if (oc) oc.onclick = openOffCargoModal;
   body.querySelectorAll('[data-rh-open]').forEach(b => b.onclick = () => openRHEditor(tipo, list.find(p => p.id === b.dataset.rhOpen)));
 }
 
@@ -413,6 +419,9 @@ function openRHEditor(tipo, p0) {
             </label>`; }).join('')}
         </div>`).join('')}
       </div>
+      ${tipo === 'offboarding' ? offCargoRefHTML(p.cargo) + `
+      <label class="tiny muted">🗣 Entrevista de desligamento</label>
+      <textarea id="rh-entrevista" class="input" rows="3" placeholder="Motivos reais da saída, clima/relacionamento, o que faríamos diferente, sugestões do colaborador…" style="margin-bottom:8px">${esc(p.entrevista || '')}</textarea>` : ''}
       <label class="tiny muted">Observações</label>
       <textarea id="rh-obs" class="input" rows="2" placeholder="Anotações do processo">${esc(p.obs || '')}</textarea>
       <div class="flex gap-2 mt-3" style="justify-content:space-between;margin-top:14px">
@@ -428,6 +437,7 @@ function openRHEditor(tipo, p0) {
     const checklist = {};
     ov.querySelectorAll('[data-ck]').forEach(c => { if (c.checked) checklist[c.dataset.ck] = true; });
     const proc = { id: p.id, nome: g('nome'), status: g('status') || 'em_andamento', obs: g('obs'), checklist };
+    if (tipo === 'offboarding') proc.entrevista = g('entrevista');
     T.campos.forEach(k => { proc[k] = g(k); });
     if (!proc.nome) { ov.querySelector('#rh-nome').focus(); return; }
     ov.querySelector('#rh-save').disabled = true;
@@ -569,4 +579,51 @@ function openRegEditor(modulo, r0) {
     catch (e) { alert('Erro: ' + e.message); }
   };
   setTimeout(() => { const f = ov.querySelector('.input'); if (f) f.focus(); }, 50);
+}
+
+/* ─────────────── Offboarding por cargo (requisitos/métricas/checklist) v81.92 ─────────────── */
+function offCargoRefHTML(cargo) {
+  const c = _cargosOff[cargo];
+  if (!c || !(c.requisitos || c.metricas || (c.checklist && c.checklist.length))) return '';
+  return `<div style="background:#ef44440e;border:1px solid #ef444433;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12px">
+    <div style="font-weight:800;color:#ef4444;margin-bottom:3px">📋 Padrão do cargo «${esc(cargo)}»</div>
+    ${c.requisitos ? `<div><b>Requisitos p/ desligar:</b> ${esc(c.requisitos)}</div>` : ''}
+    ${c.metricas ? `<div><b>Métricas:</b> ${esc(c.metricas)}</div>` : ''}
+    ${(c.checklist && c.checklist.length) ? `<div><b>Checkout:</b><ul style="margin:3px 0 0 16px">${c.checklist.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+  </div>`;
+}
+
+function openOffCargoModal() {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 14px;overflow:auto';
+  const cargos = [...new Set([...CARGOS, ...Object.keys(_cargosOff)])];
+  let sel = cargos[0] || 'Corretor Conquista';
+  const draw = () => {
+    const c = _cargosOff[sel] || {};
+    ov.innerHTML = `
+      <div class="card" style="max-width:580px;width:100%;margin:auto">
+        <div class="flex" style="justify-content:space-between;align-items:center">
+          <h3 class="card-title" style="margin:0">📋 Offboarding por cargo</h3>
+          <button class="btn btn-ghost btn-sm" id="oc-x">✕</button>
+        </div>
+        <p class="tiny muted" style="margin:4px 0 8px">Requisitos, métricas e checklist de checkout padrão de cada cargo no desligamento — aparecem no processo daquele cargo.</p>
+        <label class="tiny muted">Cargo<input id="oc-cargo" class="input" list="oc-list" value="${esc(sel)}"><datalist id="oc-list">${cargos.map(x => `<option value="${esc(x)}">`).join('')}</datalist></label>
+        <label class="tiny muted" style="display:block;margin-top:8px">Requisitos para desligamento<textarea id="oc-req" class="input" rows="2" placeholder="Aviso prévio, devolução de equipamentos, repasse de carteira…">${esc(c.requisitos || '')}</textarea></label>
+        <label class="tiny muted" style="display:block;margin-top:6px">Métricas para desligamento<textarea id="oc-met" class="input" rows="2" placeholder="Indicadores que disparam/justificam o desligamento (metas, produtividade…)">${esc(c.metricas || '')}</textarea></label>
+        <label class="tiny muted" style="display:block;margin-top:6px">Checklist de checkout (1 por linha)<textarea id="oc-chk" class="input" rows="4" placeholder="Bloquear acessos&#10;Recolher crachá/chip&#10;Repassar clientes&#10;Termo de rescisão assinado">${esc((c.checklist || []).join('\n'))}</textarea></label>
+        <div class="flex gap-2 mt-3" style="align-items:center"><button class="btn btn-primary" id="oc-save">💾 Salvar cargo</button><span class="tiny muted" id="oc-msg"></span><button class="btn btn-ghost" id="oc-close" style="margin-left:auto">Fechar</button></div>
+        ${Object.keys(_cargosOff).length ? `<div class="tiny muted" style="margin-top:8px">Configurados: ${Object.keys(_cargosOff).map(esc).join(' · ')}</div>` : ''}
+      </div>`;
+    ov.querySelector('#oc-x').onclick = ov.querySelector('#oc-close').onclick = () => ov.remove();
+    ov.querySelector('#oc-cargo').addEventListener('change', e => { sel = e.target.value.trim() || sel; draw(); });
+    ov.querySelector('#oc-save').onclick = async () => {
+      const cargo = ov.querySelector('#oc-cargo').value.trim(); if (!cargo) return alert('Informe o cargo.');
+      const checklist = ov.querySelector('#oc-chk').value.split('\n').map(s => s.trim()).filter(Boolean);
+      try {
+        const r = await api.request('/api/v3/gp/cargos', { method: 'POST', body: { action: 'set_offboarding', cargo, requisitos: ov.querySelector('#oc-req').value, metricas: ov.querySelector('#oc-met').value, checklist } });
+        _cargosOff = r.offboarding || _cargosOff; sel = cargo; ov.querySelector('#oc-msg').textContent = '✅ salvo';
+      } catch (e) { alert('Erro: ' + e.message); }
+    };
+  };
+  document.body.appendChild(ov); ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); }); draw();
 }

@@ -25,7 +25,7 @@ KV_KEY = "rh_processos"
 TIPOS = ("onboarding", "offboarding")
 # campos aceitos num processo (whitelist — ignora o resto)
 FIELDS = ("nome", "cargo", "equipe", "data", "responsavel", "motivo",
-          "carteira_destino", "status", "obs")
+          "carteira_destino", "status", "obs", "entrevista")
 MAX_PROC = 500          # teto por tipo
 MAX_STR = 240
 

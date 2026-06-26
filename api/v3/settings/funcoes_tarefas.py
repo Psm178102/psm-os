@@ -104,6 +104,23 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
         val = _read(sb)
+        # ?user_id=X → checklist de UM usuário (pro Meu Painel). Gestão (lvl>=5) ou o próprio. v81.92
+        import urllib.parse
+        try:
+            qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        except Exception:
+            qs = {}
+        target = (qs.get("user_id", [""])[0] or "").strip()
+        if target and ((actor.get("lvl") or 0) >= 5 or target == actor.get("id")):
+            trole = ""
+            try:
+                tr = sb.table("users").select("role").eq("id", target).limit(1).execute().data or []
+                trole = (tr[0].get("role") if tr else "") or ""
+            except Exception:
+                trole = ""
+            items = list(val["byRole"].get(trole, [])) + list(val["byUser"].get(target, []))
+            return self._send(200, {"ok": True, "is_socio": False, "for_user": target,
+                                    "items": items, "checked": val["checked"].get(target, {})})
         if (actor.get("lvl") or 0) >= 10:
             return self._send(200, {"ok": True, "is_socio": True,
                                     "byRole": val["byRole"], "byUser": val["byUser"], "checked": val["checked"]})
