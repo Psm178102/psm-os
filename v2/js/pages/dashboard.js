@@ -32,6 +32,7 @@ let _taskModal = false;   // modal aberto?
 let _taskUsers = null;    // lista de usuários (lazy)
 let _taskBusy = false;    // salvando?
 let _taskMsg = '';        // feedback
+let _taskEditing = null;  // tarefa em edição (null = nova). v81.84
 const ROLE_LVL = { socio: 10, diretor: 10, gerente: 7, backoffice: 6, lider: 5, financeiro: 4, marketing: 3, corretor: 2 };
 const lvlDe = u => (ROLE_LVL[String((u && u.role) || '').toLowerCase()] || 2);
 
@@ -51,7 +52,8 @@ function allowedAssignees() {
   return [{ id: me.id, name: (me.name || 'Eu') + ' (você)' }, ...list];
 }
 
-async function openTaskModal() {
+async function openTaskModal(task) {
+  _taskEditing = task || null;   // se vier um item de tarefa do feed → modo edição
   _taskModal = true; _taskMsg = '';
   render();
   if (!_taskUsers) {
@@ -67,6 +69,7 @@ async function saveNewTask() {
   const titulo = (g('nt-tit')?.value || '').trim();
   if (!titulo) { _taskMsg = '⚠️ Título é obrigatório.'; render(); return; }
   const me = auth.user() || {};
+  const ed = _taskEditing;
   const body = {
     titulo,
     descricao: (g('nt-desc')?.value || '').trim() || null,
@@ -74,23 +77,37 @@ async function saveNewTask() {
     prazo: g('nt-prazo')?.value || null,
     responsavel: g('nt-resp')?.value || me.id,
     categoria: (g('nt-cat')?.value || '').trim() || null,
-    status: 'aberta',
   };
-  _taskBusy = true; _taskMsg = '⏳ criando…'; render();
+  if (ed && ed.id) body.id = ed.id; else body.status = 'aberta';
+  _taskBusy = true; _taskMsg = ed && ed.id ? '⏳ salvando…' : '⏳ criando…'; render();
   try {
     await api.request('/api/v3/tasks/upsert', { method: 'POST', body });
     const f = await api.request('/api/v3/tasks/feed').catch(() => null);
     if (f) { _feed = f.items || _feed; _feedCounts = f.counts || _feedCounts; _feedProd = f.prod || _feedProd; }
-    _taskBusy = false; _taskModal = false; _taskMsg = '';
-    const paraOutro = body.responsavel && body.responsavel !== me.id;
+    _taskBusy = false; _taskModal = false; _taskMsg = ''; _taskEditing = null;
     render();
+    if (ed && ed.id) { _toast('✅ Tarefa atualizada.'); return; }
+    const paraOutro = body.responsavel && body.responsavel !== me.id;
     if (paraOutro) {
       const nome = (allowedAssignees().find(u => u.id === body.responsavel) || {}).name || 'o responsável';
       _toast(`✅ Tarefa criada e atribuída a ${nome.replace(' (você)', '')} (ele(a) foi notificado).`);
     } else _toast('✅ Tarefa criada na sua lista.');
   } catch (e) {
-    _taskBusy = false; _taskMsg = '⚠️ ' + (e.message || 'erro ao criar'); render();
+    _taskBusy = false; _taskMsg = '⚠️ ' + (e.message || 'erro ao salvar'); render();
   }
+}
+
+async function deleteTask() {
+  if (!_taskEditing || !_taskEditing.id || _taskBusy) return;
+  if (!confirm('Excluir esta tarefa? Não dá pra desfazer.')) return;
+  _taskBusy = true; _taskMsg = '⏳ excluindo…'; render();
+  try {
+    await api.request('/api/v3/tasks/delete', { method: 'POST', body: { id: _taskEditing.id } });
+    const f = await api.request('/api/v3/tasks/feed').catch(() => null);
+    if (f) { _feed = f.items || _feed; _feedCounts = f.counts || _feedCounts; _feedProd = f.prod || _feedProd; }
+    _taskBusy = false; _taskModal = false; _taskMsg = ''; _taskEditing = null;
+    render(); _toast('🗑️ Tarefa excluída.');
+  } catch (e) { _taskBusy = false; _taskMsg = '⚠️ ' + (e.message || 'erro ao excluir'); render(); }
 }
 
 function _toast(msg) {
@@ -104,18 +121,22 @@ function _toast(msg) {
 }
 
 function taskModalHTML() {
-  const opts = allowedAssignees().map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join('');
+  const ed = _taskEditing;                  // tarefa em edição (ou null = nova)
+  const sel = id => id && ed && ed.responsavel === id ? ' selected' : '';
+  const opts = allowedAssignees().map(u => `<option value="${u.id}"${sel(u.id)}>${escapeHtml(u.name)}</option>`).join('');
   const loading = _taskUsers === null;
   const hoje = _todayBRT();
+  const prio = (ed && ed.prioridade) || 'media';
+  const podeExcluir = ed && ed.id && (auth.user()?.lvl || 0) >= 10;
   return `
   <div class="tl-overlay" data-nt-close="1" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:6vh 14px;overflow:auto">
     <div class="card" style="max-width:480px;width:100%;margin:0" onclick="event.stopPropagation()">
       <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h3 class="card-title" style="margin:0">➕ Nova tarefa</h3>
+        <h3 class="card-title" style="margin:0">${ed && ed.id ? '✏️ Editar tarefa' : '➕ Nova tarefa'}</h3>
         <button class="btn btn-ghost btn-sm" data-nt-close="1">✕</button>
       </div>
       <label class="tiny muted">Título *</label>
-      <input id="nt-tit" class="input" placeholder="Ex.: Ligar para o cliente X" style="margin-bottom:9px" autofocus>
+      <input id="nt-tit" class="input" placeholder="Ex.: Ligar para o cliente X" style="margin-bottom:9px" value="${escapeHtml((ed && ed.titulo) || '')}" autofocus>
       <label class="tiny muted">Responsável</label>
       <select id="nt-resp" class="input" style="margin-bottom:9px" ${loading ? 'disabled' : ''}>
         ${loading ? '<option>⏳ carregando equipe…</option>' : opts}
@@ -124,24 +145,25 @@ function taskModalHTML() {
         <div style="flex:1">
           <label class="tiny muted">Prioridade</label>
           <select id="nt-prio" class="input">
-            <option value="baixa">🟢 Baixa</option>
-            <option value="media" selected>🟡 Média</option>
-            <option value="alta">🔴 Alta</option>
+            <option value="baixa"${prio === 'baixa' ? ' selected' : ''}>🟢 Baixa</option>
+            <option value="media"${prio === 'media' ? ' selected' : ''}>🟡 Média</option>
+            <option value="alta"${prio === 'alta' ? ' selected' : ''}>🔴 Alta</option>
           </select>
         </div>
         <div style="flex:1">
           <label class="tiny muted">Prazo</label>
-          <input id="nt-prazo" type="date" class="input" min="${hoje}">
+          <input id="nt-prazo" type="date" class="input" value="${escapeHtml((ed && ed.data) || '')}">
         </div>
       </div>
       <label class="tiny muted">Categoria (opcional)</label>
-      <input id="nt-cat" class="input" placeholder="Ex.: Vendas, Follow-up…" style="margin-bottom:9px">
+      <input id="nt-cat" class="input" placeholder="Ex.: Vendas, Follow-up…" style="margin-bottom:9px" value="${escapeHtml((ed && ed.categoria) || '')}">
       <label class="tiny muted">Descrição (opcional)</label>
-      <textarea id="nt-desc" class="input" rows="3" placeholder="Detalhes da tarefa…" style="margin-bottom:6px"></textarea>
+      <textarea id="nt-desc" class="input" rows="3" placeholder="Detalhes da tarefa…" style="margin-bottom:6px">${escapeHtml((ed && (ed.descricao || ed.sub)) || '')}</textarea>
       ${_taskMsg ? `<div class="tiny" style="margin-bottom:8px;color:${_taskMsg[0] === '⚠' ? '#dc2626' : '#64748b'}">${escapeHtml(_taskMsg)}</div>` : ''}
-      <div class="flex gap-2" style="justify-content:flex-end;margin-top:4px">
-        <button class="btn btn-ghost" data-nt-close="1">Cancelar</button>
-        <button class="btn btn-primary" data-nt-save="1" ${_taskBusy ? 'disabled' : ''}>${_taskBusy ? '⏳ Criando…' : '✅ Criar tarefa'}</button>
+      <div class="flex gap-2" style="align-items:center;margin-top:4px">
+        ${podeExcluir ? '<button class="btn btn-ghost" data-nt-delete="1" style="color:#dc2626">🗑️ Excluir</button>' : ''}
+        <button class="btn btn-ghost" data-nt-close="1" style="margin-left:auto">Cancelar</button>
+        <button class="btn btn-primary" data-nt-save="1" ${_taskBusy ? 'disabled' : ''}>${_taskBusy ? '⏳…' : (ed && ed.id ? '💾 Salvar' : '✅ Criar tarefa')}</button>
       </div>
       <div class="tiny muted" style="margin-top:8px">💡 Você pode atribuir a si mesmo ou a quem está sob sua gestão. Quem recebe é notificado.</div>
     </div>
@@ -330,7 +352,9 @@ function listaExec() {
     const qcor = overdue ? '#dc2626' : eh ? '#16a34a' : 'var(--ink,#0f172a)';
     return `<tr>
       <td style="border-left:3px solid ${cor}">
-        <a href="${i.link}" class="exec-task">${i.ico || ''} <span>${escapeHtml(i.titulo || '')}</span></a>
+        ${i.kind === 'tarefa'
+          ? `<a href="#" class="exec-task" data-edittask="${escapeHtml(i.id)}" title="Abrir / editar tarefa">${i.ico || ''} <span>${escapeHtml(i.titulo || '')}</span></a>`
+          : `<a href="${i.link}" class="exec-task">${i.ico || ''} <span>${escapeHtml(i.titulo || '')}</span></a>`}
         <span class="exec-origin" style="background:${cor}1f;color:${cor}">${escapeHtml(i.origem)}</span>
       </td>
       <td class="exec-when" style="color:${qcor}">${dia}${badge}</td>
@@ -367,7 +391,9 @@ function kanbanPend() {
     const cor = corOrigem(i.origem);
     return `<div class="kb-card" style="border-left:3px solid ${cor}">
       <div class="flex" style="justify-content:space-between;gap:6px">
-        <a href="${i.link}" class="kb-t">${i.ico || ''} ${escapeHtml(i.titulo || '')}</a>
+        ${i.kind === 'tarefa'
+          ? `<a href="#" class="kb-t" data-edittask="${escapeHtml(i.id)}" title="Abrir / editar tarefa">${i.ico || ''} ${escapeHtml(i.titulo || '')}</a>`
+          : `<a href="${i.link}" class="kb-t">${i.ico || ''} ${escapeHtml(i.titulo || '')}</a>`}
         ${_concBtn(i)}
       </div>
       <div class="flex" style="gap:6px;flex-wrap:wrap;align-items:center;margin-top:5px">
@@ -524,13 +550,20 @@ function render() {
     </div>
     ${_taskModal ? taskModalHTML() : ''}
   `;
-  // ➕ nova tarefa (abre modal)
-  _root.querySelectorAll('[data-newtask]').forEach(b => b.addEventListener('click', openTaskModal));
-  // modal: fechar / salvar
+  // ➕ nova tarefa (abre modal) — wrap p/ NÃO passar o Event como tarefa
+  _root.querySelectorAll('[data-newtask]').forEach(b => b.addEventListener('click', () => openTaskModal()));
+  // ✏️ abrir/editar uma tarefa do feed direto no dashboard (v81.84)
+  _root.querySelectorAll('[data-edittask]').forEach(b => b.addEventListener('click', e => {
+    e.preventDefault();
+    const it = (_feed || []).find(x => x.id === b.dataset.edittask && x.kind === 'tarefa');
+    if (it) openTaskModal(it);
+  }));
+  // modal: fechar / salvar / excluir
   _root.querySelectorAll('[data-nt-close]').forEach(b => b.addEventListener('click', () => {
-    _taskModal = false; _taskBusy = false; _taskMsg = ''; render();
+    _taskModal = false; _taskBusy = false; _taskMsg = ''; _taskEditing = null; render();
   }));
   _root.querySelectorAll('[data-nt-save]').forEach(b => b.addEventListener('click', saveNewTask));
+  _root.querySelectorAll('[data-nt-delete]').forEach(b => b.addEventListener('click', deleteTask));
   if (_taskModal) {
     const tit = document.getElementById('nt-tit');
     if (tit) { tit.focus(); tit.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveNewTask(); } }); }
