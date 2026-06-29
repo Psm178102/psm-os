@@ -191,7 +191,9 @@ function col(st) {
 
 function card(c) {
   const atras = c.data_ref && c.status !== 'publicado' && c.status !== 'aprovado' && c.data_ref < hoje();
-  const b = brief(c); const nMat = mats(c).length;
+  const b = brief(c);
+  const linkMats = mats(c).filter(m => m.url && /^https?:\/\//i.test(m.url));   // links clicáveis no card. v81.97
+  const semLink = mats(c).length - linkMats.length;
   return `
     <div class="cr-card" draggable="true" data-card="${esc(c.id)}">
       <div style="font-weight:800;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
@@ -203,7 +205,8 @@ function card(c) {
       ${dateChips(c)}
       <div class="flex gap-2" style="margin-top:8px;align-items:center">
         ${c.responsavel ? `<span class="tiny" style="font-weight:700">👤 ${esc(c.responsavel)}</span>` : '<span class="tiny" style="color:#f59e0b;font-weight:700">sem resp.</span>'}
-        ${nMat ? `<span class="tiny" title="Materiais anexados">📎 ${nMat}</span>` : ''}
+        ${linkMats.map(m => `<a class="tiny" href="${esc(m.url)}" target="_blank" rel="noopener" title="${esc(m.nome || m.tipo || 'abrir material')}" onclick="event.stopPropagation()" style="text-decoration:none;font-weight:700">${MAT_ICO[m.tipo] || '🔗'}</a>`).join('')}
+        ${semLink ? `<span class="tiny muted" title="materiais anexados sem link">📎 ${semLink}</span>` : ''}
         ${b.cta ? `<span class="tiny" title="CTA">▶ ${esc(b.cta)}</span>` : ''}
         <button class="btn btn-ghost tiny cr-edit" data-card="${esc(c.id)}" style="margin-left:auto">abrir</button>
       </div>
