@@ -135,10 +135,19 @@ export function applyMenuLayout() {
   }
   if (pendingSubs.length && secById.get(curId)) secById.get(curId).subsecs.push({ anchor: null, nodes: pendingSubs });
 
-  // ordem das seções: as do layout primeiro, resto na ordem padrão
+  // ordem das seções: as do layout primeiro; seções NOVAS (fora do layout salvo)
+  // entram na POSIÇÃO NATURAL do DOM — logo após a seção anterior a elas que já
+  // está ordenada — em vez de irem todas pro fim (senão um menu novo cai embaixo
+  // de "Conta"). v81.94
   const ordered = [];
   (LAYOUT.secOrder || []).forEach(id => { if (secById.has(id) && !ordered.includes(id)) ordered.push(id); });
-  secNodes.forEach(s => { const id = s.dataset.deflabel; if (!ordered.includes(id)) ordered.push(id); });
+  const domIds = secNodes.map(s => s.dataset.deflabel);
+  domIds.forEach((id, i) => {
+    if (ordered.includes(id)) return;
+    let pos = ordered.length;
+    for (let j = i - 1; j >= 0; j--) { const k = ordered.indexOf(domIds[j]); if (k >= 0) { pos = k + 1; break; } }
+    ordered.splice(pos, 0, id);
+  });
 
   const frag = document.createDocumentFragment();
   ordered.forEach(id => {
