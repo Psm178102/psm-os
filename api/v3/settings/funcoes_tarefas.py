@@ -46,6 +46,8 @@ def _read(sb):
     val.setdefault("byRole", {})
     val.setdefault("byUser", {})
     val.setdefault("checked", {})
+    val.setdefault("cargo", {})    # { role: {funcoes, objetivos, tarefas} } — conteúdo didático por cargo (sócio). v81.95
+    val.setdefault("perfil", {})   # { uid: {bio, foto} } — bio + foto de perfil (cada login). v81.95
     return val
 
 
@@ -123,11 +125,13 @@ class handler(BaseHTTPRequestHandler):
                                     "items": items, "checked": val["checked"].get(target, {})})
         if (actor.get("lvl") or 0) >= 10:
             return self._send(200, {"ok": True, "is_socio": True,
-                                    "byRole": val["byRole"], "byUser": val["byUser"], "checked": val["checked"]})
+                                    "byRole": val["byRole"], "byUser": val["byUser"], "checked": val["checked"],
+                                    "cargo": val["cargo"], "perfil": val["perfil"]})
         uid = actor.get("id"); role = actor.get("role")
         items = list(val["byRole"].get(role, [])) + list(val["byUser"].get(uid, []))
         return self._send(200, {"ok": True, "is_socio": False,
-                                "items": items, "checked": val["checked"].get(uid, {})})
+                                "items": items, "checked": val["checked"].get(uid, {}),
+                                "cargo": val["cargo"], "perfil": val["perfil"]})
 
     def do_POST(self):
         try:
@@ -175,6 +179,32 @@ class handler(BaseHTTPRequestHandler):
                 val["checked"][uid][iid] = True
             else:
                 val["checked"][uid].pop(iid, None)
+
+        elif action == "set_cargo":   # conteúdo didático do cargo (sócio). v81.95
+            if lvl < 10:
+                return self._send(403, {"ok": False, "error": "só sócio"})
+            role = (body.get("role") or "").strip()
+            if not _role_ok(role):
+                return self._send(400, {"ok": False, "error": "papel inválido"})
+            val["cargo"][role] = {
+                "funcoes": (body.get("funcoes") or "").strip()[:4000],
+                "objetivos": (body.get("objetivos") or "").strip()[:4000],
+                "tarefas": (body.get("tarefas") or "").strip()[:4000],
+            }
+            audit(self, actor, "funcoes.set_cargo", target_type="shared_kv", target_id=role)
+
+        elif action == "set_perfil":   # bio + foto do PRÓPRIO usuário. v81.95
+            uid = actor.get("id")
+            cur = val["perfil"].get(uid) or {}
+            if "bio" in body:
+                cur["bio"] = (body.get("bio") or "").strip()[:1500]
+            if "foto" in body:
+                foto = body.get("foto") or ""
+                # aceita dataURL de imagem pequena (redimensionada no front) — teto de segurança ~400KB
+                if isinstance(foto, str) and (foto == "" or (foto.startswith("data:image/") and len(foto) <= 400000)):
+                    cur["foto"] = foto
+            val["perfil"][uid] = cur
+            audit(self, actor, "funcoes.set_perfil", target_type="shared_kv", target_id=uid)
 
         else:
             return self._send(400, {"ok": False, "error": "action inválida"})

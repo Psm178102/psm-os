@@ -33,7 +33,6 @@ import { sounds } from './sounds.js';
 import { pageConfiguracoes } from './pages/configuracoes.js';
 import { pageLogins } from './pages/logins.js';
 import { pageConfigMenu } from './pages/config-menu.js';
-import { renderFuncoesTarefas } from './pages/perfil-funcoes.js';
 import { loadMenuLabels, loadMenuLayout, applyHeaderOverride } from './menu-labels.js';
 import { pageMarketing } from './pages/marketing.js';
 import { pageIA } from './pages/ia.js';
@@ -73,6 +72,7 @@ import { pageBase } from './pages/base.js';
 import { pageFormacao } from './pages/formacao.js';
 import { pageGestaoPessoas, pageOnboarding, pageOffboarding, pageRhTreinamentos, pageRhRecrutamento, pageRhPlano, pageRhClima, pageRhAvaliacoes } from './pages/gestao-pessoas.js';
 import { pageCompras, pagePatrimonio, pageManutencoes } from './pages/backoffice-adm.js';
+import { pageRhCargos } from './pages/rh-cargos.js';
 import { pageTalentos } from './pages/talentos.js';
 // Ferramentas Conquista (v81.44) — gated em sócio (ROUTE_MIN_LVL=10) por enquanto
 import { pageCockpitConquista } from './pages/cockpit-conquista.js';
@@ -158,7 +158,7 @@ export const ROUTE_GROUP = {
   '/formacao': 'academy', '/premiacoes': 'inicio',
   // Gestão de Pessoas & RH (grupo próprio)
   '/gestao-pessoas': 'rh', '/onboarding': 'rh', '/offboarding': 'rh',
-  '/rh-treinamentos': 'rh', '/rh-recrutamento': 'rh', '/rh-plano': 'rh', '/rh-clima': 'rh', '/rh-avaliacoes': 'rh',   // abas RH soltas (v81.55)
+  '/rh-treinamentos': 'rh', '/rh-recrutamento': 'rh', '/rh-plano': 'rh', '/rh-clima': 'rh', '/rh-avaliacoes': 'rh', '/rh-funcoes': 'rh',   // abas RH soltas (v81.55 / funcoes+organograma v81.95)
   '/sucesso-cliente': 'sucesso',   // Customer Success (v81.53)
   '/cs-onboarding': 'sucesso', '/cs-carteira': 'sucesso', '/cs-suporte': 'sucesso', '/cs-retencao': 'sucesso', '/cs-metricas': 'sucesso', '/cs-upsell': 'sucesso', '/cs-marketing': 'sucesso', '/cs-avaliacoes': 'sucesso', '/cs-indicacoes': 'sucesso',   // abas CS soltas (v81.55)
   '/talentos': 'rh', '/psmhub': 'diretoria',
@@ -361,7 +361,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '81.94.0';
+const APP_VERSION = '81.95.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -536,6 +536,7 @@ const APP_VERSION = '81.94.0';
   router.register('/rh-plano', { render: async (ctx, root) => { setHeader('Plano de Crescimento'); highlight('/rh-plano'); await pageRhPlano(ctx, root); } });
   router.register('/rh-clima', { render: async (ctx, root) => { setHeader('Clima Interno'); highlight('/rh-clima'); await pageRhClima(ctx, root); } });
   router.register('/rh-avaliacoes', { render: async (ctx, root) => { setHeader('Avaliações & Feedbacks'); highlight('/rh-avaliacoes'); await pageRhAvaliacoes(ctx, root); } });
+  router.register('/rh-funcoes',    { render: async (ctx, root) => { setHeader('Funções & Organograma'); highlight('/rh-funcoes'); await pageRhCargos(ctx, root); } });
   router.register('/cs-onboarding', { render: async (ctx, root) => { setHeader('Onboarding do Cliente'); highlight('/cs-onboarding'); await pageSCOnboarding(ctx, root); } });
   router.register('/cs-carteira', { render: async (ctx, root) => { setHeader('Gestão de Carteira'); highlight('/cs-carteira'); await pageSCCarteira(ctx, root); } });
   router.register('/cs-suporte', { render: async (ctx, root) => { setHeader('Relacionamento & Suporte'); highlight('/cs-suporte'); await pageSCSuporte(ctx, root); } });
@@ -789,6 +790,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/rh-plano"><span class="sb-ico">📈</span> Plano de Crescimento</button>
         <button class="sb-link" data-nav="/rh-clima"><span class="sb-ico">🌡</span> Clima Interno</button>
         <button class="sb-link" data-nav="/rh-avaliacoes"><span class="sb-ico">⭐</span> Avaliações & Feedbacks</button>
+        <button class="sb-link" data-nav="/rh-funcoes"><span class="sb-ico">🗂</span> Funções & Organograma</button>
 
         <div class="sb-sec">🤝 Sucesso do Cliente</div>
         <button class="sb-link" data-nav="/cs-onboarding"><span class="sb-ico">🚀</span> Onboarding do Cliente</button>
@@ -986,24 +988,8 @@ function userCard(u) {
 async function pageConta(ctx, root) {
   setHeader('Minha conta');
   highlight('/conta');
-  const user = auth.user();
-  root.innerHTML = `
-    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px" id="conta-tabs">
-      <button class="btn btn-primary" data-conta-tab="conta">⚙️ Conta</button>
-      <button class="btn btn-ghost" data-conta-tab="funcoes">✅ Funções e Tarefas</button>
-    </div>
-    <div id="conta-body" data-funcoes-host></div>`;
-  const body = document.getElementById('conta-body');
-  const setTab = (t) => {
-    document.querySelectorAll('[data-conta-tab]').forEach(b =>
-      b.className = 'btn ' + (b.dataset.contaTab === t ? 'btn-primary' : 'btn-ghost'));
-    if (t === 'funcoes') renderFuncoesTarefas(body);
-    else renderContaInfo(body, user);
-  };
-  document.querySelectorAll('[data-conta-tab]').forEach(b =>
-    b.addEventListener('click', () => setTab(b.dataset.contaTab)));
-  const q = new URLSearchParams((location.hash.split('?')[1] || ''));
-  setTab(q.get('tab') === 'funcoes' ? 'funcoes' : 'conta');
+  // Funções & Tarefas saíram daqui (v81.95) → agora ficam em RH → Funções & Organograma.
+  renderContaInfo(root, auth.user());
 }
 
 function renderContaInfo(body, user) {
