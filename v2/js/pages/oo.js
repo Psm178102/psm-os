@@ -137,6 +137,7 @@ function renderDetail() {
       </div>
       ${trendPanel(d, escapeHtml(c.name))}
       ${meetingsPanel()}
+      <div id="oo-rh360" class="mt-3"><div class="muted tiny"><span class="spinner"></span> Cruzando dados de RH…</div></div>
       <div id="modal-oo" style="display:none"></div>
     </div>`;
   wireDetailCommon();
@@ -190,6 +191,7 @@ function wireDetailCommon() {
   _root.querySelectorAll('[data-member]').forEach(el => el.addEventListener('click', () => { _selId = el.dataset.member; loadDetail(); }));
   _root.querySelectorAll('[data-meet]').forEach(el => el.addEventListener('click', () => openMeeting(parseInt(el.dataset.meet))));
   _root.querySelectorAll('[data-pdi]').forEach(el => el.addEventListener('change', () => togglePdi(parseInt(el.dataset.pdi), parseInt(el.dataset.idx), el.checked)));
+  if (_det && _det.corretor) loadRH360(_det.corretor);   // visão 360° RH (cruza módulos). v81.96
 }
 
 function gestorHeader(d) {
@@ -826,3 +828,108 @@ function money(v) { return (Number(v) || 0).toLocaleString('pt-BR', { minimumFra
 function moneyShort(v) { return money(v); }   // alias: não abrevia mais (k/M); valor cheio
 function pctF(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+/* ═══════════════════ VISÃO 360° RH (cruza módulos) · v81.96 ═══════════════════
+   Puxa de: Funções&Organograma (cargo+checklist), Avaliações (score+feedbacks),
+   Perfil/Painel (pontos de atenção, perfil comportamental, metas), Plano de
+   Crescimento (PDI), 1:1 (ações abertas) e Remuneração. */
+let _rh360 = {};
+async function loadRH360(c) {
+  const host = document.getElementById('oo-rh360'); if (!host) return;
+  const uid = c.id, myLvl = auth.user()?.lvl || 0;
+  let ft = {}, pf = {}, av = {}, reg = {}, rem = {};
+  try {
+    [ft, pf, av, reg, rem] = await Promise.all([
+      api.request('/api/v3/settings/funcoes_tarefas?user_id=' + encodeURIComponent(uid)).catch(() => ({})),
+      api.request('/api/v3/profile/data?user_id=' + encodeURIComponent(uid)).catch(() => ({})),
+      api.request('/api/v3/gp/avaliacoes').catch(() => ({ avaliacoes: [], feedbacks: [] })),
+      api.request('/api/v3/gp/rh_registros').catch(() => ({})),
+      (myLvl >= 5 ? api.request('/api/v3/gp/remuneracao?user_id=' + encodeURIComponent(uid)).catch(() => ({})) : Promise.resolve({})),
+    ]);
+  } catch (e) { /* noop */ }
+  _rh360 = { uid, name: c.name, ft, pf, av, reg, rem };
+  render360();
+}
+function render360() {
+  const host = document.getElementById('oo-rh360'); if (!host) return;
+  const { uid, name, ft, pf, av, reg, rem } = _rh360;
+  const cargo = ft.cargo || {};
+  const items = ft.items || [], checked = ft.checked || {};
+  const doneN = items.filter(it => checked[it.id]).length;
+  const prof = pf.profile || {};
+  const escala = (av.config && av.config.escala) || 5;
+  const avs = (av.avaliacoes || []).filter(a => a.avaliado_id === uid && a.status === 'enviado').sort((a, b) => String(b.criado_em || '').localeCompare(String(a.criado_em || '')));
+  const score = avs.length ? (avs[0].nota_calibrada != null ? avs[0].nota_calibrada : avs[0].nota_final) : null;
+  const fbs = (av.feedbacks || []).filter(f => f.para_id === uid).slice(0, 6);
+  const plano = ((reg.plano) || []).filter(p => (p.pessoa || '').trim().toLowerCase() === (name || '').trim().toLowerCase());
+  const acoesAbertas = (_meet || []).reduce((n, m) => n + (Array.isArray(m.acoes) ? m.acoes.filter(a => !a.done).length : 0), 0);
+  const r = rem.remuneracao || {};
+  const vgv = (_det && _det.metrics && (_det.metrics.vgv || _det.metrics.realizado)) || 0;
+  const myLvl = auth.user()?.lvl || 0;
+  const box = (titulo, html, cor) => `<div style="background:var(--bg-2);border:1px solid var(--bd,#e2e8f0);border-left:3px solid ${cor};border-radius:10px;padding:11px">
+    <div style="font-weight:800;font-size:12.5px;margin-bottom:5px">${titulo}</div>${html}</div>`;
+  const nl = s => escapeHtml(s || '').replace(/\n/g, '<br>') || '<span class="muted tiny">—</span>';
+  host.innerHTML = `
+    <div class="card">
+      <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+        <h3 class="card-title" style="margin:0">📊 Visão 360° RH — ${escapeHtml(name || '')}</h3>
+        <span class="tiny muted">cruza Funções · Avaliações · Perfil · PDI · 1:1 · Remuneração</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px">
+        ${box('🪪 Cargo — Funções/Objetivos/Tarefas', `
+          ${cargo.funcoes ? `<div class="tiny"><b>Funções:</b> ${nl(cargo.funcoes)}</div>` : ''}
+          ${cargo.objetivos ? `<div class="tiny" style="margin-top:3px"><b>Objetivos:</b> ${nl(cargo.objetivos)}</div>` : ''}
+          ${cargo.tarefas ? `<div class="tiny" style="margin-top:3px"><b>Tarefas:</b> ${nl(cargo.tarefas)}</div>` : ''}
+          ${(!cargo.funcoes && !cargo.objetivos && !cargo.tarefas) ? '<div class="muted tiny">Não cadastrado no cargo. <a href="#/rh-funcoes">cadastrar →</a></div>' : ''}
+          ${items.length ? `<div class="tiny muted" style="margin-top:5px">Checklist: <b>${doneN}/${items.length}</b> concluídos</div>` : ''}`, '#7c3aed')}
+        ${box('🎯 Desempenho & metas', `
+          <div style="font-size:22px;font-weight:800;color:#16a34a">${score != null ? score + '/' + escala : '<span style="font-size:13px;color:#94a3b8">sem avaliação</span>'}</div>
+          ${prof.meta_produtividade ? `<div class="tiny"><b>Meta produtividade:</b> ${escapeHtml(prof.meta_produtividade)}</div>` : ''}
+          ${prof.meta_resultado ? `<div class="tiny"><b>Meta resultado:</b> ${escapeHtml(prof.meta_resultado)}</div>` : ''}`, '#16a34a')}
+        ${box('⚠️ Pontos de atenção & perfil', `
+          <div class="tiny"><b>Atenção:</b> ${nl(prof.pontos_atencao)}</div>
+          ${prof.perfil_comportamental ? `<div class="tiny" style="margin-top:3px"><b>Perfil:</b> ${nl(prof.perfil_comportamental)}</div>` : ''}`, '#f59e0b')}
+        ${box('💬 Feedbacks', `
+          ${fbs.length ? fbs.map(f => `<div class="tiny" style="border-top:1px solid var(--bd,#eee);padding:4px 0"><b>${escapeHtml(uName360(f.de_id))}:</b> ${escapeHtml(f.texto || '')}</div>`).join('') : '<span class="muted tiny">Nenhum feedback registrado.</span>'}
+          <div class="tiny muted" style="margin-top:4px"><a href="#/rh-avaliacoes">abrir Avaliações & Feedbacks →</a></div>`, '#2563eb')}
+        ${box('📈 PDI & ações', `
+          ${plano.length ? plano.map(p => `<div class="tiny"><b>${escapeHtml(p.proximo_cargo || 'PDI')}:</b> ${escapeHtml(p.competencias || '')} <span class="muted">(${escapeHtml(p.status || '')})</span></div>`).join('') : '<span class="muted tiny">Sem plano de crescimento.</span>'}
+          <div class="tiny muted" style="margin-top:4px">Ações de 1:1 em aberto: <b>${acoesAbertas}</b> · <a href="#/rh-plano">Plano de Crescimento →</a></div>`, '#0891b2')}
+        ${box('💰 Comissão & Remuneração', `
+          <div class="tiny"><b>Produção (VGV):</b> R$ ${money(vgv)}</div>
+          ${myLvl >= 5 ? `
+            <div class="tiny" style="margin-top:3px"><b>Tipo:</b> ${escapeHtml(r.tipo || '—')}</div>
+            <div class="tiny"><b>Base:</b> ${r.salario_base != null ? 'R$ ' + money(r.salario_base) : '—'} ${r.comissao_pct != null ? '· <b>Comissão:</b> ' + r.comissao_pct + '%' : ''}</div>
+            ${r.ajuda_custo != null ? `<div class="tiny"><b>Ajuda de custo:</b> R$ ${money(r.ajuda_custo)}</div>` : ''}
+            ${r.obs ? `<div class="tiny muted">${escapeHtml(r.obs)}</div>` : ''}
+            ${myLvl >= 7 ? '<button class="btn btn-ghost btn-sm mt-1" id="rh-remun-edit">✏️ Editar remuneração</button>' : ''}
+          ` : '<div class="tiny muted">Remuneração: restrito à gestão.</div>'}`, '#ea580c')}
+      </div>
+    </div>`;
+  const re = host.querySelector('#rh-remun-edit'); if (re) re.onclick = () => openRemunEditor(uid, name, r);
+}
+function uName360(id) { const u = (_users || []).find(x => x.id === id); return u ? (u.name || id) : (id || '—'); }
+function openRemunEditor(uid, name, r) {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:6vh 14px;overflow:auto';
+  const TIPOS = ['CLT', 'PJ', 'Comissionado', 'CLT + comissão', 'Estágio', 'Autônomo', 'Sócio'];
+  ov.innerHTML = `<div class="card" style="max-width:460px;width:100%;margin:auto">
+    <div class="flex" style="justify-content:space-between;align-items:center"><h3 class="card-title" style="margin:0">💰 Remuneração — ${escapeHtml(name || '')}</h3><button class="btn btn-ghost btn-sm" id="rm-x">✕</button></div>
+    <p class="tiny muted">Confidencial — visível só pra gestão (lvl≥5), editável por sócio.</p>
+    <label class="tiny muted">Tipo<select id="rm-tipo" class="select"><option value="">—</option>${TIPOS.map(t => `<option${r.tipo === t ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+      <label class="tiny muted">Salário base (R$)<input id="rm-base" class="input" type="number" value="${r.salario_base ?? ''}"></label>
+      <label class="tiny muted">Comissão (%)<input id="rm-com" class="input" type="number" value="${r.comissao_pct ?? ''}"></label>
+    </div>
+    <label class="tiny muted" style="display:block;margin-top:6px">Ajuda de custo (R$)<input id="rm-aj" class="input" type="number" value="${r.ajuda_custo ?? ''}"></label>
+    <label class="tiny muted" style="display:block;margin-top:6px">Observações<textarea id="rm-obs" class="input" rows="2">${escapeHtml(r.obs || '')}</textarea></label>
+    <div class="flex gap-2 mt-3"><button class="btn btn-primary" id="rm-save">💾 Salvar</button></div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  ov.querySelector('#rm-x').onclick = () => ov.remove();
+  ov.querySelector('#rm-save').onclick = async () => {
+    const body = { user_id: uid, tipo: ov.querySelector('#rm-tipo').value, salario_base: ov.querySelector('#rm-base').value, comissao_pct: ov.querySelector('#rm-com').value, ajuda_custo: ov.querySelector('#rm-aj').value, obs: ov.querySelector('#rm-obs').value };
+    try { const res = await api.request('/api/v3/gp/remuneracao', { method: 'POST', body }); _rh360.rem = { remuneracao: res.remuneracao }; ov.remove(); render360(); }
+    catch (e) { alert('Erro: ' + e.message); }
+  };
+}

@@ -122,7 +122,8 @@ class handler(BaseHTTPRequestHandler):
                 trole = ""
             items = list(val["byRole"].get(trole, [])) + list(val["byUser"].get(target, []))
             return self._send(200, {"ok": True, "is_socio": False, "for_user": target,
-                                    "items": items, "checked": val["checked"].get(target, {})})
+                                    "items": items, "checked": val["checked"].get(target, {}),
+                                    "cargo": val["cargo"].get(trole, {}), "perfil": val["perfil"].get(target, {})})
         if (actor.get("lvl") or 0) >= 10:
             return self._send(200, {"ok": True, "is_socio": True,
                                     "byRole": val["byRole"], "byUser": val["byUser"], "checked": val["checked"],
