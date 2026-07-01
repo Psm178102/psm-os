@@ -25,6 +25,8 @@ const PRIOR_LBL = {
 let _root = null;
 let _tab = 'dashboard';
 let _ano = new Date().getFullYear();
+let _periodo = 'ano';   // ano | ytd | t1..t4 | m1..m12  (v81.99)
+let _frente = 'todas';  // todas | conquista | map | locacao | terceiros
 let _data = {};
 
 export async function pageDiretoria(ctx, root) {
@@ -62,10 +64,12 @@ async function loadTab() {
   const body = document.getElementById('dir-body');
   try {
     if (_tab === 'dashboard') {
-      const d = await api.request('/api/v3/diretoria/dashboard?ano=' + _ano).catch(e => ({ error: e.message }));
+      body.innerHTML = `<div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando painel…</div>`;
+      const d = await api.request(`/api/v3/diretoria/dashboard?ano=${_ano}&periodo=${_periodo}&frente=${_frente}`).catch(e => ({ error: e.message }));
       _data.dash = d;
       body.innerHTML = renderDashboard();
       buildDashCharts();
+      wireDashboard();
     } else if (_tab === 'recados') {
       const r = await api.request('/api/v3/diretoria/recados');
       _data.recados = r;
@@ -82,63 +86,208 @@ async function loadTab() {
   }
 }
 
-// ─── Tab: Dashboard ─────────────────────────────────────────────────────
+// ─── Tab: Dashboard (Painel Executivo filtrável · v81.99) ────────────────
 function renderDashboard() {
   const d = _data.dash || {};
-  if (d.error) return `<div class="alert alert-err">${escapeHtml(d.error)}</div>`;
-  if (!d.kpis) return '<div class="muted">Sem dados.</div>';
-  const k = d.kpis;
+  if (d.error) return `${filterBar()}<div class="alert alert-err">${escapeHtml(d.error)}</div>`;
+  const k = d.kpis || {};
+  const ex = k.exec;
+  if (!ex) return `${filterBar()}<div class="muted">Sem dados para o filtro selecionado.</div>`;
 
   return `
-    ${dashHero(k, d)}
-
-    <div class="tiny muted" style="margin-bottom:10px">
-      ${_ano} · ${MES_NAMES[(k.mes || d.mes) - 1] || ''}/${_ano} · Atualizado ${new Date(d.fetched_at).toLocaleString('pt-BR')}
+    ${filterBar()}
+    ${execHero(ex)}
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-top:14px;align-items:start">
+      ${panel(`📈 VGV mês a mês ${ex.kpis.has_meta ? '× meta' : '(vs ano anterior)'} · ${escapeHtml(frenteLabel(ex))}`, '<div style="position:relative;height:230px"><canvas id="dir-ch-vgv"></canvas></div>')}
+      ${panel('🥧 Participação por frente', '<div style="position:relative;height:230px"><canvas id="dir-ch-frente"></canvas></div>')}
     </div>
+    ${forecastCard(ex.forecast)}
+    ${porFrenteTable(ex)}
+    ${rankingTable(ex.ranking)}
 
-    <div class="flex gap-3" style="flex-wrap:wrap;margin-bottom:14px">
-      ${kpi('👥 Equipe', k.users_ativos || 0, `${k.users_total || 0} cadastrados`, '#0891b2')}
+    <!-- Operação -->
+    <div class="flex gap-3" style="flex-wrap:wrap;margin:16px 0 4px">
+      ${kpi('👥 Equipe ativa', k.users_ativos || 0, `${k.users_total || 0} cadastrados`, '#0891b2')}
       ${kpi('📋 Tarefas abertas', k.tarefas_abertas || 0, totalTarefas(k.tarefas), (k.tarefas_abertas || 0) > 0 ? '#d97706' : '#16a34a')}
       ${kpi('📅 Eventos 7d', k.eventos_proxima_semana || 0, 'próximos 7 dias', '#7c3aed')}
       ${kpi('📢 Recados', k.recados_ativos || 0, `${k.recados_criticos || 0} críticos`, k.recados_criticos > 0 ? '#dc2626' : '#16a34a')}
     </div>
-
-    <!-- Equipe por team -->
-    ${k.users_by_team && Object.keys(k.users_by_team).length ? `
-      <div class="card" style="margin:0">
-        <h3 class="card-title">🛡 Equipe por frente</h3>
-        <div class="flex gap-2" style="flex-wrap:wrap">
-          ${Object.entries(k.users_by_team).map(([t, n]) => `
-            <div style="background:var(--bg-3);border-radius:var(--r-full);padding:8px 18px;font-size:13px;font-weight:600">
-              ${escapeHtml(t)} <span class="muted">·</span> <b>${n}</b>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    ` : ''}
-
-    <!-- Métricas executivas (só Diretoria) -->
     ${execMetrics(k)}
 
-    <!-- Top actions 24h -->
-    ${(k.top_actions_24h || []).length ? `
-      <div class="card" style="margin:14px 0">
-        <h3 class="card-title">⚡ Top ações últimas 24h</h3>
-        <table style="width:100%;font-size:13px">
-          ${k.top_actions_24h.map(a => `
-            <tr><td style="padding:5px 0"><code>${escapeHtml(a.action)}</code></td><td style="text-align:right;font-weight:700">${a.count}</td></tr>
-          `).join('')}
-        </table>
-        <div class="tiny muted mt-2">${k.audit_24h} eventos no audit_log nas últimas 24h.</div>
-      </div>
-    ` : ''}
-
-    <div class="flex gap-2 mt-3">
-      <a href="#/metas" class="btn btn-ghost">🎯 Ver Metas detalhadas</a>
+    <div class="tiny muted" style="margin:8px 0">Atualizado ${new Date(d.fetched_at).toLocaleString('pt-BR')} · fonte: deals ganhos (RD) + metas.</div>
+    <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
+      <a href="#/metas" class="btn btn-ghost">🎯 Metas detalhadas</a>
       <a href="#/financeiro" class="btn btn-ghost">💰 Financeiro</a>
       <a href="#/crm" class="btn btn-ghost">🔗 CRM</a>
+      <a href="#/ranking" class="btn btn-ghost">🏆 Ranking completo</a>
     </div>
   `;
+}
+
+// ─── Barra de filtros (Ano · Período · Frente) ───────────────────────────
+function frenteLabel(ex) {
+  if (!ex || ex.frente === 'todas') return 'Todas as frentes';
+  return (ex.frentes.find(f => f.code === ex.frente) || {}).label || ex.frente;
+}
+function filterBar() {
+  const anoAtual = new Date().getFullYear();
+  const ex = (_data.dash?.kpis || {}).exec;
+  const frentes = (ex?.frentes) || [{ code: 'conquista', label: 'Conquista' }, { code: 'map', label: 'MAP' }, { code: 'locacao', label: 'Locação' }, { code: 'terceiros', label: 'Terceiros' }];
+  const MES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const perGroups = [
+    ['Consolidado', [['ano', 'Ano inteiro'], ['ytd', 'Acumulado no ano (YTD)']]],
+    ['Trimestre', [['t1', '1º Trimestre'], ['t2', '2º Trimestre'], ['t3', '3º Trimestre'], ['t4', '4º Trimestre']]],
+    ['Mês', MES.map((m, i) => ['m' + (i + 1), m])],
+  ];
+  const perOpts = perGroups.map(([g, opts]) =>
+    `<optgroup label="${g}">${opts.map(([v, l]) => `<option value="${v}"${v === _periodo ? ' selected' : ''}>${l}</option>`).join('')}</optgroup>`).join('');
+  const frOpts = `<option value="todas"${_frente === 'todas' ? ' selected' : ''}>Todas as frentes</option>` +
+    frentes.map(f => `<option value="${f.code}"${f.code === _frente ? ' selected' : ''}>${escapeHtml(f.label)}</option>`).join('');
+  return `
+    <div class="flex gap-2" style="flex-wrap:wrap;align-items:center;background:var(--bg-3);padding:10px 12px;border-radius:12px;margin-bottom:14px">
+      <div class="flex" style="align-items:center;gap:4px;background:var(--bg-2);border-radius:8px;padding:2px">
+        <button class="btn btn-ghost btn-sm" data-ano-set="${_ano - 1}" title="Ano anterior" style="padding:4px 9px">◄</button>
+        <span style="font-weight:800;min-width:52px;text-align:center">${_ano}</span>
+        <button class="btn btn-ghost btn-sm" data-ano-set="${_ano + 1}" title="Próximo ano" style="padding:4px 9px" ${_ano >= anoAtual ? 'disabled' : ''}>►</button>
+      </div>
+      <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">Período
+        <select id="dir-f-periodo" class="select" style="min-width:170px">${perOpts}</select>
+      </label>
+      <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">Frente / unidade
+        <select id="dir-f-frente" class="select" style="min-width:150px">${frOpts}</select>
+      </label>
+      ${ex ? `<span class="badge" style="background:var(--psm-navy);color:#fff;font-weight:700;align-self:flex-end;margin-bottom:2px">${escapeHtml(ex.kpis.label_periodo)}</span>` : ''}
+      <button class="btn btn-ghost btn-sm" id="dir-refresh" style="margin-left:auto;align-self:flex-end">🔄 Atualizar</button>
+    </div>`;
+}
+
+// ─── Hero executivo (dark) ───────────────────────────────────────────────
+function subline(txt) { return `<div style="font-size:12px;color:#94a3b8;margin-top:2px">${txt}</div>`; }
+function deltaBadge(pct) {
+  if (pct == null) return `<span style="font-size:12px;color:#94a3b8">— vs anterior</span>`;
+  const up = pct >= 0, c = up ? '#34d399' : '#f87171', ar = up ? '▲' : '▼';
+  return `<span style="font-size:12px;color:${c};font-weight:700">${ar} ${Math.abs(pct).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</span> <span style="font-size:11px;color:#94a3b8">vs anterior</span>`;
+}
+function heroCard(label, val, subHtml, color) {
+  return `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px 16px">
+    <div style="font-size:11px;color:#cbd5e1;text-transform:uppercase;letter-spacing:1px;font-weight:700">${label}</div>
+    <div style="font-size:25px;font-weight:900;color:${color};margin:3px 0;line-height:1.1">${val}</div>
+    ${subHtml || ''}
+  </div>`;
+}
+function atingCard(pct) {
+  const col = pct == null ? '#94a3b8' : pct < 60 ? '#f87171' : pct < 95 ? '#fbbf24' : '#34d399';
+  const w = Math.min(100, Math.max(0, pct || 0));
+  return `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px 16px">
+    <div style="font-size:11px;color:#cbd5e1;text-transform:uppercase;letter-spacing:1px;font-weight:700">📊 % Atingimento</div>
+    <div style="font-size:25px;font-weight:900;color:${col};margin:3px 0;line-height:1.1">${pct == null ? '—' : pct2(pct)}</div>
+    <div style="height:7px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden;margin-top:5px"><div style="height:100%;width:${w}%;background:${col};transition:width .4s"></div></div>
+  </div>`;
+}
+function execHero(ex) {
+  const k = ex.kpis;
+  const cards = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
+      ${heroCard('💎 VGV realizado', 'R$ ' + moneyC(k.vgv), subline(deltaBadge(k.delta_vgv_pct)), '#c084fc')}
+      ${k.has_meta
+        ? heroCard('🎯 Meta do período', 'R$ ' + moneyC(k.meta), subline(k.gap > 0 ? `faltam <b style="color:#f87171">R$ ${moneyC(k.gap)}</b>` : `<b style="color:#34d399">meta batida</b> (+R$ ${moneyC(-k.gap)})`), '#60a5fa')
+        : heroCard('🎟 Ticket médio', 'R$ ' + moneyC(k.ticket), subline(`${fmtNum(k.vendas)} vendas no período`), '#60a5fa')}
+      ${k.has_meta ? atingCard(k.ating_pct) : heroCard('🥧 Participação', shareOfSelected(ex), subline('do VGV total do período'), '#22d3ee')}
+      ${heroCard('🤝 Vendas', fmtNum(k.vendas), subline(deltaBadge(k.delta_vendas_pct)), '#2dd4bf')}
+    </div>`;
+  return heroWrap('🏛 Diretoria PSM · Painel Executivo', `${k.label_periodo} · ${escapeHtml(frenteLabel(ex))}`, cards);
+}
+function shareOfSelected(ex) {
+  const f = (ex.por_frente || []).find(x => x.code === ex.frente);
+  return f ? pct2(f.share_pct) : '—';
+}
+
+// ─── Forecast / projeção ─────────────────────────────────────────────────
+function forecastCard(fc) {
+  if (!fc) return '';
+  const on = fc.on_track;
+  const col = on == null ? '#64748b' : on ? '#16a34a' : '#dc2626';
+  return `
+    <div class="card" style="margin:14px 0;border-left:5px solid ${col}">
+      <h3 class="card-title">🔮 Projeção do ano <span class="tiny muted" style="font-weight:400">· ritmo atual</span></h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+        ${miniStat('Realizado YTD', 'R$ ' + moneyC(fc.ytd_vgv), '#a855f7')}
+        ${miniStat('Projeção fim do ano', 'R$ ' + moneyC(fc.run_rate_anual), col)}
+        ${miniStat('% da meta (projeção)', fc.proj_pct == null ? '—' : pct2(fc.proj_pct), col)}
+        ${miniStat('Falta p/ meta', fc.falta > 0 ? 'R$ ' + moneyC(fc.falta) : 'R$ 0', fc.falta > 0 ? '#d97706' : '#16a34a')}
+        ${miniStat('Ritmo necessário/mês', fc.ritmo_necessario_mes > 0 ? 'R$ ' + moneyC(fc.ritmo_necessario_mes) : '✔ no ritmo', fc.ritmo_necessario_mes > 0 ? '#dc2626' : '#16a34a')}
+      </div>
+      <div class="tiny muted mt-2">Projeção = run-rate (VGV ÷ ${fc.elapsed_months} ${fc.elapsed_months === 1 ? 'mês' : 'meses'} × 12). ${on ? '✅ No ritmo pra bater a meta.' : '⚠️ Abaixo do ritmo — precisa acelerar os meses restantes.'}</div>
+    </div>`;
+}
+
+// ─── Quebra por frente ───────────────────────────────────────────────────
+function porFrenteTable(ex) {
+  const rows = ex.por_frente || [];
+  if (!rows.length) return '';
+  const maxV = Math.max(1, ...rows.map(r => r.vgv));
+  return `
+    <div class="card" style="margin:14px 0">
+      <h3 class="card-title">🛡 Desempenho por frente <span class="tiny muted" style="font-weight:400">· ${escapeHtml(ex.kpis.label_periodo)}</span></h3>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:560px">
+        <thead><tr style="background:var(--bg-3);text-align:left">
+          <th style="padding:8px">Frente</th><th style="padding:8px;text-align:right">VGV</th>
+          <th style="padding:8px;text-align:right">Vendas</th><th style="padding:8px;text-align:right">Ticket</th>
+          <th style="padding:8px;text-align:right">Part.</th><th style="padding:8px;text-align:right">vs ant.</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr style="border-bottom:1px solid var(--border);cursor:pointer" data-frente-row="${r.code}" title="Filtrar por ${escapeHtml(r.label)}">
+              <td style="padding:8px"><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${r.cor};margin-right:7px"></span><b>${escapeHtml(r.label)}</b></td>
+              <td style="padding:8px;text-align:right">
+                <div style="font-weight:700">R$ ${moneyC(r.vgv)}</div>
+                <div style="height:5px;background:var(--bg-3);border-radius:99px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${(r.vgv / maxV * 100).toFixed(1)}%;background:${r.cor}"></div></div>
+              </td>
+              <td style="padding:8px;text-align:right">${fmtNum(r.vendas)}</td>
+              <td style="padding:8px;text-align:right">R$ ${moneyC(r.ticket)}</td>
+              <td style="padding:8px;text-align:right">${pct2(r.share_pct)}</td>
+              <td style="padding:8px;text-align:right">${r.delta_pct == null ? '<span class="muted">—</span>' : `<span style="color:${r.delta_pct >= 0 ? '#16a34a' : '#dc2626'};font-weight:700">${r.delta_pct >= 0 ? '▲' : '▼'} ${Math.abs(r.delta_pct).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</span>`}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table></div>
+      <div class="tiny muted mt-2">Clique numa frente pra filtrar o painel inteiro. Frentes vêm do funil do RD (Conquista/MAP/Locação/Terceiros).</div>
+    </div>`;
+}
+
+// ─── Ranking de corretores ───────────────────────────────────────────────
+function rankingTable(rk) {
+  if (!rk || !rk.length) return `<div class="card" style="margin:14px 0"><h3 class="card-title">🏆 Ranking de corretores</h3><div class="muted tiny" style="padding:10px">Sem vendas registradas no período/frente selecionado.</div></div>`;
+  const medal = i => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span class="muted">${i + 1}º</span>`;
+  const maxV = Math.max(1, ...rk.map(r => r.vgv));
+  return `
+    <div class="card" style="margin:14px 0">
+      <h3 class="card-title">🏆 Ranking de corretores <span class="tiny muted" style="font-weight:400">· por VGV no período</span></h3>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <tbody>
+          ${rk.map((r, i) => `
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:7px 8px;width:34px;font-weight:800">${medal(i)}</td>
+              <td style="padding:7px 8px;font-weight:600">${escapeHtml(r.nome)}</td>
+              <td style="padding:7px 8px;width:44%">
+                <div style="height:6px;background:var(--bg-3);border-radius:99px;overflow:hidden"><div style="height:100%;width:${(r.vgv / maxV * 100).toFixed(1)}%;background:linear-gradient(90deg,#7c3aed,#a855f7)"></div></div>
+              </td>
+              <td style="padding:7px 8px;text-align:right;font-weight:700;white-space:nowrap">R$ ${moneyC(r.vgv)}</td>
+              <td style="padding:7px 8px;text-align:right;color:var(--ink-muted);white-space:nowrap">${fmtNum(r.vendas)} vd</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// ─── Wiring dos filtros ──────────────────────────────────────────────────
+function wireDashboard() {
+  const per = document.getElementById('dir-f-periodo');
+  if (per) per.onchange = e => { _periodo = e.target.value; loadTab(); };
+  const fr = document.getElementById('dir-f-frente');
+  if (fr) fr.onchange = e => { _frente = e.target.value; loadTab(); };
+  document.querySelectorAll('[data-ano-set]').forEach(b => { if (!b.disabled) b.onclick = () => { _ano = parseInt(b.dataset.anoSet); loadTab(); }; });
+  const rf = document.getElementById('dir-refresh'); if (rf) rf.onclick = () => loadTab();
+  document.querySelectorAll('[data-frente-row]').forEach(r => r.addEventListener('click', () => { _frente = r.dataset.frenteRow; loadTab(); }));
 }
 
 // ─── Métricas executivas (Diretoria) ────────────────────────────────────
@@ -163,77 +312,44 @@ function execMetrics(k) {
     </div>`;
 }
 
-// ─── Hero premium (dark + sparklines + gráficos) ────────────────────────
-function dashHero(k, d) {
-  const vgvMes = k.vgv_por_mes || [];
-  const vendasMes = k.vendas_por_mes || [];
-  const mesIdx = (k.mes || d.mes || 1) - 1;
-  // Δ% entre os dois últimos meses COMPLETOS (o mês corrente é parcial e
-  // distorceria o %); cai pra mês-a-mês simples se ainda não há 2 meses fechados.
-  const dVgvMes = mesIdx >= 2 ? pctDelta(vgvMes[mesIdx - 1] || 0, vgvMes[mesIdx - 2] || 0)
-                : mesIdx > 0 ? pctDelta(vgvMes[mesIdx] || 0, vgvMes[mesIdx - 1] || 0) : null;
-  // VGV acumulado mês a mês (pra sparkline de "VGV Ano")
-  let acc = 0; const vgvAcum = vgvMes.map(v => (acc += (v || 0)));
-  const atingPct = k.atingimento_pct;
-  const metaAno = k.meta_vgv_ano || 0;
-  const inner = `
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
-      ${heroKpi('💎 VGV Ano (atingido)', 'R$ ' + moneyShort(k.atingido_vgv_ano), null, vgvAcum, '#a855f7')}
-      ${heroKpi('🎯 Meta Ano', 'R$ ' + moneyShort(metaAno), null, vgvMes.map(() => metaAno / 12), '#3b82f6')}
-      ${heroKpi('📊 % Atingimento', (atingPct == null ? '—' : pct2(atingPct)), null, vgvAcum.map(v => metaAno ? v / metaAno * 100 : 0), '#22c55e')}
-      ${heroKpi('💵 VGV Mês', 'R$ ' + moneyShort(k.atingido_vgv_mes), dVgvMes, vgvMes, '#14b8a6')}
-    </div>
-
-    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-top:16px;align-items:start">
-      ${panel('📈 VGV por mês × meta mensal (' + _ano + ')', '<div style="position:relative;height:210px"><canvas id="dir-ch-vgv"></canvas></div>')}
-      ${panel('🛡 Equipe por frente', '<div style="position:relative;height:210px"><canvas id="dir-ch-team"></canvas></div>')}
-    </div>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:14px">
-      ${miniStat('Vendas no ano', fmtNum(k.atingido_vendas_ano), '#a855f7')}
-      ${miniStat('Vendas no mês', fmtNum(k.atingido_vendas_mes), '#14b8a6')}
-      ${miniStat('Equipe ativa', fmtNum(k.users_ativos), '#06b6d4')}
-      ${miniStat('Tarefas abertas', fmtNum(k.tarefas_abertas), (k.tarefas_abertas || 0) > 0 ? '#f59e0b' : '#22c55e')}
-      ${miniStat('Eventos 7d', fmtNum(k.eventos_proxima_semana), '#a855f7')}
-      ${miniStat('Recados', fmtNum(k.recados_ativos) + (k.recados_criticos ? ' · ' + k.recados_criticos + '🔴' : ''), k.recados_criticos > 0 ? '#f87171' : '#22c55e')}
-    </div>`;
-  return heroWrap('🏛 Diretoria PSM · Painel Executivo', `Ano ${_ano} · meta R$ ${moneyShort(metaAno)} · atingido R$ ${moneyShort(k.atingido_vgv_ano)}`, inner);
-}
-
+// ─── Gráficos do painel (dirigidos pelo bloco exec · respeitam os filtros) ──
 async function buildDashCharts() {
   let Chart; try { Chart = await loadChartLib(); } catch (_) { return; }
   if (!Chart) return;
   _charts.forEach(c => { try { c.destroy(); } catch (_) {} });
   _charts = [];
-  const k = (_data.dash || {}).kpis || {};
+  const ex = ((_data.dash || {}).kpis || {}).exec;
+  if (!ex) return;
   const mk = (id, cfg) => { const el = document.getElementById(id); if (el) _charts.push(new Chart(el, cfg)); };
-  const MES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const yTick = v => 'R$ ' + (v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(0) + 'k' : v);
 
-  const vgvMes = k.vgv_por_mes || [];
-  if (vgvMes.length) {
-    const metaMes = (k.meta_vgv_ano || 0) / 12;
+  // 1) VGV mês a mês do ano corrente: barras = realizado; linha = meta (global) OU ano anterior (frente)
+  const s = ex.serie || {};
+  if ((s.vgv || []).length) {
+    const ds = [{ type: 'bar', label: 'VGV realizado', data: s.vgv, backgroundColor: 'rgba(168,85,247,0.65)', borderRadius: 4, order: 2 }];
+    if (s.meta) ds.push({ type: 'line', label: 'Meta mensal', data: s.meta, borderColor: '#f59e0b', borderDash: [5, 4], pointRadius: 0, borderWidth: 2, order: 1 });
+    else if (s.vgv_ano_ant) ds.push({ type: 'line', label: `${_ano - 1}`, data: s.vgv_ano_ant, borderColor: '#38bdf8', pointRadius: 0, borderWidth: 2, order: 1 });
     mk('dir-ch-vgv', {
       type: 'bar',
-      data: { labels: MES, datasets: [
-        { type: 'bar', label: 'VGV realizado', data: vgvMes, backgroundColor: 'rgba(168,85,247,0.65)', borderRadius: 4, order: 2 },
-        { type: 'line', label: 'Meta mensal', data: MES.map(() => metaMes), borderColor: '#f59e0b', borderDash: [5, 4], pointRadius: 0, borderWidth: 2, order: 1 },
-      ] },
+      data: { labels: s.meses || [], datasets: ds },
       options: darkOpts({ scales: {
         x: { ticks: { color: DARK_INK, font: { size: 10 } }, grid: { color: DARK_GRID } },
-        y: { beginAtZero: true, ticks: { color: DARK_INK, callback: v => 'R$ ' + (v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(0) + 'k' : v) }, grid: { color: DARK_GRID } },
+        y: { beginAtZero: true, ticks: { color: DARK_INK, callback: yTick }, grid: { color: DARK_GRID } },
       } }),
     });
   }
 
-  const byTeam = k.users_by_team || {};
-  const teams = Object.keys(byTeam);
-  if (teams.length) {
-    const PAL = ['#3b82f6', '#22c55e', '#a855f7', '#f59e0b', '#ef4444', '#06b6d4', '#14b8a6', '#ec4899'];
-    mk('dir-ch-team', {
+  // 2) Participação por frente (VGV do período)
+  const pf = (ex.por_frente || []).filter(r => r.vgv > 0);
+  if (pf.length) {
+    mk('dir-ch-frente', {
       type: 'doughnut',
-      data: { labels: teams, datasets: [{ data: teams.map(t => byTeam[t]), backgroundColor: teams.map((_, i) => PAL[i % PAL.length]), borderWidth: 0 }] },
+      data: { labels: pf.map(r => r.label), datasets: [{ data: pf.map(r => r.vgv), backgroundColor: pf.map(r => r.cor), borderWidth: 0 }] },
       options: darkOpts({ cutout: '58%' }),
     });
+  } else {
+    const el = document.getElementById('dir-ch-frente');
+    if (el && el.parentElement) el.parentElement.innerHTML = '<div style="color:#94a3b8;font-size:12px;text-align:center;padding:40px 10px">Sem VGV no período.</div>';
   }
 }
 
@@ -523,6 +639,13 @@ function money(n) {
 }
 function moneyShort(n) {
   return money(n);
+}
+// compacto p/ o painel executivo: 1,25 Mi · 340 mil · 850 (v81.99)
+function moneyC(n) {
+  n = Number(n) || 0; const a = Math.abs(n);
+  if (a >= 1e6) return (n / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Mi';
+  if (a >= 1e3) return (n / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil';
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 }
 function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function fmtNum(n) {
