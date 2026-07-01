@@ -28,7 +28,19 @@ const PREM = [
 
 /* ── util ── */
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const num = v => { const n = parseFloat(String(v).replace(/\./g, '').replace(',', '.')); return isNaN(n) ? 0 : n; };
+// parser BR-safe: vírgula = decimal; ponto = milhar SÓ quando parece milhar
+// (grupo final de 3 dígitos). Assim "1.4" e "4.5" (decimais) não viram 14/45. v82.2
+const num = v => {
+  let s = String(v ?? '').trim();
+  if (!s) return 0;
+  if (s.includes(',')) { s = s.replace(/\./g, '').replace(',', '.'); }
+  else {
+    const p = s.split('.');
+    if (p.length > 1 && p[p.length - 1].length === 3 && p.slice(0, -1).every(x => x.length && x.length <= 3)) s = p.join('');
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+};
 const fmt = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const fmtC = n => { n = Number(n) || 0; const a = Math.abs(n); if (a >= 1e6) return 'R$ ' + (n / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'M'; if (a >= 1e3) return 'R$ ' + (n / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + 'k'; return 'R$ ' + n.toLocaleString('pt-BR', { maximumFractionDigits: 0 }); };
 const pct = n => (Number(n) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
@@ -128,6 +140,7 @@ function renderOrcado() {
         <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
           <b style="font-size:14px">${l.icon} ${l.nome}</b>
           <span class="tiny muted">VGV orçado ano: <b>${fmt(totVgv)}</b></span>
+          <button class="btn btn-ghost btn-sm orc-copy" data-l="${l.id}" title="Replica o VGV e vendas do 1º mês preenchido nos 12 meses">⧉ replicar nos 12 meses</button>
           <span style="margin-left:auto;font-weight:800;color:${dc(totLucro)}">Lucro orçado ano: ${fmt(totLucro)}</span>
         </div>
         <div class="flex gap-2 mt-2" style="flex-wrap:wrap">${premInp}</div>
@@ -151,6 +164,13 @@ function renderOrcado() {
 function wireOrcado() {
   document.querySelectorAll('.orc-cell').forEach(el => el.onchange = () => saveOrc(el.dataset.l, +el.dataset.m, { [el.dataset.f]: num(el.value) }));
   document.querySelectorAll('.orc-prem').forEach(el => el.onchange = () => saveOrc(el.dataset.l, 0, { [el.dataset.f]: num(el.value) }));
+  document.querySelectorAll('.orc-copy').forEach(b => b.onclick = () => {
+    const l = b.dataset.l; let src = null;
+    for (let m = 1; m <= 12; m++) { const o = orcCell(l, m); if ((o.vgv || 0) > 0 || (o.vendas || 0) > 0) { src = { vgv: o.vgv || 0, vendas: o.vendas || 0 }; break; } }
+    if (!src) { flash('preencha o 1º mês antes de replicar'); return; }
+    if (!confirm(`Replicar VGV ${fmt(src.vgv)} e ${src.vendas} venda(s) em TODOS os 12 meses desta linha?`)) return;
+    saveOrc(l, 0, src);   // mes=0 aplica nos 12
+  });
 }
 async function saveOrc(linha, mes, campos) {
   flash('💾 salvando…');
@@ -226,7 +246,7 @@ function renderRealizado() {
       <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">De ${selMes('per-ini', _pIni)}</label>
       <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">até ${selMes('per-fim', _pFim)}</label>
       <span class="badge" style="background:var(--psm-navy);color:#fff;font-weight:700">${MES[_pIni - 1]}–${MES[_pFim - 1]}/${_ano}</span>
-      <span class="tiny muted" style="margin-left:auto">VGV/vendas = CRM real · custo = lançado à mão</span>
+      <span class="tiny muted" style="margin-left:auto">VGV/vendas = CRM real · custo = Meta real (auto) + lançado à mão</span>
     </div>
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
       ${kpi('VGV', O.acc.vgv, R.acc.vgv, true)}
