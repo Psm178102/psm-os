@@ -12,6 +12,8 @@ let _root = null, _tab = 'orcado', _ano = new Date().getFullYear(), _d = null, _
 let _pIni = 1, _pFim = Math.max(1, new Date().getMonth() + 1);   // período da aba Realizado
 let _custoMes = Math.max(1, new Date().getMonth() + 1);          // mês em edição de custos reais
 let _sim = null;                                                 // estado do simulador
+let _orcView = 'receita';                                        // 'receita' | 'custos' (aba Orçado)
+let _custosOrc = null;                                           // itens de custo orçado detalhado (v82.3)
 
 const LINHAS = [
   { id: 'map', nome: 'PSM M.A.P', icon: '🏢', cor: '#7c3aed' },
@@ -21,10 +23,44 @@ const LINHAS = [
 ];
 const LIDS = LINHAS.map(l => l.id);
 const MES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+// premissas de comissão/imposto (o custo agora vem dos "Custos detalhados", não daqui)
 const PREM = [
-  ['com_bruta_pct', 'Comissão bruta %'], ['com_corretor_pct', 'Corretor %'], ['com_senior_pct', 'Sênior %'],
-  ['aliquota_pct', 'Imposto %'], ['custo_fixo', 'Custo fixo/mês R$'], ['verba_mkt', 'Verba mkt/mês R$'],
+  ['com_bruta_pct', 'Comissão bruta %'], ['com_corretor_pct', 'Corretor %'], ['com_senior_pct', 'Sênior %'], ['aliquota_pct', 'Imposto %'],
 ];
+
+// ── Custos orçados detalhados (v82.3) ──
+const CATS = ['Sócios', 'Estrutura', 'Folha admin', 'Administrativo', 'Financeiro', 'Software', 'Portais', 'Operacional', 'Treinamento', 'Marketing', 'Outros'];
+const CLASSES = [['fixo', 'Fixo'], ['variavel', 'Variável'], ['extra', 'Extra']];
+const ALOCS = [...LINHAS.map(l => [l.id, l.nome]), ['compartilhado', 'Compartilhado']];
+const RATEIOS = [['igual', 'Igual'], ['proporcional', 'Proporcional'], ['especifico', 'Específico'], ['manual', 'Manual']];
+// seed com os custos REAIS (do modelo antigo). tupla: [desc, cat, valor, aloc, rateio]. classe=fixo.
+const _SEED_RAW = [
+  ['Pró-labore Paulo', 'Sócios', 8000, 'compartilhado', 'igual'], ['Pró-labore Isadora', 'Sócios', 8000, 'compartilhado', 'igual'],
+  ['Ponto / Aluguel sala', 'Estrutura', 15000, 'compartilhado', 'igual'], ['Condomínio', 'Estrutura', 5400, 'compartilhado', 'igual'],
+  ['Energia', 'Estrutura', 1300, 'compartilhado', 'igual'], ['WiFi', 'Estrutura', 100, 'compartilhado', 'igual'],
+  ['IPTU', 'Estrutura', 1500, 'compartilhado', 'igual'], ['Mobília (17k/12m)', 'Estrutura', 1416, 'compartilhado', 'igual'],
+  ['Água', 'Estrutura', 300, 'compartilhado', 'igual'], ['Limpeza + produtos', 'Estrutura', 1500, 'compartilhado', 'igual'],
+  ['Café', 'Estrutura', 500, 'compartilhado', 'igual'], ['Material de escritório', 'Estrutura', 824, 'compartilhado', 'igual'],
+  ['Leire (admin)', 'Folha admin', 4376, 'compartilhado', 'igual'], ['Mari (admin)', 'Folha admin', 3242, 'compartilhado', 'igual'],
+  ['Guilherme (admin)', 'Folha admin', 3242, 'compartilhado', 'igual'],
+  ['Contabilidade', 'Administrativo', 500, 'compartilhado', 'proporcional'], ['CRECI / 12', 'Administrativo', 344.25, 'compartilhado', 'proporcional'],
+  ['Empréstimo FGI — PSM 152', 'Financeiro', 5013.16, 'compartilhado', 'proporcional'], ['Empréstimo FGI — PSM 180', 'Financeiro', 683.61, 'compartilhado', 'proporcional'],
+  ['Seguro 152', 'Financeiro', 182.31, 'compartilhado', 'proporcional'], ['Seguro 180', 'Financeiro', 27.62, 'compartilhado', 'proporcional'],
+  ['PRONAMP', 'Financeiro', 2960.98, 'compartilhado', 'proporcional'], ['Cestas Itaú 152', 'Financeiro', 289, 'compartilhado', 'proporcional'],
+  ['Cestas Itaú 180', 'Financeiro', 169, 'compartilhado', 'proporcional'],
+  ['RD Station CRM', 'Software', 2784.60, 'compartilhado', 'proporcional'], ['RD Marketing', 'Software', 1210.50, 'compartilhado', 'proporcional'],
+  ['Kenlo Locação', 'Software', 163.82, 'locacoes', 'igual'], ['Zoho', 'Software', 120, 'compartilhado', 'proporcional'],
+  ['Nibo', 'Software', 600, 'compartilhado', 'proporcional'], ['ClickSign', 'Software', 59, 'compartilhado', 'proporcional'],
+  ['Notion', 'Software', 208.56, 'compartilhado', 'proporcional'], ['Canva', 'Software', 34.90, 'compartilhado', 'proporcional'],
+  ['Hubla', 'Software', 240.01, 'compartilhado', 'proporcional'], ['WA Plus (1)', 'Software', 27.27, 'compartilhado', 'proporcional'],
+  ['WA Plus (2)', 'Software', 27.27, 'compartilhado', 'proporcional'], ['ChatGPT', 'Software', 120.34, 'compartilhado', 'proporcional'],
+  ['Google 2TB', 'Software', 15, 'compartilhado', 'proporcional'], ['YouTube', 'Software', 5, 'compartilhado', 'proporcional'],
+  ['MLabs', 'Software', 57.90, 'compartilhado', 'proporcional'], ['Adobe', 'Software', 95, 'compartilhado', 'proporcional'],
+  ['Claude', 'Software', 121.87, 'compartilhado', 'proporcional'], ['Hostinger', 'Software', 40, 'compartilhado', 'proporcional'],
+  ['Canal Pro', 'Portais', 2377.50, 'compartilhado', 'proporcional'], ['Matrículas de imóveis', 'Operacional', 73.25, 'compartilhado', 'proporcional'],
+  ['Curso Hard3', 'Treinamento', 99.73, 'compartilhado', 'proporcional'],
+];
+const seedCustos = () => _SEED_RAW.map((t, i) => ({ id: 'seed_' + i, desc: t[0], cat: t[1], classe: 'fixo', aloc: t[3], rateio: t[4], valor: t[2], meses: null, linhas: [], pesos: null, por_mes: null }));
 
 /* ── util ── */
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -77,6 +113,46 @@ function custoRealMes(mes) {
   return out;
 }
 
+/* ── custos ORÇADOS detalhados → { empresa: {mes: R$} } (v82.3) ── */
+function ratAlvo(it) {
+  if (it.rateio === 'especifico') { const l = (it.linhas || []).filter(x => LIDS.includes(x)); return l.length ? l : LIDS; }
+  if (it.rateio === 'manual') { const l = Object.keys(it.pesos || {}).filter(x => LIDS.includes(x) && (+it.pesos[x] || 0) > 0); return l.length ? l : LIDS; }
+  return LIDS;
+}
+function ratPesos(it, alvo, m) {
+  const w = {}; let tot = 0;
+  if (it.rateio === 'proporcional') { alvo.forEach(l => { w[l] = orcCell(l, m).vgv || 0; tot += w[l]; }); }
+  else if (it.rateio === 'manual') { alvo.forEach(l => { w[l] = +((it.pesos || {})[l]) || 0; tot += w[l]; }); }
+  else { alvo.forEach(l => w[l] = 1 / alvo.length); return w; }   // igual / especifico
+  if (tot > 0) alvo.forEach(l => w[l] = w[l] / tot); else alvo.forEach(l => w[l] = 1 / alvo.length);
+  return w;
+}
+function custoOrcadoDet() {
+  const out = {}; LIDS.forEach(l => { out[l] = {}; for (let m = 1; m <= 12; m++) out[l][m] = 0; });
+  for (const it of (_custosOrc || [])) {
+    const base0 = +it.valor || 0;
+    for (let m = 1; m <= 12; m++) {
+      if (it.classe === 'extra' && Array.isArray(it.meses) && it.meses.length && !it.meses.includes(m)) continue;
+      const base = (it.por_mes && it.por_mes[m] != null && it.por_mes[m] !== '') ? +it.por_mes[m] : base0;
+      if (it.classe === 'variavel') {
+        const p = base / 100;
+        if (it.aloc !== 'compartilhado') { if (out[it.aloc]) out[it.aloc][m] += (orcCell(it.aloc, m).vgv || 0) * p; }
+        else for (const l of LIDS) out[l][m] += (orcCell(l, m).vgv || 0) * p;
+        continue;
+      }
+      if (it.aloc !== 'compartilhado') { if (out[it.aloc]) out[it.aloc][m] += base; continue; }
+      const alvo = ratAlvo(it), pesos = ratPesos(it, alvo, m);
+      for (const l of alvo) out[l][m] += base * (pesos[l] || 0);
+    }
+  }
+  return out;
+}
+let _custoDetMemo = null;   // recalculado a cada render()
+function custoOrcLinhaMes(l, m) {
+  if ((_custosOrc || []).length) { if (!_custoDetMemo) _custoDetMemo = custoOrcadoDet(); return _custoDetMemo[l][m] || 0; }
+  return orcCell(l, m).custo_fixo || 0;   // fallback legado (sem itens detalhados)
+}
+
 /* ── boot ── */
 export async function pageMetricasViab(ctx, root) {
   _root = root;
@@ -87,9 +163,13 @@ async function load() {
   _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando viabilidade…</div></div>';
   try { _d = await api.request('/api/v3/diretoria/viab?ano=' + _ano); }
   catch (e) { _root.innerHTML = `<div class="card"><div class="alert alert-err">${esc(e.message)}</div></div>`; return; }
+  // custos orçados detalhados: usa o que está salvo; se vazio, pré-carrega os custos reais (seed) — só persiste quando salvar
+  const st = (_d.custos_orcado && Array.isArray(_d.custos_orcado.itens)) ? _d.custos_orcado.itens : [];
+  _custosOrc = st.length ? st.map(x => ({ ...x })) : seedCustos();
   render();
 }
 function render() {
+  _custoDetMemo = null;   // recalcula custos detalhados do zero a cada render
   const tab = (id, lbl) => `<button class="btn ${_tab === id ? 'btn-primary' : 'btn-ghost'} btn-sm" data-vtab="${id}">${lbl}</button>`;
   _root.innerHTML = `
     <div class="card">
@@ -120,16 +200,22 @@ function render() {
 function flash(t) { _msg = t; const m = document.getElementById('viab-msg'); if (m) m.textContent = t; }
 
 /* ════════════ ABA 1 · ORÇADO (mensal, editável) ════════════ */
+function orcSubTabs() {
+  const b = (id, lbl) => `<button class="btn ${_orcView === id ? 'btn-primary' : 'btn-ghost'} btn-sm" data-orcview="${id}">${lbl}</button>`;
+  return `<div class="flex gap-1 mb-3" style="flex-wrap:wrap">${b('receita', '💰 Receita & metas')}${b('custos', '🧾 Custos detalhados')}</div>`;
+}
 function renderOrcado() {
+  if (_orcView === 'custos') return orcSubTabs() + renderCustosDet();
   let consAno = 0;
   const blocks = LINHAS.map(l => {
     const prem = orcCell(l.id, 1);   // premissas (iguais em todos os meses; mes=0 salva bulk)
-    let totLucro = 0, totVgv = 0;
+    let totLucro = 0, totVgv = 0, totCusto = 0;
     const cols = [];
     for (let m = 1; m <= 12; m++) {
       const o = orcCell(l.id, m);
-      const r = calc(o.vgv, o.vendas, o, o.custo_fixo);
-      totLucro += r.lucro; totVgv += r.vgv;
+      const custo = custoOrcLinhaMes(l.id, m);   // vem dos Custos detalhados
+      const r = calc(o.vgv, o.vendas, o, custo);
+      totLucro += r.lucro; totVgv += r.vgv; totCusto += r.custo;
       cols.push({ m, vgv: o.vgv || 0, vendas: o.vendas || 0, lucro: r.lucro });
     }
     consAno += totLucro;
@@ -139,7 +225,7 @@ function renderOrcado() {
       <div class="card" style="margin:0 0 12px;border-left:4px solid ${l.cor}">
         <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
           <b style="font-size:14px">${l.icon} ${l.nome}</b>
-          <span class="tiny muted">VGV orçado ano: <b>${fmt(totVgv)}</b></span>
+          <span class="tiny muted">VGV: <b>${fmt(totVgv)}</b> · custo: <b>${fmt(totCusto)}</b></span>
           <button class="btn btn-ghost btn-sm orc-copy" data-l="${l.id}" title="Replica o VGV e vendas do 1º mês preenchido nos 12 meses">⧉ replicar nos 12 meses</button>
           <span style="margin-left:auto;font-weight:800;color:${dc(totLucro)}">Lucro orçado ano: ${fmt(totLucro)}</span>
         </div>
@@ -154,14 +240,16 @@ function renderOrcado() {
         </table></div>
       </div>`;
   }).join('');
-  return `
-    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:12px">📋 <b>Plano do ano</b> — edite VGV e Vendas por mês (sazonalidade) e as premissas por linha. Salva sozinho. É o baseline que o Realizado compara.</div>
+  return orcSubTabs() + `
+    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:12px">📋 <b>Plano do ano</b> — edite VGV e Vendas por mês (sazonalidade) e as premissas de comissão. O <b>custo</b> vem da aba <b>Custos detalhados</b>. É o baseline que o Realizado compara.</div>
     ${blocks}
     <div class="card" style="margin:0;background:var(--psm-navy);color:#fff">
       <div class="flex items-center"><b style="font-size:15px">🏛 Consolidado — Lucro orçado do ano</b><span style="margin-left:auto;font-size:22px;font-weight:900;color:${consAno >= 0 ? '#4ade80' : '#f87171'}">${fmt(consAno)}</span></div>
     </div>`;
 }
 function wireOrcado() {
+  document.querySelectorAll('[data-orcview]').forEach(b => b.onclick = () => { _orcView = b.dataset.orcview; render(); });
+  if (_orcView === 'custos') { wireCustosDet(); return; }
   document.querySelectorAll('.orc-cell').forEach(el => el.onchange = () => saveOrc(el.dataset.l, +el.dataset.m, { [el.dataset.f]: num(el.value) }));
   document.querySelectorAll('.orc-prem').forEach(el => el.onchange = () => saveOrc(el.dataset.l, 0, { [el.dataset.f]: num(el.value) }));
   document.querySelectorAll('.orc-copy').forEach(b => b.onclick = () => {
@@ -181,6 +269,88 @@ async function saveOrc(linha, mes, campos) {
   } catch (e) { flash('⚠️ ' + e.message); }
 }
 
+/* ── Orçado · Custos detalhados (v82.3) ── */
+function itemAnual(it) {
+  let tot = 0;
+  for (let m = 1; m <= 12; m++) {
+    if (it.classe === 'extra' && Array.isArray(it.meses) && it.meses.length && !it.meses.includes(m)) continue;
+    const base = (it.por_mes && it.por_mes[m] != null && it.por_mes[m] !== '') ? +it.por_mes[m] : (+it.valor || 0);
+    if (it.classe === 'variavel') { const p = base / 100; if (it.aloc !== 'compartilhado') tot += (orcCell(it.aloc, m).vgv || 0) * p; else for (const l of LIDS) tot += (orcCell(l, m).vgv || 0) * p; }
+    else tot += base;
+  }
+  return tot;
+}
+function renderCustosDet() {
+  const det = custoOrcadoDet();
+  const totEmp = {}; let grand = 0;
+  LIDS.forEach(l => { totEmp[l] = 0; for (let m = 1; m <= 12; m++) totEmp[l] += det[l][m]; grand += totEmp[l]; });
+  const porClasse = { fixo: 0, variavel: 0, extra: 0 };
+  (_custosOrc || []).forEach(it => porClasse[it.classe] = (porClasse[it.classe] || 0) + itemAnual(it));
+  const opt = (arr, v) => arr.map(([val, lbl]) => `<option value="${val}"${val === v ? ' selected' : ''}>${esc(lbl)}</option>`).join('');
+  const empChips = LINHAS.map(l => `<div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:8px;padding:8px 10px"><div class="tiny muted">${l.icon} ${l.nome}</div><div style="font-weight:800;color:${l.cor}">${fmt(totEmp[l.id])}</div><div class="tiny muted">/ano</div></div>`).join('');
+  const rows = (_custosOrc || []).map((it, i) => {
+    const comp = it.aloc === 'compartilhado';
+    const rateioSel = comp ? `<select class="select cd-f" data-i="${i}" data-k="rateio" style="font-size:11px;padding:2px;max-width:118px">${opt(RATEIOS, it.rateio)}</select>` : '<span class="tiny muted">direto</span>';
+    let detalhe = '';
+    if (comp && it.rateio === 'especifico') detalhe = `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:3px">${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;gap:2px;align-items:center"><input type="checkbox" class="cd-esp" data-i="${i}" value="${l.id}"${(it.linhas || []).includes(l.id) ? ' checked' : ''}>${l.id}</label>`).join('')}</div>`;
+    if (comp && it.rateio === 'manual') detalhe = `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:3px">${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;flex-direction:column;align-items:center">${l.id}<input class="input cd-man" data-i="${i}" data-l="${l.id}" value="${(it.pesos || {})[l.id] ?? ''}" style="width:44px;padding:1px 3px;font-size:10px" placeholder="%"></label>`).join('')}</div>`;
+    const mesesCell = it.classe === 'extra' ? `<input class="input cd-f" data-i="${i}" data-k="meses" value="${Array.isArray(it.meses) ? it.meses.join(',') : ''}" placeholder="todos" title="ex: 1,6,12" style="width:66px;padding:2px 4px;font-size:11px">` : '<span class="tiny muted">todos</span>';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:3px 5px"><input class="input cd-f" data-i="${i}" data-k="desc" value="${esc(it.desc)}" style="width:100%;min-width:120px;padding:2px 5px;font-size:12px"></td>
+      <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="cat" style="font-size:11px;padding:2px">${opt(CATS.map(c => [c, c]), it.cat)}</select></td>
+      <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="classe" style="font-size:11px;padding:2px">${opt(CLASSES, it.classe)}</select></td>
+      <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="aloc" style="font-size:11px;padding:2px">${opt(ALOCS, it.aloc)}</select></td>
+      <td style="padding:3px 5px">${rateioSel}${detalhe}</td>
+      <td style="padding:3px 5px;white-space:nowrap"><input class="input cd-f" data-i="${i}" data-k="valor" value="${it.valor ?? ''}" style="width:78px;padding:2px 5px;font-size:12px;text-align:right"> <span class="tiny muted">${it.classe === 'variavel' ? '% VGV' : 'R$'}</span></td>
+      <td style="padding:3px 5px">${mesesCell}</td>
+      <td style="padding:3px 5px"><button class="btn btn-ghost btn-sm cd-del" data-i="${i}" style="padding:1px 6px;color:#dc2626">🗑</button></td>
+    </tr>`;
+  }).join('');
+  return `
+    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:10px">🧾 <b>Custos orçados detalhados</b> — fixos, variáveis (% do VGV) e extras, por empresa. Compartilhados rateiam (igual/proporcional/específico/manual). Pré-carregado com seus custos reais — ajuste e <b>salve</b>. Alimenta o lucro orçado.</div>
+    <div class="flex gap-2 mb-2" style="flex-wrap:wrap">${empChips}
+      <div style="flex:1;min-width:150px;background:var(--psm-navy);color:#fff;border-radius:8px;padding:8px 10px"><div class="tiny" style="opacity:.8">Total custos/ano</div><div style="font-weight:800;font-size:16px">${fmt(grand)}</div><div class="tiny" style="opacity:.85">Fixo ${fmtC(porClasse.fixo)} · Var ${fmtC(porClasse.variavel)} · Extra ${fmtC(porClasse.extra)}</div></div>
+    </div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:840px">
+      <thead><tr style="background:var(--bg-3);text-align:left"><th style="padding:5px">Descrição</th><th style="padding:5px">Categoria</th><th style="padding:5px">Classe</th><th style="padding:5px">Empresa</th><th style="padding:5px">Rateio</th><th style="padding:5px">Valor</th><th style="padding:5px">Meses</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="8" class="tiny muted" style="padding:12px;text-align:center">Nenhum custo — clique em "adicionar custo".</td></tr>'}</tbody>
+    </table></div>
+    <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" id="cd-add">＋ adicionar custo</button>
+      <button class="btn btn-primary btn-sm" id="cd-save">💾 Salvar custos orçados</button>
+      <span class="tiny muted" style="align-self:center">${(_custosOrc || []).length} itens · variável calcula sobre o VGV orçado do mês</span>
+    </div>`;
+}
+function wireCustosDet() {
+  document.querySelectorAll('.cd-f').forEach(el => el.onchange = () => {
+    const it = _custosOrc[+el.dataset.i]; if (!it) return; const k = el.dataset.k;
+    if (k === 'valor') it.valor = num(el.value);
+    else if (k === 'meses') it.meses = el.value.trim() ? el.value.split(',').map(x => parseInt(x.trim())).filter(x => x >= 1 && x <= 12) : null;
+    else it[k] = el.value;
+    render();
+  });
+  document.querySelectorAll('.cd-esp').forEach(el => el.onchange = () => {
+    const it = _custosOrc[+el.dataset.i]; if (!it) return; it.linhas = it.linhas || [];
+    if (el.checked) { if (!it.linhas.includes(el.value)) it.linhas.push(el.value); } else it.linhas = it.linhas.filter(x => x !== el.value);
+    render();
+  });
+  document.querySelectorAll('.cd-man').forEach(el => el.onchange = () => {
+    const it = _custosOrc[+el.dataset.i]; if (!it) return; it.pesos = it.pesos || {}; it.pesos[el.dataset.l] = num(el.value); render();
+  });
+  document.querySelectorAll('.cd-del').forEach(b => b.onclick = () => { _custosOrc.splice(+b.dataset.i, 1); render(); });
+  const add = document.getElementById('cd-add');
+  if (add) add.onclick = () => { _custosOrc.push({ id: 'co_' + Date.now(), desc: '', cat: 'Outros', classe: 'fixo', aloc: 'compartilhado', rateio: 'igual', valor: 0, meses: null, linhas: [], pesos: null, por_mes: null }); render(); };
+  const save = document.getElementById('cd-save'); if (save) save.onclick = saveCustosOrc;
+}
+async function saveCustosOrc() {
+  flash('💾 salvando custos…');
+  try {
+    const r = await api.request('/api/v3/diretoria/viab', { method: 'POST', body: { action: 'set_custos_orcado', ano: _ano, itens: _custosOrc } });
+    if (r && r.custos_orcado && Array.isArray(r.custos_orcado.itens)) _custosOrc = r.custos_orcado.itens.map(x => ({ ...x }));
+    flash('✅ custos orçados salvos'); render();
+  } catch (e) { flash('⚠️ ' + e.message); }
+}
+
 /* ════════════ ABA 2 · REALIZADO MÊS A MÊS ════════════ */
 function aggRange(fonte, ini, fim) {
   // soma consolidada por período. fonte: 'orc' | 'real'
@@ -191,7 +361,7 @@ function aggRange(fonte, ini, fim) {
     for (const l of LIDS) {
       const o = orcCell(l, m);
       let vgv, vendas, custo, oCalc;
-      if (fonte === 'orc') { vgv = o.vgv || 0; vendas = o.vendas || 0; custo = o.custo_fixo || 0; oCalc = o; }
+      if (fonte === 'orc') { vgv = o.vgv || 0; vendas = o.vendas || 0; custo = custoOrcLinhaMes(l, m); oCalc = o; }
       else { const rc = realCell(l, m); vgv = rc.vgv; vendas = rc.vendas; custo = custos[l] || 0; oCalc = orcReal(l, m); }
       const r = calc(vgv, vendas, oCalc, custo);
       porLinha[l].vgv += r.vgv; porLinha[l].vendas += r.vendas; porLinha[l].lucro += r.lucro;

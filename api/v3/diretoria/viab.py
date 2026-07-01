@@ -248,6 +248,7 @@ class handler(BaseHTTPRequestHandler):
             "snapshots": {k: v for k, v in read_kv(sb, "viab_snapshots").items() if k.startswith(f"{ano}-")},
             "realizado": realizado_ano(sb, ano),
             "fontes_auto": fontes_auto_ano(sb, ano),   # custos automáticos por mês (Meta real + gancho NIBO). v82.1
+            "custos_orcado": (read_kv(sb, "viab_custos_orcado").get(str(ano)) or {}),   # custos orçados detalhados. v82.3
         })
 
     def do_POST(self):
@@ -325,5 +326,37 @@ class handler(BaseHTTPRequestHandler):
             write_kv(sb, "viab_snapshots", snaps)
             audit(self, actor, "viab.reabrir_mes", target_type="shared_kv", target_id=f"{ano}-{mes}")
             return self._send(200, {"ok": True})
+
+        if action == "set_custos_orcado":   # custos orçados detalhados (fixo/variável/extra por empresa). v82.3
+            itens = body.get("itens")
+            if not isinstance(itens, list):
+                return self._send(400, {"ok": False, "error": "itens inválido"})
+            clean = []
+            for it in itens[:400]:
+                if not isinstance(it, dict): continue
+                aloc = (it.get("aloc") or "compartilhado").strip().lower()
+                if aloc not in LINHA_IDS and aloc != "compartilhado": aloc = "compartilhado"
+                classe = (it.get("classe") or "fixo").strip().lower()
+                if classe not in ("fixo", "variavel", "extra"): classe = "fixo"
+                rateio = (it.get("rateio") or "igual").strip().lower()
+                if rateio not in ("igual", "proporcional", "direto", "especifico", "manual"): rateio = "igual"
+                try: valor = float(it.get("valor") or 0)
+                except Exception: valor = 0.0
+                meses = it.get("meses")
+                meses = [int(m) for m in meses if str(m).isdigit() and 1 <= int(m) <= 12] if isinstance(meses, list) else None
+                linhas = [l for l in (it.get("linhas") or []) if l in LINHA_IDS]
+                pesos = it.get("pesos") if isinstance(it.get("pesos"), dict) else None
+                por_mes = it.get("por_mes") if isinstance(it.get("por_mes"), dict) else None
+                clean.append({
+                    "id": (str(it.get("id") or "")).strip()[:40] or f"co_{len(clean)}",
+                    "desc": (it.get("desc") or "").strip()[:120], "cat": (it.get("cat") or "Outros").strip()[:40],
+                    "classe": classe, "aloc": aloc, "rateio": rateio, "valor": round(valor, 2),
+                    "meses": meses, "linhas": linhas, "pesos": pesos, "por_mes": por_mes,
+                })
+            allkv = read_kv(sb, "viab_custos_orcado")
+            allkv[str(ano)] = {"itens": clean}
+            write_kv(sb, "viab_custos_orcado", allkv)
+            audit(self, actor, "viab.set_custos_orcado", target_type="shared_kv", target_id=str(ano))
+            return self._send(200, {"ok": True, "custos_orcado": allkv[str(ano)]})
 
         return self._send(400, {"ok": False, "error": "action inválida"})
