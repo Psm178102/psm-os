@@ -52,10 +52,15 @@ function orcCell(linha, mes) {
   return base;
 }
 function realCell(linha, mes) { const c = ((((_d.realizado || {})[linha]) || {})[mes]) || {}; return { vgv: +c.vgv || 0, vendas: +c.vendas || 0 }; }
+// premissa p/ o REALIZADO: zera verba_mkt (mkt real vem das fontes automáticas, não da premissa)
+function orcReal(linha, mes) { const o = orcCell(linha, mes); return Object.assign({}, o, { verba_mkt: 0 }); }
+// custo automático do mês (Meta real + gancho NIBO), company-wide
+function autoMes(mes) { const fa = (_d.fontes_auto || {})[mes] || {}; return { meta_mkt: +fa.meta_mkt || 0, nibo_fixo: +fa.nibo_fixo || 0 }; }
 function custoRealMes(mes) {
   const out = { map: 0, conquista: 0, terceiros: 0, locacoes: 0 }; let geral = 0;
   const cell = (_d.custos_real || {})[`${_ano}-${mes}`] || {};
   for (const it of (cell.itens || [])) { const v = +it.valor || 0; if (out[it.linha] != null) out[it.linha] += v; else geral += v; }
+  const a = autoMes(mes); geral += a.meta_mkt + a.nibo_fixo;   // fontes automáticas → geral rateado
   if (geral) for (const k in out) out[k] += geral / 4;
   return out;
 }
@@ -165,10 +170,10 @@ function aggRange(fonte, ini, fim) {
     const custos = custoRealMes(m);
     for (const l of LIDS) {
       const o = orcCell(l, m);
-      let vgv, vendas, custo;
-      if (fonte === 'orc') { vgv = o.vgv || 0; vendas = o.vendas || 0; custo = o.custo_fixo || 0; }
-      else { const rc = realCell(l, m); vgv = rc.vgv; vendas = rc.vendas; custo = custos[l] || 0; }
-      const r = calc(vgv, vendas, o, custo);
+      let vgv, vendas, custo, oCalc;
+      if (fonte === 'orc') { vgv = o.vgv || 0; vendas = o.vendas || 0; custo = o.custo_fixo || 0; oCalc = o; }
+      else { const rc = realCell(l, m); vgv = rc.vgv; vendas = rc.vendas; custo = custos[l] || 0; oCalc = orcReal(l, m); }
+      const r = calc(vgv, vendas, oCalc, custo);
       porLinha[l].vgv += r.vgv; porLinha[l].vendas += r.vendas; porLinha[l].lucro += r.lucro;
       acc.vgv += r.vgv; acc.vendas += r.vendas; acc.lucro += r.lucro; acc.receita += r.receita; acc.custo += r.custo;
     }
@@ -206,7 +211,7 @@ function renderRealizado() {
   const mm = [];
   for (let m = _pIni; m <= _pFim; m++) {
     const custos = custoRealMes(m); let vgv = 0, lucro = 0, custo = 0;
-    for (const l of LIDS) { const rc = realCell(l, m); const o = orcCell(l, m); const r = calc(rc.vgv, rc.vendas, o, custos[l] || 0); vgv += r.vgv; lucro += r.lucro; custo += r.custo; }
+    for (const l of LIDS) { const rc = realCell(l, m); const r = calc(rc.vgv, rc.vendas, orcReal(l, m), custos[l] || 0); vgv += r.vgv; lucro += r.lucro; custo += r.custo; }
     const fechado = !!(_d.snapshots || {})[`${_ano}-${m}`];
     mm.push(`<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:6px 8px;font-weight:600">${MES[m - 1]}${fechado ? ' <span class="tiny" style="color:#16a34a">🔒 fechado</span>' : ''}</td>
@@ -256,15 +261,25 @@ function renderCustosReais() {
     <td style="padding:4px 6px"><select class="select cr-linha" data-i="${i}" style="font-size:12px;padding:3px">${selLinha(it.linha)}</select></td>
     <td style="padding:4px 6px"><button class="btn btn-ghost btn-sm cr-del" data-i="${i}" style="padding:2px 7px;color:#dc2626">🗑</button></td>
   </tr>`).join('');
-  const total = itens.reduce((s, it) => s + (+it.valor || 0), 0);
+  const manual = itens.reduce((s, it) => s + (+it.valor || 0), 0);
+  const a = autoMes(_custoMes); const totalAuto = a.meta_mkt + a.nibo_fixo; const total = manual + totalAuto;
   return `
     <div class="card" style="margin:0">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
-        <h3 class="card-title" style="margin:0">🧾 Custos realizados (lançados à mão)</h3>
+        <h3 class="card-title" style="margin:0">🧾 Custos realizados do mês</h3>
         <label class="tiny muted" style="margin-left:8px">mês <select id="cr-mes" class="select" style="max-width:110px">${selMes}</select></label>
         <span style="margin-left:auto;font-weight:800">Total: ${fmt(total)}</span>
       </div>
-      <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:480px">
+      <div style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:8px 10px">
+        <div class="tiny" style="font-weight:700;margin-bottom:4px">🔌 Fontes automáticas <span class="muted" style="font-weight:400">— entram sozinhas, sem digitar</span></div>
+        <div class="flex gap-2" style="flex-wrap:wrap">
+          <span class="tiny">📣 Meta Ads (verba real): <b>${fmt(a.meta_mkt)}</b> ${a.meta_mkt > 0 ? '<span style="color:#16a34a">✅ ao vivo</span>' : '<span class="muted">sem dado</span>'}</span>
+          <span class="tiny">🏦 NIBO (custo fixo): <b>${fmt(a.nibo_fixo)}</b> ${a.nibo_fixo > 0 ? '<span style="color:#16a34a">✅</span>' : '<span style="color:#d97706">⏳ aguardando upgrade da API</span>'}</span>
+          <span class="tiny muted" style="margin-left:auto">+ manual abaixo: <b>${fmt(manual)}</b></span>
+        </div>
+      </div>
+      <div class="tiny muted" style="margin-top:8px">Lançamentos manuais (complementam as fontes automáticas):</div>
+      <div style="overflow-x:auto;margin-top:4px"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:480px">
         <thead><tr style="background:var(--bg-3);text-align:left"><th style="padding:5px 6px">Descrição</th><th style="padding:5px 6px;text-align:right">Valor</th><th style="padding:5px 6px">Linha</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="4" class="tiny muted" style="padding:10px;text-align:center">Sem lançamentos nesse mês.</td></tr>'}</tbody>
       </table></div>

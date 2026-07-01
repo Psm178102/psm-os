@@ -139,19 +139,48 @@ def realizado_ano(sb, ano):
     return real
 
 
-def compute_snapshot(sb, ano, mes):
-    """Fecha um mês: realizado do CRM + custo manual + comissão calculada → congela."""
+def meta_spend_ano(sb, ano):
+    """Investimento REAL de Meta Ads por mês (tabela meta_ads_monthly, já alimentada
+    pelo cron do Meta). Fonte automática de custo de marketing do realizado. v82.1"""
+    out = {m: 0.0 for m in range(1, 13)}
+    try:
+        rows = sb.table("meta_ads_monthly").select("mes,spend").eq("ano", ano).execute().data or []
+        for r in rows:
+            m = int(r.get("mes") or 0)
+            if 1 <= m <= 12: out[m] = float(r.get("spend") or 0)
+    except Exception:
+        pass
+    return out
+
+
+def fontes_auto_ano(sb, ano):
+    """Custos que vêm AUTOMÁTICO de integrações, por mês.
+    • meta_mkt = Meta Ads (real, ativo).  • nibo_fixo = GANCHO do NIBO: hoje 0
+      (API não devolve nada); quando o upgrade da API pública estiver ativo, é só
+      preencher aqui que o custo fixo entra automático em todo o realizado/snapshot."""
+    meta = meta_spend_ano(sb, ano)
+    return {str(m): {"meta_mkt": round(meta.get(m, 0.0), 2), "nibo_fixo": 0.0} for m in range(1, 13)}
+
+
+def compute_snapshot(sb, ano, mes, fontes=None):
+    """Fecha um mês: realizado do CRM + custo (manual + fontes automáticas) +
+    comissão calculada → congela. Marketing real vem das fontes (não da premissa)."""
     orcamento = read_kv(sb, "viab_orcamento")
     custos_real = read_kv(sb, "viab_custos_real")
     real = realizado_ano(sb, ano)
     custos = custo_real_linha(custos_real, ano, mes)
+    if fontes is None:
+        fontes = fontes_auto_ano(sb, ano)
+    fa = fontes.get(str(mes)) or {"meta_mkt": 0.0, "nibo_fixo": 0.0}
+    auto_each = (float(fa.get("meta_mkt") or 0) + float(fa.get("nibo_fixo") or 0)) / len(LINHA_IDS)
     por_linha = {}
     cons = {"vgv": 0.0, "vendas": 0, "receita": 0.0, "com_corretor": 0.0, "com_senior": 0.0,
             "imposto": 0.0, "custo": 0.0, "lucro": 0.0}
     for i in LINHA_IDS:
         cell = real[i][str(mes)]
         orc = orc_for(orcamento, ano, i, mes)
-        s = snapshot_linha(cell["vgv"], cell["vendas"], orc, custos.get(i, 0.0))
+        orc_real = dict(orc); orc_real["verba_mkt"] = 0.0   # mkt real vem das fontes, não da premissa
+        s = snapshot_linha(cell["vgv"], cell["vendas"], orc_real, custos.get(i, 0.0) + auto_each)
         por_linha[i] = s
         for k in ("vgv", "vendas", "receita", "com_corretor", "com_senior", "imposto", "custo", "lucro"):
             cons[k] += s[k]
@@ -218,6 +247,7 @@ class handler(BaseHTTPRequestHandler):
             "custos_real": {k: v for k, v in read_kv(sb, "viab_custos_real").items() if k.startswith(f"{ano}-")},
             "snapshots": {k: v for k, v in read_kv(sb, "viab_snapshots").items() if k.startswith(f"{ano}-")},
             "realizado": realizado_ano(sb, ano),
+            "fontes_auto": fontes_auto_ano(sb, ano),   # custos automáticos por mês (Meta real + gancho NIBO). v82.1
         })
 
     def do_POST(self):
