@@ -2,7 +2,8 @@
   "crons": [
     { "path": "/api/v3/crm/sync_cron", "schedule": "0 6 * * *" },
     { "path": "/api/v3/marketing/meta_monthly_cron", "schedule": "0 5 * * *" },
-    { "path": "/api/v3/alertas/cron_push", "schedule": "0 11 * * *" }
+    { "path": "/api/v3/alertas/cron_push", "schedule": "0 11 * * *" },
+    { "path": "/api/v3/diretoria/viab", "schedule": "0 4 1 * *" }
   ],
   "rewrites": [
     { "source": "/api/agent", "destination": "/api/agent" },
