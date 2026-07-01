@@ -38,6 +38,8 @@ const CATEGORIAS = ['Conquista', 'MAP', 'Terceiros', 'Locação'];   // só quan
 const ATIVIDADES = ['Concorrente', 'Outro do mercado', 'Incorporadora', 'Imobiliária', 'Autônomo', 'Livre'];
 const _allCargos = [...new Set(Object.values(CARGOS).flat())];
 const _isCorretor = v => /corretor/i.test(v || '');
+// categoria do corretor pode ser MÚLTIPLA (v81.98) — persistida como texto "MAP, Locação".
+const catArr = v => String(v || '').split(/[,;/]+/).map(s => s.trim()).filter(Boolean);
 
 // ── ATS / Pipeline R&S (v81.87) ──
 const ETAPAS = ['Triagem', 'Entrevista RH', 'Entrevista Gestor', 'Avaliação interna', 'Due Diligence', 'Proposta', 'Contratado', 'Banco de Talentos'];
@@ -49,7 +51,7 @@ const DISC = ['Dominância (D)', 'Influência (I)', 'Estabilidade (S)', 'Conform
 
 // filtros / visualização do pipeline
 let _viewMode = 'kanban';   // kanban | lista
-let _search = '', _fEtapa = '', _fSetor = '', _fCanal = '', _fResp = '', _fDecisao = '';
+let _search = '', _fEtapa = '', _fSetor = '', _fCanal = '', _fResp = '', _fDecisao = '', _fCategoria = '';
 let _cargosCfg = { recrutamento: {}, offboarding: {} };   // requisitos/impeditivos por cargo (v81.92)
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -242,6 +244,7 @@ function renderManual() {
       <input id="f-search" class="input" placeholder="🔍 Buscar nome/cargo/CRECI…" style="max-width:210px" value="${esc(_search)}">
       <select id="f-etapa" class="select" style="max-width:160px"><option value="">Todas as etapas</option>${ETAPAS.map(x => optTag(x, _fEtapa)).join('')}</select>
       <select id="f-setor" class="select" style="max-width:150px"><option value="">Todo setor</option>${SETORES.map(x => optTag(x, _fSetor)).join('')}</select>
+      <select id="f-categoria" class="select" style="max-width:150px" title="Categoria do corretor"><option value="">Toda categoria</option>${CATEGORIAS.map(x => optTag(x, _fCategoria)).join('')}</select>
       <select id="f-canal" class="select" style="max-width:160px"><option value="">Toda origem</option>${CANAIS.map(x => optTag(x, _fCanal)).join('')}</select>
       <select id="f-resp" class="select" style="max-width:160px"><option value="">Todo responsável</option>${respOpts.map(x => optTag(x, _fResp)).join('')}</select>
       <select id="f-decisao" class="select" style="max-width:150px"><option value="">Toda decisão</option>${DECISOES.map(x => optTag(x, _fDecisao)).join('')}</select>
@@ -256,6 +259,7 @@ function renderManual() {
   document.getElementById('f-search').addEventListener('input', e => { _search = e.target.value; reF(); });
   document.getElementById('f-etapa').addEventListener('change', e => { _fEtapa = e.target.value; reF(); });
   document.getElementById('f-setor').addEventListener('change', e => { _fSetor = e.target.value; reF(); });
+  document.getElementById('f-categoria').addEventListener('change', e => { _fCategoria = e.target.value; reF(); });
   document.getElementById('f-canal').addEventListener('change', e => { _fCanal = e.target.value; reF(); });
   document.getElementById('f-resp').addEventListener('change', e => { _fResp = e.target.value; reF(); });
   document.getElementById('f-decisao').addEventListener('change', e => { _fDecisao = e.target.value; reF(); });
@@ -276,11 +280,12 @@ function filterManual() {
   return _talentos.filter(t => {
     if (_fEtapa && (t.etapa || 'Triagem') !== _fEtapa) return false;
     if (_fSetor && (t.setor || '') !== _fSetor) return false;
+    if (_fCategoria && !catArr(t.categoria).includes(_fCategoria)) return false;
     if (_fCanal && (t.canal || '') !== _fCanal) return false;
     if (_fResp && (t.responsavel || '') !== _fResp) return false;
     if (_fDecisao && (t.decisao || 'Em andamento') !== _fDecisao) return false;
     if (!q) return true;
-    return [t.nome, t.setor, t.cargo, t.funcao, t.categoria, t.responsavel, t.creci, t.experiencia, t.vaga, t.canal].some(v => (v || '').toLowerCase().includes(q));
+    return [t.nome, t.setor, t.cargo, t.funcao, t.categoria, t.responsavel, t.creci, t.experiencia, t.vaga, t.canal, t.atividade_atual, t.local_atividade].some(v => (v || '').toLowerCase().includes(q));
   });
 }
 
@@ -311,12 +316,15 @@ function cardHTML(t) {
   const corr = _isCorretor(t.cargo || t.funcao);
   const dec = t.decisao === 'Aprovado' ? ' ✅' : t.decisao === 'Reprovado' ? ' ⛔' : t.decisao === 'Standby' ? ' ⏸' : '';
   const nav = avResumo(t);
+  const cats = corr ? catArr(t.categoria) : [];
+  const atv = [t.atividade_atual, t.local_atividade].filter(Boolean).join(' · ');   // ex.: "Imobiliária · São José" (v81.98)
   return `<div class="tal-card" style="background:var(--bg-2);border:1px solid var(--bd);border-radius:8px;padding:8px;cursor:pointer" data-open="${t.id}">
     <div style="font-weight:700;font-size:12.5px">${esc(t.nome)}${dec}</div>
     <div class="tiny muted">${esc(t.cargo || t.funcao || '—')}${t.setor ? ' · ' + esc(t.setor) : ''}</div>
+    ${atv ? `<div class="tiny muted" style="margin-top:2px">💼 ${esc(atv)}</div>` : ''}
     <div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
       ${chip(t.canal, '#7c3aed')}
-      ${corr && t.categoria ? chip(t.categoria, '#d6249f') : ''}
+      ${cats.map(c => chip(c, '#d6249f')).join('')}
       ${t.score ? `<span class="tiny" style="color:#f59e0b" title="Score">${stars(t.score)}</span>` : ''}
       ${nav ? `<span class="tiny muted" title="Pareceres">🗳 ${nav}</span>` : ''}
     </div>
@@ -448,6 +456,7 @@ function renderDetail(e) {
       ${fSel('tal-setor', 'Setor', e.setor, SETORES)}
       <label class="tiny muted">Cargo<input id="tal-cargo" class="input" list="tal-cargos" placeholder="ex.: Corretor, Secretária de Vendas" value="${esc(e.cargo || e.funcao || '')}"><datalist id="tal-cargos">${_allCargos.map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
       ${fSel('tal-atividade', 'Atividade atual', e.atividade_atual, ATIVIDADES)}
+      ${fInput('tal-local-atividade', 'Local da atividade', e.local_atividade, 'ex.: Imob. São José')}
       ${fInput('tal-pretensao', 'Pretensão salarial', e.pretensao, 'R$ …')}
       ${fInput('tal-disponibilidade', 'Disponibilidade', e.disponibilidade, 'imediata / 30 dias…')}
       ${fSel('tal-score', 'Score (estrelas)', String(e.score || ''), ['1', '2', '3', '4', '5'])}
@@ -456,7 +465,11 @@ function renderDetail(e) {
     `) + `
       <div id="tal-corretor" style="display:${showCorr ? 'grid' : 'none'};grid-template-columns:repeat(auto-fit, minmax(185px, 1fr));gap:8px;margin-top:8px;padding:8px;border:1px dashed var(--bd);border-radius:8px;background:rgba(214,36,159,.05)">
         <label class="tiny muted" style="grid-column:1/-1;font-weight:700;color:#d6249f">🏠 Corretor — classificação</label>
-        ${fSel('tal-categoria', 'Categoria', e.categoria, CATEGORIAS)}
+        <label class="tiny muted" style="grid-column:1/-1">Categoria(s) — pode marcar mais de uma
+          <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:5px">
+            ${CATEGORIAS.map(c => `<label style="display:inline-flex;gap:5px;align-items:center;font-weight:600;cursor:pointer"><input type="checkbox" class="tal-cat" value="${esc(c)}"${catArr(e.categoria).includes(c) ? ' checked' : ''}>${esc(c)}</label>`).join('')}
+          </div>
+        </label>
         ${fInput('tal-creci', 'CRECI', e.creci, 'CRECI (se tiver)')}
       </div>`)}
 
@@ -544,14 +557,16 @@ function captureDetail() {
   const g = id => (document.getElementById(id)?.value || '').trim();
   const cargo = g('tal-cargo');
   const corr = _isCorretor(cargo);
+  const cats = Array.from(document.querySelectorAll('.tal-cat:checked')).map(c => c.value);
   Object.assign(_editing, {
     nome: g('tal-nome'), contato: g('tal-contato'), email: g('tal-email'),
     instagram: g('tal-instagram'), linkedin: g('tal-linkedin'),
     responsavel: g('tal-responsavel'), canal: g('tal-canal'),
     departamento_solicitante: g('tal-depto'), vaga: g('tal-vaga'),
     setor: g('tal-setor'), cargo, funcao: cargo,
-    categoria: corr ? g('tal-categoria') : '', creci: corr ? g('tal-creci') : '',
-    atividade_atual: g('tal-atividade'), pretensao: g('tal-pretensao'),
+    categoria: corr ? cats.join(', ') : '', creci: corr ? g('tal-creci') : '',
+    atividade_atual: g('tal-atividade'), local_atividade: g('tal-local-atividade'),
+    pretensao: g('tal-pretensao'),
     disponibilidade: g('tal-disponibilidade'), score: g('tal-score'),
     etapa: g('tal-etapa') || 'Triagem', decisao: g('tal-decisao') || 'Em andamento',
     curriculo_url: g('tal-cv'), requisitos: g('tal-requisitos'), experiencia: g('tal-experiencia'),

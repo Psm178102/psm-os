@@ -91,10 +91,11 @@ class handler(BaseHTTPRequestHandler):
             # classificação rica (v81.83)
             "responsavel": _s("responsavel", 120),
             "cargo": _s("cargo", 80),
-            "categoria": _s("categoria", 40),    # corretor: Conquista/MAP/Terceiros/Locação
+            "categoria": _s("categoria", 120),   # corretor: pode ser MÚLTIPLA "MAP, Locação" (v81.98)
             "creci": _s("creci", 40),
             "experiencia": _s("experiencia"),
             "atividade_atual": _s("atividade_atual", 60),
+            "local_atividade": _s("local_atividade", 120),   # onde exerce hoje (ex.: Imob. São José) (v81.98)
             "origem": _s("origem", 20) or "manual",
             # ── ATS completo (v81.87) — colunas novas (upsert tolerante até a migração) ──
             "etapa": _s("etapa", 60),
