@@ -38,11 +38,15 @@ LINHAS = [
     {"id": "locacoes",  "nome": "PSM Locações",  "icon": "🔑", "cor": "#d97706"},
 ]
 LINHA_IDS = [l["id"] for l in LINHAS]
+# premissas reais confirmadas pelo Paulo (jul/2026): com_senior_pct = override do
+# GERENTE (% do VGV da equipe). Conquista: bruta 4% (maioria; exceções 3–3,5%),
+# corretor 1,4–1,8% por origem (efetivo ~1,5%), gerente 0,25%. MAP: bruta 4%,
+# corretor 1,8–2,2% por performance/origem (efetivo ~2%), sem gerente. Editável na tela.
 DEFAULTS = {
-    "map":       {"vgv": 0, "vendas": 0, "com_bruta_pct": 4.0,   "com_corretor_pct": 1.4, "com_senior_pct": 1.6, "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
-    "conquista": {"vgv": 0, "vendas": 0, "com_bruta_pct": 5.0,   "com_corretor_pct": 2.0, "com_senior_pct": 1.0, "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
-    "terceiros": {"vgv": 0, "vendas": 0, "com_bruta_pct": 6.0,   "com_corretor_pct": 3.0, "com_senior_pct": 1.0, "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
-    "locacoes":  {"vgv": 0, "vendas": 0, "com_bruta_pct": 100.0, "com_corretor_pct": 30.0, "com_senior_pct": 0.0, "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
+    "map":       {"vgv": 0, "vendas": 0, "com_bruta_pct": 4.0,   "com_corretor_pct": 2.0,  "com_senior_pct": 0.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
+    "conquista": {"vgv": 0, "vendas": 0, "com_bruta_pct": 4.0,   "com_corretor_pct": 1.5,  "com_senior_pct": 0.25, "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
+    "terceiros": {"vgv": 0, "vendas": 0, "com_bruta_pct": 6.0,   "com_corretor_pct": 3.0,  "com_senior_pct": 1.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
+    "locacoes":  {"vgv": 0, "vendas": 0, "com_bruta_pct": 100.0, "com_corretor_pct": 30.0, "com_senior_pct": 0.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
 }
 NUM_FIELDS = ["vgv", "vendas", "com_bruta_pct", "com_corretor_pct", "com_senior_pct", "aliquota_pct", "custo_fixo", "verba_mkt"]
 

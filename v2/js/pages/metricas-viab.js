@@ -26,7 +26,7 @@ const LIDS = LINHAS.map(l => l.id);
 const MES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 // premissas de comissão/imposto (o custo agora vem dos "Custos detalhados", não daqui)
 const PREM = [
-  ['com_bruta_pct', 'Comissão bruta %'], ['com_corretor_pct', 'Corretor %'], ['com_senior_pct', 'Sênior %'], ['aliquota_pct', 'Imposto %'],
+  ['com_bruta_pct', 'Comissão bruta %'], ['com_corretor_pct', 'Corretor % (efetivo)'], ['com_senior_pct', 'Gerente/Sênior %'], ['aliquota_pct', 'Imposto %'],
 ];
 
 // ── Custos orçados detalhados (v82.3) ──

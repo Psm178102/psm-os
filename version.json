@@ -1,8 +1,9 @@
 {
-  "version": "82.4.0",
-  "meta": "2026.07.02-v82.4-viab-rateio-empresas-editavel",
-  "built": "2026-07-02T10:00:00Z",
-  "sw": "v82.4.0-2026-07-02-VIABRATEIOEMP",
+  "version": "82.5.0",
+  "meta": "2026.07.02-v82.5-viab-premissas-reais-frentes",
+  "built": "2026-07-02T12:00:00Z",
+  "sw": "v82.5.0-2026-07-02-VIABPREMISSAS",
+  "sprint": "v82.5 — Viabilidade: premissas de comissão CORRIGIDAS pros números reais (Paulo, jul/2026). Conquista: bruta 4% (era 5%), corretor efetivo 1,5% (origem 1,4–1,8%), GERENTE 0,25% (era 'sênior 1%' chutado) → margem ~1,6–2,0%. MAP: bruta 4%, corretor 2% (1,8–2,2% por performance), SEM gerente → margem ~1,7–1,9%. Campo 'Sênior %' virou 'Gerente/Sênior %' e 'Corretor %' virou 'Corretor % (efetivo)'. Defaults no backend viab.py; editável por frente na tela. Base pra decidir break-even (sócio-venda alto ticket + corretores MAP comissionados + locação recorrente).",
   "sprint": "v82.4 — Custos detalhados: controle GLOBAL editável de quais empresas rateiam o overhead (Igual/Proporcional). Antes o 'Igual' dividia fixo entre as 4; agora tem checkboxes '⚖️ Quem rateia o overhead' (MAP/Conquista/Terceiros/Locações) que valem pra todos os custos compartilhados — ex.: desmarcar Terceiros pra ele não pegar estrutura (como no modelo antigo). Salva na hora. Específico/Manual continuam por-item. Backend guarda rateio_empresas no viab_custos_orcado. metricas-viab.js + viab.py.",
   "sprint": "v82.3 — Orçado ganhou sub-aba 'Custos detalhados' (como tinha antes, melhorado): lista de custos por item com CATEGORIA + CLASSE (Fixo/Variável/Extra) + EMPRESA (MAP/Conquista/Terceiros/Locações ou Compartilhado). Compartilhado rateia por Igual/Proporcional(por VGV)/Específico/Manual (edita o split na mão). Variável = % do VGV (calcula sozinho pelo VGV orçado do mês). Extra entra só nos meses marcados. Pré-carregado com os ~43 custos reais (aluguel, folha admin, softwares, financeiro…). O total detalhado por empresa/mês ALIMENTA o lucro orçado (some o 'custo fixo' solto das premissas). Backend viab.py: shared_kv viab_custos_orcado + action set_custos_orcado. Frontend metricas-viab.js. Matemática de rateio testada.",
   "sprint": "v82.2 — Viabilidade, correções pós-teste completo: (1) BUG corrigido no parser de números — digitar decimal tipo '1.4' numa premissa (% corretor) virava 14; agora vírgula=decimal e ponto só é milhar quando é grupo de 3 dígitos ('1.4'→1,4 · '500.000'→500000). (2) Botão '⧉ replicar nos 12 meses' no Orçado (evita digitar 96 células à mão — replica VGV/vendas do 1º mês em todos). (3) Nota do custo atualizada (Meta real auto + manual). Inclui a v82.1 (fontes automáticas Meta+NIBO) que ainda não tinha subido. metricas-viab.js.",
