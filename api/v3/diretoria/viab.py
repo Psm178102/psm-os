@@ -386,8 +386,20 @@ class handler(BaseHTTPRequestHandler):
             re_ = body.get("rateio_empresas")
             rateio_empresas = [l for l in re_ if l in LINHA_IDS] if isinstance(re_, list) else LINHA_IDS
             if not rateio_empresas: rateio_empresas = LINHA_IDS
+            # categorias editáveis (criar/renomear/apagar) — dedup preservando ordem. v83.2
+            cats_in = body.get("categorias")
+            categorias = None
+            if isinstance(cats_in, list):
+                seen = set(); categorias = []
+                for c in cats_in:
+                    c = (str(c).strip())[:40]
+                    if c and c.lower() not in seen:
+                        seen.add(c.lower()); categorias.append(c)
+                categorias = categorias[:60] or None
             allkv = read_kv(sb, "viab_custos_orcado")
-            allkv[str(ano)] = {"itens": clean, "rateio_empresas": rateio_empresas}
+            cell = {"itens": clean, "rateio_empresas": rateio_empresas}
+            if categorias: cell["categorias"] = categorias
+            allkv[str(ano)] = cell
             write_kv(sb, "viab_custos_orcado", allkv)
             audit(self, actor, "viab.set_custos_orcado", target_type="shared_kv", target_id=str(ano))
             return self._send(200, {"ok": True, "custos_orcado": allkv[str(ano)]})

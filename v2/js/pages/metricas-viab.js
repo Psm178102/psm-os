@@ -15,6 +15,8 @@ let _sim = null;                                                 // estado do si
 let _orcView = 'receita';                                        // 'receita' | 'custos' (aba Orçado)
 let _custosOrc = null;                                           // itens de custo orçado detalhado (v82.3)
 let _rateioEmp = null;                                           // empresas que rateiam o overhead (config global editável, v82.4)
+let _cats = null;                                                // categorias de custo (criar/renomear/apagar, v83.2)
+let _catsOpen = false;                                           // gerenciador de categorias aberto?
 let _be = null;                                                  // cenário do break-even estratégico (v82.6)
 
 const LINHAS = [
@@ -31,7 +33,7 @@ const PREM = [
 ];
 
 // ── Custos orçados detalhados (v82.3) ──
-const CATS = ['Sócios', 'Estrutura', 'Folha admin', 'Administrativo', 'Financeiro', 'Software', 'Portais', 'Operacional', 'Treinamento', 'Marketing', 'Tráfego pago', 'Outros'];
+const DEFAULT_CATS = ['Sócios', 'Estrutura', 'Folha admin', 'Administrativo', 'Financeiro', 'Software', 'Portais', 'Operacional', 'Treinamento', 'Marketing', 'Tráfego pago', 'Outros'];
 const CATS_TRAFEGO = ['Tráfego pago', 'Marketing'];   // excluídas do "custo sem tráfego" (v82.8)
 const CLASSES = [['fixo', 'Fixo'], ['variavel', 'Variável'], ['extra', 'Extra']];
 const ALOCS = [...LINHAS.map(l => [l.id, l.nome]), ['compartilhado', 'Compartilhado']];
@@ -175,6 +177,11 @@ async function load() {
   _custosOrc = st.length ? st.map(x => ({ ...x })) : seedCustos();
   _rateioEmp = (_d.custos_orcado && Array.isArray(_d.custos_orcado.rateio_empresas) && _d.custos_orcado.rateio_empresas.length)
     ? _d.custos_orcado.rateio_empresas.filter(x => LIDS.includes(x)) : LIDS.slice();
+  _cats = (_d.custos_orcado && Array.isArray(_d.custos_orcado.categorias) && _d.custos_orcado.categorias.length)
+    ? _d.custos_orcado.categorias.slice() : DEFAULT_CATS.slice();
+  // garante que toda categoria usada pelos itens exista na lista
+  (_custosOrc || []).forEach(it => { if (it.cat && !_cats.includes(it.cat)) _cats.push(it.cat); });
+  if (!_cats.includes('Outros')) _cats.push('Outros');
   render();
 }
 function render() {
@@ -293,6 +300,21 @@ function itemAnual(it) {
   }
   return tot;
 }
+function catsManagerHTML() {
+  if (!_catsOpen) return `<div class="mb-2"><button class="btn btn-ghost btn-sm" id="cd-cats-toggle">⚙ Gerenciar categorias (${_cats.length})</button></div>`;
+  const usada = c => (_custosOrc || []).filter(it => it.cat === c).length;
+  const rows = _cats.map((c, i) => `<div class="flex gap-2 mb-1" style="align-items:center">
+    <input class="input cat-ren" data-i="${i}" value="${esc(c)}" style="max-width:230px;font-size:12px;padding:3px 6px">
+    <span class="tiny muted">${usada(c)} item(ns)</span>
+    ${c === 'Outros' ? '' : `<button class="btn btn-ghost btn-sm cat-del" data-i="${i}" style="padding:1px 7px;color:#dc2626" title="Apagar (itens vão pra Outros)">🗑</button>`}
+  </div>`).join('');
+  return `<div class="card" style="margin:0 0 10px;background:var(--bg-3)">
+    <div class="flex items-center"><b style="font-size:13px">⚙ Categorias de custo</b><button class="btn btn-ghost btn-sm" id="cd-cats-toggle" style="margin-left:auto">fechar</button></div>
+    <div class="tiny muted" style="margin:2px 0 8px">Renomeie (atualiza os itens que a usam), apague (manda pra "Outros") ou crie nova — ex.: separar <b>"Retirada de sócio"</b> do custo operacional. Salva na hora.</div>
+    ${rows}
+    <div class="flex gap-2 mt-2"><input id="cat-nova" class="input" placeholder="nova categoria (ex.: Retirada de sócio)" style="max-width:250px;font-size:12px"><button class="btn btn-primary btn-sm" id="cat-add">＋ adicionar</button></div>
+  </div>`;
+}
 function renderCustosDet() {
   const det = custoOrcadoDet();
   const detST = custoOrcadoDet(true);   // sem tráfego pago (v82.8)
@@ -311,7 +333,7 @@ function renderCustosDet() {
     const mesesCell = it.classe === 'extra' ? `<input class="input cd-f" data-i="${i}" data-k="meses" value="${Array.isArray(it.meses) ? it.meses.join(',') : ''}" placeholder="todos" title="ex: 1,6,12" style="width:66px;padding:2px 4px;font-size:11px">` : '<span class="tiny muted">todos</span>';
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:3px 5px"><input class="input cd-f" data-i="${i}" data-k="desc" value="${esc(it.desc)}" style="width:100%;min-width:120px;padding:2px 5px;font-size:12px"></td>
-      <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="cat" style="font-size:11px;padding:2px">${opt(CATS.map(c => [c, c]), it.cat)}</select></td>
+      <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="cat" style="font-size:11px;padding:2px">${opt(_cats.map(c => [c, c]), it.cat)}</select></td>
       <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="classe" style="font-size:11px;padding:2px">${opt(CLASSES, it.classe)}</select></td>
       <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="aloc" style="font-size:11px;padding:2px">${opt(ALOCS, it.aloc)}</select></td>
       <td style="padding:3px 5px">${rateioSel}${detalhe}</td>
@@ -330,6 +352,7 @@ function renderCustosDet() {
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap">${empChips}
       <div style="flex:1;min-width:150px;background:var(--psm-navy);color:#fff;border-radius:8px;padding:8px 10px"><div class="tiny" style="opacity:.8">Total custos/ano</div><div style="font-weight:800;font-size:16px">${fmt(grand)}</div><div class="tiny" style="opacity:.85">Fixo ${fmtC(porClasse.fixo)} · Var ${fmtC(porClasse.variavel)} · Extra ${fmtC(porClasse.extra)}</div></div>
     </div>
+    ${catsManagerHTML()}
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:840px">
       <thead><tr style="background:var(--bg-3);text-align:left"><th style="padding:5px">Descrição</th><th style="padding:5px">Categoria</th><th style="padding:5px">Classe</th><th style="padding:5px">Empresa</th><th style="padding:5px">Rateio</th><th style="padding:5px">Valor</th><th style="padding:5px">Meses</th><th></th></tr></thead>
       <tbody>${rows || '<tr><td colspan="8" class="tiny muted" style="padding:12px;text-align:center">Nenhum custo — clique em "adicionar custo".</td></tr>'}</tbody>
@@ -366,13 +389,35 @@ function wireCustosDet() {
   const add = document.getElementById('cd-add');
   if (add) add.onclick = () => { _custosOrc.push({ id: 'co_' + Date.now(), desc: '', cat: 'Outros', classe: 'fixo', aloc: 'compartilhado', rateio: 'igual', valor: 0, meses: null, linhas: [], pesos: null, por_mes: null }); render(); };
   const save = document.getElementById('cd-save'); if (save) save.onclick = saveCustosOrc;
+  // ── gerenciador de categorias (v83.2) ──
+  const tog = document.getElementById('cd-cats-toggle'); if (tog) tog.onclick = () => { _catsOpen = !_catsOpen; render(); };
+  document.querySelectorAll('.cat-ren').forEach(el => el.onchange = () => {
+    const i = +el.dataset.i, old = _cats[i], nv = el.value.trim();
+    if (!nv) { el.value = old; return; }
+    if (_cats.some((c, j) => j !== i && c.toLowerCase() === nv.toLowerCase())) { flash('já existe uma categoria com esse nome'); el.value = old; return; }
+    (_custosOrc || []).forEach(it => { if (it.cat === old) it.cat = nv; });   // renomeia nos itens
+    _cats[i] = nv; saveCustosOrc();
+  });
+  document.querySelectorAll('.cat-del').forEach(b => b.onclick = () => {
+    const i = +b.dataset.i, c = _cats[i];
+    if (!confirm(`Apagar a categoria "${c}"? Os itens dela vão pra "Outros".`)) return;
+    (_custosOrc || []).forEach(it => { if (it.cat === c) it.cat = 'Outros'; });
+    _cats.splice(i, 1); if (!_cats.includes('Outros')) _cats.push('Outros'); saveCustosOrc();
+  });
+  const cadd = document.getElementById('cat-add'); if (cadd) cadd.onclick = () => {
+    const nv = (document.getElementById('cat-nova').value || '').trim();
+    if (!nv) return; if (_cats.some(c => c.toLowerCase() === nv.toLowerCase())) { flash('já existe'); return; }
+    _cats.push(nv); saveCustosOrc();
+  };
 }
 async function saveCustosOrc() {
   flash('💾 salvando custos…');
   try {
-    const r = await api.request('/api/v3/diretoria/viab', { method: 'POST', body: { action: 'set_custos_orcado', ano: _ano, itens: _custosOrc, rateio_empresas: ratEmp() } });
+    const r = await api.request('/api/v3/diretoria/viab', { method: 'POST', body: { action: 'set_custos_orcado', ano: _ano, itens: _custosOrc, rateio_empresas: ratEmp(), categorias: _cats } });
     if (r && r.custos_orcado && Array.isArray(r.custos_orcado.itens)) _custosOrc = r.custos_orcado.itens.map(x => ({ ...x }));
     if (r && r.custos_orcado && Array.isArray(r.custos_orcado.rateio_empresas)) _rateioEmp = r.custos_orcado.rateio_empresas.slice();
+    if (r && r.custos_orcado && Array.isArray(r.custos_orcado.categorias)) _cats = r.custos_orcado.categorias.slice();
+    if (!_cats.includes('Outros')) _cats.push('Outros');
     flash('✅ custos orçados salvos'); render();
   } catch (e) { flash('⚠️ ' + e.message); }
 }
