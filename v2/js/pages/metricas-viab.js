@@ -14,6 +14,7 @@ let _custoMes = Math.max(1, new Date().getMonth() + 1);          // mês em edi�
 let _sim = null;                                                 // estado do simulador
 let _orcView = 'receita';                                        // 'receita' | 'custos' (aba Orçado)
 let _custosOrc = null;                                           // itens de custo orçado detalhado (v82.3)
+let _rateioEmp = null;                                           // empresas que rateiam o overhead (config global editável, v82.4)
 
 const LINHAS = [
   { id: 'map', nome: 'PSM M.A.P', icon: '🏢', cor: '#7c3aed' },
@@ -114,10 +115,11 @@ function custoRealMes(mes) {
 }
 
 /* ── custos ORÇADOS detalhados → { empresa: {mes: R$} } (v82.3) ── */
+function ratEmp() { const e = (_rateioEmp || []).filter(x => LIDS.includes(x)); return e.length ? e : LIDS; }
 function ratAlvo(it) {
-  if (it.rateio === 'especifico') { const l = (it.linhas || []).filter(x => LIDS.includes(x)); return l.length ? l : LIDS; }
-  if (it.rateio === 'manual') { const l = Object.keys(it.pesos || {}).filter(x => LIDS.includes(x) && (+it.pesos[x] || 0) > 0); return l.length ? l : LIDS; }
-  return LIDS;
+  if (it.rateio === 'especifico') { const l = (it.linhas || []).filter(x => LIDS.includes(x)); return l.length ? l : ratEmp(); }
+  if (it.rateio === 'manual') { const l = Object.keys(it.pesos || {}).filter(x => LIDS.includes(x) && (+it.pesos[x] || 0) > 0); return l.length ? l : ratEmp(); }
+  return ratEmp();   // igual / proporcional → empresas que rateiam o overhead (config global)
 }
 function ratPesos(it, alvo, m) {
   const w = {}; let tot = 0;
@@ -166,6 +168,8 @@ async function load() {
   // custos orçados detalhados: usa o que está salvo; se vazio, pré-carrega os custos reais (seed) — só persiste quando salvar
   const st = (_d.custos_orcado && Array.isArray(_d.custos_orcado.itens)) ? _d.custos_orcado.itens : [];
   _custosOrc = st.length ? st.map(x => ({ ...x })) : seedCustos();
+  _rateioEmp = (_d.custos_orcado && Array.isArray(_d.custos_orcado.rateio_empresas) && _d.custos_orcado.rateio_empresas.length)
+    ? _d.custos_orcado.rateio_empresas.filter(x => LIDS.includes(x)) : LIDS.slice();
   render();
 }
 function render() {
@@ -308,6 +312,11 @@ function renderCustosDet() {
   }).join('');
   return `
     <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:10px">🧾 <b>Custos orçados detalhados</b> — fixos, variáveis (% do VGV) e extras, por empresa. Compartilhados rateiam (igual/proporcional/específico/manual). Pré-carregado com seus custos reais — ajuste e <b>salve</b>. Alimenta o lucro orçado.</div>
+    <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center;background:#7c3aed12;border:1px solid #7c3aed33;border-radius:8px;padding:8px 10px">
+      <span class="tiny" style="font-weight:800;color:#7c3aed">⚖️ Quem rateia o overhead (Igual/Proporcional):</span>
+      ${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;gap:4px;align-items:center;font-weight:600;cursor:pointer"><input type="checkbox" class="re-emp" value="${l.id}"${ratEmp().includes(l.id) ? ' checked' : ''}>${l.icon} ${l.nome}</label>`).join('')}
+      <span class="tiny muted">desmarque quem não divide a estrutura (ex.: Terceiros). Salva na hora.</span>
+    </div>
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap">${empChips}
       <div style="flex:1;min-width:150px;background:var(--psm-navy);color:#fff;border-radius:8px;padding:8px 10px"><div class="tiny" style="opacity:.8">Total custos/ano</div><div style="font-weight:800;font-size:16px">${fmt(grand)}</div><div class="tiny" style="opacity:.85">Fixo ${fmtC(porClasse.fixo)} · Var ${fmtC(porClasse.variavel)} · Extra ${fmtC(porClasse.extra)}</div></div>
     </div>
@@ -337,6 +346,12 @@ function wireCustosDet() {
   document.querySelectorAll('.cd-man').forEach(el => el.onchange = () => {
     const it = _custosOrc[+el.dataset.i]; if (!it) return; it.pesos = it.pesos || {}; it.pesos[el.dataset.l] = num(el.value); render();
   });
+  document.querySelectorAll('.re-emp').forEach(el => el.onchange = () => {
+    let e = (_rateioEmp || []).slice();
+    if (el.checked) { if (!e.includes(el.value)) e.push(el.value); } else e = e.filter(x => x !== el.value);
+    if (!e.length) { flash('deixe ao menos 1 empresa no rateio'); render(); return; }
+    _rateioEmp = e; saveCustosOrc();   // salva na hora (itens + config de rateio)
+  });
   document.querySelectorAll('.cd-del').forEach(b => b.onclick = () => { _custosOrc.splice(+b.dataset.i, 1); render(); });
   const add = document.getElementById('cd-add');
   if (add) add.onclick = () => { _custosOrc.push({ id: 'co_' + Date.now(), desc: '', cat: 'Outros', classe: 'fixo', aloc: 'compartilhado', rateio: 'igual', valor: 0, meses: null, linhas: [], pesos: null, por_mes: null }); render(); };
@@ -345,8 +360,9 @@ function wireCustosDet() {
 async function saveCustosOrc() {
   flash('💾 salvando custos…');
   try {
-    const r = await api.request('/api/v3/diretoria/viab', { method: 'POST', body: { action: 'set_custos_orcado', ano: _ano, itens: _custosOrc } });
+    const r = await api.request('/api/v3/diretoria/viab', { method: 'POST', body: { action: 'set_custos_orcado', ano: _ano, itens: _custosOrc, rateio_empresas: ratEmp() } });
     if (r && r.custos_orcado && Array.isArray(r.custos_orcado.itens)) _custosOrc = r.custos_orcado.itens.map(x => ({ ...x }));
+    if (r && r.custos_orcado && Array.isArray(r.custos_orcado.rateio_empresas)) _rateioEmp = r.custos_orcado.rateio_empresas.slice();
     flash('✅ custos orçados salvos'); render();
   } catch (e) { flash('⚠️ ' + e.message); }
 }

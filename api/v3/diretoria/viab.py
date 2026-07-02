@@ -353,8 +353,12 @@ class handler(BaseHTTPRequestHandler):
                     "classe": classe, "aloc": aloc, "rateio": rateio, "valor": round(valor, 2),
                     "meses": meses, "linhas": linhas, "pesos": pesos, "por_mes": por_mes,
                 })
+            # empresas que participam do rateio Igual/Proporcional (config global editável). v82.4
+            re_ = body.get("rateio_empresas")
+            rateio_empresas = [l for l in re_ if l in LINHA_IDS] if isinstance(re_, list) else LINHA_IDS
+            if not rateio_empresas: rateio_empresas = LINHA_IDS
             allkv = read_kv(sb, "viab_custos_orcado")
-            allkv[str(ano)] = {"itens": clean}
+            allkv[str(ano)] = {"itens": clean, "rateio_empresas": rateio_empresas}
             write_kv(sb, "viab_custos_orcado", allkv)
             audit(self, actor, "viab.set_custos_orcado", target_type="shared_kv", target_id=str(ano))
             return self._send(200, {"ok": True, "custos_orcado": allkv[str(ano)]})
