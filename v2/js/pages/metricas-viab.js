@@ -27,11 +27,12 @@ const LIDS = LINHAS.map(l => l.id);
 const MES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 // premissas de comissão/imposto (o custo agora vem dos "Custos detalhados", não daqui)
 const PREM = [
-  ['com_bruta_pct', 'Comissão bruta %'], ['com_corretor_pct', 'Corretor % (efetivo)'], ['com_senior_pct', 'Gerente/Sênior %'], ['aliquota_pct', 'Imposto %'],
+  ['com_bruta_pct', 'Comissão bruta %'], ['com_corretor_pct', 'Corretor % (efetivo)'], ['com_senior_pct', 'Sênior %'], ['com_gerente_pct', 'Gerente % (s/ VGV)'], ['aliquota_pct', 'Imposto %'],
 ];
 
 // ── Custos orçados detalhados (v82.3) ──
-const CATS = ['Sócios', 'Estrutura', 'Folha admin', 'Administrativo', 'Financeiro', 'Software', 'Portais', 'Operacional', 'Treinamento', 'Marketing', 'Outros'];
+const CATS = ['Sócios', 'Estrutura', 'Folha admin', 'Administrativo', 'Financeiro', 'Software', 'Portais', 'Operacional', 'Treinamento', 'Marketing', 'Tráfego pago', 'Outros'];
+const CATS_TRAFEGO = ['Tráfego pago', 'Marketing'];   // excluídas do "custo sem tráfego" (v82.8)
 const CLASSES = [['fixo', 'Fixo'], ['variavel', 'Variável'], ['extra', 'Extra']];
 const ALOCS = [...LINHAS.map(l => [l.id, l.nome]), ['compartilhado', 'Compartilhado']];
 const RATEIOS = [['igual', 'Igual'], ['proporcional', 'Proporcional'], ['especifico', 'Específico'], ['manual', 'Manual']];
@@ -90,10 +91,11 @@ function calc(vgv, vendas, o, custo) {
   const receita = vgv * (+o.com_bruta_pct || 0) / 100;
   const cc = vgv * (+o.com_corretor_pct || 0) / 100;
   const cs = vgv * (+o.com_senior_pct || 0) / 100;
+  const cg = vgv * (+o.com_gerente_pct || 0) / 100;   // gerente s/ VGV (v82.8)
   const imp = receita * (+o.aliquota_pct || 0) / 100;
   const custoTot = custo + (+o.verba_mkt || 0);
-  const lucro = receita - cc - cs - imp - custoTot;
-  return { vgv, vendas, receita, cc, cs, imp, custo: custoTot, lucro, ticket: vendas ? vgv / vendas : 0, margem: vgv ? lucro / vgv * 100 : 0 };
+  const lucro = receita - cc - cs - cg - imp - custoTot;
+  return { vgv, vendas, receita, cc, cs, cg, imp, custo: custoTot, lucro, ticket: vendas ? vgv / vendas : 0, margem: vgv ? lucro / vgv * 100 : 0 };
 }
 function orcCell(linha, mes) {
   const base = Object.assign({}, (_d.defaults || {})[linha] || {});
@@ -130,9 +132,10 @@ function ratPesos(it, alvo, m) {
   if (tot > 0) alvo.forEach(l => w[l] = w[l] / tot); else alvo.forEach(l => w[l] = 1 / alvo.length);
   return w;
 }
-function custoOrcadoDet() {
+function custoOrcadoDet(semTrafego) {
   const out = {}; LIDS.forEach(l => { out[l] = {}; for (let m = 1; m <= 12; m++) out[l][m] = 0; });
   for (const it of (_custosOrc || [])) {
+    if (semTrafego && CATS_TRAFEGO.includes(it.cat)) continue;   // exclui tráfego pago do total
     const base0 = +it.valor || 0;
     for (let m = 1; m <= 12; m++) {
       if (it.classe === 'extra' && Array.isArray(it.meses) && it.meses.length && !it.meses.includes(m)) continue;
@@ -290,12 +293,13 @@ function itemAnual(it) {
 }
 function renderCustosDet() {
   const det = custoOrcadoDet();
-  const totEmp = {}; let grand = 0;
-  LIDS.forEach(l => { totEmp[l] = 0; for (let m = 1; m <= 12; m++) totEmp[l] += det[l][m]; grand += totEmp[l]; });
+  const detST = custoOrcadoDet(true);   // sem tráfego pago (v82.8)
+  const totEmp = {}, totEmpST = {}; let grand = 0;
+  LIDS.forEach(l => { totEmp[l] = 0; totEmpST[l] = 0; for (let m = 1; m <= 12; m++) { totEmp[l] += det[l][m]; totEmpST[l] += detST[l][m]; } grand += totEmp[l]; });
   const porClasse = { fixo: 0, variavel: 0, extra: 0 };
   (_custosOrc || []).forEach(it => porClasse[it.classe] = (porClasse[it.classe] || 0) + itemAnual(it));
   const opt = (arr, v) => arr.map(([val, lbl]) => `<option value="${val}"${val === v ? ' selected' : ''}>${esc(lbl)}</option>`).join('');
-  const empChips = LINHAS.map(l => `<div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:8px;padding:8px 10px"><div class="tiny muted">${l.icon} ${l.nome}</div><div style="font-weight:800;color:${l.cor}">${fmt(totEmp[l.id])}</div><div class="tiny muted">/ano</div></div>`).join('');
+  const empChips = LINHAS.map(l => `<div style="flex:1;min-width:130px;background:var(--bg-3);border-radius:8px;padding:8px 10px"><div class="tiny muted">${l.icon} ${l.nome}</div><div style="font-weight:800;color:${l.cor}">${fmt(totEmp[l.id])}<span class="tiny muted" style="font-weight:400">/ano</span></div><div class="tiny muted">${fmt(totEmpST[l.id] / 12)}/mês <b>sem tráfego</b></div></div>`).join('');
   const rows = (_custosOrc || []).map((it, i) => {
     const comp = it.aloc === 'compartilhado';
     const rateioSel = comp ? `<select class="select cd-f" data-i="${i}" data-k="rateio" style="font-size:11px;padding:2px;max-width:118px">${opt(RATEIOS, it.rateio)}</select>` : '<span class="tiny muted">direto</span>';
@@ -535,7 +539,12 @@ async function reabrirMes(m) {
 const SIMKEY = 'psm_viab_sim_cenarios';
 function simSeed() {
   const mes = Math.max(1, new Date().getMonth() + 1); const o = {};
-  for (const l of LIDS) { const c = orcCell(l, mes); o[l] = { vgv: c.vgv || 0, vendas: c.vendas || 0, com_bruta_pct: c.com_bruta_pct, com_corretor_pct: c.com_corretor_pct, com_senior_pct: c.com_senior_pct, aliquota_pct: c.aliquota_pct, custo_fixo: c.custo_fixo || 0, verba_mkt: c.verba_mkt || 0 }; }
+  const det = custoOrcadoDet(true);   // custo real por empresa/mês, SEM tráfego (v82.8) — semeia o custo do sim
+  for (const l of LIDS) {
+    const c = orcCell(l, mes);
+    let custoMes = 0; for (let m = 1; m <= 12; m++) custoMes += det[l][m]; custoMes = Math.round(custoMes / 12);
+    o[l] = { vgv: c.vgv || 0, vendas: c.vendas || 0, com_bruta_pct: c.com_bruta_pct, com_corretor_pct: c.com_corretor_pct, com_senior_pct: c.com_senior_pct, com_gerente_pct: c.com_gerente_pct || 0, aliquota_pct: c.aliquota_pct, custo_fixo: custoMes, verba_mkt: c.verba_mkt || 0 };
+  }
   return o;
 }
 function renderSim() {
@@ -549,14 +558,20 @@ function renderSim() {
     return `<div class="card" style="margin:0 0 10px;border-left:4px solid ${l.cor}">
       <div class="flex items-center"><b>${l.icon} ${l.nome}</b><span style="margin-left:auto;font-weight:800;color:${dc(r.lucro)}">Lucro/mês: ${fmt(r.lucro)}</span></div>
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
-        ${fld('vgv', 'VGV/mês')}${fld('vendas', 'Vendas')}${fld('com_bruta_pct', 'Com. bruta %')}${fld('com_corretor_pct', 'Corretor %')}${fld('com_senior_pct', 'Sênior %')}${fld('aliquota_pct', 'Imposto %')}${fld('custo_fixo', 'Custo fixo')}${fld('verba_mkt', 'Verba mkt')}
+        ${fld('vgv', 'VGV/mês')}${fld('vendas', 'Vendas')}${fld('com_bruta_pct', 'Com. bruta %')}${fld('com_corretor_pct', 'Corretor %')}${fld('com_senior_pct', 'Sênior %')}${fld('com_gerente_pct', 'Gerente %')}${fld('aliquota_pct', 'Imposto %')}${fld('custo_fixo', 'Custo/mês (s/ tráfego)')}${fld('verba_mkt', 'Tráfego/mês')}
       </div>
-      <div class="tiny muted mt-1">Receita ${fmtC(r.receita)} · corretor ${fmtC(r.cc)} · sênior ${fmtC(r.cs)} · imposto ${fmtC(r.imp)} · custo ${fmtC(r.custo)} · margem <b style="color:${dc(r.margem)}">${pct(r.margem)}</b></div>
+      <div class="tiny muted mt-1">Receita ${fmtC(r.receita)} · corretor ${fmtC(r.cc)} · sênior ${fmtC(r.cs)} · gerente ${fmtC(r.cg)} · imposto ${fmtC(r.imp)} · custo ${fmtC(r.custo)} · margem <b style="color:${dc(r.margem)}">${pct(r.margem)}</b></div>
     </div>`;
   }).join('');
   const opts = Object.keys(cenarios).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  const detST = custoOrcadoDet(true);
+  const custoRef = LINHAS.map(l => { let c = 0; for (let m = 1; m <= 12; m++) c += detST[l.id][m]; return `<span class="tiny">${l.icon} <b style="color:${l.cor}">${fmt(c / 12)}</b></span>`; }).join(' · ');
   return `
-    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:12px">🧪 <b>Sandbox</b> — mexa à vontade. Não afeta o orçado nem o realizado. Salve cenários e compare.</div>
+    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:10px">🧪 <b>Sandbox</b> — mexa à vontade. Não afeta o orçado nem o realizado. Salve cenários e compare.</div>
+    <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center;background:var(--bg-3);border-radius:8px;padding:7px 10px">
+      <span class="tiny" style="font-weight:700">💰 Custo real por empresa/mês (fixo+var, <b>sem tráfego</b>):</span> ${custoRef}
+      <span class="tiny muted" style="margin-left:auto">o "Custo/mês" de cada card já vem semeado com esse valor</span>
+    </div>
     ${blocks}
     <div class="card" style="margin:0 0 10px;background:var(--psm-navy);color:#fff">
       <div class="flex items-center"><b style="font-size:15px">Lucro simulado/mês (consolidado)</b><span style="margin-left:auto;font-size:22px;font-weight:900;color:${cons >= 0 ? '#4ade80' : '#f87171'}">${fmt(cons)}</span></div>

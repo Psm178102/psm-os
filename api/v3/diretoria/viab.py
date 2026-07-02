@@ -42,13 +42,14 @@ LINHA_IDS = [l["id"] for l in LINHAS]
 # GERENTE (% do VGV da equipe). Conquista: bruta 4% (maioria; exceções 3–3,5%),
 # corretor 1,4–1,8% por origem (efetivo ~1,5%), gerente 0,25%. MAP: bruta 4%,
 # corretor 1,8–2,2% por performance/origem (efetivo ~2%), sem gerente. Editável na tela.
+# com_gerente_pct = comissão do GERENTE da equipe sobre o VGV realizado (v82.8, campo próprio).
 DEFAULTS = {
-    "map":       {"vgv": 0, "vendas": 0, "com_bruta_pct": 4.0,   "com_corretor_pct": 2.0,  "com_senior_pct": 0.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
-    "conquista": {"vgv": 0, "vendas": 0, "com_bruta_pct": 4.0,   "com_corretor_pct": 1.5,  "com_senior_pct": 0.25, "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
-    "terceiros": {"vgv": 0, "vendas": 0, "com_bruta_pct": 6.0,   "com_corretor_pct": 3.0,  "com_senior_pct": 1.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
-    "locacoes":  {"vgv": 0, "vendas": 0, "com_bruta_pct": 100.0, "com_corretor_pct": 30.0, "com_senior_pct": 0.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
+    "map":       {"vgv": 0, "vendas": 0, "com_bruta_pct": 4.0,   "com_corretor_pct": 2.0,  "com_senior_pct": 0.0, "com_gerente_pct": 0.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
+    "conquista": {"vgv": 0, "vendas": 0, "com_bruta_pct": 4.0,   "com_corretor_pct": 1.5,  "com_senior_pct": 0.0, "com_gerente_pct": 0.25, "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
+    "terceiros": {"vgv": 0, "vendas": 0, "com_bruta_pct": 6.0,   "com_corretor_pct": 3.0,  "com_senior_pct": 1.0, "com_gerente_pct": 0.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
+    "locacoes":  {"vgv": 0, "vendas": 0, "com_bruta_pct": 100.0, "com_corretor_pct": 30.0, "com_senior_pct": 0.0, "com_gerente_pct": 0.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
 }
-NUM_FIELDS = ["vgv", "vendas", "com_bruta_pct", "com_corretor_pct", "com_senior_pct", "aliquota_pct", "custo_fixo", "verba_mkt"]
+NUM_FIELDS = ["vgv", "vendas", "com_bruta_pct", "com_corretor_pct", "com_senior_pct", "com_gerente_pct", "aliquota_pct", "custo_fixo", "verba_mkt"]
 
 
 def _frente_of(pn):
@@ -130,11 +131,13 @@ def snapshot_linha(vgv, vendas, orc, custo):
     receita = vgv * orc["com_bruta_pct"] / 100.0            # comissão bruta PSM
     com_corr = vgv * orc["com_corretor_pct"] / 100.0
     com_sen = vgv * orc["com_senior_pct"] / 100.0
+    com_ger = vgv * float(orc.get("com_gerente_pct") or 0) / 100.0   # gerente s/ VGV (v82.8)
     imposto = receita * orc["aliquota_pct"] / 100.0
     custo = float(custo or 0) + float(orc.get("verba_mkt") or 0)
-    lucro = receita - com_corr - com_sen - imposto - custo
+    lucro = receita - com_corr - com_sen - com_ger - imposto - custo
     return {"vgv": round(vgv, 2), "vendas": vendas, "receita": round(receita, 2),
             "com_corretor": round(com_corr, 2), "com_senior": round(com_sen, 2),
+            "com_gerente": round(com_ger, 2),
             "imposto": round(imposto, 2), "custo": round(custo, 2),
             "lucro": round(lucro, 2), "ticket": round(vgv / vendas, 2) if vendas else 0.0,
             "margem": round(lucro / vgv * 100, 1) if vgv else 0.0}
