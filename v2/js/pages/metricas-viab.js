@@ -434,6 +434,18 @@ function wireCustosDet() {
     _cats.push(nv); saveCustosOrc();
   };
 }
+// re-semeia SÓ o custo derivado no Simulador e no Break-even quando custos/rateio mudam, preservando o resto (v83.6)
+function reseedCustosSandbox() {
+  _custoDetMemo = null;   // força recomputar com o rateio/custos novos
+  if (_sim) {
+    const det = custoOrcadoDet(true);
+    for (const l of LIDS) { let c = 0; for (let m = 1; m <= 12; m++) c += det[l][m]; if (_sim[l]) _sim[l].custo_fixo = Math.round(c / 12); }
+  }
+  if (_be) {
+    const det = custoOrcadoDet(); let fixo = 0; LIDS.forEach(l => { for (let m = 1; m <= 12; m++) fixo += det[l][m]; });
+    _be.fixo = Math.round(fixo / 12); _be.proLabore = proLaboreMes();
+  }
+}
 async function saveCustosOrc() {
   flash('💾 salvando custos…');
   try {
@@ -442,6 +454,7 @@ async function saveCustosOrc() {
     if (r && r.custos_orcado && Array.isArray(r.custos_orcado.rateio_empresas)) _rateioEmp = r.custos_orcado.rateio_empresas.slice();
     if (r && r.custos_orcado && Array.isArray(r.custos_orcado.categorias)) _cats = r.custos_orcado.categorias.slice();
     if (!_cats.includes('Outros')) _cats.push('Outros');
+    reseedCustosSandbox();   // reflete a mudança no Simulador e Break-even na hora (v83.6)
     flash('✅ custos orçados salvos'); render();
   } catch (e) { flash('⚠️ ' + e.message); }
 }
