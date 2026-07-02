@@ -15,6 +15,7 @@ let _sim = null;                                                 // estado do si
 let _orcView = 'receita';                                        // 'receita' | 'custos' (aba Orçado)
 let _custosOrc = null;                                           // itens de custo orçado detalhado (v82.3)
 let _rateioEmp = null;                                           // empresas que rateiam o overhead (config global editável, v82.4)
+let _be = null;                                                  // cenário do break-even estratégico (v82.6)
 
 const LINHAS = [
   { id: 'map', nome: 'PSM M.A.P', icon: '🏢', cor: '#7c3aed' },
@@ -190,6 +191,7 @@ function render() {
       <div class="flex gap-1 mt-2" style="flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:8px">
         ${tab('orcado', '📋 Orçado (mensal)')}
         ${tab('realizado', '📈 Realizado mês a mês')}
+        ${tab('be', '🎯 Break-even')}
         ${tab('sim', '🧪 Simulador')}
       </div>
       <div id="viab-body" class="mt-3"></div>
@@ -199,6 +201,7 @@ function render() {
   const body = document.getElementById('viab-body');
   if (_tab === 'orcado') { body.innerHTML = renderOrcado(); wireOrcado(); }
   else if (_tab === 'realizado') { body.innerHTML = renderRealizado(); wireRealizado(); }
+  else if (_tab === 'be') { body.innerHTML = renderBE(); wireBE(); }
   else { body.innerHTML = renderSim(); wireSim(); }
 }
 function flash(t) { _msg = t; const m = document.getElementById('viab-msg'); if (m) m.textContent = t; }
@@ -572,4 +575,96 @@ function wireSim() {
   };
   const load = document.getElementById('sim-load'); if (load) load.onchange = () => { const c = JSON.parse(localStorage.getItem(SIMKEY) || '{}'); if (c[load.value]) { _sim = JSON.parse(JSON.stringify(c[load.value])); flash('cenário carregado'); render(); } };
   const reset = document.getElementById('sim-reset'); if (reset) reset.onclick = () => { _sim = simSeed(); flash('resetado pro orçado'); render(); };
+}
+
+/* ════════════ ABA 4 · BREAK-EVEN ESTRATÉGICO (v82.6) ════════════ */
+const BEKEY = 'psm_viab_be_cenarios';
+function seedBE() {
+  const det = custoOrcadoDet(); let fixo = 0;
+  LIDS.forEach(l => { for (let m = 1; m <= 12; m++) fixo += det[l][m]; });
+  fixo = Math.round(fixo / 12);   // custo fixo mensal médio (dos custos detalhados)
+  let cv = 0, cVGV = 0;
+  for (let m = 1; m <= 12; m++) { const r = realCell('conquista', m); cv += r.vendas; cVGV += r.vgv; }
+  const meses = Math.max(1, new Date().getMonth() + 1);
+  return {
+    fixo,
+    conquista: { vendas: cv ? +(cv / meses).toFixed(1) : 2.3, ticket: cv ? Math.round(cVGV / cv) : 283000, margem: 1.8 },
+    socio: { vendas: 0, ticket: 400000, margem: 4.5 },
+    map: { corretores: 0, vendasCorr: 2, ticket: 345000, margem: 1.88, trafego: 3000 },
+    terceiros: { vendas: 0, ticket: 400000, margem: 1.3, trafego: 3000 },
+    locacao: { corretores: 0, minGar: 2500, capt: 0, aluguel: 2500, adm: 10, carteira: 0, trafego: 2000 },
+  };
+}
+function beCalc(be) {
+  const g = (o, f) => +((o || {})[f]) || 0;
+  const conqC = g(be.conquista, 'vendas') * g(be.conquista, 'ticket') * g(be.conquista, 'margem') / 100;
+  const socioC = g(be.socio, 'vendas') * g(be.socio, 'ticket') * g(be.socio, 'margem') / 100;
+  const mapBruto = g(be.map, 'corretores') * g(be.map, 'vendasCorr') * g(be.map, 'ticket') * g(be.map, 'margem') / 100;
+  const mapC = mapBruto - g(be.map, 'trafego');
+  const tercBruto = g(be.terceiros, 'vendas') * g(be.terceiros, 'ticket') * g(be.terceiros, 'margem') / 100;
+  const tercC = tercBruto - g(be.terceiros, 'trafego');
+  const loc1 = g(be.locacao, 'capt') * g(be.locacao, 'aluguel') * 0.62;                                  // 1º aluguel (margem 62%)
+  const locRec = g(be.locacao, 'carteira') * g(be.locacao, 'aluguel') * g(be.locacao, 'adm') / 100 * 0.92; // recorrente líq imposto
+  const locMin = g(be.locacao, 'corretores') * g(be.locacao, 'minGar');                                    // mínimo garantido (fixo)
+  const locC = loc1 + locRec - locMin - g(be.locacao, 'trafego');
+  const total = conqC + socioC + mapC + tercC + locC;
+  return { conqC, socioC, mapBruto, mapC, tercBruto, tercC, loc1, locRec, locMin, locC, total, resultado: total - g(be, 'fixo') };
+}
+function renderBE() {
+  if (!_be) _be = seedBE();
+  const r = beCalc(_be);
+  const cor = r.resultado >= 0 ? '#4ade80' : '#f87171';
+  const cob = _be.fixo ? Math.min(100, r.total / _be.fixo * 100) : 0;
+  const bi = (grp, f, lbl, w = 82) => `<label class="tiny muted" style="display:flex;flex-direction:column;gap:1px">${lbl}<input class="input be-in" data-g="${grp}" data-f="${f}" value="${(_be[grp][f] ?? '')}" style="width:${w}px;padding:3px 5px;font-size:11px;text-align:right"></label>`;
+  const lever = (titulo, cor2, inputsHtml, contrib, hint) => `
+    <div class="card" style="margin:0 0 10px;border-left:4px solid ${cor2}">
+      <div class="flex items-center" style="gap:8px;flex-wrap:wrap"><b style="font-size:13px">${titulo}</b>
+        <span style="margin-left:auto;font-weight:800;color:${dc(contrib)}">${contrib >= 0 ? '+' : ''}${fmt(contrib)}/mês</span></div>
+      <div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:end">${inputsHtml}</div>
+      ${hint ? `<div class="tiny muted mt-1">${hint}</div>` : ''}
+    </div>`;
+  return `
+    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:12px">🎯 <b>Break-even estratégico</b> — mexa nas alavancas e veja o resultado fechar. O custo fixo vem dos Custos detalhados (editável aqui p/ testar cortes). Locação: o <b>mínimo garantido</b> come a margem até a carteira recorrente crescer. Salve cenários e compare.</div>
+
+    <div class="card" style="margin:0 0 14px;background:var(--psm-navy);color:#fff">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:center">
+        <div><div class="tiny" style="opacity:.8">Custo fixo/mês</div><div class="flex" style="align-items:center;gap:4px"><span style="font-weight:700">R$</span><input class="input be-in" data-g="_root" data-f="fixo" value="${_be.fixo}" style="width:110px;padding:4px 6px;font-weight:800;text-align:right"></div></div>
+        <div><div class="tiny" style="opacity:.8">Contribuição total/mês</div><div style="font-size:20px;font-weight:900">${fmt(r.total)}</div></div>
+        <div><div class="tiny" style="opacity:.8">Resultado/mês</div><div style="font-size:24px;font-weight:900;color:${cor}">${r.resultado >= 0 ? '+' : ''}${fmt(r.resultado)}</div></div>
+        <div><div class="tiny" style="opacity:.8">Cobertura do fixo</div><div style="font-size:20px;font-weight:900;color:${cor}">${cob.toFixed(0)}%</div>
+          <div style="height:7px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${cob}%;background:${cor}"></div></div></div>
+      </div>
+      <div class="tiny" style="opacity:.85;margin-top:8px">${r.resultado >= 0 ? '✅ Break-even batido — o excedente vira lucro.' : `⚠️ Faltam ${fmt(-r.resultado)}/mês pra fechar.`}</div>
+    </div>
+
+    ${lever('🏠 Conquista (equipe atual)', '#2563eb', bi('conquista', 'vendas', 'Vendas/mês') + bi('conquista', 'ticket', 'Ticket R$', 100) + bi('conquista', 'margem', 'Margem %'), r.conqC, 'Sua base. Subir de 0,33 → 1 venda/corretor já triplica.')}
+
+    ${lever('👑 Sócio vende (alto ticket · comissão fica na casa)', '#a855f7', bi('socio', 'vendas', 'Vendas/mês') + bi('socio', 'ticket', 'Ticket R$', 100) + bi('socio', 'margem', 'Margem %'), r.socioC, 'Você/Isadora vendendo Terceiros/MAP: retém ~4–5%. Custo fixo zero (já na folha). A alavanca mais rápida.')}
+
+    ${lever('🤝 Terceiros (parceria · só tráfego)', '#0891b2', bi('terceiros', 'vendas', 'Vendas/mês') + bi('terceiros', 'ticket', 'Ticket R$', 100) + bi('terceiros', 'margem', 'Margem %') + bi('terceiros', 'trafego', 'Tráfego/mês R$', 96), r.tercC, 'Comissão pura (40% vendedor / 10% captador / 50% casa). Sem mínimo garantido. A mais barata de religar.')}
+
+    ${lever('🔑 Locação (recorrência + mínimo garantido)', '#d97706', bi('locacao', 'corretores', 'Corretores') + bi('locacao', 'minGar', 'Mín. garant. R$', 96) + bi('locacao', 'capt', 'Captações/mês') + bi('locacao', 'aluguel', 'Aluguel médio R$', 100) + bi('locacao', 'adm', '% adm', 60) + bi('locacao', 'carteira', 'Carteira (contratos)', 110) + bi('locacao', 'trafego', 'Tráfego/mês R$', 96), r.locC,
+      `1º aluguel <b style="color:${dc(r.loc1)}">${fmtC(r.loc1)}</b> + recorrente <b style="color:${dc(r.locRec)}">${fmtC(r.locRec)}</b> − mín. garantido <b style="color:#dc2626">${fmtC(r.locMin)}</b> − tráfego. O piso permanente: a carteira × adm banca a estrutura sozinha (${_be.locacao.aluguel && _be.locacao.adm ? Math.ceil(_be.fixo / (_be.locacao.aluguel * _be.locacao.adm / 100 * 0.92)) : '—'} contratos cobrem 100% do fixo).`)}
+
+    ${lever('🏢 MAP (corretores comissionados + tráfego + gestão)', '#7c3aed', bi('map', 'corretores', 'Corretores') + bi('map', 'vendasCorr', 'Vendas/corr/mês') + bi('map', 'ticket', 'Ticket R$', 100) + bi('map', 'margem', 'Margem %') + bi('map', 'trafego', 'Tráfego/mês R$', 96), r.mapC, 'Margem fina + consome sua energia de gestão + tráfego pago. Deixe por último.')}
+
+    <div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:center">
+      <input id="be-nome" class="input" placeholder="nome do cenário" style="max-width:200px">
+      <button class="btn btn-primary btn-sm" id="be-save">💾 Salvar cenário</button>
+      ${Object.keys(JSON.parse(localStorage.getItem(BEKEY) || '{}')).length ? `<select id="be-load" class="select" style="max-width:200px"><option value="">carregar cenário…</option>${Object.keys(JSON.parse(localStorage.getItem(BEKEY) || '{}')).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')}</select>` : ''}
+      <button class="btn btn-ghost btn-sm" id="be-reset">↩ Resetar</button>
+    </div>`;
+}
+function wireBE() {
+  document.querySelectorAll('.be-in').forEach(el => el.onchange = () => {
+    const g = el.dataset.g, f = el.dataset.f, v = num(el.value);
+    if (g === '_root') _be[f] = v; else _be[g][f] = v;
+    render();
+  });
+  const save = document.getElementById('be-save'); if (save) save.onclick = () => {
+    const nome = (document.getElementById('be-nome').value || '').trim(); if (!nome) return flash('dê um nome ao cenário');
+    const c = JSON.parse(localStorage.getItem(BEKEY) || '{}'); c[nome] = _be; localStorage.setItem(BEKEY, JSON.stringify(c)); flash('✅ cenário "' + nome + '" salvo'); render();
+  };
+  const load = document.getElementById('be-load'); if (load) load.onchange = () => { const c = JSON.parse(localStorage.getItem(BEKEY) || '{}'); if (c[load.value]) { _be = JSON.parse(JSON.stringify(c[load.value])); flash('cenário carregado'); render(); } };
+  const reset = document.getElementById('be-reset'); if (reset) reset.onclick = () => { _be = seedBE(); flash('resetado'); render(); };
 }
