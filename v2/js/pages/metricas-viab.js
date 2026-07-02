@@ -44,7 +44,7 @@ const ALOCS = [...LINHAS.map(l => [l.id, l.nome]), ['compartilhado', 'Compartilh
 const RATEIOS = [['igual', 'Igual'], ['proporcional', 'Proporcional'], ['especifico', 'Específico'], ['manual', 'Manual']];
 // seed com os custos REAIS (do modelo antigo). tupla: [desc, cat, valor, aloc, rateio]. classe=fixo.
 const _SEED_RAW = [
-  ['Pró-labore Paulo', 'Sócios', 8000, 'compartilhado', 'igual'], ['Pró-labore Isadora', 'Sócios', 8000, 'compartilhado', 'igual'],
+  ['Pró-labore Paulo', 'Sócios', 8000, 'compartilhado', 'igual'], ['Pró-labore Isabella', 'Sócios', 8000, 'compartilhado', 'igual'],
   ['Ponto / Aluguel sala', 'Estrutura', 15000, 'compartilhado', 'igual'], ['Condomínio', 'Estrutura', 5400, 'compartilhado', 'igual'],
   ['Energia', 'Estrutura', 1300, 'compartilhado', 'igual'], ['WiFi', 'Estrutura', 100, 'compartilhado', 'igual'],
   ['IPTU', 'Estrutura', 1500, 'compartilhado', 'igual'], ['Mobília (17k/12m)', 'Estrutura', 1416, 'compartilhado', 'igual'],
@@ -810,7 +810,7 @@ function renderBE() {
 
     ${lever('🏠 Conquista (equipe atual)', '#2563eb', bi('conquista', 'vendas', 'Vendas/mês') + bi('conquista', 'ticket', 'Ticket R$', 100) + bi('conquista', 'margem', 'Margem %'), r.conqC, 'Sua base. Subir de 0,33 → 1 venda/corretor já triplica.')}
 
-    ${lever('👑 Sócio vende (alto ticket · comissão fica na casa)', '#a855f7', bi('socio', 'vendas', 'Vendas/mês') + bi('socio', 'ticket', 'Ticket R$', 100) + bi('socio', 'margem', 'Margem %'), r.socioC, 'Você/Isadora vendendo Terceiros/MAP: retém ~4–5%. Custo fixo zero (já na folha). A alavanca mais rápida.')}
+    ${lever('👑 Sócio vende (alto ticket · comissão fica na casa)', '#a855f7', bi('socio', 'vendas', 'Vendas/mês') + bi('socio', 'ticket', 'Ticket R$', 100) + bi('socio', 'margem', 'Margem %'), r.socioC, 'Você vendendo Terceiros/MAP: retém ~4–5%. Custo fixo zero (já na folha). A alavanca mais rápida.')}
 
     ${lever('🤝 Terceiros (parceria · só tráfego)', '#0891b2', bi('terceiros', 'vendas', 'Vendas/mês') + bi('terceiros', 'ticket', 'Ticket R$', 100) + bi('terceiros', 'margem', 'Margem %') + bi('terceiros', 'trafego', 'Tráfego/mês R$', 96), r.tercC, 'Comissão pura (40% vendedor / 10% captador / 50% casa). Sem mínimo garantido. A mais barata de religar.')}
 
