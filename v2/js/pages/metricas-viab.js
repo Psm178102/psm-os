@@ -8,7 +8,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
-let _root = null, _tab = 'orcado', _ano = new Date().getFullYear(), _d = null, _msg = '';
+let _root = null, _tab = 'resumo', _ano = new Date().getFullYear(), _d = null, _msg = '';
 let _pIni = 1, _pFim = Math.max(1, new Date().getMonth() + 1);   // período da aba Realizado
 let _custoMes = Math.max(1, new Date().getMonth() + 1);          // mês em edição de custos reais
 let _sim = null;                                                 // estado do simulador
@@ -193,6 +193,7 @@ function render() {
       </div>
       <p class="card-sub">Orçado (plano) × Realizado (CRM + custo lançado) × Simulação — separados pra não confundir.</p>
       <div class="flex gap-1 mt-2" style="flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:8px">
+        ${tab('resumo', '📊 Resumo')}
         ${tab('orcado', '📋 Orçado (mensal)')}
         ${tab('realizado', '📈 Realizado mês a mês')}
         ${tab('be', '🎯 Break-even')}
@@ -203,7 +204,8 @@ function render() {
   _root.querySelectorAll('[data-vtab]').forEach(b => b.onclick = () => { _tab = b.dataset.vtab; render(); });
   _root.querySelectorAll('[data-ano]').forEach(b => { if (!b.disabled) b.onclick = () => { _ano = +b.dataset.ano; load(); }; });
   const body = document.getElementById('viab-body');
-  if (_tab === 'orcado') { body.innerHTML = renderOrcado(); wireOrcado(); }
+  if (_tab === 'resumo') { body.innerHTML = renderResumo(); wireResumo(); }
+  else if (_tab === 'orcado') { body.innerHTML = renderOrcado(); wireOrcado(); }
   else if (_tab === 'realizado') { body.innerHTML = renderRealizado(); wireRealizado(); }
   else if (_tab === 'be') { body.innerHTML = renderBE(); wireBE(); }
   else { body.innerHTML = renderSim(); wireSim(); }
@@ -683,4 +685,68 @@ function wireBE() {
   };
   const load = document.getElementById('be-load'); if (load) load.onchange = () => { const c = JSON.parse(localStorage.getItem(BEKEY) || '{}'); if (c[load.value]) { _be = JSON.parse(JSON.stringify(c[load.value])); flash('cenário carregado'); render(); } };
   const reset = document.getElementById('be-reset'); if (reset) reset.onclick = () => { _be = seedBE(); flash('resetado'); render(); };
+}
+
+/* ════════════ ABA 0 · RESUMO EXECUTIVO (v83.0 — profissional/didático/inteligente) ════════════ */
+function resumoData() {
+  const meses = (_ano === new Date().getFullYear()) ? Math.max(1, new Date().getMonth() + 1) : 12;
+  const det = custoOrcadoDet(); let fixo = 0; LIDS.forEach(l => { for (let m = 1; m <= 12; m++) fixo += det[l][m]; }); fixo /= 12;
+  const detST = custoOrcadoDet(true); const custoEmp = {}; LIDS.forEach(l => { custoEmp[l] = 0; for (let m = 1; m <= 12; m++) custoEmp[l] += detST[l][m]; custoEmp[l] /= 12; });
+  const frentes = LINHAS.map(l => {
+    let vgv = 0, vendas = 0; for (let m = 1; m <= 12; m++) { const r = realCell(l.id, m); vgv += r.vgv; vendas += r.vendas; }
+    const o = orcCell(l.id, 1);
+    const margemPct = (+o.com_bruta_pct || 0) - (+o.com_corretor_pct || 0) - (+o.com_senior_pct || 0) - (+o.com_gerente_pct || 0) - (+o.com_bruta_pct || 0) * (+o.aliquota_pct || 0) / 100;
+    const vgvMes = vgv / meses;
+    return { l, vgvMes, vendasMes: vendas / meses, margemPct, contrib: vgvMes * margemPct / 100, custoMes: custoEmp[l.id] };
+  });
+  const contribTotal = frentes.reduce((s, f) => s + f.contrib, 0);
+  return { fixo, frentes, contribTotal, cobertura: fixo ? contribTotal / fixo * 100 : 0, gap: fixo - contribTotal, meses };
+}
+function resumoInsight(d) {
+  if (d.gap <= 0) return `✅ <b>Operação no azul.</b> A contribuição das vendas (${fmt(d.contribTotal)}/mês) cobre o custo fixo com folga de <b>${fmt(-d.gap)}/mês</b> — o excedente vira lucro.`;
+  const ativas = d.frentes.filter(f => f.vgvMes > 0);
+  const top = d.frentes.slice().sort((a, b) => b.contrib - a.contrib)[0];
+  return `No ritmo atual você cobre <b>${d.cobertura.toFixed(0)}%</b> do custo fixo — faltam <b style="color:#f87171">${fmt(d.gap)}/mês</b> pra fechar. ${ativas.length <= 1 ? 'Só a <b>Conquista</b> está rodando' : `<b>${ativas.length} frentes</b> rodando`}. Como a margem de corretagem é fina (~${top ? top.margemPct.toFixed(1) : '1,8'}%), fechar só por volume é duro — as alavancas mais rápidas são <b>sócio vendendo alto ticket</b> (retém ~4–5%) e <b>locação recorrente</b> (piso que entra todo mês). Teste as combinações na aba 🎯 <b>Break-even</b>.`;
+}
+function heroStat(lbl, val, cor) { return `<div><div class="tiny" style="opacity:.8">${lbl}</div><div style="font-size:20px;font-weight:900;color:${cor}">${val}</div></div>`; }
+function renderResumo() {
+  const d = resumoData();
+  const ok = d.gap <= 0, cor = ok ? '#4ade80' : '#f87171';
+  const cob = Math.min(100, Math.max(0, d.cobertura));
+  const passo = (n, ico, t, sub, tabId) => `<button class="btn btn-ghost res-goto" data-goto="${tabId}" style="flex:1;min-width:148px;text-align:left;border:1px solid var(--border);border-radius:10px;padding:9px 11px;height:auto"><div class="tiny muted">Passo ${n}</div><div style="font-weight:800;font-size:13px">${ico} ${t}</div><div class="tiny muted">${sub}</div></button>`;
+  const margBadge = f => { const m = f.margemPct, c = m < 0.5 ? '#dc2626' : m < 1.5 ? '#d97706' : '#16a34a'; return `<div style="flex:1;min-width:135px;background:var(--bg-3);border-radius:10px;padding:9px 11px;border-left:4px solid ${f.l.cor}"><div class="tiny muted">${f.l.icon} ${f.l.nome}</div><div style="font-size:18px;font-weight:900;color:${c}">${pct(f.margemPct)}</div><div class="tiny muted">${f.vgvMes > 0 ? fmtC(f.vgvMes) + '/mês' : '⏸ pausada'}</div></div>`; };
+  const maxC = Math.max(1, ...d.frentes.map(f => f.custoMes));
+  const custoBar = f => `<div style="margin-bottom:6px"><div class="flex" style="justify-content:space-between;font-size:12px"><span>${f.l.icon} ${f.l.nome}</span><b>${fmt(f.custoMes)}/mês</b></div><div style="height:8px;background:var(--bg-3);border-radius:99px;overflow:hidden"><div style="height:100%;width:${(f.custoMes / maxC * 100).toFixed(0)}%;background:${f.l.cor}"></div></div></div>`;
+  return `
+    <div class="flex gap-2 mb-3" style="flex-wrap:wrap">
+      ${passo(1, '📋', 'Orce', 'metas + custos por frente', 'orcado')}
+      ${passo(2, '📈', 'Acompanhe', 'realizado × orçado', 'realizado')}
+      ${passo(3, '🎯', 'Simule', 'break-even & alavancas', 'be')}
+      ${passo(4, '🧪', 'Decida', 'cenários lado a lado', 'sim')}
+    </div>
+    <div class="card" style="margin:0 0 14px;background:var(--psm-navy);color:#fff">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+        ${heroStat('🏦 Custo fixo/mês', 'R$ ' + fmtC(d.fixo), '#cbd5e1')}
+        ${heroStat('💚 Contribuição/mês', 'R$ ' + fmtC(d.contribTotal), '#4ade80')}
+        ${heroStat(ok ? '🎉 Sobra/mês' : '⚠️ Falta/mês', 'R$ ' + fmtC(Math.abs(d.gap)), cor)}
+        ${heroStat('📊 Cobertura do fixo', d.cobertura.toFixed(0) + '%', ok ? '#4ade80' : '#fbbf24')}
+      </div>
+      <div style="margin-top:12px">
+        <div class="tiny" style="opacity:.8;margin-bottom:4px">Break-even — o quanto a contribuição preenche o custo fixo</div>
+        <div style="position:relative;height:14px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden"><div style="height:100%;width:${cob}%;background:${ok ? '#22c55e' : 'linear-gradient(90deg,#f59e0b,#ef4444)'}"></div></div>
+        <div class="tiny" style="opacity:.65;margin-top:3px">0% ·········· meta: 100% = R$ ${fmtC(d.fixo)}/mês</div>
+      </div>
+      <div style="margin-top:12px;background:rgba(255,255,255,.07);border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.55">💡 <b>Leitura automática:</b> ${resumoInsight(d)}</div>
+    </div>
+    <div class="card" style="margin:0 0 14px"><h3 class="card-title">💹 Margem líquida por frente <span class="tiny muted" style="font-weight:400" title="Quanto a PSM retém do VGV depois de corretor + sênior + gerente + imposto. Verde ≥1,5% · amarelo 0,5–1,5% · vermelho <0,5%">ⓘ</span></h3>
+      <div class="flex gap-2" style="flex-wrap:wrap">${d.frentes.map(margBadge).join('')}</div>
+      <div class="tiny muted mt-2">Margem = comissão bruta − corretor − sênior − gerente − imposto. Fina na corretagem residencial; alta na captação de locação.</div>
+    </div>
+    <div class="card" style="margin:0"><h3 class="card-title">🏢 Custo por empresa/mês <span class="tiny muted" style="font-weight:400">(fixo+variável, sem tráfego)</span></h3>
+      ${d.frentes.map(custoBar).join('')}
+      <div class="tiny muted mt-1">Total operacional (sem tráfego): <b>${fmt(d.frentes.reduce((s, f) => s + f.custoMes, 0))}/mês</b>. Edite na aba Orçado → 🧾 Custos detalhados.</div>
+    </div>`;
+}
+function wireResumo() {
+  document.querySelectorAll('.res-goto').forEach(b => b.onclick = () => { if (b.dataset.goto === 'orcado') _orcView = 'receita'; _tab = b.dataset.goto; render(); });
 }
