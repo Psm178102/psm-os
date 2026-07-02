@@ -1,8 +1,9 @@
 {
-  "version": "82.6.0",
-  "meta": "2026.07.02-v82.6-viab-break-even-estrategico",
-  "built": "2026-07-02T14:00:00Z",
-  "sw": "v82.6.0-2026-07-02-VIABBREAKEVEN",
+  "version": "82.7.0",
+  "meta": "2026.07.02-v82.7-viab-acesso-pela-matriz",
+  "built": "2026-07-02T15:30:00Z",
+  "sw": "v82.7.0-2026-07-02-VIABMATRIZ",
+  "sprint": "v82.7 — Acesso à Métricas de Viabilidade agora é PERSONALIZÁVEL na matriz de permissões (Configurações → Permissões), não mais travado em lvl fixo. Removido o gate 'Requer Sócio lvl 7+' da página; backend viab.py ganhou can_viab() que espelha o canSee do front: sócio/diretor (lvl≥10) sempre; se a matriz (role_perms) tem override do papel, respeita; senão, default do grupo diretoria (lvl≥7). Assim o sócio libera/tira o item por papel (ex.: tirar do gerente_conquista/Kaue) e menu+API batem. GET/POST protegidos por can_viab.",
   "sprint": "v82.6 — Nova aba 🎯 BREAK-EVEN ESTRATÉGICO na Viabilidade: monta combinações de alavancas e vê o resultado/mês fechar ao vivo. Custo fixo (dos custos detalhados, editável p/ testar cortes) vs contribuição de: Conquista (equipe), 👑 Sócio vende (alto ticket, comissão fica na casa, margem 4-5%), Terceiros (parceria só tráfego), Locação (recorrência + MÍNIMO GARANTIDO comendo a margem até a carteira crescer; mostra quantos contratos cobrem 100% do fixo), MAP (corretores + tráfego + gestão). Painel com resultado, % cobertura e semáforo. Salva/compara cenários (localStorage). Só frontend (metricas-viab.js).",
   "sprint": "v82.5 — Viabilidade: premissas de comissão CORRIGIDAS pros números reais (Paulo, jul/2026). Conquista: bruta 4% (era 5%), corretor efetivo 1,5% (origem 1,4–1,8%), GERENTE 0,25% (era 'sênior 1%' chutado) → margem ~1,6–2,0%. MAP: bruta 4%, corretor 2% (1,8–2,2% por performance), SEM gerente → margem ~1,7–1,9%. Campo 'Sênior %' virou 'Gerente/Sênior %' e 'Corretor %' virou 'Corretor % (efetivo)'. Defaults no backend viab.py; editável por frente na tela. Base pra decidir break-even (sócio-venda alto ticket + corretores MAP comissionados + locação recorrente).",
   "sprint": "v82.4 — Custos detalhados: controle GLOBAL editável de quais empresas rateiam o overhead (Igual/Proporcional). Antes o 'Igual' dividia fixo entre as 4; agora tem checkboxes '⚖️ Quem rateia o overhead' (MAP/Conquista/Terceiros/Locações) que valem pra todos os custos compartilhados — ex.: desmarcar Terceiros pra ele não pegar estrutura (como no modelo antigo). Salva na hora. Específico/Manual continuam por-item. Backend guarda rateio_empresas no viab_custos_orcado. metricas-viab.js + viab.py.",

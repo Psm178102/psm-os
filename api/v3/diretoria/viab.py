@@ -71,6 +71,22 @@ def read_kv(sb, key):
         return {}
 
 
+def can_viab(sb, actor):
+    """Acesso à Viabilidade é PERSONALIZÁVEL na matriz de permissões (v82.7):
+    • sócio/diretor (lvl>=10) sempre;
+    • se a matriz (role_perms) tem override explícito do papel → respeita ela;
+    • sem override → default do grupo 'diretoria' (lvl>=7: gerentes/diretor/sócio).
+    Espelha o canSee do front, então menu e API batem."""
+    lvl = actor.get("lvl") or 0
+    if lvl >= 10:
+        return True
+    role = (actor.get("role") or "").strip()
+    rp = read_kv(sb, "role_perms")
+    if isinstance(rp, dict) and role in rp:
+        return "/metricas-viab" in (rp.get(role) or [])
+    return lvl >= 7
+
+
 def write_kv(sb, key, val):
     sb.table("shared_kv").upsert({"key": key, "value": val,
                                   "updated_at": datetime.now(timezone.utc).isoformat()}, on_conflict="key").execute()
@@ -235,9 +251,11 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._send(500, {"ok": False, "cron": True, "error": str(e)})
         try:
-            require_user(self, min_lvl=7)
+            actor = require_user(self, min_lvl=2)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
+        if not can_viab(sb, actor):
+            return self._send(403, {"ok": False, "error": "sem permissão — ajustável na matriz (Configurações → Permissões)"})
         try:
             qs = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
         except Exception:
@@ -257,9 +275,13 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            actor = require_user(self, min_lvl=7)
+            actor = require_user(self, min_lvl=2)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
+        sb0 = supabase_client()
+        if not sb0: return self._send(503, {"ok": False, "error": "backend"})
+        if not can_viab(sb0, actor):
+            return self._send(403, {"ok": False, "error": "sem permissão — ajustável na matriz (Configurações → Permissões)"})
         try:
             length = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(length).decode("utf-8") if length > 0 else "{}")

@@ -159,7 +159,8 @@ function custoOrcLinhaMes(l, m) {
 /* ── boot ── */
 export async function pageMetricasViab(ctx, root) {
   _root = root;
-  if ((auth.user()?.lvl || 0) < 7) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Sócio (lvl 7+).</div>'; return; }
+  // Acesso controlado pela MATRIZ de permissões (router canSee) + backend can_viab.
+  // Sem gate fixo de nível — o sócio libera/tira por papel em Configurações → Permissões. v82.7
   await load();
 }
 async function load() {
