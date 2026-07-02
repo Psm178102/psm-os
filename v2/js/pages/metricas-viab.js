@@ -21,6 +21,7 @@ let _rateioEmp = null;                                           // empresas que
 let _cats = null;                                                // categorias de custo (criar/renomear/apagar, v83.2)
 let _catsOpen = false;                                           // gerenciador de categorias aberto?
 let _be = null;                                                  // cenário do break-even estratégico (v82.6)
+let _beSemPL = false;                                            // break-even: descontar pró-labore do fixo? (v83.5)
 
 const LINHAS = [
   { id: 'map', nome: 'PSM M.A.P', icon: '🏢', cor: '#7c3aed' },
@@ -85,8 +86,9 @@ const num = v => {
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 };
-const fmt = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-const fmtC = n => { n = Number(n) || 0; const a = Math.abs(n); if (a >= 1e6) return 'R$ ' + (n / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'M'; if (a >= 1e3) return 'R$ ' + (n / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + 'k'; return 'R$ ' + n.toLocaleString('pt-BR', { maximumFractionDigits: 0 }); };
+// v83.5 — valor SEMPRE cheio, mínimo 2 casas, sem abreviar (k/M). Paulo pediu R$ XX.XXX,XX em todo lugar.
+const fmt = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtC = fmt;   // antes abreviava (30k); agora idêntico ao cheio
 const pct = n => (Number(n) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
 const dc = n => (n || 0) >= 0 ? '#16a34a' : '#dc2626';
 
@@ -111,13 +113,14 @@ function custoPorCategoria() {
 function calc(vgv, vendas, o, custo) {
   vgv = +vgv || 0; vendas = +vendas || 0; custo = +custo || 0;
   const receita = vgv * (+o.com_bruta_pct || 0) / 100;
-  const cc = vgv * (+o.com_corretor_pct || 0) / 100;
+  const cc = vgv * (+o.com_corretor_pct || 0) / 100;             // corretor s/ VGV
+  const ccCom = receita * (+o.com_corretor_sobre_com_pct || 0) / 100;  // corretor s/ a comissão (v83.5)
   const cs = vgv * (+o.com_senior_pct || 0) / 100;
   const cg = vgv * (+o.com_gerente_pct || 0) / 100;   // gerente s/ VGV (v82.8)
   const imp = receita * (+o.aliquota_pct || 0) / 100;
   const custoTot = custo + (+o.verba_mkt || 0);
-  const lucro = receita - cc - cs - cg - imp - custoTot;
-  return { vgv, vendas, receita, cc, cs, cg, imp, custo: custoTot, lucro, ticket: vendas ? vgv / vendas : 0, margem: vgv ? lucro / vgv * 100 : 0 };
+  const lucro = receita - cc - ccCom - cs - cg - imp - custoTot;
+  return { vgv, vendas, receita, cc, ccCom, cs, cg, imp, custo: custoTot, lucro, ticket: vendas ? vgv / vendas : 0, margem: vgv ? lucro / vgv * 100 : 0 };
 }
 function orcCell(linha, mes) {
   const base = Object.assign({}, (_d.defaults || {})[linha] || {});
@@ -640,7 +643,7 @@ function simSeed() {
   for (const l of LIDS) {
     const c = orcCell(l, mes);
     let custoMes = 0; for (let m = 1; m <= 12; m++) custoMes += det[l][m]; custoMes = Math.round(custoMes / 12);
-    o[l] = { vgv: c.vgv || 0, vendas: c.vendas || 0, com_bruta_pct: c.com_bruta_pct, com_corretor_pct: c.com_corretor_pct, com_senior_pct: c.com_senior_pct, com_gerente_pct: c.com_gerente_pct || 0, aliquota_pct: c.aliquota_pct, custo_fixo: custoMes, verba_mkt: c.verba_mkt || 0 };
+    o[l] = { vgv: c.vgv || 0, vendas: c.vendas || 0, com_bruta_pct: c.com_bruta_pct, com_corretor_pct: c.com_corretor_pct, com_corretor_sobre_com_pct: c.com_corretor_sobre_com_pct || (l === 'terceiros' ? 50 : 0), com_senior_pct: c.com_senior_pct, com_gerente_pct: c.com_gerente_pct || 0, aliquota_pct: c.aliquota_pct, custo_fixo: custoMes, verba_mkt: c.verba_mkt || 0 };
     if (l === 'locacoes') o[l].admRec = 0;   // adm recorrente/mês que entra no caixa (v83.3)
   }
   return o;
@@ -660,16 +663,16 @@ function renderSim() {
     return `<div class="card" style="margin:0 0 10px;border-left:4px solid ${l.cor}">
       <div class="flex items-center"><b>${l.icon} ${l.nome}</b><span style="margin-left:auto;font-weight:800;color:${dc(lucroTot)}">Resultado/mês: ${fmt(lucroTot)}</span></div>
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
-        ${fld('vgv', isLoc ? '1º aluguel/mês' : 'VGV/mês')}${fld('vendas', isLoc ? 'Captações' : 'Vendas')}${fld('com_bruta_pct', 'Com. bruta %')}${fld('com_corretor_pct', 'Corretor %')}${fld('com_senior_pct', 'Sênior %')}${fld('com_gerente_pct', 'Gerente %')}${fld('aliquota_pct', 'Imposto %')}${fld('custo_fixo', 'Custo/mês (s/ tráfego)')}${fld('verba_mkt', 'Tráfego/mês')}${isLoc ? fld('admRec', '🔑 Adm recorrente/mês R$') : ''}
+        ${fld('vgv', isLoc ? '1º aluguel/mês' : 'VGV/mês')}${fld('vendas', isLoc ? 'Captações' : 'Vendas')}${fld('com_bruta_pct', 'Com. bruta % (s/ VGV)')}${fld('com_corretor_pct', 'Corretor % s/ VGV')}${fld('com_corretor_sobre_com_pct', 'Corretor % s/ comissão')}${fld('com_senior_pct', 'Sênior % s/ VGV')}${fld('com_gerente_pct', 'Gerente % s/ VGV')}${fld('aliquota_pct', 'Imposto % (s/ comissão)')}${fld('custo_fixo', 'Custo/mês (s/ tráfego)')}${fld('verba_mkt', '📣 Tráfego pago/mês')}${isLoc ? fld('admRec', '🔑 Adm recorrente/mês R$') : ''}
       </div>
-      <div class="tiny muted mt-1">Receita ${fmtC(r.receita)} · corretor ${fmtC(r.cc)} · sênior ${fmtC(r.cs)} · gerente ${fmtC(r.cg)} · imposto ${fmtC(r.imp)} · custo ${fmtC(r.custo)}${isLoc ? ` · <b style="color:#16a34a">adm recorrente +${fmtC(admLiq)}/mês (líq. imposto)</b>` : ''} · margem <b style="color:${dc(r.margem)}">${pct(r.margem)}</b></div>
+      <div class="tiny muted mt-1">Receita ${fmtC(r.receita)} · corretor s/VGV ${fmtC(r.cc)} · corretor s/com. ${fmtC(r.ccCom)} · sênior ${fmtC(r.cs)} · gerente ${fmtC(r.cg)} · imposto ${fmtC(r.imp)} · custo ${fmtC(r.custo)}${isLoc ? ` · <b style="color:#16a34a">adm recorrente +${fmtC(admLiq)}/mês (líq. imposto)</b>` : ''} · margem <b style="color:${dc(r.margem)}">${pct(r.margem)}</b></div>
     </div>`;
   }).join('');
   const opts = Object.keys(cenarios).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
   const detST = custoOrcadoDet(true);
   const custoRef = LINHAS.map(l => { let c = 0; for (let m = 1; m <= 12; m++) c += detST[l.id][m]; return `<span class="tiny">${l.icon} <b style="color:${l.cor}">${fmt(c / 12)}</b></span>`; }).join(' · ');
   return `
-    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:10px">🧪 <b>Sandbox</b> — mexa à vontade. Não afeta o orçado nem o realizado. Salve cenários e compare.</div>
+    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:10px">🧪 <b>Sandbox</b> — mexa à vontade. Não afeta o orçado nem o realizado. Salve cenários e compare.<br><span class="tiny muted">Modelo completo por frente: <b>comissão bruta</b> (% s/ VGV) → <b>corretor</b> pode ser % s/ VGV <b>e/ou</b> % s/ a comissão (ex.: Terceiros 40%+10% da comissão = 50%) → <b>sênior</b> e <b>gerente</b> (% s/ VGV) → <b>imposto</b> (% s/ a comissão) → <b>custo fixo</b> + <b>tráfego pago</b>.</span></div>
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center;background:var(--bg-3);border-radius:8px;padding:7px 10px">
       <span class="tiny" style="font-weight:700">💰 Custo real por empresa/mês (fixo+var, <b>sem tráfego</b>):</span> ${custoRef}
       <span class="tiny muted" style="margin-left:auto">o "Custo/mês" de cada card já vem semeado com esse valor</span>
@@ -697,6 +700,13 @@ function wireSim() {
 
 /* ════════════ ABA 4 · BREAK-EVEN ESTRATÉGICO (v82.6) ════════════ */
 const BEKEY = 'psm_viab_be_cenarios';
+function proLaboreMes() {
+  // detecta pró-labore/retirada de sócio nos custos (por descrição; fallback = categoria "Sócios"). v83.5
+  let pl = 0; const rx = /pr[óo]\s*-?\s*labore|retirada/i;
+  (_custosOrc || []).forEach(it => { if (rx.test(it.desc || '')) pl += itemAnual(it); });
+  if (!pl) (_custosOrc || []).forEach(it => { if (it.cat === 'Sócios') pl += itemAnual(it); });
+  return Math.round(pl / 12);
+}
 function seedBE() {
   const det = custoOrcadoDet(); let fixo = 0;
   LIDS.forEach(l => { for (let m = 1; m <= 12; m++) fixo += det[l][m]; });
@@ -705,7 +715,7 @@ function seedBE() {
   for (let m = 1; m <= 12; m++) { const r = realCell('conquista', m); cv += r.vendas; cVGV += r.vgv; }
   const meses = Math.max(1, new Date().getMonth() + 1);
   return {
-    fixo,
+    fixo, proLabore: proLaboreMes(),
     conquista: { vendas: cv ? +(cv / meses).toFixed(1) : 2.3, ticket: cv ? Math.round(cVGV / cv) : 283000, margem: 1.8 },
     socio: { vendas: 0, ticket: 400000, margem: 4.5 },
     map: { corretores: 0, vendasCorr: 2, ticket: 345000, margem: 1.88, trafego: 3000 },
@@ -731,23 +741,26 @@ function beCalc(be) {
 function renderBE() {
   if (!_be) _be = seedBE();
   const r = beCalc(_be);
-  const cor = r.resultado >= 0 ? '#4ade80' : '#f87171';
-  const cob = _be.fixo ? Math.min(100, r.total / _be.fixo * 100) : 0;
+  const proLab = +_be.proLabore || 0;
+  const fixoEf = _beSemPL ? Math.max(0, (+_be.fixo || 0) - proLab) : (+_be.fixo || 0);   // custo fixo considerado (v83.5)
+  const resultado = r.total - fixoEf;
+  const cor = resultado >= 0 ? '#4ade80' : '#f87171';
+  const cob = fixoEf ? Math.min(100, r.total / fixoEf * 100) : 0;
   // barra de cobertura LÍQUIDA do fixo + quebra por alavanca com sinal (v83.4.1 — casa com a cobertura%)
   const segs = [
     { lbl: '🏠 Conquista', v: r.conqC }, { lbl: '👑 Sócio', v: r.socioC },
     { lbl: '🤝 Terceiros', v: r.tercC }, { lbl: '🔑 Locação', v: r.locC }, { lbl: '🏢 MAP', v: r.mapC },
   ].filter(s => Math.abs(s.v) > 1);
-  const beScale = Math.max(r.total, _be.fixo, 1);
+  const beScale = Math.max(r.total, fixoEf, 1);
   const fillPct = Math.max(0, Math.min(100, r.total / beScale * 100));
-  const fixoPct = Math.min(100, _be.fixo / beScale * 100);
-  const barBg = r.total >= _be.fixo ? '#22c55e' : (r.total > 0 ? 'linear-gradient(90deg,#f59e0b,#22c55e)' : '#ef4444');
+  const fixoPct = Math.min(100, fixoEf / beScale * 100);
+  const barBg = r.total >= fixoEf ? '#22c55e' : (r.total > 0 ? 'linear-gradient(90deg,#f59e0b,#22c55e)' : '#ef4444');
   const torre = `<div style="margin-top:14px">
-    <div class="tiny" style="opacity:.8;margin-bottom:6px">🧱 Contribuição líquida das alavancas vs custo fixo <span style="opacity:.7">(tracejado = 100% do fixo · barra = ${fillPct.toFixed(0)}%)</span></div>
+    <div class="tiny" style="opacity:.8;margin-bottom:6px">🧱 Contribuição líquida das alavancas vs custo fixo <span style="opacity:.7">(tracejado = 100% do fixo ${_beSemPL ? 'SEM' : 'COM'} pró-labore · barra = ${fillPct.toFixed(0)}%)</span></div>
     <div style="position:relative;height:22px;margin-top:16px">
       <div style="height:100%;background:rgba(255,255,255,.10);border-radius:6px;overflow:hidden"><div style="height:100%;width:${fillPct}%;background:${barBg};transition:width .2s"></div></div>
       <div style="position:absolute;top:-5px;bottom:-5px;left:${fixoPct}%;width:0;border-left:2px dashed #fff"></div>
-      <div class="tiny" style="position:absolute;top:-16px;left:${fixoPct}%;transform:translateX(-50%);opacity:.85;white-space:nowrap">fixo ${fmtC(_be.fixo)}</div>
+      <div class="tiny" style="position:absolute;top:-16px;left:${fixoPct}%;transform:translateX(-50%);opacity:.85;white-space:nowrap">fixo ${fmtC(fixoEf)}</div>
     </div>
     <div class="flex gap-2" style="flex-wrap:wrap;margin-top:9px">${segs.map(s => `<span class="tiny" style="opacity:.9"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${s.v >= 0 ? '#22c55e' : '#ef4444'};margin-right:3px;vertical-align:middle"></span>${s.lbl} <b style="color:${s.v >= 0 ? '#4ade80' : '#f87171'}">${s.v >= 0 ? '+' : ''}${fmtC(s.v)}</b></span>`).join('') || '<span class="tiny" style="opacity:.7">preencha as alavancas abaixo</span>'}</div>
   </div>`;
@@ -760,18 +773,26 @@ function renderBE() {
       ${hint ? `<div class="tiny muted mt-1">${hint}</div>` : ''}
     </div>`;
   return `
-    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:12px">🎯 <b>Break-even estratégico</b> — mexa nas alavancas e veja o resultado fechar. O custo fixo vem dos Custos detalhados (editável aqui p/ testar cortes). Locação: o <b>mínimo garantido</b> come a margem até a carteira recorrente crescer. Salve cenários e compare.</div>
+    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:12px">🎯 <b>Break-even estratégico</b> — mexa nas alavancas e veja o resultado fechar. O custo fixo vem dos Custos detalhados (editável aqui p/ testar cortes). Use o botão <b>Com/Sem pró-labore</b> pra ver as duas realidades: caixa completo (contando sua retirada) × operacional puro (sem ela). Locação: o <b>mínimo garantido</b> come a margem até a carteira recorrente crescer. Salve cenários e compare.</div>
 
     <div class="card" style="margin:0 0 14px;background:var(--psm-navy);color:#fff">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:center">
-        <div><div class="tiny" style="opacity:.8">Custo fixo/mês</div><div class="flex" style="align-items:center;gap:4px"><span style="font-weight:700">R$</span><input class="input be-in" data-g="_root" data-f="fixo" value="${_be.fixo}" style="width:110px;padding:4px 6px;font-weight:800;text-align:right"></div></div>
-        <div><div class="tiny" style="opacity:.8">Contribuição total/mês</div><div style="font-size:20px;font-weight:900">${fmt(r.total)}</div></div>
-        <div><div class="tiny" style="opacity:.8">Resultado/mês</div><div style="font-size:24px;font-weight:900;color:${cor}">${r.resultado >= 0 ? '+' : ''}${fmt(r.resultado)}</div></div>
-        <div><div class="tiny" style="opacity:.8">Cobertura do fixo</div><div style="font-size:20px;font-weight:900;color:${cor}">${cob.toFixed(0)}%</div>
+      <div class="flex" style="align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <div style="display:inline-flex;background:rgba(255,255,255,.10);border-radius:8px;padding:3px">
+          <button class="be-pl" data-pl="0" style="cursor:pointer;border:none;padding:6px 13px;font-size:12px;font-weight:700;border-radius:6px;background:${!_beSemPL ? '#22c55e' : 'transparent'};color:#fff">Com pró-labore</button>
+          <button class="be-pl" data-pl="1" style="cursor:pointer;border:none;padding:6px 13px;font-size:12px;font-weight:700;border-radius:6px;background:${_beSemPL ? '#22c55e' : 'transparent'};color:#fff">Sem pró-labore</button>
+        </div>
+        <label class="tiny" style="opacity:.9;display:flex;align-items:center;gap:4px">Pró-labore/mês <span style="font-weight:700">R$</span><input class="input be-in" data-g="_root" data-f="proLabore" value="${_be.proLabore ?? 0}" style="width:110px;padding:3px 6px;font-weight:700;text-align:right"></label>
+        <span class="tiny" style="opacity:.7;flex:1;min-width:160px">${_beSemPL ? 'descontando a retirada dos sócios — visão operacional pura' : 'contando a retirada dos sócios — visão caixa completa'}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;align-items:start">
+        <div><div class="tiny" style="opacity:.8">Custo fixo total/mês</div><div class="flex" style="align-items:center;gap:4px"><span style="font-weight:700">R$</span><input class="input be-in" data-g="_root" data-f="fixo" value="${_be.fixo}" style="width:110px;padding:4px 6px;font-weight:800;text-align:right"></div><div class="tiny" style="opacity:.7;margin-top:2px">considerado: <b>${fmt(fixoEf)}</b>${_beSemPL ? ` (−${fmtC(proLab)} pró-labore)` : ''}</div></div>
+        <div><div class="tiny" style="opacity:.8">Contribuição total/mês</div><div style="font-size:19px;font-weight:900">${fmt(r.total)}</div></div>
+        <div><div class="tiny" style="opacity:.8">Resultado/mês</div><div style="font-size:22px;font-weight:900;color:${cor}">${resultado >= 0 ? '+' : ''}${fmt(resultado)}</div></div>
+        <div><div class="tiny" style="opacity:.8">Cobertura do fixo</div><div style="font-size:19px;font-weight:900;color:${cor}">${cob.toFixed(0)}%</div>
           <div style="height:7px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${cob}%;background:${cor}"></div></div></div>
       </div>
       ${torre}
-      <div class="tiny" style="opacity:.85;margin-top:12px">${r.resultado >= 0 ? '✅ Break-even batido — o excedente vira lucro.' : `⚠️ Faltam ${fmt(-r.resultado)}/mês pra fechar.`}</div>
+      <div class="tiny" style="opacity:.85;margin-top:12px">${resultado >= 0 ? `✅ Break-even batido ${_beSemPL ? 'sem contar pró-labore' : 'já contando pró-labore'} — o excedente vira lucro.` : `⚠️ Faltam ${fmt(-resultado)}/mês pra fechar${_beSemPL ? ' (sem pró-labore)' : ' (com pró-labore)'}.`}</div>
     </div>
 
     ${lever('🏠 Conquista (equipe atual)', '#2563eb', bi('conquista', 'vendas', 'Vendas/mês') + bi('conquista', 'ticket', 'Ticket R$', 100) + bi('conquista', 'margem', 'Margem %'), r.conqC, 'Sua base. Subir de 0,33 → 1 venda/corretor já triplica.')}
@@ -793,6 +814,7 @@ function renderBE() {
     </div>`;
 }
 function wireBE() {
+  document.querySelectorAll('.be-pl').forEach(b => b.onclick = () => { _beSemPL = b.dataset.pl === '1'; render(); });   // toggle com/sem pró-labore (v83.5)
   document.querySelectorAll('.be-in').forEach(el => el.onchange = () => {
     const g = el.dataset.g, f = el.dataset.f, v = num(el.value);
     if (g === '_root') _be[f] = v; else _be[g][f] = v;
@@ -886,10 +908,11 @@ function wireResumo() {
   // donut de custo por categoria (v83.4)
   const cats = custoPorCategoria();
   if (cats.length && document.getElementById('viab-cat-donut')) {
+    const totCat = cats.reduce((s, c) => s + c.mes, 0) || 1;
     mkChart('viab-cat-donut', {
       type: 'doughnut',
       data: { labels: cats.map(c => c.cat), datasets: [{ data: cats.map(c => Math.round(c.mes)), backgroundColor: cats.map((_, i) => CHART_PAL[i % CHART_PAL.length]), borderWidth: 0 }] },
-      options: darkOpts({ cutout: '58%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.label}: ${fmtC(c.parsed)}/mês` } } } }),
+      options: darkOpts({ cutout: '58%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.label}: ${fmtC(c.parsed)} (${(c.parsed / totCat * 100).toFixed(1)}%)` } } } }),
     });
   }
 }
