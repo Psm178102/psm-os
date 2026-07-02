@@ -7,8 +7,11 @@
    Backend: /api/v3/diretoria/viab (shared_kv viab_orcamento/custos_real/snapshots + realizado do CRM). */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { loadChartLib, darkOpts, DARK_INK, DARK_GRID } from '../premium.js';
 
 let _root = null, _tab = 'resumo', _ano = new Date().getFullYear(), _d = null, _msg = '';
+let _vcharts = [];   // instâncias Chart.js vivas (destruídas a cada render, v83.4)
+let _rSeries = null;  // séries mês a mês pro gráfico do Realizado (v83.4)
 let _pIni = 1, _pFim = Math.max(1, new Date().getMonth() + 1);   // período da aba Realizado
 let _custoMes = Math.max(1, new Date().getMonth() + 1);          // mês em edição de custos reais
 let _sim = null;                                                 // estado do simulador
@@ -86,6 +89,23 @@ const fmt = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFract
 const fmtC = n => { n = Number(n) || 0; const a = Math.abs(n); if (a >= 1e6) return 'R$ ' + (n / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'M'; if (a >= 1e3) return 'R$ ' + (n / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + 'k'; return 'R$ ' + n.toLocaleString('pt-BR', { maximumFractionDigits: 0 }); };
 const pct = n => (Number(n) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
 const dc = n => (n || 0) >= 0 ? '#16a34a' : '#dc2626';
+
+/* ── gráficos (Chart.js sob demanda) v83.4 ── */
+const CHART_PAL = ['#7c3aed', '#2563eb', '#0891b2', '#d97706', '#16a34a', '#dc2626', '#db2777', '#0d9488', '#ca8a04', '#4f46e5', '#9333ea', '#059669', '#e11d48', '#f59e0b', '#64748b'];
+async function mkChart(canvasId, cfg) {
+  const el = document.getElementById(canvasId); if (!el) return;
+  try {
+    const Chart = await loadChartLib();
+    if (document.getElementById(canvasId) !== el) return;   // tela mudou enquanto carregava a lib
+    _vcharts.push(new Chart(el, cfg));
+  } catch (_) { const w = document.getElementById(canvasId + '-wrap'); if (w) w.innerHTML = '<div class="tiny muted" style="text-align:center;padding:20px">gráfico indisponível (sem conexão com a lib)</div>'; }
+}
+// composição do custo orçado por categoria (valor mensal, desc) — pro donut do Resumo
+function custoPorCategoria() {
+  const t = {};
+  (_custosOrc || []).forEach(it => { t[it.cat] = (t[it.cat] || 0) + itemAnual(it); });
+  return Object.entries(t).map(([cat, v]) => ({ cat, mes: v / 12 })).filter(x => x.mes > 0.5).sort((a, b) => b.mes - a.mes);
+}
 
 /* ── motor de viabilidade (espelha o backend snapshot_linha) ── */
 function calc(vgv, vendas, o, custo) {
@@ -186,6 +206,7 @@ async function load() {
 }
 function render() {
   _custoDetMemo = null;   // recalcula custos detalhados do zero a cada render
+  _vcharts.forEach(c => { try { c.destroy(); } catch (_) {} }); _vcharts = [];   // limpa gráficos da tela anterior (v83.4)
   const tab = (id, lbl) => `<button class="btn ${_tab === id ? 'btn-primary' : 'btn-ghost'} btn-sm" data-vtab="${id}">${lbl}</button>`;
   _root.innerHTML = `
     <div class="card">
@@ -468,11 +489,13 @@ function renderRealizado() {
       <td style="padding:7px 8px;text-align:right;color:${dc(dl)}">${dl >= 0 ? '▲' : '▼'} ${fmtC(Math.abs(dl))}</td>
     </tr>`;
   }).join('');
-  // mês a mês (consolidado realizado)
-  const mm = [];
+  // mês a mês (consolidado realizado) + séries pro gráfico (v83.4)
+  const mm = [], chLbl = [], chVgvR = [], chVgvO = [], chLucroR = [];
   for (let m = _pIni; m <= _pFim; m++) {
     const custos = custoRealMes(m); let vgv = 0, lucro = 0, custo = 0;
     for (const l of LIDS) { const rc = realCell(l, m); const r = calc(rc.vgv, rc.vendas, orcReal(l, m), custos[l] || 0); vgv += r.vgv; lucro += r.lucro; custo += r.custo; }
+    let vgvO = 0; for (const l of LIDS) { const o = orcCell(l, m); const ro = calc(o.vgv || 0, o.vendas || 0, o, custoOrcLinhaMes(l, m)); vgvO += ro.vgv; }
+    chLbl.push(MES[m - 1]); chVgvR.push(Math.round(vgv)); chVgvO.push(Math.round(vgvO)); chLucroR.push(Math.round(lucro));
     const fechado = !!(_d.snapshots || {})[`${_ano}-${m}`];
     mm.push(`<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:6px 8px;font-weight:600">${MES[m - 1]}${fechado ? ' <span class="tiny" style="color:#16a34a">🔒 fechado</span>' : ''}</td>
@@ -482,6 +505,7 @@ function renderRealizado() {
       <td style="padding:6px 8px;text-align:right">${fechado ? `<button class="btn btn-ghost btn-sm" data-reabrir="${m}" style="padding:2px 7px">reabrir</button>` : `<button class="btn btn-ghost btn-sm" data-fechar="${m}" style="padding:2px 7px">🔒 fechar</button>`}</td>
     </tr>`);
   }
+  _rSeries = { lbl: chLbl, vgvR: chVgvR, vgvO: chVgvO, lucroR: chLucroR };
   return `
     <div class="flex gap-2" style="flex-wrap:wrap;align-items:end;background:var(--bg-3);padding:10px 12px;border-radius:10px;margin-bottom:12px">
       <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">De ${selMes('per-ini', _pIni)}</label>
@@ -493,6 +517,11 @@ function renderRealizado() {
       ${kpi('VGV', O.acc.vgv, R.acc.vgv, true)}
       ${kpi('Lucro', O.acc.lucro, R.acc.lucro, true)}
       ${kpi('Margem', O.acc.margem, R.acc.margem, false)}
+    </div>
+    <div class="card" style="margin:0 0 14px">
+      <h3 class="card-title">📊 VGV orçado × realizado por mês <span class="tiny muted" style="font-weight:400">· lucro realizado na linha</span></h3>
+      <div id="viab-real-chart-wrap" style="height:260px;position:relative"><canvas id="viab-real-chart"></canvas></div>
+      <div class="tiny muted mt-1">Barras = VGV (claro = orçado, cheio = realizado). Linha verde = lucro realizado. Vê num relance onde o mês bateu ou furou a meta.</div>
     </div>
     <div class="card" style="margin:0 0 14px">
       <h3 class="card-title">Orçado × Realizado por linha <span class="tiny muted" style="font-weight:400">· ${MES[_pIni - 1]}–${MES[_pFim - 1]}</span></h3>
@@ -555,6 +584,27 @@ function wireRealizado() {
   const pi = document.getElementById('per-ini'), pf = document.getElementById('per-fim');
   if (pi) pi.onchange = () => { _pIni = +pi.value; if (_pIni > _pFim) _pFim = _pIni; render(); };
   if (pf) pf.onchange = () => { _pFim = +pf.value; if (_pFim < _pIni) _pIni = _pFim; render(); };
+  // gráfico VGV orçado × realizado + lucro (v83.4)
+  if (_rSeries && document.getElementById('viab-real-chart')) {
+    const s = _rSeries;
+    mkChart('viab-real-chart', {
+      type: 'bar',
+      data: { labels: s.lbl, datasets: [
+        { type: 'bar', label: 'VGV orçado', data: s.vgvO, backgroundColor: 'rgba(37,99,235,0.30)', borderRadius: 3, order: 3 },
+        { type: 'bar', label: 'VGV realizado', data: s.vgvR, backgroundColor: '#2563eb', borderRadius: 3, order: 2 },
+        { type: 'line', label: 'Lucro realizado', data: s.lucroR, borderColor: '#16a34a', backgroundColor: '#16a34a', tension: 0.3, borderWidth: 2, pointRadius: 3, yAxisID: 'y1', order: 1 },
+      ] },
+      options: darkOpts({
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { labels: { color: DARK_INK, font: { size: 10 }, boxWidth: 12 } }, tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtC(c.parsed.y)}` } } },
+        scales: {
+          x: { ticks: { color: DARK_INK, font: { size: 10 } }, grid: { display: false } },
+          y: { ticks: { color: DARK_INK, font: { size: 9 }, callback: v => fmtC(v) }, grid: { color: DARK_GRID } },
+          y1: { position: 'right', ticks: { color: '#16a34a', font: { size: 9 }, callback: v => fmtC(v) }, grid: { display: false } },
+        },
+      }),
+    });
+  }
   document.querySelectorAll('[data-fechar]').forEach(b => b.onclick = () => fecharMes(+b.dataset.fechar));
   document.querySelectorAll('[data-reabrir]').forEach(b => b.onclick = () => reabrirMes(+b.dataset.reabrir));
   const cm = document.getElementById('cr-mes'); if (cm) cm.onchange = () => { _custoMes = +cm.value; render(); };
@@ -683,6 +733,23 @@ function renderBE() {
   const r = beCalc(_be);
   const cor = r.resultado >= 0 ? '#4ade80' : '#f87171';
   const cob = _be.fixo ? Math.min(100, r.total / _be.fixo * 100) : 0;
+  // torre de contribuição — como cada alavanca empilha contra o fixo (v83.4)
+  const segs = [
+    { lbl: '🏠 Conquista', v: r.conqC, cor: '#2563eb' }, { lbl: '👑 Sócio', v: r.socioC, cor: '#a855f7' },
+    { lbl: '🤝 Terceiros', v: r.tercC, cor: '#0891b2' }, { lbl: '🔑 Locação', v: r.locC, cor: '#d97706' },
+    { lbl: '🏢 MAP', v: r.mapC, cor: '#7c3aed' },
+  ].filter(s => s.v > 0);
+  const beScale = Math.max(r.total, _be.fixo, 1);
+  const fixoPct = Math.min(100, _be.fixo / beScale * 100);
+  const torre = `<div style="margin-top:14px">
+    <div class="tiny" style="opacity:.8;margin-bottom:6px">🧱 Como as alavancas empilham contra o custo fixo <span style="opacity:.7">(linha tracejada = 100% do fixo)</span></div>
+    <div style="position:relative;height:26px;margin-top:16px">
+      <div style="display:flex;height:100%;background:rgba(255,255,255,.10);border-radius:6px;overflow:hidden">${segs.map(s => `<div title="${s.lbl}: ${fmt(s.v)}/mês" style="width:${(s.v / beScale * 100)}%;background:${s.cor};height:100%"></div>`).join('')}</div>
+      <div style="position:absolute;top:-5px;bottom:-5px;left:${fixoPct}%;width:0;border-left:2px dashed #fff"></div>
+      <div class="tiny" style="position:absolute;top:-16px;left:${fixoPct}%;transform:translateX(-50%);opacity:.85;white-space:nowrap">fixo ${fmtC(_be.fixo)}</div>
+    </div>
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-top:8px">${segs.map(s => `<span class="tiny" style="opacity:.9"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${s.cor};margin-right:3px;vertical-align:middle"></span>${s.lbl} ${fmtC(s.v)}</span>`).join('') || '<span class="tiny" style="opacity:.7">nenhuma alavanca positiva ainda — mexa nos campos abaixo</span>'}</div>
+  </div>`;
   const bi = (grp, f, lbl, w = 82) => `<label class="tiny muted" style="display:flex;flex-direction:column;gap:1px">${lbl}<input class="input be-in" data-g="${grp}" data-f="${f}" value="${(_be[grp][f] ?? '')}" style="width:${w}px;padding:3px 5px;font-size:11px;text-align:right"></label>`;
   const lever = (titulo, cor2, inputsHtml, contrib, hint) => `
     <div class="card" style="margin:0 0 10px;border-left:4px solid ${cor2}">
@@ -702,7 +769,8 @@ function renderBE() {
         <div><div class="tiny" style="opacity:.8">Cobertura do fixo</div><div style="font-size:20px;font-weight:900;color:${cor}">${cob.toFixed(0)}%</div>
           <div style="height:7px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${cob}%;background:${cor}"></div></div></div>
       </div>
-      <div class="tiny" style="opacity:.85;margin-top:8px">${r.resultado >= 0 ? '✅ Break-even batido — o excedente vira lucro.' : `⚠️ Faltam ${fmt(-r.resultado)}/mês pra fechar.`}</div>
+      ${torre}
+      <div class="tiny" style="opacity:.85;margin-top:12px">${r.resultado >= 0 ? '✅ Break-even batido — o excedente vira lucro.' : `⚠️ Faltam ${fmt(-r.resultado)}/mês pra fechar.`}</div>
     </div>
 
     ${lever('🏠 Conquista (equipe atual)', '#2563eb', bi('conquista', 'vendas', 'Vendas/mês') + bi('conquista', 'ticket', 'Ticket R$', 100) + bi('conquista', 'margem', 'Margem %'), r.conqC, 'Sua base. Subir de 0,33 → 1 venda/corretor já triplica.')}
@@ -792,11 +860,35 @@ function renderResumo() {
       <div class="flex gap-2" style="flex-wrap:wrap">${d.frentes.map(margBadge).join('')}</div>
       <div class="tiny muted mt-2">Margem = comissão bruta − corretor − sênior − gerente − imposto. Fina na corretagem residencial; alta na captação de locação.</div>
     </div>
-    <div class="card" style="margin:0"><h3 class="card-title">🏢 Custo por empresa/mês <span class="tiny muted" style="font-weight:400">(fixo+variável, sem tráfego)</span></h3>
+    <div class="card" style="margin:0 0 14px"><h3 class="card-title">🏢 Custo por empresa/mês <span class="tiny muted" style="font-weight:400">(fixo+variável, sem tráfego)</span></h3>
       ${d.frentes.map(custoBar).join('')}
       <div class="tiny muted mt-1">Total operacional (sem tráfego): <b>${fmt(d.frentes.reduce((s, f) => s + f.custoMes, 0))}/mês</b>. Edite na aba Orçado → 🧾 Custos detalhados.</div>
-    </div>`;
+    </div>
+    ${donutCatCard()}`;
+}
+// card do donut "composição do custo por categoria" (v83.4)
+function donutCatCard() {
+  const cats = custoPorCategoria();
+  if (!cats.length) return '';
+  const tot = cats.reduce((s, c) => s + c.mes, 0);
+  const leg = cats.map((c, i) => `<div class="flex" style="align-items:center;gap:6px;font-size:12px;margin-bottom:3px"><span style="width:10px;height:10px;border-radius:3px;background:${CHART_PAL[i % CHART_PAL.length]};flex:none"></span><span style="flex:1">${esc(c.cat)}</span><b>${fmtC(c.mes)}</b><span class="tiny muted" style="width:38px;text-align:right">${(c.mes / tot * 100).toFixed(0)}%</span></div>`).join('');
+  return `<div class="card" style="margin:0"><h3 class="card-title">🍩 Composição do custo fixo por categoria <span class="tiny muted" style="font-weight:400">· ${fmtC(tot)}/mês</span></h3>
+    <div class="flex gap-3" style="flex-wrap:wrap;align-items:center">
+      <div id="viab-cat-donut-wrap" style="flex:1;min-width:210px;height:220px;position:relative"><canvas id="viab-cat-donut"></canvas></div>
+      <div style="flex:1;min-width:210px">${leg}</div>
+    </div>
+    <div class="tiny muted mt-1">Onde o dinheiro fixo vai — o maior bloco é o alvo nº 1 de corte pra baixar o break-even. Editável em Orçado → 🧾 Custos detalhados.</div>
+  </div>`;
 }
 function wireResumo() {
   document.querySelectorAll('.res-goto').forEach(b => b.onclick = () => { if (b.dataset.goto === 'orcado') _orcView = 'receita'; _tab = b.dataset.goto; render(); });
+  // donut de custo por categoria (v83.4)
+  const cats = custoPorCategoria();
+  if (cats.length && document.getElementById('viab-cat-donut')) {
+    mkChart('viab-cat-donut', {
+      type: 'doughnut',
+      data: { labels: cats.map(c => c.cat), datasets: [{ data: cats.map(c => Math.round(c.mes)), backgroundColor: cats.map((_, i) => CHART_PAL[i % CHART_PAL.length]), borderWidth: 0 }] },
+      options: darkOpts({ cutout: '58%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.label}: ${fmtC(c.parsed)}/mês` } } } }),
+    });
+  }
 }
