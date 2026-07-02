@@ -733,22 +733,23 @@ function renderBE() {
   const r = beCalc(_be);
   const cor = r.resultado >= 0 ? '#4ade80' : '#f87171';
   const cob = _be.fixo ? Math.min(100, r.total / _be.fixo * 100) : 0;
-  // torre de contribuição — como cada alavanca empilha contra o fixo (v83.4)
+  // barra de cobertura LÍQUIDA do fixo + quebra por alavanca com sinal (v83.4.1 — casa com a cobertura%)
   const segs = [
-    { lbl: '🏠 Conquista', v: r.conqC, cor: '#2563eb' }, { lbl: '👑 Sócio', v: r.socioC, cor: '#a855f7' },
-    { lbl: '🤝 Terceiros', v: r.tercC, cor: '#0891b2' }, { lbl: '🔑 Locação', v: r.locC, cor: '#d97706' },
-    { lbl: '🏢 MAP', v: r.mapC, cor: '#7c3aed' },
-  ].filter(s => s.v > 0);
+    { lbl: '🏠 Conquista', v: r.conqC }, { lbl: '👑 Sócio', v: r.socioC },
+    { lbl: '🤝 Terceiros', v: r.tercC }, { lbl: '🔑 Locação', v: r.locC }, { lbl: '🏢 MAP', v: r.mapC },
+  ].filter(s => Math.abs(s.v) > 1);
   const beScale = Math.max(r.total, _be.fixo, 1);
+  const fillPct = Math.max(0, Math.min(100, r.total / beScale * 100));
   const fixoPct = Math.min(100, _be.fixo / beScale * 100);
+  const barBg = r.total >= _be.fixo ? '#22c55e' : (r.total > 0 ? 'linear-gradient(90deg,#f59e0b,#22c55e)' : '#ef4444');
   const torre = `<div style="margin-top:14px">
-    <div class="tiny" style="opacity:.8;margin-bottom:6px">🧱 Como as alavancas empilham contra o custo fixo <span style="opacity:.7">(linha tracejada = 100% do fixo)</span></div>
-    <div style="position:relative;height:26px;margin-top:16px">
-      <div style="display:flex;height:100%;background:rgba(255,255,255,.10);border-radius:6px;overflow:hidden">${segs.map(s => `<div title="${s.lbl}: ${fmt(s.v)}/mês" style="width:${(s.v / beScale * 100)}%;background:${s.cor};height:100%"></div>`).join('')}</div>
+    <div class="tiny" style="opacity:.8;margin-bottom:6px">🧱 Contribuição líquida das alavancas vs custo fixo <span style="opacity:.7">(tracejado = 100% do fixo · barra = ${fillPct.toFixed(0)}%)</span></div>
+    <div style="position:relative;height:22px;margin-top:16px">
+      <div style="height:100%;background:rgba(255,255,255,.10);border-radius:6px;overflow:hidden"><div style="height:100%;width:${fillPct}%;background:${barBg};transition:width .2s"></div></div>
       <div style="position:absolute;top:-5px;bottom:-5px;left:${fixoPct}%;width:0;border-left:2px dashed #fff"></div>
       <div class="tiny" style="position:absolute;top:-16px;left:${fixoPct}%;transform:translateX(-50%);opacity:.85;white-space:nowrap">fixo ${fmtC(_be.fixo)}</div>
     </div>
-    <div class="flex gap-2" style="flex-wrap:wrap;margin-top:8px">${segs.map(s => `<span class="tiny" style="opacity:.9"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${s.cor};margin-right:3px;vertical-align:middle"></span>${s.lbl} ${fmtC(s.v)}</span>`).join('') || '<span class="tiny" style="opacity:.7">nenhuma alavanca positiva ainda — mexa nos campos abaixo</span>'}</div>
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-top:9px">${segs.map(s => `<span class="tiny" style="opacity:.9"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${s.v >= 0 ? '#22c55e' : '#ef4444'};margin-right:3px;vertical-align:middle"></span>${s.lbl} <b style="color:${s.v >= 0 ? '#4ade80' : '#f87171'}">${s.v >= 0 ? '+' : ''}${fmtC(s.v)}</b></span>`).join('') || '<span class="tiny" style="opacity:.7">preencha as alavancas abaixo</span>'}</div>
   </div>`;
   const bi = (grp, f, lbl, w = 82) => `<label class="tiny muted" style="display:flex;flex-direction:column;gap:1px">${lbl}<input class="input be-in" data-g="${grp}" data-f="${f}" value="${(_be[grp][f] ?? '')}" style="width:${w}px;padding:3px 5px;font-size:11px;text-align:right"></label>`;
   const lever = (titulo, cor2, inputsHtml, contrib, hint) => `
