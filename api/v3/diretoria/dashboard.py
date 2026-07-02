@@ -184,9 +184,12 @@ class handler(BaseHTTPRequestHandler):
         # 8. Métricas executivas (só Diretoria). Premissas de negócio AJUSTÁVEIS via
         #    shared_kv 'exec_premissas' {comissao_pct, custo_var_pct, custo_fixo_mensal}.
         try:
-            # Premissas PSM (Paulo): comissão 4% do VGV, custo variável 1,45% do VGV,
-            # custo fixo R$ 70k/mês. custo_var_pct é % SOBRE O VGV (não sobre a comissão).
+            # v83.8 — FONTE ÚNICA: custo fixo/variável vêm dos Custos detalhados da
+            # Viabilidade (shared_kv 'viab_custos_orcado'), os MESMOS números que o
+            # sócio edita em Métricas de Viabilidade. exec_premissas vira só fallback
+            # manual; o default antigo (70k) é o último recurso.
             COMISSAO_PCT, CUSTO_VAR_PCT, CUSTO_FIXO_MENSAL = 0.04, 0.0145, 70000.0
+            fonte_premissas = "default"
             try:
                 cfg = sb.table("shared_kv").select("value").eq("key", "exec_premissas").limit(1).execute().data or []
                 if cfg and isinstance(cfg[0].get("value"), dict):
@@ -195,6 +198,29 @@ class handler(BaseHTTPRequestHandler):
                     CUSTO_VAR_PCT = float(v.get("custo_var_pct") or CUSTO_VAR_PCT)
                     if v.get("custo_fixo_mensal") not in (None, ""):
                         CUSTO_FIXO_MENSAL = float(v["custo_fixo_mensal"])
+                        fonte_premissas = "exec_premissas"
+            except Exception:
+                pass
+            try:
+                vc = sb.table("shared_kv").select("value").eq("key", "viab_custos_orcado").limit(1).execute().data or []
+                itens = (((vc[0].get("value") or {}).get(str(ano)) or {}).get("itens") or []) if vc else []
+                if itens:
+                    fixo = 0.0; var_pct = 0.0
+                    for it in itens:
+                        val = float(it.get("valor") or 0)
+                        cl = it.get("classe") or "fixo"
+                        if cl == "fixo":
+                            fixo += val
+                        elif cl == "extra":
+                            meses_it = it.get("meses") or []
+                            fixo += val * ((len(meses_it) if meses_it else 12) / 12.0)
+                        elif cl == "variavel":
+                            var_pct += val   # % sobre o VGV
+                    if fixo > 0:
+                        CUSTO_FIXO_MENSAL = round(fixo, 2)
+                        fonte_premissas = "viab_custos_orcado"
+                    if var_pct > 0:
+                        CUSTO_VAR_PCT = round(var_pct / 100.0, 6)
             except Exception:
                 pass
             v_ano = kpis.get("atingido_vendas_ano") or 0
@@ -214,7 +240,7 @@ class handler(BaseHTTPRequestHandler):
             kpis["users_inativos"] = ut - ua
             kpis["turnover_pct"] = round((ut - ua) / ut * 100, 2) if ut else None
             kpis["exec_premissas"] = {"comissao_pct": COMISSAO_PCT, "custo_var_pct": CUSTO_VAR_PCT,
-                                       "custo_fixo_mensal": CUSTO_FIXO_MENSAL}
+                                       "custo_fixo_mensal": CUSTO_FIXO_MENSAL, "fonte": fonte_premissas}
         except Exception as e:
             errors.append(f"exec_metrics: {e}")
 

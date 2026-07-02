@@ -205,6 +205,7 @@ async function load() {
   // garante que toda categoria usada pelos itens exista na lista
   (_custosOrc || []).forEach(it => { if (it.cat && !_cats.includes(it.cat)) _cats.push(it.cat); });
   if (!_cats.includes('Outros')) _cats.push('Outros');
+  migrarCenLegado();   // cenários antigos do navegador → backend (1x, não bloqueia). v83.8
   render();
 }
 function render() {
@@ -649,7 +650,27 @@ async function reabrirMes(m) {
 }
 
 /* ════════════ ABA 3 · SIMULADOR (sandbox) ════════════ */
-const SIMKEY = 'psm_viab_sim_cenarios';
+const SIMKEY = 'psm_viab_sim_cenarios';   // LEGADO — só p/ migração 1x pro backend (v83.8)
+// v83.8 — cenários agora são COMPARTILHADOS (shared_kv via backend), não mais presos no navegador
+function cen(tipo) { return (((_d || {}).cenarios) || {})[tipo] || {}; }
+async function saveCen(tipo, obj) {
+  _d.cenarios = _d.cenarios || {}; _d.cenarios[tipo] = obj;   // otimista
+  try {
+    const r = await api.request('/api/v3/diretoria/viab', { method: 'POST', body: { action: 'set_cenarios', tipo, cenarios: obj } });
+    if (r && r.cenarios) _d.cenarios = r.cenarios;
+    return true;
+  } catch (e) { flash('⚠️ cenário não sincronizou: ' + e.message); return false; }
+}
+async function migrarCenLegado() {   // sobe cenários antigos do localStorage pro backend (1x) e limpa
+  for (const [tipo, key] of [['sim', SIMKEY], ['be', BEKEY]]) {
+    try {
+      const loc = JSON.parse(localStorage.getItem(key) || '{}');
+      if (!Object.keys(loc).length) continue;
+      if (!Object.keys(cen(tipo)).length) { if (await saveCen(tipo, loc)) localStorage.removeItem(key); }
+      else localStorage.removeItem(key);   // backend já tem — descarta o local
+    } catch (_) {}
+  }
+}
 function simSeed() {
   const mes = Math.max(1, new Date().getMonth() + 1); const o = {};
   const det = custoOrcadoDet(true);   // custo real por empresa/mês, SEM tráfego (v82.8) — semeia o custo do sim
@@ -664,7 +685,7 @@ function simSeed() {
 function renderSim() {
   if (!_sim) _sim = simSeed();
   let cons = 0;
-  const cenarios = JSON.parse(localStorage.getItem(SIMKEY) || '{}');
+  const cenarios = cen('sim');   // compartilhados via backend (v83.8)
   const blocks = LINHAS.map(l => {
     const s = _sim[l.id]; const r = calc(s.vgv, s.vendas, s, s.custo_fixo);
     // Locação: adm recorrente que entra no caixa/mês (líquida de imposto). v83.3
@@ -703,11 +724,12 @@ function renderSim() {
 }
 function wireSim() {
   document.querySelectorAll('.sim-in').forEach(el => el.onchange = () => { _sim[el.dataset.l][el.dataset.f] = num(el.value); render(); });
-  const save = document.getElementById('sim-save'); if (save) save.onclick = () => {
+  const save = document.getElementById('sim-save'); if (save) save.onclick = async () => {
     const nome = (document.getElementById('sim-nome').value || '').trim(); if (!nome) return flash('dê um nome ao cenário');
-    const c = JSON.parse(localStorage.getItem(SIMKEY) || '{}'); c[nome] = _sim; localStorage.setItem(SIMKEY, JSON.stringify(c)); flash('✅ cenário "' + nome + '" salvo'); render();
+    const c = { ...cen('sim') }; c[nome] = _sim;
+    flash('💾 salvando cenário…'); if (await saveCen('sim', c)) flash('✅ cenário "' + nome + '" salvo (compartilhado)'); render();
   };
-  const load = document.getElementById('sim-load'); if (load) load.onchange = () => { const c = JSON.parse(localStorage.getItem(SIMKEY) || '{}'); if (c[load.value]) { _sim = JSON.parse(JSON.stringify(c[load.value])); flash('cenário carregado'); render(); } };
+  const load = document.getElementById('sim-load'); if (load) load.onchange = () => { const c = cen('sim'); if (c[load.value]) { _sim = JSON.parse(JSON.stringify(c[load.value])); flash('cenário carregado'); render(); } };
   const reset = document.getElementById('sim-reset'); if (reset) reset.onclick = () => { _sim = simSeed(); flash('resetado pro orçado'); render(); };
 }
 
@@ -822,7 +844,7 @@ function renderBE() {
     <div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:center">
       <input id="be-nome" class="input" placeholder="nome do cenário" style="max-width:200px">
       <button class="btn btn-primary btn-sm" id="be-save">💾 Salvar cenário</button>
-      ${Object.keys(JSON.parse(localStorage.getItem(BEKEY) || '{}')).length ? `<select id="be-load" class="select" style="max-width:200px"><option value="">carregar cenário…</option>${Object.keys(JSON.parse(localStorage.getItem(BEKEY) || '{}')).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')}</select>` : ''}
+      ${Object.keys(cen('be')).length ? `<select id="be-load" class="select" style="max-width:200px"><option value="">carregar cenário…</option>${Object.keys(cen('be')).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')}</select>` : ''}
       <button class="btn btn-ghost btn-sm" id="be-reset">↩ Resetar</button>
     </div>`;
 }
@@ -833,11 +855,12 @@ function wireBE() {
     if (g === '_root') _be[f] = v; else _be[g][f] = v;
     render();
   });
-  const save = document.getElementById('be-save'); if (save) save.onclick = () => {
+  const save = document.getElementById('be-save'); if (save) save.onclick = async () => {
     const nome = (document.getElementById('be-nome').value || '').trim(); if (!nome) return flash('dê um nome ao cenário');
-    const c = JSON.parse(localStorage.getItem(BEKEY) || '{}'); c[nome] = _be; localStorage.setItem(BEKEY, JSON.stringify(c)); flash('✅ cenário "' + nome + '" salvo'); render();
+    const c = { ...cen('be') }; c[nome] = _be;
+    flash('💾 salvando cenário…'); if (await saveCen('be', c)) flash('✅ cenário "' + nome + '" salvo (compartilhado)'); render();
   };
-  const load = document.getElementById('be-load'); if (load) load.onchange = () => { const c = JSON.parse(localStorage.getItem(BEKEY) || '{}'); if (c[load.value]) { _be = JSON.parse(JSON.stringify(c[load.value])); flash('cenário carregado'); render(); } };
+  const load = document.getElementById('be-load'); if (load) load.onchange = () => { const c = cen('be'); if (c[load.value]) { _be = JSON.parse(JSON.stringify(c[load.value])); flash('cenário carregado'); render(); } };
   const reset = document.getElementById('be-reset'); if (reset) reset.onclick = () => { _be = seedBE(); flash('resetado'); render(); };
 }
 

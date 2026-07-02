@@ -274,6 +274,7 @@ class handler(BaseHTTPRequestHandler):
             "realizado": realizado_ano(sb, ano),
             "fontes_auto": fontes_auto_ano(sb, ano),   # custos automáticos por mês (Meta real + gancho NIBO). v82.1
             "custos_orcado": (read_kv(sb, "viab_custos_orcado").get(str(ano)) or {}),   # custos orçados detalhados. v82.3
+            "cenarios": read_kv(sb, "viab_cenarios"),   # cenários do Simulador/Break-even compartilhados (fim do localStorage). v83.8
         })
 
     def do_POST(self):
@@ -355,6 +356,24 @@ class handler(BaseHTTPRequestHandler):
             write_kv(sb, "viab_snapshots", snaps)
             audit(self, actor, "viab.reabrir_mes", target_type="shared_kv", target_id=f"{ano}-{mes}")
             return self._send(200, {"ok": True})
+
+        if action == "set_cenarios":   # cenários do Simulador ('sim') e Break-even ('be') compartilhados. v83.8
+            tipo = (body.get("tipo") or "").strip().lower()
+            if tipo not in ("sim", "be"):
+                return self._send(400, {"ok": False, "error": "tipo inválido (sim|be)"})
+            cen = body.get("cenarios")
+            if not isinstance(cen, dict) or len(cen) > 60:
+                return self._send(400, {"ok": False, "error": "cenarios inválido (dict, máx. 60)"})
+            clean = {}
+            for nome, val in cen.items():
+                nome = str(nome).strip()[:60]
+                if nome and isinstance(val, dict):
+                    clean[nome] = val
+            todos = read_kv(sb, "viab_cenarios")
+            todos[tipo] = clean
+            write_kv(sb, "viab_cenarios", todos)
+            audit(self, actor, "viab.set_cenarios", target_type="shared_kv", target_id=tipo)
+            return self._send(200, {"ok": True, "cenarios": todos})
 
         if action == "set_custos_orcado":   # custos orçados detalhados (fixo/variável/extra por empresa). v82.3
             itens = body.get("itens")
