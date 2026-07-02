@@ -591,6 +591,7 @@ function simSeed() {
     const c = orcCell(l, mes);
     let custoMes = 0; for (let m = 1; m <= 12; m++) custoMes += det[l][m]; custoMes = Math.round(custoMes / 12);
     o[l] = { vgv: c.vgv || 0, vendas: c.vendas || 0, com_bruta_pct: c.com_bruta_pct, com_corretor_pct: c.com_corretor_pct, com_senior_pct: c.com_senior_pct, com_gerente_pct: c.com_gerente_pct || 0, aliquota_pct: c.aliquota_pct, custo_fixo: custoMes, verba_mkt: c.verba_mkt || 0 };
+    if (l === 'locacoes') o[l].admRec = 0;   // adm recorrente/mês que entra no caixa (v83.3)
   }
   return o;
 }
@@ -600,14 +601,18 @@ function renderSim() {
   const cenarios = JSON.parse(localStorage.getItem(SIMKEY) || '{}');
   const blocks = LINHAS.map(l => {
     const s = _sim[l.id]; const r = calc(s.vgv, s.vendas, s, s.custo_fixo);
-    cons += r.lucro;
+    // Locação: adm recorrente que entra no caixa/mês (líquida de imposto). v83.3
+    const isLoc = l.id === 'locacoes';
+    const admLiq = isLoc ? (+s.admRec || 0) * (1 - (+s.aliquota_pct || 0) / 100) : 0;
+    const lucroTot = r.lucro + admLiq;
+    cons += lucroTot;
     const fld = (f, lbl) => `<label class="tiny muted" style="display:flex;flex-direction:column;gap:1px">${lbl}<input class="input sim-in" data-l="${l.id}" data-f="${f}" value="${s[f] ?? ''}" style="width:96px;padding:3px 5px;font-size:11px;text-align:right"></label>`;
     return `<div class="card" style="margin:0 0 10px;border-left:4px solid ${l.cor}">
-      <div class="flex items-center"><b>${l.icon} ${l.nome}</b><span style="margin-left:auto;font-weight:800;color:${dc(r.lucro)}">Lucro/mês: ${fmt(r.lucro)}</span></div>
+      <div class="flex items-center"><b>${l.icon} ${l.nome}</b><span style="margin-left:auto;font-weight:800;color:${dc(lucroTot)}">Resultado/mês: ${fmt(lucroTot)}</span></div>
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
-        ${fld('vgv', 'VGV/mês')}${fld('vendas', 'Vendas')}${fld('com_bruta_pct', 'Com. bruta %')}${fld('com_corretor_pct', 'Corretor %')}${fld('com_senior_pct', 'Sênior %')}${fld('com_gerente_pct', 'Gerente %')}${fld('aliquota_pct', 'Imposto %')}${fld('custo_fixo', 'Custo/mês (s/ tráfego)')}${fld('verba_mkt', 'Tráfego/mês')}
+        ${fld('vgv', isLoc ? '1º aluguel/mês' : 'VGV/mês')}${fld('vendas', isLoc ? 'Captações' : 'Vendas')}${fld('com_bruta_pct', 'Com. bruta %')}${fld('com_corretor_pct', 'Corretor %')}${fld('com_senior_pct', 'Sênior %')}${fld('com_gerente_pct', 'Gerente %')}${fld('aliquota_pct', 'Imposto %')}${fld('custo_fixo', 'Custo/mês (s/ tráfego)')}${fld('verba_mkt', 'Tráfego/mês')}${isLoc ? fld('admRec', '🔑 Adm recorrente/mês R$') : ''}
       </div>
-      <div class="tiny muted mt-1">Receita ${fmtC(r.receita)} · corretor ${fmtC(r.cc)} · sênior ${fmtC(r.cs)} · gerente ${fmtC(r.cg)} · imposto ${fmtC(r.imp)} · custo ${fmtC(r.custo)} · margem <b style="color:${dc(r.margem)}">${pct(r.margem)}</b></div>
+      <div class="tiny muted mt-1">Receita ${fmtC(r.receita)} · corretor ${fmtC(r.cc)} · sênior ${fmtC(r.cs)} · gerente ${fmtC(r.cg)} · imposto ${fmtC(r.imp)} · custo ${fmtC(r.custo)}${isLoc ? ` · <b style="color:#16a34a">adm recorrente +${fmtC(admLiq)}/mês (líq. imposto)</b>` : ''} · margem <b style="color:${dc(r.margem)}">${pct(r.margem)}</b></div>
     </div>`;
   }).join('');
   const opts = Object.keys(cenarios).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
