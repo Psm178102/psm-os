@@ -726,15 +726,15 @@ function renderResumo() {
     </div>
     <div class="card" style="margin:0 0 14px;background:var(--psm-navy);color:#fff">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
-        ${heroStat('🏦 Custo fixo/mês', 'R$ ' + fmtC(d.fixo), '#cbd5e1')}
-        ${heroStat('💚 Contribuição/mês', 'R$ ' + fmtC(d.contribTotal), '#4ade80')}
-        ${heroStat(ok ? '🎉 Sobra/mês' : '⚠️ Falta/mês', 'R$ ' + fmtC(Math.abs(d.gap)), cor)}
+        ${heroStat('🏦 Custo fixo/mês', fmtC(d.fixo), '#cbd5e1')}
+        ${heroStat('💚 Contribuição/mês', fmtC(d.contribTotal), '#4ade80')}
+        ${heroStat(ok ? '🎉 Sobra/mês' : '⚠️ Falta/mês', fmtC(Math.abs(d.gap)), cor)}
         ${heroStat('📊 Cobertura do fixo', d.cobertura.toFixed(0) + '%', ok ? '#4ade80' : '#fbbf24')}
       </div>
       <div style="margin-top:12px">
         <div class="tiny" style="opacity:.8;margin-bottom:4px">Break-even — o quanto a contribuição preenche o custo fixo</div>
         <div style="position:relative;height:14px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden"><div style="height:100%;width:${cob}%;background:${ok ? '#22c55e' : 'linear-gradient(90deg,#f59e0b,#ef4444)'}"></div></div>
-        <div class="tiny" style="opacity:.65;margin-top:3px">0% ·········· meta: 100% = R$ ${fmtC(d.fixo)}/mês</div>
+        <div class="tiny" style="opacity:.65;margin-top:3px">0% ·········· meta: 100% = ${fmtC(d.fixo)}/mês</div>
       </div>
       <div style="margin-top:12px;background:rgba(255,255,255,.07);border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.55">💡 <b>Leitura automática:</b> ${resumoInsight(d)}</div>
     </div>
