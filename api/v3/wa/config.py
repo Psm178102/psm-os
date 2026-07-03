@@ -14,14 +14,22 @@ TEMPLATE_TEXTO = (
     "Quer que eu te mande os detalhes e as fotos?\n"
     "[ Quero ver 👀 ]   [ Agora não ]"
 )
+# v84.3 — plano REAL decidido com o Paulo: COEXISTÊNCIA no número da RECEPÇÃO
+# (nunca bloqueado): o número entra na API oficial E continua no app do iPhone da Mariane.
 CHECKLIST = [
-    "1. Conseguir um NÚMERO dedicado (chip novo) — vira API-only, sai do app comum.",
-    "2. Criar/verificar a conta Meta Business (business.facebook.com) com o CNPJ da PSM.",
-    "3. Criar conta na 360dialog (hub.360dialog.com), conectar o número → pegar a API KEY.",
-    "4. Submeter o template (texto acima) na 360dialog → aguardar aprovação da Meta (~1-2 dias).",
-    "5. No Vercel, setar: D360_API_KEY, D360_TEMPLATE (nome do template aprovado), D360_BASE_URL (opcional).",
-    "6. Apontar o webhook da 360dialog para /api/v3/wa/cloud_webhook (verify token = WA_CLOUD_VERIFY_TOKEN).",
+    "1. Conta Meta Business já existe (a dos anúncios) — conferir se está verificada com o CNPJ da PSM.",
+    "2. Criar conta na 360dialog (hub.360dialog.com) e escolher COEXISTÊNCIA: conectar o NÚMERO DA RECEPÇÃO escaneando o QR no WhatsApp Business do iPhone (o app continua funcionando normal).",
+    "3. Submeter o template de reativação (abaixo) → aprovação da Meta (horas a ~1 dia).",
+    "4. No Vercel, setar: D360_API_KEY + D360_TEMPLATE (nome do template aprovado) — e a campanha DESTRAVA sozinha.",
+    "5. Apontar o webhook da 360dialog pra /api/v3/wa/cloud_webhook (verify token = WA_CLOUD_VERIFY_TOKEN) — respostas viram 🔥 Quentes e marcam a Fila.",
+    "6. RITMO: começar com 50/dia e subir (250 → 1.000) conforme a nota de qualidade no WhatsApp Manager — número novo na API tem teto de aquecimento da própria Meta.",
 ]
+
+TEMPLATE_REATIVACAO = (
+    "Olá {{1}}, tudo bem? Aqui é a Mariane, da PSM Imóveis 😊 "
+    "Você falou com a gente sobre imóveis um tempo atrás e estou revisando os atendimentos. "
+    "Ainda tem interesse em comprar? Se preferir não receber mais mensagens, responda SAIR."
+)
 
 
 class handler(BaseHTTPRequestHandler):
@@ -44,5 +52,6 @@ class handler(BaseHTTPRequestHandler):
             "oficial": prov == "360dialog",
             "template_env": (os.environ.get("D360_TEMPLATE", "") or None),
             "template_texto": TEMPLATE_TEXTO,
+            "template_reativacao": TEMPLATE_REATIVACAO,
             "checklist": CHECKLIST,
         })

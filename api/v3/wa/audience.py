@@ -1,5 +1,8 @@
 """GET /api/v3/wa/audience?segment=parados|perdidos|ganhos&dias=30
-Segmenta clientes do RD pra campanha de WhatsApp (v77.32: 3 máquinas de growth):
+Segmenta clientes do RD pra campanha de WhatsApp (v77.32 + v84.3):
+  • reativacao — A MESMA base da Fila de Reativação MAP (frente map, aberto, parado
+               +N dias), EXCLUINDO quem a fila já trabalhou (contatado/respondeu/
+               agendou/sem interesse/futuro) — só entra novo e não-atendeu.
   • parados  (default) — oportunidades ABERTAS (win null) sem atividade há +N dias.
   • perdidos — WIN-BACK: negócios PERDIDOS nos últimos N dias (default 90), com o
                motivo da perda no item (pra régua de recuperação por motivo).
@@ -13,6 +16,7 @@ from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+from _auth_lib import frente_of  # type: ignore
 from _wa_lib import phone_from_rd, name_from_rd  # type: ignore
 
 
@@ -32,9 +36,9 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             q = {}
         segment = (q.get("segment") or "parados").rstrip("0123456789")  # 'parados30' → 'parados'
-        if segment not in ("parados", "perdidos", "ganhos"):
+        if segment not in ("parados", "perdidos", "ganhos", "reativacao"):
             segment = "parados"
-        default_dias = {"parados": 30, "perdidos": 90, "ganhos": 180}[segment]
+        default_dias = {"parados": 30, "perdidos": 90, "ganhos": 180, "reativacao": 30}[segment]
         try:
             dias = max(1, int(q.get("dias") or default_dias))
         except Exception:
@@ -45,7 +49,7 @@ class handler(BaseHTTPRequestHandler):
         cutoff = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
         now = datetime.now(timezone.utc)
 
-        cols = "id,name,amount,stage_name,updated_at_rd,created_at_rd,closed_at,rd_raw,user_email"
+        cols = "id,name,amount,stage_name,pipeline_name,updated_at_rd,created_at_rd,closed_at,rd_raw,user_email"
         rows = []
         page = 0
         try:
@@ -58,7 +62,7 @@ class handler(BaseHTTPRequestHandler):
                     # INDICAÇÃO/NPS: compraram dentro da janela
                     qq = base.eq("win", True).gte("closed_at", cutoff).order("closed_at", desc=True)
                 else:
-                    # PARADOS: abertos sem atividade desde o cutoff
+                    # PARADOS/REATIVACAO: abertos sem atividade desde o cutoff
                     qq = base.is_("win", "null").lt("updated_at_rd", cutoff).order("updated_at_rd", desc=True)
                 chunk = qq.range(page * 1000, page * 1000 + 999).execute().data or []
                 rows.extend(chunk)
@@ -67,6 +71,22 @@ class handler(BaseHTTPRequestHandler):
                 page += 1
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
+
+        # reativacao: só frente MAP + pula quem a fila da Mariane já trabalhou (v84.3)
+        fila_skip = set()
+        if segment == "reativacao":
+            rows = [d for d in rows if frente_of(d.get("pipeline_name")) == "map"]
+            try:
+                kv = sb.table("shared_kv").select("value").eq("key", "reativacao_map").limit(1).execute().data or []
+                estado = kv[0]["value"] if kv else {}
+                if isinstance(estado, str):
+                    estado = json.loads(estado)
+                for did, st in (estado or {}).items():
+                    if (st or {}).get("st") in ("contatado", "respondeu", "agendou", "sem_interesse", "futuro"):
+                        fila_skip.add(str(did))
+            except Exception:
+                pass
+            rows = [d for d in rows if str(d.get("id")) not in fila_skip]
 
         # opt-outs
         optouts = set()

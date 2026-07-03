@@ -122,12 +122,18 @@ def record_reply(sb, phone, text):
     matched = False
     try:
         since = (now - _td(days=21)).isoformat()
-        rows = sb.table("wa_sends").select("id").eq("phone", phone).gte("sent_at", since) \
+        rows = sb.table("wa_sends").select("id,deal_id").eq("phone", phone).gte("sent_at", since) \
             .order("sent_at", desc=True).limit(1).execute().data or []
         if rows:
             matched = True
             sb.table("wa_sends").update({"reply_text": (text or "")[:500], "is_sim": sim,
                                          "status": "replied", "replied_at": now.isoformat()}).eq("id", rows[0]["id"]).execute()
+            # reflete na Fila de Reativação: SIM → respondeu (🔥); opt-out → sem interesse. v84.3
+            did = rows[0].get("deal_id")
+            if did and sim:
+                fila_update(sb, did, "respondeu", "respondeu na campanha: " + (text or "")[:120], por="webhook WA")
+            elif did and optout:
+                fila_update(sb, did, "sem_interesse", "pediu opt-out na campanha", por="webhook WA")
     except Exception:
         pass
     if optout:
@@ -136,3 +142,29 @@ def record_reply(sb, phone, text):
         except Exception:
             pass
     return {"matched": matched, "is_sim": sim, "optout": optout}
+
+def fila_update(sb, deal_id, st, nota, por="campanha WA"):
+    """Reflete o evento da campanha na Fila de Reativação MAP (shared_kv
+    'reativacao_map') — envio marca 'contatado', SIM marca 'respondeu',
+    opt-out marca 'sem_interesse'. Best-effort (nunca quebra o envio). v84.3"""
+    try:
+        from datetime import datetime as _dt, timezone as _tz
+        if not deal_id:
+            return
+        rows = sb.table("shared_kv").select("value").eq("key", "reativacao_map").limit(1).execute().data or []
+        estado = rows[0]["value"] if rows else {}
+        if isinstance(estado, str):
+            estado = json.loads(estado)
+        if not isinstance(estado, dict):
+            estado = {}
+        cur = (estado.get(str(deal_id)) or {}).get("st")
+        # não rebaixa: se a fila já marcou respondeu/agendou, um envio não volta pra 'contatado'
+        ordem = {"contatado": 1, "nao_atendeu": 1, "respondeu": 2, "futuro": 2, "sem_interesse": 3, "agendou": 3}
+        if cur and ordem.get(cur, 0) >= ordem.get(st, 0) and st == "contatado":
+            return
+        estado[str(deal_id)] = {"st": st, "nota": (nota or "")[:300],
+                                "ts": _dt.now(_tz.utc).isoformat(), "por": por[:60]}
+        sb.table("shared_kv").upsert({"key": "reativacao_map", "value": estado,
+                                      "updated_at": _dt.now(_tz.utc).isoformat()}, on_conflict="key").execute()
+    except Exception:
+        pass

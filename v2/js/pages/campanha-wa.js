@@ -1,7 +1,8 @@
-/* PSM-OS v2 — 📣 Campanha de Ofertas WhatsApp (Evolution API). Diretor (lvl≥7).
-   Segmenta leads parados +Nd do RD → compõe oferta (1 imóvel/oferta p/ todos) →
-   diretor REVISA e dispara com throttle (1 por vez + teto/dia) → quem responde SIM
-   vira 🔥 Quente (capturado pelo webhook). Respeita opt-out. Nada é enviado sem o clique. */
+/* PSM-OS v2 — 📣 Campanha WhatsApp (360dialog OFICIAL / coexistência no nº da recepção). v84.3
+   4 máquinas no mesmo motor: 🔁 Reativação MAP (a MESMA base da Fila da Mariane —
+   envio marca "contatado" na fila, SIM vira "respondeu"+🔥), 🛌 Parados, 💔 Win-back
+   e 🏆 Indicação. Revisa → dispara com ritmo + teto/dia → respostas via webhook.
+   Respeita opt-out. Nada é enviado sem o clique. */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
@@ -13,6 +14,11 @@ const fone = p => { const s = String(p || ''); return s.length >= 12 ? `(${s.sli
 
 /* v77.32 — 3 máquinas de growth no mesmo motor: reativação, win-back e indicação. */
 const SEGMENTOS = {
+  reativacao: {
+    lbl: '🔁 Reativação MAP (fila)', dias: 30, cor: '#7c3aed',
+    sub: 'A <b>mesma base da Fila de Reativação</b> (leads MAP parados, ~1.8k) — só quem a Mariane ainda NÃO trabalhou. O envio marca <b>contatado</b> na fila dela; quem responde SIM vira <b>respondeu</b> + 🔥 Quente. Abordagem consultiva, sem oferta.',
+    tpl: 'Olá {primeiro_nome}, tudo bem? Aqui é a Mariane, da PSM Imóveis 😊\nVocê falou com a gente sobre imóveis um tempo atrás e estou revisando os atendimentos.\nAinda tem interesse em comprar? Responde *SIM* que eu te atualizo — ou *SAIR* pra não receber mais.',
+  },
   parados: {
     lbl: '🛌 Parados +30d (reativação)', dias: 30, cor: '#2563eb',
     sub: 'Chama leads <b>parados +30 dias</b> do RD com uma oferta.',
@@ -29,11 +35,11 @@ const SEGMENTOS = {
     tpl: 'Oi {primeiro_nome}! Aqui é da PSM Imóveis 🏠\nPassando pra saber: como está sendo a experiência com o seu imóvel? 😊\n\nE um pedido: se você conhece alguém procurando imóvel, responde *SIM* que a gente cuida dessa pessoa com o mesmo carinho que cuidamos de você 🤝',
   },
 };
-let _segment = 'parados';
+let _segment = 'reativacao';
 
 export async function pageCampanhaWa(ctx, root) {
   _root = root;
-  if ((auth.user()?.lvl || 0) < 7) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Sócio/Diretor (lvl 7+).</div>'; return; }
+  if ((auth.user()?.lvl || 0) < 5) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder (lvl 5+) — ajustável na Central de Permissões.</div>'; return; }
   render(true);
   const [aud, imv, st, cfg] = await Promise.all([
     api.request('/api/v3/wa/audience?segment=' + _segment + '&dias=' + SEGMENTOS[_segment].dias).catch(e => ({ erro: e.message })),
@@ -114,13 +120,13 @@ function render(loading) {
         <button class="btn ${_cfg.pausada ? 'btn-ghost' : 'btn-primary'}" id="cw-disparar" ${_cfg.pausada ? 'disabled title="Aguardando configuração da 360dialog"' : ''} style="font-size:14px;padding:10px 18px">${_cfg.pausada ? '⏸ Pausada (aguardando 360dialog)' : '▶ Revisar e Disparar (' + _aud.length + ')'}</button>
       </div>
       <div id="cw-prog" class="tiny" style="margin-top:10px"></div>
-      <div class="tiny muted" style="margin-top:6px">⚠️ WhatsApp não-oficial: o envio é lento de propósito (1 por vez) pra não banir o número. Quem responder "sair/parar" entra no opt-out automático.</div>
+      <div class="tiny muted" style="margin-top:6px">🛡 Via <b>360dialog (API oficial)</b> não há ban por volume — mas a Meta tem <b>teto de aquecimento</b>: comece com 50/dia e suba (250 → 1.000) conforme a nota de qualidade. "sair/parar" entra no opt-out automático e marca a fila.</div>
     </div>
 
     <div class="st-sec" style="font-size:11px;text-transform:uppercase;font-weight:800;color:#94a3b8;margin:16px 0 8px">🔥 Quentes — responderam SIM (atender)</div>
     <div id="cw-quentes"></div>
 
-    <div class="tiny muted" style="margin-top:14px"><a href="#/imoveis" style="color:var(--psm-gold)">← Imóveis</a> · <a href="#/captacoes" style="color:var(--psm-gold)">Captações</a></div>
+    <div class="tiny muted" style="margin-top:14px"><a href="#/reativacao" style="color:var(--psm-gold)">🔁 Fila de Reativação (Mariane)</a> · <a href="#/imoveis" style="color:var(--psm-gold)">Imóveis</a> · <a href="#/captacoes" style="color:var(--psm-gold)">Captações</a></div>
   </div>`;
 
   renderQuentes(quentes);

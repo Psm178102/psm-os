@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 from _wa_lib import (normalize_phone, render_template, evolution_send, cloud_api_send,  # type: ignore
-                     is_opted_out, provider, first_name)
+                     is_opted_out, provider, first_name, fila_update)
 
 
 class handler(BaseHTTPRequestHandler):
@@ -74,4 +74,8 @@ class handler(BaseHTTPRequestHandler):
 
         if not res.get("ok"):
             return self._send(200, {"ok": False, "sent": False, "error": res.get("error"), "id": row_id})
+        # campanha de reativação → marca 'contatado' na Fila da Mariane (v84.3)
+        if body.get("deal_id") and str(body.get("campaign") or "").startswith("gw_reativacao"):
+            fila_update(sb, body.get("deal_id"), "contatado", "enviado via Campanha WhatsApp",
+                        por=(user.get("name") or "campanha")[:60])
         return self._send(200, {"ok": True, "sent": True, "id": row_id})
