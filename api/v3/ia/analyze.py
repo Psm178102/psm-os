@@ -44,17 +44,30 @@ def _gemini(model, system, prompt, max_tokens):
     key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not key:
         return {"ok": False, "error": "GEMINI_API_KEY ausente"}
+    # thinkingBudget:0 — sem isso o Gemini 2.5 gasta o teto em "pensamento" e CORTA
+    # a resposta no meio (mesmo tratamento do legado ia/roteiro). Modelos sem suporte
+    # ao campo devolvem 400 → refaz sem ele.
     payload = {
         "systemInstruction": {"parts": [{"text": system}]},
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.6},
+        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.6,
+                             "thinkingConfig": {"thinkingBudget": 0}},
     }
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), method="POST",
-                                 headers={"Content-Type": "application/json", "x-goog-api-key": key})
-    try:
+    def _call(pl):
+        req = urllib.request.Request(url, data=json.dumps(pl).encode("utf-8"), method="POST",
+                                     headers={"Content-Type": "application/json", "x-goog-api-key": key})
         with urllib.request.urlopen(req, timeout=120) as r:
-            d = json.loads(r.read().decode("utf-8"))
+            return json.loads(r.read().decode("utf-8"))
+    try:
+        try:
+            d = _call(payload)
+        except urllib.error.HTTPError as e0:
+            if e0.code == 400:
+                payload["generationConfig"].pop("thinkingConfig", None)
+                d = _call(payload)
+            else:
+                raise
         cands = d.get("candidates") or []
         text = "".join(pt.get("text", "") for c in cands for pt in ((c.get("content") or {}).get("parts") or []))
         if not text:
