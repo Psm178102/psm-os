@@ -80,7 +80,7 @@ def run_checks(sb):
                 pn = (d.get("pipeline_name") or "(sem funil)").strip()
                 orfaos[pn] = orfaos.get(pn, 0) + float(d.get("amount") or 0)
         # PARCERIA é 'outros' por decisão (fora das frentes) — só alerta acima de R$0 em funis NÃO conhecidos
-        estranhos = {k: v for k, v in orfaos.items() if "PARCERIA" not in k.upper()}
+        estranhos = {k: v for k, v in orfaos.items() if "PARCERIA" not in k.upper() and v > 0}   # R$0 = ruído, não alerta
         add("frentes_orfas", not estranhos,
             "Todos os funis do RD mapeados nas frentes" if not estranhos
             else "Funis SEM frente mapeada (VGV caindo em 'outros'): " + "; ".join(f"{k} (R$ {v:,.0f})" for k, v in list(estranhos.items())[:5]), "warn")
