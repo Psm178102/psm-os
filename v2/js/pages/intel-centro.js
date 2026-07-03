@@ -250,8 +250,7 @@ FORECAST DO MÊS: projeção R$ ${money(fc.projecao)} vs meta R$ ${money(fc.meta
 
 FATOS/DIAGNÓSTICOS:
 ${fatos || '(nenhum problema crítico detectado)'}`;
-    const r = await fetch('/api/ai-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, max_tokens: 1100 }) });
-    const j = await r.json();
+    const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3000, dossie: true } });   // cérebro novo (Sonnet 5 + dossiê) v84.4
     if (j.ok && j.text) {
       box.innerHTML = `<div style="background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid rgba(124,58,237,.25);border-radius:var(--r-md);padding:14px 16px">
         <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:#7c3aed">🧠 Análise executiva da IA <span class="tiny muted" style="font-weight:400">· ${escapeHtml(j.model_used || 'IA')}</span></div>

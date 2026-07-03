@@ -16,6 +16,9 @@ from _oo_lib import parse_dt, amount, read_meta_spend  # type: ignore
 from _brain_lib import loss_clusters  # type: ignore
 
 PUBLIC_BASE = (os.environ.get("PUBLIC_BASE_URL") or "https://www.housepsm.com.br").rstrip("/")
+# v84.4 — dossiê rico + frente_of (fonte única)
+from _dossie_lib import compile_dossie  # type: ignore
+from _auth_lib import frente_of  # type: ignore
 
 
 def _fetch_closed(sb, since_iso):
@@ -127,8 +130,10 @@ FATOS REAIS:
 - CONCORRÊNCIA (Biblioteca de Anúncios): {conc}."""
 
 
-def _ai_text(prompt, max_tokens=1800):
-    body = json.dumps({"prompt": prompt, "max_tokens": max_tokens}).encode("utf-8")
+def _ai_text(prompt, max_tokens=4000):
+    # v84.4 — Briefing de Guerra roda no OPUS 4.8 (antes caía no default Haiku do legado)
+    model = os.environ.get("BRIEFING_MODEL", "claude-opus-4-8")
+    body = json.dumps({"prompt": prompt, "model": model, "max_tokens": max_tokens}).encode("utf-8")
     req = urllib.request.Request(
         PUBLIC_BASE + "/api/ai-analysis", data=body,
         headers={"Content-Type": "application/json", "User-Agent": "PSM-OS/briefing"})
@@ -144,7 +149,15 @@ def generate_and_store(sb, actor_id=None):
     tabela war_briefings ainda não existir (saved=False)."""
     today = datetime.now(timezone.utc).date()
     facts = compile_facts(sb, today)
-    text, model = _ai_text(build_prompt(facts))
+    try:
+        facts["dossie"] = compile_dossie(sb, frente_of)   # contexto COMPLETO (v84.4)
+    except Exception:
+        facts["dossie"] = ""
+    prompt = build_prompt(facts)
+    if facts.get("dossie"):
+        prompt = facts["dossie"] + "\n\n---\n\n" + prompt
+    text, model = _ai_text(prompt)
+    facts.pop("dossie", None)   # não persiste o dossiê inteiro na linha (só os facts compactos)
     row = {"briefing": text, "facts": facts, "model": model, "criado_por": actor_id}
     saved = None
     try:

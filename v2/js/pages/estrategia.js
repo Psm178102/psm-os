@@ -492,8 +492,7 @@ async function iaEstrategista() {
       api.request('/api/v3/metrics/overview').catch(() => ({})),
     ]);
     const prompt = buildIaPrompt(okrs.okrs || [], atg, ov);
-    const r = await fetch('/api/ai-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, max_tokens: 1500 }) });
-    const j = await r.json();
+    const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3500, dossie: true } });   // cérebro novo (Sonnet 5 + dossiê) v84.4
     if (j.ok && j.text) {
       modal.innerHTML = wrapModal(`
         <div style="font-weight:800;color:#7c3aed;margin-bottom:8px">🤖 Leitura estratégica <span class="tiny muted" style="font-weight:400">· ${esc(j.model_used || 'IA')}</span></div>

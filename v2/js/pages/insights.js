@@ -267,11 +267,7 @@ async function generate() {
   out.innerHTML = `<div style="background:var(--bg-3);border-radius:var(--r-md);padding:14px"><span class="spinner"></span> A IA está lendo os números e montando a análise estratégica…</div>`;
   try {
     const prompt = buildPrompt();
-    const r = await fetch('/api/ai-analysis', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, max_tokens: 1400 }),
-    });
-    const j = await r.json();
+    const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3000, dossie: true } });   // cérebro novo (Sonnet 5 + dossiê) v84.4
     if (j.ok && j.text) {
       out.innerHTML = `<div style="background:linear-gradient(180deg,rgba(37,99,235,.06),transparent);border:1px solid rgba(37,99,235,.28);border-radius:var(--r-md);padding:16px 18px">
         <div style="font-weight:800;font-size:13px;color:#2563eb;margin-bottom:8px">💡 Leitura estratégica <span class="tiny muted" style="font-weight:400">· ${esc(j.model_used || 'IA')}</span></div>
