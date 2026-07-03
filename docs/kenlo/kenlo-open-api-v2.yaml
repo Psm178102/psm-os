@@ -1,0 +1,2437 @@
+openapi: 3.1.0
+servers:
+  - url: https://imob-api.kenlo-open.com
+    description: Produção (GCP API Gateway)
+info:
+  title: Kenlo Open API — v2
+  version: 2.0.0
+  termsOfService: https://kenlo.io/termos
+  contact:
+    name: Equipe de Integrações Kenlo
+    url: https://kenlo.io
+    email: integracao@kenlo.io
+  x-logo:
+    url: ./kenlo-logo-azul.png
+    altText: Logo da Kenlo
+  description: |
+    <strong style="color: tomato">Atenção! Esta API deve ser utilizada de forma exclusiva
+    para integração de parceiros estratégicos com o ecossistema Kenlo Imob.</strong>
+
+    # Introdução
+
+    A **Kenlo Open API v2** é uma API RESTful que permite a CRMs, parceiros
+    estratégicos e canais consultar e operar dados das imobiliárias integradas
+    ao ecossistema Kenlo Imob — imóveis, anúncios, clientes, empreendimentos e
+    atendimentos.
+
+    O acesso é feito através do **GCP API Gateway**, que valida a `X-API-Key`
+    e roteia para o backend Kenlo no GKE. Os tipos de sistemas que costumam
+    consumir a API:
+
+    - **CRMs imobiliários** (de mercado ou proprietários)
+    - **Portais de listagem** que consomem o índice de anúncios publicados
+    - **Incorporadoras** que mantêm seus empreendimentos atualizados
+    - **Parceiros de inteligência de mercado** que percorrem o catálogo completo
+
+    > **Importante:** o escopo do uso deve sempre respeitar os termos do contrato
+    > estabelecidos entre a Kenlo e a sua empresa.
+
+    # Organização dos recursos
+
+    A v2 trabalha com cinco grandes recursos. Conhecer a relação entre eles é
+    pré-requisito para escolher o endpoint correto.
+
+    ## Listing (anúncio)
+
+    O **anúncio publicado nos canais** — o objeto que os portais e canais
+    consomem para exibir o imóvel ao consumidor final. Tem ciclo de vida
+    separado do `Property` (um imóvel pode ter zero ou muitos anúncios em
+    canais diferentes). Identificado pelo `id` canônico ou pela chave de
+    negócio `(agencyId, propertyCode)`. Leitura via
+    [GET /v2/listings](/#operation/listListings),
+    [GET /v2/listings/{id}](/#operation/getListing) e
+    [GET /v2/listings/{agencyId}/{propertyCode}](/#operation/getListingByCode).
+
+    ## Lead (atendimento)
+
+    Atendimento gerado a partir do interesse de um lead. Tem **etapa do
+    funil** (`stage`), **responsável** e ações REST como sub-recursos:
+    movimentar etapa, transferir, arquivar, desarquivar. Migração do
+    `client-attend` da v1, com endpoints em [/v2/leads](/#tag/Leads).
+
+    ## Property (imóvel)
+
+    O **registro do imóvel no CRM** — a fonte de verdade. Identificado pelo
+    `id` opaco (`p_456`) ou pela chave de negócio `propertyCode` (`AP-100`).
+    É escrito pelo CRM via [POST /v2/properties](/#operation/createProperty),
+    [PUT /v2/properties/{id}](/#operation/updateProperty) e
+    [PATCH /v2/properties/{id}](/#operation/patchProperty). Mídias do imóvel
+    (foto, planta, vídeo, tour) são tratadas como sub-recurso em
+    [/v2/properties/{id}/media](/#tag/Media).
+
+    ## Customer (cliente)
+
+    Qualquer pessoa relevante para a imobiliária — proprietário, cliente,
+    lead ou corretor. O campo `role` diferencia o papel. Operações em
+    [/v2/customers](/#tag/Customers). O criar com sub-recursos usa
+    `?expand=all` ([POST /v2/customers](/#operation/createCustomer)).
+
+    ## Development (empreendimento)
+
+    Um conjunto de **torres** e **unidades**, com **detalhes** (atributos
+    técnicos) e **combos** (conjuntos pré-definidos de unidades). Substitui
+    o `enterprises` da v1 e unifica o naming dos parâmetros de path para
+    `developmentId / towerId / unitId`. Operações em
+    [/v2/developments](/#tag/Developments).
+
+    # Autenticação e Autorização
+
+    A v2 utiliza **API Key + identidade da imobiliária**, validados pelo
+    GCP API Gateway antes de chegar ao backend. Não há OAuth 2.0 — o modelo
+    é simples e o consentimento é gerenciado server-side pelo Marketplace
+    Kenlo.
+
+    ## Como obter sua API Key
+
+    1. **Apenas clientes associados ao Plano K2** podem gerar API Keys.
+    2. Após o cadastro no **Marketplace Kenlo**, a Kenlo emite o seu par
+       `x-api-key` + `x-user-info` (este último é gerado pelo próprio
+       Marketplace e entregue já codificado em Base64).
+    3. **Configure os consentimentos** no Marketplace para liberar o uso
+       das rotas que dependem deles (ver
+       [Consentimentos e LGPD](/#section/Consentimentos-e-LGPD)).
+
+    > **Trate a `X-API-Key` como uma senha.** Não exponha em código-fonte público,
+    > logs ou respostas. Em caso de comprometimento, solicite rotação imediata.
+
+    <!-- ReDoc-Inject: <security-definitions /> -->
+
+    # Headers da requisição
+
+    | Header | Obrigatório | Tipo | Usado em | Descrição |
+    |---|---|---|---|---|
+    | `X-API-Key` | Sim | string | Todos (exceto `/v2/health` e webhooks públicos) | Chave de API emitida pela Kenlo |
+    | `x-user-info` | Sim | string (Base64) | Todos os endpoints autenticados que tocam recursos da imobiliária | JSON `{ email, id_imob, id_user, id_profile }` codificado em Base64 |
+    | `x-tracking-id` | Não | string (UUID v4) | Todos | ID de rastreamento; se ausente, gerado automaticamente. Volta no envelope como `correlationAudit` |
+    | `Idempotency-Key` | Recomendado | string | POST/PATCH/PUT | Chave de idempotência com janela de 24h. Mesma chave com payload divergente devolve `409 IDEMPOTENCY_CONFLICT` |
+
+    > O valor de `x-user-info` é gerado pelo Marketplace Kenlo e entregue
+    > já codificado em Base64 — veja
+    > [kenloUserInfo](/#section/Autenticacao-e-Autorizacao/kenloUserInfo)
+    > para o detalhe do conteúdo.
+
+    # Convenções da v2
+
+    A v2 padronizou um conjunto de convenções que valem para todos os
+    endpoints — qualquer rota que não as siga é considerada bug.
+
+    ## Casing
+
+    - **`camelCase`** em query parameters, request bodies e response bodies.
+    - Path parameters seguem o nome canônico do recurso (`developmentId`,
+      `towerId`, `unitId`, `propertyCode`).
+
+    ## Paginação
+
+    Listagens sempre usam:
+
+    - `page` — 1-based, default `1`.
+    - `pageSize` — default `20`, máximo `100`.
+    - A resposta sempre envelopa em `{ data, pagination }`, com `pagination`
+      contendo `page`, `pageSize`, `total` e `totalPages`.
+
+    Exemplo:
+
+    ```
+    GET /v2/properties?page=2&pageSize=50
+    ```
+
+    Para percorrer um catálogo completo, incremente `page` enquanto `data`
+    retornado for não-vazio (ou enquanto `page <= pagination.totalPages`).
+
+    ## Ordenação e busca
+
+    - `sort=<campo>` + `order=asc|desc` — controle de ordenação.
+    - `q=<termo>` — busca textual livre quando aplicável.
+    - Filtros adicionais sempre via query string, com nomes em camelCase.
+
+    ## Identificadores
+
+    Cada recurso tem **um ID canônico opaco** (`{id}`) e, quando aplicável,
+    uma chave de negócio (ex.: `propertyCode`) que vira filtro de query ou
+    path dedicado.
+
+    ## Envelope de erro
+
+    Todas as respostas de erro seguem **um envelope único**:
+
+    ```json
+    {
+      "code": "VALIDATION_ERROR",
+      "message": "pageSize must be <= 100",
+      "details": [
+        { "field": "pageSize", "reason": "exceeds_maximum", "allowedMax": 100 }
+      ],
+      "correlationAudit": "550e8400-e29b-41d4-a716-446655440000"
+    }
+    ```
+
+    Guarde o `correlationAudit` ao reportar problemas ao suporte — ele
+    identifica a requisição nos logs internos da Kenlo.
+
+    | HTTP | `code` | Quando acontece |
+    |---|---|---|
+    | 400 | `VALIDATION_ERROR` | Campo obrigatório ausente, tipo inválido, valor fora do enum |
+    | 401 | `UNAUTHORIZED` | `X-API-Key` ou `x-user-info` ausente/inválido |
+    | 403 | `FORBIDDEN_AGENCY` | Parceiro sem permissão para a imobiliária consultada |
+    | 403 | `CONSENT_REQUIRED` | Operação exige consentimento LGPD que não está habilitado |
+    | 404 | `NOT_FOUND` | Recurso inexistente OU pertencente a outra agência (anti-enumeração) |
+    | 409 | `IDEMPOTENCY_CONFLICT` | Mesma `Idempotency-Key` com payload divergente |
+    | 422 | `BUSINESS_RULE_VIOLATION` | Regra de negócio violada (`type=photo` apenas para mídia, etc.) |
+    | 429 | `RATE_LIMITED` | Limite de requisições atingido — ver `retryAfter` |
+    | 500 | `INTERNAL_ERROR` | Falha inesperada — informar `correlationAudit` ao suporte |
+    | 502 | `UPSTREAM_ERROR` | Falha em serviço interno; `details` indica o que foi aplicado/pulado |
+
+    # Rate Limiting
+
+    | Item | Valor |
+    |---|---|
+    | Limite padrão | **Varia conforme o tipo de parceria** — definido no contrato e refletido no plano associado à `X-API-Key` |
+    | Janela | 1 hora (rolling window) |
+    | Sinal de erro | HTTP **429** com header `Retry-After` (segundos) e campo `retryAfter` no corpo |
+
+    Caso precise de um limite diferente do contratado, fale com a equipe
+    comercial Kenlo — o ajuste é feito do lado do Gateway sem mudança no
+    código do parceiro.
+
+    ## Boas práticas
+
+    - Implemente **exponential backoff** ao receber 429.
+    - Use `pageSize=100` para reduzir o número de chamadas quando percorrer
+      um catálogo grande.
+    - Distribua as requisições ao longo do tempo em vez de disparar todas
+      de uma vez.
+    - Considere **cache local** com TTL alinhado à frequência de
+      atualização do seu negócio.
+
+    # Rastreabilidade
+
+    Toda requisição pode incluir o header opcional `x-tracking-id` com um
+    UUID v4 gerado pelo seu sistema:
+
+    ```
+    x-tracking-id: 550e8400-e29b-41d4-a716-446655440000
+    ```
+
+    Se ausente, o gateway gera um automaticamente. O valor volta no
+    envelope da resposta como `correlationAudit` e é registrado nos logs
+    de auditoria Kenlo. **Sempre informe o `correlationAudit`** ao acionar
+    o suporte.
+
+    # Consentimentos e LGPD
+
+    A Kenlo Open API implementa gestão de consentimentos em conformidade
+    com a **LGPD**. Campos sensíveis só são retornados quando o
+    consentimento correspondente está habilitado para o parceiro.
+
+    > A tabela abaixo é gerada a partir de
+    > [`docs/consents.json`](https://gitlab.com/kenlo1/kenlo-open/kenlo-open-api/-/blob/master/docs/consents.json).
+    > Para adicionar/remover um consentimento, edite o JSON e rode
+    > `npm run docs:v2:consents`.
+
+    <!-- consents:start -->
+    | Consentimento | Campo afetado | Sem consentimento |
+    |---|---|---|
+    | `address_consent` | `location.fullLocation` | Campo omitido ou vazio |
+    | `price_consent` | `pricing` | Campos de preço omitidos |
+    | `owner_data_consent` | `owner[]` | Array retorna vazio |
+    | `no_watermark_consent` | URLs em `media.image` | Imagens com watermark |
+    | `condo_photos_consent` | `media.imageCondo` | Array retorna vazio |
+    | `lead_get_status_consent` | Leitura de `/v2/leads` | `403 CONSENT_REQUIRED` |
+    | `lead_update_status_consent` | Escrita de `/v2/leads` | `403 CONSENT_REQUIRED` |
+    <!-- consents:end -->
+
+    Os consentimentos são configurados no **Marketplace Kenlo** pela
+    própria imobiliária ao vincular-se ao parceiro. Solicite à equipe
+    Kenlo apenas os consentimentos necessários para a sua operação.
+
+    # Uso por tipo de parceiro
+
+    ## CRM imobiliário
+
+    Diariamente, para cada imobiliária vinculada:
+
+    1. **Sincronize o catálogo do CRM** chamando
+       [POST /v2/properties](/#operation/createProperty) (novos imóveis),
+       [PUT /v2/properties/{id}](/#operation/updateProperty) (atualizações
+       completas) ou
+       [PATCH /v2/properties/{id}](/#operation/patchProperty) (atualizações
+       parciais).
+    2. **Envie mídias** via
+       [POST /v2/properties/{id}/media](/#operation/createPropertyMedia)
+       (multipart/form-data, máx 5MB, JPEG/PNG).
+    3. **Mantenha clientes atualizados** em [/v2/customers](/#tag/Customers).
+    4. **Receba notificações de batch concluído** no seu endpoint webhook
+       (registrado no onboarding).
+
+    ## Portal de listagem
+
+    Use exclusivamente [/v2/listings](/#tag/Listings) — a leitura do índice
+    de canais é otimizada para alta frequência e tem o endereço estruturado
+    no vocabulário **RESO**.
+
+    ## Inteligência de mercado
+
+    Combine [GET /v2/listings](/#operation/listListings) com
+    [GET /v2/developments](/#operation/listDevelopments) para percorrer o
+    catálogo completo. Use o filtro de janela temporal apenas para o
+    incremento diário; para o load inicial, percorra todas as páginas.
+
+    ## Incorporadora
+
+    Use [/v2/developments](/#tag/Developments) para manter empreendimentos,
+    torres, unidades, detalhes técnicos e combos atualizados. As unidades
+    seguem o ciclo Criar/Atualizar/Remover refletido em
+    [POST](/#operation/createDevelopmentUnit) /
+    [PUT](/#operation/updateDevelopmentUnit) /
+    [DELETE](/#operation/deleteDevelopmentUnit).
+
+    # Outras observações
+
+    ## Codificação
+
+    A API retorna resultados em **UTF-8**. Parâmetros de query devem ser
+    codificados em *URI encoding (percent-encoding)* — espaços viram `%20`
+    em nomes como `São%20Paulo`. Isso já é feito automaticamente pelos
+    métodos de URI encoding inclusos em quase todas as linguagens.
+
+    ## Convivência com a v1
+
+    A **v1 segue disponível** em `/v1/...` durante a transição. A v1 está
+    documentada separadamente em `/api-docs/` (Swagger UI). Novas
+    integrações devem usar a v2; integrações existentes podem migrar
+    incrementalmente recurso a recurso.
+
+    ## Versão da spec
+
+    A version da spec segue *semver*. Bumps **minor** ocorrem ao adicionar
+    endpoints; **patch**, ao corrigir descrições/examples sem alterar
+    contrato; **major**, ao romper compatibilidade (não há plano nessa
+    fase).
+tags:
+  - name: System
+    description: Saúde e metadados da API.
+  - name: Properties
+    description: |
+      Registro do imóvel no CRM (a fonte de verdade). Inclui leitura/busca e
+      escrita. Corrige a inversão histórica da v1 (em que `GET /v1/listings`
+      retornava o imóvel do CRM).
+  - name: Media
+    description: |
+      Mídias de imóveis (foto/vídeo/planta/tour). Hoje o backend suporta apenas
+      foto; demais tipos retornam `422`. Anexada ao recurso Property como
+      sub-recurso REST.
+  - name: Listings
+    description: |
+      Anúncio publicado nos canais. Leitura do índice de canais com endereço
+      estruturado no vocabulário **RESO** e envelope de paginação unificado.
+  - name: Customers
+    description: |
+      Clientes — proprietários, leads e corretores. Substitui o
+      `customers` da v1 sob as convenções v2. Use `?expand=all` no POST para
+      criar com sub-recursos (substituindo `POST /v1/customers/createall`).
+  - name: Developments
+    description: |
+      Empreendimentos com torres, unidades, detalhes e combos. Migração de
+      `enterprises` da v1 com naming unificado (`developmentId/towerId/unitId`).
+  - name: Leads
+    description: |
+      Atendimentos do funil de leads. Migração de `client-attend` da v1; ações
+      do funil viram sub-recursos REST (`/stage`, `/transfer`, `/archive`,
+      `/unarchive`). Exige consentimentos `lead_get_status_consent` (leitura)
+      e `lead_update_status_consent` (escrita).
+x-tagGroups:
+  - name: Listing
+    tags: [Listings]
+  - name: Lead
+    tags: [Leads]
+  - name: Property
+    tags: [Properties, Media]
+  - name: Customer
+    tags: [Customers]
+  - name: Development
+    tags: [Developments]
+  - name: Operacional
+    tags: [System]
+
+security:
+  - kenloApiKey: []
+    kenloUserInfo: []
+
+paths:
+  /v2/health:
+    get:
+      tags: [System]
+      operationId: getV2Health
+      summary: Health check da v2
+      security: []
+      description: |
+        Retorna o status de saúde do namespace v2 da API. Não exige
+        autenticação. Use para health-checks de upstream e probes de
+        Kubernetes.
+      responses:
+        '200':
+          description: Serviço saudável.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                version: v2
+
+  /v2/properties:
+    get:
+      tags: [Properties]
+      operationId: listProperties
+      summary: Busca imóveis no CRM
+      description: |
+        Lê e pesquisa o registro do imóvel no CRM da imobiliária autenticada
+        no header `x-user-info`. Corrige a inversão da v1: este é o endpoint
+        de **registro CRM** (era `GET /v1/listings`); para o anúncio público
+        nos canais, use [GET /v2/listings](/#operation/listListings).
+
+        O parâmetro `scope` é exigido pela fonte do CRM e delimita o universo
+        de busca. A agência é resolvida do `x-user-info` — não passar
+        `agencyId` em query.
+
+        Para percorrer o catálogo completo, faça paginação incremental
+        baseada em `pagination.totalPages`.
+      parameters:
+        - $ref: '#/components/parameters/Scope'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+      responses:
+        '200':
+          description: Lista paginada de imóveis (registro CRM).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyListResponse'
+              example:
+                data:
+                  - id: p_456
+                    propertyCode: AP-100
+                    title: Apartamento 2 quartos
+                    address:
+                      unparsedAddress: 'Av. Paulista, 1000, Bela Vista, São Paulo - SP, 01310-100'
+                      city: 'São Paulo'
+                      stateOrProvince: SP
+                pagination:
+                  page: 1
+                  pageSize: 20
+                  total: 135
+                  totalPages: 7
+                correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      tags: [Properties]
+      operationId: createProperty
+      summary: Cria um imóvel (registro CRM)
+      description: |
+        Cria o **registro do imóvel no CRM** da imobiliária autenticada.
+        Reusa o fluxo de escrita da v1 sob as convenções v2 (envelope de
+        erro, casing, idempotência).
+
+        Recomenda-se enviar `Idempotency-Key` para tolerância a retries:
+        a mesma chave com payload idêntico devolve a resposta cacheada;
+        com payload divergente, retorna `409 IDEMPOTENCY_CONFLICT`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyRequest'
+            example:
+              propertyCode: AP-100
+              title: Apartamento 2 quartos em Moema
+              address:
+                unparsedAddress: 'R. Inhambu, 500, Moema, São Paulo - SP, 04520-010'
+              pricing:
+                salePrice: 850000
+      responses:
+        '201':
+          description: Imóvel criado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyResponse'
+              example:
+                id: p_456
+                propertyCode: AP-100
+                correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+  /v2/properties/{id}:
+    put:
+      tags: [Properties]
+      operationId: updateProperty
+      summary: Substitui um imóvel
+      description: |
+        Atualização **total** (PUT) do registro do imóvel no CRM. Todos os
+        campos não enviados serão considerados como removidos. Para
+        atualizações parciais, use
+        [PATCH /v2/properties/{id}](/#operation/patchProperty).
+      parameters:
+        - $ref: '#/components/parameters/PropertyId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyRequest'
+            example:
+              propertyCode: AP-100
+              title: Apartamento reformado em Moema
+              pricing:
+                salePrice: 920000
+      responses:
+        '200':
+          description: Imóvel atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+    patch:
+      tags: [Properties]
+      operationId: patchProperty
+      summary: Atualiza parcialmente um imóvel
+      description: |
+        Atualização **parcial** (PATCH) do registro do imóvel no CRM. Apenas
+        os campos enviados são alterados. Para substituição completa, use
+        [PUT /v2/properties/{id}](/#operation/updateProperty).
+      parameters:
+        - $ref: '#/components/parameters/PropertyId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyPatchRequest'
+            example:
+              pricing:
+                salePrice: 880000
+      responses:
+        '200':
+          description: Imóvel atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+  /v2/properties/{id}/media:
+    post:
+      tags: [Media]
+      operationId: createPropertyMedia
+      summary: Envia uma mídia ao imóvel
+      description: |
+        Upload de mídia para o imóvel via `multipart/form-data`. O tipo é
+        definido pelo campo `type` no body — atualmente apenas `photo` é
+        suportado (JPEG/PNG, máx 5MB); demais tipos retornam `422`.
+
+        **Campos opcionais:** `caption`, `description`, `order`, `featured`
+        (booleano), `visible` (booleano), `isVertical` (booleano).
+      parameters:
+        - $ref: '#/components/parameters/PropertyId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [type, file]
+              properties:
+                type:
+                  type: string
+                  enum: [photo, video, floor_plan, tour]
+                  description: Tipo da mídia. Hoje só `photo` aceito; demais retornam 422.
+                file:
+                  type: string
+                  format: binary
+                  description: Arquivo da mídia (JPEG/PNG, máx 5MB).
+                caption:
+                  type: string
+                  example: Fachada do edifício
+                description:
+                  type: string
+                order:
+                  type: integer
+                  example: 1
+                featured:
+                  type: boolean
+                  example: true
+                visible:
+                  type: boolean
+                  example: true
+                isVertical:
+                  type: boolean
+      responses:
+        '201':
+          description: Mídia criada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Media'
+              example:
+                id: m_789
+                type: photo
+                url: https://cdn.kenlo.io/properties/p_456/m_789.jpg
+                caption: Fachada do edifício
+                featured: true
+                order: 1
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+  /v2/properties/{id}/media/{mediaId}:
+    put:
+      tags: [Media]
+      operationId: updatePropertyMedia
+      summary: Atualiza metadados de uma mídia
+      description: |
+        Atualiza os metadados da mídia (`caption`, `description`, `order`,
+        `featured`, `visible`, `isVertical`). Não permite trocar o arquivo —
+        para isso, exclua via
+        [DELETE](/#operation/deletePropertyMedia) e crie nova.
+      parameters:
+        - $ref: '#/components/parameters/PropertyId'
+        - $ref: '#/components/parameters/MediaId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                caption: { type: string }
+                description: { type: string }
+                order: { type: integer }
+                featured: { type: boolean }
+                visible: { type: boolean }
+                isVertical: { type: boolean }
+            example:
+              caption: Vista da sala de estar
+              featured: false
+              order: 3
+      responses:
+        '200':
+          description: Mídia atualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Media'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+    delete:
+      tags: [Media]
+      operationId: deletePropertyMedia
+      summary: Remove uma mídia
+      description: Remove a mídia do imóvel definitivamente. Idempotente — chamadas em sequência continuam retornando `204`.
+      parameters:
+        - $ref: '#/components/parameters/PropertyId'
+        - $ref: '#/components/parameters/MediaId'
+      responses:
+        '204':
+          description: Mídia removida (sem corpo).
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+  /v2/listings:
+    get:
+      tags: [Listings]
+      operationId: listListings
+      summary: Lista anúncios dos canais
+      description: |
+        Lê o índice de anúncios publicados nos canais (Elasticsearch). É o
+        endpoint indicado para **portais** e para **inteligência de
+        mercado** — payload otimizado para alta frequência, com endereço
+        estruturado no vocabulário **RESO** e envelope de paginação
+        unificado.
+
+        Para o registro do imóvel no CRM (escrita, ciclo de vida), use
+        [GET /v2/properties](/#operation/listProperties).
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+        - $ref: '#/components/parameters/Query'
+        - in: query
+          name: city
+          schema: { type: string }
+          example: 'São Paulo'
+        - in: query
+          name: neighborhood
+          schema: { type: string }
+          example: Moema
+        - in: query
+          name: finalityType
+          schema:
+            type: string
+            enum: [venda, aluguel]
+          example: venda
+        - in: query
+          name: salesStart
+          schema: { type: number }
+        - in: query
+          name: salesEnd
+          schema: { type: number }
+        - in: query
+          name: rentalStart
+          schema: { type: number }
+        - in: query
+          name: rentalEnd
+          schema: { type: number }
+      responses:
+        '200':
+          description: Lista paginada de anúncios.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingListResponse'
+              example:
+                data:
+                  - id: l_001
+                    agencyId: 12345
+                    propertyCode: AP-100
+                    title: Apartamento 2 quartos em Moema
+                    address:
+                      unparsedAddress: 'R. Inhambu, 500, Moema, São Paulo - SP, 04520-010'
+                      city: 'São Paulo'
+                      stateOrProvince: SP
+                    pricing:
+                      salePrice: 850000
+                pagination:
+                  page: 1
+                  pageSize: 20
+                  total: 1342
+                  totalPages: 68
+                correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /v2/listings/{id}:
+    get:
+      tags: [Listings]
+      operationId: getListing
+      summary: Obtém um anúncio por id
+      description: |
+        Retorna o detalhe completo do anúncio publicado a partir do ID
+        canônico. Para buscar pelo par `(agencyId, propertyCode)`, use
+        [GET /v2/listings/{agencyId}/{propertyCode}](/#operation/getListingByCode).
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+          example: l_001
+      responses:
+        '200':
+          description: Detalhe do anúncio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Listing'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /v2/listings/{agencyId}/{propertyCode}:
+    get:
+      tags: [Listings]
+      operationId: getListingByCode
+      summary: Obtém um anúncio por agência + código
+      description: |
+        Path dedicado por **chave de negócio**. Útil quando o sistema
+        externo conhece o `propertyCode` original mas não o ID canônico.
+      parameters:
+        - in: path
+          name: agencyId
+          required: true
+          schema: { type: integer }
+          example: 12345
+        - in: path
+          name: propertyCode
+          required: true
+          schema: { type: string }
+          example: AP-100
+      responses:
+        '200':
+          description: Detalhe do anúncio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Listing'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /v2/customers:
+    post:
+      tags: [Customers]
+      operationId: createCustomer
+      summary: Cria um cliente
+      description: |
+        Cria um cliente. Sem parâmetros, comporta-se como
+        `POST /v1/customers`. Com `?expand=all`, executa o fluxo completo
+        (cliente + sub-recursos como endereços, telefones, interesses),
+        substituindo o antigo `POST /v1/customers/createall`.
+      parameters:
+        - in: query
+          name: expand
+          required: false
+          schema:
+            type: string
+            enum: [all]
+          description: Use `all` para criar com sub-recursos.
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+            example:
+              name: Maria Silva
+              personType: 1
+              cpf: '12345678901'
+              role: client
+              email: maria@example.com
+              phone: '+5511999990000'
+      responses:
+        '201':
+          description: Cliente criado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+              example:
+                id: c_123
+                name: Maria Silva
+                role: client
+                correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+    get:
+      tags: [Customers]
+      operationId: listCustomers
+      summary: Lista clientes
+      description: |
+        Lista clientes da imobiliária. Suporta busca textual livre (`q`),
+        filtro por `role` e paginação padrão da v2.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+        - $ref: '#/components/parameters/Query'
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [owner, client, lead, broker]
+      responses:
+        '200':
+          description: Lista paginada de clientes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerListResponse'
+              example:
+                data:
+                  - id: c_123
+                    name: Maria Silva
+                    role: client
+                pagination:
+                  page: 1
+                  pageSize: 20
+                  total: 42
+                  totalPages: 3
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /v2/customers/{id}:
+    get:
+      tags: [Customers]
+      operationId: getCustomer
+      summary: Obtém um cliente por id
+      description: Retorna o detalhe completo de um cliente, incluindo sub-recursos quando solicitado via `?expand=all`.
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+        - in: query
+          name: expand
+          schema:
+            type: string
+            enum: [all]
+      responses:
+        '200':
+          description: Detalhe do cliente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    put:
+      tags: [Customers]
+      operationId: updateCustomer
+      summary: Atualiza um cliente
+      description: |
+        Substitui os dados base do cliente. Com `?expand=all`, atualiza
+        também sub-recursos (substitui `PUT /v1/customers/updateall`).
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+        - in: query
+          name: expand
+          schema:
+            type: string
+            enum: [all]
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+            example:
+              name: Maria S. Souza
+              email: maria.souza@example.com
+      responses:
+        '200':
+          description: Cliente atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+              example:
+                id: c_123
+                name: Maria S. Souza
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+  /v2/developments:
+    post:
+      tags: [Developments]
+      operationId: createDevelopment
+      summary: Cria um empreendimento
+      description: Cria um empreendimento. Sub-recursos (torres, unidades, detalhes, combos) são criados em endpoints próprios.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevelopmentRequest'
+            example:
+              name: Edifício Acácia
+              address:
+                unparsedAddress: 'R. Acácia, 100, Itaim Bibi, São Paulo - SP, 04532-061'
+              statusId: 1
+              phaseId: 2
+      responses:
+        '201':
+          description: Empreendimento criado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevelopmentResponse'
+              example:
+                id: d_001
+                name: Edifício Acácia
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+    get:
+      tags: [Developments]
+      operationId: listDevelopments
+      summary: Lista empreendimentos
+      description: Lista paginada com filtros por status, fase, cidade e busca textual.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+        - $ref: '#/components/parameters/Query'
+        - in: query
+          name: statusId
+          schema: { type: integer }
+        - in: query
+          name: phaseId
+          schema: { type: integer }
+        - in: query
+          name: city
+          schema: { type: string }
+      responses:
+        '200':
+          description: Lista paginada de empreendimentos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevelopmentListResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /v2/developments/{developmentId}:
+    get:
+      tags: [Developments]
+      operationId: getDevelopment
+      summary: Obtém um empreendimento
+      description: Detalhe completo do empreendimento.
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+      responses:
+        '200':
+          description: Detalhe do empreendimento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevelopmentResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    put:
+      tags: [Developments]
+      operationId: updateDevelopment
+      summary: Atualiza um empreendimento
+      description: Substituição completa dos dados base do empreendimento.
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevelopmentRequest'
+      responses:
+        '200':
+          description: Empreendimento atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevelopmentResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+  /v2/developments/{developmentId}/towers:
+    post:
+      tags: [Developments]
+      operationId: createDevelopmentTower
+      summary: Cria uma torre
+      description: Cria uma torre dentro do empreendimento.
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TowerRequest'
+            example:
+              name: Torre A
+              floorsCount: 22
+              unitsPerFloor: 4
+      responses:
+        '201':
+          description: Torre criada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TowerResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+    get:
+      tags: [Developments]
+      operationId: listDevelopmentTowers
+      summary: Lista torres
+      description: Lista paginada de torres do empreendimento.
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Lista paginada de torres.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TowerListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /v2/developments/{developmentId}/towers/{towerId}:
+    get:
+      tags: [Developments]
+      operationId: getDevelopmentTower
+      summary: Obtém uma torre
+      description: Detalhe da torre dentro do empreendimento.
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+        - $ref: '#/components/parameters/TowerId'
+      responses:
+        '200':
+          description: Detalhe da torre.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TowerResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    put:
+      tags: [Developments]
+      operationId: updateDevelopmentTower
+      summary: Atualiza uma torre
+      description: Substituição completa da torre.
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+        - $ref: '#/components/parameters/TowerId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TowerRequest'
+      responses:
+        '200':
+          description: Torre atualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TowerResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+  /v2/developments/{developmentId}/details:
+    get:
+      tags: [Developments]
+      operationId: listDevelopmentDetails
+      summary: Lista detalhes do empreendimento
+      description: Lista os atributos técnicos (detalhes) do empreendimento (vagas, lazer, segurança etc.).
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+      responses:
+        '200':
+          description: Lista de detalhes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DevelopmentDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Developments]
+      operationId: upsertDevelopmentDetails
+      summary: Define detalhes do empreendimento
+      description: |
+        **Upsert** dos detalhes (replacement set). O conjunto enviado
+        substitui completamente os detalhes anteriores.
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '#/components/schemas/DevelopmentDetail' }
+            example:
+              - idDetail: 12
+                value: true
+              - idDetail: 18
+                value: 4
+      responses:
+        '200':
+          description: Detalhes atualizados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DevelopmentDetail' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+
+  /v2/developments/{developmentId}/combos:
+    get:
+      tags: [Developments]
+      operationId: listDevelopmentCombos
+      summary: Lista combos do empreendimento
+      description: Lista os combos (conjuntos pré-definidos de unidades) do empreendimento.
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+      responses:
+        '200':
+          description: Lista de combos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DevelopmentCombo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Developments]
+      operationId: setDevelopmentCombos
+      summary: Define combos do empreendimento
+      description: Substituição completa dos combos do empreendimento.
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '#/components/schemas/DevelopmentCombo' }
+      responses:
+        '200':
+          description: Combos atualizados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DevelopmentCombo' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v2/developments/{developmentId}/towers/{towerId}/units:
+    post:
+      tags: [Developments]
+      operationId: createDevelopmentUnit
+      summary: Cria uma unidade
+      description: Cria uma unidade dentro de uma torre.
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+        - $ref: '#/components/parameters/TowerId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnitRequest'
+            example:
+              numbering: '1201'
+              floor: 12
+              privateArea: 75.5
+              bedrooms: 2
+              suites: 1
+              parkingSpots: 1
+              salePrice: 850000
+      responses:
+        '201':
+          description: Unidade criada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+    get:
+      tags: [Developments]
+      operationId: listDevelopmentUnits
+      summary: Lista unidades
+      description: Lista paginada de unidades de uma torre.
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+        - $ref: '#/components/parameters/TowerId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Lista paginada de unidades.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v2/developments/{developmentId}/towers/{towerId}/units/{unitId}:
+    put:
+      tags: [Developments]
+      operationId: updateDevelopmentUnit
+      summary: Atualiza uma unidade
+      description: Substituição completa de uma unidade.
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+        - $ref: '#/components/parameters/TowerId'
+        - $ref: '#/components/parameters/UnitId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnitRequest'
+      responses:
+        '200':
+          description: Unidade atualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+    delete:
+      tags: [Developments]
+      operationId: deleteDevelopmentUnit
+      summary: Remove uma unidade
+      description: Remove uma unidade. Idempotente.
+      parameters:
+        - $ref: '#/components/parameters/DevelopmentId'
+        - $ref: '#/components/parameters/TowerId'
+        - $ref: '#/components/parameters/UnitId'
+      responses:
+        '204':
+          description: Unidade removida (sem corpo).
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v2/leads:
+    get:
+      tags: [Leads]
+      operationId: listLeads
+      summary: Lista leads/atendimentos
+      description: |
+        Lista atendimentos do funil de leads da imobiliária. Exige
+        consentimento `lead_get_status_consent` ativo para o parceiro;
+        caso contrário, retorna `403 CONSENT_REQUIRED`.
+
+        Filtros principais: etapa (`stage`), responsável (`responsibleUserId`),
+        operação (`operation`), busca textual (`q`), janela temporal
+        (`createdFrom`/`createdTo`/`updatedFrom`/`updatedTo`).
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Order'
+        - $ref: '#/components/parameters/Query'
+        - in: query
+          name: stage
+          schema:
+            type: string
+            enum: [WITHOUT_ATTENDANCE, ATTENDING, VISIT, PROPOSAL, GUARANTEE, CLOSURE, CONCLUDED]
+        - in: query
+          name: operation
+          schema:
+            type: string
+            enum: [RENT, SALE, UNDEFINED]
+        - in: query
+          name: responsibleUserId
+          schema: { type: integer }
+        - in: query
+          name: createdFrom
+          schema: { type: string, format: date-time }
+        - in: query
+          name: createdTo
+          schema: { type: string, format: date-time }
+        - in: query
+          name: updatedFrom
+          schema: { type: string, format: date-time }
+        - in: query
+          name: updatedTo
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Lista paginada de leads.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadListResponse'
+              example:
+                data:
+                  - id: lead_77448221
+                    stage: ATTENDING
+                    operation: SALE
+                    responsibleUserId: 7788
+                    contact:
+                      id: c_9012
+                      name: Maria Souza
+                pagination:
+                  page: 1
+                  pageSize: 20
+                  total: 134
+                  totalPages: 7
+                correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+    post:
+      tags: [Leads]
+      operationId: createLead
+      summary: Cria um lead/atendimento
+      description: |
+        Faz o upsert do cliente no customer-api interno do IMOB
+        (`GET /search/ids` → senão `POST /`) e cria o atendimento via
+        `POST /attend-property` na `digital-leads-api`, que já registra o
+        histórico `ATTEND_CREATED` (e `OBSERVATION_ADDED` quando há `observation`).
+
+        O atendimento nasce sempre em `WITHOUT_ATTENDANCE`; para avançar o funil,
+        use `POST /v2/leads/{id}/stage`. `typePerson` e o corretor (`users[]`) são
+        derivados do lead/`x-user-info`. Ao precisar criar o cliente, `mediaId` é
+        obrigatório (no body ou via env `LEADS_MANUAL_MEDIA_ID`).
+
+        Exige consentimento `lead_update_status_consent` ativo para o parceiro.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client, operationId]
+              properties:
+                client:
+                  type: object
+                  description: >-
+                    Dados do cliente para upsert. Pelo menos um de
+                    `name`/`phone`/`email`/`document`.
+                  properties:
+                    name: { type: string }
+                    phone: { type: string }
+                    email: { type: string, format: email }
+                    document: { type: string, description: CPF/CNPJ. }
+                operationId: { type: integer, description: '1 = RENT, 2 = SALE, 0 = UNDEFINED.' }
+                responsibleUserId: { type: integer, description: Default = userId do x-user-info. }
+                mediaId: { type: integer, description: Default = LEADS_MANUAL_MEDIA_ID. }
+                properties:
+                  type: array
+                  items: { type: integer }
+                enterpriseId: { type: integer }
+                observation: { type: string }
+                leadScoring: { type: string }
+            example:
+              client:
+                name: Maria Souza
+                phone: (11) 99999-8888
+                email: maria@example.com
+                document: '12345678900'
+              operationId: 1
+              responsibleUserId: 7788
+              properties: [123, 456]
+              observation: Cliente confirmou interesse
+      responses:
+        '201':
+          description: Atendimento criado.
+          content:
+            application/json:
+              schema: { type: object }
+              example:
+                id: 77448221
+                clientAttendId: 77448221
+                clientId: 9012
+                operationId: 1
+                step: WITHOUT_ATTENDANCE
+                stepId: 0
+                createdAt: '2026-06-05T10:00:00Z'
+                correlationId: 550e8400-e29b-41d4-a716-446655440000
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+  /v2/leads/{id}:
+    get:
+      tags: [Leads]
+      operationId: getLead
+      summary: Obtém um lead por id
+      description: |
+        Detalhe completo do lead/atendimento. **Anti-enumeração:** leads de
+        outra agência retornam `404 NOT_FOUND` (indistinguível de "não
+        existe").
+      parameters:
+        - $ref: '#/components/parameters/LeadId'
+      responses:
+        '200':
+          description: Detalhe do lead.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lead'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+    patch:
+      tags: [Leads]
+      operationId: updateLead
+      summary: Atualiza um lead
+      description: |
+        Atualiza dados base do lead (tags, observação, responsáveis). **Não
+        move funil** — para mudar de etapa, use
+        [POST /v2/leads/{id}/stage](/#operation/moveLeadStage).
+
+        Pelo menos um campo deve ser enviado. Mutações são *fail-fast* sem
+        rollback: o response detalha o que foi aplicado e o que falhou.
+      parameters:
+        - $ref: '#/components/parameters/LeadId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadUpdateRequest'
+            example:
+              observation: Cliente prefere visita à tarde.
+              responsibleBrokerIds: [4421, 4422]
+              operationId: 1
+      responses:
+        '200':
+          description: Lead atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lead'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+  /v2/leads/{id}/stage:
+    post:
+      tags: [Leads]
+      operationId: moveLeadStage
+      summary: Move o lead de etapa do funil
+      description: |
+        Movimenta o lead no funil ou registra um histórico de interação.
+        Quando `stage=VISIT`, `context.attendPropertyId` é obrigatório.
+        Análogo: `PROPOSAL` exige `proposalId`, `GUARANTEE` exige
+        `guaranteeId`, `CLOSURE` exige `closureId`.
+      parameters:
+        - $ref: '#/components/parameters/LeadId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadStageRequest'
+            example:
+              stage: VISIT
+              operationId: 1
+              userId: 7788
+              context:
+                attendPropertyId: 83837907
+      responses:
+        '201':
+          description: Histórico criado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadStageResponse'
+              example:
+                historyId: 9981023
+                leadId: lead_77448221
+                stage: VISIT
+                createdAt: '2026-05-25T14:05:00Z'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+  /v2/leads/{id}/transfer:
+    post:
+      tags: [Leads]
+      operationId: transferLead
+      summary: Transfere o responsável do lead
+      description: Transfere o lead para outro responsável dentro da imobiliária.
+      parameters:
+        - $ref: '#/components/parameters/LeadId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [toUserId]
+              properties:
+                toUserId: { type: integer, example: 8899 }
+                limitDate: { type: string, format: date-time }
+                timeToAttend: { type: string, example: 24h }
+                reason: { type: string, example: Reatribuição por carga }
+      responses:
+        '200':
+          description: Transferência aplicada.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  toUserId: { type: integer }
+                  timeToAttend: { type: string }
+                  correlationAudit: { type: string }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+  /v2/leads/{id}/archive:
+    post:
+      tags: [Leads]
+      operationId: archiveLead
+      summary: Arquiva o lead
+      description: Arquiva o lead. `userId` e `agencyId` no body são obrigatórios.
+      parameters:
+        - $ref: '#/components/parameters/LeadId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, agencyId]
+              properties:
+                archivingReason: { type: string, example: Cliente sem interesse }
+                userId: { type: integer, example: 7788 }
+                agencyId: { type: integer, example: 12345 }
+      responses:
+        '200':
+          description: Lead arquivado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  archived: { type: boolean, example: true }
+                  archivingReason: { type: string }
+                  archivedAt: { type: string, format: date-time }
+                  correlationAudit: { type: string }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+  /v2/leads/{id}/unarchive:
+    post:
+      tags: [Leads]
+      operationId: unarchiveLead
+      summary: Desarquiva o lead
+      description: Reverte o arquivamento do lead. Mesmo body do archive.
+      parameters:
+        - $ref: '#/components/parameters/LeadId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, agencyId]
+              properties:
+                userId: { type: integer, example: 7788 }
+                agencyId: { type: integer, example: 12345 }
+      responses:
+        '200':
+          description: Lead desarquivado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  archived: { type: boolean, example: false }
+                  unarchivedAt: { type: string, format: date-time }
+                  correlationAudit: { type: string }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+components:
+  parameters:
+    Page:
+      in: query
+      name: page
+      schema: { type: integer, default: 1, minimum: 1 }
+      description: Página 1-based. Default `1`.
+    PageSize:
+      in: query
+      name: pageSize
+      schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+      description: Tamanho da página. Default `20`, máximo `100`.
+    Sort:
+      in: query
+      name: sort
+      schema: { type: string }
+      description: Campo de ordenação.
+    Order:
+      in: query
+      name: order
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+      description: Direção de ordenação.
+    Query:
+      in: query
+      name: q
+      schema: { type: string }
+      description: Busca textual livre.
+    Scope:
+      in: query
+      name: scope
+      required: true
+      schema: { type: string }
+      description: Escopo de busca exigido pela fonte do CRM.
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: false
+      schema: { type: string }
+      description: |
+        Chave de idempotência (recomendada em POST/PATCH/PUT). Janela 24h.
+        Mesma chave com payload divergente retorna `409 IDEMPOTENCY_CONFLICT`.
+    PropertyId:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+      description: ID canônico do imóvel (CRM).
+      example: p_456
+    MediaId:
+      in: path
+      name: mediaId
+      required: true
+      schema: { type: string }
+      description: ID canônico da mídia.
+      example: m_789
+    CustomerId:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+      example: c_123
+    DevelopmentId:
+      in: path
+      name: developmentId
+      required: true
+      schema: { type: string }
+      example: d_001
+    TowerId:
+      in: path
+      name: towerId
+      required: true
+      schema: { type: string }
+      example: t_001
+    UnitId:
+      in: path
+      name: unitId
+      required: true
+      schema: { type: string }
+      example: u_001
+    LeadId:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+      example: lead_77448221
+
+  responses:
+    ValidationError:
+      description: '400 — Validação falhou (campo obrigatório, tipo, enum, etc.).'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            code: VALIDATION_ERROR
+            message: 'pageSize must be <= 100'
+            details:
+              - field: pageSize
+                reason: exceeds_maximum
+                allowedMax: 100
+            correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+    Unauthorized:
+      description: '401 — `X-API-Key` ou `x-user-info` ausente/inválido.'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            code: UNAUTHORIZED
+            message: API key inválida ou ausente.
+            correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+    Forbidden:
+      description: |
+        403 — `FORBIDDEN_AGENCY` quando `x-user-info` não autoriza a
+        imobiliária, ou `CONSENT_REQUIRED` quando o consentimento LGPD
+        está ausente.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            forbiddenAgency:
+              value:
+                code: FORBIDDEN_AGENCY
+                message: 'x-user-info não autoriza o agencyId informado.'
+                correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+            consentRequired:
+              value:
+                code: CONSENT_REQUIRED
+                message: 'A imobiliária 2313 não autorizou o partner para a operação.'
+                details:
+                  - agencyId: 2313
+                    partnerId: kommo
+                    requiredConsent: lead_update_status_consent
+                    consentStatus: MISSING
+                correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+    NotFound:
+      description: |
+        404 — Recurso inexistente OU pertencente a outra agência
+        (indistinguível, anti-enumeração).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            code: NOT_FOUND
+            message: Recurso não encontrado.
+            details:
+              - id: lead_77448221
+            correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+    IdempotencyConflict:
+      description: '409 — Mesma `Idempotency-Key` usada com payload divergente.'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            code: IDEMPOTENCY_CONFLICT
+            message: 'Idempotency-Key já utilizada com payload divergente.'
+            correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+    BusinessRuleViolation:
+      description: '422 — Regra de negócio violada.'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            code: BUSINESS_RULE_VIOLATION
+            message: 'type=video ainda não é suportado nesta fase'
+            correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+    RateLimited:
+      description: '429 — Limite de requisições excedido.'
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Segundos para tentar novamente.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            code: RATE_LIMITED
+            message: Rate limit excedido.
+            details:
+              - retryAfter: 60
+            correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+    InternalError:
+      description: '500 — Falha interna do servidor.'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            code: INTERNAL_ERROR
+            message: Internal Server Error
+            correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+    UpstreamError:
+      description: '502 — Falha em serviço interno (CRM, leads, listings, media).'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            code: UPSTREAM_ERROR
+            message: 'Falha ao atualizar observação do atendimento 77448221'
+            details:
+              - failedAt: observation
+                applied: [tags]
+                skipped: [responsibleBrokerIds]
+                upstreamStatus: 500
+            correlationAudit: 550e8400-e29b-41d4-a716-446655440000
+
+  schemas:
+    # ---------- Envelopes ----------
+    Pagination:
+      type: object
+      description: Envelope de paginação único da v2.
+      required: [page, pageSize]
+      properties:
+        page: { type: integer, example: 1 }
+        pageSize: { type: integer, example: 20 }
+        total: { type: integer, example: 135 }
+        totalPages: { type: integer, example: 7 }
+    ErrorResponse:
+      type: object
+      description: Envelope de erro único da v2.
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: 'pageSize must be <= 100'
+        details:
+          type: array
+          items: { type: object }
+        correlationAudit:
+          type: string
+          format: uuid
+
+    # ---------- System ----------
+    HealthResponse:
+      type: object
+      required: [status, version]
+      properties:
+        status: { type: string, example: ok }
+        version: { type: string, example: v2 }
+
+    # ---------- Address (RESO) ----------
+    Address:
+      type: object
+      description: Endereço estruturado no vocabulário RESO. Exposto na leitura de Listings/Properties.
+      required: [unparsedAddress]
+      properties:
+        unparsedAddress:
+          type: string
+          example: 'Av. Paulista, 1000, Bela Vista, São Paulo - SP, 01310-100'
+        streetName: { type: string, example: 'Av. Paulista' }
+        streetNumber: { type: string, example: '1000' }
+        unitNumber: { type: string, example: '142' }
+        neighborhood: { type: string, example: 'Bela Vista' }
+        city: { type: string, example: 'São Paulo' }
+        stateOrProvince: { type: string, example: SP }
+        postalCode: { type: string, example: '01310-100' }
+        country: { type: string, example: BR }
+        latitude: { type: string, example: '-23.561' }
+        longitude: { type: string, example: '-46.656' }
+
+    # ---------- Property ----------
+    PropertyRequest:
+      type: object
+      required: [propertyCode]
+      properties:
+        propertyCode: { type: string, example: AP-100 }
+        title: { type: string, example: Apartamento 2 quartos em Moema }
+        description: { type: string }
+        address: { $ref: '#/components/schemas/Address' }
+        pricing:
+          type: object
+          properties:
+            salePrice: { type: number, example: 850000 }
+            rentalPrice: { type: number }
+            condoFee: { type: number }
+            iptu: { type: number }
+        privateArea: { type: number, example: 75.5 }
+        bedrooms: { type: integer, example: 2 }
+        suites: { type: integer, example: 1 }
+        bathrooms: { type: integer, example: 2 }
+        parkingSpots: { type: integer, example: 1 }
+        ownerId: { type: string, example: c_owner_001 }
+        typeId: { type: integer, example: 2 }
+    PropertyPatchRequest:
+      type: object
+      description: Mesma estrutura de PropertyRequest, com todos os campos opcionais.
+      properties:
+        title: { type: string }
+        pricing:
+          type: object
+          properties:
+            salePrice: { type: number }
+            rentalPrice: { type: number }
+    PropertyResponse:
+      allOf:
+        - $ref: '#/components/schemas/PropertyRequest'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string, example: p_456 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            correlationAudit: { type: string, format: uuid }
+    PropertyListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/PropertyResponse' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+        correlationAudit: { type: string, format: uuid }
+
+    # ---------- Listing ----------
+    Listing:
+      type: object
+      properties:
+        id: { type: string, example: l_001 }
+        agencyId: { type: integer, example: 12345 }
+        propertyCode: { type: string, example: AP-100 }
+        title: { type: string }
+        description: { type: string }
+        address: { $ref: '#/components/schemas/Address' }
+        pricing:
+          type: object
+          properties:
+            salePrice: { type: number }
+            rentalPrice: { type: number }
+        media:
+          type: array
+          items: { $ref: '#/components/schemas/Media' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ListingListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Listing' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+        correlationAudit: { type: string, format: uuid }
+
+    # ---------- Media ----------
+    Media:
+      type: object
+      required: [id, type, url]
+      properties:
+        id: { type: string, example: m_789 }
+        type:
+          type: string
+          enum: [photo, video, floor_plan, tour]
+          example: photo
+        url:
+          type: string
+          format: uri
+          example: https://cdn.kenlo.io/properties/p_456/m_789.jpg
+        caption: { type: string }
+        description: { type: string }
+        order: { type: integer }
+        featured: { type: boolean }
+        visible: { type: boolean }
+        isVertical: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    # ---------- Customer ----------
+    CustomerRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, example: Maria Silva }
+        personType:
+          type: integer
+          description: 1=PF, 2=PJ
+          example: 1
+        cpf: { type: string, example: '12345678901' }
+        cnpj: { type: string }
+        email: { type: string, format: email, example: maria@example.com }
+        phone: { type: string, example: '+5511999990000' }
+        role:
+          type: string
+          enum: [owner, client, lead, broker]
+          example: client
+    CustomerResponse:
+      allOf:
+        - $ref: '#/components/schemas/CustomerRequest'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string, example: c_123 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            correlationAudit: { type: string, format: uuid }
+    CustomerListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/CustomerResponse' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+        correlationAudit: { type: string, format: uuid }
+
+    # ---------- Development ----------
+    DevelopmentRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, example: Edifício Acácia }
+        description: { type: string }
+        address: { $ref: '#/components/schemas/Address' }
+        statusId: { type: integer, example: 1 }
+        phaseId: { type: integer, example: 2 }
+        facadeId: { type: integer }
+        propertyStandardId: { type: integer }
+        partnerId: { type: integer }
+    DevelopmentResponse:
+      allOf:
+        - $ref: '#/components/schemas/DevelopmentRequest'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string, example: d_001 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            correlationAudit: { type: string, format: uuid }
+    DevelopmentListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/DevelopmentResponse' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+        correlationAudit: { type: string, format: uuid }
+    DevelopmentDetail:
+      type: object
+      required: [idDetail]
+      properties:
+        idDetail: { type: integer, example: 12 }
+        name: { type: string, example: 'Vagas de garagem' }
+        variableType:
+          type: string
+          enum: [Boolean, Decimal, Int32]
+        value:
+          description: Valor conforme `variableType` (`Boolean` → boolean, `Decimal` ou `Int32` → number).
+          oneOf:
+            - { type: boolean }
+            - { type: number }
+    DevelopmentCombo:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string, example: '2 dormitórios, 60-70m²' }
+        unitsCount: { type: integer }
+
+    # ---------- Tower / Unit ----------
+    TowerRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, example: Torre A }
+        floorsCount: { type: integer, example: 22 }
+        unitsPerFloor: { type: integer, example: 4 }
+    TowerResponse:
+      allOf:
+        - $ref: '#/components/schemas/TowerRequest'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string, example: t_001 }
+    TowerListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/TowerResponse' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    UnitRequest:
+      type: object
+      required: [numbering]
+      properties:
+        numbering: { type: string, example: '1201' }
+        floor: { type: integer, example: 12 }
+        privateArea: { type: number, example: 75.5 }
+        bedrooms: { type: integer, example: 2 }
+        suites: { type: integer, example: 1 }
+        bathrooms: { type: integer, example: 2 }
+        parkingSpots: { type: integer, example: 1 }
+        salePrice: { type: number, example: 850000 }
+        rentalPrice: { type: number }
+    UnitResponse:
+      allOf:
+        - $ref: '#/components/schemas/UnitRequest'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string, example: u_001 }
+    UnitListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/UnitResponse' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+
+    # ---------- Lead ----------
+    Lead:
+      type: object
+      required: [id]
+      properties:
+        id: { type: string, example: lead_77448221 }
+        agencyId: { type: integer, example: 12345 }
+        stage:
+          type: string
+          enum: [WITHOUT_ATTENDANCE, ATTENDING, VISIT, PROPOSAL, GUARANTEE, CLOSURE, CONCLUDED]
+          example: ATTENDING
+        operation:
+          type: string
+          enum: [RENT, SALE, UNDEFINED]
+          example: SALE
+        responsibleUserId: { type: integer, example: 7788 }
+        contact:
+          type: object
+          properties:
+            id: { type: string, example: c_9012 }
+            externalId: { type: string, example: 'kommo:lead:558899' }
+            name: { type: string, example: Maria Souza }
+            phone: { type: string, example: '+55***0000' }
+            email: { type: string, example: 'm***@example.com' }
+        tags:
+          type: array
+          items: { type: string }
+          example: [WhatsApp, Indicação]
+        lastHistory:
+          type: [object, "null"]
+          properties:
+            type: { type: integer }
+            createdAt: { type: string, format: date-time }
+        lastInteractionAt:
+          type: [string, "null"]
+          format: date-time
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        correlationAudit: { type: string, format: uuid }
+    LeadListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Lead' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+        correlationAudit: { type: string, format: uuid }
+    LeadUpdateRequest:
+      type: object
+      description: Pelo menos um campo deve ser enviado.
+      minProperties: 1
+      properties:
+        tags:
+          type: array
+          description: Conjunto completo (replacement); o upstream calcula o diff.
+          items:
+            type: object
+            required: [tagId, tagOrder]
+            properties:
+              tagId: { type: integer }
+              tagOrder: { type: integer }
+        observation: { type: string, maxLength: 4000 }
+        responsibleBrokerIds:
+          type: array
+          items: { type: integer }
+        operationId:
+          type: integer
+          enum: [0, 1, 2]
+          description: Obrigatório quando `observation` ou `responsibleBrokerIds` for enviado.
+    LeadStageRequest:
+      type: object
+      required: [stage, operationId, userId]
+      properties:
+        stage:
+          type: string
+          enum: [WITHOUT_ATTENDANCE, ATTENDING, VISIT, PROPOSAL, GUARANTEE, CLOSURE, CONCLUDED]
+        operationId:
+          type: integer
+          enum: [0, 1, 2]
+        userId: { type: integer }
+        customDescription: { type: string }
+        context:
+          type: object
+          properties:
+            attendPropertyId: { type: [integer, "null"] }
+            proposalId: { type: [integer, "null"] }
+            guaranteeId: { type: [integer, "null"] }
+            closureId: { type: [integer, "null"] }
+    LeadStageResponse:
+      type: object
+      required: [historyId, leadId]
+      properties:
+        historyId: { type: integer, example: 9981023 }
+        leadId: { type: string, example: lead_77448221 }
+        stage: { type: string, example: VISIT }
+        type: { type: integer, example: 2 }
+        createdAt: { type: string, format: date-time }
+        correlationAudit: { type: string, format: uuid }
+
+  securitySchemes:
+    kenloApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        Chave de API emitida pela Kenlo no GCP API Gateway. Trate como senha
+        — ver [Autenticação](/#section/Autenticacao-e-Autorizacao).
+
+        Uso típico:
+        ```sh
+        curl -H "X-API-Key: SUA_API_KEY" \
+          -H "x-user-info: eyJlbWFpbCI6InVzZXJAaW1vYi5jb20iLCJpZF9pbW9iIjoiMTIzNDUifQ==" \
+          https://imob-api.kenlo-open.com/v2/properties?page=1&pageSize=20
+        ```
+    kenloUserInfo:
+      type: apiKey
+      in: header
+      name: x-user-info
+      description: |
+        **Gerado pelo Marketplace Kenlo** no momento do cadastro do parceiro
+        — você não monta esse valor manualmente. O Marketplace entrega o
+        token já codificado em **Base64** a partir de um JSON com os dados
+        do usuário diretor da imobiliária:
+
+        ```json
+        {"email":"user@imob.com","id_imob":"12345","id_user":7788,"id_profile":1}
+        ```
+
+        Codificado, fica algo como:
+
+        ```
+        eyJlbWFpbCI6InVzZXJAaW1vYi5jb20iLCJpZF9pbW9iIjoiMTIzNDUiLCJpZF91c2VyIjo3Nzg4LCJpZF9wcm9maWxlIjoxfQ==
+        ```
+
+        Use o valor recebido **sem alterações** no header `x-user-info`.
+        Obrigatório em todos os endpoints autenticados que tocam recursos
+        da imobiliária (não exigido em `/v2/health`).
