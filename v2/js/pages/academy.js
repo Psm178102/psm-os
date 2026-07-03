@@ -17,14 +17,14 @@ let _pendItems = false, _pendProg = false;
 let _view = 'journey';    // journey | trilha | builder
 let _trilha = null;       // trilha selecionada (detalhe)
 
-const NIVEIS = ['Fundamentos', 'Iniciante', 'Intermediário', 'Avançado', 'Expert'];
+export const NIVEIS = ['Fundamentos', 'Iniciante', 'Intermediário', 'Avançado', 'Expert'];
 const NIVEL_IDX = Object.fromEntries(NIVEIS.map((n, i) => [n, i]));
 const NIVEL_COR = ['#16a34a', '#2563eb', '#7c3aed', '#d97706', '#dc2626'];
 const TIPO_IC = { aula: '📘', video: '🎥', curso: '🎓', playbook: '📗', script: '📝', doc: '📄', link: '🔗' };
 const canEdit = () => (auth.user()?.lvl || 0) >= 7;
 
 /* ─── EMENTA (currículo do zero ao expert) das 11 trilhas ───────────────── */
-const CURRICULUM = [
+export const CURRICULUM = [
   { trilha: 'Mercado Básico', icon: '🏘️', cargo: 'todos', modulos: [
     { nivel: 'Fundamentos', nome: 'Bem-vindo ao mercado imobiliário', aulas: ['Como funciona o mercado imobiliário brasileiro', 'Tipos e nomenclatura de imóveis', 'Players do mercado: imobiliária, corretor, construtora, incorporadora', 'O ciclo completo de uma venda'] },
     { nivel: 'Fundamentos', nome: 'O corretor profissional', aulas: ['CRECI: o que é e por que importa', 'Ética e código de conduta do corretor', 'Postura, imagem e comunicação profissional', 'Rotina e organização do corretor de sucesso'] },
