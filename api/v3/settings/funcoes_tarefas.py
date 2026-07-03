@@ -191,6 +191,9 @@ class handler(BaseHTTPRequestHandler):
                 "funcoes": (body.get("funcoes") or "").strip()[:4000],
                 "objetivos": (body.get("objetivos") or "").strip()[:4000],
                 "tarefas": (body.get("tarefas") or "").strip()[:4000],
+                # v84.7 — playbook completo do cargo (Funções & Organograma)
+                "rotina": (body.get("rotina") or "").strip()[:4000],
+                "responsabilidades": (body.get("responsabilidades") or "").strip()[:4000],
             }
             audit(self, actor, "funcoes.set_cargo", target_type="shared_kv", target_id=role)
 
