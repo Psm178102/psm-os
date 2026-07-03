@@ -13,14 +13,42 @@ const PRESETS = [
   { id: 'this_year', lbl: 'Este ano' },
 ];
 
+import { pageIntelDash } from './intel-dash.js';   // absorvido como aba Landscape (v84.5 — fim da duplicação)
+
+let _tab = 'diag';   // diag | ia | landscape
+let _iaResp = null;  // última resposta do "Perguntar à IA"
+
+function tabsBar() {
+  const t = (id, lbl) => `<button class="btn ${_tab === id ? 'btn-primary' : 'btn-ghost'} btn-sm" data-ictab="${id}">${lbl}</button>`;
+  return `<div class="flex gap-1" style="flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px">
+    ${t('diag', '🎯 Diagnóstico')}${t('ia', '🤖 Perguntar à IA')}${t('landscape', '🔍 Landscape & Concorrência')}
+  </div>`;
+}
+function wireTabs() {
+  _root.querySelectorAll('[data-ictab]').forEach(b => b.onclick = () => { _tab = b.dataset.ictab; routeTab(); });
+}
+async function routeTab() {
+  if (_tab === 'landscape') {
+    _root.innerHTML = `<div class="card"><h2 class="card-title">🧠 Centro de Inteligência</h2>${tabsBar()}<div id="ic-land"></div></div>`;
+    wireTabs();
+    await pageIntelDash({}, document.getElementById('ic-land'));   // página antiga vira módulo da aba
+  } else if (_tab === 'ia') {
+    renderPerguntar();
+  } else {
+    render();
+  }
+}
+
 export async function pageIntelCentro(ctx, root) {
   _root = root;
   if ((auth.user()?.lvl || 0) < 5) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder ou acima.</div>'; return; }
+  try { const q = new URLSearchParams((location.hash.split('?')[1] || '')); if (q.get('tab')) _tab = q.get('tab'); } catch (_) {}
+  if (_tab !== 'diag') { await routeTab(); reload(true); return; }   // carrega dados em background pro diag
   await reload();
 }
 
-async function reload() {
-  _root.innerHTML = spinner('Cruzando Ads × Marketing × Vendas…');
+async function reload(quiet) {
+  if (!quiet) _root.innerHTML = spinner('Cruzando Ads × Marketing × Vendas…');
   const qp = '?date_preset=' + encodeURIComponent(_preset);
   const [sum, crm, geo, oo, dir] = await Promise.allSettled([
     api.request('/api/v3/marketing/summary' + qp),
@@ -32,7 +60,7 @@ async function reload() {
   const v = r => (r.status === 'fulfilled' ? r.value : null);
   _d = { sum: v(sum), crm: v(crm), geo: v(geo), oo: v(oo), dir: v(dir) };
   _ai = null;
-  render();
+  if (_tab === 'diag') render();
 }
 
 /* ───────────────────────── REGRAS DE DIAGNÓSTICO ───────────────────────── */
@@ -136,6 +164,51 @@ function forecast() {
 }
 
 /* ───────────────────────── RENDER ───────────────────────── */
+
+/* ─────────────── ABA 🤖 PERGUNTAR À IA (pergunta livre + dossiê completo) v84.5 ─────────────── */
+const CHIPS = [
+  'Onde estou perdendo dinheiro agora?',
+  'O que atacar ESTA SEMANA pra avançar no break-even?',
+  'Como está a Conquista contra a meta e o que falta?',
+  'Leia a concorrência: onde eles estão ganhando de nós?',
+  'A fila de reativação está andando? O que ajustar?',
+  'Se você fosse o Paulo, quais 3 decisões tomaria hoje?',
+];
+function renderPerguntar() {
+  _root.innerHTML = `
+    <div class="card">
+      <h2 class="card-title">🧠 Centro de Inteligência</h2>
+      ${tabsBar()}
+      <div class="alert" style="background:var(--bg-3);border:none;font-size:12.5px">🤖 Pergunte QUALQUER coisa sobre o negócio. A IA responde com o <b>dossiê completo e real</b> do sistema (custos, break-even, frentes, funil, mídia, reativação, concorrência) — não com achismo. Modelo: Sonnet 5.</div>
+      <div class="flex gap-1 mt-2" style="flex-wrap:wrap">${CHIPS.map((c, i) => `<button class="btn btn-ghost btn-sm ic-chip" data-i="${i}" style="font-size:11.5px">${c}</button>`).join('')}</div>
+      <div class="flex gap-2 mt-2">
+        <input id="ic-q" class="input" placeholder="sua pergunta… (Enter envia)" style="flex:1">
+        <button class="btn btn-primary" id="ic-ask">Perguntar</button>
+      </div>
+      <div id="ic-ansbox" class="mt-3">${_iaResp ? respostaHTML(_iaResp) : '<div class="tiny muted">A resposta aparece aqui — em segundos, com números reais.</div>'}</div>
+    </div>`;
+  wireTabs();
+  const ask = async (q) => {
+    if (!q || !q.trim()) return;
+    const box = document.getElementById('ic-ansbox');
+    box.innerHTML = '<div style="background:var(--bg-3);border-radius:var(--r-md);padding:14px"><span class="spinner"></span> Analisando com o dossiê completo do negócio…</div>';
+    try {
+      const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { pergunta: q.trim(), dossie: true, max_tokens: 3500 } });
+      if (j.ok && j.text) { _iaResp = { q: q.trim(), text: j.text, model: j.model_used }; box.innerHTML = respostaHTML(_iaResp); }
+      else box.innerHTML = `<div class="alert alert-warn">IA indisponível: ${escapeHtml(j.error || 'erro')}</div>`;
+    } catch (e) { box.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message)}</div>`; }
+  };
+  document.getElementById('ic-ask')?.addEventListener('click', () => ask(document.getElementById('ic-q').value));
+  document.getElementById('ic-q')?.addEventListener('keydown', e => { if (e.key === 'Enter') ask(e.target.value); });
+  _root.querySelectorAll('.ic-chip').forEach(b => b.addEventListener('click', () => { document.getElementById('ic-q').value = CHIPS[+b.dataset.i]; ask(CHIPS[+b.dataset.i]); }));
+}
+function respostaHTML(r) {
+  return `<div style="background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid rgba(124,58,237,.25);border-radius:var(--r-md);padding:14px 16px">
+    <div style="font-weight:800;font-size:13px;margin-bottom:4px;color:#7c3aed">❓ ${escapeHtml(r.q)}</div>
+    <div class="tiny muted" style="margin-bottom:8px">respondido por ${escapeHtml(r.model || 'IA')} com dossiê real</div>
+    <div style="font-size:13px;line-height:1.6">${mdLite(r.text)}</div></div>`;
+}
+
 function render() {
   const { ins, totalSpend } = buildInsights();
   const crm = _d.crm || {}, g = crm.global || {};
@@ -153,6 +226,7 @@ function render() {
         </select>
         <button class="btn btn-primary" id="ic-ai">🧠 Análise executiva da IA</button>
       </div>
+      ${tabsBar()}
 
       <!-- 3 pilares -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:10px">
@@ -185,6 +259,7 @@ function render() {
     </div>`;
   document.getElementById('ic-preset').addEventListener('change', e => { _preset = e.target.value; reload(); });
   document.getElementById('ic-ai').addEventListener('click', runAI);
+  wireTabs();   // abas do Centro (v84.5)
   _root.querySelectorAll('[data-link]').forEach(el => el.addEventListener('click', () => { location.hash = el.dataset.link; }));
 }
 

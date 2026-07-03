@@ -88,7 +88,6 @@ import { pageAgenteSol } from './pages/agente-sol.js';
 import { pageTendencias } from './pages/tendencias.js';
 import { pageBenchmark } from './pages/benchmark.js';
 import { pageIntelAds } from './pages/intel-ads.js';
-import { pageIntelDash } from './pages/intel-dash.js';
 import { pageIntelCentro } from './pages/intel-centro.js';
 import { pageBibliotecaAds } from './pages/biblioteca-ads.js';
 import { pageMarketingHistorico } from './pages/marketing-historico.js';
@@ -382,7 +381,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.4.0';
+const APP_VERSION = '84.5.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -577,7 +576,7 @@ const APP_VERSION = '84.4.0';
   router.register('/tendencias',  { render: async (ctx, root) => { setHeader('Tendências');           highlight('/tendencias'); await pageTendencias(ctx, root); } });
   router.register('/benchmark',   { render: async (ctx, root) => { setHeader('Benchmark de Mercado'); highlight('/benchmark');  await pageBenchmark(ctx, root); } });
   router.register('/intel-ads',   { render: async (ctx, root) => { setHeader('Inteligência Ads');    highlight('/intel-ads');  await pageIntelAds(ctx, root); } });
-  router.register('/intel-dash',  { render: async (ctx, root) => { setHeader('Inteligência Estratégica'); highlight('/intel-dash'); await pageIntelDash(ctx, root); } });
+  router.register('/intel-dash',  { render: async () => { location.hash = '#/inteligencia?tab=landscape'; } });   // aposentado: virou aba do Centro (v84.5)
   router.register('/simuladores', { render: async (ctx, root) => { setHeader('Simuladores');         highlight('/simuladores'); await pageSimuladores(ctx, root); } });
   router.register('/sim-vpl',     { render: async (ctx, root) => { setHeader('Simulador VPL');       highlight('/sim-vpl'); await pageSimVPL(ctx, root); } });
   router.register('/sim-incc',    { render: async (ctx, root) => { setHeader('Simulador INCC');      highlight('/sim-incc'); await pageSimINCC(ctx, root); } });
@@ -866,7 +865,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/briefing-guerra"><span class="sb-ico">⚔️</span> Briefing de Guerra</button>
         <button class="sb-link" data-nav="/concorrencia"><span class="sb-ico">🥊</span> Concorrência</button>
         <button class="sb-link" data-nav="/benchmark"><span class="sb-ico">📊</span> Benchmark</button>
-        <button class="sb-link" data-nav="/intel-dash"><span class="sb-ico">🔍</span> Intel Dashboard</button>
+
         <button class="sb-link" data-nav="/tendencias"><span class="sb-ico">📉</span> Tendências</button>
 
         <div class="sb-sec">🔑 Locação</div>
