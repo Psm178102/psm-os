@@ -12,6 +12,7 @@ const KEY = 'psm_v2_sr_performance_chat';
 export async function pageSrPerformance(ctx, root) {
   _root = root;
   try { _messages = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { _messages = []; }
+  syncChat();   // verdade = backend, por usuário (v84.1)
   render();
   await load();
 }
@@ -28,7 +29,17 @@ async function load() {
   } catch (e) { /* silent */ }
 }
 
-function save() { try { localStorage.setItem(KEY, JSON.stringify(_messages.slice(-30))); } catch {} }
+function syncChat() {
+  api.request('/api/v3/ia/chats?agent=sr_performance').then(r => {
+    if (!r || !Array.isArray(r.messages)) return;
+    if (r.messages.length >= _messages.length) { _messages = r.messages; render(); }
+    else if (_messages.length) save();
+  }).catch(() => {});
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(_messages.slice(-30))); } catch {}
+  api.request('/api/v3/ia/chats', { method: 'POST', body: { agent: 'sr_performance', messages: _messages.slice(-30) } }).catch(() => {});
+}
 
 function render() {
   _root.innerHTML = `

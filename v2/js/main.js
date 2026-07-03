@@ -381,7 +381,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.0.0';
+const APP_VERSION = '84.1.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -1190,6 +1190,20 @@ async function pollHealth() {
     issues = [{ area: 'rede', severity: 'error', message: 'Não consegui checar a saúde do sistema: ' + e.message }];
     status = 'error';
   }
+  // Sentinela de consistência (auditoria SI1): pra diretoria (lvl>=7), os checks de
+  // "os números batem entre as fontes?" entram no MESMO aviso de saúde. v84.1
+  try {
+    if ((auth.user()?.lvl || 0) >= 7) {
+      const c = await api.request('/api/v3/system/consistency');
+      for (const ck of (c.checks || [])) {
+        if (!ck.ok) {
+          issues.push({ area: 'consistência', severity: ck.sev === 'err' ? 'error' : 'warn', message: ck.msg });
+          if (status === 'ok') status = ck.sev === 'err' ? 'error' : 'warn';
+          else if (status === 'warn' && ck.sev === 'err') status = 'error';
+        }
+      }
+    }
+  } catch (_) {}
   // Desatualização do cliente (tab antiga aberta após deploy)
   try {
     const v = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json());

@@ -130,6 +130,8 @@ function render() {
 
       ${frentesCard()}
 
+      ${kvConfigCard()}
+
       ${subAbasCard()}
 
       ${homeRoutesCard()}
@@ -153,6 +155,7 @@ function render() {
   initCargosNiveis(); // Central de Permissões: níveis por cargo (v83.9)
   initTravasRota();   // Central de Permissões: travas de nível por rota (v83.9)
   initFrentes();      // Central de Frentes: nome/funis/ativa (fonte única, v84.0)
+  initKvConfig();     // configs avançadas que antes só saíam via SQL (v84.1)
   initSubAbas();      // monta o painel central de visibilidade de sub-abas
   initHomeRoutes();   // monta o editor de tela inicial por papel
   initConclEditor();  // monta o editor de campos de conclusão por atividade
@@ -312,6 +315,51 @@ function initFrentes() {
       initFrentes();
     } catch (e) { if (m) m.textContent = '⚠️ ' + e.message; }
   });
+}
+
+
+// ── Configs AVANÇADAS (antes só via SQL — auditoria A5). Editor JSON com whitelist. v84.1 ──
+const KVCFG_KEYS = [
+  ['oo_meta_team_account', '🎯 One-on-One: equipe → conta Meta', 'ex.: { "conquista": "act_123..." } — usado pro CPL por equipe no 1:1'],
+  ['custos_fixos_corretor', '💰 Custo fixo por corretor/equipe (CPL 1:1)', 'ex.: { "teams": { "conquista": { "itens": [ { "desc": "mesa", "valor": 350 } ] } }, "users": {} }'],
+];
+function kvConfigCard() {
+  return `
+    <div class="card mt-4" id="kvcfg-card" style="margin-top:14px">
+      <h3 class="card-title">🧩 Configs avançadas (JSON)</h3>
+      <p class="card-sub">Configurações que o sistema lê e que antes só dava pra mudar por SQL. Formato JSON — o botão valida antes de salvar. Se não usa, deixa como está.</p>
+      <div id="kvcfg-editor"><div class="flex items-center gap-2 muted tiny" style="padding:8px 0"><span class="spinner"></span> Carregando…</div></div>
+    </div>`;
+}
+async function initKvConfig() {
+  const box = document.getElementById('kvcfg-editor');
+  if (!box) return;
+  const isSocio = (auth.user()?.lvl || 0) >= 10;
+  const vals = {};
+  for (const [k] of KVCFG_KEYS) {
+    try { const r = await api.request('/api/v3/settings/kv_config?key=' + k); vals[k] = r?.value || {}; }
+    catch (_) { vals[k] = {}; }
+  }
+  box.innerHTML = KVCFG_KEYS.map(([k, titulo, hint]) => `
+    <div style="margin-bottom:12px">
+      <div style="font-weight:700;font-size:13px">${titulo}</div>
+      <div class="tiny muted" style="margin:2px 0 4px">${escapeHtml(hint)}</div>
+      <textarea class="input kv-json" data-key="${k}" rows="4" ${isSocio ? '' : 'disabled'} style="width:100%;font-family:monospace;font-size:11.5px">${escapeHtml(JSON.stringify(vals[k], null, 2))}</textarea>
+      ${isSocio ? `<button class="btn btn-primary btn-sm kv-save" data-key="${k}" style="margin-top:4px">💾 Validar & salvar</button> <span class="tiny kv-msg" data-key="${k}"></span>` : ''}
+    </div>`).join('');
+  if (!isSocio) return;
+  box.querySelectorAll('.kv-save').forEach(b => b.addEventListener('click', async () => {
+    const k = b.dataset.key;
+    const ta = box.querySelector(`.kv-json[data-key="${k}"]`);
+    const m = box.querySelector(`.kv-msg[data-key="${k}"]`);
+    let value;
+    try { value = JSON.parse(ta.value || '{}'); if (typeof value !== 'object' || Array.isArray(value)) throw new Error('precisa ser um objeto {}'); }
+    catch (e) { if (m) { m.textContent = '⚠️ JSON inválido: ' + e.message; m.style.color = '#dc2626'; } return; }
+    try {
+      await api.request('/api/v3/settings/kv_config', { method: 'POST', body: { key: k, value } });
+      if (m) { m.textContent = '✅ salvo'; m.style.color = '#16a34a'; setTimeout(() => m.textContent = '', 3000); }
+    } catch (e) { if (m) { m.textContent = '⚠️ ' + e.message; m.style.color = '#dc2626'; } }
+  }));
 }
 
 // Matriz de permissões por papel — EDITÁVEL pelo sócio (lvl≥10). Granular por item de menu.

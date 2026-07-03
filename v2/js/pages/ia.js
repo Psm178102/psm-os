@@ -27,14 +27,23 @@ export async function pageIA(ctx, root) {
 }
 
 function loadMessages() {
+  // cache local instantâneo…
   try {
     const raw = localStorage.getItem(STORAGE_KEY(_agent));
     _messages = raw ? JSON.parse(raw) : [];
   } catch { _messages = []; }
+  // …e a VERDADE vem do backend (histórico por usuário, sincroniza entre aparelhos). v84.1
+  const ag = _agent;
+  api.request('/api/v3/ia/chats?agent=' + encodeURIComponent(ag)).then(r => {
+    if (ag !== _agent || !r || !Array.isArray(r.messages)) return;
+    if (r.messages.length >= _messages.length) { _messages = r.messages; render(); }
+    else if (_messages.length) saveMessages();   // local mais novo (migração 1x) → sobe
+  }).catch(() => {});
 }
 
 function saveMessages() {
   try { localStorage.setItem(STORAGE_KEY(_agent), JSON.stringify(_messages.slice(-30))); } catch {}
+  api.request('/api/v3/ia/chats', { method: 'POST', body: { agent: _agent, messages: _messages.slice(-30) } }).catch(() => {});
 }
 
 function render() {

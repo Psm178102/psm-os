@@ -16,6 +16,7 @@ export async function pageSrGerencia(ctx, root) {
     return;
   }
   try { _messages = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { _messages = []; }
+  syncChat('sr_gerencia');   // verdade = backend, por usuário (v84.1)
   render();
   await load();
 }
@@ -32,7 +33,17 @@ async function load() {
   } catch (e) { /* silent */ }
 }
 
-function save() { try { localStorage.setItem(KEY, JSON.stringify(_messages.slice(-30))); } catch {} }
+function syncChat(agent) {
+  api.request('/api/v3/ia/chats?agent=' + agent).then(r => {
+    if (!r || !Array.isArray(r.messages)) return;
+    if (r.messages.length >= _messages.length) { _messages = r.messages; render(); }
+    else if (_messages.length) save();   // local mais novo → sobe (migração 1x)
+  }).catch(() => {});
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(_messages.slice(-30))); } catch {}
+  api.request('/api/v3/ia/chats', { method: 'POST', body: { agent: 'sr_gerencia', messages: _messages.slice(-30) } }).catch(() => {});
+}
 
 function render() {
   _root.innerHTML = `
