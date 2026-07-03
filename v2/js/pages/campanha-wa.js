@@ -91,7 +91,7 @@ function render(loading) {
     ${_audErro ? `<div class="alert alert-warn">⚠️ ${esc(_audErro)} ${/wa_|relation|exist/i.test(_audErro) ? '— rode <b>supabase/sprint_wa_campanha.sql</b>.' : ''}</div>` : ''}
     ${_cfg.pausada ? `
     <div style="background:rgba(217,119,6,.10);border:1px solid rgba(217,119,6,.4);border-radius:12px;padding:14px;margin:8px 0">
-      <div style="font-weight:800;color:#d97706;font-size:15px">⏸ CAMPANHA PAUSADA — aguardando número dedicado + 360dialog</div>
+      <div style="font-weight:800;color:#d97706;font-size:15px">⏸ CAMPANHA PAUSADA — aguardando a conta 360dialog (coexistência no nº da recepção)</div>
       <div class="tiny muted" style="margin:6px 0 10px">Tudo pronto. O disparo só liga quando você criar a conta oficial e setar <code>D360_API_KEY</code> + <code>D360_TEMPLATE</code> no Vercel. Nada é enviado até lá.</div>
       <div class="tiny" style="font-weight:700;margin-bottom:4px">📋 Checklist (você faz, eu já deixei o código plugado):</div>
       <div class="tiny muted" style="white-space:pre-line;line-height:1.7">${esc((_cfg.checklist || []).join('\n'))}</div>

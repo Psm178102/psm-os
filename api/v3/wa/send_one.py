@@ -42,7 +42,7 @@ class handler(BaseHTTPRequestHandler):
         prov = provider()
         if prov == "none":
             return self._send(200, {"ok": False, "sent": False, "paused": True,
-                                    "error": "Campanha PAUSADA — aguardando número dedicado + API key da 360dialog (D360_API_KEY/D360_TEMPLATE)."})
+                                    "error": "Campanha PAUSADA — aguardando a conta 360dialog (D360_API_KEY/D360_TEMPLATE no Vercel)."})
 
         if is_opted_out(sb, phone):
             return self._send(200, {"ok": True, "sent": False, "skipped": "opt-out"})
