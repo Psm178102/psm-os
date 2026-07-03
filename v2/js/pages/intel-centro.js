@@ -179,7 +179,7 @@ function renderPerguntar() {
     <div class="card">
       <h2 class="card-title">🧠 Centro de Inteligência</h2>
       ${tabsBar()}
-      <div class="alert" style="background:var(--bg-3);border:none;font-size:12.5px">🤖 Pergunte QUALQUER coisa sobre o negócio. A IA responde com o <b>dossiê completo e real</b> do sistema (custos, break-even, frentes, funil, mídia, reativação, concorrência) — não com achismo. Modelo: Sonnet 5.</div>
+      <div class="alert" style="background:var(--bg-3);border:none;font-size:12.5px">🤖 Pergunte QUALQUER coisa sobre o negócio. A IA responde com o <b>dossiê completo e real</b> do sistema (custos, break-even, frentes, funil, mídia, reativação, concorrência) — não com achismo.</div>
       <div class="flex gap-1 mt-2" style="flex-wrap:wrap">${CHIPS.map((c, i) => `<button class="btn btn-ghost btn-sm ic-chip" data-i="${i}" style="font-size:11.5px">${c}</button>`).join('')}</div>
       <div class="flex gap-2 mt-2">
         <input id="ic-q" class="input" placeholder="sua pergunta… (Enter envia)" style="flex:1">

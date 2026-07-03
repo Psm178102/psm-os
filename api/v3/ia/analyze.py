@@ -1,8 +1,12 @@
 """
-POST /api/v3/ia/analyze — O CÉREBRO oficial da Inteligência PSM. v84.4
+POST /api/v3/ia/analyze — O CÉREBRO oficial da Inteligência PSM. v84.9
 
-Substitui o /api/ai-analysis legado (v1: sem auth, Haiku, 1k tokens) nas análises
-de texto. Modelos de verdade + dossiê completo do negócio + auth + auditoria.
+MOTOR: GEMINI (decisão do Paulo, jul/2026 — conta Anthropic sem créditos).
+  • análises: GEMINI_SMART_MODEL (default gemini-2.5-flash)
+  • 'opus'/'pro' (Briefing de Guerra): GEMINI_PRO_MODEL (default gemini-2.5-pro)
+  • Claude fica DORMENTE: só entra se AI_PREFER=claude + ANTHROPIC_API_KEY com saldo.
+Substitui o /api/ai-analysis legado nas análises de texto: dossiê completo do
+negócio + auth + auditoria + respostas longas.
 
 Body:
   { pergunta | prompt,          → pergunta livre OU prompt completo do chamador
@@ -21,7 +25,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of  # type: ignore
 from _dossie_lib import compile_dossie  # type: ignore
 
-MODELS = {"sonnet": "claude-sonnet-5", "opus": "claude-opus-4-8", "haiku": "claude-haiku-4-5"}
+GEM_FLASH = os.environ.get("GEMINI_SMART_MODEL", "gemini-2.5-flash")
+GEM_PRO = os.environ.get("GEMINI_PRO_MODEL", "gemini-2.5-pro")
+# aliases: chamadas antigas pedindo 'sonnet'/'opus' caem no tier Gemini equivalente
+MODELS = {"sonnet": GEM_FLASH, "flash": GEM_FLASH, "default": GEM_FLASH,
+          "opus": GEM_PRO, "pro": GEM_PRO, "haiku": GEM_FLASH}
+CLAUDE_MODELS = {"sonnet": "claude-sonnet-5", "opus": "claude-opus-4-8"}
 SYSTEM_DEFAULT = (
     "Você é o chefe de inteligência da PSM Imóveis (São José do Rio Preto/SP). Fala com o sócio Paulo: "
     "direto, estratégico, em pt-BR, sem encher linguiça e SEM INVENTAR números — use só os fatos fornecidos. "
@@ -29,6 +38,36 @@ SYSTEM_DEFAULT = (
     "break-even e diga O QUE fazer, QUEM faz e COMO medir. Se um dado necessário não estiver no contexto, "
     "diga que falta em vez de estimar."
 )
+
+
+def _gemini(model, system, prompt, max_tokens):
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not key:
+        return {"ok": False, "error": "GEMINI_API_KEY ausente"}
+    payload = {
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.6},
+    }
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), method="POST",
+                                 headers={"Content-Type": "application/json", "x-goog-api-key": key})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            d = json.loads(r.read().decode("utf-8"))
+        cands = d.get("candidates") or []
+        text = "".join(pt.get("text", "") for c in cands for pt in ((c.get("content") or {}).get("parts") or []))
+        if not text:
+            return {"ok": False, "error": "resposta vazia do gemini"}
+        return {"ok": True, "text": text, "model_used": model}
+    except urllib.error.HTTPError as e:
+        try:
+            msg = (json.loads(e.read().decode("utf-8")).get("error") or {}).get("message", str(e))[:300]
+        except Exception:
+            msg = str(e)[:300]
+        return {"ok": False, "error": f"gemini {e.code}: {msg}"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:300]}
 
 
 def _anthropic(model, system, prompt, max_tokens):
@@ -103,8 +142,8 @@ class handler(BaseHTTPRequestHandler):
         if len(prompt) + len(pergunta) > 60000:
             return self._send(400, {"ok": False, "error": "prompt longo demais"})
 
-        mkey = (body.get("model") or "sonnet").strip().lower()
-        model = MODELS.get(mkey, mkey if mkey.startswith("claude-") else MODELS["sonnet"])
+        mkey = (body.get("model") or "default").strip().lower()
+        model = MODELS.get(mkey, mkey if mkey.startswith("gemini-") else MODELS["default"])
         try:
             max_tokens = max(300, min(8000, int(body.get("max_tokens") or 3000)))
         except Exception:
@@ -128,7 +167,13 @@ class handler(BaseHTTPRequestHandler):
         if dossie_txt:
             final = f"{dossie_txt}\n\n---\n\n{'PERGUNTA DO SÓCIO: ' + pergunta if pergunta else prompt}"
 
-        res = _anthropic(model, system, final, max_tokens)
+        # GEMINI primário (decisão jul/2026). Claude só se AI_PREFER=claude (dormente).
+        if os.environ.get("AI_PREFER", "").strip().lower() == "claude" and os.environ.get("ANTHROPIC_API_KEY", "").strip():
+            res = _anthropic(CLAUDE_MODELS.get(mkey, "claude-sonnet-5"), system, final, max_tokens)
+            if not res.get("ok"):
+                res = _gemini(model, system, final, max_tokens)
+        else:
+            res = _gemini(model, system, final, max_tokens)
         if not res.get("ok"):
             try:
                 leg = _legacy_fallback(final, model, max_tokens)

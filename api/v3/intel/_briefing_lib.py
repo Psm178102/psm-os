@@ -131,9 +131,24 @@ FATOS REAIS:
 
 
 def _ai_text(prompt, max_tokens=4000):
-    # v84.4 — Briefing de Guerra roda no OPUS 4.8 (antes caía no default Haiku do legado)
-    model = os.environ.get("BRIEFING_MODEL", "claude-opus-4-8")
-    body = json.dumps({"prompt": prompt, "model": model, "max_tokens": max_tokens}).encode("utf-8")
+    """v84.9 — Briefing de Guerra roda no GEMINI PRO via /api/v3/ia/analyze
+    (motor oficial decidido pelo Paulo; Claude dormente). Fallback: legado."""
+    cron = os.environ.get("CRON_SECRET", "").strip()
+    if cron:
+        try:
+            body = json.dumps({"prompt": prompt, "model": "pro", "max_tokens": max_tokens,
+                               "dossie": False}).encode("utf-8")
+            req = urllib.request.Request(
+                PUBLIC_BASE + "/api/v3/ia/analyze", data=body,
+                headers={"Content-Type": "application/json", "User-Agent": "PSM-OS/briefing",
+                         "Authorization": "Bearer " + cron})
+            with urllib.request.urlopen(req, timeout=110) as resp:
+                d = json.loads(resp.read().decode("utf-8"))
+            if d.get("ok") and d.get("text"):
+                return d.get("text"), d.get("model_used")
+        except Exception:
+            pass
+    body = json.dumps({"prompt": prompt, "max_tokens": max_tokens}).encode("utf-8")
     req = urllib.request.Request(
         PUBLIC_BASE + "/api/ai-analysis", data=body,
         headers={"Content-Type": "application/json", "User-Agent": "PSM-OS/briefing"})
