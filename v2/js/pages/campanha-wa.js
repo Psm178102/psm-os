@@ -17,7 +17,7 @@ const SEGMENTOS = {
   reativacao: {
     lbl: '🔁 Reativação MAP (fila)', dias: 30, cor: '#7c3aed',
     sub: 'A <b>mesma base da Fila de Reativação</b> (leads MAP parados, ~1.8k) — só quem a Mariane ainda NÃO trabalhou. O envio marca <b>contatado</b> na fila dela; quem responde SIM vira <b>respondeu</b> + 🔥 Quente. Abordagem consultiva, sem oferta.',
-    tpl: 'Olá {primeiro_nome}, tudo bem? Aqui é a Mariane, da PSM Imóveis 😊\nVocê falou com a gente sobre imóveis um tempo atrás e estou revisando os atendimentos.\nAinda tem interesse em comprar? Responde *SIM* que eu te atualizo — ou *SAIR* pra não receber mais.',
+    tpl: 'Olá {primeiro_nome}, tudo bem? Aqui é a Leire, da PSM Imóveis 😊\nVocê falou com a gente sobre imóveis um tempo atrás e estou revisando os atendimentos.\nAinda tem interesse em comprar? Responde *SIM* que eu te atualizo — ou *SAIR* pra não receber mais.',
   },
   parados: {
     lbl: '🛌 Parados +30d (reativação)', dias: 30, cor: '#2563eb',

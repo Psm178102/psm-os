@@ -15,10 +15,10 @@ TEMPLATE_TEXTO = (
     "[ Quero ver 👀 ]   [ Agora não ]"
 )
 # v84.3 — plano REAL decidido com o Paulo: COEXISTÊNCIA no número da RECEPÇÃO
-# (nunca bloqueado): o número entra na API oficial E continua no app do iPhone da Mariane.
+# (nunca bloqueado): o número entra na API oficial E continua no app do iPhone da LEIRE (recepção).
 CHECKLIST = [
     "1. Conta Meta Business já existe (a dos anúncios) — conferir se está verificada com o CNPJ da PSM.",
-    "2. Criar conta na 360dialog (hub.360dialog.com) e escolher COEXISTÊNCIA: conectar o NÚMERO DA RECEPÇÃO escaneando o QR no WhatsApp Business do iPhone (o app continua funcionando normal).",
+    "2. Criar conta na 360dialog (hub.360dialog.com) e escolher COEXISTÊNCIA: conectar o NÚMERO DA RECEPÇÃO escaneando o QR no WhatsApp Business do iPhone da LEIRE (o app continua funcionando normal).",
     "3. Submeter o template de reativação (abaixo) → aprovação da Meta (horas a ~1 dia).",
     "4. No Vercel, setar: D360_API_KEY + D360_TEMPLATE (nome do template aprovado) — e a campanha DESTRAVA sozinha.",
     "5. Apontar o webhook da 360dialog pra /api/v3/wa/cloud_webhook (verify token = WA_CLOUD_VERIFY_TOKEN) — respostas viram 🔥 Quentes e marcam a Fila.",
@@ -26,7 +26,7 @@ CHECKLIST = [
 ]
 
 TEMPLATE_REATIVACAO = (
-    "Olá {{1}}, tudo bem? Aqui é a Mariane, da PSM Imóveis 😊 "
+    "Olá {{1}}, tudo bem? Aqui é a Leire, da PSM Imóveis 😊 "
     "Você falou com a gente sobre imóveis um tempo atrás e estou revisando os atendimentos. "
     "Ainda tem interesse em comprar? Se preferir não receber mais mensagens, responda SAIR."
 )

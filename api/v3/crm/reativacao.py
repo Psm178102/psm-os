@@ -29,7 +29,7 @@ KV_CFG = "reativacao_cfg"
 STATUS = ["contatado", "respondeu", "agendou", "sem_interesse", "futuro", "nao_atendeu"]
 DEFAULT_CFG = {
     "lote": 40, "dias_min": 30,
-    "template": ("Olá {nome}, tudo bem? Aqui é a Mariane, da PSM Imóveis 😊 "
+    "template": ("Olá {nome}, tudo bem? Aqui é a Leire, da PSM Imóveis 😊 "
                  "Você chegou a falar com a gente sobre imóveis um tempo atrás. "
                  "Estou revisando os atendimentos e queria saber: você ainda tem interesse "
                  "em comprar, ou posso atualizar seu cadastro?"),
