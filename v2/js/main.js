@@ -7,6 +7,7 @@ import { initPulse } from './pulse.js';
 import { initRealtime } from './realtime.js';
 import { api } from './api.js';
 import { initPush, enablePush, pushSupported, pushPermission } from './push.js';
+import { loadFrentes, frentesAtivas, FRENTES } from './frentes.js';
 import { pageUsuarios as pageUsuariosV2 } from './pages/usuarios.js';
 import { pageAuditoria } from './pages/auditoria.js';
 import { pageDashboard as pageDashboardV2 } from './pages/dashboard.js';
@@ -288,6 +289,19 @@ function canSee(path, user) {
   return allowed.includes(grp);
 }
 
+// Frente pausada (Central de Frentes) → esconde as telas dela do menu, em vez de
+// exibir aba vazia. Hoje mapeia Locações; frentes de venda compartilham as telas. v84.0
+const FRENTE_ROUTES = { locacoes: ['/locacoes', '/minutas'] };
+function applyFrentesPausadas() {
+  for (const f of FRENTES) {
+    const rotas = FRENTE_ROUTES[f.id] || [];
+    for (const r of rotas) {
+      const el = document.querySelector(`.app-sidebar .sb-link[data-nav="${r}"]`);
+      if (el && f.ativa === false) el.style.display = 'none';
+    }
+  }
+}
+
 function applyPermissions(user) {
   // reset (re-aplicável: chamado de novo quando o override de papel chega)
   document.querySelectorAll('.sb-link[data-nav]').forEach(b => { b.style.display = ''; });
@@ -367,7 +381,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '83.9.0';
+const APP_VERSION = '84.0.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -405,6 +419,7 @@ const APP_VERSION = '83.9.0';
   router.setGuard((path) => canSee(path, user));
   // override por papel (matriz editável pelo sócio) chega async e re-aplica
   loadRolePerms().then(() => applyPermissions(user));
+  loadFrentes().then(() => applyFrentesPausadas());   // fonte única de frentes (v84.0)
 
   // 3.1c) Minimizar/expandir categorias do menu (estado salvo por usuário)
   initSectionCollapse();
@@ -674,6 +689,7 @@ const APP_VERSION = '83.9.0';
     (async () => {
       try { const fresh = await auth.hydrate(); if (fresh) Object.assign(user, fresh); } catch (_) {}
       try { await loadRolePerms(); } catch (_) {}
+      try { await loadFrentes(true); applyFrentesPausadas(); } catch (_) {}
       // Carrega rótulos + ORGANIZAÇÃO do menu (global) ANTES da assinatura — assim a
       // mudança de layout (Editor de Menu) também entra na detecção. v81.60
       let layoutSig = '';

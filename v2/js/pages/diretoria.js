@@ -4,6 +4,7 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { FRENTES } from '../frentes.js';
 import { heroWrap, heroKpi, miniStat, panel, loadChartLib, darkOpts, DARK_INK, DARK_GRID, pctDelta } from '../premium.js';
 
 let _charts = [];
@@ -132,7 +133,7 @@ function frenteLabel(ex) {
 function filterBar() {
   const anoAtual = new Date().getFullYear();
   const ex = (_data.dash?.kpis || {}).exec;
-  const frentes = (ex?.frentes) || [{ code: 'conquista', label: 'Conquista' }, { code: 'map', label: 'MAP' }, { code: 'locacao', label: 'Locação' }, { code: 'terceiros', label: 'Terceiros' }];
+  const frentes = (ex?.frentes) || FRENTES.map(f => ({ code: f.id, label: f.nome }));   // fallback = fonte única (v84.0)
   const MES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const perGroups = [
     ['Consolidado', [['ano', 'Ano inteiro'], ['ytd', 'Acumulado no ano (YTD)']]],

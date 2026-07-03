@@ -54,6 +54,7 @@ const PERM_ROLES = [   // socio é fixo (vê tudo) → fora da edição
 let _cfgCustomRoles = [];   // categorias de login CUSTOM (shared_kv 'custom_roles'). v81.91
 let _cfgBuiltin = [];       // papéis FIXOS com nível efetivo (base + override do sócio). v83.9
 let _cfgRouteLvl = {};      // travas de nível por rota (shared_kv 'route_min_lvl'). v83.9
+let _cfgFrentes = [];       // fonte única de frentes (shared_kv 'frentes_config'). v84.0
 const permRoles = () => [...PERM_ROLES, ..._cfgCustomRoles.map(r => [r.id, (r.ico ? r.ico + ' ' : '🏷️ ') + r.label, r.lvl || 2])];
 const PERM_ALWAYS = new Set(['conta']);  // só CONTA é sempre visível; Início e PSM Academy são configuráveis na matriz. v81.40
 let _permCatalog = null;   // [{key,label,items:[{route,label,icon,minlvl}]}]
@@ -88,6 +89,7 @@ async function reload() {
     _cfgCustomRoles = (cr && cr.roles) || [];   // categorias custom entram na matriz/sub-abas/tela inicial
     _cfgBuiltin = (cr && cr.builtin) || [];      // fixos c/ nível efetivo (Central de Permissões, v83.9)
     try { const rp = await api.request('/api/v3/settings/role_perms'); _cfgRouteLvl = (rp && rp.route_lvl) || {}; } catch (_) { _cfgRouteLvl = {}; }
+    try { const fr = await api.request('/api/v3/settings/frentes'); _cfgFrentes = (fr && fr.frentes) || []; } catch (_) { _cfgFrentes = []; }
     render();
   } catch (e) {
     _root.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message)}</div>`;
@@ -126,6 +128,8 @@ function render() {
 
       ${travasRotaCard()}
 
+      ${frentesCard()}
+
       ${subAbasCard()}
 
       ${homeRoutesCard()}
@@ -148,6 +152,7 @@ function render() {
   initPermEditor();   // monta a matriz editável de permissões por papel
   initCargosNiveis(); // Central de Permissões: níveis por cargo (v83.9)
   initTravasRota();   // Central de Permissões: travas de nível por rota (v83.9)
+  initFrentes();      // Central de Frentes: nome/funis/ativa (fonte única, v84.0)
   initSubAbas();      // monta o painel central de visibilidade de sub-abas
   initHomeRoutes();   // monta o editor de tela inicial por papel
   initConclEditor();  // monta o editor de campos de conclusão por atividade
@@ -260,6 +265,53 @@ function initTravasRota() {
   });
   const rst = document.getElementById('tr-reset');
   if (rst) rst.addEventListener('click', () => { if (confirm('Voltar TODAS as travas ao padrão do sistema?')) salvar({}); });
+}
+
+
+// ── Central de FRENTES (fonte única: nome, funis do RD, ativa/pausada). v84.0 ──
+function frentesCard() {
+  return `
+    <div class="card mt-4" id="frentes-card" style="margin-top:14px">
+      <h3 class="card-title">🏢 Frentes / Empresas (fonte única)</h3>
+      <p class="card-sub">Todo o sistema (painéis, viabilidade, dashboard) lê as frentes daqui. <b>Pausar</b> uma frente esconde as telas dela do menu (ex.: Locações sem operação) — os dados históricos continuam contando. <b>Funis</b> são as palavras-chave que casam com o nome do funil no RD (ex.: "MAP" pega FUNIL MAP e CARTEIRA MAP PAULO).</p>
+      <div id="frentes-editor"><div class="flex items-center gap-2 muted tiny" style="padding:8px 0"><span class="spinner"></span> Carregando frentes…</div></div>
+    </div>`;
+}
+function initFrentes() {
+  const box = document.getElementById('frentes-editor');
+  if (!box) return;
+  const isSocio = (auth.user()?.lvl || 0) >= 10;
+  const rows = (_cfgFrentes || []).map(f => `<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:5px 8px">${f.icon} <input class="input fr-nome" data-id="${f.id}" value="${escapeHtml(f.nome || f.id)}" ${isSocio ? '' : 'disabled'} style="width:150px;padding:3px 6px;font-size:12.5px"></td>
+    <td style="padding:5px 8px"><input class="input fr-funis" data-id="${f.id}" value="${escapeHtml((f.funis || []).join(', '))}" ${isSocio ? '' : 'disabled'} title="palavras-chave dos funis do RD, separadas por vírgula" style="width:200px;padding:3px 6px;font-size:12px"></td>
+    <td style="padding:5px 8px;text-align:center"><label class="tiny" style="cursor:pointer;display:inline-flex;gap:5px;align-items:center"><input type="checkbox" class="fr-ativa" data-id="${f.id}" ${f.ativa !== false ? 'checked' : ''} ${isSocio ? '' : 'disabled'}> ${f.ativa !== false ? '▶ ativa' : '⏸ pausada'}</label></td>
+  </tr>`).join('');
+  box.innerHTML = `
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;max-width:640px">
+      <thead><tr style="background:var(--bg-3);text-align:left"><th style="padding:6px 8px">Frente</th><th style="padding:6px 8px">Funis do RD (palavras-chave)</th><th style="padding:6px 8px;text-align:center">Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    ${isSocio ? `<div class="flex gap-2 mt-2" style="align-items:center">
+      <button class="btn btn-primary btn-sm" id="fr-save">💾 Salvar frentes</button>
+      <span class="tiny" id="fr-msg" style="color:#16a34a"></span>
+    </div>` : '<div class="tiny muted mt-2">Só o sócio edita.</div>'}`;
+  if (!isSocio) return;
+  const save = document.getElementById('fr-save');
+  if (save) save.addEventListener('click', async () => {
+    const frentes = (_cfgFrentes || []).map(f => ({
+      id: f.id,
+      nome: box.querySelector(`.fr-nome[data-id="${f.id}"]`)?.value?.trim() || f.nome,
+      funis: (box.querySelector(`.fr-funis[data-id="${f.id}"]`)?.value || '').split(',').map(s => s.trim()).filter(Boolean),
+      ativa: !!box.querySelector(`.fr-ativa[data-id="${f.id}"]`)?.checked,
+    }));
+    const m = document.getElementById('fr-msg');
+    try {
+      const r = await api.request('/api/v3/settings/frentes', { method: 'POST', body: { frentes } });
+      _cfgFrentes = (r && r.frentes) || _cfgFrentes;
+      if (m) m.textContent = '✅ frentes salvas — menu e painéis atualizam no próximo carregamento';
+      initFrentes();
+    } catch (e) { if (m) m.textContent = '⚠️ ' + e.message; }
+  });
 }
 
 // Matriz de permissões por papel — EDITÁVEL pelo sócio (lvl≥10). Granular por item de menu.

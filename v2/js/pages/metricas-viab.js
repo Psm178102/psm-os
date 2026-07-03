@@ -8,6 +8,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { loadChartLib, darkOpts, DARK_INK, DARK_GRID } from '../premium.js';
+import { FRENTES } from '../frentes.js';
 
 let _root = null, _tab = 'resumo', _ano = new Date().getFullYear(), _d = null, _msg = '';
 let _vcharts = [];   // instâncias Chart.js vivas (destruídas a cada render, v83.4)
@@ -23,12 +24,9 @@ let _catsOpen = false;                                           // gerenciador 
 let _be = null;                                                  // cenário do break-even estratégico (v82.6)
 let _beSemPL = false;                                            // break-even: descontar pró-labore do fixo? (v83.5)
 
-const LINHAS = [
-  { id: 'map', nome: 'PSM M.A.P', icon: '🏢', cor: '#7c3aed' },
-  { id: 'conquista', nome: 'PSM Conquista', icon: '🏠', cor: '#2563eb' },
-  { id: 'terceiros', nome: 'PSM Terceiros', icon: '🤝', cor: '#0891b2' },
-  { id: 'locacoes', nome: 'PSM Locações', icon: '🔑', cor: '#d97706' },
-];
+// v84.0 — LINHAS vem da FONTE ÚNICA de frentes (v2/js/frentes.js ↔ settings/frentes.py);
+// nome/ícone/cor/ativa editáveis pelo sócio valem aqui automaticamente.
+const LINHAS = FRENTES;
 const LIDS = LINHAS.map(l => l.id);
 const MES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 // premissas de comissão/imposto (o custo agora vem dos "Custos detalhados", não daqui)

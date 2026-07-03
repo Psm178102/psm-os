@@ -28,7 +28,7 @@ import json, os, sys, urllib.parse
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of  # type: ignore
 
 # ── linhas (mesmas ids da tela de viabilidade) + defaults de premissa ──
 LINHAS = [
@@ -53,12 +53,7 @@ NUM_FIELDS = ["vgv", "vendas", "com_bruta_pct", "com_corretor_pct", "com_senior_
 
 
 def _frente_of(pn):
-    p = (pn or "").upper()
-    if "CONQUISTA" in p: return "conquista"
-    if "LOCA" in p:      return "locacoes"
-    if "TERCEIRO" in p:  return "terceiros"
-    if "MAP" in p:       return "map"
-    return "outros"
+    return frente_of(pn)   # fonte única (Central de Frentes, _auth_lib). v84.0
 
 
 def read_kv(sb, key):

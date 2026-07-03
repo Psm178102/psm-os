@@ -152,6 +152,54 @@ def _custom_levels():
     return out
 
 
+_FRENTES_CFG = {"d": None, "t": 0.0}
+_FRENTES_DEFAULT = [
+    {"id": "map", "funis": ["MAP"], "ativa": True},
+    {"id": "conquista", "funis": ["CONQUISTA"], "ativa": True},
+    {"id": "terceiros", "funis": ["TERCEIRO"], "ativa": True},
+    {"id": "locacoes", "funis": ["LOCA"], "ativa": True},
+]
+
+
+def frentes_config():
+    """FONTE ÚNICA das frentes (shared_kv 'frentes_config', cache 60s) — mata o
+    mapeamento funil→frente duplicado em 20+ backends (auditoria A1). v84.0"""
+    if _FRENTES_CFG["d"] is not None and (time.time() - _FRENTES_CFG["t"]) < 60:
+        return _FRENTES_CFG["d"]
+    out = [dict(f) for f in _FRENTES_DEFAULT]
+    try:
+        import json as _json
+        sb = supabase_client()
+        if sb:
+            rows = sb.table("shared_kv").select("value").eq("key", "frentes_config").limit(1).execute().data or []
+            val = rows[0]["value"] if rows else []
+            if isinstance(val, str):
+                val = _json.loads(val)
+            saved = {f.get("id"): f for f in val if isinstance(f, dict)} if isinstance(val, list) else {}
+            for f in out:
+                s = saved.get(f["id"]) or {}
+                if isinstance(s.get("funis"), list) and s["funis"]:
+                    f["funis"] = [str(x) for x in s["funis"]][:10]
+                if isinstance(s.get("ativa"), bool):
+                    f["ativa"] = s["ativa"]
+    except Exception:
+        pass
+    _FRENTES_CFG["d"] = out
+    _FRENTES_CFG["t"] = time.time()
+    return out
+
+
+def frente_of(pipeline_name: str) -> str:
+    """Frente (map|conquista|terceiros|locacoes|outros) de um pipeline do RD,
+    pela config editável do sócio. Substitui os if/elif hardcoded. v84.0"""
+    p = (pipeline_name or "").upper()
+    for f in frentes_config():
+        for needle in (f.get("funis") or []):
+            if str(needle).upper() in p:
+                return f["id"]
+    return "outros"
+
+
 def lvl_of(role: str) -> int:
     """Nível do papel. Ordem: override do sócio (shared_kv 'role_lvl_overrides')
     > ROLE_LVL fixo > papéis CUSTOM ('custom_roles'). Default 2 (corretor). v83.9"""

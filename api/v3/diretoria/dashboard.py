@@ -14,7 +14,7 @@ import urllib.parse
 from datetime import date, datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, frente_of  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -273,12 +273,8 @@ class handler(BaseHTTPRequestHandler):
 
     @staticmethod
     def _frente_of(pn):
-        p = (pn or "").upper()
-        if "CONQUISTA" in p: return "conquista"
-        if "LOCA" in p:      return "locacao"     # FUNIL DE LOCACAO
-        if "TERCEIRO" in p:  return "terceiros"
-        if "MAP" in p:       return "map"          # FUNIL MAP, CARTEIRA MAP PAULO
-        return "outros"                            # PARCERIA/sem funil → fora das vendas
+        fr = frente_of(pn)                          # fonte única (Central de Frentes). v84.0
+        return "locacao" if fr == "locacoes" else fr   # alias histórico do exec
 
     def _exec_block(self, sb, ano, mes_atual, periodo, frente_sel, uq):
         from datetime import datetime as _dt
