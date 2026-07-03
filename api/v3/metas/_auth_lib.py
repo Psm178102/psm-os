@@ -92,6 +92,37 @@ ROLE_LVL = {
 
 
 _CUSTOM_LVL = {"d": None, "t": 0.0}
+_LVL_OVERRIDES = {"d": None, "t": 0.0}
+
+
+def _lvl_overrides():
+    """Overrides de nível dos papéis FIXOS, editáveis pelo sócio na Central de
+    Permissões (shared_kv 'role_lvl_overrides' = {role: lvl}). Cache 60s. v83.9.
+    'socio' e 'diretor' nunca são rebaixados aqui (proteção anti-lockout)."""
+    if _LVL_OVERRIDES["d"] is not None and (time.time() - _LVL_OVERRIDES["t"]) < 60:
+        return _LVL_OVERRIDES["d"]
+    out = {}
+    try:
+        import json as _json
+        sb = supabase_client()
+        if sb:
+            rows = sb.table("shared_kv").select("value").eq("key", "role_lvl_overrides").limit(1).execute().data or []
+            val = rows[0]["value"] if rows else {}
+            if isinstance(val, str):
+                val = _json.loads(val)
+            for k, v in (val or {}).items():
+                r = str(k).strip().lower()
+                if r in ("socio", "diretor"):
+                    continue
+                try:
+                    out[r] = max(1, min(10, int(v)))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    _LVL_OVERRIDES["d"] = out
+    _LVL_OVERRIDES["t"] = time.time()
+    return out
 
 
 def _custom_levels():
@@ -122,9 +153,12 @@ def _custom_levels():
 
 
 def lvl_of(role: str) -> int:
-    """Nível do papel. Fixos no ROLE_LVL; papéis CUSTOM vêm do shared_kv
-    'custom_roles' (cache 60s). Default 2 (corretor)."""
+    """Nível do papel. Ordem: override do sócio (shared_kv 'role_lvl_overrides')
+    > ROLE_LVL fixo > papéis CUSTOM ('custom_roles'). Default 2 (corretor). v83.9"""
     r = (role or "").strip().lower()
+    ov = _lvl_overrides()
+    if r in ov:
+        return ov[r]
     if r in ROLE_LVL:
         return ROLE_LVL[r]
     return _custom_levels().get(r, 2)

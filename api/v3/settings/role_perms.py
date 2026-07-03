@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
 KV_KEY = "role_perms"
+KV_ROUTE_LVL = "route_min_lvl"   # {"/rota": lvl} — travas de nível por rota editáveis pelo sócio (Central de Permissões). v83.9
 # 'socio' nunca é customizável (não dá pra trancar o dono pra fora) → ignorado se vier.
 VALID_ROLES = {"diretor", "gerente", "lider", "backoffice", "financeiro", "marketing", "corretor",
                "corretor_conquista", "corretor_map", "corretor_locacao", "corretor_terceiros", "gerente_conquista", "gerente_map", "gerente_locacao", "gerente_terceiros", "secretaria_vendas"}
@@ -59,6 +60,25 @@ def _clean(payload):
     return out
 
 
+def _read_route_lvl(sb):
+    try:
+        rows = sb.table("shared_kv").select("value").eq("key", KV_ROUTE_LVL).limit(1).execute().data or []
+        val = rows[0]["value"] if rows else {}
+        if isinstance(val, str):
+            val = json.loads(val)
+        out = {}
+        for k, v in (val or {}).items():
+            k = str(k).strip()
+            if k.startswith("/") and len(k) <= MAX_LEN:
+                try:
+                    out[k] = max(0, min(10, int(v)))
+                except Exception:
+                    pass
+        return out
+    except Exception:
+        return {}
+
+
 def _role_ok(r):
     """Aceita papel fixo (VALID_ROLES), '*' ou papel CUSTOM em formato slug
     (minúsculo, [a-z0-9_], começa com letra) — assim categorias novas funcionam
@@ -91,7 +111,7 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
-        return self._send(200, {"ok": True, "perms": _read(sb)})
+        return self._send(200, {"ok": True, "perms": _read(sb), "route_lvl": _read_route_lvl(sb)})
 
     def do_POST(self):
         try:
@@ -106,6 +126,25 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
+
+        # v83.9 — Central de Permissões: POST só de travas de rota (não mexe na matriz)
+        if isinstance(body.get("route_lvl"), dict) and "perms" not in body:
+            rl = {}
+            for k, v in body["route_lvl"].items():
+                k = str(k).strip()
+                if k.startswith("/") and len(k) <= MAX_LEN:
+                    try:
+                        rl[k] = max(0, min(10, int(v)))
+                    except Exception:
+                        pass
+            try:
+                sb.table("shared_kv").upsert({"key": KV_ROUTE_LVL, "value": rl,
+                                              "updated_at": datetime.now(timezone.utc).isoformat()},
+                                             on_conflict="key").execute()
+            except Exception as e:
+                return self._send(500, {"ok": False, "error": str(e)})
+            audit(self, actor, "role_perms.route_lvl", target_type="shared_kv", target_id=KV_ROUTE_LVL)
+            return self._send(200, {"ok": True, "route_lvl": rl})
 
         perms = _clean(body.get("perms") if isinstance(body.get("perms"), dict) else body)
         try:

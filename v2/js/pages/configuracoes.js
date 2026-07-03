@@ -52,6 +52,8 @@ const PERM_ROLES = [   // socio é fixo (vê tudo) → fora da edição
   ['corretor_locacao', '🔑 Corretor Locação', 2], ['corretor_terceiros', '🤝 Corretor Terceiros', 2],
 ];
 let _cfgCustomRoles = [];   // categorias de login CUSTOM (shared_kv 'custom_roles'). v81.91
+let _cfgBuiltin = [];       // papéis FIXOS com nível efetivo (base + override do sócio). v83.9
+let _cfgRouteLvl = {};      // travas de nível por rota (shared_kv 'route_min_lvl'). v83.9
 const permRoles = () => [...PERM_ROLES, ..._cfgCustomRoles.map(r => [r.id, (r.ico ? r.ico + ' ' : '🏷️ ') + r.label, r.lvl || 2])];
 const PERM_ALWAYS = new Set(['conta']);  // só CONTA é sempre visível; Início e PSM Academy são configuráveis na matriz. v81.40
 let _permCatalog = null;   // [{key,label,items:[{route,label,icon,minlvl}]}]
@@ -84,6 +86,8 @@ async function reload() {
     ]);
     _data = d;
     _cfgCustomRoles = (cr && cr.roles) || [];   // categorias custom entram na matriz/sub-abas/tela inicial
+    _cfgBuiltin = (cr && cr.builtin) || [];      // fixos c/ nível efetivo (Central de Permissões, v83.9)
+    try { const rp = await api.request('/api/v3/settings/role_perms'); _cfgRouteLvl = (rp && rp.route_lvl) || {}; } catch (_) { _cfgRouteLvl = {}; }
     render();
   } catch (e) {
     _root.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message)}</div>`;
@@ -116,7 +120,11 @@ function render() {
 
       ${groups.map(g => groupCard(g, isSocio10)).join('')}
 
+      ${cargosNiveisCard()}
+
       ${permissoesCard()}
+
+      ${travasRotaCard()}
 
       ${subAbasCard()}
 
@@ -138,9 +146,120 @@ function render() {
   document.querySelectorAll('[data-setting-save]').forEach(b => b.addEventListener('click', saveSetting));
 
   initPermEditor();   // monta a matriz editável de permissões por papel
+  initCargosNiveis(); // Central de Permissões: níveis por cargo (v83.9)
+  initTravasRota();   // Central de Permissões: travas de nível por rota (v83.9)
   initSubAbas();      // monta o painel central de visibilidade de sub-abas
   initHomeRoutes();   // monta o editor de tela inicial por papel
   initConclEditor();  // monta o editor de campos de conclusão por atividade
+}
+
+
+// ── Central de Permissões · CARGOS & NÍVEIS (sócio define, v83.9) ──
+const ROLE_LBL = Object.fromEntries(PERM_ROLES.map(([id, lbl]) => [id, lbl]));
+ROLE_LBL.socio = '👑 Sócio'; ROLE_LBL.corretor = '🏠 Corretor (genérico)';
+function cargosNiveisCard() {
+  return `
+    <div class="card mt-4" id="cargos-card" style="margin-top:14px">
+      <h3 class="card-title">🎚 Cargos & Níveis</h3>
+      <p class="card-sub">O <b>nível</b> (1–10) é a régua de alçada do sistema inteiro — telas e backend leem daqui. Edite o nível de qualquer cargo (fixo ou custom). <b>Sócio e Diretor são travados em 10</b> (proteção pra você nunca se trancar fora). Cargos novos você cria em <b>Usuários → Categorias</b>.</p>
+      <div id="cargos-editor"><div class="flex items-center gap-2 muted tiny" style="padding:8px 0"><span class="spinner"></span> Carregando cargos…</div></div>
+    </div>`;
+}
+function initCargosNiveis() {
+  const box = document.getElementById('cargos-editor');
+  if (!box) return;
+  const isSocio = (auth.user()?.lvl || 0) >= 10;
+  const rowB = r => `<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:5px 8px">${ROLE_LBL[r.id] || r.id}</td>
+    <td style="padding:5px 8px" class="tiny muted">fixo${r.override ? ' · <b style="color:#d97706">nível alterado</b>' : ''}</td>
+    <td style="padding:5px 8px;text-align:center">${['socio','diretor'].includes(r.id)
+      ? `<b>${r.lvl}</b> 🔒`
+      : `<input type="number" min="1" max="10" class="input cn-lvl" data-role="${r.id}" value="${r.lvl}" ${isSocio ? '' : 'disabled'} style="width:64px;padding:3px 6px;text-align:center">${r.override && isSocio ? ` <button class="btn btn-ghost btn-sm cn-reset" data-role="${r.id}" title="voltar ao padrão (${r.lvl_base})" style="padding:1px 6px">↩ ${r.lvl_base}</button>` : ''}`}</td>
+  </tr>`;
+  const rowC = r => `<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:5px 8px">${(r.ico || '🏷️')} ${escapeHtml(r.label || r.id)}</td>
+    <td style="padding:5px 8px" class="tiny muted">custom</td>
+    <td style="padding:5px 8px;text-align:center"><input type="number" min="1" max="10" class="input cn-lvl-custom" data-role="${r.id}" value="${r.lvl || 2}" ${isSocio ? '' : 'disabled'} style="width:64px;padding:3px 6px;text-align:center"></td>
+  </tr>`;
+  box.innerHTML = `
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;max-width:560px">
+      <thead><tr style="background:var(--bg-3);text-align:left"><th style="padding:6px 8px">Cargo</th><th style="padding:6px 8px">Tipo</th><th style="padding:6px 8px;text-align:center">Nível</th></tr></thead>
+      <tbody>${(_cfgBuiltin || []).map(rowB).join('')}${(_cfgCustomRoles || []).map(rowC).join('')}</tbody>
+    </table></div>
+    <div class="tiny muted mt-2">Referência de alçada: 10 sócio/diretor · 7 gerente · 6 backoffice · 5 líder · 4 financeiro · 3 marketing/secretaria · 2 corretor. Mudar aqui vale no login seguinte (cache de 60s no backend).</div>
+    <span class="tiny" id="cn-msg" style="color:#16a34a"></span>`;
+  if (!isSocio) return;
+  const msg = t => { const m = document.getElementById('cn-msg'); if (m) { m.textContent = t; setTimeout(() => { if (m) m.textContent = ''; }, 3500); } };
+  box.querySelectorAll('.cn-lvl').forEach(el => el.addEventListener('change', async () => {
+    try { await api.request('/api/v3/settings/roles', { method: 'POST', body: { action: 'set_lvl', role: el.dataset.role, lvl: parseInt(el.value) || 2 } }); msg('✅ nível salvo'); }
+    catch (e) { msg('⚠️ ' + e.message); }
+  }));
+  box.querySelectorAll('.cn-reset').forEach(b => b.addEventListener('click', async () => {
+    try { await api.request('/api/v3/settings/roles', { method: 'POST', body: { action: 'set_lvl', role: b.dataset.role, lvl: 'reset' } }); msg('↩ nível padrão restaurado'); await reload(); }
+    catch (e) { msg('⚠️ ' + e.message); }
+  }));
+  box.querySelectorAll('.cn-lvl-custom').forEach(el => el.addEventListener('change', async () => {
+    const r = (_cfgCustomRoles || []).find(x => x.id === el.dataset.role); if (!r) return;
+    try { await api.request('/api/v3/settings/roles', { method: 'POST', body: { action: 'add', id: r.id, label: r.label, lvl: parseInt(el.value) || 2, color: r.color, ico: r.ico } }); msg('✅ nível salvo'); }
+    catch (e) { msg('⚠️ ' + e.message); }
+  }));
+}
+
+// ── Central de Permissões · TRAVAS DE NÍVEL POR ROTA (sócio define, v83.9) ──
+function travasRotaCard() {
+  return `
+    <div class="card mt-4" id="travas-card" style="margin-top:14px">
+      <h3 class="card-title">🔒 Travas de nível por página</h3>
+      <p class="card-sub">Além da matriz (quem VÊ), estas travas exigem um <b>nível mínimo</b> pra abrir a página — a fronteira dura. Edite o número pra abrir/fechar uma página por alçada (ex.: baixar Cockpit Conquista de 10 pra 2 libera pro corretor). 0 = sem trava.</p>
+      <div id="travas-editor"><div class="flex items-center gap-2 muted tiny" style="padding:8px 0"><span class="spinner"></span> Carregando travas…</div></div>
+    </div>`;
+}
+function initTravasRota() {
+  const box = document.getElementById('travas-editor');
+  if (!box) return;
+  const isSocio = (auth.user()?.lvl || 0) >= 10;
+  const rotas = { ...ROUTE_MIN_LVL };
+  Object.keys(_cfgRouteLvl || {}).forEach(r => { if (!(r in rotas)) rotas[r] = 0; });
+  const nomeDe = r => { const el = document.querySelector(`.app-sidebar .sb-link[data-nav="${r}"]`); return el ? el.textContent.trim() : r; };
+  const rows = Object.keys(rotas).sort().map(r => {
+    const base = ROUTE_MIN_LVL[r] || 0;
+    const ef = (_cfgRouteLvl[r] !== undefined) ? _cfgRouteLvl[r] : base;
+    const mudou = _cfgRouteLvl[r] !== undefined && _cfgRouteLvl[r] !== base;
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:4px 8px">${escapeHtml(nomeDe(r))} <span class="tiny muted">${r}</span></td>
+      <td style="padding:4px 8px;text-align:center" class="tiny muted">${base}</td>
+      <td style="padding:4px 8px;text-align:center"><input type="number" min="0" max="10" class="input tr-lvl" data-route="${r}" value="${ef}" ${isSocio ? '' : 'disabled'} style="width:60px;padding:3px 6px;text-align:center;${mudou ? 'border-color:#d97706;font-weight:700' : ''}"></td>
+    </tr>`;
+  }).join('');
+  box.innerHTML = `
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;max-width:640px">
+      <thead><tr style="background:var(--bg-3);text-align:left;position:sticky;top:0"><th style="padding:6px 8px">Página</th><th style="padding:6px 8px;text-align:center">Padrão</th><th style="padding:6px 8px;text-align:center">Trava atual</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    ${isSocio ? `<div class="flex gap-2 mt-2" style="align-items:center">
+      <button class="btn btn-primary btn-sm" id="tr-save">💾 Salvar travas</button>
+      <button class="btn btn-ghost btn-sm" id="tr-reset">↩ Voltar tudo ao padrão</button>
+      <span class="tiny" id="tr-msg" style="color:#16a34a"></span>
+    </div>` : '<div class="tiny muted mt-2">Só o sócio edita.</div>'}`;
+  if (!isSocio) return;
+  const msg = t => { const m = document.getElementById('tr-msg'); if (m) { m.textContent = t; setTimeout(() => { if (m) m.textContent = ''; }, 3500); } };
+  const salvar = async (rl) => {
+    try {
+      const r = await api.request('/api/v3/settings/role_perms', { method: 'POST', body: { route_lvl: rl } });
+      _cfgRouteLvl = (r && r.route_lvl) || {}; msg('✅ travas salvas — valem no próximo carregamento de cada login'); initTravasRota();
+    } catch (e) { msg('⚠️ ' + e.message); }
+  };
+  const save = document.getElementById('tr-save');
+  if (save) save.addEventListener('click', () => {
+    const rl = {};
+    box.querySelectorAll('.tr-lvl').forEach(el => {
+      const r = el.dataset.route, v = Math.max(0, Math.min(10, parseInt(el.value) || 0));
+      if (v !== (ROUTE_MIN_LVL[r] || 0)) rl[r] = v;   // só guarda o que difere do padrão
+    });
+    salvar(rl);
+  });
+  const rst = document.getElementById('tr-reset');
+  if (rst) rst.addEventListener('click', () => { if (confirm('Voltar TODAS as travas ao padrão do sistema?')) salvar({}); });
 }
 
 // Matriz de permissões por papel — EDITÁVEL pelo sócio (lvl≥10). Granular por item de menu.

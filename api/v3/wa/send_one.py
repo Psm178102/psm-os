@@ -22,7 +22,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            user = require_user(self, min_lvl=7)
+            user = require_user(self, min_lvl=5)   # v83.9: alinhado à página Campanha WA (lvl 5) — antes 7 dava 403 no botão
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         try:

@@ -22,12 +22,31 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
 KV_KEY = "custom_roles"
+KV_LVL = "role_lvl_overrides"   # {role_fixo: lvl} — níveis dos papéis fixos editados pelo sócio. v83.9
 # ids reservados (papéis fixos) — não podem ser sobrescritos/colididos
 BUILTIN = {"socio", "diretor", "gerente", "gerente_conquista", "gerente_map", "gerente_locacao",
            "gerente_terceiros", "lider", "líder", "backoffice", "back_office", "secretaria_vendas",
            "financeiro", "marketing", "corretor", "corretor_conquista", "corretor_map",
            "corretor_locacao", "corretor_terceiros"}
+# níveis BASE dos fixos (espelha o ROLE_LVL do _auth_lib; a Central mostra/edita por cima)
+BUILTIN_LVL = {"socio": 10, "diretor": 10,
+               "gerente": 7, "gerente_conquista": 7, "gerente_map": 7, "gerente_locacao": 7, "gerente_terceiros": 7,
+               "backoffice": 6, "lider": 5, "financeiro": 4, "marketing": 3, "secretaria_vendas": 3,
+               "corretor": 2, "corretor_conquista": 2, "corretor_map": 2, "corretor_locacao": 2, "corretor_terceiros": 2}
+LOCKED = {"socio", "diretor"}   # anti-lockout: nível não editável
 MAX_ROLES = 60
+
+
+def _read_lvl_overrides(sb):
+    try:
+        rows = sb.table("shared_kv").select("value").eq("key", KV_LVL).limit(1).execute().data or []
+        val = rows[0]["value"] if rows else {}
+        if isinstance(val, str):
+            val = json.loads(val)
+        return {str(k).lower(): max(1, min(10, int(v))) for k, v in (val or {}).items()
+                if str(k).lower() in BUILTIN_LVL and str(k).lower() not in LOCKED} if isinstance(val, dict) else {}
+    except Exception:
+        return {}
 
 
 def _slug(s):
@@ -73,7 +92,12 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
-        return self._send(200, {"ok": True, "roles": _read(sb)})
+        # v83.9 — Central de Permissões: devolve também os papéis FIXOS com nível
+        # EFETIVO (base + override do sócio via shared_kv 'role_lvl_overrides').
+        ov = _read_lvl_overrides(sb)
+        builtin = [{"id": rid, "lvl_base": base, "lvl": ov.get(rid, base), "override": rid in ov}
+                   for rid, base in sorted(BUILTIN_LVL.items(), key=lambda x: (-x[1], x[0]))]
+        return self._send(200, {"ok": True, "roles": _read(sb), "builtin": builtin, "lvl_overrides": ov})
 
     def do_POST(self):
         try:
@@ -121,6 +145,34 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(500, {"ok": False, "error": str(e)})
             audit(self, actor, "roles.add", target_type="shared_kv", target_id=rid, notes=label)
             return self._send(200, {"ok": True, "roles": roles, "id": rid})
+
+        if action == "set_lvl":   # nível de papel FIXO (Central de Permissões, sócio define). v83.9
+            rid = (body.get("role") or "").strip().lower()
+            if rid not in BUILTIN_LVL:
+                return self._send(400, {"ok": False, "error": "papel fixo desconhecido (custom edita via 'add')"})
+            if rid in LOCKED:
+                return self._send(400, {"ok": False, "error": "socio/diretor têm nível travado (proteção anti-lockout)"})
+            ov = _read_lvl_overrides(sb)
+            raw = body.get("lvl")
+            if raw in (None, "", "reset"):
+                ov.pop(rid, None)   # volta ao nível base
+            else:
+                try:
+                    ov[rid] = max(1, min(10, int(raw)))
+                except Exception:
+                    return self._send(400, {"ok": False, "error": "lvl inválido (1–10)"})
+                if ov[rid] == BUILTIN_LVL[rid]:
+                    ov.pop(rid, None)   # igual ao base = sem override
+            try:
+                sb.table("shared_kv").upsert({"key": KV_LVL, "value": ov,
+                                              "updated_at": datetime.now(timezone.utc).isoformat()},
+                                             on_conflict="key").execute()
+            except Exception as e:
+                return self._send(500, {"ok": False, "error": str(e)})
+            audit(self, actor, "roles.set_lvl", target_type="shared_kv", target_id=rid, notes=str(body.get("lvl")))
+            builtin = [{"id": r, "lvl_base": b, "lvl": ov.get(r, b), "override": r in ov}
+                       for r, b in sorted(BUILTIN_LVL.items(), key=lambda x: (-x[1], x[0]))]
+            return self._send(200, {"ok": True, "builtin": builtin, "lvl_overrides": ov})
 
         if action == "remove":
             rid = _slug(body.get("id") or "")

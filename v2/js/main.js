@@ -238,9 +238,15 @@ function buildCatalog() {
     _catalogRoutes = new Set([...document.querySelectorAll('.app-sidebar .sb-link[data-nav]')].map(b => b.dataset.nav));
   } catch (_) { _catalogRoutes = null; }
 }
+export let ROUTE_LVL_OV = {};   // travas de nível por rota editadas pelo sócio (Central de Permissões). v83.9
+export const routeMinLvl = base => (ROUTE_LVL_OV[base] !== undefined ? ROUTE_LVL_OV[base] : (ROUTE_MIN_LVL[base] || 0));
 async function loadRolePerms() {
-  try { const r = await api.request('/api/v3/settings/role_perms'); _rolePerms = (r && r.perms) || {}; }
-  catch (_) { _rolePerms = {}; }
+  try {
+    const r = await api.request('/api/v3/settings/role_perms');
+    _rolePerms = (r && r.perms) || {};
+    ROUTE_LVL_OV = (r && r.route_lvl) || {};
+  }
+  catch (_) { _rolePerms = {}; ROUTE_LVL_OV = {}; }
 }
 
 function _allowedGroups(user) {
@@ -276,7 +282,7 @@ function canSee(path, user) {
   // ── comportamento ORIGINAL (sem customização de papel) ──
   const allowed = _allowedGroups(user);
   if (allowed === '*') return true;
-  if ((user?.lvl || 0) < (ROUTE_MIN_LVL[base] || 0)) return false;
+  if ((user?.lvl || 0) < routeMinLvl(base)) return false;   // trava editável (Central de Permissões). v83.9
   if (grp === 'inicio' || grp === 'conta' || grp === 'academy') return true;
   if (allowed.includes(base)) return true;
   return allowed.includes(grp);
@@ -361,7 +367,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '83.8.0';
+const APP_VERSION = '83.9.0';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
