@@ -51,6 +51,8 @@ function render() {
         ${factCard('🎯 Concorrentes', `${c.length}`, c.length ? c.slice(0,3).map(x=>escapeHtml(x.concorrente)).join(', ') : 'sem captura', '#7c3aed')}
       </div>
 
+      ${ordensCard()}
+
       <div id="bg-out" style="margin-top:14px"></div>
 
       <h3 class="card-title" style="margin-top:18px">📜 Briefings anteriores</h3>
@@ -60,6 +62,26 @@ function render() {
       <div class="tiny muted" style="margin-top:12px">Fatos reais (deals do RD + cache Meta + Biblioteca de Anúncios). A IA escreve a leitura — não inventa número além dos fatos.</div>
     </div>`;
   document.getElementById('bg-gen').addEventListener('click', generate);
+  _root.querySelectorAll('.bg-ordem').forEach(cb => cb.addEventListener('change', async () => {
+    try { const r = await api.request('/api/v3/intel/war_briefing', { method: 'POST', body: { action: 'toggle_ordem', i: +cb.dataset.i } }); if (r && r.ordens) { _d.ordens = r.ordens; render(); } }
+    catch (e) { alert('⚠️ ' + e.message); }
+  }));
+}
+
+// ── Ordens da semana rastreáveis (v84.6): a IA da semana seguinte VÊ o status e cobra ──
+function ordensCard() {
+  const o = _d.ordens || {};
+  const itens = o.itens || [];
+  if (!itens.length) return '';
+  const feitos = itens.filter(x => x.feito).length;
+  return `<div class="card" style="margin-top:14px;border-left:4px solid #dc2626">
+    <h3 class="card-title">🔥 Ordens da semana <span class="tiny muted" style="font-weight:400">· ${o.semana || ''} · ${feitos}/${itens.length} executadas</span></h3>
+    <div class="tiny muted" style="margin-bottom:8px">Marque o que foi feito — o briefing da próxima semana VÊ este status e cobra o que ficou pra trás.</div>
+    ${itens.map((it, i) => `<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px">
+      <input type="checkbox" class="bg-ordem" data-i="${i}" ${it.feito ? 'checked' : ''} style="margin-top:2px">
+      <span style="${it.feito ? 'text-decoration:line-through;opacity:.55' : ''}">${escapeHtml(it.txt)}</span>
+    </label>`).join('')}
+  </div>`;
 }
 
 function factCard(t, big, sub, color) {

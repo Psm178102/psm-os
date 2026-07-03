@@ -158,6 +158,7 @@ def generate_and_store(sb, actor_id=None):
         prompt = facts["dossie"] + "\n\n---\n\n" + prompt
     text, model = _ai_text(prompt)
     facts.pop("dossie", None)   # não persiste o dossiê inteiro na linha (só os facts compactos)
+    ordens_n = salvar_ordens(sb, text, today)   # checklist rastreável (v84.6)
     row = {"briefing": text, "facts": facts, "model": model, "criado_por": actor_id}
     saved = None
     try:
@@ -168,3 +169,38 @@ def generate_and_store(sb, actor_id=None):
     return {"facts": facts, "briefing": text, "model": model,
             "saved": bool(saved), "item": saved,
             "generated_at": datetime.now(timezone.utc).isoformat()}
+
+def _extrai_ordens(text):
+    """Puxa os itens da seção '## 🔥 3 ordens da semana' → lista de strings. v84.6"""
+    import re as _re
+    try:
+        m = _re.search(r"##[^\n]*ordens[^\n]*\n(.*?)(\n##|$)", text, _re.S | _re.I)
+        if not m:
+            return []
+        itens = []
+        for ln in m.group(1).splitlines():
+            ln = ln.strip()
+            ln = _re.sub(r"^([0-9]+[\.\)]|[-*•])\s*", "", ln).strip()
+            ln = _re.sub(r"^\*\*(.+?)\*\*", r"\1", ln)
+            if len(ln) > 8:
+                itens.append(ln[:220])
+        return itens[:5]
+    except Exception:
+        return []
+
+
+def salvar_ordens(sb, text, semana):
+    """Ordens viram checklist rastreável (shared_kv 'war_ordens') — o dossiê da
+    semana seguinte mostra o status real pra IA COBRAR o que não foi feito. v84.6"""
+    itens = _extrai_ordens(text)
+    if not itens:
+        return 0
+    try:
+        sb.table("shared_kv").upsert({
+            "key": "war_ordens",
+            "value": {"semana": str(semana), "itens": [{"txt": t, "feito": False} for t in itens]},
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }, on_conflict="key").execute()
+        return len(itens)
+    except Exception:
+        return 0

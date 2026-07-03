@@ -1,76 +1,182 @@
 {
   "crons": [
-    { "path": "/api/v3/crm/sync_cron", "schedule": "0 6 * * *" },
-    { "path": "/api/v3/marketing/meta_monthly_cron", "schedule": "0 5 * * *" },
-    { "path": "/api/v3/alertas/cron_push", "schedule": "0 11 * * *" },
-    { "path": "/api/v3/diretoria/viab", "schedule": "0 4 1 * *" }
+    {
+      "path": "/api/v3/crm/sync_cron",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/v3/marketing/meta_monthly_cron",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/v3/alertas/cron_push",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/v3/diretoria/viab",
+      "schedule": "0 4 1 * *"
+    },
+    {
+      "path": "/api/v3/intel/war_briefing_cron",
+      "schedule": "0 10 * * 1"
+    }
   ],
   "rewrites": [
-    { "source": "/api/agent", "destination": "/api/agent" },
-    { "source": "/api/properties", "destination": "/api/properties" },
-    { "source": "/api/rd", "destination": "/api/rd" },
-    { "source": "/api/config", "destination": "/api/config" },
-    { "source": "/api/auth", "destination": "/api/auth" },
-    { "source": "/api/dalle", "destination": "/api/dalle" },
-    { "source": "/prompts/:path*", "destination": "/prompts/:path*" },
-    { "source": "/lib/:path*", "destination": "/lib/:path*" },
-    { "source": "/v2/:path*", "destination": "/v2/:path*" },
-    { "source": "/login", "destination": "/v2/login.html" },
-    { "source": "/", "destination": "/v2/index.html" },
-    { "source": "/((?!api/|prompts/|lib/|v2/|login|admin\\.html|sw\\.js|manifest\\.json|version\\.json|favicon|icon-|apple-touch|logo).*)", "destination": "/v2/index.html" }
+    {
+      "source": "/api/agent",
+      "destination": "/api/agent"
+    },
+    {
+      "source": "/api/properties",
+      "destination": "/api/properties"
+    },
+    {
+      "source": "/api/rd",
+      "destination": "/api/rd"
+    },
+    {
+      "source": "/api/config",
+      "destination": "/api/config"
+    },
+    {
+      "source": "/api/auth",
+      "destination": "/api/auth"
+    },
+    {
+      "source": "/api/dalle",
+      "destination": "/api/dalle"
+    },
+    {
+      "source": "/prompts/:path*",
+      "destination": "/prompts/:path*"
+    },
+    {
+      "source": "/lib/:path*",
+      "destination": "/lib/:path*"
+    },
+    {
+      "source": "/v2/:path*",
+      "destination": "/v2/:path*"
+    },
+    {
+      "source": "/login",
+      "destination": "/v2/login.html"
+    },
+    {
+      "source": "/",
+      "destination": "/v2/index.html"
+    },
+    {
+      "source": "/((?!api/|prompts/|lib/|v2/|login|admin\\.html|sw\\.js|manifest\\.json|version\\.json|favicon|icon-|apple-touch|logo).*)",
+      "destination": "/v2/index.html"
+    }
   ],
   "headers": [
     {
       "source": "/",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "Pragma", "value": "no-cache" },
-        { "key": "Expires", "value": "0" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Pragma",
+          "value": "no-cache"
+        },
+        {
+          "key": "Expires",
+          "value": "0"
+        }
       ]
     },
     {
       "source": "/index.html",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "Pragma", "value": "no-cache" },
-        { "key": "Expires", "value": "0" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Pragma",
+          "value": "no-cache"
+        },
+        {
+          "key": "Expires",
+          "value": "0"
+        }
       ]
     },
     {
       "source": "/v2/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     },
     {
       "source": "/admin.html",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     },
     {
       "source": "/lib/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300, must-revalidate"
+        }
       ]
     },
     {
       "source": "/api/config",
       "headers": [
-        { "key": "Cache-Control", "value": "private, max-age=300, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "private, max-age=300, must-revalidate"
+        }
       ]
     },
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=()" },
-        { "key": "X-DNS-Prefetch-Control", "value": "on" },
-        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" },
-        { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" }
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=()"
+        },
+        {
+          "key": "X-DNS-Prefetch-Control",
+          "value": "on"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin-allow-popups"
+        },
+        {
+          "key": "Cross-Origin-Resource-Policy",
+          "value": "same-origin"
+        }
       ]
     }
   ]
