@@ -23,7 +23,7 @@ Auth local: JWT lvl>=2. Resposta: { ok, rota, status, data } (data = corpo upstr
 Espelho do padrão NIBO/D360: gateado em env — sem as envs devolve 503 com instrução.
 """
 from http.server import BaseHTTPRequestHandler
-import json, os, sys, urllib.parse, urllib.request
+import base64, json, os, sys, urllib.parse, urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError  # type: ignore
@@ -35,10 +35,21 @@ ROTAS = {
     "property": "/v2/properties/{id}",
     "listings": "/v2/listings",
     "listing": "/v2/listings/{id}",
+    "listing_code": "/v2/listings/{agencyId}/{id}",  # id = propertyCode
     "media": "/v2/properties/{id}/media",
 }
 # params de query que repassamos pro upstream (whitelist)
-PASS = ("scope", "page", "pageSize", "sort", "order", "q")
+PASS = ("scope", "page", "pageSize", "sort", "order", "q", "agencyID", "agencyId", "status")
+
+
+def _agency_id():
+    """agencyID default = id_imob decodificado do x-user-info (base64 JSON)."""
+    try:
+        raw = os.environ.get("KENLO_OPEN_USER_INFO", "").strip()
+        pad = raw + "=" * (-len(raw) % 4)
+        return str(json.loads(base64.b64decode(pad)).get("id_imob") or "")
+    except Exception:
+        return ""
 
 
 def _upstream(path, qs, need_auth=True):
@@ -89,6 +100,11 @@ class handler(BaseHTTPRequestHandler):
         if rota not in ROTAS:
             return self._send(400, {"ok": False, "error": f"rota inválida (use {', '.join(ROTAS)})"})
         path = ROTAS[rota]
+        if "{agencyId}" in path:
+            aid = (q.get("agencyID") or q.get("agencyId") or _agency_id()).strip()
+            if not aid:
+                return self._send(400, {"ok": False, "error": "agencyID indisponível"})
+            path = path.replace("{agencyId}", urllib.parse.quote(aid, safe=""))
         if "{id}" in path:
             pid = (q.get("id") or "").strip()
             if not pid:
@@ -96,7 +112,11 @@ class handler(BaseHTTPRequestHandler):
             path = path.replace("{id}", urllib.parse.quote(pid, safe=""))
         qs = {k: q[k] for k in PASS if q.get(k)}
         if rota == "properties" and "scope" not in qs:
-            qs["scope"] = "all"  # exigido pela fonte do CRM; 'all' percorre o catálogo
+            qs["scope"] = "agency"  # único scope aceito confirmado em teste real (03/07/2026)
+        if rota == "listings" and not (qs.get("agencyID") or qs.get("agencyId")):
+            aid = _agency_id()
+            if aid:
+                qs["agencyID"] = aid  # upstream: "The field agencyID is required"
         try:
             qs["pageSize"] = str(max(1, min(100, int(qs.get("pageSize") or 50))))
         except Exception:
