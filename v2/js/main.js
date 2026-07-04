@@ -115,6 +115,7 @@ import { pageFichasPropostas } from './pages/fichas-propostas.js';
 import { pageSrGerencia } from './pages/sr-gerencia.js';
 import { pageSrPerformance } from './pages/sr-performance.js';
 import { pageMapa } from './pages/mapa.js';
+import { pageEstoqueKenlo } from './pages/estoque-kenlo.js';
 
 // ─── Permissões por role (Sprint 9.6) ──────────────────────────────────
 // Cada rota pertence a um GRUPO. Cada role enxerga só os grupos liberados.
@@ -128,7 +129,7 @@ export const ROUTE_GROUP = {
   '/compras': 'adm', '/patrimonio': 'adm', '/manutencoes': 'adm',
   // Imóveis & Vendas (+ Metas/Equipes/Plantões e simuladores VPL/INCC/Repasse/Energia migrados)
   '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/fichas': 'vendas',
-  '/imoveis': 'vendas', '/mapa': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/lancamentos': 'vendas',
+  '/imoveis': 'vendas', '/mapa': 'vendas', '/estoque-kenlo': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/lancamentos': 'vendas',
   '/metas': 'vendas', '/equipe': 'vendas', '/plantoes': 'vendas',
   '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas', '/sim-amortizacao': 'vendas',
   '/cockpit-conquista': 'vendas', '/minha-comissao': 'vendas', '/meu-cerebro': 'vendas', '/sim-conquista': 'vendas',  // ferramentas Conquista (v81.44)
@@ -381,7 +382,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.10.1';
+const APP_VERSION = '84.11';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -529,6 +530,7 @@ const APP_VERSION = '84.10.1';
   router.register('/checkin',     { render: async (ctx, root) => { setHeader('Check-in');     highlight('/checkin');     await pageCheckin(ctx, root); } });
   router.register('/ranking',     { render: async (ctx, root) => { setHeader('Ranking');      highlight('/ranking');     await pageRanking(ctx, root); } });
   router.register('/imoveis',     { render: async (ctx, root) => { setHeader('Imóveis');      highlight('/imoveis');     await pageImoveis(ctx, root); } });
+  router.register('/estoque-kenlo', { render: async (ctx, root) => { setHeader('Estoque Kenlo'); highlight('/estoque-kenlo'); await pageEstoqueKenlo(ctx, root); } });
   router.register('/concorrencia',{ render: async (ctx, root) => { setHeader('Concorrência'); highlight('/concorrencia');await pageConcorrencia(ctx, root); } });
   router.register('/bp',          { render: async (ctx, root) => { setHeader('Plano BP');     highlight('/bp');          await pageBP(ctx, root); } });
   router.register('/tv',          { render: async (ctx, root) => { setHeader('Modo TV');      highlight('/tv');          await pageTV(ctx, root); } });
@@ -763,6 +765,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/scripts"><span class="sb-ico">📚</span> Scripts & Cadências</button>
         <button class="sb-link" data-nav="/fichas"><span class="sb-ico">📋</span> Fichas/Propostas</button>
         <button class="sb-link" data-nav="/mapa"><span class="sb-ico">🗺</span> Mapa Imóveis</button>
+        <button class="sb-link" data-nav="/estoque-kenlo"><span class="sb-ico">🏠</span> Estoque Kenlo</button>
         <button class="sb-link" data-nav="/tabela-conquista"><span class="sb-ico">🏆</span> Tabela Lançamentos Conquista</button>
         <button class="sb-link" data-nav="/tabela-map"><span class="sb-ico">🗺</span> Tabela Lançamentos MAP</button>
         <button class="sb-link" data-nav="/lancamentos"><span class="sb-ico">🏗</span> Lançamentos</button>

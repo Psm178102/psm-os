@@ -19,6 +19,10 @@
     {
       "path": "/api/v3/intel/war_briefing_cron",
       "schedule": "0 10 * * 1"
+    },
+    {
+      "path": "/api/v3/kenlo/sync",
+      "schedule": "0 8 * * *"
     }
   ],
   "rewrites": [

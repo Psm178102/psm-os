@@ -163,6 +163,25 @@ def compile_dossie(sb, frente_of):
     except Exception:
         pass
 
+    # ── estoque Kenlo (anúncios publicados, sync diário) ──
+    try:
+        ki = sb.table("kenlo_imoveis").select("preco_venda,preco_locacao,atualizado_kenlo,n_fotos") \
+            .eq("ativo", True).limit(3000).execute().data or []
+        if ki:
+            def _dias_k(ts):
+                try:
+                    return (now - datetime.fromisoformat(str(ts).replace("Z", "+00:00"))).days
+                except Exception:
+                    return None
+            d90 = sum(1 for i in ki if (_dias_k(i.get("atualizado_kenlo")) or 0) > 90)
+            d180 = sum(1 for i in ki if (_dias_k(i.get("atualizado_kenlo")) or 0) > 180)
+            sem_foto = sum(1 for i in ki if not i.get("n_fotos"))
+            vv = sum(float(i.get("preco_venda") or 0) for i in ki)
+            L.append(f"\n## Estoque Kenlo (anúncios publicados)\n- {len(ki)} imóveis no ar · valor de venda somado: {_brl(vv)}\n"
+                     f"- Saúde do anúncio: {d90} sem atualizar há 90d+ ({d180} há 180d+), {sem_foto} sem foto — pauta do Estúdio (Guilherme) e da Leire")
+    except Exception:
+        pass
+
     # ── concorrência ──
     try:
         cc = sb.table("concorrentes").select("nome,seguidores,anuncios_count") \
