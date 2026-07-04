@@ -43,26 +43,49 @@ def _fetch_page(key, uinfo, agency, page):
         return json.loads(r.read().decode("utf-8"))
 
 
+def _d(x):
+    return x if isinstance(x, dict) else {}
+
+
+def _num(x):
+    # preços vêm como {"value": 2500000, "currency": "BRL"}; 0 = não informado
+    if isinstance(x, dict):
+        x = x.get("value")
+    try:
+        v = float(x)
+        return v if v > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _norm(l):
-    addr = l.get("address") or {}
-    pricing = l.get("pricing") or {}
-    media = l.get("media") or []
-    fotos = [m for m in media if (m.get("type") or "photo") == "photo" and m.get("url")]
+    # shape REAL do /v2/listings (difere do spec publicado): title/address no topo;
+    # descricao/preços/datas dentro de details; media é dict {image,video,imageCondo}
+    det = _d(l.get("details"))
+    addr = _d(l.get("address"))
+    pricing = _d(det.get("pricing"))
+    media = _d(l.get("media"))
+    fotos = [m for m in (media.get("image") or []) if isinstance(m, dict) and m.get("url")]
+    capa = next((m["url"] for m in fotos if m.get("isPrimary")), fotos[0]["url"] if fotos else None)
+    purpose = (l.get("purpose") or "").upper()
+    pretensao = _num(det.get("pretension"))
+    preco_venda = _num(pricing.get("salePrice")) or (pretensao if "SALE" in purpose else None)
+    preco_loc = _num(pricing.get("rentPrice")) or (pretensao if "RENT" in purpose else None)
     return {
         "id": str(l.get("id")),
         "property_code": l.get("propertyCode"),
         "titulo": (l.get("title") or "")[:400],
-        "descricao": (l.get("description") or "")[:2000],
+        "descricao": (det.get("description") or "")[:2000],
         "endereco": (addr.get("unparsedAddress") or "")[:300],
         "bairro": addr.get("neighborhood"),
         "cidade": addr.get("city"),
         "uf": addr.get("stateOrProvince"),
-        "preco_venda": pricing.get("salePrice"),
-        "preco_locacao": pricing.get("rentalPrice"),
-        "foto_capa": (fotos[0]["url"] if fotos else None),
+        "preco_venda": preco_venda,
+        "preco_locacao": preco_loc,
+        "foto_capa": capa,
         "n_fotos": len(fotos),
-        "criado_kenlo": l.get("createdAt"),
-        "atualizado_kenlo": l.get("updatedAt"),
+        "criado_kenlo": det.get("createAt"),
+        "atualizado_kenlo": det.get("updateAt"),
         "ativo": True,
         "raw": l,
         "synced_at": datetime.now(timezone.utc).isoformat(),
@@ -109,7 +132,7 @@ class handler(BaseHTTPRequestHandler):
             while page <= min(pages, 30):
                 d = _fetch_page(key, uinfo, agency, page)
                 pag = d.get("pagination") or {}
-                total = pag.get("total") or total
+                total = pag.get("total") or pag.get("totalItems") or pag.get("totalCount") or total
                 pages = pag.get("totalPages") or 1
                 rows = [_norm(l) for l in (d.get("data") or []) if l.get("id")]
                 for r in rows:
