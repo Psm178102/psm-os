@@ -118,7 +118,7 @@ function viewCard(t, m, idx, total) {
          <button class="btn btn-primary btn-sm" data-rnsave="${t.id}">💾</button>
          <button class="btn btn-ghost btn-sm" data-rncancel="1">✕</button>
        </span>`
-    : `<b style="font-size:13px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cor};margin-right:5px;vertical-align:middle"></span>${isPdf ? '📕' : '📋'} ${esc(t.categoria || 'Sem categoria')}${_canEdit && !_edit ? ` <button class="btn btn-ghost btn-sm" data-rename="${t.id}" title="Renomear" style="padding:1px 6px">✏️</button>` : ''}${t.vigencia ? ` <span style="background:${cor}22;color:${cor};font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap">📅 ${esc(t.vigencia)}</span>` : ''} <span class="tiny muted" style="font-weight:600">· ${meta} · ${fmtData(t.atualizado_em)}</span></b>`;
+    : `<b style="font-size:13px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cor};margin-right:5px;vertical-align:middle"></span>${isPdf ? '📕' : '📋'} ${esc(t.categoria || 'Sem categoria')}${dupBadge(t)}${_canEdit && !_edit ? ` <button class="btn btn-ghost btn-sm" data-rename="${t.id}" title="Renomear" style="padding:1px 6px">✏️</button>` : ''}${t.vigencia ? ` <span style="background:${cor}22;color:${cor};font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap">📅 ${esc(t.vigencia)}</span>` : ''} <span class="tiny muted" style="font-weight:600">· ${meta} · ${fmtData(t.atualizado_em)}</span></b>`;
   return `
     <div style="background:var(--bg-2);border:1px solid var(--border);border-left:4px solid ${cor};border-radius:10px;padding:10px;margin-bottom:12px">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
@@ -279,7 +279,10 @@ async function saveDraft() {
     _tabelas = r.tabelas || _tabelas; _edit = null; _draft = null; _msg = '';
     render();
     const m2 = document.getElementById('tl-msg'); if (m2) m2.textContent = '💾 salvo.';
-  } catch (e) { const mm = document.getElementById('tl-msg'); if (mm) mm.textContent = '⚠️ ' + e.message; }
+  } catch (e) {
+    const mm = document.getElementById('tl-msg'); if (mm) mm.textContent = '⚠️ ' + e.message;
+    alert('❌ NÃO SALVOU: ' + e.message + '\nSuas alterações continuam na tela — tente salvar de novo.');
+  }
 }
 
 // Renomeia só o título (categoria) — envia a tabela INTEIRA pra não zerar linhas/colunas.
@@ -368,7 +371,7 @@ async function importAllSheets(marca, input) {
       const linhas = aoa.slice(1).filter(r => r.some(c => String(c).trim() !== '')).map(r => colunas.map((_, i) => (r[i] == null ? '' : String(r[i]))));
       if (!linhas.length && colunas.every(c => !c.trim())) continue;
       const cat = String(sheetName).trim() || ('Aba ' + (n + 1));
-      const ex = _tabelas.find(t => t.marca === marca && t.tipo !== 'pdf' && (t.categoria || '').toLowerCase() === cat.toLowerCase());
+      const ex = _tabelas.find(t => t.marca === marca && t.tipo !== 'pdf' && normCat(t.categoria) === normCat(cat));
       const r = await api.request('/api/v3/tabelas/lancamentos', { method: 'POST', body: { action: 'save', tabela: { id: ex ? ex.id : '', marca, categoria: cat, vigencia: ex ? (ex.vigencia || '') : '', cor: ex ? (ex.cor || '') : '', ordem: ex ? (ex.ordem == null ? null : ex.ordem) : proximaOrdem(marca), tipo: 'grade', colunas, linhas } } });
       _tabelas = r.tabelas || _tabelas; n++;
       setMsg(`⏳ importando… ${n} aba(s)`);
@@ -393,6 +396,18 @@ async function attachPdf(marca, input) {
     await load(); render();
     setMsg('✅ PDF anexado e exibido.');
   } catch (e) { setMsg('⚠️ ' + e.message); input.value = ''; }
+}
+
+// mesma normalização do backend (dedup): sem acento, trim, minúscula
+function normCat(s) {
+  return String(s ?? '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+// aviso de tabelas homônimas (a raiz do "salvei mas voltou a versão anterior")
+function dupBadge(t) {
+  const n = _tabelas.filter(x => x.id !== t.id && x.marca === t.marca &&
+    (x.tipo || 'grade') === (t.tipo || 'grade') && normCat(x.categoria) === normCat(t.categoria)).length;
+  return n ? ` <span class="badge" title="Existem ${n + 1} tabelas com este nome nesta marca. Confira a data de atualização — a próxima gravação nesta categoria consolida tudo na versão nova." style="background:#d9770622;color:#d97706;font-weight:700;font-size:10px">⚠️ nome duplicado</span>` : '';
 }
 
 function fmtData(iso) {

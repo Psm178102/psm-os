@@ -15,7 +15,7 @@ POST (lvl >= 5): action save  { tabela:{id?,marca,categoria,colunas,linhas} }
                  action delete { id }
 """
 from http.server import BaseHTTPRequestHandler
-import json, os, sys
+import json, os, sys, unicodedata
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -26,6 +26,12 @@ MARCAS = ("conquista", "imoveis")
 MAX_TABELAS = 60
 MAX_COLS = 60
 MAX_LINHAS = 5000
+
+
+def _norm_cat(s):
+    """Categoria normalizada p/ dedup: sem acento, sem espaços das pontas, minúscula."""
+    s = unicodedata.normalize("NFD", str(s or "").strip().lower())
+    return "".join(c for c in s if unicodedata.category(c) != "Mn")
 
 
 def _int_or_none(v):
@@ -114,6 +120,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(400, {"ok": False, "error": "JSON inválido"})
 
         action = (body.get("action") or "save").strip()
+        removidas = []
         try:
             sb = supabase_client()
             tabelas = _read(sb)
@@ -149,13 +156,34 @@ class handler(BaseHTTPRequestHandler):
                 }
                 if len(tabelas) >= MAX_TABELAS and not any(x["id"] == rec["id"] for x in tabelas):
                     return self._send(400, {"ok": False, "error": "limite de tabelas atingido"})
+                # DEDUP por marca+tipo+categoria (v84.14): salvar "PLUS" de novo ATUALIZA a
+                # PLUS existente em vez de criar uma segunda — a homônima velha ficava no
+                # topo da lista e o usuário achava que o save tinha revertido. Se o id não
+                # existe mas há homônima, assume o lugar dela (herda ordem/vigência/cor);
+                # homônimas restantes são consolidadas (snapshot vai pro audit before_data).
+                cat_norm = _norm_cat(rec["categoria"])
+                homon = [x for x in tabelas if x["marca"] == rec["marca"] and x["tipo"] == rec["tipo"]
+                         and _norm_cat(x["categoria"]) == cat_norm and x["id"] != rec["id"]]
+                if homon and not any(x["id"] == rec["id"] for x in tabelas):
+                    principal = homon.pop(0)
+                    rec["id"] = principal["id"]
+                    if rec.get("ordem") is None:
+                        rec["ordem"] = principal.get("ordem")
+                    rec["vigencia"] = rec.get("vigencia") or principal.get("vigencia") or ""
+                    rec["cor"] = rec.get("cor") or principal.get("cor")
+                removidas = homon
+                if removidas:
+                    rem_ids = {x["id"] for x in removidas}
+                    tabelas = [x for x in tabelas if x["id"] not in rem_ids]
                 tabelas = [rec if x["id"] == rec["id"] else x for x in tabelas]
                 if not any(x["id"] == rec["id"] for x in tabelas):
                     tabelas.append(rec)
 
             _write(sb, tabelas)
             try:
-                audit(self, actor, "tabela_lancamento_" + action, "kv", KV_KEY, notes=None)
+                audit(self, actor, "tabela_lancamento_" + action, "kv", KV_KEY,
+                      before=(removidas or None),
+                      notes=(f"dedup: {len(removidas)} homônima(s) consolidada(s)" if removidas else None))
             except Exception:
                 pass
             return self._send(200, {"ok": True, "tabelas": _read(sb)})
