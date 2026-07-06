@@ -99,9 +99,12 @@ def _extrai_json(text):
 def _call_gemini(api_key, prompt):
     model = os.environ.get("GEMINI_SMART_MODEL") or "gemini-2.5-flash"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    # 2.5-flash é thinking model: o raciocínio consome maxOutputTokens e truncava o
+    # JSON no meio — thinkingBudget 0 desliga (tarefa é extração, não precisa pensar)
     payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
-               "generationConfig": {"maxOutputTokens": 4096, "temperature": 0.3,
-                                    "responseMimeType": "application/json"}}
+               "generationConfig": {"maxOutputTokens": 8192, "temperature": 0.3,
+                                    "responseMimeType": "application/json",
+                                    "thinkingConfig": {"thinkingBudget": 0}}}
     req = urllib.request.Request(url, data=json.dumps(payload).encode(),
                                  headers={"Content-Type": "application/json", "x-goog-api-key": api_key})
     with urllib.request.urlopen(req, timeout=55) as r:
