@@ -232,9 +232,10 @@ function bind() {
       if (!_dragId || !st) return;
       const c = _cards.find(x => x.id === _dragId);
       if (!c || c.status === st) return;
+      const antes = c.status;
       c.status = st; render();
       try { await api.request('/api/v3/paulo/cards', { method: 'POST', body: { action: 'move', id: c.id, status: st } }); }
-      catch (_) {}
+      catch (e) { c.status = antes; render(); alert('❌ NÃO SALVOU o movimento do card: ' + e.message + '\nEle voltou pra coluna original — tente de novo.'); }
     });
   });
 }

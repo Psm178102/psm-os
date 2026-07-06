@@ -362,7 +362,12 @@ async function toggleDone(id, done) {
   try {
     const r = await api.request('/api/v3/diretoria/academy_progress', { method: 'POST', body: { item_id: id, done } });
     if (r && r.ok === false && r.pending) alert(r.error || 'Rode o SQL da Academy pra salvar progresso.');
-  } catch (e) { /* mantém otimista */ }
+  } catch (e) {
+    // reverte o otimismo — sem isso o check some sozinho no reload e parece bug
+    if (done) _done.delete(id); else _done.add(id);
+    if (_view === 'trilha') renderTrilha();
+    alert('❌ NÃO SALVOU seu progresso: ' + e.message + '\nMarque de novo.');
+  }
 }
 
 /* ═══════════ MODO CONSTRUTOR (gestão) ═══════════ */
