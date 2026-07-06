@@ -8,7 +8,7 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null, _d = null, _aba = 'estoque', _q = '', _transacao = '', _ordem = 'atualizado', _busy = false;
-let _tipo = '', _bairro = '', _dormsMin = '', _pmin = '', _pmax = '';
+let _tipos = [], _bairro = '', _cond = '', _dormsMin = '', _pmin = '', _pmax = '';
 let _match = null, _matchQ = '', _deals = null, _an = null;
 let _iaQ = '', _ia = null, _iaBusy = false;
 
@@ -30,7 +30,7 @@ async function reload() {
   _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Puxando o estoque do Kenlo…</div></div>';
   try {
     const qs = new URLSearchParams({ q: _q, transacao: _transacao, ordem: _ordem, pageSize: '400',
-      tipo: _tipo, bairro: _bairro, dorms_min: _dormsMin, preco_min: _pmin, preco_max: _pmax });
+      tipos: _tipos.join(','), bairro: _bairro, cond: _cond, dorms_min: _dormsMin, preco_min: _pmin, preco_max: _pmax });
     _d = await api.request('/api/v3/kenlo/estoque?' + qs);
     _an = null; // análises recarregam junto
   } catch (e) {
@@ -64,7 +64,12 @@ function badgeDias(d) {
 }
 
 function cardImovel(im, extra = '') {
-  const preco = im.preco_venda ? brl(im.preco_venda) : (im.preco_locacao ? brl(im.preco_locacao) + '/mês' : '—');
+  // com objetivo "Só locação", o aluguel é o preço principal (imóvel pode ter os dois)
+  const prefLoc = _transacao === 'locacao' && im.preco_locacao;
+  const preco = prefLoc ? brl(im.preco_locacao) + '/mês'
+    : (im.preco_venda ? brl(im.preco_venda) : (im.preco_locacao ? brl(im.preco_locacao) + '/mês' : '—'));
+  const preco2 = (im.preco_venda && im.preco_locacao)
+    ? `<span class="tiny muted">· ${prefLoc ? 'venda ' + brl(im.preco_venda) : 'loc ' + brl(im.preco_locacao) + '/mês'}</span>` : '';
   const foto = im.foto_capa
     ? `<img src="${esc(im.foto_capa)}" loading="lazy" style="width:86px;height:64px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">`
     : `<div style="width:86px;height:64px;border-radius:8px;background:var(--bg-3);display:flex;align-items:center;justify-content:center;flex-shrink:0" class="muted">📷?</div>`;
@@ -74,7 +79,7 @@ function cardImovel(im, extra = '') {
       <div style="flex:1;min-width:0">
         <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
           <span class="badge" style="font-weight:800">${esc(im.property_code || '?')}</span>
-          <b style="font-size:13px">${preco}</b>
+          <b style="font-size:13px">${preco}</b>${preco2}
           ${badgeDias(im.dias_sem_atualizar)}
           ${!im.n_fotos ? '<span class="badge" style="background:#dc262622;color:#dc2626">sem foto</span>' : `<span class="tiny muted">📷 ${im.n_fotos}</span>`}
           ${im.property_code ? `<a href="${SITE_IMOVEL(im.property_code)}" target="_blank" rel="noopener" class="badge" style="background:#0891b222;color:#0891b2;text-decoration:none;font-weight:700">🌐 site</a>` : ''}
@@ -109,7 +114,8 @@ function render() {
         <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:10px;padding:8px 10px;border-left:3px solid #d97706"><div class="tiny muted">⏱ 90d+ sem atualizar</div><div style="font-size:19px;font-weight:900">${k.desat_90 || 0}</div></div>
         <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:10px;padding:8px 10px;border-left:3px solid #dc2626"><div class="tiny muted">🚨 180d+</div><div style="font-size:19px;font-weight:900">${k.desat_180 || 0}</div></div>
         <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">📷 Sem foto</div><div style="font-size:19px;font-weight:900">${k.sem_foto || 0}</div></div>
-        <div style="flex:2;min-width:200px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">💰 Valor de venda somado</div><div style="font-size:16px;font-weight:900">${brl(k.valor_venda)}</div></div>
+        <div style="flex:2;min-width:190px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">💰 VGV venda (${k.n_venda || 0})</div><div style="font-size:16px;font-weight:900">${brl(k.valor_venda)}</div></div>
+        <div style="flex:2;min-width:190px;background:var(--bg-3);border-radius:10px;padding:8px 10px;border-left:3px solid #0891b2"><div class="tiny muted">🔑 Aluguel anunciado/mês (${k.n_locacao || 0})</div><div style="font-size:16px;font-weight:900">${brl(k.aluguel_mensal)}</div></div>
       </div>
       <div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
         ${abas.map(([id, lbl]) => `<button class="btn btn-sm ek-aba ${_aba === id ? 'btn-primary' : 'btn-ghost'}" data-aba="${id}">${lbl}</button>`).join('')}
@@ -160,10 +166,12 @@ function renderEstoque(corpo) {
         </select>
         <span class="tiny muted">${_d.total || 0} imóveis</span>
       </div>
+      <div class="flex items-center mt-2" style="gap:5px;flex-wrap:wrap">
+        <span class="tiny muted">🏷 Tipo:</span>
+        ${(f.tipos || []).map(([v, n]) => `<button class="btn btn-sm ek-tp ${_tipos.includes(v) ? 'btn-primary' : 'btn-ghost'}" data-tp="${esc(v)}" style="padding:3px 9px">${esc(tipoPt(v))} (${n})</button>`).join('')}
+      </div>
       <div class="flex items-center mt-2" style="gap:8px;flex-wrap:wrap">
-        <select class="input" id="ek-tipo" style="flex:1;min-width:140px;width:auto">
-          <option value="">🏷 Todos os tipos</option>${opts(f.tipos, _tipo)}
-        </select>
+        <input class="input" id="ek-cond" placeholder="🏘 condomínio/residencial… ex.: Damha, Quinta do Golfe" value="${esc(_cond)}" style="flex:2;min-width:200px">
         <select class="input" id="ek-bairro" style="flex:1;min-width:150px;width:auto">
           <option value="">📍 Todos os bairros</option>${opts(f.bairros, _bairro)}
         </select>
@@ -173,7 +181,7 @@ function renderEstoque(corpo) {
         </select>
         <input class="input" id="ek-pmin" type="number" placeholder="R$ mín" value="${esc(_pmin)}" style="flex:0 0 110px">
         <input class="input" id="ek-pmax" type="number" placeholder="R$ máx" value="${esc(_pmax)}" style="flex:0 0 110px">
-        ${(_tipo || _bairro || _dormsMin || _pmin || _pmax) ? '<button class="btn btn-ghost btn-sm" id="ek-limpar">✕ limpar filtros</button>' : ''}
+        ${(_tipos.length || _bairro || _cond || _dormsMin || _pmin || _pmax) ? '<button class="btn btn-ghost btn-sm" id="ek-limpar">✕ limpar filtros</button>' : ''}
       </div>
     </div>
     <div class="mt-2">${itens.map(im => cardImovel(im)).join('') || '<div class="card muted">Nada encontrado. Ajuste a busca — ou rode a 1ª sincronização.</div>'}</div>`;
@@ -182,8 +190,14 @@ function renderEstoque(corpo) {
   inp.oninput = () => { clearTimeout(t); t = setTimeout(() => { _q = inp.value; reload(); }, 450); };
   corpo.querySelector('#ek-tr').onchange = e => { _transacao = e.target.value; reload(); };
   corpo.querySelector('#ek-ord').onchange = e => { _ordem = e.target.value; reload(); };
-  corpo.querySelector('#ek-tipo').onchange = e => { _tipo = e.target.value; reload(); };
+  corpo.querySelectorAll('.ek-tp').forEach(b => b.onclick = () => {
+    const v = b.dataset.tp;
+    _tipos = _tipos.includes(v) ? _tipos.filter(x => x !== v) : [..._tipos, v];
+    reload();
+  });
   corpo.querySelector('#ek-bairro').onchange = e => { _bairro = e.target.value; reload(); };
+  let tc = null;
+  corpo.querySelector('#ek-cond').oninput = e => { clearTimeout(tc); tc = setTimeout(() => { _cond = e.target.value; reload(); }, 500); };
   corpo.querySelector('#ek-dorms').onchange = e => { _dormsMin = e.target.value; reload(); };
   let tp = null;
   const precoInput = el => { clearTimeout(tp); tp = setTimeout(() => {
@@ -191,7 +205,7 @@ function renderEstoque(corpo) {
   corpo.querySelector('#ek-pmin').oninput = precoInput;
   corpo.querySelector('#ek-pmax').oninput = precoInput;
   const lp = corpo.querySelector('#ek-limpar');
-  if (lp) lp.onclick = () => { _tipo = _bairro = _dormsMin = _pmin = _pmax = ''; reload(); };
+  if (lp) lp.onclick = () => { _tipos = []; _bairro = _cond = _dormsMin = _pmin = _pmax = ''; reload(); };
   const iaGo = async () => {
     const v = corpo.querySelector('#ek-ia').value.trim();
     if (!v || _iaBusy) return;

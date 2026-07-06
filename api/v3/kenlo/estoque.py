@@ -237,12 +237,19 @@ class handler(BaseHTTPRequestHandler):
             itens = [im for im in itens if im.get("preco_venda")]
         elif transacao == "locacao":
             itens = [im for im in itens if im.get("preco_locacao")]
-        tipo = _flat(q.get("tipo") or "")
-        if tipo:
-            itens = [im for im in itens if _flat(im.get("tipo")) == tipo]
+        # tipos aceita CSV (multi-escolha nos chips); `tipo` single mantido por compat
+        tipos_csv = _flat(q.get("tipos") or q.get("tipo") or "")
+        if tipos_csv:
+            tset = {t.strip() for t in tipos_csv.split(",") if t.strip()}
+            itens = [im for im in itens if _flat(im.get("tipo")) in tset]
         bairro = _flat(q.get("bairro") or "")
         if bairro:
             itens = [im for im in itens if _flat(im.get("bairro")) == bairro]
+        # condomínio: no Kenlo o nome do residencial vive no bairro (e no título/endereço)
+        cond = _flat(q.get("cond") or "")
+        if cond:
+            itens = [im for im in itens if cond in _flat(
+                (im.get("bairro") or "") + " " + (im.get("titulo") or "") + " " + (im.get("endereco") or ""))]
         try:
             dmin = int(q.get("dorms_min") or 0)
         except Exception:
@@ -264,7 +271,10 @@ class handler(BaseHTTPRequestHandler):
             itens = [im for im in itens if 0 < _preco(im) <= pmax]
         ordem = (q.get("ordem") or "atualizado").lower()
         if ordem == "preco":
-            itens.sort(key=lambda x: -(float(x.get("preco_venda") or x.get("preco_locacao") or 0)))
+            if transacao == "locacao":
+                itens.sort(key=lambda x: -(float(x.get("preco_locacao") or 0)))
+            else:
+                itens.sort(key=lambda x: -(float(x.get("preco_venda") or x.get("preco_locacao") or 0)))
         elif ordem == "codigo":
             itens.sort(key=lambda x: x.get("property_code") or "")
         else:  # mais parados primeiro (pauta de atualização)
@@ -277,6 +287,9 @@ class handler(BaseHTTPRequestHandler):
             "desat_180": sum(1 for i in itens if (i.get("dias_sem_atualizar") or 0) > 180),
             "sem_foto": sum(1 for i in itens if not i.get("n_fotos")),
             "valor_venda": sum(float(i.get("preco_venda") or 0) for i in itens),
+            "n_venda": sum(1 for i in itens if i.get("preco_venda")),
+            "n_locacao": sum(1 for i in itens if i.get("preco_locacao")),
+            "aluguel_mensal": sum(float(i.get("preco_locacao") or 0) for i in itens),
         }
         ultima = max((i.get("synced_at") or "" for i in itens), default=None)
         try:
