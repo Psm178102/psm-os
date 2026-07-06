@@ -10,6 +10,12 @@ import { auth } from '../auth.js';
 let _root = null, _d = null, _aba = 'estoque', _q = '', _transacao = '', _ordem = 'atualizado', _busy = false;
 let _tipo = '', _bairro = '', _dormsMin = '', _pmin = '', _pmax = '';
 let _match = null, _matchQ = '', _deals = null, _an = null;
+let _iaQ = '', _ia = null, _iaBusy = false;
+
+// site público (Kenlo Sites) resolve o anúncio só pelo código — slug é reescrito
+const SITE_IMOVEL = c => 'https://www.psmimoveis.com/imovel/i/' + encodeURIComponent(c) + '-PSMA';
+const md = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+  .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^[-•] (.+)$/gm, '· $1').replace(/\n/g, '<br>');
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -37,13 +43,19 @@ async function reload() {
 
 function fichaTec(im) {
   return [
-    im.tipo ? esc(cap(im.tipo)) : null,
+    im.tipo ? esc(tipoPt(im.tipo)) : null,
     im.dorms ? `🛏 ${im.dorms}` : null,
     im.vagas ? `🚗 ${im.vagas}` : null,
     (im.area_util || im.area_total) ? `📐 ${Math.round(im.area_util || im.area_total)}m²` : null,
   ].filter(Boolean).join(' · ');
 }
 const cap = s => String(s || '').replace(/^./, c => c.toUpperCase());
+// propertyType do Kenlo vem em inglês — traduz só na exibição (filtro usa o valor cru)
+const TIPO_PT = { apartment: 'Apartamento', house: 'Casa', land: 'Terreno', commercial: 'Comercial',
+  studio: 'Studio', penthouse: 'Cobertura', farm: 'Chácara/Sítio', ranch: 'Rancho',
+  condominium: 'Condomínio', office: 'Sala', store: 'Loja', warehouse: 'Galpão',
+  twostoryhouse: 'Sobrado', 'two-story house': 'Sobrado', flat: 'Flat', loft: 'Loft' };
+const tipoPt = t => TIPO_PT[String(t || '').toLowerCase()] || cap(t);
 
 function badgeDias(d) {
   if (d == null) return '';
@@ -65,6 +77,7 @@ function cardImovel(im, extra = '') {
           <b style="font-size:13px">${preco}</b>
           ${badgeDias(im.dias_sem_atualizar)}
           ${!im.n_fotos ? '<span class="badge" style="background:#dc262622;color:#dc2626">sem foto</span>' : `<span class="tiny muted">📷 ${im.n_fotos}</span>`}
+          ${im.property_code ? `<a href="${SITE_IMOVEL(im.property_code)}" target="_blank" rel="noopener" class="badge" style="background:#0891b222;color:#0891b2;text-decoration:none;font-weight:700">🌐 site</a>` : ''}
           ${extra}
         </div>
         <div class="tiny" style="margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(im.titulo || '')}</div>
@@ -118,8 +131,20 @@ function renderEstoque(corpo) {
   const itens = _d.itens || [];
   const f = _d.facetas || {};
   const opts = (lista, sel) => (lista || []).map(([v, n]) =>
-    `<option value="${esc(v)}" ${sel === String(v) ? 'selected' : ''}>${esc(cap(v))} (${n})</option>`).join('');
+    `<option value="${esc(v)}" ${sel === String(v) ? 'selected' : ''}>${esc(tipoPt(v))} (${n})</option>`).join('');
   corpo.innerHTML = `
+    <div class="card" style="border:1px solid #7c3aed55">
+      <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
+        <input class="input" id="ek-ia" placeholder='🤖 pergunte ao estoque: "3 dorms zona sul até 700 mil" · "o que é boa oportunidade?" · "o que está abandonado?"' value="${esc(_iaQ)}" style="flex:1;min-width:260px">
+        <button class="btn btn-primary btn-sm" id="ek-iago" ${_iaBusy ? 'disabled' : ''}>${_iaBusy ? '⏳ Analisando…' : '🤖 Perguntar'}</button>
+        ${_ia && !_iaBusy ? '<button class="btn btn-ghost btn-sm" id="ek-ialimpa" title="limpar resposta">✕</button>' : ''}
+      </div>
+      ${_ia ? `<div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:10px 12px">
+        <div class="tiny">${md(_ia.resposta || '')}</div>
+        <div class="tiny muted mt-1">🤖 ${esc(_ia.provider || 'ia')} · ${_ia.avaliados || 0} imóveis avaliados</div>
+      </div>
+      <div class="mt-2">${(_ia.itens || []).map(im => cardImovel(im)).join('')}</div>` : ''}
+    </div>
     <div class="card">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
         <input class="input" id="ek-q" placeholder="🔎 buscar por código, título, bairro, cidade…" value="${esc(_q)}" style="flex:2;min-width:200px">
@@ -167,6 +192,21 @@ function renderEstoque(corpo) {
   corpo.querySelector('#ek-pmax').oninput = precoInput;
   const lp = corpo.querySelector('#ek-limpar');
   if (lp) lp.onclick = () => { _tipo = _bairro = _dormsMin = _pmin = _pmax = ''; reload(); };
+  const iaGo = async () => {
+    const v = corpo.querySelector('#ek-ia').value.trim();
+    if (!v || _iaBusy) return;
+    _iaQ = v; _iaBusy = true; render();
+    try {
+      _ia = await api.request('/api/v3/kenlo/pergunte', { method: 'POST', body: JSON.stringify({ q: v }) });
+    } catch (e) {
+      _ia = { resposta: '❌ ' + e.message, itens: [] };
+    }
+    _iaBusy = false; render();
+  };
+  corpo.querySelector('#ek-iago').onclick = iaGo;
+  corpo.querySelector('#ek-ia').onkeydown = e => { if (e.key === 'Enter') iaGo(); };
+  const il = corpo.querySelector('#ek-ialimpa');
+  if (il) il.onclick = () => { _ia = null; _iaQ = ''; render(); };
 }
 
 function barra(lbl, n, max, dir = '#2563eb', extra = '') {
@@ -213,7 +253,7 @@ async function renderAnalises(corpo) {
     <div class="flex mt-2" style="gap:8px;flex-wrap:wrap;align-items:stretch">
       <div class="card" style="flex:1;min-width:300px;margin:0">
         <b>🏷 Por tipo</b><div class="tiny muted">nº de anúncios · VGV de venda</div>
-        <div class="mt-1">${(a.por_tipo || []).map(([t, n, v]) => barra(esc(cap(t)), n, maxTipo, '#2563eb', ` · ${brlK(v)}`)).join('') || '<span class="tiny muted">Rode 1 sync pós-v84.12 pra preencher os tipos.</span>'}</div>
+        <div class="mt-1">${(a.por_tipo || []).map(([t, n, v]) => barra(esc(tipoPt(t)), n, maxTipo, '#2563eb', ` · ${brlK(v)}`)).join('') || '<span class="tiny muted">Rode 1 sync pós-v84.12 pra preencher os tipos.</span>'}</div>
       </div>
       <div class="card" style="flex:1;min-width:300px;margin:0">
         <b>📍 Por bairro (top 12)</b><div class="tiny muted">onde o estoque está concentrado</div>
