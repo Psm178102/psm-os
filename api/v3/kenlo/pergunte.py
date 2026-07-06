@@ -75,21 +75,33 @@ def _digest(itens):
 
 
 def _extrai_json(text):
-    text = re.sub(r"^```(json)?|```$", "", text.strip(), flags=re.M).strip()
+    text = re.sub(r"```(json)?", "", text or "").strip()
     m = re.search(r"\{.*\}", text, re.S)
-    if not m:
-        return None
-    try:
-        return json.loads(m.group(0))
-    except Exception:
-        return None
+    if m:
+        try:
+            return json.loads(m.group(0))
+        except Exception:
+            pass
+    # resposta truncada/malformada: pesca o campo resposta e códigos soltos
+    r = re.search(r'"resposta"\s*:\s*"((?:[^"\\]|\\.)*)', text, re.S)
+    cods = re.findall(r'"([A-Z]{2}\d{4})"', text)
+    if r or cods:
+        resp = None
+        if r:
+            try:
+                resp = json.loads('"' + r.group(1).rstrip("\\") + '"')
+            except Exception:
+                resp = r.group(1)
+        return {"resposta": resp, "codigos": cods}
+    return None
 
 
 def _call_gemini(api_key, prompt):
     model = os.environ.get("GEMINI_SMART_MODEL") or "gemini-2.5-flash"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
-               "generationConfig": {"maxOutputTokens": 2048, "temperature": 0.3}}
+               "generationConfig": {"maxOutputTokens": 4096, "temperature": 0.3,
+                                    "responseMimeType": "application/json"}}
     req = urllib.request.Request(url, data=json.dumps(payload).encode(),
                                  headers={"Content-Type": "application/json", "x-goog-api-key": api_key})
     with urllib.request.urlopen(req, timeout=55) as r:
@@ -160,7 +172,10 @@ class handler(BaseHTTPRequestHandler):
             return self._send(e.status, {"ok": False, "error": e.message})
         try:
             raw = self.rfile.read(int(self.headers.get("Content-Length") or 0)).decode("utf-8")
-            q = (json.loads(raw or "{}").get("q") or "").strip()
+            body = json.loads(raw or "{}")
+            if isinstance(body, str):  # body double-stringificado (api.js re-stringifica)
+                body = json.loads(body or "{}")
+            q = (body.get("q") or "").strip() if isinstance(body, dict) else ""
         except Exception:
             return self._send(400, {"ok": False, "error": "JSON inválido"})
         if not q or len(q) > 500:

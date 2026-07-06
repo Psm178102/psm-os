@@ -197,7 +197,7 @@ function renderEstoque(corpo) {
     if (!v || _iaBusy) return;
     _iaQ = v; _iaBusy = true; render();
     try {
-      _ia = await api.request('/api/v3/kenlo/pergunte', { method: 'POST', body: JSON.stringify({ q: v }) });
+      _ia = await api.request('/api/v3/kenlo/pergunte', { method: 'POST', body: { q: v } });
     } catch (e) {
       _ia = { resposta: '❌ ' + e.message, itens: [] };
     }
