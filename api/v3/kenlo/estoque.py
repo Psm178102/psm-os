@@ -20,7 +20,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 
 COLS = ("id,property_code,titulo,endereco,bairro,cidade,uf,preco_venda,preco_locacao,"
-        "foto_capa,n_fotos,atualizado_kenlo,ativo,synced_at")
+        "tipo,finalidade,dorms,banheiros,suites,vagas,area_util,area_total,condominio,"
+        "foto_capa,n_fotos,criado_kenlo,atualizado_kenlo,ativo,synced_at")
+
+FAIXAS_VENDA = [(0, 300_000, "até 300 mil"), (300_000, 500_000, "300–500 mil"),
+                (500_000, 1_000_000, "500 mil–1 mi"), (1_000_000, 2_000_000, "1–2 mi"),
+                (2_000_000, float("inf"), "2 mi+")]
 
 TIPOS = {
     "apartamento": ["apartamento", "apto", "apt", "ap "], "casa": ["casa", "sobrado"],
@@ -147,6 +152,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(502, {"ok": False, "error": str(e)[:200]})
         for im in itens:
             im["dias_sem_atualizar"] = _dias(im.get("atualizado_kenlo"))
+            im["dias_no_ar"] = _dias(im.get("criado_kenlo"))
 
         if modo == "match":
             deal_id = (q.get("deal_id") or "").strip()
@@ -167,7 +173,60 @@ class handler(BaseHTTPRequestHandler):
             return self._send(200, {"ok": True, "criterios": cr, "deal_nome": deal_nome,
                                     "itens": ranq[:15], "avaliados": len(itens)})
 
-        # modo lista
+        if modo == "analise":
+            venda = [i for i in itens if i.get("preco_venda")]
+            loc = [i for i in itens if i.get("preco_locacao")]
+            vgv = sum(float(i["preco_venda"]) for i in venda)
+
+            def _agg(chave):
+                out = {}
+                for i in itens:
+                    k = (i.get(chave) or "—")
+                    a = out.setdefault(k, {"n": 0, "vgv": 0.0})
+                    a["n"] += 1
+                    a["vgv"] += float(i.get("preco_venda") or 0)
+                return sorted(([k, v["n"], v["vgv"]] for k, v in out.items()), key=lambda x: -x[1])
+
+            def _buckets(campo):
+                b = {"0-30": 0, "31-90": 0, "91-180": 0, "180+": 0, "?": 0}
+                for i in itens:
+                    d = i.get(campo)
+                    if d is None: b["?"] += 1
+                    elif d <= 30: b["0-30"] += 1
+                    elif d <= 90: b["31-90"] += 1
+                    elif d <= 180: b["91-180"] += 1
+                    else: b["180+"] += 1
+                return b
+
+            faixas = []
+            for lo, hi, lbl in FAIXAS_VENDA:
+                faixas.append([lbl, sum(1 for i in venda if lo <= float(i["preco_venda"]) < hi)])
+            try:
+                snaps = sb.table("kenlo_estoque_snapshots").select("dia,total,vgv_venda,aluguel_mensal") \
+                    .order("dia", desc=False).limit(120).execute().data or []
+            except Exception:
+                snaps = []
+            return self._send(200, {"ok": True, "analise": {
+                "total": len(itens), "n_venda": len(venda), "n_locacao": len(loc),
+                "vgv_venda": vgv, "ticket_medio": (vgv / len(venda)) if venda else 0,
+                "aluguel_mensal": sum(float(i["preco_locacao"]) for i in loc),
+                "sem_foto": sum(1 for i in itens if not i.get("n_fotos")),
+                "media_fotos": (sum(i.get("n_fotos") or 0 for i in itens) / len(itens)) if itens else 0,
+                "por_tipo": _agg("tipo")[:10], "por_bairro": _agg("bairro")[:12],
+                "aging_atualizacao": _buckets("dias_sem_atualizar"),
+                "aging_no_ar": _buckets("dias_no_ar"),
+                "faixas_venda": faixas, "snapshots": snaps,
+            }})
+
+        # modo lista — facetas calculadas ANTES dos filtros (pra popular os selects)
+        def _conta(chave):
+            out = {}
+            for i in itens:
+                k = i.get(chave)
+                if k: out[k] = out.get(k, 0) + 1
+            return sorted(out.items(), key=lambda x: -x[1])
+        facetas = {"tipos": _conta("tipo")[:15], "bairros": _conta("bairro")[:40]}
+
         busca = _flat(q.get("q") or "")
         transacao = (q.get("transacao") or "").lower()
         if busca:
@@ -178,6 +237,31 @@ class handler(BaseHTTPRequestHandler):
             itens = [im for im in itens if im.get("preco_venda")]
         elif transacao == "locacao":
             itens = [im for im in itens if im.get("preco_locacao")]
+        tipo = _flat(q.get("tipo") or "")
+        if tipo:
+            itens = [im for im in itens if _flat(im.get("tipo")) == tipo]
+        bairro = _flat(q.get("bairro") or "")
+        if bairro:
+            itens = [im for im in itens if _flat(im.get("bairro")) == bairro]
+        try:
+            dmin = int(q.get("dorms_min") or 0)
+        except Exception:
+            dmin = 0
+        if dmin:
+            itens = [im for im in itens if (im.get("dorms") or 0) >= dmin]
+
+        def _preco(im):
+            return float((im.get("preco_venda") if transacao != "locacao" else None)
+                         or im.get("preco_locacao") or im.get("preco_venda") or 0)
+        try:
+            pmin = float(q.get("preco_min") or 0)
+            pmax = float(q.get("preco_max") or 0)
+        except Exception:
+            pmin, pmax = 0, 0
+        if pmin:
+            itens = [im for im in itens if _preco(im) >= pmin]
+        if pmax:
+            itens = [im for im in itens if 0 < _preco(im) <= pmax]
         ordem = (q.get("ordem") or "atualizado").lower()
         if ordem == "preco":
             itens.sort(key=lambda x: -(float(x.get("preco_venda") or x.get("preco_locacao") or 0)))
@@ -200,4 +284,5 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             page, ps = 1, 60
         return self._send(200, {"ok": True, "kpis": kpis, "total": total, "ultima_sync": ultima,
-                                "page": page, "itens": itens[(page - 1) * ps: page * ps]})
+                                "facetas": facetas, "page": page,
+                                "itens": itens[(page - 1) * ps: page * ps]})

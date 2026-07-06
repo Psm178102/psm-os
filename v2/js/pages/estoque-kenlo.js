@@ -8,7 +8,8 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null, _d = null, _aba = 'estoque', _q = '', _transacao = '', _ordem = 'atualizado', _busy = false;
-let _match = null, _matchQ = '', _deals = null;
+let _tipo = '', _bairro = '', _dormsMin = '', _pmin = '', _pmax = '';
+let _match = null, _matchQ = '', _deals = null, _an = null;
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -22,8 +23,10 @@ async function reload() {
   if (!_root) return;
   _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Puxando o estoque do Kenlo…</div></div>';
   try {
-    const qs = new URLSearchParams({ q: _q, transacao: _transacao, ordem: _ordem, pageSize: '400' });
+    const qs = new URLSearchParams({ q: _q, transacao: _transacao, ordem: _ordem, pageSize: '400',
+      tipo: _tipo, bairro: _bairro, dorms_min: _dormsMin, preco_min: _pmin, preco_max: _pmax });
     _d = await api.request('/api/v3/kenlo/estoque?' + qs);
+    _an = null; // análises recarregam junto
   } catch (e) {
     _root.innerHTML = `<div class="card"><div class="alert alert-err">${esc(e.message)}</div>
       <div class="tiny muted mt-1">Se for a 1ª vez: o estoque precisa de 1 sync (⚙ sócio) ou aguarde o cron diário das 05:00.</div></div>`;
@@ -31,6 +34,16 @@ async function reload() {
   }
   render();
 }
+
+function fichaTec(im) {
+  return [
+    im.tipo ? esc(cap(im.tipo)) : null,
+    im.dorms ? `🛏 ${im.dorms}` : null,
+    im.vagas ? `🚗 ${im.vagas}` : null,
+    (im.area_util || im.area_total) ? `📐 ${Math.round(im.area_util || im.area_total)}m²` : null,
+  ].filter(Boolean).join(' · ');
+}
+const cap = s => String(s || '').replace(/^./, c => c.toUpperCase());
 
 function badgeDias(d) {
   if (d == null) return '';
@@ -55,7 +68,8 @@ function cardImovel(im, extra = '') {
           ${extra}
         </div>
         <div class="tiny" style="margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(im.titulo || '')}</div>
-        <div class="tiny muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📍 ${esc([im.bairro, im.cidade].filter(Boolean).join(', ') || im.endereco || '')}</div>
+        <div class="tiny muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📍 ${esc([im.bairro, im.cidade].filter(Boolean).join(', ') || im.endereco || '')}
+          ${fichaTec(im) ? ' · ' + fichaTec(im) : ''}</div>
       </div>
     </div>
   </div>`;
@@ -66,7 +80,8 @@ function render() {
   const me = auth.user();
   const canSync = (me?.lvl || 0) >= 5;
   const ultima = _d.ultima_sync ? new Date(_d.ultima_sync).toLocaleString('pt-BR') : 'nunca';
-  const abas = [['estoque', '📦 Estoque'], ['desatualizados', `🔴 Desatualizados (${k.desat_90 || 0})`], ['match', '🤝 Match CRM']];
+  const abas = [['estoque', '📦 Estoque'], ['analises', '📊 Análises'],
+    ['desatualizados', `🔴 Desatualizados (${k.desat_90 || 0})`], ['match', '🤝 Match CRM']];
   _root.innerHTML = `
     <div class="card">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
@@ -94,12 +109,16 @@ function render() {
   if (bs) bs.onclick = doSync;
   const corpo = _root.querySelector('#ek-corpo');
   if (_aba === 'estoque') renderEstoque(corpo);
+  else if (_aba === 'analises') renderAnalises(corpo);
   else if (_aba === 'desatualizados') renderDesatualizados(corpo);
   else renderMatch(corpo);
 }
 
 function renderEstoque(corpo) {
   const itens = _d.itens || [];
+  const f = _d.facetas || {};
+  const opts = (lista, sel) => (lista || []).map(([v, n]) =>
+    `<option value="${esc(v)}" ${sel === String(v) ? 'selected' : ''}>${esc(cap(v))} (${n})</option>`).join('');
   corpo.innerHTML = `
     <div class="card">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
@@ -116,6 +135,21 @@ function renderEstoque(corpo) {
         </select>
         <span class="tiny muted">${_d.total || 0} imóveis</span>
       </div>
+      <div class="flex items-center mt-2" style="gap:8px;flex-wrap:wrap">
+        <select class="input" id="ek-tipo" style="flex:1;min-width:140px;width:auto">
+          <option value="">🏷 Todos os tipos</option>${opts(f.tipos, _tipo)}
+        </select>
+        <select class="input" id="ek-bairro" style="flex:1;min-width:150px;width:auto">
+          <option value="">📍 Todos os bairros</option>${opts(f.bairros, _bairro)}
+        </select>
+        <select class="input" id="ek-dorms" style="flex:0 0 auto;width:auto">
+          <option value="">🛏 Dorms</option>
+          ${[1, 2, 3, 4].map(n => `<option value="${n}" ${_dormsMin === String(n) ? 'selected' : ''}>${n}+</option>`).join('')}
+        </select>
+        <input class="input" id="ek-pmin" type="number" placeholder="R$ mín" value="${esc(_pmin)}" style="flex:0 0 110px">
+        <input class="input" id="ek-pmax" type="number" placeholder="R$ máx" value="${esc(_pmax)}" style="flex:0 0 110px">
+        ${(_tipo || _bairro || _dormsMin || _pmin || _pmax) ? '<button class="btn btn-ghost btn-sm" id="ek-limpar">✕ limpar filtros</button>' : ''}
+      </div>
     </div>
     <div class="mt-2">${itens.map(im => cardImovel(im)).join('') || '<div class="card muted">Nada encontrado. Ajuste a busca — ou rode a 1ª sincronização.</div>'}</div>`;
   const inp = corpo.querySelector('#ek-q');
@@ -123,6 +157,92 @@ function renderEstoque(corpo) {
   inp.oninput = () => { clearTimeout(t); t = setTimeout(() => { _q = inp.value; reload(); }, 450); };
   corpo.querySelector('#ek-tr').onchange = e => { _transacao = e.target.value; reload(); };
   corpo.querySelector('#ek-ord').onchange = e => { _ordem = e.target.value; reload(); };
+  corpo.querySelector('#ek-tipo').onchange = e => { _tipo = e.target.value; reload(); };
+  corpo.querySelector('#ek-bairro').onchange = e => { _bairro = e.target.value; reload(); };
+  corpo.querySelector('#ek-dorms').onchange = e => { _dormsMin = e.target.value; reload(); };
+  let tp = null;
+  const precoInput = el => { clearTimeout(tp); tp = setTimeout(() => {
+    _pmin = corpo.querySelector('#ek-pmin').value; _pmax = corpo.querySelector('#ek-pmax').value; reload(); }, 600); };
+  corpo.querySelector('#ek-pmin').oninput = precoInput;
+  corpo.querySelector('#ek-pmax').oninput = precoInput;
+  const lp = corpo.querySelector('#ek-limpar');
+  if (lp) lp.onclick = () => { _tipo = _bairro = _dormsMin = _pmin = _pmax = ''; reload(); };
+}
+
+function barra(lbl, n, max, dir = '#2563eb', extra = '') {
+  const pct = max ? Math.max(2, Math.round(n / max * 100)) : 0;
+  return `<div class="flex items-center tiny" style="gap:8px;margin:3px 0">
+    <span style="width:132px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lbl}</span>
+    <div style="flex:1;background:var(--bg-3);border-radius:6px;height:15px"><div style="width:${pct}%;background:${dir}99;height:15px;border-radius:6px"></div></div>
+    <span style="width:${extra ? '140px' : '36px'};text-align:right;flex-shrink:0;font-weight:600">${n}${extra}</span>
+  </div>`;
+}
+
+async function renderAnalises(corpo) {
+  if (!_an) {
+    corpo.innerHTML = '<div class="card"><span class="spinner"></span> Calculando análises do estoque…</div>';
+    try {
+      const r = await api.request('/api/v3/kenlo/estoque?modo=analise');
+      _an = r.analise || {};
+    } catch (e) {
+      corpo.innerHTML = `<div class="card"><div class="alert alert-err">${esc(e.message)}</div></div>`;
+      return;
+    }
+  }
+  const a = _an;
+  const brlK = n => n >= 1e6 ? 'R$ ' + (n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mi'
+    : 'R$ ' + Math.round(n / 1000).toLocaleString('pt-BR') + ' mil';
+  const kpi = (lbl, val, sub = '') => `<div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:10px;padding:10px 12px">
+    <div class="tiny muted">${lbl}</div><div style="font-size:18px;font-weight:900">${val}</div>${sub ? `<div class="tiny muted">${sub}</div>` : ''}</div>`;
+  const maxTipo = Math.max(1, ...(a.por_tipo || []).map(x => x[1]));
+  const maxBairro = Math.max(1, ...(a.por_bairro || []).map(x => x[1]));
+  const ag = a.aging_atualizacao || {}, ar = a.aging_no_ar || {};
+  const maxFx = Math.max(1, ...(a.faixas_venda || []).map(x => x[1]));
+  const snaps = a.snapshots || [];
+  const maxSnap = Math.max(1, ...snaps.map(s => Number(s.vgv_venda || 0)));
+  const cores = { '0-30': '#16a34a', '31-90': '#65a30d', '91-180': '#d97706', '180+': '#dc2626', '?': '#64748b' };
+  corpo.innerHTML = `
+    <div class="card">
+      <div class="flex" style="gap:8px;flex-wrap:wrap">
+        ${kpi('💰 VGV do estoque (venda)', brl(a.vgv_venda), a.n_venda + ' anúncios de venda')}
+        ${kpi('🎯 Ticket médio', brl(a.ticket_medio))}
+        ${kpi('🏠 Aluguel anunciado/mês', brl(a.aluguel_mensal), a.n_locacao + ' p/ locação')}
+        ${kpi('📷 Fotos', (a.media_fotos || 0).toFixed(1) + ' por anúncio', a.sem_foto + ' sem foto')}
+      </div>
+    </div>
+    <div class="flex mt-2" style="gap:8px;flex-wrap:wrap;align-items:stretch">
+      <div class="card" style="flex:1;min-width:300px;margin:0">
+        <b>🏷 Por tipo</b><div class="tiny muted">nº de anúncios · VGV de venda</div>
+        <div class="mt-1">${(a.por_tipo || []).map(([t, n, v]) => barra(esc(cap(t)), n, maxTipo, '#2563eb', ` · ${brlK(v)}`)).join('') || '<span class="tiny muted">Rode 1 sync pós-v84.12 pra preencher os tipos.</span>'}</div>
+      </div>
+      <div class="card" style="flex:1;min-width:300px;margin:0">
+        <b>📍 Por bairro (top 12)</b><div class="tiny muted">onde o estoque está concentrado</div>
+        <div class="mt-1">${(a.por_bairro || []).map(([b, n, v]) => barra(esc(b), n, maxBairro, '#7c3aed', ` · ${brlK(v)}`)).join('')}</div>
+      </div>
+    </div>
+    <div class="flex mt-2" style="gap:8px;flex-wrap:wrap;align-items:stretch">
+      <div class="card" style="flex:1;min-width:280px;margin:0">
+        <b>⏱ Tempo sem atualizar</b><div class="tiny muted">pauta de saúde do anúncio</div>
+        <div class="mt-1">${Object.entries(ag).filter(([k]) => k !== '?' || ag['?']).map(([k, n]) => barra(k + ' dias', n, Math.max(1, ...Object.values(ag)), cores[k])).join('')}</div>
+      </div>
+      <div class="card" style="flex:1;min-width:280px;margin:0">
+        <b>📅 Tempo no ar (idade do anúncio)</b><div class="tiny muted">quanto mais velho sem vender, mais atenção</div>
+        <div class="mt-1">${Object.entries(ar).filter(([k]) => k !== '?' || ar['?']).map(([k, n]) => barra(k + ' dias', n, Math.max(1, ...Object.values(ar)), cores[k])).join('')}</div>
+      </div>
+      <div class="card" style="flex:1;min-width:280px;margin:0">
+        <b>💵 Faixas de preço (venda)</b><div class="tiny muted">onde está o volume</div>
+        <div class="mt-1">${(a.faixas_venda || []).map(([f, n]) => barra(esc(f), n, maxFx, '#0891b2')).join('')}</div>
+      </div>
+    </div>
+    <div class="card mt-2">
+      <b>📈 Evolução do VGV do estoque</b><div class="tiny muted">1 ponto por dia (cron 05:00) — total no ar × VGV de venda</div>
+      ${snaps.length >= 2 ? `
+        <div class="flex mt-2" style="gap:2px;align-items:flex-end;height:90px">
+          ${snaps.map(s => `<div title="${esc(s.dia)} · ${brl(s.vgv_venda)} · ${s.total} imóveis" style="flex:1;background:#2563eb88;border-radius:3px 3px 0 0;height:${Math.max(4, Math.round(Number(s.vgv_venda || 0) / maxSnap * 100))}%"></div>`).join('')}
+        </div>
+        <div class="flex tiny muted" style="justify-content:space-between"><span>${esc(snaps[0]?.dia || '')}</span><span>${esc(snaps[snaps.length - 1]?.dia || '')}</span></div>`
+    : `<div class="tiny muted mt-2">A série histórica começa a acumular agora — 1 snapshot por dia a partir do próximo sync. Volte em alguns dias pra ver a curva.</div>`}
+    </div>`;
 }
 
 function renderDesatualizados(corpo) {

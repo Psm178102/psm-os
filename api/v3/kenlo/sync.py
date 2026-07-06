@@ -58,12 +58,30 @@ def _num(x):
         return None
 
 
+def _int(x):
+    try:
+        v = int(float(x))
+        return v if v > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _finalidade(purpose):
+    p = (purpose or "").upper()
+    tem_v, tem_l = "SALE" in p, ("RENT" in p or "LEASE" in p)
+    if tem_v and tem_l:
+        return "venda_locacao"
+    return "venda" if tem_v else ("locacao" if tem_l else None)
+
+
 def _norm(l):
     # shape REAL do /v2/listings (difere do spec publicado): title/address no topo;
     # descricao/preços/datas dentro de details; media é dict {image,video,imageCondo}
     det = _d(l.get("details"))
     addr = _d(l.get("address"))
     pricing = _d(det.get("pricing"))
+    area = _d(det.get("area"))
+    garage = _d(det.get("garage"))
     media = _d(l.get("media"))
     fotos = [m for m in (media.get("image") or []) if isinstance(m, dict) and m.get("url")]
     capa = next((m["url"] for m in fotos if m.get("isPrimary")), fotos[0]["url"] if fotos else None)
@@ -71,6 +89,8 @@ def _norm(l):
     pretensao = _num(det.get("pretension"))
     preco_venda = _num(pricing.get("salePrice")) or (pretensao if "SALE" in purpose else None)
     preco_loc = _num(pricing.get("rentPrice")) or (pretensao if "RENT" in purpose else None)
+    vagas = next((_int(garage.get(k)) for k in ("spaces", "value", "total", "quantity")
+                  if _int(garage.get(k))), None)
     return {
         "id": str(l.get("id")),
         "property_code": l.get("propertyCode"),
@@ -82,6 +102,15 @@ def _norm(l):
         "uf": addr.get("stateOrProvince"),
         "preco_venda": preco_venda,
         "preco_locacao": preco_loc,
+        "tipo": ((det.get("propertyType") or "").strip().lower() or None),
+        "finalidade": _finalidade(purpose),
+        "dorms": _int(det.get("bedrooms")),
+        "banheiros": _int(det.get("bathrooms")),
+        "suites": _int(det.get("suites")),
+        "vagas": vagas,
+        "area_util": _num(area.get("valueUsable")),
+        "area_total": _num(area.get("valueTotal")),
+        "condominio": _num(pricing.get("condoPrice")),
         "foto_capa": capa,
         "n_fotos": len(fotos),
         "criado_kenlo": det.get("createAt"),
@@ -127,7 +156,7 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
 
-        vistos, upserted, page, total, pages = set(), 0, 1, 0, 1
+        vistos, upserted, page, total, pages, slim = set(), 0, 1, 0, 1, []
         try:
             while page <= min(pages, 30):
                 d = _fetch_page(key, uinfo, agency, page)
@@ -137,6 +166,8 @@ class handler(BaseHTTPRequestHandler):
                 rows = [_norm(l) for l in (d.get("data") or []) if l.get("id")]
                 for r in rows:
                     vistos.add(r["id"])
+                    slim.append({k: r.get(k) for k in
+                                 ("preco_venda", "preco_locacao", "tipo", "n_fotos", "atualizado_kenlo")})
                 if rows:
                     sb.table("kenlo_imoveis").upsert(rows, on_conflict="id").execute()
                     upserted += len(rows)
@@ -158,5 +189,32 @@ class handler(BaseHTTPRequestHandler):
             desativados = len(sumidos)
         except Exception:
             pass
+        # snapshot do dia (série histórica pro painel de Análises — VGV ao longo do tempo)
+        try:
+            agora = datetime.now(timezone.utc)
+            def _dias(ts):
+                try:
+                    return (agora - datetime.fromisoformat(str(ts).replace("Z", "+00:00"))).days
+                except Exception:
+                    return None
+            por_tipo = {}
+            for r in slim:
+                t = r.get("tipo") or "outro"
+                pt = por_tipo.setdefault(t, {"n": 0, "vgv": 0.0})
+                pt["n"] += 1
+                pt["vgv"] += float(r.get("preco_venda") or 0)
+            dias = [_dias(r.get("atualizado_kenlo")) for r in slim]
+            sb.table("kenlo_estoque_snapshots").upsert({
+                "dia": agora.date().isoformat(),
+                "total": len(slim),
+                "vgv_venda": sum(float(r.get("preco_venda") or 0) for r in slim),
+                "aluguel_mensal": sum(float(r.get("preco_locacao") or 0) for r in slim),
+                "sem_foto": sum(1 for r in slim if not r.get("n_fotos")),
+                "d90": sum(1 for d in dias if d is not None and d > 90),
+                "d180": sum(1 for d in dias if d is not None and d > 180),
+                "por_tipo": por_tipo,
+            }, on_conflict="dia").execute()
+        except Exception:
+            pass  # snapshot é bônus — nunca derruba o sync
         return self._send(200, {"ok": True, "total_kenlo": total, "upserted": upserted,
                                 "desativados": desativados, "paginas": pages})
