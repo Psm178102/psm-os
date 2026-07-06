@@ -39,6 +39,7 @@ import { pageMarketing } from './pages/marketing.js';
 import { pageIA } from './pages/ia.js';
 import { pageLancamentos } from './pages/lancamentos.js';
 import { pageLocacoes } from './pages/locacoes.js';
+import { pageLocacaoDash } from './pages/locacao-dash.js';
 import { pageMinutasJuridico, pageMinutasLocacao } from './pages/minutas.js';
 import { pageCnds } from './pages/cnds.js';
 import { pageLinksUteis } from './pages/links-uteis.js';
@@ -134,7 +135,7 @@ export const ROUTE_GROUP = {
   '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas', '/sim-amortizacao': 'vendas',
   '/cockpit-conquista': 'vendas', '/minha-comissao': 'vendas', '/meu-cerebro': 'vendas', '/sim-conquista': 'vendas',  // ferramentas Conquista (v81.44)
   // Locação
-  '/locacoes': 'locacao', '/minutas-locacao': 'locacao',
+  '/locacoes': 'locacao', '/minutas-locacao': 'locacao', '/locacao-dash': 'locacao', '/locacao-estoque': 'locacao',
   // Financeiro
   '/financeiro': 'financeiro', '/forecast': 'financeiro',
   // Inteligência & Marketing
@@ -211,6 +212,7 @@ export const ROUTE_MIN_LVL = {
   '/tabela-imoveis': 5,   // upload de tabelas — não p/ corretor
   '/tabela-conquista': 2, // Tabela Conquista: VISÍVEL p/ corretor (read-only; upload é travado por can_edit lvl>=5 na página). Quem vê = matriz por papel. v81.40
   '/tabela-map': 2,       // Tabela MAP: idem
+  '/locacao-dash': 2, '/locacao-estoque': 2,  // Locação: dashboard + estoque (leitura, corretor+)
   '/campanha-wa': 5,      // disparo de campanha — não p/ corretor
   '/one-on-one': 5,       // visão de gestor do 1:1
   '/cerebro-vendas': 5,   // inteligência de vendas (líder+)
@@ -382,7 +384,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.16';
+const APP_VERSION = '84.17';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -523,6 +525,8 @@ const APP_VERSION = '84.16';
   router.register('/ia',        { render: async (ctx, root) => { setHeader('IA');        highlight('/ia');        await pageIA(ctx, root); } });
   router.register('/lancamentos', { render: async (ctx, root) => { setHeader('Lançamentos'); highlight('/lancamentos'); await pageLancamentos(ctx, root); } });
   router.register('/locacoes',  { render: async (ctx, root) => { setHeader('Locações');  highlight('/locacoes');  await pageLocacoes(ctx, root); } });
+  router.register('/locacao-dash', { render: async (ctx, root) => { setHeader('Dashboard Locação'); highlight('/locacao-dash'); await pageLocacaoDash(ctx, root); } });
+  router.register('/locacao-estoque', { render: async (ctx, root) => { setHeader('Imóveis p/ Alugar'); highlight('/locacao-estoque'); await pageEstoqueKenlo(ctx, root, 'locacao'); } });
   router.register('/minutas-locacao', { render: async (ctx, root) => { setHeader('Minutas e Fichas · Locação'); highlight('/minutas-locacao'); await pageMinutasLocacao(ctx, root); } });
   router.register('/arena',     { render: async (ctx, root) => { setHeader('Arena Live'); highlight('/arena');     await pageArena(ctx, root); } });
   router.register('/forecast',  { render: async (ctx, root) => { setHeader('Forecast');  highlight('/forecast');  await pageForecast(ctx, root); } });
@@ -872,7 +876,9 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/tendencias"><span class="sb-ico">📉</span> Tendências</button>
 
         <div class="sb-sec">🔑 Locação</div>
-        <button class="sb-link" data-nav="/locacoes"><span class="sb-ico">🔑</span> Locações</button>
+        <button class="sb-link" data-nav="/locacao-dash"><span class="sb-ico">📊</span> Dashboard Locação</button>
+        <button class="sb-link" data-nav="/locacoes"><span class="sb-ico">🗂</span> Carteira de Contratos</button>
+        <button class="sb-link" data-nav="/locacao-estoque"><span class="sb-ico">🏠</span> Imóveis p/ Alugar</button>
         <button class="sb-link" data-nav="/minutas-locacao"><span class="sb-ico">📑</span> Minutas e Fichas · Locação</button>
 
         <div class="sb-sec">💰 Financeiro</div>

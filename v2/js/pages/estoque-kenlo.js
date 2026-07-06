@@ -20,8 +20,9 @@ const md = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export async function pageEstoqueKenlo(ctx, root) {
+export async function pageEstoqueKenlo(ctx, root, preset) {
   _root = root;
+  if (preset === 'locacao') _transacao = 'locacao'; // rota /locacao-estoque abre já filtrado
   await reload();
 }
 
@@ -52,8 +53,10 @@ function fichaTec(im) {
 const cap = s => String(s || '').replace(/^./, c => c.toUpperCase());
 // propertyType do Kenlo vem em inglês — traduz só na exibição (filtro usa o valor cru)
 const TIPO_PT = { apartment: 'Apartamento', house: 'Casa', land: 'Terreno', commercial: 'Comercial',
-  studio: 'Studio', penthouse: 'Cobertura', farm: 'Chácara/Sítio', ranch: 'Rancho',
-  condominium: 'Condomínio', office: 'Sala', store: 'Loja', warehouse: 'Galpão',
+  studio: 'Studio', penthouse: 'Cobertura', penthouse_apartment: 'Cobertura', farm: 'Chácara/Sítio',
+  small_farm: 'Chácara', smallholding: 'Sítio', ranch: 'Rancho', condominium: 'Condomínio',
+  room: 'Sala comercial', office: 'Sala', store: 'Loja', warehouse: 'Galpão', shed: 'Galpão/Barracão',
+  hall: 'Salão', outhouse: 'Edícula', area: 'Área', two_story_house: 'Sobrado',
   twostoryhouse: 'Sobrado', 'two-story house': 'Sobrado', flat: 'Flat', loft: 'Loft' };
 const tipoPt = t => TIPO_PT[String(t || '').toLowerCase()] || cap(t);
 
