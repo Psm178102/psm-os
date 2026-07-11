@@ -23,6 +23,10 @@
     {
       "path": "/api/v3/kenlo/sync",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/v3/producao/alertas_cron",
+      "schedule": "0 17 * * 1-5"
     }
   ],
   "rewrites": [

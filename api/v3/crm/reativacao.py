@@ -2,9 +2,11 @@
 GET/POST /api/v3/crm/reativacao — FILA DE REATIVAÇÃO MAP. v84.2
 
 A base parada do CRM MAP (leads já pagos, sem ninguém trabalhando) vira uma fila
-diária paced pra Mariane: contatar 1-a-1 (WhatsApp/ligação), qualificar e agendar
-visita — o sócio fecha. Método fila (sem blast) = não toma bloqueio; quando a
-360dialog entrar, o disparo pluga por cima.
+diária paced pra LEIRE (reatribuída da Mariane em 06/07/2026 — Mariane focou em
+CS/indicação): contatar 1-a-1 (WhatsApp/ligação), qualificar e agendar visita —
+o sócio fecha. Método fila (sem blast) = não toma bloqueio; quando a 360dialog
+entrar, o disparo pluga por cima. Cada set_status loga reativacao_tocada no
+Painel de Fiscalização (dedupe 1/lead/dia).
 
 Fonte dos leads: tabela deals (sync do RD) — frente 'map' (fonte única frente_of),
    em aberto (win null) e parado há N+ dias (updated_at_rd). rd_raw traz contato/fones.
@@ -202,6 +204,22 @@ class handler(BaseHTTPRequestHandler):
                 _write_kv(sb, KV_STATE, estado)
             except Exception as e:
                 return self._send(500, {"ok": False, "error": str(e)})
+            # Painel de Fiscalização (v84.18): cada lead trabalhado = reativacao_tocada.
+            # Dedupe: 1 toque por lead por dia (mudar o status 2x no dia não infla).
+            try:
+                nome = (actor.get("name") or actor.get("email") or "").lower()
+                colab = "leire" if "leire" in nome else ("mariane" if "mariane" in nome else None)
+                if colab:
+                    hoje_utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00+00:00")
+                    ja = sb.table("producao_eventos").select("id").eq("tipo", "reativacao_tocada") \
+                        .eq("ref_id", deal_id).gte("ts", hoje_utc).limit(1).execute().data or []
+                    if not ja:
+                        sb.table("producao_eventos").insert({
+                            "colaborador": colab, "tipo": "reativacao_tocada",
+                            "ref_type": "deal", "ref_id": deal_id, "meta": {"st": st},
+                            "criado_por": str(actor.get("id"))}).execute()
+            except Exception:
+                pass
             audit(self, actor, "reativacao.set_status", target_type="deal", target_id=deal_id, notes=st)
             return self._send(200, {"ok": True, "deal_id": deal_id, "st": st})
 

@@ -164,6 +164,24 @@ class handler(BaseHTTPRequestHandler):
             if (cur.get("status") or "") != status:
                 try: sb.table("captacoes").update({"stage_changed_at": now_iso}).eq("id", cid).execute()
                 except Exception: pass
+            # Painel de Fiscalização (v84.18): entrar em 'captacao_realizada' = evento
+            # captacao_fechada do responsável (Leire/Guilherme). Dedupe por captação
+            # (mover pra frente e voltar não conta duas vezes). Best-effort.
+            try:
+                if status == "captacao_realizada" and (cur.get("status") or "") != "captacao_realizada":
+                    resp = (str(cur.get("responsavel") or "")).lower()
+                    colab = "leire" if "leire" in resp else ("guilherme" if "guilherme" in resp else None)
+                    if colab:
+                        ja = sb.table("producao_eventos").select("id").eq("tipo", "captacao_fechada") \
+                            .eq("ref_id", str(cid)).limit(1).execute().data or []
+                        if not ja:
+                            sb.table("producao_eventos").insert({
+                                "colaborador": colab, "tipo": "captacao_fechada",
+                                "ref_type": "captacao", "ref_id": str(cid),
+                                "meta": {"rotulo": (cur.get("condominio") or cur.get("proprietario") or "")[:120]},
+                                "criado_por": str(actor.get("id"))}).execute()
+            except Exception:
+                pass
             audit(self, actor, "captacao.move", target_type="captacoes", target_id=cid, notes=f"→ {status}")
             desc = f"{cur.get('condominio') or 'Imóvel'} — {cur.get('proprietario') or ''}"
             # SEMPRE notifica o responsável (todos os canais) em qualquer movimentação
