@@ -187,10 +187,13 @@ class handler(BaseHTTPRequestHandler):
         me = colaborador_do_user(cfg, user)
         gestor = (user.get("lvl") or 0) >= 7
         q = self.path.split("?", 1)[1] if "?" in self.path else ""
-        if ("visao=me" in q or not gestor) and me:
+        if "visao=me" in q:
+            # Meu Acompanhamento: SEMPRE só o próprio card — nunca o painel da diretoria
+            cards = [c for c in cards if c["key"] == me] if me else []
+        elif not gestor:
+            if not me:
+                return self._send(403, {"ok": False, "error": "painel restrito à gestão"})
             cards = [c for c in cards if c["key"] == me]
-        elif not gestor and not me:
-            return self._send(403, {"ok": False, "error": "painel restrito aos colaboradores e à gestão"})
         return self._send(200, {"ok": True, "cards": cards, "sou": me, "gestor": gestor,
                                 "lembrete_reativacao": cfg.get("lembrete_reativacao") or [],
                                 "agora_brt": now.isoformat(), "alertas_disparados": disparos})

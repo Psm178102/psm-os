@@ -6,7 +6,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
-let _root = null, _d = null, _busy = false, _undo = null;
+let _root = null, _d = null, _busy = false, _undo = null, _modo = 'gestor';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -22,8 +22,9 @@ const NOME_TIPO = {
   art_conquista: '🎨 Arts Conquista', art_map: '🎨 Arts MAP',
 };
 
-export async function pageProducao(ctx, root) {
+export async function pageProducao(ctx, root, modo = 'gestor') {
   _root = root;
+  _modo = modo; // 'gestor' (Diretoria, 3 cards) | 'me' (colaborador, só o próprio)
   await reload();
   // tempo real: recarrega no pulso do app + fallback 30s (para quando sai da tela)
   const tick = setInterval(() => {
@@ -36,7 +37,7 @@ async function reload(silencioso = false) {
   if (!_root) return;
   if (!silencioso) _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando produção do dia…</div></div>';
   try {
-    _d = await api.request('/api/v3/producao/painel');
+    _d = await api.request('/api/v3/producao/painel' + (_modo === 'me' ? '?visao=me' : ''));
   } catch (e) {
     _root.innerHTML = `<div class="card"><div class="alert alert-err">${esc(e.message)}</div></div>`;
     return;
@@ -179,11 +180,15 @@ function render() {
   const me = _d.sou, gestor = _d.gestor;
   const cards = _d.cards || [];
   const unico = cards.length === 1;
+  const titulo = _modo === 'me' ? '📈 Meu Acompanhamento' : '👁 Painel de Fiscalização';
+  const sub = _modo === 'me'
+    ? 'sua produção de hoje · registre cada ação NO ATO · semáforo pessoal'
+    : 'produção da equipe de apoio logada NO ATO · semáforo por horário · visão da diretoria';
   _root.innerHTML = `<div id="fisc-root">
     <div class="card">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
-        <h2 class="card-title" style="margin:0">👁 Painel de Fiscalização</h2>
-        <span class="tiny muted">produção logada NO ATO · semáforo por horário · ${gestor ? 'visão gestor' : 'minha produção'}</span>
+        <h2 class="card-title" style="margin:0">${titulo}</h2>
+        <span class="tiny muted">${sub}</span>
         <span style="margin-left:auto"></span>
         ${_undo && Date.now() < _undo.ate ? `<button class="btn btn-ghost btn-sm" id="fz-undo">↩️ desfazer último (90s)</button>` : ''}
         <button class="btn btn-ghost btn-sm" id="fz-reload">↻</button>
@@ -192,7 +197,9 @@ function render() {
     <div class="flex mt-2" style="gap:8px;flex-wrap:wrap;align-items:stretch">
       ${cards.map(c => cardHtml(c, unico, gestor || c.key === me)).join('')}
     </div>
-    ${!cards.length ? '<div class="card muted mt-2">Nenhum card pra mostrar — fale com a gestão pra entrar na configuração do painel.</div>' : ''}
+    ${!cards.length ? `<div class="card muted mt-2">${_modo === 'me'
+      ? 'Você não está entre os colaboradores acompanhados por este painel.'
+      : 'Nenhum card configurado — ajuste os colaboradores na configuração do painel.'}</div>` : ''}
   </div>`;
   _root.querySelector('#fz-reload').onclick = () => reload();
   const u = _root.querySelector('#fz-undo');
