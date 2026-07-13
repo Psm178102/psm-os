@@ -50,6 +50,13 @@ function tagInfo(id) {
   return (_d.cfg.etiquetas || []).find(t => t.id === id) || { id, nome: id, cor: '#64748b' };
 }
 
+function corretorNome(c) {
+  const em = (c.corretor_email || '').toLowerCase();
+  if (!em) return null;
+  const u = (_d.users || []).find(x => (x.email || '') === em);
+  return u ? u.name : em.split('@')[0];
+}
+
 /* ── cards ───────────────────────────────────────────────────────────────── */
 function cardHtml(c) {
   const [oLbl, oCor] = ORIGENS[c.origem] || ORIGENS.manual;
@@ -67,6 +74,7 @@ function cardHtml(c) {
       ${c.indicacao_criada ? '<span class="tiny" title="Promotor — card criado na Indicação Premiada">🎁</span>' : ''}
       ${(c.mencoes || []).length ? `<span class="tiny" title="Menções feitas">👀 ${(c.mencoes || []).length}</span>` : ''}
     </div>
+    ${corretorNome(c) ? `<div class="tiny" style="margin-top:2px;font-weight:700">👔 ${esc(corretorNome(c))} <span class="muted" style="font-weight:400">(corretor no RD)</span></div>` : ''}
     ${c.feedback ? `<div class="tiny" style="margin-top:2px;max-height:30px;overflow:hidden;font-style:italic">"${esc(c.feedback)}"</div>` : ''}
     ${c.tarefa?.data ? `<div class="tiny" style="margin-top:2px;color:#2563eb;font-weight:700">📅 ${esc(String(c.tarefa.data).split('-').reverse().join('/'))}${c.tarefa.hora_ini ? ' ' + esc(c.tarefa.hora_ini) : ''}</div>` : ''}
     ${c.descarte_motivo ? `<div class="tiny muted" style="margin-top:2px">🗑 ${esc(c.descarte_motivo)}</div>` : ''}
@@ -220,6 +228,7 @@ function abrirCard(id) {
       <span class="tiny muted">${oLbl}</span>
       <button class="btn btn-ghost btn-sm" id="av-x">✕</button>
     </div>
+    ${corretorNome(c) ? `<div class="tiny mt-1" style="background:#2563eb12;border-radius:8px;padding:6px 10px;font-weight:700">👔 Corretor responsável (RD CRM): ${esc(corretorNome(c))}${c.corretor_email ? ` <span class="muted" style="font-weight:400">· ${esc(c.corretor_email)}</span>` : ''}</div>` : '<div class="tiny muted mt-1">👔 Sem corretor vinculado no RD (card manual)</div>'}
     <div style="background:${c.nota != null ? notaCor(c.nota) : '#64748b'}12;border-radius:10px;padding:10px;margin-top:8px">
       <label class="tiny muted" style="font-weight:800">⭐ Nota (0–10) + feedback ${c.nota != null ? '— já coletada, pode corrigir' : ''}</label>
       <div class="flex" style="gap:6px;flex-wrap:wrap;margin-top:4px;align-items:flex-start">
