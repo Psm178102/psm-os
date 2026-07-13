@@ -20,16 +20,92 @@ Interligações (nada duplicado):
 Auth: GET/POST lvl>=2 (Mariane pra cima; matriz decide quem vê a aba).
 """
 from http.server import BaseHTTPRequestHandler
-import json, os, sys, urllib.parse
+import json, os, sys, uuid, urllib.parse
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, notify_all  # type: ignore
-from _fisc_lib import get_cfg, premio_faixa, gestores_ids, colaborador_do_user  # type: ignore
+from _fisc_lib import get_cfg, premio_faixa, gestores_ids, colaborador_do_user, _kv, _kv_set, KV_CFG  # type: ignore
 
 STATUS = ("nova", "qualificada", "no_crm", "vendida", "premio_aprovado", "premio_pago", "perdida")
 CAMPOS = ("tipo", "origem", "indicador_nome", "indicador_contato", "indicado_nome",
           "indicado_contato", "obs", "valor_negocio", "deal_id")
+
+# ── Fluxos de abordagem WhatsApp (editáveis; seed segue a regra anti-textão:
+#    UMA mensagem curta por passo, espera a resposta antes do próximo) ────────
+FLUXOS_KEY = "indicacao_fluxos"
+DEFAULT_FLUXOS = [
+    {"id": "frio_base", "emoji": "🧊", "nome": "Base fria (MAP)",
+     "quando_usar": "Cliente antigo da base, sem contato há meses. Objetivo: REABRIR a conversa — não vender nem pedir indicação na 1ª mensagem.",
+     "passos": [
+         {"titulo": "Quebra-gelo pessoal", "envio": "manhã (9h–11h)",
+          "texto": "Oi {nome}, tudo bem? Aqui é a Mariane, da PSM Imóveis 😊 Lembrei de você por aqui e vim saber: como vocês estão?"},
+         {"titulo": "Respondeu: puxar a situação", "envio": "logo após a resposta",
+          "texto": "Que bom ter notícias! Me conta: vocês seguem por aqui na região? Mudou alguma coisa aí — casa, família, trabalho?"},
+         {"titulo": "Plantar a indicação", "envio": "na mesma conversa, se o clima estiver bom",
+          "texto": "Ah, uma novidade: agora a PSM premia quem indica 💰 Se você conhecer alguém querendo comprar ou alugar, a indicação virando negócio você ganha um prêmio em dinheiro. Posso te mandar como funciona?"},
+         {"titulo": "Follow-up sem resposta", "envio": "3 dias depois — só UMA vez",
+          "texto": "Oi {nome}! Vi que ficou corrido aí 😊 Quando der, me dá um alô — tenho uma novidade boa pra te contar."},
+     ]},
+    {"id": "morno_pos_visita", "emoji": "🤝", "nome": "Pós-atendimento / visita",
+     "quando_usar": "Cliente atendido ou que visitou imóvel nos últimos dias. Serve também pra colher o NPS.",
+     "passos": [
+         {"titulo": "Agradecer + medir (NPS)", "envio": "até 24h após a visita",
+          "texto": "Oi {nome}! Obrigada pela visita de hoje 😊 De 0 a 10, como foi a experiência com a gente?"},
+         {"titulo": "Nota boa (7–8)", "envio": "após a resposta",
+          "texto": "Que bom! Vamos seguir juntos na busca 🙌 E se nesse caminho você souber de alguém procurando imóvel, me avisa — sua indicação vale prêmio em dinheiro aqui na PSM 💰"},
+         {"titulo": "Nota baixa (≤6) — NÃO pedir indicação", "envio": "após a resposta",
+          "texto": "Poxa, obrigada pela sinceridade 🙏 Me conta o que faltou? Quero resolver isso pra você ainda hoje."},
+     ]},
+    {"id": "nps_promotor", "emoji": "⭐", "nome": "Promotor NPS (9–10)",
+     "quando_usar": "Acabou de dar nota 9 ou 10 — o momento MAIS quente pra convidar. Usar no mesmo dia da nota.",
+     "passos": [
+         {"titulo": "Agradecer a nota", "envio": "no mesmo dia da nota",
+          "texto": "{nome}, sua nota fez o nosso dia aqui! 🥰 Obrigada de verdade pela confiança."},
+         {"titulo": "Convite direto", "envio": "na sequência",
+          "texto": "Já que você curtiu a experiência: conhece alguém querendo comprar ou alugar? Indicação sua que virar negócio te dá prêmio em DINHEIRO 💰 Quer que eu te conte as faixas?"},
+         {"titulo": "Fechar o combinado", "envio": "se topar",
+          "texto": "Fechado! Me manda o nome e o zap da pessoa que eu cuido de tudo com o maior carinho — e te aviso em cada etapa 😉"},
+     ]},
+    {"id": "pos_venda", "emoji": "🏆", "nome": "Cliente que comprou (pós-venda)",
+     "quando_usar": "Comprou ou acabou de receber as chaves: gratidão no auge. Melhor origem de indicação que existe.",
+     "passos": [
+         {"titulo": "Parabéns + presença", "envio": "1ª semana após as chaves",
+          "texto": "{nome}! E aí, como estão os primeiros dias no imóvel novo? 🏡✨"},
+         {"titulo": "Convite VIP", "envio": "na mesma conversa",
+          "texto": "Você agora é da família PSM 😊 E família indica: se algum amigo ou parente estiver procurando imóvel, sua indicação vale prêmio em dinheiro. Quem você conhece que tá nessa fase?"},
+     ]},
+    {"id": "locacao", "emoji": "🔑", "nome": "Locação (inquilino / proprietário)",
+     "quando_usar": "Base de locação — inquilinos e proprietários da carteira. Prêmio específico por contrato fechado.",
+     "passos": [
+         {"titulo": "Abertura", "envio": "horário comercial",
+          "texto": "Oi {nome}, tudo bem? Mariane da PSM 😊 Passando pra saber se está tudo certo com o imóvel e o contrato."},
+         {"titulo": "Indicação locação", "envio": "após resposta positiva",
+          "texto": "Aproveitando: se souber de alguém querendo alugar — ou dono querendo colocar o imóvel pra alugar — sua indicação fechando contrato te dá prêmio em dinheiro 💰 Conhece alguém nessa situação?"},
+     ]},
+]
+
+
+def _fluxos_load(sb):
+    v = _kv(sb, FLUXOS_KEY)
+    fx = v.get("fluxos") if isinstance(v, dict) else None
+    if fx:
+        return fx
+    _kv_set(sb, FLUXOS_KEY, {"fluxos": DEFAULT_FLUXOS})
+    return json.loads(json.dumps(DEFAULT_FLUXOS))
+
+
+def _valida_faixas(fx):
+    """[[teto, prêmio], …] com tetos estritamente crescentes. None se inválido."""
+    try:
+        out = [[float(p[0]), float(p[1])] for p in fx]
+    except (TypeError, ValueError, IndexError):
+        return None
+    if not out or any(t <= 0 or pr < 0 for t, pr in out):
+        return None
+    if any(out[i][0] >= out[i + 1][0] for i in range(len(out) - 1)):
+        return None
+    return out
 
 
 def _now():
@@ -82,7 +158,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            require_user(self, min_lvl=2)
+            user = require_user(self, min_lvl=2)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
@@ -113,7 +189,9 @@ class handler(BaseHTTPRequestHandler):
         kpis["premio_pago"] = sum(float(r.get("premio") or 0) for r in rows if r.get("status") == "premio_pago")
         return self._send(200, {"ok": True, "itens": rows, "kpis": kpis,
                                 "faixas_venda": cfg.get("premio_indicacao_venda") or [],
-                                "faixas_locacao": cfg.get("premio_indicacao_locacao") or []})
+                                "faixas_locacao": cfg.get("premio_indicacao_locacao") or [],
+                                "fluxos": _fluxos_load(sb),
+                                "can_edit": (user.get("lvl") or 0) >= 7})
 
     def do_POST(self):
         try:
@@ -245,6 +323,49 @@ class handler(BaseHTTPRequestHandler):
                     criadas += 1
                 audit(self, user, "indicacao.puxar_promotores", "indicacoes", None, notes=f"{criadas} criada(s)")
                 return self._send(200, {"ok": True, "criadas": criadas})
+
+            if action == "set_faixas":
+                if lvl < 7:
+                    return self._send(403, {"ok": False, "error": "editar faixas de prêmio é da gestão (lvl>=7)"})
+                fv = _valida_faixas(body.get("faixas_venda") or [])
+                fl = _valida_faixas(body.get("faixas_locacao") or [])
+                if fv is None or fl is None:
+                    return self._send(400, {"ok": False, "error": "faixas inválidas: pares [teto, prêmio] com tetos crescentes e prêmio >= 0"})
+                saved = _kv(sb, KV_CFG)
+                saved["premio_indicacao_venda"] = fv
+                saved["premio_indicacao_locacao"] = fl
+                _kv_set(sb, KV_CFG, saved)
+                audit(self, user, "indicacao.set_faixas", "shared_kv", KV_CFG,
+                      notes=f"venda={fv} locacao={fl}")
+                return self._send(200, {"ok": True, "faixas_venda": fv, "faixas_locacao": fl})
+
+            if action == "set_fluxos":
+                if lvl < 7:
+                    return self._send(403, {"ok": False, "error": "editar fluxos é da gestão (lvl>=7)"})
+                out = []
+                for f in (body.get("fluxos") or [])[:20]:
+                    if not isinstance(f, dict):
+                        continue
+                    passos = []
+                    for p in (f.get("passos") or [])[:15]:
+                        if not isinstance(p, dict) or not str(p.get("texto") or "").strip():
+                            continue
+                        passos.append({"titulo": str(p.get("titulo") or "").strip()[:120],
+                                       "envio": str(p.get("envio") or "").strip()[:120],
+                                       "texto": str(p.get("texto")).strip()[:1500]})
+                    nome = str(f.get("nome") or "").strip()
+                    if not nome or not passos:
+                        continue
+                    out.append({"id": (str(f.get("id") or "").strip() or "fx_" + uuid.uuid4().hex[:8]),
+                                "emoji": (str(f.get("emoji") or "💬").strip()[:8] or "💬"),
+                                "nome": nome[:80],
+                                "quando_usar": str(f.get("quando_usar") or "").strip()[:300],
+                                "passos": passos})
+                if not out:
+                    return self._send(400, {"ok": False, "error": "nenhum fluxo válido (cada fluxo precisa de nome e ao menos 1 passo com texto)"})
+                _kv_set(sb, FLUXOS_KEY, {"fluxos": out})
+                audit(self, user, "indicacao.set_fluxos", "shared_kv", FLUXOS_KEY, notes=f"{len(out)} fluxo(s)")
+                return self._send(200, {"ok": True, "fluxos": out})
 
             return self._send(400, {"ok": False, "error": "action inválida"})
         except Exception as e:
