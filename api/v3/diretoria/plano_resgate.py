@@ -231,7 +231,15 @@ class handler(BaseHTTPRequestHandler):
                 _kv_set(sb, plano)
             except Exception:
                 pass
-        return self._send(200, {"ok": True, "plano": plano, "real": _real(sb, plano)})
+        briefing = None
+        try:
+            rows = sb.table("shared_kv").select("value").eq("key", "plano_briefing").limit(1).execute().data or []
+            briefing = rows[0]["value"] if rows else None
+            if isinstance(briefing, str):
+                briefing = json.loads(briefing)
+        except Exception:
+            pass
+        return self._send(200, {"ok": True, "plano": plano, "real": _real(sb, plano), "briefing": briefing})
 
     def do_POST(self):
         try:

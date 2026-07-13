@@ -588,6 +588,11 @@ function prPaint(c) {
   const subs = [['real', '📊 Real vs Plano'], ['check', '✅ Checklist'], ['doc', '📜 O Plano']];
   let corpo = '';
 
+  const brief = _pr.briefing;
+  const briefBox = brief && brief.texto ? `<div class="card" style="margin:0 0 8px;background:#7c3aed0d;border:1px dashed #7c3aed55">
+    <div class="tiny"><b>📬 Briefing de segunda</b> <span class="muted">(${new Date(brief.ts).toLocaleDateString('pt-BR')} · ${prEsc(brief.provider || '')})</span></div>
+    <div class="tiny mt-1" style="line-height:1.5">${prMd(brief.texto)}</div>
+  </div>` : '';
   if (_prSub === 'real') {
     const vgvC = (r.vgv || {}).conquista || 0;
     const vgvP = ((r.vgv || {}).map || 0) + ((r.vgv || {}).terceiros || 0);
@@ -595,7 +600,7 @@ function prPaint(c) {
     const contrib = r.contribuicao || 0;
     const beOp = cts.breakeven_operacional || 70000, bePl = cts.breakeven_pleno || 100000;
     const pctBe = Math.min(100, Math.round(100 * contrib / bePl));
-    corpo = `
+    corpo = briefBox + `
       <div class="tiny muted">Mês corrente: <b>${prEsc(mesAtual.nome || r.mes_id)}</b> · VGV = vendas GANHAS no CRM (win, mês do fechamento) · frentes pela Central de Frentes</div>
       ${prBarra('🏆 Conquista (equipe)', vgvC, mesAtual.conquista || 0, '#16a34a')}
       ${prBarra('🤝 VGV próprio (MAP + Terceiros)', vgvP, mesAtual.proprio || 0, '#2563eb')}
@@ -612,7 +617,8 @@ function prPaint(c) {
       </div>
       <div class="tiny muted mt-2">👁 Fiscalização no mês: ${Object.entries(r.fiscalizacao || {}).map(([k, ts]) =>
         `<b>${prEsc(k)}</b> ${Object.values(ts).reduce((a, b) => a + b, 0)} eventos`).join(' · ') || 'sem eventos ainda'}
-        · <a href="#/fiscalizacao" style="color:#2563eb">abrir painel →</a></div>`;
+        · <a href="#/fiscalizacao" style="color:#2563eb">abrir painel →</a></div>
+      <div class="tiny mt-2" id="pr-ads"><span class="muted">💸 Semáforo de ads: carregando…</span></div>`;
   } else if (_prSub === 'check') {
     corpo = (p.meses || []).map(m => {
       const ck = p.checklist || {};
@@ -664,6 +670,7 @@ function prPaint(c) {
       <div class="mt-2">${corpo}</div>
     </div>`;
   c.querySelectorAll('.pr-sub').forEach(b => b.onclick = () => { _prSub = b.dataset.sub; prPaint(c); });
+  if (_prSub === 'real') prAds(c);
   c.querySelectorAll('.pr-ck').forEach(b => b.onchange = async () => {
     try {
       const r2 = await api.request('/api/v3/diretoria/plano_resgate', { method: 'POST', body: { action: 'toggle', chave: b.dataset.chave } });
@@ -694,4 +701,27 @@ function prPaint(c) {
       } catch (e) { alert('❌ NÃO SALVOU: ' + e.message); }
     };
   });
+}
+
+/* 💸 semáforo de ads do plano (global + por frente + por conta) — regra 9 */
+async function prAds(c) {
+  const host = c.querySelector('#pr-ads');
+  if (!host) return;
+  let a = null;
+  try { a = await api.request('/api/v3/diretoria/plano_ads'); }
+  catch (e) { host.innerHTML = `<span class="muted">💸 ads: ${prEsc(e.message)}</span>`; return; }
+  if (a.erro_meta || !a.global) { host.innerHTML = `<span class="muted">💸 ads: sem dados do Meta (${prEsc(a.erro_meta || 'vazio')})</span>`; return; }
+  const g = a.global;
+  const cor = { '▲': '#16a34a', '⏸': '#d97706', '▼': '#dc2626', '—': '#64748b' };
+  host.innerHTML = `
+    <div style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
+      <b>💸 Semáforo de ads (mês)</b> — GLOBAL:
+      <b style="color:${cor[g.farol]}">${g.farol} ROAS ${g.roas != null ? g.roas + '×' : '—'}</b>
+      <span class="muted">(contribuição ${prBrl(g.contribuicao)} ÷ spend ${prBrl(g.spend)} · piso ${g.piso}×)</span>
+      ${(a.frentes || []).length ? `<div class="mt-1">${a.frentes.map(f =>
+        `<span style="margin-right:12px"><b style="color:${cor[f.farol]}">${f.farol}</b> ${prEsc(f.frente)}: ROAS ${f.roas != null ? f.roas + '×' : '—'} <span class="muted">(spend ${prBrl(f.spend)})</span></span>`).join('')}</div>` : ''}
+      ${(a.contas || []).length ? `<div class="muted mt-1">Por conta: ${a.contas.map(ct =>
+        `${prEsc(ct.nome)} ${prBrl(ct.spend)}${ct.frente ? ' (' + prEsc(ct.frente) + ')' : ''}`).join(' · ')}</div>` : ''}
+      <div class="muted mt-1">▲ ≥2× pode subir · ⏸ 1–2× segura · ▼ &lt;1× corta e revê criativo/oferta. ROAS por frente é aproximado (conta→frente pelo nome); o número duro é o global.</div>
+    </div>`;
 }

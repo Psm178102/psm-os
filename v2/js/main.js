@@ -41,6 +41,7 @@ import { pageLancamentos } from './pages/lancamentos.js';
 import { pageLocacoes } from './pages/locacoes.js';
 import { pageLocacaoDash } from './pages/locacao-dash.js';
 import { pageProducao } from './pages/producao.js';
+import { pagePonte } from './pages/ponte.js';
 import { pageMinutasJuridico, pageMinutasLocacao } from './pages/minutas.js';
 import { pageCnds } from './pages/cnds.js';
 import { pageLinksUteis } from './pages/links-uteis.js';
@@ -126,7 +127,7 @@ export const ROUTE_GROUP = {
   // Início (sempre)
   '/': 'inicio', '/painel': 'inicio', '/checkin': 'inicio', '/ranking': 'inicio', '/agenda': 'inicio', '/tarefas': 'inicio',
   // Secretaria de Vendas & Backoffice (SDR + Captações)
-  '/sdr': 'secretaria', '/reativacao': 'secretaria', '/captacoes': 'secretaria', '/minha-producao': 'secretaria', '/fiscalizacao': 'diretoria', '/links-uteis': 'secretaria', '/sac-incorporadoras': 'secretaria', '/sistemas-incorporadoras': 'secretaria', '/campanha-wa': 'secretaria',
+  '/sdr': 'secretaria', '/reativacao': 'secretaria', '/captacoes': 'secretaria', '/minha-producao': 'secretaria', '/fiscalizacao': 'diretoria', '/ponte': 'diretoria', '/links-uteis': 'secretaria', '/sac-incorporadoras': 'secretaria', '/sistemas-incorporadoras': 'secretaria', '/campanha-wa': 'secretaria',
   // Backoffice & Adm (v81.93)
   '/compras': 'adm', '/patrimonio': 'adm', '/manutencoes': 'adm',
   // Imóveis & Vendas (+ Metas/Equipes/Plantões e simuladores VPL/INCC/Repasse/Energia migrados)
@@ -215,6 +216,7 @@ export const ROUTE_MIN_LVL = {
   '/tabela-map': 2,       // Tabela MAP: idem
   '/locacao-dash': 2, '/locacao-estoque': 2,  // Locação: dashboard + estoque (leitura, corretor+)
   '/fiscalizacao': 7,     // Painel de Fiscalização (Diretoria): os 3 cards — só gestão
+  '/ponte': 7,            // Fila da Ponte: fechamento próprio Paulo/Isa
   '/minha-producao': 2,   // Meu Acompanhamento: o colaborador vê SÓ o próprio card/semáforo
   '/campanha-wa': 5,      // disparo de campanha — não p/ corretor
   '/one-on-one': 5,       // visão de gestor do 1:1
@@ -387,7 +389,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.20';
+const APP_VERSION = '84.21';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -547,6 +549,7 @@ const APP_VERSION = '84.20';
   router.register('/captacoes',   { render: async (ctx, root) => { setHeader('Captações');    highlight('/captacoes');   await pageCaptacoes(ctx, root); } });
   router.register('/fiscalizacao', { render: async (ctx, root) => { setHeader('Painel de Fiscalização'); highlight('/fiscalizacao'); await pageProducao(ctx, root, 'gestor'); } });
   router.register('/minha-producao', { render: async (ctx, root) => { setHeader('Meu Acompanhamento'); highlight('/minha-producao'); await pageProducao(ctx, root, 'me'); } });
+  router.register('/ponte', { render: async (ctx, root) => { setHeader('Fila da Ponte'); highlight('/ponte'); await pagePonte(ctx, root); } });
   router.register('/sdr',         { render: async (ctx, root) => { setHeader('Prospecção SDR'); highlight('/sdr');         await pageSdr(ctx, root); } });
   router.register('/reativacao',  { render: async (ctx, root) => { setHeader('Reativação MAP'); highlight('/reativacao'); await pageReativacao(ctx, root); } });
   router.register('/integracoes', { render: async (ctx, root) => { setHeader('Integrações');  highlight('/integracoes'); await pageIntegracoes(ctx, root); } });
@@ -859,6 +862,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/cockpit"><span class="sb-ico">🧭</span> Cockpit de Decisão</button>
         <button class="sb-link" data-nav="/diretoria"><span class="sb-ico">📊</span> Dashboard</button>
         <button class="sb-link" data-nav="/fiscalizacao"><span class="sb-ico">👁</span> Painel de Fiscalização</button>
+        <button class="sb-link" data-nav="/ponte"><span class="sb-ico">🌉</span> Fila da Ponte</button>
         <button class="sb-link" data-nav="/paulo"><span class="sb-ico">🧑‍💼</span> Paulo</button>
         <button class="sb-link" data-nav="/relatorios"><span class="sb-ico">🖨</span> Relatórios</button>
         <button class="sb-link" data-nav="/psmhub"><span class="sb-ico">🔌</span> PSM HUB · Conquista</button>

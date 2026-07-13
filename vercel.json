@@ -27,6 +27,14 @@
     {
       "path": "/api/v3/producao/alertas_cron",
       "schedule": "0 17 * * 1-5"
+    },
+    {
+      "path": "/api/v3/diretoria/plano_briefing_cron",
+      "schedule": "0 10 * * 1"
+    },
+    {
+      "path": "/api/v3/diretoria/gate_risco_cron",
+      "schedule": "0 12 20 * *"
     }
   ],
   "rewrites": [
