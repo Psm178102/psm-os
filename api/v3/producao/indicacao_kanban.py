@@ -85,16 +85,26 @@ def _phone(raw):
     return None
 
 
+def _page_all(make_q, max_rows=6000):
+    """Pagina além do teto de 1000 linhas do PostgREST. make_q() cria o query
+    (JÁ com .order() estável — paginação sem ordem pula/duplica linhas)."""
+    out, page = [], 1000
+    for i in range(0, max_rows, page):
+        rows = make_q().range(i, i + page - 1).execute().data or []
+        out.extend(rows)
+        if len(rows) < page:
+            break
+    return out
+
+
 def _existentes(sb):
     """deal_ids que já têm card (pra sync não duplicar)."""
-    out = set()
     try:
-        rows = sb.table("indicacao_kanban").select("deal_id").not_.is_("deal_id", "null") \
-            .limit(10000).execute().data or []
-        out = {str(r["deal_id"]) for r in rows if r.get("deal_id")}
+        rows = _page_all(lambda: sb.table("indicacao_kanban").select("deal_id")
+                         .not_.is_("deal_id", "null").order("criado_em"), max_rows=12000)
+        return {str(r["deal_id"]) for r in rows if r.get("deal_id")}
     except Exception:
-        pass
-    return out
+        return set()
 
 
 def _inserir_lote(sb, cards):
@@ -137,8 +147,8 @@ def _sincronizar(sb, user):
     # 🏆 Base 3 primeiro (mais quente ganha a etiqueta de base)
     corte12m = (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
     try:
-        rows = sb.table("deals").select("id,name,rd_raw").eq("win", True) \
-            .gte("closed_at", corte12m).limit(2000).execute().data or []
+        rows = _page_all(lambda: sb.table("deals").select("id,name,rd_raw").eq("win", True)
+                         .gte("closed_at", corte12m).order("id"), max_rows=3000)
         for d in rows:
             add(d, "fechou_12m")
     except Exception:
@@ -147,9 +157,9 @@ def _sincronizar(sb, user):
     # 👣 Base 2: visitas 60d (event sourcing), funis MAP + Conquista
     corte60d = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
     try:
-        evs = sb.table("deal_stage_events").select("deal_id,pipeline_name") \
-            .ilike("stage_name", "%visita%").gte("occurred_at", corte60d) \
-            .limit(3000).execute().data or []
+        evs = _page_all(lambda: sb.table("deal_stage_events").select("deal_id,pipeline_name")
+                        .ilike("stage_name", "%visita%").gte("occurred_at", corte60d)
+                        .order("occurred_at"), max_rows=4000)
         ids = list({str(e["deal_id"]) for e in evs
                     if e.get("deal_id") and frente_of(e.get("pipeline_name")) in ("map", "conquista")
                     and str(e["deal_id"]) not in ja})
@@ -162,8 +172,8 @@ def _sincronizar(sb, user):
 
     # 🗂 Base 1: funil CARTEIRA MAP inteiro
     try:
-        rows = sb.table("deals").select("id,name,rd_raw").ilike("pipeline_name", "%carteira map%") \
-            .limit(3000).execute().data or []
+        rows = _page_all(lambda: sb.table("deals").select("id,name,rd_raw")
+                         .ilike("pipeline_name", "%carteira map%").order("id"), max_rows=5000)
         for d in rows:
             add(d, "carteira_map")
     except Exception:
@@ -204,9 +214,9 @@ def gerar_fila(sb, force=False):
     corte_fu = (agora - timedelta(days=fu_dias)).isoformat()
     corte_tp = (agora - timedelta(days=tp_dias)).isoformat()
 
-    rows = sb.table("indicacao_kanban").select(
-        "id,coluna,base,tarefa,indicacao_id,atualizado_em,criado_em") \
-        .neq("coluna", "descartado").neq("coluna", "indicou").limit(5000).execute().data or []
+    rows = _page_all(lambda: sb.table("indicacao_kanban").select(
+        "id,coluna,base,tarefa,indicacao_id,atualizado_em,criado_em")
+        .neq("coluna", "descartado").neq("coluna", "indicou").order("id"), max_rows=8000)
 
     def t(c):
         return c.get("tarefa") or {}
@@ -289,10 +299,10 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
         try:
-            rows = sb.table("indicacao_kanban").select(
+            rows = _page_all(lambda: sb.table("indicacao_kanban").select(
                 "id,deal_id,base,nome,contato,coluna,etiquetas,obs,objetivo,valor_indicacao,"
-                "premio,descarte_motivo,tarefa,indicacao_id,abordado_em,criado_em,atualizado_em") \
-                .order("atualizado_em", desc=True).limit(5000).execute().data or []
+                "premio,descarte_motivo,tarefa,indicacao_id,abordado_em,criado_em,atualizado_em")
+                .order("atualizado_em", desc=True).order("id"), max_rows=8000)
         except Exception as e:
             return self._send(502, {"ok": False, "error": str(e)[:200]})
         return self._send(200, {"ok": True, "cards": rows, "cfg": _cfg(sb),
