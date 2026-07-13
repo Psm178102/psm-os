@@ -21,7 +21,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const BASES = {
   fechou_12m: ['🏆 Fechou 12m', '#16a34a'], visita_60d: ['👣 Visita 60d', '#d97706'],
-  carteira_map: ['🗂 Carteira MAP', '#2563eb'], manual: ['✍️ Manual', '#64748b'],
+  funil_map: ['🗂 Funil MAP', '#2563eb'], manual: ['✍️ Manual', '#64748b'],
 };
 const OBJ = { venda: '🏠 Venda', captacao: '📷 Captação', locacao: '🔑 Locação' };
 const MOTIVOS = ['duplicado', 'não quis indicar', 'não responde'];
@@ -170,6 +170,7 @@ function wire() {
       const c = (_d.cards || []).find(x => x.id === id);
       const destino = col.dataset.col;
       if (!c || c.coluna === destino) return;
+      if (destino === 'indicou') return registrarIndicacao(c); // soltar em "Indicou" = criar a ficha no Funil
       let motivo = null;
       if (destino === 'descartado') {
         motivo = await pedirMotivo();
@@ -183,6 +184,17 @@ function wire() {
       }
     };
   });
+}
+
+/* ── card virou indicação: cria a ficha no 🎯 Funil e move pra "Indicou" ── */
+async function registrarIndicacao(c, aposOk) {
+  const nome = prompt(`${c.nome} indicou quem? (nome do indicado)`);
+  if (nome === null) return;
+  const fone = prompt('Telefone do indicado (opcional):') || '';
+  const tipo = confirm('É indicação de VENDA? (OK = venda / Cancelar = locação)') ? 'venda' : 'locacao';
+  const r = await post({ action: 'virar_indicacao', id: c.id, indicado_nome: nome, indicado_contato: fone, tipo },
+                       '🎁 Indicação criada na aba 🎯 Funil! Card movido pra "Indicou".');
+  if (r) { if (aposOk) aposOk(); reload(); }
 }
 
 /* ── descarte com motivo ─────────────────────────────────────────────────── */
@@ -285,15 +297,7 @@ function abrirCard(id) {
                          '📅 Tarefa criada na Agenda.');
     if (r) { ov.remove(); reload(); }
   };
-  ov.querySelector('#ck-indicou').onclick = async () => {
-    const nome = prompt(`${c.nome} indicou quem? (nome do indicado)`);
-    if (nome === null) return;
-    const fone = prompt('Telefone do indicado (opcional):') || '';
-    const tipo = confirm('É indicação de VENDA? (OK = venda / Cancelar = locação)') ? 'venda' : 'locacao';
-    const r = await post({ action: 'virar_indicacao', id: c.id, indicado_nome: nome, indicado_contato: fone, tipo },
-                         '🎁 Indicação criada no funil! Card movido pra "Indicou".');
-    if (r) { ov.remove(); reload(); }
-  };
+  ov.querySelector('#ck-indicou').onclick = () => registrarIndicacao(c, () => ov.remove());
   const del = ov.querySelector('#ck-del');
   if (del) del.onclick = async () => {
     if (!confirm('Excluir este card de vez? (pro dia a dia, prefira o descarte)')) return;

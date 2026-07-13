@@ -51,7 +51,7 @@ DEFAULT_CFG = {
         "lote_dia": 45,          # meta diária de cards trabalhados (espelha a meta da Fiscalização)
         "followup_dias": 3,      # 'abordado' parado há N dias → follow-up
         "topou_dias": 2,         # 'topou' sem indicação há N dias → cobrar o contato
-        "prioridade": ["fechou_12m", "visita_60d", "manual", "carteira_map"],
+        "prioridade": ["fechou_12m", "visita_60d", "manual", "funil_map"],
         "responsavel_match": "mariane",
     },
 }
@@ -67,15 +67,20 @@ def _now():
 def _cfg(sb):
     v = _kv(sb, CFG_KEY)
     if isinstance(v, dict) and v.get("colunas"):
+        cad = v.get("cadencia") or {}
+        # base antiga 'carteira_map' virou 'funil_map' (v84.28)
+        cad["prioridade"] = [("funil_map" if b == "carteira_map" else b)
+                             for b in (cad.get("prioridade") or DEFAULT_CFG["cadencia"]["prioridade"])]
+        v["cadencia"] = {**DEFAULT_CFG["cadencia"], **cad}
         return v
     _kv_set(sb, CFG_KEY, DEFAULT_CFG)
     return json.loads(json.dumps(DEFAULT_CFG))
 
 
-def _phone(raw):
-    """1º telefone do deal (rd_raw.contacts[].phones[]), só dígitos."""
+def _phone(contacts):
+    """1º telefone da lista contacts[].phones[] do RD, só dígitos."""
     try:
-        for c in (raw or {}).get("contacts") or []:
+        for c in contacts or []:
             for p in c.get("phones") or []:
                 d = re.sub(r"\D", "", str(p.get("phone") or ""))
                 if len(d) >= 10:
@@ -101,17 +106,17 @@ def _existentes(sb):
     """deal_ids que já têm card (pra sync não duplicar)."""
     try:
         rows = _page_all(lambda: sb.table("indicacao_kanban").select("deal_id")
-                         .not_.is_("deal_id", "null").order("criado_em"), max_rows=12000)
+                         .not_.is_("deal_id", "null").order("criado_em").order("id"), max_rows=20000)
         return {str(r["deal_id"]) for r in rows if r.get("deal_id")}
     except Exception:
         return set()
 
 
 def _inserir_lote(sb, cards):
-    """Insere em lotes de 200; ignora duplicados (unique deal_id)."""
+    """Insere em lotes de 500; ignora duplicados (unique deal_id)."""
     criadas = 0
-    for i in range(0, len(cards), 200):
-        lote = cards[i:i + 200]
+    for i in range(0, len(cards), 500):
+        lote = cards[i:i + 500]
         try:
             sb.table("indicacao_kanban").upsert(lote, on_conflict="deal_id",
                                                 ignore_duplicates=True).execute()
@@ -129,7 +134,9 @@ def _inserir_lote(sb, cards):
 def _sincronizar(sb, user):
     """As 3 bases do RD → cards novos em 'a_abordar'. Devolve contagem por base."""
     ja = _existentes(sb)
-    novos, res = [], {"fechou_12m": 0, "visita_60d": 0, "carteira_map": 0}
+    novos, res = [], {"fechou_12m": 0, "visita_60d": 0, "funil_map": 0}
+    # só o miolo de contatos do rd_raw (o blob inteiro ×6000 deals estoura a função)
+    SEL = "id,name,contacts:rd_raw->contacts"
 
     def add(deal, base):
         did = str(deal.get("id"))
@@ -140,14 +147,14 @@ def _sincronizar(sb, user):
             return
         ja.add(did)
         novos.append({"deal_id": did, "base": base, "nome": nome[:160],
-                      "contato": _phone(deal.get("rd_raw")),
+                      "contato": _phone(deal.get("contacts")),
                       "coluna": "a_abordar", "atualizado_por": str(user.get("id"))})
         res[base] += 1
 
     # 🏆 Base 3 primeiro (mais quente ganha a etiqueta de base)
     corte12m = (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
     try:
-        rows = _page_all(lambda: sb.table("deals").select("id,name,rd_raw").eq("win", True)
+        rows = _page_all(lambda: sb.table("deals").select(SEL).eq("win", True)
                          .gte("closed_at", corte12m).order("id"), max_rows=3000)
         for d in rows:
             add(d, "fechou_12m")
@@ -164,18 +171,18 @@ def _sincronizar(sb, user):
                     if e.get("deal_id") and frente_of(e.get("pipeline_name")) in ("map", "conquista")
                     and str(e["deal_id"]) not in ja})
         for i in range(0, len(ids), 150):
-            dd = sb.table("deals").select("id,name,rd_raw").in_("id", ids[i:i + 150]).execute().data or []
+            dd = sb.table("deals").select(SEL).in_("id", ids[i:i + 150]).execute().data or []
             for d in dd:
                 add(d, "visita_60d")
     except Exception:
         pass
 
-    # 🗂 Base 1: funil CARTEIRA MAP inteiro
+    # 🗂 Base 1: FUNIL MAP inteiro (base de clientes pra pedir indicação)
     try:
-        rows = _page_all(lambda: sb.table("deals").select("id,name,rd_raw")
-                         .ilike("pipeline_name", "%carteira map%").order("id"), max_rows=5000)
+        rows = _page_all(lambda: sb.table("deals").select(SEL)
+                         .ilike("pipeline_name", "funil map").order("id"), max_rows=8000)
         for d in rows:
-            add(d, "carteira_map")
+            add(d, "funil_map")
     except Exception:
         pass
 
@@ -499,6 +506,19 @@ class handler(BaseHTTPRequestHandler):
                 _kv_set(sb, CFG_KEY, cfg)
                 audit(self, user, "ik.set_cfg", "shared_kv", CFG_KEY, notes=f"{len(cols)} col / {len(tags)} tags")
                 return self._send(200, {"ok": True, "cfg": cfg})
+
+            if action == "limpar_base":
+                if lvl < 7:
+                    return self._send(403, {"ok": False, "error": "limpar base é da gestão (lvl>=7)"})
+                b = str(body.get("base") or "").strip()
+                if not b:
+                    return self._send(400, {"ok": False, "error": "base obrigatória"})
+                # só remove cards INTOCADOS (nunca abordados, sem indicação amarrada)
+                r = sb.table("indicacao_kanban").delete().eq("base", b).eq("coluna", "a_abordar") \
+                    .is_("abordado_em", "null").is_("indicacao_id", "null").execute()
+                n = len(r.data or [])
+                audit(self, user, "ik.limpar_base", "indicacao_kanban", None, notes=f"base={b} removidos={n}")
+                return self._send(200, {"ok": True, "removidos": n})
 
             if action == "excluir":
                 if lvl < 7:
