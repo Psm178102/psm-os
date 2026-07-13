@@ -6,6 +6,7 @@
    Backend: /api/v3/producao/indicacoes */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { kanbanAba } from './indicacao-kanban.js';
 
 let _root = null, _d = null, _filtro = '', _deals = null, _busy = false, _formAberto = false;
 let _aba = 'funil', _editFaixas = false, _editFluxo = null; // id do fluxo em edição | '__novo__'
@@ -311,28 +312,32 @@ function htmlFunil() {
 }
 
 function render() {
-  const fluxosAba = _aba === 'fluxos';
+  const fluxosAba = _aba === 'fluxos', kanban = _aba === 'kanban';
+  const funil = !fluxosAba && !kanban;
   _root.innerHTML = `
     <div class="card">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
         <h2 class="card-title" style="margin:0">🎁 Indicação Premiada</h2>
         <span class="tiny muted">indicou → qualificou → RD → venda → prêmio pela faixa de VGV · Mariane roda, Isabella atende</span>
         <span style="margin-left:auto"></span>
-        ${fluxosAba ? '' : `
+        ${funil ? `
         <button class="btn btn-primary btn-sm" id="ip-nova">➕ Nova indicação</button>
         <button class="btn btn-ghost btn-sm" id="ip-prom">🌟 Puxar promotores do NPS</button>
-        <button class="btn btn-ghost btn-sm" id="ip-conferir">🔄 Conferir vendas no RD</button>`}
+        <button class="btn btn-ghost btn-sm" id="ip-conferir">🔄 Conferir vendas no RD</button>` : ''}
         <button class="btn btn-ghost btn-sm" id="ip-reload">↻</button>
       </div>
       <div class="flex mt-2" style="gap:6px">
-        <button class="btn btn-sm ${!fluxosAba ? 'btn-primary' : 'btn-ghost'}" id="ip-aba-funil">🎯 Funil</button>
+        <button class="btn btn-sm ${kanban ? 'btn-primary' : 'btn-ghost'}" id="ip-aba-kanban">📋 Kanban de abordagem</button>
+        <button class="btn btn-sm ${funil ? 'btn-primary' : 'btn-ghost'}" id="ip-aba-funil">🎯 Funil</button>
         <button class="btn btn-sm ${fluxosAba ? 'btn-primary' : 'btn-ghost'}" id="ip-aba-fluxos">💬 Fluxos de abordagem</button>
       </div>
-    ${fluxosAba ? htmlFluxos() + '</div>' : htmlFunil()}`;
+    ${kanban ? '</div><div id="ik-host" class="mt-2"></div>' : fluxosAba ? htmlFluxos() + '</div>' : htmlFunil()}`;
 
   _root.querySelector('#ip-reload').onclick = reload;
+  _root.querySelector('#ip-aba-kanban').onclick = () => { _aba = 'kanban'; _editFaixas = false; _editFluxo = null; render(); };
   _root.querySelector('#ip-aba-funil').onclick = () => { _aba = 'funil'; _editFluxo = null; render(); };
   _root.querySelector('#ip-aba-fluxos').onclick = () => { _aba = 'fluxos'; _editFaixas = false; render(); };
+  if (kanban) { kanbanAba(_root.querySelector('#ik-host')); return; }
   if (fluxosAba) { wireFluxos(); return; }
   _root.querySelector('#ip-conferir').onclick = () => post({ action: 'conferir_vendas' }, '🔄 Conferido no RD.');
   _root.querySelector('#ip-prom').onclick = () => post({ action: 'puxar_promotores' }, '🌟 Promotores puxados pro funil.');

@@ -1,0 +1,379 @@
+"""
+GET/POST /api/v3/producao/indicacao_kanban — KANBAN DE ABORDAGEM (Mariane). v84.25
+
+O pipeline de abordagem pra pedir indicação, alimentado SOZINHO pelo RD CRM
+em 3 bases (prioridade: quente > frio; um deal entra só 1 vez, unique deal_id):
+  🏆 fechou_12m  — fechou negócio na PSM nos últimos 12 meses (win + closed_at)
+  👣 visita_60d  — realizou visita (deal_stage_events estágio ~visita, funis
+                   MAP + Conquista) nos últimos 60 dias
+  🗂 carteira_map — todos do funil CARTEIRA MAP do RD
+
+Card: coluna (drag&drop), etiquetas, obs, objetivo (venda|captacao|locacao),
+valor da indicação, prêmio, tarefa com data+hora início/fim (vira evento na
+Agenda), descarte com motivo, e "🎁 virou indicação" (cria a ficha no funil
+da Indicação Premiada e amarra as duas pontas).
+
+Interligações:
+- 1ª vez que o card sai de "a_abordar" (não-descarte) → producao_eventos
+  'abordagem_indicacao' (o contador de 45/dia da Mariane anda sozinho).
+- Colunas e etiquetas são EDITÁVEIS (shared_kv indicacao_kanban_cfg, lvl>=7);
+  'a_abordar' e 'descartado' são estruturais (não removíveis).
+
+Auth: lvl>=2 (Mariane pra cima); set_cfg/excluir lvl>=7.
+"""
+from http.server import BaseHTTPRequestHandler
+import json, os, re, sys, uuid
+from datetime import datetime, timedelta, timezone
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of  # type: ignore
+from _fisc_lib import _kv, _kv_set  # type: ignore
+
+CFG_KEY = "indicacao_kanban_cfg"
+DEFAULT_CFG = {
+    "colunas": [
+        {"id": "a_abordar", "nome": "A abordar", "emoji": "📥", "cor": "#64748b"},
+        {"id": "abordado", "nome": "Abordado — aguardando", "emoji": "💬", "cor": "#2563eb"},
+        {"id": "topou", "nome": "Topou indicar", "emoji": "🤝", "cor": "#d97706"},
+        {"id": "indicou", "nome": "Indicou", "emoji": "🎁", "cor": "#16a34a"},
+        {"id": "descartado", "nome": "Descartado", "emoji": "🗑", "cor": "#dc2626"},
+    ],
+    "etiquetas": [
+        {"id": "quente", "nome": "Quente", "cor": "#dc2626"},
+        {"id": "morno", "nome": "Morno", "cor": "#d97706"},
+        {"id": "frio", "nome": "Frio", "cor": "#2563eb"},
+        {"id": "vip", "nome": "VIP", "cor": "#7c3aed"},
+        {"id": "recontatar", "nome": "Recontatar", "cor": "#0891b2"},
+    ],
+}
+COLS_FIXAS = ("a_abordar", "descartado")
+OBJETIVOS = ("venda", "captacao", "locacao")
+CAMPOS_EDIT = ("nome", "contato", "obs", "objetivo", "valor_indicacao", "premio", "etiquetas")
+
+
+def _now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _cfg(sb):
+    v = _kv(sb, CFG_KEY)
+    if isinstance(v, dict) and v.get("colunas"):
+        return v
+    _kv_set(sb, CFG_KEY, DEFAULT_CFG)
+    return json.loads(json.dumps(DEFAULT_CFG))
+
+
+def _phone(raw):
+    """1º telefone do deal (rd_raw.contacts[].phones[]), só dígitos."""
+    try:
+        for c in (raw or {}).get("contacts") or []:
+            for p in c.get("phones") or []:
+                d = re.sub(r"\D", "", str(p.get("phone") or ""))
+                if len(d) >= 10:
+                    return d
+    except Exception:
+        pass
+    return None
+
+
+def _existentes(sb):
+    """deal_ids que já têm card (pra sync não duplicar)."""
+    out = set()
+    try:
+        rows = sb.table("indicacao_kanban").select("deal_id").not_.is_("deal_id", "null") \
+            .limit(10000).execute().data or []
+        out = {str(r["deal_id"]) for r in rows if r.get("deal_id")}
+    except Exception:
+        pass
+    return out
+
+
+def _inserir_lote(sb, cards):
+    """Insere em lotes de 200; ignora duplicados (unique deal_id)."""
+    criadas = 0
+    for i in range(0, len(cards), 200):
+        lote = cards[i:i + 200]
+        try:
+            sb.table("indicacao_kanban").upsert(lote, on_conflict="deal_id",
+                                                ignore_duplicates=True).execute()
+            criadas += len(lote)
+        except Exception:
+            for c in lote:  # fallback: 1 a 1 pra não perder o lote por 1 conflito
+                try:
+                    sb.table("indicacao_kanban").insert(c).execute()
+                    criadas += 1
+                except Exception:
+                    pass
+    return criadas
+
+
+def _sincronizar(sb, user):
+    """As 3 bases do RD → cards novos em 'a_abordar'. Devolve contagem por base."""
+    ja = _existentes(sb)
+    novos, res = [], {"fechou_12m": 0, "visita_60d": 0, "carteira_map": 0}
+
+    def add(deal, base):
+        did = str(deal.get("id"))
+        if not did or did in ja:
+            return
+        nome = (deal.get("name") or "").strip()
+        if not nome:
+            return
+        ja.add(did)
+        novos.append({"deal_id": did, "base": base, "nome": nome[:160],
+                      "contato": _phone(deal.get("rd_raw")),
+                      "coluna": "a_abordar", "atualizado_por": str(user.get("id"))})
+        res[base] += 1
+
+    # 🏆 Base 3 primeiro (mais quente ganha a etiqueta de base)
+    corte12m = (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
+    try:
+        rows = sb.table("deals").select("id,name,rd_raw").eq("win", True) \
+            .gte("closed_at", corte12m).limit(2000).execute().data or []
+        for d in rows:
+            add(d, "fechou_12m")
+    except Exception:
+        pass
+
+    # 👣 Base 2: visitas 60d (event sourcing), funis MAP + Conquista
+    corte60d = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
+    try:
+        evs = sb.table("deal_stage_events").select("deal_id,pipeline_name") \
+            .ilike("stage_name", "%visita%").gte("occurred_at", corte60d) \
+            .limit(3000).execute().data or []
+        ids = list({str(e["deal_id"]) for e in evs
+                    if e.get("deal_id") and frente_of(e.get("pipeline_name")) in ("map", "conquista")
+                    and str(e["deal_id"]) not in ja})
+        for i in range(0, len(ids), 150):
+            dd = sb.table("deals").select("id,name,rd_raw").in_("id", ids[i:i + 150]).execute().data or []
+            for d in dd:
+                add(d, "visita_60d")
+    except Exception:
+        pass
+
+    # 🗂 Base 1: funil CARTEIRA MAP inteiro
+    try:
+        rows = sb.table("deals").select("id,name,rd_raw").ilike("pipeline_name", "%carteira map%") \
+            .limit(3000).execute().data or []
+        for d in rows:
+            add(d, "carteira_map")
+    except Exception:
+        pass
+
+    criadas = _inserir_lote(sb, novos) if novos else 0
+    return res, criadas
+
+
+class handler(BaseHTTPRequestHandler):
+    def _send(self, s, b):
+        self.send_response(s); self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*"); self.send_header("Cache-Control", "no-store")
+        self.end_headers(); self.wfile.write(json.dumps(b, ensure_ascii=False, default=str).encode("utf-8"))
+
+    def do_OPTIONS(self):
+        self.send_response(204); self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
+
+    def do_GET(self):
+        try:
+            user = require_user(self, min_lvl=2)
+        except AuthError as e:
+            return self._send(e.status, {"ok": False, "error": e.message})
+        sb = supabase_client()
+        if not sb:
+            return self._send(503, {"ok": False, "error": "backend"})
+        try:
+            rows = sb.table("indicacao_kanban").select(
+                "id,deal_id,base,nome,contato,coluna,etiquetas,obs,objetivo,valor_indicacao,"
+                "premio,descarte_motivo,tarefa,indicacao_id,abordado_em,criado_em,atualizado_em") \
+                .order("atualizado_em", desc=True).limit(5000).execute().data or []
+        except Exception as e:
+            return self._send(502, {"ok": False, "error": str(e)[:200]})
+        return self._send(200, {"ok": True, "cards": rows, "cfg": _cfg(sb),
+                                "can_cfg": (user.get("lvl") or 0) >= 7})
+
+    def do_POST(self):
+        try:
+            user = require_user(self, min_lvl=2)
+        except AuthError as e:
+            return self._send(e.status, {"ok": False, "error": e.message})
+        try:
+            raw = self.rfile.read(int(self.headers.get("Content-Length") or 0)).decode("utf-8")
+            body = json.loads(raw or "{}")
+            if isinstance(body, str):
+                body = json.loads(body or "{}")
+        except Exception:
+            return self._send(400, {"ok": False, "error": "JSON inválido"})
+        sb = supabase_client()
+        if not sb:
+            return self._send(503, {"ok": False, "error": "backend"})
+        action = (body.get("action") or "").strip()
+        lvl = user.get("lvl") or 0
+
+        def card(cid):
+            rows = sb.table("indicacao_kanban").select("*").eq("id", str(cid)).limit(1).execute().data or []
+            return rows[0] if rows else None
+
+        def log_abordagem(c):
+            """1ª saída de a_abordar (não-descarte) conta na Fiscalização."""
+            try:
+                sb.table("producao_eventos").insert({
+                    "colaborador": "mariane", "tipo": "abordagem_indicacao",
+                    "ref_type": "indicacao_kanban", "ref_id": str(c["id"]),
+                    "meta": {"rotulo": (c.get("nome") or "")[:80], "base": c.get("base")},
+                    "criado_por": str(user.get("id"))}).execute()
+            except Exception:
+                pass
+
+        try:
+            if action == "sincronizar":
+                res, criadas = _sincronizar(sb, user)
+                audit(self, user, "ik.sincronizar", "indicacao_kanban", None,
+                      notes=f"criadas={criadas} {res}")
+                return self._send(200, {"ok": True, "criadas": criadas, "por_base": res})
+
+            if action == "mover":
+                c = card(body.get("id"))
+                col = (body.get("coluna") or "").strip()
+                if not c or not col:
+                    return self._send(400, {"ok": False, "error": "id e coluna obrigatórios"})
+                cols = {x["id"] for x in _cfg(sb).get("colunas") or []}
+                if col not in cols:
+                    return self._send(400, {"ok": False, "error": "coluna não existe"})
+                upd = {"coluna": col, "atualizado_em": _now(), "atualizado_por": str(user.get("id"))}
+                if col == "descartado":
+                    upd["descarte_motivo"] = str(body.get("motivo") or "").strip()[:200] or None
+                elif c.get("coluna") == "descartado":
+                    upd["descarte_motivo"] = None  # voltou do descarte
+                if col != "descartado" and c.get("coluna") == "a_abordar" and not c.get("abordado_em"):
+                    upd["abordado_em"] = _now()
+                    log_abordagem(c)
+                sb.table("indicacao_kanban").update(upd).eq("id", str(c["id"])).execute()
+                return self._send(200, {"ok": True})
+
+            if action == "editar":
+                c = card(body.get("id"))
+                if not c:
+                    return self._send(404, {"ok": False, "error": "card não encontrado"})
+                upd = {}
+                for k in CAMPOS_EDIT:
+                    if k not in body:
+                        continue
+                    v = body.get(k)
+                    if k == "etiquetas":
+                        upd[k] = [str(x)[:40] for x in v][:12] if isinstance(v, list) else []
+                    elif k in ("valor_indicacao", "premio"):
+                        try:
+                            upd[k] = float(v) if v not in (None, "") else None
+                        except (TypeError, ValueError):
+                            pass
+                    elif k == "objetivo":
+                        upd[k] = v if v in OBJETIVOS else None
+                    else:
+                        upd[k] = (str(v).strip()[:2000] or None) if v is not None else None
+                if not upd:
+                    return self._send(400, {"ok": False, "error": "nada pra salvar"})
+                upd.update({"atualizado_em": _now(), "atualizado_por": str(user.get("id"))})
+                sb.table("indicacao_kanban").update(upd).eq("id", str(c["id"])).execute()
+                return self._send(200, {"ok": True})
+
+            if action == "novo":  # card manual
+                nome = str(body.get("nome") or "").strip()
+                if not nome:
+                    return self._send(400, {"ok": False, "error": "nome obrigatório"})
+                ins = {"base": "manual", "nome": nome[:160],
+                       "contato": (str(body.get("contato") or "").strip()[:40] or None),
+                       "coluna": "a_abordar", "atualizado_por": str(user.get("id"))}
+                r = sb.table("indicacao_kanban").insert(ins).execute().data or []
+                return self._send(200, {"ok": True, "id": (r[0]["id"] if r else None)})
+
+            if action == "tarefa":
+                c = card(body.get("id"))
+                if not c:
+                    return self._send(404, {"ok": False, "error": "card não encontrado"})
+                data = str(body.get("data") or "").strip()[:10]
+                if not data:
+                    return self._send(400, {"ok": False, "error": "data obrigatória"})
+                hi = (str(body.get("hora_ini") or "").strip()[:5] or None)
+                hf = (str(body.get("hora_fim") or "").strip()[:5] or None)
+                titulo = (str(body.get("titulo") or "").strip()[:140]
+                          or f"Indicação — {c.get('nome')}")
+                ev = {"id": "evik_" + uuid.uuid4().hex[:10], "tipo": "tarefa",
+                      "titulo": titulo, "data": data, "hora_inicio": hi, "hora_fim": hf,
+                      "all_day": not hi, "participantes": [str(user.get("id"))],
+                      "descricao": f"Kanban Indicação Premiada · {c.get('nome')} ({c.get('contato') or 'sem fone'})",
+                      "status": "agendado"}
+                antigo = (c.get("tarefa") or {}).get("evento_id")
+                if antigo:
+                    try:
+                        sb.table("eventos").delete().eq("id", antigo).execute()
+                    except Exception:
+                        pass
+                sb.table("eventos").insert(ev).execute()
+                tarefa = {"data": data, "hora_ini": hi, "hora_fim": hf,
+                          "titulo": titulo, "evento_id": ev["id"]}
+                sb.table("indicacao_kanban").update({"tarefa": tarefa, "atualizado_em": _now(),
+                                                     "atualizado_por": str(user.get("id"))}) \
+                    .eq("id", str(c["id"])).execute()
+                return self._send(200, {"ok": True, "tarefa": tarefa})
+
+            if action == "virar_indicacao":
+                c = card(body.get("id"))
+                if not c:
+                    return self._send(404, {"ok": False, "error": "card não encontrado"})
+                tipo = body.get("tipo") if body.get("tipo") in ("venda", "locacao") else "venda"
+                ind = {"tipo": tipo, "origem": "abordagem", "status": "nova",
+                       "indicador_nome": (c.get("nome") or "?")[:120],
+                       "indicador_contato": c.get("contato"),
+                       "indicado_nome": (str(body.get("indicado_nome") or "").strip()[:120] or None),
+                       "indicado_contato": (str(body.get("indicado_contato") or "").strip()[:40] or None),
+                       "obs": f"Via Kanban de Abordagem (base {c.get('base')})",
+                       "criado_por": str(user.get("id"))}
+                r = sb.table("indicacoes").insert(ind).execute().data or []
+                iid = str(r[0]["id"]) if r else None
+                upd = {"coluna": "indicou", "indicacao_id": iid, "atualizado_em": _now(),
+                       "atualizado_por": str(user.get("id"))}
+                if not c.get("abordado_em"):
+                    upd["abordado_em"] = _now()
+                    log_abordagem(c)
+                sb.table("indicacao_kanban").update(upd).eq("id", str(c["id"])).execute()
+                audit(self, user, "ik.virar_indicacao", "indicacoes", iid, notes=c.get("nome"))
+                return self._send(200, {"ok": True, "indicacao_id": iid})
+
+            if action == "set_cfg":
+                if lvl < 7:
+                    return self._send(403, {"ok": False, "error": "editar o quadro é da gestão (lvl>=7)"})
+                cols, tags = [], []
+                for x in (body.get("colunas") or [])[:12]:
+                    if not isinstance(x, dict) or not str(x.get("nome") or "").strip():
+                        continue
+                    cols.append({"id": (str(x.get("id") or "").strip() or "col_" + uuid.uuid4().hex[:6]),
+                                 "nome": str(x["nome"]).strip()[:40],
+                                 "emoji": (str(x.get("emoji") or "📌").strip()[:8] or "📌"),
+                                 "cor": (str(x.get("cor") or "#64748b").strip()[:16])})
+                ids = [c["id"] for c in cols]
+                if not all(f in ids for f in COLS_FIXAS):
+                    return self._send(400, {"ok": False, "error": "as colunas 'a_abordar' e 'descartado' são estruturais e não podem sair"})
+                for x in (body.get("etiquetas") or [])[:20]:
+                    if not isinstance(x, dict) or not str(x.get("nome") or "").strip():
+                        continue
+                    tags.append({"id": (str(x.get("id") or "").strip() or "tag_" + uuid.uuid4().hex[:6]),
+                                 "nome": str(x["nome"]).strip()[:30],
+                                 "cor": (str(x.get("cor") or "#64748b").strip()[:16])})
+                cfg = {"colunas": cols, "etiquetas": tags}
+                _kv_set(sb, CFG_KEY, cfg)
+                audit(self, user, "ik.set_cfg", "shared_kv", CFG_KEY, notes=f"{len(cols)} col / {len(tags)} tags")
+                return self._send(200, {"ok": True, "cfg": cfg})
+
+            if action == "excluir":
+                if lvl < 7:
+                    return self._send(403, {"ok": False, "error": "excluir card é da gestão (use o descarte)"})
+                cid = str(body.get("id") or "")
+                sb.table("indicacao_kanban").delete().eq("id", cid).execute()
+                audit(self, user, "ik.excluir", "indicacao_kanban", cid)
+                return self._send(200, {"ok": True})
+
+            return self._send(400, {"ok": False, "error": "action inválida"})
+        except Exception as e:
+            return self._send(500, {"ok": False, "error": str(e)[:200]})
