@@ -99,7 +99,7 @@ function render() {
         <input class="input" id="av-busca" placeholder="🔎 nome ou fone" value="${esc(_busca)}" style="width:150px;padding:4px 9px">
         <span style="margin-left:auto"></span>
         ${['', ...Object.keys(ORIGENS)].map(o => `<button class="btn btn-sm ${_fOrigem === o ? 'btn-primary' : 'btn-ghost'} av-fo" data-o="${o}" style="padding:2px 8px;font-size:11px">${o ? ORIGENS[o][0] : 'Todas'} (${o ? (_d.cards || []).filter(c => c.origem === o).length : (_d.cards || []).length})</button>`).join('')}
-        ${_d.can_cfg ? '<button class="btn btn-ghost btn-sm" id="av-cfg" title="Editar colunas, etiquetas e janela de visitas">⚙️</button>' : ''}
+        ${_d.can_cfg ? '<button class="btn btn-ghost btn-sm" id="av-cfg" title="Criar/excluir/renomear colunas, cores, etiquetas e janela de visitas">⚙️ Personalizar</button>' : ''}
       </div>`}
     </div>
     ${fluxosAba ? htmlFluxos() : `

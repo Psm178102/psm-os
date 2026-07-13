@@ -53,19 +53,57 @@ async function post(body, okMsg) {
   reload();
 }
 
-/* ── Faixas de prêmio (visão + editor da gestão) ─────────────────────────── */
+/* ── Faixas de prêmio (caixinha do funil + aba 💰 Tabela de Prêmios) ─────── */
 function faixasBox() {
   const fv = _d.faixas_venda || [], fl = _d.faixas_locacao || [];
-  if (_editFaixas) return faixasEditor(fv, fl);
   const fmt = ([teto, p], i) => `${i === 0 ? 'até' : ''} ${teto >= 999999999 ? 'acima' : 'R$ ' + Number(teto).toLocaleString('pt-BR')} → <b>${brl(p)}</b>`;
   return `<div class="tiny muted" style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
     <div class="flex items-center" style="gap:8px">
       <b>💰 Faixas de prêmio:</b>
-      ${_d.can_edit ? '<button class="btn btn-ghost btn-sm" id="ip-edfaixas" style="padding:1px 8px;font-size:11px;margin-left:auto">✏️ Editar faixas</button>' : ''}
+      <button class="btn btn-ghost btn-sm" id="ip-verfaixas" style="padding:1px 8px;font-size:11px;margin-left:auto">💰 Tabela completa</button>
     </div>
     VENDA (por VGV): ${fv.map(fmt).join(' · ')} · acima da última: personalizável<br>
     LOCAÇÃO (por aluguel): ${fl.map(fmt).join(' · ')}
   </div>`;
+}
+
+function htmlFaixasAba() {
+  const fv = _d.faixas_venda || [], fl = _d.faixas_locacao || [];
+  if (_editFaixas) return `<div class="mt-2">${faixasEditor(fv, fl)}</div></div>`;
+  const linhaV = ([teto, p], i) => {
+    const de = i === 0 ? 0 : Number(fv[i - 1][0]) + 0.01;
+    return `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+      <td style="padding:8px 10px">${i === 0 ? 'até ' + brl(teto) : brl(de) + ' — ' + brl(teto)}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:900;color:#d97706;font-size:15px">${brl(p)}</td>
+    </tr>`;
+  };
+  const linhaL = ([teto, p], i) => {
+    const de = i === 0 ? 0 : Number(fl[i - 1][0]) + 0.01;
+    const faixa = teto >= 999999999 ? 'acima de ' + brl(fl[i - 1] ? fl[i - 1][0] : 0) : (i === 0 ? 'até ' + brl(teto) : brl(de) + ' — ' + brl(teto));
+    return `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+      <td style="padding:8px 10px">${faixa}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:900;color:#0891b2;font-size:15px">${brl(p)}</td>
+    </tr>`;
+  };
+  const tabela = (titulo, sub, linhas, extra) => `
+    <div class="card" style="margin:0;flex:1;min-width:300px;padding:14px">
+      <b>${titulo}</b><div class="tiny muted">${sub}</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px">
+        <tr class="tiny muted" style="text-transform:uppercase;letter-spacing:.5px"><th style="text-align:left;padding:4px 10px">Valor do negócio</th><th style="text-align:right;padding:4px 10px">🎁 Prêmio</th></tr>
+        ${linhas}
+        ${extra || ''}
+      </table>
+    </div>`;
+  return `
+    <div class="flex mt-2" style="gap:8px;align-items:center">
+      <span class="tiny muted">Quem indica ganha pela faixa do negócio fechado. Mesma fonte do Painel de Fiscalização — mudou aqui, muda em todo lugar.</span>
+      ${_d.can_edit ? '<button class="btn btn-primary btn-sm" id="ip-edfaixas" style="margin-left:auto">✏️ Editar faixas</button>' : ''}
+    </div>
+    <div class="flex mt-2" style="gap:10px;flex-wrap:wrap">
+      ${tabela('🏠 VENDA', 'prêmio pelo VGV do imóvel vendido', fv.map(linhaV).join(''),
+        `<tr style="border-top:1px solid var(--bd,#eef2f7)"><td style="padding:8px 10px">acima de ${brl(fv.length ? fv[fv.length - 1][0] : 0)}</td><td style="padding:8px 10px;text-align:right;font-weight:800;color:#7c3aed">personalizável (sócios)</td></tr>`)}
+      ${tabela('🔑 LOCAÇÃO', 'prêmio pelo aluguel mensal do contrato fechado', fl.map(linhaL).join(''), '')}
+    </div></div>`;
 }
 
 function faixasEditor(fv, fl) {
@@ -95,6 +133,7 @@ function faixasEditor(fv, fl) {
 
 function wireFaixas() {
   const $ = s => _root.querySelector(s);
+  if ($('#ip-verfaixas')) $('#ip-verfaixas').onclick = () => { _aba = 'faixas'; render(); };
   if ($('#ip-edfaixas')) $('#ip-edfaixas').onclick = () => { _editFaixas = true; render(); };
   if (!_editFaixas) return;
   const addRow = grupo => {
@@ -312,8 +351,8 @@ function htmlFunil() {
 }
 
 function render() {
-  const fluxosAba = _aba === 'fluxos', kanban = _aba === 'kanban';
-  const funil = !fluxosAba && !kanban;
+  const fluxosAba = _aba === 'fluxos', kanban = _aba === 'kanban', faixasAba = _aba === 'faixas';
+  const funil = !fluxosAba && !kanban && !faixasAba;
   _root.innerHTML = `
     <div class="card">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
@@ -326,19 +365,22 @@ function render() {
         <button class="btn btn-ghost btn-sm" id="ip-conferir">🔄 Conferir vendas no RD</button>` : ''}
         <button class="btn btn-ghost btn-sm" id="ip-reload">↻</button>
       </div>
-      <div class="flex mt-2" style="gap:6px">
+      <div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
         <button class="btn btn-sm ${kanban ? 'btn-primary' : 'btn-ghost'}" id="ip-aba-kanban">📋 Kanban de abordagem</button>
         <button class="btn btn-sm ${funil ? 'btn-primary' : 'btn-ghost'}" id="ip-aba-funil">🎯 Funil</button>
         <button class="btn btn-sm ${fluxosAba ? 'btn-primary' : 'btn-ghost'}" id="ip-aba-fluxos">💬 Fluxos de abordagem</button>
+        <button class="btn btn-sm ${faixasAba ? 'btn-primary' : 'btn-ghost'}" id="ip-aba-faixas">💰 Tabela de Prêmios</button>
       </div>
-    ${kanban ? '</div><div id="ik-host" class="mt-2"></div>' : fluxosAba ? htmlFluxos() + '</div>' : htmlFunil()}`;
+    ${kanban ? '</div><div id="ik-host" class="mt-2"></div>' : fluxosAba ? htmlFluxos() + '</div>' : faixasAba ? htmlFaixasAba() : htmlFunil()}`;
 
   _root.querySelector('#ip-reload').onclick = reload;
   _root.querySelector('#ip-aba-kanban').onclick = () => { _aba = 'kanban'; _editFaixas = false; _editFluxo = null; render(); };
-  _root.querySelector('#ip-aba-funil').onclick = () => { _aba = 'funil'; _editFluxo = null; render(); };
+  _root.querySelector('#ip-aba-funil').onclick = () => { _aba = 'funil'; _editFluxo = null; _editFaixas = false; render(); };
   _root.querySelector('#ip-aba-fluxos').onclick = () => { _aba = 'fluxos'; _editFaixas = false; render(); };
+  _root.querySelector('#ip-aba-faixas').onclick = () => { _aba = 'faixas'; _editFaixas = false; render(); };
   if (kanban) { kanbanAba(_root.querySelector('#ik-host')); return; }
   if (fluxosAba) { wireFluxos(); return; }
+  if (faixasAba) { wireFaixas(); return; }
   _root.querySelector('#ip-conferir').onclick = () => post({ action: 'conferir_vendas' }, '🔄 Conferido no RD.');
   _root.querySelector('#ip-prom').onclick = () => post({ action: 'puxar_promotores' }, '🌟 Promotores puxados pro funil.');
   _root.querySelectorAll('.ip-f').forEach(b => b.onclick = () => { _filtro = b.dataset.f; render(); });

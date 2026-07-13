@@ -105,7 +105,7 @@ function render() {
         <input class="input" id="ik-busca" placeholder="🔎 nome ou fone" value="${esc(_busca)}" style="width:150px;padding:4px 9px">
         <span style="margin-left:auto"></span>
         ${['', ...Object.keys(BASES)].map(b => `<button class="btn btn-sm ${_fBase === b ? 'btn-primary' : 'btn-ghost'} ik-fb" data-b="${b}" style="padding:2px 8px;font-size:11px">${b ? BASES[b][0] : 'Todas'} (${b ? (_d.cards || []).filter(c => c.base === b).length : (_d.cards || []).length})</button>`).join('')}
-        ${_d.can_cfg ? '<button class="btn btn-ghost btn-sm" id="ik-cfg" title="Editar colunas, etiquetas e cadência">⚙️</button>' : ''}
+        ${_d.can_cfg ? '<button class="btn btn-ghost btn-sm" id="ik-cfg" title="Criar/excluir/renomear colunas, cores, etiquetas e cadência">⚙️ Personalizar</button>' : ''}
         <button class="btn btn-ghost btn-sm" id="ik-reload">↻</button>
       </div>
     </div>
