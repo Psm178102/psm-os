@@ -432,7 +432,11 @@ function wireFluxos() {
 function abrirCfg() {
   const cfg = _d.cfg;
   const FIXAS = ['origens', 'descarte', 'nota_baixa', 'ciclo_realizado'];
-  const colRow = c => `<div class="flex" style="gap:5px;margin-top:4px" data-cfgcol="${esc(c.id)}">
+  const colRow = c => `<div class="flex" style="gap:5px;margin-top:4px;align-items:center" data-cfgcol="${esc(c.id)}">
+    <span style="display:flex;flex-direction:column">
+      <button class="btn btn-ghost cg-up" type="button" title="Mover pra cima" style="padding:0 5px;font-size:9px;line-height:1.3">▲</button>
+      <button class="btn btn-ghost cg-dn" type="button" title="Mover pra baixo" style="padding:0 5px;font-size:9px;line-height:1.3">▼</button>
+    </span>
     <input class="input cg-emoji" value="${esc(c.emoji)}" style="width:52px;padding:3px 7px">
     <input class="input cg-nome" value="${esc(c.nome)}" style="flex:1;padding:3px 8px">
     <input class="input cg-cor" type="color" value="${esc(c.cor)}" style="width:44px;padding:1px">
@@ -458,11 +462,16 @@ function abrirCfg() {
       <button class="btn btn-primary btn-sm" id="cg-save">💾 Salvar quadro</button>
     </div>`);
   const wireDel = () => ov.querySelectorAll('.cg-del, .tg-del').forEach(b => b.onclick = () => b.parentElement.remove());
-  wireDel();
+  const wireMove = () => ov.querySelectorAll('.cg-up, .cg-dn').forEach(b => b.onclick = () => {
+    const row = b.closest('[data-cfgcol]');
+    if (b.classList.contains('cg-up')) row.previousElementSibling?.before(row);
+    else row.nextElementSibling?.after(row);
+  });
+  wireDel(); wireMove();
   ov.querySelector('#cg-addcol').onclick = () => {
     const d = document.createElement('div');
     d.innerHTML = colRow({ id: '', emoji: '📌', nome: '', cor: '#64748b' });
-    ov.querySelector('#cg-cols').appendChild(d.firstElementChild); wireDel();
+    ov.querySelector('#cg-cols').appendChild(d.firstElementChild); wireDel(); wireMove();
   };
   ov.querySelector('#cg-addtag').onclick = () => {
     const d = document.createElement('div');
