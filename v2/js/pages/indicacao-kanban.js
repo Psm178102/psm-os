@@ -5,7 +5,17 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
-let _host = null, _d = null, _busy = false, _fBase = '', _busca = '', _showMax = {};
+let _host = null, _d = null, _busy = false, _fBase = '', _busca = '', _showMax = {}, _fHoje = false;
+
+const hojeStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const filaStatus = c => { // 'atrasada' | 'hoje' | null
+  const t = c.tarefa || {};
+  if (!t.auto || !t.data) return null;
+  return String(t.data) < hojeStr() ? 'atrasada' : String(t.data) === hojeStr() ? 'hoje' : null;
+};
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -50,8 +60,11 @@ function tagInfo(id) {
 function cardHtml(c) {
   const [bLbl, bCor] = BASES[c.base] || BASES.manual;
   const fone = (c.contato || '').replace(/\D/g, '');
+  const fs = filaStatus(c);
+  const borda = fs === 'atrasada' ? 'border:2px solid #dc2626' : fs === 'hoje' ? 'border:2px solid #2563eb' : 'border:1px solid var(--bd,#e2e8f0)';
   return `<div class="ik-card" draggable="true" data-id="${esc(c.id)}"
-    style="background:var(--bg-2);border:1px solid var(--bd,#e2e8f0);border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:grab">
+    style="background:var(--bg-2);${borda};border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:grab">
+    ${fs ? `<div class="tiny" style="font-weight:900;color:${fs === 'atrasada' ? '#dc2626' : '#2563eb'};margin-bottom:2px">${fs === 'atrasada' ? '⏰ ATRASADA' : '📅 FILA DE HOJE'}${c.tarefa?.titulo ? ' · ' + esc(c.tarefa.titulo.replace(/^[^ ]+ /, '')) : ''}</div>` : ''}
     <div class="flex items-center" style="gap:6px">
       <b style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.nome)}</b>
       ${fone ? `<a class="tiny" href="https://wa.me/55${esc(fone)}" target="_blank" rel="noopener" title="Abrir WhatsApp" onclick="event.stopPropagation()">💬</a>` : ''}
@@ -72,20 +85,26 @@ function cardHtml(c) {
 function render() {
   const cfg = _d.cfg || { colunas: [], etiquetas: [] };
   let cards = _d.cards || [];
+  const nFila = cards.filter(filaStatus).length;
+  if (_fHoje) cards = cards.filter(filaStatus);
   if (_fBase) cards = cards.filter(c => c.base === _fBase);
   if (_busca) { const q = _busca.toLowerCase(); cards = cards.filter(c => (c.nome || '').toLowerCase().includes(q) || (c.contato || '').includes(q)); }
   const porCol = {};
   cards.forEach(c => { (porCol[c.coluna] = porCol[c.coluna] || []).push(c); });
+  const peso = c => filaStatus(c) === 'atrasada' ? 0 : filaStatus(c) === 'hoje' ? 1 : 2;
+  Object.values(porCol).forEach(l => l.sort((a, b) => peso(a) - peso(b)));
 
   _host.innerHTML = `
     <div class="card" style="padding:10px 12px">
       <div class="flex items-center" style="gap:6px;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm" id="ik-sync" title="Puxa do RD: Carteira MAP + visitas 60d + fechados 12m">🔄 Sincronizar bases (RD)</button>
+        <button class="btn btn-sm ${_fHoje ? 'btn-primary' : 'btn-ghost'}" id="ik-hoje" style="font-weight:800" title="Só os cards da fila do dia (cadência automática)">📅 Fila de hoje (${nFila})</button>
+        <button class="btn btn-ghost btn-sm" id="ik-gerar" title="Monta a fila do dia agora (o cron faz isso sozinho às 9h)">▶️ Gerar fila</button>
+        <button class="btn btn-ghost btn-sm" id="ik-sync" title="Puxa do RD: Carteira MAP + visitas 60d + fechados 12m">🔄 Sincronizar bases</button>
         <button class="btn btn-ghost btn-sm" id="ik-novo">➕ Card manual</button>
-        <input class="input" id="ik-busca" placeholder="🔎 nome ou fone" value="${esc(_busca)}" style="width:170px;padding:4px 9px">
+        <input class="input" id="ik-busca" placeholder="🔎 nome ou fone" value="${esc(_busca)}" style="width:150px;padding:4px 9px">
         <span style="margin-left:auto"></span>
         ${['', ...Object.keys(BASES)].map(b => `<button class="btn btn-sm ${_fBase === b ? 'btn-primary' : 'btn-ghost'} ik-fb" data-b="${b}" style="padding:2px 8px;font-size:11px">${b ? BASES[b][0] : 'Todas'} (${b ? (_d.cards || []).filter(c => c.base === b).length : (_d.cards || []).length})</button>`).join('')}
-        ${_d.can_cfg ? '<button class="btn btn-ghost btn-sm" id="ik-cfg" title="Editar colunas e etiquetas">⚙️</button>' : ''}
+        ${_d.can_cfg ? '<button class="btn btn-ghost btn-sm" id="ik-cfg" title="Editar colunas, etiquetas e cadência">⚙️</button>' : ''}
         <button class="btn btn-ghost btn-sm" id="ik-reload">↻</button>
       </div>
     </div>
@@ -112,6 +131,13 @@ function render() {
 function wire() {
   const $ = s => _host.querySelector(s);
   $('#ik-reload').onclick = reload;
+  $('#ik-hoje').onclick = () => { _fHoje = !_fHoje; render(); };
+  $('#ik-gerar').onclick = async () => {
+    const r = await post({ action: 'gerar_fila', force: true });
+    if (r && r.ok !== false) alert(`📋 Fila do dia: ${r.total ?? 0} contato(s)\n⏰ ${r.atrasadas || 0} atrasada(s) · 🔁 ${r.followups || 0} follow-up(s) · 🤝 ${r.cobrancas || 0} cobrança(s) · 📞 ${r.novas || 0} nova(s)`);
+    else if (r) alert('Cadência desligada na config (⚙️).');
+    reload();
+  };
   $('#ik-sync').onclick = async () => {
     $('#ik-sync').disabled = true; $('#ik-sync').textContent = '⏳ Sincronizando…';
     const r = await post({ action: 'sincronizar' });
@@ -290,6 +316,7 @@ function abrirCfg() {
     <input class="input tg-cor" type="color" value="${esc(t.cor)}" style="width:44px;padding:1px">
     <button class="btn btn-ghost btn-sm tg-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>
   </div>`;
+  const cad = cfg.cadencia || {};
   const ov = overlay(`
     <div class="flex items-center"><h3 class="card-title" style="margin:0;flex:1">⚙️ Editar quadro</h3><button class="btn btn-ghost btn-sm" id="cg-x">✕</button></div>
     <div class="tiny mt-2" style="font-weight:800">Colunas <span class="muted" style="font-weight:400">(🔒 A abordar e Descartado ficam sempre)</span></div>
@@ -298,6 +325,13 @@ function abrirCfg() {
     <div class="tiny mt-2" style="font-weight:800">Etiquetas</div>
     <div id="cg-tags">${(cfg.etiquetas || []).map(tagRow).join('')}</div>
     <button class="btn btn-ghost btn-sm mt-1" id="cg-addtag" type="button">+ etiqueta</button>
+    <div class="tiny mt-2" style="font-weight:800">📅 Cadência diária <span class="muted" style="font-weight:400">(cron 9h seg–sex: monta a fila e notifica a responsável)</span></div>
+    <div class="flex mt-1" style="gap:8px;flex-wrap:wrap;align-items:center;background:var(--bg-3);border-radius:10px;padding:8px 10px">
+      <label class="tiny flex gap-1" style="align-items:center;font-weight:700"><input type="checkbox" id="cd-ativa" ${cad.ativa !== false ? 'checked' : ''}> Ativa</label>
+      <label class="tiny">Lote/dia <input class="input" id="cd-lote" type="number" min="1" max="500" value="${cad.lote_dia ?? 45}" style="width:70px;padding:2px 6px"></label>
+      <label class="tiny">Follow-up após <input class="input" id="cd-fu" type="number" min="1" max="30" value="${cad.followup_dias ?? 3}" style="width:56px;padding:2px 6px"> dias</label>
+      <label class="tiny">Cobrar "topou" após <input class="input" id="cd-tp" type="number" min="1" max="30" value="${cad.topou_dias ?? 2}" style="width:56px;padding:2px 6px"> dias</label>
+    </div>
     <div class="flex mt-3" style="gap:6px;justify-content:flex-end">
       <button class="btn btn-ghost btn-sm" id="cg-cancel">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="cg-save">💾 Salvar quadro</button>
@@ -324,7 +358,13 @@ function abrirCfg() {
     const etiquetas = [...ov.querySelectorAll('[data-cfgtag]')].map(r => ({
       id: r.dataset.cfgtag, nome: r.querySelector('.tg-nome').value.trim(), cor: r.querySelector('.tg-cor').value,
     })).filter(t => t.nome);
-    const r = await post({ action: 'set_cfg', colunas, etiquetas }, '⚙️ Quadro atualizado.');
+    const cadencia = {
+      ativa: ov.querySelector('#cd-ativa').checked,
+      lote_dia: Number(ov.querySelector('#cd-lote').value) || 45,
+      followup_dias: Number(ov.querySelector('#cd-fu').value) || 3,
+      topou_dias: Number(ov.querySelector('#cd-tp').value) || 2,
+    };
+    const r = await post({ action: 'set_cfg', colunas, etiquetas, cadencia }, '⚙️ Quadro atualizado.');
     if (r) { ov.remove(); reload(); }
   };
 }

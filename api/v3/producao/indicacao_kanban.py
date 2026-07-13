@@ -26,10 +26,11 @@ import json, os, re, sys, uuid
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of  # type: ignore
-from _fisc_lib import _kv, _kv_set  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of, notify_all  # type: ignore
+from _fisc_lib import _kv, _kv_set, get_cfg as fisc_cfg  # type: ignore
 
 CFG_KEY = "indicacao_kanban_cfg"
+CADENCIA_KEY = "kanban_cadencia_ultimo"
 DEFAULT_CFG = {
     "colunas": [
         {"id": "a_abordar", "nome": "A abordar", "emoji": "📥", "cor": "#64748b"},
@@ -45,6 +46,14 @@ DEFAULT_CFG = {
         {"id": "vip", "nome": "VIP", "cor": "#7c3aed"},
         {"id": "recontatar", "nome": "Recontatar", "cor": "#0891b2"},
     ],
+    "cadencia": {
+        "ativa": True,
+        "lote_dia": 45,          # meta diária de cards trabalhados (espelha a meta da Fiscalização)
+        "followup_dias": 3,      # 'abordado' parado há N dias → follow-up
+        "topou_dias": 2,         # 'topou' sem indicação há N dias → cobrar o contato
+        "prioridade": ["fechou_12m", "visita_60d", "manual", "carteira_map"],
+        "responsavel_match": "mariane",
+    },
 }
 COLS_FIXAS = ("a_abordar", "descartado")
 OBJETIVOS = ("venda", "captacao", "locacao")
@@ -164,6 +173,102 @@ def _sincronizar(sb, user):
     return res, criadas
 
 
+def _responsavel_ids(sb, match):
+    """user ids que batem no match (mesma regra user_match da Fiscalização)."""
+    try:
+        rows = sb.table("users").select("id,name,login,email").limit(500).execute().data or []
+        m = (match or "").lower()
+        return [str(r["id"]) for r in rows
+                if m and m in " ".join(str(r.get(k) or "") for k in ("name", "login", "email")).lower()]
+    except Exception:
+        return []
+
+
+def gerar_fila(sb, force=False):
+    """Monta a fila do dia: ⏰ atrasadas → 🔁 follow-ups → 🤝 cobranças → 📞 novas
+    (até o lote, bases quentes primeiro). Marca tarefa auto nos cards e notifica
+    a responsável. Idempotente por dia (force refaz)."""
+    cfg = _cfg(sb)
+    cad = cfg.get("cadencia") or {}
+    if not cad.get("ativa", True):
+        return {"ok": False, "motivo": "cadência desligada na config"}
+    brt = timezone(timedelta(hours=-3))
+    hoje = datetime.now(brt).date().isoformat()
+    ultimo = _kv(sb, CADENCIA_KEY)
+    if not force and ultimo.get("data") == hoje:
+        return {"ok": True, "ja_gerada": True, **(ultimo.get("res") or {})}
+    lote = max(1, min(500, int(cad.get("lote_dia") or 45)))
+    fu_dias = max(1, min(30, int(cad.get("followup_dias") or 3)))
+    tp_dias = max(1, min(30, int(cad.get("topou_dias") or 2)))
+    agora = datetime.now(timezone.utc)
+    corte_fu = (agora - timedelta(days=fu_dias)).isoformat()
+    corte_tp = (agora - timedelta(days=tp_dias)).isoformat()
+
+    rows = sb.table("indicacao_kanban").select(
+        "id,coluna,base,tarefa,indicacao_id,atualizado_em,criado_em") \
+        .neq("coluna", "descartado").neq("coluna", "indicou").limit(5000).execute().data or []
+
+    def t(c):
+        return c.get("tarefa") or {}
+
+    def manual_futura(c):
+        return bool(t(c).get("data") and not t(c).get("auto") and str(t(c)["data"]) >= hoje)
+
+    usados = set()
+
+    def pega(cond, chave_ord=None, limite=None):
+        sel = [c for c in rows if c["id"] not in usados and not manual_futura(c) and cond(c)]
+        if chave_ord:
+            sel.sort(key=chave_ord)
+        if limite is not None:
+            sel = sel[:limite]
+        usados.update(c["id"] for c in sel)
+        return sel
+
+    atrasadas = pega(lambda c: t(c).get("auto") and str(t(c).get("data") or "9999") < hoje)
+    followups = pega(lambda c: c["coluna"] == "abordado" and str(c.get("atualizado_em") or "") <= corte_fu)
+    cobrancas = pega(lambda c: c["coluna"] == "topou" and not c.get("indicacao_id")
+                     and str(c.get("atualizado_em") or "") <= corte_tp)
+    prio = {b: i for i, b in enumerate(cad.get("prioridade") or [])}
+    resto = max(0, lote - len(atrasadas) - len(followups) - len(cobrancas))
+    novas = pega(lambda c: c["coluna"] == "a_abordar" and not t(c).get("data"),
+                 chave_ord=lambda c: (prio.get(c.get("base"), 9), str(c.get("criado_em") or "")),
+                 limite=resto)
+
+    grupos = [(atrasadas, "atrasada", "⏰ Atrasada — prioridade máxima"),
+              (followups, "followup", "🔁 Follow-up (sem resposta)"),
+              (cobrancas, "cobranca", "🤝 Cobrar o contato do indicado"),
+              (novas, "nova", "📞 Abordar (fila de hoje)")]
+    for lista, tipo, titulo in grupos:
+        for c in lista:
+            try:
+                sb.table("indicacao_kanban").update(
+                    {"tarefa": {"data": hoje, "titulo": titulo, "auto": True, "tipo_fila": tipo},
+                     "atualizado_por": "cadencia"}).eq("id", c["id"]).execute()
+            except Exception:
+                pass
+
+    res = {"data": hoje, "total": len(usados), "atrasadas": len(atrasadas),
+           "followups": len(followups), "cobrancas": len(cobrancas), "novas": len(novas)}
+    _kv_set(sb, CADENCIA_KEY, {"data": hoje, "res": res})
+
+    if res["total"]:
+        try:
+            match = cad.get("responsavel_match") or \
+                (((fisc_cfg(sb).get("colaboradores") or {}).get("mariane") or {}).get("user_match") or "mariane")
+            ids = _responsavel_ids(sb, match)
+            if ids:
+                corpo = (f"{res['total']} contato(s) na sua fila: "
+                         f"⏰ {res['atrasadas']} atrasada(s) · 🔁 {res['followups']} follow-up(s) · "
+                         f"🤝 {res['cobrancas']} cobrança(s) · 📞 {res['novas']} nova(s). "
+                         "Abra o Kanban e trabalhe de cima pra baixo.")
+                notify_all(ids, tipo="fiscalizacao", title="📋 Sua fila de indicação de hoje",
+                           body=corpo[:300], link="#/cs-indicacoes")
+        except Exception:
+            pass
+    return {"ok": True, **res}
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
         self.send_response(s); self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -233,6 +338,11 @@ class handler(BaseHTTPRequestHandler):
                       notes=f"criadas={criadas} {res}")
                 return self._send(200, {"ok": True, "criadas": criadas, "por_base": res})
 
+            if action == "gerar_fila":
+                r = gerar_fila(sb, force=bool(body.get("force")))
+                audit(self, user, "ik.gerar_fila", "indicacao_kanban", None, notes=str(r)[:200])
+                return self._send(200, r)
+
             if action == "mover":
                 c = card(body.get("id"))
                 col = (body.get("coluna") or "").strip()
@@ -249,6 +359,8 @@ class handler(BaseHTTPRequestHandler):
                 if col != "descartado" and c.get("coluna") == "a_abordar" and not c.get("abordado_em"):
                     upd["abordado_em"] = _now()
                     log_abordagem(c)
+                if (c.get("tarefa") or {}).get("auto"):
+                    upd["tarefa"] = None  # mover = tarefa da fila cumprida
                 sb.table("indicacao_kanban").update(upd).eq("id", str(c["id"])).execute()
                 return self._send(200, {"ok": True})
 
@@ -361,7 +473,19 @@ class handler(BaseHTTPRequestHandler):
                     tags.append({"id": (str(x.get("id") or "").strip() or "tag_" + uuid.uuid4().hex[:6]),
                                  "nome": str(x["nome"]).strip()[:30],
                                  "cor": (str(x.get("cor") or "#64748b").strip()[:16])})
-                cfg = {"colunas": cols, "etiquetas": tags}
+                atual = _cfg(sb)
+                cad = dict(atual.get("cadencia") or DEFAULT_CFG["cadencia"])
+                bc = body.get("cadencia")
+                if isinstance(bc, dict):
+                    if "ativa" in bc:
+                        cad["ativa"] = bool(bc["ativa"])
+                    for k, lim in (("lote_dia", 500), ("followup_dias", 30), ("topou_dias", 30)):
+                        if bc.get(k) is not None:
+                            try:
+                                cad[k] = max(1, min(lim, int(bc[k])))
+                            except (TypeError, ValueError):
+                                pass
+                cfg = {"colunas": cols, "etiquetas": tags, "cadencia": cad}
                 _kv_set(sb, CFG_KEY, cfg)
                 audit(self, user, "ik.set_cfg", "shared_kv", CFG_KEY, notes=f"{len(cols)} col / {len(tags)} tags")
                 return self._send(200, {"ok": True, "cfg": cfg})

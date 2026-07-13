@@ -35,6 +35,10 @@
     {
       "path": "/api/v3/diretoria/gate_risco_cron",
       "schedule": "0 12 20 * *"
+    },
+    {
+      "path": "/api/v3/producao/kanban_cadencia_cron",
+      "schedule": "0 12 * * 1-5"
     }
   ],
   "rewrites": [
