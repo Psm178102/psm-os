@@ -58,6 +58,13 @@ function tagInfo(id) {
   return (_d.cfg.etiquetas || []).find(t => t.id === id) || { id, nome: id, cor: '#64748b' };
 }
 
+function corretorNome(c) {
+  const em = (c.corretor_email || '').toLowerCase();
+  if (!em) return null;
+  const u = (_d.users || []).find(x => (x.email || '') === em);
+  return u ? u.name : em.split('@')[0];
+}
+
 function cardHtml(c) {
   const [bLbl, bCor] = BASES[c.base] || BASES.manual;
   const fone = (c.contato || '').replace(/\D/g, '');
@@ -75,6 +82,7 @@ function cardHtml(c) {
       ${(c.etiquetas || []).map(t => { const i = tagInfo(t); return `<span class="tiny" style="background:${i.cor}1a;color:${i.cor};padding:0 7px;border-radius:999px;font-weight:700">${esc(i.nome)}</span>`; }).join('')}
       ${c.objetivo ? `<span class="tiny" style="padding:0 4px">${OBJ[c.objetivo] || esc(c.objetivo)}</span>` : ''}
     </div>
+    ${corretorNome(c) ? `<div class="tiny" style="margin-top:2px;font-weight:700">👔 ${esc(corretorNome(c))} <span class="muted" style="font-weight:400">(corretor no RD)</span></div>` : ''}
     ${c.valor_indicacao || c.premio ? `<div class="tiny" style="margin-top:2px;color:#d97706;font-weight:700">${c.valor_indicacao ? '💼 ' + brl(c.valor_indicacao) : ''}${c.valor_indicacao && c.premio ? ' · ' : ''}${c.premio ? '🎁 ' + brl(c.premio) : ''}</div>` : ''}
     ${c.tarefa?.data ? `<div class="tiny" style="margin-top:2px;color:#2563eb;font-weight:700">📅 ${esc(String(c.tarefa.data).split('-').reverse().join('/'))}${c.tarefa.hora_ini ? ' ' + esc(c.tarefa.hora_ini) : ''}${c.tarefa.hora_fim ? '–' + esc(c.tarefa.hora_fim) : ''}</div>` : ''}
     ${c.descarte_motivo ? `<div class="tiny muted" style="margin-top:2px">🗑 ${esc(c.descarte_motivo)}</div>` : ''}
@@ -257,6 +265,7 @@ function abrirCard(id) {
       <span class="tiny muted">${bLbl}</span>
       <button class="btn btn-ghost btn-sm" id="ck-x">✕</button>
     </div>
+    ${corretorNome(c) ? `<div class="tiny mt-1" style="background:#2563eb12;border-radius:8px;padding:6px 10px;font-weight:700">👔 Corretor responsável (RD CRM): ${esc(corretorNome(c))}${c.corretor_email ? ` <span class="muted" style="font-weight:400">· ${esc(c.corretor_email)}</span>` : ''}</div>` : '<div class="tiny muted mt-1">👔 Sem corretor vinculado no RD (card manual)</div>'}
     <div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
       <input class="input" id="ck-nome" value="${esc(c.nome)}" style="flex:2;min-width:160px" placeholder="Nome">
       <input class="input" id="ck-fone" value="${esc(c.contato || '')}" style="flex:1;min-width:130px" placeholder="Telefone">

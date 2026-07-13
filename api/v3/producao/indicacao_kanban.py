@@ -154,7 +154,7 @@ def _sincronizar(sb, user):
     ja = _existentes(sb)
     novos, res = [], {"fechou_12m": 0, "visita_60d": 0, "funil_map": 0}
     # só o miolo do rd_raw (o blob inteiro ×6000 deals estoura a função)
-    SEL = "id,name,contacts:rd_raw->contacts,fonte:rd_raw->deal_source"
+    SEL = "id,name,user_email,contacts:rd_raw->contacts,fonte:rd_raw->deal_source"
 
     def add(deal, base):
         did = str(deal.get("id"))
@@ -168,6 +168,7 @@ def _sincronizar(sb, user):
         ja.add(did)
         novos.append({"deal_id": did, "base": base, "nome": nome[:160],
                       "contato": _phone(deal.get("contacts")),
+                      "corretor_email": (deal.get("user_email") or "").lower() or None,
                       "coluna": "a_abordar", "atualizado_por": str(user.get("id"))})
         res[base] += 1
 
@@ -327,12 +328,19 @@ class handler(BaseHTTPRequestHandler):
             return self._send(503, {"ok": False, "error": "backend"})
         try:
             rows = _page_all(lambda: sb.table("indicacao_kanban").select(
-                "id,deal_id,base,nome,contato,coluna,etiquetas,obs,objetivo,valor_indicacao,"
+                "id,deal_id,base,nome,contato,corretor_email,coluna,etiquetas,obs,objetivo,valor_indicacao,"
                 "premio,descarte_motivo,tarefa,indicacao_id,abordado_em,criado_em,atualizado_em")
                 .order("atualizado_em", desc=True).order("id"), max_rows=8000)
         except Exception as e:
             return self._send(502, {"ok": False, "error": str(e)[:200]})
+        usuarios = []
+        try:
+            usuarios = sb.table("users").select("id,name,email").limit(200).execute().data or []
+        except Exception:
+            pass
         return self._send(200, {"ok": True, "cards": rows, "cfg": _cfg(sb),
+                                "users": [{"id": u.get("id"), "name": u.get("name"),
+                                           "email": (u.get("email") or "").lower()} for u in usuarios],
                                 "can_cfg": (user.get("lvl") or 0) >= 7})
 
     def do_POST(self):
