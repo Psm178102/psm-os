@@ -12,6 +12,10 @@ const SCOPE_LBL = {
   self:   '👤 Seus dados',
 };
 
+// rótulos das frentes (Central de Frentes) pro breakdown do pipeline
+const FRENTE_LBL = { conquista: '🏆 Conquista', map: '🏠 MAP', terceiros: '🔁 Terceiros',
+  locacoes: '🔑 Locação', outros: '📦 Outros' };
+
 let _root = null;
 let _data = null;
 let _board = null; // ranking de vendas (gestores)
@@ -502,9 +506,14 @@ function render() {
       ${comercial ? `<div class="flex gap-3 mt-4" style="flex-wrap:wrap">
         ${heroKpi('💰 VGV no Mês',  'R$ ' + fmtKM(d.sales?.vgv_mes), `${d.sales?.vendas_mes || 0} venda(s) fechada(s)`,          '#16a34a')}
         ${heroKpi('🎯 Meta do Mês', 'R$ ' + fmtKM(d.metas?.meta_vgv), pctMeta(d.sales?.vgv_mes, d.metas?.meta_vgv),               '#d4a843')}
-        ${heroKpi('📈 Pipeline',    'R$ ' + fmtKM(d.sales?.pipeline_vgv), `${d.sales?.pipeline_count || 0} negócios abertos`,    '#3b82f6')}
+        ${heroKpi('📈 Pipeline em andamento', 'R$ ' + fmtKM(d.sales?.pipeline_vgv), `${d.sales?.pipeline_count || 0} em atendimento (ativ. ≤${d.sales?.pipeline_dias || 30}d)`, '#3b82f6')}
         ${heroKpi('🏆 Ticket Médio','R$ ' + fmtKM(d.sales?.ticket_medio_mes), 'média da venda no mês',                             '#8b5cf6')}
-      </div>` : ''}
+      </div>
+      ${(d.sales?.pipeline_frentes || []).length ? `<div class="tiny muted" style="margin-top:6px">
+        📈 Por funil: ${(d.sales.pipeline_frentes).map(([f, n, vgv, sv]) =>
+          `<b>${escapeHtml(FRENTE_LBL[f] || f)}</b> R$ ${fmtKM(vgv)} (${n}${sv ? `, ${sv} s/ valor` : ''})`).join(' · ')}
+        · base total: ${fmtNum(d.sales?.pipeline_base_count)} abertos (R$ ${fmtKM(d.sales?.pipeline_base_vgv)})
+      </div>` : ''}` : ''}
 
       <!-- ✅ TAREFAS & PENDÊNCIAS primeiro (ação) · depois 🗓 PLANO DO MÊS (metas/prod + planner) -->
       ${tarefasCard()}

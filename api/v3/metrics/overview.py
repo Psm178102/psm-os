@@ -22,7 +22,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, frente_of  # type: ignore
 
 # ── Cache do overview (v81.74) ───────────────────────────────────────────────
 # O dashboard recalculava 7 agregações pesadas (todos os deals, audit 30d, comissões,
@@ -208,7 +208,7 @@ def _sales_summary(sb, scope, user):
     rows = []
     page = 0
     while True:
-        q = sb.table("deals").select("id,amount,closed_at,created_at_rd,user_id,user_email,win") \
+        q = sb.table("deals").select("id,amount,closed_at,created_at_rd,updated_at_rd,user_id,user_email,win,pipeline_name") \
             .order("id").range(page * 1000, page * 1000 + 999)
         if scope == "self":
             q = q.eq("user_id", user["id"])
@@ -226,6 +226,21 @@ def _sales_summary(sb, scope, user):
     wins = [r for r in rows if r.get("win") is True]
     perdidos = [r for r in rows if r.get("win") is False]
     abertos = [r for r in rows if r.get("win") is None]
+    # Pipeline EM ANDAMENTO (v84.20): aberto ≠ atendido. A base tem milhares de
+    # leads parados/sem valor que inflavam o KPI (R$565M "de pipeline"). Vale
+    # como pipeline só quem teve atividade no RD nos últimos 30d (updated_at_rd).
+    ANDAMENTO_DIAS = 30
+    iso_andamento = (now - timedelta(days=ANDAMENTO_DIAS)).isoformat()
+    andamento = [r for r in abertos if (r.get("updated_at_rd") or r.get("created_at_rd") or "") >= iso_andamento]
+    frentes_pipe = {}
+    for r in andamento:
+        fr = frente_of(r.get("pipeline_name"))
+        b = frentes_pipe.setdefault(fr, {"n": 0, "vgv": 0.0, "sem_valor": 0})
+        b["n"] += 1
+        v = float(r.get("amount") or 0)
+        b["vgv"] += v
+        if v <= 0:
+            b["sem_valor"] += 1
 
     def in_period(r, iso_start):
         d = r.get("closed_at") or r.get("created_at_rd") or ""
@@ -248,8 +263,14 @@ def _sales_summary(sb, scope, user):
         "vgv_mes":         sum_vgv(wins_mes),
         "vendas_ano":      len(wins_ano),
         "vgv_ano":         sum_vgv(wins_ano),
-        "pipeline_count":  len(abertos),
-        "pipeline_vgv":    sum_vgv(abertos),
+        "pipeline_count":  len(andamento),
+        "pipeline_vgv":    sum_vgv(andamento),
+        "pipeline_frentes": sorted(([f, b["n"], round(b["vgv"], 2), b["sem_valor"]]
+                                    for f, b in frentes_pipe.items()), key=lambda x: -x[2]),
+        "pipeline_dias":   ANDAMENTO_DIAS,
+        "pipeline_sem_valor": sum(b["sem_valor"] for b in frentes_pipe.values()),
+        "pipeline_base_count": len(abertos),
+        "pipeline_base_vgv": sum_vgv(abertos),
         "perdidos_mes":    len(perdidos_mes),
         "vgv_perdido_mes": sum_vgv(perdidos_mes),
         "ticket_medio_mes": ticket_medio_mes,
