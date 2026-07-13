@@ -15,10 +15,11 @@ import { auth } from '../auth.js';
 import { pageOKRs } from './okrs.js';
 
 let _root = null;
-let _tab = 'mapa';
+let _tab = 'plano';
 
 const PALETTE = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#475569', '#d4a843'];
 const TABS = [
+  { id: 'plano', lbl: '🧭 Plano de Resgate' },
   { id: 'mapa', lbl: '🧠 Mapa Mental' },
   { id: 'org', lbl: '🌳 Organograma' },
   { id: 'crono', lbl: '🗓️ Cronograma' },
@@ -82,6 +83,7 @@ async function openTab(tab) {
   setActiveTab();
   const c = document.getElementById('est-content');
   c.innerHTML = `<div class="card" style="border-radius:0 10px 10px 10px"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando…</div></div>`;
+  if (tab === 'plano') { await renderPlanoResgate(c); return; }
   if (tab === 'okrs') { await pageOKRs(null, c); return; }
   if (tab === 'crono') { await renderCronograma(c); return; }
   // mapa | org → editor de nós
@@ -551,3 +553,145 @@ function num(n) { return (Math.round(+n || 0)).toLocaleString('pt-BR'); }
 function pct(n) { return (+n || 0).toFixed(1); }
 function cssesc(s) { return String(s).replace(/"/g, '\\"'); }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+/* ════════════════════ 🧭 PLANO DE RESGATE (v84.19) ════════════════════════
+   Documento-mestre jul→dez/2026 EDITÁVEL (shared_kv via backend) + checklist
+   de cumprimento por mês + real vs plano com dados vivos do sistema. */
+let _pr = null, _prSub = 'real';
+
+const prEsc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const prBrl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const prMi = n => 'R$ ' + (Number(n || 0) / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + 'M';
+const prMd = s => prEsc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+
+async function renderPlanoResgate(c) {
+  try {
+    _pr = await api.request('/api/v3/diretoria/plano_resgate');
+  } catch (e) {
+    c.innerHTML = `<div class="card" style="border-radius:0 10px 10px 10px"><div class="alert alert-err">${prEsc(e.message)}</div></div>`;
+    return;
+  }
+  prPaint(c);
+}
+
+function prBarra(lbl, real, meta, cor = '#16a34a') {
+  const pct = meta ? Math.min(100, Math.round(100 * real / meta)) : 0;
+  return `<div class="tiny" style="margin:5px 0">
+    <div class="flex" style="justify-content:space-between"><span>${lbl}</span><b>${prMi(real)} / ${prMi(meta)} (${pct}%)</b></div>
+    <div style="background:var(--bg-3);border-radius:6px;height:11px"><div style="width:${pct}%;background:${cor};height:11px;border-radius:6px"></div></div>
+  </div>`;
+}
+
+function prPaint(c) {
+  const p = _pr.plano || {}, r = _pr.real || {};
+  const mesAtual = (p.meses || []).find(m => m.id === r.mes_id) || (p.meses || [])[0] || {};
+  const subs = [['real', '📊 Real vs Plano'], ['check', '✅ Checklist'], ['doc', '📜 O Plano']];
+  let corpo = '';
+
+  if (_prSub === 'real') {
+    const vgvC = (r.vgv || {}).conquista || 0;
+    const vgvP = ((r.vgv || {}).map || 0) + ((r.vgv || {}).terceiros || 0);
+    const cts = p.constantes || {};
+    const contrib = r.contribuicao || 0;
+    const beOp = cts.breakeven_operacional || 70000, bePl = cts.breakeven_pleno || 100000;
+    const pctBe = Math.min(100, Math.round(100 * contrib / bePl));
+    corpo = `
+      <div class="tiny muted">Mês corrente: <b>${prEsc(mesAtual.nome || r.mes_id)}</b> · VGV = vendas GANHAS no CRM (win, mês do fechamento) · frentes pela Central de Frentes</div>
+      ${prBarra('🏆 Conquista (equipe)', vgvC, mesAtual.conquista || 0, '#16a34a')}
+      ${prBarra('🤝 VGV próprio (MAP + Terceiros)', vgvP, mesAtual.proprio || 0, '#2563eb')}
+      <div class="tiny mt-2"><b>💰 Contribuição estimada do mês: ${prBrl(contrib)}</b> (Conquista ×${cts.margem_conquista_pct}% + próprio ×${cts.margem_proprio_pct}%)</div>
+      <div style="background:var(--bg-3);border-radius:6px;height:14px;position:relative;margin:4px 0 2px">
+        <div style="width:${pctBe}%;background:${contrib >= beOp ? '#16a34a' : '#d97706'};height:14px;border-radius:6px"></div>
+        <div style="position:absolute;left:${Math.round(100 * beOp / bePl)}%;top:-3px;bottom:-3px;width:2px;background:#dc2626" title="break-even operacional"></div>
+      </div>
+      <div class="tiny muted">marco vermelho = break-even operacional ${prBrl(beOp)} · barra cheia = pleno ${prBrl(bePl)} (com pró-labore)</div>
+      <div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">🔑 Locação: carteira</div><div style="font-weight:900;font-size:17px">${(r.locacao || {}).carteira || 0} <span class="tiny muted">(meta dez: ${cts.locacao_meta_dez || 27})</span></div></div>
+        <div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">🔑 Contratos no mês</div><div style="font-weight:900;font-size:17px">${(r.locacao || {}).contratos_mes || 0}</div></div>
+        <div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">📈 Vendas ganhas (mês)</div><div style="font-weight:900;font-size:17px">${Object.values(r.n_vendas || {}).reduce((a, b) => a + b, 0)}</div></div>
+      </div>
+      <div class="tiny muted mt-2">👁 Fiscalização no mês: ${Object.entries(r.fiscalizacao || {}).map(([k, ts]) =>
+        `<b>${prEsc(k)}</b> ${Object.values(ts).reduce((a, b) => a + b, 0)} eventos`).join(' · ') || 'sem eventos ainda'}
+        · <a href="#/fiscalizacao" style="color:#2563eb">abrir painel →</a></div>`;
+  } else if (_prSub === 'check') {
+    corpo = (p.meses || []).map(m => {
+      const ck = p.checklist || {};
+      const itens = (m.acoes || []).map((a, i) => {
+        const chave = `${m.id}:acao:${i}`;
+        const feito = ck[chave];
+        return `<label class="tiny" style="display:flex;gap:7px;align-items:flex-start;padding:3px 0;cursor:pointer">
+          <input type="checkbox" class="pr-ck" data-chave="${prEsc(chave)}" ${feito ? 'checked' : ''} style="margin-top:2px">
+          <span style="${feito ? 'text-decoration:line-through;opacity:.55' : ''}">${prEsc(a)}${feito ? ` <span class="muted">✓ ${prEsc(feito.por || '')}</span>` : ''}</span>
+        </label>`;
+      }).join('');
+      const gchave = `${m.id}:gate`;
+      const gfeito = (p.checklist || {})[gchave];
+      const done = (m.acoes || []).filter((a, i) => (p.checklist || {})[`${m.id}:acao:${i}`]).length;
+      return `<div class="card" style="margin:0 0 8px;border-left:3px solid ${gfeito ? '#16a34a' : '#d4a843'}">
+        <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
+          <b>${prEsc(m.nome)}</b>
+          <span class="tiny muted">Conquista ${prMi(m.conquista)} · próprio ${prMi(m.proprio)} · trilha ${prBrl(m.trilha_fin)}</span>
+          <button class="btn btn-ghost btn-sm pr-editmes" data-mes="${prEsc(m.id)}" style="padding:1px 7px">✏️</button>
+          <span style="margin-left:auto" class="tiny muted">${done}/${(m.acoes || []).length} ações</span>
+        </div>
+        ${itens}
+        <label class="tiny" style="display:flex;gap:7px;align-items:flex-start;padding:5px 8px;margin-top:4px;background:${gfeito ? '#16a34a18' : '#d4a84318'};border-radius:8px;cursor:pointer">
+          <input type="checkbox" class="pr-ck" data-chave="${prEsc(gchave)}" ${gfeito ? 'checked' : ''} style="margin-top:2px">
+          <span><b>🚪 GATE:</b> ${prEsc(m.gate)}${gfeito ? ` <span class="muted">✓ ${prEsc(gfeito.por || '')}</span>` : ''}</span>
+        </label>
+      </div>`;
+    }).join('') + `<div class="tiny muted">Regra 8: cada gate compra o direito do próximo mês — não pular etapa.</div>`;
+  } else {
+    corpo = (p.secoes || []).map(s => `
+      <div class="card" style="margin:0 0 8px" id="pr-sec-${prEsc(s.id)}">
+        <div class="flex items-center" style="gap:8px">
+          <b>${prEsc(s.titulo)}</b>
+          <button class="btn btn-ghost btn-sm pr-edit" data-sec="${prEsc(s.id)}" style="margin-left:auto;padding:1px 8px">✏️ editar</button>
+        </div>
+        <div class="tiny mt-1 pr-corpo" style="white-space:normal;line-height:1.55">${prMd(s.corpo)}</div>
+      </div>`).join('');
+  }
+
+  c.innerHTML = `
+    <div class="card" style="border-radius:0 10px 10px 10px">
+      <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
+        <b style="font-size:15px">🧭 ${prEsc(p.titulo || 'Plano de Resgate')}</b>
+        <span class="tiny muted">${prEsc(p.periodo || '')} · ${prEsc(p.versao || '')}</span>
+      </div>
+      <div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
+        ${subs.map(([id, lbl]) => `<button class="btn btn-sm ${_prSub === id ? 'btn-primary' : 'btn-ghost'} pr-sub" data-sub="${id}">${lbl}</button>`).join('')}
+      </div>
+      <div class="mt-2">${corpo}</div>
+    </div>`;
+  c.querySelectorAll('.pr-sub').forEach(b => b.onclick = () => { _prSub = b.dataset.sub; prPaint(c); });
+  c.querySelectorAll('.pr-ck').forEach(b => b.onchange = async () => {
+    try {
+      const r2 = await api.request('/api/v3/diretoria/plano_resgate', { method: 'POST', body: { action: 'toggle', chave: b.dataset.chave } });
+      _pr.plano = r2.plano; prPaint(c);
+    } catch (e) { alert('❌ NÃO SALVOU: ' + e.message); prPaint(c); }
+  });
+  c.querySelectorAll('.pr-editmes').forEach(b => b.onclick = async () => {
+    const m = (_pr.plano.meses || []).find(x => x.id === b.dataset.mes); if (!m) return;
+    const cq = prompt(`Meta CONQUISTA de ${m.nome} (só números):`, m.conquista); if (cq === null) return;
+    const pp = prompt(`Meta VGV PRÓPRIO de ${m.nome} (só números):`, m.proprio); if (pp === null) return;
+    try {
+      await api.request('/api/v3/diretoria/plano_resgate', { method: 'POST', body: { action: 'set_mes', id: m.id, campo: 'conquista', valor: Number(cq) } });
+      const r2 = await api.request('/api/v3/diretoria/plano_resgate', { method: 'POST', body: { action: 'set_mes', id: m.id, campo: 'proprio', valor: Number(pp) } });
+      _pr.plano = r2.plano; prPaint(c);
+    } catch (e) { alert('❌ NÃO SALVOU: ' + e.message); }
+  });
+  c.querySelectorAll('.pr-edit').forEach(b => b.onclick = () => {
+    const s = (_pr.plano.secoes || []).find(x => x.id === b.dataset.sec); if (!s) return;
+    const host = c.querySelector('#pr-sec-' + s.id + ' .pr-corpo');
+    host.innerHTML = `<textarea class="input" style="width:100%;min-height:220px;font-size:12px" id="pr-ta">${prEsc(s.corpo)}</textarea>
+      <div class="flex mt-1" style="gap:6px"><button class="btn btn-primary btn-sm" id="pr-save">💾 Salvar</button>
+      <button class="btn btn-ghost btn-sm" id="pr-cancel">cancelar</button></div>`;
+    host.querySelector('#pr-cancel').onclick = () => prPaint(c);
+    host.querySelector('#pr-save').onclick = async () => {
+      try {
+        const r2 = await api.request('/api/v3/diretoria/plano_resgate', { method: 'POST', body: { action: 'set_secao', id: s.id, corpo: host.querySelector('#pr-ta').value } });
+        _pr.plano = r2.plano; prPaint(c);
+      } catch (e) { alert('❌ NÃO SALVOU: ' + e.message); }
+    };
+  });
+}

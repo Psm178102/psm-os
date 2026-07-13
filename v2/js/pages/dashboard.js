@@ -488,6 +488,7 @@ function render() {
   const d = _data || {};
   const hasFunis = (d.pipelines?.count_total || 0) > 0;
   const comercial = ehComercial();
+  setTimeout(injectMeuAcompanhamento, 0); // equipe de apoio vê o próprio semáforo na entrada (v84.19)
 
   _root.innerHTML = `
     <div class="card">
@@ -762,4 +763,43 @@ function fmtMoney(n) {
 }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ── 📈 Meu Acompanhamento no Dashboard Inicial (v84.19) ─────────────────────
+   Se o user logado é colaborador do Painel de Fiscalização (Leire/Mariane/
+   Guilherme), injeta um card compacto com o semáforo pessoal logo no topo.
+   Best-effort: quem não é colaborador não vê NADA (nem erro). */
+async function injectMeuAcompanhamento() {
+  let card = null;
+  try {
+    const r = await api.request('/api/v3/producao/painel?visao=me');
+    card = (r.cards || [])[0];
+  } catch (_) { return; }
+  if (!card || !_root || !_root.querySelector('.card')) return;
+  if (_root.querySelector('#dash-fisc')) return;
+  const COR = { verde: '#16a34a', amarelo: '#d97706', vermelho: '#dc2626' };
+  const cor = COR[card.semaforo] || '#64748b';
+  let miolo = '';
+  if (card.placar_mes) {
+    const p = card.placar_mes;
+    const done = Object.entries(p.metas).filter(([f, m]) => m > 0 && (p.feito[f] || 0) >= m).length;
+    miolo = `placar do mês: <b>${done}</b>/${Object.keys(p.metas).length} frentes na meta (rampa ${escapeHtml((card.rampa || '').toUpperCase())})`;
+  } else {
+    const f = card.motor_feito || {}, m = card.motor_meta || {};
+    miolo = `hoje: <b>${f.dia || 0}</b>/${m.dia || 0} · esperado até agora: ${card.esperado_agora}`;
+  }
+  const el = document.createElement('div');
+  el.id = 'dash-fisc';
+  el.className = 'card';
+  el.style.cssText = `border-left:4px solid ${cor};margin-top:8px`;
+  el.innerHTML = `<div class="flex items-center" style="gap:10px;flex-wrap:wrap">
+      <span style="width:13px;height:13px;border-radius:50%;background:${cor};flex-shrink:0"></span>
+      <b>📈 Meu Acompanhamento</b>
+      <span class="tiny">${miolo}</span>
+      ${(card.alertas || []).map(a => `<span class="badge" style="background:#dc262622;color:#dc2626;font-weight:700">${escapeHtml(a)}</span>`).join(' ')}
+      <button class="btn btn-primary btn-sm" style="margin-left:auto" id="dash-fisc-abrir">registrar produção →</button>
+    </div>`;
+  const primeiro = _root.querySelector('.card');
+  primeiro.parentNode.insertBefore(el, primeiro.nextSibling);
+  el.querySelector('#dash-fisc-abrir').onclick = () => { location.hash = '#/minha-producao'; };
 }
