@@ -51,7 +51,7 @@ DEFAULT_CFG = {
         "lote_dia": 45,          # meta diária de cards trabalhados (espelha a meta da Fiscalização)
         "followup_dias": 3,      # 'abordado' parado há N dias → follow-up
         "topou_dias": 2,         # 'topou' sem indicação há N dias → cobrar o contato
-        "prioridade": ["fechou_12m", "visita_60d", "manual", "funil_map"],
+        "prioridade": ["nps_promotor", "fechou_12m", "visita_60d", "manual", "funil_map"],
         "responsavel_match": "mariane",
     },
 }
@@ -68,9 +68,12 @@ def _cfg(sb):
     v = _kv(sb, CFG_KEY)
     if isinstance(v, dict) and v.get("colunas"):
         cad = v.get("cadencia") or {}
-        # base antiga 'carteira_map' virou 'funil_map' (v84.28)
-        cad["prioridade"] = [("funil_map" if b == "carteira_map" else b)
-                             for b in (cad.get("prioridade") or DEFAULT_CFG["cadencia"]["prioridade"])]
+        # base antiga 'carteira_map' virou 'funil_map' (v84.28); nps_promotor entra na frente (v84.29)
+        prio = [("funil_map" if b == "carteira_map" else b)
+                for b in (cad.get("prioridade") or DEFAULT_CFG["cadencia"]["prioridade"])]
+        if "nps_promotor" not in prio:
+            prio.insert(0, "nps_promotor")
+        cad["prioridade"] = prio
         v["cadencia"] = {**DEFAULT_CFG["cadencia"], **cad}
         return v
     _kv_set(sb, CFG_KEY, DEFAULT_CFG)

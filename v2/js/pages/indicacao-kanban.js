@@ -20,8 +20,9 @@ const filaStatus = c => { // 'atrasada' | 'hoje' | null
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const BASES = {
-  fechou_12m: ['🏆 Fechou 12m', '#16a34a'], visita_60d: ['👣 Visita 60d', '#d97706'],
-  funil_map: ['🗂 Funil MAP', '#2563eb'], manual: ['✍️ Manual', '#64748b'],
+  nps_promotor: ['🌟 Promotor NPS', '#7c3aed'], fechou_12m: ['🏆 Fechou 12m', '#16a34a'],
+  visita_60d: ['👣 Visita 60d', '#d97706'], funil_map: ['🗂 Funil MAP', '#2563eb'],
+  manual: ['✍️ Manual', '#64748b'],
 };
 const OBJ = { venda: '🏠 Venda', captacao: '📷 Captação', locacao: '🔑 Locação' };
 const MOTIVOS = ['duplicado', 'não quis indicar', 'não responde'];
