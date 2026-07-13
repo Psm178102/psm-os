@@ -42,6 +42,7 @@ import { pageLocacoes } from './pages/locacoes.js';
 import { pageLocacaoDash } from './pages/locacao-dash.js';
 import { pageProducao } from './pages/producao.js';
 import { pagePonte } from './pages/ponte.js';
+import { pageIndicacaoPremiada } from './pages/indicacao-premiada.js';
 import { pageMinutasJuridico, pageMinutasLocacao } from './pages/minutas.js';
 import { pageCnds } from './pages/cnds.js';
 import { pageLinksUteis } from './pages/links-uteis.js';
@@ -389,7 +390,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.21.1';
+const APP_VERSION = '84.22';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -581,7 +582,7 @@ const APP_VERSION = '84.21.1';
   router.register('/cs-upsell', { render: async (ctx, root) => { setHeader('Upsell & Cross-sell'); highlight('/cs-upsell'); await pageSCUpsell(ctx, root); } });
   router.register('/cs-marketing', { render: async (ctx, root) => { setHeader('Customer Marketing'); highlight('/cs-marketing'); await pageSCMarketing(ctx, root); } });
   router.register('/cs-avaliacoes', { render: async (ctx, root) => { setHeader('Avaliações de Atendimento'); highlight('/cs-avaliacoes'); await pageSCAvaliacoes(ctx, root); } });
-  router.register('/cs-indicacoes', { render: async (ctx, root) => { setHeader('Programa de Indicações'); highlight('/cs-indicacoes'); await pageSCIndicacoes(ctx, root); } });
+  router.register('/cs-indicacoes', { render: async (ctx, root) => { setHeader('Indicação Premiada'); highlight('/cs-indicacoes'); await pageIndicacaoPremiada(ctx, root); } });
   router.register('/talentos', { render: async (ctx, root) => { setHeader('Base de Talentos'); highlight('/talentos'); await pageTalentos(ctx, root); } });
   router.register('/premiacoes',  { render: async (ctx, root) => { setHeader('Premiações');           highlight('/premiacoes'); await pagePremiacoes(ctx, root); } });
   router.register('/agentes',     { render: async (ctx, root) => { setHeader('Central de Agentes');  highlight('/agentes');  await pageAgentes(ctx, root); } });
@@ -841,7 +842,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/cs-upsell"><span class="sb-ico">📈</span> Upsell & Cross-sell</button>
         <button class="sb-link" data-nav="/cs-marketing"><span class="sb-ico">⭐</span> Customer Marketing</button>
         <button class="sb-link" data-nav="/cs-avaliacoes"><span class="sb-ico">🌟</span> Avaliações de Atendimento</button>
-        <button class="sb-link" data-nav="/cs-indicacoes"><span class="sb-ico">🎁</span> Programa de Indicações</button>
+        <button class="sb-link" data-nav="/cs-indicacoes"><span class="sb-ico">🎁</span> Indicação Premiada</button>
 
         <div class="sb-sec">📣 Marketing</div>
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>
