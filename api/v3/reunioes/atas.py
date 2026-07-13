@@ -94,6 +94,7 @@ def _ata_row(body):
         "hora_inicio": body.get("hora_inicio") or None,
         "hora_fim": body.get("hora_fim") or None,
         "participantes": parts if isinstance(parts, list) else [],
+        "confidencial": bool(body.get("confidencial")),
         "pauta": (str(body.get("pauta") or "").strip()[:8000] or None),
         "notas": (str(body.get("notas") or "").strip()[:8000] or None),
         "combinados": _norm_combinados(body.get("combinados")),
@@ -110,7 +111,7 @@ def _sync_evento(sb, actor, row, evento_id):
     """Cria/atualiza o evento da PRÓXIMA reunião na Agenda (eventos). Best-effort:
     se não há proxima_data, remove o evento vinculado. Nunca quebra o save da ata."""
     prox = row.get("proxima_data")
-    if not prox:
+    if not prox or row.get("confidencial"):
         if evento_id:
             try:
                 sb.table("eventos").delete().eq("id", evento_id).execute()
@@ -168,11 +169,20 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             rows = []
         lvl = user.get("lvl") or 0
+        uid = user.get("id")
         if lvl < 7:
-            uid = user.get("id")
+            # participante vê sempre; responsável por combinado só vê se a reunião NÃO for confidencial
+            # (o combinado dele chega via "virar tarefa" sem expor a ata inteira)
             rows = [r for r in rows
                     if uid in (r.get("participantes") or [])
-                    or any(c.get("responsavel_id") == uid for c in (r.get("combinados") or []))]
+                    or (not r.get("confidencial")
+                        and any(c.get("responsavel_id") == uid for c in (r.get("combinados") or [])))]
+        else:
+            # 🔒 confidencial: nem gestor fora da lista vê — só participantes e o criador
+            rows = [r for r in rows
+                    if not r.get("confidencial")
+                    or uid in (r.get("participantes") or [])
+                    or r.get("criado_por") == uid]
         return self._send(200, {"ok": True, "atas": rows, "tipos": _read_tipos(sb), "can_edit": lvl >= 7})
 
     def do_POST(self):
@@ -287,18 +297,33 @@ class handler(BaseHTTPRequestHandler):
         # ── upsert da ata (+ sincroniza evento da próxima reunião) ──
         aid = (body.get("id") or "").strip() or None
         row = _ata_row(body)
+        aviso = None
         try:
             if aid:
                 cur = sb.table("reunioes_atas").select("evento_id").eq("id", aid).limit(1).execute().data or []
                 evento_id = (cur[0].get("evento_id") if cur else None) or (body.get("evento_id") or None)
                 row["evento_id"] = _sync_evento(sb, actor, row, evento_id)
-                sb.table("reunioes_atas").update(row).eq("id", aid).execute()
             else:
                 aid = "rn_" + uuid.uuid4().hex[:12]
                 row["evento_id"] = _sync_evento(sb, actor, row, None)
                 row.update({"id": aid, "criado_por": actor["id"], "created_at": now})
-                sb.table("reunioes_atas").insert(row).execute()
+            try:
+                if body.get("id"):
+                    sb.table("reunioes_atas").update(row).eq("id", aid).execute()
+                else:
+                    sb.table("reunioes_atas").insert(row).execute()
+            except Exception:
+                # coluna 'confidencial' ainda não migrada: salva sem ela, mas AVISA (nunca finge sigilo)
+                if "confidencial" not in row:
+                    raise
+                row2 = {k: v for k, v in row.items() if k != "confidencial"}
+                if body.get("id"):
+                    sb.table("reunioes_atas").update(row2).eq("id", aid).execute()
+                else:
+                    sb.table("reunioes_atas").insert(row2).execute()
+                if row.get("confidencial"):
+                    aviso = "⚠️ Salvo, mas SEM sigilo: o banco ainda não tem a coluna 'confidencial' (migração pendente). Essa reunião está visível pela regra normal."
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
         audit(self, actor, "reunioes.ata_upsert", target_type="reunioes_atas", target_id=aid)
-        return self._send(200, {"ok": True, "id": aid, "evento_id": row.get("evento_id")})
+        return self._send(200, {"ok": True, "id": aid, "evento_id": row.get("evento_id"), "aviso": aviso})

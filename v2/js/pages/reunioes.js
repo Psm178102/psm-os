@@ -132,6 +132,7 @@ function ataCard(a) {
         <div class="flex items-center gap-2" style="flex-wrap:wrap">
           <span style="background:${t.cor}1f;color:${t.cor};padding:3px 11px;border-radius:999px;font-weight:800;font-size:12px">${t.emoji} ${esc(t.label)}</span>
           <h3 class="card-title" style="margin:0;font-size:15px">${esc(a.titulo || 'Reunião')}</h3>
+          ${a.confidencial ? `<span class="tiny" style="background:#0f172a;color:#fbbf24;padding:2px 9px;border-radius:999px;font-weight:800" title="Só os participantes (e quem criou) veem esta reunião">🔒 Confidencial</span>` : ''}
           ${a.data ? `<span class="tiny muted">📅 ${fmtData(a.data)}${a.hora_inicio ? ' · ' + esc(a.hora_inicio.substring(0, 5)) : ''}</span>` : ''}
         </div>
         ${_canEdit ? `<div class="flex gap-2">
@@ -223,7 +224,10 @@ function openAta(a) {
       <div class="mt-2"><label class="tiny muted">👥 Participantes</label>
         <div id="at-parts" style="max-height:130px;overflow:auto;border:1px solid var(--bd,#e2e8f0);border-radius:8px;padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:4px">
           ${_users.map(u => `<label class="tiny flex gap-1" style="align-items:center"><input type="checkbox" value="${esc(u.id)}" ${(c.participantes || []).includes(u.id) ? 'checked' : ''}> ${esc(u.name)}</label>`).join('')}
-        </div></div>
+        </div>
+        <label class="tiny flex gap-1 mt-1" style="align-items:center;font-weight:700;cursor:pointer" title="Só os participantes marcados acima (e quem criou) enxergam esta reunião — nem gestores fora da lista. Também não gera evento na Agenda.">
+          <input type="checkbox" id="at-conf" ${c.confidencial ? 'checked' : ''}> 🔒 Confidencial — só os participantes veem (nem a gestão fora da lista)
+        </label></div>
 
       <div class="mt-2"><label class="tiny muted">📋 Pauta / o que foi tratado <button class="btn btn-ghost btn-sm" id="at-pauta-fmt" type="button" style="padding:1px 7px;font-size:10px">↧ puxar do formato</button></label>
         <textarea id="at-pauta" class="input" rows="4" style="resize:vertical">${esc(c.pauta || '')}</textarea></div>
@@ -342,6 +346,7 @@ async function saveAta(ov, orig, getCombs) {
     hora_inicio: $('#at-hini').value || null,
     hora_fim: $('#at-hfim').value || null,
     participantes,
+    confidencial: $('#at-conf').checked,
     pauta: $('#at-pauta').value.trim(),
     notas: $('#at-notas').value.trim(),
     combinados: getCombs(),
@@ -353,7 +358,8 @@ async function saveAta(ov, orig, getCombs) {
   if (!body0.titulo && !body0.data) return alert('Informe ao menos o título ou a data da reunião.');
   _busyR = true; $('#at-save').disabled = true; $('#at-save').textContent = '⏳ Salvando…';
   try {
-    await api.request('/api/v3/reunioes/atas', { method: 'POST', body: body0 });
+    const r = await api.request('/api/v3/reunioes/atas', { method: 'POST', body: body0 });
+    if (r && r.aviso) alert(r.aviso);
     _busyR = false; ov.remove();
     await loadReunioes();
   } catch (e) {
