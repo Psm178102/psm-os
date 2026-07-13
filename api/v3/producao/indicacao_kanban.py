@@ -80,6 +80,20 @@ def _cfg(sb):
     return json.loads(json.dumps(DEFAULT_CFG))
 
 
+# fonte que NUNCA entra no kanban de pedir indicação: o lead é relacionamento
+# pessoal do corretor, não da casa (regra do sócio, v84.30)
+FONTE_BLOQUEADA = "carteira do corretor"
+
+
+def _fonte(v):
+    """Nome da fonte a partir de rd_raw->deal_source (dict {name} ou string)."""
+    if isinstance(v, dict):
+        return (v.get("name") or "").strip().lower()
+    if isinstance(v, str):
+        return v.strip().lower()
+    return ""
+
+
 def _phone(contacts):
     """1º telefone da lista contacts[].phones[] do RD, só dígitos."""
     try:
@@ -138,13 +152,15 @@ def _sincronizar(sb, user):
     """As 3 bases do RD → cards novos em 'a_abordar'. Devolve contagem por base."""
     ja = _existentes(sb)
     novos, res = [], {"fechou_12m": 0, "visita_60d": 0, "funil_map": 0}
-    # só o miolo de contatos do rd_raw (o blob inteiro ×6000 deals estoura a função)
-    SEL = "id,name,contacts:rd_raw->contacts"
+    # só o miolo do rd_raw (o blob inteiro ×6000 deals estoura a função)
+    SEL = "id,name,contacts:rd_raw->contacts,fonte:rd_raw->deal_source"
 
     def add(deal, base):
         did = str(deal.get("id"))
         if not did or did in ja:
             return
+        if FONTE_BLOQUEADA in _fonte(deal.get("fonte")):
+            return  # lead do corretor: a casa não pede indicação dele
         nome = (deal.get("name") or "").strip()
         if not nome:
             return

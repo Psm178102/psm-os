@@ -214,9 +214,20 @@ def _sincronizar_av(sb, user):
 
 
 def _promotor_para_indicacao(sb, c, user):
-    """Nota ≥9: entra (ou sobe) no Kanban da Indicação Premiada como nps_promotor."""
+    """Nota ≥9: entra (ou sobe) no Kanban da Indicação Premiada como nps_promotor.
+    Exceção (regra do sócio): fonte 'Carteira do corretor' NUNCA entra lá."""
     try:
         did = c.get("deal_id")
+        if did:
+            try:
+                dd = sb.table("deals").select("fonte:rd_raw->deal_source") \
+                    .eq("id", str(did)).limit(1).execute().data or []
+                f = (dd[0].get("fonte") if dd else None)
+                nome_fonte = (f.get("name") if isinstance(f, dict) else f) or ""
+                if "carteira do corretor" in str(nome_fonte).strip().lower():
+                    return "fonte_bloqueada"
+            except Exception:
+                pass
         if did:
             ex = sb.table("indicacao_kanban").select("id,coluna,abordado_em") \
                 .eq("deal_id", str(did)).limit(1).execute().data or []
@@ -348,7 +359,9 @@ class handler(BaseHTTPRequestHandler):
                 resultado = {"coluna": destino}
                 if nota >= pmin and not c.get("indicacao_criada"):
                     r = _promotor_para_indicacao(sb, c, user)
-                    if r:
+                    if r == "fonte_bloqueada":
+                        resultado["indicacao"] = None  # carteira do corretor: não pede indicação
+                    elif r:
                         upd["indicacao_criada"] = True
                         resultado["indicacao"] = r
                 sb.table("avaliacoes_kanban").update(upd).eq("id", str(c["id"])).execute()
