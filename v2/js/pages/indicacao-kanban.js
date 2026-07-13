@@ -109,6 +109,21 @@ function render() {
         <button class="btn btn-ghost btn-sm" id="ik-reload">↻</button>
       </div>
     </div>
+    ${(() => {
+      const cs = (_d.cards || []).filter(c => c.coluna !== 'descartado');
+      const abordados = cs.filter(c => c.abordado_em).length;
+      const topou = cs.filter(c => c.coluna === 'topou').length;
+      const indicou = cs.filter(c => c.indicacao_id).length;
+      const taxa = abordados ? Math.round(indicou / abordados * 100) : 0;
+      const mini = (l, v, cor) => `<div style="flex:1;min-width:110px;background:var(--bg-2);border-radius:10px;padding:6px 10px;border-left:3px solid ${cor}"><div class="tiny muted">${l}</div><div style="font-weight:900;font-size:16px">${v}</div></div>`;
+      return `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
+        ${mini('📥 Estoque a abordar', cs.filter(c => c.coluna === 'a_abordar').length, '#64748b')}
+        ${mini('💬 Já abordados', abordados, '#2563eb')}
+        ${mini('🤝 Toparam indicar', topou, '#d97706')}
+        ${mini('🎁 Indicaram', indicou, '#16a34a')}
+        ${mini('📈 Conversão abordado→indicou', taxa + '%', taxa >= 10 ? '#16a34a' : '#d97706')}
+      </div>`;
+    })()}
     <div class="mt-2" style="display:flex;gap:10px;overflow-x:auto;align-items:flex-start;padding-bottom:8px">
       ${(cfg.colunas || []).map(col => {
         const lista = porCol[col.id] || [];
@@ -259,6 +274,16 @@ function abrirCard(id) {
       <input class="input" id="ck-valor" type="number" value="${c.valor_indicacao ?? ''}" placeholder="Valor da indicação (R$)" style="flex:1;min-width:150px" title="VGV / aluguel esperado do negócio indicado">
       <input class="input" id="ck-premio" type="number" value="${c.premio ?? ''}" placeholder="Prêmio (R$)" style="flex:1;min-width:110px">
     </div>
+    <div class="mt-2" style="background:#7c3aed12;border-radius:10px;padding:8px 10px">
+      <div class="flex items-center" style="gap:6px">
+        <label class="tiny muted" style="font-weight:800">🧠 Mensagem personalizada por IA <span style="font-weight:400">(usa base, situação e anotações do card)</span></label>
+        <button class="btn btn-ghost btn-sm" id="ck-ia" style="margin-left:auto;padding:2px 10px;font-size:11px">✨ Gerar</button>
+      </div>
+      <div id="ck-ia-out" style="display:none;margin-top:5px">
+        <textarea class="input" id="ck-ia-txt" rows="3" style="resize:vertical"></textarea>
+        <button class="btn btn-ghost btn-sm mt-1" id="ck-ia-copy">📋 Copiar</button>
+      </div>
+    </div>
     <div class="mt-2"><label class="tiny muted">📝 Observações</label>
       <textarea class="input" id="ck-obs" rows="3" style="resize:vertical">${esc(c.obs || '')}</textarea></div>
     <div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
@@ -282,6 +307,18 @@ function abrirCard(id) {
     else { tags.add(t); b.style.cssText += `;background:${info.cor};color:#fff;font-weight:800`; }
   });
   ov.querySelector('#ck-x').onclick = () => ov.remove();
+  ov.querySelector('#ck-ia').onclick = async () => {
+    const b = ov.querySelector('#ck-ia');
+    b.disabled = true; b.textContent = '⏳ Gerando…';
+    const r = await post({ action: 'sugerir_msg', id: c.id });
+    b.disabled = false; b.textContent = '✨ Gerar outra';
+    if (r && r.msg) { ov.querySelector('#ck-ia-out').style.display = ''; ov.querySelector('#ck-ia-txt').value = r.msg; }
+  };
+  ov.querySelector('#ck-ia-copy').onclick = async () => {
+    const t = ov.querySelector('#ck-ia-txt').value;
+    try { await navigator.clipboard.writeText(t); } catch (_) { prompt('Copie a mensagem:', t); return; }
+    const b = ov.querySelector('#ck-ia-copy'); b.textContent = '✅ Copiado'; setTimeout(() => { b.textContent = '📋 Copiar'; }, 1400);
+  };
   ov.querySelector('#ck-save').onclick = async () => {
     const g = s => ov.querySelector(s).value.trim();
     const r = await post({ action: 'editar', id: c.id, nome: g('#ck-nome'), contato: g('#ck-fone'),

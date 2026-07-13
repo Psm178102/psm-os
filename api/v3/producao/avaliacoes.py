@@ -31,6 +31,7 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of, notify_all  # type: ignore
 from _fisc_lib import _kv, _kv_set, gestores_ids  # type: ignore
+from _ia_lib import ia, REGRAS_WHATSAPP  # type: ignore
 
 CFG_KEY = "avaliacoes_cfg"
 FLUXOS_KEY = "avaliacoes_fluxos"
@@ -65,7 +66,7 @@ DEFAULT_FLUXOS = [
          {"titulo": "Coleta da nota", "envio": "até 48h após a visita",
           "texto": "Oi {nome}! Aqui é a Mariane, da PSM 😊 Obrigada pela visita! Me ajuda numa coisa rapidinha: de 0 a 10, quanto você recomendaria a PSM pra um amigo?"},
          {"titulo": "Nota 9–10 — agradecer + semear indicação", "envio": "logo após a nota",
-          "texto": "Uau, obrigada! 🥰 Isso significa muito pra gente. E já que você curtiu: conhece alguém procurando terreno ou casa? Sua indicação vale prêmio em dinheiro aqui na PSM 💰"},
+          "texto": "Uau, obrigada! 🥰 Isso significa muito pra gente. E já que você curtiu: conhece alguém procurando terreno ou casa? Indicação sua que vira negócio te dá prêmio em dinheiro — de R$ 500 a R$ 2.500 💰"},
          {"titulo": "Nota 7–8 — entender o que faltou", "envio": "logo após a nota",
           "texto": "Obrigada pela nota! Me conta: o que faltou pra ser um 10? Quero melhorar isso pra você 🙏"},
          {"titulo": "Nota 0–6 — resolver e escalar JÁ", "envio": "na hora, prioridade máxima",
@@ -77,7 +78,7 @@ DEFAULT_FLUXOS = [
          {"titulo": "Coleta da nota", "envio": "até 48h após a visita",
           "texto": "Oi {nome}! Mariane da PSM aqui 😊 Que legal sua visita — realizar o 1º imóvel é demais! De 0 a 10, como foi a experiência com o nosso time?"},
          {"titulo": "Nota 9–10 — agradecer + semear indicação", "envio": "logo após a nota",
-          "texto": "Que alegria! 🥰 Obrigada de verdade. E se algum amigo ou parente também sonha com a casa própria, me apresenta: sua indicação vale prêmio em dinheiro 💰"},
+          "texto": "Que alegria! 🥰 Obrigada de verdade. E se algum amigo ou parente também sonha com a casa própria, me apresenta: sua indicação virando negócio te dá prêmio em dinheiro, de R$ 500 a R$ 2.500 💰"},
          {"titulo": "Nota 7–8 — entender o que faltou", "envio": "logo após a nota",
           "texto": "Valeu pela sinceridade! O que a gente pode fazer melhor pra chegar no 10? Tô aqui pra isso 🙏"},
          {"titulo": "Nota 0–6 — resolver e escalar JÁ", "envio": "na hora, prioridade máxima",
@@ -101,7 +102,7 @@ DEFAULT_FLUXOS = [
          {"titulo": "Coleta da nota", "envio": "no mesmo dia da visita",
           "texto": "Oi {nome}! Mariane da PSM 😊 Obrigada pela visita de hoje! De 0 a 10, como foi a experiência com a gente?"},
          {"titulo": "Nota 9–10 — agradecer + semear indicação", "envio": "logo após a nota",
-          "texto": "Obrigada! 🥰 E olha: se souber de alguém querendo alugar (ou dono querendo colocar pra alugar), sua indicação fechando contrato vale prêmio em dinheiro 💰"},
+          "texto": "Obrigada! 🥰 E olha: se souber de alguém querendo alugar (ou dono querendo colocar pra alugar), sua indicação fechando contrato vale prêmio de R$ 150 a R$ 400 💰"},
          {"titulo": "Nota 7–8 — entender o que faltou", "envio": "logo após a nota",
           "texto": "Valeu pela nota! O que faltou pro 10? Se for algo do imóvel ou do processo, me fala que eu corro atrás 🙏"},
          {"titulo": "Nota 0–6 — resolver e escalar JÁ", "envio": "na hora, prioridade máxima",
@@ -386,6 +387,38 @@ class handler(BaseHTTPRequestHandler):
                         pass
                 audit(self, user, "av.nota", "avaliacoes_kanban", str(c["id"]), notes=f"nota={nota}")
                 return self._send(200, {"ok": True, **resultado})
+
+            if action == "sugerir_msg":
+                c = card(body.get("id"))
+                if not c:
+                    return self._send(404, {"ok": False, "error": "card não encontrado"})
+                origem_ctx = {
+                    "map": "visitou terreno/loteamento ou imóvel pronto da PSM (funil MAP) — público família ou investidor",
+                    "conquista": "visitou pela Equipe Conquista — 1ª compra da vida, perfil MCMV, cliente ansioso que precisa de acolhimento e linguagem simples",
+                    "terceiros": "visitou imóvel de parceiro (funil Terceiros) — a experiência pode ter envolvido corretor parceiro",
+                    "locacoes": "visitou imóvel PRA ALUGAR — ciclo rápido, decisão em dias",
+                    "manual": "cliente adicionado manualmente",
+                }.get(c.get("origem") or "", "visitou com a PSM")
+                nota = c.get("nota")
+                if nota is None:
+                    objetivo = "coletar a nota: agradeça a visita e pergunte, de 0 a 10, quanto ele recomendaria a PSM"
+                elif float(nota) >= 9:
+                    objetivo = f"ele deu nota {int(float(nota))} — agradeça de coração e plante a semente da indicação premiada (a PSM paga prêmio em dinheiro por indicação que vira negócio)"
+                elif float(nota) <= 6:
+                    objetivo = f"ele deu nota {int(float(nota))} (DETRATOR) — peça desculpa sincera, pergunte o que houve e diga que vai levar pro gerente AGORA e retorna hoje; zero desculpas prontas"
+                else:
+                    objetivo = f"ele deu nota {int(float(nota))} — agradeça e pergunte o que faltou pra ser 10"
+                prompt = (f"Você é a Mariane, do relacionamento da imobiliária PSM (São José do Rio Preto). "
+                          f"Escreva UMA mensagem de WhatsApp pra {c.get('nome')}.\n"
+                          f"Contexto: {origem_ctx}.\n"
+                          f"Objetivo: {objetivo}.\n"
+                          + (f"Feedback que ele deu: \"{c.get('feedback')}\"\n" if c.get("feedback") else "")
+                          + (f"Anotações da equipe: {c.get('obs')}\n" if c.get("obs") else "")
+                          + REGRAS_WHATSAPP)
+                txt, prov = ia(prompt)
+                if not txt:
+                    return self._send(503, {"ok": False, "error": "IA indisponível agora — use os fluxos prontos"})
+                return self._send(200, {"ok": True, "msg": txt[:1200], "provedor": prov})
 
             if action == "mencionar":
                 c = card(body.get("id"))

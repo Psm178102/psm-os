@@ -27,7 +27,8 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of, notify_all  # type: ignore
-from _fisc_lib import _kv, _kv_set, get_cfg as fisc_cfg  # type: ignore
+from _fisc_lib import _kv, _kv_set, get_cfg as fisc_cfg, premio_faixa  # type: ignore
+from _ia_lib import ia, REGRAS_WHATSAPP  # type: ignore
 
 CFG_KEY = "indicacao_kanban_cfg"
 CADENCIA_KEY = "kanban_cadencia_ultimo"
@@ -525,6 +526,36 @@ class handler(BaseHTTPRequestHandler):
                 _kv_set(sb, CFG_KEY, cfg)
                 audit(self, user, "ik.set_cfg", "shared_kv", CFG_KEY, notes=f"{len(cols)} col / {len(tags)} tags")
                 return self._send(200, {"ok": True, "cfg": cfg})
+
+            if action == "sugerir_msg":
+                c = card(body.get("id"))
+                if not c:
+                    return self._send(404, {"ok": False, "error": "card não encontrado"})
+                fcfg = fisc_cfg(sb)
+                fv = fcfg.get("premio_indicacao_venda") or []
+                base_ctx = {
+                    "nps_promotor": "acabou de dar nota 9-10 pra PSM numa pesquisa — está encantado",
+                    "fechou_12m": "fechou negócio com a PSM nos últimos 12 meses — é cliente realizado",
+                    "visita_60d": "visitou imóvel com a PSM nos últimos 60 dias — relação recente e morna",
+                    "funil_map": "é da base do funil MAP (loteamentos e imóveis prontos) — contato antigo, provavelmente frio",
+                    "manual": "foi adicionado manualmente pela equipe",
+                }.get(c.get("base") or "", "é da base de clientes")
+                estado = {
+                    "a_abordar": "AINDA NÃO FOI ABORDADO — objetivo: reabrir a conversa com naturalidade (se frio, NÃO peça indicação já na 1ª mensagem; se quente, pode convidar direto)",
+                    "abordado": "já foi abordado e não respondeu ou a conversa parou — objetivo: follow-up leve, sem pressão",
+                    "topou": "TOPOU indicar mas ainda não mandou o contato — objetivo: cobrar com leveza o nome e telefone do indicado",
+                }.get(c.get("coluna") or "", "objetivo: avançar a conversa sobre indicação")
+                prompt = (f"Você é a Mariane, do relacionamento da imobiliária PSM (São José do Rio Preto). "
+                          f"Escreva UMA mensagem de WhatsApp pra {c.get('nome')}.\n"
+                          f"Contexto do contato: {base_ctx}.\n"
+                          f"Situação: {estado}.\n"
+                          + (f"Anotações da equipe sobre ele: {c.get('obs')}\n" if c.get("obs") else "")
+                          + f"Programa: a PSM premia indicações em dinheiro — na venda vai de R$ {int(fv[0][1]) if fv else 500} a R$ {int(fv[-1][1]) if fv else 2500} conforme o valor do negócio; na locação também tem prêmio.\n"
+                          + REGRAS_WHATSAPP)
+                txt, prov = ia(prompt)
+                if not txt:
+                    return self._send(503, {"ok": False, "error": "IA indisponível agora — use os fluxos prontos"})
+                return self._send(200, {"ok": True, "msg": txt[:1200], "provedor": prov})
 
             if action == "limpar_base":
                 if lvl < 7:

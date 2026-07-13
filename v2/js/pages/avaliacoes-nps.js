@@ -111,6 +111,25 @@ function render() {
       </div>`}
     </div>
     ${fluxosAba ? htmlFluxos() : `
+    ${(() => {
+      const cs = (_d.cards || []).filter(c => c.coluna !== 'descarte');
+      const comNota = cs.filter(c => c.nota != null);
+      const prom = comNota.filter(c => c.nota >= 9).length;
+      const neut = comNota.filter(c => c.nota >= 7 && c.nota < 9).length;
+      const detr = comNota.filter(c => c.nota <= 6).length;
+      const nps = comNota.length ? Math.round((prom - detr) / comNota.length * 100) : null;
+      const media = comNota.length ? (comNota.reduce((s, c) => s + Number(c.nota), 0) / comNota.length).toFixed(1) : '—';
+      const cob = cs.length ? Math.round(comNota.length / cs.length * 100) : 0;
+      const mini = (l, v, cor) => `<div style="flex:1;min-width:105px;background:var(--bg-2);border-radius:10px;padding:6px 10px;border-left:3px solid ${cor}"><div class="tiny muted">${l}</div><div style="font-weight:900;font-size:16px">${v}</div></div>`;
+      return `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
+        ${mini('📊 NPS', nps === null ? '—' : nps, nps === null ? '#64748b' : nps >= 50 ? '#16a34a' : nps >= 0 ? '#d97706' : '#dc2626')}
+        ${mini('⭐ Nota média', media, '#2563eb')}
+        ${mini('🌟 Promotores (9–10)', prom, '#16a34a')}
+        ${mini('😐 Neutros (7–8)', neut, '#d97706')}
+        ${mini('🔴 Detratores (0–6)', detr, '#dc2626')}
+        ${mini('📋 Cobertura', cob + '%', cob >= 80 ? '#16a34a' : '#d97706')}
+      </div>`;
+    })()}
     <div class="mt-2" style="display:flex;gap:10px;overflow-x:auto;align-items:flex-start;padding-bottom:8px">
       ${(cfg.colunas || []).map(col => {
         const lista = porCol[col.id] || [];
@@ -254,6 +273,16 @@ function abrirCard(id) {
       <div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:3px">
         ${(_d.cfg.etiquetas || []).map(t => { const on = (c.etiquetas || []).includes(t.id); return `<button class="btn btn-sm av-tag" data-t="${esc(t.id)}" style="padding:2px 10px;font-size:11px;border-radius:999px;${on ? `background:${t.cor};color:#fff;font-weight:800` : `background:${t.cor}1a;color:${t.cor}`}">${esc(t.nome)}</button>`; }).join('')}
       </div></div>
+    <div class="mt-2" style="background:#7c3aed12;border-radius:10px;padding:8px 10px">
+      <div class="flex items-center" style="gap:6px">
+        <label class="tiny muted" style="font-weight:800">🧠 Mensagem personalizada por IA <span style="font-weight:400">(usa origem, nota e feedback do card)</span></label>
+        <button class="btn btn-ghost btn-sm" id="av-ia" style="margin-left:auto;padding:2px 10px;font-size:11px">✨ Gerar</button>
+      </div>
+      <div id="av-ia-out" style="display:none;margin-top:5px">
+        <textarea class="input" id="av-ia-txt" rows="3" style="resize:vertical"></textarea>
+        <button class="btn btn-ghost btn-sm mt-1" id="av-ia-copy">📋 Copiar</button>
+      </div>
+    </div>
     <div class="mt-2"><label class="tiny muted">📝 Observações</label>
       <textarea class="input" id="av-obs" rows="2" style="resize:vertical">${esc(c.obs || '')}</textarea></div>
     <div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
@@ -276,6 +305,18 @@ function abrirCard(id) {
     else { tags.add(t); b.style.cssText += `;background:${info.cor};color:#fff;font-weight:800`; }
   });
   ov.querySelector('#av-x').onclick = () => ov.remove();
+  ov.querySelector('#av-ia').onclick = async () => {
+    const b = ov.querySelector('#av-ia');
+    b.disabled = true; b.textContent = '⏳ Gerando…';
+    const r = await post({ action: 'sugerir_msg', id: c.id });
+    b.disabled = false; b.textContent = '✨ Gerar outra';
+    if (r && r.msg) { ov.querySelector('#av-ia-out').style.display = ''; ov.querySelector('#av-ia-txt').value = r.msg; }
+  };
+  ov.querySelector('#av-ia-copy').onclick = async () => {
+    const t = ov.querySelector('#av-ia-txt').value;
+    try { await navigator.clipboard.writeText(t); } catch (_) { prompt('Copie a mensagem:', t); return; }
+    const b = ov.querySelector('#av-ia-copy'); b.textContent = '✅ Copiado'; setTimeout(() => { b.textContent = '📋 Copiar'; }, 1400);
+  };
   ov.querySelector('#av-notaok').onclick = async () => {
     const n = ov.querySelector('#av-nota').value;
     if (n === '') { alert('Informe a nota de 0 a 10.'); return; }
