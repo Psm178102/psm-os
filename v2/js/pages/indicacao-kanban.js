@@ -11,10 +11,20 @@ const hojeStr = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
-const filaStatus = c => { // 'atrasada' | 'hoje' | null
+const amanhaStr = () => {
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const filaStatus = c => { // 'atrasada' | 'hoje' | 'amanha' | null — qualquer prazo, auto ou manual
   const t = c.tarefa || {};
-  if (!t.auto || !t.data) return null;
-  return String(t.data) < hojeStr() ? 'atrasada' : String(t.data) === hojeStr() ? 'hoje' : null;
+  if (!t.data) return null;
+  const d = String(t.data).substring(0, 10);
+  return d < hojeStr() ? 'atrasada' : d === hojeStr() ? 'hoje' : d === amanhaStr() ? 'amanha' : null;
+};
+const PRAZO_UI = {
+  atrasada: ['#dc2626', '⏰ ATRASADO'],
+  hoje: ['#d97706', '📅 VENCE HOJE'],
+  amanha: ['#eab308', '⚠️ VENCE AMANHÃ'],
 };
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -69,10 +79,11 @@ function cardHtml(c) {
   const [bLbl, bCor] = BASES[c.base] || BASES.manual;
   const fone = (c.contato || '').replace(/\D/g, '');
   const fs = filaStatus(c);
-  const borda = fs === 'atrasada' ? 'border:2px solid #dc2626' : fs === 'hoje' ? 'border:2px solid #2563eb' : 'border:1px solid var(--bd,#e2e8f0)';
+  const [pc, pl] = PRAZO_UI[fs] || [];
+  const borda = fs ? `border:2px solid ${pc};background:${pc}0d` : 'border:1px solid var(--bd,#e2e8f0)';
   return `<div class="ik-card" draggable="true" data-id="${esc(c.id)}"
     style="background:var(--bg-2);${borda};border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:grab">
-    ${fs ? `<div class="tiny" style="font-weight:900;color:${fs === 'atrasada' ? '#dc2626' : '#2563eb'};margin-bottom:2px">${fs === 'atrasada' ? '⏰ ATRASADA' : '📅 FILA DE HOJE'}${c.tarefa?.titulo ? ' · ' + esc(c.tarefa.titulo.replace(/^[^ ]+ /, '')) : ''}</div>` : ''}
+    ${fs ? `<div class="tiny" style="font-weight:900;color:${pc};margin-bottom:2px">${pl}${c.tarefa?.titulo ? ' · ' + esc(c.tarefa.titulo.replace(/^[^ ]+ /, '')) : ''}</div>` : ''}
     <div class="flex items-center" style="gap:6px">
       <b style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.nome)}</b>
       ${fone ? `<a class="tiny" href="https://wa.me/55${esc(fone)}" target="_blank" rel="noopener" title="Abrir WhatsApp" onclick="event.stopPropagation()">💬</a>` : ''}
@@ -94,13 +105,14 @@ function cardHtml(c) {
 function render() {
   const cfg = _d.cfg || { colunas: [], etiquetas: [] };
   let cards = _d.cards || [];
-  const nFila = cards.filter(filaStatus).length;
-  if (_fHoje) cards = cards.filter(filaStatus);
+  const naFila = c => ['atrasada', 'hoje'].includes(filaStatus(c));
+  const nFila = cards.filter(naFila).length;
+  if (_fHoje) cards = cards.filter(naFila);
   if (_fBase) cards = cards.filter(c => c.base === _fBase);
   if (_busca) { const q = _busca.toLowerCase(); cards = cards.filter(c => (c.nome || '').toLowerCase().includes(q) || (c.contato || '').includes(q)); }
   const porCol = {};
   cards.forEach(c => { (porCol[c.coluna] = porCol[c.coluna] || []).push(c); });
-  const peso = c => filaStatus(c) === 'atrasada' ? 0 : filaStatus(c) === 'hoje' ? 1 : 2;
+  const peso = c => ({ atrasada: 0, hoje: 1, amanha: 2 }[filaStatus(c)] ?? 3);
   Object.values(porCol).forEach(l => l.sort((a, b) => peso(a) - peso(b)));
 
   _host.innerHTML = `
@@ -204,6 +216,7 @@ function wire() {
       if (r) {
         c.coluna = destino;
         c.descarte_motivo = destino === 'descartado' ? motivo : null;
+        c.tarefa = r.followup ? { data: r.followup, titulo: '🔁 Follow-up automático', auto: true } : (c.tarefa?.auto ? null : c.tarefa);
         render();
       }
     };
@@ -364,6 +377,7 @@ function abrirCfg() {
     <input class="input cg-emoji" value="${esc(c.emoji)}" style="width:52px;padding:3px 7px">
     <input class="input cg-nome" value="${esc(c.nome)}" style="flex:1;padding:3px 8px">
     <input class="input cg-cor" type="color" value="${esc(c.cor)}" style="width:44px;padding:1px">
+    <label class="tiny muted" title="Follow-up automático: mover um card PRA esta coluna cria tarefa (em N dias) pra quem moveu — 0 = não cria" style="display:flex;align-items:center;gap:2px">🔁<input class="input cg-fup" type="number" min="0" max="60" value="${c.followup_dias ?? 0}" style="width:50px;padding:3px 5px">d</label>
     ${!['a_abordar', 'descartado'].includes(c.id) ? '<button class="btn btn-ghost btn-sm cg-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>' : '<span style="width:30px" class="tiny muted" title="coluna estrutural">🔒</span>'}
   </div>`;
   const tagRow = t => `<div class="flex" style="gap:5px;margin-top:4px" data-cfgtag="${esc(t.id)}">
@@ -414,6 +428,7 @@ function abrirCfg() {
     const colunas = [...ov.querySelectorAll('[data-cfgcol]')].map(r => ({
       id: r.dataset.cfgcol, emoji: r.querySelector('.cg-emoji').value.trim(),
       nome: r.querySelector('.cg-nome').value.trim(), cor: r.querySelector('.cg-cor').value,
+      followup_dias: Number(r.querySelector('.cg-fup')?.value) || 0,
     })).filter(c => c.nome);
     const etiquetas = [...ov.querySelectorAll('[data-cfgtag]')].map(r => ({
       id: r.dataset.cfgtag, nome: r.querySelector('.tg-nome').value.trim(), cor: r.querySelector('.tg-cor').value,

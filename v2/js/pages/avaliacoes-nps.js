@@ -18,6 +18,25 @@ const ORIGENS = {
 };
 const MOTIVOS = ['duplicado', 'não quis avaliar', 'não responde'];
 const notaCor = n => n >= 9 ? '#16a34a' : n >= 7 ? '#d97706' : '#dc2626';
+const hojeStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const amanhaStr = () => {
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const prazoStatus = c => { // 'atrasada' | 'hoje' | 'amanha' | null
+  const t = c.tarefa || {};
+  if (!t.data) return null;
+  const d = String(t.data).substring(0, 10);
+  return d < hojeStr() ? 'atrasada' : d === hojeStr() ? 'hoje' : d === amanhaStr() ? 'amanha' : null;
+};
+const PRAZO_UI = {
+  atrasada: ['#dc2626', '⏰ ATRASADO'],
+  hoje: ['#d97706', '📅 VENCE HOJE'],
+  amanha: ['#eab308', '⚠️ VENCE AMANHÃ'],
+};
 
 export async function pageAvaliacoesNps(ctx, root) { _host = root; await reload(); }
 
@@ -61,8 +80,12 @@ function corretorNome(c) {
 function cardHtml(c) {
   const [oLbl, oCor] = ORIGENS[c.origem] || ORIGENS.manual;
   const fone = (c.contato || '').replace(/\D/g, '');
+  const fs = prazoStatus(c);
+  const [pc, pl] = PRAZO_UI[fs] || [];
+  const borda = fs ? `border:2px solid ${pc};background:${pc}0d` : 'border:1px solid var(--bd,#e2e8f0)';
   return `<div class="av-card" draggable="true" data-id="${esc(c.id)}"
-    style="background:var(--bg-2);border:1px solid var(--bd,#e2e8f0);border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:grab">
+    style="background:var(--bg-2);${borda};border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:grab">
+    ${fs ? `<div class="tiny" style="font-weight:900;color:${pc};margin-bottom:2px">${pl}${c.tarefa?.titulo ? ' · ' + esc(c.tarefa.titulo.replace(/^[^ ]+ /, '')) : ''}</div>` : ''}
     <div class="flex items-center" style="gap:6px">
       ${c.nota != null ? `<span style="background:${notaCor(c.nota)};color:#fff;font-weight:900;border-radius:8px;padding:0 7px;font-size:13px">${Number(c.nota) % 1 ? c.nota : Math.round(c.nota)}</span>` : ''}
       <b style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.nome)}</b>
@@ -90,6 +113,8 @@ function render() {
   if (_busca) { const q = _busca.toLowerCase(); cards = cards.filter(c => (c.nome || '').toLowerCase().includes(q) || (c.contato || '').includes(q)); }
   const porCol = {};
   cards.forEach(c => { (porCol[c.coluna] = porCol[c.coluna] || []).push(c); });
+  const peso = c => ({ atrasada: 0, hoje: 1, amanha: 2 }[prazoStatus(c)] ?? 3);
+  Object.values(porCol).forEach(l => l.sort((a, b) => peso(a) - peso(b)));
 
   _host.innerHTML = `
     <div class="card" style="padding:10px 12px">
@@ -192,7 +217,12 @@ function wireKanban() {
         if (motivo === null) return;
       }
       const r = await post({ action: 'mover', id, coluna: destino, motivo });
-      if (r) { c.coluna = destino; c.descarte_motivo = destino === 'descarte' ? motivo : null; render(); }
+      if (r) {
+        c.coluna = destino;
+        c.descarte_motivo = destino === 'descarte' ? motivo : null;
+        c.tarefa = r.followup ? { data: r.followup, titulo: '🔁 Follow-up automático', auto: true } : (c.tarefa?.auto ? null : c.tarefa);
+        render();
+      }
     };
   });
 }
@@ -490,6 +520,7 @@ function abrirCfg() {
     <input class="input cg-emoji" value="${esc(c.emoji)}" style="width:52px;padding:3px 7px">
     <input class="input cg-nome" value="${esc(c.nome)}" style="flex:1;padding:3px 8px">
     <input class="input cg-cor" type="color" value="${esc(c.cor)}" style="width:44px;padding:1px">
+    <label class="tiny muted" title="Follow-up automático: mover um card PRA esta coluna cria tarefa (em N dias) pra quem moveu — 0 = não cria" style="display:flex;align-items:center;gap:2px">🔁<input class="input cg-fup" type="number" min="0" max="60" value="${c.followup_dias ?? 0}" style="width:50px;padding:3px 5px">d</label>
     ${!FIXAS.includes(c.id) ? '<button class="btn btn-ghost btn-sm cg-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>' : '<span style="width:30px" class="tiny muted" title="coluna estrutural (as automações da nota usam)">🔒</span>'}
   </div>`;
   const tagRow = t => `<div class="flex" style="gap:5px;margin-top:4px" data-cfgtag="${esc(t.id)}">
@@ -534,6 +565,7 @@ function abrirCfg() {
     const colunas = [...ov.querySelectorAll('[data-cfgcol]')].map(r => ({
       id: r.dataset.cfgcol, emoji: r.querySelector('.cg-emoji').value.trim(),
       nome: r.querySelector('.cg-nome').value.trim(), cor: r.querySelector('.cg-cor').value,
+      followup_dias: Number(r.querySelector('.cg-fup')?.value) || 0,
     })).filter(c => c.nome);
     const etiquetas = [...ov.querySelectorAll('[data-cfgtag]')].map(r => ({
       id: r.dataset.cfgtag, nome: r.querySelector('.tg-nome').value.trim(), cor: r.querySelector('.tg-cor').value,

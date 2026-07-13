@@ -34,11 +34,11 @@ CFG_KEY = "indicacao_kanban_cfg"
 CADENCIA_KEY = "kanban_cadencia_ultimo"
 DEFAULT_CFG = {
     "colunas": [
-        {"id": "a_abordar", "nome": "A abordar", "emoji": "📥", "cor": "#64748b"},
-        {"id": "abordado", "nome": "Abordado — aguardando", "emoji": "💬", "cor": "#2563eb"},
-        {"id": "topou", "nome": "Topou indicar", "emoji": "🤝", "cor": "#d97706"},
-        {"id": "indicou", "nome": "Indicou", "emoji": "🎁", "cor": "#16a34a"},
-        {"id": "descartado", "nome": "Descartado", "emoji": "🗑", "cor": "#dc2626"},
+        {"id": "a_abordar", "nome": "A abordar", "emoji": "📥", "cor": "#64748b", "followup_dias": 0},
+        {"id": "abordado", "nome": "Abordado — aguardando", "emoji": "💬", "cor": "#2563eb", "followup_dias": 3},
+        {"id": "topou", "nome": "Topou indicar", "emoji": "🤝", "cor": "#d97706", "followup_dias": 2},
+        {"id": "indicou", "nome": "Indicou", "emoji": "🎁", "cor": "#16a34a", "followup_dias": 0},
+        {"id": "descartado", "nome": "Descartado", "emoji": "🗑", "cor": "#dc2626", "followup_dias": 0},
     ],
     "etiquetas": [
         {"id": "quente", "nome": "Quente", "cor": "#dc2626"},
@@ -65,9 +65,15 @@ def _now():
     return datetime.now(timezone.utc).isoformat()
 
 
+FUP_DEFAULT = {"abordado": 3, "topou": 2}
+
+
 def _cfg(sb):
     v = _kv(sb, CFG_KEY)
     if isinstance(v, dict) and v.get("colunas"):
+        for col in v.get("colunas") or []:  # cfg antiga sem followup_dias ganha o default
+            if "followup_dias" not in col:
+                col["followup_dias"] = FUP_DEFAULT.get(col.get("id"), 0)
         cad = v.get("cadencia") or {}
         # base antiga 'carteira_map' virou 'funil_map' (v84.28); nps_promotor entra na frente (v84.29)
         prio = [("funil_map" if b == "carteira_map" else b)
@@ -209,6 +215,38 @@ def _sincronizar(sb, user):
 
     criadas = _inserir_lote(sb, novos) if novos else 0
     return res, criadas
+
+
+def _tarefa_followup(sb, cfg, card, col_id, uid):
+    """Coluna destino com followup_dias > 0: cria a tarefa automática (e o
+    evento na Agenda) pra QUEM MOVEU o card — ninguém esquece o próximo contato.
+    Sempre apaga o evento da tarefa automática anterior."""
+    antiga = card.get("tarefa") or {}
+    if antiga.get("auto") and antiga.get("evento_id"):
+        try:
+            sb.table("eventos").delete().eq("id", antiga["evento_id"]).execute()
+        except Exception:
+            pass
+    col = next((x for x in (cfg.get("colunas") or []) if x.get("id") == col_id), None) or {}
+    try:
+        dias = max(0, min(60, int(col.get("followup_dias") or 0)))
+    except (TypeError, ValueError):
+        dias = 0
+    if dias <= 0:
+        return None
+    brt = timezone(timedelta(hours=-3))
+    alvo = (datetime.now(brt) + timedelta(days=dias)).date().isoformat()
+    titulo = f"🔁 Follow-up — {card.get('nome')} ({col.get('nome') or col_id})"[:160]
+    ev_id = "evfu_" + uuid.uuid4().hex[:10]
+    try:
+        sb.table("eventos").insert({"id": ev_id, "tipo": "tarefa", "titulo": titulo,
+                                    "data": alvo, "all_day": True, "participantes": [uid],
+                                    "descricao": f"Follow-up automático ({dias}d) ao mover o card pra '{col.get('nome')}'",
+                                    "status": "agendado"}).execute()
+    except Exception:
+        ev_id = None
+    return {"data": alvo, "titulo": titulo[:140], "auto": True,
+            "tipo_fila": "followup_coluna", "evento_id": ev_id, "por": uid}
 
 
 def _responsavel_ids(sb, match):
@@ -393,7 +431,8 @@ class handler(BaseHTTPRequestHandler):
                 col = (body.get("coluna") or "").strip()
                 if not c or not col:
                     return self._send(400, {"ok": False, "error": "id e coluna obrigatórios"})
-                cols = {x["id"] for x in _cfg(sb).get("colunas") or []}
+                cfg_k = _cfg(sb)
+                cols = {x["id"] for x in cfg_k.get("colunas") or []}
                 if col not in cols:
                     return self._send(400, {"ok": False, "error": "coluna não existe"})
                 upd = {"coluna": col, "atualizado_em": _now(), "atualizado_por": str(user.get("id"))}
@@ -404,10 +443,12 @@ class handler(BaseHTTPRequestHandler):
                 if col != "descartado" and c.get("coluna") == "a_abordar" and not c.get("abordado_em"):
                     upd["abordado_em"] = _now()
                     log_abordagem(c)
-                if (c.get("tarefa") or {}).get("auto"):
-                    upd["tarefa"] = None  # mover = tarefa da fila cumprida
+                # follow-up automático da coluna destino (tarefa + Agenda de quem moveu)
+                nova_t = None if col == "descartado" else _tarefa_followup(sb, cfg_k, c, col, str(user.get("id")))
+                if nova_t or (c.get("tarefa") or {}).get("auto"):
+                    upd["tarefa"] = nova_t
                 sb.table("indicacao_kanban").update(upd).eq("id", str(c["id"])).execute()
-                return self._send(200, {"ok": True})
+                return self._send(200, {"ok": True, "followup": (nova_t or {}).get("data")})
 
             if action == "editar":
                 c = card(body.get("id"))
@@ -505,10 +546,15 @@ class handler(BaseHTTPRequestHandler):
                 for x in (body.get("colunas") or [])[:12]:
                     if not isinstance(x, dict) or not str(x.get("nome") or "").strip():
                         continue
+                    try:
+                        fup = max(0, min(60, int(x.get("followup_dias") or 0)))
+                    except (TypeError, ValueError):
+                        fup = 0
                     cols.append({"id": (str(x.get("id") or "").strip() or "col_" + uuid.uuid4().hex[:6]),
                                  "nome": str(x["nome"]).strip()[:40],
                                  "emoji": (str(x.get("emoji") or "📌").strip()[:8] or "📌"),
-                                 "cor": (str(x.get("cor") or "#64748b").strip()[:16])})
+                                 "cor": (str(x.get("cor") or "#64748b").strip()[:16]),
+                                 "followup_dias": fup})
                 ids = [c["id"] for c in cols]
                 if not all(f in ids for f in COLS_FIXAS):
                     return self._send(400, {"ok": False, "error": "as colunas 'a_abordar' e 'descartado' são estruturais e não podem sair"})
