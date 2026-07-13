@@ -180,19 +180,19 @@ def _sincronizar(sb, user):
     except Exception:
         pass
 
-    # 👣 Base 2: visitas 60d (event sourcing), funis MAP + Conquista
+    # 👣 Base 2: visitas REALIZADAS 60d (não agendadas!), funis MAP + Conquista.
+    # pipeline_name do EVENTO vem nulo no histórico → a frente resolve pelo deal.
     corte60d = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
     try:
-        evs = _page_all(lambda: sb.table("deal_stage_events").select("deal_id,pipeline_name")
-                        .ilike("stage_name", "%visita%").gte("occurred_at", corte60d)
+        evs = _page_all(lambda: sb.table("deal_stage_events").select("deal_id")
+                        .ilike("stage_name", "%visita%realizada%").gte("occurred_at", corte60d)
                         .order("occurred_at"), max_rows=4000)
-        ids = list({str(e["deal_id"]) for e in evs
-                    if e.get("deal_id") and frente_of(e.get("pipeline_name")) in ("map", "conquista")
-                    and str(e["deal_id"]) not in ja})
+        ids = list({str(e["deal_id"]) for e in evs if e.get("deal_id") and str(e["deal_id"]) not in ja})
         for i in range(0, len(ids), 150):
-            dd = sb.table("deals").select(SEL).in_("id", ids[i:i + 150]).execute().data or []
+            dd = sb.table("deals").select(SEL + ",pipeline_name").in_("id", ids[i:i + 150]).execute().data or []
             for d in dd:
-                add(d, "visita_60d")
+                if frente_of(d.get("pipeline_name")) in ("map", "conquista"):
+                    add(d, "visita_60d")
     except Exception:
         pass
 

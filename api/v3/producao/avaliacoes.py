@@ -164,38 +164,39 @@ def _sincronizar_av(sb, user):
         ja = {str(r["deal_id"]) for r in ja_rows if r.get("deal_id")}
     except Exception:
         ja = set()
-    evs = _page_all(lambda: sb.table("deal_stage_events").select("deal_id,pipeline_name,occurred_at")
-                    .ilike("stage_name", "%visita%").gte("occurred_at", corte)
+    # visitas REALIZADAS (não agendadas); pipeline_name do EVENTO vem nulo no
+    # histórico → a origem resolve pelo pipeline do deal
+    evs = _page_all(lambda: sb.table("deal_stage_events").select("deal_id,occurred_at")
+                    .ilike("stage_name", "%visita%realizada%").gte("occurred_at", corte)
                     .order("occurred_at"), max_rows=6000)
     alvo = {}
     for e in evs:
         did = str(e.get("deal_id") or "")
-        fr = frente_of(e.get("pipeline_name"))
-        if not did or did in ja or fr not in FRENTES_AV:
+        if not did or did in ja:
             continue
         cur = alvo.get(did)
-        if not cur or str(e.get("occurred_at") or "") > str(cur["visita_em"] or ""):
-            alvo[did] = {"origem": fr, "visita_em": e.get("occurred_at")}
+        if not cur or str(e.get("occurred_at") or "") > str(cur or ""):
+            alvo[did] = e.get("occurred_at")
     novos, res = [], {f: 0 for f in FRENTES_AV}
     ids = list(alvo.keys())
     for i in range(0, len(ids), 150):
         try:
-            dd = sb.table("deals").select("id,name,user_email,contacts:rd_raw->contacts") \
+            dd = sb.table("deals").select("id,name,user_email,pipeline_name,contacts:rd_raw->contacts") \
                 .in_("id", ids[i:i + 150]).execute().data or []
         except Exception:
             continue
         for d in dd:
             did = str(d.get("id"))
-            info = alvo.get(did) or {}
+            fr = frente_of(d.get("pipeline_name"))
             nome = (d.get("name") or "").strip()
-            if not nome:
+            if not nome or fr not in FRENTES_AV:
                 continue
-            novos.append({"deal_id": did, "origem": info.get("origem") or "map",
+            novos.append({"deal_id": did, "origem": fr,
                           "nome": nome[:160], "contato": _phone(d.get("contacts")),
                           "corretor_email": (d.get("user_email") or "").lower() or None,
-                          "coluna": "origens", "visita_em": info.get("visita_em"),
+                          "coluna": "origens", "visita_em": alvo.get(did),
                           "atualizado_por": str(user.get("id"))})
-            res[info.get("origem") or "map"] += 1
+            res[fr] += 1
     criadas = 0
     for i in range(0, len(novos), 500):
         lote = novos[i:i + 500]
