@@ -6,16 +6,37 @@
    edita / exclui — igual ao Cofre. Agrupa por categoria. Cada item abre o link.
 ============================================================================ */
 import { api } from '../api.js';
+import { dossiesAba } from './cnd-dossies.js';
 
 let _root = null, _items = [], _cats = [], _canManage = false, _editing = null, _busy = false, _q = '';
+let _page = null, _aba = 'dossies'; // 'dossies' | 'links'
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const catColor = c => { let h = 0; for (const ch of String(c || 'x')) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},55%,45%)`; };
 
 export async function pageCnds(ctx, root) {
-  _root = root; _editing = null; _busy = false; _q = '';
-  root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando catálogo de CND’s…</div></div>';
-  await load();
+  _page = root;
+  shell();
+}
+
+function shell() {
+  _page.innerHTML = `
+    <div class="card" style="padding:10px 12px">
+      <div class="flex items-center" style="gap:6px;flex-wrap:wrap">
+        <h2 class="card-title" style="margin:0;font-size:16px">⚖️ CND's</h2>
+        <span style="margin-left:auto"></span>
+        <button class="btn btn-sm ${_aba === 'dossies' ? 'btn-primary' : 'btn-ghost'}" id="cnd-aba-d">📁 Dossiês</button>
+        <button class="btn btn-sm ${_aba === 'links' ? 'btn-primary' : 'btn-ghost'}" id="cnd-aba-l">🔗 Catálogo de links</button>
+      </div>
+    </div>
+    <div id="cnd-tab-host" class="mt-2"></div>`;
+  _page.querySelector('#cnd-aba-d').onclick = () => { _aba = 'dossies'; shell(); };
+  _page.querySelector('#cnd-aba-l').onclick = () => { _aba = 'links'; shell(); };
+  const host = _page.querySelector('#cnd-tab-host');
+  if (_aba === 'dossies') { dossiesAba(host); return; }
+  _root = host; _editing = null; _busy = false; _q = '';
+  host.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando catálogo de CND’s…</div></div>';
+  load();
 }
 
 async function load() {
