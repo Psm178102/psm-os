@@ -50,7 +50,11 @@ async function tick() {
   if (!mountEl) return;
   // Limpa timers/estado da rota anterior antes de montar a próxima
   if (cleanups.length) { const cs = cleanups.splice(0); cs.forEach(fn => { try { fn(); } catch (_) {} }); }
-  const hash = (location.hash || '#/').replace(/^#/, '') || '/';
+  let hash = (location.hash || '#/').replace(/^#/, '') || '/';
+  // Links de notificação chegavam tortos ("/#/rota" virava hash "#/#/rota" → 404
+  // em TODOS os cliques do sino). Normaliza qualquer resíduo de #/ no começo. v84.21.1
+  hash = hash.replace(/^\/?#+\/?/, '/');
+  if (!hash.startsWith('/')) hash = '/' + hash;
   const [path, query] = hash.split('?');
   currentPath = path;
   currentQuery = Object.fromEntries(new URLSearchParams(query || ''));

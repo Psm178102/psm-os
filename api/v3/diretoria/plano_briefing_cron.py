@@ -135,7 +135,7 @@ class handler(BaseHTTPRequestHandler):
                     and lvl_of(u.get("role")) >= 7]
             if alvo:
                 notified = notify_all(alvo, "briefing", "🧭 Briefing de segunda — Plano de Resgate",
-                                      body=txt[:180] + "…", link="/estrategia")
+                                      body=txt[:180] + "…", link="#/estrategia")
         except Exception:
             pass
         return self._send(200, {"ok": True, "provider": prov, "notified": notified, "texto": txt[:400]})

@@ -58,7 +58,7 @@ class handler(BaseHTTPRequestHandler):
                         notify_all(gids, "fiscalizacao",
                                    f"🟡 {c.get('nome', key)} abaixo de 50% da meta",
                                    body=f"{int(feito)} de {esperado:.0f} esperados até agora ({motor}).",
-                                   link="/fiscalizacao")
+                                   link="#/fiscalizacao")
                     except Exception:
                         pass
                     enviados[chave] = now.isoformat()

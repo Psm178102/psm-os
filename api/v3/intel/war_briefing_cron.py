@@ -58,7 +58,7 @@ class handler(BaseHTTPRequestHandler):
                 notified = notify_all(alvo, "briefing",
                                       "⚔️ Briefing de Guerra da semana",
                                       "O boletim do comandante desta semana está pronto.",
-                                      link="/#/briefing-guerra",
+                                      link="#/briefing-guerra",
                                       target_type="war_briefing")
         except Exception as e:
             print(f"[war_briefing_cron] notify: {e}")

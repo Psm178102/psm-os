@@ -132,7 +132,7 @@ class handler(BaseHTTPRequestHandler):
                 mids = user_ids_por_match(sb, "mariane")
                 notify_all(list(set(mids + gestores_ids(sb))), "fiscalizacao",
                            f"🟠 NPS detrator ({int(float(valor))})",
-                           body="Cliente detrator — tratar em até 48h.", link="/fiscalizacao")
+                           body="Cliente detrator — tratar em até 48h.", link="#/fiscalizacao")
         except Exception:
             pass
 

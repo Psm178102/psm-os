@@ -143,7 +143,9 @@ async function onClick(id) {
   }
   if (n.link) {
     if (_drawerEl) { _drawerEl.remove(); _drawerEl = null; }
-    location.hash = n.link.startsWith('#') ? n.link : '#' + n.link;
+    // Backends gravavam link em 3 formatos ("#/x", "/x", "/#/x") — o último virava
+    // hash duplo "#/#/x" → 404 em TODO clique de notificação. Normaliza sempre. v84.21.1
+    location.hash = '#/' + String(n.link).replace(/^[\/#]+/, '');
   }
   refresh();
 }

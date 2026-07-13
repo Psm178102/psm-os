@@ -293,7 +293,7 @@ def checar_alertas(sb, cfg, eventos, notify_all, enviar=True):
         disparos.append({"chave": chave, "titulo": titulo})
         if enviar and user_ids:
             try:
-                notify_all(user_ids, "fiscalizacao", titulo, body=corpo, link="/fiscalizacao")
+                notify_all(user_ids, "fiscalizacao", titulo, body=corpo, link="#/fiscalizacao")
             except Exception:
                 pass
         enviados[k] = now.isoformat()

@@ -89,8 +89,9 @@ self.addEventListener('push', evt => {
 self.addEventListener('notificationclick', evt => {
   evt.notification.close();
   let raw = (evt.notification.data && evt.notification.data.link) || '#/';
-  // Link salvo como rota hash ("#/captacoes") → URL completa do app "/v2/#/captacoes"
-  const url = raw.startsWith('#') ? ('/v2/' + raw) : (raw.startsWith('/') ? raw : '/v2/');
+  // Normaliza QUALQUER formato de link ("#/x", "/x", "/#/x") pra "/v2/#/x" — o
+  // router é hash-based; abrir por path caía no Dashboard. v84.21.1
+  const url = '/v2/#/' + String(raw).replace(/^[\/#]+/, '').replace(/^v2\/#?\/?/, '');
   evt.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
       for (const c of cs) {
