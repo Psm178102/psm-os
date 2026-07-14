@@ -111,6 +111,7 @@ import { pageWarRoom } from './pages/war-room.js';
 import { pageWarArena } from './pages/war-arena.js';
 import { pageOKRs } from './pages/okrs.js';
 import { pageMetricasViab } from './pages/metricas-viab.js';
+import { pageComissaoConquista } from './pages/comissao-conquista.js';
 import { pageSimTrafego } from './pages/sim-trafego.js';
 import { pageCampanhaWa } from './pages/campanha-wa.js';
 import { pageOportunidades } from './pages/oportunidades.js';
@@ -152,7 +153,7 @@ export const ROUTE_GROUP = {
   // Diretoria
   '/cockpit': 'diretoria', '/paulo': 'diretoria', '/projetos': 'diretoria',
   '/diretoria': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria',
-  '/metricas-viab': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria', '/reunioes': 'diretoria',
+  '/metricas-viab': 'diretoria', '/comissao-conquista': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria', '/reunioes': 'diretoria',
   // Jurídico (grupo próprio)
   '/minutas': 'juridico', '/cnds': 'juridico',
   '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/estrategia': 'diretoria',
@@ -228,6 +229,7 @@ export const ROUTE_MIN_LVL = {
   '/config-menu': 10,     // renomear o menu/páginas — só sócio
   '/psmhub': 7,           // auditoria do PSM HUB (Conquista) — diretoria
   '/qualidade': 7,        // saúde dos cadastros — diretoria+
+  '/comissao-conquista': 5,  // comissionamento Conquista + Mariane — gerência/direção
   // Ferramentas Conquista (v81.44): A PRINCÍPIO só sócio (lvl 10). Pra abrir pro
   // corretor é só baixar este número (ou liberar na matriz por papel).
   '/cockpit-conquista': 10, '/minha-comissao': 10, '/meu-cerebro': 10, '/sim-conquista': 10,
@@ -391,7 +393,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.44';
+const APP_VERSION = '84.45';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -610,6 +612,7 @@ const APP_VERSION = '84.44';
   router.register('/okrs',        { render: async (ctx, root) => { setHeader('OKRs');                highlight('/okrs');       await pageOKRs(ctx, root); } });
   router.register('/kpis',        { render: async () => { location.hash = '#/cockpit?tab=kpis'; } });
   router.register('/metricas-viab', { render: async (ctx, root) => { setHeader('Métricas Viabilidade'); highlight('/metricas-viab'); await pageMetricasViab(ctx, root); } });
+  router.register('/comissao-conquista', { render: async (ctx, root) => { setHeader('Comissionamento'); highlight('/comissao-conquista'); await pageComissaoConquista(ctx, root); } });
   router.register('/sim-trafego', { render: async (ctx, root) => { setHeader('Simulador de Tráfego'); highlight('/sim-trafego'); await pageSimTrafego(ctx, root); } });
   router.register('/mapa-ciclos', { render: async () => { location.hash = '#/governanca?tab=mapa'; } });
   router.register('/oportunidades', { render: async (ctx, root) => { setHeader('Oportunidades');     highlight('/oportunidades'); await pageOportunidades(ctx, root); } });
@@ -872,6 +875,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/projetos"><span class="sb-ico">📌</span> Projetos</button>
         <button class="sb-link" data-nav="/estrategia"><span class="sb-ico">♟️</span> Estratégia</button>
         <button class="sb-link" data-nav="/metricas-viab"><span class="sb-ico">🧪</span> Métricas Viab</button>
+        <button class="sb-link" data-nav="/comissao-conquista"><span class="sb-ico">💰</span> Comissionamento</button>
         <button class="sb-link" data-nav="/sim-trafego"><span class="sb-ico">📣</span> Simulador de Tráfego</button>
         <button class="sb-link" data-nav="/bp"><span class="sb-ico">📋</span> Plano BP</button>
         <button class="sb-link" data-nav="/reunioes"><span class="sb-ico">🤝</span> Formatos de Reunião</button>

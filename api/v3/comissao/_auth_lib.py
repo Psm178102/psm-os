@@ -1,0 +1,468 @@
+"""
+PSM-OS v3 — Auth helpers (bcrypt + JWT)
+========================================
+
+Esse módulo NÃO é um endpoint (Vercel ignora arquivos com prefixo underscore).
+É importado pelos endpoints reais (auth_login.py, auth_me.py, users.py, etc).
+
+Env vars necessárias no Vercel:
+  - SUPABASE_URL
+  - SUPABASE_SERVICE_KEY
+  - JWT_SECRET            (string aleatória >= 32 chars; gerada uma vez e nunca trocada)
+  - JWT_ISSUER            (opcional, default 'psm-os')
+  - JWT_TTL_HOURS         (opcional, default 12)
+"""
+from __future__ import annotations
+
+import os
+import time
+import uuid
+from typing import Optional, Tuple
+
+
+# ─── Supabase client ───────────────────────────────────────────────────────
+def supabase_client():
+    """Singleton-ish (Vercel reusa o processo enquanto está hot)."""
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_SERVICE_KEY")
+    if not url or not key:
+        return None
+    try:
+        from supabase import create_client  # type: ignore
+        return create_client(url, key)
+    except Exception as e:
+        print(f"[auth_lib] erro criar Supabase client: {e}")
+        return None
+
+
+# ─── Password hashing ──────────────────────────────────────────────────────
+def hash_password(plain: str) -> str:
+    """Gera bcrypt hash com 12 rounds."""
+    import bcrypt
+    if not plain or len(plain) < 6:
+        raise ValueError("senha precisa ter pelo menos 6 caracteres")
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(plain.encode("utf-8"), salt).decode("utf-8")
+
+
+def verify_password(plain: str, hashed: Optional[str]) -> bool:
+    """Compara senha plain com hash bcrypt armazenado."""
+    import bcrypt
+    if not hashed or not plain:
+        return False
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
+
+
+# ─── JWT ───────────────────────────────────────────────────────────────────
+def _jwt_secret() -> str:
+    """Pega secret do env. Se ausente, gera erro (não permite default fraco)."""
+    secret = os.environ.get("JWT_SECRET")
+    if not secret or len(secret) < 32:
+        raise RuntimeError(
+            "JWT_SECRET ausente ou < 32 caracteres. "
+            "Adicione no Vercel: openssl rand -hex 32"
+        )
+    return secret
+
+
+def _jwt_issuer() -> str:
+    return os.environ.get("JWT_ISSUER", "psm-os")
+
+
+def _jwt_ttl_seconds() -> int:
+    try:
+        hours = int(os.environ.get("JWT_TTL_HOURS", "12"))
+    except Exception:
+        hours = 12
+    return max(1, hours) * 3600
+
+
+ROLE_LVL = {
+    "socio": 10, "diretor": 10,
+    "gerente": 7, "gerente_conquista": 7, "gerente_map": 7, "gerente_locacao": 7, "gerente_terceiros": 7,
+    "backoffice": 6, "back_office": 6, "back-office": 6,
+    "lider": 5, "líder": 5,
+    "marketing": 3, "secretaria_vendas": 3,
+    "financeiro": 4,
+    "corretor": 2,
+}
+
+
+_CUSTOM_LVL = {"d": None, "t": 0.0}
+_LVL_OVERRIDES = {"d": None, "t": 0.0}
+
+
+def _lvl_overrides():
+    """Overrides de nível dos papéis FIXOS, editáveis pelo sócio na Central de
+    Permissões (shared_kv 'role_lvl_overrides' = {role: lvl}). Cache 60s. v83.9.
+    'socio' e 'diretor' nunca são rebaixados aqui (proteção anti-lockout)."""
+    if _LVL_OVERRIDES["d"] is not None and (time.time() - _LVL_OVERRIDES["t"]) < 60:
+        return _LVL_OVERRIDES["d"]
+    out = {}
+    try:
+        import json as _json
+        sb = supabase_client()
+        if sb:
+            rows = sb.table("shared_kv").select("value").eq("key", "role_lvl_overrides").limit(1).execute().data or []
+            val = rows[0]["value"] if rows else {}
+            if isinstance(val, str):
+                val = _json.loads(val)
+            for k, v in (val or {}).items():
+                r = str(k).strip().lower()
+                if r in ("socio", "diretor"):
+                    continue
+                try:
+                    out[r] = max(1, min(10, int(v)))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    _LVL_OVERRIDES["d"] = out
+    _LVL_OVERRIDES["t"] = time.time()
+    return out
+
+
+def _custom_levels():
+    """Níveis de papéis CUSTOM criados pelo sócio (shared_kv 'custom_roles'),
+    cache de 60s por processo. Consultado só p/ papéis fora do ROLE_LVL fixo. v81.91"""
+    if _CUSTOM_LVL["d"] is not None and (time.time() - _CUSTOM_LVL["t"]) < 60:
+        return _CUSTOM_LVL["d"]
+    out = {}
+    try:
+        import json as _json
+        sb = supabase_client()
+        if sb:
+            rows = sb.table("shared_kv").select("value").eq("key", "custom_roles").limit(1).execute().data or []
+            val = rows[0]["value"] if rows else []
+            if isinstance(val, str):
+                val = _json.loads(val)
+            for r in (val or []):
+                if isinstance(r, dict) and r.get("id"):
+                    try:
+                        out[str(r["id"]).strip().lower()] = max(1, min(10, int(r.get("lvl") or 2)))
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+    _CUSTOM_LVL["d"] = out
+    _CUSTOM_LVL["t"] = time.time()
+    return out
+
+
+_FRENTES_CFG = {"d": None, "t": 0.0}
+_FRENTES_DEFAULT = [
+    {"id": "map", "funis": ["MAP"], "ativa": True},
+    {"id": "conquista", "funis": ["CONQUISTA"], "ativa": True},
+    {"id": "terceiros", "funis": ["TERCEIRO"], "ativa": True},
+    {"id": "locacoes", "funis": ["LOCA"], "ativa": True},
+]
+
+
+def frentes_config():
+    """FONTE ÚNICA das frentes (shared_kv 'frentes_config', cache 60s) — mata o
+    mapeamento funil→frente duplicado em 20+ backends (auditoria A1). v84.0"""
+    if _FRENTES_CFG["d"] is not None and (time.time() - _FRENTES_CFG["t"]) < 60:
+        return _FRENTES_CFG["d"]
+    out = [dict(f) for f in _FRENTES_DEFAULT]
+    try:
+        import json as _json
+        sb = supabase_client()
+        if sb:
+            rows = sb.table("shared_kv").select("value").eq("key", "frentes_config").limit(1).execute().data or []
+            val = rows[0]["value"] if rows else []
+            if isinstance(val, str):
+                val = _json.loads(val)
+            saved = {f.get("id"): f for f in val if isinstance(f, dict)} if isinstance(val, list) else {}
+            for f in out:
+                s = saved.get(f["id"]) or {}
+                if isinstance(s.get("funis"), list) and s["funis"]:
+                    f["funis"] = [str(x) for x in s["funis"]][:10]
+                if isinstance(s.get("ativa"), bool):
+                    f["ativa"] = s["ativa"]
+    except Exception:
+        pass
+    _FRENTES_CFG["d"] = out
+    _FRENTES_CFG["t"] = time.time()
+    return out
+
+
+def frente_of(pipeline_name: str) -> str:
+    """Frente (map|conquista|terceiros|locacoes|outros) de um pipeline do RD,
+    pela config editável do sócio. Substitui os if/elif hardcoded. v84.0"""
+    p = (pipeline_name or "").upper()
+    for f in frentes_config():
+        for needle in (f.get("funis") or []):
+            if str(needle).upper() in p:
+                return f["id"]
+    return "outros"
+
+
+def lvl_of(role: str) -> int:
+    """Nível do papel. Ordem: override do sócio (shared_kv 'role_lvl_overrides')
+    > ROLE_LVL fixo > papéis CUSTOM ('custom_roles'). Default 2 (corretor). v83.9"""
+    r = (role or "").strip().lower()
+    ov = _lvl_overrides()
+    if r in ov:
+        return ov[r]
+    if r in ROLE_LVL:
+        return ROLE_LVL[r]
+    return _custom_levels().get(r, 2)
+
+
+def enrich_user(u: dict) -> dict:
+    """Adiciona campos derivados (lvl, is_lider, is_diretor) sem persistir."""
+    if not u:
+        return u
+    role = (u.get("role") or "corretor").lower()
+    u["lvl"] = lvl_of(role)
+    u["is_lider"] = role in ("lider", "líder", "gerente", "socio", "diretor")
+    u["is_diretor"] = role in ("socio", "diretor")
+    return u
+
+
+def sign_jwt(user: dict, user_agent: str = "", ip: str = "") -> Tuple[str, str, int]:
+    """
+    Assina um JWT pro usuário. Retorna (token, jti, expires_at_unix).
+    Claims incluem: sub (user id), name, role, lvl, jti, iss, iat, exp.
+    """
+    import jwt  # PyJWT
+    jti = uuid.uuid4().hex
+    now = int(time.time())
+    exp = now + _jwt_ttl_seconds()
+    role = (user.get("role") or "corretor").lower()
+    payload = {
+        "sub": user.get("id"),
+        "name": user.get("name") or "",
+        "email": user.get("email") or "",
+        "role": role,
+        "team": user.get("team") or "geral",
+        "lvl": lvl_of(role),
+        "iss": _jwt_issuer(),
+        "iat": now,
+        "exp": exp,
+        "jti": jti,
+    }
+    token = jwt.encode(payload, _jwt_secret(), algorithm="HS256")
+    if isinstance(token, bytes):  # PyJWT < 2 retornava bytes
+        token = token.decode("utf-8")
+    return token, jti, exp
+
+
+def verify_jwt(token: str) -> Optional[dict]:
+    """Valida JWT. Retorna claims dict ou None se inválido/expirado."""
+    import jwt
+    if not token:
+        return None
+    try:
+        return jwt.decode(
+            token, _jwt_secret(),
+            algorithms=["HS256"],
+            issuer=_jwt_issuer(),
+            options={"require": ["exp", "iat", "sub"]},
+        )
+    except Exception as e:
+        print(f"[auth_lib] JWT inválido: {e}")
+        return None
+
+
+# ─── Helper p/ extrair Bearer do header ────────────────────────────────────
+def bearer_from_headers(headers) -> str:
+    """Lê Authorization: Bearer <token>. Aceita case-insensitive."""
+    try:
+        auth = headers.get("Authorization") or headers.get("authorization") or ""
+        if auth.lower().startswith("bearer "):
+            return auth[7:].strip()
+    except Exception:
+        pass
+    return ""
+
+
+# ─── Helper p/ obter user logado a partir do request ───────────────────────
+def current_user(handler) -> Optional[dict]:
+    """
+    Dado um BaseHTTPRequestHandler, extrai o JWT do header e retorna o user
+    completo do Postgres (ou None se sem token/token inválido/usuário sumiu).
+    """
+    token = bearer_from_headers(handler.headers)
+    claims = verify_jwt(token)
+    if not claims:
+        return None
+    sb = supabase_client()
+    if not sb:
+        return None
+    try:
+        base_cols = "id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,last_login_at"
+        try:
+            # menu_groups = override de menu por usuário (lista branca de grupos); v77.53
+            res = sb.table("users").select(base_cols + ",menu_groups").eq("id", claims.get("sub")).limit(1).execute()
+        except Exception:
+            # coluna ainda não migrada em algum ambiente → não quebra o login
+            res = sb.table("users").select(base_cols).eq("id", claims.get("sub")).limit(1).execute()
+        rows = res.data or []
+        if not rows:
+            return None
+        return enrich_user(rows[0])
+    except Exception as e:
+        print(f"[auth_lib] erro buscar user: {e}")
+        return None
+
+
+# ─── Helper: require auth (raise se não autenticado) ───────────────────────
+class AuthError(Exception):
+    def __init__(self, status: int, message: str):
+        super().__init__(message)
+        self.status = status
+        self.message = message
+
+
+def require_user(handler, min_lvl: int = 0) -> dict:
+    """Eleva exceção se sem auth ou lvl insuficiente. Retorna user dict."""
+    u = current_user(handler)
+    if not u:
+        raise AuthError(401, "autenticação necessária")
+    if (u.get("lvl") or 0) < min_lvl:
+        raise AuthError(403, f"requer nível ≥ {min_lvl}")
+    return u
+
+
+# ─── Audit log ─────────────────────────────────────────────────────────────
+def audit(handler, actor, action: str, target_type: str = None,
+          target_id: str = None, before=None, after=None, notes: str = None) -> None:
+    """
+    Grava entrada de audit_log. Best-effort — falha não bloqueia o request.
+    Use em TODOS os endpoints que mudam dados.
+
+    Args:
+      handler: BaseHTTPRequestHandler (pra extrair ip/user-agent)
+      actor:   dict do user logado (pode ser None p/ bootstrap)
+      action:  string 'dominio.acao'  ex: 'user.update', 'auth.login'
+      target_type: 'user', 'commission', etc.
+      target_id:   id da entidade alvo
+      before/after: snapshots JSON-serializable das mudanças
+      notes:   string livre p/ contexto extra
+    """
+    try:
+        sb = supabase_client()
+        if not sb:
+            return
+        try:
+            ip = (handler.headers.get("X-Forwarded-For") or "").split(",")[0].strip() \
+                 or handler.headers.get("X-Real-IP") or ""
+            ua = handler.headers.get("User-Agent") or ""
+        except Exception:
+            ip = ""
+            ua = ""
+        row = {
+            "actor_id":    (actor or {}).get("id"),
+            "actor_name":  (actor or {}).get("name"),
+            "actor_role":  (actor or {}).get("role"),
+            "action":      action,
+            "target_type": target_type,
+            "target_id":   target_id,
+            "before_data": before,
+            "after_data":  after,
+            "ip":          (ip or "")[:64] or None,
+            "user_agent":  (ua or "")[:255] or None,
+            "notes":       notes,
+        }
+        sb.table("audit_log").insert(row).execute()
+    except Exception as e:
+        print(f"[audit] falha gravar: {e}")
+
+
+# ─── Notifications ─────────────────────────────────────────────────────────
+def notify(user_ids, tipo: str, title: str, body: str = None,
+           link: str = None, target_type: str = None, target_id: str = None) -> int:
+    """
+    Gera notification(s) in-app. user_ids: list de ids OU string única.
+    Best-effort. Retorna count de inserts.
+    """
+    if not user_ids:
+        return 0
+    if isinstance(user_ids, str):
+        user_ids = [user_ids]
+    user_ids = [u for u in set(user_ids) if u]  # dedupe + None-filter
+    if not user_ids:
+        return 0
+    try:
+        sb = supabase_client()
+        if not sb:
+            return 0
+        rows = [{
+            "id":          "nt_" + uuid.uuid4().hex[:12],
+            "user_id":     uid,
+            "tipo":        tipo,
+            "title":       title[:255],
+            "body":        (body or "")[:1000] or None,
+            "link":        link,
+            "target_type": target_type,
+            "target_id":   target_id,
+        } for uid in user_ids]
+        sb.table("notifications").insert(rows).execute()
+        return len(rows)
+    except Exception as e:
+        print(f"[notify] falha: {e}")
+        return 0
+
+
+# ─── Web Push (navegador + celular/PWA) ──────────────────────────────────
+def send_web_push(user_ids, title, body=None, link=None, tag=None):
+    """Envia Web Push pras inscricoes dos usuarios (tabela push_subscriptions).
+    Best-effort, lazy import de pywebpush. Requer VAPID_PRIVATE_KEY no ambiente."""
+    import json as _json
+    if not user_ids:
+        return 0
+    if isinstance(user_ids, str):
+        user_ids = [user_ids]
+    user_ids = [u for u in set(user_ids) if u]
+    if not user_ids:
+        return 0
+    priv = os.environ.get("VAPID_PRIVATE_KEY")
+    if not priv:
+        return 0
+    subj = os.environ.get("VAPID_SUBJECT") or "mailto:contato@housepsm.com.br"
+    try:
+        from pywebpush import webpush  # lazy
+    except Exception:
+        return 0
+    sb = supabase_client()
+    if not sb:
+        return 0
+    try:
+        rows = sb.table("push_subscriptions").select("*").in_("user_id", user_ids).execute().data or []
+    except Exception:
+        return 0
+    payload = _json.dumps({"title": title, "body": body or "", "link": link or "/v2/", "tag": tag or "psm"})
+    sent = 0
+    for r in rows:
+        try:
+            webpush(
+                subscription_info={"endpoint": r.get("endpoint"),
+                                   "keys": {"p256dh": r.get("p256dh"), "auth": r.get("auth")}},
+                data=payload,
+                vapid_private_key=priv,
+                vapid_claims={"sub": subj},
+            )
+            sent += 1
+        except Exception as e:
+            code = getattr(getattr(e, "response", None), "status_code", None)
+            if code in (404, 410):
+                try:
+                    sb.table("push_subscriptions").delete().eq("endpoint", r.get("endpoint")).execute()
+                except Exception:
+                    pass
+    return sent
+
+
+def notify_all(user_ids, tipo, title, body=None, link=None, target_type=None, target_id=None):
+    """Notifica em TODOS os canais: in-app (sino) + Web Push (navegador + celular).
+    (E-mail entra aqui quando o provedor for configurado.) Best-effort."""
+    n = notify(user_ids, tipo, title, body=body, link=link, target_type=target_type, target_id=target_id)
+    try:
+        send_web_push(user_ids, title, body, link, tag=target_type)
+    except Exception:
+        pass
+    return n
