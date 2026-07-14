@@ -49,10 +49,13 @@ DEFAULT_CFG = {
     "mariane_teto": 3000.0,
     "mariane_user_match": "mariane",
     "operacao_origens_indicacao": ["abordagem", "nps_promotor"],
-    # Leire (Reativação MAP): mesma lógica progressiva — por reativação que FECHA
-    # no mês (card do kanban que ela tocou e cujo negócio ganhou). Editável.
-    "leire_faixas": [[2, 200], [4, 220], [6, 240], [9, 260], [999999, 280]],
-    "leire_teto": 3000.0,
+    # Leire (Reativação MAP): valor por reativação que FECHA = faixa de VGV × tipo
+    # (estoque = difícil/premium; lançamento = fácil/metade). O TOTAL do mês é
+    # multiplicado pelo bônus de VOLUME (progressivo) e travado no teto.
+    "leire_estoque": [[220000, 200], [450000, 300], [700000, 400], [999999999, 500]],
+    "leire_lancamento": [[220000, 100], [450000, 150], [700000, 250], [999999999, 300]],
+    "leire_volume": [[2, 1.0], [4, 1.1], [6, 1.2], [9, 1.35], [999999, 1.5]],
+    "leire_teto": 5000.0,
     "estagiarios": [],                   # user ids
 }
 
@@ -223,30 +226,41 @@ def calcular(sb, mes=None):
     except Exception:
         pass
 
-    # ── Leire (Reativação MAP: mesma lógica progressiva) ──
-    lf = cfg.get("leire_faixas") or []
-    lt = float(cfg.get("leire_teto") or 0)
-    lei = {"faixas": lf, "teto": lt, "fechadas": [], "qtd": 0, "rate": 0.0,
-           "total": 0.0, "no_teto": False}
+    # ── Leire (Reativação MAP: VGV × tipo × bônus de volume) ──
+    est = cfg.get("leire_estoque") or []
+    lanc = cfg.get("leire_lancamento") or []
+    volt = cfg.get("leire_volume") or []
+    lteto = float(cfg.get("leire_teto") or 0)
+    lancados = set(str(x) for x in (_kv(sb, "comissao_leire_lancamento") or []))  # deal_ids de lançamento
+    lei = {"estoque": est, "lancamento": lanc, "volume": volt, "teto": lteto,
+           "fechadas": [], "qtd": 0, "base": 0.0, "mult": 1.0, "total": 0.0, "no_teto": False}
     try:
-        cards = _page(lambda: sb.table("reativacao_kanban").select("deal_id,nome,valor")
+        cards = _page(lambda: sb.table("reativacao_kanban").select("deal_id,nome")
                       .not_.is_("deal_id", "null").not_.is_("abordado_em", "null").order("id"), cap=8000)
         dmap = {str(c["deal_id"]): c for c in cards if c.get("deal_id")}
         ids = list(dmap.keys())
         ganhos = []
         for i in range(0, len(ids), 200):
-            dd = sb.table("deals").select("id,name,amount,closed_at").eq("win", True) \
+            dd = sb.table("deals").select("id,name,amount").eq("win", True) \
                 .gte("closed_at", ini).lt("closed_at", fim).in_("id", ids[i:i + 200]).execute().data or []
             ganhos.extend(dd)
+        soma = 0.0
         for g in ganhos:
-            c = dmap.get(str(g["id"])) or {}
-            lei["fechadas"].append({"nome": c.get("nome") or g.get("name"), "vgv": g.get("amount")})
+            did = str(g["id"])
+            c = dmap.get(did) or {}
+            vgv = float(g.get("amount") or 0)
+            tipo = "lancamento" if did in lancados else "estoque"
+            val = _faixa_rate(lanc if tipo == "lancamento" else est, vgv)
+            soma += val
+            lei["fechadas"].append({"deal_id": did, "nome": c.get("nome") or g.get("name"),
+                                    "vgv": vgv, "tipo": tipo, "valor": val})
         n = len(ganhos)
-        rate = _faixa_rate(lf, n) if n else 0.0
-        bruto = n * rate
-        lei.update({"qtd": n, "rate": rate, "bruto": round(bruto, 2),
-                    "total": round(min(bruto, lt) if lt else bruto, 2),
-                    "no_teto": bool(lt and bruto > lt)})
+        mult = _faixa_rate(volt, n) if n else 1.0
+        bruto = soma * mult
+        lei["fechadas"].sort(key=lambda x: -x["vgv"])
+        lei.update({"qtd": n, "base": round(soma, 2), "mult": mult, "bruto": round(bruto, 2),
+                    "total": round(min(bruto, lteto) if lteto else bruto, 2),
+                    "no_teto": bool(lteto and bruto > lteto)})
     except Exception:
         pass
 
@@ -303,8 +317,8 @@ class handler(BaseHTTPRequestHandler):
                 cur = _cfg(sb)
                 nc = body.get("cfg") or {}
                 for k in ("taxa_estagiario", "mariane_faixas", "mariane_teto",
-                          "leire_faixas", "leire_teto", "mapa_rd",
-                          "origens", "acelerador", "operacao_origens_indicacao"):
+                          "leire_estoque", "leire_lancamento", "leire_volume", "leire_teto",
+                          "mapa_rd", "origens", "acelerador", "operacao_origens_indicacao"):
                     if k in nc:
                         cur[k] = nc[k]
                 _kv_set(sb, CFG_KEY, cur)
@@ -323,6 +337,20 @@ class handler(BaseHTTPRequestHandler):
                     ovr.pop(did, None)
                 _kv_set(sb, OVR_KEY, ovr)
                 audit(self, user, "comissao.set_origem", "deals", did, notes=origem)
+                return self._send(200, {"ok": True})
+
+            if action == "set_leire_tipo":
+                did = str(body.get("deal_id") or "")
+                if not did:
+                    return self._send(400, {"ok": False, "error": "deal_id obrigatório"})
+                cur = set(str(x) for x in (_kv(sb, "comissao_leire_lancamento") or []))
+                if body.get("lancamento"):
+                    cur.add(did)
+                else:
+                    cur.discard(did)
+                _kv_set(sb, "comissao_leire_lancamento", sorted(cur))
+                audit(self, user, "comissao.set_leire_tipo", "deals", did,
+                      notes="lancamento" if body.get("lancamento") else "estoque")
                 return self._send(200, {"ok": True})
 
             if action == "set_estagiario":

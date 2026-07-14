@@ -70,7 +70,7 @@ function render() {
     <div class="mt-2">${
       _aba === 'corretores' ? htmlCorretores()
       : _aba === 'mariane' ? htmlOperador(_d.mariane, { unidade: 'indicação', o_que: 'indicações que a OPERAÇÃO gerou e viraram venda' })
-      : _aba === 'leire' ? htmlOperador(_d.leire, { unidade: 'reativação', o_que: 'leads que a Leire reativou e fecharam (o negócio ganhou no mês)' })
+      : _aba === 'leire' ? htmlLeire()
       : htmlConfig(podeEditar)}</div>`;
   _root.querySelector('#cm-prev').onclick = () => mesShift(-1);
   _root.querySelector('#cm-next').onclick = () => mesShift(1);
@@ -80,6 +80,7 @@ function render() {
   _root.querySelector('#cm-ab-l').onclick = () => { _aba = 'leire'; render(); };
   _root.querySelector('#cm-ab-cfg').onclick = () => { _aba = 'config'; render(); };
   if (_aba === 'corretores') wireCorretores();
+  if (_aba === 'leire') wireLeire();
   if (_aba === 'config') wireConfig();
 }
 
@@ -182,6 +183,56 @@ function htmlOperador(m, opts) {
   </div>`;
 }
 
+/* ── 🔁 Leire (Reativação MAP: VGV × tipo × volume) ─────────────────────── */
+function bandaLbl(fx, i, arr) {
+  const teto = Number(fx[0]);
+  const de = i === 0 ? 0 : Number(arr[i - 1][0]);
+  if (teto >= 999999999) return 'acima de ' + brl(de);
+  return (i === 0 ? 'até ' : brl(de) + ' – ') + brl(teto);
+}
+
+function htmlLeire() {
+  const m = _d.leire || {};
+  const est = m.estoque || [], lanc = m.lancamento || [], vol = m.volume || [];
+  return `<div class="card">
+    <div class="flex items-center" style="gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:140px"><div class="tiny muted">Reativações fechadas em ${esc(_mes)}</div><div style="font-weight:900;font-size:22px">${m.qtd || 0}</div></div>
+      <div style="min-width:110px"><div class="tiny muted">Base do mês</div><div style="font-weight:800;font-size:15px">${brl(m.base)}</div></div>
+      <div style="min-width:110px"><div class="tiny muted">Bônus volume</div><div style="font-weight:800;font-size:15px">×${(m.mult || 1).toLocaleString('pt-BR', { minimumFractionDigits: 1 })}</div></div>
+      <div style="min-width:170px;background:#16a34a15;border-radius:10px;padding:8px 12px;border-left:3px solid #16a34a"><div class="tiny muted">Comissão da Leire no mês</div><div style="font-weight:900;font-size:20px">${brl(m.total)}${m.no_teto ? ' <span class="tiny" style="color:#d97706">(no teto)</span>' : ''}</div></div>
+    </div>
+    <div class="tiny muted mt-2">Cada reativação vale pela faixa de VGV × tipo; o total é multiplicado pelo bônus de volume (progressivo) e travado no teto de <b>${brl(m.teto)}</b>. Marque 🚀 nos fechamentos de lançamento (pagam menos, é mais fácil).</div>
+    <div class="flex mt-2" style="gap:10px;flex-wrap:wrap">
+      <table style="flex:1;min-width:280px;border-collapse:collapse;font-size:12px">
+        <tr class="tiny muted" style="text-align:left"><th style="padding:3px 6px">VGV</th><th style="text-align:right">🎯 Estoque</th><th style="text-align:right">🚀 Lançam.</th></tr>
+        ${est.map((fx, i) => `<tr style="border-top:1px solid var(--bd,#eef2f7)"><td style="padding:4px 6px">${bandaLbl(fx, i, est)}</td><td style="text-align:right;font-weight:700">${brl(fx[1])}</td><td style="text-align:right">${brl((lanc[i] || [])[1] || 0)}</td></tr>`).join('')}
+      </table>
+      <table style="width:190px;border-collapse:collapse;font-size:12px;align-self:flex-start">
+        <tr class="tiny muted" style="text-align:left"><th style="padding:3px 6px">Fechamentos</th><th style="text-align:right">Bônus</th></tr>
+        ${vol.map((fx, i) => { const de = i === 0 ? 1 : Number(vol[i - 1][0]) + 1; const lbl = fx[0] >= 999999 ? de + '+' : (de === fx[0] ? de : de + ' a ' + fx[0]); const ativa = m.qtd && m.mult === Number(fx[1]) && (i === 0 ? m.qtd <= fx[0] : (m.qtd > vol[i - 1][0] && m.qtd <= fx[0])); return `<tr style="border-top:1px solid var(--bd,#eef2f7);${ativa ? 'background:#16a34a12;font-weight:800' : ''}"><td style="padding:4px 6px">${lbl}${ativa ? ' ←' : ''}</td><td style="text-align:right">×${Number(fx[1]).toLocaleString('pt-BR', { minimumFractionDigits: 1 })}</td></tr>`; }).join('')}
+      </table>
+    </div>
+    <div class="mt-2">${(m.fechadas || []).length ? `<b class="tiny">Fechamentos deste mês:</b><table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:4px">
+      <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Cliente</th><th style="text-align:right">VGV</th><th style="text-align:right">Vale</th><th>Tipo</th></tr>
+      ${m.fechadas.map(f => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+        <td style="padding:6px 8px">${esc(f.nome || '—')}</td>
+        <td style="text-align:right">${brl(f.vgv)}</td>
+        <td style="text-align:right;font-weight:700">${brl(f.valor)}</td>
+        <td><button class="btn btn-ghost btn-sm lei-tipo" data-did="${esc(f.deal_id)}" data-lanc="${f.tipo === 'lancamento' ? '1' : '0'}" style="padding:2px 9px;font-size:11px">${f.tipo === 'lancamento' ? '🚀 Lançamento' : '🎯 Estoque'}</button></td>
+      </tr>`).join('')}
+    </table><div class="tiny muted mt-1">Clique no tipo pra alternar estoque ⇄ lançamento (recalcula na hora).</div>` : '<div class="muted tiny" style="text-align:center;padding:16px">Nenhuma reativação fechou neste mês ainda.</div>'}</div>
+  </div>`;
+}
+
+function wireLeire() {
+  _root.querySelectorAll('.lei-tipo').forEach(b => b.onclick = async () => {
+    if (!canEdit()) { alert('Só a direção (nível ≥ 7) marca estoque/lançamento.'); return; }
+    const virar = b.dataset.lanc !== '1';  // se não é lançamento, vira lançamento
+    const r = await post({ action: 'set_leire_tipo', deal_id: b.dataset.did, lancamento: virar });
+    if (r) reload();
+  });
+}
+
 /* ── 📊 Regras & Origens ────────────────────────────────────────────────── */
 function htmlConfig(podeEditar) {
   const cfg = _d.cfg || {};
@@ -226,20 +277,33 @@ function htmlConfig(podeEditar) {
       </div>` : `<div class="tiny muted mt-1">Teto mensal: ${brl(cfg.mariane_teto)}</div>`}
     </div>
     <div class="card mt-2">
-      <b class="tiny">🔁 Tabela progressiva da Leire (Reativação MAP)</b>
-      <div class="tiny muted">R$ por reativação que fecha no mês, por faixa (retroativa). Teto mensal trava o total.</div>
-      <div id="cf-lfaixas" style="margin-top:6px">
-        ${(cfg.leire_faixas || []).map((fx, i, arr) => `<div class="flex" style="gap:6px;margin-top:4px;align-items:center" data-lf>
-          <span class="tiny muted" style="width:130px">${faixaLbl(fx, i, arr)} fechamentos</span>
-          <span class="tiny muted">até</span>
-          <input class="input lf-teto" type="number" min="1" value="${fx[0] >= 999999 ? '' : fx[0]}" placeholder="∞" style="width:80px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
-          <span class="tiny muted">→ R$</span>
-          <input class="input lf-rate" type="number" min="0" value="${fx[1]}" style="width:90px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
-          ${podeEditar ? '<button class="btn btn-ghost btn-sm lf-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>' : ''}
+      <b class="tiny">🔁 Tabela da Leire (Reativação MAP) — VGV × tipo × volume</b>
+      <div class="tiny muted">Cada reativação que fecha vale pela faixa de VGV e pelo tipo (🎯 estoque / 🚀 lançamento). O total do mês é multiplicado pelo bônus de volume e travado no teto.</div>
+      <div class="tiny muted mt-1" style="font-weight:700">Valor por faixa de VGV</div>
+      <div id="cf-lbands" style="margin-top:4px">
+        ${(cfg.leire_estoque || []).map((fx, i, arr) => `<div class="flex" style="gap:6px;margin-top:4px;align-items:center" data-lb>
+          <span class="tiny muted">VGV até R$</span>
+          <input class="input lb-teto" type="number" min="1" value="${fx[0] >= 999999999 ? '' : fx[0]}" placeholder="∞" style="width:100px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
+          <span class="tiny muted">🎯 R$</span>
+          <input class="input lb-est" type="number" min="0" value="${fx[1]}" style="width:80px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
+          <span class="tiny muted">🚀 R$</span>
+          <input class="input lb-lanc" type="number" min="0" value="${((cfg.leire_lancamento || [])[i] || [])[1] || 0}" style="width:80px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
+          ${podeEditar ? '<button class="btn btn-ghost btn-sm lb-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>' : ''}
+        </div>`).join('')}
+      </div>
+      ${podeEditar ? '<button class="btn btn-ghost btn-sm mt-1" id="cf-lbadd" type="button">+ faixa de VGV</button>' : ''}
+      <div class="tiny muted mt-2" style="font-weight:700">Bônus por volume de fechamentos no mês</div>
+      <div id="cf-lvol" style="margin-top:4px">
+        ${(cfg.leire_volume || []).map((fx, i, arr) => `<div class="flex" style="gap:6px;margin-top:4px;align-items:center" data-lv>
+          <span class="tiny muted" style="width:90px">até</span>
+          <input class="input lv-teto" type="number" min="1" value="${fx[0] >= 999999 ? '' : fx[0]}" placeholder="∞" style="width:80px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
+          <span class="tiny muted">fechamentos → ×</span>
+          <input class="input lv-mult" type="number" min="1" step="0.05" value="${fx[1]}" style="width:80px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
+          ${podeEditar ? '<button class="btn btn-ghost btn-sm lv-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>' : ''}
         </div>`).join('')}
       </div>
       ${podeEditar ? `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-ghost btn-sm" id="cf-lfadd" type="button">+ faixa</button>
+        <button class="btn btn-ghost btn-sm" id="cf-lvadd" type="button">+ faixa de volume</button>
         <label class="tiny" style="margin-left:auto">Teto mensal R$ <input class="input" id="cf-lteto" type="number" value="${cfg.leire_teto}" style="width:110px;padding:2px 6px"></label>
         <button class="btn btn-primary btn-sm" id="cf-lsave">💾 Salvar tabela da Leire</button>
       </div>` : `<div class="tiny muted mt-1">Teto mensal: ${brl(cfg.leire_teto)}</div>`}
@@ -305,27 +369,48 @@ function wireConfig() {
     const r = await post({ action: 'set_cfg', cfg: { mariane_faixas: faixas, mariane_teto: teto } }, '💾 Tabela da Mariane salva.');
     if (r) reload();
   };
-  const boxL = $('#cf-lfaixas');
-  if ($('#cf-lfadd')) $('#cf-lfadd').onclick = () => {
+  const boxB = $('#cf-lbands');
+  if ($('#cf-lbadd')) $('#cf-lbadd').onclick = () => {
     const d = document.createElement('div');
-    d.innerHTML = `<div class="flex" style="gap:6px;margin-top:4px;align-items:center" data-lf>
-      <span class="tiny muted" style="width:130px">nova faixa</span><span class="tiny muted">até</span>
-      <input class="input lf-teto" type="number" min="1" placeholder="∞" style="width:80px;padding:2px 6px">
-      <span class="tiny muted">→ R$</span><input class="input lf-rate" type="number" min="0" value="0" style="width:90px;padding:2px 6px">
-      <button class="btn btn-ghost btn-sm lf-del" type="button" style="color:#dc2626;padding:1px 7px">×</button></div>`;
+    d.innerHTML = `<div class="flex" style="gap:6px;margin-top:4px;align-items:center" data-lb>
+      <span class="tiny muted">VGV até R$</span>
+      <input class="input lb-teto" type="number" min="1" placeholder="∞" style="width:100px;padding:2px 6px">
+      <span class="tiny muted">🎯 R$</span><input class="input lb-est" type="number" min="0" value="0" style="width:80px;padding:2px 6px">
+      <span class="tiny muted">🚀 R$</span><input class="input lb-lanc" type="number" min="0" value="0" style="width:80px;padding:2px 6px">
+      <button class="btn btn-ghost btn-sm lb-del" type="button" style="color:#dc2626;padding:1px 7px">×</button></div>`;
     const row = d.firstElementChild;
-    row.querySelector('.lf-del').onclick = () => row.remove();
-    boxL.appendChild(row);
+    row.querySelector('.lb-del').onclick = () => row.remove();
+    boxB.appendChild(row);
   };
-  _root.querySelectorAll('.lf-del').forEach(b => b.onclick = () => b.closest('[data-lf]').remove());
+  _root.querySelectorAll('.lb-del').forEach(b => b.onclick = () => b.closest('[data-lb]').remove());
+  const boxV = $('#cf-lvol');
+  if ($('#cf-lvadd')) $('#cf-lvadd').onclick = () => {
+    const d = document.createElement('div');
+    d.innerHTML = `<div class="flex" style="gap:6px;margin-top:4px;align-items:center" data-lv>
+      <span class="tiny muted" style="width:90px">até</span>
+      <input class="input lv-teto" type="number" min="1" placeholder="∞" style="width:80px;padding:2px 6px">
+      <span class="tiny muted">fechamentos → ×</span><input class="input lv-mult" type="number" min="1" step="0.05" value="1" style="width:80px;padding:2px 6px">
+      <button class="btn btn-ghost btn-sm lv-del" type="button" style="color:#dc2626;padding:1px 7px">×</button></div>`;
+    const row = d.firstElementChild;
+    row.querySelector('.lv-del').onclick = () => row.remove();
+    boxV.appendChild(row);
+  };
+  _root.querySelectorAll('.lv-del').forEach(b => b.onclick = () => b.closest('[data-lv]').remove());
   if ($('#cf-lsave')) $('#cf-lsave').onclick = async () => {
-    const faixas = [...boxL.querySelectorAll('[data-lf]')].map(r => {
-      const teto = r.querySelector('.lf-teto').value.trim();
-      return [teto ? Number(teto) : 999999, Number(r.querySelector('.lf-rate').value) || 0];
-    }).filter(f => f[1] >= 0).sort((a, b) => a[0] - b[0]);
-    if (!faixas.length) { alert('Deixe ao menos 1 faixa.'); return; }
+    const rows = [...boxB.querySelectorAll('[data-lb]')].map(r => {
+      const teto = r.querySelector('.lb-teto').value.trim();
+      return { teto: teto ? Number(teto) : 999999999, est: Number(r.querySelector('.lb-est').value) || 0, lanc: Number(r.querySelector('.lb-lanc').value) || 0 };
+    }).sort((a, b) => a.teto - b.teto);
+    if (!rows.length) { alert('Deixe ao menos 1 faixa de VGV.'); return; }
+    const estoque = rows.map(r => [r.teto, r.est]);
+    const lancamento = rows.map(r => [r.teto, r.lanc]);
+    const volume = [...boxV.querySelectorAll('[data-lv]')].map(r => {
+      const teto = r.querySelector('.lv-teto').value.trim();
+      return [teto ? Number(teto) : 999999, Number(r.querySelector('.lv-mult').value) || 1];
+    }).sort((a, b) => a[0] - b[0]);
+    if (!volume.length) { alert('Deixe ao menos 1 faixa de volume.'); return; }
     const teto = Number($('#cf-lteto').value) || 0;
-    const r = await post({ action: 'set_cfg', cfg: { leire_faixas: faixas, leire_teto: teto } }, '💾 Tabela da Leire salva.');
+    const r = await post({ action: 'set_cfg', cfg: { leire_estoque: estoque, leire_lancamento: lancamento, leire_volume: volume, leire_teto: teto } }, '💾 Tabela da Leire salva.');
     if (r) reload();
   };
 }
