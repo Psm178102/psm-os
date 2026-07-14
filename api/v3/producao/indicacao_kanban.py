@@ -192,10 +192,12 @@ def _sincronizar(sb, user):
     # pipeline_name do EVENTO vem nulo no histórico → a frente resolve pelo deal.
     corte60d = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
     try:
-        evs = _page_all(lambda: sb.table("deal_stage_events").select("deal_id")
-                        .ilike("stage_name", "%visita%realizada%").gte("occurred_at", corte60d)
+        evs = _page_all(lambda: sb.table("deal_stage_events").select("deal_id,stage_name")
+                        .ilike("stage_name", "%realizada%").gte("occurred_at", corte60d)
                         .order("occurred_at"), max_rows=4000)
-        ids = list({str(e["deal_id"]) for e in evs if e.get("deal_id") and str(e["deal_id"]) not in ja})
+        ids = list({str(e["deal_id"]) for e in evs
+                    if e.get("deal_id") and "visita" in (e.get("stage_name") or "").lower()
+                    and str(e["deal_id"]) not in ja})
         for i in range(0, len(ids), 150):
             dd = sb.table("deals").select(SEL + ",pipeline_name").in_("id", ids[i:i + 150]).execute().data or []
             for d in dd:

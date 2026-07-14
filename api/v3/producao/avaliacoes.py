@@ -203,18 +203,23 @@ def _sincronizar_av(sb, user):
     except Exception:
         ja = set()
     # visitas REALIZADAS (não agendadas); pipeline_name do EVENTO vem nulo no
-    # histórico → a origem resolve pelo pipeline do deal
-    evs = _page_all(lambda: sb.table("deal_stage_events").select("deal_id,occurred_at")
-                    .ilike("stage_name", "%visita%realizada%").gte("occurred_at", corte)
+    # histórico → a origem resolve pelo pipeline do deal. Filtro de termo único
+    # ("realizada" só existe nos estágios de visita realizada) + confirmação em
+    # Python — e contagens de debug na resposta (nada de zero silencioso).
+    evs = _page_all(lambda: sb.table("deal_stage_events").select("deal_id,stage_name,occurred_at")
+                    .ilike("stage_name", "%realizada%").gte("occurred_at", corte)
                     .order("occurred_at"), max_rows=6000)
+    dbg = {"eventos": len(evs)}
     alvo = {}
     for e in evs:
         did = str(e.get("deal_id") or "")
-        if not did or did in ja:
+        sn = (e.get("stage_name") or "").lower()
+        if not did or did in ja or "visita" not in sn:
             continue
         cur = alvo.get(did)
         if not cur or str(e.get("occurred_at") or "") > str(cur or ""):
             alvo[did] = e.get("occurred_at")
+    dbg["deals_alvo"] = len(alvo)
     novos, res = [], {f: 0 for f in FRENTES_AV}
     ids = list(alvo.keys())
     for i in range(0, len(ids), 150):
@@ -235,6 +240,7 @@ def _sincronizar_av(sb, user):
                           "coluna": "origens", "visita_em": alvo.get(did),
                           "atualizado_por": str(user.get("id"))})
             res[fr] += 1
+    dbg["fora_das_frentes"] = len(alvo) - len(novos)
     criadas = 0
     for i in range(0, len(novos), 500):
         lote = novos[i:i + 500]
@@ -249,6 +255,7 @@ def _sincronizar_av(sb, user):
                     criadas += 1
                 except Exception:
                     pass
+    res["_debug"] = dbg
     return res, criadas
 
 
