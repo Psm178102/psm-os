@@ -174,26 +174,36 @@ def _tarefa_followup(sb, cfg, card, col_id, uid):
 
 
 def _sincronizar(sb, user):
-    """FUNIL MAP aberto + parado + com fone + fonte liberada → cards em a_reativar."""
+    """FUNIL MAP aberto (win null) + parado + com fone + fonte liberada → cards.
+    Filtra win/parado em PYTHON: o encadeamento .is_('win','null').lte(...) do
+    PostgREST não casa de forma confiável (retornava ~12 de ~685). v84.42"""
     cfg = _cfg(sb)
     parado = max(7, min(365, int((cfg.get("cadencia") or {}).get("parado_dias") or 30)))
-    corte = (datetime.now(timezone.utc) - timedelta(days=parado)).isoformat()
+    corte_dt = datetime.now(timezone.utc) - timedelta(days=parado)
     try:
         ja_rows = _page_all(lambda: sb.table("reativacao_kanban").select("deal_id")
                             .not_.is_("deal_id", "null").order("criado_em").order("id"), max_rows=20000)
         ja = {str(r["deal_id"]) for r in ja_rows if r.get("deal_id")}
     except Exception:
         ja = set()
-    SEL = ("id,name,amount,stage_name,updated_at_rd,user_email,"
+    SEL = ("id,name,amount,win,closed_at,stage_name,updated_at_rd,user_email,"
            "contacts:rd_raw->contacts,fonte:rd_raw->deal_source")
     rows = _page_all(lambda: sb.table("deals").select(SEL)
-                     .ilike("pipeline_name", "funil map").is_("win", "null")
-                     .lte("updated_at_rd", corte).order("id"), max_rows=8000)
+                     .ilike("pipeline_name", "funil map").order("id"), max_rows=8000)
     novos, sem_fone = [], 0
     for d in rows:
         did = str(d.get("id"))
         if not did or did in ja:
             continue
+        if d.get("win") is not None or d.get("closed_at"):
+            continue  # em aberto = win null e sem data de fechamento
+        upd = d.get("updated_at_rd")
+        try:
+            updt = datetime.fromisoformat(str(upd).replace("Z", "+00:00")) if upd else None
+        except Exception:
+            updt = None
+        if not updt or updt > corte_dt:
+            continue  # ainda ativo (mexeu recentemente) → não é reativação
         if FONTE_BLOQUEADA in _fonte(d.get("fonte")):
             continue
         nome = (d.get("name") or "").strip()
