@@ -278,6 +278,12 @@ function abrirCard(id) {
       <button class="btn btn-ghost btn-sm" id="av-x">✕</button>
     </div>
     ${corretorNome(c) ? `<div class="tiny mt-1" style="background:#2563eb12;border-radius:8px;padding:6px 10px;font-weight:700">👔 Corretor responsável (RD CRM): ${esc(corretorNome(c))}${c.corretor_email ? ` <span class="muted" style="font-weight:400">· ${esc(c.corretor_email)}</span>` : ''}</div>` : '<div class="tiny muted mt-1">👔 Sem corretor vinculado no RD (card manual)</div>'}
+    <div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
+      <label class="tiny muted" style="font-weight:800">➡️ Mover este card para</label>
+      <div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:4px">
+        ${(_d.cfg.colunas || []).filter(col => col.id !== c.coluna).map(col => `<button class="btn btn-ghost btn-sm av-mv" data-col="${esc(col.id)}" style="padding:3px 11px;border:1px solid ${esc(col.cor)}55">${esc(col.emoji)} ${esc(col.nome)}</button>`).join('')}
+      </div>
+    </div>
     <div style="background:${c.nota != null ? notaCor(c.nota) : '#64748b'}12;border-radius:10px;padding:10px;margin-top:8px">
       <label class="tiny muted" style="font-weight:800">⭐ Nota (0–10) + feedback ${c.nota != null ? '— já coletada, pode corrigir' : ''}</label>
       <div class="flex" style="gap:6px;flex-wrap:wrap;margin-top:4px;align-items:flex-start">
@@ -335,6 +341,13 @@ function abrirCard(id) {
     else { tags.add(t); b.style.cssText += `;background:${info.cor};color:#fff;font-weight:800`; }
   });
   ov.querySelector('#av-x').onclick = () => ov.remove();
+  ov.querySelectorAll('.av-mv').forEach(b => b.onclick = async () => {
+    const destino = b.dataset.col;
+    let motivo = null;
+    if (destino === 'descarte') { motivo = await pedirMotivo(); if (motivo === null) return; }
+    const r = await post({ action: 'mover', id: c.id, coluna: destino, motivo });
+    if (r) { ov.remove(); reload(); }
+  });
   ov.querySelector('#av-ia').onclick = async () => {
     const b = ov.querySelector('#av-ia');
     b.disabled = true; b.textContent = '⏳ Gerando…';

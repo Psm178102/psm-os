@@ -270,6 +270,12 @@ function abrirCard(id) {
       ${corretorNome(c) ? `<b>👔 Corretor (RD): ${esc(corretorNome(c))}</b>` : '👔 Sem corretor vinculado (card manual)'}
       ${c.estagio ? ` · 📍 ${esc(c.estagio)}` : ''}${dp !== null ? ` · 😴 parado há ${dp} dias` : ''}
     </div>
+    <div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
+      <label class="tiny muted" style="font-weight:800">➡️ Mover este lead para</label>
+      <div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:4px">
+        ${(_d.cfg.colunas || []).filter(col => col.id !== c.coluna).map(col => `<button class="btn btn-ghost btn-sm rk-mv" data-col="${esc(col.id)}" style="padding:3px 11px;border:1px solid ${esc(col.cor)}55">${esc(col.emoji)} ${esc(col.nome)}</button>`).join('')}
+      </div>
+    </div>
     <div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
       <input class="input" id="rk-nome" value="${esc(c.nome)}" style="flex:2;min-width:160px" placeholder="Nome">
       <input class="input" id="rk-fone" value="${esc(c.contato || '')}" style="flex:1;min-width:130px" placeholder="Telefone">
@@ -311,6 +317,13 @@ function abrirCard(id) {
     else { tags.add(t); b.style.cssText += `;background:${info.cor};color:#fff;font-weight:800`; }
   });
   ov.querySelector('#rk-x').onclick = () => ov.remove();
+  ov.querySelectorAll('.rk-mv').forEach(b => b.onclick = async () => {
+    const destino = b.dataset.col;
+    let motivo = null;
+    if (destino === 'descartado') { motivo = await pedirMotivo(); if (motivo === null) return; }
+    const r = await post({ action: 'mover', id: c.id, coluna: destino, motivo });
+    if (r) { ov.remove(); reload(); }
+  });
   ov.querySelector('#rk-ia').onclick = async () => {
     const b = ov.querySelector('#rk-ia');
     b.disabled = true; b.textContent = '⏳ Gerando…';
