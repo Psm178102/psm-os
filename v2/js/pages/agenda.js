@@ -72,6 +72,7 @@ function render(scope) {
     <div class="card">
       <h2 class="card-title">📅 Agenda PSM ${_view === 'calendario' ? '— ' + MESES_NOMES[_mesAtual.getMonth()] + ' ' + _mesAtual.getFullYear() : ''}</h2>
       <p class="card-sub">Scope <b>${scope}</b> · ${_eventos.length} evento(s) no período</p>
+      <div id="zoho-banner" class="mt-2"></div>
 
       <!-- Controles -->
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:center;padding:10px;background:var(--bg-3);border-radius:var(--r-sm)">
@@ -128,6 +129,47 @@ function render(scope) {
   }
 
   document.querySelectorAll('[data-evento]').forEach(el => el.addEventListener('click', () => openModal(el.dataset.evento)));
+  loadZohoBanner();
+}
+
+// ─── Zoho Calendar (2 vias, por usuário) ────────────────────────────────
+async function loadZohoBanner() {
+  const host = document.getElementById('zoho-banner');
+  if (!host) return;
+  let st;
+  try { st = await api.request('/api/v3/zoho/status'); } catch { host.innerHTML = ''; return; }
+  if (!st.configurado) { host.innerHTML = ''; return; }  // Zoho ainda não ligado no Vercel
+  if (!st.conectado) {
+    host.innerHTML = `<div class="flex items-center gap-2" style="flex-wrap:wrap;background:#c8202015;border:1px solid #c8202040;border-radius:10px;padding:8px 12px">
+      <b class="tiny">📮 Zoho Calendar</b>
+      <span class="tiny muted">Conecte sua conta pra sincronizar a agenda nos dois sentidos (Zoho ⇄ House).</span>
+      <button class="btn btn-primary btn-sm" id="zoho-conn" style="margin-left:auto">🔗 Conectar meu Zoho</button>
+    </div>`;
+    host.querySelector('#zoho-conn').onclick = async () => {
+      try { const r = await api.request('/api/v3/zoho/connect'); if (r.url) location.href = r.url; }
+      catch (e) { alert('Erro ao iniciar conexão: ' + e.message); }
+    };
+    return;
+  }
+  const r = st.last_sync_res || {};
+  const quando = st.last_sync_at ? new Date(st.last_sync_at).toLocaleString('pt-BR') : 'ainda não';
+  host.innerHTML = `<div class="flex items-center gap-2" style="flex-wrap:wrap;background:#16a34a15;border:1px solid #16a34a40;border-radius:10px;padding:8px 12px">
+    <b class="tiny">📮 Zoho conectado</b>
+    <span class="tiny muted">${escapeHtml(st.zoho_email || '')} · última sync: ${escapeHtml(quando)}${r.puxados != null ? ` (↓${r.puxados} ↑${r.enviados || 0})` : ''}</span>
+    <button class="btn btn-ghost btn-sm" id="zoho-sync" style="margin-left:auto">🔄 Sincronizar agora</button>
+    <button class="btn btn-ghost btn-sm" id="zoho-off" style="color:#dc2626">Desconectar</button>
+  </div>`;
+  host.querySelector('#zoho-sync').onclick = async (e) => {
+    const b = e.target; b.disabled = true; b.textContent = '⏳ Sincronizando…';
+    try { const s = await api.request('/api/v3/zoho/sync', { method: 'POST', body: {} });
+      alert(`🔄 Pronto!\n↓ ${s.puxados || 0} do Zoho (${s.criados_house || 0} novos) · ↑ ${s.enviados || 0} enviados`); await reload(); }
+    catch (err) { alert('Erro na sync: ' + err.message); b.disabled = false; b.textContent = '🔄 Sincronizar agora'; }
+  };
+  host.querySelector('#zoho-off').onclick = async () => {
+    if (!confirm('Desconectar seu Zoho? Os eventos já sincronizados continuam na agenda; novas mudanças param de fluir.')) return;
+    try { await api.request('/api/v3/zoho/status', { method: 'POST', body: { action: 'disconnect' } }); loadZohoBanner(); }
+    catch (e) { alert('Erro: ' + e.message); }
+  };
 }
 
 // ─── Visão Lista ────────────────────────────────────────────────────────
