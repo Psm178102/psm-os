@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client  # type: ignore
 from indicacao_kanban import _sincronizar, gerar_fila  # type: ignore
 from avaliacoes import _sincronizar_av  # type: ignore
+from reativacao_kanban import _sincronizar as _sinc_reativ, gerar_fila as fila_reativ  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -39,6 +40,14 @@ class handler(BaseHTTPRequestHandler):
             out["avaliacoes"] = {"criadas": criadas_av, "por_origem": res_av}
         except Exception as e:
             out["avaliacoes"] = {"erro": str(e)[:150]}
+        try:
+            out["reativacao_sync"] = _sinc_reativ(sb, {"id": "cron"})
+        except Exception as e:
+            out["reativacao_sync"] = {"erro": str(e)[:150]}
+        try:
+            out["reativacao_fila"] = fila_reativ(sb)
+        except Exception as e:
+            out["reativacao_fila"] = {"erro": str(e)[:150]}
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.end_headers()

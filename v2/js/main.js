@@ -67,7 +67,7 @@ import { pageOO } from './pages/oo.js';
 import { pagePlantoes } from './pages/plantoes.js';
 import { pageCaptacoes } from './pages/captacoes.js';
 import { pageSdr } from './pages/sdr.js';
-import { pageReativacao } from './pages/reativacao.js';
+import { pageReativacaoKanban } from './pages/reativacao-kanban.js';
 import { pageTabelaImoveis } from './pages/tabela-imoveis.js';
 import { pageIntegracoes } from './pages/integracoes.js';
 import { pageBackup } from './pages/backup.js';
@@ -391,7 +391,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.39';
+const APP_VERSION = '84.40';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -553,7 +553,7 @@ const APP_VERSION = '84.39';
   router.register('/minha-producao', { render: async (ctx, root) => { setHeader('Meu Acompanhamento'); highlight('/minha-producao'); await pageProducao(ctx, root, 'me'); } });
   router.register('/ponte', { render: async (ctx, root) => { setHeader('Fila da Ponte'); highlight('/ponte'); await pagePonte(ctx, root); } });
   router.register('/sdr',         { render: async (ctx, root) => { setHeader('Prospecção SDR'); highlight('/sdr');         await pageSdr(ctx, root); } });
-  router.register('/reativacao',  { render: async (ctx, root) => { setHeader('Reativação MAP'); highlight('/reativacao'); await pageReativacao(ctx, root); } });
+  router.register('/reativacao',  { render: async (ctx, root) => { setHeader('Reativação MAP'); highlight('/reativacao'); await pageReativacaoKanban(ctx, root); } });
   router.register('/integracoes', { render: async (ctx, root) => { setHeader('Integrações');  highlight('/integracoes'); await pageIntegracoes(ctx, root); } });
   router.register('/backup',      { render: async (ctx, root) => { setHeader('Backup');       highlight('/backup');      await pageBackup(ctx, root); } });
   router.register('/relatorios',  { render: async (ctx, root) => { setHeader('Relatórios');   highlight('/relatorios');  await pageRelatorios(ctx, root); } });
