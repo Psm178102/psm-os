@@ -30,6 +30,26 @@ def _safe_upsert(sb, table, row):
     return sb.table(table).upsert(r).execute(), dropped
 
 
+def _safe_update(sb, table, tid, patch):
+    """UPDATE tolerante (mesma lógica de coluna-ausente do _safe_upsert), mas
+    SEM risco de INSERT: patcheia só a ficha existente por id. Nunca cria linha
+    nova → não estoura o NOT NULL de 'nome'. Usar em avaliar/mover, que só tocam
+    fichas que já existem. Devolve (nº de linhas afetadas, colunas dropadas). v84.41"""
+    r = {k: v for k, v in patch.items() if k != "id"}
+    dropped = []
+    for _ in range(15):
+        try:
+            res = sb.table(table).update(r).eq("id", tid).execute()
+            return len(res.data or []), dropped
+        except Exception as e:
+            m = re.search(r"Could not find the '([^']+)' column", str(e))
+            if m and m.group(1) in r:
+                dropped.append(m.group(1)); r.pop(m.group(1), None); continue
+            raise
+    res = sb.table(table).update(r).eq("id", tid).execute()
+    return len(res.data or []), dropped
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
         self.send_response(s); self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -161,8 +181,10 @@ class handler(BaseHTTPRequestHandler):
             parecer["nota"] = 0
         av.append(parecer)
         try:
-            _safe_upsert(sb, "gp_talentos", {"id": tid, "avaliacoes": av,
-                                             "updated_at": datetime.now(timezone.utc).isoformat()})
+            n, _ = _safe_update(sb, "gp_talentos", tid, {"avaliacoes": av,
+                                "updated_at": datetime.now(timezone.utc).isoformat()})
+            if n == 0:
+                return self._send(404, {"ok": False, "error": "ficha não encontrada — recarregue a página (F5) e tente de novo"})
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
         audit(self, actor, "gp.talento.avaliar", target_type="gp_talentos", target_id=tid,
@@ -185,10 +207,12 @@ class handler(BaseHTTPRequestHandler):
         if not isinstance(hist, list): hist = []
         hist.append({"de": de, "para": etapa, "by": actor.get("name") or "—",
                      "at": datetime.now(timezone.utc).isoformat()})
-        patch = {"id": tid, "etapa": etapa, "historico": hist,
+        patch = {"etapa": etapa, "historico": hist,
                  "updated_at": datetime.now(timezone.utc).isoformat()}
         try:
-            _safe_upsert(sb, "gp_talentos", patch)
+            n, _ = _safe_update(sb, "gp_talentos", tid, patch)
+            if n == 0:
+                return self._send(404, {"ok": False, "error": "ficha não encontrada — recarregue a página (F5) e tente de novo"})
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
         audit(self, actor, "gp.talento.mover", target_type="gp_talentos", target_id=tid, notes=etapa)
