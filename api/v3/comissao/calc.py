@@ -43,9 +43,10 @@ DEFAULT_CFG = {
     "mapa_rd": {},                       # deal_source (minúsculo) -> origem id
     # Mariane: tabela PROGRESSIVA por nº de indicações da operação que fecham no
     # mês — [até N fechamentos, R$ por indicação] (retroativa: a faixa vale pra
-    # TODAS as do mês). Teto mensal trava o total.
-    "mariane_faixas": [[2, 200], [3, 250], [5, 300], [7, 350], [999999, 400]],
-    "mariane_teto": 4000.0,
+    # TODAS as do mês). Valores ancorados em % de R$ 200k de VGV (0,10%–0,14%),
+    # progressão suave a partir de 3. Teto mensal trava o total.
+    "mariane_faixas": [[2, 200], [4, 220], [6, 240], [9, 260], [999999, 280]],
+    "mariane_teto": 3000.0,
     "mariane_user_match": "mariane",
     "operacao_origens_indicacao": ["abordagem", "nps_promotor"],
     "estagiarios": [],                   # user ids
