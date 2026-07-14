@@ -147,16 +147,28 @@ function abrirOrigem(did) {
 }
 
 /* ── 🎁 Mariane ─────────────────────────────────────────────────────────── */
+function faixaLbl(fx, i, arr) {
+  const [teto] = fx;
+  const de = i === 0 ? 1 : Number(arr[i - 1][0]) + 1;
+  if (teto >= 999999) return `${de}+`;
+  return de === teto ? `${teto}` : `${de} a ${teto}`;
+}
+
 function htmlMariane() {
   const m = _d.mariane || {};
+  const faixas = m.faixas || [];
   return `<div class="card">
     <div class="flex items-center" style="gap:10px;flex-wrap:wrap">
-      <div style="flex:1;min-width:180px"><div class="tiny muted">Indicações da operação fechadas em ${esc(_mes)}</div><div style="font-weight:900;font-size:22px">${m.qtd || 0}</div></div>
-      <div style="min-width:150px"><div class="tiny muted">Valor por indicação</div><div style="font-weight:800;font-size:16px">${brl(m.valor_por_indicacao)}</div></div>
-      <div style="min-width:170px;background:#16a34a15;border-radius:10px;padding:8px 12px;border-left:3px solid #16a34a"><div class="tiny muted">Comissão da Mariane no mês</div><div style="font-weight:900;font-size:20px">${brl(m.total)}</div></div>
+      <div style="flex:1;min-width:150px"><div class="tiny muted">Indicações da operação fechadas em ${esc(_mes)}</div><div style="font-weight:900;font-size:22px">${m.qtd || 0}</div></div>
+      <div style="min-width:120px"><div class="tiny muted">Faixa atual</div><div style="font-weight:800;font-size:16px">${m.qtd ? brl(m.rate) + '/ind' : '—'}</div></div>
+      <div style="min-width:180px;background:#16a34a15;border-radius:10px;padding:8px 12px;border-left:3px solid #16a34a"><div class="tiny muted">Comissão da Mariane no mês</div><div style="font-weight:900;font-size:20px">${brl(m.total)}${m.no_teto ? ' <span class="tiny" style="color:#d97706">(no teto)</span>' : ''}</div></div>
     </div>
-    <div class="tiny muted mt-2">Conta as indicações que a OPERAÇÃO dela gerou e fecharam (viraram venda) no mês. O valor por indicação é editável em Regras & Origens.</div>
-    <div class="mt-2">${(m.fechadas || []).length ? `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <div class="tiny muted mt-2">Tabela PROGRESSIVA e retroativa: a faixa do total de fechamentos do mês vale pra todas. Teto mensal: <b>${brl(m.teto)}</b>. Conta só indicações que a OPERAÇÃO gerou e viraram venda.</div>
+    <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px;max-width:420px">
+      <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Fechamentos no mês</th><th style="text-align:right">R$ por indicação</th></tr>
+      ${faixas.map((fx, i) => { const ativa = m.qtd && m.rate === Number(fx[1]) && (i === 0 ? m.qtd <= fx[0] : (m.qtd > faixas[i - 1][0] && m.qtd <= fx[0])); return `<tr style="border-top:1px solid var(--bd,#eef2f7);${ativa ? 'background:#16a34a12;font-weight:800' : ''}"><td style="padding:5px 8px">${faixaLbl(fx, i, faixas)}${ativa ? ' ← agora' : ''}</td><td style="text-align:right">${brl(fx[1])}</td></tr>`; }).join('')}
+    </table>
+    <div class="mt-2">${(m.fechadas || []).length ? `<b class="tiny">Fechamentos deste mês:</b><table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:4px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Indicador</th><th>Indicado</th><th style="text-align:right">VGV</th></tr>
       ${m.fechadas.map(f => `<tr style="border-top:1px solid var(--bd,#eef2f7)"><td style="padding:6px 8px">${esc(f.indicador || '—')}</td><td>${esc(f.indicado || '—')}</td><td style="text-align:right">${f.vgv ? brl(f.vgv) : '—'}</td></tr>`).join('')}
     </table>` : '<div class="muted tiny" style="text-align:center;padding:16px">Nenhuma indicação da operação fechou neste mês ainda.</div>'}</div>
@@ -184,9 +196,27 @@ function htmlConfig(podeEditar) {
         <label class="tiny">Estagiário <input class="input" id="cf-estag" type="number" step="0.1" value="${cfg.taxa_estagiario}" style="width:70px;padding:2px 6px">%</label>
         ${origens.map(o => `<label class="tiny">${esc(o.rotulo)} <input class="input cf-taxa" data-o="${esc(o.id)}" type="number" step="0.1" value="${o.taxa}" style="width:64px;padding:2px 6px">%</label>`).join('')}
         <label class="tiny">Acelerador ≥ <input class="input" id="cf-acmin" type="number" value="${acel.vgv_min}" style="width:110px;padding:2px 6px"> → <input class="input" id="cf-actaxa" type="number" step="0.1" value="${acel.taxa}" style="width:64px;padding:2px 6px">%</label>
-        <label class="tiny">🎁 Mariane por indicação R$ <input class="input" id="cf-mari" type="number" step="1" value="${cfg.mariane_valor_indicacao}" style="width:90px;padding:2px 6px"></label>
         <button class="btn btn-primary btn-sm" id="cf-save">💾 Salvar regras</button>
       </div>` : '<div class="tiny muted mt-1">Só a direção (nível ≥ 7) edita as regras.</div>'}
+    </div>
+    <div class="card mt-2">
+      <b class="tiny">🎁 Tabela progressiva da Mariane</b>
+      <div class="tiny muted">R$ por indicação da operação que fecha no mês, por faixa (retroativa). Teto mensal trava o total.</div>
+      <div id="cf-mfaixas" style="margin-top:6px">
+        ${(cfg.mariane_faixas || []).map((fx, i, arr) => `<div class="flex" style="gap:6px;margin-top:4px;align-items:center" data-mf>
+          <span class="tiny muted" style="width:130px">${faixaLbl(fx, i, arr)} fechamentos</span>
+          <span class="tiny muted">até</span>
+          <input class="input mf-teto" type="number" min="1" value="${fx[0] >= 999999 ? '' : fx[0]}" placeholder="∞" style="width:80px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
+          <span class="tiny muted">→ R$</span>
+          <input class="input mf-rate" type="number" min="0" value="${fx[1]}" style="width:90px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
+          ${podeEditar ? '<button class="btn btn-ghost btn-sm mf-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>' : ''}
+        </div>`).join('')}
+      </div>
+      ${podeEditar ? `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-ghost btn-sm" id="cf-mfadd" type="button">+ faixa</button>
+        <label class="tiny" style="margin-left:auto">Teto mensal R$ <input class="input" id="cf-mteto" type="number" value="${cfg.mariane_teto}" style="width:110px;padding:2px 6px"></label>
+        <button class="btn btn-primary btn-sm" id="cf-msave">💾 Salvar tabela da Mariane</button>
+      </div>` : `<div class="tiny muted mt-1">Teto mensal: ${brl(cfg.mariane_teto)}</div>`}
     </div>
     <div class="card mt-2">
       <b class="tiny">🔗 Origens do RD → nível ${podeEditar ? '(mapeie cada fonte que aparece nas vendas)' : ''}</b>
@@ -225,5 +255,28 @@ function wireConfig() {
     const mapa = {};
     _root.querySelectorAll('.cf-map').forEach(s => { if (s.value) mapa[s.dataset.fonte.toLowerCase()] = s.value; });
     const r = await post({ action: 'set_cfg', cfg: { mapa_rd: mapa } }, '💾 Mapeamento salvo.'); if (r) reload();
+  };
+  const box = $('#cf-mfaixas');
+  if ($('#cf-mfadd')) $('#cf-mfadd').onclick = () => {
+    const d = document.createElement('div');
+    d.innerHTML = `<div class="flex" style="gap:6px;margin-top:4px;align-items:center" data-mf>
+      <span class="tiny muted" style="width:130px">nova faixa</span><span class="tiny muted">até</span>
+      <input class="input mf-teto" type="number" min="1" placeholder="∞" style="width:80px;padding:2px 6px">
+      <span class="tiny muted">→ R$</span><input class="input mf-rate" type="number" min="0" value="0" style="width:90px;padding:2px 6px">
+      <button class="btn btn-ghost btn-sm mf-del" type="button" style="color:#dc2626;padding:1px 7px">×</button></div>`;
+    const row = d.firstElementChild;
+    row.querySelector('.mf-del').onclick = () => row.remove();
+    box.appendChild(row);
+  };
+  _root.querySelectorAll('.mf-del').forEach(b => b.onclick = () => b.closest('[data-mf]').remove());
+  if ($('#cf-msave')) $('#cf-msave').onclick = async () => {
+    const faixas = [...box.querySelectorAll('[data-mf]')].map(r => {
+      const teto = r.querySelector('.mf-teto').value.trim();
+      return [teto ? Number(teto) : 999999, Number(r.querySelector('.mf-rate').value) || 0];
+    }).filter(f => f[1] >= 0).sort((a, b) => a[0] - b[0]);
+    if (!faixas.length) { alert('Deixe ao menos 1 faixa.'); return; }
+    const teto = Number($('#cf-mteto').value) || 0;
+    const r = await post({ action: 'set_cfg', cfg: { mariane_faixas: faixas, mariane_teto: teto } }, '💾 Tabela da Mariane salva.');
+    if (r) reload();
   };
 }

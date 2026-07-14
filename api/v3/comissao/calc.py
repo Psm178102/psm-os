@@ -41,7 +41,11 @@ DEFAULT_CFG = {
     ],
     "acelerador": {"taxa": 1.9, "vgv_min": 850000, "niveis": [2, 3]},
     "mapa_rd": {},                       # deal_source (minúsculo) -> origem id
-    "mariane_valor_indicacao": 300.0,
+    # Mariane: tabela PROGRESSIVA por nº de indicações da operação que fecham no
+    # mês — [até N fechamentos, R$ por indicação] (retroativa: a faixa vale pra
+    # TODAS as do mês). Teto mensal trava o total.
+    "mariane_faixas": [[2, 200], [3, 250], [5, 300], [7, 350], [999999, 400]],
+    "mariane_teto": 4000.0,
     "mariane_user_match": "mariane",
     "operacao_origens_indicacao": ["abordagem", "nps_promotor"],
     "estagiarios": [],                   # user ids
@@ -54,6 +58,14 @@ def _cfg(sb):
         return {**DEFAULT_CFG, **v}
     _kv_set(sb, CFG_KEY, DEFAULT_CFG)
     return json.loads(json.dumps(DEFAULT_CFG))
+
+
+def _mariane_rate(faixas, count):
+    """R$ por indicação para 'count' fechamentos no mês (1ª faixa cujo teto >= count)."""
+    for teto, rate in sorted(faixas or [], key=lambda x: x[0]):
+        if count <= teto:
+            return float(rate)
+    return float(faixas[-1][1]) if faixas else 0.0
 
 
 def _mes_range(mes):
@@ -184,9 +196,11 @@ def calcular(sb, mes=None):
             "n_vendas": len(c["vendas"]), "vendas": sorted(c["vendas"], key=lambda x: -x["vgv"])})
     corretores.sort(key=lambda x: -x["comissao_total"])
 
-    # ── Mariane ──
-    mar = {"valor_por_indicacao": float(cfg.get("mariane_valor_indicacao") or 0),
-           "fechadas": [], "total": 0.0}
+    # ── Mariane (tabela progressiva + teto) ──
+    faixas = cfg.get("mariane_faixas") or []
+    teto = float(cfg.get("mariane_teto") or 0)
+    mar = {"faixas": faixas, "teto": teto, "fechadas": [], "total": 0.0, "qtd": 0,
+           "rate": 0.0, "no_teto": False}
     try:
         inds = sb.table("indicacoes").select("id,indicador_nome,indicado_nome,deal_id,valor_negocio,status,atualizado_em,origem") \
             .in_("origem", list(op_origens)).in_("status", ["vendida", "premio_aprovado", "premio_pago"]) \
@@ -194,10 +208,14 @@ def calcular(sb, mes=None):
         for r in inds:
             mar["fechadas"].append({"indicador": r.get("indicador_nome"), "indicado": r.get("indicado_nome"),
                                     "vgv": r.get("valor_negocio")})
-        mar["total"] = round(len(inds) * mar["valor_por_indicacao"], 2)
-        mar["qtd"] = len(inds)
+        n = len(inds)
+        rate = _mariane_rate(faixas, n) if n else 0.0
+        bruto = n * rate
+        total = min(bruto, teto) if teto else bruto
+        mar.update({"qtd": n, "rate": rate, "total": round(total, 2),
+                    "bruto": round(bruto, 2), "no_teto": bool(teto and bruto > teto)})
     except Exception:
-        mar["qtd"] = 0
+        pass
 
     fontes_ord = sorted(fontes.items(), key=lambda x: -x[1])
     return {"mes": mes_lbl, "corretores": corretores, "mariane": mar,
@@ -251,7 +269,7 @@ class handler(BaseHTTPRequestHandler):
             if action == "set_cfg":
                 cur = _cfg(sb)
                 nc = body.get("cfg") or {}
-                for k in ("taxa_estagiario", "mariane_valor_indicacao", "mapa_rd",
+                for k in ("taxa_estagiario", "mariane_faixas", "mariane_teto", "mapa_rd",
                           "origens", "acelerador", "operacao_origens_indicacao"):
                     if k in nc:
                         cur[k] = nc[k]
