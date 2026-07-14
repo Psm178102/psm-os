@@ -49,6 +49,10 @@ DEFAULT_CFG = {
     "mariane_teto": 3000.0,
     "mariane_user_match": "mariane",
     "operacao_origens_indicacao": ["abordagem", "nps_promotor"],
+    # Leire (Reativação MAP): mesma lógica progressiva — por reativação que FECHA
+    # no mês (card do kanban que ela tocou e cujo negócio ganhou). Editável.
+    "leire_faixas": [[2, 200], [4, 220], [6, 240], [9, 260], [999999, 280]],
+    "leire_teto": 3000.0,
     "estagiarios": [],                   # user ids
 }
 
@@ -61,8 +65,9 @@ def _cfg(sb):
     return json.loads(json.dumps(DEFAULT_CFG))
 
 
-def _mariane_rate(faixas, count):
-    """R$ por indicação para 'count' fechamentos no mês (1ª faixa cujo teto >= count)."""
+def _faixa_rate(faixas, count):
+    """R$ por unidade para 'count' fechamentos no mês (1ª faixa cujo teto >= count).
+    Serve pra Mariane (indicações) e Leire (reativações) — mesma lógica."""
     for teto, rate in sorted(faixas or [], key=lambda x: x[0]):
         if count <= teto:
             return float(rate)
@@ -210,7 +215,7 @@ def calcular(sb, mes=None):
             mar["fechadas"].append({"indicador": r.get("indicador_nome"), "indicado": r.get("indicado_nome"),
                                     "vgv": r.get("valor_negocio")})
         n = len(inds)
-        rate = _mariane_rate(faixas, n) if n else 0.0
+        rate = _faixa_rate(faixas, n) if n else 0.0
         bruto = n * rate
         total = min(bruto, teto) if teto else bruto
         mar.update({"qtd": n, "rate": rate, "total": round(total, 2),
@@ -218,8 +223,35 @@ def calcular(sb, mes=None):
     except Exception:
         pass
 
+    # ── Leire (Reativação MAP: mesma lógica progressiva) ──
+    lf = cfg.get("leire_faixas") or []
+    lt = float(cfg.get("leire_teto") or 0)
+    lei = {"faixas": lf, "teto": lt, "fechadas": [], "qtd": 0, "rate": 0.0,
+           "total": 0.0, "no_teto": False}
+    try:
+        cards = _page(lambda: sb.table("reativacao_kanban").select("deal_id,nome,valor")
+                      .not_.is_("deal_id", "null").not_.is_("abordado_em", "null").order("id"), cap=8000)
+        dmap = {str(c["deal_id"]): c for c in cards if c.get("deal_id")}
+        ids = list(dmap.keys())
+        ganhos = []
+        for i in range(0, len(ids), 200):
+            dd = sb.table("deals").select("id,name,amount,closed_at").eq("win", True) \
+                .gte("closed_at", ini).lt("closed_at", fim).in_("id", ids[i:i + 200]).execute().data or []
+            ganhos.extend(dd)
+        for g in ganhos:
+            c = dmap.get(str(g["id"])) or {}
+            lei["fechadas"].append({"nome": c.get("nome") or g.get("name"), "vgv": g.get("amount")})
+        n = len(ganhos)
+        rate = _faixa_rate(lf, n) if n else 0.0
+        bruto = n * rate
+        lei.update({"qtd": n, "rate": rate, "bruto": round(bruto, 2),
+                    "total": round(min(bruto, lt) if lt else bruto, 2),
+                    "no_teto": bool(lt and bruto > lt)})
+    except Exception:
+        pass
+
     fontes_ord = sorted(fontes.items(), key=lambda x: -x[1])
-    return {"mes": mes_lbl, "corretores": corretores, "mariane": mar,
+    return {"mes": mes_lbl, "corretores": corretores, "mariane": mar, "leire": lei,
             "fontes_rd": [{"fonte": f, "n": n, "mapeada": f.lower() in mapa} for f, n in fontes_ord],
             "cfg": cfg}
 
@@ -270,7 +302,8 @@ class handler(BaseHTTPRequestHandler):
             if action == "set_cfg":
                 cur = _cfg(sb)
                 nc = body.get("cfg") or {}
-                for k in ("taxa_estagiario", "mariane_faixas", "mariane_teto", "mapa_rd",
+                for k in ("taxa_estagiario", "mariane_faixas", "mariane_teto",
+                          "leire_faixas", "leire_teto", "mapa_rd",
                           "origens", "acelerador", "operacao_origens_indicacao"):
                     if k in nc:
                         cur[k] = nc[k]
