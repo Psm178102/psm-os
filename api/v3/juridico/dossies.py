@@ -86,16 +86,21 @@ RESULTADO_CND = ("positiva", "negativa")   # só faz sentido depois de emitida
 # ── Garantia da locação (2º ato: só existe em locação) ──────────────────────
 # Depois que as CNDs voltam, alguém ANALISA e aprova (ou não) a garantia.
 # Cada tipo pede um detalhe diferente — o front usa 'pede' pra rotular o campo.
+# Os 3 tipos que a PSM aceita (decisão do Paulo, v84.70). Caução/outra saíram
+# do menu; se algum dossiê antigo tiver um tipo fora da lista, o rótulo degrada
+# pra "—" mas o dado não é apagado.
 GARANTIAS = {
     "fiador":      {"nome": "Fiador", "pede": "Quem é o fiador (cadastre como parte 'Fiador' pra gerar as CNDs dele)"},
     "seguro":      {"nome": "Seguro-fiança", "pede": "Seguradora + nº da apólice"},
-    "caucao":      {"nome": "Caução em dinheiro", "pede": "Quantos aluguéis / valor depositado"},
     "capitalizacao": {"nome": "Título de capitalização", "pede": "Instituição + nº do título"},
-    "outra":       {"nome": "Outra", "pede": "Descreva a garantia"},
 }
-STATUS_GARANTIA = ("nao_definida", "em_analise", "aprovada", "reprovada")
+# pendente_doc (v84.70): a garantia foi escolhida mas falta papel do cliente
+# (apólice, comprovante do título, docs do fiador). Não é decisão — é espera;
+# por isso NÃO carimba decidido_por, mas avisa o caso pra alguém ir cobrar.
+STATUS_GARANTIA = ("nao_definida", "em_analise", "pendente_doc", "aprovada", "reprovada")
 GARANTIA_LBL = {
     "nao_definida": "Garantia não definida", "em_analise": "Garantia em análise",
+    "pendente_doc": "Garantia PENDENTE DE DOC",
     "aprovada": "Garantia APROVADA", "reprovada": "Garantia REPROVADA",
 }
 
@@ -159,7 +164,7 @@ def _garantia(raw, antiga=None):
         return a or {"tipo": None, "status": "nao_definida"}
     tipo = (raw.get("tipo") or "").strip().lower()
     if tipo and tipo not in GARANTIAS:
-        tipo = "outra"
+        tipo = None  # tipo fora do menu não entra; o antigo (se houver) fica
     st = (raw.get("status") or a.get("status") or "nao_definida").strip().lower()
     if st not in STATUS_GARANTIA:
         st = "nao_definida"
@@ -326,7 +331,17 @@ class handler(BaseHTTPRequestHandler):
         rows = [d for d in rows if pode_ver(d, user)]
         usuarios = []
         try:
-            usuarios = sb.table("users").select("id,name").limit(200).execute().data or []
+            # role/lvl/ativo INCLUSOS (v84.70): o front filtra o dropdown de
+            # responsável por role/lvl — sem esses campos, TODO usuário falhava
+            # no filtro e o seletor abria VAZIO: era impossível atribuir a Leire
+            # ou a Mariane a um caso. Mesmo bug de contrato do status/cstatus.
+            # A lista continua completa (inativos inclusos) porque ela também
+            # resolve NOMES de dossiês antigos; o front só oferece os ativos.
+            us = sb.table("users").select("id,name,role,status").limit(200).execute().data or []
+            usuarios = [{"id": u.get("id"), "name": u.get("name"),
+                         "role": u.get("role"), "lvl": lvl_of(u.get("role")) or 0,
+                         "ativo": (u.get("status") or "").lower() == "ativo"}
+                        for u in us]
         except Exception:
             pass
         return self._send(200, {"ok": True, "dossies": rows,
@@ -431,6 +446,7 @@ class handler(BaseHTTPRequestHandler):
                     tipo_lbl = (GARANTIAS.get(g.get("tipo")) or {}).get("nome") or "—"
                     _avisar(self, sb, d, user,
                             {"aprovada": "✅ Garantia APROVADA", "reprovada": "❌ Garantia REPROVADA",
+                             "pendente_doc": "📄 Garantia PENDENTE DE DOC — falta papel do cliente",
                              "em_analise": "🔎 Garantia em análise"}.get(g["status"], "Garantia atualizada"),
                             f"{d.get('titulo') or 'Locação'} · {tipo_lbl}"
                             + (f" — {g.get('detalhe')}" if g.get("detalhe") else ""))

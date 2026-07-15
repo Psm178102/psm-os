@@ -26,13 +26,14 @@ const RES_CERT = {
   negativa: ['🟢 NEGATIVA (nada consta)', '#16a34a'],
   positiva: ['🔴 POSITIVA (tem débito)', '#dc2626'],
 };
+/* os 3 tipos que a PSM aceita (v84.70) */
 const GARANTIAS = {
-  fiador: 'Fiador', seguro: 'Seguro-fiança', caucao: 'Caução em dinheiro',
-  capitalizacao: 'Título de capitalização', outra: 'Outra',
+  fiador: 'Fiador', seguro: 'Seguro-fiança', capitalizacao: 'Título de capitalização',
 };
 const ST_GARANTIA = {
   nao_definida: ['⚪ Não definida', '#64748b'],
   em_analise:   ['🔎 Em análise', '#a16207'],
+  pendente_doc: ['📄 PENDENTE DOC', '#7c3aed'],
   aprovada:     ['✅ APROVADA', '#16a34a'],
   reprovada:    ['❌ REPROVADA', '#dc2626'],
 };
@@ -211,7 +212,24 @@ function renderForm() {
   else if (_form !== 'novo' && !_fp.length) _fp = JSON.parse(JSON.stringify(d.partes || []));
   const tn = d.tipo_negocio || 'venda';
   const im = d.imovel || {};
-  const eqs = (_d.users || []).filter(u => ['secretaria_vendas', 'backoffice'].includes(u.role) || (u.lvl || 0) >= 5);
+  /* v84.70: este filtro sempre dependeu de role/lvl, mas o backend mandava só
+     id+name — TODO usuário falhava e o seletor de responsável abria VAZIO
+     (era impossível atribuir a Leire/Mariane). O backend agora manda
+     role/lvl/ativo. Inativo não entra em dropdown nenhum, mas segue na lista
+     pra resolver nome em dossiê antigo. Se um dossiê antigo tiver responsável
+     que hoje é inativo, ele entra no seletor só daquele dossiê (senão o
+     selected apontaria pra uma opção que não existe e o save o derrubaria). */
+  const ativos = (_d.users || []).filter(u => u.ativo !== false);
+  const eqs = ativos.filter(u => ['secretaria_vendas', 'backoffice'].includes(u.role) || (u.lvl || 0) >= 5);
+  if (d.responsavel_id && !eqs.some(u => u.id === d.responsavel_id)) {
+    const atual = (_d.users || []).find(u => u.id === d.responsavel_id);
+    if (atual) eqs.push(atual);
+  }
+  const corretores = ativos.slice();
+  if (d.corretor_id && !corretores.some(u => u.id === d.corretor_id)) {
+    const atual = (_d.users || []).find(u => u.id === d.corretor_id);
+    if (atual) corretores.push(atual);
+  }
 
   _host.innerHTML = `
     <div class="card">
@@ -233,7 +251,7 @@ function renderForm() {
         </select>
         <select class="input" id="cf-corretor" style="flex:1;min-width:190px">
           <option value="">🤝 Corretor do caso…</option>
-          ${(_d.users || []).map(u => `<option value="${esc(u.id)}"${d.corretor_id === u.id ? ' selected' : ''}>${esc(u.name)}</option>`).join('')}
+          ${corretores.map(u => `<option value="${esc(u.id)}"${d.corretor_id === u.id ? ' selected' : ''}>${esc(u.name)}</option>`).join('')}
         </select>
       </div>
       <input class="input mt-1" id="cf-drive" placeholder="🔗 Link da pasta no Google Drive (opcional)" value="${esc(d.drive_url || '')}" style="width:100%">
@@ -429,6 +447,7 @@ function htmlGarantia(g, ed) {
     ${ed ? `<div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" id="gr-save">💾 Salvar garantia</button>
       <span style="margin-left:auto"></span>
+      <button class="btn btn-ghost btn-sm" id="gr-doc" style="color:#7c3aed">📄 Pendente doc</button>
       <button class="btn btn-ghost btn-sm" id="gr-rep" style="color:#dc2626">❌ Reprovar</button>
       <button class="btn btn-primary btn-sm" id="gr-apr">✅ Aprovar garantia</button>
     </div>` : ''}
@@ -442,6 +461,10 @@ function wireGarantia(d) {
     garantia: { tipo: $('#gr-tipo').value, detalhe: $('#gr-det').value.trim(), valor: $('#gr-val').value.trim(), obs: $('#gr-obs').value.trim(), ...(st ? { status: st } : {}) },
   });
   if ($('#gr-save')) $('#gr-save').onclick = async () => { if (await post(corpo(null), '💾 Garantia salva.')) reload(); };
+  if ($('#gr-doc')) $('#gr-doc').onclick = async () => {
+    if (!$('#gr-tipo').value) { alert('❌ Escolha o tipo de garantia antes de marcar pendência de doc.'); return; }
+    if (await post(corpo('pendente_doc'), '📄 Garantia marcada como pendente de documentação — o caso foi avisado.')) reload();
+  };
   if ($('#gr-apr')) $('#gr-apr').onclick = async () => {
     if (!$('#gr-tipo').value) { alert('❌ Escolha o tipo de garantia antes de aprovar.'); return; }
     if (!confirm('Aprovar a garantia deste contrato?')) return;
