@@ -135,14 +135,28 @@ async function loadSalas() {
     </div>
     <div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
       ${d.salas.map(s => {
-        const livre = s.livre_agora !== false;
-        return `<div style="flex:1;min-width:190px;background:var(--bg-2);border-radius:10px;padding:10px 12px;border-left:3px solid ${livre ? '#16a34a' : '#dc2626'}">
+        /* v84.68: o semáforo segue o ESTADO que o backend apurou, e "desconhecida"
+           é cinza — nunca verde. O código antigo fazia `s.livre_agora !== false`,
+           então campo ausente/erro pintava LIVRE: era o default que manda dois
+           times pra mesma sala. Quando não dá pra ler a agenda, a tela admite. */
+        const E = {
+          ocupada:      { cor: '#dc2626', txt: s.ate ? `● ocupada até ${s.ate}` : '● ocupada' },
+          livre:        { cor: '#16a34a', txt: s.proxima ? `● livre até ${s.proxima}` : '● livre' },
+          tem_reserva:  { cor: '#f59e0b', txt: '● tem reserva' },
+          sem_reserva:  { cor: '#16a34a', txt: '● dia livre' },
+          desconhecida: { cor: '#6b7280', txt: '● não deu pra ler' },
+        }[s.estado] || { cor: '#6b7280', txt: '● não deu pra ler' };
+        const lista = (s.reservas || []).map(r =>
+          r.dia_todo ? 'dia todo' : `${r.inicio}–${r.fim}`).join(' · ');
+        return `<div style="flex:1;min-width:190px;background:var(--bg-2);border-radius:10px;padding:10px 12px;border-left:3px solid ${E.cor}">
           <div class="flex items-center" style="gap:6px;flex-wrap:wrap">
             <b style="font-size:13px">${escapeHtml(s.nome || 'Sala')}</b>
-            <span class="tiny" style="color:${livre ? '#16a34a' : '#dc2626'};font-weight:800">${livre ? '● livre' : '● ocupada'}</span>
+            <span class="tiny" style="color:${E.cor};font-weight:800">${E.txt}</span>
           </div>
           <div class="tiny muted">${s.capacidade ? '👥 ' + escapeHtml(String(s.capacidade)) + ' lugares' : ''}${s.local ? ' · ' + escapeHtml(s.local) : ''}</div>
-          ${(s.reservas || []).length ? `<div class="tiny muted mt-1">${s.reservas.length} reserva(s) hoje</div>` : '<div class="tiny muted mt-1">sem reservas hoje</div>'}
+          ${s.estado === 'desconhecida'
+            ? '<div class="tiny mt-1" style="color:#6b7280">Não consegui ler a agenda desta sala agora. Confirme no Zoho antes de ocupar.</div>'
+            : `<div class="tiny muted mt-1">${lista ? '🕑 ' + escapeHtml(lista) : 'sem reservas neste dia'}</div>`}
           <button class="btn btn-ghost btn-sm mt-1 sala-rsv" data-id="${escapeHtml(s.id)}" data-nome="${escapeHtml(s.nome || '')}" style="padding:2px 10px;font-size:11px">📌 Reservar</button>
         </div>`;
       }).join('')}

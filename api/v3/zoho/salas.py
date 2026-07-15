@@ -19,7 +19,13 @@ conectado antes precisa reconectar; hoje não há ninguém nessa situação).
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, sys, urllib.parse
-from datetime import datetime
+from datetime import datetime, timedelta, timezone as _tz
+
+TZ = "America/Sao_Paulo"
+# O Vercel roda em UTC. Sem isto o "ocupada agora" usaria a hora de Londres e a
+# sala apareceria ocupada 3h fora do horário real.
+def _agora():
+    return datetime.now(_tz(timedelta(hours=-3)))
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
@@ -70,14 +76,72 @@ def _salas(token, branch_id=None):
     return _lista(d, "resources", "data")
 
 
-def _freebusy(token, branch_id, dia):
-    """Ocupação do dia (MM/dd/yyyy no Zoho)."""
+def _freebusy(token, rid, dia):
+    """Ocupação REAL de UMA sala no dia — com horários.
+
+    v84.68: o caminho é /resources/{id}/freebusy, com o id NO CAMINHO. Antes eu
+    chamava /resources/freebusy (sem id): aquilo casava com a rota da LISTA de
+    recursos e devolvia as salas de novo, com um is_available do dia inteiro
+    colado. Resultado: as duas salas apareciam "ocupadas" com ZERO reservas —
+    ocupadas por ninguém. Nunca cheguei a pedir a ocupação.
+
+    Resposta (confirmada na doc):
+      {"range":"20260715_20260715",
+       "<resource_id>": {"20260715": [{"start_time":"1415","end_time":"1430",
+                                       "all_day":false, ...}]}}
+    Vazio aqui é resposta legítima: sala livre o dia todo.
+    """
     d0 = datetime.strptime(dia, "%Y-%m-%d").strftime("%m/%d/%Y")
-    qs = {"start_date": d0, "end_date": d0}
-    if branch_id:
-        qs["branch_id"] = str(branch_id)
-    d = z._req("GET", f"{z.calendar_base()}/resources/freebusy?" + urllib.parse.urlencode(qs), token)
-    return _lista(d, "resources", "data", "freebusy")
+    qs = {"start_date": d0, "end_date": d0, "timezone": TZ}
+    url = f"{z.calendar_base()}/resources/{urllib.parse.quote(str(rid))}/freebusy?" + urllib.parse.urlencode(qs)
+    d = z._req("GET", url, token)
+    if not isinstance(d, dict):
+        return []
+    chave_dia = datetime.strptime(dia, "%Y-%m-%d").strftime("%Y%m%d")
+    # a chave do topo é o resource_id; não confio no casing/tipo — varro os dicts
+    for k, v in d.items():
+        if k == "range" or not isinstance(v, dict):
+            continue
+        slots = v.get(chave_dia)
+        if isinstance(slots, list):
+            return [s for s in slots if isinstance(s, dict)]
+    return []
+
+
+def _hhmm(s):
+    """'1415' -> '14:15'. Devolve None se não for o formato esperado."""
+    s = str(s or "").strip()
+    if len(s) == 4 and s.isdigit():
+        return f"{s[:2]}:{s[2:]}"
+    return None
+
+
+def _reservas(slots):
+    out = []
+    for s in slots:
+        if s.get("all_day"):
+            out.append({"inicio": None, "fim": None, "dia_todo": True})
+            continue
+        i, f = _hhmm(s.get("start_time")), _hhmm(s.get("end_time"))
+        if i and f:
+            out.append({"inicio": i, "fim": f, "dia_todo": False})
+    return sorted(out, key=lambda r: r["inicio"] or "")
+
+
+def _situacao(reservas, dia, agora):
+    """Semáforo HONESTO. 'ocupada agora' só faz sentido HOJE — em outro dia a
+    pergunta certa é 'tem reserva?', e responder 'livre agora' sobre amanhã é
+    inventar. Devolve (estado, ate/proxima)."""
+    if any(r["dia_todo"] for r in reservas):
+        return ("ocupada", None) if dia == agora.strftime("%Y-%m-%d") else ("tem_reserva", None)
+    if dia != agora.strftime("%Y-%m-%d"):
+        return ("tem_reserva" if reservas else "sem_reserva"), None
+    hm = agora.strftime("%H:%M")
+    for r in reservas:
+        if r["inicio"] <= hm < r["fim"]:
+            return "ocupada", r["fim"]
+    prox = next((r["inicio"] for r in reservas if r["inicio"] > hm), None)
+    return "livre", prox
 
 
 class handler(BaseHTTPRequestHandler):
@@ -107,7 +171,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(200, {"ok": True, "configurado": False, "salas": []})
 
         q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-        dia = (q.get("dia") or [datetime.now().strftime("%Y-%m-%d")])[0]
+        dia = (q.get("dia") or [_agora().strftime("%Y-%m-%d")])[0]
         # ?debug=1 (sócio) devolve o shape CRU da Zoho. O shape real não bate
         # com a doc, e adivinhar formato às cegas custa uma rodada de deploy.
         debug = (q.get("debug") or [""])[0] == "1" and (user.get("lvl") or 0) >= 7
@@ -120,16 +184,12 @@ class handler(BaseHTTPRequestHandler):
                                     "aviso": "Nenhuma conta Zoho conectada ainda. Conecte a sua pra liberar o mapa das salas."})
         cru = {}
         try:
-            # A ordem importa: /resources responde SEM branchId, e cada sala já
-            # traz o branch_id dentro dela. A "Get Branch list API" que a doc
-            # cita não tem caminho publicado (as 3 formas que tentei voltaram
-            # vazio) — e não precisa: o dado vem junto do recurso.
+            # /resources responde SEM branchId, e cada sala já traz o branch_id
+            # dentro dela. A "Get Branch list API" que a doc cita não tem caminho
+            # publicado — e não precisa: o dado vem junto do recurso.
             salas = _salas(token)
             branch_id = next((s.get("branch_id") for s in salas
                               if isinstance(s, dict) and s.get("branch_id")), None)
-            ocup = _freebusy(token, branch_id, dia) if branch_id else []
-            if debug:
-                cru = {"salas_cru": salas[:2], "ocup_cru": ocup[:2], "branch_usado": branch_id}
         except Exception as e:
             msg = str(e)
             # 401 aqui quase sempre é ESCOPO, não token inválido: quem conectou
@@ -142,25 +202,49 @@ class handler(BaseHTTPRequestHandler):
             return self._send(200, {"ok": True, "configurado": True, "erro_zoho": msg[:200],
                                     "salas": [], "dia": dia})
 
-        ocup_por_id = {str(r.get("resource_id")): r for r in ocup if isinstance(r, dict)}
-        out = []
+        agora = _agora()
+        out, falhas = [], []
         for s in salas:
             if not isinstance(s, dict):
                 continue
             rid = str(s.get("resource_id") or s.get("id") or "")
-            fb = ocup_por_id.get(rid) or {}
+            nome = s.get("resource_name") or s.get("name")
+            # uma chamada POR SALA (são 2 aqui). Se a ocupação de UMA falhar, a
+            # sala aparece com a agenda DESCONHECIDA — nunca como "livre". Dizer
+            # "livre" quando não se sabe é o erro que manda dois times pra mesma
+            # sala; o certo é admitir que não deu pra ler.
+            try:
+                reservas = _reservas(_freebusy(token, rid, dia))
+                estado, marca = _situacao(reservas, dia, agora)
+                erro_sala = None
+            except Exception as e:
+                reservas, estado, marca, erro_sala = [], "desconhecida", None, str(e)[:120]
+                falhas.append(nome)
+            if debug:
+                cru.setdefault("fb_cru", {})[nome] = reservas
             out.append({
                 "id": rid,
-                "nome": s.get("resource_name") or s.get("name"),
+                "nome": nome,
                 "capacidade": s.get("capacity"),
                 "local": s.get("location"),
                 "categoria": s.get("category_name"),
-                "livre_agora": s.get("is_available", fb.get("is_available")),
-                "reservas": fb.get("bookings") or fb.get("freebusy") or [],
+                "email": s.get("res_email_id"),
+                "estado": estado,          # ocupada | livre | tem_reserva | sem_reserva | desconhecida
+                "ate": marca if estado == "ocupada" else None,   # ocupada até HH:MM
+                "proxima": marca if estado == "livre" else None,  # livre até a próxima às HH:MM
+                "reservas": reservas,
+                "erro": erro_sala,
             })
+        if debug:
+            cru["salas_cru"] = salas[:1]
+            cru["branch_usado"] = branch_id
         return self._send(200, {"ok": True, "configurado": True, "dia": dia,
+                                "hoje": dia == agora.strftime("%Y-%m-%d"),
+                                "agora": agora.strftime("%H:%M"),
                                 "branch_id": branch_id, "eu_conectado": eh_meu,
-                                "salas": out, "total": len(out), **({"cru": cru} if debug else {})})
+                                "salas": out, "total": len(out),
+                                **({"falhas": falhas} if falhas else {}),
+                                **({"cru": cru} if debug else {})})
 
     def do_POST(self):
         try:
