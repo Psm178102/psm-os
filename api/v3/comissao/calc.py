@@ -162,7 +162,16 @@ def _calc_map(sb, cfg, mes_lbl, ini, fim, nomes, inativos=None):
                 .gte("closed_at", ano_ini).lt("closed_at", ano_fim).order("id"), cap=12000)
     ina = inativos or set()
     ano = [d for d in ano if frente_of(d.get("pipeline_name")) == "map"]
-    # quem saiu da PSM não aparece (nem soma no acumulado do Sênior)
+    # quem saiu da PSM não aparece (nem soma no acumulado do Sênior) — mas o
+    # corte é DECLARADO em ocultos[], nunca silencioso: se alguém saiu devendo
+    # comissão, a diretoria precisa enxergar.
+    ocul = {}
+    for d in ano:
+        cid = str(d.get("user_id") or d.get("user_email") or "?")
+        if _inativo(cid, ina) and d.get("closed_at") and ini <= d["closed_at"] < fim:
+            o = ocul.setdefault(cid, {"quem": nomes.get(cid, cid), "n_vendas": 0, "vgv": 0.0})
+            o["n_vendas"] += 1
+            o["vgv"] += float(d.get("amount") or 0)
     ano = [d for d in ano if not _inativo(d.get("user_id") or d.get("user_email") or "?", ina)]
     vgv_ano = {}
     for d in ano:
@@ -206,7 +215,10 @@ def _calc_map(sb, cfg, mes_lbl, ini, fim, nomes, inativos=None):
             "comissao_total": round(sum(v["comissao"] for v in c["vendas"]), 2),
             "vendas": sorted(c["vendas"], key=lambda x: -x["vgv"])})
     corretores.sort(key=lambda x: -x["comissao_total"])
+    for o in ocul.values():
+        o["vgv"] = round(o["vgv"], 2)
     return {"origens": origens, "senior_vgv_min": senior_min, "corretores": corretores,
+            "ocultos_inativos": sorted(ocul.values(), key=lambda x: -x["vgv"]),
             "fontes_rd": [{"fonte": f, "n": n, "mapeada": f.lower() in mapa}
                           for f, n in sorted(fontes.items(), key=lambda x: -x[1])]}
 

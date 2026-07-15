@@ -91,7 +91,8 @@ function render() {
 /* ── 👥 Corretores ──────────────────────────────────────────────────────── */
 function htmlCorretores() {
   const cs = _d.corretores || [];
-  if (!cs.length) return '<div class="card muted" style="text-align:center;padding:26px">Nenhuma venda Conquista fechada neste mês.</div>';
+  const _ocultos = avisoOcultos(_d.ocultos_inativos);
+  if (!cs.length) return _ocultos + '<div class="card muted" style="text-align:center;padding:26px">Nenhuma venda Conquista fechada neste mês.</div>';
   const totalGeral = cs.reduce((s, c) => s + c.comissao_total, 0);
   const vgvGeral = cs.reduce((s, c) => s + c.vgv_total, 0);
   return `
@@ -100,6 +101,7 @@ function htmlCorretores() {
       <div style="flex:1;min-width:150px;background:var(--bg-2);border-radius:10px;padding:8px 12px;border-left:3px solid #16a34a"><div class="tiny muted">Comissão total a pagar</div><div style="font-weight:900;font-size:17px">${brl(totalGeral)}</div></div>
       <div style="flex:1;min-width:120px;background:var(--bg-2);border-radius:10px;padding:8px 12px"><div class="tiny muted">Corretores</div><div style="font-weight:900;font-size:17px">${cs.length}</div></div>
     </div>
+    ${_ocultos}
     ${cs.map(corretorCard).join('')}`;
 }
 
@@ -240,6 +242,21 @@ function wireLeire() {
 /* ── 🏢 MAP / Empreendimentos (origem × senioridade) ────────────────────── */
 const SEN_COR = { estagiario: '#94a3b8', corretor: '#2563eb', senior: '#16a34a' };
 
+/* corretor desligado é tirado da conta — mas NUNCA em silêncio */
+function avisoOcultos(lst) {
+  if (!(lst || []).length) return '';
+  const vgv = lst.reduce((s, o) => s + (o.vgv || 0), 0);
+  return `<div class="card mt-2" style="border-left:3px solid #f59e0b">
+    <b class="tiny">⚠️ ${lst.length} corretor(es) desligado(s) fora da conta</b>
+    <div class="tiny muted">Não entram no cálculo (nem no acumulado do Sênior) por estarem inativos. Estão aqui porque tiveram venda no mês — confira se ficou comissão a pagar.</div>
+    <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:13px">
+      <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Quem</th><th style="text-align:right">Vendas</th><th style="text-align:right">VGV</th></tr>
+      ${lst.map(o => `<tr style="border-top:1px solid var(--bd,#eef2f7)"><td style="padding:6px 8px">${esc(o.quem)}</td><td style="text-align:right">${o.n_vendas}</td><td style="text-align:right">${brl(o.vgv)}</td></tr>`).join('')}
+      <tr style="border-top:1px solid var(--bd,#eef2f7)"><td class="tiny muted" style="padding:6px 8px">total</td><td></td><td style="text-align:right;font-weight:700">${brl(vgv)}</td></tr>
+    </table>
+  </div>`;
+}
+
 function htmlMap() {
   const m = _d.map || {};
   const origens = m.origens || [], cs = m.corretores || [];
@@ -262,6 +279,7 @@ function htmlMap() {
       </tr>`).join('')}
     </table>
   </div>
+  ${avisoOcultos(m.ocultos_inativos)}
   ${cs.length ? cs.map(c => `<div class="card mt-2">
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
       <b>${esc(c.corretor_nome || '—')}</b>
