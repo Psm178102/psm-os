@@ -300,9 +300,20 @@ class handler(BaseHTTPRequestHandler):
         aviso = None
         try:
             if aid:
-                cur = sb.table("reunioes_atas").select("evento_id").eq("id", aid).limit(1).execute().data or []
-                evento_id = (cur[0].get("evento_id") if cur else None) or (body.get("evento_id") or None)
-                row["evento_id"] = _sync_evento(sb, actor, row, evento_id)
+                cur = sb.table("reunioes_atas").select("*").eq("id", aid).limit(1).execute().data or []
+                atual = cur[0] if cur else {}
+                # EDIÇÃO É PATCH, não reconstrução (v84.75): o _ata_row inventa
+                # default pra tudo que o body não trouxe — e o toggle de
+                # "combinado feito" re-POSTava a ata SEM 'confidencial', então
+                # bool(None) zerava o sigilo e a reunião confidencial vazava pra
+                # gestão inteira (e ainda era publicada na Agenda pelo
+                # _sync_evento). Campo que o cliente não mandou não é tocado.
+                row = {k: v for k, v in row.items() if k in body or k == "updated_at"}
+                # o _sync_evento decide sigilo/publicação — tem que enxergar o
+                # estado COMPLETO (atual + patch), nunca só o patch
+                visao = {**atual, **row}
+                evento_id = atual.get("evento_id") or (body.get("evento_id") or None)
+                row["evento_id"] = _sync_evento(sb, actor, visao, evento_id)
             else:
                 aid = "rn_" + uuid.uuid4().hex[:12]
                 row["evento_id"] = _sync_evento(sb, actor, row, None)

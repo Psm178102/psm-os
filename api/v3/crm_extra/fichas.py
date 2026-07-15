@@ -74,6 +74,9 @@ class handler(BaseHTTPRequestHandler):
             "criado_por": actor.get("id"),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
+        # editar ficha de outro não rouba a autoria (v84.75)
+        if body.get("id"):
+            row.pop("criado_por")
         try:
             r = sb.table("fichas_propostas").upsert(row).execute()
         except Exception as e:

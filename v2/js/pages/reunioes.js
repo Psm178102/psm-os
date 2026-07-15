@@ -301,7 +301,7 @@ function openAta(a) {
 
 function combEditRow(cb, i) {
   return `
-    <div class="flex gap-2" style="align-items:flex-end;margin-top:6px" data-comb-i="${i}">
+    <div class="flex gap-2" style="align-items:flex-end;margin-top:6px" data-comb-i="${i}" data-cid="${esc(cb.id || '')}">
       <div style="flex:2;min-width:140px"><input class="input cb-texto" value="${esc(cb.texto || '')}" placeholder="O que ficou combinado"></div>
       <div style="flex:1;min-width:120px"><select class="input cb-resp"><option value="">— responsável —</option>${_users.map(u => `<option value="${esc(u.id)}"${cb.responsavel_id === u.id ? ' selected' : ''}>${esc(u.name)}</option>`).join('')}</select></div>
       <div style="width:140px"><input class="input cb-prazo" type="date" value="${cb.prazo ? String(cb.prazo).substring(0, 10) : ''}"></div>
@@ -313,10 +313,14 @@ function readCombs(box) {
   return [...box.querySelectorAll('[data-comb-i]')].map(row => {
     const texto = row.querySelector('.cb-texto').value.trim();
     if (!texto) return null;
-    const i = +row.dataset.combI;
-    const prev = _editingR && (_editingR.combinados || [])[i];
+    /* v84.75: prev casado pelo ID que viaja no DOM (data-cid), não pelo ÍNDICE.
+       Por índice, apagar/reordenar um combinado fazia os de baixo HERDAREM o
+       feito e o task_id do vizinho — a tarefa cobrada ficava pendurada no
+       combinado errado. Mesma família do bug das partes do CND. */
+    const cid = row.dataset.cid || '';
+    const prev = cid && _editingR && (_editingR.combinados || []).find(c => c.id === cid);
     return {
-      id: (prev && prev.id) || 'c' + Math.random().toString(36).slice(2, 8),
+      id: cid || 'c' + Math.random().toString(36).slice(2, 8),
       texto,
       responsavel_id: row.querySelector('.cb-resp').value || null,
       responsavel_nome: (_users.find(u => u.id === row.querySelector('.cb-resp').value) || {}).name || null,
@@ -393,6 +397,9 @@ async function toggleFeito(ataId, combId, feito) {
         hora_inicio: a.hora_inicio, hora_fim: a.hora_fim, participantes: a.participantes,
         pauta: a.pauta, notas: a.notas, combinados: combs, anexos: a.anexos,
         recorrencia: a.recorrencia, proxima_data: a.proxima_data, status: a.status,
+        // v84.75: sem estes dois, marcar "feito" APAGAVA o sigilo da reunião
+        // (bool(undefined) = false no backend) e anulava o formato
+        confidencial: a.confidencial, formato_id: a.formato_id,
       }
     });
     a.combinados = combs; renderReunioes();

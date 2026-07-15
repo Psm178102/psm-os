@@ -97,6 +97,15 @@ class handler(BaseHTTPRequestHandler):
             "criado_por": actor.get("id"),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
+        # EDIÇÃO preserva o que o form não manda (v84.75): o save da tela não
+        # envia 'status' — toda edição regredia a oportunidade pra "aberta",
+        # inclusive as já PEGAS por corretor (o card voltava pro pool e ficava
+        # nos dois lugares ao mesmo tempo). E 'criado_por' era sobrescrito por
+        # quem editou, roubando a autoria. Editar não muda nem status nem autor.
+        if not is_new:
+            if not body.get("status"):
+                row.pop("status")
+            row.pop("criado_por")
         try:
             r = sb.table("oportunidades_psm").upsert(row).execute()
         except Exception as e:
