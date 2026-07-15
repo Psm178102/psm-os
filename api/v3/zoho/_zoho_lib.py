@@ -98,9 +98,17 @@ def exchange_code(code):
 
 
 def access_token(conn):
-    """Access token a partir do refresh_token da conexão. Cache 50 min por user."""
+    """Access token a partir do refresh_token da conexão. Cache 50 min.
+
+    v84.72: a chave do cache inclui a impressão do REFRESH_TOKEN, não só o
+    user_id. Reconectar gera refresh_token novo (com os escopos novos) — mas
+    uma instância quente seguia servindo o access antigo do cache por até 50
+    min, e o usuário via a reconexão "não funcionar" (401 nas salas) sem ter
+    feito nada de errado. Com o token na chave, reconectou = cache novo."""
     uid = str(conn.get("user_id"))
-    c = _tok_cache.get(uid)
+    rt = str(conn.get("refresh_token") or "")
+    chave = uid + ":" + hashlib.md5(rt.encode("utf-8")).hexdigest()[:10]
+    c = _tok_cache.get(chave)
     if c and c["exp"] > time.time():
         return c["access"], c.get("api_domain") or conn.get("api_domain")
     cid, sec = client_creds()
@@ -110,9 +118,9 @@ def access_token(conn):
     tok = data.get("access_token")
     if not tok:
         raise RuntimeError("Zoho não devolveu access_token: " + json.dumps(data)[:200])
-    _tok_cache[uid] = {"access": tok, "exp": time.time() + 50 * 60,
-                       "api_domain": data.get("api_domain") or conn.get("api_domain")}
-    return tok, _tok_cache[uid]["api_domain"]
+    _tok_cache[chave] = {"access": tok, "exp": time.time() + 50 * 60,
+                         "api_domain": data.get("api_domain") or conn.get("api_domain")}
+    return tok, _tok_cache[chave]["api_domain"]
 
 
 def _req(method, url, token, body=None):
