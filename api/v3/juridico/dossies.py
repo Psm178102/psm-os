@@ -19,7 +19,7 @@ só os que criou. Editar/excluir: criador ou gestão.
 Auth: lvl>=2 (quem tem a aba CNDs no menu usa).
 """
 from http.server import BaseHTTPRequestHandler
-import json, os, sys, uuid
+import json, os, sys, urllib.parse, uuid
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -325,6 +325,24 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
         lvl = user.get("lvl") or 0
+
+        # ?historico=<id> (gestão): linha do tempo do caso direto do audit_log —
+        # quem marcou o quê e quando. Nasceu no incidente da Leire (v84.74): é a
+        # fonte de recuperação quando algo se perde, sem depender do painel do
+        # Supabase estar de pé.
+        qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        hist_id = (qs.get("historico") or [None])[0]
+        if hist_id:
+            if lvl < 7:
+                return self._send(403, {"ok": False, "error": "histórico é da gestão (nível 7+)"})
+            try:
+                evs = sb.table("audit_log").select("ts,actor_name,action,notes") \
+                    .eq("target_id", str(hist_id)).like("action", "cnd.%") \
+                    .order("ts").limit(500).execute().data or []
+            except Exception as e:
+                return self._send(502, {"ok": False, "error": str(e)[:200]})
+            return self._send(200, {"ok": True, "historico": evs, "n": len(evs)})
+
         try:
             # busca tudo e filtra no PYTHON: a regra é um OU entre 3 colunas
             # (criou / é o corretor / é o responsável) e filtro composto do
