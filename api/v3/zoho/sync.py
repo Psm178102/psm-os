@@ -22,6 +22,18 @@ import _zoho_lib as z  # type: ignore
 DIAS_ATRAS, DIAS_FRENTE = 7, 60
 
 
+def _page(make_q, cap=4000):
+    """PostgREST devolve no máximo 1000 linhas por vez — sem paginar, uma
+    agenda grande simplesmente perde eventos sem avisar."""
+    out, page = [], 1000
+    for i in range(0, cap, page):
+        rows = make_q().range(i, i + page - 1).execute().data or []
+        out.extend(rows)
+        if len(rows) < page:
+            break
+    return out
+
+
 def sync_user(sb, conn):
     """Sincroniza um usuário. Devolve resumo {puxados, criados_house, enviados, erros}."""
     uid = str(conn.get("user_id"))
@@ -89,11 +101,19 @@ def sync_user(sb, conn):
             res["erros"] += 1
 
     # ── PUSH: House → Zoho (cria os novos E atualiza os que mudaram) ────
+    # NÃO usar .contains() aqui: o cliente PostgREST gera sintaxe de array PG
+    # (cs.{x}) que NÃO casa com coluna jsonb — a query voltava vazia e o except
+    # engolia, então o push ficava em 0 com "erros: 0" (parecia que não havia
+    # nada pra enviar). Mesma pegadinha que já mordeu o kanban de reativação:
+    # filtro complexo do PostgREST não é confiável → busca por data e filtra
+    # participantes no Python.
     try:
-        casa = sb.table("eventos").select("*").contains("participantes", [uid]) \
-            .gte("data", ini_d).lte("data", fim_d).limit(500).execute().data or []
+        casa = _page(lambda: sb.table("eventos").select("*")
+                     .gte("data", ini_d).lte("data", fim_d).order("id"), cap=4000)
     except Exception:
         casa = []
+        res["erros"] += 1
+    casa = [e for e in casa if uid in (e.get("participantes") or [])]
     for ev in casa:
         if (ev.get("origem") or "house") == "zoho" or not ev.get("data"):
             continue
@@ -111,6 +131,10 @@ def sync_user(sb, conn):
                                                 "origem": (ev.get("origem") or "house"),
                                                 "owner_id": (ev.get("owner_id") or uid)}).eq("id", ev["id"]).execute()
                     res["enviados"] += 1
+                else:
+                    # o Zoho respondeu num formato que eu não reconheci: isso é
+                    # ERRO, não "nada a fazer" — não pode sumir da contagem
+                    res["erros"] += 1
             elif z.hash_evento(ev) != (ev.get("zoho_hash") or ""):
                 # mudou no House depois de sincronizado → reflete no Zoho
                 etag = z.atualizar_evento(token, cal_uid, ev["zoho_uid"], ed, ev.get("zoho_etag"))
