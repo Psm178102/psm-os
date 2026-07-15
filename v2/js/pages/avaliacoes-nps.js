@@ -7,6 +7,7 @@
    Backend: /api/v3/producao/avaliacoes */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { ativarDrag } from '../kanban-drag.js';
 
 let _host = null, _d = null, _busy = false, _aba = 'kanban', _fOrigem = '', _busca = '', _showMax = {}, _editFluxo = null;
 
@@ -198,18 +199,13 @@ function wireKanban() {
   _host.querySelectorAll('.av-mais').forEach(b => b.onclick = () => { _showMax[b.dataset.col] = (_showMax[b.dataset.col] || 40) + 40; render(); });
   if ($('#av-cfg')) $('#av-cfg').onclick = abrirCfg;
 
-  _host.querySelectorAll('.av-card').forEach(el => {
-    el.onclick = () => abrirCard(el.dataset.id);
-    el.ondragstart = e => { e.dataTransfer.setData('text/plain', el.dataset.id); e.dataTransfer.effectAllowed = 'move'; };
-  });
-  _host.querySelectorAll('.av-col').forEach(col => {
-    col.ondragover = e => { e.preventDefault(); col.style.outline = '2px dashed #2563eb'; };
-    col.ondragleave = () => { col.style.outline = ''; };
-    col.ondrop = async e => {
-      e.preventDefault(); col.style.outline = '';
-      const id = e.dataTransfer.getData('text/plain');
+  // Pointer Events: mouse, trackpad E toque (o drag HTML5 antigo não pegava)
+  ativarDrag({
+    host: _host, card: '.av-card', coluna: '.av-col',
+    colDe: col => col.dataset.col,
+    aoClicar: id => abrirCard(id),
+    aoSoltar: async (id, destino) => {
       const c = (_d.cards || []).find(x => x.id === id);
-      const destino = col.dataset.col;
       if (!c || c.coluna === destino) return;
       let motivo = null;
       if (destino === 'descarte') {
@@ -223,7 +219,7 @@ function wireKanban() {
         c.tarefa = r.followup ? { data: r.followup, titulo: '🔁 Follow-up automático', auto: true } : (c.tarefa?.auto ? null : c.tarefa);
         render();
       }
-    };
+    },
   });
 }
 

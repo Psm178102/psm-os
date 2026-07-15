@@ -6,6 +6,7 @@
    Backend: /api/v3/producao/reativacao_kanban */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { ativarDrag } from '../kanban-drag.js';
 
 let _host = null, _d = null, _busy = false, _aba = 'kanban', _busca = '', _showMax = {}, _fHoje = false, _editFluxo = null;
 
@@ -195,18 +196,15 @@ function wireKanban() {
   _host.querySelectorAll('.rk-mais').forEach(b => b.onclick = () => { _showMax[b.dataset.col] = (_showMax[b.dataset.col] || 40) + 40; render(); });
   if ($('#rk-cfg')) $('#rk-cfg').onclick = abrirCfg;
 
-  _host.querySelectorAll('.rk-card').forEach(el => {
-    el.onclick = () => abrirCard(el.dataset.id);
-    el.ondragstart = e => { e.dataTransfer.setData('text/plain', el.dataset.id); e.dataTransfer.effectAllowed = 'move'; };
-  });
-  _host.querySelectorAll('.rk-col').forEach(col => {
-    col.ondragover = e => { e.preventDefault(); col.style.outline = '2px dashed #2563eb'; };
-    col.ondragleave = () => { col.style.outline = ''; };
-    col.ondrop = async e => {
-      e.preventDefault(); col.style.outline = '';
-      const id = e.dataTransfer.getData('text/plain');
+  // Arrastar via Pointer Events: funciona em mouse, trackpad E toque. O drag
+  // HTML5 antigo não existe em touch e falhava no trackpad — era por isso que
+  // a Leire não conseguia mover lead nenhum.
+  ativarDrag({
+    host: _host, card: '.rk-card', coluna: '.rk-col',
+    colDe: col => col.dataset.col,
+    aoClicar: id => abrirCard(id),
+    aoSoltar: async (id, destino) => {
       const c = (_d.cards || []).find(x => x.id === id);
-      const destino = col.dataset.col;
       if (!c || c.coluna === destino) return;
       let motivo = null;
       if (destino === 'descartado') {
@@ -220,7 +218,7 @@ function wireKanban() {
         c.tarefa = r.followup ? { data: r.followup, titulo: '🔁 Follow-up automático', auto: true } : (c.tarefa?.auto ? null : c.tarefa);
         render();
       }
-    };
+    },
   });
 }
 
