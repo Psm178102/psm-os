@@ -393,7 +393,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.55';
+const APP_VERSION = '84.56';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -766,9 +766,8 @@ function shellHTML(user) {
         <div class="sb-brand">House <span style="color:var(--psm-gold)">PSM</span></div>
 
         <div class="sb-sec">🏠 Início</div>
-        <button class="sb-link on" data-nav="/"><span class="sb-ico">📊</span> Dashboard</button>
+        <button class="sb-link on" data-nav="/"><span class="sb-ico">📅</span> Agenda</button>
         <button class="sb-link" data-nav="/painel"><span class="sb-ico">👤</span> Meu Painel</button>
-        <button class="sb-link" data-nav="/agenda"><span class="sb-ico">📅</span> Agenda</button>
         <button class="sb-link" data-nav="/tarefas"><span class="sb-ico">🗂</span> Tarefas</button>
         <button class="sb-link" data-nav="/checkin"><span class="sb-ico">📍</span> Check-in</button>
         <button class="sb-link" data-nav="/ranking"><span class="sb-ico">🏆</span> Ranking</button>

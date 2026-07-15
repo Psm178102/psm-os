@@ -5,6 +5,25 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { pageAgenda } from './agenda.js';
+
+/* A AGENDA MORA AQUI (v84.56). A rota '/' é a única que todo mundo tem — é a
+   tela de pouso garantida do router. Enquanto a Agenda vivia só em /agenda,
+   ela não tinha link no menu NEM entrada na matriz de permissão, então a
+   equipe simplesmente não chegava nela — e o "Conectar meu Zoho" mora lá.
+   Trazendo pra cá, todo mundo enxerga sem depender de permissão nenhuma.
+   Monta depois do 1º paint pra não atrasar o dashboard (que é cacheado). */
+async function montarAgenda() {
+  const host = document.getElementById('dash-agenda');
+  if (!host) return;
+  try {
+    await pageAgenda({}, host);
+  } catch (e) {
+    host.innerHTML = `<div class="card"><b>Não consegui carregar a agenda.</b>
+      <div class="tiny muted mt-1">${escapeHtml(e.message || e)}</div>
+      <a href="#/agenda" class="btn btn-ghost btn-sm mt-2">Abrir a Agenda em tela cheia</a></div>`;
+  }
+}
 
 const SCOPE_LBL = {
   global: '👁 Visão global (Sócio/Gerente)',
@@ -493,6 +512,7 @@ function render() {
   const hasFunis = (d.pipelines?.count_total || 0) > 0;
   const comercial = ehComercial();
   setTimeout(injectMeuAcompanhamento, 0); // equipe de apoio vê o próprio semáforo na entrada (v84.19)
+  setTimeout(montarAgenda, 0);            // agenda + banner do Zoho (v84.56)
 
   _root.innerHTML = `
     <div class="card">
@@ -517,6 +537,10 @@ function render() {
 
       <!-- ✅ TAREFAS & PENDÊNCIAS primeiro (ação) · depois 🗓 PLANO DO MÊS (metas/prod + planner) -->
       ${tarefasCard()}
+
+      <!-- 📅 AGENDA (inclui o banner de conexão do Zoho) -->
+      <div id="dash-agenda" class="mt-3"><div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando agenda…</div></div></div>
+
       ${planoMesCard()}
 
       <!-- KPIs SECUNDÁRIOS (VGV são comerciais; Tarefas vale pra todos) -->
