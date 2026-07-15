@@ -21,6 +21,56 @@ export async function pageIntegracoes(ctx, root) {
   _root = root;
   if ((auth.user()?.lvl || 0) < 5) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder.</div>'; return; }
   render();
+  loadZohoEquipe();
+}
+
+/* ── 📅 Zoho Calendar · adesão da equipe ─────────────────────────────────
+   Cada pessoa conecta a PRÓPRIA agenda pelo botão na Agenda (é lá que todo
+   mundo enxerga — /integracoes é só do grupo 'sistema', que a equipe não tem).
+   Aqui a direção vê QUEM ficou de fora, pra poder cobrar. */
+async function loadZohoEquipe() {
+  const host = document.getElementById('zoho-equipe');
+  if (!host) return;
+  if ((auth.user()?.lvl || 0) < 7) { host.innerHTML = ''; return; }
+  host.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Consultando adesão…</div>';
+  let d;
+  try { d = await api.request('/api/v3/zoho/equipe'); }
+  catch (e) { host.innerHTML = `<div class="alert alert-err">${escapeHtml(e.message || e)}</div>`; return; }
+
+  if (!d.configurado) {
+    host.innerHTML = `<div class="alert alert-warn"><b>⚠️ Zoho ainda não configurado.</b>
+      <div class="tiny mt-1">Faltam <code>ZOHO_CLIENT_ID</code> / <code>ZOHO_CLIENT_SECRET</code> nas variáveis do Vercel. Sem isso ninguém consegue conectar.</div></div>`;
+    return;
+  }
+  const pend = (d.equipe || []).filter(u => !u.conectado);
+  const erro = (d.equipe || []).filter(u => u.conectado && !u.saudavel);
+  const pctv = d.total ? Math.round((d.conectados / d.total) * 100) : 0;
+
+  host.innerHTML = `
+    <div class="flex items-center" style="gap:10px;flex-wrap:wrap">
+      <div><div class="tiny muted">Adesão da equipe</div><div style="font-weight:900;font-size:22px">${d.conectados}/${d.total} <span class="tiny muted">(${pctv}%)</span></div></div>
+      ${erro.length ? `<div style="background:#f59e0b18;border-radius:10px;padding:6px 12px;border-left:3px solid #f59e0b"><div class="tiny muted">Conectados com problema</div><div style="font-weight:800">${erro.length}</div></div>` : ''}
+      <span class="tiny muted" style="margin-left:auto">DC <b>${escapeHtml(d.dc)}</b> · redirect <code style="font-size:10px">${escapeHtml(d.redirect_uri)}</code></span>
+    </div>
+    <div style="height:8px;background:var(--bd,#eef2f7);border-radius:20px;overflow:hidden;margin:8px 0">
+      <div style="height:100%;width:${pctv}%;background:${pctv === 100 ? '#16a34a' : '#2563eb'};border-radius:20px"></div>
+    </div>
+    ${pend.length ? `<div class="tiny" style="background:#2563eb10;padding:8px 10px;border-radius:8px;border-left:3px solid #2563eb">
+      <b>Ainda não conectaram (${pend.length}):</b> ${pend.map(u => escapeHtml(u.nome || u.email)).join(' · ')}
+      <div class="muted mt-1">Peça pra abrirem a <b>Agenda</b> e clicarem em “🔗 Conectar meu Zoho”. Cada um autoriza a própria conta — ninguém conecta pelo outro.</div>
+    </div>` : '<div class="alert alert-ok tiny">🎉 Todo mundo conectado.</div>'}
+    <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px">
+      <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Pessoa</th><th>Conta Zoho</th><th style="text-align:right">Última sync</th><th style="text-align:right">Status</th></tr>
+      ${(d.equipe || []).map(u => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+        <td style="padding:6px 8px">${escapeHtml(u.nome || '—')}<div class="tiny muted">${escapeHtml(u.papel || '')}</div></td>
+        <td class="tiny">${escapeHtml(u.zoho_email || '—')}</td>
+        <td style="text-align:right" class="tiny">${u.min_desde_sync == null ? '—' : (u.min_desde_sync < 60 ? u.min_desde_sync + ' min' : Math.round(u.min_desde_sync / 60) + ' h')}</td>
+        <td style="text-align:right">${u.conectado
+          ? (u.saudavel ? '<span class="tiny" style="color:#16a34a;font-weight:700">✅ ok</span>'
+                        : `<span class="tiny" style="color:#f59e0b;font-weight:700">⚠️ ${u.erros ? u.erros + ' erro(s)' : 'sem sync'}</span>`)
+          : '<span class="tiny muted">— não conectou</span>'}</td>
+      </tr>`).join('')}
+    </table>`;
 }
 
 function render() {
@@ -31,6 +81,12 @@ function render() {
     <div class="card">
       <h2 class="card-title">🔌 Integrações Externas</h2>
       <p class="card-sub">Webhooks, importações, exportação CSV.</p>
+
+      ${isSocio ? `
+        <h3 class="card-title mt-4">📅 Zoho Calendar · agenda da equipe</h3>
+        <p class="tiny muted">Cada pessoa conecta a <b>própria</b> conta pelo botão “🔗 Conectar meu Zoho” na <b>Agenda</b> — é lá porque todo mundo enxerga a Agenda, e esta tela aqui só o sócio vê. Abaixo, quem já aderiu.</p>
+        <div class="card" style="background:var(--bg-3);margin:8px 0;padding:14px"><div id="zoho-equipe"></div></div>
+      ` : ''}
 
       <h3 class="card-title mt-4">🔔 Webhook de Alertas (Zapier / Make / n8n)</h3>
       <p class="tiny muted">Dispara webhook configurado em Configurações → Comunicação → webhook_url. Ideal pra notificações WhatsApp/Slack via Zapier.</p>
