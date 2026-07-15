@@ -168,7 +168,7 @@ function pfCampos(p, pref) {
 
 function parteHtml(p, i, tipoNeg) {
   const pj = p.tipo === 'pj';
-  return `<div class="card" style="margin:0 0 8px;padding:11px 13px;border-left:3px solid ${pj ? '#7c3aed' : '#2563eb'}" data-parte="${i}">
+  return `<div class="card" style="margin:0 0 8px;padding:11px 13px;border-left:3px solid ${pj ? '#7c3aed' : '#2563eb'}" data-parte="${i}" data-pid="${esc(p.id || '')}">
     <div class="flex items-center" style="gap:6px;flex-wrap:wrap">
       <select class="input fp-papel" style="width:135px;font-weight:700">
         ${Object.entries(papeisDe(tipoNeg)).map(([k, v]) => `<option value="${k}"${p.papel === k ? ' selected' : ''}>${v}</option>`).join('')}
@@ -194,7 +194,7 @@ function parteHtml(p, i, tipoNeg) {
             <button class="btn btn-ghost btn-sm fp-socio-add" type="button" style="margin-left:auto;padding:1px 8px">+ sócio</button>
           </div>
           <div class="fp-socios mt-1">
-            ${(p.socios || []).map((s, j) => `<div class="card" style="margin:0 0 6px;padding:8px 10px;background:var(--bg-2)" data-socio="${j}">
+            ${(p.socios || []).map((s, j) => `<div class="card" style="margin:0 0 6px;padding:8px 10px;background:var(--bg-2)" data-socio="${j}" data-sid="${esc(s.id || '')}">
               <div class="flex items-center" style="gap:6px"><b class="tiny">Sócio ${j + 1}</b>
                 <button class="btn btn-ghost btn-sm fp-socio-del" type="button" style="color:#dc2626;margin-left:auto;padding:0 7px">×</button>
               </div>
@@ -319,11 +319,18 @@ function coletarPartes() {
   const novo = [];
   _host.querySelectorAll('[data-parte]').forEach(el => {
     const tipo = val(el, 'fp-tipo') || 'pf';
+    /* v84.74: o ID da parte VIAJA JUNTO (data-pid/data-sid). Sem ele, cada
+       save de edição fazia o backend gerar ids novos — e o checklist casa o
+       andamento por (id da parte, tipo): ids novos = NADA casa = TODO o
+       trabalho de emissão volta pra "aguardando" em silêncio. Foi assim que a
+       Leire perdeu as CNDs do Irmãos Curti ao só trocar o responsável. */
     const p = { papel: val(el, 'fp-papel'), tipo };
+    if (el.dataset.pid) p.id = el.dataset.pid;
     if (tipo === 'pj') {
       ['razao_social', 'cnpj', 'inscricao_estadual', 'endereco'].forEach(k => p[k] = val(el, 'fp-' + k));
       p.socios = [...el.querySelectorAll('[data-socio]')].map(se => {
         const s = {};
+        if (se.dataset.sid) s.id = se.dataset.sid;
         ['nome', 'cpf', 'rg', 'mae', 'pai', 'nascimento', 'naturalidade', 'estado_civil', 'profissao', 'endereco',
          'conjuge_nome', 'conjuge_cpf', 'conjuge_rg'].forEach(k => s[k] = val(se, 'fs-' + k));
         return s;

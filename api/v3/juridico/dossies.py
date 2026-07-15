@@ -197,11 +197,18 @@ def gerar_checklist(d, existentes):
     existe, casando por (alvo, tipo) — a chave usa o id da parte, então mexer
     numa parte não zera o trabalho já feito nas outras."""
     antigas = {(c.get("alvo"), c.get("tipo")): c for c in (existentes or []) if isinstance(c, dict)}
+    # SEGUNDA CHANCE por (rotulo, tipo) — v84.74. O id da parte deveria ser
+    # estável, mas a tela de edição o descartava e cada save gerava ids novos:
+    # nada casava e TODO o andamento voltava pra "aguardando" em silêncio (a
+    # Leire perdeu um caso inteiro assim). O front foi consertado, mas este
+    # fallback fica: o rótulo carrega papel+nome, que sobrevivem à edição.
+    por_rotulo = {(c.get("rotulo"), c.get("tipo")): c
+                  for c in (existentes or []) if isinstance(c, dict)}
     out = []
 
     def add(alvo, rotulo, lista):
         for tipo, nome, link in lista:
-            velho = antigas.get((alvo, tipo)) or {}
+            velho = antigas.get((alvo, tipo)) or por_rotulo.get((rotulo, tipo)) or {}
             out.append({
                 "alvo": alvo, "rotulo": rotulo, "tipo": tipo, "nome": nome,
                 "link": velho.get("link") or link,
@@ -414,7 +421,14 @@ class handler(BaseHTTPRequestHandler):
                     r = sb.table("cnd_dossies").insert(novo).execute().data or []
                     did = str(r[0]["id"]) if r else None
                     virou = bool(novo.get("responsavel_id"))
-                audit(self, user, "cnd.dossie_upsert", "cnd_dossies", did, notes=titulo)
+                # snapshot ANTES/DEPOIS no audit (v84.74): quando o incidente da
+                # Leire apagou um caso, o upsert só tinha logado o título — o
+                # estado anterior (validades, links de PDF) era irrecuperável.
+                # Com o before completo, qualquer estrago futuro tem desfazer.
+                audit(self, user, "cnd.dossie_upsert", "cnd_dossies", did, notes=titulo,
+                      before=({"partes": d.get("partes"), "certidoes": d.get("certidoes"),
+                               "garantia": d.get("garantia")} if body.get("id") and d else None),
+                      after={"partes": novo.get("partes"), "certidoes": novo.get("certidoes")})
                 # avisa o caso; quem virou responsável precisa saber que caiu no colo dele
                 d2 = {**novo, "id": did}
                 if virou:
