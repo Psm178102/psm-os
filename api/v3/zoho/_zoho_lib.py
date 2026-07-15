@@ -24,7 +24,10 @@ from datetime import datetime, timedelta, timezone
 # em salas.py: a leitura de sala é dado da EMPRESA, então o freebusy tenta o
 # token de QUALQUER conexão que já tenha a permissão — UM reconecte destrava o
 # mapa pra todo mundo; a agenda de quem não reconectou segue intacta.
-SCOPES = "ZohoCalendar.calendar.ALL,ZohoCalendar.event.ALL,ZohoCalendar.resources.ALL,ZohoCalendar.freebusy.READ"
+# bookings.ALL (v84.73): RESERVAR sala exige escopo próprio (bookings.CREATE);
+# levo o .ALL pra já cobrir cancelar/editar reserva sem uma TERCEIRA rodada de
+# reconexão. Descoberto na primeira reserva real: 400 de formato + escopo ausente.
+SCOPES = "ZohoCalendar.calendar.ALL,ZohoCalendar.event.ALL,ZohoCalendar.resources.ALL,ZohoCalendar.freebusy.READ,ZohoCalendar.bookings.ALL"
 _DEFAULT_REDIRECT = "https://www.housepsm.com.br/api/v3/zoho/callback"
 _HOME = "https://www.housepsm.com.br/v2/#/agenda"
 _tok_cache = {}  # user_id -> {"access": str, "exp": float, "api_domain": str}

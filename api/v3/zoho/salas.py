@@ -392,13 +392,28 @@ class handler(BaseHTTPRequestHandler):
                                     "error": "Conecte seu Zoho pra reservar — a sala fica reservada no seu nome."})
         try:
             token, _ = z.access_token(conn)
-            ini, _ = z._fmt_zoho_dt(dia, hi, False)
-            fim, _ = z._fmt_zoho_dt(dia, hf, False)
-            payload = {"resource_id": rid, "title": titulo[:250],
-                       "dateandtime": {"start": ini, "end": fim, "timezone": "America/Sao_Paulo"}}
-            url = f"{z.calendar_base()}/bookings?bookingdata=" + urllib.parse.quote(json.dumps(payload))
+            # v84.73: contrato REAL da doc "Book a resource" (o meu antigo levava
+            # 400): o parâmetro é bookingData (case-sensitive, era bookingdata),
+            # a sala vai em resources:[{resource_id,type:0}] (ia solta no topo)
+            # e o horário é LOCAL sem Z (yyyyMMddTHHmmss) com o fuso no objeto
+            # (eu mandava o formato de evento).
+            d0 = dia.replace("-", "")
+            payload = {"title": titulo[:250],
+                       "dateandtime": {"start": f"{d0}T{hi.replace(':','')}00",
+                                       "end": f"{d0}T{hf.replace(':','')}00",
+                                       "timezone": TZ},
+                       "resources": [{"resource_id": rid, "type": 0}]}
+            url = f"{z.calendar_base()}/bookings?bookingData=" + urllib.parse.quote(json.dumps(payload))
             r = z._req("POST", url, token)
         except Exception as e:
-            return self._send(502, {"ok": False, "error": f"Zoho recusou a reserva: {str(e)[:200]}"})
+            msg = str(e)
+            if "RESOURCE_NOT_AVAILABLE" in msg:
+                return self._send(409, {"ok": False, "conflito": True,
+                                        "error": "A sala já está reservada nesse horário — confira o mapa e escolha outro."})
+            if "401" in msg or "403" in msg:
+                # token da pessoa sem o escopo de reservas (anterior à v84.73)
+                return self._send(400, {"ok": False, "precisa_reconectar": True,
+                                        "error": "Sua conexão com o Zoho é anterior à permissão de Reservas — desconecte e conecte de novo na Agenda."})
+            return self._send(502, {"ok": False, "error": f"Zoho recusou a reserva: {msg[:200]}"})
         audit(self, user, "zoho.sala.reservar", "resource", rid, notes=f"{dia} {hi}-{hf}")
         return self._send(200, {"ok": True, "reserva": r})
