@@ -25,6 +25,24 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 import _zoho_lib as z  # type: ignore
 
+def _lista(d, *chaves):
+    """O Zoho às vezes devolve a lista CRUA e às vezes embrulhada num dict —
+    o shape real não bate com o que a doc sugere (mesma pegadinha do Kenlo).
+    Aceita os dois e nunca estoura .get() em cima de lista."""
+    if isinstance(d, list):
+        return d
+    if isinstance(d, dict):
+        for k in chaves:
+            v = d.get(k)
+            if isinstance(v, list):
+                return v
+        # último recurso: a primeira lista de dicts que aparecer
+        for v in d.values():
+            if isinstance(v, list) and (not v or isinstance(v[0], dict)):
+                return v
+    return []
+
+
 def _tok_de_qualquer(sb, preferido=None):
     """Token de leitura: o do próprio usuário se ele estiver conectado; senão o
     de qualquer colega conectado (a sala é da empresa)."""
@@ -49,10 +67,10 @@ def _branches(token):
     formas conhecidas e ficamos com a que responder — sem chutar cegamente."""
     for path in ("branches", "resources/branches", "branch"):
         try:
-            d = z._req("GET", f"{z.calendar_base()}/{path}", token)
-            for k in ("branches", "branch", "data"):
-                if isinstance(d.get(k), list) and d[k]:
-                    return d[k]
+            v = _lista(z._req("GET", f"{z.calendar_base()}/{path}", token),
+                       "branches", "branch", "data")
+            if v:
+                return v
         except Exception:
             continue
     return []
@@ -63,21 +81,17 @@ def _salas(token, branch_id=None):
     if branch_id:
         qs["branchId"] = str(branch_id)
     d = z._req("GET", f"{z.calendar_base()}/resources?" + urllib.parse.urlencode(qs), token)
-    for k in ("resources", "data"):
-        if isinstance(d.get(k), list):
-            return d[k]
-    return []
+    return _lista(d, "resources", "data")
 
 
 def _freebusy(token, branch_id, dia):
     """Ocupação do dia (MM/dd/yyyy no Zoho)."""
     d0 = datetime.strptime(dia, "%Y-%m-%d").strftime("%m/%d/%Y")
-    qs = {"branch_id": str(branch_id), "start_date": d0, "end_date": d0}
+    qs = {"start_date": d0, "end_date": d0}
+    if branch_id:
+        qs["branch_id"] = str(branch_id)
     d = z._req("GET", f"{z.calendar_base()}/resources/freebusy?" + urllib.parse.urlencode(qs), token)
-    for k in ("resources", "data", "freebusy"):
-        if isinstance(d.get(k), list):
-            return d[k]
-    return []
+    return _lista(d, "resources", "data", "freebusy")
 
 
 class handler(BaseHTTPRequestHandler):
@@ -108,6 +122,9 @@ class handler(BaseHTTPRequestHandler):
 
         q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
         dia = (q.get("dia") or [datetime.now().strftime("%Y-%m-%d")])[0]
+        # ?debug=1 (sócio) devolve o shape CRU da Zoho. O shape real não bate
+        # com a doc, e adivinhar formato às cegas custa uma rodada de deploy.
+        debug = (q.get("debug") or [""])[0] == "1" and (user.get("lvl") or 0) >= 7
 
         token, eh_meu = _tok_de_qualquer(sb, user.get("id"))
         if not token:
@@ -115,11 +132,15 @@ class handler(BaseHTTPRequestHandler):
             return self._send(200, {"ok": True, "configurado": True, "sem_conexao": True,
                                     "salas": [], "dia": dia,
                                     "aviso": "Nenhuma conta Zoho conectada ainda. Conecte a sua pra liberar o mapa das salas."})
+        cru = {}
         try:
             bs = _branches(token)
-            branch_id = (bs[0].get("branch_id") or bs[0].get("id")) if bs else None
+            b0 = bs[0] if (bs and isinstance(bs[0], dict)) else {}
+            branch_id = b0.get("branch_id") or b0.get("id") or b0.get("branchId")
             salas = _salas(token, branch_id)
             ocup = _freebusy(token, branch_id, dia) if branch_id else []
+            if debug:
+                cru = {"branches": bs[:2], "salas_cru": salas[:2], "ocup_cru": ocup[:2]}
         except Exception as e:
             msg = str(e)
             # 401 aqui quase sempre é ESCOPO, não token inválido: quem conectou
@@ -132,9 +153,11 @@ class handler(BaseHTTPRequestHandler):
             return self._send(200, {"ok": True, "configurado": True, "erro_zoho": msg[:200],
                                     "salas": [], "dia": dia})
 
-        ocup_por_id = {str(r.get("resource_id")): r for r in ocup}
+        ocup_por_id = {str(r.get("resource_id")): r for r in ocup if isinstance(r, dict)}
         out = []
         for s in salas:
+            if not isinstance(s, dict):
+                continue
             rid = str(s.get("resource_id") or s.get("id") or "")
             fb = ocup_por_id.get(rid) or {}
             out.append({
@@ -148,7 +171,7 @@ class handler(BaseHTTPRequestHandler):
             })
         return self._send(200, {"ok": True, "configurado": True, "dia": dia,
                                 "branch_id": branch_id, "eu_conectado": eh_meu,
-                                "salas": out, "total": len(out)})
+                                "salas": out, "total": len(out), **({"cru": cru} if debug else {})})
 
     def do_POST(self):
         try:
