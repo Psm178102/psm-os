@@ -62,20 +62,6 @@ def _tok_de_qualquer(sb, preferido=None):
     return None, False
 
 
-def _branches(token):
-    """A doc cita 'Get Branch list API' mas não publica o caminho. Tentamos as
-    formas conhecidas e ficamos com a que responder — sem chutar cegamente."""
-    for path in ("branches", "resources/branches", "branch"):
-        try:
-            v = _lista(z._req("GET", f"{z.calendar_base()}/{path}", token),
-                       "branches", "branch", "data")
-            if v:
-                return v
-        except Exception:
-            continue
-    return []
-
-
 def _salas(token, branch_id=None):
     qs = {"showHidden": "false", "isCurTime": "true"}
     if branch_id:
@@ -134,13 +120,16 @@ class handler(BaseHTTPRequestHandler):
                                     "aviso": "Nenhuma conta Zoho conectada ainda. Conecte a sua pra liberar o mapa das salas."})
         cru = {}
         try:
-            bs = _branches(token)
-            b0 = bs[0] if (bs and isinstance(bs[0], dict)) else {}
-            branch_id = b0.get("branch_id") or b0.get("id") or b0.get("branchId")
-            salas = _salas(token, branch_id)
+            # A ordem importa: /resources responde SEM branchId, e cada sala já
+            # traz o branch_id dentro dela. A "Get Branch list API" que a doc
+            # cita não tem caminho publicado (as 3 formas que tentei voltaram
+            # vazio) — e não precisa: o dado vem junto do recurso.
+            salas = _salas(token)
+            branch_id = next((s.get("branch_id") for s in salas
+                              if isinstance(s, dict) and s.get("branch_id")), None)
             ocup = _freebusy(token, branch_id, dia) if branch_id else []
             if debug:
-                cru = {"branches": bs[:2], "salas_cru": salas[:2], "ocup_cru": ocup[:2]}
+                cru = {"salas_cru": salas[:2], "ocup_cru": ocup[:2], "branch_usado": branch_id}
         except Exception as e:
             msg = str(e)
             # 401 aqui quase sempre é ESCOPO, não token inválido: quem conectou
