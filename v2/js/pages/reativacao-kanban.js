@@ -165,12 +165,18 @@ function render() {
         </div>`;
       }).join('')}
     </div>`}`;
-  fluxosAba ? wireFluxos() : wireKanban();
+  // ORDEM IMPORTA: o cabeçalho (abas + ↻) existe em TODAS as abas, então liga
+  // primeiro. Só depois o miolo — cada aba tem os seus controles, e chamar o
+  // wire da aba errada estoura em elemento null e MATA a tela inteira (foi o
+  // que aconteceu: 'comissao' caía no wireKanban e o #rk-hoje não existia lá).
   _host.querySelector('#rk-reload').onclick = reload;
   _host.querySelector('#rk-aba-k').onclick = () => { _aba = 'kanban'; _editFluxo = null; render(); };
   _host.querySelector('#rk-aba-f').onclick = () => { _aba = 'fluxos'; render(); };
   _host.querySelector('#rk-aba-c').onclick = () => { _aba = 'comissao'; render(); };
-  if (_aba === 'comissao') { carregarComissao(); return; }
+
+  if (_aba === 'comissao') return carregarComissao();
+  if (fluxosAba) return wireFluxos();
+  wireKanban();
 }
 
 function wireKanban() {
