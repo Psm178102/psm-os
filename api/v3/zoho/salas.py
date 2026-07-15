@@ -121,7 +121,15 @@ class handler(BaseHTTPRequestHandler):
             salas = _salas(token, branch_id)
             ocup = _freebusy(token, branch_id, dia) if branch_id else []
         except Exception as e:
-            return self._send(200, {"ok": True, "configurado": True, "erro_zoho": str(e)[:200],
+            msg = str(e)
+            # 401 aqui quase sempre é ESCOPO, não token inválido: quem conectou
+            # antes da v84.58 autorizou só calendar+event, sem resources.ALL.
+            # O token segue válido pra agenda — só não pode ler recursos.
+            if "401" in msg:
+                return self._send(200, {"ok": True, "configurado": True, "salas": [], "dia": dia,
+                                        "precisa_reconectar": True,
+                                        "erro_zoho": "Sua conexão com o Zoho é anterior à permissão de Recursos."})
+            return self._send(200, {"ok": True, "configurado": True, "erro_zoho": msg[:200],
                                     "salas": [], "dia": dia})
 
         ocup_por_id = {str(r.get("resource_id")): r for r in ocup}

@@ -115,6 +115,13 @@ async function loadSalas() {
       🚪 <b>Salas de reunião</b> — ${escapeHtml(d.aviso || 'conecte seu Zoho pra ver')}</div>`;
     return;
   }
+  if (d.precisa_reconectar) {
+    host.innerHTML = `<div style="background:#f59e0b12;border-radius:10px;padding:10px 12px;border-left:3px solid #f59e0b">
+      <b class="tiny">🚪 Salas de reunião — falta 1 passo</b>
+      <div class="tiny muted mt-1">Você conectou o Zoho antes de a permissão de <b>Recursos</b> existir. Sua agenda sincroniza normal, mas as salas precisam dessa permissão. <b>Desconecte e conecte de novo</b> no botão abaixo — o Zoho vai pedir o acesso às salas junto.</div>
+    </div>`;
+    return;
+  }
   if (d.erro_zoho || !(d.salas || []).length) {
     host.innerHTML = `<div class="tiny muted" style="background:var(--bg-3);border-radius:10px;padding:8px 12px">
       🚪 <b>Salas de reunião</b> — ${d.erro_zoho ? 'o Zoho recusou a consulta: ' + escapeHtml(d.erro_zoho)
