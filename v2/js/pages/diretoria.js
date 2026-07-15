@@ -409,7 +409,7 @@ function wireRecados() {
 function openRecadoModal(rid) {
   const r = rid ? (_data.recados?.recados || []).find(x => x.id === rid) : null;
   const modal = document.getElementById('dir-modal');
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 20px 20px;overflow:auto';
   modal.innerHTML = `
     <div class="card" style="margin:0;max-width:520px;width:100%">
       <h3 class="card-title">${r ? '✏️ Editar recado' : '➕ Novo recado'}</h3>
@@ -543,7 +543,7 @@ function wireEstrategia() {
 function openEstModal(itid) {
   const it = itid ? (_data.est?.items || []).find(x => x.id === itid) : null;
   const modal = document.getElementById('dir-modal');
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 20px 20px;overflow:auto';
   modal.innerHTML = `
     <div class="card" style="margin:0;max-width:520px;width:100%">
       <h3 class="card-title">${it ? '✏️ Editar item' : '➕ Novo item de estratégia'}</h3>

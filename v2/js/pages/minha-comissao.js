@@ -99,7 +99,7 @@ function blocoLeire(m) {
     </div>
     ${m.no_teto ? `<div class="tiny mt-2" style="background:#f59e0b15;padding:6px 10px;border-radius:8px;border-left:3px solid #f59e0b">🏆 Você bateu o teto de ${brl(m.teto)} neste mês.</div>`
       : p ? `<div class="tiny mt-2" style="background:#2563eb12;padding:6px 10px;border-radius:8px;border-left:3px solid #2563eb">🎯 Faltam <b>${p.faltam} fechamento(s)</b> pro seu bônus subir pra <b>${mult(p.valor)}</b> — e o bônus vale pra <b>todas</b> as reativações do mês, não só a próxima.</div>` : ''}
-    ${(m.fechadas || []).length ? `<table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px">
+    ${(m.fechadas || []).length ? `<div style="overflow-x:auto"><table style="width:100%;min-width:520px;border-collapse:collapse;margin-top:8px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 6px">Cliente</th><th style="text-align:right">VGV</th><th>Tipo</th><th style="text-align:right">Vale</th></tr>
       ${m.fechadas.map(f => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
         <td style="padding:6px">${esc(f.nome || '—')}</td>
@@ -107,7 +107,7 @@ function blocoLeire(m) {
         <td class="tiny">${f.tipo === 'lancamento' ? '🚀 Lançamento' : '🎯 Estoque'}</td>
         <td style="text-align:right;font-weight:700">${brl(f.valor)}</td>
       </tr>`).join('')}
-    </table>` : ''}
+    </table></div>` : ''}
   </div>`;
 }
 
@@ -123,13 +123,13 @@ function blocoMariane(m) {
     </div>
     ${m.no_teto ? `<div class="tiny mt-2" style="background:#f59e0b15;padding:6px 10px;border-radius:8px;border-left:3px solid #f59e0b">🏆 Você bateu o teto de ${brl(m.teto)} neste mês.</div>`
       : p ? `<div class="tiny mt-2" style="background:#2563eb12;padding:6px 10px;border-radius:8px;border-left:3px solid #2563eb">🎯 Faltam <b>${p.faltam} indicação(ões)</b> pra cada uma passar a valer <b>${brl(p.valor)}</b> — retroativo pra todas do mês.</div>` : ''}
-    ${(m.fechadas || []).length ? `<table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px">
+    ${(m.fechadas || []).length ? `<div style="overflow-x:auto"><table style="width:100%;min-width:520px;border-collapse:collapse;margin-top:8px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 6px">Indicou</th><th>Indicado</th><th style="text-align:right">Negócio</th></tr>
       ${m.fechadas.map(f => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
         <td style="padding:6px">${esc(f.indicador || '—')}</td><td>${esc(f.indicado || '—')}</td>
         <td style="text-align:right">${brl(f.valor_negocio)}</td>
       </tr>`).join('')}
-    </table>` : ''}
+    </table></div>` : ''}
   </div>`;
 }
 
@@ -154,7 +154,7 @@ function blocoMap(c, regua) {
       </div>
       ${!ehSenior ? '<div class="tiny muted mt-1">Ao cruzar a meta, você vira Sênior <b>automaticamente</b> e suas taxas sobem.</div>' : ''}
     </div>
-    <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px">
+    <div style="overflow-x:auto"><table style="width:100%;min-width:520px;border-collapse:collapse;margin-top:8px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 6px">Cliente</th><th>Origem</th><th style="text-align:right">VGV</th><th style="text-align:right">Taxa</th><th style="text-align:right">Comissão</th></tr>
       ${(c.vendas || []).map(v => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
         <td style="padding:6px">${esc(v.cliente || '—')}</td>
@@ -163,7 +163,7 @@ function blocoMap(c, regua) {
         <td style="text-align:right;font-weight:700">${pct(v.taxa)}</td>
         <td style="text-align:right;font-weight:700">${brl(v.comissao)}</td>
       </tr>`).join('')}
-    </table>
+    </table></div>
   </div>`;
 }
 
@@ -176,7 +176,7 @@ function blocoConquista(c) {
       <span style="margin-left:auto;font-weight:900;font-size:20px;color:#16a34a">${brl(c.comissao_total)}</span>
     </div>
     <div class="tiny muted mt-1">VGV no mês ${brl(c.vgv_total)} · em origens N2/N3 ${brl(c.vgv_n2n3)}</div>
-    <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px">
+    <div style="overflow-x:auto"><table style="width:100%;min-width:520px;border-collapse:collapse;margin-top:8px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 6px">Cliente</th><th>Origem</th><th style="text-align:right">VGV</th><th style="text-align:right">Taxa</th><th style="text-align:right">Comissão</th></tr>
       ${(c.vendas || []).map(v => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
         <td style="padding:6px">${esc(v.cliente || '—')}</td>
@@ -185,6 +185,6 @@ function blocoConquista(c) {
         <td style="text-align:right;font-weight:700">${pct(v.taxa_aplicada)}</td>
         <td style="text-align:right;font-weight:700">${brl(v.comissao_liquida)}${v.desconto_indicacao ? `<div class="tiny muted">− ${brl(v.desconto_indicacao)} indic.</div>` : ''}</td>
       </tr>`).join('')}
-    </table>
+    </table></div>
   </div>`;
 }

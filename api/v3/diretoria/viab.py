@@ -249,7 +249,7 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._send(500, {"ok": False, "cron": True, "error": str(e)})
         try:
-            actor = require_user(self, min_lvl=2)
+            actor = require_user(self, min_lvl=8)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         if not can_viab(sb, actor):
@@ -274,7 +274,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            actor = require_user(self, min_lvl=2)
+            actor = require_user(self, min_lvl=8)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         sb0 = supabase_client()

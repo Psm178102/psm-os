@@ -38,7 +38,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            user = require_user(self, min_lvl=0)
+            user = require_user(self, min_lvl=8)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
 
@@ -76,7 +76,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            actor = require_user(self, min_lvl=7)
+            actor = require_user(self, min_lvl=8)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
 

@@ -317,7 +317,7 @@ function openMetaEquipe() {
   const teams = [...new Set((_data?.grid || []).map(g => (g.user?.team || '')).filter(Boolean))];
   const mesAtual = new Date().getMonth() + 1;
   const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 20px 20px;overflow:auto';
   ov.innerHTML = `
     <div class="card" style="max-width:480px;width:100%;background:var(--bg-2)">
       <h3 class="card-title">👥 Meta por equipe — ${_ano}</h3>

@@ -652,7 +652,7 @@ function abrirConclusao(kind, id, item) {
   }
   let ov = document.getElementById('conc-modal');
   if (!ov) { ov = document.createElement('div'); ov.id = 'conc-modal'; document.body.appendChild(ov); }
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 20px 20px;overflow:auto';
   const field = f => {
     const id2 = 'cf-' + f.key;
     if (f.type === 'select') return `<label class="tiny muted" style="font-weight:700">${escapeHtml(f.label)}${f.required ? ' *' : ''}</label>

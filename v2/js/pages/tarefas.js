@@ -407,7 +407,7 @@ function openCommentsModal(taskId) {
     modal.id = 'modal-comments';
     document.body.appendChild(modal);
   }
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 20px 20px;overflow:auto';
   modal.innerHTML = `
     <div class="card" style="margin:0;max-width:560px;width:100%;max-height:90vh;display:flex;flex-direction:column">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -424,7 +424,7 @@ function openCommentsModal(taskId) {
 function openNewModal() {
   const modal = document.getElementById('modal-new');
   modal.style.display = 'block';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px 16px;overflow:auto';
   modal.innerHTML = `
     <div class="card" style="margin:0;max-width:520px;width:90%;max-height:90vh;overflow-y:auto">
       <h3 class="card-title">➕ Nova tarefa</h3>

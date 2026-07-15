@@ -186,12 +186,18 @@ export const ROUTE_GROUP = {
 export const ROLE_ALLOWED = {
   socio:      '*',
   diretor:    '*',
-  gerente:    '*',
-  // gerentes por categoria (lvl 7) — default = tudo; o sócio afina cada um na matriz. v81.89
-  gerente_conquista: '*',
-  gerente_map:       '*',
-  gerente_locacao:   '*',
-  gerente_terceiros: '*',
+  // v84.76 URGENTE (report do Paulo): gerente tinha '*' = via TUDO, inclusive
+  // DIRETORIA (plano de resgate, pró-labore, dívidas) e SISTEMA (admin). O
+  // comentário antigo dizia "o sócio afina na matriz" — mas a matriz nunca
+  // ganhou entrada de gerente, então o afinar nunca aconteceu e o Kaue herdou
+  // o sistema inteiro. Gerente agora = toda a operação, SEM Diretoria e SEM
+  // Sistema (o mesmo princípio do líder). Se um dia um gerente precisar de
+  // algo da Diretoria, o sócio libera na matriz — que MANDA sobre isto.
+  gerente:    ['inicio', 'secretaria', 'adm', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta', 'financeiro', 'sucesso', 'juridico', 'rede'],
+  gerente_conquista: ['inicio', 'secretaria', 'adm', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta', 'financeiro', 'sucesso', 'juridico', 'rede'],
+  gerente_map:       ['inicio', 'secretaria', 'adm', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta', 'financeiro', 'sucesso', 'juridico', 'rede'],
+  gerente_locacao:   ['inicio', 'secretaria', 'adm', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta', 'financeiro', 'sucesso', 'juridico', 'rede'],
+  gerente_terceiros: ['inicio', 'secretaria', 'adm', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta', 'financeiro', 'sucesso', 'juridico', 'rede'],
   // líder: toda a operação + performance da equipe, MAS sem Diretoria nem Sistema (admin)
   lider:      ['inicio', 'secretaria', 'adm', 'vendas', 'captacoes', 'locacao', 'marketing', 'performance', 'ia', 'rh', 'ferramentas', 'academy', 'conta'],
   marketing:  ['inicio', 'secretaria', 'marketing', 'captacoes', 'rh', 'academy', 'conta'],
@@ -268,7 +274,11 @@ function _allowedGroups(user) {
   if (Array.isArray(user?.menu_groups)) return user.menu_groups;
   const role = (user?.role || 'corretor').toLowerCase();
   const lvl = user?.lvl || 0;
-  if (lvl >= 7) return '*';  // sócio/diretor/gerente sempre tudo
+  // v84.76: era `lvl >= 7` — TODO gerente ganhava '*' AQUI, antes de a tabela
+  // de papéis ser consultada; a lista do gerente no ROLE_ALLOWED era letra
+  // morta. Foi por este atalho que o Kaue viu o menu Diretoria inteiro.
+  // Agora só sócio/diretor (lvl>=8) têm passe livre; gerente segue a tabela.
+  if (lvl >= 8) return '*';
   return ROLE_ALLOWED[role] || ROLE_ALLOWED.corretor;
 }
 
@@ -393,7 +403,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.75';
+const APP_VERSION = '84.76';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {

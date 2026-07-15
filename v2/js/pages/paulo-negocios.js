@@ -130,7 +130,7 @@ function openEditor(seed) {
   const c = _editing;
   const ov = document.createElement('div');
   ov.id = 'pn-modal';
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px 16px;overflow:auto';
   ov.innerHTML = `
     <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:440px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
       <div style="font-size:17px;font-weight:800;margin-bottom:12px">${c.id ? 'Editar negócio' : 'Novo negócio'}</div>

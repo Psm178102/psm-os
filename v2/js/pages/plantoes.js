@@ -131,7 +131,7 @@ function render() {
 function openModal(pid, preDate) {
   const p = pid ? _items.find(x => x.id === pid) : null;
   const modal = document.getElementById('modal-pl');
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 20px 20px;overflow:auto';
   modal.innerHTML = `
     <div class="card" style="margin:0;max-width:480px;width:100%">
       <h3 class="card-title">${p ? '✏️ Editar' : '➕ Novo'} plantão</h3>

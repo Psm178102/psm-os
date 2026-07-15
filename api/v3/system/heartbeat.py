@@ -24,6 +24,12 @@ JOBS = [
     # (key, path, intervalo_horas)  — ordem = prioridade
     ("lembrete_dia", "/api/v3/paulo/lembrete_dia",          20),  # aviso gravação(Academy)/prazo(Projetos) do dia
     ("captar",       "/api/v3/crm/captar_cron",             2),
+    # meta_cache (v84.76): o cron de pré-aquecer o cache do Meta NUNCA foi
+    # agendado em lugar nenhum — nem no vercel.json, nem aqui — e o
+    # marketing/summary presume o cache quente. Resultado: o Cockpit de
+    # Tráfego era a página mais lenta do sistema, esperando a API do Meta ao
+    # vivo a cada primeira abertura. Achado na varredura de endpoints órfãos.
+    ("meta_cache",   "/api/v3/marketing/meta_cache_cron",   1),
     ("meta_monthly", "/api/v3/marketing/meta_monthly_cron", 24),
     ("war_briefing", "/api/v3/intel/war_briefing_cron",     None),  # semanal (lógica própria)
 ]

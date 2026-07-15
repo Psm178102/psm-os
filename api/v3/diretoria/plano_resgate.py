@@ -218,7 +218,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            require_user(self, min_lvl=7)
+            require_user(self, min_lvl=8)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
@@ -243,7 +243,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            actor = require_user(self, min_lvl=7)
+            actor = require_user(self, min_lvl=8)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         try:

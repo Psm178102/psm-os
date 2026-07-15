@@ -138,7 +138,7 @@ function wireCorretores() {
 function abrirOrigem(did) {
   const origens = _d.cfg.origens || [];
   const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 20px 20px;overflow:auto';
   ov.innerHTML = `<div class="card" style="max-width:440px;width:100%;background:var(--bg-2)">
     <h3 class="card-title" style="margin:0">✏️ Origem da venda</h3>
     <div class="tiny muted">Ajuste manual (vale mais que o RD). Decide o nível e a taxa.</div>

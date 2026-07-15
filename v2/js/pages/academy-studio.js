@@ -256,7 +256,7 @@ function renderMetricas() {
 /* ── 📥 IMPORTAR EMENTA → BACKLOG (v84.8): o currículo oficial vira cards de produção ── */
 function openImportEmenta() {
   const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px 16px;overflow:auto';
   const jaTem = new Set(_cards.map(c => (c.titulo || '').trim().toLowerCase()));
   const conta = t => t.modulos.reduce((s, m) => s + m.aulas.length, 0);
   const novasDe = t => t.modulos.reduce((s, m) => s + m.aulas.filter(a => !jaTem.has(a.trim().toLowerCase())).length, 0);
@@ -308,7 +308,7 @@ function metaDoCard(c) {
 function openPublicar(c, ovAnterior) {
   const meta = metaDoCard(c);
   const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px 16px;overflow:auto';
   ov.innerHTML = `
     <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:520px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
       <div style="font-size:16px;font-weight:800;margin-bottom:4px">🚀 Publicar na PSM Academy</div>
