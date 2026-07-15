@@ -57,6 +57,7 @@ DEFAULT_CFG = {
     "leire_lancamento": [[220000, 100], [450000, 150], [700000, 250], [999999999, 300]],
     "leire_volume": [[2, 1.0], [4, 1.1], [6, 1.2], [9, 1.35], [999999, 1.5]],
     "leire_teto": 5000.0,
+    "leire_user_match": "leire",         # quem enxerga o bloco de reativação em /minha-comissao
     "estagiarios": [],                   # user ids
     # ── MAP / Empreendimentos (PSM Imóveis) ──
     # Matriz PRÓPRIA (diferente da Conquista): a ORIGEM do cliente cruza com a
@@ -111,6 +112,12 @@ def _mes_range(mes):
     return ini.isoformat(), fim.isoformat(), f"{y:04d}-{m:02d}"
 
 
+def _inativo(cid, inativos):
+    """Corretor desligado da PSM? (id OU email batem na lista de inativos)"""
+    c = str(cid or "")
+    return c in inativos or c.lower() in inativos
+
+
 def _ano_range(mes):
     """'YYYY-MM' → (ini_iso, fim_iso) do ANO — base do acumulado que promove a sênior."""
     y = int(mes[:4]) if mes else datetime.now(timezone.utc).year
@@ -137,7 +144,7 @@ def _page(make_q, cap=8000):
     return out
 
 
-def _calc_map(sb, cfg, mes_lbl, ini, fim, nomes):
+def _calc_map(sb, cfg, mes_lbl, ini, fim, nomes, inativos=None):
     """MAP/Empreendimentos: taxa = matriz[origem][senioridade].
     Senioridade é AUTOMÁTICA — sênior quando o VGV MAP acumulado no ANO cruza o
     mínimo; estagiário é a única marcação manual."""
@@ -153,7 +160,10 @@ def _calc_map(sb, cfg, mes_lbl, ini, fim, nomes):
     # VGV MAP acumulado no ANO (define quem é sênior) — 1 varredura só
     ano = _page(lambda: sb.table("deals").select(sel).eq("win", True)
                 .gte("closed_at", ano_ini).lt("closed_at", ano_fim).order("id"), cap=12000)
+    ina = inativos or set()
     ano = [d for d in ano if frente_of(d.get("pipeline_name")) == "map"]
+    # quem saiu da PSM não aparece (nem soma no acumulado do Sênior)
+    ano = [d for d in ano if not _inativo(d.get("user_id") or d.get("user_email") or "?", ina)]
     vgv_ano = {}
     for d in ano:
         cid = str(d.get("user_id") or d.get("user_email") or "?")
@@ -267,13 +277,23 @@ def calcular(sb, mes=None):
             c["vgv_n2n3"] += vgv
 
     # nomes reais
-    nomes = {}
+    nomes, inativos = {}, set()
     try:
-        us = sb.table("users").select("id,name,email").limit(500).execute().data or []
+        us = sb.table("users").select("id,name,email,status").limit(500).execute().data or []
         nomes = {str(u["id"]): u.get("name") for u in us}
         nomes.update({(u.get("email") or "").lower(): u.get("name") for u in us if u.get("email")})
+        # quem saiu da PSM não entra na tela de comissão (nem na régua do Sênior)
+        for u in us:
+            if (u.get("status") or "").lower() != "ativo":
+                inativos.add(str(u["id"]))
+                if u.get("email"):
+                    inativos.add((u["email"] or "").lower())
     except Exception:
         pass
+
+    ocultos = [c for cid, c in por_corretor.items() if _inativo(cid, inativos)]
+    for cid in [k for k in por_corretor if _inativo(k, inativos)]:
+        por_corretor.pop(cid, None)
 
     corretores = []
     for cid, c in por_corretor.items():
@@ -359,13 +379,16 @@ def calcular(sb, mes=None):
 
     # ── MAP / Empreendimentos (matriz própria: origem × senioridade) ──
     try:
-        mapa_emp = _calc_map(sb, cfg, mes_lbl, ini, fim, nomes)
+        mapa_emp = _calc_map(sb, cfg, mes_lbl, ini, fim, nomes, inativos)
     except Exception:
         mapa_emp = {"origens": cfg.get("map_origens") or [], "corretores": [], "fontes_rd": [],
                     "senior_vgv_min": float(cfg.get("map_senior_vgv_min") or 3000000)}
 
     fontes_ord = sorted(fontes.items(), key=lambda x: -x[1])
     return {"mes": mes_lbl, "corretores": corretores, "mariane": mar, "leire": lei, "map": mapa_emp,
+            "ocultos_inativos": [{"quem": nomes.get(c["corretor_id"], c["corretor_nome"]),
+                                  "n_vendas": len(c["vendas"]),
+                                  "vgv": round(c["vgv_total"], 2)} for c in ocultos],
             "fontes_rd": [{"fonte": f, "n": n, "mapeada": f.lower() in mapa} for f, n in fontes_ord],
             "cfg": cfg}
 

@@ -232,7 +232,7 @@ export const ROUTE_MIN_LVL = {
   '/comissao-conquista': 5,  // comissionamento Conquista + Mariane — gerência/direção
   // Ferramentas Conquista (v81.44): A PRINCÍPIO só sócio (lvl 10). Pra abrir pro
   // corretor é só baixar este número (ou liberar na matriz por papel).
-  '/cockpit-conquista': 10, '/minha-comissao': 10, '/meu-cerebro': 10, '/sim-conquista': 10,
+  '/cockpit-conquista': 10, '/minha-comissao': 2, '/meu-cerebro': 10, '/sim-conquista': 10,  // v84.51: cada um vê a PRÓPRIA comissão (escopo travado no backend)
   // RH + Sucesso do Cliente (v81.58): piso 2 (corretor) — quem vê isso é decidido
   // 100% na matriz por papel (Configurações → Permissões), sem trava de nível.
   '/onboarding': 2, '/offboarding': 2,
@@ -393,7 +393,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.50';
+const APP_VERSION = '84.51';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
