@@ -97,6 +97,10 @@ def sync_user(sb, conn):
     for ev in casa:
         if (ev.get("origem") or "house") == "zoho" or not ev.get("data"):
             continue
+        # convite pendente/recusado NÃO vai pro calendário dele (v84.57) — quem
+        # é dono/responsável não tem marca, então passa direto
+        if (ev.get("aceites") or {}).get(uid) in ("pendente", "recusado"):
+            continue
         try:
             ed = z.house_to_zoho_event(ev)
             if not ev.get("zoho_uid"):

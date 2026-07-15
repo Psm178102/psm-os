@@ -31,6 +31,9 @@ let _view = 'lista';      // lista | calendario
 let _mesAtual = new Date();
 let _filterTipo = '';
 let _filterCorretor = '';
+let _convites = [];        // convites pendentes de aceite (v84.57)
+let _podeVerTime = false;  // sócio/gerente podem alternar pra visão do time
+let _escopo = 'self';      // self | time
 
 export async function pageAgenda(ctx, root) {
   _root = root;
@@ -54,12 +57,15 @@ async function reload() {
     const qs = new URLSearchParams({ since, until });
     if (_filterTipo)     qs.set('tipo', _filterTipo);
     if (_filterCorretor) qs.set('corretor_id', _filterCorretor);
+    if (_escopo === 'time') qs.set('escopo', 'time');
 
     const [evRes, usrRes] = await Promise.all([
       api.request('/api/v3/agenda/list?' + qs.toString()),
       _users.length ? Promise.resolve({ users: _users }) : api.request('/api/v3/users/list').catch(() => ({ users: [] })),
     ]);
     _eventos = evRes.eventos || [];
+    _convites = evRes.convites || [];
+    _podeVerTime = !!evRes.pode_ver_time;
     if (usrRes.users) _users = usrRes.users;
     render(evRes.scope);
   } catch (e) {
@@ -67,11 +73,42 @@ async function reload() {
   }
 }
 
+/* Convites esperando decisão. Ficam FORA da agenda até a pessoa aceitar —
+   é isso que diferencia "te incluíram numa lista" de "está no meu calendário". */
+function convitesCard() {
+  if (!_convites.length || _escopo === 'time') return '';
+  return `<div class="mt-2" style="background:#2563eb10;border-radius:10px;padding:10px 12px;border-left:3px solid #2563eb">
+    <b class="tiny">📨 ${_convites.length} convite(s) esperando você</b>
+    <div class="tiny muted">Só entram na sua agenda (e no seu Zoho) se você aceitar.</div>
+    ${_convites.map(c => `<div class="flex items-center mt-2" style="gap:8px;flex-wrap:wrap;background:var(--bg-2);border-radius:8px;padding:7px 10px">
+      <div style="flex:1;min-width:170px">
+        <b class="tiny">${escapeHtml(c.titulo || 'Evento')}</b>
+        <div class="tiny muted">${fmtDataBR(c.data)}${c.hora_inicio ? ' · ' + c.hora_inicio.slice(0, 5) : ' · dia todo'}${c.local ? ' · ' + escapeHtml(c.local) : ''} · de ${escapeHtml(nomeDe(c.criado_por))}</div>
+      </div>
+      <button class="btn btn-primary btn-sm cv-ok" data-id="${escapeHtml(c.id)}">✅ Aceitar</button>
+      <button class="btn btn-ghost btn-sm cv-no" data-id="${escapeHtml(c.id)}" style="color:#dc2626">Recusar</button>
+    </div>`).join('')}
+  </div>`;
+}
+
+function nomeDe(uid) {
+  const u = (_users || []).find(x => x.id === uid);
+  return (u && u.name) || uid || '—';
+}
+
+function fmtDataBR(d) {
+  return d ? String(d).slice(0, 10).split('-').reverse().join('/') : '—';
+}
+
 function render(scope) {
   _root.innerHTML = `
     <div class="card">
-      <h2 class="card-title">📅 Agenda PSM ${_view === 'calendario' ? '— ' + MESES_NOMES[_mesAtual.getMonth()] + ' ' + _mesAtual.getFullYear() : ''}</h2>
-      <p class="card-sub">Scope <b>${scope}</b> · ${_eventos.length} evento(s) no período</p>
+      <h2 class="card-title">📅 ${_escopo === 'time' ? 'Agenda do time' : 'Minha agenda'} ${_view === 'calendario' ? '— ' + MESES_NOMES[_mesAtual.getMonth()] + ' ' + _mesAtual.getFullYear() : ''}</h2>
+      <p class="card-sub">
+        ${_escopo === 'time' ? '👥 Vendo a agenda operacional do time' : '🔒 Só a sua agenda — ninguém mais vê'} · ${_eventos.length} evento(s) no período
+        ${_podeVerTime ? `<button class="btn btn-ghost btn-sm" id="ag-escopo" style="margin-left:8px">${_escopo === 'time' ? '🔒 ver só a minha' : '👥 ver agenda do time'}</button>` : ''}
+      </p>
+      ${convitesCard()}
       <div id="zoho-banner" class="mt-2"></div>
 
       <!-- Controles -->
@@ -129,6 +166,25 @@ function render(scope) {
   }
 
   document.querySelectorAll('[data-evento]').forEach(el => el.addEventListener('click', () => openModal(el.dataset.evento)));
+
+  // alterna minha agenda ⇄ agenda do time (só sócio/gerente têm o botão)
+  const bEsc = document.getElementById('ag-escopo');
+  if (bEsc) bEsc.onclick = () => { _escopo = _escopo === 'time' ? 'self' : 'time'; reload(); };
+
+  // aceitar / recusar convite
+  document.querySelectorAll('.cv-ok, .cv-no').forEach(b => b.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const aceitar = b.classList.contains('cv-ok');
+    b.disabled = true; b.textContent = '…';
+    try {
+      await api.request('/api/v3/agenda/convite', { method: 'POST', body: { id: b.dataset.id, acao: aceitar ? 'aceitar' : 'recusar' } });
+      reload();
+    } catch (err) {
+      b.disabled = false;
+      alert('❌ Não consegui registrar sua resposta: ' + (err.message || err));
+      b.textContent = aceitar ? '✅ Aceitar' : 'Recusar';
+    }
+  }));
   loadZohoBanner();
 }
 

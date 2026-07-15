@@ -21,6 +21,23 @@ from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 _SYNC_THROTTLE_S = 20
 
 
+def _relacao(ev, uid):
+    """O que o usuário é neste evento?
+      'dono'      → criou, é o responsável, ou é o owner. Trabalho dele: NUNCA
+                    precisa aceitar (senão a pessoa teria que 'aceitar' o
+                    próprio plantão).
+      'convidado' → só está em participantes. Aí sim depende do aceite.
+      None        → não tem nada a ver com o evento."""
+    if not uid:
+        return None
+    if ev.get("criado_por") == uid or ev.get("corretor_id") == uid or ev.get("owner_id") == uid:
+        return "dono"
+    parts = ev.get("participantes") or []
+    if isinstance(parts, list) and uid in parts:
+        return "convidado"
+    return None
+
+
 def _sync_zoho_se_preciso(sb, user):
     """Puxa o Zoho do usuário ao abrir a Agenda, no máximo 1x a cada 20s.
     Best-effort e SÍNCRONO: a lista logo abaixo já sai com o que veio.
@@ -98,32 +115,32 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
 
-        # Role filter
+        # ── VISIBILIDADE (v84.57) ──────────────────────────────────────────
+        # Agenda é pessoal: cada um vê SÓ a própria + os convites que aceitou.
+        # Vale pra todo mundo, inclusive sócio — a gestão alterna com ?escopo=time.
+        uid = user["id"]
         lvl = user.get("lvl") or 0
-        if lvl < 5:
-            uid = user["id"]
-            filtered = []
-            for r in rows:
-                if r.get("corretor_id") == uid: filtered.append(r); continue
-                if r.get("criado_por") == uid: filtered.append(r); continue
-                parts = r.get("participantes") or []
-                if isinstance(parts, list) and uid in parts: filtered.append(r); continue
-            rows = filtered
-            scope = "self"
-        elif lvl < 7:
-            # Líder vê do team
-            team = (user.get("team") or "").lower()
-            team_ids = set()
-            try:
-                tu = sb.table("users").select("id").eq("team", team).execute().data or []
-                team_ids = {u["id"] for u in tu}
-                team_ids.add(user["id"])
-            except Exception:
-                pass
-            rows = [r for r in rows if (r.get("corretor_id") in team_ids) or (r.get("criado_por") in team_ids)]
-            scope = "team"
+        pode_ver_time = lvl >= 7
+        escopo = (params.get("escopo") or "self").lower()
+        _convites = []
+
+        if pode_ver_time and escopo == "time":
+            scope = "time"   # visão operacional da gestão (quem está onde)
         else:
-            scope = "all"
+            proprios, convites = [], []
+            for r in rows:
+                rel = _relacao(r, uid)
+                if rel == "dono":
+                    proprios.append(r)
+                elif rel == "convidado":
+                    st = (r.get("aceites") or {}).get(uid)
+                    if st == "pendente":
+                        convites.append(r)          # espera o aceite pra entrar
+                    elif st != "recusado":
+                        proprios.append(r)          # aceito, ou legado (sem marca)
+            rows = proprios
+            scope = "self"
+            _convites = convites
 
         return self._send(200, {
             "ok": True,
@@ -132,5 +149,7 @@ class handler(BaseHTTPRequestHandler):
             "scope": scope,
             "count": len(rows),
             "eventos": rows,
+            "convites": _convites,          # pendentes de aceite (v84.57)
+            "pode_ver_time": pode_ver_time,
             "zoho_sync": zsync,
         })

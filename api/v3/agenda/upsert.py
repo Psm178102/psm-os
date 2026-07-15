@@ -18,6 +18,28 @@ from _auth_lib import supabase_client, require_user, AuthError, audit  # type: i
 from _zoho_push import push_evento  # type: ignore
 
 
+def _marcar_pendentes(row, criador):
+    """Convidado NOVO nasce 'pendente' — ele decide se entra na agenda dele.
+    Criador e responsável NÃO entram: é trabalho deles, não convite.
+    Quem já estava no evento mantém o aceite que tinha (não re-convida ninguém
+    a cada edição)."""
+    parts = row.get("participantes") or []
+    if not isinstance(parts, list):
+        return row
+    aceites = dict(row.get("aceites") or {})
+    dono = {criador, row.get("corretor_id"), row.get("owner_id")}
+    for p in parts:
+        if p in dono or not p:
+            aceites.pop(p, None)      # dono nunca fica pendente
+        elif p not in aceites:
+            aceites[p] = "pendente"   # convidado novo
+    for p in list(aceites.keys()):
+        if p not in parts:
+            aceites.pop(p, None)      # saiu do evento, some a marca
+    row["aceites"] = aceites
+    return row
+
+
 def _push_zoho(sb, ev, antes):
     """Espelha no Zoho na hora. O evento vai pro calendário do DONO (criador ou
     corretor responsável). Best-effort: se o Zoho falhar, o evento já está salvo
@@ -108,6 +130,9 @@ class handler(BaseHTTPRequestHandler):
                 if k in body:
                     patch[k] = body[k]
 
+            if "participantes" in patch:   # mexeu na lista → recalcula convites
+                base = {**cur, **patch}
+                patch["aceites"] = _marcar_pendentes(base, cur.get("criado_por") or actor["id"])["aceites"]
             try:
                 sb.table("eventos").update(patch).eq("id", evento_id).execute()
             except Exception as e:
@@ -138,6 +163,7 @@ class handler(BaseHTTPRequestHandler):
             "status": status,
             "criado_por": actor["id"],
         }
+        row = _marcar_pendentes(row, actor["id"])
         try:
             res = sb.table("eventos").insert(row).execute()
             inserted = (res.data or [row])[0]
