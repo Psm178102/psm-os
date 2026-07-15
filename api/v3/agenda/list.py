@@ -15,7 +15,36 @@ import urllib.parse
 from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "zoho"))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+
+_SYNC_THROTTLE_S = 20
+
+
+def _sync_zoho_se_preciso(sb, user):
+    """Puxa o Zoho do usuário ao abrir a Agenda, no máximo 1x a cada 20s.
+    Best-effort e SÍNCRONO: a lista logo abaixo já sai com o que veio.
+    Se o Zoho falhar/demorar, a Agenda abre normal com o que tem no banco."""
+    try:
+        import _zoho_lib as z  # type: ignore
+        from sync import sync_user  # type: ignore
+        if not z.configured():
+            return None
+        conn = z.get_conn(sb, user.get("id"))
+        if not conn:
+            return None
+        ult = conn.get("last_sync_at")
+        if ult:
+            from datetime import datetime, timezone as _tz
+            try:
+                dt = datetime.fromisoformat(str(ult).replace("Z", "+00:00"))
+                if (datetime.now(_tz.utc) - dt).total_seconds() < _SYNC_THROTTLE_S:
+                    return {"pulado": "recente"}
+            except Exception:
+                pass
+        return sync_user(sb, conn)
+    except Exception:
+        return None
 
 
 class handler(BaseHTTPRequestHandler):
@@ -54,6 +83,11 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
+
+        # SYNC AO ABRIR: o Zoho não tem webhook, então quem abre a Agenda puxa
+        # na hora. É isto que faz parecer tempo real — você nunca olha dado
+        # velho. Throttle de 20s pra não bater na Zoho a cada F5.
+        zsync = _sync_zoho_se_preciso(sb, user)
 
         try:
             q = sb.table("eventos").select("*").gte("data", since).lte("data", until).order("data").order("hora_inicio")
@@ -98,4 +132,5 @@ class handler(BaseHTTPRequestHandler):
             "scope": scope,
             "count": len(rows),
             "eventos": rows,
+            "zoho_sync": zsync,
         })

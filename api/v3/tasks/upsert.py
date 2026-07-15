@@ -25,6 +25,17 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, notify, notify_all, lvl_of  # type: ignore
 
 
+def _espelhar(sb, task):
+    """Tarefa COM PRAZO vira evento na Agenda (e daí no Zoho). Best-effort:
+    falha aqui nunca derruba o save da tarefa."""
+    try:
+        from _espelho_agenda import espelhar  # type: ignore
+        return espelhar(sb, task)
+    except Exception as e:
+        print(f"[task] espelho agenda err: {e}")
+        return None
+
+
 def _pode_atribuir(sb, actor, resp_id):
     """Hierarquia de atribuição: si mesmo sempre; sócio(>=10) a qualquer um;
     gerente(>=7) a lvl<7; líder(>=5) à própria equipe (lvl<5); demais só a si."""
@@ -200,6 +211,8 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 print(f"[task] notify err: {e}")
 
+            # tarefa com prazo → espelha na Agenda (e daí no Zoho, na hora)
+            _espelhar(sb, {**cur, **(row or {}), "id": task_id})
             return self._send(200, {"ok": True, "task": row})
 
         # Create
@@ -260,4 +273,5 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 print(f"[task] notify err: {e}")
 
+            _espelhar(sb, {**row, "id": new_id})
             return self._send(200, {"ok": True, "task": inserted, "created": True})

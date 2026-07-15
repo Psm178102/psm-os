@@ -19,22 +19,7 @@ from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 import _zoho_lib as z  # type: ignore
 
 
-def _range_param():
-    now = datetime.now(timezone.utc)
-    ini = (now - timedelta(days=7)).strftime("%Y%m%dT000000Z")
-    fim = (now + timedelta(days=60)).strftime("%Y%m%dT235959Z")
-    return json.dumps({"start": ini, "end": fim})
-
-
-def _list_zoho(token, cal_uid):
-    url = f"{z.calendar_base()}/calendars/{cal_uid}/events?range=" + urllib.parse.quote(_range_param())
-    data = z._req("GET", url, token)
-    return data.get("events") or []
-
-
-def _create_zoho(token, cal_uid, eventdata):
-    url = f"{z.calendar_base()}/calendars/{cal_uid}/events?eventdata=" + urllib.parse.quote(json.dumps(eventdata))
-    return z._req("POST", url, token)
+DIAS_ATRAS, DIAS_FRENTE = 7, 60
 
 
 def sync_user(sb, conn):
@@ -49,23 +34,25 @@ def sync_user(sb, conn):
     if not cal_uid:
         return {"erro": "sem agenda default no Zoho"}
 
-    res = {"puxados": 0, "criados_house": 0, "atualizados_house": 0, "enviados": 0, "erros": 0}
-    hoje = datetime.now(timezone.utc).date()
-    ini_d = (hoje - timedelta(days=7)).isoformat()
-    fim_d = (hoje + timedelta(days=60)).isoformat()
+    res = {"puxados": 0, "criados_house": 0, "atualizados_house": 0, "apagados_house": 0,
+           "enviados": 0, "atualizados_zoho": 0, "erros": 0}
+    agora = datetime.now(timezone.utc)
+    hoje = agora.date()
+    ini_d = (hoje - timedelta(days=DIAS_ATRAS)).isoformat()
+    fim_d = (hoje + timedelta(days=DIAS_FRENTE)).isoformat()
 
-    # ── PULL: Zoho → House ──────────────────────────────────────────────
-    try:
-        zevs = _list_zoho(token, cal_uid)
-    except Exception:
-        zevs = []
+    # ── PULL: Zoho → House (fatiado em janelas de 31d — teto da API) ────
+    zevs = z.listar_eventos(token, cal_uid, agora - timedelta(days=DIAS_ATRAS),
+                            agora + timedelta(days=DIAS_FRENTE))
     existentes = {}
     try:
         rows = sb.table("eventos").select("id,zoho_uid,zoho_etag").eq("owner_id", uid) \
-            .not_.is_("zoho_uid", "null").limit(3000).execute().data or []
+            .not_.is_("zoho_uid", "null").gte("data", ini_d).lte("data", fim_d) \
+            .limit(3000).execute().data or []
         existentes = {str(r["zoho_uid"]): r for r in rows if r.get("zoho_uid")}
     except Exception:
         pass
+    vivos = set()
     for ze in zevs:
         zu = ze.get("uid")
         if not zu:
@@ -73,6 +60,7 @@ def sync_user(sb, conn):
         row = z.zoho_to_house_event(ze, uid)
         if not row.get("data"):
             continue
+        vivos.add(str(zu))
         cur = existentes.get(str(zu))
         try:
             if cur:
@@ -89,26 +77,42 @@ def sync_user(sb, conn):
         except Exception:
             res["erros"] += 1
 
-    # ── PUSH: House → Zoho ──────────────────────────────────────────────
+    # apagado no Zoho → some do House (só o que NASCEU no Zoho; evento do House
+    # que o dono removeu do Zoho não é apagado aqui — quem manda é a origem)
+    for zu, cur in existentes.items():
+        if zu in vivos:
+            continue
+        try:
+            sb.table("eventos").delete().eq("id", cur["id"]).like("id", "evzo_%").execute()
+            res["apagados_house"] += 1
+        except Exception:
+            res["erros"] += 1
+
+    # ── PUSH: House → Zoho (cria os novos E atualiza os que mudaram) ────
     try:
         casa = sb.table("eventos").select("*").contains("participantes", [uid]) \
-            .is_("zoho_uid", "null").gte("data", ini_d).lte("data", fim_d) \
-            .limit(500).execute().data or []
+            .gte("data", ini_d).lte("data", fim_d).limit(500).execute().data or []
     except Exception:
         casa = []
     for ev in casa:
-        if (ev.get("origem") or "house") == "zoho":
-            continue
-        if not ev.get("data"):
+        if (ev.get("origem") or "house") == "zoho" or not ev.get("data"):
             continue
         try:
-            created = _create_zoho(token, cal_uid, z.house_to_zoho_event(ev))
-            new = (created.get("events") or [{}])
-            new_uid = (new[0].get("uid") if new else None) or created.get("uid")
-            if new_uid:
-                sb.table("eventos").update({"zoho_uid": new_uid, "origem": (ev.get("origem") or "house"),
-                                            "owner_id": (ev.get("owner_id") or uid)}).eq("id", ev["id"]).execute()
-                res["enviados"] += 1
+            ed = z.house_to_zoho_event(ev)
+            if not ev.get("zoho_uid"):
+                new_uid, etag = z.criar_evento(token, cal_uid, ed)
+                if new_uid:
+                    sb.table("eventos").update({"zoho_uid": new_uid, "zoho_etag": etag,
+                                                "zoho_hash": z.hash_evento(ev),
+                                                "origem": (ev.get("origem") or "house"),
+                                                "owner_id": (ev.get("owner_id") or uid)}).eq("id", ev["id"]).execute()
+                    res["enviados"] += 1
+            elif z.hash_evento(ev) != (ev.get("zoho_hash") or ""):
+                # mudou no House depois de sincronizado → reflete no Zoho
+                etag = z.atualizar_evento(token, cal_uid, ev["zoho_uid"], ed, ev.get("zoho_etag"))
+                sb.table("eventos").update({"zoho_etag": etag or ev.get("zoho_etag"),
+                                            "zoho_hash": z.hash_evento(ev)}).eq("id", ev["id"]).execute()
+                res["atualizados_zoho"] += 1
         except Exception:
             res["erros"] += 1
 

@@ -12,8 +12,8 @@ Envs (o SÓCIO cria uma vez no Zoho API Console — app "Server-based"):
 
 Escopos: ZohoCalendar.calendar.ALL + ZohoCalendar.event.ALL (2 vias).
 """
-import json, os, time, urllib.parse, urllib.request
-from datetime import datetime, timezone
+import hashlib, json, os, time, urllib.parse, urllib.request
+from datetime import datetime, timedelta, timezone
 
 SCOPES = "ZohoCalendar.calendar.ALL,ZohoCalendar.event.ALL"
 _DEFAULT_REDIRECT = "https://www.housepsm.com.br/api/v3/zoho/callback"
@@ -111,6 +111,74 @@ def _req(method, url, token, body=None):
     req = urllib.request.Request(url, data=data, method=method,
                                  headers={"Authorization": "Zoho-oauthtoken " + token,
                                           "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=45) as r:
+        raw = r.read().decode()
+        return json.loads(raw) if raw.strip() else {}
+
+
+def hash_evento(ev):
+    """Impressão digital dos campos que o Zoho enxerga. Se muda, o evento
+    precisa ser re-enviado. É o que diferencia 'editado no House' de
+    'já sincronizado e intocado' — sem isso o PUSH só criaria, nunca atualizaria."""
+    base = "|".join(str(ev.get(k) or "") for k in
+                    ("titulo", "descricao", "local", "data", "hora_inicio", "hora_fim", "all_day"))
+    return hashlib.md5(base.encode("utf-8")).hexdigest()
+
+
+def janelas_31d(ini_dt, fim_dt):
+    """A API do Zoho RECUSA range > 31 dias (limite documentado). Fatia o
+    período em blocos de 30 dias. Sem isso o list volta vazio e a integração
+    parece 'funcionar' devolvendo nada."""
+    out, cur = [], ini_dt
+    while cur < fim_dt:
+        prox = min(cur + timedelta(days=30), fim_dt)
+        out.append((cur.strftime("%Y%m%dT000000Z"), prox.strftime("%Y%m%dT235959Z")))
+        cur = prox + timedelta(days=1)
+    return out
+
+
+def listar_eventos(token, cal_uid, ini_dt, fim_dt):
+    """Lista eventos do Zoho no período, respeitando o teto de 31 dias por chamada."""
+    vistos, todos = set(), []
+    for ini, fim in janelas_31d(ini_dt, fim_dt):
+        url = (f"{calendar_base()}/calendars/{cal_uid}/events?range="
+               + urllib.parse.quote(json.dumps({"start": ini, "end": fim})))
+        try:
+            for e in (_req("GET", url, token).get("events") or []):
+                u = e.get("uid")
+                if u and u not in vistos:
+                    vistos.add(u)
+                    todos.append(e)
+        except Exception:
+            continue
+    return todos
+
+
+def criar_evento(token, cal_uid, eventdata):
+    url = (f"{calendar_base()}/calendars/{cal_uid}/events?eventdata="
+           + urllib.parse.quote(json.dumps(eventdata)))
+    r = _req("POST", url, token)
+    evs = r.get("events") or []
+    return ((evs[0].get("uid") if evs else None) or r.get("uid"),
+            str((evs[0].get("etag") if evs else None) or r.get("etag") or ""))
+
+
+def atualizar_evento(token, cal_uid, event_uid, eventdata, etag):
+    """PUT do Zoho exige dateandtime + etag no eventdata (doc oficial)."""
+    ed = dict(eventdata)
+    ed["etag"] = int(etag) if str(etag).isdigit() else etag
+    url = (f"{calendar_base()}/calendars/{cal_uid}/events/{event_uid}?eventdata="
+           + urllib.parse.quote(json.dumps(ed)))
+    r = _req("PUT", url, token)
+    evs = r.get("events") or []
+    return str((evs[0].get("etag") if evs else None) or r.get("etag") or "")
+
+
+def excluir_evento(token, cal_uid, event_uid, etag):
+    """DELETE exige etag (header ou eventdata) — mandamos no header."""
+    url = f"{calendar_base()}/calendars/{cal_uid}/events/{event_uid}"
+    req = urllib.request.Request(url, method="DELETE", headers={
+        "Authorization": "Zoho-oauthtoken " + token, "etag": str(etag or "")})
     with urllib.request.urlopen(req, timeout=45) as r:
         raw = r.read().decode()
         return json.loads(raw) if raw.strip() else {}

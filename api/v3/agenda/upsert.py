@@ -15,6 +15,23 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _zoho_push import push_evento  # type: ignore
+
+
+def _push_zoho(sb, ev, antes):
+    """Espelha no Zoho na hora. O evento vai pro calendário do DONO (criador ou
+    corretor responsável). Best-effort: se o Zoho falhar, o evento já está salvo
+    no House e o cron de 2 min reconcilia — o save do usuário nunca quebra."""
+    try:
+        dono = ev.get("owner_id") or ev.get("corretor_id") or ev.get("criado_por")
+        if not dono:
+            return {}
+        patch = push_evento(sb, ev, dono)
+        if patch:
+            sb.table("eventos").update({**patch, "owner_id": dono}).eq("id", ev["id"]).execute()
+        return patch
+    except Exception:
+        return {}
 
 
 ALLOWED_TIPO = {"plantao", "reuniao", "visita", "tarefa", "evento", "outro"}
@@ -99,7 +116,9 @@ class handler(BaseHTTPRequestHandler):
             audit(self, actor, "evento.update", target_type="evento", target_id=evento_id,
                   before={k: cur.get(k) for k in patch.keys()}, after=patch)
 
-            return self._send(200, {"ok": True, "id": evento_id, "updated": True})
+            # espelha no Zoho NA HORA (edição inclusa) — best-effort
+            zres = _push_zoho(sb, {**cur, **patch, "id": evento_id}, cur)
+            return self._send(200, {"ok": True, "id": evento_id, "updated": True, "zoho": zres})
 
         # Create
         new_id = "ev_" + uuid.uuid4().hex[:12]
@@ -126,4 +145,5 @@ class handler(BaseHTTPRequestHandler):
             return self._send(500, {"ok": False, "error": f"insert: {e}"})
 
         audit(self, actor, "evento.create", target_type="evento", target_id=new_id, after=row)
-        return self._send(200, {"ok": True, "evento": inserted, "created": True})
+        zres = _push_zoho(sb, row, None)
+        return self._send(200, {"ok": True, "evento": {**inserted, **zres}, "created": True, "zoho": zres})

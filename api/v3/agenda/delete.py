@@ -12,6 +12,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _zoho_push import delete_evento  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -65,10 +66,18 @@ class handler(BaseHTTPRequestHandler):
         if not is_socio_gerente and not owner:
             return self._send(403, {"ok": False, "error": "apenas Sócio/Gerente ou criador pode apagar"})
 
+        # apaga no Zoho ANTES (depois de sumir do banco eu perco o zoho_uid/etag)
+        zoho_ok = False
+        try:
+            dono = before.get("owner_id") or before.get("corretor_id") or before.get("criado_por")
+            zoho_ok = delete_evento(sb, before, dono)
+        except Exception:
+            pass
+
         try:
             sb.table("eventos").delete().eq("id", evento_id).execute()
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"delete: {e}"})
 
         audit(self, actor, "evento.delete", target_type="evento", target_id=evento_id, before=before)
-        return self._send(200, {"ok": True, "id": evento_id})
+        return self._send(200, {"ok": True, "id": evento_id, "zoho_apagado": zoho_ok})
