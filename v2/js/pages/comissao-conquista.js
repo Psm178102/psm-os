@@ -64,6 +64,7 @@ function render() {
         <button class="btn btn-sm ${_aba === 'corretores' ? 'btn-primary' : 'btn-ghost'}" id="cm-ab-c">👥 Corretores</button>
         <button class="btn btn-sm ${_aba === 'mariane' ? 'btn-primary' : 'btn-ghost'}" id="cm-ab-m">🎁 Mariane (Indicação)</button>
         <button class="btn btn-sm ${_aba === 'leire' ? 'btn-primary' : 'btn-ghost'}" id="cm-ab-l">🔁 Leire (Reativação)</button>
+        <button class="btn btn-sm ${_aba === 'map' ? 'btn-primary' : 'btn-ghost'}" id="cm-ab-map">🏢 MAP (Empreendimentos)</button>
         <button class="btn btn-sm ${_aba === 'config' ? 'btn-primary' : 'btn-ghost'}" id="cm-ab-cfg">📊 Regras & Origens</button>
       </div>
     </div>
@@ -71,6 +72,7 @@ function render() {
       _aba === 'corretores' ? htmlCorretores()
       : _aba === 'mariane' ? htmlOperador(_d.mariane, { unidade: 'indicação', o_que: 'indicações que a OPERAÇÃO gerou e viraram venda' })
       : _aba === 'leire' ? htmlLeire()
+      : _aba === 'map' ? htmlMap()
       : htmlConfig(podeEditar)}</div>`;
   _root.querySelector('#cm-prev').onclick = () => mesShift(-1);
   _root.querySelector('#cm-next').onclick = () => mesShift(1);
@@ -78,9 +80,11 @@ function render() {
   _root.querySelector('#cm-ab-c').onclick = () => { _aba = 'corretores'; render(); };
   _root.querySelector('#cm-ab-m').onclick = () => { _aba = 'mariane'; render(); };
   _root.querySelector('#cm-ab-l').onclick = () => { _aba = 'leire'; render(); };
+  _root.querySelector('#cm-ab-map').onclick = () => { _aba = 'map'; render(); };
   _root.querySelector('#cm-ab-cfg').onclick = () => { _aba = 'config'; render(); };
   if (_aba === 'corretores') wireCorretores();
   if (_aba === 'leire') wireLeire();
+  if (_aba === 'map') wireMap();
   if (_aba === 'config') wireConfig();
 }
 
@@ -233,6 +237,68 @@ function wireLeire() {
   });
 }
 
+/* ── 🏢 MAP / Empreendimentos (origem × senioridade) ────────────────────── */
+const SEN_COR = { estagiario: '#94a3b8', corretor: '#2563eb', senior: '#16a34a' };
+
+function htmlMap() {
+  const m = _d.map || {};
+  const origens = m.origens || [], cs = m.corretores || [];
+  const total = cs.reduce((s, c) => s + (c.comissao_total || 0), 0);
+  const vgv = cs.reduce((s, c) => s + (c.vgv_total || 0), 0);
+  const naoDef = cs.reduce((s, c) => s + (c.vendas || []).filter(v => !v.definida).length, 0);
+  return `<div class="card">
+    <div class="flex items-center" style="gap:10px;flex-wrap:wrap">
+      <div><div class="tiny muted">VGV MAP do mês</div><div style="font-weight:900;font-size:20px">${brl(vgv)}</div></div>
+      <div style="background:#16a34a15;border-radius:10px;padding:8px 12px;border-left:3px solid #16a34a"><div class="tiny muted">Comissão total a pagar</div><div style="font-weight:900;font-size:20px">${brl(total)}</div></div>
+      <div><div class="tiny muted">Corretores</div><div style="font-weight:800;font-size:18px">${cs.length}</div></div>
+      ${naoDef ? `<div style="background:#f59e0b15;border-radius:10px;padding:8px 12px;border-left:3px solid #f59e0b"><div class="tiny muted">Vendas sem origem</div><div style="font-weight:800;font-size:18px">${naoDef}</div></div>` : ''}
+    </div>
+    <div class="tiny muted mt-2">A origem do cliente (comprovada no CRM) define a taxa, cruzada com a senioridade. <b>Sênior é automático</b>: sai sozinho quando o VGV MAP acumulado no ano cruza ${brl(m.senior_vgv_min)}. Estagiário é a única marcação manual.</div>
+    <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12px">
+      <tr class="tiny muted" style="text-align:left"><th style="padding:4px 6px">Origem do cliente</th><th style="text-align:right">Estagiário</th><th style="text-align:right">Corretor</th><th style="text-align:right">Sênior</th></tr>
+      ${origens.map(o => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+        <td style="padding:5px 6px">${esc(o.rotulo)}</td>
+        ${['estagiario', 'corretor', 'senior'].map(s => `<td style="text-align:right;font-weight:700;color:${SEN_COR[s]}">${pct((o.taxas || {})[s])}</td>`).join('')}
+      </tr>`).join('')}
+    </table>
+  </div>
+  ${cs.length ? cs.map(c => `<div class="card mt-2">
+    <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
+      <b>${esc(c.corretor_nome || '—')}</b>
+      <span class="tiny" style="background:${SEN_COR[c.senioridade]}20;color:${SEN_COR[c.senioridade]};border-radius:20px;padding:2px 9px;font-weight:800">${esc(c.senioridade_lbl)}</span>
+      <span class="tiny muted">${c.n_vendas} venda(s) · VGV mês ${brl(c.vgv_total)}</span>
+      <span class="tiny muted">· ano ${brl(c.vgv_ano)}${c.senioridade === 'corretor' ? ` · faltam <b>${brl(c.falta_senior)}</b> p/ Sênior` : ''}</span>
+      ${canEdit() ? `<button class="btn btn-ghost btn-sm mp-estag" data-uid="${esc(c.corretor_id)}" data-on="${c.senioridade === 'estagiario' ? '1' : '0'}" style="padding:1px 8px;font-size:11px">${c.senioridade === 'estagiario' ? '↩︎ tirar estagiário' : '🎓 marcar estagiário'}</button>` : ''}
+      <span style="margin-left:auto;font-weight:900;font-size:17px;color:#16a34a">${brl(c.comissao_total)}</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:13px">
+      <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Cliente</th><th>Origem</th><th style="text-align:right">VGV</th><th style="text-align:right">Taxa</th><th style="text-align:right">Comissão</th></tr>
+      ${(c.vendas || []).map(v => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+        <td style="padding:6px 8px">${esc(v.cliente || '—')}</td>
+        <td>${canEdit() ? `<select class="input mp-org" data-did="${esc(v.deal_id)}" style="padding:2px 6px;font-size:12px">
+            <option value="">— indefinida —</option>
+            ${origens.map(o => `<option value="${esc(o.id)}"${v.origem === o.id ? ' selected' : ''}>${esc(o.rotulo)}</option>`).join('')}
+          </select>` : `<span class="tiny ${v.definida ? '' : 'muted'}">${esc(v.origem_lbl)}</span>`}
+          ${v.fonte_rd ? `<div class="tiny muted">RD: ${esc(v.fonte_rd)}</div>` : ''}</td>
+        <td style="text-align:right">${brl(v.vgv)}</td>
+        <td style="text-align:right;font-weight:700">${pct(v.taxa)}</td>
+        <td style="text-align:right;font-weight:700">${brl(v.comissao)}</td>
+      </tr>`).join('')}
+    </table>
+  </div>`).join('') : '<div class="card mt-2"><div class="muted tiny" style="text-align:center;padding:18px">Nenhuma venda MAP fechou neste mês.</div></div>'}`;
+}
+
+function wireMap() {
+  _root.querySelectorAll('.mp-org').forEach(s => s.onchange = async () => {
+    const r = await post({ action: 'set_map_origem', deal_id: s.dataset.did, origem: s.value }, '✅ Origem atualizada.');
+    if (r) reload();
+  });
+  _root.querySelectorAll('.mp-estag').forEach(b => b.onclick = async () => {
+    const r = await post({ action: 'set_map_estagiario', user_id: b.dataset.uid, on: b.dataset.on !== '1' });
+    if (r) reload();
+  });
+}
+
 /* ── 📊 Regras & Origens ────────────────────────────────────────────────── */
 function htmlConfig(podeEditar) {
   const cfg = _d.cfg || {};
@@ -323,8 +389,44 @@ function htmlConfig(podeEditar) {
         </tr>`).join('') : '<tr><td colspan="3" class="muted tiny" style="padding:12px;text-align:center">Nenhuma venda no mês pra listar fontes.</td></tr>'}
       </table>
       ${podeEditar && fontes.length ? '<button class="btn btn-primary btn-sm mt-2" id="cf-savemap">💾 Salvar mapeamento</button>' : ''}
-    </div>`;
+    </div>
+    ${htmlConfigMap(podeEditar)}`;
 }
+
+function htmlConfigMap(podeEditar) {
+  const m = _d.map || {};
+  const origens = m.origens || [], mfontes = m.fontes_rd || [];
+  return `<div class="card mt-2">
+    <b class="tiny">🏢 Matriz MAP / Empreendimentos (PSM Imóveis) — origem × senioridade</b>
+    <div class="tiny muted">Matriz PRÓPRIA, separada da Conquista. A origem do cliente (comprovada no CRM) define a taxa; a senioridade do corretor define a coluna.</div>
+    <div id="cf-mpmatriz" style="margin-top:6px">
+      <div class="flex tiny muted" style="gap:6px;padding:0 6px"><span style="flex:1">Origem do cliente</span><span style="width:78px;text-align:center">Estagiário</span><span style="width:78px;text-align:center">Corretor</span><span style="width:78px;text-align:center">Sênior</span></div>
+      ${origens.map(o => `<div class="flex" style="gap:6px;margin-top:4px;align-items:center" data-mp data-id="${esc(o.id)}">
+        <span class="tiny" style="flex:1">${esc(o.rotulo)}</span>
+        ${['estagiario', 'corretor', 'senior'].map(s => `<input class="input mp-t" data-s="${s}" type="number" min="0" step="0.1" value="${(o.taxas || {})[s]}" style="width:78px;padding:2px 6px;text-align:right" ${!podeEditar ? 'disabled' : ''}>`).join('')}
+      </div>`).join('')}
+    </div>
+    ${podeEditar ? `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap;align-items:center">
+      <label class="tiny">Vira <b style="color:#16a34a">Sênior</b> com VGV no ano ≥ R$ <input class="input" id="cf-mpsen" type="number" value="${m.senior_vgv_min}" style="width:130px;padding:2px 6px"></label>
+      <button class="btn btn-primary btn-sm" id="cf-mpsave" style="margin-left:auto">💾 Salvar matriz MAP</button>
+    </div>` : `<div class="tiny muted mt-1">Sênior automático a partir de ${brl(m.senior_vgv_min)} de VGV no ano.</div>`}
+    <div class="tiny muted mt-2" style="font-weight:700">🔗 Fontes do RD nas vendas MAP → origem</div>
+    <table style="width:100%;border-collapse:collapse;margin-top:4px;font-size:13px">
+      <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Fonte no RD</th><th style="text-align:right">Vendas</th><th>Mapeia para</th></tr>
+      ${mfontes.length ? mfontes.map(f => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+        <td style="padding:6px 8px">${esc(f.fonte)}</td>
+        <td style="text-align:right">${f.n}</td>
+        <td>${podeEditar ? `<select class="input cf-mpmap" data-fonte="${esc(f.fonte)}" style="padding:2px 6px;font-size:12px">
+          <option value="">— indefinida —</option>
+          ${origens.map(o => `<option value="${esc(o.id)}"${(_mpMapa())[f.fonte.toLowerCase()] === o.id ? ' selected' : ''}>${esc(o.rotulo)}</option>`).join('')}
+        </select>` : `<span class="tiny ${f.mapeada ? '' : 'muted'}">${f.mapeada ? 'mapeada' : '⚠️ indefinida'}</span>`}</td>
+      </tr>`).join('') : '<tr><td colspan="3" class="muted tiny" style="padding:12px;text-align:center">Nenhuma venda MAP no mês pra listar fontes.</td></tr>'}
+    </table>
+    ${podeEditar && mfontes.length ? '<button class="btn btn-primary btn-sm mt-2" id="cf-mpsavemap">💾 Salvar mapeamento MAP</button>' : ''}
+  </div>`;
+}
+
+function _mpMapa() { return (_d.cfg && _d.cfg.map_mapa_rd) || {}; }
 
 function wireConfig() {
   const $ = s => _root.querySelector(s);
@@ -396,6 +498,25 @@ function wireConfig() {
     boxV.appendChild(row);
   };
   _root.querySelectorAll('.lv-del').forEach(b => b.onclick = () => b.closest('[data-lv]').remove());
+  if ($('#cf-mpsave')) $('#cf-mpsave').onclick = async () => {
+    const base = (_d.map && _d.map.origens) || [];
+    const origens = [..._root.querySelectorAll('[data-mp]')].map(r => {
+      const o = base.find(x => x.id === r.dataset.id) || { id: r.dataset.id, rotulo: r.dataset.id };
+      const taxas = {};
+      r.querySelectorAll('.mp-t').forEach(i => { taxas[i.dataset.s] = Number(i.value) || 0; });
+      return { ...o, taxas };
+    });
+    if (!origens.length) { alert('Matriz vazia.'); return; }
+    const sen = Number($('#cf-mpsen').value) || 3000000;
+    const r = await post({ action: 'set_cfg', cfg: { map_origens: origens, map_senior_vgv_min: sen } }, '💾 Matriz MAP salva.');
+    if (r) reload();
+  };
+  if ($('#cf-mpsavemap')) $('#cf-mpsavemap').onclick = async () => {
+    const mapa = {};
+    _root.querySelectorAll('.cf-mpmap').forEach(s => { if (s.value) mapa[s.dataset.fonte.toLowerCase()] = s.value; });
+    const r = await post({ action: 'set_cfg', cfg: { map_mapa_rd: mapa } }, '💾 Mapeamento MAP salvo.');
+    if (r) reload();
+  };
   if ($('#cf-lsave')) $('#cf-lsave').onclick = async () => {
     const rows = [...boxB.querySelectorAll('[data-lb]')].map(r => {
       const teto = r.querySelector('.lb-teto').value.trim();

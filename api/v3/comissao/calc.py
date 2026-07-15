@@ -27,6 +27,7 @@ from _fisc_lib import _kv, _kv_set, get_cfg as fisc_cfg, premio_faixa  # type: i
 
 CFG_KEY = "comissao_cfg"
 OVR_KEY = "comissao_origem"  # {deal_id: origem_id}  (override manual)
+OVR_MAP_KEY = "comissao_map_origem"  # {deal_id: map_origem_id}  (override manual MAP)
 
 DEFAULT_CFG = {
     "taxa_estagiario": 1.4,
@@ -57,7 +58,28 @@ DEFAULT_CFG = {
     "leire_volume": [[2, 1.0], [4, 1.1], [6, 1.2], [9, 1.35], [999999, 1.5]],
     "leire_teto": 5000.0,
     "estagiarios": [],                   # user ids
+    # ── MAP / Empreendimentos (PSM Imóveis) ──
+    # Matriz PRÓPRIA (diferente da Conquista): a ORIGEM do cliente cruza com a
+    # SENIORIDADE do corretor. Senioridade: estagiário = marcação manual;
+    # SÊNIOR = AUTOMÁTICO quando o VGV acumulado no ANO >= map_senior_vgv_min;
+    # senão, corretor. Estagiário é sempre 1,4% — exceto investimento próprio
+    # (1,8%), que é a exceção: ele arriscou dinheiro dele.
+    "map_origens": [
+        {"id": "trafego_pago", "rotulo": "Tráfego Pago (anúncios online)",
+         "taxas": {"estagiario": 1.4, "corretor": 1.7, "senior": 1.8}},
+        {"id": "indicacao", "rotulo": "Indicação (cliente, lead ou parceiro)",
+         "taxas": {"estagiario": 1.4, "corretor": 1.8, "senior": 1.9}},
+        {"id": "ativo", "rotulo": "Plantão, Ativo, Reativação, Networking ou Carteira Própria",
+         "taxas": {"estagiario": 1.4, "corretor": 1.9, "senior": 1.9}},
+        {"id": "investimento", "rotulo": "Investimento do corretor (opcional)",
+         "taxas": {"estagiario": 1.8, "corretor": 2.0, "senior": 2.0}},
+    ],
+    "map_mapa_rd": {},                   # deal_source (minúsculo) -> map origem id
+    "map_senior_vgv_min": 3000000.0,     # VGV acumulado no ano p/ virar sênior
+    "map_estagiarios": [],               # user ids / emails
 }
+
+SENIOR_LBL = {"estagiario": "Estagiário", "corretor": "Corretor", "senior": "Corretor Sênior"}
 
 
 def _cfg(sb):
@@ -89,6 +111,13 @@ def _mes_range(mes):
     return ini.isoformat(), fim.isoformat(), f"{y:04d}-{m:02d}"
 
 
+def _ano_range(mes):
+    """'YYYY-MM' → (ini_iso, fim_iso) do ANO — base do acumulado que promove a sênior."""
+    y = int(mes[:4]) if mes else datetime.now(timezone.utc).year
+    return (datetime(y, 1, 1, tzinfo=timezone.utc).isoformat(),
+            datetime(y + 1, 1, 1, tzinfo=timezone.utc).isoformat())
+
+
 def _source_name(raw):
     s = (raw or {}).get("deal_source")
     if isinstance(s, dict):
@@ -106,6 +135,70 @@ def _page(make_q, cap=8000):
         if len(rows) < page:
             break
     return out
+
+
+def _calc_map(sb, cfg, mes_lbl, ini, fim, nomes):
+    """MAP/Empreendimentos: taxa = matriz[origem][senioridade].
+    Senioridade é AUTOMÁTICA — sênior quando o VGV MAP acumulado no ANO cruza o
+    mínimo; estagiário é a única marcação manual."""
+    origens = cfg.get("map_origens") or []
+    o_by_id = {o["id"]: o for o in origens}
+    mapa = {str(k).lower(): v for k, v in (cfg.get("map_mapa_rd") or {}).items()}
+    ovr = _kv(sb, OVR_MAP_KEY) or {}
+    estag = set(str(x) for x in (cfg.get("map_estagiarios") or []))
+    senior_min = float(cfg.get("map_senior_vgv_min") or 3000000)
+    ano_ini, ano_fim = _ano_range(mes_lbl)
+
+    sel = "id,name,amount,win,closed_at,pipeline_name,user_id,user_email,rd_raw"
+    # VGV MAP acumulado no ANO (define quem é sênior) — 1 varredura só
+    ano = _page(lambda: sb.table("deals").select(sel).eq("win", True)
+                .gte("closed_at", ano_ini).lt("closed_at", ano_fim).order("id"), cap=12000)
+    ano = [d for d in ano if frente_of(d.get("pipeline_name")) == "map"]
+    vgv_ano = {}
+    for d in ano:
+        cid = str(d.get("user_id") or d.get("user_email") or "?")
+        vgv_ano[cid] = vgv_ano.get(cid, 0.0) + float(d.get("amount") or 0)
+
+    deals = [d for d in ano if d.get("closed_at") and ini <= d["closed_at"] < fim]
+    fontes, por = {}, {}
+    for d in deals:
+        cid = str(d.get("user_id") or d.get("user_email") or "?")
+        did = str(d.get("id"))
+        vgv = float(d.get("amount") or 0)
+        src = _source_name(d.get("rd_raw"))
+        if src:
+            fontes[src] = fontes.get(src, 0) + 1
+        sen = ("estagiario" if cid in estag
+               else "senior" if vgv_ano.get(cid, 0.0) >= senior_min else "corretor")
+        origem = ovr.get(did) or mapa.get(src.lower()) or None
+        if origem and origem in o_by_id:
+            o = o_by_id[origem]
+            taxa = float((o.get("taxas") or {}).get(sen) or 0)
+            lbl = o.get("rotulo")
+        else:
+            taxa, lbl = 0.0, "⚠️ origem indefinida"
+        c = por.setdefault(cid, {"corretor_id": cid, "corretor_nome": d.get("user_email") or cid,
+                                 "senioridade": sen, "vendas": [], "vgv_total": 0.0})
+        c["vendas"].append({"deal_id": did, "cliente": d.get("name"), "vgv": vgv,
+                            "origem": origem, "origem_lbl": lbl, "taxa": taxa,
+                            "comissao": round(vgv * taxa / 100, 2),
+                            "fonte_rd": src, "definida": bool(origem and origem in o_by_id)})
+        c["vgv_total"] += vgv
+
+    corretores = []
+    for cid, c in por.items():
+        va = round(vgv_ano.get(cid, 0.0), 2)
+        corretores.append({
+            "corretor_id": cid, "corretor_nome": nomes.get(cid, c["corretor_nome"]),
+            "senioridade": c["senioridade"], "senioridade_lbl": SENIOR_LBL.get(c["senioridade"]),
+            "vgv_ano": va, "falta_senior": round(max(0.0, senior_min - va), 2),
+            "vgv_total": round(c["vgv_total"], 2), "n_vendas": len(c["vendas"]),
+            "comissao_total": round(sum(v["comissao"] for v in c["vendas"]), 2),
+            "vendas": sorted(c["vendas"], key=lambda x: -x["vgv"])})
+    corretores.sort(key=lambda x: -x["comissao_total"])
+    return {"origens": origens, "senior_vgv_min": senior_min, "corretores": corretores,
+            "fontes_rd": [{"fonte": f, "n": n, "mapeada": f.lower() in mapa}
+                          for f, n in sorted(fontes.items(), key=lambda x: -x[1])]}
 
 
 def calcular(sb, mes=None):
@@ -264,8 +357,15 @@ def calcular(sb, mes=None):
     except Exception:
         pass
 
+    # ── MAP / Empreendimentos (matriz própria: origem × senioridade) ──
+    try:
+        mapa_emp = _calc_map(sb, cfg, mes_lbl, ini, fim, nomes)
+    except Exception:
+        mapa_emp = {"origens": cfg.get("map_origens") or [], "corretores": [], "fontes_rd": [],
+                    "senior_vgv_min": float(cfg.get("map_senior_vgv_min") or 3000000)}
+
     fontes_ord = sorted(fontes.items(), key=lambda x: -x[1])
-    return {"mes": mes_lbl, "corretores": corretores, "mariane": mar, "leire": lei,
+    return {"mes": mes_lbl, "corretores": corretores, "mariane": mar, "leire": lei, "map": mapa_emp,
             "fontes_rd": [{"fonte": f, "n": n, "mapeada": f.lower() in mapa} for f, n in fontes_ord],
             "cfg": cfg}
 
@@ -318,7 +418,8 @@ class handler(BaseHTTPRequestHandler):
                 nc = body.get("cfg") or {}
                 for k in ("taxa_estagiario", "mariane_faixas", "mariane_teto",
                           "leire_estoque", "leire_lancamento", "leire_volume", "leire_teto",
-                          "mapa_rd", "origens", "acelerador", "operacao_origens_indicacao"):
+                          "mapa_rd", "origens", "acelerador", "operacao_origens_indicacao",
+                          "map_origens", "map_mapa_rd", "map_senior_vgv_min", "map_estagiarios"):
                     if k in nc:
                         cur[k] = nc[k]
                 _kv_set(sb, CFG_KEY, cur)
@@ -337,6 +438,33 @@ class handler(BaseHTTPRequestHandler):
                     ovr.pop(did, None)
                 _kv_set(sb, OVR_KEY, ovr)
                 audit(self, user, "comissao.set_origem", "deals", did, notes=origem)
+                return self._send(200, {"ok": True})
+
+            if action == "set_map_origem":
+                did = str(body.get("deal_id") or "")
+                origem = str(body.get("origem") or "").strip()
+                if not did:
+                    return self._send(400, {"ok": False, "error": "deal_id obrigatório"})
+                ovr = _kv(sb, OVR_MAP_KEY) or {}
+                if origem:
+                    ovr[did] = origem
+                else:
+                    ovr.pop(did, None)
+                _kv_set(sb, OVR_MAP_KEY, ovr)
+                audit(self, user, "comissao.set_map_origem", "deals", did, notes=origem)
+                return self._send(200, {"ok": True})
+
+            if action == "set_map_estagiario":
+                uid = str(body.get("user_id") or "")
+                if not uid:
+                    return self._send(400, {"ok": False, "error": "user_id obrigatório"})
+                cur = _cfg(sb)
+                lst = set(str(x) for x in (cur.get("map_estagiarios") or []))
+                lst.add(uid) if body.get("on") else lst.discard(uid)
+                cur["map_estagiarios"] = sorted(lst)
+                _kv_set(sb, CFG_KEY, cur)
+                audit(self, user, "comissao.set_map_estagiario", "users", uid,
+                      notes="on" if body.get("on") else "off")
                 return self._send(200, {"ok": True})
 
             if action == "set_leire_tipo":
