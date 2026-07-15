@@ -119,9 +119,10 @@ function render() {
         <span style="margin-left:auto"></span>
         <button class="btn btn-sm ${!fluxosAba ? 'btn-primary' : 'btn-ghost'}" id="rk-aba-k">📋 Kanban</button>
         <button class="btn btn-sm ${fluxosAba ? 'btn-primary' : 'btn-ghost'}" id="rk-aba-f">💬 Fluxos por situação</button>
+        <button class="btn btn-sm ${_aba === 'comissao' ? 'btn-primary' : 'btn-ghost'}" id="rk-aba-c">💰 Minha comissão</button>
         <button class="btn btn-ghost btn-sm" id="rk-reload">↻</button>
       </div>
-      ${fluxosAba ? '' : `<div class="flex items-center mt-2" style="gap:6px;flex-wrap:wrap">
+      ${(fluxosAba || _aba === 'comissao') ? '' : `<div class="flex items-center mt-2" style="gap:6px;flex-wrap:wrap">
         <button class="btn btn-sm ${_fHoje ? 'btn-primary' : 'btn-ghost'}" id="rk-hoje" style="font-weight:800">📅 Fila de hoje (${nFila})</button>
         <button class="btn btn-ghost btn-sm" id="rk-gerar" title="Monta a fila do dia agora (o cron faz sozinho às 9h)">▶️ Gerar fila</button>
         <button class="btn btn-ghost btn-sm" id="rk-sync" title="Puxa do RD: funil MAP aberto, parado e com telefone">🔄 Sincronizar base</button>
@@ -131,7 +132,7 @@ function render() {
         ${_d.can_cfg ? '<button class="btn btn-ghost btn-sm" id="rk-cfg" title="Criar/excluir/renomear colunas, cores, follow-ups e cadência">⚙️ Personalizar</button>' : ''}
       </div>`}
     </div>
-    ${fluxosAba ? htmlFluxos() : `
+    ${_aba === 'comissao' ? '<div id="rk-comissao"></div>' : fluxosAba ? htmlFluxos() : `
     ${(() => {
       const cs = (_d.cards || []).filter(c => c.coluna !== 'descartado');
       const abord = cs.filter(c => c.abordado_em).length;
@@ -168,6 +169,8 @@ function render() {
   _host.querySelector('#rk-reload').onclick = reload;
   _host.querySelector('#rk-aba-k').onclick = () => { _aba = 'kanban'; _editFluxo = null; render(); };
   _host.querySelector('#rk-aba-f').onclick = () => { _aba = 'fluxos'; render(); };
+  _host.querySelector('#rk-aba-c').onclick = () => { _aba = 'comissao'; render(); };
+  if (_aba === 'comissao') { carregarComissao(); return; }
 }
 
 function wireKanban() {
@@ -220,6 +223,109 @@ function wireKanban() {
       }
     },
   });
+}
+
+/* ── 💰 Minha comissão: a régua da reativação, onde a Leire trabalha ──────
+   Existe aqui porque a tela de Comissionamento exige nível 5 e ela é nível 3 —
+   a gente desenhou a régua dela e ela não conseguia ler. Regra não é segredo:
+   quem é pago por ela precisa enxergar. Sócio edita; os demais só leem.
+   Grava no MESMO shared_kv da tela de Comissionamento — sem duas verdades. */
+let _rg = null;
+
+const brlC = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const multC = n => '×' + Number(n || 1).toLocaleString('pt-BR', { minimumFractionDigits: 1 });
+
+async function carregarComissao() {
+  const box = document.getElementById('rk-comissao');
+  if (!box) return;
+  box.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando a tabela…</div></div>';
+  try { _rg = await api.request('/api/v3/comissao/regras'); }
+  catch (e) { box.innerHTML = `<div class="card"><div class="alert alert-err">${esc(e.message)}</div></div>`; return; }
+  renderComissao();
+}
+
+function faixaVgvLbl(fx, i, arr) {
+  const teto = Number(fx[0]), de = i === 0 ? 0 : Number(arr[i - 1][0]);
+  if (teto >= 999999999) return 'acima de ' + brlC(de);
+  return (i === 0 ? 'até ' : brlC(de) + ' – ') + brlC(teto);
+}
+
+function renderComissao() {
+  const box = document.getElementById('rk-comissao');
+  if (!box) return;
+  const est = _rg.leire_estoque || [], lanc = _rg.leire_lancamento || [], vol = _rg.leire_volume || [];
+  const ed = !!_rg.pode_editar;
+  box.innerHTML = `
+    <div class="card">
+      <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
+        <h3 class="card-title" style="margin:0;font-size:15px">💰 Como a reativação é paga</h3>
+        ${ed ? '<span class="tiny" style="background:#16a34a20;color:#16a34a;border-radius:20px;padding:1px 9px;font-weight:800">você pode editar</span>'
+             : '<span class="tiny muted">só a direção edita</span>'}
+      </div>
+      <div class="tiny muted mt-1">Cada reativação que <b>fecha negócio</b> vale pela faixa de VGV e pelo tipo. A soma do mês é multiplicada pelo <b>bônus de volume</b> e travada no teto. Lançamento paga menos porque reativar lista de lançamento é mais fácil que ressuscitar lead de estoque.</div>
+
+      <div class="flex mt-2" style="gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:290px">
+          <b class="tiny">Valor por reativação</b>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px">
+            <tr class="tiny muted" style="text-align:left"><th style="padding:3px 6px">VGV do negócio</th><th style="text-align:right">🎯 Estoque</th><th style="text-align:right">🚀 Lançamento</th></tr>
+            ${est.map((fx, i) => `<tr style="border-top:1px solid var(--bd,#eef2f7)" data-rg-b>
+              <td style="padding:4px 6px">${ed ? `<span class="tiny muted">até R$</span> <input class="input rg-teto" type="number" value="${fx[0] >= 999999999 ? '' : fx[0]}" placeholder="∞" style="width:98px;padding:1px 5px">` : faixaVgvLbl(fx, i, est)}</td>
+              <td style="text-align:right">${ed ? `<input class="input rg-est" type="number" value="${fx[1]}" style="width:74px;padding:1px 5px;text-align:right">` : `<b>${brlC(fx[1])}</b>`}</td>
+              <td style="text-align:right">${ed ? `<input class="input rg-lanc" type="number" value="${(lanc[i] || [])[1] || 0}" style="width:74px;padding:1px 5px;text-align:right">` : brlC((lanc[i] || [])[1] || 0)}</td>
+            </tr>`).join('')}
+          </table>
+        </div>
+        <div style="width:230px">
+          <b class="tiny">Bônus por volume no mês</b>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px">
+            <tr class="tiny muted" style="text-align:left"><th style="padding:3px 6px">Fechamentos</th><th style="text-align:right">Bônus</th></tr>
+            ${vol.map((fx, i) => { const de = i === 0 ? 1 : Number(vol[i - 1][0]) + 1;
+              const lbl = fx[0] >= 999999 ? de + '+' : (de === fx[0] ? de : de + ' a ' + fx[0]);
+              return `<tr style="border-top:1px solid var(--bd,#eef2f7)" data-rg-v>
+                <td style="padding:4px 6px">${ed ? `<span class="tiny muted">até</span> <input class="input rg-vt" type="number" value="${fx[0] >= 999999 ? '' : fx[0]}" placeholder="∞" style="width:56px;padding:1px 5px">` : lbl}</td>
+                <td style="text-align:right">${ed ? `<input class="input rg-vm" type="number" step="0.05" value="${fx[1]}" style="width:64px;padding:1px 5px;text-align:right">` : `<b style="color:#16a34a">${multC(fx[1])}</b>`}</td>
+              </tr>`; }).join('')}
+          </table>
+        </div>
+      </div>
+
+      <div class="flex items-center mt-2" style="gap:8px;flex-wrap:wrap">
+        <span class="tiny">Teto mensal: ${ed ? `R$ <input class="input" id="rg-teto-mes" type="number" value="${_rg.leire_teto}" style="width:110px;padding:2px 6px">` : `<b>${brlC(_rg.leire_teto)}</b>`}</span>
+        ${ed ? '<button class="btn btn-primary btn-sm" id="rg-save" style="margin-left:auto">💾 Salvar tabela</button>' : ''}
+      </div>
+
+      <div class="tiny muted mt-2" style="background:var(--bg-3);border-radius:8px;padding:8px 10px">
+        <b>Exemplo:</b> 5 reativações no mês — 3 de estoque a ${brlC((est[0] || [])[1])} + 2 de estoque em VGV maior a ${brlC((est[1] || [])[1])} = base ${brlC(3 * ((est[0] || [])[1] || 0) + 2 * ((est[1] || [])[1] || 0))}. Com 5 fechamentos o bônus é ${multC((vol.find(v => 5 <= v[0]) || [0, 1])[1])} → <b>${brlC((3 * ((est[0] || [])[1] || 0) + 2 * ((est[1] || [])[1] || 0)) * ((vol.find(v => 5 <= v[0]) || [0, 1])[1] || 1))}</b>. O bônus vale pra <b>todas</b> as reativações do mês, não só a última.
+      </div>
+    </div>`;
+
+  const s = document.getElementById('rg-save');
+  if (s) s.onclick = salvarComissao;
+}
+
+async function salvarComissao() {
+  const linhas = [...document.querySelectorAll('[data-rg-b]')].map(r => ({
+    teto: r.querySelector('.rg-teto').value.trim() ? Number(r.querySelector('.rg-teto').value) : 999999999,
+    est: Number(r.querySelector('.rg-est').value) || 0,
+    lanc: Number(r.querySelector('.rg-lanc').value) || 0,
+  })).sort((a, b) => a.teto - b.teto);
+  const vol = [...document.querySelectorAll('[data-rg-v]')].map(r => [
+    r.querySelector('.rg-vt').value.trim() ? Number(r.querySelector('.rg-vt').value) : 999999,
+    Number(r.querySelector('.rg-vm').value) || 1,
+  ]).sort((a, b) => a[0] - b[0]);
+  if (!linhas.length || !vol.length) { alert('❌ As faixas não podem ficar vazias.'); return; }
+  try {
+    _rg = await api.request('/api/v3/comissao/regras', { method: 'POST', body: {
+      leire_estoque: linhas.map(l => [l.teto, l.est]),
+      leire_lancamento: linhas.map(l => [l.teto, l.lanc]),
+      leire_volume: vol,
+      leire_teto: Number(document.getElementById('rg-teto-mes').value) || 0,
+    } });
+    _rg.pode_editar = true;
+    alert('💾 Tabela salva. Vale também na tela de Comissionamento.');
+    renderComissao();
+  } catch (e) { alert('❌ NÃO SALVOU: ' + e.message); }
 }
 
 function pedirMotivo() {
