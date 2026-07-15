@@ -15,7 +15,9 @@ Escopos: ZohoCalendar.calendar.ALL + ZohoCalendar.event.ALL (2 vias).
 import hashlib, json, os, time, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
 
-SCOPES = "ZohoCalendar.calendar.ALL,ZohoCalendar.event.ALL"
+# resources.ALL entra JUNTO de propósito (v84.58): mudar escopo depois obriga
+# TODO MUNDO a reautorizar. Como ninguém conectou ainda, sai de graça agora.
+SCOPES = "ZohoCalendar.calendar.ALL,ZohoCalendar.event.ALL,ZohoCalendar.resources.ALL"
 _DEFAULT_REDIRECT = "https://www.housepsm.com.br/api/v3/zoho/callback"
 _HOME = "https://www.housepsm.com.br/v2/#/agenda"
 _tok_cache = {}  # user_id -> {"access": str, "exp": float, "api_domain": str}

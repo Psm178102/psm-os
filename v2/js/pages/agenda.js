@@ -96,6 +96,74 @@ function nomeDe(uid) {
   return (u && u.name) || uid || '—';
 }
 
+/* ── 🚪 Salas de reunião (Recursos → Localizações do Zoho) ────────────────
+   Todo mundo vê o mapa do dia, mesmo quem ainda não conectou o próprio Zoho:
+   a sala é da empresa, não de ninguém. Mas RESERVAR exige a conexão da
+   pessoa — senão a reserva nasceria no nome errado. */
+async function loadSalas() {
+  const host = document.getElementById('salas-box');
+  if (!host || _escopo === 'time') return;
+  const dia = _view === 'calendario' ? isoDate(_mesAtual) : isoDate(new Date());
+  host.innerHTML = '<div class="tiny muted"><span class="spinner"></span> Consultando as salas…</div>';
+  let d;
+  try { d = await api.request('/api/v3/zoho/salas?dia=' + dia); }
+  catch (e) { host.innerHTML = ''; return; }
+
+  if (!d.configurado) { host.innerHTML = ''; return; }
+  if (d.sem_conexao) {
+    host.innerHTML = `<div class="tiny muted" style="background:var(--bg-3);border-radius:10px;padding:8px 12px">
+      🚪 <b>Salas de reunião</b> — ${escapeHtml(d.aviso || 'conecte seu Zoho pra ver')}</div>`;
+    return;
+  }
+  if (d.erro_zoho || !(d.salas || []).length) {
+    host.innerHTML = `<div class="tiny muted" style="background:var(--bg-3);border-radius:10px;padding:8px 12px">
+      🚪 <b>Salas de reunião</b> — ${d.erro_zoho ? 'o Zoho recusou a consulta: ' + escapeHtml(d.erro_zoho)
+        : 'nenhuma sala cadastrada em Recursos → Localizações no Zoho.'}</div>`;
+    return;
+  }
+  host.innerHTML = `<div style="background:var(--bg-3);border-radius:10px;padding:10px 12px">
+    <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
+      <b class="tiny">🚪 Salas de reunião · ${fmtDataBR(d.dia)}</b>
+      <span class="tiny muted">${d.salas.length} sala(s) no escritório</span>
+    </div>
+    <div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
+      ${d.salas.map(s => {
+        const livre = s.livre_agora !== false;
+        return `<div style="flex:1;min-width:190px;background:var(--bg-2);border-radius:10px;padding:10px 12px;border-left:3px solid ${livre ? '#16a34a' : '#dc2626'}">
+          <div class="flex items-center" style="gap:6px;flex-wrap:wrap">
+            <b style="font-size:13px">${escapeHtml(s.nome || 'Sala')}</b>
+            <span class="tiny" style="color:${livre ? '#16a34a' : '#dc2626'};font-weight:800">${livre ? '● livre' : '● ocupada'}</span>
+          </div>
+          <div class="tiny muted">${s.capacidade ? '👥 ' + escapeHtml(String(s.capacidade)) + ' lugares' : ''}${s.local ? ' · ' + escapeHtml(s.local) : ''}</div>
+          ${(s.reservas || []).length ? `<div class="tiny muted mt-1">${s.reservas.length} reserva(s) hoje</div>` : '<div class="tiny muted mt-1">sem reservas hoje</div>'}
+          <button class="btn btn-ghost btn-sm mt-1 sala-rsv" data-id="${escapeHtml(s.id)}" data-nome="${escapeHtml(s.nome || '')}" style="padding:2px 10px;font-size:11px">📌 Reservar</button>
+        </div>`;
+      }).join('')}
+    </div>
+    ${!d.eu_conectado ? '<div class="tiny muted mt-2">Você está vendo pela conexão de um colega. Pra <b>reservar</b>, conecte seu Zoho abaixo — a sala fica no seu nome.</div>' : ''}
+  </div>`;
+
+  host.querySelectorAll('.sala-rsv').forEach(b => b.onclick = () => reservarSala(b.dataset.id, b.dataset.nome, d.dia));
+}
+
+async function reservarSala(rid, nome, dia) {
+  const hi = prompt(`Reservar "${nome}" em ${fmtDataBR(dia)}\n\nHora de início (HH:MM):`, '09:00');
+  if (!hi) return;
+  const hf = prompt('Hora de término (HH:MM):', '10:00');
+  if (!hf) return;
+  const titulo = prompt('Assunto da reunião:', 'Reunião') || 'Reunião';
+  try {
+    await api.request('/api/v3/zoho/salas', { method: 'POST', body: { resource_id: rid, dia, hora_inicio: hi, hora_fim: hf, titulo } });
+    alert(`✅ ${nome} reservada em ${fmtDataBR(dia)}, ${hi}–${hf}.`);
+    loadSalas();
+  } catch (e) {
+    const msg = (e.data && e.data.precisa_conectar)
+      ? '🔗 Conecte seu Zoho primeiro — a sala é reservada no seu nome.'
+      : '❌ Não consegui reservar: ' + (e.message || e);
+    alert(msg);
+  }
+}
+
 function fmtDataBR(d) {
   return d ? String(d).slice(0, 10).split('-').reverse().join('/') : '—';
 }
@@ -109,6 +177,7 @@ function render(scope) {
         ${_podeVerTime ? `<button class="btn btn-ghost btn-sm" id="ag-escopo" style="margin-left:8px">${_escopo === 'time' ? '🔒 ver só a minha' : '👥 ver agenda do time'}</button>` : ''}
       </p>
       ${convitesCard()}
+      <div id="salas-box" class="mt-2"></div>
       <div id="zoho-banner" class="mt-2"></div>
 
       <!-- Controles -->
@@ -186,6 +255,7 @@ function render(scope) {
     }
   }));
   loadZohoBanner();
+  loadSalas();
 }
 
 // ─── Zoho Calendar (2 vias, por usuário) ────────────────────────────────
