@@ -49,23 +49,25 @@ def _lista(d, *chaves):
     return []
 
 
-def _tok_de_qualquer(sb, preferido=None):
-    """Token de leitura: o do próprio usuário se ele estiver conectado; senão o
-    de qualquer colega conectado (a sala é da empresa)."""
+def _tokens_conectados(sb, preferido=None):
+    """TODOS os tokens utilizáveis, o do próprio usuário primeiro.
+
+    v84.71: virou lista porque o freebusy exige o escopo novo (freebusy.READ)
+    e quem conectou antes dele tem token sem essa permissão. A leitura de sala
+    é dado da EMPRESA — se o token do usuário levar 401, o de um colega que já
+    reconectou serve. UM reconecte destrava o mapa pra todo mundo."""
     try:
-        if preferido:
-            c = z.get_conn(sb, preferido)
-            if c:
-                return z.access_token(c)[0], True
-        rows = sb.table("zoho_conexoes").select("*").limit(10).execute().data or []
-        for c in rows:
-            try:
-                return z.access_token(c)[0], False
-            except Exception:
-                continue
+        rows = sb.table("zoho_conexoes").select("*").limit(20).execute().data or []
     except Exception:
-        pass
-    return None, False
+        rows = []
+    rows.sort(key=lambda c: 0 if str(c.get("user_id")) == str(preferido) else 1)
+    toks = []
+    for c in rows:
+        try:
+            toks.append((z.access_token(c)[0], str(c.get("user_id"))))
+        except Exception:
+            continue
+    return toks
 
 
 def _salas(token, branch_id=None):
@@ -182,21 +184,29 @@ def _para_brt(s):
     return dt.astimezone(_tz(timedelta(hours=-3)))
 
 
-# Ordem da cadeia: e-mail primeiro (é a forma que a doc especifica sem
-# ambiguidade e cujo formato eu confirmei), recurso como reserva. Cada tentativa
-# custa 1 request e só roda se a anterior falhar.
-_FORMAS = (("email", _fb_por_email), ("recurso", _fb_por_recurso))
+def _freebusy(tokens, sala, dia, comeca=0):
+    """Devolve (reservas, forma, idx_do_token_que_respondeu).
 
-
-def _freebusy(token, sala, dia):
-    """Devolve (reservas, forma_que_respondeu). Estoura só se TODAS falharem —
-    aí o chamador marca a sala como 'desconhecida' (cinza), nunca livre."""
+    E-mail primeiro (formato confirmado na doc), em CADA token: 401/403 aqui é
+    'este token não tem o escopo freebusy' — o do colega pode ter, então segue
+    pro próximo. Erro que não é permissão não melhora trocando token: para.
+    Recurso fica de reserva (deu 404 nesta conta, mas custa 1 request e o 404
+    pode ser do plano). `comeca` lembra qual token funcionou pra sala anterior
+    — as outras salas nem tentam os que já falharam.
+    Estoura só se TUDO falhar — o chamador pinta cinza, nunca 'livre'."""
     erros = []
-    for nome, fn in _FORMAS:
+    for i in range(comeca, len(tokens)):
         try:
-            return _reservas(fn(token, sala, dia)), nome
+            return _reservas(_fb_por_email(tokens[i][0], sala, dia)), "email", i
         except Exception as e:
-            erros.append(f"{nome}: {str(e)[:60]}")
+            msg = str(e)
+            erros.append(f"email[{tokens[i][1]}]: {msg[:40]}")
+            if "401" not in msg and "403" not in msg:
+                break
+    try:
+        return _reservas(_fb_por_recurso(tokens[comeca][0], sala, dia)), "recurso", comeca
+    except Exception as e:
+        erros.append(f"recurso: {str(e)[:40]}")
     raise RuntimeError(" · ".join(erros))
 
 
@@ -269,12 +279,14 @@ class handler(BaseHTTPRequestHandler):
         # com a doc, e adivinhar formato às cegas custa uma rodada de deploy.
         debug = (q.get("debug") or [""])[0] == "1" and (user.get("lvl") or 0) >= 7
 
-        token, eh_meu = _tok_de_qualquer(sb, user.get("id"))
-        if not token:
+        tokens = _tokens_conectados(sb, user.get("id"))
+        if not tokens:
             # ninguém conectou ainda — é informação, não erro
             return self._send(200, {"ok": True, "configurado": True, "sem_conexao": True,
                                     "salas": [], "dia": dia,
                                     "aviso": "Nenhuma conta Zoho conectada ainda. Conecte a sua pra liberar o mapa das salas."})
+        token = tokens[0][0]
+        eh_meu = tokens[0][1] == str(user.get("id"))
         cru = {}
         try:
             # /resources responde SEM branchId, e cada sala já traz o branch_id
@@ -297,6 +309,7 @@ class handler(BaseHTTPRequestHandler):
 
         agora = _agora()
         out, falhas = [], []
+        idx = 0  # memo: qual token respondeu — a próxima sala começa por ele
         for s in salas:
             if not isinstance(s, dict):
                 continue
@@ -307,7 +320,7 @@ class handler(BaseHTTPRequestHandler):
             # "livre" quando não se sabe é o erro que manda dois times pra mesma
             # sala; o certo é admitir que não deu pra ler.
             try:
-                reservas, forma = _freebusy(token, s, dia)
+                reservas, forma, idx = _freebusy(tokens, s, dia, idx)
                 estado, marca = _situacao(reservas, dia, agora)
                 erro_sala = None
             except Exception as e:
@@ -316,6 +329,7 @@ class handler(BaseHTTPRequestHandler):
                 falhas.append(nome)
             if debug:
                 cru.setdefault("fb", {})[nome] = {"forma": forma, "reservas": reservas,
+                                                  "via": tokens[idx][1] if forma else None,
                                                   "erro": erro_sala}
             out.append({
                 "id": rid,
@@ -333,12 +347,18 @@ class handler(BaseHTTPRequestHandler):
         if debug:
             cru["salas_cru"] = salas[:1]
             cru["branch_usado"] = branch_id
+        # Todas as falhas foram 401 no e-mail = NENHUMA conexão tem o escopo de
+        # disponibilidade (freebusy.READ, v84.71). Não é bug: é permissão que
+        # nasceu depois das conexões. UM reconecte resolve pra empresa toda.
+        falta_escopo = bool(falhas) and all(
+            "401" in (s.get("erro") or "") for s in out if s.get("erro"))
         return self._send(200, {"ok": True, "configurado": True, "dia": dia,
                                 "hoje": dia == agora.strftime("%Y-%m-%d"),
                                 "agora": agora.strftime("%H:%M"),
                                 "branch_id": branch_id, "eu_conectado": eh_meu,
                                 "salas": out, "total": len(out),
                                 **({"falhas": falhas} if falhas else {}),
+                                **({"falta_permissao_horarios": True} if falta_escopo else {}),
                                 **({"cru": cru} if debug else {})})
 
     def do_POST(self):

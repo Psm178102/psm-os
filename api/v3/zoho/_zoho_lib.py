@@ -17,7 +17,14 @@ from datetime import datetime, timedelta, timezone
 
 # resources.ALL entra JUNTO de propósito (v84.58): mudar escopo depois obriga
 # TODO MUNDO a reautorizar. Como ninguém conectou ainda, sai de graça agora.
-SCOPES = "ZohoCalendar.calendar.ALL,ZohoCalendar.event.ALL,ZohoCalendar.resources.ALL"
+# freebusy.READ (v84.71): a ocupação das salas vem do freebusy por e-mail
+# (/calendars/freebusy?uemail=), que exige este escopo — descoberto em produção
+# com 401 e confirmado na doc. O medo do v84.58 aconteceu: 3 pessoas já
+# conectadas (Paulo/Leire/Mariane) ficam com token SEM este escopo. Mitigação
+# em salas.py: a leitura de sala é dado da EMPRESA, então o freebusy tenta o
+# token de QUALQUER conexão que já tenha a permissão — UM reconecte destrava o
+# mapa pra todo mundo; a agenda de quem não reconectou segue intacta.
+SCOPES = "ZohoCalendar.calendar.ALL,ZohoCalendar.event.ALL,ZohoCalendar.resources.ALL,ZohoCalendar.freebusy.READ"
 _DEFAULT_REDIRECT = "https://www.housepsm.com.br/api/v3/zoho/callback"
 _HOME = "https://www.housepsm.com.br/v2/#/agenda"
 _tok_cache = {}  # user_id -> {"access": str, "exp": float, "api_domain": str}

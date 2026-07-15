@@ -161,6 +161,8 @@ async function loadSalas() {
         </div>`;
       }).join('')}
     </div>
+    ${d.falta_permissao_horarios ? `<div class="tiny mt-2" style="background:#f59e0b12;border-radius:8px;padding:6px 10px;border-left:3px solid #f59e0b">
+      🔑 <b>Os horários das salas precisam de uma permissão nova.</b> Basta <b>uma</b> pessoa desconectar e reconectar o Zoho (botão abaixo) — o mapa libera pra empresa inteira. A sincronização da agenda de todo mundo segue normal.</div>` : ''}
     ${!d.eu_conectado ? '<div class="tiny muted mt-2">Você está vendo pela conexão de um colega. Pra <b>reservar</b>, conecte seu Zoho abaixo — a sala fica no seu nome.</div>' : ''}
   </div>`;
 
