@@ -76,36 +76,128 @@ def _salas(token, branch_id=None):
     return _lista(d, "resources", "data")
 
 
-def _freebusy(token, rid, dia):
-    """Ocupação REAL de UMA sala no dia — com horários.
-
-    v84.68: o caminho é /resources/{id}/freebusy, com o id NO CAMINHO. Antes eu
-    chamava /resources/freebusy (sem id): aquilo casava com a rota da LISTA de
-    recursos e devolvia as salas de novo, com um is_available do dia inteiro
-    colado. Resultado: as duas salas apareciam "ocupadas" com ZERO reservas —
-    ocupadas por ninguém. Nunca cheguei a pedir a ocupação.
-
-    Resposta (confirmada na doc):
+def _fb_por_recurso(token, sala, dia):
+    """Forma A (doc "Get resource free busy detail"): /resources/{id}/freebusy.
+    Resposta documentada:
       {"range":"20260715_20260715",
        "<resource_id>": {"20260715": [{"start_time":"1415","end_time":"1430",
-                                       "all_day":false, ...}]}}
-    Vazio aqui é resposta legítima: sala livre o dia todo.
+                                       "all_day":false}]}}
+    Em produção esta forma deu 404 nas duas salas (v84.68) — fica na cadeia
+    porque o 404 pode ser da conta/plano, não do caminho, e custa 1 request.
     """
+    rid = str(sala.get("resource_id") or sala.get("id") or "")
+    if not rid:
+        raise ValueError("sala sem resource_id")
     d0 = datetime.strptime(dia, "%Y-%m-%d").strftime("%m/%d/%Y")
     qs = {"start_date": d0, "end_date": d0, "timezone": TZ}
-    url = f"{z.calendar_base()}/resources/{urllib.parse.quote(str(rid))}/freebusy?" + urllib.parse.urlencode(qs)
+    url = f"{z.calendar_base()}/resources/{urllib.parse.quote(rid)}/freebusy?" + urllib.parse.urlencode(qs)
     d = z._req("GET", url, token)
     if not isinstance(d, dict):
-        return []
-    chave_dia = datetime.strptime(dia, "%Y-%m-%d").strftime("%Y%m%d")
-    # a chave do topo é o resource_id; não confio no casing/tipo — varro os dicts
+        raise ValueError("shape inesperado")
+    chave = datetime.strptime(dia, "%Y-%m-%d").strftime("%Y%m%d")
+    out = []
     for k, v in d.items():
         if k == "range" or not isinstance(v, dict):
             continue
-        slots = v.get(chave_dia)
-        if isinstance(slots, list):
-            return [s for s in slots if isinstance(s, dict)]
-    return []
+        for s in (v.get(chave) or []):
+            if not isinstance(s, dict):
+                continue
+            if s.get("all_day"):
+                out.append({"inicio": None, "fim": None, "dia_todo": True})
+                continue
+            i, f = _hhmm(s.get("start_time")), _hhmm(s.get("end_time"))
+            if i and f:
+                out.append({"inicio": i, "fim": f, "dia_todo": False})
+    return out
+
+
+def _fb_por_email(token, sala, dia):
+    """Forma B (doc "Get user's free/busy details"): /calendars/freebusy?uemail=…
+
+    A sala do Zoho TEM caixa própria (res_email_id) — então dá pra perguntar a
+    agenda dela como se fosse a de uma pessoa. Formato dos parâmetros:
+    yyyyMMdd'T'HHmmss. Resposta:
+      {"freebusy":[{"startTime":"20170419T190000Z","endTime":"20170419T193000Z",
+                    "fbtype":"busy"}]}
+
+    ATENÇÃO AO FUSO: aqui os horários voltam em UTC (sufixo Z) — ao contrário da
+    forma A, que responde no fuso pedido. Sem converter, uma reunião das 14h
+    apareceria às 17h. É o mesmo erro de 3h do relógio do Vercel, só que vindo
+    do outro lado.
+    """
+    email = (sala.get("res_email_id") or "").strip()
+    if not email:
+        raise ValueError("sala sem res_email_id")
+    # JANELA LARGA DE PROPÓSITO (±1 dia) e recorte no fuso DAQUI. A doc não diz
+    # em que fuso o Zoho lê sdate/edate. Se ele ler como UTC, pedir 00:00–23:59
+    # do dia daria 21h de ONTEM às 20h59 de hoje em Brasília: toda reunião
+    # marcada depois das 21h sumiria da tela e entraria lixo da madrugada
+    # anterior. Pedindo folga dos dois lados e filtrando por data local, o fuso
+    # que o Zoho usa deixa de importar.
+    d1 = datetime.strptime(dia, "%Y-%m-%d")
+    ini_q = (d1 - timedelta(days=1)).strftime("%Y%m%d") + "T000000"
+    fim_q = (d1 + timedelta(days=1)).strftime("%Y%m%d") + "T235959"
+    qs = {"uemail": email, "sdate": ini_q, "edate": fim_q, "ftype": "eventbased"}
+    url = f"{z.calendar_base()}/calendars/freebusy?" + urllib.parse.urlencode(qs)
+    d = z._req("GET", url, token)
+    itens = _lista(d, "freebusy", "data")
+
+    BRT = _tz(timedelta(hours=-3))
+    dia_ini = d1.replace(tzinfo=BRT)
+    dia_fim = dia_ini + timedelta(days=1)
+    out = []
+    for s in itens:
+        if not isinstance(s, dict):
+            continue
+        if str(s.get("fbtype") or "busy").lower() != "busy":
+            continue  # 'free'/'tentative' não ocupa a sala
+        ini = _para_brt(s.get("startTime"))
+        fim = _para_brt(s.get("endTime"))
+        if not ini or not fim:
+            continue
+        if fim <= dia_ini or ini >= dia_fim:
+            continue  # reunião de outro dia — a folga da janela trouxe, aqui sai
+        cortou_ini, cortou_fim = ini < dia_ini, fim > dia_fim
+        ini = max(ini, dia_ini)
+        fim = min(fim, dia_fim)
+        if cortou_ini and cortou_fim:
+            out.append({"inicio": None, "fim": None, "dia_todo": True})
+        else:
+            out.append({"inicio": ini.strftime("%H:%M"),
+                        "fim": "23:59" if cortou_fim else fim.strftime("%H:%M"),
+                        "dia_todo": False})
+    return out
+
+
+def _para_brt(s):
+    """'20260715T190000Z' -> datetime em BRT. None se não parsear.
+    O sufixo Z é UTC; sem Z, assumo que já veio no fuso local (o Zoho varia)."""
+    s = str(s or "").strip()
+    utc = s.endswith("Z")
+    try:
+        dt = datetime.strptime(s.rstrip("Z"), "%Y%m%dT%H%M%S")
+    except Exception:
+        return None
+    dt = dt.replace(tzinfo=_tz(timedelta(0)) if utc else _tz(timedelta(hours=-3)))
+    return dt.astimezone(_tz(timedelta(hours=-3)))
+
+
+# Ordem da cadeia: e-mail primeiro (é a forma que a doc especifica sem
+# ambiguidade e cujo formato eu confirmei), recurso como reserva. Cada tentativa
+# custa 1 request e só roda se a anterior falhar.
+_FORMAS = (("email", _fb_por_email), ("recurso", _fb_por_recurso))
+
+
+def _freebusy(token, sala, dia):
+    """Devolve (reservas, forma_que_respondeu). Estoura só se TODAS falharem —
+    aí o chamador marca a sala como 'desconhecida' (cinza), nunca livre."""
+    erros = []
+    for nome, fn in _FORMAS:
+        try:
+            return _reservas(fn(token, sala, dia)), nome
+        except Exception as e:
+            erros.append(f"{nome}: {str(e)[:60]}")
+    raise RuntimeError(" · ".join(erros))
 
 
 def _hhmm(s):
@@ -117,15 +209,16 @@ def _hhmm(s):
 
 
 def _reservas(slots):
-    out = []
+    """Cada forma da cadeia já devolve {inicio, fim, dia_todo}; aqui só ordena e
+    tira repetido (a mesma reunião pode vir 2x se a sala estiver em 2 agendas)."""
+    vistos, out = set(), []
     for s in slots:
-        if s.get("all_day"):
-            out.append({"inicio": None, "fim": None, "dia_todo": True})
+        ch = (s.get("inicio"), s.get("fim"), s.get("dia_todo"))
+        if ch in vistos:
             continue
-        i, f = _hhmm(s.get("start_time")), _hhmm(s.get("end_time"))
-        if i and f:
-            out.append({"inicio": i, "fim": f, "dia_todo": False})
-    return sorted(out, key=lambda r: r["inicio"] or "")
+        vistos.add(ch)
+        out.append(s)
+    return sorted(out, key=lambda r: ("" if r["dia_todo"] else (r["inicio"] or "")))
 
 
 def _situacao(reservas, dia, agora):
@@ -214,14 +307,16 @@ class handler(BaseHTTPRequestHandler):
             # "livre" quando não se sabe é o erro que manda dois times pra mesma
             # sala; o certo é admitir que não deu pra ler.
             try:
-                reservas = _reservas(_freebusy(token, rid, dia))
+                reservas, forma = _freebusy(token, s, dia)
                 estado, marca = _situacao(reservas, dia, agora)
                 erro_sala = None
             except Exception as e:
-                reservas, estado, marca, erro_sala = [], "desconhecida", None, str(e)[:120]
+                reservas, forma = [], None
+                estado, marca, erro_sala = "desconhecida", None, str(e)[:160]
                 falhas.append(nome)
             if debug:
-                cru.setdefault("fb_cru", {})[nome] = reservas
+                cru.setdefault("fb", {})[nome] = {"forma": forma, "reservas": reservas,
+                                                  "erro": erro_sala}
             out.append({
                 "id": rid,
                 "nome": nome,
