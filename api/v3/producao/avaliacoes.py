@@ -43,6 +43,7 @@ DEFAULT_CFG = {
     "colunas": [
         {"id": "origens", "nome": "Origens", "emoji": "📥", "cor": "#64748b", "followup_dias": 0},
         {"id": "abordagem", "nome": "Abordagem", "emoji": "💬", "cor": "#2563eb", "followup_dias": 2},
+        {"id": "followup", "nome": "Follow-up", "emoji": "🔁", "cor": "#0891b2", "followup_dias": 0},
         {"id": "nota_feedback", "nome": "Nota + Feedback", "emoji": "⭐", "cor": "#d97706", "followup_dias": 0},
         {"id": "nota_baixa", "nome": "Nota baixa", "emoji": "🔴", "cor": "#dc2626", "followup_dias": 1},
         {"id": "ciclo_realizado", "nome": "Ciclo realizado", "emoji": "✅", "cor": "#16a34a", "followup_dias": 0},
