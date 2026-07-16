@@ -78,6 +78,7 @@ import { pageCanal } from './pages/canal.js';
 import { pageBase } from './pages/base.js';
 import { pageFormacao } from './pages/formacao.js';
 import { pageGestaoPessoas, pageOnboarding, pageOffboarding, pageRhTreinamentos, pageRhRecrutamento, pageRhPlano, pageRhClima, pageRhAvaliacoes } from './pages/gestao-pessoas.js';
+import { pageArchLeg } from './pages/arch-leg.js';
 import { pageCompras, pagePatrimonio, pageManutencoes } from './pages/backoffice-adm.js';
 import { pageRhCargos } from './pages/rh-cargos.js';
 import { pageTalentos } from './pages/talentos.js';
@@ -166,7 +167,7 @@ export const ROUTE_GROUP = {
   '/formacao': 'academy', '/premiacoes': 'inicio',
   // Gestão de Pessoas & RH (grupo próprio)
   '/gestao-pessoas': 'rh', '/onboarding': 'rh', '/offboarding': 'rh',
-  '/rh-treinamentos': 'rh', '/rh-recrutamento': 'rh', '/rh-plano': 'rh', '/rh-clima': 'rh', '/rh-avaliacoes': 'rh', '/rh-funcoes': 'rh',   // abas RH soltas (v81.55 / funcoes+organograma v81.95)
+  '/rh-treinamentos': 'rh', '/rh-recrutamento': 'rh', '/rh-plano': 'rh', '/rh-clima': 'rh', '/rh-avaliacoes': 'rh', '/rh-arch-leg': 'rh', '/rh-funcoes': 'rh',   // abas RH soltas (v81.55 / funcoes+organograma v81.95)
   '/sucesso-cliente': 'sucesso',   // Customer Success (v81.53)
   '/cs-onboarding': 'sucesso', '/cs-carteira': 'sucesso', '/cs-suporte': 'sucesso', '/cs-retencao': 'sucesso', '/cs-metricas': 'sucesso', '/cs-upsell': 'sucesso', '/cs-marketing': 'sucesso', '/cs-avaliacoes': 'sucesso', '/cs-indicacoes': 'sucesso',   // abas CS soltas (v81.55)
   '/talentos': 'rh', '/psmhub': 'diretoria',
@@ -291,6 +292,11 @@ function canSee(path, user) {
   // devolve a cada um as credenciais liberadas pra ele (viewers). v77.93
   if (base === '/logins') return true;
 
+  // 🔒 Consultoria Arch Leg (dado psicológico sensível): SÓ sócio/diretor
+  // (lvl>=8) OU quem é da Arch Leg (role consultor_arch_leg). Trava explícita,
+  // igual à do backend — não depende da matriz por papel. v84.78
+  if (base === '/rh-arch-leg') return (user?.lvl || 0) >= 8 || (user?.role || '').toLowerCase() === 'consultor_arch_leg';
+
   // override por PAPEL (matriz editável pelo sócio) — só quando o papel foi customizado.
   // socio nunca entra aqui (não dá pra se trancar fora). v77.81
   const rp = _rolePerms[role];
@@ -403,7 +409,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.77';
+const APP_VERSION = '84.78';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -586,6 +592,7 @@ const APP_VERSION = '84.77';
   router.register('/rh-plano', { render: async (ctx, root) => { setHeader('Plano de Crescimento'); highlight('/rh-plano'); await pageRhPlano(ctx, root); } });
   router.register('/rh-clima', { render: async (ctx, root) => { setHeader('Clima Interno'); highlight('/rh-clima'); await pageRhClima(ctx, root); } });
   router.register('/rh-avaliacoes', { render: async (ctx, root) => { setHeader('Avaliações & Feedbacks'); highlight('/rh-avaliacoes'); await pageRhAvaliacoes(ctx, root); } });
+  router.register('/rh-arch-leg', { render: async (ctx, root) => { setHeader('Consultoria Arch Leg'); highlight('/rh-arch-leg'); await pageArchLeg(ctx, root); } });
   router.register('/rh-funcoes',    { render: async (ctx, root) => { setHeader('Funções & Organograma'); highlight('/rh-funcoes'); await pageRhCargos(ctx, root); } });
   router.register('/cs-onboarding', { render: async (ctx, root) => { setHeader('Onboarding do Cliente'); highlight('/cs-onboarding'); await pageSCOnboarding(ctx, root); } });
   router.register('/cs-carteira', { render: async (ctx, root) => { setHeader('Gestão de Carteira'); highlight('/cs-carteira'); await pageSCCarteira(ctx, root); } });
@@ -846,6 +853,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/rh-plano"><span class="sb-ico">📈</span> Plano de Crescimento</button>
         <button class="sb-link" data-nav="/rh-clima"><span class="sb-ico">🌡</span> Clima Interno</button>
         <button class="sb-link" data-nav="/rh-avaliacoes"><span class="sb-ico">⭐</span> Avaliações & Feedbacks</button>
+        <button class="sb-link" data-nav="/rh-arch-leg"><span class="sb-ico">🧭</span> Consultoria Arch Leg</button>
         <button class="sb-link" data-nav="/rh-funcoes"><span class="sb-ico">🗂</span> Funções & Organograma</button>
 
         <div class="sb-sec">🤝 Sucesso do Cliente</div>
