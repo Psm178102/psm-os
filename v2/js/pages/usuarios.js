@@ -30,6 +30,23 @@ const allRolesList = () => [...ROLES, ..._customRoles.map(r => ({ id: r.id, lbl:
 // Papéis OFERECIDOS no seletor: esconde legados, mas mantém o papel atual do usuário
 const roleOptions = (curId) => allRolesList().filter(r => !r.legacy || r.id === curId);
 
+// v84.77: <options> do seletor de papel, com as categorias que o SÓCIO criou
+// num optgroup DESTACADO. Antes elas caíam no fim de uma lista de 16 papéis
+// fixos, embaixo de "Corretor Terceiros" — fácil não ver e achar que a
+// categoria recém-criada "não apareceu". Agora saltam aos olhos, separadas.
+function roleOptionsHtml(curId, selId) {
+  const sel = r => (r.id === selId ? ' selected' : '');
+  const opt = r => `<option value="${r.id}"${sel(r)}>${r.ico} ${r.lbl}${r.custom ? '' : ' · L' + r.lvl}</option>`;
+  const lista = roleOptions(curId);
+  const fixos = lista.filter(r => !r.custom);
+  const custom = lista.filter(r => r.custom);
+  let html = fixos.map(opt).join('');
+  if (custom.length) {
+    html += `<optgroup label="🏷️ Suas categorias">${custom.map(opt).join('')}</optgroup>`;
+  }
+  return html;
+}
+
 // Equipes: fallback local; a lista REAL e personalizável vem de /api/v3/settings/teams. v81.39
 const TEAMS_DEFAULT = [
   { id: 'conquista',  lbl: 'Conquista',  color: '#dc2626', ico: '🏆' },
@@ -226,7 +243,7 @@ function userRow(u, isSocio, myId) {
         </div>` : ''}
       </div>
       <select class="select" data-action="role" data-id="${u.id}" ${editable ? '' : 'disabled'} style="padding:5px 8px;font-size:11px;font-weight:700;min-width:170px;border-left:3px solid ${role.color}" title="Papel hierárquico">
-        ${roleOptions(u.role).map(r => `<option value="${r.id}"${u.role === r.id ? ' selected' : ''}>${r.ico} ${r.lbl} · L${r.lvl}</option>`).join('')}
+        ${roleOptionsHtml(u.role, u.role)}
       </select>
       <select class="select" data-action="team" data-id="${u.id}" ${editable ? '' : 'disabled'} style="padding:5px 8px;font-size:11px;font-weight:700;min-width:150px;border-left:3px solid ${team.color}" title="Equipe / frente">
         ${(_teams.some(t => t.id === u.team) ? _teams : _teams.concat([teamInfo(u.team)])).map(t => `<option value="${t.id}"${u.team === t.id ? ' selected' : ''}>${t.ico} ${t.lbl}</option>`).join('')}
@@ -250,7 +267,7 @@ function addUserBlock() {
         <input id="nu-name"  class="input" placeholder="Nome completo" style="width:200px;padding:6px 10px;font-size:12px">
         <input id="nu-email" class="input" placeholder="email@imobiliariapsm.com.br" style="width:260px;padding:6px 10px;font-size:12px">
         <select id="nu-role" class="select" style="padding:6px 10px;font-size:12px">
-          ${roleOptions('').map(r => `<option value="${r.id}"${r.id === 'corretor_conquista' ? ' selected' : ''}>${r.ico} ${r.lbl}</option>`).join('')}
+          ${roleOptionsHtml('', 'corretor_conquista')}
         </select>
         <select id="nu-team" class="select" style="padding:6px 10px;font-size:12px">
           ${_teams.map((t, i) => `<option value="${t.id}"${(t.id === 'conquista' || i === 0) ? ' selected' : ''}>${t.ico} ${t.lbl}</option>`).join('')}
