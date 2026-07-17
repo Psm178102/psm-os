@@ -42,6 +42,16 @@ export function ativarDrag({ host, card, coluna, colDe, aoSoltar, aoClicar }) {
     alvo = null; colAtual = null; arrastando = false;
   };
 
+  // v84.80: MATA o drag HTML5 nativo. Se o card ainda tiver draggable="true",
+  // ao segurar-e-arrastar o navegador começa um drag nativo (que não tem
+  // handler nenhum — trocamos por Pointer Events) e SUPRIME os pointermove:
+  // o ativarDrag nunca engata e o card não se move. Era ISSO que travava a
+  // Leire de novo. preventDefault no dragstart derruba o nativo e libera o
+  // pointer — protege os 3 kanbans (e qualquer futuro) num lugar só.
+  host.addEventListener('dragstart', e => {
+    if (e.target.closest(card)) e.preventDefault();
+  });
+
   host.addEventListener('pointerdown', e => {
     const el = e.target.closest(card);
     if (!el || !host.contains(el)) return;

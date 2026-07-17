@@ -79,7 +79,7 @@ function cardHtml(c) {
   const [pc, pl] = PRAZO_UI[fs] || [];
   const borda = fs ? `border:2px solid ${pc};background:${pc}0d` : 'border:1px solid var(--bd,#e2e8f0)';
   const dp = diasParado(c);
-  return `<div class="rk-card" draggable="true" data-id="${esc(c.id)}"
+  return `<div class="rk-card" data-id="${esc(c.id)}"
     style="background:var(--bg-2);${borda};border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:grab">
     ${fs ? `<div class="tiny" style="font-weight:900;color:${pc};margin-bottom:2px">${pl}${c.tarefa?.titulo ? ' · ' + esc(c.tarefa.titulo.replace(/^[^ ]+ /, '')) : ''}</div>` : ''}
     <div class="flex items-center" style="gap:6px">
