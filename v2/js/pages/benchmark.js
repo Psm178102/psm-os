@@ -31,7 +31,7 @@ function render() {
   _root.innerHTML = `
     <div class="card" style="background:#0f172a;color:#e2e8f0;padding:24px;min-height:80vh">
       <div class="flex" style="align-items:center;gap:14px;margin-bottom:20px">
-        <span style="font-size:36px;color:#d4af37">📊</span>
+        <span style="font-size:36px;color:#fffbea">📊</span>
         <div>
           <h2 style="margin:0;color:#fff;font-size:24px">Benchmark de Mercado</h2>
           <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Análise comparativa de concorrentes</p>
@@ -47,7 +47,7 @@ function renderContent() {
   if (_concorrentes.length === 0) {
     body.innerHTML = `
       <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:40px;text-align:center">
-        <p style="color:#64748b">Nenhum concorrente cadastrado. Use o <a href="#/concorrencia" style="color:#d4af37">Radar de Concorrência</a> pra adicionar.</p>
+        <p style="color:#64748b">Nenhum concorrente cadastrado. Use o <a href="#/concorrencia" style="color:#fffbea">Radar de Concorrência</a> pra adicionar.</p>
       </div>
     `;
     return;
@@ -90,9 +90,9 @@ function metricCard(m) {
         ${stat('Máximo', m.format(stats.max), '#22c55e')}
         ${stat('Mínimo', m.format(stats.min), '#ef4444')}
       </div>
-      <div style="padding:10px;background:#0a1628;border-radius:6px;border-left:3px solid #d4af37">
+      <div style="padding:10px;background:#0a1628;border-radius:6px;border-left:3px solid #fffbea">
         <div style="color:#94a3b8;font-size:10px;text-transform:uppercase;font-weight:600">🏆 Líder</div>
-        <div style="color:#d4af37;font-weight:700;font-size:12px">${esc(top?.nome || '—')}</div>
+        <div style="color:#fffbea;font-weight:700;font-size:12px">${esc(top?.nome || '—')}</div>
       </div>
     </div>
   `;

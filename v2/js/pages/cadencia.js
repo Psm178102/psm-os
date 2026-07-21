@@ -136,7 +136,7 @@ function cadCard(c) {
       <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">
         ${(c.passos || []).map((p, i) => `
           <div class="flex" style="gap:6px;align-items:center;font-size:12px;padding:4px 8px;background:var(--bg-3);border-radius:6px">
-            <span style="background:var(--psm-gold);color:#000;font-weight:800;border-radius:4px;padding:2px 6px;font-size:10px">D+${p.dia || 0}</span>
+            <span style="background:var(--psm-navy);color:var(--psm-cream);font-weight:800;border-radius:4px;padding:2px 6px;font-size:10px">D+${p.dia || 0}</span>
             <span>${CANAL_ICO[p.canal] || '📨'} ${esc(p.canal)}</span>
             <span class="tiny muted" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.mensagem || '—')}</span>
           </div>

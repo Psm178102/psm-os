@@ -126,16 +126,17 @@
 }
 
 /* ─── Sidebar nav ─────────────────────────────────────────────────────── */
-.sb-brand { font-weight: 800; font-size: var(--fs-lg); letter-spacing: 1px; padding: var(--s-2) var(--s-3); margin-bottom: var(--s-4); }
+/* acentos sobre a barra NAVY = creme (v84.82) — antes eram dourados */
+.sb-brand { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-xl); letter-spacing: 1px; padding: var(--s-2) var(--s-3); margin-bottom: var(--s-4); }
 .sb-sec   {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  color: var(--psm-gold);
+  color: var(--psm-cream);
   font-weight: 700;
   padding: 14px 12px 6px;
   margin-top: 4px;
-  border-top: 1px solid rgba(212,168,67,0.15);
+  border-top: 1px solid rgba(255,251,234,0.14);
   background: rgba(0,0,0,0.15);
 }
 .sb-sec:first-of-type { border-top: none; margin-top: 0; padding-top: 6px; }
@@ -150,7 +151,7 @@
   margin: 1px 0;
 }
 .sb-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
-.sb-link.on    { background: rgba(212,168,67,0.18); color: var(--psm-gold); font-weight: 700; border-left: 3px solid var(--psm-gold); padding-left: 9px; }
+.sb-link.on    { background: rgba(255,251,234,0.16); color: var(--psm-cream); font-weight: 700; border-left: 3px solid var(--psm-cream); padding-left: 9px; }
 .sb-ico   { width: 18px; display: inline-flex; justify-content: center; }
 
 /* ─── Header ──────────────────────────────────────────────────────────── */
@@ -169,12 +170,15 @@
 }
 .card + .card { margin-top: var(--s-4); }
 .card-title {
-  font-size: var(--fs-lg);
-  font-weight: 800;
-  color: var(--ink);
+  font-family: var(--font-display);   /* Caviar Dreams — só título (v84.82) */
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--psm-navy);
   margin: 0 0 var(--s-3);
   display: flex; align-items: center; gap: var(--s-2);
 }
+/* títulos da marca em Caviar Dreams (corpo/dados seguem na sans legível) */
+.h-title, .card h2, .card h3 { font-family: var(--font-display); }
 .card-sub {
   font-size: var(--fs-xs);
   color: var(--ink-muted);
@@ -219,8 +223,9 @@
 .btn-primary { background: var(--psm-navy); color: var(--ink-inverted); }
 .btn-primary:hover { background: var(--psm-navy-2); }
 
-.btn-gold { background: var(--psm-gold); color: var(--psm-navy); }
-.btn-gold:hover { background: var(--psm-gold-2); color: var(--ink-inverted); }
+/* btn-gold aposentado → vira navy com texto creme (v84.82) */
+.btn-gold { background: var(--psm-navy); color: var(--psm-cream); }
+.btn-gold:hover { background: var(--psm-navy-2); color: var(--psm-cream); }
 
 .btn-danger { background: var(--err); color: #fff; }
 .btn-ghost  { background: transparent; border-color: var(--border-2); }

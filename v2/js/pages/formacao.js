@@ -42,7 +42,7 @@ export async function pageFormacao(ctx, root) {
               <div style="font-weight:800">${i+1}. ${esc(m.nome)}</div>
               <div class="tiny muted mt-1">${esc(m.desc)}</div>
             </div>
-            <span style="background:var(--psm-gold);color:var(--bg-1);font-weight:800;padding:4px 12px;border-radius:20px;font-size:12px;white-space:nowrap">${m.aulas} aulas</span>
+            <span style="background:var(--psm-navy);color:var(--psm-cream);font-weight:800;padding:4px 12px;border-radius:20px;font-size:12px;white-space:nowrap">${m.aulas} aulas</span>
           </div>
         `).join('')}
       </div>

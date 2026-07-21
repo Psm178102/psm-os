@@ -43,7 +43,7 @@ function render(loading) {
             <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Quem está anunciando, quantos anúncios, há quanto tempo e investimento estimado.</p>
           </div>
         </div>
-        <a href="https://www.facebook.com/ads/library/?country=BR&ad_type=all&active_status=active" target="_blank" rel="noopener" class="btn" style="background:#d4af37;color:#0a1628;font-weight:700">🔗 Meta Ads Library</a>
+        <a href="https://www.facebook.com/ads/library/?country=BR&ad_type=all&active_status=active" target="_blank" rel="noopener" class="btn" style="background:#fffbea;color:#0a1628;font-weight:700">🔗 Meta Ads Library</a>
       </div>
       <div id="ads-body">${loading ? '<div class="muted tiny" style="color:#94a3b8;padding:20px"><span class="spinner"></span> Carregando concorrentes…</div>' : ''}</div>
     </div>`;
@@ -72,7 +72,7 @@ function renderContent() {
   const capturados = comAds.length;
 
   body.innerHTML = `
-    <div class="tiny" style="color:#cbd5e1;margin-bottom:12px;background:#1e293b;padding:10px 12px;border-radius:8px;border-left:3px solid #d4af37;line-height:1.6">
+    <div class="tiny" style="color:#cbd5e1;margin-bottom:12px;background:#1e293b;padding:10px 12px;border-radius:8px;border-left:3px solid #fffbea;line-height:1.6">
       📡 <b>Como ler:</b> <b>Anúncios</b> e <b>tempo ativo</b> são REAIS (lidos da Biblioteca do Meta por print+IA — clique <b>📷</b> na linha). O Meta <b>não publica</b> o gasto de anúncio imobiliário no BR, então <b>Investimento/mês é ESTIMATIVA</b> = nº de anúncios × sua premissa de custo.
       <span style="display:inline-flex;align-items:center;gap:6px;margin-left:8px">💰 Premissa por anúncio/mês: R$ <input id="ia-prem" type="number" value="${premissa()}" style="width:90px;background:#0b1120;border:1px solid #334155;color:#fff;border-radius:6px;padding:3px 6px;font-size:12px"></span>
       <span id="ads-status" style="font-weight:700;margin-left:8px"></span>
@@ -86,20 +86,20 @@ function renderContent() {
       ${kpi('📢 Anúncios ativos (mercado)', fNum(totalAds), '#22c55e', capturados + ' concorrentes mapeados')}
       ${kpi('🔥 Mais agressivo', top ? fNum(top.anuncios_count) : '—', '#ef4444', top ? top.nome : 'capture um print')}
       ${kpi('⏱ Tempo médio ativo', tempoMedio != null ? tempoMedio + ' dias' : '—', '#3b82f6', 'campanhas no ar')}
-      ${kpi('💰 Investimento estimado/mês', f$(investTotal), '#d4af37', '≈ volume × premissa')}
+      ${kpi('💰 Investimento estimado/mês', f$(investTotal), '#fffbea', '≈ volume × premissa')}
     </div>
 
     <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;font-size:13px;background:#1e293b;border-radius:10px;overflow:hidden">
       <thead><tr style="background:#0f172a">
-        <th style="padding:10px;text-align:left;color:#d4af37;font-size:11px">#</th>
-        <th style="padding:10px;text-align:left;color:#d4af37;font-size:11px">CONCORRENTE</th>
-        <th style="padding:10px;text-align:center;color:#d4af37;font-size:11px">TIER</th>
-        <th style="padding:10px;text-align:left;color:#d4af37;font-size:11px">SEGMENTO</th>
-        <th style="padding:10px;text-align:right;color:#d4af37;font-size:11px">ANÚNCIOS</th>
-        <th style="padding:10px;text-align:right;color:#d4af37;font-size:11px">TEMPO ATIVO</th>
-        <th style="padding:10px;text-align:right;color:#d4af37;font-size:11px">INVEST./MÊS (≈)</th>
-        <th style="padding:10px;text-align:center;color:#d4af37;font-size:11px">ESPIONAR</th>
+        <th style="padding:10px;text-align:left;color:#fffbea;font-size:11px">#</th>
+        <th style="padding:10px;text-align:left;color:#fffbea;font-size:11px">CONCORRENTE</th>
+        <th style="padding:10px;text-align:center;color:#fffbea;font-size:11px">TIER</th>
+        <th style="padding:10px;text-align:left;color:#fffbea;font-size:11px">SEGMENTO</th>
+        <th style="padding:10px;text-align:right;color:#fffbea;font-size:11px">ANÚNCIOS</th>
+        <th style="padding:10px;text-align:right;color:#fffbea;font-size:11px">TEMPO ATIVO</th>
+        <th style="padding:10px;text-align:right;color:#fffbea;font-size:11px">INVEST./MÊS (≈)</th>
+        <th style="padding:10px;text-align:center;color:#fffbea;font-size:11px">ESPIONAR</th>
       </tr></thead>
       <tbody>
         ${filtered.map((c, i) => {
@@ -111,7 +111,7 @@ function renderContent() {
             <td style="padding:8px 10px;color:#94a3b8">${esc(c.segmento || '—')}</td>
             <td style="padding:8px 10px;text-align:right;font-weight:800;color:${c.anuncios_count > 0 ? '#22c55e' : '#475569'}">${c.anuncios_count || '—'}${c.ultima_atualizacao && c.anuncios_count ? `<div class="tiny" style="font-weight:400;color:#64748b">${fmtDate(c.ultima_atualizacao)}</div>` : ''}</td>
             <td style="padding:8px 10px;text-align:right;color:${c.anuncios_dias_medio ? '#e2e8f0' : '#475569'}">${c.anuncios_dias_medio ? Math.round(c.anuncios_dias_medio) + 'd' : '—'}</td>
-            <td style="padding:8px 10px;text-align:right;font-weight:700;color:${inv.v ? '#d4af37' : '#475569'}">${inv.v ? '≈ ' + f$(inv.v) : '—'}${inv.manual ? '<div class="tiny" style="font-weight:400;color:#64748b">manual</div>' : ''}</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:700;color:${inv.v ? '#fffbea' : '#475569'}">${inv.v ? '≈ ' + f$(inv.v) : '—'}${inv.manual ? '<div class="tiny" style="font-weight:400;color:#64748b">manual</div>' : ''}</td>
             <td style="padding:8px 10px;text-align:center;white-space:nowrap">
               <a href="${adLibUrl(c.nome)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" title="Ver anúncios na Biblioteca Meta" style="font-size:11px">🔗</a>
               <button class="btn btn-ghost btn-sm" data-print="${c.id}" title="Contar anúncios + tempo por print (IA)" style="font-size:11px">📷</button>

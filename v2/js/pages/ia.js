@@ -123,7 +123,7 @@ function msgBubble(m, agent) {
     <div style="display:flex;${isUser ? 'justify-content:flex-end' : ''};gap:8px">
       ${!isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:${agent.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${agent.ico}</div>` : ''}
       <div style="max-width:75%;background:${isUser ? 'var(--psm-navy)' : 'var(--bg-2)'};color:${isUser ? '#fff' : 'var(--ink)'};padding:10px 14px;border-radius:var(--r-md);font-size:13px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word">${escapeHtml(m.content)}</div>
-      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-gold);color:var(--psm-navy);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${escapeHtml((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
+      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-navy);color:var(--psm-cream);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${escapeHtml((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
     </div>
   `;
 }

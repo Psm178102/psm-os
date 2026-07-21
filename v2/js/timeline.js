@@ -156,7 +156,7 @@ function ensureStyle() {
     .tl-meta{color:var(--ink-muted,#64748b);font-weight:400;font-size:11.5px}
     .tl-more,.tl-new,.tl-del,.tl-x{border:0;background:var(--bg-3,#f1f5f9);border-radius:7px;padding:3px 9px;font-size:12px;font-weight:700;cursor:pointer;flex:0 0 auto}
     .tl-x,.tl-del{background:transparent;opacity:.55;font-weight:400}.tl-x:hover,.tl-del:hover{opacity:1}
-    .tl-new{background:var(--psm-gold,#d4af37);color:#0f172a}
+    .tl-new{background:var(--psm-navy);color:var(--psm-cream)}
     .tl-list{border-top:1px solid var(--bg-3,#f1f5f9);max-height:50vh;overflow:auto}
     .tl-row{display:flex;align-items:center;gap:10px;padding:8px 16px;border-left:4px solid #0f172a;border-bottom:1px solid var(--bg-3,#f1f5f9);font-size:13px}
     .tl-xrow{border:0;background:transparent;opacity:.5;cursor:pointer}.tl-xrow:hover{opacity:1}`;

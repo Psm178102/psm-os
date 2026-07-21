@@ -46,7 +46,7 @@ function render() {
     <div class="card">
       <div style="background:linear-gradient(135deg,#0b1f3a 0%,#1e3a5f 100%);color:#fff;padding:20px;border-radius:14px 14px 0 0;margin:-16px -16px 16px">
         <div class="flex" style="align-items:center;gap:14px">
-          <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--psm-gold),#d4a017);display:flex;align-items:center;justify-content:center;font-size:28px">🎖️</div>
+          <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--psm-navy),var(--psm-navy-2));display:flex;align-items:center;justify-content:center;font-size:28px">🎖️</div>
           <div>
             <div style="font-size:22px;font-weight:900;color:var(--psm-gold)">Sr. Performance</div>
             <div style="opacity:.85;font-size:13px">Mentor de Corretores · Treina do zero ao expert com dados reais do seu CRM</div>
@@ -149,9 +149,9 @@ function bubble(m) {
   const isUser = m.role === 'user';
   return `
     <div style="display:flex;${isUser ? 'justify-content:flex-end' : ''};gap:8px">
-      ${!isUser ? '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--psm-gold),#d4a017);color:var(--psm-navy);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800">🎖️</div>' : ''}
+      ${!isUser ? '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--psm-navy),var(--psm-navy-2));color:var(--psm-cream);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800">🎖️</div>' : ''}
       <div style="max-width:75%;background:${isUser ? 'var(--psm-navy)' : 'var(--bg-2)'};color:${isUser ? '#fff' : 'var(--tx)'};padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word">${esc(m.content)}</div>
-      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-gold);color:var(--psm-navy);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${esc((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
+      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-navy);color:var(--psm-cream);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${esc((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
     </div>
   `;
 }

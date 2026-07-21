@@ -30,7 +30,7 @@ function render() {
   _root.innerHTML = `
     <div class="card" style="background:#0f172a;color:#e2e8f0;padding:20px">
       <div class="flex" style="align-items:center;gap:14px;margin-bottom:16px">
-        <span style="font-size:36px;color:#d4af37">📈</span>
+        <span style="font-size:36px;color:#fffbea">📈</span>
         <div>
           <h2 style="margin:0;font-size:22px;color:#fff">Tendências de Mercado</h2>
           <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Identifique, registre e acompanhe tendências do mercado imobiliário</p>
@@ -76,7 +76,7 @@ function renderPainel() {
       '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:40px;text-align:center;color:#64748b">Nenhuma tendência registrada. Use a aba Registrar.</div>' :
       Object.keys(cat).sort().map(c => `
         <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px;margin-bottom:14px">
-          <h3 style="color:#d4af37;font-size:14px;font-weight:800;margin:0 0 12px;text-transform:uppercase;letter-spacing:.5px">${esc(c)}</h3>
+          <h3 style="color:#fffbea;font-size:14px;font-weight:800;margin:0 0 12px;text-transform:uppercase;letter-spacing:.5px">${esc(c)}</h3>
           <div style="display:grid;gap:8px">
             ${cat[c].map(t => `
               <div style="display:flex;align-items:flex-start;gap:12px;padding:12px;background:#0f172a;border:1px solid #334155;border-radius:8px">
@@ -105,18 +105,18 @@ function renderRegistro() {
       <h3 style="color:#fff;margin:0 0 16px;font-size:16px">Registrar Nova Tendência</h3>
       <div style="display:grid;gap:12px">
         <div>
-          <label style="color:#d4af37;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Título</label>
+          <label style="color:#fffbea;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Título</label>
           <input id="td-titulo" class="input" placeholder="Ex: Aumento na busca por studios">
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div>
-            <label style="color:#d4af37;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Categoria</label>
+            <label style="color:#fffbea;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Categoria</label>
             <select id="td-cat" class="select">
               ${CATEGORIAS.map(c => `<option value="${c}">${c}</option>`).join('')}
             </select>
           </div>
           <div>
-            <label style="color:#d4af37;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Direção</label>
+            <label style="color:#fffbea;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Direção</label>
             <select id="td-dir" class="select">
               <option value="alta">📈 Em Alta</option>
               <option value="estavel" selected>➡️ Estável</option>
@@ -125,7 +125,7 @@ function renderRegistro() {
           </div>
         </div>
         <div>
-          <label style="color:#d4af37;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Impacto</label>
+          <label style="color:#fffbea;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Impacto</label>
           <select id="td-imp" class="select">
             <option value="alto">Alto</option>
             <option value="medio" selected>Médio</option>
@@ -133,11 +133,11 @@ function renderRegistro() {
           </select>
         </div>
         <div>
-          <label style="color:#d4af37;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Descrição</label>
+          <label style="color:#fffbea;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Descrição</label>
           <textarea id="td-desc" class="input" rows="3"></textarea>
         </div>
       </div>
-      <button class="btn btn-primary mt-3" id="td-save" style="width:100%;background:#d4af37;color:#0a1628">💾 Salvar Tendência</button>
+      <button class="btn btn-primary mt-3" id="td-save" style="width:100%;background:#fffbea;color:#0a1628">💾 Salvar Tendência</button>
       <div id="td-msg" class="mt-2"></div>
     </div>
   `;
@@ -175,11 +175,11 @@ function renderHistorico() {
       ${_items.length === 0 ? '<div style="color:#64748b">Nenhuma tendência.</div>' : `
         <table style="width:100%;border-collapse:collapse;min-width:700px;font-size:13px">
           <thead><tr style="border-bottom:2px solid #334155;background:#0f172a">
-            <th style="padding:10px;text-align:left;color:#d4af37;font-size:11px;text-transform:uppercase">Data</th>
-            <th style="padding:10px;text-align:left;color:#d4af37;font-size:11px;text-transform:uppercase">Título</th>
-            <th style="padding:10px;text-align:left;color:#d4af37;font-size:11px;text-transform:uppercase">Cat.</th>
-            <th style="padding:10px;text-align:center;color:#d4af37;font-size:11px;text-transform:uppercase">Dir.</th>
-            <th style="padding:10px;text-align:center;color:#d4af37;font-size:11px;text-transform:uppercase">Impacto</th>
+            <th style="padding:10px;text-align:left;color:#fffbea;font-size:11px;text-transform:uppercase">Data</th>
+            <th style="padding:10px;text-align:left;color:#fffbea;font-size:11px;text-transform:uppercase">Título</th>
+            <th style="padding:10px;text-align:left;color:#fffbea;font-size:11px;text-transform:uppercase">Cat.</th>
+            <th style="padding:10px;text-align:center;color:#fffbea;font-size:11px;text-transform:uppercase">Dir.</th>
+            <th style="padding:10px;text-align:center;color:#fffbea;font-size:11px;text-transform:uppercase">Impacto</th>
             ${isLider ? '<th></th>' : ''}
           </tr></thead>
           <tbody>

@@ -409,7 +409,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.81';
+const APP_VERSION = '84.82';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -780,7 +780,7 @@ function shellHTML(user) {
   return `
     <div class="app-shell">
       <aside class="app-sidebar">
-        <div class="sb-brand">House <span style="color:var(--psm-gold)">PSM</span></div>
+        <div class="sb-brand">House <span style="color:var(--psm-cream)">PSM</span></div>
 
         <div class="sb-sec">🏠 Início</div>
         <button class="sb-link on" data-nav="/"><span class="sb-ico">📅</span> Agenda</button>
@@ -1139,7 +1139,7 @@ function showUpdateBanner(newVer) {
       <h2 style="margin:12px 0 8px;font-size:21px;font-weight:800">Nova versão disponível!</h2>
       <p style="margin:0 0 6px;font-size:14.5px;color:#475569;line-height:1.5">Você está em uma versão <b>desatualizada</b> do sistema${newVer ? ` (a nova é a <b>v${newVer}</b>)` : ''}.</p>
       <p style="margin:0 0 22px;font-size:14.5px;color:#475569;line-height:1.5">Recarregue a página pra ver as novidades — ou saia e entre de novo.</p>
-      <button id="upd-go" style="width:100%;background:var(--psm-gold,#d4af37);color:#0f172a;border:0;border-radius:13px;padding:15px;font-size:16px;font-weight:800;cursor:pointer">🔄 Atualizar agora</button>
+      <button id="upd-go" style="width:100%;background:var(--psm-navy);color:var(--psm-cream);border:0;border-radius:13px;padding:15px;font-size:16px;font-weight:800;cursor:pointer">🔄 Atualizar agora</button>
       <button id="upd-x" style="margin-top:12px;background:transparent;border:0;color:#94a3b8;font-size:13px;cursor:pointer">Agora não</button>
     </div>`;
   document.body.appendChild(o);
