@@ -125,13 +125,42 @@ class handler(BaseHTTPRequestHandler):
             }
         except Exception:
             pass
+        # 📥 Leads LP Conquista (v84.86): semana em teste de CRM paralelo ao RD
+        try:
+            from datetime import timedelta as _td7
+            desde7 = (datetime.now(timezone.utc) - _td7(days=7)).isoformat()
+            lps = sb.table("leads_lp").select("faixa_renda,nutricao,ts_recebido,ts_primeira_resposta,status_atendimento,rd_deal_ref") \
+                .gte("ts_recebido", desde7).limit(1000).execute().data or []
+            quentes = [l for l in lps if not l.get("nutricao")]
+            resp = []
+            for l in quentes:
+                if l.get("ts_primeira_resposta"):
+                    try:
+                        resp.append((datetime.fromisoformat(str(l["ts_primeira_resposta"]).replace("Z", "+00:00"))
+                                     - datetime.fromisoformat(str(l["ts_recebido"]).replace("Z", "+00:00"))).total_seconds() / 60)
+                    except Exception:
+                        pass
+            por_faixa = {}
+            for l in lps:
+                por_faixa[l.get("faixa_renda") or "?"] = por_faixa.get(l.get("faixa_renda") or "?", 0) + 1
+            if lps:
+                dados["leads_lp_semana"] = {
+                    "total": len(lps), "nutricao": len(lps) - len(quentes), "por_faixa": por_faixa,
+                    "tempo_medio_resposta_min": round(sum(resp) / len(resp), 1) if resp else None,
+                    "pct_respondidos_5min": round(100.0 * sum(1 for m in resp if m <= 5) / len(resp), 1) if resp else None,
+                    "agendados": sum(1 for l in quentes if l.get("status_atendimento") == "agendado"),
+                    "casados_rd": sum(1 for l in lps if l.get("rd_deal_ref")),
+                }
+        except Exception:
+            pass
         prompt = (
             "Você é o braço direito estratégico do dono de uma holding imobiliária (PSM, São José do Rio Preto). "
             "Escreva o BRIEFING DE SEGUNDA-FEIRA do Plano de Resgate (jul→dez/2026) em pt-BR, máx ~180 palavras, "
             "markdown com bullets, direto e sem enrolação. Estrutura: 1) placar do mês vs meta (VGV Conquista e "
             "próprio, em R$ completos); 2) contribuição vs break-even; 3) gate do mês — está comprado ou em risco? "
             "3) as 2–3 ações pendentes MAIS urgentes do checklist; 4) um alerta ou oportunidade que os números "
-            "mostram (ex.: equipe de apoio sem eventos = ninguém registrando); 5) CAIXA da semana: recebíveis confirmados vs previstos e os top travados em R$ (campo recebiveis_semana) — cobre quem destrava. Tom: sócio cobrando sócio, "
+            "mostram (ex.: equipe de apoio sem eventos = ninguém registrando); 5) CAIXA da semana: recebíveis confirmados vs previstos e os top travados em R$ (campo recebiveis_semana) — cobre quem destrava; "
+            "6) se houver leads_lp_semana: leads da LP por faixa, tempo médio de 1ª resposta e % em 5min, agendados e casados com o RD — cobre velocidade. Tom: sócio cobrando sócio, "
             "sem motivacional vazio. Dados reais:\n" + json.dumps(dados, ensure_ascii=False, default=str))
         txt, prov = _ia(prompt)
         if not txt:

@@ -43,6 +43,10 @@
     {
       "path": "/api/v3/zoho/sync_cron",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/v3/leads/lp_recon",
+      "schedule": "*/30 11-22 * * 1-6"
     }
   ],
   "rewrites": [

@@ -67,6 +67,7 @@ import { pageOO } from './pages/oo.js';
 import { pagePlantoes } from './pages/plantoes.js';
 import { pageCaptacoes } from './pages/captacoes.js';
 import { pageSdr } from './pages/sdr.js';
+import { pageLeadsLp } from './pages/leads-lp.js';
 import { pageReativacaoKanban } from './pages/reativacao-kanban.js';
 import { pageTabelaImoveis } from './pages/tabela-imoveis.js';
 import { pageIntegracoes } from './pages/integracoes.js';
@@ -131,7 +132,7 @@ export const ROUTE_GROUP = {
   // Início (sempre)
   '/': 'inicio', '/painel': 'inicio', '/checkin': 'inicio', '/ranking': 'inicio', '/agenda': 'inicio', '/tarefas': 'inicio',
   // Secretaria de Vendas & Backoffice (SDR + Captações)
-  '/sdr': 'secretaria', '/reativacao': 'secretaria', '/captacoes': 'secretaria', '/minha-producao': 'secretaria', '/fiscalizacao': 'diretoria', '/ponte': 'diretoria', '/links-uteis': 'secretaria', '/sac-incorporadoras': 'secretaria', '/sistemas-incorporadoras': 'secretaria', '/campanha-wa': 'secretaria',
+  '/sdr': 'secretaria', '/leads-lp': 'secretaria', '/reativacao': 'secretaria', '/captacoes': 'secretaria', '/minha-producao': 'secretaria', '/fiscalizacao': 'diretoria', '/ponte': 'diretoria', '/links-uteis': 'secretaria', '/sac-incorporadoras': 'secretaria', '/sistemas-incorporadoras': 'secretaria', '/campanha-wa': 'secretaria',
   // Backoffice & Adm (v81.93)
   '/compras': 'adm', '/patrimonio': 'adm', '/manutencoes': 'adm',
   // Imóveis & Vendas (+ Metas/Equipes/Plantões e simuladores VPL/INCC/Repasse/Energia migrados)
@@ -409,7 +410,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.85';
+const APP_VERSION = '84.86';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -571,6 +572,7 @@ const APP_VERSION = '84.85';
   router.register('/minha-producao', { render: async (ctx, root) => { setHeader('Meu Acompanhamento'); highlight('/minha-producao'); await pageProducao(ctx, root, 'me'); } });
   router.register('/ponte', { render: async (ctx, root) => { setHeader('Fila da Ponte'); highlight('/ponte'); await pagePonte(ctx, root); } });
   router.register('/sdr',         { render: async (ctx, root) => { setHeader('Prospecção SDR'); highlight('/sdr');         await pageSdr(ctx, root); } });
+  router.register('/leads-lp',    { render: async (ctx, root) => { setHeader('📥 Leads LP Conquista'); highlight('/leads-lp'); await pageLeadsLp(ctx, root); } });
   router.register('/reativacao',  { render: async (ctx, root) => { setHeader('Reativação MAP'); highlight('/reativacao'); await pageReativacaoKanban(ctx, root); } });
   router.register('/integracoes', { render: async (ctx, root) => { setHeader('Integrações');  highlight('/integracoes'); await pageIntegracoes(ctx, root); } });
   router.register('/backup',      { render: async (ctx, root) => { setHeader('Backup');       highlight('/backup');      await pageBackup(ctx, root); } });
@@ -832,6 +834,7 @@ function shellHTML(user) {
 
         <div class="sb-sec">🗂 Secretaria de Vendas & Backoffice</div>
         <button class="sb-link" data-nav="/sdr"><span class="sb-ico">📞</span> Prospecção SDR</button>
+        <button class="sb-link" data-nav="/leads-lp"><span class="sb-ico">📥</span> Leads LP Conquista</button>
         <button class="sb-link" data-nav="/reativacao"><span class="sb-ico">🔁</span> Reativação MAP</button>
         <button class="sb-link" data-nav="/captacoes"><span class="sb-ico">📥</span> Captações</button>
         <button class="sb-link" data-nav="/minha-producao"><span class="sb-ico">📈</span> Meu Acompanhamento</button>

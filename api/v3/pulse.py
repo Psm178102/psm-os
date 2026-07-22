@@ -25,6 +25,7 @@ SIGNALS = [
     ("deals", "updated_at_rd"),     # vendas / CRM / oportunidades
     ("notifications", "created_at"),  # notificações (sino)
     ("shared_kv", "updated_at"),    # recados/timeline, permissões, scripts, tabelas, configs
+    ("leads_lp", "ts_recebido"),    # lead da LP chegou via webhook (sem navegador que emita o sinal)
 ]
 
 

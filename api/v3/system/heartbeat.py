@@ -33,6 +33,8 @@ JOBS = [
     # vivo a cada primeira abertura. Achado na varredura de endpoints órfãos.
     ("meta_cache",   "/api/v3/marketing/meta_cache_cron",   1),
     ("meta_monthly", "/api/v3/marketing/meta_monthly_cron", 24),
+    # leads da LP psmconquista (v84.86): reconcilia c/ RD + SLA + saúde do webhook
+    ("leads_lp",     "/api/v3/leads/lp_recon?job=all",      0.5),
     ("war_briefing", "/api/v3/intel/war_briefing_cron",     None),  # semanal (lógica própria)
 ]
 
