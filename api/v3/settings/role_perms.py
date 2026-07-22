@@ -147,6 +147,14 @@ class handler(BaseHTTPRequestHandler):
             return self._send(200, {"ok": True, "route_lvl": rl})
 
         perms = _clean(body.get("perms") if isinstance(body.get("perms"), dict) else body)
+        # snapshot ANTES (v84.84): toda alteração da matriz fica reversível pelo
+        # audit_log. Sem isto, o caso Nayara (5 rotas apagadas em silêncio) não
+        # teria como ser desfeito nem provado. Mesma lição do incidente da Leire.
+        try:
+            _ant = sb.table("shared_kv").select("value").eq("key", KV_KEY).limit(1).execute().data or []
+            antes = _ant[0]["value"] if _ant else {}
+        except Exception:
+            antes = None
         try:
             sb.table("shared_kv").upsert({
                 "key": KV_KEY, "value": perms,
@@ -154,5 +162,6 @@ class handler(BaseHTTPRequestHandler):
             }, on_conflict="key").execute()
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
-        audit(self, actor, "role_perms.update", target_type="shared_kv", target_id=KV_KEY)
+        audit(self, actor, "role_perms.update", target_type="shared_kv", target_id=KV_KEY,
+              before=antes, after=perms)
         return self._send(200, {"ok": True, "perms": perms})

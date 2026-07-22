@@ -493,24 +493,46 @@ function renderPermEditor() {
 function _setEq(a, b) { if (a.size !== b.size) return false; for (const x of a) if (!b.has(x)) return false; return true; }
 
 async function savePerms() {
-  // Fonte da verdade = as checkboxes REAIS na tela do papel em edição. Garante que
-  // nada que você marcou seja perdido por dessincronia de estado interno. v81.25
-  if (document.querySelector('input[data-perm-route]')) {
-    _permState[_permRole] = new Set(
-      [...document.querySelectorAll('input[data-perm-route]:checked')].map(cb => cb.dataset.permRoute)
-    );
+  /* 🔒 v84.84 — SALVAR NUNCA APAGA O QUE NÃO ESTAVA NA TELA.
+     BUG CORRIGIDO (report do Paulo, caso Nayara): o save reconstruía o papel a
+     partir das checkboxes MARCADAS e ainda filtrava tudo por um catálogo montado
+     lendo o DOM da barra lateral. Rota já concedida que — por qualquer motivo —
+     não tivesse checkbox renderizada naquele instante era APAGADA EM SILÊNCIO.
+     Foi assim que a Nayara perdeu Meu Painel, Minha Comissão, Início, Tarefas e
+     Formação ao ganhar 1 item (Criativos). Mesma família do incidente da Leire:
+     formulário que reconstrói o objeto inteiro a partir do que consegue enxergar.
+     Agora: só é possível DESMARCAR o que apareceu na tela; o resto é preservado. */
+  const caixas = [...document.querySelectorAll('input[data-perm-route]')];
+  if (caixas.length) {
+    const naTela = new Set(caixas.map(cb => cb.dataset.permRoute));
+    const marcadas = new Set(caixas.filter(cb => cb.checked).map(cb => cb.dataset.permRoute));
+    const antes = _permState[_permRole] || new Set();
+    const novo = new Set([...antes].filter(r => !naTela.has(r)));   // preserva o não-renderizado
+    marcadas.forEach(r => novo.add(r));
+    _permState[_permRole] = novo;
   }
-  // Higiene: só remove rota MORTA/renomeada (que não existe mais como item de menu).
-  // v81.58: o NÍVEL não trava mais nada — o sócio decide o que cada papel vê.
-  const minByRoute = {};
-  (_permCatalog || []).forEach(g => g.items.forEach(it => { minByRoute[it.route] = it.minlvl || 0; }));
-  const perms = {};
-  permRoles().forEach(([role, , roleLvl]) => {
-    const clean = new Set([..._permState[role]].filter(r => r in minByRoute));
+  // 🛑 trava: catálogo parcial (render incompleto/erro) NÃO pode virar exclusão em massa
+  const totalCat = (_permCatalog || []).reduce((n, g) => n + g.items.length, 0);
+  if (totalCat < 20) {
+    alert('⚠️ NÃO salvei — a lista de telas carregou incompleta (' + totalCat + ' itens).\n\n'
+        + 'Recarregue a página e tente de novo. Nenhuma permissão foi alterada.');
+    return;
+  }
+  // Higiene: remove SÓ rota que não existe mais no app (ROUTE_GROUP = registro real
+  // de rotas), nunca por ausência no catálogo visual. E avisa antes de remover.
+  const perms = {}; const mortas = [];
+  permRoles().forEach(([role]) => {
+    const clean = new Set([...(_permState[role] || [])].filter(r => {
+      const existe = (r in ROUTE_GROUP);
+      if (!existe) mortas.push(`${role}: ${r}`);
+      return existe;
+    }));
     _permState[role] = clean;
     // só persiste papéis que DIFEREM do default (mantém papéis intactos dinâmicos)
     if (!_setEq(clean, _permDefault[role])) perms[role] = [...clean];
   });
+  if (mortas.length && !confirm('Estas rotas não existem mais no sistema e serão removidas:\n\n'
+      + mortas.join('\n') + '\n\nConfirma?')) return;
   const btn = document.getElementById('perm-save');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando…'; }
   try {
