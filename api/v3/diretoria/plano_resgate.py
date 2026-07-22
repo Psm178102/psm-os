@@ -202,6 +202,21 @@ def _real(sb, plano):
         out["fiscalizacao"] = fisc
     except Exception:
         pass
+
+    # 💰 CAIXA realizado (Radar de Recebíveis, v84.83): o que de fato ENTROU no
+    # mês vs a contribuição por competência — o gap vendido×recebido visível.
+    try:
+        mes_pref = now.strftime("%Y-%m")
+        recs = sb.table("recebiveis").select("valor_liquido_estimado,status,data_prevista").limit(500).execute().data or []
+        out["caixa_recebido"] = sum(float(r.get("valor_liquido_estimado") or 0) for r in recs
+                                    if r.get("status") == "recebido" and str(r.get("data_prevista") or "").startswith(mes_pref))
+        out["caixa_previsto"] = sum(float(r.get("valor_liquido_estimado") or 0) for r in recs
+                                    if r.get("status") not in ("perdido",) and str(r.get("data_prevista") or "").startswith(mes_pref))
+        out["caixa_travado"] = sum(float(r.get("valor_liquido_estimado") or 0) for r in recs
+                                   if r.get("status") == "travado")
+    except Exception:
+        out["caixa_recebido"] = None   # tabela ainda não migrada — o front mostra o gancho
+
     return out
 
 

@@ -24,6 +24,8 @@ JOBS = [
     # (key, path, intervalo_horas)  — ordem = prioridade
     ("lembrete_dia", "/api/v3/paulo/lembrete_dia",          20),  # aviso gravação(Academy)/prazo(Projetos) do dia
     ("captar",       "/api/v3/crm/captar_cron",             2),
+    # radar de recebíveis (v84.83): deal win → rascunho + alertas D-3/D+1/14d-parado
+    ("recebiveis",   "/api/v3/diretoria/recebiveis?cron=1",  2),
     # meta_cache (v84.76): o cron de pré-aquecer o cache do Meta NUNCA foi
     # agendado em lugar nenhum — nem no vercel.json, nem aqui — e o
     # marketing/summary presume o cache quente. Resultado: o Cockpit de

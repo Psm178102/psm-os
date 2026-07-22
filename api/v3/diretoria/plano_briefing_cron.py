@@ -106,13 +106,32 @@ class handler(BaseHTTPRequestHandler):
             "locacao": real.get("locacao"), "fiscalizacao_eventos_mes": fisc,
             "dia_do_mes": datetime.now(BRT).day,
         }
+        # 💰 Radar de Recebíveis (v84.83): caixa da semana + top travados
+        try:
+            from datetime import timedelta as _td, date as _date
+            hoje = datetime.now(BRT).date()
+            recs = sb.table("recebiveis").select("descricao,valor_liquido_estimado,data_prevista,status,bloqueio") \
+                .limit(500).execute().data or []
+            def _v(r): return float(r.get("valor_liquido_estimado") or 0)
+            def _d(r):
+                try: return _date.fromisoformat(str(r.get("data_prevista"))[:10])
+                except Exception: return None
+            semana = [r for r in recs if _d(r) and 0 <= (_d(r) - hoje).days <= 7 and r.get("status") not in ("recebido", "perdido")]
+            travados = sorted([r for r in recs if r.get("status") == "travado"], key=_v, reverse=True)[:3]
+            dados["recebiveis_semana"] = {
+                "confirmado": sum(_v(r) for r in semana if r.get("status") == "confirmado"),
+                "previsto_total": sum(_v(r) for r in semana),
+                "top_travados": [{"desc": r.get("descricao"), "valor": _v(r), "bloqueio": r.get("bloqueio")} for r in travados],
+            }
+        except Exception:
+            pass
         prompt = (
             "Você é o braço direito estratégico do dono de uma holding imobiliária (PSM, São José do Rio Preto). "
             "Escreva o BRIEFING DE SEGUNDA-FEIRA do Plano de Resgate (jul→dez/2026) em pt-BR, máx ~180 palavras, "
             "markdown com bullets, direto e sem enrolação. Estrutura: 1) placar do mês vs meta (VGV Conquista e "
             "próprio, em R$ completos); 2) contribuição vs break-even; 3) gate do mês — está comprado ou em risco? "
             "3) as 2–3 ações pendentes MAIS urgentes do checklist; 4) um alerta ou oportunidade que os números "
-            "mostram (ex.: equipe de apoio sem eventos = ninguém registrando). Tom: sócio cobrando sócio, "
+            "mostram (ex.: equipe de apoio sem eventos = ninguém registrando); 5) CAIXA da semana: recebíveis confirmados vs previstos e os top travados em R$ (campo recebiveis_semana) — cobre quem destrava. Tom: sócio cobrando sócio, "
             "sem motivacional vazio. Dados reais:\n" + json.dumps(dados, ensure_ascii=False, default=str))
         txt, prov = _ia(prompt)
         if not txt:

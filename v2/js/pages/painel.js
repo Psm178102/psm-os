@@ -39,6 +39,7 @@ async function loadTarget(id) {
     _data = prof; _perf = perf; _audit = audit;
     render();
     if (mine) loadFila();
+    if (mine) loadTravados();
   } catch (e) {
     const msg = e?.message || e?.error || (typeof e === 'string' ? e : JSON.stringify(e));
     _root.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(msg)}</div>`;
@@ -129,6 +130,8 @@ function render() {
           <div class="tiny muted">Números de produtividade e vendas deste colaborador ficam no cockpit individual.</div>
           <a class="btn btn-ghost mt-2" href="#/one-on-one">📊 Abrir cockpit individual (One-on-One)</a>
         </div>`}
+
+      <div id="painel-travados"></div>
 
       <!-- ===== DESENVOLVIMENTO INDIVIDUAL (teste, rotina semanal, metas, PDF) ===== -->
       <h3 class="card-title mt-4">🌟 Desenvolvimento Individual</h3>
@@ -353,3 +356,39 @@ function activityRow(e, myId) {
 }
 function fmtMoney(n) { if (n == null) return '0,00'; return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+
+/* ── 💼 Seus negócios travados (Radar de Recebíveis, v84.83) ────────────────
+   Deals ganhos do corretor com marco ANTES de contrato_assinado: a comissão só
+   entra na projeção quando o contrato está assinado — incentivo natural pra
+   empurrar o cliente até a assinatura. Best-effort: sem tabela/permissão, o
+   card simplesmente não aparece. */
+async function loadTravados() {
+  const box = document.getElementById('painel-travados');
+  if (!box) return;
+  let d = null;
+  try { d = await api.request('/api/v3/diretoria/recebiveis'); } catch (_) { return; }
+  const MARCO_LBL = { ganho: '🏁 Ganho', dossie_correspondente: '📂 Dossiê no correspondente', credito_aprovado: '🏦 Crédito aprovado', contrato_assinado: '✍️ Contrato assinado', nota_solicitada: '🧾 Nota solicitada', comissao_liberada: '💸 Comissão liberada' };
+  const ORDEM = ['ganho', 'dossie_correspondente', 'credito_aprovado', 'contrato_assinado', 'nota_solicitada', 'comissao_liberada', 'recebido'];
+  const meus = (d && d.itens || []).filter(r => r.status !== 'recebido' && r.status !== 'perdido');
+  if (!meus.length) { box.innerHTML = ''; return; }
+  const brl2 = v => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const antes = r => ORDEM.indexOf(r.marco_atual || 'ganho') < ORDEM.indexOf('contrato_assinado');
+  const travados = meus.filter(antes);
+  const projecao = meus.filter(r => !antes(r)).reduce((a, r) => a + (Number(r.valor_liquido_estimado) || 0), 0);
+  box.innerHTML = `
+    <div class="card mt-4" style="border-left:4px solid ${travados.length ? '#dc2626' : '#16a34a'}">
+      <h3 class="card-title" style="margin:0">💼 Seus negócios pós-venda</h3>
+      <div class="tiny muted">Sua comissão só entra na projeção quando o contrato está ASSINADO — empurre o cliente até lá.</div>
+      <div class="flex mt-2" style="gap:10px;flex-wrap:wrap">
+        <div class="tiny"><b style="color:#16a34a">${brl2(projecao)}</b> em projeção (contrato assinado+)</div>
+        ${travados.length ? `<div class="tiny"><b style="color:#dc2626">${travados.length} negócio(s) travado(s) antes da assinatura</b></div>` : ''}
+      </div>
+      ${travados.map(r => `<div class="tiny" style="border-top:1px solid var(--bd,#ebe3ca);padding:6px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <b>${(r.descricao || '').slice(0, 60)}</b>
+        <span class="muted">${MARCO_LBL[r.marco_atual] || r.marco_atual}</span>
+        ${(r.bloqueio || 'nenhum') !== 'nenhum' ? `<span style="color:#dc2626;font-weight:800">⛔ ${r.bloqueio.replace(/_/g, ' ')}</span>` : ''}
+        <span style="margin-left:auto">${r.valor_liquido_estimado != null ? brl2(r.valor_liquido_estimado) : ''}</span>
+      </div>`).join('')}
+    </div>`;
+}

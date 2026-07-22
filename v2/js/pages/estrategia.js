@@ -13,6 +13,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { pageOKRs } from './okrs.js';
+import { renderRecebiveis } from './recebiveis.js';
 
 let _root = null;
 let _tab = 'plano';
@@ -20,6 +21,7 @@ let _tab = 'plano';
 const PALETTE = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#475569', '#d4a843'];
 const TABS = [
   { id: 'plano', lbl: '🧭 Plano de Resgate' },
+  { id: 'recebiveis', lbl: '💰 Radar de Recebíveis' },
   { id: 'mapa', lbl: '🧠 Mapa Mental' },
   { id: 'org', lbl: '🌳 Organograma' },
   { id: 'crono', lbl: '🗓️ Cronograma' },
@@ -32,6 +34,8 @@ export async function pageEstrategia(ctx, root) {
     root.innerHTML = '<div class="alert alert-warn">🔒 Requer Gerência/Diretoria.</div>';
     return;
   }
+  const qtab = ctx && ctx.query && ctx.query.tab;
+  if (qtab && TABS.some(t => t.id === qtab)) _tab = qtab;
   renderShell();
   await openTab(_tab);
 }
@@ -84,6 +88,7 @@ async function openTab(tab) {
   const c = document.getElementById('est-content');
   c.innerHTML = `<div class="card" style="border-radius:0 10px 10px 10px"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando…</div></div>`;
   if (tab === 'plano') { await renderPlanoResgate(c); return; }
+  if (tab === 'recebiveis') { await renderRecebiveis(c); return; }
   if (tab === 'okrs') { await pageOKRs(null, c); return; }
   if (tab === 'crono') { await renderCronograma(c); return; }
   // mapa | org → editor de nós
@@ -605,6 +610,7 @@ function prPaint(c) {
       ${prBarra('🏆 Conquista (equipe)', vgvC, mesAtual.conquista || 0, '#16a34a')}
       ${prBarra('🤝 VGV próprio (MAP + Terceiros)', vgvP, mesAtual.proprio || 0, '#2563eb')}
       <div class="tiny mt-2"><b>💰 Contribuição estimada do mês: ${prBrl(contrib)}</b> (Conquista ×${cts.margem_conquista_pct}% + próprio ×${cts.margem_proprio_pct}%)</div>
+      ${r.caixa_recebido != null ? `<div class="tiny" style="margin-top:2px"><b>🏦 CAIXA do mês: recebido ${prBrl(r.caixa_recebido)}</b> de ${prBrl(r.caixa_previsto || 0)} previstos${(r.caixa_travado || 0) > 0 ? ` · <span style='color:#dc2626;font-weight:800'>⛔ ${prBrl(r.caixa_travado)} travados</span>` : ''} — <span class="muted">competência ≠ caixa: o gap vendido×recebido</span></div>` : ''}
       <div style="background:var(--bg-3);border-radius:6px;height:14px;position:relative;margin:4px 0 2px">
         <div style="width:${pctBe}%;background:${contrib >= beOp ? '#16a34a' : '#d97706'};height:14px;border-radius:6px"></div>
         <div style="position:absolute;left:${Math.round(100 * beOp / bePl)}%;top:-3px;bottom:-3px;width:2px;background:#dc2626" title="break-even operacional"></div>
