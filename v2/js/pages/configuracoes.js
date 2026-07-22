@@ -60,6 +60,8 @@ const PERM_ALWAYS = new Set(['conta']);  // só CONTA é sempre visível; Iníci
 let _permCatalog = null;   // [{key,label,items:[{route,label,icon,minlvl}]}]
 let _permState = {};       // { role: Set(routes) }
 let _permDefault = {};     // { role: Set(routes) } — default p/ comparar/restaurar
+let _permLoaded = false;   // v84.85 — só permite SALVAR se a matriz foi lida do servidor com sucesso
+let _permServerSnap = {};  // v84.85 — cópia crua do que veio do servidor (base do diff de segurança)
 let _permRole = 'corretor';
 let _permCanEdit = false;
 
@@ -414,7 +416,21 @@ async function initPermEditor() {
   _permCanEdit = (auth.user()?.lvl || 0) >= 10;
   _permCatalog = buildPermCatalog();
   let saved = {};
-  try { const r = await api.request('/api/v3/settings/role_perms'); saved = (r && r.perms) || {}; } catch (_) {}
+  /* v84.85 — NUNCA ENGOLIR A FALHA DE CARGA. O catch vazio que estava aqui era
+     um caminho de PERDA TOTAL: GET falhou -> saved={} -> todo papel virava default
+     -> o save gravava {} -> MATRIZ INTEIRA ZERADA em silêncio. Aconteceu de verdade
+     em 22/07/2026 durante teste (recuperado pelo audit). Agora: se a carga falhar,
+     o editor entra em modo SÓ-LEITURA e o salvar é bloqueado. */
+  _permLoaded = false;
+  try {
+    const r = await api.request('/api/v3/settings/role_perms');
+    saved = (r && r.perms) || {};
+    _permLoaded = true;
+  } catch (e) {
+    _permLoaded = false;
+    console.error('[perms] falha ao carregar matriz:', e);
+  }
+  _permServerSnap = JSON.parse(JSON.stringify(saved));
   _permState = {}; _permDefault = {};
   permRoles().forEach(([role]) => {
     _permDefault[role] = defaultSetFor(role);
@@ -464,6 +480,11 @@ function renderPermEditor() {
         <button class="btn btn-ghost btn-sm" id="perm-reset">↩ Restaurar padrão deste papel</button>
         <button class="btn btn-primary btn-sm" id="perm-save">💾 Salvar permissões</button>` : `<span class="tiny muted">· somente leitura (edição é do sócio)</span>`}
     </div>
+    ${!_permLoaded ? `<div class="card" style="margin:0 0 10px;background:#7f1d1d;color:#fff;border:1px solid #b91c1c">
+      <b>⛔ A matriz NÃO carregou do servidor.</b><br>
+      <span class="tiny">O que você está vendo abaixo são os <b>padrões do código</b>, não as permissões reais.
+      Salvar agora apagaria as configurações de verdade — por isso o salvar está bloqueado.
+      <b>Recarregue a página.</b></span></div>` : ''}
     <p class="tiny muted" style="margin:0 0 10px">👑 Sócio vê tudo (não editável). Marque/desmarque livremente o que cada papel enxerga no menu — <b>você decide, sem trava de nível</b>. As mudanças propagam pros outros logins em segundos. <span style="opacity:.6">ⓘ = o conteúdo pode exigir nível maior no servidor.</span></p>
     ${groupsHTML || '<div class="muted tiny">Catálogo de menu vazio.</div>'}`;
 
@@ -493,6 +514,15 @@ function renderPermEditor() {
 function _setEq(a, b) { if (a.size !== b.size) return false; for (const x of a) if (!b.has(x)) return false; return true; }
 
 async function savePerms() {
+  // 🛑 v84.85 — sem carga confirmada do servidor, NÃO se salva. Salvar por cima
+  // de um estado que nunca chegou a ser lido é como gravar página em branco por cima
+  // do documento.
+  if (!_permLoaded) {
+    alert('⚠️ NÃO salvei — a matriz de permissões não chegou a carregar do servidor.\n\n'
+        + 'Recarregue a página e confira se as permissões aparecem certas ANTES de editar.\n'
+        + 'Nenhuma permissão foi alterada.');
+    return;
+  }
   /* 🔒 v84.84 — SALVAR NUNCA APAGA O QUE NÃO ESTAVA NA TELA.
      BUG CORRIGIDO (report do Paulo, caso Nayara): o save reconstruía o papel a
      partir das checkboxes MARCADAS e ainda filtrava tudo por um catálogo montado
@@ -533,6 +563,24 @@ async function savePerms() {
   });
   if (mortas.length && !confirm('Estas rotas não existem mais no sistema e serão removidas:\n\n'
       + mortas.join('\n') + '\n\nConfirma?')) return;
+
+  /* 🛑 v84.85 — REDE FINAL: compara o que vai ser gravado com o que veio do
+     servidor e EXIGE confirmação explícita se alguém vai PERDER acesso. Pega qualquer
+     modo de falha, inclusive os que eu ainda não imaginei. */
+  const perdas = [];
+  Object.keys(_permServerSnap).forEach(role => {
+    const antesArr = _permServerSnap[role] || [];
+    const depoisArr = perms[role] || (_setEq(_permState[role] || new Set(), _permDefault[role] || new Set())
+                                      ? [...(_permState[role] || [])] : []);
+    const sumiram = antesArr.filter(r => !depoisArr.includes(r));
+    if (sumiram.length) perdas.push({ role, n: sumiram.length, rotas: sumiram });
+  });
+  const totalPerdido = perdas.reduce((n, p) => n + p.n, 0);
+  if (totalPerdido) {
+    const det = perdas.map(p => `• ${p.role}: -${p.n} (${p.rotas.slice(0, 6).join(', ')}${p.rotas.length > 6 ? '…' : ''})`).join('\n');
+    if (!confirm(`⚠️ ATENÇÃO — este save REMOVE ${totalPerdido} permiss${totalPerdido > 1 ? 'ões' : 'ão'} de ${perdas.length} papel(is):\n\n`
+        + det + '\n\nSe você só queria ADICIONAR algo, clique Cancelar e recarregue a página.\n\nConfirmar a remoção?')) return;
+  }
   const btn = document.getElementById('perm-save');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando…'; }
   try {
