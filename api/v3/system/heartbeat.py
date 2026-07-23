@@ -35,6 +35,8 @@ JOBS = [
     ("meta_monthly", "/api/v3/marketing/meta_monthly_cron", 24),
     # leads da LP psmconquista (v84.86): reconcilia c/ RD + SLA + saúde do webhook
     ("leads_lp",     "/api/v3/leads/lp_recon?job=all",      0.5),
+    # 🤖 Sr. Gerência individual (v84.89): 3 pessoas por chamada, ciclo semanal
+    ("sr_agente",    "/api/v3/ia/sr_agente?cron=1",         2),
     ("war_briefing", "/api/v3/intel/war_briefing_cron",     None),  # semanal (lógica própria)
 ]
 

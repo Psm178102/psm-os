@@ -12,12 +12,17 @@ const KEY = 'psm_v2_sr_gerencia_chat';
 export async function pageSrGerencia(ctx, root) {
   _root = root;
   if ((auth.user()?.lvl || 0) < 5) {
-    root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder (lvl 5+).</div>';
+    // v84.89 — o Sr. Gerência INDIVIDUAL é de todos (menos sócio/financeiro):
+    // corretor vê o próprio dossiê; o chat/insights de gestão segue lvl 5+.
+    root.innerHTML = '<div class="card"><div id="srg-meu-gerente"></div>' +
+      '<p class="tiny muted" style="margin:8px 0 0">👔 O painel completo do Sr. Gerência (chat + insights de gestão) é de Líder pra cima — o seu acompanhamento individual está acima.</p></div>';
+    loadMeuGerente();
     return;
   }
   try { _messages = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { _messages = []; }
   syncChat('sr_gerencia');   // verdade = backend, por usuário (v84.1)
   render();
+  loadMeuGerente();
   await load();
 }
 
@@ -57,6 +62,8 @@ function render() {
           </div>
         </div>
       </div>
+
+      <div id="srg-meu-gerente"></div>
 
       <div style="display:grid;grid-template-columns:320px 1fr;gap:14px">
         <div>
@@ -179,3 +186,42 @@ async function send() {
 }
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+/* v84.89 — 🤖 Meu Gerente: dossiê individual semanal (IA Gemini) por colaborador */
+function mdLite(t) {
+  return esc(t)
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/^### (.+)$/gm, '<b>$1</b>')
+    .replace(/^## (.+)$/gm, '<b>$1</b>')
+    .replace(/^[-*] (.+)$/gm, '• $1')
+    .replace(/\n/g, '<br>');
+}
+
+async function loadMeuGerente() {
+  const box = document.getElementById('srg-meu-gerente');
+  if (!box) return;
+  let r = null;
+  try { r = await api.request('/api/v3/ia/sr_agente'); } catch (_) { return; }
+  if (!r || r.fora_do_escopo) return;   // sócio/financeiro: sem card (regra do Paulo)
+  const d = r.dossie;
+  box.innerHTML = `
+    <div class="card" style="margin:0 0 12px;border:1px solid var(--psm-navy,#1e2650)">
+      <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:6px">
+        <b>🤖 Meu Gerente — análise individual da semana</b>
+        <span class="flex items-center gap-2">
+          ${d ? `<span class="tiny muted">${new Date(d.ts).toLocaleDateString('pt-BR')} · ${esc(d.provider || 'ia')}</span>` : ''}
+          <button class="btn btn-ghost btn-sm" id="srg-mg-gerar">${d ? '🔄 Atualizar' : '▶️ Gerar minha análise'}</button>
+        </span>
+      </div>
+      ${d ? `<div style="margin-top:10px;line-height:1.55;font-size:13.5px">${mdLite(d.texto)}</div>`
+          : '<div class="tiny muted" style="margin-top:8px">Sua primeira análise chega automaticamente (ciclo semanal) — ou clique em Gerar.</div>'}
+    </div>`;
+  const b = box.querySelector('#srg-mg-gerar');
+  b && (b.onclick = async () => {
+    b.disabled = true; b.textContent = '🧠 Analisando seu funil…';
+    try {
+      await api.request('/api/v3/ia/sr_agente', { method: 'POST', body: { action: 'gerar' } });
+    } catch (e) { alert(e?.message || 'Falhou — tente em instantes.'); }
+    loadMeuGerente();
+  });
+}
