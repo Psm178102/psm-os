@@ -35,13 +35,12 @@ TABELAS = [
     ("audit_log", 2000, ("ts", "desc")),
     ("concorrentes", 5000, None), ("shared_kv", 5000, None),
     ("one_on_ones", 5000, None), ("plantoes", 5000, None),
-    ("notifications", 1000, ("ts", "desc")),
-    ("tarefas", 5000, None), ("comentarios", 5000, None),
+    ("notifications", 1000, ("created_at", "desc")), ("comments", 5000, None),
     # v84.90 — tabelas que nasceram depois do export original:
     ("captacoes", 5000, None), ("indicacao_kanban", 6000, None),
     ("reativacao_kanban", 6000, None), ("recebiveis", 2000, None),
-    ("leads_lp", 5000, None), ("rh_registros", 5000, None),
-    ("gp_talentos", 2000, None), ("cs_clientes", 5000, None),
+    ("leads_lp", 5000, None), ("gp_talentos", 2000, None),
+    # rh_registros e cs_clientes moram no shared_kv (já coberto acima)
     ("producao_eventos", 5000, ("ts", "desc")),
 ]
 

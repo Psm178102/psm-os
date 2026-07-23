@@ -32,9 +32,8 @@ BACKUP_TABLES = [
     ("shared_kv", 5000, None),
     ("one_on_ones", 5000, None),
     ("plantoes", 5000, None),
-    ("notifications", 1000, ("ts", "desc")),
-    ("tarefas", 5000, None),
-    ("comentarios", 5000, None),
+    ("notifications", 1000, ("created_at", "desc")),
+    ("comments", 5000, None),
 ]
 
 
