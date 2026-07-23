@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, notify_all  # type: ignore
-from _fisc_lib import _kv, _kv_set, gestores_ids  # type: ignore
+from _fisc_lib import _kv, _kv_ok, _kv_set, gestores_ids  # type: ignore
 from _ia_lib import ia, REGRAS_WHATSAPP  # type: ignore
 
 CFG_KEY = "reativacao_kanban_cfg"
@@ -93,14 +93,17 @@ def _now():
 
 
 def _cfg(sb):
-    v = _kv(sb, CFG_KEY)
+    v, _leu = _kv_ok(sb, CFG_KEY)
     if isinstance(v, dict) and v.get("colunas"):
         for col in v.get("colunas") or []:
             if "followup_dias" not in col:
                 col["followup_dias"] = FUP_DEFAULT.get(col.get("id"), 0)
         v["cadencia"] = {**DEFAULT_CFG["cadencia"], **(v.get("cadencia") or {})}
         return v
-    _kv_set(sb, CFG_KEY, DEFAULT_CFG)
+    # v84.88 — seed dos defaults SÓ quando a leitura CONFIRMOU ausência (1º boot).
+    # Leitura falhou -> devolve defaults EM MEMÓRIA sem gravar nada por cima.
+    if _leu:
+        _kv_set(sb, CFG_KEY, DEFAULT_CFG)
     return json.loads(json.dumps(DEFAULT_CFG))
 
 

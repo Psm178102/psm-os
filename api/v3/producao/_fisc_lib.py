@@ -250,6 +250,20 @@ def _kv(sb, key):
         return {}
 
 
+def _kv_ok(sb, key):
+    """(valor, leitura_confirmada). v84.88 — FALHA de leitura NUNCA vira 'não existe':
+    foi assim que a config do kanban de indicação (8 colunas do Paulo) foi apagada
+    em 22/07: o Supabase piscou, _kv devolveu {}, e o auto-seed regravou os
+    defaults POR CIMA. Mesma família do catch vazio das permissões (v84.85)."""
+    try:
+        rows = sb.table("shared_kv").select("value").eq("key", key).limit(1).execute().data or []
+        v = rows[0]["value"] if rows else {}
+        v = v if isinstance(v, dict) else (json.loads(v) if isinstance(v, str) else {})
+        return v, True
+    except Exception:
+        return {}, False
+
+
 def _kv_set(sb, key, value):
     try:
         sb.table("shared_kv").upsert({"key": key, "value": value,
