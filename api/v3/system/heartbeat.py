@@ -37,6 +37,8 @@ JOBS = [
     ("leads_lp",     "/api/v3/leads/lp_recon?job=all",      0.5),
     # 🤖 Sr. Gerência individual (v84.89): 3 pessoas por chamada, ciclo semanal
     ("sr_agente",    "/api/v3/ia/sr_agente?cron=1",         2),
+    # 🛟 backup automático interno (v84.90): snapshot diário → Storage, rotação 30d
+    ("backup_auto",  "/api/v3/backup/auto",                 24),
     ("war_briefing", "/api/v3/intel/war_briefing_cron",     None),  # semanal (lógica própria)
 ]
 

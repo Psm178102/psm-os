@@ -38,6 +38,16 @@ function render() {
         <div id="bk-restore-msg" class="mt-2"></div>
       </div>
 
+      <h3 class="card-title mt-4">🛟 Backup automático interno (Supabase Storage)</h3>
+      <p class="tiny muted">v84.90 — roda SOZINHO 1×/dia (heartbeat), sem credencial nenhuma: snapshot completo comprimido no Storage privado do projeto, rotação de 30 dias. Nasceu do incidente de 22/07 (config perdida sem backup pra restaurar). O Drive abaixo vira a cópia EXTERNA opcional.</p>
+      <div class="card" style="background:var(--bg-3);margin:8px 0;padding:14px">
+        <div class="flex gap-2" style="flex-wrap:wrap;align-items:center">
+          <button class="btn btn-primary" id="bk-auto">🛟 Rodar backup agora</button>
+          <button class="btn btn-ghost" id="bk-auto-list">📄 Ver backups guardados</button>
+        </div>
+        <div id="bk-auto-msg" class="mt-2"></div>
+      </div>
+
       <h3 class="card-title mt-4">☁️ Backup automático Google Drive</h3>
       <p class="tiny muted">Dispara backup pro Drive. Requer GOOGLE_DRIVE_TOKEN + GOOGLE_DRIVE_FOLDER_ID nas env vars Vercel. Pode ser agendado via Cron diário.</p>
       <div class="card" style="background:var(--bg-3);margin:8px 0;padding:14px">
@@ -49,6 +59,8 @@ function render() {
 
   document.getElementById('bk-export').addEventListener('click', exportBackup);
   document.getElementById('bk-drive').addEventListener('click', driveBackup);
+  document.getElementById('bk-auto').addEventListener('click', autoBackup);
+  document.getElementById('bk-auto-list').addEventListener('click', autoBackupList);
 
   const fileInput = document.getElementById('bk-file');
   const restoreBtn = document.getElementById('bk-restore');
@@ -128,6 +140,31 @@ async function restoreBackup() {
   } finally {
     btn.disabled = false;
   }
+}
+
+/* v84.90 — 🛟 backup interno (Storage do Supabase, sem credencial de usuário) */
+async function autoBackup() {
+  const msg = document.getElementById('bk-auto-msg');
+  msg.innerHTML = '<span class="spinner"></span> <span class="tiny muted">Coletando e comprimindo tudo…</span>';
+  try {
+    const r = await api.request('/api/v3/backup/auto');
+    msg.innerHTML = r.ok
+      ? `<div class="alert alert-ok tiny">✅ <b>${r.arquivo}</b> — ${r.linhas} linhas, ${(r.bytes_gz / 1024).toFixed(0)} KB comprimido${r.rotacao_apagados ? ` · ${r.rotacao_apagados} antigo(s) rotacionado(s)` : ''}${(r.erros || []).length ? ` · ⚠️ ${r.erros.length} tabela(s) com erro` : ''}</div>`
+      : `<div class="alert alert-err tiny">${r.error || 'falhou'}</div>`;
+  } catch (e) { msg.innerHTML = `<div class="alert alert-err tiny">${e?.message || e}</div>`; }
+}
+
+async function autoBackupList() {
+  const msg = document.getElementById('bk-auto-msg');
+  msg.innerHTML = '<span class="spinner"></span>';
+  try {
+    const r = await api.request('/api/v3/backup/auto?status=1');
+    const bks = r.backups || [];
+    msg.innerHTML = bks.length
+      ? `<table class="tiny" style="width:100%;margin-top:6px"><tr class="muted"><th style="text-align:left">Arquivo</th><th>Tamanho</th><th>Criado</th></tr>
+         ${bks.map(b => `<tr><td>${b.nome}</td><td style="text-align:center">${b.bytes ? (b.bytes / 1024).toFixed(0) + ' KB' : '—'}</td><td style="text-align:center">${b.criado ? new Date(b.criado).toLocaleString('pt-BR') : '—'}</td></tr>`).join('')}</table>`
+      : '<div class="tiny muted">Nenhum backup automático ainda — o primeiro roda no próximo ciclo do heartbeat (ou clique em Rodar agora).</div>';
+  } catch (e) { msg.innerHTML = `<div class="alert alert-err tiny">${e?.message || e}</div>`; }
 }
 
 async function driveBackup() {
