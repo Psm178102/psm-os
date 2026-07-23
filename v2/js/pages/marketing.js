@@ -48,6 +48,7 @@ let _bd = null, _bdSel = 'age', _bdBusy = false, _google = null;
 let _ts = null, _tsBusy = false, _charts = [], _chartLibP = null;
 // Filtros: período custom (since/until) + contas selecionadas (vazio = todas)
 let _since = '', _until = '', _accSel = [];
+let _nocacheOnce = false;   // v84.87 — 1 reload sem cache após mexer nas contas
 // Modo TV / tela cheia (overlay fullscreen + rotação automática das abas)
 let _tv = false, _tvRotate = true, _tvTimer = null, _tvDataTimer = null;
 // Leads por cidade + alerta de % fora de Rio Preto (fonte: deals/RD)
@@ -104,9 +105,10 @@ async function reload(silent) {
   _busy = true;
   if (!silent) _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando Meta Ads + CRM…</div></div>';
   try {
-    const qp = (_since && _until)
+    let qp = (_since && _until)
       ? ('?since=' + encodeURIComponent(_since) + '&until=' + encodeURIComponent(_until))
       : ('?date_preset=' + encodeURIComponent(_preset));
+    if (_nocacheOnce) { qp += '&nocache=1'; _nocacheOnce = false; }
     // Filtro de conta(s) Meta → marca(s): o CRM/Leads do RD respeitam a seleção
     // da toolbar (a conta resolve até a marca, pois o lead RD não traz a conta).
     const bk = selectedBrandKeys();
@@ -189,7 +191,74 @@ function filterBar() {
       <span class="tiny" style="font-weight:700">🏢 Contas:</span>
       ${chip('__all__', 'Todas', _accSel.length === 0)}
       ${acc.map(a => chip(a.id, a.label || a.id, _accSel.includes(a.id))).join('')}
+      ${(auth.user()?.lvl || 0) >= 10 ? '<button class="btn btn-ghost btn-sm" id="ma-acc-manage" title="Excluir ou adicionar contas de anúncio sem deploy" style="margin-left:auto">⚙️ Gerenciar contas</button>' : ''}
     </div>`;
+}
+
+/* v84.87 — gestão das contas de anúncio pela tela (sócio): excluir conta morta
+   (ex: Kaue Bordini, permissão #200) e adicionar conta nova sem mexer em env. */
+async function openAccountsModal() {
+  let box = document.createElement('div');
+  box.id = 'ma-acc-modal';
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px';
+  document.body.appendChild(box);
+  const paint = (contas, msg) => {
+    box.innerHTML = `
+    <div class="card" style="max-width:560px;width:100%;max-height:85vh;overflow:auto">
+      <div class="flex items-center" style="justify-content:space-between">
+        <b>⚙️ Contas de anúncio Meta</b>
+        <button class="btn btn-ghost btn-sm" id="maam-close">✕ Fechar</button>
+      </div>
+      ${msg ? `<div class="tiny" style="margin-top:6px;color:#16a34a;font-weight:700">${escapeHtml(msg)}</div>` : ''}
+      <table class="tiny" style="width:100%;margin-top:10px;border-collapse:collapse">
+        <tr class="muted"><th style="text-align:left">Conta</th><th style="text-align:left">ID</th><th>Origem</th><th>Ação</th></tr>
+        ${(contas || []).map(c => `
+          <tr style="${c.ativa ? '' : 'opacity:.5'}">
+            <td><b>${escapeHtml(c.label)}</b>${c.ativa ? '' : ' <span style="color:#dc2626;font-weight:700">(excluída)</span>'}</td>
+            <td class="muted">${escapeHtml(c.id)}</td>
+            <td style="text-align:center">${c.origem === 'env' ? '🔧 env' : '➕ tela'}</td>
+            <td style="text-align:center">${c.ativa
+              ? `<button class="btn btn-sm" data-maam-del="${esc(c.id)}" style="color:#dc2626">🗑 Excluir</button>`
+              : `<button class="btn btn-sm" data-maam-back="${esc(c.id)}">↩ Reativar</button>`}</td>
+          </tr>`).join('')}
+      </table>
+      <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px">
+        <b class="tiny">➕ Adicionar conta nova</b>
+        <div class="flex items-center gap-2" style="margin-top:6px;flex-wrap:wrap">
+          <input id="maam-id" class="input" placeholder="act_1234567890" style="width:190px">
+          <input id="maam-label" class="input" placeholder="Nome (chip no cockpit)" style="width:190px">
+          <button class="btn btn-primary btn-sm" id="maam-add">Adicionar</button>
+        </div>
+        <div class="tiny muted" style="margin-top:6px">A conta nova usa o token principal do Business Manager —
+        precisa estar compartilhada com ele no Meta. Conta com token próprio continua sendo caso de env no Vercel.
+        Excluir aqui só tira do cockpit (nada é apagado no Meta) e é reversível.</div>
+      </div>
+    </div>`;
+    box.querySelector('#maam-close').onclick = () => box.remove();
+    box.onclick = (e) => { if (e.target === box) box.remove(); };
+    const act = async (body, okMsg) => {
+      try {
+        const r = await api.request('/api/v3/marketing/accounts', { method: 'POST', body });
+        paint(r.contas, okMsg);
+        _nocacheOnce = true; reload(true);   // nocache 1× pra conta sumir/entrar na hora
+      } catch (e2) { alert('Falhou: ' + (e2?.message || e2)); }
+    };
+    box.querySelectorAll('[data-maam-del]').forEach(b => b.onclick = () => {
+      if (confirm(`Excluir a conta ${b.dataset.maamDel} do cockpit?\n\nEla some das consultas e dos chips (reversível aqui mesmo). Nada é alterado no Meta.`))
+        act({ action: 'excluir', id: b.dataset.maamDel }, 'Conta excluída do cockpit.');
+    });
+    box.querySelectorAll('[data-maam-back]').forEach(b => b.onclick = () =>
+      act({ action: 'reativar', id: b.dataset.maamBack }, 'Conta reativada.'));
+    box.querySelector('#maam-add').onclick = () => {
+      const id = box.querySelector('#maam-id').value.trim();
+      const label = box.querySelector('#maam-label').value.trim();
+      act({ action: 'adicionar', id, label }, 'Conta adicionada — já entra na próxima carga.');
+    };
+  };
+  try {
+    const r = await api.request('/api/v3/marketing/accounts');
+    paint(r.contas);
+  } catch (e) { box.remove(); alert('Não carregou as contas: ' + (e?.message || e)); }
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
@@ -1669,6 +1738,7 @@ function wire() {
   document.getElementById('bd-go')?.addEventListener('click', () => loadBreakdown(_bdSel));
 
   // Filtro de período custom
+  document.getElementById('ma-acc-manage')?.addEventListener('click', openAccountsModal);
   document.getElementById('ma-range-go')?.addEventListener('click', () => {
     const s = document.getElementById('ma-since')?.value, u = document.getElementById('ma-until')?.value;
     if (s && u) { _since = s; _until = u; reload(); }

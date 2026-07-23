@@ -15,6 +15,25 @@ const GRAPH_API = 'https://graph.facebook.com/v21.0';
 var __cache = {};
 var CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
+// v84.87 — lê a camada editável de contas (shared_kv.meta_ad_accounts) direto no
+// PostgREST com a service key. Cache em memória 60s pra não custar 1 query por hit.
+var __ovrCache = { t: 0, v: null };
+async function fetchAccountOverrides(force) {
+  if (!force && Date.now() - __ovrCache.t < 60 * 1000) return __ovrCache.v;
+  var url = process.env.SUPABASE_URL;
+  var key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) return null;
+  try {
+    var r = await fetch(url.replace(/\/+$/, '') + '/rest/v1/shared_kv?key=eq.meta_ad_accounts&select=value',
+      { headers: { apikey: key, Authorization: 'Bearer ' + key }, signal: AbortSignal.timeout(2500) });
+    if (!r.ok) return null;
+    var rows = await r.json();
+    var v = (rows && rows[0] && rows[0].value) || null;
+    __ovrCache = { t: Date.now(), v: v };
+    return v;
+  } catch (_) { return null; }
+}
+
 // Timeout helper: fetch com AbortController
 function fetchWithTimeout(url, ms) {
   ms = ms || 25000;
@@ -405,6 +424,27 @@ module.exports = async function handler(req, res) {
   var accountIds = (process.env.META_AD_ACCOUNT_IDS || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
   var accountLabels = (process.env.META_AD_ACCOUNT_LABELS || '').split(',').map(function(s){ return s.trim(); });
   var accountTokens = (process.env.META_AD_ACCOUNT_TOKENS || '').split(',').map(function(s){ return s.trim(); });
+
+  // v84.87 — camada EDITÁVEL por cima das envs (shared_kv.meta_ad_accounts, gerida
+  // na tela): excluídas somem, extras entram com o token principal. Falhou o kv →
+  // segue só com as envs (nunca derruba o cockpit por causa da config).
+  try {
+    var ovr = await fetchAccountOverrides(!!req.query.nocache);
+    if (ovr) {
+      var excl = ovr.excluidas || [];
+      var keep = accountIds.map(function(id, i){
+        return { id: id, label: accountLabels[i] || id, token: accountTokens[i] || '' };
+      }).filter(function(a){ return excl.indexOf(a.id) === -1; });
+      (ovr.extras || []).forEach(function(e){
+        if (e && e.id && excl.indexOf(e.id) === -1 && !keep.some(function(k){ return k.id === e.id; })) {
+          keep.push({ id: e.id, label: e.label || e.id, token: '' });
+        }
+      });
+      accountIds = keep.map(function(a){ return a.id; });
+      accountLabels = keep.map(function(a){ return a.label; });
+      accountTokens = keep.map(function(a){ return a.token; });
+    }
+  } catch (_) { /* segue com as envs */ }
 
   if (!token || accountIds.length === 0) {
     return res.status(500).json({

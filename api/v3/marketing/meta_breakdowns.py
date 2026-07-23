@@ -142,9 +142,9 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(200, cached)
 
         token = os.environ.get("META_ACCESS_TOKEN")
-        account_ids = _env_list("META_AD_ACCOUNT_IDS")
-        labels = _env_list("META_AD_ACCOUNT_LABELS")
-        tokens = _env_list("META_AD_ACCOUNT_TOKENS")
+        # v84.87 — contas config-driven: envs + camada editável (excluídas/extras)
+        from _accounts_lib import resolver_contas  # type: ignore
+        account_ids, labels, tokens = resolver_contas(sb)
         if not token or not account_ids:
             return self._send(503, {"ok": False, "error": "META_ACCESS_TOKEN/META_AD_ACCOUNT_IDS ausentes"})
 
