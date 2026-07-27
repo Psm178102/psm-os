@@ -96,9 +96,9 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"}, cache=False)
         try:
-            rows = (sb.table("shared_kv").select("v,updated_at")
-                    .eq("k", KV_KEY).limit(1).execute().data or [])
-            blob = (rows[0].get("v") if rows else None) or {}
+            rows = (sb.table("shared_kv").select("value,updated_at")
+                    .eq("key", KV_KEY).limit(1).execute().data or [])
+            blob = (rows[0].get("value") if rows else None) or {}
             if isinstance(blob, str):
                 blob = json.loads(blob or "{}")
             tabelas = blob.get("tabelas") or []
