@@ -46,8 +46,14 @@ def _norm(s):
 
 
 def _num(txt):
-    """Extrai número de 'R$ 209.000,00' / 'R$ 2.000' / '3.500' → int (reais)."""
+    """Extrai número em reais: 'R$ 209.000,00' → 209000 · '184K' → 184000 · '2.4K' → 2400."""
     t = _norm(txt).replace("r$", "").strip()
+    mk = re.search(r"(\d+(?:[.,]\d+)?)\s*(k|mil)\b", t)
+    if mk:
+        try:
+            return int(round(float(mk.group(1).replace(",", ".")) * 1000))
+        except Exception:
+            pass
     m = re.findall(r"[\d.,]+", t)
     if not m:
         return None
