@@ -81,7 +81,8 @@
    "/cnds",
    "/compras",
    "/manutencoes",
-   "/sr-gerencia"
+   "/sr-gerencia",
+   "/apresentacoes"
   ],
   "gerente_conquista": [
    "/",
@@ -129,7 +130,8 @@
    "/biblioteca-ads",
    "/anuncios-concorrentes",
    "/cnds",
-   "/sr-gerencia"
+   "/sr-gerencia",
+   "/apresentacoes"
   ],
   "gerente_map": [
    "/",
@@ -183,7 +185,8 @@
    "/anuncios-concorrentes",
    "/minutas",
    "/cnds",
-   "/sr-gerencia"
+   "/sr-gerencia",
+   "/apresentacoes"
   ],
   "gerente_locacao": [
    "/",
@@ -228,7 +231,8 @@
    "/locacao-estoque",
    "/minutas",
    "/cnds",
-   "/sr-gerencia"
+   "/sr-gerencia",
+   "/apresentacoes"
   ],
   "gerente_terceiros": [
    "/",
@@ -282,7 +286,8 @@
    "/locacao-estoque",
    "/minutas",
    "/cnds",
-   "/sr-gerencia"
+   "/sr-gerencia",
+   "/apresentacoes"
   ],
   "backoffice": [
    "/",
@@ -328,7 +333,8 @@
    "/manutencoes",
    "/usuarios",
    "/logins",
-   "/sr-gerencia"
+   "/sr-gerencia",
+   "/apresentacoes"
   ],
   "secretaria_vendas": [
    "/",
@@ -363,7 +369,8 @@
    "/compras",
    "/manutencoes",
    "/tarefas",
-   "/sr-gerencia"
+   "/sr-gerencia",
+   "/apresentacoes"
   ],
   "marketing": [
    "/",
@@ -393,7 +400,8 @@
    "/biblioteca-ads",
    "/sim-criativos",
    "/anuncios-concorrentes",
-   "/sr-gerencia"
+   "/sr-gerencia",
+   "/apresentacoes"
   ],
   "financeiro": [
    "/",
@@ -405,7 +413,8 @@
    "/onboarding",
    "/offboarding",
    "/financeiro",
-   "/forecast"
+   "/forecast",
+   "/apresentacoes"
   ],
   "corretor_conquista": [
    "/",
@@ -422,7 +431,8 @@
    "/rh-treinamentos",
    "/minha-comissao",
    "/criativos-download",
-   "/sr-gerencia"
+   "/sr-gerencia",
+   "/apresentacoes"
   ],
   "corretor_map": [
    "/",
@@ -460,7 +470,8 @@
    "/rh-funcoes",
    "/criativos-download",
    "/biblioteca-ads",
-   "/sr-gerencia"
+   "/sr-gerencia",
+   "/apresentacoes"
   ],
   "corretor_locacao": [
    "/",
@@ -498,7 +509,8 @@
    "/locacao-estoque",
    "/minutas",
    "/cnds",
-   "/sr-gerencia"
+   "/sr-gerencia",
+   "/apresentacoes"
   ],
   "corretor_terceiros": [
    "/",
@@ -539,10 +551,12 @@
    "/locacao-estoque",
    "/minutas",
    "/cnds",
-   "/sr-gerencia"
+   "/sr-gerencia",
+   "/apresentacoes"
   ]
  },
  "_notas": [
-  "23/07/2026 — /sr-gerencia liberado pra todos os papéis exceto financeiro (pedido do Paulo: Sr. Gerência individual é de todos; caso Kaue sem acesso)"
+  "23/07/2026 — /sr-gerencia liberado pra todos os papéis exceto financeiro (pedido do Paulo: Sr. Gerência individual é de todos; caso Kaue sem acesso)",
+  "23/07/2026 — /apresentacoes (Apresentações PSM) liberado pra TODOS os papéis (pedido do Paulo: todo corretor/gestor/diretor assiste)"
  ]
 }
