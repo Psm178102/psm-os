@@ -68,6 +68,7 @@ import { pagePlantoes } from './pages/plantoes.js';
 import { pageCaptacoes } from './pages/captacoes.js';
 import { pageSdr } from './pages/sdr.js';
 import { pageLeadsLp } from './pages/leads-lp.js';
+import { pageApresentacoes } from './pages/apresentacoes.js';
 import { pageReativacaoKanban } from './pages/reativacao-kanban.js';
 import { pageTabelaImoveis } from './pages/tabela-imoveis.js';
 import { pageIntegracoes } from './pages/integracoes.js';
@@ -164,7 +165,7 @@ export const ROUTE_GROUP = {
   // PSM Academy — menu próprio, visível a todos (a "faculdade" da PSM)
   '/academy': 'academy', '/academy-studio': 'academy',
   // Cultura/Compliance → movidos pro Início (sempre visíveis)
-  '/base': 'inicio', '/manual': 'inicio', '/etica': 'inicio', '/canal': 'inicio',
+  '/base': 'inicio', '/manual': 'inicio', '/etica': 'inicio', '/canal': 'inicio', '/apresentacoes': 'inicio',
   '/formacao': 'academy', '/premiacoes': 'inicio',
   // Gestão de Pessoas & RH (grupo próprio)
   '/gestao-pessoas': 'rh', '/onboarding': 'rh', '/offboarding': 'rh',
@@ -410,7 +411,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.91';
+const APP_VERSION = '84.92';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -607,6 +608,7 @@ const APP_VERSION = '84.91';
   router.register('/cs-indicacoes', { render: async (ctx, root) => { setHeader('Indicação Premiada'); highlight('/cs-indicacoes'); await pageIndicacaoPremiada(ctx, root); } });
   router.register('/talentos', { render: async (ctx, root) => { setHeader('Base de Talentos'); highlight('/talentos'); await pageTalentos(ctx, root); } });
   router.register('/premiacoes',  { render: async (ctx, root) => { setHeader('Premiações');           highlight('/premiacoes'); await pagePremiacoes(ctx, root); } });
+  router.register('/apresentacoes', { render: async (ctx, root) => { setHeader('🎬 Apresentações PSM'); highlight('/apresentacoes'); await pageApresentacoes(ctx, root); } });
   router.register('/agentes',     { render: async (ctx, root) => { setHeader('Central de Agentes');  highlight('/agentes');  await pageAgentes(ctx, root); } });
   router.register('/agente-vera', { render: async (ctx, root) => { setHeader('Agente Vera');         highlight('/agente-vera'); await pageAgenteVera(ctx, root); } });
   router.register('/agente-sol',  { render: async (ctx, root) => { setHeader('Agente Sol');          highlight('/agente-sol'); await pageAgenteSol(ctx, root); } });
@@ -795,6 +797,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/etica"><span class="sb-ico">⚖️</span> Código de Ética</button>
         <button class="sb-link" data-nav="/canal"><span class="sb-ico">🔒</span> Canal Anônimo</button>
         <button class="sb-link" data-nav="/premiacoes"><span class="sb-ico">🏆</span> Premiações</button>
+        <button class="sb-link" data-nav="/apresentacoes"><span class="sb-ico">🎬</span> Apresentações PSM</button>
 
         <div class="sb-sec">🏘 Imóveis & Vendas</div>
         <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM (RD)</button>
