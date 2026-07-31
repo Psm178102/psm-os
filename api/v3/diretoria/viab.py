@@ -380,7 +380,10 @@ class handler(BaseHTTPRequestHandler):
                 aloc = (it.get("aloc") or "compartilhado").strip().lower()
                 if aloc not in LINHA_IDS and aloc != "compartilhado": aloc = "compartilhado"
                 classe = (it.get("classe") or "fixo").strip().lower()
-                if classe not in ("fixo", "variavel", "extra"): classe = "fixo"
+                if classe not in ("fixo", "variavel", "extra", "parcelado"): classe = "fixo"   # parcelado v84.93
+                period = (it.get("period") or "mensal").strip().lower()
+                if period not in ("mensal", "tri", "sem", "anual"): period = "mensal"          # periodicidade v84.93
+                pgto = (str(it.get("pgto") or "")).strip()[:60] or None                        # método de pagamento v84.93
                 rateio = (it.get("rateio") or "igual").strip().lower()
                 if rateio not in ("igual", "proporcional", "direto", "especifico", "manual"): rateio = "igual"
                 try: valor = float(it.get("valor") or 0)
@@ -395,6 +398,7 @@ class handler(BaseHTTPRequestHandler):
                     "desc": (it.get("desc") or "").strip()[:120], "cat": (it.get("cat") or "Outros").strip()[:40],
                     "classe": classe, "aloc": aloc, "rateio": rateio, "valor": round(valor, 2),
                     "meses": meses, "linhas": linhas, "pesos": pesos, "por_mes": por_mes,
+                    "period": period, "pgto": pgto,
                 })
             # empresas que participam do rateio Igual/Proporcional (config global editável). v82.4
             re_ = body.get("rateio_empresas")
@@ -410,9 +414,20 @@ class handler(BaseHTTPRequestHandler):
                     if c and c.lower() not in seen:
                         seen.add(c.lower()); categorias.append(c)
                 categorias = categorias[:60] or None
+            # métodos de pagamento editáveis (criar/renomear/apagar) — v84.93
+            pg_in = body.get("pgtos")
+            pgtos = None
+            if isinstance(pg_in, list):
+                seen = set(); pgtos = []
+                for p in pg_in:
+                    p = (str(p).strip())[:60]
+                    if p and p.lower() not in seen:
+                        seen.add(p.lower()); pgtos.append(p)
+                pgtos = pgtos[:40] or None
             allkv = read_kv(sb, "viab_custos_orcado")
             cell = {"itens": clean, "rateio_empresas": rateio_empresas}
             if categorias: cell["categorias"] = categorias
+            if pgtos: cell["pgtos"] = pgtos
             allkv[str(ano)] = cell
             write_kv(sb, "viab_custos_orcado", allkv)
             audit(self, actor, "viab.set_custos_orcado", target_type="shared_kv", target_id=str(ano))

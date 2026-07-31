@@ -21,6 +21,8 @@ let _custosOrc = null;                                           // itens de cus
 let _rateioEmp = null;                                           // empresas que rateiam o overhead (config global editável, v82.4)
 let _cats = null;                                                // categorias de custo (criar/renomear/apagar, v83.2)
 let _catsOpen = false;                                           // gerenciador de categorias aberto?
+let _pgtos = null;                                               // métodos de pagamento (criar/renomear/apagar, v84.93)
+let _pgtosOpen = false;
 let _be = null;                                                  // cenário do break-even estratégico (v82.6)
 let _beSemPL = false;                                            // break-even: descontar pró-labore do fixo? (v83.5)
 
@@ -37,7 +39,9 @@ const PREM = [
 // ── Custos orçados detalhados (v82.3) ──
 const DEFAULT_CATS = ['Sócios', 'Estrutura', 'Folha admin', 'Administrativo', 'Financeiro', 'Software', 'Portais', 'Operacional', 'Treinamento', 'Marketing', 'Tráfego pago', 'Outros'];
 const CATS_TRAFEGO = ['Tráfego pago', 'Marketing'];   // excluídas do "custo sem tráfego" (v82.8)
-const CLASSES = [['fixo', 'Fixo'], ['variavel', 'Variável'], ['extra', 'Extra']];
+const CLASSES = [['fixo', 'Fixo'], ['variavel', 'Variável'], ['extra', 'Extra'], ['parcelado', 'Parcelado']];   // parcelado v84.93
+const PERIODS = [['mensal', 'Mensal'], ['tri', 'Trimestral'], ['sem', 'Semestral'], ['anual', 'Anual']];   // recorrência v84.93
+const DEFAULT_PGTOS = ['Pix', 'Boleto', 'Cartão de crédito', 'Débito automático', 'Transferência'];
 const ALOCS = [...LINHAS.map(l => [l.id, l.nome]), ['compartilhado', 'Compartilhado']];
 const RATEIOS = [['igual', 'Igual'], ['proporcional', 'Proporcional'], ['especifico', 'Específico'], ['manual', 'Manual']];
 // seed com os custos REAIS (do modelo antigo). tupla: [desc, cat, valor, aloc, rateio]. classe=fixo.
@@ -155,13 +159,25 @@ function ratPesos(it, alvo, m) {
   if (tot > 0) alvo.forEach(l => w[l] = w[l] / tot); else alvo.forEach(l => w[l] = 1 / alvo.length);
   return w;
 }
+// v84.93 — em quais meses o custo BATE: extra/parcelado com lista explícita = a lista
+// manda (parcelado: cada mês listado é uma parcela). Senão, a recorrência decide:
+// mensal = todo mês · tri = de 3 em 3 · sem = de 6 em 6 · anual = 1x — a partir do
+// mês inicial (meses[0], padrão janeiro). Total/ano deixa de inflar custo anual em 12x.
+function mesAtivo(it, m) {
+  if ((it.classe === 'extra' || it.classe === 'parcelado') && Array.isArray(it.meses) && it.meses.length) return it.meses.includes(m);
+  const p = it.period || 'mensal';
+  if (p === 'mensal') return true;
+  const ini = (Array.isArray(it.meses) && it.meses[0]) || 1;
+  const step = p === 'tri' ? 3 : p === 'sem' ? 6 : 12;
+  return m >= ini && (m - ini) % step === 0;
+}
 function custoOrcadoDet(semTrafego) {
   const out = {}; LIDS.forEach(l => { out[l] = {}; for (let m = 1; m <= 12; m++) out[l][m] = 0; });
   for (const it of (_custosOrc || [])) {
     if (semTrafego && CATS_TRAFEGO.includes(it.cat)) continue;   // exclui tráfego pago do total
     const base0 = +it.valor || 0;
     for (let m = 1; m <= 12; m++) {
-      if (it.classe === 'extra' && Array.isArray(it.meses) && it.meses.length && !it.meses.includes(m)) continue;
+      if (!mesAtivo(it, m)) continue;
       const base = (it.por_mes && it.por_mes[m] != null && it.por_mes[m] !== '') ? +it.por_mes[m] : base0;
       if (it.classe === 'variavel') {
         const p = base / 100;
@@ -203,6 +219,9 @@ async function load() {
   // garante que toda categoria usada pelos itens exista na lista
   (_custosOrc || []).forEach(it => { if (it.cat && !_cats.includes(it.cat)) _cats.push(it.cat); });
   if (!_cats.includes('Outros')) _cats.push('Outros');
+  _pgtos = (_d.custos_orcado && Array.isArray(_d.custos_orcado.pgtos) && _d.custos_orcado.pgtos.length)
+    ? _d.custos_orcado.pgtos.slice() : DEFAULT_PGTOS.slice();
+  (_custosOrc || []).forEach(it => { if (it.pgto && !_pgtos.includes(it.pgto)) _pgtos.push(it.pgto); });
   migrarCenLegado();   // cenários antigos do navegador → backend (1x, não bloqueia). v83.8
   render();
 }
@@ -316,7 +335,7 @@ async function saveOrc(linha, mes, campos) {
 function itemAnual(it) {
   let tot = 0;
   for (let m = 1; m <= 12; m++) {
-    if (it.classe === 'extra' && Array.isArray(it.meses) && it.meses.length && !it.meses.includes(m)) continue;
+    if (!mesAtivo(it, m)) continue;
     const base = (it.por_mes && it.por_mes[m] != null && it.por_mes[m] !== '') ? +it.por_mes[m] : (+it.valor || 0);
     if (it.classe === 'variavel') { const p = base / 100; if (it.aloc !== 'compartilhado') tot += (orcCell(it.aloc, m).vgv || 0) * p; else for (const l of LIDS) tot += (orcCell(l, m).vgv || 0) * p; }
     else tot += base;
@@ -338,12 +357,27 @@ function catsManagerHTML() {
     <div class="flex gap-2 mt-2"><input id="cat-nova" class="input" placeholder="nova categoria (ex.: Retirada de sócio)" style="max-width:250px;font-size:12px"><button class="btn btn-primary btn-sm" id="cat-add">＋ adicionar</button></div>
   </div>`;
 }
+function pgtosManagerHTML() {
+  if (!_pgtosOpen) return `<div class="mb-2"><button class="btn btn-ghost btn-sm" id="cd-pgtos-toggle">💳 Gerenciar métodos de pagamento (${(_pgtos || []).length})</button></div>`;
+  const usada = p => (_custosOrc || []).filter(it => it.pgto === p).length;
+  const rows = (_pgtos || []).map((p, i) => `<div class="flex gap-2 mb-1" style="align-items:center">
+    <input class="input pg-ren" data-i="${i}" value="${esc(p)}" style="max-width:230px;font-size:12px;padding:3px 6px">
+    <span class="tiny muted">${usada(p)} item(ns)</span>
+    <button class="btn btn-ghost btn-sm pg-del" data-i="${i}" style="padding:1px 7px;color:#dc2626" title="Apagar (itens ficam sem método)">🗑</button>
+  </div>`).join('');
+  return `<div class="card" style="margin:0 0 10px;background:var(--bg-3)">
+    <div class="flex items-center"><b style="font-size:13px">💳 Métodos de pagamento</b><button class="btn btn-ghost btn-sm" id="cd-pgtos-toggle" style="margin-left:auto">fechar</button></div>
+    <div class="tiny muted" style="margin:2px 0 8px">Renomeie (atualiza os custos que o usam), apague (custos ficam sem método) ou crie novo — ex.: <b>"Cartão de crédito Itaú"</b>. Salva na hora.</div>
+    ${rows}
+    <div class="flex gap-2 mt-2"><input id="pg-novo" class="input" placeholder="novo método (ex.: Cartão de crédito Itaú)" style="max-width:270px;font-size:12px"><button class="btn btn-primary btn-sm" id="pg-add">＋ adicionar</button></div>
+  </div>`;
+}
 function renderCustosDet() {
   const det = custoOrcadoDet();
   const detST = custoOrcadoDet(true);   // sem tráfego pago (v82.8)
   const totEmp = {}, totEmpST = {}; let grand = 0;
   LIDS.forEach(l => { totEmp[l] = 0; totEmpST[l] = 0; for (let m = 1; m <= 12; m++) { totEmp[l] += det[l][m]; totEmpST[l] += detST[l][m]; } grand += totEmp[l]; });
-  const porClasse = { fixo: 0, variavel: 0, extra: 0 };
+  const porClasse = { fixo: 0, variavel: 0, extra: 0, parcelado: 0 };
   (_custosOrc || []).forEach(it => porClasse[it.classe] = (porClasse[it.classe] || 0) + itemAnual(it));
   const opt = (arr, v) => arr.map(([val, lbl]) => `<option value="${val}"${val === v ? ' selected' : ''}>${esc(lbl)}</option>`).join('');
   const empChips = LINHAS.map(l => `<div style="flex:1;min-width:130px;background:var(--bg-3);border-radius:8px;padding:8px 10px"><div class="tiny muted">${l.icon} ${l.nome}</div><div style="font-weight:800;color:${l.cor}">${fmt(totEmp[l.id])}<span class="tiny muted" style="font-weight:400">/ano</span></div><div class="tiny muted">${fmt(totEmpST[l.id] / 12)}/mês <b>sem tráfego</b></div></div>`).join('');
@@ -353,32 +387,38 @@ function renderCustosDet() {
     let detalhe = '';
     if (comp && it.rateio === 'especifico') detalhe = `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:3px">${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;gap:2px;align-items:center"><input type="checkbox" class="cd-esp" data-i="${i}" value="${l.id}"${(it.linhas || []).includes(l.id) ? ' checked' : ''}>${l.id}</label>`).join('')}</div>`;
     if (comp && it.rateio === 'manual') detalhe = `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:3px">${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;flex-direction:column;align-items:center">${l.id}<input class="input cd-man" data-i="${i}" data-l="${l.id}" value="${(it.pesos || {})[l.id] ?? ''}" style="width:44px;padding:1px 3px;font-size:10px" placeholder="%"></label>`).join('')}</div>`;
-    const mesesCell = it.classe === 'extra' ? `<input class="input cd-f" data-i="${i}" data-k="meses" value="${Array.isArray(it.meses) ? it.meses.join(',') : ''}" placeholder="todos" title="ex: 1,6,12" style="width:66px;padding:2px 4px;font-size:11px">` : '<span class="tiny muted">todos</span>';
+    const perNaoMensal = (it.period || 'mensal') !== 'mensal';
+    const mesesCell = (it.classe === 'extra' || it.classe === 'parcelado' || perNaoMensal)
+      ? `<input class="input cd-f" data-i="${i}" data-k="meses" value="${Array.isArray(it.meses) ? it.meses.join(',') : ''}" placeholder="${it.classe === 'parcelado' ? 'parcelas ex: 3,4,5' : (perNaoMensal ? 'início ex: 2' : 'todos')}" title="${it.classe === 'parcelado' ? 'cada mês listado = 1 parcela do valor' : (perNaoMensal ? 'mês em que a cobrança começa (dali segue a recorrência)' : 'ex: 1,6,12')}" style="width:${it.classe === 'parcelado' ? 96 : 66}px;padding:2px 4px;font-size:11px">`
+      : '<span class="tiny muted">todos</span>';
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:3px 5px"><input class="input cd-f" data-i="${i}" data-k="desc" value="${esc(it.desc)}" style="width:100%;min-width:120px;padding:2px 5px;font-size:12px"></td>
       <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="cat" style="font-size:11px;padding:2px">${opt(_cats.map(c => [c, c]), it.cat)}</select></td>
+      <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="period" style="font-size:11px;padding:2px" title="de quanto em quanto tempo o custo bate">${opt(PERIODS, it.period || 'mensal')}</select></td>
       <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="classe" style="font-size:11px;padding:2px">${opt(CLASSES, it.classe)}</select></td>
       <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="aloc" style="font-size:11px;padding:2px">${opt(ALOCS, it.aloc)}</select></td>
       <td style="padding:3px 5px">${rateioSel}${detalhe}</td>
-      <td style="padding:3px 5px;white-space:nowrap"><input class="input cd-f" data-i="${i}" data-k="valor" value="${it.valor ?? ''}" style="width:78px;padding:2px 5px;font-size:12px;text-align:right"> <span class="tiny muted">${it.classe === 'variavel' ? '% VGV' : 'R$'}</span></td>
+      <td style="padding:3px 5px;white-space:nowrap"><input class="input cd-f" data-i="${i}" data-k="valor" value="${it.valor ?? ''}" style="width:78px;padding:2px 5px;font-size:12px;text-align:right"> <span class="tiny muted">${it.classe === 'variavel' ? '% VGV' : (it.classe === 'parcelado' ? 'R$/parc' : 'R$')}</span></td>
+      <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="pgto" style="font-size:11px;padding:2px;max-width:130px">${opt([['', '—'], ..._pgtos.map(p => [p, p])], it.pgto || '')}</select></td>
       <td style="padding:3px 5px">${mesesCell}</td>
       <td style="padding:3px 5px"><button class="btn btn-ghost btn-sm cd-del" data-i="${i}" style="padding:1px 6px;color:#dc2626">🗑</button></td>
     </tr>`;
   }).join('');
   return `
-    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:10px">🧾 <b>Custos orçados detalhados</b> — fixos, variáveis (% do VGV) e extras, por empresa. Compartilhados rateiam (igual/proporcional/específico/manual). Pré-carregado com seus custos reais — ajuste e <b>salve</b>. Alimenta o lucro orçado.</div>
+    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:10px">🧾 <b>Custos orçados detalhados</b> — fixos, variáveis (% do VGV), extras e <b>parcelados</b> (valor da parcela × meses listados), por empresa. <b>Recorrência</b> = de quanto em quanto tempo o custo bate (anual não infla 12x). Compartilhados rateiam (igual/proporcional/específico/manual). Pré-carregado com seus custos reais — ajuste e <b>salve</b>. Alimenta o lucro orçado.</div>
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center;background:#7c3aed12;border:1px solid #7c3aed33;border-radius:8px;padding:8px 10px">
       <span class="tiny" style="font-weight:800;color:#7c3aed">⚖️ Quem rateia o overhead (Igual/Proporcional):</span>
       ${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;gap:4px;align-items:center;font-weight:600;cursor:pointer"><input type="checkbox" class="re-emp" value="${l.id}"${ratEmp().includes(l.id) ? ' checked' : ''}>${l.icon} ${l.nome}</label>`).join('')}
       <span class="tiny muted">desmarque quem não divide a estrutura (ex.: Terceiros). Salva na hora.</span>
     </div>
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap">${empChips}
-      <div style="flex:1;min-width:150px;background:var(--psm-navy);color:#fff;border-radius:8px;padding:8px 10px"><div class="tiny" style="opacity:.8">Total custos/ano</div><div style="font-weight:800;font-size:16px">${fmt(grand)}</div><div class="tiny" style="opacity:.85">Fixo ${fmtC(porClasse.fixo)} · Var ${fmtC(porClasse.variavel)} · Extra ${fmtC(porClasse.extra)}</div></div>
+      <div style="flex:1;min-width:150px;background:var(--psm-navy);color:#fff;border-radius:8px;padding:8px 10px"><div class="tiny" style="opacity:.8">Total custos/ano</div><div style="font-weight:800;font-size:16px">${fmt(grand)}</div><div class="tiny" style="opacity:.85">Fixo ${fmtC(porClasse.fixo)} · Var ${fmtC(porClasse.variavel)} · Extra ${fmtC(porClasse.extra)} · Parc ${fmtC(porClasse.parcelado)}</div></div>
     </div>
     ${catsManagerHTML()}
+    ${pgtosManagerHTML()}
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:840px">
-      <thead><tr style="background:var(--bg-3);text-align:left"><th style="padding:5px">Descrição</th><th style="padding:5px">Categoria</th><th style="padding:5px">Classe</th><th style="padding:5px">Empresa</th><th style="padding:5px">Rateio</th><th style="padding:5px">Valor</th><th style="padding:5px">Meses</th><th></th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="8" class="tiny muted" style="padding:12px;text-align:center">Nenhum custo — clique em "adicionar custo".</td></tr>'}</tbody>
+      <thead><tr style="background:var(--bg-3);text-align:left"><th style="padding:5px">Descrição</th><th style="padding:5px">Categoria</th><th style="padding:5px">Recorrência</th><th style="padding:5px">Classe</th><th style="padding:5px">Empresa</th><th style="padding:5px">Rateio</th><th style="padding:5px">Valor</th><th style="padding:5px">Pagamento</th><th style="padding:5px">Meses</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="10" class="tiny muted" style="padding:12px;text-align:center">Nenhum custo — clique em "adicionar custo".</td></tr>'}</tbody>
     </table></div>
     <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" id="cd-add">＋ adicionar custo</button>
@@ -391,6 +431,7 @@ function wireCustosDet() {
     const it = _custosOrc[+el.dataset.i]; if (!it) return; const k = el.dataset.k;
     if (k === 'valor') it.valor = num(el.value);
     else if (k === 'meses') it.meses = el.value.trim() ? el.value.split(',').map(x => parseInt(x.trim())).filter(x => x >= 1 && x <= 12) : null;
+    else if (k === 'pgto') it.pgto = el.value || null;
     else it[k] = el.value;
     render();
   });
@@ -410,7 +451,7 @@ function wireCustosDet() {
   });
   document.querySelectorAll('.cd-del').forEach(b => b.onclick = () => { _custosOrc.splice(+b.dataset.i, 1); render(); });
   const add = document.getElementById('cd-add');
-  if (add) add.onclick = () => { _custosOrc.push({ id: 'co_' + Date.now(), desc: '', cat: 'Outros', classe: 'fixo', aloc: 'compartilhado', rateio: 'igual', valor: 0, meses: null, linhas: [], pesos: null, por_mes: null }); render(); };
+  if (add) add.onclick = () => { _custosOrc.push({ id: 'co_' + Date.now(), desc: '', cat: 'Outros', classe: 'fixo', aloc: 'compartilhado', rateio: 'igual', valor: 0, meses: null, linhas: [], pesos: null, por_mes: null, period: 'mensal', pgto: null }); render(); };
   const save = document.getElementById('cd-save'); if (save) save.onclick = saveCustosOrc;
   // ── gerenciador de categorias (v83.2) ──
   const tog = document.getElementById('cd-cats-toggle'); if (tog) tog.onclick = () => { _catsOpen = !_catsOpen; render(); };
@@ -432,6 +473,27 @@ function wireCustosDet() {
     if (!nv) return; if (_cats.some(c => c.toLowerCase() === nv.toLowerCase())) { flash('já existe'); return; }
     _cats.push(nv); saveCustosOrc();
   };
+  // ── gerenciador de métodos de pagamento (v84.93) ──
+  const ptog = document.getElementById('cd-pgtos-toggle'); if (ptog) ptog.onclick = () => { _pgtosOpen = !_pgtosOpen; render(); };
+  document.querySelectorAll('.pg-ren').forEach(el => el.onchange = () => {
+    const i = +el.dataset.i, old = _pgtos[i], nv = el.value.trim();
+    if (!nv) { el.value = old; return; }
+    if (_pgtos.some((p, j) => j !== i && p.toLowerCase() === nv.toLowerCase())) { flash('já existe um método com esse nome'); el.value = old; return; }
+    (_custosOrc || []).forEach(it => { if (it.pgto === old) it.pgto = nv; });   // renomeia nos custos
+    _pgtos[i] = nv; saveCustosOrc();
+  });
+  document.querySelectorAll('.pg-del').forEach(b => b.onclick = () => {
+    const i = +b.dataset.i, p = _pgtos[i];
+    const n = (_custosOrc || []).filter(it => it.pgto === p).length;
+    if (!confirm(`Apagar o método "${p}"?${n ? `\n\n${n} custo(s) ficam sem método.` : ''}`)) return;
+    (_custosOrc || []).forEach(it => { if (it.pgto === p) it.pgto = null; });
+    _pgtos.splice(i, 1); saveCustosOrc();
+  });
+  const padd = document.getElementById('pg-add'); if (padd) padd.onclick = () => {
+    const nv = (document.getElementById('pg-novo').value || '').trim();
+    if (!nv) return; if (_pgtos.some(p => p.toLowerCase() === nv.toLowerCase())) { flash('já existe'); return; }
+    _pgtos.push(nv); saveCustosOrc();
+  };
 }
 // re-semeia SÓ o custo derivado no Simulador e no Break-even quando custos/rateio mudam, preservando o resto (v83.6)
 function reseedCustosSandbox() {
@@ -448,10 +510,11 @@ function reseedCustosSandbox() {
 async function saveCustosOrc() {
   flash('💾 salvando custos…');
   try {
-    const r = await api.request('/api/v3/diretoria/viab', { method: 'POST', body: { action: 'set_custos_orcado', ano: _ano, itens: _custosOrc, rateio_empresas: ratEmp(), categorias: _cats } });
+    const r = await api.request('/api/v3/diretoria/viab', { method: 'POST', body: { action: 'set_custos_orcado', ano: _ano, itens: _custosOrc, rateio_empresas: ratEmp(), categorias: _cats, pgtos: _pgtos } });
     if (r && r.custos_orcado && Array.isArray(r.custos_orcado.itens)) _custosOrc = r.custos_orcado.itens.map(x => ({ ...x }));
     if (r && r.custos_orcado && Array.isArray(r.custos_orcado.rateio_empresas)) _rateioEmp = r.custos_orcado.rateio_empresas.slice();
     if (r && r.custos_orcado && Array.isArray(r.custos_orcado.categorias)) _cats = r.custos_orcado.categorias.slice();
+    if (r && r.custos_orcado && Array.isArray(r.custos_orcado.pgtos)) _pgtos = r.custos_orcado.pgtos.slice();
     if (!_cats.includes('Outros')) _cats.push('Outros');
     reseedCustosSandbox();   // reflete a mudança no Simulador e Break-even na hora (v83.6)
     flash('✅ custos orçados salvos'); render();
