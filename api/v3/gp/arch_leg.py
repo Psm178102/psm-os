@@ -24,6 +24,11 @@ from _auth_lib import supabase_client, require_user, AuthError, audit  # type: i
 
 KV_KEY = "arch_leg_dossies"
 ARCH_LEG_ROLES = ("consultor_arch_leg",)   # papéis da consultoria Arch Leg
+# v84.94 — VISÃO DE EQUIPE (somente leitura). Pedido do Paulo 29/07: o gerente
+# Conquista (Kaue) VÊ as fichas dos corretores da equipe dele — NUNCA a própria
+# ficha, nada de fora da equipe, nem fichas de equipe (team:). Escrever segue
+# exclusivo de sócio/Arch Leg.
+VISAO_EQUIPE = {"gerente_conquista": ("corretor_conquista",)}
 MAX_STR = 6000
 MAX_MAT = 60
 
@@ -131,12 +136,30 @@ class handler(BaseHTTPRequestHandler):
             user = require_user(self, min_lvl=0)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
-        if not _pode(user):
+        papeis_equipe = VISAO_EQUIPE.get((user.get("role") or "").lower())
+        if not _pode(user) and not papeis_equipe:
             return self._send(403, {"ok": False, "error": "Área restrita: só sócios e a consultoria Arch Leg."})
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
         dossies = _read(sb)
+        if not _pode(user):
+            # visão de equipe: filtra NO SERVIDOR — só user:<id> de corretor ativo
+            # da equipe, exceto o próprio gerente. team: e todo o resto ficam fora.
+            try:
+                us = sb.table("users").select("id,role,status").execute().data or []
+            except Exception:
+                return self._send(503, {"ok": False, "error": "backend"})
+            meu_id = str(user.get("id"))
+            permitidos = {str(u["id"]) for u in us
+                          if (u.get("role") or "").lower() in papeis_equipe
+                          and (u.get("status") or "ativo") == "ativo"
+                          and str(u.get("id")) != meu_id}
+            dossies = {k: v for k, v in dossies.items()
+                       if k.startswith("user:") and k.split(":", 1)[1] in permitidos}
+            return self._send(200, {"ok": True, "dossies": dossies,
+                                    "eh_arch_leg": False, "eh_socio": False,
+                                    "somente_leitura": True})
         return self._send(200, {"ok": True, "dossies": dossies,
                                 "eh_arch_leg": (user.get("role") or "").lower() in ARCH_LEG_ROLES,
                                 "eh_socio": (user.get("lvl") or 0) >= 10})

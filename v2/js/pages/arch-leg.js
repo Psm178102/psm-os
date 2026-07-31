@@ -37,12 +37,14 @@ function detectaTipo(url, nome) {
 }
 
 // campos de texto da ficha, na ordem/sessões (id → getter no objeto ficha)
-let _root = null, _users = [], _teams = [], _dossies = {}, _ehArchLeg = false, _ehSocio = false;
+let _root = null, _users = [], _teams = [], _dossies = {}, _ehArchLeg = false, _ehSocio = false, _soLeitura = false;
 let _modo = 'user', _sel = '', _disc = null, _mats = [], _dirty = false, _saveTimer = null;
 
 function podeVer() {
   const u = auth.user() || {};
-  return (u.lvl || 0) >= 10 || (u.role || '').toLowerCase() === 'consultor_arch_leg';
+  const role = (u.role || '').toLowerCase();
+  // gerente_conquista: visão SÓ LEITURA das fichas da equipe (o servidor filtra — v84.94)
+  return (u.lvl || 0) >= 10 || role === 'consultor_arch_leg' || role === 'gerente_conquista';
 }
 
 export async function pageArchLeg(ctx, root) {
@@ -62,6 +64,7 @@ export async function pageArchLeg(ctx, root) {
     _teams = tl.teams || [];
     _dossies = dz.dossies || {};
     _ehArchLeg = !!dz.eh_arch_leg; _ehSocio = !!dz.eh_socio;
+    _soLeitura = !!dz.somente_leitura;   // gerente_conquista: só vê a equipe, sem editar (v84.94)
   } catch (e) {
     root.innerHTML = `<div class="alert alert-err">Não consegui carregar: ${esc(e.message || e)}</div>`;
     return;
@@ -86,8 +89,10 @@ function completude(f) {
 }
 
 function render() {
+  if (_soLeitura) _modo = 'user';   // visão de equipe não tem fichas de equipe
   const alvos = _modo === 'user'
     ? _users.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+        .filter(u => !_soLeitura || _dossies['user:' + u.id])   // só leitura: só quem tem ficha liberada
     : _teams;
   const fichasModo = Object.keys(_dossies).filter(k => k.startsWith(_modo + ':'));
 
@@ -98,10 +103,12 @@ function render() {
         <span class="tiny" style="background:#7c3aed18;color:#7c3aed;border-radius:20px;padding:2px 10px;font-weight:800">desenvolvimento humano</span>
         <span class="tiny muted" style="margin-left:auto">${fichasModo.length} ficha(s) de ${_modo === 'user' ? 'pessoa' : 'equipe'}</span>
       </div>
-      <p class="card-sub">Ficha de acompanhamento por pessoa e por equipe. Conteúdo sigiloso — visível só à diretoria e à consultoria.</p>
+      <p class="card-sub">${_soLeitura
+        ? '👁 Visão do gestor — fichas da SUA equipe, somente leitura. A sua própria ficha e as das demais equipes não aparecem aqui.'
+        : 'Ficha de acompanhamento por pessoa e por equipe. Conteúdo sigiloso — visível só à diretoria e à consultoria.'}</p>
       <div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
-        <button class="btn ${_modo === 'user' ? 'btn-primary' : 'btn-ghost'} btn-sm" id="al-modo-user">👤 Por pessoa</button>
-        <button class="btn ${_modo === 'team' ? 'btn-primary' : 'btn-ghost'} btn-sm" id="al-modo-team">👥 Por equipe</button>
+        ${_soLeitura ? '' : `<button class="btn ${_modo === 'user' ? 'btn-primary' : 'btn-ghost'} btn-sm" id="al-modo-user">👤 Por pessoa</button>
+        <button class="btn ${_modo === 'team' ? 'btn-primary' : 'btn-ghost'} btn-sm" id="al-modo-team">👥 Por equipe</button>`}
         <select class="select" id="al-sel" style="flex:1;min-width:230px;padding:8px 10px;font-size:14px">
           <option value="">${_modo === 'user' ? '— escolha a pessoa —' : '— escolha a equipe —'}</option>
           ${alvos.map(a => {
@@ -116,8 +123,8 @@ function render() {
     <div id="al-body" class="mt-2"></div>`;
 
   const $ = s => _root.querySelector(s);
-  $('#al-modo-user').onclick = () => trocaModo('user');
-  $('#al-modo-team').onclick = () => trocaModo('team');
+  if ($('#al-modo-user')) $('#al-modo-user').onclick = () => trocaModo('user');
+  if ($('#al-modo-team')) $('#al-modo-team').onclick = () => trocaModo('team');
   $('#al-sel').onchange = async e => { _sel = e.target.value; _disc = null; await onSelect(); };
   if (_sel) renderFicha();
 }
@@ -261,8 +268,13 @@ function renderFicha() {
   body.querySelectorAll('.al-ta').forEach(t => { autoGrow(t); t.addEventListener('input', () => { autoGrow(t); marcaDirty(); }); });
   body.querySelectorAll('.al-fld').forEach(t => t.addEventListener('input', marcaDirty));
   $('#al-mat-add').onclick = () => { coletaMats(); _mats.push({ nome: '', url: '', tipo: 'link' }); renderMats(); marcaDirty(); };
-  $('#al-save').onclick = salvar;
+  if ($('#al-save')) $('#al-save').onclick = salvar;
   if ($('#al-del')) $('#al-del').onclick = apagar;
+  if (_soLeitura) {
+    const bar = $('#al-savebar'); if (bar) bar.style.display = 'none';
+    _root.querySelectorAll('#al-body input, #al-body textarea, #al-body select, #al-body button')
+      .forEach(el => { el.disabled = true; });
+  }
   if ($('#al-draft-restore')) $('#al-draft-restore').onclick = restaurarDraft;
   if ($('#al-draft-drop')) $('#al-draft-drop').onclick = () => { localStorage.removeItem(draftKey()); renderFicha(); };
 }

@@ -297,7 +297,7 @@ function canSee(path, user) {
   // 🔒 Consultoria Arch Leg (dado psicológico sensível): SÓ sócio/diretor
   // (lvl>=8) OU quem é da Arch Leg (role consultor_arch_leg). Trava explícita,
   // igual à do backend — não depende da matriz por papel. v84.78
-  if (base === '/rh-arch-leg') return (user?.lvl || 0) >= 8 || (user?.role || '').toLowerCase() === 'consultor_arch_leg';
+  if (base === '/rh-arch-leg') return (user?.lvl || 0) >= 8 || ['consultor_arch_leg', 'gerente_conquista'].includes((user?.role || '').toLowerCase());   // gerente_conquista: visão de equipe só-leitura (v84.94)
 
   // override por PAPEL (matriz editável pelo sócio) — só quando o papel foi customizado.
   // socio nunca entra aqui (não dá pra se trancar fora). v77.81
@@ -411,7 +411,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.93';
+const APP_VERSION = '84.94';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
