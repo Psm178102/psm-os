@@ -29,7 +29,9 @@ const modalOpen = () => !!document.querySelector(
 
 function applyRefresh() {
   // Espera o usuário ficar livre pra não atrapalhar (digitando / modal / aba oculta).
-  if (document.visibilityState !== 'visible' || isTyping() || modalOpen() || (Date.now() - _last < 1500)) {
+  // v84.95: + escudo de edição — formulário mexido e não salvo NUNCA é redesenhado.
+  if (document.visibilityState !== 'visible' || isTyping() || modalOpen() || (Date.now() - _last < 1500)
+      || (window.__psmEditShield && window.__psmEditShield())) {
     _pending = true; return;
   }
   _pending = false;
@@ -44,7 +46,9 @@ export async function initRealtime() {
   ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev =>
     document.addEventListener(ev, bump, { passive: true }));
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && _pending) schedule();
+    // v84.95 — voltar pra aba NÃO redesenha na cara: espera 5s de calma primeiro
+    // (era o "troquei de aba e ao voltar atualiza tudo e me joga pro topo").
+    if (document.visibilityState === 'visible' && _pending) { clearTimeout(_t); _t = setTimeout(applyRefresh, 5000); }
   });
 
   let cfg;

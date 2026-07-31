@@ -20,10 +20,11 @@ from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 
 # (tabela, coluna de tempo) — sinais das superfícies "ao vivo" do sistema.
 SIGNALS = [
-    ("audit_log", "ts"),            # quase todo write de usuário passa por audit()
+    # v84.95 — audit_log e notifications SAÍRAM da assinatura: audit_log muda a cada
+    # login/cron/push do sistema INTEIRO e redesenhava a página de todo mundo à toa
+    # (o "fica atualizando sozinho"); notificação já tem o sino próprio (refreshNotifs).
     ("tasks", "updated_at"),        # tarefas
     ("deals", "updated_at_rd"),     # vendas / CRM / oportunidades
-    ("notifications", "created_at"),  # notificações (sino)
     ("shared_kv", "updated_at"),    # recados/timeline, permissões, scripts, tabelas, configs
     ("leads_lp", "ts_recebido"),    # lead da LP chegou via webhook (sem navegador que emita o sinal)
 ]

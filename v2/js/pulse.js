@@ -50,7 +50,8 @@ async function tick() {
   if (sig !== _sig) { _sig = sig; _pending = true; }
   if (!_pending) return;
   // Tem mudança pendente — aplica quando o usuário estiver livre (não atrapalha o uso).
-  if (isTyping() || modalOpen() || (Date.now() - _last < 4000)) return;
+  if (isTyping() || modalOpen() || (Date.now() - _last < 4000)
+      || (window.__psmEditShield && window.__psmEditShield())) return;   // v84.95: form mexido e não salvo = não redesenha
   _pending = false;
   try { router.refresh({ quiet: true }); } catch (_) {}
   try { refreshNotifs(); } catch (_) {}

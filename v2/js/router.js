@@ -9,6 +9,14 @@ let currentQuery = {};    // query da rota atual (pra re-render fiel no refresh)
 let guardFn = null; // (path) => boolean : false bloqueia a rota
 let cleanups = []; // fns p/ limpar timers/estado da rota atual ao trocar de rota
 let _refreshing = false;
+// v84.95 — ESCUDO DE EDIÇÃO: qualquer digitação em input/textarea/select levanta o
+// escudo; o auto-refresh (pulso/realtime) fica bloqueado por 3min ou até SALVAR
+// (api.js zera no primeiro POST ok). Mata o "perdi tudo que estava preenchendo".
+if (typeof window !== 'undefined') {
+  window.__psmLastEdit = 0;
+  document.addEventListener('input', () => { window.__psmLastEdit = Date.now(); }, { passive: true, capture: true });
+  window.__psmEditShield = () => (Date.now() - (window.__psmLastEdit || 0)) < 180000;
+}
 
 export const router = {
   mount(el) { mountEl = el; window.addEventListener('hashchange', tick); tick(); },
@@ -21,6 +29,23 @@ export const router = {
   go(path)  { location.hash = path.startsWith('#') ? path : '#' + path; },
   current() { return currentPath; },
   // 🔄 Re-renderiza a ROTA ATUAL re-buscando os dados (tempo real entre devices).
+// v84.95 — restaura o scroll INSISTINDO: o restore de 1 tiro falhava porque a
+// página recém-renderizada ainda está curta (carregando) e o navegador trava o
+// scroll no topo — era o "puxa a barra pra cima". Tenta por até 2.5s, e PARA na
+// hora se o usuário rolar/clicar (nunca briga com gesto humano).
+function restaurarScroll(sy) {
+  let cancelado = false;
+  const cancela = () => { cancelado = true; };
+  ['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach(ev =>
+    window.addEventListener(ev, cancela, { passive: true, once: true }));
+  const tenta = (i) => {
+    if (cancelado) return;
+    if (Math.abs((window.scrollY || 0) - sy) > 4) { try { window.scrollTo(0, sy); } catch (_) {} }
+    if (i < 6 && document.documentElement.scrollHeight < sy + window.innerHeight) setTimeout(() => tenta(i + 1), 400);
+  };
+  tenta(0); setTimeout(() => tenta(1), 150); setTimeout(() => tenta(2), 500); setTimeout(() => tenta(3), 1200); setTimeout(() => tenta(4), 2500);
+}
+
   // quiet=true → sem spinner e preservando o scroll (refresh de fundo, sem "piscar").
   async refresh(opts = {}) {
     const quiet = !!opts.quiet;
@@ -37,7 +62,7 @@ export const router = {
     mountEl.replaceChildren(root);
     try {
       await route.render({ path: currentPath, query: { ...currentQuery } }, root);
-      if (quiet) { try { window.scrollTo(0, sy); } catch (_) {} }
+      if (quiet && sy > 0) restaurarScroll(sy);   // v84.95: persistente, não 1 tiro
     } catch (e) {
       root.innerHTML = '<div class="alert alert-err">Erro ao atualizar: ' + (e.message || e) + '</div>';
     } finally {
