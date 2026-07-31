@@ -131,7 +131,8 @@
    "/anuncios-concorrentes",
    "/cnds",
    "/sr-gerencia",
-   "/apresentacoes"
+   "/apresentacoes",
+   "/rh-arch-leg"
   ],
   "gerente_map": [
    "/",
@@ -557,6 +558,7 @@
  },
  "_notas": [
   "23/07/2026 — /sr-gerencia liberado pra todos os papéis exceto financeiro (pedido do Paulo: Sr. Gerência individual é de todos; caso Kaue sem acesso)",
-  "23/07/2026 — /apresentacoes (Apresentações PSM) liberado pra TODOS os papéis (pedido do Paulo: todo corretor/gestor/diretor assiste)"
+  "23/07/2026 — /apresentacoes (Apresentações PSM) liberado pra TODOS os papéis (pedido do Paulo: todo corretor/gestor/diretor assiste)",
+  "29/07/2026 — /rh-arch-leg concedido SÓ ao gerente_conquista (visão de equipe só-leitura na Arch Leg — v84.94)"
  ]
 }
