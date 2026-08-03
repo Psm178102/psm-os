@@ -18,17 +18,6 @@ if (typeof window !== 'undefined') {
   window.__psmEditShield = () => (Date.now() - (window.__psmLastEdit || 0)) < 180000;
 }
 
-export const router = {
-  mount(el) { mountEl = el; window.addEventListener('hashchange', tick); tick(); },
-  register(path, handler) { routes.set(path, handler); },
-  setGuard(fn) { guardFn = fn; },
-  // Páginas com setInterval/timers registram aqui sua limpeza; o router roda
-  // tudo ANTES de renderizar a próxima rota — evita auto-refresh de uma página
-  // (ex.: Marketing 60s, Arena, TV) "carimbar" o conteúdo da página seguinte.
-  onCleanup(fn) { if (typeof fn === 'function') cleanups.push(fn); },
-  go(path)  { location.hash = path.startsWith('#') ? path : '#' + path; },
-  current() { return currentPath; },
-  // 🔄 Re-renderiza a ROTA ATUAL re-buscando os dados (tempo real entre devices).
 // v84.95 — restaura o scroll INSISTINDO: o restore de 1 tiro falhava porque a
 // página recém-renderizada ainda está curta (carregando) e o navegador trava o
 // scroll no topo — era o "puxa a barra pra cima". Tenta por até 2.5s, e PARA na
@@ -46,6 +35,17 @@ function restaurarScroll(sy) {
   tenta(0); setTimeout(() => tenta(1), 150); setTimeout(() => tenta(2), 500); setTimeout(() => tenta(3), 1200); setTimeout(() => tenta(4), 2500);
 }
 
+export const router = {
+  mount(el) { mountEl = el; window.addEventListener('hashchange', tick); tick(); },
+  register(path, handler) { routes.set(path, handler); },
+  setGuard(fn) { guardFn = fn; },
+  // Páginas com setInterval/timers registram aqui sua limpeza; o router roda
+  // tudo ANTES de renderizar a próxima rota — evita auto-refresh de uma página
+  // (ex.: Marketing 60s, Arena, TV) "carimbar" o conteúdo da página seguinte.
+  onCleanup(fn) { if (typeof fn === 'function') cleanups.push(fn); },
+  go(path)  { location.hash = path.startsWith('#') ? path : '#' + path; },
+  current() { return currentPath; },
+  // 🔄 Re-renderiza a ROTA ATUAL re-buscando os dados (tempo real entre devices).
   // quiet=true → sem spinner e preservando o scroll (refresh de fundo, sem "piscar").
   async refresh(opts = {}) {
     const quiet = !!opts.quiet;
