@@ -419,6 +419,21 @@ function renderCustosDet() {
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:840px">
       <thead><tr style="background:var(--bg-3);text-align:left"><th style="padding:5px">Descrição</th><th style="padding:5px">Categoria</th><th style="padding:5px">Recorrência</th><th style="padding:5px">Classe</th><th style="padding:5px">Empresa</th><th style="padding:5px">Rateio</th><th style="padding:5px">Valor</th><th style="padding:5px">Pagamento</th><th style="padding:5px">Meses</th><th></th></tr></thead>
       <tbody>${rows || '<tr><td colspan="10" class="tiny muted" style="padding:12px;text-align:center">Nenhum custo — clique em "adicionar custo".</td></tr>'}</tbody>
+      <tfoot><tr><td colspan="10" style="padding:0">
+        <div class="flex" style="gap:10px;flex-wrap:wrap;background:var(--bg-3);border-radius:0 0 8px 8px;padding:10px 12px;margin-top:2px">
+          ${[['fixo', '📌 Fixo', '#1e2650'], ['variavel', '📈 Variável', '#7c3aed'], ['extra', '✨ Extra', '#d97706'], ['parcelado', '📆 Parcelado', '#0891b2']].map(([k, lbl, cor]) => `
+            <div style="flex:1;min-width:150px">
+              <div class="tiny muted">${lbl}</div>
+              <div style="font-weight:800;color:${cor}">${fmt(porClasse[k] || 0)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
+              <div class="tiny muted">${fmt((porClasse[k] || 0) / 12)}/mês</div>
+            </div>`).join('')}
+          <div style="flex:1.2;min-width:170px;background:var(--psm-navy);color:#fffbea;border-radius:8px;padding:6px 12px">
+            <div class="tiny" style="opacity:.8">Σ TOTAL DOS ITENS</div>
+            <div style="font-weight:900;font-size:16px">${fmt(grand)}<span class="tiny" style="font-weight:400;opacity:.8">/ano</span></div>
+            <div class="tiny" style="opacity:.85">${fmt(grand / 12)}/mês (média)</div>
+          </div>
+        </div>
+      </td></tr></tfoot>
     </table></div>
     <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" id="cd-add">＋ adicionar custo</button>
