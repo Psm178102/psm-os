@@ -689,7 +689,26 @@ function prPaint(c) {
     const contrib = r.contribuicao || 0;
     const beOp = cts.breakeven_operacional || 70000, bePl = cts.breakeven_pleno || 100000;
     const pctBe = Math.min(100, Math.round(100 * contrib / bePl));
-    corpo = briefBox + `
+    /* 🎯 v2.3 — Amortecedor da Semana (regra do positivo) */
+    const am = r.amortecedor;
+    const amBox = am ? (() => {
+      const cor = am.semaforo === 'verde' ? '#16a34a' : am.semaforo === 'amarelo' ? '#d97706' : '#dc2626';
+      const emj = am.semaforo === 'verde' ? '🟢' : am.semaforo === 'amarelo' ? '🟡' : '🔴';
+      return `<div class="card" style="margin:0 0 10px;border:2px solid ${cor};background:${cor}0d">
+        <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+          <b>🎯 Amortecedor da Semana ${emj}</b>
+          <span class="tiny muted">conta cheia do mês: <b>${prBrl(am.conta_cheia)}</b> (nut + ads + pró-labore R$ 38.000,00)</span>
+        </div>
+        <div style="font-size:26px;font-weight:900;color:${cor};margin:6px 0 2px">${am.falta_proprio > 0 ? 'Faltam ' + prBrl(am.falta_proprio) + ' de VGV próprio' : '✅ Mês coberto no ritmo atual'}</div>
+        <div class="tiny">pra fechar o mês ≥ 0 · Conquista projetada no ritmo real: <b>${prBrl(am.contrib_conquista_projetada)}</b> de contribuição · próprio já vendido: <b>${prBrl(am.proprio_ja_vendido)}</b></div>
+        <div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
+          <div style="flex:1;min-width:170px;background:var(--bg-2);border-radius:8px;padding:6px 10px"><div class="tiny muted">📏 Régua Conquista</div><div style="font-weight:800">${prBrl(am.regua_conquista_sem)}/sem</div></div>
+          <div style="flex:1;min-width:170px;background:var(--bg-2);border-radius:8px;padding:6px 10px"><div class="tiny muted">📏 Régua próprio (recalculada)</div><div style="font-weight:800;color:${cor}">${prBrl(am.regua_proprio_sem)}/sem</div></div>
+        </div>
+        <div class="tiny muted" style="margin-top:4px">Regra do Amortecedor: o que a Conquista não atingir vira meta própria de Paulo/Isa — recalculada toda segunda (push automático).</div>
+      </div>`;
+    })() : '';
+    corpo = amBox + briefBox + `
       <div class="tiny muted">Mês corrente: <b>${prEsc(mesAtual.nome || r.mes_id)}</b> · VGV = vendas GANHAS no CRM (win, mês do fechamento) · frentes pela Central de Frentes</div>
       ${prBarra('🏆 Conquista (equipe)', vgvC, mesAtual.conquista || 0, '#16a34a')}
       ${prBarra('🤝 VGV próprio (MAP + Terceiros)', vgvP, mesAtual.proprio || 0, '#2563eb')}

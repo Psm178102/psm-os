@@ -105,6 +105,7 @@ class handler(BaseHTTPRequestHandler):
             "gate": mes.get("gate"), "gate_marcado": gate_ok, "acoes_pendentes": acoes_pend,
             "locacao": real.get("locacao"), "fiscalizacao_eventos_mes": fisc,
             "dia_do_mes": datetime.now(BRT).day,
+            "amortecedor_v23": real.get("amortecedor"),
         }
         # 💰 Radar de Recebíveis (v84.83): caixa da semana + top travados
         try:
@@ -160,7 +161,7 @@ class handler(BaseHTTPRequestHandler):
             "próprio, em R$ completos); 2) contribuição vs break-even; 3) gate do mês — está comprado ou em risco? "
             "3) as 2–3 ações pendentes MAIS urgentes do checklist; 4) um alerta ou oportunidade que os números "
             "mostram (ex.: equipe de apoio sem eventos = ninguém registrando); 5) CAIXA da semana: recebíveis confirmados vs previstos e os top travados em R$ (campo recebiveis_semana) — cobre quem destrava; "
-            "6) se houver leads_lp_semana: leads da LP por faixa, tempo médio de 1ª resposta e % em 5min, agendados e casados com o RD — cobre velocidade. Tom: sócio cobrando sócio, "
+            "0) ABRA pelo AMORTECEDOR (amortecedor_v23): quanto de VGV próprio falta pro mês fechar ≥ 0 e o ritmo/semana — é a Regra do Positivo v2.3, cobre primeiro; " "6) se houver leads_lp_semana: leads da LP por faixa, tempo médio de 1ª resposta e % em 5min, agendados e casados com o RD — cobre velocidade. Tom: sócio cobrando sócio, "
             "sem motivacional vazio. Dados reais:\n" + json.dumps(dados, ensure_ascii=False, default=str))
         txt, prov = _ia(prompt)
         if not txt:

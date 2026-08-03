@@ -140,6 +140,79 @@ SEED = {
     "checklist": {},
 }
 
+# ══ v2.3 — REGRA DO POSITIVO (decisões de 03/08/2026). O v1 acima fica como
+# fonte histórica; action=migrar_v23 arquiva o kv atual e instala este. ══
+SEED_V23 = {
+    "titulo": "PSM HOLDING · Plano de Resgate v2.3 — Regra do Positivo",
+    "periodo": "Agosto → Dezembro 2026",
+    "versao": "2.3 — decisões de 03/ago/2026. Amortecedor recalculado TODA SEGUNDA.",
+    "secoes": [
+        {"id": "tese", "titulo": "1. As duas regras", "corpo":
+         "**REGRA DO POSITIVO:** a partir de AGOSTO nenhum mês fecha negativo — com pró-labore DENTRO da conta "
+         "(Paulo R$ 20.000,00 + Isa R$ 18.000,00 = R$ 38.000,00/mês).\n\n"
+         "**REGRA DO AMORTECEDOR:** o que a equipe Conquista não atingir vira meta de venda própria de Paulo/Isa. "
+         "Fórmula: **VGV próprio necessário = (conta cheia − contribuição Conquista) ÷ 3,6%** — recalculada toda "
+         "segunda com o ritmo real (card 🎯 Amortecedor no Real vs Plano).\n\n"
+         "**Conta cheia:** R$ 105.295,00/mês (nut R$ 55.795,00 + ads R$ 11.500,00 + pró-labore R$ 38.000,00). "
+         "Cai pra ~R$ 102.800,00 após o refi do FGI (previsto set)."},
+        {"id": "diagnostico", "titulo": "2. Decisões estruturais (03/08)", "corpo":
+         "- **FICAMOS NO GEORGINA** — reclassificado de custo pra QG do crescimento (meta 16–18 corretores + Academy "
+         "não cabem em ponto menor). Contrato completa 1 ano ~out/2026 → **saída livre de multa PERMANENTEMENTE**. "
+         "**CHECKPOINT DE HONESTIDADE jan/2027:** Conquista ≥R$3M E próprio ≥R$1M sustentados? Se não → mudar de ponto sem multa.\n"
+         "- **LOCAÇÃO PAUSADA** — fora do plano e dos painéis até a virada. Cancelar Kenlo Locação (R$ 163,82/mês).\n"
+         "- **Time:** Conquista = Kaue (gerente) + Nayara, Stephanie, Bruno, Fernanda, Cristian + Kadu (licença parcial ago). "
+         "**Rafaela → MAP (piloto 90 dias)**. Guilherme e videomaker CORTADOS. MAP = Paulo + Isa (closers) + Rafaela.\n"
+         "- **Alavancas de dívida:** alongamento FGI NEGADO; PRONAMP não existe. Novo caminho: **crédito com garantia real "
+         "Itaú R$ 250–300k @1,2%/mês** (protocolar ago, assinar set — uso: refinanciar FGI de 1,99%) + **venda do Line Imper** "
+         "(conta DENTRO da meta própria, via Terceiros)."},
+        {"id": "academy", "titulo": "3. Academy — a 2ª equipe", "corpo":
+         "Turma 1 (4–6 pessoas do zero) pra formar a 2ª equipe Conquista: **recruta ago (ATS) → forma set (Kaue/Isa) → "
+         "campo assistido out → produz nov+** (~50% vingam: 2–4 na meta). Turma 2 em dez → 16–18 corretores no Q1/2027."},
+        {"id": "apoio", "titulo": "4. Time de apoio", "corpo":
+         "**LEIRE** — reativação MAP 40/dia + captação targeted + docs ≤48h (inalterada).\n"
+         "**MARIANE** — CS + indicação premiada 45/dia + NPS (inalterada).\n"
+         "**RAFAELA · Piloto MAP 90 dias** — conversa_rede 40–50/mês · reunião qualificada agendada (métrica-mãe: 6–8 ago; "
+         "8–10 set/out) · proposta co-conduzida (3–4 set) · 1º VGV próprio R$ 300–500k (out). "
+         "**Gates:** 30d = ritmo provado · 60d = ≥3 propostas co-conduzidas · 90d = 1º VGV → efetivação.\n"
+         "**FILA DA PONTE** — fonte nº 1 do VGV próprio (lote 10/dia, Paulo/Isa fecham)."},
+        {"id": "regras", "titulo": "5. Regras de ouro", "corpo":
+         "1. **Nenhum mês fecha negativo** — com pró-labore dentro\n2. **Amortecedor recalculado toda segunda** — dado, não opinião\n"
+         "3. **Nada atrasado, nunca**\n4. **Tudo a 4%** — 5% e prêmios são bônus\n5. **Ads segue capacidade + ROAS**\n"
+         "6. **Registro no ato**\n7. **Cada gate compra o mês seguinte**\n8. **Placar em VGV vendido**\n"
+         "9. **Reunião sem painel/pauta = cancelada**\n10. **Checkpoint de honestidade jan/2027 no Georgina**"},
+    ],
+    "meses": [
+        {"id": "2026-08", "nome": "Agosto", "conquista": 2500000, "proprio": 1700000, "proprio_nec": 1650000,
+         "acoes": ["Line Imper anunciado à venda (Terceiros)", "Crédito Itaú protocolado (garantia real 250–300k @1,2%)",
+                   "Metas Paulo/Isa/Rafaela ativas no placar", "Academy: recrutamento turma 1 aberto no ATS (4–6 vagas)",
+                   "Kenlo cancelado", "LP instrumentada (pixel/CAPI/faixa)",
+                   "Transição Rafaela executada (acordo + role-plays baseline + pipeline em fechamento)",
+                   "Rotina de reuniões implantada (Formatos de Reunião)"],
+         "gate": "Mês ≥ 0 com pró-labore pago + Conquista ≥60% da meta"},
+        {"id": "2026-09", "nome": "Setembro", "conquista": 2500000, "proprio": 1650000, "proprio_nec": 1570000,
+         "acoes": ["REFI FGI executado (1,99%→1,2%; conta cheia → ~102,8k)", "Academy em formação (método + CRECI estágio)",
+                   "Rafaela gate 60 (≥3 propostas co-conduzidas)"],
+         "gate": "Refi feito + mês ≥ 0"},
+        {"id": "2026-10", "nome": "Outubro", "conquista": 2600000, "proprio": 1600000, "proprio_nec": 1520000,
+         "acoes": ["Line Imper VENDIDO", "Academy em campo assistido",
+                   "Contrato Georgina completa 1 ano (saída livre — registrar)",
+                   "Rafaela gate 90: 1º VGV próprio (R$300–500k) → efetivação"],
+         "gate": "Mês ≥ 0 + decisão Rafaela tomada"},
+        {"id": "2026-11", "nome": "Novembro", "conquista": 2800000, "proprio": 1500000, "proprio_nec": 1420000,
+         "acoes": ["Academy produzindo (2–4 novos na meta)", "Rafaela efetivada c/ rampa própria (300–400k)"],
+         "gate": "Mês ≥ 0 com dependência de próprio CAINDO"},
+        {"id": "2026-12", "nome": "Dezembro", "conquista": 3400000, "proprio": 1200000, "proprio_nec": 1110000,
+         "acoes": ["Turma 2 da Academy aprovada (6–8)", "Planejamento 2027 (16–18 corretores Q1)",
+                   "Checkpoint jan/2027 agendado"],
+         "gate": "Ano fecha positivo todos os meses + pró-labore R$38k integral"},
+    ],
+    "constantes": {"margem_conquista_pct": 1.85, "margem_proprio_pct": 3.6,
+                   "pro_labore_mes": 38000,
+                   "conta_cheia_por_mes": {"2026-08": 105295, "default": 102800},
+                   "regua_conquista_sem": 625000},
+    "checklist": {},
+}
+
 
 def _kv_get(sb):
     try:
@@ -202,6 +275,36 @@ def _real(sb, plano):
         out["fiscalizacao"] = fisc
     except Exception:
         pass
+
+    # 🎯 AMORTECEDOR (v2.3): quanto de VGV PRÓPRIO ainda falta pro mês fechar ≥ 0,
+    # projetando a Conquista no ritmo real até o fim do mês. Recalculado a cada GET.
+    try:
+        cc = (c.get("conta_cheia_por_mes") or {})
+        conta_cheia = float(cc.get(out["mes_id"]) or cc.get("default") or 105295)
+        import calendar as _cal
+        dias_mes = _cal.monthrange(now.year, now.month)[1]
+        frac = max(now.day / dias_mes, 1e-6)
+        contrib_conq_real = vgv_conq * float(c.get("margem_conquista_pct", 1.85)) / 100
+        contrib_conq_proj = contrib_conq_real / frac
+        proprio_ja = vgv_proprio
+        falta_contrib = max(0.0, conta_cheia - contrib_conq_proj)
+        proprio_nec_total = falta_contrib / (float(c.get("margem_proprio_pct", 3.6)) / 100)
+        falta_proprio = max(0.0, proprio_nec_total - proprio_ja)
+        semanas_rest = max(1.0, (dias_mes - now.day + 1) / 7.0)
+        out["amortecedor"] = {
+            "conta_cheia": conta_cheia,
+            "contrib_conquista_real": round(contrib_conq_real, 2),
+            "contrib_conquista_projetada": round(contrib_conq_proj, 2),
+            "proprio_ja_vendido": round(proprio_ja, 2),
+            "proprio_necessario_total": round(proprio_nec_total, 2),
+            "falta_proprio": round(falta_proprio, 2),
+            "regua_proprio_sem": round(falta_proprio / semanas_rest, 2),
+            "regua_conquista_sem": float(c.get("regua_conquista_sem") or 625000),
+            "semaforo": ("verde" if falta_proprio <= 0.01 or proprio_ja >= proprio_nec_total * (now.day / dias_mes)
+                         else ("amarelo" if falta_proprio < 400000 else "vermelho")),
+        }
+    except Exception:
+        out["amortecedor"] = None
 
     # 💰 CAIXA realizado (Radar de Recebíveis, v84.83): o que de fato ENTROU no
     # mês vs a contribuição por competência — o gap vendido×recebido visível.
@@ -303,6 +406,15 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(404, {"ok": False, "error": "mês não encontrado"})
         elif action == "reset_seed":
             plano = json.loads(json.dumps(SEED))
+        elif action == "migrar_v23":
+            # arquiva o plano atual (v1 + marcações do Paulo) ANTES de instalar o v2.3 — nada se perde
+            try:
+                sb.table("shared_kv").upsert({"key": KV_KEY + "_v1_arquivo", "value": plano,
+                                              "updated_at": datetime.now(timezone.utc).isoformat()},
+                                             on_conflict="key").execute()
+            except Exception as e:
+                return self._send(500, {"ok": False, "error": f"arquivamento falhou — migração abortada: {str(e)[:150]}"})
+            plano = json.loads(json.dumps(SEED_V23))
         else:
             return self._send(400, {"ok": False, "error": "action inválida"})
 

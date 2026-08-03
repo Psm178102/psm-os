@@ -19,7 +19,7 @@ TIPOS_POR_COLAB = {
               "doc_aberto", "doc_resolvido", "ticket_locacao_aberto", "ticket_locacao_respondido"],
     "mariane": ["abordagem_indicacao", "indicacao_qualificada", "nps_coletado",
                 "venda_atribuida_indicacao"],
-    "guilherme": ["captacao_fechada", "contrato_locacao", "conteudo_entregue"],
+    "rafaela": ["conversa_rede", "reuniao_qualificada_agendada", "proposta_coconduzida", "vgv_proprio_rafaela"],   # piloto MAP v2.3
 }
 
 DEFAULT_CFG = {
@@ -44,18 +44,15 @@ DEFAULT_CFG = {
             "nps": {"cobertura_pct": 100, "score_min": 70, "visita_sem_nps_horas": 48,
                     "detrator_max": 6, "promotor_min": 9},
         },
-        "guilherme": {
-            "nome": "Guilherme", "user_match": "guilherme", "motor": "mes_composto",
-            "rampa_inicio": "2026-07",
-            "metas_rampa": {
-                "captacao_fechada": {"m1": 2, "m2": 3, "m3": 4, "final": 5},
-                "contrato_locacao": {"m1": 1, "m2": 1, "m3": 2, "final": 4},
-                "video_conquista":  {"m1": 8, "m2": 8, "m3": 6, "final": 4},
-                "video_map":        {"m1": 4, "m2": 4, "m3": 3, "final": 2},
-                "art_conquista":    {"m1": 12, "m2": 12, "m3": 9, "final": 6},
-                "art_map":          {"m1": 6, "m2": 6, "m3": 5, "final": 4},
-            },
-        },
+        "rafaela": {
+            "nome": "Rafaela", "user_match": "rafaela", "motor": "reuniao_qualificada_agendada",
+            "rotulo": "Piloto MAP · 90 dias", "metas_mes": {"conversa_rede": 45, "reuniao_qualificada_agendada": 7,
+                                                            "proposta_coconduzida": 3, "vgv_proprio_rafaela": 1},
+            "gates": [
+                {"dias": 30, "ate": "2026-09-02", "criterio": "Ritmo provado: 40–50 conversas de rede + 6–8 reuniões qualificadas agendadas"},
+                {"dias": 60, "ate": "2026-10-02", "criterio": "≥3 propostas co-conduzidas com Paulo/Isa"},
+                {"dias": 90, "ate": "2026-11-01", "criterio": "1º VGV próprio (R$ 300–500k) → efetivação; senão, decisão honesta"},
+            ]},
     },
     "horarios": {"manha_ini": 8, "manha_fim": 12, "dia_fim": 18},
     "semaforo": {"verde_pct": 80, "amarelo_pct": 50},

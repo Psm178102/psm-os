@@ -35,11 +35,15 @@ JOBS = [
     ("meta_monthly", "/api/v3/marketing/meta_monthly_cron", 24),
     # leads da LP psmconquista (v84.86): reconcilia c/ RD + SLA + saúde do webhook
     ("leads_lp",     "/api/v3/leads/lp_recon?job=all",      0.5),
+    # 📋 lembretes dos formatos de reunião (v2.3): janela 30min antes da hora
+    ("reunioes",     "/api/v3/gp/reunioes_formatos?lembretes=1", 0.25),
     # 🤖 Sr. Gerência individual (v84.89): 3 pessoas por chamada, ciclo semanal
     ("sr_agente",    "/api/v3/ia/sr_agente?cron=1",         2),
     # 🛟 backup automático interno (v84.90): snapshot diário → Storage, rotação 30d
     ("backup_auto",  "/api/v3/backup/auto",                 24),
     ("war_briefing", "/api/v3/intel/war_briefing_cron",     None),  # semanal (lógica própria)
+    # 🎯 amortecedor v2.3 (semanal, converge segunda de manhã): push do VGV próprio necessário
+    ("amortecedor",  "/api/v3/diretoria/amortecedor_cron",   None),
 ]
 
 

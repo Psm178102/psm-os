@@ -69,6 +69,7 @@ import { pageCaptacoes } from './pages/captacoes.js';
 import { pageSdr } from './pages/sdr.js';
 import { pageLeadsLp } from './pages/leads-lp.js';
 import { pageApresentacoes } from './pages/apresentacoes.js';
+import { pageRhReunioes } from './pages/rh-reunioes.js';
 import { pageReativacaoKanban } from './pages/reativacao-kanban.js';
 import { pageTabelaImoveis } from './pages/tabela-imoveis.js';
 import { pageIntegracoes } from './pages/integracoes.js';
@@ -169,7 +170,7 @@ export const ROUTE_GROUP = {
   '/formacao': 'academy', '/premiacoes': 'inicio',
   // Gestão de Pessoas & RH (grupo próprio)
   '/gestao-pessoas': 'rh', '/onboarding': 'rh', '/offboarding': 'rh',
-  '/rh-treinamentos': 'rh', '/rh-recrutamento': 'rh', '/rh-plano': 'rh', '/rh-clima': 'rh', '/rh-avaliacoes': 'rh', '/rh-arch-leg': 'rh', '/rh-funcoes': 'rh',   // abas RH soltas (v81.55 / funcoes+organograma v81.95)
+  '/rh-treinamentos': 'rh', '/rh-recrutamento': 'rh', '/rh-plano': 'rh', '/rh-clima': 'rh', '/rh-avaliacoes': 'rh', '/rh-reunioes': 'rh', '/rh-arch-leg': 'rh', '/rh-funcoes': 'rh',   // abas RH soltas (v81.55 / funcoes+organograma v81.95)
   '/sucesso-cliente': 'sucesso',   // Customer Success (v81.53)
   '/cs-onboarding': 'sucesso', '/cs-carteira': 'sucesso', '/cs-suporte': 'sucesso', '/cs-retencao': 'sucesso', '/cs-metricas': 'sucesso', '/cs-upsell': 'sucesso', '/cs-marketing': 'sucesso', '/cs-avaliacoes': 'sucesso', '/cs-indicacoes': 'sucesso',   // abas CS soltas (v81.55)
   '/talentos': 'rh', '/psmhub': 'diretoria',
@@ -411,7 +412,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '84.98';
+const APP_VERSION = '84.99';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -595,6 +596,7 @@ const APP_VERSION = '84.98';
   router.register('/rh-plano', { render: async (ctx, root) => { setHeader('Plano de Crescimento'); highlight('/rh-plano'); await pageRhPlano(ctx, root); } });
   router.register('/rh-clima', { render: async (ctx, root) => { setHeader('Clima Interno'); highlight('/rh-clima'); await pageRhClima(ctx, root); } });
   router.register('/rh-avaliacoes', { render: async (ctx, root) => { setHeader('Avaliações & Feedbacks'); highlight('/rh-avaliacoes'); await pageRhAvaliacoes(ctx, root); } });
+  router.register('/rh-reunioes', { render: async (ctx, root) => { setHeader('📋 Formatos de Reunião'); highlight('/rh-reunioes'); await pageRhReunioes(ctx, root); } });
   router.register('/rh-arch-leg', { render: async (ctx, root) => { setHeader('Consultoria Arch Leg'); highlight('/rh-arch-leg'); await pageArchLeg(ctx, root); } });
   router.register('/rh-funcoes',    { render: async (ctx, root) => { setHeader('Funções & Organograma'); highlight('/rh-funcoes'); await pageRhCargos(ctx, root); } });
   router.register('/cs-onboarding', { render: async (ctx, root) => { setHeader('Onboarding do Cliente'); highlight('/cs-onboarding'); await pageSCOnboarding(ctx, root); } });
@@ -859,6 +861,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/rh-plano"><span class="sb-ico">📈</span> Plano de Crescimento</button>
         <button class="sb-link" data-nav="/rh-clima"><span class="sb-ico">🌡</span> Clima Interno</button>
         <button class="sb-link" data-nav="/rh-avaliacoes"><span class="sb-ico">⭐</span> Avaliações & Feedbacks</button>
+        <button class="sb-link" data-nav="/rh-reunioes"><span class="sb-ico">📋</span> Formatos de Reunião</button>
         <button class="sb-link" data-nav="/rh-arch-leg"><span class="sb-ico">🧭</span> Consultoria Arch Leg</button>
         <button class="sb-link" data-nav="/rh-funcoes"><span class="sb-ico">🗂</span> Funções & Organograma</button>
 

@@ -47,6 +47,11 @@ class handler(BaseHTTPRequestHandler):
             if meta_v > 0 and real_v / meta_v < 0.5:
                 riscos.append(f"{rotulo}: R$ {real_v:,.2f} de R$ {meta_v:,.2f} "
                               f"({100 * real_v / meta_v:.0f}%) — buraco de R$ {meta_v - real_v:,.2f}")
+        # v2.3 — REGRA DO POSITIVO: projeção de fechar o mês NEGATIVO é risco por si só
+        am = real.get("amortecedor") or {}
+        if am and am.get("semaforo") == "vermelho":
+            riscos.append(f"REGRA DO POSITIVO em risco: faltam R$ {am.get('falta_proprio', 0):,.2f} de VGV próprio "
+                          f"pro mês fechar ≥ 0 (ritmo necessário R$ {am.get('regua_proprio_sem', 0):,.2f}/semana)")
         notified = 0
         if riscos:
             corpo = (f"Dia 20 de {mes.get('nome')} e o gate está em risco:\n" + "\n".join("• " + r for r in riscos)
