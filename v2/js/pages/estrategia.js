@@ -329,14 +329,43 @@ let _cr = null;
 const CR_STATUS = {
   planejado: { lbl: 'Planejado', cor: '#64748b' },
   andamento: { lbl: 'Em andamento', cor: '#2563eb' },
+  pausado: { lbl: 'Pausado', cor: '#a16207' },          // v84.96
   risco: { lbl: 'Em risco', cor: '#d97706' },
   concluido: { lbl: 'Concluído', cor: '#16a34a' },
   atrasado: { lbl: 'Atrasado', cor: '#dc2626' },
+  excluido: { lbl: 'Excluído', cor: '#94a3b8' },        // v84.96 — soft, reversível
 };
+// v84.96 — fontes REAIS de progresso (medidas no servidor, mês/ano corrente)
+const CR_FONTES = {
+  '': '✍️ Manual (eu digito o %)',
+  vgv_mes: '💰 VGV ganho no MÊS (R$)',
+  vgv_ano: '💰 VGV ganho no ANO (R$)',
+  corretores_conquista: '🧑‍💼 Corretores Conquista ativos',
+  corretores_total: '🧑‍💼 Corretores ativos (todas as frentes)',
+  captacoes_mes: '📥 Captações criadas no mês',
+  leads_lp_mes: '🌐 Leads da LP no mês',
+  recebiveis_mes: '🛟 R$ recebidos no mês (radar)',
+};
+let _crProg = {};        // id → {real, alvo, pct} vindo do crono_progress
+let _crVerExcluidos = false;
+function cronoPct(i) {
+  if (i.status === 'excluido') return null;
+  if (i.status === 'concluido') return 100;
+  if (i.fonte && _crProg[i.id]) return _crProg[i.id].pct;
+  const p = parseInt(i.progresso, 10);
+  return Number.isFinite(p) ? Math.max(0, Math.min(100, p)) : null;
+}
+function fmtReal(fonte, v) {
+  if (v == null) return '—';
+  return /vgv|recebiveis/.test(fonte) ? 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : String(Math.round(v));
+}
 const CR_PERIODOS = ['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', '2026', '2027', '2028'];
 
 async function renderCronograma(container) {
   let resp;
+  api.request('/api/v3/diretoria/crono_progress').then(r => {   // % real das fontes (não bloqueia o quadro)
+    if (r && r.progresso) { _crProg = r.progresso; paintCronograma(container); }
+  }).catch(() => {});
   try { resp = await api.request('/api/v3/diretoria/strategy?board=cronograma'); }
   catch (e) { container.innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`; return; }
   const data = resp.data || {};
@@ -346,18 +375,26 @@ async function renderCronograma(container) {
 
 function paintCronograma(container) {
   container = container || document.getElementById('est-content');
-  const periodos = [...new Set([..._cr.items.map(i => i.periodo || 'Sem período')])];
+  const vivos = _cr.items.filter(i => i.status !== 'excluido');
+  const excluidos = _cr.items.filter(i => i.status === 'excluido');
+  const visiveis = _crVerExcluidos ? _cr.items : vivos;
+  const periodos = [...new Set([...visiveis.map(i => i.periodo || 'Sem período')])];
   // ordena por CR_PERIODOS, desconhecidos no fim
   periodos.sort((a, b) => (CR_PERIODOS.indexOf(a) + 1 || 99) - (CR_PERIODOS.indexOf(b) + 1 || 99));
-  const metas = _cr.items.filter(i => i.tipo === 'meta').length;
-  const objs = _cr.items.filter(i => i.tipo !== 'meta').length;
+  const metas = vivos.filter(i => i.tipo === 'meta').length;
+  const objs = vivos.filter(i => i.tipo !== 'meta').length;
+  // v84.96 — % médio atingido (itens vivos com % conhecido; concluído = 100)
+  const media = arr => { const ps = arr.map(cronoPct).filter(p => p != null); return ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) : null; };
+  const pctMetas = media(vivos.filter(i => i.tipo === 'meta'));
+  const pctObjs = media(vivos.filter(i => i.tipo !== 'meta'));
 
   container.innerHTML = `
     <div class="card" style="border-radius:0 10px 10px 10px">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div class="flex gap-2" style="flex-wrap:wrap">
-          <span class="cap-chip" style="background:rgba(37,99,235,.12);color:#2563eb;padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px">🎯 ${metas} meta(s)</span>
-          <span class="cap-chip" style="background:rgba(22,163,74,.12);color:#16a34a;padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px">🚩 ${objs} objetivo(s)</span>
+          <span class="cap-chip" style="background:rgba(37,99,235,.12);color:#2563eb;padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px">🎯 ${metas} meta(s)${pctMetas != null ? ` · <b>${pctMetas}%</b> atingido` : ''}</span>
+          <span class="cap-chip" style="background:rgba(22,163,74,.12);color:#16a34a;padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px">🚩 ${objs} objetivo(s)${pctObjs != null ? ` · <b>${pctObjs}%</b> atingido` : ''}</span>
+          ${excluidos.length ? `<button class="btn btn-ghost btn-sm" id="cr-toggle-exc" style="font-size:11px">🗑 ${_crVerExcluidos ? 'ocultar' : 'ver'} excluídos (${excluidos.length})</button>` : ''}
         </div>
         <button class="btn btn-primary btn-sm" id="cr-new">➕ Novo item</button>
       </div>
@@ -374,12 +411,16 @@ function paintCronograma(container) {
     </div>
   `;
   document.getElementById('cr-new').addEventListener('click', () => openCronoForm(null));
+  const tex = document.getElementById('cr-toggle-exc');
+  if (tex) tex.addEventListener('click', () => { _crVerExcluidos = !_crVerExcluidos; paintCronograma(container); });
   container.querySelectorAll('[data-cr-edit]').forEach(b => b.addEventListener('click', () => openCronoForm(_cr.items.find(i => i.id === b.dataset.crEdit))));
   container.querySelectorAll('[data-cr-del]').forEach(b => b.addEventListener('click', () => delCrono(b.dataset.crDel)));
+  container.querySelectorAll('[data-cr-rest]').forEach(b => b.addEventListener('click', () => restCrono(b.dataset.crRest)));
 }
 
 function cronoCol(periodo) {
-  const items = _cr.items.filter(i => (i.periodo || 'Sem período') === periodo);
+  const base = _crVerExcluidos ? _cr.items : _cr.items.filter(i => i.status !== 'excluido');
+  const items = base.filter(i => (i.periodo || 'Sem período') === periodo);
   return `
     <div class="crono-col">
       <div style="font-weight:800;font-size:13px;margin-bottom:8px">📅 ${esc(periodo)} <span class="tiny muted">· ${items.length}</span></div>
@@ -398,13 +439,31 @@ function cronoCard(i) {
         <div style="font-weight:800;font-size:13px;line-height:1.25">${isMeta ? '🎯' : '🚩'} ${esc(i.titulo)}</div>
         <div class="flex gap-1" style="flex-shrink:0">
           <button class="btn btn-ghost btn-sm" data-cr-edit="${esc(i.id)}" style="padding:1px 6px">✏️</button>
-          <button class="btn btn-ghost btn-sm" data-cr-del="${esc(i.id)}" style="padding:1px 6px">🗑</button>
+          ${i.status === 'excluido'
+            ? `<button class="btn btn-ghost btn-sm" data-cr-rest="${esc(i.id)}" style="padding:1px 6px" title="restaurar">↩</button>`
+            : `<button class="btn btn-ghost btn-sm" data-cr-del="${esc(i.id)}" style="padding:1px 6px" title="excluir (vai pra lixeira, reversível)">🗑</button>`}
         </div>
       </div>
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
         <span style="background:${st.cor}1f;color:${st.cor};padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">${st.lbl}</span>
         ${i.responsavel ? `<span style="background:rgba(148,163,184,.16);padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">👤 ${esc(i.responsavel)}</span>` : ''}
+        ${i.fonte ? `<span style="background:rgba(124,58,237,.12);color:#7c3aed;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700" title="progresso medido automaticamente nesta fonte">🔗 auto</span>` : ''}
       </div>
+      ${(() => {   /* v84.96 — barra de % (manual ou nutrida pela fonte) */
+        const pct = cronoPct(i);
+        if (pct == null && !i.fonte) return '';
+        const pr = _crProg[i.id];
+        const legenda = i.fonte
+          ? (pr && pr.pct != null
+              ? `${fmtReal(i.fonte, pr.real)} de ${fmtReal(i.fonte, pr.alvo)} — ${CR_FONTES[i.fonte] || i.fonte}`
+              : (pr ? 'defina o ALVO no ✏️ pra medir' : 'medindo…'))
+          : 'informado manualmente';
+        const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#2563eb' : pct >= 30 ? '#d97706' : '#dc2626';
+        return `<div style="margin-top:7px">
+          <div class="flex" style="justify-content:space-between;font-size:10px;font-weight:700"><span style="color:${cor}">${pct != null ? pct + '%' : '—'}</span><span class="muted" style="font-weight:400">${legenda}</span></div>
+          <div style="height:6px;background:var(--bg-3);border-radius:99px;margin-top:2px;overflow:hidden"><div style="height:100%;width:${pct || 0}%;background:${cor};border-radius:99px"></div></div>
+        </div>`;
+      })()}
       ${i.obs ? `<div class="tiny muted" style="margin-top:6px;white-space:pre-wrap;line-height:1.45;border-top:1px dashed var(--border);padding-top:6px">📝 ${esc(i.obs)}</div>` : ''}
     </div>`;
 }
@@ -436,6 +495,15 @@ function openCronoForm(item) {
             </select></div>
           <div><label class="tiny muted" style="font-weight:700">Responsável</label>
             <input id="cr-resp" class="input" value="${esc(i.responsavel || '')}" placeholder="Nome" style="width:100%" /></div>
+          <div style="grid-column:1/-1;border-top:1px dashed var(--border);padding-top:10px"><label class="tiny muted" style="font-weight:700">📈 Progresso — de onde vem o %?</label>
+            <select id="cr-fonte" class="input" style="width:100%">
+              ${Object.entries(CR_FONTES).map(([k, v]) => `<option value="${k}"${(i.fonte || '') === k ? ' selected' : ''}>${v}</option>`).join('')}
+            </select>
+            <div class="tiny muted" style="margin-top:2px">Fonte automática = o House mede sozinho (mês/ano corrente) e o card se atualiza. Manual = você digita.</div></div>
+          <div id="cr-alvo-box" style="${(i.fonte || '') ? '' : 'display:none'}"><label class="tiny muted" style="font-weight:700">Alvo (número/R$)</label>
+            <input id="cr-alvo" class="input" type="number" step="any" value="${i.alvo ?? ''}" placeholder="ex: 2100000 ou 8" style="width:100%" /></div>
+          <div id="cr-prog-box" style="${(i.fonte || '') ? 'display:none' : ''}"><label class="tiny muted" style="font-weight:700">% atingido (manual)</label>
+            <input id="cr-prog" class="input" type="number" min="0" max="100" value="${i.progresso ?? ''}" placeholder="0–100" style="width:100%" /></div>
           <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:700">Observações</label>
             <textarea id="cr-obs" class="input" rows="4" style="width:100%" placeholder="Notas, contexto, dependências, próximos passos…">${esc(i.obs || '')}</textarea></div>
         </div>
@@ -448,6 +516,11 @@ function openCronoForm(item) {
     </div>`;
   const close = () => { modal.innerHTML = ''; };
   document.getElementById('cr-x').addEventListener('click', close);
+  document.getElementById('cr-fonte').addEventListener('change', (e) => {
+    const tem = !!e.target.value;
+    document.getElementById('cr-alvo-box').style.display = tem ? '' : 'none';
+    document.getElementById('cr-prog-box').style.display = tem ? 'none' : '';
+  });
   document.getElementById('cr-cancel').addEventListener('click', close);
   modal.querySelector('.modal-backdrop').addEventListener('click', e => { if (e.target.classList.contains('modal-backdrop')) close(); });
   document.getElementById('cr-save').addEventListener('click', () => saveCrono(i));
@@ -464,6 +537,9 @@ async function saveCrono(i) {
     status: document.getElementById('cr-status').value,
     responsavel: document.getElementById('cr-resp').value.trim(),
     obs: document.getElementById('cr-obs').value.trim(),
+    fonte: document.getElementById('cr-fonte').value || null,
+    alvo: document.getElementById('cr-alvo').value ? Number(document.getElementById('cr-alvo').value) : null,
+    progresso: document.getElementById('cr-prog').value !== '' ? Math.max(0, Math.min(100, parseInt(document.getElementById('cr-prog').value, 10) || 0)) : null,
   };
   if (i.id) { const idx = _cr.items.findIndex(x => x.id === i.id); if (idx >= 0) _cr.items[idx] = obj; }
   else _cr.items.push(obj);
@@ -478,8 +554,16 @@ async function saveCrono(i) {
 
 async function delCrono(id) {
   const i = _cr.items.find(x => x.id === id);
-  if (!confirm(`Excluir "${(i && i.titulo) || 'este item'}"?`)) return;
-  _cr.items = _cr.items.filter(x => x.id !== id);
+  if (!confirm(`Excluir "${(i && i.titulo) || 'este item'}"?\n\nEle vai pra lixeira do quadro (dá pra restaurar em "ver excluídos").`)) return;
+  if (i) i.status = 'excluido';   // v84.96 — soft-delete: some do quadro, mas NUNCA se perde
+  try { await api.request('/api/v3/diretoria/strategy', { method: 'POST', body: { board: 'cronograma', data: { items: _cr.items } } }); }
+  catch (e) { alert('Erro: ' + e.message); }
+  paintCronograma();
+}
+
+async function restCrono(id) {
+  const i = _cr.items.find(x => x.id === id);
+  if (i) i.status = 'planejado';
   try { await api.request('/api/v3/diretoria/strategy', { method: 'POST', body: { board: 'cronograma', data: { items: _cr.items } } }); }
   catch (e) { alert('Erro: ' + e.message); }
   paintCronograma();
