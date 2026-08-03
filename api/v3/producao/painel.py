@@ -79,6 +79,22 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
+        # v85.0 — remover colaborador do card (o _merge não deleta chaves):
+        # action=del_colaborador {key} tira do kv salvo; histórico de eventos fica intacto.
+        if (body.get("action") or "") == "del_colaborador":
+            alvo = str(body.get("key") or "").strip().lower()
+            atual = get_cfg(sb)
+            if alvo and alvo in (atual.get("colaboradores") or {}):
+                atual["colaboradores"].pop(alvo, None)
+                try:
+                    sb.table("shared_kv").upsert({"key": KV_CFG, "value": atual,
+                                                  "updated_at": datetime.now(timezone.utc).isoformat()},
+                                                 on_conflict="key").execute()
+                except Exception as e:
+                    return self._send(500, {"ok": False, "error": str(e)[:200]})
+                audit(self, actor, "producao.del_colaborador", "kv", KV_CFG, notes=alvo)
+                return self._send(200, {"ok": True, "cfg": atual})
+            return self._send(404, {"ok": False, "error": "colaborador não encontrado"})
         novo = _merge(get_cfg(sb), patch)
         try:
             sb.table("shared_kv").upsert({"key": KV_CFG, "value": novo,

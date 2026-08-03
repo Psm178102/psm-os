@@ -82,7 +82,8 @@
    "/compras",
    "/manutencoes",
    "/sr-gerencia",
-   "/apresentacoes"
+   "/apresentacoes",
+   "/rh-reunioes"
   ],
   "gerente_conquista": [
    "/",
@@ -132,7 +133,8 @@
    "/cnds",
    "/sr-gerencia",
    "/apresentacoes",
-   "/rh-arch-leg"
+   "/rh-arch-leg",
+   "/rh-reunioes"
   ],
   "gerente_map": [
    "/",
@@ -187,7 +189,8 @@
    "/minutas",
    "/cnds",
    "/sr-gerencia",
-   "/apresentacoes"
+   "/apresentacoes",
+   "/rh-reunioes"
   ],
   "gerente_locacao": [
    "/",
@@ -233,7 +236,8 @@
    "/minutas",
    "/cnds",
    "/sr-gerencia",
-   "/apresentacoes"
+   "/apresentacoes",
+   "/rh-reunioes"
   ],
   "gerente_terceiros": [
    "/",
@@ -288,7 +292,8 @@
    "/minutas",
    "/cnds",
    "/sr-gerencia",
-   "/apresentacoes"
+   "/apresentacoes",
+   "/rh-reunioes"
   ],
   "backoffice": [
    "/",
@@ -335,7 +340,8 @@
    "/usuarios",
    "/logins",
    "/sr-gerencia",
-   "/apresentacoes"
+   "/apresentacoes",
+   "/rh-reunioes"
   ],
   "secretaria_vendas": [
    "/",
@@ -371,7 +377,8 @@
    "/manutencoes",
    "/tarefas",
    "/sr-gerencia",
-   "/apresentacoes"
+   "/apresentacoes",
+   "/rh-reunioes"
   ],
   "marketing": [
    "/",
@@ -402,7 +409,8 @@
    "/sim-criativos",
    "/anuncios-concorrentes",
    "/sr-gerencia",
-   "/apresentacoes"
+   "/apresentacoes",
+   "/rh-reunioes"
   ],
   "financeiro": [
    "/",
@@ -415,7 +423,8 @@
    "/offboarding",
    "/financeiro",
    "/forecast",
-   "/apresentacoes"
+   "/apresentacoes",
+   "/rh-reunioes"
   ],
   "corretor_conquista": [
    "/",
@@ -433,7 +442,8 @@
    "/minha-comissao",
    "/criativos-download",
    "/sr-gerencia",
-   "/apresentacoes"
+   "/apresentacoes",
+   "/rh-reunioes"
   ],
   "corretor_map": [
    "/",
@@ -472,7 +482,8 @@
    "/criativos-download",
    "/biblioteca-ads",
    "/sr-gerencia",
-   "/apresentacoes"
+   "/apresentacoes",
+   "/rh-reunioes"
   ],
   "corretor_locacao": [
    "/",
@@ -511,7 +522,8 @@
    "/minutas",
    "/cnds",
    "/sr-gerencia",
-   "/apresentacoes"
+   "/apresentacoes",
+   "/rh-reunioes"
   ],
   "corretor_terceiros": [
    "/",
@@ -553,12 +565,14 @@
    "/minutas",
    "/cnds",
    "/sr-gerencia",
-   "/apresentacoes"
+   "/apresentacoes",
+   "/rh-reunioes"
   ]
  },
  "_notas": [
   "23/07/2026 — /sr-gerencia liberado pra todos os papéis exceto financeiro (pedido do Paulo: Sr. Gerência individual é de todos; caso Kaue sem acesso)",
   "23/07/2026 — /apresentacoes (Apresentações PSM) liberado pra TODOS os papéis (pedido do Paulo: todo corretor/gestor/diretor assiste)",
-  "29/07/2026 — /rh-arch-leg concedido SÓ ao gerente_conquista (visão de equipe só-leitura na Arch Leg — v84.94)"
+  "29/07/2026 — /rh-arch-leg concedido SÓ ao gerente_conquista (visão de equipe só-leitura na Arch Leg — v84.94)",
+  "03/08/2026 — /rh-reunioes (Formatos de Reunião v2.3) liberado pra todos os papéis"
  ]
 }
