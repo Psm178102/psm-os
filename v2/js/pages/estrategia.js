@@ -697,7 +697,7 @@ function prPaint(c) {
       return `<div class="card" style="margin:0 0 10px;border:2px solid ${cor};background:${cor}0d">
         <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
           <b>🎯 Amortecedor da Semana ${emj}</b>
-          <span class="tiny muted">conta cheia do mês: <b>${prBrl(am.conta_cheia)}</b> (nut + ads + pró-labore R$ 38.000,00)</span>
+          <span class="tiny muted">conta cheia do mês: <b>${prBrl(am.conta_cheia)}</b> ${am.conta_cheia_fonte === 'calculada' ? '(calculada dos custos orçados — fonte única)' : '(kv manual/fallback)'}</span>
         </div>
         <div style="font-size:26px;font-weight:900;color:${cor};margin:6px 0 2px">${am.falta_proprio > 0 ? 'Faltam ' + prBrl(am.falta_proprio) + ' de VGV próprio' : '✅ Mês coberto no ritmo atual'}</div>
         <div class="tiny">pra fechar o mês ≥ 0 · Conquista projetada no ritmo real: <b>${prBrl(am.contrib_conquista_projetada)}</b> de contribuição · próprio já vendido: <b>${prBrl(am.proprio_ja_vendido)}</b></div>
@@ -706,6 +706,7 @@ function prPaint(c) {
           <div style="flex:1;min-width:170px;background:var(--bg-2);border-radius:8px;padding:6px 10px"><div class="tiny muted">📏 Régua próprio (recalculada)</div><div style="font-weight:800;color:${cor}">${prBrl(am.regua_proprio_sem)}/sem</div></div>
         </div>
         <div class="tiny muted" style="margin-top:4px">Regra do Amortecedor: o que a Conquista não atingir vira meta própria de Paulo/Isa — recalculada toda segunda (push automático).</div>
+        ${am.divergencia ? `<div class="tiny" style="color:#d97706;font-weight:700;margin-top:4px">⚠️ kv manual (${prBrl(am.divergencia.kv_manual)}) ≠ calculado (${prBrl(am.divergencia.calculada)}) — o calculado manda; limpe/ajuste o kv na Viabilidade.</div>` : ''}
       </div>`;
     })() : '';
     corpo = amBox + briefBox + `

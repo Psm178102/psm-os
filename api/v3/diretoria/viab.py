@@ -56,6 +56,38 @@ def _frente_of(pn):
     return frente_of(pn)   # fonte única (Central de Frentes, _auth_lib). v84.0
 
 
+# ═══ v85.2 — CUSTO FIXO DO MÊS (fonte única da "conta cheia" do Plano v2.3) ═══
+# Soma fixo+extra+parcelado ativos no mês (variável % VGV FORA — regra validada
+# pelo Paulo 03/08: comissões já vivem nas margens 1,85%/3,6%, não são conta do
+# mês). Anual cai INTEIRO no mês inicial (meses[0], padrão jan); parcelado conta
+# a parcela em cada mês listado. Rateio não importa aqui (total = soma de tudo).
+def _mes_ativo_py(it, m):
+    classe = it.get("classe") or "fixo"
+    meses = it.get("meses")
+    if classe in ("extra", "parcelado") and isinstance(meses, list) and meses:
+        return m in meses
+    p = it.get("period") or "mensal"
+    if p == "mensal":
+        return True
+    ini = (meses[0] if isinstance(meses, list) and meses else 1)
+    step = 3 if p == "tri" else 6 if p == "sem" else 12
+    return m >= ini and (m - ini) % step == 0
+
+
+def custo_fixo_mes(itens, m):
+    tot = 0.0
+    for it in (itens or []):
+        if (it.get("classe") or "fixo") == "variavel":
+            continue
+        if not _mes_ativo_py(it, m):
+            continue
+        pm = it.get("por_mes") or {}
+        v = pm.get(str(m), pm.get(m))
+        base = float(v) if v not in (None, "") else float(it.get("valor") or 0)
+        tot += base
+    return round(tot, 2)
+
+
 def read_kv(sb, key):
     try:
         rows = sb.table("shared_kv").select("value").eq("key", key).limit(1).execute().data or []
@@ -269,6 +301,10 @@ class handler(BaseHTTPRequestHandler):
             "realizado": realizado_ano(sb, ano),
             "fontes_auto": fontes_auto_ano(sb, ano),   # custos automáticos por mês (Meta real + gancho NIBO). v82.1
             "custos_orcado": (read_kv(sb, "viab_custos_orcado").get(str(ano)) or {}),   # custos orçados detalhados. v82.3
+            # v85.2 — fonte única da conta cheia: custo fixo (fixo+extra+parcelado) por mês
+            "conta_cheia_calc": {m: custo_fixo_mes(((read_kv(sb, "viab_custos_orcado").get(str(ano)) or {}).get("itens") or []), m) for m in range(1, 13)},
+            "conta_cheia_kv": ((read_kv(sb, "plano_resgate_2026").get("constantes") or {}).get("conta_cheia_por_mes") or {}),
+            "changelog": (read_kv(sb, "viab_custos_changelog").get("entradas") or [])[:20],
             "cenarios": read_kv(sb, "viab_cenarios"),   # cenários do Simulador/Break-even compartilhados (fim do localStorage). v83.8
         })
 
@@ -393,12 +429,13 @@ class handler(BaseHTTPRequestHandler):
                 linhas = [l for l in (it.get("linhas") or []) if l in LINHA_IDS]
                 pesos = it.get("pesos") if isinstance(it.get("pesos"), dict) else None
                 por_mes = it.get("por_mes") if isinstance(it.get("por_mes"), dict) else None
+                verificado = it.get("verificado") if isinstance(it.get("verificado"), dict) else None   # pendências v85.2
                 clean.append({
                     "id": (str(it.get("id") or "")).strip()[:40] or f"co_{len(clean)}",
                     "desc": (it.get("desc") or "").strip()[:120], "cat": (it.get("cat") or "Outros").strip()[:40],
                     "classe": classe, "aloc": aloc, "rateio": rateio, "valor": round(valor, 2),
                     "meses": meses, "linhas": linhas, "pesos": pesos, "por_mes": por_mes,
-                    "period": period, "pgto": pgto,
+                    "period": period, "pgto": pgto, "verificado": verificado,
                 })
             # empresas que participam do rateio Igual/Proporcional (config global editável). v82.4
             re_ = body.get("rateio_empresas")
@@ -425,12 +462,56 @@ class handler(BaseHTTPRequestHandler):
                         seen.add(p.lower()); pgtos.append(p)
                 pgtos = pgtos[:40] or None
             allkv = read_kv(sb, "viab_custos_orcado")
+            antes_cell = allkv.get(str(ano)) or {}
             cell = {"itens": clean, "rateio_empresas": rateio_empresas}
             if categorias: cell["categorias"] = categorias
             if pgtos: cell["pgtos"] = pgtos
             allkv[str(ano)] = cell
             write_kv(sb, "viab_custos_orcado", allkv)
-            audit(self, actor, "viab.set_custos_orcado", target_type="shared_kv", target_id=str(ano))
+            audit(self, actor, "viab.set_custos_orcado", target_type="shared_kv", target_id=str(ano),
+                  before=antes_cell, after=cell)
+            # ── v85.2 CHANGELOG: quem/quando/antes→depois + efeito no ano e no mês ──
+            try:
+                agora = datetime.now(timezone.utc)
+                mes_corr = agora.month
+                itens_a = {i.get("id"): i for i in (antes_cell.get("itens") or [])}
+                itens_d = {i.get("id"): i for i in clean}
+                muds = []
+                for iid, dpo in itens_d.items():
+                    ant = itens_a.get(iid)
+                    if ant is None:
+                        muds.append({"desc": dpo.get("desc"), "tipo": "criado", "depois": dpo.get("valor")})
+                    else:
+                        for campo in ("desc", "valor", "classe", "aloc", "period", "meses", "por_mes", "cat"):
+                            if ant.get(campo) != dpo.get(campo):
+                                muds.append({"desc": dpo.get("desc"), "tipo": "editado", "campo": campo,
+                                             "antes": ant.get(campo), "depois": dpo.get(campo)})
+                for iid, ant in itens_a.items():
+                    if iid not in itens_d:
+                        muds.append({"desc": ant.get("desc"), "tipo": "excluído", "antes": ant.get("valor")})
+                ano_antes = sum(custo_fixo_mes(antes_cell.get("itens") or [], m) for m in range(1, 13))
+                ano_depois = sum(custo_fixo_mes(clean, m) for m in range(1, 13))
+                mes_antes = custo_fixo_mes(antes_cell.get("itens") or [], mes_corr)
+                mes_depois = custo_fixo_mes(clean, mes_corr)
+                if muds:
+                    clkv = read_kv(sb, "viab_custos_changelog")
+                    ents = clkv.get("entradas") or []
+                    ents.insert(0, {"ts": agora.isoformat(), "por": actor.get("name"),
+                                    "delta_ano_fixo": round(ano_depois - ano_antes, 2),
+                                    "delta_mes_corrente": round(mes_depois - mes_antes, 2),
+                                    "mes_corrente": mes_corr, "mudancas": muds[:30]})
+                    write_kv(sb, "viab_custos_changelog", {"entradas": ents[:100]})
+                    if abs(ano_depois - ano_antes) > 20000:
+                        from _auth_lib import notify, lvl_of
+                        us = sb.table("users").select("id,role,status").execute().data or []
+                        ids = [u["id"] for u in us if (u.get("status") or "ativo") == "ativo" and lvl_of(u.get("role")) >= 8]
+                        dv = ano_depois - ano_antes
+                        notify(ids, "viab_custos",
+                               f"💸 Custos orçados: {'+' if dv > 0 else ''}R$ {dv:,.2f}/ano ({actor.get('name')})",
+                               " · ".join(f"{m.get('desc')}" for m in muds[:4]) + (f" (+{len(muds) - 4})" if len(muds) > 4 else ""),
+                               link="#/metricas-viab")
+            except Exception:
+                pass
             return self._send(200, {"ok": True, "custos_orcado": allkv[str(ano)]})
 
         return self._send(400, {"ok": False, "error": "action inválida"})

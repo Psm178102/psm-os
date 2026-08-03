@@ -357,6 +357,16 @@ function catsManagerHTML() {
     <div class="flex gap-2 mt-2"><input id="cat-nova" class="input" placeholder="nova categoria (ex.: Retirada de sócio)" style="max-width:250px;font-size:12px"><button class="btn btn-primary btn-sm" id="cat-add">＋ adicionar</button></div>
   </div>`;
 }
+/* v85.2 — pendências de verificação: [VERIFICAR] no nome ou R$0 suspeito (sem por_mes) */
+function isPendente(it) {
+  if (it.verificado) return false;
+  if (/\[verificar\]/i.test(it.desc || '')) return true;
+  if ((+it.valor || 0) === 0 && !it.por_mes && it.classe !== 'variavel') return true;
+  return false;
+}
+const isKenlo = it => /kenlo/i.test(it.desc || '') && !it.verificado;
+let _soPend = false, _clOpen = false, _mesIdx = null;
+
 function pgtosManagerHTML() {
   if (!_pgtosOpen) return `<div class="mb-2"><button class="btn btn-ghost btn-sm" id="cd-pgtos-toggle">💳 Gerenciar métodos de pagamento (${(_pgtos || []).length})</button></div>`;
   const usada = p => (_custosOrc || []).filter(it => it.pgto === p).length;
@@ -372,6 +382,72 @@ function pgtosManagerHTML() {
     <div class="flex gap-2 mt-2"><input id="pg-novo" class="input" placeholder="novo método (ex.: Cartão de crédito Itaú)" style="max-width:270px;font-size:12px"><button class="btn btn-primary btn-sm" id="pg-add">＋ adicionar</button></div>
   </div>`;
 }
+function abrirComposicaoMes(m) {
+  const MESES_A = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const itens = (_custosOrc || []).map(it => {
+    if (!mesAtivo(it, m)) return null;
+    const pm = it.por_mes || {};
+    const base = (pm[m] != null && pm[m] !== '') ? +pm[m] : (+it.valor || 0);
+    if (it.classe === 'variavel') {
+      let v = 0; const p = base / 100;
+      if (it.aloc !== 'compartilhado') v = (orcCell(it.aloc, m).vgv || 0) * p;
+      else LIDS.forEach(l => v += (orcCell(l, m).vgv || 0) * p);
+      return { desc: it.desc, classe: it.classe, v };
+    }
+    return { desc: it.desc, classe: it.classe, v: base };
+  }).filter(x => x && x.v > 0).sort((a, b) => b.v - a.v);
+  const tot = itens.reduce((a, x) => a + x.v, 0);
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = `<div class="card" style="max-width:520px;width:100%;max-height:80vh;overflow:auto;background:var(--bg-2)">
+    <div class="flex" style="justify-content:space-between"><b>📅 Composição de ${MESES_A[m - 1]}: ${fmt(tot)}</b><button class="btn btn-ghost btn-sm" id="cm-x">✕</button></div>
+    <table class="tiny" style="width:100%;margin-top:8px;border-collapse:collapse">
+      ${itens.map(x => `<tr style="border-top:1px solid var(--border)"><td style="padding:3px 5px">${esc(x.desc || '?')}</td><td class="muted" style="text-align:center">${x.classe}</td><td style="text-align:right;font-weight:700">${fmt(x.v)}</td></tr>`).join('')}
+    </table></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#cm-x').onclick = () => ov.remove();
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+}
+
+function changelogHTML() {
+  const ents = (_d.changelog || []);
+  if (!ents.length) return '<div class="card" style="margin:0 0 10px"><span class="tiny muted">Nenhuma alteração registrada ainda (o registro começou na v85.2).</span></div>';
+  const f$ = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+  return `<div class="card" style="margin:0 0 10px"><b class="tiny">🕘 Últimas alterações nos custos orçados</b>
+    ${ents.slice(0, 12).map(e => `<div class="tiny" style="border-top:1px dashed var(--border);padding:5px 0">
+      <b style="color:${(e.delta_ano_fixo || 0) > 0 ? '#dc2626' : '#16a34a'}">${(e.delta_ano_fixo || 0) >= 0 ? '+' : ''}${f$(e.delta_ano_fixo)}/ano</b>
+      · mês corrente ${(e.delta_mes_corrente || 0) >= 0 ? '+' : ''}${f$(e.delta_mes_corrente)}
+      · <span class="muted">${e.por || '?'} em ${new Date(e.ts).toLocaleString('pt-BR').slice(0, 16)}</span><br>
+      ${(e.mudancas || []).slice(0, 5).map(m => `<span class="muted">→ ${m.tipo} <b>${m.desc || '?'}</b>${m.campo ? ` (${m.campo}: ${JSON.stringify(m.antes)} → ${JSON.stringify(m.depois)})` : ''}</span>`).join('<br>')}
+    </div>`).join('')}</div>`;
+}
+
+function abrirModalMeses(i) {
+  const it = _custosOrc[i]; if (!it) return;
+  const MESES_A = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const sel = new Set(Array.isArray(it.meses) ? it.meses : []);
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:1000;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `<div class="card" style="max-width:380px;width:94%;background:var(--bg-2)">
+    <b class="tiny">📅 Meses de "${esc(it.desc || '?')}"</b>
+    <div class="tiny muted" style="margin:2px 0 8px">${it.classe === 'parcelado' ? 'cada mês marcado = 1 parcela do valor' : ((it.period || 'mensal') !== 'mensal' ? 'marque só o mês INICIAL — a recorrência segue dele' : 'vazio = todos os meses')}</div>
+    <div class="grid" style="grid-template-columns:repeat(4,1fr);gap:6px">
+      ${MESES_A.map((n, ix) => `<label class="tiny" style="display:flex;gap:4px;align-items:center;cursor:pointer;background:var(--bg-3);border-radius:6px;padding:5px 8px"><input type="checkbox" class="mm-ck" value="${ix + 1}" ${sel.has(ix + 1) ? 'checked' : ''}>${n}</label>`).join('')}
+    </div>
+    <div class="flex gap-2 mt-3" style="justify-content:flex-end">
+      <button class="btn btn-ghost btn-sm" id="mm-x">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="mm-ok">Aplicar</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#mm-x').onclick = () => ov.remove();
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  ov.querySelector('#mm-ok').onclick = () => {
+    const ms = [...ov.querySelectorAll('.mm-ck:checked')].map(c => +c.value).sort((a, b) => a - b);
+    it.meses = ms.length ? ms : null;
+    ov.remove(); render();
+  };
+}
+
 function renderCustosDet() {
   const det = custoOrcadoDet();
   const detST = custoOrcadoDet(true);   // sem tráfego pago (v82.8)
@@ -380,19 +456,72 @@ function renderCustosDet() {
   const porClasse = { fixo: 0, variavel: 0, extra: 0, parcelado: 0 };
   (_custosOrc || []).forEach(it => porClasse[it.classe] = (porClasse[it.classe] || 0) + itemAnual(it));
   const opt = (arr, v) => arr.map(([val, lbl]) => `<option value="${val}"${val === v ? ' selected' : ''}>${esc(lbl)}</option>`).join('');
-  const empChips = LINHAS.map(l => `<div style="flex:1;min-width:130px;background:var(--bg-3);border-radius:8px;padding:8px 10px"><div class="tiny muted">${l.icon} ${l.nome}</div><div style="font-weight:800;color:${l.cor}">${fmt(totEmp[l.id])}<span class="tiny muted" style="font-weight:400">/ano</span></div><div class="tiny muted">${fmt(totEmpST[l.id] / 12)}/mês <b>sem tráfego</b></div></div>`).join('');
-  const rows = (_custosOrc || []).map((it, i) => {
+  /* v85.2 — número GRANDE = custo do MÊS CORRENTE (não média anual). Regras
+     validadas pelo Paulo 03/08: anual cai inteiro no mês inicial; parcela conta
+     no mês listado; variável usa o VGV orçado do mês. */
+  const MESES_N = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const mesCorr = new Date().getMonth() + 1;
+  const mesCorrNome = MESES_N[mesCorr - 1] + '/' + String(new Date().getFullYear()).slice(2);
+  const ttCard = 'Custo de ' + MESES_N[mesCorr - 1] + ' = soma dos itens ativos no mês (meses marcados, parcelas do mês, anuais que caem aqui) + variável sobre o VGV orçado do mês.';
+  const empChips = LINHAS.map(l => `<div title="${ttCard}" style="flex:1;min-width:150px;background:var(--bg-3);border-radius:8px;padding:8px 10px"><div class="tiny muted">${l.icon} ${l.nome} · <b>${mesCorrNome}</b></div><div style="font-weight:800;font-size:16px;color:${l.cor}">${fmt(det[l.id][mesCorr])}<span class="tiny muted" style="font-weight:400">/mês</span></div><div class="tiny muted">média/mês no ano: ${fmt(totEmp[l.id] / 12)} · ${fmt(totEmpST[l.id] / 12)} s/ tráfego</div></div>`).join('');
+  // timeline 12 meses (Σ empresas) — degrau visível; clique = composição do mês
+  const totMes = {}; for (let m = 1; m <= 12; m++) { totMes[m] = 0; LIDS.forEach(l => totMes[m] += det[l][m]); }
+  const maxMes = Math.max(...Object.values(totMes), 1);
+  const timeline = `<div class="card" style="margin:0 0 10px">
+    <div class="tiny" style="font-weight:800;margin-bottom:6px">📅 Custo mês a mês (${new Date().getFullYear()}) — clique no mês pra ver a composição</div>
+    <div class="flex" style="gap:4px;align-items:flex-end;height:86px">
+      ${Array.from({length: 12}, (_, i) => { const m = i + 1; const h = Math.max(6, Math.round(72 * totMes[m] / maxMes)); const atual = m === mesCorr;
+        return `<div class="cd-tl" data-m="${m}" title="${MESES_N[i]}: ${fmt(totMes[m])}" style="flex:1;cursor:pointer;text-align:center">
+          <div class="tiny" style="font-size:9px;font-weight:700;color:${atual ? 'var(--psm-navy)' : 'var(--ink-muted)'}">${fmt(totMes[m] / 1000).replace(',00', '')}k</div>
+          <div style="height:${h}px;border-radius:4px 4px 0 0;background:${atual ? 'var(--psm-navy)' : '#b8ad8c'};${atual ? 'box-shadow:0 0 0 2px #1e265033' : ''}"></div>
+          <div class="tiny" style="font-size:10px;${atual ? 'font-weight:900' : ''}">${MESES_N[i]}</div>
+        </div>`; }).join('')}
+    </div></div>`;
+  // C — conta cheia (fonte única do backend) + aviso de divergência com o kv do plano
+  const ccCalc = (_d.conta_cheia_calc || {})[mesCorr];
+  const ccKv = (_d.conta_cheia_kv || {})['2026-' + String(mesCorr).padStart(2, '0')] ?? (_d.conta_cheia_kv || {}).default;
+  const diverge = ccCalc != null && ccKv != null && Math.abs(ccCalc - ccKv) > 1000;
+  const contaCheia = ccCalc == null ? '' : `<div class="card" style="margin:0 0 10px;border:2px solid var(--psm-navy);background:#1e26500d" title="custo fixo do mês (fixo+extra+parcelado, COM tráfego e pró-labore; variável fora) — o mesmo número que o Amortecedor do Real vs Plano usa">
+    <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+      <b>🧮 Conta cheia de ${MESES_N[mesCorr - 1]} (Plano v2.3)</b>
+      <span style="font-size:24px;font-weight:900;color:var(--psm-navy)">${fmt(ccCalc)}<span class="tiny muted" style="font-weight:400">/mês</span></span>
+    </div>
+    <div class="tiny muted">custo fixo do mês com tráfego e pró-labore — fonte única: é este número que o 🎯 Amortecedor da Estratégia lê.</div>
+    ${diverge ? `<div class="tiny" style="color:#d97706;font-weight:700;margin-top:4px">⚠️ Divergência: o kv manual do plano diz ${fmt(ccKv)} — o calculado (${fmt(ccCalc)}) é quem manda; ajuste ou limpe o kv.</div>` : ''}
+  </div>`;
+  const nPend = (_custosOrc || []).filter(isPendente).length + (_custosOrc || []).filter(isKenlo).length;
+  const MESES_A = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const chipsMeses = (it) => {
+    const ms = Array.isArray(it.meses) ? it.meses.slice().sort((a, b) => a - b) : null;
+    const pm = it.por_mes ? Object.keys(it.por_mes).map(Number).filter(m => +it.por_mes[m]).sort((a, b) => a - b) : null;
+    const rng = arr => { if (!arr || !arr.length) return null;
+      const seq = arr.every((v, i) => !i || v === arr[i - 1] + 1);
+      return seq && arr.length > 1 ? MESES_A[arr[0] - 1] + '–' + MESES_A[arr[arr.length - 1] - 1] : arr.map(m => MESES_A[m - 1]).join(',');
+    };
+    const mesAtual = new Date().getMonth() + 1;
+    if (it.classe === 'parcelado' && ms && ms.length) {
+      const pos = ms.indexOf(mesAtual) + 1;
+      return `${pos > 0 ? pos + '/' : ''}${ms.length} parc · ${rng(ms)} · fim ${MESES_A[ms[ms.length - 1] - 1]}`;
+    }
+    if ((it.period || 'mensal') === 'anual') return 'anual (' + MESES_A[((ms && ms[0]) || 1) - 1] + ')';
+    if ((it.period || 'mensal') !== 'mensal') return (it.period === 'tri' ? 'trimestral' : 'semestral') + ' desde ' + MESES_A[((ms && ms[0]) || 1) - 1];
+    if (ms && ms.length) return rng(ms);
+    if (pm && pm.length && pm.length < 12) return rng(pm);
+    return 'todos';
+  };
+  const rows = (_custosOrc || []).filter(it => !_soPend || isPendente(it) || isKenlo(it)).map((it, _vi) => {
+    const i = _custosOrc.indexOf(it);
     const comp = it.aloc === 'compartilhado';
     const rateioSel = comp ? `<select class="select cd-f" data-i="${i}" data-k="rateio" style="font-size:11px;padding:2px;max-width:118px">${opt(RATEIOS, it.rateio)}</select>` : '<span class="tiny muted">direto</span>';
     let detalhe = '';
     if (comp && it.rateio === 'especifico') detalhe = `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:3px">${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;gap:2px;align-items:center"><input type="checkbox" class="cd-esp" data-i="${i}" value="${l.id}"${(it.linhas || []).includes(l.id) ? ' checked' : ''}>${l.id}</label>`).join('')}</div>`;
     if (comp && it.rateio === 'manual') detalhe = `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:3px">${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;flex-direction:column;align-items:center">${l.id}<input class="input cd-man" data-i="${i}" data-l="${l.id}" value="${(it.pesos || {})[l.id] ?? ''}" style="width:44px;padding:1px 3px;font-size:10px" placeholder="%"></label>`).join('')}</div>`;
-    const perNaoMensal = (it.period || 'mensal') !== 'mensal';
-    const mesesCell = (it.classe === 'extra' || it.classe === 'parcelado' || perNaoMensal)
-      ? `<input class="input cd-f" data-i="${i}" data-k="meses" value="${Array.isArray(it.meses) ? it.meses.join(',') : ''}" placeholder="${it.classe === 'parcelado' ? 'parcelas ex: 3,4,5' : (perNaoMensal ? 'início ex: 2' : 'todos')}" title="${it.classe === 'parcelado' ? 'cada mês listado = 1 parcela do valor' : (perNaoMensal ? 'mês em que a cobrança começa (dali segue a recorrência)' : 'ex: 1,6,12')}" style="width:${it.classe === 'parcelado' ? 96 : 66}px;padding:2px 4px;font-size:11px">`
-      : '<span class="tiny muted">todos</span>';
+    const mesesCell = `<button class="btn btn-ghost btn-sm cd-meses" data-i="${i}" title="clique pra marcar os meses" style="padding:2px 8px;font-size:11px;white-space:nowrap">${chipsMeses(it)}</button>`;
+    const pendBadge = isKenlo(it)
+      ? `<div class="tiny" style="color:#dc2626;font-weight:800">🔻 CANCELAR no fornecedor — Locação pausada <button class="btn btn-ghost btn-sm cd-kenlo-ok" data-i="${i}" style="padding:0 6px">✓ cancelei</button></div>`
+      : (isPendente(it) ? `<div class="tiny" style="color:#d97706;font-weight:700">⚠ verificar <button class="btn btn-ghost btn-sm cd-verif" data-i="${i}" style="padding:0 6px" title="confirmar que R$ ${it.valor || 0} está certo">✓ confirmar</button></div>` : '');
     return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:3px 5px"><input class="input cd-f" data-i="${i}" data-k="desc" value="${esc(it.desc)}" style="width:100%;min-width:120px;padding:2px 5px;font-size:12px"></td>
+      <td style="padding:3px 5px"><input class="input cd-f" data-i="${i}" data-k="desc" value="${esc(it.desc)}" style="width:100%;min-width:120px;padding:2px 5px;font-size:12px">${pendBadge}</td>
       <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="cat" style="font-size:11px;padding:2px">${opt(_cats.map(c => [c, c]), it.cat)}</select></td>
       <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="period" style="font-size:11px;padding:2px" title="de quanto em quanto tempo o custo bate">${opt(PERIODS, it.period || 'mensal')}</select></td>
       <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="classe" style="font-size:11px;padding:2px">${opt(CLASSES, it.classe)}</select></td>
@@ -411,9 +540,16 @@ function renderCustosDet() {
       ${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;gap:4px;align-items:center;font-weight:600;cursor:pointer"><input type="checkbox" class="re-emp" value="${l.id}"${ratEmp().includes(l.id) ? ' checked' : ''}>${l.icon} ${l.nome}</label>`).join('')}
       <span class="tiny muted">desmarque quem não divide a estrutura (ex.: Terceiros). Salva na hora.</span>
     </div>
+    ${contaCheia}
+    ${timeline}
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap">${empChips}
       <div style="flex:1;min-width:150px;background:var(--psm-navy);color:#fff;border-radius:8px;padding:8px 10px"><div class="tiny" style="opacity:.8">Total custos/ano</div><div style="font-weight:800;font-size:16px">${fmt(grand)}</div><div class="tiny" style="opacity:.85">Fixo ${fmtC(porClasse.fixo)} · Var ${fmtC(porClasse.variavel)} · Extra ${fmtC(porClasse.extra)} · Parc ${fmtC(porClasse.parcelado)}</div></div>
     </div>
+    <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center">
+      <button class="btn ${_soPend ? 'btn-primary' : 'btn-ghost'} btn-sm" id="cd-pend-toggle">⚠ Pendentes de verificação (${nPend})</button>
+      <button class="btn btn-ghost btn-sm" id="cd-changelog">🕘 O que mudou?</button>
+    </div>
+    ${_clOpen ? changelogHTML() : ''}
     ${catsManagerHTML()}
     ${pgtosManagerHTML()}
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:840px">
@@ -468,6 +604,25 @@ function wireCustosDet() {
   const add = document.getElementById('cd-add');
   if (add) add.onclick = () => { _custosOrc.push({ id: 'co_' + Date.now(), desc: '', cat: 'Outros', classe: 'fixo', aloc: 'compartilhado', rateio: 'igual', valor: 0, meses: null, linhas: [], pesos: null, por_mes: null, period: 'mensal', pgto: null }); render(); };
   const save = document.getElementById('cd-save'); if (save) save.onclick = saveCustosOrc;
+  // v85.2 — pendências / kenlo / meses / changelog / timeline
+  const pt = document.getElementById('cd-pend-toggle'); if (pt) pt.onclick = () => { _soPend = !_soPend; render(); };
+  const cl = document.getElementById('cd-changelog'); if (cl) cl.onclick = () => { _clOpen = !_clOpen; render(); };
+  document.querySelectorAll('.cd-meses').forEach(b => b.onclick = () => abrirModalMeses(+b.dataset.i));
+  document.querySelectorAll('.cd-verif').forEach(b => b.onclick = () => {
+    const it = _custosOrc[+b.dataset.i]; if (!it) return;
+    it.verificado = { por: (auth.user() || {}).name, ts: new Date().toISOString() };
+    it.desc = (it.desc || '').replace(/\s*\[verificar\]\s*/i, ' ').trim();
+    saveCustosOrc();
+  });
+  document.querySelectorAll('.cd-kenlo-ok').forEach(b => b.onclick = () => {
+    const it = _custosOrc[+b.dataset.i]; if (!it) return;
+    if (!confirm('Confirmar que o Kenlo Locação foi CANCELADO no fornecedor? A linha zera com a data de hoje.')) return;
+    it.valor = 0; it.por_mes = null;
+    it.verificado = { por: (auth.user() || {}).name, ts: new Date().toISOString() };
+    it.desc = (it.desc || '').split('(cancelado')[0].trim() + ' (cancelado ' + new Date().toLocaleDateString('pt-BR') + ')';
+    saveCustosOrc();
+  });
+  document.querySelectorAll('.cd-tl').forEach(b => b.onclick = () => abrirComposicaoMes(+b.dataset.m));
   // ── gerenciador de categorias (v83.2) ──
   const tog = document.getElementById('cd-cats-toggle'); if (tog) tog.onclick = () => { _catsOpen = !_catsOpen; render(); };
   document.querySelectorAll('.cat-ren').forEach(el => el.onchange = () => {
@@ -514,7 +669,7 @@ function wireCustosDet() {
 function reseedCustosSandbox() {
   _custoDetMemo = null;   // força recomputar com o rateio/custos novos
   if (_sim) {
-    const det = custoOrcadoDet(true);
+    const det = custoOrcadoDet();   // v85.2: COM tráfego — alinhado à conta cheia do plano
     for (const l of LIDS) { let c = 0; for (let m = 1; m <= 12; m++) c += det[l][m]; if (_sim[l]) _sim[l].custo_fixo = Math.round(c / 12); }
   }
   if (_be) {

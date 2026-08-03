@@ -280,7 +280,27 @@ def _real(sb, plano):
     # projetando a Conquista no ritmo real até o fim do mês. Recalculado a cada GET.
     try:
         cc = (c.get("conta_cheia_por_mes") or {})
-        conta_cheia = float(cc.get(out["mes_id"]) or cc.get("default") or 105295)
+        # v85.2 — FONTE ÚNICA: a conta cheia vem CALCULADA dos custos orçados da
+        # Viabilidade (custo fixo do mês, com tráfego e pró-labore). O kv manual
+        # vira fallback/override; divergência >R$1.000 é sinalizada nos 2 módulos.
+        conta_calc = None
+        try:
+            from viab import custo_fixo_mes as _cfm, read_kv as _rkv
+            itens_v = ((_rkv(sb, "viab_custos_orcado").get(str(now.year)) or {}).get("itens") or [])
+            if itens_v:
+                conta_calc = _cfm(itens_v, now.month)
+        except Exception:
+            conta_calc = None
+        conta_kv = cc.get(out["mes_id"]) or cc.get("default")
+        if conta_calc and conta_calc > 1000:
+            conta_cheia = float(conta_calc)
+            fonte = "calculada"
+        else:
+            conta_cheia = float(conta_kv or 105295)
+            fonte = "override_kv" if conta_kv else "fallback"
+        divergencia = None
+        if conta_calc and conta_kv and abs(float(conta_kv) - conta_calc) > 1000:
+            divergencia = {"calculada": conta_calc, "kv_manual": float(conta_kv)}
         import calendar as _cal
         dias_mes = _cal.monthrange(now.year, now.month)[1]
         frac = max(now.day / dias_mes, 1e-6)
@@ -302,6 +322,8 @@ def _real(sb, plano):
             "regua_conquista_sem": float(c.get("regua_conquista_sem") or 625000),
             "semaforo": ("verde" if falta_proprio <= 0.01 or proprio_ja >= proprio_nec_total * (now.day / dias_mes)
                          else ("amarelo" if falta_proprio < 400000 else "vermelho")),
+            "conta_cheia_fonte": fonte,
+            "divergencia": divergencia,
         }
     except Exception:
         out["amortecedor"] = None
