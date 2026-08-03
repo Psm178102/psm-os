@@ -47,6 +47,7 @@ function drawShell() {
         ${tabBtn('custos',    '🏢 Custos Fixos')}
         ${tabBtn('comissoes', '💎 Comissões')}
         ${tabBtn('repasses',  '🔄 Repasses')}
+        ${tabBtn('psmhub',    '🌉 PSM HUB')}
       </div>
 
       <div id="fin-body" style="margin-top:14px">
@@ -77,6 +78,7 @@ async function drawBody() {
     else if (_tab === 'custos')   body.innerHTML = await renderCustos();
     else if (_tab === 'comissoes')body.innerHTML = await renderComissoes();
     else if (_tab === 'repasses') body.innerHTML = await renderRepasses();
+    else if (_tab === 'psmhub')  { body.innerHTML = await renderPsmHub(); wirePsmHub(); }
   } catch (e) {
     body.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message)}</div>`;
   }
@@ -816,4 +818,91 @@ function moneyShort(n) {
 function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+
+/* ─── Tab: 🌉 PSM HUB (financeiro do Hub da Equipe Conquista, via ponte) — v84.97 ─── */
+let _hubFin = null, _hubMes = '';   // '' = todos os meses
+
+async function renderPsmHub() {
+  if (!_hubFin) {
+    try { _hubFin = await api.request('/api/v3/psmhub/financeiro'); }
+    catch (e) { return `<div class="alert alert-err">Ponte PSM HUB: ${escapeHtml(e.message)}</div>`; }
+  }
+  if (_hubFin && _hubFin.sem_permissao) return `<div class="alert alert-warn">🔑 ${escapeHtml(_hubFin.error)}</div>`;
+  if (!_hubFin || !_hubFin.ok) return `<div class="alert alert-err">${escapeHtml((_hubFin && _hubFin.error) || 'ponte indisponível')}</div>`;
+  const todos = (_hubFin.financeiro || []).map(v => ({
+    ...v,
+    _vgv: parseFloat(v.vgv) || 0, _bruto: parseFloat(v.valorBruto) || 0,
+    _imp: parseFloat(v.imposto) || 0, _liq: parseFloat(v.valorLiquido) || 0,
+    _cCor: parseFloat(v.comissaoCorretor) || 0, _cGes: parseFloat(v.comissaoGestor) || 0,
+    _mes: String(v.dataVenda || v.createdAt || '').slice(0, 7),
+  }));
+  const meses = [...new Set(todos.map(v => v._mes).filter(Boolean))].sort().reverse();
+  const vs = _hubMes ? todos.filter(v => v._mes === _hubMes) : todos;
+  const sum = k => vs.reduce((a, v) => a + v[k], 0);
+  const casa = sum('_liq') - sum('_cCor') - sum('_cGes');
+  const money = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const kpi = (lbl, val, cor) => `<div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:10px;padding:10px 12px">
+    <div class="tiny muted">${lbl}</div><div style="font-weight:800;font-size:16px;color:${cor || 'inherit'}">${val}</div></div>`;
+
+  const porCorretor = {};
+  vs.forEach(v => { const n = v.vendorName || '?'; porCorretor[n] = porCorretor[n] || { n: 0, vgv: 0, liq: 0, com: 0 };
+    porCorretor[n].n++; porCorretor[n].vgv += v._vgv; porCorretor[n].liq += v._liq; porCorretor[n].com += v._cCor; });
+
+  return `
+    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px">🌉 <b>Financeiro do PSM HUB</b> (Equipe Conquista) — venda a venda, direto da ponte, cache de 10min.
+      Fonte externa: quem lança/edita é o Hub; aqui é leitura consolidada.</div>
+    <div class="flex gap-2 mb-2" style="align-items:center;flex-wrap:wrap">
+      <select id="hub-mes" class="select" style="width:auto;font-size:12px">
+        <option value="">Todos os meses (${todos.length} vendas)</option>
+        ${meses.map(m => `<option value="${m}"${_hubMes === m ? ' selected' : ''}>${m.split('-').reverse().join('/')}</option>`).join('')}
+      </select>
+      <button class="btn btn-ghost btn-sm" id="hub-reload">🔄 Atualizar agora</button>
+      <span class="tiny muted">${_hubFin.cache && _hubFin.cache.hit ? `cache de ${Math.round(_hubFin.cache.age_s / 60)}min` : 'ao vivo'}</span>
+    </div>
+    <div class="flex gap-2 mb-3" style="flex-wrap:wrap">
+      ${kpi('Vendas', vs.length)}
+      ${kpi('VGV', money(sum('_vgv')))}
+      ${kpi('Receita bruta', money(sum('_bruto')))}
+      ${kpi('Impostos', money(sum('_imp')), '#d97706')}
+      ${kpi('Receita líquida', money(sum('_liq')))}
+      ${kpi('Comissões corretor', money(sum('_cCor')), '#2563eb')}
+      ${kpi('Comissões gestor', money(sum('_cGes')), '#2563eb')}
+      ${kpi('Sobra da casa', money(casa), casa >= 0 ? '#16a34a' : '#dc2626')}
+    </div>
+    <div class="card" style="margin:0 0 12px"><b class="tiny">Por corretor</b>
+      <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr class="muted" style="text-align:left"><th style="padding:4px">Corretor</th><th>Vendas</th><th>VGV</th><th>Receita líq.</th><th>Comissão dele</th></tr></thead>
+        <tbody>${Object.entries(porCorretor).sort((a, b) => b[1].vgv - a[1].vgv).map(([n, x]) =>
+          `<tr style="border-top:1px solid var(--border)"><td style="padding:4px;font-weight:700">${escapeHtml(n)}</td><td style="text-align:center">${x.n}</td><td>${money(x.vgv)}</td><td>${money(x.liq)}</td><td>${money(x.com)}</td></tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+    <div class="card" style="margin:0"><b class="tiny">Venda a venda</b>
+      <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:900px">
+        <thead><tr class="muted" style="text-align:left"><th style="padding:4px">Data</th><th>Corretor</th><th>Cliente</th><th>Produto</th><th>Tipo</th><th>VGV</th><th>Bruto</th><th>Líquido</th><th>Com. corretor</th><th>Com. gestor</th><th>NF</th></tr></thead>
+        <tbody>${vs.slice().sort((a, b) => String(b.dataVenda).localeCompare(String(a.dataVenda))).map(v =>
+          `<tr style="border-top:1px solid var(--border)">
+            <td style="padding:4px;white-space:nowrap">${String(v.dataVenda || '').split('-').reverse().join('/')}</td>
+            <td style="font-weight:700">${escapeHtml(v.vendorName || '—')}</td>
+            <td>${escapeHtml(v.cliente || '—')}</td>
+            <td>${escapeHtml(v.produto || '—')}</td>
+            <td class="tiny muted">${escapeHtml(v.tipoVenda || '—')}</td>
+            <td>${money(v._vgv)}</td><td>${money(v._bruto)}</td><td>${money(v._liq)}</td>
+            <td>${money(v._cCor)}</td><td>${money(v._cGes)}</td>
+            <td>${(v.nfs && v.nfs.length) ? '🧾 ' + v.nfs.length : '<span class="tiny muted">—</span>'}</td>
+          </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+}
+
+function wirePsmHub() {
+  const sel = document.getElementById('hub-mes');
+  if (sel) sel.onchange = async () => { _hubMes = sel.value; await drawBody(); };
+  const rl = document.getElementById('hub-reload');
+  if (rl) rl.onclick = async () => {
+    rl.disabled = true;
+    try { _hubFin = await api.request('/api/v3/psmhub/financeiro?nocache=1'); } catch (_) {}
+    await drawBody();
+  };
 }
