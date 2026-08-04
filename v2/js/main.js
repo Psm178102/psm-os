@@ -70,6 +70,7 @@ import { pageSdr } from './pages/sdr.js';
 import { pageLeadsLp } from './pages/leads-lp.js';
 import { pageApresentacoes } from './pages/apresentacoes.js';
 import { pageRhReunioes } from './pages/rh-reunioes.js';
+import { pageFormCaptacao } from './pages/form-captacao.js';
 import { pageReativacaoKanban } from './pages/reativacao-kanban.js';
 import { pageTabelaImoveis } from './pages/tabela-imoveis.js';
 import { pageIntegracoes } from './pages/integracoes.js';
@@ -138,7 +139,7 @@ export const ROUTE_GROUP = {
   // Backoffice & Adm (v81.93)
   '/compras': 'adm', '/patrimonio': 'adm', '/manutencoes': 'adm',
   // Imóveis & Vendas (+ Metas/Equipes/Plantões e simuladores VPL/INCC/Repasse/Energia migrados)
-  '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/fichas': 'vendas',
+  '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/fichas': 'vendas', '/form-captacao': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/estoque-kenlo': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/lancamentos': 'vendas',
   '/metas': 'vendas', '/equipe': 'vendas', '/plantoes': 'vendas',
   '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas', '/sim-amortizacao': 'vendas',
@@ -412,7 +413,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '85.2';
+const APP_VERSION = '85.3';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -642,6 +643,7 @@ const APP_VERSION = '85.2';
   router.register('/cadencia',    { render: async (ctx, root) => { setHeader('Cadência');            highlight('/cadencia');    await pageCadencia(ctx, root); } });
   router.register('/scripts',     { render: async (ctx, root) => { setHeader('Scripts & Cadências'); highlight('/scripts');     await pageScripts(ctx, root); } });
   router.register('/fichas',      { render: async (ctx, root) => { setHeader('Fichas/Propostas');    highlight('/fichas');      await pageFichasPropostas(ctx, root); } });
+  router.register('/form-captacao', { render: async (ctx, root) => { setHeader('📝 Formulário de Captação'); highlight('/form-captacao'); await pageFormCaptacao(ctx, root); } });
   router.register('/campanha-wa', { render: async (ctx, root) => { setHeader('Campanha WhatsApp');   highlight('/campanha-wa'); await pageCampanhaWa(ctx, root); } });
   router.register('/sr-gerencia', { render: async (ctx, root) => { setHeader('Sr. Gerência');        highlight('/sr-gerencia'); await pageSrGerencia(ctx, root); } });
   router.register('/sr-performance', { render: async (ctx, root) => { setHeader('Sr. Performance'); highlight('/sr-performance'); await pageSrPerformance(ctx, root); } });
@@ -806,6 +808,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/oportunidades"><span class="sb-ico">💡</span> Oportunidades</button>
         <button class="sb-link" data-nav="/scripts"><span class="sb-ico">📚</span> Scripts & Cadências</button>
         <button class="sb-link" data-nav="/fichas"><span class="sb-ico">📋</span> Fichas/Propostas</button>
+        <button class="sb-link" data-nav="/form-captacao"><span class="sb-ico">📝</span> Formulário de Captação</button>
         <button class="sb-link" data-nav="/mapa"><span class="sb-ico">🗺</span> Mapa Imóveis</button>
         <button class="sb-link" data-nav="/estoque-kenlo"><span class="sb-ico">🏠</span> Estoque Kenlo</button>
         <button class="sb-link" data-nav="/tabela-conquista"><span class="sb-ico">🏆</span> Tabela Lançamentos Conquista</button>
