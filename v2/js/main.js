@@ -60,7 +60,6 @@ import { pageCheckin } from './pages/checkin.js';
 import { pageRanking } from './pages/ranking.js';
 import { pageImoveis } from './pages/imoveis.js';
 import { pageConcorrencia } from './pages/concorrencia.js';
-import { pageBP } from './pages/bp.js';
 import { pageTV } from './pages/tv.js';
 import { pageGovernanca } from './pages/governanca.js';
 import { pageOO } from './pages/oo.js';
@@ -122,7 +121,6 @@ import { pageCampanhaWa } from './pages/campanha-wa.js';
 import { pageOportunidades } from './pages/oportunidades.js';
 import { pageCadencia } from './pages/cadencia.js';
 import { pageScripts } from './pages/scripts.js';
-import { pageFichasPropostas } from './pages/fichas-propostas.js';
 import { pageSrGerencia } from './pages/sr-gerencia.js';
 import { pageSrPerformance } from './pages/sr-performance.js';
 import { pageMapa } from './pages/mapa.js';
@@ -139,7 +137,7 @@ export const ROUTE_GROUP = {
   // Backoffice & Adm (v81.93)
   '/compras': 'adm', '/patrimonio': 'adm', '/manutencoes': 'adm',
   // Imóveis & Vendas (+ Metas/Equipes/Plantões e simuladores VPL/INCC/Repasse/Energia migrados)
-  '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/fichas': 'vendas', '/form-captacao': 'vendas',
+  '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/form-captacao': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/estoque-kenlo': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/lancamentos': 'vendas',
   '/metas': 'vendas', '/equipe': 'vendas', '/plantoes': 'vendas',
   '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas', '/sim-amortizacao': 'vendas',
@@ -158,7 +156,7 @@ export const ROUTE_GROUP = {
   // Diretoria
   '/cockpit': 'diretoria', '/paulo': 'diretoria', '/projetos': 'diretoria',
   '/diretoria': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria',
-  '/metricas-viab': 'diretoria', '/comissao-conquista': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/bp': 'diretoria', '/governanca': 'diretoria', '/reunioes': 'diretoria',
+  '/metricas-viab': 'diretoria', '/comissao-conquista': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/governanca': 'diretoria', '/reunioes': 'diretoria',
   // Jurídico (grupo próprio)
   '/minutas': 'juridico', '/cnds': 'juridico',
   '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/estrategia': 'diretoria',
@@ -413,7 +411,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '85.3';
+const APP_VERSION = '85.4';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -565,7 +563,6 @@ const APP_VERSION = '85.3';
   router.register('/imoveis',     { render: async (ctx, root) => { setHeader('Imóveis');      highlight('/imoveis');     await pageImoveis(ctx, root); } });
   router.register('/estoque-kenlo', { render: async (ctx, root) => { setHeader('Estoque Kenlo'); highlight('/estoque-kenlo'); await pageEstoqueKenlo(ctx, root); } });
   router.register('/concorrencia',{ render: async (ctx, root) => { setHeader('Concorrência'); highlight('/concorrencia');await pageConcorrencia(ctx, root); } });
-  router.register('/bp',          { render: async (ctx, root) => { setHeader('Plano BP');     highlight('/bp');          await pageBP(ctx, root); } });
   router.register('/tv',          { render: async (ctx, root) => { setHeader('Modo TV');      highlight('/tv');          await pageTV(ctx, root); } });
   router.register('/governanca',  { render: async (ctx, root) => { setHeader('Governança');   highlight('/governanca');  await pageGovernanca(ctx, root); } });
   router.register('/one-on-one',  { render: async (ctx, root) => { setHeader('One-on-One');   highlight('/one-on-one');  await pageOO(ctx, root); } });
@@ -642,7 +639,6 @@ const APP_VERSION = '85.3';
   router.register('/oportunidades', { render: async (ctx, root) => { setHeader('Oportunidades');     highlight('/oportunidades'); await pageOportunidades(ctx, root); } });
   router.register('/cadencia',    { render: async (ctx, root) => { setHeader('Cadência');            highlight('/cadencia');    await pageCadencia(ctx, root); } });
   router.register('/scripts',     { render: async (ctx, root) => { setHeader('Scripts & Cadências'); highlight('/scripts');     await pageScripts(ctx, root); } });
-  router.register('/fichas',      { render: async (ctx, root) => { setHeader('Fichas/Propostas');    highlight('/fichas');      await pageFichasPropostas(ctx, root); } });
   router.register('/form-captacao', { render: async (ctx, root) => { setHeader('📝 Formulário de Captação'); highlight('/form-captacao'); await pageFormCaptacao(ctx, root); } });
   router.register('/campanha-wa', { render: async (ctx, root) => { setHeader('Campanha WhatsApp');   highlight('/campanha-wa'); await pageCampanhaWa(ctx, root); } });
   router.register('/sr-gerencia', { render: async (ctx, root) => { setHeader('Sr. Gerência');        highlight('/sr-gerencia'); await pageSrGerencia(ctx, root); } });
@@ -807,7 +803,6 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM (RD)</button>
         <button class="sb-link" data-nav="/oportunidades"><span class="sb-ico">💡</span> Oportunidades</button>
         <button class="sb-link" data-nav="/scripts"><span class="sb-ico">📚</span> Scripts & Cadências</button>
-        <button class="sb-link" data-nav="/fichas"><span class="sb-ico">📋</span> Fichas/Propostas</button>
         <button class="sb-link" data-nav="/form-captacao"><span class="sb-ico">📝</span> Formulário de Captação</button>
         <button class="sb-link" data-nav="/mapa"><span class="sb-ico">🗺</span> Mapa Imóveis</button>
         <button class="sb-link" data-nav="/estoque-kenlo"><span class="sb-ico">🏠</span> Estoque Kenlo</button>
@@ -908,7 +903,6 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/metricas-viab"><span class="sb-ico">🧪</span> Métricas Viab</button>
         <button class="sb-link" data-nav="/comissao-conquista"><span class="sb-ico">💰</span> Comissionamento</button>
         <button class="sb-link" data-nav="/sim-trafego"><span class="sb-ico">📣</span> Simulador de Tráfego</button>
-        <button class="sb-link" data-nav="/bp"><span class="sb-ico">📋</span> Plano BP</button>
         <button class="sb-link" data-nav="/reunioes"><span class="sb-ico">🤝</span> Formatos de Reunião</button>
         <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Governança</div>
         <button class="sb-link" data-nav="/governanca"><span class="sb-ico">⚖️</span> Governança</button>
