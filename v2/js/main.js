@@ -98,6 +98,8 @@ import { pageTendencias } from './pages/tendencias.js';
 import { pageBenchmark } from './pages/benchmark.js';
 import { pageIntelAds } from './pages/intel-ads.js';
 import { pageIntelCentro } from './pages/intel-centro.js';
+import { pageIntelHub } from './pages/intel-hub.js';
+import { pageCentralLinks } from './pages/central-links.js';
 import { pageBibliotecaAds } from './pages/biblioteca-ads.js';
 import { pageMarketingHistorico } from './pages/marketing-historico.js';
 import { pageDadosMercado } from './pages/dados-mercado.js';
@@ -174,7 +176,7 @@ export const ROUTE_GROUP = {
   '/cs-onboarding': 'sucesso', '/cs-carteira': 'sucesso', '/cs-suporte': 'sucesso', '/cs-retencao': 'sucesso', '/cs-metricas': 'sucesso', '/cs-upsell': 'sucesso', '/cs-marketing': 'sucesso', '/cs-avaliacoes': 'sucesso', '/cs-indicacoes': 'sucesso',   // abas CS soltas (v81.55)
   '/talentos': 'rh', '/psmhub': 'diretoria',
   // Ferramentas
-  '/simuladores': 'ferramentas', '/relatorios': 'diretoria',
+  '/simuladores': 'vendas', '/relatorios': 'diretoria',
   // Sistema
   '/usuarios': 'sistema', '/auditoria': 'sistema', '/integracoes': 'sistema',
   '/backup': 'sistema', '/configuracoes': 'sistema', '/config-menu': 'sistema', '/logins': 'sistema', '/qualidade': 'sistema',
@@ -411,7 +413,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '85.4';
+const APP_VERSION = '85.5';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -524,7 +526,7 @@ const APP_VERSION = '85.4';
   router.register('/psmhub', { render: async (ctx, root) => { setHeader('PSM HUB · Conquista'); highlight('/psmhub'); await pagePsmHub(ctx, root); } });
   router.register('/minutas', { render: async (ctx, root) => { setHeader('Minutas padrão'); highlight('/minutas'); await pageMinutasJuridico(ctx, root); } });
   router.register('/cnds',    { render: async (ctx, root) => { setHeader("CND's"); highlight('/cnds'); await pageCnds(ctx, root); } });
-  router.register('/links-uteis', { render: async (ctx, root) => { setHeader('Links úteis'); highlight('/links-uteis'); await pageLinksUteis(ctx, root); } });
+  router.register('/links-uteis', { render: async (ctx, root) => { setHeader('Links & Incorporadoras'); highlight('/links-uteis'); await pageCentralLinks(ctx, root); } });
   router.register('/sac-incorporadoras', { render: async (ctx, root) => { setHeader('SAC Incorporadoras'); highlight('/sac-incorporadoras'); await pageSacIncorporadoras(ctx, root); } });
   router.register('/sistemas-incorporadoras', { render: async (ctx, root) => { setHeader('Sistema e Drive Incorporadoras'); highlight('/sistemas-incorporadoras'); await pageSistemasIncorporadoras(ctx, root); } });
   router.register('/reunioes', { render: async (ctx, root) => { setHeader('Formatos de Reunião'); highlight('/reunioes'); await pageReunioes(ctx, root); } });
@@ -540,7 +542,7 @@ const APP_VERSION = '85.4';
   router.register('/conteudo-conquista', { render: async (ctx, root) => { setHeader('PSM Conquista · Conteúdo'); highlight('/conteudo-conquista'); await pageConteudoConquista(ctx, root); } });
   router.register('/criativos', { render: async (ctx, root) => { setHeader('Solicitações de Criativos'); highlight('/criativos'); await pageCriativos(ctx, root); } });
   router.register('/criativos-download', { render: async (ctx, root) => { setHeader('Criativos para Download'); highlight('/criativos-download'); await pageCriativosDownload(ctx, root); } });
-  router.register('/inteligencia', { render: async (ctx, root) => { setHeader('Centro de Inteligência'); highlight('/inteligencia'); await pageIntelCentro(ctx, root); } });
+  router.register('/inteligencia', { render: async (ctx, root) => { setHeader('Centro de Inteligência'); highlight('/inteligencia'); await pageIntelHub(ctx, root); } });
   router.register('/dados-mercado', { render: async (ctx, root) => { setHeader('Dados de Mercado'); highlight('/dados-mercado'); await pageDadosMercado(ctx, root); } });
   // v81.61: "Biblioteca de Anúncios" agora é a dos anúncios DA PSM (criativo + copy).
   router.register('/biblioteca-ads', { render: async (ctx, root) => { setHeader('Biblioteca de Anúncios'); highlight('/biblioteca-ads'); await pageAnunciosPSM(ctx, root); } });
@@ -812,11 +814,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/metas"><span class="sb-ico">🎯</span> Metas</button>
         <button class="sb-link" data-nav="/equipe"><span class="sb-ico">🛡</span> Equipes</button>
         <button class="sb-link" data-nav="/plantoes"><span class="sb-ico">🛡</span> Plantões</button>
-        <button class="sb-link" data-nav="/sim-vpl"><span class="sb-ico">🧮</span> Simulador VPL</button>
-        <button class="sb-link" data-nav="/sim-incc"><span class="sb-ico">📈</span> Simulador INCC</button>
-        <button class="sb-link" data-nav="/sim-repasse"><span class="sb-ico">🔁</span> Simulador Repasse</button>
-        <button class="sb-link" data-nav="/sim-energia"><span class="sb-ico">⚡</span> Simulador Energia</button>
-        <button class="sb-link" data-nav="/sim-amortizacao"><span class="sb-ico">🏦</span> Simulador de Amortização</button>
+        <button class="sb-link" data-nav="/simuladores"><span class="sb-ico">🧮</span> Simuladores</button>
         <button class="sb-link" data-nav="/cockpit-conquista"><span class="sb-ico">🚀</span> Cockpit Conquista</button>
         <button class="sb-link" data-nav="/sim-conquista"><span class="sb-ico">🏠</span> Simulador Conquista</button>
         <button class="sb-link" data-nav="/meu-cerebro"><span class="sb-ico">🎯</span> Meu Cérebro de Vendas</button>
@@ -832,18 +830,13 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/academy"><span class="sb-ico">🎓</span> PSM Academy (aulas)</button>
         <button class="sb-link" data-nav="/formacao"><span class="sb-ico">🎓</span> Formação PSM</button>
 
-        <div class="sb-sec">🧮 Ferramentas</div>
-        <button class="sb-link" data-nav="/simuladores"><span class="sb-ico">🧮</span> Simuladores</button>
-
         <div class="sb-sec">🗂 Secretaria de Vendas & Backoffice</div>
         <button class="sb-link" data-nav="/sdr"><span class="sb-ico">📞</span> Prospecção SDR</button>
         <button class="sb-link" data-nav="/leads-lp"><span class="sb-ico">📥</span> Leads LP Conquista</button>
         <button class="sb-link" data-nav="/reativacao"><span class="sb-ico">🔁</span> Reativação MAP</button>
         <button class="sb-link" data-nav="/captacoes"><span class="sb-ico">📥</span> Captações</button>
         <button class="sb-link" data-nav="/minha-producao"><span class="sb-ico">📈</span> Meu Acompanhamento</button>
-        <button class="sb-link" data-nav="/links-uteis"><span class="sb-ico">🔗</span> Links úteis</button>
-        <button class="sb-link" data-nav="/sac-incorporadoras"><span class="sb-ico">📞</span> SAC Incorporadoras</button>
-        <button class="sb-link" data-nav="/sistemas-incorporadoras"><span class="sb-ico">🏢</span> Sistema e Drive Incorporadoras</button>
+        <button class="sb-link" data-nav="/links-uteis"><span class="sb-ico">🔗</span> Links & Incorporadoras</button>
         <button class="sb-link" data-nav="/campanha-wa"><span class="sb-ico">📣</span> Campanha WhatsApp</button>
 
         <div class="sb-sec">🗄 Backoffice & Adm</div>
@@ -909,13 +902,10 @@ function shellHTML(user) {
 
         <div class="sb-sec">🧠 Inteligência</div>
         <button class="sb-link" data-nav="/inteligencia"><span class="sb-ico">🧠</span> Centro de Inteligência</button>
-        <button class="sb-link" data-nav="/dados-mercado"><span class="sb-ico">📈</span> Dados de Mercado</button>
         <button class="sb-link" data-nav="/cerebro-vendas"><span class="sb-ico">🎯</span> Cérebro de Vendas</button>
         <button class="sb-link" data-nav="/briefing-guerra"><span class="sb-ico">⚔️</span> Briefing de Guerra</button>
         <button class="sb-link" data-nav="/concorrencia"><span class="sb-ico">🥊</span> Concorrência</button>
-        <button class="sb-link" data-nav="/benchmark"><span class="sb-ico">📊</span> Benchmark</button>
 
-        <button class="sb-link" data-nav="/tendencias"><span class="sb-ico">📉</span> Tendências</button>
 
         <div class="sb-sec">🔑 Locação</div>
         <button class="sb-link" data-nav="/locacao-dash"><span class="sb-ico">📊</span> Dashboard Locação</button>
