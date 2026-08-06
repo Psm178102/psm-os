@@ -105,13 +105,50 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            require_user(self, min_lvl=0)
+            user = require_user(self, min_lvl=0)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
-        return self._send(200, {"ok": True, "perms": _read(sb), "route_lvl": _read_route_lvl(sb)})
+        perms = _read(sb)
+        perms = self._migrar_form_captacao(sb, perms, user)
+        return self._send(200, {"ok": True, "perms": perms, "route_lvl": _read_route_lvl(sb)})
+
+    def _migrar_form_captacao(self, sb, perms, user):
+        """Migração one-shot v85.7 (decisão do Paulo 04/08, itens do menu):
+        TODO papel com lista custom na matriz ganha '/form-captacao' — ADITIVO,
+        nunca remove nada. Papel sem lista custom já herda o item pelo default
+        do grupo 'vendas'. Idempotente (flag kv); aborta se a leitura falhar
+        (lição: leitura falhou ≠ não existe) ou se a matriz vier suspeita."""
+        MIGR_KEY = "role_perms_migr_form_captacao"
+        try:
+            rows = sb.table("shared_kv").select("value").eq("key", MIGR_KEY).limit(1).execute().data or []
+            if rows:
+                return perms                       # já rodou
+        except Exception:
+            return perms                           # flag ilegível → tenta na próxima
+        # travas de sanidade: nunca gravar por cima de matriz vazia/suspeita
+        if not isinstance(perms, dict) or len(perms) < 8:
+            return perms
+        if any(not isinstance(v, list) or not v for v in perms.values()):
+            return perms
+        novo, mudou = {}, []
+        for role, routes in perms.items():
+            lst = list(routes)
+            if "/form-captacao" not in lst:
+                lst.append("/form-captacao"); mudou.append(role)
+            novo[role] = lst
+        try:
+            if mudou:
+                sb.table("shared_kv").upsert({"key": KV_KEY, "value": novo}, on_conflict="key").execute()
+            sb.table("shared_kv").upsert({"key": MIGR_KEY, "value": {
+                "quando": datetime.now(timezone.utc).isoformat(), "papeis": mudou}}, on_conflict="key").execute()
+            audit(self, user, "role_perms.migr_form_captacao", target_type="shared_kv", target_id=KV_KEY,
+                  before=perms, after=novo, notes=f"one-shot v85.7: +/form-captacao em {len(mudou)} papel(is)")
+        except Exception:
+            return perms                           # gravação falhou → devolve o original
+        return novo
 
     def do_POST(self):
         try:

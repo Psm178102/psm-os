@@ -168,6 +168,7 @@ function cardHtml(card, unico, podeLogar) {
       <span class="tiny muted">${card.pct != null ? card.pct + '% do esperado' : ''}</span>
       <span style="margin-left:auto"></span>
       ${(card.alertas || []).map(a => `<span class="badge" style="background:#dc262622;color:#dc2626;font-weight:700">${esc(a)}</span>`).join(' ')}
+      ${(auth.user()?.lvl || 0) >= 10 && _modo !== 'me' ? `<button class="btn btn-ghost btn-sm fz-del" data-fz-del="${esc(card.key)}" title="tirar este colaborador do painel (histórico de eventos fica intacto)">🗑</button>` : ''}
     </div>
     <div class="mt-1">${corpo}</div>
     ${extras}
@@ -209,4 +210,16 @@ function render() {
     _undo = null; reload(true);
   };
   _root.querySelectorAll('.fz-log').forEach(b => b.onclick = () => pedirLog(b.dataset.colab, b.dataset.tipo));
+  // 🗑 remover colaborador do painel (só sócio) — 2 cliques pra confirmar, sem diálogo nativo.
+  _root.querySelectorAll('.fz-del').forEach(b => b.onclick = async () => {
+    if (b.dataset.arm !== '1') {
+      b.dataset.arm = '1'; b.textContent = 'confirmar exclusão?'; b.style.color = '#dc2626';
+      setTimeout(() => { if (b.isConnected) { b.dataset.arm = ''; b.textContent = '🗑'; b.style.color = ''; } }, 5000);
+      return;
+    }
+    try {
+      await api.request('/api/v3/producao/painel', { method: 'POST', body: { action: 'del_colaborador', key: b.dataset.fzDel } });
+      reload();
+    } catch (e) { alert('❌ ' + e.message); }
+  });
 }
