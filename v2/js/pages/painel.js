@@ -40,6 +40,7 @@ async function loadTarget(id) {
     render();
     if (mine) loadFila();
     if (mine) loadTravados();
+    loadNorteCard();   // 🎯 Norte do Dia (v85.6) — meta do mês definida no 1:1
   } catch (e) {
     const msg = e?.message || e?.error || (typeof e === 'string' ? e : JSON.stringify(e));
     _root.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(msg)}</div>`;
@@ -92,6 +93,61 @@ async function loadFila() {
   }
 }
 
+/* ═══════════ 🎯 NORTE DO DIA (v85.6) — meta do mês definida no 1:1 ═══════════
+   O corretor vê o próprio norte: ritmo diário de atendimentos + funil meta ×
+   realizado do mês (mesmas etapas do RD CRM, atualiza sozinho no sync). */
+async function loadNorteCard() {
+  const host = document.getElementById('painel-norte');
+  if (!host) return;
+  const t = new Date();
+  const fmtD2 = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const since = fmtD2(new Date(t.getFullYear(), t.getMonth(), 1));
+  const until = fmtD2(new Date(t.getFullYear(), t.getMonth() + 1, 0));
+  let n = null;
+  try {
+    n = await api.request('/api/v3/oo/norte?corretor_id=' + encodeURIComponent(_targetId) + `&since=${since}&until=${until}&realizado=1`);
+  } catch { n = null; }
+  if (!n || !n.ok || !n.meses_com_meta) { host.innerHTML = ''; return; }
+  const mBRL = v => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fN = v => { const x = Number(v) || 0; return Number.isInteger(x) ? x.toLocaleString('pt-BR') : x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }); };
+  const comp = n.computed || {}, pace = n.pace || {}, fm = n.funil_meta_periodo || {};
+  const kp = (n.realizado || {}).kpis || {};
+  const stages = (n.realizado || {}).funnel || [];
+  const mesNome = t.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const rows = stages.map(s => {
+    const meta = Number(fm[s.key] || 0);
+    const pct = meta > 0 ? s.n / meta * 100 : null;
+    const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+    return `<div style="display:grid;grid-template-columns:130px 1fr auto;gap:8px;align-items:center">
+      <span class="tiny" style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(s.label)}</span>
+      <div style="height:10px;background:var(--bg-3);border-radius:5px;overflow:hidden"><div style="height:100%;width:${meta > 0 ? Math.min(100, s.n / meta * 100) : 0}%;background:${cor}"></div></div>
+      <span class="tiny" style="white-space:nowrap"><b>${fN(s.n)}</b><span class="muted"> / ${meta > 0 ? fN(meta) : '—'}</span></span>
+    </div>`;
+  }).join('');
+  const pb = (lbl, real, meta, isMoney) => {
+    const pct = meta > 0 ? real / meta * 100 : null;
+    const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+    return `<div><div class="tiny" style="display:flex;justify-content:space-between"><b>${lbl}</b><span><b>${isMoney ? 'R$ ' + mBRL(real) : fN(real)}</b> <span class="muted">/ ${meta > 0 ? (isMoney ? 'R$ ' + mBRL(meta) : fN(meta)) : '—'}</span></span></div>
+      <div style="height:10px;background:var(--bg-3);border-radius:5px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${pct != null ? Math.min(100, pct) : 0}%;background:${cor}"></div></div></div>`;
+  };
+  host.innerHTML = `
+    <div class="mt-3" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden">
+      <div style="background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;padding:12px 16px;display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+        <div style="font-weight:900;font-size:15px">🎯 Norte do Dia · ${escapeHtml(mesNome)}</div>
+        ${pace.atend_dia != null ? `<div class="tiny" style="opacity:.95">Ritmo: <b>${fN(pace.atend_dia)} atendimentos/dia</b> (meta ${fN(comp.atendimentos_mes)}/mês) · esperado até hoje: <b>${fN(pace.atend_esperado_ate_hoje)}</b> · faltam <b>${pace.dias_restantes}</b> dia(s)</div>` : ''}
+        <div class="tiny" style="margin-left:auto;opacity:.95">Vendas previstas: <b>${fN(comp.vendas_prev)}</b> · VGV: <b>R$ ${mBRL(comp.vgv_prev)}</b></div>
+      </div>
+      <div style="padding:12px 16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start">
+        <div style="display:grid;gap:5px">${rows || '<div class="tiny muted">Funil sem dados ainda.</div>'}</div>
+        <div style="display:grid;gap:10px">
+          ${pb('Vendas no mês', kp.vendas || 0, (n.meta_periodo || {}).vendas || 0, false)}
+          ${pb('VGV no mês', kp.vgv || 0, (n.meta_periodo || {}).vgv || 0, true)}
+          <div class="tiny muted">Meta definida no 1:1 com seu gestor · realizado puxado do RD CRM automaticamente.</div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function render() {
   const u = _data.user || {};
   const p = _data.profile || {};
@@ -124,6 +180,8 @@ function render() {
       </div>
 
       ${_data.pending ? `<div class="alert alert-warn mt-3">⚠️ Tabela do perfil ainda não criada — rode <code>supabase/sprint_user_profile.sql</code>. As metas/perfil não vão salvar até lá.</div>` : ''}
+
+      <div id="painel-norte"></div>
 
       ${mine ? renderPerf(d) : `
         <div class="mt-4" style="background:var(--bg-3);border-radius:var(--r-md);padding:14px">

@@ -9,16 +9,50 @@ let _preset = 'this_month';
 let _since = '', _until = '';  // período custom (data início/fim)
 let _ov = null;                // overview (lista)
 let _det = null;               // detalhe do corretor
+let _norte = null;             // 🎯 meta do mês (norte) do corretor selecionado
 let _meet = [];                // reuniões 1:1 do corretor
 let _users = [];
 let _scope = 'individual';     // 'individual' | 'equipe' (só líderes têm equipe)
 
 const PRESETS = [
+  { id: 'hoje', lbl: 'Hoje' },
+  { id: 'semana', lbl: 'Semana atual' },
+  { id: 'q1', lbl: '1ª quinzena' },
+  { id: 'q2', lbl: '2ª quinzena' },
   { id: 'this_month', lbl: 'Mês atual' },
-  { id: 'last_30d', lbl: 'Últimos 30 dias' },
-  { id: 'last_90d', lbl: 'Últimos 90 dias' },
+  { id: 'last_month', lbl: 'Mês passado' },
+  { id: 'tri1', lbl: '1º trimestre' },
+  { id: 'tri2', lbl: '2º trimestre' },
+  { id: 'tri3', lbl: '3º trimestre' },
+  { id: 'tri4', lbl: '4º trimestre' },
+  { id: 'sem1', lbl: '1º semestre' },
+  { id: 'sem2', lbl: '2º semestre' },
   { id: 'this_year', lbl: 'Ano' },
 ];
+
+// Todo preset vira since/until calculado AQUI (o backend só recebe datas) —
+// assim o funil meta × realizado prorateia a meta com a mesma janela.
+function presetRange(id) {
+  const t = new Date(), y = t.getFullYear(), m = t.getMonth();
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const lastDay = new Date(y, m + 1, 0);
+  switch (id) {
+    case 'hoje': return [fmt(t), fmt(t)];
+    case 'semana': { const dow = (t.getDay() + 6) % 7; return [fmt(new Date(y, m, t.getDate() - dow)), fmt(new Date(y, m, t.getDate() - dow + 6))]; }
+    case 'q1': return [fmt(new Date(y, m, 1)), fmt(new Date(y, m, 15))];
+    case 'q2': return [fmt(new Date(y, m, 16)), fmt(lastDay)];
+    case 'this_month': return [fmt(new Date(y, m, 1)), fmt(lastDay)];
+    case 'last_month': return [fmt(new Date(y, m - 1, 1)), fmt(new Date(y, m, 0))];
+    case 'tri1': return [`${y}-01-01`, `${y}-03-31`];
+    case 'tri2': return [`${y}-04-01`, `${y}-06-30`];
+    case 'tri3': return [`${y}-07-01`, `${y}-09-30`];
+    case 'tri4': return [`${y}-10-01`, `${y}-12-31`];
+    case 'sem1': return [`${y}-01-01`, `${y}-06-30`];
+    case 'sem2': return [`${y}-07-01`, `${y}-12-31`];
+    case 'this_year': return [`${y}-01-01`, `${y}-12-31`];
+  }
+  return null;
+}
 
 export async function pageOO(ctx, root) {
   _root = root;
@@ -95,12 +129,13 @@ async function loadDetail() {
   _view = 'detail';
   _root.innerHTML = spinner('Carregando cockpit do corretor…');
   try {
-    const [d, m, u] = await Promise.all([
+    const [d, m, u, n] = await Promise.all([
       api.request('/api/v3/oo/corretor?corretor_id=' + encodeURIComponent(_selId) + '&' + ooQP()),
       api.request('/api/v3/oo/list?corretor_id=' + encodeURIComponent(_selId)).catch(() => ({ items: [] })),
       _users.length ? Promise.resolve({ users: _users }) : api.request('/api/v3/users/list').catch(() => ({ users: [] })),
+      api.request('/api/v3/oo/norte?corretor_id=' + encodeURIComponent(_selId) + '&' + ooQP()).catch(() => null),
     ]);
-    _det = d; _meet = m.items || []; if (u.users) _users = u.users;
+    _det = d; _meet = m.items || []; if (u.users) _users = u.users; _norte = n;
     _scope = (d.team && d.team.metrics) ? 'equipe' : 'individual';  // líder abre na visão de equipe
     renderDetail();
   } catch (e) { _root.innerHTML = err(e.message); }
@@ -119,6 +154,7 @@ function renderDetail() {
         <button class="btn btn-primary" id="oo-new" style="margin-left:auto">+ Reunião 1:1</button>
       </div>
       ${detailHeader(d, c)}
+      <div style="margin-top:14px">${nortePanel(d)}</div>
       <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:14px;align-items:start">
         <div>${funnelPanel(d)}</div>
         <div>${kpiVsMeta(d)}</div>
@@ -187,6 +223,11 @@ function renderGestor(d, c) {
 function wireDetailCommon() {
   document.getElementById('oo-back').addEventListener('click', () => loadList());
   document.getElementById('oo-new').addEventListener('click', () => openMeeting());
+  document.getElementById('norte-edit')?.addEventListener('click', openNorte);
+  document.getElementById('norte-log')?.addEventListener('click', () => {
+    const b = document.getElementById('norte-log-box');
+    if (b) b.style.display = b.style.display === 'none' ? '' : 'none';
+  });
   wirePeriod(loadDetail);
   _root.querySelectorAll('[data-member]').forEach(el => el.addEventListener('click', () => { _selId = el.dataset.member; loadDetail(); }));
   _root.querySelectorAll('[data-meet]').forEach(el => el.addEventListener('click', () => openMeeting(parseInt(el.dataset.meet))));
@@ -619,9 +660,10 @@ function openMeeting(iid) {
 
 /* ──────────────── helpers visuais ──────────────── */
 function ooQP() {
-  return (_since && _until)
-    ? ('since=' + encodeURIComponent(_since) + '&until=' + encodeURIComponent(_until))
-    : ('date_preset=' + encodeURIComponent(_preset));
+  if (_since && _until) return 'since=' + encodeURIComponent(_since) + '&until=' + encodeURIComponent(_until);
+  const r = presetRange(_preset);
+  if (r) return 'since=' + r[0] + '&until=' + r[1];
+  return 'date_preset=' + encodeURIComponent(_preset);
 }
 function periodSel() {
   const custom = !!(_since && _until);
@@ -755,6 +797,247 @@ function focoSemanaPanel(t) {
       </div>`;
     }).join('')}
     </div>`);
+}
+
+/* ═══════════════ 🎯 NORTE DO MÊS · Meta × Realizado (v85.6) ═══════════════
+   O modelo da planilha PSM (atendimentos × mix por canal × energia) vira o
+   norte do corretor: funil com as MESMAS 7 etapas do RD, meta proporcional ao
+   período selecionado, realizado direto do RD CRM (sync automático). */
+function fmtN(v) {
+  const n = Number(v) || 0;
+  return Number.isInteger(n) ? n.toLocaleString('pt-BR') : n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+}
+
+function nortePanel(d) {
+  const n = _norte;
+  if (!n || !n.ok) return panel('🎯 Norte do Mês · Meta × Realizado', '<div class="tiny muted">Meta do mês indisponível agora — recarrega a página ou tenta de novo.</div>');
+  const btns = `<div class="flex gap-2" style="margin-top:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-primary btn-sm" id="norte-edit">⚙️ ${n.meses_com_meta ? 'Ajustar meta' : 'Definir meta do mês'}</button>
+      ${(n.changelog || []).length ? '<button class="btn btn-ghost btn-sm" id="norte-log">🕘 O que mudou?</button>' : ''}
+      ${n.read_fail ? '<span class="tiny" style="color:#d97706">⚠ leitura parcial do banco — números podem estar incompletos</span>' : ''}
+    </div>
+    <div id="norte-log-box" style="display:none;margin-top:8px">${norteChangelog(n.changelog)}</div>`;
+  if (!n.meses_com_meta) {
+    return panel('🎯 Norte do Mês · Meta × Realizado',
+      `<div class="tiny muted">Nenhuma meta definida pro período selecionado. Defina o norte do mês — atendimentos, mix por canal (igual à planilha) e metas por etapa do funil. O quadro compara meta × realizado puxando direto do RD CRM, todos os dias, sozinho.</div>${btns}`);
+  }
+  const comp = n.computed || {}, pace = n.pace, fm = n.funil_meta_periodo || {}, mp = n.meta_periodo || {}, kp = d.kpis || {};
+  const stages = d.funnel || [];
+  const parcial = (n.fracs || []).some(f => f.frac < 1) || (n.fracs || []).length > 1;
+
+  const strip = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:var(--r-md);padding:14px 16px;color:#fff">
+      <div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px">Atendimentos no mês</div>
+        <div style="font-size:22px;font-weight:900">${fmtN(comp.atendimentos_mes)}</div>
+        ${pace ? `<div style="font-size:11px;opacity:.85">≈ ${fmtN(pace.atend_dia)}/dia</div>` : ''}</div>
+      <div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px">Vendas previstas</div>
+        <div style="font-size:22px;font-weight:900">${fmtN(comp.vendas_prev)}</div>
+        <div style="font-size:11px;opacity:.85">ticket R$ ${money(comp.ticket_medio)}</div></div>
+      <div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px">VGV previsto</div>
+        <div style="font-size:22px;font-weight:900">R$ ${money(comp.vgv_prev)}</div></div>
+      ${pace ? `<div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px">Hoje · dia ${pace.dia}/${pace.dias_mes}</div>
+        <div style="font-size:14px;font-weight:800;margin-top:3px">esperado até hoje: ${fmtN(pace.atend_esperado_ate_hoje)} atend.</div>
+        <div style="font-size:11px;opacity:.85">faltam ${pace.dias_restantes} dia(s) no mês</div></div>` : ''}
+    </div>`;
+
+  const rows = stages.map(s => {
+    const meta = Number(fm[s.key] || 0);
+    const pct = meta > 0 ? (s.n / meta * 100) : null;
+    const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+    const w = meta > 0 ? Math.min(100, s.n / meta * 100) : 0;
+    return `<tr>
+      <td style="font-weight:600;font-size:12px;padding:5px 8px 5px 0;white-space:nowrap">${escapeHtml(s.label)}</td>
+      <td style="width:100%;padding:5px 0"><div style="height:14px;background:var(--bg-3);border-radius:6px;overflow:hidden">
+        <div style="height:100%;width:${w}%;background:${cor};border-radius:6px;transition:.3s"></div></div></td>
+      <td style="text-align:right;padding:5px 0 5px 10px;white-space:nowrap;font-size:12.5px"><b>${fmtN(s.n)}</b> <span class="muted">/ ${meta > 0 ? fmtN(meta) : '—'}</span></td>
+      <td style="text-align:right;padding:5px 0 5px 8px;white-space:nowrap">${pct == null ? '<span class="tiny muted">definir</span>' : `<span style="font-size:11px;font-weight:800;color:${cor}">${pctF(pct)}</span>`}</td>
+    </tr>`;
+  }).join('');
+
+  const resumoBar = (lbl, real, meta, isMoney) => {
+    const pct = meta > 0 ? real / meta * 100 : null;
+    const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+    return `<div>
+      <div class="flex" style="justify-content:space-between;font-size:11.5px;margin-bottom:2px">
+        <span style="font-weight:700">${lbl}</span>
+        <span><b>${isMoney ? 'R$ ' + money(real) : fmtN(real)}</b> <span class="muted">/ ${meta > 0 ? (isMoney ? 'R$ ' + money(meta) : fmtN(meta)) : '—'}</span>${pct != null ? ` · <b style="color:${cor}">${pctF(pct)}</b>` : ''}</span>
+      </div>
+      <div style="height:10px;background:var(--bg-3);border-radius:6px;overflow:hidden"><div style="height:100%;width:${pct != null ? Math.min(100, pct) : 0}%;background:${cor};border-radius:6px"></div></div>
+    </div>`;
+  };
+
+  return panel('🎯 Norte do Mês · Meta × Realizado', `
+    ${strip}
+    ${parcial ? `<div class="tiny muted" style="margin-top:8px">📐 Meta <b>proporcional ao período selecionado</b> (${(n.fracs || []).map(f => `${f.ym}: ${Math.round(f.frac * 100)}%${f.tem_meta ? '' : ' <span style="color:#d97706">sem meta</span>'}`).join(' · ')}).</div>` : ''}
+    <div style="margin-top:10px;overflow-x:auto"><table style="width:100%;border-collapse:collapse">${rows}</table></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+      ${resumoBar('Vendas no período', kp.vendas || 0, mp.vendas || 0, false)}
+      ${resumoBar('VGV no período', kp.vgv || 0, mp.vgv || 0, true)}
+    </div>
+    <div class="tiny muted" style="margin-top:8px">🔄 Realizado vem do RD CRM automaticamente (sync diário + tempo real). Atendimentos são meta de ritmo — o sistema ainda não mede atendimento 1-a-1.</div>
+    ${btns}`);
+}
+
+function norteChangelog(log) {
+  if (!(log || []).length) return '<div class="tiny muted">Sem alterações registradas.</div>';
+  return `<div style="display:grid;gap:6px">${log.map(e => `
+    <div style="background:var(--bg-3);border-radius:8px;padding:8px 10px">
+      <div class="tiny"><b>${escapeHtml(e.quem || '?')}</b> · <span class="muted">${e.quando ? new Date(e.quando).toLocaleString('pt-BR') : ''}</span></div>
+      <div class="tiny muted">${(e.mudancas || []).map(m => `${escapeHtml(m.campo)}: <s>${escapeHtml(String(m.de ?? '—'))}</s> → <b>${escapeHtml(String(m.para ?? '—'))}</b>`).join(' · ')}</div>
+    </div>`).join('')}</div>`;
+}
+
+/* ── Editor da meta (a planilha viva) ── */
+let _ne = null;   // estado de edição
+
+function openNorte() {
+  const n = _norte || {};
+  const cfg = JSON.parse(JSON.stringify(n.cfg || {}));
+  if (!Array.isArray(cfg.canais) || !cfg.canais.length) {
+    cfg.canais = [
+      { nome: 'Tráfego Pago', taxa_base: 1.3, energia: 0, mix: 0 },
+      { nome: 'Indicação', taxa_base: 8, energia: 0, mix: 0 },
+      { nome: 'Carteira Própria', taxa_base: 15, energia: 0, mix: 0 },
+      { nome: 'Eventos (rodadas)', taxa_base: 3, energia: 0, mix: 0 },
+      { nome: 'Networking', taxa_base: 6, energia: 0, mix: 0 },
+      { nome: 'Plantão', taxa_base: 5, energia: 0, mix: 0 },
+      { nome: 'Reativação/Disparo', taxa_base: 1, energia: 0, mix: 0 },
+      { nome: 'Ativo (prospecção)', taxa_base: 0.5, energia: 0, mix: 0 },
+      { nome: 'Tráfego orgânico', taxa_base: 1.8, energia: 0, mix: 0 },
+      { nome: 'Captação de imóvel', taxa_base: 2.5, energia: 0, mix: 0 },
+    ];
+  }
+  cfg.metas_etapas = cfg.metas_etapas || {};
+  const hoje = new Date();
+  _ne = { cfg, ym: n.ref_ym || `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}` };
+  renderNorteModal();
+}
+
+function renderNorteModal() {
+  let ov = document.getElementById('norte-ov');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'norte-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:26px 12px;overflow:auto';
+    document.body.appendChild(ov);
+  }
+  const c = _ne.cfg;
+  const etapas = (_norte?.etapas || []).length ? _norte.etapas : [
+    { key: 'lead', label: 'Lead' }, { key: 'contato', label: 'Contato / Qualificação' }, { key: 'agendamento', label: 'Agendamento' },
+    { key: 'visita', label: 'Visita realizada' }, { key: 'proposta', label: 'Proposta / Aprovação' }, { key: 'pasta', label: 'Pasta / Lançamento' }, { key: 'venda', label: 'Venda' }];
+  ov.innerHTML = `
+    <div class="card" style="max-width:920px;width:100%;margin:0">
+      <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <h3 class="card-title" style="margin:0">🎯 Meta do Mês — norte do corretor</h3>
+        <div class="flex items-center gap-2">
+          <label class="tiny muted">Mês</label><input type="month" id="ne-ym" class="input" value="${_ne.ym}" style="padding:4px 8px;font-size:12px">
+          <button class="btn btn-ghost btn-sm" id="ne-close">✕ fechar</button>
+        </div>
+      </div>
+      <div class="tiny muted" style="margin:4px 0 10px">Mesma matemática da planilha: taxa ajustada = taxa base × energia/100 · atendimentos do canal = mix% × total · vendas = atendimentos × taxa ajustada. Tudo fica auditado (quem mudou, quando, de → para).</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+        <div class="field"><label>Atendimentos no mês (total)</label><input type="number" id="ne-atend" class="input" min="0" step="1" value="${Number(c.atendimentos_mes) || ''}"></div>
+        <div class="field"><label>Ticket médio (R$ por venda)</label><input type="number" id="ne-ticket" class="input" min="0" step="1000" value="${Number(c.ticket_medio) || ''}"></div>
+        <div class="field"><label>Observação</label><input type="text" id="ne-obs" class="input" value="${escapeHtml(c.obs || '')}" placeholder="ex.: foco reativação MAP"></div>
+      </div>
+      <div style="overflow-x:auto;margin-top:8px"><table class="table" style="width:100%;font-size:12px">
+        <thead><tr><th style="text-align:left">Canal</th><th>Taxa base %</th><th>Energia 0-100</th><th>Mix %</th><th>Taxa ajust.</th><th>Atend.</th><th>Vendas</th><th></th></tr></thead>
+        <tbody id="ne-canais">${c.canais.map((cn, i) => `
+          <tr data-ne-row="${i}">
+            <td><input class="input" data-ne="${i}:nome" value="${escapeHtml(cn.nome || '')}" style="min-width:150px;padding:3px 6px;font-size:12px"></td>
+            <td><input class="input" type="number" step="0.1" min="0" data-ne="${i}:taxa_base" value="${Number(cn.taxa_base) || 0}" style="width:70px;padding:3px 6px;font-size:12px;text-align:right"></td>
+            <td><input class="input" type="number" step="1" min="0" max="100" data-ne="${i}:energia" value="${Number(cn.energia) || 0}" style="width:64px;padding:3px 6px;font-size:12px;text-align:right"></td>
+            <td><input class="input" type="number" step="0.5" min="0" data-ne="${i}:mix" value="${Number(cn.mix) || 0}" style="width:64px;padding:3px 6px;font-size:12px;text-align:right"></td>
+            <td class="tiny" style="text-align:right" id="ne-ta-${i}">—</td>
+            <td class="tiny" style="text-align:right" id="ne-at-${i}">—</td>
+            <td class="tiny" style="text-align:right;font-weight:800" id="ne-vd-${i}">—</td>
+            <td><button class="btn btn-ghost btn-sm" data-ne-del="${i}" title="remover canal">🗑</button></td>
+          </tr>`).join('')}</tbody>
+        <tfoot><tr style="font-weight:800">
+          <td style="text-align:right">Σ</td><td></td><td></td>
+          <td style="text-align:right" id="ne-mix-t">—</td><td></td>
+          <td style="text-align:right" id="ne-at-t">—</td>
+          <td style="text-align:right" id="ne-vd-t">—</td><td></td>
+        </tr></tfoot>
+      </table></div>
+      <div class="flex" style="gap:8px;margin-top:6px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-ghost btn-sm" id="ne-add">+ canal</button>
+        <span class="tiny" id="ne-mix-aviso"></span>
+        <span class="tiny muted" style="margin-left:auto">VGV previsto: <b id="ne-vgv">—</b></span>
+      </div>
+      <div style="margin-top:12px;font-weight:800;font-size:12.5px">Metas por etapa do funil (mesmas etapas do RD · vazio = a definir · Venda vazia usa o previsto do mix)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:6px">
+        ${etapas.map(e => `<div class="field"><label class="tiny">${escapeHtml(e.label)}</label>
+          <input type="number" step="0.1" min="0" class="input" data-ne-et="${e.key}" value="${c.metas_etapas[e.key] ?? ''}" placeholder="${e.key === 'venda' ? 'auto' : '—'}" style="padding:4px 8px;font-size:12px"></div>`).join('')}
+      </div>
+      <div class="flex" style="gap:8px;margin-top:14px;justify-content:flex-end">
+        <button class="btn btn-ghost" id="ne-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="ne-save">💾 Salvar meta do mês</button>
+      </div>
+    </div>`;
+  const close = () => { ov.remove(); _ne = null; };
+  ov.querySelector('#ne-close').onclick = close;
+  ov.querySelector('#ne-cancel').onclick = close;
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  ov.querySelector('#ne-ym').onchange = e => { _ne.ym = e.target.value; };
+  ov.querySelectorAll('[data-ne]').forEach(inp => inp.addEventListener('input', () => {
+    const [i, f] = inp.dataset.ne.split(':');
+    _ne.cfg.canais[+i][f] = f === 'nome' ? inp.value : (parseFloat(inp.value) || 0);
+    norteRecalc();
+  }));
+  ov.querySelector('#ne-atend').addEventListener('input', e => { _ne.cfg.atendimentos_mes = parseFloat(e.target.value) || 0; norteRecalc(); });
+  ov.querySelector('#ne-ticket').addEventListener('input', e => { _ne.cfg.ticket_medio = parseFloat(e.target.value) || 0; norteRecalc(); });
+  ov.querySelector('#ne-obs').addEventListener('input', e => { _ne.cfg.obs = e.target.value; });
+  ov.querySelectorAll('[data-ne-et]').forEach(inp => inp.addEventListener('input', () => {
+    const v = inp.value.trim();
+    _ne.cfg.metas_etapas[inp.dataset.neEt] = v === '' ? null : (parseFloat(v) || 0);
+  }));
+  ov.querySelectorAll('[data-ne-del]').forEach(b => b.onclick = () => { _ne.cfg.canais.splice(+b.dataset.neDel, 1); renderNorteModal(); });
+  ov.querySelector('#ne-add').onclick = () => { _ne.cfg.canais.push({ nome: 'Novo canal', taxa_base: 1, energia: 0, mix: 0 }); renderNorteModal(); };
+  ov.querySelector('#ne-save').onclick = saveNorte;
+  norteRecalc();
+}
+
+function norteRecalc() {
+  const c = _ne.cfg;
+  const atendT = Number(c.atendimentos_mes) || 0;
+  let mixT = 0, atT = 0, vdT = 0;
+  (c.canais || []).forEach((cn, i) => {
+    const ta = (Number(cn.taxa_base) || 0) * (Number(cn.energia) || 0) / 100;
+    const at = atendT * (Number(cn.mix) || 0) / 100;
+    const vd = at * ta / 100;
+    mixT += Number(cn.mix) || 0; atT += at; vdT += vd;
+    const el = id => document.getElementById(id);
+    if (el(`ne-ta-${i}`)) el(`ne-ta-${i}`).textContent = pctF(ta);
+    if (el(`ne-at-${i}`)) el(`ne-at-${i}`).textContent = fmtN(Math.round(at * 10) / 10);
+    if (el(`ne-vd-${i}`)) el(`ne-vd-${i}`).textContent = fmtN(Math.round(vd * 1000) / 1000);
+  });
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('ne-mix-t', pctF(mixT)); set('ne-at-t', fmtN(Math.round(atT * 10) / 10)); set('ne-vd-t', fmtN(Math.round(vdT * 1000) / 1000));
+  set('ne-vgv', 'R$ ' + money(vdT * (Number(c.ticket_medio) || 0)));
+  const av = document.getElementById('ne-mix-aviso');
+  if (av) av.innerHTML = Math.abs(mixT - 100) < 0.51 ? '<span style="color:#16a34a;font-weight:700">✓ Mix fecha 100%</span>' : `<span style="color:#d97706;font-weight:700">⚠ Mix soma ${pctF(mixT)} — ajuste pra fechar 100%</span>`;
+}
+
+async function saveNorte() {
+  const btn = document.getElementById('ne-save');
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
+  try {
+    await api.request('/api/v3/oo/norte', { method: 'POST', body: {
+      corretor_id: _selId, ym: _ne.ym,
+      patch: {
+        atendimentos_mes: Number(_ne.cfg.atendimentos_mes) || 0,
+        ticket_medio: Number(_ne.cfg.ticket_medio) || 0,
+        obs: _ne.cfg.obs || '',
+        canais: _ne.cfg.canais,
+        metas_etapas: _ne.cfg.metas_etapas,
+      } } });
+    document.getElementById('norte-ov')?.remove(); _ne = null;
+    await loadDetail();
+  } catch (e) {
+    alert('Não salvou: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar meta do mês'; }
+  }
 }
 
 function panel(title, inner) {
