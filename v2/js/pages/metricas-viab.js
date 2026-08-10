@@ -270,17 +270,19 @@ function custosSujos() {
 function divergencias() {
   const mr = mesRef(), out = [];
   const custoMes = custoMesTotal(mr), traf = trafegoDet();
-  if (custosSujos()) out.push({ k: 'salvar', txt: 'Custos alterados e <b>não salvos</b> — as outras abas e o Plano de Resgate ainda leem o valor anterior.', fix: 'salvar' });
+  // ERRO = dado desalinhado sem querer (precisa correção).
+  if (custosSujos()) out.push({ tipo: 'erro', k: 'salvar', txt: 'Custos alterados e <b>não salvos</b> — as outras abas e o Plano de Resgate ainda leem o valor anterior.', fix: 'salvar' });
   const ccKv = (_d.conta_cheia_kv || {})[_ano + '-' + String(mr).padStart(2, '0')] ?? (_d.conta_cheia_kv || {}).default;
   const ccCalc = (_d.conta_cheia_calc || {})[mr];
   if (ccCalc != null && ccKv != null && Math.abs(ccCalc - ccKv) > 1000)
-    out.push({ k: 'kv', txt: `Plano de Resgate tem conta cheia manual de <b>${fmt(ccKv)}</b>, mas o orçado calcula <b>${fmt(ccCalc)}</b> — o calculado é quem manda.` });
+    out.push({ tipo: 'erro', k: 'kv', txt: `Plano de Resgate tem conta cheia manual de <b>${fmt(ccKv)}</b>, mas o orçado calcula <b>${fmt(ccCalc)}</b> — o calculado é quem manda.` });
+  // SIMULAÇÃO = você mexeu de propósito no Break-even pra testar corte. Não é
+  // erro: fica como aviso azul, com o caminho de volta pro número orçado.
   if (_be && Math.abs((+_be.fixo || 0) - custoMes) > 1000)
-    out.push({ k: 'be', txt: `Break-even usando custo fixo de <b>${fmt(_be.fixo)}</b> em vez do orçado de ${MESES_N3[mr - 1]} (<b>${fmt(custoMes)}</b>).`, fix: 'be' });
+    out.push({ tipo: 'sim', k: 'be', txt: `Break-even simulando custo fixo de <b>${fmt(_be.fixo)}</b> (orçado de ${MESES_N3[mr - 1]}: ${fmt(custoMes)}).`, fix: 'be' });
   if (_be) {
-    const pares = [['map', 'map'], ['terceiros', 'terceiros'], ['locacao', 'locacao']];
-    const fora = pares.filter(([g, l]) => LIDS.includes(l) && Math.abs((+(_be[g] || {}).trafego || 0) - (traf.por[l] ? traf.por[l][mr] : 0)) > 200);
-    if (fora.length) out.push({ k: 'betraf', txt: `Tráfego do Break-even diferente da ala orçada em: <b>${fora.map(([g]) => g).join(', ')}</b>.`, fix: 'betraf' });
+    const fora = ['map', 'terceiros', 'locacao'].filter(g => LIDS.includes(g) && Math.abs((+(_be[g] || {}).trafego || 0) - (traf.por[g] ? traf.por[g][mr] : 0)) > 200);
+    if (fora.length) out.push({ tipo: 'sim', k: 'betraf', txt: `Tráfego simulado no Break-even difere da ala orçada em: <b>${fora.join(', ')}</b>.`, fix: 'betraf' });
   }
   return out;
 }
@@ -290,6 +292,7 @@ function coerenciaBar() {
   if (!_d) return '';
   const mr = mesRef(), custoMes = custoMesTotal(mr), traf = trafegoDet();
   const vgv = vgvOrcMes(mr), div = divergencias();
+  const erros = div.filter(d => d.tipo !== 'sim'), sims = div.filter(d => d.tipo === 'sim');
   const perf = perfilGasto();
   const stat = (lbl, val, sub, cor) => `<div style="flex:1;min-width:130px">
     <div class="tiny" style="opacity:.75">${lbl}</div>
@@ -306,13 +309,14 @@ function coerenciaBar() {
       ${stat('📣 Tráfego do mês', fmt(traf.totMes[mr]), LIDS.filter(l => traf.por[l][mr] > 0).map(l => (LINHAS.find(x => x.id === l) || {}).icon || l).join(' ') || 'sem verba lançada')}
       ${stat('💰 VGV orçado', fmt(vgv), 'meta do mês')}
       ${stat('🎯 Conta cheia', fmt((_d.conta_cheia_calc || {})[mr] ?? custoMes), 'lida pelo Amortecedor', '#fbbf24')}
-      <div style="flex:none;align-self:center">${div.length
-        ? `<button class="btn btn-sm" id="viab-div-toggle" style="background:#f59e0b;color:#1e2650;font-weight:800;border:none">⚠ ${div.length} divergência${div.length > 1 ? 's' : ''}</button>`
-        : `<span class="tiny" style="background:#16a34a33;color:#4ade80;font-weight:800;padding:5px 10px;border-radius:99px">✅ abas em sincronia</span>`}</div>
+      <div style="flex:none;align-self:center;display:flex;gap:6px;flex-wrap:wrap">${erros.length
+        ? `<button class="btn btn-sm" id="viab-div-toggle" style="background:#f59e0b;color:#1e2650;font-weight:800;border:none">⚠ ${erros.length} divergência${erros.length > 1 ? 's' : ''}</button>`
+        : `<span class="tiny" style="background:#16a34a33;color:#4ade80;font-weight:800;padding:5px 10px;border-radius:99px">✅ abas em sincronia</span>`}
+        ${sims.length ? `<button class="btn btn-sm" id="viab-sim-toggle" style="background:#38bdf833;color:#7dd3fc;font-weight:800;border:none">🧪 ${sims.length} simulação${sims.length > 1 ? 'ões' : ''} ativa${sims.length > 1 ? 's' : ''}</button>` : ''}</div>
     </div>
     ${div.length && _divOpen ? `<div style="margin-top:10px;background:rgba(255,255,255,.08);border-radius:8px;padding:10px 12px">
       ${div.map(d => `<div class="tiny" style="margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <span style="flex:1;min-width:220px">• ${d.txt}</span>
+        <span style="flex:1;min-width:220px">${d.tipo === 'sim' ? '🧪' : '•'} ${d.txt}</span>
         ${d.fix === 'salvar' ? '<button class="btn btn-sm" id="viab-fix-salvar" style="background:#22c55e;border:none;color:#052e16;font-weight:800">💾 salvar agora</button>' : ''}
         ${d.fix === 'be' ? '<button class="btn btn-sm viab-fix-be" style="background:#fff;border:none;color:#1e2650;font-weight:800">⟳ usar o orçado</button>' : ''}
         ${d.fix === 'betraf' ? '<button class="btn btn-sm viab-fix-betraf" style="background:#fff;border:none;color:#1e2650;font-weight:800">⟳ puxar tráfego orçado</button>' : ''}
@@ -322,6 +326,7 @@ function coerenciaBar() {
 }
 function wireCoerencia() {
   const t = document.getElementById('viab-div-toggle'); if (t) t.onclick = () => { _divOpen = !_divOpen; render(); };
+  const st = document.getElementById('viab-sim-toggle'); if (st) st.onclick = () => { _divOpen = !_divOpen; render(); };
   const s = document.getElementById('viab-fix-salvar'); if (s) s.onclick = saveCustosOrc;
   document.querySelectorAll('.viab-fix-be').forEach(b => b.onclick = () => {
     _be.fixo = Math.round(custoMesTotal(mesRef())); flash('break-even alinhado ao orçado'); render();
@@ -353,16 +358,23 @@ function trafegoAlaHTML() {
   const totAnoMarca = l => { let s = 0; for (let m = 1; m <= 12; m++) s += traf.por[l][m]; return s; };
   const grand = LIDS.reduce((s, l) => s + totAnoMarca(l), 0);
   const metaReal = (_d.fontes_auto || {})[mr] ? (+(_d.fontes_auto[mr].meta_mkt) || 0) : 0;
+  // ⚠️ O input edita SÓ o item dedicado da marca. Se a marca já tiver OUTROS
+  // itens de tráfego (lançados à mão na tabela), eles aparecem à parte — senão o
+  // campo mostraria a soma e gravaria no dedicado, duplicando o valor em silêncio.
+  const dedic = (lid, m) => { const it = (_custosOrc || []).find(x => x.id === 'traf_' + lid); return it && mesAtivo(it, m) ? valorItemMes(it, m) : 0; };
   const rows = LINHAS.map(l => {
     const it = (_custosOrc || []).find(x => x.id === 'traf_' + l.id);
+    const outrosMes = Math.max(0, traf.por[l.id][mr] - dedic(l.id, mr));
+    let outrosAno = 0; for (let m = 1; m <= 12; m++) outrosAno += Math.max(0, traf.por[l.id][m] - dedic(l.id, m));
     const cells = Array.from({ length: 12 }, (_, i) => {
-      const m = i + 1, v = traf.por[l.id][m];
+      const m = i + 1, v = dedic(l.id, m);
       return `<td style="padding:1px"><input class="input tf-in" data-l="${l.id}" data-m="${m}" value="${v ? Math.round(v) : ''}" placeholder="0"
         style="width:100%;min-width:52px;padding:2px 3px;font-size:11px;text-align:right;${m === mr ? 'background:#1e265012;font-weight:800' : ''}"></td>`;
     }).join('');
     const ano = totAnoMarca(l.id);
     return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:3px 6px;white-space:nowrap;font-weight:700;border-left:3px solid ${l.cor}">${l.icon} ${esc(l.nome)}</td>
+      <td style="padding:3px 6px;white-space:nowrap;font-weight:700;border-left:3px solid ${l.cor}">${l.icon} ${esc(l.nome)}
+        ${outrosAno ? `<div class="tiny" style="color:#d97706;font-weight:600" title="itens de tráfego desta marca lançados avulsos na tabela de custos — somam no total, mas não são editáveis aqui">+ ${fmt(outrosMes)}/mês avulso</div>` : ''}</td>
       ${cells}
       <td style="padding:3px 6px;text-align:right;white-space:nowrap;font-weight:800;color:${l.cor}">${fmt(ano)}</td>
       <td style="padding:3px 4px"><button class="btn btn-ghost btn-sm tf-fill" data-l="${l.id}" title="repetir o valor de ${MESES_N3[mr - 1]} de ${MESES_N3[mr - 1]} até dez" style="padding:1px 6px;font-size:11px">→ repetir</button>${it ? `<button class="btn btn-ghost btn-sm tf-zero" data-l="${l.id}" title="zerar o ano inteiro desta marca" style="padding:1px 6px;font-size:11px;color:#dc2626">zerar</button>` : ''}</td>
