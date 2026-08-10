@@ -47,6 +47,9 @@ JOBS = [
     # 🚨 ritmo do mês (v85.11): avisa a diretoria NO dia 10/20/25 quando o VGV está
     # abaixo do ritmo da meta — enquanto ainda dá tempo de reagir. Dedupe próprio.
     ("viab_ritmo",   "/api/v3/diretoria/viab_alerta?cron=1",  12),
+    # 📣 gasto REAL de mídia por marca/mês (v85.16): puxa da Meta conta a conta e
+    # alimenta o custo de tráfego da Viabilidade — valor exato do mês, sem média.
+    ("trafego_real", "/api/v3/diretoria/trafego_real",         6),
 ]
 
 

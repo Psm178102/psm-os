@@ -241,12 +241,27 @@ function perfilGasto() {
   return out;
 }
 /* Tráfego pago por marca — calculado ao vivo (antes mesmo de salvar) */
+/* v85.16 — o tráfego passou a vir do gasto REAL da Meta, conta a conta, mês a
+   mês (valor exato do mês — nunca média). _traf guarda {real, override, efetivo,
+   detalhe, mapa, contas}; o efetivo é o que entra no custo. */
+let _traf = null;
+async function loadTrafego(sync) {
+  try { _traf = await api.request('/api/v3/diretoria/trafego_real?ano=' + _ano + (sync ? '&sync=1' : '')); }
+  catch (e) { _traf = null; }
+  return _traf;
+}
+const trafEfetivo = (l, m) => ((_traf && _traf.efetivo && _traf.efetivo[l]) ? (+_traf.efetivo[l][m] || 0) : 0);
+const trafReal = (l, m) => ((_traf && _traf.real && _traf.real[l]) ? (+_traf.real[l][m] || 0) : 0);
+const trafOver = (l, m) => { const o = (_traf && _traf.override && _traf.override[l]) ? _traf.override[l][m] : undefined; return (o === undefined || o === null) ? null : +o; };
+
 const isTrafego = it => (it.cat || '').trim().toLowerCase() === 'tráfego pago' && it.classe !== 'variavel';
 let _trafMemo = null;   // zerado junto com _custoDetMemo a cada render()
 function trafegoDet() {
   if (_trafMemo) return _trafMemo;
   const por = {}; LIDS.forEach(l => { por[l] = {}; for (let m = 1; m <= 12; m++) por[l][m] = 0; });
   const compart = {}; for (let m = 1; m <= 12; m++) compart[m] = 0;
+  // Os itens traf_* são escritos pelo sincronizador da Meta (backend), então
+  // continuam sendo a fonte única do custo — aqui é só somar como qualquer item.
   for (const it of (_custosOrc || [])) {
     if (!isTrafego(it)) continue;
     for (let m = 1; m <= 12; m++) {
@@ -338,93 +353,92 @@ function wireCoerencia() {
   });
 }
 
-/* ═══════════ 📣 ALA DE TRÁFEGO PAGO POR MARCA (v85.8) ═══════════
-   Verba mensal de mídia por marca, editável mês a mês. Cada marca vira um item
-   de custo dedicado (cat 'Tráfego pago'), então entra automaticamente no custo
-   do mês, na conta cheia, no break-even e no Plano de Resgate. */
-function trafItem(lid, criar) {
-  let it = (_custosOrc || []).find(x => x.id === 'traf_' + lid);
-  if (!it && criar) {
-    const l = LINHAS.find(x => x.id === lid) || { nome: lid };
-    it = { id: 'traf_' + lid, desc: 'Tráfego pago · ' + l.nome, cat: 'Tráfego pago', classe: 'fixo',
-           aloc: lid, rateio: 'igual', valor: 0, meses: null, linhas: [], pesos: null,
-           por_mes: {}, period: 'mensal', pgto: null };
-    _custosOrc.push(it);
-  }
-  return it;
-}
+/* ═══════════ 📣 TRÁFEGO PAGO — GASTO REAL DA META (v85.16) ═══════════
+   O gasto de cada conta de anúncio é puxado mês a mês e somado na marca que o
+   sócio mapeou (Conquista ← conta Conquista · MAP ← Paulo Morimatsu + PSM
+   Imóveis). O backend espelha o valor no item de custo 'traf_<marca>', então
+   conta cheia, break-even e Plano de Resgate acompanham sem ninguém digitar. */
 function trafegoAlaHTML() {
   const traf = trafegoDet(), mr = mesRef();
   const totAnoMarca = l => { let s = 0; for (let m = 1; m <= 12; m++) s += traf.por[l][m]; return s; };
   const grand = LIDS.reduce((s, l) => s + totAnoMarca(l), 0);
-  const metaReal = (_d.fontes_auto || {})[mr] ? (+(_d.fontes_auto[mr].meta_mkt) || 0) : 0;
-  // ⚠️ O input edita SÓ o item dedicado da marca. Se a marca já tiver OUTROS
-  // itens de tráfego (lançados à mão na tabela), eles aparecem à parte — senão o
-  // campo mostraria a soma e gravaria no dedicado, duplicando o valor em silêncio.
-  const dedic = (lid, m) => { const it = (_custosOrc || []).find(x => x.id === 'traf_' + lid); return it && mesAtivo(it, m) ? valorItemMes(it, m) : 0; };
+  /* Cada marca vira 2 linhas: o que a Meta cobrou (automático, mês a mês) e o
+     valor usado no custo — igual ao real, a não ser que você edite. Editar grava
+     um override daquele mês; apagar o campo devolve o número da Meta. */
+  const contasDe = l => ((_traf && _traf.mapa && _traf.mapa[l.id]) || []).map(a => (_traf.contas || {})[a] || a);
   const rows = LINHAS.map(l => {
-    const it = (_custosOrc || []).find(x => x.id === 'traf_' + l.id);
-    const outrosMes = Math.max(0, traf.por[l.id][mr] - dedic(l.id, mr));
-    let outrosAno = 0; for (let m = 1; m <= 12; m++) outrosAno += Math.max(0, traf.por[l.id][m] - dedic(l.id, m));
-    const cells = Array.from({ length: 12 }, (_, i) => {
-      const m = i + 1, v = dedic(l.id, m);
-      return `<td style="padding:1px"><input class="input tf-in" data-l="${l.id}" data-m="${m}" value="${v ? Math.round(v) : ''}" placeholder="0"
-        style="width:100%;min-width:52px;padding:2px 3px;font-size:11px;text-align:right;${m === mr ? 'background:#1e265012;font-weight:800' : ''}"></td>`;
+    const contas = contasDe(l);
+    const cellsReal = Array.from({ length: 12 }, (_, i) => {
+      const m = i + 1, v = trafReal(l.id, m);
+      return `<td style="padding:2px 3px;text-align:right;font-size:10.5px;color:${v ? 'var(--ink)' : 'var(--ink-muted)'};${m === mr ? 'background:#1e26500a;font-weight:800' : ''}">${v ? fmt(v).replace('R$ ', '') : '—'}</td>`;
     }).join('');
-    const ano = totAnoMarca(l.id);
-    return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:3px 6px;white-space:nowrap;font-weight:700;border-left:3px solid ${l.cor}">${l.icon} ${esc(l.nome)}
-        ${outrosAno ? `<div class="tiny" style="color:#d97706;font-weight:600" title="itens de tráfego desta marca lançados avulsos na tabela de custos — somam no total, mas não são editáveis aqui">+ ${fmt(outrosMes)}/mês avulso</div>` : ''}</td>
-      ${cells}
-      <td style="padding:3px 6px;text-align:right;white-space:nowrap;font-weight:800;color:${l.cor}">${fmt(ano)}</td>
-      <td style="padding:3px 4px"><button class="btn btn-ghost btn-sm tf-fill" data-l="${l.id}" title="repetir o valor de ${MESES_N3[mr - 1]} de ${MESES_N3[mr - 1]} até dez" style="padding:1px 6px;font-size:11px">→ repetir</button>${it ? `<button class="btn btn-ghost btn-sm tf-zero" data-l="${l.id}" title="zerar o ano inteiro desta marca" style="padding:1px 6px;font-size:11px;color:#dc2626">zerar</button>` : ''}</td>
-    </tr>`;
+    const cellsUso = Array.from({ length: 12 }, (_, i) => {
+      const m = i + 1, ov = trafOver(l.id, m), v = trafEfetivo(l.id, m);
+      return `<td style="padding:1px"><input class="input tf-in" data-l="${l.id}" data-m="${m}" value="${v ? Math.round(v) : ''}" placeholder="0"
+        title="${ov != null ? 'editado à mão — apague pra voltar ao valor da Meta' : 'valor da Meta; digite pra sobrescrever só este mês'}"
+        style="width:100%;min-width:52px;padding:2px 3px;font-size:11px;text-align:right;${ov != null ? 'background:#d9770618;border-color:#d97706;font-weight:800' : ''}${m === mr ? ';box-shadow:inset 0 0 0 2px #1e265022' : ''}"></td>`;
+    }).join('');
+    let anoReal = 0, anoUso = 0;
+    for (let m = 1; m <= 12; m++) { anoReal += trafReal(l.id, m); anoUso += trafEfetivo(l.id, m); }
+    return `<tr style="border-top:2px solid var(--border)">
+        <td rowspan="2" style="padding:3px 6px;white-space:nowrap;font-weight:700;border-left:3px solid ${l.cor};vertical-align:top">${l.icon} ${esc(l.nome)}
+          <div class="tiny muted" style="font-weight:400;max-width:140px;white-space:normal">${contas.length ? esc(contas.join(' + ')) : '<span style="color:#d97706">sem conta ligada</span>'}</div></td>
+        <td class="tiny muted" style="padding:2px 5px;white-space:nowrap">📡 Meta</td>
+        ${cellsReal}
+        <td style="padding:2px 6px;text-align:right;white-space:nowrap;font-size:11px" class="muted">${fmt(anoReal)}</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border)">
+        <td class="tiny" style="padding:2px 5px;white-space:nowrap;font-weight:700">✏️ usado</td>
+        ${cellsUso}
+        <td style="padding:2px 6px;text-align:right;white-space:nowrap;font-weight:800;color:${l.cor}">${fmt(anoUso)}</td>
+      </tr>`;
   }).join('');
   const totCells = Array.from({ length: 12 }, (_, i) => {
     const m = i + 1;
     return `<td style="padding:3px 2px;text-align:right;font-size:10.5px;font-weight:800;${m === mr ? 'color:var(--psm-navy)' : 'opacity:.7'}">${traf.totMes[m] ? Math.round(traf.totMes[m] / 1000) + 'k' : '—'}</td>`;
   }).join('');
+  const sy = (_traf && _traf.atualizado_em) || {};
+  const quando = sy.em ? new Date(sy.em).toLocaleString('pt-BR') : null;
   return `<div class="card" style="margin:0 0 10px;border:2px solid #7c3aed44;background:#7c3aed08">
     <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-      <b>📣 Tráfego pago — investimento mensal por marca</b>
-      <span class="tiny muted">verba de mídia entra no custo automaticamente · ${fmt(traf.totMes[mr])}/mês em ${MESES_N3[mr - 1]} · ${fmt(grand)}/ano</span>
+      <b>📣 Tráfego pago — gasto real da Meta, mês a mês</b>
+      <span class="tiny muted">${fmt(traf.totMes[mr])} em ${MESES_N3[mr - 1]} · ${fmt(grand)}/ano</span>
+      <button class="btn btn-ghost btn-sm" id="tf-sync" title="puxa da Meta o gasto de cada conta em cada mês do ano">📡 Atualizar da Meta</button>
     </div>
+    <div class="tiny muted" style="margin-top:2px">Cada marca soma as contas de anúncio ligadas a ela — <b>valor exato do mês</b>, nunca média. A linha <b>📡 Meta</b> é o que foi cobrado; a linha <b>✏️ usado</b> é o que entra no custo (digite para sobrescrever um mês; apague para voltar ao número da Meta).${quando ? ` Última leitura: ${quando}.` : ''}</div>
     <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:820px">
-      <thead><tr style="background:var(--bg-3)"><th style="padding:4px 6px;text-align:left">Marca</th>
+      <thead><tr style="background:var(--bg-3)"><th style="padding:4px 6px;text-align:left">Marca</th><th></th>
         ${MESES_N3.map((n, i) => `<th style="padding:4px 2px;text-align:center;${i + 1 === mr ? 'color:var(--psm-navy);font-weight:900' : ''}">${n}</th>`).join('')}
-        <th style="padding:4px 6px;text-align:right">Ano</th><th></th></tr></thead>
+        <th style="padding:4px 6px;text-align:right">Ano</th></tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr style="background:var(--bg-3)"><td style="padding:3px 6px;font-weight:800">Σ mês</td>${totCells}
-        <td style="padding:3px 6px;text-align:right;font-weight:900">${fmt(grand)}</td><td></td></tr></tfoot>
+      <tfoot><tr style="background:var(--bg-3);border-top:2px solid var(--psm-navy)"><td colspan="2" style="padding:3px 6px;font-weight:800">Σ usado no mês</td>${totCells}
+        <td style="padding:3px 6px;text-align:right;font-weight:900">${fmt(grand)}</td></tr></tfoot>
     </table></div>
-    <div class="tiny muted mt-1">Valores em R$ por mês. ${traf.compart[mr] ? `⚠ ${fmt(traf.compart[mr])}/mês de tráfego está em item <b>compartilhado</b> (fora do rateio por marca) — mova pra uma marca se quiser atribuição limpa. ` : ''}${metaReal ? `Meta Ads real de ${MESES_N3[mr - 1]} (todas as contas): <b>${fmt(metaReal)}</b> — diferença de ${fmt(Math.abs(metaReal - traf.totMes[mr]))} pro orçado.` : 'Sem gasto real do Meta importado neste mês pra comparar.'}</div>
+    <div class="tiny muted mt-1">${traf.compart[mr] ? `⚠ ${fmt(traf.compart[mr])}/mês de tráfego está em item <b>compartilhado</b> na tabela de custos (fora do rateio por marca) — mova pra uma marca se quiser atribuição limpa. ` : ''}${LINHAS.some(l => !((_traf?.mapa || {})[l.id] || []).length) ? `<b>Marcas sem conta ligada</b> ficam zeradas: ${LINHAS.filter(l => !((_traf?.mapa || {})[l.id] || []).length).map(l => esc(l.nome)).join(', ')}.` : ''}</div>
   </div>`;
 }
 function wireTrafego() {
-  // O item de tráfego fica SEMPRE fixo/mensal com valor base 0: o que manda é o
-  // por_mes. Mês sem verba soma zero, e o gasto entra como RECORRENTE MENSAL no
-  // perfil (é conta de todo mês), não como extra pontual.
-  document.querySelectorAll('.tf-in').forEach(el => el.onchange = () => {
-    const it = trafItem(el.dataset.l, true), m = +el.dataset.m, v = num(el.value);
-    it.por_mes = it.por_mes || {};
-    if (v) it.por_mes[m] = v; else delete it.por_mes[m];
-    it.valor = 0; it.meses = null; it.classe = 'fixo'; it.period = 'mensal';
-    saveCustosOrc();
+  // Editar um mês grava um OVERRIDE só daquele mês; apagar o campo devolve o
+  // valor que a Meta cobrou. O backend espelha o efetivo no item de custo, então
+  // conta cheia, break-even e Plano de Resgate acompanham sem digitar nada.
+  document.querySelectorAll('.tf-in').forEach(el => el.onchange = async () => {
+    const l = el.dataset.l, m = +el.dataset.m, txt = (el.value || '').trim();
+    const real = trafReal(l, m), v = txt === '' ? null : num(txt);
+    flash('💾 salvando tráfego…');
+    try {
+      const body = { ano: _ano, marca: l, mes: m, valor: (v === null || Math.abs(v - real) < 0.01) ? null : v };
+      const r = await api.request('/api/v3/diretoria/trafego_real', { method: 'POST', body });
+      if (r && r.efetivo) _traf = { ..._traf, ...r };
+      await load();   // recarrega custos (o item traf_* mudou no servidor)
+      flash(body.valor === null ? '✅ voltou pro valor da Meta' : '✅ tráfego ajustado neste mês');
+    } catch (e) { flash('⚠️ ' + e.message); }
   });
-  document.querySelectorAll('.tf-fill').forEach(b => b.onclick = () => {
-    const mr = mesRef(), it = trafItem(b.dataset.l, true);
-    const base = (it.por_mes || {})[mr] || 0;
-    if (!base) { flash('preencha ' + MESES_N3[mr - 1] + ' primeiro'); return; }
-    it.por_mes = it.por_mes || {};
-    for (let m = mr; m <= 12; m++) it.por_mes[m] = base;
-    it.valor = 0; it.meses = null; it.classe = 'fixo'; it.period = 'mensal';
-    saveCustosOrc();
-  });
-  document.querySelectorAll('.tf-zero').forEach(b => b.onclick = () => {
-    const it = trafItem(b.dataset.l, false); if (!it) return;
-    it.por_mes = {}; it.meses = null; it.valor = 0; it.classe = 'fixo'; it.period = 'mensal';
-    saveCustosOrc();
-  });
+  const sy = document.getElementById('tf-sync');
+  if (sy) sy.onclick = async () => {
+    sy.disabled = true; sy.textContent = '📡 buscando na Meta…';
+    try { await loadTrafego(true); await load(); flash('✅ gasto do Meta atualizado mês a mês'); }
+    catch (e) { flash('⚠️ ' + e.message); sy.disabled = false; sy.textContent = '📡 Atualizar da Meta'; }
+  };
 }
 
 /* ═══════════ 💠 PERFIL DO GASTO — mensal recorrente × calendário (v85.8) ═══════════ */
@@ -480,7 +494,11 @@ export async function pageMetricasViab(ctx, root) {
 }
 async function load() {
   _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando viabilidade…</div></div>';
-  try { _d = await api.request('/api/v3/diretoria/viab?ano=' + _ano); }
+  try {
+    // o tráfego real (Meta) vem junto — sem ele a ala e o custo de mídia ficam cegos
+    const [d] = await Promise.all([api.request('/api/v3/diretoria/viab?ano=' + _ano), loadTrafego(false)]);
+    _d = d;
+  }
   catch (e) { _root.innerHTML = `<div class="card"><div class="alert alert-err">${esc(e.message)}</div></div>`; return; }
   // custos orçados detalhados: usa o que está salvo; se vazio, pré-carrega os custos reais (seed) — só persiste quando salvar
   const st = (_d.custos_orcado && Array.isArray(_d.custos_orcado.itens)) ? _d.custos_orcado.itens : [];
