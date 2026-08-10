@@ -95,6 +95,13 @@ def custo_fixo_mes(itens, m):
 TRAFEGO_CATS = ("tráfego pago", "trafego pago")
 
 
+def brl(v):
+    """R$ no padrão brasileiro (v85.15). As notificações de custo saíam em
+    formato americano — 'R$ 32,000.00/ano' — desde a v85.2."""
+    n = float(v or 0)
+    return ("-" if n < 0 else "") + "R$ " + f"{abs(n):,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")
+
+
 def _valor_mes_item(it, m):
     pm = it.get("por_mes") or {}
     v = pm.get(str(m), pm.get(m))
@@ -637,7 +644,7 @@ class handler(BaseHTTPRequestHandler):
                         ids = [u["id"] for u in us if (u.get("status") or "ativo") == "ativo" and lvl_of(u.get("role")) >= 8]
                         dv = ano_depois - ano_antes
                         notify(ids, "viab_custos",
-                               f"💸 Custos orçados: {'+' if dv > 0 else ''}R$ {dv:,.2f}/ano ({actor.get('name')})",
+                               f"💸 Custos orçados: {'+' if dv > 0 else ''}{brl(dv)}/ano ({actor.get('name')})",
                                " · ".join(f"{m.get('desc')}" for m in muds[:4]) + (f" (+{len(muds) - 4})" if len(muds) > 4 else ""),
                                link="#/metricas-viab")
             except Exception:
