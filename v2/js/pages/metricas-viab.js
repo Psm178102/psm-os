@@ -25,6 +25,8 @@ let _pgtos = null;                                               // métodos de 
 let _pgtosOpen = false;
 let _be = null;                                                  // cenário do break-even estratégico (v82.6)
 let _beSemPL = false;                                            // break-even: descontar pró-labore do fixo? (v83.5)
+let _divOpen = false;                                            // painel de divergências entre abas aberto? (v85.8)
+let _grupoCustos = 'recorrencia';                                // agrupamento da tabela de custos (v85.8)
 
 // v84.0 — LINHAS vem da FONTE ÚNICA de frentes (v2/js/frentes.js ↔ settings/frentes.py);
 // nome/ícone/cor/ativa editáveis pelo sócio valem aqui automaticamente.
@@ -198,6 +200,265 @@ function custoOrcLinhaMes(l, m) {
   return orcCell(l, m).custo_fixo || 0;   // fallback legado (sem itens detalhados)
 }
 
+/* ═══════════ v85.8 · FONTE ÚNICA ENTRE AS ABAS (fim dos cenários paralelos) ═══════════
+   Tudo que aparece em Resumo, Orçado, Realizado, Break-even e Simulador sai
+   DAQUI. A barra de coerência mostra os números-âncora do mês e denuncia
+   qualquer aba que esteja lendo um número diferente — com botão pra alinhar. */
+function mesRef() { return _ano === new Date().getFullYear() ? new Date().getMonth() + 1 : 12; }
+function bucketOf(it) {
+  if (it.classe === 'variavel') return 'variavel';
+  if (it.classe === 'extra' || it.classe === 'parcelado') return it.classe;
+  const p = it.period || 'mensal';
+  return ['mensal', 'tri', 'sem', 'anual'].includes(p) ? p : 'mensal';
+}
+const BUCKETS = [
+  ['mensal', '🔁 Mensal recorrente', '#1e2650', 'bate todo mês — é o custo de operar'],
+  ['tri', '📆 Trimestral', '#0891b2', 'a cada 3 meses'],
+  ['sem', '📆 Semestral', '#0e7490', 'a cada 6 meses'],
+  ['anual', '🗓 Anual', '#7c3aed', 'cai inteiro no mês marcado — desembolso de calendário'],
+  ['parcelado', '💳 Parcelado', '#d97706', 'parcela em cada mês listado'],
+  ['extra', '✨ Extra pontual', '#db2777', 'gasto avulso nos meses marcados'],
+  ['variavel', '📈 Variável (% VGV)', '#16a34a', 'só existe se vender — não é conta fixa'],
+];
+function valorItemMes(it, m) {
+  const base = (it.por_mes && it.por_mes[m] != null && it.por_mes[m] !== '') ? +it.por_mes[m] : (+it.valor || 0);
+  if (it.classe !== 'variavel') return base;
+  const p = base / 100;
+  if (it.aloc !== 'compartilhado') return (orcCell(it.aloc, m).vgv || 0) * p;
+  return LIDS.reduce((s, l) => s + (orcCell(l, m).vgv || 0) * p, 0);
+}
+function perfilGasto() {
+  const out = {}; BUCKETS.forEach(([k]) => out[k] = { ano: 0, mes: 0, n: 0 });
+  const mr = mesRef();
+  for (const it of (_custosOrc || [])) {
+    const b = bucketOf(it); out[b].n++;
+    for (let m = 1; m <= 12; m++) {
+      if (!mesAtivo(it, m)) continue;
+      const v = valorItemMes(it, m);
+      out[b].ano += v; if (m === mr) out[b].mes += v;
+    }
+  }
+  return out;
+}
+/* Tráfego pago por marca — calculado ao vivo (antes mesmo de salvar) */
+const isTrafego = it => (it.cat || '').trim().toLowerCase() === 'tráfego pago' && it.classe !== 'variavel';
+let _trafMemo = null;   // zerado junto com _custoDetMemo a cada render()
+function trafegoDet() {
+  if (_trafMemo) return _trafMemo;
+  const por = {}; LIDS.forEach(l => { por[l] = {}; for (let m = 1; m <= 12; m++) por[l][m] = 0; });
+  const compart = {}; for (let m = 1; m <= 12; m++) compart[m] = 0;
+  for (const it of (_custosOrc || [])) {
+    if (!isTrafego(it)) continue;
+    for (let m = 1; m <= 12; m++) {
+      if (!mesAtivo(it, m)) continue;
+      const v = valorItemMes(it, m);
+      if (por[it.aloc]) por[it.aloc][m] += v; else compart[m] += v;
+    }
+  }
+  const totMes = {}; for (let m = 1; m <= 12; m++) totMes[m] = LIDS.reduce((s, l) => s + por[l][m], 0) + compart[m];
+  _trafMemo = { por, compart, totMes };
+  return _trafMemo;
+}
+function detMemo() { if (!_custoDetMemo) _custoDetMemo = custoOrcadoDet(); return _custoDetMemo; }
+function custoMesTotal(m) { const det = detMemo(); return LIDS.reduce((s, l) => s + (det[l][m] || 0), 0); }
+function vgvOrcMes(m) { return LIDS.reduce((s, l) => s + (orcCell(l, m).vgv || 0), 0); }
+function custosSujos() {
+  const salvos = ((_d && _d.custos_orcado && _d.custos_orcado.itens) || []);
+  try { return JSON.stringify(salvos) !== JSON.stringify(_custosOrc || []); } catch { return false; }
+}
+/* Diagnóstico de coerência: quem está lendo número diferente da fonte única */
+function divergencias() {
+  const mr = mesRef(), out = [];
+  const custoMes = custoMesTotal(mr), traf = trafegoDet();
+  if (custosSujos()) out.push({ k: 'salvar', txt: 'Custos alterados e <b>não salvos</b> — as outras abas e o Plano de Resgate ainda leem o valor anterior.', fix: 'salvar' });
+  const ccKv = (_d.conta_cheia_kv || {})[_ano + '-' + String(mr).padStart(2, '0')] ?? (_d.conta_cheia_kv || {}).default;
+  const ccCalc = (_d.conta_cheia_calc || {})[mr];
+  if (ccCalc != null && ccKv != null && Math.abs(ccCalc - ccKv) > 1000)
+    out.push({ k: 'kv', txt: `Plano de Resgate tem conta cheia manual de <b>${fmt(ccKv)}</b>, mas o orçado calcula <b>${fmt(ccCalc)}</b> — o calculado é quem manda.` });
+  if (_be && Math.abs((+_be.fixo || 0) - custoMes) > 1000)
+    out.push({ k: 'be', txt: `Break-even usando custo fixo de <b>${fmt(_be.fixo)}</b> em vez do orçado de ${MESES_N3[mr - 1]} (<b>${fmt(custoMes)}</b>).`, fix: 'be' });
+  if (_be) {
+    const pares = [['map', 'map'], ['terceiros', 'terceiros'], ['locacao', 'locacao']];
+    const fora = pares.filter(([g, l]) => LIDS.includes(l) && Math.abs((+(_be[g] || {}).trafego || 0) - (traf.por[l] ? traf.por[l][mr] : 0)) > 200);
+    if (fora.length) out.push({ k: 'betraf', txt: `Tráfego do Break-even diferente da ala orçada em: <b>${fora.map(([g]) => g).join(', ')}</b>.`, fix: 'betraf' });
+  }
+  return out;
+}
+const MESES_N3 = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+/* Barra de coerência — aparece em TODAS as abas, com os mesmos números */
+function coerenciaBar() {
+  if (!_d) return '';
+  const mr = mesRef(), custoMes = custoMesTotal(mr), traf = trafegoDet();
+  const vgv = vgvOrcMes(mr), div = divergencias();
+  const perf = perfilGasto();
+  const stat = (lbl, val, sub, cor) => `<div style="flex:1;min-width:130px">
+    <div class="tiny" style="opacity:.75">${lbl}</div>
+    <div style="font-weight:900;font-size:15px;color:${cor || '#fff'}">${val}</div>
+    ${sub ? `<div class="tiny" style="opacity:.7">${sub}</div>` : ''}</div>`;
+  return `<div class="card" style="margin:0 0 12px;background:var(--psm-navy);color:#fff;padding:10px 14px">
+    <div class="flex" style="gap:12px;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:none;min-width:96px">
+        <div class="tiny" style="opacity:.75">⚓ Âncora</div>
+        <div style="font-weight:900;font-size:15px">${MESES_N3[mr - 1]}/${String(_ano).slice(2)}</div>
+        <div class="tiny" style="opacity:.7">todas as abas</div>
+      </div>
+      ${stat('🏦 Custo do mês', fmt(custoMes), `${fmt(perf.mensal.mes)} recorrente + ${fmt(custoMes - perf.mensal.mes - perf.variavel.mes)} calendário`)}
+      ${stat('📣 Tráfego do mês', fmt(traf.totMes[mr]), LIDS.filter(l => traf.por[l][mr] > 0).map(l => (LINHAS.find(x => x.id === l) || {}).icon || l).join(' ') || 'sem verba lançada')}
+      ${stat('💰 VGV orçado', fmt(vgv), 'meta do mês')}
+      ${stat('🎯 Conta cheia', fmt((_d.conta_cheia_calc || {})[mr] ?? custoMes), 'lida pelo Amortecedor', '#fbbf24')}
+      <div style="flex:none;align-self:center">${div.length
+        ? `<button class="btn btn-sm" id="viab-div-toggle" style="background:#f59e0b;color:#1e2650;font-weight:800;border:none">⚠ ${div.length} divergência${div.length > 1 ? 's' : ''}</button>`
+        : `<span class="tiny" style="background:#16a34a33;color:#4ade80;font-weight:800;padding:5px 10px;border-radius:99px">✅ abas em sincronia</span>`}</div>
+    </div>
+    ${div.length && _divOpen ? `<div style="margin-top:10px;background:rgba(255,255,255,.08);border-radius:8px;padding:10px 12px">
+      ${div.map(d => `<div class="tiny" style="margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="flex:1;min-width:220px">• ${d.txt}</span>
+        ${d.fix === 'salvar' ? '<button class="btn btn-sm" id="viab-fix-salvar" style="background:#22c55e;border:none;color:#052e16;font-weight:800">💾 salvar agora</button>' : ''}
+        ${d.fix === 'be' ? '<button class="btn btn-sm viab-fix-be" style="background:#fff;border:none;color:#1e2650;font-weight:800">⟳ usar o orçado</button>' : ''}
+        ${d.fix === 'betraf' ? '<button class="btn btn-sm viab-fix-betraf" style="background:#fff;border:none;color:#1e2650;font-weight:800">⟳ puxar tráfego orçado</button>' : ''}
+      </div>`).join('')}
+    </div>` : ''}
+  </div>`;
+}
+function wireCoerencia() {
+  const t = document.getElementById('viab-div-toggle'); if (t) t.onclick = () => { _divOpen = !_divOpen; render(); };
+  const s = document.getElementById('viab-fix-salvar'); if (s) s.onclick = saveCustosOrc;
+  document.querySelectorAll('.viab-fix-be').forEach(b => b.onclick = () => {
+    _be.fixo = Math.round(custoMesTotal(mesRef())); flash('break-even alinhado ao orçado'); render();
+  });
+  document.querySelectorAll('.viab-fix-betraf').forEach(b => b.onclick = () => {
+    const mr = mesRef(), traf = trafegoDet();
+    ['map', 'terceiros', 'locacao'].forEach(g => { if (_be[g] && traf.por[g]) _be[g].trafego = Math.round(traf.por[g][mr]); });
+    flash('tráfego do break-even puxado da ala orçada'); render();
+  });
+}
+
+/* ═══════════ 📣 ALA DE TRÁFEGO PAGO POR MARCA (v85.8) ═══════════
+   Verba mensal de mídia por marca, editável mês a mês. Cada marca vira um item
+   de custo dedicado (cat 'Tráfego pago'), então entra automaticamente no custo
+   do mês, na conta cheia, no break-even e no Plano de Resgate. */
+function trafItem(lid, criar) {
+  let it = (_custosOrc || []).find(x => x.id === 'traf_' + lid);
+  if (!it && criar) {
+    const l = LINHAS.find(x => x.id === lid) || { nome: lid };
+    it = { id: 'traf_' + lid, desc: 'Tráfego pago · ' + l.nome, cat: 'Tráfego pago', classe: 'fixo',
+           aloc: lid, rateio: 'igual', valor: 0, meses: null, linhas: [], pesos: null,
+           por_mes: {}, period: 'mensal', pgto: null };
+    _custosOrc.push(it);
+  }
+  return it;
+}
+function trafegoAlaHTML() {
+  const traf = trafegoDet(), mr = mesRef();
+  const totAnoMarca = l => { let s = 0; for (let m = 1; m <= 12; m++) s += traf.por[l][m]; return s; };
+  const grand = LIDS.reduce((s, l) => s + totAnoMarca(l), 0);
+  const metaReal = (_d.fontes_auto || {})[mr] ? (+(_d.fontes_auto[mr].meta_mkt) || 0) : 0;
+  const rows = LINHAS.map(l => {
+    const it = (_custosOrc || []).find(x => x.id === 'traf_' + l.id);
+    const cells = Array.from({ length: 12 }, (_, i) => {
+      const m = i + 1, v = traf.por[l.id][m];
+      return `<td style="padding:1px"><input class="input tf-in" data-l="${l.id}" data-m="${m}" value="${v ? Math.round(v) : ''}" placeholder="0"
+        style="width:100%;min-width:52px;padding:2px 3px;font-size:11px;text-align:right;${m === mr ? 'background:#1e265012;font-weight:800' : ''}"></td>`;
+    }).join('');
+    const ano = totAnoMarca(l.id);
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:3px 6px;white-space:nowrap;font-weight:700;border-left:3px solid ${l.cor}">${l.icon} ${esc(l.nome)}</td>
+      ${cells}
+      <td style="padding:3px 6px;text-align:right;white-space:nowrap;font-weight:800;color:${l.cor}">${fmt(ano)}</td>
+      <td style="padding:3px 4px"><button class="btn btn-ghost btn-sm tf-fill" data-l="${l.id}" title="repetir o valor de ${MESES_N3[mr - 1]} de ${MESES_N3[mr - 1]} até dez" style="padding:1px 6px;font-size:11px">→ repetir</button>${it ? `<button class="btn btn-ghost btn-sm tf-zero" data-l="${l.id}" title="zerar o ano inteiro desta marca" style="padding:1px 6px;font-size:11px;color:#dc2626">zerar</button>` : ''}</td>
+    </tr>`;
+  }).join('');
+  const totCells = Array.from({ length: 12 }, (_, i) => {
+    const m = i + 1;
+    return `<td style="padding:3px 2px;text-align:right;font-size:10.5px;font-weight:800;${m === mr ? 'color:var(--psm-navy)' : 'opacity:.7'}">${traf.totMes[m] ? Math.round(traf.totMes[m] / 1000) + 'k' : '—'}</td>`;
+  }).join('');
+  return `<div class="card" style="margin:0 0 10px;border:2px solid #7c3aed44;background:#7c3aed08">
+    <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+      <b>📣 Tráfego pago — investimento mensal por marca</b>
+      <span class="tiny muted">verba de mídia entra no custo automaticamente · ${fmt(traf.totMes[mr])}/mês em ${MESES_N3[mr - 1]} · ${fmt(grand)}/ano</span>
+    </div>
+    <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:820px">
+      <thead><tr style="background:var(--bg-3)"><th style="padding:4px 6px;text-align:left">Marca</th>
+        ${MESES_N3.map((n, i) => `<th style="padding:4px 2px;text-align:center;${i + 1 === mr ? 'color:var(--psm-navy);font-weight:900' : ''}">${n}</th>`).join('')}
+        <th style="padding:4px 6px;text-align:right">Ano</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr style="background:var(--bg-3)"><td style="padding:3px 6px;font-weight:800">Σ mês</td>${totCells}
+        <td style="padding:3px 6px;text-align:right;font-weight:900">${fmt(grand)}</td><td></td></tr></tfoot>
+    </table></div>
+    <div class="tiny muted mt-1">Valores em R$ por mês. ${traf.compart[mr] ? `⚠ ${fmt(traf.compart[mr])}/mês de tráfego está em item <b>compartilhado</b> (fora do rateio por marca) — mova pra uma marca se quiser atribuição limpa. ` : ''}${metaReal ? `Meta Ads real de ${MESES_N3[mr - 1]} (todas as contas): <b>${fmt(metaReal)}</b> — diferença de ${fmt(Math.abs(metaReal - traf.totMes[mr]))} pro orçado.` : 'Sem gasto real do Meta importado neste mês pra comparar.'}</div>
+  </div>`;
+}
+function wireTrafego() {
+  // O item de tráfego fica SEMPRE fixo/mensal com valor base 0: o que manda é o
+  // por_mes. Mês sem verba soma zero, e o gasto entra como RECORRENTE MENSAL no
+  // perfil (é conta de todo mês), não como extra pontual.
+  document.querySelectorAll('.tf-in').forEach(el => el.onchange = () => {
+    const it = trafItem(el.dataset.l, true), m = +el.dataset.m, v = num(el.value);
+    it.por_mes = it.por_mes || {};
+    if (v) it.por_mes[m] = v; else delete it.por_mes[m];
+    it.valor = 0; it.meses = null; it.classe = 'fixo'; it.period = 'mensal';
+    saveCustosOrc();
+  });
+  document.querySelectorAll('.tf-fill').forEach(b => b.onclick = () => {
+    const mr = mesRef(), it = trafItem(b.dataset.l, true);
+    const base = (it.por_mes || {})[mr] || 0;
+    if (!base) { flash('preencha ' + MESES_N3[mr - 1] + ' primeiro'); return; }
+    it.por_mes = it.por_mes || {};
+    for (let m = mr; m <= 12; m++) it.por_mes[m] = base;
+    it.valor = 0; it.meses = null; it.classe = 'fixo'; it.period = 'mensal';
+    saveCustosOrc();
+  });
+  document.querySelectorAll('.tf-zero').forEach(b => b.onclick = () => {
+    const it = trafItem(b.dataset.l, false); if (!it) return;
+    it.por_mes = {}; it.meses = null; it.valor = 0; it.classe = 'fixo'; it.period = 'mensal';
+    saveCustosOrc();
+  });
+}
+
+/* ═══════════ 💠 PERFIL DO GASTO — mensal recorrente × calendário (v85.8) ═══════════ */
+function perfilGastoHTML() {
+  const p = perfilGasto(), mr = mesRef();
+  const recorrenteAno = p.mensal.ano, calendarioAno = p.tri.ano + p.sem.ano + p.anual.ano + p.parcelado.ano + p.extra.ano;
+  const recorrenteMes = p.mensal.mes, calendarioMes = p.tri.mes + p.sem.mes + p.anual.mes + p.parcelado.mes + p.extra.mes;
+  const totFixo = recorrenteAno + calendarioAno;
+  const barra = (v, tot, cor) => `<div style="height:8px;background:var(--bg-3);border-radius:99px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${tot ? (v / tot * 100).toFixed(1) : 0}%;background:${cor}"></div></div>`;
+  const chip = ([k, lbl, cor, hint]) => {
+    const b = p[k]; if (!b.n) return '';
+    return `<div title="${hint}" style="flex:1;min-width:148px;background:var(--bg-3);border-radius:8px;padding:7px 10px;border-left:3px solid ${cor}">
+      <div class="tiny muted">${lbl} · ${b.n} item(ns)</div>
+      <div style="font-weight:800;color:${cor}">${fmt(b.ano)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
+      <div class="tiny muted">${b.mes ? fmt(b.mes) + ' em ' + MESES_N3[mr - 1] : 'não bate em ' + MESES_N3[mr - 1]}</div>
+    </div>`;
+  };
+  return `<div class="card" style="margin:0 0 10px">
+    <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+      <b>💠 Perfil do gasto — o que é conta de todo mês × o que é desembolso de calendário</b>
+      <span class="tiny muted">a leitura que separa "custo de operar" de "vai cair na fatura"</span>
+    </div>
+    <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
+      <div style="flex:1;min-width:230px;background:#1e265010;border:1px solid #1e265030;border-radius:10px;padding:10px 12px">
+        <div class="tiny muted">🔁 RECORRENTE MENSAL — bate todo mês</div>
+        <div style="font-size:20px;font-weight:900;color:var(--psm-navy)">${fmt(recorrenteAno / 12)}<span class="tiny muted" style="font-weight:400">/mês</span></div>
+        ${barra(recorrenteAno, totFixo, 'var(--psm-navy)')}
+        <div class="tiny muted mt-1">${fmt(recorrenteAno)}/ano · ${totFixo ? (recorrenteAno / totFixo * 100).toFixed(0) : 0}% do orçamento fixo</div>
+      </div>
+      <div style="flex:1;min-width:230px;background:#7c3aed10;border:1px solid #7c3aed30;border-radius:10px;padding:10px 12px">
+        <div class="tiny muted">🗓 CALENDÁRIO — anual, semestral, trimestral, parcelas e extras</div>
+        <div style="font-size:20px;font-weight:900;color:#7c3aed">${fmt(calendarioAno)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
+        ${barra(calendarioAno, totFixo, '#7c3aed')}
+        <div class="tiny muted mt-1">${calendarioMes ? `<b>${fmt(calendarioMes)}</b> cai em ${MESES_N3[mr - 1]}` : `nada cai em ${MESES_N3[mr - 1]}`} · média diluída ${fmt(calendarioAno / 12)}/mês</div>
+      </div>
+      <div style="flex:1;min-width:200px;background:#16a34a10;border:1px solid #16a34a30;border-radius:10px;padding:10px 12px">
+        <div class="tiny muted">📈 VARIÁVEL (% do VGV) — só existe se vender</div>
+        <div style="font-size:20px;font-weight:900;color:#16a34a">${fmt(p.variavel.ano)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
+        <div class="tiny muted mt-1">${fmt(p.variavel.mes)} sobre o VGV orçado de ${MESES_N3[mr - 1]} · fora da conta cheia</div>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-2" style="flex-wrap:wrap">${BUCKETS.map(chip).join('')}</div>
+    <div class="tiny muted mt-1">💡 O <b>recorrente mensal</b> é o que precisa ser coberto TODO mês. O <b>calendário</b> não some — só concentra: em ${MESES_N3[mr - 1]} ele pesa ${fmt(calendarioMes)}, e o mês mais pesado do ano é <b>${(() => { let mx = 1, mv = 0; for (let m = 1; m <= 12; m++) { const v = custoMesTotal(m); if (v > mv) { mv = v; mx = m; } } return MESES_N3[mx - 1] + ' (' + fmt(mv) + ')'; })()}</b>.</div>
+  </div>`;
+}
+
 /* ── boot ── */
 export async function pageMetricasViab(ctx, root) {
   _root = root;
@@ -226,7 +487,7 @@ async function load() {
   render();
 }
 function render() {
-  _custoDetMemo = null;   // recalcula custos detalhados do zero a cada render
+  _custoDetMemo = null; _trafMemo = null;   // recalcula custos e tráfego do zero a cada render
   _vcharts.forEach(c => { try { c.destroy(); } catch (_) {} }); _vcharts = [];   // limpa gráficos da tela anterior (v83.4)
   const tab = (id, lbl) => `<button class="btn ${_tab === id ? 'btn-primary' : 'btn-ghost'} btn-sm" data-vtab="${id}">${lbl}</button>`;
   _root.innerHTML = `
@@ -253,11 +514,15 @@ function render() {
   _root.querySelectorAll('[data-vtab]').forEach(b => b.onclick = () => { _tab = b.dataset.vtab; render(); });
   _root.querySelectorAll('[data-ano]').forEach(b => { if (!b.disabled) b.onclick = () => { _ano = +b.dataset.ano; load(); }; });
   const body = document.getElementById('viab-body');
-  if (_tab === 'resumo') { body.innerHTML = renderResumo(); wireResumo(); }
-  else if (_tab === 'orcado') { body.innerHTML = renderOrcado(); wireOrcado(); }
-  else if (_tab === 'realizado') { body.innerHTML = renderRealizado(); wireRealizado(); }
-  else if (_tab === 'be') { body.innerHTML = renderBE(); wireBE(); }
-  else { body.innerHTML = renderSim(); wireSim(); }
+  // v85.8 — a MESMA barra de âncora abre todas as abas: ninguém mais lê número
+  // diferente do outro sem que a tela avise (e ofereça o botão pra alinhar).
+  const anc = coerenciaBar();
+  if (_tab === 'resumo') { body.innerHTML = anc + renderResumo(); wireResumo(); }
+  else if (_tab === 'orcado') { body.innerHTML = anc + renderOrcado(); wireOrcado(); }
+  else if (_tab === 'realizado') { body.innerHTML = anc + renderRealizado(); wireRealizado(); }
+  else if (_tab === 'be') { body.innerHTML = anc + renderBE(); wireBE(); }
+  else { body.innerHTML = anc + renderSim(); wireSim(); }
+  wireCoerencia();
 }
 function flash(t) { _msg = t; const m = document.getElementById('viab-msg'); if (m) m.textContent = t; }
 
@@ -509,7 +774,7 @@ function renderCustosDet() {
     if (pm && pm.length && pm.length < 12) return rng(pm);
     return 'todos';
   };
-  const rows = (_custosOrc || []).filter(it => !_soPend || isPendente(it) || isKenlo(it)).map((it, _vi) => {
+  const rowHTML = (it) => {
     const i = _custosOrc.indexOf(it);
     const comp = it.aloc === 'compartilhado';
     const rateioSel = comp ? `<select class="select cd-f" data-i="${i}" data-k="rateio" style="font-size:11px;padding:2px;max-width:118px">${opt(RATEIOS, it.rateio)}</select>` : '<span class="tiny muted">direto</span>';
@@ -532,7 +797,31 @@ function renderCustosDet() {
       <td style="padding:3px 5px">${mesesCell}</td>
       <td style="padding:3px 5px"><button class="btn btn-ghost btn-sm cd-del" data-i="${i}" style="padding:1px 6px;color:#dc2626">🗑</button></td>
     </tr>`;
-  }).join('');
+  };
+  /* v85.8 — a tabela agora AGRUPA (padrão: por recorrência), separando o gasto
+     mensal do anual/calendário com subtotal por grupo. Muda em 1 clique. */
+  const visiveis = (_custosOrc || []).filter(it => !_soPend || isPendente(it) || isKenlo(it));
+  const somaAno = arr => arr.reduce((s, it) => s + itemAnual(it), 0);
+  const somaMes = arr => arr.reduce((s, it) => s + (mesAtivo(it, mesCorr) ? valorItemMes(it, mesCorr) : 0), 0);
+  const grupoHead = (lbl, cor, itens, hint) => `<tr style="background:${cor}14">
+    <td colspan="10" style="padding:6px 8px;border-left:4px solid ${cor}">
+      <b style="font-size:12.5px;color:${cor}">${lbl}</b>
+      <span class="tiny muted"> · ${itens.length} item(ns) · <b>${fmt(somaAno(itens))}</b>/ano · ${fmt(somaMes(itens))} em ${MESES_N[mesCorr - 1]}${hint ? ' · ' + hint : ''}</span>
+    </td></tr>`;
+  let rows = '';
+  if (_grupoCustos === 'nenhum') {
+    rows = visiveis.map(rowHTML).join('');
+  } else if (_grupoCustos === 'recorrencia') {
+    rows = BUCKETS.map(([k, lbl, cor, hint]) => {
+      const g = visiveis.filter(it => bucketOf(it) === k);
+      return g.length ? grupoHead(lbl, cor, g, hint) + g.map(rowHTML).join('') : '';
+    }).join('');
+  } else if (_grupoCustos === 'empresa') {
+    rows = [...LINHAS.map(l => [l.id, l.icon + ' ' + l.nome, l.cor]), ['compartilhado', '⚖️ Compartilhado (rateado)', '#64748b']]
+      .map(([id, lbl, cor]) => { const g = visiveis.filter(it => it.aloc === id); return g.length ? grupoHead(lbl, cor, g, '') + g.map(rowHTML).join('') : ''; }).join('');
+  } else {
+    rows = _cats.map((c, i) => { const g = visiveis.filter(it => it.cat === c); return g.length ? grupoHead('🏷 ' + esc(c), CHART_PAL[i % CHART_PAL.length], g, '') + g.map(rowHTML).join('') : ''; }).join('');
+  }
   return `
     <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:10px">🧾 <b>Custos orçados detalhados</b> — fixos, variáveis (% do VGV), extras e <b>parcelados</b> (valor da parcela × meses listados), por empresa. <b>Recorrência</b> = de quanto em quanto tempo o custo bate (anual não infla 12x). Compartilhados rateiam (igual/proporcional/específico/manual). Pré-carregado com seus custos reais — ajuste e <b>salve</b>. Alimenta o lucro orçado.</div>
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center;background:#7c3aed12;border:1px solid #7c3aed33;border-radius:8px;padding:8px 10px">
@@ -541,6 +830,8 @@ function renderCustosDet() {
       <span class="tiny muted">desmarque quem não divide a estrutura (ex.: Terceiros). Salva na hora.</span>
     </div>
     ${contaCheia}
+    ${perfilGastoHTML()}
+    ${trafegoAlaHTML()}
     ${timeline}
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap">${empChips}
       <div style="flex:1;min-width:150px;background:var(--psm-navy);color:#fff;border-radius:8px;padding:8px 10px"><div class="tiny" style="opacity:.8">Total custos/ano</div><div style="font-weight:800;font-size:16px">${fmt(grand)}</div><div class="tiny" style="opacity:.85">Fixo ${fmtC(porClasse.fixo)} · Var ${fmtC(porClasse.variavel)} · Extra ${fmtC(porClasse.extra)} · Parc ${fmtC(porClasse.parcelado)}</div></div>
@@ -548,6 +839,12 @@ function renderCustosDet() {
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center">
       <button class="btn ${_soPend ? 'btn-primary' : 'btn-ghost'} btn-sm" id="cd-pend-toggle">⚠ Pendentes de verificação (${nPend})</button>
       <button class="btn btn-ghost btn-sm" id="cd-changelog">🕘 O que mudou?</button>
+      <span style="margin-left:auto"></span>
+      <span class="tiny muted">Agrupar por:</span>
+      <select class="select" id="cd-grupo" style="font-size:11.5px;padding:3px 6px">
+        ${[['recorrencia', '🔁 Recorrência (mensal × anual)'], ['categoria', '🏷 Categoria'], ['empresa', '🏢 Empresa'], ['nenhum', '— sem agrupar']]
+          .map(([v, l]) => `<option value="${v}"${_grupoCustos === v ? ' selected' : ''}>${l}</option>`).join('')}
+      </select>
     </div>
     ${_clOpen ? changelogHTML() : ''}
     ${catsManagerHTML()}
@@ -607,6 +904,8 @@ function wireCustosDet() {
   // v85.2 — pendências / kenlo / meses / changelog / timeline
   const pt = document.getElementById('cd-pend-toggle'); if (pt) pt.onclick = () => { _soPend = !_soPend; render(); };
   const cl = document.getElementById('cd-changelog'); if (cl) cl.onclick = () => { _clOpen = !_clOpen; render(); };
+  const gp = document.getElementById('cd-grupo'); if (gp) gp.onchange = () => { _grupoCustos = gp.value; render(); };
+  wireTrafego();   // 📣 ala de tráfego pago por marca (v85.8)
   document.querySelectorAll('.cd-meses').forEach(b => b.onclick = () => abrirModalMeses(+b.dataset.i));
   document.querySelectorAll('.cd-verif').forEach(b => b.onclick = () => {
     const it = _custosOrc[+b.dataset.i]; if (!it) return;
@@ -667,14 +966,17 @@ function wireCustosDet() {
 }
 // re-semeia SÓ o custo derivado no Simulador e no Break-even quando custos/rateio mudam, preservando o resto (v83.6)
 function reseedCustosSandbox() {
-  _custoDetMemo = null;   // força recomputar com o rateio/custos novos
-  if (_sim) {
-    const det = custoOrcadoDet();   // v85.2: COM tráfego — alinhado à conta cheia do plano
-    for (const l of LIDS) { let c = 0; for (let m = 1; m <= 12; m++) c += det[l][m]; if (_sim[l]) _sim[l].custo_fixo = Math.round(c / 12); }
-  }
+  // v85.8 — Simulador e Break-even passam a herdar o custo do MÊS DE REFERÊNCIA
+  // (não a média do ano). Antes cada sandbox partia de um número diferente do
+  // que a tela mostrava — era a origem dos "vários cenários juntos".
+  _custoDetMemo = null; _trafMemo = null;   // força recomputar com o rateio/custos novos
+  const mr = mesRef(), det = custoOrcadoDet();   // COM tráfego — alinhado à conta cheia do plano
+  if (_sim) for (const l of LIDS) { if (_sim[l]) _sim[l].custo_fixo = Math.round(det[l][mr] || 0); }
   if (_be) {
-    const det = custoOrcadoDet(); let fixo = 0; LIDS.forEach(l => { for (let m = 1; m <= 12; m++) fixo += det[l][m]; });
-    _be.fixo = Math.round(fixo / 12); _be.proLabore = proLaboreMes();
+    _be.fixo = Math.round(LIDS.reduce((s, l) => s + (det[l][mr] || 0), 0));
+    _be.proLabore = proLaboreMes();
+    const traf = trafegoDet();
+    ['map', 'terceiros', 'locacao'].forEach(g => { if (_be[g] && traf.por[g]) _be[g].trafego = Math.round(traf.por[g][mr]); });
   }
 }
 async function saveCustosOrc() {
@@ -974,9 +1276,9 @@ function proLaboreMes() {
   return Math.round(pl / 12);
 }
 function seedBE() {
-  const det = custoOrcadoDet(); let fixo = 0;
-  LIDS.forEach(l => { for (let m = 1; m <= 12; m++) fixo += det[l][m]; });
-  fixo = Math.round(fixo / 12);   // custo fixo mensal médio (dos custos detalhados)
+  // v85.8 — parte do custo do MÊS DE REFERÊNCIA (não da média anual, que não é
+  // o custo de mês nenhum): mesma âncora que a barra de coerência e o Amortecedor.
+  const fixo = Math.round(custoMesTotal(mesRef()));
   let cv = 0, cVGV = 0;
   for (let m = 1; m <= 12; m++) { const r = realCell('conquista', m); cv += r.vendas; cVGV += r.vgv; }
   const meses = Math.max(1, new Date().getMonth() + 1);
@@ -1098,8 +1400,14 @@ function wireBE() {
 /* ════════════ ABA 0 · RESUMO EXECUTIVO (v83.0 — profissional/didático/inteligente) ════════════ */
 function resumoData() {
   const meses = (_ano === new Date().getFullYear()) ? Math.max(1, new Date().getMonth() + 1) : 12;
-  const det = custoOrcadoDet(); let fixo = 0; LIDS.forEach(l => { for (let m = 1; m <= 12; m++) fixo += det[l][m]; }); fixo /= 12;
-  const detST = custoOrcadoDet(true); const custoEmp = {}; LIDS.forEach(l => { custoEmp[l] = 0; for (let m = 1; m <= 12; m++) custoEmp[l] += detST[l][m]; custoEmp[l] /= 12; });
+  // v85.8 — âncora ÚNICA: o custo do MÊS DE REFERÊNCIA (o mesmo que a barra do
+  // topo, o Break-even e o Amortecedor usam). A média do ano vira informação
+  // secundária — antes ela era a principal e criava um cenário paralelo.
+  const mr = mesRef();
+  const det = custoOrcadoDet();
+  const fixo = LIDS.reduce((s, l) => s + (det[l][mr] || 0), 0);
+  let fixoMedia = 0; LIDS.forEach(l => { for (let m = 1; m <= 12; m++) fixoMedia += det[l][m]; }); fixoMedia /= 12;
+  const detST = custoOrcadoDet(true); const custoEmp = {}; LIDS.forEach(l => { custoEmp[l] = detST[l][mr] || 0; });
   const frentes = LINHAS.map(l => {
     let vgv = 0, vendas = 0; for (let m = 1; m <= 12; m++) { const r = realCell(l.id, m); vgv += r.vgv; vendas += r.vendas; }
     const o = orcCell(l.id, 1);
@@ -1108,7 +1416,7 @@ function resumoData() {
     return { l, vgvMes, vendasMes: vendas / meses, margemPct, contrib: vgvMes * margemPct / 100, custoMes: custoEmp[l.id] };
   });
   const contribTotal = frentes.reduce((s, f) => s + f.contrib, 0);
-  return { fixo, frentes, contribTotal, cobertura: fixo ? contribTotal / fixo * 100 : 0, gap: fixo - contribTotal, meses };
+  return { fixo, fixoMedia, mr, frentes, contribTotal, cobertura: fixo ? contribTotal / fixo * 100 : 0, gap: fixo - contribTotal, meses };
 }
 function resumoInsight(d) {
   if (d.gap <= 0) return `✅ <b>Operação no azul.</b> A contribuição das vendas (${fmt(d.contribTotal)}/mês) cobre o custo fixo com folga de <b>${fmt(-d.gap)}/mês</b> — o excedente vira lucro.`;
@@ -1134,7 +1442,7 @@ function renderResumo() {
     </div>
     <div class="card" style="margin:0 0 14px;background:var(--psm-navy);color:#fff">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
-        ${heroStat('🏦 Custo fixo/mês', fmtC(d.fixo), '#cbd5e1')}
+        ${heroStat('🏦 Custo fixo de ' + MESES_N3[d.mr - 1], fmtC(d.fixo), '#cbd5e1')}
         ${heroStat('💚 Contribuição/mês', fmtC(d.contribTotal), '#4ade80')}
         ${heroStat(ok ? '🎉 Sobra/mês' : '⚠️ Falta/mês', fmtC(Math.abs(d.gap)), cor)}
         ${heroStat('📊 Cobertura do fixo', d.cobertura.toFixed(0) + '%', ok ? '#4ade80' : '#fbbf24')}
@@ -1142,7 +1450,7 @@ function renderResumo() {
       <div style="margin-top:12px">
         <div class="tiny" style="opacity:.8;margin-bottom:4px">Break-even — o quanto a contribuição preenche o custo fixo</div>
         <div style="position:relative;height:14px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden"><div style="height:100%;width:${cob}%;background:${ok ? '#22c55e' : 'linear-gradient(90deg,#f59e0b,#ef4444)'}"></div></div>
-        <div class="tiny" style="opacity:.65;margin-top:3px">0% ·········· meta: 100% = ${fmtC(d.fixo)}/mês</div>
+        <div class="tiny" style="opacity:.65;margin-top:3px">0% ·········· meta: 100% = ${fmtC(d.fixo)} (custo de ${MESES_N3[d.mr - 1]}) · média do ano ${fmtC(d.fixoMedia)}/mês</div>
       </div>
       <div style="margin-top:12px;background:rgba(255,255,255,.07);border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.55">💡 <b>Leitura automática:</b> ${resumoInsight(d)}</div>
     </div>
@@ -1150,11 +1458,34 @@ function renderResumo() {
       <div class="flex gap-2" style="flex-wrap:wrap">${d.frentes.map(margBadge).join('')}</div>
       <div class="tiny muted mt-2">Margem = comissão bruta − corretor − sênior − gerente − imposto. Fina na corretagem residencial; alta na captação de locação.</div>
     </div>
-    <div class="card" style="margin:0 0 14px"><h3 class="card-title">🏢 Custo por empresa/mês <span class="tiny muted" style="font-weight:400">(fixo+variável, sem tráfego)</span></h3>
+    <div class="card" style="margin:0 0 14px"><h3 class="card-title">🏢 Custo por empresa em ${MESES_N3[d.mr - 1]} <span class="tiny muted" style="font-weight:400">(fixo+variável, sem tráfego)</span></h3>
       ${d.frentes.map(custoBar).join('')}
       <div class="tiny muted mt-1">Total operacional (sem tráfego): <b>${fmt(d.frentes.reduce((s, f) => s + f.custoMes, 0))}/mês</b>. Edite na aba Orçado → 🧾 Custos detalhados.</div>
     </div>
+    ${trafegoResumoCard()}
     ${donutCatCard()}`;
+}
+/* 📣 Tráfego por marca no Resumo — leitura da MESMA ala editada no Orçado,
+   com o custo por lead/venda que cada marca precisa entregar (v85.8). */
+function trafegoResumoCard() {
+  const traf = trafegoDet(), mr = mesRef();
+  const totMes = traf.totMes[mr];
+  if (!totMes) return `<div class="card" style="margin:0 0 14px"><h3 class="card-title">📣 Tráfego pago por marca</h3>
+    <div class="tiny muted">Nenhuma verba de mídia lançada para ${MESES_N3[mr - 1]}. Defina em <b>Orçado → 🧾 Custos detalhados → 📣 Tráfego pago</b> — o valor entra no custo, no break-even e no Plano de Resgate na hora.</div></div>`;
+  const linhas = LINHAS.filter(l => traf.por[l.id][mr] > 0).map(l => {
+    const v = traf.por[l.id][mr], o = orcCell(l.id, mr);
+    const margem = (+o.com_bruta_pct || 0) - (+o.com_corretor_pct || 0) - (+o.com_senior_pct || 0) - (+o.com_gerente_pct || 0) - (+o.com_bruta_pct || 0) * (+o.aliquota_pct || 0) / 100;
+    const vgvNec = margem > 0 ? v / (margem / 100) : null;
+    return `<div style="margin-bottom:7px">
+      <div class="flex" style="justify-content:space-between;font-size:12px"><span>${l.icon} ${esc(l.nome)}</span><b>${fmt(v)}/mês</b></div>
+      <div style="height:8px;background:var(--bg-3);border-radius:99px;overflow:hidden"><div style="height:100%;width:${(v / totMes * 100).toFixed(0)}%;background:${l.cor}"></div></div>
+      <div class="tiny muted">${(v / totMes * 100).toFixed(0)}% da verba · ${vgvNec ? `precisa gerar <b>${fmt(vgvNec)}</b> de VGV só pra pagar a mídia (margem ${pct(margem)})` : 'margem não definida no orçado'}</div>
+    </div>`;
+  }).join('');
+  return `<div class="card" style="margin:0 0 14px"><h3 class="card-title">📣 Tráfego pago por marca <span class="tiny muted" style="font-weight:400">· ${fmt(totMes)}/mês em ${MESES_N3[mr - 1]}</span></h3>
+    ${linhas}
+    ${traf.compart[mr] ? `<div class="tiny" style="color:#d97706">⚠ ${fmt(traf.compart[mr])} em item compartilhado (sem marca definida).</div>` : ''}
+    <div class="tiny muted mt-1">Mesma fonte da ala em Orçado → Custos detalhados. O VGV necessário usa a margem líquida orçada de cada frente.</div></div>`;
 }
 // card do donut "composição do custo por categoria" (v83.4)
 function donutCatCard() {

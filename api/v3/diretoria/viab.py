@@ -88,6 +88,80 @@ def custo_fixo_mes(itens, m):
     return round(tot, 2)
 
 
+# ═══ v85.8 — PERFIL DO GASTO e TRÁFEGO POR MARCA (fonte única p/ todas as abas) ═══
+# Separa o orçamento entre o que bate TODO MÊS (recorrente mensal) e o que NÃO é
+# mensal (anual/semestral/trimestral, parcelado e extra pontual) — a leitura que
+# o Paulo pediu pra não confundir custo de operação com desembolso de calendário.
+TRAFEGO_CATS = ("tráfego pago", "trafego pago")
+
+
+def _valor_mes_item(it, m):
+    pm = it.get("por_mes") or {}
+    v = pm.get(str(m), pm.get(m))
+    try:
+        return float(v) if v not in (None, "") else float(it.get("valor") or 0)
+    except Exception:
+        return 0.0
+
+
+def _bucket_of(it):
+    classe = (it.get("classe") or "fixo").lower()
+    if classe == "variavel":
+        return "variavel"
+    if classe in ("extra", "parcelado"):
+        return classe
+    p = (it.get("period") or "mensal").lower()
+    return p if p in ("mensal", "tri", "sem", "anual") else "mensal"
+
+
+def perfil_gasto(itens, mes_corrente):
+    """{bucket: {ano, mes, n}} — bucket ∈ mensal/tri/sem/anual/parcelado/extra.
+    Variável (% do VGV) fica fora: não é desembolso fixo, depende da venda."""
+    out = {b: {"ano": 0.0, "mes": 0.0, "n": 0} for b in ("mensal", "tri", "sem", "anual", "parcelado", "extra")}
+    for it in (itens or []):
+        b = _bucket_of(it)
+        if b == "variavel":
+            continue
+        out[b]["n"] += 1
+        for m in range(1, 13):
+            if not _mes_ativo_py(it, m):
+                continue
+            v = _valor_mes_item(it, m)
+            out[b]["ano"] += v
+            if m == mes_corrente:
+                out[b]["mes"] += v
+    for b in out:
+        out[b]["ano"] = round(out[b]["ano"], 2)
+        out[b]["mes"] = round(out[b]["mes"], 2)
+    return out
+
+
+def trafego_por_marca(itens, linha_ids):
+    """Investimento em tráfego pago por marca e mês (categoria 'Tráfego pago').
+    Itens compartilhados entram só no total (não dá pra atribuir a uma marca)."""
+    por = {l: {m: 0.0 for m in range(1, 13)} for l in linha_ids}
+    compart = {m: 0.0 for m in range(1, 13)}
+    for it in (itens or []):
+        if (it.get("cat") or "").strip().lower() not in TRAFEGO_CATS:
+            continue
+        if (it.get("classe") or "fixo").lower() == "variavel":
+            continue
+        aloc = (it.get("aloc") or "compartilhado").lower()
+        for m in range(1, 13):
+            if not _mes_ativo_py(it, m):
+                continue
+            v = _valor_mes_item(it, m)
+            if aloc in por:
+                por[aloc][m] += v
+            else:
+                compart[m] += v
+    return {
+        "por_marca": {l: {m: round(v, 2) for m, v in meses.items()} for l, meses in por.items()},
+        "compartilhado": {m: round(v, 2) for m, v in compart.items()},
+        "total_mes": {m: round(sum(por[l][m] for l in linha_ids) + compart[m], 2) for m in range(1, 13)},
+    }
+
+
 def read_kv(sb, key):
     try:
         rows = sb.table("shared_kv").select("value").eq("key", key).limit(1).execute().data or []
@@ -293,6 +367,8 @@ class handler(BaseHTTPRequestHandler):
         try: ano = int(qs.get("ano") or datetime.now(timezone.utc).year)
         except Exception: ano = datetime.now(timezone.utc).year
         orcamento = read_kv(sb, "viab_orcamento")
+        _itens_ano = ((read_kv(sb, "viab_custos_orcado").get(str(ano)) or {}).get("itens") or [])
+        _mes_ref = datetime.now(timezone.utc).month if ano == datetime.now(timezone.utc).year else 12
         return self._send(200, {
             "ok": True, "ano": ano, "linhas": LINHAS, "defaults": DEFAULTS,
             "orcamento": orcamento.get(str(ano), {}),
@@ -304,6 +380,11 @@ class handler(BaseHTTPRequestHandler):
             # v85.2 — fonte única da conta cheia: custo fixo (fixo+extra+parcelado) por mês
             "conta_cheia_calc": {m: custo_fixo_mes(((read_kv(sb, "viab_custos_orcado").get(str(ano)) or {}).get("itens") or []), m) for m in range(1, 13)},
             "conta_cheia_kv": ((read_kv(sb, "plano_resgate_2026").get("constantes") or {}).get("conta_cheia_por_mes") or {}),
+            # v85.8 — perfil do gasto (mensal recorrente × anual/periódico/parcelado/extra)
+            # e ala de tráfego pago por marca: mesma fonte pra TODAS as abas.
+            "perfil_gasto": perfil_gasto(_itens_ano, _mes_ref),
+            "trafego": trafego_por_marca(_itens_ano, LINHA_IDS),
+            "mes_ref": _mes_ref,
             "changelog": (read_kv(sb, "viab_custos_changelog").get("entradas") or [])[:20],
             "cenarios": read_kv(sb, "viab_cenarios"),   # cenários do Simulador/Break-even compartilhados (fim do localStorage). v83.8
         })
