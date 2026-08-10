@@ -449,10 +449,10 @@ function perfilGastoHTML() {
     </div>
     <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
       <div style="flex:1;min-width:230px;background:#1e265010;border:1px solid #1e265030;border-radius:10px;padding:10px 12px">
-        <div class="tiny muted">🔁 RECORRENTE MENSAL — bate todo mês</div>
-        <div style="font-size:20px;font-weight:900;color:var(--psm-navy)">${fmt(recorrenteAno / 12)}<span class="tiny muted" style="font-weight:400">/mês</span></div>
+        <div class="tiny muted">🔁 RECORRENTE MENSAL — bate todo mês · <b>${MESES_N3[mr - 1]}</b></div>
+        <div style="font-size:20px;font-weight:900;color:var(--psm-navy)">${fmt(recorrenteMes)}<span class="tiny muted" style="font-weight:400">/mês</span></div>
         ${barra(recorrenteAno, totFixo, 'var(--psm-navy)')}
-        <div class="tiny muted mt-1">${fmt(recorrenteAno)}/ano · ${totFixo ? (recorrenteAno / totFixo * 100).toFixed(0) : 0}% do orçamento fixo</div>
+        <div class="tiny muted mt-1">${fmt(recorrenteAno)}/ano · média ${fmt(recorrenteAno / 12)}/mês · ${totFixo ? (recorrenteAno / totFixo * 100).toFixed(0) : 0}% do orçamento fixo</div>
       </div>
       <div style="flex:1;min-width:230px;background:#7c3aed10;border:1px solid #7c3aed30;border-radius:10px;padding:10px 12px">
         <div class="tiny muted">🗓 CALENDÁRIO — anual, semestral, trimestral, parcelas e extras</div>

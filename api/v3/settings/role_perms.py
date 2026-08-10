@@ -121,7 +121,7 @@ class handler(BaseHTTPRequestHandler):
         nunca remove nada. Papel sem lista custom já herda o item pelo default
         do grupo 'vendas'. Idempotente (flag kv); aborta se a leitura falhar
         (lição: leitura falhou ≠ não existe) ou se a matriz vier suspeita."""
-        MIGR_KEY = "role_perms_migr_form_captacao"
+        MIGR_KEY = "role_perms_migr_form_captacao_v2"   # v2: também limpa rotas mortas
         try:
             rows = sb.table("shared_kv").select("value").eq("key", MIGR_KEY).limit(1).execute().data or []
             if rows:
@@ -133,11 +133,19 @@ class handler(BaseHTTPRequestHandler):
             return perms
         if any(not isinstance(v, list) or not v for v in perms.values()):
             return perms
+        # v85.12 — além de conceder o item novo, tira as rotas MORTAS (páginas
+        # excluídas na v85.4). Ficar na matriz não dava acesso a nada, mas polui
+        # a tela de permissões com item que não existe mais.
+        MORTAS = ("/fichas", "/bp")
         novo, mudou = {}, []
         for role, routes in perms.items():
-            lst = list(routes)
+            lst = [r for r in routes if r not in MORTAS]
+            if len(lst) != len(routes):
+                mudou.append(role + " (−rotas mortas)")
             if "/form-captacao" not in lst:
-                lst.append("/form-captacao"); mudou.append(role)
+                lst.append("/form-captacao")
+                if role not in mudou and (role + " (−rotas mortas)") not in mudou:
+                    mudou.append(role)
             novo[role] = lst
         try:
             if mudou:
