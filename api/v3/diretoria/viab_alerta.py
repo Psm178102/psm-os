@@ -31,6 +31,12 @@ PISO_RITMO = 0.70          # abaixo de 70% do ritmo esperado = alerta
 KV_DEDUPE = "viab_alerta_enviados"
 
 
+def brl(v):
+    """R$ no padrão brasileiro. Formata SÓ o número — a versão anterior trocava
+    vírgula por ponto na frase inteira e embaralhava a pontuação do texto."""
+    return "R$ " + f"{float(v or 0):,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")
+
+
 def _dest_ids(sb):
     """Diretoria (lvl>=8) ativa — mesma alçada que já recebe os avisos de custo."""
     try:
@@ -106,10 +112,9 @@ def rodar(sb, force=False):
                     key=lambda x: x["ritmo_pct"])[:3]
     det = " · ".join(f"{p['linha']}: {p['ritmo_pct']:.0f}% do ritmo" for p in piores)
     titulo = f"🚨 Ritmo do mês em {ritmo:.0f}% — faltam {d['dias_restantes']} dia(s)"
-    corpo = (f"No dia {d['dia']}/{d['dias_mes']} o esperado era R$ {d['esperado_ate_hoje']:,.2f} "
-             f"e fechamos R$ {d['realizado_mes']:,.2f}. Falta R$ {d['gap']:,.2f} pra meta do mês"
+    corpo = (f"No dia {d['dia']}/{d['dias_mes']} o esperado era {brl(d['esperado_ate_hoje'])} "
+             f"e fechamos {brl(d['realizado_mes'])}. Falta {brl(d['gap'])} pra meta do mês"
              + (f". Mais atrasadas: {det}." if det else "."))
-    corpo = corpo.replace(",", "@").replace(".", ",").replace("@", ".")   # pt-BR
 
     ids = _dest_ids(sb)
     for uid in ids:
