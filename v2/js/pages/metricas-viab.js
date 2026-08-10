@@ -1560,20 +1560,28 @@ function eficienciaData() {
   const traf = trafegoDet(), det = custoOrcadoDet();
   const leadsAll = _d.leads || {};
   return LINHAS.map(l => {
-    let trafAno = 0, custoAno = 0, leads = 0, vendas = 0, vgv = 0;
+    let trafAno = 0, custoAno = 0, leads = 0, vendas = 0, vgv = 0, mesesComTraf = 0, mesesComVenda = 0;
     for (let m = 1; m <= ate; m++) {
-      trafAno += traf.por[l.id][m] || 0;
+      const t = traf.por[l.id][m] || 0;
+      trafAno += t; if (t > 0) mesesComTraf++;
       custoAno += det[l.id][m] || 0;
       leads += +((leadsAll[l.id] || {})[m] || 0);
       const r = realCell(l.id, m); vendas += r.vendas; vgv += r.vgv;
+      if (r.vendas > 0) mesesComVenda++;
     }
     const o = orcCell(l.id, mesRef());
     const margemPct = (+o.com_bruta_pct || 0) - (+o.com_corretor_pct || 0) - (+o.com_senior_pct || 0) - (+o.com_gerente_pct || 0) - (+o.com_bruta_pct || 0) * (+o.aliquota_pct || 0) / 100;
     const receita = vgv * margemPct / 100;
     return {
-      l, meses: ate, trafAno, custoAno, leads, vendas, vgv, receita,
-      cpl: leads ? trafAno / leads : null,               // custo por lead (só mídia)
-      cac: vendas ? trafAno / vendas : null,             // custo de aquisição (só mídia)
+      l, meses: ate, trafAno, custoAno, leads, vendas, vgv, receita, mesesComTraf, mesesComVenda,
+      // ⚠️ custo/venda e ROAS só são comparáveis se a verba cobrir os mesmos
+      // meses das vendas. Tráfego lançado só em agosto ÷ vendas de jan–ago dá um
+      // CAC irreal de R$ 300 — o número parece ótimo e é só denominador faltando.
+      parcial: mesesComTraf > 0 && mesesComVenda > mesesComTraf,
+      // sem verba lançada não existe "custo por lead/venda" — devolver 0 faria a
+      // marca sem mídia aparecer como a mais eficiente de todas.
+      cpl: (leads && trafAno > 0) ? trafAno / leads : null,
+      cac: (vendas && trafAno > 0) ? trafAno / vendas : null,
       cacTotal: vendas ? (trafAno + custoAno) / vendas : null,  // com a estrutura junto
       convLead: leads ? vendas / leads * 100 : null,
       roas: trafAno ? receita / trafAno : null,          // retorno da mídia em margem líquida
@@ -1593,7 +1601,8 @@ function eficienciaCard() {
   const linhas = comDados.map(r => {
     const corCac = r.cac == null ? null : (cacs.length > 1 && r.cac === min ? '#16a34a' : (cacs.length > 1 && r.cac === max ? '#dc2626' : null));
     return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:4px 8px;white-space:nowrap;font-weight:700;border-left:3px solid ${r.l.cor}">${r.l.icon} ${esc(r.l.nome)}</td>
+      <td style="padding:4px 8px;white-space:nowrap;font-weight:700;border-left:3px solid ${r.l.cor}">${r.l.icon} ${esc(r.l.nome)}
+        ${r.parcial ? `<div class="tiny" style="color:#d97706;font-weight:600" title="a verba só cobre ${r.mesesComTraf} dos ${r.mesesComVenda} meses com venda — o custo por venda sai menor do que realmente foi">⚠ verba de ${r.mesesComTraf}/${r.mesesComVenda} meses</div>` : ''}</td>
       ${cel(r.trafAno ? fmt(r.trafAno) : '—')}
       ${cel(r.leads || '—')}
       ${cel(r.cpl != null ? fmt(r.cpl) : '—')}
@@ -1605,7 +1614,7 @@ function eficienciaCard() {
     </tr>`;
   }).join('');
   const tot = comDados.reduce((a, r) => ({ traf: a.traf + r.trafAno, leads: a.leads + r.leads, vendas: a.vendas + r.vendas, receita: a.receita + r.receita }), { traf: 0, leads: 0, vendas: 0, receita: 0 });
-  const melhor = comDados.filter(r => r.cac != null).sort((a, b) => a.cac - b.cac)[0];
+  const melhor = comDados.filter(r => r.cac != null && r.trafAno > 0 && !r.parcial).sort((a, b) => a.cac - b.cac)[0];
   return `<div class="card" style="margin:0 0 14px">
     <h3 class="card-title">💸 Eficiência por marca <span class="tiny muted" style="font-weight:400">· ${rows[0].meses} mês(es) de ${_ano}</span></h3>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:760px">
@@ -1622,6 +1631,8 @@ function eficienciaCard() {
       </tr></thead>
       <tbody>${linhas}</tbody>
     </table></div>
+    ${comDados.some(r => r.parcial) ? `<div class="tiny" style="color:#d97706;background:#d9770612;border-radius:8px;padding:7px 10px;margin-top:8px">
+      ⚠️ <b>Leia com cuidado:</b> em algumas marcas a verba de tráfego só está lançada em parte dos meses que tiveram venda. O custo por venda e o ROAS saem <b>melhores do que a realidade</b> — falta denominador, não sobra eficiência. Lance o histórico de mídia mês a mês na ala do Orçado pra estes números ficarem comparáveis.</div>` : ''}
     <div class="tiny muted mt-1">${melhor ? `🏆 <b>${melhor.l.nome}</b> tem o menor custo por venda (${fmt(melhor.cac)}). ` : ''}Total: ${fmt(tot.traf)} de mídia · ${tot.leads} leads · ${tot.vendas} vendas · ${fmt(tot.receita)} de margem líquida. <b>ROAS margem abaixo de 1× significa que a mídia daquela marca não pagou nem a si mesma.</b></div>
   </div>`;
 }
