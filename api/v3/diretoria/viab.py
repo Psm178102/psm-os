@@ -263,6 +263,33 @@ def realizado_ano(sb, ano):
     return real
 
 
+def leads_ano(sb, ano):
+    """Leads CRIADOS no RD por linha × mês (v85.11). É o denominador do custo por
+    lead: sem isso só dá pra saber quanto se gastou, não quanto cada lead custou."""
+    out = {i: {m: 0 for m in range(1, 13)} for i in LINHA_IDS}
+    try:
+        pg = 0
+        while True:
+            rows = (sb.table("deals").select("created_at_rd,pipeline_name")
+                    .gte("created_at_rd", f"{ano}-01-01T00:00:00+00:00")
+                    .lt("created_at_rd", f"{ano+1}-01-01T00:00:00+00:00")
+                    .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
+            for d in rows:
+                try:
+                    dt = datetime.fromisoformat(str(d.get("created_at_rd")).replace("Z", "+00:00"))
+                except Exception:
+                    continue
+                ln = _frente_of(d.get("pipeline_name"))
+                if ln in out and 1 <= dt.month <= 12:
+                    out[ln][dt.month] += 1
+            if len(rows) < 1000 or pg >= 30:
+                break
+            pg += 1
+    except Exception:
+        pass
+    return out
+
+
 def meta_spend_ano(sb, ano):
     """Investimento REAL de Meta Ads por mês (tabela meta_ads_monthly, já alimentada
     pelo cron do Meta). Fonte automática de custo de marketing do realizado. v82.1"""
@@ -375,6 +402,7 @@ class handler(BaseHTTPRequestHandler):
             "custos_real": {k: v for k, v in read_kv(sb, "viab_custos_real").items() if k.startswith(f"{ano}-")},
             "snapshots": {k: v for k, v in read_kv(sb, "viab_snapshots").items() if k.startswith(f"{ano}-")},
             "realizado": realizado_ano(sb, ano),
+            "leads": leads_ano(sb, ano),        # leads criados por linha/mês — denominador do CPL (v85.11)
             "fontes_auto": fontes_auto_ano(sb, ano),   # custos automáticos por mês (Meta real + gancho NIBO). v82.1
             "custos_orcado": (read_kv(sb, "viab_custos_orcado").get(str(ano)) or {}),   # custos orçados detalhados. v82.3
             # v85.2 — fonte única da conta cheia: custo fixo (fixo+extra+parcelado) por mês

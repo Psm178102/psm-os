@@ -1117,6 +1117,8 @@ function renderRealizado() {
       ${kpi('Lucro', O.acc.lucro, R.acc.lucro, true)}
       ${kpi('Margem', O.acc.margem, R.acc.margem, false)}
     </div>
+    ${projecaoAnoCard()}
+    ${eficienciaCard()}
     <div class="card" style="margin:0 0 14px">
       <h3 class="card-title">📊 VGV orçado × realizado por mês <span class="tiny muted" style="font-weight:400">· lucro realizado na linha</span></h3>
       <div id="viab-real-chart-wrap" style="height:260px;position:relative"><canvas id="viab-real-chart"></canvas></div>
@@ -1549,6 +1551,128 @@ function renderResumo() {
     ${trafegoResumoCard()}
     ${donutCatCard()}`;
 }
+/* ═══════ 💸 EFICIÊNCIA POR MARCA — o que cada venda custa (v85.11) ═══════
+   Cruza a verba de tráfego da ala + custo da frente (Orçado) com leads criados e
+   vendas fechadas (RD). Responde a pergunta que decide orçamento: "quanto me
+   custa cada venda da Conquista contra a do MAP?". */
+function eficienciaData() {
+  const ate = (_ano === new Date().getFullYear()) ? Math.max(1, new Date().getMonth() + 1) : 12;
+  const traf = trafegoDet(), det = custoOrcadoDet();
+  const leadsAll = _d.leads || {};
+  return LINHAS.map(l => {
+    let trafAno = 0, custoAno = 0, leads = 0, vendas = 0, vgv = 0;
+    for (let m = 1; m <= ate; m++) {
+      trafAno += traf.por[l.id][m] || 0;
+      custoAno += det[l.id][m] || 0;
+      leads += +((leadsAll[l.id] || {})[m] || 0);
+      const r = realCell(l.id, m); vendas += r.vendas; vgv += r.vgv;
+    }
+    const o = orcCell(l.id, mesRef());
+    const margemPct = (+o.com_bruta_pct || 0) - (+o.com_corretor_pct || 0) - (+o.com_senior_pct || 0) - (+o.com_gerente_pct || 0) - (+o.com_bruta_pct || 0) * (+o.aliquota_pct || 0) / 100;
+    const receita = vgv * margemPct / 100;
+    return {
+      l, meses: ate, trafAno, custoAno, leads, vendas, vgv, receita,
+      cpl: leads ? trafAno / leads : null,               // custo por lead (só mídia)
+      cac: vendas ? trafAno / vendas : null,             // custo de aquisição (só mídia)
+      cacTotal: vendas ? (trafAno + custoAno) / vendas : null,  // com a estrutura junto
+      convLead: leads ? vendas / leads * 100 : null,
+      roas: trafAno ? receita / trafAno : null,          // retorno da mídia em margem líquida
+      ticket: vendas ? vgv / vendas : null,
+    };
+  });
+}
+function eficienciaCard() {
+  const rows = eficienciaData();
+  const comDados = rows.filter(r => r.trafAno > 0 || r.leads > 0 || r.vendas > 0);
+  if (!comDados.length) return `<div class="card" style="margin:0 0 14px"><h3 class="card-title">💸 Eficiência por marca</h3>
+    <div class="tiny muted">Sem verba de tráfego lançada nem lead/venda no RD em ${_ano}. Lance a mídia em <b>Orçado → Custos detalhados → 📣 Tráfego pago</b> e o custo por lead e por venda aparece aqui.</div></div>`;
+  const cel = (v, cor) => `<td style="padding:4px 8px;text-align:right;white-space:nowrap;${cor ? 'color:' + cor + ';font-weight:800' : ''}">${v}</td>`;
+  // melhor CAC (menor) recebe destaque verde; pior recebe vermelho
+  const cacs = comDados.filter(r => r.cac != null).map(r => r.cac);
+  const min = Math.min(...cacs), max = Math.max(...cacs);
+  const linhas = comDados.map(r => {
+    const corCac = r.cac == null ? null : (cacs.length > 1 && r.cac === min ? '#16a34a' : (cacs.length > 1 && r.cac === max ? '#dc2626' : null));
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:4px 8px;white-space:nowrap;font-weight:700;border-left:3px solid ${r.l.cor}">${r.l.icon} ${esc(r.l.nome)}</td>
+      ${cel(r.trafAno ? fmt(r.trafAno) : '—')}
+      ${cel(r.leads || '—')}
+      ${cel(r.cpl != null ? fmt(r.cpl) : '—')}
+      ${cel(r.vendas || '—')}
+      ${cel(r.convLead != null ? pct(r.convLead) : '—')}
+      ${cel(r.cac != null ? fmt(r.cac) : '—', corCac)}
+      ${cel(r.cacTotal != null ? fmt(r.cacTotal) : '—')}
+      ${cel(r.roas != null ? r.roas.toFixed(2) + '×' : '—', r.roas == null ? null : (r.roas >= 1 ? '#16a34a' : '#dc2626'))}
+    </tr>`;
+  }).join('');
+  const tot = comDados.reduce((a, r) => ({ traf: a.traf + r.trafAno, leads: a.leads + r.leads, vendas: a.vendas + r.vendas, receita: a.receita + r.receita }), { traf: 0, leads: 0, vendas: 0, receita: 0 });
+  const melhor = comDados.filter(r => r.cac != null).sort((a, b) => a.cac - b.cac)[0];
+  return `<div class="card" style="margin:0 0 14px">
+    <h3 class="card-title">💸 Eficiência por marca <span class="tiny muted" style="font-weight:400">· ${rows[0].meses} mês(es) de ${_ano}</span></h3>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:760px">
+      <thead><tr style="background:var(--bg-3);text-align:right">
+        <th style="padding:5px 8px;text-align:left">Marca</th>
+        <th style="padding:5px 8px" title="verba de mídia da ala de tráfego">Tráfego</th>
+        <th style="padding:5px 8px" title="negócios criados no RD">Leads</th>
+        <th style="padding:5px 8px" title="tráfego ÷ leads">Custo/lead</th>
+        <th style="padding:5px 8px" title="deals ganhos no RD">Vendas</th>
+        <th style="padding:5px 8px" title="vendas ÷ leads">Conversão</th>
+        <th style="padding:5px 8px" title="tráfego ÷ vendas — só mídia">Custo/venda</th>
+        <th style="padding:5px 8px" title="(tráfego + custo da frente) ÷ vendas — com estrutura">C/venda cheio</th>
+        <th style="padding:5px 8px" title="margem líquida gerada ÷ tráfego investido — abaixo de 1× a mídia não se paga">ROAS margem</th>
+      </tr></thead>
+      <tbody>${linhas}</tbody>
+    </table></div>
+    <div class="tiny muted mt-1">${melhor ? `🏆 <b>${melhor.l.nome}</b> tem o menor custo por venda (${fmt(melhor.cac)}). ` : ''}Total: ${fmt(tot.traf)} de mídia · ${tot.leads} leads · ${tot.vendas} vendas · ${fmt(tot.receita)} de margem líquida. <b>ROAS margem abaixo de 1× significa que a mídia daquela marca não pagou nem a si mesma.</b></div>
+  </div>`;
+}
+
+/* ═══════ 🔮 PROJEÇÃO DO ANO — onde 2026 termina no ritmo de hoje (v85.11) ═══════ */
+function projecaoAnoData() {
+  const hoje = new Date();
+  const ateFechado = (_ano === hoje.getFullYear()) ? hoje.getMonth() : 12;   // meses ENCERRADOS
+  if (ateFechado < 1) return null;
+  let realFechado = 0, metaAno = 0, vendasFechadas = 0;
+  for (let m = 1; m <= 12; m++) LIDS.forEach(l => { metaAno += orcCell(l, m).vgv || 0; });
+  for (let m = 1; m <= ateFechado; m++) LIDS.forEach(l => { const r = realCell(l, m); realFechado += r.vgv; vendasFechadas += r.vendas; });
+  const mediaMes = realFechado / ateFechado;
+  const mesesRestantes = 12 - ateFechado;
+  const projetado = realFechado + mediaMes * mesesRestantes;
+  const gap = metaAno - projetado;
+  return {
+    ateFechado, mesesRestantes, realFechado, mediaMes, projetado, metaAno, gap,
+    vendasFechadas, mediaVendas: vendasFechadas / ateFechado,
+    atingProj: metaAno ? projetado / metaAno * 100 : null,
+    precisaMes: mesesRestantes > 0 ? Math.max(0, (metaAno - realFechado) / mesesRestantes) : 0,
+  };
+}
+function projecaoAnoCard() {
+  const p = projecaoAnoData();
+  if (!p) return '';
+  const ok = p.gap <= 0, cor = ok ? '#16a34a' : '#dc2626';
+  const salto = p.mediaMes > 0 ? p.precisaMes / p.mediaMes : null;
+  return `<div class="card" style="margin:0 0 14px;border:2px solid ${cor}33">
+    <h3 class="card-title">🔮 Projeção de ${_ano} <span class="tiny muted" style="font-weight:400">· no ritmo dos ${p.ateFechado} mês(es) já fechados</span></h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+      <div><div class="tiny muted">Fechado até agora</div><div style="font-size:17px;font-weight:900">${fmt(p.realFechado)}</div><div class="tiny muted">${p.vendasFechadas} venda(s) · ${fmt(p.mediaMes)}/mês</div></div>
+      <div><div class="tiny muted">Projeção fim do ano</div><div style="font-size:17px;font-weight:900;color:${cor}">${fmt(p.projetado)}</div><div class="tiny muted">${p.atingProj != null ? pct(p.atingProj) + ' da meta' : 'sem meta lançada'}</div></div>
+      <div><div class="tiny muted">Meta do ano</div><div style="font-size:17px;font-weight:900">${fmt(p.metaAno)}</div></div>
+      <div><div class="tiny muted">${ok ? '🎉 Sobra projetada' : '⚠️ Falta projetada'}</div><div style="font-size:17px;font-weight:900;color:${cor}">${fmt(Math.abs(p.gap))}</div></div>
+    </div>
+    ${p.metaAno ? `<div style="margin-top:10px">
+      <div style="height:12px;background:var(--bg-3);border-radius:99px;overflow:hidden;position:relative">
+        <div style="height:100%;width:${Math.min(100, p.realFechado / p.metaAno * 100).toFixed(1)}%;background:#1e2650"></div>
+        <div style="position:absolute;top:0;left:${Math.min(100, p.realFechado / p.metaAno * 100).toFixed(1)}%;height:100%;width:${Math.max(0, Math.min(100 - p.realFechado / p.metaAno * 100, (p.projetado - p.realFechado) / p.metaAno * 100)).toFixed(1)}%;background:${cor}55"></div>
+      </div>
+      <div class="tiny muted" style="margin-top:3px">■ já fechado · ▨ projetado no ritmo atual · o resto é o que falta</div>
+    </div>` : ''}
+    <div class="tiny mt-2" style="background:var(--bg-3);border-radius:8px;padding:9px 11px;line-height:1.5">
+      ${p.mesesRestantes === 0 ? `Ano encerrado — o realizado é o que está aí.`
+        : ok ? `💡 Mantendo ${fmt(p.mediaMes)}/mês nos ${p.mesesRestantes} meses restantes, ${_ano} fecha <b>acima</b> da meta.`
+        : `💡 Pra bater a meta, os ${p.mesesRestantes} meses restantes precisam de <b>${fmt(p.precisaMes)}/mês</b> — ${salto ? `<b>${salto.toFixed(1)}× o ritmo atual</b> de ${fmt(p.mediaMes)}/mês` : 'com o ritmo atual em zero'}.${salto && salto > 2 ? ' Nesse tamanho de salto, o caminho honesto é revisar a meta ou mudar a alavanca — não pedir mais esforço.' : ''}`}
+    </div>
+  </div>`;
+}
+
 /* 📣 Tráfego por marca no Resumo — leitura da MESMA ala editada no Orçado,
    com o custo por lead/venda que cada marca precisa entregar (v85.8). */
 function trafegoResumoCard() {

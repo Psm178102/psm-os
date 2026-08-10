@@ -44,6 +44,9 @@ JOBS = [
     ("war_briefing", "/api/v3/intel/war_briefing_cron",     None),  # semanal (lógica própria)
     # 🎯 amortecedor v2.3 (semanal, converge segunda de manhã): push do VGV próprio necessário
     ("amortecedor",  "/api/v3/diretoria/amortecedor_cron",   None),
+    # 🚨 ritmo do mês (v85.11): avisa a diretoria NO dia 10/20/25 quando o VGV está
+    # abaixo do ritmo da meta — enquanto ainda dá tempo de reagir. Dedupe próprio.
+    ("viab_ritmo",   "/api/v3/diretoria/viab_alerta?cron=1",  12),
 ]
 
 
