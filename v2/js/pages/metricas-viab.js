@@ -548,14 +548,17 @@ function renderOrcado() {
   let consAno = 0;
   const blocks = LINHAS.map(l => {
     const prem = orcCell(l.id, 1);   // premissas (iguais em todos os meses; mes=0 salva bulk)
-    let totLucro = 0, totVgv = 0, totCusto = 0;
+    let totLucro = 0, totVgv = 0, totCusto = 0, totVgvReal = 0, totVendasReal = 0;
     const cols = [];
+    const ateMes = (_ano === new Date().getFullYear()) ? new Date().getMonth() + 1 : 12;
     for (let m = 1; m <= 12; m++) {
       const o = orcCell(l.id, m);
       const custo = custoOrcLinhaMes(l.id, m);   // vem dos Custos detalhados
       const r = calc(o.vgv, o.vendas, o, custo);
+      const real = realCell(l.id, m);            // VGV/vendas REAIS do RD CRM (v85.10)
       totLucro += r.lucro; totVgv += r.vgv; totCusto += r.custo;
-      cols.push({ m, vgv: o.vgv || 0, vendas: o.vendas || 0, lucro: r.lucro });
+      totVgvReal += real.vgv; totVendasReal += real.vendas;
+      cols.push({ m, vgv: o.vgv || 0, vendas: o.vendas || 0, lucro: r.lucro, real, passado: m <= ateMes });
     }
     consAno += totLucro;
     const inp = (m, f, v) => `<input class="input orc-cell" data-l="${l.id}" data-m="${m}" data-f="${f}" value="${v || ''}" style="width:74px;padding:3px 5px;font-size:11px;text-align:right">`;
@@ -564,16 +567,25 @@ function renderOrcado() {
       <div class="card" style="margin:0 0 12px;border-left:4px solid ${l.cor}">
         <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
           <b style="font-size:14px">${l.icon} ${l.nome}</b>
-          <span class="tiny muted">VGV: <b>${fmt(totVgv)}</b> · custo: <b>${fmt(totCusto)}</b></span>
+          <span class="tiny muted">meta ano: <b>${fmt(totVgv)}</b> · custo: <b>${fmt(totCusto)}</b></span>
+          <span class="tiny" style="background:#16a34a18;color:#16a34a;font-weight:700;padding:2px 8px;border-radius:99px" title="VGV realmente fechado no RD CRM em ${_ano} (deals ganhos)">📡 RD: ${fmt(totVgvReal)} · ${totVendasReal} venda(s)${totVgv ? ` · ${pct(totVgvReal / totVgv * 100)} da meta` : ''}</span>
           <button class="btn btn-ghost btn-sm orc-copy" data-l="${l.id}" title="Replica o VGV e vendas do 1º mês preenchido nos 12 meses">⧉ replicar nos 12 meses</button>
+          <button class="btn btn-ghost btn-sm orc-pull" data-l="${l.id}" title="Copia o VGV e as vendas REAIS do RD para os meses já encerrados — o plano dos meses futuros fica intacto">📥 puxar realizado do RD</button>
           <span style="margin-left:auto;font-weight:800;color:${dc(totLucro)}">Lucro orçado ano: ${fmt(totLucro)}</span>
         </div>
         <div class="flex gap-2 mt-2" style="flex-wrap:wrap">${premInp}</div>
         <div style="overflow-x:auto;margin-top:8px"><table style="border-collapse:collapse;font-size:11px">
           <thead><tr><th style="text-align:left;padding:3px 6px;position:sticky;left:0;background:var(--bg-2)"></th>${MES.map(mn => `<th style="padding:3px 6px;text-align:right;color:var(--ink-muted)">${mn}</th>`).join('')}</tr></thead>
           <tbody>
-            <tr><td style="padding:3px 6px;font-weight:700;position:sticky;left:0;background:var(--bg-2)">VGV</td>${cols.map(c => `<td style="padding:2px 4px">${inp(c.m, 'vgv', c.vgv)}</td>`).join('')}</tr>
-            <tr><td style="padding:3px 6px;font-weight:700;position:sticky;left:0;background:var(--bg-2)">Vendas</td>${cols.map(c => `<td style="padding:2px 4px">${inp(c.m, 'vendas', c.vendas)}</td>`).join('')}</tr>
+            <tr><td style="padding:3px 6px;font-weight:700;position:sticky;left:0;background:var(--bg-2)">VGV meta</td>${cols.map(c => `<td style="padding:2px 4px">${inp(c.m, 'vgv', c.vgv)}</td>`).join('')}</tr>
+            <tr title="VGV fechado no RD CRM — atualiza sozinho a cada sync"><td style="padding:3px 6px;font-weight:700;color:#16a34a;position:sticky;left:0;background:var(--bg-2)">📡 VGV real</td>${cols.map(c => {
+              if (!c.passado) return '<td style="padding:3px 4px;text-align:right;color:var(--ink-muted)">·</td>';
+              const at = c.vgv ? c.real.vgv / c.vgv * 100 : null;
+              const cor = at == null ? 'var(--ink-muted)' : at >= 100 ? '#16a34a' : at >= 60 ? '#d97706' : '#dc2626';
+              return `<td style="padding:3px 4px;text-align:right;font-weight:700;color:${cor}" title="${c.real.vendas} venda(s)${at != null ? ' · ' + pct(at) + ' da meta do mês' : ''}">${c.real.vgv ? fmtC(c.real.vgv) : '—'}</td>`;
+            }).join('')}</tr>
+            <tr><td style="padding:3px 6px;font-weight:700;position:sticky;left:0;background:var(--bg-2)">Vendas meta</td>${cols.map(c => `<td style="padding:2px 4px">${inp(c.m, 'vendas', c.vendas)}</td>`).join('')}</tr>
+            <tr><td style="padding:3px 6px;font-weight:700;color:#16a34a;position:sticky;left:0;background:var(--bg-2)">📡 Vendas reais</td>${cols.map(c => `<td style="padding:3px 4px;text-align:right;font-weight:700;color:${!c.passado ? 'var(--ink-muted)' : c.real.vendas >= (c.vendas || 0) && c.vendas ? '#16a34a' : c.real.vendas ? '#d97706' : '#dc2626'}">${!c.passado ? '·' : (c.real.vendas || '—')}</td>`).join('')}</tr>
             <tr><td style="padding:3px 6px;font-weight:700;color:var(--ink-muted);position:sticky;left:0;background:var(--bg-2)">Lucro</td>${cols.map(c => `<td style="padding:3px 4px;text-align:right;font-weight:700;color:${dc(c.lucro)}">${fmtC(c.lucro)}</td>`).join('')}</tr>
           </tbody>
         </table></div>
@@ -597,6 +609,31 @@ function wireOrcado() {
     if (!src) { flash('preencha o 1º mês antes de replicar'); return; }
     if (!confirm(`Replicar VGV ${fmt(src.vgv)} e ${src.vendas} venda(s) em TODOS os 12 meses desta linha?`)) return;
     saveOrc(l, 0, src);   // mes=0 aplica nos 12
+  });
+  /* 📥 v85.10 — puxa o VGV/vendas REAIS do RD para os meses JÁ ENCERRADOS.
+     Só mexe no passado: o plano dos meses que ainda vão acontecer fica intacto,
+     senão a comparação orçado × realizado viraria o mesmo número dos dois lados. */
+  document.querySelectorAll('.orc-pull').forEach(b => b.onclick = async () => {
+    const l = b.dataset.l, nome = (LINHAS.find(x => x.id === l) || {}).nome || l;
+    const ate = (_ano === new Date().getFullYear()) ? new Date().getMonth() : 12;   // mês ANTERIOR ao corrente
+    if (ate < 1) { flash('nenhum mês encerrado ainda em ' + _ano); return; }
+    const por = {}; let n = 0, somaVgv = 0;
+    for (let m = 1; m <= ate; m++) {
+      const r = realCell(l, m);
+      if (!r.vgv && !r.vendas) continue;
+      por[m] = { vgv: r.vgv, vendas: r.vendas }; n++; somaVgv += r.vgv;
+    }
+    if (!n) { flash('o RD não tem venda fechada de ' + nome + ' nos meses encerrados'); return; }
+    if (!confirm(`Copiar o REALIZADO do RD para o plano de ${nome}?\n\n`
+      + `• ${n} mês(es) encerrado(s) · ${fmt(somaVgv)} de VGV\n`
+      + `• Os meses de ${MES[ate]} em diante NÃO são tocados (seguem como meta)\n\n`
+      + `Isso sobrescreve a meta dos meses passados — depois disso, orçado e realizado ficam iguais no passado.`)) return;
+    flash('📥 puxando do RD…');
+    try {
+      const r = await api.request('/api/v3/diretoria/viab', { method: 'POST', body: { action: 'set_orcamento', ano: _ano, linha: l, por_mes: por } });
+      if (r && r.orcamento) _d.orcamento = r.orcamento;
+      flash(`✅ ${n} mês(es) de ${nome} preenchidos com o realizado do RD`); render();
+    } catch (e) { flash('⚠️ ' + e.message); }
   });
 }
 async function saveOrc(linha, mes, campos) {
@@ -1216,14 +1253,37 @@ async function migrarCenLegado() {   // sobe cenários antigos do localStorage p
     } catch (_) {}
   }
 }
+/* v85.10 — MÉDIA MENSAL REALIZADA (RD CRM) de uma frente: soma os meses já
+   decorridos e divide pelos meses corridos. É o "como estamos de verdade hoje",
+   que passa a semear o Simulador em vez do plano. */
+function realMediaMes(l) {
+  const ate = (_ano === new Date().getFullYear()) ? Math.max(1, new Date().getMonth() + 1) : 12;
+  let vgv = 0, vendas = 0;
+  for (let m = 1; m <= ate; m++) { const r = realCell(l, m); vgv += r.vgv; vendas += r.vendas; }
+  return { vgv: vgv / ate, vendas: vendas / ate, meses: ate, vgvTotal: vgv, vendasTotal: vendas };
+}
+/* Semeia o Simulador com a REALIDADE de hoje: VGV/vendas = média mensal do RD
+   (cai pro orçado se ainda não houver venda), custo = custo do MÊS de referência
+   e tráfego = verba da ala daquela marca. Todas as frentes ganham os MESMOS
+   campos — inclusive receita recorrente, que não é exclusividade da Locação. */
 function simSeed() {
-  const mes = Math.max(1, new Date().getMonth() + 1); const o = {};
-  const det = custoOrcadoDet(true);   // custo real por empresa/mês, SEM tráfego (v82.8) — semeia o custo do sim
+  const mes = mesRef(), o = {};
+  const det = custoOrcadoDet(true);        // custo por empresa/mês SEM tráfego (o tráfego tem campo próprio)
+  const traf = trafegoDet();
   for (const l of LIDS) {
-    const c = orcCell(l, mes);
-    let custoMes = 0; for (let m = 1; m <= 12; m++) custoMes += det[l][m]; custoMes = Math.round(custoMes / 12);
-    o[l] = { vgv: c.vgv || 0, vendas: c.vendas || 0, com_bruta_pct: c.com_bruta_pct, com_corretor_pct: c.com_corretor_pct, com_corretor_sobre_com_pct: c.com_corretor_sobre_com_pct || (l === 'terceiros' ? 50 : 0), com_senior_pct: c.com_senior_pct, com_gerente_pct: c.com_gerente_pct || 0, aliquota_pct: c.aliquota_pct, custo_fixo: custoMes, verba_mkt: c.verba_mkt || 0 };
-    if (l === 'locacoes') o[l].admRec = 0;   // adm recorrente/mês que entra no caixa (v83.3)
+    const c = orcCell(l, mes), real = realMediaMes(l);
+    o[l] = {
+      vgv: Math.round(real.vgv || c.vgv || 0),
+      vendas: +(real.vendas || c.vendas || 0).toFixed(1),
+      com_bruta_pct: c.com_bruta_pct, com_corretor_pct: c.com_corretor_pct,
+      com_corretor_sobre_com_pct: c.com_corretor_sobre_com_pct || (l === 'terceiros' ? 50 : 0),
+      com_senior_pct: c.com_senior_pct, com_gerente_pct: c.com_gerente_pct || 0,
+      aliquota_pct: c.aliquota_pct,
+      custo_fixo: Math.round(det[l][mes] || 0),
+      verba_mkt: Math.round((traf.por[l] || {})[mes] || 0),
+      admRec: 0,                            // receita recorrente/mês — agora em TODAS as frentes
+      _origem: real.vgv > 0 ? 'rd' : 'orcado',
+    };
   }
   return o;
 }
@@ -1233,28 +1293,34 @@ function renderSim() {
   const cenarios = cen('sim');   // compartilhados via backend (v83.8)
   const blocks = LINHAS.map(l => {
     const s = _sim[l.id]; const r = calc(s.vgv, s.vendas, s, s.custo_fixo);
-    // Locação: adm recorrente que entra no caixa/mês (líquida de imposto). v83.3
+    // v85.10 — receita recorrente (líquida de imposto) existe em TODAS as frentes:
+    // era exclusiva da Locação, mas qualquer marca pode ter contrato recorrente.
     const isLoc = l.id === 'locacoes';
-    const admLiq = isLoc ? (+s.admRec || 0) * (1 - (+s.aliquota_pct || 0) / 100) : 0;
+    const admLiq = (+s.admRec || 0) * (1 - (+s.aliquota_pct || 0) / 100);
     const lucroTot = r.lucro + admLiq;
     cons += lucroTot;
-    const fld = (f, lbl) => `<label class="tiny muted" style="display:flex;flex-direction:column;gap:1px">${lbl}<input class="input sim-in" data-l="${l.id}" data-f="${f}" value="${s[f] ?? ''}" style="width:96px;padding:3px 5px;font-size:11px;text-align:right"></label>`;
+    const real = realMediaMes(l.id);
+    const fld = (f, lbl, hint) => `<label class="tiny muted" style="display:flex;flex-direction:column;gap:1px"${hint ? ` title="${hint}"` : ''}>${lbl}<input class="input sim-in" data-l="${l.id}" data-f="${f}" value="${s[f] ?? ''}" style="width:96px;padding:3px 5px;font-size:11px;text-align:right"></label>`;
+    const origem = real.vgvTotal > 0
+      ? `<span class="tiny" style="background:#16a34a18;color:#16a34a;font-weight:700;padding:1px 7px;border-radius:99px" title="média dos ${real.meses} meses de ${_ano}: ${fmt(real.vgvTotal)} em ${real.vendasTotal} venda(s)">📡 real: ${fmt(real.vgv)}/mês</span>`
+      : `<span class="tiny" style="background:var(--bg-3);color:var(--ink-muted);font-weight:700;padding:1px 7px;border-radius:99px" title="sem venda fechada no RD em ${_ano} — os campos vieram do plano orçado">⏸ sem venda no RD · veio do plano</span>`;
     return `<div class="card" style="margin:0 0 10px;border-left:4px solid ${l.cor}">
-      <div class="flex items-center"><b>${l.icon} ${l.nome}</b><span style="margin-left:auto;font-weight:800;color:${dc(lucroTot)}">Resultado/mês: ${fmt(lucroTot)}</span></div>
+      <div class="flex items-center" style="gap:8px;flex-wrap:wrap"><b>${l.icon} ${l.nome}</b>${origem}<span style="margin-left:auto;font-weight:800;color:${dc(lucroTot)}">Resultado/mês: ${fmt(lucroTot)}</span></div>
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
-        ${fld('vgv', isLoc ? '1º aluguel/mês' : 'VGV/mês')}${fld('vendas', isLoc ? 'Captações' : 'Vendas')}${fld('com_bruta_pct', 'Com. bruta % (s/ VGV)')}${fld('com_corretor_pct', 'Corretor % s/ VGV')}${fld('com_corretor_sobre_com_pct', 'Corretor % s/ comissão')}${fld('com_senior_pct', 'Sênior % s/ VGV')}${fld('com_gerente_pct', 'Gerente % s/ VGV')}${fld('aliquota_pct', 'Imposto % (s/ comissão)')}${fld('custo_fixo', 'Custo/mês (s/ tráfego)')}${fld('verba_mkt', '📣 Tráfego pago/mês')}${isLoc ? fld('admRec', '🔑 Adm recorrente/mês R$') : ''}
+        ${fld('vgv', isLoc ? '1º aluguel/mês' : 'VGV/mês', 'semeado com a média mensal realizada no RD')}${fld('vendas', isLoc ? 'Captações' : 'Vendas')}${fld('com_bruta_pct', 'Com. bruta % (s/ VGV)')}${fld('com_corretor_pct', 'Corretor % s/ VGV')}${fld('com_corretor_sobre_com_pct', 'Corretor % s/ comissão')}${fld('com_senior_pct', 'Sênior % s/ VGV')}${fld('com_gerente_pct', 'Gerente % s/ VGV')}${fld('aliquota_pct', 'Imposto % (s/ comissão)')}${fld('custo_fixo', 'Custo/mês (s/ tráfego)', 'custo desta frente no mês de referência')}${fld('verba_mkt', '📣 Tráfego pago/mês', 'semeado com a verba da ala de tráfego desta marca')}${fld('admRec', '🔁 Receita recorrente/mês R$', 'administração de locação, gestão, mensalidade — o que entra todo mês independente de venda')}
       </div>
-      <div class="tiny muted mt-1">Receita ${fmtC(r.receita)} · corretor s/VGV ${fmtC(r.cc)} · corretor s/com. ${fmtC(r.ccCom)} · sênior ${fmtC(r.cs)} · gerente ${fmtC(r.cg)} · imposto ${fmtC(r.imp)} · custo ${fmtC(r.custo)}${isLoc ? ` · <b style="color:#16a34a">adm recorrente +${fmtC(admLiq)}/mês (líq. imposto)</b>` : ''} · margem <b style="color:${dc(r.margem)}">${pct(r.margem)}</b></div>
+      <div class="tiny muted mt-1">Receita ${fmtC(r.receita)} · corretor s/VGV ${fmtC(r.cc)} · corretor s/com. ${fmtC(r.ccCom)} · sênior ${fmtC(r.cs)} · gerente ${fmtC(r.cg)} · imposto ${fmtC(r.imp)} · custo ${fmtC(r.custo)}${admLiq ? ` · <b style="color:#16a34a">recorrente +${fmtC(admLiq)}/mês (líq. imposto)</b>` : ''} · margem <b style="color:${dc(r.margem)}">${pct(r.margem)}</b></div>
     </div>`;
   }).join('');
   const opts = Object.keys(cenarios).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
-  const detST = custoOrcadoDet(true);
-  const custoRef = LINHAS.map(l => { let c = 0; for (let m = 1; m <= 12; m++) c += detST[l.id][m]; return `<span class="tiny">${l.icon} <b style="color:${l.cor}">${fmt(c / 12)}</b></span>`; }).join(' · ');
+  const detST = custoOrcadoDet(true), mrS = mesRef();
+  const custoRef = LINHAS.map(l => `<span class="tiny">${l.icon} <b style="color:${l.cor}">${fmt(detST[l.id][mrS] || 0)}</b></span>`).join(' · ');
   return `
-    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:10px">🧪 <b>Sandbox</b> — mexa à vontade. Não afeta o orçado nem o realizado. Salve cenários e compare.<br><span class="tiny muted">Modelo completo por frente: <b>comissão bruta</b> (% s/ VGV) → <b>corretor</b> pode ser % s/ VGV <b>e/ou</b> % s/ a comissão (ex.: Terceiros 40%+10% da comissão = 50%) → <b>sênior</b> e <b>gerente</b> (% s/ VGV) → <b>imposto</b> (% s/ a comissão) → <b>custo fixo</b> + <b>tráfego pago</b>.</span></div>
+    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:10px">🧪 <b>Sandbox</b> — abre com a <b>realidade de hoje</b>: VGV e vendas são a média mensal já fechada no RD CRM em ${_ano}, o custo é o do mês de referência e o tráfego vem da ala por marca. Mexa à vontade — não afeta o orçado nem o realizado. Salve cenários e compare.<br><span class="tiny muted">Modelo completo por frente: <b>comissão bruta</b> (% s/ VGV) → <b>corretor</b> pode ser % s/ VGV <b>e/ou</b> % s/ a comissão (ex.: Terceiros 40%+10% da comissão = 50%) → <b>sênior</b> e <b>gerente</b> (% s/ VGV) → <b>imposto</b> (% s/ a comissão) → <b>custo fixo</b> + <b>tráfego pago</b>.</span></div>
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center;background:var(--bg-3);border-radius:8px;padding:7px 10px">
-      <span class="tiny" style="font-weight:700">💰 Custo real por empresa/mês (fixo+var, <b>sem tráfego</b>):</span> ${custoRef}
+      <span class="tiny" style="font-weight:700">💰 Custo por empresa em ${MESES_N3[mrS - 1]} (fixo+var, <b>sem tráfego</b>):</span> ${custoRef}
       <span class="tiny muted" style="margin-left:auto">o "Custo/mês" de cada card já vem semeado com esse valor</span>
+      <button class="btn btn-primary btn-sm" id="sim-pull" title="Recarrega VGV/vendas com a média realizada no RD, custo do mês de referência e tráfego da ala — descarta o que você mexeu">📡 Puxar números reais de agora</button>
     </div>
     ${blocks}
     <div class="card" style="margin:0 0 10px;background:var(--psm-navy);color:#fff">
@@ -1275,7 +1341,13 @@ function wireSim() {
     flash('💾 salvando cenário…'); if (await saveCen('sim', c)) flash('✅ cenário "' + nome + '" salvo (compartilhado)'); render();
   };
   const load = document.getElementById('sim-load'); if (load) load.onchange = () => { const c = cen('sim'); if (c[load.value]) { _sim = JSON.parse(JSON.stringify(c[load.value])); flash('cenário carregado'); render(); } };
-  const reset = document.getElementById('sim-reset'); if (reset) reset.onclick = () => { _sim = simSeed(); flash('resetado pro orçado'); render(); };
+  const reset = document.getElementById('sim-reset'); if (reset) reset.onclick = () => { _sim = simSeed(); flash('resetado pros números reais'); render(); };
+  const pull = document.getElementById('sim-pull'); if (pull) pull.onclick = () => {
+    if (!confirm('Recarregar o simulador com os números reais de agora?\n\n'
+      + '• VGV e vendas = média mensal já fechada no RD CRM\n• Custo = o do mês de referência\n• Tráfego = verba da ala por marca\n\n'
+      + 'O que você mexeu aqui é descartado (cenários salvos não são afetados).')) return;
+    _sim = simSeed(); flash('📡 simulador recarregado com os números reais'); render();
+  };
 }
 
 /* ════════════ ABA 4 · BREAK-EVEN ESTRATÉGICO (v82.6) ════════════ */

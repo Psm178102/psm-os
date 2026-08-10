@@ -422,11 +422,32 @@ class handler(BaseHTTPRequestHandler):
                     except Exception: pass
             orcamento = read_kv(sb, "viab_orcamento")
             orcamento.setdefault(str(ano), {}).setdefault(linha, {})
-            meses = range(1, 13) if mes == 0 else [mes]
-            for m in meses:
-                cur = orcamento[str(ano)][linha].get(str(m)) or {}
-                cur.update(clean)
-                orcamento[str(ano)][linha][str(m)] = cur
+            # v85.10 — 'por_mes': {mes: {campos}} grava VÁRIOS meses de uma vez
+            # (usado pelo "📥 puxar realizado do RD", que preenche mês a mês com
+            # valores diferentes). Sem isso seriam 12 requests e 12 re-renders.
+            por_mes = body.get("por_mes")
+            if isinstance(por_mes, dict) and por_mes:
+                for mk, cps in list(por_mes.items())[:12]:
+                    try:
+                        mi = int(mk)
+                    except Exception:
+                        continue
+                    if not (1 <= mi <= 12) or not isinstance(cps, dict):
+                        continue
+                    cur = orcamento[str(ano)][linha].get(str(mi)) or {}
+                    for k in NUM_FIELDS:
+                        if k in cps and cps[k] not in (None, ""):
+                            try:
+                                cur[k] = float(cps[k])
+                            except Exception:
+                                pass
+                    orcamento[str(ano)][linha][str(mi)] = cur
+            else:
+                meses = range(1, 13) if mes == 0 else [mes]
+                for m in meses:
+                    cur = orcamento[str(ano)][linha].get(str(m)) or {}
+                    cur.update(clean)
+                    orcamento[str(ano)][linha][str(m)] = cur
             write_kv(sb, "viab_orcamento", orcamento)
             audit(self, actor, "viab.set_orcamento", target_type="shared_kv", target_id=f"{ano}/{linha}/{mes}")
             return self._send(200, {"ok": True, "orcamento": orcamento.get(str(ano), {})})
