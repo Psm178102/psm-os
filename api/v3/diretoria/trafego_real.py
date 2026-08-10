@@ -141,12 +141,30 @@ def aplicar_nos_custos(sb, ano, efetivo):
     """Escreve o valor EFETIVO de cada marca/mês no item de custo 'traf_<marca>'.
     É isto que faz o tráfego entrar sozinho na conta cheia, no break-even e no
     Plano de Resgate: uma fonte só (Meta → item de custo), sem digitação.
-    Só grava se algo mudou de verdade — evita changelog e audit inúteis."""
+    Só grava se algo mudou de verdade — evita changelog e audit inúteis.
+
+    v85.17 — EXCLUSÃO MANUAL MANDA: em 10/ago o Paulo apagou os itens traf_* de
+    propósito e o sync os recriaria no ciclo seguinte, desfazendo a decisão dele.
+    Agora, se os itens sumiram DEPOIS de já terem sido aplicados uma vez, o
+    espelhamento se pausa sozinho (flag no kv do mapa) e fica pausado até alguém
+    religar salvando o mapa de contas pela tela."""
+    mapa_kv = read_kv(sb, KV_MAPA)
+    if mapa_kv.get("_espelhar") is False:
+        return {"aplicado": False, "motivo": "espelhamento pausado (itens de tráfego apagados manualmente)"}
     allkv = read_kv(sb, "viab_custos_orcado")
     cell = allkv.get(str(ano)) if isinstance(allkv.get(str(ano)), dict) else {}
     itens = cell.get("itens") if isinstance(cell.get("itens"), list) else []
     if not itens:
         return {"aplicado": False, "motivo": "custos do ano ainda não cadastrados"}
+    tem_traf = any(str(it.get("id") or "").startswith("traf_") for it in itens)
+    # já aplicou antes = flag OU um sync já registrado (cobre o estado anterior à flag,
+    # quando o Paulo apagou os itens antes de _ja_aplicou existir)
+    ja_aplicou = bool(mapa_kv.get("_ja_aplicou")) or bool(read_kv(sb, KV_REAL).get("_sync"))
+    if not tem_traf and ja_aplicou:
+        mapa_kv["_espelhar"] = False
+        write_kv(sb, KV_MAPA, mapa_kv)
+        return {"aplicado": False,
+                "motivo": "itens traf_* foram APAGADOS pela tela — espelhamento pausado pra respeitar a exclusão (religa salvando o mapa de contas)"}
     nomes = {"conquista": "PSM Conquista", "map": "PSM M.A.P", "terceiros": "PSM Terceiros", "locacoes": "PSM Locações"}
     mudou = []
     for marca in LINHA_IDS:
@@ -176,6 +194,9 @@ def aplicar_nos_custos(sb, ano, efetivo):
     cell["itens"] = itens
     allkv[str(ano)] = cell
     write_kv(sb, "viab_custos_orcado", allkv)
+    if not mapa_kv.get("_ja_aplicou"):
+        mapa_kv["_ja_aplicou"] = True
+        write_kv(sb, KV_MAPA, mapa_kv)
     return {"aplicado": True, "marcas": mudou}
 
 
@@ -244,13 +265,13 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             ano = datetime.now(timezone.utc).year
 
-        # 1) salvar o mapa conta → marca
+        # 1) salvar o mapa conta → marca — religa o espelhamento (intenção explícita)
         if isinstance(body.get("mapa"), dict):
-            limpo = {}
+            antes = read_kv(sb, KV_MAPA)
+            limpo = {"_ja_aplicou": bool(antes.get("_ja_aplicou")), "_espelhar": True}
             for k, v in body["mapa"].items():
                 if k in LINHA_IDS and isinstance(v, list):
                     limpo[k] = [str(a)[:60] for a in v if str(a).startswith("act_")][:10]
-            antes = read_kv(sb, KV_MAPA)
             write_kv(sb, KV_MAPA, limpo)
             audit(self, actor, "viab.trafego_mapa", target_type="shared_kv", target_id=KV_MAPA,
                   before=antes, after=limpo)
