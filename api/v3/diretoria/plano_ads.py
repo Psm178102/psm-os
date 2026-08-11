@@ -27,8 +27,10 @@ BRT = timezone(timedelta(hours=-3))
 def _fetch_meta(host, since, until):
     import urllib.request
     url = f"https://{host}/api/meta-ads?since={since}&until={until}"
+    _cs = os.environ.get("CRON_SECRET", "").strip()   # meta-ads exige auth desde a v86.0
     try:
-        with urllib.request.urlopen(urllib.request.Request(url), timeout=30) as r:
+        req = urllib.request.Request(url, headers={"Authorization": "Bearer " + _cs} if _cs else {})
+        with urllib.request.urlopen(req, timeout=30) as r:
             return json.loads(r.read().decode("utf-8")), None
     except Exception as e:
         return None, str(e)[:150]

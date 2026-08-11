@@ -18,6 +18,7 @@ Funções:
   write_cache(sb, key, preset, since, until, payload, source)
 """
 import json
+import os
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -73,9 +74,13 @@ def fetch_live(host, preset, since, until, nocache=False, timeout=30):
         qs_parts.append("nocache=1")
     url = "https://" + host + "/api/meta-ads?" + "&".join(qs_parts)
     try:
+        # v86.0 — o /api/meta-ads passou a exigir auth (JWT ou CRON_SECRET);
+        # chamadas internas se identificam com o CRON_SECRET do servidor.
+        _cs = os.environ.get("CRON_SECRET", "").strip()
         req = urllib.request.Request(url, headers={
             "Accept": "application/json",
             "User-Agent": "PSM-OS-v3/meta-cache",
+            **({"Authorization": "Bearer " + _cs} if _cs else {}),
         })
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8")), None

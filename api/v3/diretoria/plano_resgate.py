@@ -426,6 +426,18 @@ class handler(BaseHTTPRequestHandler):
                     break
             else:
                 return self._send(404, {"ok": False, "error": "mês não encontrado"})
+        elif action == "limpar_conta_cheia_kv":
+            # v86.0 — aposenta a conta cheia MANUAL: desde a v85.2 o número que vale
+            # é o CALCULADO dos Custos detalhados (custo_fixo_mes), e o kv antigo
+            # (105.295) só gerava aviso de divergência em todas as telas. Autorizado
+            # pelo Paulo em 10/ago. Snapshot do valor antigo fica no audit.
+            antes = (plano.get("constantes") or {}).get("conta_cheia_por_mes")
+            if antes is None:
+                return self._send(200, {"ok": True, "ja_limpo": True})
+            plano.setdefault("constantes", {}).pop("conta_cheia_por_mes", None)
+            audit(self, actor, "plano.limpar_conta_cheia_kv", target_type="shared_kv", target_id=KV_KEY,
+                  before={"conta_cheia_por_mes": antes}, after={"conta_cheia_por_mes": None},
+                  notes="fonte única = calculada (custo_fixo_mes); kv manual aposentado")
         elif action == "reset_seed":
             plano = json.loads(json.dumps(SEED))
         elif action == "migrar_v23":

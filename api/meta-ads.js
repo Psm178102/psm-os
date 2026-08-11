@@ -385,12 +385,39 @@ function fetchWithTimeoutOpts(url, ms, opts) {
   });
 }
 
+// v86.0 — AUTENTICAÇÃO OBRIGATÓRIA. Este endpoint expunha gasto, leads e CPL
+// de todas as contas pra QUALQUER pessoa com a URL (aberto desde a v75.7; achado
+// em 10/ago ao ligar o tráfego automático). Aceita: JWT de usuário logado
+// (mesmo HS256/JWT_SECRET do backend v3) OU o CRON_SECRET (chamadas internas).
+function metaAuthorized(req) {
+  var h = (req.headers && (req.headers.authorization || req.headers.Authorization)) || '';
+  var tok = String(h).replace(/^Bearer\s+/i, '').trim();
+  if (!tok) return false;
+  var cs = (process.env.CRON_SECRET || '').trim();
+  if (cs && tok === cs) return true;
+  var sec = (process.env.JWT_SECRET || '').trim();
+  if (!sec) return false;                    // sem secret configurado → nega (fail closed)
+  var p = tok.split('.');
+  if (p.length !== 3) return false;
+  try {
+    var crypto = require('crypto');
+    var sig = crypto.createHmac('sha256', sec).update(p[0] + '.' + p[1]).digest('base64')
+      .replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+    var a = Buffer.from(sig), b = Buffer.from(p[2]);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+    var payload = JSON.parse(Buffer.from(p[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+    if (payload.exp && Date.now() / 1000 > payload.exp) return false;
+    return true;
+  } catch (_) { return false; }
+}
+
 module.exports = async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
+  if (!metaAuthorized(req)) return res.status(401).json({ error: 'não autenticado' });
 
   // v75.26: POST = ação (pause/resume/adjust_budget)
   if (req.method === 'POST') {

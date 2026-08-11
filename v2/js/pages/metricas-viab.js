@@ -27,6 +27,7 @@ let _be = null;                                                  // cenário do 
 let _beSemPL = false;                                            // break-even: descontar pró-labore do fixo? (v83.5)
 let _divOpen = false;                                            // painel de divergências entre abas aberto? (v85.8)
 let _grupoCustos = 'recorrencia';                                // agrupamento da tabela de custos (v85.8)
+let _cenView = 'be';                                             // sub-view da aba Cenários: 'be' | 'sim' (v86.0)
 
 // v84.0 — LINHAS vem da FONTE ÚNICA de frentes (v2/js/frentes.js ↔ settings/frentes.py);
 // nome/ícone/cor/ativa editáveis pelo sócio valem aqui automaticamente.
@@ -516,45 +517,179 @@ async function load() {
   migrarCenLegado();   // cenários antigos do navegador → backend (1x, não bloqueia). v83.8
   render();
 }
+/* ═══════════ v86.0 · LAYOUT EXECUTIVO (validado pelo Paulo 10/ago) ═══════════
+   Paleta do design system PSM (marfim · verde profundo · terracota), serifa nos
+   números de destaque, faixa de KPIs sempre visível e 4 abas — uma pergunta por
+   tela. Toda a lógica de cálculo/edição anterior foi mantida; mudou a casca. */
+const VB_CSS = `
+#vb-root{--vbp:#F6F3EA;--vbc:#FFFEF9;--vbi:#26291F;--vbm:#6E6B5C;--vbh:#E7E2D2;--vbh2:#D3CDB8;
+ --vbg:#22392E;--vbgi:#F4F1E6;--vbgm:#9AAB9C;--vba:#B0512F;--vbok:#2F6B45;--vbbad:#A83B26;--vbwarn:#8F6A14;
+ font-family:"Avenir Next","Seravek","Segoe UI",system-ui,sans-serif;color:var(--vbi)}
+#vb-root .vb-serif{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+#vb-root .vb-mast{background:var(--vbg);color:var(--vbgi);border-radius:14px 14px 0 0;padding:16px 22px 0;margin:-16px -16px 0}
+#vb-root .vb-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));margin-top:12px;border-top:1px solid rgba(255,255,255,.12)}
+#vb-root .vb-kpi{padding:12px 16px 14px 0;border-right:1px solid rgba(255,255,255,.10);margin-right:16px}
+#vb-root .vb-kpi:last-child{border-right:0}
+#vb-root .vb-kpi .l{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--vbgm)}
+#vb-root .vb-kpi .v{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;font-size:24px;font-weight:600;margin-top:1px;font-variant-numeric:tabular-nums}
+#vb-root .vb-kpi .s{font-size:11px;color:var(--vbgm)}
+#vb-root .vb-tabs{display:flex;gap:24px;flex-wrap:wrap}
+#vb-root .vb-tabs button{background:none;border:0;color:var(--vbgm);font:inherit;font-size:12.5px;font-weight:600;letter-spacing:.04em;padding:11px 2px 12px;cursor:pointer;border-bottom:2px solid transparent}
+#vb-root .vb-tabs button.on{color:var(--vbgi);border-bottom-color:var(--vba)}
+#vb-root .vb-chip{font-size:10.5px;font-weight:600;letter-spacing:.05em;padding:3px 9px;border-radius:4px}
+#vb-root .vb-det{border:1px solid var(--vbh);border-radius:8px;background:var(--vbc);margin-top:10px}
+#vb-root .vb-det>summary{cursor:pointer;padding:11px 16px;font-size:12.5px;font-weight:600;color:var(--vba);list-style:none}
+#vb-root .vb-det>summary::before{content:"▸ ";font-size:10px}
+#vb-root .vb-det[open]>summary::before{content:"▾ "}
+#vb-root .vb-det>.vb-inner{padding:0 16px 14px}`;
+
+function kpiMes() {
+  const mr = mesRef();
+  const custo = custoMesTotal(mr);
+  let vgv = 0, vendas = 0, margem = 0, margemPond = 0, vgvOrc = 0;
+  LIDS.forEach(l => {
+    const r = realCell(l, mr); vgv += r.vgv; vendas += r.vendas;
+    const o = orcCell(l, mr);
+    const mp = (+o.com_bruta_pct || 0) - (+o.com_corretor_pct || 0) - (+o.com_senior_pct || 0) - (+o.com_gerente_pct || 0) - (+o.com_bruta_pct || 0) * (+o.aliquota_pct || 0) / 100;
+    margem += r.vgv * mp / 100;
+    margemPond += (o.vgv || 0) * mp; vgvOrc += (o.vgv || 0);
+  });
+  const hoje = new Date();
+  const nd = new Date(_ano, mr, 0).getDate();
+  const dia = (_ano === hoje.getFullYear() && mr === hoje.getMonth() + 1) ? hoje.getDate() : nd;
+  const margMedia = vgvOrc > 0 ? margemPond / vgvOrc : 1.8;   // % média ponderada pela meta
+  return { mr, custo, vgv, vendas, margem, margMedia,
+    cob: custo ? margem / custo * 100 : 0, esp: dia / nd * 100, dia, nd,
+    metaMes: vgvOrc, espVgv: vgvOrc * dia / nd };
+}
+
+const TAB_MAP = { resumo: 'mes', orcado: 'admin', realizado: 'ano', be: 'cenarios', sim: 'cenarios' };
+
 function render() {
-  _custoDetMemo = null; _trafMemo = null;   // recalcula custos e tráfego do zero a cada render
-  _vcharts.forEach(c => { try { c.destroy(); } catch (_) {} }); _vcharts = [];   // limpa gráficos da tela anterior (v83.4)
-  const tab = (id, lbl) => `<button class="btn ${_tab === id ? 'btn-primary' : 'btn-ghost'} btn-sm" data-vtab="${id}">${lbl}</button>`;
-  _root.innerHTML = `
-    <div class="card">
-      <div class="flex items-center gap-2" style="flex-wrap:wrap">
-        <h2 class="card-title" style="margin:0">🧪 Métricas de Viabilidade</h2>
-        <div class="flex" style="align-items:center;gap:4px;background:var(--bg-3);border-radius:8px;padding:2px;margin-left:6px">
-          <button class="btn btn-ghost btn-sm" data-ano="${_ano - 1}" style="padding:4px 9px">◄</button>
-          <span style="font-weight:800;min-width:52px;text-align:center">${_ano}</span>
-          <button class="btn btn-ghost btn-sm" data-ano="${_ano + 1}" style="padding:4px 9px" ${_ano >= new Date().getFullYear() ? 'disabled' : ''}>►</button>
-        </div>
-        <span class="tiny muted" id="viab-msg" style="margin-left:auto">${esc(_msg)}</span>
+  _custoDetMemo = null; _trafMemo = null;
+  _vcharts.forEach(c => { try { c.destroy(); } catch (_) {} }); _vcharts = [];
+  if (TAB_MAP[_tab]) _tab = TAB_MAP[_tab];
+  const k = kpiMes(), pj = projecaoAnoData();
+  const div = divergencias();
+  const erros = div.filter(d => d.tipo !== 'sim'), sims = div.filter(d => d.tipo === 'sim');
+  const tab = (id, lbl) => `<button class="${_tab === id ? 'on' : ''}" data-vtab="${id}">${lbl}</button>`;
+  const corCob = k.cob >= k.esp ? '#7CBC93' : k.cob >= k.esp * .6 ? '#D9B45E' : '#E4907B';
+  _root.innerHTML = `<div class="card" id="vb-root" style="padding-top:16px"><style>${VB_CSS}</style>
+    <div class="vb-mast">
+      <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap">
+        <span class="vb-serif" style="font-size:19px;font-weight:600">Métricas de Viabilidade</span>
+        <span style="font-size:11.5px;color:var(--vbgm)">Holding PSM · ${MES[k.mr - 1]} ${_ano} · dia ${k.dia} de ${k.nd} · RD CRM e Meta Ads em sincronização automática</span>
+        <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
+          <button class="btn btn-ghost btn-sm" data-ano="${_ano - 1}" style="padding:2px 8px;color:var(--vbgm)">◄</button>
+          <b style="color:var(--vbgi)">${_ano}</b>
+          <button class="btn btn-ghost btn-sm" data-ano="${_ano + 1}" style="padding:2px 8px;color:var(--vbgm)" ${_ano >= new Date().getFullYear() ? 'disabled' : ''}>►</button>
+          ${erros.length ? `<button id="viab-div-toggle" class="vb-chip" style="background:#D9B45E;color:#22392E;border:0;cursor:pointer">⚠ ${erros.length} DIVERGÊNCIA${erros.length > 1 ? 'S' : ''}</button>` : ''}
+          ${sims.length ? `<button id="viab-sim-toggle" class="vb-chip" style="background:rgba(255,255,255,.14);color:var(--vbgi);border:0;cursor:pointer">SIMULAÇÃO ATIVA</button>` : ''}
+        </span>
       </div>
-      <p class="card-sub">Orçado (plano) × Realizado (CRM + custo lançado) × Simulação — separados pra não confundir.</p>
-      <div class="flex gap-1 mt-2" style="flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:8px">
-        ${tab('resumo', '📊 Resumo')}
-        ${tab('orcado', '📋 Orçado (mensal)')}
-        ${tab('realizado', '📈 Realizado mês a mês')}
-        ${tab('be', '🎯 Break-even')}
-        ${tab('sim', '🧪 Simulador')}
+      <div class="vb-kpis" style="font-variant-numeric:tabular-nums">
+        <div class="vb-kpi"><div class="l">Custo do mês</div><div class="v">${fmt(k.custo)}</div><div class="s">${fmt(k.custo / k.nd)}/dia</div></div>
+        <div class="vb-kpi"><div class="l">Margem realizada · ${MESES_N3[k.mr - 1]}</div><div class="v" style="color:${k.margem > 0 ? 'var(--vbgi)' : '#E4907B'}">${fmt(k.margem)}</div><div class="s">${k.vendas} venda(s) · VGV ${fmtC(k.vgv)}</div></div>
+        <div class="vb-kpi"><div class="l">Cobertura do custo</div><div class="v" style="color:${corCob}">${k.cob.toFixed(0)}%</div><div class="s">esperado no dia ${k.dia}: ${k.esp.toFixed(0)}%</div></div>
+        <div class="vb-kpi"><div class="l">Projeção ${_ano}</div><div class="v">${pj ? fmtC(pj.projetado) : '—'}</div><div class="s">${pj && pj.atingProj != null ? pj.atingProj.toFixed(0) + '% da meta de ' + fmtC(pj.metaAno) : 'sem meses fechados'}</div></div>
       </div>
-      <div id="viab-body" class="mt-3"></div>
-    </div>`;
+      <nav class="vb-tabs">
+        ${tab('mes', 'VISÃO DO MÊS')}${tab('ano', 'RESULTADO ' + _ano)}${tab('cenarios', 'CENÁRIOS')}${tab('admin', 'ADMINISTRAR')}
+      </nav>
+    </div>
+    ${div.length && _divOpen ? `<div style="background:var(--vbg);color:var(--vbgi);margin:0 -16px;padding:10px 22px;font-size:12px">
+      ${div.map(d => `<div style="margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="flex:1;min-width:220px">${d.tipo === 'sim' ? '🧪' : '•'} ${d.txt}</span>
+        ${d.fix === 'salvar' ? '<button class="btn btn-sm" id="viab-fix-salvar" style="background:#7CBC93;border:0;color:#0D1410;font-weight:700">Salvar agora</button>' : ''}
+        ${d.fix === 'be' ? '<button class="btn btn-sm viab-fix-be" style="background:rgba(255,255,255,.9);border:0;color:#22392E;font-weight:700">Usar o orçado</button>' : ''}
+        ${d.fix === 'betraf' ? '<button class="btn btn-sm viab-fix-betraf" style="background:rgba(255,255,255,.9);border:0;color:#22392E;font-weight:700">Puxar tráfego orçado</button>' : ''}
+      </div>`).join('')}</div>` : ''}
+    <div style="display:flex;justify-content:flex-end"><span class="tiny muted" id="viab-msg" style="padding:4px 0">${esc(_msg)}</span></div>
+    <div id="viab-body"></div>
+  </div>`;
   _root.querySelectorAll('[data-vtab]').forEach(b => b.onclick = () => { _tab = b.dataset.vtab; render(); });
   _root.querySelectorAll('[data-ano]').forEach(b => { if (!b.disabled) b.onclick = () => { _ano = +b.dataset.ano; load(); }; });
   const body = document.getElementById('viab-body');
-  // v85.8 — a MESMA barra de âncora abre todas as abas: ninguém mais lê número
-  // diferente do outro sem que a tela avise (e ofereça o botão pra alinhar).
-  const anc = coerenciaBar();
-  if (_tab === 'resumo') { body.innerHTML = anc + renderResumo(); wireResumo(); }
-  else if (_tab === 'orcado') { body.innerHTML = anc + renderOrcado(); wireOrcado(); }
-  else if (_tab === 'realizado') { body.innerHTML = anc + renderRealizado(); wireRealizado(); }
-  else if (_tab === 'be') { body.innerHTML = anc + renderBE(); wireBE(); }
-  else { body.innerHTML = anc + renderSim(); wireSim(); }
+  if (_tab === 'mes') { body.innerHTML = renderMes(); wireMes(); }
+  else if (_tab === 'ano') { body.innerHTML = renderRealizado(); wireRealizado(); }
+  else if (_tab === 'cenarios') {
+    const sub = (id, lbl) => `<button class="btn ${_cenView === id ? 'btn-primary' : 'btn-ghost'} btn-sm" data-cenview="${id}">${lbl}</button>`;
+    body.innerHTML = `<div class="flex gap-1 mb-3" style="flex-wrap:wrap">${sub('be', 'Alavancas & break-even')}${sub('sim', 'Sandbox por frente')}</div>`
+      + (_cenView === 'sim' ? renderSim() : renderBE());
+    body.querySelectorAll('[data-cenview]').forEach(b => b.onclick = () => { _cenView = b.dataset.cenview; render(); });
+    if (_cenView === 'sim') wireSim(); else wireBE();
+  }
+  else { body.innerHTML = renderOrcado(); wireOrcado(); }
   wireCoerencia();
 }
 function flash(t) { _msg = t; const m = document.getElementById('viab-msg'); if (m) m.textContent = t; }
+
+/* ═══════════ ABA 'VISÃO DO MÊS' (v86.0) — "estou de pé este mês?" ═══════════ */
+function renderMes() {
+  const k = kpiMes();
+  const status = k.cob >= k.esp ? ['NO RITMO', 'var(--vbok)', '#EAF1EA'] :
+    k.cob >= k.esp * .6 ? ['ATENÇÃO', 'var(--vbwarn)', '#F5EEDC'] : ['ABAIXO DO RITMO', 'var(--vbbad)', '#F7EAE5'];
+  const vgvNec = k.margMedia > 0 ? k.custo / (k.margMedia / 100) : 0;
+  const vendaTipica = 272630, contribTipica = vendaTipica * k.margMedia / 100;
+  const frase = k.vendas === 0
+    ? `${MES[k.mr - 1]} chegou ao dia ${k.dia} <b>sem venda fechada</b>. Na margem média orçada (${pct(k.margMedia)}), cobrir o custo do mês exige <b class="num">≈ ${fmt(vgvNec)}</b> de VGV${k.metaMes ? `; a meta cadastrada é <b class="num">${fmt(k.metaMes)}</b> e o esperado até hoje era <b class="num">${fmt(k.espVgv)}</b>` : ''}. Uma venda típica <span class="num">(${fmtC(vendaTipica)})</span> contribui com <b class="num">${fmt(contribTipica)}</b> para o fixo.`
+    : `${MES[k.mr - 1]} tem <b class="num">${k.vendas} venda(s)</b> e <b class="num">${fmt(k.margem)}</b> de margem — ${k.cob.toFixed(0)}% do custo coberto (esperado no dia ${k.dia}: ${k.esp.toFixed(0)}%). ${k.cob >= 100 ? 'Custo do mês <b>pago</b>; daqui pra frente é lucro.' : `Faltam <b class="num">${fmt(Math.max(0, k.custo - k.margem))}</b> pra fechar a conta.`}`;
+  const _rd = resumoData();
+  const frentesRows = LINHAS.map(l => {
+    const d = _rd.frentes.find(f => f.l.id === l.id); if (!d) return '';
+    const rm = realCell(l.id, k.mr);
+    return `<tr><td style="font-weight:500">${esc(l.nome)}</td>
+      <td class="r num">${fmtC(rm.vgv)}</td><td class="r num">${rm.vendas}</td>
+      <td class="r num">${pct(d.margemPct)}</td><td class="r num">${fmt(rm.vgv * d.margemPct / 100)}</td></tr>`;
+  }).join('');
+  const traf = trafegoDet();
+  const trafRows = LINHAS.filter(l => trafReal(l.id, k.mr) > 0 || (traf.por[l.id] || {})[k.mr] > 0).map(l => {
+    const contas = ((_traf?.mapa || {})[l.id] || []).map(a => (_traf?.contas || {})[a] || a).join(' + ');
+    const noCusto = ((_custosOrc || []).some(i => i.id === 'traf_' + l.id));
+    return `<tr><td style="font-weight:500">${esc(l.nome)}</td>
+      <td class="r tiny muted">${esc(contas || '—')}</td>
+      <td class="r num">${fmt(trafReal(l.id, k.mr))}</td>
+      <td class="r"><span class="vb-chip" style="background:${noCusto ? '#EAF1EA' : '#EFEBDD'};color:${noCusto ? 'var(--vbok)' : 'var(--vbm)'}">${noCusto ? 'NO CUSTO' : 'NÃO SOMADO'}</span></td></tr>`;
+  }).join('');
+  const cats = custoPorCategoria();
+  const totCat = cats.reduce((s, c) => s + c.mes, 0) || 1;
+  const catRows = cats.slice(0, 8).map(c => `<tr><td>${esc(c.cat)}</td><td class="r num">${fmt(c.mes)}</td><td class="r num" style="color:var(--vbm)">${(c.mes / totCat * 100).toFixed(0)}%</td></tr>`).join('');
+  const T = `<style>#vb-root table{border-collapse:collapse;width:100%;font-size:13px}
+    #vb-root th{text-align:right;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--vbm);font-weight:600;padding:7px 10px;border-bottom:1px solid var(--vbh2)}
+    #vb-root th:first-child{text-align:left}
+    #vb-root td{padding:7px 10px;border-bottom:1px solid var(--vbh);text-align:right}
+    #vb-root td:first-child{text-align:left}#vb-root td.r{text-align:right}</style>`;
+  return T + `
+    <div style="background:var(--vbc);border:1px solid var(--vbh);border-radius:8px">
+      <div style="padding:11px 16px;border-bottom:1px solid var(--vbh);display:flex;justify-content:space-between;align-items:center">
+        <b style="font-size:13px">Situação de ${MES[k.mr - 1].toLowerCase()}</b>
+        <span class="vb-chip" style="background:${status[2]};color:${status[1]}">${status[0]}</span>
+      </div>
+      <div style="padding:14px 16px">
+        <p style="margin:0;max-width:70ch;font-size:13.5px">${frase}</p>
+        <div style="margin-top:14px">
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--vbm)" class="num"><span>Cobertura do custo do mês</span><span>${fmt(k.margem)} de ${fmt(k.custo)}</span></div>
+          <div style="height:6px;background:#EFEBDD;border-radius:3px;margin-top:5px;position:relative">
+            <div style="height:100%;width:${Math.min(100, k.cob).toFixed(1)}%;background:${status[1]};border-radius:3px"></div>
+            <span style="position:absolute;left:${k.esp.toFixed(1)}%;top:-3px;bottom:-3px;width:2px;background:var(--vbwarn)" title="esperado no dia ${k.dia} (${k.esp.toFixed(0)}%)"></span>
+          </div>
+          <div style="font-size:11px;color:var(--vbm);margin-top:4px">A marca amarela indica onde a cobertura deveria estar hoje.</div>
+        </div>
+      </div>
+    </div>
+    <details class="vb-det"><summary>Margem e desempenho por frente — ${MESES_N3[k.mr - 1]}</summary><div class="vb-inner">
+      <table class="num"><thead><tr><th>Frente</th><th>VGV no mês</th><th>Vendas</th><th>Margem</th><th>Contribuição</th></tr></thead><tbody>${frentesRows}</tbody></table>
+    </div></details>
+    <details class="vb-det"><summary>Mídia paga — cobrado pela Meta em ${MESES_N3[k.mr - 1]}</summary><div class="vb-inner">
+      ${trafRows ? `<table class="num"><thead><tr><th>Marca</th><th>Contas</th><th>Cobrado</th><th>Status no custo</th></tr></thead><tbody>${trafRows}</tbody></table>` : '<p class="tiny muted" style="margin:4px 0">Sem gasto de mídia registrado neste mês.</p>'}
+      <p class="tiny muted" style="margin:8px 0 0">Leitura automática das contas de anúncio. Ativação/edição do que entra no custo: aba Administrar.</p>
+    </div></details>
+    <details class="vb-det"><summary>Composição do custo — ${(_custosOrc || []).length} itens</summary><div class="vb-inner">
+      <table class="num"><tbody>${catRows}</tbody></table>
+      <p class="tiny muted" style="margin:8px 0 0">Edição item a item na aba Administrar.</p>
+    </div></details>`;
+}
+function wireMes() { /* aba de leitura — sem controles próprios */ }
 
 /* ════════════ ABA 1 · ORÇADO (mensal, editável) ════════════ */
 function orcSubTabs() {
@@ -896,13 +1031,15 @@ function renderCustosDet() {
       ${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;gap:4px;align-items:center;font-weight:600;cursor:pointer"><input type="checkbox" class="re-emp" value="${l.id}"${ratEmp().includes(l.id) ? ' checked' : ''}>${l.icon} ${l.nome}</label>`).join('')}
       <span class="tiny muted">desmarque quem não divide a estrutura (ex.: Terceiros). Salva na hora.</span>
     </div>
-    ${contaCheia}
-    ${perfilGastoHTML()}
     ${trafegoAlaHTML()}
-    ${timeline}
-    <div class="flex gap-2 mb-2" style="flex-wrap:wrap">${empChips}
-      <div style="flex:1;min-width:150px;background:var(--psm-navy);color:#fff;border-radius:8px;padding:8px 10px"><div class="tiny" style="opacity:.8">Total custos/ano</div><div style="font-weight:800;font-size:16px">${fmt(grand)}</div><div class="tiny" style="opacity:.85">Fixo ${fmtC(porClasse.fixo)} · Var ${fmtC(porClasse.variavel)} · Extra ${fmtC(porClasse.extra)} · Parc ${fmtC(porClasse.parcelado)}</div></div>
-    </div>
+    <details class="vb-det" style="margin-bottom:10px"><summary>Análises do orçamento — perfil do gasto · custo mês a mês · por empresa${diverge ? ' · ⚠ divergência com o plano' : ''}</summary><div class="vb-inner">
+      ${contaCheia}
+      ${perfilGastoHTML()}
+      ${timeline}
+      <div class="flex gap-2 mb-2" style="flex-wrap:wrap">${empChips}
+        <div style="flex:1;min-width:150px;background:var(--psm-navy);color:#fff;border-radius:8px;padding:8px 10px"><div class="tiny" style="opacity:.8">Total custos/ano</div><div style="font-weight:800;font-size:16px">${fmt(grand)}</div><div class="tiny" style="opacity:.85">Fixo ${fmtC(porClasse.fixo)} · Var ${fmtC(porClasse.variavel)} · Extra ${fmtC(porClasse.extra)} · Parc ${fmtC(porClasse.parcelado)}</div></div>
+      </div>
+    </div></details>
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center">
       <button class="btn ${_soPend ? 'btn-primary' : 'btn-ghost'} btn-sm" id="cd-pend-toggle">⚠ Pendentes de verificação (${nPend})</button>
       <button class="btn btn-ghost btn-sm" id="cd-changelog">🕘 O que mudou?</button>
