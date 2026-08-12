@@ -137,6 +137,17 @@ def montar_cfg(estado, u, cfg_motor, hub_meta):
             fontes[et] = tag_hub
     if hub_meta.get("atendimentos"):
         metas_etapas["lead"] = round(float(hub_meta["atendimentos"]), 1)
+    # monotonia: funil de META nunca cresce lead→pasta (misturar HUB + funil reverso
+    # pode conflitar — ex.: reverso pedir 141 contatos com teto HUB de 118 leads;
+    # a meta do HUB manda no teto)
+    prev = None
+    for et in ETAPAS[:-1]:
+        val = metas_etapas.get(et)
+        if val is None:
+            continue
+        if prev is not None and val > prev:
+            metas_etapas[et] = prev
+        prev = metas_etapas[et]
 
     return {
         "atendimentos_mes": atend,
