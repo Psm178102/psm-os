@@ -44,79 +44,50 @@ def _norm_email(s):
     return (str(s or "").strip().lower()) or None
 
 
-# ─── PSM HUB: metas por corretor (tolerante a formato — melhor esforço) ─────
-def _hub_metas_por_email(month, year):
-    """{email: {atendimentos?, vendas?, visitas?}} + erros. Caça campos numéricos
-    com nome reconhecível em metas_config/metas_metrics, ligados ao agente pelo
-    e-mail (via /api/agents). Formato desconhecido → simplesmente não acha (ok)."""
+# ─── PSM HUB: meta da EQUIPE do mês (lá a meta é team-level, não por corretor).
+# Shape real validado em 12/ago: /api/metas/metrics → {config:{metaVgv},
+# progress:{prospeccoes|agendamentos|visitas|pastas|vendas:{necessario}}}.
+# O rateio por corretor (÷ ativos) acontece no chamador. ─────────────────────
+def _hub_meta_equipe(month, year):
     if not hub_configured():
-        return {}, "PSMHUB_EMAIL/PSMHUB_PASSWORD não configurados"
-    mq = f"month={month}&year={year}"
+        return None, "PSMHUB_EMAIL/PSMHUB_PASSWORD não configurados"
     try:
-        agents = hub_get("/api/agents") or []
+        mm = hub_get(f"/api/metas/metrics?month={month}&year={year}") or {}
     except Exception as e:
-        return {}, f"agents: {str(e)[:120]}"
-    if isinstance(agents, dict):
-        agents = agents.get("agents") or agents.get("data") or agents.get("items") or []
-    email_by_id = {}
-    for a in agents if isinstance(agents, list) else []:
-        if not isinstance(a, dict):
-            continue
-        aid = a.get("id") or a.get("agentId") or a.get("_id")
-        em = _norm_email(a.get("userEmail") or a.get("email"))
-        if aid is not None and em:
-            email_by_id[str(aid)] = em
+        return None, f"metas/metrics: {str(e)[:120]}"
+    prog = mm.get("progress") or {}
 
-    blobs = []
-    for path in (f"/api/metas/config?{mq}", f"/api/metas/metrics?{mq}"):
-        try:
-            blobs.append(hub_get(path))
-        except Exception:
-            pass
+    def nec(k):
+        return _num((prog.get(k) or {}).get("necessario"), None)
 
-    CAMPO = {"atendimentos": ("atendimento", "atend"), "vendas": ("venda", "sales"),
-             "visitas": ("visita",)}
-    out = {}
-
-    def _cata(node):
-        """Varre recursivamente atrás de objetos ligados a um agente com metas."""
-        if isinstance(node, list):
-            for x in node:
-                _cata(x)
-            return
-        if not isinstance(node, dict):
-            return
-        aid = node.get("agentId") or node.get("agent_id") or node.get("userId")
-        em = _norm_email(node.get("userEmail") or node.get("email")) or \
-            (email_by_id.get(str(aid)) if aid is not None else None)
-        if em:
-            metas = out.setdefault(em, {})
-            for campo, subs in CAMPO.items():
-                if campo in metas:
-                    continue
-                for k, v in node.items():
-                    kl = str(k).lower()
-                    if any(s in kl for s in subs) and ("meta" in kl or kl in subs or "target" in kl or "goal" in kl):
-                        n = _num(v, None)
-                        if n is not None and n > 0:
-                            metas[campo] = n
-                            break
-        for v in node.values():
-            if isinstance(v, (dict, list)):
-                _cata(v)
-
-    for b in blobs:
-        try:
-            _cata(b)
-        except Exception:
-            pass
-    return {k: v for k, v in out.items() if v}, None
+    out = {"prospeccoes": nec("prospeccoes"), "agendamentos": nec("agendamentos"),
+           "visitas": nec("visitas"), "pastas": nec("pastas"), "vendas": nec("vendas"),
+           "meta_vgv": _num((mm.get("config") or {}).get("metaVgv"), None)}
+    if not any(v for v in out.values() if v):
+        return None, "HUB sem metas do mês (metas/metrics vazio)"
+    return out, None
 
 
-# ─── monta o cfg do norte a partir do estado calibrado + metas HUB ──────────
+def _rateio(hub_eq, n):
+    """Meta da equipe ÷ corretores ativos → meta individual (HUB manda)."""
+    if not hub_eq or n <= 0:
+        return None
+    div = lambda v: (round(v / n, 1) if v else None)
+    return {"atendimentos": div(hub_eq.get("prospeccoes")),
+            "agendamentos": div(hub_eq.get("agendamentos")),
+            "visitas": div(hub_eq.get("visitas")),
+            "pastas": div(hub_eq.get("pastas")),
+            "vendas": div(hub_eq.get("vendas")),
+            "n_corretores": n}
+
+
+# ─── monta o cfg do norte a partir do estado calibrado + rateio da meta HUB ──
 def montar_cfg(estado, u, cfg_motor, hub_meta):
+    """hub_meta = rateio individual (meta da EQUIPE no HUB ÷ corretores ativos)."""
     fontes = {}
     hub_meta = hub_meta or {}
+    n_hub = hub_meta.get("n_corretores")
+    tag_hub = f"hub_equipe÷{n_hub}" if n_hub else "hub"
     conv_geral = 0.0
     tot_leads = sum((c.get("leads") or 0) for c in (estado.get("canais") or []))
     if tot_leads:
@@ -131,7 +102,7 @@ def montar_cfg(estado, u, cfg_motor, hub_meta):
     fontes["canais"] = "rd" if canais else "vazio"
 
     if hub_meta.get("atendimentos"):
-        atend, fontes["atendimentos"] = round(hub_meta["atendimentos"]), "hub"
+        atend, fontes["atendimentos"] = round(hub_meta["atendimentos"]), tag_hub
     else:
         atend, fontes["atendimentos"] = round(_num(estado.get("volume_mensal_leads"))), "rd"
 
@@ -148,7 +119,7 @@ def montar_cfg(estado, u, cfg_motor, hub_meta):
     cen["atendimentos_mes"] = max(1, atend)
     sim = simulate(estado, cen, cfg_motor)
     if hub_meta.get("vendas"):
-        vendas_meta, fontes["vendas"] = float(hub_meta["vendas"]), "hub"
+        vendas_meta, fontes["vendas"] = float(hub_meta["vendas"]), tag_hub
     else:
         vendas_meta, fontes["vendas"] = max(0.5, round(sim["vendas_prev"], 1)), "rd_previsto"
     rows, _h = atividade_para(vendas_meta, {k: _num(v) for k, v in sim["taxas"].items()},
@@ -159,9 +130,13 @@ def montar_cfg(estado, u, cfg_motor, hub_meta):
         if metas_etapas[ETAPAS[mk]] is None:
             metas_etapas[ETAPAS[mk]] = round(r["valor"], 1)
     metas_etapas["venda"] = round(vendas_meta, 1)
-    if hub_meta.get("visitas"):
-        metas_etapas["visita"] = round(float(hub_meta["visitas"]), 1)
-        fontes["visitas"] = "hub"
+    # etapas que o HUB dita (meta da equipe rateada) SOBREPÕEM o funil reverso
+    for et, hk in (("agendamento", "agendamentos"), ("visita", "visitas"), ("pasta", "pastas")):
+        if hub_meta.get(hk):
+            metas_etapas[et] = round(float(hub_meta[hk]), 1)
+            fontes[et] = tag_hub
+    if hub_meta.get("atendimentos"):
+        metas_etapas["lead"] = round(float(hub_meta["atendimentos"]), 1)
 
     return {
         "atendimentos_mes": atend,
@@ -173,7 +148,7 @@ def montar_cfg(estado, u, cfg_motor, hub_meta):
     }, fontes
 
 
-def aplicar(sb, u, ym, cfg_motor, hub_metas, force, quem):
+def aplicar(sb, u, ym, cfg_motor, hub_rateio, force, quem):
     """Aplica o norte automático de UM corretor. Retorna (status, detalhe)."""
     uid = str(u.get("id"))
     key = f"oo_norte:{uid}:{ym}"
@@ -183,7 +158,7 @@ def aplicar(sb, u, ym, cfg_motor, hub_metas, force, quem):
     if cur and not cur.get("auto") and not force:
         return "manual", "norte editado por humano — automático não encosta"
     estado = calibrar(sb, uid, u, cfg_motor)
-    novo_campos, fontes = montar_cfg(estado, u, cfg_motor, hub_metas.get(_norm_email(u.get("email"))))
+    novo_campos, fontes = montar_cfg(estado, u, cfg_motor, hub_rateio)
     before = json.loads(json.dumps(cur)) if cur else None
     cfg = cur or {"changelog": []}
     cfg.update(novo_campos)
@@ -248,10 +223,12 @@ class handler(BaseHTTPRequestHandler):
         if self._is_cron():
             ym = f"{now.year:04d}-{now.month:02d}"
             cfg_motor = motor_cfg(sb)
-            hub_metas, hub_err = _hub_metas_por_email(now.month, now.year)
+            corrs = corretores_conquista(sb)
+            hub_eq, hub_err = _hub_meta_equipe(now.month, now.year)
+            rate = _rateio(hub_eq, len(corrs))
             res, aplicados = [], 0
-            for u in corretores_conquista(sb):
-                st, det = aplicar(sb, u, ym, cfg_motor, hub_metas, force=False,
+            for u in corrs:
+                st, det = aplicar(sb, u, ym, cfg_motor, rate, force=False,
                                   quem="⚙️ automático (cron RD+HUB)")
                 res.append({"corretor": u.get("name"), "status": st})
                 if st in ("criado", "atualizado"):
@@ -289,22 +266,24 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             return self._send(400, {"ok": False, "error": "ym inválido (YYYY-MM)"})
         cfg_motor = motor_cfg(sb)
-        hub_metas, hub_err = _hub_metas_por_email(m, y)
+        corrs = corretores_conquista(sb)
+        hub_eq, hub_err = _hub_meta_equipe(m, y)
+        rate = _rateio(hub_eq, len(corrs))
         out = []
-        for u in corretores_conquista(sb):
+        for u in corrs:
             key = f"oo_norte:{u.get('id')}:{ym}"
             cur, okr = _kv_read(sb, key)
             status = "erro_leitura" if not okr else \
                 ("vazio" if not cur else ("auto" if cur.get("auto") else "manual"))
             try:
                 estado = calibrar(sb, str(u.get("id")), u, cfg_motor)
-                proposto, fontes = montar_cfg(estado, u, cfg_motor,
-                                              hub_metas.get(_norm_email(u.get("email"))))
+                proposto, fontes = montar_cfg(estado, u, cfg_motor, rate)
             except Exception as e:
                 proposto, fontes = None, {"erro": str(e)[:120]}
             out.append({"corretor_id": u.get("id"), "nome": u.get("name"),
                         "status_atual": status, "proposto": proposto, "fontes": fontes})
         return self._send(200, {"ok": True, "ym": ym, "hub_ok": not hub_err, "hub_err": hub_err,
+                                "hub_meta_equipe": hub_eq, "rateio": rate,
                                 "corretores": out,
                                 "regra": "grava só VAZIO ou AUTO; manual exige force (clique explícito)"})
 
@@ -332,9 +311,10 @@ class handler(BaseHTTPRequestHandler):
         force = bool(body.get("force"))
         quem = f"⚡ auto (RD+HUB) por {user.get('name') or user.get('email')}"
         cfg_motor = motor_cfg(sb)
-        hub_metas, hub_err = _hub_metas_por_email(m, y)
-
         alvos = corretores_conquista(sb)
+        hub_eq, hub_err = _hub_meta_equipe(m, y)
+        rate = _rateio(hub_eq, len(alvos))   # rateio pela equipe TODA, mesmo aplicando em 1
+
         cid = body.get("corretor_id")
         if cid:
             alvos = [u for u in alvos if str(u.get("id")) == str(cid)]
@@ -346,7 +326,7 @@ class handler(BaseHTTPRequestHandler):
 
         res, aplicados = [], 0
         for u in alvos:
-            st, det = aplicar(sb, u, ym, cfg_motor, hub_metas, force=force, quem=quem)
+            st, det = aplicar(sb, u, ym, cfg_motor, rate, force=force, quem=quem)
             if st in ("criado", "atualizado"):
                 aplicados += 1
                 audit(self, user, "oo_norte.auto", target_type="oo_norte",

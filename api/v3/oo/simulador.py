@@ -565,10 +565,14 @@ def calibrar(sb, uid, u, cfg, dias=90):
     # 🔁 v86.2: equipe com funil RD espelhado (MAP) — etapas EXATAMENTE iguais em
     # quantidade e nomenclatura ao funil do RD CRM (regra do Paulo: etapa diferente
     # = métrica divergente). Substitui funil/passagens/taxas/cadeia do estado.
+    # rd_debug fica na resposta (sócio-only) — erro engolido aqui virou funil
+    # canônico silencioso na v86.2/3 e ninguém sabia o porquê.
     try:
         rd = _calibrar_rd(sb, u, cfg, deals, events, since_dt, until_dt)
-    except Exception:
+        est["rd_debug"] = None if rd else "nenhum funil RD casou com o time (funil_rd_por_time / rd_stages)"
+    except Exception as e:
         rd = None
+        est["rd_debug"] = f"{type(e).__name__}: {str(e)[:200]}"
     if rd:
         est.update(rd)
     return est
@@ -626,15 +630,19 @@ def _calibrar_rd(sb, u, cfg, deals, events, since_dt, until_dt):
             break
     if not alvo:
         return None
-    try:
-        stages_rows = sb.table("rd_stages").select("*").execute().data or []
-        pipes_rows = sb.table("rd_pipelines").select("id,external_id,name").execute().data or []
-    except Exception:
-        return None
+    stages_rows = sb.table("rd_stages").select("*").execute().data or []
+    pipes_rows = sb.table("rd_pipelines").select("*").execute().data or []
     pos_by_id, by_pipe, pipe_names = build_stage_maps(stages_rows, pipes_rows)
-    # ids candidatos do funil (id E external_id apontam pro mesmo nome)
-    pids = {str(k) for k, nm in pipe_names.items() if alvo in (nm or "").lower()}
-    pid = next((p for p in pids if p in by_pipe and len(by_pipe[p]) >= 2), None)
+    # ids candidatos do funil (id E external_id apontam pro mesmo nome). Pode haver
+    # mais de um funil com o termo (ex.: 'FUNIL MAP' e 'CARTEIRA MAP PAULO') —
+    # fica o que tem MAIS etapas; empate desempata por nome começando com 'funil'.
+    cands = []
+    for k, nm in pipe_names.items():
+        p = str(k)
+        if alvo in (nm or "").lower() and p in by_pipe and len(by_pipe[p]) >= 2:
+            cands.append((len(by_pipe[p]), (nm or "").lower().startswith("funil"), p))
+    cands.sort(reverse=True)
+    pid = cands[0][2] if cands else None
     if not pid:
         return None
     stages = by_pipe[pid]                      # [(pos, nome)] ordenado
