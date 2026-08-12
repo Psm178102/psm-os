@@ -96,10 +96,13 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        # 🔒 One-on-One é ferramenta de GESTÃO: só socio/gerente/líder (lvl>=5).
-        # O CORRETOR não vê o 1:1 — nem o dele mesmo (decisão do sócio, v79.9).
+        # 🔓 v86.3 (decisão do Paulo, 12/ago — reverte a v79.9): o CORRETOR vê o
+        # 1:1 DELE (métricas e dados APENAS dele). Gestão (lvl>=5) segue vendo
+        # qualquer um. Dados SENSÍVEIS (investimento em ads, CPL, custo fixo/total)
+        # saem da resposta quando o viewer é o próprio corretor — só gestor/diretor/
+        # sócio enxergam custo.
         try:
-            user = require_user(self, min_lvl=5)
+            user = require_user(self, min_lvl=0)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
 
@@ -110,6 +113,11 @@ class handler(BaseHTTPRequestHandler):
         cid = params.get("corretor_id")
         if not cid:
             return self._send(400, {"ok": False, "error": "corretor_id obrigatório"})
+        lvl = user.get("lvl") or 0
+        is_self = str(cid) == str(user.get("id"))
+        if not is_self and lvl < 5:
+            return self._send(403, {"ok": False, "error": "sem permissão — corretor vê só o próprio 1:1"})
+        self_view = is_self and lvl < 5   # corretor olhando o PRÓPRIO cockpit
 
         sb = supabase_client()
         if not sb:
@@ -153,38 +161,41 @@ class handler(BaseHTTPRequestHandler):
 
         # ── 💸 Investimento em ads do corretor — CPL da CONTA da equipe × leads do corretor.
         # Cada equipe roda numa conta de anúncios (ex.: 'Conquista' → conta 'PSM Conquista').
-        # Usa o CPL REAL daquela conta (gasto Meta ÷ leads Meta da conta); fallback = CPL global. ──
-        _ma = read_meta_accounts(sb)
-        _ovr = read_team_account_override(sb)
-        _mc = read_meta_campaigns(sb)        # CPL por campanha (atribuição EXATA por lead)
+        # Usa o CPL REAL daquela conta (gasto Meta ÷ leads Meta da conta); fallback = CPL global.
+        # 🔒 SENSÍVEL: corretor olhando o próprio 1:1 NÃO recebe ads/CPL/custo (v86.3). ──
+        if not self_view:
+            _ma = read_meta_accounts(sb)
+            _ovr = read_team_account_override(sb)
+            _mc = read_meta_campaigns(sb)        # CPL por campanha (atribuição EXATA por lead)
 
-        def _ads_invest(team, deals_subset):
-            acc = match_team_account(_ma["accounts"], team, _ovr)
-            team_cpl = acc["cpl"] if (acc and acc.get("cpl") is not None) else None
-            r = compute_ads_invest(deals_subset, since_d, until_d, _mc, team_cpl, _ma["global_cpl"], acc["label"] if acc else None)
-            r["cpl_team"] = team_cpl
-            r["cpl_global"] = _ma["global_cpl"]
-            r["acct_label"] = acc["label"] if acc else None
-            r["acct_id"] = acc["id"] if acc else None
-            r["acct_spend"] = acc["spend"] if acc else None
-            r["acct_leads"] = acc["leads"] if acc else None
-            r["base"] = ("equipe" if team_cpl is not None else ("global" if _ma["global_cpl"] else None))
-            return r
-        metrics["ads_invest"] = _ads_invest(u.get("team"), deals)
-        metrics["cpl_global"] = _ma["global_cpl"]                       # compat UI
-        metrics["lead_invest"] = metrics["ads_invest"]["invest"]       # compat UI
+            def _ads_invest(team, deals_subset):
+                acc = match_team_account(_ma["accounts"], team, _ovr)
+                team_cpl = acc["cpl"] if (acc and acc.get("cpl") is not None) else None
+                r = compute_ads_invest(deals_subset, since_d, until_d, _mc, team_cpl, _ma["global_cpl"], acc["label"] if acc else None)
+                r["cpl_team"] = team_cpl
+                r["cpl_global"] = _ma["global_cpl"]
+                r["acct_label"] = acc["label"] if acc else None
+                r["acct_id"] = acc["id"] if acc else None
+                r["acct_spend"] = acc["spend"] if acc else None
+                r["acct_leads"] = acc["leads"] if acc else None
+                r["base"] = ("equipe" if team_cpl is not None else ("global" if _ma["global_cpl"] else None))
+                return r
+            metrics["ads_invest"] = _ads_invest(u.get("team"), deals)
+            metrics["cpl_global"] = _ma["global_cpl"]                       # compat UI
+            metrics["lead_invest"] = metrics["ads_invest"]["invest"]       # compat UI
 
-        # 💰 Custo total do corretor = investimento em ads (período) + custo fixo (mensal).
-        _cf = read_custos_corretor(sb)
-        def _cf_of(_uid, _team):
-            return round(_cf["users"].get(str(_uid), 0.0) + _cf["teams"].get((_team or "").strip().lower(), 0.0), 2)
-        _cf_corr = _cf_of(cid, u.get("team"))
-        _ads = metrics["ads_invest"]["invest"] or 0
-        metrics["custo_fixo"] = _cf_corr
-        metrics["custo_total"] = round(_ads + _cf_corr, 2)
+            # 💰 Custo total do corretor = investimento em ads (período) + custo fixo (mensal).
+            _cf = read_custos_corretor(sb)
+            def _cf_of(_uid, _team):
+                return round(_cf["users"].get(str(_uid), 0.0) + _cf["teams"].get((_team or "").strip().lower(), 0.0), 2)
+            _cf_corr = _cf_of(cid, u.get("team"))
+            _ads = metrics["ads_invest"]["invest"] or 0
+            metrics["custo_fixo"] = _cf_corr
+            metrics["custo_total"] = round(_ads + _cf_corr, 2)
 
         resp = {
             "ok": True,
+            "self_view": self_view,
             "corretor": {"id": u.get("id"), "name": u.get("name"), "email": u.get("email"),
                          "role": u.get("role"), "team": u.get("team"),
                          "ini": u.get("ini"), "color": u.get("color")},

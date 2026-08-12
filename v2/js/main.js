@@ -233,7 +233,7 @@ export const ROUTE_MIN_LVL = {
   '/ponte': 7,            // Fila da Ponte: fechamento próprio Paulo/Isa
   '/minha-producao': 2,   // Meu Acompanhamento: o colaborador vê SÓ o próprio card/semáforo
   '/campanha-wa': 5,      // disparo de campanha — não p/ corretor
-  '/one-on-one': 5,       // visão de gestor do 1:1
+  '/one-on-one': 2,       // v86.3: corretor vê o 1:1 DELE (gestor lvl>=5 vê todos; sensível some no backend)
   '/cerebro-vendas': 5,   // inteligência de vendas (líder+)
   '/briefing-guerra': 7,  // briefing estratégico (diretoria)
   '/academy-studio': 5,   // produção/construção da Academy — só time que constrói (líder+)
@@ -413,7 +413,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.2';
+const APP_VERSION = '86.3';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {

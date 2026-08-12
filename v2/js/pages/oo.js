@@ -62,13 +62,23 @@ function presetRange(id) {
 
 export async function pageOO(ctx, root) {
   _root = root;
-  if ((auth.user()?.lvl || 0) < 5) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder ou acima.</div>'; return; }
+  // 🙋 v86.3: corretor (lvl<5) abre DIRETO o 1:1 dele — sem lista, sem dados de
+  // outros; o backend corta os campos sensíveis (ads/CPL/custos).
+  if ((auth.user()?.lvl || 0) < 5) {
+    const meId = auth.user()?.id;
+    if (!meId) { root.innerHTML = '<div class="alert alert-warn">Sessão inválida — faça login de novo.</div>'; return; }
+    _selId = meId; _view = 'detail';
+    await loadDetail();
+    return;
+  }
   // deep-link vindo do Organograma
   const pre = sessionStorage.getItem('oo.open');
   if (pre) { sessionStorage.removeItem('oo.open'); _selId = pre; _view = 'detail'; }
   if (_view === 'detail' && _selId) await loadDetail();
   else await loadList();
 }
+
+const isSelfView = () => (auth.user()?.lvl || 0) < 5;
 
 /* ───────────────────────── LISTA ───────────────────────── */
 async function loadList() {
@@ -170,13 +180,16 @@ function renderDetail() {
     if (_sim) renderSim(); else loadSim();
     return;
   }
-  // Corretor = cockpit individual.
+  // Corretor = cockpit individual. selfView = o PRÓPRIO corretor olhando (v86.3):
+  // sem lista/reunião/RH360, e os painéis de custo (ads/CPL/custo fixo) nem chegam
+  // do backend — só gestor/diretor/sócio veem dado sensível.
+  const selfView = isSelfView();
   _root.innerHTML = `
     <div class="card">
       <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
-        <button class="btn btn-ghost" id="oo-back">← Corretores</button>
+        ${selfView ? `<h2 class="card-title" style="margin:0">📊 Meu One-on-One</h2>` : '<button class="btn btn-ghost" id="oo-back">← Corretores</button>'}
         ${periodSel()}
-        <button class="btn btn-primary" id="oo-new" style="margin-left:auto">+ Reunião 1:1</button>
+        ${selfView ? '' : '<button class="btn btn-primary" id="oo-new" style="margin-left:auto">+ Reunião 1:1</button>'}
       </div>
       ${detailHeader(d, c)}
       ${ooTabBar()}
@@ -186,8 +199,8 @@ function renderDetail() {
         <div>${kpiVsMeta(d)}</div>
       </div>
       <div style="margin-top:14px">${efficiencyPanel(d)}</div>
-      <div style="margin-top:14px">${adsInvestPanel(d, 'corretor')}</div>
-      <div style="margin-top:14px">${custoTotalPanel(d, 'corretor')}</div>
+      ${d.ads_invest ? `<div style="margin-top:14px">${adsInvestPanel(d, 'corretor')}</div>` : ''}
+      ${d.custo_total != null ? `<div style="margin-top:14px">${custoTotalPanel(d, 'corretor')}</div>` : ''}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
         ${reverseFunnelPanel(d)}
         ${projecaoPanel(d)}
@@ -197,9 +210,10 @@ function renderDetail() {
         ${originPanel(d)}
         ${lossPanel(d)}
       </div>
+      <div id="oo-ranking" class="mt-3"></div>
       ${trendPanel(d, escapeHtml(c.name))}
-      ${meetingsPanel()}
-      <div id="oo-rh360" class="mt-3"><div class="muted tiny"><span class="spinner"></span> Cruzando dados de RH…</div></div>
+      ${selfView ? '' : meetingsPanel()}
+      ${selfView ? '' : '<div id="oo-rh360" class="mt-3"><div class="muted tiny"><span class="spinner"></span> Cruzando dados de RH…</div></div>'}
       <div id="modal-oo" style="display:none"></div>
     </div>`;
   wireDetailCommon();
@@ -273,10 +287,61 @@ function wireDetailCommon() {
   });
   wirePeriod(loadDetail);
   loadDefasagem();   // ⏳ MAP: venda de hoje ↔ atividade de N meses atrás (v86.1)
+  loadOORanking();   // 🏅 ranking geral + da equipe do corretor (v86.3)
   _root.querySelectorAll('[data-member]').forEach(el => el.addEventListener('click', () => { _selId = el.dataset.member; loadDetail(); }));
   _root.querySelectorAll('[data-meet]').forEach(el => el.addEventListener('click', () => openMeeting(parseInt(el.dataset.meet))));
   _root.querySelectorAll('[data-pdi]').forEach(el => el.addEventListener('change', () => togglePdi(parseInt(el.dataset.pdi), parseInt(el.dataset.idx), el.checked)));
-  if (_det && _det.corretor) loadRH360(_det.corretor);   // visão 360° RH (cruza módulos). v81.96
+  if (_det && _det.corretor && !isSelfView()) loadRH360(_det.corretor);   // visão 360° RH — gestão (v81.96)
+}
+
+/* 🏅 Ranking no 1:1 do corretor (v86.3): GERAL + o da EQUIPE dele, com a posição
+   destacada. Mesmas fontes da página Ranking (VGV do ano via RD + papéis/equipes);
+   sócio/diretor/gerente e hide_from_ranking ficam de fora, como lá. */
+async function loadOORanking() {
+  const host = document.getElementById('oo-ranking');
+  if (!host || !_det?.corretor) return;
+  host.innerHTML = `<div class="tiny muted"><span class="spinner"></span> Carregando ranking…</div>`;
+  const ano = new Date().getFullYear();
+  try {
+    const [act, atin] = await Promise.all([
+      api.request('/api/v3/metrics/activity_ranking?days=30&limit=50'),
+      api.request('/api/v3/metas/atingimento?ano=' + ano).catch(() => null),
+    ]);
+    const byUser = {};
+    (act.ranking || []).forEach(u => { byUser[u.id] = { ...u, vgv: 0, vendas: 0 }; });
+    ((atin || {}).grid || []).forEach(g => {
+      const u = byUser[g.user?.id];
+      if (u) { u.vgv = g.totals?.atingido_vgv || 0; u.vendas = g.totals?.vendas_count || 0; }
+    });
+    // mesma régua da página Ranking: gestão não compete
+    const comp = Object.values(byUser).filter(u => !['socio', 'diretor', 'gerente'].includes((u.role || '').toLowerCase()));
+    const geral = comp.slice().sort((a, b) => (b.vgv - a.vgv) || ((b.vendas || 0) - (a.vendas || 0)) || ((b.score || 0) - (a.score || 0)));
+    const tkey = (_det.corretor.team || '').trim().toLowerCase();
+    const equipe = geral.filter(u => (u.team || '').trim().toLowerCase() === tkey);
+    if (!geral.length) { host.innerHTML = ''; return; }
+
+    const linha = (u, pos) => {
+      const eu = u.id === _selId;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:8px;${eu ? 'background:#eff6ff;border:1px solid #bfdbfe;font-weight:800' : ''}">
+        <span style="min-width:26px;font-weight:800;color:${pos <= 3 ? '#d97706' : 'var(--ink-muted)'}">${pos <= 3 ? ['🥇', '🥈', '🥉'][pos - 1] : pos + 'º'}</span>
+        <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px">${escapeHtml(u.name || '?')}${eu ? ' (ele)' : ''}</span>
+        <span style="font-size:11.5px;white-space:nowrap"><b>R$ ${moneyShort(u.vgv || 0)}</b> · ${u.vendas || 0}v</span>
+      </div>`;
+    };
+    const lista = (arr) => {
+      const idx = arr.findIndex(u => u.id === _selId);
+      const top = arr.slice(0, 8).map((u, i) => linha(u, i + 1)).join('');
+      const fora = idx >= 8 ? `<div class="tiny muted" style="text-align:center;padding:2px">⋯</div>${linha(arr[idx], idx + 1)}` : '';
+      const rodape = idx >= 0 ? `<div class="tiny muted" style="margin-top:4px">Posição: <b>${idx + 1}º</b> de ${arr.length}</div>` : '';
+      return `<div style="display:grid;gap:3px">${top}${fora}</div>${rodape}`;
+    };
+    host.innerHTML = panel(`🏅 Ranking VGV ${ano} — geral × equipe`, `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
+        <div><div style="font-weight:800;font-size:12px;margin-bottom:5px">🌎 Geral (${geral.length} corretores)</div>${lista(geral)}</div>
+        <div><div style="font-weight:800;font-size:12px;margin-bottom:5px">🛡 Equipe ${escapeHtml(_det.corretor.team || '—')} (${equipe.length})</div>${equipe.length ? lista(equipe) : '<div class="tiny muted">Sem outros corretores na equipe.</div>'}</div>
+      </div>
+      <div class="tiny muted" style="margin-top:6px">VGV e vendas do ano via RD CRM (mesma fonte da página Ranking); gestão e ocultos não competem.</div>`);
+  } catch { host.innerHTML = ''; }
 }
 
 function gestorHeader(d) {
@@ -856,14 +921,16 @@ function nortePanel(d) {
   const n = _norte;
   if (!n || !n.ok) return panel('🎯 Norte do Mês · Meta × Realizado', '<div class="tiny muted">Meta do mês indisponível agora — recarrega a página ou tenta de novo.</div>');
   const btns = `<div class="flex gap-2" style="margin-top:10px;flex-wrap:wrap;align-items:center">
-      <button class="btn btn-primary btn-sm" id="norte-edit">⚙️ ${n.meses_com_meta ? 'Ajustar meta' : 'Definir meta do mês'}</button>
-      ${(n.changelog || []).length ? '<button class="btn btn-ghost btn-sm" id="norte-log">🕘 O que mudou?</button>' : ''}
+      ${isSelfView() ? '' : `<button class="btn btn-primary btn-sm" id="norte-edit">⚙️ ${n.meses_com_meta ? 'Ajustar meta' : 'Definir meta do mês'}</button>`}
+      ${(n.changelog || []).length && !isSelfView() ? '<button class="btn btn-ghost btn-sm" id="norte-log">🕘 O que mudou?</button>' : ''}
       ${n.read_fail ? '<span class="tiny" style="color:#d97706">⚠ leitura parcial do banco — números podem estar incompletos</span>' : ''}
     </div>
     <div id="norte-log-box" style="display:none;margin-top:8px">${norteChangelog(n.changelog)}</div>`;
   if (!n.meses_com_meta) {
     return panel('🎯 Norte do Mês · Meta × Realizado',
-      `<div class="tiny muted">Nenhuma meta definida pro período selecionado. Defina o norte do mês — atendimentos, mix por canal (igual à planilha) e metas por etapa do funil. O quadro compara meta × realizado puxando direto do RD CRM, todos os dias, sozinho.</div>${btns}`);
+      isSelfView()
+        ? '<div class="tiny muted">Seu gestor ainda não definiu a meta deste período — ela aparece aqui (e no seu Norte do Dia) assim que for definida no 1:1.</div>'
+        : `<div class="tiny muted">Nenhuma meta definida pro período selecionado. Defina o norte do mês — atendimentos, mix por canal (igual à planilha) e metas por etapa do funil. O quadro compara meta × realizado puxando direto do RD CRM, todos os dias, sozinho.</div>${btns}`);
   }
   const comp = n.computed || {}, pace = n.pace, fm = n.funil_meta_periodo || {}, mp = n.meta_periodo || {}, kp = d.kpis || {};
   const stages = d.funnel || [];
