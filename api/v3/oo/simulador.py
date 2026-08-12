@@ -652,6 +652,11 @@ def _calibrar_rd(sb, u, cfg, deals, events, since_dt, until_dt):
     pid = cands[0][2] if cands else None
     if not pid:
         return None
+    # aliases do funil escolhido (id E external_id apontam pro MESMO nome) —
+    # deals/stage podem referenciar qualquer variante
+    nome_pid = pipe_names.get(pid)
+    pids = {k for k, nm in pipe_names.items() if nm == nome_pid}
+    pids.add(pid)
     stages = by_pipe[pid]                      # [(pos, nome)] ordenado
     marcos = _marcos_monotonicos(stages)
     tempos_cfg = cfg.get("tempos_min") or {}
