@@ -276,8 +276,28 @@ class handler(BaseHTTPRequestHandler):
         if params.get("realizado") == "1":
             realizado = _realizado(sb, cid, since_d, until_d, today)
 
+        # ⏳ v86.1 (ADITIVO — não muda cálculo nenhum): defasagem venda↔atividade
+        # da equipe do corretor (MAP ~3 meses), lida da config do motor (oo_motor_config).
+        defasagem = 1
+        try:
+            trs = sb.table("users").select("team").eq("id", cid).limit(1).execute().data or []
+            tm = ((trs[0].get("team") if trs else "") or "").strip().lower()
+            drow = (sb.table("shared_kv").select("value").eq("key", "oo_motor_config")
+                    .limit(1).execute().data or [])
+            dv = (drow[0].get("value") if drow else None) or {}
+            if isinstance(dv, str):
+                dv = json.loads(dv)
+            dm = (dv.get("defasagem_meses") if isinstance(dv, dict) else None) or {"map": 3, "conquista": 1}
+            for k, v in dm.items():
+                if k and k in tm:
+                    defasagem = max(1, int(v))
+                    break
+        except Exception:
+            defasagem = 1
+
         return self._send(200, {
             "ok": True,
+            "defasagem_meses": defasagem,
             "corretor_id": cid,
             "realizado": realizado,
             "period": {"since": since_d.isoformat(), "until": until_d.isoformat()},

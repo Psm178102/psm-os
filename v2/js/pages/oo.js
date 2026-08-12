@@ -13,6 +13,12 @@ let _norte = null;             // 🎯 meta do mês (norte) do corretor selecion
 let _meet = [];                // reuniões 1:1 do corretor
 let _users = [];
 let _scope = 'individual';     // 'individual' | 'equipe' (só líderes têm equipe)
+/* 🧪 Simulador (v86.1) — aba individual por corretor, sócio-only */
+let _dtab = 'cockpit';         // 'cockpit' | 'simulador'
+let _sim = null;               // estado calibrado (GET /oo/simulador)
+let _simCen = null;            // cenário em edição
+let _simRes = null;            // último resultado simulado
+let _simTimer = null;
 
 const PRESETS = [
   { id: 'hoje', lbl: 'Hoje' },
@@ -127,6 +133,7 @@ function brokerCard(c) {
 /* ───────────────────────── DETALHE ───────────────────────── */
 async function loadDetail() {
   _view = 'detail';
+  if (_sim && _sim.corretor && _sim.corretor.id !== _selId) { _sim = null; _simCen = null; _simRes = null; _dtab = 'cockpit'; }
   _root.innerHTML = spinner('Carregando cockpit do corretor…');
   try {
     const [d, m, u, n] = await Promise.all([
@@ -145,6 +152,24 @@ function renderDetail() {
   const d = _det, c = d.corretor;
   // Líder/Gerente = cockpit de GESTÃO da equipe (não é avaliado como corretor).
   if (['lider', 'gerente'].includes((c.role || '').toLowerCase()) && d.team && d.team.metrics) { renderGestor(d, c); return; }
+  // 🧪 Aba Simulador (sócio-only) — motor de meta individual (v86.1)
+  if (_dtab === 'simulador' && (auth.user()?.lvl || 0) >= 10) {
+    _root.innerHTML = `
+      <div class="card">
+        <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
+          <button class="btn btn-ghost" id="oo-back">← Corretores</button>
+          <span class="tiny muted">Janela fixa de calibração: últimos 90 dias (RD CRM)</span>
+          <button class="btn btn-primary" id="oo-new" style="margin-left:auto">+ Reunião 1:1</button>
+        </div>
+        ${detailHeader(d, c)}
+        ${ooTabBar()}
+        <div id="oo-sim" class="mt-3">${_sim ? '' : spinner('Calibrando com o RD (últimos 90 dias)…')}</div>
+        <div id="modal-oo" style="display:none"></div>
+      </div>`;
+    wireTabsCommon();
+    if (_sim) renderSim(); else loadSim();
+    return;
+  }
   // Corretor = cockpit individual.
   _root.innerHTML = `
     <div class="card">
@@ -154,6 +179,7 @@ function renderDetail() {
         <button class="btn btn-primary" id="oo-new" style="margin-left:auto">+ Reunião 1:1</button>
       </div>
       ${detailHeader(d, c)}
+      ${ooTabBar()}
       <div style="margin-top:14px">${nortePanel(d)}</div>
       <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:14px;align-items:start">
         <div>${funnelPanel(d)}</div>
@@ -220,15 +246,33 @@ function renderGestor(d, c) {
   wireDetailCommon();
 }
 
+/* 🧪 Abas do 1:1 individual (Cockpit | Simulador) — Simulador é sócio-only */
+function ooTabBar() {
+  if ((auth.user()?.lvl || 0) < 10) return '';
+  const tb = (id, lbl) => `<button class="btn ${_dtab === id ? 'btn-primary' : 'btn-ghost'} btn-sm" data-dtab="${id}">${lbl}</button>`;
+  const sombra = _sim && _sim.shadow ? '<span class="tiny" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:2px 8px;border-radius:999px;font-weight:700">🌒 modo sombra — só sócios veem</span>' : '';
+  return `<div class="flex items-center gap-2" style="margin-top:12px;flex-wrap:wrap">${tb('cockpit', '📊 Cockpit')}${tb('simulador', '🧪 Simulador')}${sombra}</div>`;
+}
+
+function wireTabsCommon() {
+  document.getElementById('oo-back')?.addEventListener('click', () => loadList());
+  document.getElementById('oo-new')?.addEventListener('click', () => openMeeting());
+  _root.querySelectorAll('[data-dtab]').forEach(el => el.addEventListener('click', () => {
+    if (_dtab === el.dataset.dtab) return;
+    _dtab = el.dataset.dtab;
+    renderDetail();
+  }));
+}
+
 function wireDetailCommon() {
-  document.getElementById('oo-back').addEventListener('click', () => loadList());
-  document.getElementById('oo-new').addEventListener('click', () => openMeeting());
+  wireTabsCommon();
   document.getElementById('norte-edit')?.addEventListener('click', openNorte);
   document.getElementById('norte-log')?.addEventListener('click', () => {
     const b = document.getElementById('norte-log-box');
     if (b) b.style.display = b.style.display === 'none' ? '' : 'none';
   });
   wirePeriod(loadDetail);
+  loadDefasagem();   // ⏳ MAP: venda de hoje ↔ atividade de N meses atrás (v86.1)
   _root.querySelectorAll('[data-member]').forEach(el => el.addEventListener('click', () => { _selId = el.dataset.member; loadDetail(); }));
   _root.querySelectorAll('[data-meet]').forEach(el => el.addEventListener('click', () => openMeeting(parseInt(el.dataset.meet))));
   _root.querySelectorAll('[data-pdi]').forEach(el => el.addEventListener('change', () => togglePdi(parseInt(el.dataset.pdi), parseInt(el.dataset.idx), el.checked)));
@@ -840,27 +884,40 @@ function nortePanel(d) {
         <div style="font-size:11px;opacity:.85">faltam ${pace.dias_restantes} dia(s) no mês</div></div>` : ''}
     </div>`;
 
+  // 🎲 venda é ruído no mês (Poisson): dentro da faixa estatística NUNCA pinta vermelho
+  const metaVenda = Number(fm.venda || 0);
+  const fxVenda = metaVenda > 0 ? poisFaixaJs(metaVenda) : null;
   const rows = stages.map(s => {
     const meta = Number(fm[s.key] || 0);
     const pct = meta > 0 ? (s.n / meta * 100) : null;
-    const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+    let cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+    let extra = '';
+    if (s.key === 'venda' && fxVenda && pct != null && pct < 100 && s.n >= fxVenda.lo) {
+      cor = '#2563eb';   // dentro da faixa = normal estatístico, não é alerta
+      extra = `<span class="tiny" style="color:#2563eb;font-weight:700" title="faixa Poisson do período pra meta ${fmtN(metaVenda)}"> · 🎲 ${fxVenda.lo}–${fxVenda.hi} é normal</span>`;
+    } else if (s.key === 'venda' && fxVenda) {
+      extra = `<span class="tiny muted" title="faixa Poisson do período"> · 🎲 ${fxVenda.lo}–${fxVenda.hi} normal</span>`;
+    }
     const w = meta > 0 ? Math.min(100, s.n / meta * 100) : 0;
     return `<tr>
       <td style="font-weight:600;font-size:12px;padding:5px 8px 5px 0;white-space:nowrap">${escapeHtml(s.label)}</td>
       <td style="width:100%;padding:5px 0"><div style="height:14px;background:var(--bg-3);border-radius:6px;overflow:hidden">
         <div style="height:100%;width:${w}%;background:${cor};border-radius:6px;transition:.3s"></div></div></td>
-      <td style="text-align:right;padding:5px 0 5px 10px;white-space:nowrap;font-size:12.5px"><b>${fmtN(s.n)}</b> <span class="muted">/ ${meta > 0 ? fmtN(meta) : '—'}</span></td>
+      <td style="text-align:right;padding:5px 0 5px 10px;white-space:nowrap;font-size:12.5px"><b>${fmtN(s.n)}</b> <span class="muted">/ ${meta > 0 ? fmtN(meta) : '—'}</span>${extra}</td>
       <td style="text-align:right;padding:5px 0 5px 8px;white-space:nowrap">${pct == null ? '<span class="tiny muted">definir</span>' : `<span style="font-size:11px;font-weight:800;color:${cor}">${pctF(pct)}</span>`}</td>
     </tr>`;
   }).join('');
 
-  const resumoBar = (lbl, real, meta, isMoney) => {
+  const resumoBar = (lbl, real, meta, isMoney, faixa) => {
     const pct = meta > 0 ? real / meta * 100 : null;
-    const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+    let cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+    let fxTxt = '';
+    if (faixa && pct != null && pct < 100 && real >= faixa.lo) { cor = '#2563eb'; fxTxt = ` <span class="tiny" style="color:#2563eb">🎲 ${faixa.lo}–${faixa.hi} normal</span>`; }
+    else if (faixa) fxTxt = ` <span class="tiny muted">🎲 ${faixa.lo}–${faixa.hi} normal</span>`;
     return `<div>
       <div class="flex" style="justify-content:space-between;font-size:11.5px;margin-bottom:2px">
         <span style="font-weight:700">${lbl}</span>
-        <span><b>${isMoney ? 'R$ ' + money(real) : fmtN(real)}</b> <span class="muted">/ ${meta > 0 ? (isMoney ? 'R$ ' + money(meta) : fmtN(meta)) : '—'}</span>${pct != null ? ` · <b style="color:${cor}">${pctF(pct)}</b>` : ''}</span>
+        <span><b>${isMoney ? 'R$ ' + money(real) : fmtN(real)}</b> <span class="muted">/ ${meta > 0 ? (isMoney ? 'R$ ' + money(meta) : fmtN(meta)) : '—'}</span>${pct != null ? ` · <b style="color:${cor}">${pctF(pct)}</b>` : ''}${fxTxt}</span>
       </div>
       <div style="height:10px;background:var(--bg-3);border-radius:6px;overflow:hidden"><div style="height:100%;width:${pct != null ? Math.min(100, pct) : 0}%;background:${cor};border-radius:6px"></div></div>
     </div>`;
@@ -871,11 +928,35 @@ function nortePanel(d) {
     ${parcial ? `<div class="tiny muted" style="margin-top:8px">📐 Meta <b>proporcional ao período selecionado</b> (${(n.fracs || []).map(f => `${f.ym}: ${Math.round(f.frac * 100)}%${f.tem_meta ? '' : ' <span style="color:#d97706">sem meta</span>'}`).join(' · ')}).</div>` : ''}
     <div style="margin-top:10px;overflow-x:auto"><table style="width:100%;border-collapse:collapse">${rows}</table></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
-      ${resumoBar('Vendas no período', kp.vendas || 0, mp.vendas || 0, false)}
+      ${resumoBar('Vendas no período', kp.vendas || 0, mp.vendas || 0, false, (mp.vendas || 0) > 0 ? poisFaixaJs(mp.vendas) : null)}
       ${resumoBar('VGV no período', kp.vgv || 0, mp.vgv || 0, true)}
     </div>
+    <div id="norte-defasagem"></div>
     <div class="tiny muted" style="margin-top:8px">🔄 Realizado vem do RD CRM automaticamente (sync diário + tempo real). Atendimentos são meta de ritmo — o sistema ainda não mede atendimento 1-a-1.</div>
     ${btns}`);
+}
+
+/* ⏳ Jornada longa (MAP ~3m): a venda do mês nasce da ATIVIDADE de N meses atrás.
+   Busca o realizado da janela defasada e mostra o que é justo esperar AGORA. */
+async function loadDefasagem() {
+  const host = document.getElementById('norte-defasagem');
+  const N = Number(_norte?.defasagem_meses || 1);
+  if (!host || N <= 1 || !_norte?.period) return;
+  try {
+    const s = new Date(_norte.period.since + 'T12:00:00'), u = new Date(_norte.period.until + 'T12:00:00');
+    s.setMonth(s.getMonth() - N); u.setMonth(u.getMonth() - N);
+    const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const r = await api.request(`/api/v3/oo/norte?corretor_id=${encodeURIComponent(_selId)}&since=${fmt(s)}&until=${fmt(u)}&realizado=1`);
+    const leadsLag = ((r.realizado || {}).kpis || {}).leads;
+    if (leadsLag == null) return;
+    const convPct = (_det?.funil_reverso?.taxas?.lead_venda_pct) ?? null;
+    const esperadas = convPct != null ? leadsLag * convPct / 100 : null;
+    const mesLag = s.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    host.innerHTML = `<div style="margin-top:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:12px">
+      ⏳ <b>Jornada ~${N} meses:</b> a venda de agora nasce da atividade de <b>${escapeHtml(mesLag)}</b> —
+      foram <b>${fmtN(leadsLag)}</b> leads trabalhados lá${esperadas != null ? `, o que sustenta ≈ <b>${fmtN(Math.round(esperadas * 10) / 10)}</b> venda(s) neste período` : ''}.
+      Cobre a atividade do mês; a venda, julgue no trimestre.</div>`;
+  } catch { /* informativo — silencioso */ }
 }
 
 function norteChangelog(log) {
@@ -1043,6 +1124,361 @@ async function saveNorte() {
 function panel(title, inner) {
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px">
     <div style="font-weight:800;font-size:13px;margin-bottom:8px">${title}</div>${inner}</div>`;
+}
+
+/* ═══════════════ 🧪 SIMULADOR (v86.1) — motor de meta individual ═══════════════
+   Motor da planilha FUNIL-DE-ENERGIA nativo: taxas reais 90d × pisos (credibilidade),
+   elasticidade de ticket, energia por canal, horas de capacidade, faixa Poisson.
+   Venda se julga no TRIMESTRE; o mês cobra ATIVIDADE. Sócio-only. */
+
+function poisCdfJs(k, lam) { let t = Math.exp(-lam), s = t; for (let i = 1; i <= k; i++) { t *= lam / i; s += t; } return s; }
+function poisQJs(q, lam) { let k = 0; while (poisCdfJs(k, lam) < q && k < 2000) k++; return k; }
+function poisFaixaJs(lam) { lam = Math.max(0, Number(lam) || 0); return { lo: poisQJs(0.075, lam), hi: poisQJs(0.925, lam), p0: Math.exp(-lam) }; }
+
+async function loadSim() {
+  try {
+    const r = await api.request('/api/v3/oo/simulador?user_id=' + encodeURIComponent(_selId));
+    _sim = r;
+    _simCen = r.cenario_salvo ? { ...JSON.parse(JSON.stringify(r.cenario_calibrado)), ...JSON.parse(JSON.stringify(r.cenario_salvo)) } : JSON.parse(JSON.stringify(r.cenario_calibrado));
+    _simRes = r.baseline;
+    renderDetail();
+    if (r.cenario_salvo) runSim();   // cenário salvo ≠ calibrado → recalcula
+  } catch (e) {
+    const host = document.getElementById('oo-sim');
+    if (host) host.innerHTML = `<div class="alert alert-err">Simulador indisponível: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
+function renderSim() {
+  const host = document.getElementById('oo-sim');
+  if (!host || !_sim) return;
+  host.innerHTML = `
+    ${simRetrato()}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
+      <div>${simPainel()}</div>
+      <div id="sim-res">${simResultado()}</div>
+    </div>
+    <div style="margin-top:14px">${simProposta()}</div>
+    <div style="margin-top:14px">${simCalibracao()}</div>`;
+  wireSim();
+}
+
+const _pc = v => (v == null ? '—' : (Number(v) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%');
+
+/* a) Retrato real (90d): funil real × piso × usada + canais + volume + ticket */
+function simRetrato() {
+  const e = _sim.estado || {}, ps = e.passagens || [];
+  const garg = e.gargalo;
+  const rows = ps.map(p => {
+    const isG = p.key === garg;
+    const abaixo = p.real != null && p.real < p.piso;
+    return `<tr style="${isG ? 'background:#fef2f2' : ''}">
+      <td style="padding:4px 8px 4px 0;font-size:12px;font-weight:600;white-space:nowrap">${escapeHtml(p.label)}${isG ? ' <span style="color:#dc2626;font-weight:800" title="maior ganho se consertar">🔥 gargalo</span>' : ''}</td>
+      <td style="text-align:right;font-size:12px;color:${abaixo ? '#dc2626' : '#16a34a'};font-weight:700">${_pc(p.real)}</td>
+      <td style="text-align:right;font-size:12px;color:var(--ink-muted)">${_pc(p.piso)}</td>
+      <td style="text-align:right;font-size:12px;font-weight:800">${_pc(p.usada)}</td>
+      <td style="text-align:right;font-size:11px;color:var(--ink-muted)">n=${p.n}</td>
+    </tr>`;
+  }).join('');
+  const chips = (e.canais || []).map(c =>
+    `<span style="display:inline-block;background:var(--bg-3);border:1px solid var(--border);border-radius:999px;padding:3px 10px;font-size:11.5px;margin:2px">
+      <b>${escapeHtml(c.label)}</b> ${Math.round(c.share * 100)}%${c.neutro ? '' : ` · conv ${c.taxa_rel}×`}<span class="muted"> · ${c.leads} leads</span></span>`).join('');
+  return panel(`📸 Retrato real (90d) · ${escapeHtml((_sim.corretor || {}).name || '')}`, `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:10px;text-align:center">
+      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:20px;font-weight:900">${fmtN(e.volume_mensal_leads)}</div><div class="tiny muted">leads novos/mês</div></div>
+      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:20px;font-weight:900">${e.vendas_90d || 0}</div><div class="tiny muted">vendas 90d · média 6m: ${fmtN(e.media_6m_vendas)}/mês</div></div>
+      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:20px;font-weight:900">${e.ticket_corretor ? 'R$ ' + moneyShort(e.ticket_corretor) : '—'}</div><div class="tiny muted">ticket dele · equipe: ${e.ticket_equipe ? 'R$ ' + moneyShort(e.ticket_equipe) : '—'}</div></div>
+    </div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left;padding-bottom:4px">Passagem do funil</th><th>real 90d</th><th>piso mercado</th><th>usada*</th><th>amostra</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <div class="tiny muted" style="margin-top:6px">* taxa usada = média entre o REAL dele e o PISO de mercado, ponderada pela amostra (K=${(_sim.config || {}).K}) — corretor novo nasce do piso, veterano nasce dele.</div>
+    <div style="margin-top:8px">${chips || '<span class="tiny muted">Sem leads no período pra mapear canais.</span>'}</div>`);
+}
+
+/* b) Painel de simulação: volume, perfil, energia por canal, "e se" por etapa */
+function simPainel() {
+  const e = _sim.estado || {}, cfg = _sim.config || {}, c = _simCen || {};
+  const faixas = cfg.faixas || {};
+  const perfis = [['conquista', `Conquista (R$ ${moneyShort((faixas.conquista || {}).ticket || 0)})`],
+                  ['map', `MAP (R$ ${moneyShort((faixas.map || {}).ticket || 0)})`],
+                  ['misto', 'Misto (50/50)'], ['manual', 'Manual (mix por faixa)']];
+  const mixM = c.mix_manual || { conquista: 50, map: 50, alto_padrao: 0 };
+  const canais = (e.canais || []).map(cn => {
+    const en = Math.round(Number((c.energia || {})[cn.key] ?? 100));
+    return `<div style="display:grid;grid-template-columns:110px 1fr 46px;gap:8px;align-items:center">
+      <span class="tiny" style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${Math.round(cn.share * 100)}% dos leads">${escapeHtml(cn.label)} <span class="muted">${Math.round(cn.share * 100)}%</span></span>
+      <input type="range" min="0" max="100" step="5" value="${en}" data-sim-en="${escapeHtml(cn.key)}">
+      <span class="tiny" style="text-align:right;font-weight:800" id="sim-enl-${escapeHtml(cn.key)}">${en}</span>
+    </div>`;
+  }).join('');
+  const ovs = (e.passagens || []).map(p => {
+    const ov = (c.overrides || {})[p.key];
+    return `<div class="field"><label class="tiny" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(p.label)}">${escapeHtml(p.label)}</label>
+      <input type="number" class="input" min="1" max="98" step="1" data-sim-ov="${escapeHtml(p.key)}"
+        value="${ov != null ? Math.round(ov * 100) : ''}" placeholder="${Math.round((p.usada || 0) * 100)}%" style="padding:4px 8px;font-size:12px"></div>`;
+  }).join('');
+  return panel('🎛 Simular cenário (ao vivo no 1:1)', `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field"><label>Atendimentos/mês (leads que ele dá conta)</label>
+        <input type="number" class="input" id="sim-atend" min="0" step="1" value="${Math.round(Number(c.atendimentos_mes) || 0)}"></div>
+      <div class="field"><label>Meta-alvo de vendas/mês (opcional)</label>
+        <input type="number" class="input" id="sim-meta" min="0" step="1" value="${c.meta_vendas_mes || ''}" placeholder="p/ ver o gap"></div>
+    </div>
+    <div class="field" style="margin-top:6px"><label>Perfil de marca (mix de ticket)</label>
+      <select class="select" id="sim-perfil">${perfis.map(p => `<option value="${p[0]}"${(c.perfil || 'misto') === p[0] ? ' selected' : ''}>${p[1]}</option>`).join('')}</select></div>
+    <div id="sim-mixm" style="display:${(c.perfil === 'manual') ? 'grid' : 'none'};grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px">
+      ${['conquista', 'map', 'alto_padrao'].map(f => `<div class="field"><label class="tiny">${escapeHtml((faixas[f] || {}).label || f)} (peso)</label>
+        <input type="number" class="input" min="0" step="5" data-sim-mix="${f}" value="${Number(mixM[f]) || 0}" style="padding:4px 8px;font-size:12px"></div>`).join('')}
+    </div>
+    <div style="margin-top:10px;font-weight:800;font-size:12px">⚡ Energia por canal <span class="tiny muted" style="font-weight:400">(0 zera o canal · 100 = taxa plena — semântica da planilha)</span></div>
+    <div style="display:grid;gap:4px;margin-top:6px">${canais || '<div class="tiny muted">Sem canais mapeados — fator neutro.</div>'}</div>
+    <div style="margin-top:10px;font-weight:800;font-size:12px">🔧 “E se melhorar a etapa?” <span class="tiny muted" style="font-weight:400">(taxa em % · vazio = usa a calibrada)</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:6px">${ovs}</div>
+    <div class="flex gap-2" style="margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" id="sim-reset">↺ Restaurar calibrado</button>
+      <button class="btn btn-ghost btn-sm" id="sim-save">💾 Salvar cenário (retomar depois)</button>
+    </div>`);
+}
+
+/* c) Resultado ao vivo */
+function simResultado() {
+  const r = _simRes;
+  if (!r) return panel('📈 Resultado', '<div class="tiny muted">Ajuste o cenário pra simular.</div>');
+  const h = r.horas || {}, po = (r.poisson || {});
+  const FAROL = { cabe: ['#16a34a', '✅ cabe na agenda'], apertado: ['#d97706', '⚠️ apertado'], nao_cabe: ['#dc2626', '🚨 NÃO cabe — rebaixe volume ou meta'] };
+  const [fc, fl] = FAROL[h.farol] || ['#94a3b8', '—'];
+  const atv = r.atividade_mes || {};
+  const ATV_LBL = { lead: 'Leads novos', contato: 'Contatos/qualif.', agendamento: 'Agendamentos', visita: 'Visitas realizadas', proposta: 'Propostas', pasta: 'Pastas' };
+  const alav = (r.alavancas || []).map((a, i) =>
+    `<div style="display:flex;gap:8px;align-items:center;background:var(--bg-3);border-radius:8px;padding:6px 10px">
+      <span style="font-weight:900;color:#2563eb">${i + 1}º</span>
+      <span style="flex:1;font-size:12px">${escapeHtml(a.label)}</span>
+      <span style="font-weight:800;color:#16a34a;font-size:12px">+${fmtN(a.delta_vendas)} venda(s)/mês</span></div>`).join('');
+  const gap = r.gap;
+  return panel('📈 Resultado do cenário', `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:var(--r-md);padding:12px 14px;color:#fff;text-align:center">
+      <div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase">Vendas/mês</div><div style="font-size:24px;font-weight:900">${fmtN(r.vendas_prev)}</div></div>
+      <div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase">VGV/mês</div><div style="font-size:24px;font-weight:900">R$ ${moneyShort(r.vgv_prev)}</div></div>
+      <div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase">Conversão efetiva</div><div style="font-size:24px;font-weight:900">${fmtN(r.conv_efetiva_pct)}%</div></div>
+    </div>
+    <div class="tiny muted" style="margin-top:6px">funil ${_pc(r.conv_funil)} × ticket ${fmtN(r.fator_ticket)}× × canais ${fmtN(r.fator_canais)}× · ticket ponderado R$ ${moneyShort(r.ticket_ponderado)} · jornada ~${fmtN(r.jornada_meses)} mês(es)</div>
+    ${gap ? `<div style="margin-top:8px;background:${gap.gap_vendas > 0 ? '#fffbeb' : '#f0fdf4'};border:1px solid ${gap.gap_vendas > 0 ? '#fde68a' : '#bbf7d0'};border-radius:8px;padding:8px 10px;font-size:12px">
+      🎯 Meta ${fmtN(gap.meta_vendas_mes)}/mês: ${gap.gap_vendas > 0 ? `faltam <b>${fmtN(gap.gap_vendas)}</b> venda(s) — precisaria de <b>${fmtN(gap.atend_necessarios)}</b> atendimentos/mês` : '<b>cenário bate a meta ✓</b>'}</div>` : ''}
+    <div style="margin-top:10px;font-weight:800;font-size:12px">📋 Atividade mensal necessária (o que o mês cobra)</div>
+    <table style="width:100%;border-collapse:collapse;margin-top:4px">${Object.keys(ATV_LBL).map(k =>
+      `<tr><td style="font-size:12px;padding:3px 0">${ATV_LBL[k]}</td><td style="text-align:right;font-weight:800;font-size:12.5px">${fmtN(atv[k])}</td></tr>`).join('')}</table>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+      <div style="flex:1;height:12px;background:var(--bg-3);border-radius:6px;overflow:hidden"><div style="height:100%;width:${Math.min(100, h.pct || 0)}%;background:${fc}"></div></div>
+      <span class="tiny" style="font-weight:800;color:${fc};white-space:nowrap">${fmtN(h.total)}h / ${fmtN(h.capacidade)}h · ${fl}</span>
+    </div>
+    <div style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:8px 10px;font-size:12px">
+      🎲 <b>Faixa estatística (Poisson)</b> — venda se julga no TRIMESTRE:<br>
+      mês: <b>${(po.mes || {}).lo}–${(po.mes || {}).hi}</b> é normal · ${Math.round(((po.mes || {}).p_zero || 0) * 100)}% dos meses zeram MESMO executando certo<br>
+      trimestre: <b>${(po.tri || {}).lo}–${(po.tri || {}).hi}</b> é normal
+    </div>
+    ${alav ? `<div style="margin-top:10px;font-weight:800;font-size:12px">🚀 Top alavancas deste cenário</div><div style="display:grid;gap:5px;margin-top:5px">${alav}</div>` : ''}`);
+}
+
+/* d) Proposta de meta trimestral */
+function simProposta() {
+  const qa = _sim.quarter_atual, qp = _sim.quarter_proximo;
+  const qSel = document.getElementById('sim-q')?.value;
+  const q = (qSel === qa || qSel === qp) ? qSel : qp;
+  const reg = (_sim.propostas || {})[q];
+  const p = reg && reg.proposta;
+  const shadow = !!_sim.shadow;
+  const STATUS = { proposta: ['#64748b', '📝 rascunho (só sócios veem)'], enviada: ['#2563eb', '📨 enviada — aguardando aceite'], aceita: ['#16a34a', '✅ aceita pelo corretor'] };
+  const st = reg ? (STATUS[reg.status] || STATUS.proposta) : null;
+  const ATV_LBL = { lead: 'Leads', contato: 'Contatos', agendamento: 'Agend.', visita: 'Visitas', proposta: 'Propostas', pasta: 'Pastas' };
+  return panel('🎯 Transformar em meta (trimestre)', `
+    <div class="flex items-center gap-2" style="flex-wrap:wrap">
+      <label class="tiny muted">Trimestre</label>
+      <select class="select" id="sim-q" style="width:auto">${[qa, qp].map(x => `<option value="${x}"${x === q ? ' selected' : ''}>${x}</option>`).join('')}</select>
+      <label class="tiny muted">Vendas/mês</label>
+      <select class="select" id="sim-adj" style="width:auto">
+        <option value="auto">auto (motor decide)</option>
+        ${[1, 2, 3].map(m => `<option value="${m}">${m}/mês (${m * 3} no tri)</option>`).join('')}
+      </select>
+      <button class="btn btn-primary btn-sm" id="sim-prop">🎯 Gerar proposta</button>
+      ${reg && reg.status !== 'aceita' ? `<button class="btn btn-sm ${shadow ? 'btn-ghost' : 'btn-primary'}" id="sim-send" ${shadow ? 'disabled title="modo sombra ligado — desligue na Calibração"' : ''}>📨 Enviar pro corretor</button>` : ''}
+    </div>
+    <div class="tiny muted" style="margin-top:6px">Regra: maior m∈{1,2,3} com horas ≤ 85% da capacidade e m ≤ média 6m ×1,3 + 0,5 · sem histórico → 1. O aceite do corretor (no Meu Painel) grava a ATIVIDADE mensal derivada no Norte do Mês dos 3 meses.</div>
+    ${reg && p ? `<div style="margin-top:10px;background:var(--bg-3);border-radius:8px;padding:10px 12px">
+      <div class="flex items-center gap-2" style="flex-wrap:wrap">
+        <span style="font-weight:900;font-size:15px">${p.vendas_mes}/mês · ${p.vendas_tri} no tri ${reg.quarter || q}</span>
+        <span class="tiny" style="background:${st[0]}22;color:${st[0]};border:1px solid ${st[0]}55;padding:2px 8px;border-radius:999px;font-weight:700">${st[1]}</span>
+        ${p.ajuste_socio != null && p.ajuste_socio !== p.m_auto ? `<span class="tiny muted">(motor sugeriu ${p.m_auto} · sócio ajustou pra ${p.ajuste_socio})</span>` : ''}
+      </div>
+      <div class="tiny" style="margin-top:6px">VGV/mês ≈ <b>R$ ${moneyShort(p.vgv_mes_prev)}</b> · ${fmtN(p.horas_mes)}h/mês de ${fmtN(p.capacidade)}h · 🎲 tri normal: <b>${(p.poisson_tri || {}).lo}–${(p.poisson_tri || {}).hi}</b> · mês zera ${Math.round(((p.poisson_mes || {}).p_zero || 0) * 100)}% das vezes mesmo executando</div>
+      <div class="tiny" style="margin-top:4px">Atividade/mês: ${Object.keys(ATV_LBL).map(k => `${ATV_LBL[k]} <b>${fmtN((p.atividade_mes || {})[k])}</b>`).join(' · ')}</div>
+      ${reg.aceite ? `<div class="tiny" style="color:#16a34a;margin-top:4px">Aceita em ${new Date(reg.aceite.ts).toLocaleString('pt-BR')}</div>` : ''}
+    </div>` : '<div class="tiny muted" style="margin-top:8px">Nenhuma proposta gerada pra este trimestre ainda.</div>'}`);
+}
+
+/* e) Calibração global (gaveta — mexe pra TODOS os corretores) */
+function simCalibracao() {
+  const cfg = _sim.config || {}, pisos = cfg.pisos || {}, faixas = cfg.faixas || {}, tempos = cfg.tempos_min || {}, defas = cfg.defasagem_meses || {};
+  const e = _sim.estado || {};
+  const num = (id, lbl, v, step) => `<div class="field"><label class="tiny">${lbl}</label><input type="number" class="input" id="${id}" value="${v}" step="${step || 1}" style="padding:4px 8px;font-size:12px"></div>`;
+  return `<details style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 14px">
+    <summary style="font-weight:800;font-size:13px;cursor:pointer">⚙️ Calibração do motor (global — vale pra todos os corretores) ${_sim.shadow ? '· 🌒 SOMBRA LIGADA' : '· 🌕 sombra desligada'}</summary>
+    <div style="margin-top:10px">
+      <label style="display:flex;align-items:center;gap:8px;background:${_sim.shadow ? '#f1f5f9' : '#f0fdf4'};border:1px solid ${_sim.shadow ? '#cbd5e1' : '#bbf7d0'};border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12.5px">
+        <input type="checkbox" id="cal-shadow" ${_sim.shadow ? 'checked' : ''}>
+        <span><b>Modo sombra</b> — aba e propostas visíveis SÓ pra sócios; nada é enviado a corretor nem gravado no Norte do Mês até desligar.</span>
+      </label>
+      <div style="margin-top:8px;font-weight:800;font-size:12px">Pisos de mercado por passagem (%)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:4px">
+        ${(e.passagens || []).map(p => num('cal-piso-' + p.key, p.label, Math.round((pisos[p.key] || 0) * 100))).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:8px">
+        ${num('cal-k', 'K (credibilidade)', cfg.K)}
+        ${num('cal-tref', 'Ticket ref. (R$)', cfg.ticket_ref, 1000)}
+        ${num('cal-sens', 'Sensibilidade ticket', cfg.sens, 0.1)}
+        ${num('cal-du', 'Dias úteis/mês', cfg.dias_uteis)}
+        ${num('cal-hd', 'Horas/dia', cfg.horas_dia)}
+        ${num('cal-minam', 'Amostra mín. canal', cfg.canal_min_amostra)}
+      </div>
+      <div style="margin-top:8px;font-weight:800;font-size:12px">Faixas de ticket (R$) · jornada (meses)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:4px">
+        ${['conquista', 'map', 'alto_padrao'].map(f => num('cal-fx-' + f, (faixas[f] || {}).label || f, (faixas[f] || {}).ticket || 0, 10000)
+          + num('cal-jn-' + f, 'jornada ' + ((faixas[f] || {}).label || f), (faixas[f] || {}).jornada_meses || 1)).join('')}
+      </div>
+      <div style="margin-top:8px;font-weight:800;font-size:12px">Tempo por atividade (min) · defasagem venda↔atividade (meses)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:4px">
+        ${['lead', 'contato', 'agendamento', 'visita', 'proposta', 'pasta'].map(k => num('cal-tm-' + k, k, tempos[k] ?? 0)).join('')}
+        ${num('cal-df-map', 'defasagem MAP', defas.map ?? 3)}
+        ${num('cal-df-conq', 'defasagem Conquista', defas.conquista ?? 1)}
+      </div>
+      <div class="flex" style="margin-top:10px;justify-content:flex-end">
+        <button class="btn btn-primary btn-sm" id="cal-save">💾 Salvar calibração</button>
+      </div>
+    </div>
+  </details>`;
+}
+
+function wireSim() {
+  const $ = id => document.getElementById(id);
+  const sched = () => { clearTimeout(_simTimer); _simTimer = setTimeout(runSim, 450); };
+  $('sim-atend')?.addEventListener('input', ev => { _simCen.atendimentos_mes = parseFloat(ev.target.value) || 0; sched(); });
+  $('sim-meta')?.addEventListener('input', ev => { const v = parseFloat(ev.target.value); _simCen.meta_vendas_mes = v > 0 ? v : null; sched(); });
+  $('sim-perfil')?.addEventListener('change', ev => {
+    _simCen.perfil = ev.target.value;
+    const mm = $('sim-mixm'); if (mm) mm.style.display = _simCen.perfil === 'manual' ? 'grid' : 'none';
+    sched();
+  });
+  _root.querySelectorAll('[data-sim-mix]').forEach(inp => inp.addEventListener('input', () => {
+    _simCen.mix_manual = _simCen.mix_manual || {};
+    _simCen.mix_manual[inp.dataset.simMix] = parseFloat(inp.value) || 0;
+    sched();
+  }));
+  _root.querySelectorAll('[data-sim-en]').forEach(inp => inp.addEventListener('input', () => {
+    _simCen.energia = _simCen.energia || {};
+    _simCen.energia[inp.dataset.simEn] = parseFloat(inp.value) || 0;
+    const l = $('sim-enl-' + inp.dataset.simEn); if (l) l.textContent = inp.value;
+    sched();
+  }));
+  _root.querySelectorAll('[data-sim-ov]').forEach(inp => inp.addEventListener('input', () => {
+    _simCen.overrides = _simCen.overrides || {};
+    const v = inp.value.trim();
+    if (v === '') delete _simCen.overrides[inp.dataset.simOv];
+    else _simCen.overrides[inp.dataset.simOv] = Math.min(0.98, Math.max(0.01, (parseFloat(v) || 0) / 100));
+    sched();
+  }));
+  $('sim-reset')?.addEventListener('click', () => {
+    _simCen = JSON.parse(JSON.stringify(_sim.cenario_calibrado));
+    _simRes = _sim.baseline;
+    renderSim();
+  });
+  $('sim-save')?.addEventListener('click', async ev => {
+    ev.target.disabled = true; ev.target.textContent = 'Salvando…';
+    try {
+      await api.request('/api/v3/oo/simulador', { method: 'POST', body: { action: 'salvar_cenario', user_id: _selId, cenario: _simCen } });
+      ev.target.textContent = '✓ Cenário salvo';
+    } catch (e) { alert('Não salvou: ' + e.message); ev.target.textContent = '💾 Salvar cenário (retomar depois)'; }
+    ev.target.disabled = false;
+  });
+  $('sim-q')?.addEventListener('change', () => { const box = $('oo-sim'); if (box) renderSim(); });
+  $('sim-prop')?.addEventListener('click', gerarProposta);
+  $('sim-send')?.addEventListener('click', enviarProposta);
+  $('cal-save')?.addEventListener('click', salvarCalibracao);
+}
+
+async function runSim() {
+  if (!_sim || !_simCen) return;
+  try {
+    const r = await api.request('/api/v3/oo/simulador', { method: 'POST', body: {
+      action: 'simular',
+      estado: { taxas_usadas: (_sim.estado || {}).taxas_usadas, canais: (_sim.estado || {}).canais },
+      cenario: _simCen } });
+    _simRes = r.result;
+    const el = document.getElementById('sim-res');
+    if (el) el.innerHTML = simResultado();
+  } catch (e) { /* mantém o último resultado na tela */ }
+}
+
+async function gerarProposta() {
+  const q = document.getElementById('sim-q')?.value || _sim.quarter_proximo;
+  const adj = document.getElementById('sim-adj')?.value;
+  const btn = document.getElementById('sim-prop');
+  if (btn) { btn.disabled = true; btn.textContent = 'Gerando…'; }
+  try {
+    // guarda o cenário junto (retomar 1:1 de onde parou)
+    api.request('/api/v3/oo/simulador', { method: 'POST', body: { action: 'salvar_cenario', user_id: _selId, cenario: _simCen } }).catch(() => {});
+    const r = await api.request('/api/v3/oo/simulador', { method: 'POST', body: {
+      action: 'proposta', user_id: _selId, quarter: q,
+      estado: { taxas_usadas: (_sim.estado || {}).taxas_usadas, canais: (_sim.estado || {}).canais, media_6m_vendas: (_sim.estado || {}).media_6m_vendas },
+      cenario: _simCen,
+      ajuste_socio: adj === 'auto' ? null : Number(adj) } });
+    _sim.propostas = _sim.propostas || {};
+    _sim.propostas[q] = r.proposta;
+    renderSim();
+  } catch (e) {
+    alert('Não gerou: ' + (e.message || e));
+    if (btn) { btn.disabled = false; btn.textContent = '🎯 Gerar proposta'; }
+  }
+}
+
+async function enviarProposta() {
+  const q = document.getElementById('sim-q')?.value || _sim.quarter_proximo;
+  if (!confirm(`Enviar a proposta do ${q} pro corretor aceitar no Meu Painel?`)) return;
+  try {
+    const r = await api.request('/api/v3/oo/simulador', { method: 'POST', body: { action: 'enviar', user_id: _selId, quarter: q } });
+    _sim.propostas[q] = r.proposta;
+    renderSim();
+  } catch (e) { alert('Não enviou: ' + (e.message || e)); }
+}
+
+async function salvarCalibracao() {
+  const $ = id => document.getElementById(id);
+  const btn = $('cal-save');
+  const nv = id => parseFloat($(id)?.value) || 0;
+  const e = _sim.estado || {};
+  const patch = {
+    motor_shadow: !!$('cal-shadow')?.checked,
+    pisos: Object.fromEntries((e.passagens || []).map(p => [p.key, Math.min(0.98, Math.max(0.01, nv('cal-piso-' + p.key) / 100))])),
+    K: Math.max(1, Math.round(nv('cal-k'))),
+    ticket_ref: nv('cal-tref'), sens: nv('cal-sens'),
+    dias_uteis: nv('cal-du'), horas_dia: nv('cal-hd'),
+    canal_min_amostra: Math.max(1, Math.round(nv('cal-minam'))),
+    faixas: Object.fromEntries(['conquista', 'map', 'alto_padrao'].map(f => [f, {
+      ...((_sim.config.faixas || {})[f] || {}), ticket: nv('cal-fx-' + f), jornada_meses: nv('cal-jn-' + f) }])),
+    tempos_min: Object.fromEntries(['lead', 'contato', 'agendamento', 'visita', 'proposta', 'pasta'].map(k => [k, nv('cal-tm-' + k)])),
+    defasagem_meses: { map: Math.round(nv('cal-df-map')), conquista: Math.round(nv('cal-df-conq')) },
+  };
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
+  try {
+    const r = await api.request('/api/v3/oo/simulador', { method: 'POST', body: { action: 'config', patch } });
+    _sim.config = r.config;
+    _sim.shadow = !!(r.config || {}).motor_shadow;
+    // recarrega o estado calibrado (pisos/K mudam as taxas usadas)
+    _sim = null; _simRes = null;
+    renderDetail();
+  } catch (e) {
+    alert('Não salvou: ' + (e.message || e));
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar calibração'; }
+  }
 }
 
 /* 🎯 Funil reverso: da meta → atividades necessárias pelas taxas reais do corretor */

@@ -41,6 +41,7 @@ async function loadTarget(id) {
     if (mine) loadFila();
     if (mine) loadTravados();
     loadNorteCard();   // 🎯 Norte do Dia (v85.6) — meta do mês definida no 1:1
+    if (mine) loadPropostaMeta();   // 🎯 v86.1 — proposta de meta do trimestre (motor 1:1)
   } catch (e) {
     const msg = e?.message || e?.error || (typeof e === 'string' ? e : JSON.stringify(e));
     _root.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(msg)}</div>`;
@@ -148,6 +149,52 @@ async function loadNorteCard() {
     </div>`;
 }
 
+/* ═══════════ 🎯 PROPOSTA DE META DO TRIMESTRE (v86.1 — motor do 1:1) ═══════════
+   O sócio simula no 1:1 e envia; o corretor vê AQUI e aceita. O aceite grava a
+   atividade mensal derivada no Norte do Mês dos 3 meses do tri. Invisível em
+   modo sombra (o backend devolve proposta:null). */
+async function loadPropostaMeta() {
+  const host = document.getElementById('painel-proposta');
+  if (!host) return;
+  let r = null;
+  try { r = await api.request('/api/v3/oo/simulador?proposta=1'); } catch { return; }
+  const pr = r && r.proposta;
+  if (!pr || !pr.proposta) { host.innerHTML = ''; return; }
+  const p = pr.proposta, q = pr.quarter;
+  const fN = v => { const x = Number(v) || 0; return Number.isInteger(x) ? x.toLocaleString('pt-BR') : x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); };
+  const ATV = { lead: 'Leads', contato: 'Contatos', agendamento: 'Agendamentos', visita: 'Visitas', proposta: 'Propostas', pasta: 'Pastas' };
+  const atv = Object.keys(ATV).map(k => `<span style="display:inline-block;background:rgba(255,255,255,.12);border-radius:999px;padding:2px 10px;margin:2px;font-size:11.5px">${ATV[k]} <b>${fN((p.atividade_mes || {})[k])}</b>/mês</span>`).join('');
+  if (pr.status === 'aceita') {
+    host.innerHTML = `<div class="mt-3" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--r-md);padding:10px 14px;font-size:12.5px">
+      ✅ Meta do <b>${escapeHtml(q)}</b> aceita: <b>${p.vendas_mes} venda(s)/mês</b> (${p.vendas_tri} no tri) — a atividade mensal já está no seu Norte do Dia.</div>`;
+    return;
+  }
+  host.innerHTML = `
+    <div class="mt-3" style="background:linear-gradient(135deg,#14532d,#166534);color:#fff;border-radius:var(--r-md);padding:14px 16px">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+          <div style="font-weight:900;font-size:15px">🎯 Proposta de meta · trimestre ${escapeHtml(q)}</div>
+          <div style="font-size:13px;margin-top:4px"><b>${p.vendas_mes} venda(s)/mês</b> · <b>${p.vendas_tri} no trimestre</b> · VGV ≈ R$ ${(Number(p.vgv_mes_prev) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}/mês</div>
+          <div class="tiny" style="opacity:.9;margin-top:4px">🎲 Estatística honesta: com essa meta, <b>${(p.poisson_tri || {}).lo}–${(p.poisson_tri || {}).hi}</b> vendas no tri é normal — e o mês pode zerar ${Math.round(((p.poisson_mes || {}).p_zero || 0) * 100)}% das vezes MESMO executando certo. O que o mês cobra é a atividade:</div>
+          <div style="margin-top:6px">${atv}</div>
+        </div>
+        <button class="btn" id="prop-aceitar" style="background:#fff;color:#14532d;font-weight:800;white-space:nowrap">✅ Aceitar meta</button>
+      </div>
+    </div>`;
+  document.getElementById('prop-aceitar')?.addEventListener('click', async ev => {
+    if (!confirm(`Aceitar a meta de ${p.vendas_mes} venda(s)/mês no ${q}? A atividade mensal entra no seu Norte do Dia dos 3 meses.`)) return;
+    ev.target.disabled = true; ev.target.textContent = 'Aceitando…';
+    try {
+      await api.request('/api/v3/oo/simulador', { method: 'POST', body: { action: 'aceitar', quarter: q } });
+      await loadPropostaMeta();
+      loadNorteCard();
+    } catch (e) {
+      alert('Não deu: ' + (e.message || e));
+      ev.target.disabled = false; ev.target.textContent = '✅ Aceitar meta';
+    }
+  });
+}
+
 function render() {
   const u = _data.user || {};
   const p = _data.profile || {};
@@ -181,6 +228,7 @@ function render() {
 
       ${_data.pending ? `<div class="alert alert-warn mt-3">⚠️ Tabela do perfil ainda não criada — rode <code>supabase/sprint_user_profile.sql</code>. As metas/perfil não vão salvar até lá.</div>` : ''}
 
+      <div id="painel-proposta"></div>
       <div id="painel-norte"></div>
 
       ${mine ? renderPerf(d) : `
