@@ -32,8 +32,11 @@ from datetime import datetime, timezone, timedelta, date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client, audit, notify_all, lvl_of  # type: ignore
+import re
+
 from _oo_lib import (  # type: ignore
     MILESTONES, deal_max_milestone, channel, CHANNEL_LABEL, source, parse_dt, amount,
+    build_stage_maps,
 )
 
 # ─── Passagens do funil (marco k → k+1), nomeadas pelo marco de DESTINO ─────
@@ -60,6 +63,13 @@ CFG_MOTOR_DEFAULT = {
     "canal_min_amostra": 10,                   # < isso → canal neutro (taxa_rel=1.0)
     "defasagem_meses": {"map": 3, "conquista": 1},  # venda do mês ↔ atividade de N meses atrás
     "motor_shadow": True,
+    # 🔁 v86.2: equipes cujo simulador ESPELHA o funil REAL do RD (etapas 1:1, mesma
+    # quantidade e nomenclatura — regra do Paulo: etapa diferente = métrica divergente).
+    # {substring_do_time: substring_do_nome_do_funil_no_rd}
+    "funil_rd_por_time": {"map": "map"},
+    # pisos por passagem do funil RD: {pipeline_id: {"p<pos>": taxa}} — sem valor,
+    # o piso vem da taxa REAL da EQUIPE inteira naquela passagem (90d)
+    "pisos_rd": {},
 }
 KV_CFG = "oo_motor_config"
 
@@ -100,7 +110,7 @@ def motor_cfg(sb):
     cfg = json.loads(json.dumps(CFG_MOTOR_DEFAULT))
     if isinstance(saved, dict):
         for k, v in saved.items():
-            if k in ("pisos", "faixas", "tempos_min", "defasagem_meses") and isinstance(v, dict):
+            if k in ("pisos", "faixas", "tempos_min", "defasagem_meses", "funil_rd_por_time", "pisos_rd") and isinstance(v, dict):
                 base = cfg.get(k) or {}
                 for kk, vv in v.items():
                     if isinstance(vv, dict) and isinstance(base.get(kk), dict):
@@ -154,6 +164,21 @@ def pois_faixa(lam):
 
 
 # ═══════════════ MOTOR (cálculo puro — nada de banco aqui) ═══════════════
+def cadeia_de(estado, cfg):
+    """Cadeia ordenada de passagens do funil deste corretor.
+    Canônico (default): 6 passagens lead→…→venda com tempos do cfg.
+    Modo RD (ex.: funil MAP): a cadeia vem PRONTA no estado (etapas reais 1:1)."""
+    if isinstance(estado.get("cadeia"), list) and estado["cadeia"]:
+        return estado["cadeia"]
+    tempos = cfg.get("tempos_min") or {}
+    out = []
+    for i, k in enumerate(PASSAGENS):
+        out.append({"key": k, "label": PASS_LABEL[k],
+                    "origem": ETAPAS[i], "origem_label": MILESTONES[i][1],
+                    "marco": i, "tempo_min": _num(tempos.get(ETAPAS[i]), 0)})
+    return out
+
+
 def mix_do_perfil(perfil, mix_manual, faixas):
     """Perfil → pesos por faixa de ticket. 'manual' usa os pesos enviados."""
     p = (perfil or "misto").lower()
@@ -172,22 +197,23 @@ def mix_do_perfil(perfil, mix_manual, faixas):
 
 
 def simulate(estado, cenario, cfg):
-    """Cenário → resultado. estado = taxas usadas + canais (do GET calibrado);
-    cenario = atendimentos/perfil/energia/overrides; cfg = oo_motor_config."""
+    """Cenário → resultado. estado = taxas usadas + canais + cadeia (do GET
+    calibrado); cenario = atendimentos/perfil/energia/overrides."""
     faixas = cfg["faixas"]
-    tempos = cfg["tempos_min"]
+    cadeia = cadeia_de(estado, cfg)
+    keys = [c["key"] for c in cadeia]
 
     # 1) taxas por passagem (usadas, com overrides do "e se")
     taxas = {}
     base = estado.get("taxas_usadas") or {}
     overrides = cenario.get("overrides") or {}
-    for k in PASSAGENS:
+    for k in keys:
         t = _num(base.get(k), 0.0)
         if k in overrides and overrides[k] is not None:
             t = _num(overrides[k], t)
         taxas[k] = _clamp(t, 0.01, 0.98)
     conv_funil = 1.0
-    for k in PASSAGENS:
+    for k in keys:
         conv_funil *= taxas[k]
 
     # 2) ticket ponderado do perfil + elasticidade ticket→conversão
@@ -223,13 +249,12 @@ def simulate(estado, cenario, cfg):
     vendas = atend * conv_efetiva
     vgv = vendas * ticket_pond
 
-    # 4) atividade mensal por marco (funil reverso; ticket+canais pesam na 1ª passagem —
-    #    é na entrada do funil que perfil e origem mudam a conversa)
+    # 4) atividade mensal por etapa (funil reverso; fator ticket×canais distribuído)
     fator_total = fator_ticket * fator_canais
-    atividade = atividade_para(vendas, taxas, fator_total)
+    rows_atv, horas = atividade_para(vendas, taxas, fator_total, cadeia)
+    atividade = {r["origem"]: r["valor"] for r in rows_atv}
 
     # 5) horas + farol
-    horas = sum(atividade[k] * _num(tempos.get(k), 0) for k in atividade) / 60.0
     capacidade = _num(cfg.get("dias_uteis"), 22) * _num(cfg.get("horas_dia"), 8)
     pct_cap = (horas / capacidade) if capacidade else None
     farol = None
@@ -237,11 +262,10 @@ def simulate(estado, cenario, cfg):
         farol = "cabe" if pct_cap <= 0.85 else ("apertado" if pct_cap <= 1.0 else "nao_cabe")
 
     # horas por 1 venda/mês (régua da proposta — escala linear)
-    atv1 = atividade_para(1.0, taxas, fator_total)
-    horas_por_venda = sum(atv1[k] * _num(tempos.get(k), 0) for k in atv1) / 60.0
+    _r1, horas_por_venda = atividade_para(1.0, taxas, fator_total, cadeia)
 
     out = {
-        "taxas": {k: round(taxas[k], 4) for k in PASSAGENS},
+        "taxas": {k: round(taxas[k], 4) for k in keys},
         "conv_funil": round(conv_funil, 5),
         "fator_ticket": round(fator_ticket, 4),
         "fator_canais": round(fator_canais, 4),
@@ -255,6 +279,8 @@ def simulate(estado, cenario, cfg):
         "vgv_prev": round(vgv, 2),
         "canais": canais_out,
         "atividade_mes": {k: round(v, 1) for k, v in atividade.items()},
+        "atividade_rows": [{"key": r["origem"], "label": r["origem_label"],
+                            "valor": round(r["valor"], 1)} for r in rows_atv],
         "horas": {"total": round(horas, 1), "capacidade": round(capacidade, 1),
                   "pct": round(pct_cap * 100, 1) if pct_cap is not None else None,
                   "farol": farol, "por_venda": round(horas_por_venda, 1)},
@@ -277,22 +303,26 @@ def simulate(estado, cenario, cfg):
     return out
 
 
-def atividade_para(vendas_alvo, taxas, fator_total):
-    """Volume mensal necessário em cada marco pra fechar `vendas_alvo` vendas.
-    O fator ticket×canais entra DISTRIBUÍDO geometricamente pelas 6 passagens
-    (fator^(1/6) em cada) — o produto continua conv_funil×fator (leads =
-    vendas/conv_efetiva) e o funil fica sempre decrescente lead→pasta."""
-    vol = {}
+def atividade_para(vendas_alvo, taxas, fator_total, cadeia):
+    """Volume mensal necessário em cada ETAPA da cadeia pra fechar `vendas_alvo`
+    vendas + horas totais. O fator ticket×canais entra DISTRIBUÍDO geometricamente
+    (fator^(1/n) por passagem) — o produto continua conv_funil×fator (entrada =
+    vendas/conv_efetiva) e o funil fica sempre decrescente.
+    Devolve ([{key,origem,origem_label,marco,valor,tempo_min}...em ordem], horas)."""
+    n = max(1, len(cadeia))
+    fN = max(0.001, fator_total) ** (1.0 / n)
     acc = max(0.0, vendas_alvo)
-    f6 = max(0.001, fator_total) ** (1.0 / 6.0)
-    # de trás pra frente: venda ← pasta ← proposta ← visita ← agendamento ← contato ← lead
-    ordem = list(reversed(PASSAGENS))  # venda, pasta, proposta, visita, agendamento, contato
-    marcos = list(reversed(ETAPAS[:-1]))  # pasta, proposta, visita, agendamento, contato, lead
-    for i, p in enumerate(ordem):
-        t = _clamp(taxas[p] * f6, 0.001, 0.98)
+    rows = []
+    for c in reversed(cadeia):   # da última passagem pra primeira
+        t = _clamp(_num(taxas.get(c["key"]), 0.5) * fN, 0.001, 0.98)
         acc = acc / t
-        vol[marcos[i]] = acc
-    return {k: vol.get(k, 0.0) for k in ETAPAS[:-1]}  # lead..pasta
+        rows.append({"key": c["key"], "origem": c.get("origem") or c["key"],
+                     "origem_label": c.get("origem_label") or c.get("label") or c["key"],
+                     "marco": c.get("marco"), "valor": acc,
+                     "tempo_min": _num(c.get("tempo_min"), 0)})
+    rows.reverse()
+    horas = sum(r["valor"] * r["tempo_min"] for r in rows) / 60.0
+    return rows, horas
 
 
 def alavancas(estado, cenario, cfg, vendas_base):
@@ -322,7 +352,8 @@ def alavancas(estado, cenario, cfg, vendas_base):
                               "delta_vendas": round(dv, 3)})
     overrides = dict(cenario.get("overrides") or {})
     base_taxas = estado.get("taxas_usadas") or {}
-    for k in PASSAGENS:
+    for c in cadeia_de(estado, cfg):
+        k = c["key"]
         atual = _num(overrides.get(k), _num(base_taxas.get(k)))
         novo = min(0.95, atual + 0.05)
         if novo > atual:
@@ -331,7 +362,7 @@ def alavancas(estado, cenario, cfg, vendas_base):
             dv = _vendas({"overrides": o2}) - vendas_base
             if dv > 0.001:
                 cands.append({"tipo": "etapa", "key": k,
-                              "label": f"{PASS_LABEL[k]} +5pp",
+                              "label": f"{c.get('label') or k} +5pp",
                               "delta_vendas": round(dv, 3)})
     atend = _num(cenario.get("atendimentos_mes"))
     if atend > 0:
@@ -348,16 +379,15 @@ def alavancas(estado, cenario, cfg, vendas_base):
 def _simulate_core(estado, cenario, cfg):
     """Núcleo mínimo (vendas apenas) — usado pelas alavancas pra não recursar."""
     faixas = cfg["faixas"]
-    taxas = {}
     base = estado.get("taxas_usadas") or {}
     overrides = cenario.get("overrides") or {}
     conv = 1.0
-    for k in PASSAGENS:
+    for c in cadeia_de(estado, cfg):
+        k = c["key"]
         t = _num(base.get(k), 0.0)
         if k in overrides and overrides[k] is not None:
             t = _num(overrides[k], t)
-        taxas[k] = _clamp(t, 0.01, 0.98)
-        conv *= taxas[k]
+        conv *= _clamp(t, 0.01, 0.98)
     mix = mix_do_perfil(cenario.get("perfil"), cenario.get("mix_manual"), faixas)
     tp = sum(w * _num(faixas[f]["ticket"]) for f, w in mix.items())
     ft = 1.0
@@ -515,11 +545,13 @@ def calibrar(sb, uid, u, cfg, dias=90):
     ticket_corr = round(sum(tickets) / len(tickets), 2) if tickets else None
     media_6m = round(win180 / 6.0, 2)
 
-    return {
+    est = {
         "window": {"since": since_d.isoformat(), "until": today.isoformat(), "dias": dias},
+        "modo": "canonico",
         "funil": [{"key": ETAPAS[i], "label": MILESTONES[i][1], "n": funnel[i]} for i in range(7)],
         "passagens": passagens,
         "taxas_usadas": taxas_usadas,
+        "cadeia": None,   # canônico usa a cadeia default (cadeia_de)
         "canais": canais,
         "leads_90d": leads_criados,
         "volume_mensal_leads": round(leads_criados / (dias / 30.0), 1),
@@ -527,6 +559,207 @@ def calibrar(sb, uid, u, cfg, dias=90):
         "ticket_corretor": ticket_corr,
         "ticket_equipe": ticket_eq,
         "media_6m_vendas": media_6m,
+    }
+    est["cadeia"] = cadeia_de(est, cfg)
+
+    # 🔁 v86.2: equipe com funil RD espelhado (MAP) — etapas EXATAMENTE iguais em
+    # quantidade e nomenclatura ao funil do RD CRM (regra do Paulo: etapa diferente
+    # = métrica divergente). Substitui funil/passagens/taxas/cadeia do estado.
+    try:
+        rd = _calibrar_rd(sb, u, cfg, deals, events, since_dt, until_dt)
+    except Exception:
+        rd = None
+    if rd:
+        est.update(rd)
+    return est
+
+
+# régua LOCAL de marco pra etapas de funil RD (mais criteriosa que a do cockpit:
+# 'visita realizada' exige VISITA no nome — senão 'CONTATO REALIZADO' viraria visita;
+# 'pasta' em etapa-fonte tipo 'PASTAS LANÇAMENTO' não pode virar marco 5)
+_MARCO_RD = [
+    (5, re.compile(r"pasta|dossi[êe]", re.I)),
+    (4, re.compile(r"proposta|negocia|aprova", re.I)),
+    (3, re.compile(r"visita.*realizad|realizad.*visita", re.I)),
+    (2, re.compile(r"agendad|agendar|agendamento", re.I)),
+    (1, re.compile(r"contato|qualific|atend|tentativ|oport", re.I)),
+]
+
+
+def _marco_rd(nm):
+    n = (nm or "").lower()
+    for idx, rx in _MARCO_RD:
+        if rx.search(n):
+            return idx
+    return 0
+
+
+def _marcos_monotonicos(stages):
+    """Marco canônico (0..6) de cada etapa RD, com 2 regras de sanidade:
+    1) etapas-FONTE (antes da 1ª etapa de atendimento, ex.: CARTEIRA / PASTAS
+       LANÇAMENTO / REATIVAÇÕES no MAP) = marco 0 (lead) — regex sozinho erraria.
+    2) monotônico: o marco nunca volta ao longo das posições (OPORTUNIDADE DO MÊS
+       depois de VISITA REALIZADA herda o marco da visita, não vira 'contato').
+    Última etapa = 6 (venda/contrato)."""
+    raw = [_marco_rd(nm) for _pos, nm in stages]
+    # começo do funil ATIVO = 1ª etapa de contato/agendamento (marco 1 ou 2);
+    # tudo antes é fonte/entrada de lead, mesmo que o nome engane (ex.: 'pastas')
+    first_active = next((i for i, m in enumerate(raw) if m in (1, 2)), 0)
+    out, run = [], 0
+    for i in range(len(stages)):
+        m = 0 if i < first_active else raw[i]
+        run = max(run, m)
+        out.append(run)
+    if out:
+        out[-1] = 6
+    return out
+
+
+def _calibrar_rd(sb, u, cfg, deals, events, since_dt, until_dt):
+    """Funil RD espelhado pro time (cfg funil_rd_por_time). Devolve o patch do
+    estado (modo/pipeline/funil/passagens/taxas_usadas/cadeia) ou None."""
+    tkey = (u.get("team") or "").strip().lower()
+    alvo = None
+    for t_sub, p_sub in (cfg.get("funil_rd_por_time") or {}).items():
+        if t_sub and str(t_sub).lower() in tkey:
+            alvo = str(p_sub or t_sub).strip().lower()
+            break
+    if not alvo:
+        return None
+    try:
+        stages_rows = sb.table("rd_stages").select("*").execute().data or []
+        pipes_rows = sb.table("rd_pipelines").select("id,external_id,name").execute().data or []
+    except Exception:
+        return None
+    pos_by_id, by_pipe, pipe_names = build_stage_maps(stages_rows, pipes_rows)
+    # ids candidatos do funil (id E external_id apontam pro mesmo nome)
+    pids = {str(k) for k, nm in pipe_names.items() if alvo in (nm or "").lower()}
+    pid = next((p for p in pids if p in by_pipe and len(by_pipe[p]) >= 2), None)
+    if not pid:
+        return None
+    stages = by_pipe[pid]                      # [(pos, nome)] ordenado
+    marcos = _marcos_monotonicos(stages)
+    tempos_cfg = cfg.get("tempos_min") or {}
+
+    def _max_pos(d, evs):
+        dpid = str(d.get("pipeline_id") or "")
+        sid = str(d.get("stage_id") or "")
+        spid, spos = pos_by_id.get(sid) or ("", 0)
+        if dpid not in pids and spid not in pids:
+            return None                        # deal de outro funil
+        mx = spos if spid in pids or dpid in pids else 0
+        for ev in (evs or []):
+            if isinstance(ev[0], int):
+                mx = max(mx, ev[0])
+        if d.get("win") is True:
+            mx = max(mx, stages[-1][0])
+        return mx
+
+    def _counts(dset, evmap):
+        cnt = {pos: 0 for pos, _n in stages}
+        tot = 0
+        for d in dset:
+            win = d.get("win")
+            created = parse_dt(d.get("created_at_rd")) or parse_dt((d.get("rd_raw") or {}).get("created_at"))
+            closed = parse_dt(d.get("closed_at"))
+            touches = ((created and since_dt <= created <= until_dt)
+                       or (closed and since_dt <= closed <= until_dt) or win is None)
+            if not touches:
+                continue
+            mx = _max_pos(d, (evmap or {}).get(str(d.get("id"))) if evmap else None)
+            if mx is None:
+                continue
+            tot += 1
+            for pos, _n in stages:
+                if mx >= pos:
+                    cnt[pos] += 1
+        return cnt, tot
+
+    counts, meus = _counts(deals, events)
+    if meus == 0:
+        pass  # corretor sem deal no funil — segue: taxas nascem do piso da equipe
+
+    # PISO por passagem = taxa REAL da EQUIPE inteira (90d, sem eventos — aproximação
+    # leve: etapa atual ≈ máximo alcançado) com cache 24h; override em cfg pisos_rd.
+    team_rates, team_ns = {}, {}
+    ck = f"oo_pisos_rd_cache:{pid}"
+    cache, _okc = _kv_read(sb, ck)
+    fresh = False
+    if cache and cache.get("ts"):
+        try:
+            fresh = (datetime.now(timezone.utc) - parse_dt(cache["ts"])).total_seconds() < 86400
+        except Exception:
+            fresh = False
+    if fresh:
+        team_rates = cache.get("rates") or {}
+        team_ns = cache.get("n") or {}
+    else:
+        try:
+            membros = [m for m in (sb.table("users").select("id,email,team,status").execute().data or [])
+                       if (m.get("status") or "ativo") == "ativo"
+                       and (m.get("team") or "").strip().lower() == tkey]
+            mids = [m.get("id") for m in membros if m.get("id")]
+            tdeals = []
+            cols = "id,win,closed_at,created_at_rd,stage_id,pipeline_id,rd_raw"
+            for i in range(0, len(mids), 80):
+                pg = 0
+                while True:
+                    ch = (sb.table("deals").select(cols).in_("user_id", mids[i:i + 80])
+                          .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
+                    tdeals.extend(ch)
+                    if len(ch) < 1000 or pg >= 20:
+                        break
+                    pg += 1
+            tcnt, _tot = _counts(tdeals, None)
+            for i in range(len(stages) - 1):
+                a, b = stages[i][0], stages[i + 1][0]
+                key = f"p{a}"
+                team_ns[key] = tcnt[a]
+                if tcnt[a] > 0:
+                    team_rates[key] = round(tcnt[b] / tcnt[a], 4)
+            _kv_write(sb, ck, {"ts": datetime.now(timezone.utc).isoformat(),
+                               "rates": team_rates, "n": team_ns, "pipeline": pipe_names.get(pid)})
+        except Exception:
+            team_rates, team_ns = {}, {}
+
+    pisos_cfg = ((cfg.get("pisos_rd") or {}).get(str(pid)) or {})
+    pisos_canon = cfg.get("pisos") or {}
+    K = max(1, int(_num(cfg.get("K"), 30)))
+    passagens, taxas_usadas, cadeia = [], {}, []
+    for i in range(len(stages) - 1):
+        a_pos, a_nome = stages[i]
+        b_pos, b_nome = stages[i + 1]
+        key = f"p{a_pos}"
+        n_k = counts[a_pos]
+        real = (counts[b_pos] / counts[a_pos]) if counts[a_pos] else None
+        # piso: config explícita > equipe (amostra ≥8) > piso canônico do marco
+        if key in pisos_cfg:
+            piso, base = _clamp(_num(pisos_cfg[key], 0.5), 0.01, 0.98), "config"
+        elif key in team_rates and (team_ns.get(key) or 0) >= 8:
+            piso, base = _clamp(_num(team_rates[key], 0.5), 0.01, 0.98), "equipe"
+        else:
+            mk = min(5, max(0, marcos[i]))
+            piso, base = _clamp(_num(pisos_canon.get(PASSAGENS[mk] if mk < 6 else "venda"), 0.5), 0.01, 0.98), "mercado"
+        usada = ((n_k * real + K * piso) / (n_k + K)) if real is not None else piso
+        usada = _clamp(usada, 0.01, 0.98)
+        taxas_usadas[key] = round(usada, 4)
+        passagens.append({"key": key, "label": f"{a_nome} → {b_nome}", "n": n_k,
+                          "real": round(real, 4) if real is not None else None,
+                          "piso": piso, "piso_base": base, "usada": round(usada, 4)})
+        mk = min(5, max(0, marcos[i]))
+        cadeia.append({"key": key, "label": f"{a_nome} → {b_nome}",
+                       "origem": f"s{a_pos}", "origem_label": a_nome,
+                       "marco": marcos[i], "tempo_min": _num(tempos_cfg.get(ETAPAS[mk]), 0)})
+
+    return {
+        "modo": "rd",
+        "pipeline": {"id": str(pid), "nome": pipe_names.get(pid) or "Funil"},
+        "funil": [{"key": f"s{pos}", "label": nome, "n": counts[pos], "marco": marcos[i]}
+                  for i, (pos, nome) in enumerate(stages)],
+        "passagens": passagens,
+        "taxas_usadas": taxas_usadas,
+        "cadeia": cadeia,
+        "deals_no_funil": meus,
     }
 
 
@@ -554,13 +787,13 @@ def cenario_calibrado(estado, u):
 def gargalo(estado, cfg, cen_base):
     """Passagem cujo conserto até o piso mais aumenta vendas (gap × impacto)."""
     best, best_dv = None, 0.0
-    base_v = _simulate_core({"taxas_usadas": estado["taxas_usadas"], "canais": estado["canais"]},
-                            cen_base, cfg)["vendas"]
+    sub = {"taxas_usadas": estado["taxas_usadas"], "canais": estado["canais"],
+           "cadeia": estado.get("cadeia")}
+    base_v = _simulate_core(sub, cen_base, cfg)["vendas"]
     for p in estado["passagens"]:
         if p["real"] is not None and p["real"] < p["piso"] and p["n"] >= 5:
             o2 = {p["key"]: p["piso"]}
-            v2 = _simulate_core({"taxas_usadas": estado["taxas_usadas"], "canais": estado["canais"]},
-                                {**cen_base, "overrides": o2}, cfg)["vendas"]
+            v2 = _simulate_core(sub, {**cen_base, "overrides": o2}, cfg)["vendas"]
             if v2 - base_v > best_dv:
                 best_dv, best = v2 - base_v, p["key"]
     return best
@@ -762,7 +995,8 @@ class handler(BaseHTTPRequestHandler):
             before = json.loads(json.dumps(cur)) if cur else None
             novo = cur or {}
             CAMPOS = ("pisos", "K", "ticket_ref", "sens", "faixas", "tempos_min",
-                      "dias_uteis", "horas_dia", "canal_min_amostra", "defasagem_meses", "motor_shadow")
+                      "dias_uteis", "horas_dia", "canal_min_amostra", "defasagem_meses",
+                      "motor_shadow", "pisos_rd", "funil_rd_por_time")
             mudou = []
             for k in CAMPOS:
                 if k in patch and patch[k] != novo.get(k):
@@ -795,7 +1029,15 @@ class handler(BaseHTTPRequestHandler):
             aj = body.get("ajuste_socio")
             m = int(aj) if (isinstance(aj, (int, float)) and 1 <= int(aj) <= 3) else m_auto
             # atividade da proposta usa as taxas do CENÁRIO (overrides inclusos)
-            atv = atividade_para(float(m), dict(sim["taxas"]), sim["fator_ticket"] * sim["fator_canais"])
+            cadeia = cadeia_de(estado, cfg)
+            atv_rows, _h = atividade_para(float(m), dict(sim["taxas"]),
+                                          sim["fator_ticket"] * sim["fator_canais"], cadeia)
+            # canônico (7 marcos) pro oo_norte: volume da PRIMEIRA etapa de cada marco
+            atv = {}
+            for r in atv_rows:
+                mk = min(5, max(0, int(r.get("marco") or 0)))
+                if ETAPAS[mk] not in atv:
+                    atv[ETAPAS[mk]] = round(r["valor"], 1)
             hpv = _num((sim.get("horas") or {}).get("por_venda"))
             cap = _num(cfg.get("dias_uteis"), 22) * _num(cfg.get("horas_dia"), 8)
             cur, okr = _kv_read(sb, _kv_meta_key(uid, q))
@@ -808,6 +1050,8 @@ class handler(BaseHTTPRequestHandler):
                 "cenario": cenario,
                 "estado_snapshot": {"taxas_usadas": estado.get("taxas_usadas"),
                                     "canais": estado.get("canais"),
+                                    "cadeia": estado.get("cadeia"),
+                                    "pipeline": estado.get("pipeline"),
                                     "media_6m_vendas": estado.get("media_6m_vendas")},
                 "params_snapshot": {k: cfg.get(k) for k in ("pisos", "K", "ticket_ref", "sens", "dias_uteis", "horas_dia")},
                 "proposta": {
@@ -816,6 +1060,8 @@ class handler(BaseHTTPRequestHandler):
                     "vgv_mes_prev": round(m * sim["ticket_ponderado"], 2),
                     "ticket_ponderado": sim["ticket_ponderado"],
                     "atividade_mes": {k: round(v, 1) for k, v in atv.items()},
+                    "atividade_rows": [{"key": r["origem"], "label": r["origem_label"],
+                                        "valor": round(r["valor"], 1)} for r in atv_rows],
                     "horas_mes": round(hpv * m, 1), "capacidade": round(cap, 1),
                     "poisson_mes": pois_faixa(float(m)), "poisson_tri": pois_faixa(float(m * 3)),
                 },
@@ -887,7 +1133,8 @@ class handler(BaseHTTPRequestHandler):
             # preserva canais/obs que o gestor já tenha editado; formato intocado)
             p = cur.get("proposta") or {}
             atv = p.get("atividade_mes") or {}
-            metas_etapas = {k: round(_num(atv.get(k)), 1) for k in ETAPAS[:-1]}
+            # só grava marcos que a atividade cobre (funil RD pode não ter 'pasta', ex.: MAP)
+            metas_etapas = {k: round(_num(atv.get(k)), 1) for k in ETAPAS[:-1] if atv.get(k) is not None}
             metas_etapas["venda"] = p.get("vendas_mes")
             gravados, falhas = [], []
             for ym in months:

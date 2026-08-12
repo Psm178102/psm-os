@@ -163,7 +163,10 @@ async function loadPropostaMeta() {
   const p = pr.proposta, q = pr.quarter;
   const fN = v => { const x = Number(v) || 0; return Number.isInteger(x) ? x.toLocaleString('pt-BR') : x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); };
   const ATV = { lead: 'Leads', contato: 'Contatos', agendamento: 'Agendamentos', visita: 'Visitas', proposta: 'Propostas', pasta: 'Pastas' };
-  const atv = Object.keys(ATV).map(k => `<span style="display:inline-block;background:rgba(255,255,255,.12);border-radius:999px;padding:2px 10px;margin:2px;font-size:11.5px">${ATV[k]} <b>${fN((p.atividade_mes || {})[k])}</b>/mês</span>`).join('');
+  const _chip = (lbl, v) => `<span style="display:inline-block;background:rgba(255,255,255,.12);border-radius:999px;padding:2px 10px;margin:2px;font-size:11.5px">${lbl} <b>${fN(v)}</b>/mês</span>`;
+  const atv = (p.atividade_rows && p.atividade_rows.length
+    ? p.atividade_rows.map(a => _chip(escapeHtml(a.label), a.valor))
+    : Object.keys(ATV).filter(k => (p.atividade_mes || {})[k] != null).map(k => _chip(ATV[k], (p.atividade_mes || {})[k]))).join('');
   if (pr.status === 'aceita') {
     host.innerHTML = `<div class="mt-3" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--r-md);padding:10px 14px;font-size:12.5px">
       ✅ Meta do <b>${escapeHtml(q)}</b> aceita: <b>${p.vendas_mes} venda(s)/mês</b> (${p.vendas_tri} no tri) — a atividade mensal já está no seu Norte do Dia.</div>`;

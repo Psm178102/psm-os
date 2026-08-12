@@ -1051,7 +1051,9 @@ function renderNorteModal() {
         ${etapas.map(e => `<div class="field"><label class="tiny">${escapeHtml(e.label)}</label>
           <input type="number" step="0.1" min="0" class="input" data-ne-et="${e.key}" value="${c.metas_etapas[e.key] ?? ''}" placeholder="${e.key === 'venda' ? 'auto' : '—'}" style="padding:4px 8px;font-size:12px"></div>`).join('')}
       </div>
-      <div class="flex" style="gap:8px;margin-top:14px;justify-content:flex-end">
+      <div class="flex" style="gap:8px;margin-top:14px;justify-content:flex-end;flex-wrap:wrap">
+        ${(((_det?.corretor?.team) || '').toLowerCase().includes('conquista') && (auth.user()?.lvl || 0) >= 7)
+          ? '<button class="btn btn-ghost" id="ne-auto" style="margin-right:auto" title="Preenche com dado real: RD CRM (funil Conquista, 90d) + metas do PSM HUB. Sobrescreve o que está neste mês.">⚡ Preencher automático (RD + HUB)</button>' : ''}
         <button class="btn btn-ghost" id="ne-cancel">Cancelar</button>
         <button class="btn btn-primary" id="ne-save">💾 Salvar meta do mês</button>
       </div>
@@ -1076,6 +1078,21 @@ function renderNorteModal() {
   ov.querySelectorAll('[data-ne-del]').forEach(b => b.onclick = () => { _ne.cfg.canais.splice(+b.dataset.neDel, 1); renderNorteModal(); });
   ov.querySelector('#ne-add').onclick = () => { _ne.cfg.canais.push({ nome: 'Novo canal', taxa_base: 1, energia: 0, mix: 0 }); renderNorteModal(); };
   ov.querySelector('#ne-save').onclick = saveNorte;
+  const bAuto = ov.querySelector('#ne-auto');
+  if (bAuto) bAuto.onclick = async () => {
+    if (!confirm(`Preencher o norte de ${_ne.ym} automaticamente com RD (funil Conquista, 90d) + PSM HUB?\nIsso SOBRESCREVE o que está definido neste mês pra este corretor.`)) return;
+    bAuto.disabled = true; bAuto.textContent = '⚡ Preenchendo…';
+    try {
+      const r = await api.request('/api/v3/oo/norte_auto', { method: 'POST', body: {
+        action: 'aplicar', corretor_id: _selId, ym: _ne.ym, force: true } });
+      if (!r.aplicados) throw new Error((r.res && r.res[0] && (r.res[0].detalhe || r.res[0].status)) || 'nada aplicado');
+      document.getElementById('norte-ov')?.remove(); _ne = null;
+      await loadDetail();
+    } catch (e) {
+      alert('Não preencheu: ' + (e.message || e));
+      bAuto.disabled = false; bAuto.textContent = '⚡ Preencher automático (RD + HUB)';
+    }
+  };
   norteRecalc();
 }
 
@@ -1183,7 +1200,11 @@ function simRetrato() {
   const chips = (e.canais || []).map(c =>
     `<span style="display:inline-block;background:var(--bg-3);border:1px solid var(--border);border-radius:999px;padding:3px 10px;font-size:11.5px;margin:2px">
       <b>${escapeHtml(c.label)}</b> ${Math.round(c.share * 100)}%${c.neutro ? '' : ` · conv ${c.taxa_rel}×`}<span class="muted"> · ${c.leads} leads</span></span>`).join('');
+  const rdBadge = e.modo === 'rd' && e.pipeline
+    ? `<div style="margin-bottom:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;font-size:12px">🔁 <b>Etapas espelhadas 1:1 do funil “${escapeHtml(e.pipeline.nome)}” do RD CRM</b> — mesma quantidade e nomenclatura (sem tradução, sem divergência). Piso = taxa real da equipe inteira na passagem (editável na Calibração).</div>`
+    : '';
   return panel(`📸 Retrato real (90d) · ${escapeHtml((_sim.corretor || {}).name || '')}`, `
+    ${rdBadge}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:10px;text-align:center">
       <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:20px;font-weight:900">${fmtN(e.volume_mensal_leads)}</div><div class="tiny muted">leads novos/mês</div></div>
       <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:20px;font-weight:900">${e.vendas_90d || 0}</div><div class="tiny muted">vendas 90d · média 6m: ${fmtN(e.media_6m_vendas)}/mês</div></div>
@@ -1266,8 +1287,9 @@ function simResultado() {
     ${gap ? `<div style="margin-top:8px;background:${gap.gap_vendas > 0 ? '#fffbeb' : '#f0fdf4'};border:1px solid ${gap.gap_vendas > 0 ? '#fde68a' : '#bbf7d0'};border-radius:8px;padding:8px 10px;font-size:12px">
       🎯 Meta ${fmtN(gap.meta_vendas_mes)}/mês: ${gap.gap_vendas > 0 ? `faltam <b>${fmtN(gap.gap_vendas)}</b> venda(s) — precisaria de <b>${fmtN(gap.atend_necessarios)}</b> atendimentos/mês` : '<b>cenário bate a meta ✓</b>'}</div>` : ''}
     <div style="margin-top:10px;font-weight:800;font-size:12px">📋 Atividade mensal necessária (o que o mês cobra)</div>
-    <table style="width:100%;border-collapse:collapse;margin-top:4px">${Object.keys(ATV_LBL).map(k =>
-      `<tr><td style="font-size:12px;padding:3px 0">${ATV_LBL[k]}</td><td style="text-align:right;font-weight:800;font-size:12.5px">${fmtN(atv[k])}</td></tr>`).join('')}</table>
+    <table style="width:100%;border-collapse:collapse;margin-top:4px">${(r.atividade_rows && r.atividade_rows.length
+      ? r.atividade_rows.map(a => `<tr><td style="font-size:12px;padding:3px 0">${escapeHtml(a.label)}</td><td style="text-align:right;font-weight:800;font-size:12.5px">${fmtN(a.valor)}</td></tr>`)
+      : Object.keys(ATV_LBL).map(k => `<tr><td style="font-size:12px;padding:3px 0">${ATV_LBL[k]}</td><td style="text-align:right;font-weight:800;font-size:12.5px">${fmtN(atv[k])}</td></tr>`)).join('')}</table>
     <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
       <div style="flex:1;height:12px;background:var(--bg-3);border-radius:6px;overflow:hidden"><div style="height:100%;width:${Math.min(100, h.pct || 0)}%;background:${fc}"></div></div>
       <span class="tiny" style="font-weight:800;color:${fc};white-space:nowrap">${fmtN(h.total)}h / ${fmtN(h.capacidade)}h · ${fl}</span>
@@ -1311,7 +1333,9 @@ function simProposta() {
         ${p.ajuste_socio != null && p.ajuste_socio !== p.m_auto ? `<span class="tiny muted">(motor sugeriu ${p.m_auto} · sócio ajustou pra ${p.ajuste_socio})</span>` : ''}
       </div>
       <div class="tiny" style="margin-top:6px">VGV/mês ≈ <b>R$ ${moneyShort(p.vgv_mes_prev)}</b> · ${fmtN(p.horas_mes)}h/mês de ${fmtN(p.capacidade)}h · 🎲 tri normal: <b>${(p.poisson_tri || {}).lo}–${(p.poisson_tri || {}).hi}</b> · mês zera ${Math.round(((p.poisson_mes || {}).p_zero || 0) * 100)}% das vezes mesmo executando</div>
-      <div class="tiny" style="margin-top:4px">Atividade/mês: ${Object.keys(ATV_LBL).map(k => `${ATV_LBL[k]} <b>${fmtN((p.atividade_mes || {})[k])}</b>`).join(' · ')}</div>
+      <div class="tiny" style="margin-top:4px">Atividade/mês: ${(p.atividade_rows && p.atividade_rows.length
+        ? p.atividade_rows.map(a => `${escapeHtml(a.label)} <b>${fmtN(a.valor)}</b>`)
+        : Object.keys(ATV_LBL).map(k => `${ATV_LBL[k]} <b>${fmtN((p.atividade_mes || {})[k])}</b>`)).join(' · ')}</div>
       ${reg.aceite ? `<div class="tiny" style="color:#16a34a;margin-top:4px">Aceita em ${new Date(reg.aceite.ts).toLocaleString('pt-BR')}</div>` : ''}
     </div>` : '<div class="tiny muted" style="margin-top:8px">Nenhuma proposta gerada pra este trimestre ainda.</div>'}`);
 }
@@ -1410,7 +1434,7 @@ async function runSim() {
   try {
     const r = await api.request('/api/v3/oo/simulador', { method: 'POST', body: {
       action: 'simular',
-      estado: { taxas_usadas: (_sim.estado || {}).taxas_usadas, canais: (_sim.estado || {}).canais },
+      estado: { taxas_usadas: (_sim.estado || {}).taxas_usadas, canais: (_sim.estado || {}).canais, cadeia: (_sim.estado || {}).cadeia },
       cenario: _simCen } });
     _simRes = r.result;
     const el = document.getElementById('sim-res');
@@ -1428,7 +1452,7 @@ async function gerarProposta() {
     api.request('/api/v3/oo/simulador', { method: 'POST', body: { action: 'salvar_cenario', user_id: _selId, cenario: _simCen } }).catch(() => {});
     const r = await api.request('/api/v3/oo/simulador', { method: 'POST', body: {
       action: 'proposta', user_id: _selId, quarter: q,
-      estado: { taxas_usadas: (_sim.estado || {}).taxas_usadas, canais: (_sim.estado || {}).canais, media_6m_vendas: (_sim.estado || {}).media_6m_vendas },
+      estado: { taxas_usadas: (_sim.estado || {}).taxas_usadas, canais: (_sim.estado || {}).canais, cadeia: (_sim.estado || {}).cadeia, pipeline: (_sim.estado || {}).pipeline, media_6m_vendas: (_sim.estado || {}).media_6m_vendas },
       cenario: _simCen,
       ajuste_socio: adj === 'auto' ? null : Number(adj) } });
     _sim.propostas = _sim.propostas || {};
@@ -1455,9 +1479,9 @@ async function salvarCalibracao() {
   const btn = $('cal-save');
   const nv = id => parseFloat($(id)?.value) || 0;
   const e = _sim.estado || {};
+  const pisosNovos = Object.fromEntries((e.passagens || []).map(p => [p.key, Math.min(0.98, Math.max(0.01, nv('cal-piso-' + p.key) / 100))]));
   const patch = {
     motor_shadow: !!$('cal-shadow')?.checked,
-    pisos: Object.fromEntries((e.passagens || []).map(p => [p.key, Math.min(0.98, Math.max(0.01, nv('cal-piso-' + p.key) / 100))])),
     K: Math.max(1, Math.round(nv('cal-k'))),
     ticket_ref: nv('cal-tref'), sens: nv('cal-sens'),
     dias_uteis: nv('cal-du'), horas_dia: nv('cal-hd'),
@@ -1467,6 +1491,12 @@ async function salvarCalibracao() {
     tempos_min: Object.fromEntries(['lead', 'contato', 'agendamento', 'visita', 'proposta', 'pasta'].map(k => [k, nv('cal-tm-' + k)])),
     defasagem_meses: { map: Math.round(nv('cal-df-map')), conquista: Math.round(nv('cal-df-conq')) },
   };
+  // pisos: funil RD espelhado grava em pisos_rd[pipeline]; canônico grava em pisos
+  if (e.modo === 'rd' && e.pipeline) {
+    patch.pisos_rd = { ...((_sim.config || {}).pisos_rd || {}), [e.pipeline.id]: pisosNovos };
+  } else {
+    patch.pisos = pisosNovos;
+  }
   if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
   try {
     const r = await api.request('/api/v3/oo/simulador', { method: 'POST', body: { action: 'config', patch } });

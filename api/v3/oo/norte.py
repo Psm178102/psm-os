@@ -365,6 +365,9 @@ class handler(BaseHTTPRequestHandler):
         log.append({"quem": user.get("name") or user.get("email"), "quando": datetime.now(timezone.utc).isoformat(),
                     "mudancas": mudancas[:20]})
         cfg["changelog"] = log[-60:]
+        # ✋ humano editou → norte vira MANUAL: o preenchimento automático (norte_auto,
+        # Conquista) para de encostar neste mês (regra anti-desfazer, v86.2)
+        cfg.pop("auto", None)
 
         try:
             sb.table("shared_kv").upsert({"key": _kv_key(cid, ym), "value": cfg,
