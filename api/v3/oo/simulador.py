@@ -60,7 +60,9 @@ CFG_MOTOR_DEFAULT = {
     "tempos_min": {"lead": 4, "contato": 8, "agendamento": 10,
                    "visita": 90, "proposta": 30, "pasta": 60},
     "dias_uteis": 22, "horas_dia": 8,          # capacidade = 176h/mês
-    "canal_min_amostra": 10,                   # < isso → canal neutro (taxa_rel=1.0)
+    "canal_min_amostra": 10,                   # leads no canal < isso → canal neutro (taxa_rel=1.0)
+    "canal_min_vendas": 5,                     # vendas 90d do corretor < isso → TODOS os canais neutros
+                                               # (com 1-2 vendas, conversão por canal é ruído puro — v86.5)
     "defasagem_meses": {"map": 3, "conquista": 1},  # venda do mês ↔ atividade de N meses atrás
     "motor_shadow": True,
     # 🔁 v86.2: equipes cujo simulador ESPELHA o funil REAL do RD (etapas 1:1, mesma
@@ -505,16 +507,21 @@ def calibrar(sb, uid, u, cfg, dias=90):
                           "real": round(real, 4) if real is not None else None,
                           "piso": piso, "usada": round(usada, 4)})
 
-    # canais: share dos leads 90d + taxa relativa (conv do canal ÷ conv geral)
+    # canais: share dos leads 90d + taxa relativa (conv do canal ÷ conv geral).
+    # taxa relativa SÓ liga com amostra decente dos dois lados: leads do canal
+    # (canal_min_amostra) E vendas totais 90d (canal_min_vendas) — com 1-2 vendas,
+    # todo canal sem venda ia pro chão do clamp e derrubava a conversão efetiva
+    # sem sentido nenhum (achado da auditoria ao vivo, v86.5).
     total_leads_ch = sum(ch_leads.values())
     conv_geral = (vendas_90 / total_leads_ch) if total_leads_ch else 0
     min_amostra = int(_num(cfg.get("canal_min_amostra"), 10))
+    min_vendas = int(_num(cfg.get("canal_min_vendas"), 5))
     canais = []
     for ck in sorted(ch_leads, key=lambda x: -ch_leads[x]):
         n_c = ch_leads[ck]
         share = n_c / total_leads_ch if total_leads_ch else 0
-        if n_c >= min_amostra and conv_geral > 0:
-            taxa_rel = _clamp((ch_vendas.get(ck, 0) / n_c) / conv_geral, 0.25, 3.0)
+        if n_c >= min_amostra and vendas_90 >= min_vendas and conv_geral > 0:
+            taxa_rel = _clamp((ch_vendas.get(ck, 0) / n_c) / conv_geral, 0.5, 2.0)
             neutro = False
         else:
             taxa_rel, neutro = 1.0, True
