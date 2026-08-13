@@ -695,7 +695,12 @@ def _calibrar_rd(sb, u, cfg, deals, events, since_dt, until_dt):
     nome_pid = pipe_names.get(pid)
     pids = {k for k, nm in pipe_names.items() if nm == nome_pid}
     pids.add(pid)
-    stages = by_pipe[pid]                      # [(pos, nome)] ordenado
+    stages = list(by_pipe[pid])                # [(pos, nome)] ordenado
+    # funil sem lane de venda (ex.: FUNIL MAP termina em Proposta/Aprovação — o
+    # ganho é o WIN do RD, não uma etapa): acrescenta a etapa sintética de ganho,
+    # senão a "venda" do simulador viraria "chegou em proposta"
+    if not re.search(r"venda|contrato|ganho|fechad", stages[-1][1] or "", re.I):
+        stages.append((stages[-1][0] + 1, "💰 VENDA (ganho no RD)"))
     marcos = _marcos_monotonicos(stages)
     tempos_cfg = cfg.get("tempos_min") or {}
 
