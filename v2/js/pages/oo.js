@@ -1278,8 +1278,8 @@ function simRetrato() {
   const rows = ps.map(p => {
     const isG = p.key === garg;
     const abaixo = p.real != null && p.real < p.piso;
-    return `<tr style="${isG ? 'background:#fef2f2' : ''}">
-      <td style="padding:4px 8px 4px 0;font-size:12px;font-weight:600;white-space:nowrap">${escapeHtml(p.label)}${isG ? ' <span style="color:#dc2626;font-weight:800" title="maior ganho se consertar">🔥 gargalo</span>' : ''}</td>
+    return `<tr style="${isG ? 'background:#fef2f2' : ''}${p.sintetica ? 'border-top:2px dashed var(--border)' : ''}">
+      <td style="padding:4px 8px 4px 0;font-size:12px;font-weight:600;white-space:nowrap${p.sintetica ? ';font-style:italic;color:var(--ink-muted)' : ''}">${escapeHtml(p.label)}${p.sintetica ? ' <span class="tiny" style="font-weight:400" title="o FUNIL MAP não tem lane de venda — o ganho é o WIN do deal no RD">(win — não é etapa do funil)</span>' : ''}${isG ? ' <span style="color:#dc2626;font-weight:800" title="maior ganho se consertar">🔥 gargalo</span>' : ''}</td>
       <td style="text-align:right;font-size:12px;color:${abaixo ? '#dc2626' : '#16a34a'};font-weight:700">${_pc(p.real)}</td>
       <td style="text-align:right;font-size:12px;color:var(--ink-muted)">${_pc(p.piso)}</td>
       <td style="text-align:right;font-size:12px;font-weight:800">${_pc(p.usada)}</td>
@@ -1287,7 +1287,7 @@ function simRetrato() {
     </tr>`;
   }).join('');
   const rdBadge = e.modo === 'rd' && e.pipeline
-    ? `<div style="margin-bottom:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;font-size:12px">🔁 <b>Etapas espelhadas 1:1 do funil “${escapeHtml(e.pipeline.nome)}” do RD CRM</b> — mesma quantidade e nomenclatura (sem tradução, sem divergência). Piso = taxa real da equipe inteira na passagem (editável na Calibração).</div>`
+    ? `<div style="margin-bottom:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;font-size:12px">🔁 <b>Cópia EXATA do funil “${escapeHtml(e.pipeline.nome)}” do RD CRM</b> — ${e.etapas_rd || (e.funil || []).filter(f => !f.sintetica).length} etapas, mesma ordem e nomenclatura. Piso = taxa real da equipe inteira na passagem. A linha <i>💰 Ganho</i> não é etapa do funil: é o deal marcado como GANHO (win) no RD — sem ela o simulador não teria venda pra prever.</div>`
     : '';
   return panel(`📸 Funil real × piso (90d) · ${escapeHtml((_sim.corretor || {}).name || '')}`, `
     ${rdBadge}

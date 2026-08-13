@@ -695,12 +695,16 @@ def _calibrar_rd(sb, u, cfg, deals, events, since_dt, until_dt):
     nome_pid = pipe_names.get(pid)
     pids = {k for k, nm in pipe_names.items() if nm == nome_pid}
     pids.add(pid)
-    stages = list(by_pipe[pid])                # [(pos, nome)] ordenado
-    # funil sem lane de venda (ex.: FUNIL MAP termina em Proposta/Aprovação — o
-    # ganho é o WIN do RD, não uma etapa): acrescenta a etapa sintética de ganho,
-    # senão a "venda" do simulador viraria "chegou em proposta"
+    stages = list(by_pipe[pid])                # [(pos, nome)] ordenado — CÓPIA EXATA do RD
+    # Funil sem lane de venda (ex.: FUNIL MAP termina em Proposta/Aprovação — lá o
+    # ganho é o WIN do deal, não uma etapa): o motor precisa de um nó final de
+    # GANHO pra prever vendas, mas ele NÃO é etapa do funil (regra do Paulo:
+    # copiar EXATAMENTE o funil). Entra marcado como sintético e o front exibe
+    # separado das etapas reais.
+    ganho_pos = None
     if not re.search(r"venda|contrato|ganho|fechad", stages[-1][1] or "", re.I):
-        stages.append((stages[-1][0] + 1, "💰 VENDA (ganho no RD)"))
+        ganho_pos = stages[-1][0] + 1
+        stages.append((ganho_pos, "💰 Ganho (win no RD)"))
     marcos = _marcos_monotonicos(stages)
     tempos_cfg = cfg.get("tempos_min") or {}
 
@@ -808,7 +812,8 @@ def _calibrar_rd(sb, u, cfg, deals, events, since_dt, until_dt):
         taxas_usadas[key] = round(usada, 4)
         passagens.append({"key": key, "label": f"{a_nome} → {b_nome}", "n": n_k,
                           "real": round(real, 4) if real is not None else None,
-                          "piso": piso, "piso_base": base, "usada": round(usada, 4)})
+                          "piso": piso, "piso_base": base, "usada": round(usada, 4),
+                          "sintetica": b_pos == ganho_pos})
         mk = min(5, max(0, marcos[i]))
         cadeia.append({"key": key, "label": f"{a_nome} → {b_nome}",
                        "origem": f"s{a_pos}", "origem_label": a_nome,
@@ -817,8 +822,10 @@ def _calibrar_rd(sb, u, cfg, deals, events, since_dt, until_dt):
     return {
         "modo": "rd",
         "pipeline": {"id": str(pid), "nome": pipe_names.get(pid) or "Funil"},
-        "funil": [{"key": f"s{pos}", "label": nome, "n": counts[pos], "marco": marcos[i]}
+        "funil": [{"key": f"s{pos}", "label": nome, "n": counts[pos], "marco": marcos[i],
+                   "sintetica": pos == ganho_pos}
                   for i, (pos, nome) in enumerate(stages)],
+        "etapas_rd": len(stages) - (1 if ganho_pos else 0),   # nº de etapas REAIS (bate com o RD)
         "passagens": passagens,
         "taxas_usadas": taxas_usadas,
         "cadeia": cadeia,
