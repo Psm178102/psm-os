@@ -352,11 +352,41 @@ function render() {
 }
 
 function tabBody() {
-  if (_tab === 'graficos')  return tabGraficos();
-  if (_tab === 'trafego')   return tabTrafegoCompleto();
-  if (_tab === 'vendas')    return tabVendas();
-  if (_tab === 'marca')     return tabMarca();
-  return tabExecutiva();
+  // 🚨 v86.16: faixa de alertas SEMPRE visível, em toda aba (in-page e TV) —
+  // é ela que transforma o iPad/TV em posto de decisão rápida do Ads
+  const strip = alertStrip();
+  if (_tab === 'graficos')  return strip + tabGraficos();
+  if (_tab === 'trafego')   return strip + tabTrafegoCompleto();
+  if (_tab === 'vendas')    return strip + tabVendas();
+  if (_tab === 'marca')     return strip + tabMarca();
+  return strip + tabExecutiva();
+}
+
+/* 🚨 Faixa de alertas com AÇÃO (v86.16) — os mesmos limiares da Central de
+   Alertas, mas na cara, em qualquer aba, com o verbo do que fazer. */
+function alertStrip() {
+  const d = _data || {};
+  const al = computeAlerts(d.campaigns || []);
+  const nm = c => escapeHtml(String(c.name || '—').slice(0, 40));
+  const pills = [];
+  const mk = (bd, txt) => pills.push(`<span style="display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb, ${bd} 14%, transparent);border:1.5px solid ${bd};border-radius:999px;padding:5px 13px;font-size:13px;font-weight:800;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis">${txt}</span>`);
+  al.burning.slice(0, 2).forEach(c => mk('#dc2626', `🔥 QUEIMANDO · ${nm(c)} · R$ ${money(c.spend || 0)} sem resultado → <u>PAUSAR/REVISAR JÁ</u>`));
+  al.cplHigh.slice(0, 2).forEach(c => mk('#ea580c', `💸 CPL R$ ${money(c.cpr || 0)} (teto R$ ${money(_th.cpl)}) · ${nm(c)} → otimizar público/criativo`));
+  al.fadiga.slice(0, 2).forEach(c => mk('#d97706', `😵 FREQ ${(c.frequency || 0).toFixed(1)} · ${nm(c)} → TROCAR CRIATIVO`));
+  al.ctrLow.slice(0, 2).forEach(c => mk('#2563eb', `📉 CTR ${pct2(c.ctr || 0)} · ${nm(c)} → gancho fraco, testar novo criativo`));
+  al.qualBaixo.slice(0, 1).forEach(c => mk('#7c3aed', `🏳 QUALIDADE ABAIXO DA MÉDIA · ${nm(c)}`));
+  // oportunidade (verde): CPL dentro do teto + frequência folgada → escalar
+  al.active.filter(c => (c.results || 0) > 0 && (c.cpr || 0) <= _th.cpl && (c.frequency || 0) < 2)
+    .slice(0, 2).forEach(c => mk('#16a34a', `🚀 ESCALAR +20% · ${nm(c)} · CPL R$ ${money(c.cpr || 0)} ok, freq ${(c.frequency || 0).toFixed(1)}`));
+  const total = al.burning.length + al.cplHigh.length + al.fadiga.length + al.ctrLow.length + al.qualBaixo.length;
+  const mostrados = Math.min(al.burning.length, 2) + Math.min(al.cplHigh.length, 2) + Math.min(al.fadiga.length, 2) + Math.min(al.ctrLow.length, 2) + Math.min(al.qualBaixo.length, 1);
+  const head = total
+    ? `<span style="font-size:15px;font-weight:900;color:#dc2626;white-space:nowrap">⚠️ ${total} ALERTA${total > 1 ? 'S' : ''}</span>`
+    : `<span style="font-size:14px;font-weight:900;color:#16a34a;white-space:nowrap">✅ SEM ALERTAS — dentro dos limiares</span>`;
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:${total ? 'color-mix(in srgb, #dc2626 6%, transparent)' : 'color-mix(in srgb, #16a34a 6%, transparent)'};border:1.5px solid ${total ? 'rgba(220,38,38,.4)' : 'rgba(22,163,74,.35)'}">
+    ${head}${pills.join('')}
+    ${total > mostrados ? `<span class="tiny" style="font-weight:800;opacity:.8">+${total - mostrados} na Central de Alertas (aba Tráfego)</span>` : ''}
+  </div>`;
 }
 
 /* ───────────────────────── MODO TV / TELA CHEIA ─────────────────────────
@@ -389,13 +419,36 @@ function enterTV() {
   if (_tvTimer) clearInterval(_tvTimer);
   _tvTimer = setInterval(() => { if (_tv && _tvRotate) tvStep(1); }, TV_ROTATE_MS);
   if (_tvDataTimer) clearInterval(_tvDataTimer);
-  _tvDataTimer = setInterval(() => { if (_tv && !_busy) reload(true); }, TV_REFRESH_MS);
+  // 📡 v86.16: no TV o refresh é AO VIVO (nocache → bate na Meta), não no cache
+  // de 15min — é o modo posto-de-comando do iPad/TV em horário comercial
+  _tvNextAt = Date.now() + TV_REFRESH_MS;
+  _tvDataTimer = setInterval(() => {
+    if (_tv && !_busy) { _nocacheOnce = true; _tvNextAt = Date.now() + TV_REFRESH_MS; reload(true); }
+  }, TV_REFRESH_MS);
+  if (_tvTickTimer) clearInterval(_tvTickTimer);
+  _tvTickTimer = setInterval(tvTickAge, 1000);
+}
+
+let _tvNextAt = 0, _tvTickTimer = null;
+
+/* idade do dado + countdown do próximo refresh — confiança no "tempo real" */
+function tvTickAge() {
+  const el = document.getElementById('tv-age');
+  if (!el || !_tv) return;
+  const d = _data || {};
+  const age = d.fetchedAt ? Math.max(0, Math.round((Date.now() - new Date(d.fetchedAt).getTime()) / 1000)) : null;
+  const nxt = Math.max(0, Math.round((_tvNextAt - Date.now()) / 1000));
+  const cor = age == null ? '#94a3b8' : age < 300 ? '#4ade80' : age < 1200 ? '#fbbf24' : '#f87171';
+  const fmtA = s => s < 90 ? `${s}s` : `${Math.round(s / 60)}min`;
+  el.innerHTML = `<span style="color:${cor};font-weight:800">● dado de ${age != null ? fmtA(age) : '—'} atrás</span>
+    <span style="opacity:.7"> · atualiza em ${fmtA(nxt)}</span>`;
 }
 
 function exitTV() {
   _tv = false;
   if (_tvTimer) { clearInterval(_tvTimer); _tvTimer = null; }
   if (_tvDataTimer) { clearInterval(_tvDataTimer); _tvDataTimer = null; }
+  if (_tvTickTimer) { clearInterval(_tvTickTimer); _tvTickTimer = null; }
   document.removeEventListener('keydown', tvKey);
   try { if (document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
   const ov = document.getElementById('ma-tv'); if (ov) ov.remove();
@@ -427,7 +480,8 @@ function renderTV() {
   ov.innerHTML = `
     <div style="position:sticky;top:0;z-index:5;background:rgba(11,18,32,0.94);backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,0.08);padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="font-size:19px;font-weight:900;color:#fff;white-space:nowrap">📺 PSM · Meta Ads</div>
-      <div style="font-size:12px;color:#94a3b8;white-space:nowrap">${nAcc} conta(s) · ${escapeHtml(d.period || _preset)} · ${d.fetchedAt ? new Date(d.fetchedAt).toLocaleTimeString('pt-BR') : 'agora'}${d.partial ? ' · ⚠️ parcial' : ''}</div>
+      <div style="font-size:12px;color:#94a3b8;white-space:nowrap">${nAcc} conta(s) · ${escapeHtml(d.period || _preset)}${d.partial ? ' · ⚠️ parcial' : ''}</div>
+      <div id="tv-age" style="font-size:12px;white-space:nowrap"></div>
       <div style="flex:1;min-width:10px"></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center">${dots}</div>
       <div style="display:flex;gap:6px;align-items:center">
@@ -458,7 +512,8 @@ function renderTV() {
   ov.querySelector('#tv-prev')?.addEventListener('click', () => tvStep(-1));
   ov.querySelector('#tv-next')?.addEventListener('click', () => tvStep(1));
   ov.querySelector('#tv-rotate')?.addEventListener('click', () => { _tvRotate = !_tvRotate; renderTV(); });
-  ov.querySelector('#tv-refresh')?.addEventListener('click', () => reload(true));
+  ov.querySelector('#tv-refresh')?.addEventListener('click', () => { _nocacheOnce = true; _tvNextAt = Date.now() + TV_REFRESH_MS; reload(true); });
+  tvTickAge();
   ov.querySelector('#tv-exit')?.addEventListener('click', exitTV);
   // gráficos da aba atual (canvas vivem no overlay; in-page está vazio → sem conflito de ID)
   if (_tab === 'executiva') { if (!_ts && !_tsBusy) loadTimeseries(); buildExecutivaCharts(); }
