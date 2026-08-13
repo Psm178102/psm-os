@@ -2,6 +2,7 @@
    PSM-OS v2 — Financeiro (NIBO live) — Sprint 7.5 c/ tabs
 ============================================================================ */
 import { api } from '../api.js';
+import { mountCaixa } from './caixa-panel.js';
 import { auth } from '../auth.js';
 import { heroWrap, heroKpi, miniStat, panel, loadChartLib, darkOpts, DARK_INK, DARK_GRID, pctDelta } from '../premium.js';
 
@@ -42,6 +43,7 @@ function drawShell() {
       <!-- Tabs -->
       <div class="flex gap-1" style="margin-top:14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
         ${tabBtn('resumo',    '📊 Resumo')}
+        ${tabBtn('caixa',     '💵 Caixa')}
         ${tabBtn('dre',       '📈 DRE 12m')}
         ${tabBtn('metricas',  '🚦 Métricas')}
         ${tabBtn('custos',    '🏢 Custos Fixos')}
@@ -72,7 +74,8 @@ async function drawBody() {
   _charts.forEach(c => { try { c.destroy(); } catch (_) {} });
   _charts = [];
   try {
-    if (_tab === 'resumo')      { body.innerHTML = await renderResumo(); buildResumoCharts(); }
+    if (_tab === 'caixa')       { body.innerHTML = '<div id="fin-caixa"></div>'; await mountCaixa(document.getElementById('fin-caixa')); }
+    else if (_tab === 'resumo') { body.innerHTML = await renderResumo(); buildResumoCharts(); }
     else if (_tab === 'dre')      body.innerHTML = await renderDre();
     else if (_tab === 'metricas') body.innerHTML = await renderMetricas();
     else if (_tab === 'custos')   body.innerHTML = await renderCustos();

@@ -9,6 +9,7 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { loadChartLib, darkOpts, DARK_INK, DARK_GRID } from '../premium.js';
 import { FRENTES } from '../frentes.js';
+import { mountCaixa } from './caixa-panel.js';
 
 let _root = null, _tab = 'resumo', _ano = new Date().getFullYear(), _d = null, _msg = '';
 let _vcharts = [];   // instâncias Chart.js vivas (destruídas a cada render, v83.4)
@@ -594,7 +595,7 @@ function render() {
         <div class="vb-kpi"><div class="l">Projeção ${_ano}</div><div class="v">${pj ? fmtC(pj.projetado) : '—'}</div><div class="s">${pj && pj.atingProj != null ? pj.atingProj.toFixed(0) + '% da meta de ' + fmtC(pj.metaAno) : 'sem meses fechados'}</div></div>
       </div>
       <nav class="vb-tabs">
-        ${tab('mes', 'VISÃO DO MÊS')}${tab('ano', 'RESULTADO ' + _ano)}${tab('cenarios', 'CENÁRIOS')}${tab('admin', 'ADMINISTRAR')}
+        ${tab('mes', 'VISÃO DO MÊS')}${tab('ano', 'RESULTADO ' + _ano)}${tab('caixa', 'CAIXA')}${tab('cenarios', 'CENÁRIOS')}${tab('admin', 'ADMINISTRAR')}
       </nav>
     </div>
     ${div.length && _divOpen ? `<div style="background:var(--vbg);color:var(--vbgi);margin:0 -16px;padding:10px 22px;font-size:12px">
@@ -612,6 +613,7 @@ function render() {
   const body = document.getElementById('viab-body');
   if (_tab === 'mes') { body.innerHTML = renderMes(); wireMes(); }
   else if (_tab === 'ano') { body.innerHTML = renderRealizado(); wireRealizado(); }
+  else if (_tab === 'caixa') { body.innerHTML = '<div id="mv-caixa" style="padding-top:8px"></div>'; mountCaixa(document.getElementById('mv-caixa')); }
   else if (_tab === 'cenarios') {
     const sub = (id, lbl) => `<button class="btn ${_cenView === id ? 'btn-primary' : 'btn-ghost'} btn-sm" data-cenview="${id}">${lbl}</button>`;
     body.innerHTML = `<div class="flex gap-1 mb-3" style="flex-wrap:wrap">${sub('be', 'Alavancas & break-even')}${sub('sim', 'Sandbox por frente')}</div>`
