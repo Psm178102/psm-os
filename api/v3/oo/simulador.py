@@ -239,18 +239,29 @@ def simulate(estado, cenario, cfg):
     energia = cenario.get("energia") or {}
     fator_canais, canais_out = 0.0, []
     if isinstance(canais_cen, list) and canais_cen:
+        # conv base do cenário (funil × ticket) — a taxa relativa age sobre ela.
+        # taxa_conv_pct (v86.15) = % ABSOLUTA de conversão do canal digitada pelo
+        # sócio (semântica da planilha: "Indicação converte 8%") — SOBREPÕE tudo.
+        conv_base = conv_funil * fator_ticket
         for c in canais_cen:
             key = c.get("key")
             mx = _clamp(_num(c.get("mix")), 0.0, 400.0) / 100.0
             en = _clamp(_num(c.get("energia"), 100.0), 0.0, 100.0)
-            # conv relativa EDITÁVEL no cenário (v86.14); sem edição → medida 90d → neutra
-            tr = _num(c.get("taxa_rel"), None)
-            tr = _clamp(tr, 0.05, 20.0) if tr and tr > 0 else rel_map.get(key, 1.0)
+            pct = _num(c.get("taxa_conv_pct"), None)
+            if pct and pct > 0:
+                conv_c = _clamp(pct, 0.01, 100.0) / 100.0
+                tr = (conv_c / conv_base) if conv_base > 0 else 1.0
+            else:
+                tr = _num(c.get("taxa_rel"), None)
+                tr = _clamp(tr, 0.05, 20.0) if tr and tr > 0 else rel_map.get(key, 1.0)
+                conv_c = conv_base * tr
             contrib = mx * (en / 100.0) * tr
             fator_canais += contrib
             canais_out.append({"key": key, "label": c.get("label") or CHANNEL_LABEL.get(key, key),
                                "share": round(mx, 4), "mix": round(mx * 100, 1),
                                "taxa_rel": round(tr, 3), "energia": en,
+                               "conv_pct": round(conv_c * 100, 2),
+                               "manual": bool(pct and pct > 0),
                                "contrib": round(contrib, 4)})
     elif canais_in:
         for c in canais_in:
@@ -436,10 +447,15 @@ def _simulate_core(estado, cenario, cfg):
     canais_cen = cenario.get("canais")
     fc = 0.0
     if isinstance(canais_cen, list) and canais_cen:
+        conv_base = conv * ft
         for c in canais_cen:
             en = _clamp(_num(c.get("energia"), 100.0), 0.0, 100.0)
-            tr = _num(c.get("taxa_rel"), None)
-            tr = _clamp(tr, 0.05, 20.0) if tr and tr > 0 else rel_map.get(c.get("key"), 1.0)
+            pct = _num(c.get("taxa_conv_pct"), None)
+            if pct and pct > 0:
+                tr = (_clamp(pct, 0.01, 100.0) / 100.0 / conv_base) if conv_base > 0 else 1.0
+            else:
+                tr = _num(c.get("taxa_rel"), None)
+                tr = _clamp(tr, 0.05, 20.0) if tr and tr > 0 else rel_map.get(c.get("key"), 1.0)
             fc += (_clamp(_num(c.get("mix")), 0.0, 400.0) / 100.0) * (en / 100.0) * tr
     elif canais:
         for c in canais:

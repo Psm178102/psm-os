@@ -1307,7 +1307,7 @@ function simQuadroReal() {
   const rows = cs.map(c => `<tr>
       <td style="font-size:12px;font-weight:600;padding:4px 6px 4px 0;white-space:nowrap">${escapeHtml(c.label || c.key)}</td>
       <td style="text-align:right;font-size:12px">${Math.round((c.share || 0) * 100)}%</td>
-      <td style="text-align:right;font-size:12px">${c.neutro ? '<span class="muted" title="amostra insuficiente — neutro">—</span>' : fmtN(c.taxa_rel) + '×'}</td>
+      <td style="text-align:right;font-size:12px" title="${c.neutro ? 'amostra insuficiente pra medir' : 'conversão relativa ' + fmtN(c.taxa_rel) + '× a média dele'}">${(c.leads || 0) > 0 ? fmtN((c.vendas || 0) / c.leads * 100) + '%' : '—'}</td>
       <td style="text-align:right;font-size:12px">${fmtN(c.leads || 0)}</td>
       <td style="text-align:right;font-size:12px;font-weight:800">${fmtN(c.vendas || 0)}</td>
     </tr>`).join('');
@@ -1318,7 +1318,7 @@ function simQuadroReal() {
       <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:19px;font-weight:900">${e.ticket_corretor ? 'R$ ' + moneyShort(e.ticket_corretor) : '—'}</div><div class="tiny muted">ticket · equipe ${e.ticket_equipe ? 'R$ ' + moneyShort(e.ticket_equipe) : '—'}</div></div>
     </div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Origem (real)</th><th>Mix</th><th>Conv rel.</th><th>Leads</th><th>Vendas</th></tr></thead>
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Origem (real)</th><th>Mix</th><th>Conv %</th><th>Leads</th><th>Vendas</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="5" class="tiny muted">Sem leads no período.</td></tr>'}</tbody>
       <tfoot><tr style="font-weight:800;font-size:12px"><td style="text-align:right">Σ</td><td></td><td></td><td style="text-align:right">${fmtN(totL)}</td><td style="text-align:right">${fmtN(totV)}</td></tr></tfoot>
     </table></div>
@@ -1342,7 +1342,7 @@ function simQuadroSim() {
         ${opcoes.map(o => `<option value="${o[0]}"${cn.key === o[0] ? ' selected' : ''}>${escapeHtml(o[1])}</option>`).join('')}</select></td>
       <td><input class="input" type="number" min="0" step="1" data-simc="${i}:mix" value="${Number(cn.mix) || 0}" style="width:62px;padding:3px 6px;font-size:12px;text-align:right"></td>
       <td><input class="input" type="number" min="0" max="100" step="5" data-simc="${i}:energia" value="${Number(cn.energia) ?? 100}" style="width:62px;padding:3px 6px;font-size:12px;text-align:right"></td>
-      <td><input class="input" type="number" min="0.05" step="0.1" data-simc="${i}:taxa_rel" value="${Number(cn.taxa_rel) > 0 ? Number(cn.taxa_rel) : ''}" placeholder="${relDoCanal(cn.key)}×" title="conversão RELATIVA do canal (1 = média dele; 2 = converte 2×). Vazio = medida no RD (ou neutra)" style="width:62px;padding:3px 6px;font-size:12px;text-align:right"></td>
+      <td><input class="input" type="number" min="0.01" max="100" step="0.1" data-simc="${i}:taxa_conv_pct" id="simc-cv-${i}" value="${Number(cn.taxa_conv_pct) > 0 ? Number(cn.taxa_conv_pct) : ''}" placeholder="—" title="% de CONVERSÃO do canal (lead→venda), igual à planilha. Vazio = a taxa que o funil + RD medem (mostrada aqui embaixo)" style="width:66px;padding:3px 6px;font-size:12px;text-align:right"></td>
       <td class="tiny" style="text-align:right" id="simc-at-${i}">—</td>
       <td class="tiny" style="text-align:right;font-weight:800" id="simc-vd-${i}">—</td>
       <td><button class="btn btn-ghost btn-sm" data-simc-del="${i}" title="remover origem">🗑</button></td>
@@ -1368,7 +1368,7 @@ function simQuadroSim() {
     </div>
     <div style="margin-top:10px;font-weight:800;font-size:12px">⚡ Origens do cenário <span class="tiny muted" style="font-weight:400">(mix % dos atendimentos · energia 0 zera o canal — semântica da planilha)</span></div>
     <div style="overflow-x:auto;margin-top:4px"><table style="width:100%;border-collapse:collapse">
-      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Origem</th><th>Mix %</th><th>Energia</th><th title="conversão relativa — editável; vazio usa a medida do RD">Conv ×</th><th>Atend.</th><th>Vendas</th><th></th></tr></thead>
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Origem</th><th>Mix %</th><th>Energia</th><th title="% de conversão do canal (lead→venda) — digite a sua; vazio usa a medida (funil + RD)">Conv %</th><th>Atend.</th><th>Vendas</th><th></th></tr></thead>
       <tbody id="simc-body">${linhas || '<tr><td colspan="7" class="tiny muted">Nenhuma origem — adicione abaixo.</td></tr>'}</tbody>
       <tfoot><tr style="font-weight:800;font-size:12px"><td style="text-align:right">Σ</td><td style="text-align:right" id="simc-mix-t">—</td><td></td><td></td><td style="text-align:right" id="simc-at-t">—</td><td style="text-align:right" id="simc-vd-t">—</td><td></td></tr></tfoot>
     </table></div>
@@ -1392,12 +1392,16 @@ function simRowsRecalc() {
   const atendT = Number(_simCen?.atendimentos_mes) || 0;
   let mixT = 0, atT = 0, vdT = 0;
   ((_simCen || {}).canais || []).forEach((cn, i) => {
-    const rel = Number(cn.taxa_rel) > 0 ? Number(cn.taxa_rel) : relDoCanal(cn.key);
+    // % de conversão do canal: digitada MANDA; vazio = funil×ticket × relativa medida
+    const convMedida = convF * relDoCanal(cn.key);
+    const convC = Number(cn.taxa_conv_pct) > 0 ? Number(cn.taxa_conv_pct) / 100 : convMedida;
     const en = Math.min(100, Math.max(0, Number(cn.energia) ?? 100));
     const at = atendT * (Number(cn.mix) || 0) / 100;
-    const vd = at * (en / 100) * rel * convF;
+    const vd = at * (en / 100) * convC;
     mixT += Number(cn.mix) || 0; atT += at; vdT += vd;
     const el = id => document.getElementById(id);
+    const inp = el(`simc-cv-${i}`);
+    if (inp) inp.placeholder = (convMedida * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
     if (el(`simc-at-${i}`)) el(`simc-at-${i}`).textContent = fmtN(Math.round(at * 10) / 10);
     if (el(`simc-vd-${i}`)) el(`simc-vd-${i}`).textContent = fmtN(Math.round(vd * 100) / 100);
   });
@@ -1547,7 +1551,7 @@ function wireSim() {
   _root.querySelectorAll('[data-simc]').forEach(inp => inp.addEventListener('input', () => {
     const [i, f] = inp.dataset.simc.split(':');
     if (_simCen.canais && _simCen.canais[+i]) {
-      if (f === 'taxa_rel' && inp.value.trim() === '') delete _simCen.canais[+i].taxa_rel;  // vazio = volta pra medida
+      if (f === 'taxa_conv_pct' && inp.value.trim() === '') delete _simCen.canais[+i].taxa_conv_pct;  // vazio = volta pra medida
       else _simCen.canais[+i][f] = parseFloat(inp.value) || 0;
       simRowsRecalc(); sched();
     }
