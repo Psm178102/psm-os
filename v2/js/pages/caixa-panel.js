@@ -49,8 +49,8 @@ function render() {
       <input type="month" class="input" id="cx-ym" value="${_ym}" style="width:auto;padding:4px 8px;font-size:12px">
       <span style="flex:1"></span>
       ${chip(true, 'CRM (RD)', 'VGV/vendas reais por frente')}
-      ${chip(f.recebiveis, 'Radar de Recebíveis', 'a receber vem do radar (valor, data, marco)')}
-      ${chip(f.nibo, 'NIBO', f.nibo ? 'a pagar = agenda real dos 2 CNPJs' : (d.fontes.nibo_err || []).join(' · ') || 'sem envs — a pagar usa o orçado')}
+      ${chip(f.recebiveis, 'Radar de Recebíveis', 'a receber das frentes fora da Conquista (valor, data, marco)')}
+      ${chip(f.hub_fin, 'PSM HUB financeiro', f.hub_fin ? 'vendas da Conquista com líquido + comissões EXATAS + parcelas' : (f.hub_err || 'ponte indisponível'))}
       ${chip(true, 'Meta Ads', 'tráfego real do mês entra no custo')}
     </div>
     ${(d.avisos || []).length ? `<div class="alert alert-warn" style="font-size:12px">${d.avisos.map(esc).join('<br>')}</div>` : ''}
@@ -96,7 +96,7 @@ function blocoRealizado(r) {
       <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900">R$ ${kR$(c.receita)}</div><div class="tiny muted">receita bruta PSM</div></div>
       <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900;color:${(c.lucro || 0) >= 0 ? '#166534' : '#dc2626'}">R$ ${kR$(c.lucro)}</div><div class="tiny muted">lucro (margem ${c.margem != null ? fN(c.margem) + '%' : '—'})</div></div>
       ${r.recebido_caixa_mes != null ? `<div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900">R$ ${kR$(r.recebido_caixa_mes)}</div><div class="tiny muted">ENTROU no caixa (radar)</div></div>` : ''}
-      ${r.nibo_mes ? `<div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900">R$ ${kR$(r.nibo_mes.pago)}</div><div class="tiny muted">pago no mês (NIBO)</div></div>` : ''}
+      ${r.hub_mes ? `<div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900">R$ ${kR$(r.hub_mes.liquido)}</div><div class="tiny muted">líquido HUB no mês (${fN(r.hub_mes.vendas)} venda/s · com. R$ ${kR$(r.hub_mes.com_corretor + r.hub_mes.com_gestor)})</div></div>` : ''}
     </div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Frente</th><th>Vendas</th><th>VGV</th><th>Receita</th><th>Comissões</th><th>Imposto</th><th>Lucro</th><th>Mg</th></tr></thead>
@@ -131,7 +131,12 @@ function blocoFluxo(cx) {
       <span class="tiny" style="font-weight:800;white-space:nowrap">R$ ${kR$(p.valor)}${p.estimado ? '<span class="muted" title="valor estimado pela premissa — preencher no Radar">*</span>' : ''}</span>
     </div>`;
   }).join('');
-  return pan(`📆 Fluxo de caixa · próximas ${sem.length} semanas — a receber (Radar) × a pagar (${sem[0]?.base_pagar === 'nibo' ? 'agenda NIBO' : 'custo orçado'} + comissões casadas)`, `
+  const hub = cx.hub || {};
+  const semAgenda = (hub.sem_agenda || []).map(x => `<div class="tiny" style="display:flex;gap:8px;background:#fffbeb;border-left:3px solid #d97706;border-radius:6px;padding:4px 9px">
+      <span style="font-weight:700;white-space:nowrap">${dBR(x.venda)}</span>
+      <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.cliente || '?')} · ${esc(x.produto || '')} · ${esc(x.corretor || '')}</span>
+      <span style="font-weight:800;white-space:nowrap">R$ ${kR$(x.liquido)}</span></div>`).join('');
+  return pan(`📆 Fluxo de caixa · próximas ${sem.length} semanas — Conquista pelo HUB (parcela + comissão EXATA) · demais frentes pelo Radar · a pagar = custo orçado + comissões`, `
     <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:8px">
       <span class="tiny">Ponto de partida: <b>${cx.posicao_inicial != null ? 'R$ ' + brl(cx.posicao_inicial) : 'R$ 0 (fluxo puro)'}</b></span>
       <button class="btn btn-ghost btn-sm" id="cx-setpos">✏️ posição de caixa</button>
@@ -147,7 +152,9 @@ function blocoFluxo(cx) {
       <div style="background:var(--bg-3);border-radius:8px;padding:7px"><div style="font-weight:900">${rs.sem_data || 0} / ${rs.sem_valor || 0}</div><div class="tiny muted">sem data / sem valor ⚠</div></div>
     </div>
     <div style="display:grid;gap:4px">${prox || '<div class="tiny muted">Nenhum recebível ativo no Radar.</div>'}</div>
-    <div class="tiny muted" style="margin-top:6px">Saldo NÃO conta o travado (realista). Atrasados caem na 1ª semana. * = valor estimado pela premissa da frente — o número fino se preenche no Radar de Recebíveis.</div>`);
+    ${hub.sem_agenda_n ? `<div style="margin-top:8px;font-weight:800;font-size:12px">⚠ Vendas do HUB SEM data de parcela (R$ fora do fluxo até agendar lá)${hub.sem_agenda_n > (hub.sem_agenda || []).length ? ` — mostrando ${(hub.sem_agenda || []).length} de ${hub.sem_agenda_n}` : ''}</div>
+    <div style="display:grid;gap:3px;margin-top:4px">${semAgenda}</div>` : ''}
+    <div class="tiny muted" style="margin-top:6px">Saldo NÃO conta o travado (realista). Atrasados caem na 1ª semana. * = valor estimado pela premissa — o exato da Conquista vem do HUB; das demais frentes, preenche no Radar. Parcela HUB vencida há +45d é presumida liquidada.</div>`);
 }
 
 /* ── 3) BREAK-EVEN — meta mínima do mês ── */

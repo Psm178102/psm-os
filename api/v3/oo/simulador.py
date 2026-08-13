@@ -243,7 +243,9 @@ def simulate(estado, cenario, cfg):
             key = c.get("key")
             mx = _clamp(_num(c.get("mix")), 0.0, 400.0) / 100.0
             en = _clamp(_num(c.get("energia"), 100.0), 0.0, 100.0)
-            tr = rel_map.get(key, 1.0)
+            # conv relativa EDITÁVEL no cenário (v86.14); sem edição → medida 90d → neutra
+            tr = _num(c.get("taxa_rel"), None)
+            tr = _clamp(tr, 0.05, 20.0) if tr and tr > 0 else rel_map.get(key, 1.0)
             contrib = mx * (en / 100.0) * tr
             fator_canais += contrib
             canais_out.append({"key": key, "label": c.get("label") or CHANNEL_LABEL.get(key, key),
@@ -436,7 +438,9 @@ def _simulate_core(estado, cenario, cfg):
     if isinstance(canais_cen, list) and canais_cen:
         for c in canais_cen:
             en = _clamp(_num(c.get("energia"), 100.0), 0.0, 100.0)
-            fc += (_clamp(_num(c.get("mix")), 0.0, 400.0) / 100.0) * (en / 100.0) * rel_map.get(c.get("key"), 1.0)
+            tr = _num(c.get("taxa_rel"), None)
+            tr = _clamp(tr, 0.05, 20.0) if tr and tr > 0 else rel_map.get(c.get("key"), 1.0)
+            fc += (_clamp(_num(c.get("mix")), 0.0, 400.0) / 100.0) * (en / 100.0) * tr
     elif canais:
         for c in canais:
             en = _clamp(_num(energia.get(c.get("key")), 100.0), 0.0, 100.0)

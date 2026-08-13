@@ -34,47 +34,44 @@ from viab import (  # type: ignore
 )
 
 KV_CAIXA = "caixa_posicao"
+KV_HUB_FIN = "psmhub_financeiro_cache"   # MESMO cache da ponte psmhub/financeiro (10min)
 
-# ── NIBO (cópia mínima do client do finance/, padrão da casa: lib por pasta) ──
-NIBO_BASE = "https://api.nibo.com.br/empresas/v1"
-NIBO_COMPANIES = {"imoveis": "NIBO_API_TOKEN", "locacao": "NIBO_TOKEN_LOCACAO"}
+# ── PSM HUB financeiro (v86.14 — NIBO foi CANCELADO em 13/ago; a fonte
+# financeira agora é o módulo /api/financeiro do Hub: vendas com comissão
+# EXATA de corretor/gestor, líquido da imobiliária, NFs e parcelas) ──
+import _psmhub_lib as hub  # type: ignore
 
 
-def _nibo(company, endpoint, top=1000):
-    token = os.environ.get(NIBO_COMPANIES.get(company, ""))
-    if not token:
-        return None, f"{NIBO_COMPANIES.get(company)} não configurado"
-    req = urllib.request.Request(f"{NIBO_BASE}/{endpoint}?$top={top}",
-                                 headers={"apitoken": token, "Accept": "application/json",
-                                          "User-Agent": "PSM-OS-v3/caixa"})
+def hub_financeiro(sb):
+    """Vendas do financeiro do Hub, com cache compartilhado de 10min (a mesma
+    chave da ponte psmhub/financeiro — quem chegar primeiro aquece pro outro)."""
     try:
-        with urllib.request.urlopen(req, timeout=25) as r:
-            data = json.loads(r.read().decode("utf-8"))
-        items = data.get("items") if isinstance(data, dict) else data
-        return (items if isinstance(items, list) else []), None
+        rows = sb.table("shared_kv").select("value").eq("key", KV_HUB_FIN).limit(1).execute().data or []
+        v = (rows[0].get("value") if rows else None) or {}
+        if isinstance(v, str):
+            v = json.loads(v)
+        ts = v.get("_cached_at")
+        if ts:
+            idade = (datetime.now(timezone.utc) - datetime.fromisoformat(str(ts).replace("Z", "+00:00"))).total_seconds()
+            if idade < 600 and isinstance(v.get("financeiro"), list):
+                return v["financeiro"], None
+    except Exception:
+        pass
+    if not hub.configured():
+        return None, "ponte PSM HUB sem credenciais (PSMHUB_EMAIL/PASSWORD)"
+    try:
+        fin = hub.get("/api/financeiro")
+        if not isinstance(fin, list):
+            return None, "Hub /api/financeiro devolveu formato inesperado"
+        try:
+            sb.table("shared_kv").upsert({"key": KV_HUB_FIN, "value": {
+                "ok": True, "financeiro": fin,
+                "_cached_at": datetime.now(timezone.utc).isoformat()}}, on_conflict="key").execute()
+        except Exception:
+            pass
+        return fin, None
     except Exception as e:
         return None, str(e)[:160]
-
-
-def _money(v):
-    try:
-        if isinstance(v, str):
-            v = v.replace("R$", "").strip().replace(".", "").replace(",", ".")
-        return float(v or 0)
-    except Exception:
-        return 0.0
-
-
-def _settled(it):
-    return bool(it.get("isPaid") or it.get("isReceived") or it.get("paidDate") or it.get("receivedDate"))
-
-
-def _due(it):
-    raw = it.get("dueDate") or it.get("date") or it.get("scheduleDate")
-    try:
-        return date.fromisoformat(str(raw)[:10])
-    except Exception:
-        return None
 
 
 def _hoje():
@@ -183,27 +180,61 @@ class handler(BaseHTTPRequestHandler):
         if sem_data:
             avisos.append(f"{len(sem_data)} recebível(is) SEM data prevista — fora do fluxo semanal (aparecem na lista)")
 
-        # ── 3) A PAGAR (NIBO schedules; sem NIBO → custo orçado rateado) ──
-        nibo_deb, nibo_cred, nibo_err = [], [], []
-        for comp in NIBO_COMPANIES:
-            d_items, e1 = _nibo(comp, "schedules/debit")
-            c_items, e2 = _nibo(comp, "schedules/credit")
-            if e1:
-                nibo_err.append(f"{comp}: {e1}")
-            nibo_deb.extend(d_items or [])
-            nibo_cred.extend(c_items or [])
-        nibo_ok = not nibo_err or (len(nibo_err) < len(NIBO_COMPANIES))
-        if nibo_err:
-            avisos.append("NIBO parcial/indisponível (" + " · ".join(nibo_err[:2])
-                          + ") — a pagar usa o custo ORÇADO rateado por semana")
-        nibo_mes = {
-            "recebido": round(sum(_money(x.get("value") or x.get("amount")) for x in nibo_cred
-                                  if _settled(x) and str(_due(x) or "").startswith(ym)), 2),
-            "pago": round(sum(_money(x.get("value") or x.get("amount")) for x in nibo_deb
-                              if _settled(x) and str(_due(x) or "").startswith(ym)), 2),
-        } if nibo_ok else None
+        # ── 3) PSM HUB financeiro (fonte oficial desde 13/ago/2026 — NIBO cancelado):
+        # vendas com líquido da imobiliária + comissão EXATA de corretor/gestor +
+        # parcelas. A Conquista entra no fluxo POR AQUI (valor exato); o Radar
+        # cobre as demais frentes (sem dupla contagem). ──
+        hub_fin, hub_err = hub_financeiro(sb)
+        hub_ok = hub_fin is not None
+        if hub_err:
+            avisos.append(f"PSM HUB financeiro indisponível ({hub_err}) — fluxo fica com Radar + custo orçado")
+        hub_fin = hub_fin or []
+        hub_parcelas = []                      # (data, entra_liquido, sai_comissao)
+        hub_sem_agenda = []
+        hub_mes = {"vendas": 0, "vgv": 0.0, "liquido": 0.0, "com_corretor": 0.0, "com_gestor": 0.0}
+        corte_atraso = hoje - timedelta(days=45)   # parcela vencida há +45d = presumida liquidada
+        for vd in hub_fin:
+            liq = _num(vd.get("valorLiquido")) or _num(vd.get("valorBruto"))
+            com = _num(vd.get("comissaoCorretor")) + _num(vd.get("comissaoGestor"))
+            if str(vd.get("dataVenda") or "").startswith(ym):
+                hub_mes["vendas"] += 1
+                hub_mes["vgv"] += _num(vd.get("vgv"))
+                hub_mes["liquido"] += liq
+                hub_mes["com_corretor"] += _num(vd.get("comissaoCorretor"))
+                hub_mes["com_gestor"] += _num(vd.get("comissaoGestor"))
+            n_par = max(1, int(_num(vd.get("nrParcelas"), 1)))
+            try:
+                d1 = date.fromisoformat(str(vd.get("dataPrimeiraParcela"))[:10]) if vd.get("dataPrimeiraParcela") else None
+            except Exception:
+                d1 = None
+            if not d1:
+                # sem agenda de parcela: pendência (só vendas dos últimos 90d — velhas presumidas resolvidas)
+                try:
+                    dv = date.fromisoformat(str(vd.get("dataVenda"))[:10])
+                except Exception:
+                    dv = None
+                if dv and (hoje - dv).days <= 90 and liq > 0:
+                    hub_sem_agenda.append({"cliente": vd.get("cliente"), "corretor": vd.get("vendorName"),
+                                           "produto": vd.get("produto"), "liquido": round(liq, 2),
+                                           "venda": vd.get("dataVenda")})
+                continue
+            for k in range(n_par):
+                dt_k = d1 + timedelta(days=30 * k)
+                if dt_k >= corte_atraso:
+                    hub_parcelas.append((dt_k, liq / n_par, com / n_par))
+        for k in ("vgv", "liquido", "com_corretor", "com_gestor"):
+            hub_mes[k] = round(hub_mes[k], 2)
+        if hub_sem_agenda:
+            avisos.append(f"{len(hub_sem_agenda)} venda(s) do HUB sem data de parcela — "
+                          "R$ fora do fluxo semanal até agendar lá")
 
         # ── 4) FLUXO SEMANAL (10 semanas a partir da segunda desta semana) ──
+        # Conquista entra pelo HUB (valor exato); Radar cobre as outras frentes.
+        radar_fluxo = ativos if not hub_ok else \
+            [r for r in ativos if (r.get("frente") or "").lower() != "conquista"]
+        if hub_ok and len(radar_fluxo) < len(ativos):
+            avisos.append(f"{len(ativos) - len(radar_fluxo)} recebível(is) da Conquista saem do fluxo pelo "
+                          "Radar e entram pelos valores EXATOS do HUB (sem dupla contagem)")
         custos_orc = read_kv(sb, "viab_custos_orcado")
         itens_orc = (custos_orc.get(str(ano)) or {}).get("itens") or []
         seg0 = hoje - timedelta(days=hoje.weekday())
@@ -215,7 +246,7 @@ class handler(BaseHTTPRequestHandler):
             ini = seg0 + timedelta(days=7 * w)
             fim = ini + timedelta(days=6)
             entra_conf = entra_prev = entra_trav = sai_com = 0.0
-            for r in ativos:
+            for r in radar_fluxo:
                 dp = r.get("data_prevista")
                 try:
                     dpd = date.fromisoformat(str(dp)[:10]) if dp else None
@@ -235,26 +266,25 @@ class handler(BaseHTTPRequestHandler):
                 else:
                     entra_prev += val
                 sai_com += comissao_de(r)
-            if nibo_ok:
-                sai_fixo = sum(_money(x.get("value") or x.get("amount")) for x in nibo_deb
-                               if not _settled(x) and _due(x) and
-                               ((ini <= _due(x) <= fim) or (w == 0 and _due(x) < ini)))
-                base_pagar = "nibo"
-            else:
-                m_ref = ini.month
-                sai_fixo = custo_fixo_mes(itens_orc, m_ref) / 4.33
-                base_pagar = "orcado"
-            entra = entra_conf + entra_prev + entra_trav
-            sai = sai_fixo + sai_com
-            acum_fluxo += (entra_conf + entra_prev) - sai   # travado NÃO conta no saldo (é o realista)
+            # parcelas do HUB desta semana (líquido entra, comissão exata sai junto)
+            entra_hub = sai_hub = 0.0
+            for dt_k, ent_k, com_k in hub_parcelas:
+                if (ini <= dt_k <= fim) or (w == 0 and dt_k < ini):
+                    entra_hub += ent_k
+                    sai_hub += com_k
+            sai_fixo = custo_fixo_mes(itens_orc, ini.month) / 4.33
+            entra = entra_conf + entra_prev + entra_trav + entra_hub
+            sai = sai_fixo + sai_com + sai_hub
+            acum_fluxo += (entra_conf + entra_prev + entra_hub) - sai   # travado NÃO conta (realista)
             if furo is None and acum_fluxo < 0:
                 furo = ini.isoformat()
             semanas.append({"ini": ini.isoformat(), "fim": fim.isoformat(),
                             "entra_confirmado": round(entra_conf, 2), "entra_previsto": round(entra_prev, 2),
-                            "entra_travado": round(entra_trav, 2), "entra_total": round(entra, 2),
-                            "sai_fixo": round(sai_fixo, 2), "sai_comissao": round(sai_com, 2),
-                            "sai_total": round(sai, 2), "base_pagar": base_pagar,
-                            "saldo": round((entra_conf + entra_prev) - sai, 2),
+                            "entra_travado": round(entra_trav, 2), "entra_hub": round(entra_hub, 2),
+                            "entra_total": round(entra, 2),
+                            "sai_fixo": round(sai_fixo, 2), "sai_comissao": round(sai_com + sai_hub, 2),
+                            "sai_total": round(sai, 2), "base_pagar": "orcado+hub",
+                            "saldo": round((entra_conf + entra_prev + entra_hub) - sai, 2),
                             "acumulado": round(acum_fluxo, 2)})
 
         proximos = []
@@ -319,15 +349,20 @@ class handler(BaseHTTPRequestHandler):
 
         return self._send(200, {
             "ok": True, "ym": ym,
-            "fontes": {"crm": True, "recebiveis": receb_ok, "nibo": nibo_ok,
-                       "nibo_err": nibo_err or None, "meta_ads": True},
+            "fontes": {"crm": True, "recebiveis": receb_ok, "hub_fin": hub_ok,
+                       "hub_err": hub_err or None, "meta_ads": True},
             "avisos": avisos,
             "realizado": {"mes": realizado, "acumulado_ano": acum,
                           "recebido_caixa_mes": round(sum(entrada_de(r)[0] for r in recebidos_mes), 2),
-                          "nibo_mes": nibo_mes},
+                          "hub_mes": hub_mes if hub_ok else None},
             "caixa": {"posicao_inicial": caixa_ini,
                       "posicao_info": {"ts": pos.get("ts"), "por": pos.get("por")} if caixa_ini is not None else None,
                       "semanas": semanas, "furo": furo,
+                      "hub": {"ok": hub_ok, "vendas_total": len(hub_fin),
+                              "mes": hub_mes if hub_ok else None,
+                              "parcelas_futuras": len(hub_parcelas),
+                              "sem_agenda": hub_sem_agenda[:10],
+                              "sem_agenda_n": len(hub_sem_agenda)},
                       "recebiveis_resumo": {
                           "ativos": len(ativos),
                           "confirmado": round(sum(entrada_de(r)[0] for r in ativos if r.get("status") == "confirmado"), 2),

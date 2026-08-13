@@ -1342,7 +1342,7 @@ function simQuadroSim() {
         ${opcoes.map(o => `<option value="${o[0]}"${cn.key === o[0] ? ' selected' : ''}>${escapeHtml(o[1])}</option>`).join('')}</select></td>
       <td><input class="input" type="number" min="0" step="1" data-simc="${i}:mix" value="${Number(cn.mix) || 0}" style="width:62px;padding:3px 6px;font-size:12px;text-align:right"></td>
       <td><input class="input" type="number" min="0" max="100" step="5" data-simc="${i}:energia" value="${Number(cn.energia) ?? 100}" style="width:62px;padding:3px 6px;font-size:12px;text-align:right"></td>
-      <td class="tiny" style="text-align:right" id="simc-rel-${i}">—</td>
+      <td><input class="input" type="number" min="0.05" step="0.1" data-simc="${i}:taxa_rel" value="${Number(cn.taxa_rel) > 0 ? Number(cn.taxa_rel) : ''}" placeholder="${relDoCanal(cn.key)}×" title="conversão RELATIVA do canal (1 = média dele; 2 = converte 2×). Vazio = medida no RD (ou neutra)" style="width:62px;padding:3px 6px;font-size:12px;text-align:right"></td>
       <td class="tiny" style="text-align:right" id="simc-at-${i}">—</td>
       <td class="tiny" style="text-align:right;font-weight:800" id="simc-vd-${i}">—</td>
       <td><button class="btn btn-ghost btn-sm" data-simc-del="${i}" title="remover origem">🗑</button></td>
@@ -1368,7 +1368,7 @@ function simQuadroSim() {
     </div>
     <div style="margin-top:10px;font-weight:800;font-size:12px">⚡ Origens do cenário <span class="tiny muted" style="font-weight:400">(mix % dos atendimentos · energia 0 zera o canal — semântica da planilha)</span></div>
     <div style="overflow-x:auto;margin-top:4px"><table style="width:100%;border-collapse:collapse">
-      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Origem</th><th>Mix %</th><th>Energia</th><th>Conv rel.</th><th>Atend.</th><th>Vendas</th><th></th></tr></thead>
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Origem</th><th>Mix %</th><th>Energia</th><th title="conversão relativa — editável; vazio usa a medida do RD">Conv ×</th><th>Atend.</th><th>Vendas</th><th></th></tr></thead>
       <tbody id="simc-body">${linhas || '<tr><td colspan="7" class="tiny muted">Nenhuma origem — adicione abaixo.</td></tr>'}</tbody>
       <tfoot><tr style="font-weight:800;font-size:12px"><td style="text-align:right">Σ</td><td style="text-align:right" id="simc-mix-t">—</td><td></td><td></td><td style="text-align:right" id="simc-at-t">—</td><td style="text-align:right" id="simc-vd-t">—</td><td></td></tr></tfoot>
     </table></div>
@@ -1392,13 +1392,12 @@ function simRowsRecalc() {
   const atendT = Number(_simCen?.atendimentos_mes) || 0;
   let mixT = 0, atT = 0, vdT = 0;
   ((_simCen || {}).canais || []).forEach((cn, i) => {
-    const rel = relDoCanal(cn.key);
+    const rel = Number(cn.taxa_rel) > 0 ? Number(cn.taxa_rel) : relDoCanal(cn.key);
     const en = Math.min(100, Math.max(0, Number(cn.energia) ?? 100));
     const at = atendT * (Number(cn.mix) || 0) / 100;
     const vd = at * (en / 100) * rel * convF;
     mixT += Number(cn.mix) || 0; atT += at; vdT += vd;
     const el = id => document.getElementById(id);
-    if (el(`simc-rel-${i}`)) el(`simc-rel-${i}`).textContent = rel === 1 ? '1×' : fmtN(rel) + '×';
     if (el(`simc-at-${i}`)) el(`simc-at-${i}`).textContent = fmtN(Math.round(at * 10) / 10);
     if (el(`simc-vd-${i}`)) el(`simc-vd-${i}`).textContent = fmtN(Math.round(vd * 100) / 100);
   });
@@ -1548,7 +1547,8 @@ function wireSim() {
   _root.querySelectorAll('[data-simc]').forEach(inp => inp.addEventListener('input', () => {
     const [i, f] = inp.dataset.simc.split(':');
     if (_simCen.canais && _simCen.canais[+i]) {
-      _simCen.canais[+i][f] = parseFloat(inp.value) || 0;
+      if (f === 'taxa_rel' && inp.value.trim() === '') delete _simCen.canais[+i].taxa_rel;  // vazio = volta pra medida
+      else _simCen.canais[+i][f] = parseFloat(inp.value) || 0;
       simRowsRecalc(); sched();
     }
   }));
