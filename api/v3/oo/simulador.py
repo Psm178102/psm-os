@@ -226,13 +226,30 @@ def simulate(estado, cenario, cfg):
     if ticket_pond > 0 and _num(cfg.get("ticket_ref")) > 0:
         fator_ticket = _clamp((_num(cfg["ticket_ref"]) / ticket_pond) ** _num(cfg.get("sens"), 0.5), 0.5, 1.5)
 
-    # 3) energia por canal: vendas do canal escalam com share × energia × taxa relativa
-    #    (semântica da planilha: energia 0 zera o canal, 100 = taxa plena; share
-    #    não-energizado se PERDE, não redistribui)
+    # 3) canais: vendas do canal escalam com mix × energia × taxa relativa
+    #    (semântica da planilha: energia 0 zera o canal, 100 = taxa plena; mix
+    #    não-energizado se PERDE, não redistribui).
+    #    v86.8: o CENÁRIO pode trazer os próprios canais (lista personalizável —
+    #    mix E energia editáveis, catálogo completo da planilha). Conv relativa
+    #    vem do MEDIDO 90d quando o canal existe no RD; canal sem medição = neutro.
     canais_in = estado.get("canais") or []
+    rel_map = {c.get("key"): _num(c.get("taxa_rel"), 1.0) for c in canais_in}
+    canais_cen = cenario.get("canais")
     energia = cenario.get("energia") or {}
     fator_canais, canais_out = 0.0, []
-    if canais_in:
+    if isinstance(canais_cen, list) and canais_cen:
+        for c in canais_cen:
+            key = c.get("key")
+            mx = _clamp(_num(c.get("mix")), 0.0, 400.0) / 100.0
+            en = _clamp(_num(c.get("energia"), 100.0), 0.0, 100.0)
+            tr = rel_map.get(key, 1.0)
+            contrib = mx * (en / 100.0) * tr
+            fator_canais += contrib
+            canais_out.append({"key": key, "label": c.get("label") or CHANNEL_LABEL.get(key, key),
+                               "share": round(mx, 4), "mix": round(mx * 100, 1),
+                               "taxa_rel": round(tr, 3), "energia": en,
+                               "contrib": round(contrib, 4)})
+    elif canais_in:
         for c in canais_in:
             key = c.get("key")
             sh = _num(c.get("share"))
@@ -241,7 +258,8 @@ def simulate(estado, cenario, cfg):
             contrib = sh * (en / 100.0) * tr
             fator_canais += contrib
             canais_out.append({"key": key, "label": c.get("label") or CHANNEL_LABEL.get(key, key),
-                               "share": round(sh, 4), "taxa_rel": round(tr, 3),
+                               "share": round(sh, 4), "mix": round(sh * 100, 1),
+                               "taxa_rel": round(tr, 3),
                                "energia": en, "contrib": round(contrib, 4)})
     else:
         fator_canais = 1.0
@@ -340,18 +358,32 @@ def alavancas(estado, cenario, cfg, vendas_base):
         r = _simulate_core(estado, c2, cfg)
         return r["vendas"]
 
-    energia = dict(cenario.get("energia") or {})
-    for c in (estado.get("canais") or []):
-        key = c.get("key")
-        en = _clamp(_num(energia.get(key), 100.0), 0.0, 100.0)
-        if en < 100 and _num(c.get("share")) > 0.02:
-            e2 = dict(energia)
-            e2[key] = 100.0
-            dv = _vendas({"energia": e2}) - vendas_base
-            if dv > 0.001:
-                cands.append({"tipo": "canal", "key": key,
-                              "label": f"Energia total em {c.get('label') or CHANNEL_LABEL.get(key, key)} (→100)",
-                              "delta_vendas": round(dv, 3)})
+    canais_cen = cenario.get("canais")
+    if isinstance(canais_cen, list) and canais_cen:
+        # canais personalizados do cenário: alavanca = energia total num canal com mix relevante
+        for i, c in enumerate(canais_cen):
+            en = _clamp(_num(c.get("energia"), 100.0), 0.0, 100.0)
+            if en < 100 and _num(c.get("mix")) > 2:
+                l2 = json.loads(json.dumps(canais_cen))
+                l2[i]["energia"] = 100
+                dv = _vendas({"canais": l2}) - vendas_base
+                if dv > 0.001:
+                    cands.append({"tipo": "canal", "key": c.get("key"),
+                                  "label": f"Energia total em {c.get('label') or CHANNEL_LABEL.get(c.get('key'), c.get('key'))} (→100)",
+                                  "delta_vendas": round(dv, 3)})
+    else:
+        energia = dict(cenario.get("energia") or {})
+        for c in (estado.get("canais") or []):
+            key = c.get("key")
+            en = _clamp(_num(energia.get(key), 100.0), 0.0, 100.0)
+            if en < 100 and _num(c.get("share")) > 0.02:
+                e2 = dict(energia)
+                e2[key] = 100.0
+                dv = _vendas({"energia": e2}) - vendas_base
+                if dv > 0.001:
+                    cands.append({"tipo": "canal", "key": key,
+                                  "label": f"Energia total em {c.get('label') or CHANNEL_LABEL.get(key, key)} (→100)",
+                                  "delta_vendas": round(dv, 3)})
     overrides = dict(cenario.get("overrides") or {})
     base_taxas = estado.get("taxas_usadas") or {}
     for c in cadeia_de(estado, cfg):
@@ -397,8 +429,14 @@ def _simulate_core(estado, cenario, cfg):
         ft = _clamp((_num(cfg["ticket_ref"]) / tp) ** _num(cfg.get("sens"), 0.5), 0.5, 1.5)
     energia = cenario.get("energia") or {}
     canais = estado.get("canais") or []
+    rel_map = {c.get("key"): _num(c.get("taxa_rel"), 1.0) for c in canais}
+    canais_cen = cenario.get("canais")
     fc = 0.0
-    if canais:
+    if isinstance(canais_cen, list) and canais_cen:
+        for c in canais_cen:
+            en = _clamp(_num(c.get("energia"), 100.0), 0.0, 100.0)
+            fc += (_clamp(_num(c.get("mix")), 0.0, 400.0) / 100.0) * (en / 100.0) * rel_map.get(c.get("key"), 1.0)
+    elif canais:
         for c in canais:
             en = _clamp(_num(energia.get(c.get("key")), 100.0), 0.0, 100.0)
             fc += _num(c.get("share")) * (en / 100.0) * _num(c.get("taxa_rel"), 1.0)
@@ -793,12 +831,17 @@ def perfil_do_team(team):
 
 
 def cenario_calibrado(estado, u):
-    """Cenário-default: o corretor como ele é hoje (volume real, energia 100)."""
+    """Cenário-default: o corretor como ele é hoje (volume real, mix real, energia 100)."""
     return {
         "atendimentos_mes": max(1.0, estado.get("volume_mensal_leads") or 0),
         "perfil": perfil_do_team(u.get("team")),
         "mix_manual": None,
         "energia": {c["key"]: 100 for c in (estado.get("canais") or [])},
+        # canais personalizáveis (v86.8): nasce do MIX REAL do RD; o sócio troca/
+        # acrescenta origens do catálogo da planilha no quadro Simulador
+        "canais": [{"key": c["key"], "label": c.get("label"),
+                    "mix": round(_num(c.get("share")) * 100, 1), "energia": 100}
+                   for c in (estado.get("canais") or [])],
         "overrides": {},
         "meta_vendas_mes": None,
     }

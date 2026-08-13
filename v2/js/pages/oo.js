@@ -1233,18 +1233,40 @@ async function loadSim() {
   }
 }
 
+/* catálogo de origens da planilha (todas selecionáveis no quadro Simulador);
+   canal que também existe no RD herda a conversão relativa MEDIDA (90d) */
+const CANAL_CATALOGO = [
+  ['networking', 'Networking'], ['carteira', 'Carteira própria'],
+  ['reativacao', 'Reativação'], ['ativo', 'Ativo (prospecção)'],
+  ['evento', 'Evento'], ['indicacao', 'Indicação'],
+  ['meta', 'Tráfego pago'], ['organico', 'Tráfego orgânico'],
+  ['google', 'Google'], ['portal', 'Portais'], ['direto', 'Direto'],
+  ['outro', 'Outro'], ['nao_atribuido', 'Sem origem'],
+];
+const canalNome = k => (CANAL_CATALOGO.find(c => c[0] === k) || [])[1]
+  || ((_sim?.estado?.canais || []).find(c => c.key === k) || {}).label || k;
+const relDoCanal = k => {
+  const c = (_sim?.estado?.canais || []).find(x => x.key === k);
+  return c && !c.neutro ? Number(c.taxa_rel) || 1 : 1;
+};
+
 function renderSim() {
   const host = document.getElementById('oo-sim');
   if (!host || !_sim) return;
+  if (!Array.isArray(_simCen?.canais)) {  // cenário salvo antes da v86.8 → herda mix real
+    _simCen.canais = JSON.parse(JSON.stringify((_sim.cenario_calibrado || {}).canais || []));
+  }
   host.innerHTML = `
     ${simRetrato()}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
-      <div>${simPainel()}</div>
-      <div id="sim-res">${simResultado()}</div>
+      <div>${simQuadroReal()}</div>
+      <div>${simQuadroSim()}</div>
     </div>
+    <div id="sim-res" style="margin-top:14px">${simResultado()}</div>
     <div style="margin-top:14px">${simProposta()}</div>
     <div style="margin-top:14px">${simCalibracao()}</div>`;
   wireSim();
+  simRowsRecalc();
 }
 
 const _pc = v => (v == null ? '—' : (Number(v) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%');
@@ -1264,49 +1286,73 @@ function simRetrato() {
       <td style="text-align:right;font-size:11px;color:var(--ink-muted)">n=${p.n}</td>
     </tr>`;
   }).join('');
-  const chips = (e.canais || []).map(c =>
-    `<span style="display:inline-block;background:var(--bg-3);border:1px solid var(--border);border-radius:999px;padding:3px 10px;font-size:11.5px;margin:2px">
-      <b>${escapeHtml(c.label)}</b> ${Math.round(c.share * 100)}%${c.neutro ? '' : ` · conv ${c.taxa_rel}×`}<span class="muted"> · ${c.leads} leads</span></span>`).join('');
   const rdBadge = e.modo === 'rd' && e.pipeline
     ? `<div style="margin-bottom:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;font-size:12px">🔁 <b>Etapas espelhadas 1:1 do funil “${escapeHtml(e.pipeline.nome)}” do RD CRM</b> — mesma quantidade e nomenclatura (sem tradução, sem divergência). Piso = taxa real da equipe inteira na passagem (editável na Calibração).</div>`
     : '';
-  return panel(`📸 Retrato real (90d) · ${escapeHtml((_sim.corretor || {}).name || '')}`, `
+  return panel(`📸 Funil real × piso (90d) · ${escapeHtml((_sim.corretor || {}).name || '')}`, `
     ${rdBadge}
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:10px;text-align:center">
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:20px;font-weight:900">${fmtN(e.volume_mensal_leads)}</div><div class="tiny muted">leads novos/mês</div></div>
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:20px;font-weight:900">${e.vendas_90d || 0}</div><div class="tiny muted">vendas 90d · média 6m: ${fmtN(e.media_6m_vendas)}/mês</div></div>
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:20px;font-weight:900">${e.ticket_corretor ? 'R$ ' + moneyShort(e.ticket_corretor) : '—'}</div><div class="tiny muted">ticket dele · equipe: ${e.ticket_equipe ? 'R$ ' + moneyShort(e.ticket_equipe) : '—'}</div></div>
-    </div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left;padding-bottom:4px">Passagem do funil</th><th>real 90d</th><th>piso mercado</th><th>usada*</th><th>amostra</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
-    <div class="tiny muted" style="margin-top:6px">* taxa usada = média entre o REAL dele e o PISO de mercado, ponderada pela amostra (K=${(_sim.config || {}).K}) — corretor novo nasce do piso, veterano nasce dele.</div>
-    <div style="margin-top:8px">${chips || '<span class="tiny muted">Sem leads no período pra mapear canais.</span>'}</div>`);
+    <div class="tiny muted" style="margin-top:6px">* taxa usada = média entre o REAL dele e o PISO de mercado, ponderada pela amostra (K=${(_sim.config || {}).K}) — corretor novo nasce do piso, veterano nasce dele.</div>`);
 }
 
-/* b) Painel de simulação: volume, perfil, energia por canal, "e se" por etapa */
-function simPainel() {
+/* 📊 QUADRO REAL (90d, RD) — lado a lado com o Simulador, igual à planilha */
+function simQuadroReal() {
+  const e = _sim.estado || {};
+  const cs = e.canais || [];
+  const totL = cs.reduce((s, c) => s + (c.leads || 0), 0);
+  const totV = cs.reduce((s, c) => s + (c.vendas || 0), 0);
+  const rows = cs.map(c => `<tr>
+      <td style="font-size:12px;font-weight:600;padding:4px 6px 4px 0;white-space:nowrap">${escapeHtml(c.label || c.key)}</td>
+      <td style="text-align:right;font-size:12px">${Math.round((c.share || 0) * 100)}%</td>
+      <td style="text-align:right;font-size:12px">${c.neutro ? '<span class="muted" title="amostra insuficiente — neutro">—</span>' : fmtN(c.taxa_rel) + '×'}</td>
+      <td style="text-align:right;font-size:12px">${fmtN(c.leads || 0)}</td>
+      <td style="text-align:right;font-size:12px;font-weight:800">${fmtN(c.vendas || 0)}</td>
+    </tr>`).join('');
+  return panel('📊 QUADRO REAL · 90 dias (RD CRM)', `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:10px;text-align:center">
+      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:19px;font-weight:900">${fmtN(e.volume_mensal_leads)}</div><div class="tiny muted">leads novos/mês</div></div>
+      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:19px;font-weight:900">${e.vendas_90d || 0}</div><div class="tiny muted">vendas 90d · 6m: ${fmtN(e.media_6m_vendas)}/mês</div></div>
+      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:19px;font-weight:900">${e.ticket_corretor ? 'R$ ' + moneyShort(e.ticket_corretor) : '—'}</div><div class="tiny muted">ticket · equipe ${e.ticket_equipe ? 'R$ ' + moneyShort(e.ticket_equipe) : '—'}</div></div>
+    </div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Origem (real)</th><th>Mix</th><th>Conv rel.</th><th>Leads</th><th>Vendas</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5" class="tiny muted">Sem leads no período.</td></tr>'}</tbody>
+      <tfoot><tr style="font-weight:800;font-size:12px"><td style="text-align:right">Σ</td><td></td><td></td><td style="text-align:right">${fmtN(totL)}</td><td style="text-align:right">${fmtN(totV)}</td></tr></tfoot>
+    </table></div>
+    <div class="tiny muted" style="margin-top:6px">É o corretor como ele É hoje — mix de origem, conversão relativa por canal (× a média dele) e volume, direto do RD.</div>`);
+}
+
+/* 🎛 QUADRO SIMULADOR — origens PERSONALIZÁVEIS (catálogo completo da planilha:
+   mix % e energia editáveis por canal, adicionar/remover à vontade) */
+function simQuadroSim() {
   const e = _sim.estado || {}, cfg = _sim.config || {}, c = _simCen || {};
   const faixas = cfg.faixas || {};
   const perfis = [['conquista', `Conquista (R$ ${moneyShort((faixas.conquista || {}).ticket || 0)})`],
                   ['map', `MAP (R$ ${moneyShort((faixas.map || {}).ticket || 0)})`],
                   ['misto', 'Misto (50/50)'], ['manual', 'Manual (mix por faixa)']];
   const mixM = c.mix_manual || { conquista: 50, map: 50, alto_padrao: 0 };
-  const canais = (e.canais || []).map(cn => {
-    const en = Math.round(Number((c.energia || {})[cn.key] ?? 100));
-    return `<div style="display:grid;grid-template-columns:110px 1fr 46px;gap:8px;align-items:center">
-      <span class="tiny" style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${Math.round(cn.share * 100)}% dos leads">${escapeHtml(cn.label)} <span class="muted">${Math.round(cn.share * 100)}%</span></span>
-      <input type="range" min="0" max="100" step="5" value="${en}" data-sim-en="${escapeHtml(cn.key)}">
-      <span class="tiny" style="text-align:right;font-weight:800" id="sim-enl-${escapeHtml(cn.key)}">${en}</span>
-    </div>`;
-  }).join('');
+  const keysExtras = (e.canais || []).filter(x => !CANAL_CATALOGO.some(cc => cc[0] === x.key)).map(x => [x.key, x.label || x.key]);
+  const opcoes = CANAL_CATALOGO.concat(keysExtras);
+  const linhas = (c.canais || []).map((cn, i) => `
+    <tr data-simc-row="${i}">
+      <td><select class="select" data-simc-key="${i}" style="padding:3px 6px;font-size:12px;min-width:130px">
+        ${opcoes.map(o => `<option value="${o[0]}"${cn.key === o[0] ? ' selected' : ''}>${escapeHtml(o[1])}</option>`).join('')}</select></td>
+      <td><input class="input" type="number" min="0" step="1" data-simc="${i}:mix" value="${Number(cn.mix) || 0}" style="width:62px;padding:3px 6px;font-size:12px;text-align:right"></td>
+      <td><input class="input" type="number" min="0" max="100" step="5" data-simc="${i}:energia" value="${Number(cn.energia) ?? 100}" style="width:62px;padding:3px 6px;font-size:12px;text-align:right"></td>
+      <td class="tiny" style="text-align:right" id="simc-rel-${i}">—</td>
+      <td class="tiny" style="text-align:right" id="simc-at-${i}">—</td>
+      <td class="tiny" style="text-align:right;font-weight:800" id="simc-vd-${i}">—</td>
+      <td><button class="btn btn-ghost btn-sm" data-simc-del="${i}" title="remover origem">🗑</button></td>
+    </tr>`).join('');
   const ovs = (e.passagens || []).map(p => {
     const ov = (c.overrides || {})[p.key];
     return `<div class="field"><label class="tiny" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(p.label)}">${escapeHtml(p.label)}</label>
       <input type="number" class="input" min="1" max="98" step="1" data-sim-ov="${escapeHtml(p.key)}"
         value="${ov != null ? Math.round(ov * 100) : ''}" placeholder="${Math.round((p.usada || 0) * 100)}%" style="padding:4px 8px;font-size:12px"></div>`;
   }).join('');
-  return panel('🎛 Simular cenário (ao vivo no 1:1)', `
+  return panel('🎛 QUADRO SIMULADOR · cenário ao vivo no 1:1', `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="field"><label>Atendimentos/mês (leads que ele dá conta)</label>
         <input type="number" class="input" id="sim-atend" min="0" step="1" value="${Math.round(Number(c.atendimentos_mes) || 0)}"></div>
@@ -1319,14 +1365,47 @@ function simPainel() {
       ${['conquista', 'map', 'alto_padrao'].map(f => `<div class="field"><label class="tiny">${escapeHtml((faixas[f] || {}).label || f)} (peso)</label>
         <input type="number" class="input" min="0" step="5" data-sim-mix="${f}" value="${Number(mixM[f]) || 0}" style="padding:4px 8px;font-size:12px"></div>`).join('')}
     </div>
-    <div style="margin-top:10px;font-weight:800;font-size:12px">⚡ Energia por canal <span class="tiny muted" style="font-weight:400">(0 zera o canal · 100 = taxa plena — semântica da planilha)</span></div>
-    <div style="display:grid;gap:4px;margin-top:6px">${canais || '<div class="tiny muted">Sem canais mapeados — fator neutro.</div>'}</div>
+    <div style="margin-top:10px;font-weight:800;font-size:12px">⚡ Origens do cenário <span class="tiny muted" style="font-weight:400">(mix % dos atendimentos · energia 0 zera o canal — semântica da planilha)</span></div>
+    <div style="overflow-x:auto;margin-top:4px"><table style="width:100%;border-collapse:collapse">
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Origem</th><th>Mix %</th><th>Energia</th><th>Conv rel.</th><th>Atend.</th><th>Vendas</th><th></th></tr></thead>
+      <tbody id="simc-body">${linhas || '<tr><td colspan="7" class="tiny muted">Nenhuma origem — adicione abaixo.</td></tr>'}</tbody>
+      <tfoot><tr style="font-weight:800;font-size:12px"><td style="text-align:right">Σ</td><td style="text-align:right" id="simc-mix-t">—</td><td></td><td></td><td style="text-align:right" id="simc-at-t">—</td><td style="text-align:right" id="simc-vd-t">—</td><td></td></tr></tfoot>
+    </table></div>
+    <div class="flex items-center gap-2" style="margin-top:4px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" id="simc-add">+ origem</button>
+      <span class="tiny" id="simc-aviso"></span>
+    </div>
     <div style="margin-top:10px;font-weight:800;font-size:12px">🔧 “E se melhorar a etapa?” <span class="tiny muted" style="font-weight:400">(taxa em % · vazio = usa a calibrada)</span></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:6px">${ovs}</div>
     <div class="flex gap-2" style="margin-top:12px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" id="sim-reset">↺ Restaurar calibrado</button>
       <button class="btn btn-ghost btn-sm" id="sim-save">💾 Salvar cenário (retomar depois)</button>
     </div>`);
+}
+
+/* células calculadas do quadro Simulador (conv do funil × ticket vem do último
+   resultado do backend; canais recalculam local, igual à planilha) */
+function simRowsRecalc() {
+  const r = _simRes || {};
+  const convF = (Number(r.conv_funil) || 0) * (Number(r.fator_ticket) || 1);
+  const atendT = Number(_simCen?.atendimentos_mes) || 0;
+  let mixT = 0, atT = 0, vdT = 0;
+  ((_simCen || {}).canais || []).forEach((cn, i) => {
+    const rel = relDoCanal(cn.key);
+    const en = Math.min(100, Math.max(0, Number(cn.energia) ?? 100));
+    const at = atendT * (Number(cn.mix) || 0) / 100;
+    const vd = at * (en / 100) * rel * convF;
+    mixT += Number(cn.mix) || 0; atT += at; vdT += vd;
+    const el = id => document.getElementById(id);
+    if (el(`simc-rel-${i}`)) el(`simc-rel-${i}`).textContent = rel === 1 ? '1×' : fmtN(rel) + '×';
+    if (el(`simc-at-${i}`)) el(`simc-at-${i}`).textContent = fmtN(Math.round(at * 10) / 10);
+    if (el(`simc-vd-${i}`)) el(`simc-vd-${i}`).textContent = fmtN(Math.round(vd * 100) / 100);
+  });
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('simc-mix-t', fmtN(mixT) + '%'); set('simc-at-t', fmtN(Math.round(atT))); set('simc-vd-t', fmtN(Math.round(vdT * 100) / 100));
+  const av = document.getElementById('simc-aviso');
+  if (av) av.innerHTML = Math.abs(mixT - 100) < 0.51 ? '<span style="color:#16a34a;font-weight:700">✓ Mix fecha 100%</span>'
+    : `<span style="color:#d97706;font-weight:700">⚠ Mix soma ${fmtN(mixT)}% — sobra/falta vira atendimento não trabalhado</span>`;
 }
 
 /* c) Resultado ao vivo */
@@ -1452,7 +1531,7 @@ function simCalibracao() {
 function wireSim() {
   const $ = id => document.getElementById(id);
   const sched = () => { clearTimeout(_simTimer); _simTimer = setTimeout(runSim, 450); };
-  $('sim-atend')?.addEventListener('input', ev => { _simCen.atendimentos_mes = parseFloat(ev.target.value) || 0; sched(); });
+  $('sim-atend')?.addEventListener('input', ev => { _simCen.atendimentos_mes = parseFloat(ev.target.value) || 0; simRowsRecalc(); sched(); });
   $('sim-meta')?.addEventListener('input', ev => { const v = parseFloat(ev.target.value); _simCen.meta_vendas_mes = v > 0 ? v : null; sched(); });
   $('sim-perfil')?.addEventListener('change', ev => {
     _simCen.perfil = ev.target.value;
@@ -1464,12 +1543,31 @@ function wireSim() {
     _simCen.mix_manual[inp.dataset.simMix] = parseFloat(inp.value) || 0;
     sched();
   }));
-  _root.querySelectorAll('[data-sim-en]').forEach(inp => inp.addEventListener('input', () => {
-    _simCen.energia = _simCen.energia || {};
-    _simCen.energia[inp.dataset.simEn] = parseFloat(inp.value) || 0;
-    const l = $('sim-enl-' + inp.dataset.simEn); if (l) l.textContent = inp.value;
-    sched();
+  // 🎛 origens personalizáveis do quadro Simulador (v86.8)
+  _root.querySelectorAll('[data-simc]').forEach(inp => inp.addEventListener('input', () => {
+    const [i, f] = inp.dataset.simc.split(':');
+    if (_simCen.canais && _simCen.canais[+i]) {
+      _simCen.canais[+i][f] = parseFloat(inp.value) || 0;
+      simRowsRecalc(); sched();
+    }
   }));
+  _root.querySelectorAll('[data-simc-key]').forEach(sel => sel.addEventListener('change', () => {
+    const i = +sel.dataset.simcKey;
+    if (_simCen.canais && _simCen.canais[i]) {
+      _simCen.canais[i].key = sel.value;
+      _simCen.canais[i].label = canalNome(sel.value);
+      simRowsRecalc(); sched();
+    }
+  }));
+  _root.querySelectorAll('[data-simc-del]').forEach(b => b.addEventListener('click', () => {
+    _simCen.canais.splice(+b.dataset.simcDel, 1);
+    renderSim(); runSim();
+  }));
+  $('simc-add')?.addEventListener('click', () => {
+    _simCen.canais = _simCen.canais || [];
+    _simCen.canais.push({ key: 'networking', label: 'Networking', mix: 0, energia: 100 });
+    renderSim(); runSim();
+  });
   _root.querySelectorAll('[data-sim-ov]').forEach(inp => inp.addEventListener('input', () => {
     _simCen.overrides = _simCen.overrides || {};
     const v = inp.value.trim();
@@ -1506,6 +1604,7 @@ async function runSim() {
     _simRes = r.result;
     const el = document.getElementById('sim-res');
     if (el) el.innerHTML = simResultado();
+    simRowsRecalc();
   } catch (e) { /* mantém o último resultado na tela */ }
 }
 
