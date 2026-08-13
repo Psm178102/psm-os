@@ -152,12 +152,11 @@ class handler(BaseHTTPRequestHandler):
         # ── 2) A RECEBER (Radar de Recebíveis — caixa) ──
         receb_rows, receb_ok = [], True
         try:
-            receb_rows = sb.table("recebiveis").select(
-                "id,descricao,frente,valor_bruto,valor_liquido_estimado,status,marco_atual,"
-                "bloqueio,data_prevista,corretor_nome,pagador").order("data_prevista").limit(1000).execute().data or []
-        except Exception:
+            # select * (padrão da casa) — pedir coluna que não existe derruba a query inteira
+            receb_rows = sb.table("recebiveis").select("*").order("data_prevista").limit(1000).execute().data or []
+        except Exception as e:
             receb_ok = False
-            avisos.append("Radar de Recebíveis indisponível (tabela) — a receber ficou vazio")
+            avisos.append(f"Radar de Recebíveis indisponível ({str(e)[:80]}) — a receber ficou vazio")
         ativos = [r for r in receb_rows if r.get("status") in ("previsto", "travado", "confirmado")]
         recebidos_mes = [r for r in receb_rows if r.get("status") == "recebido"
                          and str(r.get("data_prevista") or "").startswith(ym)]
@@ -264,7 +263,8 @@ class handler(BaseHTTPRequestHandler):
             proximos.append({"id": r.get("id"), "desc": r.get("descricao"), "frente": r.get("frente"),
                              "valor": round(val, 2), "estimado": est, "status": r.get("status"),
                              "marco": r.get("marco_atual"), "bloqueio": r.get("bloqueio"),
-                             "data": r.get("data_prevista"), "corretor": r.get("corretor_nome")})
+                             "data": r.get("data_prevista"),
+                             "corretor": r.get("corretor_nome") or r.get("corretor_id")})
             if len(proximos) >= 20:
                 break
 
