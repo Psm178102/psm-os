@@ -1294,7 +1294,8 @@ function simRetrato() {
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left;padding-bottom:4px">Passagem do funil</th><th>real 90d</th><th>piso mercado</th><th>usada*</th><th>amostra</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
-    <div class="tiny muted" style="margin-top:6px">* taxa usada = média entre o REAL dele e o PISO de mercado, ponderada pela amostra (K=${(_sim.config || {}).K}) — corretor novo nasce do piso, veterano nasce dele.</div>`);
+    <div class="tiny muted" style="margin-top:6px">* taxa usada = média entre o REAL dele e o PISO de mercado, ponderada pela amostra (K=${(_sim.config || {}).K}) — corretor novo nasce do piso, veterano nasce dele.</div>
+    ${(e.funil || []).some(f => f.fonte) ? `<div class="tiny" style="margin-top:6px;background:var(--bg-3);border-radius:6px;padding:5px 9px">🗂 Lanes de BASE do funil (no RD ficam depois da venda; aqui contam como ENTRADA, nunca como vendido): ${(e.funil || []).filter(f => f.fonte).map(f => `<b>${escapeHtml(f.label)}</b> (${fmtN(f.n)} parado/s)`).join(' · ')}</div>` : ''}`);
 }
 
 /* 📊 QUADRO REAL (90d, RD) — lado a lado com o Simulador, igual à planilha */

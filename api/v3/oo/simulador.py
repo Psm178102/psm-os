@@ -65,10 +65,11 @@ CFG_MOTOR_DEFAULT = {
                                                # (com 1-2 vendas, conversão por canal é ruído puro — v86.5)
     "defasagem_meses": {"map": 3, "conquista": 1},  # venda do mês ↔ atividade de N meses atrás
     "motor_shadow": True,
-    # 🔁 v86.2: equipes cujo simulador ESPELHA o funil REAL do RD (etapas 1:1, mesma
-    # quantidade e nomenclatura — regra do Paulo: etapa diferente = métrica divergente).
+    # 🔁 v86.2/86.12: equipes cujo simulador ESPELHA o funil REAL do RD (etapas 1:1,
+    # mesma quantidade e nomenclatura — regra do Paulo: etapa diferente = métrica
+    # divergente; corretor Conquista mede no FUNIL CONQUISTA, MAP no FUNIL MAP).
     # {substring_do_time: substring_do_nome_do_funil_no_rd}
-    "funil_rd_por_time": {"map": "map"},
+    "funil_rd_por_time": {"map": "funil map", "conquista": "funil conquista"},
     # pisos por passagem do funil RD: {pipeline_id: {"p<pos>": taxa}} — sem valor,
     # o piso vem da taxa REAL da EQUIPE inteira naquela passagem (90d)
     "pisos_rd": {},
@@ -623,6 +624,25 @@ def calibrar(sb, uid, u, cfg, dias=90):
     return est
 
 
+_VENDA_RE = re.compile(r"venda|contrato|ganho|fechad", re.I)
+
+
+def _dividir_funil(stages_rd):
+    """(cadeia_de_conversão, cauda_de_base). Alguns funis do RD guardam lanes de
+    BASE depois da lane de venda (FUNIL CONQUISTA: … → VENDA → CARTEIRA → PASTA
+    LANÇAMENTO). A conversão termina na venda; o que vem depois é repositório de
+    lead (fonte), não etapa — espelhar cegamente por posição faria lead parado
+    na CARTEIRA contar como se tivesse passado pela VENDA."""
+    venda_idx = None
+    for i in range(len(stages_rd) - 1, -1, -1):
+        if _VENDA_RE.search(stages_rd[i][1] or ""):
+            venda_idx = i
+            break
+    if venda_idx is None or venda_idx == len(stages_rd) - 1:
+        return list(stages_rd), []
+    return list(stages_rd[:venda_idx + 1]), list(stages_rd[venda_idx + 1:])
+
+
 # régua LOCAL de marco pra etapas de funil RD (mais criteriosa que a do cockpit:
 # 'visita realizada' exige VISITA no nome — senão 'CONTATO REALIZADO' viraria visita;
 # 'pasta' em etapa-fonte tipo 'PASTAS LANÇAMENTO' não pode virar marco 5)
@@ -695,18 +715,28 @@ def _calibrar_rd(sb, u, cfg, deals, events, since_dt, until_dt):
     nome_pid = pipe_names.get(pid)
     pids = {k for k, nm in pipe_names.items() if nm == nome_pid}
     pids.add(pid)
-    stages = list(by_pipe[pid])                # [(pos, nome)] ordenado — CÓPIA EXATA do RD
+    stages_rd = list(by_pipe[pid])             # [(pos, nome)] ordenado — CÓPIA EXATA do RD
+    stages, cauda = _dividir_funil(stages_rd)
     # Funil sem lane de venda (ex.: FUNIL MAP termina em Proposta/Aprovação — lá o
     # ganho é o WIN do deal, não uma etapa): o motor precisa de um nó final de
     # GANHO pra prever vendas, mas ele NÃO é etapa do funil (regra do Paulo:
     # copiar EXATAMENTE o funil). Entra marcado como sintético e o front exibe
     # separado das etapas reais.
     ganho_pos = None
-    if not re.search(r"venda|contrato|ganho|fechad", stages[-1][1] or "", re.I):
+    if not _VENDA_RE.search(stages[-1][1] or ""):
         ganho_pos = stages[-1][0] + 1
         stages.append((ganho_pos, "💰 Ganho (win no RD)"))
     marcos = _marcos_monotonicos(stages)
+    # lanes de BASE (pós-venda na ordem do RD, ex.: CARTEIRA/PASTA LANÇAMENTO no
+    # FUNIL CONQUISTA): deal parado lá conta na ENTRADA do funil, nunca como se
+    # tivesse passado pela venda
+    fonte_pos = {p for p, _n in cauda}
+    entry_pos = stages[0][0]
     tempos_cfg = cfg.get("tempos_min") or {}
+
+    def _pos_efetiva(p):
+        """lane de base (pós-venda no RD) conta como ENTRADA do funil."""
+        return entry_pos if p in fonte_pos else p
 
     def _max_pos(d, evs):
         dpid = str(d.get("pipeline_id") or "")
@@ -714,10 +744,10 @@ def _calibrar_rd(sb, u, cfg, deals, events, since_dt, until_dt):
         spid, spos = pos_by_id.get(sid) or ("", 0)
         if dpid not in pids and spid not in pids:
             return None                        # deal de outro funil
-        mx = spos if spid in pids or dpid in pids else 0
+        mx = _pos_efetiva(spos) if (spid in pids or dpid in pids) else 0
         for ev in (evs or []):
             if isinstance(ev[0], int):
-                mx = max(mx, ev[0])
+                mx = max(mx, _pos_efetiva(ev[0]))
         if d.get("win") is True:
             mx = max(mx, stages[-1][0])
         return mx
@@ -819,13 +849,23 @@ def _calibrar_rd(sb, u, cfg, deals, events, since_dt, until_dt):
                        "origem": f"s{a_pos}", "origem_label": a_nome,
                        "marco": marcos[i], "tempo_min": _num(tempos_cfg.get(ETAPAS[mk]), 0)})
 
+    # lanes de base (cauda): quantos deals estão PARADOS lá agora (informativo)
+    parados_fonte = {p: 0 for p, _n in cauda}
+    if cauda:
+        for d in deals:
+            spid, spos = pos_by_id.get(str(d.get("stage_id") or "")) or ("", 0)
+            if spid in pids and spos in parados_fonte and d.get("win") is not True:
+                parados_fonte[spos] += 1
+
     return {
         "modo": "rd",
         "pipeline": {"id": str(pid), "nome": pipe_names.get(pid) or "Funil"},
         "funil": [{"key": f"s{pos}", "label": nome, "n": counts[pos], "marco": marcos[i],
                    "sintetica": pos == ganho_pos}
-                  for i, (pos, nome) in enumerate(stages)],
-        "etapas_rd": len(stages) - (1 if ganho_pos else 0),   # nº de etapas REAIS (bate com o RD)
+                  for i, (pos, nome) in enumerate(stages)]
+                + [{"key": f"s{p}", "label": nm, "n": parados_fonte.get(p, 0), "fonte": True}
+                   for p, nm in cauda],
+        "etapas_rd": len(stages) - (1 if ganho_pos else 0) + len(cauda),   # nº de etapas REAIS (bate com o RD)
         "passagens": passagens,
         "taxas_usadas": taxas_usadas,
         "cadeia": cadeia,
