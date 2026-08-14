@@ -147,25 +147,26 @@ const PP_CSS = `
 /* via limpa (janela nova): igual à foto, pronta pra imprimir/salvar PDF/compartilhar */
 function abrirVia(autoPrint) {
   const c = compute();
-  const cab = [
-    _s.empreendimento && `<b>Empreendimento:</b> ${escHtml(_s.empreendimento)}`,
-    _s.torreUnidade && `<b>Torre/Unidade:</b> ${escHtml(_s.torreUnidade)}`,
-    _s.cliente && `<b>Cliente:</b> ${escHtml(_s.cliente)}`,
-    `<b>Valor:</b> R$ ${fmt2(c.valorFinal)}${_s.desconto ? ` (tabela R$ ${fmt2(_s.valorTabela)} − ${_s.desconto}%)` : ''}`,
-    `<b>Data:</b> ${new Date().toLocaleDateString('pt-BR')}`,
-  ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+  // foto pronta embutida na via (gerada AQUI, no app — a via só oferece o download)
+  let fotoUrl = '';
+  try { fotoUrl = desenharPropostaCanvas(c, 2).toDataURL('image/png'); } catch (_) {}
+  const nomeArq = `proposta-${(_s.cliente || _s.empreendimento || 'psm').toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'psm'}.png`;
   const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
     <title>Proposta ${escHtml(_s.cliente || _s.empreendimento || 'PSM')}</title>
     <style>
       body{margin:18px;background:#fff}
       .pp-cab{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#000;margin:0 0 8px;max-width:980px}
-      .pp-acoes{position:fixed;top:10px;right:10px;display:flex;gap:8px;font-family:Arial}
-      .pp-acoes button{padding:8px 14px;border:1px solid #999;border-radius:8px;background:#f5f5f5;font-weight:700;cursor:pointer}
+      .pp-acoes{position:fixed;top:10px;right:10px;display:flex;gap:8px;font-family:Arial;z-index:9}
+      .pp-acoes button,.pp-acoes a{padding:8px 14px;border:1px solid #999;border-radius:8px;background:#f5f5f5;font-weight:700;cursor:pointer;text-decoration:none;color:#000;font-size:13px;font-family:Arial}
       @media print{.pp-acoes{display:none}body{margin:0}}
       ${PP_CSS}
     </style></head><body>
-    <div class="pp-acoes"><button onclick="window.print()">🖨 Imprimir / Salvar PDF</button><button onclick="window.close()">✕ Fechar</button></div>
-    <div class="pp-cab">${cab}</div>
+    <div class="pp-acoes">
+      <button onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
+      ${fotoUrl ? `<a href="${fotoUrl}" download="${nomeArq}">📷 Baixar foto</a>` : ''}
+      <button onclick="window.close()">✕ Fechar</button>
+    </div>
+    <div class="pp-cab">${cabecalhoHTML(c)}</div>
     ${propostaTableHTML(c)}
     </body></html>`;
   const w = window.open('', '_blank');
@@ -176,6 +177,109 @@ function abrirVia(autoPrint) {
 }
 
 function escHtml(s) { return String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])); }
+
+function cabecalhoHTML(c) {
+  return [
+    _s.empreendimento && `<b>Empreendimento:</b> ${escHtml(_s.empreendimento)}`,
+    _s.torreUnidade && `<b>Torre/Unidade:</b> ${escHtml(_s.torreUnidade)}`,
+    _s.cliente && `<b>Cliente:</b> ${escHtml(_s.cliente)}`,
+    `<b>Valor:</b> R$ ${fmt2(c.valorFinal)}${_s.desconto ? ` (tabela R$ ${fmt2(_s.valorTabela)} − ${_s.desconto}%)` : ''}`,
+    `<b>Data:</b> ${new Date().toLocaleDateString('pt-BR')}`,
+  ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+}
+
+/* 📷 A proposta como FOTO (PNG 2×): desenho DIRETO no canvas — a tabela é
+   determinística (mesmas larguras/cores/formatos da planilha), então a foto sai
+   idêntica sem lib externa e sem canvas 'tainted' (foreignObject não exporta
+   no Chrome — descoberto no teste local antes do deploy). */
+const PPC = {
+  cols: [44, 74, 118, 118, 118, 118, 132, 118],   // N° Data ENTRADA MENSAIS SEM ANU FIN TOTAL
+  hTit: 36, hHead: 32, hRow: 21, hFoot: 26, pad: 16, hCab: 22,
+  verde: '#dde8d0', nVerde: '#d9ead3', nVerdeTx: '#38761d', nVerm: '#f4cccc',
+  nVermTx: '#cc0000', nAzul: '#a4c2f4', nAzulTx: '#1c4587', foot: '#c6d5b0', amarelo: '#ffff00',
+};
+
+function desenharPropostaCanvas(c, scale) {
+  const W = PPC.cols.reduce((a, b) => a + b, 0);
+  const n = c.fluxo.length;
+  const H = PPC.hCab + PPC.hTit + PPC.hHead + n * PPC.hRow + PPC.hFoot;
+  const cv = document.createElement('canvas');
+  cv.width = (W + PPC.pad * 2) * scale; cv.height = (H + PPC.pad * 2) * scale;
+  const g = cv.getContext('2d');
+  g.scale(scale, scale);
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W + PPC.pad * 2, H + PPC.pad * 2);
+  g.translate(PPC.pad, PPC.pad);
+  const X = [0]; PPC.cols.forEach((w, i) => X.push(X[i] + w));
+  const fmtv = v => fmt2(v);
+  const cell = (x0, y0, w, h, bg) => { if (bg) { g.fillStyle = bg; g.fillRect(x0, y0, w, h); } g.strokeStyle = '#000'; g.lineWidth = 1; g.strokeRect(x0 + .5, y0 + .5, w, h); };
+  const txt = (s, x, y, { al = 'left', bold = false, size = 12, col = '#000' } = {}) => {
+    g.fillStyle = col; g.font = `${bold ? 'bold ' : ''}${size}px Arial, Helvetica, sans-serif`; g.textAlign = al; g.textBaseline = 'middle'; g.fillText(s, x, y);
+  };
+  const money = (ci, y, h, v, forca, bold) => {
+    if (!v && !forca) return;
+    txt('R$', X[ci] + 6, y + h / 2, { bold });
+    txt(v ? fmtv(v) : '-', X[ci + 1] - 6, y + h / 2, { al: 'right', bold });
+  };
+  // cabeçalho de identificação (linha simples acima da tabela)
+  const cab = [_s.empreendimento && `Empreendimento: ${_s.empreendimento}`, _s.torreUnidade && `Torre/Unidade: ${_s.torreUnidade}`,
+    _s.cliente && `Cliente: ${_s.cliente}`, `Valor: R$ ${fmtv(c.valorFinal)}`, new Date().toLocaleDateString('pt-BR')].filter(Boolean).join('  ·  ');
+  txt(cab, 0, PPC.hCab / 2 - 3, { size: 11.5 });
+  let y = PPC.hCab;
+  // título amarelo + N°/Data com altura dupla
+  cell(X[0], y, PPC.cols[0], PPC.hTit + PPC.hHead, '#fff'); txt('N°', X[0] + PPC.cols[0] / 2, y + (PPC.hTit + PPC.hHead) / 2, { al: 'center', bold: true, size: 11.5 });
+  cell(X[1], y, PPC.cols[1], PPC.hTit + PPC.hHead, '#fff'); txt('Data', X[1] + PPC.cols[1] / 2, y + (PPC.hTit + PPC.hHead) / 2, { al: 'center', bold: true, size: 11.5 });
+  cell(X[2], y, W - X[2], PPC.hTit, PPC.amarelo);
+  txt('PROPOSTA PERSONALIZADA', X[2] + (W - X[2]) / 2, y + PPC.hTit / 2, { al: 'center', bold: true, size: 21 });
+  y += PPC.hTit;
+  const HEADS = ['ENTRADA', 'MENSAIS', 'SEMESTRAIS', 'ANUAIS', ['FINANCIAMENTO /', 'CHAVES'], 'TOTAL'];
+  HEADS.forEach((hh, i) => {
+    const ci = i + 2;
+    cell(X[ci], y, PPC.cols[ci], PPC.hHead, '#fff');
+    if (Array.isArray(hh)) { txt(hh[0], X[ci] + PPC.cols[ci] / 2, y + 10, { al: 'center', bold: true, size: 10.5 }); txt(hh[1], X[ci] + PPC.cols[ci] / 2, y + 22, { al: 'center', bold: true, size: 10.5 }); }
+    else txt(hh, X[ci] + PPC.cols[ci] / 2, y + PPC.hHead / 2, { al: 'center', bold: true, size: 11 });
+  });
+  y += PPC.hHead;
+  c.fluxo.forEach(x => {
+    const tipo = x.mes === 0 ? 'ato' : (x.chaves ? 'chaves' : (x.total > 0.005 ? 'verde' : 'verm'));
+    const bg = tipo === 'ato' ? '#fff' : PPC.verde;
+    const nBg = tipo === 'ato' ? '#fff' : tipo === 'verde' ? PPC.nVerde : tipo === 'chaves' ? PPC.nAzul : PPC.nVerm;
+    const nTx = tipo === 'verde' ? PPC.nVerdeTx : tipo === 'chaves' ? PPC.nAzulTx : tipo === 'verm' ? PPC.nVermTx : '#000';
+    cell(X[0], y, PPC.cols[0], PPC.hRow, nBg);
+    txt(String(x.mes), X[0] + PPC.cols[0] / 2, y + PPC.hRow / 2, { al: 'center', bold: true, col: nTx });
+    cell(X[1], y, PPC.cols[1], PPC.hRow, bg);
+    txt(x.mes === 0 ? 'ATO' : labelMes(x.mes), X[1] + PPC.cols[1] / 2, y + PPC.hRow / 2, { al: 'center', bold: true });
+    for (let ci = 2; ci <= 7; ci++) cell(X[ci], y, PPC.cols[ci], PPC.hRow, bg);
+    const boldAto = tipo === 'ato';
+    money(2, y, PPC.hRow, x.ent, false, boldAto);
+    money(3, y, PPC.hRow, x.m, x.mes === 0, boldAto);
+    money(4, y, PPC.hRow, x.s); money(5, y, PPC.hRow, x.a); money(6, y, PPC.hRow, x.f);
+    txt(fmtv(x.total), X[8] - 6, y + PPC.hRow / 2, { al: 'right', bold: true });
+    y += PPC.hRow;
+  });
+  // rodapé Total
+  cell(X[0], y, PPC.cols[0] + PPC.cols[1], PPC.hFoot, PPC.foot);
+  txt('Total', X[0] + (PPC.cols[0] + PPC.cols[1]) / 2, y + PPC.hFoot / 2, { al: 'center', bold: true });
+  [[2, c.tot.ent], [3, c.tot.m], [4, c.tot.s], [5, c.tot.a], [6, c.tot.f], [7, c.tot.total]].forEach(([ci, v]) => {
+    cell(X[ci], y, PPC.cols[ci], PPC.hFoot, PPC.foot);
+    money(ci, y, PPC.hFoot, v, true, true);
+  });
+  return cv;
+}
+
+async function baixarFoto() {
+  try {
+    const cv = desenharPropostaCanvas(compute(), 2);
+    const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+    if (!blob) throw new Error('canvas vazio');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `proposta-${(_s.cliente || _s.empreendimento || 'psm').toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'psm'}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (e) {
+    alert('Não consegui gerar a foto (' + (e.message || e) + '). Use 🖨 Imprimir/PDF — sai idêntico.');
+  }
+}
 
 function render() {
   const c = compute();
@@ -230,13 +334,16 @@ function render() {
             ${miniKpi('Total do fluxo', fmt(c.tot.total), '')}
           </div>
 
-          <div class="flex gap-2" style="margin-bottom:10px">
+          <div class="flex gap-2" style="margin-bottom:10px;flex-wrap:wrap">
             <button class="btn btn-primary" id="vpl-print">🖨 Imprimir / PDF</button>
             <button class="btn btn-ghost" id="vpl-share">📤 Compartilhar (via limpa)</button>
+            <button class="btn btn-ghost" id="vpl-foto">📷 Baixar foto (PNG)</button>
             <button class="btn btn-ghost" data-back style="margin-left:auto">← Voltar Simuladores</button>
           </div>
 
-          <div style="overflow:auto;max-height:560px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px">
+          <!-- proposta INTEIRA projetada na página (sem barra de rolagem interna;
+               a página cresce — pedido do Paulo, v86.18) -->
+          <div id="vpl-proposta" style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px;overflow-x:auto">
             ${propostaTableHTML(c)}
           </div>
         </div>
@@ -259,6 +366,7 @@ function bind() {
   });
   _root.querySelector('#vpl-print')?.addEventListener('click', () => abrirVia(true));
   _root.querySelector('#vpl-share')?.addEventListener('click', () => abrirVia(false));
+  _root.querySelector('#vpl-foto')?.addEventListener('click', baixarFoto);
   const back = _root.querySelector('[data-back]');
   if (back) back.addEventListener('click', () => location.hash = '/simuladores');
 }
