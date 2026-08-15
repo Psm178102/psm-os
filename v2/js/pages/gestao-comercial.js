@@ -593,7 +593,41 @@ function tabSafras() {
       ${linhaR('SEM 1º contato até hoje', `<span style="color:#dc2626">${fN(r.sem_contato)}</span>`)}
     </div>`;
   }).join('');
+  // 🏃 performance individual: janela atual × base 90d anterior (métrica-base do corretor)
+  const perf = _d.performance_corretores || [];
+  const perfRows = perf.map(c => {
+    const dl = v => v == null ? '<span class="tiny muted">novo</span>' : `<span class="tiny" style="font-weight:800;color:${v >= 0 ? '#16a34a' : '#dc2626'}">${v >= 0 ? '▲' : '▼'} ${fN(Math.abs(v))}%</span>`;
+    return `<tr>
+      <td style="font-size:12px;font-weight:600;padding:4px 8px 4px 0;white-space:nowrap">${esc(c.nome)} <span class="tiny muted">${(TEAM_LBL[c.team] || '').replace(/^..\s/, '')}</span></td>
+      <td style="text-align:right;font-size:12px">${fN(c.atual.leads)} <span class="tiny muted">/ ${fN(c.base.leads)}</span></td>
+      <td style="text-align:right;font-weight:800;font-size:12.5px">${fN(c.atual.vendas)} <span class="tiny muted">/ ${fN(c.base.vendas)}</span></td>
+      <td style="text-align:right">${dl(c.delta_vendas_pct)}</td>
+      <td style="text-align:right;font-size:12px">R$ ${kR$(c.atual.vgv)} <span class="tiny muted">/ R$ ${kR$(c.base.vgv)}</span></td>
+      <td style="text-align:right">${dl(c.delta_vgv_pct)}</td>
+      <td style="text-align:right;font-size:12px">${c.atual.conv_pct != null ? fN(c.atual.conv_pct) + '%' : '—'} <span class="tiny muted">/ ${c.base.conv_pct != null ? fN(c.base.conv_pct) + '%' : '—'}</span></td>
+    </tr>`;
+  }).join('');
+  // 🚪 turnover ciclo 90d
+  const to = _d.turnover || {};
+  const toCor = to.dias_desde_ultima == null ? 'var(--ink-muted)' : to.dias_desde_ultima >= (to.regra_dias || 90) ? '#dc2626' : to.dias_desde_ultima >= 60 ? '#d97706' : '#16a34a';
+  const toBloco = pan('🚪 Turnover — regra da casa: 1 saída a cada ~90 dias', `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:10px;text-align:center">
+      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:19px;font-weight:900">${to.intervalo_medio_dias != null ? fN(to.intervalo_medio_dias) + 'd' : '—'}</div><div class="tiny muted">ciclo REAL medido (média entre saídas)</div></div>
+      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:19px;font-weight:900;color:${toCor}">${to.dias_desde_ultima != null ? fN(to.dias_desde_ultima) + 'd' : '—'}</div><div class="tiny muted">desde a última saída (régua: ${to.regra_dias || 90}d)</div></div>
+      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:19px;font-weight:900">${fN((to.saidas || []).length)}</div><div class="tiny muted">saídas identificadas</div></div>
+    </div>
+    ${(to.saidas || []).length ? `<div class="tiny" style="font-weight:800;margin-bottom:4px">Saídas (última atividade no CRM):</div>
+      <div>${to.saidas.map(x => `<span style="display:inline-block;background:var(--bg-3);border-radius:999px;padding:2px 10px;font-size:11.5px;margin:2px">${esc(x.nome)} · ${(TEAM_LBL[x.team] || x.team || '').replace(/^..\s/, '')} · ${x.ultima_atividade}</span>`).join('')}</div>` : ''}
+    ${(to.ativos_risco || []).length ? `<div class="tiny" style="font-weight:800;margin:8px 0 4px;color:#d97706">⚠ Ativos em zona de atenção (90d+ sem venda com volume de lead):</div>
+      <div>${to.ativos_risco.map(x => `<span style="display:inline-block;background:color-mix(in srgb, #d97706 12%, transparent);border:1px solid #d97706;border-radius:999px;padding:2px 10px;font-size:11.5px;margin:2px;font-weight:700">${esc(x.nome)} · ${fN(x.leads_janela)} leads · 0 vendas/90d</span>`).join('')}</div>` : ''}
+    <div class="tiny muted" style="margin-top:6px">${esc(to.nota || '')}</div>`);
   return `
+    ${perf.length ? pan('🏃 Performance individual — janela atual × BASE dos 90 dias anteriores (atual / base)', `
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+        <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Corretor</th><th>Leads</th><th>Vendas</th><th>Δ vendas</th><th>VGV</th><th>Δ VGV</th><th>Conv.</th></tr></thead>
+        <tbody>${perfRows}</tbody></table></div>
+      <div class="tiny muted" style="margin-top:6px">A base individual é a média móvel de 90 dias do PRÓPRIO corretor — acima da base = evolução real, sem comparar maçã com laranja.</div>`) : ''}
+    ${toBloco}
     ${respBlocos ? pan('⚡ Velocidade do 1º contato × conversão (a prova de quanto custa demorar)', `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">${respBlocos}</div><div class="tiny muted" style="margin-top:6px">1º contato = primeira chegada ao marco de contato/agendamento (eventos reais do RD, safra da janela).</div>`) : ''}
     ${pan('📈 Safras — cada mês de lead, o que virou até hoje', `
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">

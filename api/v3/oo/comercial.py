@@ -101,6 +101,11 @@ def filtra_escopo(p, tk):
     cp = p.get("campanhas") or {}
     novo["campanhas"] = {**cp, "itens": [i for i in (cp.get("itens") or []) if tk in (i.get("teams") or [])]}
     novo["safras"] = (p.get("safras_por_equipe") or {}).get(tk) or []
+    novo["performance_corretores"] = [c for c in (p.get("performance_corretores") or []) if c.get("team") == tk]
+    to = p.get("turnover") or {}
+    novo["turnover"] = {**to, "saidas": [x for x in (to.get("saidas") or []) if x.get("team") == tk],
+                        "ativos_risco": [x for x in (to.get("ativos_risco") or []) if x.get("team") == tk],
+                        "intervalo_medio_dias": None, "dias_desde_ultima": None}
     novo["hub_conquista"] = p.get("hub_conquista") if tk == "conquista" else None
     if (p.get("coorte_por_equipe") or {}).get(tk) is not None:
         novo["coorte_n"] = p["coorte_por_equipe"][tk]
@@ -243,7 +248,7 @@ class handler(BaseHTTPRequestHandler):
         spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "last_30d"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc10_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
+        ck = f"gc11_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -884,6 +889,76 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             payback = None
 
+        # ── M) 🏃 PERFORMANCE INDIVIDUAL — média-base de 90 dias (métrica do Paulo:
+        # o corretor comparado com a PRÓPRIA base dos 90d anteriores) ──
+        prev_ini = since_dt - timedelta(days=90)
+        perf_corr = []
+        uids_perf = {e["uid"] for e in eds if e["uid"] and e["created"] and e["created"] >= prev_ini}
+        for uid in uids_perf:
+            u = users.get(uid) or {}
+            tku = team_de(uid, u.get("team"))
+            if tku == "outros":
+                continue
+            atu = [e for e in eds if e["uid"] == uid and e["created"] and since_dt <= e["created"] <= until_dt]
+            ant = [e for e in eds if e["uid"] == uid and e["created"] and prev_ini <= e["created"] < since_dt]
+            def _blk(pool):
+                v = sum(1 for e in pool if e["win"])
+                return {"leads": len(pool), "vendas": v,
+                        "vgv": round(sum(e["vgv"] for e in pool if e["win"]), 2),
+                        "conv_pct": round(v / len(pool) * 100, 2) if pool else None}
+            a, b = _blk(atu), _blk(ant)
+            if not a["leads"] and not b["leads"]:
+                continue
+            perf_corr.append({"uid": uid, "nome": u.get("name") or "?", "team": tku,
+                              "atual": a, "base": b,
+                              "delta_vendas_pct": round((a["vendas"] - b["vendas"]) / b["vendas"] * 100, 1) if b["vendas"] else None,
+                              "delta_vgv_pct": round((a["vgv"] - b["vgv"]) / b["vgv"] * 100, 1) if b["vgv"] else None})
+        perf_corr.sort(key=lambda x: (-x["atual"]["vendas"], -x["atual"]["vgv"]))
+
+        # ── N) 🚪 TURNOVER — regra da casa: ciclo de ~90 dias por saída ──
+        saidas = []
+        for uid, u in users.items():
+            if (u.get("status") or "ativo") == "ativo":
+                continue
+            r_ = (u.get("role") or "").lower()
+            if not r_.startswith("corretor"):
+                continue
+            ult = None
+            for d in hist_deals:
+                du = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
+                if du != uid:
+                    continue
+                for t_ in (parse_dt(d.get("closed_at")), parse_dt(d.get("created_at_rd"))):
+                    if t_ and (ult is None or t_ > ult):
+                        ult = t_
+            if ult:
+                saidas.append({"nome": u.get("name") or uid, "team": team_key(u.get("team")),
+                               "ultima_atividade": ult.date().isoformat()})
+        saidas.sort(key=lambda x: x["ultima_atividade"])
+        intervalos = []
+        for i in range(1, len(saidas)):
+            d1 = date.fromisoformat(saidas[i - 1]["ultima_atividade"])
+            d2 = date.fromisoformat(saidas[i]["ultima_atividade"])
+            if (d2 - d1).days > 0:
+                intervalos.append((d2 - d1).days)
+        dias_ultima = (hoje - date.fromisoformat(saidas[-1]["ultima_atividade"])).days if saidas else None
+        # risco: corretor ATIVO com leads na janela e ZERO venda há 90d+
+        risco = []
+        for uid in {e["uid"] for e in na_janela if e["uid"]}:
+            u = users.get(uid) or {}
+            if (u.get("status") or "ativo") != "ativo" or not (u.get("role") or "").lower().startswith("corretor"):
+                continue
+            vendas_90 = sum(1 for e in eds if e["uid"] == uid and e["win"] and e["closed"] and (hoje - e["closed"].date()).days <= 90)
+            leads_j = sum(1 for e in na_janela if e["uid"] == uid)
+            if vendas_90 == 0 and leads_j >= 20:
+                risco.append({"nome": u.get("name") or uid, "team": team_de(uid, u.get("team")),
+                              "leads_janela": leads_j, "vendas_90d": 0})
+        turnover = {"regra_dias": 90, "saidas": saidas[-12:],
+                    "intervalo_medio_dias": round(sum(intervalos) / len(intervalos)) if intervalos else None,
+                    "dias_desde_ultima": dias_ultima,
+                    "nota": "saída aproximada pela ÚLTIMA atividade no CRM do corretor inativo (não há data de desligamento estruturada)",
+                    "ativos_risco": sorted(risco, key=lambda x: -x["leads_janela"])[:10]}
+
         # ── I) CAMPANHAS → FUNIL → VENDA (pedido do Paulo, 15/ago: escalar/pausar
         # pela VENDA, não pelo CPL — CPL barato sem venda não compensa; CPL acima
         # do previsto que VENDE pode compensar). Funil = safra da janela; spend =
@@ -947,6 +1022,7 @@ class handler(BaseHTTPRequestHandler):
                            "nota": "spend Meta this_month por conta da equipe ÷ atividade real do mês; CAC completo soma o custo fixo orçado da linha"},
                 "produtividade": {"corretores": corretores, "equipes": equipes_prod},
                 "safras": safras_out, "safras_por_equipe": safras_por_equipe, "tempos": tempos,
+                "performance_corretores": perf_corr, "turnover": turnover,
                 "coorte_por_equipe": {tk: sum(1 for e in na_janela if e["team"] == tk) for tk, _l in TEAMS},
                 "cobertura_origem_pct": cobertura, "avisos": avisos,
                 "coorte_n": len(na_janela),
