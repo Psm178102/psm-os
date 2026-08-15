@@ -46,8 +46,8 @@ MIN_VENDAS_RANK = 3
 
 # 🏷 regra do Paulo (15/ago): lead SEM FONTE e OUTRO são classificados como
 # TRÁFEGO PAGO IMOB (o grosso do não-atribuído é o próprio tráfego pago da casa)
-CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob"}
-CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob", "meta": "Tráfego pago (Meta)"}
+CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
+CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -243,7 +243,7 @@ class handler(BaseHTTPRequestHandler):
         spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "last_30d"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc8_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
+        ck = f"gc9_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -644,20 +644,22 @@ class handler(BaseHTTPRequestHandler):
         for tk, _l in TEAMS:
             linhas = []
             for a, b, nome in PASSOS:
-                ds = []
+                hs = []
                 for e in na_janela:
                     if e["team"] != tk:
                         continue
                     ta = e["created"] if a == 0 else e["t_marco"].get(a)
                     tb = e["t_marco"].get(b)
                     if ta and tb and tb >= ta:
-                        ds.append((tb - ta).days)
-                ds.sort()
-                linhas.append({"passo": nome, "mediana_dias": ds[len(ds) // 2] if ds else None, "n": len(ds)})
+                        hs.append((tb - ta).total_seconds() / 3600.0)
+                hs.sort()
+                linhas.append({"passo": nome, "mediana_h": round(hs[len(hs) // 2], 2) if hs else None,
+                               "mediana_dias": round(hs[len(hs) // 2] / 24.0, 1) if hs else None, "n": len(hs)})
             # pasta→venda: da 1ª vez no marco 5 até o closed do win
-            ds = sorted((e["closed"] - e["t_marco"][5]).days for e in na_janela
+            hs = sorted((e["closed"] - e["t_marco"][5]).total_seconds() / 3600.0 for e in na_janela
                         if e["team"] == tk and e["win"] and e["closed"] and e["t_marco"].get(5) and e["closed"] >= e["t_marco"][5])
-            linhas.append({"passo": "pasta→venda", "mediana_dias": ds[len(ds) // 2] if ds else None, "n": len(ds)})
+            linhas.append({"passo": "pasta→venda", "mediana_h": round(hs[len(hs) // 2], 2) if hs else None,
+                           "mediana_dias": round(hs[len(hs) // 2] / 24.0, 1) if hs else None, "n": len(hs)})
             tempos[tk] = linhas
 
         # ── G) HISTÓRICO DO ANO (fetch leve, sem rd_raw): mês a mês, real ──
@@ -816,26 +818,36 @@ class handler(BaseHTTPRequestHandler):
                                          "nenhuma etapa madura o bastante pra cair ainda neste mês")}
 
         # ── K) ⚡ VELOCIDADE DO 1º CONTATO × CONVERSÃO (por equipe, na safra) ──
-        BUCKETS = [("⚡ <1h", 1), ("1–4h", 4), ("4–24h", 24), ("1–3 dias", 72), ("🐌 >3 dias", 10 ** 9)]
         resposta = {}
         for tk, _l in TEAMS:
-            linhas = {b[0]: {"n": 0, "vendas": 0} for b in BUCKETS}
-            linhas["sem 1º contato"] = {"n": 0, "vendas": 0}
+            pares = []          # (horas, win) só de quem tem movimentação REAL medível
+            nasceram = sem_ctt = 0
             for e in na_janela:
                 if e["team"] != tk:
                     continue
-                t1 = e["t_marco"].get(1) or e["t_marco"].get(2)
-                if not t1 or not e["created"]:
-                    b = "sem 1º contato"
+                h = _h_contato(e)
+                if h is not None:
+                    pares.append((h, e["win"]))
                 else:
-                    hrs = (t1 - e["created"]).total_seconds() / 3600.0
-                    b = next(nm for nm, lim in BUCKETS if hrs <= lim)
-                linhas[b]["n"] += 1
-                if e["win"]:
-                    linhas[b]["vendas"] += 1
-            resposta[tk] = [{"bucket": nm, **v,
-                             "conv_pct": round(v["vendas"] / v["n"] * 100, 1) if v["n"] else None}
-                            for nm, v in linhas.items()]
+                    t1 = e["t_marco"].get(1) or e["t_marco"].get(2)
+                    if t1:
+                        nasceram += 1   # nasceu na etapa (não medível por evento)
+                    else:
+                        sem_ctt += 1
+            pares.sort(key=lambda x: x[0])
+            hs = [x[0] for x in pares]
+            def _q(f):
+                return round(hs[min(len(hs) - 1, int(len(hs) * f))], 2) if hs else None
+            med = _q(0.5)
+            rapidos = [x for x in pares if med is not None and x[0] <= med]
+            lentos = [x for x in pares if med is not None and x[0] > med]
+            cv = lambda xs: round(sum(1 for x in xs if x[1]) / len(xs) * 100, 1) if xs else None
+            resposta[tk] = {"n_mediveis": len(pares), "nasceram_na_etapa": nasceram, "sem_contato": sem_ctt,
+                            "mediana_h": med, "media_h": round(sum(hs) / len(hs), 2) if hs else None,
+                            "p25_h": _q(0.25), "p75_h": _q(0.75),
+                            "mais_rapido_h": round(hs[0], 2) if hs else None,
+                            "mais_lento_h": round(hs[-1], 2) if hs else None,
+                            "conv_rapidos_pct": cv(rapidos), "conv_lentos_pct": cv(lentos)}
 
         # ── L) 💸 PAYBACK DE MÍDIA (HUB: dataVenda → 1ª parcela no caixa) ──
         payback = None
@@ -894,7 +906,10 @@ class handler(BaseHTTPRequestHandler):
                 ver, vlbl = "pausar", "🔴 REVER/PAUSAR — gasta e não gera visita"
             else:
                 ver, vlbl = "observar", "⚪ observar"
+            st_meta = (rec.get("status") or "").lower() if rec else None
             itens_camp.append({"campanha": nome, "teams": sorted(c["teams"]),
+                               "status_meta": st_meta,
+                               "ativa": st_meta == "active",
                                "leads": c["leads"], "agend": c["agend"], "visita": c["visita"],
                                "proposta": c["proposta"], "pasta": c["pasta"], "venda": c["venda"],
                                "vgv": round(c["vgv"], 2), "receita_est": round(receita, 2),

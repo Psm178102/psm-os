@@ -216,7 +216,7 @@ function tabCampanhas() {
         <span>${['🥇', '🥈', '🥉'][i]}</span><span class="tiny" style="flex:1;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(x.campanha)}">${esc(x.campanha.slice(0, 46))}</span>
         <b>${fN(x[campo])}</b></div>`).join('') || '<div class="tiny muted">—</div>'}</div></div>`;
   };
-  const rows = its.map(x => `<tr>
+  const linha = x => `<tr>
       <td style="font-size:11.5px;font-weight:600;padding:4px 8px 4px 0;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(x.campanha)}">${esc(x.campanha)}<div class="tiny muted">${(x.teams || []).join(' · ')}</div></td>
       <td style="text-align:right;font-size:12px">${fN(x.leads)}</td>
       <td style="text-align:right;font-size:12px">${fN(x.agend)}</td>
@@ -230,7 +230,10 @@ function tabCampanhas() {
       <td style="text-align:right;font-size:12px">${x.cpl_30d != null ? 'R$ ' + kR$(x.cpl_30d) : '—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:800">${x.roas != null ? fN(x.roas) + '×' : '—'}</td>
       <td><span class="tiny" style="font-weight:800;color:${VCOR[x.veredito]};white-space:nowrap">${esc(x.veredito_lbl)}</span></td>
-    </tr>`).join('');
+    </tr>`;
+  const ativas = its.filter(x => x.ativa);
+  const inativas = its.filter(x => !x.ativa);
+  const cab = `<thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Campanha</th><th>Leads</th><th>Agend.</th><th>Visitas</th><th>Prop.</th><th>Pastas</th><th>Vendas</th><th>VGV</th><th>Receita≈</th><th>Spend 30d</th><th>CPL</th><th>ROAS</th><th style="text-align:left">Veredito</th></tr></thead>`;
   const SPENDS = [['this_month', 'Este mês'], ['last_7d', 'Últimos 7d'], ['last_14d', 'Últimos 14d'], ['last_30d', 'Últimos 30d'], ['last_month', 'Mês passado']];
   const spendSel = `<div class="flex items-center gap-2" style="margin-bottom:8px">
     <span class="tiny" style="font-weight:800">🎚 Período do spend/CPL (Meta):</span>
@@ -244,10 +247,12 @@ function tabCampanhas() {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">
         ${podio('visita', 'MAIS VISITAS', '🚶')}${podio('pasta', 'MAIS PASTAS', '📁')}${podio('proposta', 'MAIS PROPOSTAS', '📄')}${podio('venda', 'MAIS VENDAS', '💰')}
       </div>`)
-    + pan('📣 Campanha → funil → venda (com veredito de escala)', `
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-        <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Campanha</th><th>Leads</th><th>Agend.</th><th>Visitas</th><th>Prop.</th><th>Pastas</th><th>Vendas</th><th>VGV</th><th>Receita≈</th><th>Spend 30d</th><th>CPL</th><th>ROAS</th><th style="text-align:left">Veredito</th></tr></thead>
-        <tbody>${rows}</tbody></table></div>
+    + pan(`🟢 Campanhas ATIVAS na Meta agora (${ativas.length})`, ativas.length ? `
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">${cab}
+        <tbody>${ativas.map(linha).join('')}</tbody></table></div>` : '<div class="tiny muted">Nenhuma campanha ativa casou com leads da safra.</div>')
+    + pan(`⏸ Pausadas / encerradas / sem match na Meta (${inativas.length}) — histórico da safra`, `
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">${cab}
+        <tbody>${inativas.map(linha).join('')}</tbody></table></div>
       <div class="tiny muted" style="margin-top:8px">${esc(cp.nota || '')} · ${fN(cp.sem_campanha || 0)} lead(s) da janela sem campanha no RD. Régua do veredito: 💰 ESCALAR = vende e a receita cobre ≥1,5× o spend · ⏳ MATURANDO = sem venda mas com pastas/propostas andando · 🔴 REVER = gasta ≥R$300/30d sem gerar UMA visita na safra. O CPL está aí de contexto — a decisão é pelo fundo do funil.</div>`);
 }
 
@@ -287,10 +292,14 @@ function tabVisao() {
     return `<tr>
       <td style="font-weight:700;font-size:12.5px;padding:6px 8px 6px 0;white-space:nowrap">${v.label}</td>
       <td style="text-align:right;font-weight:900;font-size:14px;color:${cor}">${fN(v.real_vendas)}</td>
-      <td style="text-align:right;font-size:12px" title="motor do Norte (mix × conversão de cada corretor)">${v.proj_vendas ? fN(v.proj_vendas) : '—'}</td>
-      <td style="text-align:right;font-size:12px" title="ritmo: vendas até hoje ÷ dias corridos × dias do mês">${v.proj_ritmo != null ? fN(v.proj_ritmo) : '—'}</td>
-      <td style="text-align:right;font-size:12px">${v.meta_vendas ? fN(v.meta_vendas) : '—'}</td>
+      <td style="text-align:right;font-size:12px" title="PROJEÇÃO do Norte: mix × conversão calibrada de cada corretor">${v.proj_vendas ? fN(v.proj_vendas) : '—'}</td>
+      <td style="text-align:right;font-size:12px" title="PROJEÇÃO por ritmo: vendas até hoje ÷ dias corridos × dias do mês">${v.proj_ritmo != null ? fN(v.proj_ritmo) : '—'}</td>
+      <td style="text-align:right;font-size:12px" title="PROJEÇÃO do pipeline aberto × taxas reais (trimestre)">${(((_d.forecast || {})[v.team]) || {}).tri_esp != null ? fN(_d.forecast[v.team].tri_esp) : '—'}</td>
+      <td style="text-align:right;font-size:12px;font-weight:700">${v.meta_vendas ? fN(v.meta_vendas) : '—'}</td>
+      <td style="text-align:right;font-size:12px;font-weight:800;color:${v.meta_vendas ? (v.real_vendas / v.meta_vendas >= 1 ? '#16a34a' : v.real_vendas / v.meta_vendas >= 0.6 ? '#d97706' : '#dc2626') : 'var(--ink-muted)'}">${v.meta_vendas ? fN(v.real_vendas / v.meta_vendas * 100) + '%' : '—'}</td>
+      <td style="text-align:right;font-size:12px">${v.meta_vendas ? fN(Math.max(0, v.meta_vendas - v.real_vendas)) : '—'}</td>
       <td style="text-align:right;font-size:12px">${v.poisson ? `${v.poisson.lo}–${v.poisson.hi} <span class="muted tiny">normal</span>` : '—'}</td>
+      <td style="text-align:right;font-size:12px" title="atividade REAL do mês corrente (eventos)">${(() => { const c = ((_d.custos || {}).equipes || []).find(x => x.team === v.team) || {}; return `${fN(c.leads || 0)} / ${fN(c.agend || 0)} / ${fN(c.visita || 0)}`; })()}</td>
       <td style="text-align:right;font-size:12px" title="deals abertos AGORA parados em proposta / pasta">${fN(pa.propostas || 0)} / ${fN(pa.pastas || 0)}</td>
       <td style="text-align:right;font-size:12px">R$ ${kR$(v.real_vgv)}</td>
       <td style="text-align:right;font-size:12px">${v.meta_vgv ? 'R$ ' + kR$(v.meta_vgv) : '—'}</td>
@@ -316,7 +325,7 @@ function tabVisao() {
     </details>`).join('');
   return pan('🎯 Mês corrente — REAL × PROJETADO (Norte · Ritmo) × META, por equipe', `
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th><th>Vendas REAL</th><th>Proj. Norte</th><th>Proj. Ritmo</th><th>Meta</th><th>🎲 Faixa</th><th>Prop./Pastas abertas</th><th>VGV real</th><th>VGV meta</th><th>Ticket</th></tr></thead>
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th><th>Vendas REAL</th><th>PROJEÇÃO Norte</th><th>PROJEÇÃO Ritmo</th><th>PROJEÇÃO Pipeline (tri)</th><th>Meta oficial</th><th>% da meta</th><th>Gap p/ meta</th><th>🎲 Faixa</th><th>Leads/Agend./Visitas (mês)</th><th>Prop./Pastas abertas</th><th>VGV real</th><th>VGV meta</th><th>Ticket</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
     ${hub ? `<div class="tiny" style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">🌉 Cruzamento Conquista: esteira do PSM HUB marca <b>${fN(hub.vendas)} venda(s) · R$ ${kR$(hub.vgv)}</b> no mês — divergência com o RD é sinal de lançamento pendente num dos dois.</div>` : ''}
     ${detalhes}
@@ -388,10 +397,22 @@ function tabFunilRD() {
   const fr = _d.funil_rd || {};
   const teams = Object.keys(fr);
   if (!teams.length) return pan('⏬ Funil RD', '<div class="tiny muted">Nenhum funil espelhado encontrado (rd_stages).</div>');
+  const RECOM = [
+    [/agendar|agendad/i, 'cadência de contato mais curta + agendamento na PRIMEIRA conversa (script de 2 opções de horário)'],
+    [/visita/i, 'confirmação na véspera + lembrete no dia + reagendamento ATIVO de quem furou'],
+    [/proposta|aprova|quente/i, 'follow de 24h pós-visita com proposta/simulação na mão'],
+    [/pasta|contrato|venda|cr[eé]dito/i, 'esteira documental: checklist de pasta + follow diário com correspondente/incorporadora'],
+    [/contato|ctt|sondagem|qualific|atend/i, 'velocidade de resposta (1º contato) + 3 tentativas em canais diferentes nas primeiras 24h'],
+  ];
   const bloco = tk => {
     const f = fr[tk];
     const lanes = f.lanes || [];
     const maxA = Math.max(1, ...lanes.filter(l => !l.base).map(l => l.alcancaram || 0));
+    // 🔥 gargalo: pior passagem com volume relevante (≥15 alcançaram)
+    const cand = lanes.filter(l => !l.base && l.passagem_pct != null && (l.alcancaram || 0) >= 15);
+    const garg = cand.length ? cand.reduce((a, b) => (b.passagem_pct < a.passagem_pct ? b : a)) : null;
+    const proxDe = nm => { const i = lanes.findIndex(l => l.nome === nm); return (lanes[i + 1] || {}).nome || ''; };
+    const rec = garg ? (RECOM.find(([rx]) => rx.test(proxDe(garg.nome) + ' ' + garg.nome)) || [null, 'destravar a etapa com rotina diária de fila zero'])[1] : null;
     return pan(`${TEAM_LBL[tk] || tk} — funil “${esc(f.pipeline)}” (nomes exatos do RD)`, `
       <div style="display:grid;gap:3px">
         ${lanes.map(l => {
@@ -399,17 +420,21 @@ function tabFunilRD() {
             <span class="tiny" style="min-width:210px;font-weight:600">🗂 ${esc(l.nome)}</span>
             <span class="tiny muted">lane de base · <b>${fN(l.abertos)}</b> parado(s) — conta como entrada, fora da cadeia</span></div>`;
           const w = Math.max(3, Math.round((l.alcancaram || 0) / maxA * 100));
-          return `<div style="display:flex;gap:8px;align-items:center">
+          const ehGarg = garg && l.nome === garg.nome;
+          return `<div style="display:flex;gap:8px;align-items:center${ehGarg ? ';background:color-mix(in srgb, #dc2626 8%, transparent);border-radius:6px;padding:2px 4px' : ''}">
             <span class="tiny" style="min-width:210px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(l.nome)}">${esc(l.nome)}</span>
             <div style="flex:1;height:20px;background:var(--bg-3);border-radius:5px;overflow:hidden;position:relative">
               <div style="height:100%;width:${w}%;background:linear-gradient(90deg,#1e3a8a,#2563eb);border-radius:5px"></div>
               <span class="tiny" style="position:absolute;left:8px;top:2px;color:#fff;font-weight:800">${fN(l.alcancaram || 0)} alcançaram</span>
             </div>
             <span class="tiny" style="min-width:86px;text-align:right"><b>${fN(l.abertos)}</b> <span class="muted">abertos</span></span>
-            <span class="tiny" style="min-width:64px;text-align:right;font-weight:800;color:${l.passagem_pct == null ? 'var(--ink-muted)' : l.passagem_pct >= 50 ? '#16a34a' : l.passagem_pct >= 25 ? '#d97706' : '#dc2626'}">${l.passagem_pct != null ? '↓ ' + fN(l.passagem_pct) + '%' : ''}</span>
+            <span class="tiny" style="min-width:64px;text-align:right;font-weight:800;color:${l.passagem_pct == null ? 'var(--ink-muted)' : l.passagem_pct >= 50 ? '#16a34a' : l.passagem_pct >= 25 ? '#d97706' : '#dc2626'}">${l.passagem_pct != null ? '↓ ' + fN(l.passagem_pct) + '%' : ''}${ehGarg ? ' 🔥' : ''}</span>
           </div>`;
         }).join('')}
       </div>
+      ${garg ? `<div style="margin-top:8px;background:color-mix(in srgb, #dc2626 8%, transparent);border:1.5px solid #dc2626;border-radius:8px;padding:8px 12px;font-size:12.5px">
+        🔥 <b>GARGALO:</b> ${esc(garg.nome)} → ${esc(proxDe(garg.nome))} passa só <b>${fN(garg.passagem_pct)}%</b> (${fN(garg.abertos)} parado(s) na lane agora).
+        <b>O que fazer:</b> ${esc(rec)}.</div>` : ''}
       <div class="tiny muted" style="margin-top:6px">Barra = quantos deals ALCANÇARAM a etapa (abertos de agora + ganhos do ano; aproximação pela etapa atual — dado real, sem invenção). ↓% = passagem pra próxima etapa. “Abertos” = parados na lane HOJE, igual ao RD.</div>`);
   };
   return teams.map(bloco).join('');
@@ -550,15 +575,23 @@ function tabSafras() {
   const tempos = Object.keys(_d.tempos || {}).map(t => `
     <div><div class="tiny" style="font-weight:800;margin-bottom:4px">${TEAM_LBL[t] || t}</div>
       ${(_d.tempos[t] || []).map(l => `<div style="display:flex;justify-content:space-between;font-size:12px;border-bottom:1px dashed var(--border);padding:3px 0">
-        <span>${esc(l.passo)}</span><span><b>${l.mediana_dias != null ? l.mediana_dias + 'd' : '—'}</b> <span class="tiny muted">n=${l.n}</span></span></div>`).join('')}
+        <span>${esc(l.passo)}</span><span><b>${l.mediana_h != null ? fmtDHM(l.mediana_h) : '—'}</b> <span class="tiny muted">n=${l.n}</span></span></div>`).join('')}
     </div>`).join('');
   const resp = _d.resposta || {};
-  const respBlocos = Object.keys(resp).filter(t => (resp[t] || []).some(b => b.n)).map(t => `
-    <div><div class="tiny" style="font-weight:800;margin-bottom:4px">${TEAM_LBL[t] || t} · mediano: <span style="color:#2563eb">${fmtDHM(((_d.produtividade || {}).equipes || {})[t]?.contato_h_mediana)}</span></div>
-      ${(resp[t] || []).map(b => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;border-bottom:1px dashed var(--border);padding:3px 0">
-        <span>${esc(b.bucket)}</span>
-        <span><b>${fN(b.n)}</b> leads · <b>${fN(b.vendas)}</b> venda(s) · <b style="color:${(b.conv_pct || 0) >= 2 ? '#16a34a' : 'var(--ink)'}">${b.conv_pct != null ? fN(b.conv_pct) + '%' : '—'}</b></span>
-      </div>`).join('')}</div>`).join('');
+  const linhaR = (lbl, val) => `<div style="display:flex;justify-content:space-between;font-size:12px;border-bottom:1px dashed var(--border);padding:3px 0"><span>${lbl}</span><b style="white-space:nowrap">${val}</b></div>`;
+  const respBlocos = Object.keys(resp).filter(t => (resp[t] || {}).n_mediveis).map(t => {
+    const r = resp[t];
+    return `<div><div class="tiny" style="font-weight:800;margin-bottom:4px">${TEAM_LBL[t] || t} <span class="muted">(${fN(r.n_mediveis)} medíveis)</span></div>
+      ${linhaR('Mediana', fmtDHM(r.mediana_h))}
+      ${linhaR('Média', fmtDHM(r.media_h))}
+      ${linhaR('P25 → P75', fmtDHM(r.p25_h) + ' → ' + fmtDHM(r.p75_h))}
+      ${linhaR('Mais rápido · mais lento', fmtDHM(r.mais_rapido_h) + ' · ' + fmtDHM(r.mais_lento_h))}
+      ${linhaR('Conv. metade RÁPIDA', `<span style="color:#16a34a">${r.conv_rapidos_pct != null ? fN(r.conv_rapidos_pct) + '%' : '—'}</span>`)}
+      ${linhaR('Conv. metade LENTA', `<span style="color:#dc2626">${r.conv_lentos_pct != null ? fN(r.conv_lentos_pct) + '%' : '—'}</span>`)}
+      ${linhaR('Nasceram já em atendimento', fN(r.nasceram_na_etapa))}
+      ${linhaR('SEM 1º contato até hoje', `<span style="color:#dc2626">${fN(r.sem_contato)}</span>`)}
+    </div>`;
+  }).join('');
   return `
     ${respBlocos ? pan('⚡ Velocidade do 1º contato × conversão (a prova de quanto custa demorar)', `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">${respBlocos}</div><div class="tiny muted" style="margin-top:6px">1º contato = primeira chegada ao marco de contato/agendamento (eventos reais do RD, safra da janela).</div>`) : ''}
     ${pan('📈 Safras — cada mês de lead, o que virou até hoje', `

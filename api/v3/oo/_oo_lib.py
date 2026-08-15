@@ -320,6 +320,7 @@ def read_meta_campaigns(sb, preset=None):
             if ld <= 0:
                 continue
             rec = {"name": c.get("name"), "cpl": round(sp / ld, 2), "leads": ld, "spend": round(sp, 2),
+                   "status": (c.get("status") or "").strip().lower(),
                    "account": (c.get("account") or "").strip()}
             lst.append(rec)
             nm, cd = _norm_camp(c.get("name")), _camp_code(c.get("name"))
