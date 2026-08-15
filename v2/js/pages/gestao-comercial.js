@@ -60,6 +60,7 @@ function render() {
     <div class="card">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
         <h2 class="card-title" style="margin:0">📊 Gestão Comercial</h2>
+        ${d.escopo ? `<span class="tiny" style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:999px;padding:2px 10px;font-weight:800">🔒 visão da equipe ${(TEAM_LBL[d.escopo] || d.escopo).replace(/^..\s/, '')}</span>` : ''}
         <span class="tiny muted">coorte de ${fN(d.coorte_n)} leads · origem preenchida em ${d.cobertura_origem_pct != null ? fN(d.cobertura_origem_pct) + '%' : '—'} · ${d.janela.since} → ${d.janela.until}</span>
         <span style="flex:1"></span>
         <select class="select" id="gc-preset" style="width:auto;padding:4px 8px;font-size:12px">
@@ -319,7 +320,7 @@ function tabVisao() {
       <tbody>${rows}</tbody></table></div>
     ${hub ? `<div class="tiny" style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">🌉 Cruzamento Conquista: esteira do PSM HUB marca <b>${fN(hub.vendas)} venda(s) · R$ ${kR$(hub.vgv)}</b> no mês — divergência com o RD é sinal de lançamento pendente num dos dois.</div>` : ''}
     ${detalhes}
-    <div class="tiny muted" style="margin-top:6px">Duas projeções lado a lado: <b>Norte</b> (mix×conversão calibrada de cada corretor) e <b>Ritmo</b> (velocidade real do mês extrapolada). Venda dentro da 🎲 faixa = azul (normal estatístico). Prop./Pastas = pipeline vivo agora.</div>`)
+    <div class="tiny muted" style="margin-top:6px">Metas = painel 🎯 Metas oficial do House (por corretor/mês). Duas projeções lado a lado: <b>Norte</b> (mix×conversão calibrada de cada corretor) e <b>Ritmo</b> (velocidade real do mês extrapolada). Venda dentro da 🎲 faixa = azul (normal estatístico). Prop./Pastas = pipeline vivo agora.</div>`)
     + metricasChave()
     + forecastPanel()
     + histTable('Vendas & VGV — real', [

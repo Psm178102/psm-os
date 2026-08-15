@@ -57,6 +57,60 @@ FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
 MAP_LOGINS = ("isa", "rafaela", "paulo")
 
 
+def escopo_do(user):
+    """Equipe que um gestor lvl<10 pode ver (regra do Paulo 15/ago: gerente
+    Conquista SÓ Conquista, MAP só MAP, Locação só Locação, Terceiros só
+    Terceiros). Sufixo do papel manda; senão o team do usuário."""
+    if (user.get("lvl") or 0) >= 10:
+        return None
+    r = (user.get("role") or "").lower()
+    for tk, _l in TEAMS:
+        if tk in r:
+            return tk
+    return team_de(str(user.get("id") or ""), user.get("team"))
+
+
+def _podio_de(lista, campo, flag):
+    cand = [f for f in (lista or []) if f.get(flag)]
+    return sorted(cand, key=lambda f: -(f.get(campo) or 0))[:3]
+
+
+def filtra_escopo(p, tk):
+    """Corta o payload consolidado pra UMA equipe (gerente/líder). Roda DEPOIS
+    do cache (o cache guarda o payload completo, só sócio recebe inteiro)."""
+    novo = dict(p)
+    novo["escopo"] = tk
+    novo["visao"] = [v for v in (p.get("visao") or []) if v.get("team") == tk]
+    ft = (p.get("fontes") or {}).get(tk) or []
+    novo["fontes"] = {"geral": ft, tk: ft,
+                      "podio": {"visita": _podio_de(ft, "pc_visita", "rankeavel"),
+                                "pasta": _podio_de(ft, "pc_pasta", "rankeavel"),
+                                "venda": _podio_de(ft, "pc_venda", "rankeavel_venda")}}
+    for chave in ("funil_rd", "forecast", "resposta", "tempos"):
+        novo[chave] = {k: v for k, v in (p.get(chave) or {}).items() if k == tk}
+    cust = p.get("custos") or {}
+    novo["custos"] = {**cust,
+                      "equipes": [c for c in (cust.get("equipes") or []) if c.get("team") == tk],
+                      "payback_midia": cust.get("payback_midia") if tk == "conquista" else None}
+    hist = []
+    for h in (p.get("historico") or []):
+        eq = (h.get("equipes") or {}).get(tk) or {}
+        hist.append({**h, "equipes": {tk: eq}, "canais": {},
+                     "total": {**eq, "spend": None, "cpl_global": None, "cac_global": None}})
+    novo["historico"] = hist
+    cp = p.get("campanhas") or {}
+    novo["campanhas"] = {**cp, "itens": [i for i in (cp.get("itens") or []) if tk in (i.get("teams") or [])]}
+    novo["safras"] = (p.get("safras_por_equipe") or {}).get(tk) or []
+    novo["hub_conquista"] = p.get("hub_conquista") if tk == "conquista" else None
+    if (p.get("coorte_por_equipe") or {}).get(tk) is not None:
+        novo["coorte_n"] = p["coorte_por_equipe"][tk]
+    prod = p.get("produtividade") or {}
+    novo["produtividade"] = {"corretores": [c for c in (prod.get("corretores") or []) if c.get("team") == tk],
+                             "equipes": {k: v for k, v in (prod.get("equipes") or {}).items() if k == tk},
+                             "restrito_a": tk}
+    return novo
+
+
 def team_de(uid, team):
     """Equipe efetiva de um usuário pra fins de Gestão Comercial."""
     if uid in MAP_LOGINS:
@@ -189,7 +243,7 @@ class handler(BaseHTTPRequestHandler):
         spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "last_30d"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc6_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
+        ck = f"gc7_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -203,15 +257,20 @@ class handler(BaseHTTPRequestHandler):
             payload = self._compute(sb, since_d, until_d, hoje, spend_preset)
             _kv_write(sb, ck, {"ts": datetime.now(timezone.utc).isoformat(), "data": payload})
 
-        # 🔒 individual: lvl<10 vê só a própria equipe
+        # 🔒 escopo por gestor (regra 15/ago): gerente/líder lvl<10 vê SOMENTE a
+        # própria equipe — em TODAS as abas (visão, fontes, custos, funil,
+        # campanhas, histórico, safras, forecast, resposta, produtividade)
         lvl = user.get("lvl") or 0
         if lvl < 10:
-            minha = team_de(str(user.get("id")), user.get("team"))
-            prod = payload.get("produtividade") or {}
-            payload = {**payload, "produtividade": {
-                "corretores": [c for c in (prod.get("corretores") or []) if c.get("team") == minha],
-                "equipes": prod.get("equipes"),
-                "restrito_a": minha}}
+            tk = escopo_do(user)
+            if tk in dict(TEAMS):
+                payload = filtra_escopo(payload, tk)
+            else:
+                payload = {**payload, "visao": [], "fontes": {}, "funil_rd": {}, "forecast": {},
+                           "resposta": {}, "tempos": {}, "custos": {}, "historico": [],
+                           "campanhas": {}, "safras": [], "hub_conquista": None,
+                           "produtividade": {"corretores": [], "equipes": {}},
+                           "avisos": (payload.get("avisos") or []) + ["sua equipe não está mapeada nas frentes — fale com o sócio"]}
         return self._send(200, {"ok": True, **payload,
                                 "janela": {"since": since_d.isoformat(), "until": until_d.isoformat()},
                                 "viewer_lvl": lvl})
@@ -462,6 +521,15 @@ class handler(BaseHTTPRequestHandler):
         dias_mes = _cal.monthrange(hoje.year, hoje.month)[1]
         visao = []
         ym = f"{hoje.year:04d}-{hoje.month:02d}"
+        # 🎯 metas OFICIAIS do painel Metas (decisão do Paulo 15/ago: metas vêm de lá;
+        # o Norte segue alimentando só a PROJEÇÃO)
+        metas_idx = {}
+        try:
+            for m_ in (sb.table("metas").select("corretor_id,ano,mes,meta_vgv,meta_vendas").eq("ano", hoje.year).execute().data or []):
+                metas_idx[(str(m_.get("corretor_id")), int(m_.get("mes") or 0))] = m_
+        except Exception:
+            avisos.append("tabela metas indisponível — metas zeradas na Visão")
+
         reais_mes_uid = {}
         for e in eds:
             if e["win"] and e["closed"] and e["closed"].date() >= mes_ini and e["uid"]:
@@ -475,22 +543,25 @@ class handler(BaseHTTPRequestHandler):
             com_meta = 0
             por_corr_v = []
             for uid in membros:
-                cfg, _okc = _kv_read(sb, f"oo_norte:{uid}:{ym}")
-                mv = pu = 0.0
-                if cfg:
+                mrow = metas_idx.get((uid, hoje.month)) or {}
+                mv = _num(mrow.get("meta_vendas"))
+                mvgv = _num(mrow.get("meta_vgv"))
+                if mv or mvgv:
                     com_meta += 1
-                    mv = _num((cfg.get("metas_etapas") or {}).get("venda"))
-                    meta_v += mv
-                    meta_vgv += mv * _num(cfg.get("ticket_medio"))
+                meta_v += mv
+                meta_vgv += mvgv
+                pu = 0.0
+                cfg, _okc = _kv_read(sb, f"oo_norte:{uid}:{ym}")
+                if cfg:
                     at = _num(cfg.get("atendimentos_mes"))
                     for cn in (cfg.get("canais") or []):
                         pu += (at * _num(cn.get("mix")) / 100.0) * (_num(cn.get("taxa_base")) * _num(cn.get("energia")) / 100.0) / 100.0
                     proj_v += pu
                 ru = reais_mes_uid.get(uid) or {}
-                if cfg or ru.get("v"):
+                if mv or mvgv or cfg or ru.get("v"):
                     por_corr_v.append({"nome": (users.get(uid) or {}).get("name") or "?",
                                        "real": ru.get("v") or 0, "vgv": round(ru.get("vgv") or 0, 2),
-                                       "meta": round(mv, 1), "proj": round(pu, 2)})
+                                       "meta": round(mv, 1), "meta_vgv": round(mvgv, 2), "proj": round(pu, 2)})
             por_corr_v.sort(key=lambda x: (-x["real"], -x["proj"]))
             reais = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and e["closed"].date() >= mes_ini]
             rv, rvgv = len(reais), round(sum(e["vgv"] for e in reais), 2)
@@ -535,23 +606,30 @@ class handler(BaseHTTPRequestHandler):
 
         # ── E) SAFRAS (mês de criação × resultado até hoje) ──
         safras = {}
+        safras_eq = {tk: {} for tk, _l in TEAMS}
         for e in eds:
             if not e["created"]:
                 continue
             ymc = e["created"].strftime("%Y-%m")
             if ymc < safra_ini.strftime("%Y-%m"):
                 continue
-            s = safras.setdefault(ymc, {"leads": 0, "vendas": 0, "vgv": 0.0, "dias": []})
-            s["leads"] += 1
-            if e["win"]:
-                s["vendas"] += 1
-                s["vgv"] += e["vgv"]
-                if e["closed"]:
-                    s["dias"].append((e["closed"] - e["created"]).days)
-        safras_out = [{"ym": k, "leads": v["leads"], "vendas": v["vendas"], "vgv": round(v["vgv"], 2),
-                       "pc": round(v["vendas"] / v["leads"] * 100, 2) if v["leads"] else None,
-                       "dias_medio": round(sum(v["dias"]) / len(v["dias"])) if v["dias"] else None}
-                      for k, v in sorted(safras.items())]
+            for alvo in (safras, safras_eq.get(e["team"])):
+                if alvo is None:
+                    continue
+                s = alvo.setdefault(ymc, {"leads": 0, "vendas": 0, "vgv": 0.0, "dias": []})
+                s["leads"] += 1
+                if e["win"]:
+                    s["vendas"] += 1
+                    s["vgv"] += e["vgv"]
+                    if e["closed"]:
+                        s["dias"].append((e["closed"] - e["created"]).days)
+        def _safra_fmt(d_):
+            return [{"ym": k, "leads": v["leads"], "vendas": v["vendas"], "vgv": round(v["vgv"], 2),
+                     "pc": round(v["vendas"] / v["leads"] * 100, 2) if v["leads"] else None,
+                     "dias_medio": round(sum(v["dias"]) / len(v["dias"])) if v["dias"] else None}
+                    for k, v in sorted(d_.items())]
+        safras_out = _safra_fmt(safras)
+        safras_por_equipe = {tk: _safra_fmt(d_) for tk, d_ in safras_eq.items()}
 
         # ── F) TEMPOS entre marcos (mediana de dias, por equipe) ──
         tempos = {}
@@ -831,7 +909,8 @@ class handler(BaseHTTPRequestHandler):
                 "custos": {"mes": ym, "equipes": custos, "payback_midia": payback,
                            "nota": "spend Meta this_month por conta da equipe ÷ atividade real do mês; CAC completo soma o custo fixo orçado da linha"},
                 "produtividade": {"corretores": corretores, "equipes": equipes_prod},
-                "safras": safras_out, "tempos": tempos,
+                "safras": safras_out, "safras_por_equipe": safras_por_equipe, "tempos": tempos,
+                "coorte_por_equipe": {tk: sum(1 for e in na_janela if e["team"] == tk) for tk, _l in TEAMS},
                 "cobertura_origem_pct": cobertura, "avisos": avisos,
                 "coorte_n": len(na_janela),
                 "fetched_at": datetime.now(timezone.utc).isoformat()}
