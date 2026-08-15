@@ -43,6 +43,14 @@ LINHA_DA_EQUIPE = {"conquista": "conquista", "map": "map", "terceiros": "terceir
 MIN_LEADS_RANK = 30   # amostra mínima pra fonte entrar no pódio
 MIN_VENDAS_RANK = 3
 
+# 🏷 regra do Paulo (15/ago): lead SEM FONTE e OUTRO são classificados como
+# TRÁFEGO PAGO IMOB (o grosso do não-atribuído é o próprio tráfego pago da casa)
+CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob"}
+CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob", "meta": "Tráfego pago (Meta)"}
+
+FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
+            "terceiros": "funil terceiros", "locacao": "funil de locacao"}
+
 
 def team_key(team):
     t = (team or "").strip().lower()
@@ -70,14 +78,14 @@ def _hoje():
 
 # ─── marcos por etapa REAL de cada funil (mesma régua do simulador) ─────────
 def mapa_marcos(sb):
-    """{stage_id: marco 0..5} e {(pid, position): marco} — venda é SEMPRE o win
-    do deal (marco 6), nunca lane; por isso clamp em 5."""
+    """{stage_id: marco 0..5}, {(pid, position): marco} + mapas crus dos funis —
+    venda é SEMPRE o win do deal (marco 6), nunca lane; por isso clamp em 5."""
     try:
         stages_rows = sb.table("rd_stages").select("*").execute().data or []
         pipes_rows = sb.table("rd_pipelines").select("*").execute().data or []
     except Exception:
-        return {}, {}
-    pos_by_id, by_pipe, _names = build_stage_maps(stages_rows, pipes_rows)
+        return {}, {}, {}, {}, {}
+    pos_by_id, by_pipe, pipe_names = build_stage_maps(stages_rows, pipes_rows)
     marco_sid, marco_pos = {}, {}
     for pid, stages in by_pipe.items():
         if len(stages) < 2:
@@ -93,7 +101,7 @@ def mapa_marcos(sb):
             marco_pos[(str(pid), pos)] = 0
     for sid, (pid, pos) in pos_by_id.items():
         marco_sid[str(sid)] = marco_pos.get((str(pid), pos), None)
-    return marco_sid, marco_pos
+    return marco_sid, marco_pos, by_pipe, pos_by_id, pipe_names
 
 
 def marco_do_deal(d, evs, marco_sid, marco_pos):
@@ -163,7 +171,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(400, {"ok": False, "error": "since/until inválidos (YYYY-MM-DD)"})
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc_cache:{since_d}:{until_d}"
+        ck = f"gc2_cache:{since_d}:{until_d}"   # v86.20: shape novo → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -199,7 +207,7 @@ class handler(BaseHTTPRequestHandler):
 
         users = {str(u["id"]): u for u in (sb.table("users").select("id,name,email,role,team,status").execute().data or []) if u.get("id")}
         email2uid = {(u.get("email") or "").lower(): uid for uid, u in users.items() if u.get("email")}
-        marco_sid, marco_pos = mapa_marcos(sb)
+        marco_sid, marco_pos, by_pipe, pos_by_id, pipe_names = mapa_marcos(sb)
 
         # ── deals da SAFRA (criados em [since-180d, until] p/ safras + coorte) ──
         safra_ini = since_d - timedelta(days=120)   # safras de até ~6m antes do fim
@@ -258,7 +266,7 @@ class handler(BaseHTTPRequestHandler):
                 "closed": parse_dt(d.get("closed_at")),
                 "win": d.get("win") is True,
                 "vgv": amount(d),
-                "canal": channel(source(d.get("rd_raw") or {})),
+                "canal": (lambda _c: CANAL_MERGE.get(_c, _c))(channel(source(d.get("rd_raw") or {}))),
                 "team": team_key(u.get("team")),
                 "uid": uid, "nome": u.get("name") or d.get("user_email") or "?",
                 "marco": marco_do_deal(d, evs, marco_sid, marco_pos),
@@ -282,7 +290,7 @@ class handler(BaseHTTPRequestHandler):
             res = []
             for k, c in sorted(out.items(), key=lambda x: -x[1]["leads"]):
                 pc = lambda a, b: round(a / b * 100, 1) if b else None
-                res.append({"canal": k, "label": CHANNEL_LABEL.get(k, k), **{kk: (round(vv, 2) if kk == "vgv" else vv) for kk, vv in c.items()},
+                res.append({"canal": k, "label": CANAL_LBL.get(k, k), **{kk: (round(vv, 2) if kk == "vgv" else vv) for kk, vv in c.items()},
                             "pc_visita": pc(c["visita"], c["leads"]), "pc_pasta": pc(c["pasta"], c["leads"]),
                             "pc_venda": pc(c["venda"], c["leads"]),
                             "rankeavel": c["leads"] >= MIN_LEADS_RANK,
@@ -373,31 +381,73 @@ class handler(BaseHTTPRequestHandler):
                            "cac_midia": div(spend, vendas), "cac_completo": div(spend + fixo, vendas),
                            "roas": div(vgv * 0.04, spend) if spend else None})
 
-        # ── A) VISÃO GERAL (real mês × meta × projetado do Norte) ──
+        # ── deals ABERTOS agora (leve, sem rd_raw): pipeline de HOJE + funil RD ──
+        abertos, pg = [], 0
+        while True:
+            ch = (sb.table("deals").select("id,stage_id,pipeline_id,user_id,user_email")
+                  .is_("win", "null").order("id")
+                  .range(pg * 1000, pg * 1000 + 999).execute().data or [])
+            abertos.extend(ch)
+            if len(ch) < 1000 or pg >= 12:
+                break
+            pg += 1
+
+        # ── A) VISÃO GERAL detalhada (real × projetado ×3 × meta, por equipe E corretor) ──
+        import calendar as _cal
+        dias_mes = _cal.monthrange(hoje.year, hoje.month)[1]
         visao = []
         ym = f"{hoje.year:04d}-{hoje.month:02d}"
+        reais_mes_uid = {}
+        for e in eds:
+            if e["win"] and e["closed"] and e["closed"].date() >= mes_ini and e["uid"]:
+                r = reais_mes_uid.setdefault(e["uid"], {"v": 0, "vgv": 0.0})
+                r["v"] += 1
+                r["vgv"] += e["vgv"]
         for tk, lbl in TEAMS:
             membros = [uid for uid, u in users.items()
                        if team_key(u.get("team")) == tk and (u.get("status") or "ativo") == "ativo"]
             meta_v = meta_vgv = proj_v = 0.0
             com_meta = 0
+            por_corr_v = []
             for uid in membros:
                 cfg, _okc = _kv_read(sb, f"oo_norte:{uid}:{ym}")
-                if not cfg:
-                    continue
-                com_meta += 1
-                mv = _num((cfg.get("metas_etapas") or {}).get("venda"))
-                meta_v += mv
-                meta_vgv += mv * _num(cfg.get("ticket_medio"))
-                at = _num(cfg.get("atendimentos_mes"))
-                for cn in (cfg.get("canais") or []):
-                    proj_v += (at * _num(cn.get("mix")) / 100.0) * (_num(cn.get("taxa_base")) * _num(cn.get("energia")) / 100.0) / 100.0
+                mv = pu = 0.0
+                if cfg:
+                    com_meta += 1
+                    mv = _num((cfg.get("metas_etapas") or {}).get("venda"))
+                    meta_v += mv
+                    meta_vgv += mv * _num(cfg.get("ticket_medio"))
+                    at = _num(cfg.get("atendimentos_mes"))
+                    for cn in (cfg.get("canais") or []):
+                        pu += (at * _num(cn.get("mix")) / 100.0) * (_num(cn.get("taxa_base")) * _num(cn.get("energia")) / 100.0) / 100.0
+                    proj_v += pu
+                ru = reais_mes_uid.get(uid) or {}
+                if cfg or ru.get("v"):
+                    por_corr_v.append({"nome": (users.get(uid) or {}).get("name") or "?",
+                                       "real": ru.get("v") or 0, "vgv": round(ru.get("vgv") or 0, 2),
+                                       "meta": round(mv, 1), "proj": round(pu, 2)})
+            por_corr_v.sort(key=lambda x: (-x["real"], -x["proj"]))
             reais = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and e["closed"].date() >= mes_ini]
             rv, rvgv = len(reais), round(sum(e["vgv"] for e in reais), 2)
+            # projeção por ritmo: vendas até hoje ÷ dias corridos × dias do mês
+            run_rate = round(rv / max(1, hoje.day) * dias_mes, 2)
+            # pipeline de AGORA: abertos parados em proposta/pasta (marco da etapa atual)
+            prop_ab = pasta_ab = 0
+            for d in abertos:
+                uid = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
+                if team_key((users.get(uid) or {}).get("team")) != tk:
+                    continue
+                m = marco_sid.get(str(d.get("stage_id") or ""))
+                if m == 4:
+                    prop_ab += 1
+                elif m == 5:
+                    pasta_ab += 1
             visao.append({"team": tk, "label": lbl, "real_vendas": rv, "real_vgv": rvgv,
                           "real_ticket": round(rvgv / rv, 2) if rv else None,
                           "meta_vendas": round(meta_v, 1), "meta_vgv": round(meta_vgv, 2),
-                          "proj_vendas": round(proj_v, 2), "corretores_com_meta": com_meta,
+                          "proj_vendas": round(proj_v, 2), "proj_ritmo": run_rate,
+                          "pipeline_agora": {"propostas": prop_ab, "pastas": pasta_ab},
+                          "corretores_com_meta": com_meta, "por_corretor": por_corr_v[:15],
                           "poisson": pois_faixa(meta_v) if meta_v > 0 else None})
 
         # Conquista: vendas oficiais da esteira do HUB (cruzamento RD × HUB)
@@ -458,9 +508,114 @@ class handler(BaseHTTPRequestHandler):
             linhas.append({"passo": "pasta→venda", "mediana_dias": ds[len(ds) // 2] if ds else None, "n": len(ds)})
             tempos[tk] = linhas
 
-        cobertura = round(sum(1 for e in na_janela if e["canal"] not in ("nao_atribuido",)) / len(na_janela) * 100, 1) if na_janela else None
+        # ── G) HISTÓRICO DO ANO (fetch leve, sem rd_raw): mês a mês, real ──
+        jan1 = date(hoje.year, 1, 1)
+        hist_deals, seen_h = [], set()
+        for filtro in (("created_at_rd", f"{jan1}T00:00:00+00:00"), ("closed_at", f"{jan1}T00:00:00+00:00")):
+            pg = 0
+            while True:
+                qy = sb.table("deals").select("id,amount,win,closed_at,created_at_rd,user_id,user_email").gte(*filtro)
+                ch = qy.order("id").range(pg * 1000, pg * 1000 + 999).execute().data or []
+                for d in ch:
+                    if str(d.get("id")) not in seen_h:
+                        seen_h.add(str(d.get("id")))
+                        hist_deals.append(d)
+                if len(ch) < 1000 or pg >= 25:
+                    break
+                pg += 1
+        spend_mensal = {}
+        try:
+            for r in (sb.table("meta_ads_monthly").select("mes,spend").eq("ano", hoje.year).execute().data or []):
+                spend_mensal[int(r.get("mes") or 0)] = _num(r.get("spend"))
+        except Exception:
+            avisos.append("meta_ads_monthly indisponível — histórico de spend ficou vazio")
+        hist = []
+        for m in range(1, hoje.month + 1):
+            eqm = {tk: {"leads": 0, "vendas": 0, "vgv": 0.0} for tk, _l in TEAMS}
+            tot = {"leads": 0, "vendas": 0, "vgv": 0.0}
+            for d in hist_deals:
+                uid = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
+                tk = team_key((users.get(uid) or {}).get("team"))
+                cr = parse_dt(d.get("created_at_rd"))
+                cl = parse_dt(d.get("closed_at"))
+                if cr and cr.year == hoje.year and cr.month == m:
+                    tot["leads"] += 1
+                    if tk in eqm:
+                        eqm[tk]["leads"] += 1
+                if d.get("win") is True and cl and cl.year == hoje.year and cl.month == m:
+                    v = amount(d)
+                    tot["vendas"] += 1
+                    tot["vgv"] += v
+                    if tk in eqm:
+                        eqm[tk]["vendas"] += 1
+                        eqm[tk]["vgv"] += v
+            sp = spend_mensal.get(m, 0.0)
+            hist.append({"ym": f"{hoje.year:04d}-{m:02d}", "parcial": m == hoje.month,
+                         "equipes": {k: {**v, "vgv": round(v["vgv"], 2),
+                                         "ticket": round(v["vgv"] / v["vendas"], 2) if v["vendas"] else None}
+                                     for k, v in eqm.items()},
+                         "total": {**tot, "vgv": round(tot["vgv"], 2),
+                                   "ticket": round(tot["vgv"] / tot["vendas"], 2) if tot["vendas"] else None,
+                                   "spend": round(sp, 2),
+                                   "cpl_global": round(sp / tot["leads"], 2) if tot["leads"] and sp else None,
+                                   "cac_global": round(sp / tot["vendas"], 2) if tot["vendas"] and sp else None}})
+
+        # ── H) FUNIL RD (aba nova): lanes EXATAS de cada funil, abertos AGORA +
+        # % de passagem histórica aproximada (etapa atual + win, mesma régua do
+        # piso de equipe — sem inventar: contagem real de deals) ──
+        funil_rd = {}
+        for tk, alvo in FUNIS_RD.items():
+            pids = {str(k) for k, nm in pipe_names.items() if alvo in (nm or "").lower()}
+            pid = next((p for p in sorted(pids, key=lambda x: -len(by_pipe.get(x, []))) if len(by_pipe.get(p, [])) >= 2), None)
+            if not pid:
+                continue
+            lanes = by_pipe[pid]
+            chain, cauda = _dividir_funil(lanes)
+            fonte_pos = {p for p, _n in cauda}
+            entry = chain[0][0]
+            ultima = chain[-1][0]
+            # população: abertos (etapa atual) + fechados do ano (win → fim da cadeia)
+            alc = {pos: 0 for pos, _n in chain}
+            ab_lane = {pos: 0 for pos, _n in lanes}
+            def _conta(pos_atual, win):
+                p = entry if pos_atual in fonte_pos else pos_atual
+                if win:
+                    p = ultima
+                for pos, _n in chain:
+                    if p >= pos:
+                        alc[pos] += 1
+            for d in abertos:
+                spid, spos = pos_by_id.get(str(d.get("stage_id") or "")) or ("", 0)
+                if str(spid) in pids and spos:
+                    ab_lane[spos] = ab_lane.get(spos, 0) + 1
+                    _conta(spos, False)
+            for d in hist_deals:
+                if d.get("win") is not True:
+                    continue
+                # win do ano conta como chegou ao fim da cadeia deste funil?
+                # só se o deal pertence ao funil (stage do histórico não vem — usa
+                # o time do corretor como proxy do funil da equipe)
+                uid = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
+                if team_key((users.get(uid) or {}).get("team")) == tk:
+                    _conta(ultima, True)
+            out_lanes = []
+            for i, (pos, nome) in enumerate(lanes):
+                na_chain = any(pos == p for p, _x in chain)
+                passagem = None
+                if na_chain:
+                    idx = next(j for j, (p, _x) in enumerate(chain) if p == pos)
+                    if idx < len(chain) - 1:
+                        a, b = alc[chain[idx][0]], alc[chain[idx + 1][0]]
+                        passagem = round(b / a * 100, 1) if a else None
+                out_lanes.append({"nome": nome, "abertos": ab_lane.get(pos, 0),
+                                  "alcancaram": alc.get(pos) if na_chain else None,
+                                  "passagem_pct": passagem, "base": not na_chain})
+            funil_rd[tk] = {"pipeline": pipe_names.get(pid), "lanes": out_lanes}
+
+        cobertura = round(sum(1 for e in na_janela if e["canal"] not in ("trafego_imob",)) / len(na_janela) * 100, 1) if na_janela else None
 
         return {"visao": visao, "hub_conquista": hub_x, "fontes": fontes,
+                "historico": hist, "funil_rd": funil_rd,
                 "custos": {"mes": ym, "equipes": custos,
                            "nota": "spend Meta this_month por conta da equipe ÷ atividade real do mês; CAC completo soma o custo fixo orçado da linha"},
                 "produtividade": {"corretores": corretores, "equipes": equipes_prod},

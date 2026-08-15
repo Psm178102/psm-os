@@ -44,8 +44,8 @@ function pan(title, inner) {
 
 function render() {
   const d = _d;
-  const tabs = [['visao', '🎯 Visão Geral'], ['fontes', '🔀 Fontes & Funil'], ['custos', '💰 Custo do Funil'],
-                ['prod', '📊 Produtividade'], ['safras', '📈 Safras & Tempos']];
+  const tabs = [['visao', '🎯 Visão Geral'], ['funilrd', '⏬ Funil RD'], ['fontes', '🔀 Fontes & Funil'],
+                ['custos', '💰 Custo do Funil'], ['prod', '📊 Produtividade'], ['safras', '📈 Safras & Tempos']];
   _root.innerHTML = `
     <div class="card">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
@@ -67,33 +67,117 @@ function render() {
   _root.querySelector('#gc-aplicar').onclick = () => { _since = _root.querySelector('#gc-since').value; _until = _root.querySelector('#gc-until').value; load(); };
   _root.querySelector('#gc-fresh').onclick = () => load(true);
   const body = _root.querySelector('#gc-body');
-  body.innerHTML = { visao: tabVisao, fontes: tabFontes, custos: tabCustos, prod: tabProd, safras: tabSafras }[_tab]();
+  body.innerHTML = { visao: tabVisao, funilrd: tabFunilRD, fontes: tabFontes, custos: tabCustos, prod: tabProd, safras: tabSafras }[_tab]();
 }
 
-/* ── 🎯 VISÃO GERAL: real × projetado × meta por equipe (mês corrente) ── */
+/* Δ% verde/vermelho (histórico mensal — pedido 15/ago) */
+function delta(cur, prev, invertido) {
+  if (prev == null || cur == null || !prev) return '';
+  const p = (cur - prev) / Math.abs(prev) * 100;
+  if (!isFinite(p) || Math.abs(p) < 0.05) return '<span class="tiny muted">＝</span>';
+  const bom = invertido ? p < 0 : p > 0;
+  return `<span class="tiny" style="font-weight:800;color:${bom ? '#16a34a' : '#dc2626'}">${p > 0 ? '▲' : '▼'} ${Math.abs(p).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}%</span>`;
+}
+
+/* 📆 tabela do histórico do ano: colunas = meses (mês atual destacado + parcial),
+   Δ% vs mês anterior em cada célula. rows = [{lbl, get(mesObj), fmt, invertido}] */
+function histTable(titulo, rows) {
+  const hs = _d.historico || [];
+  if (!hs.length) return '';
+  const meses = hs.map(h => h.ym.slice(5));
+  const head = `<tr class="tiny muted"><th style="text-align:left"></th>${hs.map((h, i) =>
+    `<th style="text-align:right;padding:2px 8px;${h.parcial ? 'background:var(--bg-3);border-radius:6px 6px 0 0' : ''}">${meses[i]}${h.parcial ? '<div style="font-weight:400">parcial</div>' : ''}</th>`).join('')}</tr>`;
+  const body = rows.map(r => `<tr>
+    <td class="tiny" style="font-weight:700;white-space:nowrap;padding:3px 8px 3px 0">${r.lbl}</td>
+    ${hs.map((h, i) => {
+      const v = r.get(h), pv = i > 0 ? r.get(hs[i - 1]) : null;
+      return `<td style="text-align:right;padding:3px 8px;font-size:12px;${h.parcial ? 'background:var(--bg-3);font-weight:800' : ''}">${v != null ? r.fmt(v) : '—'}<div>${i > 0 ? delta(v, pv, r.invertido) : ''}</div></td>`;
+    }).join('')}</tr>`).join('');
+  return pan(`📆 ${titulo} — mês a mês ${new Date().getFullYear()} (Δ% vs mês anterior · mês atual destacado)`, `
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">${head}${body}</table></div>`);
+}
+
+/* ── 🎯 VISÃO GERAL: real × projeções ×3 × meta, por equipe + corretor ── */
 function tabVisao() {
   const rows = (_d.visao || []).map(v => {
     const ok = v.meta_vendas > 0 ? (v.real_vendas >= (v.poisson?.lo ?? 0)) : null;
     const cor = v.meta_vendas <= 0 ? 'var(--ink-muted)' : v.real_vendas >= v.meta_vendas ? '#16a34a' : ok ? '#2563eb' : '#dc2626';
+    const pa = v.pipeline_agora || {};
     return `<tr>
       <td style="font-weight:700;font-size:12.5px;padding:6px 8px 6px 0;white-space:nowrap">${v.label}</td>
       <td style="text-align:right;font-weight:900;font-size:14px;color:${cor}">${fN(v.real_vendas)}</td>
-      <td style="text-align:right;font-size:12px">${v.proj_vendas ? fN(v.proj_vendas) : '—'}</td>
+      <td style="text-align:right;font-size:12px" title="motor do Norte (mix × conversão de cada corretor)">${v.proj_vendas ? fN(v.proj_vendas) : '—'}</td>
+      <td style="text-align:right;font-size:12px" title="ritmo: vendas até hoje ÷ dias corridos × dias do mês">${v.proj_ritmo != null ? fN(v.proj_ritmo) : '—'}</td>
       <td style="text-align:right;font-size:12px">${v.meta_vendas ? fN(v.meta_vendas) : '—'}</td>
       <td style="text-align:right;font-size:12px">${v.poisson ? `${v.poisson.lo}–${v.poisson.hi} <span class="muted tiny">normal</span>` : '—'}</td>
+      <td style="text-align:right;font-size:12px" title="deals abertos AGORA parados em proposta / pasta">${fN(pa.propostas || 0)} / ${fN(pa.pastas || 0)}</td>
       <td style="text-align:right;font-size:12px">R$ ${kR$(v.real_vgv)}</td>
       <td style="text-align:right;font-size:12px">${v.meta_vgv ? 'R$ ' + kR$(v.meta_vgv) : '—'}</td>
       <td style="text-align:right;font-size:12px">${v.real_ticket ? 'R$ ' + kR$(v.real_ticket) : '—'}</td>
-      <td class="tiny muted" style="text-align:right">${v.corretores_com_meta} c/ meta</td>
     </tr>`;
   }).join('');
   const hub = _d.hub_conquista;
-  return pan('🎯 Mês corrente — REAL × PROJETADO (Norte) × META, por equipe', `
+  const detalhes = (_d.visao || []).filter(v => (v.por_corretor || []).length).map(v => `
+    <details style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:8px 12px">
+      <summary style="cursor:pointer;font-weight:800;font-size:12.5px">${v.label} — corretor a corretor (real × meta × projetado)</summary>
+      <div style="overflow-x:auto;margin-top:6px"><table style="width:100%;border-collapse:collapse">
+        <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Corretor</th><th>Real (mês)</th><th>Meta</th><th>Projetado</th><th>VGV real</th><th>vs meta</th></tr></thead>
+        <tbody>${v.por_corretor.map(c => {
+          const pct = c.meta > 0 ? c.real / c.meta * 100 : null;
+          const cc = pct == null ? 'var(--ink-muted)' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+          return `<tr><td style="font-size:12px;padding:3px 8px 3px 0">${esc(c.nome)}</td>
+            <td style="text-align:right;font-weight:800;font-size:12px">${fN(c.real)}</td>
+            <td style="text-align:right;font-size:12px">${c.meta ? fN(c.meta) : '—'}</td>
+            <td style="text-align:right;font-size:12px">${c.proj ? fN(c.proj) : '—'}</td>
+            <td style="text-align:right;font-size:12px">R$ ${kR$(c.vgv)}</td>
+            <td style="text-align:right;font-size:11px;font-weight:800;color:${cc}">${pct != null ? fN(pct) + '%' : '—'}</td></tr>`;
+        }).join('')}</tbody></table></div>
+    </details>`).join('');
+  return pan('🎯 Mês corrente — REAL × PROJETADO (Norte · Ritmo) × META, por equipe', `
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th><th>Vendas REAL</th><th>Projetado</th><th>Meta</th><th>🎲 Faixa</th><th>VGV real</th><th>VGV meta</th><th>Ticket</th><th></th></tr></thead>
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th><th>Vendas REAL</th><th>Proj. Norte</th><th>Proj. Ritmo</th><th>Meta</th><th>🎲 Faixa</th><th>Prop./Pastas abertas</th><th>VGV real</th><th>VGV meta</th><th>Ticket</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
     ${hub ? `<div class="tiny" style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">🌉 Cruzamento Conquista: esteira do PSM HUB marca <b>${fN(hub.vendas)} venda(s) · R$ ${kR$(hub.vgv)}</b> no mês — divergência com o RD é sinal de lançamento pendente num dos dois.</div>` : ''}
-    <div class="tiny muted" style="margin-top:6px">Venda dentro da 🎲 faixa Poisson da meta = azul (normal estatístico — o mês cobra atividade; a venda se julga no trimestre). Projetado = motor do Norte do Mês de cada corretor.</div>`);
+    ${detalhes}
+    <div class="tiny muted" style="margin-top:6px">Duas projeções lado a lado: <b>Norte</b> (mix×conversão calibrada de cada corretor) e <b>Ritmo</b> (velocidade real do mês extrapolada). Venda dentro da 🎲 faixa = azul (normal estatístico). Prop./Pastas = pipeline vivo agora.</div>`)
+    + histTable('Vendas & VGV — real', [
+      ...(_d.visao || []).map(v => ({ lbl: v.label + ' vendas', get: h => h.equipes?.[v.team]?.vendas, fmt: fN })),
+      { lbl: 'TOTAL vendas', get: h => h.total?.vendas, fmt: fN },
+      { lbl: 'TOTAL VGV', get: h => h.total?.vgv, fmt: x => 'R$ ' + kR$(x) },
+      { lbl: 'Ticket médio', get: h => h.total?.ticket, fmt: x => 'R$ ' + kR$(x) },
+    ]);
+}
+
+/* ── ⏬ FUNIL RD: as lanes EXATAS de cada funil, números do RD + % passagem ── */
+function tabFunilRD() {
+  const fr = _d.funil_rd || {};
+  const teams = Object.keys(fr);
+  if (!teams.length) return pan('⏬ Funil RD', '<div class="tiny muted">Nenhum funil espelhado encontrado (rd_stages).</div>');
+  const bloco = tk => {
+    const f = fr[tk];
+    const lanes = f.lanes || [];
+    const maxA = Math.max(1, ...lanes.filter(l => !l.base).map(l => l.alcancaram || 0));
+    return pan(`${TEAM_LBL[tk] || tk} — funil “${esc(f.pipeline)}” (nomes exatos do RD)`, `
+      <div style="display:grid;gap:3px">
+        ${lanes.map(l => {
+          if (l.base) return `<div style="display:flex;gap:8px;align-items:center;opacity:.75">
+            <span class="tiny" style="min-width:210px;font-weight:600">🗂 ${esc(l.nome)}</span>
+            <span class="tiny muted">lane de base · <b>${fN(l.abertos)}</b> parado(s) — conta como entrada, fora da cadeia</span></div>`;
+          const w = Math.max(3, Math.round((l.alcancaram || 0) / maxA * 100));
+          return `<div style="display:flex;gap:8px;align-items:center">
+            <span class="tiny" style="min-width:210px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(l.nome)}">${esc(l.nome)}</span>
+            <div style="flex:1;height:20px;background:var(--bg-3);border-radius:5px;overflow:hidden;position:relative">
+              <div style="height:100%;width:${w}%;background:linear-gradient(90deg,#1e3a8a,#2563eb);border-radius:5px"></div>
+              <span class="tiny" style="position:absolute;left:8px;top:2px;color:#fff;font-weight:800">${fN(l.alcancaram || 0)} alcançaram</span>
+            </div>
+            <span class="tiny" style="min-width:86px;text-align:right"><b>${fN(l.abertos)}</b> <span class="muted">abertos</span></span>
+            <span class="tiny" style="min-width:64px;text-align:right;font-weight:800;color:${l.passagem_pct == null ? 'var(--ink-muted)' : l.passagem_pct >= 50 ? '#16a34a' : l.passagem_pct >= 25 ? '#d97706' : '#dc2626'}">${l.passagem_pct != null ? '↓ ' + fN(l.passagem_pct) + '%' : ''}</span>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="tiny muted" style="margin-top:6px">Barra = quantos deals ALCANÇARAM a etapa (abertos de agora + ganhos do ano; aproximação pela etapa atual — dado real, sem invenção). ↓% = passagem pra próxima etapa. “Abertos” = parados na lane HOJE, igual ao RD.</div>`);
+  };
+  return teams.map(bloco).join('');
 }
 
 /* ── 🔀 FONTES & FUNIL: qual origem converte visita/pasta/venda ── */
@@ -124,7 +208,11 @@ function tabFontes() {
       </div>`)}
     ${pan('🌎 Geral — todas as equipes', tabela(_d.fontes?.geral))}
     ${porEquipe}
-    <div class="tiny muted" style="margin-top:8px">Safra = lead NASCIDO na janela, acompanhado até hoje (fontes se comparam por coorte; visão instantânea mente com jornada de meses). Linhas apagadas = amostra pequena.</div>`;
+    <div class="tiny muted" style="margin-top:8px">Safra = lead NASCIDO na janela, acompanhado até hoje (fontes se comparam por coorte; visão instantânea mente com jornada de meses). Linhas apagadas = amostra pequena. Sem fonte e Outro contam como <b>Tráfego pago Imob</b> (regra 15/ago).</div>
+    ${histTable('Leads — entrada mês a mês', [
+      { lbl: 'Leads TOTAL', get: h => h.total?.leads, fmt: fN },
+      ...['conquista', 'map', 'terceiros', 'locacao'].map(t => ({ lbl: (TEAM_LBL[t] || t) + ' leads', get: h => h.equipes?.[t]?.leads, fmt: fN })),
+    ])}`;
 }
 
 /* ── 💰 CUSTO DO FUNIL: R$ por etapa + CAC mídia/completo (mês corrente) ── */
@@ -144,7 +232,13 @@ function tabCustos() {
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th><th>Spend Meta</th><th>R$/lead</th><th>R$/agendamento</th><th>R$/visita</th><th>R$/pasta</th><th>CAC mídia</th><th>CAC completo</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
-    <div class="tiny muted" style="margin-top:8px">${esc(c.nota || '')}. Qualificado começa no AGENDAMENTO (decisão 14/ago). Indicação/orgânico não pagam mídia — o CAC deles vive no custo fixo.</div>`);
+    <div class="tiny muted" style="margin-top:8px">${esc(c.nota || '')}. Qualificado começa no AGENDAMENTO (decisão 14/ago). Indicação/orgânico não pagam mídia — o CAC deles vive no custo fixo.</div>`)
+    + histTable('Custo — mês a mês (spend GLOBAL da Meta; histórico por equipe não existe na base mensal)', [
+      { lbl: 'Spend Meta', get: h => h.total?.spend, fmt: x => 'R$ ' + kR$(x), invertido: true },
+      { lbl: 'CPL global', get: h => h.total?.cpl_global, fmt: x => 'R$ ' + kR$(x), invertido: true },
+      { lbl: 'CAC global (mídia)', get: h => h.total?.cac_global, fmt: x => 'R$ ' + kR$(x), invertido: true },
+      { lbl: 'Vendas TOTAL', get: h => h.total?.vendas, fmt: fN },
+    ]);
 }
 
 /* ── 📊 PRODUTIVIDADE: razões por corretor e equipe ── */
@@ -175,7 +269,12 @@ function tabProd() {
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Corretor / Equipe</th><th>Leads</th><th>Vendas</th><th>Leads/venda</th><th>Atend./venda</th><th>Visitas/venda</th><th>Pastas/venda</th><th>Ticket</th><th>VGV</th></tr></thead>
       <tbody>${eqRows}${rows}</tbody></table></div>
-    <div class="tiny muted" style="margin-top:6px">Razões calculadas na safra da janela (lead nascido nela). Corretor sem venda na safra mostra — (sem denominador não há razão honesta).</div>`);
+    <div class="tiny muted" style="margin-top:6px">Razões calculadas na safra da janela (lead nascido nela). Corretor sem venda na safra mostra — (sem denominador não há razão honesta).</div>`)
+    + histTable('Produção — mês a mês', [
+      ...['conquista', 'map', 'terceiros', 'locacao'].map(t => ({ lbl: (TEAM_LBL[t] || t) + ' vendas', get: h => h.equipes?.[t]?.vendas, fmt: fN })),
+      { lbl: 'TOTAL vendas', get: h => h.total?.vendas, fmt: fN },
+      { lbl: 'TOTAL VGV', get: h => h.total?.vgv, fmt: x => 'R$ ' + kR$(x) },
+    ]);
 }
 
 /* ── 📈 SAFRAS & TEMPOS ── */
@@ -199,5 +298,10 @@ function tabSafras() {
         <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Safra</th><th>Leads</th><th>Vendas até hoje</th><th>Conv.</th><th>VGV</th><th>Lead→venda</th></tr></thead>
         <tbody>${rows}</tbody></table></div>
       <div class="tiny muted" style="margin-top:6px">Safras recentes SEMPRE parecem piores — o lead ainda não teve tempo de maturar (MAP ~3 meses). Compare safras da mesma idade.</div>`)}
-    ${pan('⏱ Tempo mediano entre etapas (esteira — onde empaca)', `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">${tempos}</div>`)}`;
+    ${pan('⏱ Tempo mediano entre etapas (esteira — onde empaca)', `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">${tempos}</div>`)}
+    ${histTable('Ano — leads × vendas × ticket', [
+      { lbl: 'Leads', get: h => h.total?.leads, fmt: fN },
+      { lbl: 'Vendas', get: h => h.total?.vendas, fmt: fN },
+      { lbl: 'Ticket', get: h => h.total?.ticket, fmt: x => 'R$ ' + kR$(x) },
+    ])}`;
 }
