@@ -31,6 +31,7 @@ from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from _oo_lib import (  # type: ignore
     deal_max_milestone, channel, CHANNEL_LABEL, source, parse_dt, amount,
     build_stage_maps, read_meta_accounts, match_team_account, read_team_account_override,
+    read_meta_campaigns, lead_campaign_name, match_campaign_cpl,
 )
 from simulador import (  # type: ignore
     _dividir_funil, _marcos_monotonicos, _VENDA_RE, pois_faixa, _kv_read, _kv_write,
@@ -185,7 +186,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(400, {"ok": False, "error": "since/until inválidos (YYYY-MM-DD)"})
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc3_cache:{since_d}:{until_d}"   # v86.21: shape novo → chave nova
+        ck = f"gc4_cache:{since_d}:{until_d}"   # v86.21: shape novo → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -281,6 +282,7 @@ class handler(BaseHTTPRequestHandler):
                 "win": d.get("win") is True,
                 "vgv": amount(d),
                 "canal": (lambda _c: CANAL_MERGE.get(_c, _c))(channel(source(d.get("rd_raw") or {}))),
+                "camp": lead_campaign_name(d),
                 "team": team_de(uid, u.get("team")),
                 "uid": uid, "nome": u.get("name") or d.get("user_email") or "?",
                 "marco": marco_do_deal(d, evs, marco_sid, marco_pos),
@@ -637,10 +639,59 @@ class handler(BaseHTTPRequestHandler):
                                   "passagem_pct": passagem, "base": not na_chain})
             funil_rd[tk] = {"pipeline": pipe_names.get(pid), "lanes": out_lanes}
 
+        # ── I) CAMPANHAS → FUNIL → VENDA (pedido do Paulo, 15/ago: escalar/pausar
+        # pela VENDA, não pelo CPL — CPL barato sem venda não compensa; CPL acima
+        # do previsto que VENDE pode compensar). Funil = safra da janela; spend =
+        # cache de campanhas Meta (últimos ~30d, base de custo corrente — declarado).
+        _mc = read_meta_campaigns(sb)
+        camps = {}
+        for e in na_janela:
+            nome = (e.get("camp") or "").strip()
+            if not nome:
+                continue
+            c = camps.setdefault(nome, {"leads": 0, "agend": 0, "visita": 0, "proposta": 0,
+                                        "pasta": 0, "venda": 0, "vgv": 0.0, "teams": set()})
+            c["leads"] += 1
+            c["teams"].add(e["team"])
+            if e["marco"] >= 2: c["agend"] += 1
+            if e["marco"] >= 3: c["visita"] += 1
+            if e["marco"] >= 4: c["proposta"] += 1
+            if e["marco"] >= 5: c["pasta"] += 1
+            if e["win"]:
+                c["venda"] += 1
+                c["vgv"] += e["vgv"]
+        itens_camp = []
+        for nome, c in camps.items():
+            rec = match_campaign_cpl(nome, _mc) or {}
+            spend = _num(rec.get("spend"), None)
+            receita = c["vgv"] * 0.04     # ≈ comissão bruta 4% (nota na tela)
+            roas = round(receita / spend, 2) if spend else None
+            if c["venda"] >= 1 and (not spend or receita >= 1.5 * spend):
+                ver, vlbl = "escalar", "💰 ESCALAR"
+            elif c["venda"] >= 1:
+                ver, vlbl = "manter", "✅ VENDE — manter"
+            elif (c["pasta"] + c["proposta"]) >= 2:
+                ver, vlbl = "maturando", "⏳ MATURANDO (pastas/propostas na esteira)"
+            elif spend and spend >= 300 and c["visita"] == 0:
+                ver, vlbl = "pausar", "🔴 REVER/PAUSAR — gasta e não gera visita"
+            else:
+                ver, vlbl = "observar", "⚪ observar"
+            itens_camp.append({"campanha": nome, "teams": sorted(c["teams"]),
+                               "leads": c["leads"], "agend": c["agend"], "visita": c["visita"],
+                               "proposta": c["proposta"], "pasta": c["pasta"], "venda": c["venda"],
+                               "vgv": round(c["vgv"], 2), "receita_est": round(receita, 2),
+                               "spend_30d": round(spend, 2) if spend is not None else None,
+                               "cpl_30d": _num(rec.get("cpl"), None),
+                               "roas": roas, "veredito": ver, "veredito_lbl": vlbl})
+        itens_camp.sort(key=lambda x: (-x["venda"], -x["pasta"], -x["proposta"], -x["visita"], -x["leads"]))
+        campanhas = {"itens": itens_camp[:60],
+                     "sem_campanha": sum(1 for e in na_janela if not (e.get("camp") or "").strip()),
+                     "nota": "funil = safra da janela (lead nascido nela, seguido até hoje) · spend/CPL = cache Meta ~30d (custo corrente) · receita ≈ 4% do VGV"}
+
         cobertura = round(sum(1 for e in na_janela if e["canal"] not in ("trafego_imob",)) / len(na_janela) * 100, 1) if na_janela else None
 
         return {"visao": visao, "hub_conquista": hub_x, "fontes": fontes,
-                "historico": hist, "funil_rd": funil_rd,
+                "historico": hist, "funil_rd": funil_rd, "campanhas": campanhas,
                 "custos": {"mes": ym, "equipes": custos,
                            "nota": "spend Meta this_month por conta da equipe ÷ atividade real do mês; CAC completo soma o custo fixo orçado da linha"},
                 "produtividade": {"corretores": corretores, "equipes": equipes_prod},

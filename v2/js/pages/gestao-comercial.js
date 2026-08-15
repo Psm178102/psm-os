@@ -45,7 +45,7 @@ function pan(title, inner) {
 function render() {
   const d = _d;
   const tabs = [['visao', '🎯 Visão Geral'], ['funilrd', '⏬ Funil RD'], ['fontes', '🔀 Fontes & Funil'],
-                ['custos', '💰 Custo do Funil'], ['prod', '📊 Produtividade'], ['safras', '📈 Safras & Tempos']];
+                ['camp', '📣 Campanhas'], ['custos', '💰 Custo do Funil'], ['prod', '📊 Produtividade'], ['safras', '📈 Safras & Tempos']];
   _root.innerHTML = `
     <div class="card">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
@@ -67,7 +67,46 @@ function render() {
   _root.querySelector('#gc-aplicar').onclick = () => { _since = _root.querySelector('#gc-since').value; _until = _root.querySelector('#gc-until').value; load(); };
   _root.querySelector('#gc-fresh').onclick = () => load(true);
   const body = _root.querySelector('#gc-body');
-  body.innerHTML = { visao: tabVisao, funilrd: tabFunilRD, fontes: tabFontes, custos: tabCustos, prod: tabProd, safras: tabSafras }[_tab]();
+  body.innerHTML = { visao: tabVisao, funilrd: tabFunilRD, fontes: tabFontes, camp: tabCampanhas, custos: tabCustos, prod: tabProd, safras: tabSafras }[_tab]();
+}
+
+/* ── 📣 CAMPANHAS → FUNIL → VENDA: escalar/pausar pela VENDA, não pelo CPL ── */
+function tabCampanhas() {
+  const cp = _d.campanhas || {};
+  const its = cp.itens || [];
+  if (!its.length) return pan('📣 Campanhas', '<div class="tiny muted">Nenhum lead da janela com campanha preenchida no RD.</div>');
+  const VCOR = { escalar: '#16a34a', manter: '#2563eb', maturando: '#d97706', pausar: '#dc2626', observar: '#94a3b8' };
+  const podio = (campo, titulo, ico) => {
+    const top = its.filter(x => (x[campo] || 0) > 0).sort((a, b) => b[campo] - a[campo]).slice(0, 3);
+    return `<div><div class="tiny" style="font-weight:800;margin-bottom:4px">${ico} ${titulo}</div><div style="display:grid;gap:4px">
+      ${top.map((x, i) => `<div style="display:flex;gap:8px;align-items:center;background:var(--bg-3);border-radius:8px;padding:6px 10px">
+        <span>${['🥇', '🥈', '🥉'][i]}</span><span class="tiny" style="flex:1;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(x.campanha)}">${esc(x.campanha.slice(0, 46))}</span>
+        <b>${fN(x[campo])}</b></div>`).join('') || '<div class="tiny muted">—</div>'}</div></div>`;
+  };
+  const rows = its.map(x => `<tr>
+      <td style="font-size:11.5px;font-weight:600;padding:4px 8px 4px 0;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(x.campanha)}">${esc(x.campanha)}<div class="tiny muted">${(x.teams || []).join(' · ')}</div></td>
+      <td style="text-align:right;font-size:12px">${fN(x.leads)}</td>
+      <td style="text-align:right;font-size:12px">${fN(x.agend)}</td>
+      <td style="text-align:right;font-size:12px">${fN(x.visita)}</td>
+      <td style="text-align:right;font-size:12px">${fN(x.proposta)}</td>
+      <td style="text-align:right;font-size:12px">${fN(x.pasta)}</td>
+      <td style="text-align:right;font-weight:900;font-size:13px">${fN(x.venda)}</td>
+      <td style="text-align:right;font-size:12px">R$ ${kR$(x.vgv)}</td>
+      <td style="text-align:right;font-size:12px" title="≈ 4% do VGV">R$ ${kR$(x.receita_est)}</td>
+      <td style="text-align:right;font-size:12px">${x.spend_30d != null ? 'R$ ' + kR$(x.spend_30d) : '—'}</td>
+      <td style="text-align:right;font-size:12px">${x.cpl_30d != null ? 'R$ ' + kR$(x.cpl_30d) : '—'}</td>
+      <td style="text-align:right;font-size:12px;font-weight:800">${x.roas != null ? fN(x.roas) + '×' : '—'}</td>
+      <td><span class="tiny" style="font-weight:800;color:${VCOR[x.veredito]};white-space:nowrap">${esc(x.veredito_lbl)}</span></td>
+    </tr>`).join('');
+  return pan('🏅 Pódio de campanhas — pelo FUNDO do funil, não pelo CPL', `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">
+        ${podio('visita', 'MAIS VISITAS', '🚶')}${podio('pasta', 'MAIS PASTAS', '📁')}${podio('proposta', 'MAIS PROPOSTAS', '📄')}${podio('venda', 'MAIS VENDAS', '💰')}
+      </div>`)
+    + pan('📣 Campanha → funil → venda (com veredito de escala)', `
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+        <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Campanha</th><th>Leads</th><th>Agend.</th><th>Visitas</th><th>Prop.</th><th>Pastas</th><th>Vendas</th><th>VGV</th><th>Receita≈</th><th>Spend 30d</th><th>CPL</th><th>ROAS</th><th style="text-align:left">Veredito</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+      <div class="tiny muted" style="margin-top:8px">${esc(cp.nota || '')} · ${fN(cp.sem_campanha || 0)} lead(s) da janela sem campanha no RD. Régua do veredito: 💰 ESCALAR = vende e a receita cobre ≥1,5× o spend · ⏳ MATURANDO = sem venda mas com pastas/propostas andando · 🔴 REVER = gasta ≥R$300/30d sem gerar UMA visita na safra. O CPL está aí de contexto — a decisão é pelo fundo do funil.</div>`);
 }
 
 /* Δ% verde/vermelho (histórico mensal — pedido 15/ago) */
