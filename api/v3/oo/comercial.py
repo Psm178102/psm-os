@@ -243,7 +243,7 @@ class handler(BaseHTTPRequestHandler):
         spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "last_30d"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc9_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
+        ck = f"gc10_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -477,6 +477,8 @@ class handler(BaseHTTPRequestHandler):
 
         # ── C) CUSTO DO FUNIL (mês corrente: spend ÷ atividade DO MÊS) ──
         _ma = read_meta_accounts(sb, preset="this_month") or read_meta_accounts(sb)
+        _ma30 = read_meta_accounts(sb, preset="last_30d") or _ma
+        d30 = hoje - timedelta(days=29)
         _ovr = read_team_account_override(sb)
         orcado = _kv_read(sb, "viab_custos_orcado")[0] or {}
         itens_orc = (orcado.get(str(hoje.year)) or {}).get("itens") or []
@@ -504,12 +506,25 @@ class handler(BaseHTTPRequestHandler):
                 v = pm.get(str(hoje.month), pm.get(hoje.month))
                 fixo += _num(v) if v not in (None, "") else _num(it.get("valor"))
             div = lambda a, b: round(a / b, 2) if b else None
+            # base 30d: quando o MÊS zera o denominador (ex.: agosto sem venda),
+            # o custo cai pra janela de 30 dias em vez de sumir num "—"
+            acc30 = match_team_account((_ma30 or {}).get("accounts") or [], tk, _ovr) if _ma30 else None
+            spend30 = _num(acc30.get("spend")) if acc30 else spend
+            l30 = sum(1 for e in eds if e["team"] == tk and e["created"] and e["created"].date() >= d30)
+            a30 = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(2) and e["t_marco"][2].date() >= d30)
+            v30 = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(3) and e["t_marco"][3].date() >= d30)
+            p30 = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(5) and e["t_marco"][5].date() >= d30)
+            vd30 = sum(1 for e in eds if e["team"] == tk and e["win"] and e["closed"] and e["closed"].date() >= d30)
             custos.append({"team": tk, "label": lbl, "spend": round(spend, 2), "fixo_mes": round(fixo, 2),
                            "conta": acc.get("label") if acc else None,
                            "leads": leads, "agend": agend, "visita": visita, "pasta": pasta, "vendas": vendas,
                            "custo_lead": div(spend, leads), "custo_agend": div(spend, agend),
                            "custo_visita": div(spend, visita), "custo_pasta": div(spend, pasta),
                            "cac_midia": div(spend, vendas), "cac_completo": div(spend + fixo, vendas),
+                           "custo_lead_30d": div(spend30, l30), "custo_agend_30d": div(spend30, a30),
+                           "custo_visita_30d": div(spend30, v30), "custo_pasta_30d": div(spend30, p30),
+                           "cac_midia_30d": div(spend30, vd30), "cac_completo_30d": div(spend30 + fixo, vd30),
+                           "vendas_30d": vd30,
                            "roas": div(vgv * 0.04, spend) if spend else None})
 
         # ── deals ABERTOS agora (leve, sem rd_raw): pipeline de HOJE + funil RD ──

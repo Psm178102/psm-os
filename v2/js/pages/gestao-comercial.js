@@ -323,14 +323,13 @@ function tabVisao() {
             <td style="text-align:right;font-size:11px;font-weight:800;color:${cc}">${pct != null ? fN(pct) + '%' : '—'}</td></tr>`;
         }).join('')}</tbody></table></div>
     </details>`).join('');
-  return pan('🎯 Mês corrente — REAL × PROJETADO (Norte · Ritmo) × META, por equipe', `
+  return metricasChave() + pan('🎯 Mês corrente — REAL × PROJETADO (Norte · Ritmo) × META, por equipe', `
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th><th>Vendas REAL</th><th>PROJEÇÃO Norte</th><th>PROJEÇÃO Ritmo</th><th>PROJEÇÃO Pipeline (tri)</th><th>Meta oficial</th><th>% da meta</th><th>Gap p/ meta</th><th>🎲 Faixa</th><th>Leads/Agend./Visitas (mês)</th><th>Prop./Pastas abertas</th><th>VGV real</th><th>VGV meta</th><th>Ticket</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
     ${hub ? `<div class="tiny" style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">🌉 Cruzamento Conquista: esteira do PSM HUB marca <b>${fN(hub.vendas)} venda(s) · R$ ${kR$(hub.vgv)}</b> no mês — divergência com o RD é sinal de lançamento pendente num dos dois.</div>` : ''}
     ${detalhes}
     <div class="tiny muted" style="margin-top:6px">Metas = painel 🎯 Metas oficial do House (por corretor/mês). Duas projeções lado a lado: <b>Norte</b> (mix×conversão calibrada de cada corretor) e <b>Ritmo</b> (velocidade real do mês extrapolada). Venda dentro da 🎲 faixa = azul (normal estatístico). Prop./Pastas = pipeline vivo agora.</div>`)
-    + metricasChave()
     + forecastPanel()
     + histTable('Vendas & VGV — real', [
       ...(_d.visao || []).map(v => ({ lbl: v.label + ' vendas', get: h => h.equipes?.[v.team]?.vendas, fmt: fN })),
@@ -344,14 +343,16 @@ function tabVisao() {
 function metricasChave() {
   const custos = ((_d.custos || {}).equipes || []);
   const prod = (_d.produtividade || {}).equipes || {};
+  const val30 = (mes, d30) => mes != null ? 'R$ ' + kR$(mes)
+    : (d30 != null ? `R$ ${kR$(d30)} <span class="tiny muted" title="mês corrente sem denominador — base últimos 30 dias">30d</span>` : '—');
   const rows = custos.map(c => {
     const p = prod[c.team] || {};
     return `<tr>
       <td style="font-weight:700;font-size:12.5px;padding:5px 8px 5px 0;white-space:nowrap">${c.label}</td>
-      <td style="text-align:right;font-size:12px">${c.custo_agend != null ? 'R$ ' + kR$(c.custo_agend) : '—'}</td>
-      <td style="text-align:right;font-size:12px">${c.custo_visita != null ? 'R$ ' + kR$(c.custo_visita) : '—'}</td>
-      <td style="text-align:right;font-size:12px">${c.custo_pasta != null ? 'R$ ' + kR$(c.custo_pasta) : '—'}</td>
-      <td style="text-align:right;font-size:12px;font-weight:800;color:#b45309">${c.cac_midia != null ? 'R$ ' + kR$(c.cac_midia) : '—'}</td>
+      <td style="text-align:right;font-size:12px">${val30(c.custo_agend, c.custo_agend_30d)}</td>
+      <td style="text-align:right;font-size:12px">${val30(c.custo_visita, c.custo_visita_30d)}</td>
+      <td style="text-align:right;font-size:12px">${val30(c.custo_pasta, c.custo_pasta_30d)}</td>
+      <td style="text-align:right;font-size:12px;font-weight:800;color:#b45309">${val30(c.cac_midia, c.cac_midia_30d)}</td>
       <td style="text-align:right;font-size:12px">${p.visitas_por_venda ?? '—'}</td>
       <td style="text-align:right;font-size:12px">${p.pastas_por_venda ?? '—'}</td>
       <td style="text-align:right;font-size:12px;font-weight:800">${p.dias_por_venda != null ? fN(p.dias_por_venda) + 'd' : '—'}</td>
@@ -494,12 +495,12 @@ function tabCustos() {
   const rows = (c.equipes || []).map(e => `<tr>
       <td style="font-weight:700;font-size:12.5px;padding:5px 8px 5px 0;white-space:nowrap">${e.label}<div class="tiny muted">${e.conta ? 'conta ' + esc(e.conta) : 'sem conta Meta'}</div></td>
       <td style="text-align:right;font-size:12px">R$ ${brl(e.spend)}<div class="tiny muted">+ fixo R$ ${kR$(e.fixo_mes)}</div></td>
-      <td style="text-align:right;font-size:12px">${e.custo_lead != null ? 'R$ ' + brl(e.custo_lead) : '—'}<div class="tiny muted">${fN(e.leads)} leads</div></td>
-      <td style="text-align:right;font-size:12px">${e.custo_agend != null ? 'R$ ' + brl(e.custo_agend) : '—'}<div class="tiny muted">${fN(e.agend)}</div></td>
-      <td style="text-align:right;font-size:12px">${e.custo_visita != null ? 'R$ ' + brl(e.custo_visita) : '—'}<div class="tiny muted">${fN(e.visita)}</div></td>
-      <td style="text-align:right;font-size:12px">${e.custo_pasta != null ? 'R$ ' + brl(e.custo_pasta) : '—'}<div class="tiny muted">${fN(e.pasta)}</div></td>
-      <td style="text-align:right;font-weight:900;font-size:13px;color:#b45309">${e.cac_midia != null ? 'R$ ' + kR$(e.cac_midia) : '—'}</td>
-      <td style="text-align:right;font-weight:900;font-size:13px;color:#dc2626">${e.cac_completo != null ? 'R$ ' + kR$(e.cac_completo) : '—'}<div class="tiny muted">${fN(e.vendas)} venda(s)</div></td>
+      <td style="text-align:right;font-size:12px">${e.custo_lead != null ? 'R$ ' + brl(e.custo_lead) : (e.custo_lead_30d != null ? 'R$ ' + brl(e.custo_lead_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.leads)} leads</div></td>
+      <td style="text-align:right;font-size:12px">${e.custo_agend != null ? 'R$ ' + brl(e.custo_agend) : (e.custo_agend_30d != null ? 'R$ ' + brl(e.custo_agend_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.agend)}</div></td>
+      <td style="text-align:right;font-size:12px">${e.custo_visita != null ? 'R$ ' + brl(e.custo_visita) : (e.custo_visita_30d != null ? 'R$ ' + brl(e.custo_visita_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.visita)}</div></td>
+      <td style="text-align:right;font-size:12px">${e.custo_pasta != null ? 'R$ ' + brl(e.custo_pasta) : (e.custo_pasta_30d != null ? 'R$ ' + brl(e.custo_pasta_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.pasta)}</div></td>
+      <td style="text-align:right;font-weight:900;font-size:13px;color:#b45309">${e.cac_midia != null ? 'R$ ' + kR$(e.cac_midia) : (e.cac_midia_30d != null ? 'R$ ' + kR$(e.cac_midia_30d) + ' <span class="tiny muted">30d</span>' : '—')}</td>
+      <td style="text-align:right;font-weight:900;font-size:13px;color:#dc2626">${e.cac_completo != null ? 'R$ ' + kR$(e.cac_completo) : (e.cac_completo_30d != null ? 'R$ ' + kR$(e.cac_completo_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.vendas)} venda(s) no mês${e.vendas_30d ? ' · ' + fN(e.vendas_30d) + ' em 30d' : ''}</div></td>
     </tr>`).join('');
   return pan(`💰 Unit economics do mês (${c.mes || ''}) — do lead ao CAC, por equipe`, `
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
