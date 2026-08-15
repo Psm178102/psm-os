@@ -13,6 +13,7 @@ import { pageAuditoria } from './pages/auditoria.js';
 import { pageDashboard as pageDashboardV2 } from './pages/dashboard.js';
 import { pagePainel } from './pages/painel.js';
 import { pageFinanceiro } from './pages/financeiro.js';
+import { pageGestaoComercial } from './pages/gestao-comercial.js';
 import { pageCrm } from './pages/crm.js';
 import { pageEquipe } from './pages/equipe.js';
 import { pageTarefas } from './pages/tarefas.js';
@@ -154,6 +155,7 @@ export const ROUTE_GROUP = {
   '/dados-mercado': 'diretoria',
   // Arena & Performance (Metas/Equipes/Plantões migraram p/ Imóveis & Vendas)
   '/organograma': 'performance', '/one-on-one': 'performance', '/arena': 'performance',
+  '/gestao-comercial': 'performance',
   '/tv': 'performance', '/war-room': 'performance', '/war-arena': 'performance',
   // Diretoria
   '/cockpit': 'diretoria', '/paulo': 'diretoria', '/projetos': 'diretoria',
@@ -234,6 +236,7 @@ export const ROUTE_MIN_LVL = {
   '/minha-producao': 2,   // Meu Acompanhamento: o colaborador vê SÓ o próprio card/semáforo
   '/campanha-wa': 5,      // disparo de campanha — não p/ corretor
   '/one-on-one': 2,       // v86.3: corretor vê o 1:1 DELE (gestor lvl>=5 vê todos; sensível some no backend)
+  '/gestao-comercial': 5, // v86.19: painel comercial — gestores/gerentes/sócios (pedido do Paulo)
   '/cerebro-vendas': 5,   // inteligência de vendas (líder+)
   '/briefing-guerra': 7,  // briefing estratégico (diretoria)
   '/academy-studio': 5,   // produção/construção da Academy — só time que constrói (líder+)
@@ -413,7 +416,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.18';
+const APP_VERSION = '86.19';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -568,6 +571,7 @@ const APP_VERSION = '86.18';
   router.register('/tv',          { render: async (ctx, root) => { setHeader('Modo TV');      highlight('/tv');          await pageTV(ctx, root); } });
   router.register('/governanca',  { render: async (ctx, root) => { setHeader('Governança');   highlight('/governanca');  await pageGovernanca(ctx, root); } });
   router.register('/one-on-one',  { render: async (ctx, root) => { setHeader('One-on-One');   highlight('/one-on-one');  await pageOO(ctx, root); } });
+  router.register('/gestao-comercial', { render: async (ctx, root) => { setHeader('Gestão Comercial'); highlight('/gestao-comercial'); await pageGestaoComercial(ctx, root); } });
   router.register('/plantoes',    { render: async (ctx, root) => { setHeader('Plantões');     highlight('/plantoes');    await pagePlantoes(ctx, root); } });
   router.register('/captacoes',   { render: async (ctx, root) => { setHeader('Captações');    highlight('/captacoes');   await pageCaptacoes(ctx, root); } });
   router.register('/fiscalizacao', { render: async (ctx, root) => { setHeader('Painel de Fiscalização'); highlight('/fiscalizacao'); await pageProducao(ctx, root, 'gestor'); } });
@@ -795,6 +799,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/checkin"><span class="sb-ico">📍</span> Check-in</button>
         <button class="sb-link" data-nav="/ranking"><span class="sb-ico">🏆</span> Ranking</button>
         <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
+        <button class="sb-link" data-nav="/gestao-comercial"><span class="sb-ico">📊</span> Gestão Comercial</button>
         <button class="sb-link" data-nav="/manual"><span class="sb-ico">📖</span> Manual Cultura</button>
         <button class="sb-link" data-nav="/etica"><span class="sb-ico">⚖️</span> Código de Ética</button>
         <button class="sb-link" data-nav="/canal"><span class="sb-ico">🔒</span> Canal Anônimo</button>
