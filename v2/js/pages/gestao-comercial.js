@@ -209,10 +209,23 @@ function tabFontes() {
     ${pan('🌎 Geral — todas as equipes', tabela(_d.fontes?.geral))}
     ${porEquipe}
     <div class="tiny muted" style="margin-top:8px">Safra = lead NASCIDO na janela, acompanhado até hoje (fontes se comparam por coorte; visão instantânea mente com jornada de meses). Linhas apagadas = amostra pequena. Sem fonte e Outro contam como <b>Tráfego pago Imob</b> (regra 15/ago).</div>
-    ${histTable('Leads — entrada mês a mês', [
-      { lbl: 'Leads TOTAL', get: h => h.total?.leads, fmt: fN },
-      ...['conquista', 'map', 'terceiros', 'locacao'].map(t => ({ lbl: (TEAM_LBL[t] || t) + ' leads', get: h => h.equipes?.[t]?.leads, fmt: fN })),
-    ])}`;
+    ${histFontes()}`;
+}
+
+/* 📆 histórico por ORIGEM (leads criados e vendas convertidas por mês — o Paulo
+   tinha razão: data de conversão + origem de cada negociação resolvem) */
+function histFontes() {
+  const hs = _d.historico || [];
+  const lblCanal = {};
+  (_d.fontes?.geral || []).forEach(f => { lblCanal[f.canal] = f.label; });
+  const tot = {};
+  hs.forEach(h => Object.entries(h.canais || {}).forEach(([k, v]) => { tot[k] = (tot[k] || 0) + (v.leads || 0); }));
+  const canais = Object.keys(tot).sort((a, b) => tot[b] - tot[a]).slice(0, 8);
+  if (!canais.length) return '';
+  return histTable('Fontes — leads que ENTRARAM por origem, mês a mês',
+    canais.map(k => ({ lbl: lblCanal[k] || k, get: h => h.canais?.[k]?.leads, fmt: fN })))
+    + histTable('Fontes — VENDAS convertidas por origem (mês da conversão)',
+      canais.map(k => ({ lbl: lblCanal[k] || k, get: h => h.canais?.[k]?.vendas, fmt: fN })));
 }
 
 /* ── 💰 CUSTO DO FUNIL: R$ por etapa + CAC mídia/completo (mês corrente) ── */

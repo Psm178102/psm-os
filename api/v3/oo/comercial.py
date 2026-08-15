@@ -51,6 +51,20 @@ CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob", "meta": "Tr�
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
 
+# 👥 regra do Paulo (15/ago): no MAP analisar APENAS os logins isa, rafaela e
+# paulo — quem mais estiver com team=map (ex.: yara) fica FORA dos números MAP
+MAP_LOGINS = ("isa", "rafaela", "paulo")
+
+
+def team_de(uid, team):
+    """Equipe efetiva de um usuário pra fins de Gestão Comercial."""
+    if uid in MAP_LOGINS:
+        return "map"
+    tk = team_key(team)
+    if tk == "map":
+        return "outros"   # team map fora da whitelist não conta no MAP
+    return tk
+
 
 def team_key(team):
     t = (team or "").strip().lower()
@@ -171,7 +185,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(400, {"ok": False, "error": "since/until inválidos (YYYY-MM-DD)"})
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc2_cache:{since_d}:{until_d}"   # v86.20: shape novo → chave nova
+        ck = f"gc3_cache:{since_d}:{until_d}"   # v86.21: shape novo → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -188,7 +202,7 @@ class handler(BaseHTTPRequestHandler):
         # 🔒 individual: lvl<10 vê só a própria equipe
         lvl = user.get("lvl") or 0
         if lvl < 10:
-            minha = team_key(user.get("team"))
+            minha = team_de(str(user.get("id")), user.get("team"))
             prod = payload.get("produtividade") or {}
             payload = {**payload, "produtividade": {
                 "corretores": [c for c in (prod.get("corretores") or []) if c.get("team") == minha],
@@ -267,7 +281,7 @@ class handler(BaseHTTPRequestHandler):
                 "win": d.get("win") is True,
                 "vgv": amount(d),
                 "canal": (lambda _c: CANAL_MERGE.get(_c, _c))(channel(source(d.get("rd_raw") or {}))),
-                "team": team_key(u.get("team")),
+                "team": team_de(uid, u.get("team")),
                 "uid": uid, "nome": u.get("name") or d.get("user_email") or "?",
                 "marco": marco_do_deal(d, evs, marco_sid, marco_pos),
                 "t_marco": t_marco,
@@ -405,7 +419,7 @@ class handler(BaseHTTPRequestHandler):
                 r["vgv"] += e["vgv"]
         for tk, lbl in TEAMS:
             membros = [uid for uid, u in users.items()
-                       if team_key(u.get("team")) == tk and (u.get("status") or "ativo") == "ativo"]
+                       if team_de(uid, u.get("team")) == tk and (u.get("status") or "ativo") == "ativo"]
             meta_v = meta_vgv = proj_v = 0.0
             com_meta = 0
             por_corr_v = []
@@ -435,7 +449,7 @@ class handler(BaseHTTPRequestHandler):
             prop_ab = pasta_ab = 0
             for d in abertos:
                 uid = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
-                if team_key((users.get(uid) or {}).get("team")) != tk:
+                if team_de(uid, (users.get(uid) or {}).get("team")) != tk:
                     continue
                 m = marco_sid.get(str(d.get("stage_id") or ""))
                 if m == 4:
@@ -511,10 +525,12 @@ class handler(BaseHTTPRequestHandler):
         # ── G) HISTÓRICO DO ANO (fetch leve, sem rd_raw): mês a mês, real ──
         jan1 = date(hoje.year, 1, 1)
         hist_deals, seen_h = [], set()
+        # ds:rd_raw->deal_source = SÓ a origem (leve — o Paulo tem razão: dá pra
+        # ter histórico por fonte olhando a data de conversão + origem de cada deal)
         for filtro in (("created_at_rd", f"{jan1}T00:00:00+00:00"), ("closed_at", f"{jan1}T00:00:00+00:00")):
             pg = 0
             while True:
-                qy = sb.table("deals").select("id,amount,win,closed_at,created_at_rd,user_id,user_email").gte(*filtro)
+                qy = sb.table("deals").select("id,amount,win,closed_at,created_at_rd,user_id,user_email,ds:rd_raw->deal_source").gte(*filtro)
                 ch = qy.order("id").range(pg * 1000, pg * 1000 + 999).execute().data or []
                 for d in ch:
                     if str(d.get("id")) not in seen_h:
@@ -533,24 +549,33 @@ class handler(BaseHTTPRequestHandler):
         for m in range(1, hoje.month + 1):
             eqm = {tk: {"leads": 0, "vendas": 0, "vgv": 0.0} for tk, _l in TEAMS}
             tot = {"leads": 0, "vendas": 0, "vgv": 0.0}
+            canais_m = {}
             for d in hist_deals:
                 uid = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
-                tk = team_key((users.get(uid) or {}).get("team"))
+                tk = team_de(uid, (users.get(uid) or {}).get("team"))
+                ck = channel(source({"deal_source": d.get("ds")}))
+                ck = CANAL_MERGE.get(ck, ck)
+                cm = canais_m.setdefault(ck, {"leads": 0, "vendas": 0, "vgv": 0.0})
                 cr = parse_dt(d.get("created_at_rd"))
                 cl = parse_dt(d.get("closed_at"))
                 if cr and cr.year == hoje.year and cr.month == m:
                     tot["leads"] += 1
+                    cm["leads"] += 1
                     if tk in eqm:
                         eqm[tk]["leads"] += 1
                 if d.get("win") is True and cl and cl.year == hoje.year and cl.month == m:
                     v = amount(d)
                     tot["vendas"] += 1
                     tot["vgv"] += v
+                    cm["vendas"] += 1
+                    cm["vgv"] += v
                     if tk in eqm:
                         eqm[tk]["vendas"] += 1
                         eqm[tk]["vgv"] += v
             sp = spend_mensal.get(m, 0.0)
             hist.append({"ym": f"{hoje.year:04d}-{m:02d}", "parcial": m == hoje.month,
+                         "canais": {k: {**v, "vgv": round(v["vgv"], 2)} for k, v in canais_m.items()
+                                    if v["leads"] or v["vendas"]},
                          "equipes": {k: {**v, "vgv": round(v["vgv"], 2),
                                          "ticket": round(v["vgv"] / v["vendas"], 2) if v["vendas"] else None}
                                      for k, v in eqm.items()},
@@ -596,7 +621,7 @@ class handler(BaseHTTPRequestHandler):
                 # só se o deal pertence ao funil (stage do histórico não vem — usa
                 # o time do corretor como proxy do funil da equipe)
                 uid = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
-                if team_key((users.get(uid) or {}).get("team")) == tk:
+                if team_de(uid, (users.get(uid) or {}).get("team")) == tk:
                     _conta(ultima, True)
             out_lanes = []
             for i, (pos, nome) in enumerate(lanes):
