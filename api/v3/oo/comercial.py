@@ -243,7 +243,7 @@ class handler(BaseHTTPRequestHandler):
         spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "last_30d"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc7_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
+        ck = f"gc8_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -354,10 +354,17 @@ class handler(BaseHTTPRequestHandler):
         na_janela = [e for e in eds if e["created"] and since_dt <= e["created"] <= until_dt]
         janela_dias = (until_d - since_d).days + 1
 
-        # ⏱ horas até o 1º contato por deal (formato exato exigido pelo Paulo)
+        # ⏱ horas até o 1º contato por deal (formato exato exigido pelo Paulo).
+        # HONESTIDADE (achado da auditoria 16/ago): muitos leads NASCEM direto numa
+        # etapa de atendimento no RD — o evento inicial tem o timestamp da criação
+        # e a mediana virava 00min falso. Só conta MOVIMENTAÇÃO REAL (≥5min após
+        # criar); quem nasce na etapa fica fora da conta (não medível por evento).
         def _h_contato(e):
             t1 = e["t_marco"].get(1) or e["t_marco"].get(2)
-            return (t1 - e["created"]).total_seconds() / 3600.0 if (t1 and e["created"]) else None
+            if not (t1 and e["created"]):
+                return None
+            h = (t1 - e["created"]).total_seconds() / 3600.0
+            return h if h >= (5.0 / 60.0) else None
 
         def _mediana(xs):
             xs = sorted(x for x in xs if x is not None)
