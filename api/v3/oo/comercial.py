@@ -189,7 +189,7 @@ class handler(BaseHTTPRequestHandler):
         spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "last_30d"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc5_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
+        ck = f"gc6_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -293,6 +293,16 @@ class handler(BaseHTTPRequestHandler):
             })
 
         na_janela = [e for e in eds if e["created"] and since_dt <= e["created"] <= until_dt]
+        janela_dias = (until_d - since_d).days + 1
+
+        # ⏱ horas até o 1º contato por deal (formato exato exigido pelo Paulo)
+        def _h_contato(e):
+            t1 = e["t_marco"].get(1) or e["t_marco"].get(2)
+            return (t1 - e["created"]).total_seconds() / 3600.0 if (t1 and e["created"]) else None
+
+        def _mediana(xs):
+            xs = sorted(x for x in xs if x is not None)
+            return round(xs[len(xs) // 2], 2) if xs else None
 
         # ── B) FONTES & FUNIL (coorte da janela, por canal × equipe) ──
         def agrega_fontes(pool):
@@ -350,6 +360,7 @@ class handler(BaseHTTPRequestHandler):
             rz = lambda x: round(x / v, 1) if v else None
             return {"leads_por_venda": rz(c["leads"]), "atend_por_venda": rz(c["atend"]),
                     "visitas_por_venda": rz(c["visita"]), "pastas_por_venda": rz(c["pasta"]),
+                    "dias_por_venda": round(janela_dias / v, 1) if v else None,
                     "ticket": round(c["vgv"] / v, 2) if v else None}
         # 🏆 canal campeão por corretor + %% das vendas dele por canal (pedido 15/ago)
         cor_can = {}
@@ -384,6 +395,7 @@ class handler(BaseHTTPRequestHandler):
                 continue
             cls, top = canais_do(uid, c["venda"])
             corretores.append({"uid": uid, **c, "vgv": round(c["vgv"], 2), **razoes(c),
+                               "contato_h_mediana": _mediana([_h_contato(e) for e in na_janela if e["uid"] == uid]),
                                "canais": cls, "top_canal": top})
         corretores.sort(key=lambda x: (-x["venda"], -x["vgv"]))
         equipes_prod = {}
@@ -394,7 +406,8 @@ class handler(BaseHTTPRequestHandler):
                    "proposta": sum(1 for e in pool if e["marco"] >= 4),
                    "pasta": sum(1 for e in pool if e["marco"] >= 5), "venda": sum(1 for e in pool if e["win"]),
                    "vgv": round(sum(e["vgv"] for e in pool if e["win"]), 2)}
-            equipes_prod[tk] = {**agg, **razoes(agg)}
+            equipes_prod[tk] = {**agg, **razoes(agg),
+                                "contato_h_mediana": _mediana([_h_contato(e) for e in pool])}
 
         # ── C) CUSTO DO FUNIL (mês corrente: spend ÷ atividade DO MÊS) ──
         _ma = read_meta_accounts(sb, preset="this_month") or read_meta_accounts(sb)

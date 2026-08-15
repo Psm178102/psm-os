@@ -15,6 +15,14 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const fN = v => { const x = Number(v) || 0; return Number.isInteger(x) ? x.toLocaleString('pt-BR') : x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); };
 const kR$ = v => { const n = Number(v) || 0, a = Math.abs(n); if (a >= 1e6) return (n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + 'M'; if (a >= 1e3) return (n / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k'; return n.toLocaleString('pt-BR', { maximumFractionDigits: 0 }); };
 const brl = v => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const MESES_NOME = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const mesNome = ym => { const m = parseInt(String(ym).slice(5, 7), 10); return MESES_NOME[m - 1] || ym; };
+const fmtDHM = h => {   // horas → "00d 03h 27min" (formato exigido: duas casas em cada)
+  if (h == null) return '—';
+  const tot = Math.max(0, Math.round(h * 60)), d = Math.floor(tot / 1440), hh = Math.floor((tot % 1440) / 60), mm = tot % 60;
+  const p2 = n => String(n).padStart(2, '0');
+  return `${p2(d)}d ${p2(hh)}h ${p2(mm)}min`;
+};
 const TEAM_LBL = { conquista: '🏠 Conquista', map: '🏢 MAP', terceiros: '🤝 Terceiros', locacao: '🔑 Locação', outros: '— Outros' };
 
 export async function pageGestaoComercial(ctx, root) {
@@ -54,6 +62,16 @@ function render() {
         <h2 class="card-title" style="margin:0">📊 Gestão Comercial</h2>
         <span class="tiny muted">coorte de ${fN(d.coorte_n)} leads · origem preenchida em ${d.cobertura_origem_pct != null ? fN(d.cobertura_origem_pct) + '%' : '—'} · ${d.janela.since} → ${d.janela.until}</span>
         <span style="flex:1"></span>
+        <select class="select" id="gc-preset" style="width:auto;padding:4px 8px;font-size:12px">
+          <option value="">Período…</option>
+          <option value="semana">Semana atual</option>
+          <option value="quinzena">Quinzena (15d)</option>
+          <option value="mes">Mês atual</option>
+          <option value="90d">Últimos 90d</option>
+          <option value="tri">Trimestre atual</option>
+          <option value="sem">Semestre atual</option>
+          <option value="ytd">Janeiro até hoje</option>
+        </select>
         <input type="date" class="input" id="gc-since" value="${_since}" style="width:auto;padding:4px 8px;font-size:12px">
         <input type="date" class="input" id="gc-until" value="${_until}" style="width:auto;padding:4px 8px;font-size:12px">
         <button class="btn btn-ghost btn-sm" id="gc-aplicar">Aplicar</button>
@@ -70,6 +88,22 @@ function render() {
   _root.querySelector('#gc-aplicar').onclick = () => { _since = _root.querySelector('#gc-since').value; _until = _root.querySelector('#gc-until').value; load(); };
   _root.querySelector('#gc-fresh').onclick = () => load(true);
   _root.querySelector('#gc-tv').onclick = enterTV;
+  _root.querySelector('#gc-preset').onchange = ev => {
+    const h = new Date();
+    const f = dt => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    const ini = { 
+      semana: () => new Date(h.getTime() - ((h.getDay() + 6) % 7) * 86400000),
+      quinzena: () => new Date(h.getTime() - 14 * 86400000),
+      mes: () => new Date(h.getFullYear(), h.getMonth(), 1),
+      '90d': () => new Date(h.getTime() - 89 * 86400000),
+      tri: () => new Date(h.getFullYear(), Math.floor(h.getMonth() / 3) * 3, 1),
+      sem: () => new Date(h.getFullYear(), h.getMonth() < 6 ? 0 : 6, 1),
+      ytd: () => new Date(h.getFullYear(), 0, 1),
+    }[ev.target.value];
+    if (!ini) return;
+    _since = f(ini()); _until = f(h);
+    load();
+  };
   const body = _root.querySelector('#gc-body');
   body.innerHTML = tabBody();
 }
@@ -230,7 +264,7 @@ function delta(cur, prev, invertido) {
 function histTable(titulo, rows) {
   const hs = _d.historico || [];
   if (!hs.length) return '';
-  const meses = hs.map(h => h.ym.slice(5));
+  const meses = hs.map(h => mesNome(h.ym));
   const head = `<tr class="tiny muted"><th style="text-align:left"></th>${hs.map((h, i) =>
     `<th style="text-align:right;padding:2px 8px;${h.parcial ? 'background:var(--bg-3);border-radius:6px 6px 0 0' : ''}">${meses[i]}${h.parcial ? '<div style="font-weight:400">parcial</div>' : ''}</th>`).join('')}</tr>`;
   const body = rows.map(r => `<tr>
@@ -286,6 +320,7 @@ function tabVisao() {
     ${hub ? `<div class="tiny" style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">🌉 Cruzamento Conquista: esteira do PSM HUB marca <b>${fN(hub.vendas)} venda(s) · R$ ${kR$(hub.vgv)}</b> no mês — divergência com o RD é sinal de lançamento pendente num dos dois.</div>` : ''}
     ${detalhes}
     <div class="tiny muted" style="margin-top:6px">Duas projeções lado a lado: <b>Norte</b> (mix×conversão calibrada de cada corretor) e <b>Ritmo</b> (velocidade real do mês extrapolada). Venda dentro da 🎲 faixa = azul (normal estatístico). Prop./Pastas = pipeline vivo agora.</div>`)
+    + metricasChave()
     + forecastPanel()
     + histTable('Vendas & VGV — real', [
       ...(_d.visao || []).map(v => ({ lbl: v.label + ' vendas', get: h => h.equipes?.[v.team]?.vendas, fmt: fN })),
@@ -293,6 +328,35 @@ function tabVisao() {
       { lbl: 'TOTAL VGV', get: h => h.total?.vgv, fmt: x => 'R$ ' + kR$(x) },
       { lbl: 'Ticket médio', get: h => h.total?.ticket, fmt: x => 'R$ ' + kR$(x) },
     ]);
+}
+
+/* 📐 métricas-chave por equipe (pedido 15/ago: tudo que o Paulo listou, na Visão) */
+function metricasChave() {
+  const custos = ((_d.custos || {}).equipes || []);
+  const prod = (_d.produtividade || {}).equipes || {};
+  const rows = custos.map(c => {
+    const p = prod[c.team] || {};
+    return `<tr>
+      <td style="font-weight:700;font-size:12.5px;padding:5px 8px 5px 0;white-space:nowrap">${c.label}</td>
+      <td style="text-align:right;font-size:12px">${c.custo_agend != null ? 'R$ ' + kR$(c.custo_agend) : '—'}</td>
+      <td style="text-align:right;font-size:12px">${c.custo_visita != null ? 'R$ ' + kR$(c.custo_visita) : '—'}</td>
+      <td style="text-align:right;font-size:12px">${c.custo_pasta != null ? 'R$ ' + kR$(c.custo_pasta) : '—'}</td>
+      <td style="text-align:right;font-size:12px;font-weight:800;color:#b45309">${c.cac_midia != null ? 'R$ ' + kR$(c.cac_midia) : '—'}</td>
+      <td style="text-align:right;font-size:12px">${p.visitas_por_venda ?? '—'}</td>
+      <td style="text-align:right;font-size:12px">${p.pastas_por_venda ?? '—'}</td>
+      <td style="text-align:right;font-size:12px;font-weight:800">${p.dias_por_venda != null ? fN(p.dias_por_venda) + 'd' : '—'}</td>
+      <td style="text-align:right;font-size:11.5px;white-space:nowrap">${fmtDHM(p.contato_h_mediana)}</td>
+    </tr>`;
+  }).join('');
+  // contatos de cada fonte pra 1 visita (leads da fonte ÷ visitas da fonte, geral)
+  const fontesVisita = ((_d.fontes || {}).geral || []).filter(f => f.visita > 0).map(f =>
+    `<span style="display:inline-block;background:var(--bg-3);border-radius:999px;padding:3px 10px;font-size:11.5px;margin:2px">${esc(f.label)}: <b>${fN(Math.round(f.leads / f.visita * 10) / 10)}</b> contatos → 1 visita</span>`).join('');
+  return pan('📐 Métricas-chave por equipe (custo do mês · razões e ritmo da safra)', `
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th><th>R$/agend.</th><th>R$/visita</th><th>R$/pasta</th><th>R$/venda (CAC)</th><th>Visitas→1 venda</th><th>Pastas→1 venda</th><th>Dias p/ nova venda</th><th>1º contato (mediano)</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    ${fontesVisita ? `<div style="margin-top:8px"><span class="tiny" style="font-weight:800">🔀 Contatos de cada fonte pra gerar 1 visita:</span><div style="margin-top:4px">${fontesVisita}</div></div>` : ''}
+    <div class="tiny muted" style="margin-top:6px">Custos = spend do mês da conta da equipe. Razões/dias/1º contato = safra da janela. Individual: aba 📊 Produtividade tem as mesmas colunas corretor a corretor.</div>`);
 }
 
 /* 🔮 forecast ponderado: pipeline aberto × taxas reais da equipe (mês e tri) */
@@ -437,6 +501,8 @@ function tabProd() {
       <td style="text-align:right">${fN(e.leads)}</td><td style="text-align:right">${fN(e.venda)}</td>
       <td style="text-align:right">${e.leads_por_venda ?? '—'}</td><td style="text-align:right">${e.atend_por_venda ?? '—'}</td>
       <td style="text-align:right">${e.visitas_por_venda ?? '—'}</td><td style="text-align:right">${e.pastas_por_venda ?? '—'}</td>
+      <td style="text-align:right">${e.dias_por_venda != null ? fN(e.dias_por_venda) + 'd' : '—'}</td>
+      <td style="text-align:right;font-size:11px;white-space:nowrap">${fmtDHM(e.contato_h_mediana)}</td>
       <td style="text-align:right">${e.ticket ? 'R$ ' + kR$(e.ticket) : '—'}</td><td style="text-align:right">R$ ${kR$(e.vgv)}</td></tr>`;
   }).join('');
   const rows = (p.corretores || []).map(cr => {
@@ -452,13 +518,15 @@ function tabProd() {
       <td style="text-align:right;font-size:12px">${cr.atend_por_venda ?? '—'}</td>
       <td style="text-align:right;font-size:12px">${cr.visitas_por_venda ?? '—'}</td>
       <td style="text-align:right;font-size:12px">${cr.pastas_por_venda ?? '—'}</td>
+      <td style="text-align:right;font-size:12px">${cr.dias_por_venda != null ? fN(cr.dias_por_venda) + 'd' : '—'}</td>
+      <td style="text-align:right;font-size:11px;white-space:nowrap">${fmtDHM(cr.contato_h_mediana)}</td>
       <td style="text-align:right;font-size:12px">${cr.ticket ? 'R$ ' + kR$(cr.ticket) : '—'}</td>
       <td style="text-align:right;font-size:12px">R$ ${kR$(cr.vgv)}</td>
     </tr>`;
   }).join('');
   return pan(`📊 Quantos X pra 1 venda — equipe e corretor (safra da janela)${p.restrito_a ? ` · <span class="tiny" style="color:#d97706">visão restrita à sua equipe (${p.restrito_a})</span>` : ''}`, `
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Corretor / Equipe</th><th style="text-align:left">Canal 🏆 (converte melhor)</th><th>Leads</th><th>Vendas</th><th>Leads/venda</th><th>Atend./venda</th><th>Visitas/venda</th><th>Pastas/venda</th><th>Ticket</th><th>VGV</th></tr></thead>
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Corretor / Equipe</th><th style="text-align:left">Canal 🏆 (converte melhor)</th><th>Leads</th><th>Vendas</th><th>Leads/venda</th><th>Atend./venda</th><th>Visitas/venda</th><th>Pastas/venda</th><th>Dias p/ venda</th><th>1º contato</th><th>Ticket</th><th>VGV</th></tr></thead>
       <tbody>${eqRows}${rows}</tbody></table></div>
     <div class="tiny muted" style="margin-top:6px">Razões calculadas na safra da janela (lead nascido nela). Corretor sem venda na safra mostra — (sem denominador não há razão honesta).</div>`)
     + histTable('Produção — mês a mês', [
@@ -471,7 +539,7 @@ function tabProd() {
 /* ── 📈 SAFRAS & TEMPOS ── */
 function tabSafras() {
   const rows = (_d.safras || []).map(s => `<tr>
-      <td style="font-weight:700;font-size:12px;padding:4px 8px 4px 0">${s.ym}</td>
+      <td style="font-weight:700;font-size:12px;padding:4px 8px 4px 0">${mesNome(s.ym)}</td>
       <td style="text-align:right;font-size:12px">${fN(s.leads)}</td>
       <td style="text-align:right;font-weight:800;font-size:12px">${fN(s.vendas)}</td>
       <td style="text-align:right;font-size:12px">${s.pc != null ? fN(s.pc) + '%' : '—'}</td>
@@ -485,7 +553,7 @@ function tabSafras() {
     </div>`).join('');
   const resp = _d.resposta || {};
   const respBlocos = Object.keys(resp).filter(t => (resp[t] || []).some(b => b.n)).map(t => `
-    <div><div class="tiny" style="font-weight:800;margin-bottom:4px">${TEAM_LBL[t] || t}</div>
+    <div><div class="tiny" style="font-weight:800;margin-bottom:4px">${TEAM_LBL[t] || t} · mediano: <span style="color:#2563eb">${fmtDHM(((_d.produtividade || {}).equipes || {})[t]?.contato_h_mediana)}</span></div>
       ${(resp[t] || []).map(b => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;border-bottom:1px dashed var(--border);padding:3px 0">
         <span>${esc(b.bucket)}</span>
         <span><b>${fN(b.n)}</b> leads · <b>${fN(b.vendas)}</b> venda(s) · <b style="color:${(b.conv_pct || 0) >= 2 ? '#16a34a' : 'var(--ink)'}">${b.conv_pct != null ? fN(b.conv_pct) + '%' : '—'}</b></span>
