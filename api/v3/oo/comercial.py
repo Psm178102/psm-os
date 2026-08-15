@@ -186,7 +186,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(400, {"ok": False, "error": "since/until inválidos (YYYY-MM-DD)"})
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc4_cache:{since_d}:{until_d}"   # v86.21: shape novo → chave nova
+        ck = f"gc5_cache:{since_d}:{until_d}"   # v86.21: shape novo → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -348,14 +348,47 @@ class handler(BaseHTTPRequestHandler):
             return {"leads_por_venda": rz(c["leads"]), "atend_por_venda": rz(c["atend"]),
                     "visitas_por_venda": rz(c["visita"]), "pastas_por_venda": rz(c["pasta"]),
                     "ticket": round(c["vgv"] / v, 2) if v else None}
-        corretores = [{"uid": uid, **c, "vgv": round(c["vgv"], 2), **razoes(c)}
-                      for uid, c in por_corr.items() if c["team"] != "outros" or c["venda"] > 0]
+        # 🏆 canal campeão por corretor + %% das vendas dele por canal (pedido 15/ago)
+        cor_can = {}
+        for e in na_janela:
+            if not e["uid"]:
+                continue
+            k = cor_can.setdefault(e["uid"], {}).setdefault(e["canal"], {"leads": 0, "vendas": 0, "vgv": 0.0})
+            k["leads"] += 1
+            if e["win"]:
+                k["vendas"] += 1
+                k["vgv"] += e["vgv"]
+
+        def canais_do(uid, tot_vendas):
+            out = []
+            for ck, k in (cor_can.get(uid) or {}).items():
+                conv = round(k["vendas"] / k["leads"] * 100, 1) if k["leads"] else None
+                out.append({"canal": ck, "label": CANAL_LBL.get(ck, ck), "leads": k["leads"],
+                            "vendas": k["vendas"], "vgv": round(k["vgv"], 2), "conv_pct": conv,
+                            "share_vendas_pct": round(k["vendas"] / tot_vendas * 100, 1) if tot_vendas else None})
+            out.sort(key=lambda x: (-x["vendas"], -(x["conv_pct"] or 0), -x["leads"]))
+            top = None
+            cand = [c for c in out if c["vendas"] >= 1 and c["leads"] >= 5]
+            if cand:
+                top = max(cand, key=lambda x: x["conv_pct"] or 0)["label"]
+            elif out and out[0]["vendas"]:
+                top = out[0]["label"]
+            return out[:8], top
+
+        corretores = []
+        for uid, c in por_corr.items():
+            if c["team"] == "outros" and not c["venda"]:
+                continue
+            cls, top = canais_do(uid, c["venda"])
+            corretores.append({"uid": uid, **c, "vgv": round(c["vgv"], 2), **razoes(c),
+                               "canais": cls, "top_canal": top})
         corretores.sort(key=lambda x: (-x["venda"], -x["vgv"]))
         equipes_prod = {}
         for tk, _l in TEAMS:
             pool = [e for e in na_janela if e["team"] == tk]
             agg = {"leads": len(pool), "atend": sum(1 for e in pool if e["marco"] >= 1),
                    "agend": sum(1 for e in pool if e["marco"] >= 2), "visita": sum(1 for e in pool if e["marco"] >= 3),
+                   "proposta": sum(1 for e in pool if e["marco"] >= 4),
                    "pasta": sum(1 for e in pool if e["marco"] >= 5), "venda": sum(1 for e in pool if e["win"]),
                    "vgv": round(sum(e["vgv"] for e in pool if e["win"]), 2)}
             equipes_prod[tk] = {**agg, **razoes(agg)}
@@ -448,13 +481,15 @@ class handler(BaseHTTPRequestHandler):
             # projeção por ritmo: vendas até hoje ÷ dias corridos × dias do mês
             run_rate = round(rv / max(1, hoje.day) * dias_mes, 2)
             # pipeline de AGORA: abertos parados em proposta/pasta (marco da etapa atual)
-            prop_ab = pasta_ab = 0
+            prop_ab = pasta_ab = vis_ab = 0
             for d in abertos:
                 uid = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
                 if team_de(uid, (users.get(uid) or {}).get("team")) != tk:
                     continue
                 m = marco_sid.get(str(d.get("stage_id") or ""))
-                if m == 4:
+                if m == 3:
+                    vis_ab += 1
+                elif m == 4:
                     prop_ab += 1
                 elif m == 5:
                     pasta_ab += 1
@@ -462,7 +497,7 @@ class handler(BaseHTTPRequestHandler):
                           "real_ticket": round(rvgv / rv, 2) if rv else None,
                           "meta_vendas": round(meta_v, 1), "meta_vgv": round(meta_vgv, 2),
                           "proj_vendas": round(proj_v, 2), "proj_ritmo": run_rate,
-                          "pipeline_agora": {"propostas": prop_ab, "pastas": pasta_ab},
+                          "pipeline_agora": {"visitas": vis_ab, "propostas": prop_ab, "pastas": pasta_ab},
                           "corretores_com_meta": com_meta, "por_corretor": por_corr_v[:15],
                           "poisson": pois_faixa(meta_v) if meta_v > 0 else None})
 
@@ -639,6 +674,88 @@ class handler(BaseHTTPRequestHandler):
                                   "passagem_pct": passagem, "base": not na_chain})
             funil_rd[tk] = {"pipeline": pipe_names.get(pid), "lanes": out_lanes}
 
+        # ── J) 🔮 FORECAST PONDERADO (mês E trimestre): pipeline aberto × taxas
+        # reais da equipe na safra. Split temporal pela mediana pasta→venda. ──
+        dias_rest = dias_mes - hoje.day
+        forecast = {}
+        for tk, _l in TEAMS:
+            agg = equipes_prod.get(tk) or {}
+            vis = next((v for v in visao if v["team"] == tk), {})
+            pa = (vis.get("pipeline_agora") or {})
+            tx = {}
+            for nome_tx, num_k, den_k, min_n in (("visita", "venda", "visita", 5),
+                                                 ("proposta", "venda", "proposta", 3),
+                                                 ("pasta", "venda", "pasta", 3)):
+                den = agg.get(den_k) or 0
+                tx[nome_tx] = round((agg.get(num_k) or 0) / den, 3) if den >= min_n else None
+            termos = []
+            esp = 0.0
+            for etapa, ab in (("pasta", pa.get("pastas") or 0), ("proposta", pa.get("propostas") or 0),
+                              ("visita", pa.get("visitas") or 0)):
+                if ab and tx.get(etapa) is not None:
+                    ganho = ab * tx[etapa]
+                    esp += ganho
+                    termos.append({"etapa": etapa, "abertos": ab, "taxa_pct": round(tx[etapa] * 100, 1),
+                                   "vendas_esp": round(ganho, 2)})
+            ticket = vis.get("real_ticket") or (agg.get("ticket") if agg.get("ticket") else None)
+            med_pv = None
+            for ln in (tempos.get(tk) or []):
+                if ln.get("passo") == "pasta→venda":
+                    med_pv = ln.get("mediana_dias")
+            # pastas cujo tempo mediano cabe no mês entram no forecast do MÊS
+            pastas_mes = (pa.get("pastas") or 0) * (tx.get("pasta") or 0) if (med_pv is not None and med_pv <= dias_rest) else 0.0
+            forecast[tk] = {"pipeline_vendas_esp": round(esp, 2),
+                            "pipeline_vgv_esp": round(esp * ticket, 2) if ticket else None,
+                            "mes_esp": round((vis.get("real_vendas") or 0) + pastas_mes, 2),
+                            "tri_esp": round((vis.get("real_vendas") or 0) + esp, 2),
+                            "termos": termos, "mediana_pasta_venda_d": med_pv,
+                            "dias_restantes": dias_rest,
+                            "nota_mes": ("pastas entram no mês (mediana pasta→venda "
+                                         f"{med_pv}d ≤ {dias_rest}d restantes)" if pastas_mes else
+                                         "nenhuma etapa madura o bastante pra cair ainda neste mês")}
+
+        # ── K) ⚡ VELOCIDADE DO 1º CONTATO × CONVERSÃO (por equipe, na safra) ──
+        BUCKETS = [("⚡ <1h", 1), ("1–4h", 4), ("4–24h", 24), ("1–3 dias", 72), ("🐌 >3 dias", 10 ** 9)]
+        resposta = {}
+        for tk, _l in TEAMS:
+            linhas = {b[0]: {"n": 0, "vendas": 0} for b in BUCKETS}
+            linhas["sem 1º contato"] = {"n": 0, "vendas": 0}
+            for e in na_janela:
+                if e["team"] != tk:
+                    continue
+                t1 = e["t_marco"].get(1) or e["t_marco"].get(2)
+                if not t1 or not e["created"]:
+                    b = "sem 1º contato"
+                else:
+                    hrs = (t1 - e["created"]).total_seconds() / 3600.0
+                    b = next(nm for nm, lim in BUCKETS if hrs <= lim)
+                linhas[b]["n"] += 1
+                if e["win"]:
+                    linhas[b]["vendas"] += 1
+            resposta[tk] = [{"bucket": nm, **v,
+                             "conv_pct": round(v["vendas"] / v["n"] * 100, 1) if v["n"] else None}
+                            for nm, v in linhas.items()]
+
+        # ── L) 💸 PAYBACK DE MÍDIA (HUB: dataVenda → 1ª parcela no caixa) ──
+        payback = None
+        try:
+            fin_kv, _okf = _kv_read(sb, "psmhub_financeiro_cache")
+            fin = (fin_kv or {}).get("financeiro") or []
+            dds = []
+            for vd in fin:
+                dv, dp = vd.get("dataVenda"), vd.get("dataPrimeiraParcela")
+                if dv and dp:
+                    try:
+                        dds.append((date.fromisoformat(str(dp)[:10]) - date.fromisoformat(str(dv)[:10])).days)
+                    except Exception:
+                        pass
+            dds = sorted(d for d in dds if 0 <= d <= 365)
+            if dds:
+                payback = {"mediana_dias": dds[len(dds) // 2], "n": len(dds),
+                           "fonte": "HUB financeiro: dataVenda → 1ª parcela"}
+        except Exception:
+            payback = None
+
         # ── I) CAMPANHAS → FUNIL → VENDA (pedido do Paulo, 15/ago: escalar/pausar
         # pela VENDA, não pelo CPL — CPL barato sem venda não compensa; CPL acima
         # do previsto que VENDE pode compensar). Funil = safra da janela; spend =
@@ -692,7 +809,8 @@ class handler(BaseHTTPRequestHandler):
 
         return {"visao": visao, "hub_conquista": hub_x, "fontes": fontes,
                 "historico": hist, "funil_rd": funil_rd, "campanhas": campanhas,
-                "custos": {"mes": ym, "equipes": custos,
+                "forecast": forecast, "resposta": resposta,
+                "custos": {"mes": ym, "equipes": custos, "payback_midia": payback,
                            "nota": "spend Meta this_month por conta da equipe ÷ atividade real do mês; CAC completo soma o custo fixo orçado da linha"},
                 "produtividade": {"corretores": corretores, "equipes": equipes_prod},
                 "safras": safras_out, "tempos": tempos,

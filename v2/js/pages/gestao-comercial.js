@@ -179,12 +179,36 @@ function tabVisao() {
     ${hub ? `<div class="tiny" style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">🌉 Cruzamento Conquista: esteira do PSM HUB marca <b>${fN(hub.vendas)} venda(s) · R$ ${kR$(hub.vgv)}</b> no mês — divergência com o RD é sinal de lançamento pendente num dos dois.</div>` : ''}
     ${detalhes}
     <div class="tiny muted" style="margin-top:6px">Duas projeções lado a lado: <b>Norte</b> (mix×conversão calibrada de cada corretor) e <b>Ritmo</b> (velocidade real do mês extrapolada). Venda dentro da 🎲 faixa = azul (normal estatístico). Prop./Pastas = pipeline vivo agora.</div>`)
+    + forecastPanel()
     + histTable('Vendas & VGV — real', [
       ...(_d.visao || []).map(v => ({ lbl: v.label + ' vendas', get: h => h.equipes?.[v.team]?.vendas, fmt: fN })),
       { lbl: 'TOTAL vendas', get: h => h.total?.vendas, fmt: fN },
       { lbl: 'TOTAL VGV', get: h => h.total?.vgv, fmt: x => 'R$ ' + kR$(x) },
       { lbl: 'Ticket médio', get: h => h.total?.ticket, fmt: x => 'R$ ' + kR$(x) },
     ]);
+}
+
+/* 🔮 forecast ponderado: pipeline aberto × taxas reais da equipe (mês e tri) */
+function forecastPanel() {
+  const fc = _d.forecast || {};
+  const teams = Object.keys(fc).filter(t => (fc[t].termos || []).length || fc[t].mes_esp);
+  if (!teams.length) return '';
+  const rows = teams.map(t => {
+    const f = fc[t];
+    const termos = (f.termos || []).map(x => `${fN(x.abertos)} ${x.etapa}s×${fN(x.taxa_pct)}%`).join(' + ') || '—';
+    return `<tr>
+      <td style="font-weight:700;font-size:12.5px;padding:5px 8px 5px 0;white-space:nowrap">${TEAM_LBL[t] || t}</td>
+      <td style="text-align:right;font-weight:900;font-size:13px">${fN(f.mes_esp)}</td>
+      <td style="text-align:right;font-weight:900;font-size:13px;color:#2563eb">${fN(f.tri_esp)}</td>
+      <td style="text-align:right;font-size:12px">${f.pipeline_vgv_esp ? 'R$ ' + kR$(f.pipeline_vgv_esp) : '—'}</td>
+      <td class="tiny muted">${termos}${f.mediana_pasta_venda_d != null ? ` · pasta→venda ~${f.mediana_pasta_venda_d}d` : ''}</td>
+    </tr>`;
+  }).join('');
+  return pan('🔮 Forecast ponderado — o pipeline aberto × as taxas REAIS da equipe', `
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th><th>Esperado MÊS</th><th>Esperado TRI</th><th>VGV do pipeline</th><th style="text-align:left">Como foi calculado</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <div class="tiny muted" style="margin-top:6px">MÊS = vendas já feitas + pastas abertas × taxa pasta→venda (só quando a mediana de dias cabe no que resta do mês). TRI = vendas + pipeline inteiro ponderado. Taxa sem amostra mínima fica de fora — sem invenção.</div>`);
 }
 
 /* ── ⏬ FUNIL RD: as lanes EXATAS de cada funil, números do RD + % passagem ── */
@@ -284,6 +308,7 @@ function tabCustos() {
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th><th>Spend Meta</th><th>R$/lead</th><th>R$/agendamento</th><th>R$/visita</th><th>R$/pasta</th><th>CAC mídia</th><th>CAC completo</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
+    ${c.payback_midia ? `<div class="tiny" style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">💸 <b>Payback de mídia:</b> a venda vira caixa em mediana <b>${fN(c.payback_midia.mediana_dias)} dias</b> (${esc(c.payback_midia.fonte)}, n=${fN(c.payback_midia.n)}) — é o tempo entre o real investido e o real voltando.</div>` : ''}
     <div class="tiny muted" style="margin-top:8px">${esc(c.nota || '')}. Qualificado começa no AGENDAMENTO (decisão 14/ago). Indicação/orgânico não pagam mídia — o CAC deles vive no custo fixo.</div>`)
     + histTable('Custo — mês a mês (spend GLOBAL da Meta; histórico por equipe não existe na base mensal)', [
       { lbl: 'Spend Meta', get: h => h.total?.spend, fmt: x => 'R$ ' + kR$(x), invertido: true },
@@ -301,13 +326,19 @@ function tabProd() {
     const e = eq[t];
     return `<tr style="font-weight:700;background:var(--bg-3)">
       <td style="font-size:12.5px;padding:5px 8px 5px 0">${TEAM_LBL[t] || t}</td>
+      <td></td>
       <td style="text-align:right">${fN(e.leads)}</td><td style="text-align:right">${fN(e.venda)}</td>
       <td style="text-align:right">${e.leads_por_venda ?? '—'}</td><td style="text-align:right">${e.atend_por_venda ?? '—'}</td>
       <td style="text-align:right">${e.visitas_por_venda ?? '—'}</td><td style="text-align:right">${e.pastas_por_venda ?? '—'}</td>
       <td style="text-align:right">${e.ticket ? 'R$ ' + kR$(e.ticket) : '—'}</td><td style="text-align:right">R$ ${kR$(e.vgv)}</td></tr>`;
   }).join('');
-  const rows = (p.corretores || []).map(cr => `<tr>
-      <td style="font-size:12px;padding:4px 8px 4px 0;white-space:nowrap">${esc(cr.nome)} <span class="tiny muted">${(TEAM_LBL[cr.team] || cr.team || '').replace(/^..\s/, '')}</span></td>
+  const rows = (p.corretores || []).map(cr => {
+    const chips = (cr.canais || []).filter(c => c.vendas > 0).map(c =>
+      `<span style="display:inline-block;background:var(--bg-2);border:1px solid var(--border);border-radius:999px;padding:1px 8px;font-size:10.5px;margin:1px">${esc(c.label)}: <b>${fN(c.share_vendas_pct)}%</b> das vendas · conv ${c.conv_pct != null ? fN(c.conv_pct) + '%' : '—'}</span>`).join('');
+    return `<tr>
+      <td style="font-size:12px;padding:4px 8px 4px 0">${esc(cr.nome)} <span class="tiny muted">${(TEAM_LBL[cr.team] || cr.team || '').replace(/^..\s/, '')}</span>
+        ${chips ? `<div style="margin-top:2px">${chips}</div>` : ''}</td>
+      <td style="font-size:11.5px;font-weight:800;color:#166534;white-space:nowrap">${cr.top_canal ? '🏆 ' + esc(cr.top_canal) : '—'}</td>
       <td style="text-align:right;font-size:12px">${fN(cr.leads)}</td>
       <td style="text-align:right;font-weight:800;font-size:12px">${fN(cr.venda)}</td>
       <td style="text-align:right;font-size:12px">${cr.leads_por_venda ?? '—'}</td>
@@ -316,10 +347,11 @@ function tabProd() {
       <td style="text-align:right;font-size:12px">${cr.pastas_por_venda ?? '—'}</td>
       <td style="text-align:right;font-size:12px">${cr.ticket ? 'R$ ' + kR$(cr.ticket) : '—'}</td>
       <td style="text-align:right;font-size:12px">R$ ${kR$(cr.vgv)}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   return pan(`📊 Quantos X pra 1 venda — equipe e corretor (safra da janela)${p.restrito_a ? ` · <span class="tiny" style="color:#d97706">visão restrita à sua equipe (${p.restrito_a})</span>` : ''}`, `
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Corretor / Equipe</th><th>Leads</th><th>Vendas</th><th>Leads/venda</th><th>Atend./venda</th><th>Visitas/venda</th><th>Pastas/venda</th><th>Ticket</th><th>VGV</th></tr></thead>
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Corretor / Equipe</th><th style="text-align:left">Canal 🏆 (converte melhor)</th><th>Leads</th><th>Vendas</th><th>Leads/venda</th><th>Atend./venda</th><th>Visitas/venda</th><th>Pastas/venda</th><th>Ticket</th><th>VGV</th></tr></thead>
       <tbody>${eqRows}${rows}</tbody></table></div>
     <div class="tiny muted" style="margin-top:6px">Razões calculadas na safra da janela (lead nascido nela). Corretor sem venda na safra mostra — (sem denominador não há razão honesta).</div>`)
     + histTable('Produção — mês a mês', [
@@ -344,7 +376,15 @@ function tabSafras() {
       ${(_d.tempos[t] || []).map(l => `<div style="display:flex;justify-content:space-between;font-size:12px;border-bottom:1px dashed var(--border);padding:3px 0">
         <span>${esc(l.passo)}</span><span><b>${l.mediana_dias != null ? l.mediana_dias + 'd' : '—'}</b> <span class="tiny muted">n=${l.n}</span></span></div>`).join('')}
     </div>`).join('');
+  const resp = _d.resposta || {};
+  const respBlocos = Object.keys(resp).filter(t => (resp[t] || []).some(b => b.n)).map(t => `
+    <div><div class="tiny" style="font-weight:800;margin-bottom:4px">${TEAM_LBL[t] || t}</div>
+      ${(resp[t] || []).map(b => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;border-bottom:1px dashed var(--border);padding:3px 0">
+        <span>${esc(b.bucket)}</span>
+        <span><b>${fN(b.n)}</b> leads · <b>${fN(b.vendas)}</b> venda(s) · <b style="color:${(b.conv_pct || 0) >= 2 ? '#16a34a' : 'var(--ink)'}">${b.conv_pct != null ? fN(b.conv_pct) + '%' : '—'}</b></span>
+      </div>`).join('')}</div>`).join('');
   return `
+    ${respBlocos ? pan('⚡ Velocidade do 1º contato × conversão (a prova de quanto custa demorar)', `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">${respBlocos}</div><div class="tiny muted" style="margin-top:6px">1º contato = primeira chegada ao marco de contato/agendamento (eventos reais do RD, safra da janela).</div>`) : ''}
     ${pan('📈 Safras — cada mês de lead, o que virou até hoje', `
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
         <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Safra</th><th>Leads</th><th>Vendas até hoje</th><th>Conv.</th><th>VGV</th><th>Lead→venda</th></tr></thead>
