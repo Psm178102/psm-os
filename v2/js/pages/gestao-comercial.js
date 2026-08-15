@@ -7,7 +7,9 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null, _d = null, _tab = 'visao', _busy = false;
-let _since = null, _until = null;
+let _since = null, _until = null, _spendPreset = 'last_30d';
+let _tv = false, _tvRotate = true, _tvTimer = null, _tvDataTimer = null, _tvTickTimer = null, _tvNextAt = 0;
+const TV_ROT_MS = 20000, TV_REFRESH_MS = 300000;   // aba a cada 20s · dados a cada 5min
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fN = v => { const x = Number(v) || 0; return Number.isInteger(x) ? x.toLocaleString('pt-BR') : x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); };
@@ -30,7 +32,7 @@ async function load(fresh) {
   _busy = true;
   _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Consolidando comercial (RD + HUB + Meta + Norte)… primeira leitura da janela pode levar ~30s.</div></div>';
   try {
-    _d = await api.request(`/api/v3/oo/comercial?since=${_since}&until=${_until}${fresh ? '&fresh=1' : ''}`);
+    _d = await api.request(`/api/v3/oo/comercial?since=${_since}&until=${_until}&spend_preset=${_spendPreset}${fresh ? '&fresh=1' : ''}`);
     render();
   } catch (e) {
     _root.innerHTML = `<div class="alert alert-err">Erro: ${esc(e.message || e)}</div>`;
@@ -56,6 +58,7 @@ function render() {
         <input type="date" class="input" id="gc-until" value="${_until}" style="width:auto;padding:4px 8px;font-size:12px">
         <button class="btn btn-ghost btn-sm" id="gc-aplicar">Aplicar</button>
         <button class="btn btn-ghost btn-sm" id="gc-fresh" title="ignora o cache de 10min">🔄</button>
+        <button class="btn btn-sm" id="gc-tv" style="background:#0f172a;color:#fff;font-weight:800">📺 TV</button>
       </div>
       ${(d.avisos || []).length ? `<div class="alert alert-warn tiny" style="margin-top:8px">${d.avisos.map(esc).join('<br>')}</div>` : ''}
       <div class="flex gap-1" style="margin-top:10px;flex-wrap:wrap">
@@ -66,8 +69,103 @@ function render() {
   _root.querySelectorAll('[data-gct]').forEach(b => b.onclick = () => { _tab = b.dataset.gct; render(); });
   _root.querySelector('#gc-aplicar').onclick = () => { _since = _root.querySelector('#gc-since').value; _until = _root.querySelector('#gc-until').value; load(); };
   _root.querySelector('#gc-fresh').onclick = () => load(true);
+  _root.querySelector('#gc-tv').onclick = enterTV;
   const body = _root.querySelector('#gc-body');
-  body.innerHTML = { visao: tabVisao, funilrd: tabFunilRD, fontes: tabFontes, camp: tabCampanhas, custos: tabCustos, prod: tabProd, safras: tabSafras }[_tab]();
+  body.innerHTML = tabBody();
+}
+
+const GC_TABS = [['visao', '🎯 Visão Geral'], ['funilrd', '⏬ Funil RD'], ['fontes', '🔀 Fontes & Funil'],
+                 ['camp', '📣 Campanhas'], ['custos', '💰 Custo do Funil'], ['prod', '📊 Produtividade'], ['safras', '📈 Safras & Tempos']];
+function tabBody() {
+  return { visao: tabVisao, funilrd: tabFunilRD, fontes: tabFontes, camp: tabCampanhas, custos: tabCustos, prod: tabProd, safras: tabSafras }[_tab]();
+}
+
+/* ═══════════ 📺 MODO TV — todas as abas em rotação (pedido 15/ago) ═══════════ */
+function enterTV() {
+  if (_tv) return;
+  _tv = true; _tvRotate = true;
+  if (_root) _root.style.display = 'none';
+  let ov = document.getElementById('gc-tv-ov');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'gc-tv-ov'; document.body.appendChild(ov); }
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0b1220;color:#e2e8f0;overflow-y:auto;overflow-x:hidden;'
+    + '--bg:#0b1220;--bg-2:#111827;--bg-3:rgba(255,255,255,0.07);--ink:#f1f5f9;--ink-muted:#94a3b8;'
+    + '--border:rgba(255,255,255,0.12);--border-2:rgba(255,255,255,0.08);--psm-navy:#1e293b';
+  document.addEventListener('keydown', tvKey);
+  try { const rf = ov.requestFullscreen || ov.webkitRequestFullscreen; if (rf) { const p = rf.call(ov); if (p && p.catch) p.catch(() => {}); } } catch (_) {}
+  renderTV();
+  clearInterval(_tvTimer);
+  _tvTimer = setInterval(() => { if (_tv && _tvRotate) tvStep(1); }, TV_ROT_MS);
+  clearInterval(_tvDataTimer);
+  _tvNextAt = Date.now() + TV_REFRESH_MS;
+  _tvDataTimer = setInterval(async () => {
+    if (!_tv || _busy) return;
+    _tvNextAt = Date.now() + TV_REFRESH_MS;
+    try {
+      _d = await api.request(`/api/v3/oo/comercial?since=${_since}&until=${_until}&spend_preset=${_spendPreset}&fresh=1`);
+      renderTV();
+    } catch (_) {}
+  }, TV_REFRESH_MS);
+  clearInterval(_tvTickTimer);
+  _tvTickTimer = setInterval(() => {
+    const el = document.getElementById('gc-tv-age');
+    if (!el || !_tv) return;
+    const age = _d?.fetched_at ? Math.max(0, Math.round((Date.now() - new Date(_d.fetched_at).getTime()) / 1000)) : null;
+    const nxt = Math.max(0, Math.round((_tvNextAt - Date.now()) / 1000));
+    const f = s => s < 90 ? s + 's' : Math.round(s / 60) + 'min';
+    const cor = age == null ? '#94a3b8' : age < 720 ? '#4ade80' : age < 1800 ? '#fbbf24' : '#f87171';
+    el.innerHTML = `<span style="color:${cor};font-weight:800">● dado de ${age != null ? f(age) : '—'} atrás</span><span style="opacity:.7"> · atualiza em ${f(nxt)}</span>`;
+  }, 1000);
+}
+
+function exitTV() {
+  _tv = false;
+  [_tvTimer, _tvDataTimer, _tvTickTimer].forEach(t => clearInterval(t));
+  document.removeEventListener('keydown', tvKey);
+  try { if (document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
+  document.getElementById('gc-tv-ov')?.remove();
+  if (_root) { _root.style.display = ''; render(); }
+}
+
+function tvStep(dir) {
+  const i = GC_TABS.findIndex(t => t[0] === _tab);
+  _tab = GC_TABS[(i + dir + GC_TABS.length) % GC_TABS.length][0];
+  renderTV();
+}
+
+function tvKey(e) {
+  if (!_tv) return;
+  if (e.key === 'Escape') exitTV();
+  else if (e.key === 'ArrowRight') tvStep(1);
+  else if (e.key === 'ArrowLeft') tvStep(-1);
+  else if (e.key === ' ') { e.preventDefault(); _tvRotate = !_tvRotate; renderTV(); }
+}
+
+function renderTV() {
+  const ov = document.getElementById('gc-tv-ov');
+  if (!ov || !_d) return;
+  const BTN = 'border:none;cursor:pointer;padding:7px 12px;border-radius:8px;background:rgba(255,255,255,0.08);color:#e2e8f0;font-weight:800';
+  ov.innerHTML = `
+    <div style="position:sticky;top:0;z-index:5;background:rgba(11,18,32,.94);backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,.08);padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="font-size:19px;font-weight:900;color:#fff;white-space:nowrap">📊 PSM · Gestão Comercial</div>
+      <div style="font-size:12px;color:#94a3b8;white-space:nowrap">${_d.janela.since} → ${_d.janela.until} · ${fN(_d.coorte_n)} leads</div>
+      <div id="gc-tv-age" style="font-size:12px;white-space:nowrap"></div>
+      <div style="flex:1;min-width:10px"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
+        ${GC_TABS.map(([id, l]) => `<button class="gctv-dot" data-t="${id}" style="border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-weight:800;font-size:13px;background:${id === _tab ? '#2563eb' : 'rgba(255,255,255,0.08)'};color:${id === _tab ? '#fff' : '#94a3b8'}">${l}</button>`).join('')}
+      </div>
+      <div style="display:flex;gap:6px">
+        <button id="gctv-prev" style="${BTN}">◀</button>
+        <button id="gctv-rot" style="${BTN}${_tvRotate ? ';background:#16a34a;color:#fff' : ''}">${_tvRotate ? '⏸' : '▶'}</button>
+        <button id="gctv-next" style="${BTN}">▶</button>
+        <button id="gctv-exit" style="${BTN};background:#dc2626;color:#fff">✕</button>
+      </div>
+    </div>
+    <div style="padding:18px 22px 48px;font-size:15px;max-width:1700px;margin:0 auto">${tabBody()}</div>`;
+  ov.querySelectorAll('.gctv-dot').forEach(b => b.onclick = () => { _tab = b.dataset.t; renderTV(); });
+  ov.querySelector('#gctv-prev').onclick = () => tvStep(-1);
+  ov.querySelector('#gctv-next').onclick = () => tvStep(1);
+  ov.querySelector('#gctv-rot').onclick = () => { _tvRotate = !_tvRotate; renderTV(); };
+  ov.querySelector('#gctv-exit').onclick = exitTV;
 }
 
 /* ── 📣 CAMPANHAS → FUNIL → VENDA: escalar/pausar pela VENDA, não pelo CPL ── */
@@ -98,7 +196,16 @@ function tabCampanhas() {
       <td style="text-align:right;font-size:12px;font-weight:800">${x.roas != null ? fN(x.roas) + '×' : '—'}</td>
       <td><span class="tiny" style="font-weight:800;color:${VCOR[x.veredito]};white-space:nowrap">${esc(x.veredito_lbl)}</span></td>
     </tr>`).join('');
-  return pan('🏅 Pódio de campanhas — pelo FUNDO do funil, não pelo CPL', `
+  const SPENDS = [['this_month', 'Este mês'], ['last_7d', 'Últimos 7d'], ['last_14d', 'Últimos 14d'], ['last_30d', 'Últimos 30d'], ['last_month', 'Mês passado']];
+  const spendSel = `<div class="flex items-center gap-2" style="margin-bottom:8px">
+    <span class="tiny" style="font-weight:800">🎚 Período do spend/CPL (Meta):</span>
+    <select class="select" id="gc-spend" style="width:auto;padding:3px 8px;font-size:12px">
+      ${SPENDS.map(([v, l]) => `<option value="${v}"${_spendPreset === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+    ${cp.spend_preset_usado && cp.spend_preset_usado !== cp.spend_preset_pedido ? `<span class="tiny" style="color:#d97706;font-weight:700">⚠ cache da Meta não tinha "${esc(cp.spend_preset_pedido)}" — usando "${esc(cp.spend_preset_usado)}"</span>` : ''}
+    <span class="tiny muted">o funil segue a janela de safra lá de cima — aqui você troca só a base de CUSTO</span>
+  </div>`;
+  setTimeout(() => { document.getElementById('gc-spend')?.addEventListener('change', ev => { _spendPreset = ev.target.value; load(); }); }, 0);
+  return spendSel + pan('🏅 Pódio de campanhas — pelo FUNDO do funil, não pelo CPL', `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">
         ${podio('visita', 'MAIS VISITAS', '🚶')}${podio('pasta', 'MAIS PASTAS', '📁')}${podio('proposta', 'MAIS PROPOSTAS', '📄')}${podio('venda', 'MAIS VENDAS', '💰')}
       </div>`)

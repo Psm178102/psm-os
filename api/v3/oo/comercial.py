@@ -184,9 +184,12 @@ class handler(BaseHTTPRequestHandler):
             since_d = date.fromisoformat(q["since"]) if q.get("since") else (until_d - timedelta(days=89))
         except Exception:
             return self._send(400, {"ok": False, "error": "since/until inválidos (YYYY-MM-DD)"})
+        # 🎚 período do SPEND por campanha — editável (pedido 15/ago)
+        SPEND_PRESETS = ("this_month", "last_7d", "last_14d", "last_30d", "last_month")
+        spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "last_30d"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc5_cache:{since_d}:{until_d}"   # v86.21: shape novo → chave nova
+        ck = f"gc5_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -197,7 +200,7 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 payload = None
         if payload is None:
-            payload = self._compute(sb, since_d, until_d, hoje)
+            payload = self._compute(sb, since_d, until_d, hoje, spend_preset)
             _kv_write(sb, ck, {"ts": datetime.now(timezone.utc).isoformat(), "data": payload})
 
         # 🔒 individual: lvl<10 vê só a própria equipe
@@ -214,7 +217,7 @@ class handler(BaseHTTPRequestHandler):
                                 "viewer_lvl": lvl})
 
     # ═══════════════ o cálculo pesado (1× por janela a cada 10min) ═══════════════
-    def _compute(self, sb, since_d, until_d, hoje):
+    def _compute(self, sb, since_d, until_d, hoje, spend_preset="last_30d"):
         avisos = []
         since_dt = datetime(since_d.year, since_d.month, since_d.day, tzinfo=timezone.utc)
         until_dt = datetime(until_d.year, until_d.month, until_d.day, 23, 59, 59, tzinfo=timezone.utc)
@@ -760,7 +763,7 @@ class handler(BaseHTTPRequestHandler):
         # pela VENDA, não pelo CPL — CPL barato sem venda não compensa; CPL acima
         # do previsto que VENDE pode compensar). Funil = safra da janela; spend =
         # cache de campanhas Meta (últimos ~30d, base de custo corrente — declarado).
-        _mc = read_meta_campaigns(sb)
+        _mc = read_meta_campaigns(sb, preset=spend_preset)
         camps = {}
         for e in na_janela:
             nome = (e.get("camp") or "").strip()
@@ -803,7 +806,9 @@ class handler(BaseHTTPRequestHandler):
         itens_camp.sort(key=lambda x: (-x["venda"], -x["pasta"], -x["proposta"], -x["visita"], -x["leads"]))
         campanhas = {"itens": itens_camp[:60],
                      "sem_campanha": sum(1 for e in na_janela if not (e.get("camp") or "").strip()),
-                     "nota": "funil = safra da janela (lead nascido nela, seguido até hoje) · spend/CPL = cache Meta ~30d (custo corrente) · receita ≈ 4% do VGV"}
+                     "spend_preset_pedido": spend_preset,
+                     "spend_preset_usado": _mc.get("preset_used"),
+                     "nota": f"funil = safra da janela (lead nascido nela, seguido até hoje) · spend/CPL da Meta no período '{_mc.get('preset_used') or spend_preset}' · receita ≈ 4% do VGV"}
 
         cobertura = round(sum(1 for e in na_janela if e["canal"] not in ("trafego_imob",)) / len(na_janela) * 100, 1) if na_janela else None
 
