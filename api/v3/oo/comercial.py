@@ -1,5 +1,5 @@
 """
-📊 GESTÃO COMERCIAL (v86.38) — o painel que responde as perguntas sem clareza:
+📊 GESTÃO COMERCIAL (v86.39) — o painel que responde as perguntas sem clareza:
 qual fonte converte mais visita/pasta/venda · custo por etapa do funil (R$/lead,
 R$/agendamento, R$/visita, R$/pasta, CAC mídia e CAC completo) · quantas
 pastas/visitas/atendimentos/leads pra 1 venda (equipe E corretor) · ticket por
@@ -49,6 +49,7 @@ MIN_VENDAS_RANK = 3
 CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
 CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
 CANAIS_PAGOS = ("trafego_imob", "google")   # v86.38: régua única de "venda de origem paga"
+CACHE_VER = "gc19"   # v86.39: bump aqui invalida página E cron juntos
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -110,6 +111,9 @@ def filtra_escopo(p, tk):
                         "intervalo_medio_dias": None, "dias_desde_ultima": None}
     al = p.get("alertas") or {}
     novo["alertas"] = {**al, "itens": [i for i in (al.get("itens") or []) if i.get("team") == tk]}
+    rv = p.get("ritmo_vendas") or {}
+    novo["ritmo_vendas"] = {**rv, "corretores": [c for c in (rv.get("corretores") or []) if c.get("team") == tk],
+                            "equipes": {k: v for k, v in (rv.get("equipes") or {}).items() if k == tk}}
     novo["hub_conquista"] = p.get("hub_conquista") if tk == "conquista" else None
     if (p.get("coorte_por_equipe") or {}).get(tk) is not None:
         novo["coorte_n"] = p["coorte_por_equipe"][tk]
@@ -251,7 +255,7 @@ class handler(BaseHTTPRequestHandler):
         spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "this_month"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc18_cache:{since_d}:{until_d}:{spend_preset}"   # v86.38: hist c/ spend por equipe → chave nova (mesma do cron horário)
+        ck = f"{CACHE_VER}_cache:{since_d}:{until_d}:{spend_preset}"
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -1038,7 +1042,81 @@ class handler(BaseHTTPRequestHandler):
                               "delta_vgv_pct": round((a["vgv"] - b_adj["vgv"]) / b_adj["vgv"] * 100, 1) if b_adj["vgv"] else None})
         perf_corr.sort(key=lambda x: (-x["atual"]["vendas"], -x["atual"]["vgv"]))
 
-        # ── N) 🚪 TURNOVER — regra da casa: ciclo de ~90 dias por saída ──
+        # ── P) ⏱ RITMO DE VENDA — 1ª venda e cadência (v86.39, pedido 17/ago):
+        # HISTÓRICO COMPLETO da base (não só o ano) por corretor: quanto tempo até
+        # a PRIMEIRA venda, intervalo médio entre vendas, dias/venda e a seca
+        # atual — individual E por equipe. "Entrada na casa" = 1º lead no CRM
+        # (proxy declarado; não há data de admissão estruturada).
+        hist_all, pg = [], 0
+        while True:
+            chh = (sb.table("deals").select("user_id,user_email,win,closed_at,created_at_rd")
+                   .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
+            hist_all.extend(chh)
+            if len(chh) < 1000 or pg >= 60:
+                break
+            pg += 1
+        por_uid_hist = {}
+        for d in hist_all:
+            du = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
+            if not du:
+                continue
+            r_ = por_uid_hist.setdefault(du, {"first_act": None, "last_act": None, "wins": []})
+            cr_, cl_ = parse_dt(d.get("created_at_rd")), parse_dt(d.get("closed_at"))
+            for t_ in (cr_, cl_):
+                if t_:
+                    if r_["first_act"] is None or t_ < r_["first_act"]:
+                        r_["first_act"] = t_
+                    if r_["last_act"] is None or t_ > r_["last_act"]:
+                        r_["last_act"] = t_
+            if d.get("win") is True and cl_:
+                r_["wins"].append(cl_)
+        ritmo_corr = []
+        for uid, r_ in por_uid_hist.items():
+            u = users.get(uid) or {}
+            role_ = (u.get("role") or "").lower()
+            if not (role_.startswith("corretor") or uid in MAP_LOGINS):
+                continue
+            if (u.get("status") or "ativo") != "ativo":
+                continue          # desligado vive no turnover, não aqui
+            tku = team_de(uid, u.get("team"))
+            if tku == "outros":
+                continue
+            wins = sorted(r_["wins"])
+            fa = r_["first_act"]
+            tempo_casa = (hoje - fa.date()).days if fa else None
+            d1 = (wins[0] - fa).days if wins and fa else None
+            intervalo = round((wins[-1] - wins[0]).days / (len(wins) - 1), 1) if len(wins) >= 2 else None
+            ritmo_corr.append({"uid": uid, "nome": u.get("name") or uid, "team": tku,
+                               "tempo_casa_d": tempo_casa,
+                               "dias_ate_1a_venda": d1,
+                               "vendas_total": len(wins),
+                               "intervalo_medio_d": intervalo,
+                               "dias_por_venda": round(tempo_casa / len(wins), 1) if wins and tempo_casa else None,
+                               "dias_desde_ultima_venda": (hoje - wins[-1].date()).days if wins else None})
+        ritmo_corr.sort(key=lambda x: (x["team"], x["dias_ate_1a_venda"] if x["dias_ate_1a_venda"] is not None else 10 ** 6))
+        ritmo_eq = {}
+        for tk, _l in TEAMS:
+            rows_t = [c for c in ritmo_corr if c["team"] == tk]
+            if not rows_t:
+                continue
+            d1s = sorted(c["dias_ate_1a_venda"] for c in rows_t if c["dias_ate_1a_venda"] is not None)
+            ivs = [c["intervalo_medio_d"] for c in rows_t if c["intervalo_medio_d"] is not None]
+            dpv = [c["dias_por_venda"] for c in rows_t if c["dias_por_venda"] is not None]
+            ritmo_eq[tk] = {"n": len(rows_t),
+                            "media_dias_1a_venda": round(sum(d1s) / len(d1s), 1) if d1s else None,
+                            "mediana_dias_1a_venda": d1s[len(d1s) // 2] if d1s else None,
+                            "intervalo_medio_d": round(sum(ivs) / len(ivs), 1) if ivs else None,
+                            "dias_por_venda_medio": round(sum(dpv) / len(dpv), 1) if dpv else None,
+                            "sem_venda": [{"nome": c["nome"], "dias": c["tempo_casa_d"]}
+                                          for c in rows_t if not c["vendas_total"]]}
+        ritmo_vendas = {"corretores": ritmo_corr, "equipes": ritmo_eq,
+                        "nota": ("histórico COMPLETO da base (todas as safras). Entrada na casa = 1º lead atribuído no CRM "
+                                 "(proxy — não há data de admissão estruturada). Intervalo médio = (última−primeira venda) ÷ (vendas−1).")}
+
+        # ── N) 🚪 TURNOVER — regra da casa: ciclo de ~90 dias por saída.
+        # v86.39: usa o MESMO histórico completo (antes só olhava o ano corrente —
+        # saída antiga sumia e o ciclo ficava otimista); saída ganha tempo de casa,
+        # vendas na passagem e dias até a 1ª venda.
         saidas = []
         for uid, u in users.items():
             if (u.get("status") or "ativo") == "ativo":
@@ -1046,17 +1124,16 @@ class handler(BaseHTTPRequestHandler):
             r_ = (u.get("role") or "").lower()
             if not r_.startswith("corretor"):
                 continue
-            ult = None
-            for d in hist_deals:
-                du = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
-                if du != uid:
-                    continue
-                for t_ in (parse_dt(d.get("closed_at")), parse_dt(d.get("created_at_rd"))):
-                    if t_ and (ult is None or t_ > ult):
-                        ult = t_
-            if ult:
-                saidas.append({"nome": u.get("name") or uid, "team": team_key(u.get("team")),
-                               "ultima_atividade": ult.date().isoformat()})
+            reg = por_uid_hist.get(uid) or {}
+            ult, fa = reg.get("last_act"), reg.get("first_act")
+            if not ult:
+                continue
+            wins = sorted(reg.get("wins") or [])
+            saidas.append({"nome": u.get("name") or uid, "team": team_key(u.get("team")),
+                           "ultima_atividade": ult.date().isoformat(),
+                           "tempo_casa_d": (ult.date() - fa.date()).days if fa else None,
+                           "vendas_na_passagem": len(wins),
+                           "dias_ate_1a_venda": (wins[0] - fa).days if wins and fa else None})
         saidas.sort(key=lambda x: x["ultima_atividade"])
         intervalos = []
         for i in range(1, len(saidas)):
@@ -1076,10 +1153,11 @@ class handler(BaseHTTPRequestHandler):
             if vendas_90 == 0 and leads_j >= 20:
                 risco.append({"nome": u.get("name") or uid, "team": team_de(uid, u.get("team")),
                               "leads_janela": leads_j, "vendas_90d": 0})
-        turnover = {"regra_dias": 90, "saidas": saidas[-12:],
+        turnover = {"regra_dias": 90, "saidas": saidas[-15:],
                     "intervalo_medio_dias": round(sum(intervalos) / len(intervalos)) if intervalos else None,
                     "dias_desde_ultima": dias_ultima,
-                    "nota": "saída aproximada pela ÚLTIMA atividade no CRM do corretor inativo (não há data de desligamento estruturada)",
+                    "tempo_casa_medio_d": (lambda ts: round(sum(ts) / len(ts)) if ts else None)([s["tempo_casa_d"] for s in saidas if s.get("tempo_casa_d") is not None]),
+                    "nota": "saída aproximada pela ÚLTIMA atividade no CRM do corretor inativo (não há data de desligamento estruturada) — v86.39: histórico COMPLETO, sem limite do ano corrente",
                     "ativos_risco": sorted(risco, key=lambda x: -x["leads_janela"])[:10]}
 
         # ── O) 🚨 ALERTAS DE MÉTRICAS-CHAVE (v86.33, pedido 17/ago): régua por
@@ -1201,6 +1279,7 @@ class handler(BaseHTTPRequestHandler):
                 "produtividade": {"corretores": corretores, "equipes": equipes_prod},
                 "safras": safras_out, "safras_por_equipe": safras_por_equipe, "tempos": tempos,
                 "performance_corretores": perf_corr, "turnover": turnover, "alertas": alertas,
+                "ritmo_vendas": ritmo_vendas,
                 "coorte_por_equipe": {tk: sum(1 for e in na_janela if e["team"] == tk) for tk, _l in TEAMS},
                 "cobertura_origem_pct": cobertura, "avisos": avisos,
                 "coorte_n": len(na_janela),

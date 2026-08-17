@@ -22,7 +22,7 @@ from datetime import datetime, timezone, timedelta, date
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from simulador import _kv_read, _kv_write  # type: ignore
-from comercial import handler as gc, _hoje  # type: ignore
+from comercial import handler as gc, _hoje, CACHE_VER  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -50,8 +50,8 @@ class handler(BaseHTTPRequestHandler):
         since_d = hoje - timedelta(days=89)
         spend_preset = "this_month"
 
-        # mesmo cache da página (gc17+): se alguém abriu o painel há pouco, reusa
-        ck = f"gc18_cache:{since_d}:{until_d}:{spend_preset}"
+        # mesmo cache da página (CACHE_VER importado — bump lá invalida aqui junto)
+        ck = f"{CACHE_VER}_cache:{since_d}:{until_d}:{spend_preset}"
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):

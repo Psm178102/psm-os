@@ -1,4 +1,4 @@
-/* PSM-OS v2 — 📊 GESTÃO COMERCIAL (v86.38)
+/* PSM-OS v2 — 📊 GESTÃO COMERCIAL (v86.39)
    Painel comercial por equipe/linha: Visão Geral (real × projetado × meta +
    métricas-chave com RÉGUA DE ALERTA) · Gráficos (tudo visual) · Fontes &
    Funil · Custo do Funil (R$/etapa + CAC) · Produtividade · Safras & Tempos
@@ -201,6 +201,11 @@ function resumoTab() {
     ['conquista', 'map', 'terceiros', 'locacao'].forEach(t => {
       const ps = perf.filter(c => c.team === t);
       if (ps.length) r['perf_' + t] = ps.map(c => ({ corretor: c.nome, atual: c.atual, base_ajustada_ao_periodo: c.base_ajustada || c.base, delta_vendas_pct: c.delta_vendas_pct, delta_vgv_pct: c.delta_vgv_pct }));
+    });
+    const rvv = d.ritmo_vendas || {};
+    ['conquista', 'map', 'terceiros', 'locacao'].forEach(t => {
+      const cs = (rvv.corretores || []).filter(c => c.team === t);
+      if (cs.length) r['ritmo_' + t] = { equipe: (rvv.equipes || {})[t], corretores: cs };
     });
     r.turnover = d.turnover || {};
     r.velocidade_contato = d.resposta || {};
@@ -760,6 +765,37 @@ function tabSafras() {
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">${perfCab}
         <tbody>${perf.filter(c => c.team === t).map(perfRow).join('')}</tbody></table></div>
       <div class="tiny muted" style="margin-top:6px">A base é a média móvel dos 90 dias anteriores do PRÓPRIO corretor, <b>proporcionalizada ao tamanho da janela${perfDias ? ` (${fN(perfDias)}d → base × ${fN(Math.round(perfDias / 90 * 100))}%)` : ''}</b> — sem isso, janela curta contra base de 90d dava queda falsa pra todo mundo. Cada equipe é um nicho: não compare entre quadros. Só corretores ATIVOS — quem saiu aparece no 🚪 Turnover.</div>`, 'perf_' + t)).join('');
+  // ⏱ ritmo de venda: 1ª venda e cadência — individual × equipe (v86.39)
+  const rv = _d.ritmo_vendas || {};
+  const dM = d => d == null ? '—' : `${fN(d)}d <span class="tiny muted">(~${(d / 30.44).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} m)</span>`;
+  const rvRows = t => {
+    const eq = (rv.equipes || {})[t] || {};
+    const linhaEq = `<tr style="font-weight:700;background:var(--bg-3)">
+      <td style="font-size:12.5px;padding:5px 8px 5px 0">${TEAM_LBL[t] || t} <span class="tiny muted" style="font-weight:400">(${fN(eq.n || 0)} corretores — média da equipe)</span></td>
+      <td style="text-align:right">—</td>
+      <td style="text-align:right">${dM(eq.media_dias_1a_venda)}<div class="tiny muted" style="font-weight:400">mediana ${dM(eq.mediana_dias_1a_venda)}</div></td>
+      <td style="text-align:right">—</td>
+      <td style="text-align:right">${dM(eq.intervalo_medio_d)}</td>
+      <td style="text-align:right">${dM(eq.dias_por_venda_medio)}</td>
+      <td style="text-align:right">—</td>
+    </tr>`;
+    const linhas = (rv.corretores || []).filter(c => c.team === t).map(c => `<tr>
+      <td style="font-size:12px;font-weight:600;padding:4px 8px 4px 0;white-space:nowrap">${esc(c.nome)}</td>
+      <td style="text-align:right;font-size:12px">${dM(c.tempo_casa_d)}</td>
+      <td style="text-align:right;font-size:12px;font-weight:800">${dM(c.dias_ate_1a_venda)}</td>
+      <td style="text-align:right;font-size:12px">${fN(c.vendas_total)}</td>
+      <td style="text-align:right;font-size:12px">${dM(c.intervalo_medio_d)}</td>
+      <td style="text-align:right;font-size:12px">${dM(c.dias_por_venda)}</td>
+      <td style="text-align:right;font-size:12px;color:${c.dias_desde_ultima_venda == null ? 'var(--ink-muted)' : c.dias_desde_ultima_venda > 90 ? '#dc2626' : c.dias_desde_ultima_venda > 45 ? '#d97706' : '#16a34a'};font-weight:700">${c.dias_desde_ultima_venda != null ? fN(c.dias_desde_ultima_venda) + 'd' : 'nunca vendeu'}</td>
+    </tr>`).join('');
+    const semVenda = (eq.sem_venda || []).length ? `<div class="tiny" style="margin-top:6px;color:#d97706;font-weight:700">⏳ Ainda sem 1ª venda: ${eq.sem_venda.map(x => `${esc(x.nome)} (${fN(x.dias)}d de casa)`).join(' · ')}</div>` : '';
+    return `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Corretor / Equipe</th><th>Tempo de casa</th><th>1ª venda em</th><th>Vendas</th><th>Entre vendas (média)</th><th>Dias p/ venda</th><th>Desde a última</th></tr></thead>
+      <tbody>${linhaEq}${linhas}</tbody></table></div>${semVenda}`;
+  };
+  const rvBlocos = ['conquista', 'map', 'terceiros', 'locacao'].filter(t => (rv.corretores || []).some(c => c.team === t)).map(t =>
+    pan(`⏱ Ritmo de venda — ${TEAM_LBL[t]} (1ª venda e cadência · histórico completo da base)`, rvRows(t) + `
+      <div class="tiny muted" style="margin-top:6px">${esc(rv.nota || '')}</div>`, 'ritmo_' + t)).join('');
   // 🚪 turnover ciclo 90d
   const to = _d.turnover || {};
   const toCor = to.dias_desde_ultima == null ? 'var(--ink-muted)' : to.dias_desde_ultima >= (to.regra_dias || 90) ? '#dc2626' : to.dias_desde_ultima >= 60 ? '#d97706' : '#16a34a';
@@ -769,13 +805,15 @@ function tabSafras() {
       <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:19px;font-weight:900;color:${toCor}">${to.dias_desde_ultima != null ? fN(to.dias_desde_ultima) + 'd' : '—'}</div><div class="tiny muted">desde a última saída (régua: ${to.regra_dias || 90}d)</div></div>
       <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:19px;font-weight:900">${fN((to.saidas || []).length)}</div><div class="tiny muted">saídas identificadas</div></div>
     </div>
-    ${(to.saidas || []).length ? `<div class="tiny" style="font-weight:800;margin-bottom:4px">Saídas (última atividade no CRM):</div>
-      <div>${to.saidas.map(x => `<span style="display:inline-block;background:var(--bg-3);border-radius:999px;padding:2px 10px;font-size:11.5px;margin:2px">${esc(x.nome)} · ${(TEAM_LBL[x.team] || x.team || '').replace(/^..\s/, '')} · ${x.ultima_atividade}</span>`).join('')}</div>` : ''}
+    ${to.tempo_casa_medio_d != null ? `<div class="tiny" style="margin-bottom:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">🏠 <b>Tempo de casa médio de quem saiu:</b> ${fN(to.tempo_casa_medio_d)}d (~${(to.tempo_casa_medio_d / 30.44).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} meses)</div>` : ''}
+    ${(to.saidas || []).length ? `<div class="tiny" style="font-weight:800;margin-bottom:4px">Saídas (última atividade no CRM · histórico completo):</div>
+      <div>${to.saidas.map(x => `<span style="display:inline-block;background:var(--bg-3);border-radius:999px;padding:2px 10px;font-size:11.5px;margin:2px">${esc(x.nome)} · ${(TEAM_LBL[x.team] || x.team || '').replace(/^..\s/, '')} · saiu ${x.ultima_atividade}${x.tempo_casa_d != null ? ` · ${fN(x.tempo_casa_d)}d de casa` : ''} · ${fN(x.vendas_na_passagem || 0)} venda(s)${x.dias_ate_1a_venda != null ? ` · 1ª em ${fN(x.dias_ate_1a_venda)}d` : ''}</span>`).join('')}</div>` : ''}
     ${(to.ativos_risco || []).length ? `<div class="tiny" style="font-weight:800;margin:8px 0 4px;color:#d97706">⚠ Ativos em zona de atenção (90d+ sem venda com volume de lead):</div>
       <div>${to.ativos_risco.map(x => `<span style="display:inline-block;background:color-mix(in srgb, #d97706 12%, transparent);border:1px solid #d97706;border-radius:999px;padding:2px 10px;font-size:11.5px;margin:2px;font-weight:700">${esc(x.nome)} · ${fN(x.leads_janela)} leads · 0 vendas/90d</span>`).join('')}</div>` : ''}
     <div class="tiny muted" style="margin-top:6px">${esc(to.nota || '')} Tempo de casa/média entre saídas e desligados vivem AQUI — performance individual acima é só de ativos.</div>`, 'turnover');
   return `
     ${perfBlocos}
+    ${rvBlocos}
     ${toBloco}
     ${respBlocos ? pan('⚡ Velocidade do 1º contato × conversão (a prova de quanto custa demorar)', `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">${respBlocos}</div><div class="tiny muted" style="margin-top:6px">1º contato = primeira chegada ao marco de contato/agendamento (eventos reais do RD, safra da janela).</div>`, 'velocidade_contato') : ''}
     ${pan('📈 Safras — cada mês de lead, o que virou até hoje', `
