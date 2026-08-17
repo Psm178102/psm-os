@@ -265,51 +265,101 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
    backend (gp/rh_processos, shared_kv) só guarda nome/dados + quais itens
    estão marcados. Progresso = itens marcados / total do template. v81.44
 ═══════════════════════════════════════════════════════════════════════════ */
+/* v86.50 — trilha evoluída a partir do PSM_ONBOARDING v4.0 (abr/26, normativo) +
+   Onboarding 3.10 (mar/26, operacional), corrigida pro estado ATUAL da casa
+   (House PSM como sistema oficial; papéis por FUNÇÃO, não por nome — pessoas mudam). */
 const RH_TPL = {
   onboarding: {
     titulo: '🚀 Onboarding — admissão', cor: '#16a34a', dataLbl: 'Data de início',
-    sub: 'Trilha de entrada do novo colaborador — da papelada à rampa de produção.',
+    sub: 'Jornada 0→90 dias: da papelada à primeira avaliação formal. Base: Onboarding PSM v4.0 + 3.10, evoluído.',
     campos: ['cargo', 'equipe', 'data', 'responsavel'],
     etapas: [
-      { id: 'pre', lbl: '📄 Pré-início (documentação)', itens: [
-        ['contrato', 'Contrato assinado'], ['docs', 'Documentos (RG, CPF, comprovante)'],
-        ['creci', 'CRECI ativo / em transferência'], ['banco', 'Dados bancários p/ comissão'],
-        ['lgpd', 'Termo LGPD + confidencialidade'] ] },
-      { id: 'dia1', lbl: '🔑 Dia 1 (acessos)', itens: [
-        ['login', 'Login House PSM criado'], ['rd', 'Acesso ao RD CRM'],
-        ['wpp', 'WhatsApp corporativo'], ['email', 'E-mail / grupos'],
-        ['time', 'Apresentação ao time'] ] },
-      { id: 'sem1', lbl: '🎓 Semana 1 (formação)', itens: [
-        ['academy', 'Trilha de boas-vindas (PSM Academy)'], ['cultura', 'Manual de Cultura + Código de Ética'],
-        ['tabelas', 'Conhecer tabelas (Conquista/MAP) e lançamentos'], ['scripts', 'Scripts e cadências de atendimento'],
-        ['shadow', 'Acompanhar 1 plantão (shadowing)'] ] },
-      { id: 'mes1', lbl: '🚀 Mês 1 (rampa)', itens: [
-        ['captacao', 'Primeira captação registrada'], ['visita', 'Primeiro atendimento / visita'],
-        ['padrinho', 'Padrinho/líder de acompanhamento definido'], ['meta', 'Meta de rampa 30/60/90 definida'],
-        ['oo', 'Primeira reunião 1:1 realizada'] ] },
+      { id: 'fase0', lbl: '📄 Fase 0 — antes do dia 1 (bloqueante)', itens: [
+        ['creci', 'CRECI/SP ativo — sem CRECI, sem operação'],
+        ['pj', 'PJ regular: CNPJ ativo, contador, NF emissível'],
+        ['contrato', 'Contrato de Associação assinado'],
+        ['termos', 'Termos de aceite: Manual de Cultura + Código de Ética'],
+        ['leituras', 'Leituras obrigatórias: Manual, Código de Ética e Dress Code (Cap. 4)'],
+        ['banco', 'Dados bancários/PJ p/ comissão (pagamentos dias 5 e 20)'],
+        ['marca', 'Marca foco definida com a liderança (Imóveis / Conquista / Locações)'] ] },
+      { id: 'dia1', lbl: '🔑 Dia 1 — chegada e acessos', itens: [
+        ['tour', 'Tour pela sede + apresentação ao time + primeira matinal'],
+        ['facial', 'Acesso facial + senha da fechadura digital'],
+        ['house', 'Login House PSM criado (papel e equipe corretos)'],
+        ['rd', 'Acesso ao CRM (RD) com funil da equipe'],
+        ['kenlo', 'Acesso ao Kenlo (estoque, autorização de visita)'],
+        ['drive', 'Acesso ao Drive PSM (tabelas, fichas, propostas)'],
+        ['wpp', 'WhatsApp corporativo + entrada nos grupos oficiais'],
+        ['mentor', 'Mentor designado + contato trocado'],
+        ['foto', 'Foto profissional p/ site e organograma agendada'] ] },
+      { id: 'sem1', lbl: '🎓 Semana 1 — imersão', itens: [
+        ['sistemas', 'Tour guiado dos sistemas (House, CRM, Kenlo, Drive)'],
+        ['cultura', 'Sessão de cultura: valores, anti-padrões e rituais'],
+        ['marca_det', 'Imersão na marca foco: produto, ticket, ciclo, scripts, tabelas'],
+        ['shadow', 'Shadowing: acompanhar mentor em visita/plantão/atendimento real'],
+        ['leitura', 'Leitura crítica (Manual + Código + Contrato) com dúvidas anotadas'],
+        ['oo1', 'Primeira 1:1 com o mentor realizada'] ] },
+      { id: 'd30', lbl: '🚀 Dias 8–30 — rotina ativa', itens: [
+        ['rituais', 'Nos rituais: matinal diária + play + roleta (opt-in 09h)'],
+        ['crm', 'CRM impecável: registro em ≤24h, próximo passo com dia e hora'],
+        ['lead1', 'Primeiro lead atendido'],
+        ['plantao', 'Primeiro plantão realizado'],
+        ['academy', 'Trilha obrigatória de formação concluída (Comunidade PSM)'],
+        ['meta', 'Meta de rampa 30/60/90 definida e registrada (Norte do Mês)'] ] },
+      { id: 'd60', lbl: '📈 Dias 31–60 — funil vivo', itens: [
+        ['funil', 'Funil ativo com KPIs acompanhados na Gestão Comercial'],
+        ['venda_and', 'Primeira venda em andamento (proposta/pasta na esteira)'],
+        ['captacao', 'Primeira captação registrada (autorização documentada)'],
+        ['carteira', 'Início de carteira própria'] ] },
+      { id: 'd90', lbl: '🏁 Dias 61–90 — consolidação', itens: [
+        ['performance', 'Performance consolidada vs meta de rampa'],
+        ['avaliacao', 'Avaliação formal com mentor e sócio realizada'],
+        ['trilha', 'Trilha de carreira definida (Estágio → Corretor PJ → Sênior → Head → Sócio)'],
+        ['plano6m', 'Plano dos próximos 6 meses registrado'],
+        ['nps_onb', 'Feedback do novato sobre o onboarding colhido'] ] },
     ],
   },
   offboarding: {
     titulo: '👋 Offboarding — desligamento', cor: '#ef4444', dataLbl: 'Data de saída',
-    sub: 'Saída organizada: sem perder cliente, sem acesso solto, sem pendência financeira.',
+    sub: '"Quando alguém sai, sai inteiro": aviso 30d · bloqueio de acessos em 48h · devolução em 5 dias úteis · carteira sem perder cliente.',
     campos: ['cargo', 'equipe', 'motivo', 'data', 'responsavel', 'carteira_destino'],
     etapas: [
-      { id: 'com', lbl: '📢 Comunicação', itens: [
-        ['motivo', 'Motivo registrado (pediu/desligado)'], ['data', 'Data de saída definida'],
-        ['lider', 'Líder e time comunicados'], ['aviso', 'Aviso prévio / acordo'] ] },
-      { id: 'acessos', lbl: '🔒 Acessos (revogar)', itens: [
-        ['login', 'Desativar login House PSM'], ['rd', 'Remover do RD CRM'],
-        ['wpp', 'Sair dos grupos de WhatsApp'], ['email', 'Encerrar e-mail corporativo'],
-        ['equip', 'Devolver equipamentos / materiais'] ] },
+      { id: 'com', lbl: '📢 Comunicação (dia 0)', itens: [
+        ['motivo', 'Motivo registrado (pediu / desligado / fim de contrato)'],
+        ['data', 'Data de saída definida'],
+        ['aviso', 'Aviso prévio de 30 dias formalizado por escrito (execução plena no período)'],
+        ['lider', 'Líder e time comunicados'],
+        ['transicao', 'Plano de transição do período de aviso definido'] ] },
+      { id: 'acessos', lbl: '🔒 Acessos — bloqueio em até 48h', itens: [
+        ['house', 'Status no House: ⏸ pausado (licença) ou 🔒 inativo (saída)'],
+        ['rd', 'Remover do CRM (RD)'], ['kenlo', 'Remover do Kenlo'],
+        ['wpp', 'Sair dos grupos de WhatsApp oficiais'],
+        ['email', 'Encerrar e-mail corporativo'],
+        ['facial', 'Revogar acesso facial + senha da fechadura'],
+        ['site', 'Remover do site e do organograma'] ] },
+      { id: 'devolucao', lbl: '📦 Devolução — até 5 dias úteis', itens: [
+        ['materiais', 'Materiais, equipamentos e cartões devolvidos'],
+        ['docs', 'Fichas e documentos de clientes restituídos'],
+        ['mailing', 'Mailings/bases destruídos ou restituídos (LGPD — multa contratual)'] ] },
       { id: 'fin', lbl: '💰 Financeiro', itens: [
-        ['comissoes', 'Acerto de comissões pendentes'], ['repasses', 'Repasses em aberto liquidados'],
-        ['rescisao', 'Rescisão / quitação'] ] },
-      { id: 'carteira', lbl: '🤝 Carteira (crítico — não perder cliente)', itens: [
-        ['leads', 'Reatribuir leads/clientes ativos'], ['captacoes', 'Transferir captações em andamento'],
-        ['herdeiro', 'Quem herda a carteira definido'] ] },
-      { id: 'conhecimento', lbl: '🧠 Conhecimento', itens: [
-        ['entrevista', 'Entrevista de saída'], ['doc', 'Documentar aprendizados / feedback'],
-        ['confid', 'Termo de confidencialidade reforçado (LGPD)'] ] },
+        ['comissoes', 'Acerto de comissões pendentes + pipeline em andamento (quem recebe o quê)'],
+        ['repasses', 'Repasses em aberto liquidados'],
+        ['rescisao', 'Rescisão / quitação + notas fiscais finais'] ] },
+      { id: 'carteira', lbl: '🤝 Carteira e negócios (crítico — não perder cliente)', itens: [
+        ['leads', 'Leads/clientes ativos reatribuídos no CRM'],
+        ['negocios', 'Negócios em andamento repassados à PSM ou corretor indicado'],
+        ['captacoes', 'Captações em andamento transferidas'],
+        ['herdeiro', 'Herdeiro da carteira definido'],
+        ['clientes', 'Clientes da carteira comunicados pelo canal oficial'] ] },
+      { id: 'marca', lbl: '📱 Marca e redes', itens: [
+        ['redes', 'Referências à PSM removidas das redes em 48h'],
+        ['perfis', 'Perfis institucionais transferidos via termo'],
+        ['criativos', 'Criativos e materiais com a marca recolhidos'] ] },
+      { id: 'pos', lbl: '🧠 Conhecimento e pós-saída', itens: [
+        ['exit', 'Entrevista de saída realizada'],
+        ['doc', 'Aprendizados e feedback documentados'],
+        ['confid', 'Confidencialidade/LGPD reforçadas por escrito'],
+        ['naoconc', 'Não-concorrência (6m) e não-aliciamento (12m) comunicados formalmente'] ] },
     ],
   },
 };
