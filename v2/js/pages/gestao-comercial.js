@@ -145,7 +145,9 @@ function srPerformance() {
   api.request('/api/v3/oo/comercial_analise', { method: 'POST', body: { tab: _tab, janela: _d.janela, resumo } })
     .then(r => { _srCache[key] = r.analises || {}; fill(_srCache[key]); })
     .catch(e => scope().querySelectorAll('.gc-sr-txt').forEach(t => {
-      t.textContent = 'análise indisponível agora (' + (e.message || 'erro') + ').';
+      const m = e.message || 'erro';
+      if (/cota/i.test(m)) { t.textContent = '⚠️ ' + m + '.'; t.style.color = '#d97706'; t.style.opacity = '1'; }
+      else t.textContent = 'análise indisponível agora (' + m + ').';
     }));
 }
 

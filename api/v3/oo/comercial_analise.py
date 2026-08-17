@@ -151,8 +151,11 @@ class handler(BaseHTTPRequestHandler):
         txt, prov, erros = _ia(prompt)
         if not txt:
             print(f"[sr-performance] todos os provedores falharam: {erros}")
-            return self._send(502, {"ok": False, "error": "nenhum provedor de IA respondeu",
-                                    "detalhe": erros})
+            # v86.41: honestidade no rodapé — 429/quota vira mensagem clara de cota
+            quota = any(("429" in str(v)) or ("quota" in str(v).lower()) for v in erros.values())
+            msg = ("cota de IA esgotada — reative o billing do Gemini (aistudio.google.com) e a análise volta"
+                   if quota else "nenhum provedor de IA respondeu")
+            return self._send(502, {"ok": False, "error": msg, "detalhe": erros})
         m = re.search(r"\{.*\}", txt, re.DOTALL)
         try:
             analises = json.loads(m.group(0) if m else txt)
