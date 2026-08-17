@@ -1,5 +1,5 @@
 """
-📊 GESTÃO COMERCIAL (v86.36) — o painel que responde as perguntas sem clareza:
+📊 GESTÃO COMERCIAL (v86.37) — o painel que responde as perguntas sem clareza:
 qual fonte converte mais visita/pasta/venda · custo por etapa do funil (R$/lead,
 R$/agendamento, R$/visita, R$/pasta, CAC mídia e CAC completo) · quantas
 pastas/visitas/atendimentos/leads pra 1 venda (equipe E corretor) · ticket por
@@ -246,10 +246,11 @@ class handler(BaseHTTPRequestHandler):
             return self._send(400, {"ok": False, "error": "since/until inválidos (YYYY-MM-DD)"})
         # 🎚 período do SPEND por campanha — editável (pedido 15/ago)
         SPEND_PRESETS = ("this_month", "last_7d", "last_14d", "last_30d", "last_month")
-        spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "last_30d"
+        # v86.37 (pedido do Paulo): padrão = MÊS ATUAL, não "últimos 30 dias"
+        spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "this_month"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc16_cache:{since_d}:{until_d}:{spend_preset}"   # v86.36: CAC marketing c/ premiação de indicação → chave nova
+        ck = f"gc17_cache:{since_d}:{until_d}:{spend_preset}"   # v86.37: mês atual sempre (fim do fallback 30d) → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -538,10 +539,9 @@ class handler(BaseHTTPRequestHandler):
             equipes_prod[tk] = {**agg, **razoes(agg),
                                 "contato_h_mediana": _mediana([_h_contato(e) for e in pool])}
 
-        # ── C) CUSTO DO FUNIL (mês corrente: spend ÷ atividade DO MÊS) ──
+        # ── C) CUSTO DO FUNIL (mês corrente: spend ÷ atividade DO MÊS — decisão
+        # 17/ago: SEMPRE o mês atual, sem fallback de "últimos 30 dias") ──
         _ma = read_meta_accounts(sb, preset="this_month") or read_meta_accounts(sb)
-        _ma30 = read_meta_accounts(sb, preset="last_30d") or _ma
-        d30 = hoje - timedelta(days=29)
         _ovr = read_team_account_override(sb)
         orcado = _kv_read(sb, "viab_custos_orcado")[0] or {}
         itens_orc = (orcado.get(str(hoje.year)) or {}).get("itens") or []
@@ -592,21 +592,11 @@ class handler(BaseHTTPRequestHandler):
                 pm = it.get("por_mes") or {}
                 v = pm.get(str(hoje.month), pm.get(hoje.month))
                 fixo += _num(v) if v not in (None, "") else _num(it.get("valor"))
-            div = lambda a, b: round(a / b, 2) if b else None
-            # base 30d: quando o MÊS zera o denominador (ex.: agosto sem venda),
-            # o custo cai pra janela de 30 dias em vez de sumir num "—"
-            acc30 = match_team_account((_ma30 or {}).get("accounts") or [], tk, _ovr) if _ma30 else None
-            spend30 = _num(acc30.get("spend")) if acc30 else spend
-            l30 = sum(1 for e in eds if e["team"] == tk and e["created"] and e["created"].date() >= d30)
-            a30 = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(2) and e["t_marco"][2].date() >= d30)
-            v30 = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(3) and e["t_marco"][3].date() >= d30)
-            p30 = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(5) and e["t_marco"][5].date() >= d30)
-            wins30 = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and e["closed"].date() >= d30]
-            vd30 = len(wins30)
-            vd30_pagas = sum(1 for e in wins30 if e["canal"] in PAGO)
+            # v86.37: numerador ZERO = "—" (None), nunca "R$ 0" — equipe sem conta
+            # Meta não tem "custo zero", tem custo de mídia inexistente
+            div = lambda a, b: round(a / b, 2) if (b and a > 0) else None
             ind_mes = [e for e in wins_tk if e["canal"] == "indicacao"]
             premiacao = sum(premio_indicacao(e["vgv"]) for e in ind_mes)
-            premiacao30 = sum(premio_indicacao(e["vgv"]) for e in wins30 if e["canal"] == "indicacao")
             custos.append({"team": tk, "label": lbl, "spend": round(spend, 2), "fixo_mes": round(fixo, 2),
                            "conta": acc.get("label") if acc else None,
                            "leads": leads, "agend": agend, "visita": visita, "pasta": pasta, "vendas": vendas,
@@ -617,12 +607,6 @@ class handler(BaseHTTPRequestHandler):
                            "cac_midia": div(spend, vendas_pagas),
                            "cac_marketing": div(spend + premiacao, vendas),
                            "cac_completo": div(spend + premiacao + fixo, vendas),
-                           "custo_lead_30d": div(spend30, l30), "custo_agend_30d": div(spend30, a30),
-                           "custo_visita_30d": div(spend30, v30), "custo_pasta_30d": div(spend30, p30),
-                           "cac_midia_30d": div(spend30, vd30_pagas),
-                           "cac_marketing_30d": div(spend30 + premiacao30, vd30),
-                           "cac_completo_30d": div(spend30 + premiacao30 + fixo, vd30),
-                           "vendas_30d": vd30, "vendas_pagas_30d": vd30_pagas,
                            "roas": div(vgv_pago * 0.04, spend) if spend else None})
 
         # ── deals ABERTOS agora (leve, sem rd_raw): pipeline de HOJE + funil RD ──
@@ -1032,10 +1016,17 @@ class handler(BaseHTTPRequestHandler):
             a, b = _blk(atu), _blk(ant)
             if not a["leads"] and not b["leads"]:
                 continue
+            # v86.37 (achado da auditoria): a base de 90d é AJUSTADA ao tamanho da
+            # janela antes do Δ% — janela de 17d contra base de 90d dava ▼100% falso
+            # pra todo mundo. base_ajustada = base × (dias da janela ÷ 90).
+            fator = janela_dias / 90.0
+            b_adj = {"leads": round(b["leads"] * fator, 1), "vendas": round(b["vendas"] * fator, 1),
+                     "vgv": round(b["vgv"] * fator, 2), "conv_pct": b["conv_pct"]}
             perf_corr.append({"uid": uid, "nome": u.get("name") or "?", "team": tku,
-                              "atual": a, "base": b,
-                              "delta_vendas_pct": round((a["vendas"] - b["vendas"]) / b["vendas"] * 100, 1) if b["vendas"] else None,
-                              "delta_vgv_pct": round((a["vgv"] - b["vgv"]) / b["vgv"] * 100, 1) if b["vgv"] else None})
+                              "atual": a, "base": b, "base_ajustada": b_adj,
+                              "janela_dias": janela_dias,
+                              "delta_vendas_pct": round((a["vendas"] - b_adj["vendas"]) / b_adj["vendas"] * 100, 1) if b_adj["vendas"] else None,
+                              "delta_vgv_pct": round((a["vgv"] - b_adj["vgv"]) / b_adj["vgv"] * 100, 1) if b_adj["vgv"] else None})
         perf_corr.sort(key=lambda x: (-x["atual"]["vendas"], -x["atual"]["vgv"]))
 
         # ── N) 🚪 TURNOVER — regra da casa: ciclo de ~90 dias por saída ──
@@ -1114,8 +1105,8 @@ class handler(BaseHTTPRequestHandler):
             _tk = cu["team"]
             if not (cu["leads"] or cu["vendas"] or cu["spend"]):
                 continue
-            _al(_tk, "custo_lead", "R$/lead", cu["custo_lead"] if cu["custo_lead"] is not None else cu["custo_lead_30d"], acfg["max_cpl"], "max", "brl")
-            _al(_tk, "cac_midia", "CAC mídia (R$/venda)", cu["cac_midia"] if cu["cac_midia"] is not None else cu["cac_midia_30d"], acfg["max_cac_midia"], "max", "brl")
+            _al(_tk, "custo_lead", "R$/lead", cu["custo_lead"], acfg["max_cpl"], "max", "brl")
+            _al(_tk, "cac_midia", "CAC mídia (R$/venda)", cu["cac_midia"], acfg["max_cac_midia"], "max", "brl")
             if cu["spend"]:
                 _al(_tk, "roas", "ROAS (receita ≈4% ÷ spend)", cu["roas"], acfg["min_roas"], "min", "x")
         for _tk, _l in TEAMS:

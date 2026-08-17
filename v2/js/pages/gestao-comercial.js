@@ -1,4 +1,4 @@
-/* PSM-OS v2 — 📊 GESTÃO COMERCIAL (v86.34)
+/* PSM-OS v2 — 📊 GESTÃO COMERCIAL (v86.37)
    Painel comercial por equipe/linha: Visão Geral (real × projetado × meta +
    métricas-chave com RÉGUA DE ALERTA) · Gráficos (tudo visual) · Fontes &
    Funil · Custo do Funil (R$/etapa + CAC) · Produtividade · Safras & Tempos
@@ -9,7 +9,7 @@ import { auth } from '../auth.js';
 import { loadChartLib } from '../premium.js';
 
 let _root = null, _d = null, _tab = 'visao', _busy = false;
-let _since = null, _until = null, _spendPreset = 'last_30d';
+let _since = null, _until = null, _spendPreset = 'this_month';   // v86.37: padrão = mês atual
 let _tv = false, _tvRotate = true, _tvTimer = null, _tvDataTimer = null, _tvTickTimer = null, _tvNextAt = 0;
 const TV_ROT_MS = 20000, TV_REFRESH_MS = 300000;   // aba a cada 20s · dados a cada 5min
 
@@ -159,7 +159,7 @@ function resumoTab() {
   if (_tab === 'visao') {
     r.metricas_chave = {
       alertas_fora_da_regua: ((d.alertas || {}).itens || []),
-      equipes: ((d.custos || {}).equipes || []).map(c => ({ equipe: c.label, custo_lead: c.custo_lead ?? c.custo_lead_30d, custo_agend: c.custo_agend ?? c.custo_agend_30d, custo_visita: c.custo_visita ?? c.custo_visita_30d, custo_pasta: c.custo_pasta ?? c.custo_pasta_30d, cac_midia: c.cac_midia ?? c.cac_midia_30d, roas: c.roas, leads: c.leads, vendas: c.vendas })),
+      equipes: ((d.custos || {}).equipes || []).map(c => ({ equipe: c.label, custo_lead: c.custo_lead, custo_agend: c.custo_agend, custo_visita: c.custo_visita, custo_pasta: c.custo_pasta, cac_midia: c.cac_midia, cac_marketing: c.cac_marketing, roas: c.roas, leads: c.leads, vendas: c.vendas, vendas_pagas: c.vendas_pagas })),
       razoes: eqProd,
     };
     r.real_meta = (d.visao || []).map(v => ({ equipe: v.label, vendas_real: v.real_vendas, meta: v.meta_vendas, proj_norte: v.proj_vendas, proj_ritmo: v.proj_ritmo, vgv_real: v.real_vgv, vgv_meta: v.meta_vgv, pipeline_aberto: v.pipeline_agora }));
@@ -171,7 +171,7 @@ function resumoTab() {
     r.g_funil = { foco: 'funil da safra por equipe (leads→venda)', dados: eqProd };
     r.g_fontes = { foco: 'distribuição de leads e conversão por fonte', dados: ((d.fontes || {}).geral || []).slice(0, 10).map(f => ({ fonte: f.label, leads: f.leads, vendas: f.venda, pc_visita: f.pc_visita, pc_venda: f.pc_venda })) };
     r.g_safras = { foco: 'maturação das safras (conv até hoje)', dados: (d.safras || []) };
-    r.g_custos = { foco: 'CAC mídia × marketing × completo por equipe', dados: ((d.custos || {}).equipes || []).map(c => ({ equipe: c.label, spend: c.spend, cac_midia: c.cac_midia ?? c.cac_midia_30d, cac_marketing: c.cac_marketing ?? c.cac_marketing_30d, cac_completo: c.cac_completo ?? c.cac_completo_30d, premiacao_indicacao: c.premiacao_indicacao })) };
+    r.g_custos = { foco: 'CAC mídia × marketing × completo por equipe', dados: ((d.custos || {}).equipes || []).map(c => ({ equipe: c.label, spend: c.spend, cac_midia: c.cac_midia, cac_marketing: c.cac_marketing, cac_completo: c.cac_completo, premiacao_indicacao: c.premiacao_indicacao })) };
     r.g_camp = { foco: 'campanhas que mais venderam na safra', dados: ((d.campanhas || {}).itens || []).filter(x => x.venda > 0).slice(0, 10).map(x => ({ campanha: x.campanha, vendas: x.venda, vgv: x.vgv, spend: x.spend_30d, roas: x.roas })) };
   } else if (_tab === 'funilrd') {
     Object.entries(d.funil_rd || {}).forEach(([t, f]) => {
@@ -200,7 +200,7 @@ function resumoTab() {
     const perf = d.performance_corretores || [];
     ['conquista', 'map', 'terceiros', 'locacao'].forEach(t => {
       const ps = perf.filter(c => c.team === t);
-      if (ps.length) r['perf_' + t] = ps.map(c => ({ corretor: c.nome, atual: c.atual, base_90d: c.base, delta_vendas_pct: c.delta_vendas_pct, delta_vgv_pct: c.delta_vgv_pct }));
+      if (ps.length) r['perf_' + t] = ps.map(c => ({ corretor: c.nome, atual: c.atual, base_ajustada_ao_periodo: c.base_ajustada || c.base, delta_vendas_pct: c.delta_vendas_pct, delta_vgv_pct: c.delta_vgv_pct }));
     });
     r.turnover = d.turnover || {};
     r.velocidade_contato = d.resposta || {};
@@ -335,7 +335,7 @@ function tabCampanhas() {
     </tr>`;
   const ativas = its.filter(x => x.ativa);
   const inativas = its.filter(x => !x.ativa);
-  const cab = `<thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Campanha</th><th>Leads</th><th>Agend.</th><th>Visitas</th><th>Prop.</th><th>Pastas</th><th>Vendas</th><th>VGV</th><th>Receita≈</th><th>Spend 30d</th><th>CPL</th><th>ROAS</th><th style="text-align:left">Veredito</th></tr></thead>`;
+  const cab = `<thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Campanha</th><th>Leads</th><th>Agend.</th><th>Visitas</th><th>Prop.</th><th>Pastas</th><th>Vendas</th><th>VGV</th><th>Receita≈</th><th>Spend</th><th>CPL</th><th>ROAS</th><th style="text-align:left">Veredito</th></tr></thead>`;
   const SPENDS = [['this_month', 'Este mês'], ['last_7d', 'Últimos 7d'], ['last_14d', 'Últimos 14d'], ['last_30d', 'Últimos 30d'], ['last_month', 'Mês passado']];
   const spendSel = `<div class="flex items-center gap-2" style="margin-bottom:8px">
     <span class="tiny" style="font-weight:800">🎚 Período do spend/CPL (Meta):</span>
@@ -469,19 +469,20 @@ function metricasChave() {
       ${a ? `<div style="font-size:10.5px;font-weight:800;color:#dc2626">${a.acima ? '▲' : '▼'} ${fN(Math.abs(a.delta_pct))}% ${a.acima ? 'acima' : 'abaixo'} da régua</div>` : (sub ? `<div class="tiny muted">${sub}</div>` : '')}
     </div>`;
   };
-  const val30 = (mes, d30) => mes != null ? 'R$ ' + kR$(mes) : (d30 != null ? `R$ ${kR$(d30)} <span class="tiny muted">30d</span>` : '—');
+  const val = mes => mes != null ? 'R$ ' + kR$(mes) : '—';   // v86.37: só o mês atual, sem fallback 30d
   const blocos = custos.map(c => {
     const t = c.team, p = prod[t] || {}, rz = resp[t] || {};
     const conv = p.leads ? Math.round(p.venda / p.leads * 10000) / 100 : null;
+    const semConta = !c.conta && !(c.spend > 0);
     return `<div style="margin-top:10px">
-      <div style="font-weight:800;font-size:12.5px;margin-bottom:6px">${c.label}</div>
+      <div style="font-weight:800;font-size:12.5px;margin-bottom:6px">${c.label}${semConta ? ' <span class="tiny muted" style="font-weight:400">· sem conta Meta própria — mídia "—", CAC vive no marketing/completo</span>' : ''}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px">
-        ${tile(t, 'custo_lead', '💵 R$ / lead', val30(c.custo_lead, c.custo_lead_30d), fN(c.leads) + ' leads no mês')}
-        ${tile(t, 'custo_agend', '📅 R$ / agendamento', val30(c.custo_agend, c.custo_agend_30d))}
-        ${tile(t, 'custo_visita', '🚶 R$ / visita', val30(c.custo_visita, c.custo_visita_30d))}
-        ${tile(t, 'custo_pasta', '📁 R$ / pasta', val30(c.custo_pasta, c.custo_pasta_30d))}
-        ${tile(t, 'cac_midia', '🎯 CAC mídia (R$/venda de tráfego)', val30(c.cac_midia, c.cac_midia_30d), fN(c.vendas_pagas || 0) + ' de tráfego / ' + fN(c.vendas) + ' vendas')}
-        ${tile(t, 'cac_marketing', '📦 CAC marketing (R$/venda)', val30(c.cac_marketing, c.cac_marketing_30d), '🎁 R$ ' + kR$(c.premiacao_indicacao || 0) + ' premiação · ' + fN(c.vendas_indicacao || 0) + ' indicação')}
+        ${tile(t, 'custo_lead', '💵 R$ / lead', val(c.custo_lead), fN(c.leads) + ' leads no mês')}
+        ${tile(t, 'custo_agend', '📅 R$ / agendamento', val(c.custo_agend))}
+        ${tile(t, 'custo_visita', '🚶 R$ / visita', val(c.custo_visita))}
+        ${tile(t, 'custo_pasta', '📁 R$ / pasta', val(c.custo_pasta))}
+        ${tile(t, 'cac_midia', '🎯 CAC mídia (R$/venda de tráfego)', val(c.cac_midia), fN(c.vendas_pagas || 0) + ' de tráfego / ' + fN(c.vendas) + ' vendas')}
+        ${tile(t, 'cac_marketing', '📦 CAC marketing (R$/venda)', val(c.cac_marketing), '🎁 R$ ' + kR$(c.premiacao_indicacao || 0) + ' premiação · ' + fN(c.vendas_indicacao || 0) + ' indicação')}
         ${tile(t, 'roas', '📈 ROAS (receita≈4% ÷ spend)', c.roas != null ? fN(c.roas) + '×' : '—')}
         ${tile(t, 'conv_venda', '🎲 Conv. lead→venda (safra)', conv != null ? fN(conv) + '%' : '—')}
         ${tile(t, 'visitas_venda', '🚶 Visitas → 1 venda', p.visitas_por_venda ?? '—')}
@@ -632,13 +633,13 @@ function tabCustos() {
   const rows = (c.equipes || []).map(e => `<tr>
       <td style="font-weight:700;font-size:12.5px;padding:5px 8px 5px 0;white-space:nowrap">${e.label}<div class="tiny muted">${e.conta ? 'conta ' + esc(e.conta) : 'sem conta Meta'}</div></td>
       <td style="text-align:right;font-size:12px">R$ ${brl(e.spend)}<div class="tiny muted">+ fixo R$ ${kR$(e.fixo_mes)}</div></td>
-      <td style="text-align:right;font-size:12px">${e.custo_lead != null ? 'R$ ' + brl(e.custo_lead) : (e.custo_lead_30d != null ? 'R$ ' + brl(e.custo_lead_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.leads)} leads</div></td>
-      <td style="text-align:right;font-size:12px">${e.custo_agend != null ? 'R$ ' + brl(e.custo_agend) : (e.custo_agend_30d != null ? 'R$ ' + brl(e.custo_agend_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.agend)}</div></td>
-      <td style="text-align:right;font-size:12px">${e.custo_visita != null ? 'R$ ' + brl(e.custo_visita) : (e.custo_visita_30d != null ? 'R$ ' + brl(e.custo_visita_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.visita)}</div></td>
-      <td style="text-align:right;font-size:12px">${e.custo_pasta != null ? 'R$ ' + brl(e.custo_pasta) : (e.custo_pasta_30d != null ? 'R$ ' + brl(e.custo_pasta_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.pasta)}</div></td>
-      <td style="text-align:right;font-weight:900;font-size:13px;color:#b45309">${e.cac_midia != null ? 'R$ ' + kR$(e.cac_midia) : (e.cac_midia_30d != null ? 'R$ ' + kR$(e.cac_midia_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.vendas_pagas || 0)} venda(s) de tráfego</div></td>
-      <td style="text-align:right;font-weight:900;font-size:13px;color:#7c3aed">${e.cac_marketing != null ? 'R$ ' + kR$(e.cac_marketing) : (e.cac_marketing_30d != null ? 'R$ ' + kR$(e.cac_marketing_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">🎁 R$ ${kR$(e.premiacao_indicacao || 0)} (${fN(e.vendas_indicacao || 0)} indicação)</div></td>
-      <td style="text-align:right;font-weight:900;font-size:13px;color:#dc2626">${e.cac_completo != null ? 'R$ ' + kR$(e.cac_completo) : (e.cac_completo_30d != null ? 'R$ ' + kR$(e.cac_completo_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.vendas)} venda(s) no mês${e.vendas_30d ? ' · ' + fN(e.vendas_30d) + ' em 30d' : ''}</div></td>
+      <td style="text-align:right;font-size:12px">${e.custo_lead != null ? 'R$ ' + brl(e.custo_lead) : '—'}<div class="tiny muted">${fN(e.leads)} leads</div></td>
+      <td style="text-align:right;font-size:12px">${e.custo_agend != null ? 'R$ ' + brl(e.custo_agend) : '—'}<div class="tiny muted">${fN(e.agend)}</div></td>
+      <td style="text-align:right;font-size:12px">${e.custo_visita != null ? 'R$ ' + brl(e.custo_visita) : '—'}<div class="tiny muted">${fN(e.visita)}</div></td>
+      <td style="text-align:right;font-size:12px">${e.custo_pasta != null ? 'R$ ' + brl(e.custo_pasta) : '—'}<div class="tiny muted">${fN(e.pasta)}</div></td>
+      <td style="text-align:right;font-weight:900;font-size:13px;color:#b45309">${e.cac_midia != null ? 'R$ ' + kR$(e.cac_midia) : '—'}<div class="tiny muted">${fN(e.vendas_pagas || 0)} venda(s) de tráfego</div></td>
+      <td style="text-align:right;font-weight:900;font-size:13px;color:#7c3aed">${e.cac_marketing != null ? 'R$ ' + kR$(e.cac_marketing) : '—'}<div class="tiny muted">🎁 R$ ${kR$(e.premiacao_indicacao || 0)} (${fN(e.vendas_indicacao || 0)} indicação)</div></td>
+      <td style="text-align:right;font-weight:900;font-size:13px;color:#dc2626">${e.cac_completo != null ? 'R$ ' + kR$(e.cac_completo) : '—'}<div class="tiny muted">${fN(e.vendas)} venda(s) no mês</div></td>
     </tr>`).join('');
   return pan(`💰 Unit economics do mês (${c.mes || ''}) — do lead ao CAC, por equipe`, `
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
@@ -737,22 +738,24 @@ function tabSafras() {
   const perf = _d.performance_corretores || [];
   const perfRow = c => {
     const dl = v => v == null ? '<span class="tiny muted">novo</span>' : `<span class="tiny" style="font-weight:800;color:${v >= 0 ? '#16a34a' : '#dc2626'}">${v >= 0 ? '▲' : '▼'} ${fN(Math.abs(v))}%</span>`;
+    const b = c.base_ajustada || c.base;   // v86.37: base AJUSTADA ao tamanho da janela
     return `<tr>
       <td style="font-size:12px;font-weight:600;padding:4px 8px 4px 0;white-space:nowrap">${esc(c.nome)}</td>
-      <td style="text-align:right;font-size:12px">${fN(c.atual.leads)} <span class="tiny muted">/ ${fN(c.base.leads)}</span></td>
-      <td style="text-align:right;font-weight:800;font-size:12.5px">${fN(c.atual.vendas)} <span class="tiny muted">/ ${fN(c.base.vendas)}</span></td>
+      <td style="text-align:right;font-size:12px">${fN(c.atual.leads)} <span class="tiny muted">/ ${fN(b.leads)}</span></td>
+      <td style="text-align:right;font-weight:800;font-size:12.5px">${fN(c.atual.vendas)} <span class="tiny muted">/ ${fN(b.vendas)}</span></td>
       <td style="text-align:right">${dl(c.delta_vendas_pct)}</td>
-      <td style="text-align:right;font-size:12px">R$ ${kR$(c.atual.vgv)} <span class="tiny muted">/ R$ ${kR$(c.base.vgv)}</span></td>
+      <td style="text-align:right;font-size:12px">R$ ${kR$(c.atual.vgv)} <span class="tiny muted">/ R$ ${kR$(b.vgv)}</span></td>
       <td style="text-align:right">${dl(c.delta_vgv_pct)}</td>
-      <td style="text-align:right;font-size:12px">${c.atual.conv_pct != null ? fN(c.atual.conv_pct) + '%' : '—'} <span class="tiny muted">/ ${c.base.conv_pct != null ? fN(c.base.conv_pct) + '%' : '—'}</span></td>
+      <td style="text-align:right;font-size:12px">${c.atual.conv_pct != null ? fN(c.atual.conv_pct) + '%' : '—'} <span class="tiny muted">/ ${b.conv_pct != null ? fN(b.conv_pct) + '%' : '—'}</span></td>
     </tr>`;
   };
+  const perfDias = perf[0]?.janela_dias;
   const perfCab = `<thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Corretor</th><th>Leads</th><th>Vendas</th><th>Δ vendas</th><th>VGV</th><th>Δ VGV</th><th>Conv.</th></tr></thead>`;
   const perfBlocos = ['conquista', 'map', 'terceiros', 'locacao'].filter(t => perf.some(c => c.team === t)).map(t =>
-    pan(`🏃 Performance individual — ${TEAM_LBL[t]} (janela atual × BASE dos 90 dias anteriores, atual / base)`, `
+    pan(`🏃 Performance individual — ${TEAM_LBL[t]} (janela atual × base 90d AJUSTADA ao período, atual / base)`, `
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">${perfCab}
         <tbody>${perf.filter(c => c.team === t).map(perfRow).join('')}</tbody></table></div>
-      <div class="tiny muted" style="margin-top:6px">A base individual é a média móvel de 90 dias do PRÓPRIO corretor — acima da base = evolução real, sem comparar maçã com laranja. Cada equipe é um nicho: não compare entre quadros. Só corretores ATIVOS — quem saiu aparece no 🚪 Turnover.</div>`, 'perf_' + t)).join('');
+      <div class="tiny muted" style="margin-top:6px">A base é a média móvel dos 90 dias anteriores do PRÓPRIO corretor, <b>proporcionalizada ao tamanho da janela${perfDias ? ` (${fN(perfDias)}d → base × ${fN(Math.round(perfDias / 90 * 100))}%)` : ''}</b> — sem isso, janela curta contra base de 90d dava queda falsa pra todo mundo. Cada equipe é um nicho: não compare entre quadros. Só corretores ATIVOS — quem saiu aparece no 🚪 Turnover.</div>`, 'perf_' + t)).join('');
   // 🚪 turnover ciclo 90d
   const to = _d.turnover || {};
   const toCor = to.dias_desde_ultima == null ? 'var(--ink-muted)' : to.dias_desde_ultima >= (to.regra_dias || 90) ? '#dc2626' : to.dias_desde_ultima >= 60 ? '#d97706' : '#16a34a';
@@ -804,7 +807,7 @@ function tabGraficos() {
     ${gwrap('gch-funil', '⏬ Funil da safra por equipe — leads → atendimento → agendamento → visita → pasta → venda', 'g_funil')}
     ${gwrap(['gch-fontes', 'gch-fontes-conv'], '🔀 Fontes — distribuição de leads e % de conversão por origem (safra)', 'g_fontes')}
     ${temSafra ? gwrap('gch-safras', '📈 Safras — leads de cada mês (barras) × conversão até hoje (linha)', 'g_safras') : ''}
-    ${gwrap('gch-cac', '💰 CAC por equipe — mídia × marketing × completo (mês corrente, fallback 30d)', 'g_custos')}
+    ${gwrap('gch-cac', '💰 CAC por equipe — mídia × marketing × completo (mês corrente)', 'g_custos')}
     ${temCamp ? gwrap('gch-camp', '📣 Campanhas que mais VENDERAM na safra', 'g_camp') : ''}
     <div class="tiny muted" style="margin-top:8px">Mesmos dados das outras abas, em visual — janela e escopo lá de cima valem aqui. Gráfico vazio = sem dado na janela.</div>`;
 }
@@ -863,9 +866,9 @@ async function initCharts() {
 
   const ce = (_d.custos || {}).equipes || [];
   mk('gch-cac', { type: 'bar', data: { labels: ce.map(c => sigla(c.label)), datasets: [
-    { label: 'CAC mídia (só vendas de tráfego)', data: ce.map(c => c.cac_midia ?? c.cac_midia_30d ?? 0), backgroundColor: '#b45309' },
-    { label: 'CAC marketing (+premiação indicação)', data: ce.map(c => c.cac_marketing ?? c.cac_marketing_30d ?? 0), backgroundColor: '#7c3aed' },
-    { label: 'CAC completo (+fixo da linha)', data: ce.map(c => c.cac_completo ?? c.cac_completo_30d ?? 0), backgroundColor: '#dc2626' },
+    { label: 'CAC mídia (só vendas de tráfego)', data: ce.map(c => c.cac_midia ?? 0), backgroundColor: '#b45309' },
+    { label: 'CAC marketing (+premiação indicação)', data: ce.map(c => c.cac_marketing ?? 0), backgroundColor: '#7c3aed' },
+    { label: 'CAC completo (+fixo da linha)', data: ce.map(c => c.cac_completo ?? 0), backgroundColor: '#dc2626' },
   ] }, options: base({ scales: sc() }) });
 
   const ci = ((_d.campanhas || {}).itens || []).filter(x => x.venda > 0).slice(0, 10);
