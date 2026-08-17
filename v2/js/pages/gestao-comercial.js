@@ -1,4 +1,4 @@
-/* PSM-OS v2 — 📊 GESTÃO COMERCIAL (v86.33)
+/* PSM-OS v2 — 📊 GESTÃO COMERCIAL (v86.34)
    Painel comercial por equipe/linha: Visão Geral (real × projetado × meta +
    métricas-chave com RÉGUA DE ALERTA) · Gráficos (tudo visual) · Fontes &
    Funil · Custo do Funil (R$/etapa + CAC) · Produtividade · Safras & Tempos
@@ -431,7 +431,7 @@ function tabVisao() {
       <tbody>${rows}</tbody></table></div>
     ${hub ? `<div class="tiny" style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">🌉 Cruzamento Conquista: esteira do PSM HUB marca <b>${fN(hub.vendas)} venda(s) · R$ ${kR$(hub.vgv)}</b> no mês — divergência com o RD é sinal de lançamento pendente num dos dois.</div>` : ''}
     ${detalhes}
-    <div class="tiny muted" style="margin-top:6px">Metas = painel 🎯 Metas oficial do House (por corretor/mês). Duas projeções lado a lado: <b>Norte</b> (mix×conversão calibrada de cada corretor) e <b>Ritmo</b> (velocidade real do mês extrapolada). Venda dentro da 🎲 faixa = azul (normal estatístico). Prop./Pastas = pipeline vivo agora.</div>`, 'real_meta')
+    <div class="tiny muted" style="margin-top:6px">Metas = painel 🎯 Metas oficial do House (por corretor/mês). Duas projeções lado a lado: <b>Norte</b> (mix×conversão calibrada de cada corretor) e <b>Ritmo</b> (velocidade real do mês extrapolada). Venda dentro da 🎲 faixa = azul (normal estatístico). Prop./Pastas = pipeline vivo agora. <b>Equipe do deal = FUNIL do RD onde ele vive</b> (MAP e Locação contam pelo funil próprio — decisão 17/ago); deal fora dos 4 funis segue a equipe do dono.</div>`, 'real_meta')
     + forecastPanel()
     + histTable('Vendas & VGV — real', [
       ...(_d.visao || []).map(v => ({ lbl: v.label + ' vendas', get: h => h.equipes?.[v.team]?.vendas, fmt: fN })),
@@ -480,7 +480,7 @@ function metricasChave() {
         ${tile(t, 'custo_agend', '📅 R$ / agendamento', val30(c.custo_agend, c.custo_agend_30d))}
         ${tile(t, 'custo_visita', '🚶 R$ / visita', val30(c.custo_visita, c.custo_visita_30d))}
         ${tile(t, 'custo_pasta', '📁 R$ / pasta', val30(c.custo_pasta, c.custo_pasta_30d))}
-        ${tile(t, 'cac_midia', '🎯 CAC mídia (R$/venda)', val30(c.cac_midia, c.cac_midia_30d), fN(c.vendas) + ' venda(s) no mês')}
+        ${tile(t, 'cac_midia', '🎯 CAC mídia (R$/venda de tráfego)', val30(c.cac_midia, c.cac_midia_30d), fN(c.vendas_pagas || 0) + ' de tráfego / ' + fN(c.vendas) + ' vendas')}
         ${tile(t, 'roas', '📈 ROAS (receita≈4% ÷ spend)', c.roas != null ? fN(c.roas) + '×' : '—')}
         ${tile(t, 'conv_venda', '🎲 Conv. lead→venda (safra)', conv != null ? fN(conv) + '%' : '—')}
         ${tile(t, 'visitas_venda', '🚶 Visitas → 1 venda', p.visitas_por_venda ?? '—')}
@@ -500,27 +500,33 @@ function metricasChave() {
     <div class="tiny muted" style="margin-top:6px">Custos = spend do mês da conta da equipe. Razões/dias/1º contato = safra da janela. Régua de alerta: ${(() => { const c = al.cfg || {}; return `R$/lead ≤ ${fN(c.max_cpl || 0)} · CAC ≤ ${kR$(c.max_cac_midia || 0)} · 1º contato ≤ ${fN(c.max_contato_h || 0)}h · conv ≥ ${fN(c.min_conv_venda_pct || 0)}% · sem contato ≤ ${fN(c.max_sem_contato || 0)} · ritmo da meta ≥ ${fN(c.min_ritmo_meta_pct || 0)}% · ROAS ≥ ${fN(c.min_roas || 0)}×`; })()}. Fora da régua: fica vermelho com Δ% e notifica gestor + sócios (1×/dia).</div>`, 'metricas_chave');
 }
 
-/* 🔮 projeção ponderada: pipeline aberto × taxas reais da equipe (mês e tri) */
+/* 🔮 projeção ponderada multi-horizonte (v86.34): semana · mês · tri · semestre · ano */
 function forecastPanel() {
   const fc = _d.forecast || {};
-  const teams = Object.keys(fc).filter(t => (fc[t].termos || []).length || fc[t].mes_esp);
+  const teams = Object.keys(fc).filter(t => (fc[t].termos || []).length || fc[t].mes_esp
+    || Object.values(fc[t].hz || {}).some(h => h && (h.esp || h.real)));
   if (!teams.length) return '';
+  const HZ = [['semana', '📅 Semana'], ['mes', 'Mês'], ['tri', 'Trimestre'], ['semestre', 'Semestre'], ['ano', 'Ano']];
   const rows = teams.map(t => {
-    const f = fc[t];
+    const f = fc[t], hz = f.hz || {};
+    const cel = k => {
+      const h = hz[k];
+      if (!h) return '<td style="text-align:right;font-size:12px">—</td>';
+      return `<td style="text-align:right;font-weight:900;font-size:13px;white-space:nowrap${k === 'tri' ? ';color:#2563eb' : ''}">${fN(h.esp)} <span class="tiny muted" style="font-weight:400">(${fN(h.real)} já)</span></td>`;
+    };
     const termos = (f.termos || []).map(x => `${fN(x.abertos)} ${x.etapa}s×${fN(x.taxa_pct)}%`).join(' + ') || '—';
     return `<tr>
       <td style="font-weight:700;font-size:12.5px;padding:5px 8px 5px 0;white-space:nowrap">${TEAM_LBL[t] || t}</td>
-      <td style="text-align:right;font-weight:900;font-size:13px">${fN(f.mes_esp)}</td>
-      <td style="text-align:right;font-weight:900;font-size:13px;color:#2563eb">${fN(f.tri_esp)}</td>
+      ${HZ.map(([k]) => cel(k)).join('')}
       <td style="text-align:right;font-size:12px">${f.pipeline_vgv_esp ? 'R$ ' + kR$(f.pipeline_vgv_esp) : '—'}</td>
-      <td class="tiny muted">${termos}${f.mediana_pasta_venda_d != null ? ` · pasta→venda ~${f.mediana_pasta_venda_d}d` : ''}</td>
+      <td class="tiny muted">${termos}${f.mediana_pasta_venda_d != null ? ` · pasta→venda ~${f.mediana_pasta_venda_d}d` : ''}${f.run_rate_mensal ? ` · run-rate ${fN(f.run_rate_mensal)}/mês` : ''}</td>
     </tr>`;
   }).join('');
-  return pan('🔮 Projeção ponderada — o pipeline aberto × as taxas REAIS da equipe', `
+  return pan('🔮 Projeção ponderada — semana · mês · trimestre · semestre · ano (pipeline aberto × taxas REAIS)', `
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th><th>Esperado MÊS</th><th>Esperado TRI</th><th>VGV do pipeline</th><th style="text-align:left">Como foi calculado</th></tr></thead>
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th>${HZ.map(([, l]) => `<th>${l}</th>`).join('')}<th>VGV do pipeline</th><th style="text-align:left">Como foi calculado</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
-    <div class="tiny muted" style="margin-top:6px">MÊS = vendas já feitas + pastas abertas × taxa pasta→venda (só quando a mediana de dias cabe no que resta do mês). TRI = vendas + pipeline inteiro ponderado. Taxa sem amostra mínima fica de fora — sem invenção.</div>`, 'projecao_ponderada');
+    <div class="tiny muted" style="margin-top:6px">Cada célula = <b>projetado (real já feito)</b> no período. SEMANA/MÊS = real + pastas abertas × taxa pasta→venda quando a mediana de dias CABE no que resta. TRIMESTRE = real + pipeline inteiro ponderado. SEMESTRE/ANO = real + pipeline + run-rate (média dos últimos 3 meses fechados) nos meses que o pipeline não enxerga. Taxa sem amostra mínima fica de fora — sem invenção.</div>`, 'projecao_ponderada');
 }
 
 /* ── ⏬ FUNIL RD: as lanes EXATAS de cada funil, números do RD + % passagem ── */
@@ -629,7 +635,7 @@ function tabCustos() {
       <td style="text-align:right;font-size:12px">${e.custo_agend != null ? 'R$ ' + brl(e.custo_agend) : (e.custo_agend_30d != null ? 'R$ ' + brl(e.custo_agend_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.agend)}</div></td>
       <td style="text-align:right;font-size:12px">${e.custo_visita != null ? 'R$ ' + brl(e.custo_visita) : (e.custo_visita_30d != null ? 'R$ ' + brl(e.custo_visita_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.visita)}</div></td>
       <td style="text-align:right;font-size:12px">${e.custo_pasta != null ? 'R$ ' + brl(e.custo_pasta) : (e.custo_pasta_30d != null ? 'R$ ' + brl(e.custo_pasta_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.pasta)}</div></td>
-      <td style="text-align:right;font-weight:900;font-size:13px;color:#b45309">${e.cac_midia != null ? 'R$ ' + kR$(e.cac_midia) : (e.cac_midia_30d != null ? 'R$ ' + kR$(e.cac_midia_30d) + ' <span class="tiny muted">30d</span>' : '—')}</td>
+      <td style="text-align:right;font-weight:900;font-size:13px;color:#b45309">${e.cac_midia != null ? 'R$ ' + kR$(e.cac_midia) : (e.cac_midia_30d != null ? 'R$ ' + kR$(e.cac_midia_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.vendas_pagas || 0)} venda(s) de tráfego</div></td>
       <td style="text-align:right;font-weight:900;font-size:13px;color:#dc2626">${e.cac_completo != null ? 'R$ ' + kR$(e.cac_completo) : (e.cac_completo_30d != null ? 'R$ ' + kR$(e.cac_completo_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.vendas)} venda(s) no mês${e.vendas_30d ? ' · ' + fN(e.vendas_30d) + ' em 30d' : ''}</div></td>
     </tr>`).join('');
   return pan(`💰 Unit economics do mês (${c.mes || ''}) — do lead ao CAC, por equipe`, `
@@ -637,7 +643,7 @@ function tabCustos() {
       <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th><th>Spend Meta</th><th>R$/lead</th><th>R$/agendamento</th><th>R$/visita</th><th>R$/pasta</th><th>CAC mídia</th><th>CAC completo</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
     ${c.payback_midia ? `<div class="tiny" style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">💸 <b>Payback de mídia:</b> a venda vira caixa em mediana <b>${fN(c.payback_midia.mediana_dias)} dias</b> (${esc(c.payback_midia.fonte)}, n=${fN(c.payback_midia.n)}) — é o tempo entre o real investido e o real voltando.</div>` : ''}
-    <div class="tiny muted" style="margin-top:8px">${esc(c.nota || '')}. Qualificado começa no AGENDAMENTO (decisão 14/ago). Indicação/orgânico não pagam mídia — o CAC deles vive no custo fixo.</div>`, 'unit_economics')
+    <div class="tiny muted" style="margin-top:8px">${esc(c.nota || '')}. Qualificado começa no AGENDAMENTO (decisão 14/ago). <b>CAC mídia = spend ÷ vendas de TRÁFEGO PAGO</b> (indicação/orgânico não diluem a mídia — decisão 17/ago); CAC completo = (spend + fixo) ÷ TODAS as vendas.</div>`, 'unit_economics')
     + histTable('Custo — mês a mês (spend GLOBAL da Meta; histórico por equipe não existe na base mensal)', [
       { lbl: 'Spend Meta', get: h => h.total?.spend, fmt: x => 'R$ ' + kR$(x), invertido: true },
       { lbl: 'CPL global', get: h => h.total?.cpl_global, fmt: x => 'R$ ' + kR$(x), invertido: true },

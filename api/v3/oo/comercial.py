@@ -1,5 +1,5 @@
 """
-📊 GESTÃO COMERCIAL (v86.33) — o painel que responde as perguntas sem clareza:
+📊 GESTÃO COMERCIAL (v86.34) — o painel que responde as perguntas sem clareza:
 qual fonte converte mais visita/pasta/venda · custo por etapa do funil (R$/lead,
 R$/agendamento, R$/visita, R$/pasta, CAC mídia e CAC completo) · quantas
 pastas/visitas/atendimentos/leads pra 1 venda (equipe E corretor) · ticket por
@@ -250,7 +250,7 @@ class handler(BaseHTTPRequestHandler):
         spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "last_30d"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc13_cache:{since_d}:{until_d}:{spend_preset}"   # v86.33: shape novo (alertas) → chave nova
+        ck = f"gc14_cache:{since_d}:{until_d}:{spend_preset}"   # v86.34: shape novo (hz/pipeline-team/CAC pago) → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -330,6 +330,23 @@ class handler(BaseHTTPRequestHandler):
         email2uid = {(u.get("email") or "").lower(): uid for uid, u in users.items() if u.get("email")}
         marco_sid, marco_pos, by_pipe, pos_by_id, pipe_names = mapa_marcos(sb)
 
+        # 🧭 v86.34 (achado do Paulo 17/ago): a equipe do deal é o FUNIL onde ele
+        # vive (MAP e Locação têm funil próprio no RD e estavam zerando na Visão
+        # porque a régua antiga era só a equipe do DONO). Pipeline manda; deal
+        # fora dos 4 funis cai na régua antiga (equipe do dono + whitelist MAP).
+        pipe_team = {}
+        for _pid, _nm in pipe_names.items():
+            _n = (_nm or "").lower()
+            for _tk, _alvo in FUNIS_RD.items():
+                if _alvo in _n:
+                    pipe_team[str(_pid)] = _tk
+
+        def team_do_deal(pid, uid):
+            tk = pipe_team.get(str(pid or ""))
+            if tk:
+                return tk
+            return team_de(uid, (users.get(uid) or {}).get("team"))
+
         # ── deals da SAFRA (criados em [since-180d, until] p/ safras + coorte) ──
         safra_ini = since_d - timedelta(days=120)   # safras de até ~6m antes do fim
         cols = "id,name,amount,win,closed_at,created_at_rd,stage_id,pipeline_id,user_id,user_email,rd_raw"
@@ -390,7 +407,7 @@ class handler(BaseHTTPRequestHandler):
                 "canal": (lambda _c: CANAL_MERGE.get(_c, _c))(channel(source(d.get("rd_raw") or {}))),
                 "atribuido": channel(source(d.get("rd_raw") or {})) != "nao_atribuido",
                 "camp": lead_campaign_name(d),
-                "team": team_de(uid, u.get("team")),
+                "team": team_do_deal(pid, uid),
                 "uid": uid, "nome": u.get("name") or d.get("user_email") or "?",
                 "marco": marco_do_deal(d, evs, marco_sid, marco_pos),
                 "t_marco": t_marco,
@@ -537,8 +554,15 @@ class handler(BaseHTTPRequestHandler):
             agend = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(2) and e["t_marco"][2].date() >= mes_ini)
             visita = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(3) and e["t_marco"][3].date() >= mes_ini)
             pasta = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(5) and e["t_marco"][5].date() >= mes_ini)
-            vendas = sum(1 for e in eds if e["team"] == tk and e["win"] and e["closed"] and e["closed"].date() >= mes_ini)
-            vgv = sum(e["vgv"] for e in eds if e["team"] == tk and e["win"] and e["closed"] and e["closed"].date() >= mes_ini)
+            wins_tk = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and e["closed"].date() >= mes_ini]
+            vendas = len(wins_tk)
+            vgv = sum(e["vgv"] for e in wins_tk)
+            # 🎯 v86.34 (achado do Paulo 17/ago): CAC MÍDIA divide o spend SÓ pelas
+            # vendas de origem PAGA (tráfego/google) — venda de indicação/orgânico
+            # não pode diluir o custo de mídia. CAC completo segue sobre TODAS.
+            PAGO = ("trafego_imob", "google")
+            vendas_pagas = sum(1 for e in wins_tk if e["canal"] in PAGO)
+            vgv_pago = sum(e["vgv"] for e in wins_tk if e["canal"] in PAGO)
             # custo fixo orçado da LINHA no mês (mesma leitura da Viabilidade:
             # ignora classe variável, respeita valor por_mes quando existir)
             fixo = 0.0
@@ -559,18 +583,21 @@ class handler(BaseHTTPRequestHandler):
             a30 = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(2) and e["t_marco"][2].date() >= d30)
             v30 = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(3) and e["t_marco"][3].date() >= d30)
             p30 = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(5) and e["t_marco"][5].date() >= d30)
-            vd30 = sum(1 for e in eds if e["team"] == tk and e["win"] and e["closed"] and e["closed"].date() >= d30)
+            wins30 = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and e["closed"].date() >= d30]
+            vd30 = len(wins30)
+            vd30_pagas = sum(1 for e in wins30 if e["canal"] in PAGO)
             custos.append({"team": tk, "label": lbl, "spend": round(spend, 2), "fixo_mes": round(fixo, 2),
                            "conta": acc.get("label") if acc else None,
                            "leads": leads, "agend": agend, "visita": visita, "pasta": pasta, "vendas": vendas,
+                           "vendas_pagas": vendas_pagas,
                            "custo_lead": div(spend, leads), "custo_agend": div(spend, agend),
                            "custo_visita": div(spend, visita), "custo_pasta": div(spend, pasta),
-                           "cac_midia": div(spend, vendas), "cac_completo": div(spend + fixo, vendas),
+                           "cac_midia": div(spend, vendas_pagas), "cac_completo": div(spend + fixo, vendas),
                            "custo_lead_30d": div(spend30, l30), "custo_agend_30d": div(spend30, a30),
                            "custo_visita_30d": div(spend30, v30), "custo_pasta_30d": div(spend30, p30),
-                           "cac_midia_30d": div(spend30, vd30), "cac_completo_30d": div(spend30 + fixo, vd30),
-                           "vendas_30d": vd30,
-                           "roas": div(vgv * 0.04, spend) if spend else None})
+                           "cac_midia_30d": div(spend30, vd30_pagas), "cac_completo_30d": div(spend30 + fixo, vd30),
+                           "vendas_30d": vd30, "vendas_pagas_30d": vd30_pagas,
+                           "roas": div(vgv_pago * 0.04, spend) if spend else None})
 
         # ── deals ABERTOS agora (leve, sem rd_raw): pipeline de HOJE + funil RD ──
         abertos, pg = [], 0
@@ -638,7 +665,7 @@ class handler(BaseHTTPRequestHandler):
             prop_ab = pasta_ab = vis_ab = 0
             for d in abertos:
                 uid = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
-                if team_de(uid, (users.get(uid) or {}).get("team")) != tk:
+                if team_do_deal(d.get("pipeline_id"), uid) != tk:
                     continue
                 m = marco_sid.get(str(d.get("stage_id") or ""))
                 if m == 3:
@@ -730,7 +757,7 @@ class handler(BaseHTTPRequestHandler):
         for filtro in (("created_at_rd", f"{jan1}T00:00:00+00:00"), ("closed_at", f"{jan1}T00:00:00+00:00")):
             pg = 0
             while True:
-                qy = sb.table("deals").select("id,amount,win,closed_at,created_at_rd,user_id,user_email,ds:rd_raw->deal_source").gte(*filtro)
+                qy = sb.table("deals").select("id,amount,win,closed_at,created_at_rd,user_id,user_email,pipeline_id,ds:rd_raw->deal_source").gte(*filtro)
                 ch = qy.order("id").range(pg * 1000, pg * 1000 + 999).execute().data or []
                 for d in ch:
                     if str(d.get("id")) not in seen_h:
@@ -752,7 +779,7 @@ class handler(BaseHTTPRequestHandler):
             canais_m = {}
             for d in hist_deals:
                 uid = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
-                tk = team_de(uid, (users.get(uid) or {}).get("team"))
+                tk = team_do_deal(d.get("pipeline_id"), uid)
                 ck = channel(source({"deal_source": d.get("ds")}))
                 ck = CANAL_MERGE.get(ck, ck)
                 cm = canais_m.setdefault(ck, {"leads": 0, "vendas": 0, "vgv": 0.0})
@@ -821,7 +848,7 @@ class handler(BaseHTTPRequestHandler):
                 # só se o deal pertence ao funil (stage do histórico não vem — usa
                 # o time do corretor como proxy do funil da equipe)
                 uid = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
-                if team_de(uid, (users.get(uid) or {}).get("team")) == tk:
+                if team_do_deal(d.get("pipeline_id"), uid) == tk:
                     _conta(ultima, True)
             out_lanes = []
             for i, (pos, nome) in enumerate(lanes):
@@ -837,9 +864,24 @@ class handler(BaseHTTPRequestHandler):
                                   "passagem_pct": passagem, "base": not na_chain})
             funil_rd[tk] = {"pipeline": pipe_names.get(pid), "lanes": out_lanes}
 
-        # ── J) 🔮 FORECAST PONDERADO (mês E trimestre): pipeline aberto × taxas
-        # reais da equipe na safra. Split temporal pela mediana pasta→venda. ──
+        # ── J) 🔮 PROJEÇÃO PONDERADA multi-horizonte (v86.34, pedido 17/ago):
+        # SEMANA · MÊS · TRIMESTRE · SEMESTRE · ANO. Curto prazo = real do
+        # período + pastas que CABEM no horizonte (mediana pasta→venda);
+        # trimestre = real + pipeline inteiro ponderado; semestre/ano somam o
+        # run-rate (média dos últimos ≤3 meses FECHADOS da equipe) nos meses
+        # cheios que o pipeline não enxerga. Cada termo declarado — sem invenção.
         dias_rest = dias_mes - hoje.day
+        seg = hoje - timedelta(days=hoje.weekday())
+        tri_ini = date(hoje.year, (hoje.month - 1) // 3 * 3 + 1, 1)
+        sem_ini = date(hoje.year, 1 if hoje.month <= 6 else 7, 1)
+        ano_ini = date(hoje.year, 1, 1)
+        fim_tri_m = (hoje.month - 1) // 3 * 3 + 3
+        fim_sem_m = 6 if hoje.month <= 6 else 12
+        HORIZ = [("semana", "Semana", seg, 6 - hoje.weekday(), 0),
+                 ("mes", "Mês", mes_ini, dias_rest, 0),
+                 ("tri", "Trimestre", tri_ini, None, fim_tri_m - hoje.month),
+                 ("semestre", "Semestre", sem_ini, None, fim_sem_m - hoje.month),
+                 ("ano", "Ano", ano_ini, None, 12 - hoje.month)]
         forecast = {}
         for tk, _l in TEAMS:
             agg = equipes_prod.get(tk) or {}
@@ -865,17 +907,28 @@ class handler(BaseHTTPRequestHandler):
             for ln in (tempos.get(tk) or []):
                 if ln.get("passo") == "pasta→venda":
                     med_pv = ln.get("mediana_dias")
-            # pastas cujo tempo mediano cabe no mês entram no forecast do MÊS
-            pastas_mes = (pa.get("pastas") or 0) * (tx.get("pasta") or 0) if (med_pv is not None and med_pv <= dias_rest) else 0.0
+            pastas_curto = (pa.get("pastas") or 0) * (tx.get("pasta") or 0)
+            # run-rate: média de vendas dos últimos ≤3 meses FECHADOS da equipe
+            fechados = [((h.get("equipes") or {}).get(tk) or {}).get("vendas") or 0
+                        for h in hist if not h.get("parcial")]
+            rr_m = round(sum(fechados[-3:]) / len(fechados[-3:]), 2) if fechados[-3:] else 0.0
+            hz = {}
+            for hk, hl, ini_p, dias_h, meses_cheios in HORIZ:
+                real_p = sum(1 for e in eds if e["team"] == tk and e["win"] and e["closed"]
+                             and e["closed"].date() >= ini_p)
+                if hk in ("semana", "mes"):
+                    extra = pastas_curto if (med_pv is not None and dias_h is not None and med_pv <= dias_h) else 0.0
+                elif hk == "tri":
+                    extra = esp
+                else:
+                    extra = esp + rr_m * max(0, meses_cheios)
+                hz[hk] = {"label": hl, "real": real_p, "esp": round(real_p + extra, 2)}
             forecast[tk] = {"pipeline_vendas_esp": round(esp, 2),
                             "pipeline_vgv_esp": round(esp * ticket, 2) if ticket else None,
-                            "mes_esp": round((vis.get("real_vendas") or 0) + pastas_mes, 2),
-                            "tri_esp": round((vis.get("real_vendas") or 0) + esp, 2),
+                            "mes_esp": hz["mes"]["esp"], "tri_esp": hz["tri"]["esp"],
+                            "hz": hz, "run_rate_mensal": rr_m,
                             "termos": termos, "mediana_pasta_venda_d": med_pv,
-                            "dias_restantes": dias_rest,
-                            "nota_mes": ("pastas entram no mês (mediana pasta→venda "
-                                         f"{med_pv}d ≤ {dias_rest}d restantes)" if pastas_mes else
-                                         "nenhuma etapa madura o bastante pra cair ainda neste mês")}
+                            "dias_restantes": dias_rest}
 
         # ── K) ⚡ VELOCIDADE DO 1º CONTATO × CONVERSÃO (por equipe, na safra) ──
         resposta = {}
@@ -1118,7 +1171,7 @@ class handler(BaseHTTPRequestHandler):
                 "historico": hist, "funil_rd": funil_rd, "campanhas": campanhas,
                 "forecast": forecast, "resposta": resposta,
                 "custos": {"mes": ym, "equipes": custos, "payback_midia": payback,
-                           "nota": "spend Meta this_month por conta da equipe ÷ atividade real do mês; CAC completo soma o custo fixo orçado da linha"},
+                           "nota": "spend Meta this_month por conta da equipe ÷ atividade real do mês; CAC mídia divide SÓ pelas vendas de tráfego pago; CAC completo soma o custo fixo orçado da linha e divide por todas as vendas"},
                 "produtividade": {"corretores": corretores, "equipes": equipes_prod},
                 "safras": safras_out, "safras_por_equipe": safras_por_equipe, "tempos": tempos,
                 "performance_corretores": perf_corr, "turnover": turnover, "alertas": alertas,
