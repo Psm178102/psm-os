@@ -248,7 +248,7 @@ class handler(BaseHTTPRequestHandler):
         spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "last_30d"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc11_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
+        ck = f"gc12_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -349,6 +349,7 @@ class handler(BaseHTTPRequestHandler):
                 "win": d.get("win") is True,
                 "vgv": amount(d),
                 "canal": (lambda _c: CANAL_MERGE.get(_c, _c))(channel(source(d.get("rd_raw") or {}))),
+                "atribuido": channel(source(d.get("rd_raw") or {})) != "nao_atribuido",
                 "camp": lead_campaign_name(d),
                 "team": team_de(uid, u.get("team")),
                 "uid": uid, "nome": u.get("name") or d.get("user_email") or "?",
@@ -1013,7 +1014,9 @@ class handler(BaseHTTPRequestHandler):
                      "spend_preset_usado": _mc.get("preset_used"),
                      "nota": f"funil = safra da janela (lead nascido nela, seguido até hoje) · spend/CPL da Meta no período '{_mc.get('preset_used') or spend_preset}' · receita ≈ 4% do VGV"}
 
-        cobertura = round(sum(1 for e in na_janela if e["canal"] not in ("trafego_imob",)) / len(na_janela) * 100, 1) if na_janela else None
+        # cobertura = % com origem PREENCHIDA no RD (canal bruto, ANTES da fusão
+        # do tráfego — o merge da v86.28 tinha derrubado a métrica pra 3% falso)
+        cobertura = round(sum(1 for e in na_janela if e["atribuido"]) / len(na_janela) * 100, 1) if na_janela else None
 
         return {"visao": visao, "hub_conquista": hub_x, "fontes": fontes,
                 "historico": hist, "funil_rd": funil_rd, "campanhas": campanhas,
