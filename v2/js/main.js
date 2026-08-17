@@ -127,6 +127,7 @@ import { pageSrGerencia } from './pages/sr-gerencia.js';
 import { pageSrPerformance } from './pages/sr-performance.js';
 import { pageMapa } from './pages/mapa.js';
 import { pageEstoqueKenlo } from './pages/estoque-kenlo.js';
+import { pageCrmHouse } from './pages/crm-house.js';
 
 // ─── Permissões por role (Sprint 9.6) ──────────────────────────────────
 // Cada rota pertence a um GRUPO. Cada role enxerga só os grupos liberados.
@@ -138,6 +139,8 @@ export const ROUTE_GROUP = {
   '/sdr': 'secretaria', '/leads-lp': 'secretaria', '/reativacao': 'secretaria', '/captacoes': 'secretaria', '/minha-producao': 'secretaria', '/fiscalizacao': 'diretoria', '/ponte': 'diretoria', '/links-uteis': 'secretaria', '/sac-incorporadoras': 'secretaria', '/sistemas-incorporadoras': 'secretaria', '/campanha-wa': 'secretaria',
   // Backoffice & Adm (v81.93)
   '/compras': 'adm', '/patrimonio': 'adm', '/manutencoes': 'adm',
+  // Comercial (v86.52): CRM House PSM (piloto F2 do CRM próprio) + Gestão Comercial
+  '/crm-house': 'vendas',
   // Imóveis & Vendas (+ Metas/Equipes/Plantões e simuladores VPL/INCC/Repasse/Energia migrados)
   '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/form-captacao': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/estoque-kenlo': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/lancamentos': 'vendas',
@@ -236,6 +239,8 @@ export const ROUTE_MIN_LVL = {
   '/campanha-wa': 5,      // disparo de campanha — não p/ corretor
   '/one-on-one': 2,       // v86.3: corretor vê o 1:1 DELE (gestor lvl>=5 vê todos; sensível some no backend)
   '/gestao-comercial': 5, // v86.19: painel comercial — gestores/gerentes/sócios (pedido do Paulo)
+  '/crm-house': 5,        // v86.52: CRM House PSM em PILOTO (gestão valida primeiro). Backend já
+                          // escopa por papel (corretor=só os dele) — abrir pro corretor = baixar p/ 2.
   '/cerebro-vendas': 5,   // inteligência de vendas (líder+)
   '/briefing-guerra': 7,  // briefing estratégico (diretoria)
   '/academy-studio': 5,   // produção/construção da Academy — só time que constrói (líder+)
@@ -571,6 +576,7 @@ const APP_VERSION = '86.51';
   router.register('/governanca',  { render: async (ctx, root) => { setHeader('Governança');   highlight('/governanca');  await pageGovernanca(ctx, root); } });
   router.register('/one-on-one',  { render: async (ctx, root) => { setHeader('One-on-One');   highlight('/one-on-one');  await pageOO(ctx, root); } });
   router.register('/gestao-comercial', { render: async (ctx, root) => { setHeader('Gestão Comercial'); highlight('/gestao-comercial'); await pageGestaoComercial(ctx, root); } });
+  router.register('/crm-house', { render: async (ctx, root) => { setHeader('CRM House PSM'); highlight('/crm-house'); await pageCrmHouse(ctx, root); } });
   router.register('/plantoes',    { render: async (ctx, root) => { setHeader('Plantões');     highlight('/plantoes');    await pagePlantoes(ctx, root); } });
   router.register('/captacoes',   { render: async (ctx, root) => { setHeader('Captações');    highlight('/captacoes');   await pageCaptacoes(ctx, root); } });
   router.register('/fiscalizacao', { render: async (ctx, root) => { setHeader('Painel de Fiscalização'); highlight('/fiscalizacao'); await pageProducao(ctx, root, 'gestor'); } });
@@ -818,12 +824,15 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/checkin"><span class="sb-ico">📍</span> Check-in</button>
         <button class="sb-link" data-nav="/ranking"><span class="sb-ico">🏆</span> Ranking</button>
         <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
-        <button class="sb-link" data-nav="/gestao-comercial"><span class="sb-ico">📊</span> Gestão Comercial</button>
         <button class="sb-link" data-nav="/manual"><span class="sb-ico">📖</span> Manual Cultura</button>
         <button class="sb-link" data-nav="/etica"><span class="sb-ico">⚖️</span> Código de Ética</button>
         <button class="sb-link" data-nav="/canal"><span class="sb-ico">🔒</span> Canal Anônimo</button>
         <button class="sb-link" data-nav="/premiacoes"><span class="sb-ico">🏆</span> Premiações</button>
         <button class="sb-link" data-nav="/apresentacoes"><span class="sb-ico">🎬</span> Apresentações PSM</button>
+
+        <div class="sb-sec">💼 Comercial</div>
+        <button class="sb-link" data-nav="/crm-house"><span class="sb-ico">🧲</span> CRM House PSM</button>
+        <button class="sb-link" data-nav="/gestao-comercial"><span class="sb-ico">📊</span> Gestão Comercial</button>
 
         <div class="sb-sec">🏘 Imóveis & Vendas</div>
         <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM (RD)</button>
