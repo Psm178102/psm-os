@@ -213,7 +213,11 @@ def _alertas(sb):
         except Exception:
             parado = 0
         if parado >= 14:
-            manda(f"parado:{rid}", [r.get("dono_cobranca"), r.get("corretor_id")] + dirs,
+            # v86.31 (Paulo, 16/ago): item PARADO deixou de notificar a GESTÃO
+            # (gestores/gerentes/sócios) — só quem AGE recebe (dono + corretor).
+            # A visão de gestão desse atraso mora nos painéis (Caixa/Radar), não
+            # no sino. D-3 c/ bloqueio e D+1 vencido seguem indo pra diretoria.
+            manda(f"parado:{rid}", [r.get("dono_cobranca"), r.get("corretor_id")],
                   "🔴 Recebível PARADO há 14+ dias no mesmo marco",
                   f"{r.get('descricao')} · {val_s} · marco: {r.get('marco_atual')} há {parado}d", rid)
         # 🟡 incompleto → financeiro
