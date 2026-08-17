@@ -1,5 +1,5 @@
 """
-📊 GESTÃO COMERCIAL (v86.19) — o painel que responde as perguntas sem clareza:
+📊 GESTÃO COMERCIAL (v86.33) — o painel que responde as perguntas sem clareza:
 qual fonte converte mais visita/pasta/venda · custo por etapa do funil (R$/lead,
 R$/agendamento, R$/visita, R$/pasta, CAC mídia e CAC completo) · quantas
 pastas/visitas/atendimentos/leads pra 1 venda (equipe E corretor) · ticket por
@@ -27,7 +27,7 @@ import urllib.parse
 from datetime import datetime, timezone, timedelta, date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
+from _auth_lib import require_user, AuthError, supabase_client, lvl_of, notify_all  # type: ignore
 from _oo_lib import (  # type: ignore
     deal_max_milestone, channel, CHANNEL_LABEL, source, parse_dt, amount,
     build_stage_maps, read_meta_accounts, match_team_account, read_team_account_override,
@@ -106,6 +106,8 @@ def filtra_escopo(p, tk):
     novo["turnover"] = {**to, "saidas": [x for x in (to.get("saidas") or []) if x.get("team") == tk],
                         "ativos_risco": [x for x in (to.get("ativos_risco") or []) if x.get("team") == tk],
                         "intervalo_medio_dias": None, "dias_desde_ultima": None}
+    al = p.get("alertas") or {}
+    novo["alertas"] = {**al, "itens": [i for i in (al.get("itens") or []) if i.get("team") == tk]}
     novo["hub_conquista"] = p.get("hub_conquista") if tk == "conquista" else None
     if (p.get("coorte_por_equipe") or {}).get(tk) is not None:
         novo["coorte_n"] = p["coorte_por_equipe"][tk]
@@ -248,7 +250,7 @@ class handler(BaseHTTPRequestHandler):
         spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "last_30d"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc12_cache:{since_d}:{until_d}:{spend_preset}"   # v86.21: shape novo → chave nova
+        ck = f"gc13_cache:{since_d}:{until_d}:{spend_preset}"   # v86.33: shape novo (alertas) → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -261,6 +263,14 @@ class handler(BaseHTTPRequestHandler):
         if payload is None:
             payload = self._compute(sb, since_d, until_d, hoje, spend_preset)
             _kv_write(sb, ck, {"ts": datetime.now(timezone.utc).isoformat(), "data": payload})
+
+        # 🚨 métrica fora da régua → notifica gestor da equipe + sócios (v86.33).
+        # Só em janela ≥28d (janela curta distorce conversão/tempos) e 1×/dia por métrica.
+        try:
+            if (until_d - since_d).days >= 27:
+                self._notifica_alertas(sb, payload.get("alertas") or {}, hoje)
+        except Exception as e:
+            print(f"[gc alertas] falha notificar: {e}")
 
         # 🔒 escopo por gestor (regra 15/ago): gerente/líder lvl<10 vê SOMENTE a
         # própria equipe — em TODAS as abas (visão, fontes, custos, funil,
@@ -279,6 +289,35 @@ class handler(BaseHTTPRequestHandler):
         return self._send(200, {"ok": True, **payload,
                                 "janela": {"since": since_d.isoformat(), "until": until_d.isoformat()},
                                 "viewer_lvl": lvl})
+
+    def _notifica_alertas(self, sb, alertas, hoje):
+        """Notificação por alçada (regra da casa: nunca broadcast): sócios (lvl≥10)
+        sempre + gestor/gerente (5≤lvl<10) SÓ da equipe da métrica. Dedupe diário
+        por métrica via shared_kv gc_alertas_notif:<dia>."""
+        itens = (alertas or {}).get("itens") or []
+        if not itens:
+            return
+        ck = f"gc_alertas_notif:{hoje.isoformat()}"
+        feito = set((_kv_read(sb, ck)[0] or {}).get("ids") or [])
+        novos = [i for i in itens if i["id"] not in feito]
+        if not novos:
+            return
+        rows = sb.table("users").select("id,role,team,status").execute().data or []
+        ativos = [u for u in rows if (u.get("status") or "ativo") == "ativo" and u.get("id")]
+        socios = [str(u["id"]) for u in ativos if lvl_of(u.get("role") or "") >= 10]
+        lbls = dict(TEAMS)
+        for it in novos:
+            dest = set(socios)
+            for u in ativos:
+                l = lvl_of(u.get("role") or "")
+                if 5 <= l < 10 and team_key(u.get("team")) == it["team"]:
+                    dest.add(str(u["id"]))
+            seta = "▲" if it.get("acima") else "▼"
+            titulo = f"🚨 Métrica fora da régua — {lbls.get(it['team'], it['team'])}"
+            corpo = (f"{it['label']}: {it['valor']} ({seta} {abs(it.get('delta_pct') or 0)}% "
+                     f"{'acima' if it.get('acima') else 'abaixo'} do limite {it['limite']})")
+            notify_all(list(dest), "gc_alerta", titulo, body=corpo, link="#/gestao-comercial")
+        _kv_write(sb, ck, {"ids": sorted(feito | {i["id"] for i in novos})})
 
     # ═══════════════ o cálculo pesado (1× por janela a cada 10min) ═══════════════
     def _compute(self, sb, since_d, until_d, hoje, spend_preset="last_30d"):
@@ -891,12 +930,16 @@ class handler(BaseHTTPRequestHandler):
             payback = None
 
         # ── M) 🏃 PERFORMANCE INDIVIDUAL — média-base de 90 dias (métrica do Paulo:
-        # o corretor comparado com a PRÓPRIA base dos 90d anteriores) ──
+        # o corretor comparado com a PRÓPRIA base dos 90d anteriores).
+        # v86.33 (pedido 17/ago): SÓ corretores ATIVOS — quem saiu não entra em
+        # análise de performance, aparece apenas no 🚪 Turnover.
         prev_ini = since_dt - timedelta(days=90)
         perf_corr = []
         uids_perf = {e["uid"] for e in eds if e["uid"] and e["created"] and e["created"] >= prev_ini}
         for uid in uids_perf:
             u = users.get(uid) or {}
+            if (u.get("status") or "ativo") != "ativo":
+                continue          # desligado: análise dele vive no turnover
             tku = team_de(uid, u.get("team"))
             if tku == "outros":
                 continue
@@ -959,6 +1002,59 @@ class handler(BaseHTTPRequestHandler):
                     "dias_desde_ultima": dias_ultima,
                     "nota": "saída aproximada pela ÚLTIMA atividade no CRM do corretor inativo (não há data de desligamento estruturada)",
                     "ativos_risco": sorted(risco, key=lambda x: -x["leads_janela"])[:10]}
+
+        # ── O) 🚨 ALERTAS DE MÉTRICAS-CHAVE (v86.33, pedido 17/ago): régua por
+        # métrica; fora da régua = vermelho no painel + notificação pra gestor da
+        # equipe + sócios (dedupe diário). Régua editável no shared_kv gc_alertas_cfg.
+        ALERTAS_DEFAULT = {
+            "max_cpl": 120.0,            # R$/lead acima disso alerta
+            "max_cac_midia": 3000.0,     # R$/venda (mídia) acima disso alerta
+            "max_contato_h": 24.0,       # 1º contato mediano acima de 24h alerta
+            "min_conv_venda_pct": 0.5,   # conversão lead→venda da safra abaixo disso alerta
+            "max_sem_contato": 10,       # leads sem 1º contato até hoje
+            "min_ritmo_meta_pct": 70.0,  # % do ritmo esperado da meta (proporcional aos dias)
+            "min_roas": 1.0,             # receita ≈4% VGV ÷ spend abaixo de 1× alerta
+        }
+        _acfg_kv = _kv_read(sb, "gc_alertas_cfg")[0] or {}
+        acfg = {**ALERTAS_DEFAULT, **{k: _num(v, ALERTAS_DEFAULT[k]) for k, v in _acfg_kv.items() if k in ALERTAS_DEFAULT}}
+        alert_itens = []
+
+        def _al(team, metrica, label, valor, limite, sentido, fmt="num"):
+            # sentido "max": alerta quando valor > limite · "min": quando valor < limite
+            if valor is None or limite in (None, 0):
+                return
+            fora = valor > limite if sentido == "max" else valor < limite
+            if not fora:
+                return
+            alert_itens.append({"id": f"{team}:{metrica}", "team": team, "metrica": metrica,
+                                "label": label, "valor": round(_num(valor), 2), "limite": round(_num(limite), 2),
+                                "delta_pct": round((valor - limite) / abs(limite) * 100, 1),
+                                "acima": valor > limite, "fmt": fmt})
+
+        for cu in custos:
+            _tk = cu["team"]
+            if not (cu["leads"] or cu["vendas"] or cu["spend"]):
+                continue
+            _al(_tk, "custo_lead", "R$/lead", cu["custo_lead"] if cu["custo_lead"] is not None else cu["custo_lead_30d"], acfg["max_cpl"], "max", "brl")
+            _al(_tk, "cac_midia", "CAC mídia (R$/venda)", cu["cac_midia"] if cu["cac_midia"] is not None else cu["cac_midia_30d"], acfg["max_cac_midia"], "max", "brl")
+            if cu["spend"]:
+                _al(_tk, "roas", "ROAS (receita ≈4% ÷ spend)", cu["roas"], acfg["min_roas"], "min", "x")
+        for _tk, _l in TEAMS:
+            ep = equipes_prod.get(_tk) or {}
+            if ep.get("leads"):
+                _al(_tk, "contato_h", "1º contato mediano (horas)", ep.get("contato_h_mediana"), acfg["max_contato_h"], "max", "h")
+                _al(_tk, "conv_venda", "conversão lead→venda da safra (%)", round(ep["venda"] / ep["leads"] * 100, 2) if ep["leads"] >= 30 else None, acfg["min_conv_venda_pct"], "min", "pct")
+            rz = resposta.get(_tk) or {}
+            if rz.get("sem_contato"):
+                _al(_tk, "sem_contato", "leads SEM 1º contato", rz["sem_contato"], acfg["max_sem_contato"], "max", "num")
+        for v in visao:
+            if (v.get("meta_vendas") or 0) > 0 and hoje.day >= 5:   # 5 dias de mês pra fazer sentido
+                esperado = v["meta_vendas"] * (hoje.day / dias_mes)
+                if esperado > 0:
+                    _al(v["team"], "ritmo_meta", "% do ritmo esperado da meta do mês",
+                        round(v["real_vendas"] / esperado * 100, 1), acfg["min_ritmo_meta_pct"], "min", "pct")
+        alertas = {"itens": alert_itens, "cfg": acfg,
+                   "nota": "régua editável no shared_kv gc_alertas_cfg · fora da régua = métrica vermelha + notificação pra gestor da equipe e sócios (1× por dia por métrica)"}
 
         # ── I) CAMPANHAS → FUNIL → VENDA (pedido do Paulo, 15/ago: escalar/pausar
         # pela VENDA, não pelo CPL — CPL barato sem venda não compensa; CPL acima
@@ -1025,7 +1121,7 @@ class handler(BaseHTTPRequestHandler):
                            "nota": "spend Meta this_month por conta da equipe ÷ atividade real do mês; CAC completo soma o custo fixo orçado da linha"},
                 "produtividade": {"corretores": corretores, "equipes": equipes_prod},
                 "safras": safras_out, "safras_por_equipe": safras_por_equipe, "tempos": tempos,
-                "performance_corretores": perf_corr, "turnover": turnover,
+                "performance_corretores": perf_corr, "turnover": turnover, "alertas": alertas,
                 "coorte_por_equipe": {tk: sum(1 for e in na_janela if e["team"] == tk) for tk, _l in TEAMS},
                 "cobertura_origem_pct": cobertura, "avisos": avisos,
                 "coorte_n": len(na_janela),

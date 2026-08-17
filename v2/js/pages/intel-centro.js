@@ -277,7 +277,7 @@ function forecastPanel(fc) {
   if (!fc.meta && !fc.vgvMes) return '';
   const col = fc.pct_meta == null ? '#64748b' : fc.pct_meta >= 100 ? '#16a34a' : fc.pct_meta >= 80 ? '#d97706' : '#dc2626';
   return `<div style="margin-top:14px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:14px">
-    <div style="font-weight:800;font-size:13px;margin-bottom:8px">🔮 Forecast do mês (projeção pelo ritmo)</div>
+    <div style="font-weight:800;font-size:13px;margin-bottom:8px">🔮 Projeção do mês (pelo ritmo)</div>
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
       <div><div style="font-size:11px;color:var(--ink-muted)">Realizado (dia ${fc.dia}/${fc.diasMes})</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(fc.vgvMes)}</div></div>
       <div style="font-size:20px;color:var(--ink-muted)">→</div>

@@ -416,7 +416,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.32';
+const APP_VERSION = '86.33';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -561,7 +561,7 @@ const APP_VERSION = '86.32';
   router.register('/locacao-estoque', { render: async (ctx, root) => { setHeader('Imóveis p/ Alugar'); highlight('/locacao-estoque'); await pageEstoqueKenlo(ctx, root, 'locacao'); } });
   router.register('/minutas-locacao', { render: async (ctx, root) => { setHeader('Minutas e Fichas · Locação'); highlight('/minutas-locacao'); await pageMinutasLocacao(ctx, root); } });
   router.register('/arena',     { render: async (ctx, root) => { setHeader('Arena Live'); highlight('/arena');     await pageArena(ctx, root); } });
-  router.register('/forecast',  { render: async (ctx, root) => { setHeader('Forecast');  highlight('/forecast');  await pageForecast(ctx, root); } });
+  router.register('/forecast',  { render: async (ctx, root) => { setHeader('Projeção');  highlight('/forecast');  await pageForecast(ctx, root); } });
   router.register('/organograma', { render: async (ctx, root) => { setHeader('Organograma'); highlight('/organograma'); await pageOrganograma(ctx, root); } });
   router.register('/checkin',     { render: async (ctx, root) => { setHeader('Check-in');     highlight('/checkin');     await pageCheckin(ctx, root); } });
   router.register('/ranking',     { render: async (ctx, root) => { setHeader('Ranking');      highlight('/ranking');     await pageRanking(ctx, root); } });
@@ -920,7 +920,7 @@ function shellHTML(user) {
 
         <div class="sb-sec">💰 Financeiro</div>
         <button class="sb-link" data-nav="/financeiro"><span class="sb-ico">💰</span> Financeiro</button>
-        <button class="sb-link" data-nav="/forecast"><span class="sb-ico">📈</span> Forecast</button>
+        <button class="sb-link" data-nav="/forecast"><span class="sb-ico">📈</span> Projeção</button>
 
         <div class="sb-sec">⚖️ Jurídico</div>
         <button class="sb-link" data-nav="/minutas"><span class="sb-ico">📜</span> Minutas padrão</button>

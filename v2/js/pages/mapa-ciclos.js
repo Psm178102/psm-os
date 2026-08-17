@@ -106,7 +106,7 @@ function render(d, loading) {
       ${node('#/metricas-viab', '🧪', 'Métrica de Viabilidade', '#16a34a', 'realizado × premissa + equilíbrio', [
         { v: fK(c.vgvMes), l: 'VGV real/mês' }, { v: fi.ok ? f$(fi.custoMes) : '—', l: 'custo fixo' },
       ])}
-      ${node('#/forecast', '🎯', 'Forecast / Metas', '#d97706', 'run-rate → projeção → meta', [
+      ${node('#/forecast', '🎯', 'Projeção / Metas', '#d97706', 'run-rate → projeção → meta', [
         { v: fK(fc.projAno), l: 'projeção ano' }, { v: fc.ating == null ? '—' : pct2(fc.ating), l: 'da meta', cor: atingCor },
       ])}
       ${node('#/sim-trafego', '⚡', 'Otimizador de Verba', '#0ea5e9', 'aloca orçamento ótimo', [
@@ -121,7 +121,7 @@ function render(d, loading) {
       ${ciclo('🔄 #1', 'Meta + CRM → Simulador', 'CPL e conversão reais calibram o cenário simulado (botão "usar no simulado").', 'ok')}
       ${ciclo('🔄 #2', 'Financeiro → Viabilidade', 'Custo realizado (NIBO) confronta a planilha de custos da Viab.', fi.ok ? 'ok' : 'warn')}
       ${ciclo('🔄 #3', 'Viabilidade → Orçamento', 'VGV de equilíbrio/meta → "Orçamento pra meta" no Simulador calcula quanto investir em tráfego (engenharia reversa).', 'ok')}
-      ${ciclo('🔄 #4', 'Vendas → Forecast → Meta', 'O run-rate do realizado projeta o ano e ajusta a meta na aba Metas.', 'ok')}
+      ${ciclo('🔄 #4', 'Vendas → Projeção → Meta', 'O run-rate do realizado projeta o ano e ajusta a meta na aba Metas.', 'ok')}
     </div>
     <div class="tiny muted" style="margin-top:10px">💡 Clique em qualquer bloco pra abrir a tela. Os números são a média mensal do ano (Meta ${m.meses} mês(es) arquivado(s); CRM ÷ ${MESES} meses decorridos).</div>
   </div>

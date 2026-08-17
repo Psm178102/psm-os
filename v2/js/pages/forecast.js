@@ -16,7 +16,7 @@ export async function pageForecast(ctx, root) {
 }
 
 async function reload() {
-  _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Calculando forecast…</div></div>';
+  _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Calculando projeção…</div></div>';
   try {
     _data = await api.request('/api/v3/forecast/summary?ano=' + _ano);
     render();
@@ -29,7 +29,7 @@ function render() {
   const d = _data, t = d.totals || {}, months = d.months || [], stages = d.stages || [];
   _root.innerHTML = `
     <div class="card">
-      <h2 class="card-title">📈 Forecast ${_ano}</h2>
+      <h2 class="card-title">📈 Projeção ${_ano}</h2>
       <p class="card-sub">Projeção VGV ponderada (deals abertos × peso do stage). Pesos heurísticos por nome do stage.</p>
 
       <div class="flex gap-2 mt-2" style="align-items:center">
@@ -43,8 +43,8 @@ function render() {
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
         ${kpi('🎯 Deals abertos',  t.deals || 0, 'em pipeline', '#2563eb')}
         ${kpi('💰 VGV bruto',       'R$ ' + money(t.valor_total),     'soma sem peso',         '#7c3aed')}
-        ${kpi('📊 Forecast (ponderado)', 'R$ ' + money(t.valor_ponderado), 'por probabilidade', '#16a34a')}
-        ${kpi('% Conversão est.',  t.valor_total > 0 ? pct2((t.valor_ponderado / t.valor_total) * 100) : '—', 'forecast/bruto', '#d97706')}
+        ${kpi('📊 Projeção (ponderada)', 'R$ ' + money(t.valor_ponderado), 'por probabilidade', '#16a34a')}
+        ${kpi('% Conversão est.',  t.valor_total > 0 ? pct2((t.valor_ponderado / t.valor_total) * 100) : '—', 'projeção/bruto', '#d97706')}
       </div>
 
       <div class="card mt-4" style="margin-top:14px">
@@ -55,7 +55,7 @@ function render() {
               <th style="text-align:left;padding:8px">Mês</th>
               <th style="text-align:right;padding:8px"># Deals</th>
               <th style="text-align:right;padding:8px">Bruto</th>
-              <th style="text-align:right;padding:8px">Forecast</th>
+              <th style="text-align:right;padding:8px">Projeção</th>
               <th style="text-align:right;padding:8px">% conv</th>
             </tr></thead>
             <tbody>
@@ -87,7 +87,7 @@ function render() {
 
       <div class="alert alert-warn mt-3">
         <b>Como funciona:</b> cada deal aberto ganha um peso de 0-100% baseado no nome do stage
-        (proposta/negociação ~70%, qualificado ~40%, contato ~15%, perdido 0%). Forecast =
+        (proposta/negociação ~70%, qualificado ~40%, contato ~15%, perdido 0%). Projeção =
         soma(amount × peso). É uma estimativa heurística — ajuste depois cadastrando pesos por stage.
       </div>
     </div>

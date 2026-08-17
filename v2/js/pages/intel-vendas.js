@@ -115,7 +115,7 @@ function forecastPanel(fc) {
   const pctMeta = fc.run_rate_pct_meta;
   const col = pctMeta == null ? '#64748b' : pctMeta >= 100 ? '#16a34a' : pctMeta >= 80 ? '#d97706' : '#dc2626';
   return `<div style="margin-top:12px;background:linear-gradient(180deg,rgba(124,58,237,.07),transparent);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px">
-    <div style="font-weight:800;font-size:13px;margin-bottom:10px">🔮 Forecast do mês</div>
+    <div style="font-weight:800;font-size:13px;margin-bottom:10px">🔮 Projeção do mês</div>
     <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end">
       <div><div class="tiny muted">Realizado (dia ${fc.dia}/${fc.dias_mes})</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(fc.realizado_mes_vgv)}</div><div class="tiny muted">${fc.realizado_mes_vendas || 0} venda(s)</div></div>
       <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">💎 Pipeline ponderado <span title="Soma de (probabilidade × valor) de todos os abertos">ⓘ</span></div><div style="font-size:26px;font-weight:900;color:#7c3aed">R$ ${moneyShort(fc.pipeline_ponderado_vgv)}</div><div class="tiny muted">${fc.pipeline_ponderado_vendas || 0} vendas esperadas · valor esperado do funil</div></div>

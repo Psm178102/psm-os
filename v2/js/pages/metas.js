@@ -78,13 +78,13 @@ function forecastPanel(d, grid) {
   return `
   <div style="margin-top:14px;border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--bg-3)">
     <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div style="font-weight:800">📊 Forecast ${_ano} <span class="tiny muted" style="font-weight:400">— ritmo real das vendas projeta o fechamento</span></div>
+      <div style="font-weight:800">📊 Projeção ${_ano} <span class="tiny muted" style="font-weight:400">— ritmo real das vendas projeta o fechamento</span></div>
       <div style="font-weight:800;color:${st.c}">${st.t} · ${ritmoPct >= 999 ? '∞%' : pct2(ritmoPct)} do ritmo</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px">
       ${box('🎯 Meta anual', mny(metaAno), 'esperado até hoje ' + mny(metaProRata), '#334155')}
       ${box('↑ Atingido (YTD)', mny(atingido), vendas + ' vendas · ritmo ' + mny(ritmoMes) + '/mês', st.c)}
-      ${box('📈 Forecast fim do ano', mny(forecast), (gap >= 0 ? '✅ ' + mny(gap) + ' acima' : '⚠️ ' + mny(-gap) + ' abaixo') + ' da meta', gap >= 0 ? '#16a34a' : '#dc2626')}
+      ${box('📈 Projeção fim do ano', mny(forecast), (gap >= 0 ? '✅ ' + mny(gap) + ' acima' : '⚠️ ' + mny(-gap) + ' abaixo') + ' da meta', gap >= 0 ? '#16a34a' : '#dc2626')}
       ${box('🎯 Pra bater a meta', mny(necMes) + '/mês', 'faltam ' + mny(falta) + ' em ' + mesesRest.toFixed(1) + ' meses', necMes > ritmoMes * 1.05 ? '#dc2626' : '#16a34a')}
     </div>
     <div class="tiny muted" style="margin-top:8px">💡 No ritmo atual (${mny(ritmoMes)}/mês) você fecha <b>${mny(forecast)}</b>. Pra bater a meta de ${mny(metaAno)}, precisa de <b>${mny(necMes)}/mês</b> nos meses que faltam${necMes > ritmoMes * 1.05 ? ' — <b style="color:#dc2626">acima do ritmo de hoje</b>, então ou acelera as vendas ou recalibra a meta.' : ' — dentro/abaixo do ritmo de hoje. ✅'}</div>

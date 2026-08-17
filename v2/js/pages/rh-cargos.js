@@ -69,7 +69,7 @@ const PB = {
   },
   gerente: {
     funcoes: '• Liderar a equipe comercial da frente: distribuir leads, acompanhar negociações\n• Treinar (role-play, objeções, produto) e desenvolver corretores\n• Garantir cadência e higiene do CRM (nenhum negócio sem próxima tarefa)\n• One-on-one quinzenal com cada corretor',
-    rotina: '08h30 — Funil da equipe: SLA de 1º contato + negócios parados\n09h00 — Daily de 15 min com a equipe (prioridades do dia)\n10h00–12h00 — Acompanhar negociações quentes (junto quando precisar)\n14h00 — Ter/Qui: treino de 40 min (produto/objeções)\n16h30 — Feedbacks individuais rápidos\n17h30 — Forecast e pipeline pro dia seguinte',
+    rotina: '08h30 — Funil da equipe: SLA de 1º contato + negócios parados\n09h00 — Daily de 15 min com a equipe (prioridades do dia)\n10h00–12h00 — Acompanhar negociações quentes (junto quando precisar)\n14h00 — Ter/Qui: treino de 40 min (produto/objeções)\n16h30 — Feedbacks individuais rápidos\n17h30 — Projeção e pipeline pro dia seguinte',
     responsabilidades: '• Meta de VGV da frente no mês\n• SLA de 1º contato < 30 min na equipe\n• Taxa de conversão e motivo de perda auditados\n• CRM 100% com próxima tarefa marcada',
   },
   lider: {
