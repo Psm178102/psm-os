@@ -171,7 +171,7 @@ function resumoTab() {
     r.g_funil = { foco: 'funil da safra por equipe (leads→venda)', dados: eqProd };
     r.g_fontes = { foco: 'distribuição de leads e conversão por fonte', dados: ((d.fontes || {}).geral || []).slice(0, 10).map(f => ({ fonte: f.label, leads: f.leads, vendas: f.venda, pc_visita: f.pc_visita, pc_venda: f.pc_venda })) };
     r.g_safras = { foco: 'maturação das safras (conv até hoje)', dados: (d.safras || []) };
-    r.g_custos = { foco: 'CAC mídia × CAC completo por equipe', dados: ((d.custos || {}).equipes || []).map(c => ({ equipe: c.label, spend: c.spend, cac_midia: c.cac_midia ?? c.cac_midia_30d, cac_completo: c.cac_completo ?? c.cac_completo_30d })) };
+    r.g_custos = { foco: 'CAC mídia × marketing × completo por equipe', dados: ((d.custos || {}).equipes || []).map(c => ({ equipe: c.label, spend: c.spend, cac_midia: c.cac_midia ?? c.cac_midia_30d, cac_marketing: c.cac_marketing ?? c.cac_marketing_30d, cac_completo: c.cac_completo ?? c.cac_completo_30d, premiacao_indicacao: c.premiacao_indicacao })) };
     r.g_camp = { foco: 'campanhas que mais venderam na safra', dados: ((d.campanhas || {}).itens || []).filter(x => x.venda > 0).slice(0, 10).map(x => ({ campanha: x.campanha, vendas: x.venda, vgv: x.vgv, spend: x.spend_30d, roas: x.roas })) };
   } else if (_tab === 'funilrd') {
     Object.entries(d.funil_rd || {}).forEach(([t, f]) => {
@@ -481,6 +481,7 @@ function metricasChave() {
         ${tile(t, 'custo_visita', '🚶 R$ / visita', val30(c.custo_visita, c.custo_visita_30d))}
         ${tile(t, 'custo_pasta', '📁 R$ / pasta', val30(c.custo_pasta, c.custo_pasta_30d))}
         ${tile(t, 'cac_midia', '🎯 CAC mídia (R$/venda de tráfego)', val30(c.cac_midia, c.cac_midia_30d), fN(c.vendas_pagas || 0) + ' de tráfego / ' + fN(c.vendas) + ' vendas')}
+        ${tile(t, 'cac_marketing', '📦 CAC marketing (R$/venda)', val30(c.cac_marketing, c.cac_marketing_30d), '🎁 R$ ' + kR$(c.premiacao_indicacao || 0) + ' premiação · ' + fN(c.vendas_indicacao || 0) + ' indicação')}
         ${tile(t, 'roas', '📈 ROAS (receita≈4% ÷ spend)', c.roas != null ? fN(c.roas) + '×' : '—')}
         ${tile(t, 'conv_venda', '🎲 Conv. lead→venda (safra)', conv != null ? fN(conv) + '%' : '—')}
         ${tile(t, 'visitas_venda', '🚶 Visitas → 1 venda', p.visitas_por_venda ?? '—')}
@@ -636,14 +637,15 @@ function tabCustos() {
       <td style="text-align:right;font-size:12px">${e.custo_visita != null ? 'R$ ' + brl(e.custo_visita) : (e.custo_visita_30d != null ? 'R$ ' + brl(e.custo_visita_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.visita)}</div></td>
       <td style="text-align:right;font-size:12px">${e.custo_pasta != null ? 'R$ ' + brl(e.custo_pasta) : (e.custo_pasta_30d != null ? 'R$ ' + brl(e.custo_pasta_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.pasta)}</div></td>
       <td style="text-align:right;font-weight:900;font-size:13px;color:#b45309">${e.cac_midia != null ? 'R$ ' + kR$(e.cac_midia) : (e.cac_midia_30d != null ? 'R$ ' + kR$(e.cac_midia_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.vendas_pagas || 0)} venda(s) de tráfego</div></td>
+      <td style="text-align:right;font-weight:900;font-size:13px;color:#7c3aed">${e.cac_marketing != null ? 'R$ ' + kR$(e.cac_marketing) : (e.cac_marketing_30d != null ? 'R$ ' + kR$(e.cac_marketing_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">🎁 R$ ${kR$(e.premiacao_indicacao || 0)} (${fN(e.vendas_indicacao || 0)} indicação)</div></td>
       <td style="text-align:right;font-weight:900;font-size:13px;color:#dc2626">${e.cac_completo != null ? 'R$ ' + kR$(e.cac_completo) : (e.cac_completo_30d != null ? 'R$ ' + kR$(e.cac_completo_30d) + ' <span class="tiny muted">30d</span>' : '—')}<div class="tiny muted">${fN(e.vendas)} venda(s) no mês${e.vendas_30d ? ' · ' + fN(e.vendas_30d) + ' em 30d' : ''}</div></td>
     </tr>`).join('');
   return pan(`💰 Unit economics do mês (${c.mes || ''}) — do lead ao CAC, por equipe`, `
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th><th>Spend Meta</th><th>R$/lead</th><th>R$/agendamento</th><th>R$/visita</th><th>R$/pasta</th><th>CAC mídia</th><th>CAC completo</th></tr></thead>
+      <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Equipe</th><th>Spend Meta</th><th>R$/lead</th><th>R$/agendamento</th><th>R$/visita</th><th>R$/pasta</th><th>CAC mídia</th><th>CAC marketing</th><th>CAC completo</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
     ${c.payback_midia ? `<div class="tiny" style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">💸 <b>Payback de mídia:</b> a venda vira caixa em mediana <b>${fN(c.payback_midia.mediana_dias)} dias</b> (${esc(c.payback_midia.fonte)}, n=${fN(c.payback_midia.n)}) — é o tempo entre o real investido e o real voltando.</div>` : ''}
-    <div class="tiny muted" style="margin-top:8px">${esc(c.nota || '')}. Qualificado começa no AGENDAMENTO (decisão 14/ago). <b>CAC mídia = spend ÷ vendas de TRÁFEGO PAGO</b> (indicação/orgânico não diluem a mídia — decisão 17/ago); CAC completo = (spend + fixo) ÷ TODAS as vendas.</div>`, 'unit_economics')
+    <div class="tiny muted" style="margin-top:8px">${esc(c.nota || '')}. Qualificado começa no AGENDAMENTO (decisão 14/ago). <b>CAC mídia</b> = spend ÷ vendas de TRÁFEGO PAGO · <b>CAC marketing</b> = (spend + 🎁 premiação de indicação pela faixa de VGV — só venda de origem INDICAÇÃO, tabela oficial) ÷ todas as vendas · <b>CAC completo</b> = (spend + premiação + fixo orçado da linha) ÷ todas as vendas (decisões 17/ago).</div>`, 'unit_economics')
     + histTable('Custo — mês a mês (spend GLOBAL da Meta; histórico por equipe não existe na base mensal)', [
       { lbl: 'Spend Meta', get: h => h.total?.spend, fmt: x => 'R$ ' + kR$(x), invertido: true },
       { lbl: 'CPL global', get: h => h.total?.cpl_global, fmt: x => 'R$ ' + kR$(x), invertido: true },
@@ -802,7 +804,7 @@ function tabGraficos() {
     ${gwrap('gch-funil', '⏬ Funil da safra por equipe — leads → atendimento → agendamento → visita → pasta → venda', 'g_funil')}
     ${gwrap(['gch-fontes', 'gch-fontes-conv'], '🔀 Fontes — distribuição de leads e % de conversão por origem (safra)', 'g_fontes')}
     ${temSafra ? gwrap('gch-safras', '📈 Safras — leads de cada mês (barras) × conversão até hoje (linha)', 'g_safras') : ''}
-    ${gwrap('gch-cac', '💰 CAC por equipe — mídia × completo (mês corrente, fallback 30d)', 'g_custos')}
+    ${gwrap('gch-cac', '💰 CAC por equipe — mídia × marketing × completo (mês corrente, fallback 30d)', 'g_custos')}
     ${temCamp ? gwrap('gch-camp', '📣 Campanhas que mais VENDERAM na safra', 'g_camp') : ''}
     <div class="tiny muted" style="margin-top:8px">Mesmos dados das outras abas, em visual — janela e escopo lá de cima valem aqui. Gráfico vazio = sem dado na janela.</div>`;
 }
@@ -861,8 +863,9 @@ async function initCharts() {
 
   const ce = (_d.custos || {}).equipes || [];
   mk('gch-cac', { type: 'bar', data: { labels: ce.map(c => sigla(c.label)), datasets: [
-    { label: 'CAC mídia', data: ce.map(c => c.cac_midia ?? c.cac_midia_30d ?? 0), backgroundColor: '#b45309' },
-    { label: 'CAC completo', data: ce.map(c => c.cac_completo ?? c.cac_completo_30d ?? 0), backgroundColor: '#dc2626' },
+    { label: 'CAC mídia (só vendas de tráfego)', data: ce.map(c => c.cac_midia ?? c.cac_midia_30d ?? 0), backgroundColor: '#b45309' },
+    { label: 'CAC marketing (+premiação indicação)', data: ce.map(c => c.cac_marketing ?? c.cac_marketing_30d ?? 0), backgroundColor: '#7c3aed' },
+    { label: 'CAC completo (+fixo da linha)', data: ce.map(c => c.cac_completo ?? c.cac_completo_30d ?? 0), backgroundColor: '#dc2626' },
   ] }, options: base({ scales: sc() }) });
 
   const ci = ((_d.campanhas || {}).itens || []).filter(x => x.venda > 0).slice(0, 10);

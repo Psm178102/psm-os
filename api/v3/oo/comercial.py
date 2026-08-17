@@ -1,5 +1,5 @@
 """
-📊 GESTÃO COMERCIAL (v86.35) — o painel que responde as perguntas sem clareza:
+📊 GESTÃO COMERCIAL (v86.36) — o painel que responde as perguntas sem clareza:
 qual fonte converte mais visita/pasta/venda · custo por etapa do funil (R$/lead,
 R$/agendamento, R$/visita, R$/pasta, CAC mídia e CAC completo) · quantas
 pastas/visitas/atendimentos/leads pra 1 venda (equipe E corretor) · ticket por
@@ -249,7 +249,7 @@ class handler(BaseHTTPRequestHandler):
         spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "last_30d"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc15_cache:{since_d}:{until_d}:{spend_preset}"   # v86.35: Yara conta MAP+Terceiros, corretor×equipe → chave nova
+        ck = f"gc16_cache:{since_d}:{until_d}:{spend_preset}"   # v86.36: CAC marketing c/ premiação de indicação → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -545,6 +545,23 @@ class handler(BaseHTTPRequestHandler):
         _ovr = read_team_account_override(sb)
         orcado = _kv_read(sb, "viab_custos_orcado")[0] or {}
         itens_orc = (orcado.get(str(hoje.year)) or {}).get("itens") or []
+        # 🎁 v86.36 (decisão do Paulo 17/ago): premiação de indicação entra no CAC —
+        # SÓ quando a origem da venda é INDICAÇÃO, prêmio pela faixa de VGV da
+        # tabela oficial (shared_kv fiscalizacao_cfg, mesma da Fiscalização/Comissão).
+        # Acima da última faixa (1M+ = personalizável) usamos a última como piso.
+        _fisc = _kv_read(sb, "fiscalizacao_cfg")[0] or {}
+        FAIXAS_IND = _fisc.get("premio_indicacao_venda") or [
+            [300000, 500], [450000, 800], [600000, 1000], [900000, 1800], [1000000, 2500]]
+
+        def premio_indicacao(vgv):
+            try:
+                v = float(vgv or 0)
+                for teto, premio in FAIXAS_IND:
+                    if v <= float(teto):
+                        return float(premio)
+                return float(FAIXAS_IND[-1][1])
+            except Exception:
+                return 0.0
         custos = []
         mes_pool = [e for e in eds if e["created"] and e["created"].date() >= mes_ini]
         for tk, lbl in TEAMS:
@@ -587,16 +604,24 @@ class handler(BaseHTTPRequestHandler):
             wins30 = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and e["closed"].date() >= d30]
             vd30 = len(wins30)
             vd30_pagas = sum(1 for e in wins30 if e["canal"] in PAGO)
+            ind_mes = [e for e in wins_tk if e["canal"] == "indicacao"]
+            premiacao = sum(premio_indicacao(e["vgv"]) for e in ind_mes)
+            premiacao30 = sum(premio_indicacao(e["vgv"]) for e in wins30 if e["canal"] == "indicacao")
             custos.append({"team": tk, "label": lbl, "spend": round(spend, 2), "fixo_mes": round(fixo, 2),
                            "conta": acc.get("label") if acc else None,
                            "leads": leads, "agend": agend, "visita": visita, "pasta": pasta, "vendas": vendas,
                            "vendas_pagas": vendas_pagas,
+                           "vendas_indicacao": len(ind_mes), "premiacao_indicacao": round(premiacao, 2),
                            "custo_lead": div(spend, leads), "custo_agend": div(spend, agend),
                            "custo_visita": div(spend, visita), "custo_pasta": div(spend, pasta),
-                           "cac_midia": div(spend, vendas_pagas), "cac_completo": div(spend + fixo, vendas),
+                           "cac_midia": div(spend, vendas_pagas),
+                           "cac_marketing": div(spend + premiacao, vendas),
+                           "cac_completo": div(spend + premiacao + fixo, vendas),
                            "custo_lead_30d": div(spend30, l30), "custo_agend_30d": div(spend30, a30),
                            "custo_visita_30d": div(spend30, v30), "custo_pasta_30d": div(spend30, p30),
-                           "cac_midia_30d": div(spend30, vd30_pagas), "cac_completo_30d": div(spend30 + fixo, vd30),
+                           "cac_midia_30d": div(spend30, vd30_pagas),
+                           "cac_marketing_30d": div(spend30 + premiacao30, vd30),
+                           "cac_completo_30d": div(spend30 + premiacao30 + fixo, vd30),
                            "vendas_30d": vd30, "vendas_pagas_30d": vd30_pagas,
                            "roas": div(vgv_pago * 0.04, spend) if spend else None})
 
