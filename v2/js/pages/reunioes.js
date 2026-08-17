@@ -37,7 +37,9 @@ export async function pageReunioes(ctx, root) {
 }
 
 function renderTabs() {
-  const tabs = [['reunioes', '🗓️ Reuniões & Combinados'], ['formatos', '📋 Formatos']];
+  // v86.49: aba "Rotina oficial" absorve o antigo menu 📋 Formatos de Reunião
+  // (rh-reunioes) — unificação pedida pelo Paulo, 18/ago
+  const tabs = [['reunioes', '🗓️ Reuniões & Combinados'], ['formatos', '📋 Formatos'], ['rotina', '📆 Rotina oficial (v2.3)']];
   const el = _root.querySelector('#rn-tabs');
   el.innerHTML = tabs.map(([id, lbl]) => {
     const on = id === _tab;
@@ -48,7 +50,19 @@ function renderTabs() {
 
 function renderTab() {
   if (_tab === 'formatos') return loadFormatos();
+  if (_tab === 'rotina') return loadRotina();
   return loadReunioes(!_loadedR);
+}
+
+/* aba unificada: renderiza o módulo da rotina v2.3 dentro do corpo desta página */
+async function loadRotina() {
+  body().innerHTML = '<div class="card mt-3"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando rotina oficial…</div></div>';
+  try {
+    const mod = await import('./rh-reunioes.js');
+    await mod.pageRhReunioes(null, body());
+  } catch (e) {
+    body().innerHTML = `<div class="alert alert-err">Erro ao carregar a rotina: ${esc(e.message || e)}</div>`;
+  }
 }
 
 /* ═══════════════════════ ABA REUNIÕES (nova) ═══════════════════════ */
