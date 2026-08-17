@@ -415,7 +415,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.50';
+const APP_VERSION = '86.51';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -784,8 +784,24 @@ const APP_VERSION = '86.50';
   initRealtime();
 })();
 
+// ─── Favicon por marca (v86.51, pedido do Paulo 18/ago) ────────────────
+// Conquista → ícone da porta PSM.CONQUISTA; MAP/Terceiros/Locação → logo
+// vertical PSM.IMÓVEIS; sem time/deslogado → favicon padrão da casa.
+function applyBrandFavicon(user) {
+  try {
+    const t = ((user || {}).team || '').toLowerCase();
+    let href = '/favicon.ico', type = 'image/x-icon';
+    if (t.includes('conquista')) { href = '/v2/img/fav-conquista.png'; type = 'image/png'; }
+    else if (t.includes('map') || t.includes('tercei') || t.includes('loca')) { href = '/v2/img/fav-imoveis.png'; type = 'image/png'; }
+    let l = document.querySelector('link[rel="icon"]');
+    if (!l) { l = document.createElement('link'); l.rel = 'icon'; document.head.appendChild(l); }
+    l.type = type; l.href = href;
+  } catch (_) {}
+}
+
 // ─── Shell ─────────────────────────────────────────────────────────────
 function shellHTML(user) {
+  applyBrandFavicon(user);
   const ini = (user.ini || (user.name || '?').substring(0, 2)).toUpperCase();
   return `
     <div class="app-shell">
