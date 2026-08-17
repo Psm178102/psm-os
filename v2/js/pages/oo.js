@@ -135,6 +135,9 @@ function brokerCard(c) {
         ${miniKpi('Vendas', c.vendas)} ${miniKpi('Visitas', c.visitas)} ${miniKpi('VGV', 'R$ ' + moneyShort(c.vgv))}
       </div>
       ${att != null ? `<div class="tiny muted" style="margin-bottom:2px">Meta VGV: <b>${pctF(att)}</b></div>${attBar}` : '<div class="tiny muted">Sem meta no período</div>'}
+      ${(() => { const p = c.projecao || {}; if (p.modo !== 'projecao') return '';
+        const cor = p.no_ritmo == null ? 'var(--ink-muted)' : p.no_ritmo ? '#16a34a' : '#dc2626';
+        return `<div class="tiny" style="margin-top:4px">📈 <b>Projeção do mês:</b> <span style="font-weight:800;color:${cor}">${p.proj_vendas ?? 0} venda(s) · R$ ${moneyShort(p.proj_vgv || 0)}</span>${p.atingira_vgv_pct != null ? ` <span class="muted">(${pctF(p.atingira_vgv_pct)} da meta${p.confianca ? ' · conf. ' + p.confianca : ''})</span>` : (p.confianca ? ` <span class="muted">(conf. ${p.confianca})</span>` : '')}</div>`; })()}
       ${alerts ? `<div style="margin-top:6px">${alerts}</div>` : ''}
       ${c.proxima_oo ? `<div class="tiny muted" style="margin-top:6px">📅 Próxima 1:1: ${fmtD(c.proxima_oo)}</div>` : (c.last_oo ? `<div class="tiny muted" style="margin-top:6px">Última 1:1: ${fmtD(c.last_oo)}</div>` : '<div class="tiny" style="color:#d97706;margin-top:6px">Sem 1:1 registrada</div>')}
     </div>`;

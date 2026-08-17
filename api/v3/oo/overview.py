@@ -222,6 +222,8 @@ class handler(BaseHTTPRequestHandler):
                 "meta_attainment_pct": m["meta_attainment_pct"],
                 "alertas_count": len(m["alertas"]),
                 "alertas_top": [a["txt"] for a in m["alertas"][:2]],
+                "projecao": m.get("projecao") or {},   # v86.44: projeção individual no card
+
                 "pendencias": m["pendencias"],
                 "last_oo": last_oo.get(cid), "proxima_oo": prox_oo.get(cid),
                 "lead_invest": _inv, "cpl_base": _invbase, "conta_label": _invlbl,
