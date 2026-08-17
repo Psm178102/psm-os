@@ -1,5 +1,5 @@
 """
-📊 GESTÃO COMERCIAL (v86.34) — o painel que responde as perguntas sem clareza:
+📊 GESTÃO COMERCIAL (v86.35) — o painel que responde as perguntas sem clareza:
 qual fonte converte mais visita/pasta/venda · custo por etapa do funil (R$/lead,
 R$/agendamento, R$/visita, R$/pasta, CAC mídia e CAC completo) · quantas
 pastas/visitas/atendimentos/leads pra 1 venda (equipe E corretor) · ticket por
@@ -52,8 +52,9 @@ CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
 
-# 👥 regra do Paulo (15/ago): no MAP analisar APENAS os logins isa, rafaela e
-# paulo — quem mais estiver com team=map (ex.: yara) fica FORA dos números MAP
+# 👥 v86.35 (decisão do Paulo 17/ago): a Yara CONTA no MAP e também no
+# Terceiros — caiu a whitelist excludente de 15/ago. O funil do deal manda na
+# equipe; MAP_LOGINS só força isa/rafaela/paulo pro MAP em deal fora dos funis.
 MAP_LOGINS = ("isa", "rafaela", "paulo")
 
 
@@ -119,13 +120,11 @@ def filtra_escopo(p, tk):
 
 
 def team_de(uid, team):
-    """Equipe efetiva de um usuário pra fins de Gestão Comercial."""
+    """Equipe efetiva de um usuário pra fins de Gestão Comercial (fallback de
+    deal fora dos 4 funis — o funil do deal é quem manda; v86.34/35)."""
     if uid in MAP_LOGINS:
         return "map"
-    tk = team_key(team)
-    if tk == "map":
-        return "outros"   # team map fora da whitelist não conta no MAP
-    return tk
+    return team_key(team)
 
 
 def team_key(team):
@@ -250,7 +249,7 @@ class handler(BaseHTTPRequestHandler):
         spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "last_30d"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc14_cache:{since_d}:{until_d}:{spend_preset}"   # v86.34: shape novo (hz/pipeline-team/CAC pago) → chave nova
+        ck = f"gc15_cache:{since_d}:{until_d}:{spend_preset}"   # v86.35: Yara conta MAP+Terceiros, corretor×equipe → chave nova
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -468,12 +467,14 @@ class handler(BaseHTTPRequestHandler):
                            "venda": podio(fontes["geral"], "pc_venda", "rankeavel_venda")}
 
         # ── D) PRODUTIVIDADE (coorte da janela, corretor × equipe) ──
+        # v86.35: chave (uid, equipe) — corretor que atua em DOIS funis (ex.:
+        # Yara no MAP e no Terceiros) aparece em cada equipe com os números dela lá
         por_corr = {}
         for e in na_janela:
             if not e["uid"]:
                 continue
-            c = por_corr.setdefault(e["uid"], {"nome": e["nome"], "team": e["team"], "leads": 0, "atend": 0,
-                                               "agend": 0, "visita": 0, "pasta": 0, "venda": 0, "vgv": 0.0})
+            c = por_corr.setdefault((e["uid"], e["team"]), {"nome": e["nome"], "team": e["team"], "leads": 0, "atend": 0,
+                                                            "agend": 0, "visita": 0, "pasta": 0, "venda": 0, "vgv": 0.0})
             c["leads"] += 1
             if e["marco"] >= 1: c["atend"] += 1
             if e["marco"] >= 2: c["agend"] += 1
@@ -495,15 +496,15 @@ class handler(BaseHTTPRequestHandler):
         for e in na_janela:
             if not e["uid"]:
                 continue
-            k = cor_can.setdefault(e["uid"], {}).setdefault(e["canal"], {"leads": 0, "vendas": 0, "vgv": 0.0})
+            k = cor_can.setdefault((e["uid"], e["team"]), {}).setdefault(e["canal"], {"leads": 0, "vendas": 0, "vgv": 0.0})
             k["leads"] += 1
             if e["win"]:
                 k["vendas"] += 1
                 k["vgv"] += e["vgv"]
 
-        def canais_do(uid, tot_vendas):
+        def canais_do(chave, tot_vendas):
             out = []
-            for ck, k in (cor_can.get(uid) or {}).items():
+            for ck, k in (cor_can.get(chave) or {}).items():
                 conv = round(k["vendas"] / k["leads"] * 100, 1) if k["leads"] else None
                 out.append({"canal": ck, "label": CANAL_LBL.get(ck, ck), "leads": k["leads"],
                             "vendas": k["vendas"], "vgv": round(k["vgv"], 2), "conv_pct": conv,
@@ -518,12 +519,12 @@ class handler(BaseHTTPRequestHandler):
             return out[:8], top
 
         corretores = []
-        for uid, c in por_corr.items():
+        for (uid, tk_c), c in por_corr.items():
             if c["team"] == "outros" and not c["venda"]:
                 continue
-            cls, top = canais_do(uid, c["venda"])
+            cls, top = canais_do((uid, tk_c), c["venda"])
             corretores.append({"uid": uid, **c, "vgv": round(c["vgv"], 2), **razoes(c),
-                               "contato_h_mediana": _mediana([_h_contato(e) for e in na_janela if e["uid"] == uid]),
+                               "contato_h_mediana": _mediana([_h_contato(e) for e in na_janela if e["uid"] == uid and e["team"] == tk_c]),
                                "canais": cls, "top_canal": top})
         corretores.sort(key=lambda x: (-x["venda"], -x["vgv"]))
         equipes_prod = {}
@@ -988,16 +989,16 @@ class handler(BaseHTTPRequestHandler):
         # análise de performance, aparece apenas no 🚪 Turnover.
         prev_ini = since_dt - timedelta(days=90)
         perf_corr = []
-        uids_perf = {e["uid"] for e in eds if e["uid"] and e["created"] and e["created"] >= prev_ini}
-        for uid in uids_perf:
+        # v86.35: par (corretor, equipe) — quem atua em dois funis (Yara: MAP +
+        # Terceiros) é avaliado em CADA equipe contra a própria base daquela equipe
+        uids_perf = {(e["uid"], e["team"]) for e in eds
+                     if e["uid"] and e["team"] != "outros" and e["created"] and e["created"] >= prev_ini}
+        for uid, tku in uids_perf:
             u = users.get(uid) or {}
             if (u.get("status") or "ativo") != "ativo":
                 continue          # desligado: análise dele vive no turnover
-            tku = team_de(uid, u.get("team"))
-            if tku == "outros":
-                continue
-            atu = [e for e in eds if e["uid"] == uid and e["created"] and since_dt <= e["created"] <= until_dt]
-            ant = [e for e in eds if e["uid"] == uid and e["created"] and prev_ini <= e["created"] < since_dt]
+            atu = [e for e in eds if e["uid"] == uid and e["team"] == tku and e["created"] and since_dt <= e["created"] <= until_dt]
+            ant = [e for e in eds if e["uid"] == uid and e["team"] == tku and e["created"] and prev_ini <= e["created"] < since_dt]
             def _blk(pool):
                 v = sum(1 for e in pool if e["win"])
                 return {"leads": len(pool), "vendas": v,
