@@ -123,7 +123,7 @@ def user_ids_por_match(sb, match):
     m = (match or "").lower()
     return [r["id"] for r in rows
             if m and m in " ".join(str(r.get(k) or "") for k in ("name", "login", "email")).lower()
-            and (r.get("status") or "ativo") not in ("inativo", "desligado")]
+            and (r.get("status") or "ativo") == "ativo"]   # v86.45: pausado (licença) também fora
 
 
 def gestores_ids(sb):
@@ -133,7 +133,7 @@ def gestores_ids(sb):
         return []
     return [r["id"] for r in rows
             if (r.get("role") or "") in ("socio", "diretor", "gerente", "gerente_locacao")
-            and (r.get("status") or "ativo") not in ("inativo", "desligado")]
+            and (r.get("status") or "ativo") == "ativo"]   # v86.45: pausado (licença) também fora
 
 
 # ── janelas de tempo (tudo em BRT — dia útil da equipe) ─────────────────────

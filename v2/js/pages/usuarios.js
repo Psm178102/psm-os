@@ -250,7 +250,7 @@ function userRow(u, isSocio, myId) {
       </select>
       ${isMe
         ? '<span class="tiny muted" style="font-style:italic;padding:0 8px">— você —</span>'
-        : `<button class="btn" data-action="toggle-status" data-id="${u.id}" style="padding:6px 12px;font-size:11px;letter-spacing:1px;text-transform:uppercase;background:${inactive ? '#fee2e2' : '#dcfce7'};color:${inactive ? '#991b1b' : '#166534'};min-width:92px" ${editable ? '' : 'disabled'} title="${inactive ? 'Reativar' : 'Bloquear acesso'}">${inactive ? '🔒 Inativo' : '✓ Ativo'}</button>`
+        : `<button class="btn" data-action="toggle-status" data-id="${u.id}" style="padding:6px 12px;font-size:11px;letter-spacing:1px;text-transform:uppercase;background:${(u.status || 'ativo') === 'ativo' ? '#dcfce7' : (u.status === 'pausado' ? '#fef3c7' : '#fee2e2')};color:${(u.status || 'ativo') === 'ativo' ? '#166534' : (u.status === 'pausado' ? '#92400e' : '#991b1b')};min-width:92px" ${editable ? '' : 'disabled'} title="clique alterna: ativo → pausado (licença) → inativo">${(u.status || 'ativo') === 'ativo' ? '✓ Ativo' : (u.status === 'pausado' ? '⏸ Pausado' : '🔒 Inativo')}</button>`
       }
       <button class="btn" data-action="toggle-hidden" data-id="${u.id}" style="padding:6px 12px;font-size:11px;letter-spacing:1px;text-transform:uppercase;background:${hidden ? '#fef3c7' : 'var(--bg-3)'};color:${hidden ? '#78350f' : 'var(--ink-muted)'};min-width:92px" ${editable ? '' : 'disabled'} title="${hidden ? 'Tornar visível' : 'Ocultar de rankings/TV'}">${hidden ? '👁 Oculto' : '👁 Visível'}</button>
       ${editable ? `<button class="btn btn-ghost" data-action="reset-pwd" data-id="${u.id}" title="Resetar senha" style="padding:6px 10px;font-size:11px">🔑</button>` : '<span></span>'}
@@ -312,7 +312,10 @@ async function handleClick(ev) {
 
   try {
     if (action === 'toggle-status') {
-      const newStatus = ((u.status || 'ativo') === 'ativo') ? 'inativo' : 'ativo';
+      // v86.45: ciclo de 3 estados — ativo → ⏸ pausado (licença/afastamento:
+      // some da operação e do sino, NÃO conta como saída no turnover) → inativo
+      const cur = u.status || 'ativo';
+      const newStatus = cur === 'ativo' ? 'pausado' : (cur === 'pausado' ? 'inativo' : 'ativo');
       await api.request('/api/v3/users/update', { method: 'POST', body: { id, fields: { status: newStatus } } });
       toast(`Status de ${u.name} → ${newStatus}`, 'ok');
       await reload();

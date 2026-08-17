@@ -20,6 +20,25 @@ from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from _oo_lib import (window, months_in_range, broker_metrics, read_meta_spend, meta_for_period,  # type: ignore
                      read_meta_accounts, match_team_account, read_team_account_override,
                      read_meta_campaigns, compute_ads_invest)
+from simulador import _kv_read  # type: ignore
+
+
+def _norte_proj(sb, uid, today):
+    """v86.45: projeção do NORTE do mês (mix×conversão calibrada, mesma fórmula da
+    Gestão Comercial) — é a projeção 'de plano'; a de ritmo extrapola o realizado."""
+    try:
+        cfg, _ok = _kv_read(sb, f"oo_norte:{uid}:{today.year:04d}-{today.month:02d}")
+        if not cfg:
+            return None
+        at = float(cfg.get("atendimentos_mes") or 0)
+        pu = 0.0
+        for cn in (cfg.get("canais") or []):
+            pu += (at * float(cn.get("mix") or 0) / 100.0) * \
+                  (float(cn.get("taxa_base") or 0) * float(cn.get("energia") or 0) / 100.0) / 100.0
+        ticket = float(cfg.get("ticket_medio") or 0)
+        return {"vendas": round(pu, 2), "vgv": round(pu * ticket, 2) if ticket else None}
+    except Exception:
+        return None
 
 # ── Cache do overview do 1:1 (v81.74) ────────────────────────────────────────
 # Esta visão recalcula métricas de todos os corretores + puxa Meta Ads a cada load
@@ -222,7 +241,9 @@ class handler(BaseHTTPRequestHandler):
                 "meta_attainment_pct": m["meta_attainment_pct"],
                 "alertas_count": len(m["alertas"]),
                 "alertas_top": [a["txt"] for a in m["alertas"][:2]],
-                "projecao": m.get("projecao") or {},   # v86.44: projeção individual no card
+                "projecao": {**(m.get("projecao") or {}),
+                             "norte": (_norte_proj(sb, cid, today)
+                                       if (m.get("projecao") or {}).get("modo") == "projecao" and not show_team else None)},
 
                 "pendencias": m["pendencias"],
                 "last_oo": last_oo.get(cid), "proxima_oo": prox_oo.get(cid),

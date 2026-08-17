@@ -49,7 +49,7 @@ MIN_VENDAS_RANK = 3
 CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
 CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
 CANAIS_PAGOS = ("trafego_imob", "google")   # v86.38: régua única de "venda de origem paga"
-CACHE_VER = "gc19"   # v86.39: bump aqui invalida página E cron juntos
+CACHE_VER = "gc20"   # v86.39: bump aqui invalida página E cron juntos
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -1119,7 +1119,9 @@ class handler(BaseHTTPRequestHandler):
         # vendas na passagem e dias até a 1ª venda.
         saidas = []
         for uid, u in users.items():
-            if (u.get("status") or "ativo") == "ativo":
+            # v86.45: "pausado" = licença/afastamento (ex.: maternidade) — NÃO é
+            # saída; some da operação mas não entra no turnover
+            if (u.get("status") or "ativo") in ("ativo", "pausado"):
                 continue
             r_ = (u.get("role") or "").lower()
             if not r_.startswith("corretor"):
