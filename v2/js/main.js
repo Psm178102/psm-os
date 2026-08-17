@@ -416,7 +416,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.45';
+const APP_VERSION = '86.46';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -791,6 +791,10 @@ function shellHTML(user) {
     <div class="app-shell">
       <aside class="app-sidebar">
         <div class="sb-brand">House <span style="color:var(--psm-cream)">PSM</span></div>
+        <div style="display:flex;flex-direction:column;gap:8px;padding:2px 14px 10px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:6px">
+          <img src="/v2/img/logo-psm-imoveis-creme.png" alt="PSM Imóveis" style="width:78%;max-width:170px;height:auto;display:block" loading="lazy">
+          <span style="background:#faf7ee;border-radius:8px;padding:6px 10px;display:inline-block;width:78%;max-width:170px;box-sizing:border-box"><img src="/v2/img/logo-psm-conquista.png" alt="PSM Conquista" style="width:100%;height:auto;display:block" loading="lazy"></span>
+        </div>
 
         <div class="sb-sec">🏠 Início</div>
         <button class="sb-link on" data-nav="/"><span class="sb-ico">📅</span> Agenda</button>
