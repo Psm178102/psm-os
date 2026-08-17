@@ -89,9 +89,11 @@ def _resolve_captar_stage(sb):
 
 def _notify_gestao(sb, nome, cid, actor_id=None):
     try:
-        rows = sb.table("users").select("id,name,role").execute().data or []
-        ids = [r["id"] for r in rows if (r.get("role") in ("socio", "diretor", "gerente", "backoffice", "marketing"))
-               or "leire" in (r.get("name") or "").lower()]
+        # v86.42: hardcode "leire" removido (desligada 10/ago) + só usuários ATIVOS
+        rows = sb.table("users").select("id,name,role,status").execute().data or []
+        ids = [r["id"] for r in rows
+               if r.get("role") in ("socio", "diretor", "gerente", "backoffice", "marketing")
+               and (r.get("status") or "ativo") == "ativo"]
         ids = [i for i in ids if i and i != actor_id]
         if ids:
             notify(ids, "captacao", "🎯 Nova captação (RD → CAPTAR IMÓVEL)",

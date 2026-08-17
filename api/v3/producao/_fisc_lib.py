@@ -317,15 +317,18 @@ def checar_alertas(sb, cfg, eventos, notify_all, enviar=True):
     lc = colabs.get("leire") or {}
     sla = lc.get("sla_horas") or {}
     lids = user_ids_por_match(sb, lc.get("user_match") or "leire")
-    for p in pendencias_abertas(eventos, "doc_aberto", "doc_resolvido", float(sla.get("doc", 48)), now):
-        if p["estourado"]:
-            fire(f"doc:{p['ref_id']}", lids + gids, "🔴 Doc travado há mais de 48h",
-                 f"{p['rotulo']} está pendente há {p['horas']:.0f}h — destravar agora.")
-    for p in pendencias_abertas(eventos, "ticket_locacao_aberto", "ticket_locacao_respondido",
-                                float(sla.get("ticket_locacao", 24)), now):
-        if p["estourado"]:
-            fire(f"ticket:{p['ref_id']}", lids, "🔴 SLA de locação estourado (>24h)",
-                 f"Ticket {p['rotulo']} sem resposta há {p['horas']:.0f}h.")
+    # v86.42 (pedido do Paulo 18/ago): responsável DESLIGADO/sem usuário ativo →
+    # o bloco inteiro cala (nem o colaborador nem a gestão recebem pendência órfã)
+    if lids:
+        for p in pendencias_abertas(eventos, "doc_aberto", "doc_resolvido", float(sla.get("doc", 48)), now):
+            if p["estourado"]:
+                fire(f"doc:{p['ref_id']}", lids + gids, "🔴 Doc travado há mais de 48h",
+                     f"{p['rotulo']} está pendente há {p['horas']:.0f}h — destravar agora.")
+        for p in pendencias_abertas(eventos, "ticket_locacao_aberto", "ticket_locacao_respondido",
+                                    float(sla.get("ticket_locacao", 24)), now):
+            if p["estourado"]:
+                fire(f"ticket:{p['ref_id']}", lids, "🔴 SLA de locação estourado (>24h)",
+                     f"Ticket {p['rotulo']} sem resposta há {p['horas']:.0f}h.")
 
     if mudou:
         # poda entradas de dias anteriores pra não crescer infinito

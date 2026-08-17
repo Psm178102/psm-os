@@ -374,6 +374,22 @@ def audit(handler, actor, action: str, target_type: str = None,
 
 
 # ─── Notifications ─────────────────────────────────────────────────────────
+def _notif_so_ativos(user_ids):
+    """v86.42 (pedido do Paulo 18/ago): notificação NUNCA chega a usuário com
+    status inativo/desligado — pessoa desligada não recebe sino nem push.
+    Best-effort: em erro mantém a lista original (melhor avisar demais que perder)."""
+    try:
+        sb = supabase_client()
+        if not sb or not user_ids:
+            return user_ids
+        rows = (sb.table("users").select("id,status")
+                .in_("id", [str(u) for u in user_ids]).execute().data or [])
+        ok = {str(r.get("id")) for r in rows if (r.get("status") or "ativo") == "ativo"}
+        return [u for u in user_ids if str(u) in ok]
+    except Exception:
+        return user_ids
+
+
 def notify(user_ids, tipo: str, title: str, body: str = None,
            link: str = None, target_type: str = None, target_id: str = None) -> int:
     """
@@ -385,6 +401,7 @@ def notify(user_ids, tipo: str, title: str, body: str = None,
     if isinstance(user_ids, str):
         user_ids = [user_ids]
     user_ids = [u for u in set(user_ids) if u]  # dedupe + None-filter
+    user_ids = _notif_so_ativos(user_ids)   # v86.42: corta inativos/desligados
     if not user_ids:
         return 0
     try:

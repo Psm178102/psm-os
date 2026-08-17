@@ -14,7 +14,8 @@ from datetime import timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, notify_all  # type: ignore
 from _fisc_lib import (get_cfg, agora_brt, janelas, eventos_periodo, contadores,  # type: ignore
-                       esperado_agora, checar_alertas, gestores_ids, _kv, _kv_set, KV_ALERTAS)
+                       esperado_agora, checar_alertas, gestores_ids, user_ids_por_match,
+                       _kv, _kv_set, KV_ALERTAS)
 
 
 class handler(BaseHTTPRequestHandler):
@@ -47,6 +48,10 @@ class handler(BaseHTTPRequestHandler):
         for key, c in (cfg.get("colaboradores") or {}).items():
             motor = c.get("motor")
             if not motor or motor == "mes_composto":
+                continue
+            # v86.42 (pedido do Paulo 18/ago): colaborador SEM usuário ativo
+            # (desligado/oculto na base) não gera cobrança nem alerta pra gestão
+            if not user_ids_por_match(sb, c.get("user_match") or key):
                 continue
             m = (c.get("metas") or {}).get(motor) or {}
             esperado = esperado_agora(m, cfg, now)
