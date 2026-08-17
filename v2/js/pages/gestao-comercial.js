@@ -1,4 +1,4 @@
-/* PSM-OS v2 — 📊 GESTÃO COMERCIAL (v86.37)
+/* PSM-OS v2 — 📊 GESTÃO COMERCIAL (v86.38)
    Painel comercial por equipe/linha: Visão Geral (real × projetado × meta +
    métricas-chave com RÉGUA DE ALERTA) · Gráficos (tudo visual) · Fontes &
    Funil · Custo do Funil (R$/etapa + CAC) · Produtividade · Safras & Tempos
@@ -647,11 +647,15 @@ function tabCustos() {
       <tbody>${rows}</tbody></table></div>
     ${c.payback_midia ? `<div class="tiny" style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">💸 <b>Payback de mídia:</b> a venda vira caixa em mediana <b>${fN(c.payback_midia.mediana_dias)} dias</b> (${esc(c.payback_midia.fonte)}, n=${fN(c.payback_midia.n)}) — é o tempo entre o real investido e o real voltando.</div>` : ''}
     <div class="tiny muted" style="margin-top:8px">${esc(c.nota || '')}. Qualificado começa no AGENDAMENTO (decisão 14/ago). <b>CAC mídia</b> = spend ÷ vendas de TRÁFEGO PAGO · <b>CAC marketing</b> = (spend + 🎁 premiação de indicação pela faixa de VGV — só venda de origem INDICAÇÃO, tabela oficial) ÷ todas as vendas · <b>CAC completo</b> = (spend + premiação + fixo orçado da linha) ÷ todas as vendas (decisões 17/ago).</div>`, 'unit_economics')
-    + histTable('Custo — mês a mês (spend GLOBAL da Meta; histórico por equipe não existe na base mensal)', [
+    + histTable('Custo — mês a mês (global desde jan · POR EQUIPE desde ago/2026 — snapshot horário do cron)', [
       { lbl: 'Spend Meta', get: h => h.total?.spend, fmt: x => 'R$ ' + kR$(x), invertido: true },
       { lbl: 'CPL global', get: h => h.total?.cpl_global, fmt: x => 'R$ ' + kR$(x), invertido: true },
       { lbl: 'CAC global (mídia)', get: h => h.total?.cac_global, fmt: x => 'R$ ' + kR$(x), invertido: true },
       { lbl: 'Vendas TOTAL', get: h => h.total?.vendas, fmt: fN },
+      ...['conquista', 'map', 'terceiros', 'locacao'].filter(t => (_d.historico || []).some(h => h.equipes?.[t]?.spend != null)).flatMap(t => [
+        { lbl: (TEAM_LBL[t] || t) + ' spend', get: h => h.equipes?.[t]?.spend, fmt: x => 'R$ ' + kR$(x), invertido: true },
+        { lbl: (TEAM_LBL[t] || t) + ' CAC mídia', get: h => h.equipes?.[t]?.cac_midia, fmt: x => 'R$ ' + kR$(x), invertido: true },
+      ]),
     ], 'historico_custo');
 }
 

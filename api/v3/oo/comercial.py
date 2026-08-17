@@ -1,5 +1,5 @@
 """
-📊 GESTÃO COMERCIAL (v86.37) — o painel que responde as perguntas sem clareza:
+📊 GESTÃO COMERCIAL (v86.38) — o painel que responde as perguntas sem clareza:
 qual fonte converte mais visita/pasta/venda · custo por etapa do funil (R$/lead,
 R$/agendamento, R$/visita, R$/pasta, CAC mídia e CAC completo) · quantas
 pastas/visitas/atendimentos/leads pra 1 venda (equipe E corretor) · ticket por
@@ -48,6 +48,7 @@ MIN_VENDAS_RANK = 3
 # TRÁFEGO PAGO IMOB (o grosso do não-atribuído é o próprio tráfego pago da casa)
 CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
 CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
+CANAIS_PAGOS = ("trafego_imob", "google")   # v86.38: régua única de "venda de origem paga"
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -250,7 +251,7 @@ class handler(BaseHTTPRequestHandler):
         spend_preset = q.get("spend_preset") if q.get("spend_preset") in SPEND_PRESETS else "this_month"
 
         # cache compartilhado 10min por janela (cálculo caro; permissão filtra DEPOIS)
-        ck = f"gc17_cache:{since_d}:{until_d}:{spend_preset}"   # v86.37: mês atual sempre (fim do fallback 30d) → chave nova
+        ck = f"gc18_cache:{since_d}:{until_d}:{spend_preset}"   # v86.38: hist c/ spend por equipe → chave nova (mesma do cron horário)
         payload = None
         cached, _ok = _kv_read(sb, ck)
         if cached and cached.get("ts"):
@@ -578,9 +579,8 @@ class handler(BaseHTTPRequestHandler):
             # 🎯 v86.34 (achado do Paulo 17/ago): CAC MÍDIA divide o spend SÓ pelas
             # vendas de origem PAGA (tráfego/google) — venda de indicação/orgânico
             # não pode diluir o custo de mídia. CAC completo segue sobre TODAS.
-            PAGO = ("trafego_imob", "google")
-            vendas_pagas = sum(1 for e in wins_tk if e["canal"] in PAGO)
-            vgv_pago = sum(e["vgv"] for e in wins_tk if e["canal"] in PAGO)
+            vendas_pagas = sum(1 for e in wins_tk if e["canal"] in CANAIS_PAGOS)
+            vgv_pago = sum(e["vgv"] for e in wins_tk if e["canal"] in CANAIS_PAGOS)
             # custo fixo orçado da LINHA no mês (mesma leitura da Viabilidade:
             # ignora classe variável, respeita valor por_mes quando existir)
             fixo = 0.0
@@ -782,9 +782,12 @@ class handler(BaseHTTPRequestHandler):
                 spend_mensal[int(r.get("mes") or 0)] = _num(r.get("spend"))
         except Exception:
             avisos.append("meta_ads_monthly indisponível — histórico de spend ficou vazio")
+        # 💾 v86.38: snapshot mensal de spend POR EQUIPE (gravado pelo cron horário
+        # em gc_spend_mensal) — habilita spend e CAC mídia por equipe no histórico
+        snap_meses = _kv_read(sb, "gc_spend_mensal")[0] or {}
         hist = []
         for m in range(1, hoje.month + 1):
-            eqm = {tk: {"leads": 0, "vendas": 0, "vgv": 0.0} for tk, _l in TEAMS}
+            eqm = {tk: {"leads": 0, "vendas": 0, "vgv": 0.0, "vendas_pagas": 0} for tk, _l in TEAMS}
             tot = {"leads": 0, "vendas": 0, "vgv": 0.0}
             canais_m = {}
             for d in hist_deals:
@@ -809,12 +812,18 @@ class handler(BaseHTTPRequestHandler):
                     if tk in eqm:
                         eqm[tk]["vendas"] += 1
                         eqm[tk]["vgv"] += v
+                        if ck in CANAIS_PAGOS:
+                            eqm[tk]["vendas_pagas"] += 1
             sp = spend_mensal.get(m, 0.0)
+            snap_m = snap_meses.get(f"{hoje.year:04d}-{m:02d}") or {}
             hist.append({"ym": f"{hoje.year:04d}-{m:02d}", "parcial": m == hoje.month,
                          "canais": {k: {**v, "vgv": round(v["vgv"], 2)} for k, v in canais_m.items()
                                     if v["leads"] or v["vendas"]},
                          "equipes": {k: {**v, "vgv": round(v["vgv"], 2),
-                                         "ticket": round(v["vgv"] / v["vendas"], 2) if v["vendas"] else None}
+                                         "ticket": round(v["vgv"] / v["vendas"], 2) if v["vendas"] else None,
+                                         "spend": round(_num(snap_m.get(k)), 2) if snap_m.get(k) is not None else None,
+                                         "cac_midia": round(_num(snap_m.get(k)) / v["vendas_pagas"], 2)
+                                                      if snap_m.get(k) and v["vendas_pagas"] else None}
                                      for k, v in eqm.items()},
                          "total": {**tot, "vgv": round(tot["vgv"], 2),
                                    "ticket": round(tot["vgv"] / tot["vendas"], 2) if tot["vendas"] else None,
