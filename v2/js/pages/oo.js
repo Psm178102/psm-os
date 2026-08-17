@@ -1784,8 +1784,16 @@ function render360() {
   const plano = ((reg.plano) || []).filter(p => (p.pessoa || '').trim().toLowerCase() === (name || '').trim().toLowerCase());
   const acoesAbertas = (_meet || []).reduce((n, m) => n + (Array.isArray(m.acoes) ? m.acoes.filter(a => !a.done).length : 0), 0);
   const r = rem.remuneracao || {};
-  const vgv = (_det && _det.metrics && (_det.metrics.vgv || _det.metrics.realizado)) || 0;
+  // v86.43 (bug do Paulo 18/ago): produção lia _det.metrics.vgv — campo que NÃO
+  // existe na resposta da API → mostrava R$0 pra todo mundo. Fonte real: ano_vgv.
+  const vgv = (_det && (_det.ano_vgv || (_det.kpis && _det.kpis.vgv))) || 0;
   const myLvl = auth.user()?.lvl || 0;
+  // auto-preenchimento (pedido recorrente do Paulo): sem cadastro manual de RH,
+  // os cards usam o que o funil JÁ calcula (saúde, meta, alertas) — declarado
+  const health = _det?.health, metaPct = _det?.meta_attainment_pct;
+  const hCor = health == null ? '#94a3b8' : health >= 70 ? '#16a34a' : health >= 40 ? '#d97706' : '#dc2626';
+  const autoAtencao = (!((pf.profile || {}).pontos_atencao) && (_det?.alertas || []).length)
+    ? _det.alertas.slice(0, 5).map(a => a.txt) : null;
   const box = (titulo, html, cor) => `<div style="background:var(--bg-2);border:1px solid var(--bd,#e2e8f0);border-left:3px solid ${cor};border-radius:10px;padding:11px">
     <div style="font-weight:800;font-size:12.5px;margin-bottom:5px">${titulo}</div>${html}</div>`;
   const nl = s => escapeHtml(s || '').replace(/\n/g, '<br>') || '<span class="muted tiny">—</span>';
@@ -1803,11 +1811,15 @@ function render360() {
           ${(!cargo.funcoes && !cargo.objetivos && !cargo.tarefas) ? '<div class="muted tiny">Não cadastrado no cargo. <a href="#/rh-funcoes">cadastrar →</a></div>' : ''}
           ${items.length ? `<div class="tiny muted" style="margin-top:5px">Checklist: <b>${doneN}/${items.length}</b> concluídos</div>` : ''}`, '#7c3aed')}
         ${box('🎯 Desempenho & metas', `
-          <div style="font-size:22px;font-weight:800;color:#16a34a">${score != null ? score + '/' + escala : '<span style="font-size:13px;color:#94a3b8">sem avaliação</span>'}</div>
+          ${score != null
+            ? `<div style="font-size:22px;font-weight:800;color:#16a34a">${score}/${escala}</div>`
+            : `<div style="font-size:22px;font-weight:800;color:${hCor}">${health != null ? 'Saúde ' + health + '/100' : '<span style="font-size:13px;color:#94a3b8">sem dado</span>'}</div>
+               <div class="tiny muted">automático do funil (sem avaliação formal) · meta atingida: <b>${metaPct != null ? money(metaPct) + '%' : '—'}</b> · ${_det?.ano_vendas || 0} venda(s) no ano</div>`}
           ${prof.meta_produtividade ? `<div class="tiny"><b>Meta produtividade:</b> ${escapeHtml(prof.meta_produtividade)}</div>` : ''}
           ${prof.meta_resultado ? `<div class="tiny"><b>Meta resultado:</b> ${escapeHtml(prof.meta_resultado)}</div>` : ''}`, '#16a34a')}
         ${box('⚠️ Pontos de atenção & perfil', `
-          <div class="tiny"><b>Atenção:</b> ${nl(prof.pontos_atencao)}</div>
+          <div class="tiny"><b>Atenção:</b> ${prof.pontos_atencao ? nl(prof.pontos_atencao)
+            : (autoAtencao ? autoAtencao.map(t => `• ${escapeHtml(t)}`).join('<br>') + ' <span class="muted">(automático do funil)</span>' : '<span class="muted tiny">—</span>')}</div>
           ${prof.perfil_comportamental ? `<div class="tiny" style="margin-top:3px"><b>Perfil:</b> ${nl(prof.perfil_comportamental)}</div>` : ''}`, '#f59e0b')}
         ${box('💬 Feedbacks', `
           ${fbs.length ? fbs.map(f => `<div class="tiny" style="border-top:1px solid var(--bd,#eee);padding:4px 0"><b>${escapeHtml(uName360(f.de_id))}:</b> ${escapeHtml(f.texto || '')}</div>`).join('') : '<span class="muted tiny">Nenhum feedback registrado.</span>'}
@@ -1816,7 +1828,7 @@ function render360() {
           ${plano.length ? plano.map(p => `<div class="tiny"><b>${escapeHtml(p.proximo_cargo || 'PDI')}:</b> ${escapeHtml(p.competencias || '')} <span class="muted">(${escapeHtml(p.status || '')})</span></div>`).join('') : '<span class="muted tiny">Sem plano de crescimento.</span>'}
           <div class="tiny muted" style="margin-top:4px">Ações de 1:1 em aberto: <b>${acoesAbertas}</b> · <a href="#/rh-plano">Plano de Crescimento →</a></div>`, '#0891b2')}
         ${box('💰 Comissão & Remuneração', `
-          <div class="tiny"><b>Produção (VGV):</b> R$ ${money(vgv)}</div>
+          <div class="tiny"><b>Produção (VGV) no ano:</b> R$ ${money(vgv)}</div>
           ${myLvl >= 5 ? `
             <div class="tiny" style="margin-top:3px"><b>Tipo:</b> ${escapeHtml(r.tipo || '—')}</div>
             <div class="tiny"><b>Base:</b> ${r.salario_base != null ? 'R$ ' + money(r.salario_base) : '—'} ${r.comissao_pct != null ? '· <b>Comissão:</b> ' + r.comissao_pct + '%' : ''}</div>
