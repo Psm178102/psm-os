@@ -25,15 +25,20 @@ from simulador import _kv_read, _kv_write  # type: ignore
 CACHE_H = 6
 
 
-def _ia(prompt, max_tokens=2048):
-    """Cadeia gemini → claude → openai (mesmo contrato do _ia_lib da produção)."""
-    keys = {"gemini": os.environ.get("GEMINI_API_KEY"),
-            "claude": os.environ.get("ANTHROPIC_API_KEY"),
-            "openai": os.environ.get("OPENAI_API_KEY")}
-    primary = os.environ.get("AI_PREFER") or "gemini"
+def _ia(prompt, max_tokens=4096):
+    """Cadeia gemini → claude → openai (mesmo contrato do _ia_lib da produção).
+    v86.40: .strip() nas chaves (env com \\n no fim derruba o header e TODOS os
+    provedores falham calados — é por isso que o sr_agente sempre stripou) +
+    coleta o erro real de cada provedor pra diagnóstico."""
+    keys = {"gemini": (os.environ.get("GEMINI_API_KEY") or "").strip(),
+            "claude": (os.environ.get("ANTHROPIC_API_KEY") or "").strip(),
+            "openai": (os.environ.get("OPENAI_API_KEY") or "").strip()}
+    primary = (os.environ.get("AI_PREFER") or "gemini").strip()
+    erros = {}
     for prov in [primary] + [p for p in ("gemini", "claude", "openai") if p != primary]:
         k = keys.get(prov)
         if not k:
+            erros[prov] = "sem chave no ambiente"
             continue
         try:
             if prov == "gemini":
@@ -65,10 +70,17 @@ def _ia(prompt, max_tokens=2048):
                     data = json.loads(r.read().decode())
                 txt = (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
             if txt:
-                return txt.strip(), prov
-        except Exception:
+                return txt.strip(), prov, erros
+            erros[prov] = "resposta vazia"
+        except Exception as e:
+            body = ""
+            try:
+                body = e.read().decode()[:200] if hasattr(e, "read") else ""
+            except Exception:
+                pass
+            erros[prov] = f"{type(e).__name__}: {str(e)[:150]} {body}".strip()
             continue
-    return None, None
+    return None, None, erros
 
 
 PROMPT = """Você é o SR. PERFORMANCE, analista comercial sênior da PSM (holding imobiliária de São José do Rio Preto: equipes Conquista = residencial/MCMV volume, MAP = médio/alto padrão ponte, Terceiros e Locação).
@@ -136,9 +148,11 @@ class handler(BaseHTTPRequestHandler):
 
         prompt = PROMPT.format(since=janela.get("since") or "?", until=janela.get("until") or "?",
                                dados=json.dumps(resumo, ensure_ascii=False))
-        txt, prov = _ia(prompt)
+        txt, prov, erros = _ia(prompt)
         if not txt:
-            return self._send(502, {"ok": False, "error": "nenhum provedor de IA respondeu"})
+            print(f"[sr-performance] todos os provedores falharam: {erros}")
+            return self._send(502, {"ok": False, "error": "nenhum provedor de IA respondeu",
+                                    "detalhe": erros})
         m = re.search(r"\{.*\}", txt, re.DOTALL)
         try:
             analises = json.loads(m.group(0) if m else txt)
