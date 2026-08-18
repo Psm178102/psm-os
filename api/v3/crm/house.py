@@ -234,7 +234,10 @@ class handler(BaseHTTPRequestHandler):
         if want_pid and any(p["id"] == str(want_pid) for p in pipelines):
             pid = str(want_pid)
         if not pid:
-            map_p = next((p for p in pipelines if "map" in (p["name"] or "").lower()), None)
+            # piloto = FUNIL MAP (não a carteira): "funil"+"map" > "map" > primeiro
+            nm = lambda p: (p["name"] or "").lower()
+            map_p = (next((p for p in pipelines if "funil" in nm(p) and "map" in nm(p)), None)
+                     or next((p for p in pipelines if "map" in nm(p)), None))
             pid = (map_p or pipelines[0])["id"]
 
         # deals abertos do funil, do ESPELHO
