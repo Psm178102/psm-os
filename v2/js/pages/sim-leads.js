@@ -1,4 +1,5 @@
 /* PSM-OS v2 — Simulador Leads/CAC (Sprint 8.4) */
+import { renderSemPerderFoco } from '../sim-foco.js';
 
 const KEY = 'psm_v2_sim_leads';
 const DEFAULTS = {
@@ -135,7 +136,7 @@ function bind() {
     const k = el.dataset.key, t = el.dataset.type;
     _s[k] = t === 'num' ? (parseFloat(e.target.value) || 0) : e.target.value;
     save();
-    clearTimeout(window._lTimer); window._lTimer = setTimeout(render, 250);
+    clearTimeout(window._lTimer); window._lTimer = setTimeout(() => renderSemPerderFoco(_root, render), 250);
   }));
   const back = _root.querySelector('[data-back]'); if (back) back.addEventListener('click', () => location.hash = '/simuladores');
 }

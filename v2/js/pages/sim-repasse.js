@@ -1,4 +1,5 @@
 /* PSM-OS v2 — Simulador Repasse (Sprint 8.4) */
+import { renderSemPerderFoco } from '../sim-foco.js';
 
 const KEY = 'psm_v2_sim_repasse';
 const DEFAULTS = {
@@ -31,7 +32,8 @@ function compute() {
   // O comprador assume o saldo devedor, então NÃO se subtrai de novo (antes era contado 2×). Equivale a ágio − comissão.
   const lucroVendedor = entradaComprador - r.valorPago - comissao;
   const agioValor = r.novoValor - totalAtualizado;
-  const agioPct = totalAtualizado > 0 ? ((agioValor / r.valorPago) * 100).toFixed(1) : '0.0';
+  // % sobre o que o proprietário JÁ PAGOU; com valor pago 0 não existe % (era "Infinity%")
+  const agioPct = r.valorPago > 0 ? ((agioValor / r.valorPago) * 100).toFixed(1) : null;
   const parcelaEntrada = r.parcelasEntrada > 0 ? entradaComprador / r.parcelasEntrada : 0;
   const m2Novo = r.m2 > 0 ? Math.round(r.novoValor / r.m2) : 0;
   return { totalAtualizado, totalMensais, totalBaloes, saldoEntrega, entradaComprador, comissao, lucroVendedor, agioValor, agioPct, parcelaEntrada, m2Novo };
@@ -71,7 +73,7 @@ function render() {
         <div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
             ${kpi('Novo Valor', fmt(_s.novoValor), 'var(--psm-navy)', '#fff')}
-            ${kpi('Ágio', c.agioPct + '%<div style="font-size:11px;opacity:.7">' + fmt(c.agioValor) + '</div>', c.agioValor >= 0 ? '#22c55e' : '#ef4444')}
+            ${kpi('Ágio', (c.agioPct != null ? c.agioPct + '%' : '—') + '<div style="font-size:11px;opacity:.7">' + fmt(c.agioValor) + '</div>', c.agioValor >= 0 ? '#22c55e' : '#ef4444')}
             ${kpi('Lucro Vendedor', fmt(c.lucroVendedor), isPositive ? '#22c55e' : '#ef4444')}
           </div>
 
@@ -113,7 +115,7 @@ function bind() {
     const k = el.dataset.key, t = el.dataset.type;
     _s[k] = t === 'num' ? (parseFloat(e.target.value) || 0) : e.target.value;
     save();
-    clearTimeout(window._repTimer); window._repTimer = setTimeout(render, 250);
+    clearTimeout(window._repTimer); window._repTimer = setTimeout(() => renderSemPerderFoco(_root, render), 250);
   }));
   const back = _root.querySelector('[data-back]'); if (back) back.addEventListener('click', () => location.hash = '/simuladores');
 }

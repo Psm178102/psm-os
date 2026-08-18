@@ -3,6 +3,7 @@
    ENTRADA/MENSAIS/SEMESTRAIS/ANUAIS/FINANCIAMENTO-CHAVES/TOTAL, linhas verdes,
    chaves em azul, pós-chaves em vermelho, rodapé Total) — e Imprimir/Compartilhar
    abrem a MESMA via em janela limpa (PDF pelo diálogo do navegador). */
+import { renderSemPerderFoco } from '../sim-foco.js';
 
 const KEY = 'psm_v2_sim_vpl';
 let _root = null;
@@ -361,7 +362,7 @@ function bind() {
       _s[k] = t === 'num' ? (parseFloat(e.target.value) || 0) : e.target.value;
       save();
       clearTimeout(window._vplTimer);
-      window._vplTimer = setTimeout(render, 250);
+      window._vplTimer = setTimeout(() => renderSemPerderFoco(_root, render), 250);
     });
   });
   _root.querySelector('#vpl-print')?.addEventListener('click', () => abrirVia(true));

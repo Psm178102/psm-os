@@ -9,6 +9,7 @@
    faixa são REFERÊNCIA MCMV 2024 (editáveis aqui em cima — confira os vigentes).
    100% frontend, sem backend. Gated em sócio por enquanto (ROUTE_MIN_LVL=10).
 ============================================================================ */
+import { renderSemPerderFoco } from '../sim-foco.js';
 
 // ⚠️ REFERÊNCIA MCMV urbano 2024 — confira sempre os valores vigentes (mudam por ano/região).
 //    rendaMax = teto de renda mensal da faixa | jurosRef = juros a.a. típicos | subsidioRef = subsídio máx estimado
@@ -81,7 +82,9 @@ export function pageSimConquista(ctx, root) {
       </table></div>
       <div class="tiny muted" style="margin-top:8px">⚠️ Limites de faixa, juros e subsídio são <b>referência</b> e mudam por ano/região — confira a tabela MCMV vigente. O cálculo de parcela/financiamento (Tabela Price) é exato sobre os parâmetros informados.</div>
     </div>`;
-  _root.querySelectorAll('input').forEach(i => i.addEventListener('input', render));
+  _root.querySelectorAll('input').forEach(i => i.addEventListener('input', () => {
+    clearTimeout(window._scqTimer); window._scqTimer = setTimeout(() => renderSemPerderFoco(_root, render), 200);
+  }));
   render();
 }
 

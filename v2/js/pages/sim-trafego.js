@@ -3,6 +3,7 @@
    Conversão (Otimista/Realista/Mínima) → Vendas → VGV → Faturamento → Imposto →
    Comissão → Caixa → CPA/ROAS → CPL necessário pra positivar → Carteira/LTV → Projeção 2 anos.
    Abas por linha (M.A.P / Conquista / Consolidado). Tudo editável (salva no banco). lvl≥7. */
+import { renderSemPerderFoco } from '../sim-foco.js';
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
@@ -267,7 +268,7 @@ function renderOut() {
     <div class="st-sec">📈 Projeção 24 meses (Realista) <span class="tiny muted" style="font-weight:400">— venda entra ${L.tempoConv} dias após o lead</span></div>
     ${projTable(pd)}
   `;
-  out.querySelectorAll('[data-key]').forEach(el => el.addEventListener('input', () => { _s[_s.active][el.dataset.key] = parseFloat(el.value) || 0; save(); clearTimeout(window._stoo); window._stoo = setTimeout(renderOut, 350); }));
+  out.querySelectorAll('[data-key]').forEach(el => el.addEventListener('input', () => { _s[_s.active][el.dataset.key] = parseFloat(el.value) || 0; save(); clearTimeout(window._stoo); window._stoo = setTimeout(() => renderSemPerderFoco(document.getElementById('st-out') || _root, renderOut), 350); }));
   const alvo = document.getElementById('st-alvo'); if (alvo) alvo.addEventListener('change', e => { _alvo[_s.active] = e.target.value.trim(); renderOut(); });
 }
 function grp(t) { return `<tr class="grp"><td colspan="4">${t}</td></tr>`; }
