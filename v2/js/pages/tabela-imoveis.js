@@ -104,9 +104,15 @@ function viewCard(t, m, idx, total) {
   const isPdf = t.tipo === 'pdf' && t.pdf_url;
   const cols = t.colunas && t.colunas.length ? t.colunas : (t.linhas[0] || []).map((_, i) => 'Col ' + (i + 1));
   const cellTxt = zebra ? 'color:#1f2d3d' : '';
-  const head = `<thead><tr>${cols.map(c => `<th style="position:sticky;top:0;background:${cor};color:#fff;padding:7px 9px;font-size:11.5px;text-align:left;white-space:nowrap;z-index:1">${esc(c)}</th>`).join('')}</tr></thead>`;
+  // v86.53: reordenar LINHA com clicar-e-segurar (pedido do Paulo). A alça ⠿ tem
+  // touch-action:none (arrasta no dedo sem brigar com o scroll da tabela); com o
+  // mouse, segurar 0,3s em QUALQUER ponto da linha também engata.
+  const canDragRow = _canEdit && !_edit && !isPdf && (t.linhas || []).length > 1;
+  const headHandle = canDragRow ? `<th style="position:sticky;top:0;background:${cor};z-index:1;width:26px"></th>` : '';
+  const head = `<thead><tr>${headHandle}${cols.map(c => `<th style="position:sticky;top:0;background:${cor};color:#fff;padding:7px 9px;font-size:11.5px;text-align:left;white-space:nowrap;z-index:1">${esc(c)}</th>`).join('')}</tr></thead>`;
   const rowBg = (i) => zebra ? `background:${i % 2 ? '#ffffff' : cor + '1a'}` : '';
-  const body = `<tbody>${(t.linhas || []).map((r, ri) => `<tr style="border-bottom:1px solid ${zebra ? cor + '40' : 'var(--border)'};${rowBg(ri)}">${cols.map((_, i) => `<td style="padding:6px 9px;font-size:12px;white-space:nowrap;${cellTxt}">${cellHTML(r[i])}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  const handleTd = canDragRow ? `<td data-rowgrip style="padding:0 2px;text-align:center;cursor:grab;touch-action:none;user-select:none;color:${zebra ? cor : 'var(--muted,#94a3b8)'};font-weight:900">⠿</td>` : '';
+  const body = `<tbody data-rowdrag="${canDragRow ? t.id : ''}">${(t.linhas || []).map((r, ri) => `<tr data-ri="${ri}" style="border-bottom:1px solid ${zebra ? cor + '40' : 'var(--border)'};${rowBg(ri)}">${handleTd}${cols.map((_, i) => `<td style="padding:6px 9px;font-size:12px;white-space:nowrap;${cellTxt}">${cellHTML(r[i])}</td>`).join('')}</tr>`).join('')}</tbody>`;
   const meta = isPdf ? '📄 PDF' : `${(t.linhas || []).length} linha(s)`;
   const renaming = _renaming === t.id;
   const reorder = _canEdit && !_edit && !renaming && total > 1
@@ -228,6 +234,9 @@ function wire() {
     try { const r = await api.request('/api/v3/tabelas/lancamentos', { method: 'POST', body: { action: 'delete', id: b.dataset.deltbl } }); _tabelas = r.tabelas || []; render(); }
     catch (e) { alert('Erro: ' + e.message); }
   });
+  // 🖐 arrastar linha (clicar e segurar) pra reordenar — view, can_edit (v86.53)
+  rowDragDocBind();
+  _root.querySelectorAll('tbody[data-rowdrag]').forEach(tb => { if (tb.dataset.rowdrag) ativarDragLinha(tb, tb.dataset.rowdrag); });
   // busca (view)
   _root.querySelectorAll('[data-search]').forEach(inp => inp.addEventListener('input', () => {
     const wrap = _root.querySelector(`[data-tablewrap="${inp.dataset.search}"]`); if (!wrap) return;
@@ -247,6 +256,113 @@ function wire() {
     _root.querySelectorAll('[data-downrow]').forEach(b => b.onclick = () => { const r = +b.dataset.downrow; if (r < _draft.linhas.length - 1) { syncDraft(); const a = _draft.linhas;[a[r + 1], a[r]] = [a[r], a[r + 1]]; render(); } });
     const imp = $('tl-import'); if (imp) imp.addEventListener('change', () => importXlsx(imp));
   }
+}
+
+/* ───────── Arrastar linha (clicar e segurar) — v86.53 ─────────
+   Pointer Events (mouse + dedo). Engate: imediato na alça ⠿, ou segurando
+   ~0,3s em qualquer ponto da linha (mexeu antes de engatar = é scroll, solta).
+   Soltou → reordena t.linhas e salva a tabela inteira (mesmo caminho do rename). */
+function ativarDragLinha(tbody, tabelaId) {
+  let alvo = null, ghost = null, marca = null, engatado = false, timer = null, x0 = 0, y0 = 0, pid = null;
+
+  const limpar = () => {
+    clearTimeout(timer); timer = null;
+    if (ghost) ghost.remove(); ghost = null;
+    if (marca) marca.style.boxShadow = ''; marca = null;
+    if (alvo) alvo.style.opacity = '';
+    alvo = null; engatado = false; pid = null;
+    document.body.style.userSelect = '';
+  };
+
+  const engatar = (ev) => {
+    if (!alvo) return;
+    engatado = true;
+    document.body.style.userSelect = 'none';
+    alvo.style.opacity = '.35';
+    ghost = document.createElement('div');
+    ghost.textContent = '↕ ' + (alvo.cells[1] ? alvo.cells[1].textContent : alvo.textContent).trim().slice(0, 40);
+    ghost.style.cssText = 'position:fixed;z-index:99999;pointer-events:none;background:var(--bg-2,#fff);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.25)';
+    document.body.appendChild(ghost);
+    mover(ev);
+  };
+
+  const mover = (ev) => {
+    if (!engatado) return;
+    ev.preventDefault();
+    if (ghost) { ghost.style.left = (ev.clientX + 12) + 'px'; ghost.style.top = (ev.clientY + 8) + 'px'; }
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    const tr = el && el.closest ? el.closest('tr[data-ri]') : null;
+    if (marca) marca.style.boxShadow = '';
+    marca = (tr && tr !== alvo && tr.parentElement === tbody) ? tr : null;
+    if (marca) {
+      const acima = +marca.dataset.ri < +alvo.dataset.ri;
+      marca.style.boxShadow = acima ? 'inset 0 3px 0 0 #2563eb' : 'inset 0 -3px 0 0 #2563eb';
+    }
+  };
+
+  const soltar = async () => {
+    if (!engatado || !alvo) { limpar(); return; }
+    const de = +alvo.dataset.ri;
+    const para = marca ? +marca.dataset.ri : null;
+    limpar();
+    if (para == null || para === de) return;
+    const t = _tabelas.find(x => x.id === tabelaId);
+    if (!t || !(t.linhas || []).length) return;
+    const linhas = t.linhas.map(r => r.slice());
+    const [row] = linhas.splice(de, 1);
+    linhas.splice(para, 0, row);
+    t.linhas = linhas;           // otimista: a tela já mostra a nova ordem
+    render();
+    const m = document.getElementById('tl-msg'); if (m) m.textContent = '⏳ salvando a ordem…';
+    try {
+      const tabela = {
+        id: t.id, marca: t.marca, categoria: t.categoria, vigencia: t.vigencia || '',
+        cor: t.cor || '', ordem: (t.ordem == null ? null : t.ordem),
+        tipo: t.tipo || 'grade', pdf_url: t.pdf_url || null,
+        colunas: t.colunas || [], linhas: t.linhas,
+      };
+      const r = await api.request('/api/v3/tabelas/lancamentos', { method: 'POST', body: { action: 'save', tabela } });
+      _tabelas = r.tabelas || _tabelas;
+      const m2 = document.getElementById('tl-msg'); if (m2) m2.textContent = '💾 ordem salva.';
+    } catch (e) {
+      alert('❌ NÃO SALVOU a ordem: ' + e.message);
+      await load(); render();
+    }
+  };
+
+  tbody.addEventListener('pointerdown', ev => {
+    if (ev.button != null && ev.button !== 0) return;
+    const tr = ev.target.closest ? ev.target.closest('tr[data-ri]') : null;
+    if (!tr || tr.parentElement !== tbody) return;
+    alvo = tr; x0 = ev.clientX; y0 = ev.clientY; pid = ev.pointerId;
+    if (ev.target.closest('[data-rowgrip]')) {
+      ev.preventDefault();
+      engatar(ev);                                  // alça ⠿: engata na hora
+    } else if (ev.pointerType === 'mouse') {
+      timer = setTimeout(() => engatar(ev), 300);   // linha inteira: segurar 0,3s (mouse)
+    } else {
+      alvo = null;                                  // dedo fora da alça = scroll normal
+    }
+  });
+  tbody.addEventListener('pointermove', ev => {
+    if (timer && !engatado && (Math.abs(ev.clientX - x0) > 6 || Math.abs(ev.clientY - y0) > 6)) { clearTimeout(timer); timer = null; alvo = null; return; }
+    mover(ev);
+  });
+  ['pointerup', 'pointercancel'].forEach(n => tbody.addEventListener(n, () => { if (engatado) soltar(); else limpar(); }));
+  tbody.addEventListener('dragstart', ev => ev.preventDefault());
+  // o ponteiro pode sair do tbody durante o arrasto — o singleton do documento
+  // (abaixo) delega pra instância ativa; registra esta como a ativa ao engatar
+  tbody.addEventListener('pointerdown', () => { _rowDragAtivo = { mover: ev => { if (engatado && ev.pointerId === pid) mover(ev); }, soltar: ev => { if (engatado && ev.pointerId === pid) soltar(); } }; });
+}
+
+// listeners de documento do arrasto de linha: UMA vez só (senão acumulam a cada render)
+let _rowDragAtivo = null;
+let _rowDragDocOk = false;
+function rowDragDocBind() {
+  if (_rowDragDocOk) return;
+  _rowDragDocOk = true;
+  document.addEventListener('pointermove', ev => { if (_rowDragAtivo) _rowDragAtivo.mover(ev); });
+  document.addEventListener('pointerup', ev => { if (_rowDragAtivo) _rowDragAtivo.soltar(ev); });
 }
 
 async function importXlsx(input) {

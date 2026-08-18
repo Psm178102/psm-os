@@ -27,6 +27,7 @@ import os
 import re
 import sys
 import time
+import traceback
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -103,7 +104,13 @@ def _stages_from_mirror(sb, pipeline_id, deals):
         if sid is not None and str(sid) not in seen:
             seen[str(sid)] = {"id": str(sid), "name": d.get("stage_name") or "?",
                               "position": pos_map.get(str(sid))}
-    return sorted(seen.values(), key=lambda s: (s["position"] is None, s["position"] or 0, s["name"]))
+
+    def _pos(s):
+        try:
+            return (False, int(s["position"]), str(s["name"] or ""))
+        except (TypeError, ValueError):
+            return (True, 0, str(s["name"] or ""))
+    return sorted(seen.values(), key=_pos)
 
 
 # ─── Escopo por papel (mesma régua do crm/deals.py) ────────────────────────
@@ -176,6 +183,18 @@ class handler(BaseHTTPRequestHandler):
 
     # ── BOARD ──────────────────────────────────────────────────────────────
     def do_GET(self):
+        # Blindagem: exceção NUNCA vira FUNCTION_INVOCATION_FAILED mudo —
+        # devolve JSON com o traceback (superfície interna autenticada).
+        try:
+            return self._board()
+        except AuthError as e:
+            return self._send(e.status, {"ok": False, "error": e.message})
+        except Exception:
+            tb = traceback.format_exc()
+            print(f"[crm-house] GET crash: {tb}")
+            return self._send(500, {"ok": False, "error": "crash no board", "tb": tb})
+
+    def _board(self):
         try:
             user = require_user(self, min_lvl=2)
         except AuthError as e:
@@ -264,6 +283,16 @@ class handler(BaseHTTPRequestHandler):
 
     # ── MOVE ───────────────────────────────────────────────────────────────
     def do_POST(self):
+        try:
+            return self._move()
+        except AuthError as e:
+            return self._send(e.status, {"ok": False, "error": e.message})
+        except Exception:
+            tb = traceback.format_exc()
+            print(f"[crm-house] POST crash: {tb}")
+            return self._send(500, {"ok": False, "error": "crash no move", "tb": tb})
+
+    def _move(self):
         try:
             user = require_user(self, min_lvl=2)
         except AuthError as e:

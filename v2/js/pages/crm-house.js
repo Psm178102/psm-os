@@ -38,7 +38,9 @@ async function reload(pipelineId) {
     const q = pipelineId ? `?pipeline_id=${encodeURIComponent(pipelineId)}` : '';
     _d = await api.request('/api/v3/crm/house' + q);
   } catch (e) {
-    _host.innerHTML = `<div class="card"><div class="alert alert-err">${esc(e.message)}</div></div>`;
+    const msg = typeof e.message === 'string' ? e.message : JSON.stringify(e.message || e);
+    const tb = e.data && e.data.tb ? `<pre class="tiny" style="overflow-x:auto;background:var(--bg-1,#f8fafc);padding:8px;border-radius:8px;margin-top:8px">${esc(e.data.tb)}</pre>` : '';
+    _host.innerHTML = `<div class="card"><div class="alert alert-err">${esc(msg)}</div>${tb}</div>`;
     return;
   }
   if (_d.pipeline_id) localStorage.setItem('crmhouse_pipeline', _d.pipeline_id);
