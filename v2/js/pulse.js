@@ -49,11 +49,10 @@ async function tick() {
   if (_sig === null) { _sig = sig; return; }   // baseline: só guarda
   if (sig !== _sig) { _sig = sig; _pending = true; }
   if (!_pending) return;
-  // Tem mudança pendente — aplica quando o usuário estiver livre (não atrapalha o uso).
-  if (isTyping() || modalOpen() || (Date.now() - _last < 4000)
-      || (window.__psmEditShield && window.__psmEditShield())) return;   // v84.95: form mexido e não salvo = não redesenha
+  // v86.55 (pedido do Paulo): NUNCA mais redesenha a página sozinho — mudança de dado
+  // vira a pill "🔄 Novos dados" (main.js); sino/recados seguem ao vivo (não mexem no corpo).
   _pending = false;
-  try { router.refresh({ quiet: true }); } catch (_) {}
+  try { window.__psmDadosNovos && window.__psmDadosNovos(); } catch (_) {}
   try { refreshNotifs(); } catch (_) {}
   try { reloadTimeline(); } catch (_) {}
   try { window.__psmApplyPerms && window.__psmApplyPerms(); } catch (_) {}  // menu ao vivo c/ mudança de permissão

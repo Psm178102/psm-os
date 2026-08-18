@@ -372,10 +372,14 @@ function applyPermissions(user) {
 // Minimizar/expandir categorias do menu (cabeçalhos sb-sec) — estado salvo por usuário.
 // Usa CLASSE css (não inline display) pra não conflitar com a ocultação por permissão. v77.85
 function initSectionCollapse() {
-  const KEY = 'psm.v2.menu_collapsed';
-  let collapsed;
-  try { collapsed = new Set(JSON.parse(localStorage.getItem(KEY) || '[]')); } catch (_) { collapsed = new Set(); }
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...collapsed])); } catch (_) {} };
+  // v86.55 (pedido do Paulo): o padrão INVERTEU — menu começa com TODAS as categorias
+  // minimizadas (layout clean); clicar abre. Agora salvamos as ABERTAS (psm.v2.menu_open);
+  // a chave antiga (menu_collapsed) é ignorada de propósito — reset único pro novo padrão.
+  const KEY = 'psm.v2.menu_open';
+  let open;
+  try { open = new Set(JSON.parse(localStorage.getItem(KEY) || '[]')); } catch (_) { open = new Set(); }
+  const collapsed = { has: k => !open.has(k), add: k => open.delete(k), delete: k => open.add(k) };
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...open])); } catch (_) {} };
   if (!document.getElementById('sb-collapse-css')) {
     const st = document.createElement('style');
     st.id = 'sb-collapse-css';
@@ -420,7 +424,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.54';
+const APP_VERSION = '86.55';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -773,12 +777,27 @@ const APP_VERSION = '86.54';
     if (document.hidden) return;
     if (!_verWarned) checkVersion();
     window.__psmApplyPerms(true);   // re-aplica perms do menu ao focar (force)
-    // ⚡ TEMPO REAL: ao focar a aba (trocou de device, desbloqueou o cel), atualiza
-    // a página atual + sino + recados na hora — todo login vê o estado mais novo. v81.26
-    try { router.refresh(); } catch (_) {}
+    // v86.55: NÃO re-renderiza mais a página ao focar (roubava a tela/scroll — pedido
+    // do Paulo). Sino + recados atualizam (não mexem no corpo); dados novos viram pill.
     try { refreshNotifs(); } catch (_) {}
     try { reloadTimeline(); } catch (_) {}
   });
+
+  // 🔕 FIM DO AUTO-REDESENHO (v86.55, pedido do Paulo): pulso/realtime detectam
+  // mudança mas NÃO redesenham mais a página sozinhos (redesenho = tela volta pro
+  // topo no meio da leitura). Em vez disso aparece esta pill discreta; clicar
+  // atualiza na hora. Navegar/trocar de rota já traz dado fresco naturalmente.
+  window.__psmDadosNovos = () => {
+    if (document.visibilityState !== 'visible') return;
+    if (document.getElementById('rt-pill')) return;
+    const b = document.createElement('button');
+    b.id = 'rt-pill';
+    b.innerHTML = '🔄 Novos dados — <b>atualizar</b>';
+    b.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:9990;background:var(--psm-navy,#1e293b);color:var(--psm-cream,#fff);border:0;border-radius:999px;padding:10px 16px;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer';
+    b.onclick = () => { b.remove(); try { router.refresh({ quiet: true }); } catch (_) {} };
+    document.body.appendChild(b);
+  };
+  window.addEventListener('hashchange', () => { document.getElementById('rt-pill')?.remove(); });
   document.getElementById('app-ver')?.addEventListener('click', () => checkVersion(true));
 
   // ⚡ TEMPO REAL (contínuo): o pulso pergunta ao backend a cada ~12s "mudou algo?"

@@ -28,14 +28,11 @@ const modalOpen = () => !!document.querySelector(
   '.modal.open, .modal[style*="flex"], .modal[style*="block"], .overlay.open, dialog[open], [data-modal="open"]');
 
 function applyRefresh() {
-  // Espera o usuário ficar livre pra não atrapalhar (digitando / modal / aba oculta).
-  // v84.95: + escudo de edição — formulário mexido e não salvo NUNCA é redesenhado.
-  if (document.visibilityState !== 'visible' || isTyping() || modalOpen() || (Date.now() - _last < 1500)
-      || (window.__psmEditShield && window.__psmEditShield())) {
-    _pending = true; return;
-  }
+  if (document.visibilityState !== 'visible') { _pending = true; return; }
+  // v86.55 (pedido do Paulo): o push NÃO redesenha mais a página sozinho — vira a
+  // pill "🔄 Novos dados" (main.js). Sino/recados seguem ao vivo (não mexem no corpo).
   _pending = false;
-  try { router.refresh({ quiet: true }); } catch (_) {}
+  try { window.__psmDadosNovos && window.__psmDadosNovos(); } catch (_) {}
   try { refreshNotifs(); } catch (_) {}
   try { reloadTimeline(); } catch (_) {}
   try { window.__psmApplyPerms && window.__psmApplyPerms(); } catch (_) {}  // menu ao vivo c/ mudança de permissão
