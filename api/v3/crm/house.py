@@ -67,7 +67,13 @@ def _pipelines_live(token):
     except Exception as e:
         print(f"[crm-house] pipelines_live falhou: {e}")
         return _pipes_cache["data"]  # melhor stale que nada
-    pls = data.get("deal_pipelines") or (data if isinstance(data, list) else [])
+    # o RD devolve LISTA pura em /deal_pipelines (não {"deal_pipelines": [...]})
+    if isinstance(data, list):
+        pls = data
+    elif isinstance(data, dict):
+        pls = data.get("deal_pipelines") or []
+    else:
+        pls = []
     out = []
     for p in pls:
         if not isinstance(p, dict):
