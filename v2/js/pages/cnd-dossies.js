@@ -1,4 +1,10 @@
-/* PSM-OS v2 — 📁 Dossiês de CNDs (v84.67) · aba da tela CNDs (Jurídico)
+/* PSM-OS v2 — 📁 Dossiês de CNDs (v86.56) · aba da tela CNDs (Jurídico)
+   Três categorias: VENDA · LOCAÇÃO · INTERNO. Interno (v86.56) é a due
+   diligence de quem vai ENTRAR na empresa: o dossiê nasce do candidato que já
+   está no pipeline de Recrutamento (etapas Avaliação interna / Due Diligence),
+   puxando nome, CPF, contato e cargo da ficha dele — nada é redigitado — e o
+   andamento das certidões volta pra ficha do candidato.
+   Histórico do módulo (v84.67):
    VENDA ou LOCAÇÃO, com N partes (Comprador/Locatário · Vendedor/Locador ·
    Fiador), cada uma PF ou PJ — PJ com sócios representantes, e cada sócio gera
    o pacote completo de CND. Cônjuge por pessoa.
@@ -10,6 +16,9 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 let _host = null, _d = null, _busy = false, _sel = null, _form = null;
+let _fTipo = '';        // filtro da lista: '' | venda | locacao | interno
+let _talentos = null;   // candidatos do ATS (carregados sob demanda)
+let _abrirId = null;    // deep link #/cnds?dossie=<id>
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const hojeStr = () => new Date().toISOString().substring(0, 10);
@@ -39,11 +48,25 @@ const ST_GARANTIA = {
 };
 const PAPEIS_VENDA = { comprador: 'Comprador', vendedor: 'Vendedor' };
 const PAPEIS_LOC = { locatario: 'Locatário', locador: 'Locador', fiador: 'Fiador' };
+const PAPEIS_INT = { candidato: 'Candidato' };
+/* as 3 categorias do módulo — rótulo e cor num lugar só (v86.56) */
+const TIPOS = {
+  venda:   { lbl: '🏠 Venda', cor: '#2563eb' },
+  locacao: { lbl: '🔑 Locação', cor: '#0891b2' },
+  interno: { lbl: '🧑‍💼 Interno', cor: '#b45309' },
+};
+const tipoDe = t => TIPOS[t] || TIPOS.venda;
+const chipTipo = t => { const x = tipoDe(t); return `<span class="tiny" style="background:${x.cor}20;color:${x.cor};border-radius:20px;padding:1px 9px;font-weight:800">${x.lbl}</span>`; };
 const ECIV = ['solteiro', 'casado', 'divorciado', 'viuvo', 'uniao_estavel'];
 const ECIV_LBL = { solteiro: 'Solteiro(a)', casado: 'Casado(a)', divorciado: 'Divorciado(a)', viuvo: 'Viúvo(a)', uniao_estavel: 'União estável' };
 const CASADO = ['casado', 'uniao_estavel'];
 
-export async function dossiesAba(host) { _host = host; await reload(); }
+export async function dossiesAba(host, opts) {
+  _host = host;
+  // #/cnds?dossie=<id> — usado pelo botão "abrir dossiê" da ficha do candidato
+  if (opts && opts.dossie) { _abrirId = String(opts.dossie); _form = null; }
+  await reload();
+}
 
 async function reload() {
   if (!_host) return;
@@ -53,6 +76,11 @@ async function reload() {
   } catch (e) {
     _host.innerHTML = `<div class="card"><div class="alert alert-err">${esc(e.message)}</div></div>`;
     return;
+  }
+  if (_abrirId) {
+    const alvo = (_d.dossies || []).find(x => String(x.id) === _abrirId);
+    _abrirId = null;
+    if (alvo) { _sel = alvo; render(); return; }
   }
   if (_sel) _sel = (_d.dossies || []).find(x => x.id === _sel.id) || null;
   render();
@@ -72,7 +100,8 @@ async function post(body, okMsg) {
 
 const userName = id => ((_d.users || []).find(u => u.id === id) || {}).name || '—';
 const vencida = c => c.validade && String(c.validade).substring(0, 10) < hojeStr() && c.status === 'emitida';
-const papeisDe = t => (t === 'locacao' ? PAPEIS_LOC : PAPEIS_VENDA);
+const papeisDe = t => (t === 'locacao' ? PAPEIS_LOC : t === 'interno' ? PAPEIS_INT : PAPEIS_VENDA);
+const podeInterno = () => (auth.user()?.lvl || 0) >= 5 || ['backoffice'].includes(auth.user()?.role);
 
 function progresso(d) {
   const cs = d.certidoes || [];
@@ -89,25 +118,32 @@ function progresso(d) {
 function render() {
   if (_form) return renderForm();
   if (_sel) return renderDossie();
-  const list = _d.dossies || [];
+  const todos = _d.dossies || [];
+  const list = _fTipo ? todos.filter(d => (d.tipo_negocio || 'venda') === _fTipo) : todos;
+  const conta = t => todos.filter(d => (d.tipo_negocio || 'venda') === t).length;
   _host.innerHTML = `
     <div class="card" style="padding:10px 12px">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
         <h2 class="card-title" style="margin:0;font-size:16px">📁 Dossiês de CND</h2>
-        <span class="tiny muted">venda ou locação · você vê os casos em que está envolvido</span>
+        <span class="tiny muted">venda · locação · interno — você vê os casos em que está envolvido</span>
         <span style="margin-left:auto"></span>
+        ${podeInterno() ? '<button class="btn btn-sm" id="cd-cand" style="background:#b4530915;color:#b45309;font-weight:700">🧑‍💼 Do candidato (R&S)</button>' : ''}
         <button class="btn btn-primary btn-sm" id="cd-novo">➕ Novo dossiê</button>
         <button class="btn btn-ghost btn-sm" id="cd-reload">↻</button>
       </div>
+      <div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm ${!_fTipo ? 'btn-primary' : 'btn-ghost'}" data-ft="">Todos (${todos.length})</button>
+        ${Object.keys(TIPOS).map(t => `<button class="btn btn-sm ${_fTipo === t ? 'btn-primary' : 'btn-ghost'}" data-ft="${t}">${TIPOS[t].lbl} (${conta(t)})</button>`).join('')}
+      </div>
     </div>
-    ${!list.length ? '<div class="card mt-2 muted" style="text-align:center;padding:26px">Nenhum dossiê ainda. Clique em <b>Novo dossiê</b>.</div>'
+    ${!list.length ? `<div class="card mt-2 muted" style="text-align:center;padding:26px">${todos.length ? 'Nenhum dossiê nesta categoria.' : 'Nenhum dossiê ainda. Clique em <b>Novo dossiê</b>.'}</div>`
       : list.map(d => {
         const p = progresso(d);
         const g = d.garantia || {};
         const [gl, gc] = ST_GARANTIA[g.status || 'nao_definida'];
         return `<div class="card mt-2 cd-item" data-id="${esc(d.id)}" style="cursor:pointer;padding:12px 14px">
           <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
-            <span class="tiny" style="background:${d.tipo_negocio === 'locacao' ? '#0891b2' : '#2563eb'}20;color:${d.tipo_negocio === 'locacao' ? '#0891b2' : '#2563eb'};border-radius:20px;padding:1px 9px;font-weight:800">${d.tipo_negocio === 'locacao' ? '🔑 Locação' : '🏠 Venda'}</span>
+            ${chipTipo(d.tipo_negocio)}
             <b>${esc(d.titulo)}</b>
             <span class="tiny muted">${(d.partes || []).length} parte(s)</span>
             ${d.responsavel_id ? `<span class="tiny" style="background:var(--bg-3);border-radius:20px;padding:1px 9px">👤 ${esc(userName(d.responsavel_id))}</span>` : '<span class="tiny" style="color:#a16207;font-weight:700">⚠️ sem responsável</span>'}
@@ -126,9 +162,81 @@ function render() {
       }).join('')}`;
   _host.querySelector('#cd-novo').onclick = () => { _form = 'novo'; render(); };
   _host.querySelector('#cd-reload').onclick = reload;
+  const bc = _host.querySelector('#cd-cand');
+  if (bc) bc.onclick = abrirPickerCandidato;
+  _host.querySelectorAll('[data-ft]').forEach(b => b.onclick = () => { _fTipo = b.dataset.ft; render(); });
   _host.querySelectorAll('.cd-item').forEach(el => el.onclick = () => {
     _sel = (_d.dossies || []).find(x => x.id === el.dataset.id); render();
   });
+}
+
+/* ── INTERNO: abrir dossiê direto do candidato do R&S (v86.56) ───────────── */
+/* O pulo do gato do pedido do Paulo: o candidato JÁ existe no pipeline com
+   nome, CPF, contato e cargo preenchidos na Due Diligence. Aqui a gente só
+   escolhe quem é — o backend cria o dossiê com esses dados e devolve o
+   checklist. Se o candidato já tiver dossiê, abre o que existe. */
+async function abrirPickerCandidato() {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:5vh 14px;overflow:auto';
+  ov.innerHTML = '<div class="card" style="max-width:620px;width:100%;margin:auto"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando candidatos do Recrutamento…</div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  let dd = [];
+  try {
+    const r = await api.request('/api/v3/juridico/dossies?talentos=1');
+    _talentos = r.talentos || [];
+    dd = r.etapas_dd || [];
+  } catch (e) {
+    ov.innerHTML = `<div class="card" style="max-width:620px;width:100%;margin:auto"><div class="alert alert-err">${esc(e.message)}</div></div>`;
+    return;
+  }
+  let q = '', soDD = true;
+  const draw = () => {
+    const busca = q.trim().toLowerCase();
+    const list = (_talentos || []).filter(t => {
+      if (soDD && dd.length && !dd.includes(t.etapa || '')) return false;
+      if (!busca) return true;
+      return [t.nome, t.cargo, t.funcao, t.vaga, t.cpf, t.setor].some(v => String(v || '').toLowerCase().includes(busca));
+    });
+    ov.innerHTML = `<div class="card" style="max-width:620px;width:100%;margin:auto">
+      <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
+        <h3 class="card-title" style="margin:0">🧑‍💼 Dossiê interno — escolher candidato</h3>
+        <button class="btn btn-ghost btn-sm" id="pk-x" style="margin-left:auto">✕</button>
+      </div>
+      <p class="tiny muted" style="margin:4px 0 8px">Os dados vêm da ficha do Recrutamento (nome, CPF, contato, cargo). Nada é digitado de novo — e o andamento das CNDs volta pra ficha dele.</p>
+      <input class="input" id="pk-q" placeholder="🔎 Buscar candidato…" value="${esc(q)}">
+      <label class="tiny muted" style="display:block;margin-top:6px"><input type="checkbox" id="pk-dd"${soDD ? ' checked' : ''}> mostrar só quem está em ${dd.map(esc).join(' · ') || 'avaliação'}</label>
+      <div class="mt-2" style="max-height:52vh;overflow:auto">
+        ${list.length ? list.map(t => `<div class="flex items-center pk-row" data-id="${esc(t.id)}" style="gap:8px;border-top:1px solid var(--bd,#eef2f7);padding:7px 2px;cursor:pointer">
+          <div style="flex:1;min-width:0">
+            <b style="font-size:13px">${esc(t.nome || '(sem nome)')}</b>
+            <div class="tiny muted">${esc(t.cargo || t.funcao || t.vaga || '—')}${t.setor ? ' · ' + esc(t.setor) : ''}${t.cpf ? ' · CPF ' + esc(t.cpf) : ' · <b style="color:#a16207">sem CPF na ficha</b>'}</div>
+          </div>
+          <span class="tiny" style="background:var(--bg-3);border-radius:20px;padding:1px 9px">${esc(t.etapa || 'Triagem')}</span>
+          ${t.dossie_id ? '<span class="tiny" style="color:#16a34a;font-weight:700">📁 já tem dossiê</span>' : '<span class="btn btn-primary btn-sm">➕ criar</span>'}
+        </div>`).join('') : '<div class="tiny muted" style="padding:14px;text-align:center">Nenhum candidato encontrado.</div>'}
+      </div>
+    </div>`;
+    ov.querySelector('#pk-x').onclick = () => ov.remove();
+    const inp = ov.querySelector('#pk-q');
+    inp.oninput = () => { q = inp.value; const pos = inp.selectionStart; draw(); const n = ov.querySelector('#pk-q'); n.focus(); try { n.setSelectionRange(pos, pos); } catch (_) {} };
+    ov.querySelector('#pk-dd').onchange = e => { soDD = e.target.checked; draw(); };
+    ov.querySelectorAll('.pk-row').forEach(el => el.onclick = async () => {
+      ov.remove();
+      await criarDoTalento(el.dataset.id);
+    });
+  };
+  draw();
+}
+
+async function criarDoTalento(talentoId) {
+  const r = await post({ action: 'from_talento', talento_id: talentoId },
+    null);
+  if (!r) return;
+  alert(r.ja_existia ? '📁 Este candidato já tinha dossiê — abrindo o que existe.'
+    : `✅ Dossiê interno criado com ${(r.certidoes || []).length} certidão(ões) no checklist.`);
+  _abrirId = String(r.id);
+  await reload();
 }
 
 /* ── formulário: N partes, PF/PJ, sócios, cônjuge ────────────────────────── */
@@ -207,10 +315,12 @@ function parteHtml(p, i, tipoNeg) {
 }
 
 function renderForm() {
+  const ehNovo = _form === 'novo' || !(_form && _form.id);
   const d = _form === 'novo' ? { tipo_negocio: 'venda', partes: [], imovel: {} } : _form;
   if (_form === 'novo' && !_fp.length) _fp = [{ papel: 'comprador', tipo: 'pf' }];
   else if (_form !== 'novo' && !_fp.length) _fp = JSON.parse(JSON.stringify(d.partes || []));
   const tn = d.tipo_negocio || 'venda';
+  const interno = tn === 'interno';
   const im = d.imovel || {};
   /* v84.70: este filtro sempre dependeu de role/lvl, mas o backend mandava só
      id+name — TODO usuário falhava e o seletor de responsável abria VAZIO
@@ -234,25 +344,29 @@ function renderForm() {
   _host.innerHTML = `
     <div class="card">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
-        <h3 class="card-title" style="margin:0">${_form === 'novo' ? '➕ Novo dossiê' : '✏️ Editar dossiê'}</h3>
+        <h3 class="card-title" style="margin:0">${ehNovo ? '➕ Novo dossiê' : '✏️ Editar dossiê'}</h3>
         <button class="btn btn-ghost btn-sm" id="cf-volta" style="margin-left:auto">← voltar</button>
       </div>
       <div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
-        <input class="input" id="cf-titulo" placeholder="Título do caso * (ex: Apto 302 — Ed. Vista Alegre)" value="${esc(d.titulo || '')}" style="flex:2;min-width:230px">
+        <input class="input" id="cf-titulo" placeholder="${interno ? 'Título do caso * (ex: Interno — Maria Silva (Corretora))' : 'Título do caso * (ex: Apto 302 — Ed. Vista Alegre)'}" value="${esc(d.titulo || '')}" style="flex:2;min-width:230px">
         <select class="input" id="cf-tipo" style="width:150px">
-          <option value="venda"${tn === 'venda' ? ' selected' : ''}>🏠 Venda</option>
-          <option value="locacao"${tn === 'locacao' ? ' selected' : ''}>🔑 Locação</option>
+          ${Object.keys(TIPOS).map(t => `<option value="${t}"${tn === t ? ' selected' : ''}${t === 'interno' && !podeInterno() ? ' disabled' : ''}>${TIPOS[t].lbl}</option>`).join('')}
         </select>
       </div>
+      ${interno ? `<div class="mt-1" style="background:#b453090d;border:1px solid #b4530933;border-radius:8px;padding:8px">
+        <div class="tiny" style="font-weight:700;color:#b45309">🧑‍💼 Dossiê interno — candidato à contratação</div>
+        <div class="tiny muted" style="margin-top:2px">${d.talento_id ? 'Vinculado à ficha do Recrutamento — o andamento das CNDs aparece lá automaticamente.' : 'Sem vínculo com o pipeline. Para não redigitar dados, prefira <b>🧑‍💼 Do candidato (R&S)</b> na lista de dossiês.'}</div>
+        <input class="input mt-1" id="cf-cargo" placeholder="Cargo / vaga (contendo «corretor» adiciona a consulta CRECI)" value="${esc(d.cargo || '')}" style="width:100%">
+      </div>` : ''}
       <div class="flex mt-1" style="gap:6px;flex-wrap:wrap">
         <select class="input" id="cf-resp" style="flex:1;min-width:190px">
           <option value="">👤 Responsável pela emissão…</option>
           ${eqs.map(u => `<option value="${esc(u.id)}"${d.responsavel_id === u.id ? ' selected' : ''}>${esc(u.name)}</option>`).join('')}
         </select>
-        <select class="input" id="cf-corretor" style="flex:1;min-width:190px">
+        ${interno ? '' : `<select class="input" id="cf-corretor" style="flex:1;min-width:190px">
           <option value="">🤝 Corretor do caso…</option>
           ${corretores.map(u => `<option value="${esc(u.id)}"${d.corretor_id === u.id ? ' selected' : ''}>${esc(u.name)}</option>`).join('')}
-        </select>
+        </select>`}
       </div>
       <input class="input mt-1" id="cf-drive" placeholder="🔗 Link da pasta no Google Drive (opcional)" value="${esc(d.drive_url || '')}" style="width:100%">
 
@@ -263,6 +377,7 @@ function renderForm() {
       </div>
       <div id="cf-partes" class="mt-1">${_fp.map((p, i) => parteHtml(p, i, tn)).join('')}</div>
 
+      ${interno ? '' : `
       <b class="tiny mt-3" style="display:block">🏠 Imóvel</b>
       <div class="flex mt-1" style="gap:6px;flex-wrap:wrap">
         <input class="input" id="cf-im-end" placeholder="Endereço do imóvel" value="${esc(im.endereco || '')}" style="flex:2;min-width:200px">
@@ -273,20 +388,48 @@ function renderForm() {
         <input class="input" id="cf-im-insc" placeholder="Inscrição municipal" value="${esc(im.inscricao_municipal || '')}" style="flex:1;min-width:150px">
         <input class="input" id="cf-im-cid" placeholder="Cidade" value="${esc(im.cidade || 'São José do Rio Preto')}" style="flex:1;min-width:130px">
         <label class="tiny"><input type="checkbox" id="cf-im-cond"${im.condominio ? ' checked' : ''}> em condomínio (gera quitação)</label>
-      </div>
+      </div>`}
       <textarea class="input mt-2" id="cf-obs" rows="2" placeholder="Observações do caso">${esc(d.obs || '')}</textarea>
       <div class="flex mt-2" style="gap:8px">
         <button class="btn btn-primary" id="cf-save" style="margin-left:auto">💾 Salvar e gerar checklist</button>
       </div>
-      <div class="tiny muted mt-1" style="text-align:right">A matrícula atualizada fica de fora do checklist — tem custo.</div>
+      <div class="tiny muted mt-1" style="text-align:right">${interno ? 'Checklist do interno: federal, CNDT, cível/criminal TJSP, TRF3, antecedentes (PF + SSP-SP), protestos — e CRECI quando a vaga é de corretor.' : 'A matrícula atualizada fica de fora do checklist — tem custo.'}</div>
     </div>`;
 
   const $ = s => _host.querySelector(s);
   $('#cf-volta').onclick = () => { _form = null; _fp = []; render(); };
-  $('#cf-tipo').onchange = () => { coletarPartes(); _fp.forEach(p => { if (!papeisDe($('#cf-tipo').value)[p.papel]) p.papel = Object.keys(papeisDe($('#cf-tipo').value))[0]; }); _form = _form === 'novo' ? 'novo' : { ..._form, tipo_negocio: $('#cf-tipo').value }; renderFormKeep($('#cf-tipo').value); };
+  /* v86.56: trocar o tipo mexe no FORMULÁRIO INTEIRO (imóvel só existe em
+     venda/locação, cargo só no interno), então re-renderiza tudo preservando
+     o que já foi digitado — antes só as partes eram redesenhadas. */
+  $('#cf-tipo').onchange = () => {
+    const tnNovo = $('#cf-tipo').value;
+    coletarPartes();
+    _fp.forEach(p => { if (!papeisDe(tnNovo)[p.papel]) p.papel = Object.keys(papeisDe(tnNovo))[0]; });
+    _form = { ...(typeof _form === 'object' ? _form : {}), ...rascunhoTopo(), tipo_negocio: tnNovo };
+    render();
+  };
   $('#cf-add-parte').onclick = () => { coletarPartes(); _fp.push({ papel: Object.keys(papeisDe($('#cf-tipo').value))[0], tipo: 'pf' }); renderFormKeep($('#cf-tipo').value); };
   wireParteBtns();
   $('#cf-save').onclick = salvar;
+}
+
+/* o que está digitado no topo do form agora (sobrevive à troca de tipo) */
+function rascunhoTopo() {
+  const $ = s => _host.querySelector(s);
+  const g = s => ($(s) ? String($(s).value || '').trim() : '');
+  return {
+    titulo: g('#cf-titulo'),
+    responsavel_id: g('#cf-resp') || null,
+    corretor_id: g('#cf-corretor') || null,
+    drive_url: g('#cf-drive') || null,
+    cargo: g('#cf-cargo') || null,
+    obs: g('#cf-obs'),
+    imovel: {
+      endereco: g('#cf-im-end'), matricula: g('#cf-im-mat'), cartorio: g('#cf-im-cart'),
+      inscricao_municipal: g('#cf-im-insc'), cidade: g('#cf-im-cid'),
+      condominio: !!($('#cf-im-cond') && $('#cf-im-cond').checked),
+    },
+  };
 }
 
 /* re-render das partes preservando o topo do formulário */
@@ -351,20 +494,19 @@ async function salvar() {
   if (!titulo) { alert('❌ Dê um título ao caso.'); return; }
   const partes = coletarPartes().filter(p => (p.tipo === 'pj' ? (p.razao_social || p.cnpj) : (p.nome || p.cpf)));
   if (!partes.length) { alert('❌ Cadastre ao menos uma parte com nome ou documento.'); return; }
+  const topo = rascunhoTopo();
+  const tn = $('#cf-tipo').value;
   const body = {
     action: 'upsert',
-    id: _form === 'novo' ? undefined : _form.id,
-    titulo, tipo_negocio: $('#cf-tipo').value,
-    responsavel_id: $('#cf-resp').value || null,
-    corretor_id: $('#cf-corretor').value || null,
-    drive_url: $('#cf-drive').value.trim() || null,
+    id: (_form === 'novo' || !_form.id) ? undefined : _form.id,
+    titulo, tipo_negocio: tn,
+    responsavel_id: topo.responsavel_id,
+    corretor_id: tn === 'interno' ? null : topo.corretor_id,
+    drive_url: topo.drive_url,
+    cargo: tn === 'interno' ? topo.cargo : null,
     partes,
-    imovel: {
-      endereco: $('#cf-im-end').value.trim(), matricula: $('#cf-im-mat').value.trim(),
-      cartorio: $('#cf-im-cart').value.trim(), inscricao_municipal: $('#cf-im-insc').value.trim(),
-      cidade: $('#cf-im-cid').value.trim(), condominio: $('#cf-im-cond').checked,
-    },
-    obs: $('#cf-obs').value.trim(),
+    imovel: tn === 'interno' ? null : topo.imovel,   // interno não tem imóvel
+    obs: topo.obs,
   };
   const r = await post(body, '💾 Dossiê salvo — checklist gerado.');
   if (r) { _form = null; _fp = []; _sel = { id: r.id || (r.dossie && r.dossie.id) || (_form && _form.id) }; await reload(); }
@@ -385,9 +527,10 @@ function renderDossie() {
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" id="cv-volta">← dossiês</button>
         <b>${esc(d.titulo)}</b>
-        <span class="tiny" style="background:${d.tipo_negocio === 'locacao' ? '#0891b2' : '#2563eb'}20;color:${d.tipo_negocio === 'locacao' ? '#0891b2' : '#2563eb'};border-radius:20px;padding:1px 9px;font-weight:800">${d.tipo_negocio === 'locacao' ? '🔑 Locação' : '🏠 Venda'}</span>
-        <span class="tiny muted">👤 ${esc(userName(d.responsavel_id))} emite · 🤝 ${esc(userName(d.corretor_id))}</span>
+        ${chipTipo(d.tipo_negocio)}
+        <span class="tiny muted">👤 ${esc(userName(d.responsavel_id))} emite${d.tipo_negocio === 'interno' ? (d.cargo ? ' · 💼 ' + esc(d.cargo) : '') : ' · 🤝 ' + esc(userName(d.corretor_id))}</span>
         <span style="margin-left:auto"></span>
+        ${d.talento_id ? `<a class="btn btn-ghost btn-sm" href="#/talentos?id=${encodeURIComponent(d.talento_id)}" title="Abrir a ficha no Recrutamento">🌟 Ficha do candidato</a>` : ''}
         ${d.drive_url ? `<a class="btn btn-ghost btn-sm" href="${esc(d.drive_url)}" target="_blank" rel="noopener">📂 Pasta no Drive</a>` : ''}
         ${podeEditar ? '<button class="btn btn-ghost btn-sm" id="cv-edit">✏️ Editar</button>' : ''}
       </div>

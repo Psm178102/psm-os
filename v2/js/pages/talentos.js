@@ -21,6 +21,7 @@ let _editing = null;  // candidato aberto na ficha
 let _rdTimer = null;
 let _lastRd = null;
 let _users = [];      // pra escolher o responsável
+let _deepId = null;   // candidato a abrir direto (#/talentos?id=…)
 
 // Classificação (v81.83) — secretaria de vendas é cargo dentro do Comercial
 const SETORES = ['Comercial', 'Backoffice', 'Marketing', 'Administrativo', 'Financeiro', 'RH', 'Jurídico', 'Contábil'];
@@ -63,6 +64,9 @@ const optTag = (v, sel) => `<option value="${esc(v)}"${v === (sel || '') ? ' sel
 
 export async function pageTalentos(ctx, root) {
   _root = root;
+  // #/talentos?id=<gpt_…> — vem do dossiê de CND interno (v86.56)
+  _deepId = ((ctx && ctx.query) || {}).id || null;
+  if (_deepId) _tab = 'manual';
   if ((auth.user()?.lvl || 0) < 5) {
     root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder/Diretoria (lvl 5+).</div>';
     return;
@@ -219,6 +223,11 @@ async function loadManual() {
     _talentos = r.talentos || [];
     _users = (u && u.users) || _users;
     _cargosCfg = { recrutamento: (cc && cc.recrutamento) || {}, offboarding: (cc && cc.offboarding) || {} };
+    if (_deepId) {
+      const alvo = _talentos.find(t => String(t.id) === String(_deepId));
+      _deepId = null;
+      if (alvo) _editing = alvo;
+    }
     renderManual();
   } catch (e) {
     body.innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
@@ -327,6 +336,7 @@ function cardHTML(t) {
       ${cats.map(c => chip(c, '#d6249f')).join('')}
       ${t.score ? `<span class="tiny" style="color:#f59e0b" title="Score">${stars(t.score)}</span>` : ''}
       ${nav ? `<span class="tiny muted" title="Pareceres">🗳 ${nav}</span>` : ''}
+      ${cndBadge(t)}
     </div>
     ${t.responsavel ? `<div class="tiny muted" style="margin-top:4px">👤 ${esc(t.responsavel)}</div>` : ''}
     <div style="margin-top:6px;display:flex;gap:3px;align-items:center">
@@ -339,6 +349,17 @@ function cardHTML(t) {
       </select>
     </div>
   </div>`;
+}
+
+/* ── ponte com o módulo CND's (categoria Interno) — v86.56 ─────────────────
+   O dossiê de CND do candidato vive no módulo CND's; aqui só espelhamos o
+   andamento. Vermelho quando veio POSITIVA: é o que trava a contratação. */
+function cndBadge(t) {
+  const c = t.cnd_dossie;
+  if (!c) return '';
+  const cor = c.positivas ? '#dc2626' : c.emitidas >= c.total ? '#16a34a' : '#b45309';
+  const extra = c.positivas ? ` · ${c.positivas} POSITIVA` : '';
+  return `<span class="tiny" title="Dossiê de CND (interno)" style="background:${cor}1a;color:${cor};font-weight:700;padding:1px 6px;border-radius:6px">⚖️ ${c.emitidas}/${c.total}${extra}</span>`;
 }
 
 function avResumo(t) {
@@ -489,8 +510,7 @@ function renderDetail(e) {
 
     ${sec('⚖️ Due diligence — análise jurídica & comercial', grid(`
       ${fInput('tal-cpf', 'CPF', e.cpf, '000.000.000-00')}
-      ${fInput('tal-cnd', 'CNDs (situação)', e.cnd, 'federal/estadual/trabalhista…')}
-    `) + `
+    `) + cndPainelHTML(e) + `
       ${fArea('tal-referencias', 'Referências (profissionais/comerciais)', e.referencias, 'Quem indicou, contatos, retorno das referências…', 2)}
       ${fArea('tal-processos', 'Processos (tipos / situação)', e.processos, 'Trabalhistas, cíveis, criminais — números e status…', 2)}
       ${fArea('tal-antecedentes', 'Antecedentes criminais', e.antecedentes, 'Resultado da consulta de antecedentes…', 2)}
@@ -530,6 +550,61 @@ function renderDetail(e) {
   `;
 }
 
+/* Painel das CNDs na ficha (v86.56). Quando existe dossiê, o campo "situação"
+   vira ESPELHO (só leitura): quem manda é o dossiê, e o backend o atualiza a
+   cada certidão marcada. Sem dossiê, segue o texto livre de antes. */
+function cndPainelHTML(e) {
+  const c = e.cnd_dossie;
+  const podeCnd = (auth.user()?.lvl || 0) >= 5 || ['backoffice'].includes(auth.user()?.role);
+  if (c) {
+    const cor = c.positivas ? '#dc2626' : (c.total && c.emitidas >= c.total ? '#16a34a' : '#b45309');
+    return `<div style="border:1px solid ${cor}44;background:${cor}0d;border-radius:8px;padding:9px;margin-bottom:8px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <b style="font-size:12.5px;color:${cor}">⚖️ Dossiê de CND (interno) — ${c.emitidas}/${c.total} emitida(s)</b>
+        ${c.positivas ? `<span class="tiny" style="color:#dc2626;font-weight:800">🔴 ${c.positivas} POSITIVA(S) — tem débito</span>` : ''}
+        ${c.pendencias ? `<span class="tiny" style="color:#a16207;font-weight:700">⚠️ ${c.pendencias} não emitida/bloqueada</span>` : ''}
+        <a class="btn btn-ghost btn-sm" style="margin-left:auto" href="#/cnds?dossie=${encodeURIComponent(c.id)}">📁 Abrir dossiê</a>
+      </div>
+      <label class="tiny muted" style="display:block;margin-top:6px">Situação das CNDs — atualiza sozinho pelo dossiê
+        <input id="tal-cnd" class="input" value="${esc(e.cnd || '')}" readonly style="opacity:.75">
+      </label>
+    </div>`;
+  }
+  return `<div style="border:1px dashed var(--bd);border-radius:8px;padding:9px;margin-bottom:8px">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <b class="tiny">⚖️ CNDs do candidato</b>
+      <span class="tiny muted">abre o dossiê no módulo CND’s (categoria Interno) com o nome, o CPF e o cargo desta ficha</span>
+      ${e.id && podeCnd ? '<button class="btn btn-primary btn-sm" id="tal-cnd-novo" type="button" style="margin-left:auto">⚖️ Tirar CNDs</button>' : ''}
+    </div>
+    ${e.id ? '' : '<div class="tiny muted" style="margin-top:4px">Salve a ficha primeiro para gerar o dossiê.</div>'}
+    <label class="tiny muted" style="display:block;margin-top:6px">Situação das CNDs (texto livre)
+      <input id="tal-cnd" class="input" value="${esc(e.cnd || '')}" placeholder="federal/estadual/trabalhista…">
+    </label>
+  </div>`;
+}
+
+async function criarDossieCnd() {
+  if (!_editing || !_editing.id) return;
+  if (!confirm(`Gerar o dossiê de CND (interno) de ${_editing.nome || 'candidato'}?\n\nNome, CPF, contato e cargo vão desta ficha direto pro dossiê — não precisa digitar de novo.`)) return;
+  captureDetail();
+  const btn = document.getElementById('tal-cnd-novo');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Gerando…'; }
+  try {
+    // salva a ficha ANTES: se o CPF acabou de ser digitado aqui, o dossiê já
+    // nasce com ele (é o campo que a emissão realmente precisa).
+    const payload = { ..._editing, id: _editing.id, origem: _editing.origem || 'manual' };
+    delete payload.avaliacoes; delete payload.historico; delete payload.cnd_dossie;
+    await api.request('/api/v3/gp/talentos', { method: 'POST', body: payload });
+    const r = await api.request('/api/v3/juridico/dossies', { method: 'POST', body: { action: 'from_talento', talento_id: _editing.id } });
+    if (r.ja_existia) alert('📁 Este candidato já tinha dossiê — abrindo o que existe.');
+    _editing = null;
+    location.hash = '#/cnds?dossie=' + encodeURIComponent(r.id);
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = '⚖️ Tirar CNDs'; }
+    alert('Erro ao gerar o dossiê: ' + err.message);
+  }
+}
+
 function bindDetail() {
   const cargoEl = document.getElementById('tal-cargo'), corrEl = document.getElementById('tal-corretor');
   if (cargoEl) cargoEl.addEventListener('input', () => { if (corrEl) corrEl.style.display = _isCorretor(cargoEl.value) ? 'grid' : 'none'; });
@@ -551,6 +626,8 @@ function bindDetail() {
   });
   const avAdd = document.getElementById('av-add');
   if (avAdd) avAdd.addEventListener('click', addAvaliacao);
+  const cndNovo = document.getElementById('tal-cnd-novo');
+  if (cndNovo) cndNovo.addEventListener('click', criarDossieCnd);
 }
 
 function captureDetail() {
@@ -584,6 +661,7 @@ async function saveDetail(contratar) {
   if (contratar) { _editing.etapa = 'Contratado'; _editing.decisao = 'Aprovado'; }
   const payload = { ...(_editing.id ? { id: _editing.id } : {}), ..._editing, origem: _editing.origem || 'manual' };
   delete payload.avaliacoes; delete payload.historico;   // gerenciados pelo backend
+  delete payload.cnd_dossie;                             // só leitura (vem do módulo CND's)
   try {
     await api.request('/api/v3/gp/talentos', { method: 'POST', body: payload });
     _editing = null;

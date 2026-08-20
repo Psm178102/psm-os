@@ -10,12 +10,17 @@ import { dossiesAba } from './cnd-dossies.js';
 
 let _root = null, _items = [], _cats = [], _canManage = false, _editing = null, _busy = false, _q = '';
 let _page = null, _aba = 'dossies'; // 'dossies' | 'links'
+let _deep = null;                    // #/cnds?dossie=<id> (vem da ficha do candidato)
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const catColor = c => { let h = 0; for (const ch of String(c || 'x')) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},55%,45%)`; };
 
 export async function pageCnds(ctx, root) {
   _page = root;
+  // deep link: #/cnds?dossie=<id> abre direto o dossiê (botão da ficha do
+  // candidato no Recrutamento). v86.56
+  const q = (ctx && ctx.query) || {};
+  if (q.dossie) { _aba = 'dossies'; _deep = { dossie: q.dossie }; }
   shell();
 }
 
@@ -33,7 +38,7 @@ function shell() {
   _page.querySelector('#cnd-aba-d').onclick = () => { _aba = 'dossies'; shell(); };
   _page.querySelector('#cnd-aba-l').onclick = () => { _aba = 'links'; shell(); };
   const host = _page.querySelector('#cnd-tab-host');
-  if (_aba === 'dossies') { dossiesAba(host); return; }
+  if (_aba === 'dossies') { const o = _deep; _deep = null; dossiesAba(host, o); return; }
   _root = host; _editing = null; _busy = false; _q = '';
   host.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando catálogo de CND’s…</div></div>';
   load();

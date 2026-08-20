@@ -8,6 +8,11 @@ CHECKLIST de certidões gerado pelo perfil:
     mesma lista (praxe de due diligence)
   - comprador: lista básica (federal + CNDT)
   - imóvel: tributos municipais (IPTU) + quitação de condomínio (se marcado)
+  - INTERNO (v86.56): candidato que está entrando na empresa — pacote de RH
+    (federal, CNDT, cível/criminal TJSP, TRF3, antecedentes PF + SSP-SP,
+    protestos, e CRECI quando a vaga é de corretor). Nasce do candidato que já
+    está no pipeline de Recrutamento (gp_talentos) — nome/CPF/contato vêm de
+    lá, e o andamento das CNDs volta pra ficha dele. Sem imóvel, sem garantia.
 
 Cada certidão: link oficial de emissão (editável), status (pendente/emitida/
 POSITIVA), validade (alerta de vencida no front) e URL do PDF anexado.
@@ -19,7 +24,7 @@ só os que criou. Editar/excluir: criador ou gestão.
 Auth: lvl>=2 (quem tem a aba CNDs no menu usa).
 """
 from http.server import BaseHTTPRequestHandler
-import json, os, sys, urllib.parse, uuid
+import json, os, re, sys, urllib.parse, uuid
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -65,6 +70,26 @@ CERT_IMOVEL = [
     ("condominio", "Declaração de quitação de condomínio (administradora/síndico)", ""),
 ]
 
+# ── INTERNO (v86.56): due diligence de quem vai ENTRAR na empresa ──────────
+# Não é negócio imobiliário. Sai o que só existe em compra (dívida ativa
+# estadual, IPTU/condomínio) e entram os ANTECEDENTES CRIMINAIS (PF + SSP-SP),
+# que é o que o RH pede de verdade antes de contratar. Link editável por
+# certidão, como no resto do módulo.
+CERT_INTERNO = [
+    ("federal", "CND Federal — Receita/PGFN (exige login gov.br)", RECEITA_CND),
+    ("cndt", "CNDT — Débitos Trabalhistas (TST)", "https://cndt-certidao.tst.jus.br/inicio.faces"),
+    ("tjsp_civel", "Distribuição Cível (TJSP e-SAJ)", "https://esaj.tjsp.jus.br/sco/abrirCadastro.do"),
+    ("tjsp_criminal", "Distribuição Criminal (TJSP e-SAJ)", "https://esaj.tjsp.jus.br/sco/abrirCadastro.do"),
+    ("trf3", "Distribuição Justiça Federal (TRF3)", "https://web.trf3.jus.br/certidao-regional/"),
+    ("antecedentes_pf", "Antecedentes Criminais — Polícia Federal", "https://www.gov.br/pf/pt-br/assuntos/antecedentes-criminais"),
+    ("antecedentes_ssp", "Atestado de Antecedentes — SSP-SP", "https://www.ssp.sp.gov.br/atestado/"),
+    ("protestos", "Protestos (CENPROT Nacional)", "https://site.cenprotnacional.org.br/"),
+]
+# só quando a vaga é de corretor: a inscrição no CRECI tem que estar ativa
+CERT_CRECI = [
+    ("creci", "CRECI-SP — situação da inscrição", "https://www.crecisp.gov.br/servicos/consulta-de-inscritos"),
+]
+
 CAMPOS_PF = ("nome", "cpf", "rg", "nascimento", "mae", "pai", "naturalidade",
              "estado_civil", "profissao", "endereco", "email", "telefone",
              "conjuge_nome", "conjuge_cpf", "conjuge_rg")
@@ -79,7 +104,11 @@ PAPEIS = {
     "comprador": "Comprador", "vendedor": "Vendedor",
     "locatario": "Locatário", "locador": "Locador",
     "fiador": "Fiador",
+    "candidato": "Candidato",           # interno (v86.56)
 }
+TIPOS_NEGOCIO = ("venda", "locacao", "interno")
+# Etapas do ATS em que faz sentido tirar CND (o front destaca, não bloqueia)
+ETAPAS_DD = ("Avaliação interna", "Due Diligence", "Proposta")
 STATUS_CND = ("aguardando", "emitida", "nao_emitida", "bloqueada")
 RESULTADO_CND = ("positiva", "negativa")   # só faz sentido depois de emitida
 
@@ -205,6 +234,7 @@ def gerar_checklist(d, existentes):
     por_rotulo = {(c.get("rotulo"), c.get("tipo")): c
                   for c in (existentes or []) if isinstance(c, dict)}
     out = []
+    interno = (d.get("tipo_negocio") or "venda") == "interno"
 
     def add(alvo, rotulo, lista):
         for tipo, nome, link in lista:
@@ -240,12 +270,20 @@ def gerar_checklist(d, existentes):
                 if casado(s):
                     add(f"{pid}:{s.get('id')}:cj",
                         f"Cônjuge do sócio {sn} — {s.get('conjuge_nome') or s.get('conjuge_cpf')}", CERT_PF)
+        elif interno:
+            # candidato: pacote de RH. CRECI entra quando a vaga (ou a profissão
+            # declarada) é de corretor — sem CRECI ativo ele não pode operar.
+            alvo_cargo = ((d.get("cargo") or "") + " " + (p.get("profissao") or "")).lower()
+            lista = CERT_INTERNO + (CERT_CRECI if "corretor" in alvo_cargo else [])
+            add(f"{pid}", f"{papel} — {nome}", lista)
+            # cônjuge NÃO entra: aqui a due diligence é da pessoa que vai ser
+            # contratada, não do casal (isso é praxe de compra e venda).
         else:
             add(f"{pid}", f"{papel} — {nome}", CERT_PF)
             if casado(p):
                 add(f"{pid}:cj", f"Cônjuge de {nome} — {p.get('conjuge_nome') or p.get('conjuge_cpf')}", CERT_PF)
 
-    im = d.get("imovel") or {}
+    im = (d.get("imovel") or {}) if not interno else {}   # interno não tem imóvel
     if im:
         certs_im = [CERT_IMOVEL[0]] + ([CERT_IMOVEL[1]] if im.get("condominio") else [])
         add("imovel", f"Imóvel — {im.get('endereco') or ('matrícula ' + str(im.get('matricula') or ''))}", certs_im)
@@ -256,7 +294,11 @@ def envolvidos(d):
     """Quem está no caso — base da visibilidade E de quem recebe notificação.
     Decisão do Paulo: vê quem está envolvido + quem tem alçada. Corretor não vê
     dossiê de outro corretor: aqui tem CPF, RG e nome da mãe de cliente."""
-    ids = {d.get("criado_por"), d.get("corretor_id"), d.get("responsavel_id")}
+    ids = {d.get("criado_por"), d.get("responsavel_id")}
+    # em VENDA/LOCAÇÃO o corretor do caso vê o dossiê; em INTERNO não existe
+    # "corretor do caso" — é ficha de candidato, e não vaza pra quem não é RH.
+    if (d.get("tipo_negocio") or "venda") != "interno":
+        ids.add(d.get("corretor_id"))
     for x in (d.get("envolvidos_extra") or []):
         ids.add(x)
     return {i for i in ids if i}
@@ -273,6 +315,13 @@ def pode_ver(d, user):
     if lvl >= 7 or (user.get("role") or "") in ALCADA_ROLES:
         return True
     return str(user.get("id")) in envolvidos(d)
+
+
+def pode_interno(user):
+    """Dossiê INTERNO é ficha de candidato (CPF, antecedentes, processos): só
+    quem já enxerga o Recrutamento mexe nele — gestão (lvl>=7), liderança
+    (lvl>=5) e o backoffice, que é quem emite. Corretor não cria nem abre."""
+    return (user.get("lvl") or 0) >= 5 or (user.get("role") or "") in ALCADA_ROLES
 
 
 def pode_editar(d, user):
@@ -303,6 +352,75 @@ def _avisar(handler_self, sb, d, user, titulo, corpo):
                        link="#/cnds", target_type="cnd_dossie", target_id=d.get("id"))
     except Exception as e:
         print(f"[cnd] notify err: {e}")
+
+
+# ── PONTE COM O RECRUTAMENTO (gp_talentos) — v86.56 ────────────────────────
+# A regra que o Paulo pediu: NÃO digitar duas vezes. O que já existe na ficha
+# do candidato (nome, CPF, contato, cargo) desce pro dossiê na criação; o que
+# acontece no dossiê (emitiu, veio positiva, travou) SOBE pra ficha, no campo
+# 'cnd', que antes era um texto livre que ninguém mantinha atualizado.
+def resumo_cnd(certs):
+    certs = certs or []
+    tot = len(certs)
+    em = sum(1 for c in certs if c.get("status") == "emitida")
+    pos = sum(1 for c in certs if c.get("resultado") == "positiva")
+    pend = sum(1 for c in certs if c.get("status") in ("bloqueada", "nao_emitida"))
+    txt = f"Dossiê CND (interno): {em}/{tot} emitida(s)"
+    if pos:
+        txt += f" · 🔴 {pos} POSITIVA(S)"
+    if pend:
+        txt += f" · ⚠️ {pend} não emitida/bloqueada"
+    return txt + " · atualizado em " + datetime.now(timezone.utc).strftime("%d/%m/%Y")
+
+
+def sync_talento(sb, d):
+    """Espelha o andamento do dossiê na ficha do candidato. Tolerante: se a
+    coluna não existir (migração pendente) ou a ficha tiver sumido, o dossiê
+    segue funcionando — a ponte é conveniência, não pré-requisito."""
+    tid = d.get("talento_id")
+    if not tid:
+        return
+    patch = {"cnd": resumo_cnd(d.get("certidoes")),
+             "updated_at": _now()}
+    # CPF: o dossiê costuma ser onde ele é digitado de verdade. Se a ficha está
+    # sem CPF e o dossiê tem, devolve — de novo: não digitar duas vezes.
+    cpf = next((p.get("cpf") for p in (d.get("partes") or [])
+                if isinstance(p, dict) and p.get("cpf")), None)
+    try:
+        atual = sb.table("gp_talentos").select("cpf").eq("id", str(tid)).limit(1).execute().data or []
+        if cpf and atual and not (atual[0].get("cpf") or "").strip():
+            patch["cpf"] = cpf
+        sb.table("gp_talentos").update(patch).eq("id", str(tid)).execute()
+    except Exception as e:
+        print(f"[cnd] sync talento err: {e}")
+
+
+def escrever(sb, row, did=None):
+    """INSERT/UPDATE tolerante a coluna que ainda não existe (PGRST204). As
+    colunas novas do INTERNO (talento_id, cargo) só passam a persistir depois
+    da migração v86.56 — sem isso, um deploy antes do ALTER TABLE derrubaria
+    TODOS os dossiês, inclusive os de venda e locação, que nada têm a ver."""
+    r = dict(row)
+    faltando = []
+    for _ in range(8):
+        try:
+            if did:
+                return sb.table("cnd_dossies").update(r).eq("id", str(did)).execute(), faltando
+            return sb.table("cnd_dossies").insert(r).execute(), faltando
+        except Exception as e:
+            m = re.search(r"Could not find the '([^']+)' column", str(e))
+            if m and m.group(1) in r:
+                faltando.append(m.group(1)); r.pop(m.group(1), None); continue
+            raise
+    raise RuntimeError("não foi possível gravar o dossiê")
+
+
+def dossie_de_talento(sb, tid):
+    try:
+        rows = sb.table("cnd_dossies").select("*").eq("talento_id", str(tid)).limit(1).execute().data or []
+        return rows[0] if rows else None
+    except Exception:
+        return None
 
 
 class handler(BaseHTTPRequestHandler):
@@ -342,6 +460,33 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._send(502, {"ok": False, "error": str(e)[:200]})
             return self._send(200, {"ok": True, "historico": evs, "n": len(evs)})
+
+        # ?talentos=1 (v86.56): candidatos do pipeline de Recrutamento pra
+        # plugar num dossiê INTERNO sem redigitar nome/CPF/contato. É dado de
+        # RH — só quem já enxerga o Recrutamento recebe a lista.
+        if (qs.get("talentos") or [None])[0]:
+            if not pode_interno(user):
+                return self._send(403, {"ok": False, "error": "sem alçada para dossiê interno"})
+            cols = "id,nome,cpf,email,contato,cargo,funcao,vaga,setor,etapa,decisao,responsavel"
+            try:
+                ts = sb.table("gp_talentos").select(cols) \
+                    .order("updated_at", desc=True).limit(500).execute().data or []
+            except Exception:
+                try:
+                    ts = sb.table("gp_talentos").select(cols).limit(500).execute().data or []
+                except Exception as e:
+                    return self._send(502, {"ok": False, "error": str(e)[:200]})
+            try:
+                jah = sb.table("cnd_dossies").select("id,talento_id,titulo,certidoes") \
+                    .eq("tipo_negocio", "interno").limit(1000).execute().data or []
+            except Exception:
+                jah = []
+            por_tal = {str(x.get("talento_id")): x for x in jah if x.get("talento_id")}
+            for t in ts:
+                d0 = por_tal.get(str(t.get("id")))
+                t["dossie_id"] = d0.get("id") if d0 else None
+            return self._send(200, {"ok": True, "talentos": ts,
+                                    "etapas_dd": list(ETAPAS_DD)})
 
         try:
             # busca tudo e filtra no PYTHON: a regra é um OU entre 3 colunas
@@ -406,12 +551,18 @@ class handler(BaseHTTPRequestHandler):
                 titulo = str(body.get("titulo") or "").strip()[:200]
                 if not titulo:
                     return self._send(400, {"ok": False, "error": "título obrigatório"})
-                tn = "locacao" if (body.get("tipo_negocio") or "venda") == "locacao" else "venda"
+                tn = (body.get("tipo_negocio") or "venda").strip().lower()
+                if tn not in TIPOS_NEGOCIO:
+                    tn = "venda"
+                if tn == "interno" and not pode_interno(user):
+                    return self._send(403, {"ok": False, "error": "sem alçada para dossiê interno"})
                 partes = [p for p in (_parte(x) for x in (body.get("partes") or [])[:20]) if p]
                 novo = {"titulo": titulo,
                         "tipo_negocio": tn,
                         "partes": partes,
-                        "imovel": _imovel(body.get("imovel")),
+                        "cargo": _txt(body.get("cargo"), 120),
+                        "talento_id": _txt(body.get("talento_id"), 60),
+                        "imovel": (None if tn == "interno" else _imovel(body.get("imovel"))),
                         "responsavel_id": _txt(body.get("responsavel_id"), 60),
                         "corretor_id": _txt(body.get("corretor_id"), 60),
                         "drive_url": _txt(body.get("drive_url"), 500),
@@ -425,10 +576,15 @@ class handler(BaseHTTPRequestHandler):
                         return self._send(404, {"ok": False, "error": "dossiê não encontrado"})
                     if not pode_mexer(d):
                         return self._send(403, {"ok": False, "error": "sem permissão neste dossiê"})
+                    # o vínculo com o candidato nasce na criação e não muda no
+                    # edit — trocar de candidato no meio do caminho misturaria
+                    # CND de gente diferente na mesma ficha.
+                    if d.get("talento_id"):
+                        novo["talento_id"] = d.get("talento_id")
                     novo["certidoes"] = gerar_checklist(novo, d.get("certidoes"))
                     if tn == "locacao":
                         novo["garantia"] = _garantia(body.get("garantia") or {}, d.get("garantia") or {})
-                    sb.table("cnd_dossies").update(novo).eq("id", str(d["id"])).execute()
+                    escrever(sb, novo, did=d["id"])
                     did = str(d["id"])
                     virou = novo.get("responsavel_id") and novo["responsavel_id"] != d.get("responsavel_id")
                 else:
@@ -436,7 +592,8 @@ class handler(BaseHTTPRequestHandler):
                     if tn == "locacao":
                         novo["garantia"] = _garantia(body.get("garantia") or {}, {})
                     novo["criado_por"] = uid
-                    r = sb.table("cnd_dossies").insert(novo).execute().data or []
+                    res, _falt = escrever(sb, novo)
+                    r = res.data or []
                     did = str(r[0]["id"]) if r else None
                     virou = bool(novo.get("responsavel_id"))
                 # snapshot ANTES/DEPOIS no audit (v84.74): quando o incidente da
@@ -449,11 +606,77 @@ class handler(BaseHTTPRequestHandler):
                       after={"partes": novo.get("partes"), "certidoes": novo.get("certidoes")})
                 # avisa o caso; quem virou responsável precisa saber que caiu no colo dele
                 d2 = {**novo, "id": did}
+                if novo.get("talento_id"):
+                    sync_talento(sb, d2)
                 if virou:
                     _avisar(self, sb, d2, user, "📋 Dossiê de CNDs atribuído",
                             f"{titulo} — {len(novo['certidoes'])} certidão(ões) pra emitir")
                 return self._send(200, {"ok": True, "id": did, "certidoes": novo["certidoes"],
                                         "garantia": novo.get("garantia")})
+
+            # ── INTERNO: abrir o dossiê direto do candidato do ATS (v86.56) ──
+            # Idempotente de propósito: se o candidato já tem dossiê, devolve o
+            # que existe em vez de criar um segundo (dois dossiês do mesmo
+            # candidato = duas verdades sobre a mesma pessoa).
+            if action == "from_talento":
+                if not pode_interno(user):
+                    return self._send(403, {"ok": False, "error": "sem alçada para dossiê interno"})
+                tid = _txt(body.get("talento_id"), 60)
+                if not tid:
+                    return self._send(400, {"ok": False, "error": "talento_id obrigatório"})
+                ja = dossie_de_talento(sb, tid)
+                if ja:
+                    return self._send(200, {"ok": True, "id": ja["id"], "ja_existia": True,
+                                            "certidoes": ja.get("certidoes") or []})
+                try:
+                    ts = sb.table("gp_talentos").select("*").eq("id", tid).limit(1).execute().data or []
+                except Exception as e:
+                    return self._send(502, {"ok": False, "error": str(e)[:200]})
+                if not ts:
+                    return self._send(404, {"ok": False, "error": "candidato não encontrado"})
+                t = ts[0]
+                cargo = _txt(t.get("cargo") or t.get("funcao") or t.get("vaga"), 120)
+                parte = _parte({"papel": "candidato", "tipo": "pf",
+                                "nome": t.get("nome"), "cpf": t.get("cpf"),
+                                "email": t.get("email"), "telefone": t.get("contato"),
+                                "profissao": cargo})
+                if not parte:
+                    return self._send(400, {"ok": False, "error": "candidato sem nome/CPF na ficha"})
+                titulo = ("Interno — " + (t.get("nome") or "candidato")
+                          + (f" ({cargo})" if cargo else ""))[:200]
+                novo = {"titulo": titulo, "tipo_negocio": "interno",
+                        "partes": [parte], "cargo": cargo, "talento_id": tid,
+                        "imovel": None,
+                        "responsavel_id": _txt(body.get("responsavel_id"), 60),
+                        "obs": _txt(body.get("obs"), 2000),
+                        "criado_por": uid, "atualizado_em": _now()}
+                novo["certidoes"] = gerar_checklist(novo, [])
+                try:
+                    res, falt = escrever(sb, novo)
+                    r = res.data or []
+                except Exception as e:
+                    return self._send(502, {"ok": False, "error": str(e)[:200]})
+                if "talento_id" in falt:
+                    # sem a coluna, o dossiê existiria solto — e a ficha do
+                    # candidato nunca saberia dele. Desfaz e fala, em vez de
+                    # deixar um dossiê órfão parecendo que deu certo.
+                    try:
+                        if r:
+                            sb.table("cnd_dossies").delete().eq("id", str(r[0]["id"])).execute()
+                    except Exception:
+                        pass
+                    return self._send(400, {"ok": False, "error":
+                        "migração pendente: rode db_migrations_cnd_interno_v86_56.sql (coluna talento_id)"})
+                did = str(r[0]["id"]) if r else None
+                d2 = {**novo, "id": did}
+                sync_talento(sb, d2)
+                audit(self, user, "cnd.dossie_from_talento", "cnd_dossies", did,
+                      notes=f"{titulo} · talento {tid}", after={"certidoes": novo["certidoes"]})
+                if novo.get("responsavel_id"):
+                    _avisar(self, sb, d2, user, "🧑‍💼 Dossiê de CND (interno) atribuído",
+                            f"{titulo} — {len(novo['certidoes'])} certidão(ões) pra emitir")
+                return self._send(200, {"ok": True, "id": did, "ja_existia": False,
+                                        "certidoes": novo["certidoes"]})
 
             # ── garantia da locação: definir tipo/detalhe e APROVAR ou REPROVAR ──
             if action == "set_garantia":
@@ -520,6 +743,8 @@ class handler(BaseHTTPRequestHandler):
                     return self._send(404, {"ok": False, "error": "certidão não encontrada no checklist"})
                 sb.table("cnd_dossies").update({"certidoes": certs, "atualizado_em": _now()}) \
                     .eq("id", str(d["id"])).execute()
+                if d.get("talento_id"):
+                    sync_talento(sb, {**d, "certidoes": certs})
                 audit(self, user, "cnd.set_cert", "cnd_dossie", str(d["id"]),
                       notes=f"{alvo}/{tipo}: {antes_st}/{antes_res} → {novo_st}/{novo_res}")
                 # avisa só o que muda o jogo: certidão POSITIVA (tem débito!),

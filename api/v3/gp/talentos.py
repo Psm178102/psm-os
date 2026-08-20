@@ -50,6 +50,34 @@ def _safe_update(sb, table, tid, patch):
     return len(res.data or []), dropped
 
 
+def _anexar_cnd(sb, rows):
+    """Pendura em cada candidato o RESUMO do dossiê de CND interno dele
+    (módulo CND's → categoria Interno). Assim a ficha e o kanban mostram
+    "5/8 emitidas · 1 POSITIVA" sem ninguém redigitar nada — o dado vive num
+    lugar só, o dossiê. Silencioso de propósito: se a tabela/coluna ainda não
+    existe (migração pendente), o ATS abre igual. v86.56"""
+    try:
+        ds = sb.table("cnd_dossies").select("id,titulo,talento_id,certidoes,atualizado_em") \
+            .eq("tipo_negocio", "interno").limit(1000).execute().data or []
+    except Exception as e:
+        print(f"[gp_talentos] cnd off: {e}")
+        return
+    por_tal = {str(d.get("talento_id")): d for d in ds if d.get("talento_id")}
+    for t in rows:
+        d = por_tal.get(str(t.get("id")))
+        if not d:
+            continue
+        certs = d.get("certidoes") or []
+        t["cnd_dossie"] = {
+            "id": d.get("id"), "titulo": d.get("titulo"),
+            "total": len(certs),
+            "emitidas": sum(1 for c in certs if c.get("status") == "emitida"),
+            "positivas": sum(1 for c in certs if c.get("resultado") == "positiva"),
+            "pendencias": sum(1 for c in certs if c.get("status") in ("bloqueada", "nao_emitida")),
+            "atualizado_em": d.get("atualizado_em"),
+        }
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
         self.send_response(s); self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -69,6 +97,7 @@ class handler(BaseHTTPRequestHandler):
             rows = sb.table("gp_talentos").select("*").order("criado_em", desc=True).limit(500).execute().data or []
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
+        _anexar_cnd(sb, rows)
         return self._send(200, {"ok": True, "talentos": rows})
 
     def do_POST(self):
