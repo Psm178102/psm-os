@@ -20,6 +20,11 @@ import _zoho_lib as z  # type: ignore
 
 
 DIAS_ATRAS, DIAS_FRENTE = 7, 60
+# folga nas bordas: o Zoho responde em datetime UTC e o House guarda data local,
+# então a fronteira da janela nunca bate exatamente. Só entra na conta de apagar
+# quem está DENTRO da janela com essa folga.
+FOLGA_BORDA = 2
+MAX_NOVOS_POR_RODADA = 300
 
 
 def _page(make_q, cap=4000):
@@ -56,15 +61,27 @@ def sync_user(sb, conn):
     # ── PULL: Zoho → House (fatiado em janelas de 31d — teto da API) ────
     zevs = z.listar_eventos(token, cal_uid, agora - timedelta(days=DIAS_ATRAS),
                             agora + timedelta(days=DIAS_FRENTE))
-    existentes = {}
+    # ÍNDICE do que já existe, casado por zoho_uid e SEM filtro de data (v86.57).
+    # O filtro antigo (data entre hoje-7 e hoje+60) era a ORIGEM do loop de
+    # duplicação: o Zoho responde por datetime UTC e devolve o evento da borda
+    # (data = hoje-8 no fuso local). Esse evento nunca aparecia no índice, o sync
+    # concluía "não existe" e INSERIA de novo — a cada rodada, para sempre. Deu
+    # 720 mil linhas para ~1.056 eventos reais em cinco semanas, e o limit(3000)
+    # realimentava o estrago (com a tabela inchada, o índice vinha truncado).
+    # A RPC zoho_index faz DISTINCT ON (zoho_uid) no banco: uma linha por evento
+    # real, não importa quantas cópias existam nem em que data caiam.
     try:
-        rows = sb.table("eventos").select("id,zoho_uid,zoho_etag").eq("owner_id", uid) \
-            .not_.is_("zoho_uid", "null").gte("data", ini_d).lte("data", fim_d) \
-            .limit(3000).execute().data or []
+        rows = sb.rpc("zoho_index", {"p_owner": uid}).execute().data or []
         existentes = {str(r["zoho_uid"]): r for r in rows if r.get("zoho_uid")}
-    except Exception:
-        pass
-    vivos = set()
+    except Exception as e:
+        # Sem índice confiável NÃO se insere nada: inserir às cegas é exatamente
+        # o que produziu as duplicatas. Melhor a agenda ficar parada uma rodada.
+        return {"erro": f"indice de eventos indisponivel: {str(e)[:120]}"}
+    # `vivos` é montado ANTES de criar/atualizar: se o loop abaixo parar no meio
+    # (trava de segurança ou erro), a lista de "quem ainda existe no Zoho" segue
+    # completa. Montá-la dentro do loop faria a fase de deleção enxergar como
+    # sumido tudo que ainda não tinha sido processado — e apagar agenda viva.
+    vivos = {str(ze.get("uid")) for ze in zevs if ze.get("uid")}
     for ze in zevs:
         zu = ze.get("uid")
         if not zu:
@@ -72,7 +89,6 @@ def sync_user(sb, conn):
         row = z.zoho_to_house_event(ze, uid)
         if not row.get("data"):
             continue
-        vivos.add(str(zu))
         cur = existentes.get(str(zu))
         try:
             if cur:
@@ -81,6 +97,13 @@ def sync_user(sb, conn):
                     res["atualizados_house"] += 1
                 res["puxados"] += 1
             else:
+                # trava de segurança: uma rodada saudável cria dezenas de eventos,
+                # nunca centenas. Se estourar, algo está errado no casamento —
+                # para de criar e registra, em vez de encher a tabela em silêncio.
+                if res["criados_house"] >= MAX_NOVOS_POR_RODADA:
+                    res["abortado"] = "limite de criacao por rodada atingido"
+                    res["erros"] += 1
+                    break
                 row["id"] = "evzo_" + uuid.uuid4().hex[:12]
                 row["participantes"] = [uid]
                 sb.table("eventos").insert(row).execute()
@@ -91,8 +114,16 @@ def sync_user(sb, conn):
 
     # apagado no Zoho → some do House (só o que NASCEU no Zoho; evento do House
     # que o dono removeu do Zoho não é apagado aqui — quem manda é a origem)
+    # ATENÇÃO (v86.57): `existentes` agora cobre TODO o histórico do usuário, não
+    # só a janela. Só é elegível a sumir o evento que está DENTRO da janela que o
+    # Zoho realmente respondeu (com folga de borda) — sem esse recorte, todo
+    # evento antigo, sobre o qual o Zoho nem foi perguntado, seria apagado aqui.
+    del_ini = (hoje - timedelta(days=DIAS_ATRAS + FOLGA_BORDA)).isoformat()
+    del_fim = (hoje + timedelta(days=DIAS_FRENTE + FOLGA_BORDA)).isoformat()
     for zu, cur in existentes.items():
         if zu in vivos:
+            continue
+        if not (del_ini <= str(cur.get("data") or "") <= del_fim):
             continue
         try:
             sb.table("eventos").delete().eq("id", cur["id"]).like("id", "evzo_%").execute()
@@ -108,7 +139,11 @@ def sync_user(sb, conn):
     # filtro complexo do PostgREST não é confiável → busca por data e filtra
     # participantes no Python.
     try:
+        # origem='zoho' é descartada no loop logo abaixo — filtrar no BANCO evita
+        # BAIXAR o que só seria jogado fora. Era o grosso do egress: até 4 mil
+        # linhas completas por rodada, por usuário, quase todas cópias de zoho.
         casa = _page(lambda: sb.table("eventos").select("*")
+                     .neq("origem", "zoho")
                      .gte("data", ini_d).lte("data", fim_d).order("id"), cap=4000)
     except Exception:
         casa = []

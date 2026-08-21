@@ -42,7 +42,7 @@
     },
     {
       "path": "/api/v3/zoho/sync_cron",
-      "schedule": "*/2 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/v3/leads/lp_recon",
