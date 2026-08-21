@@ -3,7 +3,6 @@
    ENTRADA/MENSAIS/SEMESTRAIS/ANUAIS/FINANCIAMENTO-CHAVES/TOTAL, linhas verdes,
    chaves em azul, pós-chaves em vermelho, rodapé Total) — e Imprimir/Compartilhar
    abrem a MESMA via em janela limpa (PDF pelo diálogo do navegador). */
-import { renderSemPerderFoco } from '../sim-foco.js';
 
 const KEY = 'psm_v2_sim_vpl';
 let _root = null;
@@ -14,6 +13,7 @@ const DEFAULTS = {
   dataInicio: new Date().toISOString().slice(0, 10),
   valorTabela: 480000, taxaAA: 6.168, prazoObra: 42,
   pctAto: 5, pctMensal: 14, pctAnual: 6, pctSemestral: 0, pctFinanc: 75,
+  numAto: 1,                                        // 1 = ato à vista; 3 = ato em 3x
   numAnuais: 3, numSemestrais: 0, numMensais: 0,   // 0 = até as chaves
   mesesExibidos: 0,                                 // 0 = até as chaves (igual planilha: pode exibir além, zerado em vermelho)
   desconto: 0,
@@ -42,8 +42,18 @@ function compute() {
   const v = _s;
   const taxaM = Math.pow(1 + v.taxaAA / 100, 1 / 12) - 1;
   const valorFinal = v.valorTabela * (1 - v.desconto / 100);
-  const nMensais = (v.numMensais > 0 ? Math.min(v.numMensais, 480) : v.prazoObra);
-  const ato = valorFinal * v.pctAto / 100;
+  // ── ATO PARCELADO (v86.59) ────────────────────────────────────────────────
+  // O ato ocupa os meses 0..nAto-1, e as mensais começam DEPOIS dele. O prazo
+  // até as chaves não muda: quem cede espaço é a quantidade de mensais.
+  //   ato à vista, prazo 40 → ato no mês 0  +  40 mensais (meses 1..40)
+  //   ato em 3x,   prazo 40 → ato em 0,1,2  +  38 mensais (meses 3..40)
+  // A conta é sempre (prazo − nAto + 1), que com nAto=1 devolve o prazo cheio —
+  // o comportamento antigo continua idêntico para quem não parcela.
+  const nAto = Math.max(1, Math.min(Math.round(v.numAto || 1), Math.max(1, v.prazoObra)));
+  const atoTotal = valorFinal * v.pctAto / 100;
+  const ato = atoTotal / nAto;                       // valor de CADA parcela do ato
+  const mensaisAteChaves = Math.max(0, v.prazoObra - nAto + 1);
+  const nMensais = (v.numMensais > 0 ? Math.min(v.numMensais, 480) : mensaisAteChaves);
   const totalMensal = valorFinal * v.pctMensal / 100;
   const mensal = nMensais > 0 ? totalMensal / nMensais : 0;
   const totalAnual = valorFinal * v.pctAnual / 100;
@@ -56,8 +66,8 @@ function compute() {
   const nLinhas = Math.max(v.prazoObra, v.mesesExibidos > 0 ? Math.min(v.mesesExibidos, 480) : 0);
   const fluxo = [];
   for (let i = 0; i <= nLinhas; i++) {
-    const ent = i === 0 ? ato : 0;
-    const m = (i > 0 && i <= nMensais) ? mensal : 0;
+    const ent = i < nAto ? ato : 0;
+    const m = (i >= nAto && i < nAto + nMensais) ? mensal : 0;
     const a = (i > 0 && i % 12 === 0 && i / 12 <= v.numAnuais) ? anual : 0;
     const s = (i > 0 && v.numSemestrais > 0 && i % 6 === 0 && i / 6 <= v.numSemestrais) ? semestral : 0;
     const f = (i === v.prazoObra) ? financ : 0;
@@ -71,7 +81,7 @@ function compute() {
   const m2Tabela = v.m2 > 0 ? (v.valorTabela / v.m2).toFixed(0) : 0;
   const tot = fluxo.reduce((acc, x) => ({ ent: acc.ent + x.ent, m: acc.m + x.m, s: acc.s + x.s, a: acc.a + x.a, f: acc.f + x.f, total: acc.total + x.total }),
     { ent: 0, m: 0, s: 0, a: 0, f: 0, total: 0 });
-  return { taxaM, ato, mensal, anual, semestral, financ, pctTotal, fluxo, tot, vpl, descVPL, m2VPL, m2Tabela, totalMensal, totalAnual, valorFinal, nMensais };
+  return { taxaM, ato, atoTotal, nAto, mensal, anual, semestral, financ, pctTotal, fluxo, tot, vpl, descVPL, m2VPL, m2Tabela, totalMensal, totalAnual, valorFinal, nMensais };
 }
 
 /* ═══════════ A TABELA DA PLANILHA (idêntica na tela, na impressão e no share) ═══════════ */
@@ -85,11 +95,12 @@ function celR$(v, forca) {
 
 function propostaTableHTML(c) {
   const linhas = c.fluxo.map(x => {
-    const tipo = x.mes === 0 ? 'ato' : (x.chaves ? 'chaves' : (x.total > 0.005 ? 'verde' : 'verm'));
+    // parcela do ato (meses 0..nAto-1) também é ATO — linha branca, não verde
+    const tipo = x.mes < c.nAto ? 'ato' : (x.chaves ? 'chaves' : (x.total > 0.005 ? 'verde' : 'verm'));
     return `<tr class="pp-r pp-${tipo}">
       <td class="pp-c pp-n">${x.mes}</td>
-      <td class="pp-c pp-data">${x.mes === 0 ? 'ATO' : labelMes(x.mes)}</td>
-      ${x.mes === 0 ? celR$(x.ent) : celR$(x.ent)}
+      <td class="pp-c pp-data">${x.mes === 0 ? 'ATO' : labelMes(x.mes)}${x.mes > 0 && x.mes < c.nAto ? ` <span style="font-size:9px">(ato ${x.mes + 1}/${c.nAto})</span>` : ''}</td>
+      ${celR$(x.ent)}
       ${x.mes === 0 ? celR$(0, true) : celR$(x.m)}
       ${celR$(x.s)}
       ${celR$(x.a)}
@@ -241,14 +252,15 @@ function desenharPropostaCanvas(c, scale) {
   });
   y += PPC.hHead;
   c.fluxo.forEach(x => {
-    const tipo = x.mes === 0 ? 'ato' : (x.chaves ? 'chaves' : (x.total > 0.005 ? 'verde' : 'verm'));
+    const tipo = x.mes < c.nAto ? 'ato' : (x.chaves ? 'chaves' : (x.total > 0.005 ? 'verde' : 'verm'));
     const bg = tipo === 'ato' ? '#fff' : PPC.verde;
     const nBg = tipo === 'ato' ? '#fff' : tipo === 'verde' ? PPC.nVerde : tipo === 'chaves' ? PPC.nAzul : PPC.nVerm;
     const nTx = tipo === 'verde' ? PPC.nVerdeTx : tipo === 'chaves' ? PPC.nAzulTx : tipo === 'verm' ? PPC.nVermTx : '#000';
     cell(X[0], y, PPC.cols[0], PPC.hRow, nBg);
     txt(String(x.mes), X[0] + PPC.cols[0] / 2, y + PPC.hRow / 2, { al: 'center', bold: true, col: nTx });
     cell(X[1], y, PPC.cols[1], PPC.hRow, bg);
-    txt(x.mes === 0 ? 'ATO' : labelMes(x.mes), X[1] + PPC.cols[1] / 2, y + PPC.hRow / 2, { al: 'center', bold: true });
+    txt(x.mes === 0 ? 'ATO' : (x.mes < c.nAto ? `${labelMes(x.mes)} (ato ${x.mes + 1}/${c.nAto})` : labelMes(x.mes)),
+        X[1] + PPC.cols[1] / 2, y + PPC.hRow / 2, { al: 'center', bold: true, size: x.mes > 0 && x.mes < c.nAto ? 9 : undefined });
     for (let ci = 2; ci <= 7; ci++) cell(X[ci], y, PPC.cols[ci], PPC.hRow, bg);
     const boldAto = tipo === 'ato';
     money(2, y, PPC.hRow, x.ent, false, boldAto);
@@ -300,11 +312,13 @@ function render() {
             inp('Início do fluxo (1ª mensal)', 'dataInicio', 'date'),
             inp('Valor de Tabela (R$)', 'valorTabela', 'num'),
             inp('Taxa VPL (% a.a.)', 'taxaAA', 'num', '% a.a.'),
-            `<div class="tiny muted">Taxa mensal: ${(c.taxaM * 100).toFixed(4)}% a.m.</div>`,
+            `<div class="tiny muted" id="vpl-taxam">Taxa mensal: ${(c.taxaM * 100).toFixed(4)}% a.m.</div>`,
             inp('Desconto sobre Tabela (%)', 'desconto', 'num', '%'),
           ])}
           ${section('Fluxo de Pagamentos', [
             inp('Ato/Entrada (%)', 'pctAto', 'num', '%'),
+            inp('Ato em quantas vezes (1 = à vista)', 'numAto', 'num', 'x'),
+            `<div class="tiny muted" id="vpl-avisoato"></div>`,
             inp('Mensais (%)', 'pctMensal', 'num', '%'),
             inp('Nº de Mensais (0 = até chaves)', 'numMensais', 'num'),
             inp('Prazo Obra / Chaves (meses)', 'prazoObra', 'num'),
@@ -315,25 +329,13 @@ function render() {
             inp('Financiamento/Chaves (%)', 'pctFinanc', 'num', '%'),
             inp('Meses exibidos (0 = até chaves)', 'mesesExibidos', 'num'),
           ])}
-          ${Math.abs(c.pctTotal - 100) > 0.1 ? `<div class="alert alert-warn tiny">⚠ Total: ${c.pctTotal.toFixed(1)}% (deve ser 100%)</div>` : ''}
+          <div id="vpl-alerta"></div>
         </div>
 
         <div>
-          <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;margin-bottom:14px">
-            ${kpi('Valor VPL', fmt(c.vpl), 'var(--psm-navy)', '#fff')}
-            ${kpi('Desconto VPL', c.descVPL + '%', '#22c55e')}
-            ${kpi('R$/m² VPL', 'R$ ' + Number(c.m2VPL).toLocaleString('pt-BR'), '#3b82f6')}
-            ${kpi('R$/m² Tabela', 'R$ ' + Number(c.m2Tabela).toLocaleString('pt-BR'), 'var(--muted)')}
-          </div>
+          <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;margin-bottom:14px" id="vpl-kpis">${kpisHTML(c)}</div>
 
-          <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:8px;margin-bottom:14px">
-            ${miniKpi('Ato', fmt(c.ato), _s.pctAto + '%')}
-            ${miniKpi('Mensais ' + c.nMensais + 'x', fmt(c.mensal), 'por mês')}
-            ${miniKpi('Semestrais ' + _s.numSemestrais + 'x', fmt(c.semestral), '')}
-            ${miniKpi('Anuais ' + _s.numAnuais + 'x', fmt(c.anual), '')}
-            ${miniKpi('Financiamento/Chaves', fmt(c.financ), _s.pctFinanc + '%')}
-            ${miniKpi('Total do fluxo', fmt(c.tot.total), '')}
-          </div>
+          <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:8px;margin-bottom:14px" id="vpl-minis">${minisHTML(c)}</div>
 
           <div class="flex gap-2" style="margin-bottom:10px;flex-wrap:wrap">
             <button class="btn btn-primary" id="vpl-print">🖨 Imprimir / PDF</button>
@@ -352,6 +354,44 @@ function render() {
     </div>
   `;
   bind();
+  pintaSaida();   // #vpl-alerta e #vpl-avisoato nascem vazios de propósito
+}
+
+function kpisHTML(c) {
+  return kpi('Valor VPL', fmt(c.vpl), 'var(--psm-navy)', '#fff')
+    + kpi('Desconto VPL', c.descVPL + '%', '#22c55e')
+    + kpi('R$/m² VPL', 'R$ ' + Number(c.m2VPL).toLocaleString('pt-BR'), '#3b82f6')
+    + kpi('R$/m² Tabela', 'R$ ' + Number(c.m2Tabela).toLocaleString('pt-BR'), 'var(--muted)');
+}
+
+function minisHTML(c) {
+  const atoLbl = c.nAto > 1 ? `Ato ${c.nAto}x` : 'Ato';
+  const atoHint = c.nAto > 1 ? `${_s.pctAto}% · total ${fmt(c.atoTotal)}` : _s.pctAto + '%';
+  return miniKpi(atoLbl, fmt(c.ato), atoHint)
+    + miniKpi('Mensais ' + c.nMensais + 'x', fmt(c.mensal), 'por mês')
+    + miniKpi('Semestrais ' + _s.numSemestrais + 'x', fmt(c.semestral), '')
+    + miniKpi('Anuais ' + _s.numAnuais + 'x', fmt(c.anual), '')
+    + miniKpi('Financiamento/Chaves', fmt(c.financ), _s.pctFinanc + '%')
+    + miniKpi('Total do fluxo', fmt(c.tot.total), '');
+}
+
+/* Repinta SÓ o resultado (KPIs, avisos e a proposta) — nunca o painel da
+   esquerda. É o que faz a digitação parar de ser sabotada: enquanto o
+   simulador recalcular re-renderizando o formulário inteiro, o input onde o
+   dedo está some e volta, o valor cru se perde e o cursor pula pro fim.
+   Aqui os <input> ficam vivos na tela do começo ao fim (v86.59). */
+function pintaSaida() {
+  const c = compute();
+  const set = (sel, html) => { const el = _root.querySelector(sel); if (el) el.innerHTML = html; };
+  set('#vpl-kpis', kpisHTML(c));
+  set('#vpl-minis', minisHTML(c));
+  set('#vpl-proposta', propostaTableHTML(c));
+  set('#vpl-taxam', `Taxa mensal: ${(c.taxaM * 100).toFixed(4)}% a.m.`);
+  set('#vpl-alerta', Math.abs(c.pctTotal - 100) > 0.1
+    ? `<div class="alert alert-warn tiny">⚠ Total: ${c.pctTotal.toFixed(1)}% (deve ser 100%)</div>` : '');
+  set('#vpl-avisoato', c.nAto > 1
+    ? `ato ${c.nAto}x (meses 0 a ${c.nAto - 1}) + <b>${c.nMensais} mensais</b> até as chaves no mês ${_s.prazoObra}`
+    : '');
 }
 
 function bind() {
@@ -359,10 +399,9 @@ function bind() {
     el.addEventListener('input', e => {
       const k = el.dataset.key;
       const t = el.dataset.type;
-      _s[k] = t === 'num' ? (parseFloat(e.target.value) || 0) : e.target.value;
+      _s[k] = t === 'num' ? parseNum(e.target.value) : e.target.value;
       save();
-      clearTimeout(window._vplTimer);
-      window._vplTimer = setTimeout(() => renderSemPerderFoco(_root, render), 250);
+      pintaSaida();
     });
   });
   _root.querySelector('#vpl-print')?.addEventListener('click', () => abrirVia(true));
@@ -379,15 +418,29 @@ function section(title, items) {
   `;
 }
 
+/* Aceita o jeito brasileiro de digitar: "1.500,50" e "1500.5" dão o mesmo
+   número, e o campo NÃO é reformatado enquanto se digita. Ponto só é tratado
+   como milhar quando vem seguido de exatamente 3 dígitos ("1.500"); "1.5"
+   continua sendo um e meio. */
+function parseNum(txt) {
+  if (typeof txt !== 'string') return Number(txt) || 0;
+  const t = txt.trim().replace(/\s/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
+  const n = parseFloat(t);
+  return isFinite(n) ? n : 0;
+}
+
 function inp(label, key, type, suffix) {
   const val = _s[key] ?? '';
-  const inputType = type === 'text' ? 'text' : (type === 'date' ? 'date' : 'number');
+  // numérico é type=text + inputmode decimal: type=number engole vírgula no
+  // pt-BR, muda de valor com a roda do mouse e não deixa posicionar o cursor.
+  const attrs = type === 'text' ? 'type="text"'
+    : (type === 'date' ? 'type="date"' : 'type="text" inputmode="decimal" autocomplete="off"');
   return `
     <div>
       <label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label>
       <div class="flex gap-1" style="align-items:center">
         ${(/R\$/.test(label) || suffix === 'R$') ? '<span class="tiny muted" style="font-weight:700">R$</span>' : ''}
-        <input type="${inputType}" class="input" data-key="${key}" data-type="${type}" value="${escHtml(val)}" style="flex:1;font-size:12px;padding:6px 8px">
+        <input ${attrs} class="input" data-key="${key}" data-type="${type}" value="${escHtml(val)}" style="flex:1;font-size:12px;padding:6px 8px">
         ${(suffix && suffix !== 'R$') ? `<span class="tiny muted">${suffix}</span>` : ''}
       </div>
     </div>
