@@ -53,7 +53,13 @@ function compute() {
   const atoTotal = valorFinal * v.pctAto / 100;
   const ato = atoTotal / nAto;                       // valor de CADA parcela do ato
   const mensaisAteChaves = Math.max(0, v.prazoObra - nAto + 1);
-  const nMensais = (v.numMensais > 0 ? Math.min(v.numMensais, 480) : mensaisAteChaves);
+  // Nº de Mensais digitado à mão continua valendo, mas TETADO pelas chaves: sem
+  // isso, parcelar o ato empurrava as últimas mensais para depois da entrega —
+  // com 42 fixas, prazo 42 e ato em 4x, três delas caíam nos meses 43, 44 e 45,
+  // já em cima do financiamento. Achado testando no ar (v86.60).
+  const nMensaisPedido = v.numMensais > 0 ? Math.min(v.numMensais, 480) : mensaisAteChaves;
+  const nMensais = Math.min(nMensaisPedido, mensaisAteChaves);
+  const mensaisAparadas = Math.max(0, nMensaisPedido - nMensais);
   const totalMensal = valorFinal * v.pctMensal / 100;
   const mensal = nMensais > 0 ? totalMensal / nMensais : 0;
   const totalAnual = valorFinal * v.pctAnual / 100;
@@ -81,7 +87,7 @@ function compute() {
   const m2Tabela = v.m2 > 0 ? (v.valorTabela / v.m2).toFixed(0) : 0;
   const tot = fluxo.reduce((acc, x) => ({ ent: acc.ent + x.ent, m: acc.m + x.m, s: acc.s + x.s, a: acc.a + x.a, f: acc.f + x.f, total: acc.total + x.total }),
     { ent: 0, m: 0, s: 0, a: 0, f: 0, total: 0 });
-  return { taxaM, ato, atoTotal, nAto, mensal, anual, semestral, financ, pctTotal, fluxo, tot, vpl, descVPL, m2VPL, m2Tabela, totalMensal, totalAnual, valorFinal, nMensais };
+  return { taxaM, ato, atoTotal, nAto, mensaisAparadas, mensal, anual, semestral, financ, pctTotal, fluxo, tot, vpl, descVPL, m2VPL, m2Tabela, totalMensal, totalAnual, valorFinal, nMensais };
 }
 
 /* ═══════════ A TABELA DA PLANILHA (idêntica na tela, na impressão e no share) ═══════════ */
@@ -389,8 +395,10 @@ function pintaSaida() {
   set('#vpl-taxam', `Taxa mensal: ${(c.taxaM * 100).toFixed(4)}% a.m.`);
   set('#vpl-alerta', Math.abs(c.pctTotal - 100) > 0.1
     ? `<div class="alert alert-warn tiny">⚠ Total: ${c.pctTotal.toFixed(1)}% (deve ser 100%)</div>` : '');
-  set('#vpl-avisoato', c.nAto > 1
-    ? `ato ${c.nAto}x (meses 0 a ${c.nAto - 1}) + <b>${c.nMensais} mensais</b> até as chaves no mês ${_s.prazoObra}`
+  const aparou = c.mensaisAparadas > 0
+    ? ` <span style="color:#d97706">· Nº de Mensais reduzido em ${c.mensaisAparadas} para não passar das chaves</span>` : '';
+  set('#vpl-avisoato', (c.nAto > 1 || c.mensaisAparadas > 0)
+    ? `${c.nAto > 1 ? `ato ${c.nAto}x (meses 0 a ${c.nAto - 1}) + ` : ''}<b>${c.nMensais} mensais</b> (meses ${c.nAto} a ${_s.prazoObra}), chaves no mês ${_s.prazoObra}${aparou}`
     : '');
 }
 
