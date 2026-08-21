@@ -42,14 +42,42 @@ ALTER TABLE eventos ALTER COLUMN origem SET DEFAULT 'house';
 
 -- Uma linha por evento real do usuário, independente de quantas cópias existam.
 -- Mantém a MAIS ANTIGA (created_at ASC) — mesma regra que a limpeza deve usar.
+--
+-- SKIP SCAN (v86.57b): a primeira versão usava DISTINCT ON e estourava o
+-- statement_timeout (57014) nas contas grandes — com 534 mil linhas o Postgres
+-- varria o índice inteiro. Aqui a CTE recursiva SALTA de zoho_uid em zoho_uid
+-- (um seek por uid, ~911 saltos em vez de 534 mil leituras) e o LATERAL pega a
+-- linha mais antiga de cada um. Responde em milissegundos mesmo com a tabela
+-- inchada — e continua correta depois que a limpeza acontecer.
+CREATE INDEX IF NOT EXISTS idx_eventos_owner_uid_created
+  ON eventos (owner_id, zoho_uid, created_at) WHERE zoho_uid IS NOT NULL;
+
 CREATE OR REPLACE FUNCTION public.zoho_index(p_owner text)
 RETURNS TABLE(id text, zoho_uid text, zoho_etag text, data date)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $fn$
-  SELECT DISTINCT ON (e.zoho_uid) e.id, e.zoho_uid, e.zoho_etag, e.data
-  FROM public.eventos e
-  WHERE e.owner_id = p_owner AND e.zoho_uid IS NOT NULL
-  ORDER BY e.zoho_uid, e.created_at ASC
+  WITH RECURSIVE uids AS (
+    (SELECT e.zoho_uid AS u FROM eventos e
+      WHERE e.owner_id = p_owner AND e.zoho_uid IS NOT NULL
+      ORDER BY e.zoho_uid LIMIT 1)
+    UNION ALL
+    SELECT (SELECT e.zoho_uid FROM eventos e
+             WHERE e.owner_id = p_owner AND e.zoho_uid > uids.u
+             ORDER BY e.zoho_uid LIMIT 1)
+      FROM uids WHERE uids.u IS NOT NULL
+  )
+  SELECT x.id, x.zoho_uid, x.zoho_etag, x.data
+    FROM uids
+    CROSS JOIN LATERAL (
+      SELECT e.id, e.zoho_uid, e.zoho_etag, e.data FROM eventos e
+       WHERE e.owner_id = p_owner AND e.zoho_uid = uids.u
+       ORDER BY e.created_at ASC LIMIT 1
+    ) x
+   WHERE uids.u IS NOT NULL
 $fn$;
 
 REVOKE ALL ON FUNCTION public.zoho_index(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.zoho_index(text) TO service_role;
+
+-- VERIFICADO em produção 21/ago/2026, com a tabela ainda inchada:
+--   zoho_index devolve 911 (mariane), 245 (leire), 24 (paulo), 5 (rafaela)
+--   sync_cron: criados_house = 0 em todos — antes eram 27 por rodada na mariane
