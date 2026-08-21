@@ -118,9 +118,15 @@ def sync_user(sb, conn):
     # só a janela. Só é elegível a sumir o evento que está DENTRO da janela que o
     # Zoho realmente respondeu (com folga de borda) — sem esse recorte, todo
     # evento antigo, sobre o qual o Zoho nem foi perguntado, seria apagado aqui.
+    # E lista VAZIA não é "a agenda ficou vazia" — é quase sempre falha de API,
+    # token vencido ou calendário errado. Apagar em cima disso destrói a agenda
+    # de quem só teve um erro de rede. Sem nada vivo, não se apaga nada.
+    if not vivos:
+        res["delecao_pulada"] = "Zoho nao devolveu evento nenhum na janela"
+        vivos = None
     del_ini = (hoje - timedelta(days=DIAS_ATRAS + FOLGA_BORDA)).isoformat()
     del_fim = (hoje + timedelta(days=DIAS_FRENTE + FOLGA_BORDA)).isoformat()
-    for zu, cur in existentes.items():
+    for zu, cur in (existentes.items() if vivos is not None else []):
         if zu in vivos:
             continue
         if not (del_ini <= str(cur.get("data") or "") <= del_fim):
