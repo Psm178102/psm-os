@@ -115,9 +115,10 @@ function render() {
 }
 
 const GC_TABS = [['visao', '🎯 Visão Geral'], ['graficos', '📈 Gráficos'], ['funilrd', '⏬ Funil RD'], ['fontes', '🔀 Fontes & Funil'],
-                 ['camp', '📣 Campanhas'], ['custos', '💰 Custo do Funil'], ['prod', '📊 Produtividade'], ['safras', '📈 Safras & Tempos']];
+                 ['camp', '📣 Campanhas'], ['custos', '💰 Custo do Funil'], ['esteira', '🪜 Esteira individual'],
+                 ['prod', '📊 Produtividade'], ['safras', '📈 Safras & Tempos']];
 function tabBody() {
-  return { visao: tabVisao, graficos: tabGraficos, funilrd: tabFunilRD, fontes: tabFontes, camp: tabCampanhas, custos: tabCustos, prod: tabProd, safras: tabSafras }[_tab]();
+  return { visao: tabVisao, graficos: tabGraficos, funilrd: tabFunilRD, fontes: tabFontes, camp: tabCampanhas, custos: tabCustos, esteira: tabEsteira, prod: tabProd, safras: tabSafras }[_tab]();
 }
 
 /* pós-render de cada aba: gráficos (Chart.js) + rodapés do 🧠 Sr. Performance */
@@ -195,6 +196,13 @@ function resumoTab() {
   } else if (_tab === 'custos') {
     r.unit_economics = ((d.custos || {}).equipes || []);
     r.historico_custo = histCompact;
+  } else if (_tab === 'esteira') {
+    const esc_ = c => ({ corretor: c.nome, equipe: TEAM_LBL[c.team] || c.team, prospeccoes: c.prospec, qualificados: c.qualif, visitas: c.visita, pastas: c.pasta, vendas: c.venda, por_venda: c.por_venda, conversoes_pct: c.conv });
+    r.esteira_individual = {
+      foco: 'esteira de cada corretor medida por FLUXO do período (o que a pessoa fez na janela), não por safra',
+      equipes: Object.values((d.esteira || {}).equipes || {}).map(esc_),
+      corretores: ((d.esteira || {}).corretores || []).map(esc_),
+    };
   } else if (_tab === 'prod') {
     r.produtividade = { equipes: eqProd, corretores: ((d.produtividade || {}).corretores || []).slice(0, 25).map(c => ({ nome: c.nome, equipe: c.team, leads: c.leads, vendas: c.venda, leads_por_venda: c.leads_por_venda, visitas_por_venda: c.visitas_por_venda, dias_por_venda: c.dias_por_venda, ticket: c.ticket, top_canal: c.top_canal })) };
     r.historico_producao = histCompact;
@@ -664,6 +672,76 @@ function tabCustos() {
         { lbl: (TEAM_LBL[t] || t) + ' CAC mídia', get: h => h.equipes?.[t]?.cac_midia, fmt: x => 'R$ ' + kR$(x), invertido: true },
       ]),
     ], 'historico_custo');
+}
+
+/* ── 🪜 ESTEIRA INDIVIDUAL: o funil de CADA corretor, medido por FLUXO ──
+   A aba Produtividade responde "a safra que nasceu na janela rendeu o quê?".
+   Esta responde "o que esta pessoa FEZ na janela?" — que é a pergunta do 1:1
+   e a régua que o gestor usa na planilha dele.
+   Diferença que mais confunde: aqui as etapas NÃO são subconjuntos. A pasta de
+   agosto pode ser de um lead de abril, e pode nunca ter tido visita registrada.
+   Por isso "10 pastas com 5 visitas" é resultado legítimo, não erro. */
+function tabEsteira() {
+  const E = _d.esteira || {};
+  const corrs = E.corretores || [];
+  const eqs = E.equipes || {};
+  const pcc = x => x == null ? '<span class="muted">—</span>' : fN(x) + '%';
+  const pv = x => x == null ? '<span class="muted">—</span>' : fN(x);
+
+  const linha = (c, ehEquipe) => {
+    const st = ehEquipe ? 'font-weight:800;background:var(--bg-3)' : '';
+    const p = c.por_venda || {}, cv = c.conv || {};
+    return `<tr style="${st}">
+      <td style="font-size:12.5px;padding:5px 8px 5px 0;white-space:nowrap">${ehEquipe ? '' : '　'}${esc(c.nome)}${ehEquipe ? '' : ` <span class="tiny muted">${(TEAM_LBL[c.team] || c.team || '').replace(/^..\s/, '')}</span>`}</td>
+      <td style="text-align:right;font-size:12px">${fN(c.prospec)}</td>
+      <td style="text-align:right;font-size:12px">${fN(c.qualif)}</td>
+      <td style="text-align:right;font-size:12px">${fN(c.visita)}</td>
+      <td style="text-align:right;font-size:12px">${fN(c.pasta)}</td>
+      <td style="text-align:right;font-size:12px;font-weight:800">${fN(c.venda)}</td>
+      <td style="text-align:right;font-size:11.5px;color:#64748b">${pcc(cv.prospec_qualif)}</td>
+      <td style="text-align:right;font-size:11.5px;color:#64748b">${pcc(cv.qualif_visita)}</td>
+      <td style="text-align:right;font-size:11.5px;color:#64748b">${pcc(cv.visita_pasta)}</td>
+      <td style="text-align:right;font-size:11.5px;color:#64748b">${pcc(cv.pasta_venda)}</td>
+      <td style="text-align:right;font-size:12px">${pv(p.prospec)}</td>
+      <td style="text-align:right;font-size:12px">${pv(p.visita)}</td>
+      <td style="text-align:right;font-size:12px">${pv(p.pasta)}</td>
+      <td style="text-align:right;font-size:12px">${c.ticket ? 'R$ ' + kR$(c.ticket) : '—'}</td>
+    </tr>`;
+  };
+
+  // equipe primeiro, corretores dela logo abaixo — leitura de gestor
+  const ordem = ['conquista', 'map', 'terceiros', 'locacao'];
+  const blocos = ordem.filter(t => eqs[t] || corrs.some(c => c.team === t)).map(t => {
+    const cab = eqs[t] ? linha({ ...eqs[t], nome: TEAM_LBL[t] || t }, true) : '';
+    return cab + corrs.filter(c => c.team === t).map(c => linha(c, false)).join('');
+  }).join('');
+
+  const semHist = corrs.reduce((a, c) => a + (c.sem_historico || 0), 0);
+  const aviso = semHist
+    ? `<div class="tiny" style="margin-top:6px;color:#d97706">⚠️ ${fN(semHist)} venda(s) da janela sem NENHUMA etapa datada no histórico do RD — entraram na coluna Vendas, mas não têm prospecção/visita/pasta para somar. Quanto mais o funil for movimentado no RD de verdade, mais fiel fica esta tabela.</div>`
+    : '';
+
+  return pan(`🪜 Esteira individual — o que cada um FEZ na janela${E.restrito_a ? ` · <span class="tiny" style="color:#d97706">visão restrita à sua equipe</span>` : ''}`, `
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr class="tiny muted" style="text-align:right">
+          <th style="text-align:left" rowspan="2">Corretor / Equipe</th>
+          <th colspan="5" style="text-align:center;padding-bottom:2px">ETAPAS NO PERÍODO</th>
+          <th colspan="4" style="text-align:center;padding-bottom:2px">CONVERSÃO ENTRE ETAPAS</th>
+          <th colspan="3" style="text-align:center;padding-bottom:2px">QUANTOS PARA 1 VENDA</th>
+          <th rowspan="2">Ticket</th>
+        </tr>
+        <tr class="tiny muted" style="text-align:right">
+          <th>Prospecções</th><th>Qualificados</th><th>Visitas</th><th>Pastas</th><th>Vendas</th>
+          <th>Prosp→Qual</th><th>Qual→Visita</th><th>Visita→Pasta</th><th>Pasta→Venda</th>
+          <th>Prospec.</th><th>Visitas</th><th>Pastas</th>
+        </tr>
+      </thead>
+      <tbody>${blocos || '<tr><td class="tiny muted" colspan="14">sem movimentação de etapas na janela</td></tr>'}</tbody>
+    </table></div>
+    <div class="tiny muted" style="margin-top:8px"><b>Como ler:</b> cada etapa conta quando o negócio CHEGA nela pela primeira vez dentro da janela — a visita de hoje pode ser de um lead de abril, e a pasta de hoje pode nunca ter tido visita registrada. Por isso as colunas <b>não</b> caem sempre em cascata: mais pastas que visitas no mesmo mês é normal e não é erro de conta.</div>
+    <div class="tiny muted" style="margin-top:3px">É diferente da aba 📊 Produtividade de propósito: lá a conta é por <b>safra</b> (o que os leads nascidos na janela renderam), aqui é por <b>fluxo</b> (o que a pessoa fez na janela). Safra serve pra avaliar origem de lead; fluxo serve pra cobrar rotina no 1:1.</div>
+    ${aviso}`, 'esteira_individual');
 }
 
 /* ── 📊 PRODUTIVIDADE: razões por corretor e equipe ── */

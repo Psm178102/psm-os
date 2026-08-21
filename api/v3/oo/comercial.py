@@ -121,6 +121,10 @@ def filtra_escopo(p, tk):
     novo["produtividade"] = {"corretores": [c for c in (prod.get("corretores") or []) if c.get("team") == tk],
                              "equipes": {k: v for k, v in (prod.get("equipes") or {}).items() if k == tk},
                              "restrito_a": tk}
+    est = p.get("esteira") or {}
+    novo["esteira"] = {"corretores": [c for c in (est.get("corretores") or []) if c.get("team") == tk],
+                       "equipes": {k: v for k, v in (est.get("equipes") or {}).items() if k == tk},
+                       "nota": est.get("nota"), "restrito_a": tk}
     return novo
 
 
@@ -290,6 +294,7 @@ class handler(BaseHTTPRequestHandler):
                            "resposta": {}, "tempos": {}, "custos": {}, "historico": [],
                            "campanhas": {}, "safras": [], "hub_conquista": None,
                            "produtividade": {"corretores": [], "equipes": {}},
+                           "esteira": {"corretores": [], "equipes": {}},
                            "avisos": (payload.get("avisos") or []) + ["sua equipe não está mapeada nas frentes — fale com o sócio"]}
         return self._send(200, {"ok": True, **payload,
                                 "janela": {"since": since_d.isoformat(), "until": until_d.isoformat()},
@@ -543,6 +548,78 @@ class handler(BaseHTTPRequestHandler):
                    "vgv": round(sum(e["vgv"] for e in pool if e["win"]), 2)}
             equipes_prod[tk] = {**agg, **razoes(agg),
                                 "contato_h_mediana": _mediana([_h_contato(e) for e in pool])}
+
+        # ── D2) ESTEIRA INDIVIDUAL — a régua do GESTOR (v86.58) ────────────
+        # Por que existe, sendo que já há razões em D): D) mede COORTE (o que a
+        # safra nascida na janela fez), e coorte responde "esses leads renderam
+        # o quê?". O gestor pergunta outra coisa: "o que esta pessoa FEZ este
+        # mês?" — e nessa pergunta a visita de hoje pode ser de um lead de abril
+        # e a pasta de hoje pode nunca ter tido visita registrada.
+        #
+        # Consequência prática (foi o que denunciou o problema): na coorte, pasta
+        # é subconjunto de visita, que é subconjunto de lead — a razão só cai, e
+        # "pastas por venda" desaba pra perto de 1,0 porque quase toda pasta que
+        # a safra jovem alcançou é justamente a que virou venda. No FLUXO as
+        # etapas são independentes: dá 10 pastas com 5 visitas, e está certo.
+        #
+        # Regra: uma etapa conta quando o deal chega nela PELA PRIMEIRA VEZ
+        # dentro do período (t_marco vem do histórico de deal_stage_events);
+        # venda conta pelo closed_at. É assim que o Kaué conta na planilha dele.
+        def _no_per(dt):
+            return bool(dt and since_dt <= dt <= until_dt)
+
+        ETAPAS_ESTEIRA = (("prospec", None), ("qualif", 2), ("visita", 3),
+                          ("proposta", 4), ("pasta", 5))
+
+        def _linha_esteira(nome, team, uid=None):
+            return {"uid": uid, "nome": nome, "team": team, "prospec": 0, "qualif": 0,
+                    "visita": 0, "proposta": 0, "pasta": 0, "venda": 0, "vgv": 0.0,
+                    "sem_historico": 0}
+
+        def _acumula_esteira(c, e):
+            if _no_per(e["created"]):
+                c["prospec"] += 1
+            tm = e["t_marco"] or {}
+            for chave, marco in ETAPAS_ESTEIRA:
+                if marco is not None and _no_per(tm.get(marco)):
+                    c[chave] += 1
+            if e["win"] and _no_per(e["closed"]):
+                c["venda"] += 1
+                c["vgv"] += e["vgv"]
+                # venda sem NENHUM marco datado = deal que andou fora do histórico
+                if not tm:
+                    c["sem_historico"] += 1
+
+        def _fecha_esteira(c):
+            v = c["venda"]
+            por = lambda x: round(x / v, 1) if v else None
+            pc = lambda a, b: round(a / b * 100, 1) if b else None
+            return {**c, "vgv": round(c["vgv"], 2),
+                    "ticket": round(c["vgv"] / v, 2) if v else None,
+                    "por_venda": {"prospec": por(c["prospec"]), "qualif": por(c["qualif"]),
+                                  "visita": por(c["visita"]), "proposta": por(c["proposta"]),
+                                  "pasta": por(c["pasta"])},
+                    "conv": {"prospec_qualif": pc(c["qualif"], c["prospec"]),
+                             "qualif_visita": pc(c["visita"], c["qualif"]),
+                             "visita_pasta": pc(c["pasta"], c["visita"]),
+                             "pasta_venda": pc(c["venda"], c["pasta"]),
+                             "prospec_venda": pc(c["venda"], c["prospec"])}}
+
+        est_corr, est_eq = {}, {}
+        for e in eds:
+            tk_e = e["team"]
+            eq = est_eq.get(tk_e) or est_eq.setdefault(tk_e, _linha_esteira(dict(TEAMS).get(tk_e, tk_e), tk_e))
+            _acumula_esteira(eq, e)
+            if not e["uid"]:
+                continue
+            c = est_corr.get((e["uid"], tk_e)) or est_corr.setdefault(
+                (e["uid"], tk_e), _linha_esteira(e["nome"], tk_e, e["uid"]))
+            _acumula_esteira(c, e)
+
+        esteira_corr = [_fecha_esteira(c) for c in est_corr.values()
+                        if c["prospec"] or c["visita"] or c["pasta"] or c["venda"]]
+        esteira_corr.sort(key=lambda x: (x["team"], -x["venda"], -(x["pasta"] or 0)))
+        esteira_eq = {tk: _fecha_esteira(c) for tk, c in est_eq.items()}
 
         # ── C) CUSTO DO FUNIL (mês corrente: spend ÷ atividade DO MÊS — decisão
         # 17/ago: SEMPRE o mês atual, sem fallback de "últimos 30 dias") ──
@@ -1279,6 +1356,8 @@ class handler(BaseHTTPRequestHandler):
                 "custos": {"mes": ym, "equipes": custos, "payback_midia": payback,
                            "nota": "spend Meta this_month por conta da equipe ÷ atividade real do mês; CAC mídia divide SÓ pelas vendas de tráfego pago; CAC completo soma o custo fixo orçado da linha e divide por todas as vendas"},
                 "produtividade": {"corretores": corretores, "equipes": equipes_prod},
+                "esteira": {"corretores": esteira_corr, "equipes": esteira_eq,
+                            "nota": "FLUXO do período: cada etapa conta quando o deal chega nela pela 1ª vez dentro da janela (histórico de etapas do RD); venda conta pelo fechamento. Etapas são independentes — pasta sem visita no mesmo mês é normal e esperado."},
                 "safras": safras_out, "safras_por_equipe": safras_por_equipe, "tempos": tempos,
                 "performance_corretores": perf_corr, "turnover": turnover, "alertas": alertas,
                 "ritmo_vendas": ritmo_vendas,
