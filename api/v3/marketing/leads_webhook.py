@@ -148,13 +148,14 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("Content-Length") or 0)
         raw_body = self.rfile.read(length) if length > 0 else b"{}"
-        # Assinatura (opcional, se META_APP_SECRET configurado)
-        secret = os.environ.get("META_APP_SECRET")
-        if secret:
-            sig = self.headers.get("X-Hub-Signature-256") or ""
-            expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
-            if not hmac.compare_digest(sig, expected):
-                return self._send(401, {"ok": False, "error": "assinatura inválida"})
+        # Assinatura OBRIGATÓRIA (v86.67 — sem META_APP_SECRET qualquer POST inflava meta_leads)
+        secret = (os.environ.get("META_APP_SECRET") or "").strip()
+        if not secret:
+            return self._send(503, {"ok": False, "error": "META_APP_SECRET não configurado — webhook recusado"})
+        sig = self.headers.get("X-Hub-Signature-256") or ""
+        expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            return self._send(401, {"ok": False, "error": "assinatura inválida"})
         try:
             body = json.loads(raw_body.decode("utf-8") or "{}")
         except Exception:
