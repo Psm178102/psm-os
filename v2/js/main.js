@@ -424,7 +424,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.60';
+const APP_VERSION = '86.61';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -447,6 +447,12 @@ const APP_VERSION = '86.60';
   const openSidebar = () => { sidebar.classList.add('open'); backdrop.classList.add('open'); };
   const closeSidebar = () => { sidebar.classList.remove('open'); backdrop.classList.remove('open'); };
   document.getElementById('btn-hamburger').addEventListener('click', openSidebar);
+  // v86.61: toggle de tema (escuro é o padrão; escolha fica no aparelho)
+  document.getElementById('btn-theme')?.addEventListener('click', ev => {
+    const dark = document.documentElement.classList.toggle('dark');
+    try { localStorage.setItem('psm_theme', dark ? 'dark' : 'light'); } catch (_) {}
+    ev.currentTarget.textContent = dark ? '☀️' : '🌙';
+  });
   backdrop.addEventListener('click', closeSidebar);
 
   document.querySelectorAll('[data-nav]').forEach(btn => {
@@ -1003,6 +1009,7 @@ function shellHTML(user) {
             <span id="health-dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#94a3b8;vertical-align:middle"></span>
           </button>
           <button class="btn btn-ghost" id="btn-sons" style="padding:6px 10px" title="Sons">🔊</button>
+          <button class="btn btn-ghost" id="btn-theme" style="padding:6px 10px" title="Tema claro/escuro">${document.documentElement.classList.contains('dark') ? '☀️' : '🌙'}</button>
           <button class="btn btn-ghost" id="btn-notif" style="position:relative;padding:6px 10px" title="Notificações">
             🔔
             <span id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#dc2626;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:0 5px;min-width:16px;height:16px;line-height:16px;text-align:center"></span>
