@@ -37,7 +37,10 @@ def _read(sb):
         val = rows[0]["value"] if rows else {}
         if isinstance(val, str):
             val = json.loads(val)
-    except Exception:
+    except Exception as _e:
+        # v86.66: leitura FALHOU ≠ vazio — antes virava {} e o próximo "salvar" regravava
+        # o blob inteiro vazio (apagava TODOS os registros). Agora aborta com erro claro.
+        raise RuntimeError("leitura do shared_kv falhou (" + str(_e)[:80] + ") — nada foi gravado")
         val = {}
     if not isinstance(val, dict):
         val = {}

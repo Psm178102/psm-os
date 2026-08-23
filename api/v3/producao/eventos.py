@@ -89,11 +89,24 @@ class handler(BaseHTTPRequestHandler):
             aluguel = float(meta.get("aluguel") or valor or 0)
             if aluguel <= 0:
                 return self._send(400, {"ok": False, "error": "informe o valor do 1º aluguel"})
-            row = {"endereco": (meta.get("endereco") or "")[:200] or None,
+            # v86.66: insert sem `id` violava NOT NULL (id text PK sem default) → o contrato
+            # registrado na Fiscalização NUNCA entrava na carteira e o erro ficava escondido
+            # em meta.carteira_erro. Mesmo formato do locacoes/upsert. Data em BRT, não UTC.
+            import uuid as _uuid
+            _ini = (datetime.now(timezone.utc) - timedelta(hours=3)).date()
+            try:
+                _meses = int(meta.get("prazo_meses") or 30)
+            except Exception:
+                _meses = 30
+            _fim_m = (_ini.month - 1 + _meses) % 12 + 1
+            _fim_y = _ini.year + (_ini.month - 1 + _meses) // 12
+            row = {"id": "lo_" + _uuid.uuid4().hex[:12],
+                   "endereco": (meta.get("endereco") or "")[:200] or None,
                    "valor_aluguel": aluguel,
                    "taxa_adm_pct": float(meta.get("taxa_adm_pct") or 10),
                    "status": "ocupado", "responsavel_id": user.get("id"),
-                   "data_inicio_contrato": datetime.now(timezone.utc).date().isoformat(),
+                   "data_inicio_contrato": _ini.isoformat(),
+                   "data_fim_contrato": _ini.replace(year=_fim_y, month=_fim_m, day=min(_ini.day, 28)).isoformat(),
                    "observacoes": ("Georgina (split 50/50 indicador+corretor). " if meta.get("georgina") else "")
                                   + "Registrado pelo Painel de Fiscalização."}
             try:

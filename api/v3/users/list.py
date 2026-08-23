@@ -16,7 +16,7 @@ import sys
 import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, current_user, enrich_user  # type: ignore
+from _auth_lib import supabase_client, current_user, enrich_user, require_user, AuthError  # type: ignore
 
 
 def _hidden_from_pickers(u):
@@ -47,6 +47,12 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        # v86.66: a lista era PÚBLICA (id/e-mail/papel de todo mundo sem login) — combinada com o
+        # bootstrap de senha, permitia tomar a conta de usuário recém-criado.
+        try:
+            viewer = require_user(self, min_lvl=0)
+        except AuthError as e:
+            return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
@@ -55,7 +61,7 @@ class handler(BaseHTTPRequestHandler):
             qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
         except Exception:
             qs = {}
-        show_all = (qs.get("all", ["0"])[0] or "").lower() in ("1", "true", "yes")
+        show_all = (qs.get("all", ["0"])[0] or "").lower() in ("1", "true", "yes") and (viewer.get("lvl") or 0) >= 7
 
         try:
             cols = "id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,created_at,updated_at,last_login_at,menu_groups"

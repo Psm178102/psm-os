@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of  # type: ignore
-from _fisc_lib import _kv, _kv_set, get_cfg as fisc_cfg, premio_faixa  # type: ignore
+from _fisc_lib import _kv, _kv_ok, _kv_set, get_cfg as fisc_cfg, premio_faixa  # type: ignore
 
 CFG_KEY = "comissao_cfg"
 OVR_KEY = "comissao_origem"  # {deal_id: origem_id}  (override manual)
@@ -84,10 +84,11 @@ SENIOR_LBL = {"estagiario": "Estagiário", "corretor": "Corretor", "senior": "Co
 
 
 def _cfg(sb):
-    v = _kv(sb, CFG_KEY)
+    v, ok = _kv_ok(sb, CFG_KEY)
     if isinstance(v, dict) and v.get("origens"):
         return {**DEFAULT_CFG, **v}
-    _kv_set(sb, CFG_KEY, DEFAULT_CFG)
+    if ok and not v:   # v86.66: só seeda quando a leitura CONFIRMOU que não existe
+        _kv_set(sb, CFG_KEY, DEFAULT_CFG)
     return json.loads(json.dumps(DEFAULT_CFG))
 
 

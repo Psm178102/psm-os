@@ -193,7 +193,7 @@ class handler(BaseHTTPRequestHandler):
                 sb = supabase_client()
                 scoped, scope = _scope_filter(cached["raw_deals"], user, sb)
                 return self._send(200, {
-                    **cached,
+                    **{k: v for k, v in cached.items() if k != "raw_deals"},   # v86.66: vazava todos os deals sem escopo
                     "deals": scoped[:limit_response],
                     "summary": _summary(scoped),
                     "scope": scope,

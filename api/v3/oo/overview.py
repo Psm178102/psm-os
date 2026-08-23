@@ -48,12 +48,17 @@ CACHE_BASE = "oo_overview_cache"
 CACHE_TTL = 180  # segundos (3 min)
 
 
-def _cache_key(params):
+def _cache_key(params, user=None):
     p = params or {}
+    u = user or {}
+    # v86.66: o payload depende de QUEM vê (show_team = sócio ou o próprio gerente) —
+    # sem o viewer na chave, um líder lvl 5 recebia o agregado das outras equipes
+    # gravado pelo sócio 3 min antes.
     return CACHE_BASE + ":" + "|".join([
         (p.get("date_preset") or "this_month"),
         (p.get("since") or ""), (p.get("until") or ""),
         (p.get("team") or "").lower(),
+        str(u.get("id") or ""), str(u.get("lvl") or 0),
     ])
 
 
@@ -136,7 +141,7 @@ class handler(BaseHTTPRequestHandler):
 
         # Cache por período+time (90s) — o dashboard chama isto a cada abertura. v81.74
         fresh = params.get("fresh") == "1"
-        ckey = _cache_key(params)
+        ckey = _cache_key(params, user)
         if not fresh:
             cached = _cache_read(sb, ckey)
             if cached is not None:

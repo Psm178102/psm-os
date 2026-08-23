@@ -94,6 +94,7 @@ def get_cfg(sb, seed=True):
             saved = json.loads(saved)
     except Exception:
         saved = None
+        seed = False   # v86.66: leitura FALHOU ≠ "não existe" — nunca seedar por cima
     if saved is None and seed:
         try:
             sb.table("shared_kv").upsert({"key": KV_CFG, "value": DEFAULT_CFG,
@@ -242,12 +243,27 @@ def premio_faixa(faixas, valor):
 
 # ── pendências e alertas (usado pelo painel a cada pulso E pelo cron) ───────
 def _kv(sb, key):
+    v, _ok = _kv_ok(sb, key)
+    return v
+
+
+def _kv_ok(sb, key):
+    """v86.66: devolve (valor, leitura_ok). Leitura falhando virava {} e o chamador
+    entendia "nunca existiu" → seedava o DEFAULT por cima da régua do Paulo.
+    Aceita dict, list e str-JSON (a lista da Leire era descartada)."""
     try:
         rows = sb.table("shared_kv").select("value").eq("key", key).limit(1).execute().data or []
-        v = rows[0]["value"] if rows else {}
-        return v if isinstance(v, dict) else (json.loads(v) if isinstance(v, str) else {})
+        if not rows:
+            return {}, True
+        v = rows[0]["value"]
+        if isinstance(v, str):
+            try:
+                v = json.loads(v)
+            except Exception:
+                return {}, True
+        return (v if isinstance(v, (dict, list)) else {}), True
     except Exception:
-        return {}
+        return {}, False
 
 
 def _kv_set(sb, key, value):

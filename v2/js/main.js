@@ -424,7 +424,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.65';
+const APP_VERSION = '86.66';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -1229,15 +1229,28 @@ function forceUpdateSoon() {
   setTimeout(tryNow, 1500);
 }
 
+// v86.66: 1 reload forçado por versão-alvo a cada 5 min (sessionStorage sobrevive ao reload)
+function podeForcar(ver) {
+  let ultimo = 0;
+  try { const t = sessionStorage.getItem('psm.autoupd'); if (t) { const [tv, ts] = t.split('@'); if (tv === ver) ultimo = Number(ts) || 0; } } catch (_) {}
+  if (Date.now() - ultimo <= 5 * 60 * 1000) return false;
+  try { sessionStorage.setItem('psm.autoupd', ver + '@' + Date.now()); } catch (_) {}
+  return true;
+}
+
 async function checkVersion(announce) {
   try {
     const v = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json());
     if (v && v.version && v.version !== APP_VERSION) {
       _verWarned = true;
       _updatePending = v.version;
-      try { window.__psmUpdateReady = true; window.__psmDoUpdate = doUpdate; } catch (_) {}
+      try { window.__psmUpdateReady = true; window.__psmDoUpdate = () => { if (podeForcar(v.version)) doUpdate(); }; } catch (_) {}   // v86.66: pulso respeita a mesma trava
       showUpdateBanner(v.version);   // mostra "Atualizando…" (informativo)
-      forceUpdateSoon();             // ⚡ FORÇA o reload em TODOS os logins — não depende de clique/navegação. v81.33
+      // v86.66: TRAVA DE SESSÃO — a única trava antiga (__psmForcing) morria no reload, então
+      // enquanto o edge entregava version.json novo com main.js velho (10–18 min) toda aba
+      // recarregava a cada ~2s; e bump de um lado só (v86.52) virava loop infinito.
+      // Agora: 1 reload forçado por versão-alvo a cada 5 min; nas demais checagens só a faixa.
+      if (podeForcar(v.version)) forceUpdateSoon();   // ⚡ FORÇA o reload em TODOS os logins — v81.33, agora com trava
       return false;
     }
     if (announce) alert('✅ Tudo certo! Você está na versão mais recente (v' + APP_VERSION + ').');

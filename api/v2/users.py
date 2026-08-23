@@ -15,6 +15,17 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import urllib.parse
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "v3"))
+from _auth_lib import current_user as _v3_current_user  # type: ignore
+
+# v86.66: este endpoint legado era PÚBLICO (sem login) e devolvia select(*) — inclusive
+# password_hash de todo mundo — e aceitava POST que cria/edita usuário (role incluído).
+_SENSIVEIS = ("password_hash", "password_set_at", "push_subscriptions", "totp_secret")
+
+
+def _limpa(u):
+    return {k: v for k, v in (u or {}).items() if k not in _SENSIVEIS}
 
 
 def _supabase_client():
@@ -49,14 +60,14 @@ def _list_users(sb, show_all=False):
     rows = res.data or []
     if not show_all:
         rows = [r for r in rows if not _hidden_from_pickers(r)]
-    return rows
+    return [_limpa(r) for r in rows]
 
 
 def _get_user(sb, user_id):
     """Retorna 1 usuário por id."""
     res = sb.table("users").select("*").eq("id", user_id).limit(1).execute()
     rows = res.data or []
-    return rows[0] if rows else None
+    return _limpa(rows[0]) if rows else None
 
 
 def _upsert_user(sb, payload):

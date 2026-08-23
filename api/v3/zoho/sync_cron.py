@@ -4,15 +4,24 @@ Agendado no vercel.json (a cada 30 min). Best-effort por usuário: um erro em
 uma conexão não derruba as outras.
 """
 from http.server import BaseHTTPRequestHandler
+import os
 import json, os, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 from sync import sync_user  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        auth_hdr = (self.headers.get("Authorization") or "").replace("Bearer ", "").strip()
+        cron = os.environ.get("CRON_SECRET", "").strip()
+        if not (cron and auth_hdr == cron):   # v86.66: cron era público (qualquer GET disparava o sync)
+            try:
+                require_user(self, min_lvl=7)
+            except AuthError as e:
+                self.send_response(e.status); self.send_header("Content-Type", "application/json"); self.end_headers()
+                self.wfile.write(json.dumps({"ok": False, "error": e.message}).encode()); return
         sb = supabase_client()
         if not sb:
             self.send_response(503); self.end_headers()
