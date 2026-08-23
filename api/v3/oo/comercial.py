@@ -31,7 +31,7 @@ from _auth_lib import require_user, AuthError, supabase_client, lvl_of, notify_a
 from _oo_lib import (  # type: ignore
     deal_max_milestone, channel, CHANNEL_LABEL, source, parse_dt, amount,
     build_stage_maps, read_meta_accounts, match_team_account, read_team_account_override,
-    read_meta_campaigns, lead_campaign_name, match_campaign_cpl,
+    read_meta_campaigns, lead_campaign_name, match_campaign_cpl, lost_reason,
 )
 from simulador import (  # type: ignore
     _dividir_funil, _marcos_monotonicos, _VENDA_RE, pois_faixa, _kv_read, _kv_write,
@@ -49,7 +49,7 @@ MIN_VENDAS_RANK = 3
 CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
 CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
 CANAIS_PAGOS = ("trafego_imob", "google")   # v86.38: régua única de "venda de origem paga"
-CACHE_VER = "gc21"   # v86.39: bump aqui invalida página E cron juntos
+CACHE_VER = "gc22"   # v86.39: bump aqui invalida página E cron juntos
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -89,7 +89,7 @@ def filtra_escopo(p, tk):
                       "podio": {"visita": _podio_de(ft, "pc_visita", "rankeavel"),
                                 "pasta": _podio_de(ft, "pc_pasta", "rankeavel"),
                                 "venda": _podio_de(ft, "pc_venda", "rankeavel_venda")}}
-    for chave in ("funil_rd", "forecast", "resposta", "tempos"):
+    for chave in ("funil_rd", "forecast", "resposta", "tempos", "metricas"):
         novo[chave] = {k: v for k, v in (p.get(chave) or {}).items() if k == tk}
     cust = p.get("custos") or {}
     novo["custos"] = {**cust,
@@ -413,6 +413,8 @@ class handler(BaseHTTPRequestHandler):
                 "created": parse_dt(d.get("created_at_rd")),
                 "closed": parse_dt(d.get("closed_at")),
                 "win": d.get("win") is True,
+                "lost": d.get("win") is False,
+                "motivo": lost_reason(d.get("rd_raw") or {}),
                 "vgv": amount(d),
                 "canal": (lambda _c: CANAL_MERGE.get(_c, _c))(channel(source(d.get("rd_raw") or {}))),
                 "atribuido": channel(source(d.get("rd_raw") or {})) != "nao_atribuido",
@@ -672,6 +674,8 @@ class handler(BaseHTTPRequestHandler):
             spend = _num(acc.get("spend")) if acc else 0.0
             pool = [e for e in mes_pool if e["team"] == tk]
             leads = len(pool)
+            qualif = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(1) and _in(e["t_marco"][1]))
+            proposta = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(4) and _in(e["t_marco"][4]))
             agend = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(2) and _in(e["t_marco"][2]))
             visita = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(3) and _in(e["t_marco"][3]))
             pasta = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(5) and _in(e["t_marco"][5]))
@@ -701,7 +705,8 @@ class handler(BaseHTTPRequestHandler):
             premiacao = sum(premio_indicacao(e["vgv"]) for e in ind_mes)
             custos.append({"team": tk, "label": lbl, "spend": round(spend, 2), "fixo_mes": round(fixo, 2),
                            "conta": acc.get("label") if acc else None,
-                           "leads": leads, "agend": agend, "visita": visita, "pasta": pasta, "vendas": vendas,
+                           "leads": leads, "qualif": qualif, "agend": agend, "visita": visita, "proposta": proposta, "pasta": pasta, "vendas": vendas,
+                           "custo_qualif": div(spend, qualif), "custo_proposta": div(spend, proposta), "cpa": div(spend, vendas),
                            "vendas_pagas": vendas_pagas,
                            "vendas_indicacao": len(ind_mes), "premiacao_indicacao": round(premiacao, 2),
                            "custo_lead": div(spend, leads), "custo_agend": div(spend, agend),
@@ -860,6 +865,62 @@ class handler(BaseHTTPRequestHandler):
             linhas.append({"passo": "pasta→venda", "mediana_h": round(hs[len(hs) // 2], 2) if hs else None,
                            "mediana_dias": round(hs[len(hs) // 2] / 24.0, 1) if hs else None, "n": len(hs)})
             tempos[tk] = linhas
+
+        # ── 📐 MÉTRICAS DO FUNIL por equipe (v86.65 — lista do Paulo 23/ago) ──
+        # custos = janela de custo (c_ini..c_fim); razões/tempos = safra da janela;
+        # pastas = FLUXO (chegou na pasta dentro da janela) seguido até hoje.
+        import re as _re
+        RX_REPROV = _re.compile(r"reprov|cr[eé]dito|negad|score|restri|renda|an[aá]lise", _re.I)
+        metricas = {}
+        for tk, _l in TEAMS:
+            pool = [e for e in na_janela if e["team"] == tk]
+            n = {"leads": len(pool), "qualif": sum(1 for e in pool if e["marco"] >= 1),
+                 "agend": sum(1 for e in pool if e["marco"] >= 2), "visita": sum(1 for e in pool if e["marco"] >= 3),
+                 "proposta": sum(1 for e in pool if e["marco"] >= 4), "pasta": sum(1 for e in pool if e["marco"] >= 5),
+                 "venda": sum(1 for e in pool if e["win"])}
+            v = n["venda"]
+            rz = lambda x: round(x / v, 1) if v else None
+            wins_all = [e["closed"] for e in eds if e["team"] == tk and e["win"] and e["closed"]]
+            # pastas por FLUXO na janela
+            pf = [e for e in eds if e["team"] == tk and e["t_marco"].get(5) and since_dt <= e["t_marco"][5] <= until_dt]
+            p_venc = [e for e in pf if e["win"]]
+            p_perd = [e for e in pf if e["lost"]]
+            p_repr = [e for e in p_perd if e["motivo"] and RX_REPROV.search(e["motivo"])]
+            motivos = {}
+            for e in p_perd:
+                motivos[e["motivo"] or "Não informado"] = motivos.get(e["motivo"] or "Não informado", 0) + 1
+            pc = lambda a, b: round(a / b * 100, 1) if b else None
+            # tempos MÉDIOS (e medianos) entre etapas — safra
+            def _tempo(a, b, fim=False):
+                hs = []
+                for e in pool:
+                    ta = e["created"] if a == 0 else e["t_marco"].get(a)
+                    tb = e["closed"] if fim else e["t_marco"].get(b)
+                    if fim and not (e["win"] or e["lost"]):
+                        continue
+                    if ta and tb and tb >= ta:
+                        hs.append((tb - ta).total_seconds() / 3600.0)
+                hs.sort()
+                return {"media_h": round(sum(hs) / len(hs), 1) if hs else None,
+                        "mediana_h": round(hs[len(hs) // 2], 1) if hs else None, "n": len(hs)}
+            cu = next((c for c in custos if c["team"] == tk), {})
+            metricas[tk] = {
+                "custos": {k: cu.get(k) for k in ("spend", "conta", "custo_lead", "custo_qualif", "custo_agend", "custo_visita",
+                                                   "custo_proposta", "custo_pasta", "cpa", "cac_midia", "cac_marketing", "cac_completo")},
+                "contagens": n,
+                "por_venda": {"prospeccoes": rz(n["leads"]), "qualificacoes": rz(n["qualif"]), "agendamentos": rz(n["agend"]),
+                              "visitas": rz(n["visita"]), "propostas": rz(n["proposta"]), "pastas": rz(n["pasta"]),
+                              "dias_por_venda": round(janela_dias / v, 1) if v else None,
+                              "dias_desde_ultima_venda": (hoje - max(wins_all).date()).days if wins_all else None},
+                "pastas": {"total": len(pf), "viraram_venda": len(p_venc), "perdidas": len(p_perd), "reprovadas": len(p_repr),
+                           "em_analise": len(pf) - len(p_venc) - len(p_perd),
+                           "pct_venda": pc(len(p_venc), len(pf)), "pct_reprovadas": pc(len(p_repr), len(pf)),
+                           "pct_perdidas": pc(len(p_perd), len(pf)),
+                           "motivos": sorted(motivos.items(), key=lambda x: -x[1])[:6]},
+                "tempos": {"lead_qualificacao": _tempo(0, 1), "qualificacao_agendamento": _tempo(1, 2),
+                           "agendamento_visita": _tempo(2, 3), "visita_proposta": _tempo(3, 4),
+                           "proposta_pasta": _tempo(4, 5), "pasta_resultado": _tempo(5, None, fim=True)},
+            }
 
         # ── G) HISTÓRICO DO ANO (fetch leve, sem rd_raw): mês a mês, real ──
         jan1 = date(hoje.year, 1, 1)
@@ -1373,7 +1434,7 @@ class handler(BaseHTTPRequestHandler):
 
         return {"visao": visao, "hub_conquista": hub_x, "fontes": fontes,
                 "historico": hist, "funil_rd": funil_rd, "campanhas": campanhas,
-                "forecast": forecast, "resposta": resposta,
+                "forecast": forecast, "resposta": resposta, "metricas": metricas,
                 "custos": {"mes": ym, "janela_custo": {"ini": c_ini.isoformat(), "fim": c_fim.isoformat(), "preset": c_preset_usado, "segue_periodo": c_preset != "this_month" or since_d == mes_ini}, "equipes": custos, "payback_midia": payback,
                            "nota": "spend Meta this_month por conta da equipe ÷ atividade real do mês; CAC mídia divide SÓ pelas vendas de tráfego pago; CAC completo soma o custo fixo orçado da linha e divide por todas as vendas"},
                 "produtividade": {"corretores": corretores, "equipes": equipes_prod},

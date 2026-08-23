@@ -34,7 +34,7 @@ const fmtDHM = h => {
 const TEAM_LBL = { conquista: '🏠 Conquista', map: '🏢 MAP', terceiros: '🤝 Terceiros', locacao: '🔑 Locação', outros: '— Outros' };
 const TEAMS4 = ['conquista', 'map', 'terceiros', 'locacao'];
 const tLbl = t => (TEAM_LBL[t] || t || '').replace(/^..\s/, '');
-const GC_TABS = [['meta', '🎯 Meta & Projeção'], ['funil', '⏬ Funil'], ['midia', '💰 Mídia & Custo'], ['pessoas', '👤 Pessoas']];
+const GC_TABS = [['meta', '🎯 Meta & Projeção'], ['metricas', '📐 Métricas'], ['funil', '⏬ Funil'], ['midia', '💰 Mídia & Custo'], ['pessoas', '👤 Pessoas']];
 
 /* ═══════════ CSS do módulo (paleta semântica + layout) — injetado 1× ═══════════ */
 const GC_CSS = `
@@ -118,7 +118,7 @@ function viewFor(d, tk) {
   const ft = (d.fontes || {})[tk] || [];
   const pod = (campo, flag) => ft.filter(f => f[flag]).sort((a, b) => (b[campo] || 0) - (a[campo] || 0)).slice(0, 3);
   n.fontes = { geral: ft, [tk]: ft, podio: { visita: pod('pc_visita', 'rankeavel'), pasta: pod('pc_pasta', 'rankeavel'), venda: pod('pc_venda', 'rankeavel_venda') } };
-  ['funil_rd', 'forecast', 'resposta', 'tempos'].forEach(k => { n[k] = Object.fromEntries(Object.entries(d[k] || {}).filter(([t]) => t === tk)); });
+  ['funil_rd', 'forecast', 'resposta', 'tempos', 'metricas'].forEach(k => { n[k] = Object.fromEntries(Object.entries(d[k] || {}).filter(([t]) => t === tk)); });
   const cu = d.custos || {};
   n.custos = { ...cu, equipes: (cu.equipes || []).filter(c => c.team === tk), payback_midia: tk === 'conquista' ? cu.payback_midia : null };
   n.historico = (d.historico || []).map(h => { const e = (h.equipes || {})[tk] || {}; return { ...h, total: { ...h.total, vendas: e.vendas ?? 0, vgv: e.vgv ?? 0, spend: e.spend, cac_global: e.cac_midia, leads: e.leads ?? h.total?.leads } }; });
@@ -218,7 +218,7 @@ function bind(scope) {
 }
 
 function tabBody() {
-  return { meta: tabMeta, funil: tabFunil, midia: tabMidia, pessoas: tabPessoas }[_tab]();
+  return { meta: tabMeta, metricas: tabMetricas, funil: tabFunil, midia: tabMidia, pessoas: tabPessoas }[_tab]();
 }
 function postRender() { initCharts(); srPerformance(); }
 
@@ -334,6 +334,7 @@ function resumoTab() {
     alertas_fora_da_regua: (d.alertas || {}).itens || [],
   };
   if (_tab === 'meta') { g.projecao_ponderada = d.forecast || {}; g.historico_vendas = histCompact; }
+  else if (_tab === 'metricas') { g.metricas_funil = Object.fromEntries(Object.entries(d.metricas || {}).map(([t, m]) => [tLbl(t), m])); g.janela_custo = (d.custos || {}).janela_custo; }
   else if (_tab === 'funil') {
     g.funis_rd = Object.fromEntries(Object.entries(d.funil_rd || {}).map(([t, f]) => [tLbl(t), { pipeline: f.pipeline, lanes: (f.lanes || []).map(l => ({ etapa: l.nome, abertos: l.abertos, alcancaram: l.alcancaram, passagem_pct: l.passagem_pct })) }]));
     g.fontes = ((d.fontes || {}).geral || []).slice(0, 10).map(f => ({ fonte: f.label, leads: f.leads, vendas: f.venda, pc_visita: f.pc_visita, pc_venda: f.pc_venda }));
@@ -457,6 +458,63 @@ function velocidadePanel() {
     <div class="tiny muted gc-nota" style="margin-top:6px">Medido na safra da janela: criação do lead → primeira mudança de etapa. Metade rápida × lenta = a prova de quanto custa demorar.</div>`);
 }
 
+/* ═══════════ 📐 MÉTRICAS DO FUNIL — a lista do Paulo (23/ago), por equipe ═══════════ */
+function tabMetricas() {
+  const M = _v.metricas || {};
+  const teams = TEAMS4.filter(t => M[t]);
+  if (!teams.length) return pan('📐 Métricas do funil', '<div class="tiny muted">sem equipe no recorte.</div>');
+  const jc = (_v.custos || {}).janela_custo || {};
+  const al = (_v.alertas || {}); const aIdx = {}; (al.itens || []).forEach(a => { aIdx[a.team + ':' + a.metrica] = a; });
+  const R$ = x => x != null ? 'R$ ' + kR$(x) : '—';
+  const N = x => x != null ? fN(x) : '—';
+  const P = x => x != null ? fN(x) + '%' : '—';
+  const T = t => t && t.media_h != null ? `${fmtDHM(t.media_h)} <span class="tiny muted">med. ${fmtDHM(t.mediana_h)} · n=${t.n}</span>` : '<span class="muted">—</span>';
+  const tile = (lbl, val, sub, cls) => `<div class="gc-kpi" style="--kc:${cls === 'err' ? 'var(--gc-err)' : cls === 'acc' ? 'var(--gc-acc)' : 'var(--border-2)'};padding:9px 12px"><div class="l">${lbl}</div><div class="v ${cls || ''}" style="font-size:20px">${val}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>`;
+  const grupo = (titulo, tiles) => `<div style="margin-top:12px"><div class="tiny" style="font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-muted);margin-bottom:6px">${titulo}</div><div class="gc-kpis" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));margin-top:0">${tiles}</div></div>`;
+  const bloco = tk => {
+    const m = M[tk], c = m.custos || {}, n = m.contagens || {}, pv = m.por_venda || {}, pa = m.pastas || {}, tp = m.tempos || {};
+    const semMidia = !(c.conta || c.spend > 0);
+    const a = mid => aIdx[tk + ':' + mid] ? 'err' : '';
+    const custos = semMidia ? `<div class="tiny muted" style="margin-top:4px">sem conta Meta própria — custos de mídia não se aplicam (CAC vive no marketing/completo)</div>` : grupo(`💵 Custos — spend R$ ${kR$(c.spend)} (${jc.ini || ''} → ${jc.fim || ''})`, [
+      tile('CPL · custo por lead', R$(c.custo_lead), N(n.leads) + ' leads na safra', a('custo_lead')),
+      tile('CPQL · por qualificado', R$(c.custo_qualif), 'marco: contato ok / qualificação'),
+      tile('CPAG · por agendamento', R$(c.custo_agend), '', a('custo_agend')),
+      tile('CPV · por visita', R$(c.custo_visita), '', a('custo_visita')),
+      tile('CPP · por proposta', R$(c.custo_proposta), ''),
+      tile('CPP · por pasta', R$(c.custo_pasta), '', a('custo_pasta')),
+      tile('CPA · por aquisição', R$(c.cpa), 'spend ÷ TODAS as vendas'),
+      tile('CAC mídia', R$(c.cac_midia), 'spend ÷ vendas de tráfego', a('cac_midia')),
+      tile('CAC completo', R$(c.cac_completo), '+ fixo da linha + premiação'),
+    ].join(''));
+    const razoes = grupo(`🔢 Quantos pra 1 venda — safra da janela (${N(n.venda)} venda${n.venda === 1 ? '' : 's'})`, [
+      tile('Prospecções → 1 venda', N(pv.prospeccoes), N(n.leads) + ' leads'),
+      tile('Qualificações → 1 venda', N(pv.qualificacoes), N(n.qualif) + ' qualificados'),
+      tile('Agendamentos → 1 venda', N(pv.agendamentos), N(n.agend) + ' agendamentos'),
+      tile('Visitas → 1 venda', N(pv.visitas), N(n.visita) + ' visitas'),
+      tile('Propostas → 1 venda', N(pv.propostas), N(n.proposta) + ' propostas'),
+      tile('Pastas → 1 venda', N(pv.pastas), N(n.pasta) + ' pastas'),
+      tile('Dias p/ nova venda', pv.dias_por_venda != null ? fN(pv.dias_por_venda) + 'd' : '—', 'janela ÷ vendas'),
+      tile('Dias desde a última venda', pv.dias_desde_ultima_venda != null ? fN(pv.dias_desde_ultima_venda) + 'd' : '—', 'histórico completo', pv.dias_desde_ultima_venda > 45 ? 'err' : ''),
+    ].join(''));
+    const pastas = grupo(`📁 Pastas — ${N(pa.total)} chegaram na pasta dentro da janela`, [
+      tile('% viraram venda', P(pa.pct_venda), N(pa.viraram_venda) + ' venda(s)', 'acc'),
+      tile('% reprovadas', P(pa.pct_reprovadas), N(pa.reprovadas) + ' reprovada(s) · motivo de crédito/análise', pa.reprovadas ? 'err' : ''),
+      tile('% perdidas (todos os motivos)', P(pa.pct_perdidas), N(pa.perdidas) + ' perdida(s)'),
+      tile('Em análise agora', N(pa.em_analise), 'nem venda nem perda ainda'),
+    ].join('')) + ((pa.motivos || []).length ? `<div class="tiny muted" style="margin-top:4px">motivos de perda após pasta: ${pa.motivos.map(([m, q]) => `${esc(m)} <b>${q}</b>`).join(' · ')}</div>` : '');
+    const tempos = grupo('⏱ Tempo médio entre etapas (safra · mediana e amostra ao lado)', [
+      tile('Lead → qualificação', T(tp.lead_qualificacao)),
+      tile('Qualificação → agendamento', T(tp.qualificacao_agendamento)),
+      tile('Agendamento → visita', T(tp.agendamento_visita)),
+      tile('Visita → proposta', T(tp.visita_proposta)),
+      tile('Proposta → pasta', T(tp.proposta_pasta)),
+      tile('Pasta → resultado (análise)', T(tp.pasta_resultado), 'até virar venda ou perda'),
+    ].join(''));
+    return pan(`${TEAM_LBL[tk] || tk}`, custos + razoes + pastas + tempos);
+  };
+  return teams.map(bloco).join('') + `<div class="tiny muted gc-nota" style="margin-top:6px">Custos seguem a janela de custo (preset da Meta casado ao período). Razões, pastas e tempos seguem a SAFRA da janela (lead nascido nela, seguido até hoje). "Reprovada" = perda após pasta com motivo de crédito/análise no RD; "perdida" = qualquer motivo. Qualificação = 1º marco de contato ok/qualificação do funil RD.</div>`;
+}
+
 /* ═══════════ 📺 MODO TV ═══════════ */
 function enterTV() {
   if (_tv) return;
@@ -538,11 +596,11 @@ function tabCampanhas() {
     const top = its.filter(x => (x[campo] || 0) > 0).sort((a, b) => b[campo] - a[campo]).slice(0, 3);
     return `<div><div class="tiny" style="font-weight:800;margin-bottom:4px">${ico} ${titulo}</div><div style="display:grid;gap:4px">
       ${top.map((x, i) => `<div style="display:flex;gap:8px;align-items:center;background:var(--bg-3);border-radius:8px;padding:6px 10px">
-        <span>${['🥇', '🥈', '🥉'][i]}</span><span class="tiny" style="flex:1;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(x.campanha)}">${esc(x.campanha.slice(0, 46))}</span>
+        <span>${['🥇', '🥈', '🥉'][i]}</span><span class="tiny" style="flex:1;font-weight:700;line-height:1.3" title="${esc(x.campanha)}">${esc(x.campanha)}</span>
         <b>${fN(x[campo])}</b></div>`).join('') || '<div class="tiny muted">—</div>'}</div></div>`;
   };
   const linha = x => `<tr>
-      <td style="font-size:11.5px;font-weight:600;padding:4px 8px 4px 0;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(x.campanha)}">${esc(x.campanha)}<div class="tiny muted">${(x.teams || []).join(' · ')}</div></td>
+      <td style="font-size:12px;font-weight:700;padding:6px 8px 6px 0;min-width:260px;max-width:420px;line-height:1.3" title="${esc(x.campanha)}">${esc(x.campanha)}<div class="tiny muted">${(x.teams || []).join(' · ')}</div></td>
       <td style="text-align:right;font-size:12px">${fN(x.leads)}</td>
       <td style="text-align:right;font-size:12px">${fN(x.agend)}</td>
       <td style="text-align:right;font-size:12px">${fN(x.visita)}</td>
