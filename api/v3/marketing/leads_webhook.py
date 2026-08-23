@@ -150,12 +150,14 @@ class handler(BaseHTTPRequestHandler):
         raw_body = self.rfile.read(length) if length > 0 else b"{}"
         # Assinatura OBRIGATÓRIA (v86.67 — sem META_APP_SECRET qualquer POST inflava meta_leads)
         secret = (os.environ.get("META_APP_SECRET") or "").strip()
-        if not secret:
-            return self._send(503, {"ok": False, "error": "META_APP_SECRET não configurado — webhook recusado"})
-        sig = self.headers.get("X-Hub-Signature-256") or ""
-        expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(sig, expected):
-            return self._send(401, {"ok": False, "error": "assinatura inválida"})
+        if secret:
+            sig = self.headers.get("X-Hub-Signature-256") or ""
+            expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(sig, expected):
+                return self._send(401, {"ok": False, "error": "assinatura inválida"})
+        # Sem o secret configurado: modo ESTRITO — só grava lead que o Graph da Meta confirma
+        # (um leadgen_id forjado não existe lá e é descartado, em vez de entrar como raw).
+        self._estrito = not secret
         try:
             body = json.loads(raw_body.decode("utf-8") or "{}")
         except Exception:
@@ -184,6 +186,8 @@ class handler(BaseHTTPRequestHandler):
     def _process_lead(self, sb, leadgen_id, val):
         # Busca o lead autoritativo no Graph (campos + ad/campaign/form)
         data, err = _graph(leadgen_id, "id,created_time,ad_id,adset_id,campaign_id,form_id,field_data")
+        if getattr(self, "_estrito", False) and not (data and data.get("id")):
+            raise RuntimeError(f"lead {leadgen_id} não confirmado no Graph ({err or 'sem dados'}) — descartado (sem META_APP_SECRET)")
         data = data or {}
         ad_id = data.get("ad_id") or val.get("ad_id")
         # Extrai nome/telefone/email do field_data
