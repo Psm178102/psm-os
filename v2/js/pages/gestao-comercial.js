@@ -848,7 +848,7 @@ function tabProd() {
     const chips = (cr.canais || []).filter(c => c.vendas > 0).map(c =>
       `<span style="display:inline-block;white-space:nowrap;background:var(--bg-2);border:1px solid var(--border);border-radius:999px;padding:1px 8px;font-size:10.5px;margin:1px">${esc(c.label)}: <b>${fN(c.share_vendas_pct)}%</b> das vendas · conv ${c.conv_pct != null ? fN(c.conv_pct) + '%' : '—'}</span>`).join('');
     return `<tr>
-      <td style="font-size:12px;padding:4px 8px 4px 0;min-width:300px;white-space:nowrap">${esc(cr.nome)} <span class="tiny muted">${(TEAM_LBL[cr.team] || cr.team || '').replace(/^..\s/, '')}</span>
+      <td style="font-size:12px;padding:4px 8px 4px 0;min-width:240px;max-width:360px">${esc(cr.nome)} <span class="tiny muted">${(TEAM_LBL[cr.team] || cr.team || '').replace(/^..\s/, '')}</span>
         ${chips ? `<div style="margin-top:2px">${chips}</div>` : ''}</td>
       <td style="font-size:11.5px;font-weight:800;color:var(--gc-ok);white-space:nowrap">${cr.top_canal ? '🏆 ' + esc(cr.top_canal) : '—'}</td>
       <td style="text-align:right;font-size:12px">${fN(cr.leads)}</td>
