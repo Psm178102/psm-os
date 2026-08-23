@@ -81,6 +81,8 @@ class handler(BaseHTTPRequestHandler):
         action = body.get("action")
 
         if action == "save_teams":
+            if (actor.get("lvl") or 0) < 7:   # v86.67: líder (lvl 5) reescrevia TODAS as equipes
+                return self._send(403, {"ok": False, "error": "reorganizar equipes: gerente ou sócio"})
             teams = body.get("teams")
             if not isinstance(teams, list):
                 return self._send(400, {"ok": False, "error": "teams[] obrigatório"})
@@ -107,6 +109,14 @@ class handler(BaseHTTPRequestHandler):
         if action == "move_user":
             uid = body.get("user_id"); team = body.get("team")
             if not uid: return self._send(400, {"ok": False, "error": "user_id obrigatório"})
+            if (actor.get("lvl") or 0) < 7:   # v86.67: líder só move gente da PRÓPRIA equipe e nunca alguém acima dele
+                try:
+                    alvo = (sb.table("users").select("team,role").eq("id", uid).limit(1).execute().data or [{}])[0]
+                except Exception:
+                    alvo = {}
+                from _auth_lib import lvl_of  # type: ignore
+                if (alvo.get("team") or "").lower() != (actor.get("team") or "").lower() or lvl_of(alvo.get("role") or "") >= (actor.get("lvl") or 0):
+                    return self._send(403, {"ok": False, "error": "líder só move corretores da própria equipe"})
             try:
                 sb.table("users").update({"team": team}).eq("id", uid).execute()
             except Exception as e:

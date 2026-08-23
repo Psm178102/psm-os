@@ -16,7 +16,20 @@ import json, os, sys, unicodedata
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, can_route  # type: ignore
+
+# v86.67: a alçada desta tela é decidida pela MATRIZ por papel (como no menu), não só por nível.
+_GATE_ROUTES = ['/sucesso-cliente', '/cs-onboarding', '/cs-carteira', '/cs-suporte', '/cs-retencao', '/cs-metricas', '/cs-upsell', '/cs-marketing', '/cs-avaliacoes', '/cs-indicacoes']
+_GATE_GROUP = 'sucesso'
+
+
+def _gate(handler, min_lvl=2):
+    actor = require_user(handler, min_lvl=min_lvl)
+    sb = supabase_client()
+    if sb and not can_route(sb, actor, _GATE_ROUTES, _GATE_GROUP, default_lvl=min_lvl):
+        raise AuthError(403, "sem permissão para esta área (matriz de permissões)")
+    return actor
+
 
 KV_KEY = "cs_enriq"
 CATEGORIAS = ["MAP", "Conquista", "Locação", "Terceiros", "Outros"]
@@ -142,7 +155,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
 
     def do_GET(self):
-        try: require_user(self, min_lvl=2)
+        try: _gate(self, 2)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
@@ -151,7 +164,7 @@ class handler(BaseHTTPRequestHandler):
                                 "categorias": CATEGORIAS, "statuses": STATUSES})
 
     def do_POST(self):
-        try: actor = require_user(self, min_lvl=2)
+        try: actor = _gate(self, 2)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         try:
             length = int(self.headers.get("Content-Length") or 0)

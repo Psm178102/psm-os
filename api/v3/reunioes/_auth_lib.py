@@ -323,6 +323,9 @@ def require_user(handler, min_lvl: int = 0) -> dict:
     u = current_user(handler)
     if not u:
         raise AuthError(401, "autenticação necessária")
+    # v86.67: usuário INATIVADO perde o acesso na hora (antes o JWT valia até expirar, 12h)
+    if str(u.get("status") or "ativo").strip().lower() in ("inactive", "inativo", "disabled", "desativado", "desligado"):
+        raise AuthError(401, "usuário inativo — fale com o Sócio")
     if (u.get("lvl") or 0) < min_lvl:
         raise AuthError(403, f"requer nível ≥ {min_lvl}")
     return u
@@ -483,3 +486,34 @@ def notify_all(user_ids, tipo, title, body=None, link=None, target_type=None, ta
     except Exception:
         pass
     return n
+
+
+# ── v86.67: permissão de ROTA no backend, espelhando o canSee do front ────────────
+# (achado do diagnóstico 23/ago: RH/CS/secretaria/leads exigiam só lvl 2 no backend e a
+#  matriz por papel valia apenas pro menu). Regra igual ao front:
+#   sócio → sempre; usuário com override individual (menu_groups lista) → grupo liberado;
+#   papel customizado na matriz (role_perms) → só se alguma rota do grupo está na lista;
+#   senão → default por nível (ROUTE_MIN_LVL do front).
+def can_route(sb, actor, routes, group, default_lvl=2):
+    try:
+        lvl = int(actor.get("lvl") or 0)
+    except Exception:
+        lvl = 0
+    if lvl >= 10:
+        return True
+    role = (actor.get("role") or "corretor").strip().lower()
+    routes = list(routes or [])
+    mg = actor.get("menu_groups")
+    if isinstance(mg, list):
+        return group in mg or any(r in mg for r in routes)
+    try:
+        rows = sb.table("shared_kv").select("value").eq("key", "role_perms").limit(1).execute().data or []
+        rp = rows[0]["value"] if rows else {}
+        if isinstance(rp, str):
+            import json as _j
+            rp = _j.loads(rp)
+    except Exception:
+        rp = {}
+    if isinstance(rp, dict) and isinstance(rp.get(role), list):
+        return any(r in rp[role] for r in routes)
+    return lvl >= default_lvl

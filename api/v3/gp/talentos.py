@@ -9,7 +9,20 @@ import json, os, re, sys, urllib.parse
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, can_route  # type: ignore
+
+# v86.67: a alçada desta tela é decidida pela MATRIZ por papel (como no menu), não só por nível.
+_GATE_ROUTES = ['/talentos', '/rh-recrutamento']
+_GATE_GROUP = 'rh'
+
+
+def _gate(handler, min_lvl=2):
+    actor = require_user(handler, min_lvl=min_lvl)
+    sb = supabase_client()
+    if sb and not can_route(sb, actor, _GATE_ROUTES, _GATE_GROUP, default_lvl=min_lvl):
+        raise AuthError(403, "sem permissão para esta área (matriz de permissões)")
+    return actor
+
 
 
 def _safe_upsert(sb, table, row):
@@ -89,7 +102,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
 
     def do_GET(self):
-        try: actor = require_user(self, min_lvl=2)
+        try: actor = _gate(self, 2)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
@@ -101,7 +114,7 @@ class handler(BaseHTTPRequestHandler):
         return self._send(200, {"ok": True, "talentos": rows})
 
     def do_POST(self):
-        try: actor = require_user(self, min_lvl=2)
+        try: actor = _gate(self, 2)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         try:
             length = int(self.headers.get("Content-Length") or 0)
@@ -248,7 +261,7 @@ class handler(BaseHTTPRequestHandler):
         return self._send(200, {"ok": True, "etapa": etapa, "historico": hist})
 
     def do_DELETE(self):
-        try: actor = require_user(self, min_lvl=2)
+        try: actor = _gate(self, 2)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         try:
             params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))

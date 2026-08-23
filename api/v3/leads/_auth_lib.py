@@ -237,6 +237,9 @@ def require_user(handler, min_lvl: int = 0) -> dict:
     u = current_user(handler)
     if not u:
         raise AuthError(401, "autenticação necessária")
+    # v86.67: usuário INATIVADO perde o acesso na hora (antes o JWT valia até expirar, 12h)
+    if str(u.get("status") or "ativo").strip().lower() in ("inactive", "inativo", "disabled", "desativado", "desligado"):
+        raise AuthError(401, "usuário inativo — fale com o Sócio")
     if (u.get("lvl") or 0) < min_lvl:
         raise AuthError(403, f"requer nível ≥ {min_lvl}")
     return u
