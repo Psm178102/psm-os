@@ -22,7 +22,7 @@ import hmac
 import hashlib
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client  # type: ignore
@@ -101,23 +101,33 @@ def _resolve_creative(sb, ad_id):
 
 
 def _match_deal(sb, phone, email):
-    """Casa o lead com um deal do RD por telefone (últimos dígitos) ou email."""
+    """Casa o lead com um deal do RD por telefone (dígitos) ou email.
+    Retorna (deal_id | None, match_error | None).
+
+    ⚠️ `.ilike("rd_raw", ...)` num jsonb SEMPRE falhava silenciosamente (o operador
+    LIKE não se aplica a jsonb → erro engolido pelo except → nunca casava). Agora
+    puxa os deals recentes (90d, só id+rd_raw) e casa em Python nos dígitos do blob."""
+    if not phone and not email:
+        return None, None
     try:
-        if phone:
-            rows = (sb.table("deals").select("id,rd_raw,created_at_rd")
-                    .ilike("rd_raw", f"%{phone}%").order("created_at_rd", desc=True)
-                    .limit(1).execute().data or [])
-            if rows:
-                return rows[0]["id"]
-        if email:
-            rows = (sb.table("deals").select("id")
-                    .ilike("rd_raw", f"%{email}%").order("created_at_rd", desc=True)
-                    .limit(1).execute().data or [])
-            if rows:
-                return rows[0]["id"]
-    except Exception:
-        pass
-    return None
+        since = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+        deals = (sb.table("deals").select("id,rd_raw,created_at_rd")
+                 .gte("created_at_rd", since).order("created_at_rd", desc=True)
+                 .limit(3000).execute().data or [])
+    except Exception as e:
+        return None, f"busca deals falhou: {str(e)[:140]}"
+    p = _digits(phone) if phone else None
+    em = (email or "").strip().lower() or None
+    for d in deals:
+        try:
+            blob = json.dumps(d.get("rd_raw") or {}, ensure_ascii=False).lower()
+        except Exception:
+            continue
+        if p and len(p) >= 8 and p in re.sub(r"\D", "", blob):
+            return d.get("id"), None
+        if em and em in blob:
+            return d.get("id"), None
+    return None, None
 
 
 class handler(BaseHTTPRequestHandler):
@@ -178,7 +188,10 @@ class handler(BaseHTTPRequestHandler):
                 if not lid:
                     continue
                 try:
-                    captured += self._process_lead(sb, lid, val)
+                    n, match_err = self._process_lead(sb, lid, val)
+                    captured += n
+                    if match_err:
+                        errors.append(f"match {lid}: {match_err}")
                 except Exception as e:
                     errors.append(str(e))
         return self._send(200, {"ok": True, "captured": captured, "errors": errors})
@@ -205,7 +218,10 @@ class handler(BaseHTTPRequestHandler):
             elif key in ("full_name", "name", "nome", "first_name") and not name:
                 name = str(v).strip()
         ctype, ad_name, camp_id, camp_name = _resolve_creative(sb, ad_id)
-        matched = _match_deal(sb, phone, email)
+        matched, match_err = _match_deal(sb, phone, email)
+        if match_err:
+            # meta_leads não tem coluna match_error — registra em log e devolve no retorno
+            print(f"[leads_webhook] match_error lead={leadgen_id}: {match_err}")
         row = {
             "leadgen_id": str(leadgen_id),
             "form_id": data.get("form_id") or val.get("form_id"),
@@ -220,4 +236,4 @@ class handler(BaseHTTPRequestHandler):
             "raw": data or val,
         }
         sb.table("meta_leads").upsert(row, on_conflict="leadgen_id").execute()
-        return 1
+        return 1, match_err

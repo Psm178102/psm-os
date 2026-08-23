@@ -1,5 +1,5 @@
 // PSM /v2 — Service Worker (offline-first cache de shell)
-const VERSION = 'v392-2026-06-27-criativos-links-card';
+const VERSION = 'v86.68-2026-08-24';
 const SHELL_CACHE = 'psm-v2-shell-' + VERSION;
 // Runtime cache versionado: ao bumpar VERSION, o activate purga o runtime antigo
 // (JS/CSS desatualizado) automaticamente, garantindo que mudanças propaguem.
@@ -9,12 +9,10 @@ const SHELL_URLS = [
   '/v2/',
   '/v2/index.html',
   '/v2/manifest.json',
-  'https://cdn.tailwindcss.com',
-  'https://unpkg.com/react@18/umd/react.production.min.js',
-  'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
-  'https://unpkg.com/@babel/standalone/babel.min.js',
+  // index.html só carrega /v2/js/main.js (ES module) + supabase pro realtime — tailwind/
+  // react/babel/chart.js NÃO são usados no shell; precachear era desperdício. Chart.js e o
+  // resto que aparecem sob demanda seguem sendo cacheados pelo runtime cache quando pedidos.
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js',
-  'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
 ];
 
 self.addEventListener('install', evt => {

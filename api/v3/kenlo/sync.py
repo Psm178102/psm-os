@@ -180,15 +180,20 @@ class handler(BaseHTTPRequestHandler):
             return self._send(502, {"ok": False, "error": str(e)[:200], "upserted": upserted})
 
         # anúncios que saíram do ar no Kenlo → ativo=false
+        # ⚠️ SÓ quando a varredura foi COMPLETA. Se o estoque tem mais que o teto de 30
+        # páginas, `vistos` está incompleto — desativar aqui apagaria da vitrine imóveis
+        # que EXISTEM (só não foram lidos). Aborta a desativação e sinaliza truncado.
+        truncado = pages > 30
         desativados = 0
-        try:
-            atuais = sb.table("kenlo_imoveis").select("id").eq("ativo", True).limit(5000).execute().data or []
-            sumidos = [r["id"] for r in atuais if r["id"] not in vistos]
-            for i in range(0, len(sumidos), 100):
-                sb.table("kenlo_imoveis").update({"ativo": False}).in_("id", sumidos[i:i + 100]).execute()
-            desativados = len(sumidos)
-        except Exception:
-            pass
+        if not truncado:
+            try:
+                atuais = sb.table("kenlo_imoveis").select("id").eq("ativo", True).limit(5000).execute().data or []
+                sumidos = [r["id"] for r in atuais if r["id"] not in vistos]
+                for i in range(0, len(sumidos), 100):
+                    sb.table("kenlo_imoveis").update({"ativo": False}).in_("id", sumidos[i:i + 100]).execute()
+                desativados = len(sumidos)
+            except Exception:
+                pass
         # snapshot do dia (série histórica pro painel de Análises — VGV ao longo do tempo)
         try:
             agora = datetime.now(timezone.utc)
@@ -217,4 +222,4 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             pass  # snapshot é bônus — nunca derruba o sync
         return self._send(200, {"ok": True, "total_kenlo": total, "upserted": upserted,
-                                "desativados": desativados, "paginas": pages})
+                                "desativados": desativados, "paginas": pages, "truncado": truncado})

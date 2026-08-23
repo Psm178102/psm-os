@@ -45,6 +45,13 @@ def _num_br(v):
         s = s.replace(".", "").replace(",", ".")     # 1.234,56 → 1234.56
     elif "," in s:
         s = s.replace(",", ".")
+    elif "." in s:
+        # só ponto: distinguir MILHAR ("1.500" = 1500) de DECIMAL ("1.5" = 1,5).
+        # Regra BR: ponto separando grupos de EXATAMENTE 3 dígitos = separador de
+        # milhar (1.500 / 1.234.567). Ponto com 1–2 dígitos depois = decimal (1.5, 12.34).
+        partes = s.split(".")
+        if len(partes) > 1 and partes[0] != "" and all(len(p) == 3 for p in partes[1:]):
+            s = s.replace(".", "")
     try:
         return float(s)
     except Exception:
@@ -118,6 +125,31 @@ class handler(BaseHTTPRequestHandler):
             rec["criado_por"] = actor.get("id")
             out.append(rec)
 
+        # substituir=true → dedupe: apaga ANTES só os contratos que ESTA planilha
+        # re-traz (mesmo código, ou mesmo endereço quando não há código). Contratos
+        # manuais que NÃO estão na planilha ficam intactos — re-import fica idempotente
+        # (sem duplicar) e nunca zera a carteira. (A tabela não tem coluna 'origem',
+        # então o marcador é a própria chave do registro: código/endereço.)
+        removidos = 0
+        substituir = bool(body.get("substituir"))
+        if substituir and out:
+            try:
+                codigos = sorted({str(r["codigo"]).strip() for r in out
+                                  if str(r.get("codigo") or "").strip()})
+                # endereço só entra no dedupe quando o registro NÃO tem código —
+                # evita apagar por um endereço genérico ("Imóvel") de fallback.
+                end_sem_cod = sorted({str(r["endereco"]).strip() for r in out
+                                      if not str(r.get("codigo") or "").strip()
+                                      and str(r.get("endereco") or "").strip()})
+                for i in range(0, len(codigos), 100):
+                    res = sb.table("locacoes").delete().in_("codigo", codigos[i:i + 100]).execute()
+                    removidos += len(res.data or [])
+                for i in range(0, len(end_sem_cod), 100):
+                    res = sb.table("locacoes").delete().in_("endereco", end_sem_cod[i:i + 100]).execute()
+                    removidos += len(res.data or [])
+            except Exception as e:
+                return self._send(500, {"ok": False, "error": "falha ao substituir: " + str(e)})
+
         inserted = 0
         try:
             for i in range(0, len(out), 200):
@@ -126,5 +158,7 @@ class handler(BaseHTTPRequestHandler):
                 inserted += len(chunk)
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e), "inserted": inserted})
-        audit(self, actor, "locacao.import", target_type="locacao", after={"inserted": inserted})
-        return self._send(200, {"ok": True, "inserted": inserted, "ignorados": ignorados, "recebidos": len(rows_in)})
+        audit(self, actor, "locacao.import", target_type="locacao",
+              after={"inserted": inserted, "substituir": substituir, "removidos": removidos})
+        return self._send(200, {"ok": True, "inserted": inserted, "ignorados": ignorados,
+                                "removidos": removidos, "substituir": substituir, "recebidos": len(rows_in)})

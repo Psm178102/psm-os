@@ -3,7 +3,7 @@ GET /api/v3/finance/summary[?company=imoveis|locacao|all]
 Header: Authorization: Bearer <token>
 
 Consolida KPIs financeiros de NIBO (multi-tenant 2 CNPJs) já agregados.
-Requer auth. Apenas Sócio/Gerente/Líder pode ver (lvl >= 5).
+Requer auth. Financeiro (lvl 4) ou acima — é a função-núcleo do cargo.
 
 Resp: {
   ok, company, fetched_at,
@@ -161,7 +161,7 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        # Auth — apenas Sócio (lvl >= 10) por enquanto (dados sensíveis)
+        # Auth — Financeiro (lvl 4) ou acima; alinhado com dre/metricas/custos_fixos
         try:
             user = require_user(self, min_lvl=4)  # Financeiro (lvl4) ou acima — é a função-núcleo do cargo
         except AuthError as e:

@@ -34,6 +34,51 @@ def _find_user_by_email(sb, email: str):
     return rows[0] if rows else None
 
 
+# ── rate-limit de login por e-mail (shared_kv, janela 15min, trava em 8 falhas) ──
+_RL_JANELA = 900     # 15 min
+_RL_MAX = 8
+
+
+def _rl_key(email: str) -> str:
+    return "login_fail:" + (email or "").strip().lower()
+
+
+def _rl_get(sb, email: str, now: float) -> dict:
+    """Retorna {n, first} da janela vigente; zera se a janela de 15min expirou. Best-effort."""
+    try:
+        rows = sb.table("shared_kv").select("value").eq("key", _rl_key(email)).limit(1).execute().data or []
+        v = rows[0]["value"] if rows else None
+        if isinstance(v, str):
+            v = json.loads(v)
+        if not isinstance(v, dict):
+            return {"n": 0, "first": now}
+        first = float(v.get("first") or now)
+        if now - first > _RL_JANELA:
+            return {"n": 0, "first": now}
+        return {"n": int(v.get("n") or 0), "first": first}
+    except Exception:
+        return {"n": 0, "first": now}
+
+
+def _rl_bump(sb, email: str, cur: dict, now: float):
+    try:
+        import datetime as _dt
+        sb.table("shared_kv").upsert({
+            "key": _rl_key(email),
+            "value": {"n": int(cur.get("n") or 0) + 1, "first": float(cur.get("first") or now), "last": now},
+            "updated_at": _dt.datetime.utcfromtimestamp(now).isoformat() + "Z",
+        }, on_conflict="key").execute()
+    except Exception as e:
+        print(f"[auth_login] falha bump rate-limit: {e}")
+
+
+def _rl_clear(sb, email: str):
+    try:
+        sb.table("shared_kv").delete().eq("key", _rl_key(email)).execute()
+    except Exception as e:
+        print(f"[auth_login] falha limpar rate-limit: {e}")
+
+
 def _record_login(sb, user_id: str, ip: str):
     """Atualiza last_login_at + last_login_ip (best effort)."""
     try:
@@ -97,8 +142,14 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível (Supabase)"})
 
-        # Pequeno delay anti-timing-attack
+        # Rate-limit: trava e-mail após 8 falhas em 15min (best-effort, não bloqueia o fluxo OK)
         t0 = time.time()
+        rl = _rl_get(sb, email, t0)
+        if rl["n"] >= _RL_MAX:
+            audit(self, None, "auth.login_blocked", target_type="user", notes=f"email={email} n={rl['n']}")
+            return self._send(429, {"ok": False,
+                                    "error": "Muitas tentativas. Aguarde 15 minutos e tente novamente."})
+
         try:
             user = _find_user_by_email(sb, email)
         except Exception as e:
@@ -106,6 +157,7 @@ class handler(BaseHTTPRequestHandler):
 
         # Mesma resposta pra "user inexistente" vs "senha errada" (não vaza email válido)
         if not user or not verify_password(password, user.get("password_hash")):
+            _rl_bump(sb, email, rl, t0)   # conta a falha na janela
             # Atrasa pra mascarar timing
             elapsed = time.time() - t0
             if elapsed < 0.3:
@@ -129,6 +181,9 @@ class handler(BaseHTTPRequestHandler):
             token, jti, exp = sign_jwt(user, user_agent=ua, ip=ip)
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"erro assinar JWT: {e}"})
+
+        # login OK → zera o contador de falhas do e-mail
+        _rl_clear(sb, email)
 
         # Atualiza last_login + grava sessão (best effort, não bloqueia)
         _record_login(sb, user["id"], ip)

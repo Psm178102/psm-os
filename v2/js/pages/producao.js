@@ -26,10 +26,13 @@ export async function pageProducao(ctx, root, modo = 'gestor') {
   _root = root;
   _modo = modo; // 'gestor' (Diretoria, 3 cards) | 'me' (colaborador, só o próprio)
   await reload();
-  // tempo real: recarrega no pulso do app + fallback 30s (para quando sai da tela)
+  // tempo real: NÃO redesenha a página inteira a cada 30s (roubava scroll/foco — o
+  // mesmo motivo da pill v86.55). Se o app expõe a pill de "novos dados", usa ela;
+  // senão faz patch só dos números dos cards, sem recriar a árvore.
   const tick = setInterval(() => {
     if (!document.getElementById('fisc-root')) { clearInterval(tick); return; }
-    reload(true);
+    if (typeof window.__psmDadosNovos === 'function') { window.__psmDadosNovos(); return; }
+    patchCards();
   }, 30000);
 }
 
@@ -195,7 +198,7 @@ function render() {
         <button class="btn btn-ghost btn-sm" id="fz-reload">↻</button>
       </div>
     </div>
-    <div class="flex mt-2" style="gap:8px;flex-wrap:wrap;align-items:stretch">
+    <div class="flex mt-2" id="fz-cards" style="gap:8px;flex-wrap:wrap;align-items:stretch">
       ${cards.map(c => cardHtml(c, unico, gestor || c.key === me)).join('')}
     </div>
     ${!cards.length ? `<div class="card muted mt-2">${_modo === 'me'
@@ -209,6 +212,12 @@ function render() {
     catch (e) { alert('❌ ' + e.message); }
     _undo = null; reload(true);
   };
+  bindCards();
+}
+
+// Liga os botões dos cards (log de evento + remover colaborador). Reaproveitado no
+// patch de números (auto-refresh) — que troca só o miolo dos cards, não a página.
+function bindCards() {
   _root.querySelectorAll('.fz-log').forEach(b => b.onclick = () => pedirLog(b.dataset.colab, b.dataset.tipo));
   // 🗑 remover colaborador do painel (só sócio) — 2 cliques pra confirmar, sem diálogo nativo.
   _root.querySelectorAll('.fz-del').forEach(b => b.onclick = async () => {
@@ -222,4 +231,18 @@ function render() {
       reload();
     } catch (e) { alert('❌ ' + e.message); }
   });
+}
+
+// Auto-refresh SEM redesenhar a página: troca só o miolo dos cards (números) e religa
+// os botões — preserva scroll/foco. Usado quando o app não expõe a pill de "novos dados".
+async function patchCards() {
+  const wrap = document.getElementById('fz-cards');
+  if (!wrap) return;
+  try {
+    _d = await api.request('/api/v3/producao/painel' + (_modo === 'me' ? '?visao=me' : ''));
+  } catch (_) { return; }
+  const me = _d.sou, gestor = _d.gestor, cards = _d.cards || [];
+  const unico = cards.length === 1;
+  wrap.innerHTML = cards.map(c => cardHtml(c, unico, gestor || c.key === me)).join('');
+  bindCards();
 }

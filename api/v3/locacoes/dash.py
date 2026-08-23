@@ -14,7 +14,16 @@ import json, os, sys
 from datetime import date, datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, hoje_brt  # type: ignore
+
+ATIVOS_STATUS = ("ocupado", "em_atraso", "em_renovacao")
+
+
+def _is_ativo(r, tISO):
+    if (r.get("status") or "") not in ATIVOS_STATUS:
+        return False
+    fim = r.get("data_fim_contrato")
+    return (not fim) or str(fim)[:10] >= tISO
 
 
 def _f(v):
@@ -53,35 +62,44 @@ class handler(BaseHTTPRequestHandler):
 
         # ── carteira administrada ─────────────────────────────────────────
         try:
-            rows = sb.table("locacoes").select("*").order("data_fim_contrato").limit(500).execute().data or []
+            rows, page, size = [], 0, 1000
+            while page < 20:   # range paginado (não trava em 500)
+                chunk = sb.table("locacoes").select("*").order("data_fim_contrato") \
+                    .range(page * size, page * size + size - 1).execute().data or []
+                rows.extend(chunk)
+                if len(chunk) < size:
+                    break
+                page += 1
         except Exception:
             rows = []
-        hoje = date.today()
+        hoje = hoje_brt()
         t = hoje.isoformat()
         lim = {d: (hoje + timedelta(days=d)).isoformat() for d in (30, 60, 90)}
+        ativos = [r for r in rows if _is_ativo(r, t)]   # carteira vigente (gera receita)
         ocup = [r for r in rows if (r.get("status") or "") == "ocupado"]
-        aluguel = sum(_f(r.get("valor_aluguel")) for r in ocup)
-        adm = sum(_f(r.get("valor_aluguel")) * _f(r.get("taxa_adm_pct")) / 100 for r in ocup)
+        aluguel = sum(_f(r.get("valor_aluguel")) for r in ativos)
+        adm = sum(_f(r.get("valor_aluguel")) * _f(r.get("taxa_adm_pct")) / 100 for r in ativos)
         status_count = {}
         for r in rows:
             s = r.get("status") or "?"
             status_count[s] = status_count.get(s, 0) + 1
+        # vencimentos/renovações só de contratos ATIVOS
         vencendo = [
             {"endereco": (r.get("endereco") or r.get("imovel") or r.get("titulo") or "?"),
              "inquilino": r.get("inquilino") or "", "fim": r.get("data_fim_contrato"),
              "aluguel": _f(r.get("valor_aluguel")), "status": r.get("status")}
-            for r in rows
-            if r.get("data_fim_contrato") and t <= str(r.get("data_fim_contrato")) <= lim[90]
+            for r in ativos
+            if r.get("data_fim_contrato") and t <= str(r.get("data_fim_contrato"))[:10] <= lim[90]
         ][:10]
         carteira = {
-            "total": len(rows), "ocupadas": len(ocup),
+            "total": len(rows), "ativos": len(ativos), "ocupadas": len(ocup),
             "status": status_count,
             "aluguel_mes": aluguel, "receita_adm_mes": adm,
-            "taxa_adm_media": (sum(_f(r.get("taxa_adm_pct")) for r in ocup) / len(ocup)) if ocup else 0,
-            "ticket_medio": (aluguel / len(ocup)) if ocup else 0,
-            "vence_30": sum(1 for r in rows if r.get("data_fim_contrato") and t <= str(r["data_fim_contrato"]) <= lim[30]),
-            "vence_60": sum(1 for r in rows if r.get("data_fim_contrato") and t <= str(r["data_fim_contrato"]) <= lim[60]),
-            "vence_90": sum(1 for r in rows if r.get("data_fim_contrato") and t <= str(r["data_fim_contrato"]) <= lim[90]),
+            "taxa_adm_media": (sum(_f(r.get("taxa_adm_pct")) for r in ativos) / len(ativos)) if ativos else 0,
+            "ticket_medio": (aluguel / len(ativos)) if ativos else 0,
+            "vence_30": sum(1 for r in ativos if r.get("data_fim_contrato") and t <= str(r["data_fim_contrato"])[:10] <= lim[30]),
+            "vence_60": sum(1 for r in ativos if r.get("data_fim_contrato") and t <= str(r["data_fim_contrato"])[:10] <= lim[60]),
+            "vence_90": sum(1 for r in ativos if r.get("data_fim_contrato") and t <= str(r["data_fim_contrato"])[:10] <= lim[90]),
             "vencendo": vencendo,
         }
 

@@ -78,7 +78,8 @@ function render() {
 function itemCard(i, canEdit) {
   const status = STATUS.find(s => s.id === i.status) || STATUS[0];
   const resp = _users.find(u => u.id === i.responsavel_id);
-  const fim = i.data_fim_contrato ? new Date(i.data_fim_contrato) : null;
+  // parse ao meio-dia local — sem isso o fim do contrato "pula" 1 dia no fuso -3
+  const fim = i.data_fim_contrato ? new Date(String(i.data_fim_contrato).slice(0, 10) + 'T12:00:00') : null;
   const today = new Date();
   const venceEm = fim ? Math.round((fim - today) / 86400000) : null;
   return `

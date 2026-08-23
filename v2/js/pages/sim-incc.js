@@ -25,8 +25,15 @@ function compute() {
   const entrada = v.valorTotal * v.pctEntrada / 100;
   const totalMensais = v.valorTotal * v.pctMensais / 100;
   const mensal = v.prazoMeses > 0 ? totalMensais / v.prazoMeses : 0;
-  const anual = v.numAnuais > 0 ? (v.valorTotal * v.pctAnuais / 100) / v.numAnuais : 0;
-  const semestral = v.numSemestrais > 0 ? (v.valorTotal * v.pctSemestrais / 100) / v.numSemestrais : 0;
+  // anuais/semestrais só existem DURANTE a obra (i <= prazoMeses); as que não cabem
+  // são aparadas e o valor é redistribuído nas que restam (preserva o total).
+  const nAnuaisPedido = Math.max(0, Math.round(v.numAnuais || 0));
+  const nAnuais = Math.min(nAnuaisPedido, Math.floor(v.prazoMeses / 12));
+  const anual = nAnuais > 0 ? (v.valorTotal * v.pctAnuais / 100) / nAnuais : 0;
+  const nSemestraisPedido = Math.max(0, Math.round(v.numSemestrais || 0));
+  const nSemestrais = Math.min(nSemestraisPedido, Math.floor(v.prazoMeses / 6));
+  const semestral = nSemestrais > 0 ? (v.valorTotal * v.pctSemestrais / 100) / nSemestrais : 0;
+  const parcelasAparadas = (nAnuaisPedido - nAnuais) + (nSemestraisPedido - nSemestrais);
   const financ = v.valorTotal * v.pctFinanc / 100;
 
   // Aplica INCC mensal cumulativo nos pagamentos durante a obra
@@ -34,14 +41,14 @@ function compute() {
   for (let i = 1; i <= v.prazoMeses; i++) {
     const fator = Math.pow(1 + inccM, i);
     totalCorrigido += mensal * fator;
-    if (i % 12 === 0 && i / 12 <= v.numAnuais) totalCorrigido += anual * fator;
-    if (v.numSemestrais > 0 && i % 6 === 0 && i / 6 <= v.numSemestrais) totalCorrigido += semestral * fator;
+    if (i % 12 === 0 && i / 12 <= nAnuais) totalCorrigido += anual * fator;
+    if (nSemestrais > 0 && i % 6 === 0 && i / 6 <= nSemestrais) totalCorrigido += semestral * fator;
   }
   totalCorrigido += financ * Math.pow(1 + inccM, v.prazoMeses);
   const correcaoTotal = totalCorrigido - v.valorTotal;
-  const pctCorrecao = ((correcaoTotal / v.valorTotal) * 100).toFixed(2);
+  const pctCorrecao = v.valorTotal > 0 ? ((correcaoTotal / v.valorTotal) * 100).toFixed(2) : '0.00';
 
-  return { inccM, entrada, mensal, anual, semestral, financ, totalCorrigido, correcaoTotal, pctCorrecao };
+  return { inccM, entrada, mensal, anual, semestral, financ, totalCorrigido, correcaoTotal, pctCorrecao, parcelasAparadas, nAnuais, nSemestrais };
 }
 
 function render() {
@@ -82,6 +89,7 @@ function render() {
               ${mini('Financ./Chaves', fmt(c.financ), _s.pctFinanc + '%')}
               ${mini('Valor sem correção', fmt(_s.valorTotal), 'tabela')}
             </div>
+            ${c.parcelasAparadas > 0 ? `<div class="tiny" style="color:#d97706;margin-top:8px">⚠️ ${c.parcelasAparadas} parcela(s) anual/semestral aparada(s) — não cabem no prazo de obra (${_s.prazoMeses} meses).</div>` : ''}
           </div>
 
           <div class="alert" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);margin-top:14px;padding:12px;border-radius:8px">

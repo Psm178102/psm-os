@@ -97,13 +97,18 @@ def _build_clientes(sb):
         if not c:
             c = by_key[k] = {"key": k, "nome": nome, "ltv": 0.0, "n_negocios": 0,
                              "ultima_compra": None, "cat_rd": categoria_de(d.get("pipeline_name")),
-                             "corretor": d.get("user_email")}
-        c["ltv"] += _money(d.get("amount"))
+                             "corretor": d.get("user_email"), "ltv_por_cat": {}}
+        amt = _money(d.get("amount"))
+        c["ltv"] += amt
         c["n_negocios"] += 1
+        # LTV atribuído à categoria DO PRÓPRIO DEAL (não à do negócio mais recente):
+        # um cliente que comprou em Conquista e depois alugou pela Locação soma em AMBAS.
+        cat_deal = categoria_de(d.get("pipeline_name"))
+        c["ltv_por_cat"][cat_deal] = c["ltv_por_cat"].get(cat_deal, 0.0) + amt
         cl = d.get("closed_at")
         if cl and (not c["ultima_compra"] or cl > c["ultima_compra"]):
             c["ultima_compra"] = cl
-            c["cat_rd"] = categoria_de(d.get("pipeline_name"))  # categoria do negócio mais recente
+            c["cat_rd"] = cat_deal  # categoria do negócio mais recente (só p/ rótulo primário)
 
     clientes = []
     for k, c in by_key.items():
@@ -112,34 +117,49 @@ def _build_clientes(sb):
         status = e.get("status") or "ativo"
         score = e.get("score")
         clientes.append({
-            **c, "ltv": round(c["ltv"], 2), "categoria": categoria, "status": status,
+            **c, "ltv": round(c["ltv"], 2),
+            "ltv_por_cat": {cat: round(v, 2) for cat, v in (c.get("ltv_por_cat") or {}).items()},
+            "categoria": categoria, "status": status,
             "score": score, "satisfacao": e.get("satisfacao"),
             "proxima_renovacao": e.get("proxima_renovacao"), "obs": e.get("obs"),
             "enriquecido": bool(e),
+            # só quem teve o status DEFINIDO no enriquecimento entra no denominador de churn/retenção
+            "tem_status": bool(e.get("status")),
         })
     clientes.sort(key=lambda x: -x["ltv"])
     return clientes
 
 
 def _metrics(clientes):
-    def agg(lst):
+    def agg(lst, ltv_of=lambda c: c["ltv"]):
         n = len(lst)
-        churn = sum(1 for c in lst if c["status"] == "churn")
-        renov = sum(1 for c in lst if c["status"] == "renovado")
-        risco = sum(1 for c in lst if c["status"] == "em_risco")
-        ativos = sum(1 for c in lst if c["status"] in ("ativo", "renovado"))
-        ltv_total = round(sum(c["ltv"] for c in lst), 2)
-        scores = [c["score"] for c in lst if isinstance(c["score"], (int, float))]
+        # churn/retenção medidos SÓ sobre quem tem status definido (cliente enriquecido) —
+        # senão o default "ativo" dos não-enriquecidos infla a retenção artificialmente.
+        base = [c for c in lst if c.get("tem_status")]
+        nb = len(base)
+        churn = sum(1 for c in base if c["status"] == "churn")
+        renov = sum(1 for c in base if c["status"] == "renovado")
+        risco = sum(1 for c in base if c["status"] == "em_risco")
+        ativos = sum(1 for c in base if c["status"] in ("ativo", "renovado"))
+        ltv_total = round(sum(ltv_of(c) for c in lst), 2)
+        scores = [c["score"] for c in base if isinstance(c["score"], (int, float))]
         return {
-            "clientes": n, "ativos": ativos, "em_risco": risco, "churn": churn, "renovados": renov,
-            "churn_pct": round(churn / n * 100, 1) if n else 0,
-            "retencao_pct": round((n - churn) / n * 100, 1) if n else 0,
+            "clientes": n, "enriquecidos": nb,
+            "ativos": ativos, "em_risco": risco, "churn": churn, "renovados": renov,
+            "churn_pct": round(churn / nb * 100, 1) if nb else 0,
+            "retencao_pct": round((nb - churn) / nb * 100, 1) if nb else 0,
             "ltv_total": ltv_total, "ltv_medio": round(ltv_total / n, 2) if n else 0,
             "score_medio": round(sum(scores) / len(scores), 1) if scores else None,
         }
     geral = agg(clientes)
-    por_cat = {cat: agg([c for c in clientes if c["categoria"] == cat]) for cat in CATEGORIAS}
-    por_cat = {k: v for k, v in por_cat.items() if v["clientes"] > 0}
+    # por categoria: o grupo é quem FEZ negócio naquela categoria (tem LTV de deal lá);
+    # o LTV somado é o do deal daquela categoria — um cliente pode aparecer em mais de uma.
+    por_cat = {}
+    for cat in CATEGORIAS:
+        grp = [c for c in clientes if (c.get("ltv_por_cat") or {}).get(cat, 0) > 0]
+        if not grp:
+            continue
+        por_cat[cat] = agg(grp, ltv_of=lambda c, _cat=cat: (c.get("ltv_por_cat") or {}).get(_cat, 0))
     return {"geral": geral, "por_categoria": por_cat}
 
 

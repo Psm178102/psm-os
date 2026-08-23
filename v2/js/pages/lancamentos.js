@@ -1,6 +1,10 @@
 /* PSM-OS v2 — Lançamentos (Sprint 7.21) */
-import { api, selectableUsers } from '../api.js';
+import { api, selectableUsers, fmtDataBR } from '../api.js';
 import { auth } from '../auth.js';
+
+// Parseia YYYY-MM-DD ao MEIO-DIA local — sem isso `new Date('2026-08-01')` vira UTC
+// e cai em 31/07 no fuso -3 (o dia 1º aparecia no mês anterior na linha do tempo).
+const parseD = iso => new Date(String(iso).slice(0, 10) + 'T12:00:00');
 
 const STATUS = [
   { id: 'ativo',      lbl: 'Ativo',      color: '#16a34a' },
@@ -150,16 +154,16 @@ function timeline2026(canEdit) {
   const lanes = MARCAS.map(mc => {
     // lançamentos dessa marca no ano
     const dos = _items.filter(i => normMarca(i.marca) === mc.id && i.data_lancamento
-      && new Date(i.data_lancamento).getFullYear() === _tlYear);
+      && parseD(i.data_lancamento).getFullYear() === _tlYear);
     const vgv = dos.reduce((s, i) => s + Number(i.vgv_total || 0), 0);
     const laneCell = `<div class="tl-lane">
         <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:${mc.color}"></span>${mc.lbl}</span>
         <span class="tiny muted" style="font-weight:600">${dos.length} · R$ ${money(vgv)}</span>
       </div>`;
     const cells = MESES.map((_, m) => {
-      const inMonth = dos.filter(i => new Date(i.data_lancamento).getMonth() === m);
+      const inMonth = dos.filter(i => parseD(i.data_lancamento).getMonth() === m);
       const chips = inMonth.map(i => {
-        const real = new Date(i.data_lancamento) <= today;
+        const real = parseD(i.data_lancamento) <= today;
         const t = i.vgv_total > 0 ? ` · ${money(i.vgv_total)}` : '';
         return `<span class="tl-chip ${real ? 'real' : 'prev'}" style="--c:${mc.color}" data-lc="${i.id}" title="${esc(i.nome)}${t}">${esc(i.nome)}</span>`;
       }).join('');
@@ -177,12 +181,12 @@ function timeline2026(canEdit) {
 // Ordena por data (lançamentos com data primeiro, cronológico) e agrupa por mês/ano
 function timelineHTML(canEdit) {
   const withDate = _items.filter(i => i.data_lancamento).slice()
-    .sort((a, b) => new Date(a.data_lancamento) - new Date(b.data_lancamento));
+    .sort((a, b) => parseD(a.data_lancamento) - parseD(b.data_lancamento));
   const noDate = _items.filter(i => !i.data_lancamento);
   const groups = [];
   let curKey = null, curArr = null;
   for (const i of withDate) {
-    const d = new Date(i.data_lancamento);
+    const d = parseD(i.data_lancamento);
     const key = d.getFullYear() + '-' + d.getMonth();
     if (key !== curKey) { curKey = key; curArr = { label: monthLabel(d), items: [] }; groups.push(curArr); }
     curArr.items.push(i);
@@ -200,7 +204,7 @@ function launchRow(i, canEdit) {
   const etapaIdx = ETAPAS.findIndex(e => e.id === (i.etapa || 'lancamento'));
   const resp = _users.find(u => u.id === i.responsavel_id);
   const pct = i.unidades_total > 0 ? i.unidades_vendidas / i.unidades_total * 100 : 0;
-  const data = i.data_lancamento ? new Date(i.data_lancamento).toLocaleDateString('pt-BR') : '—';
+  const data = i.data_lancamento ? fmtDataBR(i.data_lancamento) : '—';
   const stepper = ETAPAS.map((e, idx) =>
     `<span class="st${idx <= etapaIdx ? ' on' : ''}" style="--c:${status.color}">${e.ico} ${e.lbl}</span>`
   ).join('<span class="sep">›</span>');

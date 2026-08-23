@@ -22,11 +22,13 @@ from calc import calcular, _cfg  # type: ignore
 
 
 def _match(user, termo):
-    """O login bate com o 'apelido' configurado (ex.: 'leire', 'mariane')?"""
+    """O usuário logado É a pessoa configurada? Igualdade EXATA de e-mail (lower)
+    OU id — nunca substring: 'mariane' NÃO pode casar o corretor 'Mariane X' e
+    puxar a comissão dela (o *_user_match no cfg deve ser o e-mail ou o id)."""
     t = (termo or "").strip().lower()
     if not t:
         return False
-    return t in (user.get("email") or "").lower() or t in (user.get("name") or "").lower()
+    return t == (user.get("email") or "").strip().lower() or t == str(user.get("id") or "").strip().lower()
 
 
 def _meu(lista, uid, email):

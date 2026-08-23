@@ -25,7 +25,9 @@ function compute() {
   const totalAtualizado = r.valorPago + r.saldoDevedor;
   const totalMensais = r.numMensais * r.valorMensais;
   const totalBaloes = r.numBaloes * r.valorBaloes;
-  const saldoEntrega = r.saldoDevedor + totalMensais + totalBaloes;
+  // O saldo devedor JÁ é tudo que falta pagar até as chaves (mensais + balões inclusos).
+  // Somar mensais+balões de novo dobrava a conta — saldo na entrega = próprio saldo devedor.
+  const saldoEntrega = r.saldoDevedor;
   const entradaComprador = r.novoValor - r.saldoDevedor;
   const comissao = r.novoValor * r.comissaoPct / 100;
   // Lucro do vendedor = o que recebe (entrada) − o que já desembolsou (valorPago) − comissão.

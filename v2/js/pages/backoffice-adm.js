@@ -7,6 +7,15 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 const EP = '/api/v3/adm/registros';
+
+// Item "para repor" só quando a quantidade atual FOI PREENCHIDA e está no/abaixo do mínimo.
+// qtd_atual vazio = não controlado → NÃO dispara alerta (antes Number('')=0 acusava tudo).
+const estoqueBaixo = e => {
+  const q = e && e.qtd_atual;
+  if (q === '' || q == null) return false;
+  const n = Number(q);
+  return Number.isFinite(n) && n <= Number(e.qtd_minima || 0);
+};
 const CAT_COMPRA = ['Água & copa', 'Limpeza', 'Escritório / papelaria', 'Equipamentos', 'TI / informática', 'Mobiliário', 'Marketing / brindes', 'Manutenção predial', 'Outro'];
 const UNIDADES = ['un', 'cx', 'pct', 'fardo', 'L', 'kg', 'm', 'par'];
 const URGENCIA = ['Baixa', 'Média', 'Alta', 'Urgente'];
@@ -70,7 +79,7 @@ export async function pageCompras(ctx, root) {
 }
 function renderCompras(root) {
   const c = _adm.compras, est = _adm.estoque;
-  const baixo = est.filter(e => Number(e.qtd_atual) <= Number(e.qtd_minima || 0)).length;
+  const baixo = est.filter(estoqueBaixo).length;
   const abertas = c.filter(x => !['recebido', 'cancelado'].includes(x.status)).length;
   root.innerHTML = `
     <div class="card">
@@ -142,7 +151,7 @@ function renderEstoque(body, root) {
     <div class="mt-3" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:620px">
       <thead><tr style="background:var(--bg-3)"><th style="text-align:left;padding:8px">Item</th><th style="padding:8px">Atual</th><th style="padding:8px">Mín.</th><th style="text-align:left;padding:8px">Local</th><th style="text-align:left;padding:8px">Responsável</th><th></th></tr></thead>
       <tbody>${est.length ? est.map(e => {
-        const low = Number(e.qtd_atual) <= Number(e.qtd_minima || 0);
+        const low = estoqueBaixo(e);
         return `<tr style="border-bottom:1px solid var(--bd)${low ? ';background:#fef2f2' : ''}">
           <td style="padding:8px"><b>${esc(e.item || '—')}</b> <span class="tiny muted">${esc(e.categoria || '')}</span>${low ? ' <span class="tiny" style="color:#ef4444;font-weight:800">⚠ REPOR</span>' : ''}</td>
           <td style="padding:8px;text-align:center;font-weight:700">${esc(e.qtd_atual || 0)} ${esc(e.unidade || '')}</td>

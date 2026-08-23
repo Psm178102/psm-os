@@ -453,11 +453,12 @@ function wireConfig() {
       const inp = _root.querySelector(`.cf-taxa[data-o="${o.id}"]`);
       return { ...o, taxa: inp ? Number(inp.value) : o.taxa };
     });
+    // default só quando o campo está vazio/NaN — um 0 DIGITADO é intencional (não vira 850000/1,9)
+    const numOr = (sel, def) => { const raw = ($(sel)?.value ?? '').trim(); const n = Number(raw); return (raw === '' || isNaN(n)) ? def : n; };
     const cfg = {
-      taxa_estagiario: Number($('#cf-estag').value) || _d.cfg.taxa_estagiario,
+      taxa_estagiario: numOr('#cf-estag', _d.cfg.taxa_estagiario),
       origens,
-      acelerador: { ...(_d.cfg.acelerador || {}), vgv_min: Number($('#cf-acmin').value) || 850000, taxa: Number($('#cf-actaxa').value) || 1.9 },
-      mariane_valor_indicacao: Number($('#cf-mari').value) || 0,
+      acelerador: { ...(_d.cfg.acelerador || {}), vgv_min: numOr('#cf-acmin', 850000), taxa: numOr('#cf-actaxa', 1.9) },
     };
     const r = await post({ action: 'set_cfg', cfg }, '💾 Regras atualizadas.'); if (r) reload();
   };

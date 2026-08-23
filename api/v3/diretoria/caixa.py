@@ -27,11 +27,12 @@ import urllib.request
 from datetime import datetime, timezone, timedelta, date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, hoje_brt, agora_brt  # type: ignore
 from viab import (  # type: ignore
     read_kv, write_kv, orc_for, custo_fixo_mes, compute_snapshot, fontes_auto_ano,
-    realizado_ano, LINHAS, LINHA_IDS,
+    realizado_ano, LINHAS, LINHA_IDS, TRAFEGO_CATS,
 )
+import calendar
 
 KV_CAIXA = "caixa_posicao"
 KV_HUB_FIN = "psmhub_financeiro_cache"   # MESMO cache da ponte psmhub/financeiro (10min)
@@ -75,7 +76,8 @@ def hub_financeiro(sb):
 
 
 def _hoje():
-    return (datetime.now(timezone.utc) - timedelta(hours=3)).date()
+    # fonte única do "hoje" do negócio (Brasil, UTC-3)
+    return hoje_brt()
 
 
 def _num(v, d=0.0):
@@ -83,6 +85,23 @@ def _num(v, d=0.0):
         return float(v)
     except (TypeError, ValueError):
         return d
+
+
+def _is_trafego(it):
+    """Item de tráfego pago? (categoria/linha == TRAFEGO_CATS ou começa com 'traf')
+    — usado pra NÃO dobrar o tráfego, que já entra pelo Meta Ads real (meta_mkt)."""
+    for k in ("cat", "categoria", "linha"):
+        v = str(it.get(k) or "").strip().lower()
+        if v in TRAFEGO_CATS or v.startswith("traf"):
+            return True
+    return False
+
+
+def _add_meses(d, k):
+    """Soma k meses de CALENDÁRIO a uma data (preserva o dia quando o mês comporta)."""
+    y = d.year + (d.month - 1 + k) // 12
+    m = (d.month - 1 + k) % 12 + 1
+    return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
 
 
 class handler(BaseHTTPRequestHandler):
@@ -189,10 +208,11 @@ class handler(BaseHTTPRequestHandler):
         if hub_err:
             avisos.append(f"PSM HUB financeiro indisponível ({hub_err}) — fluxo fica com Radar + custo orçado")
         hub_fin = hub_fin or []
-        hub_parcelas = []                      # (data, entra_liquido, sai_comissao)
+        hub_parcelas = []                      # dicts {dt, ent, com, presumido}
         hub_sem_agenda = []
+        hub_presumidas_n = 0
         hub_mes = {"vendas": 0, "vgv": 0.0, "liquido": 0.0, "com_corretor": 0.0, "com_gestor": 0.0}
-        corte_atraso = hoje - timedelta(days=45)   # parcela vencida há +45d = presumida liquidada
+        corte_atraso = hoje - timedelta(days=45)   # parcela vencida há +45d = presumida liquidada (some do fluxo)
         for vd in hub_fin:
             liq = _num(vd.get("valorLiquido")) or _num(vd.get("valorBruto"))
             com = _num(vd.get("comissaoCorretor")) + _num(vd.get("comissaoGestor"))
@@ -219,14 +239,24 @@ class handler(BaseHTTPRequestHandler):
                                            "venda": vd.get("dataVenda")})
                 continue
             for k in range(n_par):
-                dt_k = d1 + timedelta(days=30 * k)
-                if dt_k >= corte_atraso:
-                    hub_parcelas.append((dt_k, liq / n_par, com / n_par))
+                dt_k = _add_meses(d1, k)   # vencimento por mês de CALENDÁRIO (não 30*k dias)
+                if dt_k < corte_atraso:
+                    continue
+                # parcela vencida entre (hoje-45d) e hoje: PRESUMIDA como entrada,
+                # mas sem confirmação de pagamento → flag pra não tratar como recebido de fato.
+                presumido = dt_k < hoje
+                if presumido:
+                    hub_presumidas_n += 1
+                hub_parcelas.append({"dt": dt_k, "ent": liq / n_par,
+                                     "com": com / n_par, "presumido": presumido})
         for k in ("vgv", "liquido", "com_corretor", "com_gestor"):
             hub_mes[k] = round(hub_mes[k], 2)
         if hub_sem_agenda:
             avisos.append(f"{len(hub_sem_agenda)} venda(s) do HUB sem data de parcela — "
                           "R$ fora do fluxo semanal até agendar lá")
+        if hub_presumidas_n:
+            avisos.append(f"{hub_presumidas_n} parcela(s) do HUB vencida(s) há até 45d entram como "
+                          "PRESUMIDAS (sem confirmação de pagamento) — previsto, não recebido de fato")
 
         # ── 4) FLUXO SEMANAL (10 semanas a partir da segunda desta semana) ──
         # Conquista entra pelo HUB (valor exato); Radar cobre as outras frentes.
@@ -237,6 +267,9 @@ class handler(BaseHTTPRequestHandler):
                           "Radar e entram pelos valores EXATOS do HUB (sem dupla contagem)")
         custos_orc = read_kv(sb, "viab_custos_orcado")
         itens_orc = (custos_orc.get(str(ano)) or {}).get("itens") or []
+        # Tráfego pago sai do custo FIXO porque já entra pelo Meta Ads real (meta_mkt)
+        # no break-even, e pra não dobrar o desembolso no fluxo semanal (v86.11+).
+        itens_orc_sem_traf = [it for it in itens_orc if not _is_trafego(it)]
         seg0 = hoje - timedelta(days=hoje.weekday())
         pos = read_kv(sb, KV_CAIXA) or {}
         caixa_ini = _num(pos.get("valor"), None)
@@ -267,12 +300,15 @@ class handler(BaseHTTPRequestHandler):
                     entra_prev += val
                 sai_com += comissao_de(r)
             # parcelas do HUB desta semana (líquido entra, comissão exata sai junto)
-            entra_hub = sai_hub = 0.0
-            for dt_k, ent_k, com_k in hub_parcelas:
+            entra_hub = sai_hub = entra_hub_presum = 0.0
+            for par in hub_parcelas:
+                dt_k = par["dt"]
                 if (ini <= dt_k <= fim) or (w == 0 and dt_k < ini):
-                    entra_hub += ent_k
-                    sai_hub += com_k
-            sai_fixo = custo_fixo_mes(itens_orc, ini.month) / 4.33
+                    entra_hub += par["ent"]
+                    sai_hub += par["com"]
+                    if par["presumido"]:
+                        entra_hub_presum += par["ent"]
+            sai_fixo = custo_fixo_mes(itens_orc_sem_traf, ini.month) / 4.33
             entra = entra_conf + entra_prev + entra_trav + entra_hub
             sai = sai_fixo + sai_com + sai_hub
             acum_fluxo += (entra_conf + entra_prev + entra_hub) - sai   # travado NÃO conta (realista)
@@ -281,6 +317,7 @@ class handler(BaseHTTPRequestHandler):
             semanas.append({"ini": ini.isoformat(), "fim": fim.isoformat(),
                             "entra_confirmado": round(entra_conf, 2), "entra_previsto": round(entra_prev, 2),
                             "entra_travado": round(entra_trav, 2), "entra_hub": round(entra_hub, 2),
+                            "entra_hub_presumido": round(entra_hub_presum, 2),
                             "entra_total": round(entra, 2),
                             "sai_fixo": round(sai_fixo, 2), "sai_comissao": round(sai_com + sai_hub, 2),
                             "sai_total": round(sai, 2), "base_pagar": "orcado+hub",
@@ -300,7 +337,8 @@ class handler(BaseHTTPRequestHandler):
 
         # ── 5) BREAK-EVEN (meta mínima do mês) ──
         fa = fontes_auto.get(str(mes)) or {}
-        custo_mes = custo_fixo_mes(itens_orc, mes) + _num(fa.get("meta_mkt")) + _num(fa.get("nibo_fixo"))
+        # custo fixo SEM tráfego + tráfego real (meta_mkt) — evita dobrar o tráfego
+        custo_mes = custo_fixo_mes(itens_orc_sem_traf, mes) + _num(fa.get("meta_mkt")) + _num(fa.get("nibo_fixo"))
         margens, pesos, tickets = {}, {}, {}
         real_ano = realizado_ano(sb, ano)
         peso_total = 0.0
@@ -361,6 +399,7 @@ class handler(BaseHTTPRequestHandler):
                       "hub": {"ok": hub_ok, "vendas_total": len(hub_fin),
                               "mes": hub_mes if hub_ok else None,
                               "parcelas_futuras": len(hub_parcelas),
+                              "parcelas_presumidas": hub_presumidas_n,
                               "sem_agenda": hub_sem_agenda[:10],
                               "sem_agenda_n": len(hub_sem_agenda)},
                       "recebiveis_resumo": {

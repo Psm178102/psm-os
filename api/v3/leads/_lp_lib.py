@@ -204,15 +204,20 @@ def paridade_janela(sb, ini_h, fim_h):
     detectar 'RD sem House' depende do RD marcar a origem — limitação declarada."""
     now = datetime.now(timezone.utc)
     try:
-        rows = (sb.table("leads_lp").select("id,nome,whatsapp,ts_recebido,rd_deal_ref,nutricao")
+        rows = (sb.table("leads_lp").select("id,nome,whatsapp,ts_recebido,rd_deal_ref,nutricao,faixa_renda")
                 .gte("ts_recebido", (now - timedelta(hours=ini_h)).isoformat())
                 .lte("ts_recebido", (now - timedelta(hours=fim_h)).isoformat())
                 .limit(1000).execute().data or [])
     except Exception:
         rows = []
-    tot = len(rows)
-    casados = sum(1 for r in rows if r.get("rd_deal_ref"))
+    # nutrição (flag nutricao OU faixa ATE_2250) NÃO entra no denominador de paridade —
+    # esses leads não são enviados ao RD por design, então nunca "casariam".
+    elegiveis = [r for r in rows if not r.get("nutricao")
+                 and str(r.get("faixa_renda") or "").upper() != FAIXA_NUTRICAO]
+    tot = len(elegiveis)
+    casados = sum(1 for r in elegiveis if r.get("rd_deal_ref"))
     return {"total": tot, "casados": casados,
             "pct": round(100.0 * casados / tot, 1) if tot else None,
+            "nutricao_excluidos": len(rows) - tot,
             "sem_rd": [{"nome": r.get("nome"), "whatsapp": r.get("whatsapp"),
-                        "ts": r.get("ts_recebido")} for r in rows if not r.get("rd_deal_ref")][:20]}
+                        "ts": r.get("ts_recebido")} for r in elegiveis if not r.get("rd_deal_ref")][:20]}

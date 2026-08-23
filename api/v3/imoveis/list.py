@@ -49,12 +49,18 @@ class handler(BaseHTTPRequestHandler):
                 if kenlo and kenlo in codigos_manuais:
                     continue  # já existe como imóvel manual — não duplica
                 nome = c.get("nome_imovel") or c.get("condominio") or "Imóvel captado"
+                # captação 'concluido' = já publicada no Kenlo → NÃO fica "disponivel" pra sempre
+                # no inventário (o estoque Kenlo passa a ser a fonte). Vira 'publicado' e sai
+                # da contagem de disponíveis / do VGV disponível.
+                etapa = c.get("status")
                 cap_rows.append({
                     "id": "cap_" + str(c.get("id")), "codigo": kenlo or nome, "titulo": nome,
-                    "status": "disponivel", "origem": "terceiros", "fonte": "captacao",
-                    "etapa_captacao": c.get("status"), "tipo": c.get("tipo_imovel"),
+                    "status": "publicado" if etapa == "concluido" else "disponivel",
+                    "origem": "terceiros", "fonte": "captacao",
+                    "etapa_captacao": etapa, "tipo": c.get("tipo_imovel"),
                     "objetivo": c.get("objetivo"),
                     "valor": c.get("valor_venda") or c.get("valor_locacao") or 0,
+                    "valor_venda": c.get("valor_venda"), "aluguel_mensal": c.get("valor_locacao"),
                     "endereco": c.get("endereco"), "bairro": c.get("bairro"),
                     "condominio": c.get("condominio"), "link_fotos": c.get("link_fotos"),
                     "link_videos": c.get("link_videos"), "proprietario": c.get("proprietario"),
@@ -69,10 +75,27 @@ class handler(BaseHTTPRequestHandler):
             cap_rows = []  # captações indisponíveis → segue só com imóveis manuais
 
         rows = rows + cap_rows
+
+        def _n(x):
+            try: return float(x or 0)
+            except (TypeError, ValueError): return 0.0
+        # imóvel manual: 'valor' = preço de VENDA (sem chave valor_venda). Captação carrega
+        # valor_venda + aluguel_mensal explícitos — aí NÃO cai no 'valor' (que p/ locação-só
+        # seria o aluguel) e o aluguel nunca é somado como valor de imóvel.
+        def _venda(r):
+            return _n(r.get("valor_venda")) if "valor_venda" in r else _n(r.get("valor"))
+        def _aluguel(r):
+            return _n(r.get("aluguel_mensal")) if "aluguel_mensal" in r else _n(r.get("valor_locacao"))
+        disp = [r for r in rows if (r.get("status") or "") == "disponivel"]
+        vgv_venda = sum(_venda(r) for r in disp)
+        aluguel_mensal = sum(_aluguel(r) for r in disp)
         kpis = {
             "total": len(rows),
-            "disponiveis": sum(1 for r in rows if (r.get("status") or "") == "disponivel"),
-            "valor_total": sum(float(r.get("valor") or 0) for r in rows if (r.get("status") or "") == "disponivel"),
+            "disponiveis": len(disp),
+            # ⚠️ NÃO somar aluguel mensal como valor de imóvel — VGV de venda e aluguel são grandezas distintas
+            "vgv_venda": vgv_venda,
+            "aluguel_mensal": aluguel_mensal,
+            "valor_total": vgv_venda,   # compat: agora = VGV de venda (sem misturar aluguel)
             "proprios": sum(1 for r in rows if (r.get("origem") or "") == "proprio"),
             "terceiros": sum(1 for r in rows if (r.get("origem") or "") == "terceiros"),
             "de_captacao": sum(1 for r in rows if r.get("fonte") == "captacao"),

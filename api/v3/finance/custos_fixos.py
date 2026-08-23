@@ -6,11 +6,12 @@ Filtra NIBO schedules/debit em categorias clássicas de custo fixo
 (folha, software, aluguel, contabilidade, internet, energia, telefone,
 limpeza, marketing, manutenção). Agrupa por categoria + por mês.
 
-Requer Líder (lvl >= 5).
+Requer Financeiro (lvl >= 4) — alinhado com summary/dre/metricas.
 """
 from http.server import BaseHTTPRequestHandler
 import json
 import os
+import re
 import sys
 import urllib.parse
 import urllib.request
@@ -33,13 +34,24 @@ BUCKETS = [
     ("Softwares & SaaS",    ["software", "saas", "assinatura", "licença", "licenca", "nuvem", "cloud", "google workspace", "microsoft", "office 365", "365", "google one", "drive", "vercel", "supabase", "rd station", "rdstation", "kommo", "pipedrive", "kenlo", "imoview", "notion"]),
     ("Aluguéis & Condomínio", ["aluguel", "aluguéis", "condomin", "condominio", "condomínio", "locacao imovel", "iptu sede"]),
     ("Contabilidade & Consultoria", ["contabilidade", "contábil", "contabil", "consultoria", "advog", "advogad", "honorário advoc"]),
-    ("Internet & Telecom",  ["internet", "wi-fi", "wifi", "telefon", "celular", "operadora", "claro", "vivo", "tim ", "oi ", "datora", "fibra"]),
+    ("Internet & Telecom",  ["internet", "wi-fi", "wifi", "telefon", "celular", "operadora", "claro", "vivo", "tim", "oi", "datora", "fibra"]),
     ("Energia & Água",      ["energia", "luz", "elétric", "eletric", "eletrica", "agua", "água", "saneamento"]),
     ("Marketing & Mídia",   ["marketing", "anúncio", "anuncio", "facebook ads", "meta ads", "google ads", "instagram", "mídia", "midia", "patrocínio", "patrocinio", "agência", "agencia"]),
     ("Manutenção & Limpeza", ["manutenção", "manutencao", "limpeza", "faxina", "diarista", "reparo", "consert", "predial"]),
-    ("Impostos & Taxas",    ["imposto", "tributo", "iss", "simples nacional", "pis ", "cofins", "irpj", "csll", "darf", "taxa "]),
+    ("Impostos & Taxas",    ["imposto", "tributo", "iss", "simples nacional", "pis", "cofins", "irpj", "csll", "darf", "taxa"]),
     ("Bancário",            ["tarifa banco", "tarifa bancária", "tarifa bancaria", "manutenção conta", "anuidade cartão", "tarifa cobr"]),
 ]
+
+# Tokens curtos/ambíguos exigem limite de palavra (\b…\b) pra não casar dentro de
+# outra palavra: "iss" em "comISSão", "oi" em "fOI", "tim" em "esTIMado", "taxa"
+# em "sinTAXA", "vt"/"pis" soltos. Regex compilado 1x. Os demais seguem substring.
+_WORD_KWS = {"iss", "oi", "tim", "taxa", "vt", "pis"}
+_WORD_RE = {kw: re.compile(r"\b" + re.escape(kw) + r"\b") for kw in _WORD_KWS}
+
+
+def _kw_hit(kw, blob):
+    rx = _WORD_RE.get(kw)
+    return (rx.search(blob) is not None) if rx else (kw in blob)
 
 
 def _classify(it):
@@ -59,7 +71,7 @@ def _classify(it):
     blob = " | ".join(parts)
     for name, kws in BUCKETS:
         for kw in kws:
-            if kw in blob:
+            if _kw_hit(kw, blob):
                 return name
     return None
 
@@ -131,7 +143,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            user = require_user(self, min_lvl=5)
+            user = require_user(self, min_lvl=4)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
 
@@ -142,6 +154,9 @@ class handler(BaseHTTPRequestHandler):
             params = {}
         company = (params.get("company") or "all").strip().lower()
         months = max(1, min(12, int(params.get("months", "3") or "3")))
+        # Item sem data (mk is None) não tem mês → por padrão FICA FORA da janela
+        # "últimos N meses" (não dá pra dizer se entra ou sai). ?sem_data=1 inclui.
+        incluir_sem_data = (params.get("sem_data") or "").strip().lower() in ("1", "true", "sim")
         companies = ["imoveis", "locacao"] if company == "all" else [company]
 
         all_items = []
@@ -163,6 +178,7 @@ class handler(BaseHTTPRequestHandler):
         by_bucket_month = defaultdict(lambda: defaultdict(float))
         all_months = set()
         unclass = 0
+        sem_data_n = 0
 
         for it in all_items:
             if not isinstance(it, dict): continue
@@ -171,7 +187,11 @@ class handler(BaseHTTPRequestHandler):
                 unclass += 1
                 continue
             mk = _month_key(_date_str(it))
-            if mk and mk < cutoff_key:
+            if mk is None:
+                sem_data_n += 1
+                if not incluir_sem_data:
+                    continue
+            elif mk < cutoff_key:
                 continue
             v = _money(it.get("value") or it.get("amount"))
             settled = _settled(it)
@@ -215,6 +235,8 @@ class handler(BaseHTTPRequestHandler):
                 "previsto": sum(b["previsto"] for b in buckets_out),
             },
             "unclassified": unclass,
+            "sem_data": sem_data_n,
+            "sem_data_incluidos": incluir_sem_data,
             "month_keys": sorted(list(all_months)),
             "errors": errors,
             "fetched_at": now.isoformat(),

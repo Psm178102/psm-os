@@ -62,10 +62,17 @@ function compute() {
   const mensaisAparadas = Math.max(0, nMensaisPedido - nMensais);
   const totalMensal = valorFinal * v.pctMensal / 100;
   const mensal = nMensais > 0 ? totalMensal / nMensais : 0;
+  // anuais/semestrais que não cabem ATÉ AS CHAVES são aparadas (não podem cair depois
+  // da entrega, em cima do financiamento). Igual ao tratamento das mensais.
   const totalAnual = valorFinal * v.pctAnual / 100;
-  const anual = v.numAnuais > 0 ? totalAnual / v.numAnuais : 0;
+  const nAnuaisPedido = Math.max(0, Math.round(v.numAnuais || 0));
+  const nAnuais = Math.min(nAnuaisPedido, Math.floor(v.prazoObra / 12));
+  const anual = nAnuais > 0 ? totalAnual / nAnuais : 0;
   const totalSemestral = valorFinal * v.pctSemestral / 100;
-  const semestral = v.numSemestrais > 0 ? totalSemestral / v.numSemestrais : 0;
+  const nSemestraisPedido = Math.max(0, Math.round(v.numSemestrais || 0));
+  const nSemestrais = Math.min(nSemestraisPedido, Math.floor(v.prazoObra / 6));
+  const semestral = nSemestrais > 0 ? totalSemestral / nSemestrais : 0;
+  const parcelasAparadas = (nAnuaisPedido - nAnuais) + (nSemestraisPedido - nSemestrais);
   const financ = valorFinal * v.pctFinanc / 100;
   const pctTotal = v.pctAto + v.pctMensal + v.pctAnual + v.pctSemestral + v.pctFinanc;
 
@@ -74,20 +81,20 @@ function compute() {
   for (let i = 0; i <= nLinhas; i++) {
     const ent = i < nAto ? ato : 0;
     const m = (i >= nAto && i < nAto + nMensais) ? mensal : 0;
-    const a = (i > 0 && i % 12 === 0 && i / 12 <= v.numAnuais) ? anual : 0;
-    const s = (i > 0 && v.numSemestrais > 0 && i % 6 === 0 && i / 6 <= v.numSemestrais) ? semestral : 0;
+    const a = (i > 0 && i % 12 === 0 && i / 12 <= nAnuais) ? anual : 0;
+    const s = (i > 0 && nSemestrais > 0 && i % 6 === 0 && i / 6 <= nSemestrais) ? semestral : 0;
     const f = (i === v.prazoObra) ? financ : 0;
     const total = ent + m + a + s + f;
     const pv = total / Math.pow(1 + taxaM, i);
     fluxo.push({ mes: i, ent, m, a, s, f, total, pv, chaves: i === v.prazoObra && v.prazoObra > 0 });
   }
   const vpl = fluxo.reduce((sum, x) => sum + x.pv, 0);
-  const descVPL = ((1 - vpl / v.valorTabela) * 100).toFixed(2);
+  const descVPL = v.valorTabela > 0 ? ((1 - vpl / v.valorTabela) * 100).toFixed(2) : '0.00';
   const m2VPL = v.m2 > 0 ? (vpl / v.m2).toFixed(0) : 0;
   const m2Tabela = v.m2 > 0 ? (v.valorTabela / v.m2).toFixed(0) : 0;
   const tot = fluxo.reduce((acc, x) => ({ ent: acc.ent + x.ent, m: acc.m + x.m, s: acc.s + x.s, a: acc.a + x.a, f: acc.f + x.f, total: acc.total + x.total }),
     { ent: 0, m: 0, s: 0, a: 0, f: 0, total: 0 });
-  return { taxaM, ato, atoTotal, nAto, mensaisAparadas, mensal, anual, semestral, financ, pctTotal, fluxo, tot, vpl, descVPL, m2VPL, m2Tabela, totalMensal, totalAnual, valorFinal, nMensais };
+  return { taxaM, ato, atoTotal, nAto, mensaisAparadas, parcelasAparadas, nAnuais, nSemestrais, mensal, anual, semestral, financ, pctTotal, fluxo, tot, vpl, descVPL, m2VPL, m2Tabela, totalMensal, totalAnual, valorFinal, nMensais };
 }
 
 /* ═══════════ A TABELA DA PLANILHA (idêntica na tela, na impressão e no share) ═══════════ */
@@ -397,8 +404,10 @@ function pintaSaida() {
     ? `<div class="alert alert-warn tiny">⚠ Total: ${c.pctTotal.toFixed(1)}% (deve ser 100%)</div>` : '');
   const aparou = c.mensaisAparadas > 0
     ? ` <span style="color:#d97706">· Nº de Mensais reduzido em ${c.mensaisAparadas} para não passar das chaves</span>` : '';
-  set('#vpl-avisoato', (c.nAto > 1 || c.mensaisAparadas > 0)
-    ? `${c.nAto > 1 ? `ato ${c.nAto}x (meses 0 a ${c.nAto - 1}) + ` : ''}<b>${c.nMensais} mensais</b> (meses ${c.nAto} a ${_s.prazoObra}), chaves no mês ${_s.prazoObra}${aparou}`
+  const aparouPar = c.parcelasAparadas > 0
+    ? ` <span style="color:#d97706">· ${c.parcelasAparadas} parcela(s) anual/semestral aparada(s) (não cabem antes das chaves)</span>` : '';
+  set('#vpl-avisoato', (c.nAto > 1 || c.mensaisAparadas > 0 || c.parcelasAparadas > 0)
+    ? `${c.nAto > 1 ? `ato ${c.nAto}x (meses 0 a ${c.nAto - 1}) + ` : ''}<b>${c.nMensais} mensais</b> (meses ${c.nAto} a ${_s.prazoObra}), chaves no mês ${_s.prazoObra}${aparou}${aparouPar}`
     : '');
 }
 

@@ -10,8 +10,9 @@ Roda via heartbeat (~30min) + cron Vercel (belt & suspenders). Idempotente.
 Alertas por alçada (nunca broadcast):
   🔴 SLA estourado           → gestores  (dedupe: notifications tipo=sla_lp)
   🟡 >3 falhas webhook / 1h  → diretoria (dedupe: 1×/hora via shared_kv)
-  🟡 paridade madura <95%    → diretoria (dedupe: 1×/dia; só leads +48h,
-                                que o sync RD 1×/dia já teve chance de casar)
+  🟡 paridade madura <meta   → diretoria (meta configurável em cfg.meta_paridade;
+                                dedupe 1×/dia; só leads +48h já elegíveis ao RD;
+                                leads de nutrição ficam FORA do denominador)
 Auth: Bearer CRON_SECRET ou lvl>=7.
 """
 from http.server import BaseHTTPRequestHandler
@@ -104,9 +105,10 @@ def _paridade_dia(sb, cfg, state, now):
     if (p.get("total") or 0) < 5 or p.get("pct") is None:
         return {"amostra_insuficiente": p.get("total", 0)}
     meta = min(99, cfg.get("meta_paridade") or 99)
-    if p["pct"] >= 95:
+    # alerta quando pct < meta CONFIGURÁVEL (não mais o 95 fixo)
+    if p["pct"] >= meta:
         state["paridade_alerta_d"] = marca
-        return {"pct": p["pct"], "ok": True}
+        return {"pct": p["pct"], "ok": True, "meta": meta}
     ids = _diretoria_ids(sb)
     notify(ids, "lp_paridade", f"🟡 Paridade LP×RD em {p['pct']}% (meta {meta}%)",
            f"{p['casados']}/{p['total']} leads da janela madura casaram com o RD. "

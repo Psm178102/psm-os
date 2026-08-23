@@ -1,7 +1,7 @@
 /* ============================================================================
    PSM-OS v2 — Financeiro (NIBO live) — Sprint 7.5 c/ tabs
 ============================================================================ */
-import { api } from '../api.js';
+import { api, fmtDataBR } from '../api.js';
 import { mountCaixa } from './caixa-panel.js';
 import { auth } from '../auth.js';
 import { heroWrap, heroKpi, miniStat, panel, loadChartLib, darkOpts, DARK_INK, DARK_GRID, pctDelta } from '../premium.js';
@@ -15,8 +15,9 @@ let _charts = [];               // instâncias Chart.js do hero (destruídas a c
 export async function pageFinanceiro(ctx, root) {
   _root = root;
   const me = auth.user();
-  if ((me?.lvl || 0) < 5) {
-    root.innerHTML = `<div class="alert alert-warn">🔒 Requer nível Líder (5) ou superior. Você é <code>${me?.role}</code> (L${me?.lvl}).</div>`;
+  const ehFinanceiro = (me?.role || '').toLowerCase() === 'financeiro';
+  if ((me?.lvl || 0) < 4 && !ehFinanceiro) {
+    root.innerHTML = `<div class="alert alert-warn">🔒 Requer nível Financeiro (4) ou superior. Você é <code>${me?.role}</code> (L${me?.lvl}).</div>`;
     return;
   }
   await loadAndRender();
@@ -64,7 +65,8 @@ function drawShell() {
     _tab = b.dataset.tab; await loadAndRender();
   }));
   document.getElementById('btn-reload').addEventListener('click', async () => {
-    _cache = {}; await loadAndRender();
+    _cache = {}; _hubFin = null; _hubMes = '';   // zera também o cache do PSM HUB (módulo-level)
+    await loadAndRender();
   });
 }
 
@@ -462,9 +464,9 @@ async function renderMetricas() {
         </svg>
       </div>
       <div class="flex" style="justify-content:space-between;font-size:11px;margin-top:6px">
-        <span class="muted">${cash[0]?.data ? new Date(cash[0].data).toLocaleDateString('pt-BR') : ''}</span>
-        <span class="muted">${cash[Math.floor(cash.length/2)]?.data ? new Date(cash[Math.floor(cash.length/2)].data).toLocaleDateString('pt-BR') : ''}</span>
-        <span class="muted">${cash[cash.length-1]?.data ? new Date(cash[cash.length-1].data).toLocaleDateString('pt-BR') : ''}</span>
+        <span class="muted">${cash[0]?.data ? fmtDataBR(cash[0].data) : ''}</span>
+        <span class="muted">${cash[Math.floor(cash.length/2)]?.data ? fmtDataBR(cash[Math.floor(cash.length/2)].data) : ''}</span>
+        <span class="muted">${cash[cash.length-1]?.data ? fmtDataBR(cash[cash.length-1].data) : ''}</span>
       </div>
       <div class="tiny muted mt-2">
         Linha azul = saldo acumulado dia a dia · Pontos vermelhos = dias com saldo < 0 ·
@@ -489,7 +491,7 @@ async function renderMetricas() {
           <tbody>
             ${next14.map(c => `
               <tr style="border-bottom:1px solid var(--border)">
-                <td style="padding:5px 8px;font-weight:600">${new Date(c.data).toLocaleDateString('pt-BR')}</td>
+                <td style="padding:5px 8px;font-weight:600">${fmtDataBR(c.data)}</td>
                 <td style="text-align:right;padding:5px 8px;color:#16a34a">${c.in > 0 ? 'R$ ' + money(c.in) + ` <span class="tiny muted">(${c.in_n})</span>` : '—'}</td>
                 <td style="text-align:right;padding:5px 8px;color:#dc2626">${c.out > 0 ? 'R$ ' + money(c.out) + ` <span class="tiny muted">(${c.out_n})</span>` : '—'}</td>
                 <td style="text-align:right;padding:5px 8px;font-weight:700;color:${c.saldo_dia >= 0 ? '#16a34a' : '#dc2626'}">R$ ${money(c.saldo_dia)}</td>
@@ -613,7 +615,7 @@ function bucketCard(b, monthKeys, totalGeral) {
             <tbody>
               ${b.rows.map(r => `
                 <tr style="border-bottom:1px solid var(--border)">
-                  <td style="padding:4px 8px" class="muted">${r.data ? new Date(r.data).toLocaleDateString('pt-BR') : '—'}</td>
+                  <td style="padding:4px 8px" class="muted">${fmtDataBR(r.data)}</td>
                   <td style="padding:4px 8px;font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(r.stakeholder)}">${escapeHtml(r.stakeholder)}</td>
                   <td style="text-align:right;padding:4px 8px;font-weight:700">R$ ${money(r.valor)}</td>
                   <td style="text-align:center;padding:4px 8px">${r.settled ? '<span style="color:#16a34a">✓</span>' : '<span style="color:#d97706">⏳</span>'}</td>
@@ -688,7 +690,7 @@ async function renderComissoes() {
               <tbody>
                 ${d.rows.map(r => `
                   <tr style="border-bottom:1px solid var(--border)">
-                    <td style="padding:5px 8px" class="muted">${r.data ? new Date(r.data).toLocaleDateString('pt-BR') : '—'}</td>
+                    <td style="padding:5px 8px" class="muted">${fmtDataBR(r.data)}</td>
                     <td style="padding:5px 8px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px" title="${escapeHtml(r.stakeholder)}">${escapeHtml(r.stakeholder)}</td>
                     <td style="padding:5px 8px" class="muted">${escapeHtml(r.category)}</td>
                     <td style="text-align:right;padding:5px 8px;font-weight:700;color:#7c3aed">R$ ${money(r.valor)}</td>
@@ -758,7 +760,7 @@ async function renderRepasses() {
               <tbody>
                 ${d.rows.map(r => `
                   <tr style="border-bottom:1px solid var(--border)">
-                    <td style="padding:5px 8px" class="muted">${r.data ? new Date(r.data).toLocaleDateString('pt-BR') : '—'}</td>
+                    <td style="padding:5px 8px" class="muted">${fmtDataBR(r.data)}</td>
                     <td style="text-align:center;padding:5px 8px">${r.direction === 'credit' ? '<span title="Receber" style="color:#16a34a">↓</span>' : '<span title="Pagar" style="color:#dc2626">↑</span>'}</td>
                     <td style="padding:5px 8px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px" title="${escapeHtml(r.stakeholder)}">${escapeHtml(r.stakeholder)}</td>
                     <td style="padding:5px 8px" class="muted">${escapeHtml(r.category)}</td>

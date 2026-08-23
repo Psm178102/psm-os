@@ -558,8 +558,10 @@ function kpiMes() {
   const hoje = new Date();
   const nd = new Date(_ano, mr, 0).getDate();
   const dia = (_ano === hoje.getFullYear() && mr === hoje.getMonth() + 1) ? hoje.getDate() : nd;
-  const margMedia = vgvOrc > 0 ? margemPond / vgvOrc : 1.8;   // % média ponderada pela meta
-  return { mr, custo, vgv, vendas, margem, margMedia,
+  // % média ponderada pela meta (payload orçado); 1,8 é só estimativa quando não há orçado
+  const margMedia = vgvOrc > 0 ? margemPond / vgvOrc : 1.8;
+  const margMediaFonte = vgvOrc > 0 ? 'orcado' : 'estimativa';
+  return { mr, custo, vgv, vendas, margem, margMedia, margMediaFonte,
     cob: custo ? margem / custo * 100 : 0, esp: dia / nd * 100, dia, nd,
     metaMes: vgvOrc, espVgv: vgvOrc * dia / nd };
 }
@@ -1524,13 +1526,27 @@ function seedBE() {
   const fixo = Math.round(custoMesTotal(mesRef()));
   let cv = 0, cVGV = 0;
   for (let m = 1; m <= 12; m++) { const r = realCell('conquista', m); cv += r.vendas; cVGV += r.vgv; }
-  const meses = Math.max(1, new Date().getMonth() + 1);
+  // ano ANTERIOR ao corrente = ano cheio (÷12); ano corrente = meses decorridos
+  const now = new Date();
+  const meses = (_ano < now.getFullYear()) ? 12 : Math.max(1, now.getMonth() + 1);
+  // margem/ticket vêm do ORÇADO (payload) da frente no mês de referência quando
+  // existirem; senão caem na constante, rotulada fonte:'estimativa' (v67).
+  const pick = (linha, cMargem, cTicket) => {
+    const o = orcCell(linha, mesRef());
+    const mp = (+o.com_bruta_pct || 0) - (+o.com_corretor_pct || 0) - (+o.com_senior_pct || 0) - (+o.com_gerente_pct || 0) - (+o.com_bruta_pct || 0) * (+o.aliquota_pct || 0) / 100;
+    const tk = (+o.vendas > 0) ? Math.round((+o.vgv || 0) / (+o.vendas)) : 0;
+    return { margem: mp || cMargem, ticket: tk || cTicket, fonte: (mp && tk) ? 'orcado' : 'estimativa' };
+  };
+  const conq = pick('conquista', 1.8, 283000);
+  const soc = pick('socio', 4.5, 400000);
+  const mp = pick('map', 1.88, 345000);
+  const terc = pick('terceiros', 1.3, 400000);
   return {
     fixo, proLabore: proLaboreMes(),
-    conquista: { vendas: cv ? +(cv / meses).toFixed(1) : 2.3, ticket: cv ? Math.round(cVGV / cv) : 283000, margem: 1.8 },
-    socio: { vendas: 0, ticket: 400000, margem: 4.5 },
-    map: { corretores: 0, vendasCorr: 2, ticket: 345000, margem: 1.88, trafego: 3000 },
-    terceiros: { vendas: 0, ticket: 400000, margem: 1.3, trafego: 3000 },
+    conquista: { vendas: cv ? +(cv / meses).toFixed(1) : 2.3, ticket: cv ? Math.round(cVGV / cv) : conq.ticket, margem: conq.margem, fonte: cv ? 'realizado' : conq.fonte },
+    socio: { vendas: 0, ticket: soc.ticket, margem: soc.margem, fonte: soc.fonte },
+    map: { corretores: 0, vendasCorr: 2, ticket: mp.ticket, margem: mp.margem, trafego: 3000, fonte: mp.fonte },
+    terceiros: { vendas: 0, ticket: terc.ticket, margem: terc.margem, trafego: 3000, fonte: terc.fonte },
     locacao: { corretores: 0, minGar: 2500, capt: 0, aluguel: 2500, adm: 10, carteira: 0, trafego: 2000 },
   };
 }

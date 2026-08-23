@@ -42,6 +42,13 @@ function render(atin, dre, custos) {
 
   const custosTotal = (custos?.totals?.total) || 0;
 
+  // NIBO foi cancelado (ago/2026): DRE/custos vêm null. Em vez de mostrar R$ 0,00
+  // (que parece dado real zerado), avisamos e ocultamos os cards "real".
+  const niboOff = !dre || !custos;
+  const niboBanner = niboOff
+    ? `<div class="alert alert-warn mt-3">🌉 <b>NIBO cancelado (ago/2026)</b> — o financeiro oficial agora está em <a href="#/financeiro">Financeiro › PSM HUB</a>. Os blocos de DRE/custos abaixo ficam ocultos até a portabilidade.</div>`
+    : '';
+
   _root.innerHTML = `
     <div class="card">
       <h2 class="card-title">📋 Plano Consolidado (BP) ${_ano}</h2>
@@ -62,19 +69,23 @@ function render(atin, dre, custos) {
         ${kpi('Falta/Sobra', 'R$ ' + money(totAtingido - totMeta), totAtingido >= totMeta ? 'sobra' : 'falta', totAtingido >= totMeta ? '#16a34a' : '#dc2626')}
       </div>
 
+      ${niboBanner}
+
+      ${dre ? `
       <h3 class="card-title mt-4">💰 DRE consolidado (12 meses)</h3>
       <div class="flex gap-3" style="flex-wrap:wrap">
         ${kpi('Receita real', 'R$ ' + money(dreT.receita_real), 'recebida 12m', '#16a34a')}
         ${kpi('Despesa real', 'R$ ' + money(dreT.despesa_real), 'paga 12m', '#dc2626')}
         ${kpi('Saldo real', 'R$ ' + money(saldoReal), 'caixa líquido', saldoReal >= 0 ? '#16a34a' : '#dc2626')}
         ${kpi('Receita prev', 'R$ ' + money(dreT.receita_prev), 'a receber', '#0891b2')}
-      </div>
+      </div>` : ''}
 
+      ${custos ? `
       <h3 class="card-title mt-4">🏢 Custos Fixos (12 meses)</h3>
       <div class="flex gap-3" style="flex-wrap:wrap">
         ${kpi('Total custos', 'R$ ' + money(custosTotal), (custos?.buckets || []).length + ' categorias', '#7c3aed')}
         ${kpi('Folha+SaaS', 'R$ ' + money(((custos?.buckets || []).find(b => b.bucket==='Folha de Pagamento')?.total || 0) + ((custos?.buckets || []).find(b => b.bucket==='Softwares & SaaS')?.total || 0)), 'principais fixos', '#d97706')}
-      </div>
+      </div>` : ''}
 
       ${(atin.grid || []).length > 0 ? `
         <h3 class="card-title mt-4">👥 Atingimento por corretor (top 10)</h3>

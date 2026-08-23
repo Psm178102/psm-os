@@ -118,8 +118,24 @@ class handler(BaseHTTPRequestHandler):
             return self._send(503, {"ok": False, "error": "backend"})
         now = datetime.now(timezone.utc)
 
-        # ⚡ speed-to-lead roda SEMPRE (não depende de cron_state nem de CRON_SECRET)
-        sla = _sla_alarm(sb, now)
+        # ⚡ speed-to-lead: NÃO roda em toda chamada (o boot dispara vários heartbeats).
+        # Throttle via cron_state 'sla_ran_at' → no máx 1×/20min. Se o cron_state estiver
+        # indisponível, roda mesmo assim (comportamento antigo, best-effort).
+        sla = {"skip": "throttled (<20min)"}
+        try:
+            r = sb.table("cron_state").select("ran_at").eq("key", "sla_ran_at").limit(1).execute().data or []
+            last_sla = None
+            if r:
+                try:
+                    last_sla = datetime.fromisoformat(str(r[0]["ran_at"]).replace("Z", "+00:00"))
+                except Exception:
+                    last_sla = None
+            if last_sla is None or (now - last_sla) > timedelta(minutes=20):
+                sla = _sla_alarm(sb, now)
+                sb.table("cron_state").upsert({"key": "sla_ran_at", "ran_at": now.isoformat(),
+                                               "note": "sla throttle"}, on_conflict="key").execute()
+        except Exception:
+            sla = _sla_alarm(sb, now)
 
         secret = os.environ.get("CRON_SECRET", "").strip()
         if not secret:

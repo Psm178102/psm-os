@@ -6,7 +6,12 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null;
-const MESES = Math.max(1, new Date().getMonth() + 1);
+// run-rate honesto: meses completos decorridos + a FRAÇÃO do mês corrente
+// (ex.: 23/ago → 7 + 23/31 ≈ 7,74), não o mês corrente inteiro (que infla o divisor).
+const _now = new Date();
+const _mAtual = _now.getMonth() + 1;
+const _diasNoMes = new Date(_now.getFullYear(), _mAtual, 0).getDate();
+const MESES = Math.max(1, (_mAtual - 1) + _now.getDate() / _diasNoMes);
 const f$ = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fK = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const f1 = n => (Math.round((n || 0) * 10) / 10).toLocaleString('pt-BR');
@@ -123,7 +128,7 @@ function render(d, loading) {
       ${ciclo('🔄 #3', 'Viabilidade → Orçamento', 'VGV de equilíbrio/meta → "Orçamento pra meta" no Simulador calcula quanto investir em tráfego (engenharia reversa).', 'ok')}
       ${ciclo('🔄 #4', 'Vendas → Projeção → Meta', 'O run-rate do realizado projeta o ano e ajusta a meta na aba Metas.', 'ok')}
     </div>
-    <div class="tiny muted" style="margin-top:10px">💡 Clique em qualquer bloco pra abrir a tela. Os números são a média mensal do ano (Meta ${m.meses} mês(es) arquivado(s); CRM ÷ ${MESES} meses decorridos).</div>
+    <div class="tiny muted" style="margin-top:10px">💡 Clique em qualquer bloco pra abrir a tela. Os números são a média mensal do ano (Meta ${m.meses} mês(es) arquivado(s); CRM ÷ ${f1(MESES)} meses decorridos).</div>
   </div>
   <style>
     .mc-band{font-size:11px;text-transform:uppercase;font-weight:800;color:var(--text-2,#94a3b8);letter-spacing:.5px;margin:18px 0 8px}

@@ -374,7 +374,9 @@ async function importXlsx(input) {
     if (!window.XLSX) throw new Error('sem leitor de planilha');
     const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '' });
+    // raw:false → o SheetJS FORMATA célula (preço/data viram texto legível) em vez de
+    // devolver o serial cru do Excel (ex.: 45678 no lugar de uma data / R$).
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, blankrows: false, defval: '' });
     if (!aoa.length) throw new Error('planilha vazia');
     _draft.colunas = (aoa[0] || []).map(c => String(c == null ? '' : c) || 'Coluna');
     _draft.linhas = aoa.slice(1).filter(r => r.some(c => String(c).trim() !== '')).map(r => {

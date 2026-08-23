@@ -299,6 +299,11 @@ function execMetrics(k) {
     <div style="font-size:22px;font-weight:900;color:${color};margin:2px 0">${val}</div>
     <div class="tiny muted">${sub}</div></div>`;
   const cfHint = k.custo_fixo_por_venda != null ? 'mês ÷ vendas do mês' : 'defina o custo fixo mensal nas premissas';
+  // margem % vem do backend (kpis.margem_pct) quando existe; senão deriva das
+  // premissas (comissão − custo variável) — sem hardcode de 4/1,45/2,55%.
+  const comPct = (pr.comissao_pct != null ? pr.comissao_pct : 0.04) * 100;
+  const cvPct = (pr.custo_var_pct != null ? pr.custo_var_pct : 0.0145) * 100;
+  const margemPct = k.margem_pct != null ? k.margem_pct : (comPct - cvPct);
   return `
     <div class="card" style="margin:14px 0">
       <h3 class="card-title">📊 Métricas Executivas <span class="tiny muted" style="font-weight:400">· só Diretoria</span></h3>
@@ -309,7 +314,7 @@ function execMetrics(k) {
         ${ex('♻️ LTV (comissão/cliente)', 'R$ ' + moneyShort(k.ltv || 0), 'comissão média por cliente', '#a855f7')}
         ${ex('🔄 Turnover', k.turnover_pct != null ? pct2(k.turnover_pct) : '—', `${k.users_inativos || 0} inativos / ${k.users_total || 0}`, (k.turnover_pct || 0) > 15 ? '#dc2626' : '#d97706')}
       </div>
-      <div class="tiny muted mt-2">Premissas PSM: comissão <b>${pct2((pr.comissao_pct || 0.04) * 100)}</b> do VGV · custo variável <b>${pct2((pr.custo_var_pct || 0.0145) * 100)}</b> do VGV · custo fixo/mês <b>${pr.custo_fixo_mensal ? 'R$ ' + moneyShort(pr.custo_fixo_mensal) : '—'}</b>. Margem = comissão (4% VGV) − custo variável (1,45% VGV) por venda.</div>
+      <div class="tiny muted mt-2">Premissas PSM: comissão <b>${pct2(comPct)}</b> do VGV · custo variável <b>${pct2(cvPct)}</b> do VGV · custo fixo/mês <b>${pr.custo_fixo_mensal ? 'R$ ' + moneyShort(pr.custo_fixo_mensal) : '—'}</b>. Margem = comissão (${pct2(comPct)} VGV) − custo variável (${pct2(cvPct)} VGV) = <b>${pct2(margemPct)}</b> por venda.</div>
     </div>`;
 }
 

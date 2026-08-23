@@ -8,7 +8,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -27,6 +27,15 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        # 🔒 O inventário de envs + contagem de usuários é RECON sensível: só p/ lvl>=7.
+        # Anônimo (o "dot" de saúde do front) recebe apenas {ok, version}.
+        detail = False
+        try:
+            require_user(self, min_lvl=7)
+            detail = True
+        except AuthError:
+            detail = False
+
         checks = {
             "supabase_url": bool(os.environ.get("SUPABASE_URL")),
             "supabase_service_key": bool(os.environ.get("SUPABASE_SERVICE_KEY")),
@@ -43,19 +52,28 @@ class handler(BaseHTTPRequestHandler):
         try:
             sb = supabase_client()
             if sb:
+                if detail:
+                    res = sb.table("users").select("id,password_hash").execute()
+                    rows = res.data or []
+                    users_count = len(rows)
+                    users_with_password = sum(1 for r in rows if r.get("password_hash"))
+                else:
+                    # sonda leve de conectividade (não vaza contagem) p/ manter o 'ok' honesto
+                    sb.table("users").select("id").limit(1).execute()
                 sb_ok = True
-                res = sb.table("users").select("id,password_hash").execute()
-                rows = res.data or []
-                users_count = len(rows)
-                users_with_password = sum(1 for r in rows if r.get("password_hash"))
         except Exception as e:
             err = str(e)
 
         # Required envs (sem essas, o sistema não funciona)
         required = ["supabase_url", "supabase_service_key", "jwt_secret"]
         all_ok = all(checks[k] for k in required) and sb_ok
+        status = 200 if all_ok else 503
 
-        return self._send(200 if all_ok else 503, {
+        # Público: só ok + version (é o que o front consome no dot de saúde)
+        if not detail:
+            return self._send(status, {"ok": all_ok, "version": "v3-sprint-7.0"})
+
+        return self._send(status, {
             "ok": all_ok,
             "version": "v3-sprint-7.0",
             "env": checks,

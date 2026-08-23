@@ -276,8 +276,10 @@ async function loadRolePerms() {
     const r = await api.request('/api/v3/settings/role_perms');
     _rolePerms = (r && r.perms) || {};
     ROUTE_LVL_OV = (r && r.route_lvl) || {};
+    return true;
   }
-  catch (_) { _rolePerms = {}; ROUTE_LVL_OV = {}; }
+  // Falha de rede NÃO zera a matriz — mantém a última boa (senão o menu sumia num blip). v86.68
+  catch (_) { return false; }
 }
 
 function _allowedGroups(user) {
@@ -424,7 +426,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.67';
+const APP_VERSION = '86.68';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -744,29 +746,55 @@ const APP_VERSION = '86.67';
   //   • matriz de permissões por papel (quais abas o cargo vê/usa)
   //   • nomes/renomeações de itens do menu (config-menu)
   // e re-aplica a barra lateral. Throttle 5s (config muda pouco). v81.31
-  let _lastPermApply = 0, _permsSig = null;
+  let _lastPermApply = 0, _permsSig = null, _lastLayoutSig = '';
+  // Não recarregar por cima do usuário se ele está digitando ou com um modal aberto —
+  // reload aqui apagaria o que ele preenche. (Modais do app = overlay fixo z alto.)
+  const _reloadBloqueado = () => {
+    try {
+      const a = document.activeElement;
+      if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return true;
+      for (const el of document.body.querySelectorAll('*')) {
+        const s = getComputedStyle(el);
+        if (s.position === 'fixed' && s.display !== 'none' && s.visibility !== 'hidden'
+            && parseFloat(s.zIndex || '0') >= 1000) {
+          const r = el.getBoundingClientRect();
+          if (r.width >= innerWidth * 0.5 && r.height >= innerHeight * 0.5) return true;
+        }
+      }
+    } catch (_) {}
+    return false;
+  };
   window.__psmApplyPerms = (force) => {
     const now = Date.now();
     if (!force && now - _lastPermApply < 5000) return;
     _lastPermApply = now;
     (async () => {
-      try { const fresh = await auth.hydrate(); if (fresh) Object.assign(user, fresh); } catch (_) {}
-      try { await loadRolePerms(); } catch (_) {}
-      try { await loadFrentes(true); applyFrentesPausadas(); } catch (_) {}
+      let okAll = true;
+      try { const fresh = await auth.hydrate(); if (fresh) Object.assign(user, fresh); } catch (_) { okAll = false; }
+      // loadRolePerms/loadFrentes/loadMenuLayout MANTÊM o valor anterior em falha de rede
+      // (não zeram) — um blip não pode zerar o menu nem disparar reload à toa.
+      try { if ((await loadRolePerms()) === false) okAll = false; } catch (_) { okAll = false; }
+      try { await loadFrentes(true); applyFrentesPausadas(); } catch (_) { okAll = false; }
       // Carrega rótulos + ORGANIZAÇÃO do menu (global) ANTES da assinatura — assim a
       // mudança de layout (Editor de Menu) também entra na detecção. v81.60
-      let layoutSig = '';
-      try { await loadMenuLabels(); } catch (_) {}
-      try { const lay = await loadMenuLayout(); layoutSig = JSON.stringify(lay || ''); } catch (_) {}
-      // À PROVA DE FALHA: se a permissão EFETIVA deste usuário OU a organização do
-      // menu mudou, faz um RELOAD limpo — garante o menu 100% certo, imune a
-      // qualquer detalhe de re-render ao vivo (applyMenuLayout usa o DOM já mexido). v81.32/81.60
-      try {
-        const role = (user.role || '').toLowerCase();
-        const sig = JSON.stringify([role, user.lvl, user.menu_groups || null, _rolePerms[role] || null, layoutSig]);
-        if (_permsSig !== null && sig !== _permsSig) { location.reload(); return; }
-        _permsSig = sig;
-      } catch (_) {}
+      let layoutSig = _lastLayoutSig;   // fallback = última assinatura boa (não '')
+      try { await loadMenuLabels(); } catch (_) { okAll = false; }
+      try { const lay = await loadMenuLayout(); layoutSig = JSON.stringify(lay || ''); _lastLayoutSig = layoutSig; }
+      catch (_) { okAll = false; }
+      // SÓ compara/recarrega quando TODAS as cargas vieram OK — senão dado incompleto
+      // (perms/layout vazios) recarregaria à toa ou com menu errado. v86.68
+      if (okAll) {
+        try {
+          const role = (user.role || '').toLowerCase();
+          const sig = JSON.stringify([role, user.lvl, user.menu_groups || null, _rolePerms[role] || null, layoutSig]);
+          if (_permsSig !== null && sig !== _permsSig) {
+            if (!_reloadBloqueado()) { location.reload(); return; }
+            // digitando/modal aberto: adia — não atualiza a assinatura, tenta de novo depois
+          } else {
+            _permsSig = sig;
+          }
+        } catch (_) {}
+      }
       try { applyPermissions(user); } catch (_) {}
     })();
   };
