@@ -101,11 +101,11 @@ export const api = {
   me() {
     return request('/api/v3/auth/me');
   },
-  setPassword(user_id, new_password) {
+  setPassword(user_id, new_password, email) {
     return request('/api/v3/auth/set_password', {
       method: 'POST',
       auth: !!tokenStore.get(), // anexa token se houver (bootstrap permite sem)
-      body: { user_id, new_password },
+      body: user_id ? { user_id, new_password } : { email, new_password },
     });
   },
 

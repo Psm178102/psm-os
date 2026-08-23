@@ -109,10 +109,13 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
     def do_GET(self):
+        viewer = _v3_current_user(self)   # v86.67: exige login (era público)
+        if not viewer:
+            return self._send_json(401, {"ok": False, "error": "autenticação necessária"})
         sb = _supabase_client()
         if not sb:
             return self._send_json(503, {
@@ -130,13 +133,16 @@ class handler(BaseHTTPRequestHandler):
                     return self._send_json(404, {"ok": False, "error": f"user not found: {user_id}"})
                 return self._send_json(200, {"ok": True, "user": u})
             else:
-                show_all = (params.get("all", "") or "").lower() in ("1", "true", "yes")
+                show_all = (params.get("all", "") or "").lower() in ("1", "true", "yes") and (viewer.get("lvl") or 0) >= 7
                 users = _list_users(sb, show_all)
                 return self._send_json(200, {"ok": True, "count": len(users), "users": users})
         except Exception as e:
             return self._send_json(500, {"ok": False, "error": str(e)})
 
     def do_POST(self):
+        actor = _v3_current_user(self)   # v86.67: upsert (inclusive role) era aberto sem login
+        if not actor or (actor.get("lvl") or 0) < 10:
+            return self._send_json(403, {"ok": False, "error": "apenas Sócio pode criar/editar usuário por aqui"})
         sb = _supabase_client()
         if not sb:
             return self._send_json(503, {"ok": False, "error": "Supabase nao configurado"})

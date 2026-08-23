@@ -49,8 +49,8 @@ class handler(BaseHTTPRequestHandler):
         user_id = (body.get("user_id") or "").strip()
         new_password = body.get("new_password") or ""
 
-        if not user_id or not new_password:
-            return self._send(400, {"ok": False, "error": "user_id e new_password obrigatórios"})
+        if not (user_id or (body.get("email") or "").strip()) or not new_password:
+            return self._send(400, {"ok": False, "error": "user_id (ou email) e new_password obrigatórios"})
 
         if len(new_password) < 6:
             return self._send(400, {"ok": False, "error": "senha precisa ter ≥ 6 caracteres"})
@@ -59,16 +59,22 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
 
-        # Lê target user
+        # Lê target user — v86.67: aceita `email` no lugar de `user_id` no 1º acesso
+        # (a lista de usuários deixou de ser pública; o login não a consulta mais)
         try:
-            res = sb.table("users").select("id,password_hash,status").eq("id", user_id).limit(1).execute()
+            email = (body.get("email") or "").strip().lower() if not user_id else ""
+            q = sb.table("users").select("id,password_hash,status")
+            q = q.eq("id", user_id) if user_id else q.ilike("email", email)
+            res = q.limit(1).execute()
             rows = res.data or []
             target = rows[0] if rows else None
+            if target and not user_id:
+                user_id = target["id"]
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"erro consulta: {e}"})
 
         if not target:
-            return self._send(404, {"ok": False, "error": "user não encontrado"})
+            return self._send(404, {"ok": False, "error": "E-mail não encontrado. Peça ao Sócio para cadastrar."})
 
         # Bootstrap: se ainda não tem senha, permite sem auth (modo "primeira definição")
         is_bootstrap = not target.get("password_hash")

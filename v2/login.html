@@ -114,15 +114,9 @@
       const b = document.getElementById('bs-pwd-2').value;
       if (a !== b) { bsMsg.innerHTML = '<div class="alert alert-err">Senhas não conferem.</div>'; return; }
 
-      // 1) pega user id via /api/v2/users (lookup por email — vamos filtrar client-side)
+      // v86.67: o servidor resolve o usuário pelo e-mail (a lista de usuários não é mais pública)
       try {
-        const r = await api.listUsers();
-        const usr = (r.users || []).find(u => (u.email || '').toLowerCase() === email.toLowerCase());
-        if (!usr) {
-          bsMsg.innerHTML = '<div class="alert alert-err">E-mail não encontrado. Peça ao Sócio para cadastrar.</div>';
-          return;
-        }
-        await api.setPassword(usr.id, a);
+        await api.setPassword(null, a, email);
         bsMsg.innerHTML = '<div class="alert alert-ok">Senha definida! Volte e faça login.</div>';
         setTimeout(() => { dlg.close(); document.getElementById('email').value = email; document.getElementById('password').focus(); }, 1200);
       } catch (err) {
