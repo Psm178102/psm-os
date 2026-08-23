@@ -68,9 +68,11 @@ class handler(BaseHTTPRequestHandler):
 
         # Self-update tem restrições (não pode escalar role nem desativar a si mesmo)
         if is_self and not is_socio:
-            for forbidden in ("role", "status"):
+            # v86.67: e-mail/equipe/rd_id/meta_id/ocultar-do-ranking só pelo Sócio — o sync do
+            # RD mapeia deals por e-mail, então trocar o próprio e-mail roubava a carteira de outro.
+            for forbidden in ("role", "status", "email", "team", "rd_id", "meta_id", "hide_from_ranking"):
                 if forbidden in fields:
-                    return self._send(403, {"ok": False, "error": f"você não pode alterar seu próprio '{forbidden}'"})
+                    return self._send(403, {"ok": False, "error": f"'{forbidden}' só pode ser alterado por um Sócio"})
 
         # Filtra whitelist
         patch = {k: v for k, v in fields.items() if k in ALLOWED_FIELDS}

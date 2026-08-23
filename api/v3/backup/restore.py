@@ -61,6 +61,14 @@ class handler(BaseHTTPRequestHandler):
             if table not in ALLOWED_TABLES:
                 report["skipped_tables"].append({"table": table, "reason": "não permitida"})
                 continue
+            if table == "users":
+                # v86.67: restore de users só Sócio e NUNCA toca role/status/senha — um lvl 7
+                # conseguia gravar role:"socio" ou trocar o hash de um sócio pelo restore.
+                if (actor.get("lvl") or 0) < 10:
+                    report["skipped_tables"].append({"table": table, "reason": "users: só Sócio"})
+                    continue
+                _proib = ("role", "status", "password_hash", "password_set_at", "push_subscriptions", "totp_secret", "menu_groups")
+                rows = [{k: v for k, v in (r or {}).items() if k not in _proib} for r in rows if isinstance(r, dict)]
             if whitelist and table not in whitelist:
                 report["skipped_tables"].append({"table": table, "reason": "fora da whitelist"})
                 continue

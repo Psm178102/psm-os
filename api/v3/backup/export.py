@@ -87,6 +87,8 @@ class handler(BaseHTTPRequestHandler):
                     col, dir_ = order
                     q = q.order(col, desc=(dir_ == "desc"))
                 rows = q.execute().data or []
+                if table == "users":   # v86.67: hash de senha nunca sai no export
+                    rows = [{k: v for k, v in r.items() if k not in ("password_hash", "password_set_at", "push_subscriptions", "totp_secret")} for r in rows]
                 dump["tables"][table] = rows
                 total_rows += len(rows)
             except Exception as e:
