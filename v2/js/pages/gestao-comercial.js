@@ -188,7 +188,12 @@ function bind(scope) {
   scope.querySelectorAll('[data-team]').forEach(b => b.onclick = () => { _team = b.dataset.team || null; _tv ? renderTV() : render(); });
   scope.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => { _tab = b.dataset.goto; _tv ? renderTV() : render(); });
   const q = s => scope.querySelector(s);
-  q('#gc-aplicar') && (q('#gc-aplicar').onclick = () => { _since = q('#gc-since').value; _until = q('#gc-until').value; load(); });
+  q('#gc-aplicar') && (q('#gc-aplicar').onclick = () => {
+    _since = q('#gc-since').value; _until = q('#gc-until').value;
+    const nd = Math.round((new Date(_until) - new Date(_since)) / 86400000) + 1;
+    _spendPreset = nd <= 8 ? 'last_7d' : nd <= 16 ? 'last_14d' : nd <= 32 ? 'last_30d' : 'this_month';
+    load();
+  });
   q('#gc-fresh') && (q('#gc-fresh').onclick = () => load(true));
   q('#gc-notas') && (q('#gc-notas').onclick = () => { _notas = !_notas; scope.querySelector('.gc')?.classList.toggle('notas', _notas); q('#gc-notas').classList.toggle('on', _notas); });
   q('#gc-tv') && (q('#gc-tv').onclick = enterTV);
@@ -205,7 +210,9 @@ function bind(scope) {
       ytd: () => new Date(h.getFullYear(), 0, 1),
     }[ev.target.value];
     if (!ini) return;
-    _since = f(ini()); _until = f(h); load();
+    _since = f(ini()); _until = f(h);
+    _spendPreset = { semana: 'last_7d', quinzena: 'last_14d', mes: 'this_month' }[ev.target.value] || 'this_month';   // v86.64: custo/campanhas seguem o período
+    load();
   });
   q('#gc-spend') && (q('#gc-spend').onchange = ev => { _spendPreset = ev.target.value; load(); });
 }
@@ -260,7 +267,7 @@ function cockpit() {
   const kpis = `
     <div class="gc-kpi" style="--kc:${st.c}"><div class="l">Vendas do mês</div>
       <div class="v">${fN(real)}${meta ? ` <small>/ ${fN(meta)}</small>` : ''}</div>
-      <div class="s"><span style="color:${st.c};font-weight:800">● ${st.lbl}</span>${meta ? ` · ${fN(pct)}% da meta · faltam ${fN(Math.max(0, meta - real))}` : ''}</div>
+      <div class="s"><span style="color:${st.c};font-weight:800">● ${st.lbl}</span>${meta ? ` · ${fN(pct)}% da meta · faltam ${fN(Math.max(0, meta - real))}` : (vgvMeta ? ' · meta de <b>quantidade</b> não cadastrada no 🎯 Metas — julgando pelo VGV' : '')}</div>
       <div class="gc-bar"><i style="width:${pct}%"></i></div></div>
     <div class="gc-kpi" style="--kc:var(--gc-acc)"><div class="l">Projeção do mês</div>
       <div class="v acc">${projR != null ? fN(Math.round(projR * 10) / 10) : '—'}${meta ? ` <small>/ ${fN(meta)}</small>` : ''}</div>
@@ -293,7 +300,7 @@ function cockpit() {
       <span>${esc(a.label)}: <b class="v">${fN(a.valor)}</b> <span class="tiny muted">(${a.acima ? '▲' : '▼'} ${fN(Math.abs(a.delta_pct))}% ${a.acima ? 'acima' : 'abaixo'} da régua ${fN(a.limite)})</span></span>
       <button class="btn btn-ghost btn-sm act" data-goto="${tab}">→ ${txt}</button></div>`; }).join('')}</div>` : '';
   const hub = v.hub_conquista;
-  return `<div class="gc-q"><h3>Como está nosso mês?</h3><span class="tiny muted">${MESES_NOME[hoje.getMonth()]} · ${_team ? tLbl(_team) : 'todas as equipes'} · metas do painel 🎯 Metas</span></div>
+  return `<div class="gc-q"><h3>Como está nosso mês?</h3><span class="tiny muted">${MESES_NOME[hoje.getMonth()]} · ${_team ? tLbl(_team) : 'todas as equipes'} · <b>mês corrente</b> (o período lá de cima recorta funil, fontes, custo e pessoas — não o mês)</span></div>
     <div class="gc-kpis">${kpis}</div>${cards}${alerts}
     ${hub && hub.vendas != null && hub.vendas !== real && _team !== null && _team !== 'conquista' ? '' : (hub && hub.vendas != null ? `<div class="tiny muted" style="margin-top:8px">🌉 PSM HUB (esteira Conquista) marca ${fN(hub.vendas)} venda(s) · R$ ${kR$(hub.vgv)} no mês — divergência com o RD = lançamento pendente num dos dois.</div>` : '')}
     <div class="gc-sr"><b>🧠 Sr. Performance:</b> <span class="gc-sr-txt" style="opacity:.7">analisando os números…</span></div>`;
@@ -428,7 +435,9 @@ function unitEconomicsCards() {
       ${tile(t, 'conv_venda', 'Conv. lead → venda', conv != null ? fN(conv) + '%' : '—', 'safra da janela')}
     </div></div>`; }).join('');
   const cfg = al.cfg || {};
-  return pan('📐 Unit economics do mês — custo por etapa e CAC (vermelho = fora da régua)', `
+  const jc = (_v.custos || {}).janela_custo;
+  const tit = jc ? `📐 Unit economics — ${jc.ini} → ${jc.fim} · spend Meta "${jc.preset}"${jc.segue_periodo ? '' : ' · <span class="warn">mês corrente: janela maior que 32 dias não tem spend da Meta por data</span>'}` : '📐 Unit economics do mês';
+  return pan(tit + ' (vermelho = fora da régua)', `
     ${blocos || '<div class="tiny muted">nenhuma equipe com mídia própria no recorte.</div>'}
     ${semMidia.length ? `<div class="tiny muted" style="margin-top:8px">Sem conta Meta própria (CAC vive no marketing/completo): ${semMidia.map(c => c.label).join(' · ')}</div>` : ''}
     <div class="tiny muted gc-nota" style="margin-top:6px">Régua: R$/lead ≤ ${fN(cfg.max_cpl || 0)} · CAC ≤ ${kR$(cfg.max_cac_midia || 0)} · 1º contato ≤ ${fN(cfg.max_contato_h || 0)}h · conv ≥ ${fN(cfg.min_conv_venda_pct || 0)}% · sem contato ≤ ${fN(cfg.max_sem_contato || 0)} · ritmo da meta ≥ ${fN(cfg.min_ritmo_meta_pct || 0)}% · ROAS ≥ ${fN(cfg.min_roas || 0)}×. Fora da régua notifica gestor + sócios 1×/dia.</div>`);
@@ -740,7 +749,7 @@ function tabCustos() {
       <td style="text-align:right;font-weight:900;font-size:13px;color:var(--gc-acc2)">${e.cac_marketing != null ? 'R$ ' + kR$(e.cac_marketing) : '—'}<div class="tiny muted">🎁 R$ ${kR$(e.premiacao_indicacao || 0)} (${fN(e.vendas_indicacao || 0)} indicação)</div></td>
       <td style="text-align:right;font-weight:900;font-size:13px;color:var(--gc-err)">${e.cac_completo != null ? 'R$ ' + kR$(e.cac_completo) : '—'}<div class="tiny muted">${fN(e.vendas)} venda(s) no mês</div></td>
     </tr>`).join('');
-  return pan(`💰 Unit economics do mês (${c.mes || ''}) — do lead ao CAC, por equipe`, `
+  return pan(`💰 Unit economics ${c.janela_custo ? c.janela_custo.ini + ' → ' + c.janela_custo.fim : 'do mês (' + (c.mes || '') + ')'} — do lead ao CAC, por equipe`, `
     <div style="overflow-x:auto"><table>
       <thead><tr style="text-align:right"><th style="text-align:left">Equipe</th><th>Spend Meta</th><th>R$/lead</th><th>R$/agendamento</th><th>R$/visita</th><th>R$/pasta</th><th>CAC mídia</th><th>CAC marketing</th><th>CAC completo</th></tr></thead>
       <tbody>${rows}</tbody></table></div>

@@ -49,7 +49,7 @@ MIN_VENDAS_RANK = 3
 CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
 CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
 CANAIS_PAGOS = ("trafego_imob", "google")   # v86.38: régua única de "venda de origem paga"
-CACHE_VER = "gc20"   # v86.39: bump aqui invalida página E cron juntos
+CACHE_VER = "gc21"   # v86.39: bump aqui invalida página E cron juntos
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -621,9 +621,29 @@ class handler(BaseHTTPRequestHandler):
         esteira_corr.sort(key=lambda x: (x["team"], -x["venda"], -(x["pasta"] or 0)))
         esteira_eq = {tk: _fecha_esteira(c) for tk, c in est_eq.items()}
 
-        # ── C) CUSTO DO FUNIL (mês corrente: spend ÷ atividade DO MÊS — decisão
-        # 17/ago: SEMPRE o mês atual, sem fallback de "últimos 30 dias") ──
-        _ma = read_meta_accounts(sb, preset="this_month") or read_meta_accounts(sb)
+        # ── C) CUSTO DO FUNIL — v86.64 (pedido do Paulo 23/ago: "filtro de prazo
+        # não muda nada"): o unit economics SEGUE A JANELA quando ela casa com um
+        # preset de spend da Meta (≤32 dias: 7d/14d/30d, mês atual, mês passado).
+        # Janela maior (ex.: 90d padrão) → cai no MÊS CORRENTE (decisão 17/ago),
+        # porque o cache da Meta não tem spend por data livre além de 30 dias.
+        import calendar as _calc
+        _ndias = (until_d - since_d).days + 1
+        _prev_ini = (mes_ini - timedelta(days=1)).replace(day=1)
+        _prev_fim = mes_ini - timedelta(days=1)
+        if since_d == mes_ini and until_d >= hoje:
+            c_preset, c_ini, c_fim = "this_month", mes_ini, hoje
+        elif since_d == _prev_ini and until_d == _prev_fim:
+            c_preset, c_ini, c_fim = "last_month", _prev_ini, _prev_fim
+        elif _ndias <= 8 and until_d >= hoje - timedelta(days=1):
+            c_preset, c_ini, c_fim = "last_7d", hoje - timedelta(days=6), hoje
+        elif _ndias <= 16 and until_d >= hoje - timedelta(days=1):
+            c_preset, c_ini, c_fim = "last_14d", hoje - timedelta(days=13), hoje
+        elif _ndias <= 32 and until_d >= hoje - timedelta(days=1):
+            c_preset, c_ini, c_fim = "last_30d", hoje - timedelta(days=29), hoje
+        else:
+            c_preset, c_ini, c_fim = "this_month", mes_ini, hoje
+        _ma = read_meta_accounts(sb, preset=c_preset) or read_meta_accounts(sb)
+        c_preset_usado = (_ma or {}).get("preset_used") or c_preset
         _ovr = read_team_account_override(sb)
         orcado = _kv_read(sb, "viab_custos_orcado")[0] or {}
         itens_orc = (orcado.get(str(hoje.year)) or {}).get("itens") or []
@@ -645,16 +665,17 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 return 0.0
         custos = []
-        mes_pool = [e for e in eds if e["created"] and e["created"].date() >= mes_ini]
+        _in = lambda dt: dt is not None and c_ini <= dt.date() <= c_fim
+        mes_pool = [e for e in eds if e["created"] and _in(e["created"])]
         for tk, lbl in TEAMS:
             acc = match_team_account((_ma or {}).get("accounts") or [], tk, _ovr) if _ma else None
             spend = _num(acc.get("spend")) if acc else 0.0
             pool = [e for e in mes_pool if e["team"] == tk]
             leads = len(pool)
-            agend = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(2) and e["t_marco"][2].date() >= mes_ini)
-            visita = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(3) and e["t_marco"][3].date() >= mes_ini)
-            pasta = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(5) and e["t_marco"][5].date() >= mes_ini)
-            wins_tk = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and e["closed"].date() >= mes_ini]
+            agend = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(2) and _in(e["t_marco"][2]))
+            visita = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(3) and _in(e["t_marco"][3]))
+            pasta = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(5) and _in(e["t_marco"][5]))
+            wins_tk = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and _in(e["closed"])]
             vendas = len(wins_tk)
             vgv = sum(e["vgv"] for e in wins_tk)
             # 🎯 v86.34 (achado do Paulo 17/ago): CAC MÍDIA divide o spend SÓ pelas
@@ -1353,7 +1374,7 @@ class handler(BaseHTTPRequestHandler):
         return {"visao": visao, "hub_conquista": hub_x, "fontes": fontes,
                 "historico": hist, "funil_rd": funil_rd, "campanhas": campanhas,
                 "forecast": forecast, "resposta": resposta,
-                "custos": {"mes": ym, "equipes": custos, "payback_midia": payback,
+                "custos": {"mes": ym, "janela_custo": {"ini": c_ini.isoformat(), "fim": c_fim.isoformat(), "preset": c_preset_usado, "segue_periodo": c_preset != "this_month" or since_d == mes_ini}, "equipes": custos, "payback_midia": payback,
                            "nota": "spend Meta this_month por conta da equipe ÷ atividade real do mês; CAC mídia divide SÓ pelas vendas de tráfego pago; CAC completo soma o custo fixo orçado da linha e divide por todas as vendas"},
                 "produtividade": {"corretores": corretores, "equipes": equipes_prod},
                 "esteira": {"corretores": esteira_corr, "equipes": esteira_eq,
